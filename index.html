@@ -4,9 +4,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Protocodus | Software & Systems Engineering</title>
+  <title>Protocodus | Startup Engineering Without the BS</title>
   <meta name="description"
-    content="Protocodus - We engineer robust systems and digital solutions. We combine technical depth with focused design to solve complex business challenges.">
+    content="Protocodus is a bold, experienced software engineering firm focused on building startups. No corporate bullshit, just brilliant execution.">
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -21,6 +21,7 @@
 <body>
   <!-- Animated Background Orbs -->
   <div class="bg-animation-container">
+    <canvas id="networkCanvas"></canvas>
     <div class="bg-orb orb-1"></div>
     <div class="bg-orb orb-2"></div>
     <div class="bg-orb orb-3"></div>
@@ -29,10 +30,11 @@
     <div class="container nav-container">
       <a href="#" class="logo">
         <img src="assets/images/logo.svg" alt="Protocodus Logo" class="logo-img">
+        <span class="logo-text">PROTOCODUS</span>
       </a>
       <div class="nav-links">
-        <a href="#services" class="nav-link">Services</a>
-        <a href="#about" class="nav-link">About</a>
+        <a href="#expertise" class="nav-link">What We Do</a>
+        <a href="#about" class="nav-link">Who We Are</a>
         <a href="#contact" class="nav-btn">Start a Project</a>
       </div>
       <button class="mobile-menu-btn" aria-label="Toggle Menu">
@@ -47,12 +49,12 @@
 
     <div class="container hero-container">
       <div class="hero-content">
-        <h1 class="hero-title">Engineering<br>digital<br>resilience.</h1>
-        <p class="hero-subtitle">We architect and build mission-critical systems. Deep technical expertise meets
-          uncompromising execution.</p>
+        <h1 class="hero-title">No bullshit.<br>Just brilliant<br>software.</h1>
+        <p class="hero-subtitle">We're an experienced engineering firm that builds wildly successful startups. You bring
+          the audacious vision, we bring the keyboards.</p>
         <div class="hero-actions">
-          <a href="#services" class="btn btn-primary">Our Expertise</a>
-          <a href="#contact" class="btn btn-outline">Start a Conversation</a>
+          <a href="#expertise" class="btn btn-primary">What We Do</a>
+          <a href="#contact" class="btn btn-outline">Start a Project</a>
         </div>
       </div>
       <div class="hero-visual">
@@ -66,35 +68,38 @@
     </div>
   </header>
 
-  <section class="services section" id="services">
+  <section class="expertise section" id="expertise">
     <div class="container">
       <div class="section-header">
-        <h2 class="section-title">Core Capabilities</h2>
-        <p class="section-desc">We don't just write code. We engineer high-performance solutions built for massive
-          scale.</p>
+        <h2 class="section-title">What We Actually Do</h2>
+        <p class="section-desc">We turn coffee into incredibly fast, scalable products. Here is how we make the magic
+          happen.</p>
       </div>
       <div class="bento-grid">
         <div class="bento-card bg-yellow">
-          <div class="bento-icon"><i class="ph-fill ph-hard-drives"></i></div>
-          <h3>Systems Engineering</h3>
-          <p>Architecting robust, fault-tolerant infrastructure and complex backend operations that power modern
-            enterprises.</p>
+          <div class="bento-icon"><i class="ph-bold ph-code"></i></div>
+          <h3>Fullstack Development</h3>
+          <p>We write code that doesn't just run—it absolutely flies. From bulletproof databases to snappy frontends, we
+            architect stuff your startup can actually scale on.</p>
         </div>
         <div class="bento-card">
-          <div class="bento-icon"><i class="ph-bold ph-bezier-curve"></i></div>
+          <div class="bento-icon"><i class="ph-bold ph-palette"></i></div>
           <h3>Interface Design</h3>
-          <p>Crafting precision-engineered, intuitive interfaces that eliminate friction and command user attention.</p>
+          <p>Ugly software is a crime against humanity. We design vibrant, intuitive interfaces that make your users
+            fall in love at first click.</p>
         </div>
         <div class="bento-card bg-mint text-dark">
-          <div class="bento-icon"><i class="ph-fill ph-rocket-launch"></i></div>
-          <h3>Proven Experience</h3>
-          <p>Trusted by top-tier financial institutions, algorithmic trading firms, and global logistics powerhouses.
-          </p>
+          <div class="bento-icon"><i class="ph-bold ph-robot"></i></div>
+          <h3>Integration and AI</h3>
+          <p>We make your disjointed systems talk to each other and sprinkle in actual AI—not just a cheap wrapper—so
+            your product feels like pure magic.</p>
         </div>
         <div class="bento-card">
-          <div class="bento-icon"><i class="ph-fill ph-cpu"></i></div>
-          <h3>Advanced Integrations</h3>
-          <p>Deploying intelligent automation and systemic integrations that multiply your operational capabilities.</p>
+          <div class="bento-icon"><i class="ph-bold ph-kanban"></i></div>
+          <h3>Project Management</h3>
+          <p>We know startups are living organisms. Priorities shift and plans change—and we are totally fine with that.
+            We promise radical transparency, sharing both the good and the bad so we can always move forward together.
+          </p>
         </div>
       </div>
     </div>
@@ -103,18 +108,19 @@
   <section class="about section" id="about">
     <div class="container about-container">
       <div class="about-content">
-        <h2 class="section-title">Who We Are</h2>
+        <h2 class="section-title">Who We Are (And Why We Rule)</h2>
         <p class="about-desc">
-          Protocodus is a specialized systems engineering firm. We combine uncompromising technical rigor with bold
-          execution to solve the most complex digital challenges. We don't settle for generic templates—we build the
-          foundations that ambitious organizations rely on to dominate their industries.
+          We're a team of veteran engineering nerds who got tired of the corporate grind. Protocodus is built on radical
+          honesty, vibrant creativity, and a slightly unhealthy obsession with doing things right. We partner
+          exclusively with startups because we love the chaos, and we know exactly how to tame it. We don't use
+          buzzwords to sound smart—we just build undeniably great things.
         </p>
         <ul class="about-list">
-          <li><span class="check-icon">✓</span> Mission-critical systems architecture</li>
-          <li><span class="check-icon">✓</span> Uncompromising baseline performance</li>
-          <li><span class="check-icon">✓</span> Radically transparent execution</li>
+          <li><span class="check-icon">✓</span> Brutally honest technical feedback</li>
+          <li><span class="check-icon">✓</span> Blazing fast, startup-speed execution</li>
+          <li><span class="check-icon">✓</span> Zero tolerance for fragile code</li>
         </ul>
-        <a href="#contact" class="btn btn-primary mt-2">Work With Us</a>
+        <a href="#contact" class="btn btn-primary mt-2">Let's Get Weird</a>
       </div>
       <div class="about-visual">
         <div class="bold-image-placeholder">
@@ -127,12 +133,12 @@
   <section class="contact section bg-dark text-white" id="contact">
     <div class="container contact-container">
       <div class="contact-header">
-        <h2 class="section-title title-light" style="margin-bottom: 0;">Let's talk engineering!</h2>
+        <h2 class="section-title title-light" style="margin-bottom: 0;">Let's start building together!</h2>
       </div>
       <div class="contact-direct">
         <p style="font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem;">Vojtech Hordejcuk</p>
-        <p style="color: var(--clr-mint); font-weight: 800; text-transform: uppercase; margin-bottom: 1.5rem;">Founder
-          & CEO</p>
+        <p style="color: var(--clr-mint); font-weight: 800; text-transform: uppercase; margin-bottom: 1.5rem;">Founder &
+          CEO</p>
         <a href="mailto:vojtech.hordejcuk@gmail.com" class="btn btn-primary"
           style="font-size: 1.25rem;">vojtech.hordejcuk@gmail.com</a>
       </div>
@@ -140,17 +146,17 @@
   </section>
 
   <footer class="footer">
-
-    <div class="container footer-container" style="grid-template-columns: 1fr;">
-      <div class="footer-brand" style="text-align: center;">
-        <a href="#" class="logo" style="justify-content: center;">
-          <img src="assets/images/logo.svg" alt="Protocodus Logo" class="logo-img" style="height: 240px; width: auto;">
+    <div class="container footer-container footer-centered">
+      <div class="footer-brand">
+        <a href="#" class="logo footer-logo">
+          <img src="assets/images/logo.svg" alt="Protocodus Logo" class="logo-img footer-logo-img">
+          <span class="logo-text footer-logo-text">PROTOCODUS</span>
         </a>
-        <p style="margin: 1rem auto; max-width: none;">Engineering robust systems and scalable digital solutions.</p>
+        <p class="footer-tagline">Honest engineering for audacious startups.</p>
       </div>
     </div>
-    <div class="footer-bottom container" style="display: block; text-align: center;">
-      <p>&copy; 2026 Protocodus. All rights reserved.</p>
+    <div class="footer-bottom container footer-bottom-centered">
+      <p>&copy; 2026 Protocodus. We built this, obviously.</p>
     </div>
   </footer>
   <script src="assets/js/main.js"></script>
