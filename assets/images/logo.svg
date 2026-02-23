@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <!-- "Plastic" aqua gradient for brackets -->
+    <linearGradient id="aquaPlastic" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#00FFC3"/>
+      <stop offset="0.55" stop-color="#00D9AA"/>
+      <stop offset="1" stop-color="#00B894"/>
+    </linearGradient>
+
+    <!-- Subtle highlight facet for aqua -->
+    <linearGradient id="aquaHighlight" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#BFFFF0" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#BFFFF0" stop-opacity="0"/>
+    </linearGradient>
+
+    <!-- Gold "plastic" gradient for spark -->
+    <linearGradient id="goldPlastic" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFE07A"/>
+      <stop offset="0.55" stop-color="#FFC400"/>
+      <stop offset="1" stop-color="#FF9F00"/>
+    </linearGradient>
+
+    <!-- Spark gloss band -->
+    <linearGradient id="sparkGloss" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFF6C7" stop-opacity="0.75"/>
+      <stop offset="0.55" stop-color="#FFF6C7" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#FFF6C7" stop-opacity="0"/>
+    </linearGradient>
+
+    <!-- Facet gloss -->
+    <linearGradient id="sparkFacet" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+
+    <!-- Clip so gloss stays inside the star -->
+    <clipPath id="starClip">
+      <path d="M256 162L280 234L356 256L280 278L256 350L232 278L156 256L232 234Z"/>
+    </clipPath>
+  </defs>
+
+  <!-- LEFT BRACKET ( < ) -->
+  <path fill="url(#aquaPlastic)"
+        d="M120 124L40 256L120 388L172 336L120 256L172 176Z"/>
+  <path fill="url(#aquaHighlight)"
+        d="M120 124L76 206L106 224L144 158Z"/>
+
+  <!-- RIGHT BRACKET ( > ) -->
+  <path fill="url(#aquaPlastic)"
+        d="M392 124L472 256L392 388L340 336L392 256L340 176Z"/>
+  <path fill="url(#aquaHighlight)"
+        d="M392 124L436 206L406 224L368 158Z"/>
+
+  <!-- STAR SPARK (base) -->
+  <path fill="url(#goldPlastic)"
+        d="M256 162L280 234L356 256L280 278L256 350L232 278L156 256L232 234Z"/>
+
+  <!-- SPARK GLOSS (symmetrical + clipped) -->
+  <g clip-path="url(#starClip)">
+    <!-- top gloss band -->
+    <path fill="url(#sparkGloss)"
+          d="M118 188C168 140 230 132 256 132C282 132 344 140 394 188C348 214 300 224 256 224C212 224 164 214 118 188Z"/>
+
+    <!-- mirrored facet highlights -->
+    <path fill="url(#sparkFacet)"
+          d="M256 170L238 224L210 244L232 234L256 170Z"/>
+    <path fill="url(#sparkFacet)"
+          d="M256 170L274 224L302 244L280 234L256 170Z"/>
+  </g>
+</svg>
