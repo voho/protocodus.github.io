@@ -14,17 +14,15 @@
     rel="stylesheet">
   <!-- Phosphor Icons -->
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <!-- p5.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
   <!-- Main Stylesheet -->
   <link rel="stylesheet" href="assets/css/style.css">
 </head>
 
 <body>
-  <!-- Animated Background Orbs -->
-  <div class="bg-animation-container">
-    <canvas id="networkCanvas"></canvas>
-    <div class="bg-orb orb-1"></div>
-    <div class="bg-orb orb-2"></div>
-    <div class="bg-orb orb-3"></div>
+  <!-- Animated Background (p5.js) -->
+  <div class="bg-animation-container" id="p5-container">
   </div>
   <nav class="navbar" id="navbar">
     <div class="container nav-container">
@@ -149,7 +147,6 @@
     <div class="container footer-container footer-centered">
       <div class="footer-brand">
         <a href="#" class="logo footer-logo">
-          <img src="assets/images/logo.svg" alt="Protocodus Logo" class="logo-img footer-logo-img">
           <span class="logo-text footer-logo-text">PROTOCODUS</span>
         </a>
         <p class="footer-tagline">Honest engineering for audacious startups.</p>

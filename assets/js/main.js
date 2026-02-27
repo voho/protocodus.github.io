@@ -30,93 +30,121 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Background Network Animation
-    const canvas = document.getElementById('networkCanvas');
-    if (canvas) {
-        const ctx = canvas.getContext('2d');
-        let width, height;
-        let particles = [];
-        
-        // Colors from theme
-        const colorMint = '#00FFC3';
-        const colorYellow = '#FFC400';
-        
-        function resize() {
-            width = window.innerWidth;
-            height = window.innerHeight;
-            canvas.width = width;
-            canvas.height = height;
-            initParticles();
-        }
-        
-        function initParticles() {
-            particles = [];
-            // Calculate number of particles based on screen size to maintain density
-            const numParticles = Math.min(Math.floor((width * height) / 12000), 120);
-            for (let i = 0; i < numParticles; i++) {
-                particles.push({
-                    x: Math.random() * width,
-                    y: Math.random() * height,
-                    vx: (Math.random() - 0.5) * 0.6,
-                    vy: (Math.random() - 0.5) * 0.6,
-                    radius: Math.random() * 2 + 1,
-                    color: Math.random() > 0.5 ? colorMint : colorYellow
-                });
+    // =========================================================================
+    // p5.js Background Animation — Perlin Noise Flow Field
+    // =========================================================================
+    const p5Container = document.getElementById('p5-container');
+    if (p5Container) {
+        new p5(function (p) {
+            const particles = [];
+            let cols, rows;
+            const scl = 30;           // grid cell size
+            let flowField;
+            let zOff = 0;
+            const colorMint  = p.color(0, 255, 195);
+            const colorYellow = p.color(255, 196, 0);
+
+            // Adaptive particle count
+            function particleCount() {
+                const area = p.windowWidth * p.windowHeight;
+                return Math.min(Math.floor(area / 6000), 300);
             }
-        }
-        
-        function draw() {
-            ctx.clearRect(0, 0, width, height);
-            
-            // Update and draw particles
-            for (let i = 0; i < particles.length; i++) {
-                let p = particles[i];
-                p.x += p.vx;
-                p.y += p.vy;
-                
-                // Bounce off edges
-                if (p.x < 0 || p.x > width) p.vx *= -1;
-                if (p.y < 0 || p.y > height) p.vy *= -1;
-                
-                // Draw particle
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-                ctx.fillStyle = p.color;
-                // Add a little drop shadow to make them pop against the white
-                ctx.shadowBlur = 4;
-                ctx.shadowColor = p.color;
-                ctx.fill();
-                ctx.shadowBlur = 0;
-            }
-            
-            // Draw connections
-            for (let i = 0; i < particles.length; i++) {
-                for (let j = i + 1; j < particles.length; j++) {
-                    let p1 = particles[i];
-                    let p2 = particles[j];
-                    let dx = p1.x - p2.x;
-                    let dy = p1.y - p2.y;
-                    let dist = Math.sqrt(dx * dx + dy * dy);
-                    
-                    if (dist < 160) {
-                        ctx.beginPath();
-                        ctx.moveTo(p1.x, p1.y);
-                        ctx.lineTo(p2.x, p2.y);
-                        // Opacity based on distance
-                        let opacity = 1 - (dist / 160);
-                        // Subtle dark lines to contrast background
-                        ctx.strokeStyle = `rgba(34, 34, 34, ${opacity * 0.15})`; 
-                        ctx.lineWidth = 1;
-                        ctx.stroke();
+
+            p.setup = function () {
+                const cnv = p.createCanvas(p.windowWidth, p.windowHeight);
+                cnv.style('display', 'block');
+                p.colorMode(p.RGB, 255, 255, 255, 255);
+
+                cols = Math.floor(p.width / scl) + 1;
+                rows = Math.floor(p.height / scl) + 1;
+                flowField = new Array(cols * rows);
+
+                const count = particleCount();
+                for (let i = 0; i < count; i++) {
+                    particles.push(createParticle(p));
+                }
+            };
+
+            p.draw = function () {
+                // Soft fade instead of full clear — creates trailing glow
+                p.background(250, 250, 250, 30);
+
+                // Build flow field from Perlin noise
+                let xOff = 0;
+                for (let x = 0; x < cols; x++) {
+                    let yOff = 0;
+                    for (let y = 0; y < rows; y++) {
+                        const angle = p.noise(xOff, yOff, zOff) * p.TWO_PI * 2;
+                        const v = p5.Vector.fromAngle(angle);
+                        v.setMag(0.4);
+                        flowField[x + y * cols] = v;
+                        yOff += 0.08;
+                    }
+                    xOff += 0.08;
+                }
+                zOff += 0.001; // very slow evolution
+
+                // Update & draw particles
+                for (const pt of particles) {
+                    const col = Math.floor(pt.pos.x / scl);
+                    const row = Math.floor(pt.pos.y / scl);
+                    const idx = col + row * cols;
+                    const force = flowField[idx];
+                    if (force) {
+                        pt.vel.add(force);
+                    }
+                    pt.vel.limit(pt.maxSpeed);
+                    pt.pos.add(pt.vel);
+
+                    // Wrap around edges
+                    if (pt.pos.x > p.width)  pt.pos.x = 0;
+                    if (pt.pos.x < 0)        pt.pos.x = p.width;
+                    if (pt.pos.y > p.height)  pt.pos.y = 0;
+                    if (pt.pos.y < 0)        pt.pos.y = p.height;
+
+                    // Draw
+                    const c = pt.isMint ? colorMint : colorYellow;
+                    p.noStroke();
+                    const alpha = p.map(pt.radius, 1, 4, 50, 120);
+                    p.fill(p.red(c), p.green(c), p.blue(c), alpha);
+                    p.ellipse(pt.pos.x, pt.pos.y, pt.radius * 2);
+
+                    // Subtle glow ring
+                    p.fill(p.red(c), p.green(c), p.blue(c), alpha * 0.25);
+                    p.ellipse(pt.pos.x, pt.pos.y, pt.radius * 6);
+
+                    pt.life--;
+                    if (pt.life <= 0) {
+                        resetParticle(pt, p);
                     }
                 }
+            };
+
+            p.windowResized = function () {
+                p.resizeCanvas(p.windowWidth, p.windowHeight);
+                cols = Math.floor(p.width / scl) + 1;
+                rows = Math.floor(p.height / scl) + 1;
+                flowField = new Array(cols * rows);
+            };
+
+            function createParticle(sketch) {
+                return {
+                    pos: sketch.createVector(sketch.random(sketch.width), sketch.random(sketch.height)),
+                    vel: p5.Vector.random2D().mult(0.5),
+                    maxSpeed: sketch.random(1, 2.5),
+                    radius: sketch.random(1, 4),
+                    isMint: sketch.random() > 0.45,
+                    life: sketch.floor(sketch.random(200, 600))
+                };
             }
-            
-            requestAnimationFrame(draw);
-        }
-        
-        window.addEventListener('resize', resize);
-        resize();
-        draw();
+
+            function resetParticle(pt, sketch) {
+                pt.pos.set(sketch.random(sketch.width), sketch.random(sketch.height));
+                pt.vel = p5.Vector.random2D().mult(0.5);
+                pt.life = sketch.floor(sketch.random(200, 600));
+                pt.isMint = sketch.random() > 0.45;
+            }
+
+        }, p5Container);
     }
 });
