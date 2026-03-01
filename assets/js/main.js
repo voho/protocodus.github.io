@@ -1,5 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Navbar Scrolled State
+    // =========================================================================
+    // Navbar Scroll State
+    // =========================================================================
     const navbar = document.getElementById('navbar');
     
     window.addEventListener('scroll', () => {
@@ -10,7 +12,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Mobile Menu Toggle
+    // =========================================================================
+    // Mobile Menu
+    // =========================================================================
     const mobileMenuBtn = document.querySelector('.mobile-menu-btn');
     const navLinks = document.querySelector('.nav-links');
     
@@ -20,7 +24,6 @@ document.addEventListener('DOMContentLoaded', () => {
             navLinks.classList.toggle('active');
         });
         
-        // Close menu when clicking a link
         const links = navLinks.querySelectorAll('a');
         links.forEach(link => {
             link.addEventListener('click', () => {
@@ -31,23 +34,40 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // =========================================================================
-    // p5.js Background Animation — Perlin Noise Flow Field
+    // Scroll Reveal
+    // =========================================================================
+    const revealEls = document.querySelectorAll('.reveal');
+    
+    const revealObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('visible');
+                revealObserver.unobserve(entry.target);
+            }
+        });
+    }, {
+        threshold: 0.15,
+        rootMargin: '0px 0px -40px 0px'
+    });
+
+    revealEls.forEach(el => revealObserver.observe(el));
+
+    // =========================================================================
+    // p5.js Background — Elegant Perlin Noise Flow Field
     // =========================================================================
     const p5Container = document.getElementById('p5-container');
     if (p5Container) {
         new p5(function (p) {
             const particles = [];
             let cols, rows;
-            const scl = 30;           // grid cell size
+            const scl = 35;
             let flowField;
             let zOff = 0;
-            const colorMint  = p.color(0, 255, 195);
-            const colorYellow = p.color(255, 196, 0);
 
-            // Adaptive particle count
             function particleCount() {
                 const area = p.windowWidth * p.windowHeight;
-                return Math.min(Math.floor(area / 6000), 300);
+                // Fewer particles for a cleaner, more elegant look
+                return Math.min(Math.floor(area / 10000), 200);
             }
 
             p.setup = function () {
@@ -66,25 +86,24 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             p.draw = function () {
-                // Soft fade instead of full clear — creates trailing glow
-                p.background(250, 250, 250, 30);
+                // Faster fade = cleaner trails, no heavy buildup
+                p.background(250, 250, 250, 45);
 
-                // Build flow field from Perlin noise
+                // Build flow field
                 let xOff = 0;
                 for (let x = 0; x < cols; x++) {
                     let yOff = 0;
                     for (let y = 0; y < rows; y++) {
                         const angle = p.noise(xOff, yOff, zOff) * p.TWO_PI * 2;
                         const v = p5.Vector.fromAngle(angle);
-                        v.setMag(0.4);
+                        v.setMag(0.3);
                         flowField[x + y * cols] = v;
-                        yOff += 0.08;
+                        yOff += 0.06;
                     }
-                    xOff += 0.08;
+                    xOff += 0.06;
                 }
-                zOff += 0.001; // very slow evolution
+                zOff += 0.0008;
 
-                // Update & draw particles
                 for (const pt of particles) {
                     const col = Math.floor(pt.pos.x / scl);
                     const row = Math.floor(pt.pos.y / scl);
@@ -96,22 +115,27 @@ document.addEventListener('DOMContentLoaded', () => {
                     pt.vel.limit(pt.maxSpeed);
                     pt.pos.add(pt.vel);
 
-                    // Wrap around edges
+                    // Wrap edges
                     if (pt.pos.x > p.width)  pt.pos.x = 0;
                     if (pt.pos.x < 0)        pt.pos.x = p.width;
                     if (pt.pos.y > p.height)  pt.pos.y = 0;
                     if (pt.pos.y < 0)        pt.pos.y = p.height;
 
-                    // Draw
-                    const c = pt.isMint ? colorMint : colorYellow;
+                    // Mint = 0, 220, 170 (slightly desaturated for elegance)
+                    // Yellow = 255, 196, 0
+                    const r = pt.isMint ? 0   : 255;
+                    const g = pt.isMint ? 210 : 196;
+                    const b = pt.isMint ? 170 : 0;
+
+                    // Core dot
                     p.noStroke();
-                    const alpha = p.map(pt.radius, 1, 4, 50, 120);
-                    p.fill(p.red(c), p.green(c), p.blue(c), alpha);
+                    const alpha = p.map(pt.radius, 1, 3.5, 35, 80);
+                    p.fill(r, g, b, alpha);
                     p.ellipse(pt.pos.x, pt.pos.y, pt.radius * 2);
 
-                    // Subtle glow ring
-                    p.fill(p.red(c), p.green(c), p.blue(c), alpha * 0.25);
-                    p.ellipse(pt.pos.x, pt.pos.y, pt.radius * 6);
+                    // Soft glow
+                    p.fill(r, g, b, alpha * 0.15);
+                    p.ellipse(pt.pos.x, pt.pos.y, pt.radius * 5);
 
                     pt.life--;
                     if (pt.life <= 0) {
@@ -130,19 +154,19 @@ document.addEventListener('DOMContentLoaded', () => {
             function createParticle(sketch) {
                 return {
                     pos: sketch.createVector(sketch.random(sketch.width), sketch.random(sketch.height)),
-                    vel: p5.Vector.random2D().mult(0.5),
-                    maxSpeed: sketch.random(1, 2.5),
-                    radius: sketch.random(1, 4),
-                    isMint: sketch.random() > 0.45,
-                    life: sketch.floor(sketch.random(200, 600))
+                    vel: p5.Vector.random2D().mult(0.3),
+                    maxSpeed: sketch.random(0.8, 2),
+                    radius: sketch.random(1, 3.5),
+                    isMint: sketch.random() > 0.4,
+                    life: sketch.floor(sketch.random(300, 800))
                 };
             }
 
             function resetParticle(pt, sketch) {
                 pt.pos.set(sketch.random(sketch.width), sketch.random(sketch.height));
-                pt.vel = p5.Vector.random2D().mult(0.5);
-                pt.life = sketch.floor(sketch.random(200, 600));
-                pt.isMint = sketch.random() > 0.45;
+                pt.vel = p5.Vector.random2D().mult(0.3);
+                pt.life = sketch.floor(sketch.random(300, 800));
+                pt.isMint = sketch.random() > 0.4;
             }
 
         }, p5Container);
