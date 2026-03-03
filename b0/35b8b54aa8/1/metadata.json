@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "b035b8b54aa8",
+  "session_id": "84f15e45-ef74-46e5-b53c-413f691a75db",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-03T13:45:12.264104Z",
+  "branch": "professional-startup-website",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "index.html",
+    "assets/css/style.css"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "70dc9eac07d8",
+  "token_usage": {
+    "input_tokens": 42,
+    "cache_creation_tokens": 26314,
+    "cache_read_tokens": 891632,
+    "output_tokens": 198,
+    "api_call_count": 17
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-03T13:45:12.213808Z",
+    "agent_lines": 143,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 143,
+    "agent_percentage": 100
+  },
+  "transcript_path": ".claude/projects/-Users-vojta-intent-workspaces-nice-build-protocodus-github-io/84f15e45-ef74-46e5-b53c-413f691a75db.jsonl"
+}
