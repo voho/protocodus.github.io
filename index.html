@@ -21,10 +21,13 @@
 </head>
 
 <body>
+  <!-- Skip to main content link -->
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
   <!-- Animated Background (p5.js) -->
   <div class="bg-animation-container" id="p5-container">
   </div>
-  <nav class="navbar" id="navbar">
+  <nav class="navbar" id="navbar" role="navigation" aria-label="Main navigation">
     <div class="container nav-container">
       <a href="#" class="logo">
         <img src="assets/images/logo.svg" alt="Protocodus Logo" class="logo-img">
@@ -43,7 +46,7 @@
     </div>
   </nav>
 
-  <header class="hero" id="home">
+  <header class="hero" id="home" role="main">
     <div class="container hero-container">
       <div class="hero-content reveal">
         <h1 class="hero-title">No bullshit.<br>Just brilliant<br>software.</h1>
@@ -57,6 +60,7 @@
     </div>
   </header>
 
+  <main id="main-content">
   <section class="expertise section" id="expertise">
     <div class="container">
       <div class="section-header reveal">
@@ -66,25 +70,25 @@
       </div>
       <div class="bento-grid">
         <div class="bento-card bg-yellow reveal">
-          <div class="bento-icon"><i class="ph-bold ph-code"></i></div>
+          <div class="bento-icon"><i class="ph-bold ph-code" aria-hidden="true"></i></div>
           <h3>Fullstack Development</h3>
           <p>We write code that doesn't just run—it absolutely flies. From bulletproof databases to snappy frontends, we
             architect stuff your startup can actually scale on.</p>
         </div>
         <div class="bento-card reveal">
-          <div class="bento-icon"><i class="ph-bold ph-palette"></i></div>
+          <div class="bento-icon"><i class="ph-bold ph-palette" aria-hidden="true"></i></div>
           <h3>Interface Design</h3>
           <p>Ugly software is a crime against humanity. We design vibrant, intuitive interfaces that make your users
             fall in love at first click.</p>
         </div>
         <div class="bento-card bg-mint text-dark reveal">
-          <div class="bento-icon"><i class="ph-bold ph-robot"></i></div>
+          <div class="bento-icon"><i class="ph-bold ph-robot" aria-hidden="true"></i></div>
           <h3>Integration & AI</h3>
           <p>We make your disjointed systems talk to each other and sprinkle in actual AI—not just a cheap wrapper—so
             your product feels like pure magic.</p>
         </div>
         <div class="bento-card reveal">
-          <div class="bento-icon"><i class="ph-bold ph-kanban"></i></div>
+          <div class="bento-icon"><i class="ph-bold ph-kanban" aria-hidden="true"></i></div>
           <h3>Project Management</h3>
           <p>We know startups are living organisms. Priorities shift and plans change—and we are totally fine with that.
             We promise radical transparency, sharing both the good and the bad so we can always move forward together.
@@ -131,6 +135,29 @@
     </div>
   </section>
 
+  <section class="experience section" id="experience">
+    <div class="container">
+      <div class="section-header reveal">
+        <h2 class="section-title">Trusted by the Best</h2>
+        <p class="section-desc">We've had the privilege of working with industry leaders and scaling startups. Real experience. Real results.</p>
+      </div>
+      <div class="experience-grid">
+        <div class="experience-item reveal">
+          <h3 class="company-name">Amazon</h3>
+        </div>
+        <div class="experience-item reveal">
+          <h3 class="company-name">Binance</h3>
+        </div>
+        <div class="experience-item reveal">
+          <h3 class="company-name">GoodData</h3>
+        </div>
+        <div class="experience-item reveal">
+          <h3 class="company-name">Ceska Sporitelna</h3>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <section class="contact section bg-dark" id="contact">
     <div class="container contact-container reveal">
       <div class="contact-header">
@@ -143,8 +170,9 @@
       </div>
     </div>
   </section>
+  </main>
 
-  <footer class="footer">
+  <footer class="footer" role="contentinfo">
     <div class="container footer-container footer-centered">
       <div class="footer-brand">
         <a href="#" class="logo footer-logo">

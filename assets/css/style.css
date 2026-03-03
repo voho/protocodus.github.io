@@ -1,4 +1,51 @@
 /* ==========================================================================
+   Accessibility
+   ========================================================================== */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background-color: #1A1A1A;
+  color: #FFFFFF;
+  padding: 0.75rem 1rem;
+  text-decoration: none;
+  z-index: 9999;
+  font-weight: 700;
+}
+
+.skip-link:focus {
+  top: 0;
+}
+
+/* Focus visible styles for keyboard navigation */
+a:focus-visible,
+button:focus-visible {
+  outline: 3px solid #FFC400;
+  outline-offset: 2px;
+}
+
+/* Ensure focus visible works on all interactive elements */
+.btn:focus-visible,
+.nav-link:focus-visible,
+.nav-btn:focus-visible,
+.mobile-menu-btn:focus-visible {
+  outline: 3px solid #FFC400;
+  outline-offset: 2px;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ==========================================================================
    Base Design System - Protocodus
    ========================================================================== */
 :root {
@@ -517,6 +564,59 @@ svg {
 }
 
 /* ==========================================================================
+   Experience Section
+   ========================================================================== */
+.experience-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2rem;
+}
+
+.experience-item {
+  background-color: var(--clr-white);
+  border: var(--border-width) solid var(--clr-black);
+  padding: 3rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  box-shadow: var(--shadow-solid);
+  transition: var(--transition);
+  position: relative;
+}
+
+.experience-item:hover {
+  transform: translateY(-6px);
+  box-shadow: 8px 8px 0px var(--clr-black);
+  background-color: var(--clr-yellow);
+}
+
+.company-name {
+  font-size: 2.2rem;
+  font-weight: 900;
+  letter-spacing: -1px;
+  color: var(--clr-black);
+  margin: 0;
+}
+
+.experience-item:hover .company-name {
+  color: var(--clr-black);
+}
+
+/* Stagger animation for experience items */
+.experience-grid .reveal:nth-child(2) {
+  transition-delay: 0.1s;
+}
+
+.experience-grid .reveal:nth-child(3) {
+  transition-delay: 0.2s;
+}
+
+.experience-grid .reveal:nth-child(4) {
+  transition-delay: 0.3s;
+}
+
+/* ==========================================================================
    Contact Section
    ========================================================================== */
 .bg-dark {
@@ -630,6 +730,10 @@ svg {
     text-align: center;
   }
 
+  .experience-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
   .hero-content {
     text-align: center;
     margin: 0 auto;
@@ -723,6 +827,10 @@ svg {
   }
 
   .bento-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .experience-grid {
     grid-template-columns: 1fr;
   }
 
