@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "4b41faaffc6d",
+  "strategy": "manual-commit",
+  "branch": "professional-startup-website",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "assets/js/main.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/4b/41faaffc6d/0/metadata.json",
+      "transcript": "/4b/41faaffc6d/0/full.jsonl",
+      "context": "/4b/41faaffc6d/0/context.md",
+      "content_hash": "/4b/41faaffc6d/0/content_hash.txt",
+      "prompt": "/4b/41faaffc6d/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 7,
+    "cache_creation_tokens": 14739,
+    "cache_read_tokens": 1914623,
+    "output_tokens": 37,
+    "api_call_count": 29
+  }
+}
