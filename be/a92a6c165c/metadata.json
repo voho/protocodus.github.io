@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "bea92a6c165c",
+  "strategy": "manual-commit",
+  "branch": "professional-startup-website",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "assets/css/style.css"
+  ],
+  "sessions": [
+    {
+      "metadata": "/be/a92a6c165c/0/metadata.json",
+      "transcript": "/be/a92a6c165c/0/full.jsonl",
+      "context": "/be/a92a6c165c/0/context.md",
+      "content_hash": "/be/a92a6c165c/0/content_hash.txt",
+      "prompt": "/be/a92a6c165c/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 7344,
+    "cache_read_tokens": 1547089,
+    "output_tokens": 83,
+    "api_call_count": 20
+  }
+}
