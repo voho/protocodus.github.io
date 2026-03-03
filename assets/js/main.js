@@ -19,17 +19,72 @@ document.addEventListener('DOMContentLoaded', () => {
     const navLinks = document.querySelector('.nav-links');
     
     if (mobileMenuBtn && navLinks) {
+        // Initialize aria-expanded for accessibility
+        mobileMenuBtn.setAttribute('aria-expanded', 'false');
+
+        // Helper functions for menu state
+        function closeMenu() {
+            mobileMenuBtn.classList.remove('active');
+            navLinks.classList.remove('active');
+            mobileMenuBtn.setAttribute('aria-expanded', 'false');
+        }
+
+        function openMenu() {
+            mobileMenuBtn.classList.add('active');
+            navLinks.classList.add('active');
+            mobileMenuBtn.setAttribute('aria-expanded', 'true');
+            // Focus first menu link when opened
+            const firstLink = navLinks.querySelector('a');
+            if (firstLink) setTimeout(() => firstLink.focus(), 0);
+        }
+
+        // Toggle menu on button click
         mobileMenuBtn.addEventListener('click', () => {
-            mobileMenuBtn.classList.toggle('active');
-            navLinks.classList.toggle('active');
+            const isOpen = mobileMenuBtn.classList.contains('active');
+            if (isOpen) {
+                closeMenu();
+            } else {
+                openMenu();
+            }
         });
-        
+
+        // Close menu when a link is clicked
         const links = navLinks.querySelectorAll('a');
         links.forEach(link => {
-            link.addEventListener('click', () => {
-                mobileMenuBtn.classList.remove('active');
-                navLinks.classList.remove('active');
+            link.addEventListener('click', closeMenu);
+        });
+
+        // Keyboard navigation: Escape closes menu
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && mobileMenuBtn.classList.contains('active')) {
+                closeMenu();
+                mobileMenuBtn.focus();
+            }
+        });
+
+        // Keyboard navigation: Tab and Shift+Tab for focus trap
+        links.forEach((link, index) => {
+            link.addEventListener('keydown', (e) => {
+                if (e.key === 'Tab') {
+                    if (e.shiftKey && index === 0) {
+                        // Shift+Tab on first link goes to button
+                        e.preventDefault();
+                        mobileMenuBtn.focus();
+                    } else if (!e.shiftKey && index === links.length - 1) {
+                        // Tab on last link goes to button
+                        e.preventDefault();
+                        mobileMenuBtn.focus();
+                    }
+                }
             });
+        });
+
+        // Tab from button when menu is open goes to first link
+        mobileMenuBtn.addEventListener('keydown', (e) => {
+            if (e.key === 'Tab' && !e.shiftKey && mobileMenuBtn.classList.contains('active')) {
+                e.preventDefault();
+                links[0].focus();
+            }
         });
     }
 
