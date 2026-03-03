@@ -111,6 +111,23 @@ body {
   height: 100% !important;
 }
 
+/* Skip to content link */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background-color: var(--clr-black);
+  color: var(--clr-white);
+  padding: 0.75rem 1rem;
+  text-decoration: none;
+  z-index: 9999;
+  font-weight: 700;
+}
+
+.skip-link:focus {
+  top: 0;
+}
+
 a {
   text-decoration: none;
   color: inherit;
@@ -697,6 +714,20 @@ svg {
 .footer-bottom-centered {
   display: block;
   text-align: center;
+}
+
+/* ==========================================================================
+   Accessibility: Reduced Motion Support
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* ==========================================================================
