@@ -151,6 +151,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       this.w = this.section.clientWidth;
       this.h = this.section.clientHeight;
+      // Canvas is a replaced element: without an explicit CSS size it renders
+      // at its intrinsic (backing-store) size instead of stretching to fill
+      // the section, which on any dpr > 1 screen doubles it and throws off
+      // every coordinate drawn relative to the pointer.
+      this.canvas.style.width = `${this.w}px`;
+      this.canvas.style.height = `${this.h}px`;
       this.canvas.width = Math.round(this.w * dpr);
       this.canvas.height = Math.round(this.h * dpr);
       this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
