@@ -1,174 +1,132 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // =========================================================================
-    // Navbar Scroll State
-    // =========================================================================
-    const navbar = document.getElementById('navbar');
-    
-    window.addEventListener('scroll', () => {
-        if (window.scrollY > 50) {
-            navbar.classList.add('scrolled');
-        } else {
-            navbar.classList.remove('scrolled');
-        }
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // =========================================================================
+  // Footer year
+  // =========================================================================
+  const yearEl = document.getElementById('year');
+  if (yearEl) {
+    yearEl.textContent = new Date().getFullYear();
+  }
+
+  // =========================================================================
+  // Mobile menu
+  // =========================================================================
+  const navToggle = document.querySelector('.nav-toggle');
+  const navMenu = document.getElementById('nav-menu');
+
+  if (navToggle && navMenu) {
+    navToggle.addEventListener('click', () => {
+      const open = navMenu.classList.toggle('active');
+      navToggle.classList.toggle('active', open);
+      navToggle.setAttribute('aria-expanded', String(open));
     });
 
-    // =========================================================================
-    // Mobile Menu
-    // =========================================================================
-    const mobileMenuBtn = document.querySelector('.mobile-menu-btn');
-    const navLinks = document.querySelector('.nav-links');
-    
-    if (mobileMenuBtn && navLinks) {
-        mobileMenuBtn.addEventListener('click', () => {
-            mobileMenuBtn.classList.toggle('active');
-            navLinks.classList.toggle('active');
-        });
-        
-        const links = navLinks.querySelectorAll('a');
-        links.forEach(link => {
-            link.addEventListener('click', () => {
-                mobileMenuBtn.classList.remove('active');
-                navLinks.classList.remove('active');
-            });
-        });
-    }
+    navMenu.querySelectorAll('a').forEach((link) => {
+      link.addEventListener('click', () => {
+        navMenu.classList.remove('active');
+        navToggle.classList.remove('active');
+        navToggle.setAttribute('aria-expanded', 'false');
+      });
+    });
+  }
 
-    // =========================================================================
-    // Scroll Reveal
-    // =========================================================================
-    const revealEls = document.querySelectorAll('.reveal');
-    
+  // =========================================================================
+  // Scroll reveal
+  // =========================================================================
+  const revealEls = document.querySelectorAll('.reveal');
+
+  if (prefersReducedMotion) {
+    revealEls.forEach((el) => el.classList.add('visible'));
+  } else {
     const revealObserver = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                entry.target.classList.add('visible');
-                revealObserver.unobserve(entry.target);
-            }
-        });
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+          revealObserver.unobserve(entry.target);
+        }
+      });
     }, {
-        threshold: 0.15,
-        rootMargin: '0px 0px -40px 0px'
+      threshold: 0.15,
+      rootMargin: '0px 0px -40px 0px'
     });
 
-    revealEls.forEach(el => revealObserver.observe(el));
+    revealEls.forEach((el) => revealObserver.observe(el));
+  }
 
-    // =========================================================================
-    // p5.js Background — Elegant Perlin Noise Flow Field
-    // =========================================================================
-    const p5Container = document.getElementById('p5-container');
-    if (p5Container) {
-        new p5(function (p) {
-            const particles = [];
-            let cols, rows;
-            const scl = 35;
-            let flowField;
-            let zOff = 0;
+  // =========================================================================
+  // Hero eyebrow — typewriter
+  // =========================================================================
+  const typeTarget = document.querySelector('.type-target');
+  if (typeTarget && !prefersReducedMotion) {
+    const fullText = typeTarget.textContent;
+    typeTarget.textContent = '';
+    let i = 0;
+    const timer = setInterval(() => {
+      i += 1;
+      typeTarget.textContent = fullText.slice(0, i);
+      if (i >= fullText.length) {
+        clearInterval(timer);
+      }
+    }, 32);
+  }
 
-            function particleCount() {
-                const area = p.windowWidth * p.windowHeight;
-                // Fewer particles for a cleaner, more elegant look
-                return Math.min(Math.floor(area / 10000), 200);
-            }
+  // =========================================================================
+  // Hero sparks — mouse parallax
+  // =========================================================================
+  const hero = document.querySelector('.hero');
+  const sparks = document.querySelectorAll('.hero-spark');
+  const finePointer = window.matchMedia('(pointer: fine)').matches;
 
-            p.setup = function () {
-                const cnv = p.createCanvas(p.windowWidth, p.windowHeight);
-                cnv.style('display', 'block');
-                p.colorMode(p.RGB, 255, 255, 255, 255);
+  if (hero && sparks.length && finePointer && !prefersReducedMotion) {
+    hero.addEventListener('mousemove', (e) => {
+      const dx = (e.clientX - window.innerWidth / 2) / (window.innerWidth / 2);
+      const dy = (e.clientY - window.innerHeight / 2) / (window.innerHeight / 2);
+      sparks.forEach((spark) => {
+        const depth = parseFloat(spark.dataset.depth || '1');
+        spark.style.transform = `translate(${dx * 12 * depth}px, ${dy * 12 * depth}px)`;
+      });
+    });
+  }
 
-                cols = Math.floor(p.width / scl) + 1;
-                rows = Math.floor(p.height / scl) + 1;
-                flowField = new Array(cols * rows);
+  // =========================================================================
+  // Hero — spark burst on click
+  // =========================================================================
+  const SPARK_PATH = 'M12 0L15 9L24 12L15 15L12 24L9 15L0 12L9 9Z';
 
-                const count = particleCount();
-                for (let i = 0; i < count; i++) {
-                    particles.push(createParticle(p));
-                }
-            };
+  if (hero && !prefersReducedMotion) {
+    hero.addEventListener('click', (e) => {
+      if (e.target.closest('a, button')) return;
 
-            p.draw = function () {
-                // Faster fade = cleaner trails, no heavy buildup
-                p.background(250, 250, 250, 45);
+      const rect = hero.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const count = 6;
 
-                // Build flow field
-                let xOff = 0;
-                for (let x = 0; x < cols; x++) {
-                    let yOff = 0;
-                    for (let y = 0; y < rows; y++) {
-                        const angle = p.noise(xOff, yOff, zOff) * p.TWO_PI * 2;
-                        const v = p5.Vector.fromAngle(angle);
-                        v.setMag(0.3);
-                        flowField[x + y * cols] = v;
-                        yOff += 0.06;
-                    }
-                    xOff += 0.06;
-                }
-                zOff += 0.0008;
+      for (let i = 0; i < count; i++) {
+        const el = document.createElement('span');
+        el.className = 'burst-spark';
+        el.style.left = `${x - 8}px`;
+        el.style.top = `${y - 8}px`;
+        const color = i % 2 === 0 ? '#FFC400' : '#00FFC3';
+        el.innerHTML =
+          `<svg viewBox="0 0 24 24"><path d="${SPARK_PATH}" fill="${color}" ` +
+          `stroke="#1A1A1A" stroke-width="1.5"/></svg>`;
+        hero.appendChild(el);
 
-                for (const pt of particles) {
-                    const col = Math.floor(pt.pos.x / scl);
-                    const row = Math.floor(pt.pos.y / scl);
-                    const idx = col + row * cols;
-                    const force = flowField[idx];
-                    if (force) {
-                        pt.vel.add(force);
-                    }
-                    pt.vel.limit(pt.maxSpeed);
-                    pt.pos.add(pt.vel);
+        const angle = (Math.PI * 2 * i) / count + Math.random() * 0.6;
+        const dist = 44 + Math.random() * 46;
+        const tx = Math.cos(angle) * dist;
+        const ty = Math.sin(angle) * dist;
 
-                    // Wrap edges
-                    if (pt.pos.x > p.width)  pt.pos.x = 0;
-                    if (pt.pos.x < 0)        pt.pos.x = p.width;
-                    if (pt.pos.y > p.height)  pt.pos.y = 0;
-                    if (pt.pos.y < 0)        pt.pos.y = p.height;
-
-                    // Mint = 0, 220, 170 (slightly desaturated for elegance)
-                    // Yellow = 255, 196, 0
-                    const r = pt.isMint ? 0   : 255;
-                    const g = pt.isMint ? 210 : 196;
-                    const b = pt.isMint ? 170 : 0;
-
-                    // Core dot
-                    p.noStroke();
-                    const alpha = p.map(pt.radius, 1, 3.5, 35, 80);
-                    p.fill(r, g, b, alpha);
-                    p.ellipse(pt.pos.x, pt.pos.y, pt.radius * 2);
-
-                    // Soft glow
-                    p.fill(r, g, b, alpha * 0.15);
-                    p.ellipse(pt.pos.x, pt.pos.y, pt.radius * 5);
-
-                    pt.life--;
-                    if (pt.life <= 0) {
-                        resetParticle(pt, p);
-                    }
-                }
-            };
-
-            p.windowResized = function () {
-                p.resizeCanvas(p.windowWidth, p.windowHeight);
-                cols = Math.floor(p.width / scl) + 1;
-                rows = Math.floor(p.height / scl) + 1;
-                flowField = new Array(cols * rows);
-            };
-
-            function createParticle(sketch) {
-                return {
-                    pos: sketch.createVector(sketch.random(sketch.width), sketch.random(sketch.height)),
-                    vel: p5.Vector.random2D().mult(0.3),
-                    maxSpeed: sketch.random(0.8, 2),
-                    radius: sketch.random(1, 3.5),
-                    isMint: sketch.random() > 0.4,
-                    life: sketch.floor(sketch.random(300, 800))
-                };
-            }
-
-            function resetParticle(pt, sketch) {
-                pt.pos.set(sketch.random(sketch.width), sketch.random(sketch.height));
-                pt.vel = p5.Vector.random2D().mult(0.3);
-                pt.life = sketch.floor(sketch.random(300, 800));
-                pt.isMint = sketch.random() > 0.4;
-            }
-
-        }, p5Container);
-    }
+        el.animate([
+          { transform: 'translate(0, 0) scale(1) rotate(0deg)', opacity: 1 },
+          { transform: `translate(${tx}px, ${ty}px) scale(0) rotate(160deg)`, opacity: 0 }
+        ], {
+          duration: 620,
+          easing: 'cubic-bezier(0.22, 1, 0.36, 1)'
+        }).onfinish = () => el.remove();
+      }
+    });
+  }
 });
