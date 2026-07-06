@@ -8,7 +8,7 @@ Static site, no build step and no runtime dependencies:
 
 - `index.html` — single-page site
 - `assets/css/style.css` — design system (Space Grotesk + Space Mono, self-hosted in `assets/fonts/`)
-- `assets/js/main.js` — vanilla JS: mobile menu, scroll reveals, hero typewriter, spark parallax and click bursts
+- `assets/js/main.js` — vanilla JS: mobile menu, scroll reveals, hero typewriter, spark parallax, click bursts, and a canvas "living dot grid" background (ambient shimmer, pointer halo, click ripples; falls back to a static CSS pattern without JS or with reduced motion)
 
 ## Development
 

@@ -843,6 +843,8 @@ svg {
 }
 
 .contact-inner {
+  position: relative;
+  z-index: 1;
   text-align: center;
   display: flex;
   flex-direction: column;
@@ -915,6 +917,19 @@ svg {
   font-family: var(--font-mono);
   font-size: 0.8rem;
   color: rgba(250, 250, 250, 0.6);
+}
+
+/* Living dot grid (canvas takes over from the static CSS pattern)
+   ========================================================================== */
+.dotgrid-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.dotgrid-active {
+  background-image: none;
 }
 
 /* Media queries
