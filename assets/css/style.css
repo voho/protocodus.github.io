@@ -412,10 +412,11 @@ p {
   z-index: 999;
   display: none;
   flex-direction: column;
-  justify-content: center;
   gap: 0.4rem;
   padding: 5rem var(--gutter) 3rem;
   background: var(--well);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .menu.open {
@@ -426,9 +427,17 @@ p {
   display: none;
 }
 
+/* Auto margins centre the group when there is room and collapse to nothing
+   when there is not — unlike justify-content: center, which pushes the top
+   of the list out of reach on a short screen (landscape, or 200% zoom) */
 .menu nav {
   display: flex;
   flex-direction: column;
+  margin-top: auto;
+}
+
+.menu > * {
+  flex-shrink: 0;
 }
 
 .menu nav a {
@@ -451,6 +460,7 @@ p {
 
 .menu-mail {
   margin-top: 2rem;
+  margin-bottom: auto;
   font-family: var(--mono);
   font-size: 0.85rem;
   color: var(--yellow);
