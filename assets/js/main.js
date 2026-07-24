@@ -16,19 +16,54 @@ document.addEventListener('DOMContentLoaded', () => {
   const navMenu = document.getElementById('nav-menu');
 
   if (navToggle && navMenu) {
-    navToggle.addEventListener('click', () => {
-      const open = navMenu.classList.toggle('active');
+    const setMenu = (open) => {
+      navMenu.classList.toggle('active', open);
       navToggle.classList.toggle('active', open);
       navToggle.setAttribute('aria-expanded', String(open));
+      navToggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+    };
+
+    navToggle.addEventListener('click', () => {
+      setMenu(!navMenu.classList.contains('active'));
     });
 
     navMenu.querySelectorAll('a').forEach((link) => {
-      link.addEventListener('click', () => {
-        navMenu.classList.remove('active');
-        navToggle.classList.remove('active');
-        navToggle.setAttribute('aria-expanded', 'false');
-      });
+      link.addEventListener('click', () => setMenu(false));
     });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && navMenu.classList.contains('active')) {
+        setMenu(false);
+        navToggle.focus();
+      }
+    });
+  }
+
+  // =========================================================================
+  // Navbar — underline the section you are currently reading
+  // =========================================================================
+  const navLinks = [...document.querySelectorAll('.nav-link')];
+  const navTargets = navLinks
+    .map((link) => document.querySelector(link.getAttribute('href')))
+    .filter(Boolean);
+
+  if (navTargets.length && 'IntersectionObserver' in window) {
+    const onScreen = new Set();
+
+    const sectionSpy = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) onScreen.add(entry.target);
+        else onScreen.delete(entry.target);
+      });
+
+      // The topmost section crossing the middle of the viewport wins.
+      const active = navTargets.find((section) => onScreen.has(section));
+      navLinks.forEach((link, i) => {
+        link.classList.toggle('current', navTargets[i] === active);
+      });
+    }, { rootMargin: '-50% 0px -45% 0px' });
+
+    navTargets.forEach((section) => sectionSpy.observe(section));
   }
 
   // =========================================================================
@@ -79,13 +114,27 @@ document.addEventListener('DOMContentLoaded', () => {
   const finePointer = window.matchMedia('(pointer: fine)').matches;
 
   if (hero && sparks.length && finePointer && !prefersReducedMotion) {
-    hero.addEventListener('mousemove', (e) => {
-      const dx = (e.clientX - window.innerWidth / 2) / (window.innerWidth / 2);
-      const dy = (e.clientY - window.innerHeight / 2) / (window.innerHeight / 2);
+    let pointerX = 0;
+    let pointerY = 0;
+    let queued = false;
+
+    // One write per frame instead of one per mousemove event
+    const drift = () => {
+      queued = false;
+      const dx = (pointerX - window.innerWidth / 2) / (window.innerWidth / 2);
+      const dy = (pointerY - window.innerHeight / 2) / (window.innerHeight / 2);
       sparks.forEach((spark) => {
         const depth = parseFloat(spark.dataset.depth || '1');
         spark.style.transform = `translate(${dx * 12 * depth}px, ${dy * 12 * depth}px)`;
       });
+    };
+
+    hero.addEventListener('mousemove', (e) => {
+      pointerX = e.clientX;
+      pointerY = e.clientY;
+      if (queued) return;
+      queued = true;
+      requestAnimationFrame(drift);
     });
   }
 
@@ -116,10 +165,12 @@ document.addEventListener('DOMContentLoaded', () => {
       this.pointer = { x: -1e4, y: -1e4 };
       this.ripples = [];
       this.visible = false;
+      this.onWake = null;
 
       new ResizeObserver(() => this.resize()).observe(section);
       new IntersectionObserver(([entry]) => {
         this.visible = entry.isIntersecting;
+        if (this.visible && this.onWake) this.onWake();
       }).observe(section);
 
       section.addEventListener('pointermove', (e) => {
@@ -243,14 +294,33 @@ document.addEventListener('DOMContentLoaded', () => {
     const grids = [...document.querySelectorAll('[data-dotgrid]')].map(
       (section) => new DotGrid(section)
     );
+
     if (grids.length) {
+      // The loop only runs while a grid is actually on screen and the tab is
+      // in front — no frames burned on a page nobody is looking at.
+      let running = false;
+
       const loop = (now) => {
+        let awake = false;
         grids.forEach((grid) => {
-          if (grid.visible) grid.draw(now);
+          if (grid.visible) {
+            grid.draw(now);
+            awake = true;
+          }
         });
+        running = awake && !document.hidden;
+        if (running) requestAnimationFrame(loop);
+      };
+
+      const wake = () => {
+        if (running || document.hidden) return;
+        running = true;
         requestAnimationFrame(loop);
       };
-      requestAnimationFrame(loop);
+
+      grids.forEach((grid) => { grid.onWake = wake; });
+      document.addEventListener('visibilitychange', wake);
+      wake();
     }
   }
 

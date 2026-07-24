@@ -75,6 +75,10 @@
   --rule: 3px solid var(--clr-ink);
   --nav-h: 76px;
 
+  /* Focus ring: ink reads on paper and yellow, mint reads on ink.
+     Dark surfaces flip it below. */
+  --focus: var(--clr-ink);
+
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -124,8 +128,14 @@ svg {
 }
 
 :focus-visible {
-  outline: 3px solid var(--clr-mint);
+  outline: 3px solid var(--focus);
   outline-offset: 3px;
+}
+
+.section-dark,
+.ticker-dark,
+.footer {
+  --focus: var(--clr-mint);
 }
 
 .container {
@@ -172,6 +182,7 @@ svg {
   line-height: 1.08;
   letter-spacing: -0.02em;
   margin-bottom: 1.2rem;
+  text-wrap: balance;
 }
 
 .section-desc {
@@ -180,29 +191,33 @@ svg {
   max-width: 58ch;
 }
 
+p {
+  text-wrap: pretty;
+}
+
 .section-head {
   margin-bottom: 3.5rem;
 }
 
-/* Scroll reveal
+/* Scroll reveal — scoped to .js so the page is readable without JavaScript
    ========================================================================== */
-.reveal {
+.js .reveal {
   opacity: 0;
   transform: translateY(34px);
   transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
     transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.reveal.visible {
+.js .reveal.visible {
   opacity: 1;
   transform: translateY(0);
 }
 
-.stagger > .reveal:nth-child(2) { transition-delay: 0.08s; }
-.stagger > .reveal:nth-child(3) { transition-delay: 0.16s; }
-.stagger > .reveal:nth-child(4) { transition-delay: 0.24s; }
-.stagger > .reveal:nth-child(5) { transition-delay: 0.32s; }
-.stagger > .reveal:nth-child(6) { transition-delay: 0.4s; }
+.js .stagger > .reveal:nth-child(2) { transition-delay: 0.08s; }
+.js .stagger > .reveal:nth-child(3) { transition-delay: 0.16s; }
+.js .stagger > .reveal:nth-child(4) { transition-delay: 0.24s; }
+.js .stagger > .reveal:nth-child(5) { transition-delay: 0.32s; }
+.js .stagger > .reveal:nth-child(6) { transition-delay: 0.4s; }
 
 /* Buttons
    ========================================================================== */
@@ -254,6 +269,12 @@ svg {
   font-family: var(--font-mono);
 }
 
+/* Pressed: the button lands flat on the page */
+.btn:active {
+  transform: translate(6px, 6px);
+  box-shadow: 0 0 0 var(--clr-ink);
+}
+
 /* Navbar
    ========================================================================== */
 .navbar {
@@ -262,7 +283,7 @@ svg {
   left: 0;
   width: 100%;
   z-index: 1000;
-  background: rgba(250, 250, 250, 0.92);
+  background: rgba(250, 250, 250, 0.95);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border-bottom: 1px solid rgba(26, 26, 26, 0.12);
@@ -317,7 +338,8 @@ svg {
   transition: width 0.25s var(--ease);
 }
 
-.nav-link:hover::after {
+.nav-link:hover::after,
+.nav-link.current::after {
   width: 100%;
 }
 
@@ -341,6 +363,11 @@ svg {
   color: var(--clr-ink);
   transform: translate(3px, 3px);
   box-shadow: 1px 1px 0 var(--clr-ink);
+}
+
+.nav-cta:active {
+  transform: translate(4px, 4px);
+  box-shadow: 0 0 0 var(--clr-ink);
 }
 
 .nav-toggle {
@@ -401,7 +428,20 @@ svg {
   letter-spacing: 0.08em;
   color: var(--clr-grey);
   margin-bottom: 1.6rem;
-  min-height: 1.6em;
+}
+
+/* A hidden copy of the full line holds the box open at every width, so the
+   typewriter never pushes the headline around as the text wraps. */
+.type-wrap {
+  display: grid;
+}
+
+.type-wrap > * {
+  grid-area: 1 / 1;
+}
+
+.type-ghost {
+  visibility: hidden;
 }
 
 .type-cursor {
@@ -1052,7 +1092,7 @@ svg {
     scroll-behavior: auto;
   }
 
-  .reveal {
+  .js .reveal {
     opacity: 1;
     transform: none;
     transition: none;
