@@ -83,7 +83,8 @@
 
   --fg: var(--paper);
   --fg-muted: rgba(250, 250, 250, 0.62);
-  --fg-faint: rgba(250, 250, 250, 0.40);
+  /* Carries small labels, so it has to clear 4.5:1 on both ink and well */
+  --fg-faint: rgba(250, 250, 250, 0.52);
   --line: rgba(250, 250, 250, 0.12);
   --line-lift: rgba(250, 250, 250, 0.22);
   --focus: var(--mint);
@@ -288,8 +289,17 @@ p {
   width: auto;
 }
 
+/* Hidden from view, kept in the accessibility tree — the logo is alt="",
+   so this text is the link's only name */
 .spine .brand-name {
-  display: none;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  clip-path: inset(50%);
 }
 
 /* Vertical section index: the dash fills mint for the section you are in */
@@ -751,8 +761,9 @@ p {
   border-top: none;
 }
 
+/* Mint darkened to hold 4.5:1 against paper */
 .band-hi .tag {
-  color: #0f8f6f;
+  color: #0B7A5E;
 }
 
 .band-hi .lede {
@@ -899,39 +910,102 @@ p {
     --spine: 0px;
   }
 
+  /* Without JS the header stacks and keeps the section links reachable;
+     with JS it collapses to a single bar and the menu takes over. */
   body {
     padding-left: 0;
+    padding-top: 118px;
+  }
+
+  .js body {
     padding-top: 64px;
   }
 
   html {
+    scroll-padding-top: 134px;
+  }
+
+  html.js {
     scroll-padding-top: 84px;
   }
 
   .spine {
     flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
     width: 100%;
-    height: 64px;
-    padding: 0 var(--gutter);
+    height: auto;
+    padding: 1rem var(--gutter);
+    gap: 0.9rem 1rem;
     border-right: none;
     border-bottom: 1px solid var(--line);
   }
 
+  .js .spine {
+    flex-wrap: nowrap;
+    height: 64px;
+    padding: 0 var(--gutter);
+  }
+
   .spine .brand-name {
-    display: block;
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    overflow: visible;
+    clip-path: none;
     font-size: 0.85rem;
     font-weight: 700;
     letter-spacing: 0.2em;
   }
 
-  .spine-nav,
+  .spine-nav {
+    order: 3;
+    width: 100%;
+  }
+
+  .js .spine-nav {
+    display: none;
+  }
+
+  .index {
+    flex-direction: row;
+    gap: 1.4rem;
+  }
+
+  .index-link::before {
+    display: none;
+  }
+
+  /* Numbers carry the row; the names stay for screen readers */
+  .index-name {
+    position: absolute;
+    left: auto;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    clip-path: inset(50%);
+    opacity: 1;
+    transform: none;
+    background: none;
+    border: 0;
+  }
+
   .spine-cta {
     display: none;
   }
 
   .menu-toggle {
-    display: flex;
+    display: none;
     margin-right: -8px;
+  }
+
+  .js .menu-toggle {
+    display: flex;
   }
 
   .hero {
