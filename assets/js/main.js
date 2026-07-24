@@ -59,7 +59,11 @@ document.addEventListener('DOMContentLoaded', () => {
       // The topmost section crossing the middle of the viewport wins.
       const active = navTargets.find((section) => onScreen.has(section));
       navLinks.forEach((link, i) => {
-        link.classList.toggle('current', navTargets[i] === active);
+        const current = navTargets[i] === active;
+        link.classList.toggle('current', current);
+        // The underline is only half the message — say it out loud too
+        if (current) link.setAttribute('aria-current', 'location');
+        else link.removeAttribute('aria-current');
       });
     }, { rootMargin: '-50% 0px -45% 0px' });
 
