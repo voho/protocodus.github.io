@@ -1,6 +1,12 @@
 /* ==========================================================================
    Protocodus — design system
-   Bold print poster meets code. Same palette as the logo:
+
+   Ink ground, two signals. The palette is the logo's: mint marks structure
+   and anything you can act on, yellow marks emphasis and craft. They never
+   land on the same element. Paper appears once, at the end, as the ask.
+   One typeface throughout — the utility register comes from weight, size
+   and tracking rather than a second family.
+
    yellow #FFC400 · mint #00FFC3 · ink #1A1A1A · paper #FAFAFA
    ========================================================================== */
 
@@ -23,14 +29,6 @@
   src: url('../fonts/space-grotesk-latin-ext.woff2') format('woff2');
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
-
-/* ==========================================================================
-   Protocodus — design system
-   Ink ground, two signals. The palette is the logo's: mint marks structure
-   and anything you can act on, yellow marks emphasis and craft. They never
-   land on the same element. Paper appears once, at the end, as the ask.
-   yellow #FFC400 · mint #00FFC3 · ink #1A1A1A · paper #FAFAFA
-   ========================================================================== */
 
 /* Tokens
    ========================================================================== */
@@ -446,6 +444,17 @@ p {
   overflow: hidden;
 }
 
+/* Conway's Life, running behind the statement. Masked at top and bottom so
+   the field never reaches the spine, the headline's own band or the loop. */
+.life {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 16%, #000 72%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 16%, #000 72%, transparent);
+}
+
 /* The logo at page scale: brackets closing around what we build */
 .statement {
   position: relative;
@@ -476,6 +485,7 @@ p {
 
 .hero-inner {
   position: relative;
+  z-index: 1;
   width: 100%;
   max-width: var(--wrap);
   margin: 0 auto;
@@ -529,6 +539,8 @@ p {
 }
 
 .hero-foot {
+  position: relative;
+  z-index: 1;
   flex: 0 0 auto;
   width: 100%;
   max-width: var(--wrap);
