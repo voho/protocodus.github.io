@@ -107,7 +107,10 @@
   // inheritance, and you can watch one lineage overrun another.
   //
   // Newborns of any species show the mark for one generation before settling
-  // into their own, which is the only place gold appears out here.
+  // into their own, and every one of them is a shade of the company green —
+  // the field never reaches for a second hue.
+  //
+  // A little randomness is stirred in on top — see SPONTANEOUS and MUTATION.
   // ===========================================================================
   const CELL = 26;         // lattice spacing, px
   const GLYPH_PX = 15;     // type size of a live cell
@@ -129,8 +132,19 @@
   const EASE_TO_POINTER = 0.045;
 
   // Species 1-4, plus the mark every newborn wears for its first generation
-  const GLYPHS = ['{', '}', '+', '*'];
+  const GLYPHS = ['{', '}', '+', '='];
   const NEWBORN_GLYPH = '✦';
+
+  // How far each species sits from --mint: negative towards black, positive
+  // towards white. Four shades of the one green, so species read as depth.
+  const SHADES = [-0.45, -0.22, 0, 0.34];
+  const NEWBORN_SHADE = 0.7;   // brightest of the ramp, so a birth still lands
+
+  // Conway is deterministic, which is the one thing a background cannot be:
+  // watch it long enough and it visibly repeats. These two keep it from ever
+  // quite settling — both small enough that the rule still reads as Life.
+  const SPONTANEOUS = 0.00012;  // chance an empty cell ignites on its own
+  const MUTATION = 0.03;        // chance a newborn ignores what it inherited
 
   // One glider; addGlider() reflects it into the other three orientations
   const GLIDER = [[1, 0], [2, 1], [0, 2], [1, 2], [2, 2]];
@@ -145,6 +159,11 @@
     return [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
   };
 
+  // Lightens towards white or darkens towards black, holding the hue
+  const shade = (rgb, t) => rgb.map((c) => Math.round(
+    t >= 0 ? c + (255 - c) * t : c * (1 + t)
+  ));
+
   class Life {
     constructor(host) {
       this.host = host;
@@ -156,7 +175,6 @@
 
       // The palette lives in :root; reading it keeps one source of truth
       this.mint = readToken('--mint');
-      this.yellow = readToken('--yellow');
 
       this.sprites = [];
       this.gen = 0;
@@ -237,7 +255,7 @@
       for (let i = 0; i < this.cur.length; i++) {
         if (Math.random() >= DENSITY) continue;
         this.cur[i] = 1;
-        this.kind[i] = 1 + Math.floor(Math.random() * GLYPHS.length);
+        this.kind[i] = this.randomSpecies();
       }
       this.prev = this.cur.slice();
       this.prevKind = this.kind.slice();
@@ -277,8 +295,8 @@
       };
 
       this.box = box;
-      this.sprites = GLYPHS.map((glyph) => draw(glyph, this.mint));
-      this.newbornSprite = draw(NEWBORN_GLYPH, this.yellow, 1.15);
+      this.sprites = GLYPHS.map((glyph, i) => draw(glyph, shade(this.mint, SHADES[i])));
+      this.newbornSprite = draw(NEWBORN_GLYPH, shade(this.mint, NEWBORN_SHADE), 1.15);
     }
 
     // Counts live neighbours, and fills `tally` with how many of each species
@@ -298,6 +316,10 @@
         }
       }
       return n;
+    }
+
+    randomSpecies() {
+      return 1 + Math.floor(Math.random() * GLYPHS.length);
     }
 
     // QuadLife's inheritance: a newborn joins whichever of its three parents
@@ -335,7 +357,15 @@
             nextKind[i] = lives ? kind[i] : 0;
           } else if (n === 3) {
             next[i] = 1;
-            nextKind[i] = this.inherit(tally);
+            // A newborn usually inherits, but occasionally arrives its own kind
+            nextKind[i] = Math.random() < MUTATION
+              ? this.randomSpecies()
+              : this.inherit(tally);
+          } else if (Math.random() < SPONTANEOUS) {
+            // Nothing in Conway makes this happen; it is the grit that keeps
+            // the board from reaching a state it has been in before
+            next[i] = 1;
+            nextKind[i] = this.randomSpecies();
           }
         }
       }
@@ -370,7 +400,7 @@
       const oy = Math.floor(Math.random() * rows);
       const flipX = Math.random() < 0.5;
       const flipY = Math.random() < 0.5;
-      const species = 1 + Math.floor(Math.random() * GLYPHS.length);
+      const species = this.randomSpecies();
 
       GLIDER.forEach(([gx, gy]) => {
         const x = (ox + (flipX ? 2 - gx : gx)) % cols;
