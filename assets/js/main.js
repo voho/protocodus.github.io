@@ -111,15 +111,22 @@
   // ===========================================================================
   const CELL = 26;         // lattice spacing, px
   const GLYPH_PX = 15;     // type size of a live cell
-  const GEN_MS = 900;      // one generation
-  const FADE_MS = 400;     // crossfade; the rest of the generation is held still
+  const GEN_MS = 200;      // one generation — five a second
   const DENSITY = 0.16;    // share of cells alive at seed
   // A glyph's strokes carry roughly half the ink of the solid dot they
   // replaced, and spread it thinner, so this is well above the old 0.13
   const ALIVE_A = 0.34;
   const BORN_A = 0.85;     // extra brightness while a cell is being born
-  const GLIDER_EVERY = 9;  // generations
+  const GLIDER_EVERY = 30; // generations — about one every six seconds
   const DPR_CAP = 2;       // glyphs, unlike squares, do repay the extra pixels
+
+  // Every cell crossfades across its whole generation, so the field is never
+  // still — no held frame, no step you can catch it taking
+  const GLOW_PX = 7;       // halo baked into each sprite
+  const GLOW_PASSES = 2;   // stamped twice, for a denser bloom
+  const DRIFT_PX = 9;      // ambient wander of the whole lattice
+  const PARALLAX_PX = 14;  // how far the field leans towards the pointer
+  const EASE_TO_POINTER = 0.045;
 
   // Species 1-4, plus the mark every newborn wears for its first generation
   const GLYPHS = ['{', '}', '+', '*'];
@@ -157,10 +164,24 @@
       this.recent = [];
       this.visible = false;
       this.running = false;
-      this.held = false;
+
+      // -1..1 from the centre of the viewport; leanX/Y chase it, one frame at
+      // a time, so the field arrives late and settles rather than tracking
+      this.pointerX = 0;
+      this.pointerY = 0;
+      this.leanX = 0;
+      this.leanY = 0;
 
       this.frame = this.frame.bind(this);
       this.wake = this.wake.bind(this);
+
+      if (window.matchMedia('(pointer: fine)').matches) {
+        // Recording only — the value is read once per frame in draw()
+        window.addEventListener('pointermove', (e) => {
+          this.pointerX = (e.clientX / window.innerWidth) * 2 - 1;
+          this.pointerY = (e.clientY / window.innerHeight) * 2 - 1;
+        }, { passive: true });
+      }
 
       new ResizeObserver(() => this.resize()).observe(host);
       new IntersectionObserver(([entry]) => {
@@ -177,7 +198,6 @@
         document.fonts.ready.then(() => {
           this.spriteDpr = null;
           this.resize();
-          this.held = false;
           this.wake();
         });
       }
@@ -199,13 +219,14 @@
         this.canvas.width = bw;
         this.canvas.height = bh;
         this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        this.held = false;
       }
       this.w = w;
       this.h = h;
 
-      const cols = Math.ceil(w / CELL) + 1;
-      const rows = Math.ceil(h / CELL) + 1;
+      // Two spare rows and columns each way, so the drift and the parallax
+      // never pull the lattice off its own edge
+      const cols = Math.ceil(w / CELL) + 4;
+      const rows = Math.ceil(h / CELL) + 4;
       if (cols === this.cols && rows === this.rows) return;
 
       this.cols = cols;
@@ -230,23 +251,34 @@
       if (this.spriteDpr === dpr) return;
       this.spriteDpr = dpr;
 
-      const box = Math.ceil(GLYPH_PX * 1.6);
-      const draw = (glyph, rgb) => {
+      // Room for the glyph plus its halo on every side
+      const box = Math.ceil(GLYPH_PX + GLOW_PX * 4);
+      const font = getComputedStyle(root).getPropertyValue('--display');
+
+      const draw = (glyph, rgb, scale = 1) => {
         const c = document.createElement('canvas');
         c.width = c.height = Math.ceil(box * dpr);
         const g = c.getContext('2d');
         g.scale(dpr, dpr);
-        g.font = `${GLYPH_PX}px ${getComputedStyle(root).getPropertyValue('--display')}`;
+        g.font = `${GLYPH_PX * scale}px ${font}`;
         g.textAlign = 'center';
         g.textBaseline = 'middle';
         g.fillStyle = `rgb(${rgb.join()})`;
+
+        // The blur is rasterised into the sprite, so a cell still costs one
+        // drawImage at runtime rather than a second blurred pass
+        g.shadowColor = `rgb(${rgb.join()})`;
+        g.shadowBlur = GLOW_PX;
+        for (let i = 0; i < GLOW_PASSES; i++) g.fillText(glyph, box / 2, box / 2);
+
+        g.shadowBlur = 0;
         g.fillText(glyph, box / 2, box / 2);
         return c;
       };
 
       this.box = box;
       this.sprites = GLYPHS.map((glyph) => draw(glyph, this.mint));
-      this.newbornSprite = draw(NEWBORN_GLYPH, this.yellow);
+      this.newbornSprite = draw(NEWBORN_GLYPH, this.yellow, 1.15);
     }
 
     // Counts live neighbours, and fills `tally` with how many of each species
@@ -313,7 +345,6 @@
       this.cur = next;
       this.kind = nextKind;
       this.gen += 1;
-      this.held = false;
 
       const stalled = this.record();
       if (stalled || this.gen % GLIDER_EVERY === 0) this.addGlider();
@@ -370,22 +401,30 @@
           const species = state === DYING ? prevKind[i] : kind[i];
           const sprite = state === NEWBORN ? this.newbornSprite : sprites[species - 1];
           if (!sprite) continue;
-          ctx.drawImage(sprite, x * CELL - half, y * CELL - half, box, box);
+          ctx.drawImage(sprite, x * CELL - half - CELL * 2, y * CELL - half - CELL * 2, box, box);
         }
       }
     }
 
     draw(now) {
       const { ctx, w, h } = this;
-      const t = Math.min((now - this.last) / FADE_MS, 1);
 
-      // Once the crossfade lands the board is identical until the next
-      // generation, so there is nothing to repaint for the rest of it
-      if (t === 1 && this.held) return;
-      this.held = t === 1;
-
+      // The crossfade spans the whole generation, so a cell is always either
+      // arriving or leaving and the field never holds a frame
+      const t = Math.min((now - this.last) / GEN_MS, 1);
       const ease = t * t * (3 - 2 * t);
+
+      // Two slow sines the eye cannot lock onto, plus a lean towards the
+      // pointer that lags behind it — together they read as depth, not motion
+      const s = now / 1000;
+      this.leanX += (this.pointerX - this.leanX) * EASE_TO_POINTER;
+      this.leanY += (this.pointerY - this.leanY) * EASE_TO_POINTER;
+      const dx = Math.sin(s * 0.11) * DRIFT_PX + this.leanX * PARALLAX_PX;
+      const dy = Math.cos(s * 0.083) * DRIFT_PX + this.leanY * PARALLAX_PX;
+
       ctx.clearRect(0, 0, w, h);
+      ctx.save();
+      ctx.translate(dx, dy);
 
       ctx.globalAlpha = ALIVE_A;
       this.paint(SURVIVOR);
@@ -400,6 +439,7 @@
       this.paint(NEWBORN);
 
       ctx.globalAlpha = 1;
+      ctx.restore();
     }
 
     frame(now) {
