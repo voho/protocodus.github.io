@@ -28,6 +28,9 @@
   <link rel="preload" href="assets/fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="assets/fonts/space-grotesk-latin-ext.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="assets/css/style.css">
+  <!-- `.js` means JavaScript is running: the mobile nav collapses into a
+       button, reveals start hidden, and the hero entrance is armed. Without
+       it every one of those stays in its finished state. -->
   <script>document.documentElement.classList.add('js');</script>
 </head>
 
@@ -43,10 +46,10 @@
 
     <nav class="spine-nav" aria-label="Sections">
       <ol class="index">
-        <li><a href="#what-we-do" class="index-link"><span class="index-num">01</span><span class="index-name">What we do</span></a></li>
-        <li><a href="#how-we-work" class="index-link"><span class="index-num">02</span><span class="index-name">How we work</span></a></li>
-        <li><a href="#who-we-are" class="index-link"><span class="index-num">03</span><span class="index-name">Who we are</span></a></li>
-        <li><a href="#contact" class="index-link"><span class="index-num">04</span><span class="index-name">Say hello</span></a></li>
+        <li><a href="#what-we-do" class="index-link"><span>01</span><span class="index-name">What we do</span></a></li>
+        <li><a href="#how-we-work" class="index-link"><span>02</span><span class="index-name">How we work</span></a></li>
+        <li><a href="#who-we-are" class="index-link"><span>03</span><span class="index-name">Who we are</span></a></li>
+        <li><a href="#contact" class="index-link"><span>04</span><span class="index-name">Say hello</span></a></li>
       </ol>
     </nav>
 
@@ -71,13 +74,10 @@
 
     <!-- ================= HERO ================= -->
     <section class="hero" id="top">
-      <!-- Conway's Life, seeded and left running. Canvas is added by main.js
-           so a JS-less or reduced-motion visitor gets a still page. -->
       <div class="hero-inner">
-        <p class="tag">// a software company built for startups</p>
+        <p class="tag enter">// a software company built for startups</p>
 
         <div class="statement">
-          <!-- The mark at page scale: brackets closing around what we build -->
           <svg class="frame frame-l" viewBox="0 0 60 400" aria-hidden="true" preserveAspectRatio="none">
             <path d="M58 2 L4 200 L58 398" />
           </svg>
@@ -91,15 +91,15 @@
             <span class="rise"><span>for startups<i class="spark" aria-hidden="true">✦</i></span></span>
           </h1>
         </div>
-        <p class="hero-sub">From first prototype to production. We help founders decide what to build
+        <p class="hero-sub enter">From first prototype to production. We help founders decide what to build
           first — then we build it properly, one release at a time.</p>
-        <div class="hero-actions">
+        <div class="hero-actions enter">
           <a href="#contact" class="btn">Start a project</a>
           <a href="#how-we-work" class="btn btn-quiet">How we work</a>
         </div>
       </div>
 
-      <p class="hero-foot">
+      <p class="hero-foot enter">
         <span class="loop-label">The loop</span>
         <span class="loop">
           <span>Prioritize</span><span>Design</span><span>Build</span><span>Ship</span><span>Learn</span><span>Repeat</span>

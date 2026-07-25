@@ -51,11 +51,25 @@
   --line-lift: rgba(250, 250, 250, 0.22);
   --focus: var(--mint);
 
+  /* Paper ground, used once in the contact block. Mint is darkened because
+     #00FFC3 only reaches 3.9:1 against paper; these three clear 4.5:1. */
+  --mint-on-paper: #0B7A5E;
+  --fg-on-paper-muted: #4A4A4A;
+  --fg-on-paper-faint: #6A6A6A;
+
   /* One family throughout: register comes from weight, size and tracking */
   --display: 'Space Grotesk', system-ui, sans-serif;
 
+  /* The small-label register, in two steps — so nobody has to invent a third */
+  --label: 0.78rem;
+  --label-track: 0.14em;
+  --label-quiet: 0.82rem;
+  --label-quiet-track: 0.04em;
+
   --spine: 96px;
   --wrap: 1140px;
+  --detail-col: 200px;
+  --detail-gap: clamp(1.4rem, 3vw, 2.2rem);
   --gutter: clamp(1.5rem, 4vw, 3.5rem);
 
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
@@ -145,10 +159,62 @@ p {
 
 /* Shared type
    ========================================================================== */
-.tag {
-  font-size: 0.8rem;
+
+/* With a single typeface the label register has to come from somewhere, so it
+   comes from here. Two steps only: tracked uppercase for controls and rule
+   lines, quiet sentence case for captions. Anything below overrides at most
+   one of these — a third size would mean the system has a hole in it. */
+.btn,
+.spine-cta,
+.hero-foot,
+.flow,
+.card-num,
+.detail dt,
+.index-link,
+.menu nav a span {
+  font-size: var(--label);
+  font-weight: 600;
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+}
+
+.tag,
+.fact dd,
+.signed,
+.footer-meta,
+.skip-link {
+  font-size: var(--label-quiet);
   font-weight: 500;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--label-quiet-track);
+}
+
+/* Digits that sit in a column, or change in place, want to hold their width */
+.index-link,
+.menu nav a span,
+.card-num,
+.fact dt,
+.detail dd {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Out of view, still in the accessibility tree — for text a sighted reader
+   gets from something else. The wordmark is carried by the logo wherever the
+   rail is too narrow for it; the section names are carried by their numbers
+   wherever there is no room for a tooltip. Each is un-hidden where it fits. */
+.vh,
+.spine .brand-name,
+.index-name {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
+.tag {
   color: var(--mint);
 }
 
@@ -180,14 +246,11 @@ p {
   display: inline-flex;
   align-items: center;
   gap: 0.7rem;
-  font-size: 0.8rem;
   font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
   color: var(--ink);
-  background: var(--yellow);
+  background: var(--btn-bg, var(--yellow));
   padding: 1rem 1.6rem;
-  border: 1px solid var(--yellow);
+  border: 1px solid var(--btn-bg, var(--yellow));
   transition: background-color 0.25s var(--ease), color 0.25s var(--ease),
     border-color 0.25s var(--ease), transform 0.25s var(--ease);
 }
@@ -198,8 +261,7 @@ p {
 }
 
 .btn:hover {
-  background: var(--paper);
-  border-color: var(--paper);
+  --btn-bg: var(--paper);
 }
 
 .btn:hover::after {
@@ -211,13 +273,12 @@ p {
 }
 
 .btn-quiet {
-  background: transparent;
+  --btn-bg: transparent;
   color: var(--fg);
   border-color: var(--line-lift);
 }
 
 .btn-quiet:hover {
-  background: transparent;
   color: var(--mint);
   border-color: var(--mint);
 }
@@ -252,17 +313,10 @@ p {
   width: auto;
 }
 
-/* Hidden from view, kept in the accessibility tree — the logo is alt="",
-   so this text is the link's only name */
-.spine .brand-name {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  clip-path: inset(50%);
+.brand-name {
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
 }
 
 /* Vertical section index: the dash fills mint for the section you are in */
@@ -276,34 +330,8 @@ p {
   display: flex;
   align-items: center;
   gap: 0.7rem;
-  font-size: 0.76rem;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  font-variant-numeric: tabular-nums;
   color: var(--fg-faint);
   transition: color 0.25s var(--ease);
-}
-
-.index-link::before {
-  content: '';
-  width: 14px;
-  height: 1px;
-  background: currentColor;
-  transition: width 0.35s var(--ease), background-color 0.25s var(--ease);
-}
-
-.index-name {
-  position: absolute;
-  left: calc(var(--spine) + 0.75rem);
-  white-space: nowrap;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  padding: 0.35rem 0.7rem;
-  color: var(--fg);
-  opacity: 0;
-  transform: translateX(-6px);
-  pointer-events: none;
-  transition: opacity 0.2s var(--ease), transform 0.2s var(--ease);
 }
 
 .index-link:hover,
@@ -311,30 +339,65 @@ p {
   color: var(--fg);
 }
 
-.index-link:hover .index-name,
-.index-link:focus-visible .index-name {
-  opacity: 1;
-  transform: none;
-}
-
 .index-link.current {
   color: var(--mint);
 }
 
-.index-link.current::before {
-  width: 30px;
-  background: var(--mint);
+/* The rail's own affordances — a dash beside each number and a label on
+   hover — exist only where there is a rail, so they are switched on at
+   min-width rather than switched off at max-width. Each override sits beside
+   the rule it extends, and after it, so source order cannot bite. */
+@media (min-width: 861px) {
+  .index-link::before {
+    content: '';
+    width: 14px;
+    height: 1px;
+    background: currentColor;
+    transition: width 0.35s var(--ease), background-color 0.25s var(--ease);
+  }
+
+  .index-link.current::before {
+    width: 30px;
+    background: var(--mint);
+  }
+
+  /* Un-clips the screen-reader label into a tooltip beside the rail */
+  .index-name {
+    left: calc(100% + 0.75rem);
+    width: auto;
+    height: auto;
+    margin: 0;
+    padding: 0.35rem 0.7rem;
+    overflow: visible;
+    clip-path: none;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    color: var(--fg);
+    opacity: 0;
+    transform: translateX(-6px);
+    pointer-events: none;
+    transition: opacity 0.2s var(--ease), transform 0.2s var(--ease);
+  }
+
+  .index-link:hover .index-name,
+  .index-link:focus-visible .index-name {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .spine-cta {
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
+  display: none;
   color: var(--fg-muted);
   writing-mode: vertical-rl;
   padding: 0.5rem 0;
   transition: color 0.25s var(--ease);
+}
+
+@media (min-width: 861px) {
+  .spine-cta {
+    display: block;
+  }
 }
 
 .spine-cta:hover {
@@ -383,12 +446,8 @@ p {
   overscroll-behavior: contain;
 }
 
-.menu.open {
+.menu:not([hidden]) {
   display: flex;
-}
-
-.menu[hidden] {
-  display: none;
 }
 
 /* Auto margins centre the group when there is room and collapse to nothing
@@ -416,18 +475,12 @@ p {
 }
 
 .menu nav a span {
-  font-size: 0.8rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  font-variant-numeric: tabular-nums;
   color: var(--mint);
 }
 
 .menu-mail {
   margin-top: 2rem;
   margin-bottom: auto;
-  font-size: 0.95rem;
-  font-weight: 500;
   color: var(--yellow);
 }
 
@@ -442,25 +495,31 @@ p {
   justify-content: center;
   padding: clamp(6rem, 14vh, 9rem) var(--gutter) 2rem;
   overflow: hidden;
+  /* Keeps .life's negative z-index inside the hero, so hero content paints
+     above the canvas without every child having to opt in */
+  isolation: isolate;
 }
 
-/* Conway's Life, running behind the statement. Masked at top and bottom so
-   the field never reaches the spine, the headline's own band or the loop. */
+/* Conway's Life, running behind the statement. The mask stops are lengths
+   rather than percentages so they stay tied to the hero's own padding
+   instead of drifting as the hero changes height. */
 .life {
   position: absolute;
   inset: 0;
-  z-index: 0;
+  z-index: -1;
   pointer-events: none;
-  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 16%, #000 72%, transparent);
-  mask-image: linear-gradient(to bottom, transparent, #000 16%, #000 72%, transparent);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 clamp(6rem, 14vh, 9rem), #000 calc(100% - 9rem), transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 clamp(6rem, 14vh, 9rem), #000 calc(100% - 9rem), transparent);
 }
 
-/* The logo at page scale: brackets closing around what we build */
 .statement {
   position: relative;
 }
 
+/* The logo at page scale: brackets closing around what we build.
+   Shown at min-width alongside the rail's other affordances. */
 .frame {
+  display: none;
   position: absolute;
   top: 50%;
   height: 66%;
@@ -475,6 +534,12 @@ p {
   pointer-events: none;
 }
 
+@media (min-width: 861px) {
+  .frame {
+    display: block;
+  }
+}
+
 .frame-l {
   right: calc(100% + clamp(1.2rem, 2.4vw, 2.4rem));
 }
@@ -484,8 +549,6 @@ p {
 }
 
 .hero-inner {
-  position: relative;
-  z-index: 1;
   width: 100%;
   max-width: var(--wrap);
   margin: 0 auto;
@@ -539,8 +602,6 @@ p {
 }
 
 .hero-foot {
-  position: relative;
-  z-index: 1;
   flex: 0 0 auto;
   width: 100%;
   max-width: var(--wrap);
@@ -551,10 +612,6 @@ p {
   flex-wrap: wrap;
   align-items: baseline;
   gap: 0.8rem clamp(1.5rem, 4vw, 3rem);
-  font-size: 0.78rem;
-  font-weight: 600;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
 }
 
 .loop-label {
@@ -627,10 +684,6 @@ p {
 }
 
 .card-num {
-  font-size: 0.78rem;
-  font-weight: 600;
-  letter-spacing: 0.18em;
-  font-variant-numeric: tabular-nums;
   color: var(--fg-faint);
   transition: color 0.3s var(--ease);
 }
@@ -686,10 +739,6 @@ p {
   margin-top: clamp(3rem, 6vw, 4.5rem);
   padding-top: 1.5rem;
   border-top: 1px solid var(--line);
-  font-size: 0.78rem;
-  font-weight: 600;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
   color: var(--fg-muted);
 }
 
@@ -737,27 +786,21 @@ p {
 
 .fact dd {
   margin-top: 0.7rem;
-  font-size: 0.82rem;
-  font-weight: 500;
-  letter-spacing: 0.04em;
   color: var(--fg-faint);
 }
 
 /* Contact — the one paper-ground moment, because it is the one ask
    ========================================================================== */
 .band-hi {
+  --fg-muted: var(--fg-on-paper-muted);
+  --focus: var(--ink);
   background: var(--paper);
   color: var(--ink);
   border-top: none;
 }
 
-/* Mint darkened to hold 4.5:1 against paper */
 .band-hi .tag {
-  color: #0B7A5E;
-}
-
-.band-hi .lede {
-  color: #4a4a4a;
+  color: var(--mint-on-paper);
 }
 
 .hi {
@@ -791,15 +834,9 @@ p {
   transform: scaleX(0.3);
 }
 
-.band-hi :focus-visible {
-  outline-color: var(--ink);
-}
-
 .signed {
   margin-top: 1.6rem;
-  font-size: 0.84rem;
-  font-weight: 500;
-  color: #6a6a6a;
+  color: var(--fg-on-paper-faint);
 }
 
 /* Footer
@@ -829,20 +866,21 @@ p {
 }
 
 /* Company details — the legal record, set quietly */
-.details {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: clamp(1.4rem, 3vw, 2.2rem);
+.details,
+.footer-bottom {
   margin-top: clamp(2.5rem, 5vw, 3.5rem);
-  padding-top: clamp(2rem, 4vw, 2.6rem);
   border-top: 1px solid var(--line);
 }
 
+.details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(var(--detail-col), 1fr));
+  gap: var(--detail-gap);
+  padding-top: clamp(2rem, 4vw, 2.6rem);
+  container-type: inline-size;
+}
+
 .detail dt {
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
   color: var(--fg-faint);
 }
 
@@ -859,9 +897,11 @@ p {
   font-size: 0.85rem;
 }
 
-/* The IBAN needs a full line of its own; only claim the extra column once
-   the grid actually has one to give */
-@media (min-width: 900px) {
+/* The IBAN wants a line to itself. Asking the grid — not the viewport —
+   whether it has two tracks to spare, so this holds however wide the footer
+   is. The threshold is two --detail-col tracks plus a --detail-gap; it is
+   written out because a container query cannot resolve custom properties. */
+@container (min-width: 440px) {
   .detail-wide {
     grid-column: span 2;
   }
@@ -872,14 +912,10 @@ p {
   flex-wrap: wrap;
   justify-content: space-between;
   gap: 0.6rem 2rem;
-  margin-top: clamp(2.5rem, 5vw, 3.5rem);
   padding-top: 1.4rem;
-  border-top: 1px solid var(--line);
 }
 
 .footer-meta {
-  font-size: 0.78rem;
-  font-weight: 500;
   color: var(--fg-faint);
 }
 
@@ -889,18 +925,12 @@ p {
   transform: translateY(105%);
 }
 
-.js .hero .tag,
-.js .hero-sub,
-.js .hero-actions,
-.js .hero-foot {
+.js .enter {
   opacity: 0;
   transform: translateY(10px);
 }
 
-.js.ready .hero .tag,
-.js.ready .hero-sub,
-.js.ready .hero-actions,
-.js.ready .hero-foot {
+.js.ready .enter {
   opacity: 1;
   transform: none;
   transition: opacity 0.8s var(--ease), transform 0.8s var(--ease);
@@ -943,27 +973,21 @@ p {
 }
 
 @media (max-width: 860px) {
-  :root {
-    --spine: 0px;
-  }
-
-  /* Without JS the header stacks and keeps the section links reachable;
-     with JS it collapses to a single bar and the menu takes over. */
-  body {
-    padding-left: 0;
-    padding-top: 118px;
-  }
-
-  .js body {
-    padding-top: 64px;
-  }
-
+  /* Without JS the header stacks to two rows and keeps the section links
+     reachable; with JS it collapses to one bar and the menu takes over. Its
+     height is a measurement, so it is stated once and derived from there. */
   html {
-    scroll-padding-top: 134px;
+    --bar: 118px;
+    scroll-padding-top: calc(var(--bar) + 1.25rem);
   }
 
   html.js {
-    scroll-padding-top: 84px;
+    --bar: 64px;
+  }
+
+  body {
+    padding-left: 0;
+    padding-top: var(--bar);
   }
 
   .spine {
@@ -981,10 +1005,11 @@ p {
 
   .js .spine {
     flex-wrap: nowrap;
-    height: 64px;
+    height: var(--bar);
     padding: 0 var(--gutter);
   }
 
+  /* The bar has room for the wordmark the rail does not */
   .spine .brand-name {
     position: static;
     width: auto;
@@ -992,9 +1017,6 @@ p {
     margin: 0;
     overflow: visible;
     clip-path: none;
-    font-size: 0.85rem;
-    font-weight: 700;
-    letter-spacing: 0.2em;
   }
 
   .spine-nav {
@@ -1011,33 +1033,7 @@ p {
     gap: 1.4rem;
   }
 
-  .index-link::before {
-    display: none;
-  }
-
-  /* Numbers carry the row; the names stay for screen readers */
-  .index-name {
-    position: absolute;
-    left: auto;
-    width: 1px;
-    height: 1px;
-    margin: -1px;
-    padding: 0;
-    overflow: hidden;
-    white-space: nowrap;
-    clip-path: inset(50%);
-    opacity: 1;
-    transform: none;
-    background: none;
-    border: 0;
-  }
-
-  .spine-cta {
-    display: none;
-  }
-
   .menu-toggle {
-    display: none;
     margin-right: -8px;
   }
 
@@ -1049,10 +1045,6 @@ p {
     min-height: auto;
     padding-top: 4rem;
     padding-bottom: 3.5rem;
-  }
-
-  .frame {
-    display: none;
   }
 
   .cards {
@@ -1067,10 +1059,6 @@ p {
   .facts {
     grid-template-columns: minmax(0, 1fr);
     gap: 1.6rem;
-  }
-
-  .footer-meta {
-    margin-left: 0;
   }
 }
 
@@ -1096,10 +1084,7 @@ p {
     transition-duration: 0.01ms !important;
   }
 
-  .js .hero .tag,
-  .js .hero-sub,
-  .js .hero-actions,
-  .js .hero-foot,
+  .js .enter,
   .js .reveal {
     opacity: 1;
     transform: none;
