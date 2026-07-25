@@ -32,8 +32,14 @@ Type has no middle ground on purpose, and only one family: Space Grotesk at
 display sizes with tight tracking, and the same face at 0.72–0.8rem in a
 heavier weight with wide tracking for every label, number and control.
 
+The footer sets the company record on the same three columns the brand row
+uses, and the column count is pinned rather than fitted — six entries then
+always land as a full rectangle, 3×2 or 2×3 or 1×6, and no row ever ends in
+a hole. Left to `auto-fit` the same grid would happily put five across and
+strand the sixth underneath.
+
 Motion is one entrance, quiet scroll reveals, and Conway's Life running
-behind the hero at five generations a second.
+behind the hero at one generation every six tenths of a second.
 
 The rule is QuadLife. Births and deaths follow Conway exactly, so the
 dynamics are the ones known to stay interesting, but every live cell also
@@ -60,15 +66,30 @@ The bloom is rasterised into each sprite at build time, which is what makes
 per-species depth of field free — a cell is still one image blit no matter
 how wide its halo.
 
-The lattice also breathes: its pitch opens and closes by 13% about the centre
-of the hero over fifteen seconds. The board is sized for the tightest it ever
+The lattice also breathes: its pitch opens and closes by 8.9% about the centre
+of the hero over eighteen seconds. The board is sized for the tightest it ever
 gets, so neither the breath nor the drift nor the parallax can uncover an
 edge.
 
-Over the whole thing sit scanlines — one dark line every 4px at 14%, static
+Over the whole thing sit scanlines — one dark line every 5px at 13%, static
 and never rolling, since a drifting scanline is the part of the CRT look that
 gives people headaches. They render above the field and below every word on
 the page, so nothing legible is touched.
+
+Under the statement sits a pool of shadow, a soft radial darkening of the
+ground exactly where the largest type is: the title gains contrast and the
+field loses none of its reach. It hangs off the statement rather than off the
+hero, because the title's centre falls two fifths of the way down the hero at
+desktop and under a quarter of the way at phone widths, so any figure measured
+from the hero would be right at one size and wrong at the other.
+
+Every constant in the field is a Fibonacci number, or one over a power of ten:
+21px between cells, 610ms to a generation, 17711ms to a breath, and an 8×13
+cursor that is a golden rectangle by accident of the same rule. The sequence
+has no bearing on Conway's — it makes no claim to. It is that a screen full of
+tuning constants wants some reason to hold the values it holds, and one
+arbitrary rule applied honestly is easier to trust, and to revisit, than a
+dozen numbers each nudged separately until they looked about right.
 
 Conway is deterministic, which is the one thing a background cannot be: watch
 it long enough and it visibly repeats. Two small probabilities prevent that —
@@ -76,10 +97,11 @@ an empty cell occasionally ignites on its own, and a newborn occasionally
 ignores what it inherited. Both are slight enough that the rule still reads
 as Life.
 
-The board wraps on a torus and takes a glider every thirtieth generation —
+The board wraps on a torus and takes a glider every thirty-fourth generation —
 and whenever a hash of it repeats one of the last four, which catches both
-still lifes and blinkers — so it never stalls. Over twenty seconds its
-population ranged 76k-126k lit pixels without repeating a sample.
+still lifes and blinkers — so it never stalls. Sampled twice a second for
+twenty seconds, its population ranged 17k-55k lit pixels and never repeated a
+figure, across about 3% of the canvas.
 
 Every cell crossfades across its whole generation, so the field is never
 holding a frame, and the lattice wanders on two slow sines while leaning a

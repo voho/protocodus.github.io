@@ -68,7 +68,11 @@
 
   --spine: 96px;
   --wrap: 1140px;
-  --detail-col: 200px;
+  /* The narrowest a footer column may be: the widest single value the company
+     record holds, which is the IBAN at 253px. Below this an account number
+     breaks across two lines, and a broken account number is worse than a
+     column of empty space. */
+  --detail-col: 260px;
   --detail-gap: clamp(1.4rem, 3vw, 2.2rem);
   --gutter: clamp(1.5rem, 4vw, 3.5rem);
 
@@ -517,13 +521,44 @@ p {
   mask-image: linear-gradient(to bottom, transparent, #000 clamp(6rem, 14vh, 9rem), #000 calc(100% - 15rem), transparent calc(100% - 4.5rem));
 }
 
+/* isolate, so the pool below is guaranteed to land between the field and the
+   words no matter where the canvas sits in the DOM */
 .statement {
   position: relative;
+  isolation: isolate;
+}
+
+/* A pool of shadow under the statement. The field is busiest across the
+   middle of the hero, which is exactly where the largest type is, so the
+   ground is dropped a little there — the title gains contrast and the field
+   loses none of its reach.
+
+   It hangs off the statement rather than off the hero, because the title's
+   centre travels (two fifths of the way down at desktop, under a quarter at
+   phone widths) and a percentage measured from the hero would only be right
+   at one size. `50% 50% at 50% 50%` makes the ellipse exactly the box, so it
+   reaches transparent right at the edge and nothing is ever clipped mid-
+   falloff. The stops are shaped by hand; the default linear ramp leaves a
+   visible ring where a pool this wide runs out. */
+.statement::before {
+  content: '';
+  position: absolute;
+  inset: -42% -14%;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(
+    50% 50% at 50% 50%,
+    rgba(0, 0, 0, 0.58) 0%,
+    rgba(0, 0, 0, 0.5) 30%,
+    rgba(0, 0, 0, 0.3) 58%,
+    rgba(0, 0, 0, 0.11) 80%,
+    transparent 100%
+  );
 }
 
 /* Scanlines, for the terminal the field is already pretending to be. Static,
    never rolling — a drifting scanline is the part of the CRT look that gives
-   people headaches, and it buys nothing here. One dark line every 4px at 14%
+   people headaches, and it buys nothing here. One dark line every 5px at 13%
    is enough to read as a phosphor screen without touching legibility, and it
    sits above the field but below every word on the page. */
 .hero::after {
@@ -534,8 +569,8 @@ p {
   pointer-events: none;
   background: repeating-linear-gradient(
     to bottom,
-    rgba(0, 0, 0, 0.14) 0 1px,
-    transparent 1px 4px
+    rgba(0, 0, 0, 0.13) 0 1px,
+    transparent 1px 5px
   );
 }
 
@@ -870,11 +905,14 @@ p {
   border-top: 1px solid var(--line);
 }
 
+/* The brand row takes the same column rules as the record below it, so the
+   two start on the same verticals. That alignment is most of what makes a
+   footer look settled rather than assembled. */
 .footer-top {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 1fr;
   align-items: center;
-  gap: 1rem 2rem;
+  gap: 1rem var(--detail-gap);
 }
 
 .footer .brand-name {
@@ -895,12 +933,18 @@ p {
   border-top: 1px solid var(--line);
 }
 
+/* The details grid asks its own column how much room it has, not the
+   viewport — the spine takes a slice of the width that changes by
+   breakpoint, so the two are not the same question. */
+.footer .wrap {
+  container-type: inline-size;
+}
+
 .details {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(var(--detail-col), 1fr));
+  grid-template-columns: 1fr;
   gap: var(--detail-gap);
   padding-top: clamp(2rem, 4vw, 2.6rem);
-  container-type: inline-size;
 }
 
 .detail dt {
@@ -920,22 +964,50 @@ p {
   font-size: 0.85rem;
 }
 
-/* The IBAN wants a line to itself. Asking the grid — not the viewport —
-   whether it has two tracks to spare, so this holds however wide the footer
-   is. The threshold is two --detail-col tracks plus a --detail-gap; it is
-   written out because a container query cannot resolve custom properties. */
-@container (min-width: 440px) {
-  .detail-wide {
-    grid-column: span 2;
-  }
-}
-
+/* The one row that does not take the columns. Both lines are short enough to
+   sit on one line each only if they get the full measure, and a rule set
+   flush left and flush right closes the page more firmly than a third-column
+   start would. Its ends land on the outer verticals regardless. */
 .footer-bottom {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
   gap: 0.6rem 2rem;
   padding-top: 1.4rem;
+}
+
+/* The column count is pinned rather than left to auto-fit, which on six
+   entries would happily put five across and leave one stranded underneath.
+   At two and three the record is always a full rectangle — 1×6, 2×3, 3×2 —
+   so no row ends in a hole, and that, rather than any one column's width, is
+   what makes it read as a block. Three columns also give the IBAN the line
+   it wants without a spanning cell.
+
+   The tagline runs to the end because it has nothing following it and no
+   reason to be measured to a third.
+
+   Each threshold is that many --detail-col tracks plus the gaps between them,
+   taking --detail-gap at its widest: 560px for two columns, 860px for three.
+   Both are written out because a container query cannot resolve custom
+   properties — which is also why the floor is restated as a minmax(). The
+   thresholds already guarantee it; the minmax() is what says so in the
+   layout rather than only in this comment. */
+@container (min-width: 560px) {
+  .footer-top,
+  .details {
+    grid-template-columns: repeat(2, minmax(var(--detail-col), 1fr));
+  }
+
+  .footer-tagline {
+    grid-column: 2 / -1;
+  }
+}
+
+@container (min-width: 860px) {
+  .footer-top,
+  .details {
+    grid-template-columns: repeat(3, minmax(var(--detail-col), 1fr));
+  }
 }
 
 .footer-meta {
