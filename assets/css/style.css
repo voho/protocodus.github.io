@@ -1,6 +1,12 @@
 /* ==========================================================================
    Protocodus — design system
-   Bold print poster meets code. Same palette as the logo:
+
+   Ink ground, two signals. The palette is the logo's: mint marks structure
+   and anything you can act on, yellow marks emphasis and craft. They never
+   land on the same element. Paper appears once, at the end, as the ask.
+   One typeface throughout — the utility register comes from weight, size
+   and tracking rather than a second family.
+
    yellow #FFC400 · mint #00FFC3 · ink #1A1A1A · paper #FAFAFA
    ========================================================================== */
 
@@ -24,50 +30,6 @@
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 
-@font-face {
-  font-family: 'Space Mono';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('../fonts/space-mono-400-latin.woff2') format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-
-@font-face {
-  font-family: 'Space Mono';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('../fonts/space-mono-400-latin-ext.woff2') format('woff2');
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
-
-@font-face {
-  font-family: 'Space Mono';
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url('../fonts/space-mono-700-latin.woff2') format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-
-@font-face {
-  font-family: 'Space Mono';
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url('../fonts/space-mono-700-latin-ext.woff2') format('woff2');
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
-
-/* ==========================================================================
-   Protocodus — design system
-   Ink ground, two signals. The palette is the logo's: mint marks structure
-   and anything you can act on, yellow marks emphasis and craft. They never
-   land on the same element. Paper appears once, at the end, as the ask.
-   yellow #FFC400 · mint #00FFC3 · ink #1A1A1A · paper #FAFAFA
-   ========================================================================== */
-
 /* Tokens
    ========================================================================== */
 :root {
@@ -89,11 +51,29 @@
   --line-lift: rgba(250, 250, 250, 0.22);
   --focus: var(--mint);
 
+  /* Paper ground, used once in the contact block. Mint is darkened because
+     #00FFC3 only reaches 3.9:1 against paper; these three clear 4.5:1. */
+  --mint-on-paper: #0B7A5E;
+  --fg-on-paper-muted: #4A4A4A;
+  --fg-on-paper-faint: #6A6A6A;
+
+  /* One family throughout: register comes from weight, size and tracking */
   --display: 'Space Grotesk', system-ui, sans-serif;
-  --mono: 'Space Mono', ui-monospace, monospace;
+
+  /* The small-label register, in two steps — so nobody has to invent a third */
+  --label: 0.78rem;
+  --label-track: 0.14em;
+  --label-quiet: 0.82rem;
+  --label-quiet-track: 0.04em;
 
   --spine: 96px;
   --wrap: 1140px;
+  /* The narrowest a footer column may be: the widest single value the company
+     record holds, which is the IBAN at 253px. Below this an account number
+     breaks across two lines, and a broken account number is worse than a
+     column of empty space. */
+  --detail-col: 260px;
+  --detail-gap: clamp(1.4rem, 3vw, 2.2rem);
   --gutter: clamp(1.5rem, 4vw, 3.5rem);
 
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
@@ -163,8 +143,9 @@ p {
   z-index: 3000;
   background: var(--mint);
   color: var(--ink);
-  font-family: var(--mono);
-  font-size: 0.8rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
   padding: 0.6rem 1rem;
   transition: top 0.2s var(--ease);
 }
@@ -182,10 +163,62 @@ p {
 
 /* Shared type
    ========================================================================== */
+
+/* With a single typeface the label register has to come from somewhere, so it
+   comes from here. Two steps only: tracked uppercase for controls and rule
+   lines, quiet sentence case for captions. Anything below overrides at most
+   one of these — a third size would mean the system has a hole in it. */
+.btn,
+.spine-cta,
+.hero-foot,
+.flow,
+.card-num,
+.detail dt,
+.index-link,
+.menu nav a span {
+  font-size: var(--label);
+  font-weight: 600;
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+}
+
+.tag,
+.fact dd,
+.signed,
+.footer-meta,
+.skip-link {
+  font-size: var(--label-quiet);
+  font-weight: 500;
+  letter-spacing: var(--label-quiet-track);
+}
+
+/* Digits that sit in a column, or change in place, want to hold their width */
+.index-link,
+.menu nav a span,
+.card-num,
+.fact dt,
+.detail dd {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Out of view, still in the accessibility tree — for text a sighted reader
+   gets from something else. The wordmark is carried by the logo wherever the
+   rail is too narrow for it; the section names are carried by their numbers
+   wherever there is no room for a tooltip. Each is un-hidden where it fits. */
+.vh,
+.spine .brand-name,
+.index-name {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
 .tag {
-  font-family: var(--mono);
-  font-size: 0.75rem;
-  letter-spacing: 0.1em;
   color: var(--mint);
 }
 
@@ -217,14 +250,11 @@ p {
   display: inline-flex;
   align-items: center;
   gap: 0.7rem;
-  font-family: var(--mono);
-  font-size: 0.78rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-weight: 700;
   color: var(--ink);
-  background: var(--yellow);
+  background: var(--btn-bg, var(--yellow));
   padding: 1rem 1.6rem;
-  border: 1px solid var(--yellow);
+  border: 1px solid var(--btn-bg, var(--yellow));
   transition: background-color 0.25s var(--ease), color 0.25s var(--ease),
     border-color 0.25s var(--ease), transform 0.25s var(--ease);
 }
@@ -235,8 +265,7 @@ p {
 }
 
 .btn:hover {
-  background: var(--paper);
-  border-color: var(--paper);
+  --btn-bg: var(--paper);
 }
 
 .btn:hover::after {
@@ -248,13 +277,15 @@ p {
 }
 
 .btn-quiet {
-  background: transparent;
+  --btn-bg: transparent;
   color: var(--fg);
   border-color: var(--line-lift);
 }
 
+/* Re-asserts the transparent ground: .btn:hover sets --btn-bg at a higher
+   specificity than .btn-quiet, so without this the ghost button fills paper */
 .btn-quiet:hover {
-  background: transparent;
+  --btn-bg: transparent;
   color: var(--mint);
   border-color: var(--mint);
 }
@@ -289,17 +320,10 @@ p {
   width: auto;
 }
 
-/* Hidden from view, kept in the accessibility tree — the logo is alt="",
-   so this text is the link's only name */
-.spine .brand-name {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  clip-path: inset(50%);
+.brand-name {
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
 }
 
 /* Vertical section index: the dash fills mint for the section you are in */
@@ -313,33 +337,8 @@ p {
   display: flex;
   align-items: center;
   gap: 0.7rem;
-  font-family: var(--mono);
-  font-size: 0.7rem;
-  letter-spacing: 0.08em;
   color: var(--fg-faint);
   transition: color 0.25s var(--ease);
-}
-
-.index-link::before {
-  content: '';
-  width: 14px;
-  height: 1px;
-  background: currentColor;
-  transition: width 0.35s var(--ease), background-color 0.25s var(--ease);
-}
-
-.index-name {
-  position: absolute;
-  left: calc(var(--spine) + 0.75rem);
-  white-space: nowrap;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  padding: 0.35rem 0.7rem;
-  color: var(--fg);
-  opacity: 0;
-  transform: translateX(-6px);
-  pointer-events: none;
-  transition: opacity 0.2s var(--ease), transform 0.2s var(--ease);
 }
 
 .index-link:hover,
@@ -347,30 +346,65 @@ p {
   color: var(--fg);
 }
 
-.index-link:hover .index-name,
-.index-link:focus-visible .index-name {
-  opacity: 1;
-  transform: none;
-}
-
 .index-link.current {
   color: var(--mint);
 }
 
-.index-link.current::before {
-  width: 30px;
-  background: var(--mint);
+/* The rail's own affordances — a dash beside each number and a label on
+   hover — exist only where there is a rail, so they are switched on at
+   min-width rather than switched off at max-width. Each override sits beside
+   the rule it extends, and after it, so source order cannot bite. */
+@media (min-width: 861px) {
+  .index-link::before {
+    content: '';
+    width: 14px;
+    height: 1px;
+    background: currentColor;
+    transition: width 0.35s var(--ease), background-color 0.25s var(--ease);
+  }
+
+  .index-link.current::before {
+    width: 30px;
+    background: var(--mint);
+  }
+
+  /* Un-clips the screen-reader label into a tooltip beside the rail */
+  .index-name {
+    left: calc(100% + 0.75rem);
+    width: auto;
+    height: auto;
+    margin: 0;
+    padding: 0.35rem 0.7rem;
+    overflow: visible;
+    clip-path: none;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    color: var(--fg);
+    opacity: 0;
+    transform: translateX(-6px);
+    pointer-events: none;
+    transition: opacity 0.2s var(--ease), transform 0.2s var(--ease);
+  }
+
+  .index-link:hover .index-name,
+  .index-link:focus-visible .index-name {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .spine-cta {
-  font-family: var(--mono);
-  font-size: 0.7rem;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
+  display: none;
   color: var(--fg-muted);
   writing-mode: vertical-rl;
   padding: 0.5rem 0;
   transition: color 0.25s var(--ease);
+}
+
+@media (min-width: 861px) {
+  .spine-cta {
+    display: block;
+  }
 }
 
 .spine-cta:hover {
@@ -419,12 +453,8 @@ p {
   overscroll-behavior: contain;
 }
 
-.menu.open {
+.menu:not([hidden]) {
   display: flex;
-}
-
-.menu[hidden] {
-  display: none;
 }
 
 /* Auto margins centre the group when there is room and collapse to nothing
@@ -452,17 +482,12 @@ p {
 }
 
 .menu nav a span {
-  font-family: var(--mono);
-  font-size: 0.75rem;
-  font-weight: 400;
   color: var(--mint);
 }
 
 .menu-mail {
   margin-top: 2rem;
   margin-bottom: auto;
-  font-family: var(--mono);
-  font-size: 0.85rem;
   color: var(--yellow);
 }
 
@@ -477,14 +502,82 @@ p {
   justify-content: center;
   padding: clamp(6rem, 14vh, 9rem) var(--gutter) 2rem;
   overflow: hidden;
+  /* Keeps .life's negative z-index inside the hero, so hero content paints
+     above the canvas without every child having to opt in */
+  isolation: isolate;
 }
 
-/* The logo at page scale: brackets closing around what we build */
+/* Conway's Life, running behind the statement. The mask stops are lengths
+   rather than percentages so they stay tied to the hero's own padding
+   instead of drifting as the hero changes height, and it reaches full
+   transparency a clear 4.5rem above the baseline — the field and the loop
+   row underneath it must never share a pixel. */
+.life {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 clamp(6rem, 14vh, 9rem), #000 calc(100% - 15rem), transparent calc(100% - 4.5rem));
+  mask-image: linear-gradient(to bottom, transparent, #000 clamp(6rem, 14vh, 9rem), #000 calc(100% - 15rem), transparent calc(100% - 4.5rem));
+}
+
+/* isolate, so the pool below is guaranteed to land between the field and the
+   words no matter where the canvas sits in the DOM */
 .statement {
   position: relative;
+  isolation: isolate;
 }
 
+/* A pool of shadow under the statement. The field is busiest across the
+   middle of the hero, which is exactly where the largest type is, so the
+   ground is dropped a little there — the title gains contrast and the field
+   loses none of its reach.
+
+   It hangs off the statement rather than off the hero, because the title's
+   centre travels (two fifths of the way down at desktop, under a quarter at
+   phone widths) and a percentage measured from the hero would only be right
+   at one size. `50% 50% at 50% 50%` makes the ellipse exactly the box, so it
+   reaches transparent right at the edge and nothing is ever clipped mid-
+   falloff. The stops are shaped by hand; the default linear ramp leaves a
+   visible ring where a pool this wide runs out. */
+.statement::before {
+  content: '';
+  position: absolute;
+  inset: -42% -14%;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(
+    50% 50% at 50% 50%,
+    rgba(0, 0, 0, 0.58) 0%,
+    rgba(0, 0, 0, 0.5) 30%,
+    rgba(0, 0, 0, 0.3) 58%,
+    rgba(0, 0, 0, 0.11) 80%,
+    transparent 100%
+  );
+}
+
+/* Scanlines, for the terminal the field is already pretending to be. Static,
+   never rolling — a drifting scanline is the part of the CRT look that gives
+   people headaches, and it buys nothing here. One dark line every 5px at 13%
+   is enough to read as a phosphor screen without touching legibility, and it
+   sits above the field but below every word on the page. */
+.hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.13) 0 1px,
+    transparent 1px 5px
+  );
+}
+
+/* The logo at page scale: brackets closing around what we build.
+   Shown at min-width alongside the rail's other affordances. */
 .frame {
+  display: none;
   position: absolute;
   top: 50%;
   height: 66%;
@@ -499,6 +592,12 @@ p {
   pointer-events: none;
 }
 
+@media (min-width: 861px) {
+  .frame {
+    display: block;
+  }
+}
+
 .frame-l {
   right: calc(100% + clamp(1.2rem, 2.4vw, 2.4rem));
 }
@@ -508,7 +607,6 @@ p {
 }
 
 .hero-inner {
-  position: relative;
   width: 100%;
   max-width: var(--wrap);
   margin: 0 auto;
@@ -572,10 +670,6 @@ p {
   flex-wrap: wrap;
   align-items: baseline;
   gap: 0.8rem clamp(1.5rem, 4vw, 3rem);
-  font-family: var(--mono);
-  font-size: 0.75rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
 }
 
 .loop-label {
@@ -648,9 +742,6 @@ p {
 }
 
 .card-num {
-  font-family: var(--mono);
-  font-size: 0.75rem;
-  letter-spacing: 0.2em;
   color: var(--fg-faint);
   transition: color 0.3s var(--ease);
 }
@@ -706,10 +797,6 @@ p {
   margin-top: clamp(3rem, 6vw, 4.5rem);
   padding-top: 1.5rem;
   border-top: 1px solid var(--line);
-  font-family: var(--mono);
-  font-size: 0.75rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
   color: var(--fg-muted);
 }
 
@@ -757,27 +844,21 @@ p {
 
 .fact dd {
   margin-top: 0.7rem;
-  font-family: var(--mono);
-  font-size: 0.75rem;
-  letter-spacing: 0.08em;
   color: var(--fg-faint);
 }
 
 /* Contact — the one paper-ground moment, because it is the one ask
    ========================================================================== */
 .band-hi {
+  --fg-muted: var(--fg-on-paper-muted);
+  --focus: var(--ink);
   background: var(--paper);
   color: var(--ink);
   border-top: none;
 }
 
-/* Mint darkened to hold 4.5:1 against paper */
 .band-hi .tag {
-  color: #0B7A5E;
-}
-
-.band-hi .lede {
-  color: #4a4a4a;
+  color: var(--mint-on-paper);
 }
 
 .hi {
@@ -788,9 +869,9 @@ p {
   display: inline-block;
   position: relative;
   margin-top: clamp(2rem, 4vw, 2.8rem);
-  font-family: var(--mono);
-  font-size: clamp(1rem, 0.7rem + 1.5vw, 1.9rem);
-  letter-spacing: -0.01em;
+  font-size: clamp(1.15rem, 0.7rem + 1.9vw, 2.3rem);
+  font-weight: 500;
+  letter-spacing: -0.025em;
   padding-bottom: 0.3rem;
   word-break: break-word;
 }
@@ -811,15 +892,9 @@ p {
   transform: scaleX(0.3);
 }
 
-.band-hi :focus-visible {
-  outline-color: var(--ink);
-}
-
 .signed {
   margin-top: 1.6rem;
-  font-family: var(--mono);
-  font-size: 0.78rem;
-  color: #6a6a6a;
+  color: var(--fg-on-paper-faint);
 }
 
 /* Footer
@@ -830,15 +905,17 @@ p {
   border-top: 1px solid var(--line);
 }
 
-.footer-inner {
-  display: flex;
-  flex-wrap: wrap;
+/* The brand row takes the same column rules as the record below it, so the
+   two start on the same verticals. That alignment is most of what makes a
+   footer look settled rather than assembled. */
+.footer-top {
+  display: grid;
+  grid-template-columns: 1fr;
   align-items: center;
-  gap: 1rem 2rem;
+  gap: 1rem var(--detail-gap);
 }
 
 .footer .brand-name {
-  font-family: var(--display);
   font-size: 0.85rem;
   font-weight: 700;
   letter-spacing: 0.2em;
@@ -849,10 +926,91 @@ p {
   font-size: 0.92rem;
 }
 
+/* Company details — the legal record, set quietly */
+.details,
+.footer-bottom {
+  margin-top: clamp(2.5rem, 5vw, 3.5rem);
+  border-top: 1px solid var(--line);
+}
+
+/* The details grid asks its own column how much room it has, not the
+   viewport — the spine takes a slice of the width that changes by
+   breakpoint, so the two are not the same question. */
+.footer .wrap {
+  container-type: inline-size;
+}
+
+.details {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--detail-gap);
+  padding-top: clamp(2rem, 4vw, 2.6rem);
+}
+
+.detail dt {
+  color: var(--fg-faint);
+}
+
+.detail dd {
+  margin-top: 0.5rem;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+}
+
+.detail-note {
+  color: var(--fg-muted);
+  font-size: 0.85rem;
+}
+
+/* The one row that does not take the columns. Both lines are short enough to
+   sit on one line each only if they get the full measure, and a rule set
+   flush left and flush right closes the page more firmly than a third-column
+   start would. Its ends land on the outer verticals regardless. */
+.footer-bottom {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.6rem 2rem;
+  padding-top: 1.4rem;
+}
+
+/* The column count is pinned rather than left to auto-fit, which on six
+   entries would happily put five across and leave one stranded underneath.
+   At two and three the record is always a full rectangle — 1×6, 2×3, 3×2 —
+   so no row ends in a hole, and that, rather than any one column's width, is
+   what makes it read as a block. Three columns also give the IBAN the line
+   it wants without a spanning cell.
+
+   The tagline runs to the end because it has nothing following it and no
+   reason to be measured to a third.
+
+   Each threshold is that many --detail-col tracks plus the gaps between them,
+   taking --detail-gap at its widest: 560px for two columns, 860px for three.
+   Both are written out because a container query cannot resolve custom
+   properties — which is also why the floor is restated as a minmax(). The
+   thresholds already guarantee it; the minmax() is what says so in the
+   layout rather than only in this comment. */
+@container (min-width: 560px) {
+  .footer-top,
+  .details {
+    grid-template-columns: repeat(2, minmax(var(--detail-col), 1fr));
+  }
+
+  .footer-tagline {
+    grid-column: 2 / -1;
+  }
+}
+
+@container (min-width: 860px) {
+  .footer-top,
+  .details {
+    grid-template-columns: repeat(3, minmax(var(--detail-col), 1fr));
+  }
+}
+
 .footer-meta {
-  margin-left: auto;
-  font-family: var(--mono);
-  font-size: 0.72rem;
   color: var(--fg-faint);
 }
 
@@ -862,18 +1020,12 @@ p {
   transform: translateY(105%);
 }
 
-.js .hero .tag,
-.js .hero-sub,
-.js .hero-actions,
-.js .hero-foot {
+.js .enter {
   opacity: 0;
   transform: translateY(10px);
 }
 
-.js.ready .hero .tag,
-.js.ready .hero-sub,
-.js.ready .hero-actions,
-.js.ready .hero-foot {
+.js.ready .enter {
   opacity: 1;
   transform: none;
   transition: opacity 0.8s var(--ease), transform 0.8s var(--ease);
@@ -916,27 +1068,21 @@ p {
 }
 
 @media (max-width: 860px) {
-  :root {
-    --spine: 0px;
-  }
-
-  /* Without JS the header stacks and keeps the section links reachable;
-     with JS it collapses to a single bar and the menu takes over. */
-  body {
-    padding-left: 0;
-    padding-top: 118px;
-  }
-
-  .js body {
-    padding-top: 64px;
-  }
-
+  /* Without JS the header stacks to two rows and keeps the section links
+     reachable; with JS it collapses to one bar and the menu takes over. Its
+     height is a measurement, so it is stated once and derived from there. */
   html {
-    scroll-padding-top: 134px;
+    --bar: 118px;
+    scroll-padding-top: calc(var(--bar) + 1.25rem);
   }
 
   html.js {
-    scroll-padding-top: 84px;
+    --bar: 64px;
+  }
+
+  body {
+    padding-left: 0;
+    padding-top: var(--bar);
   }
 
   .spine {
@@ -954,10 +1100,11 @@ p {
 
   .js .spine {
     flex-wrap: nowrap;
-    height: 64px;
+    height: var(--bar);
     padding: 0 var(--gutter);
   }
 
+  /* The bar has room for the wordmark the rail does not */
   .spine .brand-name {
     position: static;
     width: auto;
@@ -965,9 +1112,6 @@ p {
     margin: 0;
     overflow: visible;
     clip-path: none;
-    font-size: 0.85rem;
-    font-weight: 700;
-    letter-spacing: 0.2em;
   }
 
   .spine-nav {
@@ -984,33 +1128,7 @@ p {
     gap: 1.4rem;
   }
 
-  .index-link::before {
-    display: none;
-  }
-
-  /* Numbers carry the row; the names stay for screen readers */
-  .index-name {
-    position: absolute;
-    left: auto;
-    width: 1px;
-    height: 1px;
-    margin: -1px;
-    padding: 0;
-    overflow: hidden;
-    white-space: nowrap;
-    clip-path: inset(50%);
-    opacity: 1;
-    transform: none;
-    background: none;
-    border: 0;
-  }
-
-  .spine-cta {
-    display: none;
-  }
-
   .menu-toggle {
-    display: none;
     margin-right: -8px;
   }
 
@@ -1022,10 +1140,6 @@ p {
     min-height: auto;
     padding-top: 4rem;
     padding-bottom: 3.5rem;
-  }
-
-  .frame {
-    display: none;
   }
 
   .cards {
@@ -1040,10 +1154,6 @@ p {
   .facts {
     grid-template-columns: minmax(0, 1fr);
     gap: 1.6rem;
-  }
-
-  .footer-meta {
-    margin-left: 0;
   }
 }
 
@@ -1069,10 +1179,7 @@ p {
     transition-duration: 0.01ms !important;
   }
 
-  .js .hero .tag,
-  .js .hero-sub,
-  .js .hero-actions,
-  .js .hero-foot,
+  .js .enter,
   .js .reveal {
     opacity: 1;
     transform: none;
