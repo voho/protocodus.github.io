@@ -112,28 +112,35 @@
   //
   // A little randomness is stirred in on top — see SPONTANEOUS and MUTATION.
   // ===========================================================================
-  const CELL = 26;         // lattice spacing, px
+  // Every number below is a Fibonacci number, or a Fibonacci number over a
+  // power of ten. Not because the sequence has any bearing on Conway's rule —
+  // it doesn't — but because a field of tuning constants wants a reason to
+  // hold the values it holds, and this one is at least honest about being
+  // arbitrary. Each is the nearest term to the value it replaced.
+  const CELL = 21;         // lattice spacing, px
   const CUR_W = 8;         // a cursor's width
-  const CUR_H = 17;        // and its height — the caret's own proportions
-  const GEN_MS = 400;      // one generation
-  const DENSITY = 0.16;    // share of cells alive at seed
-  const ALIVE_A = 0.3;     // alpha of a settled cell
-  const BORN_A = 0.85;     // extra brightness while a cell is being born
-  const GLIDER_EVERY = 30; // generations — about one every six seconds
+  const CUR_H = 13;        // and its height — 8:13 is the golden rectangle
+  const GEN_MS = 610;      // one generation
+  const DENSITY = 0.13;    // share of cells alive at seed
+  const ALIVE_A = 0.21;    // alpha of a settled cell
+  // Kept low deliberately: a bright birth flash is most of what reads as
+  // flicker when a lot of cells turn over at once
+  const BORN_A = 0.34;
+  const GLIDER_EVERY = 34; // generations — about one every twenty seconds
   const DPR_CAP = 2;       // the edges are the whole shape, so they earn it
 
   // Every cell crossfades across its whole generation, so the field is never
   // still — no held frame, no step you can catch it taking
   const GLOW_PASSES = 2;   // stamped twice, for a denser bloom
-  const DRIFT_PX = 9;      // ambient wander of the whole lattice
-  const PARALLAX_PX = 14;  // how far the field leans towards the pointer
-  const EASE_TO_POINTER = 0.045;
+  const DRIFT_PX = 8;      // ambient wander of the whole lattice
+  const PARALLAX_PX = 13;  // how far the field leans towards the pointer
+  const EASE_TO_POINTER = 0.055;
 
   // The lattice breathes: its pitch opens and closes about the centre of the
   // hero, slowly enough that you notice the field has changed rather than
   // catching it changing
-  const BREATH = 0.13;     // share of the pitch, either way
-  const BREATH_MS = 15000; // a full inhale and exhale
+  const BREATH = 0.089;    // share of the pitch, either way
+  const BREATH_MS = 17711; // a full inhale and exhale
 
   // The four species are the four cursors every terminal has ever offered:
   // the block, the hollow block a window wears when it loses focus, the
@@ -143,26 +150,27 @@
   // Each also sits at its own distance. Going down the list they get sharper,
   // lighter, larger and more responsive to the pointer, so the four read as
   // four planes rather than four symbols on one. shade is the step from
-  // --mint: negative towards black, positive towards white.
+  // --mint: negative towards black, positive towards white; alpha thins a
+  // shape that carries more ink than the rest, so no one species dominates.
   const SPECIES = [
     { shape: (g, w, h) => g.fillRect(0, 0, w, h),
-      shade: -0.52, blur: 15, scale: 0.82, depth: 0.5 },
+      shade: -0.52, blur: 13, scale: 0.8, depth: 0.5, alpha: 0.55 },
     { shape: (g, w, h) => { g.lineWidth = 1.5; g.strokeRect(0.75, 0.75, w - 1.5, h - 1.5); },
-      shade: -0.2, blur: 9, scale: 0.94, depth: 0.75 },
+      shade: -0.2, blur: 8, scale: 0.9, depth: 0.8, alpha: 1 },
     { shape: (g, w, h) => g.fillRect(0, h - 2.5, w, 2.5),
-      shade: 0.08, blur: 5, scale: 1.06, depth: 1 },
+      shade: 0.08, blur: 5, scale: 1.1, depth: 1, alpha: 1 },
     { shape: (g, w, h) => g.fillRect(0, 0, 2, h),
-      shade: 0.3, blur: 2.5, scale: 1.18, depth: 1.35 },
+      shade: 0.3, blur: 2, scale: 1.3, depth: 1.3, alpha: 1 },
   ];
 
-  const NEWBORN_SHADE = 0.7;   // brightest of the ramp, so a birth still lands
-  const NEWBORN_BLUR = 6;
+  const NEWBORN_SHADE = 0.55;  // brightest of the ramp, so a birth still lands
+  const NEWBORN_BLUR = 5;
 
   // Conway is deterministic, which is the one thing a background cannot be:
   // watch it long enough and it visibly repeats. These two keep it from ever
   // quite settling — both small enough that the rule still reads as Life.
-  const SPONTANEOUS = 0.00012;  // chance an empty cell ignites on its own
-  const MUTATION = 0.03;        // chance a newborn ignores what it inherited
+  const SPONTANEOUS = 0.00013;  // chance an empty cell ignites on its own
+  const MUTATION = 0.034;       // chance a newborn ignores what it inherited
 
   // One glider; addGlider() reflects it into the other three orientations
   const GLIDER = [[1, 0], [2, 1], [0, 2], [1, 2], [2, 2]];
@@ -496,10 +504,14 @@
         ctx.save();
         ctx.translate(dx * SPECIES[s].depth, dy * SPECIES[s].depth);
 
-        ctx.globalAlpha = ALIVE_A;
+        // The solid block is the only shape that needs thinning; a newborn
+        // keeps full brightness whatever it is about to settle into
+        const settled = ALIVE_A * SPECIES[s].alpha;
+
+        ctx.globalAlpha = settled;
         this.paint(SURVIVOR, s + 1);
 
-        ctx.globalAlpha = (1 - ease) * ALIVE_A;
+        ctx.globalAlpha = (1 - ease) * settled;
         this.paint(DYING, s + 1);
 
         ctx.globalAlpha = bornAlpha;
