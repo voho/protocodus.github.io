@@ -24,42 +24,6 @@
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 
-@font-face {
-  font-family: 'Space Mono';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('../fonts/space-mono-400-latin.woff2') format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-
-@font-face {
-  font-family: 'Space Mono';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('../fonts/space-mono-400-latin-ext.woff2') format('woff2');
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
-
-@font-face {
-  font-family: 'Space Mono';
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url('../fonts/space-mono-700-latin.woff2') format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-
-@font-face {
-  font-family: 'Space Mono';
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url('../fonts/space-mono-700-latin-ext.woff2') format('woff2');
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
-
 /* ==========================================================================
    Protocodus — design system
    Ink ground, two signals. The palette is the logo's: mint marks structure
@@ -89,8 +53,8 @@
   --line-lift: rgba(250, 250, 250, 0.22);
   --focus: var(--mint);
 
+  /* One family throughout: register comes from weight, size and tracking */
   --display: 'Space Grotesk', system-ui, sans-serif;
-  --mono: 'Space Mono', ui-monospace, monospace;
 
   --spine: 96px;
   --wrap: 1140px;
@@ -163,8 +127,9 @@ p {
   z-index: 3000;
   background: var(--mint);
   color: var(--ink);
-  font-family: var(--mono);
-  font-size: 0.8rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
   padding: 0.6rem 1rem;
   transition: top 0.2s var(--ease);
 }
@@ -183,9 +148,9 @@ p {
 /* Shared type
    ========================================================================== */
 .tag {
-  font-family: var(--mono);
-  font-size: 0.75rem;
-  letter-spacing: 0.1em;
+  font-size: 0.8rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
   color: var(--mint);
 }
 
@@ -217,9 +182,9 @@ p {
   display: inline-flex;
   align-items: center;
   gap: 0.7rem;
-  font-family: var(--mono);
-  font-size: 0.78rem;
-  letter-spacing: 0.1em;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--ink);
   background: var(--yellow);
@@ -313,9 +278,10 @@ p {
   display: flex;
   align-items: center;
   gap: 0.7rem;
-  font-family: var(--mono);
-  font-size: 0.7rem;
-  letter-spacing: 0.08em;
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  font-variant-numeric: tabular-nums;
   color: var(--fg-faint);
   transition: color 0.25s var(--ease);
 }
@@ -363,9 +329,9 @@ p {
 }
 
 .spine-cta {
-  font-family: var(--mono);
-  font-size: 0.7rem;
-  letter-spacing: 0.18em;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--fg-muted);
   writing-mode: vertical-rl;
@@ -452,17 +418,18 @@ p {
 }
 
 .menu nav a span {
-  font-family: var(--mono);
-  font-size: 0.75rem;
-  font-weight: 400;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
   color: var(--mint);
 }
 
 .menu-mail {
   margin-top: 2rem;
   margin-bottom: auto;
-  font-family: var(--mono);
-  font-size: 0.85rem;
+  font-size: 0.95rem;
+  font-weight: 500;
   color: var(--yellow);
 }
 
@@ -572,9 +539,9 @@ p {
   flex-wrap: wrap;
   align-items: baseline;
   gap: 0.8rem clamp(1.5rem, 4vw, 3rem);
-  font-family: var(--mono);
-  font-size: 0.75rem;
-  letter-spacing: 0.14em;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
 }
 
@@ -648,9 +615,10 @@ p {
 }
 
 .card-num {
-  font-family: var(--mono);
-  font-size: 0.75rem;
-  letter-spacing: 0.2em;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  font-variant-numeric: tabular-nums;
   color: var(--fg-faint);
   transition: color 0.3s var(--ease);
 }
@@ -706,9 +674,9 @@ p {
   margin-top: clamp(3rem, 6vw, 4.5rem);
   padding-top: 1.5rem;
   border-top: 1px solid var(--line);
-  font-family: var(--mono);
-  font-size: 0.75rem;
-  letter-spacing: 0.14em;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--fg-muted);
 }
@@ -757,9 +725,9 @@ p {
 
 .fact dd {
   margin-top: 0.7rem;
-  font-family: var(--mono);
-  font-size: 0.75rem;
-  letter-spacing: 0.08em;
+  font-size: 0.82rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
   color: var(--fg-faint);
 }
 
@@ -788,9 +756,9 @@ p {
   display: inline-block;
   position: relative;
   margin-top: clamp(2rem, 4vw, 2.8rem);
-  font-family: var(--mono);
-  font-size: clamp(1rem, 0.7rem + 1.5vw, 1.9rem);
-  letter-spacing: -0.01em;
+  font-size: clamp(1.15rem, 0.7rem + 1.9vw, 2.3rem);
+  font-weight: 500;
+  letter-spacing: -0.025em;
   padding-bottom: 0.3rem;
   word-break: break-word;
 }
@@ -817,8 +785,8 @@ p {
 
 .signed {
   margin-top: 1.6rem;
-  font-family: var(--mono);
-  font-size: 0.78rem;
+  font-size: 0.84rem;
+  font-weight: 500;
   color: #6a6a6a;
 }
 
@@ -830,7 +798,7 @@ p {
   border-top: 1px solid var(--line);
 }
 
-.footer-inner {
+.footer-top {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -838,7 +806,6 @@ p {
 }
 
 .footer .brand-name {
-  font-family: var(--display);
   font-size: 0.85rem;
   font-weight: 700;
   letter-spacing: 0.2em;
@@ -849,10 +816,58 @@ p {
   font-size: 0.92rem;
 }
 
-.footer-meta {
-  margin-left: auto;
-  font-family: var(--mono);
+/* Company details — the legal record, set quietly */
+.details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: clamp(1.4rem, 3vw, 2.2rem);
+  margin-top: clamp(2.5rem, 5vw, 3.5rem);
+  padding-top: clamp(2rem, 4vw, 2.6rem);
+  border-top: 1px solid var(--line);
+}
+
+.detail dt {
   font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--fg-faint);
+}
+
+.detail dd {
+  margin-top: 0.5rem;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+}
+
+.detail-note {
+  color: var(--fg-muted);
+  font-size: 0.85rem;
+}
+
+/* The IBAN needs a full line of its own; only claim the extra column once
+   the grid actually has one to give */
+@media (min-width: 900px) {
+  .detail-wide {
+    grid-column: span 2;
+  }
+}
+
+.footer-bottom {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.6rem 2rem;
+  margin-top: clamp(2.5rem, 5vw, 3.5rem);
+  padding-top: 1.4rem;
+  border-top: 1px solid var(--line);
+}
+
+.footer-meta {
+  font-size: 0.78rem;
+  font-weight: 500;
   color: var(--fg-faint);
 }
 
