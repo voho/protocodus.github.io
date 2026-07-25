@@ -37,16 +37,21 @@ behind the hero at five generations a second.
 
 The rule is QuadLife. Births and deaths follow Conway exactly, so the
 dynamics are the ones known to stay interesting, but every live cell also
-carries a species drawn as a glyph — `{`, `}`, `+` or `=`. A cell born to
-parents of two or fewer species joins the majority; a cell born where three
-*different* species meet becomes the fourth, which is the only way a species
-that has died out can return. So the glyphs are inheritance rather than
-decoration, and territories visibly overrun one another. Every newborn wears
-a `✦` for its first generation before settling into its own mark.
+carries a species, drawn as one of the four cursors every terminal has ever
+offered: the block, the hollow block a window wears when it loses focus, the
+underline, and the bar. A cell born to parents of two or fewer species joins
+the majority; a cell born where three *different* species meet becomes the
+fourth, which is the only way a species that has died out can return. So the
+cursors are inheritance rather than decoration, and territories visibly
+overrun one another. Every newborn is a block cursor at its brightest for one
+generation, before settling into the shape it inherited.
+
+They are drawn as shapes rather than glyphs, so the field owes nothing to a
+webfont and nothing to a fallback.
 
 Every shade in the field is derived from `--mint` — four steps from deep to
 pale for the species, brightest of all for a newborn — so species read as
-depth and the field never reaches for a second hue.
+depth as well as shape, and the field never reaches for a second hue.
 
 Conway is deterministic, which is the one thing a background cannot be: watch
 it long enough and it visibly repeats. Two small probabilities prevent that —
@@ -62,9 +67,9 @@ population ranged 76k-126k lit pixels without repeating a sample.
 Every cell crossfades across its whole generation, so the field is never
 holding a frame, and the lattice wanders on two slow sines while leaning a
 little towards the pointer, arriving late and settling rather than tracking.
-Each glyph is rasterised once with its bloom already in it, so a cell costs
-one image blit: no text shaping, no fill-style changes, and no second blurred
-pass. It parks itself when the hero scrolls away or the tab loses focus, and
+Each cursor is rasterised once with its bloom already in it, so a cell costs
+one image blit: no shape building, no fill-style changes, and no second
+blurred pass. It parks itself when the hero scrolls away or the tab loses focus, and
 never starts under `prefers-reduced-motion`.
 
 ## Development

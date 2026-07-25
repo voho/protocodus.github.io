@@ -113,15 +113,14 @@
   // A little randomness is stirred in on top — see SPONTANEOUS and MUTATION.
   // ===========================================================================
   const CELL = 26;         // lattice spacing, px
-  const GLYPH_PX = 15;     // type size of a live cell
+  const CUR_W = 6;         // a cursor's width
+  const CUR_H = 13;        // and its height — the caret's own proportions
   const GEN_MS = 200;      // one generation — five a second
   const DENSITY = 0.16;    // share of cells alive at seed
-  // A glyph's strokes carry roughly half the ink of the solid dot they
-  // replaced, and spread it thinner, so this is well above the old 0.13
-  const ALIVE_A = 0.34;
+  const ALIVE_A = 0.3;     // alpha of a settled cell
   const BORN_A = 0.85;     // extra brightness while a cell is being born
   const GLIDER_EVERY = 30; // generations — about one every six seconds
-  const DPR_CAP = 2;       // glyphs, unlike squares, do repay the extra pixels
+  const DPR_CAP = 2;       // the edges are the whole shape, so they earn it
 
   // Every cell crossfades across its whole generation, so the field is never
   // still — no held frame, no step you can catch it taking
@@ -131,13 +130,21 @@
   const PARALLAX_PX = 14;  // how far the field leans towards the pointer
   const EASE_TO_POINTER = 0.045;
 
-  // Species 1-4, plus the mark every newborn wears for its first generation
-  const GLYPHS = ['{', '}', '+', '='];
-  const NEWBORN_GLYPH = '✦';
+  // The four species are the four cursors every terminal has ever offered:
+  // the block, the hollow block a window wears when it loses focus, the
+  // underline, and the bar. Shapes rather than glyphs, so the field owes
+  // nothing to a webfont and nothing to a fallback.
+  const CURSORS = [
+    (g, w, h) => g.fillRect(0, 0, w, h),
+    (g, w, h) => { g.lineWidth = 1.5; g.strokeRect(0.75, 0.75, w - 1.5, h - 1.5); },
+    (g, w, h) => g.fillRect(0, h - 2.5, w, 2.5),
+    (g, w, h) => g.fillRect(0, 0, 2, h),
+  ];
 
   // How far each species sits from --mint: negative towards black, positive
-  // towards white. Four shades of the one green, so species read as depth.
-  const SHADES = [-0.45, -0.22, 0, 0.34];
+  // towards white. Four shades of the one green, so species read as depth as
+  // well as shape. The solid block is darkest because it carries most ink.
+  const SHADES = [-0.5, -0.15, 0.1, 0.3];
   const NEWBORN_SHADE = 0.7;   // brightest of the ramp, so a birth still lands
 
   // Conway is deterministic, which is the one thing a background cannot be:
@@ -210,15 +217,6 @@
 
       this.resize();
       this.wake();
-
-      // Sprites raster the glyphs, so they have to wait for the real face
-      if (document.fonts) {
-        document.fonts.ready.then(() => {
-          this.spriteDpr = null;
-          this.resize();
-          this.wake();
-        });
-      }
     }
 
     resize() {
@@ -262,41 +260,44 @@
       this.recent = [];
     }
 
-    // Each glyph is rasterised once per colour and stamped from then on —
-    // an image blit per cell rather than shaping text a few hundred times a
-    // frame. Rebuilt only when the device pixel ratio changes.
+    // Each cursor is rasterised once, bloom included, and stamped from then
+    // on — an image blit per cell rather than a shape and a blur a few
+    // hundred times a frame. Rebuilt only when the device pixel ratio moves.
     buildSprites(dpr) {
       if (this.spriteDpr === dpr) return;
       this.spriteDpr = dpr;
 
-      // Room for the glyph plus its halo on every side
-      const box = Math.ceil(GLYPH_PX + GLOW_PX * 4);
-      const font = getComputedStyle(root).getPropertyValue('--display');
+      // Room for the cursor plus its halo on every side
+      const box = Math.ceil(CUR_H + GLOW_PX * 4);
 
-      const draw = (glyph, rgb, scale = 1) => {
+      const draw = (shape, rgb, scale = 1) => {
         const c = document.createElement('canvas');
         c.width = c.height = Math.ceil(box * dpr);
         const g = c.getContext('2d');
         g.scale(dpr, dpr);
-        g.font = `${GLYPH_PX * scale}px ${font}`;
-        g.textAlign = 'center';
-        g.textBaseline = 'middle';
-        g.fillStyle = `rgb(${rgb.join()})`;
+
+        const w = CUR_W * scale;
+        const h = CUR_H * scale;
+        const css = `rgb(${rgb.join()})`;
+        g.fillStyle = css;
+        g.strokeStyle = css;
 
         // The blur is rasterised into the sprite, so a cell still costs one
         // drawImage at runtime rather than a second blurred pass
-        g.shadowColor = `rgb(${rgb.join()})`;
+        g.shadowColor = css;
         g.shadowBlur = GLOW_PX;
-        for (let i = 0; i < GLOW_PASSES; i++) g.fillText(glyph, box / 2, box / 2);
+        g.translate((box - w) / 2, (box - h) / 2);
+        for (let i = 0; i < GLOW_PASSES; i++) shape(g, w, h);
 
         g.shadowBlur = 0;
-        g.fillText(glyph, box / 2, box / 2);
+        shape(g, w, h);
         return c;
       };
 
       this.box = box;
-      this.sprites = GLYPHS.map((glyph, i) => draw(glyph, shade(this.mint, SHADES[i])));
-      this.newbornSprite = draw(NEWBORN_GLYPH, shade(this.mint, NEWBORN_SHADE), 1.15);
+      this.sprites = CURSORS.map((shape, i) => draw(shape, shade(this.mint, SHADES[i])));
+      // A newborn is the block cursor at its brightest, a touch oversized
+      this.newbornSprite = draw(CURSORS[0], shade(this.mint, NEWBORN_SHADE), 1.15);
     }
 
     // Counts live neighbours, and fills `tally` with how many of each species
@@ -319,7 +320,7 @@
     }
 
     randomSpecies() {
-      return 1 + Math.floor(Math.random() * GLYPHS.length);
+      return 1 + Math.floor(Math.random() * CURSORS.length);
     }
 
     // QuadLife's inheritance: a newborn joins whichever of its three parents
@@ -330,7 +331,7 @@
       let missing = 0;
       let distinct = 0;
 
-      for (let s = 1; s <= GLYPHS.length; s++) {
+      for (let s = 1; s <= CURSORS.length; s++) {
         if (tally[s] === 0) missing = s;
         else distinct += 1;
         if (tally[s] >= 2) majority = s;
