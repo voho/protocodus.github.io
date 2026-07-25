@@ -521,6 +521,24 @@ p {
   position: relative;
 }
 
+/* Scanlines, for the terminal the field is already pretending to be. Static,
+   never rolling — a drifting scanline is the part of the CRT look that gives
+   people headaches, and it buys nothing here. One dark line every 4px at 14%
+   is enough to read as a phosphor screen without touching legibility, and it
+   sits above the field but below every word on the page. */
+.hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.14) 0 1px,
+    transparent 1px 4px
+  );
+}
+
 /* The logo at page scale: brackets closing around what we build.
    Shown at min-width alongside the rail's other affordances. */
 .frame {

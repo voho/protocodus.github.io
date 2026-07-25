@@ -129,6 +129,12 @@
   const PARALLAX_PX = 14;  // how far the field leans towards the pointer
   const EASE_TO_POINTER = 0.045;
 
+  // The lattice breathes: its pitch opens and closes about the centre of the
+  // hero, slowly enough that you notice the field has changed rather than
+  // catching it changing
+  const BREATH = 0.13;     // share of the pitch, either way
+  const BREATH_MS = 15000; // a full inhale and exhale
+
   // The four species are the four cursors every terminal has ever offered:
   // the block, the hollow block a window wears when it loses focus, the
   // underline, and the bar. Shapes rather than glyphs, so the field owes
@@ -244,10 +250,12 @@
       this.w = w;
       this.h = h;
 
-      // Two spare rows and columns each way, so the drift and the parallax
-      // never pull the lattice off its own edge
-      const cols = Math.ceil(w / CELL) + 4;
-      const rows = Math.ceil(h / CELL) + 4;
+      // Sized for the tightest the lattice ever breathes, with two spare rows
+      // and columns each way, so neither the breath nor the drift nor the
+      // parallax can ever pull it off its own edge
+      const tightest = CELL * (1 - BREATH);
+      const cols = Math.ceil(w / tightest) + 4;
+      const rows = Math.ceil(h / tightest) + 4;
       if (cols === this.cols && rows === this.rows) return;
 
       this.cols = cols;
@@ -432,7 +440,8 @@
       const { ctx, cols, rows, cur, prev, kind, prevKind, box } = this;
       const sprite = state === NEWBORN ? this.newbornSprite : this.sprites[species - 1];
       if (!sprite) return;
-      const half = box / 2 + CELL * 2;
+      const { pitch, originX, originY } = this;
+      const half = box / 2;
 
       for (let y = 0; y < rows; y++) {
         for (let x = 0; x < cols; x++) {
@@ -446,7 +455,7 @@
 
           // A dying cell wears the species it had, not the one it lost
           if ((state === DYING ? prevKind[i] : kind[i]) !== species) continue;
-          ctx.drawImage(sprite, x * CELL - half, y * CELL - half, box, box);
+          ctx.drawImage(sprite, originX + x * pitch - half, originY + y * pitch - half, box, box);
         }
       }
     }
@@ -466,6 +475,12 @@
       this.leanY += (this.pointerY - this.leanY) * EASE_TO_POINTER;
       const dx = Math.sin(s * 0.11) * DRIFT_PX + this.leanX * PARALLAX_PX;
       const dy = Math.cos(s * 0.083) * DRIFT_PX + this.leanY * PARALLAX_PX;
+
+      // Breathing opens the pitch about the middle of the hero, so the field
+      // expands into its own margins rather than sliding out of one corner
+      this.pitch = CELL * (1 + Math.sin((now / BREATH_MS) * Math.PI * 2) * BREATH);
+      this.originX = (w - (this.cols - 1) * this.pitch) / 2;
+      this.originY = (h - (this.rows - 1) * this.pitch) / 2;
 
       // The newborn mark fades in brighter than the rest, then hands over to
       // the cell's own species on the next generation

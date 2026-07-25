@@ -60,6 +60,16 @@ The bloom is rasterised into each sprite at build time, which is what makes
 per-species depth of field free — a cell is still one image blit no matter
 how wide its halo.
 
+The lattice also breathes: its pitch opens and closes by 13% about the centre
+of the hero over fifteen seconds. The board is sized for the tightest it ever
+gets, so neither the breath nor the drift nor the parallax can uncover an
+edge.
+
+Over the whole thing sit scanlines — one dark line every 4px at 14%, static
+and never rolling, since a drifting scanline is the part of the CRT look that
+gives people headaches. They render above the field and below every word on
+the page, so nothing legible is touched.
+
 Conway is deterministic, which is the one thing a background cannot be: watch
 it long enough and it visibly repeats. Two small probabilities prevent that —
 an empty cell occasionally ignites on its own, and a newborn occasionally
