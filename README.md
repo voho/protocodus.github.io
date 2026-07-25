@@ -49,9 +49,16 @@ generation, before settling into the shape it inherited.
 They are drawn as shapes rather than glyphs, so the field owes nothing to a
 webfont and nothing to a fallback.
 
-Every shade in the field is derived from `--mint` — four steps from deep to
-pale for the species, brightest of all for a newborn — so species read as
-depth as well as shape, and the field never reaches for a second hue.
+The four species are also four distances. Going down the list they get
+sharper, lighter, larger and more responsive to the pointer, so the field
+reads as four planes rather than four symbols on one: a blurred block sits
+far back and barely moves, a crisp bar sits in front and swings past it. Each
+shade is derived from `--mint`, brightest of all for a newborn, so the field
+never reaches for a second hue.
+
+The bloom is rasterised into each sprite at build time, which is what makes
+per-species depth of field free — a cell is still one image blit no matter
+how wide its halo.
 
 Conway is deterministic, which is the one thing a background cannot be: watch
 it long enough and it visibly repeats. Two small probabilities prevent that —

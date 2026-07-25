@@ -113,9 +113,9 @@
   // A little randomness is stirred in on top — see SPONTANEOUS and MUTATION.
   // ===========================================================================
   const CELL = 26;         // lattice spacing, px
-  const CUR_W = 6;         // a cursor's width
-  const CUR_H = 13;        // and its height — the caret's own proportions
-  const GEN_MS = 200;      // one generation — five a second
+  const CUR_W = 8;         // a cursor's width
+  const CUR_H = 17;        // and its height — the caret's own proportions
+  const GEN_MS = 400;      // one generation
   const DENSITY = 0.16;    // share of cells alive at seed
   const ALIVE_A = 0.3;     // alpha of a settled cell
   const BORN_A = 0.85;     // extra brightness while a cell is being born
@@ -124,7 +124,6 @@
 
   // Every cell crossfades across its whole generation, so the field is never
   // still — no held frame, no step you can catch it taking
-  const GLOW_PX = 7;       // halo baked into each sprite
   const GLOW_PASSES = 2;   // stamped twice, for a denser bloom
   const DRIFT_PX = 9;      // ambient wander of the whole lattice
   const PARALLAX_PX = 14;  // how far the field leans towards the pointer
@@ -134,18 +133,24 @@
   // the block, the hollow block a window wears when it loses focus, the
   // underline, and the bar. Shapes rather than glyphs, so the field owes
   // nothing to a webfont and nothing to a fallback.
-  const CURSORS = [
-    (g, w, h) => g.fillRect(0, 0, w, h),
-    (g, w, h) => { g.lineWidth = 1.5; g.strokeRect(0.75, 0.75, w - 1.5, h - 1.5); },
-    (g, w, h) => g.fillRect(0, h - 2.5, w, 2.5),
-    (g, w, h) => g.fillRect(0, 0, 2, h),
+  //
+  // Each also sits at its own distance. Going down the list they get sharper,
+  // lighter, larger and more responsive to the pointer, so the four read as
+  // four planes rather than four symbols on one. shade is the step from
+  // --mint: negative towards black, positive towards white.
+  const SPECIES = [
+    { shape: (g, w, h) => g.fillRect(0, 0, w, h),
+      shade: -0.52, blur: 15, scale: 0.82, depth: 0.5 },
+    { shape: (g, w, h) => { g.lineWidth = 1.5; g.strokeRect(0.75, 0.75, w - 1.5, h - 1.5); },
+      shade: -0.2, blur: 9, scale: 0.94, depth: 0.75 },
+    { shape: (g, w, h) => g.fillRect(0, h - 2.5, w, 2.5),
+      shade: 0.08, blur: 5, scale: 1.06, depth: 1 },
+    { shape: (g, w, h) => g.fillRect(0, 0, 2, h),
+      shade: 0.3, blur: 2.5, scale: 1.18, depth: 1.35 },
   ];
 
-  // How far each species sits from --mint: negative towards black, positive
-  // towards white. Four shades of the one green, so species read as depth as
-  // well as shape. The solid block is darkest because it carries most ink.
-  const SHADES = [-0.5, -0.15, 0.1, 0.3];
   const NEWBORN_SHADE = 0.7;   // brightest of the ramp, so a birth still lands
+  const NEWBORN_BLUR = 6;
 
   // Conway is deterministic, which is the one thing a background cannot be:
   // watch it long enough and it visibly repeats. These two keep it from ever
@@ -267,10 +272,11 @@
       if (this.spriteDpr === dpr) return;
       this.spriteDpr = dpr;
 
-      // Room for the cursor plus its halo on every side
-      const box = Math.ceil(CUR_H + GLOW_PX * 4);
+      // Room for the largest cursor plus the widest halo, on every side
+      const widest = Math.max(...SPECIES.map((s) => s.blur), NEWBORN_BLUR);
+      const box = Math.ceil(CUR_H * 1.2 + widest * 4);
 
-      const draw = (shape, rgb, scale = 1) => {
+      const draw = ({ shape, rgb, blur, scale }) => {
         const c = document.createElement('canvas');
         c.width = c.height = Math.ceil(box * dpr);
         const g = c.getContext('2d');
@@ -283,9 +289,10 @@
         g.strokeStyle = css;
 
         // The blur is rasterised into the sprite, so a cell still costs one
-        // drawImage at runtime rather than a second blurred pass
+        // drawImage at runtime rather than a second blurred pass — which is
+        // what makes per-species depth of field free
         g.shadowColor = css;
-        g.shadowBlur = GLOW_PX;
+        g.shadowBlur = blur;
         g.translate((box - w) / 2, (box - h) / 2);
         for (let i = 0; i < GLOW_PASSES; i++) shape(g, w, h);
 
@@ -295,9 +302,14 @@
       };
 
       this.box = box;
-      this.sprites = CURSORS.map((shape, i) => draw(shape, shade(this.mint, SHADES[i])));
+      this.sprites = SPECIES.map((s) => draw({ ...s, rgb: shade(this.mint, s.shade) }));
       // A newborn is the block cursor at its brightest, a touch oversized
-      this.newbornSprite = draw(CURSORS[0], shade(this.mint, NEWBORN_SHADE), 1.15);
+      this.newbornSprite = draw({
+        shape: SPECIES[0].shape,
+        rgb: shade(this.mint, NEWBORN_SHADE),
+        blur: NEWBORN_BLUR,
+        scale: 1.15,
+      });
     }
 
     // Counts live neighbours, and fills `tally` with how many of each species
@@ -320,7 +332,7 @@
     }
 
     randomSpecies() {
-      return 1 + Math.floor(Math.random() * CURSORS.length);
+      return 1 + Math.floor(Math.random() * SPECIES.length);
     }
 
     // QuadLife's inheritance: a newborn joins whichever of its three parents
@@ -331,7 +343,7 @@
       let missing = 0;
       let distinct = 0;
 
-      for (let s = 1; s <= CURSORS.length; s++) {
+      for (let s = 1; s <= SPECIES.length; s++) {
         if (tally[s] === 0) missing = s;
         else distinct += 1;
         if (tally[s] >= 2) majority = s;
@@ -411,12 +423,16 @@
       });
     }
 
-    // Every cell in a frame is a survivor, a death or a birth, and each of
-    // those has one alpha — so the board paints in three passes and the only
-    // per-cell work is stamping a pre-rendered glyph.
-    paint(state) {
-      const { ctx, cols, rows, cur, prev, kind, prevKind, sprites, box } = this;
-      const half = box / 2;
+    // A frame is painted species by species and state by state: twelve
+    // passes, each with one alpha and one offset, so the only per-cell work
+    // is stamping a pre-rendered sprite. Scanning the board twelve times is
+    // cheaper than it sounds — a few tens of thousands of integer compares —
+    // and it is what lets each species sit at its own distance.
+    paint(state, species) {
+      const { ctx, cols, rows, cur, prev, kind, prevKind, box } = this;
+      const sprite = state === NEWBORN ? this.newbornSprite : this.sprites[species - 1];
+      if (!sprite) return;
+      const half = box / 2 + CELL * 2;
 
       for (let y = 0; y < rows; y++) {
         for (let x = 0; x < cols; x++) {
@@ -429,10 +445,8 @@
           if (!match) continue;
 
           // A dying cell wears the species it had, not the one it lost
-          const species = state === DYING ? prevKind[i] : kind[i];
-          const sprite = state === NEWBORN ? this.newbornSprite : sprites[species - 1];
-          if (!sprite) continue;
-          ctx.drawImage(sprite, x * CELL - half - CELL * 2, y * CELL - half - CELL * 2, box, box);
+          if ((state === DYING ? prevKind[i] : kind[i]) !== species) continue;
+          ctx.drawImage(sprite, x * CELL - half, y * CELL - half, box, box);
         }
       }
     }
@@ -453,24 +467,33 @@
       const dx = Math.sin(s * 0.11) * DRIFT_PX + this.leanX * PARALLAX_PX;
       const dy = Math.cos(s * 0.083) * DRIFT_PX + this.leanY * PARALLAX_PX;
 
-      ctx.clearRect(0, 0, w, h);
-      ctx.save();
-      ctx.translate(dx, dy);
-
-      ctx.globalAlpha = ALIVE_A;
-      this.paint(SURVIVOR);
-
-      ctx.globalAlpha = (1 - ease) * ALIVE_A;
-      this.paint(DYING);
-
       // The newborn mark fades in brighter than the rest, then hands over to
       // the cell's own species on the next generation
       const spark = 1 - ease;
-      ctx.globalAlpha = ease * ALIVE_A * (1 + spark * BORN_A);
-      this.paint(NEWBORN);
+      const bornAlpha = ease * ALIVE_A * (1 + spark * BORN_A);
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Each species moves by its own share of the offset, so the near ones
+      // swing past the far ones as the field leans — the parallax is what
+      // turns four shades into four distances
+      for (let s = 0; s < SPECIES.length; s++) {
+        ctx.save();
+        ctx.translate(dx * SPECIES[s].depth, dy * SPECIES[s].depth);
+
+        ctx.globalAlpha = ALIVE_A;
+        this.paint(SURVIVOR, s + 1);
+
+        ctx.globalAlpha = (1 - ease) * ALIVE_A;
+        this.paint(DYING, s + 1);
+
+        ctx.globalAlpha = bornAlpha;
+        this.paint(NEWBORN, s + 1);
+
+        ctx.restore();
+      }
 
       ctx.globalAlpha = 1;
-      ctx.restore();
     }
 
     frame(now) {
