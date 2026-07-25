@@ -33,10 +33,23 @@ display sizes with tight tracking, and the same face at 0.72–0.8rem in a
 heavier weight with wide tracking for every label, number and control.
 
 Motion is one entrance, quiet scroll reveals, and Conway's Life running
-behind the hero at one generation every 1.5s. The board wraps on a torus
-and takes a glider every ninth generation — and whenever it settles into
-still lifes or blinkers — so it never stalls. Cells arrive gold and cool to
-mint. It parks itself when the hero scrolls away or the tab loses focus,
+behind the hero at one generation every 0.9s.
+
+The rule is QuadLife. Births and deaths follow Conway exactly, so the
+dynamics are the ones known to stay interesting, but every live cell also
+carries a species drawn as a glyph — `{`, `}`, `+` or `*`. A cell born to
+parents of two or fewer species joins the majority; a cell born where three
+*different* species meet becomes the fourth, which is the only way a species
+that has died out can return. So the glyphs are inheritance rather than
+decoration, and territories visibly overrun one another. Every newborn wears
+a gold `✦` for its first generation before settling into its own mark — the
+only gold out there.
+
+The board wraps on a torus and takes a glider every ninth generation — and
+whenever a hash of it repeats one of the last four, which catches both still
+lifes and blinkers — so it never stalls. The glyphs are rasterised once each
+and stamped as images, so a frame costs no text shaping and no fill-style
+changes. It parks itself when the hero scrolls away or the tab loses focus,
 and never starts under `prefers-reduced-motion`.
 
 ## Development

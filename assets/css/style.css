@@ -278,7 +278,10 @@ p {
   border-color: var(--line-lift);
 }
 
+/* Re-asserts the transparent ground: .btn:hover sets --btn-bg at a higher
+   specificity than .btn-quiet, so without this the ghost button fills paper */
 .btn-quiet:hover {
+  --btn-bg: transparent;
   color: var(--mint);
   border-color: var(--mint);
 }

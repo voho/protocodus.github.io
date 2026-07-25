@@ -91,23 +91,39 @@
   }
 
   // ===========================================================================
-  // Conway's Life behind the hero
+  // Conway's Life behind the hero, in four species
   //
   // Wrapped on a torus so the field never runs out of room, and slow enough to
   // read as weather rather than animation. A finite board always settles into
   // still lifes and blinkers, so a glider is dropped in periodically — it
   // travels forever and breaks up whatever it collides with, which is what
   // keeps the field genuinely infinite instead of merely long-running.
+  //
+  // The rule is QuadLife: births and deaths follow Conway exactly, so the
+  // dynamics are the ones that are known to stay interesting, but every live
+  // cell also carries a species. A cell born to parents of two or fewer
+  // species joins the majority; a cell born where three *different* species
+  // meet becomes the fourth. So the glyphs are not decoration — they are
+  // inheritance, and you can watch one lineage overrun another.
+  //
+  // Newborns of any species show the mark for one generation before settling
+  // into their own, which is the only place gold appears out here.
   // ===========================================================================
   const CELL = 26;         // lattice spacing, px
-  const DOT = 3.4;         // drawn size of a live cell
-  const GEN_MS = 1500;     // one generation
-  const FADE_MS = 600;     // crossfade; the rest of the generation is held still
+  const GLYPH_PX = 15;     // type size of a live cell
+  const GEN_MS = 900;      // one generation
+  const FADE_MS = 400;     // crossfade; the rest of the generation is held still
   const DENSITY = 0.16;    // share of cells alive at seed
-  const ALIVE_A = 0.13;    // alpha of a settled cell
+  // A glyph's strokes carry roughly half the ink of the solid dot they
+  // replaced, and spread it thinner, so this is well above the old 0.13
+  const ALIVE_A = 0.34;
   const BORN_A = 0.85;     // extra brightness while a cell is being born
   const GLIDER_EVERY = 9;  // generations
-  const DPR_CAP = 1.5;     // 3.4px dots at 13% alpha do not repay a full 2x
+  const DPR_CAP = 2;       // glyphs, unlike squares, do repay the extra pixels
+
+  // Species 1-4, plus the mark every newborn wears for its first generation
+  const GLYPHS = ['{', '}', '+', '*'];
+  const NEWBORN_GLYPH = '✦';
 
   // One glider; addGlider() reflects it into the other three orientations
   const GLIDER = [[1, 0], [2, 1], [0, 2], [1, 2], [2, 2]];
@@ -134,8 +150,8 @@
       // The palette lives in :root; reading it keeps one source of truth
       this.mint = readToken('--mint');
       this.yellow = readToken('--yellow');
-      this.mintCss = `rgb(${this.mint.join()})`;
 
+      this.sprites = [];
       this.gen = 0;
       this.last = 0;
       this.recent = [];
@@ -155,6 +171,16 @@
 
       this.resize();
       this.wake();
+
+      // Sprites raster the glyphs, so they have to wait for the real face
+      if (document.fonts) {
+        document.fonts.ready.then(() => {
+          this.spriteDpr = null;
+          this.resize();
+          this.held = false;
+          this.wake();
+        });
+      }
     }
 
     resize() {
@@ -163,6 +189,7 @@
       if (!w || !h) return;
 
       const dpr = Math.min(window.devicePixelRatio || 1, DPR_CAP);
+      this.buildSprites(dpr);
       const bw = Math.round(w * dpr);
       const bh = Math.round(h * dpr);
 
@@ -184,41 +211,107 @@
       this.cols = cols;
       this.rows = rows;
       this.cur = new Uint8Array(cols * rows);
+      // 0 is dead; 1-4 name the species a live cell belongs to
+      this.kind = new Uint8Array(cols * rows);
       for (let i = 0; i < this.cur.length; i++) {
-        this.cur[i] = Math.random() < DENSITY ? 1 : 0;
+        if (Math.random() >= DENSITY) continue;
+        this.cur[i] = 1;
+        this.kind[i] = 1 + Math.floor(Math.random() * GLYPHS.length);
       }
       this.prev = this.cur.slice();
+      this.prevKind = this.kind.slice();
       this.recent = [];
     }
 
-    neighbours(x, y) {
-      const { cols, rows, cur } = this;
+    // Each glyph is rasterised once per colour and stamped from then on —
+    // an image blit per cell rather than shaping text a few hundred times a
+    // frame. Rebuilt only when the device pixel ratio changes.
+    buildSprites(dpr) {
+      if (this.spriteDpr === dpr) return;
+      this.spriteDpr = dpr;
+
+      const box = Math.ceil(GLYPH_PX * 1.6);
+      const draw = (glyph, rgb) => {
+        const c = document.createElement('canvas');
+        c.width = c.height = Math.ceil(box * dpr);
+        const g = c.getContext('2d');
+        g.scale(dpr, dpr);
+        g.font = `${GLYPH_PX}px ${getComputedStyle(root).getPropertyValue('--display')}`;
+        g.textAlign = 'center';
+        g.textBaseline = 'middle';
+        g.fillStyle = `rgb(${rgb.join()})`;
+        g.fillText(glyph, box / 2, box / 2);
+        return c;
+      };
+
+      this.box = box;
+      this.sprites = GLYPHS.map((glyph) => draw(glyph, this.mint));
+      this.newbornSprite = draw(NEWBORN_GLYPH, this.yellow);
+    }
+
+    // Counts live neighbours, and fills `tally` with how many of each species
+    // they were — the caller reuses one array so this allocates nothing.
+    neighbours(x, y, tally) {
+      const { cols, rows, cur, kind } = this;
       let n = 0;
+      tally[1] = tally[2] = tally[3] = tally[4] = 0;
+
       for (let dy = -1; dy <= 1; dy++) {
         for (let dx = -1; dx <= 1; dx++) {
           if (!dx && !dy) continue;
-          const nx = (x + dx + cols) % cols;
-          const ny = (y + dy + rows) % rows;
-          n += cur[ny * cols + nx];
+          const j = ((y + dy + rows) % rows) * cols + (x + dx + cols) % cols;
+          if (!cur[j]) continue;
+          n += 1;
+          tally[kind[j]] += 1;
         }
       }
       return n;
     }
 
+    // QuadLife's inheritance: a newborn joins whichever of its three parents
+    // is in the majority, and where all three differ it becomes the fourth
+    // species — the only way a species that has died out can come back.
+    inherit(tally) {
+      let majority = 0;
+      let missing = 0;
+      let distinct = 0;
+
+      for (let s = 1; s <= GLYPHS.length; s++) {
+        if (tally[s] === 0) missing = s;
+        else distinct += 1;
+        if (tally[s] >= 2) majority = s;
+      }
+      if (majority) return majority;
+      return distinct === 3 ? missing : 1;
+    }
+
     step() {
-      const { cols, rows, cur } = this;
+      const { cols, rows, cur, kind } = this;
       const next = new Uint8Array(cur.length);
+      const nextKind = new Uint8Array(cur.length);
+      const tally = [0, 0, 0, 0, 0];
 
       for (let y = 0; y < rows; y++) {
         for (let x = 0; x < cols; x++) {
           const i = y * cols + x;
-          const n = this.neighbours(x, y);
-          next[i] = cur[i] ? (n === 2 || n === 3 ? 1 : 0) : (n === 3 ? 1 : 0);
+          const n = this.neighbours(x, y, tally);
+
+          if (cur[i]) {
+            // Survivors keep their species; Conway decides whether they live
+            const lives = n === 2 || n === 3;
+            next[i] = lives ? 1 : 0;
+            nextKind[i] = lives ? kind[i] : 0;
+          } else if (n === 3) {
+            next[i] = 1;
+            nextKind[i] = this.inherit(tally);
+          }
         }
       }
 
       this.prev = cur;
+      this.prevKind = kind;
       this.cur = next;
+      this.kind = nextKind;
       this.gen += 1;
       this.held = false;
 
@@ -241,36 +334,43 @@
     }
 
     addGlider() {
-      const { cols, rows, cur } = this;
+      const { cols, rows, cur, kind } = this;
       const ox = Math.floor(Math.random() * cols);
       const oy = Math.floor(Math.random() * rows);
       const flipX = Math.random() < 0.5;
       const flipY = Math.random() < 0.5;
+      const species = 1 + Math.floor(Math.random() * GLYPHS.length);
 
       GLIDER.forEach(([gx, gy]) => {
         const x = (ox + (flipX ? 2 - gx : gx)) % cols;
         const y = (oy + (flipY ? 2 - gy : gy)) % rows;
         cur[y * cols + x] = 1;
+        kind[y * cols + x] = species;
       });
     }
 
-    // Every cell in a frame is a survivor, a death or a birth, which is only
-    // three colours — so paint the board in three passes rather than changing
-    // fillStyle a few hundred times.
-    paint(kind) {
-      const { ctx, cols, rows, cur, prev } = this;
-      const offset = DOT / 2;
+    // Every cell in a frame is a survivor, a death or a birth, and each of
+    // those has one alpha — so the board paints in three passes and the only
+    // per-cell work is stamping a pre-rendered glyph.
+    paint(state) {
+      const { ctx, cols, rows, cur, prev, kind, prevKind, sprites, box } = this;
+      const half = box / 2;
 
       for (let y = 0; y < rows; y++) {
         for (let x = 0; x < cols; x++) {
           const i = y * cols + x;
           const from = prev[i];
           const to = cur[i];
-          const match = kind === SURVIVOR ? from && to
-            : kind === DYING ? from && !to
+          const match = state === SURVIVOR ? from && to
+            : state === DYING ? from && !to
               : !from && to;
           if (!match) continue;
-          ctx.fillRect(x * CELL - offset, y * CELL - offset, DOT, DOT);
+
+          // A dying cell wears the species it had, not the one it lost
+          const species = state === DYING ? prevKind[i] : kind[i];
+          const sprite = state === NEWBORN ? this.newbornSprite : sprites[species - 1];
+          if (!sprite) continue;
+          ctx.drawImage(sprite, x * CELL - half, y * CELL - half, box, box);
         }
       }
     }
@@ -286,7 +386,6 @@
 
       const ease = t * t * (3 - 2 * t);
       ctx.clearRect(0, 0, w, h);
-      ctx.fillStyle = this.mintCss;
 
       ctx.globalAlpha = ALIVE_A;
       this.paint(SURVIVOR);
@@ -294,12 +393,9 @@
       ctx.globalAlpha = (1 - ease) * ALIVE_A;
       this.paint(DYING);
 
-      // A newborn cell arrives gold and cools to mint as it settles
+      // The newborn mark fades in brighter than the rest, then hands over to
+      // the cell's own species on the next generation
       const spark = 1 - ease;
-      const r = Math.round(this.mint[0] + (this.yellow[0] - this.mint[0]) * spark);
-      const g = Math.round(this.mint[1] + (this.yellow[1] - this.mint[1]) * spark);
-      const b = Math.round(this.mint[2] + (this.yellow[2] - this.mint[2]) * spark);
-      ctx.fillStyle = `rgb(${r},${g},${b})`;
       ctx.globalAlpha = ease * ALIVE_A * (1 + spark * BORN_A);
       this.paint(NEWBORN);
 
