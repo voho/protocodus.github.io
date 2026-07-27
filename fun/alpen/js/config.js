@@ -531,6 +531,12 @@ export const RIDER = {
      simply being walked back downhill by the floor push. Without this the
      rule loops: fall, get up crawling, stall again, forever. */
   stallMinSpeed: 3.5,
+  /* And the speed under which a stopped rider's board is allowed to ease
+     round to the fall line on its own. Well under walking pace: any higher
+     and the board swings downhill while real momentum is still carrying the
+     rider the way they were going, which is the "he drives backwards" that
+     started this. */
+  fallLineSpeed: 1.6,
   stallCap: 9.0,
   stallTime: 0.32,
   // The tuck. Fold down over the board and the drag nearly halves, but the

@@ -487,10 +487,6 @@ export class Rider {
     // Fresh storm snow supports a wider, calmer line instead of letting the
     // same clear-weather target over-drive a suddenly weaker edge.
     const surfaceGrip = RIDER.grip * (this.world.grip ?? 1);
-    const holdable = Math.asin(clamp(
-      (surfaceGrip * RIDER.sidecut) / Math.max(1, speed * speed), 0, 1,
-    ));
-    const edgeCeiling = Math.min(RIDER.edgeMax, holdable * RIDER.edgeReach);
 
     /* THE CARVE.
 
@@ -524,6 +520,32 @@ export class Rider {
       * (input.brake ? 0.45 : 1)
       * (input.tuck ? RIDER.tuckGrip : 1)
       * (1 - RIDER.balanceGrip + RIDER.balanceGrip * this.balance);
+
+    /* The edge the rider is *allowed* to set, measured against the grip they
+       will actually have — not against the nominal grip of dry snow.
+
+       This was the loop that made a fast turn feel unpredictable, and it fed
+       itself. The ceiling was computed from `RIDER.grip` while the edge was
+       held against `gripNow`, which is reduced by the tuck, by the brake, by
+       soft snow and — the one that closes the circle — by balance. So the
+       moment balance dipped, the rider was still permitted to ask for the
+       full-grip edge angle while only a fraction of that grip existed. The
+       excess spilled into the wash-out, the wash-out cost more balance, the
+       gap widened, and the whole thing ran away: measured with the key held
+       steady, the edge oscillated between one degree and twenty-one and the
+       run dumped a hundred and two km/h down to twenty-three in half a
+       second, having done nothing at all for the second and a half before it.
+
+       Asking against the grip that exists is the fix, and it is also the more
+       honest statement of the model: a rider does not lay the board over as
+       far on soft snow, on a tuck, or when they are already fighting for
+       balance. `edgeReach` is then the only overdrive there is, and it is a
+       tenth — which is the narrow band a wash-out is supposed to live in. */
+    const holdable = Math.asin(clamp(
+      (gripNow * RIDER.sidecut) / Math.max(1, speed * speed), 0, 1,
+    ));
+    const edgeCeiling = Math.min(RIDER.edgeMax, holdable * RIDER.edgeReach);
+
     const wantEdge = clamp(input.turn, -1, 1) * edgeCeiling
       * (input.tuck ? RIDER.tuckTurn : 1);
     this.edge = approach(this.edge, wantEdge, RIDER.edgeRate, dt);
@@ -581,7 +603,7 @@ export class Rider {
       const travelYaw = Math.atan2(vel.x, -vel.z);
       const stanceYaw = travelYaw + (this.switchStance ? Math.PI : 0);
       this.yaw += wrapPi(stanceYaw - this.yaw) * (1 - Math.exp(-RIDER.selfCentre * dt));
-    } else if (Math.abs(input.turn) < 0.05 && speed < RIDER.stallMinSpeed) {
+    } else if (Math.abs(input.turn) < 0.05 && speed < RIDER.fallLineSpeed) {
       /* …and below that, towards the fall line rather than towards the
          direction of travel, because a rider who has almost stopped has no
          meaningful direction of travel to line up with.
@@ -598,7 +620,26 @@ export class Rider {
       if (dl > 1e-4) {
         const fallYaw = Math.atan2(n.x / dl, -(n.z / dl))
           + (this.switchStance ? Math.PI : 0);
-        this.yaw += wrapPi(fallYaw - this.yaw) * (1 - Math.exp(-1.8 * dt));
+        const swing = wrapPi(fallYaw - this.yaw) * (1 - Math.exp(-1.8 * dt));
+        this.yaw += swing;
+        /* …and whatever speed is left comes round with the board.
+
+           Rotating the board without the velocity is what "he sometimes
+           drives backwards" actually was. At the old threshold this began at
+           twelve km/h — still genuinely moving — so the board swung towards
+           the fall line while the momentum carried on the way it was already
+           going, and the rider ended up travelling one way at a hundred and
+           fifty degrees to the way he was pointing. Turning the velocity by
+           the same angle keeps the two together: he pivots, rather than
+           sliding backwards while facing downhill. It is safe to do at this
+           speed and only at this speed, because there is almost no momentum
+           left to falsify. */
+        const cs = Math.cos(swing);
+        const sn = Math.sin(swing);
+        const vx = vel.x;
+        const vz = vel.z;
+        vel.x = vx * cs + vz * sn;
+        vel.z = -vx * sn + vz * cs;
       }
     }
 
