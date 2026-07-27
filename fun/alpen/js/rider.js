@@ -109,6 +109,7 @@ export class Rider {
     this.flipAccum = 0;
     this.grabTime = 0;
     this.grab = 0;           // 0..1, how far into the grab pose
+    this.grabbing = false;
     this.switchStance = false;
     this.slide = 0;          // m/s of sideways wash, for spray and sound
     this.carveLoad = 0;      // 0..1, how hard the edge is working
@@ -133,7 +134,12 @@ export class Rider {
     this.landing = null;
     this.grace = Math.max(0, this.grace - dt);
 
-    if (this.state === 'fall') return this.fallStep(dt);
+    // Getting up is part of going down, so both states run the recovery
+    // step. Dispatching only on 'fall' stopped the timer the moment
+    // `fallStep` promoted itself to 'rise' — the rider went back to normal
+    // physics while the model still had them face-down, and stayed prone
+    // until the next landing happened to reset the state.
+    if (this.state === 'fall' || this.state === 'rise') return this.fallStep(dt);
     if (this.grounded) this.groundStep(dt, input);
     else this.airStep(dt, input);
     this.springStep(dt);
@@ -311,6 +317,7 @@ export class Rider {
     this.flipAccum = 0;
     this.flip = 0;
     this.grabTime = 0;
+    this.grabbing = false;
     this.spinVel = 0;
     this.flipVel = 0;
     this.charging = false;
@@ -345,8 +352,9 @@ export class Rider {
 
     // Grab: the only trick that is worth more the longer you hold it, and
     // the only one that asks you to let go before the snow arrives
-    if (input.trickGrab) this.grabTime += dt;
-    this.grab = approach(this.grab, input.trickGrab ? 1 : 0, 11, dt);
+    this.grabbing = !!input.trickGrab;
+    if (this.grabbing) this.grabTime += dt;
+    this.grab = approach(this.grab, this.grabbing ? 1 : 0, 11, dt);
 
     // A little drift, for picking a landing line
     const steer = input.turn * RIDER.airSteer;
@@ -395,11 +403,27 @@ export class Rider {
       || Math.abs(this.spinAccum) > 0.8 || Math.abs(this.flipAccum) > 0.8;
     if (!judged) verdict = CLEAN;
 
+    // The grab has to be let go before the snow, which is what the start
+    // screen says and what the code did not do — held through touchdown it
+    // was free points and a strictly dominant strategy. It costs a sketchy
+    // landing rather than a fall, because nothing here should end a run.
+    if (judged && this.grabbing) verdict = Math.max(verdict, SKETCHY);
+
+    // Rotations are quantised to the *nearest* half turn, not the floor.
+    // The landing window has already accepted anything inside ±53°, so a
+    // clean 170 is a 180 and a clean 350° flip is a backflip; flooring
+    // called the first one a zero and the second one nothing at all. The
+    // label and the score both read these, so they can never disagree.
+    const halfTurns = Math.round(Math.abs(this.spinAccum) / Math.PI);
+    const flipTurns = Math.round(Math.abs(this.flipAccum) / TAU);
+
     const summary = {
       verdict,
       airTime: this.airTime,
       spin: this.spinAccum,
       flips: this.flipAccum,
+      halfTurns,
+      flipTurns,
       grabTime: this.grabTime,
       switchStance: isSwitch,
       impact,
@@ -414,6 +438,7 @@ export class Rider {
     this.spinVel = 0;
     this.grab = 0;
     this.grabTime = 0;
+    this.grabbing = false;
     this.compressionVel += Math.min(impact, 30) * 0.85;
 
     if (verdict === BAIL) {
@@ -543,14 +568,15 @@ export class Rider {
   }
 }
 
-/* The name of what just happened, in the language of the sport. */
+/* The name of what just happened, in the language of the sport. Reads the
+   quantised counts rather than the raw radians, so it always says the same
+   number the score is paying for. */
 export function trickName(s, verdict) {
   const parts = [];
-  const deg = Math.abs(s.spin) * (180 / Math.PI);
-  const steps = Math.floor(deg / 180) * 180;
+  const steps = s.halfTurns * 180;
   if (steps >= 180) parts.push(`${s.spin > 0 ? 'FRONTSIDE' : 'BACKSIDE'} ${steps}`);
 
-  const flips = Math.floor(Math.abs(s.flips) / TAU);
+  const flips = s.flipTurns;
   if (flips >= 1) parts.push(flips > 1 ? `${flips}× BACKFLIP` : 'BACKFLIP');
 
   if (s.grabTime > 0.55) parts.push('TWEAKED GRAB');

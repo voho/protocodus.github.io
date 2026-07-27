@@ -48,11 +48,26 @@ const pad = document.querySelector('.pad');
    Renderer
    ========================================================================== */
 
+/* If WebGL is off, unsupported, or simply out of contexts, the module stops
+   here — so the curtain has to stop inviting input before it does. Left to
+   rethrow on its own it sat there saying "press any key" to a page that
+   could no longer do anything with one. */
 let renderer;
 try {
   renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
 } catch (err) {
   document.body.classList.add('no-webgl');
+  const inner = curtain.querySelector('.curtain-inner');
+  if (inner) {
+    inner.querySelectorAll('.keys, .go, .pause-only').forEach((n) => n.remove());
+    const note = inner.querySelector('.tagline');
+    if (note) {
+      note.textContent = 'This one needs WebGL, and your browser could not start it. '
+        + 'It is usually a setting called hardware acceleration, or a very old graphics driver.';
+    }
+  }
+  curtain.classList.add('on');
+  curtain.style.cursor = 'default';
   throw err;
 }
 renderer.setClearColor(0x000000, 1);
@@ -214,8 +229,10 @@ function award(points, name, tone) {
 
 function scoreLanding(s) {
   if (!s.judged || s.verdict === BAIL) return;
-  const deg = Math.abs(s.spin) * (180 / Math.PI);
-  const flips = Math.floor(Math.abs(s.flips) / TAU);
+  // The same numbers the banner shows, so a landed 540 is always paid as a
+  // 540 — the label and the score used to round in different directions
+  const deg = s.halfTurns * 180;
+  const flips = s.flipTurns;
   let pts = deg * SCORE.perDegree
     + flips * SCORE.perFlip
     + s.grabTime * SCORE.grabPerSecond
@@ -356,6 +373,11 @@ function liveTrickName() {
   return trickName({
     spin: rider.spinAccum,
     flips: rider.flipAccum,
+    // Floored rather than rounded: in the air you have only completed the
+    // rotation you have actually been through. Rounding is what the landing
+    // does, once it has decided the rotation counts.
+    halfTurns: Math.floor(Math.abs(rider.spinAccum) / Math.PI),
+    flipTurns: Math.floor(Math.abs(rider.flipAccum) / TAU),
     grabTime: rider.grabTime,
     airTime: rider.airTime,
     switchStance: false,

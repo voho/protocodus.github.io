@@ -18,8 +18,10 @@
   <link rel="stylesheet" href="/assets/css/style.css">
   <style>
     /* This page has no spine — it is one screen of links, so the rail would
-       be navigation to nowhere. The gutter it reserves goes back. */
-    body { padding-left: 0; }
+       be navigation to nowhere. Both gutters it reserves go back: the rail's
+       width on desktop, and the fixed bar's height at 860px and under, which
+       is 118px of blank strip on a page that has no bar. */
+    body { padding-left: 0; padding-top: 0; }
     .arcade { padding: clamp(4rem, 10vw, 7rem) 0 clamp(5rem, 10vw, 8rem); }
     .arcade .brand { margin-bottom: clamp(3rem, 7vw, 5rem); }
     .arcade .brand-name { font-size: 0.85rem; font-weight: 700; letter-spacing: 0.2em; }

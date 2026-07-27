@@ -14,6 +14,9 @@
    doing. */
 
 import { compose } from './geom.js';
+import { RIDER } from './config.js';
+
+const RISE_TIME = RIDER.riseTime;
 
 const INK = '#232830';
 const MINT = '#00ffc3';
@@ -98,7 +101,15 @@ export function createRiderModel(THREE) {
   const up = new THREE.Vector3();
 
   function update(rider, dt) {
-    const falling = rider.state === 'fall' || rider.state === 'rise';
+    // How far down the rider is: all the way through the fall, then back up
+    // across the recovery window. A step function here reads as the rider
+    // teleporting upright the instant the timer runs out.
+    const down = rider.state === 'fall'
+      ? 1
+      : rider.state === 'rise'
+        ? Math.max(0, Math.min(1, rider.fallTimer / RISE_TIME))
+        : 0;
+    const falling = down > 0;
 
     // Stand the whole rider on the surface, then turn, flip and roll it in
     // its own frame. In the air the reference drifts back to true vertical.
@@ -106,8 +117,8 @@ export function createRiderModel(THREE) {
     if (!rider.grounded) up.lerp(UP, Math.min(1, rider.airTime * 2.5)).normalize();
     q.setFromUnitVectors(UP, up);
     qy.setFromAxisAngle(UP, rider.yaw);
-    qx.setFromAxisAngle(AX, rider.flip + (falling ? rider.tumble : 0));
-    qz.setFromAxisAngle(AZ, -rider.roll * (falling ? 2.2 : 1));
+    qx.setFromAxisAngle(AX, rider.flip + rider.tumble * down);
+    qz.setFromAxisAngle(AZ, -rider.roll * (1 + 1.2 * down));
     q.multiply(qy).multiply(qx).multiply(qz);
 
     root.quaternion.copy(q);
@@ -129,8 +140,10 @@ export function createRiderModel(THREE) {
     body.rotation.x = grab * 0.62 - squat * 0.35;
     body.position.z = grab * 0.1;
     if (falling) {
-      body.rotation.x = 1.1;
-      body.position.y = -0.25;
+      // Blended rather than assigned, so getting up is a rise rather than a
+      // snap: at down = 1 the rider is folded flat, at 0 they are riding
+      body.rotation.x = body.rotation.x * (1 - down) + 1.1 * down;
+      body.position.y = body.position.y * (1 - down) - 0.25 * down;
     }
 
     // Shadow: pinned to the ground under the rider, fading and shrinking as
