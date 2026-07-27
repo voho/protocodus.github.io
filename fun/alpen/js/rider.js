@@ -508,8 +508,13 @@ export class Rider {
       // the same tree cannot take you twice
       if (this.state !== 'rise') {
         this.state = 'rise';
-        this.yaw = Math.atan2(vel.x, -vel.z);
+        // Velocity first, then the board to match it. Read the other way
+        // round, a rider who had stopped took their heading from whatever
+        // direction they were last sliding — sideways, or back up the hill —
+        // and then got a downhill push underneath it, so the first thing
+        // they did on standing up was skid the restart speed away.
         if (sp < 3) this.vel.set(0, 0, -6);
+        this.yaw = Math.atan2(this.vel.x, -this.vel.z);
         this.grace = 1.3;
         this.emit('rise');
       }

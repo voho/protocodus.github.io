@@ -68,15 +68,27 @@ export function createChaseCamera(THREE, camera) {
     if (want.y < floor) want.y = floor;
 
     // …and never let a tree. Ride into the forest and the chase position
-    // lands inside a trunk, which fills the screen with the inside of a
-    // cone at exactly the moment the player most needs to see what happened.
-    // Walking the line back towards the rider costs five circle tests and
-    // fixes it: the camera tucks in rather than clipping through.
+    // lands inside a trunk, which fills the screen with the inside of a cone
+    // at exactly the moment the player most needs to see what happened.
+    //
+    // The whole segment is walked, not just its far end: a camera sitting in
+    // clear air with a trunk halfway between it and the rider is the case
+    // that actually hides the rider, and testing only the endpoint misses it
+    // entirely. Six samples, and each one early-rejects almost every solid
+    // on its z, so the sightline costs about as much as the endpoint did.
     if (world.blocked) {
-      for (let t = 0.85; t >= 0.3; t -= 0.18) {
-        if (!world.blocked(want.x, want.z, 1.2)) break;
-        want.x = rider.pos.x + (want.x - rider.pos.x) * t;
-        want.z = rider.pos.z + (want.z - rider.pos.z) * t;
+      let clear = 1;
+      for (let t = 0.34; t <= 1.001; t += 0.14) {
+        const cx = rider.pos.x + (want.x - rider.pos.x) * t;
+        const cz = rider.pos.z + (want.z - rider.pos.z) * t;
+        if (world.blocked(cx, cz, 1.1)) {
+          clear = Math.max(0.3, t - 0.14);
+          break;
+        }
+      }
+      if (clear < 1) {
+        want.x = rider.pos.x + (want.x - rider.pos.x) * clear;
+        want.z = rider.pos.z + (want.z - rider.pos.z) * clear;
         want.y = Math.max(want.y, world.height(want.x, want.z) + 1.5);
       }
     }

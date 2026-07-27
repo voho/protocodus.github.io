@@ -70,8 +70,12 @@ export function createAudio() {
     return true;
   }
 
+  /* Called on every resume, not just the first. Browsers suspend an
+     AudioContext when the tab goes to the background or the device takes
+     the audio away, and returning early on `started` left the graph running
+     into a suspended context — permanently silent, with the HUD still
+     saying the sound was on. */
   function start() {
-    if (started) return;
     if (!ctx && !build()) return;
     started = true;
     if (ctx.state === 'suspended') ctx.resume();
@@ -136,6 +140,9 @@ export function createAudio() {
     ambience,
     get muted() { return muted; },
     get running() { return started; },
+    // For the debug hatch, and for checking that a suspended context has
+    // actually been brought back rather than assumed to be running
+    get context() { return ctx; },
 
     toggleMute() {
       muted = !muted;

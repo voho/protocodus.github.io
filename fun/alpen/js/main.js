@@ -333,10 +333,13 @@ function collide() {
     if (rider.grace > 0 || game.mode === 'attract') continue;
 
     // Square on the trunk puts the rider down; anything glancing spins
-    // them, costs speed, and lets them ride it out
+    // them, costs speed, and lets them ride it out. `central` is 0 at the
+    // trunk's edge and 0.45 at the point it becomes a wipeout, so severity
+    // has to rise with it — inverted, a brush that barely clipped the bark
+    // hit harder than a glance that nearly took the rider off the board.
     const central = 1 - d / reach;
     if (central > 0.45) rider.fall('hit');
-    else rider.graze(rider.pos.x - s.x, rider.pos.z - s.z, 1 - central / 0.45);
+    else rider.graze(rider.pos.x - s.x, rider.pos.z - s.z, central / 0.45);
     s.grazed = true;
   }
 }
@@ -491,7 +494,7 @@ resize();
    to the run. */
 window.__alpenTerrain = { heightAt, pisteCenter };
 window.__alpen = {
-  game, rider, camera, world, weather, scene, sky, terrain, props, retro, wildlife,
+  game, rider, camera, world, weather, scene, sky, terrain, props, retro, wildlife, audio,
   config: { RENDER, RIDER, SCORE, PROPS },
   debug: () => ({
     mode: game.mode,
