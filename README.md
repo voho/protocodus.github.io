@@ -128,68 +128,125 @@ people will type it.
 
 ### Alpen
 
-An endless snowboard run down a procedurally generated mountain, at 288 lines
-and five bits a channel.
+An endless snowboard run down a procedurally generated mountain: late-nineties
+console art direction executed with precision that hardware never had.
 
-**The mountain is a function.** `heightAt(x, z)` is a constant grade, four
-octaves of value noise, and a bank on each side of a corridor whose centre
-line wanders on two long sines. There is no terrain data anywhere: the rider
-stands on that function, kickers are added to it, trees are planted on it, and
-the mesh is only ever a picture of it. Props are generated forty metres of
-hill at a time, seeded from the band's own index, so the same stretch always
-grows the same forest and nothing has to be remembered behind the rider.
+**The mountain is a function.** `heightAt(x, z)` is a grade that varies along
+the run, four octaves of value noise — two of them domain-warped — a corridor
+whose centre line wanders and periodically forks in two around an island, and
+a wall outside it. There is no terrain data anywhere: the rider stands on that
+function, kickers are added to it, trees are planted on it, and the mesh is
+only ever a picture of it. Props are generated forty metres of hill at a time,
+seeded from the band's own index, so the same stretch always grows the same
+forest and nothing has to be remembered behind the rider.
 
-The mesh is one graded grid, re-anchored to the rider in whole cells: two
-metres a cell underfoot, each ring nine per cent wider than the last, until
-the far edge is three quarters of a kilometre out at fifty metres a cell.
-Forty-nine hundred vertices cover the lot. Snapping the anchor to the finest
-spacing is what keeps the facets welded to the ground instead of crawling
-across it.
+Everything that rises is spent out of one budget. A roll's uphill face must
+never out-climb the mountain it sits on, or the gentle chapters contain real
+uphill and a rider who arrives slowly stops in the middle of a descent — so
+every octave's steepest face, summed, stays under the *shallowest* grade the
+run ever reaches. What launches a rider is curvature rather than height, and
+curvature goes as amplitude times wavenumber squared, so the air comes from
+short wavelengths: hashed knolls whose height is a ratio of their radius and
+whose downhill half is compressed, whose lee side therefore falls away faster
+than gravity can follow it. Nothing special-cases them; they are simply hills
+shaped like something worth hitting.
+
+**You cannot leave the piste.** Outside the groomed part the ground rises into
+a quarterpipe with a real lip to launch off and then into a wall that keeps
+climbing for ever. Crossing it would take more kinetic energy than the game
+can produce. There is no barrier and no invisible wall — the ground outside
+the run is monotonically uphill, so gravity is always pointing home.
 
 **The rider is a velocity vector on a surface**, not a speed along a track,
 and most of how the game feels falls out of that. Gravity is resolved on the
-slope tangent, so riding up the side of the corridor costs speed and gives it
-back on the way down without a line of code saying so. The edge holds
-sideways up to a fixed grip and slides past it, and the steering is capped at
-what that grip can actually hold — which is why a fast line is a wide one, and
-why the brake is the deliberate way to break traction. The legs are a damped
-spring, so a landing drops the camera and lets it back up, and pumping a
-roller works without pumping having been written.
+slope tangent, so riding up a bank costs speed and gives it back on the way
+down without a line of code saying so.
+
+The board turns because it has a **sidecut**: tilted onto one edge, the arc
+that edge describes is the path it is obliged to follow, `R = sidecut /
+sin(edge)`. Holding that radius needs `v²/R` of grip, so the same edge angle
+that draws a clean arc at 40 km/h asks four times as much of the snow at 80 —
+and the rider discovers on their own that a fast line has to be a wide line,
+instead of being told so by a cap on the turn rate. The rider's lean is the
+balance angle that falls out of it, and the gap between the lean a turn
+demands and the lean the body has managed *is* balance: it costs grip in
+proportion, and enough of it for long enough puts them down. Below walking
+pace the sidecut has no authority at all, so the board is skidded round
+instead — which is what anybody does, and without it a held carve ends
+sideways and motionless with no way back to the fall line.
+
+The legs are a damped spring, so a landing drops the camera and lets it back
+up, and pumping a roller works without pumping having been written.
 
 **Nothing triggers a jump.** Every step projects the ballistic path ninety
 milliseconds forward and asks where the ground will be there; if the hill has
 dropped out from under it, the rider is in the air with whatever vertical
-speed the ground was handing them. A kicker's lip, the crest of a roller and
-the top of a bank all launch by the same rule, and all launch harder the
-faster you were going. The horizon is the whole trick — comparing the ground's
-curvature against gravity, which is the obvious way to write it, cannot tell a
-lip from the six-metre chatter octave at 150 km/h.
+speed the ground was handing them. A kicker's lip, the crest of a roller, the
+top of a wall and the edge of a cliff all launch by the same rule, and all
+launch harder the faster you were going — the vertical they hand over is
+whatever the ramp built up, which is proportional to the speed that arrived.
+The horizon is the whole trick, and it has to be the *minimum* over the path
+rather than one sample at its end: ninety milliseconds at 45 m/s is further
+than a small kicker is long, so a single sample was already past the lip the
+moment the rider touched the ramp and threw them from the bottom of it having
+climbed none of it. Sampled properly, while any part of the ramp still stands
+above the ballistic arc the hill has not dropped away, and the launch happens
+at the lip and nowhere else.
 
-Falling over is the only failure and it is temporary. The run does not end.
+Kicker length is solved from the local grade rather than fixed, so every ramp
+on the mountain throws at the same angle above whatever it is built on. Built
+kickers are rare; most of the air comes from the ground.
 
-**The look** is a buffer 288 lines tall, graded, dithered and quantised to
-thirty-two levels a channel, then blown up by the browser with the pixels left
-alone. Five bits is what an RGBA5551 framebuffer held and the ordered dither
-is how those machines hid it; without the dither a snowfield at five bits is a
-contour map, and with it, it is grain. Snow is the hardest thing in graphics
-to light — one colour, filling the frame — so the shadows are pushed towards
-the sky's blue and the highlights towards the sun's amber, and the corduroy is
-painted per pixel from world coordinates so there is something for the eye to
-read speed against.
+Falling over is the only failure and it is temporary. The run does not end. A
+fall is a ballistic body rather than a timer — the speed that went into the
+tree comes back out as height and tumble, and the rider is airborne until the
+snow has finished with them, so a spill at walking pace is over in a second
+and catching a trunk at 150 km/h throws you a long way down the hill.
 
-**Time of day and weather are two continuous dials.** The first runs a full
-day in six minutes through seven interpolated moments; the second drifts on
-slow noise between clear air and a whiteout, pulling every colour towards the
-haze and the fog in from three hundred metres to seventy. Two dials rather
-than a list of skies is what makes a blizzard at dusk look like dusk.
+**The look** keeps the era's colour and geometry and drops its resolution
+limit. Five bits a channel through a 4×4 Bayer matrix is what an RGBA5551
+framebuffer held and how those machines hid it — without the dither a
+snowfield at five bits is a contour map, and with it, it is grain — over
+quantised five-band diffuse, flat facets and vertex snapping that fades out
+with distance so the horizon does not shimmer. On top go the things the
+hardware could not: bloom, crepuscular rays marched towards the sun's screen
+position, a highlight shoulder so lit snow rolls off instead of clipping flat,
+velocity blur, and fog that resolves toward whatever the sky shows in *that*
+direction so a ridge to the west dissolves into the sunset. All of it happens
+before the quantise, so it is dithered down to five bits with everything else
+and never looks like a filter over an old picture.
+
+Snow is the hardest thing in graphics to light — one colour, filling the frame
+— so it is never white: glacier blue in shade, warm only where the low sun
+lands, with the corduroy painted per pixel from world coordinates and faded by
+how much ground a pixel covers, because a rib every metre and a half seen at a
+grazing angle beats against the pixel grid and throws moiré across the hill.
+The rider is high-vis orange, because it is the one colour snow never is.
+
+The read-out is a second canvas holding the same buffer as the world, so a HUD
+pixel and a snow pixel are the same square by construction. That is why there
+is no typeface: every glyph is a hand-drawn 5×7 bitmap with a one-pixel
+outline, in `js/font.js`.
+
+**Time of day and weather are three continuous dials.** The first runs a full
+day in fifteen minutes through seven interpolated moments; the second drifts
+on slow noise from clear air to a whiteout, pulling every colour towards the
+haze and the fog in from four hundred metres to seventy; the third is an
+aurora, and on most nights it is not there at all. Dials rather than a list of
+skies is what makes a blizzard at dusk look like dusk.
 
 Physics runs on a fixed 120 Hz step and everything else per frame, so a jump
 is the same size on every machine.
 
+There is also a carve trail, a terrain park with rails to slide, refreshment
+huts that glow at night and pay out for stopping in for a cocoa, a rescue
+helicopter that spotlights the next animal when it is dark, and — rarely — a
+bear.
+
 Controls are A/D to carve and to spin, W to tuck, S to brake, space held to
-load the legs and released to pop, Q to grab and E to flip. `window.__alpen`
-is a debug hatch: every tunable is a plain object on it, and
-`__alpen.debug()` prints the run.
+load the legs and released to pop at the lip, Q to grab and E to flip. They
+are listed permanently on screen. `window.__alpen` is a debug hatch: every
+tunable is a plain object on it, and `__alpen.debug()` prints the run.
 
 ## Development
 
