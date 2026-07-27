@@ -1,14 +1,22 @@
 /* ==========================================================================
    Alpen — the frame around the game
 
-   The canvas is 288 lines tall and blown up by the browser; everything on
-   top of it is DOM at full resolution, so the type stays sharp while the
-   world stays chunky. That contrast is deliberate — it reads as a machine
-   from 1997 with a modern read-out bolted on, rather than as a blurry page.
+   There are two canvases and they are the same size. The world is a 640×360
+   buffer blown up by a whole number and letterboxed; the read-out is a
+   second 640×360 buffer sitting exactly on top of it at exactly the same
+   scale, so a HUD pixel and a snow pixel are the same square. Nothing in the
+   read-out is styled here any more — it is drawn, in a hand-made bitmap
+   font, in js/hud.js. This file's entire job where the HUD is concerned is
+   to stop the browser resampling it.
+
+   What is left below is the furniture around the game rather than the game
+   frame itself: the start and pause curtain, and the touch pad. Those stay
+   DOM on purpose. They are not part of the picture — they are the page the
+   picture is sitting on, and holding them to a 5×7 grid would mean a
+   paragraph of explanation nobody could read.
 
    The palette is the company's, used the company's way: mint marks
-   structure and anything you can act on, yellow marks emphasis. The score
-   is yellow because it is the thing being earned.
+   structure and anything you can act on, yellow marks emphasis.
    ========================================================================== */
 
 @font-face {
@@ -29,13 +37,11 @@
   --fg-faint: rgba(250, 250, 250, 0.46);
   --label: 0.72rem;
   --label-track: 0.16em;
-  /* The world behind this text is white snow half the time and a night sky
-     the other half, so the read-out cannot rely on either. A tight dark
-     halo plus a soft drop reads on both without a plate behind it. */
-  --shadow:
-    0 0 2px rgba(6, 12, 22, 0.95),
-    0 1px 1px rgba(6, 12, 22, 0.9),
-    0 2px 12px rgba(6, 12, 22, 0.7);
+  /* There used to be a --shadow here, three stacked text-shadows that kept
+     the read-out legible over white snow and a night sky alike. The read-out
+     is a canvas now and carries a one-pixel outline drawn into the buffer
+     instead, which is the same idea done at the right resolution. Nothing
+     left in this file is text over the picture, so nothing needs it. */
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
   --gutter: clamp(0.9rem, 2.4vw, 2rem);
 }
@@ -66,7 +72,16 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* The whole point: a small buffer, scaled up with the pixels left alone */
+/* The whole point: a small buffer, scaled up with the pixels left alone.
+
+   The backing store is a 640×360-class picture and the element is the window,
+   and `retro.js` chooses the buffer so that the ratio between them is exactly
+   a whole number of device pixels. `pixelated` is what makes the browser take
+   the nearest texel rather than blending four of them, and between the two of
+   them every pixel on screen is a hard square of identical size — which is
+   the constraint the entire art direction rests on. Without this line the
+   picture is not low-resolution, it is blurry, and those are very different
+   things. */
 #stage {
   position: absolute;
   inset: 0;
@@ -77,30 +92,31 @@ body {
   image-rendering: crisp-edges;
 }
 
-.label {
-  font-size: var(--label);
-  font-weight: 600;
-  letter-spacing: var(--label-track);
-  text-transform: uppercase;
-  color: var(--mint);
-  text-shadow: var(--shadow);
-}
-
-.label.quiet {
-  color: rgba(250, 250, 250, 0.78);
-  font-weight: 500;
-  letter-spacing: 0.1em;
-}
-
 /* HUD
-   ========================================================================== */
+   ==========================================================================
+   A second canvas holding the renderer's own buffer, drawn by js/hud.js in
+   the 5x7 bitmap font in js/font.js. There is nothing here to style: every
+   label, number, bar and glyph in the read-out is square pixels in that
+   buffer. What used to be in this section — a dozen absolutely positioned
+   blocks, six clamp() type ramps, a stack of text-shadows and four media
+   queries holding it all off a small screen — is gone, because a layout
+   measured in buffer pixels is already the same layout at every window size.
+   It only gets bigger squares.
+
+   Note that the rule below is deliberately, exactly #stage's. That is the
+   whole trick: two canvases with the same backing store stretched across the
+   same rectangle land their pixels on the same grid, and nothing has to be
+   calculated — which means nothing can be calculated differently. The
+   `image-rendering` pair is copied character for character for the same
+   reason and not because both keywords are needed: two elements that have to
+   be resampled identically must not be asking for it in two different
+   dialects. Without the pair the browser smooths the read-out on the way up
+   and every glyph turns to grey mush, which is the exact failure this
+   arrangement exists to avoid. */
 .hud {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  padding: var(--gutter);
-  padding-top: max(var(--gutter), env(safe-area-inset-top));
-  font-variant-numeric: tabular-nums;
   opacity: 0;
   transition: opacity 0.6s var(--ease);
 }
@@ -109,185 +125,29 @@ body.ready .hud {
   opacity: 1;
 }
 
-.hud-tl {
+.readout {
   position: absolute;
-  top: max(var(--gutter), env(safe-area-inset-top));
-  left: var(--gutter);
-}
-
-.hud-tr {
-  position: absolute;
-  top: max(var(--gutter), env(safe-area-inset-top));
-  right: var(--gutter);
-  text-align: right;
-}
-
-.score {
-  display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
-  font-size: clamp(1.9rem, 5vw, 3rem);
-  font-weight: 700;
-  line-height: 1;
-  letter-spacing: -0.035em;
-  color: var(--yellow);
-  text-shadow: var(--shadow);
-}
-
-.combo {
-  font-size: 0.42em;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  color: var(--mint);
-  transition: color 0.3s var(--ease), transform 0.3s var(--ease);
-}
-
-.combo.hot {
-  color: var(--paper);
-  transform: scale(1.12);
-}
-
-.speed {
-  display: flex;
-  align-items: baseline;
-  justify-content: flex-end;
-  gap: 0.32rem;
-  font-size: clamp(1.6rem, 4.4vw, 2.6rem);
-  font-weight: 700;
-  line-height: 1;
-  letter-spacing: -0.035em;
-  text-shadow: var(--shadow);
-}
-
-.unit {
-  font-size: 0.3em;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--fg-faint);
-}
-
-.sky {
-  margin-top: 0.45rem;
-  color: var(--mint);
-  opacity: 0.75;
-}
-
-/* Air time sits under the speed because it is the same kind of fact: a
-   number you are steering against, not a reward */
-.air {
-  position: absolute;
-  top: 38%;
-  right: var(--gutter);
-  font-size: clamp(1.1rem, 2.6vw, 1.5rem);
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--mint);
-  text-shadow: var(--shadow);
-  opacity: 0;
-  transform: translateY(-4px);
-  transition: opacity 0.2s var(--ease), transform 0.2s var(--ease);
-}
-
-.air.on {
-  opacity: 1;
-  transform: none;
-}
-
-/* The live trick reads while it is still happening, which is what makes
-   holding a spin one instant longer a decision */
-.live {
-  position: absolute;
-  left: 50%;
-  bottom: 27%;
-  transform: translateX(-50%) translateY(6px);
-  font-size: clamp(0.85rem, 2.2vw, 1.15rem);
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  color: var(--paper);
-  text-shadow: var(--shadow);
-  opacity: 0;
-  transition: opacity 0.15s var(--ease), transform 0.15s var(--ease);
-}
-
-.live.on {
-  opacity: 0.85;
-  transform: translateX(-50%);
-}
-
-.trick {
-  position: absolute;
-  left: 50%;
-  bottom: 18%;
-  transform: translateX(-50%) translateY(10px) scale(0.96);
-  display: flex;
-  align-items: baseline;
-  gap: 0.7rem;
-  white-space: nowrap;
-  opacity: 0;
-  transition: opacity 0.25s var(--ease), transform 0.35s var(--ease);
-}
-
-.trick.on {
-  opacity: 1;
-  transform: translateX(-50%);
-}
-
-.trick-name {
-  font-size: clamp(1.1rem, 3vw, 1.7rem);
-  font-weight: 700;
-  letter-spacing: -0.015em;
-  text-transform: uppercase;
-  color: var(--paper);
-  text-shadow: var(--shadow);
-}
-
-.trick-points {
-  font-size: clamp(0.95rem, 2.4vw, 1.35rem);
-  font-weight: 700;
-  color: var(--yellow);
-  text-shadow: var(--shadow);
-}
-
-.trick.warn .trick-name { color: #ffd98a; }
-.trick.bad .trick-name { color: #ff8a6a; }
-.trick.near .trick-name { color: var(--mint); }
-
-/* The charge bar is the leg spring, drawn. It only exists while it matters */
-.charge {
-  position: absolute;
-  left: 50%;
-  bottom: 11%;
-  width: min(210px, 34vw);
-  height: 4px;
-  transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.45);
-  opacity: 0;
-  transition: opacity 0.14s var(--ease);
-}
-
-.charge.on {
-  opacity: 1;
-}
-
-.charge-bar {
-  display: block;
+  left: 0;
+  top: 0;
+  width: 100%;
   height: 100%;
-  background: var(--yellow);
-  transform-origin: left;
-  transform: scaleX(0);
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
 }
 
-.mute {
+/* A canvas hands a screen reader nothing at all, so hud.js keeps a paragraph
+   of numbers fed behind it. Clipped rather than hidden: `display: none` and
+   `visibility: hidden` would take it out of the accessibility tree too,
+   which is the one thing it is for. */
+.sr-only {
   position: absolute;
-  left: var(--gutter);
-  bottom: max(var(--gutter), env(safe-area-inset-bottom));
-}
-
-.mute.off {
-  color: rgba(250, 250, 250, 0.28);
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 /* Curtain — start, and pause

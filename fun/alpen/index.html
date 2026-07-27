@@ -25,29 +25,26 @@
 <body>
   <canvas id="stage"></canvas>
 
-  <!-- ================= HUD ================= -->
-  <div class="hud" aria-live="off">
-    <div class="hud-tl">
-      <p class="label">Score</p>
-      <p class="score"><span data-score>0</span><span class="combo" data-combo></span></p>
-      <p class="label quiet">Best <span data-best>0</span></p>
-    </div>
+  <!-- ================= HUD =================
+       The read-out is a second framebuffer, not a layer of DOM. It is the
+       same 640×360 as the world and it is stretched by the same whole-number
+       scale, so a HUD pixel and a snow pixel are exactly the same square —
+       which is why there is no text in this element and no typeface behind
+       it. Every glyph is a hand-drawn 5×7 bitmap; see js/font.js for the
+       alphabet and js/hud.js for the layout, both of which are measured in
+       buffer pixels and never respond to the size of the window.
 
-    <div class="hud-tr">
-      <p class="speed"><span data-speed>0</span><span class="unit">km/h</span></p>
-      <p class="label quiet" data-distance>0.00 km</p>
-      <p class="label sky" data-sky>Morning</p>
-    </div>
+       The permanent control legend used to live here as a <dl>. It is drawn
+       into the buffer now, for the same reason as everything else: a legend
+       in a real typeface sitting next to a read-out in a bitmap one is the
+       one seam this arrangement exists to remove.
 
-    <p class="air" data-air></p>
-    <p class="live" data-live></p>
-    <p class="trick" data-trick></p>
-
-    <div class="charge" data-charge-wrap>
-      <span class="charge-bar" data-charge></span>
-    </div>
-
-    <p class="label quiet mute" data-mute>Sound on</p>
+       The paragraph is the one thing a canvas cannot do. It carries the
+       score, the best and the speed for a screen reader, refreshed once a
+       second and deliberately not announced. -->
+  <div class="hud">
+    <canvas class="readout" width="640" height="360" aria-hidden="true"></canvas>
+    <p class="sr-only" data-readout aria-live="off"></p>
   </div>
 
   <!-- ================= TOUCH PAD =================

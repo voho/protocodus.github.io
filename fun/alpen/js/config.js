@@ -13,29 +13,70 @@
    along a heading, so momentum is real: gravity is resolved on the surface
    tangent, the edge holds sideways up to a grip limit and slides past it,
    and a turn taken too fast at the top of the hill costs the speed it was
-   carrying. Nothing here clamps the rider's speed — drag does. */
+   carrying. Nothing here clamps the rider's speed — drag does.
+
+   That last claim used to be half true. Three numbers quietly propped the
+   rider up — a floor speed that pushed, a tuck that pushed, and an edge
+   that barely bled — so climbing never actually cost anything and the hill
+   read as flat however it was shaped. All three are now conditional on the
+   ground going the way the push claims it is. */
+
+/* The picture the whole look is built on: a 640×360 framebuffer scaled to the
+   window by a whole number and nothing else, so every pixel on screen is a
+   hard square of exactly the same size. `retro.js` is allowed to grow the
+   buffer past this to fill a window that is not sixteen by nine — what is
+   fixed is the size of a pixel, not the count of them. */
+export const BASE_WIDTH = 640;
+export const BASE_HEIGHT = 360;
 
 export const RENDER = {
-  // The N64 held 240 lines. This holds 288, which is the compromise the
-  // whole look rests on: chunky enough that the facets and the dither are
-  // the point, fine enough that a tree at ninety metres is a tree. Height
-  // is fixed and width follows the viewport, so an ultrawide monitor gets
-  // more mountain rather than more pixels.
-  height: 288,
-  maxWidth: 640,
-  // Levels per channel in the final quantise. 32 is five bits — the depth
-  // an RGBA5551 framebuffer carried, and the reason those games dithered.
-  levels: 32,
+  /* The window, at the window's own resolution.
+
+     This used to be 288 lines blown up with nearest-neighbour scaling — an
+     N64's framebuffer and the whole of the look. It is gone, and what
+     replaced it keeps the half of that decision that was about colour: the
+     grade, the vignette and a dither are still here, because snow is one
+     colour filling the screen and none of those were ever about pixel size.
+     What has gone is the pixel size itself, and the aspect-ratio cap that
+     came with it, which was stretching the picture on any screen that was
+     not roughly 16:9 — 7% on an ultrawide, and 20% on a phone held upright,
+     where the buffer hit its 160-pixel floor and the browser scaled a 0.56
+     image out to a 0.46 window.
+
+     Device pixels are capped at 2 because a 3× phone panel asks for nine
+     times the fragments of a 1× one to show the same picture, and a mountain
+     of flat-shaded facets does not have nine times the detail to give back. */
+  maxPixelRatio: 2,
+  /* Resolution scale, tuned at runtime against the frame clock. The renderer
+     starts optimistic and walks down; it never walks past `minScale`, and it
+     only walks back up after the frame time has been comfortable for a
+     while, so a single slow frame cannot start it oscillating. */
+  minScale: 0.55,
+  maxScale: 1.0,
+  /* Live size of the framebuffer, written by `retro.setSize`. Point sprites
+     size themselves in metres and have to convert to pixels, so they need
+     the real number rather than the constant this used to be.
+
+     There is no resolution governor any more and there is nothing for one to
+     do: the buffer is a 640×360-class picture whatever the window is, which
+     is about a fortieth of the fragments a native-resolution frame was
+     asking for. The thing that used to need watching is no longer expensive. */
+  buffer: { width: BASE_WIDTH, height: BASE_HEIGHT },
+
   fov: 62,
   fovAtSpeed: 86,     // FOV opens with speed; the run feels faster than it is
   near: 0.5,
-  far: 3200,
-  // The draw distance is a curtain of haze, and everything is arranged
-  // around where it falls: the hill is generated well past it, the peaks
-  // are painted to melt into it at their base, and the plane that fills in
-  // behind the hill is exactly its colour, so the seam cannot be seen.
-  fogNear: 85,
-  fogFar: 300,
+  far: 3600,
+  /* The draw distance is a curtain of haze, and everything is arranged
+     around where it falls: the hill is generated well past it, the peaks
+     are painted to melt into it at their base, and the plane that fills in
+     behind the hill is exactly its colour, so the seam cannot be seen.
+
+     Both numbers moved out with the resolution. At 288 lines a ridge at
+     three hundred metres was four pixels tall and pushing the curtain back
+     bought nothing but fill rate; at native resolution it is a ridge. */
+  fogNear: 105,
+  fogFar: 420,
 };
 
 /* The grade, applied in the same pass as the dither. Snow is the hardest
@@ -45,15 +86,74 @@ export const RENDER = {
    of snow at a low sun and what makes the hill legible at all. */
 export const GRADE = {
   shadowTint: '#6f97d8',
-  highlightTint: '#fff0d2',
+  /* The highlight tint had to come most of the way back to white.
+
+     At #fff0d2 it was pushing every lit surface a sixth of the way towards
+     amber, and since the brightest thing in the frame is a snowfield filling
+     most of it, what that actually graded was the whole picture: the snow
+     came out cream, the haze came out cream, and the deep blue the sky had
+     just been given was sitting above a beige mountain. Snow in sun is very
+     slightly warm and overwhelmingly white; the blue in the shadows is what
+     it is supposed to be read against, and that stop is doing the work. */
+  highlightTint: '#fff8ec',
   // Both tints are normalised to luminance 1 before use, so strength moves
   // hue and never brightness. A grade that dims the picture is a bug.
   tintStrength: 0.42,
-  contrast: 1.06,
-  saturation: 1.10,
+  /* Contrast and saturation, both pushed. Every photograph of this sport is
+     a near-black sky over a surface at the very top of the scale with a
+     single violently coloured human being in the middle of it, and none of
+     that survives a picture graded to be tasteful. The sky stops carry most
+     of it now; this is what stops the snow from meeting them halfway. */
+  contrast: 1.16,
+  saturation: 1.24,
   // Enough to close the corners, not enough to notice. Anything past about
   // 0.2 turns a wide screen into a porthole.
   vignette: 0.16,
+  /* Levels per channel in the final quantise. 32 is five bits — the depth an
+     RGBA5551 framebuffer carried, and the reason those machines dithered at
+     all. It went to 256 for a while, when the buffer was running at native
+     resolution and the dither had nothing left to hide; at five bits it is
+     load-bearing again, because a snowfield across 32 levels without one is
+     a contour map and with one it is grain. */
+  levels: 32,
+
+  /* The modern half, all of it applied before the quantise so that it is
+     squeezed into five bits along with everything else and can never look
+     like a filter sitting on top of an old picture.
+
+     `shoulder` is where the highlight roll-off starts, in linear light.
+     Everything under it is untouched; above it the range is compressed
+     asymptotically towards one. Snow under any real key light runs straight
+     off the top of the scale, and a clipped channel has no shape left in it —
+     which on a surface filling most of the frame means the hill stops having
+     folds and becomes a sheet of paper. */
+  shoulder: 0.72,
+  /* Bloom, from a quarter-resolution bright pass. Small: this is a five-bit
+     picture and a wide soft glow across it quantises into visible rings. */
+  bloom: 0.42,
+  bloomThreshold: 0.62,
+  /* Crepuscular rays, marched from every pixel towards the sun's position on
+     screen through that same bright buffer. `density` is how far along that
+     line the sixteen steps reach and `decay` is how fast each one gives up —
+     together they set whether this reads as light through a ridge or as a
+     smear. It is the one effect here no machine of the era could have
+     attempted, and the one that most makes a low sun look like weather. */
+  rays: 0.55,
+  rayDecay: 0.94,
+  rayDensity: 0.62,
+
+  /* Velocity blur. Six taps along the vector towards the centre of the
+     frame, so the corners streak and the middle — where the rider is, and
+     where the next thing to hit is — stays readable.
+
+     `blurAmount` wants to be much smaller than it looks, because the taps
+     are spaced along that vector and the last one at the frame's corner
+     travels five times this. At 0.022 it reached five and a half per cent of
+     the screen, which is not a suggestion of speed, it is a smear across
+     everything including the rider. */
+  blurFrom: 34,       // m/s before any of it appears
+  blurFull: 50,
+  blurAmount: 0.006,
 };
 
 /* The only sky colour anything outside `weather.js` needs: the haze the
@@ -64,63 +164,316 @@ export const SKY = {
 };
 
 export const TERRAIN = {
-  grade: 0.30,        // 16.7° — the low end of a real red run
-  // The piste is not a chute. Its centre line wanders on two long sines, so
-  // the run arrives somewhere rather than pointing at the same spot forever,
-  // and a bend gives the rider a reason to carve that the terrain alone
-  // never would. Both amplitudes are small against their wavelengths: the
-  // route drifts about seven metres sideways every hundred it descends.
+  /* The hill's pitch, which is now a function of how far down it you are.
+
+     A constant grade is a ramp, and a ramp has one idea in it. This is two
+     sines over a base, so the run has chapters: a pitch that stands up and
+     asks for a real carve, a runout that gives the speed back slowly, and
+     the transitions between them where the ground quietly stops falling
+     away and the rider has to work for the first time in a kilometre.
+
+     It stays a closed form because `heightAt` has to. The height is the
+     integral of this, done analytically in `terrain.js` — sampling a varying
+     grade would mean marching from the top of the mountain every time the
+     rider asked how high the ground was, five times per physics step. Both
+     amplitudes are held well under the base so the sum never reaches zero:
+     the hill is allowed to get lazy and is never allowed to point back up. */
+  grade: {
+    base: 0.30,       // 16.7° — the low end of a real red run
+    waves: [
+      { freq: 0.00085, amp: 0.050, phase: 0 },      // ~7.4 km, the big chapters
+      { freq: 0.00310, amp: 0.030, phase: 2.1 },    // ~2.0 km, pitches inside them
+    ],
+  },
+  /* Range: 0.30 ± 0.115, so 10.5° at its most generous and 22.5° at its
+     steepest — and the shallow end of that is the number every other term on
+     this mountain has to be budgeted against. See `SLOPE BUDGET` below.
+
+     Both amplitudes came down by a third when that budget was worked out.
+     They were ±0.177, which put the gentlest chapters at 6.9°, and 6.9° is
+     shallower than the rolling ground's own faces — so those stretches
+     genuinely pointed uphill in places and a rider who arrived slowly simply
+     stopped on them, which is not a difficulty curve, it is a bug. */
+
+  /* The piste is not a chute. Its centre line wanders on two long sines, so
+     the run arrives somewhere rather than pointing at the same spot forever,
+     and a bend gives the rider a reason to carve that the terrain alone
+     never would. Both amplitudes are small against their wavelengths: the
+     route drifts about seven metres sideways every hundred it descends. */
   wander: [
-    { freq: 0.0040, amp: 12 },
-    { freq: 0.0013, amp: 21 },
+    { freq: 0.0040, amp: 16 },
+    { freq: 0.0013, amp: 34 },
+    { freq: 0.00047, amp: 52 },   // the long one: whole shoulders of mountain
   ],
-  // The corridor is the groomed part, measured from the wandering centre,
-  // and outside it the ground rises into a ridge and then falls away again
-  // on the far side. A rider who drifts wide is turned back by the shape of
-  // the hill rather than by an invisible wall, and one who commits enough
-  // speed to crest the ridge is allowed to — there is real mountain over
-  // there, it is just full of trees.
-  //
-  // The profile is w²·e^(1−w²), which is quadratic near the piste, peaks
-  // exactly at `bankWidth`, and decays. A plain quadratic — which is what
-  // this was — keeps climbing, and at the far edge of a grid six hundred
-  // metres wide that is a wall fifty kilometres high standing where the sky
-  // ought to be.
-  corridorHalf: 20,
-  bankWidth: 95,
-  bankHeight: 38,
-  // Four octaves of value noise. Each amplitude is held under the grade
-  // divided by that octave's own gradient, so no roller is ever steep
-  // enough to point the hill back uphill for long.
-  ridges: { freq: 0.0032, amp: 7.0, seed: 5 },
-  rolls: { freq: 0.009, amp: 3.0, seed: 1 },
-  moguls: { freq: 0.050, amp: 0.62, seed: 2 },
-  chatter: { freq: 0.160, amp: 0.11, seed: 3 },
+
+  /* Where the run splits in two.
+
+     Every `period` metres the mountain gets the chance to open a fork, and
+     when it takes one the single centre line becomes two, drifting apart to
+     `split` either side over the first third of the window, holding, and
+     closing again. The corridor is measured to the *nearer* of the two, so
+     what happens on the ground is exactly what happens on a real mountain:
+     the piste widens, an island of trees rises out of the middle of it, the
+     two lines run either side of the island, and they rejoin below.
+
+     `split` has to beat the corridor's half-width for an island to exist at
+     all — below that the two corridors simply overlap and the run is briefly
+     twice as wide, which is a perfectly good thing for it to be and is what
+     the opening and closing of every fork looks like from inside. */
+  route: {
+    period: 520,
+    chance: 0.80,
+    span: 300,        // metres the fork stays open
+    split: 72,        // half-separation at full opening
+    /* And the two branches do not have to be at the same height.
+
+       A fork where both ways are level is a choice with no content — the
+       lines are mirror images and it does not matter which you take. Give one
+       of them ten metres of elevation over the other and it becomes a real
+       decision: the high line is slower to reach and pays it back as speed
+       down the far side, the low line is quicker now and arrives flat. The
+       offset is blended by inverse-square proximity to each branch rather
+       than switched at the midpoint, so the island between them sits at the
+       mean and there is no seam anywhere on the hill. */
+    drop: 11,
+  },
+
+  /* The groomed part, measured from whichever centre line is nearer. It
+     breathes on a long sine: gullies where it draws in, bowls where it opens
+     out, and the fork windows on top of that. This is the number the whole
+     run is scaled against, and it is roughly three times what it was. */
+  /* The groomed part, and the shallow bowl across it.
+
+     A flat corridor between two walls is a corridor. A corridor with a metre
+     and a half of dish in it is a fall line — it gathers a drifting rider
+     back towards the middle without ever pushing them, and it is the reason
+     the run reads as a route rather than a lane. It also costs nothing
+     against the slope budget: the dish rises across the hill, not down it,
+     and lateral gradients are free because no part of them lies on the
+     direction the rider is descending. */
+  corridor: { half: 40, vary: 16, freq: 0.00118, bowl: 1.5 },
+
+  /* Outside the corridor: a transition, a lip, and then a wall that cannot
+     be climbed.
+
+     The old profile — w²·e^(1−w²) — peaked and then decayed, which meant a
+     rider who committed enough speed could crest the ridge and ride off into
+     open mountain. That is no longer allowed to happen, and it is not
+     prevented with an invisible barrier: past the lip the ground simply
+     keeps rising, asymptotically towards `height` metres above the piste. It
+     takes 2·g·h of kinetic energy to climb that, which at 22 m/s² and 130
+     metres is 75 m/s — half again the fastest the game can be ridden. The
+     wall is not a rule, it is a mountain, and the rock the colouring pass
+     puts on anything that steep is the sign that says so.
+
+     Below the wall is the part you are meant to use. `lipHeight` over
+     `lipWidth` is a quarterpipe: concave where it leaves the piste, and
+     rolled flat at the top, so a rider who rides up it fast finds a genuine
+     convex lip to launch from rather than a bank that just hands the speed
+     back. Both numbers are modulated along the run, so some stretches are
+     mellow banks and some are walls worth aiming at. */
+  wall: {
+    lipWidth: 22,
+    lipHeight: 7.5,
+    lipVary: 0.55,    // share of both that the section noise is allowed to move
+    lipFreq: 0.0017,
+    /* A valley rather than a canyon.
+
+       At 130 metres over a 55-metre scale the containment read exactly like
+       what it was — two white walls standing right beside the piste, which
+       is the "narrow passage" complaint however wide the groomed part in
+       between actually is. Sixty-two metres over seventy-eight is a third of
+       the height spread over half again the distance, so the sides lie back
+       into something that looks like a bowl.
+
+       It contains just as absolutely, and the arithmetic is worth keeping
+       here: at the game's terminal speed of 50 m/s a rider carries
+       v²/2g = 57 metres of climb, which is less than the 62 the exponential
+       saturates at — and `creep` then goes on rising for ever behind it, so
+       there is no height at which the ground stops pointing home. */
+    height: 62,
+    scale: 78,
+    /* And past the wall's own saturation, a slow permanent climb.
+
+       Without it the profile flattens into a plateau a hundred and thirty
+       metres above the piste, and a rider thrown up there by a cliff would
+       simply land on it and stop, off the run and out of the game. A gentle
+       17° that never ends means the ground outside the corridor is
+       monotonically uphill everywhere, so gravity is always pointing home.
+       That, and not a barrier, is what makes leaving the track impossible. */
+    creep: 0.30,
+  },
+
+  /* Four octaves of value noise, two of them warped.
+
+     Warping is what turned the moguls from a grid of identical pimples into
+     something with shape: the coordinates the two middle octaves are sampled
+     at are themselves pushed around by a long, slow noise, so a bulge is
+     stretched here and pinched there and no two stretches of hill have the
+     same lumps in them. It costs two noise lookups and it is the difference
+     between a texture and a terrain.
+
+     Each amplitude is held under the grade divided by that octave's own
+     gradient, so no roller is ever steep enough to point the hill back
+     uphill for long. `bulgeVary` then modulates the two warped octaves along
+     the run, which gives the mountain smooth stretches and lumpy ones. */
+  /* SLOPE BUDGET — the constraint the whole mountain is built against.
+
+     Two requirements pull in opposite directions here, and getting the
+     balance wrong is felt immediately in the hands rather than seen.
+
+     What launches a rider is curvature, and curvature is amplitude times
+     wavenumber *squared* — so airtime has to come from short wavelengths and
+     never from tall hills. Make the rolls bigger and you get a mountain that
+     heaves without ever throwing anybody.
+
+     And the ceiling: a roll's uphill face must never out-climb the mountain
+     it sits on. Every octave's steepest face is about 3·amp/wavelength for
+     value noise, and the sum of those has to stay under the *shallowest*
+     grade the run ever reaches — not the average, the shallowest — or the
+     gentle chapters contain real uphill and a rider who arrives without much
+     speed grinds to a stop in the middle of a descent.
+
+     That budget is 0.22 — the grade's base of 0.30 minus its full swing of
+     0.08 — and every rising thing on the mountain is spent out of it:
+
+       ridges  λ 312 m  amp 3.5   →  0.034
+       rolls   λ 111 m  amp 1.6   →  0.043
+       moguls  λ  20 m  amp 0.22  →  0.033
+       chatter λ 6.3 m  amp 0.04  →  0.019
+       knolls  (see below)        →  0.089
+                                     ─────
+                                      0.218
+
+     The octaves alone used to spend 0.317, which is nearly twice the whole
+     budget and half again the shallowest grade the run reaches. Lateral
+     terms would be free — they do not sit on the fall line — but these are
+     isotropic noise, so they are not. */
+  ridges: { freq: 0.0032, amp: 3.5, seed: 5 },
+  rolls: { freq: 0.009, amp: 1.6, seed: 1 },
+  moguls: { freq: 0.050, amp: 0.22, seed: 2 },
+  chatter: { freq: 0.160, amp: 0.04, seed: 3 },
+  warp: { freq: 0.0042, amp: 26, seed: 8 },
+  /* How lumpy this stretch is, from a long slow noise. The floor came down a
+     long way: at 0.35 the quietest ground still carried a third of the
+     rolling, so nowhere on the mountain was actually smooth and the contrast
+     between a mogul field and a groomed pitch never arrived. At 0.12 there
+     are genuinely glassy stretches to carve on and genuinely rough ones to
+     survive, which is the variation that makes a run have chapters. */
+  bulgeVary: { freq: 0.00105, seed: 12, floor: 0.12 },
+
+  /* Knolls: the mountain's own kickers.
+
+     Built ramps are a games idea. A real hill launches you off things it
+     grew, and it does it with an infinite variety of shapes, so most of the
+     jumping on this mountain should come from the mountain. These are
+     discrete rises — hashed per block, never on a grid — with their own
+     radius, height and eccentricity, and crucially with a lee side that is
+     steeper than the side you climb.
+
+     That asymmetry is the whole feature. A symmetrical dome is a roller: you
+     go up it, you come down it, and the ground never leaves you. Squash the
+     downhill half by `lee` and the crest becomes a genuine convex rollover
+     that falls away faster than gravity can follow — which is precisely what
+     the rider's launch test is looking for. Nothing special-cases them. They
+     are simply hills shaped like something worth hitting, and how far you go
+     off one is entirely a question of how fast you arrived. */
+  knolls: {
+    period: 78,
+    chance: 0.62,
+    radius: [7, 21],
+    /* Height is not a number, it is a ratio of the radius — and that one
+       change is what makes a knoll launch rather than stall.
+
+       Height was 1.6 to 5.2 metres regardless of how wide the knoll was, so
+       a five-metre rise on a seven-metre radius had an uphill face at a
+       slope of 1.1, which is four times the whole mountain's grade. Riding
+       into one was riding into a wall: the climb scrub took the speed, the
+       stall rule took the rider, and the thing built to throw them into the
+       air put them on their back instead.
+
+       Tied to the radius, the uphill face is the same modest angle whatever
+       size the knoll is — the peak slope of a squared dome is 1.539·h/r, so
+       this range spends 0.054 to 0.089 of the slope budget and never points
+       genuinely uphill. And it costs nothing in air, because height was
+       never what launched anybody: curvature is, curvature goes as h/r², and
+       the compressed lee side multiplies it by 1/lee² — six-fold or more.
+       Which is why the *small* knolls throw hardest, and why a rider doing
+       25 m/s gets thrown off one that a rider doing 15 simply rolls over. */
+    rise: [0.035, 0.058],
+    lee: [0.34, 0.62],   // how much the downhill half is compressed
+    eccentric: 0.55,     // how far the across-radius may differ from the along
+    spread: 0.85,        // share of the corridor half-width they may sit within
+  },
+
+  /* Drops.
+
+     Every `period` metres the hill gets a chance to fall away all at once:
+     three to four metres of z over which it loses `drop` metres of height,
+     which is steep enough that the rider's own launch test sees the ground
+     leave and puts them in the air. They are never full width — the across
+     window is a good deal narrower than the corridor and has generous
+     shoulders — so there is always a way round one, and the ground below is
+     ordinary hill, so there is always somewhere to land. */
+  cliffs: {
+    period: 260,
+    chance: 0.55,
+    drop: [3.5, 9.0],
+    fall: 3.6,        // metres of z the drop happens over
+    /* …and the distance over which the hill climbs back to where the grade
+       says it should have been. A drop written as a step would offset every
+       metre of mountain below it, and a hundred of them would put the run a
+       kilometre under its own grade. Written as a dip that recovers, a cliff
+       is a local event: a steep face, then a long mellow runout that is still
+       descending because the base grade is steeper than the recovery. */
+    runout: 70,
+    halfWidth: 16,    // and how much of the run it spans
+    shoulder: 9,      // metres the edge of it blends over
+  },
+
   /* The mesh that carries all of it.
 
      A uniform grid cannot win here. Fine enough to carve moguls out of, it
      needs a quarter of a million vertices to reach the horizon; coarse
      enough to reach the horizon, and the ground under the board is a pair
-     of triangles. So the grid is graded: two-metre cells under the rider,
-     each ring a few per cent wider than the last, until the far edge is
-     most of a kilometre out at fifty metres a cell. Four and a half
-     thousand vertices cover the lot, and every cell past three hundred
-     metres is solid haze anyway.
+     of triangles. So the grid is graded: a metre and a half under the rider,
+     each ring a few per cent wider than the last, until the far edge is most
+     of a kilometre out at fifty metres a cell.
+
+     The spacing came down and the reach went up when the resolution did.
+     Nine thousand vertices is nothing on a machine that is drawing a million
+     fragments a frame, and at native resolution the two-metre facets that
+     used to be a quarter of a pixel across are the shape of the hill.
 
      The anchor still snaps to the finest spacing, so the cells nearest the
      rider land on the same lattice every time and the facets stay welded to
-     the hill. The far ones shift by two metres a step and crawl very
-     slightly — in fog thick enough that it cannot be seen. */
-  spacing: 2.0,
-  back: 26,           // metres of hill kept behind the rider
-  ahead: 760,         // and ahead, well past the curtain
-  aheadGrowth: 1.075, // per row
-  side: 620,          // half-width at the far edge
-  sideGrowth: 1.09,   // per column
+     the hill. The far ones shift by a cell a step and crawl very slightly —
+     in fog thick enough that it cannot be seen. */
+  spacing: 1.5,
+  back: 30,           // metres of hill kept behind the rider
+  ahead: 900,         // and ahead, well past the curtain
+  aheadGrowth: 1.062, // per row
+  side: 700,          // half-width at the far edge
+  sideGrowth: 1.075,  // per column
 };
 
 export const RIDER = {
   gravity: 22,
+  /* Air gravity is not ground gravity.
+
+     Full weight going up, full weight coming down, and a little over half of
+     it through the top of the arc — which is the oldest trick in platform
+     games and the reason a jump in one feels like a jump and a jump under
+     honest ballistics feels like being fired out of a mortar. It buys hang
+     time without buying height: the launch is unchanged, the apex is
+     unchanged, and the second the rider is falling properly the full number
+     comes back so the landing still arrives with weight behind it.
+
+     The blend is on |vy| rather than on height, so it works the same off a
+     two-metre roller and off a ten-metre cliff. */
+  apexGravity: 0.52,
+  apexSpeed: 9.5,     // m/s of vertical speed above which gravity is full
+
   // Snow under a waxed base. The number is real; the grade does the rest.
   friction: 0.045,
   brakeFriction: 0.62,
@@ -132,17 +485,62 @@ export const RIDER = {
   // overshoot this for a second or two; past it the run is pulled back
   // rather than allowed to keep everything it just found.
   maxSpeed: 50,       // 180 km/h
-  // And a floor, so a rider who has stopped in a hollow gets going again
-  // instead of sitting there waiting for the grade to do it.
-  minSpeed: 6,
+  /* The floor, and what it is allowed to do.
+
+     This used to be a flat 3.5 m/s² forward push whenever the rider dropped
+     under 6 m/s, applied without ever asking which way the ground went — so
+     a rider grinding to a halt against a bank was shoved *up* it, and the
+     one moment in the game where momentum was supposed to matter was the one
+     moment it was being handed back. Now it only fires when the rider has
+     genuinely almost stopped and only when the hill under them descends, so
+     it does what it was for — getting a stalled run going again — and
+     nothing else. */
+  minSpeed: 2.0,
+  minPush: 3.0,
+  /* Climbing.
+
+     Gravity on the tangent already takes g·sin θ off a rider going uphill,
+     which is the whole of the real physics and, on a hill this shallow, not
+     very much: 5.6 m/s² on the average pitch. What it misses is that a board
+     pointed up a slope is also being driven into it, and a loaded edge in
+     soft snow scrubs. This is that — extra deceleration proportional to how
+     hard the rider is climbing — and it is what makes riding a wall a
+     decision with a price rather than a free way to change lanes. */
+  climbScrub: 7.5,
+  /* Where climbing stops being slow and starts being impossible.
+
+     A snowboard is not a climbing tool. Run out of speed pointing up
+     something steep and you do not gently stop — the board stalls, the edge
+     that was holding you across the hill has nothing left to hold, and you
+     go over. Below `stallSlope` the rider is allowed to grind to a halt and
+     start again, which is what the floor push is for; above it they need
+     `stallSpeed` at that reference slope and proportionally more the steeper
+     it gets. Riding a quarterpipe wall is therefore a commitment: arrive
+     with enough and you get thrown off the lip, arrive without it and the
+     wall puts you down. */
+  stallSlope: 0.32,
+  stallSpeed: 7.5,
+  /* …and the two numbers that stop that from being a trap.
+
+     A kicker's face climbs at a slope of about 0.9 and a steep knoll is not
+     far off it, so a requirement that scales without limit means the rider
+     needs 76 km/h to ride up a two-metre jump without falling over — which
+     turns every launcher on the mountain into a wipeout and, worse, looks
+     exactly like the jump physics being broken. `stallCap` is the most speed
+     the rule is ever allowed to ask for.
+
+     And it has to persist. A ramp is under the board for a fifth of a second
+     at riding speed, so anything judged instantaneously fires on features
+     the rider is simply passing over. A third of a second of continuously
+     being too slow for the ground you are pointed up is a stall; less than
+     that is a kicker. */
+  stallCap: 9.0,
+  stallTime: 0.32,
   // The tuck. Fold down over the board and the drag nearly halves, but the
   // edge goes soft and the board stops answering quickly — the trade is
   // speed for the ability to change your mind about where you are going.
-  // 0.55 gave 200 km/h, which is past the point where a low-poly hill at
-  // 288 lines can be read at all. Terminal speed goes as 1/√drag, so this
-  // is the number that says "a tuck is worth about twenty-five per cent".
   tuckDrag: 0.68,
-  pump: 3.4,          // forward push while tucking, so a flat runs out slower
+  pump: 3.4,          // forward push while tucking — downhill and flat only
   tuckTurn: 0.45,     // share of the turn rate left while folded down
   tuckGrip: 0.72,     // and of the grip
   tuckCompress: 0.34, // metres of squat, which the camera rides down with
@@ -151,10 +549,56 @@ export const RIDER = {
   // This one number is most of how the game feels: raise it and the board
   // is on rails, lower it and every turn is a drift.
   grip: 27,
+
+  /* THE CARVE, as geometry rather than as a steering rate.
+
+     A snowboard does not turn because it is pointed somewhere. It turns
+     because it has a sidecut — the edges are arcs, not straight lines — and
+     when the board is tilted up on one of them and pressed into the snow,
+     that arc is what the board is forced to travel along. Everything about
+     how the sport feels falls out of one equation:
+
+         R = sidecut / sin(edge angle)
+
+     Lay the board almost flat and the arc it describes is enormous, so it
+     runs nearly straight. Roll it up onto its edge and the radius collapses
+     towards the sidecut itself. The rider's only real input is how far over
+     they put it.
+
+     What makes that worth doing rather than steering directly is what comes
+     out of it without being written. Holding a radius R at v metres a second
+     needs v²/R of lateral grip, which goes as the *square* of the speed — so
+     the same edge angle that carves a beautiful arc at 40 km/h asks four
+     times as much of the snow at 80 and simply tears out. The rider is not
+     told this; they discover that a fast line has to be a wide line, which
+     is the single truest thing about the sport and previously had to be
+     faked with a cap on the turn rate.
+
+     It also gives the lean away for free. A rider holding a turn has to
+     incline until the resultant of gravity and the corner runs down the line
+     of their legs — atan(lateral / g) — so the body angle stops being a
+     cosmetic constant and becomes a read-out of how hard the turn actually
+     is. Nobody has to animate it and it can never disagree with the physics. */
+  sidecut: 8.0,       // metres — a real all-mountain board is 7 to 9
+  edgeMax: 1.15,      // radians ≈ 66°, about as far over as anyone gets
+  edgeRate: 7.0,      // how fast the board is rolled onto its edge and off it
+  /* Cutting a trench is not free. A carved edge is slicing through snow
+     rather than gliding over it, and the deeper it is set the more of it is
+     in the way — this is that, and it is why holding a hard carve all the way
+     down a pitch costs speed a straight line would have kept. */
+  edgeDrag: 3.2,
+  /* How much of the available edge angle speed takes away. At the top of the
+     range the board can only be rolled to two thirds of what it manages at
+     walking pace, which is what stops a fast run feeling nervous. */
+  edgeSteady: 0.34,
+  /* And the furthest the board is ever allowed to point away from the
+     direction it is genuinely travelling. Sixty degrees is about as far
+     across the fall line as anyone can hold one and still be riding it; past
+     that it is not a snowboard, it is a sledge. The brake is exempt, because
+     setting the board across the hill is exactly what the brake is for. */
+  maxSkid: 1.05,      // radians ≈ 60°
   // A railed carve is nearly free — that is the entire reason the sport
-  // prefers it to a skid — so this is small on purpose. At 0.11 it cost
-  // 3 m/s², which is half the pull of the whole hill, and a run of linked
-  // turns bled to a standstill.
+  // prefers it to a skid — so this is small on purpose.
   carveDrag: 0.04,
   slideScrub: 0.9,    // per m/s of slide, per second, which is far more
   turn: 2.4,          // rad/s at a standstill, and the cap at any speed
@@ -183,36 +627,85 @@ export const RIDER = {
   // it the landing is judged harshly; well beyond it, it is a fall.
   softImpact: 9,      // m/s into the slope
   hardImpact: 26,
-  // Ollie: held to charge, released to pop. Capped so mashing it is not a
-  // strategy — the ramps are where the height is.
+  // Ollie: held to charge, released to pop.
   chargeTime: 0.45,
-  popMin: 4.5,
-  popMax: 9.5,
+  popMin: 5.0,
+  popMax: 11.0,
+  /* Popping off the lip.
+
+     A pop released in the last breath before the ground leaves is worth more
+     than the same pop released halfway up the ramp, which is the one piece
+     of timing the sport actually asks of you and the one thing the old jump
+     had no opinion about. The window is generous — a sixth of a second — and
+     it is checked against the launch rather than against the lip's geometry,
+     so it pays out identically off a kicker, a cornice and the crest of a
+     roller. */
+  lipWindow: 0.16,
+  lipBonus: 1.45,
   // Air control. A 540 wants to fit inside a big ramp's hang time, so the
-  // spin rate is set from it: 7.5 rad/s over 1.3 s is 558°.
+  // spin rate is set from it.
   spinRate: 7.5,
   spinRamp: 3.2,      // rad/s² — the spin winds up rather than snapping on
   flipRate: 6.2,
   airSteer: 2.6,      // m/s² of drift, for picking a landing line
+  /* Landing assist.
+
+     Instead of a second key for air steering, the board finds its own way
+     home: inside the last third of a second before touchdown, and only when
+     the rider is not actively asking for more rotation, the yaw eases
+     towards whichever clean stance is nearer. It cannot rescue a spin that
+     was never going to make it — `assistRate` is slow enough that it closes
+     perhaps twenty degrees — but it is the difference between a 540 that
+     lands and a 540 that lands at 519 and gets called sketchy. */
+  assistTime: 0.35,
+  assistRate: 3.4,
   // Landing. Anything inside the window snaps straight; anything outside
   // is a bail. Switch is the same window rotated half a turn.
   landWindow: 0.92,   // radians ≈ 53°
   landPitchWindow: 0.85,
   // How far off the ground the rider's ballistic path has to be, ninety
   // milliseconds out, before the hill counts as having dropped away.
-  // Roughly a boot's depth: enough to ignore the chatter octave, little
-  // enough that the crest of a roller still floats.
   launchGap: 0.12,
   // A hop small enough not to count: below this the landing is never
   // judged, so chattering over moguls can never end a combo.
   minJudgedAir: 0.34,
   radius: 0.55,
   height: 1.75,
-  // Falling over is the only failure state, and it is temporary — the run
-  // never ends, the rider just gets up.
-  fallTime: 1.35,
+  /* Falling over is the only failure state, and it is temporary — the run
+     never ends, the rider just gets up.
+
+     It used to be a timer. The rider dropped to 28% of their speed, slid for
+     1.35 seconds whatever had happened to them, and stood up — so catching a
+     trunk at 30 km/h and catching one at 170 looked and cost exactly the
+     same, which is the one thing a crash must never do.
+
+     Now a fall is a body. Whatever speed was going into the obstacle is
+     turned partly into height and partly into a tumble, and from that moment
+     the rider is ballistic: gravity, air drag, and a bounce every time the
+     snow arrives, each one lower than the last. They are down until they
+     have actually stopped, so a slow spill is over in a second and a bad one
+     at speed throws them a long way down the hill before it lets go. */
   riseTime: 0.55,
-  fallSpeed: 0.28,    // share of speed kept through a fall
+  fallLaunch: 0.62,   // share of the speed the body keeps out of the impact
+  fallLift: 0.40,     // and the share of it turned into height
+  fallBounce: 0.34,   // restitution against the snow, per contact
+  fallDrag: 0.16,     // air, per second, while tumbling
+  fallFriction: 8.5,  // m/s² once it is sliding rather than flying
+  fallRest: 3.2,      // m/s under which the rider is allowed to get up
+  fallMin: 0.7,       // seconds they are down no matter how gentle it was
+  fallMax: 5.0,       // and the longest any tumble is allowed to run
+
+  /* Hitting things.
+
+     A collision used to be judged on where on the trunk you caught it and
+     nothing else, so a graze at walking pace and the same graze at 120 km/h
+     were the same event. Now the severity is the speed actually being
+     carried *into* the obstacle, which is the quantity that hurts, and the
+     two thresholds below are where it stops being a wobble and where it
+     stops being survivable. Direction still matters — it decides how much of
+     the speed is aimed at the tree in the first place. */
+  brushSpeed: 7,      // m/s into a solid below which it is barely a knock
+  wipeoutSpeed: 15,   // and above which the rider is going down
 };
 
 export const SCORE = {
@@ -227,43 +720,152 @@ export const SCORE = {
   minTrickScore: 60,
   nearMiss: 40,       // for threading a tree, a bear, or a bolting rabbit
   nearMissRange: 2.4,
+  // Rails pay by the second, and pay again for getting off one cleanly
+  grindPerSecond: 420,
+  grindOut: 250,
+  /* Stopping for a cocoa, which is worth about a landed 540.
+
+     It has to be worth that much because of what it costs: coming to a
+     genuine standstill on a pitch means scrubbing off everything you have
+     and then climbing back into it from nothing, and the run is built to
+     punish exactly that. Paying a combo step rather than resetting the
+     multiplier is the same reasoning — stopping at a hut is a decision, not
+     a crash. */
+  cocoa: 1500,
 };
 
 export const PROPS = {
   band: 40,           // metres of hill filled at a time
-  ahead: 9,           // bands kept in front of the rider
+  ahead: 11,          // bands kept in front of the rider
   behind: 2,
   // Density climbs with distance, which is most of the difficulty curve.
   // Speed takes care of the rest.
-  treesPerBand: 17,
-  shrubsPerBand: 9,
+  treesPerBand: 22,
+  shrubsPerBand: 11,
   innerTreesAt: 400,  // metres before trees start appearing on the piste
   innerTreesMax: 3,
-  rocksPerBand: 2,
+  rocksPerBand: 3,
+  /* Trees, grown rather than modelled.
+
+     There used to be one tree — a cylinder, a cone and a smaller cone —
+     scaled to three sizes and tinted four greens, and a forest of it reads
+     as wallpaper because every silhouette is the same silhouette. These are
+     grown instead: a trunk that recurses into branches, each one shorter,
+     thinner and turned off its parent, with needles hung on whatever the
+     recursion has left at the bottom. It is the oldest fractal in graphics
+     and it is still the cheapest way to get a hundred trees that are all
+     recognisably the same species and none of them the same tree.
+
+     `variants` of them are grown once at load from fixed seeds and then
+     instanced, so the forest costs one draw call per variant however many
+     thousand are standing in it. The species table is what makes a treeline
+     read as a treeline: spruces that hold a spire, firs that spread, pines
+     that go bare and leggy at altitude, and the odd dead larch with no
+     needles left on it at all. */
+  trees: {
+    variants: 12,
+    depth: 4,           // levels of branching before the needles go on
+    minLength: 0.35,    // metres — below this a branch is not worth a cylinder
+    sides: 5,           // radial segments on a branch; they are seen from 20 m
+  },
   gateChance: 0.35,
-  rampChance: 0.62,
-  ramp: { length: 11, halfWidth: 2.8, height: 2.0 },
-  maxRamps: 5,
-  clearLane: 8,       // no hard obstacle closer than this to the centre line
+  /* Built kickers are now the exception rather than the furniture. There
+     used to be one in nearly two bands out of three, which made the piste a
+     corridor of identical yellow-lipped wedges; the mountain grows its own
+     launchers by the dozen (see TERRAIN.knolls) and they are all different
+     shapes, so this is down to roughly one stretch in eight. What is left of
+     it reads as something somebody built, which is the only reason for a
+     kicker to look like a kicker. */
+  rampChance: 0.12,
+  /* Kickers, specified by the angle they throw at rather than by their size.
+
+     This is the correction of a genuine bug, and it is worth writing down
+     because the shape of it is not obvious. A kicker's lift is height·t³
+     over its length, so the slope at the lip is 3·height/length — but the
+     hill underneath is *also* falling away at `grade`, and what the rider
+     actually leaves the lip with is the difference. Built as a fixed length,
+     a two-metre kicker had a lip slope of 0.27 against a hill that descends
+     at 0.30 and, on the steeper chapters, at 0.49. The net was negative: the
+     ramp was shallower than the mountain, so the lip pointed *down* and
+     riding one launched the rider at the ground. It looked like a jump and
+     behaved like a kerb.
+
+     So the length is no longer a number, it is whatever makes the sum come
+     out right: length = 3·height / (grade here + kick). Every kicker on the
+     mountain then throws at the same angle above the slope it is built on,
+     whatever size it is and however steep that stretch happens to be, and
+     the launch speed is the rider's own — which is the whole point. Twice
+     the speed up the same ramp is twice the vertical, four times the height
+     and twice the hang time, for free, because that is what ballistics does
+     once the angle is right. */
+  ramp: {
+    kick: 0.58,       // slope above the hill's own — about 30° off the snow
+    power: 3,         // t³: flat where it is entered, steep where it is left
+    halfWidth: 2.4,   // plus a little more for a bigger one
+    widthPerHeight: 0.5,
+    height: [1.4, 2.7],  // the range a found kicker out on the piste comes in
+  },
+  maxRamps: 7,
+  clearLane: 8,       // no hard obstacle closer than this to a centre line
   // Shrubs do not put a rider down. They cost speed and throw powder, which
   // is punishment enough for a bush.
   shrubDrag: 0.42,
+
+  /* Terrain park.
+
+     Every so often a stretch of the run is built rather than found: two or
+     three kickers of graded size in a line, a hip off to one side, and a
+     rail to slide. It is announced by a gate pair at its head, because a
+     park you discover by being launched off it is not a park, it is an
+     ambush.
+
+     The island in the middle of a fork is where these prefer to sit — it is
+     the one piece of ground the run flows past on both sides, which makes it
+     the natural place to put the thing you have to choose to ride. */
+  park: {
+    period: 780,      // metres between chances at one
+    chance: 0.6,
+    length: 150,      // how much hill a park occupies
+    kickers: [1.5, 2.6, 3.6],   // heights, in the order they are met
+    railChance: 0.75,
+  },
+  rail: {
+    length: 14,
+    height: 0.85,
+    radius: 0.34,
+    // How close the board has to be to the rail's line, and how close to its
+    // height, before the rider is riding it rather than passing it
+    catchWidth: 0.85,
+    catchHeight: 0.55,
+    friction: 0.012,  // a rail is not snow
+  },
 };
 
 export const WILDLIFE = {
   // Rabbits are scenery that reacts. They sit, they twitch, and when the
   // rider gets close they bolt — which is the only reason to notice them,
   // and worth a few points for threading one.
-  rabbits: 14,
-  rabbitSpawnRange: [30, 150],
+  /* Six, down from sixteen. A rabbit is scenery that reacts, and the whole
+     value of one is the moment it breaks cover — which is a moment only while
+     it is rare. Sixteen of them on a hillside is not wildlife, it is a lawn
+     with a pest problem, and the eye stops seeing them within a minute. */
+  rabbits: 6,
+  rabbitSpawnRange: [40, 190],
   rabbitFlee: 15,
   rabbitSpeed: 9.5,
   rabbitHop: 6.2,     // hops per second, and the height comes from it
-  // Bears do not move out of the way. They are rare, they are slow, and
-  // they are the one thing on the hill that will put a rider down at speed.
-  bears: 3,
-  bearFrom: 500,      // metres before the first one appears
-  bearSpawnRange: [110, 220],
+  /* Bears do not move out of the way. They are rare, they are slow, and they
+     are the one thing on the hill that will put a rider down at speed.
+
+     There is now one, it does not appear in the first kilometre, and even
+     once the run is long enough to have earned it the spawn is refused about
+     two times in three. A bear should be a story you tell about a run, not a
+     feature of every run. */
+  bears: 1,
+  bearFrom: 1200,     // metres before the first one appears
+  bearChance: 0.35,   // and how often a spawn window is actually taken
+  bearRespawn: [14, 40], // seconds of quiet between attempts
+  bearSpawnRange: [140, 250],
   bearSpeed: 2.4,
   bearRadius: 1.5,
 };
@@ -277,9 +879,24 @@ export const CAMERA = {
   height: 2.9,
   airHeight: 4.0,
   lookAhead: 9.0,
-  lag: 9.0,           // higher follows tighter
-  airLag: 4.2,
-  roll: 0.18,         // share of the rider's carve the camera takes on
+  /* How tightly the camera follows, and it had to go up when the speeds did.
+
+     A lagging camera settles roughly speed/lag further back than its nominal
+     distance, which at the old top speed was a metre or two and is now, at
+     44 m/s, nearly five — so the rider ended up thirteen metres away and too
+     small to read a landing off, which is the exact failure the distance was
+     chosen to avoid in the first place. Following harder costs a little of
+     the weight the lag was there to give, and the shake and the spring put
+     that back. */
+  lag: 13.0,          // higher follows tighter
+  airLag: 5.0,
+  /* Share of the rider's carve the camera takes on. It came down when the
+     lean stopped being cosmetic: `rider.roll` is now the true balance angle
+     and reaches fifty degrees at the limit of grip, where the old constant
+     topped out at thirty — so the same fraction was tilting the horizon half
+     as far again as it was tuned to. Past about ten degrees this stops
+     reading as lean and starts reading as a broken horizon. */
+  roll: 0.12,
   shake: 0.55,
   // Speed opens the frame; the tuck closes it again. Doing both at once is
   // the point — a tucked rider is going faster than they have ever gone and
@@ -290,10 +907,14 @@ export const CAMERA = {
   // How far the camera sits behind where the rider is *going* rather than
   // where the board is pointing. A sliding rider should see their own edge.
   velocityBias: 0.72,
+  // A landing punches the frame open and lets it back — the visual half of
+  // the thump the legs are already taking
+  landFov: 7,
+  landFovDecay: 4.5,
 };
 
 export const SNOW = {
-  count: 800,
+  count: 1400,
   box: 48,            // the cube of falling snow that travels with the camera
   fall: 3.4,
   size: 0.17,
@@ -301,16 +922,43 @@ export const SNOW = {
   // more than the FOV, more than the camera shake — because it is the only
   // thing on screen whose amount is a direct read of how hard the board is
   // working.
-  sprayCount: 520,
-  spraySize: 0.26,
-  sprayLife: 0.95,
+  sprayCount: 900,
+  /* Smaller than it was, because the pixel got bigger. A point sprite is
+     sized in metres and converted to buffer pixels, and the buffer is now a
+     quarter of the width it was — but every one of those pixels is then blown
+     up by two or three, so a particle that measured a tasteful few pixels at
+     native resolution arrives on screen as a soft white disc the size of the
+     rider's head. At this scale powder wants to be small and numerous. */
+  spraySize: 0.15,
+  sprayLife: 1.05,
+};
+
+/* The line the board leaves behind it.
+
+   A ribbon laid down at the contact point, two vertices a sample, following
+   the ground and fading out behind. It is the one thing on screen that
+   records what the rider *did* rather than what they are doing, and on a
+   mountain made of one colour it is most of what makes a carve legible as a
+   carve: the arc is still there to look at a second after it was ridden.
+
+   Width comes off the edge load and the slide, so a railed turn draws a
+   clean line and a washed-out one drags a wide grey smear. */
+export const TRAIL = {
+  samples: 420,       // ring of them; at 30 a second this is fourteen seconds
+  rate: 34,           // samples per second
+  minStep: 0.22,      // metres — no sample at all if the board has not moved
+  width: 0.34,        // half-width of a clean carve
+  slideWidth: 1.05,   // and of a full wash-out
+  lift: 0.045,        // metres above the snow, to stay out of the z-fight
+  life: 9.0,          // seconds before a sample has faded to nothing
+  opacity: 0.30,
 };
 
 /* Streaks: short white lines that whip past the camera once the run is
    genuinely quick. They cost almost nothing, they only ever appear above a
    speed the rider had to earn, and they are what turns fast into *fast*. */
 export const STREAKS = {
-  count: 150,
+  count: 220,
   from: 26,           // m/s before any appear
   full: 44,           // and where the field is at its thickest
   length: 0.11,       // share of a streak's own velocity, per unit speed

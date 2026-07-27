@@ -4,7 +4,7 @@
    the pieces that do and keeps them in step. The shape of it:
 
      input → rider (fixed 120 Hz) → collisions → scoring
-                                  ↘ camera, particles, wildlife, sky
+                                  ↘ camera, particles, trail, wildlife, sky
                                   ↘ HUD
 
    The physics runs on a fixed step and the rest runs per frame. That split
@@ -20,17 +20,21 @@
 
 import * as THREE from 'three';
 
-import { RENDER, RIDER, SCORE, PROPS } from './config.js';
-import { createTerrain, heightAt, pisteCenter } from './terrain.js';
-import { createProps, HARD, SOFT, JUMPABLE } from './props.js';
+import { RENDER, RIDER, SCORE, PROPS, GRADE } from './config.js';
+import { createTerrain, heightAt, nearestCenter } from './terrain.js';
+import { createProps, HARD, SOFT } from './props.js';
 import { createWildlife } from './wildlife.js';
 import { createSky } from './sky.js';
 import { createWeather } from './weather.js';
 import { createSnowfall, createSpray, createStreaks } from './particles.js';
+import { createTrail } from './trail.js';
+import { createHelicopter } from './helicopter.js';
+import { createHuts } from './huts.js';
 import { Rider, trickName, CLEAN, SKETCHY, BAIL } from './rider.js';
 import { createRiderModel } from './riderModel.js';
 import { createChaseCamera } from './camera.js';
 import { createRetro } from './retro.js';
+import { createShading } from './shading.js';
 import { createInput } from './input.js';
 import { createAudio } from './audio.js';
 import { createHud } from './hud.js';
@@ -83,17 +87,31 @@ scene.fog = new THREE.Fog(0xe3ecf6, RENDER.fogNear, RENDER.fogFar);
    World
    ========================================================================== */
 
+/* The shared shading first, because everything with a surface takes it.
+
+   It owns one block of uniforms — the sky's three stops, the sun, the fog —
+   and hands the *same objects* to every material it patches, so the single
+   `shading.update(w, camera)` below moves the light on the terrain, the
+   trees, the animals, the huts, the helicopter and the rider at once. Six
+   modules that know nothing about each other end up agreeing about what time
+   of day it is, which is the only reason a day/night cycle across this many
+   materials costs nothing per frame. */
+const shading = createShading(THREE);
+
 const weather = createWeather(THREE);
-const terrain = createTerrain(THREE);
-const props = createProps(THREE);
-const wildlife = createWildlife(THREE);
+const terrain = createTerrain(THREE, shading);
+const props = createProps(THREE, shading);
+const wildlife = createWildlife(THREE, shading);
 const sky = createSky(THREE);
 const snowfall = createSnowfall(THREE);
 const spray = createSpray(THREE);
 const streaks = createStreaks(THREE);
+const trail = createTrail(THREE);
+const heli = createHelicopter(THREE, shading);
+const huts = createHuts(THREE, shading);
 
 scene.add(sky.group, sky.lights, terrain.mesh, props.group, wildlife.group,
-  snowfall.points, spray.points, streaks.lines);
+  heli.group, huts.group, trail.mesh, snowfall.points, spray.points, streaks.lines);
 
 /* The one thing the rider knows about the mountain: how high it is here,
    kickers included. Everything else — normals, launches, landings — is
@@ -115,10 +133,14 @@ const world = {
     }
     return false;
   },
+  // Rails are not part of the height field — they are a metre-wide line in
+  // the air, and the rider only ever asks about one while falling onto it
+  rail: (x, z, y) => props.railAt(x, z, y),
+  railPoint: (r, z, out) => props.railPoint(r, z, out),
 };
 
 const rider = new Rider(THREE, world);
-const model = createRiderModel(THREE);
+const model = createRiderModel(THREE, shading);
 scene.add(model.root, model.shadow);
 
 const chase = createChaseCamera(THREE, camera);
@@ -176,14 +198,19 @@ function pause() {
 function restart() {
   const start = rider.pos.z;
   rider.reset(start);
-  rider.pos.x = pisteCenter(start);
+  // The run forks, so the middle of the piste is sometimes the island in
+  // between. Whichever branch is nearer is always rideable ground.
+  rider.pos.x = nearestCenter(rider.pos.x, start);
   rider.pos.y = world.height(rider.pos.x, start);
   game.score = 0;
   game.combo = 1;
   game.liveTrick = '';
   chase.reset();
   spray.clear();
+  trail.clear();
   wildlife.reset();
+  heli.reset();
+  huts.reset();
   hud.resetScore();
   props.update(rider.pos.z);
   terrain.update(rider.pos.x, rider.pos.z);
@@ -258,6 +285,7 @@ rider.on('land', (s) => {
   scoreLanding(s);
   audio.land(s.impact);
   chase.kick(Math.min(1.8, s.impact * 0.09));
+  chase.land(s.impact);
   spray.burst(rider.pos, -rider.vel.x * 0.1, -rider.vel.z * 0.1,
     Math.round(8 + Math.min(34, s.impact * 2.2)), 0.5 + Math.min(1.4, s.impact * 0.07));
 });
@@ -277,6 +305,23 @@ rider.on('fall', () => {
 
 rider.on('impact', (v) => {
   if (v > 6) chase.kick(Math.min(1.2, v * 0.05));
+});
+
+rider.on('grind', () => {
+  if (game.mode !== 'playing') return;
+  audio.whoosh();
+});
+
+/* A rail pays by the second and pays again for leaving it on purpose, which
+   is the whole shape of the trick: getting on is luck, staying on is the
+   skill, and popping off the end rather than falling off the side is what
+   the points are actually for. */
+rider.on('grindOut', (t) => {
+  if (game.mode !== 'playing' || t < 0.35) return;
+  const pts = (t * SCORE.grindPerSecond + SCORE.grindOut) * game.combo;
+  award(pts, t > 1.4 ? 'LONG GRIND' : 'RAIL SLIDE', '');
+  game.combo = Math.min(SCORE.comboMax, game.combo + SCORE.comboStep);
+  audio.combo(game.combo);
 });
 
 function nearMiss(kind) {
@@ -299,7 +344,7 @@ function distToSegment(px, pz, ax, az, bx, bz) {
 }
 
 function collide() {
-  if (rider.state === 'fall') return;
+  if (rider.state === 'fall' || rider.state === 'grind') return;
   const solids = props.solids;
   const zLo = Math.min(prev.z, rider.pos.z) - 4;
   const zHi = Math.max(prev.z, rider.pos.z) + 4;
@@ -321,9 +366,7 @@ function collide() {
       continue;
     }
     // Anything with a real top can be cleared in the air, bush or boulder.
-    // Trees carry top: 99 because you do not jump a tree. Shrubs used to
-    // carry it too, which meant a rider five metres up still got a face
-    // full of powder and 42% of their speed taken by a knee-high bush.
+    // Trees carry top: 99 because you do not jump a tree.
     if (rider.pos.y > s.top + 0.15) continue;
     if (s.kind === SOFT) {
       if (s.hit) continue;
@@ -341,16 +384,24 @@ function collide() {
     // the same graze measurably harsher on a 144 Hz display than a 60 Hz one.
     if (s.hit) continue;
     s.hit = true;
-
-    // Square on the trunk puts the rider down; anything glancing spins
-    // them, costs speed, and lets them ride it out. `central` is 0 at the
-    // trunk's edge and 0.45 at the point it becomes a wipeout, so severity
-    // has to rise with it — inverted, a brush that barely clipped the bark
-    // hit harder than a glance that nearly took the rider off the board.
-    const central = 1 - d / reach;
-    if (central > 0.45) rider.fall('hit');
-    else rider.graze(rider.pos.x - s.x, rider.pos.z - s.z, central / 0.45);
     s.grazed = true;
+
+    /* What happens next is the rider's decision, not this loop's. It used to
+       be judged here, on how centrally the trunk was caught and nothing
+       else, so a tree clipped at walking pace and the same tree at 150 km/h
+       were the same event. All this hands over now is the direction of the
+       push and how square the contact was; the speed going into it is what
+       decides whether that is a wobble or a very long tumble. */
+    const closeness = 1 - d / reach;
+    const outcome = rider.strike(rider.pos.x - s.x, rider.pos.z - s.z, closeness);
+    if (outcome === 'brush') {
+      audio.thud();
+      chase.kick(0.4);
+    } else if (outcome === 'graze') {
+      audio.thud();
+      chase.kick(1.0);
+      spray.burst(rider.pos, (rider.pos.x - s.x) * 0.5, (rider.pos.z - s.z) * 0.5, 22, 0.9);
+    }
   }
 }
 
@@ -360,9 +411,9 @@ function collide() {
 
 function demoInput(dt) {
   demo.t += dt;
-  // Steer for the middle of the piste with a lazy wander laid over it, so
-  // the hill is being ridden rather than tracked
-  const target = pisteCenter(rider.pos.z - 26) + Math.sin(demo.t * 0.31) * 11;
+  // Steer for the middle of whichever branch of the piste is nearer, with a
+  // lazy wander laid over it, so the hill is being ridden rather than tracked
+  const target = nearestCenter(rider.pos.x, rider.pos.z - 26) + Math.sin(demo.t * 0.31) * 11;
   const err = target - rider.pos.x;
   const heading = Math.atan2(rider.vel.x, -rider.vel.z);
   const want = Math.atan2(err, 34) - heading;
@@ -441,30 +492,65 @@ function frame(now) {
     scene.fog.color.copy(w.haze);
     scene.fog.near = w.fogNear;
     scene.fog.far = w.fogFar;
-    for (const p of [snowfall.points, spray.points]) {
+    // Everything with a hand-written fog term needs telling where the
+    // curtain is this frame; three only does it for its own materials
+    for (const p of [snowfall.points, spray.points, trail.points]) {
       p.material.uniforms.uFog.value.copy(w.haze);
       p.material.uniforms.uNear.value = w.fogNear;
       p.material.uniforms.uFar.value = w.fogFar;
     }
     sky.update(rider.pos, w, dt);
+    // One write, and every material in the world agrees about the sky it is
+    // dissolving into. It has to follow `sky.update`, which is what decides
+    // where the sun actually is this frame.
+    shading.update(w, camera);
 
     wildlife.update(dt, rider,
       (x, z, kind) => { if (game.mode === 'playing') nearMiss(kind); },
-      () => { if (game.mode === 'playing' && rider.grace <= 0) rider.fall('bear'); });
+      () => { if (game.mode === 'playing' && rider.grace <= 0) rider.fall('bear', rider.speed); });
+
+    heli.update(dt, rider, wildlife, w);
+
+    huts.update(dt, rider, w, () => {
+      if (game.mode !== 'playing') return;
+      award(SCORE.cocoa * game.combo, 'COCOA STOP', 'near');
+      game.combo = Math.min(SCORE.comboMax, game.combo + SCORE.comboStep);
+      audio.combo(game.combo);
+    });
 
     chase.update(rider, dt, world);
     model.update(rider, dt);
+    trail.update(rider, dt);
 
-    // Spray, straight off the edge. The amount is the slide, so the screen
-    // is always showing exactly how much grip is left.
+    /* Spray, straight off the edge — and now off a clean carve as well as a
+       slide.
+
+       This is the single biggest read the screen gives back, because it is
+       the only thing whose quantity is a direct measure of how hard the board
+       is working. It used to be almost entirely the slide, which meant a
+       railed carve — the thing the game is actually about — threw nothing at
+       all and only a mistake made powder. A carved edge is cutting a trench
+       through snow at forty metres a second; it throws plenty. So the two are
+       separated: the wash-out still throws the wall of it, and the carve
+       throws a continuous sheet off the buried edge whose size is the edge
+       angle and the load, which is exactly what `carveLoad` already knows. */
     if (rider.grounded && rider.state !== 'fall') {
-      const amount = rider.slide * 0.9 + rider.carveLoad * 2.2;
-      if (amount > 0.6) {
-        const side = Math.sign(rider.lateral || 1);
+      const side = Math.sign(rider.lateral || 1);
+      const carving = rider.carveLoad * Math.abs(Math.sin(rider.edge || 0));
+      if (carving > 0.05 && rider.speed > 6) {
+        // Thrown up and out from under the buried edge, against the turn
+        spray.burst(rider.pos,
+          -rider.right.x * side * (0.7 + carving * 1.5),
+          -rider.right.z * side * (0.7 + carving * 1.5),
+          Math.max(1, Math.round(carving * 5 * Math.min(1, rider.speed / 22))),
+          0.22 + carving * 0.7);
+      }
+      const amount = rider.slide * 0.9;
+      if (amount > 0.5) {
         spray.burst(rider.pos,
           rider.right.x * side * 1.6, rider.right.z * side * 1.6,
-          Math.min(7, Math.round(amount * 0.8)),
-          Math.min(1.3, 0.25 + amount * 0.09));
+          Math.min(7, Math.round(amount * 0.9)),
+          Math.min(1.3, 0.3 + amount * 0.1));
       }
     } else if (rider.state === 'fall') {
       spray.burst(rider.pos, 0, 0, 3, 0.8);
@@ -473,10 +559,23 @@ function frame(now) {
     wind.set(w.windX, 0, w.windZ);
     snowfall.setIntensity(w.snow);
     snowfall.update(dt, camera, wind);
-    spray.update(dt, camera);
+    spray.update(dt, camera, wind);
     streaks.update(dt, camera, rider.vel, rider.speed);
 
     audio.ambience(rider.speed, rider.slide, rider.grounded, w.storm);
+    retro.setSpeed(rider.speed);
+
+    /* Where the sun is on the screen, for the rays to march towards. The sky
+       owns the answer because it owns the sun — including whether it is
+       behind the camera, under the horizon, or smothered by a storm, all of
+       which come back as a strength of zero so the whole pass is skipped
+       rather than fading. It has to be asked *after* the camera has been
+       moved this frame or the rays trail the picture by one. */
+    if (sky.sunScreen) {
+      const s = sky.sunScreen(camera);
+      retro.setSun(s.x, s.y, s.strength);
+    }
+
     game.liveTrick = liveTrickName();
     hud.update(game, dt);
   }
@@ -488,37 +587,65 @@ function frame(now) {
    Fitting the window
    ========================================================================== */
 
+/* Three separate things can change the size of the picture and only one of
+   them fires `resize`: the window itself, the visual viewport (a phone's
+   URL bar sliding away, or a pinch-zoom), and the device pixel ratio (a
+   laptop moved to an external display, or the browser zoomed). The last one
+   has no event at all — the standard trick is a media query that matches
+   only the current ratio, which stops matching the moment it changes. */
 function resize() {
-  const w = canvas.clientWidth || window.innerWidth;
-  const h = canvas.clientHeight || window.innerHeight;
+  const w = window.innerWidth;
+  const h = window.innerHeight;
   const size = retro.setSize(w, h);
   camera.aspect = size.width / size.height;
   camera.updateProjectionMatrix();
+  // The read-out is the same buffer at the same scale, which is what makes a
+  // HUD pixel and a snow pixel the same square rather than nearly the same
+  hud.setSize(size.width, size.height, size.pixel);
+}
+
+let ratioQuery = null;
+
+function watchPixelRatio() {
+  if (ratioQuery) ratioQuery.removeEventListener('change', onRatioChange);
+  ratioQuery = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
+  ratioQuery.addEventListener('change', onRatioChange);
+}
+
+function onRatioChange() {
+  resize();
+  watchPixelRatio();
 }
 
 window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', resize);
+if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
+watchPixelRatio();
 resize();
 
 /* A hatch for tuning. Everything in the game is a plain object, so this is
    the whole debugger: read the numbers, or write one and watch what it does
    to the run. */
-window.__alpenTerrain = { heightAt, pisteCenter };
 window.__alpen = {
-  game, rider, camera, world, weather, scene, sky, terrain, props, retro, wildlife, audio,
-  config: { RENDER, RIDER, SCORE, PROPS },
+  game, rider, camera, world, weather, scene, sky, terrain, props, retro,
+  wildlife, audio, trail, heli, huts,
+  config: { RENDER, RIDER, SCORE, PROPS, GRADE },
   debug: () => ({
     mode: game.mode,
     speed: +(rider.speed * 3.6).toFixed(1),
     pos: [rider.pos.x, rider.pos.y, rider.pos.z].map((v) => +v.toFixed(1)),
+    state: rider.state,
     grounded: rider.grounded,
     airTime: +rider.airTime.toFixed(2),
+    climbRate: +rider.climbRate.toFixed(2),
     compression: +rider.compression.toFixed(3),
     slide: +rider.slide.toFixed(2),
     camDistance: +camera.position.distanceTo(rider.pos).toFixed(2),
     fov: +camera.fov.toFixed(1),
-    buffer: [retro.width, retro.height],
+    buffer: [retro.width, retro.height, `${retro.pixel}×`],
     solids: props.solids.length,
     ramps: props.ramps.length,
+    rails: props.rails.length,
     terrainVerts: terrain.vertexCount,
     weather: {
       phase: weather.state.phase,

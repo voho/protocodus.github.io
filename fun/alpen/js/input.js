@@ -24,8 +24,19 @@ const BINDINGS = {
   flip: ['KeyE'],
 };
 
-const RAMP = 9;      // how fast `turn` reaches the key that is held
-const RELEASE = 14;  // and how fast it comes back to centre
+/* How fast `turn` reaches the key that is held, and how fast it comes back.
+
+   These are the rise time of the steering, and the rise time is most of what
+   "sensitive" means to a player. At 9 the axis went from nothing to full lock
+   in about a fifth of a second, which on a model where the board's edge angle
+   *is* the input meant a tap put the board most of the way over — and since
+   the grip a given edge angle asks for goes as the square of the speed, a tap
+   at speed was an instant demand for grip that did not exist. Rolling a board
+   onto its edge is a deliberate movement of the whole body and it takes about
+   twice this long in life. Slower in than out, because letting an edge go is
+   the one thing a rider does quickly. */
+const RAMP = 5.0;
+const RELEASE = 11;
 
 export function createInput(target, hooks = {}) {
   const down = new Set();
