@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <title>Alpen — Protocodus</title>
+  <meta name="description"
+    content="An endless snowboard run down a procedurally generated mountain, rendered like it is 1997. Three.js, no install, no account.">
+  <meta name="theme-color" content="#0d1420">
+  <meta property="og:title" content="Alpen — endless snowboarding">
+  <meta property="og:description"
+    content="Carve, launch, spin and land it. A low-poly mountain that never ends, built by Protocodus.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://protocodus.cz/fun/alpen/">
+  <link rel="canonical" href="https://protocodus.cz/fun/alpen/">
+  <link rel="icon" type="image/svg+xml" href="/assets/images/logo.svg">
+  <link rel="preload" href="/assets/fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="./alpen.css">
+  <script type="importmap">
+    { "imports": { "three": "/assets/vendor/three/three.module.min.js" } }
+  </script>
+</head>
+
+<body>
+  <canvas id="stage"></canvas>
+
+  <!-- ================= HUD ================= -->
+  <div class="hud" aria-live="off">
+    <div class="hud-tl">
+      <p class="label">Score</p>
+      <p class="score"><span data-score>0</span><span class="combo" data-combo></span></p>
+      <p class="label quiet">Best <span data-best>0</span></p>
+    </div>
+
+    <div class="hud-tr">
+      <p class="speed"><span data-speed>0</span><span class="unit">km/h</span></p>
+      <p class="label quiet" data-distance>0.00 km</p>
+      <p class="label sky" data-sky>Morning</p>
+    </div>
+
+    <p class="air" data-air></p>
+    <p class="live" data-live></p>
+    <p class="trick" data-trick></p>
+
+    <div class="charge" data-charge-wrap>
+      <span class="charge-bar" data-charge></span>
+    </div>
+
+    <p class="label quiet mute" data-mute>Sound on</p>
+  </div>
+
+  <!-- ================= TOUCH PAD ================= -->
+  <div class="pad" aria-hidden="true">
+    <button class="pad-btn pad-left" data-key="left">◀</button>
+    <button class="pad-btn pad-right" data-key="right">▶</button>
+    <div class="pad-stack">
+      <button class="pad-btn pad-wide" data-key="tuck">TUCK</button>
+      <button class="pad-btn pad-wide" data-key="brake">BRAKE</button>
+    </div>
+    <div class="pad-stack pad-tricks">
+      <div class="pad-row">
+        <button class="pad-btn" data-key="grab">Q</button>
+        <button class="pad-btn" data-key="flip">E</button>
+      </div>
+      <button class="pad-btn pad-jump" data-key="jump">JUMP</button>
+    </div>
+  </div>
+
+  <!-- ================= CURTAIN ================= -->
+  <div class="curtain on" data-screen="start">
+    <div class="curtain-inner">
+      <p class="eyebrow">Protocodus · Fun</p>
+      <h1 class="wordmark">ALPEN<i class="spark" aria-hidden="true">✦</i></h1>
+      <p class="tagline start-only">An endless mountain, a board, and whatever you can land.
+        Nothing here can end your run — falling over just costs you the combo.</p>
+      <p class="tagline pause-only">Paused.</p>
+
+      <dl class="keys start-only">
+        <div><dt>A</dt><dt>D</dt><dd>Carve — and spin, once you are in the air</dd></div>
+        <div><dt>W</dt><dd>Tuck for speed. Less grip, narrower view</dd></div>
+        <div><dt>S</dt><dd>Brake — set the edge across the hill</dd></div>
+        <div><dt>Space</dt><dd>Hold to load the legs, release to pop</dd></div>
+        <div><dt>Q</dt><dd>Grab. Hold it. Let go before the snow</dd></div>
+        <div><dt>E</dt><dd>Flip</dd></div>
+        <div><dt>Esc</dt><dt>R</dt><dt>M</dt><dd>Pause · restart · sound</dd></div>
+      </dl>
+
+      <p class="go"><span class="go-key">Press any key</span><span class="go-tap">Tap anywhere</span> to drop in</p>
+      <a class="back" href="/#fun">← Back to protocodus.cz</a>
+    </div>
+  </div>
+
+  <noscript>
+    <div class="curtain on">
+      <div class="curtain-inner">
+        <h1 class="wordmark">ALPEN</h1>
+        <p class="tagline">This one needs JavaScript and WebGL — it is a 3D game.</p>
+        <a class="back" href="/#fun">← Back to protocodus.cz</a>
+      </div>
+    </div>
+  </noscript>
+
+  <script type="module" src="./js/main.js"></script>
+</body>
+
+</html>

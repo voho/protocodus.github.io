@@ -173,6 +173,8 @@ p {
 .hero-foot,
 .flow,
 .card-num,
+.game-num,
+.game-foot,
 .detail dt,
 .index-link,
 .menu nav a span {
@@ -288,6 +290,23 @@ p {
   --btn-bg: transparent;
   color: var(--mint);
   border-color: var(--mint);
+}
+
+/* The way out of the sales pitch, so it is mint rather than yellow: the
+   rule is that yellow carries the ask and mint carries everything you can
+   act on, and this is not an ask. It ends in the logo's spark instead of an
+   arrow, because it does not go anywhere you have to come back from. */
+.btn-fun {
+  --btn-bg: var(--mint);
+}
+
+.btn-fun::after {
+  content: '✦';
+  font-size: 0.85em;
+}
+
+.btn-fun:hover::after {
+  transform: rotate(90deg);
 }
 
 /* Spine — fixed rail on the left, top bar on small screens
@@ -806,6 +825,115 @@ p {
   color: var(--mint);
 }
 
+/* Have fun — the games
+   ========================================================================== */
+
+/* The same hairline grid the work cards use, because these are the same
+   kind of object: a thing we made, described in four lines. What differs is
+   the footer, which is the only place on the page where a card is also a
+   door — so it says so, in yellow, and the whole tile is the target. */
+.games {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+}
+
+.game {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: clamp(1.8rem, 3vw, 2.6rem);
+  background: var(--panel);
+  transition: background-color 0.3s var(--ease);
+}
+
+.game::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: var(--mint);
+  transition: width 0.4s var(--ease);
+}
+
+a.game:hover {
+  background: var(--panel-lift);
+}
+
+a.game:hover::before {
+  width: 100%;
+}
+
+.game-num {
+  color: var(--fg-faint);
+  transition: color 0.3s var(--ease);
+}
+
+a.game:hover .game-num {
+  color: var(--mint);
+}
+
+.game h3 {
+  margin: 1.2rem 0 0.6rem;
+  font-size: clamp(1.3rem, 1rem + 0.9vw, 1.7rem);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.game p {
+  color: var(--fg-muted);
+  font-size: 0.98rem;
+  line-height: 1.65;
+}
+
+/* Pushed to the bottom by the auto margin, so two tiles of different
+   lengths still rule off on the same line */
+.game-foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: auto;
+  padding-top: clamp(1.6rem, 3vw, 2.2rem);
+}
+
+.game-tech {
+  color: var(--fg-faint);
+}
+
+.game-go {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--yellow);
+}
+
+.game-go::after {
+  content: '→';
+  transition: transform 0.25s var(--ease);
+}
+
+a.game:hover .game-go::after {
+  transform: translateX(4px);
+}
+
+/* Not a link, and it should not pretend to be one. Set to the well rather
+   than to transparent — transparent lets the grid's own hairline through
+   and the empty slot comes out *lighter* than the tile beside it, which is
+   the opposite of what an empty slot should read as. */
+.game-soon {
+  background: var(--well);
+}
+
+.game-soon h3,
+.game-soon p {
+  color: var(--fg-faint);
+}
+
 /* Who we are
    ========================================================================== */
 .about {
@@ -1142,7 +1270,8 @@ p {
     padding-bottom: 3.5rem;
   }
 
-  .cards {
+  .cards,
+  .games {
     grid-template-columns: minmax(0, 1fr);
   }
 
