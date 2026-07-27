@@ -84,7 +84,7 @@ export function createWildlife(THREE) {
   }
   const beasts = [];
   for (let i = 0; i < WILDLIFE.bears; i++) {
-    beasts.push({ x: 0, z: 1, yaw: 0, dir: 1, rear: 0, alive: false, seen: false, walk: Math.random() * 6 });
+    beasts.push({ x: 0, z: 1, yaw: 0, dir: 1, rear: 0, alive: false, hit: false, near: false, walk: Math.random() * 6 });
   }
 
   function placeRabbit(r, rider) {
@@ -109,7 +109,8 @@ export function createWildlife(THREE) {
     b.yaw = b.dir > 0 ? Math.PI / 2 : -Math.PI / 2;
     b.rear = 0;
     b.alive = true;
-    b.seen = false;
+    b.hit = false;
+    b.near = false;
   }
 
   let time = 0;
@@ -191,10 +192,17 @@ export function createWildlife(THREE) {
       if (Math.abs(b.x - centre) > TERRAIN.corridorHalf) b.dir *= -1;
       b.yaw = b.dir > 0 ? Math.PI / 2 : -Math.PI / 2;
 
-      if (dist < WILDLIFE.bearRadius + 0.9 && Math.abs(rider.pos.y - heightAt(b.x, b.z)) < 2.4) {
-        if (!b.seen) { b.seen = true; onHit(b.x, b.z); }
-      } else if (!b.seen && dist < 3.4 && dz > -1) {
-        b.seen = true;
+      // A hit and a near miss are tracked separately, and the near miss is
+      // only awarded once the bear is behind. Sharing one flag meant every
+      // head-on approach crossed the 2.4–3.4 m band first, claimed BEAR
+      // DODGED, and then suppressed the collision — so the one genuinely
+      // dangerous thing on the mountain was harmless in the common case.
+      const level = Math.abs(rider.pos.y - heightAt(b.x, b.z)) < 2.4;
+      if (!b.hit && level && dist < WILDLIFE.bearRadius + 0.9) {
+        b.hit = true;
+        onHit(b.x, b.z);
+      } else if (!b.hit && !b.near && dz > 0.5 && dist < 3.4) {
+        b.near = true;
         onNear(b.x, b.z, 'bear');
       }
 
@@ -215,5 +223,7 @@ export function createWildlife(THREE) {
     for (const b of beasts) b.alive = false;
   }
 
-  return { group, update, reset };
+  // The animals themselves are on the returned object so the debug hatch
+  // can place one exactly where a test needs it
+  return { group, update, reset, hares, beasts };
 }

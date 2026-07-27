@@ -271,7 +271,8 @@ export function createProps(THREE) {
       const s = 0.7 + rnd() * 0.9;
       shrubs.add(x, y - 0.12, z, rnd() * Math.PI * 2, s, s * (0.7 + rnd() * 0.5), s,
         shrubTints[(rnd() * shrubTints.length) | 0]);
-      solids.push({ x, z, r: 0.55 * s, kind: SOFT, top: 99 });
+      // A shrub is knee-high, so it can be jumped like a rock can
+      solids.push({ x, z, r: 0.55 * s, kind: SOFT, top: y + 0.9 * s });
     }
 
     // --- rocks: low enough to clear if you see them coming -----------------

@@ -320,10 +320,14 @@ function collide() {
       }
       continue;
     }
-    if (s.kind === JUMPABLE && rider.pos.y > s.top + 0.15) continue;
+    // Anything with a real top can be cleared in the air, bush or boulder.
+    // Trees carry top: 99 because you do not jump a tree. Shrubs used to
+    // carry it too, which meant a rider five metres up still got a face
+    // full of powder and 42% of their speed taken by a knee-high bush.
+    if (rider.pos.y > s.top + 0.15) continue;
     if (s.kind === SOFT) {
-      if (s.brushed) continue;
-      s.brushed = true;
+      if (s.hit) continue;
+      s.hit = true;
       rider.brush(PROPS.shrubDrag);
       spray.burst(rider.pos, (rider.pos.x - s.x) * 0.6, (rider.pos.z - s.z) * 0.6, 18, 0.7);
       audio.thud();
@@ -331,6 +335,12 @@ function collide() {
       continue;
     }
     if (rider.grace > 0 || game.mode === 'attract') continue;
+    // One response per contact. `collide()` runs per rendered frame, so a
+    // rider still inside the trunk's radius next frame was taking a fresh
+    // impulse and a fresh multiplicative speed cut each time — which made
+    // the same graze measurably harsher on a 144 Hz display than a 60 Hz one.
+    if (s.hit) continue;
+    s.hit = true;
 
     // Square on the trunk puts the rider down; anything glancing spins
     // them, costs speed, and lets them ride it out. `central` is 0 at the

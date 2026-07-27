@@ -50,20 +50,25 @@
     <p class="label quiet mute" data-mute>Sound on</p>
   </div>
 
-  <!-- ================= TOUCH PAD ================= -->
-  <div class="pad" aria-hidden="true">
-    <button class="pad-btn pad-left" data-key="left">◀</button>
-    <button class="pad-btn pad-right" data-key="right">▶</button>
+  <!-- ================= TOUCH PAD =================
+       These are the only controls a phone has, so they stay in the
+       accessibility tree. `aria-hidden` on a container full of focusable
+       buttons hides them from switch and voice control while leaving them
+       tabbable, which is both an ARIA violation and, on a touch device with
+       no keyboard, the whole game. The glyphs get labels instead. -->
+  <div class="pad" role="group" aria-label="Touch controls">
+    <button type="button" class="pad-btn pad-left" data-key="left" aria-label="Carve left">◀</button>
+    <button type="button" class="pad-btn pad-right" data-key="right" aria-label="Carve right">▶</button>
     <div class="pad-stack">
-      <button class="pad-btn pad-wide" data-key="tuck">TUCK</button>
-      <button class="pad-btn pad-wide" data-key="brake">BRAKE</button>
+      <button type="button" class="pad-btn pad-wide" data-key="tuck">TUCK</button>
+      <button type="button" class="pad-btn pad-wide" data-key="brake">BRAKE</button>
     </div>
     <div class="pad-stack pad-tricks">
       <div class="pad-row">
-        <button class="pad-btn" data-key="grab">Q</button>
-        <button class="pad-btn" data-key="flip">E</button>
+        <button type="button" class="pad-btn" data-key="grab" aria-label="Grab">Q</button>
+        <button type="button" class="pad-btn" data-key="flip" aria-label="Flip">E</button>
       </div>
-      <button class="pad-btn pad-jump" data-key="jump">JUMP</button>
+      <button type="button" class="pad-btn pad-jump" data-key="jump">JUMP</button>
     </div>
   </div>
 

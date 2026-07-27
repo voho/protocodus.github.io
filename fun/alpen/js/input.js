@@ -44,18 +44,25 @@ export function createInput(target, hooks = {}) {
   const CODES = new Set(Object.values(BINDINGS).flat());
 
   function onKey(e, isDown) {
-    if (!CODES.has(e.code)) {
-      if (isDown && hooks.key) hooks.key(e);
-      return;
-    }
+    const bound = CODES.has(e.code);
     // Space and the arrows scroll the page otherwise, which on a game that
-    // fills the viewport is a bug rather than a preference
-    e.preventDefault();
-    if (isDown) {
-      if (!down.has(e.code)) state.anyPressed = true;
-      down.add(e.code);
-    } else {
-      down.delete(e.code);
+    // fills the viewport is a bug rather than a preference. Repeats included:
+    // the key is still down, so the page would still scroll.
+    if (bound) e.preventDefault();
+
+    // Auto-repeat is the browser saying the key is still held, which we
+    // already know. Forwarding it turned "hold M" into a mute toggle running
+    // at the repeat rate, and "hold Escape" into pause flapping whose final
+    // state depended on exactly when you let go.
+    if (isDown && e.repeat) return;
+
+    if (bound) {
+      if (isDown) {
+        if (!down.has(e.code)) state.anyPressed = true;
+        down.add(e.code);
+      } else {
+        down.delete(e.code);
+      }
     }
     if (isDown && hooks.key) hooks.key(e);
   }
