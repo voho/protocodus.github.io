@@ -100,6 +100,18 @@ renderer.setClearColor(0x000000, 1);
 renderer.toneMapping = THREE.NoToneMapping;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 
+/* Shadows, with a hard-ish filter on purpose.
+
+   `PCFSoftShadowMap` spends its budget feathering the edge, and a feathered
+   edge is the one thing that does not belong in a picture whose diffuse is
+   quantised into five bands and whose colour is quantised to five bits: a
+   soft gradient inside a shadow edge simply becomes a dither pattern two
+   pixels wide. Plain PCF gives an edge with one texel of give in it, which
+   at nine centimetres a texel is about right for snow, and it costs less. */
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFShadowMap;
+renderer.shadowMap.autoUpdate = true;
+
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(RENDER.fov, 16 / 9, RENDER.near, RENDER.far);
 const retro = createRetro(THREE, renderer);
@@ -134,6 +146,44 @@ const huts = createHuts(THREE, shading);
 
 scene.add(sky.group, sky.lights, terrain.mesh, props.group, wildlife.group,
   heli.group, huts.group, trail.mesh, snowfall.points, spray.points, streaks.lines);
+
+/* Who casts and who receives, decided here and by name.
+
+   Not by traversing the scene and switching everything on, which is the
+   tempting one-liner and is wrong twice over. The sky is a dome, a haze cone
+   and four mountain ranges drawn at a radius of nearly three kilometres —
+   put those in the shadow pass and the depth map is a picture of the inside
+   of a sphere, and the entire mountain is in shadow. And the snowfall, the
+   spray and the trail are transparent point clouds and ribbons, which cast
+   quadrilateral blocks of darkness rather than anything resembling snow.
+
+   So it is the solid world only, and the split matters: the terrain receives
+   but does not cast, because a heightfield lit from above shadows itself
+   almost nowhere and the depth pass is where the cost is. Everything
+   standing *on* it casts. */
+/* The mountain both casts and receives.
+
+   Casting was left off at first on the reasoning that a heightfield lit from
+   above barely shadows itself and the depth pass is where the cost is. That
+   is true of a *smooth* heightfield and false of this one: the whole point of
+   the knolls is that their lee sides fall away sharply, the cliffs are near
+   vertical, and the containment walls stand sixty metres over the piste. With
+   the terrain out of the pass none of that threw anything, so the features
+   that shape the run were the only things in the picture with no shadow —
+   and a knoll you cannot see the shadow of is a knoll you cannot see. It is
+   eight thousand vertices in a depth-only pass; it costs nothing measurable. */
+terrain.mesh.castShadow = true;
+terrain.mesh.receiveShadow = true;
+
+function shadowCasting(root) {
+  root.traverse((o) => {
+    if (!o.isMesh && !o.isInstancedMesh) return;
+    o.castShadow = true;
+    o.receiveShadow = true;
+  });
+}
+
+for (const group of [props.group, wildlife.group, huts.group]) shadowCasting(group);
 
 /* The one thing the rider knows about the mountain: how high it is here,
    kickers included. Everything else — normals, launches, landings — is
@@ -175,6 +225,14 @@ const world = {
 const rider = new Rider(THREE, world);
 const model = createRiderModel(THREE, shading);
 scene.add(model.root, model.shadow);
+shadowCasting(model.root);
+/* The blob is a fake shadow and stays out of the real one. Left in the pass
+   it would cast a hard disc of its own onto the snow underneath it, and
+   receive the rider's shadow on top of that — a shadow inside a shadow.
+   It still earns its place: it is the only cue for height above ground when
+   the rider is over a hollow the real shadow has fallen into. */
+model.shadow.castShadow = false;
+model.shadow.receiveShadow = false;
 
 const chase = createChaseCamera(THREE, camera);
 const audio = createAudio();

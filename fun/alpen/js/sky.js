@@ -115,6 +115,22 @@ import { TERRAIN, RENDER } from './config.js';
 const RADIUS = 2900;
 const CONE_R = RADIUS * 0.95;
 
+/* The shadow cascade, in one place because the four numbers are chosen
+   against each other and moving one alone breaks the set.
+
+   `REACH` is the half-width of the box the shadow covers, in metres, and
+   `MAP` is how many texels are spread across it — so a texel is REACH·2/MAP
+   metres, currently about nine centimetres, which is fine enough to resolve
+   a branch and a board. `DIST` is how far up the sun vector the lamp is
+   parked and `DEPTH` is how far either side of it the orthographic camera
+   looks; together they have to bracket everything that can cast into the box,
+   which on this mountain means the tallest tree plus the deepest hollow plus
+   however high a rider can be thrown. */
+const SHADOW_MAP = 2048;
+const SHADOW_REACH = 92;
+const SHADOW_DIST = 190;
+const SHADOW_DEPTH = 150;
+
 /* How far under the rider the curtain's apex hangs. It has to clear the
    deepest hollow the hill can dig — four octaves of noise and a cliff on top
    of them is a little over twenty metres — and then clear the rider as well,
@@ -751,9 +767,52 @@ export function createSky(THREE) {
   // polyline and starts being a ridge
   for (const spec of RANGES) group.add(range(spec));
 
-  // --- light ---------------------------------------------------------------
+  /* --- light ---------------------------------------------------------------
+
+     Two lamps and, now, a shadow.
+
+     Snow is the hardest subject in graphics because it is one colour filling
+     the whole frame, and until this the only thing giving it shape was the
+     angle of each facet. That is enough to read a slope and nothing else: a
+     hillside of trees stood on the picture rather than in it, the rider was
+     attached to the ground by a painted blob, and nothing anywhere told you
+     that one part of the mountain was in the sun and another was not. A
+     mountain with no shadows reads flat however good the lighting is,
+     because half of what the eye uses to build depth outdoors is the shape
+     other things throw across it.
+
+     It is a single tight cascade rather than a proper cascaded set, and that
+     is a deliberate trade. The interesting shadows are all local — the trees
+     you are about to ride through, the kicker's lip, the rider's own — and
+     they want resolution far more than they want range. `SHADOW_REACH`
+     metres square at `SHADOW_MAP` texels is about eight centimetres a texel,
+     which resolves a branch; the same map stretched over the whole draw
+     distance would be two metres a texel and would not resolve a tree. Past
+     the box three's own frustum test returns unshadowed, and the distance
+     fog has taken over long before anyone can notice where that happened.
+
+     The lamp is also brought in close. A directional light's *direction* is
+     all that matters for shading, so the distance is free to be chosen for
+     the shadow instead — and a near light means a shallow depth range for
+     the orthographic camera, which is most of what shadow-map precision is. */
   const lights = new THREE.Group();
   const key = new THREE.DirectionalLight('#ffffff', 2.4);
+  key.castShadow = true;
+  key.shadow.mapSize.set(SHADOW_MAP, SHADOW_MAP);
+  key.shadow.camera.left = -SHADOW_REACH;
+  key.shadow.camera.right = SHADOW_REACH;
+  key.shadow.camera.top = SHADOW_REACH;
+  key.shadow.camera.bottom = -SHADOW_REACH;
+  key.shadow.camera.near = SHADOW_DIST - SHADOW_DEPTH;
+  key.shadow.camera.far = SHADOW_DIST + SHADOW_DEPTH;
+  /* Bias is in the light camera's own depth units, so it scales with the
+     depth range above rather than being a number found by trial. Normal bias
+     does the heavy lifting on a mountain: almost every surface here is a
+     steeply-angled facet, which is exactly the case constant bias handles
+     worst and where acne appears as a moiré of self-shadowing across the
+     snow. */
+  key.shadow.bias = -0.0006;
+  key.shadow.normalBias = 0.6;
   lights.add(key, key.target);
   const hemi = new THREE.HemisphereLight('#74a3de', '#dfe8f4', 1.35);
   lights.add(hemi);
@@ -762,6 +821,12 @@ export function createSky(THREE) {
   const fill = new THREE.Color();
   const sunlit = new THREE.Color();
   const WHITE = new THREE.Color(0xffffff);
+  // The light's own basis, rebuilt each frame because the sun moves all day,
+  // and the snapped point the shadow box is centred on
+  const UP = new THREE.Vector3(0, 1, 0);
+  const shadowRight = new THREE.Vector3();
+  const shadowUp = new THREE.Vector3();
+  const shadowAt = new THREE.Vector3();
   let time = 0;
   let pitch = -1;
 
@@ -949,8 +1014,39 @@ export function createSky(THREE) {
       r.mat.uniforms.uSunlit.value.copy(sunlit).multiplyScalar(0.8 + 0.4 * r.air);
     }
 
-    key.position.copy(sunDir).multiplyScalar(520);
-    key.target.position.set(0, 0, 0);
+    /* The shadow box follows the rider, and it moves in whole texels.
+
+       This is the one piece of shadow mapping that is not optional. A box
+       that tracks a continuously-moving rider re-renders the depth map from a
+       fractionally different place every frame, and every shadow edge in the
+       picture crawls and sparkles against the pixel grid — the same failure
+       as the vertex snap on the horizon, arriving from the other end, and far
+       more visible because a shadow edge is a hard line.
+
+       The fix is to decompose the rider's position in the light's own
+       orthonormal basis, round the two axes that span the shadow map to whole
+       texels, and leave the third — depth along the sun vector — alone. The
+       box then advances in discrete steps of exactly one texel, so every
+       texel lands on the same world position it did last frame and the edges
+       are still. */
+    const texel = (2 * SHADOW_REACH) / SHADOW_MAP;
+    shadowRight.crossVectors(UP, sunDir);
+    if (shadowRight.lengthSq() < 1e-6) shadowRight.set(1, 0, 0);
+    shadowRight.normalize();
+    shadowUp.crossVectors(sunDir, shadowRight).normalize();
+    shadowAt.copy(shadowRight)
+      .multiplyScalar(Math.round(pos.dot(shadowRight) / texel) * texel)
+      .addScaledVector(shadowUp, Math.round(pos.dot(shadowUp) / texel) * texel)
+      .addScaledVector(sunDir, pos.dot(sunDir))
+      .sub(pos);   // the lamp hangs off `lights`, which is already at the rider
+    key.target.position.copy(shadowAt);
+    key.position.copy(shadowAt).addScaledVector(sunDir, SHADOW_DIST);
+    /* A sun on the horizon casts shadows the length of the mountain, which
+       the box cannot hold and which read as black stripes across everything.
+       So the shadow lets go as the sun goes down, and by the time it is the
+       moon there is none — which is also what the eye expects, because a
+       moonlit slope has no hard shadows on it. */
+    key.castShadow = w.elevation > 0.10 && w.storm < 0.75;
     key.color.copy(w.key);
     key.intensity = w.keyI;
     // The fill takes the sky's hue but not its saturation. Snow bounce is
