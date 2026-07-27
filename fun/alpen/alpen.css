@@ -1,0 +1,511 @@
+/* ==========================================================================
+   Alpen — the frame around the game
+
+   The canvas is 288 lines tall and blown up by the browser; everything on
+   top of it is DOM at full resolution, so the type stays sharp while the
+   world stays chunky. That contrast is deliberate — it reads as a machine
+   from 1997 with a modern read-out bolted on, rather than as a blurry page.
+
+   The palette is the company's, used the company's way: mint marks
+   structure and anything you can act on, yellow marks emphasis. The score
+   is yellow because it is the thing being earned.
+   ========================================================================== */
+
+@font-face {
+  font-family: 'Space Grotesk';
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url('/assets/fonts/space-grotesk-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+:root {
+  --yellow: #ffc400;
+  --mint: #00ffc3;
+  --ink: #0d1420;
+  --paper: #fafafa;
+  --fg-muted: rgba(250, 250, 250, 0.66);
+  --fg-faint: rgba(250, 250, 250, 0.46);
+  --label: 0.72rem;
+  --label-track: 0.16em;
+  /* The world behind this text is white snow half the time and a night sky
+     the other half, so the read-out cannot rely on either. A tight dark
+     halo plus a soft drop reads on both without a plate behind it. */
+  --shadow:
+    0 0 2px rgba(6, 12, 22, 0.95),
+    0 1px 1px rgba(6, 12, 22, 0.9),
+    0 2px 12px rgba(6, 12, 22, 0.7);
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --gutter: clamp(0.9rem, 2.4vw, 2rem);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+body {
+  position: fixed;
+  inset: 0;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* The whole point: a small buffer, scaled up with the pixels left alone */
+#stage {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.label {
+  font-size: var(--label);
+  font-weight: 600;
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  color: var(--mint);
+  text-shadow: var(--shadow);
+}
+
+.label.quiet {
+  color: rgba(250, 250, 250, 0.78);
+  font-weight: 500;
+  letter-spacing: 0.1em;
+}
+
+/* HUD
+   ========================================================================== */
+.hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  padding: var(--gutter);
+  padding-top: max(var(--gutter), env(safe-area-inset-top));
+  font-variant-numeric: tabular-nums;
+  opacity: 0;
+  transition: opacity 0.6s var(--ease);
+}
+
+body.ready .hud {
+  opacity: 1;
+}
+
+.hud-tl {
+  position: absolute;
+  top: max(var(--gutter), env(safe-area-inset-top));
+  left: var(--gutter);
+}
+
+.hud-tr {
+  position: absolute;
+  top: max(var(--gutter), env(safe-area-inset-top));
+  right: var(--gutter);
+  text-align: right;
+}
+
+.score {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: clamp(1.9rem, 5vw, 3rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.035em;
+  color: var(--yellow);
+  text-shadow: var(--shadow);
+}
+
+.combo {
+  font-size: 0.42em;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--mint);
+  transition: color 0.3s var(--ease), transform 0.3s var(--ease);
+}
+
+.combo.hot {
+  color: var(--paper);
+  transform: scale(1.12);
+}
+
+.speed {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 0.32rem;
+  font-size: clamp(1.6rem, 4.4vw, 2.6rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.035em;
+  text-shadow: var(--shadow);
+}
+
+.unit {
+  font-size: 0.3em;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--fg-faint);
+}
+
+.sky {
+  margin-top: 0.45rem;
+  color: var(--mint);
+  opacity: 0.75;
+}
+
+/* Air time sits under the speed because it is the same kind of fact: a
+   number you are steering against, not a reward */
+.air {
+  position: absolute;
+  top: 38%;
+  right: var(--gutter);
+  font-size: clamp(1.1rem, 2.6vw, 1.5rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--mint);
+  text-shadow: var(--shadow);
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 0.2s var(--ease), transform 0.2s var(--ease);
+}
+
+.air.on {
+  opacity: 1;
+  transform: none;
+}
+
+/* The live trick reads while it is still happening, which is what makes
+   holding a spin one instant longer a decision */
+.live {
+  position: absolute;
+  left: 50%;
+  bottom: 27%;
+  transform: translateX(-50%) translateY(6px);
+  font-size: clamp(0.85rem, 2.2vw, 1.15rem);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--paper);
+  text-shadow: var(--shadow);
+  opacity: 0;
+  transition: opacity 0.15s var(--ease), transform 0.15s var(--ease);
+}
+
+.live.on {
+  opacity: 0.85;
+  transform: translateX(-50%);
+}
+
+.trick {
+  position: absolute;
+  left: 50%;
+  bottom: 18%;
+  transform: translateX(-50%) translateY(10px) scale(0.96);
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.25s var(--ease), transform 0.35s var(--ease);
+}
+
+.trick.on {
+  opacity: 1;
+  transform: translateX(-50%);
+}
+
+.trick-name {
+  font-size: clamp(1.1rem, 3vw, 1.7rem);
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  text-transform: uppercase;
+  color: var(--paper);
+  text-shadow: var(--shadow);
+}
+
+.trick-points {
+  font-size: clamp(0.95rem, 2.4vw, 1.35rem);
+  font-weight: 700;
+  color: var(--yellow);
+  text-shadow: var(--shadow);
+}
+
+.trick.warn .trick-name { color: #ffd98a; }
+.trick.bad .trick-name { color: #ff8a6a; }
+.trick.near .trick-name { color: var(--mint); }
+
+/* The charge bar is the leg spring, drawn. It only exists while it matters */
+.charge {
+  position: absolute;
+  left: 50%;
+  bottom: 11%;
+  width: min(210px, 34vw);
+  height: 4px;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  transition: opacity 0.14s var(--ease);
+}
+
+.charge.on {
+  opacity: 1;
+}
+
+.charge-bar {
+  display: block;
+  height: 100%;
+  background: var(--yellow);
+  transform-origin: left;
+  transform: scaleX(0);
+}
+
+.mute {
+  position: absolute;
+  left: var(--gutter);
+  bottom: max(var(--gutter), env(safe-area-inset-bottom));
+}
+
+.mute.off {
+  color: rgba(250, 250, 250, 0.28);
+}
+
+/* Curtain — start, and pause
+   ========================================================================== */
+.curtain {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: calc(var(--gutter) * 1.5);
+  background: radial-gradient(120% 90% at 50% 40%, rgba(9, 15, 26, 0.55), rgba(9, 15, 26, 0.92));
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.35s var(--ease), visibility 0.35s;
+  cursor: pointer;
+}
+
+.curtain.on {
+  opacity: 1;
+  visibility: visible;
+}
+
+.curtain-inner {
+  width: 100%;
+  max-width: 620px;
+  max-height: 100%;
+  overflow-y: auto;
+  text-align: left;
+}
+
+.eyebrow {
+  font-size: var(--label);
+  font-weight: 600;
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  color: var(--mint);
+}
+
+.wordmark {
+  margin-top: 0.4rem;
+  font-size: clamp(3.2rem, 13vw, 6.5rem);
+  font-weight: 700;
+  line-height: 0.92;
+  letter-spacing: -0.05em;
+}
+
+.spark {
+  display: inline-block;
+  margin-left: 0.06em;
+  font-size: 0.26em;
+  font-style: normal;
+  color: var(--yellow);
+  vertical-align: 0.55em;
+}
+
+.tagline {
+  margin-top: 1rem;
+  max-width: 48ch;
+  color: var(--fg-muted);
+  font-size: clamp(0.95rem, 2.2vw, 1.05rem);
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+
+.keys {
+  margin-top: 1.8rem;
+  display: grid;
+  gap: 0.55rem;
+  border-top: 1px solid rgba(250, 250, 250, 0.14);
+  padding-top: 1.2rem;
+}
+
+.keys > div {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.keys dt {
+  flex: 0 0 auto;
+  min-width: 1.9rem;
+  padding: 0.22rem 0.45rem;
+  text-align: center;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--mint);
+  border: 1px solid rgba(0, 255, 195, 0.4);
+}
+
+.keys dd {
+  margin-left: 0.5rem;
+  color: var(--fg-muted);
+  font-size: 0.9rem;
+}
+
+.go {
+  margin-top: 1.8rem;
+  font-size: var(--label);
+  font-weight: 600;
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  color: var(--yellow);
+  animation: pulse 2.4s var(--ease) infinite;
+}
+
+.go-key,
+.go-tap {
+  margin-right: 0.35em;
+}
+
+body.touch .go-key,
+.go-tap {
+  display: none;
+}
+
+body.touch .go-tap {
+  display: inline;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+.back {
+  display: inline-block;
+  margin-top: 1.6rem;
+  color: var(--fg-faint);
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+  transition: color 0.25s var(--ease);
+  pointer-events: auto;
+}
+
+.back:hover,
+.back:focus-visible {
+  color: var(--mint);
+}
+
+.curtain[data-screen='paused'] .start-only { display: none; }
+.curtain[data-screen='start'] .pause-only { display: none; }
+
+/* Touch pad
+   ========================================================================== */
+.pad {
+  position: absolute;
+  inset: auto 0 0 0;
+  display: none;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: var(--gutter);
+  padding-bottom: max(var(--gutter), env(safe-area-inset-bottom));
+  pointer-events: none;
+}
+
+body.touch .pad {
+  display: flex;
+}
+
+.pad-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.pad-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.pad-btn {
+  pointer-events: auto;
+  min-width: 3.2rem;
+  min-height: 3.2rem;
+  padding: 0 0.7rem;
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--paper);
+  background: rgba(13, 20, 32, 0.5);
+  border: 1px solid rgba(250, 250, 250, 0.28);
+  backdrop-filter: blur(3px);
+  transition: background-color 0.12s linear, border-color 0.12s linear;
+  touch-action: none;
+  user-select: none;
+}
+
+.pad-btn.on {
+  background: rgba(0, 255, 195, 0.28);
+  border-color: var(--mint);
+}
+
+.pad-jump {
+  min-height: 4.2rem;
+  color: var(--ink);
+  background: rgba(255, 196, 0, 0.85);
+  border-color: var(--yellow);
+}
+
+.pad-left,
+.pad-right {
+  min-width: 4.2rem;
+  min-height: 4.2rem;
+  font-size: 1rem;
+}
+
+@media (max-width: 560px) {
+  .pad-wide { min-height: 2.6rem; }
+  .keys dd { font-size: 0.84rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .go { animation: none; }
+  * { transition-duration: 0.01ms !important; }
+}

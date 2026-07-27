@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fun — Protocodus</title>
+  <meta name="description"
+    content="Games Protocodus built between projects. Playable in a browser, no install and no account.">
+  <meta name="theme-color" content="#1A1A1A">
+  <meta property="og:title" content="Fun — Protocodus">
+  <meta property="og:description" content="Games we built because we wanted to. Playable in a browser.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://protocodus.cz/fun/">
+  <link rel="canonical" href="https://protocodus.cz/fun/">
+  <link rel="icon" type="image/svg+xml" href="/assets/images/logo.svg">
+  <link rel="preload" href="/assets/fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <style>
+    /* This page has no spine — it is one screen of links, so the rail would
+       be navigation to nowhere. Both gutters it reserves go back: the rail's
+       width on desktop, and the fixed bar's height at 860px and under, which
+       is 118px of blank strip on a page that has no bar. */
+    body { padding-left: 0; padding-top: 0; }
+    .arcade { padding: clamp(4rem, 10vw, 7rem) 0 clamp(5rem, 10vw, 8rem); }
+    .arcade .brand { margin-bottom: clamp(3rem, 7vw, 5rem); }
+    .arcade .brand-name { font-size: 0.85rem; font-weight: 700; letter-spacing: 0.2em; }
+    .back-home { display: inline-block; margin-top: clamp(3rem, 6vw, 4rem); color: var(--fg-faint); }
+    .back-home:hover { color: var(--mint); }
+  </style>
+</head>
+
+<body>
+  <main class="arcade">
+    <div class="wrap">
+      <a href="/" class="brand">
+        <img src="/assets/images/logo.svg" alt="" class="brand-mark">
+        <span class="brand-name">PROTOCODUS</span>
+      </a>
+
+      <div class="head">
+        <p class="tag">// have fun</p>
+        <h2 class="title">Games we built<br>because we wanted to.</h2>
+        <p class="lede">Between projects we build small things for no reason at all. They ship the same way
+          client work does — finished, in a browser, no install and no account.</p>
+      </div>
+
+      <div class="games">
+        <a class="game" href="/fun/alpen/">
+          <p class="game-num">01</p>
+          <h3>Alpen</h3>
+          <p>An endless snowboard run down a procedurally generated mountain, rendered like it is 1997.
+            Real momentum, weather that turns, and whatever you can land.</p>
+          <p class="game-foot"><span class="game-tech">Three.js · WebGL</span><span class="game-go">Play</span></p>
+        </a>
+        <div class="game game-soon">
+          <p class="game-num">02</p>
+          <h3>The next one</h3>
+          <p>Not started yet. When it is, it will turn up here — and you will be able to play it in the
+            same click, from the same page.</p>
+          <p class="game-foot"><span class="game-tech">In the works</span></p>
+        </div>
+      </div>
+
+      <a class="back-home" href="/">← protocodus.cz</a>
+    </div>
+  </main>
+</body>
+
+</html>
