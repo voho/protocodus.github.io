@@ -100,16 +100,23 @@ renderer.setClearColor(0x000000, 1);
 renderer.toneMapping = THREE.NoToneMapping;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 
-/* Shadows, with a hard-ish filter on purpose.
+/* Shadows, softened.
 
-   `PCFSoftShadowMap` spends its budget feathering the edge, and a feathered
-   edge is the one thing that does not belong in a picture whose diffuse is
-   quantised into five bands and whose colour is quantised to five bits: a
-   soft gradient inside a shadow edge simply becomes a dither pattern two
-   pixels wide. Plain PCF gives an edge with one texel of give in it, which
-   at nine centimetres a texel is about right for snow, and it costs less. */
+   These started on plain PCF, on the reasoning that a feathered edge does not
+   belong in a picture quantised to five diffuse bands and five bits of
+   colour — a soft gradient inside a shadow edge becomes a dither pattern two
+   pixels wide. That reasoning was sound for the framebuffer this game had at
+   the time and stopped being true when it went to native resolution: there
+   are now enough pixels across an edge for a gradient to read as a gradient.
+
+   And the physical argument was always on the other side. The sun is half a
+   degree wide, so every shadow on a mountain has a penumbra that widens with
+   distance from whatever cast it — a tree's shadow is sharp at the trunk and
+   soft at its tip, and hard-edged shadows are the single most reliable tell
+   of a real-time renderer. Soft PCF plus a radius on the light gets most of
+   that for one extra tap pattern. */
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFShadowMap;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.shadowMap.autoUpdate = true;
 
 const scene = new THREE.Scene();
@@ -811,7 +818,12 @@ resize();
    to the run. */
 window.__alpen = {
   game, rider, camera, world, weather, scene, sky, terrain, props, retro,
-  wildlife, audio, trail, heli, huts,
+  // `model` is on here for one reason: the rider's drawn orientation is
+  // derived from the physics yaw and has been wrong before — mirrored about
+  // the fall line, which is invisible going straight and 180° out in a carve.
+  // Without a handle on it that can only be checked by eye, and it is exactly
+  // the class of bug an eye slides over.
+  wildlife, audio, trail, heli, huts, model,
   config: { RENDER, RIDER, SCORE, PROPS, GRADE },
   debug: () => ({
     mode: game.mode,

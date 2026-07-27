@@ -6,12 +6,40 @@
    is a uniform the weather writes each frame, which is also why a full day
    cycle costs no geometry work at all.
 
-   Six pieces, in the order the eye finds them.
+   Eight pieces, in the order the eye finds them.
 
    The dome is a three-stop gradient with a warm lobe around whatever is
    currently lighting the sky. That lobe is the cheapest atmosphere in
    graphics: one dot product, and it is most of the difference between a
    painted gradient and a sky with a sun somewhere in it.
+
+   The gradient's *shape* is the one thing in this file that cannot be
+   touched, and it is worth saying why here rather than leaving it to be
+   discovered. `shading.js` carries a transcription of `DOME_FRAG` so that a
+   fogged ridge dissolves into the same sky it is standing in front of, and
+   that file is not this one's to edit. So all the variation a day is asked
+   for has to arrive through the stops themselves, which are uniforms both
+   ends share and cannot disagree about. That turns out to be no constraint
+   at all: nine moments of colour say far more than a fourth stop would have.
+
+   The counterglow is the second thing on the dome and it exists for about
+   two of the fifteen minutes a day takes. When the sun is within a few
+   degrees of the horizon, the *opposite* horizon carries the shadow of the
+   Earth — a band of dull blue standing on the far skyline — with a rose
+   fringe above it where the air is still catching a sun the ground has
+   already lost. After the alpenglow it is the most recognisable thing about
+   an alpine dusk, and this run faces within a few degrees of the direction
+   it happens in for half the day.
+
+   It is a full ring rather than an arc, which is the cheap part: which way
+   it faces is one dot product against the sun's own horizontal direction, so
+   the band tracks the sun through the whole evening without a rotation, a
+   matrix or a rebuild, and the three quarters of the ring that are not
+   opposite the sun are discarded in the first four instructions. It is also
+   alpha-blended rather than added, and for once that is a physical decision
+   rather than a budgetary one: the Earth's shadow is *darker* than the sky
+   it is standing in, and there is no quantity of light you can add to a sky
+   to make it dimmer.
 
    The stars sit just inside the dome and fade in with the night. They are
    the one thing a storm can take away completely.
@@ -27,6 +55,64 @@
    back. So the gain is low, the folds are sparse — the noise is cut high, so
    most of the band is nothing and the folds are what is left — and the whole
    thing dies out before the horizon, where the haze would have had it.
+
+   The mist is the newest piece and the only one here that is not at
+   infinity.
+
+   Mountain air is layered. It is not a fog that thickens smoothly with
+   distance — that is already here, it is the curtain, and it is the same in
+   every direction the eye turns. What a mountain actually has is cloud lying
+   at an altitude: a valley filled to a level the way a bath fills, a bank
+   snagged on a ridge, and clear air above and below both. A run that
+   descends several hundred metres therefore gets the one thing no distance
+   fog can ever give it, which is the experience of going *through*
+   something.
+
+   So it is a lattice of horizontal sheets, one every `MIST.spacing` metres
+   of altitude, going on forever in both directions and pinned to the world
+   rather than to the rider. Three are alive at a time — the level the rider
+   is nearest, and its neighbours above and below — and which three that is
+   comes out of a rounded division every frame. Nothing is accumulated and
+   nothing drifts, exactly as with the ranges below: reset the game and the
+   layers are where they were, ride for an hour and the only thing that has
+   grown is the altitude, which is a double. The set is keyed on the
+   *nearest* level rather than on the one underneath, and that is not a
+   detail — keyed on the one underneath, the sheet that drops out of the set
+   drops out from directly overhead, in full view. Keyed on the nearest, a
+   sheet can only ever enter or leave at a level and a half away, where its
+   own altitude fade has already taken it to nothing.
+
+   Each sheet stands in for a slab of air and the alpha is the honest
+   integral through it. An eye looking straight down through a layer sees one
+   depth of it; an eye looking along the layer sees that depth divided by the
+   sine of the angle, which runs away to infinity as the angle closes. That
+   single division is the whole effect: it is why a bank at eye height fills
+   the frame, why the same bank under your board is a floor you can see the
+   ground through, and why descending into one is a horizon that quietly
+   closes rather than a fog that switches on.
+
+   It is also why the sheets do not have to be volumes. Alpha compositing
+   multiplies transmittances, so `1 − e^(−τ)` laid over `1 − e^(−τ)` is
+   exactly the medium the two slabs would have been together — and because
+   every sheet resolves towards the same colour, the result does not depend
+   in the slightest on what order they are drawn in. There is no sorting
+   here and none is wanted.
+
+   Two things about it are lies, and both are lies the game already tells
+   elsewhere. It fades out along the fog's own ramp, because past the curtain
+   everything is already precisely the haze colour and a layer out there
+   costs fill rate to show nothing. And it fades *in* over the first ninety
+   metres, which is the fog's near distance wearing a different hat: without
+   it, riding into a bank puts a wall of milk between the rider and the tree
+   they are about to hit, and a whiteout nobody can steer through is a bug
+   rather than weather.
+
+   What makes it read as layered rather than as one uniform soup is that
+   every level of the lattice has a density of its own, taken from a noise
+   field indexed by the level number. Most levels are nothing whatsoever. The
+   ones that are not are banks, sometimes two or three levels deep where the
+   field runs high — and a lattice that is empty above and full below is
+   exactly the picture of a valley that has filled up to a line.
 
    The haze cone is the quiet one and the most important. Past the fog
    distance the hill is gone, but its mesh has to stop somewhere, and a
@@ -108,7 +194,7 @@
    `update`, because the answer depends on where the chase camera ended up
    this frame and `update` runs before the chase camera has decided. */
 
-import { snoise2, hash2 } from './noise.js';
+import { snoise2, noise2, hash2 } from './noise.js';
 import { heightAt, nearestCenter } from './terrain.js';
 import { TERRAIN, RENDER } from './config.js';
 
@@ -184,6 +270,72 @@ const AURORA = {
   gain: 0.30,       // the ceiling on an additive layer in a graded picture
 };
 
+/* The counterglow, in three numbers.
+
+   The band is hung between half a degree and twenty, which sounds low for
+   something people photograph looking up at and is where it belongs: the
+   Earth's shadow rises out of the *horizon*, and the chase camera's own
+   framing — see the note on the aurora above — gives the player about four
+   degrees of sky below the horizontal and twenty-four above it. A band
+   hung any higher would be a band nobody is ever shown.
+
+   `gain` is the ceiling on it. Alpha-blended rather than added, so unlike
+   the aurora it cannot clip anything and does not have to be kept quiet for
+   the grade's sake; what it can do instead is paint a bruise across a
+   quarter of the sky, which is what the ceiling is for. It sat at a half
+   while the band was being aimed and went up once it was clear how much of
+   it the skyline eats: the bottom two thirds of this thing is behind a
+   mountain most of the time. */
+const BELT = {
+  foot: 0.010,
+  head: 0.34,
+  gain: 0.62,
+};
+
+/* The mist lattice, in metres and a handful of ratios.
+
+   `spacing` is chosen against the hill rather than against the weather. The
+   run falls about three metres in every ten it travels and the curtain is
+   four hundred metres out, so the lowest layer that can still be seen ahead
+   of the rider is roughly a hundred and twenty metres below them — anything
+   under that meets the ground beyond the fog and is invisible from the first
+   frame to the last. Ninety-six therefore keeps one or two sheets inside
+   that window at all times and hands the rider a new one to descend through
+   about every ten seconds at speed. It was three hundred to begin with,
+   which is a beautiful number for one cloud deck and means most of a run
+   sees no mist at all.
+
+   `depth` is the optical depth straight down through one sheet — not a
+   thickness in metres, because the metres cancel: what the fragment shader
+   actually wants is depth over the sine of the view angle, so the thickness
+   and the density only ever appear multiplied together and there is no point
+   carrying them separately.
+
+   `cap` is the most any single sheet may take out of the picture, and it is
+   the one number here that is about playability rather than about air.
+
+   `aniso` is why the banks read as banners. The field is sampled three times
+   more coarsely across the run than along it, so a bank is drawn out into
+   something lying across the valley rather than a round blob — which is what
+   wind does to cloud and what the eye reads as a ridge having caught one. At
+   `field` the tile is four hundred metres down the run and twelve hundred
+   across it, which puts a fold of cloud every fifty metres and a whole bank
+   every few hundred: cloud scale rather than fog scale, and the difference
+   between the two is the entire reason this reads as weather. */
+const MIST = {
+  spacing: 96,
+  depth: 0.74,
+  live: 3,
+  fade: [80, 144],    // metres of altitude over which a level is given up
+  reach: 1.06,        // sheet radius, as a multiple of the fog distance
+  cap: 0.70,
+  field: 0.0024,      // tiles of noise per metre along the run
+  aniso: 0.34,        // and across it
+  cut: 0.36,          // where the noise stops being air and starts being cloud
+  drift: 0.12,        // how much of the wind's speed a bank actually carries
+  segments: 40,
+};
+
 /* The four bands.
 
    `radius` is where the ring is actually drawn and `far` is what it is meant
@@ -198,20 +350,33 @@ const AURORA = {
    *rise* with distance or the near bands stand in front of the far ones and
    the stack collapses into a single ridge — which is what the old three did:
    the middle ring was the tallest thing on the horizon and the furthest ring
-   was hidden behind both the others. It now runs 0.315 down to 0.276, which
-   is a little over two degrees of separation between the top band and the
-   bottom one, and every band peeks over the one in front of it.
+   was hidden behind both the others.
+
+   That spread has been opened up. It ran 0.315 down to 0.276 — a little over
+   two degrees between the top band and the bottom one, which is enough for
+   every band to peek over the one in front of it and not enough for any of
+   them to have a *shape* of its own against the next. It now runs 0.330 down
+   to 0.272, which is three and a bit degrees, and the difference on screen is
+   out of all proportion to the number: at two degrees the four bands are one
+   ridge drawn four times, and at three they are a range with distance in it.
 
    The colours are the palette's job and they are the largest area of it in
    the frame after the snow itself: blue-biased neutrals from a pale
    near-haze at the back to something with real weight at the front. None of
    them is white and none of them is grey. The amber arrives at run time and
-   only where a low sun is actually landing. */
+   only where a low sun is actually landing.
+
+   These are further apart than they were too, and in both directions at
+   once. The far band went paler and cooler, the near band went darker and a
+   step towards violet — which is what rock at six kilometres actually looks
+   like under a blue sky, and which gives the stack somewhere to travel
+   between. Four tints inside a fifth of the value range is a gradient; these
+   cover half of it. */
 export const RANGES = [
-  { radius: 2380, height: 750, far: 42000, seed: 21, segments: 360, tint: '#c3cfe2' },
-  { radius: 2010, height: 606, far: 21000, seed: 33, segments: 330, tint: '#9db2d1' },
-  { radius: 1640, height: 474, far: 11500, seed: 47, segments: 300, tint: '#7590b9' },
-  { radius: 1280, height: 353, far: 6200, seed: 59, segments: 270, tint: '#516d9c' },
+  { radius: 2380, height: 785, far: 42000, seed: 21, segments: 360, tint: '#cbd7ea' },
+  { radius: 2010, height: 623, far: 21000, seed: 33, segments: 330, tint: '#9db4d8' },
+  { radius: 1640, height: 476, far: 11500, seed: 47, segments: 300, tint: '#6e8bbb' },
+  { radius: 1280, height: 348, far: 6200, seed: 59, segments: 270, tint: '#42598c' },
 ];
 
 /* The scale height of the air, in metres — the distance over which it eats
@@ -223,10 +388,17 @@ export const RANGES = [
 const EXTINCTION = 12000;
 const airAt = (far) => 1 - Math.exp(-far / EXTINCTION);
 
-// How far a band is pulled towards the sky's own mid stop, at full air. It
-// works out at half the colour of the furthest band and a fifth of the
-// nearest, which is the whole reason a dusk range is a dusk colour.
-const SKY_BLEED = 0.52;
+/* How far a band is pulled towards the sky's own mid stop, at full air —
+   which is the whole reason a dusk range is a dusk colour.
+
+   Raising this looks like it should flatten the stack, since every band is
+   being pulled towards the same place, and it does the opposite: the pull is
+   scaled by the band's own air, and the four airs run from 0.40 to 0.97. So
+   what this number really sets is the *spread* of the bleed, and at 0.62 the
+   far band gives up three fifths of its colour to the sky while the near one
+   gives up a quarter. At 0.52 it was half and a fifth, and the two nearest
+   bands were doing almost the same thing as each other. */
+const SKY_BLEED = 0.62;
 
 /* How far the piste is allowed to have wandered before the lateral parallax
    stops believing it. The route is a sum of sines and the corridor holds the
@@ -240,6 +412,9 @@ const TAU = Math.PI * 2;
 const smooth01 = (t) => t * t * (3 - 2 * t);
 const clamp01 = (t) => (t < 0 ? 0 : t > 1 ? 1 : t);
 const ramp = (v, a, b) => smooth01(clamp01((v - a) / (b - a)));
+// Into the first tile of a field that repeats at one, which for a tiling
+// texture is not an approximation of anything — it is the same sample
+const frac = (v) => v - Math.floor(v);
 
 const DOME_VERT = `
   varying vec3 vDir;
@@ -371,6 +546,119 @@ const AURORA_FRAG = `
   }
 `;
 
+const BELT_VERT = `
+  varying vec3 vDir;
+  void main() {
+    vDir = normalize(position);
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+const BELT_FRAG = `
+  precision mediump float;
+  uniform vec3 uShade, uRose;
+  uniform vec2 uSun;
+  uniform float uStrength, uFoot, uHead;
+  varying vec3 vDir;
+  void main() {
+    vec3 dir = normalize(vDir);
+    /* Opposite the sun and nowhere else. The square is what keeps the band
+       inside the quarter of the sky it belongs to instead of smearing it
+       round to the flanks, where the sky is neither in shadow nor lit and
+       where a dull blue wash over the horizon looks like a bug in the fog.
+       The horizontal part of the direction is never near zero here: the band spans half a degree to
+       twenty, so there is no straight-up case to guard against. */
+    float anti = max(0.0, -dot(normalize(dir.xz), uSun));
+    anti *= anti;
+    // Height in the band, from the direction rather than from the mesh, so
+    // the profile does not care how the band happens to have been built
+    float t = clamp((dir.y - uFoot) / (uHead - uFoot), 0.0, 1.0);
+    /* Weighted to the bottom, and hard. What is being drawn is a shadow
+       cast on the air by a planet, so it is deepest where the air is
+       thickest and there is simply nothing left of it two thirds of the way
+       up. The foot is faded as well, because the bottom rim of this band
+       stands behind the ranges and a hard edge appearing between two peaks
+       is worse than no band at all. */
+    float a = uStrength * anti
+      * smoothstep(0.0, 0.10, t) * (1.0 - smoothstep(0.28, 1.0, t));
+    if (a <= 0.003) discard;
+    // Dull blue at the foot, rose at the fringe — the shadow and the last of
+    // the light standing directly on top of each other, which is the whole
+    // reason anybody looks the wrong way at sunset
+    gl_FragColor = vec4(mix(uShade, uRose, smoothstep(0.14, 0.66, t)), a);
+  }
+`;
+
+/* The mist, in two shaders that between them are about thirty instructions.
+
+   Everything expensive about a volumetric is avoided by the sheets being
+   flat: there is no march, no depth buffer read and no second pass. What is
+   left is one length, one divide and two texture fetches.
+
+   Precision is the one thing that needs care, and the fix is on the CPU. The
+   noise field is anchored to the world so a bank does not swim with the
+   rider, and world coordinates on this run reach twenty kilometres — a
+   number that a mediump fragment varying resolves to about sixteen metres.
+   So the vertex shader is handed the field's origin already reduced to its
+   fractional cell, and everything it interpolates is small: the sheet's own
+   radius either side of zero for the coordinate, and the camera-relative
+   position for the view vector. The wrap is safe because the field tiles at
+   one and the second octave is an integer multiple of the first, so a whole
+   number of cells taken off the origin is a shift of a whole number of
+   tiles, which is no shift at all. */
+const MIST_VERT = `
+  uniform float uRadius;
+  uniform vec2 uOrigin, uCell;
+  varying vec2 vQ;
+  varying vec3 vRel;
+  void main() {
+    // The disc is built at unit radius and grown here rather than scaled on
+    // the mesh, so that p is honest metres from the rider and the noise
+    // coordinate below does not have to undo a scale to find them
+    vec3 p = vec3(position.x * uRadius, position.y, position.z * uRadius);
+    vQ = p.xz * uCell + uOrigin;
+    vec4 world = modelMatrix * vec4(p, 1.0);
+    vRel = world.xyz - cameraPosition;
+    gl_Position = projectionMatrix * viewMatrix * world;
+  }
+`;
+
+const MIST_FRAG = `
+  precision mediump float;
+  uniform sampler2D uNoise;
+  uniform vec3 uCool, uWarm, uSunDir;
+  uniform float uDensity, uCut, uCap, uNear, uFar, uSun;
+  varying vec2 vQ;
+  varying vec3 vRel;
+  void main() {
+    float dist = length(vRel);
+    /* How far along this sheet the eye is looking, which is the entire
+       effect. A horizontal layer seen from straight above is one depth of
+       air; the same layer seen along its own plane is unbounded. The floor
+       under it is what stops the exponent below from being an infinity right
+       on the horizon line, and it is set where a sheet is already opaque, so
+       nothing is lost by clamping there. */
+    float graze = max(abs(vRel.y) / dist, 0.030);
+    float n = texture2D(uNoise, vQ).r * 0.62
+      + texture2D(uNoise, vQ * 3.0 + vec2(0.37, 0.61)).b * 0.38;
+    // The banks are what is left when the flat middle of the noise is thrown
+    // away — the same cut the aurora uses, and for the same reason: a field
+    // taken straight is a uniform haze, which is the thing this is not
+    float fold = smoothstep(uCut, 1.0, n);
+    float a = (1.0 - exp(-uDensity * fold / graze)) * uCap;
+    // Clear in front of the lens, and already the haze past the curtain.
+    // Both ends of that are the fog's own two numbers wearing a hat.
+    a *= smoothstep(uNear * 0.28, uNear * 0.92, dist);
+    a *= 1.0 - smoothstep(uNear, uFar, dist);
+    if (a < 0.004) discard;
+    // A cloud is the one surface in the frame that is lit from inside as
+    // much as from outside, so this is not a diffuse term — it is how much
+    // of the sun is coming *through* the sheet towards the eye
+    float lobe = max(0.0, dot(vRel / dist, uSunDir));
+    gl_FragColor = vec4(mix(uCool, uWarm, lobe * lobe * uSun), a);
+  }
+`;
+
 const RANGE_VERT = `
   attribute float aMix;
   attribute float aFace;
@@ -395,10 +683,22 @@ const RANGE_VERT = `
 const RANGE_FRAG = `
   precision mediump float;
   uniform vec3 uHaze, uPeak, uSunlit;
+  uniform float uRise;
   varying float vMix;
   varying float vShade;
   void main() {
-    vec3 c = mix(uHaze, uPeak, vMix) * (1.0 + vShade);
+    /* The air is not the same all the way up a mountain.
+
+       vMix is height up the band and the colour used to ride it straight,
+       which says that a range dissolves into the haze at a rate that has
+       nothing to do with how much haze there is. Real air is densest at the
+       bottom and thins out with height, so a band standing behind a lot of it
+       is eaten a long way up its own flanks and one standing close is eaten
+       only at its feet. uRise is that exponent and it comes straight off
+       the band's own air, so the four of them separate on the way up as well
+       as in overall colour — which is most of what stops a stack of
+       silhouettes reading as one silhouette with contour lines on it. */
+    vec3 c = mix(uHaze, uPeak, pow(vMix, uRise)) * (1.0 + vShade);
     /* And the one warm thing on the horizon.
 
        The palette has exactly one amber in it and this is where a third of
@@ -438,6 +738,35 @@ export function createSky(THREE) {
   const dome = new THREE.Mesh(new THREE.SphereGeometry(RADIUS, 32, 20), domeMat);
   dome.renderOrder = -20;
   group.add(dome);
+
+  // --- the counterglow -----------------------------------------------------
+  // A full ring, because which part of it is drawn is decided per fragment
+  // against the sun rather than by where the mesh is pointing. Ten rows for
+  // twenty degrees of sky: the profile is a smoothstep, and a smoothstep does
+  // not need vertices, it needs a direction.
+  const beltMat = new THREE.ShaderMaterial({
+    uniforms: {
+      uShade: { value: new THREE.Color('#3d4f80') },
+      uRose: { value: new THREE.Color('#d59b9b') },
+      uSun: { value: sunXZ },
+      uStrength: { value: 0 },
+      uFoot: { value: Math.sin(BELT.foot) },
+      uHead: { value: Math.sin(BELT.head) },
+    },
+    vertexShader: BELT_VERT,
+    fragmentShader: BELT_FRAG,
+    transparent: true,
+    depthWrite: false,
+    side: THREE.BackSide,
+    fog: false,
+  });
+  const belt = new THREE.Mesh(new THREE.SphereGeometry(
+    RADIUS * 0.99, 48, 10, 0, TAU,
+    Math.PI / 2 - BELT.head, BELT.head - BELT.foot,
+  ), beltMat);
+  belt.renderOrder = -19.5;
+  belt.visible = false;
+  group.add(belt);
 
   // --- stars ---------------------------------------------------------------
   const starMat = new THREE.ShaderMaterial({
@@ -485,8 +814,14 @@ export function createSky(THREE) {
      wrapped, which `noise2` is not — a straight sample of it would put a
      seam down the sky every time the texture repeated. Three fetches with
      bilinear filtering is a good deal less work than three hashed octaves in
-     the fragment shader, and it does not need the precision they do. */
-  const auroraTex = (() => {
+     the fragment shader, and it does not need the precision they do.
+
+     The mist reads the same texture at a completely different scale, which
+     is free and is why this is not called the aurora's. Two effects sharing
+     one field can only correlate if they sample it the same way, and one of
+     them is measured in radians of sky while the other is measured in
+     hundreds of metres of valley. */
+  const fieldTex = (() => {
     const s = 128;
     const cells = 8;
     const step = s / cells;
@@ -530,7 +865,7 @@ export function createSky(THREE) {
 
   const auroraMat = new THREE.ShaderMaterial({
     uniforms: {
-      uNoise: { value: auroraTex },
+      uNoise: { value: fieldTex },
       uLow: { value: new THREE.Color('#4dffa6') },
       uHigh: { value: new THREE.Color('#a05cff') },
       uTime: { value: 0 },
@@ -567,6 +902,73 @@ export function createSky(THREE) {
     return mesh;
   })();
   group.add(aurora);
+
+  /* --- the mist ------------------------------------------------------------
+
+     One disc, shared by all three sheets, and one block of uniforms shared
+     with it — the same arrangement `shading.js` uses on the world's
+     materials and for the same reason: everything about a sheet except its
+     density and its two colours is a fact about the weather rather than
+     about the sheet, so there is no sense in three copies of it.
+
+     The disc is a fan and deliberately has no rings in it. Both varyings are
+     linear functions of the vertex position, so interpolating them across
+     one enormous triangle gives exactly the same answer as across forty small
+     ones; the shading is all in the fragment shader and the geometry is only
+     there to make it run. Forty segments is what it costs to have a circular
+     rim rather than a polygon, and the rim is beyond the fog anyway. */
+  const mistShared = {
+    uNoise: { value: fieldTex },
+    uSunDir: { value: sunDir },
+    uOrigin: { value: new THREE.Vector2() },
+    uCell: { value: new THREE.Vector2(MIST.field * MIST.aniso, MIST.field) },
+    uRadius: { value: RENDER.fogFar * MIST.reach },
+    uCut: { value: MIST.cut },
+    uCap: { value: MIST.cap },
+    uNear: { value: RENDER.fogNear },
+    uFar: { value: RENDER.fogFar },
+    uSun: { value: 0 },
+  };
+
+  // Two of those are written every frame and are worth a name of their own
+  const mistOrigin = mistShared.uOrigin.value;
+  const mistCell = mistShared.uCell.value;
+
+  const mistGeo = new THREE.CircleGeometry(1, MIST.segments);
+  mistGeo.rotateX(-Math.PI / 2);
+
+  const sheets = [];
+  for (let i = 0; i < MIST.live; i++) {
+    const mat = new THREE.ShaderMaterial({
+      uniforms: {
+        ...mistShared,
+        uDensity: { value: 0 },
+        uCool: { value: new THREE.Color('#dfe8f4') },
+        uWarm: { value: new THREE.Color('#ffe6c6') },
+      },
+      vertexShader: MIST_VERT,
+      fragmentShader: MIST_FRAG,
+      transparent: true,
+      depthWrite: false,
+      // Seen from above as a floor and from below as a ceiling, and the run
+      // spends its whole life crossing from one to the other
+      side: THREE.DoubleSide,
+      fog: false,
+    });
+    const mesh = new THREE.Mesh(mistGeo, mat);
+    /* Before the trail and the particles, so that snow falling between the
+       rider and a bank is drawn in front of it rather than behind. Order
+       among the sheets themselves is genuinely irrelevant — see the head of
+       the file — which is the only reason three transparent planes stacked
+       over each other need no sorting at all. */
+    mesh.renderOrder = -2;
+    // The disc is grown in the vertex shader, so its bounding sphere says
+    // one metre and three's own culling would throw the whole sky away
+    mesh.frustumCulled = false;
+    mesh.visible = false;
+    sheets.push({ mesh, mat });
+    group.add(mesh);
+  }
 
   // --- the light in the sky ------------------------------------------------
   const glowTex = (() => {
@@ -738,6 +1140,7 @@ export function createSky(THREE) {
         uSunlit: { value: new THREE.Color(0, 0, 0) },
         uSun: { value: sunLocal },
         uLight: { value: 0.2 },
+        uRise: { value: 1 },
       },
       vertexShader: RANGE_VERT,
       fragmentShader: RANGE_FRAG,
@@ -813,14 +1216,31 @@ export function createSky(THREE) {
      snow. */
   key.shadow.bias = -0.0006;
   key.shadow.normalBias = 0.6;
+  /* The sun is half a degree wide, so nothing it casts has a hard edge. This
+     is the cheap stand-in for that: it widens the PCF tap pattern, which
+     softens every shadow by a constant amount rather than by distance from
+     the caster — not the real penumbra, but far closer to it than a hard
+     edge, and it costs nothing. Kept modest, because at nine centimetres a
+     texel a large radius starts eating the shadows of thin things like
+     branches and slalom poles entirely. */
+  key.shadow.radius = 2.6;
   lights.add(key, key.target);
   const hemi = new THREE.HemisphereLight('#74a3de', '#dfe8f4', 1.35);
   lights.add(hemi);
 
   const peakTmp = new THREE.Color();
+  const footTmp = new THREE.Color();
   const fill = new THREE.Color();
   const sunlit = new THREE.Color();
   const WHITE = new THREE.Color(0xffffff);
+  /* Where the mist's field is being read from, and it is the one quantity in
+     this file that genuinely is integrated over time — a bank drifts on the
+     wind, and the wind changes, so there is nothing to evaluate it from. It
+     is kept honest by being wrapped into its own first tile every frame:
+     the field repeats at one, so taking whole tiles off it is not an
+     approximation, and what is left can never grow large enough to lose
+     precision in however long the run goes on. */
+  const mistDrift = new THREE.Vector2();
   // The light's own basis, rebuilt each frame because the sun moves all day,
   // and the snapped point the shadow box is centred on
   const UP = new THREE.Vector3(0, 1, 0);
@@ -903,14 +1323,47 @@ export function createSky(THREE) {
       auroraMat.uniforms.uStrength.value = w.aurora * AURORA.gain;
     }
 
-    // Sun by day, moon by night: the same disc, smaller and cooler, and a
-    // glow that a storm can smother entirely
+    /* The counterglow, which is a couple of minutes out of the fifteen.
+
+       The window is on the elevation alone: the band comes up as the sun
+       drops under the horizon and is gone by the time it is six degrees over
+       it. That excludes the night for nothing, because the elevation the
+       weather carries after dark is the moon's and the moon spends the night
+       a long way up — the small term on `moon` is only there for the minute
+       in which it climbs through the same window on its way there. */
+    const belted = ramp(w.elevation, -0.13, -0.02)
+      * (1 - ramp(w.elevation, -0.01, 0.10))
+      * (1 - w.storm) * (1 - 0.7 * w.moon) * BELT.gain;
+    belt.visible = belted > 0.004;
+    if (belt.visible) {
+      beltMat.uniforms.uStrength.value = belted;
+      /* Both colours are taken off the weather rather than fixed, so the
+         band is a dawn colour at dawn and a dusk one at dusk without knowing
+         which it is. The shadow is the sky's own two blues met most of the
+         way towards the zenith — it has to be darker than the horizon it
+         stands on or it is not a shadow — and the rose is the sun's glow
+         with most of the fire taken back out of it, because what is being
+         seen is that light after crossing the entire width of the sky. */
+      beltMat.uniforms.uShade.value.copy(w.mid).lerp(w.zenith, 0.45);
+      beltMat.uniforms.uRose.value.copy(w.glow).lerp(w.mid, 0.42);
+    }
+
+    /* Sun by day, moon by night: the same disc, smaller and cooler, and a
+       glow that a storm can smother entirely.
+
+       Both of them now set. They never used to, because no moment in the day
+       table put the light under the horizon and the disc simply sat on the
+       skyline all night; the two twilight moments do put it under, so there
+       has to be something for it to go down behind. A fade rather than the
+       old visibility test, because a disc that switches off is a disc
+       somebody notices switching off. */
     const moon = w.moon;
+    const risen = ramp(w.elevation, -0.028, 0.018);
     disc.position.copy(sunDir).multiplyScalar(RADIUS * 0.85);
     disc.scale.setScalar(RADIUS * (0.085 - moon * 0.032));
     disc.material.color.copy(w.key);
-    disc.material.opacity = (1 - w.storm) * (0.55 + 0.45 * (1 - moon));
-    disc.visible = w.elevation > -0.02 && w.storm < 0.92;
+    disc.material.opacity = (1 - w.storm) * (0.55 + 0.45 * (1 - moon)) * risen;
+    disc.visible = disc.material.opacity > 0.02 && w.storm < 0.92;
 
     // Small and faint. An additive sprite this far out covers a lot of sky
     // for very little scale, and a sun that blows out the middle of the
@@ -918,7 +1371,7 @@ export function createSky(THREE) {
     glow.position.copy(sunDir).multiplyScalar(RADIUS * 0.84);
     glow.scale.setScalar(RADIUS * (0.20 - moon * 0.10));
     glow.material.color.copy(w.glow);
-    glow.material.opacity = (1 - w.storm) * (0.5 - moon * 0.28);
+    glow.material.opacity = (1 - w.storm) * (0.5 - moon * 0.28) * risen;
     glow.visible = glow.material.opacity > 0.02;
 
     /* How much light is arriving from up there, as one number.
@@ -978,6 +1431,65 @@ export function createSky(THREE) {
     const travel = -pos.z;
     const lateral = Math.max(-LATERAL_MAX, Math.min(LATERAL_MAX, pos.x));
 
+    /* The mist: three sheets of it, and where they are is a rounded division.
+
+       Everything shared goes in first, and most of it is the fog's, because
+       a layer of cloud and a curtain of haze are the same air seen two ways
+       and have no business disagreeing about how far it reaches. The drift
+       is the wind, geared right down — cloud does not travel at the speed of
+       the gust that is blowing snow off the moguls — and wrapped into its
+       own first tile so that an hour of riding leaves it exactly as precise
+       as it was on the first frame. */
+    mistDrift.x = (mistDrift.x - w.windX * MIST.drift * mistCell.x * dt) % 1;
+    mistDrift.y = (mistDrift.y - w.windZ * MIST.drift * mistCell.y * dt) % 1;
+    mistOrigin.set(
+      frac(pos.x * mistCell.x + mistDrift.x),
+      frac(pos.z * mistCell.y + mistDrift.y),
+    );
+    mistShared.uRadius.value = w.fogFar * MIST.reach;
+    mistShared.uNear.value = w.fogNear;
+    mistShared.uFar.value = w.fogFar;
+    mistShared.uSun.value = 0.6 * sunLight;
+
+    const nearest = Math.round(pos.y / MIST.spacing);
+    for (let i = 0; i < sheets.length; i++) {
+      const s = sheets[i];
+      const level = nearest + i - ((MIST.live - 1) >> 1);
+      const y = level * MIST.spacing;
+      /* Each level has a density of its own, out of a field indexed by the
+         level number rather than by its altitude — so the answer is the same
+         every time the question is asked, and adjacent levels are correlated
+         into banks two and three deep rather than alternating.
+
+         The floor under it is not tidiness. Cut hard, two levels in five
+         carry anything at all and — measured over six hundred of them —
+         very nearly a quarter of the mountain has all three of its live
+         levels empty at once, which is a weather report saying MIST over a
+         sky with nothing whatsoever in it. A fifth of the density on every
+         level keeps the air layered everywhere and lets the field decide
+         which of those layers is a bank, which is both the honest picture
+         and the one that never contradicts the HUD. */
+      const bank = 0.18 + 0.82 * ramp(noise2(level * 0.37, 5.5, 173), 0.38, 0.74);
+      // …and fades out with altitude, which is what buys the lattice its
+      // silent hand-over: nothing can enter or leave the live set nearer
+      // than a level and a half away, and by then this is already zero
+      const held = 1 - ramp(Math.abs(y - pos.y), MIST.fade[0], MIST.fade[1]);
+      const density = MIST.depth * w.mist * bank * held;
+      s.mesh.visible = density > 0.004;
+      if (!s.mesh.visible) continue;
+      s.mesh.position.y = y - pos.y;
+      s.mat.uniforms.uDensity.value = density;
+      /* A cloud top in a low sun is the warmest thing on the mountain and
+         the underside of the same cloud is the coldest thing in the frame.
+         The one number between them is which side of the sheet the rider is
+         on, smoothed over the few seconds it takes to cross — and it is
+         worth as much as the shape is, because a ceiling that is darker than
+         the floor under it is the only cue that says the air has a top. */
+      const above = smooth01(clamp01((pos.y - y) / 34 + 0.5));
+      s.mat.uniforms.uWarm.value.copy(w.haze).lerp(w.key, 0.08 + 0.28 * above);
+      s.mat.uniforms.uCool.value.copy(w.haze).lerp(w.mid, 0.26 - 0.14 * above);
+    }
+
     hazeMat.color.copy(w.haze);
     for (const r of ranges) {
       const spin = (travel * r.spin) % TAU;
@@ -994,7 +1506,20 @@ export function createSky(THREE) {
       const sn = Math.sin(spin);
       r.sunLocal.set(cs * sunXZ.x - sn * sunXZ.y, sn * sunXZ.x + cs * sunXZ.y);
 
-      r.mat.uniforms.uHaze.value.copy(w.haze);
+      /* Even the foot is not quite the curtain any more.
+
+         It used to be exactly `w.haze` on all four bands, which is what
+         guarantees a range melts into the horizon instead of standing in
+         front of it — and which also means the bottom of the near band and
+         the bottom of the far band are the identical colour, so the only
+         thing separating them down there is that one is higher up the
+         screen. A near range is behind less air than a far one, so it keeps
+         a little of itself all the way down. It is a sixth at the front and
+         almost nothing at the back, and the feet themselves are hidden
+         behind the curtain regardless — what this actually colours is the
+         first few degrees of band above it. */
+      footTmp.copy(w.haze).lerp(r.tint, (1 - r.air) * 0.17);
+      r.mat.uniforms.uHaze.value.copy(footTmp);
       // The ranges are behind a lot of air, and a storm is more air. They
       // give up their colour long before the near hill does, and the far
       // band gives up more of it than the near one — which is the same
@@ -1003,6 +1528,10 @@ export function createSky(THREE) {
       // and they take the sky's own tint, so a dusk range is a dusk colour
       peakTmp.lerp(w.mid, SKY_BLEED * r.air);
       r.mat.uniforms.uPeak.value.copy(peakTmp);
+      // How far up its own flanks the air has eaten this band. See the note
+      // in RANGE_FRAG: one exponent, and it is the band's own extinction
+      // rather than a number chosen to look right.
+      r.mat.uniforms.uRise.value = 0.72 + r.air * 0.95;
       // Light enough to find the ridges, and gone in a storm along with
       // everything else that was making them legible. A band with more air in
       // front of it keeps less of its own form, for the same reason it keeps

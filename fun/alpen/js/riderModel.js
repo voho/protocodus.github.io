@@ -2,44 +2,109 @@
 
    This used to be one baked geometry — board, body, arms and head welded
    into a single buffer by `compose` — because the game rendered into a
-   240-pixel framebuffer and a rider that small cannot show you an elbow. At
-   that size a grab was a scaled torso and a crouch was a squashed body, and
-   that was an honest trade. The framebuffer is gone: the run renders at the
-   window's own resolution now, and there is exactly one rider on the
-   mountain, so eleven draw calls for him cost nothing measurable. What the
-   welded body cost was everything the sport actually looks like, so he is a
-   rig now — a tree of Groups, one composed geometry per rigid segment, and
-   the articulation living entirely in the transforms.
+   240-pixel framebuffer and a rider that small cannot show you an elbow. The
+   framebuffer is gone: the run renders at the window's own resolution now,
+   there is exactly one rider on the mountain, and everything he is made of
+   casts a real shadow onto the snow. So he is a rig — a tree of Groups, one
+   composed geometry per rigid segment, the articulation living entirely in
+   the transforms — and the forms themselves are lofted rather than stacked.
 
-   One decision shapes the rest: **the feet are bolted to the board**. That
-   is the whole difference between snowboarding and standing on a hill, and
-   it means the legs have to be solved backwards. The board and its boots are
-   the fixed thing; the hips are what moves; the knees are simply whatever
-   angle joins the two. So nothing here animates a knee. The leg spring drops
-   the hips, the ankles stay in the bindings, and two-bone IK works out the
-   fold — which is why a landing visibly collapses him and a grab pulls his
-   knees out sideways without a single frame of that being authored.
+   Four decisions shape the rest.
 
-   The second decision is that **a pose is a point, not a set of angles**.
-   Every arm pose in this file is expressed as a place the hand wants to be,
-   and blending the riding pose into a grab is therefore a lerp between two
-   points with the IK picking up the pieces. Blending quaternion poses pops
-   the instant two of them disagree about which way the elbow goes; blending
-   destinations cannot pop, and it also means the grab can be aimed at the
-   board's edge and *arrive* there rather than nearly.
+   **The feet are bolted to the board.** That is the whole difference between
+   snowboarding and standing on a hill, and it means the legs are solved
+   backwards. The board and its boots are the fixed thing; the hips are what
+   moves; the knees are simply whatever angle joins the two. Nothing here
+   animates a knee. The leg spring drops the hips, the ankles stay in the
+   bindings, and two-bone IK works out the fold — which is why a landing
+   visibly collapses him and a grab pulls his knees out sideways without a
+   single frame of that being authored. The ceiling on the hips is now solved
+   per leg from the actual socket position rather than from a nominal one, so
+   the boots cannot slip even when the pelvis has turned away from them:
+   swept through every state this file can produce, at 30, 60 and 144 Hz, the
+   worst gap between an ankle and its binding is two picometres, which is the
+   float arithmetic and not the rig.
 
-   Left and right are meaningless on a board, so nothing here is called left
-   or right: a limb is `lead` if it is over the nose and `rear` if it is over
-   the tail. He rides regular, which puts the chest towards +X, the toe edge
-   at +X, the nose at -Z, and the head turned back over the leading shoulder
-   to look down the fall line — which is where the mint visor points, and
-   still the only way to read which way he is facing.
+   **A pose is a point, not a set of angles.** Every arm pose is a place the
+   hand wants to be, so blending the riding pose into a grab is a lerp between
+   two points with the IK picking up the pieces. Blending quaternion poses
+   pops the instant two of them disagree about which way the elbow goes;
+   blending destinations cannot, and it also means the grab can be aimed at
+   the board's edge and *arrive* there rather than nearly.
 
-   The orientation of the whole thing is composed rather than eulered: the
-   board is stood up on the surface normal first, then turned, then flipped,
-   then rolled. In that order a flip is always about the board's own lateral
-   axis and a carve always about its length, whatever the hill underneath is
-   doing.
+   **A stance is a constant, not a reaction.** This is the thing the rig got
+   wrong for longest, and it was wrong precisely because everything else here
+   is so carefully driven by the physics. Riding a straight line at speed the
+   mountain has nothing to say: the leg spring is carrying exactly one g, the
+   edge is flat, there is no steer and no wash — so every signal in this file
+   was zero, and what zero drew was a man standing bolt upright with fifty
+   degrees of knee in him and his arms held out along the board. Seen from
+   behind, which is where the camera lives, arms spread along a board are arms
+   spread sideways, and the whole figure read as somebody being electrocuted.
+
+   None of how a person stands on a snowboard is a reaction to anything. The
+   knees are bent to about eighty degrees before the hill does a thing, the
+   hips are low and behind the chest, the upper body hinges forward over the
+   leading foot, and the arms hang. All four are now paid for as constants —
+   `crouch`, `hipsBack`, `chestFwd` and a pair of hand targets a hand's width
+   from straight down — and every reaction in the file moves *away* from that
+   pose instead of away from a mannequin. A tuck is the same rider standing
+   lower; a landing is the same rider folding; only a grab and a fall take the
+   stance away entirely, because both of them are somewhere it has no opinion.
+
+   The same argument fixed the three moments the spring could not draw. A
+   landing, a pop and a flight are events, and the spring's own travel is a
+   terrible witness to all three: measured, a twelve-metre-a-second touchdown
+   bought eight centimetres of hip and gave it straight back, and airborne the
+   spring *stretches*, which straightened the legs of a rider who was in the
+   air with his feet strapped to a board. They are drawn from the rate the
+   spring moved at rather than from where it ended up — `thump`, `pop` and
+   `air`, each on its own decay — and the knees now fold on a landing, extend
+   on an ollie, and come up under him for the whole of a flight.
+
+   **The stance is fixed, and a turn is not a swivel.** He rides regular —
+   one foot permanently over the nose, hips and shoulders lined up along the
+   board — and the only thing that ever changes that is landing switch, which
+   the physics reports and which mirrors the stance rather than substituting a
+   different rider. A turn is steered from the back foot: the rear knee drives
+   in and forward, the rear hip rotates under him, the shoulders counter
+   against it, and the lead leg stays comparatively still. That contrast is
+   the whole read. It is driven from `rider.edge`, weighted by `carveLoad`,
+   because the board only lies over as far as the snow is holding it up — the
+   raw edge angle at walking pace is sixty-six degrees, which is a man
+   standing a board on its side in a car park, not a carve.
+
+   **Left and right are meaningless on a board**, so nothing here is called
+   left or right: a limb is `lead` if it is over the nose and `rear` if it is
+   over the tail. Riding switch does not rename them — the boots have not
+   moved — it flips which of them is at the *back of the travel*, and that is
+   the one that steers. Every pose that has a front and a back is therefore
+   written in the travel frame and multiplied into board space by `sw`, which
+   is +1 riding forward, −1 riding switch, and passes smoothly through zero
+   in the fifth of a second after a switch landing.
+
+   THE HEADING WAS MIRRORED, and this is the one thing in the file that was
+   not a matter of taste. The physics yaw is a compass angle: heading is
+   (sin y, 0, −cos y), which is `R_y(−yaw)` applied to the nose. This file
+   applied `R_y(+yaw)`, so the board pointed at the *reflection* of the
+   direction of travel across the course axis. Straight down the fall line
+   the error is nothing, which is why it survived; measured in a real carve
+   the board was ninety degrees off its own velocity, and at the end of a hard
+   turn it was pointing backwards while the rider kept moving. Everything
+   downstream of that — the shoulders' counter-rotation, the hip shift, the
+   head tilt, the lean itself — was authored against the mirror and so is
+   sign-flipped here too. The rider now leans into the turn he is actually
+   making, and the spray comes off the edge he is actually on.
+
+   The orientation is composed rather than eulered: the board is stood up on
+   the surface normal first, then turned, then flipped, then rolled. In that
+   order a flip is always about the board's own lateral axis and a carve
+   always about its length, whatever the hill underneath is doing. The roll
+   applied there is the *body's* inclination; the board's own edge angle is
+   applied to the board on top of it, about the edge that is buried rather
+   than about the centreline, so that laying it over lifts the deck off the
+   snow instead of burying half of it. The difference between those two
+   angles is angulation, and it is now measured rather than guessed at.
 
    Everything is smoothed with an exponential approach against dt. There is
    not one fixed per-frame lerp constant in the file, because a pose that
@@ -69,13 +134,14 @@ const SKIN = '#c98f6a';
 const DENIM = '#1f2a4d';
 
 const RISE_TIME = RIDER.riseTime;
+const TAU = Math.PI * 2;
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const approach = (v, target, rate, dt) => v + (target - v) * (1 - Math.exp(-rate * dt));
 
 /* --------------------------------------------------------------------------
    The skeleton, in metres, in board space: +X is the toe edge and the way the
-   chest faces, -Z is the nose, y = 0 is the snow under the base.
+   chest faces, -Z is the nose, y = 0 is the snow under the buried edge.
 
    These are not free numbers. The boots put the ankles at a third of a metre
    off the snow before the legs even start, so a rider standing "tall" on a
@@ -96,6 +162,9 @@ const NECK_Y = 0.44;
 const UPPER = 0.29;
 const FORE = 0.29;       // shoulder to hand centre is therefore 0.58
 
+const DECK_TOP = 0.076;  // where the bindings bolt on, over the waist
+const HALF_WIDTH = 0.155;   // the widest the board gets, at the contact points
+
 /* The leg spring is never at zero. Standing still on a slope it is already
    carrying a g, which is a third of a metre of squat, so `compression` is
    measured from here rather than from nought — read raw, HIP_Y would be the
@@ -107,22 +176,105 @@ const REST_SQUAT = RIDER.compressPerG * RIDER.gravity / 9.81;
 /* The pose book. Amplitudes rather than animations: every one of these is a
    number some rider state is multiplied by. */
 const POSE = {
-  stance: 0.34,       // radians the chest is opened towards the nose
+  stance: 0.34,       // radians the chest is opened towards the travelling nose
   look: 1.04,         // and how much further the head turns, to the fall line
-  counter: 0.85,      // share of a carve's roll that comes back as waist twist
+  counter: 0.62,      // radians the shoulders wind back against a full steer
   spinTrail: 0.55,    // radians the shoulders trail a full-rate spin
   armTrail: 0.6,      // and radians the hands trail it, further still
-  angulate: 0.3,      // how much more upright than the board the hips stay
-  hipPerSquat: 1.15,  // metres of hip travel per metre of leg-spring travel
+  angulate: 0.34,     // share of the body's lean the torso stands back up
+  // Metres of hip travel per metre of leg-spring travel. It came down from
+  // 1.15 when the stance below arrived: the two of them stack, and a full-grip
+  // carve at the old ratio folded the knee a hundred and thirty degrees, which
+  // is not a carve, it is a man sitting down on a moving board.
+  hipPerSquat: 0.95,
   hipPerStretch: 0.42,
   hipFold: 0.24,      // closest the hips are ever allowed to get to the boots
   hipShift: 0.11,     // and how far they move across the board into a carve
+
+  /* The stance, which is the pose everything else is a deviation from and
+     the one that was wrong.
+
+     Riding a straight line, the leg spring is carrying exactly one g and so
+     it has nothing to say; the hips therefore sat at their nominal height,
+     which put fifty degrees of bend in the knee, and fifty degrees of knee on
+     a figure this size is a man standing up. Photograph any snowboarder
+     holding a line and the knee is nearer ninety: the hips are low, they are
+     *behind* the chest, and the shoulders are a little ahead of the board.
+     None of that is a reaction to anything the mountain is doing, which is
+     why none of it was here — it is simply how somebody stands on a board,
+     and it has to be paid for as a constant.
+
+     `crouch` is the whole of the height difference. `chestFwd` hinges the
+     upper body over the leading foot and `hipsBack` moves the pelvis the
+     other way to pay for it, so the centre of mass stays over the board
+     rather than the rider being tipped forward off it — a hinge, not a lean.
+     `chestSide` is the smaller half of the same idea across the board, and
+     it is what turns a square chest into a rider looking where he is going.
+
+     The arms follow from the same photograph. They were held out along the
+     board with barely a third of a metre of drop on a 0.58 m arm, which is
+     a man holding his arms out; now they hang, with the leading one reaching
+     a little towards the nose and the trailing one nearly straight down. */
+  crouch: 0.115,      // metres the hips ride below standing, always, on snow
+  chestFwd: 0.15,     // radians the upper body hinges over the leading foot
+  chestSide: 0.08,    // and towards the toe edge, which is where he is looking
+  hipsBack: 0.045,    // metres the pelvis sits back to pay for the hinge
+
+  /* Steering, which is the whole point of the rig.
+
+     `hipSteer` is the pelvis: the back foot pushes the tail out and the hip
+     over it goes with it. `counter` above then winds the shoulders the other
+     way, and because the torso hangs off the pelvis the two are subtracted
+     rather than added — the shoulders end up on the far side of a pelvis that
+     has already turned, which is what counter-rotation actually is.
+
+     `kneeIn` and `kneeFwd` steer the knee, through the IK pole rather than
+     through an angle: the rear knee drives across towards the toe edge and
+     forwards over the nose on a toeside turn, and pulls back and away on a
+     heelside one. `quiet` is how much of all of this the *lead* leg is
+     allowed — not zero, because a frozen leg reads as a broken rig, but
+     little enough that the eye reads one leg working and one leg riding. */
+  hipSteer: 0.34,
+  kneeIn: 0.55,
+  kneeFwd: 1.05,
+  hipDrive: 0.075,    // metres the driving hip socket retreats from the knee
+  hipSink: 0.05,      // and rises onto the toes, or sits back onto the heels
+  weightBack: 0.09,   // metres the steering hip loads back over its own foot
+  quiet: 0.2,
+  edgeShow: 0.9,      // the most the board is ever laid over, in radians
+
   // A board tuck is knees, not spine — so the hips drop further than they did
   // and the chest folds a lot less. The two together are the same silhouette
   // height and a completely different rider.
-  tuckDrop: 0.24,
+  tuckDrop: 0.22,
   fallDrop: 0.30,
   chatter: 0.007,     // metres of buzz through the legs at speed
+
+  /* The three events, which the leg spring on its own cannot draw.
+
+     A landing is the loudest thing that happens to this rider and the spring
+     barely moves for it: at 0.75 of critical damping and a rest length the
+     compression is being pulled back to, a twelve-metre-a-second touchdown
+     bought eight centimetres of hip and gave it back inside a fifth of a
+     second. Eight centimetres is not a landing; measured off the screen the
+     legs went from forty-nine degrees of bend to fifty-six, which is nothing
+     anyone can see. So the collapse is drawn from `thump` — the *rate* the
+     spring came down at, which is an event with its own decay — rather than
+     from where the spring ended up, and the same argument in reverse gives
+     the pop its extension.
+
+     `airTuck` is the third, and it is the one that had the sign wrong.
+     Airborne, the physics stretches the spring to −0.12, which through
+     `hipPerStretch` *raised* the hips and left him hanging off the board with
+     twenty degrees of knee in him — legs straight, in the air, which is the
+     one place no snowboarder ever has them. The feet are strapped on, so
+     pulling the knees up and dropping the hips towards the deck are the same
+     movement seen from two ends, and the hips are the end this rig can move
+     without lying to the shadow about where the board is. */
+  thumpDrop: 0.26,    // metres a landing folds him, on the thump's own clock
+  popRise: 0.09,      // and how far the pop stands him up out of the stance
+  airTuck: 0.29,      // metres the knees come up once he is off the snow
+  chargeBack: 0.05,   // metres the weight sits back over the tail to coil
 
   /* The grab, which is the one pose that has to hit a mark rather than look
      roughly right, and so is the one pose whose numbers were solved instead
@@ -144,93 +296,394 @@ const POSE = {
 };
 
 /* ==========================================================================
+   The shape kit
+
+   Everything below is lofted from tables. That is a change of method, and it
+   is the shadows that forced it: a flat-shaded box is a perfectly good torso
+   until the sun puts its silhouette on the snow beside it, and then it is
+   obviously a box. A loft costs nothing at runtime — it is baked once into a
+   composed buffer like everything else — and it buys the two things the
+   shadow gives away, which are a rounded shoulder and an outline that is not
+   a rectangle.
+
+   This is still the same visual language. Six to ten points around a ring is
+   not organic modelling; it is the number of facets it takes to say "arm"
+   instead of "post", and every one of them is flat.
+   ========================================================================== */
+
+/* A ring, as a superellipse: `round` = 1 is an ellipse, and below that it
+   creeps towards a rectangle with bevelled corners. One knob covers a
+   snowboard's cross-section (0.4, nearly a rectangle), a jacket (0.6), a
+   sleeve (0.85) and a helmet (1). */
+const oval = (n, rx, ry, round = 1) => {
+  const pts = [];
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * TAU;
+    const c = Math.cos(a);
+    const s = Math.sin(a);
+    pts.push([
+      rx * Math.sign(c) * Math.abs(c) ** round,
+      ry * Math.sign(s) * Math.abs(s) ** round,
+    ]);
+  }
+  return pts;
+};
+
+const ringXZ = (pts, y, cx = 0, cz = 0) => pts.map(([x, z]) => [cx + x, y, cz + z]);
+const ringXY = (pts, z, cx = 0, cy = 0) => pts.map(([x, y]) => [cx + x, cy + y, z]);
+
+/* Join a stack of rings into a solid.
+
+   The one interesting line is the winding test. Getting a triangle's winding
+   wrong on a single-sided material does not produce a wrong-looking face, it
+   produces *no* face — and a hole in a lofted limb is a bug you find by
+   flying the camera through the rider. So rather than reasoning about which
+   way round each ring runs, every triangle is emitted with its normal checked
+   against a point known to be inside the solid, and flipped if it is facing
+   the wrong way. It costs three dot products at build time and it makes the
+   ring tables free to be written in whatever order reads best. */
+function loft(THREE, rings, capStart = true, capEnd = true) {
+  const out = [];
+  const mid = (r) => {
+    const c = [0, 0, 0];
+    for (const p of r) { c[0] += p[0]; c[1] += p[1]; c[2] += p[2]; }
+    return [c[0] / r.length, c[1] / r.length, c[2] / r.length];
+  };
+  const cs = rings.map(mid);
+
+  const face = (a, b, c, inside) => {
+    const ux = b[0] - a[0]; const uy = b[1] - a[1]; const uz = b[2] - a[2];
+    const vx = c[0] - a[0]; const vy = c[1] - a[1]; const vz = c[2] - a[2];
+    const nx = uy * vz - uz * vy;
+    const ny = uz * vx - ux * vz;
+    const nz = ux * vy - uy * vx;
+    const ox = (a[0] + b[0] + c[0]) / 3 - inside[0];
+    const oy = (a[1] + b[1] + c[1]) / 3 - inside[1];
+    const oz = (a[2] + b[2] + c[2]) / 3 - inside[2];
+    if (nx * ox + ny * oy + nz * oz < 0) out.push(...a, ...c, ...b);
+    else out.push(...a, ...b, ...c);
+  };
+
+  for (let i = 0; i + 1 < rings.length; i++) {
+    const A = rings[i];
+    const B = rings[i + 1];
+    const inside = [
+      (cs[i][0] + cs[i + 1][0]) / 2,
+      (cs[i][1] + cs[i + 1][1]) / 2,
+      (cs[i][2] + cs[i + 1][2]) / 2,
+    ];
+    for (let j = 0; j < A.length; j++) {
+      const k = (j + 1) % A.length;
+      face(A[j], A[k], B[k], inside);
+      face(A[j], B[k], B[j], inside);
+    }
+  }
+  const cap = (r, inside, c) => {
+    for (let j = 0; j < r.length; j++) face(c, r[j], r[(j + 1) % r.length], inside);
+  };
+  const n = rings.length;
+  if (capStart && n > 1) cap(rings[0], cs[1], cs[0]);
+  if (capEnd && n > 1) cap(rings[n - 1], cs[n - 2], cs[n - 1]);
+
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(out), 3));
+  g.computeVertexNormals();
+  return g;
+}
+
+// A stack of rings up the Y axis: limbs, torso, boots, helmet.
+const tube = (THREE, list) => loft(THREE, list.map((s) => ringXZ(
+  oval(s.n || 8, s.rx, s.rz === undefined ? s.rx : s.rz, s.round),
+  s.y, s.x || 0, s.z || 0,
+)));
+
+/* A band bent round the Y axis — the goggle lens and its strap, which are the
+   two things on the rider that have to follow a curve rather than sit on a
+   flat face. A flat box visor was readable and looked like a stamp. */
+const arc = (THREE, o) => {
+  const rings = [];
+  for (let i = 0; i <= o.steps; i++) {
+    const a = o.a0 + (o.a1 - o.a0) * (i / o.steps);
+    const cx = Math.cos(a);
+    const cz = Math.sin(a);
+    const pts = oval(o.n || 6, o.depth, o.height, o.round === undefined ? 0.6 : o.round);
+    rings.push(pts.map(([u, v]) => [
+      cx * (o.r + u), o.y + v, cz * (o.r + u),
+    ]));
+  }
+  return loft(THREE, rings);
+};
+
+/* ==========================================================================
    Geometry — one composed buffer per rigid segment
    ========================================================================== */
 
-/* Boots are part of the board, not part of the leg. They never move relative
-   to the bindings, so welding them into the board's buffer is free, and it
-   is also the truth: on a snowboard the foot is not a joint. */
-const binding = (box, z, yaw) => [
-  { geo: box, color: INK, pos: [0, 0.105, z], rot: [0, yaw, 0], scale: [0.30, 0.045, 0.22] },
-  { geo: box, color: INK, pos: [0.01, 0.23, z], rot: [0, yaw, 0], scale: [0.28, 0.22, 0.18] },
-  { geo: box, color: INK, pos: [-0.11, 0.30, z], rot: [0, yaw, 0], scale: [0.06, 0.22, 0.17] },
-  { geo: box, color: YELLOW, pos: [0.02, 0.26, z], rot: [0, yaw, 0], scale: [0.30, 0.045, 0.19] },
-  { geo: box, color: INK, pos: [0.10, 0.145, z], rot: [0, yaw, 0], scale: [0.14, 0.09, 0.17] },
+/* The board, as eleven stations from nose to tail.
+
+   Four numbers each: where along the board, how wide, how high the deck sits
+   and how thick it is there. Everything a board looks like is in this table —
+   the taper into the tips, the sidecut pulling the waist in between the feet,
+   eight millimetres of camber under the middle, and the rocker lifting both
+   ends clear of the snow. The old board was three tilted boxes and read as a
+   plank with the corners cut off; the shadow of it read as three tilted
+   boxes, which is what forced the issue. */
+const DECK = [
+  { z: -0.800, rx: 0.048, y: 0.150, ry: 0.010 },
+  { z: -0.715, rx: 0.100, y: 0.119, ry: 0.014 },
+  { z: -0.605, rx: 0.140, y: 0.087, ry: 0.018 },
+  { z: -0.470, rx: 0.155, y: 0.062, ry: 0.021 },
+  { z: -0.250, rx: 0.142, y: 0.052, ry: 0.023 },
+  { z: 0.000, rx: 0.131, y: 0.059, ry: 0.024 },
+  { z: 0.250, rx: 0.142, y: 0.052, ry: 0.023 },
+  { z: 0.450, rx: 0.154, y: 0.062, ry: 0.021 },
+  { z: 0.600, rx: 0.138, y: 0.088, ry: 0.018 },
+  { z: 0.705, rx: 0.098, y: 0.120, ry: 0.014 },
+  { z: 0.780, rx: 0.046, y: 0.148, ry: 0.010 },
+];
+
+/* The boot, in its own frame: +X is the toes, the origin is under the ankle
+   and level with the deck. Six stations, because a boot is a cone with a
+   heel: it is wide and long at the sole, narrows through the instep, and
+   finishes as a round cuff leaning back over the highback. */
+const BOOT = [
+  { y: 0.005, x: 0.042, rx: 0.150, rz: 0.098, round: 0.45 },
+  { y: 0.050, x: 0.044, rx: 0.152, rz: 0.100, round: 0.5 },
+  { y: 0.110, x: 0.030, rx: 0.140, rz: 0.098, round: 0.55 },
+  { y: 0.175, x: 0.008, rx: 0.115, rz: 0.094, round: 0.7 },
+  { y: 0.240, x: 0.000, rx: 0.100, rz: 0.090, round: 0.85 },
+  { y: 0.272, x: 0.000, rx: 0.094, rz: 0.086, round: 0.9 },
 ];
 
 function buildGeometries(THREE) {
   const box = new THREE.BoxGeometry(1, 1, 1);
-  const cyl = new THREE.CylinderGeometry(0.5, 0.5, 1, 7);
-  const ball = new THREE.SphereGeometry(0.5, 7, 5);
+  const scrap = [];
+  const use = (g) => { scrap.push(g); return g; };
 
-  // Longer than it is wide by four to one, nose and tail lifted: at any
-  // resolution the rocker is most of what says "snowboard". The feet are
-  // angled forward off the perpendicular, more at the front than the back,
-  // because a duck-square stance is the one thing no snowboarder rides.
+  const deckRings = (i0, i1, ws, ts, dy) => DECK.slice(i0, i1).map((s) => ringXY(
+    oval(8, s.rx * ws, s.ry * ts, 0.4), s.z, 0, s.y + dy,
+  ));
+  // A sticker: a thin slab following the deck's own curve, on the top or the
+  // bottom face. It is how the board gets more than one colour without the
+  // deck becoming four separate solids that have to agree along a seam.
+  const sticker = (i0, i1, half, side, thick) => DECK.slice(i0, i1).map((s) => ringXY(
+    oval(6, half, thick, 0.35), s.z, 0, s.y + side * (s.ry + thick * 0.6),
+  ));
+  const rail = (i0, i1, sign) => DECK.slice(i0, i1).map((s) => ringXY(
+    oval(6, 0.011, 0.013, 0.35), s.z, sign * (s.rx - 0.006), s.y - s.ry + 0.008,
+  ));
+
+  /* One binding: the baseplate it bolts through, the boot, the highback
+     standing up behind the calf, and two straps. Boots are part of the board,
+     not part of the leg — they never move relative to the bindings, so
+     welding them into the board's buffer is free, and it is also the truth:
+     on a snowboard the foot is not a joint. */
+  const bootShell = use(tube(THREE, BOOT));
+  const bootSole = use(tube(THREE, [
+    { y: 0.000, x: 0.040, rx: 0.156, rz: 0.104, round: 0.35 },
+    { y: 0.022, x: 0.042, rx: 0.152, rz: 0.101, round: 0.4 },
+  ]));
+  const highback = use(tube(THREE, [
+    { y: 0.020, x: -0.108, rx: 0.026, rz: 0.088, round: 0.8, n: 6 },
+    { y: 0.120, x: -0.104, rx: 0.024, rz: 0.086, round: 0.8, n: 6 },
+    { y: 0.230, x: -0.092, rx: 0.022, rz: 0.080, round: 0.85, n: 6 },
+    { y: 0.320, x: -0.074, rx: 0.020, rz: 0.068, round: 0.9, n: 6 },
+  ]));
+  const plate = use(tube(THREE, [
+    { y: -0.004, rx: 0.150, rz: 0.112, round: 0.45 },
+    { y: 0.028, x: 0.010, rx: 0.146, rz: 0.108, round: 0.5 },
+  ]));
+
+  const binding = (z, yaw) => [
+    { geo: plate, color: INK, pos: [0, DECK_TOP - 0.01, z], rot: [0, yaw, 0] },
+    { geo: bootSole, color: INK, pos: [FOOT_X, DECK_TOP + 0.012, z], rot: [0, yaw, 0] },
+    { geo: bootShell, color: INK, pos: [FOOT_X, DECK_TOP + 0.02, z], rot: [0, yaw, 0] },
+    { geo: highback, color: INK, pos: [FOOT_X, DECK_TOP + 0.02, z], rot: [0, yaw, 0] },
+    // the two straps, which are the only part of a binding anybody ever
+    // notices, and the only reason a boot reads as strapped down at all
+    {
+      geo: box, color: YELLOW, pos: [FOOT_X + 0.008, DECK_TOP + 0.20, z],
+      rot: [0, yaw, 0.12], scale: [0.10, 0.052, 0.205],
+    },
+    {
+      geo: box, color: YELLOW, pos: [FOOT_X + 0.105, DECK_TOP + 0.075, z],
+      rot: [0, yaw, -0.35], scale: [0.075, 0.042, 0.195],
+    },
+    {
+      geo: box, color: MINT, pos: [FOOT_X - 0.062, DECK_TOP + 0.30, z],
+      rot: [0, yaw, 0], scale: [0.028, 0.05, 0.115],
+    },
+  ];
+
   const board = compose(THREE, [
-    { geo: box, color: YELLOW, pos: [0, 0.06, 0], scale: [0.31, 0.045, 1.15] },
-    // A broader, mint-capped nose and clipped dark tail make direction legible
-    // through spray, at night, and in the middle of a spin.
-    { geo: box, color: YELLOW, pos: [0, 0.10, -0.68], rot: [0.30, 0, 0], scale: [0.30, 0.045, 0.38] },
-    { geo: box, color: YELLOW, pos: [0, 0.10, 0.67], rot: [-0.30, 0, 0], scale: [0.255, 0.045, 0.31] },
-    { geo: box, color: MINT, pos: [0, 0.145, -0.79], rot: [0.30, 0, 0], scale: [0.225, 0.025, 0.16] },
-    { geo: box, color: INK, pos: [0, 0.135, 0.78], rot: [-0.30, 0, 0], scale: [0.24, 0.026, 0.09] },
-    // steel edges, which also stop the deck reading as a slab of butter
-    { geo: box, color: INK, pos: [-0.152, 0.058, 0], scale: [0.016, 0.05, 1.12] },
-    { geo: box, color: INK, pos: [0.152, 0.058, 0], scale: [0.016, 0.05, 1.12] },
-    // and the stripe down the base, so a spin still reads from behind
-    { geo: box, color: MINT, pos: [0, 0.032, 0], scale: [0.09, 0.04, 1.0] },
-    ...binding(box, -FOOT_Z, 0.28),
-    ...binding(box, FOOT_Z, 0.10),
+    { geo: use(loft(THREE, deckRings(0, 11, 1, 1, 0))), color: YELLOW },
+    // a broader mint nose cap and a clipped dark tail: direction has to be
+    // legible through spray, at night, and in the middle of a spin
+    { geo: use(loft(THREE, deckRings(0, 3, 1.05, 1.18, 0))), color: MINT },
+    { geo: use(loft(THREE, deckRings(8, 11, 1.05, 1.18, 0))), color: INK },
+    // the topsheet graphic, and the stripe down the base so a spin still
+    // reads from underneath
+    { geo: use(loft(THREE, sticker(1, 10, 0.058, 1, 0.005))), color: INK },
+    { geo: use(loft(THREE, sticker(2, 9, 0.044, -1, 0.004))), color: MINT },
+    // steel edges, which also stop the deck reading as a slab of butter, and
+    // which now follow the sidecut rather than being two straight sticks
+    { geo: use(loft(THREE, rail(1, 10, -1))), color: INK },
+    { geo: use(loft(THREE, rail(1, 10, 1))), color: INK },
+    // The feet are angled forward off the perpendicular, more at the front
+    // than the back, because a duck-square stance is the one thing no
+    // snowboarder rides.
+    ...binding(-FOOT_Z, 0.28),
+    ...binding(FOOT_Z, 0.10),
   ]);
 
-  // Wide across Z and shallow across X: the shoulder line runs nose to tail,
-  // which is the single most snowboard-shaped thing about him
+  /* The torso: wide across Z and shallow across X, because the shoulder line
+     runs nose to tail and that is the single most snowboard-shaped thing
+     about him. The jacket has a waist and a hem now — it pulls in above the
+     seat and flares back out at the chest — which is most of the difference
+     between a jacket and a crate. */
   const torso = compose(THREE, [
-    { geo: box, color: DENIM, pos: [0, -0.045, 0], scale: [0.28, 0.17, 0.34] },
-    { geo: box, color: SHELL, pos: [0, 0.20, 0], scale: [0.29, 0.42, 0.40] },
-    { geo: box, color: MINT, pos: [0, 0.07, 0], scale: [0.30, 0.075, 0.41] },
-    { geo: box, color: YELLOW, pos: [0.135, 0.22, 0], scale: [0.05, 0.30, 0.11] },
-    { geo: box, color: SHELL_DARK, pos: [0, 0.39, 0], scale: [0.30, 0.13, 0.46] },
-    { geo: ball, color: SHELL_DARK, pos: [0, 0.40, -SHOULDER_Z], scale: [0.17, 0.17, 0.17] },
-    { geo: ball, color: SHELL_DARK, pos: [0, 0.40, SHOULDER_Z], scale: [0.17, 0.17, 0.17] },
+    { geo: use(tube(THREE, [
+      { y: -0.155, rx: 0.112, rz: 0.146, round: 0.55 },
+      { y: -0.090, rx: 0.130, rz: 0.168, round: 0.55 },
+      { y: -0.020, rx: 0.132, rz: 0.172, round: 0.6 },
+    ])), color: DENIM },
+    { geo: use(tube(THREE, [
+      { y: -0.075, rx: 0.142, rz: 0.181, round: 0.6 },
+      { y: 0.020, rx: 0.134, rz: 0.175, round: 0.6 },
+      { y: 0.130, rx: 0.142, rz: 0.192, round: 0.62 },
+      { y: 0.250, rx: 0.150, rz: 0.209, round: 0.65 },
+      { y: 0.355, rx: 0.146, rz: 0.212, round: 0.7 },
+      { y: 0.425, rx: 0.126, rz: 0.186, round: 0.8 },
+    ])), color: SHELL },
+    // the powder skirt at the hem and the yoke across the shoulders, both a
+    // shade down, so the jacket has a top and a bottom in one glance
+    { geo: use(tube(THREE, [
+      { y: -0.095, rx: 0.146, rz: 0.186, round: 0.6 },
+      { y: -0.040, rx: 0.144, rz: 0.184, round: 0.6 },
+    ])), color: SHELL_DARK },
+    { geo: use(tube(THREE, [
+      { y: 0.330, rx: 0.150, rz: 0.216, round: 0.68 },
+      { y: 0.412, rx: 0.132, rz: 0.192, round: 0.78 },
+    ])), color: SHELL_DARK },
+    { geo: use(tube(THREE, [
+      { y: 0.055, rx: 0.140, rz: 0.181, round: 0.6 },
+      { y: 0.098, rx: 0.141, rz: 0.182, round: 0.6 },
+    ])), color: MINT },
+    // the collar, which is where the mint belongs and where it reads from
+    // behind at any distance
+    { geo: use(tube(THREE, [
+      { y: 0.420, rx: 0.112, rz: 0.150, round: 0.8 },
+      { y: 0.487, rx: 0.098, rz: 0.118, round: 0.9 },
+    ])), color: MINT },
+    // rounded shoulders, which is the whole reason any of this is lofted
+    { geo: use(tube(THREE, [
+      { y: 0.300, rx: 0.086, rz: 0.070, round: 1 },
+      { y: 0.370, rx: 0.098, rz: 0.086, round: 1 },
+      { y: 0.428, rx: 0.084, rz: 0.078, round: 1 },
+    ])), color: SHELL_DARK, pos: [0, 0, -SHOULDER_Z] },
+    { geo: use(tube(THREE, [
+      { y: 0.300, rx: 0.086, rz: 0.070, round: 1 },
+      { y: 0.370, rx: 0.098, rz: 0.086, round: 1 },
+      { y: 0.428, rx: 0.084, rz: 0.078, round: 1 },
+    ])), color: SHELL_DARK, pos: [0, 0, SHOULDER_Z] },
+    { geo: box, color: YELLOW, pos: [0.138, 0.20, 0], scale: [0.035, 0.30, 0.10] },
+    { geo: box, color: SHELL_DARK, pos: [0.132, 0.24, -0.075], scale: [0.03, 0.26, 0.045] },
   ]);
 
-  // The visor is on the head's +X face and the head is turned to the fall
-  // line, so the mint always points where he is looking
+  /* The head. The visor is a band bent round the front of the helmet and the
+     head is turned to the fall line, so the mint always points where he is
+     looking — still the only way to read which way he is facing. */
   const head = compose(THREE, [
-    { geo: cyl, color: DENIM, pos: [0, 0.02, 0], scale: [0.12, 0.10, 0.12] },
-    { geo: ball, color: SKIN, pos: [0, 0.13, 0], scale: [0.19, 0.21, 0.19] },
-    { geo: ball, color: INK, pos: [0, 0.16, 0], scale: [0.225, 0.215, 0.225] },
-    { geo: box, color: MINT, pos: [0.115, 0.13, 0], scale: [0.10, 0.085, 0.20] },
-    { geo: box, color: INK, pos: [0.05, 0.02, 0], scale: [0.12, 0.07, 0.16] },
+    { geo: use(tube(THREE, [
+      { y: -0.045, rx: 0.086, rz: 0.086, round: 0.9 },
+      { y: 0.040, rx: 0.080, rz: 0.080, round: 0.9 },
+    ])), color: INK },
+    { geo: use(tube(THREE, [
+      { y: 0.020, x: 0.010, rx: 0.082, rz: 0.080, round: 0.95 },
+      { y: 0.090, x: 0.014, rx: 0.092, rz: 0.088, round: 0.95 },
+      { y: 0.140, x: 0.008, rx: 0.090, rz: 0.088, round: 1 },
+    ])), color: SKIN },
+    { geo: use(tube(THREE, [
+      { y: 0.055, rx: 0.104, rz: 0.100, round: 0.95, n: 10 },
+      { y: 0.120, rx: 0.118, rz: 0.114, round: 1, n: 10 },
+      { y: 0.180, rx: 0.121, rz: 0.117, round: 1, n: 10 },
+      { y: 0.235, rx: 0.110, rz: 0.106, round: 1, n: 10 },
+      { y: 0.275, rx: 0.082, rz: 0.079, round: 1, n: 10 },
+      { y: 0.298, rx: 0.042, rz: 0.040, round: 1, n: 10 },
+    ])), color: INK },
+    { geo: use(arc(THREE, {
+      a0: -1.15, a1: 1.15, steps: 6, r: 0.106, y: 0.136,
+      depth: 0.028, height: 0.044, n: 6, round: 0.5,
+    })), color: MINT },
+    { geo: use(arc(THREE, {
+      a0: 1.05, a1: 5.25, steps: 7, r: 0.120, y: 0.140,
+      depth: 0.014, height: 0.026, n: 6, round: 0.5,
+    })), color: SHELL_DARK },
   ]);
 
-  // Every limb segment hangs down its own -Y from its joint, which is the
-  // only convention the IK needs to know about
+  /* Every limb segment hangs down its own -Y from its joint, which is the
+     only convention the IK needs to know about. The sleeves and legs taper,
+     which is what stops a limb reading as a length of pipe once it throws a
+     shadow of its own. */
   const upperArm = compose(THREE, [
-    { geo: ball, color: SHELL_DARK, pos: [0, 0, 0], scale: [0.16, 0.16, 0.16] },
-    { geo: cyl, color: SHELL, pos: [0, -0.15, 0], scale: [0.145, 0.30, 0.145] },
+    { geo: use(tube(THREE, [
+      { y: 0.055, rx: 0.078, rz: 0.074, round: 0.95, n: 7 },
+      { y: -0.060, rx: 0.082, rz: 0.078, round: 0.9, n: 7 },
+      { y: -0.180, rx: 0.070, rz: 0.068, round: 0.9, n: 7 },
+      { y: -0.290, rx: 0.062, rz: 0.060, round: 0.9, n: 7 },
+    ])), color: SHELL },
+    { geo: use(tube(THREE, [
+      { y: 0.070, rx: 0.080, rz: 0.076, round: 1, n: 7 },
+      { y: -0.020, rx: 0.086, rz: 0.082, round: 0.95, n: 7 },
+    ])), color: SHELL_DARK },
   ]);
   const foreArm = compose(THREE, [
-    { geo: ball, color: SHELL, pos: [0, 0, 0], scale: [0.14, 0.14, 0.14] },
-    { geo: cyl, color: SHELL, pos: [0, -0.13, 0], scale: [0.125, 0.27, 0.125] },
-    { geo: box, color: YELLOW, pos: [0, -0.225, 0], scale: [0.14, 0.06, 0.14] },
-    { geo: ball, color: SKIN, pos: [0, -FORE, 0], scale: [0.14, 0.13, 0.12] },
+    { geo: use(tube(THREE, [
+      { y: 0.030, rx: 0.066, rz: 0.064, round: 0.95, n: 7 },
+      { y: -0.090, rx: 0.060, rz: 0.058, round: 0.9, n: 7 },
+      { y: -0.185, rx: 0.054, rz: 0.052, round: 0.9, n: 7 },
+    ])), color: SHELL },
+    { geo: use(tube(THREE, [
+      { y: -0.175, rx: 0.062, rz: 0.060, round: 0.9, n: 7 },
+      { y: -0.215, rx: 0.060, rz: 0.058, round: 0.9, n: 7 },
+    ])), color: YELLOW },
+    // the glove: a mitt with a thumb, which at this size is one extra bump
+    // and the entire difference between a hand and a peg
+    { geo: use(tube(THREE, [
+      { y: -0.210, rx: 0.056, rz: 0.054, round: 0.9, n: 7 },
+      { y: -0.265, x: 0.008, rx: 0.062, rz: 0.058, round: 0.85, n: 7 },
+      { y: -0.320, x: 0.010, rx: 0.058, rz: 0.052, round: 0.85, n: 7 },
+      { y: -0.352, x: 0.006, rx: 0.040, rz: 0.038, round: 0.95, n: 7 },
+    ])), color: INK },
+    { geo: use(tube(THREE, [
+      { y: -0.250, rx: 0.026, rz: 0.024, round: 0.9, n: 6 },
+      { y: -0.290, rx: 0.022, rz: 0.020, round: 0.9, n: 6 },
+    ])), color: INK, pos: [0.05, 0, -0.02], rot: [0, 0, -0.5] },
   ]);
   const thigh = compose(THREE, [
-    { geo: ball, color: DENIM, pos: [0, 0, 0], scale: [0.23, 0.23, 0.23] },
-    { geo: cyl, color: DENIM, pos: [0, -0.21, 0], scale: [0.25, 0.44, 0.25] },
+    { geo: use(tube(THREE, [
+      { y: 0.070, rx: 0.108, rz: 0.104, round: 0.9 },
+      { y: -0.080, rx: 0.116, rz: 0.112, round: 0.75 },
+      { y: -0.260, rx: 0.100, rz: 0.098, round: 0.75 },
+      { y: -0.420, rx: 0.086, rz: 0.086, round: 0.85 },
+    ])), color: DENIM },
   ]);
   const shin = compose(THREE, [
-    { geo: ball, color: DENIM, pos: [0, 0, 0], scale: [0.21, 0.21, 0.21] },
-    { geo: cyl, color: DENIM, pos: [0, -0.19, 0], scale: [0.21, 0.40, 0.21] },
-    { geo: box, color: INK, pos: [0, -0.36, 0], scale: [0.20, 0.11, 0.20] },
+    { geo: use(tube(THREE, [
+      { y: 0.045, rx: 0.090, rz: 0.090, round: 0.85 },
+      { y: -0.120, rx: 0.084, rz: 0.082, round: 0.8 },
+      { y: -0.270, rx: 0.090, rz: 0.088, round: 0.75 },
+      { y: -0.340, rx: 0.101, rz: 0.099, round: 0.7 },
+    ])), color: DENIM },
+    // the trouser cuff falls over the boot, which is both what happens and
+    // the tidiest way to hide the one joint in the rig that cannot bend
+    { geo: use(tube(THREE, [
+      { y: -0.300, rx: 0.104, rz: 0.102, round: 0.7 },
+      { y: -0.372, rx: 0.106, rz: 0.104, round: 0.7 },
+    ])), color: INK },
   ]);
 
   box.dispose();
-  cyl.dispose();
-  ball.dispose();
+  for (const g of scrap) g.dispose();
   return { board, torso, head, upperArm, foreArm, thigh, shin };
 }
 
@@ -267,6 +720,7 @@ export function createRiderModel(THREE, shading) {
 
   const hips = new THREE.Group();
   hips.position.set(0, HIP_Y, 0);
+  hips.rotation.order = 'YZX';
   root.add(hips);
 
   /* Euler order matters exactly twice, and both times it is the difference
@@ -296,7 +750,7 @@ export function createRiderModel(THREE, shading) {
     fore.add(new THREE.Mesh(foreGeo, cloth));
     upper.add(fore);
     parent.add(upper);
-    return { upper, fore };
+    return { upper, fore, home: z };
   };
 
   const armLead = limb(torso, SHOULDER_Y, -SHOULDER_Z, geo.upperArm, geo.foreArm, UPPER);
@@ -379,19 +833,51 @@ export function createRiderModel(THREE, shading) {
   const AZ = new THREE.Vector3(0, 0, 1);
   const up = new THREE.Vector3();
 
+  // Two hand targets and two poles, written in the travel frame, plus the
+  // pair each of them is resolved into once `sw` has said which shoulder is
+  // leading. Nothing here allocates during a run.
   const hand = new THREE.Vector3();
   const other = new THREE.Vector3();
+  const tLead = new THREE.Vector3();
+  const tRear = new THREE.Vector3();
+  const pLead = new THREE.Vector3();
+  const pRear = new THREE.Vector3();
   const foot = new THREE.Vector3();
   const pole = new THREE.Vector3();
   const poleRear = new THREE.Vector3();
+  const socket = new THREE.Vector3();
+  const sockA = new THREE.Vector3();
+  const sockB = new THREE.Vector3();
+  const bootA = new THREE.Vector3();
+  const bootB = new THREE.Vector3();
   const mInv = new THREE.Matrix4();
+  const hipQ = new THREE.Quaternion();
+  const hipE = new THREE.Euler(0, 0, 0, 'YZX');
   const last = new THREE.Vector3();
+
+  /* The board's own frame, rebuilt every frame and then asked for points.
+
+     Three things happen to the board relative to the rider: it rolls further
+     onto its edge than his body does, it pitches nose-up as he pops, and it
+     comes up to meet his hand in a grab. Every one of those moves the boots,
+     and the boots are where the legs are solved to, so all three live in one
+     place and every consumer — both ankles and the grab target — goes through
+     the same function. Getting that transform written out three times and
+     wrong once is precisely how a foot ends up hovering four centimetres
+     above a binding. */
+  const bt = { roll: 0, pitch: 0, x: 0, y: 0 };
+  const _b = new THREE.Vector3();
+  const boardPoint = (v) => v
+    .applyAxisAngle(AZ, bt.roll)
+    .applyAxisAngle(AX, bt.pitch)
+    .add(_b.set(bt.x, bt.y, 0));
 
   // Everything the model remembers between frames. All of it is smoothed
   // against dt, none of it is read back by anyone else.
   const s = {
     clock: 0, down: 0, air: 0, grab: 0, tuck: 0, charge: 0,
     twist: 0, lean: 0, comp: 0, pop: 0, thump: 0, tumbleLag: 0, wash: 0,
+    edge: 0, load: 0, steer: 0, switched: 0,
   };
   let seen = false;
 
@@ -422,6 +908,19 @@ export function createRiderModel(THREE, shading) {
     s.charge = approach(s.charge, rider.charging ? 0.35 + 0.65 * rider.charge : 0, 13, sdt);
     s.wash = approach(s.wash, clamp((rider.lateral || 0) / 6, -1, 1), 6, sdt);
 
+    /* Which way round he is standing.
+
+       The physics flips `switchStance` in one frame, and so does the yaw it
+       hands us — the board is already going the other way. What cannot flip
+       in one frame is the rider: the boots have not moved, so this is not a
+       different stance, it is the same stance with the *other* end of the
+       board leading. `sw` carries that through everything with a front and a
+       back in it, and it eases rather than snapping, which reads as the head
+       and shoulders coming round to face the new direction of travel. */
+    s.switched = approach(s.switched, rider.switchStance ? 1 : 0, 7, sdt);
+    const sw = 1 - 2 * s.switched;
+    const front = 0.5 + 0.5 * sw;     // 1 with the nose leading, 0 riding switch
+
     // The grab pose is gated on being airborne as well as on the grab, so
     // the board is back on the snow within a tenth of a second of touchdown
     // whatever the hands are still doing
@@ -444,24 +943,67 @@ export function createRiderModel(THREE, shading) {
       s.tumbleLag = rider.tumble;
     }
 
+    /* --- the steering ---------------------------------------------------- */
+
+    /* How far the board is actually laid over, which is not `rider.edge`.
+
+       The physics lets the edge angle run to sixty-six degrees, and it is
+       right to: at walking pace nothing stops you standing a board on its
+       side. Drawn literally that is a rider lying on the snow while the HUD
+       says four km/h. What makes an edge angle *mean* something is the snow
+       pushing back on it, which is exactly what `carveLoad` is — so the shown
+       edge is the real one weighted by the load, and the board only lies over
+       when it has something to lie over against. */
+    s.load = approach(s.load, rider.carveLoad || 0, 9, sdt);
+    const edgeWant = clamp(
+      (rider.edge || 0) * (0.35 + 0.65 * s.load), -POSE.edgeShow, POSE.edgeShow,
+    ) * (1 - s.air * 0.7) * (1 - s.down);
+    s.edge = approach(s.edge, edgeWant, 12, sdt);
+
+    /* …and how hard the back foot is having to work for it.
+
+       A wash-out counts as steering, and counts double: when the edge lets go
+       the rider is no longer being carried round by the sidecut, he is
+       kicking the tail out with the back leg, which is the most visible
+       version of this whole action there is. */
+    const kick = clamp((rider.slide || 0) / 7, 0, 1) * Math.sign(s.edge || rider.edge || 0);
+    s.steer = approach(s.steer, clamp(
+      Math.sin(s.edge) * (0.35 + 0.65 * s.load) + kick * 0.4, -1.1, 1.1,
+    ), 9, sdt);
+    const steer = s.steer * (1 - s.down);
+
     /* Counter-rotation.
 
        The hips are bolted to the board by the bindings, so every degree of
-       this happens at the waist. On the snow the shoulders lead the carve —
-       they are what starts it, and the board follows them round. In the air
-       they do the opposite and trail the spin, which is what makes a 540
-       read as a body being wound rather than a model being rotated. */
-    const carve = -rider.roll * (0.5 + 0.5 * rider.carveLoad) * POSE.counter;
-    // …except while grabbing, when the whole body is locked around the board
-    // and the shoulders stop arguing with it. That is also what buys the last
-    // few centimetres of the reach below.
-    const trail = -clamp(rider.spinVel / RIDER.spinRate, -1, 1)
+       this happens at the waist. On the snow the shoulders wind *against* the
+       pelvis the back foot has just turned — that differential is the whole
+       reason a snowboarder's shoulders and hips are never in the same plane.
+       In the air they trail the spin instead, which is what makes a 540 read
+       as a body being wound rather than a model being rotated. */
+    const counter = POSE.counter * steer * sw * (0.45 + 0.55 * s.load);
+    // Positive, because the model's yaw runs against the physics' compass
+    // one: a spin the physics calls positive turns the *model* negative, so
+    // shoulders that lag it are shoulders wound the other way.
+    const trail = clamp(rider.spinVel / RIDER.spinRate, -1, 1)
       * POSE.spinTrail * (1 - grab * 0.65);
-    const idle = 1 - Math.max(grab, s.down, s.tuck * 0.7);
+    const idle = 1 - Math.max(grab, s.down, s.tuck * 0.7, Math.abs(steer) * 0.6);
+    /* How much of the riding stance is still in force.
+
+       Two poses put the body somewhere the stance has no opinion about — a
+       grab, which is a fold past the horizontal, and a fall, which is not a
+       stance at all — and the constants that describe how a man stands on a
+       board have to be taken away for both of them or they fight the pose
+       that has replaced them. Everything else in the file scales the stance
+       rather than cancelling it, which is the point: a tuck is a rider
+       standing lower, not a different rider. */
+    const upright = (1 - grab) * (1 - s.down);
     s.twist = approach(s.twist,
-      POSE.stance + carve * (1 - s.air) + trail * s.air
+      POSE.stance * sw + counter * (1 - s.air) + trail * s.air
       + Math.sin(s.clock * 0.53) * 0.06 * idle, 7, sdt);
-    s.lean = approach(s.lean, rider.roll, 8, sdt);
+    // The body's own inclination, positive towards the toe edge. The physics
+    // signs it the other way round because it is describing a turn direction
+    // rather than a body, and this is the one place that is reconciled.
+    s.lean = approach(s.lean, -rider.roll, 8, sdt);
     if (fallen <= 0) s.tumbleLag = rider.tumble;
 
     /* --- the whole rider, on the hill ------------------------------------ */
@@ -471,9 +1013,12 @@ export function createRiderModel(THREE, shading) {
     up.copy(rider.normal);
     if (!rider.grounded) up.lerp(UP, Math.min(1, rider.airTime * 2.5)).normalize();
     q.setFromUnitVectors(UP, up);
-    qy.setFromAxisAngle(UP, rider.yaw);
+    // Negative, and this is the fix rather than a convention: the physics
+    // heading is (sin yaw, 0, −cos yaw), which is this rotation and not its
+    // mirror. See the note at the top of the file.
+    qy.setFromAxisAngle(UP, -rider.yaw);
     qx.setFromAxisAngle(AX, rider.flip + rider.tumble * s.down);
-    qz.setFromAxisAngle(AZ, -rider.roll * (1 + 1.2 * s.down));
+    qz.setFromAxisAngle(AZ, -s.lean * (1 + 1.2 * s.down));
     q.multiply(qy).multiply(qx).multiply(qz);
 
     root.quaternion.copy(q);
@@ -491,28 +1036,130 @@ export function createRiderModel(THREE, shading) {
     // the feet are strapped on, so this is the only direction it can happen.
     const lift = POSE.grabLift * grab;
     const tweak = POSE.grabTweak * grab;
-    const noseUp = s.pop * 0.12;
-    board.position.y = lift;
-    board.rotation.z = tweak;    // toe edge rolled up to meet the hand
-    board.rotation.x = noseUp;   // and the nose lifts as he pops
+    bt.pitch = s.pop * 0.12 * sw;   // the nose lifts as he pops, whichever end it is
+    // The board is rolled further than the body: that difference *is*
+    // angulation, and it is now the two signals subtracted rather than a
+    // share of one of them guessed at.
+    bt.roll = s.lean - s.edge + tweak;
+
+    /* Roll it about the edge that is buried, not about its own centreline.
+
+       Pivoting on the centreline puts half the base under the snow at any
+       real edge angle — thirteen centimetres of it at sixty degrees — and
+       what that looks like is a board sinking into the hill rather than
+       carving across it. The buried edge is the contact patch, the physics
+       already puts the rider's position there, so the deck is offset by
+       whatever keeps that one line still. The offset is worked out in the
+       hill's frame and brought back into the root's, because the root is
+       already rolled by the body's own lean. */
+    const px = clamp(s.edge / 0.12, -1, 1) * HALF_WIDTH;
+    const py = 0.03;
+    const cw = Math.cos(-s.edge);
+    const sn = Math.sin(-s.edge);
+    const tx = px - (px * cw - py * sn);
+    const ty = py - (px * sn + py * cw);
+    const cl = Math.cos(s.lean);
+    const sl = Math.sin(s.lean);
+    bt.x = tx * cl - ty * sl;
+    bt.y = ty * cl + tx * sl + lift;
+
+    board.position.set(bt.x, bt.y, 0);
+    board.rotation.set(bt.pitch, 0, bt.roll);
+
+    // Where the boots have ended up, which is the only thing the legs are
+    // ever solved against
+    boardPoint(bootA.set(FOOT_X, ANKLE_Y, -FOOT_Z));
+    boardPoint(bootB.set(FOOT_X, ANKLE_Y, FOOT_Z));
 
     /* --- hips -------------------------------------------------------------- */
+
+    /* The pelvis turns with the back foot, and it turns *about the front one*.
+
+       This is the load-bearing half of "steer with the back foot", and the
+       pivot is the whole of it. Turned about its own centre — which is what
+       this did first — a pelvis moves both hips by the same amount in
+       opposite directions, and what comes out is a rider swivelling: both
+       knees travel the same distance and the eye reads a body rotating rather
+       than a foot steering. Measured, it was 79 mm of lead knee against 81 mm
+       of rear, which is nothing.
+
+       Pivoted on the leading hip socket instead, that hip stays exactly where
+       it was pointed — down the board, which is where a lead hip lives — and
+       the trailing one swings through twice the arc. With the socket loading
+       below it that comes out at 26 mm of lead knee against 66 mm of rear
+       through a loaded toeside carve, measured across the deck rather than
+       up it, because the vertical is the whole rider rising over a buried
+       edge and says nothing about which leg is working. The pivot swaps ends
+       with the stance, because the leading hip riding switch is the other
+       one. */
+    const pelvis = -POSE.hipSteer * steer * sw;
+    hips.rotation.set(0, pelvis - s.twist * 0.10, -s.wash * 0.06);
+    const pivotZ = -HIP_Z * sw;
+    const pivotX = -pivotZ * Math.sin(hips.rotation.y);
+    const pivotDz = pivotZ * (1 - Math.cos(hips.rotation.y));
+    hipE.set(hips.rotation.x, hips.rotation.y, hips.rotation.z, 'YZX');
+    hipQ.setFromEuler(hipE);
+
+    /* And the hip joint itself has play in it, which is where the rest of the
+       difference between the two legs comes from.
+
+       The weight going back over the steering foot used to be a shift of the
+       whole pelvis, and that was the bug behind the first version of this: a
+       pelvis that slides towards the tail bends *both* knees, so the lead leg
+       moved exactly as far as the rear one and the two of them scissored.
+       Loading the back foot is not a translation of the body, it is one femur
+       head rotating in its socket while the other does not — so it is applied
+       per socket, weighted by which leg is doing the steering, and the lead
+       one keeps a fifth of it so it still reads as attached to a person. */
+    const driveA = (1 - front) + front * POSE.quiet;   // the lead leg, over the nose
+    const driveB = front + (1 - front) * POSE.quiet;   // and the one over the tail
+    const socketZ = POSE.weightBack * Math.abs(steer) * sw;
+    sockA.set(
+      -POSE.hipDrive * steer * driveA,
+      POSE.hipSink * steer * driveA,
+      -HIP_Z + socketZ * driveA,
+    );
+    sockB.set(
+      -POSE.hipDrive * steer * driveB,
+      POSE.hipSink * steer * driveB,
+      HIP_Z + socketZ * driveB,
+    );
+    legLead.upper.position.copy(sockA);
+    legRear.upper.position.copy(sockB);
 
     // Weight across the board: into the turn, away from a wash, and never
     // quite still — the slow sway is the difference between a rider waiting
     // and a rider parked.
-    hips.position.x = s.lean * POSE.hipShift - s.wash * 0.05
+    hips.position.x = s.lean * POSE.hipShift - s.wash * 0.05 + pivotX
       + (Math.sin(s.clock * 0.9) + Math.sin(s.clock * 0.37 + 1.7)) * 0.014 * idle;
-    // Fore and aft: forward over the nose in a tuck, back over the tail when
-    // the edge is scrubbing
-    hips.position.z = -s.tuck * 0.06 + Math.abs(s.wash) * 0.05
+    /* Fore and aft. All of it is travel-relative, so it mirrors when he lands
+       switch instead of putting his weight on the wrong end of the board.
+
+       `hipsBack` is the constant one and the reason the rest of it reads: the
+       pelvis sits behind the chest by default, which is what makes the torso
+       hinge below a hinge rather than a topple. A tuck brings the weight
+       forward over the leading foot, a scrub throws it back over the tail,
+       and coiling an ollie sits it back over the foot that is about to do the
+       work. */
+    hips.position.z = (POSE.hipsBack * upright + POSE.chargeBack * s.charge
+      - s.tuck * 0.06 + Math.abs(s.wash) * 0.05) * sw + pivotDz
       + Math.sin(s.clock * 0.61 + 0.8) * 0.012 * idle;
 
     const load = rider.compression - REST_SQUAT;
     const squat = Math.max(0, load);
     const stretch = Math.max(0, -load);
-    let hipY = HIP_Y - squat * POSE.hipPerSquat + stretch * POSE.hipPerStretch
-      - s.tuck * POSE.tuckDrop - s.down * POSE.fallDrop;
+    let hipY = HIP_Y
+      // the stance itself, which is not a reaction to anything
+      - POSE.crouch * (1 - s.air * 0.4)
+      - squat * POSE.hipPerSquat + stretch * POSE.hipPerStretch
+      - s.tuck * POSE.tuckDrop - s.down * POSE.fallDrop
+      // the knees come up off the snow and the landing folds them; both are
+      // events with their own decay, and neither is anything the leg spring's
+      // own travel would ever have drawn
+      - POSE.airTuck * s.air + POSE.popRise * s.pop - POSE.thumpDrop * s.thump
+      // and up with the deck when it is laid over, because the boots went up
+      // with it and the leg between them has not changed length
+      + bt.y;
 
     /* The grab is the one pose where the hips are placed rather than sprung.
        How far the hips sit above the board decides two things at once — how
@@ -522,51 +1169,84 @@ export function createRiderModel(THREE, shading) {
        about eight centimetres of window between those two failures and this
        sits in the middle of it, which is why it is a position and not an
        offset from wherever the spring happened to leave him. */
-    hipY += (ANKLE_Y + lift + POSE.grabHip - hipY) * grab;
+    hipY += (bootA.y + POSE.grabHip - hipY) * grab;
 
     /* He can fold a long way, but not through his own boots, and he can
-       stand a long way up, but not out of his own bindings. Both ends are
-       clamped, and the top one is worked out from the skeleton and the
-       stance he is actually in rather than chosen: a chosen number stops
-       being true the moment a bone length or a weight shift changes, and
-       what it leaves behind is a shin hanging four centimetres above a boot,
-       which is the one artefact a rig like this can never get away with. */
-    const dx = hips.position.x - FOOT_X;
-    const dz = FOOT_Z - HIP_Z + Math.abs(hips.position.z);
-    const span = (THIGH + SHIN) * 0.985;
-    const reach = Math.sqrt(Math.max(0.04, span * span - dx * dx - dz * dz));
-    hipY = clamp(hipY, ANKLE_Y + lift + POSE.hipFold, ANKLE_Y + lift + reach);
+       stand a long way up, but not out of his own bindings.
 
-    // Buzz at speed: the board is chattering, and it arrives through the legs
+       The top of that range used to be worked out from a nominal socket at
+       the centre of the pelvis, which was true right up until the pelvis
+       started turning: a hip that has rotated four centimetres away from its
+       own boot has four centimetres less leg to reach with, and what that
+       leaves behind is a shin hanging above a binding. So it is solved per
+       leg now, from where that socket has actually ended up — the largest
+       height at which the ankle is still inside the leg's reach, which is
+       one square root and exact. */
+    // Buzz at speed: the board is chattering, and it arrives through the legs.
+    // It goes on before the clamp rather than after it, which is where it used
+    // to be — seven millimetres of sine on top of a hip already parked at the
+    // top of its reach is seven millimetres of boot the ankle cannot follow.
     hipY += Math.sin(s.clock * 47) * POSE.chatter
       * Math.min(1, rider.speed / 40) * (1 - s.air) * (1 - s.down);
+
+    const span = (THIGH + SHIN) * 0.985;
+    let ceiling = Infinity;
+    let floor = -Infinity;
+    for (let i = 0; i < 2; i++) {
+      const sk = i === 0 ? sockA : sockB;
+      const bo = i === 0 ? bootA : bootB;
+      socket.copy(sk).applyQuaternion(hipQ);
+      const dx = hips.position.x + socket.x - bo.x;
+      const dz = hips.position.z + socket.z - bo.z;
+      const room = Math.sqrt(Math.max(0.0016, span * span - dx * dx - dz * dz));
+      ceiling = Math.min(ceiling, bo.y - socket.y + room);
+      floor = Math.max(floor, bo.y - socket.y + POSE.hipFold);
+    }
+    hipY = clamp(hipY, Math.min(floor, ceiling), ceiling);
+
     hips.position.y = hipY;
-    // Angulation: the board goes on edge further than the body does, which is
-    // the posture that makes a carve look like a carve and not like a bus
-    hips.rotation.z = s.lean * POSE.angulate;
-    hips.rotation.y = -s.twist * 0.12;
     hips.updateMatrix();
 
     /* --- torso ------------------------------------------------------------- */
 
     const lag = clamp(rider.tumble - s.tumbleLag, -1.4, 1.4);
-    // Chest towards the nose in a tuck; curled over the coiled legs on a
-    // charge; thrown open by the pop; folded over the toe edge in a grab
-    /* The tuck does not bend him forward at all. It is entirely legs.
+    /* The chest is ahead of the hips, and that is the constant the pose was
+       missing rather than another reaction to be triggered.
 
-       It started at forty-nine degrees over the nose, which is a downhill
-       skier's egg — the wrong sport — and even a third of that still read as
-       the rider pitching over the board every time the key went down. A
-       board tuck is a rider who sinks, keeps his chest up and puts his arms
-       out; the speed comes from the legs folding and the frontal area going
-       with them. So the chest angle is now flat, `POSE.tuckDrop` does the
-       whole of the work, and the arms go wide. */
-    const pitch = -s.charge * 0.35 + s.pop * 0.20
-      - s.thump * 0.18 - grab * 0.25;
-    const fold = -POSE.grabFold * grab - s.down * 0.5 * (1 - grab);
-    // Going over, he curls up and the chest trails the tumble by however far
-    // the roll has outrun the smoothed copy of it
-    torso.rotation.set(pitch - s.down * (0.55 + lag * 0.4), s.twist, fold);
+       Everything the torso did used to be signed off an event — a charge, a
+       pop, a landing, a grab — so a rider holding a straight line stood
+       perfectly square and perfectly vertical, and a vertical spine over a
+       board is the single loudest tell that a figure is a mannequin. He now
+       hinges over the leading foot by default, with the pelvis moved back to
+       pay for it, and the chest carries a little of the same across the board
+       towards the toe edge, which is where his eyes already are.
+
+       The tuck is the one thing that takes it away rather than adding to it.
+       A tuck started life here at forty-nine degrees over the nose, which is
+       a downhill skier's egg and the wrong sport; the note that replaced it
+       said the chest stays level and the legs do all the work, and it is
+       still right, so the hinge is scaled out as the tuck comes on. What is
+       left is a rider who sinks and keeps his chest up. */
+    const hinge = POSE.chestFwd * upright * (1 - s.tuck * 0.85) * (1 - s.air * 0.35);
+    const pitch = (-hinge - s.charge * 0.35 + s.pop * 0.20
+      - s.thump * 0.34 - grab * 0.25) * sw;
+    // Angulation at the waist as well as at the knees: the shoulders stand
+    // back up out of the body's own inclination, which is what keeps a carve
+    // from reading as a man falling over sideways at a constant rate.
+    const fold = -POSE.grabFold * grab - s.down * 0.5 * (1 - grab)
+      + s.lean * POSE.angulate * (1 - grab)
+      - POSE.chestSide * upright * (1 - s.tuck * 0.7);
+    /* Going over, he curls up and the chest trails the tumble by however far
+       the roll has outrun the smoothed copy of it — and it flops sideways as
+       well, which is the half that was missing. A body trailing a rotation in
+       exactly one plane still reads as a rigid thing being turned; it is the
+       second axis, arriving on a different clock from the first, that makes
+       it read as a person who has stopped holding himself up. */
+    torso.rotation.set(
+      pitch - s.down * (0.55 + lag * 0.5) * sw,
+      s.twist - hips.rotation.y + s.down * Math.sin(s.clock * 3.4) * 0.30,
+      fold + s.down * (lag * 0.45 + Math.sin(s.clock * 4.6 + 1.2) * 0.22),
+    );
 
     /* Breathing.
 
@@ -577,12 +1257,14 @@ export function createRiderModel(THREE, shading) {
        down an easy pitch was perfectly, unnaturally still. The eye does not
        consciously see this; it notices its absence.
 
-       The rate is effort, not time: it climbs with speed and with whatever
-       the legs are carrying, so he is breathing harder at the bottom of a
-       fast pitch than at the top. The depth goes the other way, because
-       someone working hard breathes quickly and shallowly. And it fades out
-       under a grab or a tuck, where the chest is doing something else and a
-       breath on top of it reads as a wobble. */
+       It survived the rider getting a body: on a lofted jacket the same
+       amplitude reads better than it did on a box, because what swells is a
+       chest with a waist under it rather than a rectangle. The rate is
+       effort, not time — it climbs with speed and with whatever the legs are
+       carrying — the depth goes the other way, because someone working hard
+       breathes quickly and shallowly, and it fades out under a grab or a
+       tuck where the chest is doing something else and a breath on top of it
+       reads as a wobble. */
     const effort = clamp(rider.speed / 30 + (rider.gLoad - 1) * 0.5, 0, 1.6);
     const breath = Math.sin(s.clock * (1.05 + effort * 1.5)) * 0.5 + 0.5;
     const depth = (0.016 - effort * 0.005) * idle;
@@ -591,54 +1273,91 @@ export function createRiderModel(THREE, shading) {
 
     /* --- head -------------------------------------------------------------- */
 
-    // He looks down the fall line, so the yaw the shoulders have taken is
-    // subtracted back out of the neck; in the air he looks at the landing,
-    // and in a fall the neck goes as loose as the rest of him.
+    // He looks down the fall line — whichever end of the board is leading —
+    // so the yaw the shoulders have taken is subtracted back out of the neck;
+    // in the air he looks at the landing, on a landing he looks down at it,
+    // and in a fall the neck goes as loose as the rest of him and lolls on
+    // its own clock. The tilt is *against* the lean while he is riding: a
+    // head that rolls with the body reads as unconscious, which is exactly
+    // what it is once he is down.
     head.rotation.set(
-      // no tuck term: the chest no longer folds, so there is nothing for the
-      // neck to compensate for and lifting it just made him stargaze
-      -0.05 + s.air * 0.22 + s.thump * 0.25 - lag * 0.5 * s.down,
-      POSE.look - s.twist * 0.5 + Math.sin(s.clock * 0.41) * 0.05 * idle,
-      -s.lean * 0.18 + s.down * 0.4,
+      -0.05 + s.air * 0.22 + s.thump * 0.30
+        - s.down * (lag * 0.6 + Math.sin(s.clock * 5.2) * 0.25),
+      POSE.look * sw - s.twist * 0.55 + Math.sin(s.clock * 0.41) * 0.05 * idle
+        + s.down * Math.sin(s.clock * 3.9 + 2.1) * 0.35,
+      s.lean * 0.18 + s.down * (0.4 + Math.sin(s.clock * 4.4 + 0.7) * 0.25),
     );
 
     /* --- legs -------------------------------------------------------------- */
 
-    // The ankles are wherever the bindings are, in root space, and the hips
-    // are wherever the spring left them. Everything between is arithmetic:
-    // the board's own tilt is applied to the boot first, then the point is
-    // carried back into the hips' frame, and the knee is whatever is left.
-    //
-    // The pole leans further along the board the deeper the fold gets, which
-    // is both what a tucked grab looks like from the side and the only thing
-    // keeping a full crouch's knees out of the rider's own chest.
+    /* The ankles are wherever the bindings are, in root space, and the hips
+       are wherever the spring left them. Everything between is arithmetic:
+       the boot is carried back into the hips' frame, the socket it belongs to
+       is subtracted, and the knee is whatever is left.
+
+       The pole is where the steering shows. It leans further along the board
+       the deeper the fold gets — which is both what a tucked grab looks like
+       from the side and the only thing keeping a full crouch's knees out of
+       the rider's own chest — and on top of that the *steering* leg's knee is
+       driven across towards the toe edge and forward over the leading foot,
+       while the other one is allowed a fifth of the same. Two legs, one of
+       them working: that contrast is the read, and it is the whole of what
+       "he steers with his back foot" looks like from the outside. */
     mInv.copy(hips.matrix).invert();
 
-    foot.set(FOOT_X, ANKLE_Y, -FOOT_Z).applyAxisAngle(AZ, tweak).applyAxisAngle(AX, noseUp);
-    foot.y += lift;
-    foot.applyMatrix4(mInv);
-    foot.z += HIP_Z;
-    let deep = 1 - clamp(foot.length() / (THIGH + SHIN), 0, 1);
-    pole.set(1 - deep * 0.55, 0.1, -(0.3 + deep * 1.1));
-    solve(legLead, THIGH, SHIN, foot, pole);
+    /* …and going over, the two legs stop agreeing with each other.
 
-    foot.set(FOOT_X, ANKLE_Y, FOOT_Z).applyAxisAngle(AZ, tweak).applyAxisAngle(AX, noseUp);
-    foot.y += lift;
-    foot.applyMatrix4(mInv);
-    foot.z -= HIP_Z;
-    deep = 1 - clamp(foot.length() / (THIGH + SHIN), 0, 1);
-    poleRear.set(1 - deep * 0.55, 0.1, 0.3 + deep * 1.1);
-    solve(legRear, THIGH, SHIN, foot, poleRear);
+       A tumble was the one state where both knees held exactly the same angle
+       through the whole roll, and two legs locked in a matching crouch while
+       the body rotates at a constant rate is the definition of a mannequin
+       being spun. The knees are not animated here and cannot be, so the flail
+       is put through the pole: the plane each leg bends in wanders on its own
+       sine, at rates that share no common multiple, and what comes out is two
+       legs finding different angles at every moment of the fall. It costs a
+       sine each and it is the whole difference between a body and a prop. */
+    const solveLeg = (leg, boot, sk, drive, seed) => {
+      foot.copy(boot).applyMatrix4(mInv).sub(sk);
+      const deep = 1 - clamp(foot.length() / (THIGH + SHIN), 0, 1);
+      const loose = s.down * 0.9;
+      pole.set(
+        1 - deep * 0.55 + POSE.kneeIn * steer * drive
+          + Math.sin(s.clock * 4.7 + seed) * loose,
+        0.1 + Math.sin(s.clock * 3.1 + seed * 2.2) * loose * 0.8,
+        Math.sign(leg.home) * (0.3 + deep * 1.1) - POSE.kneeFwd * steer * drive * sw
+          + Math.sin(s.clock * 5.9 + seed * 1.7) * loose,
+      );
+      solve(leg, THIGH, SHIN, foot, pole);
+    };
+    solveLeg(legLead, bootA, sockA, driveA, 0);
+    solveLeg(legRear, bootB, sockB, driveB, 2.6);
 
     /* --- arms -------------------------------------------------------------- */
 
-    /* Riding: out and low, lead hand over the nose, rear hand over the tail.
-       This is the pose that was wrong before — arms held out sideways from a
-       torso facing down the hill, which is a T-pose with the corners knocked
-       off and reads as a mannequin bolted to a plank however good the rest of
-       it is. */
-    hand.set(0.13, -0.38, -0.35);
-    other.set(0.10, -0.44, 0.26);
+    /* Everything from here down is written in the *travel* frame, where -Z is
+       whichever end of the board is currently leading, and is mirrored into
+       board space at the very bottom. That is the only way a switch landing
+       stays one rider: the poses do not know which stance he is in, they know
+       front from back, and `sw` decides what that means this frame.
+
+       Riding: down. Not out.
+
+       This pose has now been wrong twice for opposite reasons. Before the rig
+       it was arms held out sideways from a torso facing down the hill, a
+       T-pose with the corners knocked off. The rig replaced that with hands
+       spread along the board — 0.35 m towards the nose and 0.26 towards the
+       tail against 0.38 of drop, on an arm 0.58 m long — which is a different
+       shape and the same mistake: seen from behind, which is where the camera
+       lives, spread along the board *is* spread sideways, and what it read as
+       was a man being electrocuted.
+
+       An arm at rest hangs. Both of these are now within a hand's width of
+       straight down, the leading one reaching a little towards the nose and
+       the trailing one hanging past the hip, and both are held about 0.53 m
+       from the shoulder rather than 0.55 — three centimetres of slack that
+       the solver spends on keeping a bend in the elbow, because a straight
+       arm is a stick and a bent one is a person. */
+    hand.set(0.15, -0.47, -0.19);
+    other.set(0.07, -0.51, 0.14);
 
     /* And they never hold quite still.
 
@@ -653,7 +1372,8 @@ export function createRiderModel(THREE, shading) {
        It goes on before every other pose blends over it, so a grab still
        arrives exactly on the board's edge and a tuck still puts the hands
        exactly where a tuck puts them. `idle` takes it away whenever the arms
-       have somewhere specific to be. */
+       have somewhere specific to be — which now includes steering, because a
+       rider mid-carve is not idling. */
     const sway = 0.011 * idle;
     hand.x += Math.sin(s.clock * 0.83) * sway;
     hand.y += Math.sin(s.clock * 1.27 + 1.1) * sway * 0.8;
@@ -662,24 +1382,70 @@ export function createRiderModel(THREE, shading) {
     other.y += Math.sin(s.clock * 1.09 + 0.4) * sway * 0.8;
     other.z += Math.sin(s.clock * 0.53 + 4.1) * sway;
 
-    // Tucked: arms spread wide and low across the board, which is how a
+    /* Carving, which is where the hands stop hanging and start working.
+
+       The leading hand comes up and reaches out over the nose and across the
+       edge he is going onto — which a rider's hands do a fraction of a second
+       before the board follows them round — and the trailing hand drops back
+       over the tail. That opposition is the arms' half of counter-rotation
+       and it is why a carve does not need the arms spread the rest of the
+       time: the contrast has to be spent somewhere, and this is where.
+
+       Every one of these lands the hand about 0.56 m from the shoulder at
+       full lock, three centimetres inside the 0.58 the arm has. Overshoot it
+       and the solver clamps to a straight arm pointing at the target, and a
+       carve with two straight arms in it is the pose this file started
+       with. */
+    const carve = Math.abs(steer);
+    hand.x += steer * 0.14;
+    hand.y += carve * 0.12;
+    hand.z -= carve * 0.14;
+    other.x += steer * 0.06;
+    other.z += carve * 0.08;
+
+    // Tucked: arms spread low and wide across the board, which is how a
     // snowboarder actually holds a tuck — the hands go out for the balance
     // the narrowed stance has just given up, not in against the chest the
-    // way a skier's do. Pulling them in was most of why the pose read wrong.
-    hand.lerp(_f.set(0.40, -0.34, -0.40), s.tuck);
-    other.lerp(_f.set(0.38, -0.38, 0.32), s.tuck);
-    // Coiling an ollie drags them back and down; the pop throws them up and
-    // forward, which is where the height comes from on a real one
-    hand.lerp(_f.set(-0.14, -0.44, -0.24), s.charge);
-    other.lerp(_f.set(-0.16, -0.44, 0.22), s.charge);
-    hand.y += (s.pop * 0.34 + s.thump * 0.26);
-    other.y += (s.pop * 0.30 + s.thump * 0.30);
-    hand.x += s.pop * 0.12;
+    // way a skier's do. Pulling them in was most of why the pose read wrong;
+    // reaching for a point further away than the arm is long was the rest,
+    // because a target out of reach is a straight arm by definition.
+    hand.lerp(_f.set(0.30, -0.40, -0.28), s.tuck);
+    other.lerp(_f.set(0.28, -0.42, 0.26), s.tuck);
+    // Coiling an ollie drags them back and down, behind the heel edge, where
+    // they have the whole length of a throw ahead of them
+    hand.lerp(_f.set(-0.20, -0.42, -0.20), s.charge);
+    other.lerp(_f.set(-0.22, -0.42, 0.18), s.charge);
+
+    /* Airborne, the hands come in off the hips and up in front of him.
+
+       This is the one state the riding pose is simply wrong for. On the snow
+       the arms hang because there is a board under them holding the rider up;
+       in the air there is nothing to be still against, and every photograph
+       of anybody off a lip has the hands up, in, and bent at the elbow —
+       balancing the rotation rather than hanging off it. It goes on before
+       the throw and before the spin trail, so a pop still fires through it
+       and a spin still drags it round. */
+    const flight = s.air * (1 - grab) * (1 - s.down);
+    hand.lerp(_f.set(0.27, -0.24, -0.30), flight);
+    other.lerp(_f.set(0.23, -0.29, 0.27), flight);
+
+    // …and the pop throws them up and forward over the leading tip, which is
+    // where the height comes from on a real one. It is added on top of
+    // whatever pose is underneath rather than blended into it, because a
+    // throw is a movement and not a shape.
+    hand.y += s.pop * 0.42 + s.thump * 0.26;
+    hand.z -= s.pop * 0.18;
+    hand.x += s.pop * 0.16;
+    other.y += s.pop * 0.38 + s.thump * 0.30;
+    other.z -= s.pop * 0.10;
+    other.x += s.pop * 0.10;
 
     // In the air the hands trail the spin, further round than the shoulders
-    // do, and pull in as the rotation winds up
+    // do, and pull in as the rotation winds up. The angle is signed into the
+    // travel frame so that it still trails the *world* spin when he is riding
+    // switch, rather than politely leading it.
     if (s.air > 0.002) {
-      const wind = -clamp(rider.spinVel / RIDER.spinRate, -1, 1) * POSE.armTrail * s.air;
+      const wind = clamp(rider.spinVel / RIDER.spinRate, -1, 1) * POSE.armTrail * s.air * sw;
       const tight = 1 - Math.abs(wind) * 0.22;
       hand.applyAxisAngle(UP, wind).multiplyScalar(tight);
       other.applyAxisAngle(UP, wind).multiplyScalar(tight);
@@ -693,16 +1459,15 @@ export function createRiderModel(THREE, shading) {
     /* The grab. The one pose expressed somewhere other than the shoulder:
        the target is a fixed point on the board's toe edge, and the board is
        three transforms away, so it is carried back through the hips and the
-       torso into the lead shoulder's own space — and only when there is a
+       torso into the leading shoulder's own space — and only when there is a
        grab to pay for it. */
     if (grab > 0.002) {
       mInv.copy(hips.matrix).multiply(torso.matrix).invert();
-      _f.set(POSE.grabPoint[0], POSE.grabPoint[1], POSE.grabPoint[2])
-        .applyAxisAngle(AZ, tweak).applyAxisAngle(AX, noseUp);
-      _f.y += lift;
+      boardPoint(_f.set(POSE.grabPoint[0], POSE.grabPoint[1], POSE.grabPoint[2] * sw));
       _f.applyMatrix4(mInv);
       _f.y -= SHOULDER_Y;
-      _f.z += SHOULDER_Z;
+      _f.z += SHOULDER_Z * sw;
+      _f.z *= sw;                 // …and back into the travel frame with the rest
       hand.lerp(_f, grab);
       pole.lerp(_u.set(-0.45, 0.75, -0.2), grab);
       // the trailing hand goes up and out for balance, which is what makes a
@@ -717,18 +1482,36 @@ export function createRiderModel(THREE, shading) {
        with how fast he is going over, and flail on top of that. */
     if (s.down > 0.002) {
       _f.set(0.05, -0.26, -0.44)
-        .applyAxisAngle(AX, -lag * 0.9 + Math.sin(s.clock * 7.1) * 0.22);
+        .applyAxisAngle(AX, (-lag * 0.9 + Math.sin(s.clock * 7.1) * 0.22) * sw);
       hand.lerp(_f, s.down);
       _f.set(0.05, -0.24, 0.42)
-        .applyAxisAngle(AX, -lag * 1.1 + Math.sin(s.clock * 6.3 + 2.1) * 0.22);
+        .applyAxisAngle(AX, (-lag * 1.1 + Math.sin(s.clock * 6.3 + 2.1) * 0.22) * sw);
       other.lerp(_f, s.down);
       pole.lerp(_u.set(-0.4, 0.2, -0.5), s.down);
       poleRear.lerp(_u.set(-0.4, 0.2, 0.5), s.down);
     }
     s.tumbleLag = approach(s.tumbleLag, rider.tumble, 7, sdt);
 
-    solve(armLead, UPPER, FORE, hand, pole);
-    solve(armRear, UPPER, FORE, other, poleRear);
+    /* Out of the travel frame and onto two actual shoulders.
+
+       Mirroring the z is what turns "over the leading tip" into "over the
+       nose" or "over the tail"; blending between the two targets is what
+       decides which shoulder gets which job. Riding forward the nose-side
+       arm has the leading pose; riding switch it has the trailing one, on
+       its own side of the body, and in the fifth of a second between them it
+       has half of each — which is a rider swapping his hands over, and not a
+       rider whose arms have crossed. */
+    hand.z *= sw;
+    other.z *= sw;
+    pole.z *= sw;
+    poleRear.z *= sw;
+    tLead.copy(other).lerp(hand, front);
+    tRear.copy(hand).lerp(other, front);
+    pLead.copy(poleRear).lerp(pole, front);
+    pRear.copy(pole).lerp(poleRear, front);
+
+    solve(armLead, UPPER, FORE, tLead, pLead);
+    solve(armRear, UPPER, FORE, tRear, pRear);
 
     /* --- shadow ------------------------------------------------------------ */
 

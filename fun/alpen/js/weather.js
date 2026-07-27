@@ -1,16 +1,36 @@
 /* Time of day, and what the sky is doing.
 
-   Three dials now, all continuous, and nothing in the game reads a preset
+   Four dials now, all continuous, and nothing in the game reads a preset
    name except the HUD.
 
-   `tod` runs a full day in six minutes of riding. It is interpolated
-   through a table of seven moments — night, dawn, morning, day, golden,
-   dusk, nightfall — and every one of them carries the whole picture: the
-   three stops of the sky gradient, the colour of the haze, the colour and
-   strength of the key light, how high it sits, and how much of the star
-   field shows through. Because the table is interpolated rather than
-   switched, there is no moment at which the sky changes; there is only ever
-   a sky that has been changing.
+   `tod` runs a full day in fifteen minutes of riding. It is interpolated
+   through a table of nine moments and every one of them carries the whole
+   picture: the three stops of the sky gradient, the colour of the haze, the
+   colour and strength of the key light, how high it sits, and how much of
+   the star field shows through. Because the table is interpolated rather
+   than switched, there is no moment at which the sky changes; there is only
+   ever a sky that has been changing.
+
+   Two of those nine are new and they are the two the day was missing. The
+   old table went from a black night straight to an orange dawn and from an
+   orange dusk straight back to a black night, so the run never once passed
+   through the hour every photograph of this sport is actually taken in: the
+   cold one, after the sun has gone and before the sky has. FIRST LIGHT and
+   BLUE HOUR are that hour on each side — no warmth anywhere in the frame, a
+   violet zenith, a dark violet valley, and a key light that is barely more
+   than the sky itself. They are also the only two moments where the sun is
+   allowed *under* the horizon, which is what makes them work: the disc sets,
+   the alpenglow goes out, the rays stop, and what is left is a mountain lit
+   by nothing but the air over it.
+
+   Everything else in the table was pushed the same way the daylight moments
+   were pushed before it — deeper at the top, more saturated at the horizon,
+   and further apart from its neighbours. The one thing that could not be
+   touched is the *shape* of the gradient, because `shading.js` carries a
+   transcription of the dome's own shader so that a fogged ridge dissolves
+   into the same sky it is standing in front of. Both ends read these
+   numbers, so the numbers are where a day's worth of variation has to come
+   from, and they carry it perfectly well.
 
    `storm` drifts on slow noise between clear air and a whiteout. It is not
    a separate weather system so much as a second axis over the first: it
@@ -21,7 +41,28 @@
    different places, which is the whole reason to have two dials instead of
    a list of six skies.
 
-   `aurora` is the third, and it is zero on most nights by construction. It
+   `mist` is the third, and it is the one dial that is a fact about the air
+   rather than about the sky. It says how much layered cloud there is at the
+   moment; `sky.js` decides what that looks like and at what altitude, which
+   is the same split the aurora already has. What is worth recording here is
+   what it is multiplied by, because mist is the one weather in the game that
+   does *not* simply follow the storm.
+
+   It is a cold-air phenomenon. Valley fog forms overnight and burns off as
+   the sun gets high enough to warm the ground, so the diurnal term is the
+   sun's own elevation — and it has to be told that the thing in the sky at
+   two in the morning is the moon, or a moon riding at twenty-five degrees
+   burns off the fog that only exists because it is night. Hence the
+   `1 - moon` on it: at night the sun is nowhere and the air stays cold.
+
+   And the storm term is a hump rather than a slope. A little weather makes
+   more mist, which is right; a whiteout makes none, which looks wrong
+   written down and is exactly right in the picture, because at seventy
+   metres of visibility the storm's own fog has already eaten everything the
+   mist would have said and all a layer can do is cost fill rate. So mist
+   peaks in the middle of the storm dial and is gone at the top of it.
+
+   `aurora` is the fourth, and it is zero on most nights by construction. It
    runs on the weather's own clock like the storm does, thresholded, and then
    passed through two more gates: how deep the night is, and the storm, which
    smothers a display exactly as it already smothers the stars. None of those
@@ -40,18 +81,42 @@
 import { noise2 } from './noise.js';
 import { RENDER } from './config.js';
 
+/* Nine moments, and one rule underneath all of them: the amber lives at the
+   horizon and nowhere else. Every zenith in this table is a blue, every haze
+   is a blue or a violet or — for the two hours either side of the sun going
+   down — a dusty rose that is still cooler than the light causing it. Snow
+   takes the colour of what is over it, so a warm mid stop is a warm mountain,
+   and a warm mountain is a beige one.
+
+   `elevation` is the one field that does something structural. It is where
+   the light is coming from, and everything downstream reads it: the disc, the
+   glow, the alpenglow on the ranges, the crepuscular pass, and whether the
+   sun is throwing a shadow at all. Two of the moments now put it under zero,
+   which is new — see the note at the head of the file. */
 const PHASES = [
   {
     at: 0.00, name: 'NIGHT',
-    zenith: '#030713', mid: '#0a1a38', horizon: '#17294b', haze: '#1b2c4c',
+    zenith: '#02060f', mid: '#08172f', horizon: '#16274a', haze: '#1a2a48',
     key: '#a8c0e8', glow: '#6f8cc0', keyI: 0.76, hemiI: 0.55,
     elevation: 0.46, star: 1, moon: 1,
   },
+  /* The cold hour before the warm one. There is no orange anywhere in this
+     line and that is the whole point of it: the sun is still under the
+     horizon, so what is lighting the mountain is the sky, the sky is lit from
+     below and behind, and the only colour in the frame is the blue-grey the
+     air itself is. It is the hour the Belt of Venus stands in — see `BELT` in
+     `sky.js`, which reads the elevation below and nothing else. */
   {
-    at: 0.13, name: 'DAWN',
-    zenith: '#132a60', mid: '#4c5f96', horizon: '#f0a878', haze: '#b7a49b',
-    key: '#ffb98a', glow: '#ff9d63', keyI: 2.07, hemiI: 0.95,
-    elevation: 0.06, star: 0.22, moon: 0.15,
+    at: 0.09, name: 'FIRST LIGHT',
+    zenith: '#061029', mid: '#17325f', horizon: '#6a86ad', haze: '#3e587c',
+    key: '#92b6e8', glow: '#7396c6', keyI: 0.95, hemiI: 0.62,
+    elevation: -0.03, star: 0.55, moon: 0.42,
+  },
+  {
+    at: 0.17, name: 'DAWN',
+    zenith: '#16306b', mid: '#4a6cab', horizon: '#f2a877', haze: '#b9a49a',
+    key: '#ffb98a', glow: '#ff9d63', keyI: 2.10, hemiI: 0.95,
+    elevation: 0.05, star: 0.16, moon: 0.10,
   },
   /* The three daylight moments carry the whole look, and they are much
      deeper than they were.
@@ -66,34 +131,50 @@ const PHASES = [
      The horizon stops are still bright, because that is where the haze and
      the distance genuinely are; it is the top of the dome that has come
      down, and the fill light with it, so shadows on the snow are blue
-     instead of grey. */
+     instead of grey.
+
+     Morning and day are also no longer nearly the same sky. A morning is
+     cooler and a shade less contrasty than a noon — the sun is lower, there
+     is more air in the way of it, and the haze has not burnt off — so the
+     morning's key keeps a trace of the dawn it just came out of and its
+     zenith stops short of the noon's navy. */
   {
-    at: 0.28, name: 'MORNING',
-    zenith: '#0d3585', mid: '#3f83d8', horizon: '#dfeaf6', haze: '#dce5f0',
-    key: '#fff4dc', glow: '#ffdcae', keyI: 3.9, hemiI: 1.05,
+    at: 0.30, name: 'MORNING',
+    zenith: '#0b3382', mid: '#3d80d6', horizon: '#e2ecf7', haze: '#d9e4f1',
+    key: '#ffeeda', glow: '#ffd9a8', keyI: 3.9, hemiI: 1.05,
     elevation: 0.30, star: 0, moon: 0,
   },
   {
     at: 0.48, name: 'DAY',
-    zenith: '#07297a', mid: '#2f79d6', horizon: '#e4eefb', haze: '#e3ecf6',
+    zenith: '#06246f', mid: '#2b74d4', horizon: '#e6f0fb', haze: '#e3ecf6',
     key: '#fffaf0', glow: '#ffeccc', keyI: 4.5, hemiI: 1.12,
     elevation: 0.62, star: 0, moon: 0,
   },
   {
-    at: 0.68, name: 'GOLDEN HOUR',
-    zenith: '#122f78', mid: '#5a89c8', horizon: '#ffd79a', haze: '#e7d9c3',
+    at: 0.66, name: 'GOLDEN HOUR',
+    zenith: '#1b2f74', mid: '#5f8ac9', horizon: '#ffd79a', haze: '#e9d6bd',
     key: '#ffcb8a', glow: '#ff9f45', keyI: 3.9, hemiI: 0.95,
-    elevation: 0.22, star: 0, moon: 0,
+    elevation: 0.20, star: 0, moon: 0,
   },
   {
-    at: 0.81, name: 'DUSK',
-    zenith: '#101c4a', mid: '#424c88', horizon: '#e08a63', haze: '#a68990',
-    key: '#ff9a6a', glow: '#ff7a45', keyI: 1.93, hemiI: 0.8,
-    elevation: 0.05, star: 0.32, moon: 0.3,
+    at: 0.79, name: 'DUSK',
+    zenith: '#131a4c', mid: '#45508e', horizon: '#e08256', haze: '#a9838d',
+    key: '#ff9a6a', glow: '#ff6f3a', keyI: 1.93, hemiI: 0.8,
+    elevation: 0.035, star: 0.30, moon: 0.24,
+  },
+  /* And the other side of it. The haze here is the darkest in the table and
+     it is darker than the sky above it on purpose: the valley goes out well
+     before the dome does, which is the single most recognisable thing about
+     a mountain at this hour and the reason the ranges read as ranges. */
+  {
+    at: 0.86, name: 'BLUE HOUR',
+    zenith: '#0a1036', mid: '#24356f', horizon: '#8b789f', haze: '#4c4666',
+    key: '#a892c8', glow: '#9a7fb4', keyI: 0.98, hemiI: 0.66,
+    elevation: -0.045, star: 0.55, moon: 0.35,
   },
   {
-    at: 0.92, name: 'NIGHTFALL',
-    zenith: '#050b1e', mid: '#0f2145', horizon: '#23335a', haze: '#1e2f50',
+    at: 0.95, name: 'NIGHTFALL',
+    zenith: '#040a1c', mid: '#0e2043', horizon: '#223257', haze: '#1d2e4e',
     key: '#9db5df', glow: '#6b88bd', keyI: 0.83, hemiI: 0.55,
     elevation: 0.40, star: 0.9, moon: 0.95,
   },
@@ -125,6 +206,28 @@ const BANDS = [
 const DAY_SECONDS = 900;
 const START_TOD = 0.34;      // a bright morning, so the first look is the best one
 const STORM_PERIOD = 110;    // seconds per unit of the noise that drives it
+
+/* The mist, in four numbers and a hump.
+
+   `period` is slower than the storm's and much slower than the aurora's,
+   because a bank of cloud lying in a valley is the most inert weather there
+   is: it forms overnight, it sits, and it goes when the sun reaches it. At
+   three minutes to the unit a bank takes about a minute to build and the
+   rider descends four hundred metres of mountain inside one, which is what
+   makes it read as a place rather than as an effect.
+
+   `from` and `to` are where that noise is cut, and they are cut low. This is
+   the opposite decision to the aurora's: an aurora has to be rare or it is a
+   green sky, and mist has to be *common* or the layers never turn up in the
+   ten minutes anybody actually rides. Something like two thirds of the clock
+   is over `from`, and the diurnal term below is what turns that into a thing
+   that happens at dawn and at night rather than a permanent fixture. */
+const MIST = {
+  period: 175,
+  from: 0.30,
+  to: 0.76,
+  say: 0.34,          // and how much of it is worth telling the HUD about
+};
 
 /* The aurora, in five numbers.
 
@@ -207,6 +310,7 @@ export function createWeather(THREE) {
     windZ: 0,
     night: 0,
     aurora: 0,
+    mist: 0,
   };
 
   const stormTint = new THREE.Color();
@@ -297,6 +401,26 @@ export function createWeather(THREE) {
        needs clearer air than a point of light does, which is not true and
        which — against a storm dial whose median sits at 0.43 — quietly cut
        the whole feature by two thirds. */
+    /* The mist, on its own slow clock and then multiplied by two things that
+       have nothing to do with each other.
+
+       The diurnal term is the sun's elevation, held off at night by the moon
+       — the state carries one elevation for whatever is currently up there,
+       so without the `1 - moon` a bright moon at twenty-five degrees would
+       burn off the fog that only exists because it is dark. Four fifths is
+       the most it is allowed to take, so a noon bank is thin rather than
+       impossible: a summer inversion can sit in a valley all day.
+
+       The storm term is the hump described at the head of the file. A little
+       weather thickens the air; a whiteout replaces it, because at seventy
+       metres of visibility a layer at altitude has nothing left to say and
+       still costs everything to draw. */
+    const damp = noise2(clock / MIST.period, 6.5, 211) * 0.72
+      + noise2(clock / (MIST.period * 2.9), 1.5, 212) * 0.42;
+    const cold = 1 - 0.80 * ramp(state.elevation, 0.08, 0.46) * (1 - state.moon);
+    state.mist = Math.min(1, ramp(damp, MIST.from, MIST.to) * cold
+      * (0.75 + 0.55 * s) * (1 - ramp(s, 0.52, 0.90)));
+
     const auroraClock = clock + AURORA.offset;
     const lit = noise2(auroraClock / AURORA.period, 3.5, 137) * 0.70
       + noise2(auroraClock / (AURORA.period * 2.4), 8.5, 138) * 0.45;
@@ -307,13 +431,22 @@ export function createWeather(THREE) {
     for (const b of BANDS) {
       if (s < b.to) { state.conditions = b.name; break; }
     }
-    // Layered over the bands rather than replacing them, because the two are
-    // answering different questions and a display can happen in light snow.
-    // It does take CLEAR's place, though: on the one night in four that this
-    // fires, "clear" is a considerable understatement.
+    /* Layered over the bands rather than replacing them, because the two are
+       answering different questions and a display can happen in light snow.
+       It does take CLEAR's place, though: on the one night in four that this
+       fires, "clear" is a considerable understatement.
+
+       Mist gets the same treatment and never both, which is a decision about
+       the width of a HUD label rather than about the weather — the two can
+       perfectly well happen at once, and when they do the aurora is the
+       rarer news. It is also only said in air that is otherwise quiet: a bank
+       of fog announced in the middle of a blizzard is not information. */
     if (state.aurora > AURORA.say) {
       state.conditions = state.conditions === 'CLEAR'
         ? 'AURORA' : `${state.conditions} · AURORA`;
+    } else if (state.mist > MIST.say && s < BANDS[1].to) {
+      state.conditions = state.conditions === 'CLEAR'
+        ? 'MIST' : `${state.conditions} · MIST`;
     }
 
     // A storm pulls the whole sky towards the haze and brings the haze in.

@@ -40,6 +40,22 @@
 import { snoise2, noise2, hash2 } from './noise.js';
 import { TERRAIN } from './config.js';
 
+/* How much harder the snow glitters inside the specular lobe than outside it.
+
+   Strictly it multiplies a glint's *brightness*, not how many there are —
+   about one lattice cell in seventy is allowed to hold one and this does not
+   change that. It reads as density anyway, and that is the point: a glint is
+   already a hair above the threshold at which the eye finds it, so brighten
+   the ones inside the lobe and dim ones elsewhere drop below the line and
+   stop counting. Two and a half times, at the peak of the lobe.
+
+   Zero would be the old behaviour — an even scatter over every lit surface,
+   which is what made them read as dust on the lens rather than as something
+   the ground is doing. It lives here rather than in `shading.js` because the
+   lobe belongs to the light model and the glitter belongs to the mountain,
+   and this is the one number that joins them. */
+export const GLITTER_AIM = 1.5;
+
 const { wander, route, corridor, wall, cliffs, knolls,
   ridges, rolls, moguls, chatter, warp, bulgeVary } = TERRAIN;
 const GRADE = TERRAIN.grade;
@@ -546,7 +562,27 @@ export function createTerrain(THREE, shading) {
          goes past rather than sitting there like dirt. It is added after the
          lighting and before the fog, and scaled by how bright the pixel
          already was — snow in shadow has nothing to catch — so a glint is
-         something the sun is doing rather than something the ground is. */
+         something the sun is doing rather than something the ground is.
+
+         Two things about it changed when the snow got a specular response,
+         and both are the same correction: a glint had been an effect of its
+         own and is really the sharp end of the broad one.
+
+         It is the sun's colour now, not a fixed cold white. A glint is the
+         disc of the sun seen in a mirror a hundred microns across, so it can
+         only ever be the colour the sun is — amber at golden hour and blue
+         at dusk, and never the near-white it used to be, which was the one
+         thing on this mountain quietly breaking the rule that snow is warm
+         only where a low sun lands on it.
+
+         And it clusters in the sheen. `n64Spec` is how hard this pixel sits
+         in `shading.js`'s specular lobe, and the two effects are the same
+         crystals at two scales — the sheen is the average over a great many
+         faces aimed roughly at the sun, a glint is one face aimed exactly at
+         it — so glints ought to be strongest where the sheen is, and they now
+         are. See `GLITTER_AIM`. It is written as a multiplier over one rather
+         than as a mask under it, so a material with no sheen compiled in
+         reads the initialiser, gets 1.0, and glitters exactly as it did. */
       .replace('#include <fog_fragment>', `
         {
           float sparkPx = max(fwidth(vWorld.x), fwidth(vWorld.z));
@@ -560,7 +596,8 @@ export function createTerrain(THREE, shading) {
             float twinkle = pow(abs(sin(phase * 6.28318)), 22.0);
             float lum = dot(gl_FragColor.rgb, vec3(0.2126, 0.7152, 0.0722));
             gl_FragColor.rgb += smoothstep(0.986, 1.0, pick) * twinkle
-              * sparkFade * smoothstep(0.45, 0.95, lum) * vec3(0.9, 0.95, 1.0);
+              * sparkFade * smoothstep(0.45, 0.95, lum)
+              * (1.0 + ${GLITTER_AIM.toFixed(2)} * n64Spec) * uSunTint;
           }
         }
         #include <fog_fragment>`);
@@ -569,8 +606,15 @@ export function createTerrain(THREE, shading) {
      Lambert term remain continuous. Flat polygon normals already give the
      mountain its low-poly read; five hard light rungs made a moving sun and
      every LOD transition look like shadows switching on a timer. Props and
-     the rider retain the stepped retro light. */
-  shading.apply(material, { bands: 0 });
+     the rider retain the stepped retro light.
+
+     And take the sheen, which nothing else on the mountain does. The
+     argument for it is the same one the glitter has always rested on: this
+     surface is not paint, it is a heap of ice crystals, and the two things
+     that say so are a scatter of glints and a broad highlight that slides
+     across the slope as you ride past it. The hill had the first and not the
+     second, which is why it read as paper between the sparkles. */
+  shading.apply(material, { bands: 0, sheen: 1 });
   const mesh = new THREE.Mesh(geometry, material);
   mesh.frustumCulled = false;
 
