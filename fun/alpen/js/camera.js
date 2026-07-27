@@ -136,10 +136,11 @@ export function createChaseCamera(THREE, camera) {
     // Which way the run is actually heading: mostly the velocity, a little
     // the board. Pure velocity swims about at low speed; pure heading hides
     // every slide the rider makes.
+    const stanceYaw = rider.yaw - (rider.switchStance ? Math.PI : 0);
     flat.set(rider.vel.x, 0, rider.vel.z);
-    if (flat.lengthSq() < 9) flat.set(Math.sin(rider.yaw), 0, -Math.cos(rider.yaw));
+    if (flat.lengthSq() < 9) flat.set(Math.sin(stanceYaw), 0, -Math.cos(stanceYaw));
     flat.normalize();
-    tmp.set(Math.sin(rider.yaw), 0, -Math.cos(rider.yaw));
+    tmp.set(Math.sin(stanceYaw), 0, -Math.cos(stanceYaw));
     dir.copy(flat).multiplyScalar(CAMERA.velocityBias)
       .addScaledVector(tmp, 1 - CAMERA.velocityBias).normalize();
 
@@ -276,9 +277,9 @@ export function createChaseCamera(THREE, camera) {
     roll += (wantRoll - roll) * (1 - Math.exp(-5 * dt));
     camera.rotateZ(roll);
 
-    // Speed opens the frame; the tuck closes it again. The air term starts
-    // tight — a pop is a compression — and opens back out over a long flight,
-    // which is the other half of being able to see the landing.
+    // Speed narrows the frame into tunnel vision; the tuck closes it one more
+    // step. A long flight opens back out just enough to keep the landing in
+    // view, and a hard touchdown still gets its brief lens punch.
     const wantFov = RENDER.fov
       + (RENDER.fovAtSpeed - RENDER.fov) * ratio * ratio
       + tuck * CAMERA.tuckFov

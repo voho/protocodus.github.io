@@ -1,36 +1,14 @@
-/* The read-out, as a second framebuffer.
+/* The read-out is a high-DPI bitmap surface of its own.
 
-   This used to be DOM over the canvas, and the reasoning was sound at the
-   time: the world was 288 lines and the text was not, so the text stayed
-   crisp. Then the world went back to a buffer with a big, fixed pixel, and
-   that argument inverted. A HUD drawn by the browser is drawn at the panel's
-   resolution — its pixels a fraction the size of the snow's, its curves
-   anti-aliased, its type a real typeface with real hinting. Next to a
-   mountain made of hard square pixels that does not read as crisp. It reads
-   as a different piece of software sitting on top of a game.
+   The world is native-resolution now, but the HUD keeps the 5×7 hand-drawn
+   alphabet and whole-number layout that give it a console voice. Its backing
+   store follows the display rather than the adaptive 3D target, so text stays
+   sharp even when a fragile GPU lowers world resolution. Colours are
+   quantised to the same five-bit palette as the final grade.
 
-   So the HUD is a canvas of its own now, holding exactly the renderer's
-   buffer and stretched across exactly the same box, which makes a HUD pixel
-   and a snow pixel the same square by construction rather than by
-   arithmetic. That is the entire design decision, and everything else here
-   follows from it — including the fact that there is no typeface, because
-   there cannot be one: see font.js.
-
-   Nothing in the layout is a proportion of anything. No breakpoints, no
-   clamp(), no vw units: the read-out is measured in buffer pixels and a wider
-   window buys more mountain rather than smaller type. The one thing that does
-   respond to the window is `UI` below, and it responds in whole steps, which
-   is the only kind of response an integer grid has. The old stylesheet had
-   four media queries trying to keep the read-out off a small screen and all
-   four are gone; the judgement they were actually making — is there room for
-   the control legend — is a subtraction in `draw` now, measuring the thing it
-   cares about instead of guessing at it from the width of the window.
-
-   Colours are quantised to five bits per channel on the way in, the same
-   R5G5B5 the world's dither is aiming at, so the HUD is not sitting in a
-   wider gamut than the picture it is drawn on. It costs one function and it
-   is the difference between a HUD that belongs to the frame and one that is
-   merely over it.
+   Layout is measured from edges and the centre in integer device pixels. UI
+   scale changes only in whole steps, and the opening legend is drawn only
+   when its measured footprint really fits.
 
    What has not changed is the discipline: the HUD only ever states what the
    physics already did. Speed is the length of the velocity vector, the charge
@@ -46,23 +24,11 @@
 
 import { drawText, measure, ADVANCE, GLYPH_H, LINE } from './font.js';
 
-/* The nominal picture: the shape this layout was drawn against, and what the
-   buffer is until main.js says otherwise. Deliberately not read from
-   config.js — the HUD's contract is with the renderer's actual buffer, which
-   arrives through `setSize`, and a second opinion sourced from somewhere
-   else is precisely how the two end up disagreeing. */
+/* Safe construction size until main.js supplies the display backing store. */
 export const HUD_WIDTH = 640;
 export const HUD_HEIGHT = 360;
 
-/* …and the size this buffer is actually running at, which is not always that.
-
-   The world buffer is a 640×360 *picture*, not a 640×360 rectangle: what is
-   fixed is the size of a pixel, and the buffer then grows to whatever that
-   pixel size divides the window into, so an ultrawide monitor gets more
-   mountain rather than black bars. The read-out has to be the same buffer or
-   the two do not line up — so the layout is anchored to these, which main.js
-   keeps in step with the renderer, and every measurement below is taken from
-   an edge or the centre rather than from an absolute coordinate. */
+/* Live high-DPI HUD dimensions. */
 let W = HUD_WIDTH;
 let H = HUD_HEIGHT;
 
@@ -74,35 +40,7 @@ const MARGIN = 10;
 
 const BANNER_HOLD = 1.9;    // seconds a trick name stays up
 
-/* How big a buffer pixel actually is on screen is not the HUD's decision and
-   not a constant. The renderer picks the largest whole number of device
-   pixels that lets the base picture fit and then makes the buffer whatever
-   that divides the window into — so a desktop gets six device pixels per
-   buffer pixel and a phone held upright, where not even one and a half will
-   fit, gets one. At one, a five pixel capital is five device pixels tall,
-   which on a 2× panel is two and a half CSS pixels. That is not small type.
-   It is not type.
-
-   So the whole read-out is drawn at a whole-number scale of its own. Every
-   position, gap, bar and glyph below is multiplied by it, and it is picked
-   from two numbers that pull against each other: what legibility wants, and
-   what actually fits.
-
-   This was written, deleted and written again. It was deleted because at the
-   time the renderer floored its buffer at the base picture, which made a
-   doubled read-out provably impossible — a scale that is always one is not a
-   scale. The floor is gone now (it was distorting the aspect ratio on a
-   narrow window, which is a worse bug than a fine HUD), buffers can be any
-   shape at all, and the case it was deleted for is the common one on a
-   phone. The lesson recorded rather than the code: this is downstream of a
-   renderer decision, so it is worth re-reading `retro.setSize` before
-   trusting anything here about what buffers can exist.
-
-   FOOT is what the layout genuinely occupies at 1×, which is much less than
-   the base picture — the two top blocks side by side, and the bottom stack
-   under them. Bounding the scale by the base picture instead was the first
-   attempt and it never let the scale off 1, because a buffer big enough for
-   640×360 twice over only happens on a window where the pixel was never 1. */
+/* Scale is chosen from display density and the layout's real footprint. */
 const FOOT_W = 330;
 const FOOT_H = 170;
 
@@ -205,7 +143,7 @@ const TONES = {
   near: MINT,
 };
 
-/* The permanent control legend, which used to be a <dl> in index.html and is
+/* The opening control legend, which used to be a <dl> in index.html and is
    drawn in the same bitmap font as everything else now — because a legend in
    a real typeface next to a read-out in a bitmap one is precisely the seam
    this whole rewrite exists to remove.
@@ -220,10 +158,11 @@ const LEGEND = [
   ['SPACE', 'CHARGE · POP'],
   ['Q', 'GRAB'],
   ['E', 'FLIP'],
-  ['ESC R M', 'PAUSE · RESTART · SOUND'],
+  ['ESC R N M F', 'PAUSE · RESET · NEW · AUDIO · FULL'],
 ];
 
 const fmt = new Intl.NumberFormat('en-US');
+const LEGEND_SECONDS = 9;
 
 export function createHud(root) {
   /* index.html declares the canvas next to #stage so the two-buffer idea is
@@ -245,35 +184,13 @@ export function createHud(root) {
   let clock = 0;
   let sayIn = 0;
   let legend = null;
+  let legendTime = 0;
 
   /* ------------------------------------------------------------------------
      Fitting the window
 
-     Everything the renderer measures is in device pixels, so everything here
-     is too: `width` and `height` are the buffer, `pixel` is how many device
-     pixels one buffer pixel occupies, and `offsetX`/`offsetY` are where the
-     top-left of the picture lands — all four straight off `retro.setSize`.
-
-     Only the first two are compulsory, and the backing store has to be that
-     buffer exactly, because that is the whole premise: one buffer pixel here
-     is one buffer pixel there.
-
-     Where the element sits is deliberately *not* calculated when the picture
-     fills the window, which is both offsets at zero and the case that
-     actually runs. `.readout` fills its parent the same way `#stage` does,
-     the two boxes are therefore identical, and the browser gives both the
-     same nearest-neighbour blow-up. Working it out instead would be worse
-     rather than equivalent: the buffer is `ceil(device / pixel)`, so it is up
-     to one buffer pixel wider than the window it covers, and placing this
-     canvas at exactly `pixel` device pixels each would leave it a fraction
-     larger than the world canvas beside it. A seam of one pixel down the
-     right-hand edge is precisely the failure this whole arrangement exists
-     to avoid, and the way to not have it is to not do the sum.
-
-     An offset means the picture is letterboxed, and then there is no shared
-     box to inherit and it does have to be placed. That path converts to CSS
-     pixels on the way out, because CSS is the one thing in the pipeline that
-     does not think in device pixels.
+     Width and height are display pixels. `pixel` is retained as a density
+     hint for embedded/letterboxed callers; the full-window game passes one.
      --------------------------------------------------------------------- */
   function setSize(width, height, pixel = 0, offsetX = 0, offsetY = 0) {
     const w = Math.max(1, Math.round(width));
@@ -482,8 +399,13 @@ export function createHud(root) {
     }
 
     // --- the quiet corners ----------------------------------------------
-    const soundW = from(muted ? 'SOUND OFF' : 'SOUND ON', PAD, BOTTOM - line,
-      muted ? DIM : QUIET);
+    // "Sound on" is useful while learning the controls and then becomes
+    // chrome. "Sound off" stays visible because silence needs an explanation.
+    const showingHints = legendTime < LEGEND_SECONDS;
+    const touch = document.body.classList.contains('touch');
+    const soundW = !touch && (muted || showingHints)
+      ? from(muted ? 'SOUND OFF' : 'SOUND ON', PAD, BOTTOM - line, muted ? DIM : QUIET)
+      : 0;
 
     /* On a phone the pad *is* the controls and there is no keyboard to
        explain. On anything else the legend goes bottom right — unless the
@@ -497,7 +419,7 @@ export function createHud(root) {
        The bar's clearance is tested whether or not the bar is currently
        showing, because a legend that vanished every time the legs loaded
        would be far worse than one that is simply not there. */
-    if (!document.body.classList.contains('touch')) {
+    if (showingHints && !touch) {
       if (!legend) legend = bakeLegend();
       const at = RIGHT - legend.w;
       if (at > PAD + soundW + 16 * UI && at > CENTRE + (CHARGE_W >> 1) + 8 * UI) {
@@ -521,6 +443,7 @@ export function createHud(root) {
 
   function update(g, dt) {
     clock += dt;
+    if (g.mode === 'playing') legendTime += dt;
 
     // The score counts up to the truth rather than jumping to it. A number
     // that rolls reads as a reward; a number that changes reads as a field.
@@ -551,6 +474,7 @@ export function createHud(root) {
   function resetScore() {
     shownScore = 0;
     bannerTimer = 0;
+    legendTime = 0;
   }
 
   return { update, banner, setMuted, resetScore, setSize, canvas };

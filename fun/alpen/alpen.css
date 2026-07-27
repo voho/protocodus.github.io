@@ -1,13 +1,9 @@
 /* ==========================================================================
    Alpen — the frame around the game
 
-   There are two canvases and they are the same size. The world is a 640×360
-   buffer blown up by a whole number and letterboxed; the read-out is a
-   second 640×360 buffer sitting exactly on top of it at exactly the same
-   scale, so a HUD pixel and a snow pixel are the same square. Nothing in the
-   read-out is styled here any more — it is drawn, in a hand-made bitmap
-   font, in js/hud.js. This file's entire job where the HUD is concerned is
-   to stop the browser resampling it.
+   There are two canvases covering the visual viewport. The world renders at
+   native display resolution and the read-out is a separate high-DPI bitmap
+   surface, so both stay crisp while the 5×7 type keeps the console character.
 
    What is left below is the furniture around the game rather than the game
    frame itself: the start and pause curtain, and the touch pad. Those stay
@@ -72,24 +68,14 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* The whole point: a small buffer, scaled up with the pixels left alone.
-
-   The backing store is a 640×360-class picture and the element is the window,
-   and `retro.js` chooses the buffer so that the ratio between them is exactly
-   a whole number of device pixels. `pixelated` is what makes the browser take
-   the nearest texel rather than blending four of them, and between the two of
-   them every pixel on screen is a hard square of identical size — which is
-   the constraint the entire art direction rests on. Without this line the
-   picture is not low-resolution, it is blurry, and those are very different
-   things. */
+/* The playfield is the window. Its backing store is managed by retro.js. */
 #stage {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   display: block;
-  image-rendering: pixelated;
-  image-rendering: crisp-edges;
+  image-rendering: auto;
 }
 
 /* HUD
@@ -103,16 +89,8 @@ body {
    buffer pixels does not need any of it: it is anchored to the edges of the
    buffer, and the buffer is already the shape of the window.
 
-   Note that the rule below is deliberately, exactly #stage's. That is the
-   whole trick: two canvases with the same backing store stretched across the
-   same rectangle land their pixels on the same grid, and nothing has to be
-   calculated — which means nothing can be calculated differently. The
-   `image-rendering` pair is copied character for character for the same
-   reason and not because both keywords are needed: two elements that have to
-   be resampled identically must not be asking for it in two different
-   dialects. Without the pair the browser smooths the read-out on the way up
-   and every glyph turns to grey mush, which is the exact failure this
-   arrangement exists to avoid. */
+   Its backing store is kept at display resolution, so the browser does not
+   need to resample the bitmap glyphs. */
 .hud {
   position: absolute;
   inset: 0;
@@ -132,8 +110,7 @@ body.ready .hud {
   width: 100%;
   height: 100%;
   display: block;
-  image-rendering: pixelated;
-  image-rendering: crisp-edges;
+  image-rendering: auto;
 }
 
 /* A canvas hands a screen reader nothing at all, so hud.js keeps a paragraph
@@ -303,13 +280,37 @@ body.touch .go-tap {
   align-items: flex-end;
   justify-content: space-between;
   gap: 0.6rem;
-  padding: var(--gutter);
+  padding-top: var(--gutter);
+  padding-right: max(var(--gutter), env(safe-area-inset-right));
   padding-bottom: max(var(--gutter), env(safe-area-inset-bottom));
+  padding-left: max(var(--gutter), env(safe-area-inset-left));
   pointer-events: none;
 }
 
 body.touch .pad {
   display: flex;
+}
+
+.pad-tools {
+  position: fixed;
+  top: max(var(--gutter), env(safe-area-inset-top));
+  left: 50%;
+  display: flex;
+  gap: 0.5rem;
+  transform: translateX(-50%);
+  pointer-events: auto;
+}
+
+.pad-tool {
+  min-width: 2.8rem;
+  min-height: 2.5rem;
+  padding: 0 0.55rem;
+  opacity: 0.72;
+}
+
+.pad-tool[aria-pressed='true'] {
+  color: var(--yellow);
+  border-color: var(--yellow);
 }
 
 .pad-stack {

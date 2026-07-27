@@ -7,14 +7,12 @@
 
    THE CONSTRAINTS
 
-   A 640×360 framebuffer, scaled to the window by an integer and nothing else,
-   so every pixel on screen is a hard square of exactly the same size. That
-   integer is the whole discipline: a fractional scale resamples, and a
-   resampled pixel is a blurry pixel, which is the one thing this look cannot
-   survive. The buffer is allowed to grow past 640×360 to fill a window that
-   is not sixteen by nine — what is fixed is the *size of a pixel*, not the
-   count of them, because letterboxing a game to protect a number is the
-   wrong trade.
+   Low-poly geometry, flat facets, vertex-lit colour bands and a five-bit
+   dithered grade. The old version also imitated the output resolution of the
+   hardware. This one does not: the world is rendered at the panel's native
+   resolution (with a measured quality governor for fragile GPUs), so the
+   mountain is crisp on any window while its forms and colour still belong to
+   the era.
 
    Sixteen-bit colour: five bits a channel, through a 4×4 Bayer matrix. That
    is literally what the console did squeezing its framebuffer into R5G5B5,
@@ -31,11 +29,10 @@
    one effect here that no machine of that era could have attempted and the
    one that most makes a low sun over a ridge look like weather.
 
-   Both of those cost three extra draws at a quarter of a very small buffer,
-   which is nothing, and both happen *before* the quantise — so they are
-   dithered down to five bits along with everything else and never look like
-   a modern effect pasted on top of an old picture. That ordering is the
-   whole trick, and it is the difference between this and a filter. */
+   The bright extraction and rays stay at quarter resolution; the final
+   composite is native. All of it happens *before* the quantise, so it is
+   dithered down to five bits together and never looks like a modern effect
+   pasted on top of an old picture. */
 
 import { RENDER, GRADE, BASE_WIDTH, BASE_HEIGHT } from './config.js';
 
@@ -119,12 +116,15 @@ const FRAG = `
   uniform float uContrast;
   uniform float uSaturation;
   uniform float uVignette;
+  uniform float uSpeedVignette;
   uniform float uLevels;
   uniform float uFade;
   uniform float uBlur;
+  uniform float uAberration;
   uniform float uBloom;
   uniform float uRays;
   uniform float uShoulder;
+  uniform vec2 uFocus;
   uniform vec2 uResolution;
   varying vec2 vUv;
 
@@ -139,6 +139,23 @@ const FRAG = `
   float bayer2(vec2 a) {
     a = floor(a);
     return fract(a.x * 0.5 + a.y * a.y * 0.75);
+  }
+
+  vec3 sceneSample(vec2 uv) {
+    uv = clamp(uv, vec2(0.001), vec2(0.999));
+    // The speed treatment belongs to the world rushing past the rider, not to
+    // the rider himself. A compact projected safe zone keeps the board, limbs
+    // and landing pose readable while the periphery still separates into RGB.
+    vec2 focusDelta = (uv - uFocus) * vec2(uResolution.x / uResolution.y, 1.0);
+    float outsideFocus = smoothstep(0.075, 0.20, length(focusDelta));
+    float aberration = uAberration * outsideFocus;
+    if (aberration <= 0.00001) return texture2D(tDiffuse, uv).rgb;
+    vec2 split = (uv - 0.5) * aberration;
+    return vec3(
+      texture2D(tDiffuse, clamp(uv + split, vec2(0.001), vec2(0.999))).r,
+      texture2D(tDiffuse, uv).g,
+      texture2D(tDiffuse, clamp(uv - split, vec2(0.001), vec2(0.999))).b
+    );
   }
 
   void main() {
@@ -157,11 +174,14 @@ const FRAG = `
        that is actually between them. And it happens before the quantise
        along with everything else, so it is dithered down to five bits with
        the rest of the frame instead of sitting on top of it looking modern. */
-    vec3 lin = texture2D(tDiffuse, vUv).rgb;
-    if (uBlur > 0.0005) {
+    vec3 lin = sceneSample(vUv);
+    vec2 focusDelta = (vUv - uFocus) * vec2(uResolution.x / uResolution.y, 1.0);
+    float outsideFocus = smoothstep(0.08, 0.22, length(focusDelta));
+    float localBlur = uBlur * outsideFocus;
+    if (localBlur > 0.0005) {
       vec2 toCentre = vec2(0.5) - vUv;
       for (int i = 1; i < 6; i++) {
-        lin += texture2D(tDiffuse, vUv + toCentre * uBlur * float(i)).rgb;
+        lin += sceneSample(vUv + toCentre * localBlur * float(i));
       }
       lin /= 6.0;
     }
@@ -196,7 +216,8 @@ const FRAG = `
 
     // Vignette, measured on a square so it does not stretch on a wide screen
     vec2 d = (vUv - 0.5) * vec2(uResolution.x / uResolution.y, 1.0);
-    c *= 1.0 - uVignette * smoothstep(0.30, 0.95, dot(d, d) * 1.6);
+    float edge = smoothstep(0.26, 0.95, dot(d, d) * 1.6);
+    c *= 1.0 - min(0.78, uVignette + uSpeedVignette) * edge;
     c *= uFade;
 
     // Dither, then quantise to five bits. Doing it in this order is the whole
@@ -281,12 +302,15 @@ export function createRetro(THREE, renderer) {
       uContrast: { value: GRADE.contrast },
       uSaturation: { value: GRADE.saturation },
       uVignette: { value: GRADE.vignette },
+      uSpeedVignette: { value: 0 },
       uLevels: { value: GRADE.levels },
       uFade: { value: 1 },
       uBlur: { value: 0 },
+      uAberration: { value: 0 },
       uBloom: { value: GRADE.bloom },
       uRays: { value: GRADE.rays },
       uShoulder: { value: GRADE.shoulder },
+      uFocus: { value: new THREE.Vector2(0.5, 0.32) },
       uResolution: { value: new THREE.Vector2(BASE_W, BASE_H) },
     },
     vertexShader: VERT,
@@ -304,50 +328,31 @@ export function createRetro(THREE, renderer) {
   passQuad.frustumCulled = false;
   const passScene = new THREE.Scene();
   passScene.add(passQuad);
+  let raysLive = false;
 
   let width = BASE_W;
   let height = BASE_H;
-  let pixel = 1;      // device pixels per game pixel — always a whole number
+  let displayWidth = BASE_W;
+  let displayHeight = BASE_H;
+  let dpr = 1;
+  let scale = RENDER.maxScale;
+  let averageFrame = 1 / 60;
+  let slowFor = 0;
+  let fastFor = 0;
+  let sized = false;
 
-  /* Fitting the window without ever resampling.
+  const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
-     The pixel size is chosen first: the largest whole number of device pixels
-     that still leaves at least a 640×360 picture. The buffer is then whatever
-     that pixel size divides the window into, which is how a 21:9 monitor gets
-     more mountain rather than black bars down the sides, and a phone held
-     upright gets a taller picture rather than a squashed one. Since the
-     canvas backing store and the element differ by exactly `pixel` device
-     pixels in each axis, the browser's nearest-neighbour upscale lands every
-     texel on a perfect square and nothing is ever interpolated.
+  /* Full-window, native-resolution output.
 
-     The old version fixed the height at 288 lines and capped the width, which
-     stretched the picture on any screen that was not roughly sixteen by nine
-     — seven per cent on an ultrawide and twenty on a phone. Choosing the
-     pixel and deriving the buffer is what fixes that without giving up the
-     hard pixel that the whole look depends on. */
-  function setSize(cssW, cssH) {
-    const dpr = Math.min(RENDER.maxPixelRatio, window.devicePixelRatio || 1);
-    const devW = Math.max(1, Math.round(cssW * dpr));
-    const devH = Math.max(1, Math.round(cssH * dpr));
-    /* The base picture chooses the pixel size and then has no further say.
-
-       It used to floor the buffer as well — `max(BASE_W, ceil(devW / pixel))`
-       — on the reasoning that the picture should never be coarser than the
-       shape it was designed against. That is a promise that cannot be kept
-       on a narrow window and it broke the one that matters: a phone held
-       upright is 420 device pixels wide, the floor forced a 640-wide buffer
-       into it, and the browser stretched the result across the screen at 52%
-       horizontal distortion. Which is precisely the bug this whole rewrite
-       exists to fix, reintroduced from the other end.
-
-       So the buffer is exactly what the chosen pixel divides the window into,
-       always, and the aspect ratio is therefore correct by construction. On a
-       display too small for even a 1:1 pixel to leave 640×360 the picture is
-       simply finer than the art direction intends, which is the honest
-       outcome and is invisible next to the alternative. */
-    pixel = Math.max(1, Math.floor(Math.min(devW / BASE_W, devH / BASE_H)));
-    width = Math.max(2, Math.ceil(devW / pixel));
-    height = Math.max(2, Math.ceil(devH / pixel));
+     `displayWidth/Height` are the panel-sized backing store. The world targets
+     normally match them exactly. On a struggling GPU only the world targets
+     step down; the DOM-sized canvas still covers the whole visual viewport
+     and the separate HUD remains native and sharp. A hard 4K pixel budget
+     prevents a high-DPI desktop from accidentally asking for an 8K frame. */
+  function resizeTargets() {
+    width = Math.max(2, Math.round(displayWidth * scale));
+    height = Math.max(2, Math.round(displayHeight * scale));
 
     scene3d.setSize(width, height);
     const bw = Math.max(1, Math.floor(width / 4));
@@ -360,9 +365,76 @@ export function createRetro(THREE, renderer) {
 
     renderer.setPixelRatio(1);
     renderer.setSize(width, height, false);
+    renderer.setRenderTarget(rays);
+    renderer.clear();
+    renderer.setRenderTarget(null);
+    raysLive = false;
     RENDER.buffer.width = width;
     RENDER.buffer.height = height;
-    return { width, height, pixel };
+  }
+
+  function setSize(cssW, cssH) {
+    const nextCssW = Math.max(1, cssW);
+    const nextCssH = Math.max(1, cssH);
+    const rawDpr = Math.min(RENDER.maxPixelRatio, window.devicePixelRatio || 1);
+    const pixelBudget = RENDER.maxPixels || 3840 * 2160;
+    const budgetDpr = Math.sqrt(pixelBudget / (nextCssW * nextCssH));
+    const nextDpr = Math.max(0.5, Math.min(rawDpr, budgetDpr));
+    const nextDisplayW = Math.max(2, Math.round(nextCssW * nextDpr));
+    const nextDisplayH = Math.max(2, Math.round(nextCssH * nextDpr));
+
+    if (!sized || nextDisplayW !== displayWidth
+      || nextDisplayH !== displayHeight || nextDpr !== dpr) {
+      dpr = nextDpr;
+      displayWidth = nextDisplayW;
+      displayHeight = nextDisplayH;
+      resizeTargets();
+      sized = true;
+    }
+
+    return {
+      width,
+      height,
+      displayWidth,
+      displayHeight,
+      dpr,
+      scale,
+      pixel: 1,
+    };
+  }
+
+  /* A conservative dynamic-resolution governor. It reacts to sustained frame
+     pressure, never a single terrain refill, and walks in small enough steps
+     that the change is not visible through motion. Returning true lets the
+     diagnostics know the backing store changed; camera aspect is unchanged. */
+  function updatePerformance(dt, active = true) {
+    if (!active || dt <= 0 || dt > 0.1) return false;
+    averageFrame += (dt - averageFrame) * (1 - Math.exp(-dt * 2.5));
+
+    if (averageFrame > 1 / 48) {
+      slowFor += dt;
+      fastFor = Math.max(0, fastFor - dt * 2);
+    } else if (averageFrame < 1 / 57) {
+      fastFor += dt;
+      slowFor = Math.max(0, slowFor - dt);
+    } else {
+      slowFor = Math.max(0, slowFor - dt * 0.5);
+      fastFor = Math.max(0, fastFor - dt * 0.5);
+    }
+
+    let next = scale;
+    if (slowFor > 1.6 && scale > RENDER.minScale) {
+      next = Math.max(RENDER.minScale, Math.round((scale - 0.1) * 20) / 20);
+    } else if (fastFor > 6 && scale < RENDER.maxScale) {
+      next = Math.min(RENDER.maxScale, Math.round((scale + 0.05) * 20) / 20);
+    }
+    if (next === scale) return false;
+
+    scale = next;
+    slowFor = 0;
+    fastFor = 0;
+    resizeTargets();
+    return true;
   }
 
   function render(worldScene, worldCamera) {
@@ -370,15 +442,22 @@ export function createRetro(THREE, renderer) {
     renderer.clear();
     renderer.render(worldScene, worldCamera);
 
-    // Bright pass, then the march. Both at a quarter of an already small
-    // buffer, which is why two extra full-screen passes cost nothing.
+    // Bright pass, then the march. Both stay at quarter resolution while the
+    // scene and final composite remain native.
     passQuad.material = brightMat;
     renderer.setRenderTarget(bright);
     renderer.render(passScene, flat);
 
-    passQuad.material = rayMat;
-    renderer.setRenderTarget(rays);
-    renderer.render(passScene, flat);
+    if (rayMat.uniforms.uStrength.value > 0.001) {
+      passQuad.material = rayMat;
+      renderer.setRenderTarget(rays);
+      renderer.render(passScene, flat);
+      raysLive = true;
+    } else if (raysLive) {
+      renderer.setRenderTarget(rays);
+      renderer.clear();
+      raysLive = false;
+    }
 
     renderer.setRenderTarget(null);
     renderer.render(post, flat);
@@ -398,13 +477,29 @@ export function createRetro(THREE, renderer) {
     rayMat.uniforms.uStrength.value = strength;
   }
 
+  /* Projected centre of the rider. Keeping this dynamic matters in the air,
+     where the chase framing opens and the body moves through the lower third
+     of the picture rather than sitting at a fixed HUD coordinate. */
+  function setFocus(x, y) {
+    material.uniforms.uFocus.value.set(
+      Math.min(0.95, Math.max(0.05, x)),
+      Math.min(0.95, Math.max(0.05, y)),
+    );
+  }
+
   /* How fast the run is, so the velocity blur knows whether it has been
      earned. Squared, so it arrives late and then arrives properly rather
      than creeping in across the whole speed range. */
   function setSpeed(speed) {
     const t = Math.min(1, Math.max(0,
       (speed - GRADE.blurFrom) / (GRADE.blurFull - GRADE.blurFrom)));
-    material.uniforms.uBlur.value = t * t * GRADE.blurAmount;
+    const eased = t * t * (3 - 2 * t);
+    const motion = reducedMotion ? 0.35 : 1;
+    material.uniforms.uBlur.value = eased * eased * GRADE.blurAmount * motion;
+    material.uniforms.uAberration.value = Math.pow(eased, 1.35)
+      * GRADE.aberration * motion;
+    material.uniforms.uSpeedVignette.value = Math.pow(eased, 1.2)
+      * GRADE.speedVignette;
   }
 
   return {
@@ -412,9 +507,19 @@ export function createRetro(THREE, renderer) {
     render,
     fade,
     setSun,
+    setFocus,
     setSpeed,
+    updatePerformance,
     get width() { return width; },
     get height() { return height; },
-    get pixel() { return pixel; },
+    get displayWidth() { return displayWidth; },
+    get displayHeight() { return displayHeight; },
+    get dpr() { return dpr; },
+    get scale() { return scale; },
+    get pixel() { return 1; },
+    get blur() { return material.uniforms.uBlur.value; },
+    get aberration() { return material.uniforms.uAberration.value; },
+    get speedVignette() { return material.uniforms.uSpeedVignette.value; },
+    get rayStrength() { return rayMat.uniforms.uStrength.value; },
   };
 }

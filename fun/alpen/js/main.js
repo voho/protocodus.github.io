@@ -21,7 +21,9 @@
 import * as THREE from 'three';
 
 import { RENDER, RIDER, SCORE, PROPS, GRADE } from './config.js';
-import { createTerrain, heightAt, nearestCenter } from './terrain.js';
+import {
+  createTerrain, heightAt, nearestCenter, corridorHalfAt,
+} from './terrain.js';
 import { createProps, HARD, SOFT } from './props.js';
 import { createWildlife } from './wildlife.js';
 import { createSky } from './sky.js';
@@ -38,15 +40,35 @@ import { createShading } from './shading.js';
 import { createInput } from './input.js';
 import { createAudio } from './audio.js';
 import { createHud } from './hud.js';
+import {
+  randomWorldSeed, setWorldSeed, worldSeedCode,
+} from './noise.js';
 
 const STEP = 1 / 120;
 const TAU = Math.PI * 2;
 const BEST_KEY = 'alpen.best';
 
+const seedParams = new URLSearchParams(window.location.search);
+const suppliedSeed = seedParams.get('seed');
+const runSeed = setWorldSeed(suppliedSeed || randomWorldSeed());
+const runCode = worldSeedCode(runSeed);
+
+// Put generated seeds in the address bar. A run can now be shared, replayed
+// and regression-tested without turning the endless world into stored data.
+if (!suppliedSeed) {
+  try {
+    const seededUrl = new URL(window.location.href);
+    seededUrl.searchParams.set('seed', runCode);
+    window.history.replaceState(null, '', seededUrl);
+  } catch { /* an embedded host may forbid history changes; the run still works */ }
+}
+
 const canvas = document.getElementById('stage');
 const hudRoot = document.querySelector('.hud');
 const curtain = document.querySelector('.curtain');
 const pad = document.querySelector('.pad');
+const seedLabel = document.querySelector('[data-seed]');
+if (seedLabel) seedLabel.textContent = runCode;
 
 /* ==========================================================================
    Renderer
@@ -118,6 +140,17 @@ scene.add(sky.group, sky.lights, terrain.mesh, props.group, wildlife.group,
    derived from this single function. */
 const world = {
   height: (x, z) => heightAt(x, z) + props.liftAt(x, z),
+  /* Running out of momentum on the wall is a real failed commitment. Doing
+     the same on a steep-looking patch inside the groomed piste is not: the
+     board can wash out and recover downhill there without a hidden wipeout. */
+  canStall: (x, z) => (
+    Math.abs(x - nearestCenter(x, z)) > corridorHalfAt(z)
+  ),
+  // Weather changes the surface continuously. The rider reads both inside
+  // the fixed physics step; visuals and handling therefore describe the
+  // same snow rather than two unrelated systems.
+  grip: 1,
+  surfaceDrag: 1,
   // Only the chase camera asks this, and only about trunks: is there
   // something solid standing here?
   blocked: (x, z, r) => {
@@ -146,6 +179,8 @@ scene.add(model.root, model.shadow);
 const chase = createChaseCamera(THREE, camera);
 const audio = createAudio();
 const hud = createHud(hudRoot);
+const touchPause = pad.querySelector('[data-action="pause"]');
+const touchMute = pad.querySelector('[data-action="mute"]');
 
 /* ==========================================================================
    Game state
@@ -156,6 +191,7 @@ const game = {
   score: 0,
   combo: 1,
   best: 0,
+  seed: runCode,
   rider,
   weather: weather.state,
   liveTrick: '',
@@ -174,13 +210,21 @@ if (window.matchMedia('(hover: none)').matches || 'ontouchstart' in window) {
 const demo = { t: 0, turn: 0 };
 const prev = new THREE.Vector3();
 const wind = new THREE.Vector3();
+const riderScreen = new THREE.Vector3();
+let pausedRendered = false;
+
+function showMuted(value) {
+  hud.setMuted(value);
+  if (touchMute) touchMute.setAttribute('aria-pressed', String(!!value));
+}
 
 function begin() {
   if (game.mode === 'playing') return;
   audio.start();
-  hud.setMuted(audio.muted);
+  showMuted(audio.muted);
   if (game.mode === 'attract') restart();
   game.mode = 'playing';
+  pausedRendered = false;
   curtain.classList.remove('on');
   retro.fade(1);
 }
@@ -188,6 +232,7 @@ function begin() {
 function pause() {
   if (game.mode !== 'playing') return;
   game.mode = 'paused';
+  pausedRendered = false;
   curtain.classList.add('on');
   curtain.dataset.screen = 'paused';
   retro.fade(0.42);
@@ -216,6 +261,21 @@ function restart() {
   terrain.update(rider.pos.x, rider.pos.z);
 }
 
+function newMountain() {
+  const url = new URL(window.location.href);
+  url.searchParams.set('seed', worldSeedCode(randomWorldSeed()));
+  window.location.assign(url);
+}
+
+function toggleFullscreen() {
+  const active = document.fullscreenElement || document.webkitFullscreenElement;
+  const action = active
+    ? (document.exitFullscreen || document.webkitExitFullscreen)?.call(document)
+    : (document.documentElement.requestFullscreen
+      || document.documentElement.webkitRequestFullscreen)?.call(document.documentElement);
+  action?.catch?.(() => { /* fullscreen can be blocked by an embedding page */ });
+}
+
 function onKey(e) {
   if (e.code === 'Escape') {
     if (game.mode === 'paused') begin();
@@ -223,7 +283,16 @@ function onKey(e) {
     return;
   }
   if (e.code === 'KeyM') {
-    hud.setMuted(audio.toggleMute());
+    showMuted(audio.toggleMute());
+    return;
+  }
+  if (e.code === 'KeyN') {
+    newMountain();
+    return;
+  }
+  if (e.code === 'KeyF') {
+    toggleFullscreen();
+    if (game.mode !== 'playing') begin();
     return;
   }
   if (e.code === 'KeyR' && game.mode !== 'attract') {
@@ -237,8 +306,35 @@ function onKey(e) {
 }
 
 curtain.addEventListener('pointerdown', begin);
+touchPause?.addEventListener('click', (e) => {
+  e.preventDefault();
+  pause();
+});
+touchMute?.addEventListener('click', (e) => {
+  e.preventDefault();
+  showMuted(audio.toggleMute());
+});
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) pause();
+});
+
+canvas.addEventListener('webglcontextlost', (e) => {
+  e.preventDefault();
+  game.mode = 'paused';
+  pausedRendered = true;
+  curtain.dataset.screen = 'paused';
+  curtain.classList.add('on');
+  const note = curtain.querySelector('.pause-only.tagline');
+  if (note) note.textContent = 'Graphics paused while the browser restores WebGL.';
+  audio.quiet();
+  input.clear();
+});
+
+canvas.addEventListener('webglcontextrestored', () => {
+  const note = curtain.querySelector('.pause-only.tagline');
+  if (note) note.textContent = 'Paused.';
+  chase.reset();
+  scheduleResize();
 });
 
 /* ==========================================================================
@@ -265,13 +361,18 @@ function scoreLanding(s) {
     + s.grabTime * SCORE.grabPerSecond
     + s.airTime * SCORE.airPerSecond;
   if (s.switchStance) pts *= SCORE.switchBonus;
+  const fast = Math.max(0, Math.min(1,
+    (s.takeoffSpeed - SCORE.speedBonusFrom) / (SCORE.speedBonusFull - SCORE.speedBonusFrom)));
+  pts *= 1 + fast * SCORE.speedBonus;
+  if (s.lipPop) pts *= SCORE.lipBonus;
   if (s.verdict === SKETCHY) pts *= 0.5;
 
   const name = trickName(s, s.verdict);
   if (!name || pts < SCORE.minTrickScore) return;
 
   pts *= game.combo;
-  award(pts, name, s.verdict === SKETCHY ? 'warn' : '');
+  const callout = s.lipPop && s.verdict === CLEAN ? `PERFECT POP · ${name}` : name;
+  award(pts, callout, s.verdict === SKETCHY ? 'warn' : '');
   if (s.verdict === CLEAN) {
     game.combo = Math.min(SCORE.comboMax, game.combo + SCORE.comboStep);
     audio.combo(game.combo);
@@ -378,8 +479,8 @@ function collide() {
       continue;
     }
     if (rider.grace > 0 || game.mode === 'attract') continue;
-    // One response per contact. `collide()` runs per rendered frame, so a
-    // rider still inside the trunk's radius next frame was taking a fresh
+    // One response per contact. `collide()` runs per physics substep, so a
+    // rider still inside the trunk's radius on the next step would take a fresh
     // impulse and a fresh multiplicative speed cut each time — which made
     // the same graze measurably harsher on a 144 Hz display than a 60 Hz one.
     if (s.hit) continue;
@@ -460,23 +561,27 @@ function frame(now) {
 
   const running = game.mode !== 'paused';
   if (running) {
+    pausedRendered = false;
     input.update(dt);
     const control = game.mode === 'attract' ? demoInput(dt) : input.state;
-    prev.copy(rider.pos);
 
     // Fixed-step physics, so a jump is the same size on every machine
     let steps = 0;
     lastStep += dt;
     while (lastStep >= STEP && steps < 8) {
+      prev.copy(rider.pos);
       rider.step(STEP, control);
+      // Obstacle sweeps belong to the same clock as motion. Running this once
+      // per rendered frame made a fast tree impact subtly display-rate
+      // dependent even though the rider itself was fixed-step.
+      collide();
       lastStep -= STEP;
       steps += 1;
     }
     if (steps >= 8) lastStep = 0;
 
-    terrain.update(rider.pos.x, rider.pos.z);
+    terrain.update(rider.pos.x, rider.pos.z, dt);
     props.update(rider.pos.z);
-    collide();
 
     // A blip per half-rotation, so a 720 sounds like a 720
     if (rider.grounded) {
@@ -489,6 +594,10 @@ function frame(now) {
     }
 
     const w = weather.update(dt);
+    // Falling snow is fresh snow: progressively softer, slower and easier to
+    // wash out on. The endpoints stay arcade-readable rather than punitive.
+    world.grip = 1 - w.storm * (1 - RIDER.stormGrip);
+    world.surfaceDrag = 1 + w.storm * (RIDER.stormFriction - 1);
     scene.fog.color.copy(w.haze);
     scene.fog.near = w.fogNear;
     scene.fog.far = w.fogFar;
@@ -500,11 +609,6 @@ function frame(now) {
       p.material.uniforms.uFar.value = w.fogFar;
     }
     sky.update(rider.pos, w, dt);
-    // One write, and every material in the world agrees about the sky it is
-    // dissolving into. It has to follow `sky.update`, which is what decides
-    // where the sun actually is this frame.
-    shading.update(w, camera);
-
     wildlife.update(dt, rider,
       (x, z, kind) => { if (game.mode === 'playing') nearMiss(kind); },
       () => { if (game.mode === 'playing' && rider.grace <= 0) rider.fall('bear', rider.speed); });
@@ -519,6 +623,10 @@ function frame(now) {
     });
 
     chase.update(rider, dt, world);
+    // One write, and every material in the world agrees about the sky it is
+    // dissolving into. It follows both the sky and the chase camera so the
+    // view-space sun cannot lag a carve by one rendered frame.
+    shading.update(w, camera);
     model.update(rider, dt);
     trail.update(rider, dt);
 
@@ -562,8 +670,10 @@ function frame(now) {
     spray.update(dt, camera, wind);
     streaks.update(dt, camera, rider.vel, rider.speed);
 
-    audio.ambience(rider.speed, rider.slide, rider.grounded, w.storm);
+    audio.ambience(rider.speed, rider.slide, rider.grounded, w.storm, rider.carveLoad);
     retro.setSpeed(rider.speed);
+    riderScreen.copy(rider.pos).addScaledVector(rider.normal, 0.9).project(camera);
+    retro.setFocus(riderScreen.x * 0.5 + 0.5, riderScreen.y * 0.5 + 0.5);
 
     /* Where the sun is on the screen, for the rays to march towards. The sky
        owns the answer because it owns the sun — including whether it is
@@ -571,16 +681,20 @@ function frame(now) {
        which come back as a strength of zero so the whole pass is skipped
        rather than fading. It has to be asked *after* the camera has been
        moved this frame or the rays trail the picture by one. */
-    if (sky.sunScreen) {
-      const s = sky.sunScreen(camera);
-      retro.setSun(s.x, s.y, s.strength);
+    if (sky.project) {
+      const s = sky.project(camera);
+      retro.setSun(s.x, s.y, s.visible);
     }
 
     game.liveTrick = liveTrickName();
     hud.update(game, dt);
   }
 
-  retro.render(scene, camera);
+  retro.updatePerformance(dt, running);
+  if (running || !pausedRendered) {
+    retro.render(scene, camera);
+    pausedRendered = !running;
+  }
 }
 
 /* ==========================================================================
@@ -593,15 +707,24 @@ function frame(now) {
    laptop moved to an external display, or the browser zoomed). The last one
    has no event at all — the standard trick is a media query that matches
    only the current ratio, which stops matching the moment it changes. */
+let resizeFrame = 0;
+
 function resize() {
-  const w = window.innerWidth;
-  const h = window.innerHeight;
+  resizeFrame = 0;
+  pausedRendered = false;
+  const viewport = window.visualViewport;
+  const w = Math.max(1, Math.round(viewport?.width || window.innerWidth));
+  const h = Math.max(1, Math.round(viewport?.height || window.innerHeight));
   const size = retro.setSize(w, h);
-  camera.aspect = size.width / size.height;
+  camera.aspect = w / h;
   camera.updateProjectionMatrix();
-  // The read-out is the same buffer at the same scale, which is what makes a
-  // HUD pixel and a snow pixel the same square rather than nearly the same
-  hud.setSize(size.width, size.height, size.pixel);
+  // The HUD stays at display resolution even if the 3D world temporarily
+  // steps down under GPU pressure.
+  hud.setSize(size.displayWidth, size.displayHeight, 1);
+}
+
+function scheduleResize() {
+  if (!resizeFrame) resizeFrame = requestAnimationFrame(resize);
 }
 
 let ratioQuery = null;
@@ -613,13 +736,15 @@ function watchPixelRatio() {
 }
 
 function onRatioChange() {
-  resize();
+  scheduleResize();
   watchPixelRatio();
 }
 
-window.addEventListener('resize', resize);
-window.addEventListener('orientationchange', resize);
-if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
+window.addEventListener('resize', scheduleResize);
+window.addEventListener('orientationchange', scheduleResize);
+document.addEventListener('fullscreenchange', scheduleResize);
+document.addEventListener('webkitfullscreenchange', scheduleResize);
+if (window.visualViewport) window.visualViewport.addEventListener('resize', scheduleResize);
 watchPixelRatio();
 resize();
 
@@ -636,16 +761,28 @@ window.__alpen = {
     pos: [rider.pos.x, rider.pos.y, rider.pos.z].map((v) => +v.toFixed(1)),
     state: rider.state,
     grounded: rider.grounded,
+    switchStance: rider.switchStance,
+    boardForward: +rider.boardForward.toFixed(2),
+    upCourse: rider.vel.z > 0.05,
     airTime: +rider.airTime.toFixed(2),
     climbRate: +rider.climbRate.toFixed(2),
     edge: +(rider.edge || 0).toFixed(2),
     carveLoad: +rider.carveLoad.toFixed(2),
     balance: +rider.balance.toFixed(2),
+    contactFootprint: +rider.contactFootprint.toFixed(2),
     compression: +rider.compression.toFixed(3),
     slide: +rider.slide.toFixed(2),
     camDistance: +camera.position.distanceTo(rider.pos).toFixed(2),
     fov: +camera.fov.toFixed(1),
-    buffer: [retro.width, retro.height, `${retro.pixel}×`],
+    seed: game.seed,
+    buffer: [retro.width, retro.height, `${Math.round(retro.scale * 100)}%`],
+    display: [retro.displayWidth, retro.displayHeight, `${retro.dpr.toFixed(2)} dpr`],
+    speedFx: {
+      blur: +retro.blur.toFixed(5),
+      aberration: +retro.aberration.toFixed(5),
+      vignette: +retro.speedVignette.toFixed(3),
+      rays: +retro.rayStrength.toFixed(3),
+    },
     solids: props.solids.length,
     ramps: props.ramps.length,
     rails: props.rails.length,
@@ -656,12 +793,14 @@ window.__alpen = {
       storm: +weather.state.storm.toFixed(2),
       fog: [Math.round(weather.state.fogNear), Math.round(weather.state.fogFar)],
       keyI: +weather.state.keyI.toFixed(2),
+      snowGrip: +world.grip.toFixed(2),
+      snowDrag: +world.surfaceDrag.toFixed(2),
     },
   }),
 };
 
 restart();
 game.mode = 'attract';
-hud.setMuted(audio.muted);
+showMuted(audio.muted);
 document.body.classList.add('ready');
 requestAnimationFrame(frame);

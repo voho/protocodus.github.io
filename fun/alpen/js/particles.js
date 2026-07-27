@@ -39,12 +39,14 @@
 import { SNOW, STREAKS, SKY, RENDER } from './config.js';
 
 const VERT = `
+  precision mediump float;
   attribute float aSize;
   attribute float aAlpha;
   varying float vAlpha;
   varying float vDepth;
   uniform float uScale;
   uniform float uMax;
+  uniform float uStretch;
   void main() {
     vAlpha = aAlpha;
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
@@ -52,7 +54,7 @@ const VERT = `
     // Clamped at both ends: under a pixel a particle flickers, and over a
     // hundred or so it is a white sheet across the lens — and some drivers
     // quietly refuse to draw a point that big at all
-    gl_PointSize = clamp(aSize * uScale / max(0.001, vDepth), 1.0, uMax);
+    gl_PointSize = clamp(aSize * uScale * uStretch / max(0.001, vDepth), 1.0, uMax);
     gl_Position = projectionMatrix * mv;
   }
 `;
@@ -63,11 +65,16 @@ const FRAG = `
   uniform vec3 uFog;
   uniform float uNear;
   uniform float uFar;
+  uniform vec2 uAxis;
+  uniform float uStretch;
   varying float vAlpha;
   varying float vDepth;
   void main() {
     vec2 d = gl_PointCoord - 0.5;
-    float r = dot(d, d);
+    vec2 axis = normalize(uAxis + vec2(0.0001, 0.0));
+    vec2 across = vec2(-axis.y, axis.x);
+    vec2 q = vec2(dot(d, axis), dot(d, across) * uStretch);
+    float r = dot(q, q);
     if (r > 0.25 || vAlpha <= 0.001) discard;
     float a = vAlpha * (1.0 - smoothstep(0.06, 0.25, r));
     // Anything inside arm's reach of the lens is on its way to being a
@@ -78,7 +85,7 @@ const FRAG = `
   }
 `;
 
-function pointMaterial(THREE, color) {
+function pointMaterial(THREE, color, maxSize = 96) {
   return new THREE.ShaderMaterial({
     uniforms: {
       uColor: { value: new THREE.Color(color) },
@@ -86,7 +93,9 @@ function pointMaterial(THREE, color) {
       uNear: { value: RENDER.fogNear },
       uFar: { value: RENDER.fogFar },
       uScale: { value: 300 },
-      uMax: { value: 96 },
+      uMax: { value: maxSize },
+      uAxis: { value: new THREE.Vector2(0, 1) },
+      uStretch: { value: 1 },
     },
     vertexShader: VERT,
     fragmentShader: FRAG,
@@ -95,7 +104,7 @@ function pointMaterial(THREE, color) {
   });
 }
 
-function pointCloud(THREE, count, color) {
+function pointCloud(THREE, count, color, maxSize = 96) {
   const geo = new THREE.BufferGeometry();
   const position = new Float32Array(count * 3);
   const size = new Float32Array(count);
@@ -104,7 +113,7 @@ function pointCloud(THREE, count, color) {
   geo.setAttribute('aSize', new THREE.BufferAttribute(size, 1));
   geo.setAttribute('aAlpha', new THREE.BufferAttribute(alpha, 1));
   geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e6);
-  const points = new THREE.Points(geo, pointMaterial(THREE, color));
+  const points = new THREE.Points(geo, pointMaterial(THREE, color, maxSize));
   points.frustumCulled = false;
   return { points, geo, position, size, alpha };
 }
@@ -128,7 +137,7 @@ export function pointScale(camera, height = RENDER.buffer.height) {
 
 export function createSnowfall(THREE) {
   const n = SNOW.count;
-  const cloud = pointCloud(THREE, n, '#ffffff');
+  const cloud = pointCloud(THREE, n, '#ffffff', 72);
   const { position, size, alpha, geo } = cloud;
   const box = SNOW.box;
   const drift = new Float32Array(n * 2);
@@ -196,7 +205,18 @@ export function createSnowfall(THREE) {
       position[j + 2] = wrap(position[j + 2], c.z);
     }
     geo.attributes.position.needsUpdate = true;
-    cloud.points.material.uniforms.uScale.value = pointScale(camera);
+    const uniforms = cloud.points.material.uniforms;
+    uniforms.uScale.value = pointScale(camera);
+    // Project the fall-and-wind vector onto the camera plane. The point stays
+    // one draw call, but a storm now cuts diagonally across the view instead
+    // of reading as a cloud of circular dots.
+    const e = camera.matrixWorld.elements;
+    const fallSpeed = -SNOW.fall;
+    const sx = wx * e[0] + fallSpeed * e[1] + wz * e[2];
+    const sy = wx * e[4] + fallSpeed * e[5] + wz * e[6];
+    const sl = Math.hypot(sx, sy) || 1;
+    uniforms.uAxis.value.set(sx / sl, sy / sl);
+    uniforms.uStretch.value = 1 + Math.min(2.0, Math.hypot(wx, wz) * 0.085 + 0.25);
   }
 
   return { points: cloud.points, update, setIntensity };
@@ -208,7 +228,7 @@ export function createSnowfall(THREE) {
 
 export function createSpray(THREE) {
   const n = SNOW.sprayCount;
-  const cloud = pointCloud(THREE, n, '#ffffff');
+  const cloud = pointCloud(THREE, n, '#ffffff', 56);
   const { position, size, alpha, geo } = cloud;
   const vel = new Float32Array(n * 3);
   const life = new Float32Array(n);

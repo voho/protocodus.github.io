@@ -1,6 +1,6 @@
 /* Input.
 
-   Five things the rider can be told, and the game never asks about keys:
+   Six commands the rider can be given, and the game never asks about keys:
 
      turn        -1 … 1, and it ramps rather than switching, so a tap is a
                  nudge and a hold is a full-lock carve
@@ -40,6 +40,9 @@ const RELEASE = 12;
 
 export function createInput(target, hooks = {}) {
   const down = new Set();
+  let jumpPressedSinceUpdate = false;
+  let jumpTapPending = false;
+  let jumpPulseRelease = false;
   const state = {
     turn: 0, tuck: false, brake: false, jump: false,
     trickGrab: false, trickFlip: false,
@@ -56,6 +59,7 @@ export function createInput(target, hooks = {}) {
 
   function onKey(e, isDown) {
     const bound = CODES.has(e.code);
+    const jumpKey = BINDINGS.jump.includes(e.code);
     // Space and the arrows scroll the page otherwise, which on a game that
     // fills the viewport is a bug rather than a preference. Repeats included:
     // the key is still down, so the page would still scroll.
@@ -69,9 +73,13 @@ export function createInput(target, hooks = {}) {
 
     if (bound) {
       if (isDown) {
-        if (!down.has(e.code)) state.anyPressed = true;
+        if (!down.has(e.code)) {
+          state.anyPressed = true;
+          if (jumpKey) jumpPressedSinceUpdate = true;
+        }
         down.add(e.code);
       } else {
+        if (jumpKey && jumpPressedSinceUpdate && down.has(e.code)) jumpTapPending = true;
         down.delete(e.code);
       }
     }
@@ -94,7 +102,20 @@ export function createInput(target, hooks = {}) {
 
     state.tuck = held('tuck');
     state.brake = held('brake');
-    state.jump = held('jump');
+    /* A complete tap can happen between two animation frames. Latch that
+       edge into one sampled press and one sampled release so the 120 Hz rider
+       always gets an ollie, however the browser scheduled the key events. */
+    if (jumpPulseRelease) {
+      state.jump = false;
+      jumpPulseRelease = false;
+    } else if (jumpTapPending) {
+      state.jump = true;
+      jumpTapPending = false;
+      jumpPulseRelease = true;
+    } else {
+      state.jump = held('jump');
+    }
+    jumpPressedSinceUpdate = false;
     state.trickGrab = held('grab');
     state.trickFlip = held('flip');
   }
@@ -105,16 +126,36 @@ export function createInput(target, hooks = {}) {
     state.touch = true;
     root.querySelectorAll('[data-key]').forEach((el) => {
       const name = el.dataset.key;
-      const set = (v) => (e) => {
+      let keyboardPulse = 0;
+      const set = (v, e) => {
         e.preventDefault();
         touch[name] = v;
         if (v) state.anyPressed = true;
         el.classList.toggle('on', v);
       };
-      el.addEventListener('pointerdown', set(true));
-      el.addEventListener('pointerup', set(false));
-      el.addEventListener('pointercancel', set(false));
-      el.addEventListener('pointerleave', set(false));
+      el.addEventListener('pointerdown', (e) => {
+        el.setPointerCapture?.(e.pointerId);
+        set(true, e);
+      });
+      el.addEventListener('pointerup', (e) => {
+        if (el.hasPointerCapture?.(e.pointerId)) el.releasePointerCapture(e.pointerId);
+        set(false, e);
+      });
+      el.addEventListener('pointercancel', (e) => set(false, e));
+      el.addEventListener('lostpointercapture', (e) => set(false, e));
+
+      // Switch control, voice control and keyboard activation dispatch a
+      // click without a pointer sequence. Give those activations a short,
+      // fixed pulse so every native button remains a working game control.
+      el.addEventListener('click', (e) => {
+        if (e.detail !== 0) return;
+        set(true, e);
+        window.clearTimeout(keyboardPulse);
+        keyboardPulse = window.setTimeout(() => {
+          touch[name] = false;
+          el.classList.remove('on');
+        }, 160);
+      });
     });
   }
 
@@ -128,6 +169,10 @@ export function createInput(target, hooks = {}) {
     down.clear();
     for (const k of Object.keys(touch)) touch[k] = false;
     state.turn = 0;
+    state.jump = false;
+    jumpPressedSinceUpdate = false;
+    jumpTapPending = false;
+    jumpPulseRelease = false;
   }
 
   return { state, update, bindTouch, dispose, clear };

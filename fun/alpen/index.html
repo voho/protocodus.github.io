@@ -3,10 +3,10 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Alpen — Protocodus</title>
   <meta name="description"
-    content="An endless snowboard run down a procedurally generated mountain, rendered like it is 1997. Three.js, no install, no account.">
+    content="A full-window low-poly snowboard run across a seeded procedural mountain, with arcade physics and changing alpine weather.">
   <meta name="theme-color" content="#0d1420">
   <meta property="og:title" content="Alpen — endless snowboarding">
   <meta property="og:description"
@@ -15,7 +15,6 @@
   <meta property="og:url" content="https://protocodus.cz/fun/alpen/">
   <link rel="canonical" href="https://protocodus.cz/fun/alpen/">
   <link rel="icon" type="image/svg+xml" href="/assets/images/logo.svg">
-  <link rel="preload" href="/assets/fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="./alpen.css">
   <script type="importmap">
     { "imports": { "three": "/assets/vendor/three/three.module.min.js" } }
@@ -26,20 +25,10 @@
   <canvas id="stage"></canvas>
 
   <!-- ================= HUD =================
-       The read-out is a second framebuffer, not a layer of DOM. It holds the
-       renderer's own buffer and fills the same box as #stage above, so a HUD
-       pixel and a snow pixel are exactly the same square — which is why there
-       is no text in this element and no typeface behind it. Every glyph is a
-       hand-drawn 5×7 bitmap: see js/font.js for the alphabet and js/hud.js
-       for the layout, which is measured in buffer pixels rather than in any
-       proportion of the window.
+       The read-out is a high-DPI bitmap surface, not a text layer. Every
+       glyph is a hand-drawn 5×7 cell: see js/font.js and js/hud.js.
 
-       The attributes on the canvas are only what it looks like before the
-       first frame. js/hud.js sizes the backing store to whatever the renderer
-       is actually using, which is 640×360 on a sixteen-by-nine window and
-       wider or taller on anything else.
-
-       The permanent control legend used to live here as a <dl>. It is drawn
+       The opening control legend used to live here as a <dl>. It is drawn
        into the buffer now, for the same reason as everything else: a legend
        in a real typeface sitting next to a read-out in a bitmap one is the
        one seam this arrangement exists to remove.
@@ -59,6 +48,11 @@
        tabbable, which is both an ARIA violation and, on a touch device with
        no keyboard, the whole game. The glyphs get labels instead. -->
   <div class="pad" role="group" aria-label="Touch controls">
+    <div class="pad-tools">
+      <button type="button" class="pad-btn pad-tool" data-action="pause" aria-label="Pause">Ⅱ</button>
+      <button type="button" class="pad-btn pad-tool" data-action="mute"
+        aria-label="Mute sound" aria-pressed="false">♪</button>
+    </div>
     <button type="button" class="pad-btn pad-left" data-key="left" aria-label="Carve left">◀</button>
     <button type="button" class="pad-btn pad-right" data-key="right" aria-label="Carve right">▶</button>
     <div class="pad-stack">
@@ -75,25 +69,29 @@
   </div>
 
   <!-- ================= CURTAIN ================= -->
-  <div class="curtain on" data-screen="start">
+  <div class="curtain on" data-screen="start" role="dialog" aria-modal="true"
+    aria-labelledby="alpen-title" tabindex="-1">
     <div class="curtain-inner">
-      <p class="eyebrow">Protocodus · Fun</p>
-      <h1 class="wordmark">ALPEN<i class="spark" aria-hidden="true">✦</i></h1>
+      <p class="eyebrow">Protocodus · Fun · Mountain <span data-seed>—</span></p>
+      <h1 class="wordmark" id="alpen-title">ALPEN<i class="spark" aria-hidden="true">✦</i></h1>
       <p class="tagline start-only">An endless mountain, a board, and whatever you can land.
         Nothing here can end your run — falling over just costs you the combo.</p>
       <p class="tagline pause-only">Paused.</p>
 
-      <dl class="keys start-only">
+      <dl class="keys">
         <div><dt>A</dt><dt>D</dt><dd>Carve — and spin, once you are in the air</dd></div>
         <div><dt>W</dt><dd>Tuck for speed. Less grip, narrower view</dd></div>
         <div><dt>S</dt><dd>Brake — set the edge across the hill</dd></div>
         <div><dt>Space</dt><dd>Hold to load the legs, release to pop</dd></div>
         <div><dt>Q</dt><dd>Grab. Hold it. Let go before the snow</dd></div>
         <div><dt>E</dt><dd>Flip</dd></div>
-        <div><dt>Esc</dt><dt>R</dt><dt>M</dt><dd>Pause · restart · sound</dd></div>
+        <div><dt>Esc</dt><dt>R</dt><dt>N</dt><dt>M</dt><dt>F</dt><dd>Pause · restart · new mountain · sound · fullscreen</dd></div>
       </dl>
 
-      <p class="go"><span class="go-key">Press any key</span><span class="go-tap">Tap anywhere</span> to drop in</p>
+      <p class="go">
+        <span class="start-only"><span class="go-key">Press any key</span><span class="go-tap">Tap anywhere</span> to drop in</span>
+        <span class="pause-only">Press any key to resume</span>
+      </p>
       <a class="back" href="/#fun">← Back to protocodus.cz</a>
     </div>
   </div>

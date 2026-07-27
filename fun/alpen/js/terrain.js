@@ -110,15 +110,13 @@ export function nearestCenter(x, z) {
 /* ==========================================================================
    The height, as a row and a point on it
 
-   Almost everything the hill knows depends only on z: the grade's integral,
-   the route, the corridor's width, the shape of the wall, how lumpy this
-   stretch is, and which drops reach it. The mesh fills a row at a time, so
-   all of that is computed once per row and only the genuinely x-dependent
-   part — six noise lookups and some arithmetic — runs per vertex. It is
-   about four times cheaper than asking `heightAt` for every one, and because
-   `heightAt` is itself written in terms of these two functions there is
-   exactly one definition of the mountain and no chance of the mesh and the
-   physics disagreeing about where the ground is.
+   Almost everything structural depends only on z: the grade's integral, the
+   route, the corridor's width, the wall and which drops reach it. The mesh
+   fills a row at a time, so all of that is computed once per row; only the
+   genuinely 2D noise fields run per vertex. It is still much cheaper than
+   asking `heightAt` for every one, and because `heightAt` itself uses these
+   same two functions there is one definition of the mountain and no chance
+   of the mesh and physics disagreeing about where the ground is.
    ========================================================================== */
 
 function makeContext() {
@@ -128,7 +126,6 @@ function makeContext() {
     mid: 0,
     split: 0,
     half: 0,
-    lump: 1,
     lipW: 1,
     lipH: 0,
     nCliffs: 0,
@@ -169,9 +166,6 @@ function rowContext(z, ctx) {
     const side = hash2(b, 2287, 43) < 0.5 ? -1 : 1;
     ctx.tilt = side * route.drop * (ctx.split / route.split);
   }
-  ctx.lump = bulgeVary.floor
-    + (1 - bulgeVary.floor) * noise2(z * bulgeVary.freq, 0.5, bulgeVary.seed);
-
   // Some stretches get a wall worth aiming at and some get a mellow bank
   const v = 1 + wall.lipVary * snoise2(z * wall.lipFreq, 0, 23);
   ctx.lipW = wall.lipWidth * v;
@@ -263,10 +257,37 @@ function heightIn(ctx, x) {
   const wx = x + snoise2(x * warp.freq, z * warp.freq, warp.seed) * warp.amp;
   const wz = z + snoise2(x * warp.freq, z * warp.freq, warp.seed + 1) * warp.amp;
 
-  h += snoise2(x * ridges.freq, z * ridges.freq, ridges.seed) * ridges.amp;
-  h += snoise2(wx * rolls.freq, wz * rolls.freq, rolls.seed) * rolls.amp * ctx.lump;
-  h += snoise2(wx * moguls.freq, wz * moguls.freq, moguls.seed) * moguls.amp * ctx.lump;
-  h += snoise2(x * chatter.freq, z * chatter.freq, chatter.seed) * chatter.amp;
+  /* Every octave has its own orientation. Sampling all of them on the same
+     world axes leaves long procedural seams where unrelated features line up;
+     rotations keep the frequency and slope budget unchanged while making the
+     result read as geology rather than a height-map grid. */
+  const ridgeX = x * 0.966 - z * 0.259;
+  const ridgeZ = x * 0.259 + z * 0.966;
+  const rollX = wx * 0.819 + wz * 0.574;
+  const rollZ = -wx * 0.574 + wz * 0.819;
+  const mogulX = wx * 0.643 - wz * 0.766;
+  const mogulZ = wx * 0.766 + wz * 0.643;
+  const chatterX = x * 0.906 + z * 0.423;
+  const chatterZ = -x * 0.423 + z * 0.906;
+
+  /* Rough and quiet snow now forms broad patches instead of full-width bands
+     across the piste. Rolls and moguls use independent masks so a calm roller
+     does not automatically erase every smaller feature around it. */
+  const rollVary = bulgeVary.floor + (1 - bulgeVary.floor) * noise2(
+    (x * 0.731 - z * 0.682) * bulgeVary.freq,
+    (x * 0.682 + z * 0.731) * bulgeVary.freq,
+    bulgeVary.seed,
+  );
+  const mogulVary = bulgeVary.floor + (1 - bulgeVary.floor) * noise2(
+    (x * 0.526 + z * 0.851) * bulgeVary.freq,
+    (-x * 0.851 + z * 0.526) * bulgeVary.freq,
+    bulgeVary.seed + 17,
+  );
+
+  h += snoise2(ridgeX * ridges.freq, ridgeZ * ridges.freq, ridges.seed) * ridges.amp;
+  h += snoise2(rollX * rolls.freq, rollZ * rolls.freq, rolls.seed) * rolls.amp * rollVary;
+  h += snoise2(mogulX * moguls.freq, mogulZ * moguls.freq, moguls.seed) * moguls.amp * mogulVary;
+  h += snoise2(chatterX * chatter.freq, chatterZ * chatter.freq, chatter.seed) * chatter.amp;
 
   /* Outside the corridor: the quarterpipe, then the wall.
 
@@ -373,31 +394,34 @@ export function gradeAt(z) {
 
 /* Offsets that start at `step` and grow by `growth` each one, until they
    have covered `reach`. Returns the list of positions, not the steps. */
-function graded(step, growth, reach) {
+function graded(step, growth, reach, uniformReach = 0) {
   const out = [0];
   let d = 0;
   let s = step;
   while (d < reach) {
     d += s;
-    s *= growth;
     out.push(d);
+    if (d >= uniformReach) s *= growth;
   }
   return out;
 }
 
 export function createTerrain(THREE, shading) {
-  const { spacing, back, ahead, aheadGrowth, side, sideGrowth } = TERRAIN;
+  const {
+    spacing, uniformNear, back, ahead, aheadGrowth, side, sideGrowth,
+    morphNear, morphFar, morphRate, morphSettle,
+  } = TERRAIN;
 
   // Columns: mirrored about the rider. Rows: a few uniform cells behind,
   // then the graded fan out in front.
-  const half = graded(spacing, sideGrowth, side);
+  const half = graded(spacing, sideGrowth, side, uniformNear);
   const xs = [];
   for (let i = half.length - 1; i >= 1; i--) xs.push(-half[i]);
   for (let i = 0; i < half.length; i++) xs.push(half[i]);
 
   const zs = [];
   for (let d = back; d > 0; d -= spacing) zs.push(d);
-  const fwd = graded(spacing, aheadGrowth, ahead);
+  const fwd = graded(spacing, aheadGrowth, ahead, uniformNear);
   for (let i = 0; i < fwd.length; i++) zs.push(-fwd[i]);
 
   const vertsX = xs.length;
@@ -408,24 +432,46 @@ export function createTerrain(THREE, shading) {
 
   const positions = new Float32Array(count * 3);
   const colors = new Float32Array(count * 3);
+  const groom = new Float32Array(count);
+  const targetPositions = new Float32Array(count * 3);
+  const targetColors = new Float32Array(count * 3);
+  const targetGroom = new Float32Array(count);
+  const morphMask = new Float32Array(count);
   const heights = new Float64Array(count);
   const indices = new (count > 65535 ? Uint32Array : Uint16Array)(rows * cols * 6);
 
-  // The topology never changes, only the heights the vertices sit at
+  // Alternate the diagonal through successive quads. Repeating one diagonal
+  // across the whole mountain creates long false creases in flat shading.
   let t = 0;
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       // Columns run left to right and rows run from behind the rider to in
       // front of them, so this is the winding that faces up
       const a = r * vertsX + c;
-      indices[t++] = a; indices[t++] = a + 1; indices[t++] = a + vertsX;
-      indices[t++] = a + 1; indices[t++] = a + vertsX + 1; indices[t++] = a + vertsX;
+      if ((r + c) & 1) {
+        indices[t++] = a; indices[t++] = a + 1; indices[t++] = a + vertsX + 1;
+        indices[t++] = a; indices[t++] = a + vertsX + 1; indices[t++] = a + vertsX;
+      } else {
+        indices[t++] = a; indices[t++] = a + 1; indices[t++] = a + vertsX;
+        indices[t++] = a + 1; indices[t++] = a + vertsX + 1; indices[t++] = a + vertsX;
+      }
+    }
+  }
+
+  let m = 0;
+  for (let r = 0; r < vertsZ; r++) {
+    for (let c = 0; c < vertsX; c++, m++) {
+      morphMask[m] = smoothstep(morphNear, morphFar, Math.hypot(xs[c], zs[r]));
     }
   }
 
   const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  geometry.setAttribute('position',
+    new THREE.BufferAttribute(positions, 3).setUsage(THREE.DynamicDrawUsage));
+  geometry.setAttribute('color',
+    new THREE.BufferAttribute(colors, 3).setUsage(THREE.DynamicDrawUsage));
+  geometry.setAttribute('aGroom',
+    new THREE.BufferAttribute(groom, 1).setUsage(THREE.DynamicDrawUsage));
   geometry.setIndex(new THREE.BufferAttribute(indices, 1));
   geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(), ahead);
 
@@ -457,12 +503,20 @@ export function createTerrain(THREE, shading) {
   const material = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
   material.onBeforeCompile = (shader) => {
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vWorld;\nvarying float vDist;')
+      .replace('#include <common>', `#include <common>
+        attribute float aGroom;
+        varying vec3 vWorld;
+        varying float vDist;
+        varying float vGroom;`)
       .replace('#include <project_vertex>', `#include <project_vertex>
         vWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;
-        vDist = -mvPosition.z;`);
+        vDist = -mvPosition.z;
+        vGroom = aGroom;`);
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vWorld;\nvarying float vDist;')
+      .replace('#include <common>', `#include <common>
+        varying vec3 vWorld;
+        varying float vDist;
+        varying float vGroom;`)
       .replace('#include <color_fragment>', `#include <color_fragment>
         float detail = 1.0 - smoothstep(140.0, 320.0, vDist);
         if (detail > 0.002) {
@@ -471,10 +525,10 @@ export function createTerrain(THREE, shading) {
           float px = max(fwidth(vWorld.x), fwidth(vWorld.z));
           float ribFade = 1.0 - smoothstep(0.26, 0.72, px);      // period 1.53 m
           float grainFade = 1.0 - smoothstep(0.10, 0.26, px);    // cells of 0.43 m
-          float rib = sin(vWorld.z * 4.1) * ribFade;
+          float rib = sin(vWorld.z * 4.1) * ribFade * smoothstep(0.08, 0.82, vGroom);
           float pack = sin(vWorld.x * 0.55 + vWorld.z * 0.07);   // metres wide, never aliases
           float grain = fract(sin(dot(floor(vWorld.xz * 2.3), vec2(12.9898, 78.233))) * 43758.545);
-          float d = rib * 0.105 + pack * 0.035 + (grain - 0.5) * 0.07 * grainFade;
+          float d = rib * 0.055 + pack * 0.035 + (grain - 0.5) * 0.07 * grainFade;
           diffuseColor.rgb *= 1.0 + d * detail;
         }`)
       /* Glitter.
@@ -511,20 +565,19 @@ export function createTerrain(THREE, shading) {
         }
         #include <fog_fragment>`);
   };
-  /* And then the console, on top of all that: the vertex snap, the five
-     bands of diffuse, and the fog that resolves towards the sky rather than
-     towards one colour. It goes on last on purpose — `shading.apply` keeps
-     whatever the material was already doing to itself and runs it first, and
-     the glitter above is written to leave the fog include standing behind it
-     precisely so that this can take it. */
-  shading.apply(material);
+  /* Keep the console's vertex snap and sky-coloured fog, but let the snow's
+     Lambert term remain continuous. Flat polygon normals already give the
+     mountain its low-poly read; five hard light rungs made a moving sun and
+     every LOD transition look like shadows switching on a timer. Props and
+     the rider retain the stepped retro light. */
+  shading.apply(material, { bands: 0 });
   const mesh = new THREE.Mesh(geometry, material);
   mesh.frustumCulled = false;
 
   /* Snow is two colours and a rock, mixed per vertex. Lighting is the
      material's job; these carry material variation only — wind-packed
-     patches, the shade that collects in a hollow, and the stone that shows
-     through wherever the hill gets too steep to hold snow.
+     patches and the stone that shows through wherever the hill gets too
+     steep to hold snow.
 
      SNOW IS NEVER WHITE. These used to be #fbfdff and #c2d3ea — a bright
      snow that was white with a rounding error in it, and a shade that was
@@ -555,8 +608,11 @@ export function createTerrain(THREE, shading) {
 
   let anchorX = NaN;
   let anchorZ = NaN;
+  let anchorY = NaN;
+  let morphing = false;
+  let morphAge = 0;
 
-  function fill(ax, az, ay) {
+  function fill(ax, az, ay, outPositions, outColors, outGroom) {
     // Pass one: heights, a row at a time so everything that depends only on
     // z is computed once for the whole row rather than once per vertex
     let i = 0;
@@ -582,9 +638,9 @@ export function createTerrain(THREE, shading) {
         const wx = ax + lx;
         const h = heights[i];
 
-        positions[p] = lx;
-        positions[p + 1] = h - ay;
-        positions[p + 2] = lz;
+        outPositions[p] = lx;
+        outPositions[p + 1] = h - ay;
+        outPositions[p + 2] = lz;
 
         const cPrev = Math.max(0, c - 1);
         const cNext = Math.min(vertsX - 1, c + 1);
@@ -596,9 +652,6 @@ export function createTerrain(THREE, shading) {
         const steep = Math.hypot(dx, dz + grade);
 
         cur.copy(snowLit);
-        // Hollows hold shade. The mogul octave already knows where they are.
-        const hollow = smoothstep(0.5, -0.2, snoise2(wx * moguls.freq, wz * moguls.freq, moguls.seed));
-        cur.lerp(snowDim, hollow * 0.5);
         // Wind-packed patches, big and faint
         cur.lerp(snowDim, noise2(wx * 0.02, wz * 0.02, 7) * 0.2);
 
@@ -607,6 +660,7 @@ export function createTerrain(THREE, shading) {
         const toCentre = ctx.split > 0
           ? Math.min(Math.abs(wx - (ctx.mid - ctx.split)), Math.abs(wx - (ctx.mid + ctx.split)))
           : Math.abs(wx - ctx.mid);
+        outGroom[i] = 1 - smoothstep(ctx.half + 1, ctx.half + 4, toCentre);
         if (toCentre < ctx.half + 3) {
           /* Groomed, so it is brighter than what flanks it.
 
@@ -630,52 +684,99 @@ export function createTerrain(THREE, shading) {
           cur.lerp(stone, bare);
         }
 
-        colors[p] = cur.r;
-        colors[p + 1] = cur.g;
-        colors[p + 2] = cur.b;
+        outColors[p] = cur.r;
+        outColors[p + 1] = cur.g;
+        outColors[p + 2] = cur.b;
       }
     }
+  }
+
+  function publish() {
     geometry.attributes.position.needsUpdate = true;
     geometry.attributes.color.needsUpdate = true;
+    geometry.attributes.aGroom.needsUpdate = true;
   }
 
-  /* Re-anchor if the rider has crossed into a new anchor cell. The mesh is
-     placed at the anchor and its vertices stored relative to it, which keeps
-     every coordinate the GPU sees inside a kilometre however far down the
-     mountain the run has gone.
+  function settleMorph(dt) {
+    if (!morphing) return;
+    morphAge += dt;
+    const frameAlpha = 1 - Math.exp(-morphRate * dt);
 
-     The anchor moves in strides of four cells rather than one. Refilling six
-     thousand vertices is a few milliseconds and at 145 km/h a one-cell
-     anchor asked for it twenty-seven times a second, which is a whole frame's
-     budget spent four times over on a hill that had moved a metre and a half.
-     Four cells is still a whole number of the finest spacing, so the near
-     vertices land on the same lattice every time and the facets stay welded
-     exactly as they did; it is only the far, graded cells that shift further
-     per step, and they are in fog. `back` has to stay comfortably larger than
-     the stride or the ground behind the rider pops. */
-  /* Two cells, not four.
+    for (let i = 0, p = 0; i < count; i++, p += 3) {
+      // mask=0 is the exact collision surface around the rider. mask=1 is a
+      // distant vertex that converges exponentially instead of popping.
+      const alpha = 1 - morphMask[i] * (1 - frameAlpha);
+      positions[p] += (targetPositions[p] - positions[p]) * alpha;
+      positions[p + 1] += (targetPositions[p + 1] - positions[p + 1]) * alpha;
+      positions[p + 2] += (targetPositions[p + 2] - positions[p + 2]) * alpha;
+      colors[p] += (targetColors[p] - colors[p]) * alpha;
+      colors[p + 1] += (targetColors[p + 1] - colors[p + 1]) * alpha;
+      colors[p + 2] += (targetColors[p + 2] - colors[p + 2]) * alpha;
+      groom[i] += (targetGroom[i] - groom[i]) * alpha;
+    }
 
-     Every re-anchor shifts the far, graded cells by the whole stride, and out
-     where a cell is forty metres wide that shift is a visible crawl along the
-     skyline — the second half of the flickering horizon, the first being the
-     vertex snap. Four cells was chosen to keep the refill cost down and it
-     tripled the crawl to do it. Two is the compromise: the near cells still
-     land on the same lattice every time so the facets stay welded to the hill,
-     the refill happens twice as often as it needs to and is still only a few
-     milliseconds, and the far field moves little enough that the haze can
-     cover it — which is what the haze is for. */
+    if (morphAge >= morphSettle) {
+      positions.set(targetPositions);
+      colors.set(targetColors);
+      groom.set(targetGroom);
+      morphing = false;
+    }
+    publish();
+  }
+
+  /* Re-anchor after two fine cells. The uniform near field swaps to the same
+     world lattice, so nothing around the board moves. Distant graded cells
+     cannot make that guarantee; their live world positions are preserved
+     below, then positions, albedo and groom mask converge continuously on the
+     new samples. This is the difference between a terrain LOD transition and
+     an apparent shadow switch every three metres. */
   const stride = spacing * 2;
 
-  function update(x, z) {
+  function update(x, z, dt = 1 / 60) {
     const ax = Math.round(x / stride) * stride;
     const az = Math.round(z / stride) * stride;
-    if (ax === anchorX && az === anchorZ) return;
+    if (ax === anchorX && az === anchorZ) {
+      settleMorph(dt);
+      return;
+    }
+
+    const ay = heightAt(ax, az);
+    if (!Number.isFinite(anchorX)) {
+      anchorX = ax;
+      anchorZ = az;
+      anchorY = ay;
+      mesh.position.set(ax, ay, az);
+      fill(ax, az, ay, positions, colors, groom);
+      publish();
+      return;
+    }
+
+    /* Changing the mesh transform must not move the surface. Convert every
+       live local coordinate back to the same world position under the new
+       anchor first; the far field can then glide to its new LOD samples. */
+    const shiftX = anchorX - ax;
+    const shiftY = anchorY - ay;
+    const shiftZ = anchorZ - az;
+    for (let p = 0; p < positions.length; p += 3) {
+      positions[p] += shiftX;
+      positions[p + 1] += shiftY;
+      positions[p + 2] += shiftZ;
+    }
+
     anchorX = ax;
     anchorZ = az;
-    const ay = heightAt(ax, az);
+    anchorY = ay;
     mesh.position.set(ax, ay, az);
-    fill(ax, az, ay);
+    fill(ax, az, ay, targetPositions, targetColors, targetGroom);
+    morphAge = 0;
+    morphing = true;
+    settleMorph(dt);
   }
 
-  return { mesh, update, vertexCount: count };
+  return {
+    mesh,
+    update,
+    vertexCount: count,
+    debug: () => ({ anchorX, anchorY, anchorZ, morphing, morphAge }),
+  };
 }

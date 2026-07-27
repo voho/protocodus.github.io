@@ -169,8 +169,12 @@ function buildGeometries(THREE) {
   // because a duck-square stance is the one thing no snowboarder rides.
   const board = compose(THREE, [
     { geo: box, color: YELLOW, pos: [0, 0.06, 0], scale: [0.31, 0.045, 1.15] },
-    { geo: box, color: YELLOW, pos: [0, 0.10, -0.66], rot: [0.30, 0, 0], scale: [0.28, 0.045, 0.34] },
-    { geo: box, color: YELLOW, pos: [0, 0.10, 0.66], rot: [-0.30, 0, 0], scale: [0.28, 0.045, 0.34] },
+    // A broader, mint-capped nose and clipped dark tail make direction legible
+    // through spray, at night, and in the middle of a spin.
+    { geo: box, color: YELLOW, pos: [0, 0.10, -0.68], rot: [0.30, 0, 0], scale: [0.30, 0.045, 0.38] },
+    { geo: box, color: YELLOW, pos: [0, 0.10, 0.67], rot: [-0.30, 0, 0], scale: [0.255, 0.045, 0.31] },
+    { geo: box, color: MINT, pos: [0, 0.145, -0.79], rot: [0.30, 0, 0], scale: [0.225, 0.025, 0.16] },
+    { geo: box, color: INK, pos: [0, 0.135, 0.78], rot: [-0.30, 0, 0], scale: [0.24, 0.026, 0.09] },
     // steel edges, which also stop the deck reading as a slab of butter
     { geo: box, color: INK, pos: [-0.152, 0.058, 0], scale: [0.016, 0.05, 1.12] },
     { geo: box, color: INK, pos: [0.152, 0.058, 0], scale: [0.016, 0.05, 1.12] },
