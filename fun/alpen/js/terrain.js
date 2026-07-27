@@ -653,7 +653,18 @@ export function createTerrain(THREE, shading) {
      exactly as they did; it is only the far, graded cells that shift further
      per step, and they are in fog. `back` has to stay comfortably larger than
      the stride or the ground behind the rider pops. */
-  const stride = spacing * 4;
+  /* Two cells, not four.
+
+     Every re-anchor shifts the far, graded cells by the whole stride, and out
+     where a cell is forty metres wide that shift is a visible crawl along the
+     skyline — the second half of the flickering horizon, the first being the
+     vertex snap. Four cells was chosen to keep the refill cost down and it
+     tripled the crawl to do it. Two is the compromise: the near cells still
+     land on the same lattice every time so the facets stay welded to the hill,
+     the refill happens twice as often as it needs to and is still only a few
+     milliseconds, and the far field moves little enough that the haze can
+     cover it — which is what the haze is for. */
+  const stride = spacing * 2;
 
   function update(x, z) {
     const ax = Math.round(x / stride) * stride;

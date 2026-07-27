@@ -143,10 +143,12 @@ function geometry(w, h, pixel) {
   RIGHT = W - PAD;
   BOTTOM = H - PAD;
   CENTRE = W >> 1;
-  AIR_Y = PAD + 60 * UI;
-  CHARGE_W = 120 * UI;
+  // The one fixed-width thing on screen, so it is the one thing that has to
+  // be told the frame might be narrower than it is
+  CHARGE_W = Math.min(120 * UI, W - PAD * 2);
   CHARGE_H = 5 * UI;
   CHARGE_Y = Math.max(PAD + 52 * UI, H - 60 * UI);
+
   /* The trick banner lives at the top of the frame, not the bottom.
 
      It used to stack up from the charge bar, on the reasoning that everything
@@ -157,9 +159,18 @@ function geometry(w, h, pixel) {
      top of him*. A trick name is the one piece of the HUD that appears at the
      precise moment the player most needs to see the rider: mid-air, deciding
      whether the landing is coming. So it goes where nothing else is, which is
-     the empty band across the top between the score and the speed. */
-  BANNER_Y = PAD + 30 * UI;
-  LIVE_Y = PAD + 54 * UI;
+     the empty band across the top between the score and the speed.
+
+     Between them and *below* them, though, not across them. The band starts
+     where the deeper of the two corner blocks ends, because a banner is
+     centred and can be the full width of the frame — at which point "between
+     the score and the speed" stops being a gap it can sit in and becomes two
+     things it is drawn straight through. `topEnd` is the bottom of the
+     conditions line, which is the lowest either corner reaches. */
+  const topEnd = PAD + (37 + GLYPH_H) * UI;
+  BANNER_Y = Math.max(PAD, Math.min(topEnd + 10 * UI, H - PAD - 30 * UI));
+  LIVE_Y = Math.max(PAD, Math.min(BANNER_Y + 28 * UI, H - PAD - GLYPH_H * UI));
+  AIR_Y = Math.max(PAD, Math.min(PAD + 60 * UI, H - PAD - GLYPH_H * 2 * UI));
 }
 
 /* Snapping a colour to the 32 levels per channel an R5G5B5 framebuffer had.
@@ -302,30 +313,46 @@ export function createHud(root) {
      --------------------------------------------------------------------- */
 
   /* Sizes are given in stops — 1 and 2 — and multiplied into buffer pixels
-     here, in one place, so nothing below has to remember to do it. */
-  const text = (s, x, y, colour, size = 1) => drawText(ctx, s, x, y, colour, size * UI, INK);
-  const right = (s, x, y, colour, size = 1) => text(s, x - measure(s, size * UI), y, colour, size);
-  const centre = (s, x, y, colour, size = 1) =>
-    text(s, x - ((measure(s, size * UI) - 1) >> 1), y, colour, size);
+     here, in one place, so nothing below has to remember to do it.
 
-  /* A centred line that is allowed to be any length, which the two in the
-     middle of the screen are: a trick name is assembled from however many
-     things the rider actually did, and the longest one the grammar can build
-     is sixty-two characters. So the size steps down a whole stop at a time
-     until it fits, and if even the smallest stop will not fit, the string is
-     cut.
+     All three placements clip to the margins on the way through, which is why
+     nothing in `draw` has a width check in it. That was not the first
+     arrangement: the checks were written at the call sites, and every call
+     site that got one proved there was another that had not. A frame narrower
+     than the layout wants is not an edge case to be handled per line, it is a
+     property of the frame, and the frame is what these three know about. */
+  function clip(s, size, room) {
+    const n = Math.floor((room + size * UI) / (ADVANCE * size * UI));
+    if (n < 1) return '';
+    return s.length > n ? s.slice(0, n) : s;
+  }
+
+  const text = (s, x, y, colour, size = 1) => drawText(ctx, s, x, y, colour, size * UI, INK);
+  const from = (s, x, y, colour, size = 1) => text(clip(s, size, RIGHT - x), x, y, colour, size);
+
+  function right(s, x, y, colour, size = 1) {
+    const cut = clip(s, size, x - PAD);
+    return text(cut, x - measure(cut, size * UI), y, colour, size);
+  }
+
+  /* A centred line that is allowed to be any length, which all three of the
+     ones in the middle of the screen are: a trick name is assembled from
+     however many things the rider actually did, and the longest one the
+     grammar can build is sixty-two characters. The size steps down a whole
+     stop at a time until it fits, and only once it is at the smallest stop
+     does anything get cut.
 
      Cutting is exact rather than approximate because the font is monospace,
-     which is the first time that has bought anything: how many characters fit
-     in a width is a division, not a search. And a hard cut is the right
-     failure. Every alternative — wrapping, scrolling, scaling by a fraction —
-     is either two lines where the layout has room for one, or a blurred one. */
+     which is the first time that property has bought anything: how many
+     characters fit in a width is a division, not a search. And a hard cut is
+     the right failure. Every alternative — wrapping, scrolling, scaling by a
+     fraction — is either two lines where the layout has room for one, or a
+     blurred one. */
   function centreLine(s, y, colour, maxSize) {
-    const room = W - PAD * 2;
     let size = maxSize;
-    while (size > 1 && measure(s, size * UI) > room) size -= 1;
-    const fits = Math.floor((room + size * UI) / (ADVANCE * size * UI));
-    centre(s.length > fits ? s.slice(0, Math.max(1, fits)) : s, CENTRE, y, colour, size);
+    while (size > 1 && measure(s, size * UI) > W - PAD * 2) size -= 1;
+    const cut = clip(s, size, W - PAD * 2);
+    text(cut, CENTRE - ((measure(cut, size * UI) - 1) >> 1), y, colour, size);
     return size;   // so whatever goes under it knows how tall it turned out
   }
 
@@ -371,8 +398,8 @@ export function createHud(root) {
     const line = GLYPH_H * UI;          // one stop of type, in buffer pixels
 
     // --- top left: what has been earned ---------------------------------
-    text('SCORE', PAD, PAD, MINT);
-    const scoreW = text(fmt.format(Math.round(shownScore)), PAD, PAD + 9 * UI, AMBER, 2);
+    from('SCORE', PAD, PAD, MINT);
+    const scoreW = from(fmt.format(Math.round(shownScore)), PAD, PAD + 9 * UI, AMBER, 2);
 
     /* The combo used to grow by twelve per cent at five and up. There is no
        such thing as twelve per cent here, so it doubles instead: below five
@@ -384,12 +411,12 @@ export function createHud(root) {
     if (combo > 1) {
       const label = `×${combo}`;
       const x = PAD + scoreW + 8 * UI;
-      if (combo >= 5) text(label, x, PAD + 9 * UI, SNOW, 2);
-      else text(label, x, PAD + 9 * UI + line, MINT);
+      if (combo >= 5) from(label, x, PAD + 9 * UI, SNOW, 2);
+      else from(label, x, PAD + 9 * UI + line, MINT);
     }
 
-    const bestW = text('BEST', PAD, PAD + 28 * UI, DIM);
-    text(fmt.format(Math.round(g.best)), PAD + bestW + 6 * UI, PAD + 28 * UI, QUIET);
+    const bestW = from('BEST', PAD, PAD + 28 * UI, DIM);
+    from(fmt.format(Math.round(g.best)), PAD + bestW + 6 * UI, PAD + 28 * UI, QUIET);
 
     // --- top right: what the hill is doing ------------------------------
     right('SPEED', RIGHT, PAD, MINT);
@@ -402,8 +429,15 @@ export function createHud(root) {
     /* Air time is the only number that has to be live, because it is the one
        the player is making a decision against. Below a quarter of a second
        it is a bump rather than a jump, and putting a timer on screen for it
-       only makes the screen twitch. */
-    if (!rider.grounded && rider.airTime > 0.25) {
+       only makes the screen twitch.
+
+       It yields to the banner, which shares the band with it. That is not
+       only a collision being dodged: the banner is the verdict on the jump
+       that just ended and the timer is the jump in progress, so the two of
+       them on screen together is the HUD reporting on two different jumps at
+       once. Landing, reading 1,800 points, and popping again inside the
+       banner's two seconds is a good run, not a state worth illustrating. */
+    if (bannerTimer <= 0 && !rider.grounded && rider.airTime > 0.25) {
       right(`${rider.airTime.toFixed(1)}S`, RIGHT, AIR_Y, MINT, 2);
     }
 
@@ -429,7 +463,7 @@ export function createHud(root) {
          rather than as a bug. */
       const size = centreLine(bannerName, BANNER_Y + drop, flash ? SNOW : bannerTone, 2);
       if (bannerPoints) {
-        centre(bannerPoints, CENTRE, BANNER_Y + 4 * UI + line * size + drop, AMBER);
+        centreLine(bannerPoints, BANNER_Y + 4 * UI + line * size + drop, AMBER, 1);
       }
     }
 
@@ -448,7 +482,7 @@ export function createHud(root) {
     }
 
     // --- the quiet corners ----------------------------------------------
-    const soundW = text(muted ? 'SOUND OFF' : 'SOUND ON', PAD, BOTTOM - line,
+    const soundW = from(muted ? 'SOUND OFF' : 'SOUND ON', PAD, BOTTOM - line,
       muted ? DIM : QUIET);
 
     /* On a phone the pad *is* the controls and there is no keyboard to
@@ -458,11 +492,11 @@ export function createHud(root) {
 
        Two clearances, not one. The sound state is the obvious one and it was
        the only one at first, which was wrong: the charge bar is centred and
-       fixed, so on a short buffer at double size the legend cleared the
-       sound state comfortably and then had the bar drawn straight through
-       it. The bar is tested for whether it is on screen or not, because a
-       legend that disappeared every time the legs loaded would be far worse
-       than one that is simply not there. */
+       fixed, so on a narrow buffer at double size the legend cleared the
+       sound state comfortably and then had the bar drawn straight through it.
+       The bar's clearance is tested whether or not the bar is currently
+       showing, because a legend that vanished every time the legs loaded
+       would be far worse than one that is simply not there. */
     if (!document.body.classList.contains('touch')) {
       if (!legend) legend = bakeLegend();
       const at = RIGHT - legend.w;

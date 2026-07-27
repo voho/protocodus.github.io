@@ -144,6 +144,10 @@ export class Rider {
     this.grindTime = 0;
     this.stallTimer = 0;     // how long the board has been too slow for the pitch
     this.edge = 0;           // radians the board is rolled up onto its edge
+    this.balance = 1;        // 1 when the body is where the turn needs it
+    this.leanErr = 0;        // signed: + is under-leaned, − is over-leaned
+    this.balanceTimer = 0;
+    this.groundTime = 0;     // seconds the board has been down without a break
     this.slide = 0;          // m/s of sideways wash, for spray and sound
     this.lateral = 0;        // signed, so the spray knows which way to fly
     this.carveLoad = 0;      // 0..1, how hard the edge is working
@@ -256,18 +260,33 @@ export class Rider {
     let vLat = vel.dot(r);
     const speed = Math.hypot(vFwd, vLat);
     const ratio = clamp(speed / 45, 0, 1);
-    /* How far over the board is allowed to go, which closes down as the run
-       speeds up.
+    /* How far over the board can physically go, which is not a preference.
 
-       The sidecut already makes a fast turn expensive — the grip it asks for
-       goes as v² — but "expensive" and "twitchy" are not the same thing, and
-       letting the rider roll the board to sixty-six degrees at 150 km/h means
-       every touch of the key is an instant demand for four times the grip
-       that exists, which arrives as a wash-out rather than as a turn. Closing
-       the available edge angle down with speed is what a real rider does with
-       their own body without thinking about it, and it is the difference
-       between a board that feels sturdy at speed and one that feels nervous. */
-    const edgeCeiling = RIDER.edgeMax * (1 - RIDER.edgeSteady * ratio * ratio);
+       The sidecut says a turn of radius sidecut/sin(edge) needs v²·sin(edge)
+       /sidecut of lateral grip. Turn that around and the most edge the snow
+       can actually support at this speed is
+
+           sin(edge) ≤ grip · sidecut / v²
+
+       — and past it the rider is not turning harder, they are falling over
+       sideways. A real rider's body enforces this without them thinking about
+       it: you simply cannot lay a board down at 150 km/h the way you can at
+       20, because there is nothing holding you up at that angle.
+
+       Leaving it out was a real bug and a bad one. At 30 m/s the rider could
+       roll to sixty-six degrees and demand 101 m/s² of grip against the 27
+       that exists, and the 74 m/s² of spill went straight into the wash-out —
+       so *any* committed turn scrubbed a hundred and eight km/h down to nine
+       in under two seconds and then stalled the rider for having no speed
+       left. Every carve was a handbrake.
+
+       `edgeReach` lets it be overdriven by a few per cent, which is where the
+       edge starts to slip and throw powder without letting go — the narrow
+       band the whole handling model lives in. */
+    const holdable = Math.asin(clamp(
+      (RIDER.grip * RIDER.sidecut) / Math.max(1, speed * speed), 0, 1,
+    ));
+    const edgeCeiling = Math.min(RIDER.edgeMax, holdable * RIDER.edgeReach);
 
     /* THE CARVE.
 
@@ -292,9 +311,15 @@ export class Rider {
        decree; this one reaches it by geometry, and the difference is legible
        in the hands because the board now resists in proportion to how much
        you are asking of it rather than simply refusing past a threshold. */
+    /* Balance is part of the grip, and it is last frame's balance because it
+       cannot be this frame's: the mismatch is measured against a lean that is
+       computed from the carve, and the carve is computed from the grip. One
+       step of 1/120 s is not a lag anyone can feel, and it is the difference
+       between a solvable loop and a circular one. */
     const gripNow = RIDER.grip
       * (input.brake ? 0.45 : 1)
-      * (input.tuck ? RIDER.tuckGrip : 1);
+      * (input.tuck ? RIDER.tuckGrip : 1)
+      * (1 - RIDER.balanceGrip + RIDER.balanceGrip * this.balance);
     const wantEdge = clamp(input.turn, -1, 1) * edgeCeiling
       * (input.tuck ? RIDER.tuckTurn : 1);
     this.edge = approach(this.edge, wantEdge, RIDER.edgeRate, dt);
@@ -534,7 +559,75 @@ export class Rider {
        and grip are the same number seen from two ends, and a rider laid over
        at fifty degrees is a rider with nothing left. It still gets there
        late, because a body has mass. */
-    const target = -side * Math.atan2(carve, RIDER.gravity);
+    /* The true balance angle, and how much of it is actually shown.
+
+       atan(lateral / g) is what the body has to do to stay up, and at the
+       limit of grip against this game's 22 m/s² gravity that is fifty
+       degrees. It is correct and it reads as broken: a rider laid flat over
+       the snow while the heading comes round at fifteen degrees a second
+       looks like a man falling sideways down a hill that happens to also be
+       turning, which is exactly the complaint — "he leans onto his side and
+       carries on in the same direction".
+
+       The reason is that a real carve at fifty degrees of inclination is a
+       fast, tight arc, and this one cannot be, because the turn rate is
+       capped by grip and the speeds here are arcade. So the lean is shown at
+       a fraction of the truth: enough to say which way the weight has gone,
+       not so much that the body is writing a cheque the path does not cash.
+
+       Balance is measured against the *shown* angle rather than the true one,
+       which is not a fudge — it is the only self-consistent choice. Measured
+       against the true angle the body could never arrive, the mismatch would
+       be permanent, and the rider would fall over halfway through every
+       properly-executed carve. */
+    const need = Math.atan2(carve, RIDER.gravity);
+    const shown = Math.min(need, RIDER.lean);
+    const target = -side * shown;
+
+    /* …and how far the body is from where it needs to be, which is balance.
+
+       Measured before the roll is advanced, so it is the gap the rider is
+       actually standing in rather than the one they are about to close. The
+       sign is kept because the two ways of losing it are different events —
+       positive is the load arriving before the body and trying to throw them
+       over the outside edge, negative is a body further in than the snow can
+       hold up — even though for now they cost the same thing. */
+    /* Smoothed, and only counted once the rider has actually been on the snow
+       for a moment.
+
+       Both of those are corrections of the same mistake. Measured raw and
+       instantaneously, this fired constantly and put the rider down mid-carve
+       for no reason a player could see — because the mountain is covered in
+       rollers, the rider is leaving the ground several times a second, and
+       the air step decays the roll towards nothing. Every touchdown back into
+       a held carve therefore looked like a rider standing bolt upright in a
+       fifty-degree turn, which is the exact signature of catching an edge,
+       and the model dutifully threw them down the hill for it.
+
+       A real edge catch is a body that could not keep up with a demand that
+       *stayed*. So the error is smoothed, and the clock only runs once the
+       board has been down long enough for the legs to have had a chance —
+       which also means a landing is judged by the landing code, where it
+       belongs, rather than twice. */
+    const lean = Math.abs(this.roll);
+    this.leanErr = approach(this.leanErr, shown - lean, 5.5, dt);
+    this.groundTime += dt;
+    this.balance = speed > 4
+      ? clamp(1 - Math.abs(this.leanErr) / RIDER.balanceWindow, 0, 1)
+      : 1;
+
+    if (this.balance < RIDER.balanceFall && this.grace <= 0
+      && this.groundTime > RIDER.balanceSettle) {
+      this.balanceTimer += dt;
+      if (this.balanceTimer > RIDER.balanceTime) {
+        this.balanceTimer = 0;
+        this.fall(this.leanErr > 0 ? 'over' : 'slip', speed * 0.5);
+        return;
+      }
+    } else {
+      this.balanceTimer = 0;
+    }
+
     this.roll = approach(this.roll, target, RIDER.leanRate, dt);
     if (this.slide > 1.5 || this.carveLoad > 0.35) this.emit('carve', this.slide, this.carveLoad);
   }
@@ -550,6 +643,8 @@ export class Rider {
     const p = this._p.copy(n).add(this.UP).normalize();
     this.grounded = false;
     this.state = 'air';
+    // The legs get a fresh moment to set up on the way back down
+    this.groundTime = 0;
     this.vel.y = surfaceVy;
     if (pop > 0) this.vel.addScaledVector(p, pop);
     this.airTime = 0;

@@ -548,7 +548,16 @@ export const RIDER = {
   // the rider slides — which is where the spray, and the lost speed, are.
   // This one number is most of how the game feels: raise it and the board
   // is on rails, lower it and every turn is a drift.
-  grip: 27,
+  /* Edge grip, in m/s² of sideways hold, and it is the number that decides
+     how sharply the board answers at all. The turn rate a carve produces is
+     grip/v, so this is the whole of the game's steering authority: at 27
+     against 39 m/s the heading came round at forty degrees a second, which is
+     honest for 140 km/h on real snow and reads, from behind, as a rider who
+     has leaned over and kept going straight. 34 buys back most of the
+     response without putting the board on rails — the wash-out is still one
+     firm input away, because what breaks traction is v² and that has not
+     moved. */
+  grip: 34,
 
   /* THE CARVE, as geometry rather than as a steering rate.
 
@@ -581,22 +590,57 @@ export const RIDER = {
      is. Nobody has to animate it and it can never disagree with the physics. */
   sidecut: 8.0,       // metres — a real all-mountain board is 7 to 9
   edgeMax: 1.15,      // radians ≈ 66°, about as far over as anyone gets
-  edgeRate: 7.0,      // how fast the board is rolled onto its edge and off it
+  // How fast the board is rolled onto its edge and off it. Quick, because the
+  // sidecut now limits what the edge can *ask* for — so there is no longer any
+  // need to protect the rider from their own input by making it sluggish.
+  edgeRate: 11.0,
   /* Cutting a trench is not free. A carved edge is slicing through snow
      rather than gliding over it, and the deeper it is set the more of it is
      in the way — this is that, and it is why holding a hard carve all the way
      down a pitch costs speed a straight line would have kept. */
   edgeDrag: 3.2,
-  /* How much of the available edge angle speed takes away. At the top of the
-     range the board can only be rolled to two thirds of what it manages at
-     walking pace, which is what stops a fast run feeling nervous. */
-  edgeSteady: 0.34,
+  /* How far past the edge angle the snow can actually support the rider is
+     allowed to push. This is the narrow band the whole handling model lives
+     in: at 1.0 the board is on rails and never slips, and much past 1.15
+     every turn is a skid. A few per cent of overdrive is where the edge
+     starts to wash and throw powder without letting go. */
+  edgeReach: 1.10,
   /* And the furthest the board is ever allowed to point away from the
      direction it is genuinely travelling. Sixty degrees is about as far
      across the fall line as anyone can hold one and still be riding it; past
      that it is not a snowboard, it is a sledge. The brake is exempt, because
      setting the board across the hill is exactly what the brake is for. */
   maxSkid: 1.05,      // radians ≈ 60°
+
+  /* BALANCE.
+
+     The lean is the balance angle the turn demands, and the body gets there
+     late because a body has mass. The gap between the two — what the corner
+     is asking for against what the rider is actually set up for — is balance,
+     and it is the one quantity in the sport that the model had nothing to say
+     about. Steady state has no gap at all: hold an edge and the body arrives
+     and the two agree. It opens in transitions, which is exactly where a
+     rider loses it in life:
+
+       under-leaned  — the load arrives before the body does, and it is trying
+                       to throw them over the outside edge. This is a carve
+                       committed to too fast, and a landing into one.
+       over-leaned   — the body is further in than the grip can justify, and
+                       the edge slips away underneath them. This is asking for
+                       a turn the snow was never going to give.
+
+     What it costs is grip, proportionally and immediately, which closes the
+     loop: losing balance loses edge, losing edge loses the turn, and the
+     recovery is to stop asking. Only a large gap held for a third of a second
+     actually puts them down, so a flicked edge change is a wobble and a
+     genuine over-commitment at speed is a crash. */
+  balanceWindow: 0.70,  // radians of mismatch that costs all of it
+  balanceGrip: 0.40,    // share of grip that balance is responsible for
+  balanceFall: 0.10,    // below this, for `balanceTime`, the rider goes down
+  balanceTime: 0.45,
+  // …and how long the board has to have been on the snow before any of it is
+  // held against the rider. A touchdown is the landing code's business.
+  balanceSettle: 0.35,
   // A railed carve is nearly free — that is the entire reason the sport
   // prefers it to a skid — so this is small on purpose.
   carveDrag: 0.04,

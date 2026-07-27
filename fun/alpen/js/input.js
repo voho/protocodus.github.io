@@ -35,8 +35,8 @@ const BINDINGS = {
    onto its edge is a deliberate movement of the whole body and it takes about
    twice this long in life. Slower in than out, because letting an edge go is
    the one thing a rider does quickly. */
-const RAMP = 5.0;
-const RELEASE = 11;
+const RAMP = 7.5;
+const RELEASE = 12;
 
 export function createInput(target, hooks = {}) {
   const down = new Set();

@@ -99,9 +99,9 @@ body {
    label, number, bar and glyph in the read-out is square pixels in that
    buffer. What used to be in this section — a dozen absolutely positioned
    blocks, six clamp() type ramps, a stack of text-shadows and four media
-   queries holding it all off a small screen — is gone, because a layout
-   measured in buffer pixels is already the same layout at every window size.
-   It only gets bigger squares.
+   queries holding it all off a small screen — is gone. A layout measured in
+   buffer pixels does not need any of it: it is anchored to the edges of the
+   buffer, and the buffer is already the shape of the window.
 
    Note that the rule below is deliberately, exactly #stage's. That is the
    whole trick: two canvases with the same backing store stretched across the

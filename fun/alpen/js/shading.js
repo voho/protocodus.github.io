@@ -105,6 +105,12 @@ export const SNAP = {
   cell: 1,
   near: 1.5,
   full: 5.0,
+  /* …and where it goes away again. Half a pixel of error is centimetres at
+     five metres and metres at three hundred, so past `fade` the snap is worth
+     less than the flicker it costs, and by `gone` there is none of it left.
+     See the note in VERT_SNAP. */
+  fade: 45.0,
+  gone: 120.0,
   scenery: 1.0,
   rider: 0.3,
 };
@@ -140,7 +146,26 @@ const VERT_SNAP = `
   {
     // gl_Position.w is the distance along the view axis, so this is a fade in
     // metres and a guard against dividing by a w of nothing, in one number
-    float n64Snap = uSnap * smoothstep(${asFloat(SNAP.near)}, ${asFloat(SNAP.full)}, gl_Position.w);
+    /* Snapping has a far edge as well as a near one, and it is the far one
+       that matters most.
+
+       The wobble is a *near-field* effect. A vertex snapped to the pixel grid
+       moves by up to half a pixel, and half a pixel of a surface three metres
+       away is a couple of centimetres — which is the intended judder. Half a
+       pixel of a ridge three hundred metres away is several metres of
+       mountain, and since the snap is recomputed every frame from a camera
+       that is moving, every distant facet flips between two positions
+       continuously. That is not the console's wobble; on the console the far
+       field was a handful of pixels tall and the same error was invisible.
+       Here it is a shimmer across the whole horizon — terrain that flickers
+       rather than terrain that emerges from the haze.
+
+       So it fades back out with distance and the far field is left alone
+       entirely. What is left is exactly the band where the effect is legible
+       as an effect: the ground under and just ahead of the rider. */
+    float n64Snap = uSnap
+      * smoothstep(${asFloat(SNAP.near)}, ${asFloat(SNAP.full)}, gl_Position.w)
+      * (1.0 - smoothstep(${asFloat(SNAP.fade)}, ${asFloat(SNAP.gone)}, gl_Position.w));
     if (n64Snap > 0.0) {
       vec2 ndc = gl_Position.xy / gl_Position.w;
       // Into pixels, onto the nearest pixel corner, and back out again. The

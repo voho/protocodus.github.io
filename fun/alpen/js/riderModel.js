@@ -563,6 +563,26 @@ export function createRiderModel(THREE, shading) {
     // Going over, he curls up and the chest trails the tumble by however far
     // the roll has outrun the smoothed copy of it
     torso.rotation.set(pitch - s.down * (0.55 + lag * 0.4), s.twist, fold);
+
+    /* Breathing.
+
+       A centimetre and a half of chest, on a sine, and it is the difference
+       between a rider and a model of a rider. Nothing else in this file runs
+       when the physics is quiet — every other motion here is driven by
+       something the mountain is doing — so a rider holding a straight line
+       down an easy pitch was perfectly, unnaturally still. The eye does not
+       consciously see this; it notices its absence.
+
+       The rate is effort, not time: it climbs with speed and with whatever
+       the legs are carrying, so he is breathing harder at the bottom of a
+       fast pitch than at the top. The depth goes the other way, because
+       someone working hard breathes quickly and shallowly. And it fades out
+       under a grab or a tuck, where the chest is doing something else and a
+       breath on top of it reads as a wobble. */
+    const effort = clamp(rider.speed / 30 + (rider.gLoad - 1) * 0.5, 0, 1.6);
+    const breath = Math.sin(s.clock * (1.05 + effort * 1.5)) * 0.5 + 0.5;
+    const depth = (0.016 - effort * 0.005) * idle;
+    torso.scale.set(1 + breath * depth * 0.8, 1 + breath * depth * 0.5, 1 + breath * depth);
     torso.updateMatrix();
 
     /* --- head -------------------------------------------------------------- */
@@ -615,6 +635,28 @@ export function createRiderModel(THREE, shading) {
        it is. */
     hand.set(0.13, -0.38, -0.35);
     other.set(0.10, -0.44, 0.26);
+
+    /* And they never hold quite still.
+
+       A centimetre of drift on each hand, from four sines whose periods share
+       no common multiple — so the pattern does not repeat inside any run
+       anybody will ever ride, and it never has the tell of a loop. Arms are
+       the heaviest thing hanging off a body that is being shaken by a
+       mountain; they are the last part of a rider that would ever be
+       motionless, and holding them rigid is what makes a good rig read as a
+       puppet at rest.
+
+       It goes on before every other pose blends over it, so a grab still
+       arrives exactly on the board's edge and a tuck still puts the hands
+       exactly where a tuck puts them. `idle` takes it away whenever the arms
+       have somewhere specific to be. */
+    const sway = 0.011 * idle;
+    hand.x += Math.sin(s.clock * 0.83) * sway;
+    hand.y += Math.sin(s.clock * 1.27 + 1.1) * sway * 0.8;
+    hand.z += Math.sin(s.clock * 0.61 + 2.4) * sway;
+    other.x += Math.sin(s.clock * 0.71 + 2.2) * sway;
+    other.y += Math.sin(s.clock * 1.09 + 0.4) * sway * 0.8;
+    other.z += Math.sin(s.clock * 0.53 + 4.1) * sway;
 
     // Tucked: arms spread wide and low across the board, which is how a
     // snowboarder actually holds a tuck — the hands go out for the balance

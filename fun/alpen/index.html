@@ -26,13 +26,18 @@
   <canvas id="stage"></canvas>
 
   <!-- ================= HUD =================
-       The read-out is a second framebuffer, not a layer of DOM. It is the
-       same 640×360 as the world and it is stretched by the same whole-number
-       scale, so a HUD pixel and a snow pixel are exactly the same square —
-       which is why there is no text in this element and no typeface behind
-       it. Every glyph is a hand-drawn 5×7 bitmap; see js/font.js for the
-       alphabet and js/hud.js for the layout, both of which are measured in
-       buffer pixels and never respond to the size of the window.
+       The read-out is a second framebuffer, not a layer of DOM. It holds the
+       renderer's own buffer and fills the same box as #stage above, so a HUD
+       pixel and a snow pixel are exactly the same square — which is why there
+       is no text in this element and no typeface behind it. Every glyph is a
+       hand-drawn 5×7 bitmap: see js/font.js for the alphabet and js/hud.js
+       for the layout, which is measured in buffer pixels rather than in any
+       proportion of the window.
+
+       The attributes on the canvas are only what it looks like before the
+       first frame. js/hud.js sizes the backing store to whatever the renderer
+       is actually using, which is 640×360 on a sixteen-by-nine window and
+       wider or taller on anything else.
 
        The permanent control legend used to live here as a <dl>. It is drawn
        into the buffer now, for the same reason as everything else: a legend
