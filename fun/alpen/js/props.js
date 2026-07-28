@@ -769,140 +769,20 @@ function weather(THREE, geo, rnd, amount) {
   return g;
 }
 
-/* A boulder, which is not a crystal.
+/* The boulders were grown here, out of the same weathering the shrubs used —
+   a block with its vertices pushed about, shards at its foot, snow caught on
+   the upper faces. They are gone with the shrubs and for the same reason: a
+   rock sitting on a piste is furniture standing on the mountain rather than
+   part of it. Anything that slows a rider or throws them into the air should
+   be the shape of the ground doing it. */
 
-   It was one dodecahedron: twelve identical faces and a regular polygon for a
-   silhouette, and there is nothing else on a hillside that throws a regular
-   polygon for a shadow. So it is a weathered block with two or three smaller
-   ones broken off around its foot and a cap of snow on top, and none of the
-   four are the same shape.
-
-   The vertical arrangement is deliberate. The placement code sinks a rock by
-   0.45 of its scale and the collision list claims a top of 0.7 — so the mass
-   is built above the local origin, and what actually stands proud of the snow
-   is about what the rider has been told they have to clear. */
-function growRock(THREE, seed, geos) {
-  const rnd = stream(seed);
-  const parts = [];
-  const spent = [];
-  const stone = ['#4d5768', '#5f6a7c', '#6b788c'];
-  const block = (amount) => {
-    const g = weather(THREE, geos.stone, rnd, amount);
-    spent.push(g);
-    return g;
-  };
-
-  parts.push({
-    geo: block(0.5), color: stone[(rnd() * stone.length) | 0],
-    pos: [0, 0.45, 0], rot: [(rnd() - 0.5) * 0.5, rnd() * TAU, (rnd() - 0.5) * 0.5],
-    scale: [1.02, 0.8, 0.92],
-  });
-
-  const shards = 2 + ((rnd() * 2) | 0);
-  const base = rnd() * TAU;
-  for (let i = 0; i < shards; i++) {
-    const a = base + (i / shards) * TAU + (rnd() - 0.5) * 0.8;
-    const r = 0.34 + rnd() * 0.24;
-    const off = 0.62 + rnd() * 0.3;
-    parts.push({
-      geo: block(0.6), color: stone[(rnd() * stone.length) | 0],
-      pos: [Math.cos(a) * off, -0.18 + rnd() * 0.42, Math.sin(a) * off],
-      rot: [(rnd() - 0.5) * 1.1, rnd() * TAU, (rnd() - 0.5) * 1.1],
-      scale: [r, r * 0.76, r * 0.9],
-    });
-  }
-
-  // The cap. Snow does not sit on a boulder as a hemisphere, it sits as a
-  // slab with an edge, and the edge is the whole reason you can tell where
-  // the rock stops.
-  parts.push({
-    geo: block(0.4), color: SNOW,
-    pos: [(rnd() - 0.5) * 0.16, 1.0, (rnd() - 0.5) * 0.16], rot: [0, rnd() * TAU, 0],
-    scale: [0.8, 0.3, 0.72],
-  });
-
-  const geometry = compose(THREE, parts);
-  spent.forEach((g) => g.dispose());
-  return geometry;
-}
-
-/* A shrub, which is a bush with a winter on it.
-
-   It was one squashed icosahedron — a smooth lump, and now a smooth lump that
-   throws a smooth elliptical shadow. It is three weathered lumps at three
-   heights with bare twigs coming out between them instead, which costs eighty
-   triangles and gives the thing a top edge.
-
-   The lumps are left at white on purpose. That is not a colour, it is the
-   identity the per-instance glacier tints below are multiplied through, and
-   the same arrangement as before — the only thing carrying any real colour
-   here is the wood, and it takes the tint with it, which is right, because a
-   twig sticking out of a snowdrift is a twig seen through snow.
-
-   The wood did not, and that last sentence was wrong for as long as the twigs
-   were painted in a tree's bark. Multiplying `#4a3a2b` by a glacier tint of
-   0.9 leaves `#4a3a2b`, and `#4a3a2b` under a low sun in the shade of its own
-   drift resolves to nothing at all — the darkest value anywhere in the frame,
-   on a primitive two centimetres across which past about forty metres is
-   thinner than a pixel and therefore either misses the sample or paints it
-   outright. Meanwhile the lumps *are* glacier, and glacier at that distance
-   through haze is the snowfield. So the shrub disappeared and its twigs did
-   not, and the treeline was littered with small black sticks lying detached
-   on the snow with nothing standing above them.
-
-   Three things, and all three were needed. The wood is `THICKET` now, about
-   half the way to the drift it stands in rather than eight values under it.
-   The twigs start inside the ring the lumps occupy and stand up rather than
-   splaying, so what breaks the silhouette is the last third of one and never
-   the whole of one in clear snow beside the plant. And they are half as thick
-   again, because the failure mode of a sub-pixel cylinder is not that you
-   cannot see it — it is that you see it perfectly, one whole pixel at a time,
-   wherever it happens to land. */
-function growShrub(THREE, seed, geos) {
-  const rnd = stream(seed);
-  const parts = [];
-  const spent = [];
-
-  // Five or six rather than three: at three they read as antennae on a lump,
-  // and the thing being drawn is a thicket that has been snowed on
-  const twigCount = 5 + ((rnd() * 2) | 0);
-  const stem = rnd() * TAU;
-  for (let i = 0; i < twigCount; i++) {
-    const a = stem + (i / twigCount) * TAU + (rnd() - 0.5) * 0.9;
-    const d = dirOf(a, 0.85 + rnd() * 0.55);
-    const out = 0.09 + rnd() * 0.11;
-    parts.push({
-      geo: geos.twig, color: THICKET,
-      // Inside the ring the lumps occupy and up out of the top of them, so
-      // that what breaks the silhouette is the last third of a twig and not
-      // the whole of one standing in clear snow beside the plant
-      pos: [Math.cos(a) * out, 0.1 + rnd() * 0.13, Math.sin(a) * out],
-      rot: aim(d[0], d[1], d[2]), scale: [0.033, 0.34 + rnd() * 0.34, 0.033],
-    });
-  }
-
-  const lumps = 3;
-  const base = rnd() * TAU;
-  for (let i = 0; i < lumps; i++) {
-    const a = base + (i / lumps) * TAU + (rnd() - 0.5) * 0.9;
-    const r = 0.3 + rnd() * 0.14;
-    const off = (0.5 - r) * rnd();
-    const g = weather(THREE, geos.stone, rnd, 0.55);
-    spent.push(g);
-    parts.push({
-      // Between 0.88 and 1: enough to give the clump internal form under a
-      // stepped diffuse without moving it off the tint it was handed
-      geo: g, color: new THREE.Color(0xffffff).multiplyScalar(0.88 + rnd() * 0.12),
-      pos: [Math.cos(a) * off, 0.16 + rnd() * 0.42, Math.sin(a) * off],
-      rot: [(rnd() - 0.5) * 0.7, rnd() * TAU, (rnd() - 0.5) * 0.7],
-      scale: [r, r * 0.72, r * 0.92],
-    });
-  }
-
-  const geometry = compose(THREE, parts);
-  spent.forEach((g) => g.dispose());
-  return geometry;
-}
+/* The shrub is gone. It was a bush with a winter on it — three weathered
+   lumps and a scatter of bare twigs — and it was the one prop on the mountain
+   that never earned its place: knee-high, painted in the same glacier blue as
+   the ground it sat on, and mechanically nothing but a bite of speed taken
+   off a rider who could not have seen it coming. What it actually read as, at
+   any distance, was scraps of paper blown across the snow. The growth code it
+   used lives on in `growRock`, which was written from it. */
 
 /* ==========================================================================
    Instanced pools
@@ -1069,20 +949,17 @@ export function createProps(THREE, shading) {
   const railPostGeo = new THREE.BoxGeometry(0.12, 1, 0.12);
   railPostGeo.translate(0, 0.5, 0);
 
-  /* Shrubs and rocks now come in threes, for the same reason the trees come
-     in twelve: they are grown, so a second variant is a draw call rather than
-     a per-instance cost, and one silhouette repeated forty times down a
-     hillside is the thing the eye picks out first. The capacity of each is
-     the whole field's, because which pool a given shrub lands in is decided
-     by its index in the band and the split is never quite even. */
-  const shrubPools = [];
-  const rockPools = [];
-  for (let i = 0; i < 3; i++) {
-    shrubPools.push(new Pool(THREE, growShrub(THREE, 0x2b7f41 + i * 5827, geos),
-      vcol(), bands * PROPS.shrubsPerBand + 30, true));
-    rockPools.push(new Pool(THREE, growRock(THREE, 0x9d2b1f + i * 6151, geos),
-      vcol(), bands * PROPS.rocksPerBand + 20));
-  }
+  /* Rocks come in threes, for the same reason the trees come in twelve: they
+     are grown, so a second variant is a draw call rather than a per-instance
+     cost, and one silhouette repeated forty times down a hillside is the
+     thing the eye picks out first.
+
+     The shrubs are gone entirely. They were the one prop that never earned
+     its place: knee-high lumps painted in the same glacier blue as the ground
+     they sat on, which at any distance read as scraps of paper blown across
+     the snow rather than as vegetation, and which existed mechanically only
+     to take a bite of speed off a rider who could not have seen them coming.
+     A mountain is better without them than with a hundred of them a minute. */
   const poles = new Pool(THREE, poleGeo, flat('#2a2f38'), bands * 2 + 16);
   const flags = new Pool(THREE, flagGeo,
     shading.apply(new THREE.MeshLambertMaterial({ flatShading: true, side: THREE.DoubleSide })),
@@ -1090,7 +967,7 @@ export function createProps(THREE, shading) {
   const railBars = new Pool(THREE, railGeo, flat('#aab6c8'), 8);
   const railPosts = new Pool(THREE, railPostGeo, flat('#2a2f38'), 32);
 
-  const pools = [poles, flags, railBars, railPosts].concat(shrubPools, rockPools);
+  const pools = [poles, flags, railBars, railPosts];
   pools.forEach((p) => group.add(p.mesh));
   const allPools = pools.concat(treePools);
 
@@ -1226,25 +1103,21 @@ export function createProps(THREE, shading) {
   // Flat array of {x, z, r, kind, top}, rebuilt whenever the bands change.
   // A few hundred entries, scanned by z-window in the rider's step.
   const solids = [];
+  // Slalom gates, remembered rather than merely drawn, so a run can be scored
+  // for taking the line the poles are describing. Rebuilt with the bands.
+  const gates = [];
 
   // --- band generation -----------------------------------------------------
   const tint = new THREE.Color();
   const gateA = new THREE.Color('#00ffc3');
   const gateB = new THREE.Color('#ffc400');
-  /* A shrub is a bush with a winter's snow sitting on it, so it is painted in
-     the same glacier the ground is — one stop darker, because a lump of snow
-     that is exactly the colour of the snow behind it is a lump nobody sees
-     until they hit it. These used to run from #ffffff down to #dfeadd, which
-     was a white shrub and a faintly green one on a white hill.
-
-     The four tree tints that used to sit beside these are gone. They were
-     multipliers over vertex colours that were already bark and needle, so
-     they had to stay near one — and four multipliers near one is not a
-     colour scheme, it is a forest painted once. What replaced them is
-     `castOf`, which is not a tint at all: it is the needle colour, and it can
-     go anywhere a conifer goes because the tree's snow is no longer listening.
-     See the head of the file. */
-  const shrubTints = ['#cddcee', '#bdd0e8', '#d6e2f0', '#c4d6ea'].map((c) => new THREE.Color(c));
+  /* The four tree tints that used to sit here are gone. They were multipliers
+     over vertex colours that were already bark and needle, so they had to
+     stay near one — and four multipliers near one is not a colour scheme, it
+     is a forest painted once. What replaced them is `castOf`, which is not a
+     tint at all: it is the needle colour, and it can go anywhere a conifer
+     goes because the tree's snow is no longer listening. See the head of the
+     file. The shrub tints that sat beside them went with the shrubs. */
   const centres = [0, 0];
 
   /* Is this stretch of hill a built park, and how far into it are we? The
@@ -1317,35 +1190,19 @@ export function createProps(THREE, shading) {
       solids.push({ x, z, r: 0.5 + s * 0.45, kind: HARD, top: 99 });
     }
 
-    // --- shrubs: scenery that costs speed ----------------------------------
-    for (let i = 0; i < PROPS.shrubsPerBand; i++) {
-      const z = z0 + rnd() * band;
-      const off = (rnd() * 2 - 1) * 62;
-      if (Math.abs(off) < PROPS.clearLane * 0.5) continue;
-      const x = nearestCenter(0, z) + off;
-      const y = heightAt(x, z);
-      const s = 0.7 + rnd() * 0.9;
-      // The variant comes off the loop counter rather than the stream, so
-      // adding variants did not reshuffle every position on the mountain
-      shrubPools[i % shrubPools.length].add(x, y - 0.12, z, rnd() * TAU,
-        s, s * (0.7 + rnd() * 0.5), s,
-        shrubTints[(rnd() * shrubTints.length) | 0]);
-      // A shrub is knee-high, so it can be jumped like a rock can
-      solids.push({ x, z, r: 0.55 * s, kind: SOFT, top: y + 0.9 * s });
-    }
+    /* The shrubs used to be drawn here. Their stream draws are gone with them
+       rather than being left spinning to preserve the sequence — the seed is
+       the coordinate, so the mountain reshuffles, and a mountain that
+       reshuffles once when a prop is removed is a fair price for not carrying
+       a dead loop around to protect a layout nobody has memorised. */
 
-    // --- rocks: low enough to clear if you see them coming -----------------
-    for (let i = 0; i < PROPS.rocksPerBand; i++) {
-      const z = z0 + rnd() * band;
-      const half = corridorHalfAt(z);
-      const off = (rnd() * 2 - 1) * (half + 10);
-      if (Math.abs(off) < PROPS.clearLane * 0.6) continue;
-      const x = nearestCenter(0, z) + off;
-      const y = heightAt(x, z);
-      const s = 0.5 + rnd() * 0.6;
-      rockPools[i % rockPools.length].add(x, y - s * 0.45, z, rnd() * TAU, s, s * 0.8, s);
-      solids.push({ x, z, r: s * 0.9, kind: JUMPABLE, top: y + s * 0.7 });
-    }
+    /* The rocks were drawn here, and they are gone for the same reason the
+       shrubs went before them. A boulder sitting on a piste is a games idea:
+       it is an obstacle placed on the ground rather than a feature of it, it
+       has to be dodged rather than ridden, and the mountain already has a
+       vocabulary for making a rider work — knolls, drops, banks, the shape of
+       the corridor. Anything that slows a rider down or throws them into the
+       air should be the hill doing it, not furniture standing on the hill. */
 
     // A band runs from z0 up to z0 + band, so this is what "inside it" means
     // for anything the park lays out at a fixed point down the mountain
@@ -1372,11 +1229,22 @@ export function createProps(THREE, shading) {
       const cx = nearestCenter(0, z) + (rnd() * 2 - 1) * 12;
       const colour = rnd() < 0.5 ? gateA : gateB;
       for (const side of [-1, 1]) {
-        const x = cx + side * 2.6;
+        const x = cx + side * PROPS.gateHalf;
         const y = heightAt(x, z);
         poles.add(x, y, z, 0, 1, 1, 1);
         flags.add(x, y, z, side < 0 ? 0 : Math.PI, 1, 1, 1, tint.copy(colour));
       }
+      /* And the gate is remembered, which it never used to be.
+
+         Slalom gates were pure scenery — two poles and a flag, drawn and
+         forgotten, "a line to take" that the game had no way of knowing you
+         had taken. Recording the pair gives the run the one thing it was
+         missing: something to aim at that is neither a jump nor an obstacle.
+         `half` travels with it because the caller has to know how wide the
+         gate was to decide whether the rider went through it, and a gate that
+         is scored against the wrong width is worse than one that is not
+         scored at all. */
+      gates.push({ x: cx, z, half: PROPS.gateHalf, taken: false });
     }
 
     // --- kickers -----------------------------------------------------------
@@ -1416,6 +1284,7 @@ export function createProps(THREE, shading) {
     solids.length = 0;
     ramps.length = 0;
     rails.length = 0;
+    gates.length = 0;
 
     const bi = Math.floor(riderZ / band);
     for (let b = bi + behind; b >= bi - ahead; b--) place(b);
@@ -1456,5 +1325,5 @@ export function createProps(THREE, shading) {
     rebuild(riderZ);
   }
 
-  return { group, update, liftAt, railAt, railPoint, solids, ramps, rails };
+  return { group, update, liftAt, railAt, railPoint, solids, ramps, rails, gates };
 }

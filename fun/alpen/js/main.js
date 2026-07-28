@@ -24,7 +24,7 @@ import { RENDER, RIDER, SCORE, PROPS, GRADE } from './config.js';
 import {
   createTerrain, heightAt, nearestCenter, corridorHalfAt,
 } from './terrain.js';
-import { createProps, HARD, SOFT } from './props.js';
+import { createProps, HARD } from './props.js';
 import { createWildlife } from './wildlife.js';
 import { createSky } from './sky.js';
 import { createWeather } from './weather.js';
@@ -260,6 +260,8 @@ const game = {
   rider,
   weather: weather.state,
   liveTrick: '',
+  // consecutive gates threaded; each one is worth more than the last
+  gateRun: 0,
 };
 
 try {
@@ -314,6 +316,7 @@ function restart() {
   rider.pos.y = world.height(rider.pos.x, start);
   game.score = 0;
   game.combo = 1;
+  game.gateRun = 0;
   game.liveTrick = '';
   chase.reset();
   spray.clear();
@@ -490,10 +493,60 @@ rider.on('grindOut', (t) => {
   audio.combo(game.combo);
 });
 
+/* A near miss is now only ever a bear.
+
+   Threading a tree used to pay out as CLOSE ONE, and so did brushing past a
+   rabbit. It fired constantly — the piste is lined with trees and the banner
+   is centred, so most of what the read-out ever said was CLOSE ONE, which
+   made the one banner that should mean something mean nothing. A bear is
+   rare, deliberate and genuinely dangerous, and it is the only near miss
+   worth telling the player about. */
 function nearMiss(kind) {
-  const pts = SCORE.nearMiss * game.combo * (kind === 'bear' ? 3 : 1);
-  award(pts, kind === 'bear' ? 'BEAR DODGED' : 'CLOSE ONE', 'near');
+  if (kind !== 'bear') return;
+  award(SCORE.nearMiss * SCORE.bearDodge * game.combo, 'BEAR DODGED', 'near');
   audio.whoosh();
+}
+
+/* Threading a gate.
+
+   The slalom poles have stood on this mountain as scenery since the start —
+   drawn, and then forgotten by everything downstream, so the one thing on the
+   run that describes a *line* was the one thing the game could not tell you
+   had been ridden. This is that, and it is deliberately the cheapest kind of
+   detection: a gate is a point and a half-width, the rider crossed it if the
+   step straddled its z, and they took it if the interpolated x at that moment
+   was inside the poles.
+
+   Interpolating matters. At forty metres a second a physics step covers a
+   third of a metre and a rendered frame covers most of a board length, so
+   testing the rider's position at either end of the step against a gate they
+   passed through the middle of is how a gate you clearly took pays nothing.
+
+   Consecutive gates build a run: each one taken without missing one is worth
+   more than the last, and missing one puts you back to the start of the
+   ladder. That is what makes a line of them read as a course rather than as a
+   row of scoring gates. */
+function checkGates() {
+  if (game.mode !== 'playing') return;
+  const gates = props.gates;
+  const zFrom = prev.z;
+  const zTo = rider.pos.z;
+  if (zTo >= zFrom) return;           // only ever going down the hill
+  for (let i = 0; i < gates.length; i++) {
+    const g = gates[i];
+    if (g.taken || g.z > zFrom || g.z <= zTo) continue;
+    g.taken = true;
+    const t = (zFrom - g.z) / (zFrom - zTo || 1);
+    const x = prev.x + (rider.pos.x - prev.x) * t;
+    if (Math.abs(x - g.x) > g.half) {
+      game.gateRun = 0;
+      continue;
+    }
+    game.gateRun = Math.min(SCORE.gateRunMax, game.gateRun + 1);
+    const pts = SCORE.gate * game.gateRun * game.combo;
+    award(pts, game.gateRun > 1 ? `GATE ×${game.gateRun}` : 'GATE', 'near');
+    audio.whoosh();
+  }
 }
 
 /* ==========================================================================
@@ -523,26 +576,11 @@ function collide() {
     const d = distToSegment(s.x, s.z, prev.x, prev.z, rider.pos.x, rider.pos.z);
     const reach = s.r + RIDER.radius;
 
-    if (d > reach) {
-      // Threading the needle is worth something, once per obstacle
-      if (!s.grazed && d < reach + SCORE.nearMissRange && s.kind === HARD) {
-        s.grazed = true;
-        if (game.mode === 'playing') nearMiss('tree');
-      }
-      continue;
-    }
-    // Anything with a real top can be cleared in the air, bush or boulder.
-    // Trees carry top: 99 because you do not jump a tree.
+    // Threading a tree no longer pays out, so a miss is simply a miss
+    if (d > reach) continue;
+    // Anything with a real top can be cleared in the air. Trees carry top: 99
+    // because you do not jump a tree.
     if (rider.pos.y > s.top + 0.15) continue;
-    if (s.kind === SOFT) {
-      if (s.hit) continue;
-      s.hit = true;
-      rider.brush(PROPS.shrubDrag);
-      spray.burst(rider.pos, (rider.pos.x - s.x) * 0.6, (rider.pos.z - s.z) * 0.6, 18, 0.7);
-      audio.thud();
-      chase.kick(0.5);
-      continue;
-    }
     if (rider.grace > 0 || game.mode === 'attract') continue;
     // One response per contact. `collide()` runs per physics substep, so a
     // rider still inside the trunk's radius on the next step would take a fresh
@@ -640,6 +678,7 @@ function frame(now) {
       // per rendered frame made a fast tree impact subtly display-rate
       // dependent even though the rider itself was fixed-step.
       collide();
+      checkGates();
       lastStep -= STEP;
       steps += 1;
     }

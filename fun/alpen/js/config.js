@@ -44,7 +44,11 @@ export const RENDER = {
   buffer: { width: BASE_WIDTH, height: BASE_HEIGHT },
 
   fov: 65,
-  fovAtSpeed: 54,     // speed closes peripheral vision into a focused tunnel
+  /* Speed closes peripheral vision into a focused tunnel. Eleven degrees
+     of narrowing was subtle to the point of deniability; twenty-two is the
+     tunnel the effect was named for, and it is still a long way short of the
+     point where a rider cannot see what is beside them. */
+  fovAtSpeed: 43,
   near: 0.5,
   far: 3600,
   /* The draw distance is a curtain of haze, and everything is arranged
@@ -89,8 +93,9 @@ export const GRADE = {
   // Enough to close the corners, not enough to notice. Anything past about
   // 0.2 turns a wide screen into a porthole.
   vignette: 0.12,
-  speedVignette: 0.46,
-  aberration: 0.0075,
+  // Doubled with the rest of the speed treatment — see GRADE.blurAmount.
+  speedVignette: 0.92,
+  aberration: 0.015,
   /* Levels per channel in the final quantise. 32 is five bits — the depth an
      RGBA5551 framebuffer carried, and the reason those machines dithered at
      all. It went to 256 for a while, when the buffer was running at native
@@ -133,9 +138,18 @@ export const GRADE = {
      travels five times this. At 0.022 it reached five and a half per cent of
      the screen, which is not a suggestion of speed, it is a smear across
      everything including the rider. */
+  /* The speed treatment, at twice the strength it was.
+
+     Blur, the colour separation at the edges and the vignette closing in are
+     the three things that say "this is fast" without moving the speedometer,
+     and they were all tuned when the picture was a 640×360 buffer where a
+     couple of pixels of smear was a lot. At native resolution the same
+     numbers are barely perceptible. Doubling them puts the effect back where
+     it reads — and it all still starts from nothing below `blurFrom`, so a
+     slow run is as clean as it ever was. */
   blurFrom: 24,       // m/s before tunnel vision starts to become visible
   blurFull: 48,
-  blurAmount: 0.012,
+  blurAmount: 0.024,
 };
 
 /* The only sky colour anything outside `weather.js` needs: the haze the
@@ -631,6 +645,24 @@ export const RIDER = {
      every turn is a skid. A few per cent of overdrive is where the edge
      starts to wash and throw powder without letting go. */
   edgeReach: 1.10,
+  /* An edge only bites because the board is moving.
+
+     Grip had no speed term at all, which meant a stationary board had the
+     same 34 m/s² of lateral hold as one at full song — and that is enough to
+     stand a rider sideways on a forty-four degree wall indefinitely. It is
+     exactly how a run got marooned: come to a crawl somewhere steep, the edge
+     holds across the fall line, the floor push trickles you along the
+     traverse at precisely `minSpeed`, and you creep across the mountain at
+     seven km/h for ever with gravity unable to get a word in. Observed on a
+     wall at 43.8°, velocity pinned at 2.0 m/s, indefinitely.
+
+     A real edge at walking pace does not hold; the board washes out sideways
+     and you slide down the fall line, which is the recovery. So the hold
+     ramps in with speed and keeps a floor, because a board with literally no
+     grip cannot be steered at all and standing still would become a slow
+     slide to the bottom of the mountain. */
+  gripSpeed: 7.0,     // m/s at which the edge is fully engaged
+  gripLow: 0.22,      // and the share of it a nearly-stopped board keeps
   /* And the furthest the board is ever allowed to point away from the
      direction it is genuinely travelling. Sixty degrees is about as far
      across the fall line as anyone can hold one and still be riding it; past
@@ -836,8 +868,23 @@ export const SCORE = {
   comboMax: 12,
   // Below this a landing is just a landing: no banner, no combo, no points.
   minTrickScore: 60,
-  nearMiss: 40,       // for threading a tree, a bear, or a bolting rabbit
-  nearMissRange: 2.4,
+  /* A near miss is only ever a bear now. Threading a tree paid out too, and
+     on a piste lined with trees that meant the centred banner spent most of
+     the run saying CLOSE ONE — which is how a banner stops meaning anything.
+     A bear is rare and genuinely dangerous, so it is the one worth saying. */
+  nearMiss: 40,
+  bearDodge: 3,       // multiplier on top, because it is the only one left
+
+  /* Threading a slalom gate, and the ladder that consecutive ones build.
+
+     Each gate taken without missing one is worth more than the last, and a
+     miss puts you back to the bottom. That is the difference between a row of
+     scoring gates and a course: a single gate is worth about a third of a
+     modest trick, and a run of six is worth committing a whole line to. The
+     ladder is capped so a very long straight of them cannot outrun the rest
+     of the scoring. */
+  gate: 120,
+  gateRunMax: 8,
   // Rails pay by the second, and pay again for getting off one cleanly
   grindPerSecond: 420,
   grindOut: 250,
@@ -859,10 +906,13 @@ export const PROPS = {
   // Density climbs with distance, which is most of the difficulty curve.
   // Speed takes care of the rest.
   treesPerBand: 22,
-  shrubsPerBand: 11,
   innerTreesAt: 400,  // metres before trees start appearing on the piste
   innerTreesMax: 3,
-  rocksPerBand: 3,
+  /* Slalom gates, and how wide the pair stands.
+     It is also the width the scoring is judged against, so the two can never
+     drift apart — a gate scored against a different width than it was drawn
+     at is a gate that pays out when you visibly missed it. */
+  gateHalf: 2.6,
   /* Trees, grown rather than modelled.
 
      There used to be one tree — a cylinder, a cone and a smaller cone —
@@ -925,9 +975,6 @@ export const PROPS = {
   },
   maxRamps: 7,
   clearLane: 8,       // no hard obstacle closer than this to a centre line
-  // Shrubs do not put a rider down. They cost speed and throw powder, which
-  // is punishment enough for a bush.
-  shrubDrag: 0.42,
 
   /* Terrain park.
 

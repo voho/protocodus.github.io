@@ -516,7 +516,11 @@ export class Rider {
        computed from the carve, and the carve is computed from the grip. One
        step of 1/120 s is not a lag anyone can feel, and it is the difference
        between a solvable loop and a circular one. */
-    const gripNow = surfaceGrip
+    // The edge only bites because the board is moving — see `gripSpeed`. This
+    // is what stops a crawling rider from standing sideways on a wall.
+    const engaged = RIDER.gripLow
+      + (1 - RIDER.gripLow) * clamp(speed / RIDER.gripSpeed, 0, 1);
+    const gripNow = surfaceGrip * engaged
       * (input.brake ? 0.45 : 1)
       * (input.tuck ? RIDER.tuckGrip : 1)
       * (1 - RIDER.balanceGrip + RIDER.balanceGrip * this.balance);
