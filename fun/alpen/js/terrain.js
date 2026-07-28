@@ -148,7 +148,7 @@ export const SNOWPACK = {
      is the lip and the wall, `drift` is the hollows — and note that drift runs
      downwards, because a hollow is negative relief. */
   crest: [1.6, 7.0],
-  scour: [7, 34],
+  scour: [5, 26],
   drift: [-6, -0.8],
 
   /* The bearing the sun spends its day around: `weather.js` swings its
@@ -161,14 +161,14 @@ export const SNOWPACK = {
      then clamped, so the extremes genuinely reach bare rock and full cover
      rather than crowding towards the middle the way a product would. */
   base: 0.26,
-  altitude: 0.40,
+  altitude: 0.46,
   bandWeight: 0.22,
   crestWeight: 0.17,
   scourWeight: 0.44,
   driftWeight: 0.16,
   aspectWeight: 0.24,
   shadeWeight: 0.10,
-  groomed: 0.30,
+  groomed: 0.22,
 
   /* Where snow lets go of a slope. `slip` is the steepness it starts and
      finishes letting go at with no cover at all, and `hold` is how much
@@ -178,7 +178,7 @@ export const SNOWPACK = {
      ground with nearly no cover shows stone however flat it is lying. */
   slip: [0.30, 0.86],
   hold: 0.46,
-  thin: [0.26, 0.02],
+  thin: [0.30, 0.04],
 
   /* Cover over which the snow goes from névé to deep cover. */
   pack: [0.22, 0.90],
@@ -208,8 +208,8 @@ export const SNOWPACK = {
   deep: '#d0e0f4',
   ice: '#a7c9e2',
   shade: '#93b3d8',
-  slate: ['#333d4f', '#6b7a92'],
-  iron: ['#4b4249', '#877a79'],
+  slate: ['#2c3646', '#7d8ba3'],
+  iron: ['#443a41', '#948579'],
 };
 
 const { wander, route, corridor, wall, cliffs, knolls,
@@ -957,7 +957,7 @@ export function createTerrain(THREE, shading) {
              on the hill being the same grey. That was the complaint that is
              hardest to argue with: a single stone colour makes a hundred
              separate cliffs read as one repeated asset. */
-          const mottle = noise2(wx * 0.4, wz * 0.4, 11);
+          const mottle = noise2(wx * 0.16, wz * 0.16, 11);
           const kind = smoothstep(0.34, 0.72, band);
           const d0 = cSlate[0], d1 = cSlate[1], w0 = cIron[0], w1 = cIron[1];
           const lo0 = d0[0] + (w0[0] - d0[0]) * kind;

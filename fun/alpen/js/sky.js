@@ -847,7 +847,7 @@ const RANGE_VERT = `
 const RANGE_FRAG = `
   precision mediump float;
   uniform sampler2D uNoise;
-  uniform vec3 uHaze, uPeak, uRock, uIce, uSunlit;
+  uniform vec3 uHaze, uPeak, uSnow, uRock, uIce, uSunlit;
   uniform float uRise, uLine, uWobble, uGlacier, uDetail;
   varying float vMix;
   varying float vShade;
@@ -900,23 +900,45 @@ const RANGE_FRAG = `
     float rock = smoothstep(0.40, 0.82,
       rib * 0.46 + steep * 0.50 + crest * 0.26 - 0.12);
 
-    /* Bare below the line, snow above it with the rock showing through — and
-       never on the ice, which is the entire picture in one multiply: a
-       bright tongue running down between two dark ribs.
+    /* Now put them together, and the important part is that the snow above
+       the line is *lighter* than the band's own colour and not equal to it.
 
-       uDetail is the band's own air wearing its third hat. The far band gets
-       a tenth of this and is a flat blue shape with a jagged top; the near
-       band gets nearly all of it. Without that the four of them read as one
-       range drawn four times at four sizes. */
-    float bare = max(1.0 - snow, rock * (1.0 - tongue));
-    vec3 body = mix(uPeak, uRock, bare * uDetail);
+       That was the whole of why the first three attempts at this could not be
+       seen. A band is drawn dark at the top and pale at its foot, because its
+       foot is dissolving into a curtain far lighter than any of the four
+       tints — so climbing through the picture, the haze is already making
+       everything darker as it goes. A snow line that only darkens what is
+       below it is therefore pushing in the direction the gradient is already
+       going, and the two do not add up to an edge, they add up to a slightly
+       different slope. Reversing it locally is what makes a line: crossing
+       upward has to make the picture brighter, against the gradient, and it
+       can only do that if there is somewhere brighter than uPeak to go.
+
+       So the band's tint is the *mean* of this rather than the top of it —
+       roughly three fifths bright snow and two fifths dark rock, which is
+       about the split a snow line at this height actually gives. The palette
+       keeps its four-step ladder because the average of each band is where it
+       always was; what has been added is contrast inside each step. */
+    vec3 body = mix(uRock, uSnow, snow);
     /* The ice is the tongue and not the snowfield it comes out of. Painted
        all the way up, it lays a pale stripe over the summit above it and the
        peak stops being a peak; a glacier belongs at and just below the line
        it has dragged down, which is the only place it is doing any work. */
     float ice = tongue * snow
       * (1.0 - smoothstep(uLine + 0.04, uLine + 0.28, alt));
-    body = mix(body, uIce, ice * uDetail * 0.9);
+    body = mix(body, uIce, ice * 0.9);
+    // and the rock last, so it lies over the snow and never over the ice —
+    // which is the entire picture in one multiply: a bright tongue running
+    // down between two dark ribs
+    body = mix(body, uRock, rock * snow * (1.0 - tongue) * 0.9);
+
+    /* And uDetail, which is the band's own air wearing its third hat, applied
+       in one place at the end: it slides the whole of that structure back
+       towards the flat tint the band would have had without any of it. The
+       far band keeps a fifth and is very nearly the blue shape it always was;
+       the near band keeps four fifths. At nought this file draws exactly what
+       it drew before any of this, which is a property worth having. */
+    body = mix(uPeak, body, uDetail);
 
     /* The air is not the same all the way up a mountain.
 
@@ -1468,6 +1490,7 @@ export function createSky(THREE) {
         uNoise: { value: fieldTex },
         uHaze: { value: new THREE.Color('#e3ecf6') },
         uPeak: { value: new THREE.Color(tint) },
+        uSnow: { value: new THREE.Color(tint) },
         uRock: { value: new THREE.Color(tint) },
         uIce: { value: new THREE.Color(tint) },
         uSunlit: { value: new THREE.Color(0, 0, 0) },
@@ -1592,6 +1615,7 @@ export function createSky(THREE) {
 
   const peakTmp = new THREE.Color();
   const footTmp = new THREE.Color();
+  const snowTmp = new THREE.Color();
   const rockTmp = new THREE.Color();
   const iceTmp = new THREE.Color();
   const fill = new THREE.Color();
@@ -1893,12 +1917,20 @@ export function createSky(THREE) {
       peakTmp.lerp(w.mid, SKY_BLEED * r.air);
       r.mat.uniforms.uPeak.value.copy(peakTmp);
 
-      /* Rock and ice, and both are derived from the snow rather than being
-         colours of their own — which is the only way three surfaces can go
-         through nine times of day and a storm without ever disagreeing about
-         what light they are standing in.
+      /* Snow, rock and ice, and all three are derived from that one tint
+         rather than being colours of their own — which is the only way three
+         surfaces can go through nine times of day and a storm without ever
+         once disagreeing about what light they are standing in.
 
-         Rock is the band's snow with the light taken out of it and a push
+         The snow is the band's tint opened up towards the palest stop the
+         sky has. It has to be brighter than the tint and not equal to it —
+         see the note in RANGE_FRAG, it is the whole reason any of this can
+         be seen — and it goes towards the horizon stop rather than towards
+         white because the palette has no white in it anywhere and the one
+         rule about snow here is that it never becomes any. */
+      snowTmp.copy(peakTmp).lerp(w.horizon, 0.26);
+      r.mat.uniforms.uSnow.value.copy(snowTmp);
+      /* Rock is the same tint with the light taken out of it and a push
          towards the top of the sky. Distant rock is not brown: at twenty
          kilometres the air in front of it has already made it a dark
          blue-grey, and the further band's rock is bluer than the near one's
@@ -1906,14 +1938,13 @@ export function createSky(THREE) {
          first and looked like a hole cut in the horizon at dusk, when
          everything around it had gone amber and it had not. */
       rockTmp.copy(peakTmp).lerp(w.zenith, 0.20 + 0.22 * r.air)
-        .multiplyScalar(0.30);
+        .multiplyScalar(0.40);
       r.mat.uniforms.uRock.value.copy(rockTmp);
-      /* And ice, which is the one thing on the horizon brighter than the
-         snow around it. Towards the sky's palest stop rather than towards
-         white: the palette has no white in it anywhere, and an additive
-         grade and a five-bit quantise between them cannot bring back a
-         glacier that has clipped. */
-      iceTmp.copy(peakTmp).lerp(w.horizon, 0.34);
+      // And ice, which is the one thing on the horizon brighter than the snow
+      // around it: the same journey the snow made, taken twice as far. An
+      // additive grade and a five-bit quantise between them cannot bring back
+      // a glacier that has clipped, so this is as far as it goes.
+      iceTmp.copy(peakTmp).lerp(w.horizon, 0.52);
       r.mat.uniforms.uIce.value.copy(iceTmp);
       // How much of any of it survives the air in front of it, and a storm
       // takes the rest — a whiteout has no snow line in it because it has no

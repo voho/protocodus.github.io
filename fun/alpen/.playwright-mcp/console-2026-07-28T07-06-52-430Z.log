@@ -1,0 +1,1 @@
+[     241ms] [WARNING] THREE.WebGLShadowMap: PCFSoftShadowMap has been deprecated. Using PCFShadowMap instead. @ http://127.0.0.1:8765/assets/vendor/three/three.core.min.js:5
