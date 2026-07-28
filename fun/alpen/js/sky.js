@@ -445,7 +445,18 @@ const MIST = {
    step towards violet — which is what rock at six kilometres actually looks
    like under a blue sky, and which gives the stack somewhere to travel
    between. Four tints inside a fifth of the value range is a gradient; these
-   cover half of it. */
+   cover half of it.
+
+   The heights are unchanged through all of the work below, and that is worth
+   a line because it very nearly was not. What decides how tall a range
+   *looks* is the mean of its skyline rather than the ceiling that skyline is
+   measured against, so a profile with real cols cut into it draws a lower
+   horizon than one with a plateau under it — the first draft of the new one
+   came out a quarter shorter and these four numbers all went up by a fifth
+   to pay for it. That was the wrong end to fix it at. The relief is bounded
+   below now instead, so the mean comes back to where it always was and the
+   heights are once again what they say they are: how far the tallest summit
+   on the ring stands above the curtain. */
 export const RANGES = [
   { radius: 2380, height: 785, far: 42000, seed: 21, segments: 360, tint: '#cbd7ea' },
   { radius: 2010, height: 623, far: 21000, seed: 33, segments: 330, tint: '#9db4d8' },
@@ -469,35 +480,49 @@ export const RANGES = [
    segments of the far band that is seven and a half points a feature, and
    the octave under it would be three, which is not rock, it is noise.
 
-   `sharp` narrows the ridge and `gain` decides how much of the range is up
-   against its own ceiling. They were found together and against each other:
-   at a gain of one the summits never reach the top and the range is a field
-   of foothills, at two a fifth of the ring is pinned at maximum and it is a
-   plateau again. Between them the highest few summits touch and everything
-   else is on its way somewhere.
+   `sharp` narrows the ridge. `floor` is what is left of a massif in the
+   middle of a col, and it is not zero on purpose: at zero the massifs are
+   islands with nothing between them, and a range has shoulders.
 
-   `relief` is how much of a band's own vertical range its air takes off it,
-   and `detail` is the floor under how much of its contrast survives — see
-   the head of the file for why both of those hang off the same exponential
-   as the colour does.
+   `fill` is what is left to choose about the profile and it is the one
+   number in this block that is a taste rather than a measurement — how much
+   of the range stands up rather than down. Under a half it is spires in a
+   basin, over three quarters it is a plateau with valleys cut into it. Real
+   ranges are nearer the second than instinct says, which is most of why the
+   old horizon read as hills: it was drawn as spires and then floored at
+   nearly two thirds to stop it looking like teeth.
 
-   The last three are the snow line. `line` is where it sits as a fraction of
-   a band's own height, and it is high: below about half, the haze gradient
-   has already eaten most of the band and a line drawn down there is a line
-   nobody can see. `wobble` is what a south face buys itself over the north
-   face beside it. `glacier` is how far a tongue drags the line down, and it
-   is deliberately more than twice the wobble — a glacier that reaches no
-   further than the noise on the line is not a glacier, it is a blotch. */
+   `relief` is how much of its own height a band's skyline is allowed to
+   swing through, and it is bounded well short of all of it. That bound is
+   what keeps the mean skyline where the old plateau had it, and it is also
+   honest — a real range seen from a valley swings between its cols and its
+   summits, which on the Bernese Oberland is about a third of the way from
+   the valley floor to the tops, not the whole distance. `flatten` is how
+   much of that swing the air takes off a far band. `detail` is the floor
+   under how much of the contrast survives, and `bias` bends it: taken
+   straight, contrast falls off so much faster than linearly with air that
+   the two middle bands come out with nothing in them at all.
+
+   The last three are the snow line. `above` is how much of the range stands
+   over it, and asking for it that way round is the whole trick — see the
+   note where it is used. `wobble` is what a south face buys itself over the
+   north face beside it. `glacier` is how far a tongue drags the line down,
+   and it is deliberately more than twice the wobble: a glacier that reaches
+   no further than the noise already on the line is not a glacier, it is a
+   blotch. */
 export const HORIZON = {
   massif: 5,
   horn: 18,
   knife: 48,
-  sharp: 1.45,
-  gain: 1.55,
-  relief: 0.46,
-  detail: 0.09,
-  line: 0.60,
-  wobble: 0.13,
+  sharp: 1.6,
+  floor: 0.24,
+  fill: 0.62,
+  relief: 0.66,
+  flatten: 0.50,
+  detail: 0.05,
+  bias: 0.50,
+  above: 0.85,
+  wobble: 0.12,
   glacier: 0.30,
   // Tiles of the shared noise field around a whole ring. An integer, because
   // the field repeats at one and the ring has to close on itself.
@@ -845,8 +870,8 @@ const RANGE_FRAG = `
        strip rather than a blob, and cut high so that most of the range has
        none: a horizon with a glacier every few degrees is not a high range,
        it is a marbled one. */
-    float tongue = smoothstep(0.58, 0.84,
-      texture2D(uNoise, vec2(vU * 2.3 + 0.31, alt * 0.30 + 0.07)).b);
+    float tongue = smoothstep(0.62, 0.86,
+      texture2D(uNoise, vec2(vU * 3.2 + 0.31, alt * 0.22 + 0.07)).b);
 
     // The line itself: a level, wobbled by whatever the aspect of the slope
     // is worth, and dragged down wherever a tongue is running
@@ -865,8 +890,15 @@ const RANGE_FRAG = `
        vertical ribs. A face is buttresses and gullies, not a wall. */
     float rib = texture2D(uNoise, vec2(vU * 4.6, alt * 0.55 + 0.41)).r;
     float crest = alt / max(vTop, 0.06);
-    float rock = smoothstep(0.46, 0.82,
-      rib * 0.50 + crest * 0.30 + vSteep * 0.52 - 0.30);
+    /* The steepness has to be stretched before it is any use. Most of a ring
+       is shoulder: the median column's skyline falls at about a fifth and
+       only the top tenth gets past two thirds, so the raw number fed in
+       straight put rock on nothing at all. This is that distribution pulled
+       out over its own useful range and it is the only place in the file
+       where a curve was fitted to a histogram rather than to a photograph. */
+    float steep = smoothstep(0.06, 0.38, vSteep);
+    float rock = smoothstep(0.40, 0.82,
+      rib * 0.46 + steep * 0.50 + crest * 0.26 - 0.12);
 
     /* Bare below the line, snow above it with the rock showing through — and
        never on the ice, which is the entire picture in one multiply: a
@@ -878,7 +910,13 @@ const RANGE_FRAG = `
        range drawn four times at four sizes. */
     float bare = max(1.0 - snow, rock * (1.0 - tongue));
     vec3 body = mix(uPeak, uRock, bare * uDetail);
-    body = mix(body, uIce, tongue * snow * uDetail * 0.85);
+    /* The ice is the tongue and not the snowfield it comes out of. Painted
+       all the way up, it lays a pale stripe over the summit above it and the
+       peak stops being a peak; a glacier belongs at and just below the line
+       it has dragged down, which is the only place it is doing any work. */
+    float ice = tongue * snow
+      * (1.0 - smoothstep(uLine + 0.04, uLine + 0.28, alt));
+    body = mix(body, uIce, ice * uDetail * 0.9);
 
     /* The air is not the same all the way up a mountain.
 
@@ -1272,23 +1310,18 @@ export function createSky(THREE) {
       return snoise2(Math.cos(a) * r, Math.sin(a) * r, seed + s);
     };
 
+    const raw = new Float32Array(segments);
     const prof = new Float32Array(segments);
     const ring = new Float32Array(segments);
-    /* How much of its own relief this band is allowed. Further back is
-       flatter, and only partly because distance does that to a range: a far
-       band cut with the near band's cols would show sky through them, and
-       the whole reason there is a far band is that it is what the near
-       band's cols are meant to be full of. */
-    const relief = 1 - HORIZON.relief * air;
     for (let i = 0; i < segments; i++) {
       /* Massifs first, and multiplied into the summits rather than added to
          them. Added, a horn standing in a col comes out as a peak with a
          slightly lower peak beside it and the range is a sawtooth with a
          wave through it. Multiplied, the col has nothing in it, which is
-         what a col is. The fifth left underneath is the shoulder that
+         what a col is. The quarter left underneath is the shoulder that
          carries the range across from one massif to the next; at zero the
-         cols go to the haze and the massifs are islands. */
-      const massif = 0.20 + 0.80 * smooth01(clamp01(
+         massifs are islands with sky between them. */
+      const massif = HORIZON.floor + (1 - HORIZON.floor) * smooth01(clamp01(
         octave(i, HORIZON.massif, 0) * 1.25 + 0.5,
       ));
       /* And the summits. Ridged, because the fold of an absolute value has a
@@ -1300,17 +1333,66 @@ export function createSky(THREE) {
          edges cut into its flanks. */
       const horn = 1 - Math.abs(octave(i, HORIZON.horn, 1));
       const knife = 1 - Math.abs(octave(i, HORIZON.knife, 2));
-      const shape = clamp01(Math.pow(horn, HORIZON.sharp)
-        * (0.70 + 0.30 * knife) * massif * HORIZON.gain);
-      // Nothing clamps that was not already going to: a product of numbers
-      // in nought-to-one cannot leave nought-to-one, which is why the knee
-      // that used to rescue the old sum from its own extremes has gone.
-      prof[i] = height * (1 - relief * (1 - shape));
+      raw[i] = Math.pow(horn, HORIZON.sharp) * (0.70 + 0.30 * knife) * massif;
       // and the ring is not a circle, so four of them do not read as four
       // circles. Five per cent is nothing to the colour and everything to
       // whether the peaks look like they are at one distance.
       ring[i] = radius * (1 + octave(i, 7, 3) * 0.05);
     }
+
+    /* Then a second pass, because it needs the whole of the first one.
+
+       That product lives in nought-to-one but it does not *use* it: three
+       factors multiplied together spend nearly all of their time near the
+       bottom and reach the top only when all three agree at once, which on a
+       ring of three hundred samples happens approximately never. Left as it
+       came out, a band never touches its own ceiling and the seed decides how
+       tall the range is.
+
+       So it is stretched over its own second and ninety-nine-and-a-half-th
+       percentiles. Two hundredths are given up at the bottom, where a col is
+       a col whether it is flat or very flat, and half of one at the top,
+       where a single freak summit would otherwise set the scale for the
+       whole ring and press everything else down under it. That is the end of
+       the gain constant this used to carry, which was a stand-in for exactly
+       this measurement and could only ever have been right for one seed: too
+       small and no summit reached the ceiling, too large and a tenth of the
+       ring sat clamped against it drawing a literal flat line across the sky.
+       Both of those shipped, in that order. */
+    const sortedRaw = Float32Array.from(raw).sort();
+    const at = (q) => sortedRaw[Math.floor(q * (segments - 1))];
+    const lo = at(0.02);
+    const span = Math.max(1e-4, at(0.995) - lo);
+    /* And how much of its own height this band's skyline is allowed to swing
+       through. It is bounded well short of all of it, twice over. Once
+       because a real range does that — from a valley floor the skyline lives
+       between its cols and its summits, which is the top third of the way up
+       and not the whole way. And once because a far band cut with the near
+       band's cols would show sky through them, and the entire reason there
+       is a far band is that it is what the near band's cols are full of. */
+    const relief = HORIZON.relief * (1 - HORIZON.flatten * air);
+    for (let i = 0; i < segments; i++) {
+      const shape = Math.pow(clamp01((raw[i] - lo) / span), HORIZON.fill);
+      prof[i] = height * (1 - relief * (1 - shape));
+    }
+
+    /* And the snow line, which is a quantile of the skyline that has just
+       been built rather than a fraction of the band's own ceiling.
+
+       Asked for as a fraction of the ceiling it cannot work, and the reason
+       is worth keeping: the ceiling is what the tallest summit on the entire
+       ring reaches, the typical column stands at two thirds of it, and the
+       four bands do not even agree about that because the air has taken a
+       different amount of relief off each of them. A line at two thirds of
+       the ceiling is therefore a line above nearly the whole range, and the
+       snow comes out as a rim drawn round the skyline rather than a level cut
+       across it. That shipped too.
+
+       Asked for as *how much of the range stands above it* — which is also
+       how the question gets asked of a photograph — one number means the same
+       thing on all four bands, whatever relief each of them ended up with. */
+    const skyline = Float32Array.from(prof).sort();
+    const line = skyline[Math.floor((1 - HORIZON.above) * (segments - 1))] / height;
 
     // Which way each column's skyline falls, normalised into [-1, 1] so the
     // shader can use it as a facing without knowing anything about metres
@@ -1392,7 +1474,7 @@ export function createSky(THREE) {
         uSun: { value: sunLocal },
         uLight: { value: 0.2 },
         uRise: { value: 1 },
-        uLine: { value: HORIZON.line },
+        uLine: { value: line },
         uWobble: { value: HORIZON.wobble },
         uGlacier: { value: HORIZON.glacier },
         uDetail: { value: 0 },
@@ -1420,7 +1502,8 @@ export function createSky(THREE) {
          rather than nothing, because a far band with literally no structure
          is a paper cut-out and the eye finds those instantly; a tenth is
          enough to say there is something up there without saying what. */
-      detail: HORIZON.detail + (1 - HORIZON.detail) * (1 - air),
+      detail: HORIZON.detail
+        + (1 - HORIZON.detail) * Math.pow(1 - air, HORIZON.bias),
     });
     return mesh;
   }
@@ -1823,7 +1906,7 @@ export function createSky(THREE) {
          first and looked like a hole cut in the horizon at dusk, when
          everything around it had gone amber and it had not. */
       rockTmp.copy(peakTmp).lerp(w.zenith, 0.20 + 0.22 * r.air)
-        .multiplyScalar(0.44);
+        .multiplyScalar(0.30);
       r.mat.uniforms.uRock.value.copy(rockTmp);
       /* And ice, which is the one thing on the horizon brighter than the
          snow around it. Towards the sky's palest stop rather than towards

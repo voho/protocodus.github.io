@@ -56,6 +56,162 @@ import { TERRAIN } from './config.js';
    and this is the one number that joins them. */
 export const GLITTER_AIM = 1.5;
 
+/* THE SNOWPACK — what the ground is made of, as against how it is lit.
+
+   The hill's shape was already a function of where you are on it and its
+   surface was not. Every flat was the same snow and every steep face was the
+   same rock, which is a mountain built out of one material and then bent, and
+   the eye reads that immediately even when it cannot say why: two kilometres
+   of descent went past and nothing about the ground had changed.
+
+   So the cover is now a small budget that four things spend, and rock is
+   simply what is left where the budget runs out.
+
+   ALTITUDE is the strongest of them and it is the one a real mountain wears
+   most plainly. The run loses about 0.28 metres of height per metre of z, so
+   a kilometre of riding is nearly three hundred metres of descent, and three
+   hundred metres is the difference between ground the wind has scoured to ice
+   and ground that has held everything that fell on it since November. It is
+   `ctx.base` — the grade's own integral, which is metres below the summit and
+   already computed once a row — and so it costs a subtraction.
+
+   It saturates, and that is not a fudge. The run is endless: taken literally,
+   an absolute snow line is crossed once in the first four kilometres and then
+   the mountain is one material for ever, which is the bug this is meant to
+   fix. What actually happens on a mountain is that below the scour zone the
+   pack stops deepening with height and starts varying with everything else,
+   and below the snow line proper there is no snow at all — which this run
+   cannot have, because it is a snowboard game. So the altitude term does its
+   work over the first kilometre and a half of descent and then hands over.
+
+   RELIEF is what it hands over to, and it is permanent because it is local:
+   `h - ctx.base` is how far this vertex stands above the plane the grade says
+   the run should be on. Inside the corridor that is the ridge and roll
+   octaves, so the broad swells get their crests scoured and their hollows
+   filled — wind scour and lee drift, from a subtraction that was already
+   free. Outside it, it is the lip and then the containment wall, which climb
+   sixty metres and more, and which therefore become the scoured rock ribs of
+   a valley rather than two white banks standing beside the piste. The run
+   reads as a trough on a mountain, which is what it is.
+
+   ASPECT. A slope that faces the sun keeps less snow than one that does not,
+   and this is measured against a fixed bearing rather than against the live
+   sun. That was the second attempt. The first read `shading.uniforms.uSunDir`
+   at fill time, which is wrong twice over: snow depth is a season and not a
+   moment, so a slope does not grow rock at noon and lose it at four; and the
+   vertex colours are only rebuilt when the mesh re-anchors, so a rider who
+   stopped would have watched the mountain change material underneath them one
+   LOD ring at a time. The bearing here is the mean of the azimuth swing in
+   `weather.js` — where the sun spends its day — and it is a constant.
+
+   BANDS. A slow noise along the run, sheared so that its edges run diagonally
+   across the hill instead of squarely across it, saying that this stretch is
+   a rock band and that one is a snowfield. The grade already gives the run
+   chapters; this gives the same stretches a material.
+
+   And the corridor is exempted from most of it, because a piste is groomed.
+   Machines put that snow there and keep it there, which is exactly why a real
+   high alpine piste is a white ribbon laid over bare rock — and it is also
+   what keeps the run legible when the mountain around it has gone to stone.
+
+   THE COLOUR. Three snow stops, and the axis between them is not brightness,
+   it is what the snow has been through. Deep soft cover is the palest and the
+   least saturated, because fresh snow is a heap of air; scoured névé is
+   darker and frankly cyan, because ice is blue and the more of it light has
+   to travel through the bluer it comes back. So the top of the mountain is
+   blue, the bottom is bright, and neither of them is white — which is the
+   rule, and it is now a rule with a mechanism behind it rather than a colour
+   picked to obey it.
+
+   All three came down about a tenth in luminance from what was here, for a
+   reason that is downstream of this file: `GRADE.shoulder` compresses the top
+   of the range, snow is the brightest thing in the frame, and blue was the
+   brightest channel in the snow — so the shoulder was squeezing the blue back
+   towards the other two and handing back a neutral. Measured at midday, the
+   ground averaged 215,222,221 with eight per cent of it over luma 240, which
+   is white with a rounding error. Lower albedo and more chroma at this end is
+   what lets the grade downstream do its job instead of clipping. */
+export const SNOWPACK = {
+  /* Metres of descent from the top of the run over which the pack goes from
+     high-alpine scour to full winter cover. */
+  snowLine: [70, 1500],
+
+  /* The chapters. `shear` is how far a band leans across the hill per metre
+     down it: at zero the mountain is drawn in horizontal stripes, which is
+     visible the moment you look sideways, and at much over one the bands stop
+     reading as strata at all. Two octaves, so a band has an edge and a grain
+     rather than being one smooth swell. */
+  band: { freq: 0.0016, shear: 0.62, seed: 37 },
+
+  /* Relief, in metres above the run's own plane, over which each of the three
+     things it decides comes on. `crest` is the corridor's own swells, `scour`
+     is the lip and the wall, `drift` is the hollows — and note that drift runs
+     downwards, because a hollow is negative relief. */
+  crest: [1.6, 7.0],
+  scour: [7, 34],
+  drift: [-6, -0.8],
+
+  /* The bearing the sun spends its day around: `weather.js` swings its
+     azimuth 1.15 ± 0.8 radians, so this is sin and −cos of the middle of that
+     swing. Not normalised beyond what those two already are. */
+  sunX: 0.913,
+  sunZ: -0.409,
+
+  /* What each of them is worth against a cover of one. They are summed and
+     then clamped, so the extremes genuinely reach bare rock and full cover
+     rather than crowding towards the middle the way a product would. */
+  base: 0.26,
+  altitude: 0.40,
+  bandWeight: 0.22,
+  crestWeight: 0.17,
+  scourWeight: 0.44,
+  driftWeight: 0.16,
+  aspectWeight: 0.24,
+  shadeWeight: 0.10,
+  groomed: 0.30,
+
+  /* Where snow lets go of a slope. `slip` is the steepness it starts and
+     finishes letting go at with no cover at all, and `hold` is how much
+     steeper it can be before letting go when the cover is full — so thin snow
+     slides off ground that deep snow sits on quite happily, which is one term
+     rather than two because it is one phenomenon. `thin` is the other way in:
+     ground with nearly no cover shows stone however flat it is lying. */
+  slip: [0.30, 0.86],
+  hold: 0.46,
+  thin: [0.26, 0.02],
+
+  /* Cover over which the snow goes from névé to deep cover. */
+  pack: [0.22, 0.90],
+
+  /* THE PALETTE. Snow first, coldest last.
+
+     `deep` is soft winter cover: the brightest thing on the mountain and the
+     least saturated, because a metre of new snow is mostly air and scatters
+     out of the first millimetre of it.
+
+     `ice` is what the wind leaves: névé, wind slab, the blue-white glaze on a
+     scoured shoulder. Cyan rather than blue — ice absorbs the red end first
+     and the green last, so the green channel sits nearer the blue than the
+     red, and that is the difference between glacier and a grey with a hint.
+
+     `shade` is snow lying in the mountain's own shadow, which is a deeper and
+     slightly more violet blue than the ice is, because what is lighting it is
+     the sky and the sky at this altitude is close to navy.
+
+     Then two stones, and the point of there being two is that a single grey
+     makes every cliff on the mountain the same cliff. `slate` is a cold
+     blue-grey, `iron` a russet one — barely saturated, but enough that a rock
+     band made of one does not look like a rock band made of the other. Both
+     stay under the snow in value by a long way, because rock against snow is
+     the strongest contrast on the hill and it does not need help. Each is a
+     pair: the cleft and the ridge it catches the light on. */
+  deep: '#d0e0f4',
+  ice: '#a7c9e2',
+  shade: '#93b3d8',
+  slate: ['#333d4f', '#6b7a92'],
+  iron: ['#4b4249', '#877a79'],
+};
+
 const { wander, route, corridor, wall, cliffs, knolls,
   ridges, rolls, moguls, chatter, warp, bulgeVary } = TERRAIN;
 const GRADE = TERRAIN.grade;
@@ -65,6 +221,20 @@ const smoothstep = (a, b, t) => {
   return u * u * (3 - 2 * u);
 };
 const smooth01 = (u) => u * u * (3 - 2 * u);
+const clamp01 = (t) => (t < 0 ? 0 : t > 1 ? 1 : t);
+
+/* Value noise along a line. The band field is its only caller and it wants a
+   field that varies down one axis, so `noise2` would be paying for four hashed
+   lattice corners to interpolate between two — and this runs twice per vertex
+   over sixteen thousand vertices every time the mesh re-anchors, which is
+   several times a second. Half the hashes is worth a function. */
+function noise1(u, seed) {
+  const i = Math.floor(u);
+  const f = u - i;
+  const a = hash2(i, 0, seed);
+  const b = hash2(i + 1, 0, seed);
+  return a + (b - a) * smooth01(f);
+}
 
 const CLIFF_SPAN = cliffs.fall + cliffs.runout;
 
@@ -618,35 +788,22 @@ export function createTerrain(THREE, shading) {
   const mesh = new THREE.Mesh(geometry, material);
   mesh.frustumCulled = false;
 
-  /* Snow is two colours and a rock, mixed per vertex. Lighting is the
-     material's job; these carry material variation only — wind-packed
-     patches and the stone that shows through wherever the hill gets too
-     steep to hold snow.
+  /* The palette, unpacked into plain numbers.
 
-     SNOW IS NEVER WHITE. These used to be #fbfdff and #c2d3ea — a bright
-     snow that was white with a rounding error in it, and a shade that was
-     white with a hint. They are albedos, not appearances, and an albedo of
-     one is a lie about a material that reflects eighty per cent of the light
-     it gets: it left nothing for the key to do, so a lit slope arrived at the
-     top of the scale before the sun had said anything about it and the
-     highlight shoulder downstream had nothing left to roll off.
+     `THREE.Color` is what these are written as, because a hex string is the
+     only form of a colour anybody can read — but its `lerp` is a method call
+     on an object and the colour pass is the innermost loop in this file, so
+     the values are pulled out into flat triples once and the loop does its
+     own arithmetic. Six mixes per vertex that used to be six method calls.
 
-     What is here instead is glacier. The bright stop is a pale blue-white
-     with the blue still legible in it, the dim stop is properly glacial, and
-     the warmth in the picture arrives from somewhere it can actually come
-     from — the key light, which at golden hour is #ffcb8a and at dusk is
-     #ff9a6a. Snow is warm only where a low sun is landing on it, which is
-     precisely the rule, and it is a rule about light and not about paint.
-
-     The rock has come down and gone blue with them. A neutral grey stone
-     against a blue-biased snow reads as warm, which is the last thing a cliff
-     on this mountain should read as. */
-  const snowLit = new THREE.Color('#dae7f6');
-  const snowDim = new THREE.Color('#a3bcdd');
-  const rock = new THREE.Color('#414a5c');
-  const rockLit = new THREE.Color('#6f7c93');
-  const cur = new THREE.Color();
-  const stone = new THREE.Color();
+     SNOW IS NEVER WHITE, and the numbers themselves are in `SNOWPACK`. */
+  const rgb = (hex) => { const c = new THREE.Color(hex); return [c.r, c.g, c.b]; };
+  const P = SNOWPACK;
+  const cDeep = rgb(P.deep);
+  const cIce = rgb(P.ice);
+  const cShade = rgb(P.shade);
+  const cSlate = [rgb(P.slate[0]), rgb(P.slate[1])];
+  const cIron = [rgb(P.iron[0]), rgb(P.iron[1])];
 
   const ctx = makeContext();
 
@@ -677,6 +834,16 @@ export function createTerrain(THREE, shading) {
       const dz2 = zs[rNext] - zs[rPrev] || 1;
       const grade = gradeAt(wz);
 
+      /* Altitude, and it is free. `ctx.base` is the grade's own integral,
+         which is exactly how far below the top of the run this row lies, and
+         the row context has already worked it out. Everything downhill of the
+         snow line's lower stop reads one, so past about five kilometres of
+         riding the altitude term has said all it has to say and the bands and
+         the relief carry the mountain on their own. */
+      const alt = smoothstep(P.snowLine[0], P.snowLine[1], -ctx.base);
+      const rowCover = P.base + P.altitude * alt;
+      const bandZ = wz * P.band.freq;
+
       for (let c = 0; c < vertsX; c++, i++, p += 3) {
         const lx = xs[c];
         const wx = ax + lx;
@@ -691,46 +858,133 @@ export function createTerrain(THREE, shading) {
         const dx2 = xs[cNext] - xs[cPrev] || 1;
         const dx = (heights[r * vertsX + cNext] - heights[r * vertsX + cPrev]) / dx2;
         const dz = (heights[rNext * vertsX + c] - heights[rPrev * vertsX + c]) / dz2;
-        // Steepness measured against the grade, not against flat: the whole
-        // hill is tilted, and a piste is not a cliff just for being a piste
-        const steep = Math.hypot(dx, dz + grade);
 
-        cur.copy(snowLit);
-        // Wind-packed patches, big and faint
-        cur.lerp(snowDim, noise2(wx * 0.02, wz * 0.02, 7) * 0.2);
+        /* The horizontal part of the surface normal, taken against the grade
+           rather than against flat — the whole hill is tilted, and a piste is
+           not a cliff just for being a piste.
+
+           That subtraction used to be an addition, and it was a real bug
+           rather than a taste: the height rises with z and so does `gradeAt`,
+           so `dz + grade` on perfectly groomed ground came to twice the
+           grade — 0.64 at the top of the run and 0.47 in a mellow chapter —
+           against a rock threshold that started at 0.5. Every steep chapter
+           of the mountain therefore had a grey wash of stone mixed into its
+           flattest snow, every mellow chapter had none, and nothing else on
+           the hill could get a word in. It is also why aspect was never going
+           to work until it was fixed: a bearing measured off a vector that is
+           mostly the grade is a bearing that says "downhill" everywhere. */
+        const sx = -dx;
+        const sz = grade - dz;
+        const steep = Math.sqrt(sx * sx + sz * sz);
+
+        // Which way this face is turned, against the bearing the sun spends
+        // its day around, and normalised so it is a direction and not a
+        // steepness. The constant keeps flat ground — where there is no
+        // meaningful aspect at all — from being handed a loud one.
+        const face = (sx * P.sunX + sz * P.sunZ) / (steep + 0.22);
+
+        // How far above the plane the grade says this row should be on. In
+        // the corridor that is the ridge and roll octaves, so it reads as
+        // crests and hollows; outside it, it is the lip and then the wall.
+        const relief = h - ctx.base;
+
+        // Which stretch of mountain this is. Sheared, so the strata run
+        // across the hill on the diagonal rather than squarely, and two
+        // octaves so a band has a grain as well as an edge.
+        const bu = bandZ + wx * P.band.shear * P.band.freq;
+        const band = noise1(bu, P.band.seed) * 0.68
+          + noise1(bu * 3.1 + 11.3, P.band.seed + 4) * 0.32;
 
         // Groomed, and measured to whichever branch of the run is nearer —
         // which is what puts corduroy down both sides of an island
         const toCentre = ctx.split > 0
           ? Math.min(Math.abs(wx - (ctx.mid - ctx.split)), Math.abs(wx - (ctx.mid + ctx.split)))
           : Math.abs(wx - ctx.mid);
-        outGroom[i] = 1 - smoothstep(ctx.half + 1, ctx.half + 4, toCentre);
-        if (toCentre < ctx.half + 3) {
-          /* Groomed, so it is brighter than what flanks it.
+        const groomed = 1 - smoothstep(ctx.half + 1, ctx.half + 4, toCentre);
 
-             There used to be a second set of corduroy lines here, written
-             into the vertex colours at a period of 3.3 metres — which is
-             barely two samples per cycle on a 1.5-metre grid, under Nyquist,
-             and so it did not draw corduroy at all. It drew the beat between
-             its own period and the grid's, which crawled across the hill as
-             the mesh re-anchored. The ribs the fragment shader paints are
-             the same idea done where there are enough samples to do it. */
-          cur.lerp(snowLit, 0.25);
+        /* The budget. Everything above, summed and then clamped — summed
+           rather than multiplied because a product crowds towards the middle
+           and never reaches either end, and the ends are the whole point:
+           ground that is genuinely bare and ground that is genuinely buried.
+
+           The groomed term is last and it is the one that is not about
+           weather. A piste is a machine's work: that snow was put there and
+           is kept there, which is exactly why a real high-alpine run is a
+           white ribbon laid across bare rock — and why the route stays
+           legible here after the mountain around it has gone to stone. */
+        const cover = clamp01(rowCover
+          + P.bandWeight * (band * 2 - 1)
+          - P.crestWeight * smoothstep(P.crest[0], P.crest[1], relief)
+          - P.scourWeight * smoothstep(P.scour[0], P.scour[1], relief)
+          + P.driftWeight * (1 - smoothstep(P.drift[0], P.drift[1], relief))
+          - P.aspectWeight * (face > 0 ? face : 0)
+          + P.shadeWeight * (face < 0 ? -face : 0)
+          + P.groomed * groomed);
+
+        /* Rock, which is not a separate decision from the snow — it is where
+           the snow ran out. Two ways for that to happen: the ground got too
+           steep to hold what little it had, and the ground had nothing to
+           hold in the first place. The first threshold slides with the cover,
+           because thin snow slides off slopes deep snow sits on quite
+           happily, and that is one phenomenon and so it is one term. */
+        const slip = P.slip[0] + P.hold * cover;
+        const steepRock = smoothstep(slip, slip + (P.slip[1] - P.slip[0]), steep);
+        const thinRock = smoothstep(P.thin[0], P.thin[1], cover);
+        const rock = steepRock > thinRock ? steepRock : thinRock;
+
+        /* Snow, along the axis of what it has been through rather than of how
+           bright it is. Deep cover is soft and pale; thin cover is what the
+           wind left, which is névé, which is ice, which is blue. Then a
+           lift towards the shade stop for the broad wind-packed patches and
+           for faces turned away from where the sun goes — snow lying in the
+           mountain's own shadow is the bluest thing on it. */
+        const icy = 1 - smoothstep(P.pack[0], P.pack[1], cover);
+        const dim = noise2(wx * 0.02, wz * 0.02, 7) * 0.26
+          + (face < 0 ? -face : 0) * 0.32;
+        let cr = cDeep[0] + (cIce[0] - cDeep[0]) * icy;
+        let cg = cDeep[1] + (cIce[1] - cDeep[1]) * icy;
+        let cb = cDeep[2] + (cIce[2] - cDeep[2]) * icy;
+        cr += (cShade[0] - cr) * dim;
+        cg += (cShade[1] - cg) * dim;
+        cb += (cShade[2] - cb) * dim;
+
+        if (rock > 0.002) {
+          /* Rock catches the light along its ridges and holds none of it in
+             the clefts, which is most of what makes a cliff read as rock.
+
+             And which rock is the band's decision, so a stretch of mountain
+             is made of one stone all the way through instead of every cliff
+             on the hill being the same grey. That was the complaint that is
+             hardest to argue with: a single stone colour makes a hundred
+             separate cliffs read as one repeated asset. */
+          const mottle = noise2(wx * 0.4, wz * 0.4, 11);
+          const kind = smoothstep(0.34, 0.72, band);
+          const d0 = cSlate[0], d1 = cSlate[1], w0 = cIron[0], w1 = cIron[1];
+          const lo0 = d0[0] + (w0[0] - d0[0]) * kind;
+          const lo1 = d0[1] + (w0[1] - d0[1]) * kind;
+          const lo2 = d0[2] + (w0[2] - d0[2]) * kind;
+          const hi0 = d1[0] + (w1[0] - d1[0]) * kind;
+          const hi1 = d1[1] + (w1[1] - d1[1]) * kind;
+          const hi2 = d1[2] + (w1[2] - d1[2]) * kind;
+          cr += (lo0 + (hi0 - lo0) * mottle - cr) * rock;
+          cg += (lo1 + (hi1 - lo1) * mottle - cg) * rock;
+          cb += (lo2 + (hi2 - lo2) * mottle - cb) * rock;
         }
 
-        const bare = smoothstep(0.5, 1.0, steep);
-        if (bare > 0) {
-          // Rock catches the sun along its ridges and holds none of it in
-          // the clefts, which is most of what makes a cliff read as rock.
-          // It is also the sign on the containment wall: everything too
-          // steep to hold snow is somewhere you are not going to get to.
-          stone.copy(rock).lerp(rockLit, noise2(wx * 0.4, wz * 0.4, 11));
-          cur.lerp(stone, bare);
-        }
+        /* Corduroy is painted per pixel from this mask, and a groomer has
+           never been over a rock band. There used to be a second set of
+           corduroy lines written into the vertex colours here as well, at a
+           period of 3.3 metres — barely two samples per cycle on a 1.5-metre
+           grid, under Nyquist, so it did not draw corduroy at all. It drew
+           the beat between its own period and the grid's, which crawled
+           across the hill as the mesh re-anchored. The ribs the fragment
+           shader paints are the same idea done where there are enough
+           samples to do it. */
+        outGroom[i] = groomed * (1 - rock);
 
-        outColors[p] = cur.r;
-        outColors[p + 1] = cur.g;
-        outColors[p + 2] = cur.b;
+        outColors[p] = cr;
+        outColors[p + 1] = cg;
+        outColors[p + 2] = cb;
       }
     }
   }
