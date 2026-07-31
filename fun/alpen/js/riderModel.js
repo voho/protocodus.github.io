@@ -151,6 +151,36 @@ const approach = (v, target, rate, dt) => v + (target - v) * (1 - Math.exp(-rate
 const ANKLE_Y = 0.33;    // where the boot's cuff ends and the shin begins
 const FOOT_Z = 0.245;    // the bindings, and therefore the feet, live here
 const FOOT_X = 0.015;
+
+/* Half the effective edge, which is where the board is standing on the snow:
+   the mean of the two widest stations in `DECK`, at z = −0.470 and +0.450.
+   The flex is written as a bow that is exactly zero here, so it can never move
+   the contact patch the physics has already put the rider on top of. */
+const FLEX_SPAN = 0.46;
+
+/* How far the board bows, in metres, and what bends it.
+
+   The scale to hold in mind is the camber the deck is built with, which is
+   eight millimetres. A real board under a committed rider does not merely
+   flatten that, it reverses it — so the numbers below are allowed to reach
+   about three times the camber and no further, because past that a snowboard
+   stops looking like a spring and starts looking like a banana.
+
+   `press` is the new one and it is the whole reason this is worth doing now:
+   `rider.bend` is how hard the ground's own curvature is driving the board
+   into the snow, so the board visibly bows through every compression and
+   visibly relaxes over every crest. It is the same number the legs, the grip
+   and the camera are already reading, which means the board flexing and the
+   rider squatting and the frame dipping are three views of one event rather
+   than three animations that happen to coincide. */
+const FLEX = {
+  edge: 0.013,     // metres of reverse camber at full load on a buried edge
+  press: 0.009,    // …and per g of terrain load
+  pop: 0.020,      // the snap out of an ollie, which goes the other way
+  thump: 0.017,    // and the bow a landing drives through it
+  min: -0.030,
+  max: 0.022,
+};
 const HIP_Y = 1.06;      // hips at rest, unloaded
 const HIP_Z = 0.115;     // hip sockets, narrower than the stance — legs splay
 const THIGH = 0.42;
@@ -693,6 +723,11 @@ function buildGeometries(THREE) {
 
 export function createRiderModel(THREE, shading) {
   const geo = buildGeometries(THREE);
+
+  /* The bow, in one object that the vertex shader and `boardPoint` both hold a
+     reference to. One number, two readers, no way for the drawn board and the
+     feet standing on it to disagree. */
+  const flexUniform = { value: 0 };
   /* One material for the lot: the colours are already in the vertices, so
      eleven meshes are eleven draw calls and not one state change.
 
@@ -714,8 +749,57 @@ export function createRiderModel(THREE, shading) {
     { snap: SNAP.rider },
   );
 
+  /* THE BOARD FLEXES, and it is the only thing on this rig that is not a rigid
+     transform of a composed buffer.
+
+     A snowboard is a spring. It is built with eight millimetres of camber —
+     `DECK` bakes that in, the middle standing proud of the two contact
+     stations — and the entire reason it is built that way is so that a loaded
+     rider flattens it and then reverses it, which is what presses the whole
+     effective edge into the snow instead of just the two ends. A rider on a
+     hard edge is standing on a bow. The rig had that camber and never moved
+     it: the board went past at a hundred and forty km/h through a compression
+     and stayed exactly as straight as it was parked.
+
+     It is a vertex shader rather than a hinge, and the file's own architecture
+     is what decides that. The deck is one buffer on purpose — the note at the
+     `DECK` table says splitting it is how a board ends up as four solids that
+     have to agree along a seam — and the boots and bindings are welded into
+     the same buffer for the same reason. So the flex is a displacement applied
+     to the whole thing at once.
+
+     The one real trap is that welding. The boots are *in* the board's buffer
+     and the legs are solved to `boardPoint`, so a bend that moves the drawn
+     boots and not the IK target pulls the feet out of the bindings — which is
+     precisely the failure the comment above `boardPoint` says that function
+     exists to prevent. The formula therefore lives in two places that cannot
+     disagree, in the same way `heightAt` and the terrain mesh cannot: this
+     shader deforms the drawn board, `boardPoint` deforms the target, and both
+     read `uBend` from the same number.
+
+     `(1 − u²)` is zero at u = ±1, and `FLEX_SPAN` is the z of the two widest
+     deck stations — the contact points. So the bend cannot move the part of
+     the board the physics has anchored the rider to, however hard it is
+     driven. It is a bow between the contacts and nothing else, which is what a
+     snowboard does. */
+  const boardMat = (() => {
+    const m = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+    m.onBeforeCompile = (shader) => {
+      shader.uniforms.uBend = flexUniform;
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', `#include <common>
+          uniform float uBend;`)
+        .replace('#include <begin_vertex>', `#include <begin_vertex>
+          {
+            float u = clamp(transformed.z / ${FLEX_SPAN.toFixed(3)}, -1.0, 1.0);
+            transformed.y += uBend * (1.0 - u * u);
+          }`);
+    };
+    return shading.apply(m, { snap: SNAP.rider });
+  })();
+
   const root = new THREE.Group();
-  const board = new THREE.Mesh(geo.board, cloth);
+  const board = new THREE.Mesh(geo.board, boardMat);
   root.add(board);
 
   const hips = new THREE.Group();
@@ -867,16 +951,27 @@ export function createRiderModel(THREE, shading) {
      above a binding. */
   const bt = { roll: 0, pitch: 0, x: 0, y: 0 };
   const _b = new THREE.Vector3();
-  const boardPoint = (v) => v
-    .applyAxisAngle(AZ, bt.roll)
-    .applyAxisAngle(AX, bt.pitch)
-    .add(_b.set(bt.x, bt.y, 0));
+  /* …and the flex is the fourth thing that happens to it, for exactly the same
+     reason the other three are here. The boots are welded into the board's
+     buffer, so a bow that moves the drawn boots and not this target is a foot
+     hovering above a binding — the failure the paragraph above is about. It is
+     applied before the roll and the pitch because that is the order the vertex
+     shader does it in: the displacement is in the board's own local space, and
+     the rotations are the model matrix on top. */
+  const boardPoint = (v) => {
+    const u = clamp(v.z / FLEX_SPAN, -1, 1);
+    v.y += flexUniform.value * (1 - u * u);
+    return v
+      .applyAxisAngle(AZ, bt.roll)
+      .applyAxisAngle(AX, bt.pitch)
+      .add(_b.set(bt.x, bt.y, 0));
+  };
 
   // Everything the model remembers between frames. All of it is smoothed
   // against dt, none of it is read back by anyone else.
   const s = {
     clock: 0, down: 0, air: 0, grab: 0, tuck: 0, charge: 0,
-    twist: 0, lean: 0, comp: 0, pop: 0, thump: 0, tumbleLag: 0, wash: 0,
+    twist: 0, lean: 0, comp: 0, pop: 0, thump: 0, tumbleLag: 0, wash: 0, press: 0,
     edge: 0, load: 0, steer: 0, switched: 0,
   };
   let seen = false;
@@ -959,6 +1054,27 @@ export function createRiderModel(THREE, shading) {
       (rider.edge || 0) * (0.35 + 0.65 * s.load), -POSE.edgeShow, POSE.edgeShow,
     ) * (1 - s.air * 0.7) * (1 - s.down);
     s.edge = approach(s.edge, edgeWant, 12, sdt);
+
+    /* --- the bow ---------------------------------------------------------- */
+
+    /* Four things bend the board, and they are the four things that put load
+       through it. A buried edge presses the middle down; so does the ground's
+       own curvature through a compression, and lets it go over a crest; a pop
+       is the spring throwing the middle *up* as it unloads; and a landing
+       drives the deepest bow of all. All four are already smoothed states with
+       their own attack and decay, so this is the sum of them and a clamp.
+
+       It goes to zero in the air except for the pop, which is correct and is
+       the reason the pop term is not gated: a board unweighted off a lip is
+       the one moment the camber is doing something visible on its own. */
+    s.press = approach(s.press, clamp(rider.bend || 0, -1, 1.6), 9, sdt);
+    const grounded = 1 - s.air;
+    flexUniform.value = clamp(
+      -(FLEX.edge * s.load * Math.abs(Math.sin(s.edge)) + FLEX.press * s.press) * grounded
+      + FLEX.pop * s.pop
+      - FLEX.thump * s.thump,
+      FLEX.min, FLEX.max,
+    );
 
     /* …and how hard the back foot is having to work for it.
 

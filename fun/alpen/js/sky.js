@@ -271,6 +271,7 @@
 import { snoise2, noise2, hash2 } from './noise.js';
 import { heightAt, nearestCenter } from './terrain.js';
 import { TERRAIN, RENDER } from './config.js';
+import { SKY_GLSL } from './shading.js';
 
 const RADIUS = 2900;
 const CONE_R = RADIUS * 0.95;
@@ -576,9 +577,14 @@ const DOME_VERT = `
 
 const DOME_FRAG = `
   precision mediump float;
-  uniform vec3 uZenith, uMid, uHorizon, uGlow, uSunDir;
+  uniform vec3 uZenith, uMid, uHorizon, uHaze, uGlow, uSunDir;
   uniform float uGlowStrength;
+  uniform float uCloud;
+  uniform vec2 uCloudDrift;
   varying vec3 vDir;
+
+  ${SKY_GLSL}
+
   void main() {
     // Re-normalised per fragment: the interpolation across a facet of the
     // dome is a chord, and at 288 lines the 1% it was out by was nothing.
@@ -604,6 +610,10 @@ const DOME_FRAG = `
     float lobe = max(0.0, dot(dir, uSunDir));
     c += uGlow * (pow(lobe, 7.0) * 0.85 + pow(lobe, 2.0) * 0.14)
        * uGlowStrength * (1.0 - smoothstep(0.1, 0.75, up) * 0.55);
+    // The deck, from the same string shading.js's fog term includes, so the
+    // sky a ridge dissolves into and the sky above it are the same sky.
+    vec2 deck = n64Deck(dir, uCloudDrift, uCloud);
+    c = mix(c, n64DeckShade(deck.y, lobe, uHaze, uHorizon, uGlow), deck.x);
     gl_FragColor = vec4(c, 1.0);
   }
 `;
@@ -988,9 +998,12 @@ export function createSky(THREE) {
       uZenith: { value: new THREE.Color('#123a7a') },
       uMid: { value: new THREE.Color('#74a3de') },
       uHorizon: { value: new THREE.Color('#eaf0f8') },
+      uHaze: { value: new THREE.Color('#e3ecf6') },
       uGlow: { value: new THREE.Color('#ffeccc') },
       uSunDir: { value: sunDir },
       uGlowStrength: { value: 1 },
+      uCloud: { value: 0 },
+      uCloudDrift: { value: new THREE.Vector2() },
     },
     vertexShader: DOME_VERT,
     fragmentShader: DOME_FRAG,
@@ -1575,32 +1588,46 @@ export function createSky(THREE) {
   key.shadow.camera.bottom = -SHADOW_REACH;
   key.shadow.camera.near = SHADOW_DIST - SHADOW_DEPTH;
   key.shadow.camera.far = SHADOW_DIST + SHADOW_DEPTH;
-  /* Bias is in the light camera's own depth units, so it scales with the
-     depth range above rather than being a number found by trial. Normal bias
-     does the heavy lifting on a mountain: almost every surface here is a
-     steeply-angled facet, which is exactly the case constant bias handles
-     worst and where acne appears as a moiré of self-shadowing across the
-     snow. */
-  /* Bias, and why it is this large.
+  /* Bias, and the correction of a long-standing misunderstanding about it.
 
-     The flickering triangles across the snow were shadow acne, and they
-     arrived the day the terrain was allowed to cast onto itself. A depth map
-     samples the surface at nine centimetres a texel; the surface is made of
-     one-and-a-half-metre flat facets on a hill that is mostly *at* a grazing
-     angle to a low sun. Every one of those facets therefore has parts of
-     itself a few centimetres in front of and behind its own depth sample, and
-     what comes out is a triangle that flickers between lit and shadowed as
-     the map re-renders — worst on the shallowest ground, which is most of the
-     picture, and worst of all when the sun is low, which is most of the day.
+     This block used to say that `normalBias` was "the one that does the work
+     here", that it was killing acne on the snow, and that 2.2 was the largest
+     value the shadows would tolerate before detaching from their casters.
+     Every clause of that was wrong, and they were wrong together for one
+     reason: **normalBias does nothing at all to the mountain.**
 
-     `normalBias` is the one that does the work here: it pushes the lookup
-     along the surface normal, so it scales with exactly the geometry that
-     causes the problem instead of applying a flat depth offset that has to be
-     tuned for the worst case and then ruins contact shadows everywhere else.
-     Large enough to kill the acne on a facet this size, and no larger,
-     because past this the shadows visibly detach from what is casting them. */
+     It is a receiver-side offset. Three pushes the shadow lookup along the
+     *interpolated vertex normal*, and it compiles that push out entirely for
+     any geometry with no `normal` attribute — `HAS_NORMAL` in the shadow map
+     chunk. The terrain has no such attribute and never has: it writes
+     position, colour and `aGroom`, and it is flat-shaded, which takes its
+     normal from screen-space derivatives in the fragment stage. So for the
+     surface this paragraph was written about, `normalBias` was multiplied by a
+     zero vector every frame since the day it was added.
+
+     Verified rather than reasoned: toggling it between 2.2 and 0 on a frozen
+     frame moves thirteen thousand pixels, and every one of them is on a tree.
+     Not one is on the snow — not even across a terminator running over half
+     the screen. Add a normal attribute to the terrain and the snow starts
+     responding immediately, which is the same fact from the other side.
+
+     Which leaves the question of what 2.2 metres *was* doing, and the answer
+     is: quietly ruining the shadows of everything that does carry a normal.
+     The rider is 1.75 m tall. A metre of offset along the normal is enough to
+     push a limb's shadow lookup clean off the limb; two and a quarter is more
+     than the whole body. That is why the rider had no self-shadow, why an arm
+     never darkened the torso it was crossing, and why a tree's shadow sat
+     visibly adrift of its trunk on flat ground.
+
+     A quarter of a metre is about a board's width and roughly three texels of
+     the map at nine centimetres each. The acne the old comment credits this
+     line with preventing does not appear at zero either — I could not produce
+     it on the snow at any sun angle — because the snow was never in this
+     path; what actually holds the mountain together is the constant `bias`
+     below, which is in the light camera's own depth units and does apply to
+     everything. It is unchanged. */
   key.shadow.bias = -0.0004;
-  key.shadow.normalBias = 2.2;
+  key.shadow.normalBias = 0.25;
   /* The sun is half a degree wide, so nothing it casts has a hard edge. This
      is the cheap stand-in for that: it widens the PCF tap pattern, which
      softens every shadow by a constant amount rather than by distance from
@@ -1694,8 +1721,11 @@ export function createSky(THREE) {
     domeMat.uniforms.uZenith.value.copy(w.zenith);
     domeMat.uniforms.uMid.value.copy(w.mid);
     domeMat.uniforms.uHorizon.value.copy(w.horizon);
+    domeMat.uniforms.uHaze.value.copy(w.haze);
     domeMat.uniforms.uGlow.value.copy(w.glow);
     domeMat.uniforms.uGlowStrength.value = 1 - w.storm * 0.8;
+    domeMat.uniforms.uCloud.value = w.cloud;
+    domeMat.uniforms.uCloudDrift.value.set(w.cloudX, w.cloudZ);
 
     starMat.uniforms.uAlpha.value = w.star * (1 - w.storm) * 0.9;
     starMat.uniforms.uTime.value = time;

@@ -350,6 +350,86 @@ export const TERRAIN = {
   moguls: { freq: 0.050, amp: 0.22, seed: 2 },
   chatter: { freq: 0.160, amp: 0.04, seed: 3 },
   warp: { freq: 0.0042, amp: 26, seed: 8 },
+
+  /* CHAPTERS — what this stretch of mountain is made of.
+
+     This is the replacement for the built kickers, and it is a bigger idea
+     than they were.
+
+     The octaves above are constants, and that was the flaw the ramps were
+     papering over: every metre of this mountain had the same statistics as
+     every other metre. The grade already gave the run chapters — pitches that
+     stand up, runouts that hand the speed back — and the snowpack already gave
+     it bands of material, but the *roughness* never varied at all. Eight
+     hundred metres of hill was uniformly, averagely lumpy, so no stretch of it
+     was worth remembering and none of it was worth a different line. Dropping
+     a wedge on it every few hundred metres was a way of admitting that.
+
+     So the amplitudes are now a mixture of three characters, and the mixture
+     drifts along the run.
+
+       PLAIN   — a long open pitch. The big ridge swells stay, everything under
+                 them goes quiet, and the knolls nearly vanish. This is the
+                 stretch where a tuck is worth taking and a carve draws a
+                 clean two-hundred-metre arc, because there is nothing in the
+                 way of either. Its whole job is to make the next chapter mean
+                 something: roughness you are never given a break from stops
+                 registering as roughness.
+
+       BUMPS   — short and sharp. Moguls at two and a third and chatter at a
+                 half again, with the long stuff pulled right down. Curvature
+                 goes as amplitude over wavelength *squared*, so this is by far
+                 the most airborne ground on the mountain even though it is the
+                 flattest-looking: at 35 m/s a mogul face here pulls nearly
+                 three g and the launch predictor lets go of the rider several
+                 times a second. It is the chapter that replaced the kickers,
+                 and it throws harder than they did.
+
+       SWELLS  — big and smooth. Ridges and rolls up, everything fine damped
+                 away. A hundred-metre wavelength at two metres of amplitude is
+                 not a bump, it is a horizon that rises and falls: the ground
+                 loads the board through the troughs, goes light over the tops,
+                 and rewards a rider who pumps it rather than one who pops.
+                 This is the chapter `RIDER.bendMax` and the pump were written
+                 for.
+
+     Two slow noises pick the mixture, and they are chosen so that every
+     combination is reachable. `busy` is how much is going on at all, and
+     `fine` is how short the wavelength of it is — so calm ground is a plain
+     whatever `fine` says, and busy ground is bumps or swells depending. Three
+     weights that always sum to one:
+
+         plain = 1 − busy      bumps = busy · fine      swells = busy · (1 − fine)
+
+     THE SLOPE BUDGET STILL HOLDS, and it holds for a reason worth writing
+     down rather than by having been checked once. The budget is a sum of terms
+     each linear in its own amplitude, and the amplitudes here are a convex
+     combination of the three profiles — so the cost of any mixture is the same
+     convex combination of the three profiles' costs. Keep each profile inside
+     the budget and every blend between them is inside it automatically. The
+     three come to 0.086, 0.218 and 0.216 against a ceiling of 0.218, so the
+     roughest ground the mountain can produce is exactly as steep as the
+     roughest ground it could produce before — and the calmest is now genuinely
+     calm, which it never was.
+
+     Boundaries run straight across the hill and that is deliberate. The
+     snowpack's bands are sheared because they are bands of *colour* and a
+     colour boundary has an edge to notice; an amplitude that ramps over two
+     hundred metres of descent has no edge at all. It costs two noise lookups
+     per row rather than two per vertex, which is the entire reason it is
+     affordable inside the physics step. */
+  character: {
+    busyFreq: 0.0022,   // ≈455 m of hill per chapter of "how much is going on"
+    fineFreq: 0.0031,   // ≈323 m of "and how short its wavelength is"
+    seed: 91,
+    // The band of the raw noise over which a chapter fully arrives. Narrow, so
+    // the run spends its time *in* chapters rather than between them.
+    band: [0.34, 0.66],
+    //         ridges  rolls  moguls  chatter  knolls
+    plain:  [1.00, 0.35, 0.15, 0.50, 0.22],
+    bumps:  [0.35, 0.30, 2.30, 1.50, 1.00],
+    swells: [1.50, 2.00, 0.25, 0.40, 0.70],
+  },
   /* How lumpy a broad patch is, from independent slow 2D fields for rolls and
      moguls. The floor came down a long way: at 0.35 the quietest ground still
      carried a third of the rolling, so nowhere on the mountain was actually
@@ -446,18 +526,62 @@ export const TERRAIN = {
      lattices, behind fog that hides the remaining LOD movement. */
   spacing: 1.5,
   uniformNear: 42,    // stable world lattice around the board
-  back: 30,           // metres of hill kept behind the rider
   ahead: 900,         // and ahead, well past the curtain
   aheadGrowth: 1.062, // per row
   side: 700,          // half-width at the far edge
   sideGrowth: 1.075,  // per column
+  /* And behind, which used to be thirty metres of uniform cells and is now a
+     graded fan like the other three.
+
+     Thirty metres was chosen when the camera could not look at them. It can:
+     the chase camera follows the *velocity*, and the run is full of moments
+     where the velocity is not pointing down the hill — a traverse held to the
+     85° course limit, a wall ride, a brake set hard across the fall line, the
+     long tumble after a tree. In every one of those the frame swings round and
+     the mountain stops thirty metres behind the board, with the trees that
+     were planted on it still standing in mid-air, because the forest keeps two
+     forty-metre bands back and the ground kept less than one.
+
+     So the tail is generated to exactly where it stops being visible, which is
+     a number the game already has: `RENDER.fogFar`. At four hundred and twenty
+     metres the haze is total, and the mesh's own edge is dissolved in the same
+     curtain that hides the far edge of the fan in front. There is nothing to
+     see past it in any weather — a storm only ever pulls the curtain closer.
+
+     It grows faster than the forward fan does, and that is the whole reason
+     this is affordable. Detail behind the rider is detail nobody is riding
+     into: it is not going to be landed on, carved across or launched off, and
+     the only thing asked of it is that it be *there*. At 1.16 per row the tail
+     reaches the curtain in twenty-five graded rows past the near field against
+     the fifty-nine the front spends getting to nine hundred, so fourteen times
+     the ground costs thirty-three more rows — about five thousand vertices, on
+     a mesh whose own comment observes that sixteen thousand of them is
+     nothing. */
+  behind: 420,
+  behindGrowth: 1.16,
   /* Rebuilding a graded grid in one frame makes every distant facet choose a
      new normal and colour at once. Preserve the old world-space surface, then
      converge it on the new sampling lattice over a few frames. The terrain
-     around the board is exact immediately; only the distant LOD morphs. */
+     around the board is exact immediately; only the distant LOD morphs.
+
+     `morphRate` has to be read against how often the anchor moves, and for a
+     long time it was not. At 8 per second the glide has a time constant of a
+     hundred and twenty-five milliseconds; the anchor used to move every three
+     metres, which at riding speed is every seventy-five. The far field
+     therefore never converged — it spent the entire run in motion, chasing a
+     target that was replaced before it arrived, and on a flat-shaded mesh that
+     is a skyline whose serrations visibly crawl.
+
+     The anchor now moves every six metres (see `stride` in terrain.js) and
+     this is fast enough to settle inside that window: a forty-millisecond
+     constant is four frames, so the far field arrives, sits still, and is then
+     disturbed once rather than continuously. It is not so fast that it becomes
+     the pop it exists to prevent — four frames of glide is still a glide, and
+     everything doing it is past a hundred and eighty metres and half dissolved
+     in haze by the time it moves at all. */
   morphNear: 42,
   morphFar: 180,
-  morphRate: 8,
+  morphRate: 26,
   morphSettle: 1,
 };
 
@@ -727,11 +851,81 @@ export const RIDER = {
   lean: 0.55,         // radians of visual roll at full carve
   leanRate: 7,        // how fast the body gets there — the weight has mass
 
+  /* THE BEND — what the *shape* of the ground does to the board.
+
+     This is the term the model was missing, and its absence is why a mountain
+     with four octaves of noise on it rode like a plane that happened to be
+     tilted. The load through the legs was gravity plus the corner and nothing
+     else, so a compression at the bottom of a roller and the crest of the same
+     roller put exactly the same weight through the board — which is to say the
+     hill had shape you could see and no shape you could feel.
+
+     What a surface actually does to something following it is v²·κ, where κ is
+     the curvature of the path in the vertical plane. Through a hollow the snow
+     has to push harder than gravity to bend the rider's line upwards, and the
+     rider is heavy; over a crest it pushes less, and past the point where
+     v²·κ exceeds g the ground stops being able to push at all — which is the
+     launch predictor's job and the reason nothing here needs to know about
+     jumping. It is the same equation from both ends.
+
+     Note what it is *not* computed from. The obvious cheap answer is the rate
+     of change of `climbRate`, and it is wrong: a rider accelerating down a
+     perfectly straight pitch has a climb rate growing more negative every
+     step, which that reading calls a crest and which is nothing of the kind.
+     The gradient along travel is a property of the ground and the heading
+     alone, so differentiating it *per metre travelled* rather than per second
+     gives the geometry with the speed taken out — and the speed then comes
+     back in as v², squared, where it belongs. It costs no extra samples of the
+     height field: both normals it needs are already computed every step.
+
+     Three things read it, and between them they are most of what "reactive"
+     means. The legs take it, so the camera dips through a compression and goes
+     light over a rollover. The edge takes it, because grip is proportional to
+     the force pressing the board into the snow — which means a carve laid into
+     a trough holds when the same carve on a crest lets go, and choosing where
+     in the terrain to turn becomes the skill it is in the sport. And a leg
+     extension released while it is high is a pump. */
+  bendSmooth: 22,     // per second — the board bridges, the legs absorb
+  bendMax: 1.8,       // g of extra load the ground is allowed to add
+  bendMin: -0.9,      // …and how light it may make the rider before the
+                      // launch predictor takes over and lets go entirely
+  /* Grip is proportional to normal force, so strictly this wants to be one.
+     It is not one because the honest figure makes a mogul field oscillate
+     between a rider on rails and a rider with nothing, forty times a run, and
+     the difference between 1.0 and 0.6 is the difference between terrain that
+     matters and terrain that is in charge. */
+  loadGrip: 0.6,
+  loadGripMin: 0.5,
+  loadGripMax: 1.6,
+
+  /* PUMPING, which is the one thing every rider on a hill does constantly and
+     no snowboarding game ever gives you a way to do.
+
+     It is already half-written: `chargeTime` loads the legs and releasing them
+     unloads. What that release does depends entirely on what the ground is
+     doing underneath it at that moment, and until now the answer was always
+     "jump". Released on a lip it still is, and it still gets `lipBonus`.
+     Released in a compression — where the terrain is pressing the board into
+     the snow and there is something to push *against* — the same extension
+     drives the rider forward instead, because that is the direction the legs
+     have to work in when the ground is not about to let go.
+
+     One key, two outcomes, chosen by where you are on the terrain rather than
+     by a second button. `pumpFrom` is the load below which there is nothing to
+     push against and the release is simply a small hop. */
+  pumpFrom: 0.25,     // g of bend before a release starts paying speed
+  pumpSpeed: 4.2,     // m/s from a full charge released at full load
+
   /* Suspension. The rider's legs are a spring, and this is the part that
      makes the hill something you feel rather than something you watch: it
      compresses under the normal force, so a landing, a roller and a hard
      carve each push the camera down and let it back up on their own
-     schedule. Critically damped-ish, and deliberately a little slow. */
+     schedule. Critically damped-ish, and deliberately a little slow.
+
+     The normal force it is pulled towards is gravity, the corner and — since
+     `bendMax` above — the ground's own curvature, which is what finally makes
+     the four octaves of noise on this mountain something the legs report on
+     rather than something the eye has to take on trust. */
   springFreq: 3.1,    // Hz
   springDamp: 0.75,
   compressPerG: 0.16, // metres of travel per g of normal load
@@ -902,7 +1096,19 @@ export const SCORE = {
 export const PROPS = {
   band: 40,           // metres of hill filled at a time
   ahead: 11,          // bands kept in front of the rider
-  behind: 2,
+  /* …and behind, which is the forest's half of the same fix the terrain's
+     `behind` is. Two bands was eighty metres, against thirty metres of ground
+     — so the two disagreed, and the fifty metres where they disagreed was a
+     row of conifers standing on nothing at all. That was the visible bug.
+
+     The ground now runs to the fog, and this does not, because a tree costs a
+     great deal more than a vertex of snow: these are grown meshes carried on
+     instanced pools, and every instance in a pool is submitted whether or not
+     anything is looking at it. Six bands is two hundred and forty metres,
+     which is where the haze has taken half the contrast out of a trunk — far
+     enough that the treeline ends in fog rather than in a line, and near
+     enough that the pools stay the size they were. */
+  behind: 6,
   // Density climbs with distance, which is most of the difficulty curve.
   // Speed takes care of the rest.
   treesPerBand: 22,
@@ -937,62 +1143,40 @@ export const PROPS = {
     sides: 5,           // radial segments on a branch; they are seen from 20 m
   },
   gateChance: 0.35,
-  /* Built kickers are now the exception rather than the furniture. There
-     used to be one in nearly two bands out of three, which made the piste a
-     corridor of identical yellow-lipped wedges; the mountain grows its own
-     launchers by the dozen (see TERRAIN.knolls) and they are all different
-     shapes, so this is down to roughly one stretch in eight. What is left of
-     it reads as something somebody built, which is the only reason for a
-     kicker to look like a kicker. */
-  rampChance: 0.12,
-  /* Kickers, specified by the angle they throw at rather than by their size.
-
-     This is the correction of a genuine bug, and it is worth writing down
-     because the shape of it is not obvious. A kicker's lift is height·t³
-     over its length, so the slope at the lip is 3·height/length — but the
-     hill underneath is *also* falling away at `grade`, and what the rider
-     actually leaves the lip with is the difference. Built as a fixed length,
-     a two-metre kicker had a lip slope of 0.27 against a hill that descends
-     at 0.30 and, on the steeper chapters, at 0.49. The net was negative: the
-     ramp was shallower than the mountain, so the lip pointed *down* and
-     riding one launched the rider at the ground. It looked like a jump and
-     behaved like a kerb.
-
-     So the length is no longer a number, it is whatever makes the sum come
-     out right: length = 3·height / (grade here + kick). Every kicker on the
-     mountain then throws at the same angle above the slope it is built on,
-     whatever size it is and however steep that stretch happens to be, and
-     the launch speed is the rider's own — which is the whole point. Twice
-     the speed up the same ramp is twice the vertical, four times the height
-     and twice the hang time, for free, because that is what ballistics does
-     once the angle is right. */
-  ramp: {
-    kick: 0.58,       // slope above the hill's own — about 30° off the snow
-    power: 3,         // t³: flat where it is entered, steep where it is left
-    halfWidth: 2.4,   // plus a little more for a bigger one
-    widthPerHeight: 0.5,
-    height: [1.4, 2.7],  // the range a found kicker out on the piste comes in
-  },
-  maxRamps: 7,
   clearLane: 8,       // no hard obstacle closer than this to a centre line
 
-  /* Terrain park.
+  /* THERE ARE NO BUILT KICKERS. This is where they were.
 
-     Every so often a stretch of the run is built rather than found: two or
-     three kickers of graded size in a line, a hip off to one side, and a
-     rail to slide. It is announced by a gate pair at its head, because a
-     park you discover by being launched off it is not a park, it is an
-     ambush.
+     They went in stages and the last stage was the honest one. First there
+     was a kicker in two bands out of three, which made the piste a corridor
+     of identical yellow-lipped wedges. Then there was one in eight, on the
+     reasoning that what was left of them would read as something somebody
+     built. Then it became clear that the reasoning was upside down: the
+     problem was never how *many* wedges there were, it was that a wedge is a
+     printed answer to the only question the terrain should be asking. Ride at
+     the amber lip, get air. Ride anywhere else, do not.
 
-     The island in the middle of a fork is where these prefer to sit — it is
-     the one piece of ground the run flows past on both sides, which makes it
-     the natural place to put the thing you have to choose to ride. */
+     A mountain does not work like that, and this one did not need the help.
+     Curvature is what launches a rider — see the slope budget in TERRAIN —
+     and there are four octaves of it out there plus the knolls, which are the
+     mountain's own kickers and come in every size and shape the hash can
+     make. What was missing was not a ramp, it was *variety over distance*:
+     eight hundred metres of hill all had the same statistics, so it was all
+     equally jumpable and therefore none of it was memorable.
+
+     `TERRAIN.character` is what replaced them, and it is the change this
+     whole revision is about. See the long note there.
+
+     The park went with them, mostly. A park was a graded line of kickers with
+     a rail beside it; it is now a stretch of hill with several rails on it,
+     announced by the same gate pair, and it is still worth choosing to ride.
+     Nothing in the game builds snow any more. */
   park: {
     period: 780,      // metres between chances at one
     chance: 0.6,
     length: 150,      // how much hill a park occupies
-    kickers: [1.5, 2.6, 3.6],   // heights, in the order they are met
-    railChance: 0.75,
+    rails: 3,         // laid out down it, alternating sides
+    railChance: 0.8,  // …and each one is only probably there
   },
   rail: {
     length: 14,

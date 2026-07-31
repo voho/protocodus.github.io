@@ -279,11 +279,109 @@ const VERT_SNAP = `
     }
   }`;
 
+/* THE CLOUD DECK, and the reason it lives in this file rather than in the one
+   that draws the sky.
+
+   The dome was a vertical gradient and one dot product of sun. That is a
+   defensible sky at dawn, when the gradient itself is the event, and it is an
+   empty one at noon: the chase framing puts roughly thirty degrees of sky
+   across the top of the frame, and in daylight every pixel of it was a smooth
+   ramp from one blue to another. Nothing up there had a scale, so nothing up
+   there gave the mountain one either.
+
+   What fixes that is not a texture on the dome. A texture on a sphere is
+   painted at a constant angular size, so it has no perspective: the "clouds"
+   at the zenith and the ones near the horizon are the same size, which is
+   precisely the tell that a skybox is a box. A real deck is a *layer at a
+   height*, and everything convincing about it comes from that one fact —
+   overhead you look through it almost perpendicularly and see individual
+   cells; towards the horizon the same line of sight crosses tens of times as
+   much of it, so the cells crowd together, foreshorten, and finally merge into
+   the haze. So this intersects the view ray with a plane, which is four
+   instructions, and reads its noise field at the hit point.
+
+   IT IS DEFINED HERE BECAUSE THERE ARE TWO SKIES. The dome draws one of them;
+   `n64Sky` below draws the other, in every material's fog term, so that a
+   ridge dissolving into the distance dissolves into the backdrop that is
+   actually behind it. The old arrangement kept those two in step by writing
+   the same gradient twice and leaving a comment in both places asking the next
+   person to be careful. Adding a second, much longer thing to keep in step
+   that way was not defensible, so the shared part is now shared: one string,
+   included by both, and the drift is impossible rather than merely discouraged.
+
+   The noise is procedural rather than the tiling texture `sky.js` already
+   owns, and that is what pays for the sharing — a sampler can be handed to one
+   dome material easily and to every lit material in the game only with a great
+   deal of plumbing. It is written to keep every operand small enough that
+   `mediump` is honest, because half the devices that will run this declare
+   exactly that. */
+export const SKY_GLSL = `
+float n64Hash(vec2 p) {
+  // The field wraps at 64 cells, which is both a tiling that nobody will find
+  // in a sky and the thing that keeps every operand below in single or double
+  // digits — see the note on mediump above.
+  vec3 q = fract(vec3(mod(p, 64.0).xyx) * 0.1031);
+  q += dot(q, q.yzx + 33.33);
+  return fract((q.x + q.y) * q.z);
+}
+
+float n64Noise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = p - i;
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(
+    mix(n64Hash(i), n64Hash(i + vec2(1.0, 0.0)), f.x),
+    mix(n64Hash(i + vec2(0.0, 1.0)), n64Hash(i + vec2(1.0, 1.0)), f.x),
+    f.y);
+}
+
+/* Coverage and thickness of the deck along this view direction.
+
+   x is how much of the sky this pixel's cloud hides, y is how deep into it the
+   ray went — which is what decides whether it is lit top or shaded base.
+
+   The floor under dir.y is doing two jobs. It stops the intersection running
+   away to infinity at the horizon, and it is where the deck stops being
+   resolvable: past it the cells are smaller than a pixel and any honest
+   evaluation is aliasing, so the coverage is faded out over the last few
+   degrees and the haze takes over. That fade is also what lets n64Sky carry
+   this term at all without opening a seam — a fogged ridge sits in exactly the
+   band where the deck has already gone. */
+vec2 n64Deck(vec3 dir, vec2 drift, float amount) {
+  if (amount <= 0.002 || dir.y <= 0.04) return vec2(0.0);
+  vec2 p = dir.xz * (0.62 / max(dir.y, 0.075)) + drift;
+  float n = n64Noise(p) * 0.58
+          + n64Noise(p * 2.3 + 7.7) * 0.28
+          + n64Noise(p * 5.1 + 19.3) * 0.14;
+  // A cut that opens with the amount, so a clear day has a few isolated cells
+  // and an overcast one has a lid with holes in it rather than more of the
+  // same cloud.
+  float cover = smoothstep(0.62 - amount * 0.34, 0.80 - amount * 0.18, n);
+  cover *= smoothstep(0.04, 0.19, dir.y);
+  return vec2(cover * amount, smoothstep(0.5, 0.95, n));
+}
+
+/* What the deck is made of. Cloud is not white — it is the brightest thing in
+   the sky and the least saturated, which is the same rule the snow is under —
+   so the base is the haze the whole world dissolves into and the top is that
+   opened towards the horizon stop with the sun's own glow laid over it. A deck
+   lit from a low sun is orange on top and blue underneath, and neither of
+   those is a colour anybody has to choose here: both fall out of the stops the
+   weather is already handing over. */
+vec3 n64DeckShade(float thick, float lobe, vec3 haze, vec3 horizon, vec3 glow) {
+  vec3 c = mix(haze * 0.86, horizon, thick * 0.85 + 0.15);
+  return c + glow * (pow(lobe, 3.0) * 0.34 + 0.05) * thick;
+}
+`;
+
 /* `n64Sky` is `sky.js`'s DOME_FRAG, and it has to stay that way — if you
    change the dome's gradient, change this one. The only difference is the
    bottom stop, which is the haze rather than the horizon, because below the
    skyline the backdrop a fogged ridge is dissolving into is the curtain and
-   not the sky. */
+   not the sky.
+
+   The cloud deck is no longer transcribed at all: it is `SKY_GLSL` above,
+   included by this file and by `sky.js`, and there is exactly one copy of it. */
 const FRAG_PARS = `
 varying vec3 vN64View;
 uniform vec3 uSkyZenith;
@@ -300,6 +398,10 @@ uniform float uFogNear;
 uniform float uFogFar;
 uniform float uBands;
 uniform float uSheen;
+uniform float uCloud;
+uniform vec2 uCloudDrift;
+
+${SKY_GLSL}
 
 /* How hard this pixel is sitting in the specular lobe, left where anything
    downstream can read it. The terrain's glitter is the only thing that does,
@@ -323,6 +425,9 @@ vec3 n64Sky(vec3 dir) {
   float lobe = max(0.0, dot(dir, uSunDir));
   c += uSkyGlow * (pow(lobe, 7.0) * 0.85 + pow(lobe, 2.0) * 0.14)
      * uGlowStrength * (1.0 - smoothstep(0.1, 0.75, up) * 0.55);
+  // …and the deck over the top of it, because a cloud is in front of the air
+  vec2 deck = n64Deck(dir, uCloudDrift, uCloud);
+  c = mix(c, n64DeckShade(deck.y, lobe, uSkyHaze, uSkyHorizon, uSkyGlow), deck.x);
   return c;
 }`;
 
@@ -523,6 +628,10 @@ export function createShading(THREE) {
     uFogNear: { value: RENDER.fogNear },
     uFogFar: { value: RENDER.fogFar },
     uSnapGrid: { value: new THREE.Vector2(BASE_WIDTH, BASE_HEIGHT) },
+    // The deck. `sky.js` owns both numbers and writes them into the dome's own
+    // copies at the same moment — see `SKY_GLSL`.
+    uCloud: { value: 0 },
+    uCloudDrift: { value: new THREE.Vector2() },
   };
 
   const viewInv = new THREE.Matrix4();
@@ -646,6 +755,8 @@ export function createShading(THREE) {
     uniforms.uGlowStrength.value = 1 - w.storm * 0.8;
     uniforms.uFogNear.value = w.fogNear;
     uniforms.uFogFar.value = w.fogFar;
+    uniforms.uCloud.value = w.cloud;
+    uniforms.uCloudDrift.value.set(w.cloudX, w.cloudZ);
 
     /* The lamp, taken apart. `sky.js` sets `key.color` to `w.key` and
        `key.intensity` to `w.keyI` and three multiplies them into one uniform,

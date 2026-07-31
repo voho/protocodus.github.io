@@ -23,6 +23,13 @@
    simply there to be read. */
 
 import { drawText, measure, ADVANCE, GLYPH_H, LINE } from './font.js';
+import { gradeAt } from './terrain.js';
+import { SCORE } from './config.js';
+
+/* The combo's ceiling, read from the rules rather than typed here. The whole
+   discipline of this file is that it states what the game already decided; a
+   hard-coded 12 beside a `comboMax` of 12 is two facts where there is one. */
+const SCORE_CAP = SCORE.comboMax;
 
 /* Safe construction size until main.js supplies the display backing store. */
 export const HUD_WIDTH = 640;
@@ -39,13 +46,49 @@ let H = HUD_HEIGHT;
 const MARGIN = 10;
 
 const BANNER_HOLD = 1.9;    // seconds a trick name stays up
+const BEST_FLASH = 2.4;     // and how long the moment you pass it is marked
+const COMBO_FLASH = 0.24;
 
 /* Scale is chosen from display density and the layout's real footprint. */
 const FOOT_W = 330;
 const FOOT_H = 170;
 
+/* How many device pixels of frame height one stop of type is worth.
+
+   This used to be `round(2 · devicePixelRatio)`, which is the wrong question
+   asked of the wrong number. Pixel ratio says how dense the panel is, not how
+   big the picture is — so a 4K monitor reporting a ratio of one got the same
+   two-pixel type as a 720p laptop reporting the same, and the read-out was a
+   postage stamp in the corner of a two-thousand-line frame. What decides how
+   big a glyph should be is how many pixels there are to spend on it.
+
+   One stop per four hundred lines puts the score at the same *angular* size on
+   every display, which is what "legible" actually means. It is still stepped
+   in whole numbers, because a 5×7 bitmap font scaled by 2.5 is a blurry one. */
+const LINES_PER_STOP = 400;
+const UI_MAX = 6;
+
+/* Anything that flashes is a thing this reader has asked not to be shown.
+
+   `retro.js` already makes this exact query for the speed treatment. The HUD
+   had not, which left the one part of the interface that genuinely strobes —
+   a full charge bar blinking at 5 Hz for as long as the key is held, which is
+   above the threshold WCAG 2.3.1 sets — as the only thing on screen ignoring
+   the preference. Every flash below has a still equivalent rather than simply
+   being removed: a state that was being signalled by blinking is still a state
+   and still has to be legible, so it is signalled by colour instead. */
+const CALM = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+
 let UI = 1;
-let PAD = MARGIN;
+/* One pad per edge rather than one for all four, because `viewport-fit=cover`
+   means the frame now extends under the notch and the rounded corners on a
+   phone, and the score was landing behind the camera housing. Everything else
+   here is measured from these four. */
+let PAD_L = MARGIN;
+let PAD_R = MARGIN;
+let PAD_T = MARGIN;
+let PAD_B = MARGIN;
+let PAD = MARGIN;           // the smallest of them, for anything symmetrical
 let RIGHT = W - MARGIN;
 let BOTTOM = H - MARGIN;
 let CENTRE = W >> 1;
@@ -55,6 +98,7 @@ let CHARGE_H = 5;
 let CHARGE_Y = H - 60;
 let BANNER_Y = CHARGE_Y - 36;
 let LIVE_Y = BANNER_Y - 16;
+let inset = { top: 0, right: 0, bottom: 0, left: 0 };
 
 /* Two clusters, and which edge each is nailed to is the whole of how this
    survives a buffer that changes shape. The read-outs hang from the top
@@ -72,20 +116,24 @@ function geometry(w, h, pixel) {
   W = w;
   H = h;
 
-  const dpr = window.devicePixelRatio || 1;
-  const wants = Math.max(1, Math.round((2 * dpr) / Math.max(1, pixel || 2)));
+  const wants = Math.max(1, Math.min(UI_MAX, Math.round(H / LINES_PER_STOP)));
   const fits = Math.max(1, Math.floor(Math.min(W / FOOT_W, H / FOOT_H)));
   UI = Math.min(wants, fits);
 
-  PAD = MARGIN * UI;
-  RIGHT = W - PAD;
-  BOTTOM = H - PAD;
+  const base = MARGIN * UI;
+  PAD_L = base + inset.left;
+  PAD_R = base + inset.right;
+  PAD_T = base + inset.top;
+  PAD_B = base + inset.bottom;
+  PAD = base;
+  RIGHT = W - PAD_R;
+  BOTTOM = H - PAD_B;
   CENTRE = W >> 1;
   // The one fixed-width thing on screen, so it is the one thing that has to
   // be told the frame might be narrower than it is
-  CHARGE_W = Math.min(120 * UI, W - PAD * 2);
+  CHARGE_W = Math.min(120 * UI, W - PAD_L - PAD_R);
   CHARGE_H = 5 * UI;
-  CHARGE_Y = Math.max(PAD + 52 * UI, H - 60 * UI);
+  CHARGE_Y = Math.max(PAD_T + 52 * UI, H - 60 * UI - inset.bottom);
 
   /* The trick banner lives at the top of the frame, not the bottom.
 
@@ -105,10 +153,10 @@ function geometry(w, h, pixel) {
      the score and the speed" stops being a gap it can sit in and becomes two
      things it is drawn straight through. `topEnd` is the bottom of the
      conditions line, which is the lowest either corner reaches. */
-  const topEnd = PAD + (37 + GLYPH_H) * UI;
-  BANNER_Y = Math.max(PAD, Math.min(topEnd + 10 * UI, H - PAD - 30 * UI));
-  LIVE_Y = Math.max(PAD, Math.min(BANNER_Y + 28 * UI, H - PAD - GLYPH_H * UI));
-  AIR_Y = Math.max(PAD, Math.min(PAD + 60 * UI, H - PAD - GLYPH_H * 2 * UI));
+  const topEnd = PAD_T + (37 + GLYPH_H) * UI;
+  BANNER_Y = Math.max(PAD_T, Math.min(topEnd + 10 * UI, H - PAD_B - 30 * UI));
+  LIVE_Y = Math.max(PAD_T, Math.min(BANNER_Y + 28 * UI, H - PAD_B - GLYPH_H * UI));
+  AIR_Y = Math.max(PAD_T, Math.min(PAD_T + 60 * UI, H - PAD_B - GLYPH_H * 2 * UI));
 }
 
 /* Snapping a colour to the 32 levels per channel an R5G5B5 framebuffer had.
@@ -174,6 +222,7 @@ export function createHud(root) {
 
   let ctx = null;
   const readout = root.querySelector('[data-readout]');
+  const callout = root.querySelector('[data-callout]');
 
   let shownScore = 0;
   let bannerName = '';
@@ -185,6 +234,11 @@ export function createHud(root) {
   let sayIn = 0;
   let legend = null;
   let legendTime = 0;
+  let last = null;          // the most recent game state, so a resize can redraw
+  let bestFlash = 0;        // …and the moment the run passed the record
+  let bestPassed = false;
+  let comboFlash = 0;
+  let shownCombo = 1;
 
   /* ------------------------------------------------------------------------
      Fitting the window
@@ -192,9 +246,10 @@ export function createHud(root) {
      Width and height are display pixels. `pixel` is retained as a density
      hint for embedded/letterboxed callers; the full-window game passes one.
      --------------------------------------------------------------------- */
-  function setSize(width, height, pixel = 0, offsetX = 0, offsetY = 0) {
+  function setSize(width, height, pixel = 0, offsetX = 0, offsetY = 0, insets = null) {
     const w = Math.max(1, Math.round(width));
     const h = Math.max(1, Math.round(height));
+    if (insets) inset = insets;
 
     const wasUI = UI;
     if (w !== canvas.width || h !== canvas.height || !ctx) {
@@ -221,6 +276,15 @@ export function createHud(root) {
       canvas.style.width = '';
       canvas.style.height = '';
     }
+
+    /* Writing `canvas.width` above clears the surface, and the only thing that
+       ever puts anything back on it is `update`, which the loop does not call
+       while the game is paused. So rotating a phone with the pause curtain up,
+       or simply letting the URL bar slide away, left a blank rectangle where
+       the score had been until the player pressed Escape. `main.js` already
+       does the equivalent for the world — it clears `pausedRendered` so the
+       next frame redraws once — and this is the read-out's half of it. */
+    if (last) draw(last);
   }
 
   setSize(HUD_WIDTH, HUD_HEIGHT);
@@ -248,7 +312,7 @@ export function createHud(root) {
   const from = (s, x, y, colour, size = 1) => text(clip(s, size, RIGHT - x), x, y, colour, size);
 
   function right(s, x, y, colour, size = 1) {
-    const cut = clip(s, size, x - PAD);
+    const cut = clip(s, size, x - PAD_L);
     return text(cut, x - measure(cut, size * UI), y, colour, size);
   }
 
@@ -267,8 +331,9 @@ export function createHud(root) {
      blurred one. */
   function centreLine(s, y, colour, maxSize) {
     let size = maxSize;
-    while (size > 1 && measure(s, size * UI) > W - PAD * 2) size -= 1;
-    const cut = clip(s, size, W - PAD * 2);
+    const room = W - PAD_L - PAD_R;
+    while (size > 1 && measure(s, size * UI) > room) size -= 1;
+    const cut = clip(s, size, room);
     text(cut, CENTRE - ((measure(cut, size * UI) - 1) >> 1), y, colour, size);
     return size;   // so whatever goes under it knows how tall it turned out
   }
@@ -315,46 +380,112 @@ export function createHud(root) {
     const line = GLYPH_H * UI;          // one stop of type, in buffer pixels
 
     // --- top left: what has been earned ---------------------------------
-    from('SCORE', PAD, PAD, MINT);
-    const scoreW = from(fmt.format(Math.round(shownScore)), PAD, PAD + 9 * UI, AMBER, 2);
+    from('SCORE', PAD_L, PAD_T, MINT);
+    const scoreW = from(fmt.format(Math.round(shownScore)), PAD_L, PAD_T + 9 * UI, AMBER, 2);
 
     /* The combo used to grow by twelve per cent at five and up. There is no
        such thing as twelve per cent here, so it doubles instead: below five
        it is a small mint aside sitting on the score's baseline, at five it
        becomes a second number the size of the score and turns white. An
        integer grid does not do emphasis by degrees, and it turns out not to
-       need to — the jump reads harder than the tween ever did. */
+       need to — the jump reads harder than the tween ever did.
+
+       Two things were still missing from it, and both are about the player
+       being able to *notice*. It moved silently — the only signal that a clean
+       landing had paid a multiplier was an audio blip — so it now blinks for a
+       quarter of a second on the frame it changes, using the same three-frame
+       primitive the banner arrives with. And it had no visible ceiling, so
+       past five it carries its own: there is no decay in this game and a bar
+       counting down would be the read-out inventing a rule the physics does
+       not have, but a cap is a fact and `/12` states it. */
     const combo = Math.round(g.combo);
     if (combo > 1) {
+      const hot = comboFlash > 0 && !CALM
+        && Math.floor((COMBO_FLASH - comboFlash) / 0.06) % 2 === 0;
       const label = `×${combo}`;
-      const x = PAD + scoreW + 8 * UI;
-      if (combo >= 5) from(label, x, PAD + 9 * UI, SNOW, 2);
-      else from(label, x, PAD + 9 * UI + line, MINT);
+      const x = PAD_L + scoreW + 8 * UI;
+      if (combo >= 5) {
+        const w = from(label, x, PAD_T + 9 * UI, hot ? AMBER : SNOW, 2);
+        from(`/${SCORE_CAP}`, x + w + 4 * UI, PAD_T + 9 * UI + line, DIM);
+      } else {
+        from(label, x, PAD_T + 9 * UI + line, hot ? SNOW : MINT);
+      }
     }
 
-    const bestW = from('BEST', PAD, PAD + 28 * UI, DIM);
-    from(fmt.format(Math.round(g.best)), PAD + bestW + 6 * UI, PAD + 28 * UI, QUIET);
+    /* BEST, frozen at what it was when the run started.
+
+       It used to be `game.best`, which `award` overwrites the instant the
+       score passes it — so on any run that is going well the line was a second
+       copy of the score, counting up beside it, saying nothing. And the one
+       moment that actually matters on an endless run, the moment you go past
+       your own record, produced no feedback at all.
+
+       Held at the value it had on the drop-in, it is a target for as long as
+       it is one and then it is history. Passing it flashes the line rather
+       than throwing a banner: a banner is for something you did, and this is
+       something that happened. Afterwards it retires into DIM. */
+    const bestW = from('BEST', PAD_L, PAD_T + 28 * UI, DIM);
+    const passed = g.bestAtStart > 0 && g.score >= g.bestAtStart;
+    const beat = bestFlash > 0
+      && (CALM || Math.floor((BEST_FLASH - bestFlash) / 0.18) % 2 === 0);
+    from(fmt.format(Math.round(g.bestAtStart || 0)),
+      PAD_L + bestW + 6 * UI, PAD_T + 28 * UI,
+      beat ? MINT : (passed ? DIM : QUIET));
+    if (beat) from('BEATEN', PAD_L + bestW + 6 * UI
+      + measure(fmt.format(Math.round(g.bestAtStart || 0)), UI) + 6 * UI,
+    PAD_T + 28 * UI, MINT);
 
     // --- top right: what the hill is doing ------------------------------
-    right('SPEED', RIGHT, PAD, MINT);
-    right('KM/H', RIGHT, PAD + 16 * UI, DIM);
+    right('SPEED', RIGHT, PAD_T, MINT);
+    right('KM/H', RIGHT, PAD_T + 16 * UI, DIM);
     right(String(Math.round(rider.speed * 3.6)),
-      RIGHT - measure('KM/H', UI) - 5 * UI, PAD + 9 * UI, SNOW, 2);
-    right(`${(rider.distance / 1000).toFixed(2)} KM`, RIGHT, PAD + 28 * UI, QUIET);
-    right(`${g.weather.phase} · ${g.weather.conditions}`, RIGHT, PAD + 37 * UI, MINT);
+      RIGHT - measure('KM/H', UI) - 5 * UI, PAD_T + 9 * UI, SNOW, 2);
+    /* Three numbers about the run rather than one, and the two new ones are
+       the two a rider would actually quote.
+
+       Vertical drop is the honest measure of a descent — a kilometre of this
+       mountain is about two hundred and eighty metres of it — and the read-out
+       had the less interesting axis. The gradient is the one piece of terrain
+       information the picture cannot give you at speed: the run swings between
+       ten and twenty-two degrees over its chapters, and which of those the
+       next three hundred metres is decides everything about what to do with
+       the speed you are carrying. Both come from things that already existed
+       — `rider.drop` and the grade's own closed form — and neither needs a
+       glyph the table does not have. */
+    right(`${(rider.distance / 1000).toFixed(2)} KM · ${Math.round(rider.drop)} M`
+      + ` · ${Math.round(Math.atan(gradeAt(rider.pos.z)) * 180 / Math.PI)}°`,
+    RIGHT, PAD_T + 28 * UI, QUIET);
+    right(`${g.weather.phase} · ${g.weather.conditions}`, RIGHT, PAD_T + 37 * UI, MINT);
+
+    /* The gate ladder, while it is alive.
+
+       Consecutive gates are the one thing in the scoring that is a *state* —
+       each one taken without missing is worth more than the last, and a miss
+       puts you back to the bottom — and it was reported only as a banner that
+       had gone by the time the next gate arrived. So a player threading a line
+       of them could not tell what their run was worth without doing the
+       arithmetic. Amber, because by the palette's own rule that is the colour
+       of something being earned, and gone entirely the moment the run breaks. */
+    if (g.gateRun > 0) {
+      right(`GATES ×${g.gateRun}`, RIGHT, PAD_T + 46 * UI, AMBER);
+    }
 
     /* Air time is the only number that has to be live, because it is the one
        the player is making a decision against. Below a quarter of a second
        it is a bump rather than a jump, and putting a timer on screen for it
        only makes the screen twitch.
 
-       It yields to the banner, which shares the band with it. That is not
-       only a collision being dodged: the banner is the verdict on the jump
-       that just ended and the timer is the jump in progress, so the two of
-       them on screen together is the HUD reporting on two different jumps at
-       once. Landing, reading 1,800 points, and popping again inside the
-       banner's two seconds is a good run, not a state worth illustrating. */
-    if (bannerTimer <= 0 && !rider.grounded && rider.airTime > 0.25) {
+       It used to yield to the banner, on the reasoning that the banner is the
+       verdict on the jump that just ended and the timer is the jump in
+       progress, so the two together is the HUD reporting on two different
+       jumps at once. The principle is right and the wrong half was being given
+       up. Land a trick and pop again inside the banner's two seconds — which
+       is a good run, and the same comment said so — and the *live* number went
+       missing for most of the new flight, which is exactly when it is being
+       read. So leaving the ground now retires the previous verdict instead
+       (`clearBanner`, called from the launch event), and the two can no longer
+       collide because the first one is gone before the second exists. */
+    if (!rider.grounded && rider.airTime > 0.25) {
       right(`${rider.airTime.toFixed(1)}S`, RIGHT, AIR_Y, MINT, 2);
     }
 
@@ -370,8 +501,8 @@ export function createHud(root) {
          this resolution its intermediate frames are just a dimmer colour,
          which reads as the HUD being broken. A blink is what a console did,
          and it is louder in three frames than a fade is in twenty. */
-      const drop = (age < 0.05 ? 3 : age < 0.10 ? 1 : 0) * UI;
-      const flash = age < 0.18 && Math.floor(age / 0.06) % 2 === 0;
+      const drop = CALM ? 0 : (age < 0.05 ? 3 : age < 0.10 ? 1 : 0) * UI;
+      const flash = !CALM && age < 0.18 && Math.floor(age / 0.06) % 2 === 0;
 
       /* A full trick name — SWITCH + FRONTSIDE 1080 + 3× BACKFLIP + TWEAKED
          GRAB (SKETCHY) — is sixty-two characters, which is 742 pixels at the
@@ -392,8 +523,18 @@ export function createHud(root) {
       ctx.fillRect(left - UI, CHARGE_Y - UI, CHARGE_W + 2 * UI, CHARGE_H + 2 * UI);
       // Full means pop now, so at full the bar stops being a bar and starts
       // flashing. It is the one moment the HUD is allowed to shout.
+      /* Full means pop now, so at full the bar stops being a bar. It used to
+         blink at 5 Hz for as long as the key was held, which is over the
+         threshold WCAG 2.3.1 sets and is the only genuine strobe in the game;
+         a reader who has asked for reduced motion gets the same information as
+         a state instead — the bar turns and keeps a mint keyline — because the
+         thing being signalled is a state and not an event. */
       const full = charge > 0.995;
-      ctx.fillStyle = full && Math.floor(clock * 10) % 2 === 0 ? SNOW : AMBER;
+      if (full && CALM) {
+        ctx.fillStyle = MINT;
+        ctx.fillRect(left - UI, CHARGE_Y - UI, CHARGE_W + 2 * UI, CHARGE_H + 2 * UI);
+      }
+      ctx.fillStyle = full && (CALM || Math.floor(clock * 10) % 2 === 0) ? SNOW : AMBER;
       const w = Math.round(CHARGE_W * charge);
       if (w > 0) ctx.fillRect(left, CHARGE_Y, w, CHARGE_H);
     }
@@ -404,7 +545,7 @@ export function createHud(root) {
     const showingHints = legendTime < LEGEND_SECONDS;
     const touch = document.body.classList.contains('touch');
     const soundW = !touch && (muted || showingHints)
-      ? from(muted ? 'SOUND OFF' : 'SOUND ON', PAD, BOTTOM - line, muted ? DIM : QUIET)
+      ? from(muted ? 'SOUND OFF' : 'SOUND ON', PAD_L, BOTTOM - line, muted ? DIM : QUIET)
       : 0;
 
     /* On a phone the pad *is* the controls and there is no keyboard to
@@ -422,7 +563,7 @@ export function createHud(root) {
     if (showingHints && !touch) {
       if (!legend) legend = bakeLegend();
       const at = RIGHT - legend.w;
-      if (at > PAD + soundW + 16 * UI && at > CENTRE + (CHARGE_W >> 1) + 8 * UI) {
+      if (at > PAD_L + soundW + 16 * UI && at > CENTRE + (CHARGE_W >> 1) + 8 * UI) {
         ctx.drawImage(legend.surface, at - UI, BOTTOM - legend.h - UI);
       }
     }
@@ -430,19 +571,27 @@ export function createHud(root) {
 
   /* The canvas says nothing to a screen reader, so this does. Once a second,
      because the value of it is that the numbers are reachable, not that they
-     are narrated — the live region is deliberately off. */
+     are narrated — the live region is deliberately off.
+
+     The combo is on it now because it multiplies every award in the game and
+     was the one quantity a player could not reach at all, and the drop is on
+     it for the same reason it is on the visible read-out. */
   function speak(g, dt) {
     if (!readout) return;
     sayIn -= dt;
     if (sayIn > 0) return;
     sayIn = 1;
+    const combo = Math.round(g.combo);
     readout.textContent = `Score ${Math.round(g.score)}, best ${Math.round(g.best)}, `
+      + (combo > 1 ? `combo times ${combo}, ` : '')
       + `${Math.round(g.rider.speed * 3.6)} kilometres per hour, `
-      + `${(g.rider.distance / 1000).toFixed(2)} kilometres down.`;
+      + `${(g.rider.distance / 1000).toFixed(2)} kilometres and `
+      + `${Math.round(g.rider.drop)} metres down.`;
   }
 
   function update(g, dt) {
     clock += dt;
+    last = g;
     if (g.mode === 'playing') legendTime += dt;
 
     // The score counts up to the truth rather than jumping to it. A number
@@ -451,17 +600,43 @@ export function createHud(root) {
     if (Math.abs(g.score - shownScore) < 1) shownScore = g.score;
 
     if (bannerTimer > 0) bannerTimer -= dt;
+    if (bestFlash > 0) bestFlash -= dt;
+    if (comboFlash > 0) comboFlash -= dt;
+
+    // The edge, found here rather than in `award` — the scoring path runs
+    // inside the physics step and has no business carrying a display concern.
+    const combo = Math.round(g.combo);
+    if (combo > shownCombo) comboFlash = COMBO_FLASH;
+    shownCombo = combo;
+    if (!bestPassed && g.mode === 'playing'
+      && g.bestAtStart > 0 && g.score >= g.bestAtStart) {
+      bestPassed = true;
+      bestFlash = BEST_FLASH;
+      if (callout) callout.textContent = 'New best.';
+    }
 
     draw(g);
     speak(g, dt);
   }
 
-  /* One banner, held long enough to read at speed and no longer. */
+  /* One banner, held long enough to read at speed and no longer.
+
+     It also goes to a screen reader, which the canvas cannot. That paragraph
+     is `polite` and event-driven rather than the once-a-second one, so it says
+     the things that happen — a landed 900, a wipeout — without the objection
+     that sank a live region for the score. */
   function banner(name, points, tone = '') {
     bannerName = name;
     bannerPoints = points ? `+${fmt.format(Math.round(points))}` : '';
     bannerTone = TONES[tone] || SNOW;
     bannerTimer = BANNER_HOLD;
+    if (callout) callout.textContent = points ? `${name}, plus ${Math.round(points)}` : name;
+  }
+
+  /* Leaving the ground retires the last jump's verdict — see the note beside
+     the air clock. */
+  function clearBanner() {
+    bannerTimer = 0;
   }
 
   function setMuted(value) {
@@ -475,7 +650,12 @@ export function createHud(root) {
     shownScore = 0;
     bannerTimer = 0;
     legendTime = 0;
+    bestFlash = 0;
+    bestPassed = false;
+    comboFlash = 0;
+    shownCombo = 1;
+    if (callout) callout.textContent = '';
   }
 
-  return { update, banner, setMuted, resetScore, setSize, canvas };
+  return { update, banner, clearBanner, setMuted, resetScore, setSize, canvas };
 }

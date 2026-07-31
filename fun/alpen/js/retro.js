@@ -105,6 +105,44 @@ const RAY_FRAG = `
   }
 `;
 
+/* The blur the bright pass never had.
+
+   `BRIGHT_FRAG` is a four-tap box into a quarter-resolution buffer, and that
+   is a downsample, not a blur — what came out was the shape of the bright
+   parts of the picture with its edges quantised to four-pixel steps, and the
+   composite then added it straight back on top of the sharp original. So a
+   sunlit ridge did not glow; it wore a staircase. At 288 lines those steps
+   were a fifth of a pixel and the whole question was moot, which is why this
+   was never noticed: at native resolution they are four.
+
+   Two separable five-tap passes, run on the quarter-res buffer where they
+   cost a sixteenth of what they would at full size. The weights are the
+   binomial [1 4 6 4 1] taken at ±1 and ±2 texels — but sampled at ±1.2 and
+   ±3.0 rather than on the integers, so each fetch's own bilinear filter is
+   doing half the work and five taps cover the support of nine.
+
+   It runs before the ray march rather than after it, which is worth a
+   sentence because it was the other way round in the first attempt. The
+   rays march *through* this same buffer, so blurring first also softens
+   them — and a crepuscular ray is a shaft of light through air, which is the
+   one thing in the frame that has no business having a hard edge. */
+const BLUR_FRAG = `
+  precision mediump float;
+  uniform sampler2D tBright;
+  uniform vec2 uTexel;
+  uniform vec2 uDir;
+  varying vec2 vUv;
+  void main() {
+    vec2 d = uDir * uTexel;
+    vec3 sum = texture2D(tBright, vUv).rgb * 0.382;
+    sum += (texture2D(tBright, vUv + d * 1.2).rgb
+          + texture2D(tBright, vUv - d * 1.2).rgb) * 0.242;
+    sum += (texture2D(tBright, vUv + d * 3.0).rgb
+          + texture2D(tBright, vUv - d * 3.0).rgb) * 0.067;
+    gl_FragColor = vec4(sum, 1.0);
+  }
+`;
+
 const FRAG = `
   precision mediump float;
   uniform sampler2D tDiffuse;
@@ -136,9 +174,28 @@ const FRAG = `
   // Bayer, built rather than stored: bayer2 is the 2×2 matrix as a closed
   // form, and one recursion of it is the 4×4. Returns [0, 1). A const array
   // cannot be indexed dynamically in GLSL ES 1.0, which is why it is arithmetic.
+  //
+  // It is only ever handed a coordinate already folded into the pattern's own
+  // period — see dither4() — and that is not tidiness, it is the difference
+  // between a dither and a stripe. a.y * a.y at the top of a 4K frame is
+  // 2160² ≈ 4.7 million, and mediump guarantees ten bits of mantissa: the
+  // squaring throws away every bit that decides which row of the matrix this
+  // is, so on any GPU that honours the qualifier — which is most mobile ones —
+  // the pattern degenerates into horizontal bands exactly where the picture is
+  // darkest and the dither matters most.
   float bayer2(vec2 a) {
     a = floor(a);
     return fract(a.x * 0.5 + a.y * a.y * 0.75);
+  }
+
+  /* The 4×4 threshold for this pixel. Folding the coordinate first is exact
+     rather than approximate: both terms of bayer2() are read through fract(),
+     and both x·0.5 and y²·0.75 differ by a whole number between a coordinate
+     and that coordinate plus four, so the value is identical to the unfolded
+     one on hardware where the unfolded one still works at all. */
+  float dither4(vec2 frag) {
+    vec2 p = mod(frag, 4.0);
+    return bayer2(p * 0.5) * 0.25 + bayer2(p);
   }
 
   vec3 sceneSample(vec2 uv) {
@@ -174,14 +231,32 @@ const FRAG = `
        that is actually between them. And it happens before the quantise
        along with everything else, so it is dithered down to five bits with
        the rest of the frame instead of sitting on top of it looking modern. */
+    float threshold = dither4(gl_FragCoord.xy);
+
     vec3 lin = sceneSample(vUv);
     vec2 focusDelta = (vUv - uFocus) * vec2(uResolution.x / uResolution.y, 1.0);
     float outsideFocus = smoothstep(0.08, 0.22, length(focusDelta));
     float localBlur = uBlur * outsideFocus;
     if (localBlur > 0.0005) {
+      /* The ladder is jittered by the same Bayer value that quantises the
+         frame at the bottom of this shader, and it is the difference between
+         a smear and a row of ghosts.
+
+         Six taps at fixed multiples of one step is six copies of the picture,
+         and at full speed the last of them is more than twenty pixels from
+         the first — so a tree at the edge of the frame does not blur, it
+         arrives six times. Offsetting each tap by a sub-step fraction that
+         changes per pixel fills the gaps between the copies with neighbouring
+         pixels' copies, which is what an integral along the path would have
+         done and what the eye reads as motion.
+
+         The Bayer value is the right jitter to use rather than a hash of the
+         coordinate: it is already computed for the quantise, it is uniform
+         over every 4×4 block so no pixel is favoured, and being ordered it
+         cannot beat against itself the way white noise sampled twice does. */
       vec2 toCentre = vec2(0.5) - vUv;
       for (int i = 1; i < 6; i++) {
-        lin += sceneSample(vUv + toCentre * localBlur * float(i));
+        lin += sceneSample(vUv + toCentre * localBlur * (float(i) - 0.5 + threshold));
       }
       lin /= 6.0;
     }
@@ -224,8 +299,6 @@ const FRAG = `
     // trick: the dither is what turns a contour into grain. Everything above
     // — the bloom, the rays, the shoulder — has already happened, so all of
     // it is squeezed into R5G5B5 together and none of it can look bolted on.
-    vec2 p = gl_FragCoord.xy;
-    float threshold = bayer2(p * 0.5) * 0.25 + bayer2(p);
     float steps = uLevels - 1.0;
     c = floor(c * steps + threshold) / steps;
 
@@ -264,6 +337,10 @@ export function createRetro(THREE, renderer) {
     { ...targetOpts, depthBuffer: false });
   const rays = new THREE.WebGLRenderTarget(BASE_W / 4, BASE_H / 4,
     { ...targetOpts, depthBuffer: false });
+  // The other half of the ping-pong. A separable blur cannot read and write
+  // the same attachment, and this is the cheapest surface in the frame.
+  const blurTmp = new THREE.WebGLRenderTarget(BASE_W / 4, BASE_H / 4,
+    { ...targetOpts, depthBuffer: false });
 
   const brightMat = new THREE.ShaderMaterial({
     uniforms: {
@@ -273,6 +350,18 @@ export function createRetro(THREE, renderer) {
     },
     vertexShader: VERT,
     fragmentShader: BRIGHT_FRAG,
+    depthTest: false,
+    depthWrite: false,
+  });
+
+  const blurMat = new THREE.ShaderMaterial({
+    uniforms: {
+      tBright: { value: bright.texture },
+      uTexel: { value: new THREE.Vector2(4 / BASE_W, 4 / BASE_H) },
+      uDir: { value: new THREE.Vector2(1, 0) },
+    },
+    vertexShader: VERT,
+    fragmentShader: BLUR_FRAG,
     depthTest: false,
     depthWrite: false,
   });
@@ -359,12 +448,32 @@ export function createRetro(THREE, renderer) {
     const bh = Math.max(1, Math.floor(height / 4));
     bright.setSize(bw, bh);
     rays.setSize(bw, bh);
+    blurTmp.setSize(bw, bh);
 
     material.uniforms.uResolution.value.set(width, height);
     brightMat.uniforms.uTexel.value.set(1 / width, 1 / height);
+    blurMat.uniforms.uTexel.value.set(1 / bw, 1 / bh);
 
+    /* The canvas stays at the panel's own resolution whatever the world is
+       doing, and that is the whole point of there being two numbers here.
+
+       It used to take `scale` along with everything else, which quietly undid
+       the thing the governor exists to protect. The composite is where the
+       grade, the vignette and — the one that matters — the five-bit ordered
+       dither happen, and a dither is a pattern locked to the pixel grid. Run
+       it into a buffer at 70% and let the browser scale that up, and every
+       2×2 Bayer cell is resampled across 1.4 pixels: the grain that was
+       holding a snowfield together turns into a soft blotchy wash, which
+       reads as the picture having gone out of focus rather than as it having
+       lost resolution. The framebuffer was the thing under pressure, not the
+       screen.
+
+       So only the world targets step down. `tDiffuse` is then sampled with
+       the same bilinear filter the browser was applying anyway — the upscale
+       happens exactly once either way — and the dither, which costs nothing,
+       lands on real device pixels. */
     renderer.setPixelRatio(1);
-    renderer.setSize(width, height, false);
+    renderer.setSize(displayWidth, displayHeight, false);
     renderer.setRenderTarget(rays);
     renderer.clear();
     renderer.setRenderTarget(null);
@@ -442,9 +551,22 @@ export function createRetro(THREE, renderer) {
     renderer.clear();
     renderer.render(worldScene, worldCamera);
 
-    // Bright pass, then the march. Both stay at quarter resolution while the
-    // scene and final composite remain native.
+    // Bright pass, blur, then the march. All three stay at quarter resolution
+    // while the scene and the final composite remain native.
     passQuad.material = brightMat;
+    renderer.setRenderTarget(bright);
+    renderer.render(passScene, flat);
+
+    // Across, then down, and back into `bright` so everything downstream —
+    // the march and the composite — reads one buffer and neither has to know
+    // this happened.
+    passQuad.material = blurMat;
+    blurMat.uniforms.tBright.value = bright.texture;
+    blurMat.uniforms.uDir.value.set(1, 0);
+    renderer.setRenderTarget(blurTmp);
+    renderer.render(passScene, flat);
+    blurMat.uniforms.tBright.value = blurTmp.texture;
+    blurMat.uniforms.uDir.value.set(0, 1);
     renderer.setRenderTarget(bright);
     renderer.render(passScene, flat);
 

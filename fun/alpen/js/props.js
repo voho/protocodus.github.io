@@ -1,5 +1,5 @@
 /* Everything standing on the mountain: trees, shrubs, rocks, slalom gates,
-   the kickers and the park.
+   the rails and the park.
 
    The hill is filled a band at a time — forty metres of it — and every band
    is generated from its own index, so the same stretch of mountain always
@@ -7,11 +7,28 @@
    instances handed to bands ahead. Nothing is stored between visits because
    nothing needs to be: the seed is the coordinate.
 
-   Kickers are the exception, and they are the reason `liftAt` exists. A
-   kicker is a shape added to the height function rather than a mesh placed
-   on top of one, so the rider rides it for the same reason it rides the
-   hill — it is simply what the ground does there. Its mesh is built by
-   sampling the same sum, which is why the two can never disagree.
+   THERE ARE NO KICKERS ANY MORE, and their going is worth a paragraph
+   because they took a whole mechanism with them.
+
+   A kicker used to be a shape added to the height function — `liftAt` — so
+   that the rider rode it for the same reason they rode the hill, and its mesh
+   was built by sampling the same sum so the two could never disagree. That
+   was a good design for a thing that should not have existed. A built ramp is
+   a games idea: it is the same wedge every time, it announces itself in amber,
+   and the moment there are two of them on a hillside the mountain reads as a
+   venue somebody dressed rather than as a mountain. Worse, it made the
+   interesting question — *where do I get air* — into a question with a
+   printed answer.
+
+   What replaced them is not a substitute prop. It is `TERRAIN.character`:
+   the hill now rides in chapters, and a chapter of short bumps throws a rider
+   further, more often and in more different ways than a row of identical
+   wedges ever did, because curvature is what launches and the mountain has
+   four octaves of it to spend. See the long note in `config.js`.
+
+   The visible saving is that `world.height` is now `heightAt` and nothing
+   else. That function is called about twenty-five times per physics step at
+   120 Hz, and every one of those calls used to walk a list of ramps first.
 
    The forest used to be one tree. A cylinder, a cone and a smaller cone,
    scaled to three sizes and tinted four greens — and a hillside of that
@@ -50,35 +67,15 @@
    Both of them used to be a single stock polyhedron, which was survivable
    while nothing on this mountain cast a shadow onto anything else. */
 
-import { heightAt, nearestCenter, corridorHalfAt, centersAt, gradeAt } from './terrain.js';
+import { heightAt, nearestCenter, corridorHalfAt, centersAt } from './terrain.js';
 import { stream, hash2 } from './noise.js';
 import { compose } from './geom.js';
 import { PROPS } from './config.js';
 
-const { band, ahead, behind, park: PARK, rail: RAIL, ramp: RAMP } = PROPS;
+const { band, ahead, behind, park: PARK, rail: RAIL } = PROPS;
 
-/* A kicker, specified by the angle it should throw at.
-
-   The lift is height·t³ over the ramp's length, so the slope at the lip is
-   3·height/length — and the hill underneath is falling away at `grade` at
-   the same time, so what the rider actually leaves with is the difference.
-   Solving that for the length is the whole of this function, and it is what
-   makes every kicker on the mountain throw at the same angle above the slope
-   it happens to be built on, whatever size it is. */
-function makeRamp(x, z, height, key) {
-  const slope = gradeAt(z) + RAMP.kick;
-  return {
-    x, z, key, height,
-    length: (RAMP.power * height) / slope,
-    halfWidth: RAMP.halfWidth + height * RAMP.widthPerHeight,
-  };
-}
 const TAU = Math.PI * 2;
 
-const smoothstep = (a, b, t) => {
-  const u = Math.min(1, Math.max(0, (t - a) / (b - a)));
-  return u * u * (3 - 2 * u);
-};
 const lerp = (a, b, t) => a + (b - a) * t;
 
 /* Kinds, as the collision list reports them */
@@ -843,14 +840,11 @@ export function createProps(THREE, shading) {
   const flat = (color) => shading.apply(
     new THREE.MeshLambertMaterial({ color, flatShading: true }),
   );
-  const vcol = () => shading.apply(
-    new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }),
-  );
   /* The same, plus the one thing a tree needs that nothing else on the
      mountain does: a say in how far its instance colour is allowed to reach.
      The patch goes on before `shading.apply`, which calls it first and folds
      its text into the program cache key — so the trees compile their own
-     program and the shrubs, rocks and kickers go on sharing the plain one. */
+     program and the shrubs and rocks go on sharing the plain one. */
   const treeMat = () => {
     const m = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
     m.onBeforeCompile = (shader) => {
@@ -970,100 +964,6 @@ export function createProps(THREE, shading) {
   const pools = [poles, flags, railBars, railPosts];
   pools.forEach((p) => group.add(p.mesh));
   const allPools = pools.concat(treePools);
-
-  // --- kickers -------------------------------------------------------------
-  // A kicker's mesh is a small grid sampled from `heightAt + liftAt`, so it
-  // is a picture of the physics rather than a second opinion about it. They
-  // now come in sizes: the park lays out a graded line of them, and a found
-  // one out on the piste is the modest end of the range.
-  const RC = 10; // columns across the ramp
-  const RR = 14; // rows down it, the last of which is the drop behind the lip
-  // Built snow, packed harder and a shade brighter than the piste it stands
-  // on — but the same glacier, because a kicker made of a whiter snow than
-  // the mountain reads as a prop dropped onto it. The lip is the one amber
-  // the palette allows, and it is spent here because a lip you cannot find
-  // is a lip you take at the wrong speed.
-  const rampSnow = new THREE.Color('#e3eefb');
-  const rampLip = new THREE.Color('#ffc400');
-
-  const ramps = [];
-  const rampMeshes = [];
-  for (let i = 0; i < PROPS.maxRamps; i++) {
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array((RC + 1) * (RR + 1) * 3), 3));
-    g.setAttribute('color', new THREE.BufferAttribute(new Float32Array((RC + 1) * (RR + 1) * 3), 3));
-    const idx = new Uint16Array(RC * RR * 6);
-    let t = 0;
-    for (let r = 0; r < RR; r++) {
-      for (let c = 0; c < RC; c++) {
-        const a = r * (RC + 1) + c;
-        idx[t++] = a; idx[t++] = a + 1; idx[t++] = a + RC + 1;
-        idx[t++] = a + 1; idx[t++] = a + RC + 2; idx[t++] = a + RC + 1;
-      }
-    }
-    g.setIndex(new THREE.BufferAttribute(idx, 1));
-    const mesh = new THREE.Mesh(g, vcol());
-    mesh.frustumCulled = false;
-    mesh.visible = false;
-    group.add(mesh);
-    rampMeshes.push(mesh);
-  }
-
-  /* How much a kicker adds to the ground at a point. Zero almost everywhere,
-     which is what makes it cheap enough to call from inside the physics step
-     five times over (once for the height, four for the normal). */
-  function liftAt(x, z) {
-    let lift = 0;
-    for (let i = 0; i < ramps.length; i++) {
-      const r = ramps[i];
-      const t = (r.z + r.length / 2 - z) / r.length;
-      if (t <= 0 || t >= 1) continue;
-      const dx = Math.abs(x - r.x) / r.halfWidth;
-      if (dx >= 1) continue;
-      // Flat across the middle and steep at the edges, so the takeoff is a
-      // straight lip you can read from a hundred metres. A quadratic taper
-      // makes a dome with a curved edge, and a curved edge is not a jump.
-      const across = 1 - smoothstep(0.55, 1, dx);
-      // t³ rather than t: the kicker is nearly flat where it is entered and
-      // steepest exactly where it is left, which is what makes the lip throw
-      // rather than ramp. The exponent and the length are chosen together —
-      // see `makeRamp` — so that the slope at t = 1 beats the hill's own.
-      lift += r.height * t * t * t * across;
-    }
-    return lift;
-  }
-
-  function buildRampMesh(mesh, r) {
-    const pos = mesh.geometry.attributes.position.array;
-    const col = mesh.geometry.attributes.color.array;
-    const baseY = heightAt(r.x, r.z);
-    mesh.position.set(r.x, baseY, r.z);
-
-    const w = r.halfWidth + 0.9;
-    const zTop = r.z + r.length / 2;
-    // One row past the lip, where the lift is gone: that row is the drop
-    const zEnd = r.z - r.length / 2 - 0.55;
-    let p = 0;
-    for (let row = 0; row <= RR; row++) {
-      const wz = zTop + (zEnd - zTop) * (row / RR);
-      for (let c = 0; c <= RC; c++) {
-        const wx = r.x - w + (2 * w * c) / RC;
-        pos[p] = wx - r.x;
-        pos[p + 1] = heightAt(wx, wz) + liftAt(wx, wz) - baseY;
-        pos[p + 2] = wz - r.z;
-        // The lip gets the company yellow. A kicker has to announce itself
-        // from further away than its silhouette can manage.
-        const lip = row >= RR - 2 && row <= RR - 1 ? 1 : 0;
-        const c3 = lip ? rampLip : rampSnow;
-        col[p] = c3.r; col[p + 1] = c3.g; col[p + 2] = c3.b;
-        p += 3;
-      }
-    }
-    mesh.geometry.attributes.position.needsUpdate = true;
-    mesh.geometry.attributes.color.needsUpdate = true;
-    mesh.geometry.computeVertexNormals();
-    mesh.visible = true;
-  }
 
   // --- rails ---------------------------------------------------------------
   // A rail is not part of the height field — it is a metre-wide line in the
@@ -1247,52 +1147,51 @@ export function createProps(THREE, shading) {
       gates.push({ x: cx, z, half: PROPS.gateHalf, taken: false });
     }
 
-    // --- kickers -----------------------------------------------------------
+    /* --- rails ------------------------------------------------------------
+
+       All that is left of the park, and it is enough for one. A park was a
+       graded line of kickers with a rail beside it; without the kickers it is
+       a stretch of hill with steel on it, announced by its gate pair, and that
+       is a perfectly good thing for a park to be. The jumping it used to
+       supply is now the mountain's job everywhere rather than this stretch's
+       job in particular, which is the whole point of the change.
+
+       Several of them, though, where there used to be one. A single rail in a
+       hundred and fifty metres of announced ground was thin even when there
+       were three kickers keeping it company. */
     if (parked) {
-      /* A park lays its kickers out in a graded line rather than scattering
-         them, so the run through it is a sentence: something small to get
-         the timing, something bigger, then the one worth the trouble. */
-      const step = PARK.length / (PARK.kickers.length + 1);
-      for (let i = 0; i < PARK.kickers.length; i++) {
+      const step = PARK.length / (PARK.rails + 1);
+      for (let i = 0; i < PARK.rails; i++) {
         const z = parked.top - step * (i + 1);
         if (!inBand(z)) continue;
-        ramps.push(makeRamp(nearestCenter(0, z), z, PARK.kickers[i], `${parked.b}:${i}`));
+        if (hash2(parked.b * 31 + i, 887, 73) > PARK.railChance) continue;
+        // Alternated either side of the line, so riding the park is a slalom
+        // between them rather than a single straight to hold
+        const off = (i % 2 === 0 ? -1 : 1) * (5 + hash2(parked.b + i, 41, 74) * 5);
+        const cx = nearestCenter(0, z) + off;
+        rails.push({
+          x0: cx, z0: z + RAIL.length / 2,
+          x1: cx, z1: z - RAIL.length / 2,
+          y0: heightAt(cx, z + RAIL.length / 2),
+          y1: heightAt(cx, z - RAIL.length / 2),
+          key: `${parked.b}:${i}`,
+        });
       }
-      // and a rail, off to one side of the line the kickers make
-      if (hash2(parked.b, 887, 73) < PARK.railChance) {
-        const z = parked.top - PARK.length * 0.5;
-        if (inBand(z)) {
-          const cx = nearestCenter(0, z) + (hash2(parked.b, 41, 74) < 0.5 ? -7 : 7);
-          rails.push({
-            x0: cx, z0: z + RAIL.length / 2,
-            x1: cx, z1: z - RAIL.length / 2,
-            y0: heightAt(cx, z + RAIL.length / 2),
-            y1: heightAt(cx, z - RAIL.length / 2),
-            key: parked.b,
-          });
-        }
-      }
-    } else if (rnd() < PROPS.rampChance) {
-      const z = z0 + 6 + rnd() * (band - 12);
-      const h = RAMP.height[0] + rnd() * (RAMP.height[1] - RAMP.height[0]);
-      ramps.push(makeRamp(nearestCenter(0, z) + (rnd() * 2 - 1) * 12, z, h, b));
     }
   }
 
   function rebuild(riderZ) {
     allPools.forEach((p) => p.begin());
     solids.length = 0;
-    ramps.length = 0;
     rails.length = 0;
     gates.length = 0;
 
     const bi = Math.floor(riderZ / band);
     for (let b = bi + behind; b >= bi - ahead; b--) place(b);
 
-    // Keep only the kickers nearest the rider — the rest are too far into
-    // the fog to be worth a mesh
-    ramps.sort((a, b) => Math.abs(a.z - riderZ) - Math.abs(b.z - riderZ));
-    ramps.length = Math.min(ramps.length, PROPS.maxRamps);
+    // Nearest first, because the pool is what it is and a rail behind the
+    // rider is not worth a bar that one in front of them could have had
+    rails.sort((a, b) => Math.abs(a.z0 - riderZ) - Math.abs(b.z0 - riderZ));
     rails.length = Math.min(rails.length, railBars.capacity);
 
     for (let i = 0; i < rails.length; i++) {
@@ -1309,11 +1208,6 @@ export function createProps(THREE, shading) {
     }
 
     allPools.forEach((p) => p.end());
-
-    rampMeshes.forEach((m, i) => {
-      if (i < ramps.length) buildRampMesh(m, ramps[i]);
-      else m.visible = false;
-    });
   }
 
   let currentBand = NaN;
@@ -1325,5 +1219,5 @@ export function createProps(THREE, shading) {
     rebuild(riderZ);
   }
 
-  return { group, update, liftAt, railAt, railPoint, solids, ramps, rails, gates };
+  return { group, update, railAt, railPoint, solids, rails, gates };
 }

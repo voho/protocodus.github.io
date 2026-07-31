@@ -192,11 +192,18 @@ function shadowCasting(root) {
 
 for (const group of [props.group, wildlife.group, huts.group]) shadowCasting(group);
 
-/* The one thing the rider knows about the mountain: how high it is here,
-   kickers included. Everything else — normals, launches, landings — is
-   derived from this single function. */
+/* The one thing the rider knows about the mountain: how high it is here.
+   Everything else — normals, launches, landings — is derived from this single
+   function.
+
+   It used to be `heightAt(x, z) + props.liftAt(x, z)`, and the second term was
+   the built kickers. There are none now: everything that throws a rider into
+   the air on this mountain is the mountain, so the ground the physics reads
+   and the ground the mesh draws are not merely consistent, they are the same
+   call. It is also the hottest function in the game — about twenty-five
+   samples per physics step at 120 Hz — and it no longer walks a list first. */
 const world = {
-  height: (x, z) => heightAt(x, z) + props.liftAt(x, z),
+  height: heightAt,
   /* Running out of momentum on the wall is a real failed commitment. Doing
      the same on a steep-looking patch inside the groomed piste is not: the
      board can wash out and recover downhill there without a hidden wipeout. */
@@ -256,6 +263,13 @@ const game = {
   score: 0,
   combo: 1,
   best: 0,
+  /* The record as it stood when this run dropped in, held still.
+
+     `best` cannot be the thing the read-out shows, because `award` overwrites
+     it the instant the score passes it — so on any decent run the BEST line
+     was a second copy of the SCORE line counting up beside it. This is the
+     target, and it stops being one exactly once. */
+  bestAtStart: 0,
   seed: runCode,
   rider,
   weather: weather.state,
@@ -267,6 +281,10 @@ const game = {
 try {
   game.best = Number(localStorage.getItem(BEST_KEY)) || 0;
 } catch { /* private mode; the run just will not be remembered */ }
+// Set here as well as in `restart`, because the HUD draws through attract mode
+// and `restart` is only reached from `begin` or the R key — so the very first
+// frame the page ever draws would otherwise format an undefined.
+game.bestAtStart = game.best;
 
 const input = createInput(window, { key: onKey });
 if (window.matchMedia('(hover: none)').matches || 'ontouchstart' in window) {
@@ -318,6 +336,7 @@ function restart() {
   game.combo = 1;
   game.gateRun = 0;
   game.liveTrick = '';
+  game.bestAtStart = game.best;
   chase.reset();
   spray.clear();
   trail.clear();
@@ -461,6 +480,9 @@ rider.on('land', (s) => {
 
 rider.on('launch', (vy) => {
   if (vy > 3.5) audio.jump(Math.min(1, vy / 12));
+  // Leaving the ground retires the last jump's verdict, so the air clock for
+  // this one has the band to itself — see the note beside it in hud.js.
+  hud.clearBanner();
 });
 
 rider.on('fall', () => {
@@ -479,6 +501,20 @@ rider.on('impact', (v) => {
 rider.on('grind', () => {
   if (game.mode !== 'playing') return;
   audio.whoosh();
+});
+
+/* A pump pays in speed, so it is deliberately not paid in points as well.
+
+   What it gets instead is the only feedback it needs and the two the sport
+   gives you: the board is driven into the snow, so it throws some, and the
+   number in the corner goes up. A banner here would be the HUD announcing a
+   thing the player can already feel — and there is a standing rule in this
+   file about banners that fire constantly ceasing to mean anything. */
+rider.on('pump', (drive) => {
+  if (game.mode !== 'playing') return;
+  spray.burst(rider.pos, -rider.heading.x * 0.5, -rider.heading.z * 0.5,
+    Math.round(3 + drive * 2), 0.3 + drive * 0.12);
+  chase.kick(Math.min(0.5, drive * 0.09));
 });
 
 /* A rail pays by the second and pays again for leaving it on purpose, which
@@ -813,6 +849,35 @@ function frame(now) {
    only the current ratio, which stops matching the moment it changes. */
 let resizeFrame = 0;
 
+/* Where the phone's own hardware is standing in front of the picture.
+
+   `index.html` opts into `viewport-fit=cover`, which is what lets the mountain
+   run under the notch and into the rounded corners — and which also put the
+   score behind the camera housing, because the read-out measures its margins
+   from the raw edge of the buffer. CSS knows the answer and JavaScript cannot
+   ask for it directly, so this is the standard trick: an element whose padding
+   is the four `env()` values, measured rather than read.
+
+   It is a zero-size, `aria-hidden` div that never paints. `.hud` is already
+   the fixed, full-window layer, so it inherits the right containing block. */
+const probe = document.createElement('div');
+probe.setAttribute('aria-hidden', 'true');
+probe.style.cssText = 'position:absolute;width:0;height:0;visibility:hidden;'
+  + 'padding:env(safe-area-inset-top) env(safe-area-inset-right) '
+  + 'env(safe-area-inset-bottom) env(safe-area-inset-left)';
+hudRoot.appendChild(probe);
+
+function safeInsets(ratio) {
+  const s = getComputedStyle(probe);
+  const px = (v) => Math.max(0, Math.round(parseFloat(v) * ratio)) || 0;
+  return {
+    top: px(s.paddingTop),
+    right: px(s.paddingRight),
+    bottom: px(s.paddingBottom),
+    left: px(s.paddingLeft),
+  };
+}
+
 function resize() {
   resizeFrame = 0;
   pausedRendered = false;
@@ -823,8 +888,10 @@ function resize() {
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
   // The HUD stays at display resolution even if the 3D world temporarily
-  // steps down under GPU pressure.
-  hud.setSize(size.displayWidth, size.displayHeight, 1);
+  // steps down under GPU pressure. The insets are in CSS pixels and the
+  // read-out's buffer is in device ones, so they are scaled on the way in.
+  hud.setSize(size.displayWidth, size.displayHeight, 1, 0, 0,
+    safeInsets(size.displayHeight / h));
 }
 
 function scheduleResize() {
@@ -856,7 +923,7 @@ resize();
    the whole debugger: read the numbers, or write one and watch what it does
    to the run. */
 window.__alpen = {
-  game, rider, camera, world, weather, scene, sky, terrain, props, retro,
+  game, rider, camera, world, weather, scene, sky, terrain, props, retro, renderer,
   // `model` is on here for one reason: the rider's drawn orientation is
   // derived from the physics yaw and has been wrong before — mirrored about
   // the fall line, which is invisible going straight and 180° out in a carve.
@@ -876,6 +943,7 @@ window.__alpen = {
     airTime: +rider.airTime.toFixed(2),
     climbRate: +rider.climbRate.toFixed(2),
     edge: +(rider.edge || 0).toFixed(2),
+    bend: +rider.bend.toFixed(2),
     carveLoad: +rider.carveLoad.toFixed(2),
     balance: +rider.balance.toFixed(2),
     contactFootprint: +rider.contactFootprint.toFixed(2),
@@ -893,7 +961,6 @@ window.__alpen = {
       rays: +retro.rayStrength.toFixed(3),
     },
     solids: props.solids.length,
-    ramps: props.ramps.length,
     rails: props.rails.length,
     terrainVerts: terrain.vertexCount,
     weather: {

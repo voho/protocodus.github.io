@@ -270,8 +270,37 @@ const AURORA = {
   offset: 1300,
 };
 
+/* The cloud deck overhead, in six numbers.
+
+   `fair` and `storm` are the two halves of it. Fair-weather cloud is the slow
+   build-and-clear of an ordinary mountain day and it never amounts to much —
+   scattered cumulus, holes everywhere, the sun in and out. Storm cloud is the
+   lid, and it arrives with everything else the dial brings. They add, and the
+   sum is capped well under one so that even a blizzard's sky keeps some blue
+   in it, which is both what the palette needs and what an alpine overcast
+   genuinely looks like from up here.
+
+   `drift` is how much of the wind the deck takes, and it is small — a tenth.
+   The wind at the head of this file is the wind at the *snow*, gusting to
+   17 m/s in a storm; a deck at cloud base is much further away, so the same
+   metres per second cross a far smaller angle per second. A tenth is what
+   makes it move like something a kilometre up rather than like fog going past
+   the camera. */
+const CLOUD = {
+  period: 205,
+  from: 0.34,
+  to: 0.78,
+  fair: 0.55,
+  storm: 0.5,
+  max: 0.8,
+  drift: 0.10,
+};
+
 const lerp = (a, b, t) => a + (b - a) * t;
 const smooth = (t) => t * t * (3 - 2 * t);
+/* Into the deck's own repeat. The noise field wraps at 64, so this is the same
+   sample and not an approximation of it — see the drift note in `update`. */
+const wrap64 = (v) => v - Math.floor(v / 64) * 64;
 const ramp = (v, a, b) => smooth(Math.min(1, Math.max(0, (v - a) / (b - a))));
 
 export function createWeather(THREE) {
@@ -311,6 +340,11 @@ export function createWeather(THREE) {
     night: 0,
     aurora: 0,
     mist: 0,
+    // The deck overhead, and where the wind has pushed it. See `CLOUD` and the
+    // long note on `n64Deck` in shading.js.
+    cloud: 0,
+    cloudX: 0,
+    cloudZ: 0,
   };
 
   const stormTint = new THREE.Color();
@@ -472,6 +506,37 @@ export function createWeather(THREE) {
     const swing = noise2(clock / 23, 9.5, 5) * 2 - 1;
     state.windX = swing * (1.5 + s * 16);
     state.windZ = (noise2(clock / 31, 2.5, 6) * 2 - 1) * (1 + s * 6);
+
+    /* THE DECK. How much cloud is overhead, and where the wind has taken it.
+
+       Two terms, and the reason there are two is that a sky is not simply a
+       function of how hard it is snowing. There is weather that arrives — the
+       storm dial, which brings its own lid and takes it away again — and there
+       is the ordinary business of a mountain afternoon, where cumulus builds
+       over a warm valley whether or not anything is going to come of it. So a
+       slow noise runs underneath, on a period of its own, and the storm is
+       added to whatever it happens to be saying.
+
+       The ceiling is not one. A deck that reaches full coverage is a grey lid,
+       and the one thing this sky must not lose is the deep alpine blue it was
+       given — the whole argument for the gradient is that at altitude the sky
+       is properly dark twenty degrees off the horizon. Capped at four fifths,
+       the worst overcast this game can produce still has blue in the holes,
+       which is also what an alpine overcast actually looks like from above the
+       valley cloud.
+
+       The drift is in the same coordinates the deck's noise is sampled in, and
+       it is wrapped at the field's own 64-unit period rather than allowed to
+       grow — an hour of riding at a storm's wind speed would otherwise walk it
+       out to five figures, and a five-figure coordinate in a mediump hash is a
+       sky that quietly stops having clouds in it. Wrapping is exact: the field
+       repeats there, so the same sample comes back. */
+    const build = noise2(clock / CLOUD.period, 4.5, 307) * 0.68
+      + noise2(clock / (CLOUD.period * 2.7), 12.5, 308) * 0.42;
+    state.cloud = Math.min(CLOUD.max,
+      ramp(build, CLOUD.from, CLOUD.to) * CLOUD.fair + s * CLOUD.storm);
+    state.cloudX = wrap64(state.cloudX + state.windX * dt * CLOUD.drift);
+    state.cloudZ = wrap64(state.cloudZ + state.windZ * dt * CLOUD.drift);
     // The sun crosses the run rather than sitting behind it. Side light is
     // the only light that shapes snow: from behind, a mogul field is a flat
     // white sheet with the fill light's colour on it, which is exactly what

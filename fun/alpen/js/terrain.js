@@ -213,8 +213,18 @@ export const SNOWPACK = {
 };
 
 const { wander, route, corridor, wall, cliffs, knolls,
-  ridges, rolls, moguls, chatter, warp, bulgeVary } = TERRAIN;
+  ridges, rolls, moguls, chatter, warp, bulgeVary, character } = TERRAIN;
 const GRADE = TERRAIN.grade;
+
+/* Which octave each column of a character profile belongs to. The profiles in
+   the config are written as bare arrays because five aligned numbers under a
+   header row is the only layout in which three of them can be *compared*,
+   which is the whole point of there being three. */
+const CH_RIDGES = 0;
+const CH_ROLLS = 1;
+const CH_MOGULS = 2;
+const CH_CHATTER = 3;
+const CH_KNOLLS = 4;
 
 const smoothstep = (a, b, t) => {
   const u = Math.min(1, Math.max(0, (t - a) / (b - a)));
@@ -322,12 +332,46 @@ function makeContext() {
     krx: [0, 0, 0, 0],
     kdz: [0, 0, 0, 0],   // the along-axis distance, already leaned and scaled
     kh: [0, 0, 0, 0],
+    // What this stretch of mountain is made of: one multiplier per octave,
+    // mixed from the three characters. See `TERRAIN.character`.
+    mix: [1, 1, 1, 1, 1],
+    plain: 0,            // …and the mixture itself, for anything that wants
+    bumps: 0,            // to know what kind of ground this is rather than
+    swells: 0,           // merely how rough it is
   };
+}
+
+/* The mixture at a point down the run.
+
+   `busy` is how much is going on and `fine` is how short its wavelength is,
+   and the three characters fall out of the two of them: calm ground is a
+   plain whichever way `fine` leans, busy ground is bumps or swells depending
+   on which way it leans. The weights sum to one by construction, which is what
+   keeps the slope budget linear — see the note in the config. */
+function characterAt(z, ctx) {
+  const band = character.band;
+  const busy = smoothstep(band[0], band[1], noise1(z * character.busyFreq, character.seed));
+  const fine = smoothstep(band[0], band[1], noise1(z * character.fineFreq, character.seed + 5));
+
+  const plain = 1 - busy;
+  const bumps = busy * fine;
+  const swells = busy - bumps;
+  ctx.plain = plain;
+  ctx.bumps = bumps;
+  ctx.swells = swells;
+
+  const P = character.plain;
+  const B = character.bumps;
+  const S = character.swells;
+  for (let i = 0; i < 5; i++) {
+    ctx.mix[i] = P[i] * plain + B[i] * bumps + S[i] * swells;
+  }
 }
 
 function rowContext(z, ctx) {
   if (ctx.z === z) return ctx;
   ctx.z = z;
+  characterAt(z, ctx);
 
   // The grade, integrated. d/dz of this is base + Σ amp·sin(freq·z + phase),
   // which is the pitch the rider actually feels underneath them.
@@ -397,8 +441,11 @@ function rowContext(z, ctx) {
      intention: two knolls that run into each other make a shape neither of
      them had on its own, and the hill stops looking like it was stamped. */
   ctx.nKnolls = 0;
+  const knollMix = ctx.mix[CH_KNOLLS];
   const k0 = Math.floor(-z / knolls.period);
-  for (let k = -3; k <= 3 && ctx.nKnolls < 4; k++) {
+  // A plain is a plain. Below a fifth of a knoll there is nothing there worth
+  // four samples of arithmetic per vertex to add up to almost zero.
+  for (let k = -3; k <= 3 && ctx.nKnolls < 4 && knollMix > 0.05; k++) {
     const b = k0 + k;
     if (b < 2) continue;
     if (hash2(b, 4021, 81) > knolls.chance) continue;
@@ -415,8 +462,16 @@ function rowContext(z, ctx) {
 
     // Height comes out of the radius, never on its own — see the note on
     // `rise` in the config. A knoll's job is curvature, not altitude.
+    /* …and scaled by what this stretch of mountain is made of. A knoll is the
+       mountain's own kicker, so a bumps chapter keeps all of it, a swells
+       chapter keeps most, and a plain keeps a fifth — which is what makes a
+       plain read as somewhere you can finally put the board flat and go.
+
+       Scaled rather than skipped, because a knoll that blinks out of existence
+       at a chapter boundary is a step in the height field, and the rider's
+       normals are central differences of that. */
     const rise = knolls.rise[0] + (knolls.rise[1] - knolls.rise[0]) * hash2(b, 331, 85);
-    const height = rise * rz;
+    const height = rise * rz * knollMix;
     const rx = rz * (1 + (hash2(b, 419, 86) * 2 - 1) * knolls.eccentric);
     const half = corridorHalfAt(cz);
     const mid = wanderAt(cz);
@@ -470,10 +525,21 @@ function heightIn(ctx, x) {
     bulgeVary.seed + 17,
   );
 
-  h += snoise2(ridgeX * ridges.freq, ridgeZ * ridges.freq, ridges.seed) * ridges.amp;
-  h += snoise2(rollX * rolls.freq, rollZ * rolls.freq, rolls.seed) * rolls.amp * rollVary;
-  h += snoise2(mogulX * moguls.freq, mogulZ * moguls.freq, moguls.seed) * moguls.amp * mogulVary;
-  h += snoise2(chatterX * chatter.freq, chatterZ * chatter.freq, chatter.seed) * chatter.amp;
+  /* Each octave, weighted by what this chapter of the run is made of. The
+     mixture is a row property — it varies down the hill and not across it —
+     so it has already been worked out once for the whole row and this is four
+     multiplications, not four noise lookups. `bulgeVary` still rides on top of
+     the two middle ones: the chapter says what kind of ground this stretch is,
+     and the vary says which patches of it got the worst of it. */
+  const mix = ctx.mix;
+  h += snoise2(ridgeX * ridges.freq, ridgeZ * ridges.freq, ridges.seed)
+    * ridges.amp * mix[CH_RIDGES];
+  h += snoise2(rollX * rolls.freq, rollZ * rolls.freq, rolls.seed)
+    * rolls.amp * rollVary * mix[CH_ROLLS];
+  h += snoise2(mogulX * moguls.freq, mogulZ * moguls.freq, moguls.seed)
+    * moguls.amp * mogulVary * mix[CH_MOGULS];
+  h += snoise2(chatterX * chatter.freq, chatterZ * chatter.freq, chatter.seed)
+    * chatter.amp * mix[CH_CHATTER];
 
   /* Outside the corridor: the quarterpipe, then the wall.
 
@@ -594,19 +660,24 @@ function graded(step, growth, reach, uniformReach = 0) {
 
 export function createTerrain(THREE, shading) {
   const {
-    spacing, uniformNear, back, ahead, aheadGrowth, side, sideGrowth,
-    morphNear, morphFar, morphRate, morphSettle,
+    spacing, uniformNear, behind, behindGrowth, ahead, aheadGrowth,
+    side, sideGrowth, morphNear, morphFar, morphRate, morphSettle,
   } = TERRAIN;
 
-  // Columns: mirrored about the rider. Rows: a few uniform cells behind,
-  // then the graded fan out in front.
+  /* Columns mirrored about the rider, rows graded in both directions from
+     them. All four fans share the same uniform near field, which is what lets
+     the anchor snap: inside `uniformNear` every offset is a whole number of
+     cells, so those vertices land on the same world lattice every time the
+     mesh re-anchors and the facets under the board stay welded to the hill.
+     Only past it do the rings widen, and only there does anything morph. */
   const half = graded(spacing, sideGrowth, side, uniformNear);
   const xs = [];
   for (let i = half.length - 1; i >= 1; i--) xs.push(-half[i]);
   for (let i = 0; i < half.length; i++) xs.push(half[i]);
 
   const zs = [];
-  for (let d = back; d > 0; d -= spacing) zs.push(d);
+  const bwd = graded(spacing, behindGrowth, behind, uniformNear);
+  for (let i = bwd.length - 1; i >= 1; i--) zs.push(bwd[i]);
   const fwd = graded(spacing, aheadGrowth, ahead, uniformNear);
   for (let i = 0; i < fwd.length; i++) zs.push(-fwd[i]);
 
@@ -659,7 +730,13 @@ export function createTerrain(THREE, shading) {
   geometry.setAttribute('aGroom',
     new THREE.BufferAttribute(groom, 1).setUsage(THREE.DynamicDrawUsage));
   geometry.setIndex(new THREE.BufferAttribute(indices, 1));
-  geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(), ahead);
+  // The corner of the grid, not its longest side. `ahead` alone was already
+  // short of the far columns and is now short of the tail as well; the mesh is
+  // never frustum-culled so nothing was reading it, but a bounding volume that
+  // does not bound is a trap left for whoever turns culling back on.
+  geometry.boundingSphere = new THREE.Sphere(
+    new THREE.Vector3(), Math.hypot(side, Math.max(ahead, behind)),
+  );
 
   /* Surface detail, in the fragment shader rather than in the mesh.
 
@@ -1022,13 +1099,37 @@ export function createTerrain(THREE, shading) {
     publish();
   }
 
-  /* Re-anchor after two fine cells. The uniform near field swaps to the same
-     world lattice, so nothing around the board moves. Distant graded cells
-     cannot make that guarantee; their live world positions are preserved
-     below, then positions, albedo and groom mask converge continuously on the
-     new samples. This is the difference between a terrain LOD transition and
-     an apparent shadow switch every three metres. */
-  const stride = spacing * 2;
+  /* Re-anchor after *four* fine cells, not two.
+
+     The uniform near field swaps to the same world lattice either way — the
+     stride is a whole number of cells, which is the only property that
+     guarantee needs — so nothing around the board moves and the facets stay
+     welded to the hill exactly as before. What changes is how often everything
+     further out is disturbed, and that turned out to be the whole of a visible
+     artifact.
+
+     The graded field cannot make the same guarantee: past `uniformNear` the
+     sample points genuinely move when the anchor does, so those vertices are
+     preserved in world space and then glide to their new samples. At a stride
+     of two cells the anchor moves every three metres, which at riding speed is
+     thirteen times a second against a glide whose time constant is a hundred
+     and twenty-five milliseconds — so the far field never arrived anywhere. It
+     was permanently in motion, chasing a target that moved again before it got
+     there.
+
+     On a smoothly-shaded mesh nobody would ever have noticed. This one is flat
+     shaded, and a flat facet on a *silhouette* is the worst case there is: a
+     vertex that moves a few centimetres vertically moves the skyline across a
+     pixel boundary, and the serrated edge the facets already make appears to
+     crawl. Measured against the sky, a single morph step moved twenty thousand
+     pixels — over one per cent of the frame — almost all of it strung along
+     the ridge lines. That is the "blinking triangles".
+
+     Four cells halves the disturbance rate, and `morphRate` was raised with it
+     so the glide now converges between anchors instead of chasing forever. It
+     also halves the cost of `fill`, which is the single most expensive thing
+     this file does. */
+  const stride = spacing * 4;
 
   function update(x, z, dt = 1 / 60) {
     const ax = Math.round(x / stride) * stride;

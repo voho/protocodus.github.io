@@ -201,7 +201,7 @@ export class Rider {
 
     this.events = {
       launch: [], land: [], fall: [], rise: [], carve: [], impact: [],
-      grind: [], grindOut: [],
+      grind: [], grindOut: [], pump: [],
     };
     this._rail = { x: 0, y: 0, z: 0, t: 0 };
 
@@ -250,6 +250,9 @@ export class Rider {
     this.grindTime = 0;
     this.stallTimer = 0;     // how long the board has been too slow for the pitch
     this.edge = 0;           // radians the board is rolled up onto its edge
+    this.bend = 0;           // g of load the ground's own curvature is adding
+    this._lastGrad = 0;      // last step's gradient along travel, for its rate
+    this._bendReady = false;
     this.balance = 1;        // 1 when the body is where the turn needs it
     this.leanErr = 0;        // signed: + is under-leaned, − is over-leaned
     this.slide = 0;          // m/s of sideways wash, for spray and sound
@@ -264,6 +267,7 @@ export class Rider {
     this.grace = 1.2;
     this.tumble = 0;
     this.startZ = z;
+    this.startY = this.pos.y;
     this.landing = null;     // set for one frame after a landing
     this.contactFootprint = CONTACT_EPS * 2;
     this._handlingReady = false;
@@ -275,6 +279,14 @@ export class Rider {
 
   get distance() {
     return Math.max(0, this.startZ - this.pos.z);
+  }
+
+  /* Metres of descent, which on a mountain is the more interesting of the two
+     and was the one the read-out did not have. A kilometre of this run is a
+     little under three hundred metres of drop, and that is the number a rider
+     actually quotes about a day. */
+  get drop() {
+    return Math.max(0, this.startY - this.pos.y);
   }
 
   get boardForward() {
@@ -407,6 +419,47 @@ export class Rider {
     const ny = Math.max(0.2, support.y);
     this.climbRate = (-support.x * vel.x - support.z * vel.z) / ny;
 
+    /* THE BEND — how hard the shape of the ground is pressing the board into
+       the snow, over and above the one g gravity was already charging.
+
+       A path that follows a curved surface at v metres a second is being
+       accelerated towards the centre of that curve at v²·κ, and the only thing
+       available to do the accelerating is the snow. So a hollow presses, a
+       crest lifts, and the whole of it is one number.
+
+       κ comes from the gradient along the direction of travel, differentiated
+       *per metre of ground covered* rather than per second. That distinction is
+       the entire correctness of this: per second, a rider accelerating down a
+       straight pitch shows a gradient-along-travel that appears to be changing,
+       and the term would invent a crest out of nothing but the speeding up.
+       Per metre it is a property of the hill and the heading alone, and the
+       speed re-enters where the physics actually puts it — squared.
+
+       It is measured on `this.normal`, the board-length handling normal, and
+       not on the raw contact one. That is not a shortcut either: a snowboard is
+       a metre and a half of stiff composite and it genuinely does bridge the
+       six-metre chatter octave rather than tracing it. The normal has already
+       been filtered over the board's own footprint, so what comes out is the
+       curvature the board can actually feel. */
+    const flatSpeed = Math.hypot(vel.x, vel.z);
+    let bendG = 0;
+    if (flatSpeed > 0.6) {
+      const gradAlong = -(n.x * vel.x + n.z * vel.z)
+        / (flatSpeed * Math.max(0.2, n.y));
+      const ds = flatSpeed * dt;
+      if (this._bendReady && ds > 1e-4) {
+        const shape = 1 + gradAlong * gradAlong;
+        const kappa = ((gradAlong - this._lastGrad) / ds) / (shape * Math.sqrt(shape));
+        bendG = (flatSpeed * flatSpeed * kappa) / RIDER.gravity;
+      }
+      this._lastGrad = gradAlong;
+      this._bendReady = true;
+    } else {
+      this._bendReady = false;
+    }
+    this.bend = approach(this.bend,
+      clamp(bendG, RIDER.bendMin, RIDER.bendMax), RIDER.bendSmooth, dt);
+
     /* Stalling.
 
        A snowboard is not a climbing tool. Run out of speed pointing up
@@ -520,7 +573,18 @@ export class Rider {
     // is what stops a crawling rider from standing sideways on a wall.
     const engaged = RIDER.gripLow
       + (1 - RIDER.gripLow) * clamp(speed / RIDER.gripSpeed, 0, 1);
-    const gripNow = surfaceGrip * engaged
+    /* …and how hard the ground is pressing the board into the snow.
+
+       Friction is proportional to normal force, which is the least negotiable
+       statement in this file, and until `bend` existed the normal force was a
+       constant plus the corner. Now a compression genuinely holds an edge that
+       the same edge on a rollover cannot, and the player finds out the way a
+       rider does: the turn you set up at the bottom of the roller comes round,
+       and the identical input over the crest washes out. It is the first thing
+       in the model that makes *where* on the terrain you turn matter at all. */
+    const loadGrip = clamp(1 + this.bend * RIDER.loadGrip,
+      RIDER.loadGripMin, RIDER.loadGripMax);
+    const gripNow = surfaceGrip * engaged * loadGrip
       * (input.brake ? 0.45 : 1)
       * (input.tuck ? RIDER.tuckGrip : 1)
       * (1 - RIDER.balanceGrip + RIDER.balanceGrip * this.balance);
@@ -887,10 +951,39 @@ export class Rider {
     let pop = 0;
     this.lipPop = false;
     if (this.charging && !input.jump) {
-      pop = RIDER.popMin + (RIDER.popMax - RIDER.popMin) * this.charge;
+      const held = this.charge;
+      pop = RIDER.popMin + (RIDER.popMax - RIDER.popMin) * held;
       if (!blocked && clearance > -0.25) {
         pop *= RIDER.lipBonus;
         this.lipPop = true;
+      } else if (this.bend > RIDER.pumpFrom) {
+        /* …or it is a pump, and this is the same extension doing the other
+           thing legs can do with it.
+
+           The condition is the whole idea. The branch above is a lip: the
+           ground is on the point of letting go, there is nothing left to push
+           against, and everything the legs have goes into height. Here the
+           ground is bending the other way — pressing the board into the snow —
+           and an extension against that load is work done along the direction
+           of travel, which is speed. A rider crossing a compression is not
+           jumping out of it; they are standing up through it and coming out
+           the far side faster, and that is most of what riding terrain is.
+
+           The pop is spent rather than added to, so a player cannot have both.
+           Timing the release to the ground is the skill, and the read-out for
+           whether they got it right is the speed itself. */
+        const load = clamp(
+          (this.bend - RIDER.pumpFrom) / Math.max(1e-3, RIDER.bendMax - RIDER.pumpFrom),
+          0, 1,
+        );
+        const drive = RIDER.pumpSpeed * held * load;
+        const flat = Math.hypot(vel.x, vel.z);
+        if (flat > 1e-3 && drive > 0.05) {
+          vel.x += (vel.x / flat) * drive;
+          vel.z += (vel.z / flat) * drive;
+          this.emit('pump', drive);
+        }
+        pop = 0;
       }
       this.charging = false;
       this.charge = 0;
@@ -1052,6 +1145,11 @@ export class Rider {
     const p = this._p.copy(n).add(this.UP).normalize();
     this.grounded = false;
     this.state = 'air';
+    // The gradient the bend is differentiating is only meaningful across two
+    // consecutive steps on the same surface. Every departure from the snow
+    // breaks that chain, and a stale one comes back as a curvature spike the
+    // width of a lip.
+    this._bendReady = false;
     if (pop > 0) this.vel.addScaledVector(p, pop);
     // Scoring and telemetry read the momentum the ramp received, not the
     // optional leg impulse added afterwards.
@@ -1079,6 +1177,9 @@ export class Rider {
     this.slide = 0;
     this.carveLoad = 0;
     this.climbRate = 0;
+    // Nothing is pressing on the board in the air, so the legs are allowed to
+    // find their own length rather than holding the last compression they saw
+    this.bend = approach(this.bend, 0, 9, dt);
 
     // Gravity is constant through the complete arc. Aerodynamic drag only
     // trims horizontal travel here, so it cannot create an apex float or
@@ -1208,6 +1309,8 @@ export class Rider {
     this.extension = 0;
     this.slide = 0;
     this.carveLoad = 0;
+    this.bend = 0;
+    this._bendReady = false;
     this.lipPop = false;
     this.compressionVel += 6;
     this.emit('grind', r);
@@ -1285,6 +1388,7 @@ export class Rider {
     ridingNormalFrom(this.world.height, this.pos.x, this.pos.z, vel, n);
     this.normal.copy(n);
     this._handlingReady = true;
+    this._bendReady = false;
     const impact = Math.max(0, -vel.dot(n));
 
     // Judge the direction that will actually leave the landing. Classifying
@@ -1425,6 +1529,8 @@ export class Rider {
     this.grabbing = false;
     this.grabTime = 0;
     this.extension = 0;
+    this.bend = 0;
+    this._bendReady = false;
 
     // What the body keeps, and what the collision turns into height. A rider
     // doing 40 m/s into a trunk leaves it doing 25 and climbing, which is
@@ -1571,8 +1677,14 @@ export class Rider {
     // for, which is why a hard carve visibly squats the rider.
     const w = RIDER.springFreq * TAU;
     const lateralG = (this.carveLoad * RIDER.grip) / RIDER.gravity;
+    // One g of gravity, plus whatever the ground's curvature is adding or
+    // taking away, plus the corner — and the vertical two combine before the
+    // lateral one because that is the order they act in. A compression squats
+    // the rider and lifts the camera's floor; a rollover stands them up and
+    // goes light, which is the frame going quiet a moment before it lets go.
+    const verticalG = Math.max(0, 1 + this.bend);
     const load = this.grounded && this.state !== 'fall'
-      ? Math.hypot(1, lateralG)
+      ? Math.hypot(verticalG, lateralG)
       : 0;
     this.gLoad = approach(this.gLoad, load, 9, dt);
 

@@ -39,6 +39,12 @@
   <div class="hud">
     <canvas class="readout" width="640" height="360" aria-hidden="true"></canvas>
     <p class="sr-only" data-readout aria-live="off"></p>
+    <!-- And the event stream, which the paragraph above deliberately is not.
+         That one is refreshed once a second and is not announced, because a
+         score narrated every second is unbearable. This one is written only
+         when something happens — a landed trick, a wipeout, a new best — so it
+         can be polite and still be quiet. -->
+    <p class="sr-only" data-callout aria-live="polite" aria-atomic="true"></p>
   </div>
 
   <!-- ================= TOUCH PAD =================
