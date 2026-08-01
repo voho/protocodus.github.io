@@ -3,7 +3,7 @@
    Four dials now, all continuous, and nothing in the game reads a preset
    name except the HUD.
 
-   `tod` runs a full day in fifteen minutes of riding. It is interpolated
+   `tod` runs a full day in three minutes of riding. It is interpolated
    through a table of nine moments and every one of them carries the whole
    picture: the three stops of the sky gradient, the colour of the haze, the
    colour and strength of the key light, how high it sits, and how much of
@@ -188,22 +188,19 @@ const BANDS = [
   { to: 1.01, name: 'BLIZZARD' },
 ];
 
-/* How long everything takes, and all three of these went up a long way.
+/* How long everything takes.
 
-   A six-minute day sounds generous written down and is frantic to ride: the
-   sun crosses the sky at a visible rate, dusk arrives while you are still in
-   the air off one jump, and because every colour in the frame is interpolated
-   from this one clock, the entire picture is permanently mid-transition.
-   Nothing ever settles long enough to *be* a time of day. Fifteen minutes is
-   still four times faster than a real morning and it is slow enough that the
-   light on the snow looks like a condition rather than an animation.
+   The day is intentionally compressed to three minutes: five times the
+   original fifteen-minute cycle, so every run gets daylight, blue hour and
+   the headlamp-lit night without a long wait. The phase table still blends
+   continuously, so the faster clock never becomes a sequence of switches.
 
    The storm clock went the same way for the same reason. Weather that turns
    over every minute is not weather, it is a strobe — and this one drives the
    fog distance, so a fast storm dial is also a horizon that visibly breathes
    in and out. At a hundred and ten seconds a front takes a couple of minutes
    to arrive, which is long enough to watch it coming. */
-const DAY_SECONDS = 900;
+const DAY_SECONDS = 180;
 const START_TOD = 0.34;      // a bright morning, so the first look is the best one
 const STORM_PERIOD = 110;    // seconds per unit of the noise that drives it
 
@@ -231,7 +228,7 @@ const MIST = {
 
 /* The aurora, in five numbers.
 
-   `period` is long against a six-minute day on purpose: the display has to
+   `period` is long against the three-minute day on purpose: the display has to
    be slower than the night it happens in, or it flickers on and off across
    one and reads as a light being switched rather than as weather. At 150
    seconds a display takes about a minute to build, hold and go, which is

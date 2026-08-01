@@ -72,8 +72,11 @@ function branchAt(z, riderX, away) {
    potato. The long flat hind feet and the shaded haunches do the rest: they
    are what makes a crouched hare look coiled rather than seated. */
 function rabbitGeometry(THREE) {
-  const ball = new THREE.SphereGeometry(0.5, 10, 8);
-  const bead = new THREE.SphereGeometry(0.5, 6, 5);
+  // These meshes are instanced, so the rounded silhouette is paid for once
+  // in memory and shared by every animal.  The old 6--10 sided primitives
+  // were visible as facets whenever a hare crossed the foreground.
+  const ball = new THREE.SphereGeometry(0.5, 24, 16);
+  const bead = new THREE.SphereGeometry(0.5, 16, 12);
   const box = new THREE.BoxGeometry(1, 1, 1);
 
   const fur = '#eef3fb';
@@ -131,12 +134,12 @@ function rabbitGeometry(THREE) {
    the middle, and putting it in a lighter coat than the flanks means the
    animal has a readable back line even against a white hill. */
 function bearGeometry(THREE) {
-  const ball = new THREE.SphereGeometry(0.5, 10, 8);
-  const bead = new THREE.SphereGeometry(0.5, 6, 5);
+  const ball = new THREE.SphereGeometry(0.5, 24, 16);
+  const bead = new THREE.SphereGeometry(0.5, 16, 12);
   const box = new THREE.BoxGeometry(1, 1, 1);
   // Tapered so a limb has a wrist; the snout is the same cone used nose-first
-  const limb = new THREE.CylinderGeometry(0.5, 0.38, 1, 8);
-  const snout = new THREE.CylinderGeometry(0.32, 0.5, 1, 8);
+  const limb = new THREE.CylinderGeometry(0.5, 0.38, 1, 16, 2);
+  const snout = new THREE.CylinderGeometry(0.32, 0.5, 1, 20, 2);
 
   const coat = '#4a3628';
   const light = '#5b452f';
@@ -200,16 +203,18 @@ const BEAR_OFFSET = 0.45;
 export function createWildlife(THREE, shading) {
   const group = new THREE.Group();
 
-  // The same shading as the hill, the trees and the rider, which for an
-  // animal matters more than for anything else on the mountain: a hare is a
-  // small pale shape on a large pale surface, and the only thing that tells
-  // the eye it is an animal rather than a bump is that the light breaks over
-  // it in the same five steps it breaks over everything else.
-  const flat = () => shading.apply(
-    new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }),
+  // Smooth normals keep the denser rounded forms from breaking into visible
+  // facets, while the boxes used for paws, ears and claws retain their hard
+  // edges because BoxGeometry supplies split face normals.
+  const animalMaterial = () => shading.apply(
+    new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false }),
   );
-  const rabbits = new THREE.InstancedMesh(rabbitGeometry(THREE), flat(), WILDLIFE.rabbits);
-  const bears = new THREE.InstancedMesh(bearGeometry(THREE), flat(), WILDLIFE.bears);
+  const rabbits = new THREE.InstancedMesh(
+    rabbitGeometry(THREE), animalMaterial(), WILDLIFE.rabbits,
+  );
+  const bears = new THREE.InstancedMesh(
+    bearGeometry(THREE), animalMaterial(), WILDLIFE.bears,
+  );
   rabbits.frustumCulled = false;
   bears.frustumCulled = false;
   rabbits.instanceMatrix.setUsage(THREE.DynamicDrawUsage);

@@ -201,7 +201,7 @@ export class Rider {
 
     this.events = {
       launch: [], land: [], fall: [], rise: [], carve: [], impact: [],
-      grind: [], grindOut: [], pump: [],
+      grind: [], grindOut: [], pump: [], push: [],
     };
     this._rail = { x: 0, y: 0, z: 0, t: 0 };
 
@@ -236,6 +236,11 @@ export class Rider {
     this.charge = 0;
     this.charging = false;
     this.tucking = false;
+    this.pushing = false;       // rear foot is out of the binding and skating
+    this.pushPhase = 0;         // 0..1 authored cycle, shared by physics and rig
+    this.pushStroke = 0;        // completed plants in this run, for diagnostics
+    this.brake = 0;           // 0..1 pressure in the skidded braking edge
+    this.brakeSide = 1;       // side chosen when S begins, held through the stop
     this.spinVel = 0;
     this.flipVel = 0;
 
@@ -370,7 +375,31 @@ export class Rider {
 
   groundStep(dt, input) {
     const { pos, vel } = this;
-    this.tucking = !!input.tuck && !input.brake;
+    /* A snowboard stops across its travel, not by acquiring generic drag.
+
+       Choose one side at the start of the press and keep it. Changing sides
+       halfway through a speed check would ask the board to cross 154° through
+       its direction of travel; a rider instead releases and sets the other
+       edge. A/D can choose the side, an existing carve continues naturally,
+       and a straight-line press defaults to the stance's heel side. */
+    if (input.brake && this.brake < 0.02) {
+      this.brakeSide = Math.abs(input.turn) > 0.08
+        ? Math.sign(input.turn)
+        : Math.abs(this.edge) > 0.02
+          ? Math.sign(this.edge)
+          : (this.switchStance ? -1 : 1);
+    }
+    this.brake = approach(
+      this.brake, input.brake ? 1 : 0,
+      input.brake ? RIDER.brakeEngage : RIDER.brakeRelease, dt,
+    );
+    const braking = this.brake;
+    const brakeActive = braking > 0.02;
+    this.tucking = !!input.tuck && !input.brake && braking < 0.05;
+    // Capture the W baseline before the new contact plane removes any velocity
+    // pointing into it. Otherwise a sharp terrain-normal change can make the
+    // displayed speed dip before the powered floor for this step is formed.
+    const poweredEntrySpeed = this.tucking ? vel.length() : 0;
     const support = ridingNormalFrom(
       this.world.height, pos.x, pos.z, vel, this._supportN, this._contact,
     );
@@ -400,6 +429,32 @@ export class Rider {
       vel.addScaledVector(support, -into);
     }
     const enteringSpeed = vel.length();
+
+    /* Turn the old invisible crawl assist into an action the rider performs.
+
+       Hysteresis keeps the foot from flickering in and out around one exact
+       speed. Once a cycle has begun it is allowed to finish even if gravity
+       or W carries the board past `pushStop`; braking, a jump request, strong
+       steering or the lip itself aborts it immediately because none of those
+       is a moment in which a rear foot belongs loose beside the board. */
+    const canPush = !brakeActive && !input.jump
+      && Math.abs(input.turn || 0) < 0.72 && !this._contact.edgeAhead;
+    if (!canPush) {
+      this.pushing = false;
+    } else if (!this.pushing && enteringSpeed < RIDER.pushStart) {
+      this.pushing = true;
+      this.pushPhase = 0;
+    }
+    const finishPush = this.pushing && enteringSpeed >= RIDER.pushStop;
+
+    // W is an uncapped powered tuck. This is a speed floor rather than a
+    // one-off force: snow friction, a traverse, or an extreme drag value can
+    // never quietly create another terminal velocity. Gravity and clean
+    // terrain can still add more than the floor, so the mountain remains part
+    // of the acceleration instead of being overwritten by it.
+    const poweredSpeed = this.tucking
+      ? poweredEntrySpeed + RIDER.tuckAcceleration * dt
+      : 0;
 
     // Gravity, resolved on the tangent. This is the whole engine: steep is
     // fast, banked is slow, and neither needed a special case.
@@ -466,8 +521,8 @@ export class Rider {
        something steep and you do not coast gently to a halt — the board
        stops tracking, the edge that was holding you across the hill has
        nothing left to hold it with, and you go over. Below `stallSlope` the
-       rider is allowed to grind down to nothing and start again, which is
-       what the floor push exists for. A steep failure is only a fall where
+       rider is allowed to grind down to nothing and skate away again. A
+       steep failure is only a fall where
        the world marks it as one — the quarterpipe and outer wall in this
        game. Procedural banks inside the groomed piste can still steal all the
        speed, but they let the board wash downhill instead of firing a hidden
@@ -487,8 +542,8 @@ export class Rider {
 
        A stall is the failure of a rider who was *carrying* speed up something
        too steep for it. Below `stallMinSpeed` there is no momentum left to
-       fail: the floor push is already walking them back down the fall line,
-       which is the recovery, and knocking them over on the way is not a
+       fail: the recovery skate is already walking them back down the fall
+       line, and knocking them over on the way is not a
        physical event, it is a trap. */
     const canStall = this.world.canStall?.(pos.x, pos.z) ?? true;
     if (canStall && !this._contact.edgeAhead
@@ -585,8 +640,8 @@ export class Rider {
     const loadGrip = clamp(1 + this.bend * RIDER.loadGrip,
       RIDER.loadGripMin, RIDER.loadGripMax);
     const gripNow = surfaceGrip * engaged * loadGrip
-      * (input.brake ? 0.45 : 1)
-      * (input.tuck ? RIDER.tuckGrip : 1)
+      * (1 - braking * 0.55)
+      * (this.tucking ? RIDER.tuckGrip : 1)
       * (1 - RIDER.balanceGrip + RIDER.balanceGrip * this.balance);
 
     /* The edge the rider is *allowed* to set, measured against the grip they
@@ -614,8 +669,10 @@ export class Rider {
     ));
     const edgeCeiling = Math.min(RIDER.edgeMax, holdable * RIDER.edgeReach);
 
-    const wantEdge = clamp(input.turn, -1, 1) * edgeCeiling
-      * (input.tuck ? RIDER.tuckTurn : 1);
+    const edgeControl = clamp(input.turn, -1, 1) * (1 - braking)
+      + this.brakeSide * RIDER.brakeEdge * braking;
+    const wantEdge = edgeControl * edgeCeiling
+      * (this.tucking ? RIDER.tuckTurn : 1);
     this.edge = approach(this.edge, wantEdge, RIDER.edgeRate, dt);
 
     const sinEdge = Math.abs(Math.sin(this.edge));
@@ -647,9 +704,16 @@ export class Rider {
     if (pivot > 0) lipYawRate += input.turn * pivot;
 
     this.yaw += lipYawRate * dt;
-    // …and the brake is still the deliberate way to break it loose and pivot
-    if (input.brake) {
-      const pivotRate = input.turn * RIDER.brakePivot;
+    // A speed check kicks the tail around towards a transverse target. The
+    // rate closes smoothly near it, and pressure scales both the target and
+    // the authority so tapping S produces a check rather than a full stop.
+    if (brakeActive && speed > 0.35) {
+      const travelYaw = Math.atan2(vel.x, -vel.z);
+      const stanceYaw = travelYaw + (this.switchStance ? Math.PI : 0);
+      const brakeYaw = stanceYaw + this.brakeSide * RIDER.brakeAngle * braking;
+      const yawError = wrapPi(brakeYaw - this.yaw);
+      const pivotRate = clamp(yawError / 0.32, -1, 1)
+        * RIDER.brakePivot * braking;
       this.yaw += pivotRate * dt;
       lipYawRate += pivotRate;
     }
@@ -659,7 +723,7 @@ export class Rider {
        actually travelling, so a nudge does not leave you sideways forever.
 
        The speed gate used to be 1 m/s, which meant it was still running while
-       the rider was almost stationary — and since the floor push sends a
+       the rider was almost stationary — and since each skate stroke sends a
        stopped rider downhill along the tangent, the two together quietly
        rotated the board to face down the fall line whenever you came to a
        stop. From the outside that reads as the rider refusing to stand still
@@ -667,11 +731,11 @@ export class Rider {
        genuinely tracking and lining it up with the direction of travel is
        what keeps the handling honest; below it, a rider who has stopped is
        allowed to stay pointed wherever they stopped pointing. */
-    if (Math.abs(input.turn) < 0.05 && speed > 3.5) {
+    if (!brakeActive && Math.abs(input.turn) < 0.05 && speed > 3.5) {
       const travelYaw = Math.atan2(vel.x, -vel.z);
       const stanceYaw = travelYaw + (this.switchStance ? Math.PI : 0);
       this.yaw += wrapPi(stanceYaw - this.yaw) * (1 - Math.exp(-RIDER.selfCentre * dt));
-    } else if (Math.abs(input.turn) < 0.05 && speed < RIDER.fallLineSpeed) {
+    } else if (!brakeActive && Math.abs(input.turn) < 0.05 && speed < RIDER.fallLineSpeed) {
       /* …and below that, towards the fall line rather than towards the
          direction of travel, because a rider who has almost stopped has no
          meaningful direction of travel to line up with.
@@ -734,7 +798,7 @@ export class Rider {
       const travelYaw = Math.atan2(vel.x, -vel.z);
       const stanceYaw = travelYaw + (this.switchStance ? Math.PI : 0);
       const off = wrapPi(this.yaw - stanceYaw);
-      const limit = input.brake ? RIDER.brakeSkid : RIDER.maxSkid;
+      const limit = brakeActive ? RIDER.brakeSkid : RIDER.maxSkid;
       if (off > limit) this.yaw -= off - limit;
       else if (off < -limit) this.yaw -= off + limit;
     }
@@ -742,7 +806,7 @@ export class Rider {
     // A carve can cross almost the entire hill, but it cannot become a U-turn.
     // Killing the stored lip rate when the limit catches also prevents the
     // invisible excess rotation reappearing on the next jump.
-    const courseLimit = input.brake ? RIDER.brakeCourseLimit : RIDER.courseLimit;
+    const courseLimit = brakeActive ? RIDER.brakeCourseLimit : RIDER.courseLimit;
     if (this.limitCourseYaw(n, courseLimit)) this.spinVel = 0;
 
     /* What the edge could not hold becomes sideways speed — the wash-out —
@@ -788,39 +852,66 @@ export class Rider {
     const forwardSign = Math.sign(vFwd) || (this.switchStance ? -1 : 1);
     vFwd = forwardSign * Math.max(0, Math.abs(vFwd) - forwardLoss);
 
-    // A slide bleeds itself out as the base scrapes across the fall line
-    vLat *= Math.exp(-2.6 * dt);
+    // A deliberate braking sideslip remains broad and controllable; an
+    // accidental wash catches its edge and aligns much faster. Kinetic base
+    // friction below supplies the rest of the stop.
+    const slideDamping = 2.6
+      + (RIDER.brakeSlideDamping - 2.6) * braking;
+    vLat *= Math.exp(-slideDamping * dt);
 
-    // Braking is a hard sideways set-down: speed goes, powder flies
-    const mu = input.brake ? RIDER.brakeFriction : RIDER.friction;
+    // Pressure progressively moves from a waxed base to an edged speed check.
+    const mu = RIDER.friction
+      + (RIDER.brakeFriction - RIDER.friction) * braking;
     const dec = mu * (this.world.surfaceDrag ?? 1)
       * RIDER.gravity * Math.max(0.2, n.y);
-    if (input.brake) this.slide += speed * 0.35;
+    // The initial tail kick is already cutting snow before the board has
+    // reached full transverse velocity; afterwards real vLat dominates this.
+    this.slide += speed * 0.16 * braking;
 
     vel.copy(h).multiplyScalar(vFwd).addScaledVector(r, vLat);
 
-    // Kinetic friction, then air drag, then the tuck's reward
+    // Kinetic friction, then aerodynamic drag. A powered tuck bypasses the
+    // latter entirely; its speed floor is applied after the board has been
+    // brought back into a physically valid direction below.
     const sp = vel.length();
     if (sp > 1e-4) vel.multiplyScalar(Math.max(0, sp - dec * dt) / sp);
-    const over = Math.max(0, sp - RIDER.maxSpeed);
-    const drag = RIDER.drag * (input.tuck ? RIDER.tuckDrag : 1) * (1 + over * 0.35);
-    vel.multiplyScalar(Math.max(0, 1 - drag * sp * dt));
+    if (!this.tucking) {
+      const over = Math.max(0, sp - RIDER.dragKnee);
+      const drag = RIDER.drag * (1 + over * 0.35);
+      // Stable integration of dv/dt = -drag·v². Unlike the former Euler
+      // factor, this cannot turn negative and erase all momentum in one frame
+      // when W is released after an extreme-speed run.
+      vel.multiplyScalar(1 / (1 + drag * sp * dt));
+    }
 
-    /* Tucking earns speed by reducing aerodynamic drag; it is not an engine.
-       The only explicit push is the near-stop recovery assist, and that goes
-       downhill along the tangent rather than along whichever way the board's
-       nose happens to point. */
-    if (!input.brake && sp < RIDER.minSpeed) {
-      // On a bank, the steepest-downhill vector can point across the board in
-      // the opposite direction to the rider's last traverse. Blend course flow
-      // with the stance-adjusted board instead: the restart is downhill, but
-      // it is also unequivocally out of the leading end of the board.
-      const flow = this.courseFrame(n);
-      const boardTravel = this._p.set(Math.sin(this.yaw), 0, -Math.cos(this.yaw));
-      boardTravel.addScaledVector(n, -boardTravel.dot(n)).normalize();
-      if (this.switchStance) boardTravel.multiplyScalar(-1);
-      boardTravel.multiplyScalar(0.65).add(flow).normalize();
-      vel.addScaledVector(boardTravel, RIDER.minPush * dt);
+    /* One impulse per planted rear-foot stroke.
+
+       The phase is simulation state rather than an animation clock: the
+       powder puff, the boot plant and the speed gain therefore happen on the
+       same fixed 120 Hz step. The direction blends the board's legal leading
+       end with the generated course, so skating can free a stopped traverse
+       without ever pushing the rider uphill or tail-first. */
+    if (this.pushing) {
+      const before = this.pushPhase;
+      const advanced = before + RIDER.pushCadence * dt;
+      const wrapped = advanced >= 1;
+      this.pushPhase = advanced - Math.floor(advanced);
+
+      if (before < RIDER.pushPlant && advanced >= RIDER.pushPlant) {
+        const flow = this.courseFrame(n);
+        const stroke = this._g.set(Math.sin(this.yaw), 0, -Math.cos(this.yaw));
+        stroke.addScaledVector(n, -stroke.dot(n)).normalize();
+        if (this.switchStance) stroke.multiplyScalar(-1);
+        stroke.multiplyScalar(0.65).add(flow).normalize();
+        vel.addScaledVector(stroke, RIDER.pushImpulse);
+        this.pushStroke += 1;
+        this.emit('push', RIDER.pushImpulse, this.pushStroke);
+      }
+
+      if (wrapped && finishPush) {
+        this.pushing = false;
+        this.pushPhase = 0;
+      }
     }
 
     // Gravity, a collision or a severe wash-out may have arrived from outside
@@ -837,6 +928,22 @@ export class Rider {
     if (this.switchStance) boardTravel.multiplyScalar(-1);
     const tailFirst = vel.dot(boardTravel);
     if (tailFirst < 0) vel.addScaledVector(boardTravel, -tailFirst);
+
+    /* Guarantee continuous acceleration for every grounded step W is held.
+
+       Applying this after course and stance correction matters at very high
+       speed: it preserves the direction produced by the snow instead of
+       letting a forward impulse slowly steer the rider. Scaling also keeps
+       the rule exact through arbitrarily large finite speeds; there is no
+       target, curve, or clamp for it to asymptotically approach. */
+    if (poweredSpeed > 0) {
+      const drivenSpeed = vel.length();
+      if (drivenSpeed > 1e-5) {
+        if (drivenSpeed < poweredSpeed) vel.multiplyScalar(poweredSpeed / drivenSpeed);
+      } else {
+        vel.copy(boardTravel).multiplyScalar(poweredSpeed);
+      }
+    }
 
     // Charging an ollie loads the legs; releasing it unloads them
     if (input.jump) {
@@ -918,8 +1025,9 @@ export class Rider {
     let longestClearRun = 0;
     const startT = Math.min(dt, HZ);
     const sweepLength = horizontalSpeed * Math.max(0, HZ - startT);
-    const segments = Math.max(
-      3, Math.ceil(sweepLength / RIDER.launchSampleSpacing),
+    const segments = Math.min(
+      RIDER.launchSampleMax,
+      Math.max(3, Math.ceil(sweepLength / RIDER.launchSampleSpacing)),
     );
     let previousDistance = horizontalSpeed * startT;
     for (let k = 0; k <= segments; k++) {
@@ -1046,7 +1154,10 @@ export class Rider {
       const gy = this.world.height(pos.x, pos.z);
       this.extension = 0;
       pos.y = gy;
-      vel.y = clamp(surfaceVy, -RIDER.maxSpeed, RIDER.maxSpeed);
+      // This is the tangent's real vertical component, not a launch impulse.
+      // Capping it would become an indirect total-speed cap on steep terrain
+      // once the powered tuck reaches extreme velocity.
+      vel.y = surfaceVy;
     }
 
     /* The lean, which is no longer a look.
@@ -1173,7 +1284,9 @@ export class Rider {
   airStep(dt, input) {
     const { pos, vel } = this;
     this.airTime += dt;
-    this.tucking = false;
+    this.pushing = false;
+    this.brake = approach(this.brake, 0, RIDER.brakeRelease, dt);
+    this.tucking = !!input.tuck && !input.brake && this.brake < 0.05;
     this.slide = 0;
     this.carveLoad = 0;
     this.climbRate = 0;
@@ -1185,10 +1298,15 @@ export class Rider {
     // trims horizontal travel here, so it cannot create an apex float or
     // weaken the downward acceleration the player is judging.
     const startVy = vel.y;
+    const poweredAirSpeed = this.tucking
+      ? vel.length() + RIDER.tuckAcceleration * dt
+      : 0;
     vel.y -= RIDER.gravity * dt;
-    const airDrag = Math.max(0, 1 - RIDER.drag * 0.45 * vel.length() * dt);
-    vel.x *= airDrag;
-    vel.z *= airDrag;
+    if (!this.tucking) {
+      const airDrag = 1 / (1 + RIDER.drag * 0.45 * vel.length() * dt);
+      vel.x *= airDrag;
+      vel.z *= airDrag;
+    }
 
     // Spin. It winds up rather than snapping on, so a 180 and a 900 are
     // different amounts of commitment rather than different key presses.
@@ -1223,6 +1341,27 @@ export class Rider {
       const travelYaw = this.yaw - (this.switchStance ? Math.PI : 0);
       vel.x += Math.cos(travelYaw) * steer * dt;
       vel.z += Math.sin(travelYaw) * steer * dt;
+    }
+
+    // Keep the same unbounded W drive through jumps. Raise only the horizontal
+    // component by enough to reach the total-speed floor; vertical velocity
+    // remains the ballistic value gravity produced, so the jump arc and
+    // landing timing are not falsified even while total speed keeps climbing.
+    if (poweredAirSpeed > 0) {
+      const horizontal = Math.hypot(vel.x, vel.z);
+      const poweredHorizontal = Math.sqrt(Math.max(0,
+        poweredAirSpeed * poweredAirSpeed - vel.y * vel.y));
+      if (horizontal > 1e-5) {
+        if (horizontal < poweredHorizontal) {
+          const scale = poweredHorizontal / horizontal;
+          vel.x *= scale;
+          vel.z *= scale;
+        }
+      } else {
+        const travelYaw = this.yaw - (this.switchStance ? Math.PI : 0);
+        vel.x = Math.sin(travelYaw) * poweredHorizontal;
+        vel.z = -Math.cos(travelYaw) * poweredHorizontal;
+      }
     }
 
     pos.x += vel.x * dt;
@@ -1324,7 +1463,9 @@ export class Rider {
     const { pos, vel } = this;
     const r = this.rail;
     this.grindTime += dt;
-    this.tucking = false;
+    this.pushing = false;
+    this.brake = approach(this.brake, 0, RIDER.brakeRelease, dt);
+    this.tucking = !!input.tuck && !input.brake && this.brake < 0.05;
 
     const dx = r.x1 - r.x0;
     const dy = r.y1 - r.y0;
@@ -1336,9 +1477,15 @@ export class Rider {
 
     // Everything the rider has, resolved onto the one axis they are allowed
     let v = vel.x * ux + vel.y * uy + vel.z * uz;
+    const poweredRailSpeed = this.tucking
+      ? Math.abs(v) + RIDER.tuckAcceleration * dt
+      : 0;
     v += -RIDER.gravity * uy * dt;
     const scrub = RAIL.friction * RIDER.gravity * dt;
     v = v > 0 ? Math.max(0, v - scrub) : Math.min(0, v + scrub);
+    if (poweredRailSpeed > 0 && Math.abs(v) < poweredRailSpeed) {
+      v = (Math.sign(v) || 1) * poweredRailSpeed;
+    }
     vel.set(ux * v, uy * v, uz * v);
 
     pos.x += vel.x * dt;
@@ -1525,6 +1672,7 @@ export class Rider {
     this.tumble = 0;
     this.charge = 0;
     this.charging = false;
+    this.pushing = false;
     this.grab = 0;
     this.grabbing = false;
     this.grabTime = 0;
@@ -1540,7 +1688,11 @@ export class Rider {
     this.vel.y += Math.min(15, lift);
     this.pos.y = Math.max(this.pos.y, this.world.height(this.pos.x, this.pos.z) + 0.05);
     this.compressionVel += 8;
-    this.emit('fall', cause);
+    // Keep the impact that caused the fall attached to the event. The crash
+    // mix, powder plume and camera response all need the same physical number
+    // that launched the body; throwing it away here made every wipeout read
+    // identically, from a walking-speed washout to a full-speed tree hit.
+    this.emit('fall', cause, into);
   }
 
   /* A tumble is a body, not a timer. While it is off the ground it is
@@ -1550,6 +1702,7 @@ export class Rider {
      not be able to hold the run hostage. */
   fallStep(dt) {
     const { pos, vel } = this;
+    this.brake = approach(this.brake, 0, RIDER.brakeRelease, dt);
 
     if (this.state === 'fall') {
       this.fallElapsed += dt;
@@ -1690,6 +1843,7 @@ export class Rider {
 
     let target = load * RIDER.compressPerG * RIDER.gravity / 9.81;
     if (this.tucking) target = Math.max(target, RIDER.tuckCompress);
+    if (this.brake > 0) target = Math.max(target, RIDER.brakeCompress * this.brake);
     if (this.charging) target = RIDER.compressMax * (0.35 + 0.65 * this.charge);
     if (this.state === 'fall') target = RIDER.compressMax;
     if (!this.grounded && this.state !== 'fall') target = -0.12 * Math.min(1, this.airTime * 3);

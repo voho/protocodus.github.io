@@ -1,210 +1,32 @@
-/* The console, as four patches on every material in the world.
+/* Shared material enhancements for the Alpine world.
 
-   Four effects, and between them they are most of why the picture reads as
-   1996 rather than as a modern engine with the saturation turned up. All of
-   them are grafted onto three's own materials with `onBeforeCompile` rather
-   than replacing them, and that decision is worth defending: a hand-written
-   `ShaderMaterial` would have to reimplement the light loop, vertex colours,
-   instancing and flat shading before it drew a single facet, and every one of
-   those is already correct. What is wanted here is not a different renderer.
-   It is four specific lies told inside the one there is.
+   Three's own light loop remains authoritative. This module adds crystalline
+   snow response and direction-aware atmospheric fog while sharing the sky,
+   sun and weather uniforms across terrain, vegetation, structures and rider.
+   Geometry stays at its exact projected position and diffuse lighting remains
+   continuous; the former fixed-grid vertex snap and stepped light bands have
+   intentionally been retired. */
 
-   VERTEX SNAPPING. The console transformed vertices into a fixed-point screen
-   space and had no fractional pixels left over to put them between, so
-   everything on screen moved in whole pixels and geometry seen edge-on
-   visibly swam. It is the single most imitated thing about the era and the
-   single most often got wrong, in two ways that were both tried here first.
-   Rounding the vertex in world space snaps it to a grid of metres, which is
-   invisible at four hundred metres and shakes a model apart at four. Rounding
-   `gl_Position.xy` where it stands, without the perspective divide, is worse
-   and more tempting, because it looks right on anything near the camera: a
-   grid of g in clip space is a grid of g/w in NDC, so the further away a
-   vertex is the *finer* it snaps, and the wobble quietly disappears from
-   exactly the geometry the effect exists for.
+import { RENDER } from './config.js';
 
-   The real thing is done after the projection, in NDC, and scaled back out by
-   w — so a vertex snaps to the pixel grid it will actually be rasterised on.
-   A facet four hundred metres away then swims by whole metres and the same
-   facet at ten metres swims by centimetres, which is not an approximation of
-   what the hardware did, it is what the hardware did.
-
-   X and Y only. Snapping Z quantises the depth buffer as well, and two
-   coplanar facets that land on the same rung z-fight against each other for
-   the rest of the frame — the hill flickers, and it flickers worst where the
-   ground is flattest.
-
-   And nothing very close to the lens is snapped at all. This is the one place
-   the imitation has to be cheated, because the amplitude of the wobble is
-   fixed in *pixels* and the rider's own model is two hundred pixels tall: a
-   one-pixel step is invisible on a ridge and is a limb changing length on a
-   body. Hence a per-material strength — the rider gets a third of it and the
-   scenery gets all of it — and a global fade over the first few metres, so a
-   tree you are about to hit does not start vibrating as it fills the frame.
-
-   QUANTISED DIFFUSE. Gouraud-era hardware interpolated a handful of light
-   levels rather than evaluating a falloff, and the banding that came out of
-   it is more of the era's signature than the polygon count is. Five bands,
-   the top one reaching full and the bottom one reaching nothing, so the fill
-   light is the only thing holding the dark side of anything.
-
-   Imposing that turned out to be the awkward part. The obvious move is to
-   rewrite `lights_lambert_pars_fragment` and step `dotNL` at source, and it
-   was written that way first — but `onBeforeCompile` is handed the shader
-   with its `#include`s still unresolved, so the only text there is to match
-   on is the include line itself, and replacing a whole chunk of three's
-   lighting means owning a copy of it that goes stale the next time three
-   renames a parameter. What is here instead does not touch the light loop at
-   all: it waits until the loop has finished, works out what `dotNL` must have
-   been from the same normal and the same sun the loop used, and rescales the
-   accumulated direct diffuse by the ratio of the banded value to the smooth
-   one. There is exactly one directional light on this mountain, so that
-   rescale is not an approximation — it is the same number the loop would have
-   produced had it been stepped, arrived at from the other end.
-
-   SNOW IS NOT MATTE. Every lit material here is Lambert, which is to say
-   pure diffuse, which is to say the hill reflected light equally in every
-   direction and read as paper. Snow does not do that. It is a mass of ice
-   crystals with real faces on them, so it has a genuine specular response:
-   a broad sheen that slides across the slope as you ride, a glow where the
-   sun is behind a ridge and comes through the top few centimetres of it, and
-   a grazing-angle brightening that on a mountain seen down its own fall line
-   covers most of the picture. Three terms, opted into per material through
-   `opts.sheen`, because snow is the only surface here with any business
-   being shiny — the trees and the huts are still paper and should be.
-
-   Two decisions inside it are the interesting ones.
-
-   The specular is deliberately not banded, and it sits in the same block as
-   the banding rather than in front of it. Five rungs of diffuse with a smooth
-   highlight laid over them is the combination the era arrived at the moment
-   it had a highlight at all, and it is also the only arrangement that works
-   here: quantise a specular and every contour of the lobe becomes a hard ring
-   sliding across the hill. The banding is the art direction. The sheen is the
-   thing that says the surface is crystalline, and what it says it with is
-   motion.
-
-   And it is gated by a shadow term recovered rather than resampled. A sheen
-   that ignores shadows puts a highlight inside every tree's shadow and the
-   shadow stops reading as one. The honest fix is a second `getShadow` call,
-   which is a second soft PCF tap pattern per pixel over most of the screen,
-   and it was rejected on cost alone. What is here instead divides what the
-   light loop actually delivered by what it would have delivered unshadowed —
-   both in luminance, both already known — and what falls out is the shadow
-   factor the loop used, for two dots and a divide. Its failure mode is
-   graceful in the only direction that matters: get the sun's own radiance
-   wrong and the ratio clamps at one, which is a highlight that has stopped
-   noticing shadows rather than a hill with holes punched in it.
-
-   SKY-COLOURED FOG. Three's fog resolves towards one colour, and one colour
-   is a grey wall: a ridge to the west and a ridge to the east dissolve into
-   the same paint, at the exact hour when the west is on fire and the east is
-   already blue. This one resolves towards what the backdrop actually shows in
-   the fragment's own view direction, which means the shading has to know the
-   sky's own gradient — so `n64Sky` below is `sky.js`'s dome shader,
-   transcribed. That duplication is deliberate and it is the reason the block
-   of uniforms exists: both ends read the same numbers out of the weather every
-   frame, so the only way they can disagree is if somebody edits one function
-   and not the other, and the comment in both places says so.
-
-   One stop is deliberately not the dome's. Below the skyline what the eye is
-   given is not sky at all, it is the haze curtain and the ranges standing on
-   it — both painted in `weather.haze` — so the bottom stop here is the haze
-   and it lifts to the dome's own horizon over the first few degrees of sky.
-   Get that wrong and there is a hard horizontal seam across the picture where
-   the terrain mesh runs out and the curtain takes over.
-
-   The depth is radial rather than along the view axis, which three's is. At
-   sixty-two degrees of field that is a two per cent difference and nobody
-   would ever have noticed; the frame opens to eighty-six at speed, and at
-   eighty-six the corners of the screen are a third further from the camera
-   than the plane depth claims, so the curtain visibly bulged towards the
-   middle of the frame every time the rider tucked. */
-
-import { RENDER, BASE_WIDTH, BASE_HEIGHT } from './config.js';
-
-/* The snap, in the four numbers that decide what it looks like.
-
-   `cell` is how many framebuffer pixels wide a grid cell is, and it is one
-   for the same reason the buffer is 640×360: the grid the console snapped to
-   was the grid it drew on. Two was tried, on the theory that the wobble
-   wanted to be louder, and it is — it is louder than the geometry, and a hill
-   whose facets are visibly swimming faster than the rider is moving reads as
-   a bug rather than as hardware.
-
-   `near` and `full` are the metres over which snapping comes on. Below `near`
-   nothing is snapped; the division by w in there is also why — a vertex on
-   the near plane has a w near zero and an NDC in the thousands, and flooring
-   that is arithmetic nobody wants in a vertex shader. */
-export const SNAP = {
-  cell: 1,
-  near: 1.5,
-  full: 5.0,
-  /* …and where it goes away again. Half a pixel of error is centimetres at
-     five metres and metres at three hundred, so past `fade` the snap is worth
-     less than the flicker it costs, and by `gone` there is none of it left.
-     See the note in VERT_SNAP. */
-  fade: 45.0,
-  gone: 120.0,
-  scenery: 1.0,
-  rider: 0.3,
-};
-
-/* Five, which is about the most a snowfield will take. Snow is one colour
-   over most of the screen, so every band is a contour line drawn right across
-   the picture: at eight the hill reads as a topographic map, and at three it
-   reads as a mistake. The bands run 0, ¼, ½, ¾, 1 — the bottom one is
-   genuinely black in direct light, and everything visible on the dark side of
-   a tree is the hemisphere fill doing its job. */
-export const BANDS = 5;
-
-/* Snow as a material, in the five numbers that shape its highlight.
-
-   `gloss` is the Blinn exponent and it is low on purpose. A tight lobe is
-   what a wet or polished surface has; a snowfield's crystals lie at every
-   angle, so the mirror direction is smeared over tens of degrees and what
-   comes out is the glare path you actually see walking towards a low sun over
-   snow — a broad wedge of light lying on the ground and pointing at the sun,
-   not a spot. There is a second reason to keep it wide, and it is the flat
-   shading: the normal is constant across a facet, so a tight lobe means
-   neighbouring facets take wildly different values and the hill breaks into a
-   mosaic that flickers as the sun moves.
-
-   Thirteen and eight were both measured, on a frozen frame with the sheen
-   toggled, and they put light in very nearly the same places — which is worth
-   recording, because it says the exponent is not what is shaping this. The
-   geometry is. A rider on a piste is looking almost along the ground, so the
-   half-vector sits far off the normal nearly everywhere and the lobe only
-   opens up on facets tilted towards the mirror direction; that is why the
-   sheen arrives as a path across the middle distance rather than as a wash,
-   and why it is worth having at all. Eight, because between two numbers that
-   measure the same it should be the one that matches the material.
-
-   `strength` is the reflectance at normal incidence, and it is the number the
-   whole thing lives or dies by. This is a five-bit picture with a highlight
-   shoulder and a bloom threshold at 0.78, so a specular that reaches the top
-   of the scale does not clip gracefully — it quantises into rings and blooms
-   them. Lit snow already sits at about 0.84 in linear light before any of
-   this; a sixth of the sun on top of that lands inside the shoulder's roll-
-   off, which is exactly where it should be arriving.
-
-   `fresnel` is the grazing term, and it is a separate number rather than a
-   Schlick ramp on `strength` because it is a different thing being seen. The
-   lobe is the sun; this is the sky, and it is tinted with the sky because
-   that is what a grazing surface is showing you. It is also why the snow goes
-   blue at the far end of the slope rather than white — the dome up there is
-   navy, and the rule on this mountain is that the only thing allowed to make
-   snow warm is a low sun.
-
-   `wrap` and `wrapGain` are the forward scatter: how far round the terminator
-   light bleeds, and how much of it arrives. Snow is deep and translucent for
-   a few centimetres, so a ridge with the sun behind it is lit through rather
-   than merely silhouetted. Gated on looking towards the sun, which is what
-   makes it a rim on the ridge in front of you and not a general lift on
-   everything facing away. */
+/* Snow is a rough dielectric, not white paint. A GGX microfacet response
+   carries the sun, Schlick Fresnel replaces the body colour with reflected sky
+   at grazing angles, and a small wrapped term models light travelling through
+   the upper centimetres of a ridge. The snowpack supplies a broad smoothness
+   field: powder stays rough, while wind slab and compacted piste tighten the
+   lobe. Falling snow and distance roughen it again before an undersampled
+   highlight can shimmer. */
 export const SHEEN = {
-  gloss: 8,
-  strength: 0.16,
-  fresnel: 0.11,
+  /* Dielectric snow/ice microfacets. Fresh powder is very rough, while wind
+     slab and compacted piste tighten the same GGX response without becoming a
+     polished mirror. F0 is close to real ice at normal incidence; the gains
+     account for a snow surface being a volume of many crystal interfaces. */
+  f0: 0.018,
+  roughFresh: 0.68,
+  roughIce: 0.30,
+  sunGain: 0.65,
+  envFresh: 0.14,
+  envIce: 0.48,
   wrap: 0.5,
   wrapGain: 0.1,
 };
@@ -226,14 +48,6 @@ const LUMA = 'vec3(0.2126, 0.7152, 0.0722)';
 const SNOW_LO = 0.22;
 const SNOW_HI = 0.42;
 
-/* How much of the top of each band rolls smoothly into the next, as a
-   fraction of the band. It wants to be nearly nothing — the whole point is a
-   hard step — but not actually nothing: flat shading takes its normal from
-   screen-space derivatives, so exactly on the boundary between two facets the
-   normal is a blend of both, and with an infinitely hard step that one-pixel
-   seam sparkles as a line of the wrong band. */
-const BAND_EDGE = 0.06;
-
 // Baking a JS constant into the shader source rather than sending it as a
 // uniform: these never change at runtime, and a literal is one less uniform
 // for every material in the world to carry
@@ -241,43 +55,13 @@ const asFloat = (n) => n.toFixed(4);
 
 const VERT_PARS = `
 varying vec3 vN64View;
-uniform vec2 uSnapGrid;
-uniform float uSnap;`;
+varying float vN64Ice;`;
 
-const VERT_SNAP = `
+// Keep the view-space position for snow reflections and radial atmosphere.
+// Projected geometry is left untouched so motion remains sub-pixel smooth.
+const VERT_VIEW = `
   vN64View = mvPosition.xyz;
-  {
-    // gl_Position.w is the distance along the view axis, so this is a fade in
-    // metres and a guard against dividing by a w of nothing, in one number
-    /* Snapping has a far edge as well as a near one, and it is the far one
-       that matters most.
-
-       The wobble is a *near-field* effect. A vertex snapped to the pixel grid
-       moves by up to half a pixel, and half a pixel of a surface three metres
-       away is a couple of centimetres — which is the intended judder. Half a
-       pixel of a ridge three hundred metres away is several metres of
-       mountain, and since the snap is recomputed every frame from a camera
-       that is moving, every distant facet flips between two positions
-       continuously. That is not the console's wobble; on the console the far
-       field was a handful of pixels tall and the same error was invisible.
-       Here it is a shimmer across the whole horizon — terrain that flickers
-       rather than terrain that emerges from the haze.
-
-       So it fades back out with distance and the far field is left alone
-       entirely. What is left is exactly the band where the effect is legible
-       as an effect: the ground under and just ahead of the rider. */
-    float n64Snap = uSnap
-      * smoothstep(${asFloat(SNAP.near)}, ${asFloat(SNAP.full)}, gl_Position.w)
-      * (1.0 - smoothstep(${asFloat(SNAP.fade)}, ${asFloat(SNAP.gone)}, gl_Position.w));
-    if (n64Snap > 0.0) {
-      vec2 ndc = gl_Position.xy / gl_Position.w;
-      // Into pixels, onto the nearest pixel corner, and back out again. The
-      // multiply by w at the end is what puts the vertex back into clip
-      // space, and it is the whole reason the wobble scales with distance.
-      vec2 cell = floor((ndc * 0.5 + 0.5) * uSnapGrid + 0.5) / uSnapGrid * 2.0 - 1.0;
-      gl_Position.xy = mix(ndc, cell, n64Snap) * gl_Position.w;
-    }
-  }`;
+  vN64Ice = 0.0;`;
 
 /* THE CLOUD DECK, and the reason it lives in this file rather than in the one
    that draws the sky.
@@ -384,6 +168,7 @@ vec3 n64DeckShade(float thick, float lobe, vec3 haze, vec3 horizon, vec3 glow) {
    included by this file and by `sky.js`, and there is exactly one copy of it. */
 const FRAG_PARS = `
 varying vec3 vN64View;
+varying float vN64Ice;
 uniform vec3 uSkyZenith;
 uniform vec3 uSkyMid;
 uniform vec3 uSkyHorizon;
@@ -396,23 +181,12 @@ uniform float uSunLevel;
 uniform float uGlowStrength;
 uniform float uFogNear;
 uniform float uFogFar;
-uniform float uBands;
 uniform float uSheen;
+uniform float uSnowFresh;
 uniform float uCloud;
 uniform vec2 uCloudDrift;
 
 ${SKY_GLSL}
-
-/* How hard this pixel is sitting in the specular lobe, left where anything
-   downstream can read it. The terrain's glitter is the only thing that does,
-   and it wants it because the two effects are the same crystals at two
-   scales: the broad sheen is the average of a great many facets aimed
-   roughly at the sun, and a glint is one facet aimed exactly at it, so the
-   glints belong in the band where the sheen is and not scattered evenly over
-   the hill. It is initialised rather than merely declared because a material
-   that did not ask for a sheen never assigns it, and a reader that gets an
-   undefined float back is a shader bug that only shows up on one driver. */
-float n64Spec = 0.0;
 
 vec3 n64Sky(vec3 dir) {
   float up = dir.y;
@@ -429,25 +203,40 @@ vec3 n64Sky(vec3 dir) {
   vec2 deck = n64Deck(dir, uCloudDrift, uCloud);
   c = mix(c, n64DeckShade(deck.y, lobe, uSkyHaze, uSkyHorizon, uSkyGlow), deck.x);
   return c;
+}
+
+/* A rough snow reflection cannot resolve the cloud deck's cells, so sampling
+   all three procedural cloud octaves a second time for every terrain pixel is
+   both physically wrong and expensive. This is the same atmospheric dome and
+   sun lobe, analytically prefiltered to its cloud-free low frequencies. */
+vec3 n64SkyReflect(vec3 dir) {
+  float up = dir.y;
+  vec3 low = mix(uSkyHaze, uSkyHorizon, smoothstep(0.0, 0.10, up));
+  vec3 c = mix(
+    mix(low, uSkyMid, smoothstep(-0.05, 0.14, up)),
+    uSkyZenith,
+    smoothstep(0.10, 0.52, up)
+  );
+  float lobe = max(0.0, dot(dir, uSunDir));
+  c += uSkyGlow * (pow(lobe, 7.0) * 0.85 + pow(lobe, 2.0) * 0.14)
+    * uGlowStrength * (1.0 - smoothstep(0.1, 0.75, up) * 0.55);
+  return c;
 }`;
 
 /* Both things that happen after the light loop share one opening, because
    both of them start from the same question — where is the sun, from here?
 
-   `normal` is three's own shading normal, in view space, and `uSunView` is the
-   key light's direction pushed through the same view matrix on the CPU — so
-   `n64NL` is the `dotNL` the light loop has just finished using, recovered
-   rather than intercepted. The signed value is kept as well as the clamped
-   one: the banding only ever wants the clamp, and the forward-scatter term
-   below exists precisely for the surfaces where it is negative. */
+   `normal` is Three's own shading normal, in view space, and `uSunView` is the
+   key light's direction pushed through the same view matrix on the CPU. The
+   signed value is kept as well as the clamped one because the forward-scatter
+   term exists precisely for surfaces where it is negative. */
 const FRAG_SUN = `
   {
     float n64NL = dot(normal, uSunView);
     float n64Lit = clamp(n64NL, 0.0, 1.0);`;
 
-/* Recovering the shadow, and the reason it is done here rather than in the
-   sheen block below: the banding rescales `directDiffuse`, so this has to
-   read it first or it would be measuring the rungs instead of the shadow.
+/* Recovering the shadow here avoids a second PCF shadow-map lookup for every
+   snow pixel.
 
    One directional light means `directDiffuse` is exactly
    `albedo · dotNL · sunRadiance · shadow / π`, and every term in that but the
@@ -463,23 +252,6 @@ const FRAG_RECOVER = `
       dot(reflectedLight.directDiffuse, ${LUMA})
         / max(n64Alb * n64Lit * dot(n64Sun, ${LUMA}) * RECIPROCAL_PI, 1e-5),
       0.0, 1.0);`;
-
-/* Five rungs instead of a falloff, arrived at after the fact.
-
-   Divide the smooth `dotNL` back out, multiply the rung in, and what is left
-   is what a stepped light loop would have accumulated.
-
-   The `max` is only there for the terminator. Where `n64Lit` is nothing the
-   rung is nothing too, and 0/0 is the one number that would put a hole in the
-   hill. */
-const FRAG_BANDS = `
-    {
-      float t = n64Lit * uBands;
-      float rung = floor(t);
-      rung += smoothstep(${asFloat(1 - BAND_EDGE)}, 1.0, t - rung);
-      float banded = min(rung, uBands - 1.0) / (uBands - 1.0);
-      reflectedLight.directDiffuse *= banded / max(n64Lit, 1e-3);
-    }`;
 
 /* The snow's three specular terms, all of them added to the direct diffuse
    for the plainest of reasons: `MeshLambertMaterial`'s outgoing light in
@@ -497,12 +269,10 @@ const FRAG_BANDS = `
 
    The three terms, in the order the eye notices them:
 
-   THE LOBE, which is the sun in a very rough mirror. It carries `n64Open`, so
-   it is absent inside a shadow, and it carries a Fresnel boost, because the
-   same crystal faces reflect harder the more edge-on you catch them. The
-   boost is bounded at double and needs no clamp beyond that: a strong lobe
-   needs the half-vector near the normal and grazing needs the view far from
-   it, and the two cannot both be true.
+   THE LOBE, which is the sun in a rough dielectric mirror. GGX supplies the
+   crystal-facet distribution, Schlick-Smith the visibility and Schlick the
+   Fresnel colour. It carries `n64Open`, so a cast shadow removes the reflected
+   sun without removing the reflected sky.
 
    THE FORWARD SCATTER, which is the sun coming *through* the snow. Snow is
    translucent for a few centimetres, so the wrap lights the shoulder of a
@@ -510,7 +280,7 @@ const FRAG_BANDS = `
    which is what `n64Fwd` is for. Cubed, so it is a rim on the one ridge
    between you and the light rather than a wash over everything.
 
-   THE SKY, at grazing angles. Fresnel is the only one of the three that
+   THE SKY, strongest at grazing angles. Fresnel is the only one of the three that
    ignores the sun entirely, and it should: a grazing surface is showing you a
    reflection of the dome, so it is `n64Sky` in the mirror direction and it
    stays in palette by construction — navy where the dome is navy, amber only
@@ -541,27 +311,57 @@ const FRAG_SHEEN = `
     float n64Snow = smoothstep(${asFloat(SNOW_LO)}, ${asFloat(SNOW_HI)}, n64Alb) * uSheen;
     // Rock, and every material that never asked, leave before the expensive
     // half of this — which is the second sky evaluation, and that function is
-    // two pow instructions. The same guard the terrain's own detail and
-    // glitter blocks use, for the same reason.
+    // two pow instructions. The snow/rock mask avoids that work on cliffs.
     // (No back-ticks in here: this comment is inside a template literal.)
     if (n64Snow > 0.002) {
       vec3 n64V = normalize(-vN64View);
-      float n64F = pow(1.0 - clamp(dot(normal, n64V), 0.0, 1.0), 5.0);
+      float n64NoV = max(dot(normal, n64V), 0.04);
+      float n64NoL = n64Lit;
+      vec3 n64HalfSum = uSunView + n64V;
+      vec3 n64H = n64HalfSum * inversesqrt(max(dot(n64HalfSum, n64HalfSum), 1e-6));
+      float n64NoH = max(dot(normal, n64H), 0.0);
+      float n64VoH = max(dot(n64V, n64H), 0.0);
 
-      vec3 n64H = normalize(uSunView + n64V);
-      n64Spec = pow(max(dot(normal, n64H), 0.0), ${asFloat(SHEEN.gloss)}) * n64Open;
-      vec3 n64Add = n64Sun * (RECIPROCAL_PI * ${asFloat(SHEEN.strength)}
-        * n64Spec * (1.0 + n64F));
+      // The snowpack field controls roughness, then weather and distance push
+      // it back towards powder. This is the reflection LOD: no sharp lobe is
+      // allowed to survive into a footprint too small to resolve it.
+      float n64Smooth = clamp(vN64Ice, 0.0, 1.0);
+      n64Smooth *= 1.0 - uSnowFresh * 0.72;
+      n64Smooth *= 1.0 - smoothstep(90.0, 180.0, length(vN64View));
+      float n64Rough = mix(${asFloat(SHEEN.roughFresh)},
+        ${asFloat(SHEEN.roughIce)}, n64Smooth);
 
+      // GGX/Trowbridge-Reitz distribution with Schlick-Smith visibility and
+      // Schlick Fresnel. Continuous normals plus analytic filtering keep this
+      // physically shaped highlight stable where stochastic glints would alias.
+      float n64A = n64Rough * n64Rough;
+      float n64A2 = n64A * n64A;
+      float n64Den = n64NoH * n64NoH * (n64A2 - 1.0) + 1.0;
+      float n64D = n64A2 / (PI * n64Den * n64Den + 1e-5);
+      float n64K = n64Rough + 1.0;
+      n64K = n64K * n64K * 0.125;
+      float n64Gv = n64NoV / (n64NoV * (1.0 - n64K) + n64K);
+      float n64Gl = n64NoL / (n64NoL * (1.0 - n64K) + n64K);
+      vec3 n64Fs = mix(vec3(${asFloat(SHEEN.f0)}), vec3(1.0),
+        pow(1.0 - n64VoH, 5.0));
+      vec3 n64Add = n64Sun * n64Fs
+        * (n64D * n64Gv * n64Gl / max(4.0 * n64NoV * max(n64NoL, 0.001), 1e-4))
+        * n64NoL * n64Open * ${asFloat(SHEEN.sunGain)};
       float n64Back = clamp((n64NL + ${asFloat(SHEEN.wrap)})
         / ${asFloat(1 + SHEEN.wrap)}, 0.0, 1.0) - n64Lit;
       float n64Fwd = clamp(-dot(uSunView, n64V), 0.0, 1.0);
       n64Add += n64Sun * (RECIPROCAL_PI * ${asFloat(SHEEN.wrapGain)}
         * n64Back * n64Fwd * n64Fwd * n64Fwd);
 
+      float n64Fenv = ${asFloat(SHEEN.f0)}
+        + (1.0 - ${asFloat(SHEEN.f0)}) * pow(1.0 - n64NoV, 5.0);
+      vec3 n64R = normalize(reflect(-n64V, normal) * mat3(viewMatrix));
+      vec3 n64Env = n64SkyReflect(n64R);
+      // A rough reflection sees the average dome rather than a sharp patch.
+      n64Env = mix(uSkyMid, n64Env, mix(0.42, 0.92, n64Smooth));
       vec3 n64Body = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse;
-      n64Add += (n64Sky(normalize(reflect(-n64V, normal) * mat3(viewMatrix))) - n64Body)
-        * (n64F * ${asFloat(SHEEN.fresnel)});
+      n64Add += (n64Env - n64Body) * (n64Fenv
+        * mix(${asFloat(SHEEN.envFresh)}, ${asFloat(SHEEN.envIce)}, n64Smooth));
 
       reflectedLight.directDiffuse += n64Add * n64Snow;
     }`;
@@ -569,13 +369,10 @@ const FRAG_SHEEN = `
 const FRAG_SUN_END = `
   }`;
 
-/* Whatever this material asked for, in the one order that is correct: the
-   shadow read before the banding rewrites what it is read from, and the
-   specular added after the banding so the banding cannot step it. */
-function lightPatch(bands, sheen) {
+/* Recover the light-loop shadow before adding the snow response. */
+function lightPatch(sheen) {
   return FRAG_SUN
     + (sheen ? FRAG_RECOVER : '')
-    + (bands ? FRAG_BANDS : '')
     + (sheen ? FRAG_SHEEN : '')
     + FRAG_SUN_END;
 }
@@ -593,8 +390,17 @@ const FRAG_FOG = `
     gl_FragColor.rgb = mix(gl_FragColor.rgb, n64Sky(n64Dir), n64Fog);
   }`;
 
+/* Camera collision can put the lens inside a conifer even after the boom has
+   shortened as far as composition allows. Fade only the geometry inside a
+   small sphere around the lens; AlphaHash turns fractional coverage into
+   stable, depth-writing screen-door transparency without the sorting errors
+   blended instanced trees would introduce. */
+const FRAG_CAMERA_FADE = `#include <alphamap_fragment>
+  diffuseColor.a *= smoothstep(2.2, 6.5, length(vN64View));`;
+
 const LIGHT_ANCHOR = '#include <lights_fragment_end>';
 const FOG_ANCHOR = '#include <fog_fragment>';
+const ALPHA_ANCHOR = '#include <alphamap_fragment>';
 
 export function createShading(THREE) {
   /* The shared block. Every patched material is handed *these* objects rather
@@ -618,8 +424,8 @@ export function createShading(THREE) {
        `key.color · key.intensity` — so the sheen is lit by the same lamp the
        diffuse is. Splitting at the luminance would have been the obvious
        move and is a trap: an amber key normalised that way comes out with a
-       red channel above two, and the terrain's glitter multiplies by this
-       tint directly, so every glint at dusk would have gone scarlet. Capped
+       red channel above two, which makes a dusk reflection turn scarlet.
+       Capped
        at the brightest channel, the tint is a colour in the ordinary sense —
        nothing in it is over one, and it is safe anywhere. */
     uSunTint: { value: new THREE.Color('#ffffff') },
@@ -627,7 +433,7 @@ export function createShading(THREE) {
     uGlowStrength: { value: 1 },
     uFogNear: { value: RENDER.fogNear },
     uFogFar: { value: RENDER.fogFar },
-    uSnapGrid: { value: new THREE.Vector2(BASE_WIDTH, BASE_HEIGHT) },
+    uSnowFresh: { value: 0 },
     // The deck. `sky.js` owns both numbers and writes them into the dome's own
     // copies at the same moment — see `SKY_GLSL`.
     uCloud: { value: 0 },
@@ -638,26 +444,22 @@ export function createShading(THREE) {
 
   /* Patch one material.
 
-     `opts.snap` is the per-material strength, `opts.bands` the number of
-     light levels (0 for anything unlit — a window pane has no diffuse term to
-     step), `opts.sheen` how much of the snow specular this surface gets, and
-     `opts.fog` false for anything additive, which cannot be fogged because
-     mixing towards the haze and adding to the picture are opposite
-     operations.
+     `opts.sheen` controls how much crystalline snow response this surface
+     gets, `opts.fog` is false for additive surfaces, and `opts.cameraFade`
+     reserves a clear bubble around the lens for instanced vegetation.
 
      `sheen` defaults to nothing, and that is the whole of the policy. Only
      the terrain asks for it. A spruce is not shiny, a hut wall is not shiny,
      and the rider is a matte jacket over a matte pair of trousers — turning
      it on globally would have been one line and would have put a highlight on
-     everything on the mountain, which is precisely the modern look the rest
-     of this file is spent avoiding.
+     every surface instead of describing the material it belongs to.
 
      Two things here are less obvious than they look.
 
      Any `onBeforeCompile` the material already had is called first and its
-     edits are kept, which is what lets the terrain keep its corduroy and its
-     glitter — both of which anchor on the same fog include this replaces, and
-     both of which are written to leave that include in place behind them.
+     edits are kept, which is what lets the terrain retain its generated macro
+     albedo and smooth height-field normal before this shared light pass is
+     installed.
 
      And `customProgramCacheKey` is not decoration. Three caches compiled
      programs across materials on a key that, by default, is the *text* of
@@ -668,22 +470,13 @@ export function createShading(THREE) {
      different: the patches asked for, and the text of whatever the material
      was already doing to itself. */
   function apply(material, opts = {}) {
-    if (material.userData.n64) return material;
+    if (material.userData.alpenShading) return material;
 
-    const snap = opts.snap === undefined ? SNAP.scenery : opts.snap;
-    const bands = opts.bands === undefined ? BANDS : opts.bands;
     const sheen = opts.sheen === undefined ? 0 : opts.sheen;
     const wantFog = opts.fog !== false;
-    // The three per-material uniforms, hung on the material itself as well as
-    // handed to the shader — partly so a second `apply` can see it has
-    // already been here, and partly because it makes the whole look tunable
-    // from the console: `terrain.mesh.material.userData.n64.uBands.value = 2`
-    // is the fastest way to find out whether five bands is the right number,
-    // and `uSheen.value = 0` is the fastest way to see what the snow looked
-    // like before it had a highlight on it.
+    const cameraFade = opts.cameraFade === true;
+    // Keep the snow response live-tunable without recompiling a material.
     const own = {
-      uSnap: { value: snap },
-      uBands: { value: bands },
       uSheen: { value: sheen },
     };
 
@@ -696,20 +489,18 @@ export function createShading(THREE) {
 
       shader.vertexShader = shader.vertexShader
         .replace('#include <common>', `#include <common>${VERT_PARS}`)
-        .replace('#include <project_vertex>', `#include <project_vertex>${VERT_SNAP}`);
+        .replace('#include <project_vertex>', `#include <project_vertex>${VERT_VIEW}`);
 
       let frag = shader.fragmentShader
         .replace('#include <common>', `#include <common>${FRAG_PARS}`);
-      // Only a lit material has a light loop to step, and only three's own
-      // fog slot is a safe place to put ours — an unlit or additive material
-      // has neither, and asking for them is how a silent no-op happens.
-      // Both light-loop patches go in as one string for one anchor: two
-      // successive replaces on the same include would have put the second
-      // one *above* the first, and above is the wrong side of the banding
-      const wantBands = bands >= 2;
-      if ((wantBands || sheen > 0) && frag.indexOf(LIGHT_ANCHOR) !== -1) {
+      if (cameraFade && frag.indexOf(ALPHA_ANCHOR) !== -1) {
+        frag = frag.replace(ALPHA_ANCHOR, FRAG_CAMERA_FADE);
+      }
+      // Only a lit material exposes the light-loop anchor used by the snow
+      // response. The custom fog owns Three's fog slot on opaque surfaces.
+      if (sheen > 0 && frag.indexOf(LIGHT_ANCHOR) !== -1) {
         frag = frag.replace(LIGHT_ANCHOR,
-          `${LIGHT_ANCHOR}${lightPatch(wantBands, sheen > 0)}`);
+          `${LIGHT_ANCHOR}${lightPatch(true)}`);
       }
       if (wantFog && frag.indexOf(FOG_ANCHOR) !== -1) {
         frag = frag.replace(FOG_ANCHOR, FRAG_FOG);
@@ -717,8 +508,8 @@ export function createShading(THREE) {
       shader.fragmentShader = frag;
     };
 
-    const key = `n64|${snap > 0 ? 's' : ''}|${bands >= 2 ? 'b' : ''}`
-      + `|${sheen > 0 ? 'p' : ''}|${wantFog ? 'f' : ''}`
+    const key = `alpen|${sheen > 0 ? 'p' : ''}|${wantFog ? 'f' : ''}`
+      + `|${cameraFade ? 'c' : ''}`
       + `|${hadPrev ? prev.toString() : ''}`;
     material.customProgramCacheKey = () => key;
 
@@ -726,7 +517,8 @@ export function createShading(THREE) {
     // filled is where ours goes instead, and the varying it would have added
     // is one this does not need
     material.fog = false;
-    material.userData.n64 = own;
+    if (cameraFade) material.alphaHash = true;
+    material.userData.alpenShading = own;
     material.needsUpdate = true;
     return material;
   }
@@ -741,11 +533,9 @@ export function createShading(THREE) {
      reference to the sky, and the sky is the one thing on the mountain that
      is drawn without any of this.
 
-     `uSunView` is the only thing here that needs the camera. The banded
-     diffuse compares the sun against three's own view-space normal, and the
-     alternative — carrying the world normal into the fragment shader — is a
-     varying that flat shading would immediately contradict, because a flat
-     normal comes from screen derivatives and not from the vertices. */
+     `uSunView` is the only thing here that needs the camera. The snow response
+     compares the sun against Three's own view-space normal, so it remains in
+     agreement with each material's diffuse lighting and shadowing. */
   function update(w, camera) {
     uniforms.uSkyZenith.value.copy(w.zenith);
     uniforms.uSkyMid.value.copy(w.mid);
@@ -755,6 +545,7 @@ export function createShading(THREE) {
     uniforms.uGlowStrength.value = 1 - w.storm * 0.8;
     uniforms.uFogNear.value = w.fogNear;
     uniforms.uFogFar.value = w.fogFar;
+    uniforms.uSnowFresh.value = w.storm;
     uniforms.uCloud.value = w.cloud;
     uniforms.uCloudDrift.value.set(w.cloudX, w.cloudZ);
 
@@ -781,22 +572,6 @@ export function createShading(THREE) {
     camera.updateMatrixWorld();
     viewInv.copy(camera.matrixWorld).invert();
     uniforms.uSunView.value.copy(sunDir).transformDirection(viewInv);
-
-    /* The grid is the framebuffer, not a constant — the buffer grows past
-       640×360 on a window that is not sixteen by nine, and the wobble has to
-       grow with it or a 21:9 monitor gets a finer one than a laptop does.
-
-       Read defensively, and asked every frame rather than once, because it is
-       `retro.setSize` that owns this number and it can write a new one at any
-       point: a laptop moved to an external display changes the pixel ratio,
-       which changes the buffer, which changes the grid the whole mountain
-       snaps to. Reading it at construction would have pinned the wobble to
-       whatever window the page happened to open in. */
-    const buffer = RENDER.buffer || {};
-    uniforms.uSnapGrid.value.set(
-      Math.max(1, Math.round((buffer.width || BASE_WIDTH) / SNAP.cell)),
-      Math.max(1, Math.round((buffer.height || BASE_HEIGHT) / SNAP.cell)),
-    );
   }
 
   return { uniforms, apply, update };

@@ -1,38 +1,11 @@
-/* The look, in four passes.
+/* The Alpine post stack.
 
-   Late-nineties console constraints treated as an art direction, executed
-   with a precision that hardware never had. The constraints are real ones and
-   they are kept honestly; what is added on top is everything those machines
-   would have done if they could.
-
-   THE CONSTRAINTS
-
-   Low-poly geometry, flat facets, vertex-lit colour bands and a five-bit
-   dithered grade. The old version also imitated the output resolution of the
-   hardware. This one does not: the world is rendered at the panel's native
-   resolution (with a measured quality governor for fragile GPUs), so the
-   mountain is crisp on any window while its forms and colour still belong to
-   the era.
-
-   Sixteen-bit colour: five bits a channel, through a 4×4 Bayer matrix. That
-   is literally what the console did squeezing its framebuffer into R5G5B5,
-   and the ordered dither is what those machines used to hide it. Without the
-   dither a snowfield at five bits is a contour map; with it, it is grain,
-   and the sky gets the stippled gradient that is half the signature.
-
-   THE MODERN HALF
-
-   A highlight shoulder, so lit snow rolls off towards white instead of
-   clipping flat and losing every fold in it. Bloom, from a bright pass at a
-   quarter resolution. And crepuscular rays, marched from each pixel towards
-   the sun's position on screen through the same bright buffer — which is the
-   one effect here that no machine of that era could have attempted and the
-   one that most makes a low sun over a ridge look like weather.
-
-   The bright extraction and rays stay at quarter resolution; the final
-   composite is native. All of it happens *before* the quantise, so it is
-   dithered down to five bits together and never looks like a modern effect
-   pasted on top of an old picture. */
+   The world and final composite render at native display resolution, with a
+   measured quality governor for GPUs that cannot sustain it. Quarter-
+   resolution bright extraction drives soft bloom and crepuscular rays. The
+   native composite adds a highlight shoulder, atmospheric colour grade and
+   speed-responsive peripheral motion while preserving full colour precision
+   and smooth gradients. */
 
 import { RENDER, GRADE, BASE_WIDTH, BASE_HEIGHT } from './config.js';
 
@@ -54,6 +27,7 @@ const VERT = `
 const BRIGHT_FRAG = `
   precision mediump float;
   uniform sampler2D tDiffuse;
+  uniform sampler2D tAO;
   uniform vec2 uTexel;
   uniform float uThreshold;
   varying vec2 vUv;
@@ -64,6 +38,7 @@ const BRIGHT_FRAG = `
            + texture2D(tDiffuse, vUv + vec2(-uTexel.x,  uTexel.y)).rgb
            + texture2D(tDiffuse, vUv + vec2( uTexel.x,  uTexel.y)).rgb;
     c *= 0.25;
+    c *= texture2D(tAO, vUv).r;
     float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
     gl_FragColor = vec4(c * smoothstep(uThreshold, uThreshold + 0.35, l), 1.0);
   }
@@ -144,10 +119,11 @@ const BLUR_FRAG = `
 `;
 
 const FRAG = `
-  precision mediump float;
+  precision highp float;
   uniform sampler2D tDiffuse;
   uniform sampler2D tBright;
   uniform sampler2D tRays;
+  uniform sampler2D tAO;
   uniform vec3 uShadow;
   uniform vec3 uHighlight;
   uniform float uTint;
@@ -155,13 +131,14 @@ const FRAG = `
   uniform float uSaturation;
   uniform float uVignette;
   uniform float uSpeedVignette;
-  uniform float uLevels;
   uniform float uFade;
   uniform float uBlur;
   uniform float uAberration;
   uniform float uBloom;
   uniform float uRays;
   uniform float uShoulder;
+  uniform float uFall;
+  uniform float uFallSeed;
   uniform vec2 uFocus;
   uniform vec2 uResolution;
   varying vec2 vUv;
@@ -171,31 +148,40 @@ const FRAG = `
     return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), c));
   }
 
-  // Bayer, built rather than stored: bayer2 is the 2×2 matrix as a closed
-  // form, and one recursion of it is the 4×4. Returns [0, 1). A const array
-  // cannot be indexed dynamically in GLSL ES 1.0, which is why it is arithmetic.
-  //
-  // It is only ever handed a coordinate already folded into the pattern's own
-  // period — see dither4() — and that is not tidiness, it is the difference
-  // between a dither and a stripe. a.y * a.y at the top of a 4K frame is
-  // 2160² ≈ 4.7 million, and mediump guarantees ten bits of mantissa: the
-  // squaring throws away every bit that decides which row of the matrix this
-  // is, so on any GPU that honours the qualifier — which is most mobile ones —
-  // the pattern degenerates into horizontal bands exactly where the picture is
-  // darkest and the dither matters most.
-  float bayer2(vec2 a) {
-    a = floor(a);
-    return fract(a.x * 0.5 + a.y * a.y * 0.75);
+  float fallHash(float n) {
+    return fract(sin(n * 127.1 + uFallSeed * 311.7) * 43758.5453);
   }
 
-  /* The 4×4 threshold for this pixel. Folding the coordinate first is exact
-     rather than approximate: both terms of bayer2() are read through fract(),
-     and both x·0.5 and y²·0.75 differ by a whole number between a coordinate
-     and that coordinate plus four, so the value is identical to the unfolded
-     one on hardware where the unfolded one still works at all. */
-  float dither4(vec2 frag) {
-    vec2 p = mod(frag, 4.0);
-    return bayer2(p * 0.5) * 0.25 + bayer2(p);
+  /* A handful of broad, irregular powder marks around the lens edge. Their
+     centres are regenerated per fall but held still while they fade; moving
+     screen-space snow would read as a UI animation, while real powder sticks
+     for the beat after it reaches the glass. The centre stays deliberately
+     empty so the rider and the next obstacle remain readable. */
+  float lensSnow(vec2 uv) {
+    vec2 p = uv - 0.5;
+    p.x *= uResolution.x / uResolution.y;
+    float snow = 0.0;
+    for (int i = 0; i < 7; i++) {
+      float fi = float(i);
+      float angle = fallHash(fi + 1.3) * 6.2831853;
+      float ring = mix(0.31, 0.64, fallHash(fi + 8.7));
+      vec2 centre = vec2(cos(angle), sin(angle)) * ring;
+      vec2 q = p - centre;
+      float squeeze = mix(0.68, 1.42, fallHash(fi + 19.1));
+      q = vec2(q.x * squeeze, q.y / squeeze);
+      float radius = mix(0.022, 0.060, fallHash(fi + 31.4));
+      float d = length(q);
+      float core = 1.0 - smoothstep(radius * 0.24, radius, d);
+      float halo = (1.0 - smoothstep(radius, radius * 1.75, d)) * 0.2;
+      snow = max(snow, core * 0.82 + halo);
+    }
+    return clamp(snow, 0.0, 1.0);
+  }
+
+  // Interleaved gradient noise decorrelates the motion-blur taps without
+  // imposing a visible repeating matrix on the finished image.
+  float sampleJitter(vec2 frag) {
+    return fract(52.9829189 * fract(dot(frag, vec2(0.06711056, 0.00583715))));
   }
 
   vec3 sceneSample(vec2 uv) {
@@ -228,19 +214,16 @@ const FRAG = `
 
        Averaging happens here rather than after the transfer curve because
        linear is the only space where the mean of two colours is the colour
-       that is actually between them. And it happens before the quantise
-       along with everything else, so it is dithered down to five bits with
-       the rest of the frame instead of sitting on top of it looking modern. */
-    float threshold = dither4(gl_FragCoord.xy);
+       that is actually between them. */
+    float jitter = sampleJitter(gl_FragCoord.xy);
 
     vec3 lin = sceneSample(vUv);
     vec2 focusDelta = (vUv - uFocus) * vec2(uResolution.x / uResolution.y, 1.0);
     float outsideFocus = smoothstep(0.08, 0.22, length(focusDelta));
     float localBlur = uBlur * outsideFocus;
     if (localBlur > 0.0005) {
-      /* The ladder is jittered by the same Bayer value that quantises the
-         frame at the bottom of this shader, and it is the difference between
-         a smear and a row of ghosts.
+      /* The sample ladder is decorrelated per pixel, which is the difference
+         between a continuous smear and a row of repeated ghosts.
 
          Six taps at fixed multiples of one step is six copies of the picture,
          and at full speed the last of them is more than twenty pixels from
@@ -248,18 +231,16 @@ const FRAG = `
          arrives six times. Offsetting each tap by a sub-step fraction that
          changes per pixel fills the gaps between the copies with neighbouring
          pixels' copies, which is what an integral along the path would have
-         done and what the eye reads as motion.
-
-         The Bayer value is the right jitter to use rather than a hash of the
-         coordinate: it is already computed for the quantise, it is uniform
-         over every 4×4 block so no pixel is favoured, and being ordered it
-         cannot beat against itself the way white noise sampled twice does. */
+         done and what the eye reads as motion. */
       vec2 toCentre = vec2(0.5) - vUv;
       for (int i = 1; i < 6; i++) {
-        lin += sceneSample(vUv + toCentre * localBlur * (float(i) - 0.5 + threshold));
+        lin += sceneSample(vUv + toCentre * localBlur * (float(i) - 0.5 + jitter));
       }
       lin /= 6.0;
     }
+    // Occlusion is in linear light and precedes bloom: a dark crease must not
+    // keep the glow it would have emitted before the sky was taken away.
+    lin *= texture2D(tAO, vUv).r;
     lin += texture2D(tBright, vUv).rgb * uBloom;
     lin += texture2D(tRays, vUv).rgb * uRays;
 
@@ -289,18 +270,24 @@ const FRAG = `
     l = dot(c, vec3(0.2126, 0.7152, 0.0722));
     c = clamp(mix(vec3(l), c, uSaturation), 0.0, 1.0);
 
+    /* Impact shock and powder on the lens. The wash is intentionally short
+       and mostly peripheral; camera motion supplies the violence while this
+       supplies the material — cold, bright snow rather than a generic red
+       damage flash. */
+    float fall = clamp(uFall, 0.0, 1.0);
+    if (fall > 0.001) {
+      float powder = lensSnow(vUv);
+      float mono = dot(c, vec3(0.2126, 0.7152, 0.0722));
+      c = mix(c, vec3(mono), fall * 0.16);
+      c = mix(c, vec3(0.94, 0.975, 1.0), fall * 0.055);
+      c = mix(c, vec3(0.91, 0.965, 1.0), powder * fall * 0.72);
+    }
+
     // Vignette, measured on a square so it does not stretch on a wide screen
     vec2 d = (vUv - 0.5) * vec2(uResolution.x / uResolution.y, 1.0);
     float edge = smoothstep(0.26, 0.95, dot(d, d) * 1.6);
-    c *= 1.0 - min(0.78, uVignette + uSpeedVignette) * edge;
+    c *= 1.0 - min(0.78, uVignette + uSpeedVignette + fall * 0.1) * edge;
     c *= uFade;
-
-    // Dither, then quantise to five bits. Doing it in this order is the whole
-    // trick: the dither is what turns a contour into grain. Everything above
-    // — the bloom, the rays, the shoulder — has already happened, so all of
-    // it is squeezed into R5G5B5 together and none of it can look bolted on.
-    float steps = uLevels - 1.0;
-    c = floor(c * steps + threshold) / steps;
 
     gl_FragColor = vec4(c, 1.0);
   }
@@ -327,12 +314,31 @@ export function createRetro(THREE, renderer) {
     colorSpace: THREE.LinearSRGBColorSpace,
   };
 
-  /* No multisampling, deliberately. Every edge in this picture is a hard
-     colour boundary between two flat facets, and that is the point of it —
-     smoothing them produces intermediate colours the five-bit quantise then
-     has to invent a dither pattern for, which reads as fringing rather than
-     as an antialiased edge. The pixels are supposed to be visible. */
   const scene3d = new THREE.WebGLRenderTarget(BASE_W, BASE_H, targetOpts);
+  // The scene renders offscreen, so context antialiasing alone cannot smooth
+  // its silhouettes. Use conservative WebGL2 MSAA and fall back cleanly to an
+  // ordinary target on WebGL1 or hardware that exposes no samples.
+  const gl = renderer.getContext();
+  const maxSamples = renderer.capabilities.isWebGL2
+    ? gl.getParameter(gl.MAX_SAMPLES) || 0
+    : 0;
+  scene3d.samples = Math.min(4, maxSamples);
+
+  /* Keep the compositing interface stable without reconstructing occlusion
+     from the snowfield's depth. That half-resolution horizon pass amplified
+     tiny depth steps on a grazing, fast-moving plane into broad screen-row
+     bands. A single white texel is the exact neutral result, lets bloom and
+     the final composite retain their existing shader contracts, and avoids
+     allocating any AO or sampled-depth buffers. */
+  const neutralAO = new THREE.DataTexture(
+    new Uint8Array([255, 255, 255, 255]), 1, 1, THREE.RGBAFormat,
+  );
+  neutralAO.minFilter = THREE.NearestFilter;
+  neutralAO.magFilter = THREE.NearestFilter;
+  neutralAO.generateMipmaps = false;
+  neutralAO.colorSpace = THREE.NoColorSpace;
+  neutralAO.needsUpdate = true;
+
   const bright = new THREE.WebGLRenderTarget(BASE_W / 4, BASE_H / 4,
     { ...targetOpts, depthBuffer: false });
   const rays = new THREE.WebGLRenderTarget(BASE_W / 4, BASE_H / 4,
@@ -345,6 +351,7 @@ export function createRetro(THREE, renderer) {
   const brightMat = new THREE.ShaderMaterial({
     uniforms: {
       tDiffuse: { value: scene3d.texture },
+      tAO: { value: neutralAO },
       uTexel: { value: new THREE.Vector2(1 / BASE_W, 1 / BASE_H) },
       uThreshold: { value: GRADE.bloomThreshold },
     },
@@ -385,6 +392,7 @@ export function createRetro(THREE, renderer) {
       tDiffuse: { value: scene3d.texture },
       tBright: { value: bright.texture },
       tRays: { value: rays.texture },
+      tAO: { value: neutralAO },
       uShadow: { value: hueOnly(THREE, GRADE.shadowTint) },
       uHighlight: { value: hueOnly(THREE, GRADE.highlightTint) },
       uTint: { value: GRADE.tintStrength },
@@ -392,13 +400,14 @@ export function createRetro(THREE, renderer) {
       uSaturation: { value: GRADE.saturation },
       uVignette: { value: GRADE.vignette },
       uSpeedVignette: { value: 0 },
-      uLevels: { value: GRADE.levels },
       uFade: { value: 1 },
       uBlur: { value: 0 },
       uAberration: { value: 0 },
       uBloom: { value: GRADE.bloom },
       uRays: { value: GRADE.rays },
       uShoulder: { value: GRADE.shoulder },
+      uFall: { value: 0 },
+      uFallSeed: { value: 0 },
       uFocus: { value: new THREE.Vector2(0.5, 0.32) },
       uResolution: { value: new THREE.Vector2(BASE_W, BASE_H) },
     },
@@ -429,6 +438,8 @@ export function createRetro(THREE, renderer) {
   let slowFor = 0;
   let fastFor = 0;
   let sized = false;
+  let fallFx = 0;
+  let fallHold = 0;
 
   const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
@@ -454,24 +465,10 @@ export function createRetro(THREE, renderer) {
     brightMat.uniforms.uTexel.value.set(1 / width, 1 / height);
     blurMat.uniforms.uTexel.value.set(1 / bw, 1 / bh);
 
-    /* The canvas stays at the panel's own resolution whatever the world is
-       doing, and that is the whole point of there being two numbers here.
-
-       It used to take `scale` along with everything else, which quietly undid
-       the thing the governor exists to protect. The composite is where the
-       grade, the vignette and — the one that matters — the five-bit ordered
-       dither happen, and a dither is a pattern locked to the pixel grid. Run
-       it into a buffer at 70% and let the browser scale that up, and every
-       2×2 Bayer cell is resampled across 1.4 pixels: the grain that was
-       holding a snowfield together turns into a soft blotchy wash, which
-       reads as the picture having gone out of focus rather than as it having
-       lost resolution. The framebuffer was the thing under pressure, not the
-       screen.
-
-       So only the world targets step down. `tDiffuse` is then sampled with
-       the same bilinear filter the browser was applying anyway — the upscale
-       happens exactly once either way — and the dither, which costs nothing,
-       lands on real device pixels. */
+    /* The canvas and final grade stay at the panel's resolution. On a slow
+       GPU only the 3D and lighting targets step down, then `tDiffuse` is
+       reconstructed once through linear sampling. HUD and final colour remain
+       crisp while the governor reduces the part of the frame that is costly. */
     renderer.setPixelRatio(1);
     renderer.setSize(displayWidth, displayHeight, false);
     renderer.setRenderTarget(rays);
@@ -591,6 +588,29 @@ export function createRetro(THREE, renderer) {
     material.uniforms.uFade.value = v;
   }
 
+  /* One impact pulse, weighted by the same 0..1 severity as the crash mix.
+     A small floor keeps a slow spill legible; the quick hold catches at least
+     a few frames on a fast display before the exponential decay begins. */
+  function crash(strength = 1) {
+    const s = Math.min(1, Math.max(0, strength));
+    const motion = reducedMotion ? 0.62 : 1;
+    fallFx = Math.max(fallFx, (0.22 + s * 0.78) * motion);
+    fallHold = Math.max(fallHold, 0.055 + s * 0.055);
+    material.uniforms.uFallSeed.value = Math.random() * 97;
+    material.uniforms.uFall.value = fallFx;
+  }
+
+  function updateEffects(dt, active = true) {
+    if (!active || dt <= 0) return;
+    if (fallHold > 0) {
+      fallHold = Math.max(0, fallHold - dt);
+    } else if (fallFx > 0) {
+      fallFx *= Math.exp(-2.65 * dt);
+      if (fallFx < 0.002) fallFx = 0;
+    }
+    material.uniforms.uFall.value = fallFx;
+  }
+
   /* Where the sun is on screen, in UV, and how much of it is getting through.
      `sky.js` owns that answer because it owns the sun; this only marches
      towards whatever it is told. Strength of zero skips the pass entirely. */
@@ -628,6 +648,8 @@ export function createRetro(THREE, renderer) {
     setSize,
     render,
     fade,
+    crash,
+    updateEffects,
     setSun,
     setFocus,
     setSpeed,
@@ -638,10 +660,14 @@ export function createRetro(THREE, renderer) {
     get displayHeight() { return displayHeight; },
     get dpr() { return dpr; },
     get scale() { return scale; },
+    get samples() { return scene3d.samples; },
     get pixel() { return 1; },
     get blur() { return material.uniforms.uBlur.value; },
     get aberration() { return material.uniforms.uAberration.value; },
     get speedVignette() { return material.uniforms.uSpeedVignette.value; },
     get rayStrength() { return rayMat.uniforms.uStrength.value; },
+    get fallEffect() { return material.uniforms.uFall.value; },
+    // Kept for diagnostics compatibility now that AO is a neutral input.
+    get aoStrength() { return 0; },
   };
 }

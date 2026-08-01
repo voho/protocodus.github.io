@@ -11,19 +11,15 @@
 
    Four decisions shape the rest.
 
-   **The feet are bolted to the board.** That is the whole difference between
-   snowboarding and standing on a hill, and it means the legs are solved
-   backwards. The board and its boots are the fixed thing; the hips are what
-   moves; the knees are simply whatever angle joins the two. Nothing here
-   animates a knee. The leg spring drops the hips, the ankles stay in the
-   bindings, and two-bone IK works out the fold — which is why a landing
-   visibly collapses him and a grab pulls his knees out sideways without a
-   single frame of that being authored. The ceiling on the hips is now solved
-   per leg from the actual socket position rather than from a nominal one, so
-   the boots cannot slip even when the pelvis has turned away from them:
-   swept through every state this file can produce, at 30, 60 and 144 Hz, the
-   worst gap between an ankle and its binding is two picometres, which is the
-   float arithmetic and not the rig.
+   **The feet are constrained by targets, not authored joint angles.** During
+   normal riding those targets are the two bindings, which is the whole
+   difference between snowboarding and standing on a hill: the hips move and
+   two-bone IK finds the knees. At walking pace the physical rear boot is the
+   one exception. It leaves its empty binding, plants beside the board and
+   drives tailward before returning; the same target carries both the boot
+   mesh and the leg solver, so there can be no phantom foot left behind or
+   ankle detached from the boot. The ceiling on the hips is solved per leg
+   from the actual target, including that moving push foot.
 
    **A pose is a point, not a set of angles.** Every arm pose is a place the
    hand wants to be, so blending the riding pose into a grab is a lerp between
@@ -113,7 +109,7 @@
 
 import { compose } from './geom.js';
 import { RIDER } from './config.js';
-import { SNAP } from './shading.js';
+import { createHeadlamp } from './headlamp.js';
 
 /* The rider is the only saturated thing in the frame, and that is the job.
 
@@ -138,6 +134,10 @@ const TAU = Math.PI * 2;
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const approach = (v, target, rate, dt) => v + (target - v) * (1 - Math.exp(-rate * dt));
+const smooth01 = (v) => {
+  const t = clamp(v, 0, 1);
+  return t * t * (3 - 2 * t);
+};
 
 /* --------------------------------------------------------------------------
    The skeleton, in metres, in board space: +X is the toe edge and the way the
@@ -250,6 +250,18 @@ const POSE = {
   chestSide: 0.08,    // and towards the toe edge, which is where he is looking
   hipsBack: 0.045,    // metres the pelvis sits back to pay for the hinge
 
+  /* Low-speed skating. The rear boot clears the toe edge, plants just ahead
+     of the rear binding, drives tailward and lifts home. Body offsets keep
+     the centre of mass over the strapped front foot throughout the stroke. */
+  pushSide: 0.32,
+  pushReach: 0.14,
+  pushDrive: 0.43,
+  pushLift: 0.11,
+  pushHipSide: 0.045,
+  pushHipFront: 0.085,
+  pushDrop: 0.045,
+  pushHinge: 0.13,
+
   /* Steering, which is the whole point of the rig.
 
      `hipSteer` is the pelvis: the back foot pushes the tail out and the hip
@@ -336,9 +348,9 @@ const POSE = {
    shadow gives away, which are a rounded shoulder and an outline that is not
    a rectangle.
 
-   This is still the same visual language. Six to ten points around a ring is
-   not organic modelling; it is the number of facets it takes to say "arm"
-   instead of "post", and every one of them is flat.
+   The ring count is deliberately generous now. Rounded clothing, limbs and
+   helmet pieces use smooth shared normals, while caps keep duplicate vertices
+   so seams such as the edge of the snowboard stay crisp.
    ========================================================================== */
 
 /* A ring, as a superellipse: `round` = 1 is an ellipse, and below that it
@@ -373,7 +385,8 @@ const ringXY = (pts, z, cx = 0, cy = 0) => pts.map(([x, y]) => [cx + x, cy + y, 
    the wrong way. It costs three dot products at build time and it makes the
    ring tables free to be written in whatever order reads best. */
 function loft(THREE, rings, capStart = true, capEnd = true) {
-  const out = [];
+  const positions = [];
+  const indices = [];
   const mid = (r) => {
     const c = [0, 0, 0];
     for (const p of r) { c[0] += p[0]; c[1] += p[1]; c[2] += p[2]; }
@@ -381,7 +394,11 @@ function loft(THREE, rings, capStart = true, capEnd = true) {
   };
   const cs = rings.map(mid);
 
-  const face = (a, b, c, inside) => {
+  for (const ring of rings) {
+    for (const p of ring) positions.push(...p);
+  }
+
+  const face = (ia, ib, ic, a, b, c, inside) => {
     const ux = b[0] - a[0]; const uy = b[1] - a[1]; const uz = b[2] - a[2];
     const vx = c[0] - a[0]; const vy = c[1] - a[1]; const vz = c[2] - a[2];
     const nx = uy * vz - uz * vy;
@@ -390,8 +407,8 @@ function loft(THREE, rings, capStart = true, capEnd = true) {
     const ox = (a[0] + b[0] + c[0]) / 3 - inside[0];
     const oy = (a[1] + b[1] + c[1]) / 3 - inside[1];
     const oz = (a[2] + b[2] + c[2]) / 3 - inside[2];
-    if (nx * ox + ny * oy + nz * oz < 0) out.push(...a, ...c, ...b);
-    else out.push(...a, ...b, ...c);
+    if (nx * ox + ny * oy + nz * oz < 0) indices.push(ia, ic, ib);
+    else indices.push(ia, ib, ic);
   };
 
   for (let i = 0; i + 1 < rings.length; i++) {
@@ -404,26 +421,43 @@ function loft(THREE, rings, capStart = true, capEnd = true) {
     ];
     for (let j = 0; j < A.length; j++) {
       const k = (j + 1) % A.length;
-      face(A[j], A[k], B[k], inside);
-      face(A[j], B[k], B[j], inside);
+      const a = i * A.length + j;
+      const ak = i * A.length + k;
+      const b = (i + 1) * A.length + j;
+      const bk = (i + 1) * A.length + k;
+      face(a, ak, bk, A[j], A[k], B[k], inside);
+      face(a, bk, b, A[j], B[k], B[j], inside);
     }
   }
+  // Caps use their own rim vertices. Sharing those with the side would round
+  // a board edge or sleeve cuff when the vertex normals are averaged.
   const cap = (r, inside, c) => {
-    for (let j = 0; j < r.length; j++) face(c, r[j], r[(j + 1) % r.length], inside);
+    const center = positions.length / 3;
+    positions.push(...c);
+    const rim = [];
+    for (const p of r) {
+      rim.push(positions.length / 3);
+      positions.push(...p);
+    }
+    for (let j = 0; j < r.length; j++) {
+      const k = (j + 1) % r.length;
+      face(center, rim[j], rim[k], c, r[j], r[k], inside);
+    }
   };
   const n = rings.length;
   if (capStart && n > 1) cap(rings[0], cs[1], cs[0]);
   if (capEnd && n > 1) cap(rings[n - 1], cs[n - 2], cs[n - 1]);
 
   const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(out), 3));
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
+  g.setIndex(indices);
   g.computeVertexNormals();
   return g;
 }
 
 // A stack of rings up the Y axis: limbs, torso, boots, helmet.
 const tube = (THREE, list) => loft(THREE, list.map((s) => ringXZ(
-  oval(s.n || 8, s.rx, s.rz === undefined ? s.rx : s.rz, s.round),
+  oval(s.n || 16, s.rx, s.rz === undefined ? s.rx : s.rz, s.round),
   s.y, s.x || 0, s.z || 0,
 )));
 
@@ -436,7 +470,7 @@ const arc = (THREE, o) => {
     const a = o.a0 + (o.a1 - o.a0) * (i / o.steps);
     const cx = Math.cos(a);
     const cz = Math.sin(a);
-    const pts = oval(o.n || 6, o.depth, o.height, o.round === undefined ? 0.6 : o.round);
+    const pts = oval(o.n || 12, o.depth, o.height, o.round === undefined ? 0.6 : o.round);
     rings.push(pts.map(([u, v]) => [
       cx * (o.r + u), o.y + v, cz * (o.r + u),
     ]));
@@ -490,33 +524,31 @@ function buildGeometries(THREE) {
   const use = (g) => { scrap.push(g); return g; };
 
   const deckRings = (i0, i1, ws, ts, dy) => DECK.slice(i0, i1).map((s) => ringXY(
-    oval(8, s.rx * ws, s.ry * ts, 0.4), s.z, 0, s.y + dy,
+    oval(20, s.rx * ws, s.ry * ts, 0.4), s.z, 0, s.y + dy,
   ));
   // A sticker: a thin slab following the deck's own curve, on the top or the
   // bottom face. It is how the board gets more than one colour without the
   // deck becoming four separate solids that have to agree along a seam.
   const sticker = (i0, i1, half, side, thick) => DECK.slice(i0, i1).map((s) => ringXY(
-    oval(6, half, thick, 0.35), s.z, 0, s.y + side * (s.ry + thick * 0.6),
+    oval(12, half, thick, 0.35), s.z, 0, s.y + side * (s.ry + thick * 0.6),
   ));
   const rail = (i0, i1, sign) => DECK.slice(i0, i1).map((s) => ringXY(
-    oval(6, 0.011, 0.013, 0.35), s.z, sign * (s.rx - 0.006), s.y - s.ry + 0.008,
+    oval(12, 0.011, 0.013, 0.35), s.z, sign * (s.rx - 0.006), s.y - s.ry + 0.008,
   ));
 
-  /* One binding: the baseplate it bolts through, the boot, the highback
-     standing up behind the calf, and two straps. Boots are part of the board,
-     not part of the leg — they never move relative to the bindings, so
-     welding them into the board's buffer is free, and it is also the truth:
-     on a snowboard the foot is not a joint. */
+  /* One binding: baseplate, highback and straps remain bolted to the board.
+     The front boot stays baked into its binding; the physical rear boot is a
+     separate rigid mesh because it has to leave this hardware while skating. */
   const bootShell = use(tube(THREE, BOOT));
   const bootSole = use(tube(THREE, [
     { y: 0.000, x: 0.040, rx: 0.156, rz: 0.104, round: 0.35 },
     { y: 0.022, x: 0.042, rx: 0.152, rz: 0.101, round: 0.4 },
   ]));
   const highback = use(tube(THREE, [
-    { y: 0.020, x: -0.108, rx: 0.026, rz: 0.088, round: 0.8, n: 6 },
-    { y: 0.120, x: -0.104, rx: 0.024, rz: 0.086, round: 0.8, n: 6 },
-    { y: 0.230, x: -0.092, rx: 0.022, rz: 0.080, round: 0.85, n: 6 },
-    { y: 0.320, x: -0.074, rx: 0.020, rz: 0.068, round: 0.9, n: 6 },
+    { y: 0.020, x: -0.108, rx: 0.026, rz: 0.088, round: 0.8, n: 12 },
+    { y: 0.120, x: -0.104, rx: 0.024, rz: 0.086, round: 0.8, n: 12 },
+    { y: 0.230, x: -0.092, rx: 0.022, rz: 0.080, round: 0.85, n: 12 },
+    { y: 0.320, x: -0.074, rx: 0.020, rz: 0.068, round: 0.9, n: 12 },
   ]));
   const plate = use(tube(THREE, [
     { y: -0.004, rx: 0.150, rz: 0.112, round: 0.45 },
@@ -525,8 +557,6 @@ function buildGeometries(THREE) {
 
   const binding = (z, yaw) => [
     { geo: plate, color: INK, pos: [0, DECK_TOP - 0.01, z], rot: [0, yaw, 0] },
-    { geo: bootSole, color: INK, pos: [FOOT_X, DECK_TOP + 0.012, z], rot: [0, yaw, 0] },
-    { geo: bootShell, color: INK, pos: [FOOT_X, DECK_TOP + 0.02, z], rot: [0, yaw, 0] },
     { geo: highback, color: INK, pos: [FOOT_X, DECK_TOP + 0.02, z], rot: [0, yaw, 0] },
     // the two straps, which are the only part of a binding anybody ever
     // notices, and the only reason a boot reads as strapped down at all
@@ -542,6 +572,11 @@ function buildGeometries(THREE) {
       geo: box, color: MINT, pos: [FOOT_X - 0.062, DECK_TOP + 0.30, z],
       rot: [0, yaw, 0], scale: [0.028, 0.05, 0.115],
     },
+  ];
+
+  const boot = (z, yaw) => [
+    { geo: bootSole, color: INK, pos: [FOOT_X, DECK_TOP + 0.012, z], rot: [0, yaw, 0] },
+    { geo: bootShell, color: INK, pos: [FOOT_X, DECK_TOP + 0.02, z], rot: [0, yaw, 0] },
   ];
 
   const board = compose(THREE, [
@@ -562,8 +597,10 @@ function buildGeometries(THREE) {
     // than the back, because a duck-square stance is the one thing no
     // snowboarder rides.
     ...binding(-FOOT_Z, 0.28),
+    ...boot(-FOOT_Z, 0.28),
     ...binding(FOOT_Z, 0.10),
   ]);
+  const rearBoot = compose(THREE, boot(0, 0.10));
 
   /* The torso: wide across Z and shallow across X, because the shoulder line
      runs nose to tail and that is the single most snowboard-shaped thing
@@ -633,20 +670,20 @@ function buildGeometries(THREE) {
       { y: 0.140, x: 0.008, rx: 0.090, rz: 0.088, round: 1 },
     ])), color: SKIN },
     { geo: use(tube(THREE, [
-      { y: 0.055, rx: 0.104, rz: 0.100, round: 0.95, n: 10 },
-      { y: 0.120, rx: 0.118, rz: 0.114, round: 1, n: 10 },
-      { y: 0.180, rx: 0.121, rz: 0.117, round: 1, n: 10 },
-      { y: 0.235, rx: 0.110, rz: 0.106, round: 1, n: 10 },
-      { y: 0.275, rx: 0.082, rz: 0.079, round: 1, n: 10 },
-      { y: 0.298, rx: 0.042, rz: 0.040, round: 1, n: 10 },
+      { y: 0.055, rx: 0.104, rz: 0.100, round: 0.95, n: 24 },
+      { y: 0.120, rx: 0.118, rz: 0.114, round: 1, n: 24 },
+      { y: 0.180, rx: 0.121, rz: 0.117, round: 1, n: 24 },
+      { y: 0.235, rx: 0.110, rz: 0.106, round: 1, n: 24 },
+      { y: 0.275, rx: 0.082, rz: 0.079, round: 1, n: 24 },
+      { y: 0.298, rx: 0.042, rz: 0.040, round: 1, n: 24 },
     ])), color: INK },
     { geo: use(arc(THREE, {
-      a0: -1.15, a1: 1.15, steps: 6, r: 0.106, y: 0.136,
-      depth: 0.028, height: 0.044, n: 6, round: 0.5,
+      a0: -1.15, a1: 1.15, steps: 18, r: 0.106, y: 0.136,
+      depth: 0.028, height: 0.044, n: 12, round: 0.5,
     })), color: MINT },
     { geo: use(arc(THREE, {
-      a0: 1.05, a1: 5.25, steps: 7, r: 0.120, y: 0.140,
-      depth: 0.014, height: 0.026, n: 6, round: 0.5,
+      a0: 1.05, a1: 5.25, steps: 28, r: 0.120, y: 0.140,
+      depth: 0.014, height: 0.026, n: 12, round: 0.5,
     })), color: SHELL_DARK },
   ]);
 
@@ -656,37 +693,37 @@ function buildGeometries(THREE) {
      shadow of its own. */
   const upperArm = compose(THREE, [
     { geo: use(tube(THREE, [
-      { y: 0.055, rx: 0.078, rz: 0.074, round: 0.95, n: 7 },
-      { y: -0.060, rx: 0.082, rz: 0.078, round: 0.9, n: 7 },
-      { y: -0.180, rx: 0.070, rz: 0.068, round: 0.9, n: 7 },
-      { y: -0.290, rx: 0.062, rz: 0.060, round: 0.9, n: 7 },
+      { y: 0.055, rx: 0.078, rz: 0.074, round: 0.95, n: 16 },
+      { y: -0.060, rx: 0.082, rz: 0.078, round: 0.9, n: 16 },
+      { y: -0.180, rx: 0.070, rz: 0.068, round: 0.9, n: 16 },
+      { y: -0.290, rx: 0.062, rz: 0.060, round: 0.9, n: 16 },
     ])), color: SHELL },
     { geo: use(tube(THREE, [
-      { y: 0.070, rx: 0.080, rz: 0.076, round: 1, n: 7 },
-      { y: -0.020, rx: 0.086, rz: 0.082, round: 0.95, n: 7 },
+      { y: 0.070, rx: 0.080, rz: 0.076, round: 1, n: 16 },
+      { y: -0.020, rx: 0.086, rz: 0.082, round: 0.95, n: 16 },
     ])), color: SHELL_DARK },
   ]);
   const foreArm = compose(THREE, [
     { geo: use(tube(THREE, [
-      { y: 0.030, rx: 0.066, rz: 0.064, round: 0.95, n: 7 },
-      { y: -0.090, rx: 0.060, rz: 0.058, round: 0.9, n: 7 },
-      { y: -0.185, rx: 0.054, rz: 0.052, round: 0.9, n: 7 },
+      { y: 0.030, rx: 0.066, rz: 0.064, round: 0.95, n: 16 },
+      { y: -0.090, rx: 0.060, rz: 0.058, round: 0.9, n: 16 },
+      { y: -0.185, rx: 0.054, rz: 0.052, round: 0.9, n: 16 },
     ])), color: SHELL },
     { geo: use(tube(THREE, [
-      { y: -0.175, rx: 0.062, rz: 0.060, round: 0.9, n: 7 },
-      { y: -0.215, rx: 0.060, rz: 0.058, round: 0.9, n: 7 },
+      { y: -0.175, rx: 0.062, rz: 0.060, round: 0.9, n: 16 },
+      { y: -0.215, rx: 0.060, rz: 0.058, round: 0.9, n: 16 },
     ])), color: YELLOW },
     // the glove: a mitt with a thumb, which at this size is one extra bump
     // and the entire difference between a hand and a peg
     { geo: use(tube(THREE, [
-      { y: -0.210, rx: 0.056, rz: 0.054, round: 0.9, n: 7 },
-      { y: -0.265, x: 0.008, rx: 0.062, rz: 0.058, round: 0.85, n: 7 },
-      { y: -0.320, x: 0.010, rx: 0.058, rz: 0.052, round: 0.85, n: 7 },
-      { y: -0.352, x: 0.006, rx: 0.040, rz: 0.038, round: 0.95, n: 7 },
+      { y: -0.210, rx: 0.056, rz: 0.054, round: 0.9, n: 16 },
+      { y: -0.265, x: 0.008, rx: 0.062, rz: 0.058, round: 0.85, n: 16 },
+      { y: -0.320, x: 0.010, rx: 0.058, rz: 0.052, round: 0.85, n: 16 },
+      { y: -0.352, x: 0.006, rx: 0.040, rz: 0.038, round: 0.95, n: 16 },
     ])), color: INK },
     { geo: use(tube(THREE, [
-      { y: -0.250, rx: 0.026, rz: 0.024, round: 0.9, n: 6 },
-      { y: -0.290, rx: 0.022, rz: 0.020, round: 0.9, n: 6 },
+      { y: -0.250, rx: 0.026, rz: 0.024, round: 0.9, n: 12 },
+      { y: -0.290, rx: 0.022, rz: 0.020, round: 0.9, n: 12 },
     ])), color: INK, pos: [0.05, 0, -0.02], rot: [0, 0, -0.5] },
   ]);
   const thigh = compose(THREE, [
@@ -714,7 +751,7 @@ function buildGeometries(THREE) {
 
   box.dispose();
   for (const g of scrap) g.dispose();
-  return { board, torso, head, upperArm, foreArm, thigh, shin };
+  return { board, rearBoot, torso, head, upperArm, foreArm, thigh, shin };
 }
 
 /* ==========================================================================
@@ -728,25 +765,12 @@ export function createRiderModel(THREE, shading) {
      reference to. One number, two readers, no way for the drawn board and the
      feet standing on it to disagree. */
   const flexUniform = { value: 0 };
-  /* One material for the lot: the colours are already in the vertices, so
-     eleven meshes are eleven draw calls and not one state change.
-
-     It takes the same five bands of light as everything else — the rider has
-     to be lit by the same sun as the hill or they are a sticker on it — but
-     under a third of the vertex snap.
-
-     That exemption is the one deliberate cheat in the whole look, and it is
-     not a matter of taste. The snap is an amplitude in *pixels*, so it costs
-     the same on a ridge four hundred metres away as on a body eight metres
-     away and two hundred pixels tall; at full strength the arms visibly
-     changed length, the board's edge stepped as it rolled, and the whole
-     figure sheared a little differently every frame because each vertex
-     crossed its own cell boundary at its own moment. At a third the
-     displacement is under a pixel, which is enough to keep the rider inside
-     the same discipline as the scenery and not enough to see them wobble. */
+  /* One smooth material for the lot: colours are already in the vertices, so
+     eleven meshes are eleven draw calls and not one state change. The rider
+     is lit by exactly the same moving sun and atmosphere as the hill, which
+     keeps the figure grounded in the scene rather than pasted over it. */
   const cloth = shading.apply(
-    new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }),
-    { snap: SNAP.rider },
+    new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false }),
   );
 
   /* THE BOARD FLEXES, and it is the only thing on this rig that is not a rigid
@@ -764,18 +788,15 @@ export function createRiderModel(THREE, shading) {
      It is a vertex shader rather than a hinge, and the file's own architecture
      is what decides that. The deck is one buffer on purpose — the note at the
      `DECK` table says splitting it is how a board ends up as four solids that
-     have to agree along a seam — and the boots and bindings are welded into
-     the same buffer for the same reason. So the flex is a displacement applied
-     to the whole thing at once.
+     have to agree along a seam — and the front boot and both bindings remain
+     in that same buffer. So the flex is a displacement applied to the whole
+     board at once; the separately rigid rear boot follows its binding target.
 
-     The one real trap is that welding. The boots are *in* the board's buffer
-     and the legs are solved to `boardPoint`, so a bend that moves the drawn
-     boots and not the IK target pulls the feet out of the bindings — which is
-     precisely the failure the comment above `boardPoint` says that function
-     exists to prevent. The formula therefore lives in two places that cannot
-     disagree, in the same way `heightAt` and the terrain mesh cannot: this
-     shader deforms the drawn board, `boardPoint` deforms the target, and both
-     read `uBend` from the same number.
+     The one real trap is agreement. The front boot is in the flexing buffer,
+     while the rear boot is a rigid mesh and both legs are solved to
+     `boardPoint`; if those readers disagree, an ankle hovers above a binding.
+     The shader and target therefore share the same `uBend` value, and the rear
+     boot is placed from the exact ankle target used by its leg.
 
      `(1 − u²)` is zero at u = ±1, and `FLEX_SPAN` is the z of the two widest
      deck stations — the contact points. So the bend cannot move the part of
@@ -783,7 +804,7 @@ export function createRiderModel(THREE, shading) {
      driven. It is a bow between the contacts and nothing else, which is what a
      snowboard does. */
   const boardMat = (() => {
-    const m = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+    const m = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false });
     m.onBeforeCompile = (shader) => {
       shader.uniforms.uBend = flexUniform;
       shader.vertexShader = shader.vertexShader
@@ -795,12 +816,15 @@ export function createRiderModel(THREE, shading) {
             transformed.y += uBend * (1.0 - u * u);
           }`);
     };
-    return shading.apply(m, { snap: SNAP.rider });
+    return shading.apply(m);
   })();
 
   const root = new THREE.Group();
   const board = new THREE.Mesh(geo.board, boardMat);
-  root.add(board);
+  board.name = 'rider-board';
+  const rearBoot = new THREE.Mesh(geo.rearBoot, cloth);
+  rearBoot.name = 'rider-rear-boot';
+  root.add(board, rearBoot);
 
   const hips = new THREE.Group();
   hips.position.set(0, HIP_Y, 0);
@@ -824,6 +848,7 @@ export function createRiderModel(THREE, shading) {
   head.rotation.order = 'YXZ';
   head.add(new THREE.Mesh(geo.head, cloth));
   torso.add(head);
+  const headlamp = createHeadlamp(THREE, shading, head);
 
   const limb = (parent, y, z, upperGeo, foreGeo, upperLen) => {
     const upper = new THREE.Group();
@@ -849,12 +874,37 @@ export function createRiderModel(THREE, shading) {
   // shadow already inside the fog's near distance never sees any. Matching
   // the rider's snap rather than the ground's is what stops the blob sliding
   // out from under the board on a long traverse.
+  /* A soft contact print, still one quad-sized draw.
+
+     The old disc ended at the edge of a fourteen-sided circle, so at the
+     exact place a shadow ought to disappear gently it drew a dark polygon.
+     This tiny generated mask has a long board lobe and a wider body lobe;
+     scaling and turning the same mesh with the stance below makes it read as
+     something cast by this rider rather than as a marker placed under them. */
+  const shadowMap = (() => {
+    const cv = document.createElement('canvas');
+    cv.width = 96;
+    cv.height = 128;
+    const g = cv.getContext('2d');
+    g.filter = 'blur(7px)';
+    g.fillStyle = 'rgba(255,255,255,0.78)';
+    g.beginPath();
+    g.ellipse(48, 64, 13, 48, 0, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = 'rgba(255,255,255,0.58)';
+    g.beginPath();
+    g.ellipse(48, 67, 31, 24, 0, 0, Math.PI * 2);
+    g.fill();
+    const tex = new THREE.CanvasTexture(cv);
+    tex.colorSpace = THREE.NoColorSpace;
+    return tex;
+  })();
   const shadow = new THREE.Mesh(
-    new THREE.CircleGeometry(0.85, 14),
+    new THREE.CircleGeometry(1, 48),
     shading.apply(new THREE.MeshBasicMaterial({
-      color: 0x0d1c33, transparent: true, opacity: 0.34,
+      color: 0x0d1c33, map: shadowMap, transparent: true, opacity: 0.30,
       depthWrite: false, fog: false,
-    }), { snap: SNAP.rider, bands: 0, fog: false }),
+    }), { fog: false }),
   );
   shadow.rotation.x = -Math.PI / 2;
   shadow.renderOrder = 2;
@@ -934,6 +984,8 @@ export function createRiderModel(THREE, shading) {
   const sockB = new THREE.Vector3();
   const bootA = new THREE.Vector3();
   const bootB = new THREE.Vector3();
+  const rearAnkle = new THREE.Vector3(FOOT_X, ANKLE_Y, 0);
+  const rearOffset = new THREE.Vector3();
   const mInv = new THREE.Matrix4();
   const hipQ = new THREE.Quaternion();
   const hipE = new THREE.Euler(0, 0, 0, 'YZX');
@@ -970,13 +1022,13 @@ export function createRiderModel(THREE, shading) {
   // Everything the model remembers between frames. All of it is smoothed
   // against dt, none of it is read back by anyone else.
   const s = {
-    clock: 0, down: 0, air: 0, grab: 0, tuck: 0, charge: 0,
+    clock: 0, down: 0, air: 0, grab: 0, tuck: 0, push: 0, charge: 0,
     twist: 0, lean: 0, comp: 0, pop: 0, thump: 0, tumbleLag: 0, wash: 0, press: 0,
     edge: 0, load: 0, steer: 0, switched: 0,
   };
   let seen = false;
 
-  function update(rider, dt) {
+  function update(rider, dt, weather = null, camera = null) {
     // A frame that took a quarter of a second — a tab waking up — must not be
     // allowed to fling the pose about, and a rider who has just been reset
     // three hundred metres up the hill should arrive already posed rather
@@ -999,7 +1051,10 @@ export function createRiderModel(THREE, shading) {
     s.down = approach(s.down, fallen, 9, sdt);
     s.air = approach(s.air, rider.grounded ? 0 : 1, 13, sdt);
     s.grab = approach(s.grab, rider.grab, 14, sdt);
-    s.tuck = approach(s.tuck, rider.tucking ? 1 : 0, 8, sdt);
+    // At walking pace W keeps its physics, but visually a real rider skates
+    // rather than folding into a tuck before the board is moving.
+    s.tuck = approach(s.tuck, rider.tucking && !rider.pushing ? 1 : 0, 8, sdt);
+    s.push = approach(s.push, rider.pushing ? 1 : 0, rider.pushing ? 14 : 10, sdt);
     s.charge = approach(s.charge, rider.charging ? 0.35 + 0.65 * rider.charge : 0, 13, sdt);
     s.wash = approach(s.wash, clamp((rider.lateral || 0) / 6, -1, 1), 6, sdt);
 
@@ -1020,6 +1075,7 @@ export function createRiderModel(THREE, shading) {
     // the board is back on the snow within a tenth of a second of touchdown
     // whatever the hands are still doing
     const grab = s.grab * s.air * (1 - s.down);
+    const skate = s.push * (1 - s.air) * (1 - s.down) * (1 - grab);
 
     /* The snap, and the thump.
 
@@ -1102,7 +1158,9 @@ export function createRiderModel(THREE, shading) {
     // shoulders that lag it are shoulders wound the other way.
     const trail = clamp(rider.spinVel / RIDER.spinRate, -1, 1)
       * POSE.spinTrail * (1 - grab * 0.65);
-    const idle = 1 - Math.max(grab, s.down, s.tuck * 0.7, Math.abs(steer) * 0.6);
+    const idle = 1 - Math.max(
+      grab, s.down, s.tuck * 0.7, skate, Math.abs(steer) * 0.6,
+    );
     /* How much of the riding stance is still in force.
 
        Two poses put the body somewhere the stance has no opinion about — a
@@ -1183,9 +1241,51 @@ export function createRiderModel(THREE, shading) {
     board.rotation.set(bt.pitch, 0, bt.roll);
 
     // Where the boots have ended up, which is the only thing the legs are
-    // ever solved against
+    // ever solved against. The front target remains in its binding; the rear
+    // one is displaced by the same skating phase that fires the physics
+    // impulse, so the boot plant and the acceleration cannot drift apart.
     boardPoint(bootA.set(FOOT_X, ANKLE_Y, -FOOT_Z));
     boardPoint(bootB.set(FOOT_X, ANKLE_Y, FOOT_Z));
+
+    const phase = clamp(rider.pushPhase || 0, 0, 1);
+    let pushSide = 0;
+    let pushAlong = 0;
+    let pushLift = 0;
+    let pushTilt = 0;
+    if (phase < 0.22) {
+      const t = smooth01(phase / 0.22);
+      pushSide = POSE.pushSide * t;
+      pushAlong = -POSE.pushReach * t;
+      pushLift = Math.sin(t * Math.PI) * POSE.pushLift - DECK_TOP * t;
+      pushTilt = Math.sin(t * Math.PI) * 0.12;
+    } else if (phase < 0.62) {
+      const t = smooth01((phase - 0.22) / 0.40);
+      pushSide = POSE.pushSide;
+      pushAlong = -POSE.pushReach + (POSE.pushReach + POSE.pushDrive) * t;
+      pushLift = -DECK_TOP + Math.sin(t * Math.PI) * 0.012;
+      pushTilt = -0.04 + t * 0.08;
+    } else {
+      const t = smooth01((phase - 0.62) / 0.38);
+      pushSide = POSE.pushSide * (1 - t);
+      pushAlong = POSE.pushDrive * (1 - t);
+      pushLift = -DECK_TOP * (1 - t) + Math.sin(t * Math.PI) * POSE.pushLift;
+      pushTilt = Math.sin(t * Math.PI) * 0.14;
+    }
+
+    bootB.x += pushSide * skate;
+    bootB.y += pushLift * skate;
+    bootB.z += pushAlong * sw * skate;
+
+    /* The rear boot is rigid even though the board underneath it flexes. Its
+       origin is recovered from the desired ankle target, then its roll is
+       released towards the snow while the foot is out of the binding. */
+    rearBoot.rotation.set(
+      bt.pitch + pushTilt * skate,
+      0,
+      bt.roll * (1 - skate),
+    );
+    rearOffset.copy(rearAnkle).applyQuaternion(rearBoot.quaternion);
+    rearBoot.position.copy(bootB).sub(rearOffset);
 
     /* --- hips -------------------------------------------------------------- */
 
@@ -1247,6 +1347,7 @@ export function createRiderModel(THREE, shading) {
     // quite still — the slow sway is the difference between a rider waiting
     // and a rider parked.
     hips.position.x = s.lean * POSE.hipShift - s.wash * 0.05 + pivotX
+      - skate * POSE.pushHipSide
       + (Math.sin(s.clock * 0.9) + Math.sin(s.clock * 0.37 + 1.7)) * 0.014 * idle;
     /* Fore and aft. All of it is travel-relative, so it mirrors when he lands
        switch instead of putting his weight on the wrong end of the board.
@@ -1259,6 +1360,7 @@ export function createRiderModel(THREE, shading) {
        work. */
     hips.position.z = (POSE.hipsBack * upright + POSE.chargeBack * s.charge
       - s.tuck * 0.06 + Math.abs(s.wash) * 0.05) * sw + pivotDz
+      - skate * POSE.pushHipFront
       + Math.sin(s.clock * 0.61 + 0.8) * 0.012 * idle;
 
     const load = rider.compression - REST_SQUAT;
@@ -1268,7 +1370,7 @@ export function createRiderModel(THREE, shading) {
       // the stance itself, which is not a reaction to anything
       - POSE.crouch * (1 - s.air * 0.4)
       - squat * POSE.hipPerSquat + stretch * POSE.hipPerStretch
-      - s.tuck * POSE.tuckDrop - s.down * POSE.fallDrop
+      - s.tuck * POSE.tuckDrop - skate * POSE.pushDrop - s.down * POSE.fallDrop
       // the knees come up off the snow and the landing folds them; both are
       // events with their own decay, and neither is anything the leg spring's
       // own travel would ever have drawn
@@ -1345,7 +1447,7 @@ export function createRiderModel(THREE, shading) {
        left is a rider who sinks and keeps his chest up. */
     const hinge = POSE.chestFwd * upright * (1 - s.tuck * 0.85) * (1 - s.air * 0.35);
     const pitch = (-hinge - s.charge * 0.35 + s.pop * 0.20
-      - s.thump * 0.34 - grab * 0.25) * sw;
+      - s.thump * 0.34 - grab * 0.25) * sw - skate * POSE.pushHinge;
     // Angulation at the waist as well as at the knees: the shoulders stand
     // back up out of the body's own inclination, which is what keeps a carve
     // from reading as a man falling over sideways at a constant rate.
@@ -1519,6 +1621,11 @@ export function createRiderModel(THREE, shading) {
     other.x += steer * 0.06;
     other.z += carve * 0.08;
 
+    // Skating puts the shoulders into opposition: the front arm reaches with
+    // the board while the rear arm swings back over the driving leg.
+    hand.lerp(_f.set(0.28, -0.34, -0.34), skate * 0.86);
+    other.lerp(_f.set(-0.16, -0.38, 0.29), skate * 0.86);
+
     // Tucked: arms spread low and wide across the board, which is how a
     // snowboarder actually holds a tuck — the hands go out for the balance
     // the narrowed stance has just given up, not in against the chest the
@@ -1637,10 +1744,28 @@ export function createRiderModel(THREE, shading) {
     const gap = Math.max(0, rider.pos.y - gy);
     shadow.position.set(rider.pos.x, gy + 0.05, rider.pos.z);
     const k = Math.max(0, 1 - gap / 14);
-    shadow.scale.setScalar(0.55 + 0.45 * k);
-    shadow.material.opacity = 0.34 * k * k;
+    const shadowScale = 0.55 + 0.45 * k;
+    shadow.rotation.set(-Math.PI / 2, 0, rider.yaw);
+    shadow.scale.set(shadowScale * 0.78, shadowScale * 1.28, 1);
+    shadow.material.opacity = 0.30 * k * k;
     shadow.visible = k > 0.02;
+
+    // The lamp asks for world-space head transforms, so it comes after every
+    // part of the pose has been written. Weather remains the single owner of
+    // whether it is night; this rig only adapts that state into light.
+    if (weather && camera) headlamp.update(weather, dt, rider, camera);
   }
 
-  return { root, shadow, update };
+  return {
+    root,
+    shadow,
+    update,
+    rearBoot,
+    headlamp,
+    debug: () => ({
+      push: s.push,
+      rearBoot: rearBoot.position.toArray(),
+      headlamp: headlamp.debug(),
+    }),
+  };
 }

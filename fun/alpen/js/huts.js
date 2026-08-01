@@ -177,14 +177,17 @@ const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
    the whole of the reason to stop, faces -z. */
 function hutGeometry(THREE) {
   const box = new THREE.BoxGeometry(1, 1, 1);
-  const post = new THREE.CylinderGeometry(0.5, 0.5, 1, 7);
-  const log = new THREE.CylinderGeometry(0.5, 0.5, 1, 6);
+  const post = new THREE.CylinderGeometry(0.5, 0.5, 1, 18);
+  const log = new THREE.CylinderGeometry(0.5, 0.5, 1, 16);
   /* Three radial segments is a triangular prism with both ends capped, and a
      triangular prism lying on its side is a gable roof. Rotated -90° about x
      it has a flat face underneath, an apex on top and its length running
      front to back, so the triangle is what a rider coming down the hill
      sees. */
-  const prism = new THREE.CylinderGeometry(1, 1, 1, 3);
+  const prism = new THREE.CylinderGeometry(1, 1, 1, 3).toNonIndexed();
+  // The rest of the hut can use smooth lighting for its round timber. Keep
+  // the two roof pitches architectural by baking a separate normal per face.
+  prism.computeVertexNormals();
 
   const stone = '#4a4d55';
   const stoneDark = '#383b43';
@@ -388,7 +391,7 @@ export function createHuts(THREE, shading) {
 
   const shell = new THREE.InstancedMesh(
     hutGeometry(THREE),
-    shading.apply(new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true })),
+    shading.apply(new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false })),
     HUTS.live,
   );
 
@@ -405,6 +408,10 @@ export function createHuts(THREE, shading) {
     opacity: HUTS.glow.floor,
   }), { bands: 0 });
   const panes = new THREE.InstancedMesh(paneGeometry(THREE), paneMat, HUTS.live);
+  // The shell already casts the window openings' silhouette. Sending the
+  // transparent, self-lit glass through a depth-only shadow material would
+  // turn every pane back into an opaque square.
+  panes.userData.noShadow = true;
 
   /* The pool is additive, and additive surfaces cannot be fogged: three's fog
      mixes towards the haze colour, and adding the haze to the picture is the
@@ -423,6 +430,10 @@ export function createHuts(THREE, shading) {
   });
   const pools = new THREE.InstancedMesh(poolGeo, poolMat, HUTS.live);
   pools.setColorAt(0, new THREE.Color(0xffffff));
+  // An additive pool is light painted on the snow, not geometry standing in
+  // front of the sun. Without this opt-out the generic scene traversal makes
+  // each 18-metre quad cast a solid square into the shadow map.
+  pools.userData.noShadow = true;
 
   for (const mesh of [shell, panes, pools]) {
     mesh.frustumCulled = false;

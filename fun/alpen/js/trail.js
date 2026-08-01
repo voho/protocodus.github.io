@@ -1,497 +1,409 @@
-/* The mark the board cuts into the snow.
+/* The physical mark a snowboard leaves in the snow.
 
-   A ribbon: two vertices a sample, a sample about thirty times a second,
-   stitched into a strip that follows the rider down the hill and fades out
-   behind them. It is the only thing on screen that records what the rider
-   *did* rather than what they are doing, and on a mountain made of one
-   colour it is most of what makes a carve legible as a carve — the arc is
-   still there to look at a second after it was ridden, which is the second
-   in which the player finds out whether the line was any good.
+   This is deliberately geometry rather than a decal. Fifteen vertices cross
+   every sample: packed bed, both edge cuts, the two berm shoulders, their
+   peaks and their feathered feet. The old two-vertex strip could only paint
+   those features onto one flat plane, which is why a brake looked like a blue
+   ribbon. These lanes follow the terrain independently and the berms rise out
+   of it, so real scene lights describe the displaced snow.
 
-   Four decisions carry the ribbon itself.
+   The mesh is still a fixed ring. Samples are now spaced by distance rather
+   than only by the render clock; unlimited W speed therefore adds enough
+   intermediate sections to keep the trench attached to the terrain instead
+   of stretching one huge triangle down the mountain. Gaps remain explicit for
+   jumps, rails and airborne tumbles.
 
-   The geometry is allocated once and never again. A ring of TRAIL.samples
-   samples, two vertices each, and an index buffer that is restitched — not
-   rebuilt, not reallocated — whenever the ribbon's topology actually changes,
-   which is when a sample is committed, when the oldest one expires, and when
-   a stroke breaks. Everything else in the run is endless, so this is the one
-   place where a fixed budget has to be enough, and fourteen seconds of
-   ribbon is what four hundred and twenty samples buys at speed.
+   No longitudinal texture or shader noise is used. Edge breakup comes from
+   three low-pass random walks sampled into the geometry, and narrow cut
+   accents are derivative-filtered. That keeps the extra detail from reviving
+   the lower-screen moire the terrain work removed. */
 
-   The index is where the gaps live. Two segments must never be drawn: the
-   one that wraps from the newest sample round to the oldest, which would
-   drag a ribbon straight back up the mountain, and the one that spans a
-   jump. Emitting nothing while airborne is not enough on its own — the
-   sample before the lip and the sample after the landing are still adjacent
-   in the ring, and joined they draw a perfectly straight line through the
-   air where the trick was. So a sample that opens a stroke is flagged, and a
-   flagged sample is never stitched back to whatever came before it.
-
-   The newest sample is alive. It is not laid down and left; it is dragged
-   along with the board every frame until the next one falls due, and only
-   then does it freeze. Committing on the sample clock alone leaves the
-   ribbon ending up to a board's length behind the board at a hundred and
-   fifty kilometres an hour, and that gap opens and closes at the sample
-   rate, which reads as the trail flickering off the tail of the board.
-
-   And the ribbon sits on the ground by taking its plane from the surface the
-   rider is standing on, then rising wherever the bare hill is higher than
-   that plane. Neither half works alone: placed purely on `heightAt` the
-   ribbon is buried inside every kicker it crosses, because a kicker is not
-   in `heightAt` at all; placed purely on the rider's tangent plane it dives
-   into the side of any mogul taken at an angle. Taking the higher of the two
-   at each of the two vertices costs two height lookups a sample — sixty a
-   second, against the better part of a thousand the rider already spends on
-   the same function — and the ribbon hugs the snow without cutting into it.
-
-   ---
-
-   What the ribbon *is* took a second pass, and that is the rest of the file.
-
-   It used to be one flat blue-grey laid down at a constant alpha, which is a
-   decal of a track rather than a track. A carve is a trench, and a trench is
-   three surfaces: a floor of cut snow, an uphill wall the light reaches, and
-   a downhill wall standing in its own shadow — with the snow the edge
-   displaced piled proud along both lips, because it has to go somewhere.
-   All of that is painted across the strip's own width in the fragment
-   shader, out of `aSide`, which the geometry already carried and the old
-   shader used only to feather the edges away.
-
-   Painting the section rather than building it was the second attempt. The
-   first was four vertices a sample — outer lip, floor, floor, outer lip — so
-   the berm could stand a few centimetres proud and be a real shape. Two
-   things killed it, and the second is the one that matters. The ribbon is an
-   unlit custom shader, so raised geometry catches no light and the lip would
-   have had to be painted anyway; and four centimetres of relief seen from a
-   chase camera eight metres back is not a shape, it is a line. So the relief
-   is painted, the strip stays two vertices wide, and the ring, the gaps and
-   the moving origin above are untouched by any of it.
-
-   The section earns its keep on legibility, not on realism. Snow here runs
-   from a warm near-white where the low sun lands to glacier blue in the
-   shade, and one flat tint can only ever read against one end of that:
-   darker than lit snow is invisible on shade, lighter than shade is
-   invisible in the sun. A trench carries both at once — the shadowed wall is
-   the darkest thing in the mark and the sunlit lip the lightest — so
-   whichever snow the line happens to be lying on, one of the two is doing
-   the work and the arc stays readable.
-
-   The *character* of the mark now comes off the board as well as its width.
-   A railed edge cuts: its shoulders are sharp enough to measure, its lips
-   are straight, and its floor is clean. A washed-out edge scrubs: it has no
-   shoulder at all, its two edges wander independently, and its floor is
-   mottled. The wander is drawn per vertex on the processor and interpolated
-   — `aChew` — rather than hashed in the shader. A hash wants an along-track
-   coordinate, and an along-track coordinate on a ribbon this long either
-   overflows the precision it is interpolated at or has to wrap, and the wrap
-   is a seam that crosses the whole mark once every few seconds.
-
-   Freshness is the last of it. Displaced snow stands proud for a few seconds
-   and then slumps, so the lip highlight is at full strength for the first
-   sixth of a sample's life and gone well before the mark itself has faded,
-   and the shadow the berm throws into the groove goes with it. It is the one
-   cue in the picture that says which end of the line was ridden last. */
-
-import { TRAIL, SKY, RENDER } from './config.js';
+import { TRAIL } from './config.js';
 import { heightAt } from './terrain.js';
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+const mix = (a, b, t) => a + (b - a) * t;
+const smoothstep = (a, b, v) => {
+  const t = clamp((v - a) / (b - a), 0, 1);
+  return t * t * (3 - 2 * t);
+};
 
-/* The cross-section, and the only new set of numbers in the file.
+// The rendered board is 31 cm wide and 1.6 m long. During a skid its swept
+// width is the projection of that rectangle across the direction of travel.
+const BOARD_HALF = 0.155;
+const BOARD_HALF_LENGTH = 0.800;
+const EDGE_PIVOT = 0.12;
 
-   Everything here is measured in the strip's own half-width — `aSide` runs
-   from −1 at one edge to +1 at the other — so the whole shape scales with
-   the mark automatically and a full wash-out gets the same section as a
-   pencil-line carve, three times as wide. The stops read outwards from the
-   middle of the board: floor, wall, shoulder, the crest of the berm, and the
-   foot where the displaced snow runs out.
+/* Lanes in carrier half-widths. The exact bed, cut, ridge and feather
+   boundaries are vertices rather than shader-only coordinates. Twenty-five
+   lanes are still a tiny carrier, but they give a loaded edge enough section
+   curvature to read as a cut instead of a dark line. */
+export const SECTION = Object.freeze([
+  -1.000, -0.985, -0.940, -0.900, -0.860, -0.820,
+  -0.770, -0.755, -0.735, -0.715, -0.640, -0.320,
+  0,
+  0.320, 0.640, 0.715, 0.735, 0.755, 0.770,
+  0.820, 0.860, 0.900, 0.940, 0.985, 1.000,
+]);
 
-   `berm` is why the strip is drawn wider than the mark. The cut is still the
-   width TRAIL.width and TRAIL.slideWidth were tuned to; the extra half is
-   the ground the displaced snow is piled on, which did not exist before and
-   has to be somewhere for the lip to be painted on.
-
-   The two `soft` values are the whole difference between a cut and a scuff.
-   They are the half-width of every transition in the section, and at 0.045
-   the shoulder of a railed turn is a hard line you could measure while at
-   0.30 there is no shoulder left at all — the mark simply thins out. `haze`
-   adds to both with distance, and is not taste: a transition narrower than
-   the pixel it lands in crawls as the camera moves, and the far half of the
-   ribbon is exactly where that shows. */
 export const TRENCH = {
-  berm: 1.5,          // strip half-width as a multiple of the mark's
-  wallIn: 0.32,       // where the floor gives way to the wall
-  shoulder: 0.66,     // where the wall gives way to the berm — the cut edge
-  crest: 0.82,        // the berm's high line
-  crestHalf: 0.07,    // and how far it reaches either side of it
-  foot: 0.88,         // where the displaced snow runs out into open snow
-
-  carveSoft: 0.045,   // transition half-width of a railed edge
-  skidSoft: 0.30,     // and of one that has let go entirely
-  softCap: 0.40,      // past which the section has dissolved and may as well stop
-  /* Extra softening per metre of depth. Calibrated rather than chosen: a
-     pixel at this field of view is about a thousandth and a half of a radian
-     across, so at `d` metres it covers `d × 0.0015` metres of ground, and a
-     carve's strip is about half a metre from the middle to its edge — so one
-     pixel is `d × 0.003` of the section, and a transition wants to be a pixel
-     and a half wide before it stops crawling as the camera moves. Inside ten
-     metres the mark therefore keeps very nearly the edge it was cut with, and
-     by seventy it has none left at all, which is also about where the fog
-     starts taking the whole thing anyway. */
-  haze: 0.005,
-
-  chew: 0.17,         // how far a skidded edge wanders off its line
-  mottle: 0.45,       // and how much its floor blotches
-
-  settle: 0.16,       // share of a sample's life the berm stands proud for
-  flatBite: 0.55,     // what a board gliding flat still leaves for walls
-
-  /* How much cross-slope tilt counts as a fully banked trench.
-
-     `lat.y` is the height difference across the board, and because the
-     lateral axis has already been projected onto the slope it is a direct
-     read of how far across the fall line the rider is travelling: nothing at
-     all pointed straight down the hill, and the sine of the pitch — about
-     0.29 on this mountain — traversing square across it. Saturating a little
-     under that means any real traverse gets a fully lit and fully shadowed
-     wall, and only a straight schuss gets two neutral ones, which is exactly
-     right: a line down the fall line cuts no bank to catch anything. */
-  tiltFull: 0.22,
-
-  /* What each surface contributes, before TRAIL.opacity scales the lot.
-
-     These are calibrated against what the mark used to be rather than
-     against each other: the old flat strip was laid down at exactly
-     TRAIL.opacity across its whole width, so a weight of one here is that
-     strip, and everything reads as heavier or lighter than the trail the
-     rest of the game was tuned around. The shadowed wall is deliberately the
-     heaviest thing in the mark — a groove is read from its dark side — and
-     `cap` is what stops the one place the crest and the wall overlap from
-     stacking into a line darker than anything else on the mountain. */
-  floorWeight: 0.95,
-  wallWeight: 1.05,
-  shadeWeight: 0.65,
-  crestWeight: 1.10,
-  cap: 1.5,
-
-  /* How far towards the shadowed colour a wall starts before the bank has
-     any say. Two thirds rather than a half, and the reason is the sunlit
-     half of the hill: on snow already at #fbfdff a warm lip has almost
-     nothing left to add and the only thing that can carry the mark is the
-     dark, so the walls have to be genuinely darker than the floor between
-     them or a carve on the lit side of a roller reads as a smudge. */
-  wallBase: 0.62,
+  berm: 1.36,
+  bed: 0.64,
+  groove: 0.735,
+  ridge: 0.86,
+  foot: 0.985,
+  grooveHalfCarve: 0.020,
+  grooveHalfSkid: 0.095,
+  settle: 0.30,
 };
 
-/* Four shades of snow, and not one of them is white.
-
-   The hill is painted between #fbfdff where the low sun lands and #c2d3ea in
-   the shade, and every one of these is a step off that pair rather than a
-   colour of its own — all four arrive at a fraction of TRAIL.opacity, so what
-   reaches the screen is always a shift in the ground and never a paint mark
-   sitting on top of it.
-
-   `cut` is snow that has been sliced open: denser, bluer and a little darker
-   than the surface it came out of. `shade` is the downhill wall, the one
-   surface in the mark that is genuinely in shadow, and it is pushed as far
-   down as it can go while still reading as snow — further and the trench
-   becomes a crack in the hill rather than a groove in it, which was the
-   original single colour's whole problem in reverse.
-
-   `lit` is the uphill wall. It is cool rather than warm on purpose: it is
-   turned towards the sky as much as towards the sun, so what it catches is
-   mostly the blue of the dome.
-
-   Neither wall starts at `cut`. Both start most of the way over towards
-   `shade` — TRENCH.wallBase — and only then swing back towards `lit` or on
-   down to `shade` with the bank. That was the fix for a run straight down the
-   fall line, which cuts no bank at all and so came out with two walls the
-   same colour as the floor between them: a flat band again, which is exactly
-   what all this was for. A wall is a steep face whichever way it points, and
-   it is darker than the floor before the sun has any say in it.
-
-   `crest` is the one warm thing on the mountain that is not the sun itself,
-   and it has earned it — the berm is the only surface in the mark that
-   stands up out of the snow, so it is the only one the low sun actually
-   lands on. It is also the reason a fresh line reads at all against a slope
-   already in blue shade. */
-const INK = {
-  cut: '#8fa8cc',
-  shade: '#5f7bab',
-  lit: '#cfe0f6',
-  crest: '#ffeeda',
+/* Albedos, not baked lighting. MeshLambertMaterial and the shared alpine
+   shading pass carry the sun, shadow, headlamp and helicopter light. */
+const SNOW = {
+  packed: '#c1d2df',
+  groove: '#a8bed0',
+  ridge: '#d1dfea',
+  clod: '#c8d8e4',
 };
 
-/* How much sideways wash counts as a full wash-out, in m/s. The edge lets go
-   somewhere around a metre a second and a hard brake at speed asks for ten,
-   so this is set where the board has stopped holding any kind of line and
-   the mark has become a smear rather than a cut. */
+const SLIDE_HOLD = 0.6;
 const SLIDE_FULL = 5.5;
-
-/* And how much of it a railed turn is allowed before the mark starts to look
-   scrubbed. There is always some scrub: a snowboard is not a rail and even a
-   fully committed carve washes a little as the tail comes round. Without a
-   dead zone every carve in the game came out with a slightly chewed edge,
-   which is precisely the read the chewed edge exists to deny it.
-
-   Only the *character* gets the dead zone. The width still comes off the raw
-   slide, because that number was tuned against the raw slide and a trail
-   that suddenly stopped widening under a light scrub would be a different
-   change wearing this one's clothes. */
-const SLIDE_HOLD = 0.9;
-
-/* The share of a sample's life it keeps its full weight for. A mark that
-   starts fading the instant it is cut reads as smoke coming off the board;
-   a groove in snow is a groove until something fills it in, so the alpha
-   holds and then goes in the last few seconds. */
-const HOLD = 0.55;
-
-/* Metres the ribbon's origin is allowed to drift before everything is
-   rebased onto a new one.
-
-   The run reaches z = −20000 and, on a grade of about a third, y = −6000
-   with it. Handed to the GPU raw, a coordinate that size lands on a float32
-   lattice about two millimetres wide, which is a twentieth of the height the
-   whole ribbon is floating at — so the trail would start to sparkle against
-   the hill exactly where the run gets interesting. The mesh therefore sits
-   at an anchor and stores its vertices relative to it, the same trick the
-   terrain uses for the same reason, and rebasing is a single pass of adds
-   over a buffer of eight hundred and forty vertices every hundred and
-   twenty-eight metres. The stride is a power of two so the delta between two
-   anchors is exact in both float64 and float32 and the rebase cannot itself
-   introduce the drift it exists to prevent. */
+const FADE_START = 0.82;
 const ANCHOR_STRIDE = 128;
+const DISTANCE_FADE_NEAR = 92;
+const DISTANCE_FADE_FAR = 145;
+const CLOD_CLUSTER = 3;
 
-// GLSL has no integer-to-float promotion worth relying on, and the section
-// above is all compile-time constants — folded into the source rather than
-// carried as uniforms, because none of them changes while the game is running
-// and a uniform that never moves is a uniform someone has to remember to set
 const n = (v) => (Number.isInteger(v) ? `${v}.0` : `${v}`);
 
-const VERT = `
-  attribute float aSide;
-  attribute float aChew;
-  attribute vec3 aCut;      // wash, cross-slope tilt, edge load
-  attribute vec2 aLife;     // weight, age
-  varying float vSide;
-  varying float vChew;
-  varying float vWash;
-  varying float vTilt;
-  varying float vBite;
-  varying float vAlpha;
-  varying float vAge;
-  varying float vDepth;
-  void main() {
-    vSide = aSide;
-    vChew = aChew;
-    vWash = aCut.x;
-    vTilt = aCut.y;
-    vBite = aCut.z;
-    vAlpha = aLife.x;
-    vAge = aLife.y;
-    vec4 mv = modelViewMatrix * vec4(position, 1.0);
-    vDepth = -mv.z;
-    gl_Position = projectionMatrix * mv;
-  }
-`;
+const TRACK_VERT_PARS = `
+  attribute float aCross;
+  attribute float aVariation;
+  attribute vec3 aTrackBaseNormal;
+  attribute vec4 aTrack;    // wash, edge bite, brake, loaded/push side
+  attribute vec2 aLife;     // remaining weight, normalised age
+  varying float vTrackCross;
+  varying float vTrackVariation;
+  varying vec4 vTrackState;
+  varying vec2 vTrackLife;
+  varying vec3 vTrackBaseNormal;
+  varying float vTrackDepth;`;
 
-/* The section, one fragment at a time.
+const TRACK_VERT = `
+  vTrackCross = aCross;
+  vTrackVariation = aVariation;
+  vTrackState = aTrack;
+  vTrackLife = aLife;
+  vTrackBaseNormal = normalize(normalMatrix * aTrackBaseNormal);
+  vTrackDepth = -mvPosition.z;
 
-   Everything is a mask across `a`, the distance out from the middle of the
-   board in half-widths, and the masks are disjoint by construction — the
-   wall is what is inside the shoulder and outside the floor, so the two
-   never both claim a fragment and the weighted average below cannot
-   double-count one. The three surfaces are then averaged for colour and
-   summed for weight, which is the whole trick that lets a shadowed wall be
-   both darker *and* more opaque than the floor beside it.
+  // The board compresses and polishes the floor while the deposited bank is
+  // newly aerated powder. The shared snow response turns this broad field
+  // into a restrained roughness change, with its own distance filtering.
+  float n64TrackVertA = abs(aCross);
+  float n64TrackVertBed = 1.0 - smoothstep(${n(TRENCH.bed)},
+    ${n(TRENCH.groove)}, n64TrackVertA);
+  float n64TrackVertBank = 1.0 - smoothstep(0.065, 0.12,
+    abs(n64TrackVertA - ${n(TRENCH.ridge)}));
+  float n64TrackVertPack = clamp(aTrack.x * 0.48 + aTrack.z * 0.34
+    + aTrack.y * 0.30, 0.0, 1.0);
+  vN64Ice = n64TrackVertBed * (0.48 + n64TrackVertPack * 0.44)
+    * (1.0 - n64TrackVertBank);`;
 
-   `vChew` moves the shoulder, the crest and the foot together rather than
-   independently, because a real skid does not chew the edge and leave the
-   pile behind it straight — the whole outside of the mark wanders as one.
-   It is scaled by the wash, so a carve's edges do not move at all.
+const TRACK_FRAG_PARS = `
+  uniform vec3 uTrackPacked;
+  uniform vec3 uTrackGroove;
+  uniform vec3 uTrackRidge;
+  uniform float uTrackOpacity;
+  varying float vTrackCross;
+  varying float vTrackVariation;
+  varying vec4 vTrackState;
+  varying vec2 vTrackLife;
+  varying vec3 vTrackBaseNormal;
+  varying float vTrackDepth;`;
 
-   Fog is folded in by hand at the end, exactly as the particles do it,
-   because a custom shader does not get three's for free — and the trail has
-   to dissolve into the same curtain the hill does or the far end of it hangs
-   in the haze like a wire. The uniforms are named to match `particles.js` so
-   main can drive both from the weather in one loop.
+/* Colour remains a sub-pixel accent over the physical section. A clean carve
+   strongly weights only the buried edge; a flat base leaves two faint cuts;
+   a brake softens them into the bounds of a churned bed. */
+const TRACK_COLOR = `
+  float n64TrackA = abs(vTrackCross);
+  float n64TrackWash = clamp(vTrackState.x, 0.0, 1.0);
+  float n64TrackBite = clamp(vTrackState.y, 0.0, 1.0);
+  float n64TrackBrake = clamp(vTrackState.z, 0.0, 1.0);
+  float n64TrackSide = sign(vTrackCross);
+  float n64TrackLoaded = clamp(
+    0.5 + 0.5 * n64TrackSide * vTrackState.w, 0.0, 1.0);
 
-   One housekeeping note, because it cost an afternoon: the comments below are
-   written in plain ASCII. A minus sign or an em dash inside a GLSL comment is
-   outside the language's source character set, and a strict front end will
-   refuse the whole shader over a dash in a sentence it never reads. */
-const FRAG = `
-  precision mediump float;
-  uniform vec3 uCut;
-  uniform vec3 uLit;
-  uniform vec3 uShade;
-  uniform vec3 uCrest;
-  uniform vec3 uFog;
-  uniform float uNear;
-  uniform float uFar;
-  uniform float uOpacity;
-  varying float vSide;
-  varying float vChew;
-  varying float vWash;
-  varying float vTilt;
-  varying float vBite;
-  varying float vAlpha;
-  varying float vAge;
-  varying float vDepth;
-  void main() {
-    if (vAlpha <= 0.002) discard;
+  // Filter in screen space. The depth term gently broadens a cut before it
+  // becomes smaller than a pixel, so it converges instead of flickering.
+  float n64TrackAA = clamp(fwidth(n64TrackA) * 1.45
+    + vTrackDepth * 0.00022, 0.006, 0.13);
+  float n64TrackGrooveHalf = mix(${n(TRENCH.grooveHalfCarve)},
+    ${n(TRENCH.grooveHalfSkid)}, n64TrackWash);
+  float n64TrackBed = 1.0 - smoothstep(${n(TRENCH.bed)} - n64TrackAA,
+    ${n(TRENCH.groove)} + n64TrackGrooveHalf + n64TrackAA * 1.8,
+    n64TrackA);
+  float n64TrackGroove = 1.0 - smoothstep(
+    n64TrackGrooveHalf - n64TrackAA,
+    n64TrackGrooveHalf + n64TrackAA,
+    abs(n64TrackA - ${n(TRENCH.groove)}));
+  // Conserve the apparent energy of a cut once it is narrower than a pixel.
+  // Merely broadening it with fwidth keeps a full-strength dark rail alive to
+  // the horizon; coverage scaling lets it converge into the bed instead.
+  n64TrackGroove *= min(1.0,
+    n64TrackGrooveHalf / max(n64TrackAA, 0.0001));
+  float n64TrackRidge = 1.0 - smoothstep(0.085 - n64TrackAA,
+    0.085 + n64TrackAA, abs(n64TrackA - ${n(TRENCH.ridge)}));
+  float n64TrackFoot = 1.0 - smoothstep(${n(TRENCH.foot)}
+    - n64TrackAA * 2.0, 1.0, n64TrackA);
 
-    float a = abs(vSide);
-    float wash = clamp(vWash, 0.0, 1.0);
-    float rail = 1.0 - wash;
+  // A snowboard does not ink both steel edges into the hill. Flat running
+  // leaves only a quiet base polish; once edged, one loaded cut owns the
+  // mark and its unloaded partner nearly disappears.
+  float n64CleanCut = mix(0.12,
+    mix(0.02, 0.68, n64TrackLoaded), n64TrackBite);
+  float n64CutStrength = mix(n64CleanCut,
+    0.035 + n64TrackLoaded * 0.10
+      + n64TrackBrake * (0.015 + n64TrackLoaded * 0.08),
+    n64TrackWash);
+  float n64Organic = clamp(1.0 + vTrackVariation
+    * (0.10 + n64TrackWash * 0.25 + n64TrackBrake * 0.10), 0.65, 1.35);
+  float n64Fresh = 1.0 - smoothstep(0.025, ${n(TRENCH.settle)},
+    vTrackLife.y);
+  float n64BrokenBerm = smoothstep(-0.45, 0.35, vTrackVariation);
+  float n64Breakup = mix(1.0, n64BrokenBerm,
+    clamp(n64TrackWash * 0.55 + n64TrackBrake * 0.55, 0.0, 1.0));
+  float n64RidgeActivity = clamp(n64TrackBite + n64TrackWash
+    + n64TrackBrake, 0.0, 1.0);
+  float n64RidgeSide = mix(0.46, mix(0.06, 1.0, n64TrackLoaded),
+    n64RidgeActivity);
 
-    float soft = min(mix(${n(TRENCH.skidSoft)}, ${n(TRENCH.carveSoft)}, rail)
-      + vDepth * ${n(TRENCH.haze)}, ${n(TRENCH.softCap)});
+  // The bed is intentionally quiet during a clean run. Most of that mark is
+  // read from the single cut and the raised snow beside it, not from paint.
+  float n64BedWeight = n64TrackBed * n64Organic
+    * (0.065 + (1.0 - n64TrackBite) * 0.030
+      + n64TrackWash * 0.205 + n64TrackBrake * 0.095);
+  float n64GrooveWeight = n64TrackGroove * n64CutStrength;
+  float n64RidgeWeight = n64TrackRidge * n64Organic
+    * (0.08 + n64TrackBite * 0.30 + n64TrackWash * 0.52
+      + n64TrackBrake * 0.20)
+    * mix(0.48, 1.0, n64Fresh)
+    * n64RidgeSide * mix(0.22, 1.0, n64Breakup);
 
-    float chew = wash * vChew * ${n(TRENCH.chew)};
-    float shoulder = ${n(TRENCH.shoulder)} + chew;
-    float crest = ${n(TRENCH.crest)} + chew;
-    float foot = min(${n(TRENCH.foot)} + chew, 0.94);
+  float n64TrackWeight = max(n64BedWeight,
+    max(n64GrooveWeight, n64RidgeWeight)) * n64TrackFoot;
+  vec3 n64TrackAlbedo = uTrackPacked;
+  n64TrackAlbedo = mix(n64TrackAlbedo, uTrackGroove,
+    clamp(n64GrooveWeight / max(n64TrackWeight, 0.001), 0.0, 1.0));
+  n64TrackAlbedo = mix(n64TrackAlbedo, uTrackRidge,
+    clamp(n64RidgeWeight / max(n64TrackWeight, 0.001), 0.0, 0.86));
+  diffuseColor.rgb = n64TrackAlbedo;`;
 
-    float floorM = 1.0 - smoothstep(${n(TRENCH.wallIn)} - soft, ${n(TRENCH.wallIn)} + soft, a);
-    float cutM = 1.0 - smoothstep(shoulder - soft, shoulder + soft, a);
-    float wallM = max(cutM - floorM, 0.0);
-    // Half the softening, because the crest is a line and not a surface: let
-    // it widen with the rest of the section and it stops being a lip and
-    // becomes a halo either side of the mark, which the bloom then finds
-    float crestM = 1.0 - smoothstep(0.0, 1.0,
-      min(abs(a - crest) / (${n(TRENCH.crestHalf)} + soft * 0.5), 1.0));
-    // The mark always reaches nothing by the edge of its own strip. Without
-    // this the crest's outer flank is still carrying weight where the quad
-    // stops, and a band cut off at a constant value is the hard edge the
-    // whole section exists to avoid
-    float rim = 1.0 - smoothstep(foot, 1.0, a);
+const TRACK_ALPHA = `
+  float n64TrackDistance = 1.0 - smoothstep(${n(DISTANCE_FADE_NEAR)},
+    ${n(DISTANCE_FADE_FAR)}, vTrackDepth);
+  diffuseColor.a *= n64TrackWeight * vTrackLife.x
+    * uTrackOpacity * n64TrackDistance;`;
 
-    // Which wall the light is on. vTilt is the cross-slope bank of this
-    // sample and vSide which edge of the mark we are standing on, so the
-    // product is +1 up the hill, -1 down it, and nothing at all on a line
-    // straight down the fall line, which cuts no bank to light
-    float up = clamp(vSide * vTilt, -1.0, 1.0);
-    float sunward = max(up, 0.0);
-    float shadeward = max(-up, 0.0);
-    vec3 base = mix(uCut, uShade, ${n(TRENCH.wallBase)});
-    vec3 wall = base + (uLit - base) * sunward + (uShade - base) * shadeward;
+/* Three flips normals on the back face of DoubleSide materials. A trench is
+   still top-lit when a switch landing reverses its strip winding, so undo
+   that flip. Physical berm relief then converges to the smooth terrain normal
+   before it becomes a sub-pixel zipper in the distance. */
+const TRACK_NORMAL = `
+  #ifdef DOUBLE_SIDED
+    normal *= faceDirection;
+  #endif
+  float n64TrackReliefDetail = 1.0 - smoothstep(58.0, 112.0, vTrackDepth);
+  normal = normalize(mix(vTrackBaseNormal, normal, n64TrackReliefDetail));
+  nonPerturbedNormal = normal;`;
 
-    // A trench is only as deep as the edge that dug it, and a fresh berm
-    // throws a shadow into its own groove that goes when the berm slumps
-    float bite = mix(${n(TRENCH.flatBite)}, 1.0, clamp(vBite, 0.0, 1.0));
-    float settle = smoothstep(0.0, ${n(TRENCH.settle)}, vAge);
-
-    float wFloor = floorM * ${n(TRENCH.floorWeight)}
-      * (1.0 + wash * vChew * ${n(TRENCH.mottle)});
-    float wWall = wallM * bite * (${n(TRENCH.wallWeight)}
-      + shadeward * ${n(TRENCH.shadeWeight)} * (1.0 - settle * 0.5));
-    float wCrest = crestM * ${n(TRENCH.crestWeight)} * rail * bite * (1.0 - settle);
-
-    float w = wFloor + wWall + wCrest;
-    if (w <= 0.002) discard;
-    vec3 col = (uCut * wFloor + wall * wWall + uCrest * wCrest) / w;
-
-    float alpha = min(w, ${n(TRENCH.cap)}) * rim * vAlpha * uOpacity;
-    if (alpha <= 0.002) discard;
-
-    float f = clamp((vDepth - uNear) / (uFar - uNear), 0.0, 1.0);
-    gl_FragColor = vec4(mix(col, uFog, f * 0.8), alpha * (1.0 - f));
-  }
-`;
-
-export function createTrail(THREE) {
+export function createTrail(THREE, shading) {
   const N = TRAIL.samples;
-  const verts = N * 2;
+  const L = SECTION.length;
+  const verts = N * L;
+  const spacing = TRAIL.spacing;
+  const maxCatchup = TRAIL.maxCatchup;
+  const clodCapacity = N * CLOD_CLUSTER;
 
   const position = new Float32Array(verts * 3);
-  const side = new Float32Array(verts);
-  const chew = new Float32Array(verts);
-  const cut = new Float32Array(verts * 3);    // wash, tilt, bite
-  const life = new Float32Array(verts * 2);   // weight, age
+  const normal = new Float32Array(verts * 3);
+  const groundNormal = new Float32Array(verts * 3);
+  const cross = new Float32Array(verts);
+  const variation = new Float32Array(verts);
+  const track = new Float32Array(verts * 4);
+  const life = new Float32Array(verts * 2);
   const born = new Float64Array(N);
-  const opens = new Uint8Array(N);            // this sample starts a stroke
-  const index = new (verts > 65535 ? Uint32Array : Uint16Array)((N - 1) * 6);
+  const opens = new Uint8Array(N);
+  const edgeWalkL = new Float32Array(N);
+  const edgeWalkR = new Float32Array(N);
+  const pressureWalk = new Float32Array(N);
+  const clodX = new Float32Array(clodCapacity);
+  const clodY = new Float32Array(clodCapacity);
+  const clodZ = new Float32Array(clodCapacity);
+  const clodNX = new Float32Array(clodCapacity);
+  const clodNY = new Float32Array(clodCapacity);
+  const clodNZ = new Float32Array(clodCapacity);
+  const clodSize = new Float32Array(clodCapacity);
+  const clodRandA = new Float32Array(clodCapacity);
+  const clodRandB = new Float32Array(clodCapacity);
+  const clodRandC = new Float32Array(clodCapacity);
+  const indexCount = (N - 1) * (L - 1) * 6;
+  const index = new (verts > 65535 ? Uint32Array : Uint16Array)(indexCount);
 
-  // Which side of the board a vertex is on never changes, so it is written
-  // once here and the fragment shader gets the whole section for nothing
-  for (let i = 0; i < N; i++) {
-    side[i * 2] = -1;
-    side[i * 2 + 1] = 1;
-    born[i] = -1e9;
+  for (let slot = 0; slot < N; slot++) {
+    born[slot] = -1e9;
+    for (let lane = 0; lane < L; lane++) cross[slot * L + lane] = SECTION[lane];
   }
 
+  const dynamic = (array, size) => new THREE.BufferAttribute(array, size)
+    .setUsage(THREE.DynamicDrawUsage);
   const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(position, 3));
-  geo.setAttribute('aSide', new THREE.BufferAttribute(side, 1));
-  geo.setAttribute('aChew', new THREE.BufferAttribute(chew, 1));
-  geo.setAttribute('aCut', new THREE.BufferAttribute(cut, 3));
-  geo.setAttribute('aLife', new THREE.BufferAttribute(life, 2));
+  geo.setAttribute('position', dynamic(position, 3));
+  geo.setAttribute('normal', dynamic(normal, 3));
+  geo.setAttribute('aTrackBaseNormal', dynamic(groundNormal, 3));
+  geo.setAttribute('aCross', new THREE.BufferAttribute(cross, 1));
+  geo.setAttribute('aVariation', dynamic(variation, 1));
+  geo.setAttribute('aTrack', dynamic(track, 4));
+  geo.setAttribute('aLife', dynamic(life, 2));
   geo.setIndex(new THREE.BufferAttribute(index, 1));
   geo.setDrawRange(0, 0);
   geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e6);
 
-  /* Three things keep it off the hill's own surface, and it needs all three.
-     TRAIL.lift is metres, and answers the mesh: the terrain is drawn as flat
-     facets a metre and a half apart, so the ground the eye sees can sit a
-     couple of centimetres above the ground `heightAt` reports. polygonOffset
-     is depth units, and answers the depth buffer, which cannot separate two
-     surfaces this close at four hundred metres however carefully they were
-     placed. And depthWrite is off so that the ribbon, which is transparent
-     and overlaps itself on every hard turn, cannot occlude its own tail. */
-  const material = new THREE.ShaderMaterial({
-    uniforms: {
-      uCut: { value: new THREE.Color(INK.cut) },
-      uLit: { value: new THREE.Color(INK.lit) },
-      uShade: { value: new THREE.Color(INK.shade) },
-      uCrest: { value: new THREE.Color(INK.crest) },
-      uFog: { value: new THREE.Color(SKY.haze) },
-      uNear: { value: RENDER.fogNear },
-      uFar: { value: RENDER.fogFar },
-      uOpacity: { value: TRAIL.opacity },
-    },
-    vertexShader: VERT,
-    fragmentShader: FRAG,
+  const trackUniforms = {
+    uTrackPacked: { value: new THREE.Color(SNOW.packed) },
+    uTrackGroove: { value: new THREE.Color(SNOW.groove) },
+    uTrackRidge: { value: new THREE.Color(SNOW.ridge) },
+    uTrackOpacity: { value: TRAIL.opacity },
+  };
+
+  /* Start from a normal lit surface, then add only the state-driven section
+     masks. The shared shading patch remains authoritative for daylight,
+     weather fog and snow reflections; Three's light loop supplies the
+     headlamp, helicopter lamps and shadows automatically. */
+  const material = new THREE.MeshLambertMaterial({
+    color: 0xffffff,
     transparent: true,
+    opacity: 1,
     depthWrite: false,
-    // The strip's winding follows the direction of travel, which a rider
-    // sliding backwards out of a fall reverses. The section is symmetric
-    // about the strip and drawn from the same varyings either way, so this
-    // costs nothing and removes the case entirely.
+    depthTest: true,
     side: THREE.DoubleSide,
     polygonOffset: true,
-    polygonOffsetFactor: -2,
-    polygonOffsetUnits: -4,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -1,
+    alphaTest: 0.002,
   });
+  material.onBeforeCompile = (shader) => {
+    Object.assign(shader.uniforms, trackUniforms);
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', `#include <common>${TRACK_VERT_PARS}`)
+      .replace('#include <project_vertex>', `#include <project_vertex>${TRACK_VERT}`);
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>${TRACK_FRAG_PARS}`)
+      .replace('#include <color_fragment>', `#include <color_fragment>${TRACK_COLOR}`)
+      .replace('#include <normal_fragment_begin>',
+        `#include <normal_fragment_begin>${TRACK_NORMAL}`)
+      .replace('#include <alphamap_fragment>',
+        `#include <alphamap_fragment>${TRACK_ALPHA}`);
+  };
+  shading.apply(material, { sheen: 0.58 });
+  material.userData.trailUniforms = trackUniforms;
 
   const mesh = new THREE.Mesh(geo, material);
   mesh.frustumCulled = false;
-  // Ahead of the spray and the snowfall. The trail is the one transparent
-  // thing in the game that is lying on the ground rather than floating over
-  // it, and sorting it by the distance to its own centre — which is an
-  // anchor a hundred metres away — gets that wrong about half the time.
   mesh.renderOrder = -1;
+  mesh.castShadow = false;
+  mesh.receiveShadow = true;
+
+  /* A skid does not leave a continuous pastry-piped ridge. Sparse clods sit
+     on the pushed berm and shrink out before they become sub-pixel detail.
+     They are one instanced draw call and use the same real lighting as the
+     section underneath. */
+  const clodGeo = new THREE.IcosahedronGeometry(1, 0);
+  const clodMaterial = new THREE.MeshLambertMaterial({ color: SNOW.clod });
+  shading.apply(clodMaterial, { sheen: 0.24 });
+  const clods = new THREE.InstancedMesh(
+    clodGeo, clodMaterial, clodCapacity,
+  );
+  clods.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  clods.frustumCulled = false;
+  clods.castShadow = false;
+  clods.receiveShadow = true;
+  clods.renderOrder = 0;
+  mesh.add(clods);
 
   const lat = new THREE.Vector3(1, 0, 0);
   const prevLat = new THREE.Vector3(1, 0, 0);
-  const fwd = new THREE.Vector3();
+  const travel = new THREE.Vector3();
+  const motionLat = new THREE.Vector3();
+  const baseNormal = new THREE.Vector3(0, 1, 0);
+  const sectionLat = new THREE.Vector3(1, 0, 0);
+  const laneNormal = new THREE.Vector3();
+  const clodDummy = new THREE.Object3D();
+  const clodUp = new THREE.Vector3(0, 1, 0);
+  const clodNormal = new THREE.Vector3(0, 1, 0);
+
+  // Reused cross-section scratch: no allocations while the board is moving.
+  const laneD = new Float64Array(L);
+  const laneX = new Float64Array(L);
+  const laneY = new Float64Array(L);
+  const laneZ = new Float64Array(L);
+  const laneSurfaceRelief = new Float64Array(L);
+  const laneVariation = new Float64Array(L);
+
+  const STATE_KEYS = [
+    'latX', 'latY', 'latZ', 'normalX', 'normalY', 'normalZ',
+    'travelX', 'travelY', 'travelZ', 'wash', 'bite', 'brake', 'bias',
+    'contactShift', 'load', 'chatter', 'half',
+  ];
+  const makeState = () => ({
+    latX: 1, latY: 0, latZ: 0,
+    normalX: 0, normalY: 1, normalZ: 0,
+    travelX: 0, travelY: 0, travelZ: -1,
+    wash: 0, bite: 0, brake: 0, bias: 0,
+    contactShift: 0, load: 0, chatter: 0, half: TRAIL.width,
+  });
+  const currentState = makeState();
+  const committedState = makeState();
+  const segmentStartState = makeState();
+  const interpolatedState = makeState();
+
+  function copyState(out, source) {
+    for (let i = 0; i < STATE_KEYS.length; i++) {
+      const key = STATE_KEYS[i];
+      out[key] = source[key];
+    }
+    return out;
+  }
+
+  function mixState(out, from, to, t) {
+    for (let i = 0; i < STATE_KEYS.length; i++) {
+      const key = STATE_KEYS[i];
+      out[key] = mix(from[key], to[key], t);
+    }
+    return out;
+  }
 
   let now = 0;
-  let head = -1;        // the live sample: rewritten every frame until it freezes
+  let head = -1;       // current live sample
   let count = 0;
-  let open = false;     // a stroke is being laid down right now
-  let dirty = false;    // the topology changed, so the index needs restitching
-  let wobble = 1;       // per-sample randomness, drawn once when a sample is taken
-  let chewL = 0;        // the two edges' wander, each a walk of its own
+  let open = false;
+  let dirty = false;
+  let chewL = 0;
   let chewR = 0;
-  let lastT = 0;
-  let lastX = 0;
-  let lastZ = 0;
+  let variationWalk = 0;
+  let liveHalf = TRAIL.width;
+  let lastCommitX = 0;
+  let lastCommitZ = 0;
   let anchorX = 0;
   let anchorY = 0;
   let anchorZ = 0;
+  let visibleClods = 0;
 
-  /* --- the moving origin ------------------------------------------------ */
+  function hideAllClods() {
+    clods.count = 0;
+    visibleClods = 0;
+  }
+  hideAllClods();
 
   function rebase(x, y, z) {
     const ax = Math.round(x / ANCHOR_STRIDE) * ANCHOR_STRIDE;
@@ -501,13 +413,15 @@ export function createTrail(THREE) {
     const dx = anchorX - ax;
     const dy = anchorY - ay;
     const dz = anchorZ - az;
-    // The samples already on the buffer are shifted rather than recomputed:
-    // where they were is the whole point of them, and nothing outside this
-    // function ever needs to know which origin they are measured from
     for (let p = 0; p < position.length; p += 3) {
       position[p] += dx;
       position[p + 1] += dy;
       position[p + 2] += dz;
+    }
+    for (let i = 0; i < clodCapacity; i++) {
+      clodX[i] += dx;
+      clodY[i] += dy;
+      clodZ[i] += dz;
     }
     anchorX = ax;
     anchorY = ay;
@@ -516,82 +430,208 @@ export function createTrail(THREE) {
     geo.attributes.position.needsUpdate = true;
   }
 
-  /* --- the ring --------------------------------------------------------- */
-
-  /* Both vertices of one sample, in the anchor's frame. `y` is the height of
-     the board's own contact point; the two edges of the strip are carried
-     out along the lateral axis, which is tangent to the slope and so takes
-     them up or down the fall line with it, and then floated to whichever is
-     higher of that plane and the bare hill underneath.
-
-     `half` is the strip's half-width and not the mark's — the caller has
-     already opened it out by TRENCH.berm to leave room for the displaced
-     snow — which means the two height lookups moved outwards with it. That
-     is the right way round: the berm is real ground and wants to sit on the
-     hill it is piled on, not on the plane the board was standing on. */
-  function write(slot, x, y, z, half) {
-    const ox = lat.x * half;
-    const oy = lat.y * half;
-    const oz = lat.z * half;
-    const lx = x - ox;
-    const lz = z - oz;
-    const rx = x + ox;
-    const rz = z + oz;
-    const ly = Math.max(y - oy, heightAt(lx, lz)) + TRAIL.lift;
-    const ry = Math.max(y + oy, heightAt(rx, rz)) + TRAIL.lift;
-    const p = slot * 6;
-    position[p] = lx - anchorX;
-    position[p + 1] = ly - anchorY;
-    position[p + 2] = lz - anchorZ;
-    position[p + 3] = rx - anchorX;
-    position[p + 4] = ry - anchorY;
-    position[p + 5] = rz - anchorZ;
-  }
-
-  /* What kind of mark this is, as opposed to where it is. Both vertices of a
-     sample get the same three numbers because all three describe the board,
-     not the edge of the strip; the one thing that genuinely differs across
-     the width — how far each edge has wandered — is `chew`, and that is
-     written per vertex when the sample is taken. */
-  function shape(slot, wash, tilt, bite) {
-    const p = slot * 3;
-    cut[p] = wash;
-    cut[p + 1] = tilt;
-    cut[p + 2] = bite;
-    cut[p + 3] = wash;
-    cut[p + 4] = tilt;
-    cut[p + 5] = bite;
-  }
-
-  function take(x, z, starting) {
+  /* Open one ring slot and give it spatially correlated irregularity. The
+     walk is drawn once per section and then frozen; a live section can be
+     rewritten sixty times without boiling. */
+  function take(starting) {
     head = head < 0 ? 0 : (head + 1) % N;
     if (count < N) count += 1;
     opens[head] = starting ? 1 : 0;
     born[head] = now;
-    // Drawn once per sample rather than once per frame: the live sample is
-    // rewritten every frame, and a width rerolled every frame is a ribbon
-    // that boils rather than a body dragging through snow
-    wobble = 0.9 + Math.random() * 0.4;
-    /* The two edges wander as walks rather than as noise. Redrawn outright
-       every sample the edge came out as a zigzag at the sample rate, which
-       is a saw blade and not a scuff; halving the old value in keeps each
-       edge somewhere near where it was a moment ago and lets it drift, which
-       is what a board pushing a pile of snow sideways actually leaves. The
-       two are independent so the mark is chewed rather than merely wide. */
-    chewL = chewL * 0.5 + (Math.random() * 2 - 1) * 0.5;
-    chewR = chewR * 0.5 + (Math.random() * 2 - 1) * 0.5;
-    chew[head * 2] = chewL;
-    chew[head * 2 + 1] = chewR;
-    lastT = now;
-    lastX = x;
-    lastZ = z;
+    chewL = clamp(chewL * 0.82 + (Math.random() * 2 - 1) * 0.18, -1, 1);
+    chewR = clamp(chewR * 0.82 + (Math.random() * 2 - 1) * 0.18, -1, 1);
+    variationWalk = clamp(
+      variationWalk * 0.88 + (Math.random() * 2 - 1) * 0.16, -1, 1,
+    );
+    edgeWalkL[head] = chewL;
+    edgeWalkR[head] = chewR;
+    pressureWalk[head] = variationWalk;
+    const clodBase = head * CLOD_CLUSTER;
+    for (let j = 0; j < CLOD_CLUSTER; j++) {
+      const id = clodBase + j;
+      clodRandA[id] = Math.random();
+      clodRandB[id] = Math.random();
+      clodRandC[id] = Math.random();
+      clodSize[id] = 0;
+    }
     dirty = true;
   }
 
-  /* Everything past its life is dropped from the tail. Faded samples draw
-     nothing — the shader discards them — but they are still four hundred
-     quads being rasterised to prove it, and a rider who stops for a minute
-     should not be paying for a ribbon that is no longer there. */
+  /* Height relative to the carrier's clearance plane. The profile spends
+     most of that clearance to put the packed floor below untouched snow, and
+     a loaded edge spends the last few millimetres on a narrow cut. Nothing
+     reaches the terrain itself: the minimum remains three millimetres above
+     the collision surface, avoiding z-fighting without flattening the mark. */
+  function reliefAt(s, wash, bite, brake, bias, load, chatter, organic) {
+    const a = Math.abs(s);
+    const side = Math.sign(s);
+    const loaded = clamp(0.5 + 0.5 * side * bias, 0, 1);
+    const activity = clamp(Math.max(bite, wash * 0.88 + brake * 0.42), 0, 1);
+
+    const bed = 1 - smoothstep(TRENCH.bed, TRENCH.groove + 0.010, a);
+    const floorDepth = Math.min(0.010,
+      0.006 + load * 0.0018 + wash * 0.0016 + brake * 0.0010);
+    const grooveWidth = mix(0.026, 0.062, wash);
+    const groove = 1 - smoothstep(0.012, grooveWidth,
+      Math.abs(a - TRENCH.groove));
+    const grooveSide = mix(0.26, mix(0.04, 1, loaded), activity);
+    const grooveDepth = Math.min(0.008,
+      0.003 + bite * 0.005 + wash * 0.0015 + brake * 0.0010)
+      * grooveSide * (0.78 + load * 0.22);
+
+    const rise = smoothstep(TRENCH.groove + 0.010, TRENCH.ridge, a);
+    const fall = 1 - smoothstep(TRENCH.ridge, 1, a);
+    const berm = rise * fall;
+    // A railed board displaces snow almost entirely beyond its loaded edge.
+    // The flat-board value is deliberately tiny; it is not a pair of rails.
+    const sideWeight = mix(0.18, mix(0.05, 1.78, loaded), activity);
+    const loadScale = 0.72 + load * 0.38;
+    const breakupActivity = clamp(bite * 0.20 + wash * 0.78
+      + brake * 0.56 + chatter * 0.55, 0, 1);
+    const packet = smoothstep(-0.42, 0.38, organic);
+    const breakup = mix(1, 0.18 + packet * 0.82, breakupActivity);
+    const bermHeight = Math.min(0.105,
+      (0.004 + bite * 0.024 + wash * 0.040 + brake * 0.018)
+      * loadScale * sideWeight * breakup);
+
+    // Braking leaves irregular compression mounds inside the deposited wall.
+    // They inherit the frozen low-pass walk, so they never boil or form ribs.
+    const churnBand = smoothstep(0.12, 0.46, a)
+      * (1 - smoothstep(0.58, TRENCH.groove, a));
+    const churnSide = mix(0.62, 0.20 + loaded * 0.80, activity);
+    const churn = (wash * 0.003 + brake * 0.006 + chatter * 0.004)
+      * churnBand * churnSide
+      * (0.24 + 0.76 * clamp(organic * 0.5 + 0.5, 0, 1));
+
+    const profile = -bed * floorDepth - groove * grooveDepth
+      + berm * bermHeight + churn;
+    return clamp(profile, -TRAIL.lift + 0.003, 0.105);
+  }
+
+  /* Write all twenty-five terrain-conforming lanes of one sample. `contactShift`
+     moves the board centre away from the buried-edge pivot during a carve,
+     putting the dominant groove exactly on rider.pos. */
+  function write(slot, x, y, z, half, state) {
+    const carrierHalf = half * TRENCH.berm;
+    sectionLat.set(state.latX, state.latY, state.latZ).normalize();
+    const cx = x + sectionLat.x * state.contactShift;
+    const cy = y + sectionLat.y * state.contactShift;
+    const cz = z + sectionLat.z * state.contactShift;
+    baseNormal.set(state.normalX, state.normalY, state.normalZ).normalize();
+
+    const leftWalk = edgeWalkL[slot];
+    const rightWalk = edgeWalkR[slot];
+    const pressure = pressureWalk[slot];
+
+    for (let lane = 0; lane < L; lane++) {
+      const s = SECTION[lane];
+      const a = Math.abs(s);
+      const sideWalk = s < 0 ? leftWalk : s > 0 ? rightWalk : pressure;
+      const edgeBlend = smoothstep(0.52, 1, a);
+      const wander = clamp(sideWalk
+        * (0.010 + state.wash * 0.026 + state.brake * 0.010
+          + state.chatter * 0.012), -0.038, 0.038);
+      const d = s * carrierHalf
+        + Math.sign(s) * carrierHalf * wander * edgeBlend;
+      const px = cx + sectionLat.x * d;
+      const planeY = cy + sectionLat.y * d;
+      const pz = cz + sectionLat.z * d;
+      const groundY = heightAt(px, pz);
+      const surfaceY = Math.max(planeY, groundY);
+      const organic = clamp(pressure * (1 - a * 0.32) + sideWalk * a, -1, 1);
+      const relief = reliefAt(s, state.wash, state.bite, state.brake,
+        state.bias, state.load, state.chatter, organic);
+      const lift = TRAIL.lift + relief;
+
+      laneD[lane] = d;
+      laneX[lane] = px + baseNormal.x * lift;
+      laneY[lane] = surfaceY + baseNormal.y * lift;
+      laneZ[lane] = pz + baseNormal.z * lift;
+      laneSurfaceRelief[lane] = Math.max(0, groundY - planeY) + relief;
+      laneVariation[lane] = organic;
+    }
+
+    for (let lane = 0; lane < L; lane++) {
+      const vi = slot * L + lane;
+      const p = vi * 3;
+      position[p] = laneX[lane] - anchorX;
+      position[p + 1] = laneY[lane] - anchorY;
+      position[p + 2] = laneZ[lane] - anchorZ;
+
+      const lo = Math.max(0, lane - 1);
+      const hi = Math.min(L - 1, lane + 1);
+      const run = laneD[hi] - laneD[lo] || 1;
+      const reliefSlope = (laneSurfaceRelief[hi] - laneSurfaceRelief[lo]) / run;
+      // For a tangent t = lateral + normal*slope, n - lateral*slope is the
+      // corresponding section normal. The direct analytic form is stable on
+      // the almost-flat packed bed and independent of inactive ring slots.
+      laneNormal.copy(baseNormal)
+        .addScaledVector(sectionLat, -reliefSlope).normalize();
+      normal[p] = laneNormal.x;
+      normal[p + 1] = laneNormal.y;
+      normal[p + 2] = laneNormal.z;
+      groundNormal[p] = baseNormal.x;
+      groundNormal[p + 1] = baseNormal.y;
+      groundNormal[p + 2] = baseNormal.z;
+
+      variation[vi] = laneVariation[lane];
+      const t = vi * 4;
+      track[t] = state.wash;
+      track[t + 1] = state.bite;
+      track[t + 2] = state.brake;
+      track[t + 3] = state.bias;
+    }
+
+    const clodStrength = clamp(
+      state.wash * 0.72 + state.brake * 0.62 + state.chatter * 0.28, 0, 1,
+    );
+    const clodBase = slot * CLOD_CLUSTER;
+    // Heavy pressure produces occasional fracture packets, not one bright
+    // pebble every spatial sample. Keeping the gate low makes the three
+    // members read as a single broken slab before the next quiet stretch.
+    const clodGate = 0.02 + clodStrength * 0.13;
+    const hasCluster = clodStrength > 0.18
+      && clodRandA[clodBase] < clodGate;
+    const travelLen = Math.hypot(
+      state.travelX, state.travelY, state.travelZ,
+    ) || 1;
+    const tx = state.travelX / travelLen;
+    const ty = state.travelY / travelLen;
+    const tz = state.travelZ / travelLen;
+    const clusterAlong = (clodRandB[clodBase] - 0.5) * spacing * 0.65;
+    for (let j = 0; j < CLOD_CLUSTER; j++) {
+      const id = clodBase + j;
+      const member = hasCluster && (j === 0
+        || clodRandA[id] < 0.28 + clodStrength * 0.56);
+      if (!member) {
+        clodSize[id] = 0;
+        continue;
+      }
+      const side = Math.abs(state.bias) > 0.08
+        ? Math.sign(state.bias) : clodRandB[clodBase] < 0.5 ? -1 : 1;
+      const ridgeLane = side < 0 ? 4 : L - 5;
+      const along = clusterAlong + (clodRandB[id] - 0.5)
+        * spacing * (0.20 + j * 0.12);
+      const outward = side * (0.008 + clodRandC[id]
+        * (0.035 + clodStrength * 0.075));
+      const up = 0.001 + clodStrength * (0.001 + clodRandA[id] * 0.003);
+      clodX[id] = laneX[ridgeLane] - anchorX + tx * along
+        + sectionLat.x * outward + baseNormal.x * up;
+      clodY[id] = laneY[ridgeLane] - anchorY + ty * along
+        + sectionLat.y * outward + baseNormal.y * up;
+      clodZ[id] = laneZ[ridgeLane] - anchorZ + tz * along
+        + sectionLat.z * outward + baseNormal.z * up;
+      clodNX[id] = baseNormal.x;
+      clodNY[id] = baseNormal.y;
+      clodNZ[id] = baseNormal.z;
+      const memberScale = j === 0 ? 1 : 0.55 + clodRandB[id] * 0.35;
+      // Fractured slabs need enough footprint to read at chase distance, but
+      // remain very thin and partially embedded so they never become pearls.
+      clodSize[id] = (0.007 + clodStrength * 0.042)
+        * (0.62 + clodRandC[id] * 0.50) * memberScale;
+    }
+  }
+
   function prune() {
     while (count > 0) {
       const tail = (head - count + 1 + N) % N;
@@ -601,165 +641,360 @@ export function createTrail(THREE) {
     }
   }
 
-  /* The index, written oldest to newest, skipping every segment that should
-     not exist. What comes out is a packed run of quads, so the draw range is
-     simply how many were written and the ring's wrap never appears. */
   function stitch() {
     let t = 0;
     for (let k = 1; k < count; k++) {
       const cur = (head - count + 1 + k + N) % N;
       if (opens[cur]) continue;
       const prev = (cur + N - 1) % N;
-      const a = prev * 2;
-      const b = cur * 2;
-      index[t++] = a; index[t++] = a + 1; index[t++] = b;
-      index[t++] = a + 1; index[t++] = b + 1; index[t++] = b;
+      for (let lane = 0; lane < L - 1; lane++) {
+        const a = prev * L + lane;
+        const b = a + 1;
+        const c = cur * L + lane;
+        const d = c + 1;
+        index[t++] = a; index[t++] = b; index[t++] = c;
+        index[t++] = b; index[t++] = d; index[t++] = c;
+      }
     }
     geo.index.needsUpdate = true;
     geo.setDrawRange(0, t);
   }
 
-  /* Weight and age, in one pass and one attribute. They are two different
-     clocks on the same number: the weight is what is left of the mark, and
-     holds before it goes, while the age runs evenly from the moment the
-     sample was cut and is what the berm settles against. Keeping them in one
-     vec2 is not thrift for its own sake — it is one buffer upload a frame
-     instead of two, over the only attribute in the file that has to be
-     rewritten for every live sample rather than just the newest. */
+  /* The section derivative alone makes a varying bank look extruded along
+     the run. Rebuild active normals from both tangents after the live section
+     has moved: pressure packets, broken walls and clod-sized undulations then
+     catch the sun longitudinally as well as across the board. Ring openings
+     are hard boundaries, so a jump never lends its tangent to the next mark. */
+  function recomputeNormals() {
+    if (!count) return;
+    const tail = (head - count + 1 + N) % N;
+    for (let k = 0; k < count; k++) {
+      const slot = (tail + k) % N;
+      let before = slot;
+      let after = slot;
+      if (k > 0 && !opens[slot]) before = (slot + N - 1) % N;
+      if (k < count - 1) {
+        const next = (slot + 1) % N;
+        if (!opens[next]) after = next;
+      }
+
+      for (let lane = 0; lane < L; lane++) {
+        const p = (slot * L + lane) * 3;
+        const pb = (before * L + lane) * 3;
+        const pa = (after * L + lane) * 3;
+        const lo = Math.max(0, lane - 1);
+        const hi = Math.min(L - 1, lane + 1);
+        const pl = (slot * L + lo) * 3;
+        const ph = (slot * L + hi) * 3;
+
+        const tx = position[pa] - position[pb];
+        const ty = position[pa + 1] - position[pb + 1];
+        const tz = position[pa + 2] - position[pb + 2];
+        const sx = position[ph] - position[pl];
+        const sy = position[ph + 1] - position[pl + 1];
+        const sz = position[ph + 2] - position[pl + 2];
+
+        // transverse x longitudinal points up for the SECTION/travel winding.
+        let nx = sy * tz - sz * ty;
+        let ny = sz * tx - sx * tz;
+        let nz = sx * ty - sy * tx;
+        let lengthSq = nx * nx + ny * ny + nz * nz;
+        const gx = groundNormal[p];
+        const gy = groundNormal[p + 1];
+        const gz = groundNormal[p + 2];
+        if (lengthSq < 1e-12) {
+          nx = gx; ny = gy; nz = gz;
+          lengthSq = nx * nx + ny * ny + nz * nz;
+        } else if (nx * gx + ny * gy + nz * gz < 0) {
+          nx = -nx; ny = -ny; nz = -nz;
+        }
+        const inv = 1 / Math.sqrt(Math.max(lengthSq, 1e-12));
+        normal[p] = nx * inv;
+        normal[p + 1] = ny * inv;
+        normal[p + 2] = nz * inv;
+      }
+    }
+  }
+
   function fade() {
     if (!count) return;
     for (let k = 0; k < count; k++) {
       const slot = (head - k + N) % N;
       const age = (now - born[slot]) / TRAIL.life;
-      const left = 1 - age;
-      const a = left <= 0 ? 0 : left >= HOLD ? 1 : left / HOLD;
-      const p = slot * 4;
-      life[p] = a;
-      life[p + 1] = age;
-      life[p + 2] = a;
-      life[p + 3] = age;
+      const ft = clamp((age - FADE_START) / (1 - FADE_START), 0, 1);
+      const organicT = clamp(
+        ft + pressureWalk[slot] * 0.16 * ft * (1 - ft), 0, 1,
+      );
+      const smooth = organicT * organicT * (3 - 2 * organicT);
+      const weight = age >= 1 ? 0 : 1 - smooth;
+      for (let lane = 0; lane < L; lane++) {
+        const p = (slot * L + lane) * 2;
+        life[p] = weight;
+        life[p + 1] = age;
+      }
     }
     geo.attributes.aLife.needsUpdate = true;
   }
 
-  /* --- per frame -------------------------------------------------------- */
-
-  function update(rider, dt) {
-    now += dt;
-
-    /* Nothing is laid down in the air. A rider crossing a jump has to leave
-       a gap and land into a fresh stroke, because a line that runs straight
-       through the trick says they never left the ground. A fall is the
-       opposite case and is emitted deliberately: a body sliding down a hill
-       leaves a great deal more mark than a board does. */
-    if (!rider.grounded) {
-      open = false;
-    } else {
-      const pos = rider.pos;
-      const down = rider.state === 'fall' || rider.state === 'rise';
-      rebase(pos.x, pos.y, pos.z);
-
-      /* The lateral axis. Normally the board's own `right`, which the ground
-         step has already projected onto the slope. During a fall it cannot
-         be: `right` is only written while the rider is riding, so it is a
-         stale memory of whichever way the board was pointing at the moment
-         they went down, and the smear would be laid across a direction the
-         rider stopped travelling in a second ago. So the fall takes its axis
-         from where the body is actually going instead. */
-      if (down) {
-        fwd.copy(rider.vel).addScaledVector(rider.normal, -rider.vel.dot(rider.normal));
-        if (fwd.lengthSq() > 0.25) lat.copy(fwd).normalize().cross(rider.normal).normalize();
-        else lat.copy(rider.right);
-      } else {
-        lat.copy(rider.right);
+  function updateClods(riderPos) {
+    visibleClods = 0;
+    for (let id = 0; id < clodCapacity; id++) {
+      let scale = clodSize[id];
+      const slot = Math.floor(id / CLOD_CLUSTER);
+      if (scale > 0) {
+        const age = (now - born[slot]) / Math.min(TRAIL.life, 4.5);
+        const wx = clodX[id] + anchorX;
+        const wz = clodZ[id] + anchorZ;
+        const distance = Math.hypot(wx - riderPos.x, wz - riderPos.z);
+        scale *= (1 - smoothstep(0.42, 1, age))
+          * (1 - smoothstep(28, 48, distance));
       }
-      if (lat.lengthSq() < 0.5) lat.set(1, 0, 0);
-      // A landing switch snaps the yaw through half a turn and a fall can
-      // reverse the direction of travel outright, either of which flips the
-      // axis and ties the ribbon into a bowtie at that one segment. The axis
-      // never turns more than a couple of degrees between two frames on its
-      // own, so anything pointing backwards against the last one is a flip
-      // rather than a turn, and is simply flipped back.
-      if (open && lat.dot(prevLat) < 0) lat.negate();
+      if (scale <= 0.001) continue;
 
-      const dx = pos.x - lastX;
-      const dz = pos.z - lastZ;
-      if (!open) {
-        open = true;
-        take(pos.x, pos.z, true);
-      } else if (now - lastT >= 1 / TRAIL.rate
-        && dx * dx + dz * dz >= TRAIL.minStep * TRAIL.minStep) {
-        // The live sample freezes where it was last written and a new one
-        // opens at the board. Gating on distance as well as on time is what
-        // stops a rider sitting still from quietly eating the whole ring.
-        take(pos.x, pos.z, false);
-      }
-
-      /* Width is the whole reason for drawing this at all. A railed carve
-         is a pencil line — the board is up on an edge and the snow is cut
-         rather than pushed — and a broken edge drags everything it has
-         across the fall line. So the slide does almost all of the work and
-         the edge load only widens the clean line slightly, which is the
-         difference between a board gliding flat and one standing on its
-         edge hard enough to be leaving a trench.
-
-         A fall is allowed a little past the far end of that range and is
-         jittered around it, because a body is wider than a board and does
-         not hold a line long enough for two consecutive marks to match. */
-      const wash = clamp(rider.slide / SLIDE_FULL, 0, 1);
-      const half = down
-        ? TRAIL.slideWidth * wobble
-        : TRAIL.width + (TRAIL.slideWidth - TRAIL.width)
-          * clamp(wash + rider.carveLoad * 0.12, 0, 1);
-
-      /* And the character, which is a different reading of the same three
-         numbers. A fall has no edge at all — nothing is being cut, a body is
-         being dragged — so it is pinned to a full scuff with no load behind
-         it, which is what leaves a broad mottled smear with no shoulder and
-         no berm. `tilt` is the only one of the three that is about the hill
-         rather than the rider: it is what tells the shader which of the two
-         walls the sky is on. */
-      const scuff = down
-        ? 1
-        : clamp((rider.slide - SLIDE_HOLD) / (SLIDE_FULL - SLIDE_HOLD), 0, 1);
-      const tilt = clamp(lat.y / TRENCH.tiltFull, -1, 1);
-      const bite = down ? 0 : clamp(rider.carveLoad, 0, 1);
-
-      write(head, pos.x, pos.y, pos.z, half * TRENCH.berm);
-      shape(head, scuff, tilt, bite);
-      born[head] = now;
-      prevLat.copy(lat);
-      geo.attributes.position.needsUpdate = true;
-      geo.attributes.aCut.needsUpdate = true;
-      geo.attributes.aChew.needsUpdate = true;
+      clodDummy.position.set(clodX[id], clodY[id], clodZ[id]);
+      clodNormal.set(clodNX[id], clodNY[id], clodNZ[id]).normalize();
+      clodDummy.quaternion.setFromUnitVectors(clodUp, clodNormal);
+      clodDummy.rotateY(clodRandB[id] * Math.PI * 2);
+      clodDummy.rotateX((clodRandA[id] - 0.5) * 0.24);
+      clodDummy.rotateZ((clodRandC[id] - 0.5) * 0.20);
+      clodDummy.scale.set(
+        scale * (0.72 + clodRandB[id] * 0.48),
+        scale * (0.12 + clodRandA[id] * 0.14),
+        scale * (0.92 + clodRandC[id] * 0.62),
+      );
+      clodDummy.updateMatrix();
+      clods.setMatrixAt(visibleClods, clodDummy.matrix);
+      visibleClods += 1;
     }
-
-    prune();
-    if (dirty) {
-      stitch();
-      dirty = false;
-    }
-    fade();
+    clods.count = visibleClods;
+    clods.instanceMatrix.needsUpdate = true;
   }
 
-  /* A restart moves the rider somewhere else entirely, and a ribbon that
-     survived it would draw one segment from the old run to the new one. */
+  function startStroke(x, y, z, state) {
+    open = true;
+    liveHalf = state.half;
+    take(true);
+    write(head, x, y, z, state.half, state);
+    // Keep the first point while a second, initially degenerate point follows
+    // the board. Without this pair the beginning of every carve is erased by
+    // the live-sample update before the first spatial interval is reached.
+    take(false);
+    write(head, x, y, z, state.half, state);
+    lastCommitX = x;
+    lastCommitZ = z;
+    copyState(committedState, state);
+  }
+
+  function update(rider, dt, onSection) {
+    now += dt;
+
+    const riding = rider.state === 'ride' && rider.grounded;
+    const bodySliding = rider.state === 'fall' && !rider.airborne;
+    const recovering = rider.state === 'rise';
+    const snowContact = riding || bodySliding || recovering;
+    if (!snowContact) {
+      open = false;
+      prune();
+      if (dirty) { stitch(); dirty = false; }
+      fade();
+      updateClods(rider.pos);
+      return;
+    }
+
+    const pos = rider.pos;
+    const down = bodySliding || recovering;
+    rebase(pos.x, pos.y, pos.z);
+
+    travel.copy(rider.vel)
+      .addScaledVector(rider.normal, -rider.vel.dot(rider.normal));
+    const travelSpeed = travel.length();
+    if (down) {
+      if (travelSpeed > 0.25) {
+        lat.copy(travel).multiplyScalar(1 / travelSpeed)
+          .cross(rider.normal).normalize();
+      } else {
+        lat.copy(prevLat);
+      }
+    } else {
+      lat.copy(rider.right);
+      if (travelSpeed > 0.25) {
+        motionLat.copy(travel).multiplyScalar(1 / travelSpeed)
+          .cross(rider.normal).normalize();
+        if (motionLat.dot(lat) < 0) motionLat.negate();
+      } else {
+        motionLat.copy(lat);
+      }
+    }
+
+    const lateralNow = down ? 0 : rider.vel.dot(rider.right);
+    const forwardNow = down ? travelSpeed : Math.abs(rider.boardForward);
+    const slipAngle = down ? Math.PI * 0.5
+      : Math.atan2(Math.abs(lateralNow), Math.max(0.1, forwardNow));
+    const axisMix = smoothstep(Math.PI / 30, Math.PI / 6, slipAngle);
+    if (!down) lat.lerp(motionLat, axisMix).normalize();
+    if (lat.lengthSq() < 0.5) lat.set(1, 0, 0);
+
+    if (open) {
+      if (lat.dot(prevLat) < 0) lat.negate();
+      const response = 7 + clamp(rider.speed / 18, 0, 1) * 13;
+      lat.lerp(prevLat, Math.exp(-dt * response)).normalize();
+    }
+
+    const rawWash = down ? 1 : clamp(rider.slide / SLIDE_FULL, 0, 1);
+    const scuff = down ? 1 : Math.max(
+      clamp((rider.slide - SLIDE_HOLD) / (SLIDE_FULL - SLIDE_HOLD), 0, 1),
+      rider.brake * 0.82,
+    );
+    const edgeBite = down ? 0 : clamp(
+      Math.abs(Math.sin(rider.edge)) * rider.carveLoad / 0.5, 0, 1,
+    );
+    const sweptHalf = down ? TRAIL.slideWidth
+      : BOARD_HALF * Math.abs(Math.cos(slipAngle))
+        + BOARD_HALF_LENGTH * Math.abs(Math.sin(slipAngle));
+    const targetHalf = down ? TRAIL.slideWidth
+      : clamp(sweptHalf + mix(0, 0.15, rawWash)
+        + rider.brake * 0.025, TRAIL.width, TRAIL.slideWidth);
+    if (!open) liveHalf = targetHalf;
+    else {
+      const widthResponse = targetHalf > liveHalf ? 7 : 10;
+      liveHalf += (targetHalf - liveHalf)
+        * (1 - Math.exp(-dt * widthResponse));
+    }
+
+    const latToRight = down || lat.dot(rider.right) >= 0 ? 1 : -1;
+    const loadedSide = down ? 0 : (Math.sign(rider.edge) || 0) * latToRight;
+    const pushRaw = down ? 0
+      : Math.abs(lateralNow) > 0.2 ? Math.sign(lateralNow) : rider.brakeSide;
+    const pushSide = (pushRaw || loadedSide || 1) * latToRight;
+    const bias = down ? 0 : clamp(
+      loadedSide * edgeBite * (1 - scuff)
+        + pushSide * (scuff * 0.72 + rider.brake * 0.28), -1, 1,
+    );
+    const contact = down ? 0 : clamp(rider.edge / EDGE_PIVOT, -1, 1)
+      * latToRight * smoothstep(0.02, 0.22, edgeBite);
+    // `TRENCH.groove` is where the buried cut really lies inside the carrier.
+    // Shift by that exact live offset, not by a nominal board measurement, so
+    // the dominant groove remains on rider.pos through width transitions.
+    const grooveOffset = liveHalf * TRENCH.berm * TRENCH.groove;
+    const contactShift = -contact * grooveOffset
+      * (1 - axisMix) * (1 - rawWash);
+    const load = down ? 0.9 : clamp((rider.gLoad - 0.45) / 1.75, 0, 1.25);
+    const chatter = down ? 0.7
+      : clamp((1 - rider.balance) * rider.carveLoad, 0, 1);
+    currentState.latX = lat.x;
+    currentState.latY = lat.y;
+    currentState.latZ = lat.z;
+    currentState.normalX = rider.normal.x;
+    currentState.normalY = rider.normal.y;
+    currentState.normalZ = rider.normal.z;
+    currentState.travelX = travel.x;
+    currentState.travelY = travel.y;
+    currentState.travelZ = travel.z;
+    currentState.wash = scuff;
+    currentState.bite = edgeBite;
+    currentState.brake = down ? 0.55 : rider.brake;
+    currentState.bias = bias;
+    currentState.contactShift = contactShift;
+    currentState.load = load;
+    currentState.chatter = chatter;
+    currentState.half = liveHalf;
+
+    if (!open) {
+      startStroke(pos.x, pos.y, pos.z, currentState);
+    } else {
+      let dx = pos.x - lastCommitX;
+      let dz = pos.z - lastCommitZ;
+      let remaining = Math.hypot(dx, dz);
+
+      /* No finite mesh can preserve kilometres of history per frame under
+         unlimited acceleration. When one update outruns the fixed budget,
+         retain a fully sampled near-board tail and break only the unseen gap
+         behind it. The mark therefore never degenerates or disappears. */
+      if (remaining > spacing * maxCatchup) {
+        const keep = spacing * (maxCatchup - 1);
+        const tail = keep / remaining;
+        const sx = pos.x - dx * tail;
+        const sz = pos.z - dz * tail;
+        const sy = heightAt(sx, sz);
+        open = false;
+        startStroke(sx, sy, sz, currentState);
+        dx = pos.x - lastCommitX;
+        dz = pos.z - lastCommitZ;
+        remaining = Math.hypot(dx, dz);
+      }
+
+      copyState(segmentStartState, committedState);
+      const segmentLength = remaining;
+      let inserted = 0;
+      let travelled = 0;
+      while (remaining >= spacing && inserted < maxCatchup) {
+        const t = spacing / remaining;
+        const sx = lastCommitX + dx * t;
+        const sz = lastCommitZ + dz * t;
+        const sy = heightAt(sx, sz);
+        travelled += spacing;
+        const stateT = segmentLength > 1e-5
+          ? clamp(travelled / segmentLength, 0, 1) : 1;
+        mixState(interpolatedState, segmentStartState, currentState, stateT);
+        write(head, sx, sy, sz, interpolatedState.half, interpolatedState);
+        if (onSection) onSection(sx, sy, sz, interpolatedState, rider);
+        born[head] = now;
+        lastCommitX = sx;
+        lastCommitZ = sz;
+        copyState(committedState, interpolatedState);
+        take(false);
+        inserted += 1;
+        dx = pos.x - lastCommitX;
+        dz = pos.z - lastCommitZ;
+        remaining = Math.hypot(dx, dz);
+      }
+      write(head, pos.x, pos.y, pos.z, currentState.half, currentState);
+      born[head] = now;
+    }
+
+    prevLat.copy(lat);
+    recomputeNormals();
+    geo.attributes.position.needsUpdate = true;
+    geo.attributes.normal.needsUpdate = true;
+    geo.attributes.aTrackBaseNormal.needsUpdate = true;
+    geo.attributes.aVariation.needsUpdate = true;
+    geo.attributes.aTrack.needsUpdate = true;
+
+    prune();
+    if (dirty) { stitch(); dirty = false; }
+    fade();
+    updateClods(rider.pos);
+  }
+
   function clear() {
     head = -1;
     count = 0;
     open = false;
     dirty = false;
+    chewL = 0;
+    chewR = 0;
+    variationWalk = 0;
+    liveHalf = TRAIL.width;
     for (let i = 0; i < N; i++) born[i] = -1e9;
-    // Weight and age go together: a zero weight is discarded before the age
-    // is ever looked at, so one fill is enough for both halves
     life.fill(0);
+    clodSize.fill(0);
     geo.attributes.aLife.needsUpdate = true;
     geo.setDrawRange(0, 0);
+    hideAllClods();
   }
 
-  // `points` is the same object as `mesh`. It is aliased so the weather can
-  // drive the fog on the trail in the same loop it drives it on the two
-  // particle clouds, rather than main.js carrying a special case for the one
-  // custom shader in the game that happens not to be a point cloud.
-  return { mesh, points: mesh, update, clear };
+  function debug() {
+    return {
+      lanes: L,
+      samples: count,
+      vertices: verts,
+      triangles: geo.drawRange.count / 3,
+      spacing,
+      halfWidth: liveHalf,
+      drawCount: geo.drawRange.count,
+      clods: visibleClods,
+    };
+  }
+
+  return { mesh, points: mesh, update, clear, debug };
 }

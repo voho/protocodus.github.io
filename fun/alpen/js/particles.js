@@ -146,10 +146,11 @@ export const WEATHER = {
      It passes `weather.snow`, and `weather.snow` is the storm dial with a
      floor under it — `0.12 + storm · 0.88` — because there is always a
      little snow in the air on this mountain and a hard zero looked like a
-     bug rather than like clear weather. Everything below wants the dial
-     itself, so the floor is taken back off here. If the two ever disagree
-     the only symptom is that clear air keeps a few more flakes in it than it
-     meant to, which is the failure mode to prefer. */
+     bug rather than like clear weather. Everything below wants the storm
+     part of that dial, so the floor is taken back off here. The particle
+     tables still have their own non-zero calm end: weather adds density to
+     a permanent fine snowfall instead of switching snowfall on and off. If
+     the two ever disagree, calm weather simply keeps that subtle baseline. */
   clearFloor: 0.12,
 
   /* Pool sizes, as multiples of SNOW.count.
@@ -168,30 +169,32 @@ export const WEATHER = {
      the fastest, against a pass over two thousand flakes. */
   step: 0.006,
 
-  // Share of the pool aloft, and the curve on to it. The exponent is what
+  // Share of the pool aloft, and the curve on to it. Nine per cent is the
+  // permanent fine-snow layer: enough flakes to avoid empty clear-weather
+  // frames, but still less than a tenth of a whiteout. The exponent is what
   // keeps light snow light: a dial at a half should be a snowfall, not most
   // of a blizzard.
-  density: [0.045, 1.0],
+  density: [0.09, 1.0],
   densityCurve: 1.05,
   // …and the band of ranks over which the marginal flakes fade in rather
   // than appearing. Without it the field pops one flake at a time.
   edge: 0.10,
 
-  /* The travelling box, as a multiple of SNOW.box. It contracts with the
-     storm, which is most of what makes a whiteout hard to see through: the
-     same flakes packed into a fifth of the volume are all in the near field,
-     and the near field is where a particle covers pixels. Twenty-one metres
-     at the top is comfortably inside the sixty-eight the storm's own fog
-     leaves, so nothing here is drawn behind the curtain. */
-  box: [1.30, 0.38],
+  /* The travelling box, as a multiple of SNOW.box. Calm snow used to occupy
+     a 62-metre cube: technically present, but so dilute that a still frame
+     commonly contained no readable flakes. A 44-metre calm volume keeps a
+     handful in the view while remaining open and airy. It contracts further
+     with the storm, which is most of what makes a whiteout hard to see
+     through: the same flakes packed into the near field cover more pixels. */
+  box: [0.92, 0.38],
 
   // The mean flake, as a multiple of SNOW.size, and how far the fine and the
   // fat sit either side of it. Both open up with the dial: heavy snow is
   // bigger *and* more varied, and the variety is what stops a blizzard
   // reading as one repeated sprite.
-  size: [0.62, 1.18],
-  spread: [0.30, 1.45],
-  alpha: [0.34, 0.70],
+  size: [0.52, 1.18],
+  spread: [0.24, 1.45],
+  alpha: [0.28, 0.70],
 
   // Lateral wander, in metres a second, from a fine crystal to a fat
   // aggregate — and the share of it that survives being driven.
@@ -208,7 +211,7 @@ export const WEATHER = {
   // Gusting: how much the density bands are allowed to move a flake's alpha,
   // how far apart they are, and how much of the pattern is stacked vertically
   // rather than along the wind.
-  gust: [0.10, 0.80],
+  gust: [0.06, 0.80],
   gustScale: 0.055,
   gustRise: 0.30,
 
@@ -877,15 +880,32 @@ export function createSpray(THREE) {
   const fine = new Float32Array(n);
   const born = new Float32Array(n);   // birth size, in metres
   const grow = new Float32Array(n);   // and how much of itself it gains by the end
+  /* Peak opacity is independent of `fine` for edge snow.
+
+     An impact burst can infer its opacity from the coarse/fine blend: a lump
+     is solid and dust is translucent. The continuous edge plume cannot. Its
+     finest component is a low powder mist, while the grains in the cutting
+     sheet are small but comparatively hard. Keeping the peak explicitly lets
+     those two overlap without turning the mist into the same opaque dots as
+     the sheet. Event bursts below retain their exact old relationship. */
+  const peak = new Float32Array(n);
   const tumble = new Float32Array(n); // lateral wander, m/s²
   const spin = new Float32Array(n);   // and how fast that wander swings round
   const phase = new Float32Array(n);
   let head = 0;
+  let streakDirty = false;
+
+  /* `edgeSample` arrives at fixed-distance sections, never render frames. A
+     Poisson count at each section preserves that spatial density without the
+     repeating cadence of a fractional accumulator: pressure changes the
+     average mass, but no grain is promised at the next 28 cm boundary. */
+  let edgeWander = 0;
 
   const track = cameraTracker(THREE);
   const flow = new THREE.Vector3();
 
   for (let i = 0; i < n; i++) streak[i] = SPRAY.streak;
+  geo.attributes.aStreak.setUsage(THREE.DynamicDrawUsage);
   geo.attributes.aStreak.needsUpdate = true;
 
   /* `power` is how hard: it scales the cone, the size and how long the
@@ -901,6 +921,10 @@ export function createSpray(THREE) {
       // lumps of it, so weight is biased in with power
       const f = Math.random() * (1 - 0.45 * p);
       fine[i] = f;
+      // This ring slot may previously have held an elongated cutting-sheet
+      // particle. Event bursts keep their compact landing/fall smear.
+      streak[i] = SPRAY.streak;
+      streakDirty = true;
       position[j] = pos.x + (Math.random() - 0.5) * 0.7;
       position[j + 1] = pos.y + 0.1 + Math.random() * 0.25;
       position[j + 2] = pos.z + (Math.random() - 0.5) * 0.7;
@@ -919,11 +943,232 @@ export function createSpray(THREE) {
       born[i] = SNOW.spraySize * SPRAY.born * (0.4 + Math.random() * 1.1)
         * (0.7 + power * 0.4) * (1 - SPRAY.fineSmall * f);
       grow[i] = lerp(SPRAY.grow[0], SPRAY.grow[1], f);
+      peak[i] = 0.92 - f * 0.3;
       tumble[i] = (0.7 + Math.random() * 2.4) * (0.35 + f);
       spin[i] = (2 + Math.random() * 5) * (Math.random() < 0.5 ? -1 : 1);
       phase[i] = Math.random() * Math.PI * 2;
       size[i] = born[i];
       alpha[i] = 0;
+    }
+  }
+
+  function poisson(rate, cap) {
+    if (rate <= 0) return 0;
+    const stop = Math.exp(-rate);
+    let product = 1;
+    let count = 0;
+    while (product > stop && count <= cap) {
+      product *= Math.random();
+      count += 1;
+    }
+    return Math.min(cap, count - 1);
+  }
+
+  /* One particle from the board's continuous edge plume.
+
+     `kind` is deliberately local to this function: 0 is the narrow granular
+     cutting sheet, 1 a sparse piece of broken crust, and 2 the fine mist that
+     remains after the heavier snow has dropped. They share a pool and update
+     loop, but they do not share birth size, life, opacity or launch cone.
+
+     Every vector arrives as scalars. This is a hot path at speed and allocating
+     temporary Vector3s here would turn a visually cheap point cloud into a
+     source of garbage-collector hitches. */
+  function edgeParticle(kind, x, y, z,
+    bx, by, bz, tx, ty, tz, lx, ly, lz, nx, ny, nz,
+    side, carve, skid, brake, chatter, speed) {
+    const i = head;
+    head = (head + 1) % n;
+    const j = i * 3;
+    const r0 = Math.random();
+    const r1 = Math.random();
+    const r2 = Math.random();
+    const r3 = Math.random();
+    const r4 = Math.random();
+
+    /* A clean carve releases snow from the rear half of one buried edge. A
+       transverse speed check works most of the board, so its source opens from
+       a tail-biased 55 cm strip towards the full effective edge. */
+    const alongSpan = lerp(0.55, 1.30, skid);
+    const alongCentre = lerp(-0.43, -0.05, skid);
+    const along = alongCentre + (r0 - 0.5) * alongSpan;
+    const across = (r1 - 0.5) * lerp(0.060, 0.15, skid);
+    const bornLift = kind === 2
+      ? 0.035 + r2 * 0.045
+      : 0.016 + r2 * 0.028;
+    position[j] = x + bx * along + lx * across + nx * bornLift;
+    position[j + 1] = y + by * along + ly * across + ny * bornLift;
+    position[j + 2] = z + bz * along + lz * across + nz * bornLift;
+
+    /* Snow retains only a small share of the board's travel. The rider then
+       overtakes it, which is the physical source of the tail, while the edge
+       impulse sends it outward and the terrain normal lifts it. A carve stays
+       a coherent low sheet; wash and braking open that sheet into a broad,
+       still-low rooster fan. */
+    const carry = Math.min(3.0, speed * lerp(0.055, 0.025, skid));
+    const fan = (r3 - 0.5) * lerp(0.45, 2.4, skid);
+    let out;
+    let lift;
+    if (kind === 1) {
+      out = 1.25 + carve * 1.0 + skid * 3.5 + r4 * (0.7 + skid * 1.2);
+      lift = 0.48 + carve * 0.45 + skid * 1.2 + r2 * 0.70;
+    } else if (kind === 2) {
+      out = 0.38 + carve * 0.48 + skid * 1.15 + r4 * 0.50;
+      lift = 0.32 + carve * 0.30 + skid * 0.62 + r2 * 0.36;
+    } else {
+      out = 0.70 + carve * 1.65 + skid * 2.65 + r4 * (0.35 + skid * 0.75);
+      lift = 0.20 + carve * 0.58 + skid * 0.82 + r2 * 0.38;
+    }
+    const outX = lx * side;
+    const outY = ly * side;
+    const outZ = lz * side;
+    vel[j] = tx * carry + outX * out + bx * fan + nx * lift;
+    vel[j + 1] = ty * carry + outY * out + by * fan + ny * lift;
+    vel[j + 2] = tz * carry + outZ * out + bz * fan + nz * lift;
+
+    if (kind === 1) {
+      // Broken crust: small, heavy and short lived. Keeping it under 6 cm is
+      // what prevents a close pass becoming the old soft white bubble.
+      fine[i] = 0.02 + r1 * 0.13;
+      maxLife[i] = 0.24 + r0 * 0.25 + skid * 0.15;
+      born[i] = 0.028 + r2 * 0.031 + skid * 0.010;
+      grow[i] = 0.04 + r3 * 0.10;
+      peak[i] = 0.74 + r4 * 0.19;
+      streak[i] = 0.42;
+    } else if (kind === 2) {
+      // Mist is the long, faint tail of the same displaced snow, not a second
+      // snowfall. It starts tiny, hangs in the wind and never becomes opaque.
+      fine[i] = 0.82 + r1 * 0.17;
+      maxLife[i] = 0.52 + r0 * 0.43 + skid * 0.22;
+      born[i] = 0.016 + r2 * 0.020 + skid * 0.005;
+      grow[i] = 0.48 + r3 * 0.48;
+      peak[i] = 0.09 + r4 * 0.09;
+      streak[i] = 0.55 + skid * 0.45;
+    } else {
+      // The cutting sheet is granular snow: firmer than powder mist and much
+      // smaller than a landing puff, with just enough life to draw the edge.
+      fine[i] = 0.20 + r1 * 0.30;
+      maxLife[i] = 0.18 + r0 * 0.18 + skid * 0.11;
+      born[i] = 0.018 + r2 * 0.027 + skid * 0.008;
+      grow[i] = 0.08 + r3 * 0.20;
+      peak[i] = 0.38 + r4 * 0.20;
+      streak[i] = 0.65 + skid * 0.35;
+    }
+    streakDirty = true;
+    life[i] = maxLife[i];
+    tumble[i] = (kind === 2 ? 1.1 : 0.45)
+      + r2 * (kind === 2 ? 1.8 : 1.0) + chatter * 0.8;
+    spin[i] = (2.4 + r3 * 4.0) * (r4 < 0.5 ? -1 : 1);
+    phase[i] = r0 * Math.PI * 2;
+    size[i] = born[i];
+    alpha[i] = 0;
+  }
+
+  /* Continuous edge spray, sampled by the trail's fixed-distance commits.
+
+     Signature is intentionally callback-shaped: `trail.update` can hand this
+     function x/y/z and its already-interpolated section state directly. The
+     state owns the true swept width, loaded/pushed side and slope basis, so the
+     airborne snow and the mark underneath cannot disagree during a carve-to-
+     brake transition. `rider` is used only to orient the physical board axis;
+     travel remains authoritative for the plume's momentum. */
+  function edgeSample(x, y, z, state, rider) {
+    if (!state) return;
+
+    const bite = clamp01(state.bite || 0);
+    const wash = clamp01(state.wash || 0);
+    const brake = clamp01(state.brake || 0);
+    const load = clamp01((state.load || 0) / 1.15);
+    const chatter = clamp01(state.chatter || 0);
+    const carve = clamp01(bite * (0.38 + load * 0.62) * (1 - wash * 0.52));
+    const skid = clamp01(Math.max(wash, brake * 0.92) * (0.58 + load * 0.42));
+    const activity = Math.max(carve, skid, chatter * Math.max(carve, skid));
+    if (activity < 0.025) {
+      // Straight base glide should be almost clean.
+      return;
+    }
+
+    let lx = state.latX || 0;
+    let ly = state.latY || 0;
+    let lz = state.latZ || 0;
+    let len = Math.hypot(lx, ly, lz) || 1;
+    lx /= len; ly /= len; lz /= len;
+    let nx = state.normalX || 0;
+    let ny = state.normalY || 1;
+    let nz = state.normalZ || 0;
+    len = Math.hypot(nx, ny, nz) || 1;
+    nx /= len; ny /= len; nz /= len;
+    let tx = state.travelX || 0;
+    let ty = state.travelY || 0;
+    let tz = state.travelZ || 0;
+    const speed = Math.hypot(tx, ty, tz);
+    len = speed || 1;
+    tx /= len; ty /= len; tz /= len;
+
+    /* Point the board axis towards its actually-leading end. `boardForward`
+       changes sign for switch travel; the final dot check also covers a brief
+       skid where the board and velocity disagree around an edge transition. */
+    let bx = rider?.heading?.x ?? tx;
+    let by = rider?.heading?.y ?? ty;
+    let bz = rider?.heading?.z ?? tz;
+    // Rider heading is primarily an x/z gameplay direction. Project it onto
+    // the actual snow plane before walking back towards the tail; otherwise
+    // a tail point placed uphill keeps the centre's y and vanishes under a
+    // steep slope before the first particle frame is drawn.
+    const boardIntoSurface = bx * nx + by * ny + bz * nz;
+    bx -= nx * boardIntoSurface;
+    by -= ny * boardIntoSurface;
+    bz -= nz * boardIntoSurface;
+    const stance = Number.isFinite(rider?.boardForward) && rider.boardForward < 0 ? -1 : 1;
+    bx *= stance; by *= stance; bz *= stance;
+    len = Math.hypot(bx, by, bz) || 1;
+    bx /= len; by /= len; bz /= len;
+    if (bx * tx + by * ty + bz * tz < 0) {
+      bx = -bx; by = -by; bz = -bz;
+    }
+
+    let side = Math.sign(state.bias || 0);
+    if (!side && rider) side = Math.sign(rider.edge || rider.lateral || rider.brakeSide || 0);
+    if (!side) side = edgeWander < 0 ? -1 : 1;
+
+    /* In the trail section, `contactShift` moves the carrier so its buried
+       groove lies on rider.pos. The groove radius is half·1.36·.735, within
+       four ten-thousandths of half, so this exact board/swept-half expression
+       reaches the same edge without importing trail.js and creating a cycle. */
+    const edgeOffset = (state.contactShift || 0) + side * (state.half || 0.155);
+    edgeWander = Math.max(-1, Math.min(1,
+      edgeWander * 0.80 + (Math.random() * 2 - 1) * 0.17));
+    const sourceWander = edgeWander * (0.008 + skid * 0.040);
+    const sx = x + lx * (edgeOffset + sourceWander) + nx * 0.012;
+    const sy = y + ly * (edgeOffset + sourceWander) + ny * 0.012;
+    const sz = z + lz * (edgeOffset + sourceWander) + nz * 0.012;
+
+    /* Counts per committed section. Poisson sampling keeps the expected mass
+       constant per metre while removing the breadcrumb rhythm that a rounded
+       carry can reveal in a long, steady carve. */
+    const grains = poisson(
+      carve * 0.05 + skid * 3.25 + chatter * activity * 0.60, 8,
+    );
+    const mists = poisson(
+      carve * 3.00 + skid * (0.90 + brake * 0.72)
+        + chatter * activity * 0.16, 4,
+    );
+    const chunks = poisson(
+      skid * (0.035 + brake * 0.16 + chatter * 0.10)
+        + carve * chatter * 0.035, 2,
+    );
+
+    for (let k = 0; k < grains; k++) {
+      edgeParticle(0, sx, sy, sz, bx, by, bz, tx, ty, tz,
+        lx, ly, lz, nx, ny, nz, side, carve, skid, brake, chatter, speed);
+    }
+    for (let k = 0; k < chunks; k++) {
+      edgeParticle(1, sx, sy, sz, bx, by, bz, tx, ty, tz,
+        lx, ly, lz, nx, ny, nz, side, carve, skid, brake, chatter, speed);
+    }
+    for (let k = 0; k < mists; k++) {
+      edgeParticle(2, sx, sy, sz, bx, by, bz, tx, ty, tz,
+        lx, ly, lz, nx, ny, nz, side, carve, skid, brake, chatter, speed);
     }
   }
 
@@ -977,11 +1222,15 @@ export function createSpray(THREE) {
       // Fading in over the first breath of its life stops a burst arriving
       // as a wall of hard dots on the frame it was fired
       const rise = Math.min(1, age * 14);
-      alpha[i] = rise * t * t * (0.92 - f * 0.3);
+      alpha[i] = rise * t * t * peak[i];
     }
     geo.attributes.position.needsUpdate = true;
     geo.attributes.aAlpha.needsUpdate = true;
     geo.attributes.aSize.needsUpdate = true;
+    if (streakDirty) {
+      geo.attributes.aStreak.needsUpdate = true;
+      streakDirty = false;
+    }
 
     readAir(uniforms);
     applyLimits(uniforms, camera, SPRAY.wide, SPRAY.long);
@@ -998,10 +1247,11 @@ export function createSpray(THREE) {
 
   function clear() {
     for (let i = 0; i < n; i++) { life[i] = 0; alpha[i] = 0; }
+    edgeWander = 0;
     geo.attributes.aAlpha.needsUpdate = true;
   }
 
-  return { points: cloud.points, burst, update, clear };
+  return { points: cloud.points, burst, edgeSample, update, clear };
 }
 
 /* ==========================================================================
@@ -1154,7 +1404,10 @@ export function createStreaks(THREE) {
 
     const t = Math.min(1, Math.max(0, (speed - STREAKS.from) / (STREAKS.full - STREAKS.from)));
     const active = Math.round(n * t * t);
-    const len = speed * STREAKS.length;
+    // Density reaches full strength at `STREAKS.full`; line length may keep
+    // communicating more speed, but it cannot grow with an uncapped W drive
+    // forever or each streak eventually becomes a screen-filling white bar.
+    const len = Math.min(STREAKS.maxLength, speed * STREAKS.length);
     const inv = 1 / (speed || 1);
 
     material.uniforms.uDir.value.set(-velocity.x * inv * len, -velocity.y * inv * len,

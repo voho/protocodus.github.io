@@ -40,22 +40,6 @@
 import { snoise2, noise2, hash2 } from './noise.js';
 import { TERRAIN } from './config.js';
 
-/* How much harder the snow glitters inside the specular lobe than outside it.
-
-   Strictly it multiplies a glint's *brightness*, not how many there are —
-   about one lattice cell in seventy is allowed to hold one and this does not
-   change that. It reads as density anyway, and that is the point: a glint is
-   already a hair above the threshold at which the eye finds it, so brighten
-   the ones inside the lobe and dim ones elsewhere drop below the line and
-   stop counting. Two and a half times, at the peak of the lobe.
-
-   Zero would be the old behaviour — an even scatter over every lit surface,
-   which is what made them read as dust on the lens rather than as something
-   the ground is doing. It lives here rather than in `shading.js` because the
-   lobe belongs to the light model and the glitter belongs to the mountain,
-   and this is the one number that joins them. */
-export const GLITTER_AIM = 1.5;
-
 /* THE SNOWPACK — what the ground is made of, as against how it is lit.
 
    The hill's shape was already a function of where you are on it and its
@@ -205,9 +189,9 @@ export const SNOWPACK = {
      stay under the snow in value by a long way, because rock against snow is
      the strongest contrast on the hill and it does not need help. Each is a
      pair: the cleft and the ridge it catches the light on. */
-  deep: '#d0e0f4',
-  ice: '#a7c9e2',
-  shade: '#93b3d8',
+  deep: '#d6e2f0',
+  ice: '#b5cada',
+  shade: '#a7bcd1',
   slate: ['#2c3646', '#7d8ba3'],
   iron: ['#443a41', '#948579'],
 };
@@ -487,7 +471,7 @@ function rowContext(z, ctx) {
   return ctx;
 }
 
-function heightIn(ctx, x) {
+function heightIn(ctx, x, coarseDetail = 1, fineDetail = coarseDetail) {
   const z = ctx.z;
   let h = ctx.base;
 
@@ -508,8 +492,6 @@ function heightIn(ctx, x) {
   const rollZ = -wx * 0.574 + wz * 0.819;
   const mogulX = wx * 0.643 - wz * 0.766;
   const mogulZ = wx * 0.766 + wz * 0.643;
-  const chatterX = x * 0.906 + z * 0.423;
-  const chatterZ = -x * 0.423 + z * 0.906;
 
   /* Rough and quiet snow now forms broad patches instead of full-width bands
      across the piste. Rolls and moguls use independent masks so a calm roller
@@ -538,8 +520,37 @@ function heightIn(ctx, x) {
     * rolls.amp * rollVary * mix[CH_ROLLS];
   h += snoise2(mogulX * moguls.freq, mogulZ * moguls.freq, moguls.seed)
     * moguls.amp * mogulVary * mix[CH_MOGULS];
-  h += snoise2(chatterX * chatter.freq, chatterZ * chatter.freq, chatter.seed)
-    * chatter.amp * mix[CH_CHATTER];
+  /* Wind slab and soft sastrugi at the scale the board can actually cross.
+
+     The coordinates are deliberately anisotropic: most of the variation is
+     across the piste, while the same feature stretches far down it. That is
+     how wind-shaped snow behaves, but it also matters technically. A random
+     metre-scale normal map becomes a screen-frequency carpet at grazing
+     angles; this is up to forty centimetres of continuous geometry with long,
+     irregular streamers and no repeating carrier to alias against the display.
+     Broad patch modulation keeps it out of the old procedural-wallpaper trap. */
+  if (coarseDetail > 0.001 || fineDetail > 0.001) {
+    const windPatch = 0.55 + 0.45 * noise2(
+      (x * 0.411 + z * 0.912) * chatter.patchFreq,
+      (-x * 0.912 + z * 0.411) * chatter.patchFreq,
+      chatter.coarse.seed + 13,
+    );
+    const wc = chatter.coarse;
+    const wf = chatter.fine;
+    const rotatedAcross = x * 0.985 - z * 0.174;
+    const rotatedAlong = x * 0.174 + z * 0.985;
+    const chatterMix = 0.82 + 0.18 * mix[CH_CHATTER];
+    const coarseN = snoise2(
+      rotatedAcross * wc.acrossFreq, rotatedAlong * wc.alongFreq, wc.seed,
+    );
+    /* The odd quadratic term fattens the windward/lee shoulders without a
+       cusp or a new noise sample. At full strength the pillows remain under
+       forty centimetres combined, enough for the board and side light to read. */
+    h += (coarseN * wc.amp + coarseN * Math.abs(coarseN) * wc.bulge)
+      * windPatch * chatterMix * coarseDetail;
+    h += snoise2(rotatedAcross * wf.acrossFreq, rotatedAlong * wf.alongFreq, wf.seed)
+      * wf.amp * windPatch * chatterMix * fineDetail;
+  }
 
   /* Outside the corridor: the quarterpipe, then the wall.
 
@@ -658,7 +669,7 @@ function graded(step, growth, reach, uniformReach = 0) {
   return out;
 }
 
-export function createTerrain(THREE, shading) {
+export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   const {
     spacing, uniformNear, behind, behindGrowth, ahead, aheadGrowth,
     side, sideGrowth, morphNear, morphFar, morphRate, morphSettle,
@@ -688,12 +699,16 @@ export function createTerrain(THREE, shading) {
   const count = vertsX * vertsZ;
 
   const positions = new Float32Array(count * 3);
+  const normals = new Float32Array(count * 3);
   const colors = new Float32Array(count * 3);
-  const groom = new Float32Array(count);
+  const ice = new Float32Array(count);
   const targetPositions = new Float32Array(count * 3);
+  const targetNormals = new Float32Array(count * 3);
   const targetColors = new Float32Array(count * 3);
-  const targetGroom = new Float32Array(count);
+  const targetIce = new Float32Array(count);
   const morphMask = new Float32Array(count);
+  const coarseDetailMask = new Float32Array(count);
+  const fineDetailMask = new Float32Array(count);
   const heights = new Float64Array(count);
   const indices = new (count > 65535 ? Uint32Array : Uint16Array)(rows * cols * 6);
 
@@ -719,16 +734,36 @@ export function createTerrain(THREE, shading) {
   for (let r = 0; r < vertsZ; r++) {
     for (let c = 0; c < vertsX; c++, m++) {
       morphMask[m] = smoothstep(morphNear, morphFar, Math.hypot(xs[c], zs[r]));
+      const cellX = Math.max(
+        c > 0 ? Math.abs(xs[c] - xs[c - 1]) : 0,
+        c + 1 < vertsX ? Math.abs(xs[c + 1] - xs[c]) : 0,
+      );
+      const cellZ = Math.max(
+        r > 0 ? Math.abs(zs[r] - zs[r - 1]) : 0,
+        r + 1 < vertsZ ? Math.abs(zs[r + 1] - zs[r]) : 0,
+      );
+      /* Geometry LOD is also the anti-aliasing filter for the two finest
+         height octaves. Fade them before a cell grows wide enough to sample
+         them unreliably; the rider's collision query keeps full detail. */
+      const cell = Math.max(cellX, cellZ);
+      coarseDetailMask[m] = 1 - smoothstep(
+        chatter.lod.coarse[0], chatter.lod.coarse[1], cell,
+      );
+      fineDetailMask[m] = 1 - smoothstep(
+        chatter.lod.fine[0], chatter.lod.fine[1], cell,
+      );
     }
   }
 
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position',
     new THREE.BufferAttribute(positions, 3).setUsage(THREE.DynamicDrawUsage));
+  geometry.setAttribute('aSmoothNormal',
+    new THREE.BufferAttribute(normals, 3).setUsage(THREE.DynamicDrawUsage));
   geometry.setAttribute('color',
     new THREE.BufferAttribute(colors, 3).setUsage(THREE.DynamicDrawUsage));
-  geometry.setAttribute('aGroom',
-    new THREE.BufferAttribute(groom, 1).setUsage(THREE.DynamicDrawUsage));
+  geometry.setAttribute('aIce',
+    new THREE.BufferAttribute(ice, 1).setUsage(THREE.DynamicDrawUsage));
   geometry.setIndex(new THREE.BufferAttribute(indices, 1));
   // The corner of the grid, not its longest side. `ahead` alone was already
   // short of the far columns and is now short of the tail as well; the mesh is
@@ -738,130 +773,130 @@ export function createTerrain(THREE, shading) {
     new THREE.Vector3(), Math.hypot(side, Math.max(ahead, behind)),
   );
 
+  /* The generated powder plate, packed as data rather than as baked light.
+
+     R is albedo variation centred at one half, G is height centred at one
+     half and B is crystalline density. The terrain has no UVs by design, so
+     it is sampled from stable world XZ below. A neutral one-pixel texture
+     keeps the material identical to the procedural fallback while WebP is
+     loading, or forever if an asset cannot be fetched. */
+  const neutralSurface = new THREE.DataTexture(
+    new Uint8Array([128, 128, 128, 255]), 1, 1, THREE.RGBAFormat,
+  );
+  neutralSurface.colorSpace = THREE.NoColorSpace;
+  neutralSurface.needsUpdate = true;
+
+  const powderSurface = { value: neutralSurface };
+  const snowReady = { value: new THREE.Vector2() };
+  const snowReadyTarget = new THREE.Vector2();
+  // Only a deliberately low-passed macro version of the powder plate reaches
+  // the material. Fine generated crystals and groomer ribs were fully resolved
+  // near the camera but formed interference when the frame was displayed or
+  // captured at another scale. The broad 24 m field keeps irregular snow tone
+  // without placing a screen-frequency carrier under the rider.
+  const snowTile = { value: new THREE.Vector2(24.0, 4.0) };
+  const snowAlbedo = { value: new THREE.Vector2(0.012, 0.0) };
+  const snowHeight = { value: new THREE.Vector2(0.0, 0.0) };
+
+  const prepareSurface = (texture) => {
+    texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+    texture.minFilter = THREE.LinearMipmapLinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.colorSpace = THREE.NoColorSpace;
+    // The piste is normally viewed at a very shallow angle. Use the full
+    // hardware anisotropy budget so the generated snow maps collapse through
+    // their mip chain along the fall line instead of forming distant bands.
+    texture.anisotropy = maxAnisotropy;
+    texture.generateMipmaps = true;
+    return texture;
+  };
+  const surfaceLoader = new THREE.TextureLoader();
+  surfaceLoader.load(
+    new URL('../assets/textures/snow/powder-surface.webp', import.meta.url).href,
+    (texture) => {
+      powderSurface.value = prepareSurface(texture);
+      snowReadyTarget.x = 1;
+    },
+  );
+
   /* Surface detail, in the fragment shader rather than in the mesh.
 
      A snowfield at these cell sizes is geometrically smooth and visually
      blank, and a blank ground is the one thing that will not sell speed: the
      eye reads velocity from texture passing underneath, and there was none.
-     It cannot come from the grid — corduroy is a metre and a half apart and
-     so are the vertices, so anything fine enough to work aliases before it
-     is drawn.
+     It cannot come from a repeated rib pattern: anything fine enough to read
+     as groomer corduroy at the board aliases as the piste recedes.
 
-     So it is painted per pixel, from world coordinates, which means it is
-     welded to the ground and rushes at the rider at exactly the speed the
-     rider is doing. Three layers: the groomer's ribs running across the fall
-     line, broad wind packing along it, and a hash of grain to break up the
-     flats.
-
-     Each layer is faded out by how much ground a pixel is covering rather
-     than by distance alone, and that is not a refinement — it is the whole
-     reason the ground is legible. A rib every metre and a half seen down a
-     slope at a grazing angle is compressed into almost nothing in screen
-     space long before it is far away, and sampling it once per pixel with
-     no mip chain beats against the pixel grid and throws broad moiré bands
-     right across the hill. At 288 lines this was invisible because
-     everything was; at native resolution it was the first thing you saw.
-     `fwidth` says exactly how many metres a pixel spans here, so each layer
-     can be taken out the moment its period approaches that. */
+     It is sampled in stable world coordinates so it remains welded to the
+     ground, but four positive mip levels remove crystal-, rib- and texel-scale
+     structure before it reaches the screen. A derivative gate then gives the
+     remaining broad tone up before even that footprint becomes undersampled.
+     Geometry, tracks, spray and the broad snow sheen carry the speed cues. */
+  /* The graded grid has cells tens of metres wide at the fog curtain. A flat
+     normal per triangle exposes that shipping topology as a row of enormous
+     light and dark wedges. The colour shader therefore uses the continuous
+     height-field normal below. `flatShading` deliberately stays enabled so
+     three's separate depth/shadow shader keeps its old no-normal path: adding
+     the built-in `normal` attribute would also move every terrain shadow
+     lookup by the sun light's receiver normalBias. */
   const material = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
   material.onBeforeCompile = (shader) => {
+    Object.assign(shader.uniforms, {
+      uSnowPowder: powderSurface,
+      uSnowReady: snowReady,
+      uSnowTile: snowTile,
+      uSnowAlbedo: snowAlbedo,
+    });
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>
-        attribute float aGroom;
+        attribute vec3 aSmoothNormal;
+        attribute float aIce;
         varying vec3 vWorld;
-        varying float vDist;
-        varying float vGroom;`)
+        varying vec3 vSmoothNormal;
+        varying float vDist;`)
       .replace('#include <project_vertex>', `#include <project_vertex>
         vWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;
-        vDist = -mvPosition.z;
-        vGroom = aGroom;`);
+        vSmoothNormal = normalize(normalMatrix * aSmoothNormal);
+        vN64Ice = aIce;
+        vDist = -mvPosition.z;`);
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>
         varying vec3 vWorld;
+        varying vec3 vSmoothNormal;
         varying float vDist;
-        varying float vGroom;`)
+        uniform sampler2D uSnowPowder;
+        uniform vec2 uSnowReady;
+        uniform vec2 uSnowTile;
+        uniform vec2 uSnowAlbedo;`)
       .replace('#include <color_fragment>', `#include <color_fragment>
-        float detail = 1.0 - smoothstep(140.0, 320.0, vDist);
-        if (detail > 0.002) {
-          // Metres of ground this pixel covers, which on a slope seen at a
-          // grazing angle is far larger than the distance alone implies
-          float px = max(fwidth(vWorld.x), fwidth(vWorld.z));
-          float ribFade = 1.0 - smoothstep(0.26, 0.72, px);      // period 1.53 m
-          float grainFade = 1.0 - smoothstep(0.10, 0.26, px);    // cells of 0.43 m
-          float rib = sin(vWorld.z * 4.1) * ribFade * smoothstep(0.08, 0.82, vGroom);
-          float pack = sin(vWorld.x * 0.55 + vWorld.z * 0.07);   // metres wide, never aliases
-          float grain = fract(sin(dot(floor(vWorld.xz * 2.3), vec2(12.9898, 78.233))) * 43758.545);
-          float d = rib * 0.055 + pack * 0.035 + (grain - 0.5) * 0.07 * grainFade;
-          diffuseColor.rgb *= 1.0 + d * detail;
-        }`)
-      /* Glitter.
-
-         Snow is made of flat crystals lying at every angle, and a tiny
-         fraction of them are, from where you happen to be standing, aimed
-         exactly right — so a snowfield in sun is not white, it is white with
-         a scatter of points brighter than anything else outdoors, and they
-         come and go as you move because it is a different fraction of
-         crystals every step. It is the single most recognisable thing about
-         real snow and the thing every white-render-with-a-blue-tint misses.
-
-         One in seventy lattice cells is allowed to hold one, and whether it
-         is lit depends on the view direction, so they twinkle as the run
-         goes past rather than sitting there like dirt. It is added after the
-         lighting and before the fog, and scaled by how bright the pixel
-         already was — snow in shadow has nothing to catch — so a glint is
-         something the sun is doing rather than something the ground is.
-
-         Two things about it changed when the snow got a specular response,
-         and both are the same correction: a glint had been an effect of its
-         own and is really the sharp end of the broad one.
-
-         It is the sun's colour now, not a fixed cold white. A glint is the
-         disc of the sun seen in a mirror a hundred microns across, so it can
-         only ever be the colour the sun is — amber at golden hour and blue
-         at dusk, and never the near-white it used to be, which was the one
-         thing on this mountain quietly breaking the rule that snow is warm
-         only where a low sun lands on it.
-
-         And it clusters in the sheen. `n64Spec` is how hard this pixel sits
-         in `shading.js`'s specular lobe, and the two effects are the same
-         crystals at two scales — the sheen is the average over a great many
-         faces aimed roughly at the sun, a glint is one face aimed exactly at
-         it — so glints ought to be strongest where the sheen is, and they now
-         are. See `GLITTER_AIM`. It is written as a multiplier over one rather
-         than as a mask under it, so a material with no sheen compiled in
-         reads the initialiser, gets 1.0, and glitters exactly as it did. */
-      .replace('#include <fog_fragment>', `
-        {
-          float sparkPx = max(fwidth(vWorld.x), fwidth(vWorld.z));
-          float sparkFade = (1.0 - smoothstep(0.02, 0.11, sparkPx))
-            * (1.0 - smoothstep(30.0, 95.0, vDist));
-          if (sparkFade > 0.004) {
-            vec3 vd = normalize(cameraPosition - vWorld);
-            vec2 cell = floor(vWorld.xz * 26.0);
-            float pick = fract(sin(dot(cell, vec2(45.233, 91.777))) * 31871.37);
-            float phase = fract(pick * 71.3 + dot(vd.xz, vec2(2.7, 3.1)) * 0.5);
-            float twinkle = pow(abs(sin(phase * 6.28318)), 22.0);
-            float lum = dot(gl_FragColor.rgb, vec3(0.2126, 0.7152, 0.0722));
-            gl_FragColor.rgb += smoothstep(0.986, 1.0, pick) * twinkle
-              * sparkFade * smoothstep(0.45, 0.95, lum)
-              * (1.0 + ${GLITTER_AIM.toFixed(2)} * n64Spec) * uSunTint;
-          }
-        }
-        #include <fog_fragment>`);
+        float n64SnowMask = smoothstep(0.42, 0.62,
+          dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722)));
+        vec2 powderUv = mat2(0.9563, -0.2924, 0.2924, 0.9563)
+          * (vWorld.xz / uSnowTile.x);
+        // Explicit positive LOD bias retains only the plate's macro structure.
+        vec4 n64Surface = texture2D(uSnowPowder, powderUv, 4.0);
+        float macroFootprint = max(fwidth(powderUv.x), fwidth(powderUv.y)) * 32.0;
+        float macroResolve = 1.0 - smoothstep(0.35, 0.80, macroFootprint);
+        float n64SurfaceFade = uSnowReady.x * macroResolve
+          * (1.0 - smoothstep(80.0, 180.0, vDist));
+        diffuseColor.rgb *= 1.0 + (n64Surface.r - 0.5) * 2.0
+          * uSnowAlbedo.x * n64SurfaceFade * n64SnowMask;`)
+      .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+        // Hide the graded grid's triangle topology from lighting while leaving
+        // its actual geometry, depth and shadow coordinates untouched.
+        normal = normalize(vSmoothNormal);`);
   };
-  /* Keep the console's vertex snap and sky-coloured fog, but let the snow's
-     Lambert term remain continuous. Flat polygon normals already give the
-     mountain its low-poly read; five hard light rungs made a moving sun and
-     every LOD transition look like shadows switching on a timer. Props and
-     the rider retain the stepped retro light.
-
-     And take the sheen, which nothing else on the mountain does. The
-     argument for it is the same one the glitter has always rested on: this
-     surface is not paint, it is a heap of ice crystals, and the two things
-     that say so are a scatter of glints and a broad highlight that slides
-     across the slope as you ride past it. The hill had the first and not the
-     second, which is why it read as paper between the sparkles. */
-  shading.apply(material, { bands: 0, sheen: 1 });
+  /* Keep direction-aware atmospheric fog and continuous Lambert response,
+     then add the analytic snow/ice microfacet reflection that nothing else on
+     the mountain receives. */
+  shading.apply(material, { sheen: 1 });
+  material.userData.snowSurfaces = {
+    powder: powderSurface,
+    ready: snowReady,
+    tile: snowTile,
+    albedo: snowAlbedo,
+    height: snowHeight,
+  };
   const mesh = new THREE.Mesh(geometry, material);
   mesh.frustumCulled = false;
 
@@ -890,19 +925,27 @@ export function createTerrain(THREE, shading) {
   let morphing = false;
   let morphAge = 0;
 
-  function fill(ax, az, ay, outPositions, outColors, outGroom) {
-    // Pass one: heights, a row at a time so everything that depends only on
-    // z is computed once for the whole row rather than once per vertex
-    let i = 0;
-    for (let r = 0; r < vertsZ; r++) {
+  function fillHeightRows(ax, az, rowFrom, rowTo) {
+    // Heights are generated a row at a time so everything depending only on z
+    // is computed once for the whole row rather than once per vertex.
+    let i = rowFrom * vertsX;
+    for (let r = rowFrom; r < rowTo; r++) {
       rowContext(az + zs[r], ctx);
-      for (let c = 0; c < vertsX; c++) heights[i++] = heightIn(ctx, ax + xs[c]);
+      for (let c = 0; c < vertsX; c++, i++) {
+        heights[i] = heightIn(
+          ctx, ax + xs[c], coarseDetailMask[i], fineDetailMask[i],
+        );
+      }
     }
+  }
 
-    // Pass two: positions and colours
-    i = 0;
-    let p = 0;
-    for (let r = 0; r < vertsZ; r++) {
+  function fillSurfaceRows(
+    ax, az, ay, outPositions, outNormals, outColors, outIce,
+    rowFrom, rowTo,
+  ) {
+    let i = rowFrom * vertsX;
+    let p = i * 3;
+    for (let r = rowFrom; r < rowTo; r++) {
       const lz = zs[r];
       const wz = az + lz;
       rowContext(wz, ctx);
@@ -935,6 +978,44 @@ export function createTerrain(THREE, shading) {
         const dx2 = xs[cNext] - xs[cPrev] || 1;
         const dx = (heights[r * vertsX + cNext] - heights[r * vertsX + cPrev]) / dx2;
         const dz = (heights[rNext * vertsX + c] - heights[rPrev * vertsX + c]) / dz2;
+
+        /* Object-space curvature replaces the broad screen-space occlusion
+           that used to band the lower frame. Uneven-grid second differences
+           find real bowls and crests in the sampled heightfield; a restrained
+           colour response then preserves those folds when diffuse light is
+           nearly frontal. Because it follows metres of world geometry and is
+           filtered by the same LOD mask, it cannot form display-row moire. */
+        let curvature = 0;
+        if (c > 0 && c + 1 < vertsX) {
+          const stepL = Math.abs(xs[c] - xs[cPrev]);
+          const stepR = Math.abs(xs[cNext] - xs[c]);
+          const slopeL = (h - heights[r * vertsX + cPrev]) / stepL;
+          const slopeR = (heights[r * vertsX + cNext] - h) / stepR;
+          curvature += 2 * (slopeR - slopeL) / (stepL + stepR);
+        }
+        if (r > 0 && r + 1 < vertsZ) {
+          const stepB = Math.abs(zs[r] - zs[rPrev]);
+          const stepF = Math.abs(zs[rNext] - zs[r]);
+          const slopeB = (h - heights[rPrev * vertsX + c]) / stepB;
+          const slopeF = (heights[rNext * vertsX + c] - h) / stepF;
+          curvature += 2 * (slopeF - slopeB) / (stepB + stepF);
+        }
+        /* The new rider-scale pillows are deliberately low: geometry that
+           stays believable under a board only moves a few pixels in profile.
+           Let real object-space curvature carry more of their visual read.
+           This remains tied to metres and the spectral LOD masks above, so it
+           cannot reform the old screen-row bands or lower-frame moire. */
+        const cavityShade = smoothstep(0.0006, 0.010, curvature) * 0.20;
+        const crestLift = smoothstep(0.0008, 0.012, -curvature) * 0.070;
+
+        /* Height-field normal at this sample. Using the finite differences
+           already needed by the snow/rock palette makes this effectively free
+           and, unlike averaging triangle faces, independent of which diagonal
+           a graded cell happens to use. */
+        const invNormal = 1 / Math.hypot(dx, 1, dz);
+        outNormals[p] = -dx * invNormal;
+        outNormals[p + 1] = invNormal;
+        outNormals[p + 2] = -dz * invNormal;
 
         /* The horizontal part of the surface normal, taken against the grade
            rather than against flat — the whole hill is tilted, and a piste is
@@ -972,8 +1053,8 @@ export function createTerrain(THREE, shading) {
         const band = noise1(bu, P.band.seed) * 0.68
           + noise1(bu * 3.1 + 11.3, P.band.seed + 4) * 0.32;
 
-        // Groomed, and measured to whichever branch of the run is nearer —
-        // which is what puts corduroy down both sides of an island
+        // Machine-compacted snow, measured to whichever branch is nearer, so
+        // both sides of a route island get the same hardpack response.
         const toCentre = ctx.split > 0
           ? Math.min(Math.abs(wx - (ctx.mid - ctx.split)), Math.abs(wx - (ctx.mid + ctx.split)))
           : Math.abs(wx - ctx.mid);
@@ -1024,6 +1105,16 @@ export function createTerrain(THREE, shading) {
         cr += (cShade[0] - cr) * dim;
         cg += (cShade[1] - cg) * dim;
         cb += (cShade[2] - cb) * dim;
+        cr += (cShade[0] - cr) * cavityShade;
+        cg += (cShade[1] - cg) * cavityShade;
+        cb += (cShade[2] - cb) * cavityShade;
+        cr += (cDeep[0] - cr) * crestLift;
+        cg += (cDeep[1] - cg) * crestLift;
+        cb += (cDeep[2] - cb) * crestLift;
+        const cavityValue = 1 - cavityShade * 0.70;
+        cr *= cavityValue;
+        cg *= cavityValue;
+        cb *= cavityValue;
 
         if (rock > 0.002) {
           /* Rock catches the light along its ridges and holds none of it in
@@ -1048,16 +1139,14 @@ export function createTerrain(THREE, shading) {
           cb += (lo2 + (hi2 - lo2) * mottle - cb) * rock;
         }
 
-        /* Corduroy is painted per pixel from this mask, and a groomer has
-           never been over a rock band. There used to be a second set of
-           corduroy lines written into the vertex colours here as well, at a
-           period of 3.3 metres — barely two samples per cycle on a 1.5-metre
-           grid, under Nyquist, so it did not draw corduroy at all. It drew
-           the beat between its own period and the grid's, which crawled
-           across the hill as the mesh re-anchored. The ribs the fragment
-           shader paints are the same idea done where there are enough
-           samples to do it. */
-        outGroom[i] = groomed * (1 - rock);
+        /* Thin wind slab and machine-compacted piste carry the sharper ice
+           reflection. Deep snow keeps a small value because its crystal
+           facets still return the sun; exposed rock gets none. This stays a
+           continuous vertex field, so the light travels in broad patches
+           rather than sparkling at screen-pixel frequency. */
+        const reliefReflect = clamp01(1 - cavityShade * 2.1 + crestLift * 1.4);
+        outIce[i] = clamp01(0.16 + icy * 0.78 + groomed * 0.16)
+          * (1 - rock) * reliefReflect;
 
         outColors[p] = cr;
         outColors[p + 1] = cg;
@@ -1066,10 +1155,19 @@ export function createTerrain(THREE, shading) {
     }
   }
 
+  function fill(ax, az, ay, outPositions, outNormals, outColors, outIce) {
+    fillHeightRows(ax, az, 0, vertsZ);
+    fillSurfaceRows(
+      ax, az, ay, outPositions, outNormals, outColors, outIce,
+      0, vertsZ,
+    );
+  }
+
   function publish() {
     geometry.attributes.position.needsUpdate = true;
+    geometry.attributes.aSmoothNormal.needsUpdate = true;
     geometry.attributes.color.needsUpdate = true;
-    geometry.attributes.aGroom.needsUpdate = true;
+    geometry.attributes.aIce.needsUpdate = true;
   }
 
   function settleMorph(dt) {
@@ -1084,22 +1182,26 @@ export function createTerrain(THREE, shading) {
       positions[p] += (targetPositions[p] - positions[p]) * alpha;
       positions[p + 1] += (targetPositions[p + 1] - positions[p + 1]) * alpha;
       positions[p + 2] += (targetPositions[p + 2] - positions[p + 2]) * alpha;
+      normals[p] += (targetNormals[p] - normals[p]) * alpha;
+      normals[p + 1] += (targetNormals[p + 1] - normals[p + 1]) * alpha;
+      normals[p + 2] += (targetNormals[p + 2] - normals[p + 2]) * alpha;
       colors[p] += (targetColors[p] - colors[p]) * alpha;
       colors[p + 1] += (targetColors[p + 1] - colors[p + 1]) * alpha;
       colors[p + 2] += (targetColors[p + 2] - colors[p + 2]) * alpha;
-      groom[i] += (targetGroom[i] - groom[i]) * alpha;
+      ice[i] += (targetIce[i] - ice[i]) * alpha;
     }
 
     if (morphAge >= morphSettle) {
       positions.set(targetPositions);
+      normals.set(targetNormals);
       colors.set(targetColors);
-      groom.set(targetGroom);
+      ice.set(targetIce);
       morphing = false;
     }
     publish();
   }
 
-  /* Re-anchor after *four* fine cells, not two.
+  /* Re-anchor after *eight* fine cells, not two.
 
      The uniform near field swaps to the same world lattice either way — the
      stride is a whole number of cells, which is the only property that
@@ -1117,27 +1219,98 @@ export function createTerrain(THREE, shading) {
      was permanently in motion, chasing a target that moved again before it got
      there.
 
-     On a smoothly-shaded mesh nobody would ever have noticed. This one is flat
-     shaded, and a flat facet on a *silhouette* is the worst case there is: a
-     vertex that moves a few centimetres vertically moves the skyline across a
-     pixel boundary, and the serrated edge the facets already make appears to
-     crawl. Measured against the sky, a single morph step moved twenty thousand
-     pixels — over one per cent of the frame — almost all of it strung along
-     the ridge lines. That is the "blinking triangles".
+     Flat colour shading made that motion louder by changing an entire face's
+     light at once; the custom height-field normals above have since removed
+     that part. A moving vertex on a *silhouette* is still the worst geometric
+     case there is, though: a few centimetres vertically moves the skyline
+     across a pixel boundary, and the serrated edge appears to crawl. Measured
+     against the sky, a single morph step moved twenty thousand pixels — over
+     one per cent of the frame — almost all of it strung along the ridge lines.
+     That was the "blinking triangles".
 
-     Four cells halves the disturbance rate, and `morphRate` was raised with it
-     so the glide now converges between anchors instead of chasing forever. It
-     also halves the cost of `fill`, which is the single most expensive thing
-     this file does. */
-  const stride = spacing * 4;
+     Eight 75-centimetre cells preserve the established six-metre update
+     cadence after the density increase. `morphRate` is high enough for the glide to
+     converge between ordinary anchors, and avoiding a four-metre cadence also
+     keeps the denser `fill` pass from running more often than the old mesh. */
+  const stride = spacing * 8;
+
+  /* A full 109k-vertex target fill is too large for one animation frame. The
+     old synchronous rebuild could take roughly forty milliseconds, turning a
+     six-metre anchor into a recurring camera hitch. Generate the next lattice
+     in short row batches instead. The live mesh stays in world space while the
+     target is prepared, then the existing LOD morph takes over exactly as it
+     did before. This is temporal work scheduling, not a visual approximation:
+     every target receives the same two complete passes. */
+  const BUILD_BUDGET_MS = 4.0;
+  const BUILD_BATCH_ROWS = 8;
+  let build = null;
+  const clockNow = () => (globalThis.performance?.now?.() ?? Date.now());
+
+  function beginBuild(ax, az, ay) {
+    // target arrays are the back buffer. Freeze any previous convergence at
+    // its current live values before those arrays are reused row by row.
+    morphing = false;
+    build = { ax, az, ay, stage: 0, row: 0 };
+  }
+
+  function commitBuild(next) {
+    /* Changing the mesh transform must not move the live surface. Convert its
+       local coordinates back to the same world positions under the new anchor
+       before beginning convergence towards the finished back buffer. */
+    const shiftX = anchorX - next.ax;
+    const shiftY = anchorY - next.ay;
+    const shiftZ = anchorZ - next.az;
+    for (let p = 0; p < positions.length; p += 3) {
+      positions[p] += shiftX;
+      positions[p + 1] += shiftY;
+      positions[p + 2] += shiftZ;
+    }
+
+    anchorX = next.ax;
+    anchorZ = next.az;
+    anchorY = next.ay;
+    mesh.position.set(anchorX, anchorY, anchorZ);
+    morphAge = 0;
+    morphing = true;
+    build = null;
+    publish();
+  }
+
+  function advanceBuild() {
+    if (!build) return;
+    const deadline = clockNow() + BUILD_BUDGET_MS;
+    do {
+      const rowTo = Math.min(vertsZ, build.row + BUILD_BATCH_ROWS);
+      if (build.stage === 0) {
+        fillHeightRows(build.ax, build.az, build.row, rowTo);
+      } else {
+        fillSurfaceRows(
+          build.ax, build.az, build.ay,
+          targetPositions, targetNormals, targetColors, targetIce,
+          build.row, rowTo,
+        );
+      }
+      build.row = rowTo;
+
+      if (build.row >= vertsZ) {
+        if (build.stage === 0) {
+          build.stage = 1;
+          build.row = 0;
+        } else {
+          commitBuild(build);
+          return;
+        }
+      }
+    } while (clockNow() < deadline);
+  }
 
   function update(x, z, dt = 1 / 60) {
+    const surfaceReveal = 1 - Math.exp(-3.2 * dt);
+    snowReady.value.x += (snowReadyTarget.x - snowReady.value.x) * surfaceReveal;
+    snowReady.value.y += (snowReadyTarget.y - snowReady.value.y) * surfaceReveal;
+    settleMorph(dt);
     const ax = Math.round(x / stride) * stride;
     const az = Math.round(z / stride) * stride;
-    if (ax === anchorX && az === anchorZ) {
-      settleMorph(dt);
-      return;
-    }
 
     const ay = heightAt(ax, az);
     if (!Number.isFinite(anchorX)) {
@@ -1145,37 +1318,28 @@ export function createTerrain(THREE, shading) {
       anchorZ = az;
       anchorY = ay;
       mesh.position.set(ax, ay, az);
-      fill(ax, az, ay, positions, colors, groom);
+      fill(ax, az, ay, positions, normals, colors, ice);
       publish();
       return;
     }
 
-    /* Changing the mesh transform must not move the surface. Convert every
-       live local coordinate back to the same world position under the new
-       anchor first; the far field can then glide to its new LOD samples. */
-    const shiftX = anchorX - ax;
-    const shiftY = anchorY - ay;
-    const shiftZ = anchorZ - az;
-    for (let p = 0; p < positions.length; p += 3) {
-      positions[p] += shiftX;
-      positions[p + 1] += shiftY;
-      positions[p + 2] += shiftZ;
+    if (build) {
+      advanceBuild();
+      return;
     }
+    if (ax === anchorX && az === anchorZ) return;
 
-    anchorX = ax;
-    anchorZ = az;
-    anchorY = ay;
-    mesh.position.set(ax, ay, az);
-    fill(ax, az, ay, targetPositions, targetColors, targetGroom);
-    morphAge = 0;
-    morphing = true;
-    settleMorph(dt);
+    beginBuild(ax, az, ay);
+    advanceBuild();
   }
 
   return {
     mesh,
     update,
     vertexCount: count,
-    debug: () => ({ anchorX, anchorY, anchorZ, morphing, morphAge }),
+    debug: () => ({
+      anchorX, anchorY, anchorZ, morphing, morphAge,
+      building: build ? { stage: build.stage, row: build.row, rows: vertsZ } : null,
+    }),
   };
 }

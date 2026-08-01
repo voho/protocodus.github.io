@@ -92,6 +92,92 @@ const FLOOR = 1.5;        // metres of clearance the camera keeps over the snow
 // here because trees are handled by the sightline walk.
 const CLIMB = 2.6;
 
+/* When collision pulls the live boom right in, its independently smoothed
+   look point cannot stay several metres down-course: on a portrait frame that
+   aims past the rider altogether. Normal framing is untouched above START;
+   below FULL the only honest composition is to look at the rider until the
+   boom has room to open again. */
+const SHORT_LOOK_START = 0.72;
+const SHORT_LOOK_FULL = 0.55;
+const SHORT_PORTRAIT_FOV = 16;
+const SHORT_PORTRAIT_FOV_MAX = 82;
+const SHORT_PORTRAIT_WIDE = 1.1;
+const SHORT_PORTRAIT_RANGE = 0.6;
+const TREE_MIN_BOOM = 0.30;
+const TREE_SUBJECT_START = 0.34;
+const TREE_SUBJECT_RESCAN = 0.58;
+const TREE_SAMPLE_STEP = 0.075;
+const TREE_GUARD = 0.035;
+const TREE_NEAR_RADIUS = 0.7;
+const TREE_LENS_RADIUS = 4.4;
+const TREE_PULL_RATE = 18;
+const TREE_RELEASE_RATE = 3.2;
+
+/* How much of the boom is clear along one bearing.
+
+   `world.blocked` reports trunk circles, but the lens has to stay out of the
+   much wider crown. The clearance therefore grows from a small subject-side
+   margin to a foliage-sized lens margin. A coarse walk finds the first hit,
+   then a short binary search places its boundary continuously; using the
+   coarse sample itself is what made the old camera change distance in visible
+   steps as a tree crossed the sightline. */
+const treeClearFraction = (world, rider, point) => {
+  if (!world.blocked) return 1;
+
+  const dx = point.x - rider.pos.x;
+  const dz = point.z - rider.pos.z;
+  if (dx * dx + dz * dz < 0.01) return 1;
+
+  const blocked = (t) => {
+    const cx = rider.pos.x + dx * t;
+    const cz = rider.pos.z + dz * t;
+    const near = clamp((t - TREE_SUBJECT_START) / (1 - TREE_SUBJECT_START), 0, 1);
+    const shaped = near * near * (3 - 2 * near);
+    const foliage = TREE_NEAR_RADIUS
+      + shaped * (TREE_LENS_RADIUS - TREE_NEAR_RADIUS);
+    return world.blocked(cx, cz, foliage);
+  };
+
+  let previous = TREE_SUBJECT_START;
+  let wasBlocked = blocked(previous);
+
+  /* A crown already touching the rider cannot be fixed by moving the camera.
+     Ignore that innermost overlap, but start again soon enough to catch a
+     second tree or the same crown surrounding the lens. */
+  if (wasBlocked) {
+    previous = TREE_SUBJECT_RESCAN;
+    wasBlocked = blocked(previous);
+    if (wasBlocked) return Math.max(TREE_MIN_BOOM, previous - 0.10);
+  }
+
+  const count = Math.ceil((1 - previous) / TREE_SAMPLE_STEP);
+  let lastClear = previous;
+  for (let i = 1; i <= count; i++) {
+    const t = Math.min(1, previous + i * TREE_SAMPLE_STEP);
+    if (!blocked(t)) {
+      lastClear = t;
+      continue;
+    }
+
+    let lo = Math.max(TREE_MIN_BOOM, lastClear);
+    let hi = t;
+    for (let j = 0; j < 5; j++) {
+      const mid = (lo + hi) * 0.5;
+      if (blocked(mid)) hi = mid;
+      else lo = mid;
+    }
+    return Math.max(TREE_MIN_BOOM, lo - TREE_GUARD);
+  }
+  return 1;
+};
+
+const shortenBoom = (world, rider, point, fraction) => {
+  if (fraction >= 0.999) return;
+  point.x = rider.pos.x + (point.x - rider.pos.x) * fraction;
+  point.z = rider.pos.z + (point.z - rider.pos.z) * fraction;
+  point.y = Math.max(point.y, world.height(point.x, point.z) + FLOOR);
+};
+
 export function createChaseCamera(THREE, camera) {
   const at = new THREE.Vector3();
   const look = new THREE.Vector3();
@@ -100,6 +186,7 @@ export function createChaseCamera(THREE, camera) {
   const dir = new THREE.Vector3();
   const flat = new THREE.Vector3();
   const tmp = new THREE.Vector3();
+  const riderLook = new THREE.Vector3();
 
   let started = false;
   let shake = 0;
@@ -108,6 +195,7 @@ export function createChaseCamera(THREE, camera) {
   let roll = 0;
   let bank = 0;
   let seed = 0;
+  let treeBoom = 1;
 
   function kick(amount) {
     shake = Math.min(2.4, shake + amount);
@@ -180,45 +268,23 @@ export function createChaseCamera(THREE, camera) {
       want.x = rider.pos.x + (want.x - rider.pos.x) * clear;
       want.z = rider.pos.z + (want.z - rider.pos.z) * clear;
     }
+
+    /* A tree changes boom length, never bearing. The former can be damped;
+       the latter was previously chosen from several discrete orbit angles,
+       and a single clearance threshold could therefore throw the camera
+       seventy degrees sideways in one frame. Pull in promptly, release more
+       slowly, and let the ordinary chase spring carry both transitions. */
+    const treeLimit = treeClearFraction(world, rider, want);
+    if (!started) {
+      treeBoom = treeLimit;
+    } else {
+      const rate = treeLimit < treeBoom ? TREE_PULL_RATE : TREE_RELEASE_RATE;
+      treeBoom += (treeLimit - treeBoom) * (1 - Math.exp(-rate * dt));
+    }
+    shortenBoom(world, rider, want, treeBoom);
+
     const floor = world.height(want.x, want.z) + FLOOR;
     if (want.y < floor) want.y = floor;
-
-    // …and never let a tree. Ride into the forest and the chase position
-    // lands inside a trunk, which fills the screen with the inside of a cone
-    // at exactly the moment the player most needs to see what happened.
-    //
-    // The whole segment is walked, not just its far end: a camera sitting in
-    // clear air with a trunk halfway between it and the rider is the case
-    // that actually hides the rider, and testing only the endpoint misses it
-    // entirely. Six samples, and each one early-rejects almost every solid
-    // on its z, so the sightline costs about as much as the endpoint did.
-    if (world.blocked) {
-      let clear = 1;
-      for (let t = 0.34; t <= 1.001; t += 0.14) {
-        const cx = rider.pos.x + (want.x - rider.pos.x) * t;
-        const cz = rider.pos.z + (want.z - rider.pos.z) * t;
-        /* Three metres, not one.
-
-           The collision radius of a tree is its *trunk* — that is the only
-           part the rider can hit — but the part that fills the screen is the
-           foliage, and on these grown conifers the branches reach three or
-           four metres out from a trunk barely a metre wide. Testing the
-           sightline at the trunk's radius therefore let the camera settle
-           neatly between two trunks and entirely inside a canopy, which is
-           the failure this whole test exists to prevent: the frame fills with
-           the inside of a spruce at exactly the moment the player most needs
-           to see what is happening to them. */
-        if (world.blocked(cx, cz, 3.0)) {
-          clear = Math.max(0.3, t - 0.14);
-          break;
-        }
-      }
-      if (clear < 1) {
-        want.x = rider.pos.x + (want.x - rider.pos.x) * clear;
-        want.z = rider.pos.z + (want.z - rider.pos.z) * clear;
-        want.y = Math.max(want.y, world.height(want.x, want.z) + FLOOR);
-      }
-    }
 
     wantLook.copy(rider.pos)
       .addScaledVector(dir, CAMERA.lookAhead * (0.6 + 0.4 * ratio) + airT * AIR_REACH);
@@ -234,10 +300,34 @@ export function createChaseCamera(THREE, camera) {
       look.copy(wantLook);
     }
 
-    const lag = air ? CAMERA.airLag : CAMERA.lag;
+    const baseLag = air ? CAMERA.airLag : CAMERA.lag;
+    const followError = air ? CAMERA.maxAirFollowError : CAMERA.maxFollowError;
+    // A first-order chase trails steady motion by roughly speed / lag. W has
+    // no terminal speed now, so a fixed response would eventually put the
+    // camera kilometres behind the rider. The ordinary range keeps its tuned
+    // spring; only extreme speed raises the response enough to bound that
+    // additional separation.
+    const lag = Math.max(baseLag, speed / followError);
     const k = 1 - Math.exp(-lag * dt);
     at.lerp(want, k);
     look.lerp(wantLook, 1 - Math.exp(-(lag + 2) * dt));
+
+    /* Keep a collision-shortened camera aimed at the subject rather than at
+       the downhill point chosen for a full-length boom. The smoothstep makes
+       both ends of the correction continuous, and the existing look lag
+       eases back to normal framing once the obstruction clears. */
+    const liveBack = Math.hypot(at.x - rider.pos.x, at.z - rider.pos.z);
+    let shortLook = 1 - clamp(
+      (liveBack / Math.max(0.001, back) - SHORT_LOOK_FULL)
+        / (SHORT_LOOK_START - SHORT_LOOK_FULL),
+      0, 1,
+    );
+    if (shortLook > 0) {
+      shortLook = shortLook * shortLook * (3 - 2 * shortLook);
+      riderLook.copy(rider.pos);
+      riderLook.y += 1.1;
+      look.lerp(riderLook, shortLook);
+    }
 
     // --- shake ------------------------------------------------------------
     // Two sources, both earned: the ground chattering under the board at
@@ -287,7 +377,18 @@ export function createChaseCamera(THREE, camera) {
     fov += (wantFov - fov) * (1 - Math.exp(-3.5 * dt));
     punch *= Math.exp(-CAMERA.landFovDecay * dt);
     if (punch < 0.02) punch = 0;
-    const shown = fov + punch;
+    /* Terrain or foliage can shorten the horizontal boom. On a portrait
+       frame that close view needs a little more vertical room; keep the
+       compensation modest and bounded, exactly zero by a near-square aspect,
+       so collision response never turns into a second zoom event. */
+    const portrait = clamp(
+      (SHORT_PORTRAIT_WIDE - camera.aspect) / SHORT_PORTRAIT_RANGE,
+      0, 1,
+    );
+    const shown = Math.min(
+      SHORT_PORTRAIT_FOV_MAX,
+      fov + punch + shortLook * portrait * SHORT_PORTRAIT_FOV,
+    );
     if (Math.abs(camera.fov - shown) > 0.01) {
       camera.fov = shown;
       camera.updateProjectionMatrix();
@@ -301,6 +402,7 @@ export function createChaseCamera(THREE, camera) {
     punch = 0;
     roll = 0;
     bank = 0;
+    treeBoom = 1;
   }
 
   return { update, kick, land, reset, get shake() { return shake; } };

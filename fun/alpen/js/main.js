@@ -80,7 +80,12 @@ if (seedLabel) seedLabel.textContent = runCode;
    could no longer do anything with one. */
 let renderer;
 try {
-  renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
+  renderer = new THREE.WebGLRenderer({
+    canvas,
+    antialias: true,
+    alpha: false,
+    powerPreference: 'high-performance',
+  });
 } catch (err) {
   document.body.classList.add('no-webgl');
   const inner = curtain.querySelector('.curtain-inner');
@@ -102,21 +107,17 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 
 /* Shadows, softened.
 
-   These started on plain PCF, on the reasoning that a feathered edge does not
-   belong in a picture quantised to five diffuse bands and five bits of
-   colour — a soft gradient inside a shadow edge becomes a dither pattern two
-   pixels wide. That reasoning was sound for the framebuffer this game had at
-   the time and stopped being true when it went to native resolution: there
-   are now enough pixels across an edge for a gradient to read as a gradient.
-
-   And the physical argument was always on the other side. The sun is half a
+   The sun is half a
    degree wide, so every shadow on a mountain has a penumbra that widens with
    distance from whatever cast it — a tree's shadow is sharp at the trunk and
    soft at its tip, and hard-edged shadows are the single most reliable tell
    of a real-time renderer. Soft PCF plus a radius on the light gets most of
    that for one extra tap pattern. */
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+// r185 folds the former soft variant into the unified PCF implementation;
+// using the current enum preserves the filtered result without a deprecation
+// warning on every boot. The light's radius still sets the kernel in sky.js.
+renderer.shadowMap.type = THREE.PCFShadowMap;
 renderer.shadowMap.autoUpdate = true;
 
 const scene = new THREE.Scene();
@@ -140,14 +141,14 @@ scene.fog = new THREE.Fog(0xe3ecf6, RENDER.fogNear, RENDER.fogFar);
 const shading = createShading(THREE);
 
 const weather = createWeather(THREE);
-const terrain = createTerrain(THREE, shading);
+const terrain = createTerrain(THREE, shading, renderer.capabilities.getMaxAnisotropy());
 const props = createProps(THREE, shading);
 const wildlife = createWildlife(THREE, shading);
 const sky = createSky(THREE);
 const snowfall = createSnowfall(THREE);
 const spray = createSpray(THREE);
 const streaks = createStreaks(THREE);
-const trail = createTrail(THREE);
+const trail = createTrail(THREE, shading);
 const heli = createHelicopter(THREE, shading);
 const huts = createHuts(THREE, shading);
 
@@ -185,6 +186,13 @@ terrain.mesh.receiveShadow = true;
 function shadowCasting(root) {
   root.traverse((o) => {
     if (!o.isMesh && !o.isInstancedMesh) return;
+    // A few luminous/translucent surfaces carry their own visual falloff and
+    // must not become opaque cards in Three's depth-only shadow material.
+    if (o.userData.noShadow) {
+      o.castShadow = false;
+      o.receiveShadow = false;
+      return;
+    }
     o.castShadow = true;
     o.receiveShadow = true;
   });
@@ -238,7 +246,7 @@ const world = {
 
 const rider = new Rider(THREE, world);
 const model = createRiderModel(THREE, shading);
-scene.add(model.root, model.shadow);
+scene.add(model.root, model.shadow, model.headlamp.beam, model.headlamp.pool);
 shadowCasting(model.root);
 /* The blob is a fake shadow and stays out of the real one. Left in the pass
    it would cast a hard disc of its own onto the snow underneath it, and
@@ -296,6 +304,7 @@ const demo = { t: 0, turn: 0 };
 const prev = new THREE.Vector3();
 const wind = new THREE.Vector3();
 const riderScreen = new THREE.Vector3();
+const pushSnow = new THREE.Vector3();
 let pausedRendered = false;
 
 function showMuted(value) {
@@ -485,17 +494,57 @@ rider.on('launch', (vy) => {
   hud.clearBanner();
 });
 
-rider.on('fall', () => {
+rider.on('fall', (cause, into = 0) => {
   game.combo = 1;
   if (game.mode !== 'playing') return;
-  audio.crash();
-  chase.kick(2.2);
-  spray.burst(rider.pos, rider.vel.x * 0.08, rider.vel.z * 0.08, 40, 1.1);
+
+  const physical = Math.max(0, Math.min(1, into / RIDER.hardImpact));
+  const severity = Math.max(cause === 'stall' ? 0.12 : 0.3, physical);
+  const horizontal = Math.hypot(rider.vel.x, rider.vel.z);
+  const backX = horizontal > 0.1 ? -rider.vel.x / horizontal : -rider.heading.x;
+  const backZ = horizontal > 0.1 ? -rider.vel.z / horizontal : -rider.heading.z;
+
+  audio.crash(into, cause);
+  chase.kick(1.0 + severity * 1.35);
+  retro.crash(severity);
+
+  // The first contact throws a broad powder curtain back into the chase
+  // camera. Both its mass and its reach come from the impact that launched
+  // the tumble, instead of every fall receiving the old fixed forty dots.
+  const plume = 0.72 + severity * 1.08;
+  const push = 1.0 + severity * 2.3;
+  spray.burst(rider.pos, backX * push, backZ * push,
+    Math.round(34 + severity * 58), plume);
   hud.banner('WIPEOUT', 0, 'bad');
 });
 
 rider.on('impact', (v) => {
+  if (rider.state === 'fall') {
+    const severity = Math.max(0, Math.min(1, v / (RIDER.hardImpact * 0.7)));
+    audio.bodyImpact(v);
+    if (v > 1.5) {
+      const horizontal = Math.hypot(rider.vel.x, rider.vel.z);
+      const backX = horizontal > 0.1 ? -rider.vel.x / horizontal : -rider.heading.x;
+      const backZ = horizontal > 0.1 ? -rider.vel.z / horizontal : -rider.heading.z;
+      const puff = 0.48 + severity * 0.88;
+      spray.burst(rider.pos, backX * (0.5 + severity), backZ * (0.5 + severity),
+        Math.round(8 + severity * 26), puff);
+    }
+    // A genuinely heavy body contact can put a second dusting on the lens;
+    // small chatter is left entirely to sound and particles.
+    if (v > RIDER.softImpact) retro.crash(0.12 + severity * 0.28);
+  }
   if (v > 6) chase.kick(Math.min(1.2, v * 0.05));
+});
+
+rider.on('push', (impulse) => {
+  if (game.mode !== 'playing') return;
+  audio.push(impulse / RIDER.pushImpulse);
+  pushSnow.copy(rider.pos).addScaledVector(rider.right, 0.32);
+  spray.burst(pushSnow,
+    rider.right.x * 0.85 - rider.heading.x * 0.45,
+    rider.right.z * 0.85 - rider.heading.z * 0.45,
+    8, 0.48);
 });
 
 rider.on('grind', () => {
@@ -743,7 +792,7 @@ function frame(now) {
     scene.fog.far = w.fogFar;
     // Everything with a hand-written fog term needs telling where the
     // curtain is this frame; three only does it for its own materials
-    for (const p of [snowfall.points, spray.points, trail.points]) {
+    for (const p of [snowfall.points, spray.points]) {
       p.material.uniforms.uFog.value.copy(w.haze);
       p.material.uniforms.uNear.value = w.fogNear;
       p.material.uniforms.uFar.value = w.fogFar;
@@ -754,6 +803,9 @@ function frame(now) {
       () => { if (game.mode === 'playing' && rider.grace <= 0) rider.fall('bear', rider.speed); });
 
     heli.update(dt, rider, wildlife, w);
+    if (game.mode === 'playing' && heli.claimLight(rider)) {
+      award(SCORE.searchlight * game.combo, 'IN THE SPOTLIGHT', 'near');
+    }
 
     huts.update(dt, rider, w, () => {
       if (game.mode !== 'playing') return;
@@ -767,41 +819,26 @@ function frame(now) {
     // dissolving into. It follows both the sky and the chase camera so the
     // view-space sun cannot lag a carve by one rendered frame.
     shading.update(w, camera);
-    model.update(rider, dt);
-    trail.update(rider, dt);
+    model.update(rider, dt, w, camera);
+    /* The track owns continuous board spray because it already commits the
+       contact path at fixed spatial intervals. One interpolated sample now
+       drives both the cut in the snow and the sheet thrown from that cut, so
+       density is independent of refresh rate and the two effects cannot
+       disagree about the buried edge. Fall scraping remains an impact plume,
+       as do landing, pushing and collision bursts above. */
+    trail.update(rider, dt,
+      rider.state === 'ride' ? spray.edgeSample : null);
 
-    /* Spray, straight off the edge — and now off a clean carve as well as a
-       slide.
-
-       This is the single biggest read the screen gives back, because it is
-       the only thing whose quantity is a direct measure of how hard the board
-       is working. It used to be almost entirely the slide, which meant a
-       railed carve — the thing the game is actually about — threw nothing at
-       all and only a mistake made powder. A carved edge is cutting a trench
-       through snow at forty metres a second; it throws plenty. So the two are
-       separated: the wash-out still throws the wall of it, and the carve
-       throws a continuous sheet off the buried edge whose size is the edge
-       angle and the load, which is exactly what `carveLoad` already knows. */
-    if (rider.grounded && rider.state !== 'fall') {
-      const side = Math.sign(rider.lateral || 1);
-      const carving = rider.carveLoad * Math.abs(Math.sin(rider.edge || 0));
-      if (carving > 0.05 && rider.speed > 6) {
-        // Thrown up and out from under the buried edge, against the turn
-        spray.burst(rider.pos,
-          -rider.right.x * side * (0.7 + carving * 1.5),
-          -rider.right.z * side * (0.7 + carving * 1.5),
-          Math.max(1, Math.round(carving * 5 * Math.min(1, rider.speed / 22))),
-          0.22 + carving * 0.7);
-      }
-      const amount = rider.slide * 0.9;
-      if (amount > 0.5) {
-        spray.burst(rider.pos,
-          rider.right.x * side * 1.6, rider.right.z * side * 1.6,
-          Math.min(7, Math.round(amount * 0.9)),
-          Math.min(1.3, 0.3 + amount * 0.1));
-      }
-    } else if (rider.state === 'fall') {
-      spray.burst(rider.pos, 0, 0, 3, 0.8);
+    if (rider.state === 'fall' && !rider.airborne && rider.speed > 1) {
+      // Snow only comes off a fallen body while it is actually touching the
+      // hill. Airborne tumbles are wind and silence; the scrape resumes with
+      // a low, speed-weighted wake when the body lands again.
+      const horizontal = Math.hypot(rider.vel.x, rider.vel.z);
+      const backX = horizontal > 0.1 ? -rider.vel.x / horizontal : -rider.heading.x;
+      const backZ = horizontal > 0.1 ? -rider.vel.z / horizontal : -rider.heading.z;
+      const drag = Math.min(1, rider.speed / 24);
+      spray.burst(rider.pos, backX * (0.5 + drag), backZ * (0.5 + drag),
+        Math.max(1, Math.round(1 + drag * 4)), 0.38 + drag * 0.62);
     }
 
     wind.set(w.windX, 0, w.windZ);
@@ -810,7 +847,9 @@ function frame(now) {
     spray.update(dt, camera, wind);
     streaks.update(dt, camera, rider.vel, rider.speed);
 
-    audio.ambience(rider.speed, rider.slide, rider.grounded, w.storm, rider.carveLoad);
+    const tumbleSlide = rider.state === 'fall' && !rider.airborne ? rider.speed : 0;
+    audio.ambience(rider.speed, rider.slide, rider.grounded, w.storm,
+      rider.carveLoad, tumbleSlide);
     retro.setSpeed(rider.speed);
     riderScreen.copy(rider.pos).addScaledVector(rider.normal, 0.9).project(camera);
     retro.setFocus(riderScreen.x * 0.5 + 0.5, riderScreen.y * 0.5 + 0.5);
@@ -830,6 +869,7 @@ function frame(now) {
     hud.update(game, dt);
   }
 
+  retro.updateEffects(dt, running);
   retro.updatePerformance(dt, running);
   if (running || !pausedRendered) {
     retro.render(scene, camera);
@@ -923,7 +963,7 @@ resize();
    the whole debugger: read the numbers, or write one and watch what it does
    to the run. */
 window.__alpen = {
-  game, rider, camera, world, weather, scene, sky, terrain, props, retro, renderer,
+  game, rider, camera, chase, world, weather, scene, sky, terrain, props, retro, renderer,
   // `model` is on here for one reason: the rider's drawn orientation is
   // derived from the physics yaw and has been wrong before — mirrored about
   // the fall line, which is invisible going straight and 180° out in a carve.
@@ -949,22 +989,32 @@ window.__alpen = {
     contactFootprint: +rider.contactFootprint.toFixed(2),
     compression: +rider.compression.toFixed(3),
     slide: +rider.slide.toFixed(2),
+    brake: +rider.brake.toFixed(2),
+    pushing: rider.pushing,
+    pushPhase: +rider.pushPhase.toFixed(3),
+    pushStroke: rider.pushStroke,
     camDistance: +camera.position.distanceTo(rider.pos).toFixed(2),
     fov: +camera.fov.toFixed(1),
     seed: game.seed,
     buffer: [retro.width, retro.height, `${Math.round(retro.scale * 100)}%`],
+    msaa: retro.samples,
     display: [retro.displayWidth, retro.displayHeight, `${retro.dpr.toFixed(2)} dpr`],
     speedFx: {
       blur: +retro.blur.toFixed(5),
       aberration: +retro.aberration.toFixed(5),
       vignette: +retro.speedVignette.toFixed(3),
       rays: +retro.rayStrength.toFixed(3),
+      fall: +retro.fallEffect.toFixed(3),
     },
     solids: props.solids.length,
     rails: props.rails.length,
     terrainVerts: terrain.vertexCount,
+    helicopter: heli.debug(),
     weather: {
+      tod: +weather.state.tod.toFixed(3),
       phase: weather.state.phase,
+      night: +weather.state.night.toFixed(3),
+      headlamp: +model.headlamp.level.toFixed(3),
       conditions: weather.state.conditions,
       storm: +weather.state.storm.toFixed(2),
       fog: [Math.round(weather.state.fogNear), Math.round(weather.state.fogFar)],

@@ -11,7 +11,7 @@
    That ordering decided the rest of the file — the beam is a pointer first
    and lighting second, which is why it is an additive shell rather than a
    lamp. It was a real THREE.SpotLight for about an hour: it cost more than
-   the hill, it lit a flat-shaded Lambert snowfield into a soft grey circle
+   the hill, it lit the Lambert snowfield into a soft grey circle
    nobody could see from six metres behind a rider at 130 km/h, and it did
    not draw the one part that matters, which is the cone of air between the
    machine and the snow. A picture of a light beats a light here, and costs
@@ -59,11 +59,10 @@ export const HELI = {
      from the weather rather than agreed with it — a blizzard grounds the
      machine mid-sortie and it goes home.
 
-     Fourteen hundred metres is about forty seconds of riding, and a night
-     is about seventy-five seconds long, so a night carries roughly two
-     chances. At a third each that is a helicopter every second night or so,
-     which is the point: seeing one should be worth mentioning. */
-  period: 1400,
+     The day/night clock now runs five times faster, so the distance period is
+     compressed by the same factor. That preserves the original number of
+     launch opportunities per night instead of making the patrol disappear. */
+  period: 280,
   chance: 0.32,
   nightFrom: 0.62,    // weather.night below this and it stays in the hangar
   nightHold: 0.34,    // and below this it breaks off — dawn is not its shift
@@ -102,8 +101,11 @@ export const HELI = {
      bad luck that puts the two in the same place. */
   hover: 64,
   floor: 34,
-  orbit: 15,          // metres of circle it flies to stay put
-  orbitRate: 0.30,    // rad/s — a lazy one, about twenty seconds round
+  orbit: 28,          // a clearly readable circuit across the piste
+  orbitAlong: 0.60,   // tighter down the fall line: a 56 × 34 m ellipse
+  orbitRate: 0.38,    // rad/s — about sixteen seconds around
+  orbitLift: 4.0,     // metres of slow rise and fall around that circuit
+  stationRange: 40,
 
   /* Flight. An arrive-behaviour: it wants a velocity proportional to how
      far off station it is, capped, and it is allowed to change that velocity
@@ -127,7 +129,7 @@ export const HELI = {
   pitchGain: 0.030,
   pitchMax: 0.30,
   /* Rotor speed, chosen for the strobe rather than for realism. The real
-     thing turns at about 41 rad/s, which with four blades and a 90° symmetry
+   thing turns at about 41 rad/s, which with four blades and a 90° symmetry
      lands within a whisker of a whole blade-pass per frame at 60 Hz and
      stands still or turns backwards. Twenty-six is nowhere near any of the
      harmonics and still reads as fast. */
@@ -168,6 +170,8 @@ export const HELI = {
   poolStrength: 0.85,
   lampFade: 1.4,      // seconds to full brightness, and rather quicker off
   track: 0.55,        // seconds of lag as the beam follows a bolting rabbit
+  scoreRadius: 0.72,  // inner share of the visible pool that scores
+  scoreLamp: 0.30,    // it must be visibly established first
 };
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -277,9 +281,9 @@ const POOL_FRAG = `
    ========================================================================== */
 
 function hullGeometry(THREE) {
-  const ball = new THREE.SphereGeometry(0.5, 8, 6);
+  const ball = new THREE.SphereGeometry(0.5, 28, 18);
   const box = new THREE.BoxGeometry(1, 1, 1);
-  const cyl = new THREE.CylinderGeometry(0.5, 0.5, 1, 7);
+  const cyl = new THREE.CylinderGeometry(0.5, 0.5, 1, 18, 2);
   const shell = '#cf3f2e';
   const trim = '#f2f5fa';
   const glass = '#141b28';
@@ -329,7 +333,7 @@ function hullGeometry(THREE) {
 
 function rotorGeometry(THREE) {
   const box = new THREE.BoxGeometry(1, 1, 1);
-  const cyl = new THREE.CylinderGeometry(0.5, 0.5, 1, 7);
+  const cyl = new THREE.CylinderGeometry(0.5, 0.5, 1, 18, 2);
   const blade = '#272c36';
   // Two crossing blades rather than four separate ones, sat at slightly
   // different heights so the overlap in the middle cannot z-fight, with the
@@ -350,8 +354,8 @@ function rotorGeometry(THREE) {
    hill every frame, so the light drapes over the moguls instead of hovering
    flat above them. Sixty-odd `heightAt` calls a frame, against the several
    thousand the terrain mesh already does. */
-const POOL_SEG = 24;
-const POOL_RING = 4;
+const POOL_SEG = 48;
+const POOL_RING = 6;
 
 function poolGeometry(THREE) {
   const count = 1 + POOL_SEG * POOL_RING;
@@ -399,16 +403,16 @@ export function createHelicopter(THREE, shading) {
   // exactly where the shared shading earns its keep: it dissolves into
   // whatever the sky is doing behind it rather than into a flat grey, so a
   // helicopter crossing in front of a sunset comes back out of it warm.
-  const flat = shading.apply(
-    new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }),
+  const craftMaterial = shading.apply(
+    new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false }),
   );
 
   // Everything that banks together lives under one node; the rotor is its
   // own child so it can turn inside a machine that is leaning over.
   const craft = new THREE.Object3D();
   craft.rotation.order = 'YXZ';
-  const hull = new THREE.Mesh(hullGeometry(THREE), flat);
-  const rotor = new THREE.Mesh(rotorGeometry(THREE), flat);
+  const hull = new THREE.Mesh(hullGeometry(THREE), craftMaterial);
+  const rotor = new THREE.Mesh(rotorGeometry(THREE), craftMaterial);
   rotor.position.set(0, 1.55, -0.35);
   // The one flashing thing, and the only reason a machine that is still a
   // silhouette in the fog reads as a machine at all
@@ -440,7 +444,7 @@ export function createHelicopter(THREE, shading) {
   });
   // Apex at the origin, base at y = -1 and radius 1, open-ended so the cap
   // never shows up as a disc hanging in the air
-  const coneGeo = new THREE.ConeGeometry(1, 1, 18, 1, true);
+  const coneGeo = new THREE.ConeGeometry(1, 1, 36, 2, true);
   coneGeo.translate(0, -0.5, 0);
   const beam = new THREE.Mesh(coneGeo, beamMat);
   beam.frustumCulled = false;
@@ -493,6 +497,10 @@ export function createHelicopter(THREE, shading) {
   let turnRate = 0;
   let lastSpeed = 0;
   let lamps = 0;          // 0..1, the searchlight's own fade
+  let lightClaimed = false; // one score opportunity per sortie
+  let scoreSampleValid = false;
+  let scoreDx = 0;
+  let scoreDz = 0;
 
   const hold = { x: 0, y: 0, z: 0 };   // the station point, rebuilt each frame
 
@@ -561,6 +569,8 @@ export function createHelicopter(THREE, shading) {
     roll = 0;
     pitch = 0;
     lamps = 0;
+    lightClaimed = false;
+    scoreSampleValid = false;
     group.visible = true;
   }
 
@@ -569,6 +579,7 @@ export function createHelicopter(THREE, shading) {
     phase = 'away';
     target = null;
     loiter = 0;
+    scoreSampleValid = false;
     // Across the run, climbing, and on down the valley: it clears the piste
     // first, which is what the machine would do and also the fastest way out
     // of a picture that is only three hundred metres deep
@@ -581,6 +592,7 @@ export function createHelicopter(THREE, shading) {
     phase = 'hangar';
     target = null;
     lamps = 0;
+    scoreSampleValid = false;
     group.visible = false;
   }
 
@@ -747,11 +759,12 @@ export function createHelicopter(THREE, shading) {
 
     orbit += HELI.orbitRate * dt;
     hold.x = target.x + Math.cos(orbit) * HELI.orbit;
-    hold.z = target.z + Math.sin(orbit) * HELI.orbit;
-    hold.y = heightAt(hold.x, hold.z) + HELI.hover;
+    hold.z = target.z + Math.sin(orbit) * HELI.orbit * HELI.orbitAlong;
+    hold.y = heightAt(hold.x, hold.z) + HELI.hover
+      + Math.sin(orbit * 1.65) * HELI.orbitLift;
 
     const off = fly(dt, hold.x, hold.y, hold.z, HELI.cruise);
-    if (phase === 'inbound' && off < HELI.orbit * 2.5) phase = 'station';
+    if (phase === 'inbound' && off < HELI.stationRange) phase = 'station';
     if (phase === 'station') loiter += dt;
 
     // The lamp comes up the moment it is on the job, and the aim lags the
@@ -772,8 +785,60 @@ export function createHelicopter(THREE, shading) {
     loiter = 0;
     vel.set(0, 0, 0);
     lamps = 0;
+    lightClaimed = false;
+    scoreSampleValid = false;
     beamMat.uniforms.uStrength.value = 0;
     pool.mat.uniforms.uStrength.value = 0;
+  }
+
+  /* A deterministic tuning hatch for browser QA. It still uses the real
+     target selection and launch path; it only bypasses the rare schedule and
+     weather gates so movement, light placement and scoring can be inspected. */
+  function debugLaunch(rider, targets) {
+    if (phase !== 'hangar') return false;
+    const found = findTarget(rider, targets, false);
+    if (!found) return false;
+    launch(found, Math.floor(Math.max(0, rider.distance) / HELI.period));
+    return true;
+  }
+
+  /* Entering the visibly lit snow is a one-shot skill target. Keep the test
+     on the same lagged `aim` point that draws the pool, so the collision and
+     picture cannot disagree while the beam swings after a moving animal. */
+  function claimLight(rider) {
+    const active = !lightClaimed && lamps >= HELI.scoreLamp
+      && (phase === 'inbound' || phase === 'station')
+      && rider.grounded && rider.state !== 'fall' && rider.state !== 'rise';
+    if (!active) {
+      scoreSampleValid = false;
+      return false;
+    }
+
+    const dx = rider.pos.x - aim.x;
+    const dz = rider.pos.z - aim.z;
+    const radius = HELI.radius * HELI.scoreRadius;
+    let distance2 = dx * dx + dz * dz;
+    /* Sweep the rider relative to the moving pool. Ordinary frame steps are
+       much smaller than the light, but W has no speed ceiling by design; the
+       segment test keeps an extreme-speed crossing scoreable as well. */
+    if (scoreSampleValid) {
+      const vx = dx - scoreDx;
+      const vz = dz - scoreDz;
+      const vv = vx * vx + vz * vz;
+      if (vv > 1e-8) {
+        const t = clamp(-(scoreDx * vx + scoreDz * vz) / vv, 0, 1);
+        const sx = scoreDx + vx * t;
+        const sz = scoreDz + vz * t;
+        distance2 = Math.min(distance2, sx * sx + sz * sz);
+      }
+    }
+    scoreDx = dx;
+    scoreDz = dz;
+    scoreSampleValid = true;
+    if (distance2 > radius * radius) return false;
+    lightClaimed = true;
+    scoreSampleValid = false;
+    return true;
   }
 
   /* `fogged` is the two meshes carrying uFog/uNear/uFar, in the shape
@@ -785,7 +850,17 @@ export function createHelicopter(THREE, shading) {
     group,
     update,
     reset,
+    claimLight,
+    debugLaunch,
     fogged: [beam, pool.mesh],
     get phase() { return phase; },
+    debug: () => ({
+      phase,
+      lamps,
+      claimed: lightClaimed,
+      position: pos.toArray(),
+      light: aim.toArray(),
+      radius: HELI.radius,
+    }),
   };
 }

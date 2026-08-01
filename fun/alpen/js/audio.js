@@ -13,7 +13,7 @@
    a jump is quiet, and the landing is loud, and the ear gets the whole story
    without a single sample being triggered by an event.
 
-   There are five continuous voices now rather than two, and the split is the
+   There are six continuous voices now rather than two, and the split is the
    whole of what changed.
 
    The air is two of them. A rush, which is the body of it, and a whistle
@@ -33,6 +33,8 @@
    can do on a snowboard — was silent, and the only way to make a noise was to
    lose the edge. Now the carve sings and the slide roars, and they are
    different sounds because they are different things happening to the snow.
+   The sixth is the scrape of a fallen body: silent in the air and driven by
+   actual contact speed once the tumble reaches the hill.
 
    Everything is behind a user gesture, because browsers require it and
    because a page that starts making noise on its own deserves what it gets. */
@@ -53,9 +55,11 @@ export function createAudio() {
   let rumble = null;
   let edge = null;
   let wash = null;
+  let scrape = null;
   let voices = [];
   let muted = false;
   let started = false;
+  let lastBodyImpact = -Infinity;
 
   try {
     muted = localStorage.getItem('alpen.muted') === '1';
@@ -111,7 +115,11 @@ export function createAudio() {
     rumble = loop(brownBuf, 'lowpass', 160, 1.1);
     edge = loop(whiteBuf, 'bandpass', 2600, 3.4);
     wash = loop(brownBuf, 'bandpass', 900, 0.8);
-    voices = [rush, whistle, rumble, edge, wash];
+    // A fallen rider is clothing, board and body dragging through snow, not
+    // an edged snowboard. Keeping that scrape on its own voice lets it begin
+    // only when the tumble has reached the ground and stop again on a bounce.
+    scrape = loop(whiteBuf, 'bandpass', 1050, 0.95);
+    voices = [rush, whistle, rumble, edge, wash, scrape];
     return true;
   }
 
@@ -128,12 +136,12 @@ export function createAudio() {
 
   const now = () => (ctx ? ctx.currentTime : 0);
 
-  /* --- the five continuous voices -------------------------------------- */
+  /* --- the six continuous voices --------------------------------------- */
 
   /* `carveLoad` is optional only so that a caller which has not been updated
      still makes a sensible noise: without it the edge simply never sings and
      everything else behaves exactly as before. */
-  function ambience(speed, slide, grounded, storm, carveLoad = 0) {
+  function ambience(speed, slide, grounded, storm, carveLoad = 0, tumbleSlide = 0) {
     if (!started || !ctx) return;
     const t = now();
     const v = Math.min(1, speed / 42);
@@ -170,6 +178,13 @@ export function createAudio() {
     const skid = clamp01(slide / 10);
     wash.gain.gain.setTargetAtTime(skid * (0.09 + v * 0.15) * on, t, 0.05);
     wash.filter.frequency.setTargetAtTime(650 + Math.min(slide, 14) * 145, t, 0.08);
+
+    // The contact half of a fall. Airborne tumbles retain only the wind;
+    // once the body meets the hill this broad scrape follows actual sliding
+    // speed, so each bounce opens a pocket of silence before the snow returns.
+    const drag = clamp01(tumbleSlide / 24);
+    scrape.gain.gain.setTargetAtTime(drag * (0.045 + drag * 0.16), t, 0.035);
+    scrape.filter.frequency.setTargetAtTime(720 + drag * 1500, t, 0.07);
   }
 
   /* --- one-shots ------------------------------------------------------- */
@@ -269,9 +284,66 @@ export function createAudio() {
       tone(660 * Math.pow(1.06, mult), 1320, 0.16, 0.05, 'sine', 0.05);
     },
 
-    crash() {
-      burst(0.55, 1800, 0.34, 'lowpass', 120);
-      tone(150, 45, 0.4, 0.16, 'sawtooth');
+    /* A fall is a sequence rather than a louder landing: broken crust first,
+       then the weight of the body, then snow and clothing scraping away.
+       `impact` is the same m/s value the physics used to throw the rider, so
+       a soft washout and a high-speed collision share a sound family without
+       ever being mistaken for the same event. */
+    crash(impact = RIDER.softImpact, cause = 'land') {
+      const k = clamp01(Math.max(0, impact) / RIDER.hardImpact);
+      const weight = 0.28 + k * 0.72;
+
+      // Crust and powder at the contact point.
+      burst(0.18 + k * 0.28, 1050 + k * 1250,
+        0.08 + weight * 0.22, 'lowpass', 170);
+      burst(0.09 + k * 0.11, 2900 + k * 1700,
+        0.025 + weight * 0.085, 'highpass', null, 0.008, whiteBuf);
+
+      // The body arrives just after the snow, with a clean sub rather than
+      // the buzzy sawtooth that made the old crash sound like an alarm.
+      tone(104 + k * 54, 31, 0.18 + k * 0.25,
+        0.055 + weight * 0.14, 'sine', 0.012);
+      if (k > 0.32) tone(58, 25, 0.30 + k * 0.20, 0.04 + k * 0.10, 'sine', 0.025);
+
+      // A hard obstacle adds the short clack of board/bindings; a landing
+      // bail stays all snow and body.
+      if ((cause === 'hit' || cause === 'bear') && k > 0.2) {
+        tone(310 + k * 180, 92, 0.095 + k * 0.06,
+          0.035 + k * 0.07, 'triangle', 0.006);
+      }
+
+      // Loose powder and clothing dragging away from the first hit.
+      burst(0.24 + k * 0.56, 1750 + k * 850,
+        0.035 + weight * 0.10, 'bandpass', 620, 0.065, whiteBuf);
+    },
+
+    /* Secondary contacts during the ragdoll. A short gate prevents closely
+       spaced terrain samples from becoming a machine-gun while preserving
+       distinct, diminishing thumps as the rider actually bounces. */
+    bodyImpact(impact) {
+      if (!started || !ctx) return;
+      const t = now();
+      if (t - lastBodyImpact < 0.11) return;
+      lastBodyImpact = t;
+      const k = clamp01(Math.max(0, impact) / (RIDER.hardImpact * 0.7));
+      if (k < 0.06) return;
+      burst(0.10 + k * 0.16, 780 + k * 720,
+        0.035 + k * 0.12, 'lowpass', 155);
+      tone(88 + k * 38, 32, 0.12 + k * 0.13,
+        0.025 + k * 0.075, 'sine', 0.006);
+      if (k > 0.38) {
+        burst(0.08 + k * 0.08, 3100, 0.018 + k * 0.05,
+          'highpass', null, 0.004, whiteBuf);
+      }
+    },
+
+    // Rear boot through soft snow: a short granular scrape with just enough
+    // low body to make the plant feel weight-bearing rather than decorative.
+    push(strength = 1) {
+      const k = clamp01(strength);
+      burst(0.11 + k * 0.08, 2100, 0.035 + k * 0.055,
+        'bandpass', 720, 0, whiteBuf);
+      tone(92, 48, 0.10, 0.018 + k * 0.022, 'sine', 0.012);
     },
 
     // A near miss is a whoosh past the ear, and the only reward for taking

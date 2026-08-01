@@ -103,6 +103,15 @@ body.ready .hud {
   opacity: 1;
 }
 
+/* The attract run remains visible through the curtain, but its live numbers
+   are not part of the title screen. Hiding the read-out while either the
+   start or pause dialog is open leaves one clear visual hierarchy and lets
+   the mountain remain the backdrop rather than a second UI competing with
+   the controls. */
+body.ready:has(.curtain.on) .hud {
+  opacity: 0;
+}
+
 .readout {
   position: absolute;
   left: 0;

@@ -4,8 +4,8 @@
 
      turn        -1 … 1, and it ramps rather than switching, so a tap is a
                  nudge and a hold is a full-lock carve
-     tuck        fold down over the board
-     brake       set the edge across the hill
+     tuck        powered tuck; continuously accelerate with no speed cap
+     brake       heel-side speed check; pivot across travel and sideslip
      jump        held to charge, released to pop
      trickGrab   Q — reach down and hold the board
      trickFlip   E — rotate

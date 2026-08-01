@@ -13,7 +13,8 @@
    along a heading, so momentum is real: gravity is resolved on the surface
    tangent, the edge holds sideways up to a grip limit and slides past it,
    and a turn taken too fast at the top of the hill costs the speed it was
-   carrying. Nothing here clamps the rider's speed — drag does.
+   carrying. Nothing here clamps the rider's speed. Ordinary riding finds a
+   terminal speed through drag; the powered tuck deliberately does not.
 
    That last claim used to be half true. Three numbers quietly propped the
    rider up — a floor speed that pushed, a tuck that pushed, and an edge
@@ -27,10 +28,9 @@ export const BASE_WIDTH = 640;
 export const BASE_HEIGHT = 360;
 
 export const RENDER = {
-  /* The window at its own resolution. The retro language now comes from
-     geometry, colour quantisation and dither rather than a coarse framebuffer.
-     Device pixels are capped at 2 and total pixels at 4K because denser panels
-     ask for much more work without revealing more low-poly geometry. */
+  /* The window at its own resolution. Device pixels are capped at 2 and total
+     pixels at 4K because denser panels ask for much more fragment, post and
+     MSAA work without materially improving a fast-moving picture. */
   maxPixelRatio: 2,
   maxPixels: 3840 * 2160,
   /* Resolution scale, tuned at runtime against the frame clock. The renderer
@@ -63,13 +63,13 @@ export const RENDER = {
   fogFar: 420,
 };
 
-/* The grade, applied in the same pass as the dither. Snow is the hardest
-   thing to light well: it is one colour, it fills the screen, and left alone
-   it reads as a blank page. So the shadows are pushed towards the sky's blue
-   and the highlights towards the sun's amber, which is what the eye expects
-   of snow at a low sun and what makes the hill legible at all. */
+/* The final atmospheric grade. Snow is the hardest thing to light well: it is
+   one colour, fills the screen, and left alone reads as a blank page. Shadows
+   are pushed towards the sky's blue and highlights towards the sun's amber,
+   which is what the eye expects of snow at a low sun and what makes the hill
+   legible at all. */
 export const GRADE = {
-  shadowTint: '#6f97d8',
+  shadowTint: '#86a3cf',
   /* The highlight tint had to come most of the way back to white.
 
      At #fff0d2 it was pushing every lit surface a sixth of the way towards
@@ -82,50 +82,58 @@ export const GRADE = {
   highlightTint: '#fff8ec',
   // Both tints are normalised to luminance 1 before use, so strength moves
   // hue and never brightness. A grade that dims the picture is a bug.
-  tintStrength: 0.42,
+  tintStrength: 0.34,
   /* Contrast and saturation, both pushed. Every photograph of this sport is
      a near-black sky over a surface at the very top of the scale with a
      single violently coloured human being in the middle of it, and none of
      that survives a picture graded to be tasteful. The sky stops carry most
      of it now; this is what stops the snow from meeting them halfway. */
-  contrast: 1.16,
-  saturation: 1.24,
+  contrast: 1.12,
+  saturation: 1.14,
   // Enough to close the corners, not enough to notice. Anything past about
   // 0.2 turns a wide screen into a porthole.
   vignette: 0.12,
-  // Doubled with the rest of the speed treatment — see GRADE.blurAmount.
-  speedVignette: 0.92,
-  aberration: 0.015,
-  /* Levels per channel in the final quantise. 32 is five bits — the depth an
-     RGBA5551 framebuffer carried, and the reason those machines dithered at
-     all. It went to 256 for a while, when the buffer was running at native
-     resolution and the dither had nothing left to hide; at five bits it is
-     load-bearing again, because a snowfield across 32 levels without one is
-     a contour map and with one it is grain. */
-  levels: 32,
+  // Peripheral speed cues stay subordinate to steering and terrain detail.
+  speedVignette: 0.45,
+  aberration: 0.0045,
 
-  /* The modern half, all of it applied before the quantise so that it is
-     squeezed into five bits along with everything else and can never look
-     like a filter sitting on top of an old picture.
-
-     `shoulder` is where the highlight roll-off starts, in linear light.
+  /* `shoulder` is where the highlight roll-off starts, in linear light.
      Everything under it is untouched; above it the range is compressed
      asymptotically towards one. Snow under any real key light runs straight
      off the top of the scale, and a clipped channel has no shape left in it —
      which on a surface filling most of the frame means the hill stops having
      folds and becomes a sheet of paper. */
-  shoulder: 0.72,
-  /* Bloom, from a quarter-resolution bright pass. Small: this is a five-bit
-     picture and a wide soft glow across it quantises into visible rings. */
-  bloom: 0.25,
+  shoulder: 0.68,
+  /* Bloom, from a quarter-resolution bright pass. Kept small enough that the
+     snow retains shape instead of becoming one wide soft glow. */
+  bloom: 0.20,
   bloomThreshold: 0.78,
+  /* Near-field screen-space contact occlusion.
+
+     The shadow map says which way the sun is coming from; this says where
+     the sky cannot reach at all — under the board, between a trunk and the
+     snow, under a chalet eave and inside the folds of the hill. It is
+     reconstructed from the scene depth at half resolution and blurred with
+     that depth as a guide, so it costs no normal pass and cannot bleed over
+     a silhouette. The radius is in world metres; it stays tight to actual
+     contacts because a multi-metre horizon sample over a shallow snow plane
+     magnifies depth-buffer steps into moving screen-row bands. The larger
+     angular bias rejects those nearly coplanar samples while retaining board,
+     tree and hut grounding. */
+  // Disabled: the half-resolution reconstructed horizon produced coherent
+  // screen-row bands over a shallow snow plane at every non-trivial strength.
+  // Directional shadows and the model's contact shadow still ground objects.
+  aoStrength: 0.0,
+  aoRadius: 1.0,
+  aoBias: 0.18,
+  aoFade: [105, 175],
   /* Crepuscular rays, marched from every pixel towards the sun's position on
      screen through that same bright buffer. `density` is how far along that
      line the sixteen steps reach and `decay` is how fast each one gives up —
      together they set whether this reads as light through a ridge or as a
      smear. It is the one effect here no machine of the era could have
      attempted, and the one that most makes a low sun look like weather. */
-  rays: 0.55,
+  rays: 0.46,
   rayDecay: 0.94,
   rayDensity: 0.62,
 
@@ -336,10 +344,10 @@ export const TERRAIN = {
        ridges  λ 312 m  amp 3.5   →  0.034
        rolls   λ 111 m  amp 1.6   →  0.043
        moguls  λ  20 m  amp 0.22  →  0.033
-       chatter λ 6.3 m  amp 0.04  →  0.019
+       wind slab (two elongated scales) →  0.020
        knolls  (see below)        →  0.089
                                      ─────
-                                      0.218
+                                      0.220
 
      The octaves alone used to spend 0.317, which is nearly twice the whole
      budget and half again the shallowest grade the run reaches. Lateral
@@ -348,7 +356,32 @@ export const TERRAIN = {
   ridges: { freq: 0.0032, amp: 3.5, seed: 5 },
   rolls: { freq: 0.009, amp: 1.6, seed: 1 },
   moguls: { freq: 0.050, amp: 0.22, seed: 2 },
-  chatter: { freq: 0.160, amp: 0.04, seed: 3 },
+  /* Wind-carved snow relief, stretched roughly three-to-one along the piste.
+
+     Isotropic fine noise spends its full gradient against the hill and can
+     turn a shallow run locally uphill. Alpine wind features are not isotropic:
+     slab edges, drift tails and soft sastrugi run in long streamers. Sampling
+     a continuous field much faster across the route than down it gives the
+     near snow another geometric scale without drawing repeated rows into the
+     distance or spending more than a centimetre per metre of the fall-line
+     slope budget. At up to forty centimetres combined these are shapes in the snow,
+     not a normal-map grain, and therefore stay coherent under MSAA and frame
+     rescaling instead of becoming moire. */
+  chatter: {
+    /* Soft wind pillows: asymmetric shaping raises irregular shoulders while
+       retaining a continuous, conservative fall-line slope. */
+    coarse: {
+      acrossFreq: 0.130, alongFreq: 0.010,
+      amp: 0.200, bulge: 0.100, seed: 29,
+    },
+    fine: { acrossFreq: 0.300, alongFreq: 0.035, amp: 0.100, seed: 47 },
+    patchFreq: 0.008,
+    /* Spectral LOD: each band leaves before its sampling cells can alias. */
+    lod: {
+      coarse: [1.25, 2.25],
+      fine: [0.90, 1.55],
+    },
+  },
   warp: { freq: 0.0042, amp: 26, seed: 8 },
 
   /* CHAPTERS — what this stretch of mountain is made of.
@@ -509,27 +542,28 @@ export const TERRAIN = {
   /* The mesh that carries all of it.
 
      A uniform grid cannot win here. Fine enough to carve moguls out of, it
-     needs a quarter of a million vertices to reach the horizon; coarse
-     enough to reach the horizon, and the ground under the board is a pair
-     of triangles. So the first forty-two metres are a fixed metre-and-a-half
-     lattice and only then do the rings widen, until the far edge is most of
-     a kilometre out at fifty metres a cell.
+     needs a quarter of a million vertices to reach the horizon; coarse enough
+     to reach the horizon, and the ground under the board is a pair of
+     triangles. The first seventy-two metres are now a fixed three-quarter-metre lattice
+     and only then do the rings widen. That resolves the board, banks and
+     moguls at gameplay scale while the graded outer field reaches the horizon.
 
-     The spacing came down and the reach went up when the resolution did.
-     Sixteen thousand vertices is nothing on a machine drawing millions of
-     fragments a frame, and at native resolution the two-metre facets that
-     used to be a quarter of a pixel across are the shape of the hill.
+     This is no longer budgeted as a low-poly surface. Roughly one hundred and
+     nine thousand vertices and two hundred and sixteen thousand triangles are
+     sensible for a native-resolution WebGL scene, and the denser outer rings
+     keep the last visible terrain cells from turning the piste into broad
+     triangular planes before the fog has actually hidden them.
 
      The anchor still snaps to the finest spacing, so the cells nearest the
      rider land on the same lattice every time and the facets stay welded to
      the hill. The graded far ones morph continuously between sampling
      lattices, behind fog that hides the remaining LOD movement. */
-  spacing: 1.5,
-  uniformNear: 42,    // stable world lattice around the board
+  spacing: 0.75,
+  uniformNear: 72,    // stable 75-centimetre lattice around the board
   ahead: 900,         // and ahead, well past the curtain
-  aheadGrowth: 1.062, // per row
+  aheadGrowth: 1.045, // per row
   side: 700,          // half-width at the far edge
-  sideGrowth: 1.075,  // per column
+  sideGrowth: 1.052,  // per column
   /* And behind, which used to be thirty metres of uniform cells and is now a
      graded fan like the other three.
 
@@ -551,14 +585,13 @@ export const TERRAIN = {
      It grows faster than the forward fan does, and that is the whole reason
      this is affordable. Detail behind the rider is detail nobody is riding
      into: it is not going to be landed on, carved across or launched off, and
-     the only thing asked of it is that it be *there*. At 1.16 per row the tail
-     reaches the curtain in twenty-five graded rows past the near field against
-     the fifty-nine the front spends getting to nine hundred, so fourteen times
-     the ground costs thirty-three more rows — about five thousand vertices, on
-     a mesh whose own comment observes that sixteen thousand of them is
-     nothing. */
+     the only thing asked of it is that it be *there*. At 1.11 per row the tail
+     reaches the curtain in thirty-five graded rows past the near field against
+     the eighty-two the front spends getting to nine hundred. The back remains
+     intentionally coarser than the route ahead, but no longer breaks into
+     fifty-metre panels while it is still visible. */
   behind: 420,
-  behindGrowth: 1.16,
+  behindGrowth: 1.11,
   /* Rebuilding a graded grid in one frame makes every distant facet choose a
      new normal and colour at once. Preserve the old world-space surface, then
      converge it on the new sampling lattice over a few frames. The terrain
@@ -579,8 +612,8 @@ export const TERRAIN = {
      the pop it exists to prevent — four frames of glide is still a glide, and
      everything doing it is past a hundred and eighty metres and half dissolved
      in haze by the time it moves at all. */
-  morphNear: 42,
-  morphFar: 180,
+  morphNear: 72,
+  morphFar: 240,
   morphRate: 26,
   morphSettle: 1,
 };
@@ -595,14 +628,27 @@ export const RIDER = {
   // Snow under a waxed base. The number is real; the grade does the rest.
   friction: 0.045,
   brakeFriction: 0.62,
-  // Drag is what sets top speed, not a clamp: 6.3 m/s² of slope pull
-  // balances at about 40 m/s, or 143 km/h.
+  /* A one-button heel-side speed check.
+
+     S is not reverse and it is not an invisible friction switch. The rider
+     progressively pivots the board across the direction of travel, sets an
+     edge and lets the base sideslip while that edge scrubs speed. A/D held as
+     braking begins chooses the side; otherwise the current carve continues,
+     falling back to the rider's natural heel side from a straight line. */
+  brakeAngle: 1.34,       // radians ≈ 77° across travel at full pressure
+  brakeEdge: 0.72,        // share of the currently holdable edge angle
+  brakeEngage: 9.0,       // pressure build-up per second
+  brakeRelease: 12.0,     // releasing the edge is a little quicker
+  brakeSlideDamping: 0.45, // controlled sideslip; kinetic friction does the stop
+  brakeCompress: 0.24,    // low, weighted stance while checking speed
+  // Drag is what sets ordinary top speed, not a clamp: 6.3 m/s² of slope
+  // pull balances at about 40 m/s, or 143 km/h.
   drag: 0.0034,
-  // Where drag stiffens beyond v², which is the only ceiling in the game.
+  // Where drag stiffens beyond v² when the powered tuck is not held.
   // A big kicker landing converts a lot of height into speed and can
   // overshoot this for a second or two; past it the run is pulled back
   // rather than allowed to keep everything it just found.
-  maxSpeed: 50,       // 180 km/h
+  dragKnee: 50,       // m/s — 180 km/h
   /* MOMENTUM STABILITY.
 
      Speed makes the board more committed, not more nervous. These are the
@@ -616,18 +662,20 @@ export const RIDER = {
   contactHalfLength: 0.90, // metres sampled fore/aft at full stability
   handlingResponseMin: 0.035, // seconds of surface-normal inertia
   handlingResponseMax: 0.115,
-  /* The floor, and what it is allowed to do.
+  /* One-foot skating when the board has almost stopped.
 
-     This used to be a flat 3.5 m/s² forward push whenever the rider dropped
-     under 6 m/s, applied without ever asking which way the ground went — so
-     a rider grinding to a halt against a bank was shoved *up* it, and the
-     one moment in the game where momentum was supposed to matter was the one
-     moment it was being handed back. Now it only fires when the rider has
-     genuinely almost stopped and only when the hill under them descends, so
-     it does what it was for — getting a stalled run going again — and
-     nothing else. */
-  minSpeed: 2.0,
-  minPush: 3.0,
+     The old recovery was an invisible constant force below 2 m/s. It kept a
+     run from getting stranded, but the board simply gathered speed while the
+     rider stood still. Recovery is now a real sequence: hysteresis starts a
+     skating cycle at walking pace, each planted rear-foot stroke contributes
+     one measured impulse, and the foot finishes its current cycle before it
+     returns to the binding. On a flat surface the impulses still beat base
+     friction, while a descending pitch contributes its own gravity as usual. */
+  pushStart: 3.0,       // m/s — begin skating below 10.8 km/h
+  pushStop: 6.5,        // m/s — finish the stroke above 23.4 km/h
+  pushCadence: 1.55,    // complete rear-foot cycles per second
+  pushImpulse: 1.55,    // m/s added at the planted part of each stroke
+  pushPlant: 0.54,      // 0..1 phase at which the foot drives through snow
   /* Climbing.
 
      Gravity on the tangent already takes g·sin θ off a rider going uphill,
@@ -644,7 +692,7 @@ export const RIDER = {
      something steep and you do not gently stop — the board stalls, the edge
      that was holding you across the hill has nothing left to hold, and you
      go over. Below `stallSlope` the rider is allowed to grind to a halt and
-     start again, which is what the floor push is for; above it they need
+     skate away again; above it they need
      `stallSpeed` at that reference slope and proportionally more the steeper
      it gets. Riding a quarterpipe wall is therefore a commitment: arrive
      with enough and you get thrown off the lip, arrive without it and the
@@ -666,7 +714,7 @@ export const RIDER = {
      being too slow for the ground you are pointed up is a stall; less than
      that is a kicker. */
   /* The speed under which a rider has nothing left to stall *with*, and is
-     simply being walked back downhill by the floor push. Without this the
+     simply being walked back downhill by the recovery skate. Without this the
      rule loops: fall, get up crawling, stall again, forever. */
   stallMinSpeed: 3.5,
   /* And the speed under which a stopped rider's board is allowed to ease
@@ -677,10 +725,11 @@ export const RIDER = {
   fallLineSpeed: 1.6,
   stallCap: 9.0,
   stallTime: 0.32,
-  // The tuck. Fold down over the board and the drag nearly halves, but the
-  // edge goes soft and the board stops answering quickly — the trade is
-  // speed for the ability to change your mind about where you are going.
-  tuckDrag: 0.68,
+  // The powered tuck. Holding it guarantees this much additional speed each
+  // second and bypasses aerodynamic drag, so there is deliberately no upper
+  // speed. The edge still goes soft and the board stops answering quickly —
+  // the trade is infinite acceleration for the ability to change your line.
+  tuckAcceleration: 7.5, // m/s², accumulated for as long as W is held
   tuckTurn: 0.45,     // share of the turn rate left while folded down
   tuckGrip: 0.72,     // and of the grip
   tuckCompress: 0.34, // metres of squat, which the camera rides down with
@@ -775,9 +824,9 @@ export const RIDER = {
      same 34 m/s² of lateral hold as one at full song — and that is enough to
      stand a rider sideways on a forty-four degree wall indefinitely. It is
      exactly how a run got marooned: come to a crawl somewhere steep, the edge
-     holds across the fall line, the floor push trickles you along the
-     traverse at precisely `minSpeed`, and you creep across the mountain at
-     seven km/h for ever with gravity unable to get a word in. Observed on a
+     holds across the fall line, the old floor force trickles you along its
+     threshold, and you creep across the mountain at seven km/h for ever with
+     gravity unable to get a word in. Observed on a
      wall at 43.8°, velocity pinned at 2.0 m/s, indefinitely.
 
      A real edge at walking pace does not hold; the board washes out sideways
@@ -843,7 +892,7 @@ export const RIDER = {
   // board is on rails and never slips; much past 1.3 and every turn is a
   // skid. This narrow band is where the whole handling model lives.
   overCarve: 1.18,
-  brakePivot: 2.4,    // and how much of that the brake lifts, to skid on purpose
+  brakePivot: 2.8,    // rad/s available to kick the board across into a stop
   // With no steering input the board drifts back in line with where the
   // rider is actually going. Without it a nudge leaves you very slightly
   // sideways forever, which reads as the controls being loose.
@@ -982,6 +1031,10 @@ export const RIDER = {
      allowed to become flight. Explicit kicker/cliff edges bypass that second
      condition and release directly from their trailing tangent. */
   launchSampleSpacing: 0.30,
+  // W has no speed ceiling, so distance/spacing cannot be allowed to turn
+  // the predictor into unbounded per-step work. Normal play is far below this
+  // count; only extreme powered speeds widen the sweep samples.
+  launchSampleMax: 192,
   launchSupportLength: 0.68,
   launchSupportShare: 0.55,
   // Any meaningful penetration means the ramp still obstructs the ballistic
@@ -1068,6 +1121,9 @@ export const SCORE = {
      A bear is rare and genuinely dangerous, so it is the one worth saying. */
   nearMiss: 40,
   bearDodge: 3,       // multiplier on top, because it is the only one left
+  /* Reaching the patrol helicopter's searchlight is a deliberate line choice,
+     and only pays once per sortie so circling inside the pool cannot farm it. */
+  searchlight: 500,
 
   /* Threading a slalom gate, and the ladder that consecutive ones build.
 
@@ -1239,6 +1295,13 @@ export const CAMERA = {
      that back. */
   lag: 13.0,          // higher follows tighter
   airLag: 5.0,
+  /* Fixed lag becomes unbounded positional error when W has no speed limit:
+     a first-order chase trails by roughly speed / lag. Preserve the weighted
+     normal-speed camera, then tighten only as needed to keep the rider within
+     a small, readable envelope at extreme speed. Air is allowed more float,
+     but never the hundreds of metres a fixed five-hertz response would lose. */
+  maxFollowError: 4.0,
+  maxAirFollowError: 7.0,
   /* Share of the rider's carve the camera takes on. It came down when the
      lean stopped being cosmetic: `rider.roll` is now the true balance angle
      and reaches fifty degrees at the limit of grip, where the old constant
@@ -1282,23 +1345,23 @@ export const SNOW = {
 
 /* The line the board leaves behind it.
 
-   A ribbon laid down at the contact point, two vertices a sample, following
-   the ground and fading out behind. It is the one thing on screen that
-   records what the rider *did* rather than what they are doing, and on a
-   mountain made of one colour it is most of what makes a carve legible as a
-   carve: the arc is still there to look at a second after it was ridden.
+   A twenty-five-lane section laid down at the contact point, following the ground
+   and fading out behind. It is the one thing on screen that records what the
+   rider *did* rather than what they are doing, and on a mountain made of one
+   colour it is most of what makes a carve legible as a carve: the arc is
+   still there to look at a second after it was ridden.
 
-   Width comes off the edge load and the slide, so a railed turn draws a
-   clean line and a washed-out one drags a wide grey smear. */
+   Width comes from the board's projected swept footprint, so a railed turn
+   stays board-width while a transverse speed check churns a broad berm. */
 export const TRAIL = {
-  samples: 420,       // ring of them; at 30 a second this is fourteen seconds
-  rate: 34,           // samples per second
-  minStep: 0.22,      // metres — no sample at all if the board has not moved
-  width: 0.34,        // half-width of a clean carve
-  slideWidth: 1.05,   // and of a full wash-out
-  lift: 0.045,        // metres above the snow, to stay out of the z-fight
-  life: 9.0,          // seconds before a sample has faded to nothing
-  opacity: 0.30,
+  samples: 540,       // 151 m of mark at the spatial interval below
+  spacing: 0.28,      // metres between sections, independent of frame rate
+  maxCatchup: 16,     // bounded high-speed sections added in one render frame
+  width: 0.155,       // exact half-width of the 31 cm board; berm sits outside
+  slideWidth: 1.0,    // swept board and berm during a full braking sideslip
+  lift: 0.020,        // clearance budget; the packed basin spends most of it
+  life: 16.0,         // old snow persists; only the fixed ring limits history
+  opacity: 0.82,
 };
 
 /* Streaks: short white lines that whip past the camera once the run is
@@ -1309,6 +1372,7 @@ export const STREAKS = {
   from: 26,           // m/s before any appear
   full: 44,           // and where the field is at its thickest
   length: 0.11,       // share of a streak's own velocity, per unit speed
+  maxLength: 22,      // metres — infinite W speed must not become white bars
   radius: 13,
   ahead: 22,
 };

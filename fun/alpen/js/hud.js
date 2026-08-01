@@ -3,8 +3,9 @@
    The world is native-resolution now, but the HUD keeps the 5×7 hand-drawn
    alphabet and whole-number layout that give it a console voice. Its backing
    store follows the display rather than the adaptive 3D target, so text stays
-   sharp even when a fragile GPU lowers world resolution. Colours are
-   quantised to the same five-bit palette as the final grade.
+   sharp even when a fragile GPU lowers world resolution. Its compact bitmap
+   lettering remains a deliberate interface identity, independent of the
+   now full-precision 3D render.
 
    Layout is measured from edges and the centre in integer device pixels. UI
    scale changes only in whole steps, and the opening legend is drawn only
@@ -201,7 +202,7 @@ const TONES = {
    at six pixels per character a sentence is a wall. */
 const LEGEND = [
   ['A D', 'CARVE · SPIN'],
-  ['W', 'TUCK'],
+  ['W', 'BOOST'],
   ['S', 'BRAKE'],
   ['SPACE', 'CHARGE · POP'],
   ['Q', 'GRAB'],

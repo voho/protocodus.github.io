@@ -55,7 +55,7 @@
    multiplies *everything* in the mesh, and the one rule this palette has is
    that snow is glacier and never white — so the first attempt, which simply
    widened the tints, was a forest wearing cream and khaki snow, and it was
-   the snow that gave it away long before the needles did. `n64Own` says how
+   the snow that gave it away long before the needles did. `surfaceOwn` says how
    much of a surface is its tree's own colour to choose: all of it for
    needles, none of it for snow, and a third for a needled trunk, which
    should drift with its tree without ceasing to be bark. The vertex shader
@@ -67,7 +67,9 @@
    Both of them used to be a single stock polyhedron, which was survivable
    while nothing on this mountain cast a shadow onto anything else. */
 
-import { heightAt, nearestCenter, corridorHalfAt, centersAt } from './terrain.js';
+import {
+  heightAt, nearestCenter, corridorHalfAt, centersAt, normalFrom,
+} from './terrain.js';
 import { stream, hash2 } from './noise.js';
 import { compose } from './geom.js';
 import { PROPS } from './config.js';
@@ -142,6 +144,36 @@ const BARE_STOP = '#ffffff';
 const OWN_SNOW = 0;
 const OWN_ALL = 1;
 
+/* Two pieces of mountain furniture that belong outside the piste rather than
+   on it.
+
+   Both are deliberately sparse. The fence is large enough to read as a snow
+   bridge from the middle of the run, but one cluster every few hundred metres
+   is infrastructure; one in every band would be wallpaper. The waymark is a
+   much smaller red-and-white point at the groomed edge and rarer again, so it
+   says Switzerland without turning the valley into a run of flags.
+
+   These numbers stay here rather than in config because nothing outside this
+   module can tune or collide with either prop. Their placement uses dedicated
+   `hash2` channels below, not the band's `rnd` stream, so adding them cannot
+   reshuffle a tree, gate or rail. */
+const ALPINE = {
+  fence: {
+    from: 320,          // leave the opening stretch visually quiet
+    chance: 0.18,       // per 40 m band: a cluster about every 220 m
+    margin: [30, 46],   // beyond the OUTER edge of every fork branch
+    sections: [2, 3],   // six-metre sections in one short contour line
+    step: 6.15,
+    scale: [0.90, 1.12],
+  },
+  waymark: {
+    from: 180,
+    chance: 0.11,       // roughly one every 360 m
+    margin: [5.5, 9.0],
+    scale: [0.92, 1.08],
+  },
+};
+
 /* One line of shader, and the whole scheme rests on it.
 
    `<color_vertex>` leaves `vColor.rgb` holding the baked colour times the
@@ -156,10 +188,10 @@ const OWN_ALL = 1;
    so this gets its own compiled program rather than quietly inheriting the
    terrain's. That contract is documented in shading.js and this is the second
    thing in the game to lean on it. */
-const OWN_DECL = '\nattribute float n64Own;';
+const OWN_DECL = '\nattribute float surfaceOwn;';
 const OWN_MIX = `#include <color_vertex>
 #if defined( USE_COLOR ) && defined( USE_INSTANCING_COLOR )
-  vColor.rgb = mix( color, vColor.rgb, n64Own );
+  vColor.rgb = mix( color, vColor.rgb, surfaceOwn );
 #endif`;
 
 /* The mask itself, built from the same array `compose` is about to eat.
@@ -390,10 +422,9 @@ function dirOf(a, pitch) {
 function growTree(THREE, seed, spec, geos) {
   const rnd = stream(seed);
   const parts = [];
-  /* A shade of a colour. The diffuse term is quantised into five bands but
-     the albedo is not, so a couple of per cent here survives all the way to
-     the screen — and it is what stops forty facets of needle cut from one
-     hex value reading as a single painted surface. */
+  /* A shade of a colour. Small albedo variation survives the smooth light
+     response and stops an entire crown cut from one hex value reading as a
+     single painted surface. */
   const tone = (c, k) => new THREE.Color(c).multiplyScalar(k);
   const near = (c) => tone(c, 0.93 + rnd() * 0.14);
   // The same jitter for snow, but tighter on the upper side, because glacier
@@ -719,7 +750,7 @@ function growTree(THREE, seed, spec, geos) {
      same order, and it is the reason a tree can be painted anything at all
      without its snow following the paint. */
   const geometry = compose(THREE, parts);
-  geometry.setAttribute('n64Own', ownership(THREE, parts));
+  geometry.setAttribute('surfaceOwn', ownership(THREE, parts));
   return { geometry, height: standing };
 }
 
@@ -782,6 +813,80 @@ function weather(THREE, geo, rnd, amount) {
    used lives on in `growRock`, which was written from it. */
 
 /* ==========================================================================
+   Alpine infrastructure
+
+   The two geometries here are intentionally all silhouette. At a hundred
+   metres a fence is five dark horizontal strokes held off the snow, and a
+   waymark is a red square on a tall post; fasteners, lettering and timber
+   grain would be sub-pixel decoration paid for twice through the shadow map.
+
+   A snow bridge is one six-metre section. Several instances are joined into a
+   short contour line by the placement code rather than baked together, which
+   lets each section take the normal of the ground under its own feet. The
+   caps are real thin solids rather than a texture, so their white line reads
+   from both sides and casts the small broken shadow that separates one slat
+   from the next. */
+function avalancheFenceGeometry(THREE) {
+  const box = new THREE.BoxGeometry(1, 1, 1);
+  const steel = '#454b57';
+  const timber = '#6b5844';
+  const parts = [];
+
+  // The frame leans into the upper side of the slope, with two rear braces
+  // making the triangular profile that distinguishes a snow bridge from a
+  // garden fence when it is seen end-on.
+  for (const x of [-2.72, 2.72]) {
+    parts.push({
+      geo: box, color: steel, pos: [x, 1.43, 0], rot: [0.16, 0, 0],
+      scale: [0.18, 2.92, 0.18],
+    });
+    parts.push({
+      geo: box, color: steel, pos: [x, 1.18, -0.48], rot: [0.50, 0, 0],
+      scale: [0.15, 2.72, 0.15],
+    });
+  }
+
+  // Five broad retaining slats, each with the snow that has settled on its
+  // upper edge. Their slight stagger follows the frame's lean.
+  for (let i = 0; i < 5; i++) {
+    const y = 0.54 + i * 0.47;
+    const z = (y - 1.48) * 0.16;
+    parts.push({
+      geo: box, color: timber, pos: [0, y, z],
+      scale: [5.82, 0.21, 0.17],
+    });
+    parts.push({
+      geo: box, color: SNOW, pos: [0, y + 0.135, z + 0.025],
+      scale: [5.94, 0.075, 0.26],
+    });
+  }
+
+  const geometry = compose(THREE, parts);
+  box.dispose();
+  return geometry;
+}
+
+/* The marker faces uphill in its local +Z direction, which is where the rider
+   always approaches from. A box is used instead of a one-sided plane because
+   the marker stays in the pool briefly after it has been passed, and the red
+   back still reads as a deliberate object rather than a vanished polygon.
+   The cross is a small piece of geometry, not a texture dependency. */
+function waymarkGeometry(THREE) {
+  const box = new THREE.BoxGeometry(1, 1, 1);
+  const geometry = compose(THREE, [
+    { geo: box, color: '#424852', pos: [0, 1.50, 0], scale: [0.14, 3.0, 0.14] },
+    { geo: box, color: '#d52b1e', pos: [0, 2.56, 0], scale: [1.42, 0.86, 0.17] },
+    // Swiss cross, proud of the face so it survives the material's flat light
+    { geo: box, color: '#f4f7fb', pos: [0, 2.56, 0.115], scale: [0.76, 0.16, 0.065] },
+    { geo: box, color: '#f4f7fb', pos: [0, 2.56, 0.115], scale: [0.16, 0.58, 0.065] },
+    // A cap thick enough to remain a pale dash at 150 metres
+    { geo: box, color: SNOW, pos: [0, 3.045, 0], scale: [1.50, 0.11, 0.28] },
+  ]);
+  box.dispose();
+  return geometry;
+}
+
+/* ==========================================================================
    Instanced pools
    ========================================================================== */
 
@@ -794,9 +899,11 @@ class Pool {
     this.n = 0;
     this.m = new THREE.Matrix4();
     this.q = new THREE.Quaternion();
+    this.turn = new THREE.Quaternion();
     this.e = new THREE.Euler();
     this.v = new THREE.Vector3();
     this.s = new THREE.Vector3();
+    this.up = new THREE.Vector3(0, 1, 0);
     this.tinted = tinted;
     if (tinted) this.mesh.setColorAt(0, new THREE.Color(0xffffff));
   }
@@ -809,6 +916,23 @@ class Pool {
     if (this.n >= this.capacity) return;
     this.e.set(0, rotY, 0);
     this.q.setFromEuler(this.e);
+    this.write(x, y, z, sx, sy, sz, color);
+  }
+
+  /* The snow bridges stand normal to the bank under them rather than upright
+     in the world. Yaw is applied in the prop's own frame first and that frame
+     is then carried onto the surface normal, so local +Y still lands exactly
+     on `normal` at any course heading. Ordinary props keep the cheaper `add`
+     path above. */
+  addOnSlope(x, y, z, rotY, sx, sy, sz, normal, color) {
+    if (this.n >= this.capacity) return;
+    this.q.setFromUnitVectors(this.up, normal);
+    this.turn.setFromAxisAngle(this.up, rotY);
+    this.q.multiply(this.turn);
+    this.write(x, y, z, sx, sy, sz, color);
+  }
+
+  write(x, y, z, sx, sy, sz, color) {
     this.v.set(x, y, z);
     this.s.set(sx, sy, sz);
     this.m.compose(this.v, this.q, this.s);
@@ -837,8 +961,8 @@ export function createProps(THREE, shading) {
   // five bands and dissolve into the same sky. There is no unpatched path out
   // of these three functions on purpose — a prop that forgot is a prop that
   // stops belonging to the mountain the moment the light moves.
-  const flat = (color) => shading.apply(
-    new THREE.MeshLambertMaterial({ color, flatShading: true }),
+  const lit = (color) => shading.apply(
+    new THREE.MeshLambertMaterial({ color, flatShading: false }),
   );
   /* The same, plus the one thing a tree needs that nothing else on the
      mountain does: a say in how far its instance colour is allowed to reach.
@@ -846,13 +970,13 @@ export function createProps(THREE, shading) {
      its text into the program cache key — so the trees compile their own
      program and the shrubs and rocks go on sharing the plain one. */
   const treeMat = () => {
-    const m = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+    const m = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false });
     m.onBeforeCompile = (shader) => {
       shader.vertexShader = shader.vertexShader
         .replace('#include <common>', `#include <common>${OWN_DECL}`)
         .replace('#include <color_vertex>', OWN_MIX);
     };
-    return shading.apply(m);
+    return shading.apply(m, { cameraFade: true });
   };
   const castOf = makeCasts(THREE);
 
@@ -872,22 +996,12 @@ export function createProps(THREE, shading) {
      length — and all are open-ended, because nothing on a tree or a rock is
      ever seen from inside.
 
-     The side counts are spent where they show. Eight on the leader, which is
-     the one cylinder a rider ends up nose to nose with; five or six on the
-     spire and the drift, which are seen against the sky from every angle;
-     four on a load of snow, so that it has a crest rather than a knife edge;
-     and three on everything else. A limb briefly had four, and that was worth
-     about an eighth of the entire forest's triangle budget to draw a stick
-     three centimetres across which, on four species out of six, is inside a
-     sleeve of needles and never seen at all.
-
-     Three is also the right number for the needles themselves rather than
-     merely the affordable one. The first vertex of a three-sided ring lands
-     on the local Z axis, and `aim` puts local Z very nearly straight down for
-     anything pointing sideways — so a sleeve has a vertex underneath it and a
-     flat face along the top, which is exactly where a bough wants one and
-     exactly where the sun is. */
+     Instancing makes denser stock particularly valuable here: each smoother
+     leader, branch and snow load is stored once per grown variant and reused
+     across the whole forest. Fine twigs stay lighter than foreground trunks,
+     but even they now have enough sides to remain round in a moving shadow. */
   const sides = PROPS.trees.sides;
+  const radial = Math.max(12, sides * 2);
   const hull = (ratio, n) => {
     const g = new THREE.CylinderGeometry(ratio, 1, 1, n, 1, true);
     g.translate(0, 0.5, 0);
@@ -899,17 +1013,17 @@ export function createProps(THREE, shading) {
     return g;
   };
   const geos = {
-    bole: hull(0.74, sides + 3),   // a length of leader
-    flare: hull(0.45, sides + 3),  // where it meets the ground
-    limb: hull(0.5, sides - 2),    // a length of branch
-    twig: hull(0.55, 3),           // the larch's fine structure, and splinters
-    swell: hull(1.5, 3),           // needles widening away from the trunk
-    frond: hull(0.5, 3),           // needles narrowing towards the tip
-    sprig: spike(3),               // and the point they finish in
-    crown: spike(sides + 1),       // the spire
-    drift: spike(sides),           // snow that has settled to a point
-    loaf: hull(0.42, 4),           // and snow lying along a bough
-    stone: new THREE.IcosahedronGeometry(1, 0),
+    bole: hull(0.74, radial + 4),       // a length of leader
+    flare: hull(0.45, radial + 6),      // where it meets the ground
+    limb: hull(0.5, radial - 2),        // a length of branch
+    twig: hull(0.55, Math.max(8, sides + 2)),
+    swell: hull(1.5, radial - 2),       // needles widening away from the trunk
+    frond: hull(0.5, radial - 2),       // needles narrowing towards the tip
+    sprig: spike(radial - 2),           // and the point they finish in
+    crown: spike(radial + 4),           // the spire
+    drift: spike(radial + 2),           // snow that has settled to a point
+    loaf: hull(0.42, radial),           // and snow lying along a bough
+    stone: new THREE.IcosahedronGeometry(1, 1),
   };
 
   const treePools = [];
@@ -931,14 +1045,14 @@ export function createProps(THREE, shading) {
   }
 
   // --- everything else ------------------------------------------------------
-  const poleGeo = new THREE.CylinderGeometry(0.05, 0.05, 2.3, 5);
+  const poleGeo = new THREE.CylinderGeometry(0.05, 0.05, 2.3, 12);
   poleGeo.translate(0, 1.15, 0);
   const flagGeo = new THREE.PlaneGeometry(0.72, 0.46);
   flagGeo.translate(0.36, 1.95, 0);
   // Laid down the fall line at construction rather than rotated per instance,
   // so a rail is placed with the same plain scale-and-translate every other
   // pool uses and its length is simply its z scale
-  const railGeo = new THREE.CylinderGeometry(RAIL.radius, RAIL.radius, 1, 6);
+  const railGeo = new THREE.CylinderGeometry(RAIL.radius, RAIL.radius, 1, 16);
   railGeo.rotateX(Math.PI / 2);
   const railPostGeo = new THREE.BoxGeometry(0.12, 1, 0.12);
   railPostGeo.translate(0, 0.5, 0);
@@ -954,14 +1068,31 @@ export function createProps(THREE, shading) {
      the snow rather than as vegetation, and which existed mechanically only
      to take a bite of speed off a rider who could not have seen them coming.
      A mountain is better without them than with a hundred of them a minute. */
-  const poles = new Pool(THREE, poleGeo, flat('#2a2f38'), bands * 2 + 16);
+  const poles = new Pool(THREE, poleGeo, lit('#2a2f38'), bands * 2 + 16);
   const flags = new Pool(THREE, flagGeo,
-    shading.apply(new THREE.MeshLambertMaterial({ flatShading: true, side: THREE.DoubleSide })),
+    shading.apply(new THREE.MeshLambertMaterial({ flatShading: false, side: THREE.DoubleSide })),
     poles.capacity, true);
-  const railBars = new Pool(THREE, railGeo, flat('#aab6c8'), 8);
-  const railPosts = new Pool(THREE, railPostGeo, flat('#2a2f38'), 32);
+  const railBars = new Pool(THREE, railGeo, lit('#aab6c8'), 8);
+  const railPosts = new Pool(THREE, railPostGeo, lit('#2a2f38'), 32);
 
-  const pools = [poles, flags, railBars, railPosts];
+  /* Two calls for all of the Swiss-specific infrastructure in the active
+     window: one fence geometry and one marker geometry, sharing one material
+     and carrying their colours in the vertices. Capacities are hard maxima —
+     at most three fence sections and one marker can be authored by a band —
+     while the hashes below normally fill only a small fraction of them. */
+  const alpineMat = shading.apply(
+    new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false }),
+  );
+  const avalancheFences = new Pool(
+    THREE, avalancheFenceGeometry(THREE), alpineMat, bands * ALPINE.fence.sections[1],
+  );
+  const waymarks = new Pool(
+    THREE, waymarkGeometry(THREE), alpineMat, bands,
+  );
+  avalancheFences.mesh.name = 'avalanche-fences';
+  waymarks.mesh.name = 'swiss-waymarks';
+
+  const pools = [poles, flags, railBars, railPosts, avalancheFences, waymarks];
   pools.forEach((p) => group.add(p.mesh));
   const allPools = pools.concat(treePools);
 
@@ -1019,6 +1150,32 @@ export function createProps(THREE, shading) {
      goes because the tree's snow is no longer listening. See the head of the
      file. The shrub tints that sat beside them went with the shrubs. */
   const centres = [0, 0];
+  const courseAbove = [0, 0];
+  const courseBelow = [0, 0];
+  const bankNormal = new THREE.Vector3();
+
+  /* The outside of the whole route, not merely the nearest branch. At a fork
+     `centersAt` is ordered left to right, so choosing the extreme centre and
+     then moving another half-width out puts a prop beyond both groomed ways
+     and never on their island. */
+  function outerEdgeAt(z, side) {
+    centersAt(z, centres);
+    return (side < 0 ? centres[0] : centres[1]) + side * corridorHalfAt(z);
+  }
+
+  /* Heading of the outer branch at a point, expressed as the Y rotation that
+     makes a prop's local -Z point downhill. Markers use it directly, because
+     their cross faces local +Z and therefore the approaching rider. Snow
+     bridges add a quarter turn so their long X axis follows the contour of
+     the side slope rather than pointing straight down it. */
+  function courseYawAt(z, side) {
+    const reach = 6;
+    centersAt(z + reach, courseAbove);
+    centersAt(z - reach, courseBelow);
+    const upX = side < 0 ? courseAbove[0] : courseAbove[1];
+    const downX = side < 0 ? courseBelow[0] : courseBelow[1];
+    return Math.atan2(-(downX - upX), reach * 2);
+  }
 
   /* Is this stretch of hill a built park, and how far into it are we? The
      park sits inside its own period so that it is a place you arrive at
@@ -1103,6 +1260,67 @@ export function createProps(THREE, shading) {
        vocabulary for making a rider work — knolls, drops, banks, the shape of
        the corridor. Anything that slows a rider down or throws them into the
        air should be the hill doing it, not furniture standing on the hill. */
+
+    // --- alpine infrastructure --------------------------------------------
+
+    /* Avalanche fences live high on the OUTER bank, never between forked
+       branches. A cluster is two or three adjacent six-metre sections along
+       the contour, each planted and tilted from its own terrain sample. All
+       choices come from hash channels reserved for this feature, so this does
+       not consume `rnd` and cannot move gameplay-bearing props downstream.
+
+       Nothing is added to `solids`: these are distant identity and scale
+       cues, deliberately not a new class of invisible collision on the
+       containment wall. */
+    let fenceSide = 0;
+    if (travelled >= ALPINE.fence.from
+      && hash2(b, 2001, 141) < ALPINE.fence.chance) {
+      fenceSide = hash2(b, 2002, 141) < 0.5 ? -1 : 1;
+      const sections = ALPINE.fence.sections[0]
+        + (hash2(b, 2003, 141) < 0.38 ? 1 : 0);
+      // Keep even a three-section cluster inside the band that owns it, so
+      // recycling a far band cannot pop the near end of a contour line.
+      const padding = 10;
+      const centreZ = z0 + padding + hash2(b, 2004, 141) * (band - padding * 2);
+      const margin = lerp(ALPINE.fence.margin[0], ALPINE.fence.margin[1],
+        hash2(b, 2005, 141));
+      const scale = lerp(ALPINE.fence.scale[0], ALPINE.fence.scale[1],
+        hash2(b, 2006, 141));
+
+      for (let i = 0; i < sections; i++) {
+        const z = centreZ + (i - (sections - 1) * 0.5) * ALPINE.fence.step;
+        const stagger = (hash2(b, 2010 + i, 141) - 0.5) * 1.4;
+        const x = outerEdgeAt(z, fenceSide) + fenceSide * (margin + stagger);
+        const y = heightAt(x, z) + 0.06;
+        normalFrom(heightAt, x, z, bankNormal);
+        const yaw = courseYawAt(z, fenceSide) + Math.PI / 2
+          + (hash2(b, 2020 + i, 141) - 0.5) * 0.10;
+        const sy = scale * (0.94 + hash2(b, 2030 + i, 141) * 0.12);
+        avalancheFences.addOnSlope(x, y, z, yaw, scale, sy, scale, bankNormal);
+      }
+    }
+
+    /* A piste marker sits just beyond the outer groomed edge. At a fork this
+       means left of the left branch or right of the right one — never on the
+       island and never over either line. If a fence happens to occupy the
+       same band, the marker normally takes the opposite side so the two rare
+       accents do not collapse into one clump. */
+    if (travelled >= ALPINE.waymark.from
+      && hash2(b, 2101, 151) < ALPINE.waymark.chance) {
+      let side = hash2(b, 2102, 151) < 0.5 ? -1 : 1;
+      if (fenceSide && hash2(b, 2103, 151) < 0.75) side = -fenceSide;
+      const padding = 6;
+      const z = z0 + padding + hash2(b, 2104, 151) * (band - padding * 2);
+      const margin = lerp(ALPINE.waymark.margin[0], ALPINE.waymark.margin[1],
+        hash2(b, 2105, 151));
+      const x = outerEdgeAt(z, side) + side * margin;
+      const y = heightAt(x, z) + 0.03;
+      const yaw = courseYawAt(z, side)
+        + (hash2(b, 2106, 151) - 0.5) * 0.08;
+      const scale = lerp(ALPINE.waymark.scale[0], ALPINE.waymark.scale[1],
+        hash2(b, 2107, 151));
+      waymarks.add(x, y, z, yaw, scale, scale, scale);
+    }
 
     // A band runs from z0 up to z0 + band, so this is what "inside it" means
     // for anything the park lays out at a fixed point down the mountain

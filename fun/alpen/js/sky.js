@@ -49,8 +49,8 @@
    this end decides only what it looks like: a wide band of curtains across
    the north, three octaves of noise scrolling upward through a vertical
    ramp, green at the foot and a violet fringe at the top. It is drawn
-   additively, which in a picture that is graded, dithered and quantised
-   means it has to be kept quiet: a hot band of green over the sky clips, and
+   additively, which in a graded picture means it has to be kept quiet: a hot
+   band of green over the sky clips, and
    clipped additive light is the one thing in the frame that cannot be graded
    back. So the gain is low, the folds are sparse — the noise is cut high, so
    most of the band is nothing and the folds are what is left — and the whole
@@ -459,10 +459,10 @@ const MIST = {
    heights are once again what they say they are: how far the tallest summit
    on the ring stands above the curtain. */
 export const RANGES = [
-  { radius: 2380, height: 785, far: 42000, seed: 21, segments: 360, tint: '#cbd7ea' },
-  { radius: 2010, height: 623, far: 21000, seed: 33, segments: 330, tint: '#9db4d8' },
-  { radius: 1640, height: 476, far: 11500, seed: 47, segments: 300, tint: '#6e8bbb' },
-  { radius: 1280, height: 348, far: 6200, seed: 59, segments: 270, tint: '#42598c' },
+  { radius: 2380, height: 785, far: 42000, seed: 21, segments: 720, tint: '#cbd7ea' },
+  { radius: 2010, height: 623, far: 21000, seed: 33, segments: 660, tint: '#9db4d8' },
+  { radius: 1640, height: 476, far: 11500, seed: 47, segments: 600, tint: '#6e8bbb' },
+  { radius: 1280, height: 348, far: 6200, seed: 59, segments: 540, tint: '#42598c' },
 ];
 
 /* What the horizon is made of, in the units a photograph would give you.
@@ -477,9 +477,9 @@ export const RANGES = [
    floor: a cluster of high summits, a long col, another cluster. Eighteen
    summits is four or five across the frame, near enough to count and far
    enough apart to have shapes of their own. Forty-eight knife edges is the
-   detail on their flanks, and it is also the sampling limit — at the 360
-   segments of the far band that is seven and a half points a feature, and
-   the octave under it would be three, which is not rock, it is noise.
+   detail on their flanks, and it is also the sampling limit — at the 720
+   segments of the far band that is fifteen points a feature. The profile can
+   now curve through a knife edge instead of exposing the sampling polygon.
 
    `sharp` narrows the ridge. `floor` is what is left of a massif in the
    middle of a col, and it is not zero on purpose: at zero the massifs are
@@ -568,7 +568,7 @@ const ramp = (v, a, b) => smooth01(clamp01((v - a) / (b - a)));
 const frac = (v) => v - Math.floor(v);
 
 const DOME_VERT = `
-  varying vec3 vDir;
+  varying highp vec3 vDir;
   void main() {
     vDir = normalize(position);
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
@@ -576,12 +576,14 @@ const DOME_VERT = `
 `;
 
 const DOME_FRAG = `
-  precision mediump float;
+  precision highp float;
   uniform vec3 uZenith, uMid, uHorizon, uHaze, uGlow, uSunDir;
   uniform float uGlowStrength;
   uniform float uCloud;
   uniform vec2 uCloudDrift;
-  varying vec3 vDir;
+  uniform sampler2D uPanoClear, uPanoStorm;
+  uniform float uPanoStrength, uPanoStormMix, uPanoYaw;
+  varying highp vec3 vDir;
 
   ${SKY_GLSL}
 
@@ -605,6 +607,41 @@ const DOME_FRAG = `
       uZenith,
       smoothstep(0.10, 0.52, up)
     );
+    /* Generated Swiss ranges, relit rather than pasted in.
+
+       The panorama contributes structure and a restrained amount of material
+       colour; the procedural gradient above still owns the hour of day. That
+       is why a clear-morning source can survive dawn, dusk and moonlight
+       without becoming a rectangular photograph behind the weather. */
+    vec2 panoUv = vec2(
+      fract(atan(dir.z, dir.x) * 0.1591549431 + 0.5 + uPanoYaw),
+      /* The source was generated from a high Alpine viewpoint, so almost all
+         of its mountain mass lies below its own geometric horizon. Sampling
+         that horizon at world 0 degrees hid the plate behind the terrain and
+         haze cone. Aim 3.5% lower into the source: its photographed skyline
+         then stands about 6.3 degrees above the game horizon, with its base
+         still disappearing naturally behind the real valley. */
+      clamp(asin(clamp(dir.y, -1.0, 1.0)) * 0.3183098862 + 0.515, 0.0, 1.0)
+    );
+    vec3 pano = texture2D(uPanoClear, panoUv).rgb;
+    // Clear weather is the common case, so it pays for one sky lookup. The
+    // second plate is sampled only while a front is actually crossfading in.
+    if (uPanoStormMix > 0.001) {
+      pano = mix(pano, texture2D(uPanoStorm, panoUv).rgb, uPanoStormMix);
+    }
+    float panoLum = dot(pano, vec3(0.2126, 0.7152, 0.0722));
+    vec3 panoChroma = clamp(pano / max(0.035, panoLum), vec3(0.48), vec3(1.8));
+    /* Relight relative source luminance around the plate's own mid-grey.
+       Snow, sky and dark rock all sat near the bright end of the previous
+       smoothstep, which erased the very folds that identify the photograph.
+       This centred exposure keeps a bounded 0.42–1.42 range while inheriting
+       the procedural hour-of-day colour from c. */
+    float panoForm = clamp(1.0 + (panoLum - 0.45) * 1.48, 0.42, 1.42);
+    vec3 relitPano = c * panoForm * mix(vec3(1.0), panoChroma, 0.22);
+    // The plate is the distant range, not the entire atmosphere. Let it own
+    // the lower sky and hand the zenith back to the procedural gradient/deck.
+    float panoBand = 1.0 - smoothstep(0.30, 0.54, up);
+    c = mix(c, relitPano, uPanoStrength * panoBand);
     // One dot product of atmosphere: the sky is brighter and warmer near
     // whatever is lighting it, and the effect is strongest at the horizon
     float lobe = max(0.0, dot(dir, uSunDir));
@@ -858,7 +895,7 @@ const RANGE_FRAG = `
   precision mediump float;
   uniform sampler2D uNoise;
   uniform vec3 uHaze, uPeak, uSnow, uRock, uIce, uSunlit;
-  uniform float uRise, uLine, uWobble, uGlacier, uDetail;
+  uniform float uRise, uLine, uWobble, uGlacier, uDetail, uAlpha;
   varying float vMix;
   varying float vShade;
   varying float vTop;
@@ -981,7 +1018,7 @@ const RANGE_FRAG = `
        lit at dusk and a range with a wash over it. */
     float glow = max(0.0, vShade)
       * (0.30 + 0.70 * snow) * (1.0 - 0.5 * rock * uDetail);
-    gl_FragColor = vec4(c + uSunlit * glow, 1.0);
+    gl_FragColor = vec4(c + uSunlit * glow, uAlpha);
   }
 `;
 
@@ -991,6 +1028,24 @@ export function createSky(THREE) {
   // The sun flattened onto the ground plane, in world axes. Each band turns
   // its own copy of this into its own spun frame; nothing reads it directly.
   const sunXZ = new THREE.Vector2(0, -1);
+
+  /* Generated 360-degree Alpine plates. A one-pixel neutral surface means
+     the procedural dome is still a complete fallback; the reveal begins only
+     after at least one real panorama has decoded. Clear and storm share the
+     same equirectangular composition, so the weather can crossfade them
+     without peaks ghosting sideways. */
+  const panoFallback = new THREE.DataTexture(
+    new Uint8Array([128, 128, 128, 255]), 1, 1, THREE.RGBAFormat,
+  );
+  panoFallback.colorSpace = THREE.SRGBColorSpace;
+  panoFallback.needsUpdate = true;
+  const panoClear = { value: panoFallback };
+  const panoStorm = { value: panoFallback };
+  const panoStrength = { value: 0 };
+  let clearPlate = null;
+  let stormPlate = null;
+  let panoReady = 0;
+  let panoTarget = 0;
 
   // --- dome ----------------------------------------------------------------
   const domeMat = new THREE.ShaderMaterial({
@@ -1004,6 +1059,12 @@ export function createSky(THREE) {
       uGlowStrength: { value: 1 },
       uCloud: { value: 0 },
       uCloudDrift: { value: new THREE.Vector2() },
+      uPanoClear: panoClear,
+      uPanoStorm: panoStorm,
+      uPanoStrength: panoStrength,
+      uPanoStormMix: { value: 0 },
+      // Source centre looks down-run; its joined edge sits safely uphill.
+      uPanoYaw: { value: 0.25 },
     },
     vertexShader: DOME_VERT,
     fragmentShader: DOME_FRAG,
@@ -1011,15 +1072,44 @@ export function createSky(THREE) {
     depthWrite: false,
     fog: false,
   });
-  const dome = new THREE.Mesh(new THREE.SphereGeometry(RADIUS, 32, 20), domeMat);
+  // The panorama is evaluated per fragment, but its direction starts as a
+  // vertex interpolation. A 96×64 carrier keeps that interpolation spherical
+  // enough for the generated Alpine plate and the sun lobe at native output.
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(RADIUS, 96, 64), domeMat);
   dome.renderOrder = -20;
   group.add(dome);
 
+  const preparePlate = (texture) => {
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.ClampToEdgeWrapping;
+    texture.minFilter = THREE.LinearMipmapLinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.generateMipmaps = true;
+    return texture;
+  };
+  const syncPlates = () => {
+    const any = clearPlate || stormPlate;
+    if (!any) return;
+    panoClear.value = clearPlate || stormPlate;
+    panoStorm.value = stormPlate || clearPlate;
+    panoTarget = 1;
+  };
+  const plateLoader = new THREE.TextureLoader();
+  plateLoader.load(
+    new URL('../assets/textures/sky/alps-clear.webp', import.meta.url).href,
+    (texture) => { clearPlate = preparePlate(texture); syncPlates(); },
+  );
+  plateLoader.load(
+    new URL('../assets/textures/sky/alps-storm.webp', import.meta.url).href,
+    (texture) => { stormPlate = preparePlate(texture); syncPlates(); },
+  );
+
   // --- the counterglow -----------------------------------------------------
   // A full ring, because which part of it is drawn is decided per fragment
-  // against the sun rather than by where the mesh is pointing. Ten rows for
-  // twenty degrees of sky: the profile is a smoothstep, and a smoothstep does
-  // not need vertices, it needs a direction.
+  // against the sun rather than by where the mesh is pointing. Twenty rows
+  // over the narrow arc keep its spherical carrier smooth at native output;
+  // the colour profile itself remains a fragment-shader smoothstep.
   const beltMat = new THREE.ShaderMaterial({
     uniforms: {
       uShade: { value: new THREE.Color('#3d4f80') },
@@ -1037,7 +1127,7 @@ export function createSky(THREE) {
     fog: false,
   });
   const belt = new THREE.Mesh(new THREE.SphereGeometry(
-    RADIUS * 0.99, 48, 10, 0, TAU,
+    RADIUS * 0.99, 96, 20, 0, TAU,
     Math.PI / 2 - BELT.head, BELT.head - BELT.foot,
   ), beltMat);
   belt.renderOrder = -19.5;
@@ -1166,7 +1256,7 @@ export function createSky(THREE) {
     const phiLength = AURORA.arc;
     const phiStart = -(Math.PI / 2 + AURORA.azimuth) - phiLength / 2;
     const geo = new THREE.SphereGeometry(
-      RADIUS * 0.985, 56, 14,
+      RADIUS * 0.985, 112, 28,
       phiStart, phiLength,
       Math.PI / 2 - AURORA.head, AURORA.head - AURORA.foot,
     );
@@ -1276,8 +1366,8 @@ export function createSky(THREE) {
     const cv = document.createElement('canvas');
     cv.width = cv.height = s;
     const g = cv.getContext('2d');
-    // Hard-edged, but not aliased: the quantise pass downstream is
-    // unforgiving about a stair-stepped circle
+    // Hard-edged, but analytically softened so the disc stays clean at any
+    // output resolution.
     const grd = g.createRadialGradient(s / 2, s / 2, s * 0.36, s / 2, s / 2, s * 0.46);
     grd.addColorStop(0, 'rgba(255,255,255,1)');
     grd.addColorStop(1, 'rgba(255,255,255,0)');
@@ -1296,14 +1386,13 @@ export function createSky(THREE) {
 
   // --- the haze the hill dissolves into ------------------------------------
   // Built at the mean pitch and scaled to the measured one every frame, so
-  // there is one cone and no geometry work in the loop. Ninety-six segments
-  // rather than forty-four, because the rim of this is the horizon: a
-  // forty-four-sided horizon sags seven metres between corners, which was a
-  // third of a pixel at 288 lines and is two and a half at native.
+  // there is one cone and no geometry work in the loop. One hundred and
+  // ninety-two segments make its rim effectively circular at native output;
+  // this is the horizon, so even a small polygonal sag can reveal the mesh.
   const coneH = CONE_R * TERRAIN.grade.base;
   const hazeMat = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, fog: false });
   const cone = new THREE.Mesh(
-    new THREE.ConeGeometry(CONE_R, coneH, 96, 1, true), hazeMat,
+    new THREE.ConeGeometry(CONE_R, coneH, 192, 1, true), hazeMat,
   );
   cone.renderOrder = -16;
   group.add(cone);
@@ -1514,17 +1603,23 @@ export function createSky(THREE) {
         uWobble: { value: HORIZON.wobble },
         uGlacier: { value: HORIZON.glacier },
         uDetail: { value: 0 },
+        uAlpha: { value: 1 },
       },
       vertexShader: RANGE_VERT,
       fragmentShader: RANGE_FRAG,
       side: THREE.DoubleSide,
+      transparent: true,
+      depthWrite: false,
       fog: false,
     });
     const mesh = new THREE.Mesh(geo, mat);
-    mesh.renderOrder = -15;
+    // Explicit far-to-near ordering keeps the panorama crossfade stable even
+    // though the rings all share the camera's origin.
+    mesh.renderOrder = -15.4 + ranges.length * 0.1;
     mesh.frustumCulled = false;
     ranges.push({
       mesh, mat, sunLocal, radius,
+      layer: ranges.length,
       tint: new THREE.Color(tint),
       // Metres of band per metre of camera — the whole of the parallax, and
       // a ratio rather than a taste
@@ -1544,10 +1639,9 @@ export function createSky(THREE) {
     return mesh;
   }
 
-  // Two hundred and seventy to three hundred and sixty segments each, which
-  // is seven and a half thousand vertices for the whole horizon and about a
-  // degree of arc apiece — near enough that the skyline stops being a
-  // polyline and starts being a ridge
+  // Five hundred and forty to seven hundred and twenty segments each: about
+  // fifteen thousand non-indexed vertices for the whole horizon, enough for
+  // the procedural knife-edge octave to curve rather than read as a polyline.
   for (const spec of RANGES) group.add(range(spec));
 
   /* --- light ---------------------------------------------------------------
@@ -1598,12 +1692,12 @@ export function createSky(THREE) {
 
      It is a receiver-side offset. Three pushes the shadow lookup along the
      *interpolated vertex normal*, and it compiles that push out entirely for
-     any geometry with no `normal` attribute — `HAS_NORMAL` in the shadow map
-     chunk. The terrain has no such attribute and never has: it writes
-     position, colour and `aGroom`, and it is flat-shaded, which takes its
-     normal from screen-space derivatives in the fragment stage. So for the
-     surface this paragraph was written about, `normalBias` was multiplied by a
-     zero vector every frame since the day it was added.
+     any geometry with no built-in `normal` attribute — `HAS_NORMAL` in the
+     shadow map chunk. The terrain has no such attribute and never has: its
+     smooth lighting direction is a custom `aSmoothNormal` used only by the
+     colour shader, so the depth/shadow shader still sees no receiver normal.
+     For the surface this paragraph was written about, `normalBias` is
+     therefore still multiplied by a zero vector.
 
      Verified rather than reasoned: toggling it between 2.2 and 0 on a frozen
      frame moves thirteen thousand pixels, and every one of them is on a tree.
@@ -1726,6 +1820,12 @@ export function createSky(THREE) {
     domeMat.uniforms.uGlowStrength.value = 1 - w.storm * 0.8;
     domeMat.uniforms.uCloud.value = w.cloud;
     domeMat.uniforms.uCloudDrift.value.set(w.cloudX, w.cloudZ);
+    panoReady += (panoTarget - panoReady) * (1 - Math.exp(-2.8 * dt));
+    domeMat.uniforms.uPanoStormMix.value = ramp(w.storm, 0.12, 0.78);
+    // Night keeps a faint mountain plate under the stars; a whiteout gives it
+    // up entirely because the fog curtain has already won by then.
+    panoStrength.value = panoReady * 0.88 * (1 - 0.82 * w.night)
+      * (1 - ramp(w.storm, 0.82, 0.98));
 
     starMat.uniforms.uAlpha.value = w.star * (1 - w.storm) * 0.9;
     starMat.uniforms.uTime.value = time;
@@ -1910,6 +2010,18 @@ export function createSky(THREE) {
 
     hazeMat.color.copy(w.haze);
     for (const r of ranges) {
+      /* The generated equirectangular plate is the hero distant range. As it
+         becomes visible, all four procedural fallback rings yield to it: the
+         far pair disappears, while the near pair keeps only enough opacity
+         for slow parallax and atmospheric depth. At night or in a whiteout
+         the plate strength falls and the procedural fallback returns. If the
+         assets fail to load, panoReady/strength stay zero and all rings remain
+         fully visible. */
+      const panoMix = smooth01(clamp01(panoStrength.value / 0.88));
+      const panoRangeAlpha = r.layer < 2 ? 0 : r.layer === 2 ? 0.14 : 0.32;
+      const rangeAlpha = 1 - panoMix * (1 - panoRangeAlpha);
+      r.mat.uniforms.uAlpha.value = rangeAlpha;
+      r.mesh.visible = rangeAlpha > 0.002;
       const spin = (travel * r.spin) % TAU;
       r.mesh.rotation.y = spin;
       r.mesh.position.set(-lateral * r.parallax, -r.radius * (pitch + FOOT), 0);
@@ -1972,8 +2084,8 @@ export function createSky(THREE) {
       r.mat.uniforms.uRock.value.copy(rockTmp);
       // And ice, which is the one thing on the horizon brighter than the snow
       // around it: the same journey the snow made, taken twice as far. An
-      // additive grade and a five-bit quantise between them cannot bring back
-      // a glacier that has clipped, so this is as far as it goes.
+      // Neither the highlight shoulder nor the atmospheric grade can bring
+      // back a glacier that has clipped, so this is as far as it goes.
       iceTmp.copy(peakTmp).lerp(w.horizon, 0.52);
       r.mat.uniforms.uIce.value.copy(iceTmp);
       // How much of any of it survives the air in front of it, and a storm
@@ -2001,9 +2113,9 @@ export function createSky(THREE) {
        This is the one piece of shadow mapping that is not optional. A box
        that tracks a continuously-moving rider re-renders the depth map from a
        fractionally different place every frame, and every shadow edge in the
-       picture crawls and sparkles against the pixel grid — the same failure
-       as the vertex snap on the horizon, arriving from the other end, and far
-       more visible because a shadow edge is a hard line.
+       picture crawls and sparkles against the pixel grid — the same sub-pixel
+       instability that makes a distant skyline crawl, and far more visible
+       because a shadow edge is a hard line.
 
        The fix is to decompose the rider's position in the light's own
        orthonormal basis, round the two axes that span the shadow map to whole
