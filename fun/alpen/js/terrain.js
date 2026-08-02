@@ -909,20 +909,43 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   const shadeSize = SHADE.size;
   const shadeHalf = SHADE.half;
   const shadeTexel = (2 * shadeHalf) / shadeSize;
+  const shadeRaise = SHADE.raise;
   const shadeGrid = new Float32Array(shadeSize * shadeSize);
   shadeGrid.fill(1);
   // Sample i sits at (i + 0.5) texels from the low edge, which is exactly
   // where a texture filter expects to find it.
   const shadeAxisAt = (i) => (i + 0.5) * shadeTexel - shadeHalf;
 
-  /* The same field, as eight bits of texture for everything that is not the
-     ground. Red-only and a hundred and twenty-eight square: sixteen kilobytes,
-     resident in cache, one filtered fetch. `shading.js` owns the sampling —
-     this only owns the numbers and where in the world they are. */
-  const shadeData = new Uint8Array(shadeSize * shadeSize);
-  shadeData.fill(255);
+  /* The same field, as a texture for everything that is not the ground.
+
+     Four half-float channels over a hundred and four square, which is
+     eighty-six kilobytes — resident in cache, one filtered fetch. R is the
+     shadow on the snow and G is the same shadow measured fourteen metres
+     over it, so a crown or an airborne rider can read its own height between
+     the two; B is the height of the snow itself, relative to the anchor,
+     which is what tells a receiver how far above it stands. See
+     `TERRAIN.shade.raise` for why it is two softened layers rather than one
+     honest number of metres.
+
+     Half-float rather than bytes because B is a world height spanning a
+     couple of hundred metres and R and G are compared against a one-and-a-
+     half metre penumbra; there is no single fixed point that serves both.
+     WebGL 2 filters half-float natively, which is the property this leans on.
+
+     `shading.js` owns the sampling — this owns the numbers and where in the
+     world they are. */
+  const shadeData = new Uint16Array(shadeSize * shadeSize * 4);
+  const toHalf = THREE.DataUtils.toHalfFloat;
+  const HALF_ONE = toHalf(1);
+  const HALF_ZERO = toHalf(0);
+  for (let i = 0; i < shadeData.length; i += 4) {
+    shadeData[i] = HALF_ONE;
+    shadeData[i + 1] = HALF_ONE;
+    shadeData[i + 2] = HALF_ZERO;
+    shadeData[i + 3] = HALF_ONE;
+  }
   const shadeTexture = new THREE.DataTexture(
-    shadeData, shadeSize, shadeSize, THREE.RedFormat, THREE.UnsignedByteType,
+    shadeData, shadeSize, shadeSize, THREE.RGBAFormat, THREE.HalfFloatType,
   );
   shadeTexture.colorSpace = THREE.NoColorSpace;
   shadeTexture.minFilter = THREE.LinearFilter;
@@ -981,7 +1004,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   const shadeFr = new Int32Array(shadeSize * SHADE.steps);
   const shadeCx = new Float32Array(shadeSize);
 
-  function buildShadeGrid() {
+  function buildShadeGrid(ay) {
     builtSunX = buildSunX;
     builtSunY = buildSunY;
     builtSunZ = buildSunZ;
@@ -990,8 +1013,11 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     // has already faded out — throws nothing worth marching for.
     if (flat < 1e-3 || buildSunY <= 0.01) {
       shadeGrid.fill(1);
-      shadeData.fill(255);
-      shadeTexture.needsUpdate = true;
+      for (let i = 0; i < shadeData.length; i += 4) {
+        shadeData[i] = HALF_ONE;
+        shadeData[i + 1] = HALF_ONE;
+        shadeData[i + 2] = HALF_ZERO;
+      }
       return;
     }
     const steps = SHADE.steps;
@@ -1027,14 +1053,22 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
           if (rise > worst) worst = rise;
         }
         // Soft, because the sun is half a degree wide and because a hard edge
-        // at three metres a sample would show the sampling.
+        // at three metres a sample would show the sampling. Softening here
+        // rather than in the shader is what lets the filter between samples
+        // do something sensible — see `TERRAIN.shade.raise`.
         const t = worst * invSoft;
         const lit = t <= 0 ? 1 : t >= 1 ? 0 : 1 - t * t * (3 - 2 * t);
+        // …and the same answer for something standing well above the snow,
+        // which sees over anything that does not clear it by `raise`.
+        const u = (worst - shadeRaise) * invSoft;
+        const litUp = u <= 0 ? 1 : u >= 1 ? 0 : 1 - u * u * (3 - 2 * u);
         shadeGrid[g] = lit;
-        shadeData[g] = (lit * 255) | 0;
+        const p = g * 4;
+        shadeData[p] = toHalf(lit);
+        shadeData[p + 1] = toHalf(litUp);
+        shadeData[p + 2] = toHalf(h - ay);
       }
     }
-    shadeTexture.needsUpdate = true;
   }
 
   /* Read the field back at a point in the mesh's own local frame. The lattice
@@ -1687,7 +1721,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     // The horizon march needs the whole height grid, so it sits between the
     // two passes rather than inside either — see `advanceBuild` for the same
     // ordering spread across frames.
-    buildShadeGrid();
+    buildShadeGrid(ay);
     fillSurfaceRows(
       ax, az, ay, outPositions, outNormals, outColors, outSurface,
       0, vertsZ,
@@ -1701,8 +1735,20 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   function publishShade() {
     shading.uniforms.uShadeMap.value = shadeTexture;
     shading.uniforms.uShadeAt.value.set(
-      anchorX - shadeHalf, anchorZ - shadeHalf, 1 / (2 * shadeHalf),
+      anchorX - shadeHalf, anchorZ - shadeHalf, 1 / (2 * shadeHalf), anchorY,
     );
+    /* The upload happens *here* and not where the bytes were written.
+
+       `buildShadeGrid` runs at the turn between the two amortised passes,
+       which is several frames before the anchor it was marched for actually
+       becomes the anchor. Flagging the texture there published a field
+       measured around the new anchor while these coordinates still described
+       the old one — so every receiver that is not the ground sampled the
+       mountain's shadow displaced by one stride, six metres, for the rest of
+       the build. The ground never saw it, because its own copy travels in the
+       morph and lands at commit; this is that same rule, applied to the
+       consumer that had been left out of it. */
+    shadeTexture.needsUpdate = true;
   }
 
   function publish() {
@@ -1895,7 +1941,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
 
       if (build.row >= vertsZ) {
         if (build.stage === 0) {
-          buildShadeGrid();
+          buildShadeGrid(build.ay);
           build.stage = 1;
           build.row = 0;
         } else {

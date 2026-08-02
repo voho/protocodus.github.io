@@ -7,7 +7,10 @@
    continuous; the former fixed-grid vertex snap and stepped light bands have
    intentionally been retired. */
 
-import { RENDER, MIST } from './config.js';
+import { RENDER, MIST, TERRAIN } from './config.js';
+
+// The height the shade field's second layer sits at — see `FRAG_SHADE`.
+const SHADE_RAISE = TERRAIN.shade.raise;
 
 /* Snow is a rough dielectric, not white paint. A GGX microfacet response
    carries the sun, Schlick Fresnel replaces the body colour with reflected sky
@@ -194,7 +197,7 @@ uniform float uSnowFresh;
 uniform float uCloud;
 uniform vec2 uCloudDrift;
 uniform sampler2D uShadeMap;
-uniform vec3 uShadeAt;
+uniform vec4 uShadeAt;
 uniform float uShadeLevel;
 
 ${SKY_GLSL}
@@ -490,11 +493,21 @@ const FRAG_CAMERA_FADE = `#include <alphamap_fragment>
    across the piste. Two things in the same picture disagreeing about whether
    the sun is out is a worse artifact than either of them being wrong alone.
 
-   So the same field arrives here as a 128-square single-channel texture —
-   sixteen kilobytes, one filtered fetch — placed in the world by `uShadeAt`:
-   xy is the corner it starts at and z is one over its span. Outside it
-   nothing is known and therefore nothing is shadowed, which is the same
-   bargain the depth map struck by not reaching that far.
+   So the same field arrives here as a texture, placed in the world by
+   `uShadeAt`: xy is the corner it starts at, z is one over its span, and w
+   is the height the whole thing is measured against. Outside it nothing is
+   known and therefore nothing is shadowed, which is the same bargain the
+   depth map struck by not reaching that far.
+
+   AND IT IS NOT A FLAT LOOKUP. The field is a fact about the *snow*, and the
+   thing reading it may be twenty metres above the snow: a spruce crown or a
+   rider at the top of a jump can see over the knoll that is shadowing the
+   ground they are standing on, which is the one thing the depth map got right
+   for free by testing each receiver where it actually was. So the field is
+   measured twice — R on the snow, G fourteen metres over it — and B carries
+   the height of the snow itself, so a fragment can work out how far above it
+   stands and read between the two. On the ground that is exactly R, which is
+   exactly what the terrain's own per-vertex copy says.
 
    It multiplies the direct light only. The sky fill still reaches a shaded
    hollow, which is what makes snow in shade blue rather than black, and it
@@ -517,7 +530,13 @@ const FRAG_SHADE = `#include <lights_fragment_maps>
     // the border texel is not an answer about the mountain a kilometre away.
     float n64ShadeIn = step(0.0, n64ShadeUv.x) * step(n64ShadeUv.x, 1.0)
       * step(0.0, n64ShadeUv.y) * step(n64ShadeUv.y, 1.0);
-    float n64Shade = texture2D(uShadeMap, clamp(n64ShadeUv, 0.0, 1.0)).r;
+    vec4 n64ShadeS = texture2D(uShadeMap, clamp(n64ShadeUv, 0.0, 1.0));
+    // How far this fragment stands over the snow the field describes, as a
+    // share of the height the second layer was measured at.
+    float n64ShadeUp = clamp(
+      (n64ShadeW.y - (uShadeAt.w + n64ShadeS.b)) * ${asFloat(1 / SHADE_RAISE)},
+      0.0, 1.0);
+    float n64Shade = mix(n64ShadeS.r, n64ShadeS.g, n64ShadeUp);
     reflectedLight.directDiffuse *= 1.0
       - (1.0 - n64Shade) * n64ShadeIn * uShadeLevel;
   }`;
@@ -580,7 +599,7 @@ export function createShading(THREE) {
         return t;
       })(),
     },
-    uShadeAt: { value: new THREE.Vector3(0, 0, 0) },
+    uShadeAt: { value: new THREE.Vector4(0, 0, 0, 0) },
     uShadeLevel: { value: 0 },
   };
 

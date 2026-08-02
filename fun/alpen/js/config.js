@@ -700,6 +700,24 @@ export const TERRAIN = {
     half: 156,
     size: 104,
     soften: 1.5,
+    /* The height a *second* copy of the field is measured at.
+
+       The march answers a question about the ground, and most of what reads
+       it is standing on the ground — but not all of it, and not all of any of
+       it: a twenty-metre spruce crown and a rider at the top of a jump can
+       both be above the knoll that is shadowing the snow under them, which
+       the depth map this replaced got right for free by testing each
+       receiver's actual position in space.
+
+       Storing the horizon in metres would answer it exactly and would ruin
+       the thing that makes this field cheap: a metric rise steps almost
+       vertically at a shadow's edge, so a lattice sampled every three metres
+       and filtered between samples would hand back a hard edge instead of the
+       soft one the sun actually casts. Two already-softened layers filter
+       properly, because both of them are smooth. So the field is measured
+       twice — once on the snow, once fourteen metres over it — and a receiver
+       reads its own height between them. */
+    raise: 14,
     sunStep: 0.016,
   },
 };
