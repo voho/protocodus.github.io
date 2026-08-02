@@ -2440,5 +2440,13 @@ export function createSky(THREE) {
     return sun;
   }
 
-  return { group, lights, sunDir, sun, update, project };
+  /* How much shadow the light is worth this frame, published rather than
+     kept private, because the mountain's own shadow of itself is no longer
+     drawn into this lamp's depth map — it is precomputed in `terrain.js` —
+     and the two have to fade out on the same dusk and in the same whiteout.
+     One number, owned in one place, read by both. */
+  return {
+    group, lights, sunDir, sun, update, project,
+    get shadowLevel() { return key.shadow.intensity; },
+  };
 }

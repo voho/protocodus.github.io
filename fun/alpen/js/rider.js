@@ -264,6 +264,7 @@ export class Rider {
     this.lateral = 0;        // signed, so the spray knows which way to fly
     this.carveLoad = 0;      // 0..1, how hard the edge is working
     this.climbRate = 0;      // m/s of height being gained, for the HUD and the scrub
+    this.offPiste = 0;       // 0..1, how deep into the unpisted boundary snow
     this.lipPop = false;     // was the last launch popped on the lip
     this.takeoffSpeed = 0;   // speed committed to the current trick
     this.fallTimer = 0;
@@ -515,6 +516,13 @@ export class Rider {
     this.bend = approach(this.bend,
       clamp(bendG, RIDER.bendMin, RIDER.bendMax), RIDER.bendSmooth, dt);
 
+    /* And how far out of bounds they are, which is a property of the ground
+       rather than of the rider: zero anywhere on the run and on the
+       quarterpipe transition, one once the board is well into the unpisted
+       snow banked against the containment wall. See `RIDER.wallSpan`. */
+    const beyond = this.world.beyond ? this.world.beyond(pos.x, pos.z) : -1;
+    this.offPiste = beyond > 0 ? clamp(beyond / RIDER.wallSpan, 0, 1) : 0;
+
     /* Stalling.
 
        A snowboard is not a climbing tool. Run out of speed pointing up
@@ -594,7 +602,12 @@ export class Rider {
        band the whole handling model lives in. */
     // Fresh storm snow supports a wider, calmer line instead of letting the
     // same clear-weather target over-drive a suddenly weaker edge.
-    const surfaceGrip = RIDER.grip * (this.world.grip ?? 1);
+    /* …and off the piste entirely there is very little edge to have. Deep
+       wind-loaded snow does not hold a carved traverse: the board sinks,
+       washes out and goes down the fall line, which on the containment wall
+       points back at the run. See `RIDER.wallWash`. */
+    const surfaceGrip = RIDER.grip * (this.world.grip ?? 1)
+      * (1 - RIDER.wallWash * this.offPiste);
 
     /* THE CARVE.
 
@@ -775,6 +788,41 @@ export class Rider {
       }
     }
 
+    /* AND THE BOARD DOES NOT HOLD A LINE IN DEEP SNOW.
+
+       This is the term that finally contains the boundary mountains, and it
+       took three attempts to find because the first two were answers to the
+       wrong question. Refusing the climb and taking the edge away both stop a
+       rider *gaining* height, and neither stops the thing that was actually
+       happening: a board held on a straight line along the bank keeps its
+       altitude while the run underneath it descends nearly a third of a metre
+       for every metre of z. Six seconds of that is sixty metres up the wall,
+       and not one centimetre of it was climbed.
+
+       What is missing from that picture is that the board is a metre and a
+       half of stiff plank sitting *in* the snow rather than on it. Pointed
+       across the fall line it has a metre of buried edge on the uphill side
+       and nothing under the downhill one; it does not hold, it pivots — which
+       is the first thing anybody learns the hard way about traversing deep
+       snow. So the yaw is eased towards the local fall line at a rate set by
+       how deep the board is, before the skid clamp below arbitrates between
+       that and the direction of travel, and the ordinary carve then brings
+       the velocity round behind it. On the containment wall the fall line
+       points home, so this is a rider being turned downhill by the snow
+       rather than a rider being pushed anywhere by the game.
+
+       Nothing here touches the quarterpipe: `offPiste` is zero everywhere
+       inside the lip, so a wall ride is still steered by the player alone. */
+    if (this.offPiste > 0 && speed > 1) {
+      // A perfectly level patch has no fall line to be turned towards.
+      if (Math.hypot(n.x, n.z) > 1e-4) {
+        const fallYaw = Math.atan2(n.x, -n.z)
+          + (this.switchStance ? Math.PI : 0);
+        this.yaw += wrapPi(fallYaw - this.yaw)
+          * (1 - Math.exp(-RIDER.wallPivot * this.offPiste * dt));
+      }
+    }
+
     /* And a hard limit on how far the board is ever allowed to get from the
        direction it is actually travelling.
 
@@ -848,6 +896,15 @@ export class Rider {
        commit speed to and a free way to change lanes. */
     if (this.climbRate > 0 && speed > 1) {
       forwardLoss += RIDER.climbScrub * clamp(this.climbRate / speed, 0, 1) * dt;
+    }
+    /* …and out past the lip there is no piste under the board at all. Deep
+       unconsolidated snow does not scrub a board driven up it, it swallows
+       it: the base ploughs instead of gliding. Charged against the climb for
+       the reason given beside `RIDER.wallDrag` — a flat term big enough to
+       stop a fast rider also strands a slow one. */
+    if (this.offPiste > 0 && this.climbRate > 0 && speed > 1) {
+      forwardLoss += RIDER.wallDrag * this.offPiste * this.offPiste
+        * clamp(this.climbRate / speed, 0, 1) * dt;
     }
     const forwardSign = Math.sign(vFwd) || (this.switchStance ? -1 : 1);
     vFwd = forwardSign * Math.max(0, Math.abs(vFwd) - forwardLoss);
@@ -942,6 +999,60 @@ export class Rider {
         if (drivenSpeed < poweredSpeed) vel.multiplyScalar(poweredSpeed / drivenSpeed);
       } else {
         vel.copy(boardTravel).multiplyScalar(poweredSpeed);
+      }
+    }
+
+    /* THE ONE THING THE BOUNDARY MOUNTAINS ARE NOT ALLOWED TO PERMIT.
+
+       Everything above is a cost, and a cost can be paid: W has no terminal
+       speed, so any finite amount of drag out there can be outrun by a rider
+       willing to hold one key for long enough. This is the invariant, and it
+       has to live *after* the powered floor for exactly that reason — the
+       floor is the last thing that writes a speed, so anything hoping to
+       bound the climb has to come after it.
+
+       What it removes is only the component of travel pointing up the
+       fall line, and only in proportion to how deep into the unpisted snow
+       the board is. Downhill motion, the traverse, a slide along the bank —
+       all untouched. `t` is the steepest-ascent direction in the surface's
+       own tangent plane, which is world up with the surface normal projected
+       out of it, so the scrub stays on the snow rather than fighting the
+       ground contact. On the run itself `offPiste` is zero and none of this
+       executes. */
+    if (this.offPiste > 0) {
+      const ny = n.y;
+      let tx = -n.x * ny;
+      let ty = 1 - ny * ny;
+      let tz = -n.z * ny;
+      const tl = Math.hypot(tx, ty, tz);
+      if (tl > 1e-4) {
+        tx /= tl; ty /= tl; tz /= tl;
+        /* The sluff first: the snow the board is ploughing collapses and
+           runs down the fall line, and the board goes with it. Depth-squared,
+           so the transition at the lip is untouched and the deepest snow is
+           where the whole of it arrives. */
+        const depth = this.offPiste * this.offPiste;
+        const sluff = RIDER.wallSluff * depth * dt;
+        vel.x -= tx * sluff;
+        vel.y -= ty * sluff;
+        vel.z -= tz * sluff;
+
+        const up = vel.x * tx + vel.y * ty + vel.z * tz;
+        if (up > 0) {
+          /* The share of the climb that survives a step. At the lip it is
+             nearly all of it, so the transition still rides exactly as it
+             did; at full depth it is none, which is the invariant — deep
+             snow does not merely slow a climb, it refuses to support one.
+             A carve pointed at the wall therefore re-creates the uphill
+             component every step and has it taken away again every step,
+             which is what ploughing looks like from inside. */
+          const hold = Math.exp(-RIDER.wallGrab * dt)
+            * (1 - this.offPiste * this.offPiste);
+          const k = 1 - hold;
+          vel.x -= tx * up * k;
+          vel.y -= ty * up * k;
+          vel.z -= tz * up * k;
+        }
       }
     }
 
@@ -1290,6 +1401,8 @@ export class Rider {
     this.slide = 0;
     this.carveLoad = 0;
     this.climbRate = 0;
+    // Air is air, wherever it is over. Deep snow only exists under a board.
+    this.offPiste = 0;
     // Nothing is pressing on the board in the air, so the legs are allowed to
     // find their own length rather than holding the last compression they saw
     this.bend = approach(this.bend, 0, 9, dt);

@@ -1126,9 +1126,31 @@ export function createSpray(THREE, shading) {
   /* One particle from the board's continuous edge plume.
 
      `kind` is deliberately local to this function: 0 is the narrow granular
-     cutting sheet, 1 a sparse piece of broken crust, and 2 the fine mist that
-     remains after the heavier snow has dropped. They share a pool and update
-     loop, but they do not share birth size, life, opacity or launch cone.
+     cutting sheet, 1 a sparse piece of broken crust, 2 the fine mist that
+     remains after the heavier snow has dropped, and 3 the rooster tail. They
+     share a pool and update loop, but they do not share birth size, life,
+     opacity or launch cone.
+
+     THE ROOSTER TAIL is the one this file was missing, and its absence was
+     the single least convincing thing about riding this mountain. Everything
+     above is snow leaving the *edge*: a low granular sheet, some broken
+     crust, and the mist those two leave behind — all of it correct, all of it
+     within a board's width of the ground, and none of it the thing anybody
+     has ever photographed a snowboard doing. What a carved turn actually
+     throws is a curtain: the buried edge is a metre and a half of plough
+     working through soft snow at thirty metres a second, and the snow it
+     lifts comes off the *tail* of the board, goes up, and hangs there behind
+     the rider in an arc that is taller than they are.
+
+     Two things make it that rather than more of the sheet. It is launched
+     with real upward speed instead of the sheet's eight centimetres of lift
+     — and that speed is scaled by how fast the board is going, because the
+     height of a rooster is a direct read of the energy going into the snow,
+     which is why a slow turn barely raises dust and a committed one throws a
+     wall. And it lives three times as long, so what is drawn is a continuous
+     ribbon of snow behind the board rather than a puff at the contact point:
+     at forty metres a second, half a second of life is twenty metres of
+     tail.
 
      Every vector arrives as scalars. This is a hot path at speed and allocating
      temporary Vector3s here would turn a visually cheap point cloud into a
@@ -1150,11 +1172,17 @@ export function createSpray(THREE, shading) {
        a tail-biased 55 cm strip towards the full effective edge. */
     const alongSpan = lerp(0.55, 1.30, skid);
     const alongCentre = lerp(-0.43, -0.05, skid);
-    const along = alongCentre + (r0 - 0.5) * alongSpan;
+    // The rooster leaves from the last third of the buried edge, which is
+    // where the plough has the most snow in front of it and nowhere left to
+    // put it. The other three sample the whole working length.
+    const along = kind === 3
+      ? -0.62 + r0 * 0.42
+      : alongCentre + (r0 - 0.5) * alongSpan;
     const across = (r1 - 0.5) * lerp(0.060, 0.15, skid);
     const bornLift = kind === 2
       ? 0.035 + r2 * 0.045
-      : 0.016 + r2 * 0.028;
+      : kind === 3 ? 0.05 + r2 * 0.10
+        : 0.016 + r2 * 0.028;
     position[j] = x + bx * along + lx * across + nx * bornLift;
     position[j + 1] = y + by * along + ly * across + ny * bornLift;
     position[j + 2] = z + bz * along + lz * across + nz * bornLift;
@@ -1166,6 +1194,10 @@ export function createSpray(THREE, shading) {
        still-low rooster fan. */
     const carry = Math.min(3.0, speed * lerp(0.055, 0.025, skid));
     const fan = (r3 - 0.5) * lerp(0.45, 2.4, skid);
+    // How hard the board is working the snow, which is what sets the height
+    // of a rooster and nothing else here. It arrives late and saturates: no
+    // tail worth the name below walking pace, all of it by seventy km/h.
+    const drive = clamp01((speed - 6) / 15);
     let out;
     let lift;
     if (kind === 1) {
@@ -1174,6 +1206,11 @@ export function createSpray(THREE, shading) {
     } else if (kind === 2) {
       out = 0.38 + carve * 0.48 + skid * 1.15 + r4 * 0.50;
       lift = 0.32 + carve * 0.30 + skid * 0.62 + r2 * 0.36;
+    } else if (kind === 3) {
+      // Up first and out second: the curtain stands behind the rider rather
+      // than being thrown sideways past them.
+      out = (0.9 + carve * 1.5 + skid * 2.2 + r4 * 1.0) * (0.45 + drive * 0.75);
+      lift = (3.0 + carve * 3.4 + skid * 2.4 + r2 * 2.0) * (0.35 + drive * 0.95);
     } else {
       out = 0.70 + carve * 1.65 + skid * 2.65 + r4 * (0.35 + skid * 0.75);
       lift = 0.20 + carve * 0.58 + skid * 0.82 + r2 * 0.38;
@@ -1203,6 +1240,20 @@ export function createSpray(THREE, shading) {
       grow[i] = 0.48 + r3 * 0.48;
       peak[i] = 0.09 + r4 * 0.09;
       streak[i] = 0.55 + skid * 0.45;
+    } else if (kind === 3) {
+      /* The curtain. Halfway between the sheet's hard grains and the mist's
+         suspension, because that is what it is made of: snow lifted whole and
+         breaking up on the way. It has to be light enough to hang — hence the
+         high `fine`, which is what the update loop reads as weight — and
+         opaque enough to read against a snowfield, which is the one number
+         here that is a judgement rather than an observation. It swells a long
+         way, so a dozen of them are a plume rather than a dozen dots. */
+      fine[i] = 0.55 + r1 * 0.30;
+      maxLife[i] = (0.44 + r0 * 0.40 + skid * 0.16) * (0.7 + drive * 0.5);
+      born[i] = 0.038 + r2 * 0.046 + drive * 0.028;
+      grow[i] = 0.70 + r3 * 0.85;
+      peak[i] = 0.30 + r4 * 0.24 + drive * 0.14;
+      streak[i] = 0.50 + skid * 0.30;
     } else {
       // The cutting sheet is granular snow: firmer than powder mist and much
       // smaller than a landing puff, with just enough life to draw the edge.
@@ -1216,8 +1267,8 @@ export function createSpray(THREE, shading) {
     seed[i] = Math.random();
     streakDirty = true;
     life[i] = maxLife[i];
-    tumble[i] = (kind === 2 ? 1.1 : 0.45)
-      + r2 * (kind === 2 ? 1.8 : 1.0) + chatter * 0.8;
+    tumble[i] = (kind === 2 ? 1.1 : kind === 3 ? 0.9 : 0.45)
+      + r2 * (kind === 2 ? 1.8 : kind === 3 ? 1.4 : 1.0) + chatter * 0.8;
     spin[i] = (2.4 + r3 * 4.0) * (r4 < 0.5 ? -1 : 1);
     phase[i] = r0 * Math.PI * 2;
     size[i] = born[i];
@@ -1317,6 +1368,19 @@ export function createSpray(THREE, shading) {
       skid * (0.035 + brake * 0.16 + chatter * 0.10)
         + carve * chatter * 0.035, 2,
     );
+    /* And the curtain, which is the only one of the four whose *rate* is a
+       function of speed rather than only its shape. Every other count here is
+       per committed section, and sections arrive at a fixed spatial interval
+       — so a fast rider already gets proportionally more of everything for
+       free. A rooster is not proportional: a board at sixty km/h moves several
+       times as much snow per metre as the same board at fifteen, because what
+       it is doing to the snow goes as the energy and not as the distance. So
+       the drive term rides on top of the spatial rate rather than replacing
+       it, and the plume grows with the run rather than merely lengthening. */
+    const drive = clamp01((speed - 6) / 15);
+    const tails = poisson(
+      drive * (carve * 3.7 + skid * 2.3 + chatter * activity * 0.45), 9,
+    );
 
     for (let k = 0; k < grains; k++) {
       edgeParticle(0, sx, sy, sz, bx, by, bz, tx, ty, tz,
@@ -1328,6 +1392,10 @@ export function createSpray(THREE, shading) {
     }
     for (let k = 0; k < mists; k++) {
       edgeParticle(2, sx, sy, sz, bx, by, bz, tx, ty, tz,
+        lx, ly, lz, nx, ny, nz, side, carve, skid, brake, chatter, speed);
+    }
+    for (let k = 0; k < tails; k++) {
+      edgeParticle(3, sx, sy, sz, bx, by, bz, tx, ty, tz,
         lx, ly, lz, nx, ny, nz, side, carve, skid, brake, chatter, speed);
     }
   }
