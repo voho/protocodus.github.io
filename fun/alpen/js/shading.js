@@ -485,19 +485,27 @@ const FRAG_CAMERA_FADE = `#include <alphamap_fragment>
 /* THE MOUNTAIN'S SHADOW, on everything that is standing in it.
 
    `terrain.js` marches the sun's horizon over the height field and keeps the
-   answer; the ground reads it per vertex, where it is free. Nothing else has
-   a vertex of the mountain to read it off, and until this existed nothing
-   else was shadowed by the mountain at all — the depth map holds only the
+   answer. Until this existed the ground was the only thing that could read it
+   — nothing else has a vertex of the mountain to hang it off — and so nothing
+   else was shadowed by the mountain at all: the depth map holds only the
    things that genuinely move through the light, so a tree at the foot of the
    containment wall stood in full sun inside the bar the wall was laying
    across the piste. Two things in the same picture disagreeing about whether
    the sun is out is a worse artifact than either of them being wrong alone.
 
-   So the same field arrives here as a texture, placed in the world by
-   `uShadeAt`: xy is the corner it starts at, z is one over its span, and w
-   is the height the whole thing is measured against. Outside it nothing is
-   known and therefore nothing is shadowed, which is the same bargain the
-   depth map struck by not reaching that far.
+   So the field arrives here as a texture, placed in the world by `uShadeAt`:
+   xy is the corner it starts at, z is one over its span, and w is the height
+   the whole thing is measured against. Outside it nothing is known and
+   therefore nothing is shadowed, which is the same bargain the depth map
+   struck by not reaching that far — and the fade at the window edge is there
+   so that boundary arrives as a gradient rather than as a line.
+
+   The ground reads this too, and no longer its own per-vertex copy. That copy
+   was free and it was wrong: it was fixed at the moment the field was
+   committed while the vertices carrying it were still gliding through the
+   morph that follows a re-anchor, so the shading and the surface slid at
+   different speeds and a soft edge swept over the piste every few seconds.
+   Anchored in world space and sampled per fragment, it stays put.
 
    AND IT IS NOT A FLAT LOOKUP. The field is a fact about the *snow*, and the
    thing reading it may be twenty metres above the snow: a spruce crown or a
@@ -506,8 +514,8 @@ const FRAG_CAMERA_FADE = `#include <alphamap_fragment>
    for free by testing each receiver where it actually was. So the field is
    measured twice — R on the snow, G fourteen metres over it — and B carries
    the height of the snow itself, so a fragment can work out how far above it
-   stands and read between the two. On the ground that is exactly R, which is
-   exactly what the terrain's own per-vertex copy says.
+   stands and read between the two. On the ground that is exactly R, so the
+   snow and the spruce rooted in it are reading one number and not two.
 
    It multiplies the direct light only. The sky fill still reaches a shaded
    hollow, which is what makes snow in shade blue rather than black, and it
@@ -528,8 +536,15 @@ const FRAG_SHADE = `#include <lights_fragment_maps>
     vec2 n64ShadeUv = (n64ShadeW.xz - uShadeAt.xy) * uShadeAt.z;
     // Clamped rather than wrapped, and then thrown away outside the field —
     // the border texel is not an answer about the mountain a kilometre away.
-    float n64ShadeIn = step(0.0, n64ShadeUv.x) * step(n64ShadeUv.x, 1.0)
-      * step(0.0, n64ShadeUv.y) * step(n64ShadeUv.y, 1.0);
+    /* And it lets go at its own edge rather than stopping at it. The field
+       ends at a fixed distance from the rider, so a hard cut-off would draw
+       a line across the world that swept along with them — a ring where
+       shadows begin. Fading the last fifth of the way out puts that
+       transition under the haze instead, which is the same thing a shadow
+       cascade does at its far plane and for the same reason. */
+    vec2 n64ShadeE = abs(n64ShadeUv - 0.5) * 2.0;
+    float n64ShadeIn = (1.0 - smoothstep(0.80, 1.0, n64ShadeE.x))
+      * (1.0 - smoothstep(0.80, 1.0, n64ShadeE.y));
     vec4 n64ShadeS = texture2D(uShadeMap, clamp(n64ShadeUv, 0.0, 1.0));
     // How far this fragment stands over the snow the field describes, as a
     // share of the height the second layer was measured at.

@@ -721,10 +721,13 @@ export function createRetro(THREE, renderer) {
 
   /* How fast the run is, so the velocity blur knows whether it has been
      earned. Squared, so it arrives late and then arrives properly rather
-     than creeping in across the whole speed range. */
+     than creeping in across the whole speed range — and never saturating, so
+     it keeps answering a rider who is still accelerating. */
   function setSpeed(speed) {
-    const t = Math.min(1, Math.max(0,
-      (speed - GRADE.blurFrom) / (GRADE.blurFull - GRADE.blurFrom)));
+    // Asymptotic rather than clamped — see `GRADE.blurSpan`. One `blurSpan`
+    // past `blurFrom` is halfway, and nothing ever finishes arriving.
+    const over = Math.max(0, speed - GRADE.blurFrom);
+    const t = over / (over + GRADE.blurSpan);
     const eased = t * t * (3 - 2 * t);
     const motion = reducedMotion ? 0.35 : 1;
     material.uniforms.uBlur.value = eased * eased * GRADE.blurAmount * motion;

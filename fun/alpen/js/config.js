@@ -93,9 +93,25 @@ export const GRADE = {
   // Enough to close the corners, not enough to notice. Anything past about
   // 0.2 turns a wide screen into a porthole.
   vignette: 0.12,
-  // Peripheral speed cues stay subordinate to steering and terrain detail.
-  speedVignette: 0.45,
-  aberration: 0.0045,
+  /* Peripheral speed cues stay subordinate to steering and terrain detail —
+     and they are half of what they were.
+
+     These two and `blurAmount` were doubled when the picture went from a
+     640×360 buffer to native resolution, on the reasoning that the same
+     numbers were barely perceptible at the larger size. That reasoning holds
+     for a *blur*, which is measured in screen fractions and does read
+     differently at four times the pixels. It does not hold for a vignette or
+     a channel split: both close the frame and separate the colours by the
+     same proportion whatever the resolution, so doubling them simply doubled
+     them. A fast run became a porthole with fringing on it, and the treatment
+     stopped describing the speed and started sitting on top of the game.
+
+     So all three are halved, the blur included — because the ramp under them
+     no longer clamps (see `blurSpan`) and now spends a long run climbing past
+     where the old one stopped. The ramp's shape is what carries the cue; the
+     amplitude only has to be enough to notice. */
+  speedVignette: 0.225,
+  aberration: 0.00225,
 
   /* `shoulder` is where the highlight roll-off starts, in linear light.
      Everything under it is untouched; above it the range is compressed
@@ -161,8 +177,28 @@ export const GRADE = {
      it reads — and it all still starts from nothing below `blurFrom`, so a
      slow run is as clean as it ever was. */
   blurFrom: 24,       // m/s before tunnel vision starts to become visible
-  blurFull: 48,
-  blurAmount: 0.024,
+  /* …and there is no speed at which it is finished, because there is no
+     speed at which the *rider* is finished.
+
+     This used to be `blurFull: 48` — a linear ramp clamped at forty-eight
+     metres a second, which was a defensible ceiling back when drag set a
+     terminal speed near there. The powered tuck has had no terminal speed for
+     some time, and a run spends most of its life above that mark, so the
+     three effects sat pinned at maximum for minutes together. Pinned, they
+     are not a speed cue at all: a treatment that says the same thing at a
+     hundred and seventy and at three hundred and ten is a filter over the
+     game rather than a read-out of it, and it is on hardest exactly when the
+     rider most needs to see where they are going.
+
+     So the ramp is asymptotic instead. `blurSpan` is how much speed past
+     `blurFrom` it takes to reach halfway, and the curve then keeps climbing
+     for ever without arriving — the effect is always moving with the run, and
+     it never reaches the strength the old ramp reached at a hundred and
+     seventy. It is airborne-agnostic by construction: the input is the whole
+     velocity, so a jump keeps whatever the takeoff earned and loses it again
+     with the landing. */
+  blurSpan: 10,
+  blurAmount: 0.012,
 };
 
 /* The only sky colour anything outside `weather.js` needs: the haze the
@@ -659,27 +695,31 @@ export const TERRAIN = {
      wind needs a depth pass; a mountain does not.
 
      So it is computed instead, on the same amortised build that already
-     produces the heights, and shipped as one float per vertex. For each
-     sample the terrain is walked back along the sun's own bearing and asked
-     whether anything on the way up rises above the line to the light — the
-     classic horizon test, and it gives exactly what the depth map gave: the
-     lee of every knoll, the foot of every drop, and the long bar the
-     containment wall lays across the piste at a low sun.
+     produces the heights, and shipped as one small texture that every lit
+     surface in the game samples per fragment. For each sample the terrain is
+     walked back along the sun's own bearing and asked whether anything on the
+     way up rises above the line to the light — the classic horizon test, and
+     it gives exactly what the depth map gave: the lee of every knoll, the
+     foot of every drop, and the long bar the containment wall lays across the
+     piste at a low sun.
 
-     `stride` is the one number that makes it affordable. The field is smooth
-     — a shadow edge on snow has a real penumbra, and this one is softened
-     deliberately — so it is marched on every fourth vertex and interpolated
-     between, which is sixteen times less work for a difference nobody can
-     point at. At three metres between samples in the near field it is still
-     four times finer than the features doing the casting.
+     `size` is the one number that makes it affordable. The field is smooth —
+     a shadow edge on snow has a real penumbra, and this one is softened
+     deliberately — so a hundred and four samples across is enough to carry
+     it, and at three metres a sample that is still four times finer than the
+     features doing the casting. Eleven thousand marches, not a hundred and
+     thirteen thousand triangles a frame.
 
-     `window` is [half-width, ahead, behind] in metres and is chosen to match
+     `half` is the half-width of that window in metres and is chosen to match
      what the depth map could reach in the first place: past it the ground is
-     lit, exactly as it was before. `reach` is how far back along the sun a
-     ray looks, `soften` the metres of penumbra, and `sunStep` how far the
-     sun may swing before a stationary rider is given a fresh build — the day
-     runs in three minutes, so that is a rebuild every second or so when
-     nothing else would have triggered one. */
+     lit, exactly as it was before, and the shader fades the last fifth of the
+     way out so the boundary is a gradient rather than a line. `reach` is how
+     far back along the sun a ray looks, `steps` how many samples that march
+     takes, `soften` the metres of penumbra, `raise` the height the second
+     copy of the field is measured at, and `sunStep` how far the sun may swing
+     before a stationary rider is given a fresh build — the day runs in three
+     minutes, so that is a rebuild every second or so when nothing else would
+     have triggered one. */
   shade: {
     reach: 118,
     steps: 12,
