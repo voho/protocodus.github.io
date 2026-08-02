@@ -1182,19 +1182,40 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
           dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722)));
         vec2 powderUv = mat2(0.9563, -0.2924, 0.2924, 0.9563)
           * (vWorld.xz / uSnowTile.x);
-        float macroFootprint = max(fwidth(powderUv.x), fwidth(powderUv.y)) * 32.0;
+        /* The screen footprint, taken as gradients rather than as a width,
+           because the fetch below needs the same two vectors and this is the
+           only place in the shader where they can honestly be measured.
+
+           Derivatives are only defined in *uniform* control flow: a quad
+           whose fragments disagree about a branch has no obligation to give
+           the ones inside it a meaningful rate of change. Both fetches below
+           now sit behind a distance-and-material fade, which is exactly the
+           kind of condition that splits a quad along a fade boundary — so
+           the gradients are measured out here where every fragment still
+           agrees, and handed to the fetch explicitly. A width is |ddx| plus
+           |ddy| by definition, so the footprint is unchanged.
+           (No back-ticks in here: this comment is inside a template literal.) */
+        vec2 n64MacroDx = dFdx(powderUv);
+        vec2 n64MacroDy = dFdy(powderUv);
+        float macroFootprint = max(
+          abs(n64MacroDx.x) + abs(n64MacroDy.x),
+          abs(n64MacroDx.y) + abs(n64MacroDy.y)) * 32.0;
         float macroResolve = 1.0 - smoothstep(0.35, 0.80, macroFootprint);
         float n64SurfaceFade = uSnowReady.x * macroResolve
           * (1.0 - smoothstep(80.0, 180.0, vDist)) * n64SnowMask;
-        // The fetch is now inside its own fade rather than beside it. Past a
+        // The fetch is inside its own fade rather than beside it. Past a
         // hundred and eighty metres — and on every rock face at any range —
         // the read was being multiplied by zero, and a texture fetch costs
         // the same whatever it is multiplied by. Distance is monotonic and
         // the snow/rock split is a broad vertex field, so the branch is
         // coherent across a warp instead of splitting one.
         if (n64SurfaceFade > 0.002) {
-          // Explicit positive LOD bias keeps only the plate's macro structure.
-          vec4 n64Surface = texture2D(uSnowPowder, powderUv, 4.0);
+          /* Only the plate's macro structure, four mip levels up. A LOD bias
+             of B is a scale of 2^B on the gradients, so this is the old
+             plus-four bias exactly, with the derivative taken somewhere it
+             is actually defined. */
+          vec4 n64Surface = texture2DGradEXT(uSnowPowder, powderUv,
+            n64MacroDx * 16.0, n64MacroDy * 16.0);
           diffuseColor.rgb *= 1.0 + (n64Surface.r - 0.5) * 2.0
             * uSnowAlbedo.x * n64SurfaceFade;
         }
@@ -1206,10 +1227,12 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
         // frequencies periodic across the wrap (2pi*13/64 and 2pi*40/64) —
         // the same trick n64Hash uses to keep operands mediump-honest.
         // …and most of the mountain is snow, so the whole block sits behind
-        // the mask that was already scaling its result to nothing.
+        // the mask that was already scaling its result to nothing. The
+        // coordinate and its footprint stay outside it for the reason given
+        // above: a derivative taken inside a divergent branch is undefined.
+        float n64StrataC = vWorld.y + vWorld.x * 0.22 + vWorld.z * 0.11;
+        float n64StrataFoot = fwidth(n64StrataC);
         if (n64SnowMask < 0.998) {
-          float n64StrataC = vWorld.y + vWorld.x * 0.22 + vWorld.z * 0.11;
-          float n64StrataFoot = fwidth(n64StrataC);
           float n64StrataW = mod(n64StrataC, 64.0);
           // Only faces steep enough to have shed their snow show their beds —
           // the up axis is the view matrix's second column, which is world up
@@ -1244,21 +1267,36 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
         // pixel's footprint towards the differencing step itself — past that
         // point the slope is sampling noise, and the retro pipeline would
         // resample it into shimmer. The gate is the anti-moire clause.
-        float n64DetailFoot = max(fwidth(n64DetailUv.x), fwidth(n64DetailUv.y));
+        // Gradients rather than a width, taken before the gate below for the
+        // same reason as the macro read: all three fetches are behind it,
+        // and a quad split along a fade boundary owes them nothing. The two
+        // offset reads differ from the centre one by a constant, so they
+        // share its gradients exactly.
+        vec2 n64DetailDx = dFdx(n64DetailUv);
+        vec2 n64DetailDy = dFdy(n64DetailUv);
+        float n64DetailFoot = max(
+          abs(n64DetailDx.x) + abs(n64DetailDy.x),
+          abs(n64DetailDx.y) + abs(n64DetailDy.y));
         float n64DetailFade = uSnowReady.x * n64SnowMask
           * (1.0 - smoothstep(55.0, 90.0, vDist))
           * (1.0 - smoothstep(0.5, 1.0, n64DetailFoot / n64DetailStep));
         // Three fetches, and they are the most expensive thing this material
-        // does per pixel — so they now live inside the fade that was already
+        // does per pixel — so they live inside the fade that was already
         // deciding whether their result counted. The gate closes at ninety
         // metres, which on a run looking down its own fall line is most of
         // the frame, and closes immediately on rock and at grazing angles.
         if (n64DetailFade > 0.002) {
-          float n64DetailC = texture2D(uSnowPowder, n64DetailUv, 1.0).g;
-          float n64DetailX = texture2D(uSnowPowder,
-            n64DetailUv + vec2(0.9563, -0.2924) * n64DetailStep, 1.0).g;
-          float n64DetailZ = texture2D(uSnowPowder,
-            n64DetailUv + vec2(0.2924, 0.9563) * n64DetailStep, 1.0).g;
+          // One mip up, as a gradient scale of two: the old plus-one bias.
+          vec2 n64DetailGx = n64DetailDx * 2.0;
+          vec2 n64DetailGy = n64DetailDy * 2.0;
+          float n64DetailC = texture2DGradEXT(uSnowPowder, n64DetailUv,
+            n64DetailGx, n64DetailGy).g;
+          float n64DetailX = texture2DGradEXT(uSnowPowder,
+            n64DetailUv + vec2(0.9563, -0.2924) * n64DetailStep,
+            n64DetailGx, n64DetailGy).g;
+          float n64DetailZ = texture2DGradEXT(uSnowPowder,
+            n64DetailUv + vec2(0.2924, 0.9563) * n64DetailStep,
+            n64DetailGx, n64DetailGy).g;
           // A heightfield's normal is (-dh/dx, 1, -dh/dz); the lean is built
           // in the world frame the offsets were taken in, then rotated through
           // the view matrix to join the view-space normal. The gain is

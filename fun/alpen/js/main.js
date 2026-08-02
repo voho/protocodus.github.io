@@ -1161,6 +1161,22 @@ window.__alpen = {
   }),
 };
 
+/* The sun, before the ground it has to light.
+
+   `restart` performs the first terrain fill synchronously, and that fill now
+   marches the mountain's own shadow — so if the sun has not been decided by
+   then, the opening frames are shadowed from `terrain.js`'s placeholder
+   direction rather than from wherever the weather actually put it, at full
+   strength, until the first re-anchor six metres down the hill rebuilds it.
+   A zero-length weather tick advances no clock and a zero-length sky tick
+   moves nothing that integrates; between them they settle the azimuth, the
+   elevation and the shadow's own fade, which is all the fill needs. */
+{
+  const w0 = weather.update(0);
+  sky.update(rider.pos, w0, 0);
+  terrain.setSun(sky.sunDir.x, sky.sunDir.y, sky.sunDir.z, sky.shadowLevel);
+}
+
 restart();
 game.mode = 'attract';
 showMuted(audio.muted);
