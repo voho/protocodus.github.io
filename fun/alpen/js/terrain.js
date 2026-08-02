@@ -899,31 +899,38 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     return lo + (hi - lo) * tr;
   }
 
-  /* Which vertices are inside the window at all, resolved once as index
-     bounds. Everything outside is fully lit and costs nothing — the same
-     bargain the depth map struck by simply not reaching that far.
-     `shadeStride` is spelt out because `stride` further down this file is the
-     anchor's, and the two are unrelated numbers. */
-  const shadeStride = SHADE.stride;
-  let shadeC0 = vertsX - 1;
-  let shadeC1 = 0;
-  let shadeR0 = vertsZ - 1;
-  let shadeR1 = 0;
-  for (let c = 0; c < vertsX; c++) {
-    if (Math.abs(xs[c]) > SHADE.window[0]) continue;
-    if (c < shadeC0) shadeC0 = c;
-    if (c > shadeC1) shadeC1 = c;
-  }
-  for (let r = 0; r < vertsZ; r++) {
-    // zs is positive behind the rider and negative ahead of them
-    if (zs[r] > SHADE.window[2] || zs[r] < -SHADE.window[1]) continue;
-    if (r < shadeR0) shadeR0 = r;
-    if (r > shadeR1) shadeR1 = r;
-  }
-  const shadeCols = Math.max(2, Math.ceil((shadeC1 - shadeC0) / shadeStride) + 1);
-  const shadeRows = Math.max(2, Math.ceil((shadeR1 - shadeR0) / shadeStride) + 1);
-  const shadeGrid = new Float32Array(shadeCols * shadeRows);
+  /* The lattice the shade actually lives on, and it is uniform where the mesh
+     is graded. That is deliberate and it is what makes one march serve two
+     consumers: the terrain reads it per vertex, where it is free, and every
+     other lit surface in the game reads the same numbers out of a small
+     texture — so a tree standing in a shadow and the ground under it cannot
+     disagree about whether the sun is out, which is the artifact this whole
+     arrangement exists to avoid. See `SHADE.half`. */
+  const shadeSize = SHADE.size;
+  const shadeHalf = SHADE.half;
+  const shadeTexel = (2 * shadeHalf) / shadeSize;
+  const shadeGrid = new Float32Array(shadeSize * shadeSize);
   shadeGrid.fill(1);
+  // Sample i sits at (i + 0.5) texels from the low edge, which is exactly
+  // where a texture filter expects to find it.
+  const shadeAxisAt = (i) => (i + 0.5) * shadeTexel - shadeHalf;
+
+  /* The same field, as eight bits of texture for everything that is not the
+     ground. Red-only and a hundred and twenty-eight square: sixteen kilobytes,
+     resident in cache, one filtered fetch. `shading.js` owns the sampling —
+     this only owns the numbers and where in the world they are. */
+  const shadeData = new Uint8Array(shadeSize * shadeSize);
+  shadeData.fill(255);
+  const shadeTexture = new THREE.DataTexture(
+    shadeData, shadeSize, shadeSize, THREE.RedFormat, THREE.UnsignedByteType,
+  );
+  shadeTexture.colorSpace = THREE.NoColorSpace;
+  shadeTexture.minFilter = THREE.LinearFilter;
+  shadeTexture.magFilter = THREE.LinearFilter;
+  shadeTexture.wrapS = THREE.ClampToEdgeWrapping;
+  shadeTexture.wrapT = THREE.ClampToEdgeWrapping;
+  shadeTexture.generateMipmaps = false;
+  shadeTexture.needsUpdate = true;
 
   // The ray's sample distances, geometric so the near field — where a lip or
   // a knoll rim actually cuts the light — is resolved finely and the far half
@@ -958,11 +965,21 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   /* Where every ray's k-th sample lands, resolved once per build rather than
      once per sample. The march direction is the same everywhere, so the x of
      a sample depends only on which column it started from and the z only on
-     which row — a separable pair of tables, sixteen hundred lookups instead
-     of a hundred thousand, and the inner loop left with nothing in it but
-     four array reads. */
-  const shadeFc = new Float32Array(shadeCols * SHADE.steps);
-  const shadeFr = new Float32Array(shadeRows * SHADE.steps);
+     which row — a separable pair of tables, three thousand axis lookups
+     instead of two hundred thousand, and the inner loop left with nothing in
+     it but four array reads. */
+  /* Whole lattice indices, not fractional ones. Every other read of the
+     height grid in this file interpolates, and this one deliberately does
+     not: a horizon test takes the *maximum* rise along a ray, so what it
+     needs from each sample is whether anything is in the way, not a smooth
+     estimate of how much. Nearest is one read where bilinear is four reads
+     and three interpolations, on the innermost loop of the whole build —
+     and on a 75 cm lattice under a soft 1.5 m penumbra there is nothing in
+     the difference to see. The rows are pre-multiplied by the row stride,
+     so the inner loop is one add and one load. */
+  const shadeFc = new Int32Array(shadeSize * SHADE.steps);
+  const shadeFr = new Int32Array(shadeSize * SHADE.steps);
+  const shadeCx = new Float32Array(shadeSize);
 
   function buildShadeGrid() {
     builtSunX = buildSunX;
@@ -973,6 +990,8 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     // has already faded out — throws nothing worth marching for.
     if (flat < 1e-3 || buildSunY <= 0.01) {
       shadeGrid.fill(1);
+      shadeData.fill(255);
+      shadeTexture.needsUpdate = true;
       return;
     }
     const steps = SHADE.steps;
@@ -981,56 +1000,58 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     const climb = buildSunY / flat;
     const invSoft = 1 / SHADE.soften;
 
-    for (let ci = 0; ci < shadeCols; ci++) {
-      const lx = xs[Math.min(shadeC1, shadeC0 + ci * shadeStride)];
+    for (let i = 0; i < shadeSize; i++) {
+      const l = shadeAxisAt(i);
       for (let k = 0; k < steps; k++) {
-        shadeFc[ci * steps + k] = axisAt(xAxis, lx + dx * shadeStep[k]);
-      }
-    }
-    for (let ri = 0; ri < shadeRows; ri++) {
-      const lz = zs[Math.min(shadeR1, shadeR0 + ri * shadeStride)];
-      for (let k = 0; k < steps; k++) {
-        shadeFr[ri * steps + k] = axisAt(zAxis, lz + dz * shadeStep[k]);
+        shadeFc[i * steps + k] = Math.round(axisAt(xAxis, l + dx * shadeStep[k]));
+        shadeFr[i * steps + k] = Math.round(axisAt(zAxis, l + dz * shadeStep[k]))
+          * vertsX;
       }
     }
 
+    // Where each lattice column sits in the mesh's own graded lattice, which
+    // is a column property and was being asked once per sample.
+    for (let ci = 0; ci < shadeSize; ci++) shadeCx[ci] = axisAt(xAxis, shadeAxisAt(ci));
+
     let g = 0;
-    for (let ri = 0; ri < shadeRows; ri++) {
-      const r = Math.min(shadeR1, shadeR0 + ri * shadeStride);
-      const row = r * vertsX;
+    for (let ri = 0; ri < shadeSize; ri++) {
+      const fr = axisAt(zAxis, shadeAxisAt(ri));
       const rBase = ri * steps;
-      for (let ci = 0; ci < shadeCols; ci++, g++) {
-        const c = Math.min(shadeC1, shadeC0 + ci * shadeStride);
-        const h = heights[row + c];
+      for (let ci = 0; ci < shadeSize; ci++, g++) {
+        const h = gridHeight(shadeCx[ci], fr);
         const cBase = ci * steps;
         let worst = 0;
         for (let k = 0; k < steps; k++) {
-          const rise = gridHeight(shadeFc[cBase + k], shadeFr[rBase + k])
+          const rise = heights[shadeFr[rBase + k] + shadeFc[cBase + k]]
             - (h + climb * shadeStep[k]);
           if (rise > worst) worst = rise;
         }
         // Soft, because the sun is half a degree wide and because a hard edge
-        // sampled every fourth vertex would show the sampling.
+        // at three metres a sample would show the sampling.
         const t = worst * invSoft;
-        shadeGrid[g] = t <= 0 ? 1 : t >= 1 ? 0 : 1 - t * t * (3 - 2 * t);
+        const lit = t <= 0 ? 1 : t >= 1 ? 0 : 1 - t * t * (3 - 2 * t);
+        shadeGrid[g] = lit;
+        shadeData[g] = (lit * 255) | 0;
       }
     }
+    shadeTexture.needsUpdate = true;
   }
 
-  /* Read the coarse grid back at a vertex. `shadeStride` is a whole number of
-     lattice steps, so the bracket is arithmetic rather than a search. */
-  function shadeAt(r, c) {
-    if (r < shadeR0 || r > shadeR1 || c < shadeC0 || c > shadeC1) return 1;
-    const uc = (c - shadeC0) / shadeStride;
-    const ur = (r - shadeR0) / shadeStride;
-    let ci = uc | 0;
-    let ri = ur | 0;
-    if (ci > shadeCols - 2) ci = shadeCols - 2;
-    if (ri > shadeRows - 2) ri = shadeRows - 2;
-    const tc = uc - ci;
-    const tr = ur - ri;
-    const a = ri * shadeCols + ci;
-    const b = a + shadeCols;
+  /* Read the field back at a point in the mesh's own local frame. The lattice
+     is uniform, so this is arithmetic rather than a search — which is the
+     other half of why it is uniform. */
+  function shadeAtLocal(lx, lz) {
+    const u = (lx + shadeHalf) / shadeTexel - 0.5;
+    const v = (lz + shadeHalf) / shadeTexel - 0.5;
+    if (u <= -1 || v <= -1 || u >= shadeSize || v >= shadeSize) return 1;
+    let c0 = u < 0 ? 0 : u | 0;
+    let r0 = v < 0 ? 0 : v | 0;
+    if (c0 > shadeSize - 2) c0 = shadeSize - 2;
+    if (r0 > shadeSize - 2) r0 = shadeSize - 2;
+    const tc = u < 0 ? 0 : u > shadeSize - 1 ? 1 : u - c0;
+    const tr = v < 0 ? 0 : v > shadeSize - 1 ? 1 : v - r0;
+    const a = r0 * shadeSize + c0;
+    const b = a + shadeSize;
     const lo = shadeGrid[a] + (shadeGrid[a + 1] - shadeGrid[a]) * tc;
     const hi = shadeGrid[b] + (shadeGrid[b + 1] - shadeGrid[b]) * tc;
     return lo + (hi - lo) * tr;
@@ -1136,7 +1157,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       uSnowReady: snowReady,
       uSnowTile: snowTile,
       uSnowAlbedo: snowAlbedo,
-      uShadeLevel: shadeLevel,
+      uGroundShade: shadeLevel,
     });
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>
@@ -1162,7 +1183,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
         uniform vec2 uSnowReady;
         uniform vec2 uSnowTile;
         uniform vec2 uSnowAlbedo;
-        uniform float uShadeLevel;`)
+        uniform float uGroundShade;`)
       /* The mountain's own shadow, spent between the direct accumulation and
          the indirect one — which is exactly what `lights_fragment_maps` sits
          between in the Lambert program. Only the sun is removed; the sky fill
@@ -1176,7 +1197,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
          snow's sheen, its glints and its reflected sun into the same shadow
          as its diffuse, without either side knowing the other exists. */
       .replace('#include <lights_fragment_maps>', `#include <lights_fragment_maps>
-        reflectedLight.directDiffuse *= mix(1.0, vTerrainShade, uShadeLevel);`)
+        reflectedLight.directDiffuse *= mix(1.0, vTerrainShade, uGroundShade);`)
       .replace('#include <color_fragment>', `#include <color_fragment>
         float n64SnowMask = smoothstep(0.42, 0.62,
           dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722)));
@@ -1310,7 +1331,11 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   /* Keep direction-aware atmospheric fog and continuous Lambert response,
      then add the analytic snow/ice microfacet reflection that nothing else on
      the mountain receives. */
-  shading.apply(material, { sheen: 1 });
+  /* `shade: false` because this material already has the field per vertex,
+     which is free — the shared sampler below exists for everything that does
+     not have a vertex of the mountain to read it off. Two consumers, one
+     march, and no way for them to disagree. */
+  shading.apply(material, { sheen: 1, shade: false });
   material.userData.snowSurfaces = {
     powder: powderSurface,
     ready: snowReady,
@@ -1648,7 +1673,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
           * (1 - rock) * reliefReflect;
         // …and the sun the mountain's own shape has or has not left here,
         // read back off the coarse horizon grid marched before this pass.
-        outSurface[i * 2 + 1] = shadeAt(r, c);
+        outSurface[i * 2 + 1] = shadeAtLocal(lx, lz);
 
         outColors[p] = cr;
         outColors[p + 1] = cg;
@@ -1666,6 +1691,17 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     fillSurfaceRows(
       ax, az, ay, outPositions, outNormals, outColors, outSurface,
       0, vertsZ,
+    );
+  }
+
+  /* Where the shade lattice is standing in the world, for the shared sampler.
+     It is published at commit rather than per frame because that is the only
+     moment it moves: the lattice is anchored to the mesh, and the mesh
+     re-anchors in whole strides. */
+  function publishShade() {
+    shading.uniforms.uShadeMap.value = shadeTexture;
+    shading.uniforms.uShadeAt.value.set(
+      anchorX - shadeHalf, anchorZ - shadeHalf, 1 / (2 * shadeHalf),
     );
   }
 
@@ -1833,6 +1869,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     anchorZ = next.az;
     anchorY = next.ay;
     mesh.position.set(anchorX, anchorY, anchorZ);
+    publishShade();
     morphAge = 0;
     morphing = true;
     morphSnap = true;
@@ -1884,6 +1921,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       anchorY = ay;
       mesh.position.set(ax, ay, az);
       fill(ax, az, ay, positions, normals, colors, surface);
+      publishShade();
       publish();
       return;
     }
@@ -1926,6 +1964,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     sunZ = dirZ;
     sunLevel = level;
     shadeLevel.value = level;
+    shading.uniforms.uShadeLevel.value = level;
   }
 
   return {
@@ -1935,7 +1974,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     vertexCount: count,
     debug: () => ({
       anchorX, anchorY, anchorZ, morphing, morphAge,
-      shade: [shadeCols, shadeRows, +shadeLevel.value.toFixed(2)],
+      shade: [shadeSize, +shadeTexel.toFixed(2), +shadeLevel.value.toFixed(2)],
       building: build ? { stage: build.stage, row: build.row, rows: vertsZ } : null,
     }),
   };

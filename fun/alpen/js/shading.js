@@ -193,6 +193,9 @@ uniform float uSheen;
 uniform float uSnowFresh;
 uniform float uCloud;
 uniform vec2 uCloudDrift;
+uniform sampler2D uShadeMap;
+uniform vec3 uShadeAt;
+uniform float uShadeLevel;
 
 ${SKY_GLSL}
 
@@ -476,6 +479,50 @@ const FRAG_FOG = `
 const FRAG_CAMERA_FADE = `#include <alphamap_fragment>
   diffuseColor.a *= smoothstep(2.2, 6.5, length(vN64View));`;
 
+/* THE MOUNTAIN'S SHADOW, on everything that is standing in it.
+
+   `terrain.js` marches the sun's horizon over the height field and keeps the
+   answer; the ground reads it per vertex, where it is free. Nothing else has
+   a vertex of the mountain to read it off, and until this existed nothing
+   else was shadowed by the mountain at all — the depth map holds only the
+   things that genuinely move through the light, so a tree at the foot of the
+   containment wall stood in full sun inside the bar the wall was laying
+   across the piste. Two things in the same picture disagreeing about whether
+   the sun is out is a worse artifact than either of them being wrong alone.
+
+   So the same field arrives here as a 128-square single-channel texture —
+   sixteen kilobytes, one filtered fetch — placed in the world by `uShadeAt`:
+   xy is the corner it starts at and z is one over its span. Outside it
+   nothing is known and therefore nothing is shadowed, which is the same
+   bargain the depth map struck by not reaching that far.
+
+   It multiplies the direct light only. The sky fill still reaches a shaded
+   hollow, which is what makes snow in shade blue rather than black, and it
+   is the same split a real cast shadow makes. And it sits at
+   `lights_fragment_maps` — between the direct accumulation and the indirect
+   one — so the snow response's recovered shadow term downstream sees it and
+   takes the reflected sun out of the same shade.
+
+   The world position is rebuilt from the view varying rather than carried as
+   a second one, for the reason given beside the fog: a view position has
+   already been through instancing, batching and skinning and a world one has
+   not. */
+const FRAG_SHADE = `#include <lights_fragment_maps>
+  if (uShadeLevel > 0.002) {
+    float n64ShadeD = length(vN64View);
+    vec3 n64ShadeW = cameraPosition
+      + (vN64View * (1.0 / max(n64ShadeD, 1e-4)) * mat3(viewMatrix)) * n64ShadeD;
+    vec2 n64ShadeUv = (n64ShadeW.xz - uShadeAt.xy) * uShadeAt.z;
+    // Clamped rather than wrapped, and then thrown away outside the field —
+    // the border texel is not an answer about the mountain a kilometre away.
+    float n64ShadeIn = step(0.0, n64ShadeUv.x) * step(n64ShadeUv.x, 1.0)
+      * step(0.0, n64ShadeUv.y) * step(n64ShadeUv.y, 1.0);
+    float n64Shade = texture2D(uShadeMap, clamp(n64ShadeUv, 0.0, 1.0)).r;
+    reflectedLight.directDiffuse *= 1.0
+      - (1.0 - n64Shade) * n64ShadeIn * uShadeLevel;
+  }`;
+
+const SHADE_ANCHOR = '#include <lights_fragment_maps>';
 const LIGHT_ANCHOR = '#include <lights_fragment_end>';
 const FOG_ANCHOR = '#include <fog_fragment>';
 const ALPHA_ANCHOR = '#include <alphamap_fragment>';
@@ -518,6 +565,23 @@ export function createShading(THREE) {
     // copies at the same moment — see `SKY_GLSL`.
     uCloud: { value: 0 },
     uCloudDrift: { value: new THREE.Vector2() },
+    /* The mountain's own shadow — see `FRAG_SHADE`. `terrain.js` owns all
+       three: the field, where in the world it is standing, and how much of it
+       this hour is worth. The map starts as a one-texel white so a material
+       compiled before the first terrain build is simply unshadowed rather
+       than sampling nothing. */
+    uShadeMap: {
+      value: (() => {
+        const t = new THREE.DataTexture(
+          new Uint8Array([255]), 1, 1, THREE.RedFormat, THREE.UnsignedByteType,
+        );
+        t.colorSpace = THREE.NoColorSpace;
+        t.needsUpdate = true;
+        return t;
+      })(),
+    },
+    uShadeAt: { value: new THREE.Vector3(0, 0, 0) },
+    uShadeLevel: { value: 0 },
   };
 
   const viewInv = new THREE.Matrix4();
@@ -556,6 +620,9 @@ export function createShading(THREE) {
     const sheen = opts.sheen === undefined ? 0 : opts.sheen;
     const wantFog = opts.fog !== false;
     const cameraFade = opts.cameraFade === true;
+    // Only the ground opts out, because the ground already has this per
+    // vertex. Everything else that has a light loop to patch gets it.
+    const wantShade = opts.shade !== false;
     // Keep the snow response live-tunable without recompiling a material.
     const own = {
       uSheen: { value: sheen },
@@ -577,6 +644,11 @@ export function createShading(THREE) {
       if (cameraFade && frag.indexOf(ALPHA_ANCHOR) !== -1) {
         frag = frag.replace(ALPHA_ANCHOR, FRAG_CAMERA_FADE);
       }
+      // Unlit materials have no light loop to shade, and the two anchors
+      // below are how that is detected rather than asserted.
+      if (wantShade && frag.indexOf(SHADE_ANCHOR) !== -1) {
+        frag = frag.replace(SHADE_ANCHOR, FRAG_SHADE);
+      }
       // Only a lit material exposes the light-loop anchor used by the snow
       // response. The custom fog owns Three's fog slot on opaque surfaces.
       if (sheen > 0 && frag.indexOf(LIGHT_ANCHOR) !== -1) {
@@ -590,7 +662,7 @@ export function createShading(THREE) {
     };
 
     const key = `alpen|${sheen > 0 ? 'p' : ''}|${wantFog ? 'f' : ''}`
-      + `|${cameraFade ? 'c' : ''}`
+      + `|${cameraFade ? 'c' : ''}|${wantShade ? 's' : ''}`
       + `|${hadPrev ? prev.toString() : ''}`;
     material.customProgramCacheKey = () => key;
 
