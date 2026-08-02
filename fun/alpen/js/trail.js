@@ -16,7 +16,13 @@
    No longitudinal texture or shader noise is used. Edge breakup comes from
    three low-pass random walks sampled into the geometry, and narrow cut
    accents are derivative-filtered. That keeps the extra detail from reviving
-   the lower-screen moire the terrain work removed. */
+   the lower-screen moire the terrain work removed.
+
+   The GPU sees the ring incrementally. Committed sections never move, so
+   each frame re-derives normals and uploads attributes only for the slots it
+   actually wrote; the index is an appended log of pair blocks consumed
+   through the draw range; and the age fade is one clock uniform against
+   per-vertex birth stamps instead of a re-streamed buffer. */
 
 import { TRAIL } from './config.js';
 import { heightAt } from './terrain.js';
@@ -81,7 +87,8 @@ const TRACK_VERT_PARS = `
   attribute float aVariation;
   attribute vec3 aTrackBaseNormal;
   attribute vec4 aTrack;    // wash, edge bite, brake, loaded/push side
-  attribute vec2 aLife;     // remaining weight, normalised age
+  attribute vec2 aBorn;     // section birth time, frozen pressure walk
+  uniform float uTrackNow;
   varying float vTrackCross;
   varying float vTrackVariation;
   varying vec4 vTrackState;
@@ -93,9 +100,23 @@ const TRACK_VERT = `
   vTrackCross = aCross;
   vTrackVariation = aVariation;
   vTrackState = aTrack;
-  vTrackLife = aLife;
   vTrackBaseNormal = normalize(normalMatrix * aTrackBaseNormal);
   vTrackDepth = -mvPosition.z;
+
+  // The fade is a pure function of birth time and the frozen pressure walk,
+  // both stamped once at commit, so it is evaluated here against a single
+  // clock uniform instead of streaming a fresh weight buffer over every live
+  // vertex each frame. This is the former CPU formula verbatim, computed in
+  // the always-highp vertex stage where the run clock keeps sub-millisecond
+  // precision for hours.
+  float n64TrackVertAge = (uTrackNow - aBorn.x) / ${n(TRAIL.life)};
+  float n64TrackVertFade = clamp((n64TrackVertAge - ${n(FADE_START)})
+    / (1.0 - ${n(FADE_START)}), 0.0, 1.0);
+  float n64TrackVertOrganic = clamp(n64TrackVertFade + aBorn.y * 0.16
+    * n64TrackVertFade * (1.0 - n64TrackVertFade), 0.0, 1.0);
+  float n64TrackVertSettle = n64TrackVertOrganic * n64TrackVertOrganic
+    * (3.0 - 2.0 * n64TrackVertOrganic);
+  vTrackLife = vec2(1.0 - n64TrackVertSettle, n64TrackVertAge);
 
   // The board compresses and polishes the floor while the deposited bank is
   // newly aerated powder. The shared snow response turns this broad field
@@ -107,8 +128,13 @@ const TRACK_VERT = `
     abs(n64TrackVertA - ${n(TRENCH.ridge)}));
   float n64TrackVertPack = clamp(aTrack.x * 0.48 + aTrack.z * 0.34
     + aTrack.y * 0.30, 0.0, 1.0);
+  // A just-cut floor is pressure-polished and glints; within the settle time
+  // the crystals recover and the same mark dulls back towards packed powder.
+  // The freshness window matches the fragment stage's n64Fresh exactly.
+  float n64TrackVertFresh = 1.0 - smoothstep(0.025, ${n(TRENCH.settle)},
+    n64TrackVertAge);
   vN64Ice = n64TrackVertBed * (0.48 + n64TrackVertPack * 0.44)
-    * (1.0 - n64TrackVertBank);`;
+    * (1.0 - n64TrackVertBank) * (0.30 + n64TrackVertFresh * 0.70);`;
 
 const TRACK_FRAG_PARS = `
   uniform vec3 uTrackPacked;
@@ -197,7 +223,14 @@ const TRACK_COLOR = `
     clamp(n64GrooveWeight / max(n64TrackWeight, 0.001), 0.0, 1.0));
   n64TrackAlbedo = mix(n64TrackAlbedo, uTrackRidge,
     clamp(n64RidgeWeight / max(n64TrackWeight, 0.001), 0.0, 0.86));
-  diffuseColor.rgb = n64TrackAlbedo;`;
+  // What little sky reaches the floor of a cut arrives through a narrower
+  // opening, so the concave lanes are shaded by the section masks already in
+  // hand: the packed bed loses a tenth, the groove — while its walls are
+  // still sharp and fresh — up to another fifth. Both masks carry the
+  // screen-space filtering above, so the darkening converges with distance
+  // instead of surviving as a full-strength dark rail.
+  diffuseColor.rgb = n64TrackAlbedo * (1.0 - n64TrackBed * 0.10
+    - n64TrackGroove * n64Fresh * 0.22);`;
 
 const TRACK_ALPHA = `
   float n64TrackDistance = 1.0 - smoothstep(${n(DISTANCE_FADE_NEAR)},
@@ -231,7 +264,7 @@ export function createTrail(THREE, shading) {
   const cross = new Float32Array(verts);
   const variation = new Float32Array(verts);
   const track = new Float32Array(verts * 4);
-  const life = new Float32Array(verts * 2);
+  const birth = new Float32Array(verts * 2);
   const born = new Float64Array(N);
   const opens = new Uint8Array(N);
   const edgeWalkL = new Float32Array(N);
@@ -247,12 +280,30 @@ export function createTrail(THREE, shading) {
   const clodRandA = new Float32Array(clodCapacity);
   const clodRandB = new Float32Array(clodCapacity);
   const clodRandC = new Float32Array(clodCapacity);
-  const indexCount = (N - 1) * (L - 1) * 6;
-  const index = new (verts > 65535 ? Uint32Array : Uint16Array)(indexCount);
+  /* The index is not rebuilt per commit. It is a chronological log of pair
+     blocks: each commit appends the (L-1)*6 indices joining the new section
+     to its predecessor, pruning advances the draw range past the oldest
+     blocks, and only when the log runs out of room is it repacked. The log
+     is twice the live pair count for exactly that reason — a full ring holds
+     N-1 pairs, so a log of the same size would have no spare room and would
+     repack on every commit instead of every ~150 metres. `blockSlot` records
+     which section each block flows into, which is all pruning needs to know
+     to recognise its pair at the front of the log. */
+  const BLOCK = (L - 1) * 6;
+  const LOG_BLOCKS = (N - 1) * 2;
+  const index = new (verts > 65535 ? Uint32Array : Uint16Array)(
+    LOG_BLOCKS * BLOCK,
+  );
+  const blockSlot = new Uint16Array(LOG_BLOCKS);
 
   for (let slot = 0; slot < N; slot++) {
     born[slot] = -1e9;
-    for (let lane = 0; lane < L; lane++) cross[slot * L + lane] = SECTION[lane];
+    for (let lane = 0; lane < L; lane++) {
+      cross[slot * L + lane] = SECTION[lane];
+      // A slot that has never been taken must fade to nothing if it is ever
+      // sampled: an impossibly old birth time does that in the shader.
+      birth[(slot * L + lane) * 2] = -1e9;
+    }
   }
 
   const dynamic = (array, size) => new THREE.BufferAttribute(array, size)
@@ -264,16 +315,25 @@ export function createTrail(THREE, shading) {
   geo.setAttribute('aCross', new THREE.BufferAttribute(cross, 1));
   geo.setAttribute('aVariation', dynamic(variation, 1));
   geo.setAttribute('aTrack', dynamic(track, 4));
-  geo.setAttribute('aLife', dynamic(life, 2));
-  geo.setIndex(new THREE.BufferAttribute(index, 1));
+  geo.setAttribute('aBorn', dynamic(birth, 2));
+  geo.setIndex(dynamic(index, 1));
   geo.setDrawRange(0, 0);
   geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e6);
+
+  /* Ranged uploads must be widened back to full ones after a rebase or an
+     index repack, because both rewrite regions no queued range covers. The
+     renderer consumes and clears ranges at the actual GPU copy, so these
+     flags only need to survive until then — onUpload is that moment, and it
+     fires for full and ranged uploads alike. */
+  geo.attributes.position.onUpload(() => { positionFull = false; });
+  geo.index.onUpload(() => { indexFull = false; });
 
   const trackUniforms = {
     uTrackPacked: { value: new THREE.Color(SNOW.packed) },
     uTrackGroove: { value: new THREE.Color(SNOW.groove) },
     uTrackRidge: { value: new THREE.Color(SNOW.ridge) },
     uTrackOpacity: { value: TRAIL.opacity },
+    uTrackNow: { value: 0 },
   };
 
   /* Start from a normal lit surface, then add only the state-driven section
@@ -387,7 +447,13 @@ export function createTrail(THREE, shading) {
   let head = -1;       // current live sample
   let count = 0;
   let open = false;
-  let dirty = false;
+  let freshTakes = 0;  // ring slots opened since the last attribute flush
+  let blockStart = 0;  // oldest live pair block in the index log
+  let blockEnd = 0;    // one past the newest live pair block
+  let positionFull = false; // a rebase rewrote every vertex; upload it all
+  let indexFull = false;    // the log was repacked; same rule for the index
+  let clodsDue = true;      // a rebase moved the anchor under baked matrices
+  let clodPhase = 0;
   let chewL = 0;
   let chewR = 0;
   let variationWalk = 0;
@@ -427,13 +493,20 @@ export function createTrail(THREE, shading) {
     anchorY = ay;
     anchorZ = az;
     mesh.position.set(ax, ay, az);
+    // Every vertex just moved, so the frame's ranged uploads must not narrow
+    // this one; the flag clears when the full copy actually reaches the GPU.
+    geo.attributes.position.clearUpdateRanges();
     geo.attributes.position.needsUpdate = true;
+    positionFull = true;
+    // Clod matrices bake the anchor; a stale one would teleport by a stride.
+    clodsDue = true;
   }
 
   /* Open one ring slot and give it spatially correlated irregularity. The
      walk is drawn once per section and then frozen; a live section can be
      rewritten sixty times without boiling. */
   function take(starting) {
+    const wasFull = count === N;
     head = head < 0 ? 0 : (head + 1) % N;
     if (count < N) count += 1;
     opens[head] = starting ? 1 : 0;
@@ -454,7 +527,43 @@ export function createTrail(THREE, shading) {
       clodRandC[id] = Math.random();
       clodSize[id] = 0;
     }
-    dirty = true;
+    /* Advancing the head of a full ring silently drops the old tail, and
+       with it the pair that connected the tail forward. That pair — when a
+       stroke break did not already omit it — is by construction the oldest
+       block in the log, so recognising it is one comparison. */
+    if (wasFull) {
+      const newTail = (head - count + 1 + N) % N;
+      if (blockStart < blockEnd && blockSlot[blockStart] === newTail) {
+        blockStart += 1;
+      }
+    }
+    if (!opens[head] && count > 1) appendPair();
+    freshTakes += 1;
+  }
+
+  /* Join the fresh head to its predecessor by appending one pair block at
+     the end of the log. The block only names vertex ids, and slot ids never
+     change while a section lives, so it stays valid however often the live
+     head is rewritten afterwards. */
+  function appendPair() {
+    if (blockEnd >= LOG_BLOCKS) {
+      stitch();
+      return;
+    }
+    const prev = (head + N - 1) % N;
+    let t = blockEnd * BLOCK;
+    for (let lane = 0; lane < L - 1; lane++) {
+      const a = prev * L + lane;
+      const b = a + 1;
+      const c = head * L + lane;
+      const d = c + 1;
+      index[t++] = a; index[t++] = b; index[t++] = c;
+      index[t++] = b; index[t++] = d; index[t++] = c;
+    }
+    blockSlot[blockEnd] = head;
+    if (!indexFull) geo.index.addUpdateRange(blockEnd * BLOCK, BLOCK);
+    geo.index.needsUpdate = true;
+    blockEnd += 1;
   }
 
   /* Height relative to the carrier's clearance plane. The profile spends
@@ -637,16 +746,33 @@ export function createTrail(THREE, shading) {
       const tail = (head - count + 1 + N) % N;
       if (now - born[tail] < TRAIL.life) break;
       count -= 1;
-      dirty = true;
+      // Retiring the tail also retires its forward pair, which is the
+      // oldest live block when a stroke break did not already omit it.
+      // Only the draw range moves; the index bytes need no new upload.
+      const pairCur = (tail + 1) % N;
+      if (blockStart < blockEnd && blockSlot[blockStart] === pairCur) {
+        blockStart += 1;
+      }
+    }
+    // An empty mark lets the log rewind to the front for free.
+    if (count === 0) {
+      blockStart = 0;
+      blockEnd = 0;
     }
   }
 
+  /* Full repack of the index log — now the exception rather than the rule,
+     reached only when appends exhaust the log's spare half. Any ranged
+     updates queued earlier this frame would narrow the resulting upload to
+     a stale sliver, so they are cleared and `indexFull` holds every append
+     to full uploads until the copy actually happens. */
   function stitch() {
-    let t = 0;
+    let block = 0;
     for (let k = 1; k < count; k++) {
       const cur = (head - count + 1 + k + N) % N;
       if (opens[cur]) continue;
       const prev = (cur + N - 1) % N;
+      let t = block * BLOCK;
       for (let lane = 0; lane < L - 1; lane++) {
         const a = prev * L + lane;
         const b = a + 1;
@@ -655,25 +781,37 @@ export function createTrail(THREE, shading) {
         index[t++] = a; index[t++] = b; index[t++] = c;
         index[t++] = b; index[t++] = d; index[t++] = c;
       }
+      blockSlot[block] = cur;
+      block += 1;
     }
+    blockStart = 0;
+    blockEnd = block;
+    geo.index.clearUpdateRanges();
     geo.index.needsUpdate = true;
-    geo.setDrawRange(0, t);
+    indexFull = true;
   }
 
   /* The section derivative alone makes a varying bank look extruded along
      the run. Rebuild active normals from both tangents after the live section
      has moved: pressure packets, broken walls and clod-sized undulations then
      catch the sun longitudinally as well as across the board. Ring openings
-     are hard boundaries, so a jump never lends its tangent to the next mark. */
-  function recomputeNormals() {
-    if (!count) return;
-    const tail = (head - count + 1 + N) % N;
-    for (let k = 0; k < count; k++) {
-      const slot = (tail + k) % N;
+     are hard boundaries, so a jump never lends its tangent to the next mark.
+
+     Only a span at the head is rebuilt. Committed sections never move — a
+     rebase is pure translation, which preserves every difference these
+     tangents are made of — so the slots written this frame, plus the one
+     predecessor whose forward difference now reaches the moved head, are the
+     only normals that can have changed. */
+  function recomputeNormals(span) {
+    if (!count || !span) return;
+    const first = (head - span + 1 + N) % N;
+    for (let k = 0; k < span; k++) {
+      const slot = (first + k) % N;
+      const liveIndex = count - span + k;
       let before = slot;
       let after = slot;
-      if (k > 0 && !opens[slot]) before = (slot + N - 1) % N;
-      if (k < count - 1) {
+      if (liveIndex > 0 && !opens[slot]) before = (slot + N - 1) % N;
+      if (liveIndex < count - 1) {
         const next = (slot + 1) % N;
         if (!opens[next]) after = next;
       }
@@ -716,58 +854,101 @@ export function createTrail(THREE, shading) {
     }
   }
 
-  function fade() {
-    if (!count) return;
-    for (let k = 0; k < count; k++) {
-      const slot = (head - k + N) % N;
-      const age = (now - born[slot]) / TRAIL.life;
-      const ft = clamp((age - FADE_START) / (1 - FADE_START), 0, 1);
-      const organicT = clamp(
-        ft + pressureWalk[slot] * 0.16 * ft * (1 - ft), 0, 1,
-      );
-      const smooth = organicT * organicT * (3 - 2 * organicT);
-      const weight = age >= 1 ? 0 : 1 - smooth;
+  /* Mirror the touched slots' birth clock and frozen pressure walk into the
+     attribute the vertex shader fades with. Only sections written this frame
+     can differ — everything older is immutable on the GPU — and the live
+     head is stamped every frame because `update` keeps refreshing its born
+     time, which is what holds the section under the board at full weight. */
+  function refreshBirth(span) {
+    const first = (head - span + 1 + N) % N;
+    for (let k = 0; k < span; k++) {
+      const slot = (first + k) % N;
+      const stamp = born[slot];
+      const walk = pressureWalk[slot];
+      let p = slot * L * 2;
       for (let lane = 0; lane < L; lane++) {
-        const p = (slot * L + lane) * 2;
-        life[p] = weight;
-        life[p + 1] = age;
+        birth[p] = stamp;
+        birth[p + 1] = walk;
+        p += 2;
       }
     }
-    geo.attributes.aLife.needsUpdate = true;
   }
 
+  /* Queue a ranged upload for the ring slots touched this frame. Ranges are
+     in array elements; a span crossing the ring seam becomes two ranges,
+     which the renderer sorts, merges and feeds to bufferSubData. Setting
+     `needsUpdate` is still required — it bumps the version the renderer
+     compares, and without it the queued ranges are never consumed. */
+  function flagSpan(attr, itemSize, span, ranged) {
+    if (ranged) {
+      const first = (head - span + 1 + N) % N;
+      if (first + span <= N) {
+        attr.addUpdateRange(first * L * itemSize, span * L * itemSize);
+      } else {
+        attr.addUpdateRange(first * L * itemSize, (N - first) * L * itemSize);
+        attr.addUpdateRange(0, (first + span - N) * L * itemSize);
+      }
+    }
+    attr.needsUpdate = true;
+  }
+
+  /* Instance matrices bake position, orientation, scale and — because the
+     visible set is packed from the front — the packing order, so any change
+     rebuilds from the first moved clod onward, and age moves every clod
+     every frame. What is throttled instead is the cadence: a clod's scale
+     drifts sub-pixel per frame, so the pass runs every second frame, plus
+     immediately after a rebase, whose translation the matrices bake.
+     Clusters are rejected wholesale by their stored sizes and one per-slot
+     age before any per-clod distance or quaternion work is paid, nothing is
+     flagged when nothing was written, and the upload covers only the packed
+     live range rather than all 1,620 slots. */
   function updateClods(riderPos) {
+    clodPhase ^= 1;
+    if (!clodsDue && clodPhase === 0) return;
+    clodsDue = false;
     visibleClods = 0;
-    for (let id = 0; id < clodCapacity; id++) {
-      let scale = clodSize[id];
-      const slot = Math.floor(id / CLOD_CLUSTER);
-      if (scale > 0) {
-        const age = (now - born[slot]) / Math.min(TRAIL.life, 4.5);
+    const lifeScale = 1 / Math.min(TRAIL.life, 4.5);
+    for (let slot = 0; slot < N; slot++) {
+      const base = slot * CLOD_CLUSTER;
+      let clusterLive = false;
+      for (let j = 0; j < CLOD_CLUSTER; j++) {
+        if (clodSize[base + j] > 0) { clusterLive = true; break; }
+      }
+      if (!clusterLive) continue;
+      const age = (now - born[slot]) * lifeScale;
+      if (age >= 1) continue;
+      const ageFade = 1 - smoothstep(0.42, 1, age);
+      for (let j = 0; j < CLOD_CLUSTER; j++) {
+        const id = base + j;
+        let scale = clodSize[id];
+        if (scale <= 0) continue;
         const wx = clodX[id] + anchorX;
         const wz = clodZ[id] + anchorZ;
         const distance = Math.hypot(wx - riderPos.x, wz - riderPos.z);
-        scale *= (1 - smoothstep(0.42, 1, age))
-          * (1 - smoothstep(28, 48, distance));
-      }
-      if (scale <= 0.001) continue;
+        scale *= ageFade * (1 - smoothstep(28, 48, distance));
+        if (scale <= 0.001) continue;
 
-      clodDummy.position.set(clodX[id], clodY[id], clodZ[id]);
-      clodNormal.set(clodNX[id], clodNY[id], clodNZ[id]).normalize();
-      clodDummy.quaternion.setFromUnitVectors(clodUp, clodNormal);
-      clodDummy.rotateY(clodRandB[id] * Math.PI * 2);
-      clodDummy.rotateX((clodRandA[id] - 0.5) * 0.24);
-      clodDummy.rotateZ((clodRandC[id] - 0.5) * 0.20);
-      clodDummy.scale.set(
-        scale * (0.72 + clodRandB[id] * 0.48),
-        scale * (0.12 + clodRandA[id] * 0.14),
-        scale * (0.92 + clodRandC[id] * 0.62),
-      );
-      clodDummy.updateMatrix();
-      clods.setMatrixAt(visibleClods, clodDummy.matrix);
-      visibleClods += 1;
+        clodDummy.position.set(clodX[id], clodY[id], clodZ[id]);
+        clodNormal.set(clodNX[id], clodNY[id], clodNZ[id]).normalize();
+        clodDummy.quaternion.setFromUnitVectors(clodUp, clodNormal);
+        clodDummy.rotateY(clodRandB[id] * Math.PI * 2);
+        clodDummy.rotateX((clodRandA[id] - 0.5) * 0.24);
+        clodDummy.rotateZ((clodRandC[id] - 0.5) * 0.20);
+        clodDummy.scale.set(
+          scale * (0.72 + clodRandB[id] * 0.48),
+          scale * (0.12 + clodRandA[id] * 0.14),
+          scale * (0.92 + clodRandC[id] * 0.62),
+        );
+        clodDummy.updateMatrix();
+        clods.setMatrixAt(visibleClods, clodDummy.matrix);
+        visibleClods += 1;
+      }
     }
     clods.count = visibleClods;
-    clods.instanceMatrix.needsUpdate = true;
+    if (visibleClods > 0) {
+      clods.instanceMatrix.addUpdateRange(0, visibleClods * 16);
+      clods.instanceMatrix.needsUpdate = true;
+    }
   }
 
   function startStroke(x, y, z, state) {
@@ -787,6 +968,8 @@ export function createTrail(THREE, shading) {
 
   function update(rider, dt, onSection) {
     now += dt;
+    // The whole fade reads this one clock; ages advance with no CPU pass.
+    trackUniforms.uTrackNow.value = now;
 
     const riding = rider.state === 'ride' && rider.grounded;
     const bodySliding = rider.state === 'fall' && !rider.airborne;
@@ -795,8 +978,7 @@ export function createTrail(THREE, shading) {
     if (!snowContact) {
       open = false;
       prune();
-      if (dirty) { stitch(); dirty = false; }
-      fade();
+      geo.setDrawRange(blockStart * BLOCK, (blockEnd - blockStart) * BLOCK);
       updateClods(rider.pos);
       return;
     }
@@ -953,16 +1135,22 @@ export function createTrail(THREE, shading) {
     }
 
     prevLat.copy(lat);
-    recomputeNormals();
-    geo.attributes.position.needsUpdate = true;
-    geo.attributes.normal.needsUpdate = true;
-    geo.attributes.aTrackBaseNormal.needsUpdate = true;
-    geo.attributes.aVariation.needsUpdate = true;
-    geo.attributes.aTrack.needsUpdate = true;
+    // The fresh slots plus one predecessor are the complete set of vertices
+    // this frame changed; everything is recomputed and uploaded as that
+    // span. A pending rebase widens only the position upload back to full.
+    const span = Math.min(count, freshTakes + 2);
+    freshTakes = 0;
+    recomputeNormals(span);
+    refreshBirth(span);
+    flagSpan(geo.attributes.position, 3, span, !positionFull);
+    flagSpan(geo.attributes.normal, 3, span, true);
+    flagSpan(geo.attributes.aTrackBaseNormal, 3, span, true);
+    flagSpan(geo.attributes.aVariation, 1, span, true);
+    flagSpan(geo.attributes.aTrack, 4, span, true);
+    flagSpan(geo.attributes.aBorn, 2, span, true);
 
     prune();
-    if (dirty) { stitch(); dirty = false; }
-    fade();
+    geo.setDrawRange(blockStart * BLOCK, (blockEnd - blockStart) * BLOCK);
     updateClods(rider.pos);
   }
 
@@ -970,15 +1158,17 @@ export function createTrail(THREE, shading) {
     head = -1;
     count = 0;
     open = false;
-    dirty = false;
+    freshTakes = 0;
+    blockStart = 0;
+    blockEnd = 0;
     chewL = 0;
     chewR = 0;
     variationWalk = 0;
     liveHalf = TRAIL.width;
+    // Stale GPU-side births need no flush: nothing is drawn until slots are
+    // re-taken, and re-taking restamps them through the ordinary span.
     for (let i = 0; i < N; i++) born[i] = -1e9;
-    life.fill(0);
     clodSize.fill(0);
-    geo.attributes.aLife.needsUpdate = true;
     geo.setDrawRange(0, 0);
     hideAllClods();
   }

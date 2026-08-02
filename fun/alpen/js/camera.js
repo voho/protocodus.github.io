@@ -232,7 +232,13 @@ export function createChaseCamera(THREE, camera) {
     dir.copy(flat).multiplyScalar(CAMERA.velocityBias)
       .addScaledVector(tmp, 1 - CAMERA.velocityBias).normalize();
 
-    const back = CAMERA.distance + ratio * 1.6 + tuck * CAMERA.tuckPull + airT * AIR_PULL;
+    /* The punch also pulls the boom in a fraction. Widening the lens alone
+       reads as a lens event; a lens that widens *while the camera lunges
+       half a metre closer* reads as an impact, because that pairing is what
+       a real operator caught by surprise does. It rides the punch's own
+       decay, so the ease-out needs no clock of its own. */
+    const back = CAMERA.distance + ratio * 1.6 + tuck * CAMERA.tuckPull + airT * AIR_PULL
+      - punch * 0.075;
     const up = (air ? CAMERA.airHeight + airT * AIR_LIFT : CAMERA.height)
       - rider.compression * 0.85
       - tuck * CAMERA.tuckDrop;

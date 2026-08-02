@@ -38,7 +38,7 @@
    cells is what lets six thousand vertices cover most of a kilometre. */
 
 import { snoise2, noise2, hash2 } from './noise.js';
-import { TERRAIN } from './config.js';
+import { TERRAIN, RENDER } from './config.js';
 
 /* THE SNOWPACK — what the ground is made of, as against how it is lit.
 
@@ -231,6 +231,15 @@ function noise1(u, seed) {
 }
 
 const CLIFF_SPAN = cliffs.fall + cliffs.runout;
+
+/* Past this row offset from the anchor the haze has closed completely, in
+   every weather the game has: `RENDER.fogFar` is 420 m on the clearest day and
+   a storm only ever pulls the curtain closer. The fifty-metre margin covers
+   the camera trailing the anchor point. Rows out there keep their exact
+   heights and their central-difference normals — the silhouette against the
+   sky is the one thing fog does not hide — but every material decision made
+   below is invisible by construction, so those rows do not pay for one. */
+const FOG_ROW_SKIP = RENDER.fogFar + 50;
 
 /* ==========================================================================
    The route
@@ -548,8 +557,15 @@ function heightIn(ctx, x, coarseDetail = 1, fineDetail = coarseDetail) {
        forty centimetres combined, enough for the board and side light to read. */
     h += (coarseN * wc.amp + coarseN * Math.abs(coarseN) * wc.bulge)
       * windPatch * chatterMix * coarseDetail;
-    h += snoise2(rotatedAcross * wf.acrossFreq, rotatedAlong * wf.alongFreq, wf.seed)
-      * wf.amp * windPatch * chatterMix * fineDetail;
+    /* The fine octave leaves the LOD before the coarse one does, so on most
+       of the graded grid this block is entered for the coarse term alone —
+       and the fine sample was being evaluated anyway and multiplied by zero.
+       The guard uses the same threshold as the block's own gate, so wherever
+       the mask is meaningfully nonzero the height is bit-identical. */
+    if (fineDetail > 0.001) {
+      h += snoise2(rotatedAcross * wf.acrossFreq, rotatedAlong * wf.alongFreq, wf.seed)
+        * wf.amp * windPatch * chatterMix * fineDetail;
+    }
   }
 
   /* Outside the corridor: the quarterpipe, then the wall.
@@ -755,6 +771,33 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     }
   }
 
+  /* The glide's working set, indexed once. `morphMask` never changes after
+     this loop, so which vertices the LOD morph can actually move is a fact
+     about the grid and not about any frame — yet `settleMorph` used to walk
+     all of them, lerping the near disc with an alpha of exactly one, which is
+     an assignment written as arithmetic. The split: `snapList` is the mask=0
+     collision-exact disc, copied from the target once per anchor; `morphList`
+     is everything the glide genuinely lerps. Note the masked set is the
+     *outside* of a disc, so it touches both ends of the buffer and its one
+     covering range is effectively the whole attribute — the upload win lives
+     in the colours and ice never travelling during a morph at all, and the
+     range is kept because it is free and would tighten by itself if the mask
+     ever did. */
+  let nMorph = 0;
+  for (let i = 0; i < count; i++) if (morphMask[i] > 0) nMorph += 1;
+  const morphList = new Uint32Array(nMorph);
+  const snapList = new Uint32Array(count - nMorph);
+  {
+    let mi = 0;
+    let si = 0;
+    for (let i = 0; i < count; i++) {
+      if (morphMask[i] > 0) morphList[mi++] = i;
+      else snapList[si++] = i;
+    }
+  }
+  const morphLo = nMorph > 0 ? morphList[0] : 0;
+  const morphSpan = nMorph > 0 ? morphList[nMorph - 1] - morphLo + 1 : 0;
+
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position',
     new THREE.BufferAttribute(positions, 3).setUsage(THREE.DynamicDrawUsage));
@@ -790,10 +833,12 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   const snowReady = { value: new THREE.Vector2() };
   const snowReadyTarget = new THREE.Vector2();
   // Only a deliberately low-passed macro version of the powder plate reaches
-  // the material. Fine generated crystals and groomer ribs were fully resolved
+  // the albedo. Fine generated crystals and groomer ribs were fully resolved
   // near the camera but formed interference when the frame was displayed or
-  // captured at another scale. The broad 24 m field keeps irregular snow tone
-  // without placing a screen-frequency carrier under the rider.
+  // captured at another scale. The broad 24 m field (x) keeps irregular snow
+  // tone without placing a screen-frequency carrier under the rider. The 4 m
+  // tile (y) feeds only the low-bias height reads behind the fragment detail
+  // normal below, which carries its own distance and derivative fades.
   const snowTile = { value: new THREE.Vector2(24.0, 4.0) };
   const snowAlbedo = { value: new THREE.Vector2(0.012, 0.0) };
   const snowHeight = { value: new THREE.Vector2(0.0, 0.0) };
@@ -880,11 +925,65 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
         float n64SurfaceFade = uSnowReady.x * macroResolve
           * (1.0 - smoothstep(80.0, 180.0, vDist));
         diffuseColor.rgb *= 1.0 + (n64Surface.r - 0.5) * 2.0
-          * uSnowAlbedo.x * n64SurfaceFade * n64SnowMask;`)
+          * uSnowAlbedo.x * n64SurfaceFade * n64SnowMask;
+        // Bedded strata where the snow has run out. The vertex pass already
+        // decided which stone a cliff is made of; what it cannot say at one
+        // sample per 75 cm is that rock is laid down in beds. Height plus a
+        // slight horizontal shear gives the bedding plane, two sines give a
+        // bed and its grain, and the coordinate wraps at 64 m with both
+        // frequencies periodic across the wrap (2pi*13/64 and 2pi*40/64) —
+        // the same trick n64Hash uses to keep operands mediump-honest.
+        float n64StrataC = vWorld.y + vWorld.x * 0.22 + vWorld.z * 0.11;
+        float n64StrataFoot = fwidth(n64StrataC);
+        float n64StrataW = mod(n64StrataC, 64.0);
+        // Only faces steep enough to have shed their snow show their beds —
+        // the up axis is the view matrix's second column, which is world up
+        // in the space vSmoothNormal already lives in. Each frequency then
+        // dissolves before its own period can approach the pixel: this game
+        // has been burned by resampled near-pixel patterns before, so the
+        // fades are the load-bearing part and not a nicety.
+        float n64StrataUp = dot(normalize(vSmoothNormal), viewMatrix[1].xyz);
+        float n64Beds = sin(n64StrataW * 1.276272)
+            * (1.0 - smoothstep(1.4, 3.5, n64StrataFoot))
+          + sin(n64StrataW * 3.926991) * 0.7
+            * (1.0 - smoothstep(0.30, 0.90, n64StrataFoot));
+        diffuseColor.rgb *= 1.0 - smoothstep(0.1, 0.9, n64Beds) * 0.11
+          * (1.0 - n64SnowMask) * smoothstep(0.30, 0.72, 1.0 - n64StrataUp);`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
         // Hide the graded grid's triangle topology from lighting while leaving
         // its actual geometry, depth and shadow coordinates untouched.
-        normal = normalize(vSmoothNormal);`);
+        normal = normalize(vSmoothNormal);
+        // The powder plate's height channel, spent as light rather than as
+        // geometry. Two nine-centimetre world differences of G make a slope,
+        // and the slope leans the smooth normal — sastrugi micro-shading at a
+        // scale the 75 cm mesh cannot carry. These reads sit at a low mip
+        // bias, unlike the +4 albedo read above, precisely so the real
+        // crystal and dune structure survives to be differenced.
+        vec2 n64DetailUv = mat2(0.9563, -0.2924, 0.2924, 0.9563)
+          * (vWorld.xz / uSnowTile.y);
+        float n64DetailStep = 0.09 / uSnowTile.y;
+        // The macro fade above lets go at 80-180 m, far too late for detail
+        // this fine. Distance takes it out across 55-90 m, and the derivative
+        // gate takes it out sooner wherever a grazing angle stretches one
+        // pixel's footprint towards the differencing step itself — past that
+        // point the slope is sampling noise, and the retro pipeline would
+        // resample it into shimmer. The gate is the anti-moire clause.
+        float n64DetailFoot = max(fwidth(n64DetailUv.x), fwidth(n64DetailUv.y));
+        float n64DetailFade = uSnowReady.x * n64SnowMask
+          * (1.0 - smoothstep(55.0, 90.0, vDist))
+          * (1.0 - smoothstep(0.5, 1.0, n64DetailFoot / n64DetailStep));
+        float n64DetailC = texture2D(uSnowPowder, n64DetailUv, 1.0).g;
+        float n64DetailX = texture2D(uSnowPowder,
+          n64DetailUv + vec2(0.9563, -0.2924) * n64DetailStep, 1.0).g;
+        float n64DetailZ = texture2D(uSnowPowder,
+          n64DetailUv + vec2(0.2924, 0.9563) * n64DetailStep, 1.0).g;
+        // A heightfield's normal is (-dh/dx, 1, -dh/dz); the lean is built in
+        // the world frame the offsets were taken in, then rotated through the
+        // view matrix to join the view-space normal. The gain is deliberately
+        // shy of embossing — the plate reads as shading, not as relief.
+        normal = normalize(normal + mat3(viewMatrix)
+          * vec3(n64DetailC - n64DetailX, 0.0, n64DetailC - n64DetailZ)
+          * (0.85 * n64DetailFade));`);
   };
   /* Keep direction-aware atmospheric fog and continuous Lambert response,
      then add the analytic snow/ice microfacet reflection that nothing else on
@@ -899,6 +998,67 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   };
   const mesh = new THREE.Mesh(geometry, material);
   mesh.frustumCulled = false;
+
+  /* THE SHADOW PROXY. The sun's 2048-texel shadow map covers about ±92 m of
+     hill, and the full graded grid was being drawn into it — two hundred and
+     seventeen thousand triangles rasterised into a window that can only ever
+     see the middle of them. This is a second geometry over the *same live
+     attribute buffers* — no copy, no second upload, every morph and re-anchor
+     arrives here for free — with its own small index covering only the rows
+     and columns whose lattice offsets fall within the map's reach plus
+     margin. Nothing here adds it to a scene or touches shadow flags: main.js
+     owns the wiring (camera-hidden via layers, castShadow moved off the full
+     mesh and onto this), because which mesh casts is a scene decision and
+     this file only owns the ground. */
+  const SHADOW_REACH = 110;
+  let shadowC0 = vertsX - 1;
+  let shadowC1 = 0;
+  let shadowR0 = vertsZ - 1;
+  let shadowR1 = 0;
+  for (let c = 0; c < vertsX; c++) {
+    if (Math.abs(xs[c]) > SHADOW_REACH) continue;
+    if (c < shadowC0) shadowC0 = c;
+    if (c > shadowC1) shadowC1 = c;
+  }
+  for (let r = 0; r < vertsZ; r++) {
+    if (Math.abs(zs[r]) > SHADOW_REACH) continue;
+    if (r < shadowR0) shadowR0 = r;
+    if (r > shadowR1) shadowR1 = r;
+  }
+  const shadowIndices = new (count > 65535 ? Uint32Array : Uint16Array)(
+    (shadowR1 - shadowR0) * (shadowC1 - shadowC0) * 6,
+  );
+  {
+    // The same alternating diagonal as the full grid, keyed off the same
+    // global (r + c), so the proxy's facets are the mesh's facets exactly and
+    // a cast shadow cannot disagree with the surface that receives it.
+    let st = 0;
+    for (let r = shadowR0; r < shadowR1; r++) {
+      for (let c = shadowC0; c < shadowC1; c++) {
+        const a = r * vertsX + c;
+        if ((r + c) & 1) {
+          shadowIndices[st++] = a; shadowIndices[st++] = a + 1; shadowIndices[st++] = a + vertsX + 1;
+          shadowIndices[st++] = a; shadowIndices[st++] = a + vertsX + 1; shadowIndices[st++] = a + vertsX;
+        } else {
+          shadowIndices[st++] = a; shadowIndices[st++] = a + 1; shadowIndices[st++] = a + vertsX;
+          shadowIndices[st++] = a + 1; shadowIndices[st++] = a + vertsX + 1; shadowIndices[st++] = a + vertsX;
+        }
+      }
+    }
+  }
+  const shadowGeometry = new THREE.BufferGeometry();
+  shadowGeometry.setAttribute('position', geometry.attributes.position);
+  shadowGeometry.setAttribute('aSmoothNormal', geometry.attributes.aSmoothNormal);
+  shadowGeometry.setAttribute('color', geometry.attributes.color);
+  shadowGeometry.setAttribute('aIce', geometry.attributes.aIce);
+  shadowGeometry.setIndex(new THREE.BufferAttribute(shadowIndices, 1));
+  // Never culled, but an honest bound anyway: the reach in both axes plus
+  // headroom for the containment wall's climb inside it.
+  shadowGeometry.boundingSphere = new THREE.Sphere(
+    new THREE.Vector3(), Math.hypot(SHADOW_REACH, SHADOW_REACH) + 90,
+  );
+  const shadowMesh = new THREE.Mesh(shadowGeometry, material);
+  shadowMesh.frustumCulled = false;
 
   /* The palette, unpacked into plain numbers.
 
@@ -924,6 +1084,9 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   let anchorY = NaN;
   let morphing = false;
   let morphAge = 0;
+  // The near disc's one-time copy from the target is still owed for this
+  // anchor — see `settleMorph`.
+  let morphSnap = false;
 
   function fillHeightRows(ax, az, rowFrom, rowTo) {
     // Heights are generated a row at a time so everything depending only on z
@@ -948,10 +1111,42 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     for (let r = rowFrom; r < rowTo; r++) {
       const lz = zs[r];
       const wz = az + lz;
-      rowContext(wz, ctx);
       const rPrev = Math.max(0, r - 1);
       const rNext = Math.min(vertsZ - 1, r + 1);
       const dz2 = zs[rNext] - zs[rPrev] || 1;
+
+      /* Rows past `FOG_ROW_SKIP` are behind a closed curtain in every
+         weather, so the snowpack's whole materials pass — two band octaves,
+         the mottle, the aspect, the groom — would be deciding colours nobody
+         can see. Heights stay exact because the skyline is the one thing fog
+         leaves, and the central-difference normal is kept because it is a
+         handful of arithmetic and it is what lights that skyline. The colour
+         is the deep-snow stop and the ice is zero, which is also what the
+         real pass converges to under a kilometre of altitude anyway. */
+      if (lz >= FOG_ROW_SKIP || lz <= -FOG_ROW_SKIP) {
+        for (let c = 0; c < vertsX; c++, i++, p += 3) {
+          const h = heights[i];
+          outPositions[p] = xs[c];
+          outPositions[p + 1] = h - ay;
+          outPositions[p + 2] = lz;
+          const cPrev = Math.max(0, c - 1);
+          const cNext = Math.min(vertsX - 1, c + 1);
+          const dx2 = xs[cNext] - xs[cPrev] || 1;
+          const dx = (heights[r * vertsX + cNext] - heights[r * vertsX + cPrev]) / dx2;
+          const dz = (heights[rNext * vertsX + c] - heights[rPrev * vertsX + c]) / dz2;
+          const invNormal = 1 / Math.hypot(dx, 1, dz);
+          outNormals[p] = -dx * invNormal;
+          outNormals[p + 1] = invNormal;
+          outNormals[p + 2] = -dz * invNormal;
+          outColors[p] = cDeep[0];
+          outColors[p + 1] = cDeep[1];
+          outColors[p + 2] = cDeep[2];
+          outIce[i] = 0;
+        }
+        continue;
+      }
+
+      rowContext(wz, ctx);
       const grade = gradeAt(wz);
 
       /* Altitude, and it is free. `ctx.base` is the grade's own integral,
@@ -1170,14 +1365,63 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     geometry.attributes.aIce.needsUpdate = true;
   }
 
+  /* The morphing frames' upload. Colours and ice do not travel here at all —
+     they snapped once at commit — and position and normal carry the covering
+     range of the masked set. That range reaches both ends of the buffer today
+     (the masked set is the outside of a disc), so its honest job is to keep
+     this correct rather than to shrink the transfer; the transfer shrank by
+     the two attributes that stopped being flagged. */
+  function publishMorph() {
+    const pos = geometry.attributes.position;
+    const nrm = geometry.attributes.aSmoothNormal;
+    pos.addUpdateRange(morphLo * 3, morphSpan * 3);
+    nrm.addUpdateRange(morphLo * 3, morphSpan * 3);
+    pos.needsUpdate = true;
+    nrm.needsUpdate = true;
+  }
+
   function settleMorph(dt) {
     if (!morphing) return;
     morphAge += dt;
     const frameAlpha = 1 - Math.exp(-morphRate * dt);
 
-    for (let i = 0, p = 0; i < count; i++, p += 3) {
-      // mask=0 is the exact collision surface around the rider. mask=1 is a
-      // distant vertex that converges exponentially instead of popping.
+    if (morphSnap) {
+      /* mask=0 is the exact collision surface around the rider, and its
+         alpha was exactly one — an assignment the old loop performed as a
+         lerp, every vertex, every morphing frame. It happens here rather
+         than at commit because commit's publish still shows the preserved
+         old-world surface for one frame; snapping half the picture there
+         would open a seam between the disc and the far field for that frame,
+         and this way the whole surface moves together as it always did. */
+      for (let k = 0; k < snapList.length; k++) {
+        const i = snapList[k];
+        const p = i * 3;
+        positions[p] = targetPositions[p];
+        positions[p + 1] = targetPositions[p + 1];
+        positions[p + 2] = targetPositions[p + 2];
+        normals[p] = targetNormals[p];
+        normals[p + 1] = targetNormals[p + 1];
+        normals[p + 2] = targetNormals[p + 2];
+      }
+      /* Colour and ice snap on this same frame instead of gliding. Their
+         crossfade lived 72–240 m out, behind a fog that starts at 105, and
+         paid four floats of lerp per vertex per morphing frame plus two
+         full-buffer uploads to hide a change the haze was already hiding.
+         They must not snap at commit: commit's frame still renders the
+         preserved old-world positions, and new colours on old geometry put
+         a one-frame tint seam through the near disc every re-anchor. */
+      colors.set(targetColors);
+      ice.set(targetIce);
+      geometry.attributes.color.needsUpdate = true;
+      geometry.attributes.aIce.needsUpdate = true;
+      morphSnap = false;
+    }
+
+    for (let k = 0; k < morphList.length; k++) {
+      // mask=1 is a distant vertex that converges exponentially instead of
+      // popping; everything on this list is somewhere on that slope.
+      const i = morphList[k];
+      const p = i * 3;
       const alpha = 1 - morphMask[i] * (1 - frameAlpha);
       positions[p] += (targetPositions[p] - positions[p]) * alpha;
       positions[p + 1] += (targetPositions[p + 1] - positions[p + 1]) * alpha;
@@ -1185,20 +1429,14 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       normals[p] += (targetNormals[p] - normals[p]) * alpha;
       normals[p + 1] += (targetNormals[p + 1] - normals[p + 1]) * alpha;
       normals[p + 2] += (targetNormals[p + 2] - normals[p + 2]) * alpha;
-      colors[p] += (targetColors[p] - colors[p]) * alpha;
-      colors[p + 1] += (targetColors[p + 1] - colors[p + 1]) * alpha;
-      colors[p + 2] += (targetColors[p + 2] - colors[p + 2]) * alpha;
-      ice[i] += (targetIce[i] - ice[i]) * alpha;
     }
 
     if (morphAge >= morphSettle) {
       positions.set(targetPositions);
       normals.set(targetNormals);
-      colors.set(targetColors);
-      ice.set(targetIce);
       morphing = false;
     }
-    publish();
+    publishMorph();
   }
 
   /* Re-anchor after *eight* fine cells, not two.
@@ -1270,8 +1508,10 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     anchorZ = next.az;
     anchorY = next.ay;
     mesh.position.set(anchorX, anchorY, anchorZ);
+    shadowMesh.position.copy(mesh.position);
     morphAge = 0;
     morphing = true;
+    morphSnap = true;
     build = null;
     publish();
   }
@@ -1318,6 +1558,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       anchorZ = az;
       anchorY = ay;
       mesh.position.set(ax, ay, az);
+      shadowMesh.position.copy(mesh.position);
       fill(ax, az, ay, positions, normals, colors, ice);
       publish();
       return;
@@ -1335,6 +1576,10 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
 
   return {
     mesh,
+    // The near-field index over the same live buffers, for the shadow map
+    // alone. This file keeps its transform in step with `mesh`; main.js owns
+    // adding it to the scene, its layers, and both meshes' castShadow flags.
+    shadowMesh,
     update,
     vertexCount: count,
     debug: () => ({

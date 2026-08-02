@@ -78,7 +78,7 @@
    allowed to be far brighter than the real one, because a mountain you
    cannot see is not a mountain you can ride. */
 
-import { noise2 } from './noise.js';
+import { noise2, hash2 } from './noise.js';
 import { RENDER } from './config.js';
 
 /* Nine moments, and one rule underneath all of them: the amber lives at the
@@ -293,6 +293,32 @@ const CLOUD = {
   drift: 0.10,
 };
 
+/* Lightning, in three numbers, and only inside a real whiteout.
+
+   The trigger is not a die roll. The clock is cut into half-second cells,
+   each cell hashes its own index — the same seeded hash the mountain is
+   built from, so a shared seed replays its storms strike for strike — and
+   the one-in-twenty that clear the threshold flash. Everything after the
+   trigger is a pure function of how far into its cell the clock is, so the
+   decay needs no state, no accumulator and no `Math.random` anywhere: ask
+   the same second twice and it answers the same. A cell is long against the
+   decay, which is what keeps a strike from leaking into the cell after it,
+   and `chance` works out to a flash every ten seconds or so of blizzard —
+   rare enough to startle, which is the entire job of lightning.
+
+   `sky.js` decides what a flash looks like; this end only says when. */
+const FLASH = {
+  rate: 2,          // trigger cells per second of clock
+  chance: 0.05,     // the odds any one cell strikes
+  decay: 0.15,      // seconds for a strike to fall to 1/e
+};
+
+/* A near-full-screen white strobe is exactly the class of motion the
+   preference exists for. Gated at the trigger so both consumers — the dome
+   colours and the hemisphere pulse — go quiet together; the seeded clock
+   hash is untouched, so everyone else's storms still replay identically. */
+const CALM = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+
 const lerp = (a, b, t) => a + (b - a) * t;
 const smooth = (t) => t * t * (3 - 2 * t);
 /* Into the deck's own repeat. The noise field wraps at 64, so this is the same
@@ -337,6 +363,7 @@ export function createWeather(THREE) {
     night: 0,
     aurora: 0,
     mist: 0,
+    flash: 0,
     // The deck overhead, and where the wind has pushed it. See `CLOUD` and the
     // long note on `n64Deck` in shading.js.
     cloud: 0,
@@ -499,6 +526,19 @@ export function createWeather(THREE) {
     state.fogNear = lerp(RENDER.fogNear, 10, s * s);
     state.fogFar = lerp(RENDER.fogFar, 68, Math.pow(s, 0.85));
     state.snow = 0.12 + s * 0.88;
+    /* Lightning — see FLASH above. The gate is a ramp rather than the bare
+       `> 0.8` so a storm sliding across the threshold fades its strikes in
+       instead of switching them on, and it multiplies the flash rather than
+       the trigger, so where a strike lands is decided by the clock alone. */
+    const strike = ramp(s, 0.80, 0.88);
+    state.flash = 0;
+    if (strike > 0 && !CALM) {
+      const cell = Math.floor(clock * FLASH.rate);
+      if (hash2(cell, 977, 431) < FLASH.chance) {
+        state.flash = Math.exp(-(clock - cell / FLASH.rate) / FLASH.decay) * strike;
+      }
+    }
+
     // Wind swings slowly, and hard, once there is enough weather to carry it
     const swing = noise2(clock / 23, 9.5, 5) * 2 - 1;
     state.windX = swing * (1.5 + s * 16);

@@ -194,6 +194,69 @@ const OWN_MIX = `#include <color_vertex>
   vColor.rgb = mix( color, vColor.rgb, surfaceOwn );
 #endif`;
 
+/* Wind, as the vertex shader sees it.
+
+   Both the forest and the gate flags share these two uniform records, and
+   `setAir` writes them once per frame — the same one-write-moves-everything
+   arrangement the shared shading uses for the sky. The time wraps at 200π
+   rather than growing forever because a float's precision does not: every
+   frequency used below is a multiple of 0.01 Hz-ish, so `f * 200π` is a whole
+   number of turns and the wrap is invisible.
+
+   The sway itself runs in the tree's OWN space, before the instance matrix,
+   because that is where `transformed` lives and moving it later would mean
+   replacing three's `project_vertex` — the very anchor the shared shading
+   appends its view varying to. So the world-space wind is carried into local
+   space instead: `vec4 * instanceMatrix` is the transpose multiply, which for
+   a yaw-and-scale instance is exactly the inverse rotation. The phase comes
+   from a hash of the instance's world position, so a stand of one variant is
+   thirty trees lashing out of step rather than one tree stamped thirty times.
+
+   Height squared keeps the trunk planted and spends the whole travel on the
+   crown, which is how a conifer actually moves — the stem is a spring loaded
+   from the top. The shadow does not sway: the depth pass uses three's own
+   depth material, which never sees this patch, and a static shadow under a
+   lashing crown is invisible next to the cost of a custom depth material for
+   every variant. */
+const AIR_DECL = `
+uniform float uAirTime;
+uniform vec2 uAirWind;
+uniform float uSwayHeight;`;
+
+const SWAY = `#include <begin_vertex>
+#ifdef USE_INSTANCING
+{
+  vec3 n64Gust = (vec4(uAirWind.x, 0.0, uAirWind.y, 0.0) * instanceMatrix).xyz;
+  float n64Up = clamp(transformed.y / uSwayHeight, 0.0, 1.0);
+  n64Up *= n64Up;
+  float n64Ph = fract(dot(instanceMatrix[3].xz, vec2(0.0913, 0.0527))) * 6.2832;
+  float n64Wave = sin(uAirTime * 1.9 + n64Ph)
+    + 0.5 * sin(uAirTime * 3.7 + n64Ph * 1.7);
+  transformed.xz += n64Gust.xz * (0.02 * n64Wave * n64Up);
+}
+#endif`;
+
+/* The flag's ripple travels along the cloth — a phase that advances with x —
+   and its amplitude grows from nothing at the pole edge, because the hoist is
+   sewn to the pole and the fly is the end that snaps. A small constant term
+   keeps a becalmed flag from ironing itself flat; the wind term on top is what
+   makes a storm read at the gates before it reads anywhere else. */
+const FLAG_DECL = `
+uniform float uAirTime;
+uniform vec2 uAirWind;`;
+
+const FLUTTER = `#include <begin_vertex>
+{
+  float n64Ph = 0.0;
+  #ifdef USE_INSTANCING
+    n64Ph = fract(dot(instanceMatrix[3].xz, vec2(0.31, 0.17))) * 6.2832;
+  #endif
+  float n64Fly = clamp(transformed.x / 0.72, 0.0, 1.0);
+  float n64Amp = 0.035 + min(0.085, length(uAirWind) * 0.005);
+  transformed.z += sin(uAirTime * 8.0 + transformed.x * 6.0 + n64Ph)
+    * n64Amp * n64Fly;
+}`;
+
 /* The mask itself, built from the same array `compose` is about to eat.
 
    `compose` concatenates its parts in order and keeps every corner of every
@@ -491,6 +554,22 @@ function growTree(THREE, seed, spec, geos) {
     geo: geos.flare, color: wood(0.84), own: woodOwn,
     pos: [0, 0, 0], rot: [0, rnd() * TAU, 0],
     scale: [trunkR * 2.2, trunkR * 3.1, trunkR * 2.2],
+  });
+
+  /* And the drift the whole tree is standing in. A bark cylinder meeting the
+     snow along a clean circle is the one place a grown tree still admitted to
+     being furniture: real snow banks against a trunk, and the well of it is
+     the first thing the eye checks at the foot of a conifer. One steep-ish
+     cone in the ground's own glacier — OWN_SNOW, so no instance tint can ever
+     paint it. The proportions are set by the steepest hill a tree stands on:
+     across a 5·r footprint a 22° bank drops the ground about 2·r, so the rim
+     is sunk 1.6·r and the cone keeps 2.6·r of height to stay a mound on the
+     uphill side. Wider and shallower looked better on paper and floated a
+     hand's width above every steep bank. Verts per VARIANT, not per tree. */
+  parts.push({
+    geo: geos.drift, color: snowy(), own: OWN_SNOW,
+    pos: [0, -trunkR * 1.6, 0], rot: [0, rnd() * TAU, 0],
+    scale: [trunkR * 5, trunkR * 2.6, trunkR * 5],
   });
 
   /* Where the leader is, `u` of the way up it. */
@@ -905,6 +984,17 @@ class Pool {
     this.s = new THREE.Vector3();
     this.up = new THREE.Vector3(0, 1, 0);
     this.tinted = tinted;
+    /* Shadow-pass bound: instances below this index are near enough to cast
+       into the ±92 m shadow box. `rebuild` fills near bands first and records
+       where they end; the depth pass then draws that prefix and nothing else.
+       Defaults to everything, so a pool nobody trims behaves as before. */
+    this.near = capacity;
+    this.full = 0;
+    /* And the opposite trade for the sparse furniture: a pool marked cullable
+       gets a real bounding sphere from its written instances in `end()` and
+       is handed back to three's frustum test, because a rail or a fence line
+       is usually entirely off screen and the trees never are. */
+    this.cullable = false;
     if (tinted) this.mesh.setColorAt(0, new THREE.Color(0xffffff));
   }
 
@@ -945,6 +1035,15 @@ class Pool {
     this.mesh.count = this.n;
     this.mesh.instanceMatrix.needsUpdate = true;
     if (this.tinted && this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true;
+    if (this.cullable) {
+      /* `InstancedMesh.computeBoundingSphere` walks the live instances against
+         the geometry's own sphere, so the result hugs exactly what was
+         written. It runs once per band crossing, not per frame, and
+         `Frustum.intersectsObject` prefers the mesh sphere over the
+         geometry's whenever one exists. */
+      this.mesh.computeBoundingSphere();
+      this.mesh.frustumCulled = true;
+    }
   }
 }
 
@@ -964,19 +1063,62 @@ export function createProps(THREE, shading) {
   const lit = (color) => shading.apply(
     new THREE.MeshLambertMaterial({ color, flatShading: false }),
   );
+  /* The wind's two uniforms, shared by every material that listens to it.
+     `setAir` below is the one writer; the integrator calls it once a frame
+     with the weather's own wind, and a frame that forgets simply leaves the
+     forest becalmed rather than broken. */
+  const air = {
+    uAirTime: { value: 0 },
+    uAirWind: { value: new THREE.Vector2() },
+  };
+
   /* The same, plus the one thing a tree needs that nothing else on the
      mountain does: a say in how far its instance colour is allowed to reach.
      The patch goes on before `shading.apply`, which calls it first and folds
      its text into the program cache key — so the trees compile their own
-     program and the shrubs and rocks go on sharing the plain one. */
-  const treeMat = () => {
+     program and the shrubs and rocks go on sharing the plain one.
+
+     `height` is the grown leader's length, which is what normalises the sway
+     so a sapling and a seventeen-metre spruce both pivot from the ground up
+     rather than sharing one absolute travel. Every closure here has the same
+     text, so all twelve variants still share one compiled program and differ
+     only in the uniform's value.
+
+     `sheen: 1` puts the ground's own crystalline response on the snow the
+     branches are carrying — the loaves and drifts are painted in the same
+     glacier as the hill. The luminance mask alone is not enough to keep it
+     off the wood: dead larch timber is nearly as pale as the drifts, and a
+     glossy dead tree is a plastic one. `surfaceOwn` already knows which
+     vertices are snow (0) and which belong to the tree itself (1), so it is
+     routed into the shading's per-vertex sheen carve-out — written after
+     the shared default because shading.apply injects its own line directly
+     behind the `project_vertex` include this replacement preserves. */
+  const treeMat = (height) => {
     const m = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false });
     m.onBeforeCompile = (shader) => {
+      Object.assign(shader.uniforms, air, { uSwayHeight: { value: height } });
       shader.vertexShader = shader.vertexShader
-        .replace('#include <common>', `#include <common>${OWN_DECL}`)
-        .replace('#include <color_vertex>', OWN_MIX);
+        .replace('#include <common>', `#include <common>${OWN_DECL}${AIR_DECL}`)
+        .replace('#include <color_vertex>', OWN_MIX)
+        .replace('#include <begin_vertex>', SWAY)
+        .replace('#include <project_vertex>', `#include <project_vertex>
+        vN64Sheen = 1.0 - surfaceOwn;`);
     };
-    return shading.apply(m, { cameraFade: true });
+    return shading.apply(m, { cameraFade: true, sheen: 1 });
+  };
+
+  /* The flag's cloth, rippled by the same clock. Its own factory for the same
+     reason the trees have one: the patch has to go on before `shading.apply`
+     folds its text into the cache key. */
+  const flagMat = () => {
+    const m = new THREE.MeshLambertMaterial({ flatShading: false, side: THREE.DoubleSide });
+    m.onBeforeCompile = (shader) => {
+      Object.assign(shader.uniforms, air);
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', `#include <common>${FLAG_DECL}`)
+        .replace('#include <begin_vertex>', FLUTTER);
+    };
+    return shading.apply(m);
   };
   const castOf = makeCasts(THREE);
 
@@ -1038,16 +1180,35 @@ export function createProps(THREE, shading) {
     treeBare.push(!spec.foliage);
     // Capacity is generous: variants are chosen per tree by hash and the
     // draw is short-circuited by `count`, so an unused pool costs nothing
-    const pool = new Pool(THREE, grown.geometry, treeMat(),
+    const pool = new Pool(THREE, grown.geometry, treeMat(grown.height),
       Math.ceil((bands * PROPS.treesPerBand + 60) / PROPS.trees.variants) * 3, true);
     treePools.push(pool);
     group.add(pool.mesh);
   }
 
+  /* The shadow pass draws only the near prefix of each tree pool. The map
+     covers ±92 m around the rider, yet every instance in a six-hundred-metre
+     window used to be pushed through the depth pass to fill it; `rebuild`
+     orders the bands nearest-first and records where the near ones end, and
+     these two hooks — which three calls around exactly the depth draw and
+     nothing else — pinch `count` down to that prefix and put it back. */
+  for (const pool of treePools) {
+    const mesh = pool.mesh;
+    mesh.onBeforeShadow = () => {
+      pool.full = mesh.count;
+      if (pool.near < mesh.count) mesh.count = pool.near;
+    };
+    mesh.onAfterShadow = () => {
+      mesh.count = pool.full;
+    };
+  }
+
   // --- everything else ------------------------------------------------------
   const poleGeo = new THREE.CylinderGeometry(0.05, 0.05, 2.3, 12);
   poleGeo.translate(0, 1.15, 0);
-  const flagGeo = new THREE.PlaneGeometry(0.72, 0.46);
+  // Segmented so the flutter has joints to bend at — a two-triangle quad can
+  // only shear, and a shearing flag reads as a sign swinging on a hinge
+  const flagGeo = new THREE.PlaneGeometry(0.72, 0.46, 6, 3);
   flagGeo.translate(0.36, 1.95, 0);
   // Laid down the fall line at construction rather than rotated per instance,
   // so a rail is placed with the same plain scale-and-translate every other
@@ -1069,9 +1230,7 @@ export function createProps(THREE, shading) {
      to take a bite of speed off a rider who could not have seen them coming.
      A mountain is better without them than with a hundred of them a minute. */
   const poles = new Pool(THREE, poleGeo, lit('#2a2f38'), bands * 2 + 16);
-  const flags = new Pool(THREE, flagGeo,
-    shading.apply(new THREE.MeshLambertMaterial({ flatShading: false, side: THREE.DoubleSide })),
-    poles.capacity, true);
+  const flags = new Pool(THREE, flagGeo, flagMat(), poles.capacity, true);
   const railBars = new Pool(THREE, railGeo, lit('#aab6c8'), 8);
   const railPosts = new Pool(THREE, railPostGeo, lit('#2a2f38'), 32);
 
@@ -1091,6 +1250,13 @@ export function createProps(THREE, shading) {
   );
   avalancheFences.mesh.name = 'avalanche-fences';
   waymarks.mesh.name = 'swiss-waymarks';
+
+  /* The sparse furniture is worth culling: a whole rail park, or a fence line
+     on one bank, is a compact cluster that spends most of every orbit of the
+     camera entirely off screen. The trees stay unculled — they surround the
+     camera at all times and a sphere over three hundred metres of forest
+     would never say no. */
+  for (const p of [railBars, railPosts, avalancheFences, waymarks]) p.cullable = true;
 
   const pools = [poles, flags, railBars, railPosts, avalancheFences, waymarks];
   pools.forEach((p) => group.add(p.mesh));
@@ -1404,8 +1570,26 @@ export function createProps(THREE, shading) {
     rails.length = 0;
     gates.length = 0;
 
+    /* Nearest band first, spiralling outward, rather than a straight sweep
+       from behind to ahead. Every band is generated from its own seed, so the
+       order changes nothing about the mountain — but it means the instances
+       standing near the rider occupy the low indices of every pool, and the
+       shadow pass can draw a prefix instead of the whole forest. Three bands
+       either side is at least 120 m in the worst case, comfortably past both
+       the 92 m shadow box and a low sun's reach into it. It also means that
+       if a pool ever runs out of capacity, the trees dropped are the far
+       ones, which is the right way round. */
     const bi = Math.floor(riderZ / band);
-    for (let b = bi + behind; b >= bi - ahead; b--) place(b);
+    const NEAR_BANDS = 3;
+    const span = Math.max(ahead, behind);
+    place(bi);
+    for (let k = 1; k <= span; k++) {
+      if (k <= behind) place(bi + k);
+      if (k <= ahead) place(bi - k);
+      if (k === Math.min(NEAR_BANDS, span)) {
+        for (let i = 0; i < treePools.length; i++) treePools[i].near = treePools[i].n;
+      }
+    }
 
     // Nearest first, because the pool is what it is and a rail behind the
     // rider is not worth a bar that one in front of them could have had
@@ -1437,5 +1621,14 @@ export function createProps(THREE, shading) {
     rebuild(riderZ);
   }
 
-  return { group, update, railAt, railPoint, solids, rails, gates };
+  /* The frame's wind, handed over once by the caller. The time wraps at 200π
+     — see the note beside `SWAY` — and everything reading these uniforms
+     shares the same two records, so this is the whole cost of animating the
+     forest and every flag on it. */
+  function setAir(dt, windX, windZ) {
+    air.uAirTime.value = (air.uAirTime.value + dt) % 628.3185307;
+    air.uAirWind.value.set(windX, windZ);
+  }
+
+  return { group, update, setAir, railAt, railPoint, solids, rails, gates };
 }

@@ -27,7 +27,6 @@ const VERT = `
 const BRIGHT_FRAG = `
   precision mediump float;
   uniform sampler2D tDiffuse;
-  uniform sampler2D tAO;
   uniform vec2 uTexel;
   uniform float uThreshold;
   varying vec2 vUv;
@@ -38,7 +37,6 @@ const BRIGHT_FRAG = `
            + texture2D(tDiffuse, vUv + vec2(-uTexel.x,  uTexel.y)).rgb
            + texture2D(tDiffuse, vUv + vec2( uTexel.x,  uTexel.y)).rgb;
     c *= 0.25;
-    c *= texture2D(tAO, vUv).r;
     float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
     gl_FragColor = vec4(c * smoothstep(uThreshold, uThreshold + 0.35, l), 1.0);
   }
@@ -57,6 +55,7 @@ const RAY_FRAG = `
   precision mediump float;
   uniform sampler2D tBright;
   uniform vec2 uSun;
+  uniform vec3 uSunColor;
   uniform float uStrength;
   uniform float uDecay;
   uniform float uDensity;
@@ -68,15 +67,29 @@ const RAY_FRAG = `
       return;
     }
     vec2 delta = (vUv - uSun) * (uDensity / 16.0);
-    vec2 uv = vUv;
+    /* The march starts a random fraction of one step in. Sixteen fixed steps
+       turn every compact bright source into sixteen discrete ghosts of
+       itself; a per-pixel offset fills the gaps between the ghosts with the
+       neighbours' ghosts, which is what an integral along the shaft would
+       have produced. Same interleaved-gradient trick as the composite. */
+    float jitter = fract(52.9829189
+      * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+    vec2 uv = vUv - delta * jitter;
     float weight = 1.0;
     vec3 sum = vec3(0.0);
     for (int i = 0; i < 16; i++) {
       uv -= delta;
-      sum += texture2D(tBright, clamp(uv, 0.0, 1.0)).rgb * weight;
+      /* Off-screen samples contribute nothing. Clamping them to the border
+         re-reads the edge texel over and over, which accumulated into hard
+         spokes anchored to the frame's edge whenever the sun sat near it. */
+      float inside = step(abs(uv.x - 0.5), 0.5) * step(abs(uv.y - 0.5), 0.5);
+      sum += texture2D(tBright, uv).rgb * (weight * inside);
       weight *= uDecay;
     }
-    gl_FragColor = vec4(sum * (uStrength / 16.0), 1.0);
+    /* Tinted by the sun's own stop: rays are the sun's light in the air, so
+       they follow it from white noon to amber dusk instead of carrying
+       whatever hue the bright buffer happened to have. */
+    gl_FragColor = vec4(sum * uSunColor * (uStrength / 16.0), 1.0);
   }
 `;
 
@@ -122,8 +135,8 @@ const FRAG = `
   precision highp float;
   uniform sampler2D tDiffuse;
   uniform sampler2D tBright;
+  uniform sampler2D tWide;
   uniform sampler2D tRays;
-  uniform sampler2D tAO;
   uniform vec3 uShadow;
   uniform vec3 uHighlight;
   uniform float uTint;
@@ -135,6 +148,8 @@ const FRAG = `
   uniform float uBlur;
   uniform float uAberration;
   uniform float uBloom;
+  uniform float uBloomWide;
+  uniform float uTime;
   uniform float uRays;
   uniform float uShoulder;
   uniform float uFall;
@@ -184,16 +199,18 @@ const FRAG = `
     return fract(52.9829189 * fract(dot(frag, vec2(0.06711056, 0.00583715))));
   }
 
-  vec3 sceneSample(vec2 uv) {
+  /* The speed treatment belongs to the world rushing past the rider, not to
+     the rider himself. The focus mask that protects him is computed once in
+     main() — it used to be re-derived inside this function on every one of
+     the blur loop's taps, six lengths and six smoothsteps per pixel measuring
+     the same distance — and the resolved aberration arrives as a parameter.
+     Both the colour split and the blur now pivot on uFocus rather than the
+     screen centre, so the world streams away from the rider rather than from
+     a point above his head whenever the air moves him off-centre. */
+  vec3 sceneSample(vec2 uv, float aberration) {
     uv = clamp(uv, vec2(0.001), vec2(0.999));
-    // The speed treatment belongs to the world rushing past the rider, not to
-    // the rider himself. A compact projected safe zone keeps the board, limbs
-    // and landing pose readable while the periphery still separates into RGB.
-    vec2 focusDelta = (uv - uFocus) * vec2(uResolution.x / uResolution.y, 1.0);
-    float outsideFocus = smoothstep(0.075, 0.20, length(focusDelta));
-    float aberration = uAberration * outsideFocus;
     if (aberration <= 0.00001) return texture2D(tDiffuse, uv).rgb;
-    vec2 split = (uv - 0.5) * aberration;
+    vec2 split = (uv - uFocus) * aberration;
     return vec3(
       texture2D(tDiffuse, clamp(uv + split, vec2(0.001), vec2(0.999))).r,
       texture2D(tDiffuse, uv).g,
@@ -215,11 +232,15 @@ const FRAG = `
        Averaging happens here rather than after the transfer curve because
        linear is the only space where the mean of two colours is the colour
        that is actually between them. */
-    float jitter = sampleJitter(gl_FragCoord.xy);
+    /* The jitter drifts with time. A static per-pixel pattern under a moving
+       scene reads as a dirty window the world slides behind; re-seeding it
+       each frame turns the same decorrelation into invisible noise. */
+    float jitter = sampleJitter(gl_FragCoord.xy + vec2(uTime * 61.0, uTime * 83.0));
 
-    vec3 lin = sceneSample(vUv);
     vec2 focusDelta = (vUv - uFocus) * vec2(uResolution.x / uResolution.y, 1.0);
-    float outsideFocus = smoothstep(0.08, 0.22, length(focusDelta));
+    float outsideFocus = smoothstep(0.075, 0.20, length(focusDelta));
+    float aberration = uAberration * outsideFocus;
+    vec3 lin = sceneSample(vUv, aberration);
     float localBlur = uBlur * outsideFocus;
     if (localBlur > 0.0005) {
       /* The sample ladder is decorrelated per pixel, which is the difference
@@ -232,16 +253,18 @@ const FRAG = `
          changes per pixel fills the gaps between the copies with neighbouring
          pixels' copies, which is what an integral along the path would have
          done and what the eye reads as motion. */
-      vec2 toCentre = vec2(0.5) - vUv;
+      vec2 toFocus = uFocus - vUv;
       for (int i = 1; i < 6; i++) {
-        lin += sceneSample(vUv + toCentre * localBlur * (float(i) - 0.5 + jitter));
+        lin += sceneSample(vUv + toFocus * localBlur * (float(i) - 0.5 + jitter), aberration);
       }
       lin /= 6.0;
     }
-    // Occlusion is in linear light and precedes bloom: a dark crease must not
-    // keep the glow it would have emitted before the sky was taken away.
-    lin *= texture2D(tAO, vUv).r;
     lin += texture2D(tBright, vUv).rgb * uBloom;
+    /* The second octave: the same light at a sixteenth of the resolution,
+       blurred again. The tight pass above rims a bright ridge; this one is
+       the wide, dim halo the air itself wears around a low sun — the part of
+       a glow that a single small kernel can never reach. */
+    lin += texture2D(tWide, vUv).rgb * uBloomWide;
     lin += texture2D(tRays, vUv).rgb * uRays;
 
     /* The highlight shoulder, applied in linear light where it belongs.
@@ -289,6 +312,13 @@ const FRAG = `
     c *= 1.0 - min(0.78, uVignette + uSpeedVignette + fall * 0.1) * edge;
     c *= uFade;
 
+    /* One temporal dither step before the 8-bit panel. Dusk fog, the night
+       zenith and the storm's grey are long, nearly flat gradients, and a
+       contrast-boosted 8-bit ramp steps visibly across them. Half an LSB of
+       time-varying noise is below anything the eye can name and is exactly
+       the amount that turns those contour lines back into gradient. */
+    c += (jitter - 0.5) * (1.2 / 255.0);
+
     gl_FragColor = vec4(c, 1.0);
   }
 `;
@@ -302,12 +332,30 @@ function hueOnly(THREE, hex) {
 }
 
 export function createRetro(THREE, renderer) {
+  /* High dynamic range wherever the hardware allows it.
+
+     An 8-bit scene target clamps the world's light at 1.0 before the post
+     stack ever sees it, and that one clamp quietly disabled most of what the
+     stack is for: the bright pass's threshold window runs to 1.13, so the
+     sun's disc, a specular glint and a merely lit ridge all extracted the
+     same; and the highlight shoulder had only 0.68..1.0 of range left to
+     compress, so "snow runs off the top of the scale" was a comment, not a
+     behaviour. Sixteen-bit float restores the scale's top. The extension is
+     universal on real WebGL2 hardware; everything falls back to bytes —
+     including MSAA, which some mobile GPUs refuse on float targets, checked
+     per-format below rather than assumed. */
+  const gl = renderer.getContext();
+  const isWebGL2 = renderer.capabilities.isWebGL2;
+  const hdr = isWebGL2
+    && (renderer.extensions.has('EXT_color_buffer_float')
+      || renderer.extensions.has('EXT_color_buffer_half_float'));
+
   const targetOpts = {
     minFilter: THREE.LinearFilter,
     magFilter: THREE.LinearFilter,
     depthBuffer: true,
     stencilBuffer: false,
-    type: THREE.UnsignedByteType,
+    type: hdr ? THREE.HalfFloatType : THREE.UnsignedByteType,
     // Left in linear: the composite below does the one and only conversion,
     // so the grade happens in the space the eye reads and nothing double-
     // encodes on the way out
@@ -317,27 +365,16 @@ export function createRetro(THREE, renderer) {
   const scene3d = new THREE.WebGLRenderTarget(BASE_W, BASE_H, targetOpts);
   // The scene renders offscreen, so context antialiasing alone cannot smooth
   // its silhouettes. Use conservative WebGL2 MSAA and fall back cleanly to an
-  // ordinary target on WebGL1 or hardware that exposes no samples.
-  const gl = renderer.getContext();
-  const maxSamples = renderer.capabilities.isWebGL2
-    ? gl.getParameter(gl.MAX_SAMPLES) || 0
-    : 0;
+  // ordinary target on WebGL1 or hardware that exposes no samples. The
+  // sample count is asked of the actual internal format: RGBA16F multisample
+  // support is a per-GPU fact, not a WebGL2 guarantee.
+  let maxSamples = 0;
+  if (isWebGL2) {
+    const fmt = hdr ? gl.RGBA16F : gl.RGBA8;
+    const supported = gl.getInternalformatParameter(gl.RENDERBUFFER, fmt, gl.SAMPLES);
+    maxSamples = supported && supported.length ? supported[0] : 0;
+  }
   scene3d.samples = Math.min(4, maxSamples);
-
-  /* Keep the compositing interface stable without reconstructing occlusion
-     from the snowfield's depth. That half-resolution horizon pass amplified
-     tiny depth steps on a grazing, fast-moving plane into broad screen-row
-     bands. A single white texel is the exact neutral result, lets bloom and
-     the final composite retain their existing shader contracts, and avoids
-     allocating any AO or sampled-depth buffers. */
-  const neutralAO = new THREE.DataTexture(
-    new Uint8Array([255, 255, 255, 255]), 1, 1, THREE.RGBAFormat,
-  );
-  neutralAO.minFilter = THREE.NearestFilter;
-  neutralAO.magFilter = THREE.NearestFilter;
-  neutralAO.generateMipmaps = false;
-  neutralAO.colorSpace = THREE.NoColorSpace;
-  neutralAO.needsUpdate = true;
 
   const bright = new THREE.WebGLRenderTarget(BASE_W / 4, BASE_H / 4,
     { ...targetOpts, depthBuffer: false });
@@ -347,11 +384,17 @@ export function createRetro(THREE, renderer) {
   // the same attachment, and this is the cheapest surface in the frame.
   const blurTmp = new THREE.WebGLRenderTarget(BASE_W / 4, BASE_H / 4,
     { ...targetOpts, depthBuffer: false });
+  /* The wide bloom octave: a sixteenth of the resolution, so its pixels are
+     a 256th of the frame's and the two passes over them are effectively
+     free. The tight quarter-res kernel rims a ridge; this is the halo. */
+  const wide = new THREE.WebGLRenderTarget(BASE_W / 16, BASE_H / 16,
+    { ...targetOpts, depthBuffer: false });
+  const wideTmp = new THREE.WebGLRenderTarget(BASE_W / 16, BASE_H / 16,
+    { ...targetOpts, depthBuffer: false });
 
   const brightMat = new THREE.ShaderMaterial({
     uniforms: {
       tDiffuse: { value: scene3d.texture },
-      tAO: { value: neutralAO },
       uTexel: { value: new THREE.Vector2(1 / BASE_W, 1 / BASE_H) },
       uThreshold: { value: GRADE.bloomThreshold },
     },
@@ -377,6 +420,7 @@ export function createRetro(THREE, renderer) {
     uniforms: {
       tBright: { value: bright.texture },
       uSun: { value: new THREE.Vector2(0.5, 0.8) },
+      uSunColor: { value: new THREE.Color(1, 1, 1) },
       uStrength: { value: 0 },
       uDecay: { value: GRADE.rayDecay },
       uDensity: { value: GRADE.rayDensity },
@@ -391,8 +435,8 @@ export function createRetro(THREE, renderer) {
     uniforms: {
       tDiffuse: { value: scene3d.texture },
       tBright: { value: bright.texture },
+      tWide: { value: wide.texture },
       tRays: { value: rays.texture },
-      tAO: { value: neutralAO },
       uShadow: { value: hueOnly(THREE, GRADE.shadowTint) },
       uHighlight: { value: hueOnly(THREE, GRADE.highlightTint) },
       uTint: { value: GRADE.tintStrength },
@@ -404,6 +448,8 @@ export function createRetro(THREE, renderer) {
       uBlur: { value: 0 },
       uAberration: { value: 0 },
       uBloom: { value: GRADE.bloom },
+      uBloomWide: { value: GRADE.bloomWide },
+      uTime: { value: 0 },
       uRays: { value: GRADE.rays },
       uShoulder: { value: GRADE.shoulder },
       uFall: { value: 0 },
@@ -450,7 +496,7 @@ export function createRetro(THREE, renderer) {
      step down; the DOM-sized canvas still covers the whole visual viewport
      and the separate HUD remains native and sharp. A hard 4K pixel budget
      prevents a high-DPI desktop from accidentally asking for an 8K frame. */
-  function resizeTargets() {
+  function resizeTargets(touchCanvas) {
     width = Math.max(2, Math.round(displayWidth * scale));
     height = Math.max(2, Math.round(displayHeight * scale));
 
@@ -460,6 +506,10 @@ export function createRetro(THREE, renderer) {
     bright.setSize(bw, bh);
     rays.setSize(bw, bh);
     blurTmp.setSize(bw, bh);
+    const ww = Math.max(1, Math.floor(width / 16));
+    const wh = Math.max(1, Math.floor(height / 16));
+    wide.setSize(ww, wh);
+    wideTmp.setSize(ww, wh);
 
     material.uniforms.uResolution.value.set(width, height);
     brightMat.uniforms.uTexel.value.set(1 / width, 1 / height);
@@ -468,9 +518,17 @@ export function createRetro(THREE, renderer) {
     /* The canvas and final grade stay at the panel's resolution. On a slow
        GPU only the 3D and lighting targets step down, then `tDiffuse` is
        reconstructed once through linear sampling. HUD and final colour remain
-       crisp while the governor reduces the part of the frame that is costly. */
-    renderer.setPixelRatio(1);
-    renderer.setSize(displayWidth, displayHeight, false);
+       crisp while the governor reduces the part of the frame that is costly.
+
+       The canvas itself is only touched when the display size genuinely
+       changed. Three's `setSize` reassigns the backing store unconditionally,
+       which clears the drawing buffer — and the governor calls this on the
+       exact frame it already judged slow, so a scale step was paying for a
+       canvas reallocation it never needed. */
+    if (touchCanvas) {
+      renderer.setPixelRatio(1);
+      renderer.setSize(displayWidth, displayHeight, false);
+    }
     renderer.setRenderTarget(rays);
     renderer.clear();
     renderer.setRenderTarget(null);
@@ -494,7 +552,7 @@ export function createRetro(THREE, renderer) {
       dpr = nextDpr;
       displayWidth = nextDisplayW;
       displayHeight = nextDisplayH;
-      resizeTargets();
+      resizeTargets(true);
       sized = true;
     }
 
@@ -539,7 +597,7 @@ export function createRetro(THREE, renderer) {
     scale = next;
     slowFor = 0;
     fastFor = 0;
-    resizeTargets();
+    resizeTargets(false);
     return true;
   }
 
@@ -566,6 +624,29 @@ export function createRetro(THREE, renderer) {
     blurMat.uniforms.uDir.value.set(0, 1);
     renderer.setRenderTarget(bright);
     renderer.render(passScene, flat);
+
+    /* The halo octave. The first pass reads the finished quarter-res bloom
+       into a buffer a quarter smaller again in each direction — its own
+       bilinear minification is the downsample — and the second blurs across
+       it. Both passes touch a 256th of the frame's pixels; the texel the
+       kernel is measured in is four times as wide, so the same five taps
+       reach four times as far. */
+    const ww = Math.max(1, Math.floor(width / 16));
+    const wh = Math.max(1, Math.floor(height / 16));
+    blurMat.uniforms.tBright.value = bright.texture;
+    blurMat.uniforms.uTexel.value.set(1 / ww, 1 / wh);
+    blurMat.uniforms.uDir.value.set(1, 0);
+    renderer.setRenderTarget(wideTmp);
+    renderer.render(passScene, flat);
+    blurMat.uniforms.tBright.value = wideTmp.texture;
+    blurMat.uniforms.uDir.value.set(0, 1);
+    renderer.setRenderTarget(wide);
+    renderer.render(passScene, flat);
+    // Restore the quarter-res texel for next frame's tight pair.
+    blurMat.uniforms.uTexel.value.set(
+      1 / Math.max(1, Math.floor(width / 4)),
+      1 / Math.max(1, Math.floor(height / 4)),
+    );
 
     if (rayMat.uniforms.uStrength.value > 0.001) {
       passQuad.material = rayMat;
@@ -594,14 +675,20 @@ export function createRetro(THREE, renderer) {
   function crash(strength = 1) {
     const s = Math.min(1, Math.max(0, strength));
     const motion = reducedMotion ? 0.62 : 1;
+    // Powder already on the glass stays where it landed: re-rolling the seed
+    // while the last overlay is still fading teleported all seven marks to
+    // new positions mid-fade. A fresh pattern only arrives on a clean lens.
+    if (fallFx < 0.06) material.uniforms.uFallSeed.value = Math.random() * 97;
     fallFx = Math.max(fallFx, (0.22 + s * 0.78) * motion);
     fallHold = Math.max(fallHold, 0.055 + s * 0.055);
-    material.uniforms.uFallSeed.value = Math.random() * 97;
     material.uniforms.uFall.value = fallFx;
   }
 
   function updateEffects(dt, active = true) {
     if (!active || dt <= 0) return;
+    // The dither's clock. Wrapped well inside float precision; the exact
+    // period is irrelevant, only that consecutive frames differ.
+    material.uniforms.uTime.value = (material.uniforms.uTime.value + dt) % 64;
     if (fallHold > 0) {
       fallHold = Math.max(0, fallHold - dt);
     } else if (fallFx > 0) {
@@ -614,9 +701,12 @@ export function createRetro(THREE, renderer) {
   /* Where the sun is on screen, in UV, and how much of it is getting through.
      `sky.js` owns that answer because it owns the sun; this only marches
      towards whatever it is told. Strength of zero skips the pass entirely. */
-  function setSun(x, y, strength) {
+  function setSun(x, y, strength, color) {
     rayMat.uniforms.uSun.value.set(x, y);
     rayMat.uniforms.uStrength.value = strength;
+    // The sun's own stop, straight from the weather — so the shafts follow
+    // it from white noon to amber dusk without owning a colour of their own.
+    if (color) rayMat.uniforms.uSunColor.value.copy(color);
   }
 
   /* Projected centre of the rider. Keeping this dynamic matters in the air,

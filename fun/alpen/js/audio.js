@@ -60,6 +60,14 @@ export function createAudio() {
   let muted = false;
   let started = false;
   let lastBodyImpact = -Infinity;
+  /* `parked` is our own record of having deliberately put the context to
+     sleep, kept separately from `ctx.state` because suspend and resume are
+     both asynchronous — the state lags the intent by however long the
+     browser takes, and the intent is the thing every guard below actually
+     wants to know. */
+  let parked = false;
+  let parkTimer = 0;
+  let ambienceAt = 0;
 
   try {
     muted = localStorage.getItem('alpen.muted') === '1';
@@ -131,6 +139,13 @@ export function createAudio() {
   function start() {
     if (!ctx && !build()) return;
     started = true;
+    parked = false;
+    clearTimeout(parkTimer);
+    ambienceAt = 0;
+    /* Every call to `start` arrives from a user gesture — the curtain's
+       pointerdown or a keydown in `begin` — which is precisely the condition
+       under which a browser permits `resume`, whether the context was
+       suspended by `quiet` below or by the platform taking the audio away. */
     if (ctx.state === 'suspended') ctx.resume();
   }
 
@@ -142,7 +157,21 @@ export function createAudio() {
      still makes a sensible noise: without it the edge simply never sings and
      everything else behaves exactly as before. */
   function ambience(speed, slide, grounded, storm, carveLoad = 0, tumbleSlide = 0) {
-    if (!started || !ctx) return;
+    if (!started || !ctx || parked || muted) return;
+
+    /* Called every rendered frame, but a frame is faster than the ear. The
+       twelve automations below all have time constants of fifty milliseconds
+       and up, so re-aiming them at 144 Hz is pure churn — the curves land in
+       the same place — while the automation events themselves have a real
+       cost in the audio thread's event queues. Thirty-five milliseconds keeps
+       the update comfortably inside the shortest time constant and cuts the
+       event traffic by whatever multiple of ~28 Hz the display manages.
+       While muted the whole graph is behind a master gain of zero, so there
+       is nothing to steer at all. */
+    const ms = performance.now();
+    if (ms - ambienceAt < 35) return;
+    ambienceAt = ms;
+
     const t = now();
     const v = Math.min(1, speed / 42);
     const on = grounded ? 1 : 0;
@@ -189,8 +218,13 @@ export function createAudio() {
 
   /* --- one-shots ------------------------------------------------------- */
 
+  /* Both one-shot builders refuse to schedule into a parked context. Nothing
+     should be asking — the simulation that fires them stops when the game
+     pauses — but a sound scheduled against a suspended clock would sit in the
+     queue and all play at once, stale, on the next resume, which is worse
+     than the sound simply not happening. */
   function tone(freq, endFreq, dur, gain, type = 'sine', delay = 0) {
-    if (!started || !ctx) return;
+    if (!started || !ctx || parked) return;
     const t = now() + delay;
     const o = ctx.createOscillator();
     const g = ctx.createGain();
@@ -206,7 +240,7 @@ export function createAudio() {
   }
 
   function burst(dur, freq, gain, type = 'lowpass', sweepTo = null, delay = 0, buffer = null) {
-    if (!started || !ctx) return;
+    if (!started || !ctx || parked) return;
     const t = now() + delay;
     const src = ctx.createBufferSource();
     src.buffer = buffer || brownBuf;
@@ -321,7 +355,7 @@ export function createAudio() {
        spaced terrain samples from becoming a machine-gun while preserving
        distinct, diminishing thumps as the rider actually bounces. */
     bodyImpact(impact) {
-      if (!started || !ctx) return;
+      if (!started || !ctx || parked) return;
       const t = now();
       if (t - lastBodyImpact < 0.11) return;
       lastBodyImpact = t;
@@ -360,6 +394,24 @@ export function createAudio() {
       if (!started || !ctx) return;
       const t = now();
       for (let i = 0; i < voices.length; i++) voices[i].gain.gain.setTargetAtTime(0, t, 0.06);
+      /* Then stop the whole machine. A paused game used to keep six sources
+         looping into gains of zero — the audio thread doing full-time work to
+         produce silence — for as long as the curtain was up or the tab was in
+         the background. The suspend waits out the fade above first, because
+         suspending mid-ramp freezes the ramp and the pause arrives as a
+         click; and it checks `parked` again when the timer lands, because a
+         resume inside those few hundred milliseconds has already made the
+         suspension wrong. */
+      parked = true;
+      clearTimeout(parkTimer);
+      parkTimer = setTimeout(() => {
+        // Anything that is not already asleep gets put to sleep — a platform
+        // can report 'interrupted' rather than 'running', and a refusal is
+        // fine: the gains are at zero either way.
+        if (parked && ctx.state !== 'suspended' && ctx.state !== 'closed') {
+          ctx.suspend().catch(() => { /* muted is silent enough */ });
+        }
+      }, 350);
     },
   };
 }

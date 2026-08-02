@@ -240,6 +240,7 @@ export function createHud(root) {
   let bestPassed = false;
   let comboFlash = 0;
   let shownCombo = 1;
+  let sig = '';             // what the last drawn frame said — see `signature`
 
   /* ------------------------------------------------------------------------
      Fitting the window
@@ -264,6 +265,7 @@ export function createHud(root) {
     }
     geometry(w, h, pixel);
     if (UI !== wasUI) legend = null;
+    sig = '';   // the surface changed shape, so whatever was drawn is gone
 
     if (pixel > 0 && (offsetX || offsetY)) {
       const css = pixel / (window.devicePixelRatio || 1);
@@ -309,7 +311,28 @@ export function createHud(root) {
     return s.length > n ? s.slice(0, n) : s;
   }
 
-  const text = (s, x, y, colour, size = 1) => drawText(ctx, s, x, y, colour, size * UI, INK);
+  /* Two passes per string: the glyphs, then the same glyphs again one device
+     pixel to the right, additive and faint. On a CRT a lit phosphor bled into
+     its neighbour, which is why period text seems to sit *in* the glass
+     rather than on it — and the retro grade already leans that way, so type
+     with mathematically clean edges reads as pasted on top of the picture
+     rather than part of it. One pixel of the display, not of the font: at 2×
+     and above the bleed is deliberately sub-glyph-pixel, a softening rather
+     than a smear. The glow pass has no halo — the outline is near-black and
+     additive black is nothing — and it is skipped for a string that clipped
+     to nothing, so the composite state is only touched when ink went down. */
+  const GLOW = 0.13;
+  const text = (s, x, y, colour, size = 1) => {
+    const w = drawText(ctx, s, x, y, colour, size * UI, INK);
+    if (w) {
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = GLOW;
+      drawText(ctx, s, x + 1, y, colour, size * UI, null);
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = 'source-over';
+    }
+    return w;
+  };
   const from = (s, x, y, colour, size = 1) => text(clip(s, size, RIGHT - x), x, y, colour, size);
 
   function right(s, x, y, colour, size = 1) {
@@ -590,6 +613,53 @@ export function createHud(root) {
       + `${Math.round(g.rider.drop)} metres down.`;
   }
 
+  /* Everything `draw` will actually put on screen, flattened to a string.
+
+     The frame is redrawn only when this changes, because most frames it does
+     not: the score is shown rounded, the speed is shown rounded, the distance
+     line moves in ten-metre steps, and a clear + full repaint of a display-
+     resolution canvas to reproduce identical pixels is the single largest
+     avoidable cost in the HUD. The discipline is that every quantity `draw`
+     reads appears here *as displayed* — rounded where it rounds, thresholded
+     where it thresholds — and every animation is quantised to the step at
+     which its pixels actually change: a blink is its bucket index, the
+     banner's entrance is its three-frame drop amount, the charge blink is the
+     half-decisecond of the clock. A value that animates but is missing from
+     this string would simply freeze, which is why the list errs on the side
+     of including facts that rarely move (the weather line, the touch class)
+     rather than reasoning about when they might.
+
+     One string allocation per frame, traded for hundreds of draw calls on
+     the frames it skips. */
+  function signature(g) {
+    const rider = g.rider;
+    const age = BANNER_HOLD - bannerTimer;
+    const charge = rider.charging ? Math.min(1, Math.max(0, rider.charge)) : 0;
+    const full = charge > 0.995;
+    return `${W} ${H} ${Math.round(shownScore)}`
+      + ` ${Math.round(g.combo)}`
+      + ` ${comboFlash > 0 && !CALM ? Math.floor((COMBO_FLASH - comboFlash) / 0.06) % 2 : -1}`
+      + ` ${Math.round(g.bestAtStart || 0)}`
+      + ` ${g.bestAtStart > 0 && g.score >= g.bestAtStart ? 1 : 0}`
+      + ` ${bestFlash > 0 ? (CALM ? 1 : Math.floor((BEST_FLASH - bestFlash) / 0.18) % 2) : -1}`
+      + ` ${Math.round(rider.speed * 3.6)}`
+      + ` ${(rider.distance / 1000).toFixed(2)} ${Math.round(rider.drop)}`
+      + ` ${Math.round(Math.atan(gradeAt(rider.pos.z)) * 180 / Math.PI)}`
+      + ` ${g.weather.phase}·${g.weather.conditions}`
+      + ` ${g.gateRun > 0 ? g.gateRun : 0}`
+      + ` ${!rider.grounded && rider.airTime > 0.25 ? rider.airTime.toFixed(1) : ''}`
+      + ` ${!rider.grounded && g.liveTrick ? g.liveTrick : ''}`
+      + ` ${bannerTimer > 0
+        ? `${bannerName}|${bannerPoints}|${bannerTone}`
+          + `|${CALM ? 0 : age < 0.05 ? 3 : age < 0.10 ? 1 : 0}`
+          + `|${!CALM && age < 0.18 ? Math.floor(age / 0.06) % 2 : -1}`
+        : ''}`
+      + ` ${rider.charging ? Math.round(CHARGE_W * charge) : -1}`
+      + ` ${full ? 1 : 0} ${full && !CALM ? Math.floor(clock * 10) % 2 : -1}`
+      + ` ${muted ? 1 : 0} ${legendTime < LEGEND_SECONDS ? 1 : 0}`
+      + ` ${document.body.classList.contains('touch') ? 1 : 0}`;
+  }
+
   function update(g, dt) {
     clock += dt;
     last = g;
@@ -616,7 +686,13 @@ export function createHud(root) {
       if (callout) callout.textContent = 'New best.';
     }
 
-    draw(g);
+    // Redrawn only when the picture would differ — see `signature`. The
+    // spoken read-out runs regardless, because its cadence is its own.
+    const s = signature(g);
+    if (s !== sig) {
+      sig = s;
+      draw(g);
+    }
     speak(g, dt);
   }
 

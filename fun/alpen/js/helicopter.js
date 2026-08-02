@@ -351,10 +351,13 @@ function rotorGeometry(THREE) {
 }
 
 /* The pool on the snow: a radial fan whose vertices are re-heighted from the
-   hill every frame, so the light drapes over the moguls instead of hovering
-   flat above them. Sixty-odd `heightAt` calls a frame, against the several
-   thousand the terrain mesh already does. */
-const POOL_SEG = 48;
+   hill so the light drapes over the moguls instead of hovering flat above
+   them — but only while the lamp is actually lit and the aim point has
+   actually moved; see `shine`. Twenty-four segments because the rim's edge is
+   drawn radially in the fragment shader, so the segment count only decides
+   how round the silhouette is, and a 24-gon eleven metres wide is round from
+   anywhere the pool can be seen at night. */
+const POOL_SEG = 24;
 const POOL_RING = 6;
 
 function poolGeometry(THREE) {
@@ -473,6 +476,10 @@ export function createHelicopter(THREE, shading) {
 
   group.add(craft, beam, pool.mesh);
 
+  // The two hand-fogged materials, held once rather than rebuilt as a fresh
+  // array every frame in `update`
+  const foggedMats = [beamMat, pool.mat];
+
   // --- state ---------------------------------------------------------------
   const pos = new THREE.Vector3();
   const vel = new THREE.Vector3();
@@ -501,6 +508,11 @@ export function createHelicopter(THREE, shading) {
   let scoreSampleValid = false;
   let scoreDx = 0;
   let scoreDz = 0;
+  // Where the pool was last draped over the hill, so a beam resting on a
+  // stationary bear does not re-sample two hundred heights a frame for nothing
+  let poolAimX = 0;
+  let poolAimZ = 0;
+  let poolPlaced = false;
 
   const hold = { x: 0, y: 0, z: 0 };   // the station point, rebuilt each frame
 
@@ -571,6 +583,7 @@ export function createHelicopter(THREE, shading) {
     lamps = 0;
     lightClaimed = false;
     scoreSampleValid = false;
+    poolPlaced = false;
     group.visible = true;
   }
 
@@ -680,19 +693,31 @@ export function createHelicopter(THREE, shading) {
     // The pool is anchored at the lit point and its vertices are offsets, so
     // its float32 positions stay small however far down the mountain the run
     // has gone — the same reason the terrain mesh is anchored to the rider.
-    const ay = heightAt(aim.x, aim.z);
-    pool.mesh.position.set(aim.x, ay, aim.z);
-    const p = pool.position;
-    for (let i = 0; i < pool.count; i++) {
-      const j = i * 3;
-      p[j + 1] = heightAt(aim.x + p[j], aim.z + p[j + 2]) - ay + 0.08;
+    // Re-draped only while the lamp is up and only when the aim has moved a
+    // third of a metre: an invisible pool needs no heights at all, and one
+    // resting on a stood-still bear needs them exactly once.
+    const lit = lamps > 0.01;
+    if (lit) {
+      const mx = aim.x - poolAimX;
+      const mz = aim.z - poolAimZ;
+      if (!poolPlaced || mx * mx + mz * mz > 0.09) {
+        const ay = heightAt(aim.x, aim.z);
+        pool.mesh.position.set(aim.x, ay, aim.z);
+        const p = pool.position;
+        for (let i = 0; i < pool.count; i++) {
+          const j = i * 3;
+          p[j + 1] = heightAt(aim.x + p[j], aim.z + p[j + 2]) - ay + 0.08;
+        }
+        pool.geo.attributes.position.needsUpdate = true;
+        poolAimX = aim.x;
+        poolAimZ = aim.z;
+        poolPlaced = true;
+      }
     }
-    pool.geo.attributes.position.needsUpdate = true;
 
     beamMat.uniforms.uStrength.value = HELI.beamStrength * lamps;
     beamMat.uniforms.uTime.value = clock;
     pool.mat.uniforms.uStrength.value = HELI.poolStrength * lamps;
-    const lit = lamps > 0.01;
     beam.visible = lit;
     pool.mesh.visible = lit;
   }
@@ -701,16 +726,6 @@ export function createHelicopter(THREE, shading) {
 
   function update(dt, rider, targets, weather) {
     clock += dt;
-
-    // The fog is folded in by hand in both shaders, so both need telling.
-    // main.js can also drive these from its particle loop — `fogged` below
-    // is exactly the shape that loop wants — but doing it here means the
-    // wiring is one line and cannot be forgotten.
-    for (const m of [beamMat, pool.mat]) {
-      m.uniforms.uFog.value.copy(weather.haze);
-      m.uniforms.uNear.value = weather.fogNear;
-      m.uniforms.uFar.value = weather.fogFar;
-    }
 
     if (phase === 'hangar') {
       // Three gates, all of which have to be open at once: the right stretch
@@ -722,6 +737,20 @@ export function createHelicopter(THREE, shading) {
       const found = findTarget(rider, targets, false);
       if (!found) return;
       launch(found, slot);
+    }
+
+    // The fog is folded in by hand in both shaders, so both need telling —
+    // but only while there is a sortie to tell. This sits after the hangar
+    // gates so a grounded machine costs nothing, and after `launch` so the
+    // first visible frame already agrees with the weather. main.js can also
+    // drive these from its particle loop — `fogged` below is exactly the
+    // shape that loop wants — but doing it here means the wiring is one line
+    // and cannot be forgotten.
+    for (let i = 0; i < foggedMats.length; i++) {
+      const m = foggedMats[i];
+      m.uniforms.uFog.value.copy(weather.haze);
+      m.uniforms.uNear.value = weather.fogNear;
+      m.uniforms.uFar.value = weather.fogFar;
     }
 
     if (phase === 'away') {

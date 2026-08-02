@@ -7,7 +7,7 @@
    continuous; the former fixed-grid vertex snap and stepped light bands have
    intentionally been retired. */
 
-import { RENDER } from './config.js';
+import { RENDER, MIST } from './config.js';
 
 /* Snow is a rough dielectric, not white paint. A GGX microfacet response
    carries the sun, Schlick Fresnel replaces the body colour with reflected sky
@@ -55,13 +55,18 @@ const asFloat = (n) => n.toFixed(4);
 
 const VERT_PARS = `
 varying vec3 vN64View;
-varying float vN64Ice;`;
+varying float vN64Ice;
+varying float vN64Sheen;`;
 
 // Keep the view-space position for snow reflections and radial atmosphere.
 // Projected geometry is left untouched so motion remains sub-pixel smooth.
+// `vN64Sheen` lets a material carve the snow response out of parts of
+// itself per vertex — a grown tree is snow loads over matte timber, and a
+// luminance mask alone cannot tell pale dead larch from the drift on it.
 const VERT_VIEW = `
   vN64View = mvPosition.xyz;
-  vN64Ice = 0.0;`;
+  vN64Ice = 0.0;
+  vN64Sheen = 1.0;`;
 
 /* THE CLOUD DECK, and the reason it lives in this file rather than in the one
    that draws the sky.
@@ -169,6 +174,7 @@ vec3 n64DeckShade(float thick, float lobe, vec3 haze, vec3 horizon, vec3 glow) {
 const FRAG_PARS = `
 varying vec3 vN64View;
 varying float vN64Ice;
+varying float vN64Sheen;
 uniform vec3 uSkyZenith;
 uniform vec3 uSkyMid;
 uniform vec3 uSkyHorizon;
@@ -181,6 +187,8 @@ uniform float uSunLevel;
 uniform float uGlowStrength;
 uniform float uFogNear;
 uniform float uFogFar;
+uniform float uMistFloor;
+uniform float uMistLevel;
 uniform float uSheen;
 uniform float uSnowFresh;
 uniform float uCloud;
@@ -308,7 +316,8 @@ const FRAG_RECOVER = `
    And `n64Snow` takes all three away again on anything that is not snow, so
    a cliff face keeps the matte read that makes it look like rock. */
 const FRAG_SHEEN = `
-    float n64Snow = smoothstep(${asFloat(SNOW_LO)}, ${asFloat(SNOW_HI)}, n64Alb) * uSheen;
+    float n64Snow = smoothstep(${asFloat(SNOW_LO)}, ${asFloat(SNOW_HI)}, n64Alb)
+      * uSheen * vN64Sheen;
     // Rock, and every material that never asked, leave before the expensive
     // half of this — which is the second sky evaluation, and that function is
     // two pow instructions. The snow/rock mask avoids that work on cliffs.
@@ -353,6 +362,50 @@ const FRAG_SHEEN = `
       n64Add += n64Sun * (RECIPROCAL_PI * ${asFloat(SHEEN.wrapGain)}
         * n64Back * n64Fwd * n64Fwd * n64Fwd);
 
+      /* GLINTS — the sun caught in individual surface crystals.
+
+         The GGX lobe above is the statistical answer, and statistics is why
+         snow near the board still looked airbrushed: real snow resolves into
+         discrete facets at this distance, a few of which happen to mirror
+         the sun straight at you and outshine everything around them.
+
+         Stochastic screen-space glints were rejected here once for aliasing,
+         and that judgement stands — so these are not stochastic. The world
+         is tiled into three-centimetre cells anchored to the ground, wrapped
+         at 64 m to keep every hash operand honest on a mediump GPU. The
+         wrap needs help: n64Hash re-wraps its input at 64 internally, which
+         on cell indices would tile the crystal field every 64 cells — two
+         metres, close enough to repeat visibly. Each two-metre tile
+         therefore salts its cells with its own pseudo-random offset, which
+         restores the full 64-metre period at the cost of two hashes, and a
+         64-metre repeat is one sparkle genuinely has no structure to
+         expose. A fixed few per
+         cent of cells are crystals; each holds one fixed, randomly-canted
+         facet, and lights up only while the half-vector sweeps across it —
+         which is precisely the on/off twinkle a moving camera sees on real
+         snow, produced by geometry rather than by a random number per frame.
+         Distance fades them out well before a cell approaches the pixel
+         grid, fresh storm snow buries them, and the recovered shadow term
+         keeps them out of cast shade. */
+      float n64GDist = length(vN64View);
+      if (n64GDist < 42.0 && n64Lit > 0.02) {
+        vec3 n64WDir = normalize(vN64View * mat3(viewMatrix));
+        vec2 n64GPos = mod((cameraPosition + n64WDir * n64GDist).xz, 64.0);
+        vec2 n64GCell = floor(n64GPos * 32.0);
+        vec2 n64GTile = floor(n64GCell / 64.0);
+        n64GCell += floor(vec2(n64Hash(n64GTile), n64Hash(n64GTile.yx + 3.0)) * 64.0);
+        if (n64Hash(n64GCell) > 0.976) {
+          vec3 n64GJit = vec3(n64Hash(n64GCell + 7.0) - 0.5,
+            n64Hash(n64GCell + 13.0) - 0.5,
+            n64Hash(n64GCell + 29.0) - 0.5);
+          vec3 n64GN = normalize(normal + n64GJit * 0.55);
+          float n64Spark = pow(max(dot(n64GN, n64H), 0.0), 64.0);
+          float n64GFade = (1.0 - smoothstep(14.0, 42.0, n64GDist))
+            * n64Open * (1.0 - uSnowFresh * 0.85);
+          n64Add += n64Sun * (n64Spark * n64GFade * 2.6);
+        }
+      }
+
       float n64Fenv = ${asFloat(SHEEN.f0)}
         + (1.0 - ${asFloat(SHEEN.f0)}) * pow(1.0 - n64NoV, 5.0);
       vec3 n64R = normalize(reflect(-n64V, normal) * mat3(viewMatrix));
@@ -385,9 +438,34 @@ function lightPatch(sheen) {
    already applied all three by the time `mvPosition` exists. */
 const FRAG_FOG = `
   {
-    vec3 n64Dir = normalize(vN64View * mat3(viewMatrix));
-    float n64Fog = smoothstep(uFogNear, uFogFar, length(vN64View));
-    gl_FragColor.rgb = mix(gl_FragColor.rgb, n64Sky(n64Dir), n64Fog);
+    float n64Dist = length(vN64View);
+    float n64Fog = smoothstep(uFogNear, uFogFar, n64Dist);
+    /* Valley mist: the fog's height term. The radial curtain treats a hollow
+       and a crest at the same range identically, which discards the one
+       depth cue this terrain is actually made of. The mist is a bank with a
+       floor: density falls exponentially with height above it, so gullies
+       and the corridor's dish fill with haze while every knoll and ridge
+       crest punches clear. The distance ramp is what keeps it out of the
+       rider's own snow — mist two metres of path away is no mist at all. */
+    vec3 n64Dir = vN64View * (1.0 / max(n64Dist, 1e-4)) * mat3(viewMatrix);
+    if (uMistLevel > 0.002) {
+      float n64H = max(cameraPosition.y + n64Dir.y * n64Dist - uMistFloor, 0.0);
+      float n64Mist = uMistLevel * exp(n64H * -${asFloat(MIST.scale)})
+        * smoothstep(30.0, 150.0, n64Dist);
+      /* Mist is water, not sky: it blends towards the flat haze stop, never
+         the directional gradient. Routed through the sun's amber lobe it
+         painted every shaded mid-field slope mud-brown at golden hour. The
+         (1 − fog) keeps the two curtains from double-counting where the
+         radial one has already taken over. */
+      gl_FragColor.rgb = mix(gl_FragColor.rgb, uSkyHaze, n64Mist * (1.0 - n64Fog));
+    }
+    /* Most of the frame is snow well inside the curtain, and it was paying
+       for the full sky evaluation — gradient, sun lobe and three octaves of
+       cloud deck — to be multiplied by zero. Fog is monotonic in depth, so
+       the branch is coherent across a warp and near fragments simply leave. */
+    if (n64Fog > 0.003) {
+      gl_FragColor.rgb = mix(gl_FragColor.rgb, n64Sky(n64Dir), n64Fog);
+    }
   }`;
 
 /* Camera collision can put the lens inside a conifer even after the boom has
@@ -433,6 +511,8 @@ export function createShading(THREE) {
     uGlowStrength: { value: 1 },
     uFogNear: { value: RENDER.fogNear },
     uFogFar: { value: RENDER.fogFar },
+    uMistFloor: { value: -1e5 },
+    uMistLevel: { value: 0 },
     uSnowFresh: { value: 0 },
     // The deck. `sky.js` owns both numbers and writes them into the dome's own
     // copies at the same moment — see `SKY_GLSL`.
@@ -441,6 +521,7 @@ export function createShading(THREE) {
   };
 
   const viewInv = new THREE.Matrix4();
+  const flashWhite = new THREE.Color(1, 1, 1);
 
   /* Patch one material.
 
@@ -536,18 +617,39 @@ export function createShading(THREE) {
      `uSunView` is the only thing here that needs the camera. The snow response
      compares the sun against Three's own view-space normal, so it remains in
      agreement with each material's diffuse lighting and shadowing. */
-  function update(w, camera) {
+  let mistFloor = Number.NaN;
+
+  function update(w, camera, dt = 0, groundY = Number.NaN) {
     uniforms.uSkyZenith.value.copy(w.zenith);
     uniforms.uSkyMid.value.copy(w.mid);
     uniforms.uSkyHorizon.value.copy(w.horizon);
     uniforms.uSkyHaze.value.copy(w.haze);
     uniforms.uSkyGlow.value.copy(w.glow);
+    /* A lightning flash lights the dome, and the world's fog dissolves into
+       that dome — leave these two out and every fogged ridge holds its old
+       colour against a white sky for the length of the strike. */
+    if (w.flash > 0.003) {
+      uniforms.uSkyHorizon.value.lerp(flashWhite, w.flash * 0.8);
+      uniforms.uSkyHaze.value.lerp(flashWhite, w.flash * 0.8);
+    }
     uniforms.uGlowStrength.value = 1 - w.storm * 0.8;
     uniforms.uFogNear.value = w.fogNear;
     uniforms.uFogFar.value = w.fogFar;
     uniforms.uSnowFresh.value = w.storm;
     uniforms.uCloud.value = w.cloud;
     uniforms.uCloudDrift.value.set(w.cloudX, w.cloudZ);
+
+    /* The mist bank's floor rides a fixed drop under the ground at the
+       rider, eased rather than pinned — pinned, it would leap up under a
+       jump and drain every hollow the moment the camera rose. Eased, the
+       bank keeps sinking with the run and a launch sails out over it. */
+    if (Number.isFinite(groundY)) {
+      const target = groundY - MIST.drop;
+      mistFloor = Number.isNaN(mistFloor) ? target
+        : mistFloor + (target - mistFloor) * (1 - Math.exp(-dt * MIST.floorRate));
+      uniforms.uMistFloor.value = mistFloor;
+    }
+    uniforms.uMistLevel.value = (w.mist || 0) * MIST.max;
 
     /* The lamp, taken apart. `sky.js` sets `key.color` to `w.key` and
        `key.intensity` to `w.keyI` and three multiplies them into one uniform,

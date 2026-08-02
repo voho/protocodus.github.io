@@ -342,7 +342,14 @@ const AURORA = {
   arc: 2.9,
   foot: 0.035,      // radians of elevation, bottom and top of the band
   head: 0.75,
-  gain: 0.30,       // the ceiling on an additive layer in a graded picture
+  /* The ceiling on an additive layer in a graded picture. It sat at 0.30 for
+     a long while, which against a night sky that had since been pushed down
+     towards black was a display you had to be told about: the folds are
+     sparse by construction, so the ceiling is only ever paid on a fraction
+     of the band and the head-line worry — clipped additive green — never
+     actually arrives at it. Half again is a curtain you notice from the
+     piste and still a long way from a green wash. */
+  gain: 0.55,
 };
 
 /* The counterglow, in three numbers.
@@ -568,9 +575,23 @@ const ramp = (v, a, b) => smooth01(clamp01((v - a) / (b - a)));
 const frac = (v) => v - Math.floor(v);
 
 const DOME_VERT = `
+  uniform float uPanoYaw;
   varying highp vec3 vDir;
+  varying highp float vPanoU;
   void main() {
     vDir = normalize(position);
+    /* The panorama's horizontal coordinate, taken from the sphere's own uv
+       rather than re-derived from atan per fragment. The two are the same
+       number — the sphere's u *is* the azimuth over two pi — but the atan
+       has a jump at the back of the ring, and the fract on top of it another,
+       and at each jump the screen-space derivative the mip selector reads is
+       enormous: one column of fragments samples the smallest mip and draws a
+       blurred seam down the sky. The geometry already solved this — the
+       sphere duplicates its seam column with u at nought on one side and one
+       on the other — so the varying is continuous across every quad, the
+       wrap is left to the sampler's own RepeatWrapping, and no fract is
+       needed anywhere. */
+    vPanoU = 1.0 + uPanoYaw - uv.x;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   }
 `;
@@ -582,8 +603,11 @@ const DOME_FRAG = `
   uniform float uCloud;
   uniform vec2 uCloudDrift;
   uniform sampler2D uPanoClear, uPanoStorm;
-  uniform float uPanoStrength, uPanoStormMix, uPanoYaw;
+  uniform float uPanoStrength, uPanoStormMix;
+  uniform vec2 uSunAz;
+  uniform vec3 uSunlit;
   varying highp vec3 vDir;
+  varying highp float vPanoU;
 
   ${SKY_GLSL}
 
@@ -612,36 +636,59 @@ const DOME_FRAG = `
        The panorama contributes structure and a restrained amount of material
        colour; the procedural gradient above still owns the hour of day. That
        is why a clear-morning source can survive dawn, dusk and moonlight
-       without becoming a rectangular photograph behind the weather. */
-    vec2 panoUv = vec2(
-      fract(atan(dir.z, dir.x) * 0.1591549431 + 0.5 + uPanoYaw),
-      /* The source was generated from a high Alpine viewpoint, so almost all
-         of its mountain mass lies below its own geometric horizon. Sampling
-         that horizon at world 0 degrees hid the plate behind the terrain and
-         haze cone. Aim 3.5% lower into the source: its photographed skyline
-         then stands about 6.3 degrees above the game horizon, with its base
-         still disappearing naturally behind the real valley. */
-      clamp(asin(clamp(dir.y, -1.0, 1.0)) * 0.3183098862 + 0.515, 0.0, 1.0)
-    );
-    vec3 pano = texture2D(uPanoClear, panoUv).rgb;
-    // Clear weather is the common case, so it pays for one sky lookup. The
-    // second plate is sampled only while a front is actually crossfading in.
-    if (uPanoStormMix > 0.001) {
-      pano = mix(pano, texture2D(uPanoStorm, panoUv).rgb, uPanoStormMix);
+       without becoming a rectangular photograph behind the weather.
+
+       The whole block is behind a uniform branch — the same style the storm
+       plate already uses one level down — because at night and in a whiteout
+       the plate's strength falls to nothing and two texture fetches over the
+       most expensive shader on screen would be buying nothing at all. The
+       condition is uniform, so the derivatives the mip selector needs are
+       still well defined inside it. */
+    if (uPanoStrength > 0.005) {
+      vec2 panoUv = vec2(
+        vPanoU,
+        /* The source was generated from a high Alpine viewpoint, so almost
+           all of its mountain mass lies below its own geometric horizon.
+           Sampling that horizon at world 0 degrees hid the plate behind the
+           terrain and haze cone. Aim 3.5% lower into the source: its
+           photographed skyline then stands about 6.3 degrees above the game
+           horizon, with its base still disappearing naturally behind the
+           real valley. */
+        clamp(asin(clamp(dir.y, -1.0, 1.0)) * 0.3183098862 + 0.515, 0.0, 1.0)
+      );
+      vec3 pano = texture2D(uPanoClear, panoUv).rgb;
+      // Clear weather is the common case, so it pays for one sky lookup. The
+      // second plate is sampled only while a front is actually crossfading in.
+      if (uPanoStormMix > 0.001) {
+        pano = mix(pano, texture2D(uPanoStorm, panoUv).rgb, uPanoStormMix);
+      }
+      float panoLum = dot(pano, vec3(0.2126, 0.7152, 0.0722));
+      vec3 panoChroma = clamp(pano / max(0.035, panoLum), vec3(0.48), vec3(1.8));
+      /* Relight relative source luminance around the plate's own mid-grey.
+         Snow, sky and dark rock all sat near the bright end of the previous
+         smoothstep, which erased the very folds that identify the photograph.
+         This centred exposure keeps a bounded 0.42–1.42 range while inheriting
+         the procedural hour-of-day colour from c. */
+      float panoForm = clamp(1.0 + (panoLum - 0.45) * 1.48, 0.42, 1.42);
+      vec3 relitPano = c * panoForm * mix(vec3(1.0), panoChroma, 0.22);
+      /* Alpenglow on the plate. The procedural ranges already catch the one
+         amber in the palette on the flanks facing a low sun; the plate never
+         did, so at golden hour the hero range sat cold behind foothills that
+         were on fire. The term is the same borrowed colour they use —
+         uSunlit, already zero at noon, at night and in a storm — landed on
+         the bright pano pixels near the sun's own azimuth. Gated on the
+         plate's relit form rather than a snow line, because bright in this
+         source *is* snow, and added rather than mixed for the reason the
+         ranges' note gives: alpenglow is light arriving on snow, and a lerp
+         towards orange turns the range to cardboard. */
+      float az = max(0.0, dot(dir.xz, uSunAz) / max(length(dir.xz), 0.001));
+      relitPano += uSunlit * (pow(az, 6.0)
+        * smoothstep(0.60, 1.15, panoForm) * 0.45);
+      // The plate is the distant range, not the entire atmosphere. Let it own
+      // the lower sky and hand the zenith back to the procedural gradient/deck.
+      float panoBand = 1.0 - smoothstep(0.30, 0.54, up);
+      c = mix(c, relitPano, uPanoStrength * panoBand);
     }
-    float panoLum = dot(pano, vec3(0.2126, 0.7152, 0.0722));
-    vec3 panoChroma = clamp(pano / max(0.035, panoLum), vec3(0.48), vec3(1.8));
-    /* Relight relative source luminance around the plate's own mid-grey.
-       Snow, sky and dark rock all sat near the bright end of the previous
-       smoothstep, which erased the very folds that identify the photograph.
-       This centred exposure keeps a bounded 0.42–1.42 range while inheriting
-       the procedural hour-of-day colour from c. */
-    float panoForm = clamp(1.0 + (panoLum - 0.45) * 1.48, 0.42, 1.42);
-    vec3 relitPano = c * panoForm * mix(vec3(1.0), panoChroma, 0.22);
-    // The plate is the distant range, not the entire atmosphere. Let it own
-    // the lower sky and hand the zenith back to the procedural gradient/deck.
-    float panoBand = 1.0 - smoothstep(0.30, 0.54, up);
-    c = mix(c, relitPano, uPanoStrength * panoBand);
     // One dot product of atmosphere: the sky is brighter and warmer near
     // whatever is lighting it, and the effect is strongest at the horizon
     float lobe = max(0.0, dot(dir, uSunDir));
@@ -658,12 +705,23 @@ const DOME_FRAG = `
 const STAR_VERT = `
   attribute float aSize;
   attribute float aTwinkle;
+  attribute vec3 aTint;
   varying float vFade;
+  varying vec3 vTint;
   uniform float uAlpha;
   uniform float uTime;
   uniform float uScale;
   void main() {
-    vFade = uAlpha * (0.55 + 0.45 * sin(uTime * 1.7 + aTwinkle * 40.0));
+    /* Horizon extinction: the air a star's light crosses grows without bound
+       as it approaches the skyline, so real stars dim and go out over the
+       last dozen degrees — and the panorama's ridges live in exactly those
+       degrees, so without this a star could twinkle in front of a mountain.
+       The fade is on the direction's own y, which for a point pinned to the
+       dome is its elevation's sine; gone by the horizon, full a little over
+       twelve degrees up. */
+    float extinct = smoothstep(0.06, 0.21, normalize(position).y);
+    vFade = uAlpha * extinct * (0.55 + 0.45 * sin(uTime * 1.7 + aTwinkle * 40.0));
+    vTint = aTint;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
     gl_PointSize = aSize * uScale;
   }
@@ -672,11 +730,12 @@ const STAR_VERT = `
 const STAR_FRAG = `
   precision mediump float;
   varying float vFade;
+  varying vec3 vTint;
   void main() {
     if (vFade <= 0.01) discard;
     vec2 d = gl_PointCoord - 0.5;
     if (dot(d, d) > 0.25) discard;
-    gl_FragColor = vec4(1.0, 1.0, 1.0, vFade);
+    gl_FragColor = vec4(vTint, vFade);
   }
 `;
 
@@ -727,6 +786,18 @@ const AURORA_FRAG = `
     // away. Cutting high is what keeps the display sparse and stops the band
     // reading as a green wash over the whole north.
     float fold = smoothstep(0.40, 0.86, n);
+    /* The rays. A curtain is not a cloud: it is field-aligned, which on a
+       screen means vertical striations running the height of the band. One
+       more fetch buys them — the same field read fast across the sky and
+       almost not at all up it, so a bright column at the foot is the same
+       bright column at the head. Multiplied into the folds rather than added
+       beside them, because rays are structure *in* the curtain, and centred
+       on one so the band's overall energy is untouched. They dissolve
+       towards the head, where a real display frays into haze — which is also
+       what roots them visually at the foot. */
+    float ray = texture2D(uNoise, vec2(vUv.x * 5.0 + uTime * 0.006, 0.71 + t * 0.05)).g;
+    fold *= mix(0.40 + 1.20 * smoothstep(0.30, 0.80, ray), 1.0,
+      smoothstep(0.55, 0.95, t));
     // Brightest a quarter of the way up and gone by the top; faded off both
     // ends of the arc so the curtain has no cut edge; and faded out towards
     // the horizon, where the haze would have had it
@@ -783,6 +854,60 @@ const BELT_FRAG = `
     // the light standing directly on top of each other, which is the whole
     // reason anybody looks the wrong way at sunset
     gl_FragColor = vec4(mix(uShade, uRose, smoothstep(0.14, 0.66, t)), a);
+  }
+`;
+
+/* The disc, which is the sun by day and the moon by night, and the reason it
+   is a shader now rather than a radial gradient on a canvas: a gradient can
+   only draw a full circle, and a full circle is the one thing the moon never
+   quite is. Two signed circles do the whole job — the body, and an offset
+   circle laid over one limb whose overlap is taken back out of the alpha, so
+   the missing sliver shows the sky through it exactly as the real one does.
+   The phase is fixed at a waxing gibbous, which is the moon of every night
+   photograph and asks for no orbital bookkeeping, and the bite is scaled by
+   how much moon the weather says the disc currently is: by day it closes and
+   the sun is the same clean circle it always was.
+
+   The vertex shader is the sprite's own billboard math written out by hand —
+   centre from the model-view translation, corners spread in view space by
+   the model matrix's scale — because three's built-in sprite shader belongs
+   to SpriteMaterial and does not take a custom fragment stage. The mesh
+   stays a THREE.Sprite; nothing about how it is placed or scaled changes. */
+const DISC_VERT = `
+  varying vec2 vUv;
+  void main() {
+    vUv = uv;
+    vec2 scale = vec2(length(modelMatrix[0].xyz), length(modelMatrix[1].xyz));
+    vec4 mv = modelViewMatrix * vec4(0.0, 0.0, 0.0, 1.0);
+    mv.xy += position.xy * scale;
+    gl_Position = projectionMatrix * mv;
+  }
+`;
+
+const DISC_FRAG = `
+  precision mediump float;
+  uniform vec3 uColor;
+  uniform float uOpacity, uMoon;
+  varying vec2 vUv;
+  void main() {
+    vec2 p = vUv - 0.5;
+    float r = length(p);
+    // The body, softened over the same tenth of the sprite the old canvas
+    // gradient used, so the edge stays clean at any output resolution
+    float disk = 1.0 - smoothstep(0.36, 0.46, r);
+    if (disk < 0.004) discard;
+    /* The terminator: a second circle whose centre sits outside the body, so
+       its arc curves the correct way — concave towards the dark limb, which
+       is what says gibbous rather than eclipse. Softened wider than the rim,
+       because the terminator is a shadow crossing a sphere and not an edge. */
+    float bite = 1.0 - smoothstep(0.26, 0.38, length(p - vec2(0.52, 0.18)));
+    /* And mild limb darkening, moon only: the full face of a sunlit sphere
+       falls off towards its rim. The sun's disc is left alone — it is an
+       emitter, and the analytic soft rim above is already doing the work its
+       gradient used to. */
+    float limb = 1.0 - 0.28 * uMoon * smoothstep(0.10, 0.44, r);
+    float a = uOpacity * disk * (1.0 - 0.94 * uMoon * bite);
+    gl_FragColor = vec4(uColor * limb, a);
   }
 `;
 
@@ -1065,6 +1190,10 @@ export function createSky(THREE) {
       uPanoStormMix: { value: 0 },
       // Source centre looks down-run; its joined edge sits safely uphill.
       uPanoYaw: { value: 0.25 },
+      // The plate's alpenglow: the ranges' own borrowed amber, and the sun's
+      // heading flattened onto the ground. Both are written every frame.
+      uSunAz: { value: sunXZ },
+      uSunlit: { value: new THREE.Color(0, 0, 0) },
     },
     vertexShader: DOME_VERT,
     fragmentShader: DOME_FRAG,
@@ -1076,7 +1205,18 @@ export function createSky(THREE) {
   // vertex interpolation. A 96×64 carrier keeps that interpolation spherical
   // enough for the generated Alpine plate and the sun lobe at native output.
   const dome = new THREE.Mesh(new THREE.SphereGeometry(RADIUS, 96, 64), domeMat);
-  dome.renderOrder = -20;
+  /* After the opaque world rather than before it. Drawn first, the most
+     expensive shader on screen ran for every pixel of the frame and the
+     terrain then painted over most of its work; drawn last among the
+     opaques, the depth buffer is already full of mountain and the early-z
+     test throws those fragments away before the shader runs. The dome sits
+     at 2900 m inside the 3600 m far plane, its depthTest was always on and
+     it has never written depth, so the *picture* is bit-identical — only the
+     order changed. Every transparent sky layer (belt, stars, aurora, glow,
+     disc, ranges, mist) lives in the transparent list, which draws after all
+     opaques whatever their renderOrder says, so their own ordering among
+     themselves is untouched by this. */
+  dome.renderOrder = 1;
   group.add(dome);
 
   const preparePlate = (texture) => {
@@ -1143,11 +1283,22 @@ export function createSky(THREE) {
     depthWrite: false,
     fog: false,
   });
+  /* The three colour temperatures a naked eye actually reports, and no more
+     of them: most stars read blue-white to white, and a handful — Betelgeuse,
+     Arcturus, Aldebaran — are unmistakably warm. Chosen per star below with
+     the warm ones kept rare, because a sky salted evenly with amber reads as
+     noise rather than as astronomy. */
+  const STAR_TEMPS = [
+    [0.76, 0.85, 1.00],
+    [1.00, 0.97, 0.92],
+    [1.00, 0.84, 0.64],
+  ];
   const stars = (() => {
     const n = 420;
     const pos = new Float32Array(n * 3);
     const size = new Float32Array(n);
     const twinkle = new Float32Array(n);
+    const tint = new Float32Array(n * 3);
     for (let i = 0; i < n; i++) {
       // Upper hemisphere only, weighted away from the horizon where the
       // haze would have eaten them anyway
@@ -1158,13 +1309,29 @@ export function createSky(THREE) {
       pos[i * 3] = Math.cos(a) * r * RADIUS * 0.97;
       pos[i * 3 + 1] = y * RADIUS * 0.97;
       pos[i * 3 + 2] = Math.sin(a) * r * RADIUS * 0.97;
-      size[i] = 1 + Math.random() * 2.2;
+      /* Magnitude follows a power law rather than a uniform draw, which is
+         what a real sky does: each step down in brightness has several times
+         the members of the one above it. A uniform field has no bright stars
+         at all in the sense that matters — nothing to be brighter *than* —
+         and it was the single thing making this read as speckle rather than
+         as night. The magnitude sets the point size and most of the light
+         together, so the handful at the top are unmistakably stars and the
+         rest are the dust they stand in front of. */
+      const mag = Math.pow(Math.random(), 2.4);
+      size[i] = 1 + mag * 2.8;
       twinkle[i] = Math.random();
+      const roll = Math.random();
+      const temp = STAR_TEMPS[roll < 0.56 ? 0 : roll < 0.87 ? 1 : 2];
+      const bright = 0.45 + 0.55 * mag;
+      tint[i * 3] = temp[0] * bright;
+      tint[i * 3 + 1] = temp[1] * bright;
+      tint[i * 3 + 2] = temp[2] * bright;
     }
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     g.setAttribute('aSize', new THREE.BufferAttribute(size, 1));
     g.setAttribute('aTwinkle', new THREE.BufferAttribute(twinkle, 1));
+    g.setAttribute('aTint', new THREE.BufferAttribute(tint, 3));
     const p = new THREE.Points(g, starMat);
     p.renderOrder = -19;
     p.frustumCulled = false;
@@ -1361,26 +1528,23 @@ export function createSky(THREE) {
   glow.renderOrder = -18;
   group.add(glow);
 
-  const discTex = (() => {
-    const s = 64;
-    const cv = document.createElement('canvas');
-    cv.width = cv.height = s;
-    const g = cv.getContext('2d');
-    // Hard-edged, but analytically softened so the disc stays clean at any
-    // output resolution.
-    const grd = g.createRadialGradient(s / 2, s / 2, s * 0.36, s / 2, s / 2, s * 0.46);
-    grd.addColorStop(0, 'rgba(255,255,255,1)');
-    grd.addColorStop(1, 'rgba(255,255,255,0)');
-    g.fillStyle = grd;
-    g.fillRect(0, 0, s, s);
-    const tex = new THREE.CanvasTexture(cv);
-    tex.colorSpace = THREE.SRGBColorSpace;
-    return tex;
-  })();
-
-  const disc = new THREE.Sprite(new THREE.SpriteMaterial({
-    map: discTex, transparent: true, depthWrite: false, fog: false,
-  }));
+  // See DISC_VERT/DISC_FRAG: the same billboard, drawn analytically, with a
+  // gibbous bite the moon opens and the sun closes. Normal alpha blending as
+  // before — the disc is a body with a sky behind it, not a light added to
+  // one; the glow above is the additive half of the pair.
+  const discMat = new THREE.ShaderMaterial({
+    uniforms: {
+      uColor: { value: new THREE.Color('#ffffff') },
+      uOpacity: { value: 0 },
+      uMoon: { value: 0 },
+    },
+    vertexShader: DISC_VERT,
+    fragmentShader: DISC_FRAG,
+    transparent: true,
+    depthWrite: false,
+    fog: false,
+  });
+  const disc = new THREE.Sprite(discMat);
   disc.renderOrder = -17;
   group.add(disc);
 
@@ -1394,7 +1558,12 @@ export function createSky(THREE) {
   const cone = new THREE.Mesh(
     new THREE.ConeGeometry(CONE_R, coneH, 192, 1, true), hazeMat,
   );
-  cone.renderOrder = -16;
+  // After the dome, for the same reason the dome now goes after the terrain:
+  // most of the cone is behind real ground, and drawing it once the depth
+  // buffer knows that costs only the fragments that are actually the horizon.
+  // It still writes depth, exactly as it always did, and it still lands
+  // before every transparent layer because all the opaques do.
+  cone.renderOrder = 2;
   group.add(cone);
 
   // --- the ranges ----------------------------------------------------------
@@ -1820,6 +1989,19 @@ export function createSky(THREE) {
     domeMat.uniforms.uGlowStrength.value = 1 - w.storm * 0.8;
     domeMat.uniforms.uCloud.value = w.cloud;
     domeMat.uniforms.uCloudDrift.value.set(w.cloudX, w.cloudZ);
+    /* Lightning. The weather owns the trigger — see the note there, it is a
+       hash of its own clock, so a seed replays its storms strikes and all —
+       and this end only says what a strike looks like: the whole sky pulled
+       towards white for a tenth of a second. It is applied to the copies the
+       uniforms just took rather than to the weather's own colours, so
+       nothing downstream of the state ever sees a flash it did not ask for.
+       The fill light gets its share further down, which is what actually
+       lights the snow. */
+    const flash = w.flash;
+    if (flash > 0.003) {
+      domeMat.uniforms.uHorizon.value.lerp(WHITE, flash * 0.8);
+      domeMat.uniforms.uHaze.value.lerp(WHITE, flash * 0.8);
+    }
     panoReady += (panoTarget - panoReady) * (1 - Math.exp(-2.8 * dt));
     domeMat.uniforms.uPanoStormMix.value = ramp(w.storm, 0.12, 0.78);
     // Night keeps a faint mountain plate under the stars; a whiteout gives it
@@ -1827,12 +2009,19 @@ export function createSky(THREE) {
     panoStrength.value = panoReady * 0.88 * (1 - 0.82 * w.night)
       * (1 - ramp(w.storm, 0.82, 0.98));
 
-    starMat.uniforms.uAlpha.value = w.star * (1 - w.storm) * 0.9;
-    starMat.uniforms.uTime.value = time;
-    // A star is a fixed number of pixels, so it has to be told how many
-    // pixels there now are. On a 2× panel the old constant drew a quarter
-    // of the star it drew on the buffer it was chosen for.
-    starMat.uniforms.uScale.value = Math.max(1, Math.min(3, RENDER.buffer.height / 800));
+    // Daytime is most of the day, and 420 points run through the vertex
+    // stage only to discard is not a cost worth paying for a sky with no
+    // stars in it — so the whole object stands down when its alpha does
+    const starAlpha = w.star * (1 - w.storm) * 0.9;
+    stars.visible = starAlpha > 0.005;
+    if (stars.visible) {
+      starMat.uniforms.uAlpha.value = starAlpha;
+      starMat.uniforms.uTime.value = time;
+      // A star is a fixed number of pixels, so it has to be told how many
+      // pixels there now are. On a 2× panel the old constant drew a quarter
+      // of the star it drew on the buffer it was chosen for.
+      starMat.uniforms.uScale.value = Math.max(1, Math.min(3, RENDER.buffer.height / 800));
+    }
 
     // On three nights in four this is zero and the band is not drawn at all
     aurora.visible = w.aurora > 0.004;
@@ -1879,9 +2068,15 @@ export function createSky(THREE) {
     const risen = ramp(w.elevation, -0.028, 0.018);
     disc.position.copy(sunDir).multiplyScalar(RADIUS * 0.85);
     disc.scale.setScalar(RADIUS * (0.085 - moon * 0.032));
-    disc.material.color.copy(w.key);
-    disc.material.opacity = (1 - w.storm) * (0.55 + 0.45 * (1 - moon)) * risen;
-    disc.visible = disc.material.opacity > 0.02 && w.storm < 0.92;
+    discMat.uniforms.uColor.value.copy(w.key);
+    discMat.uniforms.uMoon.value = moon;
+    const discFade = (1 - w.storm) * (0.55 + 0.45 * (1 - moon)) * risen;
+    discMat.uniforms.uOpacity.value = discFade;
+    // Visibility follows the opacity and only the opacity. There used to be
+    // a second, hard gate at storm 0.92 — a disc still five per cent there
+    // one frame and gone the next, which is a switch, and a switch on the
+    // brightest thing in the sky is the kind nobody misses.
+    disc.visible = discFade > 0.01;
 
     // Small and faint. An additive sprite this far out covers a lot of sky
     // for very little scale, and a sun that blows out the middle of the
@@ -1918,6 +2113,9 @@ export function createSky(THREE) {
        nothing whatsoever in the middle of the day. */
     const low = 1 - ramp(w.elevation, 0.10, 0.44);
     sunlit.copy(w.key).multiplyScalar(1.6 * low * sunLight);
+    // The panorama takes the same amber the ranges do — see DOME_FRAG. The
+    // azimuth half of the pair is `sunXZ`, already shared by reference.
+    domeMat.uniforms.uSunlit.value.copy(sunlit);
 
     // The curtain, and the ranges standing on it. Eased rather than taken
     // straight: the probes are asking a hill with twenty metres of noise on
@@ -2009,6 +2207,9 @@ export function createSky(THREE) {
     }
 
     hazeMat.color.copy(w.haze);
+    // The cone is the fog curtain's opaque floor: a strike that whitens the
+    // dome above it and not this reads as a seam, not lightning.
+    if (w.flash > 0.003) hazeMat.color.lerp(WHITE, w.flash * 0.8);
     for (const r of ranges) {
       /* The generated equirectangular plate is the hero distant range. As it
          becomes visible, all four procedural fallback rings yield to it: the
@@ -2137,10 +2338,32 @@ export function createSky(THREE) {
     key.position.copy(shadowAt).addScaledVector(sunDir, SHADOW_DIST);
     /* A sun on the horizon casts shadows the length of the mountain, which
        the box cannot hold and which read as black stripes across everything.
-       So the shadow lets go as the sun goes down, and by the time it is the
-       moon there is none — which is also what the eye expects, because a
-       moonlit slope has no hard shadows on it. */
-    key.castShadow = w.elevation > 0.10 && w.storm < 0.75;
+       So the shadow lets go as the sun goes down and as a storm closes in —
+       which is also what the eye expects, because a moonlit slope has no
+       hard shadows on it and neither does a whiteout.
+
+       It used to let go by flipping `castShadow`, and that flip was two bugs
+       wearing one line. Every lit material in three keys its program on
+       whether shadows exist, so the flip recompiled the entire mountain's
+       shaders in the middle of a run — a hitch long enough to eat a landing
+       — and the shadows themselves arrived and left in a single frame,
+       which on a slow dusk is a pop with nothing to blame for it. So the
+       flag now never moves. The *strength* moves instead: `shadow.intensity`
+       is a uniform, it fades the whole map's contribution smoothly through
+       the same two thresholds the flip used to cross, and it costs no
+       recompile because nothing about the program changes. And once it has
+       faded all the way out, `shadow.autoUpdate` is dropped so the renderer
+       skips the depth pass entirely — the night is not paying to render a
+       map that is multiplied by zero. `needsUpdate` re-arms alongside it so
+       the first shadowed frame after a long night is never a stale one. */
+    const shadowLevel = ramp(w.elevation, 0.08, 0.14)
+      * (1 - ramp(w.storm, 0.60, 0.78));
+    key.shadow.intensity = shadowLevel;
+    const casting = shadowLevel > 0.001;
+    if (casting !== key.shadow.autoUpdate) {
+      key.shadow.autoUpdate = casting;
+      key.shadow.needsUpdate = casting;
+    }
     key.color.copy(w.key);
     key.intensity = w.keyI;
     // The fill takes the sky's hue but not its saturation. Snow bounce is
@@ -2148,9 +2371,18 @@ export function createSky(THREE) {
     // surface the sun is not on into flat blue paper.
     fill.copy(w.mid).lerp(WHITE, 0.5);
     hemi.color.copy(fill);
+    // On the night a display lands, the sky is the brightest lamp out and it
+    // is green — so the fill takes a breath of the curtain's own colour and
+    // the snow knows the sky is on fire. A sixth at full strength: enough to
+    // read, and not enough to turn the mountain into a billiard table.
+    if (w.aurora > 0.004) {
+      hemi.color.lerp(auroraMat.uniforms.uLow.value, w.aurora * 0.15);
+    }
     fill.copy(w.haze).lerp(WHITE, 0.35);
     hemi.groundColor.copy(fill);
-    hemi.intensity = w.hemiI;
+    // And the strike, added rather than scaled: a flash lights the clouds
+    // from inside, so it arrives through the fill and not through the key.
+    hemi.intensity = w.hemiI + flash * 2.2;
   }
 
   /* Where the sun lands in the frame, for the pass that marches towards it.

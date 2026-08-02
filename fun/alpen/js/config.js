@@ -107,6 +107,11 @@ export const GRADE = {
   /* Bloom, from a quarter-resolution bright pass. Kept small enough that the
      snow retains shape instead of becoming one wide soft glow. */
   bloom: 0.20,
+  /* …and a second octave at a sixteenth of the resolution: the wide, dim
+     halo the air wears around a low sun and over a lit snowfield. The tight
+     kernel above rims edges; this one glows. It is fainter than it looks —
+     a sixteenth-res texel covers a lot of screen, so a little goes far. */
+  bloomWide: 0.14,
   bloomThreshold: 0.78,
   /* Near-field screen-space contact occlusion.
 
@@ -165,6 +170,23 @@ export const GRADE = {
    particle shaders before the first weather tick lands. */
 export const SKY = {
   haze: '#dfe7f2',
+};
+
+/* Valley mist: a height term inside the shared fog.
+
+   The radial fog treats a hollow and a crest at the same distance
+   identically, which throws away the one depth cue this terrain is made of.
+   The mist floor rides a fixed drop below the camera, so as the run descends
+   the hollows beneath the rider keep filling with haze while every knoll and
+   ridge crest punches out of it. `scale` is the density falloff per metre of
+   height above the floor; `max` is how much of the sky the mist may put in
+   front of the ground at its thickest, before the weather's own mist dial
+   scales the whole thing. */
+export const MIST = {
+  drop: 7,           // metres below the camera where the mist bank sits
+  scale: 0.10,       // per-metre density falloff above the floor
+  max: 0.38,         // ceiling on the blend, at full weather mist
+  floorRate: 2.2,    // per second — how fast the bank follows the descent
 };
 
 export const TERRAIN = {

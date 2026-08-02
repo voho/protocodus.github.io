@@ -353,31 +353,52 @@ const SMOKE_VERT = `
   attribute float aAlpha;
   varying float vAlpha;
   varying float vDepth;
+  varying vec3 vView;
   uniform float uScale;
+  uniform float uMaxSize;
   void main() {
     vAlpha = aAlpha;
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
     vDepth = -mv.z;
-    gl_PointSize = max(1.0, aSize * uScale / max(0.001, vDepth));
+    // Normalised here, in the vertex shader's highp, because the raw view
+    // vector squares past what a true-mediump fragment unit can hold. A point
+    // sprite's varyings are flat across the sprite anyway, so nothing is lost.
+    vView = normalize(mv.xyz);
+    // Our own ceiling rather than the hardware's: the GL point-size clamp
+    // varies by driver and a puff drifting past the lens used to grow smoothly
+    // and then snap flat against it. Capped by uniform, it just stops growing.
+    gl_PointSize = min(uMaxSize, max(1.0, aSize * uScale / max(0.001, vDepth)));
     gl_Position = projectionMatrix * mv;
   }
 `;
 
+/* The colour picks up the weather's glow when the fragment is looking towards
+   a low sun — woodsmoke is a fine aerosol and forward-scatters hard, so a
+   plume between the rider and a sunset goes amber while the same plume seen
+   down-sun stays ash. `uSunV` and `uGlow` are the shared shading's own uniform
+   records, handed over by reference, and `uWarm` is the one number computed
+   here: how low and how present the sun is this frame. */
 const SMOKE_FRAG = `
   precision mediump float;
   uniform vec3 uColor;
   uniform vec3 uFog;
+  uniform vec3 uGlow;
+  uniform vec3 uSunV;
+  uniform float uWarm;
   uniform float uNear;
   uniform float uFar;
   varying float vAlpha;
   varying float vDepth;
+  varying vec3 vView;
   void main() {
     vec2 d = gl_PointCoord - 0.5;
     float r = dot(d, d);
     if (r > 0.25 || vAlpha <= 0.001) discard;
     float a = vAlpha * (1.0 - smoothstep(0.0, 0.25, r));
+    float fwd = max(0.0, dot(vView, uSunV));
+    vec3 c = mix(uColor, uGlow, fwd * fwd * uWarm);
     float f = clamp((vDepth - uNear) / (uFar - uNear), 0.0, 1.0);
-    gl_FragColor = vec4(mix(uColor, uFog, f * 0.85), a * (1.0 - f));
+    gl_FragColor = vec4(mix(c, uFog, f * 0.85), a * (1.0 - f));
   }
 `;
 
@@ -389,9 +410,16 @@ export function createHuts(THREE, shading) {
   const group = new THREE.Group();
   const S = HUTS.smoke;
 
+  // `sheen: 1` because the roof is carrying half a metre of the same snow the
+  // ground is made of, and a roof that refuses the low sun the hill is
+  // catching is what gives a model village away. The mask keeps the timber,
+  // stone and beams matte — every one of them sits well under its lower stop.
   const shell = new THREE.InstancedMesh(
     hutGeometry(THREE),
-    shading.apply(new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false })),
+    shading.apply(
+      new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false }),
+      { sheen: 1 },
+    ),
     HUTS.live,
   );
 
@@ -460,9 +488,15 @@ export function createHuts(THREE, shading) {
     uniforms: {
       uColor: { value: new THREE.Color('#cfd2d6') },
       uFog: { value: new THREE.Color(SKY.haze) },
+      // The shared shading's own records, not copies: the view-space sun and
+      // the sky glow arrive here already moved by its one write per frame.
+      uSunV: shading.uniforms.uSunView,
+      uGlow: shading.uniforms.uSkyGlow,
+      uWarm: { value: 0 },
       uNear: { value: RENDER.fogNear },
       uFar: { value: RENDER.fogFar },
       uScale: { value: 300 },
+      uMaxSize: { value: 120 },
     },
     vertexShader: SMOKE_VERT,
     fragmentShader: SMOKE_FRAG,
@@ -473,6 +507,11 @@ export function createHuts(THREE, shading) {
   smoke.frustumCulled = false;
   group.add(smoke);
   let head = 0;
+  // How many puffs are currently alive. The ring buffer never shrinks, so
+  // without this the step walked and re-uploaded 180 particles every frame of
+  // every run for ever, including the runs that never came within three
+  // hundred metres of a chimney.
+  let live = 0;
 
   // --- scratch -------------------------------------------------------------
   const m = new THREE.Matrix4();
@@ -636,6 +675,8 @@ export function createHuts(THREE, shading) {
   function puff(h) {
     const i = head;
     head = (head + 1) % S.count;
+    // Recycling a slot that is still burning does not change the census
+    if (sLife[i] <= 0) live += 1;
     const j = i * 3;
     sPos[j] = h.cx + (Math.random() - 0.5) * S.jitter;
     sPos[j + 1] = h.cy + Math.random() * 0.1;
@@ -649,6 +690,12 @@ export function createHuts(THREE, shading) {
   }
 
   function stepSmoke(dt, windX, windZ) {
+    /* The whole system sleeps once the last puff has died. Emission happens
+       before this in `update`, so a hut coming into range wakes it on the same
+       frame its first puff exists — and the frame the last one dies is the
+       frame that uploads its zeroed alpha, so nothing stale is left showing
+       when this early-out starts firing. */
+    if (live === 0) return;
     const k = 1 - Math.exp(-S.drag * dt);
     for (let i = 0; i < S.count; i++) {
       if (sLife[i] <= 0) {
@@ -657,6 +704,11 @@ export function createHuts(THREE, shading) {
       }
       const j = i * 3;
       sLife[i] -= dt;
+      if (sLife[i] <= 0) {
+        sAlpha[i] = 0;
+        live -= 1;
+        continue;
+      }
       const u = clamp(1 - sLife[i] / sMax[i], 0, 1);
       // Buoyant while it is still hot, and the wind's after that
       sVel[j] += (windX * S.coupling - sVel[j]) * k;
@@ -720,6 +772,19 @@ export function createHuts(THREE, shading) {
        which is the one moment in the run nobody is looking at a chimney. */
     smokeMat.uniforms.uScale.value = RENDER.buffer.height
       / (2 * Math.tan((RENDER.fov * Math.PI) / 360));
+    // A third of the frame is as big as a puff is ever allowed to draw — see
+    // the note beside gl_PointSize in the vertex shader
+    smokeMat.uniforms.uMaxSize.value = RENDER.buffer.height * 0.34;
+    /* How much of the weather's glow the smoke may borrow. The first clamp is
+       "the sun is low", gone by fifteen degrees up; the second is "the sun has
+       not left", gone shortly under the horizon; and the night and storm terms
+       are the same dimmers everything else on the hill is already under. At
+       noon and at midnight this is zero and the mix in the shader is inert. */
+    const sinE = Math.sin(w.elevation);
+    smokeMat.uniforms.uWarm.value = 0.6
+      * clamp(1 - sinE * 4, 0, 1)
+      * clamp(sinE * 8 + 1, 0, 1)
+      * (1 - lit) * (1 - w.storm * 0.8);
 
     // --- per hut ------------------------------------------------------------
     const stopped = rider.speed < HUTS.cocoa.speed
@@ -777,6 +842,7 @@ export function createHuts(THREE, shading) {
   function reset() {
     claimed.clear();
     block = NaN;
+    live = 0;
     for (let i = 0; i < S.count; i++) {
       sLife[i] = 0;
       sAlpha[i] = 0;

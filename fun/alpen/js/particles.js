@@ -347,11 +347,16 @@ const VERT = `
   attribute float aSize;
   attribute float aAlpha;
   attribute float aStreak;
+  attribute float aSeed;
+  attribute float aTint;
   varying float vAlpha;
   varying float vDepth;
   varying float vStretch;
   varying float vClip;
   varying float vSoft;
+  varying float vScatter;
+  varying float vGlint;
+  varying float vTint;
   varying vec2 vAxis;
   uniform float uScale;
   uniform float uWide;
@@ -361,7 +366,16 @@ const VERT = `
   uniform vec2 uHalfRes;
   uniform vec3 uGust;      // amount, spacing, phase
   uniform vec3 uGustDir;
+  uniform vec3 uSunView;
+  uniform vec3 uSunDir;
+  uniform float uSunLevel;
+  uniform float uSnowFresh;
+  uniform float uGlint;
+  uniform float uTime;
   void main() {
+    vScatter = 0.0;
+    vGlint = 0.0;
+    vTint = aTint;
     /* Gusting. Two sine bands at incommensurate spacings, travelling with
        the wind, so the field surges and lulls instead of falling evenly. It
        is written to preserve its own mean — the lulls take out as much as
@@ -396,6 +410,21 @@ const VERT = `
     vec4 clip = projectionMatrix * mv;
     gl_Position = clip;
 
+    /* Forward scatter. A flake between the eye and a low sun is backlit, and
+       backlit ice is brighter than frontlit ice — most of the light goes
+       straight through and out the near side. One dot of the view direction
+       against the sun, raised to the fourth so it is a lobe around the sun
+       rather than a wash over the sky, gated to a low sun because at noon the
+       same physics is happening but nobody can see it against the glare, and
+       scaled by the sun's level so a night sky does not backlight anything.
+       The uniforms are the shading module's own objects, shared by reference,
+       so this costs no copying and can never disagree with the terrain about
+       where the sun is. */
+    float sd = max(dot(normalize(mv.xyz), uSunView), 0.0);
+    sd *= sd;
+    float low = 1.0 - smoothstep(0.08, 0.42, uSunDir.y);
+    vScatter = sd * sd * low * min(uSunLevel, 1.3);
+
     vec3 flowView = (viewMatrix * vec4(uFlow, 0.0)).xyz;
     vec4 was = projectionMatrix * (mv + vec4(flowView * uExposure, 0.0));
     // A particle level with the eye divides by nothing. It is also outside
@@ -417,6 +446,22 @@ const VERT = `
     // a big one is a puff of air and must not have an edge anywhere on it.
     vSoft = mix(0.75, 2.4, smoothstep(3.0, 24.0, l));
     vAxis = normalize(vec2(d.x, -d.y) + vec2(1e-5, 0.0));
+
+    /* Ice glitter, spray only. A hard grain of thrown crust is a crystal, and
+       a crystal facet catching the sun is a flash, not a glow. Each particle
+       carries a random seed set when it was emitted, and a moving window over
+       fract(seed + time) lets a few per cent of the grains flash per second,
+       each at its own moment and its own rate. It is confined to the small
+       hard sprites — a big soft puff has no facets — and to the near field,
+       and a storm takes it away entirely: under a whiteout the sun that would
+       have made the flash is already gone. */
+    if (uGlint > 0.5) {
+      float tw = fract(aSeed * 63.0 + uTime * (0.5 + aSeed * 0.4));
+      vGlint = (smoothstep(0.955, 0.975, tw) - smoothstep(0.975, 0.995, tw))
+        * (1.0 - smoothstep(3.5, 9.0, l))
+        * (1.0 - smoothstep(6.0, 16.0, vDepth))
+        * (1.0 - uSnowFresh) * min(uSunLevel, 1.0);
+    }
   }
 `;
 
@@ -424,6 +469,8 @@ const FRAG = `
   precision mediump float;
   uniform vec3 uColor;
   uniform vec3 uFog;
+  uniform vec3 uSunTint;
+  uniform vec3 uSkyGlow;
   uniform float uNear;
   uniform float uFar;
   uniform vec2 uDepthFade;
@@ -432,6 +479,9 @@ const FRAG = `
   varying float vStretch;
   varying float vClip;
   varying float vSoft;
+  varying float vScatter;
+  varying float vGlint;
+  varying float vTint;
   varying vec2 vAxis;
   void main() {
     if (vAlpha <= 0.002) discard;
@@ -444,17 +494,47 @@ const FRAG = `
     // a bubble; a falling exponent is what reads as powder.
     float k = max(1.0 - r * 4.0, 0.0001);
     float a = vAlpha * pow(k, vSoft);
+    // A field of identical flakes reads as a pattern; each one leaning its
+    // own fixed step towards the haze reads as depth the field does not have
+    vec3 col = mix(uColor, uFog, vTint * 0.35);
+    // The backlit lift: the sun's own hue folded into the flake, and a modest
+    // raise in coverage, strongest looking straight down the light. The mix
+    // is capped so a flake never becomes a lamp, only a lit flake.
+    col = mix(col, mix(uSunTint, uSkyGlow, 0.35), min(vScatter * 0.7, 0.7));
+    a *= 1.0 + vScatter * 0.35;
+    // …and the glint, which is the one legal exception to "snow is never
+    // white": a facet flashing the sun back is a specular event, not a body
+    // colour, and it is brief, rare, near, and gone in a storm.
+    col = mix(col, vec3(1.0), vGlint * 0.85);
+    a = min(a * (1.0 + vGlint * 1.6), 1.0);
     // Anything the width cap is clipping is on its way to being a sheet
     // across the lens, and dissolves at the rate it would have grown
     a *= vClip * vClip;
     // …and anything inside arm's reach of it has gone regardless
     a *= smoothstep(uDepthFade.x, uDepthFade.y, vDepth);
     float f = clamp((vDepth - uNear) / (uFar - uNear), 0.0, 1.0);
-    gl_FragColor = vec4(mix(uColor, uFog, f * 0.8), a * (1.0 - f));
+    gl_FragColor = vec4(mix(col, uFog, f * 0.8), a * (1.0 - f));
   }
 `;
 
-function pointMaterial(THREE) {
+function pointMaterial(THREE, shading) {
+  /* The sun arrives by reference, not by copy. The shading module owns one
+     set of uniform objects and every lit material on the mountain is handed
+     those same objects, which is the whole reason the day/night cycle costs
+     one write a frame. The particles now join that arrangement rather than
+     imitating it: the material below holds the *same* `{ value }` objects,
+     so when `shading.update` moves the sun, the snow in the air moves with
+     it and nobody copies anything. The fallback exists so this module can
+     still be constructed without a shading instance — the level defaults to
+     zero, so the scatter and the glint simply stay off. */
+  const sun = shading ? shading.uniforms : {
+    uSunView: { value: new THREE.Vector3(0, 1, 0) },
+    uSunDir: { value: new THREE.Vector3(0, 1, 0) },
+    uSunTint: { value: new THREE.Color('#ffffff') },
+    uSunLevel: { value: 0 },
+    uSkyGlow: { value: new THREE.Color(SKY.haze) },
+    uSnowFresh: { value: 0 },
+  };
   return new THREE.ShaderMaterial({
     uniforms: {
       uColor: { value: new THREE.Color(SKY.haze) },
@@ -470,6 +550,14 @@ function pointMaterial(THREE) {
       uDepthFade: { value: new THREE.Vector2(0.3, 1.2) },
       uGust: { value: new THREE.Vector3() },
       uGustDir: { value: new THREE.Vector3(0, 1, 0) },
+      uSunView: sun.uSunView,
+      uSunDir: sun.uSunDir,
+      uSunTint: sun.uSunTint,
+      uSunLevel: sun.uSunLevel,
+      uSkyGlow: sun.uSkyGlow,
+      uSnowFresh: sun.uSnowFresh,
+      uGlint: { value: 0 },
+      uTime: { value: 0 },
     },
     vertexShader: VERT,
     fragmentShader: FRAG,
@@ -478,20 +566,28 @@ function pointMaterial(THREE) {
   });
 }
 
-function pointCloud(THREE, count) {
+function pointCloud(THREE, count, shading) {
   const geo = new THREE.BufferGeometry();
   const position = new Float32Array(count * 3);
   const size = new Float32Array(count);
   const alpha = new Float32Array(count);
   const streak = new Float32Array(count);
-  geo.setAttribute('position', new THREE.BufferAttribute(position, 3));
-  geo.setAttribute('aSize', new THREE.BufferAttribute(size, 1));
-  geo.setAttribute('aAlpha', new THREE.BufferAttribute(alpha, 1));
-  geo.setAttribute('aStreak', new THREE.BufferAttribute(streak, 1));
+  const seed = new Float32Array(count);
+  const tint = new Float32Array(count);
+  // Everything but the tint is rewritten while the game runs — position and
+  // alpha every frame, size and streak on every weather rebuild or emit — so
+  // the driver is told so up front rather than left to discover it.
+  const dyn = (attr) => attr.setUsage(THREE.DynamicDrawUsage);
+  geo.setAttribute('position', dyn(new THREE.BufferAttribute(position, 3)));
+  geo.setAttribute('aSize', dyn(new THREE.BufferAttribute(size, 1)));
+  geo.setAttribute('aAlpha', dyn(new THREE.BufferAttribute(alpha, 1)));
+  geo.setAttribute('aStreak', dyn(new THREE.BufferAttribute(streak, 1)));
+  geo.setAttribute('aSeed', dyn(new THREE.BufferAttribute(seed, 1)));
+  geo.setAttribute('aTint', new THREE.BufferAttribute(tint, 1));
   geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e6);
-  const points = new THREE.Points(geo, pointMaterial(THREE));
+  const points = new THREE.Points(geo, pointMaterial(THREE, shading));
   points.frustumCulled = false;
-  return { points, geo, position, size, alpha, streak };
+  return { points, geo, position, size, alpha, streak, seed, tint };
 }
 
 /* Pixels per metre, for something one metre from the lens.
@@ -507,14 +603,35 @@ export function pointScale(camera, height = RENDER.buffer.height) {
   return height / (2 * Math.tan((camera.fov * Math.PI) / 360));
 }
 
+/* What the hardware will actually rasterise.
+
+   `gl_PointSize` has a driver limit — `ALIASED_POINT_SIZE_RANGE` — and it is
+   not a large number everywhere: plenty of mobile GPUs stop at 64 or 255
+   while a desktop part offers 1024. A point past the limit is not scaled
+   down, it is *cropped*: the sprite keeps claiming the size the shader
+   asked for, `gl_PointCoord` keeps running over that claimed size, and what
+   is drawn is a square window cut out of the middle of the flake. The limit
+   cannot be queried from inside a shader, so it is held here and folded into
+   the two caps below — every size the shader computes is already bounded by
+   `uLong`, so bounding `uLong` and `uWide` on the CPU bounds `gl_PointSize`
+   itself, and the stretch and clip-fade maths downstream of them stay
+   consistent without a second clamp in the shader. The default is a
+   conservative floor that every WebGL implementation must meet or beat;
+   `setPointSizeCap` lets the assembly raise it to the real queried limit. */
+let pointCap = 128;
+
+export function setPointSizeCap(px) {
+  if (Number.isFinite(px) && px > 0) pointCap = Math.max(16, Math.min(1024, px));
+}
+
 /* The size caps, likewise, are shares of that same height and are read at
    the moment they are used. This is the whole of the bubble fix's units. */
 function applyLimits(uniforms, camera, wide, long) {
   const h = RENDER.buffer.height;
   uniforms.uScale.value = pointScale(camera, h);
   uniforms.uHalfRes.value.set(RENDER.buffer.width * 0.5, h * 0.5);
-  uniforms.uWide.value = Math.max(3, Math.min(96, h * wide));
-  uniforms.uLong.value = Math.max(4, Math.min(180, h * long));
+  uniforms.uWide.value = Math.max(3, Math.min(96, h * wide, pointCap));
+  uniforms.uLong.value = Math.max(4, Math.min(180, h * long, pointCap));
 }
 
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -551,13 +668,13 @@ function cameraTracker(THREE) {
    spindrift streaming along the ground underneath
    ========================================================================== */
 
-export function createSnowfall(THREE) {
+export function createSnowfall(THREE, shading) {
   const fallCount = Math.max(1, Math.round(SNOW.count * WEATHER.pool));
   const driftCount = Math.max(1, Math.round(SNOW.count * WEATHER.drift));
   const n = fallCount + driftCount;
 
-  const cloud = pointCloud(THREE, n);
-  const { position, size, alpha, streak, geo } = cloud;
+  const cloud = pointCloud(THREE, n, shading);
+  const { position, size, alpha, streak, tint, geo } = cloud;
   const uniforms = cloud.points.material.uniforms;
 
   /* Where each flake sits on the one scale that everything about it is a
@@ -588,6 +705,9 @@ export function createSnowfall(THREE) {
   // Fixed once. Re-rolling these on every rebuild would resize every grain
   // in the sheet twice a second, which reads as static rather than as snow.
   for (let k = 0; k < driftCount; k++) dSize[k] = 0.55 + Math.random() * 0.9;
+  // Also fixed once: how far each flake leans towards the haze. Written at
+  // build, uploaded with the geometry's first draw, and never touched again.
+  for (let i = 0; i < n; i++) tint[i] = Math.random();
 
   const track = cameraTracker(THREE);
   const flow = new THREE.Vector3();
@@ -606,6 +726,11 @@ export function createSnowfall(THREE) {
   let lastBox = box;
   let meanFall = SNOW.fall;
   let resamplePhase = 0;
+  // Upload bookkeeping: whether the whole alpha table changed this frame
+  // (a weather rebuild) rather than just the spindrift slice, and whether
+  // the whole position table did (the first seeding).
+  let alphaFull = false;
+  let uploadAll = true;
 
   /* Weather, in one pass over the tables.
 
@@ -663,7 +788,9 @@ export function createSnowfall(THREE) {
     }
     geo.attributes.aSize.needsUpdate = true;
     geo.attributes.aStreak.needsUpdate = true;
-    geo.attributes.aAlpha.needsUpdate = true;
+    // The alpha upload is deferred to `update`, which knows whether this
+    // frame's changes cover the whole table or only the spindrift slice.
+    alphaFull = true;
   }
 
   /* `main.js` hands over `weather.snow`; the dial is what is wanted. */
@@ -827,8 +954,34 @@ export function createSnowfall(THREE) {
 
     if (driftActive > 0) updateDrift(dt, c, wx, wz);
 
-    geo.attributes.position.needsUpdate = true;
-    geo.attributes.aAlpha.needsUpdate = true;
+    /* Upload what moved and nothing else. The pool is deliberately larger
+       than the field, so in clear weather the flakes that changed are a small
+       contiguous slice at the front of the buffer and another at the start of
+       the spindrift's — exactly the shape `addUpdateRange` exists for. The
+       first frame ships the whole table once, because the seeding above wrote
+       every flake including the ones no range would cover. And the alpha
+       attribute only travels at all when something wrote it: a weather
+       rebuild rewrites the whole table, the spindrift rewrites its slice
+       every frame, and a calm night with no drift uploads nothing. */
+    const pos = geo.attributes.position;
+    pos.clearUpdateRanges();
+    if (uploadAll) {
+      uploadAll = false;
+      pos.needsUpdate = true;
+    } else if (active > 0 || driftActive > 0) {
+      if (active > 0) pos.addUpdateRange(0, active * 3);
+      if (driftActive > 0) pos.addUpdateRange(fallCount * 3, driftActive * 3);
+      pos.needsUpdate = true;
+    }
+    const alphaAttr = geo.attributes.aAlpha;
+    alphaAttr.clearUpdateRanges();
+    if (alphaFull) {
+      alphaFull = false;
+      alphaAttr.needsUpdate = true;
+    } else if (driftActive > 0) {
+      alphaAttr.addUpdateRange(fallCount, driftActive);
+      alphaAttr.needsUpdate = true;
+    }
 
     readAir(uniforms);
     applyLimits(uniforms, camera, WEATHER.wide, WEATHER.long);
@@ -864,11 +1017,16 @@ export function createSnowfall(THREE) {
    Spray — thrown off the edge, and everywhere on a landing
    ========================================================================== */
 
-export function createSpray(THREE) {
+export function createSpray(THREE, shading) {
   const n = SNOW.sprayCount;
-  const cloud = pointCloud(THREE, n);
-  const { position, size, alpha, streak, geo } = cloud;
+  const cloud = pointCloud(THREE, n, shading);
+  const { position, size, alpha, streak, seed, geo } = cloud;
   const uniforms = cloud.points.material.uniforms;
+  // Spray is the one cloud that glints: it is made of thrown crust rather
+  // than falling aggregate, and it is the only one close enough to resolve
+  // a flash. The clock below wraps well before float precision frays it.
+  uniforms.uGlint.value = 1;
+  let sprayTime = 0;
   const vel = new Float32Array(n * 3);
   const life = new Float32Array(n);
   const maxLife = new Float32Array(n);
@@ -904,9 +1062,9 @@ export function createSpray(THREE) {
   const track = cameraTracker(THREE);
   const flow = new THREE.Vector3();
 
+  // Usage is already dynamic — `pointCloud` marks every rewritten attribute —
+  // and the geometry's first draw uploads this initial table by itself.
   for (let i = 0; i < n; i++) streak[i] = SPRAY.streak;
-  geo.attributes.aStreak.setUsage(THREE.DynamicDrawUsage);
-  geo.attributes.aStreak.needsUpdate = true;
 
   /* `power` is how hard: it scales the cone, the size and how long the
      powder hangs. `dir` is where the board is throwing it. */
@@ -924,6 +1082,7 @@ export function createSpray(THREE) {
       // This ring slot may previously have held an elongated cutting-sheet
       // particle. Event bursts keep their compact landing/fall smear.
       streak[i] = SPRAY.streak;
+      seed[i] = Math.random();
       streakDirty = true;
       position[j] = pos.x + (Math.random() - 0.5) * 0.7;
       position[j + 1] = pos.y + 0.1 + Math.random() * 0.25;
@@ -1054,6 +1213,7 @@ export function createSpray(THREE) {
       peak[i] = 0.38 + r4 * 0.20;
       streak[i] = 0.65 + skid * 0.35;
     }
+    seed[i] = Math.random();
     streakDirty = true;
     life[i] = maxLife[i];
     tumble[i] = (kind === 2 ? 1.1 : 0.45)
@@ -1176,11 +1336,19 @@ export function createSpray(THREE) {
     const wx = wind ? wind.x : 0;
     const wz = wind ? wind.z : 0;
     const camVel = track(camera, dt);
+    // The pool is usually mostly, and often entirely, dead — a rider gliding
+    // flat on a clear day throws nothing for minutes at a time. Counting the
+    // living as we pass lets the upload at the bottom stay home when nothing
+    // in the buffer changed, instead of shipping nine hundred stationary
+    // corpses to the GPU every frame.
+    let live = 0;
+    let snuffed = false;
     for (let i = 0; i < n; i++) {
       if (life[i] <= 0) {
-        if (alpha[i] !== 0) alpha[i] = 0;
+        if (alpha[i] !== 0) { alpha[i] = 0; snuffed = true; }
         continue;
       }
+      live += 1;
       const j = i * 3;
       life[i] -= dt;
       const f = fine[i];
@@ -1224,14 +1392,21 @@ export function createSpray(THREE) {
       const rise = Math.min(1, age * 14);
       alpha[i] = rise * t * t * peak[i];
     }
-    geo.attributes.position.needsUpdate = true;
-    geo.attributes.aAlpha.needsUpdate = true;
-    geo.attributes.aSize.needsUpdate = true;
+    if (live > 0) {
+      geo.attributes.position.needsUpdate = true;
+      geo.attributes.aSize.needsUpdate = true;
+    }
+    // A particle's dying frame writes one last zero into the alpha table
+    // after its life has gone, so the alpha travels once more than the rest.
+    if (live > 0 || snuffed) geo.attributes.aAlpha.needsUpdate = true;
     if (streakDirty) {
       geo.attributes.aStreak.needsUpdate = true;
+      geo.attributes.aSeed.needsUpdate = true;
       streakDirty = false;
     }
 
+    sprayTime = (sprayTime + dt) % 512;
+    uniforms.uTime.value = sprayTime;
     readAir(uniforms);
     applyLimits(uniforms, camera, SPRAY.wide, SPRAY.long);
     uniforms.uDepthFade.value.set(SPRAY.fade[0], SPRAY.fade[1]);
@@ -1293,7 +1468,11 @@ const S_VERT = `
     // A streak aimed straight at the eye has no side to speak of; it also
     // has no length on screen, so which way it is widened cannot matter
     side = l > 1e-5 ? side / l : vec3(1.0, 0.0, 0.0);
-    mv.xyz += side * (aSide * 0.5 * uWidth * vDepth / max(uScale, 1.0));
+    // Tapered towards the tail: a smear of air is widest where the air is
+    // and thins to where it has been, and a constant-width bar reads as a
+    // scratch on the lens rather than as motion.
+    mv.xyz += side * (aSide * 0.5 * uWidth * (1.0 - aEnd * 0.55)
+      * vDepth / max(uScale, 1.0));
     gl_Position = projectionMatrix * mv;
   }
 `;
@@ -1340,8 +1519,12 @@ export function createStreaks(THREE) {
     jitter[i] = 0.55 + Math.random() * 0.7;
   }
 
-  geo.setAttribute('position', new THREE.BufferAttribute(position, 3));
-  geo.setAttribute('aAlpha', new THREE.BufferAttribute(alpha, 1));
+  // The corners move only when a streak is re-homed; the alphas move every
+  // frame the field is alive. The ends, sides and index never move at all.
+  geo.setAttribute('position',
+    new THREE.BufferAttribute(position, 3).setUsage(THREE.DynamicDrawUsage));
+  geo.setAttribute('aAlpha',
+    new THREE.BufferAttribute(alpha, 1).setUsage(THREE.DynamicDrawUsage));
   geo.setAttribute('aEnd', new THREE.BufferAttribute(end, 1));
   geo.setAttribute('aSide', new THREE.BufferAttribute(side, 1));
   geo.setIndex(new THREE.BufferAttribute(index, 1));
@@ -1371,10 +1554,15 @@ export function createStreaks(THREE) {
   const rgt = new THREE.Vector3();
   const up = new THREE.Vector3();
   let placed = false;
+  let posDirty = false;
+  let idle = false;
 
   /* A streak is a fixed point in the world with a ribbon drawn back along the
      direction of travel. It does not move — the rider passes it — which is
-     exactly why it reads as speed rather than as weather. */
+     exactly why it reads as speed rather than as weather. And because it does
+     not move, its four corners are written here, once, when it is homed:
+     between respawns the vertex buffer has nothing new to say and the
+     per-frame loop below no longer repeats it. */
   function respawn(i, camera) {
     const a = Math.random() * Math.PI * 2;
     const f = Math.sqrt(0.05 + Math.random() * 0.95);
@@ -1384,6 +1572,13 @@ export function createStreaks(THREE) {
     home[j] = camera.position.x + fwd.x * d + rgt.x * Math.cos(a) * r + up.x * Math.sin(a) * r;
     home[j + 1] = camera.position.y + fwd.y * d + rgt.y * Math.cos(a) * r + up.y * Math.sin(a) * r;
     home[j + 2] = camera.position.z + fwd.z * d + rgt.z * Math.cos(a) * r + up.z * Math.sin(a) * r;
+    for (let c = 0; c < 4; c++) {
+      const k = (i * 4 + c) * 3;
+      position[k] = home[j];
+      position[k + 1] = home[j + 1];
+      position[k + 2] = home[j + 2];
+    }
+    posDirty = true;
     radial[i] = f;
     age[i] = 0;
   }
@@ -1396,7 +1591,7 @@ export function createStreaks(THREE) {
     age[i] = 0;
   };
 
-  function update(dt, camera, velocity, speed) {
+  function update(dt, camera, velocity, speed, wind) {
     camera.getWorldDirection(fwd);
     up.set(0, 1, 0);
     rgt.crossVectors(fwd, up).normalize();
@@ -1408,10 +1603,19 @@ export function createStreaks(THREE) {
     // communicating more speed, but it cannot grow with an uncapped W drive
     // forever or each streak eventually becomes a screen-filling white bar.
     const len = Math.min(STREAKS.maxLength, speed * STREAKS.length);
-    const inv = 1 / (speed || 1);
 
-    material.uniforms.uDir.value.set(-velocity.x * inv * len, -velocity.y * inv * len,
-      -velocity.z * inv * len);
+    /* The streak is a picture of the air going past, and the air is not
+       still: the same wind that leans the snowfall sideways leans these. A
+       fifth of the wind folded into the apparent travel is enough for the
+       two systems to agree about which way the weather is blowing without
+       letting a gale bend a streak further than the rider's own speed
+       justifies. */
+    let rx = velocity.x - (wind ? wind.x * 0.2 : 0);
+    let ry = velocity.y - (wind ? wind.y * 0.2 : 0);
+    let rz = velocity.z - (wind ? wind.z * 0.2 : 0);
+    const inv = 1 / (Math.sqrt(rx * rx + ry * ry + rz * rz) || 1);
+    rx *= inv; ry *= inv; rz *= inv;
+    material.uniforms.uDir.value.set(-rx * len, -ry * len, -rz * len);
     // Thin when the field first appears, and never more than about three
     // pixels: past that they stop being air and start being bars
     material.uniforms.uWidth.value = 1.4 + t * 1.9;
@@ -1433,6 +1637,20 @@ export function createStreaks(THREE) {
       placed = true;
       for (let i = 0; i < n; i++) respawn(i, camera);
     }
+
+    /* Below streaking speed there is nothing to age, nothing to fade and
+       nothing to re-home — one blanking pass zeroes the alphas, and after
+       that the field is asleep until the speed comes back. Most of a run is
+       spent below the threshold, so most frames skip the loop and both
+       uploads entirely. */
+    if (active === 0 && idle) {
+      if (posDirty) {
+        geo.attributes.position.needsUpdate = true;
+        posDirty = false;
+      }
+      return;
+    }
+    idle = active === 0;
 
     for (let i = 0; i < n; i++) {
       const j = i * 3;
@@ -1468,15 +1686,12 @@ export function createStreaks(THREE) {
         * Math.min(1, age[i] * 9);
       const v = i * 4;
       alpha[v] = a; alpha[v + 1] = a; alpha[v + 2] = a; alpha[v + 3] = a;
-      for (let c = 0; c < 4; c++) {
-        const k = (i * 4 + c) * 3;
-        position[k] = home[j];
-        position[k + 1] = home[j + 1];
-        position[k + 2] = home[j + 2];
-      }
     }
 
-    geo.attributes.position.needsUpdate = true;
+    if (posDirty) {
+      geo.attributes.position.needsUpdate = true;
+      posDirty = false;
+    }
     geo.attributes.aAlpha.needsUpdate = true;
   }
 

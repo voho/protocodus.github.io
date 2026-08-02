@@ -765,13 +765,77 @@ export function createRiderModel(THREE, shading) {
      reference to. One number, two readers, no way for the drawn board and the
      feet standing on it to disagree. */
   const flexUniform = { value: 0 };
+
+  /* The headlamp's level, shared into both rig materials the same way the
+     shading module shares the sky: one object, two readers, one write per
+     frame. At night the lamp lights a pool forty metres down the hill and
+     the man carrying it stayed as dark as the rocks, which is exactly
+     backwards — a head torch spills off the snow, the goggles and the
+     falling flakes straight back onto its wearer. The value is written at
+     the bottom of `update`, after the lamp has decided how lit it is. */
+  const lampUniform = { value: 0 };
+
+  /* The rider next to the snow.
+
+     The hill is a GGX dielectric with the sky in its Fresnel term, and the
+     figure standing on it was pure Lambert — under the same sun the mountain
+     glittered and the man read as a paper cut-out pasted over it. Three
+     small terms close that gap, added after the light loop exactly the way
+     the terrain's snow response is, and using the same shared uniforms.
+
+     A tight Blinn lobe carries the sun. It is masked by the green channel of
+     the vertex colour, and that mask is less arbitrary than it looks: the
+     palette's hard, glossy surfaces — the board's topsheet and nose cap, the
+     goggle visor, the binding straps, the collar trim — are exactly the mint
+     and yellow parts, and mint and yellow are the only two colours in the
+     palette with a bright green channel (the orange shell is at 0.10 in
+     linear light, denim and ink lower still). So plastic gets a real
+     highlight, cloth keeps a weak sheen, and nobody had to tag a vertex.
+
+     A sky-coloured rim separates the silhouette from the snow — it is the
+     same argument as the terrain's grazing Fresnel, at a fraction of the
+     gain, and because it is `uSkyMid` it stays in palette through the whole
+     day cycle: blue at noon, amber at dusk, near-black at night.
+
+     And the lamp's spill, above, arrives as a cool fill on the fragments
+     facing the camera, so the rider reads as the thing carrying the light
+     rather than a shadow between two lit patches of snow. */
+  const RIG_ANCHOR = '#include <lights_fragment_end>';
+  const rigLight = (base, gloss) => `${RIG_ANCHOR}
+  {
+    vec3 n64V = normalize(-vN64View);
+    float n64NoV = max(dot(normal, n64V), 0.0);
+    vec3 n64HalfSum = uSunView + n64V;
+    vec3 n64H = n64HalfSum * inversesqrt(max(dot(n64HalfSum, n64HalfSum), 1e-6));
+    float n64NoL = clamp(dot(normal, uSunView), 0.0, 1.0);
+    float n64Trim = smoothstep(0.30, 0.50, diffuseColor.g);
+    float n64Spec = pow(max(dot(normal, n64H), 0.0), 60.0) * n64NoL
+      * (${base.toFixed(3)} + ${gloss.toFixed(3)} * n64Trim);
+    float n64Rim = pow(1.0 - n64NoV, 3.0);
+    reflectedLight.directDiffuse += uSunTint * (uSunLevel * n64Spec)
+      + uSkyMid * (n64Rim * 0.16)
+      + vec3(0.45, 0.62, 0.85) * (uLampGlow * (0.35 + 0.65 * n64NoV) * 0.12);
+  }`;
+
   /* One smooth material for the lot: colours are already in the vertices, so
      eleven meshes are eleven draw calls and not one state change. The rider
      is lit by exactly the same moving sun and atmosphere as the hill, which
-     keeps the figure grounded in the scene rather than pasted over it. */
-  const cloth = shading.apply(
-    new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false }),
-  );
+     keeps the figure grounded in the scene rather than pasted over it. Its
+     own `onBeforeCompile` runs first and the shading patch is layered over
+     it — `shading.apply` keeps a prior hook and folds its text into the
+     program cache key, so this material cannot collide with the plain
+     Lambert everything else on the mountain compiles to. */
+  const cloth = (() => {
+    const m = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false });
+    m.onBeforeCompile = (shader) => {
+      shader.uniforms.uLampGlow = lampUniform;
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', `#include <common>
+          uniform float uLampGlow;`)
+        .replace(RIG_ANCHOR, rigLight(0.12, 0.30));
+    };
+    return shading.apply(m);
+  })();
 
   /* THE BOARD FLEXES, and it is the only thing on this rig that is not a rigid
      transform of a composed buffer.
@@ -807,6 +871,7 @@ export function createRiderModel(THREE, shading) {
     const m = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false });
     m.onBeforeCompile = (shader) => {
       shader.uniforms.uBend = flexUniform;
+      shader.uniforms.uLampGlow = lampUniform;
       shader.vertexShader = shader.vertexShader
         .replace('#include <common>', `#include <common>
           uniform float uBend;`)
@@ -815,6 +880,13 @@ export function createRiderModel(THREE, shading) {
             float u = clamp(transformed.z / ${FLEX_SPAN.toFixed(3)}, -1.0, 1.0);
             transformed.y += uBend * (1.0 - u * u);
           }`);
+      // The same three light terms as the cloth, with a harder lobe: a
+      // topsheet is lacquer, not fabric, and it is the one surface here that
+      // ought to flash as a carve rolls it through the sun.
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', `#include <common>
+          uniform float uLampGlow;`)
+        .replace(RIG_ANCHOR, rigLight(0.18, 0.45));
     };
     return shading.apply(m);
   })();
@@ -966,6 +1038,17 @@ export function createRiderModel(THREE, shading) {
   const AX = new THREE.Vector3(1, 0, 0);
   const AZ = new THREE.Vector3(0, 0, 1);
   const up = new THREE.Vector3();
+
+  /* The blob shadow's frame, preassembled. `shadowFlat` is the constant
+     -PI/2 about X that lays the disc into the ground plane; the spin and the
+     tilt are rewritten every frame in `update`. Composed as tilt·spin·flat
+     the disc is first laid flat, then aimed, then bent onto the slope — so
+     on steep ground it lies *in* the ground instead of slicing through it,
+     which is what used to clip it to a crescent against the depth buffer. */
+  const shadowFlat = new THREE.Quaternion().setFromAxisAngle(AX, -Math.PI / 2);
+  const shadowSpin = new THREE.Quaternion();
+  const shadowTilt = new THREE.Quaternion();
+  const shadowUp = new THREE.Vector3(0, 1, 0);
 
   // Two hand targets and two poles, written in the travel frame, plus the
   // pair each of them is resolved into once `sw` has said which shoulder is
@@ -1742,18 +1825,59 @@ export function createRiderModel(THREE, shading) {
     // opens, which is what makes a jump's height readable
     const gy = rider.world.height(rider.pos.x, rider.pos.z);
     const gap = Math.max(0, rider.pos.y - gy);
-    shadow.position.set(rider.pos.x, gy + 0.05, rider.pos.z);
     const k = Math.max(0, 1 - gap / 14);
     const shadowScale = 0.55 + 0.45 * k;
-    shadow.rotation.set(-Math.PI / 2, 0, rider.yaw);
+
+    /* The disc conforms to the ground it is printed on. On the snow the
+       physics already owns a presentation normal; in the air the ground
+       under the rider is somebody else's problem, so it is measured with two
+       cheap central differences at the point the shadow actually sits on.
+
+       The in-plane spin is -yaw, and the sign is the same fix as the rig
+       root's. The heading is (sin yaw, 0, -cos yaw); the disc's long lobe is
+       its local +Y, which the -PI/2 X pre-rotation sends to -Z, and spinning
+       that by -yaw about the world's up lands it exactly on the heading.
+       Spun by +yaw — which is what this did — the lobe pointed at the
+       heading's reflection across the fall line, so through every carve the
+       shadow swung the wrong way while the board swung the right one. */
+    if (rider.grounded) {
+      shadowUp.copy(rider.normal);
+    } else {
+      const eps = 1.5;
+      const hx = (rider.world.height(rider.pos.x + eps, rider.pos.z)
+        - rider.world.height(rider.pos.x - eps, rider.pos.z)) / (2 * eps);
+      const hz = (rider.world.height(rider.pos.x, rider.pos.z + eps)
+        - rider.world.height(rider.pos.x, rider.pos.z - eps)) / (2 * eps);
+      shadowUp.set(-hx, 1, -hz).normalize();
+    }
+    shadowTilt.setFromUnitVectors(UP, shadowUp);
+    shadowSpin.setFromAxisAngle(UP, -rider.yaw);
+    shadow.quaternion.copy(shadowTilt).multiply(shadowSpin).multiply(shadowFlat);
+    // Lifted off the snow along its own normal rather than straight up, so
+    // the clearance that keeps it out of the depth buffer survives a slope
+    shadow.position.set(
+      rider.pos.x + shadowUp.x * 0.06,
+      gy + shadowUp.y * 0.06,
+      rider.pos.z + shadowUp.z * 0.06,
+    );
     shadow.scale.set(shadowScale * 0.78, shadowScale * 1.28, 1);
-    shadow.material.opacity = 0.30 * k * k;
+
+    /* Two shadows under one rider is one too many. The real cast shadow
+       scales with the key light, so the blob yields to it on the same
+       signal: in full sun it fades to a faint contact tint under the crisp
+       PCF shadow, and at night or deep in a storm — when the key is too weak
+       to draw one — the blob carries the whole height cue alone. */
+    const sunned = weather ? clamp(weather.keyI * 0.45, 0, 1) : 0;
+    shadow.material.opacity = 0.30 * k * k * (1 - sunned * 0.7);
     shadow.visible = k > 0.02;
 
     // The lamp asks for world-space head transforms, so it comes after every
     // part of the pose has been written. Weather remains the single owner of
     // whether it is night; this rig only adapts that state into light.
     if (weather && camera) headlamp.update(weather, dt, rider, camera);
+    // …and the rig's materials read the lamp back, so the spill above tracks
+    // the same fade the beam does rather than a second opinion about night.
+    lampUniform.value = headlamp.level;
   }
 
   return {

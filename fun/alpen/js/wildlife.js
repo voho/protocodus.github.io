@@ -221,11 +221,127 @@ export function createWildlife(THREE, shading) {
   bears.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   group.add(rabbits, bears);
 
+  /* EYE-SHINE. An animal caught in a head torch answers it: the tapetum
+     throws the beam straight back, and two green points in the dark are how
+     every real night walker meets its wildlife long before it resolves a
+     shape. One additive instanced quad per eye, billboarded in the vertex
+     shader from the instance's own position, so no CPU ever has to know
+     where the camera is. The glow value rides an instanced attribute and is
+     the whole story per eye: lamp level times beam alignment times distance.
+
+     The lamp itself lives three modules away on the rider's head, so this
+     mesh defaults to invisible and stays that way until someone calls
+     `setLamp` each frame with the headlamp's level, origin and direction —
+     see the wiring note on the returned object. */
+  const RABBIT_EYES = [[-0.076, 0.352, -0.388], [0.076, 0.352, -0.388]];
+  const BEAR_EYES = [[-0.30, 1.40, -1.58], [0.30, 1.40, -1.58]];
+  const EYE_MAX = (WILDLIFE.rabbits + WILDLIFE.bears) * 2;
+  const EYE_REACH = 45;
+  const eyeGeo = new THREE.PlaneGeometry(1, 1);
+  const eyeGlow = new THREE.InstancedBufferAttribute(new Float32Array(EYE_MAX), 1);
+  eyeGlow.setUsage(THREE.DynamicDrawUsage);
+  eyeGeo.setAttribute('aGlow', eyeGlow);
+  /* Fogged by hand like every other custom night shader: a ShaderMaterial
+     never hears about scene.fog, and an eye that outshines a whiteout is a
+     targeting reticle, not an animal. `uFog` is unused by an additive glint
+     — fading the alpha is the whole of it — but the uniform trio stays so
+     main.js can feed this material from the same per-frame loop as the
+     snowfall and the spray. */
+  const eyeMat = new THREE.ShaderMaterial({
+    uniforms: {
+      uColor: { value: new THREE.Color('#cfeec2') },
+      uFog: { value: new THREE.Color('#1a2a48') },
+      uNear: { value: 85 },
+      uFar: { value: 300 },
+    },
+    vertexShader: `
+      attribute float aGlow;
+      varying float vGlow;
+      varying vec2 vQuad;
+      varying float vDepth;
+      void main() {
+        vQuad = position.xy;
+        vGlow = aGlow;
+        vec4 mv = modelViewMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0);
+        vDepth = -mv.z;
+        // The quad grows a little with depth so a far eye never collapses
+        // under a pixel — a sub-pixel additive point is exactly the kind of
+        // detail the retro resample turns into shimmer.
+        float size = 0.055 + max(-mv.z, 0.0) * 0.0042;
+        mv.xy += position.xy * size;
+        gl_Position = projectionMatrix * mv;
+      }`,
+    fragmentShader: `
+      precision mediump float;
+      uniform vec3 uColor;
+      uniform vec3 uFog;
+      uniform float uNear;
+      uniform float uFar;
+      varying float vGlow;
+      varying vec2 vQuad;
+      varying float vDepth;
+      void main() {
+        // A soft gaussian point with no edge to alias; corners fall to zero
+        // before the quad does.
+        float r2 = dot(vQuad, vQuad) * 4.0;
+        float a = vGlow * exp(-5.0 * r2) * max(1.0 - r2, 0.0);
+        float f = clamp((vDepth - uNear) / max(0.001, uFar - uNear), 0.0, 1.0);
+        gl_FragColor = vec4(uColor, a * (1.0 - f));
+      }`,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+  const eyes = new THREE.InstancedMesh(eyeGeo, eyeMat, EYE_MAX);
+  eyes.frustumCulled = false;
+  eyes.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  eyes.userData.noShadow = true;
+  eyes.visible = false;
+  group.add(eyes);
+
+  const lampOrigin = new THREE.Vector3();
+  const lampDir = new THREE.Vector3(0, 0, -1);
+  let lampLevel = 0;
+  /* Called once a frame by whoever owns the headlamp. All three arguments
+     are copied, so callers may hand over their live working vectors. */
+  function setLamp(level, origin, direction) {
+    lampLevel = level || 0;
+    if (origin) lampOrigin.copy(origin);
+    if (direction) lampDir.copy(direction);
+  }
+
   const m = new THREE.Matrix4();
   const q = new THREE.Quaternion();
   const e = new THREE.Euler();
   const v = new THREE.Vector3();
   const s = new THREE.Vector3();
+
+  const ev = new THREE.Vector3();
+  const toEye = new THREE.Vector3();
+  const em = new THREE.Matrix4();
+  let eyeCount = 0;
+
+  /* Both eyes of the animal whose matrix is currently in `m`. The glow is
+     retroreflection, so it is aimed from the lamp rather than from the
+     camera: full inside the beam's bright core, gone a few degrees outside
+     it, and fading over the lamp's reach — which means a hare picked out at
+     the edge of the pool glints, and the same hare beside the beam does
+     not. Instances are compacted, so a dark eye costs nothing at all. */
+  function shineEyes(offsets) {
+    for (let i = 0; i < offsets.length; i++) {
+      const o = offsets[i];
+      ev.set(o[0], o[1], o[2]).applyMatrix4(m);
+      toEye.copy(ev).sub(lampOrigin);
+      const d = toEye.length();
+      if (d < 2 || d > EYE_REACH) continue;
+      const aim = (toEye.x * lampDir.x + toEye.y * lampDir.y + toEye.z * lampDir.z) / d;
+      const g = lampLevel * clamp((aim - 0.90) * 12.5, 0, 1) * (1 - d / EYE_REACH);
+      if (g < 0.01) continue;
+      eyeGlow.array[eyeCount] = g;
+      em.setPosition(ev);
+      eyes.setMatrixAt(eyeCount++, em);
+    }
+  }
 
   const hares = [];
   for (let i = 0; i < WILDLIFE.rabbits; i++) {
@@ -279,6 +395,8 @@ export function createWildlife(THREE, shading) {
   function update(dt, rider, onNear, onHit) {
     const rx = rider.pos.x;
     const rz = rider.pos.z;
+    const lampOn = lampLevel > 0.01;
+    eyeCount = 0;
 
     // --- rabbits -----------------------------------------------------------
     let n = 0;
@@ -347,9 +465,12 @@ export function createWildlife(THREE, shading) {
       s.set(1 / squash, squash, 1 / squash);
       m.compose(v, q, s);
       rabbits.setMatrixAt(n++, m);
+      if (lampOn) shineEyes(RABBIT_EYES);
     }
     rabbits.count = n;
-    rabbits.instanceMatrix.needsUpdate = true;
+    // Nothing changed on the GPU's side of an empty pool, so an upload is
+    // only queued when there are live instances to carry.
+    if (n > 0) rabbits.instanceMatrix.needsUpdate = true;
 
     // --- bears -------------------------------------------------------------
     /* The spawn window, which is deliberately most of the reason there is
@@ -438,9 +559,20 @@ export function createWildlife(THREE, shading) {
       s.set(1, lumber, 1);
       m.compose(v, q, s);
       bears.setMatrixAt(bn++, m);
+      if (lampOn) shineEyes(BEAR_EYES);
     }
     bears.count = bn;
-    bears.instanceMatrix.needsUpdate = true;
+    /* The guard matters most here: most runs have no bear at all, and this
+       was flagging a zero-instance buffer dirty on every frame of them. A
+       0 -> 0 frame now uploads nothing for either pool. */
+    if (bn > 0) bears.instanceMatrix.needsUpdate = true;
+
+    eyes.count = eyeCount;
+    eyes.visible = eyeCount > 0;
+    if (eyeCount > 0) {
+      eyes.instanceMatrix.needsUpdate = true;
+      eyeGlow.needsUpdate = true;
+    }
   }
 
   function reset() {
@@ -450,6 +582,13 @@ export function createWildlife(THREE, shading) {
   }
 
   // The animals themselves are on the returned object so the debug hatch
-  // can place one exactly where a test needs it
-  return { group, update, reset, hares, beasts };
+  // can place one exactly where a test needs it. `setLamp` is the eye-shine
+  // hookup: the owner of the run loop should call, once per frame after the
+  // rider model has updated,
+  //   wildlife.setLamp(model.headlamp.level,
+  //     model.headlamp.origin, model.headlamp.direction)
+  // — until it does, the lamp level stays zero and the eyes stay dark.
+  // `eyes` is exposed for one reason: main.js feeds every hand-fogged
+  // material from a single per-frame loop, and this is one of them.
+  return { group, update, reset, setLamp, hares, beasts, eyes };
 }

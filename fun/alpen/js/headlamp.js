@@ -24,7 +24,14 @@ export const HEADLAMP = {
   fadeIn: 4.0,          // response per second; a fade, never a switch
   fadeOut: 2.8,
   reach: 42,            // metres searched for the first snow intersection
-  rayStep: 1.25,
+  /* The march grows geometrically rather than pacing off the whole reach in
+     fixed strides: the ground the beam hits is usually near, so the search
+     spends its small steps where the answer probably is and covers the far
+     half of the reach in a few long ones. Ten samples worst case against
+     the thirty-four the fixed step cost, and the crossing is still refined
+     by interpolation afterwards, so the pool does not get coarser. */
+  marchStep: 0.8,       // the first stride, in metres
+  marchGrow: 1.35,      // and how much longer each following stride is
   overshoot: 1.0,       // fade reaches zero exactly at the terrain hit
   drop: 0.105,          // radians below the animated line of sight
   angle: 0.40,          // broad 23-degree half-angle; soft situational light
@@ -34,8 +41,13 @@ export const HEADLAMP = {
 };
 
 const TAU = Math.PI * 2;
-const POOL_SEG = 48;
-const POOL_RING = 8;
+/* The drape's density. It was 48 x 8, which is 384 height-field samples and
+   a full vertex upload every lit frame — for a soft additive gaussian whose
+   whole job is to have no features. 24 x 5 is 120 samples, and on a footprint
+   a few metres wide that is still a vertex every fraction of a metre, well
+   under anything the blur in the fragment shader could resolve. */
+const POOL_SEG = 24;
+const POOL_RING = 5;
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 const smooth01 = (v) => {
@@ -290,6 +302,17 @@ export function createHeadlamp(THREE, shading, head) {
   let level = 0;
   let hitDistance = 0;
   let hasHit = false;
+  /* The drape throttle. Re-sampling the height field under the pool is the
+     expensive half of this module, and the pool the light is falling on is
+     the same pool until the beam has actually gone somewhere — so the fan is
+     only re-draped once the hit has moved twenty centimetres, and at most
+     every other frame. The mesh's *position* still tracks the hit every
+     frame, which is what keeps the light glued to the line being ridden; the
+     relative heights inside a footprint drift by millimetres over the
+     distance the guard allows. */
+  const lastDrape = new THREE.Vector3();
+  let draped = false;
+  let drapeTick = 0;
 
   function update(weather, dt, rider, camera) {
     const darkness = smooth01(
@@ -316,6 +339,7 @@ export function createHeadlamp(THREE, shading, head) {
       pool.visible = false;
       hasHit = false;
       hitDistance = 0;
+      draped = false;
       return;
     }
 
@@ -331,15 +355,37 @@ export function createHeadlamp(THREE, shading, head) {
     if (direction.lengthSq() < 1e-6) direction.set(0, 0, -1);
     direction.normalize().addScaledVector(rider.normal, -Math.tan(HEADLAMP.drop)).normalize();
 
+    /* The march, seeded by its own last answer. The ground barely moves
+       between two frames, so while last frame found a hit the strides are
+       held to about a third of that distance until the ray has walked past
+       it — the samples cluster exactly where the crossing is about to be —
+       and only then are the strides allowed to run out geometrically. A
+       bracketed crossing takes one midpoint sample before the linear
+       refinement, which halves the interval the interpolation runs in and
+       stops the pool creeping when the bracketing strides were long. */
+    const seedDist = hasHit ? hitDistance : 0;
     let previousT = 0.25;
     point.copy(origin).addScaledVector(direction, previousT);
     let previousGap = point.y - rider.world.height(point.x, point.z);
     hasHit = false;
     hitDistance = HEADLAMP.reach;
-    for (let t = HEADLAMP.rayStep; t <= HEADLAMP.reach; t += HEADLAMP.rayStep) {
+    let stride = HEADLAMP.marchStep;
+    let t = previousT + stride;
+    for (;;) {
+      if (t > HEADLAMP.reach) t = HEADLAMP.reach;
       point.copy(origin).addScaledVector(direction, t);
-      const gap = point.y - rider.world.height(point.x, point.z);
+      let gap = point.y - rider.world.height(point.x, point.z);
       if (gap <= 0 && previousGap > 0) {
+        const tm = (previousT + t) * 0.5;
+        point.copy(origin).addScaledVector(direction, tm);
+        const gm = point.y - rider.world.height(point.x, point.z);
+        if (gm <= 0) {
+          t = tm;
+          gap = gm;
+        } else {
+          previousT = tm;
+          previousGap = gm;
+        }
         const span = previousGap - gap;
         hitDistance = previousT + (t - previousT) * (previousGap / Math.max(1e-4, span));
         hit.copy(origin).addScaledVector(direction, hitDistance);
@@ -347,8 +393,14 @@ export function createHeadlamp(THREE, shading, head) {
         hasHit = true;
         break;
       }
+      if (t >= HEADLAMP.reach) break;
       previousT = t;
       previousGap = gap;
+      stride *= HEADLAMP.marchGrow;
+      if (seedDist > 0 && t < seedDist) {
+        stride = Math.min(stride, Math.max(HEADLAMP.marchStep, seedDist * 0.3));
+      }
+      t += stride;
     }
 
     const drawnLength = (hasHit ? hitDistance : HEADLAMP.reach) * HEADLAMP.overshoot;
@@ -385,38 +437,44 @@ export function createHeadlamp(THREE, shading, head) {
     if (!hasHit) {
       poolMat.uniforms.uStrength.value = 0;
       pool.visible = false;
+      draped = false;
       return;
     }
 
     /* A small elliptical fan conforms to the height field. Its coordinates
        remain offsets around the hit, so float precision is constant however
        far down the endless mountain the rider has travelled. */
-    const footprint = Math.max(1.25, Math.tan(HEADLAMP.angle) * hitDistance);
-    horizontal.set(direction.x, 0, direction.z);
-    if (horizontal.lengthSq() < 1e-5) horizontal.set(rider.heading.x, 0, rider.heading.z);
-    horizontal.normalize();
-    side.set(-horizontal.z, 0, horizontal.x);
     const baseY = hit.y;
     pool.position.set(hit.x, baseY, hit.z);
-    const p = built.position;
-    p[0] = 0;
-    p[1] = 0.065;
-    p[2] = 0;
-    for (let ring = 1; ring <= POOL_RING; ring++) {
-      const r = ring / POOL_RING;
-      for (let s = 0; s < POOL_SEG; s++) {
-        const i = 1 + (ring - 1) * POOL_SEG + s;
-        const j = i * 3;
-        const a = (s / POOL_SEG) * TAU;
-        const along = Math.cos(a) * footprint * 1.05 * r;
-        const across = Math.sin(a) * footprint * 2.25 * r;
-        off.copy(horizontal).multiplyScalar(along).addScaledVector(side, across);
-        p[j] = off.x;
-        p[j + 2] = off.z;
-        p[j + 1] = rider.world.height(hit.x + off.x, hit.z + off.z) - baseY + 0.055;
+    drapeTick ^= 1;
+    if (!draped || (drapeTick === 0 && lastDrape.distanceToSquared(hit) > 0.04)) {
+      const footprint = Math.max(1.25, Math.tan(HEADLAMP.angle) * hitDistance);
+      horizontal.set(direction.x, 0, direction.z);
+      if (horizontal.lengthSq() < 1e-5) horizontal.set(rider.heading.x, 0, rider.heading.z);
+      horizontal.normalize();
+      side.set(-horizontal.z, 0, horizontal.x);
+      const p = built.position;
+      p[0] = 0;
+      p[1] = 0.065;
+      p[2] = 0;
+      for (let ring = 1; ring <= POOL_RING; ring++) {
+        const r = ring / POOL_RING;
+        for (let s = 0; s < POOL_SEG; s++) {
+          const i = 1 + (ring - 1) * POOL_SEG + s;
+          const j = i * 3;
+          const a = (s / POOL_SEG) * TAU;
+          const along = Math.cos(a) * footprint * 1.05 * r;
+          const across = Math.sin(a) * footprint * 2.25 * r;
+          off.copy(horizontal).multiplyScalar(along).addScaledVector(side, across);
+          p[j] = off.x;
+          p[j + 2] = off.z;
+          p[j + 1] = rider.world.height(hit.x + off.x, hit.z + off.z) - baseY + 0.055;
+        }
       }
+      built.geometry.attributes.position.needsUpdate = true;
+      lastDrape.copy(hit);
+      draped = true;
     }
-    built.geometry.attributes.position.needsUpdate = true;
     poolMat.uniforms.uStrength.value = level * HEADLAMP.poolStrength
       * (1 - weather.storm * 0.24);
     pool.visible = true;
@@ -428,6 +486,11 @@ export function createHeadlamp(THREE, shading, head) {
     pool,
     update,
     get level() { return level; },
+    // The live beam state, for anything that wants to answer the lamp —
+    // the wildlife's eye-shine reads all three. These are the working
+    // vectors themselves, handed out to be copied from, never written to.
+    get origin() { return origin; },
+    get direction() { return direction; },
     debug: () => ({
       level,
       hit: hasHit,

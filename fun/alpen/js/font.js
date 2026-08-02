@@ -193,32 +193,71 @@ export function measure(str, size = 1) {
   return n ? n * ADVANCE * size - size : 0;
 }
 
+/* The glyph, baked. Runs of fillRects are the right way to draw a glyph
+   once; they are the wrong way to draw the same glyph sixty times a second.
+   A score line at the larger stop is a couple of hundred rectangles a frame
+   for pixels that have not changed since the last time they were filled. So
+   a glyph is rendered exactly once per (character, size, colour, halo) into
+   a sprite of its own — halo pass first, ink pass over it, the same two
+   passes in the same order as before, so the pixels are the ones the direct
+   path produced — and every appearance after that is one drawImage.
+
+   The sprite carries the one-pixel apron the halo needs, which is why it is
+   two font pixels wider and taller than the ink and why it is blitted one
+   `size` up and left of where the ink was asked for. Compositing per glyph
+   instead of per pass is safe for the same reason the two passes were: a
+   halo can overlap its neighbour's halo (same opaque colour, no seam) but
+   never its neighbour's ink, so glyph-at-a-time and pass-at-a-time agree to
+   the pixel.
+
+   The cache is bounded and simply emptied when it fills. The working set is
+   tiny — a few dozen glyphs, a handful of discrete UI sizes, a fixed palette
+   — so the bound exists for the pathological caller, not the expected one,
+   and rebaking after a flush costs one frame of the old path. */
+const sprites = new Map();
+const SPRITE_LIMIT = 384;
+
+function spriteFor(ch, size, colour, halo) {
+  const key = `${ch} ${size} ${colour} ${halo || ''}`;
+  let s = sprites.get(key);
+  if (s) return s;
+  if (sprites.size >= SPRITE_LIMIT) sprites.clear();
+
+  s = document.createElement('canvas');
+  s.width = (GLYPH_W + 2) * size;
+  s.height = (GLYPH_H + 2) * size;
+  const g = s.getContext('2d');
+
+  if (halo) {
+    g.fillStyle = halo;
+    const h = haloFor(ch);
+    for (let c = 0; c < h.length; c++) column(g, h[c], GLYPH_H + 2, c * size, 0, size);
+  }
+  g.fillStyle = colour;
+  const glyph = GLYPHS[ch] || TOFU;
+  for (let c = 0; c < GLYPH_W; c++) column(g, glyph[c], GLYPH_H, (c + 1) * size, size, size);
+
+  sprites.set(key, s);
+  return s;
+}
+
 /* Draws `str` with its top-left ink pixel at (x, y). `size` must be a whole
    number — 1 or 2 is what the HUD uses — and there is deliberately no
    fractional path, because a half-scaled bitmap font is just a blurry one.
    `halo` is the outline colour, or null for none.
 
-   Two passes over the string, not one interleaved pass: it costs two
-   fillStyle changes for the whole string instead of two per character, and
-   it is safe for the reason given in the header. */
+   Each glyph is a cached sprite blitted at integer coordinates and native
+   scale, so nothing gets resampled — the same guarantee the fillRect path
+   gave, at a fraction of the calls. The space glyph is skipped outright:
+   its sprite would be entirely transparent, and a drawImage of nothing is
+   still a drawImage. */
 export function drawText(ctx, str, x, y, colour, size = 1, halo = null) {
   const text = String(str).toUpperCase();
   const step = ADVANCE * size;
 
-  if (halo) {
-    ctx.fillStyle = halo;
-    for (let i = 0; i < text.length; i++) {
-      const h = haloFor(text[i]);
-      const gx = x + i * step - size;
-      for (let c = 0; c < h.length; c++) column(ctx, h[c], GLYPH_H + 2, gx + c * size, y - size, size);
-    }
-  }
-
-  ctx.fillStyle = colour;
   for (let i = 0; i < text.length; i++) {
-    const g = GLYPHS[text[i]] || TOFU;
-    const gx = x + i * step;
-    for (let c = 0; c < GLYPH_W; c++) column(ctx, g[c], GLYPH_H, gx + c * size, y, size);
+    if (text[i] === ' ') continue;
+    ctx.drawImage(spriteFor(text[i], size, colour, halo), x + i * step - size, y - size);
   }
 
   return measure(text, size);

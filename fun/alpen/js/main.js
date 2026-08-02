@@ -28,7 +28,9 @@ import { createProps, HARD } from './props.js';
 import { createWildlife } from './wildlife.js';
 import { createSky } from './sky.js';
 import { createWeather } from './weather.js';
-import { createSnowfall, createSpray, createStreaks } from './particles.js';
+import {
+  createSnowfall, createSpray, createStreaks, setPointSizeCap,
+} from './particles.js';
 import { createTrail } from './trail.js';
 import { createHelicopter } from './helicopter.js';
 import { createHuts } from './huts.js';
@@ -145,9 +147,14 @@ const terrain = createTerrain(THREE, shading, renderer.capabilities.getMaxAnisot
 const props = createProps(THREE, shading);
 const wildlife = createWildlife(THREE, shading);
 const sky = createSky(THREE);
-const snowfall = createSnowfall(THREE);
-const spray = createSpray(THREE);
+// The particles share the shading block's sun uniforms by reference, so a
+// low sun backlights the powder without a single per-frame copy.
+const snowfall = createSnowfall(THREE, shading);
+const spray = createSpray(THREE, shading);
 const streaks = createStreaks(THREE);
+// Long snow smears are sized in pixels and the hardware has an opinion.
+setPointSizeCap(renderer.getContext()
+  .getParameter(renderer.getContext().ALIASED_POINT_SIZE_RANGE)[1]);
 const trail = createTrail(THREE, shading);
 const heli = createHelicopter(THREE, shading);
 const huts = createHuts(THREE, shading);
@@ -180,8 +187,39 @@ scene.add(sky.group, sky.lights, terrain.mesh, props.group, wildlife.group,
    that shape the run were the only things in the picture with no shadow —
    and a knoll you cannot see the shadow of is a knoll you cannot see. It is
    eight thousand vertices in a depth-only pass; it costs nothing measurable. */
-terrain.mesh.castShadow = true;
+/* …but the depth pass no longer transforms all 217 thousand triangles. The
+   shadow camera covers ±92 metres and the mesh runs to nine hundred: the
+   proxy shares the terrain's live vertex buffers and indexes only the rows
+   within reach, so the same shadows cost a tenth of the vertex work.
+
+   It cannot hide from the colour pass on a layer, because three's shadow
+   pass culls casters against the *viewer* camera's layers, not the shadow
+   camera's — a layer-1 proxy simply never reaches the shadow map, and the
+   mountain silently stops casting. And it must not simply sit in the scene
+   with its writes masked, because a masked mesh still rasterises: that is
+   the whole near field depth-tested a second time at native resolution,
+   for nothing. So it hides in plain sight — zero triangles of draw range —
+   and the shadow pass's own hooks open the range just for the depth
+   render. On a night or a whiteout the depth pass is skipped entirely and
+   the hooks never fire, so the proxy costs literally nothing. `visible`
+   and its material's `visible` must both stay true or the depth pass skips
+   it before the hook can run. */
+terrain.mesh.castShadow = false;
 terrain.mesh.receiveShadow = true;
+terrain.shadowMesh.material = new THREE.MeshBasicMaterial({
+  colorWrite: false,
+  depthWrite: false,
+});
+terrain.shadowMesh.castShadow = true;
+terrain.shadowMesh.receiveShadow = false;
+{
+  const proxyGeometry = terrain.shadowMesh.geometry;
+  const proxyCount = proxyGeometry.index.count;
+  proxyGeometry.setDrawRange(0, 0);
+  terrain.shadowMesh.onBeforeShadow = () => proxyGeometry.setDrawRange(0, proxyCount);
+  terrain.shadowMesh.onAfterShadow = () => proxyGeometry.setDrawRange(0, 0);
+}
+scene.add(terrain.shadowMesh);
 
 function shadowCasting(root) {
   root.traverse((o) => {
@@ -243,6 +281,11 @@ const world = {
   rail: (x, z, y) => props.railAt(x, z, y),
   railPoint: (r, z, out) => props.railPoint(r, z, out),
 };
+
+// Hoisted out of the frame loop: an array literal there is a fresh
+// allocation per frame, and this list never changes.
+const foggedPoints = [snowfall.points, spray.points, wildlife.eyes];
+const flashWhite = new THREE.Color(1, 1, 1);
 
 const rider = new Rider(THREE, world);
 const model = createRiderModel(THREE, shading);
@@ -307,6 +350,29 @@ const riderScreen = new THREE.Vector3();
 const pushSnow = new THREE.Vector3();
 let pausedRendered = false;
 
+/* Render-time interpolation of the fixed step.
+
+   The physics runs at 120 Hz and the picture runs at whatever the panel
+   runs at, and nothing used to bridge the two: the camera and the model
+   sampled the rider as of the last completed step. On a 144 Hz display a
+   frame is shorter than a step, so some frames ran zero steps and some ran
+   one — a 0-1-1 cadence the eye reads as a continuous ~24 Hz stutter on
+   everything that moves. The fix is the textbook one: keep the position and
+   yaw from before the newest step, and draw the rider a fraction
+   `lastStep / STEP` of the way between there and now. Physics is untouched;
+   only what the lens sees moves between the steps.
+
+   The swap is scoped to the drawing half of the frame: the interpolated
+   state is written into the rider for the camera, model, trail and spray to
+   read, and the true state is restored before the frame returns — so the
+   next physics step, the collision sweeps and every event callback see only
+   the integrator's own numbers. */
+const stepFrom = new THREE.Vector3();
+const truePos = new THREE.Vector3();
+const viewPos = new THREE.Vector3();
+let stepFromYaw = 0;
+let hadStep = false;
+
 function showMuted(value) {
   hud.setMuted(value);
   if (touchMute) touchMute.setAttribute('aria-pressed', String(!!value));
@@ -332,11 +398,15 @@ function pause() {
   retro.fade(0.42);
   audio.quiet();
   input.clear();
+  persistBest(true);
 }
 
 function restart() {
   const start = rider.pos.z;
   rider.reset(start);
+  // The interpolation anchor is from before the teleport; drawing a lerp
+  // across a restart would smear the rider over half the mountain.
+  hadStep = false;
   // The run forks, so the middle of the piste is sometimes the island in
   // between. Whichever branch is nearer is always rideable ground.
   rider.pos.x = nearestCenter(rider.pos.x, start);
@@ -437,11 +507,32 @@ canvas.addEventListener('webglcontextrestored', () => {
    Scoring
    ========================================================================== */
 
+/* The record's write to disk is debounced. `localStorage.setItem` is
+   synchronous main-thread I/O, and a run that is continuously beating the
+   record fired it on every gate and landing — landing the stall on the exact
+   frame the banner pops. The in-memory record is always current; the disk
+   copy follows within a few seconds, and immediately when the run pauses or
+   the tab goes to the background. */
+let bestDirty = false;
+let bestWrittenAt = 0;
+
+function persistBest(force = false) {
+  if (!bestDirty) return;
+  const now = performance.now();
+  if (!force && now - bestWrittenAt < 4000) return;
+  bestWrittenAt = now;
+  bestDirty = false;
+  try { localStorage.setItem(BEST_KEY, String(Math.round(game.best))); } catch { /* ignore */ }
+}
+
+window.addEventListener('pagehide', () => persistBest(true));
+
 function award(points, name, tone) {
   game.score += points;
   if (game.score > game.best) {
     game.best = game.score;
-    try { localStorage.setItem(BEST_KEY, String(Math.round(game.best))); } catch { /* ignore */ }
+    bestDirty = true;
+    persistBest();
   }
   if (name) hud.banner(name, points, tone);
 }
@@ -737,6 +828,22 @@ function liveTrickName() {
   }, CLEAN) || '';
 }
 
+/* The per-frame callbacks, built once. Arrow literals in the loop body are
+   a fresh closure allocation every frame — individually nothing, together
+   the steady GC churn behind the occasional minor-collection hitch. */
+const onWildlifeNear = (x, z, kind) => {
+  if (game.mode === 'playing') nearMiss(kind);
+};
+const onBearContact = () => {
+  if (game.mode === 'playing' && rider.grace <= 0) rider.fall('bear', rider.speed);
+};
+const onCocoa = () => {
+  if (game.mode !== 'playing') return;
+  award(SCORE.cocoa * game.combo, 'COCOA STOP', 'near');
+  game.combo = Math.min(SCORE.comboMax, game.combo + SCORE.comboStep);
+  audio.combo(game.combo);
+};
+
 let lastStep = 0;
 let last = 0;
 let tickStep = 0;
@@ -758,6 +865,10 @@ function frame(now) {
     lastStep += dt;
     while (lastStep >= STEP && steps < 8) {
       prev.copy(rider.pos);
+      // Where the newest step began, kept for the render interpolation below.
+      stepFrom.copy(rider.pos);
+      stepFromYaw = rider.yaw;
+      hadStep = true;
       rider.step(STEP, control);
       // Obstacle sweeps belong to the same clock as motion. Running this once
       // per rendered frame made a fast tree impact subtly display-rate
@@ -771,6 +882,9 @@ function frame(now) {
 
     terrain.update(rider.pos.x, rider.pos.z, dt);
     props.update(rider.pos.z);
+    // The forest answers the weather: crowns lash in a storm wind, flags
+    // ripple, and a calm day barely stirs. One clock, shared by every tree.
+    props.setAir(dt, game.weather.windX, game.weather.windZ);
 
     // A blip per half-rotation, so a 720 sounds like a 720
     if (rider.grounded) {
@@ -788,38 +902,55 @@ function frame(now) {
     world.grip = 1 - w.storm * (1 - RIDER.stormGrip);
     world.surfaceDrag = 1 + w.storm * (RIDER.stormFriction - 1);
     scene.fog.color.copy(w.haze);
+    // Lightning whitens the dome, so everything dissolving into the dome
+    // whitens with it — a strike that leaves the fog its old colour reads
+    // as a bug, not weather.
+    if (w.flash > 0.003) scene.fog.color.lerp(flashWhite, w.flash * 0.8);
     scene.fog.near = w.fogNear;
     scene.fog.far = w.fogFar;
     // Everything with a hand-written fog term needs telling where the
     // curtain is this frame; three only does it for its own materials
-    for (const p of [snowfall.points, spray.points]) {
-      p.material.uniforms.uFog.value.copy(w.haze);
-      p.material.uniforms.uNear.value = w.fogNear;
-      p.material.uniforms.uFar.value = w.fogFar;
+    for (let i = 0; i < foggedPoints.length; i++) {
+      const u = foggedPoints[i].material.uniforms;
+      u.uFog.value.copy(scene.fog.color);
+      u.uNear.value = w.fogNear;
+      u.uFar.value = w.fogFar;
     }
     sky.update(rider.pos, w, dt);
-    wildlife.update(dt, rider,
-      (x, z, kind) => { if (game.mode === 'playing') nearMiss(kind); },
-      () => { if (game.mode === 'playing' && rider.grace <= 0) rider.fall('bear', rider.speed); });
+    wildlife.update(dt, rider, onWildlifeNear, onBearContact);
 
     heli.update(dt, rider, wildlife, w);
     if (game.mode === 'playing' && heli.claimLight(rider)) {
       award(SCORE.searchlight * game.combo, 'IN THE SPOTLIGHT', 'near');
     }
 
-    huts.update(dt, rider, w, () => {
-      if (game.mode !== 'playing') return;
-      award(SCORE.cocoa * game.combo, 'COCOA STOP', 'near');
-      game.combo = Math.min(SCORE.comboMax, game.combo + SCORE.comboStep);
-      audio.combo(game.combo);
-    });
+    huts.update(dt, rider, w, onCocoa);
+
+    /* Everything below this line is drawing, so it reads the interpolated
+       rider. Everything above — collisions, wildlife, scoring, the huts —
+       already read the integrator's own state, and the true position is
+       restored before the frame returns. See the note beside `stepFrom`. */
+    const stepAlpha = Math.min(1, lastStep / STEP);
+    let viewSwapped = false;
+    let trueYaw = 0;
+    if (hadStep && game.mode !== 'paused') {
+      truePos.copy(rider.pos);
+      trueYaw = rider.yaw;
+      viewPos.copy(stepFrom).lerp(truePos, stepAlpha);
+      rider.pos.copy(viewPos);
+      rider.yaw = stepFromYaw + (trueYaw - stepFromYaw) * stepAlpha;
+      viewSwapped = true;
+    }
 
     chase.update(rider, dt, world);
     // One write, and every material in the world agrees about the sky it is
     // dissolving into. It follows both the sky and the chase camera so the
     // view-space sun cannot lag a carve by one rendered frame.
-    shading.update(w, camera);
+    shading.update(w, camera, dt, world.height(rider.pos.x, rider.pos.z));
     model.update(rider, dt, w, camera);
+    // The animals' eyes answer the lamp: retroreflection needs to know where
+    // the beam is, and only the model knows that after its pose is written.
+    wildlife.setLamp(model.headlamp.level, model.headlamp.origin, model.headlamp.direction);
     /* The track owns continuous board spray because it already commits the
        contact path at fixed spatial intervals. One interpolated sample now
        drives both the cut in the snow and the sheet thrown from that cut, so
@@ -845,7 +976,7 @@ function frame(now) {
     snowfall.setIntensity(w.snow);
     snowfall.update(dt, camera, wind);
     spray.update(dt, camera, wind);
-    streaks.update(dt, camera, rider.vel, rider.speed);
+    streaks.update(dt, camera, rider.vel, rider.speed, wind);
 
     const tumbleSlide = rider.state === 'fall' && !rider.airborne ? rider.speed : 0;
     audio.ambience(rider.speed, rider.slide, rider.grounded, w.storm,
@@ -862,11 +993,20 @@ function frame(now) {
        moved this frame or the rays trail the picture by one. */
     if (sky.project) {
       const s = sky.project(camera);
-      retro.setSun(s.x, s.y, s.visible);
+      // The glow stop rides along so the ray march inherits the sun's own
+      // colour — white at noon, amber through the golden hour.
+      retro.setSun(s.x, s.y, s.visible, shading.uniforms.uSkyGlow.value);
     }
 
     game.liveTrick = liveTrickName();
     hud.update(game, dt);
+
+    // The integrator's numbers come back before anything else can run — the
+    // next physics step must never see the lens's in-between state.
+    if (viewSwapped) {
+      rider.pos.copy(truePos);
+      rider.yaw = trueYaw;
+    }
   }
 
   retro.updateEffects(dt, running);
