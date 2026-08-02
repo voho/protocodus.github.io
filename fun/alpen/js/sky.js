@@ -2356,10 +2356,31 @@ export function createSky(THREE) {
        skips the depth pass entirely — the night is not paying to render a
        map that is multiplied by zero. `needsUpdate` re-arms alongside it so
        the first shadowed frame after a long night is never a stale one. */
+    /* …with one condition on dropping the pass, and it is the whole of a bug
+       that could swallow the entire world on the frame the page opened.
+
+       Skipping the depth pass does not merely skip the depth pass: it means
+       the renderer never allocates the map. A run that opens in a blizzard —
+       or at night, or in any weather where this level starts at zero — turned
+       the pass off on its very first frame, before it had ever produced one,
+       and `light.shadow.map` then stayed null for the entire run. Every
+       material that samples it is compiled expecting a sampler that is never
+       bound, so every one of those draws fails outright with an INVALID
+       OPERATION and is dropped. The terrain, the forest, the huts and the
+       rider all simply stopped being drawn; the sky dome does not receive
+       shadows, so it carried on, and what was left was a white void with a
+       painted skyline over it and no rider in it. Reported as "only white
+       terrain, no trees and no player", and it fixed itself the moment the
+       storm eased enough to turn the pass back on.
+
+       So the pass is never given up before it has run once. One depth render
+       at a cost of nothing — the casters are a handful of trees — and the map
+       exists for the rest of the session, after which the level is free to
+       take the pass away for as long as it likes. */
     const shadowLevel = ramp(w.elevation, 0.08, 0.14)
       * (1 - ramp(w.storm, 0.60, 0.78));
     key.shadow.intensity = shadowLevel;
-    const casting = shadowLevel > 0.001;
+    const casting = shadowLevel > 0.001 || !key.shadow.map;
     if (casting !== key.shadow.autoUpdate) {
       key.shadow.autoUpdate = casting;
       key.shadow.needsUpdate = casting;

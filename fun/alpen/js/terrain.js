@@ -745,16 +745,15 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   const positions = new Float32Array(count * 3);
   const normals = new Float32Array(count * 3);
   const colors = new Float32Array(count * 3);
-  /* Two numbers about the snow at this vertex, in one attribute because they
-     travel together and the second is not worth a buffer of its own: x is how
-     far the pack has gone from powder towards névé, which sets the sheen's
-     roughness, and y is how much of the sun reaches here at all once the
-     mountain's own shape has been taken into account. See `TERRAIN.shade`. */
-  const surface = new Float32Array(count * 2);
+  // How far the pack has gone from powder towards névé, which is what sets
+  // the sheen's roughness. The sun's own shadow used to ride alongside it
+  // here; it is a texture now, sampled per fragment — see `shading.apply`
+  // below and the note beside it.
+  const ice = new Float32Array(count);
   const targetPositions = new Float32Array(count * 3);
   const targetNormals = new Float32Array(count * 3);
   const targetColors = new Float32Array(count * 3);
-  const targetSurface = new Float32Array(count * 2);
+  const targetIce = new Float32Array(count);
   const morphMask = new Float32Array(count);
   const coarseDetailMask = new Float32Array(count);
   const fineDetailMask = new Float32Array(count);
@@ -900,18 +899,24 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   }
 
   /* The lattice the shade actually lives on, and it is uniform where the mesh
-     is graded. That is deliberate and it is what makes one march serve two
-     consumers: the terrain reads it per vertex, where it is free, and every
-     other lit surface in the game reads the same numbers out of a small
-     texture — so a tree standing in a shadow and the ground under it cannot
-     disagree about whether the sun is out, which is the artifact this whole
-     arrangement exists to avoid. See `SHADE.half`. */
+     is graded. That is deliberate, and it is what lets one march light the
+     whole mountain: the ground, the trees standing in it, the animals, the
+     huts and the rider all read the same numbers out of one small texture, in
+     world space, per fragment. So a tree in a shadow and the snow under it
+     cannot disagree about whether the sun is out, which is the artifact this
+     whole arrangement exists to avoid.
+
+     The ground used to read it per vertex instead — free, and wrong. A vertex
+     value is fixed at the moment the field is committed, while the vertex
+     *positions* around it are still gliding through the morph that follows a
+     re-anchor, so the shading and the surface it belongs to moved at
+     different speeds and a soft light-and-shade boundary swept over the piste
+     every few seconds. Reading the texture costs one fetch and the ground
+     stops arguing with everything else drawn on it. See `SHADE.half`. */
   const shadeSize = SHADE.size;
   const shadeHalf = SHADE.half;
   const shadeTexel = (2 * shadeHalf) / shadeSize;
   const shadeRaise = SHADE.raise;
-  const shadeGrid = new Float32Array(shadeSize * shadeSize);
-  shadeGrid.fill(1);
   // Sample i sits at (i + 0.5) texels from the low edge, which is exactly
   // where a texture filter expects to find it.
   const shadeAxisAt = (i) => (i + 0.5) * shadeTexel - shadeHalf;
@@ -1012,7 +1017,6 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     // A sun straight overhead — and a sun under the horizon, which the level
     // has already faded out — throws nothing worth marching for.
     if (flat < 1e-3 || buildSunY <= 0.01) {
-      shadeGrid.fill(1);
       for (let i = 0; i < shadeData.length; i += 4) {
         shadeData[i] = HALF_ONE;
         shadeData[i + 1] = HALF_ONE;
@@ -1062,33 +1066,12 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
         // which sees over anything that does not clear it by `raise`.
         const u = (worst - shadeRaise) * invSoft;
         const litUp = u <= 0 ? 1 : u >= 1 ? 0 : 1 - u * u * (3 - 2 * u);
-        shadeGrid[g] = lit;
         const p = g * 4;
         shadeData[p] = toHalf(lit);
         shadeData[p + 1] = toHalf(litUp);
         shadeData[p + 2] = toHalf(h - ay);
       }
     }
-  }
-
-  /* Read the field back at a point in the mesh's own local frame. The lattice
-     is uniform, so this is arithmetic rather than a search — which is the
-     other half of why it is uniform. */
-  function shadeAtLocal(lx, lz) {
-    const u = (lx + shadeHalf) / shadeTexel - 0.5;
-    const v = (lz + shadeHalf) / shadeTexel - 0.5;
-    if (u <= -1 || v <= -1 || u >= shadeSize || v >= shadeSize) return 1;
-    let c0 = u < 0 ? 0 : u | 0;
-    let r0 = v < 0 ? 0 : v | 0;
-    if (c0 > shadeSize - 2) c0 = shadeSize - 2;
-    if (r0 > shadeSize - 2) r0 = shadeSize - 2;
-    const tc = u < 0 ? 0 : u > shadeSize - 1 ? 1 : u - c0;
-    const tr = v < 0 ? 0 : v > shadeSize - 1 ? 1 : v - r0;
-    const a = r0 * shadeSize + c0;
-    const b = a + shadeSize;
-    const lo = shadeGrid[a] + (shadeGrid[a + 1] - shadeGrid[a]) * tc;
-    const hi = shadeGrid[b] + (shadeGrid[b + 1] - shadeGrid[b]) * tc;
-    return lo + (hi - lo) * tr;
   }
 
   const geometry = new THREE.BufferGeometry();
@@ -1098,8 +1081,8 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     new THREE.BufferAttribute(normals, 3).setUsage(THREE.DynamicDrawUsage));
   geometry.setAttribute('color',
     new THREE.BufferAttribute(colors, 3).setUsage(THREE.DynamicDrawUsage));
-  geometry.setAttribute('aSurface',
-    new THREE.BufferAttribute(surface, 2).setUsage(THREE.DynamicDrawUsage));
+  geometry.setAttribute('aIce',
+    new THREE.BufferAttribute(ice, 1).setUsage(THREE.DynamicDrawUsage));
   geometry.setIndex(new THREE.BufferAttribute(indices, 1));
   // The corner of the grid, not its longest side. `ahead` alone was already
   // short of the far columns and is now short of the tail as well; the mesh is
@@ -1177,13 +1160,6 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
      three's separate depth/shadow shader keeps its old no-normal path: adding
      the built-in `normal` attribute would also move every terrain shadow
      lookup by the sun light's receiver normalBias. */
-  /* How much of the precomputed terrain shadow is actually spent. It follows
-     the depth map's own fade exactly — `sky.js` owns that number and hands it
-     over — so the mountain's shadow of itself arrives and leaves on the same
-     dusk and in the same whiteout as every shadow the map still draws, and
-     the two can never disagree about whether it is dark enough for shadows. */
-  const shadeLevel = { value: 1 };
-
   const material = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
   material.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, {
@@ -1191,47 +1167,28 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       uSnowReady: snowReady,
       uSnowTile: snowTile,
       uSnowAlbedo: snowAlbedo,
-      uGroundShade: shadeLevel,
     });
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>
         attribute vec3 aSmoothNormal;
-        attribute vec2 aSurface;
+        attribute float aIce;
         varying vec3 vWorld;
         varying vec3 vSmoothNormal;
-        varying float vDist;
-        varying float vTerrainShade;`)
+        varying float vDist;`)
       .replace('#include <project_vertex>', `#include <project_vertex>
         vWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;
         vSmoothNormal = normalize(normalMatrix * aSmoothNormal);
-        vN64Ice = aSurface.x;
-        vTerrainShade = aSurface.y;
+        vN64Ice = aIce;
         vDist = -mvPosition.z;`);
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>
         varying vec3 vWorld;
         varying vec3 vSmoothNormal;
         varying float vDist;
-        varying float vTerrainShade;
         uniform sampler2D uSnowPowder;
         uniform vec2 uSnowReady;
         uniform vec2 uSnowTile;
-        uniform vec2 uSnowAlbedo;
-        uniform float uGroundShade;`)
-      /* The mountain's own shadow, spent between the direct accumulation and
-         the indirect one — which is exactly what `lights_fragment_maps` sits
-         between in the Lambert program. Only the sun is removed; the sky fill
-         still reaches a shaded hollow, which is what makes snow in shade blue
-         rather than black, and it is the same split a real cast shadow makes.
-
-         It has to happen here rather than after `lights_fragment_end`,
-         because the shared shading patch hangs off that anchor and recovers
-         the shadow term by dividing the accumulated direct light back out.
-         Attenuating first is therefore not merely tidier: it is what puts the
-         snow's sheen, its glints and its reflected sun into the same shadow
-         as its diffuse, without either side knowing the other exists. */
-      .replace('#include <lights_fragment_maps>', `#include <lights_fragment_maps>
-        reflectedLight.directDiffuse *= mix(1.0, vTerrainShade, uGroundShade);`)
+        uniform vec2 uSnowAlbedo;`)
       .replace('#include <color_fragment>', `#include <color_fragment>
         float n64SnowMask = smoothstep(0.42, 0.62,
           dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722)));
@@ -1365,11 +1322,24 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   /* Keep direction-aware atmospheric fog and continuous Lambert response,
      then add the analytic snow/ice microfacet reflection that nothing else on
      the mountain receives. */
-  /* `shade: false` because this material already has the field per vertex,
-     which is free — the shared sampler below exists for everything that does
-     not have a vertex of the mountain to read it off. Two consumers, one
-     march, and no way for them to disagree. */
-  shading.apply(material, { sheen: 1, shade: false });
+  /* The ground reads the shadow field the same way everything else does.
+
+     It used to carry its own copy per vertex, which was free and which was
+     also wrong in a way that took a player about a minute to notice. The
+     shade of a vertex is a fact about where that vertex *is*, and out in the
+     graded field a vertex moves every time the mesh re-anchors — it glides to
+     its new sampling position over a few frames while its shade snaps to the
+     destination at once. Every six metres of travel, four times a second, a
+     band of far terrain was shaded for somewhere it had not arrived yet. That
+     was the regular flicker.
+
+     Sampling per fragment cannot have that problem, because the field is
+     indexed by where the pixel is rather than by which vertex it came from:
+     wherever a vertex glides to, the ground under it is lit correctly on the
+     way. It costs one cached fetch on the largest surface in the frame, and
+     it deletes the entire second code path — one march, one consumer, one
+     way for the mountain and everything standing on it to be shaded. */
+  shading.apply(material, { sheen: 1 });
   material.userData.snowSurfaces = {
     powder: powderSurface,
     ready: snowReady,
@@ -1394,8 +1364,9 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
      receiver and the light, and for the mountain shadowing itself all three
      are either fixed or changing on the timescale of a three-minute day. That
      is precisely what a precomputation is for, and `TERRAIN.shade` is it: the
-     horizon march at the head of this function, one float per vertex, folded
-     into the light loop above. The depth map now holds only the things that
+     horizon march at the head of this function, published as one small
+     texture and folded into the light loop above — on the ground and on
+     everything standing on it. The depth map now holds only the things that
      genuinely move through it — the trees, the huts, the animals and the
      rider — which is what it was worth having for. */
 
@@ -1443,7 +1414,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   }
 
   function fillSurfaceRows(
-    ax, az, ay, outPositions, outNormals, outColors, outSurface,
+    ax, az, ay, outPositions, outNormals, outColors, outIce,
     rowFrom, rowTo,
   ) {
     let i = rowFrom * vertsX;
@@ -1488,8 +1459,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
           outColors[p] = cDeep[0];
           outColors[p + 1] = cDeep[1];
           outColors[p + 2] = cDeep[2];
-          outSurface[i * 2] = 0;
-          outSurface[i * 2 + 1] = 1;
+          outIce[i] = 0;
         }
         continue;
       }
@@ -1532,8 +1502,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
           outColors[p] = cDeep[0];
           outColors[p + 1] = cDeep[1];
           outColors[p + 2] = cDeep[2];
-          outSurface[i * 2] = 0;
-          outSurface[i * 2 + 1] = 1;
+          outIce[i] = 0;
           continue;
         }
 
@@ -1703,11 +1672,8 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
            continuous vertex field, so the light travels in broad patches
            rather than sparkling at screen-pixel frequency. */
         const reliefReflect = clamp01(1 - cavityShade * 2.1 + crestLift * 1.4);
-        outSurface[i * 2] = clamp01(0.16 + icy * 0.78 + groomed * 0.16)
+        outIce[i] = clamp01(0.16 + icy * 0.78 + groomed * 0.16)
           * (1 - rock) * reliefReflect;
-        // …and the sun the mountain's own shape has or has not left here,
-        // read back off the coarse horizon grid marched before this pass.
-        outSurface[i * 2 + 1] = shadeAtLocal(lx, lz);
 
         outColors[p] = cr;
         outColors[p + 1] = cg;
@@ -1716,14 +1682,14 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     }
   }
 
-  function fill(ax, az, ay, outPositions, outNormals, outColors, outSurface) {
+  function fill(ax, az, ay, outPositions, outNormals, outColors, outIce) {
     fillHeightRows(ax, az, 0, vertsZ);
     // The horizon march needs the whole height grid, so it sits between the
     // two passes rather than inside either — see `advanceBuild` for the same
     // ordering spread across frames.
     buildShadeGrid(ay);
     fillSurfaceRows(
-      ax, az, ay, outPositions, outNormals, outColors, outSurface,
+      ax, az, ay, outPositions, outNormals, outColors, outIce,
       0, vertsZ,
     );
   }
@@ -1755,13 +1721,12 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     geometry.attributes.position.needsUpdate = true;
     geometry.attributes.aSmoothNormal.needsUpdate = true;
     geometry.attributes.color.needsUpdate = true;
-    geometry.attributes.aSurface.needsUpdate = true;
+    geometry.attributes.aIce.needsUpdate = true;
   }
 
-  /* The morphing frames' upload. Colours and the surface pair do not travel
-     here at all —
-     they snapped once at commit — and position and normal carry the covering
-     range of the masked set. That range reaches both ends of the buffer today
+  /* The morphing frames' upload. Colours and the ice do not travel here at
+     all — they snapped once at commit — and position and normal carry the
+     covering range of the masked set. That range reaches both ends today
      (the masked set is the outside of a disc), so its honest job is to keep
      this correct rather than to shrink the transfer; the transfer shrank by
      the two attributes that stopped being flagged. */
@@ -1805,9 +1770,9 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
          preserved old-world positions, and new colours on old geometry put
          a one-frame tint seam through the near disc every re-anchor. */
       colors.set(targetColors);
-      surface.set(targetSurface);
+      ice.set(targetIce);
       geometry.attributes.color.needsUpdate = true;
-      geometry.attributes.aSurface.needsUpdate = true;
+      geometry.attributes.aIce.needsUpdate = true;
       morphSnap = false;
     }
 
@@ -1933,7 +1898,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       } else {
         fillSurfaceRows(
           build.ax, build.az, build.ay,
-          targetPositions, targetNormals, targetColors, targetSurface,
+          targetPositions, targetNormals, targetColors, targetIce,
           build.row, rowTo,
         );
       }
@@ -1966,7 +1931,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       anchorZ = az;
       anchorY = ay;
       mesh.position.set(ax, ay, az);
-      fill(ax, az, ay, positions, normals, colors, surface);
+      fill(ax, az, ay, positions, normals, colors, ice);
       publishShade();
       publish();
       return;
@@ -2009,7 +1974,6 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     sunY = dirY;
     sunZ = dirZ;
     sunLevel = level;
-    shadeLevel.value = level;
     shading.uniforms.uShadeLevel.value = level;
   }
 
@@ -2020,7 +1984,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     vertexCount: count,
     debug: () => ({
       anchorX, anchorY, anchorZ, morphing, morphAge,
-      shade: [shadeSize, +shadeTexel.toFixed(2), +shadeLevel.value.toFixed(2)],
+      shade: [shadeSize, +shadeTexel.toFixed(2), +sunLevel.toFixed(2)],
       building: build ? { stage: build.stage, row: build.row, rows: vertsZ } : null,
     }),
   };
