@@ -70,7 +70,7 @@
 import {
   heightAt, nearestCenter, corridorHalfAt, centersAt, normalFrom,
 } from './terrain.js';
-import { stream, hash2 } from './noise.js';
+import { stream, hash2, noise2 } from './noise.js';
 import { compose } from './geom.js';
 import { PROPS } from './config.js';
 
@@ -79,6 +79,10 @@ const { band, ahead, behind, park: PARK, rail: RAIL } = PROPS;
 const TAU = Math.PI * 2;
 
 const lerp = (a, b, t) => a + (b - a) * t;
+const smoothstep = (a, b, v) => {
+  const t = Math.min(1, Math.max(0, (v - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+};
 
 /* Kinds, as the collision list reports them */
 export const HARD = 0;   // puts a rider down
@@ -143,6 +147,62 @@ const BARE_STOP = '#ffffff';
    See the head of the file: this is the number the vertex shader mixes on. */
 const OWN_SNOW = 0;
 const OWN_ALL = 1;
+
+/* WHERE THE TREES ARE, which is a different question from what they look
+   like and had never been asked.
+
+   Twelve grown variants solved the wallpaper problem one tree at a time: no
+   two neighbours are the same tree. What was left was the wallpaper problem
+   one *hillside* at a time — twenty-two trees scattered uniformly through
+   every forty-metre band, at the top of the mountain and a mile below it,
+   with a `pow(rnd, 0.6)` biasing them towards the piste and nothing else
+   deciding anything. Which produced a forest of perfectly even density, and
+   even density is the one property no forest anywhere has.
+
+   Three fields fix it, and all three are things you can see out of a cable
+   car window.
+
+   STANDS. Trees grow where other trees grew, so a treeline is clumps and
+   clearings at a scale of a couple of hundred metres — dense stands, thin
+   scrub between them, and the odd bare shoulder where the wind or an
+   avalanche path has taken everything. A slow 2D field decides how much cover
+   this patch is allowed, and a candidate tree that draws above it is simply
+   not planted. `clearing` is the floor, because a genuinely empty piste edge
+   reads as unfinished rather than as open.
+
+   THE TREELINE. The run descends about 0.28 metres for every metre of z, so
+   two and a half kilometres of riding is seven hundred metres of altitude —
+   which in the Alps is the whole distance from stunted krummholz at the top
+   to closed forest at the bottom. So the cover and the size of a tree both
+   ramp with how far down the mountain it is standing. It costs one
+   smoothstep and it is the strongest single cue that the run is *going
+   somewhere*: the forest thickens and grows as the rider descends into it.
+
+   SIZE. And within a stand, the sizes are not uniform either — a forest is
+   mostly small trees with a few emergents standing over them, which is what
+   the exponent on the draw is for. */
+const FOREST = {
+  standFreq: 0.0046,      // ≈220 m from a stand to the clearing beside it
+  standBand: [0.28, 0.72],
+  standSeed: 137,
+  clearing: 0.34,
+  /* Metres of descent over which the treeline closes, and what it closes
+     from and to. Both ends are deliberately gentle: the top of the run is
+     thinner and its trees are smaller, and it is still unmistakably a piste
+     through a forest rather than a bare bowl. A treeline you can *see* is
+     worth having; one that empties the first kilometre is not. */
+  line: [80, 1600],
+  lineCover: [0.82, 1.0],
+  lineScale: [0.74, 1.08],
+  /* How much of the ground's own normal a trunk takes. Conifers grow towards
+     the light rather than square to the slope, so this is a lean and not a
+     right angle — but it is not zero either, and a hillside of perfectly
+     plumb trees is the tell that they were placed by a loop. */
+  lean: 0.26,
+  wobble: 0.09,           // …and a little more, so no two agree
+  size: [0.46, 1.22],
+  sizeBias: 1.45,         // >1 puts most of the stand at the small end
+};
 
 /* Two pieces of mountain furniture that belong outside the piste rather than
    on it.
@@ -1319,6 +1379,33 @@ export function createProps(THREE, shading) {
   const courseAbove = [0, 0];
   const courseBelow = [0, 0];
   const bankNormal = new THREE.Vector3();
+  const treeNormal = new THREE.Vector3();
+
+  /* Which way a trunk stands. A conifer grows towards the light rather than
+     square to the hill, so this is the ground's own slope leaned most of the
+     way back to vertical — plus a little scatter, because a stand where every
+     tree agrees about the wind is a stand that was placed by a loop. The
+     scatter is drawn from the band's stream, so it is as deterministic as
+     everything else the coordinate decides.
+
+     Two samples rather than `normalFrom`'s four, and forward differences
+     rather than central ones, because the height under the trunk is already
+     in hand. The step is a metre and a bit instead of thirty-five
+     centimetres, which is not a compromise: a tree stands on metres of hill
+     and should lean with the bank it is on, not with whatever wind ripple
+     happens to be under its roots. */
+  function treeLean(x, z, y, rnd) {
+    const e = 1.25;
+    const gx = (heightAt(x + e, z) - y) / e;
+    const gz = (heightAt(x, z + e) - y) / e;
+    return treeNormal
+      .set(
+        -gx * FOREST.lean + (rnd() - 0.5) * FOREST.wobble,
+        1,
+        -gz * FOREST.lean + (rnd() - 0.5) * FOREST.wobble,
+      )
+      .normalize();
+  }
 
   /* The outside of the whole route, not merely the nearest branch. At a fork
      `centersAt` is ordered left to right, so choosing the extreme centre and
@@ -1365,6 +1452,14 @@ export function createProps(THREE, shading) {
     // point, never from the world's x = 0. The route wanders, and it forks,
     // so an absolute placement plants a forest across the run.
 
+    /* How far down the mountain this band is, as the treeline sees it: nearly
+       nothing at the top of the run, everything a couple of kilometres below.
+       One value for the whole band, because a band is forty metres and the
+       treeline moves over hundreds. */
+    const down = smoothstep(FOREST.line[0], FOREST.line[1], travelled);
+    const lineCover = lerp(FOREST.lineCover[0], FOREST.lineCover[1], down);
+    const lineScale = lerp(FOREST.lineScale[0], FOREST.lineScale[1], down);
+
     // --- forest, either side of the corridor -------------------------------
     for (let i = 0; i < PROPS.treesPerBand; i++) {
       const z = z0 + rnd() * band;
@@ -1385,11 +1480,26 @@ export function createProps(THREE, shading) {
         // pow biases the crowd towards the treeline rather than the far edge
         x = c + side * (half - 2.5 + Math.pow(rnd(), 0.6) * 78);
       }
+      /* And whether anything grows here at all. The stand field is sampled at
+         the tree's own position rather than the band's, so a clearing has an
+         edge that runs across the hill wherever the field puts it instead of
+         starting and stopping at a band boundary. The draw is taken either
+         way, so refusing a tree cannot shift the ones behind it in the
+         stream — a mountain that reshuffles when a clearing opens is a
+         mountain that reshuffles for no reason. */
+      const stand = FOREST.clearing + (1 - FOREST.clearing) * smoothstep(
+        FOREST.standBand[0], FOREST.standBand[1],
+        noise2(x * FOREST.standFreq, z * FOREST.standFreq, FOREST.standSeed),
+      );
+      if (rnd() > stand * lineCover) continue;
       const y = heightAt(x, z);
-      const s = 0.55 + rnd() * 0.55;
+      // Mostly small, with the odd one standing over them.
+      const s = lerp(FOREST.size[0], FOREST.size[1],
+        Math.pow(rnd(), FOREST.sizeBias)) * lineScale;
       const v = (rnd() * treePools.length) | 0;
-      treePools[v].add(x, y, z, rnd() * TAU, s, s * (0.85 + rnd() * 0.35), s,
-        castOf(treeBare[v], v, rnd(), tint));
+      treePools[v].addOnSlope(x, y, z, rnd() * TAU,
+        s, s * (0.85 + rnd() * 0.35), s,
+        treeLean(x, z, y, rnd), castOf(treeBare[v], v, rnd(), tint));
       solids.push({ x, z, r: 0.5 + s * 0.45, kind: HARD, top: 99 });
     }
 
@@ -1406,10 +1516,10 @@ export function createProps(THREE, shading) {
       const off = PROPS.clearLane + rnd() * Math.max(1, half - PROPS.clearLane - 2);
       const x = nearestCenter(0, z) + side * off;
       const y = heightAt(x, z);
-      const s = 0.6 + rnd() * 0.4;
+      const s = (0.6 + rnd() * 0.4) * lineScale;
       const v = (rnd() * treePools.length) | 0;
-      treePools[v].add(x, y, z, rnd() * TAU, s, s, s,
-        castOf(treeBare[v], v, rnd(), tint));
+      treePools[v].addOnSlope(x, y, z, rnd() * TAU, s, s, s,
+        treeLean(x, z, y, rnd), castOf(treeBare[v], v, rnd(), tint));
       solids.push({ x, z, r: 0.5 + s * 0.45, kind: HARD, top: 99 });
     }
 

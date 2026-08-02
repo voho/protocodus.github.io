@@ -22,7 +22,7 @@ import * as THREE from 'three';
 
 import { RENDER, RIDER, SCORE, PROPS, GRADE } from './config.js';
 import {
-  createTerrain, heightAt, nearestCenter, corridorHalfAt,
+  createTerrain, heightAt, nearestCenter, corridorHalfAt, beyondLipAt,
 } from './terrain.js';
 import { createProps, HARD } from './props.js';
 import { createWildlife } from './wildlife.js';
@@ -173,53 +173,32 @@ scene.add(sky.group, sky.lights, terrain.mesh, props.group, wildlife.group,
    quadrilateral blocks of darkness rather than anything resembling snow.
 
    So it is the solid world only, and the split matters: the terrain receives
-   but does not cast, because a heightfield lit from above shadows itself
-   almost nowhere and the depth pass is where the cost is. Everything
-   standing *on* it casts. */
-/* The mountain both casts and receives.
+   and everything standing *on* it casts. */
+/* The mountain receives and no longer casts, and this time that is not the
+   old mistake being made again.
 
-   Casting was left off at first on the reasoning that a heightfield lit from
-   above barely shadows itself and the depth pass is where the cost is. That
-   is true of a *smooth* heightfield and false of this one: the whole point of
-   the knolls is that their lee sides fall away sharply, the cliffs are near
-   vertical, and the containment walls stand sixty metres over the piste. With
-   the terrain out of the pass none of that threw anything, so the features
-   that shape the run were the only things in the picture with no shadow —
-   and a knoll you cannot see the shadow of is a knoll you cannot see. It is
-   eight thousand vertices in a depth-only pass; it costs nothing measurable. */
-/* …but the depth pass no longer transforms all 217 thousand triangles. The
-   shadow camera covers ±92 metres and the mesh runs to nine hundred: the
-   proxy shares the terrain's live vertex buffers and indexes only the rows
-   within reach, so the same shadows cost a tenth of the vertex work.
+   It was left out of the depth pass once before, on the reasoning that a
+   heightfield lit from above barely shadows itself. That reasoning was wrong
+   about *this* heightfield — the knolls' lee sides fall away sharply, the
+   cliffs are near vertical and the containment walls stand sixty metres over
+   the piste — so it went back in, first whole and then as a near-field proxy
+   over the same live buffers. A hundred and thirteen thousand triangles a
+   frame, rasterised into a 2048² map, to draw a shadow that had not changed
+   since the frame before.
 
-   It cannot hide from the colour pass on a layer, because three's shadow
-   pass culls casters against the *viewer* camera's layers, not the shadow
-   camera's — a layer-1 proxy simply never reaches the shadow map, and the
-   mountain silently stops casting. And it must not simply sit in the scene
-   with its writes masked, because a masked mesh still rasterises: that is
-   the whole near field depth-tested a second time at native resolution,
-   for nothing. So it hides in plain sight — zero triangles of draw range —
-   and the shadow pass's own hooks open the range just for the depth
-   render. On a night or a whiteout the depth pass is skipped entirely and
-   the hooks never fire, so the proxy costs literally nothing. `visible`
-   and its material's `visible` must both stay true or the depth pass skips
-   it before the hook can run. */
+   Because it cannot change quickly. The mountain's shadow of itself is a
+   function of the height field and the sun, and the height field is fixed
+   while the sun takes three minutes to cross the sky. `terrain.js` now
+   marches it — the horizon test at `TERRAIN.shade` — and ships one float per
+   vertex, rebuilt on the same amortised pass that already produces the
+   heights. Everything that genuinely moves through the light still casts:
+   the trees, the huts, the animals, the rider.
+
+   `setSun` below is the join. The sky owns both the direction and how much
+   shadow the light is worth at this hour, so the precomputed shadow arrives
+   and leaves on exactly the same dusk as the depth map's. */
 terrain.mesh.castShadow = false;
 terrain.mesh.receiveShadow = true;
-terrain.shadowMesh.material = new THREE.MeshBasicMaterial({
-  colorWrite: false,
-  depthWrite: false,
-});
-terrain.shadowMesh.castShadow = true;
-terrain.shadowMesh.receiveShadow = false;
-{
-  const proxyGeometry = terrain.shadowMesh.geometry;
-  const proxyCount = proxyGeometry.index.count;
-  proxyGeometry.setDrawRange(0, 0);
-  terrain.shadowMesh.onBeforeShadow = () => proxyGeometry.setDrawRange(0, proxyCount);
-  terrain.shadowMesh.onAfterShadow = () => proxyGeometry.setDrawRange(0, 0);
-}
-scene.add(terrain.shadowMesh);
 
 function shadowCasting(root) {
   root.traverse((o) => {
@@ -256,6 +235,12 @@ const world = {
   canStall: (x, z) => (
     Math.abs(x - nearestCenter(x, z)) > corridorHalfAt(z)
   ),
+  /* And how far past the quarterpipe lip the ground is, which is where the
+     groomed mountain ends and the boundary's own unpisted snow begins. The
+     rider spends it as deep-snow drag and, past a point, as a flat refusal to
+     climb — see `RIDER.wallSpan`. Everything inside the lip reads negative,
+     so the transition stays exactly as rideable as it has always been. */
+  beyond: beyondLipAt,
   // Weather changes the surface continuously. The rider reads both inside
   // the fixed physics step; visuals and handling therefore describe the
   // same snow rather than two unrelated systems.
@@ -917,6 +902,10 @@ function frame(now) {
       u.uFar.value = w.fogFar;
     }
     sky.update(rider.pos, w, dt);
+    // Where the sun is and how hard it is shadowing, for the mountain's own
+    // precomputed shadow. It follows `sky.update` because that is where both
+    // numbers are decided, and the terrain reads them on its next build.
+    terrain.setSun(sky.sunDir.x, sky.sunDir.y, sky.sunDir.z, sky.shadowLevel);
     wildlife.update(dt, rider, onWildlifeNear, onBearContact);
 
     heli.update(dt, rider, wildlife, w);
@@ -1110,6 +1099,13 @@ window.__alpen = {
   // Without a handle on it that can only be checked by eye, and it is exactly
   // the class of bug an eye slides over.
   wildlife, audio, trail, heli, huts, model,
+  /* And the handles needed to *drive* the game from here rather than only
+     read it. `input` is the live control state, so a carve can be held from
+     the console; the three particle systems are the parts of the picture
+     whose output cannot be judged from a still frame taken at whatever moment
+     the loop happened to be in. Between them the plume a committed turn
+     throws can be produced deliberately and then looked at. */
+  input, spray, snowfall, streaks,
   config: { RENDER, RIDER, SCORE, PROPS, GRADE },
   debug: () => ({
     mode: game.mode,

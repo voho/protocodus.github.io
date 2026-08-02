@@ -377,7 +377,16 @@ export const TERRAIN = {
      isotropic noise, so they are not. */
   ridges: { freq: 0.0032, amp: 3.5, seed: 5 },
   rolls: { freq: 0.009, amp: 1.6, seed: 1 },
-  moguls: { freq: 0.050, amp: 0.22, seed: 2 },
+  /* The mogul octave carries its own LOD, for the same reason the chatter
+     does and one more besides. Its wavelength is twenty metres and its
+     amplitude twenty-two centimetres, so a cell wider than about four metres
+     is already sampling it below Nyquist — what reaches the screen out there
+     is not moguls, it is noise standing in for them. Fading it out over
+     4–9 metre cells is invisible (a fifth of a metre at two hundred) and it
+     removes one of the eight noise lookups this function pays per vertex
+     across most of the graded field, which is where most of the vertices
+     are. `lod` is the cell size the term leaves over, as everywhere else. */
+  moguls: { freq: 0.050, amp: 0.22, seed: 2, lod: [4.0, 9.0] },
   /* Wind-carved snow relief, stretched roughly three-to-one along the piste.
 
      Isotropic fine noise spends its full gradient against the hill and can
@@ -638,6 +647,47 @@ export const TERRAIN = {
   morphFar: 240,
   morphRate: 26,
   morphSettle: 1,
+
+  /* THE MOUNTAIN'S SHADOW ON ITSELF, worked out rather than drawn.
+
+     The hill used to cast into the sun's depth map like everything else, and
+     it was by a long way the most expensive thing in there: a near-field
+     index over the live mesh, a hundred and thirteen thousand triangles,
+     rasterised into a 2048² map every single frame — to produce a shadow
+     that is a pure function of two things that barely move, the height field
+     and the sun. Nothing about it needed to be dynamic. A tree lashing in the
+     wind needs a depth pass; a mountain does not.
+
+     So it is computed instead, on the same amortised build that already
+     produces the heights, and shipped as one float per vertex. For each
+     sample the terrain is walked back along the sun's own bearing and asked
+     whether anything on the way up rises above the line to the light — the
+     classic horizon test, and it gives exactly what the depth map gave: the
+     lee of every knoll, the foot of every drop, and the long bar the
+     containment wall lays across the piste at a low sun.
+
+     `stride` is the one number that makes it affordable. The field is smooth
+     — a shadow edge on snow has a real penumbra, and this one is softened
+     deliberately — so it is marched on every fourth vertex and interpolated
+     between, which is sixteen times less work for a difference nobody can
+     point at. At three metres between samples in the near field it is still
+     four times finer than the features doing the casting.
+
+     `window` is [half-width, ahead, behind] in metres and is chosen to match
+     what the depth map could reach in the first place: past it the ground is
+     lit, exactly as it was before. `reach` is how far back along the sun a
+     ray looks, `soften` the metres of penumbra, and `sunStep` how far the
+     sun may swing before a stationary rider is given a fresh build — the day
+     runs in three minutes, so that is a rebuild every second or so when
+     nothing else would have triggered one. */
+  shade: {
+    reach: 118,
+    steps: 12,
+    stride: 4,
+    window: [150, 200, 150],
+    soften: 1.5,
+    sunStep: 0.016,
+  },
 };
 
 export const RIDER = {
@@ -708,6 +758,89 @@ export const RIDER = {
      hard the rider is climbing — and it is what makes riding a wall a
      decision with a price rather than a free way to change lanes. */
   climbScrub: 7.5,
+
+  /* THE BOUNDARY MOUNTAINS, and the one thing the terrain alone could not
+     promise about them.
+
+     `TERRAIN.wall` contains by shape: past the quarterpipe lip the ground
+     rises asymptotically towards sixty-two metres and then creeps upwards for
+     ever, so gravity outside the corridor always points home. The arithmetic
+     for that was written against a terminal speed of fifty metres a second,
+     which buys v²/2g = fifty-seven metres of climb against the sixty-two the
+     exponential saturates at. Comfortable.
+
+     And then W stopped having a terminal speed. `tuckAcceleration` is a floor
+     that accumulates for as long as the key is held, deliberately with no
+     ceiling — which means the kinetic energy available to a determined rider
+     is unbounded, and an unbounded climb budget beats any finite wall. At
+     eighty metres a second the same sum buys a hundred and forty-five metres,
+     and the containment is a suggestion.
+
+     What is missing is not more mountain. It is that the ground out there
+     stops being a piste. Everything inside the lip is machine-groomed; past
+     it is unpisted, wind-loaded, bottomless alpine snow, and the honest
+     difference between the two is not a few per cent of friction — a board
+     driven into deep snow at speed sinks, ploughs and stops climbing almost
+     at once. That is what these three numbers are, and they are why there is
+     still no invisible wall, no bounce and no teleport: the rider may ride
+     out there, may launch off the lip, may land out there and slide back
+     down. What they cannot do is *climb*, because there is nothing solid
+     enough under the board to climb on.
+
+     `span` is the depth over which the surface goes from groomed to
+     bottomless, `drag` the deceleration at the far end of it, and `grab` the
+     rate at which the uphill component of a rider's velocity is taken away
+     once they are in it — the last of which is the actual invariant, since it
+     is applied after the powered tuck's floor and therefore cannot be
+     outrun by any speed however it was obtained. */
+  wallSpan: 16,
+  /* What the deep snow costs a rider trying to gain height in it, on top of
+     `climbScrub`. It is charged against the climb rather than flat against
+     the speed, and that is not a detail: a flat term large enough to stop a
+     fast rider is also larger than the 6.5 m/s² the creep slope has to offer
+     going the other way, which would strand anybody thrown out there by a
+     cliff instead of walking them home. Deep snow is slow to climb through
+     and merely slow to descend through. */
+  wallDrag: 30,
+  /* And the edge. This is the one that decides the *shape* of the failure
+     rather than its cost: unpisted wind-loaded snow will not hold a carved
+     edge across the fall line at all, so a board out there washes out and
+     goes wherever gravity sends it, which on the containment wall is home.
+     Without it a rider can hold a level traverse along the bank for ever —
+     not climbing, and not needing to, because the run itself descends nearly
+     a third of a metre for every metre of z and simply leaves them up there.
+     That was the actual escape, and it is a grip problem rather than a climb
+     one. This is the share of the edge the deepest snow takes away. */
+  wallWash: 0.88,
+  /* The refusal itself: the rate at which the component of travel pointing up
+     the fall line is taken back out. It saturates with depth — see the note
+     in `rider.js` — so past `wallSpan` metres the answer is simply no. */
+  wallGrab: 7.5,
+  /* And the sluff, which is the term that finally closed the last way out.
+
+     Refusing the climb is not enough on a run that descends nearly a third of
+     a metre for every metre of z: a rider who merely holds their altitude out
+     on the bank is left further and further above the piste without ever
+     having gained a centimetre, and the wander then carries the run out from
+     under them as well. Sixty metres up the containment wall, having done
+     nothing but hold a line.
+
+     What is missing from that picture is the snow. Metre-deep unconsolidated
+     powder on a forty-degree bank does not sit still under a board — it
+     fractures and runs, and it takes the board down with it. That is a
+     sluff, it is the single most characteristic thing steep off-piste snow
+     does, and it points down the fall line, which on the containment wall is
+     the way home. So it contains without ever pushing anybody anywhere they
+     were not already being pulled, and it can never strand a rider, because
+     the direction it acts in is the one they want to go. */
+  wallSluff: 7,
+  /* And the pivot, which is the one that does the containing. A board buried
+     across the fall line has a metre of edge on the uphill side and nothing
+     under the downhill one, so it swings to point down the hill — see the
+     long note in `rider.js`. As an exponential rate: a third of a second to
+     come round at full depth, and nothing at all inside the lip. */
+  wallPivot: 3.0,
+
   /* Where climbing stops being slow and starts being impossible.
 
      A snowboard is not a climbing tool. Run out of speed pointing up
@@ -1189,7 +1322,12 @@ export const PROPS = {
   behind: 6,
   // Density climbs with distance, which is most of the difficulty curve.
   // Speed takes care of the rest.
-  treesPerBand: 22,
+  /* Attempts per band, not trees. The stand field and the treeline in
+     `props.js` between them refuse about a third of these, so the average
+     band still carries roughly the twenty-two it always did — the difference
+     is that they are now bunched into stands with real clearings between
+     them instead of being spread evenly over every hillside on the mountain. */
+  treesPerBand: 34,
   innerTreesAt: 400,  // metres before trees start appearing on the piste
   innerTreesMax: 3,
   /* Slalom gates, and how wide the pair stands.
@@ -1354,7 +1492,13 @@ export const SNOW = {
   // more than the FOV, more than the camera shake — because it is the only
   // thing on screen whose amount is a direct read of how hard the board is
   // working.
-  sprayCount: 900,
+  /* The pool the edge plume, the rooster tail and every impact burst share.
+     It went up by four hundred when the tail arrived and not by more: a
+     curtain of snow is made of a few hundred particles that are *large, soft
+     and long-lived*, not of thousands of dots, and the ring is deliberately
+     tight enough that a landing burst still recycles the oldest of them
+     rather than being refused. */
+  sprayCount: 1300,
   /* Smaller than it was, because the pixel got bigger. A point sprite is
      sized in metres and converted to buffer pixels, and the buffer is now a
      quarter of the width it was — but every one of those pixels is then blown
