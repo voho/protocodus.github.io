@@ -324,6 +324,50 @@ body.touch .go-tap {
 .curtain[data-screen='paused'] .start-only { display: none; }
 .curtain[data-screen='start'] .pause-only { display: none; }
 
+/* Loading
+   ==========================================================================
+   The bar occupies exactly the space the invitation is about to, so the
+   title card does not jump when the mountain finishes arriving. Mint,
+   because mint is the colour of structure and of anything you can act on,
+   and this is the thing standing between the player and acting. */
+.loading {
+  margin-top: 1.8rem;
+}
+
+.loading-track {
+  width: min(20rem, 100%);
+  height: 3px;
+  background: rgba(250, 250, 250, 0.14);
+  overflow: hidden;
+}
+
+.loading-fill {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: var(--mint);
+  /* Stages land at their own pace and the bar should not pretend otherwise —
+     this eases the step rather than filling on a clock of its own. */
+  transition: width 0.35s var(--ease);
+}
+
+.loading-label {
+  margin-top: 0.6rem;
+  font-size: var(--label);
+  font-weight: 600;
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  color: var(--fg-faint);
+}
+
+/* The invitation waits for the mountain. Both are `.go`'s own margin apart,
+   so exactly one of them is on screen at any moment and neither moves. */
+body:not(.loaded) .curtain[data-screen='start'] .go { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-fill { transition: none; }
+}
+
 /* Touch pad
    ========================================================================== */
 .pad {

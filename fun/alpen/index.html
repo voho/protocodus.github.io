@@ -89,8 +89,8 @@
         <div><dt>W</dt><dd>Powered tuck — accelerate continuously with no speed limit. Less grip</dd></div>
         <div><dt>S</dt><dd>Speed check — pivot across the fall line and hold the skidded edge</dd></div>
         <div><dt>Space</dt><dd>Hold to load the legs, release to pop</dd></div>
-        <div><dt>Q</dt><dd>Grab. Hold it. Let go before the snow</dd></div>
-        <div><dt>E</dt><dd>Flip</dd></div>
+        <div><dt>Q</dt><dd>Grab — let go before the snow · on the snow, press instead</dd></div>
+        <div><dt>E</dt><dd>Backflip. W and S pick the way it flips, and which grab or press</dd></div>
         <div><dt>Esc</dt><dt>R</dt><dt>N</dt><dt>M</dt><dt>F</dt><dd>Pause · restart · new mountain · sound · fullscreen</dd></div>
       </dl>
 
@@ -102,8 +102,29 @@
         <div><dt>◀ ▶</dt><dd>Carve on the snow · spin in the air</dd></div>
         <div><dt>Boost</dt><dd>Tuck for speed · brake to scrub it</dd></div>
         <div><dt>Jump</dt><dd>Hold to load · release to pop</dd></div>
-        <div><dt>Q · E</dt><dd>Grab · flip</dd></div>
+        <div><dt>Q · E</dt><dd>Grab or press · flip — Boost and Brake pick which</dd></div>
       </dl>
+
+      <!-- ================= LOADING =================
+           Four named stages, and every one of them is a real thing finishing
+           rather than a bar animating for a fixed number of seconds. The
+           mountain takes a moment to arrive on a cold cache — the engine, a
+           quarter of a megabyte of horizon shadow, two snow plates and a
+           shader set that has to be compiled before the first frame — and
+           until this existed the title card invited a key press through the
+           whole of it and then dropped the player into a mountain that was
+           still assembling itself around them.
+
+           `aria-busy` on the dialog is what a screen reader reads; the
+           percentage is written into the label element's own text so it is
+           announced once per stage rather than once per frame. -->
+      <div class="loading start-only" data-loading>
+        <div class="loading-track" role="progressbar" aria-labelledby="alpen-loading-label"
+          aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" data-loading-bar>
+          <i class="loading-fill" data-loading-fill></i>
+        </div>
+        <p class="loading-label" id="alpen-loading-label" data-loading-label>Fetching the engine</p>
+      </div>
 
       <p class="go">
         <span class="start-only"><span class="go-key">Press any key</span><span class="go-tap">Tap anywhere</span> to drop in</span>
@@ -123,6 +144,80 @@
     </div>
   </noscript>
 
+  <!-- The only inline script on the page, and it is inline because of what it
+       has to be in front of.
+
+       Everything else here is a module, and a module cannot report on its own
+       arrival: by the time a line of `main.js` runs, the engine, the game and
+       the whole import graph have already been fetched and parsed, which on a
+       cold cache is the longest stage of the four. So the first stage is
+       tracked by the one thing that is already on the page — this — and the
+       module takes over the moment it starts executing.
+
+       `weights` are shares of the bar and they are roughly the shares of the
+       wall clock: the engine dominates a cold load, the horizon cache
+       dominates a warm one. Nothing here animates on a timer. If a stage takes
+       four seconds the bar sits still for four seconds, which is the honest
+       thing for a progress bar to do and the reason the label says what is
+       being waited for. -->
+  <script>
+    window.__alpenBoot = (function () {
+      var stages = [
+        { id: 'engine', weight: 0.42, label: 'Fetching the engine' },
+        { id: 'mountain', weight: 0.30, label: 'Marching the horizon' },
+        { id: 'snow', weight: 0.10, label: 'Decoding the snow' },
+        { id: 'shaders', weight: 0.18, label: 'Compiling shaders' },
+      ];
+      var done = {};
+      var root = document.querySelector('[data-loading]');
+      var bar = document.querySelector('[data-loading-bar]');
+      var fill = document.querySelector('[data-loading-fill]');
+      var label = document.querySelector('[data-loading-label]');
+      var curtain = document.querySelector('.curtain');
+      if (curtain) curtain.setAttribute('aria-busy', 'true');
+
+      function paint() {
+        var value = 0;
+        var waiting = null;
+        for (var i = 0; i < stages.length; i++) {
+          if (done[stages[i].id]) value += stages[i].weight;
+          else if (!waiting) waiting = stages[i];
+        }
+        var pct = Math.round(value * 100);
+        if (fill) fill.style.width = pct + '%';
+        if (bar) bar.setAttribute('aria-valuenow', String(pct));
+        if (label) label.textContent = waiting ? waiting.label + ' · ' + pct + '%' : 'Ready';
+        if (!waiting) {
+          if (curtain) curtain.setAttribute('aria-busy', 'false');
+          document.body.classList.add('loaded');
+          // Left in the tree it would keep announcing a finished progress bar
+          // every time the pause screen came back.
+          if (root) root.hidden = true;
+        }
+      }
+
+      paint();
+      return {
+        step: function (id) {
+          if (done[id]) return;
+          done[id] = true;
+          paint();
+        },
+        /* A load that cannot finish must not leave the page saying it is
+           still loading. Anything unresolved after this is reported as done —
+           the game itself degrades on its own (a missing snow plate simply
+           leaves the procedural fallback in place), so the honest read-out is
+           that the wait is over rather than that it succeeded. */
+        giveUp: function () {
+          for (var i = 0; i < stages.length; i++) done[stages[i].id] = true;
+          paint();
+        },
+      };
+    }());
+    window.addEventListener('error', function () {
+      if (window.__alpenBoot) window.__alpenBoot.giveUp();
+    });
+  </script>
   <script type="module" src="./js/main.js"></script>
 </body>
 

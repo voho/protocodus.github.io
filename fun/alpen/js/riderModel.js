@@ -330,11 +330,54 @@ const POSE = {
      the board up, and the board is the thing that moves. Folded 100°, board
      up 0.32 and the hips parked 0.26 above the boots, the hand finishes
      0.55 m from the shoulder with three centimetres of arm to spare. */
-  grabFold: 1.75,
-  grabHip: 0.26,
-  grabLift: 0.32,
-  grabTweak: 0.15,    // and the toe edge rolls up towards the waiting hand
-  grabPoint: [0.155, 0.09, -0.16],   // the toe edge, between the bindings
+  /* Three of them now, and the solved indy is the first row.
+
+     The numbers for the other two are solved the same way and against the
+     same 0.58 m of arm — what changes is where on the board the hand is going
+     and therefore how the rest of the body has to arrange itself to get it
+     there. Reaching past the front binding for the nose is a longer reach
+     down the board and a shorter one across it, so the fold goes up and the
+     board comes across less. A method is the opposite: the hand takes the
+     *heel* edge, which is on the far side of the board from the toe edge the
+     other two use, so the tweak reverses and the board has to come up much
+     further to meet a hand that is now reaching behind the rider rather than
+     in front of them.
+
+     `point` is in the board's own frame — +X is the toe edge, −Z is the nose
+     — and the row order is the one `RIDER.grabs` and `GRAB_INDY`/`GRAB_NOSE`/
+     `GRAB_METHOD` in `rider.js` use. Three files agree about which grab is
+     which, and the way they agree is that none of them writes the number. */
+  grabs: [
+    // INDY — the trailing hand drops onto the toe edge between the feet
+    { point: [0.155, 0.09, -0.16], fold: 1.75, hip: 0.26, lift: 0.32, tweak: 0.15, hinge: 0 },
+    // NOSE — the reach is along the board, so it is paid for at the waist's
+    // pitch rather than at its fold: he hinges over the leading binding and
+    // the hand carries on past it. Folding further instead only puts the
+    // shoulder further across the board, which is the wrong axis entirely.
+    { point: [0.095, 0.085, -0.46], fold: 1.44, hip: 0.30, lift: 0.34, tweak: 0.05, hinge: 0.46 },
+    // METHOD — the weight goes the other way and the board comes up much
+    // further to meet a hand that is now reaching behind him, onto the edge
+    // the other two never touch. The tweak reverses with it.
+    { point: [-0.140, 0.090, 0.06], fold: 1.66, hip: 0.23, lift: 0.42, tweak: -0.30, hinge: -0.26 },
+  ],
+
+  /* THE PRESS.
+
+     Standing on one end of the board is a rotation of the deck about the
+     contact point that is still buried, and everything else about the pose
+     falls out of that one fact: the legs are solved against the bindings, the
+     bindings are bolted to the deck, so tilting the deck folds one knee and
+     straightens the other without a line of code saying which. What is left
+     to author is the weight, and there is not much of it — the chest comes
+     over the end being stood on, because that is where the rider has to put
+     their mass to keep it down.
+
+     `pitch` is deliberately shy of what a real press reaches. The board is
+     drawn from the contact patch the physics owns, and every degree past this
+     is a degree of daylight opening between the buried end and the snow. */
+  pressPitch: 0.30,   // radians the deck comes up off the unweighted end
+  pressLean: 0.115,   // metres the hips travel towards the end being stood on
+  pressChest: 0.20,   // radians the chest comes over it
 };
 
 /* ==========================================================================
@@ -751,7 +794,37 @@ function buildGeometries(THREE) {
 
   box.dispose();
   for (const g of scrap) g.dispose();
-  return { board, rearBoot, torso, head, upperArm, foreArm, thigh, shin };
+  /* WHICH OF HIM IS CLOTH, as one flat attribute per composed buffer.
+
+     The rig is eleven meshes sharing one material, and the material has no
+     way to tell a jacket from a helmet: both arrive as vertex colours, and
+     ink is the helmet, the gloves, the boots and the trouser cuff at once, so
+     colour cannot separate them either. It does not need to be finer than
+     this. Cloth and hardware do not share a buffer here — the garments are
+     the torso and the four limb segments, the hardware is the helmet, the
+     boots and the board — so one number per geometry is the whole mask, and
+     the glossy trim inside a garment is taken out downstream by the same
+     green-channel test that already gives it its highlight.
+
+     `props.js` walks its own parts list to build the equivalent per-part
+     attribute. That is the right tool when a single buffer mixes materials;
+     here it would be five arrays of ones. */
+  const clad = (geometry, value) => {
+    const n = geometry.attributes.position.count;
+    geometry.setAttribute('aFabric',
+      new THREE.BufferAttribute(new Float32Array(n).fill(value), 1));
+    return geometry;
+  };
+  return {
+    board,
+    rearBoot: clad(rearBoot, 0),
+    torso: clad(torso, 1),
+    head: clad(head, 0),
+    upperArm: clad(upperArm, 1),
+    foreArm: clad(foreArm, 1),
+    thigh: clad(thigh, 0.4),
+    shin: clad(shin, 0.4),
+  };
 }
 
 /* ==========================================================================
@@ -801,7 +874,7 @@ export function createRiderModel(THREE, shading) {
      facing the camera, so the rider reads as the thing carrying the light
      rather than a shadow between two lit patches of snow. */
   const RIG_ANCHOR = '#include <lights_fragment_end>';
-  const rigLight = (base, gloss) => `${RIG_ANCHOR}
+  const rigLight = (base, gloss, fabric = false) => `${RIG_ANCHOR}
   {
     vec3 n64V = normalize(-vN64View);
     float n64NoV = max(dot(normal, n64V), 0.0);
@@ -814,7 +887,89 @@ export function createRiderModel(THREE, shading) {
     float n64Rim = pow(1.0 - n64NoV, 3.0);
     reflectedLight.directDiffuse += uSunTint * (uSunLevel * n64Spec)
       + uSkyMid * (n64Rim * 0.16)
-      + vec3(0.45, 0.62, 0.85) * (uLampGlow * (0.35 + 0.65 * n64NoV) * 0.12);
+      + vec3(0.45, 0.62, 0.85) * (uLampGlow * (0.35 + 0.65 * n64NoV) * 0.12);${fabric ? `
+    /* THE SHEEN CLOTH HAS AND PLASTIC DOES NOT.
+
+       The tight lobe above is a lacquer highlight: it is small, it moves
+       across the surface as the light does, and it is exactly wrong for a
+       shell jacket. Woven fabric is a forest of fibres standing off the
+       surface, so what it does with a light is scatter it into a wide,
+       soft band at grazing incidence — the reason the shoulder and the
+       outside of a sleeve go pale in a photograph while the middle of the
+       chest stays saturated. That band is the difference between a garment
+       and a moulding, and no amount of the other lobe produces it.
+
+       It is a retroreflective asperity term rather than a mirror one, so it
+       keys off the sun's own grazing angle and not off the half vector:
+       fabric is bright where the light is skimming it, whatever the camera
+       is doing. Multiplied by NoL, so it is a property of lit cloth and
+       cannot glow in shadow, and carried in the sun's tint so it warms and
+       cools with the day like everything else on this mountain. */
+    float n64Graze = 1.0 - abs(dot(normal, uSunView));
+    reflectedLight.directDiffuse += uSunTint
+      * (uSunLevel * n64NoL * n64Graze * n64Graze * n64Graze * 0.085
+        * min(1.0, vFabric * 2.5) * (1.0 - n64Trim));` : ''}
+  }`;
+
+  /* THE BAFFLES, which are what a shell jacket has instead of a surface.
+
+     The rig is lofted well enough that its silhouette is right and its
+     shadow is right, and it still read as one continuous piece of moulded
+     plastic — because it was one continuous piece of smooth geometry with
+     one flat colour on it, and the only thing describing the material was a
+     highlight the same shape as the one on the board. A jacket is not
+     smooth. It is a stack of down-filled tubes stitched across the body
+     every eight or nine centimetres, and the seams between them are the
+     single most legible thing about outerwear at any distance.
+
+     The ripple runs along each garment's *own* local Y, which is what makes
+     this cost one attribute and no thought: the torso stands up its Y, and
+     every limb segment hangs down its Y from its joint by the convention the
+     IK already relies on, so one expression puts horizontal baffles on the
+     chest and rings around the sleeves and legs at the same time — and they
+     stay welded to the garment through every pose, because local space is
+     where the garment lives.
+
+     Turning a height ripple into a normal needs the surface direction the
+     ripple runs along, which is that same axis with the part of it pointing
+     out of the surface removed. On a lofted limb that lands exactly along
+     the tube; on the shoulder's dome it lies over and fades out on its own,
+     which is what a baffle does where it wraps.
+
+     The seam also takes a little light out of the albedo, because a stitched
+     valley is genuinely in shadow from its own two pillows, and half a cue
+     is worth more than a normal on its own when the sun is behind the rider.
+
+     Glossy trim is excluded by the same green-channel test that gives it its
+     highlight: the collar, the pocket zips and the binding straps are not
+     quilted, and nothing had to be tagged twice to say so.
+
+     `aFabric` is a depth rather than a flag, and the trousers are why. Every
+     garment on him gets the sheen, because every garment is woven; only the
+     jacket is baffled, because snowboard trousers are a smooth shell with the
+     insulation quilted on the inside where nobody can see it. Written as a
+     flag the legs came out in chevrons — a strong ripple against a
+     sixteen-sided tapered tube is a moire waiting to happen — and the honest
+     fix and the correct one were the same fix. */
+  const RIG_NORMAL_ANCHOR = '#include <normal_fragment_maps>';
+  const CLOTH_BAFFLES = `${RIG_NORMAL_ANCHOR}
+  {
+    float n64Cloth = vFabric
+      * (1.0 - smoothstep(0.30, 0.50, diffuseColor.g));
+    if (n64Cloth > 0.002) {
+      // 2π / 0.098 m: baffles a little under ten centimetres apart.
+      float n64BafflePhase = vLocalY * 64.11;
+      // …and they dissolve before a seam can approach the pixel grid, which
+      // it does whenever he is thrown a long way down the hill.
+      float n64Baffle = sin(n64BafflePhase) * n64Cloth
+        * (1.0 - smoothstep(0.9, 2.4, fwidth(n64BafflePhase)));
+      vec3 n64Along = vClothAxis - normal * dot(normal, vClothAxis);
+      float n64AlongLen = length(n64Along);
+      if (n64AlongLen > 0.001) {
+        normal = normalize(normal + n64Along * (n64Baffle * 0.13 / n64AlongLen));
+      }
+      diffuseColor.rgb *= 1.0 - 0.055 * max(0.0, -n64Baffle);
+    }
   }`;
 
   /* One smooth material for the lot: colours are already in the vertices, so
@@ -829,10 +984,29 @@ export function createRiderModel(THREE, shading) {
     const m = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false });
     m.onBeforeCompile = (shader) => {
       shader.uniforms.uLampGlow = lampUniform;
+      /* Two varyings and one attribute buy the whole fabric response: is this
+         surface cloth at all, where it stands up the garment's own axis, and
+         which way that axis points from here. The axis is a direction, so it
+         goes through the normal matrix rather than the model one — a squashed
+         sleeve keeps its rings perpendicular to itself. */
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', `#include <common>
+          attribute float aFabric;
+          varying float vFabric;
+          varying float vLocalY;
+          varying vec3 vClothAxis;`)
+        .replace('#include <begin_vertex>', `#include <begin_vertex>
+          vFabric = aFabric;
+          vLocalY = position.y;
+          vClothAxis = normalize(normalMatrix * vec3(0.0, 1.0, 0.0));`);
       shader.fragmentShader = shader.fragmentShader
         .replace('#include <common>', `#include <common>
-          uniform float uLampGlow;`)
-        .replace(RIG_ANCHOR, rigLight(0.12, 0.30));
+          uniform float uLampGlow;
+          varying float vFabric;
+          varying float vLocalY;
+          varying vec3 vClothAxis;`)
+        .replace(RIG_NORMAL_ANCHOR, CLOTH_BAFFLES)
+        .replace(RIG_ANCHOR, rigLight(0.12, 0.30, true));
     };
     return shading.apply(m);
   })();
@@ -1158,6 +1332,15 @@ export function createRiderModel(THREE, shading) {
     // the board is back on the snow within a tenth of a second of touchdown
     // whatever the hands are still doing
     const grab = s.grab * s.air * (1 - s.down);
+    /* Which of the three reaches the hand went for, and how far the board is
+       tilted up on one end. Both are read once, here, so every consumer below
+       is looking at the same grab and the same press. */
+    const G = POSE.grabs[rider.grabKind] || POSE.grabs[0];
+    const press = (rider.press || 0) * (1 - s.air) * (1 - s.down);
+    // Nose down and tail up, or the other way. Positive pitch raises the −Z
+    // end, which is the nose, so standing on the nose is the negative one —
+    // and it swaps with the stance, because the leading end does.
+    const pressEnd = (rider.pressNose ? -1 : 1) * sw;
     const skate = s.push * (1 - s.air) * (1 - s.down) * (1 - grab);
 
     /* The snap, and the thump.
@@ -1291,9 +1474,12 @@ export function createRiderModel(THREE, shading) {
 
     // A grab pulls the board up to the hand, not the hand down to the board:
     // the feet are strapped on, so this is the only direction it can happen.
-    const lift = POSE.grabLift * grab;
-    const tweak = POSE.grabTweak * grab;
-    bt.pitch = s.pop * 0.12 * sw;   // the nose lifts as he pops, whichever end it is
+    const lift = G.lift * grab;
+    const tweak = G.tweak * grab;
+    // The nose lifts as he pops, whichever end it is — and a press stands the
+    // whole deck up on one contact point.
+    const pressPitch = POSE.pressPitch * press * pressEnd;
+    bt.pitch = s.pop * 0.12 * sw + pressPitch;
     // The board is rolled further than the body: that difference *is*
     // angulation, and it is now the two signals subtracted rather than a
     // share of one of them guessed at.
@@ -1318,7 +1504,17 @@ export function createRiderModel(THREE, shading) {
     const cl = Math.cos(s.lean);
     const sl = Math.sin(s.lean);
     bt.x = tx * cl - ty * sl;
-    bt.y = ty * cl + tx * sl + lift;
+    /* …and the deck is turned about the contact point that is still buried,
+       not about its own middle. `boardPoint` rotates about the origin and then
+       translates, so restoring the pressed end to where it was is one term:
+       a point at z = zp moves to y = −zp·sin θ, and adding zp·sin θ puts it
+       back. The centre of the board therefore rises by half the height the
+       free end gains, which is exactly where the middle of a pressed board
+       is. Without it the buried end sinks into the hill by as much as the
+       other one rises, and a press reads as the board falling through the
+       snow. */
+    const pressPivot = FLEX_SPAN * (rider.pressNose ? -1 : 1) * sw;
+    bt.y = ty * cl + tx * sl + lift + pressPivot * Math.sin(pressPitch);
 
     board.position.set(bt.x, bt.y, 0);
     board.rotation.set(bt.pitch, 0, bt.roll);
@@ -1444,6 +1640,11 @@ export function createRiderModel(THREE, shading) {
     hips.position.z = (POSE.hipsBack * upright + POSE.chargeBack * s.charge
       - s.tuck * 0.06 + Math.abs(s.wash) * 0.05) * sw + pivotDz
       - skate * POSE.pushHipFront
+      // The pelvis travels onto the end being pressed. It is the same
+      // movement as the chest above and it is there for the same reason: a
+      // board stands on one end only for as long as somebody's weight is over
+      // that end. `pressEnd` already points at it, in this same frame.
+      + POSE.pressLean * press * pressEnd
       + Math.sin(s.clock * 0.61 + 0.8) * 0.012 * idle;
 
     const load = rider.compression - REST_SQUAT;
@@ -1470,7 +1671,7 @@ export function createRiderModel(THREE, shading) {
        about eight centimetres of window between those two failures and this
        sits in the middle of it, which is why it is a position and not an
        offset from wherever the spring happened to leave him. */
-    hipY += (bootA.y + POSE.grabHip - hipY) * grab;
+    hipY += (bootA.y + G.hip - hipY) * grab;
 
     /* He can fold a long way, but not through his own boots, and he can
        stand a long way up, but not out of his own bindings.
@@ -1530,11 +1731,14 @@ export function createRiderModel(THREE, shading) {
        left is a rider who sinks and keeps his chest up. */
     const hinge = POSE.chestFwd * upright * (1 - s.tuck * 0.85) * (1 - s.air * 0.35);
     const pitch = (-hinge - s.charge * 0.35 + s.pop * 0.20
-      - s.thump * 0.34 - grab * 0.25) * sw - skate * POSE.pushHinge;
+      - s.thump * 0.34 - grab * (0.25 + G.hinge)) * sw - skate * POSE.pushHinge
+      // …and over whichever end he is standing on, because that is where the
+      // weight has to be for it to stay down.
+      + POSE.pressChest * press * pressEnd;
     // Angulation at the waist as well as at the knees: the shoulders stand
     // back up out of the body's own inclination, which is what keeps a carve
     // from reading as a man falling over sideways at a constant rate.
-    const fold = -POSE.grabFold * grab - s.down * 0.5 * (1 - grab)
+    const fold = -G.fold * grab - s.down * 0.5 * (1 - grab)
       + s.lean * POSE.angulate * (1 - grab)
       - POSE.chestSide * upright * (1 - s.tuck * 0.7);
     /* Going over, he curls up and the chest trails the tumble by however far
@@ -1769,7 +1973,7 @@ export function createRiderModel(THREE, shading) {
        grab to pay for it. */
     if (grab > 0.002) {
       mInv.copy(hips.matrix).multiply(torso.matrix).invert();
-      boardPoint(_f.set(POSE.grabPoint[0], POSE.grabPoint[1], POSE.grabPoint[2] * sw));
+      boardPoint(_f.set(G.point[0], G.point[1], G.point[2] * sw));
       _f.applyMatrix4(mInv);
       _f.y -= SHOULDER_Y;
       _f.z += SHOULDER_Z * sw;
