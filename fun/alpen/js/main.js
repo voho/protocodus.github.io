@@ -254,7 +254,10 @@ const world = {
       const s = solids[i];
       if (s.kind !== HARD) continue;
       const dz = s.z - z;
-      const reach = s.r + r;
+      // The caller's large radius describes a tree crown. A boulder's own
+      // camera pad is much smaller, otherwise a two-metre rock yanks the boom
+      // inward as though it carried four metres of foliage.
+      const reach = s.r + (s.cameraPad === undefined ? r : Math.min(r, s.cameraPad));
       if (dz > reach || dz < -reach) continue;
       const dx = s.x - x;
       if (dx * dx + dz * dz < reach * reach) return true;
@@ -456,7 +459,10 @@ function onKey(e) {
   if (game.mode !== 'playing') begin();
 }
 
-curtain.addEventListener('pointerdown', begin);
+/* Chrome grants touch user activation on the synthesized click, not always on
+   pointerdown. Starting here keeps the first tap audible as well as playable;
+   desktop clicks still arrive without a perceptible delay. */
+curtain.addEventListener('click', begin);
 touchPause?.addEventListener('click', (e) => {
   e.preventDefault();
   pause();
@@ -714,13 +720,58 @@ function checkGates() {
    Collisions
    ========================================================================== */
 
-function distToSegment(px, pz, ax, az, bx, bz) {
+const sweepHit = { t: 0, nx: 0, nz: 1, distance: 0, approach: 0 };
+
+/* Sweep a moving point against the obstacle circle already expanded by the
+   rider radius. Entry normal and travel direction together distinguish a
+   tangent brush from a square hit without depending on how far one 120 Hz
+   substep happened to penetrate. Reusing one record keeps this in the
+   allocation-free physics path. */
+function sweepCircle(ax, az, bx, bz, cx, cz, radius, out) {
   const dx = bx - ax;
   const dz = bz - az;
-  const len = dx * dx + dz * dz;
-  let t = len > 1e-6 ? ((px - ax) * dx + (pz - az) * dz) / len : 0;
-  t = t < 0 ? 0 : t > 1 ? 1 : t;
-  return Math.hypot(px - (ax + dx * t), pz - (az + dz * t));
+  const mx = ax - cx;
+  const mz = az - cz;
+  const a = dx * dx + dz * dz;
+  const c = mx * mx + mz * mz - radius * radius;
+  let t = 0;
+
+  if (c > 0) {
+    if (a < 1e-10) return false;
+    const b = mx * dx + mz * dz;
+    const disc = b * b - a * c;
+    if (disc < 0) return false;
+    t = (-b - Math.sqrt(disc)) / a;
+    if (t < 0 || t > 1) return false;
+  }
+
+  const closestT = a > 1e-10
+    ? Math.max(0, Math.min(1, -(mx * dx + mz * dz) / a))
+    : 0;
+  const closeX = mx + dx * closestT;
+  const closeZ = mz + dz * closestT;
+  out.distance = Math.hypot(closeX, closeZ);
+  out.t = t;
+
+  let nx = mx + dx * t;
+  let nz = mz + dz * t;
+  let n = Math.hypot(nx, nz);
+  if (n < 1e-6) {
+    nx = -dx;
+    nz = -dz;
+    n = Math.hypot(nx, nz);
+  }
+  if (n < 1e-6) {
+    out.nx = 0;
+    out.nz = 1;
+  } else {
+    out.nx = nx / n;
+    out.nz = nz / n;
+  }
+  out.approach = a > 1e-10
+    ? Math.max(0, Math.min(1, -(dx * out.nx + dz * out.nz) / Math.sqrt(a)))
+    : Math.max(0, Math.min(1, 1 - out.distance / radius));
+  return true;
 }
 
 function collide() {
@@ -734,14 +785,19 @@ function collide() {
     if (s.z < zLo || s.z > zHi) continue;
     if (Math.abs(s.x - rider.pos.x) > s.r + 6) continue;
 
-    const d = distToSegment(s.x, s.z, prev.x, prev.z, rider.pos.x, rider.pos.z);
     const reach = s.r + RIDER.radius;
 
     // Threading a tree no longer pays out, so a miss is simply a miss
-    if (d > reach) continue;
+    if (!sweepCircle(
+      prev.x, prev.z, rider.pos.x, rider.pos.z,
+      s.x, s.z, reach, sweepHit,
+    )) continue;
     // Anything with a real top can be cleared in the air. Trees carry top: 99
-    // because you do not jump a tree.
-    if (rider.pos.y > s.top + 0.15) continue;
+    // because you do not jump a tree. Height is judged at horizontal impact,
+    // not at the end of the step, so a landing cannot clear or strike solely
+    // because the two axes were sampled at different times.
+    const impactY = prev.y + (rider.pos.y - prev.y) * sweepHit.t;
+    if (impactY > s.top + 0.15) continue;
     if (rider.grace > 0 || game.mode === 'attract') continue;
     // One response per contact. `collide()` runs per physics substep, so a
     // rider still inside the trunk's radius on the next step would take a fresh
@@ -757,8 +813,21 @@ function collide() {
        were the same event. All this hands over now is the direction of the
        push and how square the contact was; the speed going into it is what
        decides whether that is a wobble or a very long tumble. */
-    const closeness = 1 - d / reach;
-    const outcome = rider.strike(rider.pos.x - s.x, rider.pos.z - s.z, closeness);
+    const closeness = sweepHit.approach;
+    const outcome = rider.strike(sweepHit.nx, sweepHit.nz, closeness);
+    if (s.type === 'boulder') {
+      /* A boulder is a volume, not a trigger. Resolve to the swept entry point
+         and remove only velocity still aimed into the stone; the tangential
+         component remains, so a graze slides past while a direct fall stops. */
+      rider.pos.x = s.x + sweepHit.nx * (reach + 0.03);
+      rider.pos.z = s.z + sweepHit.nz * (reach + 0.03);
+      const inward = rider.vel.x * sweepHit.nx + rider.vel.z * sweepHit.nz;
+      if (inward < 0) {
+        const restitution = outcome === 'fall' ? 1.12 : 1.02;
+        rider.vel.x -= inward * restitution * sweepHit.nx;
+        rider.vel.z -= inward * restitution * sweepHit.nz;
+      }
+    }
     if (outcome === 'brush') {
       audio.thud();
       chase.kick(0.4);
@@ -865,23 +934,24 @@ function frame(now) {
     }
     if (steps >= 8) lastStep = 0;
 
-    terrain.update(rider.pos.x, rider.pos.z, dt);
-    props.update(rider.pos.z);
-    // The forest answers the weather: crowns lash in a storm wind, flags
-    // ripple, and a calm day barely stirs. One clock, shared by every tree.
-    props.setAir(dt, game.weather.windX, game.weather.windZ);
-
-    // A blip per half-rotation, so a 720 sounds like a 720
-    if (rider.grounded) {
-      tickStep = 0;
+    /* The environment is rendered, so its positional half uses the same
+       fixed-step interpolation as the lens and rider model. Keep this as a
+       separate immutable sample: simulation, collisions and streaming below
+       still consume the integrator's true position. */
+    const stepAlpha = Math.min(1, lastStep / STEP);
+    if (hadStep && game.mode !== 'paused') {
+      viewPos.copy(stepFrom).lerp(rider.pos, stepAlpha);
     } else {
-      const step = Math.floor(Math.abs(rider.spinAccum) / Math.PI)
-        + Math.floor(Math.abs(rider.flipAccum) / Math.PI);
-      if (step > tickStep) audio.trick(step);
-      tickStep = step;
+      viewPos.copy(rider.pos);
     }
 
+    /* Resolve the whole environment before any system consumes it. Terrain
+       used to start its amortised work from the previous frame's sun and the
+       forest received the previous wind; that one-frame lag was normally
+       small, but it became an obvious discontinuity whenever a build happened
+       to begin near dawn, dusk or a storm front. */
     const w = weather.update(dt);
+    retro.setGrade(w, dt);
     // Falling snow is fresh snow: progressively softer, slower and easier to
     // wash out on. The endpoints stay arcade-readable rather than punitive.
     world.grip = 1 - w.storm * (1 - RIDER.stormGrip);
@@ -901,11 +971,27 @@ function frame(now) {
       u.uNear.value = w.fogNear;
       u.uFar.value = w.fogFar;
     }
-    sky.update(rider.pos, w, dt);
-    // Where the sun is and how hard it is shadowing, for the mountain's own
-    // precomputed shadow. It follows `sky.update` because that is where both
-    // numbers are decided, and the terrain reads them on its next build.
+    sky.update(viewPos, w, dt);
+    // The terrain's horizon atlas evaluates this direction immediately; a
+    // re-anchor only precalculates geometry and the direction-independent
+    // horizon facts for the next patch of mountain.
     terrain.setSun(sky.sunDir.x, sky.sunDir.y, sky.sunDir.z, sky.shadowLevel);
+    terrain.update(rider.pos.x, rider.pos.z, dt);
+    props.update(rider.pos.z);
+    // The forest answers this exact frame's weather: crowns lash in a storm
+    // wind, flags ripple, and a calm day barely stirs.
+    props.setAir(dt, w.windX, w.windZ);
+
+    // A blip per half-rotation, so a 720 sounds like a 720
+    if (rider.grounded) {
+      tickStep = 0;
+    } else {
+      const step = Math.floor(Math.abs(rider.spinAccum) / Math.PI)
+        + Math.floor(Math.abs(rider.flipAccum) / Math.PI);
+      if (step > tickStep) audio.trick(step);
+      tickStep = step;
+    }
+
     wildlife.update(dt, rider, onWildlifeNear, onBearContact);
 
     heli.update(dt, rider, wildlife, w);
@@ -919,13 +1005,11 @@ function frame(now) {
        rider. Everything above — collisions, wildlife, scoring, the huts —
        already read the integrator's own state, and the true position is
        restored before the frame returns. See the note beside `stepFrom`. */
-    const stepAlpha = Math.min(1, lastStep / STEP);
     let viewSwapped = false;
     let trueYaw = 0;
     if (hadStep && game.mode !== 'paused') {
       truePos.copy(rider.pos);
       trueYaw = rider.yaw;
-      viewPos.copy(stepFrom).lerp(truePos, stepAlpha);
       rider.pos.copy(viewPos);
       rider.yaw = stepFromYaw + (trueYaw - stepFromYaw) * stepAlpha;
       viewSwapped = true;
@@ -1000,9 +1084,9 @@ function frame(now) {
 
   retro.updateEffects(dt, running);
   retro.updatePerformance(dt, running);
-  if (running || !pausedRendered) {
+  if (running || !pausedRendered || retro.animating) {
     retro.render(scene, camera);
-    pausedRendered = !running;
+    pausedRendered = !running && !retro.animating;
   }
 }
 
@@ -1143,6 +1227,7 @@ window.__alpen = {
       fall: +retro.fallEffect.toFixed(3),
     },
     solids: props.solids.length,
+    biomes: props.debugBiomes(),
     rails: props.rails.length,
     terrainVerts: terrain.vertexCount,
     helicopter: heli.debug(),
@@ -1161,18 +1246,12 @@ window.__alpen = {
   }),
 };
 
-/* The sun, before the ground it has to light.
-
-   `restart` performs the first terrain fill synchronously, and that fill now
-   marches the mountain's own shadow — so if the sun has not been decided by
-   then, the opening frames are shadowed from `terrain.js`'s placeholder
-   direction rather than from wherever the weather actually put it, at full
-   strength, until the first re-anchor six metres down the hill rebuilds it.
-   A zero-length weather tick advances no clock and a zero-length sky tick
-   moves nothing that integrates; between them they settle the azimuth, the
-   elevation and the shadow's own fade, which is all the fill needs. */
+/* The sun, before the ground it has to light. The world-fixed horizon cache
+   itself is direction-independent, but its very first shader evaluation still
+   needs the correct bearing and fade. Zero-length ticks advance no clock. */
 {
   const w0 = weather.update(0);
+  retro.setGrade(w0, 0);
   sky.update(rider.pos, w0, 0);
   terrain.setSun(sky.sunDir.x, sky.sunDir.y, sky.sunDir.z, sky.shadowLevel);
 }
@@ -1180,5 +1259,13 @@ window.__alpen = {
 restart();
 game.mode = 'attract';
 showMuted(audio.muted);
-document.body.classList.add('ready');
-requestAnimationFrame(frame);
+/* Compile every currently resident world material, allocate the shadow map,
+   upload the complete opening horizon cache and warm the post stack while the
+   canvas is still covered. First use during a landing is the wrong time for a
+   driver to discover a shader or a 3.3 MiB texture. */
+renderer.compile(scene, camera);
+retro.render(scene, camera);
+requestAnimationFrame((now) => {
+  frame(now);
+  document.body.classList.add('ready');
+});

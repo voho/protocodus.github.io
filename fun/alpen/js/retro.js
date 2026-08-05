@@ -288,7 +288,10 @@ const FRAG = `
     // a grade that darkens the picture is a bug, not a look.
     float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
     vec3 tint = mix(uShadow, uHighlight, smoothstep(0.25, 0.85, l));
-    c = mix(c, c * tint, uTint);
+    vec3 tinted = c * tint;
+    float tintedLuma = dot(tinted, vec3(0.2126, 0.7152, 0.0722));
+    tinted *= l / max(tintedLuma, 0.001);
+    c = mix(c, tinted, uTint);
     c = clamp((c - 0.5) * uContrast + 0.5, 0.0, 1.0);
     l = dot(c, vec3(0.2126, 0.7152, 0.0722));
     c = clamp(mix(vec3(l), c, uSaturation), 0.0, 1.0);
@@ -325,10 +328,13 @@ const FRAG = `
 
 /* A tint that multiplies without dimming: divided through by its own
    luminance, so `c * tint` keeps c's brightness and only moves its hue. */
-function hueOnly(THREE, hex) {
-  const c = new THREE.Color(hex);
+function normalizeHue(c) {
   const l = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
   return l > 0.001 ? c.multiplyScalar(1 / l) : c;
+}
+
+function hueOnly(THREE, hex) {
+  return normalizeHue(new THREE.Color(hex));
 }
 
 export function createRetro(THREE, renderer) {
@@ -462,6 +468,11 @@ export function createRetro(THREE, renderer) {
     depthTest: false,
     depthWrite: false,
   });
+  const gradeShadow = new THREE.Color(GRADE.shadowTint);
+  const gradeHighlight = new THREE.Color(GRADE.highlightTint);
+  const gradeShadowTarget = new THREE.Color();
+  const gradeHighlightTarget = new THREE.Color();
+  const gradeWhite = new THREE.Color(0xffffff);
 
   const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material);
   quad.frustumCulled = false;
@@ -486,6 +497,7 @@ export function createRetro(THREE, renderer) {
   let sized = false;
   let fallFx = 0;
   let fallHold = 0;
+  let fadeTarget = 1;
 
   const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
@@ -666,7 +678,7 @@ export function createRetro(THREE, renderer) {
   /* Used to dip the whole picture behind a menu, so the game reads as
      paused rather than as stopped. */
   function fade(v) {
-    material.uniforms.uFade.value = v;
+    fadeTarget = Math.min(1, Math.max(0, v));
   }
 
   /* One impact pulse, weighted by the same 0..1 severity as the crash mix.
@@ -685,7 +697,15 @@ export function createRetro(THREE, renderer) {
   }
 
   function updateEffects(dt, active = true) {
-    if (!active || dt <= 0) return;
+    if (dt <= 0) return;
+    /* Menu dimming is part of the picture, not a state switch. It keeps
+       advancing while simulation is paused; `main.js` renders those few
+       settling frames and then returns to the single frozen pause frame. */
+    const fadeNow = material.uniforms.uFade.value;
+    const fadeNext = fadeNow + (fadeTarget - fadeNow) * (1 - Math.exp(-13 * dt));
+    material.uniforms.uFade.value = Math.abs(fadeTarget - fadeNext) < 0.001
+      ? fadeTarget : fadeNext;
+    if (!active) return;
     // The dither's clock. Wrapped well inside float precision; the exact
     // period is irrelevant, only that consecutive frames differ.
     material.uniforms.uTime.value = (material.uniforms.uTime.value + dt) % 64;
@@ -707,6 +727,36 @@ export function createRetro(THREE, renderer) {
     // The sun's own stop, straight from the weather — so the shafts follow
     // it from white noon to amber dusk without owning a colour of their own.
     if (color) rayMat.uniforms.uSunColor.value.copy(color);
+  }
+
+  /* The split tone belongs to the atmosphere it is grading. A fixed cobalt
+     multiplier stacked on the lee-side albedo, hemisphere fill and terrain
+     shadow, so clear-day walls went navy while dusk painted every surface
+     magenta. Derive two quiet hues from the live sky/key and let the strength
+     fall at low sun and in weather. The weather itself is continuous, and the
+     short exponential here also makes debug/pause time moves glide. */
+  function setGrade(w, dt = 1 / 60) {
+    gradeShadowTarget.copy(w.mid).lerp(gradeWhite, 0.55);
+    gradeHighlightTarget.copy(w.key).lerp(gradeWhite, 0.80);
+    normalizeHue(gradeShadowTarget);
+    normalizeHue(gradeHighlightTarget);
+
+    const elevationRaw = Math.min(1, Math.max(0, (w.elevation - 0.08) / 0.38));
+    const elevation = elevationRaw * elevationRaw * (3 - 2 * elevationRaw);
+    const daylight = 0.11 + 0.09 * elevation;
+    const clearStrength = daylight + (0.13 - daylight) * w.night;
+    const stormRaw = Math.min(1, Math.max(0, w.storm));
+    const storm = stormRaw * stormRaw * (3 - 2 * stormRaw);
+    const targetStrength = Math.min(
+      GRADE.tintStrength,
+      clearStrength + (0.06 - clearStrength) * storm,
+    );
+    const alpha = dt <= 0 ? 1 : 1 - Math.exp(-6 * dt);
+    gradeShadow.lerp(gradeShadowTarget, alpha);
+    gradeHighlight.lerp(gradeHighlightTarget, alpha);
+    material.uniforms.uShadow.value.copy(gradeShadow);
+    material.uniforms.uHighlight.value.copy(gradeHighlight);
+    material.uniforms.uTint.value += (targetStrength - material.uniforms.uTint.value) * alpha;
   }
 
   /* Projected centre of the rider. Keeping this dynamic matters in the air,
@@ -744,6 +794,7 @@ export function createRetro(THREE, renderer) {
     crash,
     updateEffects,
     setSun,
+    setGrade,
     setFocus,
     setSpeed,
     updatePerformance,
@@ -760,6 +811,9 @@ export function createRetro(THREE, renderer) {
     get speedVignette() { return material.uniforms.uSpeedVignette.value; },
     get rayStrength() { return rayMat.uniforms.uStrength.value; },
     get fallEffect() { return material.uniforms.uFall.value; },
+    get animating() {
+      return Math.abs(fadeTarget - material.uniforms.uFade.value) >= 0.001;
+    },
     // Kept for diagnostics compatibility now that AO is a neutral input.
     get aoStrength() { return 0; },
   };

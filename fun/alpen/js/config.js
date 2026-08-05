@@ -44,11 +44,14 @@ export const RENDER = {
   buffer: { width: BASE_WIDTH, height: BASE_HEIGHT },
 
   fov: 65,
-  /* Speed closes peripheral vision into a focused tunnel. Eleven degrees
-     of narrowing was subtle to the point of deniability; twenty-two is the
-     tunnel the effect was named for, and it is still a long way short of the
-     point where a rider cannot see what is beside them. */
-  fovAtSpeed: 43,
+  /* Speed opens the lens just enough for foreground parallax to carry it.
+
+     The old 43-degree end point produced the opposite cue: a long telephoto
+     view that flattened the piste and made side walls fill the frame. The
+     post stack already supplies a restrained peripheral tunnel, while the
+     board, spray and passing trees are the physical cues. A seven-degree
+     opening keeps the rider readable and lets the mountain rush past. */
+  fovAtSpeed: 72,
   near: 0.5,
   far: 3600,
   /* The draw distance is a curtain of haze, and everything is arranged
@@ -59,8 +62,8 @@ export const RENDER = {
      Both numbers moved out with the resolution. At 288 lines a ridge at
      three hundred metres was four pixels tall and pushing the curtain back
      bought nothing but fill rate; at native resolution it is a ridge. */
-  fogNear: 105,
-  fogFar: 420,
+  fogNear: 120,
+  fogFar: 560,
 };
 
 /* The final atmospheric grade. Snow is the hardest thing to light well: it is
@@ -69,7 +72,7 @@ export const RENDER = {
    which is what the eye expects of snow at a low sun and what makes the hill
    legible at all. */
 export const GRADE = {
-  shadowTint: '#86a3cf',
+  shadowTint: '#98abc6',
   /* The highlight tint had to come most of the way back to white.
 
      At #fff0d2 it was pushing every lit surface a sixth of the way towards
@@ -82,14 +85,14 @@ export const GRADE = {
   highlightTint: '#fff8ec',
   // Both tints are normalised to luminance 1 before use, so strength moves
   // hue and never brightness. A grade that dims the picture is a bug.
-  tintStrength: 0.34,
+  tintStrength: 0.20,
   /* Contrast and saturation, both pushed. Every photograph of this sport is
      a near-black sky over a surface at the very top of the scale with a
      single violently coloured human being in the middle of it, and none of
      that survives a picture graded to be tasteful. The sky stops carry most
      of it now; this is what stops the snow from meeting them halfway. */
-  contrast: 1.12,
-  saturation: 1.14,
+  contrast: 1.06,
+  saturation: 1.04,
   // Enough to close the corners, not enough to notice. Anything past about
   // 0.2 turns a wide screen into a porthole.
   vignette: 0.12,
@@ -119,16 +122,16 @@ export const GRADE = {
      off the top of the scale, and a clipped channel has no shape left in it —
      which on a surface filling most of the frame means the hill stops having
      folds and becomes a sheet of paper. */
-  shoulder: 0.68,
+  shoulder: 0.64,
   /* Bloom, from a quarter-resolution bright pass. Kept small enough that the
      snow retains shape instead of becoming one wide soft glow. */
-  bloom: 0.20,
+  bloom: 0.13,
   /* …and a second octave at a sixteenth of the resolution: the wide, dim
      halo the air wears around a low sun and over a lit snowfield. The tight
      kernel above rims edges; this one glows. It is fainter than it looks —
      a sixteenth-res texel covers a lot of screen, so a little goes far. */
-  bloomWide: 0.14,
-  bloomThreshold: 0.78,
+  bloomWide: 0.07,
+  bloomThreshold: 0.83,
   /* Near-field screen-space contact occlusion.
 
      The shadow map says which way the sun is coming from; this says where
@@ -364,6 +367,35 @@ export const TERRAIN = {
        monotonically uphill everywhere, so gravity is always pointing home.
        That, and not a barrier, is what makes leaving the track impossible. */
     creep: 0.30,
+    creepEase: 18,
+    /* Large-scale flank geology.
+
+       The containment profile above is intentionally simple and monotonic,
+       but a perfectly identical exponential on both sides reads as two
+       poured-concrete ramps. These frequencies vary its breadth over several
+       hundred metres of run and add two broad, always-upward shoulders well
+       beyond the rideable lip. `terrain.js` evaluates them in the height
+       field itself, so collision, placement, cached horizon shadow and the
+       visible mesh all receive exactly the same mountain. */
+    structure: {
+      broadFreq: 0.0024,
+      detailFreq: 0.0041,
+      scaleVary: 0.26,
+      broadSeed: 113,
+      detailSeed: 127,
+      lowerHeight: [4, 9],
+      lowerStart: [16, 28],
+      lowerWidth: 16,
+      upperHeight: [6, 14],
+      upperStart: [58, 76],
+      upperWidth: 26,
+      /* A sharper buttress cut from the existing detail field. It adds no
+         noise sample: terrain.js turns only the upper part of that row fact
+         into a ridge, so adjacent valleys retain the snowfield between them. */
+      ribHeight: 18,
+      ribStart: [10, 22],
+      ribWidth: 32,
+    },
   },
 
   /* Four octaves of value noise, two of them warped.
@@ -644,7 +676,7 @@ export const TERRAIN = {
      forty-metre bands back and the ground kept less than one.
 
      So the tail is generated to exactly where it stops being visible, which is
-     a number the game already has: `RENDER.fogFar`. At four hundred and twenty
+     a number the game already has: `RENDER.fogFar`. At five hundred and sixty
      metres the haze is total, and the mesh's own edge is dissolved in the same
      curtain that hides the far edge of the fan in front. There is nothing to
      see past it in any weather — a storm only ever pulls the curtain closer.
@@ -657,7 +689,7 @@ export const TERRAIN = {
      the eighty-two the front spends getting to nine hundred. The back remains
      intentionally coarser than the route ahead, but no longer breaks into
      fifty-metre panels while it is still visible. */
-  behind: 420,
+  behind: 560,
   behindGrowth: 1.11,
   /* Rebuilding a graded grid in one frame makes every distant facet choose a
      new normal and colour at once. Preserve the old world-space surface, then
@@ -707,8 +739,8 @@ export const TERRAIN = {
      a shadow edge on snow has a real penumbra, and this one is softened
      deliberately — so a hundred and four samples across is enough to carry
      it, and at three metres a sample that is still four times finer than the
-     features doing the casting. Eleven thousand marches, not a hundred and
-     thirteen thousand triangles a frame.
+     features doing the casting. Eleven thousand probes per bearing, not a
+     hundred and thirteen thousand triangles a frame.
 
      `half` is the half-width of that window in metres and is chosen to match
      what the depth map could reach in the first place: past it the ground is
@@ -716,10 +748,15 @@ export const TERRAIN = {
      way out so the boundary is a gradient rather than a line. `reach` is how
      far back along the sun a ray looks, `steps` how many samples that march
      takes, `soften` the metres of penumbra, `raise` the height the second
-     copy of the field is measured at, and `sunStep` how far the sun may swing
-     before a stationary rider is given a fresh build — the day runs in three
-     minutes, so that is a rebuild every second or so when nothing else would
-     have triggered one. */
+     copy of the field is measured at. `directions` is the number of horizon
+     bearings precalculated over the sun's complete daily path. Thirty-two
+     puts adjacent rays about one three-metre texel apart at maximum reach;
+     fewer bearings visibly miss narrow blockers. `tileSamples` and `tileGrid`
+     make the world-fixed torus: five 96 m tiles span 480 m, leaving a complete
+     156 m live shadow window while the next off-screen tile is prepared.
+     `angularSoftness` is the widened angular radius of the sun. Keeping that
+     constant is both more physical and more stable than interpolating the
+     distance of two unrelated blockers between adjacent bearings. */
   shade: {
     reach: 118,
     steps: 12,
@@ -758,7 +795,12 @@ export const TERRAIN = {
        twice — once on the snow, once fourteen metres over it — and a receiver
        reads its own height between them. */
     raise: 14,
-    sunStep: 0.016,
+    directions: 32,
+    azimuth: [0.25, 2.05],
+    tileSamples: 32,
+    tileGrid: 5,
+    directionGrid: [8, 4],
+    angularSoftness: 0.018,
   },
 };
 
@@ -1430,6 +1472,21 @@ export const PROPS = {
     minLength: 0.35,    // metres — below this a branch is not worth a cylinder
     sides: 5,           // radial segments on a branch; they are seen from 20 m
   },
+  /* A continuous ecology field, sampled only while a 40 m band is rebuilt.
+     These are candidates rather than guaranteed counts: slow moisture,
+     exposure and treeline fields accept different proportions of them, so
+     alpine cushions give way to berry heath, then forest understory, without
+     a biome boundary ever moving through the picture. The geometry itself is
+     grown once at startup and instanced from fixed hashes. */
+  biomes: {
+    plantCandidates: 12,
+    shrubCandidates: 8,
+    sideRockCandidates: 5,
+    hazardFrom: 360,       // keep the opening stretch generous
+    hazardChance: 0.19,    // then about one readable boulder every 200 m
+    hazardPadding: 8,      // never crowd a streamed band boundary
+    hazardEdge: 3.2,       // clear snow between the rock and the piste lip
+  },
   gateChance: 0.35,
   clearLane: 8,       // no hard obstacle closer than this to a centre line
 
@@ -1542,8 +1599,8 @@ export const CAMERA = {
      reading as lean and starts reading as a broken horizon. */
   roll: 0.12,
   shake: 0.55,
-  // Speed already closes the frame; a tuck narrows it one final step.
-  tuckFov: -4,
+  // A tuck keeps some shoulder-camera focus without undoing the wider speed lens.
+  tuckFov: -2,
   tuckDrop: 0.75,     // and the camera drops in behind the rider's shoulder
   tuckPull: -1.1,
   // How far the camera sits behind where the rider is *going* rather than

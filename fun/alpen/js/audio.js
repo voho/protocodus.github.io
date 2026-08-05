@@ -142,8 +142,8 @@ export function createAudio() {
     parked = false;
     clearTimeout(parkTimer);
     ambienceAt = 0;
-    /* Every call to `start` arrives from a user gesture — the curtain's
-       pointerdown or a keydown in `begin` — which is precisely the condition
+    /* Every call to `start` arrives from a user gesture — the curtain's click
+       or a keydown in `begin` — which is precisely the condition
        under which a browser permits `resume`, whether the context was
        suspended by `quiet` below or by the platform taking the audio away. */
     if (ctx.state === 'suspended') ctx.resume();

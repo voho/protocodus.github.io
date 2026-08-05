@@ -211,7 +211,9 @@ const LEGEND = [
 ];
 
 const fmt = new Intl.NumberFormat('en-US');
-const LEGEND_SECONDS = 9;
+// The curtain already taught the controls; this is one glance after drop-in,
+// not a panel that should cover the first whole pitch of the run.
+const LEGEND_SECONDS = 4;
 
 export function createHud(root) {
   /* index.html declares the canvas next to #stage so the two-buffer idea is

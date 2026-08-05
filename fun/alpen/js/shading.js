@@ -11,6 +11,18 @@ import { RENDER, MIST, TERRAIN } from './config.js';
 
 // The height the shade field's second layer sits at — see `FRAG_SHADE`.
 const SHADE_RAISE = TERRAIN.shade.raise;
+const SHADE_DIRECTIONS = TERRAIN.shade.directions;
+const SHADE_PAGE_SAMPLES = TERRAIN.shade.tileSamples * TERRAIN.shade.tileGrid;
+const SHADE_PAGE_SPAN = SHADE_PAGE_SAMPLES
+  * ((2 * TERRAIN.shade.half) / TERRAIN.shade.size);
+const SHADE_LAYER_SAMPLES = SHADE_PAGE_SAMPLES + 2;
+const SHADE_DIRECTION_COLS = TERRAIN.shade.directionGrid[0];
+const SHADE_DIRECTION_ROWS = TERRAIN.shade.directionGrid[1];
+const SHADE_ATLAS_WIDTH = SHADE_LAYER_SAMPLES * SHADE_DIRECTION_COLS;
+const SHADE_ATLAS_HEIGHT = SHADE_LAYER_SAMPLES * SHADE_DIRECTION_ROWS;
+const SHADE_SOFTNESS = TERRAIN.shade.angularSoftness;
+const SHADE_GRADE = TERRAIN.grade.base;
+const SHADE_RADIUS = TERRAIN.shade.half;
 
 /* Snow is a rough dielectric, not white paint. A GGX microfacet response
    carries the sun, Schlick Fresnel replaces the body colour with reflected sky
@@ -55,6 +67,67 @@ const SNOW_HI = 0.42;
 // uniform: these never change at runtime, and a literal is one less uniform
 // for every material in the world to carry
 const asFloat = (n) => n.toFixed(4);
+
+/* A seamless, low-frequency cloud-density plate.
+
+   The sky's deck is analytic because it has to preserve perspective on a
+   dome. Its shadow has the opposite requirement: it must stay fixed to the
+   mountain while the camera moves, and it only needs broad density. Baking
+   three periodic value-noise octaves into a 16 KiB source plate once gives
+   every lit material the same answer for one filtered texture read per
+   fragment. */
+function createCloudShadowTexture(THREE) {
+  const size = 128;
+  const data = new Uint8Array(size * size);
+
+  const hash = (x, y, seed) => {
+    let h = Math.imul(x + seed * 17, 374761393)
+      + Math.imul(y + seed * 29, 668265263);
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    return ((h ^ (h >>> 16)) >>> 0) / 4294967295;
+  };
+  const fade = (t) => t * t * (3 - 2 * t);
+  const octave = (u, v, cells, seed) => {
+    const x = u * cells;
+    const y = v * cells;
+    const x0 = Math.floor(x);
+    const y0 = Math.floor(y);
+    const x1 = (x0 + 1) % cells;
+    const y1 = (y0 + 1) % cells;
+    const tx = fade(x - x0);
+    const ty = fade(y - y0);
+    const a = hash(x0 % cells, y0 % cells, seed);
+    const b = hash(x1, y0 % cells, seed);
+    const c = hash(x0 % cells, y1, seed);
+    const d = hash(x1, y1, seed);
+    const lo = a + (b - a) * tx;
+    const hi = c + (d - c) * tx;
+    return lo + (hi - lo) * ty;
+  };
+
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const u = (x + 0.5) / size;
+      const v = (y + 0.5) / size;
+      const n = octave(u, v, 4, 11) * 0.56
+        + octave(u, v, 8, 37) * 0.29
+        + octave(u, v, 16, 71) * 0.15;
+      data[y * size + x] = Math.round(Math.max(0, Math.min(1, n)) * 255);
+    }
+  }
+
+  const texture = new THREE.DataTexture(
+    data, size, size, THREE.RedFormat, THREE.UnsignedByteType,
+  );
+  texture.colorSpace = THREE.NoColorSpace;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.generateMipmaps = true;
+  texture.needsUpdate = true;
+  return texture;
+}
 
 const VERT_PARS = `
 varying vec3 vN64View;
@@ -196,8 +269,11 @@ uniform float uSheen;
 uniform float uSnowFresh;
 uniform float uCloud;
 uniform vec2 uCloudDrift;
+uniform sampler2D uCloudShadowMap;
+uniform vec2 uCloudShadowOffset;
 uniform sampler2D uShadeMap;
-uniform vec4 uShadeAt;
+uniform sampler2D uShadeHeightMap;
+uniform float uShadeSlice;
 uniform float uShadeLevel;
 
 ${SKY_GLSL}
@@ -493,12 +569,12 @@ const FRAG_CAMERA_FADE = `#include <alphamap_fragment>
    across the piste. Two things in the same picture disagreeing about whether
    the sun is out is a worse artifact than either of them being wrong alone.
 
-   So the field arrives here as a texture, placed in the world by `uShadeAt`:
-   xy is the corner it starts at, z is one over its span, and w is the height
-   the whole thing is measured against. Outside it nothing is known and
-   therefore nothing is shadowed, which is the same bargain the depth map
-   struck by not reaching that far — and the fade at the window edge is there
-   so that boundary arrives as a gradient rather than as a line.
+   The field is a world-aligned torus, not a camera-aligned window. World XZ
+   modulo 480 m is its complete address; `terrain.js` keeps the five-by-five
+   tile slots surrounding the rider populated and replaces a slot only while
+   that world tile is still beyond the 156 m live radius. Re-anchoring the
+   render mesh changes no coordinate and no visible texel, so there is no
+   shadow-cascade ring to fade or background publication to disguise.
 
    The ground reads this too, and no longer its own per-vertex copy. That copy
    was free and it was wrong: it was fixed at the moment the field was
@@ -512,10 +588,11 @@ const FRAG_CAMERA_FADE = `#include <alphamap_fragment>
    rider at the top of a jump can see over the knoll that is shadowing the
    ground they are standing on, which is the one thing the depth map got right
    for free by testing each receiver where it actually was. So the field is
-   measured twice — R on the snow, G fourteen metres over it — and B carries
-   the height of the snow itself, so a fragment can work out how far above it
-   stands and read between the two. On the ground that is exactly R, so the
-   snow and the spruce rooted in it are reading one number and not two.
+   measured twice — R is the horizon slope on the snow and G the horizon
+   fourteen metres over it. A separate one-channel plate carries ground height,
+   so a fragment can work out how far above it stands and read between the two.
+   On the ground that is exactly R, so the snow and the spruce rooted in it are
+   reading one number and not two.
 
    It multiplies the direct light only. The sky fill still reaches a shaded
    hollow, which is what makes snow in shade blue rather than black, and it
@@ -533,27 +610,79 @@ const FRAG_SHADE = `#include <lights_fragment_maps>
     float n64ShadeD = length(vN64View);
     vec3 n64ShadeW = cameraPosition
       + (vN64View * (1.0 / max(n64ShadeD, 1e-4)) * mat3(viewMatrix)) * n64ShadeD;
-    vec2 n64ShadeUv = (n64ShadeW.xz - uShadeAt.xy) * uShadeAt.z;
-    // Clamped rather than wrapped, and then thrown away outside the field —
-    // the border texel is not an answer about the mountain a kilometre away.
-    /* And it lets go at its own edge rather than stopping at it. The field
-       ends at a fixed distance from the rider, so a hard cut-off would draw
-       a line across the world that swept along with them — a ring where
-       shadows begin. Fading the last fifth of the way out puts that
-       transition under the haze instead, which is the same thing a shadow
-       cascade does at its far plane and for the same reason. */
-    vec2 n64ShadeE = abs(n64ShadeUv - 0.5) * 2.0;
-    float n64ShadeIn = (1.0 - smoothstep(0.80, 1.0, n64ShadeE.x))
-      * (1.0 - smoothstep(0.80, 1.0, n64ShadeE.y));
-    vec4 n64ShadeS = texture2D(uShadeMap, clamp(n64ShadeUv, 0.0, 1.0));
-    // How far this fragment stands over the snow the field describes, as a
-    // share of the height the second layer was measured at.
+    /* World modulo is the torus address. It has no camera/anchor uniform and
+       therefore cannot slide when the render mesh re-centres. A one-texel
+       gutter around each direction layer makes the spatial seam filter into
+       its own opposite edge instead of into the neighbouring bearing. */
+    vec2 n64ShadeUv = fract(n64ShadeW.xz / ${asFloat(SHADE_PAGE_SPAN)});
+    float n64ShadeLo = floor(uShadeSlice);
+    float n64ShadeHi = min(n64ShadeLo + 1.0, ${asFloat(SHADE_DIRECTIONS - 1)});
+    float n64ShadeBearing = fract(uShadeSlice);
+    vec2 n64ShadeLayerLo = vec2(
+      mod(n64ShadeLo, ${asFloat(SHADE_DIRECTION_COLS)}),
+      floor(n64ShadeLo / ${asFloat(SHADE_DIRECTION_COLS)}));
+    vec2 n64ShadeLayerHi = vec2(
+      mod(n64ShadeHi, ${asFloat(SHADE_DIRECTION_COLS)}),
+      floor(n64ShadeHi / ${asFloat(SHADE_DIRECTION_COLS)}));
+    vec2 n64ShadeAtlasLo = (
+      n64ShadeLayerLo * ${asFloat(SHADE_LAYER_SAMPLES)}
+      + vec2(1.0) + n64ShadeUv * ${asFloat(SHADE_PAGE_SAMPLES)})
+      / vec2(${asFloat(SHADE_ATLAS_WIDTH)}, ${asFloat(SHADE_ATLAS_HEIGHT)});
+    vec2 n64ShadeAtlasHi = (
+      n64ShadeLayerHi * ${asFloat(SHADE_LAYER_SAMPLES)}
+      + vec2(1.0) + n64ShadeUv * ${asFloat(SHADE_PAGE_SAMPLES)})
+      / vec2(${asFloat(SHADE_ATLAS_WIDTH)}, ${asFloat(SHADE_ATLAS_HEIGHT)});
+    vec2 n64ShadeH = mix(
+      texture2D(uShadeMap, n64ShadeAtlasLo).rg,
+      texture2D(uShadeMap, n64ShadeAtlasHi).rg, n64ShadeBearing);
+    float n64ShadeGround = n64ShadeW.z * ${asFloat(SHADE_GRADE)}
+      + texture2D(uShadeHeightMap, n64ShadeUv).r;
+    float n64SunSlope = uSunDir.y / max(length(uSunDir.xz), 0.001);
+
     float n64ShadeUp = clamp(
-      (n64ShadeW.y - (uShadeAt.w + n64ShadeS.b)) * ${asFloat(1 / SHADE_RAISE)},
+      (n64ShadeW.y - n64ShadeGround) * ${asFloat(1 / SHADE_RAISE)},
       0.0, 1.0);
-    float n64Shade = mix(n64ShadeS.r, n64ShadeS.g, n64ShadeUp);
+    /* A real penumbra belongs to the sun's angular disc, not to whichever
+       blocker happened to win one sampled bearing. Constant angular width
+       avoids invented wide edges when the winner changes between directions. */
+    float n64ShadeGroundLit = smoothstep(
+      n64ShadeH.x - ${asFloat(SHADE_SOFTNESS)},
+      n64ShadeH.x + ${asFloat(SHADE_SOFTNESS)}, n64SunSlope);
+    float n64ShadeRaisedLit = smoothstep(
+      n64ShadeH.y - ${asFloat(SHADE_SOFTNESS)},
+      n64ShadeH.y + ${asFloat(SHADE_SOFTNESS)}, n64SunSlope);
+    float n64ShadeIn = 1.0 - smoothstep(
+      ${asFloat(SHADE_RADIUS * 0.82)}, ${asFloat(SHADE_RADIUS)},
+      length(n64ShadeW.xz - cameraPosition.xz));
+    float n64ShadeAmount = 1.0 - mix(
+      n64ShadeGroundLit, n64ShadeRaisedLit, n64ShadeUp);
     reflectedLight.directDiffuse *= 1.0
-      - (1.0 - n64Shade) * n64ShadeIn * uShadeLevel;
+      - n64ShadeAmount * n64ShadeIn * uShadeLevel;
+
+    /* CLOUD SHADOWS, projected over the mountain rather than painted into the
+       sky. The deck already has an amount and a wind; this is its consequence
+       on the snow. One pre-baked, seamless low-frequency field keeps the cost
+       to a single filtered texture read on lit fragments, while the broad
+       threshold makes hundred-metre pools of shade with cloud-soft edges.
+
+       The field moves downwind in world space. The lookup walks from each
+       receiver towards the sun to find the cloud cell on that ray, so a low
+       key casts its pool farther across the slope. Direct light alone is
+       modulated: the blue sky fill still reaches the ground, which is why a
+       cloud shadow on snow is blue rather than grey-black. */
+    if (uCloud > 0.035 && uSunLevel > 0.035) {
+      vec2 n64CloudWorld = n64ShadeW.xz
+        + uSunDir.xz * (95.0 / max(uSunDir.y, 0.16));
+      vec2 n64CloudUv = n64CloudWorld * (1.0 / 560.0) - uCloudShadowOffset;
+      float n64CloudField = texture2D(uCloudShadowMap, n64CloudUv).r;
+      float n64CloudCover = smoothstep(
+        0.52 - uCloud * 0.18,
+        0.72 - uCloud * 0.14,
+        n64CloudField);
+      float n64CloudShade = n64CloudCover * uCloud
+        * mix(0.18, 0.50, uCloud) * uShadeLevel;
+      reflectedLight.directDiffuse *= 1.0 - n64CloudShade;
+    }
   }`;
 
 const SHADE_ANCHOR = '#include <lights_fragment_maps>';
@@ -569,6 +698,17 @@ export function createShading(THREE) {
      each other. It is the only reason a day/night cycle over this many
      materials costs nothing. */
   const sunDir = new THREE.Vector3(0, 0.4, -1).normalize();
+  const neutralShade = new THREE.DataTexture(
+    new Uint8Array([0, 0]), 1, 1, THREE.RGFormat,
+    THREE.UnsignedByteType,
+  );
+  neutralShade.colorSpace = THREE.NoColorSpace;
+  neutralShade.needsUpdate = true;
+  const neutralShadeHeight = new THREE.DataTexture(
+    new Uint8Array([0]), 1, 1, THREE.RedFormat, THREE.UnsignedByteType,
+  );
+  neutralShadeHeight.colorSpace = THREE.NoColorSpace;
+  neutralShadeHeight.needsUpdate = true;
   const uniforms = {
     uSkyZenith: { value: new THREE.Color('#07297a') },
     uSkyMid: { value: new THREE.Color('#2f79d6') },
@@ -599,22 +739,15 @@ export function createShading(THREE) {
     // copies at the same moment — see `SKY_GLSL`.
     uCloud: { value: 0 },
     uCloudDrift: { value: new THREE.Vector2() },
-    /* The mountain's own shadow — see `FRAG_SHADE`. `terrain.js` owns all
-       three: the field, where in the world it is standing, and how much of it
-       this hour is worth. The map starts as a one-texel white so a material
-       compiled before the first terrain build is simply unshadowed rather
-       than sampling nothing. */
-    uShadeMap: {
-      value: (() => {
-        const t = new THREE.DataTexture(
-          new Uint8Array([255]), 1, 1, THREE.RedFormat, THREE.UnsignedByteType,
-        );
-        t.colorSpace = THREE.NoColorSpace;
-        t.needsUpdate = true;
-        return t;
-      })(),
-    },
-    uShadeAt: { value: new THREE.Vector4(0, 0, 0, 0) },
+    uCloudShadowMap: { value: createCloudShadowTexture(THREE) },
+    uCloudShadowOffset: { value: new THREE.Vector2() },
+    /* The mountain's own shadow — see `FRAG_SHADE`. `terrain.js` owns one
+       world-fixed toroidal horizon atlas, its ground-height plate and the
+       continuously interpolated bearing. Neutral one-pixel inputs keep
+       materials compiled before the opening precompute safely unshadowed. */
+    uShadeMap: { value: neutralShade },
+    uShadeHeightMap: { value: neutralShadeHeight },
+    uShadeSlice: { value: 0 },
     uShadeLevel: { value: 0 },
   };
 
@@ -744,6 +877,15 @@ export function createShading(THREE) {
     uniforms.uSnowFresh.value = w.storm;
     uniforms.uCloud.value = w.cloud;
     uniforms.uCloudDrift.value.set(w.cloudX, w.cloudZ);
+    /* The shadow plate's first octave has four cells, while the visible deck
+       measures its phase in one-cell units. Deriving the offset from that
+       shared phase keeps direction, speed and wrap exact instead of running a
+       second wind integrator that can drift away over a long descent. */
+    const cloudShadow = uniforms.uCloudShadowOffset.value;
+    cloudShadow.x = (-w.cloudX * 0.25) % 1;
+    cloudShadow.y = (-w.cloudZ * 0.25) % 1;
+    if (cloudShadow.x < 0) cloudShadow.x += 1;
+    if (cloudShadow.y < 0) cloudShadow.y += 1;
 
     /* The mist bank's floor rides a fixed drop under the ground at the
        rider, eased rather than pinned — pinned, it would leap up under a

@@ -38,6 +38,10 @@ export const HEADLAMP = {
   beam: '#b7d7f2',
   beamStrength: 0.008,
   poolStrength: 0.032,
+  hitFadeIn: 10.0,      // terrain contact establishes without a binary edge
+  hitFadeOut: 5.0,
+  hitTrack: 12.0,       // visible contact follows a changing ray with weight
+  drapeBlend: 0.18,     // complete prepared fans blend in on the GPU
 };
 
 const TAU = Math.PI * 2;
@@ -99,11 +103,14 @@ const BEAM_FRAG = `
 
 const POOL_VERT = `
   attribute vec2 aUv;
+  attribute vec3 aPositionNext;
+  uniform float uDrapeBlend;
   varying vec2 vUv;
   varying float vDepth;
   void main() {
     vUv = aUv;
-    vec4 mv = modelViewMatrix * vec4(position, 1.0);
+    vec3 p = mix(position, aPositionNext, uDrapeBlend);
+    vec4 mv = modelViewMatrix * vec4(p, 1.0);
     vDepth = -mv.z;
     gl_Position = projectionMatrix * mv;
   }
@@ -148,6 +155,7 @@ function haloTexture(THREE) {
 function poolGeometry(THREE) {
   const count = 1 + POOL_SEG * POOL_RING;
   const position = new Float32Array(count * 3);
+  const positionNext = new Float32Array(count * 3);
   const uv = new Float32Array(count * 2);
   const index = [];
 
@@ -171,10 +179,11 @@ function poolGeometry(THREE) {
 
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.BufferAttribute(position, 3));
+  geometry.setAttribute('aPositionNext', new THREE.BufferAttribute(positionNext, 3));
   geometry.setAttribute('aUv', new THREE.BufferAttribute(uv, 2));
   geometry.setIndex(index);
   geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 14);
-  return { geometry, position, count };
+  return { geometry, position, positionNext, count };
 }
 
 export function createHeadlamp(THREE, shading, head) {
@@ -273,6 +282,7 @@ export function createHeadlamp(THREE, shading, head) {
       uNear: { value: 85 },
       uFar: { value: 300 },
       uStrength: { value: 0 },
+      uDrapeBlend: { value: 1 },
     },
     vertexShader: POOL_VERT,
     fragmentShader: POOL_FRAG,
@@ -302,17 +312,22 @@ export function createHeadlamp(THREE, shading, head) {
   let level = 0;
   let hitDistance = 0;
   let hasHit = false;
-  /* The drape throttle. Re-sampling the height field under the pool is the
-     expensive half of this module, and the pool the light is falling on is
-     the same pool until the beam has actually gone somewhere — so the fan is
-     only re-draped once the hit has moved twenty centimetres, and at most
-     every other frame. The mesh's *position* still tracks the hit every
-     frame, which is what keeps the light glued to the line being ridden; the
-     relative heights inside a footprint drift by millimetres over the
-     distance the guard allows. */
+  let displayedDistance = HEADLAMP.reach;
+  let hitVisibility = 0;
+  let displayedHitReady = false;
+  const displayedHit = new THREE.Vector3();
+  /* Re-sampling the height field under the pool is the expensive half of this
+     module. A complete target fan is prepared only after meaningful movement,
+     rotation or scale, then a shader blends to it. The render path therefore
+     sees two coherent drapes and never a geometry upload masquerading as a
+     light moving in the background. */
   const lastDrape = new THREE.Vector3();
+  const lastDrapeDirection = new THREE.Vector3(1, 0, 0);
+  const drapeSample = new THREE.Vector3();
   let draped = false;
-  let drapeTick = 0;
+  let lastDrapeFootprint = 0;
+  let drapeBlend = 1;
+  const drapeScratch = new Float32Array(built.position.length);
 
   function update(weather, dt, rider, camera) {
     const darkness = smooth01(
@@ -339,7 +354,11 @@ export function createHeadlamp(THREE, shading, head) {
       pool.visible = false;
       hasHit = false;
       hitDistance = 0;
+      displayedDistance = HEADLAMP.reach;
+      hitVisibility = 0;
+      displayedHitReady = false;
       draped = false;
+      drapeBlend = 1;
       return;
     }
 
@@ -403,7 +422,31 @@ export function createHeadlamp(THREE, shading, head) {
       t += stride;
     }
 
-    const drawnLength = (hasHit ? hitDistance : HEADLAMP.reach) * HEADLAMP.overshoot;
+    // A ray/terrain intersection can legitimately disappear for one frame at
+    // a ridge or while the animated normal changes. Its picture cannot. Beam
+    // length, contact position and returned-light weight all carry continuous
+    // display state, while `hasHit` remains the honest instantaneous result.
+    displayedDistance = approach(
+      displayedDistance, hasHit ? hitDistance : HEADLAMP.reach,
+      hasHit ? HEADLAMP.hitTrack : HEADLAMP.hitFadeOut, dt,
+    );
+    if (hasHit) {
+      if (!displayedHitReady || hitVisibility < 0.001) {
+        displayedHit.copy(hit);
+      } else {
+        const follow = 1 - Math.exp(-HEADLAMP.hitTrack * Math.min(dt, 0.05));
+        displayedHit.x += (hit.x - displayedHit.x) * follow;
+        displayedHit.z += (hit.z - displayedHit.z) * follow;
+        displayedHit.y = rider.world.height(displayedHit.x, displayedHit.z);
+      }
+      displayedHitReady = true;
+    }
+    hitVisibility = approach(
+      hitVisibility, hasHit ? 1 : 0,
+      hasHit ? HEADLAMP.hitFadeIn : HEADLAMP.hitFadeOut, dt,
+    );
+
+    const drawnLength = displayedDistance * HEADLAMP.overshoot;
     const radius = Math.max(0.18, Math.tan(HEADLAMP.angle) * drawnLength);
     view.copy(camera.position).sub(origin);
     beamSide.crossVectors(direction, view);
@@ -434,29 +477,45 @@ export function createHeadlamp(THREE, shading, head) {
       * (0.72 + weather.storm * 0.75);
     beam.visible = true;
 
-    if (!hasHit) {
+    if (!displayedHitReady) {
       poolMat.uniforms.uStrength.value = 0;
       pool.visible = false;
-      draped = false;
       return;
     }
 
-    /* A small elliptical fan conforms to the height field. Its coordinates
-       remain offsets around the hit, so float precision is constant however
-       far down the endless mountain the rider has travelled. */
-    const baseY = hit.y;
-    pool.position.set(hit.x, baseY, hit.z);
-    drapeTick ^= 1;
-    if (!draped || (drapeTick === 0 && lastDrape.distanceToSquared(hit) > 0.04)) {
-      const footprint = Math.max(1.25, Math.tan(HEADLAMP.angle) * hitDistance);
-      horizontal.set(direction.x, 0, direction.z);
-      if (horizontal.lengthSq() < 1e-5) horizontal.set(rider.heading.x, 0, rider.heading.z);
-      horizontal.normalize();
+    /* The visible centre tracks continuously. Fan resampling is guarded, but
+       no guarded result is ever assigned directly: it is built in scratch,
+       installed as the next complete vertex state, then eased by the shader. */
+    pool.position.copy(displayedHit);
+    if (draped && drapeBlend < 1) {
+      drapeBlend = Math.min(1, drapeBlend + dt / HEADLAMP.drapeBlend);
+      poolMat.uniforms.uDrapeBlend.value = smooth01(drapeBlend);
+    }
+    const footprint = Math.max(1.25, Math.tan(HEADLAMP.angle) * displayedDistance);
+    horizontal.set(direction.x, 0, direction.z);
+    if (horizontal.lengthSq() < 1e-5) horizontal.set(rider.heading.x, 0, rider.heading.z);
+    horizontal.normalize();
+    const moved = lastDrape.distanceToSquared(displayedHit) > 0.04;
+    const turned = lastDrapeDirection.dot(horizontal) < 0.998;
+    const resized = Math.abs(lastDrapeFootprint - footprint) > 0.12;
+    /* Let the prepared target finish before its buffer is reused. At riding
+       speed the pool will have moved during that short blend, so sample one
+       transition ahead along the known rider velocity: the target is already
+       waiting where the light is due to arrive. */
+    const canPrepare = !draped || drapeBlend >= 1;
+    if (hasHit && canPrepare && (!draped || moved || turned || resized)) {
+      drapeSample.copy(displayedHit);
+      if (draped) {
+        const lead = HEADLAMP.drapeBlend * 0.82;
+        drapeSample.x += rider.vel.x * lead;
+        drapeSample.z += rider.vel.z * lead;
+        drapeSample.y = rider.world.height(drapeSample.x, drapeSample.z);
+      }
+      const baseY = drapeSample.y;
       side.set(-horizontal.z, 0, horizontal.x);
-      const p = built.position;
-      p[0] = 0;
-      p[1] = 0.065;
-      p[2] = 0;
+      drapeScratch[0] = 0;
+      drapeScratch[1] = 0.065;
+      drapeScratch[2] = 0;
       for (let ring = 1; ring <= POOL_RING; ring++) {
         const r = ring / POOL_RING;
         for (let s = 0; s < POOL_SEG; s++) {
@@ -466,18 +525,39 @@ export function createHeadlamp(THREE, shading, head) {
           const along = Math.cos(a) * footprint * 1.05 * r;
           const across = Math.sin(a) * footprint * 2.25 * r;
           off.copy(horizontal).multiplyScalar(along).addScaledVector(side, across);
-          p[j] = off.x;
-          p[j + 2] = off.z;
-          p[j + 1] = rider.world.height(hit.x + off.x, hit.z + off.z) - baseY + 0.055;
+          drapeScratch[j] = off.x;
+          drapeScratch[j + 2] = off.z;
+          drapeScratch[j + 1] = rider.world.height(
+            drapeSample.x + off.x, drapeSample.z + off.z,
+          ) - baseY + 0.055;
         }
       }
+
+      if (!draped) {
+        built.position.set(drapeScratch);
+        built.positionNext.set(drapeScratch);
+        drapeBlend = 1;
+      } else {
+        // The previous target is complete here, so it becomes the next front
+        // in one upload while the shader is still displaying exactly it.
+        const blend = smooth01(drapeBlend);
+        for (let i = 0; i < built.position.length; i++) {
+          built.position[i] += (built.positionNext[i] - built.position[i]) * blend;
+        }
+        built.positionNext.set(drapeScratch);
+        drapeBlend = 0;
+      }
       built.geometry.attributes.position.needsUpdate = true;
-      lastDrape.copy(hit);
+      built.geometry.attributes.aPositionNext.needsUpdate = true;
+      poolMat.uniforms.uDrapeBlend.value = smooth01(drapeBlend);
+      lastDrape.copy(drapeSample);
+      lastDrapeDirection.copy(horizontal);
+      lastDrapeFootprint = footprint;
       draped = true;
     }
     poolMat.uniforms.uStrength.value = level * HEADLAMP.poolStrength
-      * (1 - weather.storm * 0.24);
-    pool.visible = true;
+      * (1 - weather.storm * 0.24) * hitVisibility;
+    pool.visible = draped;
   }
 
   return {
@@ -495,6 +575,8 @@ export function createHeadlamp(THREE, shading, head) {
       level,
       hit: hasHit,
       distance: hitDistance,
+      hitVisibility,
+      displayedDistance,
       origin: origin.toArray(),
       direction: direction.toArray(),
     }),

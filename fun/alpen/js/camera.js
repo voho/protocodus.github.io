@@ -373,9 +373,11 @@ export function createChaseCamera(THREE, camera) {
     roll += (wantRoll - roll) * (1 - Math.exp(-5 * dt));
     camera.rotateZ(roll);
 
-    // Speed narrows the frame into tunnel vision; the tuck closes it one more
-    // step. A long flight opens back out just enough to keep the landing in
-    // view, and a hard touchdown still gets its brief lens punch.
+    // Speed opens the lens for parallax while the post stack darkens only the
+    // periphery. The small tuck correction holds the over-the-shoulder focus
+    // without collapsing back into the old telephoto view. A long flight opens
+    // out again to keep the landing in view, and a hard touchdown still gets
+    // its brief lens punch.
     const wantFov = RENDER.fov
       + (RENDER.fovAtSpeed - RENDER.fov) * ratio * ratio
       + tuck * CAMERA.tuckFov

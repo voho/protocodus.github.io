@@ -108,30 +108,26 @@ const PHASES = [
      `sky.js`, which reads the elevation below and nothing else. */
   {
     at: 0.09, name: 'FIRST LIGHT',
-    zenith: '#061029', mid: '#17325f', horizon: '#6a86ad', haze: '#3e587c',
-    key: '#92b6e8', glow: '#7396c6', keyI: 0.95, hemiI: 0.62,
+    zenith: '#0b1730', mid: '#294164', horizon: '#758aa2', haze: '#4d5e74',
+    key: '#9cb7d4', glow: '#829db9', keyI: 0.90, hemiI: 0.68,
     elevation: -0.03, star: 0.55, moon: 0.42,
   },
   {
     at: 0.17, name: 'DAWN',
-    zenith: '#16306b', mid: '#4a6cab', horizon: '#f2a877', haze: '#b9a49a',
-    key: '#ffb98a', glow: '#ff9d63', keyI: 2.10, hemiI: 0.95,
+    zenith: '#1a315f', mid: '#566f9f', horizon: '#dba280', haze: '#a9a0a0',
+    key: '#efb792', glow: '#e99968', keyI: 1.85, hemiI: 0.98,
     elevation: 0.05, star: 0.16, moon: 0.10,
   },
-  /* The three daylight moments carry the whole look, and they are much
-     deeper than they were.
+  /* The three daylight moments carry the whole look. They keep the clear,
+     high-altitude blue without asking the grade to hold a near-black cobalt
+     zenith beside a clipped warm-white slope.
 
      A real alpine sky at altitude is not pale — there is a third less
-     atmosphere over it than at sea level, so the zenith goes to something
-     close to navy and holds real blue most of the way down, and the thing
-     that makes a photograph of snow read as snow is that violent contrast
-     between a near-black sky and a surface at the top of the scale. These
-     used to run from a mid blue to a horizon that was almost white, which
-     averaged out to the pale grey-cream the whole picture had settled into.
-     The horizon stops are still bright, because that is where the haze and
-     the distance genuinely are; it is the top of the dome that has come
-     down, and the fill light with it, so shadows on the snow are blue
-     instead of grey.
+     atmosphere over it than at sea level, so the zenith remains deep and the
+     horizon remains bright. The stops are closer in chroma, however, and the
+     hemisphere carries more of the exposure. Snow shadows therefore stay
+     visibly cool while retaining structure, and sun-facing walls have room
+     for detail instead of arriving at the shoulder already warm and white.
 
      Morning and day are also no longer nearly the same sky. A morning is
      cooler and a shade less contrasty than a noon — the sun is lower, there
@@ -140,26 +136,26 @@ const PHASES = [
      zenith stops short of the noon's navy. */
   {
     at: 0.30, name: 'MORNING',
-    zenith: '#0b3382', mid: '#3d80d6', horizon: '#e2ecf7', haze: '#d9e4f1',
-    key: '#ffeeda', glow: '#ffd9a8', keyI: 3.9, hemiI: 1.05,
+    zenith: '#164176', mid: '#527ead', horizon: '#d9e4ee', haze: '#d1dce6',
+    key: '#f6eee2', glow: '#efd4ad', keyI: 3.25, hemiI: 1.16,
     elevation: 0.30, star: 0, moon: 0,
   },
   {
     at: 0.48, name: 'DAY',
-    zenith: '#06246f', mid: '#2b74d4', horizon: '#e6f0fb', haze: '#e3ecf6',
-    key: '#fffaf0', glow: '#ffeccc', keyI: 4.5, hemiI: 1.12,
+    zenith: '#12396c', mid: '#4675a7', horizon: '#dce7f1', haze: '#d7e2ec',
+    key: '#f8f5ee', glow: '#ede1ce', keyI: 3.65, hemiI: 1.24,
     elevation: 0.62, star: 0, moon: 0,
   },
   {
     at: 0.66, name: 'GOLDEN HOUR',
-    zenith: '#1b2f74', mid: '#5f8ac9', horizon: '#ffd79a', haze: '#e9d6bd',
-    key: '#ffcb8a', glow: '#ff9f45', keyI: 3.9, hemiI: 0.95,
+    zenith: '#263b70', mid: '#6d8eba', horizon: '#e9c997', haze: '#cbbda8',
+    key: '#f2c492', glow: '#e3a061', keyI: 3.15, hemiI: 1.05,
     elevation: 0.20, star: 0, moon: 0,
   },
   {
     at: 0.79, name: 'DUSK',
-    zenith: '#131a4c', mid: '#45508e', horizon: '#e08256', haze: '#a9838d',
-    key: '#ff9a6a', glow: '#ff6f3a', keyI: 1.93, hemiI: 0.8,
+    zenith: '#20294d', mid: '#536080', horizon: '#ae857b', haze: '#747780',
+    key: '#d5a08b', glow: '#c67965', keyI: 1.42, hemiI: 0.92,
     elevation: 0.035, star: 0.30, moon: 0.24,
   },
   /* And the other side of it. The haze here is the darkest in the table and
@@ -168,8 +164,8 @@ const PHASES = [
      a mountain at this hour and the reason the ranges read as ranges. */
   {
     at: 0.86, name: 'BLUE HOUR',
-    zenith: '#0a1036', mid: '#24356f', horizon: '#8b789f', haze: '#4c4666',
-    key: '#a892c8', glow: '#9a7fb4', keyI: 0.98, hemiI: 0.66,
+    zenith: '#121a38', mid: '#354465', horizon: '#817c8e', haze: '#505260',
+    key: '#a6adc1', glow: '#8e93a7', keyI: 0.93, hemiI: 0.72,
     elevation: -0.045, star: 0.55, moon: 0.35,
   },
   {
@@ -203,6 +199,11 @@ const BANDS = [
 const DAY_SECONDS = 180;
 const START_TOD = 0.34;      // a bright morning, so the first look is the best one
 const STORM_PERIOD = 110;    // seconds per unit of the noise that drives it
+/* Menu/debug time presets are camera moves through the day, not cuts.  This
+   rate takes roughly five seconds to settle after a large request, slow
+   enough that the sun, fog line and kilometer-scale mountain shadows travel
+   instead of visibly stepping between poses. */
+const PIN_RATE = 0.85;
 
 /* The mist, in four numbers and a hump.
 
@@ -277,12 +278,10 @@ const AURORA = {
    in it, which is both what the palette needs and what an alpine overcast
    genuinely looks like from up here.
 
-   `drift` is how much of the wind the deck takes, and it is small — a tenth.
-   The wind at the head of this file is the wind at the *snow*, gusting to
-   17 m/s in a storm; a deck at cloud base is much further away, so the same
-   metres per second cross a far smaller angle per second. A tenth is what
-   makes it move like something a kilometre up rather than like fog going past
-   the camera. */
+   `drift` converts a surface-wind metre into the deck's noise-cell phase. The
+   broad ground-shadow octave is four cells across 560 metres, or 140 metres
+   per cell; taking one tenth of the surface wind and dividing by that cell
+   span puts the visible deck and its shadow pools on the same slow clock. */
 const CLOUD = {
   period: 205,
   from: 0.34,
@@ -290,7 +289,7 @@ const CLOUD = {
   fair: 0.55,
   storm: 0.5,
   max: 0.8,
-  drift: 0.10,
+  drift: 0.10 / 140,
 };
 
 /* Lightning, in three numbers, and only inside a real whiteout.
@@ -372,8 +371,17 @@ export function createWeather(THREE) {
   };
 
   const stormTint = new THREE.Color();
-  let clock = 0;
-  let frozen = null;   // a fixed time of day, if the player has pinned one
+  const neutralStormTint = new THREE.Color();
+  /* Daylight can be pinned by the pause/debug surface; weather cannot. These
+     used to share one clock, and `release` rewound that clock to reconstruct
+     the chosen time of day — instantly teleporting the storm, wind, mist,
+     cloud deck and lightning schedule as collateral damage. Independent
+     monotonic clocks make pinning a sky exactly the local operation it says
+     it is. */
+  let dayClock = 0;
+  let weatherClock = 0;
+  let frozen = null;   // target time of day, if the player has pinned one
+  let pinnedTod = START_TOD;
 
   function sample(tod) {
     // Find the pair of moments this time falls between, wrapping the table
@@ -399,11 +407,18 @@ export function createWeather(THREE) {
   }
 
   function update(dt) {
-    clock += dt;
+    dayClock += dt;
+    weatherClock += dt;
     if (frozen === null) {
-      state.tod = (START_TOD + clock / DAY_SECONDS) % 1;
+      state.tod = (START_TOD + dayClock / DAY_SECONDS) % 1;
     } else {
-      state.tod = frozen;
+      // Debug/pause presets are still environment changes. Travel the shortest
+      // way around the day ring instead of teleporting every sky/light uniform.
+      let delta = frozen - pinnedTod;
+      if (delta > 0.5) delta -= 1;
+      if (delta < -0.5) delta += 1;
+      pinnedTod = (pinnedTod + delta * (1 - Math.exp(-PIN_RATE * dt)) + 1) % 1;
+      state.tod = pinnedTod;
     }
     sample(state.tod);
     state.night = Math.max(state.star, state.moon);
@@ -425,8 +440,8 @@ export function createWeather(THREE) {
        the whiteouts you have to steer through, and the noise decides how
        long each of them lasts. The exponent keeps clear weather a little
        more common than a blizzard, because it should be. */
-    const raw = (noise2(clock / STORM_PERIOD, 0.5, 91) * 0.65
-      + noise2(clock / (STORM_PERIOD * 3.7), 4.5, 17) * 0.5) / 1.15;
+    const raw = (noise2(weatherClock / STORM_PERIOD, 0.5, 91) * 0.65
+      + noise2(weatherClock / (STORM_PERIOD * 3.7), 4.5, 17) * 0.5) / 1.15;
     /* Centred low, then stretched.
 
        Widening the distribution without moving it down was half a fix and
@@ -473,13 +488,13 @@ export function createWeather(THREE) {
        weather thickens the air; a whiteout replaces it, because at seventy
        metres of visibility a layer at altitude has nothing left to say and
        still costs everything to draw. */
-    const damp = noise2(clock / MIST.period, 6.5, 211) * 0.72
-      + noise2(clock / (MIST.period * 2.9), 1.5, 212) * 0.42;
+    const damp = noise2(weatherClock / MIST.period, 6.5, 211) * 0.72
+      + noise2(weatherClock / (MIST.period * 2.9), 1.5, 212) * 0.42;
     const cold = 1 - 0.80 * ramp(state.elevation, 0.08, 0.46) * (1 - state.moon);
     state.mist = Math.min(1, ramp(damp, MIST.from, MIST.to) * cold
       * (0.75 + 0.55 * s) * (1 - ramp(s, 0.52, 0.90)));
 
-    const auroraClock = clock + AURORA.offset;
+    const auroraClock = weatherClock + AURORA.offset;
     const lit = noise2(auroraClock / AURORA.period, 3.5, 137) * 0.70
       + noise2(auroraClock / (AURORA.period * 2.4), 8.5, 138) * 0.45;
     state.aurora = ramp(lit, AURORA.from, AURORA.to)
@@ -507,15 +522,27 @@ export function createWeather(THREE) {
         ? 'MIST' : `${state.conditions} · MIST`;
     }
 
-    // A storm pulls the whole sky towards the haze and brings the haze in.
-    // Doing it as one move over the day table is what keeps a blizzard at
-    // dusk looking like dusk.
+    /* A storm pulls the whole sky towards the haze and brings the haze in.
+       As it becomes a whiteout, the haze is progressively neutralised at its
+       existing luminance rather than replaced by one fixed grey. That keeps
+       night storms dark and day storms bright while preventing dusk's warm
+       haze and key from turning snow, fog and every mountain face magenta. */
     stormTint.copy(state.haze);
+    const stormLuma = stormTint.r * 0.2126
+      + stormTint.g * 0.7152 + stormTint.b * 0.0722;
+    neutralStormTint.setRGB(
+      stormLuma * 0.92,
+      stormLuma * 0.99,
+      Math.min(1, stormLuma * 1.08),
+    );
+    stormTint.lerp(neutralStormTint, ramp(s, 0.12, 0.90) * 0.9);
     const pull = s * 0.78;
+    state.haze.lerp(stormTint, ramp(s, 0.25, 0.95) * 0.88);
     state.zenith.lerp(stormTint, pull * 0.85);
     state.mid.lerp(stormTint, pull);
     state.horizon.lerp(stormTint, pull);
     state.glow.lerp(stormTint, pull);
+    state.key.lerp(stormTint, pull * 0.90);
     state.keyI *= 1 - 0.6 * s;
     state.hemiI *= 1 - 0.25 * s;
 
@@ -533,16 +560,18 @@ export function createWeather(THREE) {
     const strike = ramp(s, 0.80, 0.88);
     state.flash = 0;
     if (strike > 0 && !CALM) {
-      const cell = Math.floor(clock * FLASH.rate);
+      const cell = Math.floor(weatherClock * FLASH.rate);
       if (hash2(cell, 977, 431) < FLASH.chance) {
-        state.flash = Math.exp(-(clock - cell / FLASH.rate) / FLASH.decay) * strike;
+        state.flash = Math.exp(
+          -(weatherClock - cell / FLASH.rate) / FLASH.decay,
+        ) * strike;
       }
     }
 
     // Wind swings slowly, and hard, once there is enough weather to carry it
-    const swing = noise2(clock / 23, 9.5, 5) * 2 - 1;
+    const swing = noise2(weatherClock / 23, 9.5, 5) * 2 - 1;
     state.windX = swing * (1.5 + s * 16);
-    state.windZ = (noise2(clock / 31, 2.5, 6) * 2 - 1) * (1 + s * 6);
+    state.windZ = (noise2(weatherClock / 31, 2.5, 6) * 2 - 1) * (1 + s * 6);
 
     /* THE DECK. How much cloud is overhead, and where the wind has taken it.
 
@@ -564,16 +593,18 @@ export function createWeather(THREE) {
 
        The drift is in the same coordinates the deck's noise is sampled in, and
        it is wrapped at the field's own 64-unit period rather than allowed to
-       grow — an hour of riding at a storm's wind speed would otherwise walk it
-       out to five figures, and a five-figure coordinate in a mediump hash is a
-       sky that quietly stops having clouds in it. Wrapping is exact: the field
-       repeats there, so the same sample comes back. */
-    const build = noise2(clock / CLOUD.period, 4.5, 307) * 0.68
-      + noise2(clock / (CLOUD.period * 2.7), 12.5, 308) * 0.42;
+       grow across a long run. Keeping the phase inside the procedural field's
+       own range protects mediump hardware without a reset: wrapping is exact,
+       so the same sample comes back at the seam. */
+    const build = noise2(weatherClock / CLOUD.period, 4.5, 307) * 0.68
+      + noise2(weatherClock / (CLOUD.period * 2.7), 12.5, 308) * 0.42;
     state.cloud = Math.min(CLOUD.max,
       ramp(build, CLOUD.from, CLOUD.to) * CLOUD.fair + s * CLOUD.storm);
-    state.cloudX = wrap64(state.cloudX + state.windX * dt * CLOUD.drift);
-    state.cloudZ = wrap64(state.cloudZ + state.windZ * dt * CLOUD.drift);
+    /* The shader samples field(position + phase), so phase travels opposite
+       the physical feature. Subtracting the wind makes both the visible deck
+       and its projected ground shadow move downwind. */
+    state.cloudX = wrap64(state.cloudX - state.windX * dt * CLOUD.drift);
+    state.cloudZ = wrap64(state.cloudZ - state.windZ * dt * CLOUD.drift);
     // The sun crosses the run rather than sitting behind it. Side light is
     // the only light that shapes snow: from behind, a mogul field is a flat
     // white sheet with the fill light's colour on it, which is exactly what
@@ -584,11 +615,12 @@ export function createWeather(THREE) {
 
   /* For the pause menu: pin the sky, or let it run again. */
   function pin(tod) {
-    frozen = tod;
+    if (frozen === null) pinnedTod = state.tod;
+    frozen = ((tod % 1) + 1) % 1;
   }
   function release() {
     frozen = null;
-    clock = state.tod < START_TOD
+    dayClock = state.tod < START_TOD
       ? (1 + state.tod - START_TOD) * DAY_SECONDS
       : (state.tod - START_TOD) * DAY_SECONDS;
   }

@@ -78,6 +78,14 @@ body {
   image-rendering: auto;
 }
 
+/* The post stack is deliberately rendered once to allocate programs, targets
+   and precomputed textures before play. Keep that unposed warm-up image out of
+   the composited page; main reveals the canvas only after the first complete
+   camera/model/environment frame has replaced it. */
+body:not(.ready) #stage {
+  visibility: hidden;
+}
+
 /* HUD
    ==========================================================================
    A second canvas holding the renderer's own buffer, drawn by js/hud.js in
@@ -232,6 +240,42 @@ body.ready:has(.curtain.on) .hud {
   font-size: 0.9rem;
 }
 
+.touch-guide {
+  display: none;
+}
+
+body.touch .keys {
+  display: none;
+}
+
+body.touch .touch-guide {
+  margin-top: 1.6rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem 1.1rem;
+  border-top: 1px solid rgba(250, 250, 250, 0.14);
+  padding-top: 1.15rem;
+}
+
+.touch-guide > div {
+  min-width: 0;
+}
+
+.touch-guide dt {
+  color: var(--mint);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.touch-guide dd {
+  margin-top: 0.26rem;
+  color: var(--fg-muted);
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
 .go {
   margin-top: 1.8rem;
   font-size: var(--label);
@@ -294,10 +338,21 @@ body.touch .go-tap {
   padding-bottom: max(var(--gutter), env(safe-area-inset-bottom));
   padding-left: max(var(--gutter), env(safe-area-inset-left));
   pointer-events: none;
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.22s var(--ease), visibility 0.22s;
 }
 
 body.touch .pad {
   display: flex;
+}
+
+/* The curtain is a modal surface. Its touch controls describe how to enter
+   the run; the live pad belongs to the run and appears when the curtain goes. */
+body.touch:has(.curtain.on) .pad {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .pad-tools {
@@ -373,6 +428,48 @@ body.touch .pad {
 @media (max-width: 560px) {
   .pad-wide { min-height: 2.6rem; }
   .keys dd { font-size: 0.84rem; }
+  .curtain { padding: max(var(--gutter), env(safe-area-inset-top)) var(--gutter); }
+  .curtain-inner { max-width: 28rem; }
+  .wordmark { font-size: clamp(3rem, 16vw, 4.6rem); }
+  .tagline { line-height: 1.48; }
+}
+
+/* A phone turned sideways has ample width and almost no vertical budget.
+   Keep the four touch verbs and the actual drop-in action in the first frame
+   instead of making the player discover that the title card scrolls. */
+@media (max-height: 500px) and (orientation: landscape) {
+  body.touch .curtain {
+    padding: max(0.65rem, env(safe-area-inset-top))
+      max(var(--gutter), env(safe-area-inset-right))
+      max(0.65rem, env(safe-area-inset-bottom))
+      max(var(--gutter), env(safe-area-inset-left));
+  }
+
+  body.touch .curtain-inner { max-width: 48rem; }
+  body.touch .eyebrow { font-size: 0.62rem; }
+  body.touch .wordmark { margin-top: 0.1rem; font-size: 2.8rem; }
+  body.touch .tagline {
+    margin-top: 0.45rem;
+    max-width: 66ch;
+    font-size: 0.78rem;
+    line-height: 1.35;
+  }
+
+  body.touch .touch-guide {
+    margin-top: 0.65rem;
+    gap: 0.35rem 1rem;
+    padding-top: 0.55rem;
+  }
+
+  body.touch .touch-guide dt { font-size: 0.64rem; }
+  body.touch .touch-guide dd {
+    margin-top: 0.08rem;
+    font-size: 0.75rem;
+    line-height: 1.2;
+  }
+
+  body.touch .go { margin-top: 0.65rem; }
+  body.touch .back { margin-top: 0.55rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {

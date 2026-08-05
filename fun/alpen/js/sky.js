@@ -289,8 +289,57 @@ const CONE_R = RADIUS * 0.95;
    however high a rider can be thrown. */
 const SHADOW_MAP = 2048;
 const SHADOW_REACH = 92;
+// Dynamic caster shadows cannot be baked, but their contribution can still
+// have temporal inertia. A one-second fade prevents horizon/storm thresholds
+// from ever publishing a whole new lighting state in one frame.
+const SHADOW_FADE_RATE = 5;
 const SHADOW_DIST = 190;
 const SHADOW_DEPTH = 150;
+// The orthographic map ends at a real line in world space. Without a receiver
+// fade, a long tree shadow is present on one side of that line and absent on
+// the other. Fourteen metres is wide enough that the hand-over reads as light
+// falloff, while leaving the detailed central 156 m of the map untouched.
+const SHADOW_EDGE_FADE = 14;
+
+/* Three's mapped-light helper deliberately returns fully lit the instant a
+   receiver leaves the orthographic projection. DirectionalLightShadow has no
+   public per-receiver fade, so install the fade at the one shared point that
+   has the receiver's projected coordinate. This changes no matrices, no
+   update cadence and, importantly, none of the texel-stabilised light motion
+   below. It is installed before the first render compiles any material.
+
+   Keep the transform defensive. If a future Three revision changes the
+   helper, an unmodified hard edge is preferable to corrupting every lit
+   shader. The current chunk has exactly three non-point variants (PCF, VSM
+   and basic); point shadows begin after the split and are left alone. */
+function installShadowCoverageFade(THREE) {
+  const chunks = THREE.ShaderChunk;
+  const source = chunks?.shadowmap_pars_fragment;
+  const marker = 'alpenShadowCoverage';
+  if (typeof source !== 'string' || source.includes(marker)) return;
+
+  // The chunk has an earlier point-light *declaration* block. The final
+  // occurrence starts the point sampling functions and is the intended cut.
+  const pointStart = source.lastIndexOf('#if NUM_POINT_LIGHT_SHADOWS > 0');
+  if (pointStart < 0) return;
+  const mappedLights = source.slice(0, pointStart);
+  const pointLights = source.slice(pointStart);
+  const shadowReturn = 'return mix( 1.0, shadow, shadowIntensity );';
+  const variants = mappedLights.split(shadowReturn).length - 1;
+  if (variants !== 3) return;
+
+  const edgeUv = (SHADOW_EDGE_FADE / (2 * SHADOW_REACH)).toFixed(6);
+  const fadedReturn = [
+    'float alpenShadowEdge = min(',
+    '\t\t\t\tmin( shadowCoord.x, 1.0 - shadowCoord.x ),',
+    '\t\t\t\tmin( shadowCoord.y, 1.0 - shadowCoord.y )',
+    '\t\t\t);',
+    `\t\t\tfloat alpenShadowCoverage = smoothstep( 0.0, ${edgeUv}, alpenShadowEdge );`,
+    '\t\t\treturn mix( 1.0, shadow, shadowIntensity * alpenShadowCoverage );',
+  ].join('\n');
+  chunks.shadowmap_pars_fragment = mappedLights.replaceAll(shadowReturn, fadedReturn)
+    + pointLights;
+}
 
 /* How far under the rider the curtain's apex hangs. It has to clear the
    deepest hollow the hill can dig — four octaves of noise and a cliff on top
@@ -466,10 +515,10 @@ const MIST = {
    heights are once again what they say they are: how far the tallest summit
    on the ring stands above the curtain. */
 export const RANGES = [
-  { radius: 2380, height: 785, far: 42000, seed: 21, segments: 720, tint: '#cbd7ea' },
-  { radius: 2010, height: 623, far: 21000, seed: 33, segments: 660, tint: '#9db4d8' },
-  { radius: 1640, height: 476, far: 11500, seed: 47, segments: 600, tint: '#6e8bbb' },
-  { radius: 1280, height: 348, far: 6200, seed: 59, segments: 540, tint: '#42598c' },
+  { radius: 2380, height: 785, far: 42000, seed: 21, segments: 720, tint: '#d5dce7' },
+  { radius: 2010, height: 623, far: 21000, seed: 33, segments: 660, tint: '#aeb9cc' },
+  { radius: 1640, height: 476, far: 11500, seed: 47, segments: 600, tint: '#7c899f' },
+  { radius: 1280, height: 348, far: 6200, seed: 59, segments: 540, tint: '#53596a' },
 ];
 
 /* What the horizon is made of, in the units a photograph would give you.
@@ -536,6 +585,36 @@ export const HORIZON = {
   // the field repeats at one and the ring has to close on itself.
   tiles: 4,
 };
+
+/* The mid-distance mountain is actual geometry rather than another picture.
+
+   It is a closed annular heightfield, generated once at startup, pitched onto
+   the same haze curtain as the procedural ranges and kept well inside the far
+   plane. The panorama remains visible through its cols and through the lower
+   down-run sector; everywhere else this shell supplies the facets, overlap and
+   real depth a 1774-pixel equirectangular plate cannot invent. */
+const RELIEF = {
+  inner: 620,
+  crest: 1020,
+  outer: 1420,
+  height: 400,
+  apparentFar: 4600,
+  segments: 768,
+  radialSegments: 18,
+  seed: 83,
+  crestAt: 0.62,
+  profilePower: 0.72,
+  corridorFrom: 0.72,
+  corridorTo: 0.92,
+  corridorCut: 0.35,
+  snowLine: 0.38,
+  snowFade: 0.10,
+};
+
+/* One source of truth for the plate's maximum contribution. The range
+   crossfade consumes the same value, so changing the image/model balance can
+   never leave the fallback ribbons stuck half-visible. */
+const PANO_MAX = 0.74;
 
 /* The scale height of the air, in metres — the distance over which it eats
    1/e of whatever is behind it. Twelve kilometres is thick for real alpine
@@ -669,8 +748,8 @@ const DOME_FRAG = `
          smoothstep, which erased the very folds that identify the photograph.
          This centred exposure keeps a bounded 0.42–1.42 range while inheriting
          the procedural hour-of-day colour from c. */
-      float panoForm = clamp(1.0 + (panoLum - 0.45) * 1.48, 0.42, 1.42);
-      vec3 relitPano = c * panoForm * mix(vec3(1.0), panoChroma, 0.22);
+      float panoForm = clamp(1.0 + (panoLum - 0.45) * 1.20, 0.58, 1.30);
+      vec3 relitPano = c * panoForm * mix(vec3(1.0), panoChroma, 0.12);
       /* Alpenglow on the plate. The procedural ranges already catch the one
          amber in the palette on the flanks facing a low sun; the plate never
          did, so at golden hour the hero range sat cold behind foothills that
@@ -683,7 +762,7 @@ const DOME_FRAG = `
          towards orange turns the range to cardboard. */
       float az = max(0.0, dot(dir.xz, uSunAz) / max(length(dir.xz), 0.001));
       relitPano += uSunlit * (pow(az, 6.0)
-        * smoothstep(0.60, 1.15, panoForm) * 0.45);
+        * smoothstep(0.60, 1.15, panoForm) * 0.30);
       // The plate is the distant range, not the entire atmosphere. Let it own
       // the lower sky and hand the zenith back to the procedural gradient/deck.
       float panoBand = 1.0 - smoothstep(0.30, 0.54, up);
@@ -764,6 +843,10 @@ const AURORA_FRAG = `
   varying vec2 vUv;
   varying vec3 vDir;
   void main() {
+    /* The mesh gets one zero-strength warm-up draw before its first aurora so
+       the program is not compiled in the middle of a rare night. Leave before
+       the four texture reads; the warm-up costs only a coherent discard. */
+    if (uStrength <= 0.002) discard;
     vec3 dir = normalize(vDir);
     // Height in the band, taken from the direction rather than from the
     // mesh's own v, so the ramp does not care how the band was built and the
@@ -829,6 +912,8 @@ const BELT_FRAG = `
   uniform float uStrength, uFoot, uHead;
   varying vec3 vDir;
   void main() {
+    // Kept render-visible at zero so twilight never incurs a first-use compile.
+    if (uStrength <= 0.003) discard;
     vec3 dir = normalize(vDir);
     /* Opposite the sun and nowhere else. The square is what keeps the band
        inside the quarter of the sky it belongs to instead of smearing it
@@ -953,6 +1038,9 @@ const MIST_FRAG = `
   varying vec2 vQ;
   varying vec3 vRel;
   void main() {
+    /* As with the aurora, a zero-density warm-up draw is deliberately allowed
+       through object visibility, but it must leave before two field samples. */
+    if (uDensity <= 0.004) discard;
     float dist = length(vRel);
     /* How far along this sheet the eye is looking, which is the entire
        effect. A horizontal layer seen from straight above is one depth of
@@ -960,7 +1048,8 @@ const MIST_FRAG = `
        under it is what stops the exponent below from being an infinity right
        on the horizon line, and it is set where a sheet is already opaque, so
        nothing is lost by clamping there. */
-    float graze = max(abs(vRel.y) / dist, 0.030);
+    float rawGraze = abs(vRel.y) / dist;
+    float graze = max(rawGraze, 0.075);
     float n = texture2D(uNoise, vQ).r * 0.62
       + texture2D(uNoise, vQ * 3.0 + vec2(0.37, 0.61)).b * 0.38;
     // The banks are what is left when the flat middle of the noise is thrown
@@ -968,6 +1057,12 @@ const MIST_FRAG = `
     // taken straight is a uniform haze, which is the thing this is not
     float fold = smoothstep(uCut, 1.0, n);
     float a = (1.0 - exp(-uDensity * fold / graze)) * uCap;
+    /* An infinitesimally thin sheet becomes a ruler-straight opaque line when
+       seen exactly edge-on. Real mist has thickness, so that line does not
+       exist; dissolve the last degree into the shared haze instead. Adjacent
+       sheets and the distance fog retain the bank while its carrier geometry
+       becomes impossible to identify. */
+    a *= smoothstep(0.018, 0.120, rawGraze);
     // Clear in front of the lens, and already the haze past the curtain.
     // Both ends of that are the fog's own two numbers wearing a hat.
     a *= smoothstep(uNear * 0.28, uNear * 0.92, dist);
@@ -978,6 +1073,122 @@ const MIST_FRAG = `
     // of the sun is coming *through* the sheet towards the eye
     float lobe = max(0.0, dot(vRel / dist, uSunDir));
     gl_FragColor = vec4(mix(uCool, uWarm, lobe * lobe * uSun), a);
+  }
+`;
+
+/* The volumetric horizon shell.
+
+   Unlike the range ribbons below, this carries a real radial surface and
+   normals. Pitch is applied analytically in the vertex shader instead of by
+   rebuilding its 14,611 vertices whenever the route changes chapter. The
+   matching radial shear on the normal keeps the precomputed facets correctly
+   lit while the whole shell settles with the haze curtain. */
+const RELIEF_VERT = `
+  attribute float aRadius;
+  attribute float aAltitude;
+  attribute vec3 aGeology;
+  uniform float uPitch;
+  varying highp vec3 vWorld;
+  varying highp vec3 vLocal;
+  varying vec3 vNormal;
+  varying float vAltitude;
+  varying vec3 vGeology;
+  void main() {
+    float pitch = uPitch + ${FOOT.toFixed(4)};
+    vec3 p = position;
+    p.y -= aRadius * pitch;
+    vec3 n = normal;
+    vec2 radial = normalize(position.xz);
+    n.xz += radial * (pitch * n.y);
+    vec4 world = modelMatrix * vec4(p, 1.0);
+    vWorld = world.xyz;
+    vLocal = position;
+    vNormal = normalize(mat3(modelMatrix) * n);
+    vAltitude = aAltitude;
+    vGeology = aGeology;
+    gl_Position = projectionMatrix * viewMatrix * world;
+  }
+`;
+
+const RELIEF_FRAG = `
+  precision highp float;
+  uniform vec3 uSunDir;
+  uniform vec3 uHaze, uSnow, uRockCool, uRockWarm, uIce, uAlpenglow;
+  uniform float uStorm, uAir;
+  varying highp vec3 vWorld;
+  varying highp vec3 vLocal;
+  varying vec3 vNormal;
+  varying float vAltitude;
+  varying vec3 vGeology;
+  void main() {
+    /* Preserve the welded normal, but let the physical folds still catch the
+       moving light. The denser carrier keeps this as geology instead of
+       exposing the triangulation as a low-poly art style. */
+    vec3 n = normalize(vNormal);
+    vec3 faceNormal = normalize(cross(dFdx(vWorld), dFdy(vWorld)));
+    if (dot(faceNormal, n) < 0.0) faceNormal = -faceNormal;
+    n = normalize(mix(n, faceNormal, 0.30));
+    float steep = smoothstep(0.16, 0.58, 1.0 - abs(n.y));
+
+    /* Drainage has already been generated with the geometry. It lowers the
+       snow line in a few coherent gullies, which creates glacier tongues
+       rather than a texture full of unrelated pale streaks. */
+    float line = ${RELIEF.snowLine.toFixed(4)} - vGeology.x * 0.16;
+    float snow = smoothstep(line - ${RELIEF.snowFade.toFixed(4)},
+      line + ${RELIEF.snowFade.toFixed(4)}, vAltitude);
+    float summitRock = steep * smoothstep(0.48, 0.84, vAltitude)
+      * (1.0 - vGeology.x * 0.58);
+    float ridgeRock = smoothstep(0.54, 0.90, vGeology.z)
+      * smoothstep(line - 0.03, 0.90, vAltitude) * 0.88;
+    float rock = clamp(max(1.0 - snow, max(summitRock, ridgeRock)), 0.0, 1.0);
+    float glacier = vGeology.x * snow
+      * smoothstep(line - 0.06, line + 0.10, vAltitude)
+      * (1.0 - smoothstep(0.78, 0.96, vAltitude));
+
+    vec3 rockColor = mix(uRockCool, uRockWarm, vGeology.y);
+    vec3 body = mix(uSnow, rockColor, rock);
+    body = mix(body, uIce, glacier * 0.82);
+
+    /* Stone still has structure beyond the geometry's facets. Slate carries
+       fine tilted bedding; iron rock uses broader benches and cross joints.
+       Every carrier fades by screen footprint before its period aliases. */
+    float slateC = vLocal.y + vLocal.x * 0.20 + vLocal.z * 0.09;
+    float ironC = vLocal.y * 0.60 - vLocal.x * 0.13 + vLocal.z * 0.17;
+    float jointC = vLocal.x * 0.34 - vLocal.z * 0.25;
+    float slateWave = sin(mod(slateC, 64.0) * 1.276272)
+      * (1.0 - smoothstep(1.2, 3.8, fwidth(slateC)));
+    float ironWave = sin(mod(ironC, 64.0) * 0.785398)
+      * (1.0 - smoothstep(1.6, 4.5, fwidth(ironC)));
+    float jointWave = abs(sin(mod(jointC, 64.0) * 0.589049));
+    float slateInk = smoothstep(0.12, 0.90, slateWave) * 0.12;
+    float ironInk = smoothstep(-0.25, 0.78, ironWave) * 0.07
+      + (1.0 - smoothstep(0.03, 0.25, jointWave))
+        * (1.0 - smoothstep(0.35, 1.20, fwidth(jointC))) * 0.10;
+    body *= 1.0 - mix(slateInk, ironInk, vGeology.y) * rock;
+
+    /* The broad response belongs to the actual facets. A restrained ice lobe
+       is the only sharp term, and it vanishes into weather before a whiteout. */
+    float direct = max(0.0, dot(n, uSunDir));
+    float skylight = 0.64 + max(n.y, 0.0) * 0.16;
+    body *= skylight + direct * 0.38;
+    vec3 viewDir = normalize(cameraPosition - vWorld);
+    vec3 halfDir = normalize(viewDir + uSunDir);
+    float iceSpec = pow(max(0.0, dot(n, halfDir)), 36.0)
+      * glacier * (1.0 - uStorm) * 0.24;
+    body += uIce * iceSpec;
+    body += uAlpenglow * direct * snow * (0.20 + 0.80 * vAltitude);
+
+    /* The model is an atmospheric layer over the distant photographic range,
+       not an opaque cardboard replacement for it. Its base disappears over
+       real altitude, air removes contrast continuously, and a storm removes
+       opacity rather than leaving the last few peaks as floating islands. */
+    float foot = smoothstep(0.04, 0.34, vAltitude);
+    float extinction = clamp(uAir * (0.92 - vAltitude * 0.30), 0.0, 0.64);
+    vec3 c = mix(body, uHaze, extinction);
+    float stormFade = 1.0 - smoothstep(0.18, 0.78, uStorm);
+    float alpha = foot * (1.0 - uAir * 0.25) * stormFade * 0.78;
+    if (alpha <= 0.002) discard;
+    gl_FragColor = vec4(c, alpha);
   }
 `;
 
@@ -1148,6 +1359,7 @@ const RANGE_FRAG = `
 `;
 
 export function createSky(THREE) {
+  installShadowCoverageFade(THREE);
   const group = new THREE.Group();
   const sunDir = new THREE.Vector3(0, 0.4, -1).normalize();
   // The sun flattened onto the ground plane, in world axes. Each band turns
@@ -1169,8 +1381,13 @@ export function createSky(THREE) {
   const panoStrength = { value: 0 };
   let clearPlate = null;
   let stormPlate = null;
+  let clearSettled = false;
+  let stormSettled = false;
   let panoReady = 0;
   let panoTarget = 0;
+  // 0 waits for both requests, 1 gives their replacements one invisible
+  // binding/upload frame, and 2 starts the continuous reveal on the next.
+  let panoStage = 0;
 
   // --- dome ----------------------------------------------------------------
   const domeMat = new THREE.ShaderMaterial({
@@ -1228,21 +1445,40 @@ export function createSky(THREE) {
     texture.generateMipmaps = true;
     return texture;
   };
-  const syncPlates = () => {
+  const settlePlates = () => {
+    /* Never reveal one weather plate while the other request is outstanding.
+       If, say, clear arrived first, both samplers used to point at it and the
+       later storm callback replaced one of them under whatever storm mix was
+       live that frame — an asynchronous, full-strength picture cut. Waiting
+       for both load/error callbacks makes the sampler replacement atomic. A
+       single survivor remains a complete fallback for the missing plate. */
+    if (!clearSettled || !stormSettled) return;
     const any = clearPlate || stormPlate;
     if (!any) return;
     panoClear.value = clearPlate || stormPlate;
     panoStorm.value = stormPlate || clearPlate;
-    panoTarget = 1;
+    panoStage = 1;
   };
   const plateLoader = new THREE.TextureLoader();
   plateLoader.load(
     new URL('../assets/textures/sky/alps-clear.webp', import.meta.url).href,
-    (texture) => { clearPlate = preparePlate(texture); syncPlates(); },
+    (texture) => {
+      clearPlate = preparePlate(texture);
+      clearSettled = true;
+      settlePlates();
+    },
+    undefined,
+    () => { clearSettled = true; settlePlates(); },
   );
   plateLoader.load(
     new URL('../assets/textures/sky/alps-storm.webp', import.meta.url).href,
-    (texture) => { stormPlate = preparePlate(texture); syncPlates(); },
+    (texture) => {
+      stormPlate = preparePlate(texture);
+      stormSettled = true;
+      settlePlates();
+    },
+    undefined,
+    () => { stormSettled = true; settlePlates(); },
   );
 
   // --- the counterglow -----------------------------------------------------
@@ -1271,7 +1507,9 @@ export function createSky(THREE) {
     Math.PI / 2 - BELT.head, BELT.head - BELT.foot,
   ), beltMat);
   belt.renderOrder = -19.5;
-  belt.visible = false;
+  // One cheap uniform discard at zero is preferable to compiling this program
+  // on the exact frame the first twilight band becomes perceptible.
+  belt.visible = true;
   group.add(belt);
 
   // --- stars ---------------------------------------------------------------
@@ -1431,7 +1669,7 @@ export function createSky(THREE) {
     // Inside the dome, outside the stars, and under the sun's own glow. The
     // half is not an accident: the order between them was already full.
     mesh.renderOrder = -18.5;
-    mesh.visible = false;
+    mesh.visible = true;
     return mesh;
   })();
   group.add(aurora);
@@ -1498,7 +1736,7 @@ export function createSky(THREE) {
     // The disc is grown in the vertex shader, so its bounding sphere says
     // one metre and three's own culling would throw the whole sky away
     mesh.frustumCulled = false;
-    mesh.visible = false;
+    mesh.visible = true;
     sheets.push({ mesh, mat });
     group.add(mesh);
   }
@@ -1568,6 +1806,172 @@ export function createSky(THREE) {
 
   // --- the ranges ----------------------------------------------------------
   const ranges = [];
+
+  /* A real mid-distance massif, generated and uploaded before the first
+     frame. Eighteen radial rows provide depth and self-occlusion; 768 angular
+     columns keep the skyline below an eight-pixel sampling interval at native
+     output. All geology masks are vertex facts and never rebuild; day, storm
+     and pitch are uniform-only changes. */
+  const relief = (() => {
+    const cols = RELIEF.segments + 1;
+    const rows = RELIEF.radialSegments + 1;
+    const count = cols * rows;
+    const positions = new Float32Array(count * 3);
+    const altitude = new Float32Array(count);
+    const radii = new Float32Array(count);
+    const geology = new Float32Array(count * 3);
+    const indices = new (count > 65535 ? Uint32Array : Uint16Array)(
+      RELIEF.segments * RELIEF.radialSegments * 6,
+    );
+    const circleNoise = (angle, frequency, seed) => snoise2(
+      Math.cos(angle) * frequency,
+      Math.sin(angle) * frequency,
+      seed,
+    );
+
+    let p = 0;
+    let q = 0;
+    for (let r = 0; r <= RELIEF.radialSegments; r++) {
+      const t = r / RELIEF.radialSegments;
+      const beforeCrest = t <= RELIEF.crestAt;
+      const rt = beforeCrest
+        ? t / RELIEF.crestAt
+        : (t - RELIEF.crestAt) / (1 - RELIEF.crestAt);
+      const radius = beforeCrest
+        ? RELIEF.inner + (RELIEF.crest - RELIEF.inner) * rt
+        : RELIEF.crest + (RELIEF.outer - RELIEF.crest) * rt;
+      const rise = smooth01(clamp01(t / RELIEF.crestAt));
+      const fall = smooth01(clamp01((1 - t) / (1 - RELIEF.crestAt)));
+      const radialProfile = Math.pow(rise * fall, RELIEF.profilePower);
+
+      for (let i = 0; i <= RELIEF.segments; i++) {
+        // Reuse exactly zero for the duplicate seam column rather than rely on
+        // sin(2pi) rounding to nearly zero; every generated attribute then
+        // closes bit-for-bit and the normal average cannot expose a hairline.
+        const angle = i === RELIEF.segments ? 0 : (i / RELIEF.segments) * TAU;
+        const massif = 0.5 + 0.5 * circleNoise(angle, 1.25, RELIEF.seed);
+        const horn = 1 - Math.abs(circleNoise(angle, 3.7, RELIEF.seed + 1));
+        const knife = 1 - Math.abs(circleNoise(angle, 8.4, RELIEF.seed + 2));
+        const skyline = 0.30 + 0.70 * clamp01(
+          massif * 0.22 + Math.pow(horn, 2.65) * 0.53
+            + Math.pow(knife, 1.90) * 0.25,
+        );
+        // Down-run remains the panorama's deep view; true shoulders frame it.
+        const ahead = Math.max(0, -Math.sin(angle));
+        const corridor = 1 - RELIEF.corridorCut
+          * ramp(ahead, RELIEF.corridorFrom, RELIEF.corridorTo);
+
+        /* Long gullies are coherent from the crest to the foot. Their small
+           radial drift prevents each one being a ruler-straight spoke, while
+           sampling on a circle guarantees the seam closes bit-for-bit. */
+        const drainField = 0.5 + 0.5 * snoise2(
+          Math.cos(angle) * 5.1 + t * 0.72,
+          Math.sin(angle) * 5.1 - t * 0.53,
+          RELIEF.seed + 5,
+        );
+        const drainage = ramp(drainField, 0.58, 0.84);
+        const facet = 0.5 + 0.5 * snoise2(
+          Math.cos(angle) * 7.3 + t * 1.35,
+          Math.sin(angle) * 7.3 - t * 0.91,
+          RELIEF.seed + 7,
+        );
+        const buttressField = 1 - Math.abs(snoise2(
+          Math.cos(angle) * 9.6 + t * 2.25,
+          Math.sin(angle) * 9.6 - t * 1.70,
+          RELIEF.seed + 9,
+        ));
+        const buttress = Math.pow(buttressField, 1.7);
+        const stone = 0.5 + 0.5 * circleNoise(angle, 1.8, RELIEF.seed + 11);
+        const ridgeShift = circleNoise(angle, 3.2, RELIEF.seed + 13)
+          * 54 * radialProfile;
+        const y = RELIEF.height * skyline * corridor * radialProfile
+          * (0.72 + facet * 0.14 + buttress * 0.25
+            - drainage * (1 - t) * 0.10);
+
+        positions[p] = Math.cos(angle) * (radius + ridgeShift);
+        positions[p + 1] = y;
+        positions[p + 2] = Math.sin(angle) * (radius + ridgeShift);
+        altitude[q] = clamp01(y / RELIEF.height);
+        radii[q] = radius + ridgeShift;
+        geology[q * 3] = drainage;
+        geology[q * 3 + 1] = stone;
+        geology[q * 3 + 2] = buttress;
+        p += 3;
+        q += 1;
+      }
+    }
+
+    let k = 0;
+    for (let r = 0; r < RELIEF.radialSegments; r++) {
+      for (let i = 0; i < RELIEF.segments; i++) {
+        const a = r * cols + i;
+        const b = a + 1;
+        const c = a + cols;
+        const d = c + 1;
+        if ((r + i) & 1) {
+          indices[k++] = a; indices[k++] = b; indices[k++] = d;
+          indices[k++] = a; indices[k++] = d; indices[k++] = c;
+        } else {
+          indices[k++] = a; indices[k++] = b; indices[k++] = c;
+          indices[k++] = b; indices[k++] = d; indices[k++] = c;
+        }
+      }
+    }
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geo.setAttribute('aRadius', new THREE.BufferAttribute(radii, 1));
+    geo.setAttribute('aAltitude', new THREE.BufferAttribute(altitude, 1));
+    geo.setAttribute('aGeology', new THREE.BufferAttribute(geology, 3));
+    geo.setIndex(new THREE.BufferAttribute(indices, 1));
+    geo.computeVertexNormals();
+    /* The duplicate angular seam has identical positions but distinct index
+       neighbourhoods. Weld its two computed normals explicitly so the sun can
+       never draw a vertical lighting seam through the closed shell. */
+    const normals = geo.attributes.normal.array;
+    for (let r = 0; r <= RELIEF.radialSegments; r++) {
+      const first = r * cols * 3;
+      const last = (r * cols + RELIEF.segments) * 3;
+      const nx = normals[first] + normals[last];
+      const ny = normals[first + 1] + normals[last + 1];
+      const nz = normals[first + 2] + normals[last + 2];
+      const inv = 1 / Math.hypot(nx, ny, nz);
+      normals[first] = normals[last] = nx * inv;
+      normals[first + 1] = normals[last + 1] = ny * inv;
+      normals[first + 2] = normals[last + 2] = nz * inv;
+    }
+    geo.computeBoundingSphere();
+
+    const mat = new THREE.ShaderMaterial({
+      uniforms: {
+        uPitch: { value: TERRAIN.grade.base },
+        uSunDir: { value: sunDir },
+        uHaze: { value: new THREE.Color('#d7e2ec') },
+        uSnow: { value: new THREE.Color('#dce7f1') },
+        uRockCool: { value: new THREE.Color('#46546a') },
+        uRockWarm: { value: new THREE.Color('#685d59') },
+        uIce: { value: new THREE.Color('#b9d2df') },
+        uAlpenglow: { value: new THREE.Color(0, 0, 0) },
+        uStorm: { value: 0 },
+        uAir: { value: airAt(RELIEF.apparentFar) },
+      },
+      vertexShader: RELIEF_VERT,
+      fragmentShader: RELIEF_FRAG,
+      side: THREE.FrontSide,
+      transparent: true,
+      depthWrite: true,
+      depthTest: true,
+      fog: false,
+      extensions: { derivatives: true },
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.name = 'mid-distance massifs';
+    // Far ribbons and the sun sit behind it; local mist remains in front.
+    mesh.renderOrder = -2.5;
+    mesh.frustumCulled = false;
+    group.add(mesh);
+    return { mesh, mat };
+  })();
 
   /* One ring of silhouette. The profile is sampled on a circle through the
      noise field so that it closes on itself, and the circle is small — about
@@ -1808,10 +2212,11 @@ export function createSky(THREE) {
     return mesh;
   }
 
-  // Five hundred and forty to seven hundred and twenty segments each: about
-  // fifteen thousand non-indexed vertices for the whole horizon, enough for
-  // the procedural knife-edge octave to curve rather than read as a polyline.
-  for (const spec of RANGES) group.add(range(spec));
+  /* The two far ribbons remain as a no-asset/night fallback behind the relief
+     shell. Their former near pair is deliberately omitted: actual radial
+     geometry now owns that distance, and transparent skirts over it would
+     flatten the facets while still costing two submissions. */
+  for (const spec of RANGES.slice(0, 2)) group.add(range(spec));
 
   /* --- light ---------------------------------------------------------------
 
@@ -1908,9 +2313,26 @@ export function createSky(THREE) {
   const snowTmp = new THREE.Color();
   const rockTmp = new THREE.Color();
   const iceTmp = new THREE.Color();
+  const rangeTintTmp = new THREE.Color();
   const fill = new THREE.Color();
   const sunlit = new THREE.Color();
   const WHITE = new THREE.Color(0xffffff);
+  /* One frame-local atmosphere palette, shared by every procedural layer.
+     Lightning used to whiten only the dome's bottom two stops and the haze
+     cone, leaving the ranges and hemisphere fill in their pre-strike colours.
+     The resulting seam looked like a background swap. These copies are the
+     sole flashed colours; weather remains immutable and every procedural
+     consumer sees the same continuous pulse. The actual celestial sprites
+     and directional lamp stay unmodified because lightning is ambient
+     illumination, not a second sun. */
+  const atmosphere = {
+    zenith: new THREE.Color(),
+    mid: new THREE.Color(),
+    horizon: new THREE.Color(),
+    haze: new THREE.Color(),
+    glow: new THREE.Color(),
+    key: new THREE.Color(),
+  };
   /* Where the mist's field is being read from, and it is the one quantity in
      this file that genuinely is integrated over time — a bank drifts on the
      wind, and the wind changes, so there is nothing to evaluate it from. It
@@ -1927,6 +2349,12 @@ export function createSky(THREE) {
   const shadowAt = new THREE.Vector3();
   let time = 0;
   let pitch = -1;
+  /* The aurora and mist are too large to submit forever at zero, even with an
+     early uniform discard. Keep them live through the first real render so
+     their programs are compiled while the opening frame is already expected
+     to warm up, then restore their ordinary density gates. The zero-length
+     setup tick in main does not spend this frame. */
+  let warmSkyLayers = true;
 
   /* Where the sun is on screen, for the crepuscular pass.
      `x` and `y` are in the same 0..1 space as a full-screen quad's own uv —
@@ -1942,6 +2370,7 @@ export function createSky(THREE) {
   // The half of `sun.visible` that the weather decides, kept from `update`
   // until a camera turns up to decide the other half
   let sunLight = 0;
+  let shadowLevel = null;
 
   /* The pitch the curtain has to hang at, off the hill itself.
 
@@ -1970,6 +2399,7 @@ export function createSky(THREE) {
      re-coloured from the weather. Twenty-odd uniform writes and three
      questions put to the mountain, a frame. */
   function update(pos, w, dt) {
+    const warmingLayers = warmSkyLayers;
     time += dt;
     group.position.set(pos.x, pos.y, pos.z);
     lights.position.set(pos.x, pos.y, pos.z);
@@ -1981,54 +2411,63 @@ export function createSky(THREE) {
     ).normalize();
     sunXZ.set(sunDir.x, sunDir.z).normalize();
 
-    domeMat.uniforms.uZenith.value.copy(w.zenith);
-    domeMat.uniforms.uMid.value.copy(w.mid);
-    domeMat.uniforms.uHorizon.value.copy(w.horizon);
-    domeMat.uniforms.uHaze.value.copy(w.haze);
-    domeMat.uniforms.uGlow.value.copy(w.glow);
+    const flash = w.flash;
+    const flashMix = clamp01(flash) * 0.8;
+    atmosphere.zenith.copy(w.zenith).lerp(WHITE, flashMix);
+    atmosphere.mid.copy(w.mid).lerp(WHITE, flashMix);
+    atmosphere.horizon.copy(w.horizon).lerp(WHITE, flashMix);
+    atmosphere.haze.copy(w.haze).lerp(WHITE, flashMix);
+    atmosphere.glow.copy(w.glow).lerp(WHITE, flashMix);
+    atmosphere.key.copy(w.key).lerp(WHITE, flashMix);
+
+    domeMat.uniforms.uZenith.value.copy(atmosphere.zenith);
+    domeMat.uniforms.uMid.value.copy(atmosphere.mid);
+    domeMat.uniforms.uHorizon.value.copy(atmosphere.horizon);
+    domeMat.uniforms.uHaze.value.copy(atmosphere.haze);
+    domeMat.uniforms.uGlow.value.copy(atmosphere.glow);
     domeMat.uniforms.uGlowStrength.value = 1 - w.storm * 0.8;
     domeMat.uniforms.uCloud.value = w.cloud;
     domeMat.uniforms.uCloudDrift.value.set(w.cloudX, w.cloudZ);
     /* Lightning. The weather owns the trigger — see the note there, it is a
        hash of its own clock, so a seed replays its storms strikes and all —
-       and this end only says what a strike looks like: the whole sky pulled
-       towards white for a tenth of a second. It is applied to the copies the
-       uniforms just took rather than to the weather's own colours, so
-       nothing downstream of the state ever sees a flash it did not ask for.
-       The fill light gets its share further down, which is what actually
-       lights the snow. */
-    const flash = w.flash;
-    if (flash > 0.003) {
-      domeMat.uniforms.uHorizon.value.lerp(WHITE, flash * 0.8);
-      domeMat.uniforms.uHaze.value.lerp(WHITE, flash * 0.8);
+       and this end only says what a strike looks like: the whole atmosphere
+       pulled towards white for a tenth of a second. `atmosphere` above is a
+       copy rather than the weather's own palette, so downstream simulation
+       never sees a flash it did not ask for. The fill light gets its energy
+       share further down, which is what actually lights the near snow. */
+    /* The first frame after both requests settle binds the new samplers while
+       their contribution is still exactly zero. That lets the renderer upload
+       both decoded plates invisibly; the following frame begins the existing
+       exponential reveal. */
+    if (panoStage === 1) {
+      panoStage = 2;
+    } else if (panoStage === 2) {
+      panoStage = 0;
+      panoTarget = 1;
     }
     panoReady += (panoTarget - panoReady) * (1 - Math.exp(-2.8 * dt));
     domeMat.uniforms.uPanoStormMix.value = ramp(w.storm, 0.12, 0.78);
     // Night keeps a faint mountain plate under the stars; a whiteout gives it
     // up entirely because the fog curtain has already won by then.
-    panoStrength.value = panoReady * 0.88 * (1 - 0.82 * w.night)
-      * (1 - ramp(w.storm, 0.82, 0.98));
+    panoStrength.value = panoReady * PANO_MAX * (1 - 0.82 * w.night)
+      * (1 - ramp(w.storm, 0.58, 0.88));
 
-    // Daytime is most of the day, and 420 points run through the vertex
-    // stage only to discard is not a cost worth paying for a sky with no
-    // stars in it — so the whole object stands down when its alpha does
+    // Four hundred and twenty zero-alpha points are cheap enough to remain in
+    // the render list. That buys a compiled night-sky program before dusk;
+    // their fragment shader discards them while the sky is bright.
     const starAlpha = w.star * (1 - w.storm) * 0.9;
-    stars.visible = starAlpha > 0.005;
-    if (stars.visible) {
-      starMat.uniforms.uAlpha.value = starAlpha;
-      starMat.uniforms.uTime.value = time;
-      // A star is a fixed number of pixels, so it has to be told how many
-      // pixels there now are. On a 2× panel the old constant drew a quarter
-      // of the star it drew on the buffer it was chosen for.
-      starMat.uniforms.uScale.value = Math.max(1, Math.min(3, RENDER.buffer.height / 800));
-    }
+    starMat.uniforms.uAlpha.value = starAlpha;
+    starMat.uniforms.uTime.value = time;
+    // A star is a fixed number of pixels, so it has to be told how many
+    // pixels there now are. On a 2× panel the old constant drew a quarter
+    // of the star it drew on the buffer it was chosen for.
+    starMat.uniforms.uScale.value = Math.max(1, Math.min(3, RENDER.buffer.height / 800));
 
-    // On three nights in four this is zero and the band is not drawn at all
-    aurora.visible = w.aurora > 0.004;
-    if (aurora.visible) {
-      auroraMat.uniforms.uTime.value = time;
-      auroraMat.uniforms.uStrength.value = w.aurora * AURORA.gain;
-    }
+    // On three nights in four this is zero. It gets one zero-cost warm-up draw,
+    // then returns to standing down so its large carrier spends no daytime fill.
+    auroraMat.uniforms.uTime.value = time;
+    auroraMat.uniforms.uStrength.value = w.aurora * AURORA.gain;
+    aurora.visible = warmingLayers || w.aurora > 0.004;
 
     /* The counterglow, which is a couple of minutes out of the fifteen.
 
@@ -2041,19 +2480,16 @@ export function createSky(THREE) {
     const belted = ramp(w.elevation, -0.13, -0.02)
       * (1 - ramp(w.elevation, -0.01, 0.10))
       * (1 - w.storm) * (1 - 0.7 * w.moon) * BELT.gain;
-    belt.visible = belted > 0.004;
-    if (belt.visible) {
-      beltMat.uniforms.uStrength.value = belted;
-      /* Both colours are taken off the weather rather than fixed, so the
-         band is a dawn colour at dawn and a dusk one at dusk without knowing
-         which it is. The shadow is the sky's own two blues met most of the
-         way towards the zenith — it has to be darker than the horizon it
-         stands on or it is not a shadow — and the rose is the sun's glow
-         with most of the fire taken back out of it, because what is being
-         seen is that light after crossing the entire width of the sky. */
-      beltMat.uniforms.uShade.value.copy(w.mid).lerp(w.zenith, 0.45);
-      beltMat.uniforms.uRose.value.copy(w.glow).lerp(w.mid, 0.42);
-    }
+    beltMat.uniforms.uStrength.value = belted;
+    /* Both colours are taken off the weather rather than fixed, so the
+       band is a dawn colour at dawn and a dusk one at dusk without knowing
+       which it is. The shadow is the sky's own two blues met most of the
+       way towards the zenith — it has to be darker than the horizon it
+       stands on or it is not a shadow — and the rose is the sun's glow
+       with most of the fire taken back out of it, because what is being
+       seen is that light after crossing the entire width of the sky. */
+    beltMat.uniforms.uShade.value.copy(atmosphere.mid).lerp(atmosphere.zenith, 0.45);
+    beltMat.uniforms.uRose.value.copy(atmosphere.glow).lerp(atmosphere.mid, 0.42);
 
     /* Sun by day, moon by night: the same disc, smaller and cooler, and a
        glow that a storm can smother entirely.
@@ -2072,11 +2508,9 @@ export function createSky(THREE) {
     discMat.uniforms.uMoon.value = moon;
     const discFade = (1 - w.storm) * (0.55 + 0.45 * (1 - moon)) * risen;
     discMat.uniforms.uOpacity.value = discFade;
-    // Visibility follows the opacity and only the opacity. There used to be
-    // a second, hard gate at storm 0.92 — a disc still five per cent there
-    // one frame and gone the next, which is a switch, and a switch on the
-    // brightest thing in the sky is the kind nobody misses.
-    disc.visible = discFade > 0.01;
+    // The two-sprite light is cheap enough to stay submitted at zero opacity.
+    // There is therefore no visibility threshold on the brightest object in
+    // the sky and no deferred program when it next rises.
 
     // Small and faint. An additive sprite this far out covers a lot of sky
     // for very little scale, and a sun that blows out the middle of the
@@ -2085,7 +2519,6 @@ export function createSky(THREE) {
     glow.scale.setScalar(RADIUS * (0.20 - moon * 0.10));
     glow.material.color.copy(w.glow);
     glow.material.opacity = (1 - w.storm) * (0.5 - moon * 0.28) * risen;
-    glow.visible = glow.material.opacity > 0.02;
 
     /* How much light is arriving from up there, as one number.
 
@@ -2191,10 +2624,10 @@ export function createSky(THREE) {
       // than a level and a half away, and by then this is already zero
       const held = 1 - ramp(Math.abs(y - pos.y), MIST.fade[0], MIST.fade[1]);
       const density = MIST.depth * w.mist * bank * held;
-      s.mesh.visible = density > 0.004;
+      s.mat.uniforms.uDensity.value = density;
+      s.mesh.visible = warmingLayers || density > 0.004;
       if (!s.mesh.visible) continue;
       s.mesh.position.y = y - pos.y;
-      s.mat.uniforms.uDensity.value = density;
       /* A cloud top in a low sun is the warmest thing on the mountain and
          the underside of the same cloud is the coldest thing in the frame.
          The one number between them is which side of the sheet the rider is
@@ -2202,25 +2635,50 @@ export function createSky(THREE) {
          worth as much as the shape is, because a ceiling that is darker than
          the floor under it is the only cue that says the air has a top. */
       const above = smooth01(clamp01((pos.y - y) / 34 + 0.5));
-      s.mat.uniforms.uWarm.value.copy(w.haze).lerp(w.key, 0.08 + 0.28 * above);
-      s.mat.uniforms.uCool.value.copy(w.haze).lerp(w.mid, 0.26 - 0.14 * above);
+      s.mat.uniforms.uWarm.value.copy(atmosphere.haze)
+        .lerp(atmosphere.key, 0.08 + 0.28 * above);
+      s.mat.uniforms.uCool.value.copy(atmosphere.haze)
+        .lerp(atmosphere.mid, 0.26 - 0.14 * above);
     }
 
-    hazeMat.color.copy(w.haze);
-    // The cone is the fog curtain's opaque floor: a strike that whitens the
-    // dome above it and not this reads as a seam, not lightning.
-    if (w.flash > 0.003) hazeMat.color.lerp(WHITE, w.flash * 0.8);
+    // The cone is the fog curtain's opaque floor and therefore consumes the
+    // exact haze stop already used by the dome, mist and distant ranges.
+    hazeMat.color.copy(atmosphere.haze);
+
+    /* The relief shell is always resident. Its apparent
+       travel is a pure function of world position, while pitch and every
+       material regime move through uniforms; there is no rebuild, threshold
+       or async state to reveal during play. */
+    const reliefSpin = (travel / RELIEF.apparentFar) % TAU;
+    relief.mesh.rotation.y = reliefSpin;
+    relief.mesh.position.set(
+      -lateral * (RELIEF.crest / RELIEF.apparentFar), 0, 0,
+    );
+    relief.mat.uniforms.uPitch.value = pitch;
+    relief.mat.uniforms.uHaze.value.copy(atmosphere.haze);
+    snowTmp.copy(atmosphere.horizon).lerp(atmosphere.key, 0.10);
+    relief.mat.uniforms.uSnow.value.copy(snowTmp);
+    rockTmp.copy(atmosphere.mid).lerp(atmosphere.zenith, 0.46)
+      .multiplyScalar(0.56);
+    relief.mat.uniforms.uRockCool.value.copy(rockTmp);
+    rockTmp.copy(atmosphere.mid).lerp(atmosphere.key, 0.14)
+      .multiplyScalar(0.52);
+    relief.mat.uniforms.uRockWarm.value.copy(rockTmp);
+    iceTmp.copy(atmosphere.horizon).lerp(atmosphere.mid, 0.18);
+    relief.mat.uniforms.uIce.value.copy(iceTmp);
+    relief.mat.uniforms.uAlpenglow.value.copy(sunlit).multiplyScalar(0.46);
+    relief.mat.uniforms.uStorm.value = w.storm;
+
     for (const r of ranges) {
       /* The generated equirectangular plate is the hero distant range. As it
-         becomes visible, all four procedural fallback rings yield to it: the
-         far pair disappears, while the near pair keeps only enough opacity
-         for slow parallax and atmospheric depth. At night or in a whiteout
-         the plate strength falls and the procedural fallback returns. If the
-         assets fail to load, panoReady/strength stay zero and all rings remain
-         fully visible. */
-      const panoMix = smooth01(clamp01(panoStrength.value / 0.88));
-      const panoRangeAlpha = r.layer < 2 ? 0 : r.layer === 2 ? 0.14 : 0.32;
-      const rangeAlpha = 1 - panoMix * (1 - panoRangeAlpha);
+         becomes visible, the two far procedural fallback rings yield to it.
+         The relief shell remains in front and supplies the parallax and
+         material depth their former near pair only suggested. At night or in
+         a whiteout both the plate and its fallback dissolve into the same
+         haze; returning a crisp silhouette inside ninety-metre visibility
+         made the old rings look like floating islands. */
+      const panoMix = smooth01(clamp01(panoStrength.value / PANO_MAX));
+      const rangeAlpha = (1 - panoMix) * (1 - ramp(w.storm, 0.28, 0.82));
       r.mat.uniforms.uAlpha.value = rangeAlpha;
       r.mesh.visible = rangeAlpha > 0.002;
       const spin = (travel * r.spin) % TAU;
@@ -2249,15 +2707,21 @@ export function createSky(THREE) {
          almost nothing at the back, and the feet themselves are hidden
          behind the curtain regardless — what this actually colours is the
          first few degrees of band above it. */
-      footTmp.copy(w.haze).lerp(r.tint, (1 - r.air) * 0.17);
+      /* Apply the palette transform to the band's one local colour before it
+         is mixed. Because lerps are affine, mixing flashed endpoints gives
+         every derived surface exactly one — and only one — flash exposure. */
+      rangeTintTmp.copy(r.tint).lerp(WHITE, flashMix);
+      footTmp.copy(atmosphere.haze)
+        .lerp(rangeTintTmp, (1 - r.air) * 0.17);
       r.mat.uniforms.uHaze.value.copy(footTmp);
       // The ranges are behind a lot of air, and a storm is more air. They
       // give up their colour long before the near hill does, and the far
       // band gives up more of it than the near one — which is the same
       // extinction figure that decides everything else about this band.
-      peakTmp.copy(r.tint).lerp(w.haze, w.storm * (0.62 + 0.33 * r.air));
+      peakTmp.copy(rangeTintTmp)
+        .lerp(atmosphere.haze, w.storm * (0.62 + 0.33 * r.air));
       // and they take the sky's own tint, so a dusk range is a dusk colour
-      peakTmp.lerp(w.mid, SKY_BLEED * r.air);
+      peakTmp.lerp(atmosphere.mid, SKY_BLEED * r.air);
       r.mat.uniforms.uPeak.value.copy(peakTmp);
 
       /* Snow, rock and ice, and all three are derived from that one tint
@@ -2271,7 +2735,7 @@ export function createSky(THREE) {
          be seen — and it goes towards the horizon stop rather than towards
          white because the palette has no white in it anywhere and the one
          rule about snow here is that it never becomes any. */
-      snowTmp.copy(peakTmp).lerp(w.horizon, 0.26);
+      snowTmp.copy(peakTmp).lerp(atmosphere.horizon, 0.26);
       r.mat.uniforms.uSnow.value.copy(snowTmp);
       /* Rock is the same tint with the light taken out of it and a push
          towards the top of the sky. Distant rock is not brown: at twenty
@@ -2280,14 +2744,14 @@ export function createSky(THREE) {
          for exactly the reason its snow is. A fixed slate colour was tried
          first and looked like a hole cut in the horizon at dusk, when
          everything around it had gone amber and it had not. */
-      rockTmp.copy(peakTmp).lerp(w.zenith, 0.20 + 0.22 * r.air)
+      rockTmp.copy(peakTmp).lerp(atmosphere.zenith, 0.20 + 0.22 * r.air)
         .multiplyScalar(0.40);
       r.mat.uniforms.uRock.value.copy(rockTmp);
       // And ice, which is the one thing on the horizon brighter than the snow
       // around it: the same journey the snow made, taken twice as far. An
       // Neither the highlight shoulder nor the atmospheric grade can bring
       // back a glacier that has clipped, so this is as far as it goes.
-      iceTmp.copy(peakTmp).lerp(w.horizon, 0.52);
+      iceTmp.copy(peakTmp).lerp(atmosphere.horizon, 0.52);
       r.mat.uniforms.uIce.value.copy(iceTmp);
       // How much of any of it survives the air in front of it, and a storm
       // takes the rest — a whiteout has no snow line in it because it has no
@@ -2377,8 +2841,15 @@ export function createSky(THREE) {
        at a cost of nothing — the casters are a handful of trees — and the map
        exists for the rest of the session, after which the level is free to
        take the pass away for as long as it likes. */
-    const shadowLevel = ramp(w.elevation, 0.08, 0.14)
+    const shadowTarget = ramp(w.elevation, 0.08, 0.14)
       * (1 - ramp(w.storm, 0.60, 0.78));
+    if (shadowLevel === null) {
+      // Resolve the opening frame beneath the cover; only later changes fade.
+      shadowLevel = shadowTarget;
+    } else {
+      shadowLevel += (shadowTarget - shadowLevel)
+        * (1 - Math.exp(-SHADOW_FADE_RATE * Math.max(0, dt)));
+    }
     key.shadow.intensity = shadowLevel;
     const casting = shadowLevel > 0.001 || !key.shadow.map;
     if (casting !== key.shadow.autoUpdate) {
@@ -2390,7 +2861,7 @@ export function createSky(THREE) {
     // The fill takes the sky's hue but not its saturation. Snow bounce is
     // pale; lighting a whole mountain with undiluted #6f9ad6 turns every
     // surface the sun is not on into flat blue paper.
-    fill.copy(w.mid).lerp(WHITE, 0.5);
+    fill.copy(atmosphere.mid).lerp(WHITE, 0.5);
     hemi.color.copy(fill);
     // On the night a display lands, the sky is the brightest lamp out and it
     // is green — so the fill takes a breath of the curtain's own colour and
@@ -2399,11 +2870,12 @@ export function createSky(THREE) {
     if (w.aurora > 0.004) {
       hemi.color.lerp(auroraMat.uniforms.uLow.value, w.aurora * 0.15);
     }
-    fill.copy(w.haze).lerp(WHITE, 0.35);
+    fill.copy(atmosphere.haze).lerp(WHITE, 0.35);
     hemi.groundColor.copy(fill);
     // And the strike, added rather than scaled: a flash lights the clouds
     // from inside, so it arrives through the fill and not through the key.
     hemi.intensity = w.hemiI + flash * 2.2;
+    if (dt > 0) warmSkyLayers = false;
   }
 
   /* Where the sun lands in the frame, for the pass that marches towards it.

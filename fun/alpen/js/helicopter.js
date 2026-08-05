@@ -170,11 +170,16 @@ export const HELI = {
   poolStrength: 0.85,
   lampFade: 1.4,      // seconds to full brightness, and rather quicker off
   track: 0.55,        // seconds of lag as the beam follows a bolting rabbit
+  drapeBlend: 0.24,   // complete terrain fans cross-fade; they never publish
   scoreRadius: 0.72,  // inner share of the visible pool that scores
   scoreLamp: 0.30,    // it must be visibly established first
 };
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+const smooth01 = (v) => {
+  const t = clamp(v, 0, 1);
+  return t * t * (3 - 2 * t);
+};
 const wrapPi = (a) => {
   let x = a;
   while (x > Math.PI) x -= Math.PI * 2;
@@ -240,11 +245,15 @@ const BEAM_FRAG = `
 
 const POOL_VERT = `
   attribute float aR;
+  attribute float aYNext;
+  uniform float uDrapeBlend;
   varying float vR;
   varying float vDepth;
   void main() {
     vR = aR;
-    vec4 mv = modelViewMatrix * vec4(position, 1.0);
+    vec3 p = position;
+    p.y = mix(position.y, aYNext, uDrapeBlend);
+    vec4 mv = modelViewMatrix * vec4(p, 1.0);
     vDepth = -mv.z;
     gl_Position = projectionMatrix * mv;
   }
@@ -363,6 +372,7 @@ const POOL_RING = 6;
 function poolGeometry(THREE) {
   const count = 1 + POOL_SEG * POOL_RING;
   const position = new Float32Array(count * 3);
+  const yNext = new Float32Array(count);
   const radial = new Float32Array(count);
   const idx = [];
 
@@ -388,10 +398,11 @@ function poolGeometry(THREE) {
 
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(position, 3));
+  geo.setAttribute('aYNext', new THREE.BufferAttribute(yNext, 1));
   geo.setAttribute('aR', new THREE.BufferAttribute(radial, 1));
   geo.setIndex(idx);
   geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), HELI.radius * 2);
-  return { geo, position, count };
+  return { geo, position, yNext, count };
 }
 
 /* ==========================================================================
@@ -461,6 +472,7 @@ export function createHelicopter(THREE, shading) {
         uNear: { value: 85 },
         uFar: { value: 300 },
         uStrength: { value: 0 },
+        uDrapeBlend: { value: 1 },
       },
       vertexShader: POOL_VERT,
       fragmentShader: POOL_FRAG,
@@ -471,7 +483,10 @@ export function createHelicopter(THREE, shading) {
     });
     const mesh = new THREE.Mesh(built.geo, mat);
     mesh.frustumCulled = false;
-    return { mesh, mat, position: built.position, count: built.count, geo: built.geo };
+    return {
+      mesh, mat, position: built.position, yNext: built.yNext,
+      count: built.count, geo: built.geo,
+    };
   })();
 
   group.add(craft, beam, pool.mesh);
@@ -513,6 +528,13 @@ export function createHelicopter(THREE, shading) {
   let poolAimX = 0;
   let poolAimZ = 0;
   let poolPlaced = false;
+  let poolDrapeBlend = 1;
+  const poolDrapeScratch = new Float32Array(pool.count);
+  let poolLiveX = 0;
+  let poolLiveZ = 0;
+  let poolAimVX = 0;
+  let poolAimVZ = 0;
+  let poolLiveValid = false;
 
   const hold = { x: 0, y: 0, z: 0 };   // the station point, rebuilt each frame
 
@@ -584,6 +606,7 @@ export function createHelicopter(THREE, shading) {
     lightClaimed = false;
     scoreSampleValid = false;
     poolPlaced = false;
+    poolLiveValid = false;
     group.visible = true;
   }
 
@@ -676,7 +699,7 @@ export function createHelicopter(THREE, shading) {
   /* The beam: from the lamp under the nose to wherever it is resting, driven
      a sixth of its own length into the hill so the depth buffer decides
      where it stops. */
-  function shine() {
+  function shine(dt) {
     lamp.copy(LAMP).applyQuaternion(craft.quaternion).add(pos);
     dir.copy(aim).sub(lamp);
     const len = dir.length();
@@ -690,36 +713,77 @@ export function createHelicopter(THREE, shading) {
       );
     }
 
-    // The pool is anchored at the lit point and its vertices are offsets, so
-    // its float32 positions stay small however far down the mountain the run
-    // has gone — the same reason the terrain mesh is anchored to the rider.
-    // Re-draped only while the lamp is up and only when the aim has moved a
-    // third of a metre: an invisible pool needs no heights at all, and one
-    // resting on a stood-still bear needs them exactly once.
-    const lit = lamps > 0.01;
-    if (lit) {
-      const mx = aim.x - poolAimX;
-      const mz = aim.z - poolAimZ;
-      if (!poolPlaced || mx * mx + mz * mz > 0.09) {
-        const ay = heightAt(aim.x, aim.z);
-        pool.mesh.position.set(aim.x, ay, aim.z);
-        const p = pool.position;
-        for (let i = 0; i < pool.count; i++) {
-          const j = i * 3;
-          p[j + 1] = heightAt(aim.x + p[j], aim.z + p[j + 2]) - ay + 0.08;
-        }
-        pool.geo.attributes.position.needsUpdate = true;
-        poolAimX = aim.x;
-        poolAimZ = aim.z;
-        poolPlaced = true;
+    // The mesh centre follows the beam every frame. The expensive height fan
+    // is prepared separately once the aim has moved a third of a metre, then
+    // blended on the GPU from the already-visible fan to that complete target.
+    // That leaves no half-built terrain and no positional step to publish.
+    pool.mesh.position.copy(aim);
+    if (poolLiveValid) {
+      const invDt = 1 / Math.max(dt, 1e-4);
+      const follow = 1 - Math.exp(-8 * Math.min(dt, 0.05));
+      poolAimVX += ((aim.x - poolLiveX) * invDt - poolAimVX) * follow;
+      poolAimVZ += ((aim.z - poolLiveZ) * invDt - poolAimVZ) * follow;
+    } else {
+      poolAimVX = 0;
+      poolAimVZ = 0;
+      poolLiveValid = true;
+    }
+    poolLiveX = aim.x;
+    poolLiveZ = aim.z;
+    if (poolPlaced && poolDrapeBlend < 1) {
+      poolDrapeBlend = Math.min(1, poolDrapeBlend + dt / HELI.drapeBlend);
+      pool.mat.uniforms.uDrapeBlend.value = smooth01(poolDrapeBlend);
+    }
+    const mx = aim.x - poolAimX;
+    const mz = aim.z - poolAimZ;
+    /* Do not replace a back buffer while it is becoming visible. Instead the
+       completed target is sampled ahead along the already-smoothed aim
+       velocity, so it meets the moving pool at the end of the transition. */
+    const canPrepare = !poolPlaced || poolDrapeBlend >= 1;
+    if (canPrepare && (!poolPlaced || mx * mx + mz * mz > 0.09)) {
+      const lead = poolPlaced ? HELI.drapeBlend * 0.82 : 0;
+      const sampleX = aim.x + poolAimVX * lead;
+      const sampleZ = aim.z + poolAimVZ * lead;
+      const ay = heightAt(sampleX, sampleZ);
+      const p = pool.position;
+      for (let i = 0; i < pool.count; i++) {
+        const j = i * 3;
+        poolDrapeScratch[i] = heightAt(sampleX + p[j], sampleZ + p[j + 2]) - ay + 0.08;
       }
+
+      if (!poolPlaced) {
+        for (let i = 0; i < pool.count; i++) {
+          pool.position[i * 3 + 1] = poolDrapeScratch[i];
+          pool.yNext[i] = poolDrapeScratch[i];
+        }
+        poolDrapeBlend = 1;
+      } else {
+        // If a faster target asks for another fan mid-transition, first bake
+        // the exact interpolated picture into the front buffer. The next
+        // transition therefore starts at the pixel the previous one reached.
+        const blend = smooth01(poolDrapeBlend);
+        for (let i = 0; i < pool.count; i++) {
+          const j = i * 3 + 1;
+          pool.position[j] += (pool.yNext[i] - pool.position[j]) * blend;
+          pool.yNext[i] = poolDrapeScratch[i];
+        }
+        poolDrapeBlend = 0;
+      }
+      pool.geo.attributes.position.needsUpdate = true;
+      pool.geo.attributes.aYNext.needsUpdate = true;
+      pool.mat.uniforms.uDrapeBlend.value = smooth01(poolDrapeBlend);
+      poolAimX = sampleX;
+      poolAimZ = sampleZ;
+      poolPlaced = true;
     }
 
     beamMat.uniforms.uStrength.value = HELI.beamStrength * lamps;
     beamMat.uniforms.uTime.value = clock;
     pool.mat.uniforms.uStrength.value = HELI.poolStrength * lamps;
-    beam.visible = lit;
-    pool.mesh.visible = lit;
+    // The parent group owns visibility. These meshes stay present with a
+    // continuous zero-strength state so neither threshold can switch a light.
+    beam.visible = true;
+    pool.mesh.visible = true;
   }
 
   /* ------------------------------------------------------------------ */
@@ -758,7 +822,7 @@ export function createHelicopter(THREE, shading) {
       fly(dt, exit.x, exit.y, exit.z, HELI.departSpeed);
       lamps = Math.max(0, lamps - dt / (HELI.lampFade * 0.45));
       attitude(dt);
-      shine();
+      shine(dt);
       if (loiter > HELI.maxAway
         || Math.hypot(pos.x - rider.pos.x, pos.z - rider.pos.z) > HELI.gone) hangar();
       return;
@@ -805,7 +869,7 @@ export function createHelicopter(THREE, shading) {
     aim.y = heightAt(aim.x, aim.z);
 
     attitude(dt);
-    shine();
+    shine(dt);
   }
 
   function reset() {

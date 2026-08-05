@@ -68,17 +68,20 @@
    while nothing on this mountain cast a shadow onto anything else. */
 
 import {
-  heightAt, nearestCenter, corridorHalfAt, centersAt, normalFrom,
+  heightAt, nearestCenter, corridorHalfAt, centersAt, normalFrom, SNOWPACK,
 } from './terrain.js';
 import { stream, hash2, noise2 } from './noise.js';
 import { compose } from './geom.js';
 import { PROPS } from './config.js';
 
-const { band, ahead, behind, park: PARK, rail: RAIL } = PROPS;
+const {
+  band, ahead, behind, park: PARK, rail: RAIL, biomes: BIOMES,
+} = PROPS;
 
 const TAU = Math.PI * 2;
 
 const lerp = (a, b, t) => a + (b - a) * t;
+const clamp01 = (v) => Math.min(1, Math.max(0, v));
 const smoothstep = (a, b, v) => {
   const t = Math.min(1, Math.max(0, (v - a) / (b - a)));
   return t * t * (3 - 2 * t);
@@ -120,14 +123,14 @@ const THICKET = '#7d8496';
    dark, unsaturated brown and it is capped below full brightness on purpose:
    one warm thing in the frame is a rider, two is a mess. */
 export const STAND = {
-  cold: '#2f7a68',       // a spruce with the sky in it
-  warm: '#5f8a46',       // a pine that has had some sun
+  cold: '#356b60',       // a spruce with the sky in it
+  warm: '#58784d',       // a pine that has had some sun
   rust: '#684832',       // the odd one dying on its feet
   ghost: '#6d7365',      // and the odd one that has finished
   timberCold: '#918f88', // a dead larch, weathered grey
   timberWarm: '#94836f', // and one that still has some sap in the memory
   deep: 0.52,            // how dark the back of a wet stand goes
-  lit: 1.14,             // and how light a tree catching the low sun does
+  lit: 1.08,             // and how light a tree catching the low sun does
   odds: 0.05,            // how often a conifer is rust, and how often a ghost
   cap: 0.92,             // the brightest either of those two is allowed
   wood: 0.35,            // how much of its tree's cast a needled trunk takes
@@ -192,7 +195,7 @@ const FOREST = {
      through a forest rather than a bare bowl. A treeline you can *see* is
      worth having; one that empties the first kilometre is not. */
   line: [80, 1600],
-  lineCover: [0.82, 1.0],
+  lineCover: [0.58, 1.0],
   lineScale: [0.74, 1.08],
   /* How much of the ground's own normal a trunk takes. Conifers grow towards
      the light rather than square to the slope, so this is a lean and not a
@@ -203,6 +206,43 @@ const FOREST = {
   size: [0.46, 1.22],
   sizeBias: 1.45,         // >1 puts most of the stand at the small end
 };
+
+/* Ecology is deliberately a set of overlapping weights, not a biome label.
+   A hard label would still reveal the forty-metre stream bands eventually;
+   these slow fields instead let a stony shoulder dissolve into heath and a
+   moist clearing thicken into understory over hundreds of metres. Placement
+   remains a pure function of world position and the run seed. */
+const ECOLOGY = {
+  moisture: { x: 0.0022, z: 0.00125, seed: 211 },
+  exposure: { x: 0.0014, z: 0.0020, seed: 223 },
+};
+
+function ecologyAt(x, z, out) {
+  const travelled = Math.max(0, -z);
+  const down = smoothstep(FOREST.line[0], FOREST.line[1], travelled);
+  const moisture = smoothstep(0.28, 0.72, noise2(
+    x * ECOLOGY.moisture.x, z * ECOLOGY.moisture.z, ECOLOGY.moisture.seed,
+  ));
+  const exposure = smoothstep(0.30, 0.70, noise2(
+    x * ECOLOGY.exposure.x, z * ECOLOGY.exposure.z, ECOLOGY.exposure.seed,
+  ));
+  const stand = FOREST.clearing + (1 - FOREST.clearing) * smoothstep(
+    FOREST.standBand[0], FOREST.standBand[1],
+    noise2(x * FOREST.standFreq, z * FOREST.standFreq, FOREST.standSeed),
+  );
+
+  out.moisture = moisture;
+  out.exposure = exposure;
+  out.stand = stand;
+  out.alpine = (1 - down) * lerp(0.55, 1, exposure);
+  out.heath = smoothstep(0.10, 0.42, down)
+    * (1 - smoothstep(0.72, 1, down)) * lerp(0.35, 1, moisture);
+  out.understory = smoothstep(0.48, 0.95, down) * stand * lerp(0.30, 1, moisture);
+  out.avalanche = smoothstep(0.25, 0.80, down)
+    * (1 - stand) * lerp(0.40, 1, exposure);
+  out.talus = lerp(0.25, 1, exposure) * (1 - 0.55 * stand);
+  return out;
+}
 
 /* Two pieces of mountain furniture that belong outside the piste rather than
    on it.
@@ -936,20 +976,195 @@ function weather(THREE, geo, rnd, amount) {
   return g;
 }
 
-/* The boulders were grown here, out of the same weathering the shrubs used —
-   a block with its vertices pushed about, shards at its foot, snow caught on
-   the upper faces. They are gone with the shrubs and for the same reason: a
-   rock sitting on a piste is furniture standing on the mountain rather than
-   part of it. Anything that slows a rider or throws them into the air should
-   be the shape of the ground doing it. */
+/* A glacial erratic, grown once and then turned and stretched by instances.
+   The geometry returns its own bounds: collision therefore follows the rock
+   that was actually made instead of a guessed height that can drift away as
+   the silhouette changes. Slate and iron variants use the terrain palette. */
+function growBoulder(THREE, seed, geos, palette) {
+  const rnd = stream(seed);
+  const parts = [];
+  const spent = [];
+  const dark = new THREE.Color(palette[0]);
+  const light = new THREE.Color(palette[1]);
+  const stone = (lo = 0.18, hi = 0.72) => new THREE.Color()
+    .lerpColors(dark, light, lerp(lo, hi, rnd()));
+  const block = (amount) => {
+    const g = weather(THREE, geos.stone, rnd, amount);
+    spent.push(g);
+    return g;
+  };
 
-/* The shrub is gone. It was a bush with a winter on it — three weathered
-   lumps and a scatter of bare twigs — and it was the one prop on the mountain
-   that never earned its place: knee-high, painted in the same glacier blue as
-   the ground it sat on, and mechanically nothing but a bite of speed taken
-   off a rider who could not have seen it coming. What it actually read as, at
-   any distance, was scraps of paper blown across the snow. The growth code it
-   used lives on in `growRock`, which was written from it. */
+  parts.push({
+    geo: block(0.58), color: stone(), own: OWN_ALL,
+    pos: [0.02, 0.66, -0.03],
+    rot: [(rnd() - 0.5) * 0.36, rnd() * TAU, (rnd() - 0.5) * 0.34],
+    scale: [1.08 + rnd() * 0.20, 0.92 + rnd() * 0.24, 0.88 + rnd() * 0.20],
+  });
+
+  // A cleft shoulder and a few pieces of scree break both profile and shadow.
+  const shoulder = rnd() < 0.5 ? -1 : 1;
+  parts.push({
+    geo: block(0.64), color: stone(0.12, 0.58), own: OWN_ALL,
+    pos: [shoulder * (0.62 + rnd() * 0.12), 0.24, (rnd() - 0.5) * 0.32],
+    rot: [(rnd() - 0.5) * 0.75, rnd() * TAU, (rnd() - 0.5) * 0.75],
+    scale: [0.48 + rnd() * 0.16, 0.46 + rnd() * 0.16, 0.55 + rnd() * 0.18],
+  });
+  for (let i = 0; i < 2; i++) {
+    const a = rnd() * TAU;
+    const off = 0.78 + rnd() * 0.34;
+    const s = 0.20 + rnd() * 0.16;
+    parts.push({
+      geo: block(0.72), color: stone(0.12, 0.52), own: OWN_ALL,
+      pos: [Math.cos(a) * off, -0.08 + rnd() * 0.18, Math.sin(a) * off],
+      rot: [(rnd() - 0.5) * 1.2, rnd() * TAU, (rnd() - 0.5) * 1.2],
+      scale: [s, s * (0.66 + rnd() * 0.25), s * (0.82 + rnd() * 0.30)],
+    });
+  }
+
+  // A shallow shelf has an edge; a white hemisphere would read as icing.
+  parts.push({
+    geo: block(0.42), color: SNOW, own: OWN_SNOW,
+    pos: [(rnd() - 0.5) * 0.14, 1.34, (rnd() - 0.5) * 0.13],
+    rot: [(rnd() - 0.5) * 0.10, rnd() * TAU, (rnd() - 0.5) * 0.10],
+    scale: [0.88 + rnd() * 0.10, 0.18 + rnd() * 0.07, 0.70 + rnd() * 0.12],
+  });
+
+  const geometry = compose(THREE, parts);
+  geometry.setAttribute('surfaceOwn', ownership(THREE, parts));
+  geometry.computeBoundingBox();
+  const bounds = geometry.boundingBox;
+  const radius = Math.max(
+    Math.abs(bounds.min.x), Math.abs(bounds.max.x),
+    Math.abs(bounds.min.z), Math.abs(bounds.max.z),
+  );
+  spent.forEach((g) => g.dispose());
+  return {
+    geometry, radius, bottom: bounds.min.y, top: bounds.max.y,
+  };
+}
+
+/* A winter shrub keeps its dark mass below the snow instead of becoming a
+   white scrap. One variant carries exaggerated bilberry/lingonberry clusters:
+   the fruit is still small, but large enough to survive motion and haze. */
+function growShrub(THREE, seed, geos, berries) {
+  const rnd = stream(seed);
+  const parts = [];
+  const spent = [];
+  const foliage = berries ? '#40554a' : '#506057';
+  const fruit = berries ? ['#30364d', '#642f3f'] : [];
+
+  const twigCount = 7 + ((rnd() * 3) | 0);
+  const stem = rnd() * TAU;
+  for (let i = 0; i < twigCount; i++) {
+    const a = stem + (i / twigCount) * TAU + (rnd() - 0.5) * 0.75;
+    const d = dirOf(a, 0.88 + rnd() * 0.48);
+    const len = 0.48 + rnd() * 0.42;
+    parts.push({
+      geo: geos.twig, color: THICKET, own: OWN_ALL,
+      pos: [Math.cos(a) * 0.10, 0.05 + rnd() * 0.10, Math.sin(a) * 0.10],
+      rot: aim(d[0], d[1], d[2]), scale: [0.036, len, 0.036],
+    });
+  }
+
+  const lobeCount = 4;
+  const base = rnd() * TAU;
+  for (let i = 0; i < lobeCount; i++) {
+    const a = base + (i / lobeCount) * TAU + (rnd() - 0.5) * 0.65;
+    const r = 0.27 + rnd() * 0.13;
+    const off = 0.12 + rnd() * 0.25;
+    const y = 0.25 + rnd() * 0.28;
+    const g = weather(THREE, geos.stone, rnd, 0.48);
+    spent.push(g);
+    parts.push({
+      geo: g, color: new THREE.Color(foliage).multiplyScalar(0.82 + rnd() * 0.22),
+      own: OWN_ALL,
+      pos: [Math.cos(a) * off, y, Math.sin(a) * off],
+      rot: [(rnd() - 0.5) * 0.42, rnd() * TAU, (rnd() - 0.5) * 0.42],
+      scale: [r, r * (0.66 + rnd() * 0.14), r * (0.82 + rnd() * 0.16)],
+    });
+    if (i !== 1 || rnd() < 0.55) {
+      parts.push({
+        geo: g, color: SNOW, own: OWN_SNOW,
+        pos: [Math.cos(a) * off - 0.025, y + r * 0.54, Math.sin(a) * off],
+        rot: [0, rnd() * TAU, 0],
+        scale: [r * 0.84, r * 0.18, r * 0.76],
+      });
+    }
+  }
+
+  if (berries) {
+    const count = 8 + ((rnd() * 4) | 0);
+    for (let i = 0; i < count; i++) {
+      const a = rnd() * TAU;
+      const r = 0.18 + rnd() * 0.32;
+      parts.push({
+        geo: geos.berry, color: fruit[i % fruit.length], own: OWN_ALL,
+        pos: [Math.cos(a) * r, 0.38 + rnd() * 0.38, Math.sin(a) * r],
+        scale: [0.052, 0.052, 0.052],
+      });
+    }
+  }
+
+  const geometry = compose(THREE, parts);
+  geometry.setAttribute('surfaceOwn', ownership(THREE, parts));
+  spent.forEach((g) => g.dispose());
+  return geometry;
+}
+
+/* One instance is a whole alpine ground patch: cushions, dry blades and seed
+   heads. Opaque wedges stay stable under motion where alpha grass cards would
+   shimmer against the snow. */
+function growPlantPatch(THREE, seed, geos) {
+  const rnd = stream(seed);
+  const parts = [];
+  const spent = [];
+  const green = ['#566555', '#68705a'];
+  const dry = ['#7a715b', '#918467'];
+
+  for (let i = 0; i < 4; i++) {
+    const a = rnd() * TAU;
+    const off = 0.18 + rnd() * 0.52;
+    const r = 0.15 + rnd() * 0.12;
+    const g = weather(THREE, geos.stone, rnd, 0.42);
+    spent.push(g);
+    const x = Math.cos(a) * off;
+    const z = Math.sin(a) * off;
+    parts.push({
+      geo: g, color: green[i % green.length], own: OWN_ALL,
+      pos: [x, 0.10 + rnd() * 0.08, z], rot: [0, rnd() * TAU, 0],
+      scale: [r, r * 0.44, r * 0.86],
+    });
+    if (i < 2) parts.push({
+      geo: g, color: SNOW, own: OWN_SNOW,
+      pos: [x, 0.21 + rnd() * 0.04, z], rot: [0, rnd() * TAU, 0],
+      scale: [r * 0.82, r * 0.12, r * 0.70],
+    });
+  }
+
+  for (let i = 0; i < 11; i++) {
+    const a = rnd() * TAU;
+    const off = 0.16 + rnd() * 0.58;
+    const d = dirOf(a, 1.04 + rnd() * 0.36);
+    const len = 0.25 + rnd() * 0.50;
+    const x = Math.cos(a) * off;
+    const z = Math.sin(a) * off;
+    parts.push({
+      geo: geos.blade, color: dry[i % dry.length], own: OWN_ALL,
+      pos: [x, 0.02, z], rot: aim(d[0], d[1], d[2]),
+      scale: [0.025 + rnd() * 0.016, len, 0.020 + rnd() * 0.012],
+    });
+    if (i % 4 === 0) parts.push({
+      geo: geos.berry, color: '#b7a46f', own: OWN_ALL,
+      pos: [x + d[0] * len, 0.02 + d[1] * len, z + d[2] * len],
+      scale: [0.045, 0.065, 0.045],
+    });
+  }
+
+  const geometry = compose(THREE, parts);
+  geometry.setAttribute('surfaceOwn', ownership(THREE, parts));
+  spent.forEach((g) => g.dispose());
+  return geometry;
+}
 
 /* ==========================================================================
    Alpine infrastructure
@@ -1044,11 +1259,10 @@ class Pool {
     this.s = new THREE.Vector3();
     this.up = new THREE.Vector3(0, 1, 0);
     this.tinted = tinted;
-    /* Shadow-pass bound: instances below this index are near enough to cast
-       into the ±92 m shadow box. `rebuild` fills near bands first and records
-       where they end; the depth pass then draws that prefix and nothing else.
-       Defaults to everything, so a pool nobody trims behaves as before. */
-    this.near = capacity;
+    /* Tree pools fill this with the end of every nearest-first band ring.
+       The shadow pass can then choose a conservative prefix from the light's
+       actual frustum without rebuilding or sorting an instance buffer. */
+    this.shadowEnds = null;
     this.full = 0;
     /* And the opposite trade for the sparse furniture: a pool marked cullable
        gets a real bounding sphere from its written instances in `end()` and
@@ -1063,10 +1277,10 @@ class Pool {
   }
 
   add(x, y, z, rotY, sx, sy, sz, color) {
-    if (this.n >= this.capacity) return;
+    if (this.n >= this.capacity) return false;
     this.e.set(0, rotY, 0);
     this.q.setFromEuler(this.e);
-    this.write(x, y, z, sx, sy, sz, color);
+    return this.write(x, y, z, sx, sy, sz, color);
   }
 
   /* The snow bridges stand normal to the bank under them rather than upright
@@ -1075,11 +1289,11 @@ class Pool {
      on `normal` at any course heading. Ordinary props keep the cheaper `add`
      path above. */
   addOnSlope(x, y, z, rotY, sx, sy, sz, normal, color) {
-    if (this.n >= this.capacity) return;
+    if (this.n >= this.capacity) return false;
     this.q.setFromUnitVectors(this.up, normal);
     this.turn.setFromAxisAngle(this.up, rotY);
     this.q.multiply(this.turn);
-    this.write(x, y, z, sx, sy, sz, color);
+    return this.write(x, y, z, sx, sy, sz, color);
   }
 
   write(x, y, z, sx, sy, sz, color) {
@@ -1089,6 +1303,7 @@ class Pool {
     this.mesh.setMatrixAt(this.n, this.m);
     if (this.tinted && color) this.mesh.setColorAt(this.n, color);
     this.n += 1;
+    return true;
   }
 
   end() {
@@ -1114,6 +1329,7 @@ class Pool {
 export function createProps(THREE, shading) {
   const group = new THREE.Group();
   const bands = ahead + behind + 1;
+  const streamSpan = Math.max(ahead, behind);
 
   // Every material the field makes goes through the shared shading, which is
   // the only reason a tree and the snow it is standing in are lit by the same
@@ -1161,6 +1377,36 @@ export function createProps(THREE, shading) {
         .replace('#include <common>', `#include <common>${OWN_DECL}${AIR_DECL}`)
         .replace('#include <color_vertex>', OWN_MIX)
         .replace('#include <begin_vertex>', SWAY)
+        .replace('#include <project_vertex>', `#include <project_vertex>
+        vN64Sheen = 1.0 - surfaceOwn;`);
+    };
+    return shading.apply(m, { cameraFade: true, sheen: 1 });
+  };
+
+  /* Low vegetation shares one wind program. Its baked snow mask feeds the
+     same crystalline response as tree snow, while wood, berries and leaves
+     stay matte. These meshes do not cast, so the slight sway cannot disagree
+     with a static depth silhouette. */
+  const floraMat = () => {
+    const m = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false });
+    m.onBeforeCompile = (shader) => {
+      Object.assign(shader.uniforms, air, { uSwayHeight: { value: 1.2 } });
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', `#include <common>${OWN_DECL}${AIR_DECL}`)
+        .replace('#include <begin_vertex>', SWAY)
+        .replace('#include <project_vertex>', `#include <project_vertex>
+        vN64Sheen = 1.0 - surfaceOwn;`);
+    };
+    return shading.apply(m, { cameraFade: true, sheen: 1 });
+  };
+
+  /* Boulder snow uses the same mask without wind. A separate static program
+     keeps the rock faceting still and is shared by both stone families. */
+  const rockMat = () => {
+    const m = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false });
+    m.onBeforeCompile = (shader) => {
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', `#include <common>${OWN_DECL}`)
         .replace('#include <project_vertex>', `#include <project_vertex>
         vN64Sheen = 1.0 - surfaceOwn;`);
     };
@@ -1226,9 +1472,12 @@ export function createProps(THREE, shading) {
     drift: spike(radial + 2),           // snow that has settled to a point
     loaf: hull(0.42, radial),           // and snow lying along a bough
     stone: new THREE.IcosahedronGeometry(1, 1),
+    berry: new THREE.OctahedronGeometry(1, 0),
+    blade: spike(3),
   };
 
   const treePools = [];
+  const shadowPools = [];
   const treeHeights = [];
   // Which variants have no needles, because those are coloured as timber
   // rather than as foliage and the cast has to be told which it is drawing
@@ -1242,26 +1491,85 @@ export function createProps(THREE, shading) {
     // draw is short-circuited by `count`, so an unused pool costs nothing
     const pool = new Pool(THREE, grown.geometry, treeMat(grown.height),
       Math.ceil((bands * PROPS.treesPerBand + 60) / PROPS.trees.variants) * 3, true);
+    /* One integer per streamed ring is the complete shadow-membership
+       acceleration structure. It is rebuilt alongside the matrices, when
+       those counts are already in hand, and costs no per-tree shadow test. */
+    pool.shadowEnds = new Uint16Array(streamSpan + 1);
     treePools.push(pool);
+    shadowPools.push(pool);
     group.add(pool.mesh);
   }
 
-  /* The shadow pass draws only the near prefix of each tree pool. The map
-     covers ±92 m around the rider, yet every instance in a six-hundred-metre
-     window used to be pushed through the depth pass to fill it; `rebuild`
-     orders the bands nearest-first and records where the near ones end, and
-     these two hooks — which three calls around exactly the depth draw and
-     nothing else — pinch `count` down to that prefix and put it back. */
-  for (const pool of treePools) {
+  /* The shadow pass draws only the prefix that can reach its own camera.
+
+     This used to be a fixed three-band prefix. Every forty-metre stream step
+     therefore replaced one whole row of casters while some of their long,
+     low-sun shadows could still land inside the map. The depth texture was
+     rebuilt correctly in the background; the visible result was still a row
+     of shadows switching on at once.
+
+     The shadow camera already owns the exact volume that can contribute. Its
+     eight world-space corners give a conservative z interval, and `rebuild`
+     has precalculated the prefix end for every nearest-first band ring. One
+     extra ring is retained around the interval. Thus a ring can enter or
+     leave the submitted prefix only while every tree in it is at least forty
+     metres outside the shadow volume: membership remains discrete and cheap,
+     but its change is provably invisible. The interval is cached once per
+     rendered shadow camera, not recomputed for all twelve tree variants. */
+  const shadowCorner = new THREE.Vector3();
+  let shadowFrame = -1;
+  let shadowCameraId = -1;
+  let shadowBands = streamSpan;
+
+  function casterBands(renderer, shadowCamera) {
+    if (!shadowCamera || !Number.isFinite(currentBand)) return streamSpan;
+    const frame = renderer.info.render.frame;
+    if (frame === shadowFrame && shadowCamera.id === shadowCameraId) return shadowBands;
+
+    shadowFrame = frame;
+    shadowCameraId = shadowCamera.id;
+    let lo = Infinity;
+    let hi = -Infinity;
+    for (let x = 0; x < 2; x++) {
+      for (let y = 0; y < 2; y++) {
+        for (let z = 0; z < 2; z++) {
+          shadowCorner.set(
+            x ? shadowCamera.right : shadowCamera.left,
+            y ? shadowCamera.top : shadowCamera.bottom,
+            z ? -shadowCamera.far : -shadowCamera.near,
+          ).applyMatrix4(shadowCamera.matrixWorld);
+          lo = Math.min(lo, shadowCorner.z);
+          hi = Math.max(hi, shadowCorner.z);
+        }
+      }
+    }
+
+    /* Expand by a whole streamed band, substantially more than the reach of
+       the largest grown crown. A band endpoint may then cross this range
+       without a branch touching the light frustum on the crossing frame. */
+    const first = Math.floor(lo / band) - 1;
+    const last = Math.floor(hi / band) + 1;
+    shadowBands = Math.min(streamSpan, Math.max(
+      0,
+      Math.abs(first - currentBand),
+      Math.abs(last - currentBand),
+    ));
+    return shadowBands;
+  }
+
+  function bindShadowPrefix(pool) {
     const mesh = pool.mesh;
-    mesh.onBeforeShadow = () => {
+    mesh.onBeforeShadow = (renderer, object, camera, shadowCamera) => {
       pool.full = mesh.count;
-      if (pool.near < mesh.count) mesh.count = pool.near;
+      const ring = casterBands(renderer, shadowCamera);
+      const near = pool.shadowEnds[ring];
+      if (near < mesh.count) mesh.count = near;
     };
     mesh.onAfterShadow = () => {
       mesh.count = pool.full;
     };
   }
+  for (const pool of treePools) bindShadowPrefix(pool);
 
   // --- everything else ------------------------------------------------------
   const poleGeo = new THREE.CylinderGeometry(0.05, 0.05, 2.3, 12);
@@ -1278,17 +1586,50 @@ export function createProps(THREE, shading) {
   const railPostGeo = new THREE.BoxGeometry(0.12, 1, 0.12);
   railPostGeo.translate(0, 0.5, 0);
 
-  /* Rocks come in threes, for the same reason the trees come in twelve: they
-     are grown, so a second variant is a draw call rather than a per-instance
-     cost, and one silhouette repeated forty times down a hillside is the
-     thing the eye picks out first.
+  /* Five instanced calls make the ecology: one whole plant patch, two winter
+     shrubs and two stone families. Shapes, snow masks and colours are baked
+     now, before renderer.compile warms them; streaming later rewrites only
+     matrices. Small vegetation receives light but does not cast a flickering
+     sub-pixel shadow. Boulder shadows use the same conservative band prefix
+     as trees, so distant instances never enter the depth pass. */
+  const floraMaterial = floraMat();
+  const stoneMaterial = rockMat();
+  const plantPool = new Pool(
+    THREE, growPlantPatch(THREE, 0x63a91d, geos), floraMaterial,
+    bands * BIOMES.plantCandidates + 12,
+  );
+  const shrubPools = [
+    new Pool(
+      THREE, growShrub(THREE, 0x2b7f41, geos, false), floraMaterial,
+      bands * BIOMES.shrubCandidates + 12,
+    ),
+    new Pool(
+      THREE, growShrub(THREE, 0x2b7f41 + 5827, geos, true), floraMaterial,
+      bands * BIOMES.shrubCandidates + 12,
+    ),
+  ];
+  const boulderVariants = [
+    growBoulder(THREE, 0x9d2b1f, geos, SNOWPACK.slate),
+    growBoulder(THREE, 0x9d2b1f + 6151, geos, SNOWPACK.iron),
+  ];
+  const rockPools = boulderVariants.map((grown) => new Pool(
+    THREE, grown.geometry, stoneMaterial,
+    bands * (BIOMES.sideRockCandidates + 1) + 12,
+  ));
 
-     The shrubs are gone entirely. They were the one prop that never earned
-     its place: knee-high lumps painted in the same glacier blue as the ground
-     they sat on, which at any distance read as scraps of paper blown across
-     the snow rather than as vegetation, and which existed mechanically only
-     to take a bite of speed off a rider who could not have seen them coming.
-     A mountain is better without them than with a hundred of them a minute. */
+  plantPool.mesh.name = 'alpine-plant-patches';
+  plantPool.mesh.userData.noShadow = true;
+  shrubPools[0].mesh.name = 'snowy-alpine-shrubs';
+  shrubPools[1].mesh.name = 'snowy-berry-shrubs';
+  for (const p of shrubPools) p.mesh.userData.noShadow = true;
+  rockPools[0].mesh.name = 'slate-boulders';
+  rockPools[1].mesh.name = 'iron-boulders';
+  for (const p of rockPools) {
+    p.shadowEnds = new Uint16Array(streamSpan + 1);
+    shadowPools.push(p);
+    bindShadowPrefix(p);
+  }
+
   const poles = new Pool(THREE, poleGeo, lit('#2a2f38'), bands * 2 + 16);
   const flags = new Pool(THREE, flagGeo, flagMat(), poles.capacity, true);
   const railBars = new Pool(THREE, railGeo, lit('#aab6c8'), 8);
@@ -1318,7 +1659,10 @@ export function createProps(THREE, shading) {
      would never say no. */
   for (const p of [railBars, railPosts, avalancheFences, waymarks]) p.cullable = true;
 
-  const pools = [poles, flags, railBars, railPosts, avalancheFences, waymarks];
+  const pools = [
+    plantPool, ...shrubPools, ...rockPools,
+    poles, flags, railBars, railPosts, avalancheFences, waymarks,
+  ];
   pools.forEach((p) => group.add(p.mesh));
   const allPools = pools.concat(treePools);
 
@@ -1379,6 +1723,8 @@ export function createProps(THREE, shading) {
   const courseAbove = [0, 0];
   const courseBelow = [0, 0];
   const bankNormal = new THREE.Vector3();
+  const floraNormal = new THREE.Vector3();
+  const worldUp = new THREE.Vector3(0, 1, 0);
   const treeNormal = new THREE.Vector3();
 
   /* Which way a trunk stands. A conifer grows towards the light rather than
@@ -1443,6 +1789,64 @@ export function createProps(THREE, shading) {
     return { b, top, t };
   }
 
+  /* A fork island is useful habitat, but only for things the rider can pass
+     through. Decorative stone stays beyond the outer lips so its missing
+     collider can never become a lie. */
+  function vergeXAt(z, side, distance, islandDraw, spreadDraw) {
+    centersAt(z, centres);
+    const half = corridorHalfAt(z);
+    if (centres[0] !== centres[1] && islandDraw < 0.30) {
+      const gap = (centres[1] - centres[0]) * 0.5 - half;
+      if (gap > 2.2) {
+        return (centres[0] + centres[1]) * 0.5
+          + (spreadDraw * 2 - 1) * (gap - 1.2);
+      }
+    }
+    const c = side < 0 ? centres[0] : centres[1];
+    return c + side * (half + distance);
+  }
+
+  function setFloraNormal(x, z) {
+    normalFrom(heightAt, x, z, floraNormal);
+    return floraNormal.lerp(worldUp, 0.58).normalize();
+  }
+
+  function boulderTransform(v, groundY, sx, sy, sz) {
+    const grown = boulderVariants[v];
+    const y = groundY - grown.bottom * sy - 0.04;
+    return {
+      y,
+      r: grown.radius * Math.max(sx, sz) * 0.88,
+      top: y + grown.top * sy,
+    };
+  }
+
+  /* Three terrain samples along a 42 m uphill sightline keep a boulder from
+     becoming a blind crest ambush. This is paid only for the sparse accepted
+     candidate while its band is rebuilt, never during play. */
+  function visibleFromApproach(x, z, top) {
+    const reach = 42;
+    const eyeY = heightAt(x, z + reach) + 1.55;
+    for (let i = 1; i <= 3; i++) {
+      const t = i / 4;
+      const sampleZ = z + reach * (1 - t);
+      const sightY = lerp(eyeY, top, t);
+      if (heightAt(x, sampleZ) > sightY - 0.08) return false;
+    }
+    return true;
+  }
+
+  function clearOfBandHazards(x, z, r, hazards, margin = 1.5) {
+    for (let i = 0; i < hazards.length; i++) {
+      const h = hazards[i];
+      const reach = r + h.r + margin;
+      const dx = x - h.x;
+      const dz = z - h.z;
+      if (dx * dx + dz * dz < reach * reach) return false;
+    }
+    return true;
+  }
+
   function place(b) {
     const rnd = stream(b * 2654435761);
     const z0 = b * band;
@@ -1459,6 +1863,63 @@ export function createProps(THREE, shading) {
     const down = smoothstep(FOREST.line[0], FOREST.line[1], travelled);
     const lineCover = lerp(FOREST.lineCover[0], FOREST.lineCover[1], down);
     const lineScale = lerp(FOREST.lineScale[0], FOREST.lineScale[1], down);
+
+    /* --- readable rock hazard -------------------------------------------
+
+       The centre remains a guaranteed route. At most one band in any
+       adjacent pair may own a boulder, its silhouette is visible from the
+       uphill approach, and its finite top lets an airborne rider clear it.
+       The candidate is authored before trees so their existing random stream
+       can stay byte-for-byte unchanged while placements too close to the rock
+       are simply refused. */
+    const bandHazards = [];
+    const hazardRoll = hash2(b, 3400, 227);
+    const previousRoll = hash2(b - 1, 3400, 227);
+    if (travelled >= BIOMES.hazardFrom
+      && hazardRoll < BIOMES.hazardChance
+      && previousRoll >= BIOMES.hazardChance) {
+      const padding = BIOMES.hazardPadding;
+      const z = z0 + padding + hash2(b, 3401, 227) * (band - padding * 2);
+      if (!parkAt(z)) {
+        centersAt(z, centres);
+        const leftBranch = hash2(b, 3402, 227) < 0.5;
+        const branch = leftBranch ? centres[0] : centres[1];
+        // At a fork, use the outside shoulder of the chosen branch. An
+        // inward rock can be safely off one centre line yet sit squarely on
+        // the other; the two outer shoulders preserve both routes at once.
+        const side = centres[0] !== centres[1]
+          ? (leftBranch ? -1 : 1)
+          : (hash2(b, 3403, 227) < 0.5 ? -1 : 1);
+        const v = hash2(b, 3404, 227) < 0.52 ? 0 : 1;
+        const s = lerp(1.28, 2.15, hash2(b, 3405, 227));
+        const sx = s * lerp(0.90, 1.10, hash2(b, 3406, 227));
+        const sy = s * lerp(0.84, 1.08, hash2(b, 3407, 227));
+        const sz = s * lerp(0.88, 1.12, hash2(b, 3408, 227));
+        const half = corridorHalfAt(z);
+        const rough = boulderTransform(v, 0, sx, sy, sz);
+        const minOff = PROPS.clearLane + 2 + rough.r;
+        const maxOff = half - BIOMES.hazardEdge - rough.r;
+
+        if (maxOff >= minOff) {
+          const off = lerp(minOff, maxOff, hash2(b, 3409, 227));
+          const x = branch + side * off;
+          const groundY = heightAt(x, z);
+          const shape = boulderTransform(v, groundY, sx, sy, sz);
+          if (visibleFromApproach(x, z, shape.top)
+            && rockPools[v].add(
+              x, shape.y, z, hash2(b, 3410, 227) * TAU, sx, sy, sz,
+            )) {
+            const solid = {
+              key: `boulder:${b}`,
+              type: 'boulder', x, z, r: shape.r,
+              kind: HARD, groundY, top: shape.top, cameraPad: 0.55,
+            };
+            solids.push(solid);
+            bandHazards.push(solid);
+          }
+        }
+      }
+    }
 
     // --- forest, either side of the corridor -------------------------------
     for (let i = 0; i < PROPS.treesPerBand; i++) {
@@ -1497,10 +1958,15 @@ export function createProps(THREE, shading) {
       const s = lerp(FOREST.size[0], FOREST.size[1],
         Math.pow(rnd(), FOREST.sizeBias)) * lineScale;
       const v = (rnd() * treePools.length) | 0;
-      treePools[v].addOnSlope(x, y, z, rnd() * TAU,
-        s, s * (0.85 + rnd() * 0.35), s,
-        treeLean(x, z, y, rnd), castOf(treeBare[v], v, rnd(), tint));
-      solids.push({ x, z, r: 0.5 + s * 0.45, kind: HARD, top: 99 });
+      const yaw = rnd() * TAU;
+      const sy = s * (0.85 + rnd() * 0.35);
+      const normal = treeLean(x, z, y, rnd);
+      const colour = castOf(treeBare[v], v, rnd(), tint);
+      const radius = 0.5 + s * 0.45;
+      if (!clearOfBandHazards(x, z, radius, bandHazards, 2.0)) continue;
+      treePools[v].addOnSlope(x, y, z, yaw,
+        s, sy, s, normal, colour);
+      solids.push({ x, z, r: radius, kind: HARD, top: 99 });
     }
 
     // --- trees on the piste, once the run has warmed up --------------------
@@ -1518,24 +1984,92 @@ export function createProps(THREE, shading) {
       const y = heightAt(x, z);
       const s = (0.6 + rnd() * 0.4) * lineScale;
       const v = (rnd() * treePools.length) | 0;
-      treePools[v].addOnSlope(x, y, z, rnd() * TAU, s, s, s,
-        treeLean(x, z, y, rnd), castOf(treeBare[v], v, rnd(), tint));
-      solids.push({ x, z, r: 0.5 + s * 0.45, kind: HARD, top: 99 });
+      const yaw = rnd() * TAU;
+      const normal = treeLean(x, z, y, rnd);
+      const colour = castOf(treeBare[v], v, rnd(), tint);
+      const radius = 0.5 + s * 0.45;
+      if (!clearOfBandHazards(x, z, radius, bandHazards, 2.0)) continue;
+      treePools[v].addOnSlope(x, y, z, yaw, s, s, s, normal, colour);
+      solids.push({ x, z, r: radius, kind: HARD, top: 99 });
     }
 
-    /* The shrubs used to be drawn here. Their stream draws are gone with them
-       rather than being left spinning to preserve the sequence — the seed is
-       the coordinate, so the mountain reshuffles, and a mountain that
-       reshuffles once when a prop is removed is a fair price for not carrying
-       a dead loop around to protect a layout nobody has memorised. */
+    /* --- continuous vegetation biomes -----------------------------------
 
-    /* The rocks were drawn here, and they are gone for the same reason the
-       shrubs went before them. A boulder sitting on a piste is a games idea:
-       it is an obstacle placed on the ground rather than a feature of it, it
-       has to be dodged rather than ridden, and the mountain already has a
-       vocabulary for making a rider work — knolls, drops, banks, the shape of
-       the corridor. Anything that slows a rider down or throws them into the
-       air should be the hill doing it, not furniture standing on the hill. */
+       Dedicated hash channels make these loops independent of the forest,
+       gates and rails. A fixed candidate budget is filtered by smooth ecology
+       weights, so density changes continuously even though instances are
+       rewritten only at an invisible streamed boundary. */
+    const eco = {};
+    for (let i = 0; i < BIOMES.plantCandidates; i++) {
+      const z = z0 + hash2(b, 3200 + i, 211) * band;
+      const side = hash2(b, 3220 + i, 211) < 0.5 ? -1 : 1;
+      const distance = lerp(0.8, 16, Math.pow(hash2(b, 3240 + i, 211), 1.35));
+      const x = vergeXAt(
+        z, side, distance,
+        hash2(b, 3260 + i, 211), hash2(b, 3280 + i, 211),
+      );
+      ecologyAt(x, z, eco);
+      const cover = clamp01(0.10 + 0.66 * Math.max(
+        eco.alpine, eco.heath * 0.78, eco.avalanche * 0.46,
+      ));
+      if (hash2(b, 3300 + i, 211) > cover) continue;
+      const y = heightAt(x, z) - 0.02;
+      const s = lerp(0.62, 1.34, hash2(b, 3320 + i, 211));
+      plantPool.addOnSlope(
+        x, y, z, hash2(b, 3340 + i, 211) * TAU,
+        s, s * lerp(0.82, 1.12, hash2(b, 3360 + i, 211)), s,
+        setFloraNormal(x, z),
+      );
+    }
+
+    for (let i = 0; i < BIOMES.shrubCandidates; i++) {
+      const z = z0 + hash2(b, 3000 + i, 223) * band;
+      const side = hash2(b, 3020 + i, 223) < 0.5 ? -1 : 1;
+      const distance = lerp(1.2, 24, Math.pow(hash2(b, 3040 + i, 223), 1.3));
+      const x = vergeXAt(
+        z, side, distance,
+        hash2(b, 3060 + i, 223), hash2(b, 3080 + i, 223),
+      );
+      ecologyAt(x, z, eco);
+      const shrubCover = clamp01(0.06 + 0.68 * Math.max(
+        eco.heath, eco.understory, eco.avalanche * 0.38, eco.alpine * 0.18,
+      ));
+      if (hash2(b, 3100 + i, 223) > shrubCover) continue;
+      const berryCover = clamp01(
+        eco.moisture * (eco.heath * 0.92 + eco.understory * 0.42),
+      );
+      const v = hash2(b, 3120 + i, 223) < berryCover ? 1 : 0;
+      const y = heightAt(x, z) - 0.05;
+      const s = lerp(0.78, 1.52, hash2(b, 3140 + i, 223));
+      shrubPools[v].addOnSlope(
+        x, y, z, hash2(b, 3160 + i, 223) * TAU,
+        s, s * lerp(0.90, 1.18, hash2(b, 3180 + i, 223)), s,
+        setFloraNormal(x, z),
+      );
+    }
+
+    /* Scenic talus lives outside the groomed edge and has no collider. Large
+       piste boulders above are the only rocks that ask the rider to react. */
+    for (let i = 0; i < BIOMES.sideRockCandidates; i++) {
+      const z = z0 + hash2(b, 3500 + i, 229) * band;
+      const side = hash2(b, 3520 + i, 229) < 0.5 ? -1 : 1;
+      const distance = lerp(3.5, 34, Math.pow(hash2(b, 3540 + i, 229), 1.2));
+      const x = outerEdgeAt(z, side) + side * distance;
+      ecologyAt(x, z, eco);
+      const rockCover = clamp01(0.08 + 0.48 * Math.max(eco.talus, eco.alpine * 0.8));
+      if (hash2(b, 3560 + i, 229) > rockCover) continue;
+      const v = hash2(b, 3580 + i, 229) < eco.exposure ? 0 : 1;
+      const s = lerp(0.58, 1.52, hash2(b, 3600 + i, 229));
+      const sx = s * lerp(0.82, 1.16, hash2(b, 3620 + i, 229));
+      const sy = s * lerp(0.70, 1.06, hash2(b, 3640 + i, 229));
+      const sz = s * lerp(0.82, 1.18, hash2(b, 3660 + i, 229));
+      const groundY = heightAt(x, z);
+      const shape = boulderTransform(v, groundY, sx, sy, sz);
+      if (!clearOfBandHazards(x, z, shape.r, bandHazards, 1.0)) continue;
+      rockPools[v].add(
+        x, shape.y, z, hash2(b, 3680 + i, 229) * TAU, sx, sy, sz,
+      );
+    }
 
     // --- alpine infrastructure --------------------------------------------
 
@@ -1684,20 +2218,20 @@ export function createProps(THREE, shading) {
        from behind to ahead. Every band is generated from its own seed, so the
        order changes nothing about the mountain — but it means the instances
        standing near the rider occupy the low indices of every pool, and the
-       shadow pass can draw a prefix instead of the whole forest. Three bands
-       either side is at least 120 m in the worst case, comfortably past both
-       the 92 m shadow box and a low sun's reach into it. It also means that
-       if a pool ever runs out of capacity, the trees dropped are the far
-       ones, which is the right way round. */
+       shadow pass can draw the smallest safe prefix selected from the
+       pre-recorded ring ends. It also means that if a pool ever runs out of
+       capacity, the trees dropped are the far ones, which is the right way
+       round. */
     const bi = Math.floor(riderZ / band);
-    const NEAR_BANDS = 3;
-    const span = Math.max(ahead, behind);
     place(bi);
-    for (let k = 1; k <= span; k++) {
+    for (let i = 0; i < shadowPools.length; i++) {
+      shadowPools[i].shadowEnds[0] = shadowPools[i].n;
+    }
+    for (let k = 1; k <= streamSpan; k++) {
       if (k <= behind) place(bi + k);
       if (k <= ahead) place(bi - k);
-      if (k === Math.min(NEAR_BANDS, span)) {
-        for (let i = 0; i < treePools.length; i++) treePools[i].near = treePools[i].n;
+      for (let i = 0; i < shadowPools.length; i++) {
+        shadowPools[i].shadowEnds[k] = shadowPools[i].n;
       }
     }
 
@@ -1740,5 +2274,28 @@ export function createProps(THREE, shading) {
     air.uAirWind.value.set(windX, windZ);
   }
 
-  return { group, update, setAir, railAt, railPoint, solids, rails, gates };
+  function debugBiomes() {
+    const hazards = [];
+    for (let i = 0; i < solids.length; i++) {
+      const s = solids[i];
+      if (s.type !== 'boulder') continue;
+      hazards.push({
+        key: s.key,
+        x: +s.x.toFixed(2), z: +s.z.toFixed(2),
+        r: +s.r.toFixed(2), top: +s.top.toFixed(2),
+      });
+    }
+    return {
+      band: currentBand,
+      plants: plantPool.n,
+      shrubs: shrubPools[0].n + shrubPools[1].n,
+      berries: shrubPools[1].n,
+      scenicRocks: rockPools[0].n + rockPools[1].n - hazards.length,
+      hazards,
+    };
+  }
+
+  return {
+    group, update, setAir, railAt, railPoint, solids, rails, gates, debugBiomes,
+  };
 }
