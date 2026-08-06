@@ -548,7 +548,7 @@ function rowContext(z, ctx) {
 }
 
 function heightIn(ctx, x, coarseDetail = 1, fineDetail = coarseDetail,
-  mogulDetail = 1, flankDetail = 1) {
+  mogulDetail = 1, flankDetail = 1, bulkDetail = 1) {
   const z = ctx.z;
   let h = ctx.base;
 
@@ -684,6 +684,26 @@ function heightIn(ctx, x, coarseDetail = 1, fineDetail = coarseDetail,
   // nothing against the budget the octaves are fighting over.
   if (over <= 0) {
     const u = d / Math.max(1, ctx.half);
+    /* A PARABOLA, AND IT WAS WORTH FINDING OUT WHY.
+
+       The obvious complaint about u² is that its gradient vanishes in the
+       middle of the corridor, which is exactly where the rider is supposed to
+       be held — so a hands-off rider feels nothing until they are most of the
+       way to the edge. u^1.4 fixes that on paper and was measured: it changed
+       the share of a hands-off run spent past the lip from 26-34% to 27-34%,
+       which is nothing.
+
+       The reason is that the drift is not a settling error, it is an
+       OSCILLATION. There is almost no lateral damping on a board running
+       straight, so a restoring gradient does not pull a rider to the middle
+       and hold them there — it swings them through it. Raising the gradient
+       raises the frequency and leaves the amplitude where it was, and the
+       amplitude is what `beyondLip` measures. The only thing that moves it is
+       taking away the forcing, which is the octaves' own lateral pull: see
+       `wander` in config, where it has been. So this stays a parabola, and it
+       stays a parabola specifically because the cheaper shape is the one that
+       works — `heightAt` is called about twenty-five times a physics step at
+       120 Hz and a `Math.pow` in it is not free. */
     h += corridor.bowl * u * u;
   }
   if (over > 0) {
@@ -781,6 +801,32 @@ function heightIn(ctx, x, coarseDetail = 1, fineDetail = coarseDetail,
           h -= R.depth * amp * t * t;
           h -= R.fineDepth * amp
             * (0.5 - 0.5 * Math.cos((w + drift * 0.4) * (TAU / R.fineWave)));
+        }
+      }
+
+      /* THE BULK — gullies and buttresses at the scale of the face itself,
+         plus a broken surface over them, both proportional to how steep the
+         flank is here. The reasoning is in `wall.bulk`; what matters at the
+         call site is that it shares the runnels' `steep²` amplitude for the
+         same containment reason, and that both terms are pure cuts: the
+         noise is mapped into 0…1 and subtracted, so nothing here can build a
+         bump with a downhill face on it.
+
+         It has its own detail mask because it survives a far coarser mesh
+         than the fluting does — which is the point of it. The far wall is
+         several hundred metres of screen and the fluting has faded out of it
+         long before the eye stops asking what shape the mountain is. */
+      if (bulkDetail > 0.001) {
+        const steepB = (2 * u * eu) / WALL_STEEP_PEAK;
+        if (steepB > 0.004) {
+          const B = wall.bulk;
+          const ampB = bulkDetail * steepB * steepB * (wall.scale / localScale);
+          h -= B.depth * ampB * (0.5 - 0.5 * snoise2(
+            w / B.wave, z / B.waveZ, left ? B.seed : B.seed + 41,
+          ));
+          h -= B.grain * ampB * (0.5 - 0.5 * snoise2(
+            w / B.grainWave, z / B.grainWave, left ? B.seed + 7 : B.seed + 53,
+          ));
         }
       }
 
@@ -942,6 +988,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   const fineDetailMask = new Float32Array(count);
   const mogulDetailMask = new Float32Array(count);
   const flankDetailMask = new Float32Array(count);
+  const bulkDetailMask = new Float32Array(count);
   const heights = new Float64Array(count);
   const indices = new (count > 65535 ? Uint32Array : Uint16Array)(rows * cols * 6);
 
@@ -993,6 +1040,12 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       // that would delete it while the wall is still the whole left of frame.
       flankDetailMask[m] = 1 - smoothstep(
         wall.runnels.lod[0], wall.runnels.lod[1], cell,
+      );
+      // The bulk is an octave coarser again, and it is the term that has to
+      // survive furthest: a seventy-metre gully is still the shape of the
+      // valley at a range where the fluting inside it is long gone.
+      bulkDetailMask[m] = 1 - smoothstep(
+        wall.bulk.lod[0], wall.bulk.lod[1], cell,
       );
     }
   }
@@ -1370,6 +1423,46 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   // than embossing the piste into trenches.
   const snowHeight = { value: new THREE.Vector2(0.85, 0.72) };
 
+  /* THE LIT GATE, which is a light on the snow and not a light in the scene.
+
+     A slalom gate is two poles and a flag, and at a hundred metres in falling
+     snow that is two vertical lines about a pixel wide each. The thing the
+     player actually has to see is not the poles, it is the GAP — the piece of
+     hill they are supposed to ride through — and nothing was drawing that at
+     all.
+
+     Three ways to draw it were available and two of them are wrong here.
+
+     A real light costs a light slot in every material's loop and lights the
+     sky as readily as the ground. A decal — a quad laid on the snow — has to
+     conform to a hill with four octaves of relief on it, and at the grazing
+     angle a rider sees the ground from, a quad that is a hand's breadth out
+     anywhere along its nine metres reads as a floating sheet of paper.
+
+     So it goes in the ground's own fragment shader, where the geometry
+     problem does not exist: the pixel already knows exactly where on the
+     mountain it is, `vWorld` is already here for the corduroy, and the glow
+     is a function of that. It conforms perfectly because it is not a surface,
+     and it costs four distance tests on the one material that wants them.
+
+     The shape is a lozenge rather than a disc, because a gate has a width:
+     the distance is measured to the SEGMENT between the two poles, so the
+     bright part is the mouth and the falloff is a soft margin all round it.
+
+     `w` is the strength and zero means an unused slot, which is what keeps
+     the loop branchless-ish and lets the writer simply stop early. */
+  const GATE_SLOTS = 4;
+  /* How far past the mouth the light reaches before it is gone. Six metres
+     spills a little onto the snow either side of each pole, which is what
+     makes the pair read as one gate rather than as two separate lamps. */
+  const GATE_FALLOFF = 6.0;
+  const gateGlow = {
+    value: Array.from({ length: GATE_SLOTS }, () => new THREE.Vector4()),
+  };
+  const gateTint = {
+    value: Array.from({ length: GATE_SLOTS }, () => new THREE.Color()),
+  };
+
   const prepareSurface = (texture) => {
     texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
     texture.minFilter = THREE.LinearMipmapLinearFilter;
@@ -1440,6 +1533,8 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       uSnowTile: snowTile,
       uSnowAlbedo: snowAlbedo,
       uSnowHeight: snowHeight,
+      uGateGlow: gateGlow,
+      uGateTint: gateTint,
     });
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>
@@ -1472,6 +1567,8 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
         varying float vRock;
         varying float vRockKind;
         varying vec2 vGroomFrame;
+        uniform vec4 uGateGlow[${GATE_SLOTS}];
+        uniform vec3 uGateTint[${GATE_SLOTS}];
         uniform sampler2D uSnowPowder;
         uniform sampler2D uSnowGroomed;
         uniform vec2 uSnowReady;
@@ -1849,6 +1946,52 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
 
           normal = normalize(normal + mat3(viewMatrix)
             * vec3(n64FarSlopeX, 0.0, n64FarSlopeZ));
+        }`)
+      /* The gate lights, added to the lit colour and before the fog — so a
+         gate two hundred metres off glows through the storm exactly as much
+         as the storm allows, which is what makes it read as a light on a
+         mountain rather than a sticker on the screen.
+
+         `opaque_fragment` is where `outgoingLight` becomes `gl_FragColor`,
+         and after it is the last moment the colour is still linear. Adding
+         before tone mapping is the difference between a light and a paint
+         bucket: a bright gate on bright snow rolls off instead of clipping to
+         a flat disc of pure hue.
+         (No back-ticks in here: this comment is inside a template literal.) */
+      .replace('#include <opaque_fragment>', `#include <opaque_fragment>
+        for (int n64Gi = 0; n64Gi < ${GATE_SLOTS}; n64Gi++) {
+          vec4 n64Gate = uGateGlow[n64Gi];
+          if (n64Gate.w <= 0.0) continue;
+          // Distance to the SEGMENT between the poles, not to its middle
+          vec2 n64GateP = vWorld.xz - n64Gate.xy;
+          float n64GateAx = max(abs(n64GateP.x) - n64Gate.z, 0.0);
+          float n64GateD = length(vec2(n64GateAx, n64GateP.y)) * ${(1 / GATE_FALLOFF).toFixed(5)};
+          if (n64GateD >= 1.0) continue;
+          float n64GateA = n64Gate.w * exp(-2.3 * n64GateD * n64GateD)
+            * (1.0 - smoothstep(0.55, 1.0, n64GateD));
+          /* MULTIPLY FIRST, THEN ADD, and the first attempt did only the
+             second half — which is a light that works at night and does
+             nothing at all in the day.
+
+             Sunlit snow is already at the top of the range. Adding amber to
+             it moves nothing a player can see: the channels clip and the
+             pool is white on white. That is not a strength problem and
+             turning it up ten times over did not fix it; it made a patch
+             appear in the one shaded dip beside the gate and stay invisible
+             between the poles, which is precisely backwards.
+
+             A coloured light on snow does two things and only one of them is
+             addition. It also *takes away* the parts of the daylight the
+             lamp is not made of, because the snow under it is being lit by
+             the lamp instead. So the ground is pushed towards the tint and
+             then given a little glow on top, and the result reads on white
+             snow at noon and in the dark at midnight for the same reason a
+             real one does.
+             (No back-ticks in here: this comment is inside a template literal.) */
+          vec3 n64GateC = uGateTint[n64Gi];
+          gl_FragColor.rgb = mix(gl_FragColor.rgb,
+            gl_FragColor.rgb * n64GateC * 1.25 + n64GateC * 0.30,
+            min(n64GateA, 1.0));
         }`);
   };
   /* Keep direction-aware atmospheric fog and continuous Lambert response,
@@ -1940,7 +2083,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       for (let c = 0; c < vertsX; c++, i++) {
         heights[i] = heightIn(
           ctx, ax + xs[c], coarseDetailMask[i], fineDetailMask[i],
-          mogulDetailMask[i], flankDetailMask[i],
+          mogulDetailMask[i], flankDetailMask[i], bulkDetailMask[i],
         );
       }
     }
@@ -2591,9 +2734,46 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     shading.uniforms.uShadeLevel.value = level * shadeHealth;
   }
 
+  /* Which gates are lit, written once a frame by whoever owns the prop field.
+     Everything ahead of the rider and inside the falloff's reach is a
+     candidate; the four nearest win, because four is what the shader has and
+     a gate behind you is not a thing you are aiming at.
+
+     A taken gate keeps a low ember rather than going out. Snapping it off is
+     the version that was tried first and it looks like a bug — the light
+     vanishes at the exact moment the rider is between the poles and cannot
+     see why. Fading it says *that one is done* while the pair is still in
+     shot, which is the entire message. */
+  const gateWarm = new THREE.Color('#ffb43c');
+  const gateCool = new THREE.Color('#3cffd0');
+  const gateOrder = [];
+  function setGates(gates, riderZ) {
+    gateOrder.length = 0;
+    for (let i = 0; i < gates.length; i++) {
+      const g = gates[i];
+      // Ahead, and near enough that its glow would still reach the ground
+      const ahead = riderZ - g.z;
+      if (ahead < -12 || ahead > TERRAIN.gateGlowReach) continue;
+      gateOrder.push(g);
+    }
+    gateOrder.sort((a, b) => (riderZ - a.z) - (riderZ - b.z));
+    for (let i = 0; i < GATE_SLOTS; i++) {
+      const g = gateOrder[i];
+      const slot = gateGlow.value[i];
+      if (!g) { slot.set(0, 0, 0, 0); continue; }
+      /* The far end of the reach fades in rather than switching on, so a gate
+         entering the fourth slot does not appear as a disc of light. */
+      const near = 1 - Math.max(0, (riderZ - g.z) / TERRAIN.gateGlowReach);
+      slot.set(g.x, g.z, g.half, TERRAIN.gateGlow
+        * (g.taken ? 0.22 : 1) * (0.25 + 0.75 * near * near));
+      gateTint.value[i].copy(g.warm ? gateWarm : gateCool);
+    }
+  }
+
   return {
     mesh,
     setSun,
+    setGates,
     update,
     // Settles once both snow plates have finished arriving, one way or the
     // other. The loading read-out is its only consumer; nothing in the game
@@ -2602,6 +2782,11 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     vertexCount: count,
     debug: () => ({
       anchorX, anchorY, anchorZ, morphing, morphAge,
+      // What the four gate slots are lit with this frame — the only way to
+      // tell a glow that is in the wrong place from one that is not there
+      gates: gateGlow.value.map((g) => [
+        +g.x.toFixed(1), +g.y.toFixed(1), +g.z.toFixed(1), +g.w.toFixed(2),
+      ]),
       shade: {
         page: shadePageSamples,
         span: shadePageSpan,

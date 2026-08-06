@@ -65,7 +65,19 @@
 
    The rocks and the shrubs are grown the same way and for the same reason.
    Both of them used to be a single stock polyhedron, which was survivable
-   while nothing on this mountain cast a shadow onto anything else. */
+   while nothing on this mountain cast a shadow onto anything else.
+
+   And the stone now comes in three jobs rather than one. A *hazard* is the
+   single readable boulder on the piste that the rider has to deal with. A
+   *stone* is scenery outside the groomed edge, and it now runs from a cobble
+   to a glacial erratic twenty times its volume — one family, one growth, a
+   squared draw over a factor of twenty, and every one of them bedded against
+   the lowest ground its own footprint covers rather than the height under its
+   middle. A *crag* is the flanks' geology: a stack of tipped slabs standing
+   out of the containment bank, which is the first thing on this mountain to
+   put a hard edge on that skyline. None of the last two has a collider and
+   none of them ever will — they live past the point where the deep snow has
+   already turned the rider around. */
 
 import {
   heightAt, nearestCenter, corridorHalfAt, centersAt, normalFrom, SNOWPACK,
@@ -205,6 +217,11 @@ const FOREST = {
   wobble: 0.09,           // …and a little more, so no two agree
   size: [0.46, 1.22],
   sizeBias: 1.45,         // >1 puts most of the stand at the small end
+  /* How far past the groomed edge a tree is still worth a collision hull.
+     See the note at the placement: the forest reaches far further than a
+     rider ever will, and a hull out there is a linear-scan cost with nothing
+     on the other end of it. */
+  solidOut: 40,
 };
 
 /* Ecology is deliberately a set of overlapping weights, not a biome label.
@@ -1043,6 +1060,99 @@ function growBoulder(THREE, seed, geos, palette) {
   };
 }
 
+/* A crag: the flanks' own geology, standing up out of the containment wall.
+
+   The mountain already paints rock on anything steep enough — see `vRock` in
+   the terrain shader — and that was doing the whole job, which is why the
+   walls read as smooth white banks with brown stains on them. A cliff is not
+   a colour. It is a *silhouette*: an edge that interrupts the skyline, throws
+   a shadow across the snow below it and tells you which way the strata run.
+
+   So this is a boulder built the other way up. A boulder is a lump that got
+   rounder; a crag is a stack of slabs that got broken, so the primitive is
+   the same weathered polyhedron squashed flat and piled with each course set
+   back and tilted a degree or two further than the one below. The set-back is
+   what does it — a vertical pile is a chimney, and a pile that leans reads as
+   bedding planes that have been tipped, which is what an alpine face is.
+
+   Snow only lands on the ledges, never on the faces, and that is the second
+   half of the read: a white wall with horizontal white lines on a grey ground
+   is a cliff even at two hundred metres, and it is the only thing out on
+   those banks with a hard edge anywhere on it. */
+function growCrag(THREE, seed, geos, palette) {
+  const rnd = stream(seed);
+  const parts = [];
+  const spent = [];
+  const dark = new THREE.Color(palette[0]);
+  const light = new THREE.Color(palette[1]);
+  const stone = (lo = 0.10, hi = 0.62) => new THREE.Color()
+    .lerpColors(dark, light, lerp(lo, hi, rnd()));
+  const block = (amount) => {
+    const g = weather(THREE, geos.stone, rnd, amount);
+    spent.push(g);
+    return g;
+  };
+
+  // Which way the beds dip, and how hard. One decision for the whole crag —
+  // strata that disagree with each other are rubble, not a cliff.
+  const dip = (rnd() - 0.5) * 0.30;
+  const lean = (rnd() < 0.5 ? -1 : 1) * (0.06 + rnd() * 0.10);
+  const courses = 4 + Math.floor(rnd() * 3);
+  let y = 0;
+  for (let i = 0; i < courses; i++) {
+    const t = i / (courses - 1);
+    // Each course is thinner and narrower than the one under it, so the
+    // stack tapers into a summit instead of ending in a flat table
+    const thick = lerp(0.42, 0.20, t) * (0.8 + rnd() * 0.45);
+    const width = lerp(1.0, 0.40, t) * (0.86 + rnd() * 0.28);
+    const setBack = lean * i * 1.15;
+    parts.push({
+      geo: block(0.30 + rnd() * 0.22), color: stone(), own: OWN_ALL,
+      pos: [setBack + (rnd() - 0.5) * 0.10, y + thick, (rnd() - 0.5) * 0.16],
+      rot: [dip + (rnd() - 0.5) * 0.10, rnd() * TAU, lean * 1.6 + (rnd() - 0.5) * 0.08],
+      scale: [width, thick, width * (0.72 + rnd() * 0.40)],
+    });
+    /* The ledge each course leaves, and the snow lying on it. Skipping the
+       top one matters: a summit cap of snow turns the whole thing back into
+       a boulder with a hat. */
+    if (i < courses - 1 && rnd() < 0.82) {
+      parts.push({
+        geo: block(0.55), color: SNOW, own: OWN_SNOW,
+        pos: [setBack + lean * 0.5, y + thick * 2 + 0.02, (rnd() - 0.5) * 0.14],
+        rot: [dip, rnd() * TAU, lean * 1.6],
+        scale: [width * (0.72 + rnd() * 0.26), 0.055 + rnd() * 0.04,
+          width * (0.60 + rnd() * 0.28)],
+      });
+    }
+    y += thick * 2 * (0.86 + rnd() * 0.18);
+  }
+  // Fallen blocks at the foot, which is where the courses above went
+  for (let i = 0; i < 3; i++) {
+    const a = rnd() * TAU;
+    const off = 0.9 + rnd() * 0.7;
+    const s = 0.16 + rnd() * 0.24;
+    parts.push({
+      geo: block(0.68), color: stone(0.08, 0.48), own: OWN_ALL,
+      pos: [Math.cos(a) * off, -0.02 + rnd() * 0.16, Math.sin(a) * off],
+      rot: [(rnd() - 0.5) * 1.4, rnd() * TAU, (rnd() - 0.5) * 1.4],
+      scale: [s, s * (0.5 + rnd() * 0.4), s * (0.8 + rnd() * 0.4)],
+    });
+  }
+
+  const geometry = compose(THREE, parts);
+  geometry.setAttribute('surfaceOwn', ownership(THREE, parts));
+  geometry.computeBoundingBox();
+  const bounds = geometry.boundingBox;
+  const radius = Math.max(
+    Math.abs(bounds.min.x), Math.abs(bounds.max.x),
+    Math.abs(bounds.min.z), Math.abs(bounds.max.z),
+  );
+  spent.forEach((g) => g.dispose());
+  return {
+    geometry, radius, bottom: bounds.min.y, top: bounds.max.y,
+  };
+}
+
 /* A winter shrub keeps its dark mass below the snow instead of becoming a
    white scrap. One variant carries exaggerated bilberry/lingonberry clusters:
    the fruit is still small, but large enough to survive motion and haze. */
@@ -1616,6 +1726,18 @@ export function createProps(THREE, shading) {
     THREE, grown.geometry, stoneMaterial,
     bands * (BIOMES.sideRockCandidates + 1) + 12,
   ));
+  /* Three crags, and three is enough because they are never seen together:
+     the placement below allows one band in several to carry one at all, and
+     the two that are in shot at any moment are two hundred metres apart on
+     opposite banks. */
+  const cragVariants = [
+    growCrag(THREE, 0x51c433, geos, SNOWPACK.slate),
+    growCrag(THREE, 0x51c433 + 4877, geos, SNOWPACK.iron),
+    growCrag(THREE, 0x51c433 + 9743, geos, SNOWPACK.slate),
+  ];
+  const cragPools = cragVariants.map((grown) => new Pool(
+    THREE, grown.geometry, stoneMaterial, bands + 8,
+  ));
 
   plantPool.mesh.name = 'alpine-plant-patches';
   plantPool.mesh.userData.noShadow = true;
@@ -1624,7 +1746,8 @@ export function createProps(THREE, shading) {
   for (const p of shrubPools) p.mesh.userData.noShadow = true;
   rockPools[0].mesh.name = 'slate-boulders';
   rockPools[1].mesh.name = 'iron-boulders';
-  for (const p of rockPools) {
+  cragPools.forEach((p, i) => { p.mesh.name = `flank-crag-${i}`; });
+  for (const p of rockPools.concat(cragPools)) {
     p.shadowEnds = new Uint16Array(streamSpan + 1);
     shadowPools.push(p);
     bindShadowPrefix(p);
@@ -1660,7 +1783,7 @@ export function createProps(THREE, shading) {
   for (const p of [railBars, railPosts, avalancheFences, waymarks]) p.cullable = true;
 
   const pools = [
-    plantPool, ...shrubPools, ...rockPools,
+    plantPool, ...shrubPools, ...rockPools, ...cragPools,
     poles, flags, railBars, railPosts, avalancheFences, waymarks,
   ];
   pools.forEach((p) => group.add(p.mesh));
@@ -1811,14 +1934,51 @@ export function createProps(THREE, shading) {
     return floraNormal.lerp(worldUp, 0.58).normalize();
   }
 
-  function boulderTransform(v, groundY, sx, sy, sz) {
-    const grown = boulderVariants[v];
+  function stoneTransform(grown, groundY, sx, sy, sz) {
     const y = groundY - grown.bottom * sy - 0.04;
     return {
       y,
       r: grown.radius * Math.max(sx, sz) * 0.88,
       top: y + grown.top * sy,
     };
+  }
+  function boulderTransform(v, groundY, sx, sy, sz) {
+    return stoneTransform(boulderVariants[v], groundY, sx, sy, sz);
+  }
+
+  /* WHERE A STONE ACTUALLY SITS, which is not what one terrain sample says.
+
+     A rock was bedded by taking the height under its centre and dropping the
+     mesh four centimetres. That is exact for a rock on level ground and wrong
+     for every other rock on the mountain: this hill has four octaves of
+     relief on it, so the ground under a stone's uphill edge and the ground
+     under its downhill edge are routinely a third of a metre apart, and a
+     centre sample splits the difference — half the stone buried, the other
+     half standing on air. At the sizes below it stops being subtle. A
+     seven-metre erratic bedded off its centre floats a metre clear of the
+     snow on its downhill side.
+
+     The fix is to bed against the LOWEST ground the footprint covers rather
+     than the average, plus a sink that scales with the stone. Sampling the
+     minimum is the whole of it: a stone whose base is at or below every point
+     of ground it overlaps cannot show daylight underneath, whatever the
+     surface is doing. It is four extra height samples, paid once when a band
+     is rebuilt and never during play.
+
+     Sinking by a share of the radius rather than a constant is the other
+     half. Four centimetres is a lot of a pebble and nothing at all of an
+     erratic, and a big rock that is merely *resting on* the snow reads as
+     dropped in — real ones are half buried, because the snow drifted up
+     around them. */
+  function beddedGroundY(x, z, r, sink) {
+    let lowest = heightAt(x, z);
+    const reach = Math.max(0.35, r * 0.82);
+    for (let i = 0; i < 4; i++) {
+      const a = i * (Math.PI / 2) + 0.6;
+      const h = heightAt(x + Math.cos(a) * reach, z + Math.sin(a) * reach);
+      if (h < lowest) lowest = h;
+    }
+    return lowest - sink;
   }
 
   /* Three terrain samples along a 42 m uphill sightline keep a boulder from
@@ -1938,8 +2098,29 @@ export function createProps(THREE, shading) {
         x = (centres[0] + centres[1]) / 2 + (rnd() * 2 - 1) * (gap - 1.5);
       } else {
         const c = side < 0 ? centres[0] : centres[1];
-        // pow biases the crowd towards the treeline rather than the far edge
-        x = c + side * (half - 2.5 + Math.pow(rnd(), 0.6) * 78);
+        /* How far out the forest reaches, and it goes half as far again as it
+           did. Seventy-eight metres put the whole stand on the flat shoulder
+           beside the piste and stopped at the foot of the containment bank,
+           so the banks themselves — which are the largest thing in the frame
+           and the thing the eye uses to judge how big the valley is — were
+           bare white walls above a hard treeline. A real one climbs until the
+           altitude stops it, and this one now climbs most of the way up the
+           bank before `lineCover` and the stand field thin it out.
+
+           AND THE EXPONENT WENT WITH IT, from 0.6 to a flat draw. Below one
+           it pushed the scatter *outward*, so most trees sat in the outer
+           part of the reach — which was survivable at seventy-eight metres
+           and is not at a hundred and thirty, because the outer part is now
+           high on the containment bank at the range where the fog has taken
+           the ground. White snow fades into white haze and a dark crown does
+           not, so a stand up there reads as trees hanging in the sky. That
+           artefact is not new — it is what a white mountain in white weather
+           does, and it was already visible with the old reach — but piling
+           the new trees exactly where it is worst would have made it the
+           subject of the frame. A flat draw spreads them evenly instead, so
+           the bank gets forest all the way up it rather than a band at the
+           top. */
+        x = c + side * (half - 2.5 + rnd() * 132);
       }
       /* And whether anything grows here at all. The stand field is sampled at
          the tree's own position rather than the band's, so a clearing has an
@@ -1966,7 +2147,24 @@ export function createProps(THREE, shading) {
       if (!clearOfBandHazards(x, z, radius, bandHazards, 2.0)) continue;
       treePools[v].addOnSlope(x, y, z, yaw,
         s, sy, s, normal, colour);
-      solids.push({ x, z, r: radius, kind: HARD, top: 99 });
+      /* A COLLIDER ONLY WHERE A RIDER CAN GET TO, which is a new question
+         because the forest now reaches a hundred and thirty metres out.
+
+         `collide()` is a linear scan over `solids` at every one of the 120
+         physics steps a second, and the forest is nearly all of that list.
+         Nearly doubling the tree count while also doubling their reach would
+         have nearly quadrupled the scan — to pay for hulls around trees
+         standing forty metres up a containment bank that the deep snow has
+         already refused to let anybody climb. The measured ceiling for a
+         rider who is *trying* is a shade under twenty-four metres above the
+         piste; forty metres of lateral offset past the groomed edge is well
+         beyond where that puts them.
+
+         Everything inside that keeps its collider, so nothing a rider can
+         actually hit has stopped being solid. */
+      if (Math.abs(x - nearestCenter(x, z)) < half + FOREST.solidOut) {
+        solids.push({ x, z, r: radius, kind: HARD, top: 99 });
+      }
     }
 
     // --- trees on the piste, once the run has warmed up --------------------
@@ -2049,26 +2247,86 @@ export function createProps(THREE, shading) {
     }
 
     /* Scenic talus lives outside the groomed edge and has no collider. Large
-       piste boulders above are the only rocks that ask the rider to react. */
+       piste boulders above are the only rocks that ask the rider to react.
+
+       A SINGLE STONE, IN EVERY SIZE FROM PEBBLE TO ERRATIC. The old range was
+       0.58 to 1.52, which is a factor of two and a half — near enough one
+       stone that sometimes came out a bit bigger. The range below is a factor
+       of twenty, and the exponent is what makes that usable: squared, the
+       draw puts three quarters of the stones under a third of the maximum, so
+       the hillside is mostly gravel and cobbles with the occasional block
+       standing over them. A uniform draw over the same range would be a field
+       of medium rocks, which is what an even distribution always is.
+
+       And the big ones stand further out. It is not a rule about crowding,
+       it is where the sizes actually are: the fines wash down to the verge
+       and the erratics are left where the ice dropped them, up the bank. */
     for (let i = 0; i < BIOMES.sideRockCandidates; i++) {
       const z = z0 + hash2(b, 3500 + i, 229) * band;
       const side = hash2(b, 3520 + i, 229) < 0.5 ? -1 : 1;
-      const distance = lerp(3.5, 34, Math.pow(hash2(b, 3540 + i, 229), 1.2));
+      const grade = hash2(b, 3600 + i, 229);
+      const s = lerp(BIOMES.stoneSize[0], BIOMES.stoneSize[1], grade * grade);
+      const distance = lerp(3.0, 40, Math.pow(hash2(b, 3540 + i, 229), 1.2))
+        + s * 3.4;
       const x = outerEdgeAt(z, side) + side * distance;
       ecologyAt(x, z, eco);
-      const rockCover = clamp01(0.08 + 0.48 * Math.max(eco.talus, eco.alpine * 0.8));
+      const rockCover = clamp01(0.12 + 0.56 * Math.max(eco.talus, eco.alpine * 0.8));
       if (hash2(b, 3560 + i, 229) > rockCover) continue;
       const v = hash2(b, 3580 + i, 229) < eco.exposure ? 0 : 1;
-      const s = lerp(0.58, 1.52, hash2(b, 3600 + i, 229));
       const sx = s * lerp(0.82, 1.16, hash2(b, 3620 + i, 229));
       const sy = s * lerp(0.70, 1.06, hash2(b, 3640 + i, 229));
       const sz = s * lerp(0.82, 1.18, hash2(b, 3660 + i, 229));
-      const groundY = heightAt(x, z);
+      const rough = boulderTransform(v, 0, sx, sy, sz);
+      const groundY = beddedGroundY(x, z, rough.r, 0.05 + rough.r * 0.16);
       const shape = boulderTransform(v, groundY, sx, sy, sz);
       if (!clearOfBandHazards(x, z, shape.r, bandHazards, 1.0)) continue;
       rockPools[v].add(
         x, shape.y, z, hash2(b, 3680 + i, 229) * TAU, sx, sy, sz,
       );
+    }
+
+    /* --- the crags -------------------------------------------------------
+
+       Rock cliffs, well up the containment banks. `cragFrom` keeps them out
+       of the opening stretch for the same reason everything else is kept out
+       of it, and one band in six carries one — which at forty metres a band
+       is a face every quarter kilometre, so the flanks have geology in them
+       without turning into a canyon.
+
+       They are placed where the bank is *exposed* rather than uniformly: the
+       ecology's exposure field is the same one that decides where talus and
+       alpine cushions go, so a crag stands at the top of its own scree slope
+       instead of in the middle of a stand of trees.
+
+       No collider, and nothing in `solids`. These are eighty to a hundred and
+       sixty metres off the centre line, which is past the point where the
+       deep snow has already refused the rider — see `RIDER.wallSpan`. A
+       collision hull out there would only ever fire on a rider the mountain
+       had already turned around, and it would fire invisibly. */
+    if (travelled >= BIOMES.cragFrom && hash2(b, 3700, 233) < BIOMES.cragChance) {
+      const z = z0 + 6 + hash2(b, 3701, 233) * (band - 12);
+      const side = hash2(b, 3702, 233) < 0.5 ? -1 : 1;
+      const distance = lerp(BIOMES.cragOut[0], BIOMES.cragOut[1], hash2(b, 3703, 233));
+      const x = outerEdgeAt(z, side) + side * distance;
+      ecologyAt(x, z, eco);
+      if (hash2(b, 3704, 233) < 0.18 + 0.82 * eco.exposure) {
+        const v = Math.floor(hash2(b, 3705, 233) * cragPools.length);
+        const s = lerp(BIOMES.cragSize[0], BIOMES.cragSize[1], hash2(b, 3706, 233));
+        const sx = s * lerp(0.86, 1.24, hash2(b, 3707, 233));
+        const sy = s * lerp(0.88, 1.30, hash2(b, 3708, 233));
+        const sz = s * lerp(0.86, 1.24, hash2(b, 3709, 233));
+        const grown = cragVariants[v];
+        const rough = stoneTransform(grown, 0, sx, sy, sz);
+        const groundY = beddedGroundY(x, z, rough.r, 0.4 + rough.r * 0.22);
+        const shape = stoneTransform(grown, groundY, sx, sy, sz);
+        /* Turned to face the run rather than turned at random. A crag has a
+           front — the tipped beds and the ledges are all on one side of it —
+           and a face pointed into the mountain is a pile of rubble seen from
+           behind. */
+        const yaw = (side < 0 ? Math.PI / 2 : -Math.PI / 2)
+          + (hash2(b, 3710, 233) - 0.5) * 0.9;
+        cragPools[v].add(x, shape.y, z, yaw, sx, sy, sz);
+      }
     }
 
     // --- alpine infrastructure --------------------------------------------
@@ -2172,7 +2430,13 @@ export function createProps(THREE, shading) {
          gate was to decide whether the rider went through it, and a gate that
          is scored against the wrong width is worse than one that is not
          scored at all. */
-      gates.push({ x: cx, z, half: PROPS.gateHalf, taken: false });
+      // `warm` is which of the two flag colours this pair flies, and it
+      // travels with the gate for one reason: the light on the snow between
+      // the poles is drawn by the terrain, three modules away, and a gate lit
+      // in a colour it is not flying is two gates in the same place.
+      gates.push({
+        x: cx, z, half: PROPS.gateHalf, taken: false, warm: colour === gateB,
+      });
     }
 
     /* --- rails ------------------------------------------------------------

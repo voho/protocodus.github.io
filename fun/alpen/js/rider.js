@@ -1726,7 +1726,12 @@ export class Rider {
         this.world.height, pos.x, pos.z, vel, this._n,
       );
       const approaching = vel.dot(contact) < -0.02;
-      const descending = vel.y <= 0;
+      // …or buried, whichever comes first. A rising contact is normally
+      // refused so a pop off an uphill transition is not taken back — but
+      // ground that climbs faster than the rider does turns that refusal
+      // into a rider inside the mountain, one step at a time. See
+      // `RIDER.buryDepth`.
+      const descending = vel.y <= 0 || gy - pos.y > RIDER.buryDepth;
       if (this.airTime >= RIDER.launchContactGrace && descending && approaching) {
         pos.y = gy;
         this.land();

@@ -176,11 +176,22 @@ const PHASES = [
   },
 ];
 
+/* IT IS ALWAYS SNOWING. CLEAR came off this list, and with it the idea that
+   the dial's bottom end is an absence of weather.
+
+   The band names are only labels, but they were honest ones: the bottom of
+   the storm dial genuinely was nothing falling at all, and a mountain with
+   nothing falling on it is a postcard. What the run wants is the other thing
+   the Alps do constantly — a sky that is never quite finished, from a few
+   flakes drifting through the headlamp to a whiteout you steer by feel. So
+   the scale now runs from a light fall to a blizzard, and the floor under
+   `state.snow` further down is what makes the label true rather than
+   decorative. */
 const BANDS = [
-  { to: 0.14, name: 'CLEAR' },
-  { to: 0.34, name: 'LIGHT SNOW' },
-  { to: 0.58, name: 'SNOWING' },
-  { to: 0.80, name: 'HEAVY SNOW' },
+  { to: 0.16, name: 'FLURRIES' },
+  { to: 0.36, name: 'LIGHT SNOW' },
+  { to: 0.60, name: 'SNOWING' },
+  { to: 0.81, name: 'HEAVY SNOW' },
   { to: 1.01, name: 'BLIZZARD' },
 ];
 
@@ -199,6 +210,10 @@ const BANDS = [
 const DAY_SECONDS = 180;
 const START_TOD = 0.34;      // a bright morning, so the first look is the best one
 const STORM_PERIOD = 110;    // seconds per unit of the noise that drives it
+/* The quietest the sky is ever allowed to get. See `BANDS`: the run is never
+   without falling snow, so the dial's bottom is a light fall rather than
+   clear air. Small enough that a calm minute still looks calm. */
+const STORM_FLOOR = 0.085;
 /* Menu/debug time presets are camera moves through the day, not cuts.  This
    rate takes roughly five seconds to settle after a large request, slow
    enough that the sun, fog line and kilometer-scale mountain shadows travel
@@ -455,7 +470,17 @@ export function createWeather(THREE) {
        lower still, and the stretch is what lets the tail reach a genuine
        whiteout every few minutes. */
     const spread = Math.min(1, Math.max(0, (raw - 0.55) * 2.9 + 0.32));
-    state.storm = Math.pow(spread, 1.7);
+    /* …and a floor under it, which is what "always snowing" means in the one
+       place it has to mean something.
+
+       The exponent still keeps the light end far more common than the heavy
+       one — that has not changed and should not, because the storm pulls
+       every colour towards the haze and a mountain permanently at HEAVY SNOW
+       washes out to cream. What has changed is that the light end is no
+       longer nothing. A twelfth of the dial is enough to keep flakes in the
+       air, the fog a little in, and the snow underfoot a shade softer,
+       without touching how the picture reads on a quiet day. */
+    state.storm = STORM_FLOOR + (1 - STORM_FLOOR) * Math.pow(spread, 1.7);
     const s = state.storm;
 
     /* The aurora, on the same shape of clock as the storm and cut higher up
@@ -515,10 +540,16 @@ export function createWeather(THREE) {
        rarer news. It is also only said in air that is otherwise quiet: a bank
        of fog announced in the middle of a blizzard is not information. */
     if (state.aurora > AURORA.say) {
-      state.conditions = state.conditions === 'CLEAR'
+      /* The quietest band is the one that used to be CLEAR, and these two
+         tested for that name. Testing the *dial* instead says the same thing
+         and cannot go stale the next time the labels move: below the first
+         band the sky is as quiet as this mountain gets, and a lone AURORA or
+         MIST is the more useful headline than "flurries, and also an
+         aurora". */
+      state.conditions = s < BANDS[0].to
         ? 'AURORA' : `${state.conditions} · AURORA`;
     } else if (state.mist > MIST.say && s < BANDS[1].to) {
-      state.conditions = state.conditions === 'CLEAR'
+      state.conditions = s < BANDS[0].to
         ? 'MIST' : `${state.conditions} · MIST`;
     }
 

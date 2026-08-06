@@ -1088,6 +1088,13 @@ function frame(now) {
 
     huts.update(dt, rider, w, onCocoa);
 
+    /* The gates light the snow they stand on, and the ground's own shader is
+       what draws it — so this hands the terrain the nearest few and nothing
+       else. It runs here, with the rest of the world's per-frame state,
+       because the prop field's gate list is only rebuilt at band boundaries
+       and the *choice* of which four are lit has to follow the rider. */
+    terrain.setGates(props.gates, rider.pos.z);
+
     /* Everything below this line is drawing, so it reads the interpolated
        rider. Everything above — collisions, wildlife, scoring, the huts —
        already read the integrator's own state, and the true position is

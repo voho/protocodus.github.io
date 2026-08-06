@@ -205,8 +205,13 @@ const LEGEND = [
   ['W', 'BOOST'],
   ['S', 'BRAKE'],
   ['SPACE', 'CHARGE · POP'],
-  ['Q', 'GRAB'],
-  ['E', 'FLIP'],
+  /* Q and E each do two things now, and which one is decided by W or S. This
+     is the line that has to carry that without becoming a sentence: the four
+     keys are already above, so the reminder is what they *combine* into, and
+     the plus sign is doing the work a paragraph does on the title card. */
+  ['Q', 'GRAB · PRESS'],
+  ['E', 'BACKFLIP'],
+  ['+ W S', 'NOSE · METHOD · FRONTFLIP'],
   ['ESC R N M F', 'PAUSE · RESET · NEW · AUDIO · FULL'],
 ];
 
