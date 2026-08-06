@@ -266,6 +266,7 @@ uniform float uFogFar;
 uniform float uMistFloor;
 uniform float uMistLevel;
 uniform float uSheen;
+uniform float uFogPull;
 uniform float uSnowFresh;
 uniform float uCloud;
 uniform vec2 uCloudDrift;
@@ -518,10 +519,32 @@ function lightPatch(sheen) {
    by carrying a world position because a world position has to know about
    instancing, batching and skinning, and a view position does not: three has
    already applied all three by the time `mvPosition` exists. */
+/* …and `uFogPull`, which is the one thing in this block that is a correction
+   rather than a model.
+
+   Aerial perspective is `mix(surface, sky, f)` with one `f` for everything at
+   a range, and that is what this does. It is also why a snowfield and a
+   conifer at the same four hundred metres do not vanish together. Snow is
+   already the colour of the haze, so it stops being distinguishable from the
+   sky at about f = 0.5; a dark crown needs f near 0.95 before it does. The
+   result was a mountain whose ground had dissolved out from under a forest
+   that had not, and a stand on a bank two hundred metres off read as trees
+   hanging in mid-air. It was measured before it was fixed — the trees are on
+   the drawn surface to within a metre at every range — so this was never a
+   placement bug and no amount of moving geometry was going to help.
+
+   The correction is one number per material: how much further away this
+   surface should pretend to be when it asks the curtain how faded it is.
+   Multiplying the *distance* rather than the fog factor matters, because it
+   slides the curtain nearer without changing its shape — a tree at two
+   hundred and fifty metres is then fogged exactly as the ground at four
+   hundred and fifty is, and the treeline goes into the weather with the hill
+   it is standing on instead of surviving it. Everything defaults to 1 and is
+   therefore untouched. */
 const FRAG_FOG = `
   {
     float n64Dist = length(vN64View);
-    float n64Fog = smoothstep(uFogNear, uFogFar, n64Dist);
+    float n64Fog = smoothstep(uFogNear, uFogFar, n64Dist * uFogPull);
     /* Valley mist: the fog's height term. The radial curtain treats a hollow
        and a crest at the same range identically, which discards the one
        depth cue this terrain is actually made of. The mist is a bank with a
@@ -791,8 +814,11 @@ export function createShading(THREE) {
     // vertex. Everything else that has a light loop to patch gets it.
     const wantShade = opts.shade !== false;
     // Keep the snow response live-tunable without recompiling a material.
+    // Per-material, and both are live-tunable without a recompile: the value
+    // is read every frame and only the *presence* of the patch is in the key.
     const own = {
       uSheen: { value: sheen },
+      uFogPull: { value: opts.fogPull === undefined ? 1 : opts.fogPull },
     };
 
     const prev = material.onBeforeCompile;
