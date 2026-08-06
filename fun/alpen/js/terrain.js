@@ -752,11 +752,27 @@ function heightIn(ctx, x, coarseDetail = 1, fineDetail = coarseDetail,
           const drift = R.meander * snoise2(
             z * R.meanderFreq, left ? -5.7 : 5.7, R.seed,
           );
-          // Arriving over `soften` metres with a zero derivative at the lip:
-          // the bank and the wall are built to meet without a crease, and a
-          // corrugation that started at full depth would put one there.
-          const amp = flankDetail * steep * (wall.scale / localScale)
-            * smoothstep(0, R.soften, w);
+          /* SQUARED, and that is the whole of the containment argument near
+             the lip rather than a shaping choice.
+
+             The ratio below bounds the *carrier's* slope against the wall's,
+             and it is a complete argument only for a term whose amplitude is
+             constant. It is not: the amplitude has to arrive from zero
+             somewhere, and an arrival ramp contributes its own slope of about
+             depth over its length — a constant — while the wall's own
+             gradient near the lip is going to zero linearly. So there is
+             always a band just past the lip where a linear arrival out-climbs
+             the mountain, and it was measurable: an ordinary stretch of flank
+             seven metres out went from +0.11 to −0.02, which is a pocket in
+             ground that is supposed to be monotonically uphill everywhere.
+
+             `steep` is already linear in w near the lip, so squaring it makes
+             the amplitude quadratic and its derivative linear — the same
+             order as the wall's, with a constant ratio between them, which is
+             the property the rest of this block is built on. It costs nothing
+             anybody will miss: the channels simply concentrate on the steepest
+             third of the face, which is where a slide actually cuts them. */
+          const amp = flankDetail * steep * steep * (wall.scale / localScale);
           const lambda = R.wave * (1 - R.waveVary + 2 * R.waveVary * broad);
           // Squared, so the channel floors are narrow and the ribs between
           // them broad — which is the section a slide leaves, and not the
@@ -1764,36 +1780,45 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
            frame and therefore bending with the route and forking with it. */
         float n64FarLive = smoothstep(60.0, 125.0, vDist)
           * (1.0 - smoothstep(380.0, 520.0, vDist)) * n64SnowMask;
+        /* THE THREE PHASES AND THEIR FOOTPRINTS, MEASURED OUT HERE, where
+           every fragment in the quad still agrees that they are being
+           measured. Derivatives are only defined in uniform control flow, and
+           the gate below is not uniform: it varies with distance across the
+           60-125 m and 380-520 m fades and with the snow mask at every rock
+           boundary, so a quad split along any of those owes the fragments
+           inside no meaningful rate of change. Taking fwidth in there would
+           hand the anti-moire gate a driver-dependent number in exactly the
+           places it exists to protect. The same argument, and the same
+           remedy, as the plate fetches above.
+           (No back-ticks in here: this comment is inside a template literal.) */
+        float n64FarAcross = vWorld.x * 0.985 - vWorld.z * 0.174;
+        float n64FarAlong = vWorld.x * 0.174 + vWorld.z * 0.985;
+        // Drift lines: eight metres across, a hundred down the wind.
+        float n64FarSwayA = n64FarAlong * 0.0628;
+        float n64FarPhaseA = n64FarAcross * 0.816 + sin(n64FarSwayA) * 2.1;
+        // Soft sastrugi over the top: three metres across, thirty along.
+        float n64FarSwayB = n64FarAlong * 0.224 + 2.1;
+        float n64FarPhaseB = n64FarAcross * 1.904 + sin(n64FarSwayB) * 1.3;
+        // The machine's passes, in the groomer's own frame.
+        float n64FarPhaseG = (vWorld.x - vGroomFrame.x) * 1.30;
+        /* Each carrier dissolves against its own screen footprint, and this
+           is the load-bearing part rather than a nicety: measured in radians
+           of phase per pixel, past about one and a half there are fewer than
+           four pixels to a cycle and what reaches the screen is not drift, it
+           is the moire this file has been burned by before. The anisotropy is
+           what keeps the gate open at all down a piste seen nearly edge-on —
+           almost all of the variation is across the run, which is the axis a
+           grazing view foreshortens least. */
+        float n64FarFadeA = 1.0 - smoothstep(0.55, 1.55, fwidth(n64FarPhaseA));
+        float n64FarFadeB = 1.0 - smoothstep(0.55, 1.55, fwidth(n64FarPhaseB));
+        float n64FarFadeG = 1.0 - smoothstep(0.55, 1.55, fwidth(n64FarPhaseG));
         if (n64FarLive > 0.003) {
-          float n64FarAcross = vWorld.x * 0.985 - vWorld.z * 0.174;
-          float n64FarAlong = vWorld.x * 0.174 + vWorld.z * 0.985;
           float n64FarPatch = 0.26 + 0.74 * n64Noise(vWorld.xz * 0.0135);
-
-          // Drift lines: eight metres across, a hundred down the wind.
-          float n64FarSwayA = n64FarAlong * 0.0628;
-          float n64FarPhaseA = n64FarAcross * 0.816 + sin(n64FarSwayA) * 2.1;
-          // Soft sastrugi over the top: three metres across, thirty along.
-          float n64FarSwayB = n64FarAlong * 0.224 + 2.1;
-          float n64FarPhaseB = n64FarAcross * 1.904 + sin(n64FarSwayB) * 1.3;
-          // The machine's passes, in the groomer's own frame.
-          float n64FarPhaseG = (vWorld.x - vGroomFrame.x) * 1.30;
-
-          /* Each carrier dissolves against its own screen footprint, and this
-             is the load-bearing part rather than a nicety: measured in radians
-             of phase per pixel, past about one and a half there are fewer than
-             four pixels to a cycle and what reaches the screen is not drift,
-             it is the moire this file has been burned by before. The
-             anisotropy is what keeps the gate open at all down a piste seen
-             nearly edge-on — almost all of the variation is across the run,
-             which is the axis a grazing view foreshortens least. */
           float n64FarWindLevel = n64FarLive * n64FarPatch
             * (1.0 - n64GroomWeight);
-          float n64FarA = 0.215 * n64FarWindLevel
-            * (1.0 - smoothstep(0.55, 1.55, fwidth(n64FarPhaseA)));
-          float n64FarB = 0.082 * n64FarWindLevel
-            * (1.0 - smoothstep(0.55, 1.55, fwidth(n64FarPhaseB)));
-          float n64FarG = 0.062 * n64FarLive * n64GroomWeight
-            * (1.0 - smoothstep(0.55, 1.55, fwidth(n64FarPhaseG)));
+          float n64FarA = 0.215 * n64FarWindLevel * n64FarFadeA;
+          float n64FarB = 0.082 * n64FarWindLevel * n64FarFadeB;
+          float n64FarG = 0.062 * n64FarLive * n64GroomWeight * n64FarFadeG;
 
           float n64FarCosA = cos(n64FarPhaseA) * n64FarA;
           float n64FarCosB = cos(n64FarPhaseB) * n64FarB;

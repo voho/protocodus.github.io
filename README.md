@@ -163,13 +163,29 @@ as two poured ramps from inside the piste: a term that changes over hundreds
 of metres of descent does not change at all in the frame. What actually covers
 a steep snow flank runs the other way, straight down the fall line, cut by
 every sluff and point release that has come off it since November. The
-channels are exactly as deep as the wall is steep, so they are nothing at the
-lip, nothing on the plateau and deepest across the face between — which is
-both what a slide does and what keeps the containment intact, because the
-ratio between a channel's steepest wall and the mountain's is a constant
-rather than an amplitude somebody has to re-check. The snowpack then paints
-them for free: crests scour to rock, hollows fill with drift, and a flank
-comes out striped the way a real one is.
+channels are as deep as the square of how steep the wall is, so they are
+nothing at the lip, nothing on the plateau and deepest across the face between
+— which is both what a slide does and what keeps the containment intact,
+because the ratio between a channel's steepest wall and the mountain's is a
+constant rather than an amplitude somebody has to re-check.
+
+The square is the part that took a second attempt, and it is worth writing
+down because the first attempt looked complete. Scaling by the steepness bounds
+the *carrier's* slope and says nothing about the amplitude's own arrival: a
+ramp that brings the channels in over ten metres contributes about their depth
+over that ten metres — a constant — against a wall gradient that goes to zero
+linearly at the lip. So there is always a band just past the lip where the
+arrival out-climbs the mountain, and there was one: a stretch of flank seven
+metres out measured +0.11 without the channels and −0.02 with them, a pocket in
+ground whose entire job is to be uphill. Squared, the amplitude is quadratic in
+the distance past the lip and its derivative is linear, the same order as the
+wall's, so one constant covers the arrival and the carrier together. Swept at
+25 cm across both flanks over thirty kilometres of run — 28 million samples —
+the worst outward slope and the deepest pocket are now the ones that were
+already there.
+
+The snowpack then paints them for free: crests scour to rock, hollows fill with
+drift, and a flank comes out striped the way a real one is.
 
 **The rider is a velocity vector on a surface**, not a speed along a track,
 and most of how the game feels falls out of that. Gravity is resolved on the

@@ -1343,7 +1343,20 @@ afterPaint(() => {
   terrain.setSun(sky.sunDir.x, sky.sunDir.y, sky.sunDir.z, sky.shadowLevel);
 
   restart();
-  game.mode = 'attract';
+  /* …unless the player has already dropped in, which is now something that
+     can happen *here*.
+
+     Both the key hook and the curtain's click listener are live from the
+     moment this module evaluates, and that is no longer the same instant as
+     this line: there are two frames and a mountain build in between. A tap on
+     the title card inside that window runs `begin`, which dismisses the
+     curtain and sets the mode to playing — and written as a plain assignment
+     this put the run straight back into attract mode with the curtain already
+     gone. On a keyboard the next key press recovers it; on a touch device the
+     curtain is the only thing that starts a run, so there was no way back at
+     all. The rebuild above still has to happen either way, because an early
+     `begin` built its mountain before the sun above it existed. */
+  if (game.mode !== 'playing') game.mode = 'attract';
   showMuted(audio.muted);
   boot.step('mountain');
 

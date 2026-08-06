@@ -346,19 +346,25 @@ const POSE = {
      `point` is in the board's own frame — +X is the toe edge, −Z is the nose
      — and the row order is the one `RIDER.grabs` and `GRAB_INDY`/`GRAB_NOSE`/
      `GRAB_METHOD` in `rider.js` use. Three files agree about which grab is
-     which, and the way they agree is that none of them writes the number. */
+     which, and the way they agree is that none of them writes the number.
+
+     `lead` is which shoulder does the reaching, and it is data rather than a
+     constant because the three of them genuinely differ: only the nose grab
+     is a leading-hand grab. Routed through one arm for all of them, the method
+     sent the leading arm across the body to the heel edge behind the rider,
+     which is a shape nobody has ever made on a snowboard. */
   grabs: [
     // INDY — the trailing hand drops onto the toe edge between the feet
-    { point: [0.155, 0.09, -0.16], fold: 1.75, hip: 0.26, lift: 0.32, tweak: 0.15, hinge: 0 },
+    { point: [0.155, 0.09, -0.16], fold: 1.75, hip: 0.26, lift: 0.32, tweak: 0.15, hinge: 0, lead: false },
     // NOSE — the reach is along the board, so it is paid for at the waist's
     // pitch rather than at its fold: he hinges over the leading binding and
     // the hand carries on past it. Folding further instead only puts the
     // shoulder further across the board, which is the wrong axis entirely.
-    { point: [0.095, 0.085, -0.46], fold: 1.44, hip: 0.30, lift: 0.34, tweak: 0.05, hinge: 0.46 },
+    { point: [0.095, 0.085, -0.46], fold: 1.44, hip: 0.30, lift: 0.34, tweak: 0.05, hinge: 0.46, lead: true },
     // METHOD — the weight goes the other way and the board comes up much
     // further to meet a hand that is now reaching behind him, onto the edge
     // the other two never touch. The tweak reverses with it.
-    { point: [-0.140, 0.090, 0.06], fold: 1.66, hip: 0.23, lift: 0.42, tweak: -0.30, hinge: -0.26 },
+    { point: [-0.140, 0.090, 0.06], fold: 1.66, hip: 0.23, lift: 0.42, tweak: -0.30, hinge: -0.26, lead: false },
   ],
 
   /* THE PRESS.
@@ -1337,10 +1343,16 @@ export function createRiderModel(THREE, shading) {
        is looking at the same grab and the same press. */
     const G = POSE.grabs[rider.grabKind] || POSE.grabs[0];
     const press = (rider.press || 0) * (1 - s.air) * (1 - s.down);
-    // Nose down and tail up, or the other way. Positive pitch raises the −Z
-    // end, which is the nose, so standing on the nose is the negative one —
-    // and it swaps with the stance, because the leading end does.
-    const pressEnd = (rider.pressNose ? -1 : 1) * sw;
+    /* Which end of the board is buried, in the board's own frame. Positive
+       pitch raises the −Z end, so a press on that end is the negative one.
+
+       It is read from the physics rather than rebuilt from `pressNose` and
+       the live stance, and that is the whole of the fix: a butter that passes
+       ninety degrees toggles the stance while the same press is still on, so
+       a sign multiplied by `sw` eased the pitch through flat and stood the
+       rider up on the opposite end halfway through his own spin. The end a
+       press captured cannot change until the press ends. */
+    const pressEnd = rider.pressEnd || -1;
     const skate = s.push * (1 - s.air) * (1 - s.down) * (1 - grab);
 
     /* The snap, and the thump.
@@ -1513,7 +1525,7 @@ export function createRiderModel(THREE, shading) {
        is. Without it the buried end sinks into the hill by as much as the
        other one rises, and a press reads as the board falling through the
        snow. */
-    const pressPivot = FLEX_SPAN * (rider.pressNose ? -1 : 1) * sw;
+    const pressPivot = FLEX_SPAN * pressEnd;
     bt.y = ty * cl + tx * sl + lift + pressPivot * Math.sin(pressPitch);
 
     board.position.set(bt.x, bt.y, 0);
@@ -1967,23 +1979,40 @@ export function createRiderModel(THREE, shading) {
     poleRear.set(-0.75, -0.55, 0.15);
 
     /* The grab. The one pose expressed somewhere other than the shoulder:
-       the target is a fixed point on the board's toe edge, and the board is
-       three transforms away, so it is carried back through the hips and the
-       torso into the leading shoulder's own space — and only when there is a
-       grab to pay for it. */
+       the target is a fixed point on the board, and the board is three
+       transforms away, so it is carried back through the hips and the torso
+       into the reaching shoulder's own space — and only when there is a grab
+       to pay for it.
+
+       WHICH SHOULDER IS PART OF THE GRAB, and it has to be, because the three
+       of them do not use the same hand. An indy and a method are trailing-hand
+       grabs and a nose grab is a leading-hand one, and that is not a naming
+       convention — it is where the hand can physically get to. Routed through
+       one arm for all three, the method sent the leading arm across the body
+       to the heel edge behind the rider, which is a shape nobody has ever
+       made on a snowboard.
+
+       `gs` is the whole of it. The two shoulders sit at ∓SHOULDER_Z, the
+       free arm's balance pose is its own mirror image, and one sign carries
+       all four. */
     if (grab > 0.002) {
+      const gs = G.lead ? 1 : -1;
+      const reach = G.lead ? hand : other;
+      const free = G.lead ? other : hand;
+      const reachPole = G.lead ? pole : poleRear;
+      const freePole = G.lead ? poleRear : pole;
       mInv.copy(hips.matrix).multiply(torso.matrix).invert();
       boardPoint(_f.set(G.point[0], G.point[1], G.point[2] * sw));
       _f.applyMatrix4(mInv);
       _f.y -= SHOULDER_Y;
-      _f.z += SHOULDER_Z * sw;
+      _f.z += SHOULDER_Z * sw * gs;
       _f.z *= sw;                 // …and back into the travel frame with the rest
-      hand.lerp(_f, grab);
-      pole.lerp(_u.set(-0.45, 0.75, -0.2), grab);
-      // the trailing hand goes up and out for balance, which is what makes a
+      reach.lerp(_f, grab);
+      reachPole.lerp(_u.set(-0.45, 0.75, -0.2 * gs), grab);
+      // the free hand goes up and out for balance, which is what makes a
       // grab read as a rider tweaking rather than a rider bending over
-      other.lerp(_u.set(0.10, 0.10, 0.46), grab);
-      poleRear.lerp(_u.set(-0.5, -0.2, 0.3), grab);
+      free.lerp(_u.set(0.10, 0.10, 0.46 * gs), grab);
+      freePole.lerp(_u.set(-0.5, -0.2, 0.3 * gs), grab);
     }
 
     /* Falling: the arms stop being posed at all. They chase a point that is

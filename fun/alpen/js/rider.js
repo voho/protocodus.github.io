@@ -259,7 +259,8 @@ export class Rider {
     this.grabbing = false;
     this.grabKind = 0;       // which of RIDER.grabs the hand went for
     this.press = 0;          // 0..1 pressure into a nose or tail press
-    this.pressNose = false;  // …and which end of the board is carrying it
+    this.pressNose = false;  // …whether the rider called it a nose press…
+    this.pressEnd = 1;       // …and which end of the *board* that froze onto
     this.pressTime = 0;
     this.pressSpin = 0;      // radians the board has come round on that end
     this.switchStance = false;
@@ -429,6 +430,17 @@ export class Rider {
       && !this.pushing && this.speed > 1.2;
     if (wantPress && this.press < 0.02) {
       this.pressNose = !!input.tuck;
+      /* …and which *physical* end of the board that is, frozen here.
+
+         "Nose" is a fact about the rider — it is whichever end is leading —
+         and a butter is the one manoeuvre that changes which end that is
+         halfway through itself. Left to be re-derived from the live stance,
+         the drawn press eased through flat and stood the rider up on the
+         opposite end at the moment the rotation passed ninety degrees, which
+         is precisely the thing the mechanic is defined as not doing: the
+         board rotates on one buried contact point. So the stance at capture
+         is folded in once, and −1 is the board's own −Z end for ever after. */
+      this.pressEnd = (input.tuck ? -1 : 1) * (this.switchStance ? -1 : 1);
       this.pressSpin = 0;
       this.pressTime = 0;
     }
@@ -2222,7 +2234,13 @@ export function trickName(s, verdict) {
   if (flips >= 1 && steps >= 360) {
     // Both axes: one trick about a tilted one.
     const base = s.flips > 0 ? 'MISTY' : frontside ? 'RODEO' : 'CORK';
-    const many = flips > 1 ? (flips > 2 ? 'TRIPLE ' : 'DOUBLE ') : '';
+    /* The sport has words for two and three and then stops having them, and
+       this hill has no ceiling on airtime — the powered tuck is unbounded, so
+       a long enough hang time genuinely reaches four. Past three it counts,
+       because announcing a quadruple cork as a triple while paying for four
+       is the label and the score disagreeing, which is the one thing this
+       function exists to prevent. */
+    const many = flips > 3 ? `${flips}× ` : flips > 2 ? 'TRIPLE ' : flips > 1 ? 'DOUBLE ' : '';
     parts.push(`${many}${base} ${steps}`);
   } else {
     if (steps >= 180) parts.push(`${frontside ? 'FRONTSIDE' : 'BACKSIDE'} ${steps}`);

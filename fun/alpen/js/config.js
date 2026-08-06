@@ -423,28 +423,37 @@ export const TERRAIN = {
 
        That is arranged by construction rather than by measurement. The wall's
        own outward slope is `height/scale · s(u)` for `s(u) = 2u·e^(−u²)`, and
-       `depth` is scaled by exactly the same `s(u)` — so the ratio between the
-       channel's steepest wall and the mountain's is a constant, set here, and
-       cannot be broken by a stretch of hill where the flank happens to lie
-       back. `scale/localScale` keeps it constant against the breadth variation
-       too: a broader flank is a shallower one, and its channels shallow with
-       it. The number that matters is that ratio, and at these amplitudes it is
-       a little over a half — so the flank still climbs everywhere, and the
+       `depth` is scaled by the *square* of that same shape — so the ratio
+       between the channel's steepest wall and the mountain's is a constant,
+       set here, and cannot be broken by a stretch of hill where the flank
+       happens to lie back. `scale/localScale` keeps it constant against the
+       breadth variation too: a broader flank is a shallower one, and its
+       channels shallow with it. The number that matters is that ratio, and at
+       these amplitudes it is three quarters at the steepest point of the face
+       and less everywhere else — so the flank still climbs everywhere, and the
        remaining margin is spent on the two shoulders and the buttress.
 
-       `soften` is the metres over which they arrive past the lip, and it is
-       there so the channels start with no gradient of their own where the
-       quarterpipe hands over — the one join on this profile that is smooth by
-       design and would otherwise gain a crease. */
+       The square is the part that took a second attempt. A linear scaling
+       bounds the *carrier's* slope correctly and says nothing about the
+       amplitude's own arrival, which contributes about `depth` over the length
+       it arrives in — a constant, against a wall gradient that goes to zero
+       linearly at the lip. There is therefore always a band just past the lip
+       where a linear arrival out-climbs the mountain, and there was: an
+       ordinary stretch of flank seven metres out measured +0.11 without the
+       channels and −0.02 with them, which is a pocket in ground whose entire
+       job is to be uphill. Squared, the amplitude is quadratic in the distance
+       past the lip and its derivative is linear — the same order as the wall's
+       — so the constant ratio covers the arrival as well as the carrier, and
+       the channels simply concentrate on the steepest third of the face, which
+       is where a slide cuts them anyway. */
     runnels: {
       wave: 24,          // metres across the flank between channels
       waveVary: 0.30,    // share of it the side's own broad field moves
-      depth: 3.0,        // metres from rib to channel floor at full steepness
+      depth: 2.6,        // metres from rib to channel floor at full steepness
       fineWave: 8.5,     // and a second, shallower corrugation over the top
-      fineDepth: 0.22,
+      fineDepth: 0.18,
       meander: 5.5,      // metres a channel wanders across the flank…
       meanderFreq: 0.0026, // …over roughly four hundred metres of descent
-      soften: 10,        // metres past the lip over which they arrive
       seed: 149,
       /* And the cell size at which the mesh stops being able to carry them.
          A twenty-six metre channel wants four samples across it; past six
