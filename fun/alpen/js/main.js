@@ -388,10 +388,37 @@ function showMuted(value) {
   if (touchMute) touchMute.setAttribute('aria-pressed', String(!!value));
 }
 
+/* THE DROP-IN WAITS FOR THE MOUNTAIN, and it is queued rather than ignored.
+
+   Hiding the invitation is not the same as refusing it. Every listener that
+   can call this is live from the moment the module evaluates, which is now
+   three frames and a whole mountain build before the game can actually show
+   anything — so a key press or a tap during the horizon march used to take
+   the curtain away and leave the player looking at a canvas that is still
+   deliberately hidden, with the progress bar they were watching gone with it.
+
+   Refusing the press outright would be worse than either: somebody who taps a
+   title card and gets nothing taps it again, and the one that finally works
+   is the one that arrived after the boot happened to finish. So the request is
+   remembered and honoured the instant the first frame is on the screen, which
+   is what the player asked for and when they can have it.
+
+   `audio.start()` is the exception and stays on this side of the gate. An
+   audio context can only be unlocked from inside the gesture that asked for
+   it; deferred to a later animation frame the gesture is gone and the run
+   comes up silent. Unlocking it early costs nothing — there is nothing
+   playing yet. */
+let bootReady = false;
+let dropInWanted = false;
+
 function begin() {
   if (game.mode === 'playing') return;
   audio.start();
   showMuted(audio.muted);
+  if (!bootReady) {
+    dropInWanted = true;
+    return;
+  }
   if (game.mode === 'attract') restart();
   game.mode = 'playing';
   pausedRendered = false;
@@ -1328,9 +1355,23 @@ function afterPaint(fn) {
   requestAnimationFrame(() => requestAnimationFrame(fn));
 }
 
-// The plates arrive on the network's own clock and nothing waits for them, so
-// this stage closes whenever it closes — usually during the horizon march.
-terrain.surfacesReady.then(() => boot.step('snow'));
+/* The plates arrive on the network's own clock and nothing waits for them, so
+   this stage closes whenever it closes — usually during the horizon march.
+
+   And it closes on a timer as well, because "whenever it closes" is not the
+   same as "eventually". A request that is stalled rather than failed fires
+   neither load nor error, and an image element will sit on one for as long as
+   the network lets it — which would leave the bar stuck at ninety per cent and
+   the invitation hidden over a mountain that is complete, drawn and playable.
+   Nothing in the game waits for these plates: the terrain keeps its procedural
+   fallback and takes the real one whenever it lands. So after a few seconds
+   the honest thing for the read-out to say is that the wait is over, and the
+   plate is welcome to arrive afterwards. */
+const SNOW_PATIENCE = 6000;
+Promise.race([
+  terrain.surfacesReady,
+  new Promise((settle) => setTimeout(settle, SNOW_PATIENCE)),
+]).then(() => boot.step('snow'));
 
 afterPaint(() => {
   /* The sun, before the ground it has to light. The world-fixed horizon cache
@@ -1343,20 +1384,7 @@ afterPaint(() => {
   terrain.setSun(sky.sunDir.x, sky.sunDir.y, sky.sunDir.z, sky.shadowLevel);
 
   restart();
-  /* …unless the player has already dropped in, which is now something that
-     can happen *here*.
-
-     Both the key hook and the curtain's click listener are live from the
-     moment this module evaluates, and that is no longer the same instant as
-     this line: there are two frames and a mountain build in between. A tap on
-     the title card inside that window runs `begin`, which dismisses the
-     curtain and sets the mode to playing — and written as a plain assignment
-     this put the run straight back into attract mode with the curtain already
-     gone. On a keyboard the next key press recovers it; on a touch device the
-     curtain is the only thing that starts a run, so there was no way back at
-     all. The rebuild above still has to happen either way, because an early
-     `begin` built its mountain before the sun above it existed. */
-  if (game.mode !== 'playing') game.mode = 'attract';
+  game.mode = 'attract';
   showMuted(audio.muted);
   boot.step('mountain');
 
@@ -1374,6 +1402,14 @@ afterPaint(() => {
       // that frame is where a driver finishes linking what `compile` only
       // asked for. "Ready" should mean the mountain is on the screen.
       boot.step('shaders');
+      /* …and now anybody who asked to drop in while that was happening gets
+         what they asked for. See `bootReady`: the press was kept rather than
+         refused, so the title card answers the first tap and not the third. */
+      bootReady = true;
+      if (dropInWanted) {
+        dropInWanted = false;
+        begin();
+      }
     });
   });
 });

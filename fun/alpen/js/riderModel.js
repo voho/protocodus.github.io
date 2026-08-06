@@ -752,7 +752,12 @@ function buildGeometries(THREE) {
       { y: -0.020, rx: 0.086, rz: 0.082, round: 0.95, n: 16 },
     ])), color: SHELL_DARK },
   ]);
-  const foreArm = compose(THREE, [
+  /* The one buffer whose parts do not agree about what they are made of, and
+     therefore the only one that carries the mask per part rather than whole:
+     a quilted sleeve, a hard cuff and a glove. A mitt is six centimetres
+     across and the baffles are ten, so a band over one is not a baffle, it is
+     a stripe — the glove is woven and it is not quilted. See `clad`. */
+  const foreArmParts = [
     { geo: use(tube(THREE, [
       { y: 0.030, rx: 0.066, rz: 0.064, round: 0.95, n: 16 },
       { y: -0.090, rx: 0.060, rz: 0.058, round: 0.9, n: 16 },
@@ -761,7 +766,7 @@ function buildGeometries(THREE) {
     { geo: use(tube(THREE, [
       { y: -0.175, rx: 0.062, rz: 0.060, round: 0.9, n: 16 },
       { y: -0.215, rx: 0.060, rz: 0.058, round: 0.9, n: 16 },
-    ])), color: YELLOW },
+    ])), color: YELLOW, cloth: [0.6, 0] },
     // the glove: a mitt with a thumb, which at this size is one extra bump
     // and the entire difference between a hand and a peg
     { geo: use(tube(THREE, [
@@ -769,12 +774,13 @@ function buildGeometries(THREE) {
       { y: -0.265, x: 0.008, rx: 0.062, rz: 0.058, round: 0.85, n: 16 },
       { y: -0.320, x: 0.010, rx: 0.058, rz: 0.052, round: 0.85, n: 16 },
       { y: -0.352, x: 0.006, rx: 0.040, rz: 0.038, round: 0.95, n: 16 },
-    ])), color: INK },
+    ])), color: INK, cloth: [1, 0] },
     { geo: use(tube(THREE, [
       { y: -0.250, rx: 0.026, rz: 0.024, round: 0.9, n: 12 },
       { y: -0.290, rx: 0.022, rz: 0.020, round: 0.9, n: 12 },
-    ])), color: INK, pos: [0.05, 0, -0.02], rot: [0, 0, -0.5] },
-  ]);
+    ])), color: INK, pos: [0.05, 0, -0.02], rot: [0, 0, -0.5], cloth: [1, 0] },
+  ];
+  const foreArm = compose(THREE, foreArmParts);
   const thigh = compose(THREE, [
     { geo: use(tube(THREE, [
       { y: 0.070, rx: 0.108, rz: 0.104, round: 0.9 },
@@ -800,36 +806,69 @@ function buildGeometries(THREE) {
 
   box.dispose();
   for (const g of scrap) g.dispose();
-  /* WHICH OF HIM IS CLOTH, as one flat attribute per composed buffer.
+  /* WHICH OF HIM IS CLOTH, AND WHICH OF HIM IS QUILTED, which are two
+     questions and therefore two numbers.
 
      The rig is eleven meshes sharing one material, and the material has no
      way to tell a jacket from a helmet: both arrive as vertex colours, and
      ink is the helmet, the gloves, the boots and the trouser cuff at once, so
-     colour cannot separate them either. It does not need to be finer than
-     this. Cloth and hardware do not share a buffer here — the garments are
-     the torso and the four limb segments, the hardware is the helmet, the
-     boots and the board — so one number per geometry is the whole mask, and
-     the glossy trim inside a garment is taken out downstream by the same
-     green-channel test that already gives it its highlight.
+     colour cannot separate them either.
 
-     `props.js` walks its own parts list to build the equivalent per-part
-     attribute. That is the right tool when a single buffer mixes materials;
-     here it would be five arrays of ones. */
-  const clad = (geometry, value) => {
+     They were one number once, on the reasoning that a depth would serve for
+     both — trousers at four tenths meaning "woven, barely baffled". It does
+     not serve, and the reason is that the two masks want opposite answers
+     from the same surface rather than a weaker version of one answer.
+     Snowboard trousers are fully woven and not quilted at all: the insulation
+     is on the inside where nobody can see it. Four tenths gave them four
+     tenths of the ripple the shader was written specifically to keep off
+     them, which is the moire the comment beside it warns about, and no single
+     scalar can say "all of the sheen, none of the bands".
+
+     So `x` is how woven the surface is and `y` is how quilted, and the glossy
+     trim inside a garment is still taken out downstream by the same
+     green-channel test that gives it its highlight. */
+  const clad = (geometry, sheen, baffle, parts) => {
     const n = geometry.attributes.position.count;
-    geometry.setAttribute('aFabric',
-      new THREE.BufferAttribute(new Float32Array(n).fill(value), 1));
+    const a = new Float32Array(n * 2);
+    for (let i = 0; i < n; i++) {
+      a[i * 2] = sheen;
+      a[i * 2 + 1] = baffle;
+    }
+    /* …and then whatever any individual part asked to differ about.
+
+       `compose` concatenates its parts in order and keeps every corner of
+       every face, so a part's vertices are one contiguous run whose length is
+       its stock geometry de-indexed. That is the same single assumption
+       `props.js` makes for its snow-ownership mask, and it is here for the
+       same reason: after the bake there is nothing left in the buffer to sort
+       the parts by. Only the forearm uses it, because only the forearm has a
+       glove baked into a sleeve. */
+    if (parts) {
+      let o = 0;
+      for (const part of parts) {
+        const span = part.geo.index
+          ? part.geo.index.count : part.geo.attributes.position.count;
+        if (part.cloth) {
+          for (let i = o; i < o + span; i++) {
+            a[i * 2] = part.cloth[0];
+            a[i * 2 + 1] = part.cloth[1];
+          }
+        }
+        o += span;
+      }
+    }
+    geometry.setAttribute('aCloth', new THREE.BufferAttribute(a, 2));
     return geometry;
   };
   return {
     board,
-    rearBoot: clad(rearBoot, 0),
-    torso: clad(torso, 1),
-    head: clad(head, 0),
-    upperArm: clad(upperArm, 1),
-    foreArm: clad(foreArm, 1),
-    thigh: clad(thigh, 0.4),
-    shin: clad(shin, 0.4),
+    rearBoot: clad(rearBoot, 0, 0),
+    torso: clad(torso, 1, 1),
+    head: clad(head, 0, 0),
+    upperArm: clad(upperArm, 1, 1),
+    foreArm: clad(foreArm, 1, 1, foreArmParts),
+    thigh: clad(thigh, 1, 0),
+    shin: clad(shin, 1, 0),
   };
 }
 
@@ -914,7 +953,7 @@ export function createRiderModel(THREE, shading) {
     float n64Graze = 1.0 - abs(dot(normal, uSunView));
     reflectedLight.directDiffuse += uSunTint
       * (uSunLevel * n64NoL * n64Graze * n64Graze * n64Graze * 0.085
-        * min(1.0, vFabric * 2.5) * (1.0 - n64Trim));` : ''}
+        * vCloth.x * (1.0 - n64Trim));` : ''}
   }`;
 
   /* THE BAFFLES, which are what a shell jacket has instead of a surface.
@@ -950,17 +989,18 @@ export function createRiderModel(THREE, shading) {
      highlight: the collar, the pocket zips and the binding straps are not
      quilted, and nothing had to be tagged twice to say so.
 
-     `aFabric` is a depth rather than a flag, and the trousers are why. Every
-     garment on him gets the sheen, because every garment is woven; only the
-     jacket is baffled, because snowboard trousers are a smooth shell with the
-     insulation quilted on the inside where nobody can see it. Written as a
-     flag the legs came out in chevrons — a strong ripple against a
-     sixteen-sided tapered tube is a moire waiting to happen — and the honest
-     fix and the correct one were the same fix. */
+     It reads `aCloth.y` and the sheen reads `aCloth.x`, and the trousers are
+     why they are two numbers. Every garment on him gets the sheen, because
+     every garment is woven; only the jacket is baffled, because snowboard
+     trousers are a smooth shell with the insulation quilted on the inside
+     where nobody can see it. As one number turned down the legs came out in
+     chevrons — a strong ripple against a sixteen-sided tapered tube is a
+     moire waiting to happen — and turning it down far enough to stop that
+     took the sheen with it. Two masks, and each says exactly one thing. */
   const RIG_NORMAL_ANCHOR = '#include <normal_fragment_maps>';
   const CLOTH_BAFFLES = `${RIG_NORMAL_ANCHOR}
   {
-    float n64Cloth = vFabric
+    float n64Cloth = vCloth.y
       * (1.0 - smoothstep(0.30, 0.50, diffuseColor.g));
     if (n64Cloth > 0.002) {
       // 2π / 0.098 m: baffles a little under ten centimetres apart.
@@ -997,18 +1037,18 @@ export function createRiderModel(THREE, shading) {
          sleeve keeps its rings perpendicular to itself. */
       shader.vertexShader = shader.vertexShader
         .replace('#include <common>', `#include <common>
-          attribute float aFabric;
-          varying float vFabric;
+          attribute vec2 aCloth;
+          varying vec2 vCloth;
           varying float vLocalY;
           varying vec3 vClothAxis;`)
         .replace('#include <begin_vertex>', `#include <begin_vertex>
-          vFabric = aFabric;
+          vCloth = aCloth;
           vLocalY = position.y;
           vClothAxis = normalize(normalMatrix * vec3(0.0, 1.0, 0.0));`);
       shader.fragmentShader = shader.fragmentShader
         .replace('#include <common>', `#include <common>
           uniform float uLampGlow;
-          varying float vFabric;
+          varying vec2 vCloth;
           varying float vLocalY;
           varying vec3 vClothAxis;`)
         .replace(RIG_NORMAL_ANCHOR, CLOTH_BAFFLES)

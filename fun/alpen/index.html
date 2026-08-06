@@ -175,6 +175,8 @@
       var fill = document.querySelector('[data-loading-fill]');
       var label = document.querySelector('[data-loading-label]');
       var curtain = document.querySelector('.curtain');
+      var handled = false;   // a failure that has put its own message on screen
+      var broken = false;    // …and one that has not
       if (curtain) curtain.setAttribute('aria-busy', 'true');
 
       function paint() {
@@ -187,9 +189,20 @@
         var pct = Math.round(value * 100);
         if (fill) fill.style.width = pct + '%';
         if (bar) bar.setAttribute('aria-valuenow', String(pct));
+        if (curtain && (broken || !waiting)) curtain.setAttribute('aria-busy', 'false');
+        /* A boot that died is not a boot that finished, and the difference
+           has to reach the screen. Marking every stage done would hide the bar
+           and put up "press any key to drop in" over a game that cannot start
+           — an invitation to press a key that does nothing, which is worse
+           than any error message. So a broken load keeps the bar where it
+           stopped, says so, and never adds `loaded`. */
+        if (broken) {
+          if (root) root.classList.add('failed');
+          if (label) label.textContent = 'Could not start · try reloading';
+          return;
+        }
         if (label) label.textContent = waiting ? waiting.label + ' · ' + pct + '%' : 'Ready';
         if (!waiting) {
-          if (curtain) curtain.setAttribute('aria-busy', 'false');
           document.body.classList.add('loaded');
           // Left in the tree it would keep announcing a finished progress bar
           // every time the pause screen came back.
@@ -200,23 +213,43 @@
       paint();
       return {
         step: function (id) {
-          if (done[id]) return;
+          if (done[id] || broken) return;
           done[id] = true;
           paint();
         },
-        /* A load that cannot finish must not leave the page saying it is
-           still loading. Anything unresolved after this is reported as done —
-           the game itself degrades on its own (a missing snow plate simply
-           leaves the procedural fallback in place), so the honest read-out is
-           that the wait is over rather than that it succeeded. */
+        /* A load that cannot finish, by a route that has already put its own
+           explanation on the page — the WebGL branch in `main.js` is the only
+           one. Anything unresolved is reported as done, because the message
+           beside it is now the page and a bar still counting under it would be
+           contradicting it. */
         giveUp: function () {
+          handled = true;
           for (var i = 0; i < stages.length; i++) done[stages[i].id] = true;
+          paint();
+        },
+        // …and one that has not, which is every unexpected exception during
+        // initialisation. See `paint`.
+        fail: function () {
+          if (handled || broken) return;
+          broken = true;
           paint();
         },
       };
     }());
-    window.addEventListener('error', function () {
-      if (window.__alpenBoot) window.__alpenBoot.giveUp();
+    /* An exception during boot means there is no game behind the title card,
+       and the card must stop pretending otherwise.
+
+       Both conditions matter. `ready` is set once the mountain has actually
+       drawn a frame, and an error after that is the running game's problem
+       rather than the loader's — a wipeout that throws must not put a failure
+       notice over a working run. And the filename has to be ours: browser
+       extensions and injected scripts throw into this handler all the time,
+       and none of that is a reason to tell somebody the game is broken. */
+    window.addEventListener('error', function (e) {
+      if (!window.__alpenBoot) return;
+      if (document.body.classList.contains('ready')) return;
+      if (e && e.filename && e.filename.indexOf(location.origin) !== 0) return;
+      window.__alpenBoot.fail();
     });
   </script>
   <script type="module" src="./js/main.js"></script>

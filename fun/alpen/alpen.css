@@ -360,6 +360,13 @@ body.touch .go-tap {
   color: var(--fg-faint);
 }
 
+/* A boot that died keeps the bar exactly where it stopped and stops being
+   mint, because mint is the colour of things you can act on and this is not
+   one. Yellow is the palette's emphasis, and there is nothing else on this
+   screen for it to compete with. */
+.loading.failed .loading-fill { background: var(--yellow); }
+.loading.failed .loading-label { color: var(--yellow); }
+
 /* The invitation waits for the mountain. Both are `.go`'s own margin apart,
    so exactly one of them is on screen at any moment and neither moves. */
 body:not(.loaded) .curtain[data-screen='start'] .go { display: none; }
