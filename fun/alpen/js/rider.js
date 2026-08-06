@@ -409,7 +409,6 @@ export class Rider {
     );
     const braking = this.brake;
     const brakeActive = braking > 0.02;
-    this.tucking = !!input.tuck && !input.brake && braking < 0.05;
 
     /* THE PRESS. Q on the snow does what Q in the air does — it puts the
        board where the hands are — and on the snow that means standing on one
@@ -455,6 +454,24 @@ export class Rider {
       this.pressTime = 0;
       this.pressSpin = 0;
     }
+
+    /* …and the tuck comes off while one is on, which is why the press is
+       resolved first.
+
+       W means two things at once here — it is the powered tuck and it is the
+       nose selector — and holding it with Q used to give both. The powered
+       floor is applied after friction and after the press's own plough, so a
+       nose press accelerated at seven and a half metres per second squared
+       while a tail press slowed down, which made the modifier that picks the
+       nose strictly better than not pressing the key. That is a mechanic
+       paying for itself.
+
+       Refusing the combination is also the more honest statement: a tuck is a
+       body folded over the board and a press is a body standing on one end of
+       it, and nobody has ever been in both. So W still chooses the nose, and
+       for as long as the press is on it chooses nothing else. */
+    this.tucking = !!input.tuck && !input.brake && braking < 0.05
+      && !pressing;
     // Capture the W baseline before the new contact plane removes any velocity
     // pointing into it. Otherwise a sharp terrain-normal change can make the
     // displayed speed dip before the powered floor for this step is formed.

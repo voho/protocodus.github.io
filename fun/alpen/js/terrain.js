@@ -1814,11 +1814,22 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
         float n64FarFadeG = 1.0 - smoothstep(0.55, 1.55, fwidth(n64FarPhaseG));
         if (n64FarLive > 0.003) {
           float n64FarPatch = 0.26 + 0.74 * n64Noise(vWorld.xz * 0.0135);
+          /* THE MATERIAL, NOT THE TEXTURE. Which of the two far fields this
+             ground gets is a question about whether a machine drove over it,
+             and the groom *blend* is that answer — the generated groom mask
+             with the storm's burial of it. The groom *weight* is the same
+             answer multiplied by whether a WebP has finished decoding, which
+             is the right gate for a texture fetch and the wrong one for this:
+             none of these three carriers reads a texture. Keyed to readiness,
+             a plate that never arrives left the piste permanently wind-drifted
+             and permanently without its groomer seams, in a fallback the
+             loader explicitly supports.
+             (No back-ticks in here: this comment is inside a template literal.) */
           float n64FarWindLevel = n64FarLive * n64FarPatch
-            * (1.0 - n64GroomWeight);
+            * (1.0 - n64GroomBlend);
           float n64FarA = 0.215 * n64FarWindLevel * n64FarFadeA;
           float n64FarB = 0.082 * n64FarWindLevel * n64FarFadeB;
-          float n64FarG = 0.062 * n64FarLive * n64GroomWeight * n64FarFadeG;
+          float n64FarG = 0.062 * n64FarLive * n64GroomBlend * n64FarFadeG;
 
           float n64FarCosA = cos(n64FarPhaseA) * n64FarA;
           float n64FarCosB = cos(n64FarPhaseB) * n64FarB;
