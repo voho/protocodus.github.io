@@ -52,10 +52,9 @@
    has finished with them — so a spill at walking pace is over in a second
    and catching a trunk at 150 km/h throws you a long way down the hill. */
 
-import { RIDER, PROPS } from './config.js';
+import { RIDER } from './config.js';
 import { normalFrom } from './terrain.js';
 
-const RAIL = PROPS.rail;
 
 const TAU = Math.PI * 2;
 
@@ -208,9 +207,8 @@ export class Rider {
 
     this.events = {
       launch: [], land: [], fall: [], rise: [], carve: [], impact: [],
-      grind: [], grindOut: [], pump: [], push: [], butter: [],
+      pump: [], push: [], butter: [],
     };
-    this._rail = { x: 0, y: 0, z: 0, t: 0 };
 
     this.reset(0);
   }
@@ -264,8 +262,6 @@ export class Rider {
     this.pressTime = 0;
     this.pressSpin = 0;      // radians the board has come round on that end
     this.switchStance = false;
-    this.rail = null;        // the rail being ridden, if any
-    this.grindTime = 0;
     this.stallTimer = 0;     // how long the board has been too slow for the pitch
     this.edge = 0;           // radians the board is rolled up onto its edge
     this.bend = 0;           // g of load the ground's own curvature is adding
@@ -379,7 +375,6 @@ export class Rider {
     // `fallStep` promoted itself to 'rise' — the rider went back to normal
     // physics while the model still had them face-down.
     if (this.state === 'fall' || this.state === 'rise') return this.fallStep(dt);
-    if (this.state === 'grind') return this.grindStep(dt, input);
     if (this.grounded) this.groundStep(dt, input);
     else this.airStep(dt, input);
     this.springStep(dt);
@@ -1552,9 +1547,9 @@ export class Rider {
   }
 
   /* The press, closed out. Called wherever the board can stop being on the
-     snow under a rider's feet — a lip, a rail, a tree — so that a butter is
-     always judged exactly once and nothing can carry its accumulated rotation
-     into whatever happens next. */
+     snow under a rider's feet — a lip, a tree — so that a butter is always
+     judged exactly once and nothing can carry its accumulated rotation into
+     whatever happens next. */
   releasePress() {
     if (this.pressTime > 0) this.emit('butter', Math.abs(this.pressSpin), this.pressTime);
     this.press = 0;
@@ -1704,18 +1699,6 @@ export class Rider {
       }
     }
 
-    /* A rail caught on the way down. Only ever on the way down: a rider
-       rising through the height of a rail is jumping over it, and catching
-       one from underneath is the single most infuriating thing a park can
-       do to you. */
-    if (vel.y < 0 && this.world.rail) {
-      const r = this.world.rail(pos.x, pos.z, pos.y);
-      if (r) {
-        this.catchRail(r);
-        return;
-      }
-    }
-
     if (pos.y <= gy) {
       // The launch look-ahead deliberately commits just before a lip. Without
       // a tiny contact window the following air tick sees the last centimetres
@@ -1744,99 +1727,6 @@ export class Rider {
     } else {
       this.extension = pos.y - gy;
     }
-  }
-
-  /* --- on the rail ----------------------------------------------------- */
-
-  catchRail(r) {
-    this.rail = r;
-    this.state = 'grind';
-    this.grounded = true;
-    this.grindTime = 0;
-    this.spinVel = 0;
-    this.flipVel = 0;
-    this.flip = 0;
-    this.grab = 0;
-    this.grabbing = false;
-    this.extension = 0;
-    this.slide = 0;
-    this.carveLoad = 0;
-    this.bend = 0;
-    this._bendReady = false;
-    this.lipPop = false;
-    this.releasePress();
-    this.compressionVel += 6;
-    this.emit('grind', r);
-  }
-
-  /* Steel is not snow. A rail takes the rider's line away entirely — they go
-     where it goes — and gives back almost no friction in exchange, so a long
-     one is genuinely fast. What it costs is every option: no carving, no
-     edge, and the only way off before the end is up. */
-  grindStep(dt, input) {
-    const { pos, vel } = this;
-    const r = this.rail;
-    this.grindTime += dt;
-    this.pushing = false;
-    this.brake = approach(this.brake, 0, RIDER.brakeRelease, dt);
-    this.tucking = !!input.tuck && !input.brake && this.brake < 0.05;
-
-    const dx = r.x1 - r.x0;
-    const dy = r.y1 - r.y0;
-    const dz = r.z1 - r.z0;
-    const dl = Math.hypot(dx, dy, dz) || 1;
-    const ux = dx / dl;
-    const uy = dy / dl;
-    const uz = dz / dl;
-
-    // Everything the rider has, resolved onto the one axis they are allowed
-    let v = vel.x * ux + vel.y * uy + vel.z * uz;
-    const poweredRailSpeed = this.tucking
-      ? Math.abs(v) + RIDER.tuckAcceleration * dt
-      : 0;
-    v += -RIDER.gravity * uy * dt;
-    const scrub = RAIL.friction * RIDER.gravity * dt;
-    v = v > 0 ? Math.max(0, v - scrub) : Math.min(0, v + scrub);
-    if (poweredRailSpeed > 0 && Math.abs(v) < poweredRailSpeed) {
-      v = (Math.sign(v) || 1) * poweredRailSpeed;
-    }
-    vel.set(ux * v, uy * v, uz * v);
-
-    pos.x += vel.x * dt;
-    pos.z += vel.z * dt;
-    const p = this.world.railPoint(r, pos.z, this._rail);
-    pos.x = p.x;
-    pos.y = p.y;
-
-    this.normal.set(0, 1, 0);
-    const railYaw = Math.atan2(ux, -uz);
-    this.yaw += wrapPi(railYaw - this.yaw) * (1 - Math.exp(-9 * dt));
-    this.roll = approach(this.roll, input.turn * 0.2, 6, dt);
-
-    /* Off the end, or off the side on purpose. Popping off a rail is the
-       whole point of riding one, so a jump released here launches properly
-       rather than just dropping the rider on the snow. */
-    const past = p.t >= 1 || p.t <= 0 || Math.abs(v) < 1.2;
-    if (input.jump || past) {
-      const pop = input.jump ? RIDER.popMin * 0.9 : 0;
-      this.rail = null;
-      this.state = 'air';
-      this.grounded = false;
-      this.airTime = 0;
-      this.spinAccum = 0;
-      this.flipAccum = 0;
-      this.takeoffSpeed = vel.length();
-      this.lipPop = false;
-      this.charging = false;
-      this.charge = 0;
-      vel.y += pop;
-      this.emit('grindOut', this.grindTime);
-      this.emit('launch', vel.y);
-      this.grindTime = 0;
-      return;
-    }
-
-    this.springStep(dt);
   }
 
   /* --- the moment it matters ----------------------------------------- */

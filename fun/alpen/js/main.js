@@ -286,10 +286,6 @@ const world = {
     }
     return false;
   },
-  // Rails are not part of the height field — they are a metre-wide line in
-  // the air, and the rider only ever asks about one while falling onto it
-  rail: (x, z, y) => props.railAt(x, z, y),
-  railPoint: (r, z, out) => props.railPoint(r, z, out),
 };
 
 // Hoisted out of the frame loop: an array literal there is a fresh
@@ -687,11 +683,6 @@ rider.on('push', (impulse) => {
     8, 0.48);
 });
 
-rider.on('grind', () => {
-  if (game.mode !== 'playing') return;
-  audio.whoosh();
-});
-
 /* A butter, judged once when the board settles back onto both ends.
 
    The two floors are what stop this paying out for a shift of weight. Under
@@ -723,18 +714,6 @@ rider.on('pump', (drive) => {
   spray.burst(rider.pos, -rider.heading.x * 0.5, -rider.heading.z * 0.5,
     Math.round(3 + drive * 2), 0.3 + drive * 0.12);
   chase.kick(Math.min(0.5, drive * 0.09));
-});
-
-/* A rail pays by the second and pays again for leaving it on purpose, which
-   is the whole shape of the trick: getting on is luck, staying on is the
-   skill, and popping off the end rather than falling off the side is what
-   the points are actually for. */
-rider.on('grindOut', (t) => {
-  if (game.mode !== 'playing' || t < 0.35) return;
-  const pts = (t * SCORE.grindPerSecond + SCORE.grindOut) * game.combo;
-  award(pts, t > 1.4 ? 'LONG GRIND' : 'RAIL SLIDE', '');
-  game.combo = Math.min(SCORE.comboMax, game.combo + SCORE.comboStep);
-  audio.combo(game.combo);
 });
 
 /* A near miss is now only ever a bear.
@@ -852,7 +831,7 @@ function sweepCircle(ax, az, bx, bz, cx, cz, radius, out) {
 }
 
 function collide() {
-  if (rider.state === 'fall' || rider.state === 'grind') return;
+  if (rider.state === 'fall') return;
   const solids = props.solids;
   const zLo = Math.min(prev.z, rider.pos.z) - 4;
   const zHi = Math.max(prev.z, rider.pos.z) + 4;
@@ -1322,7 +1301,6 @@ window.__alpen = {
     },
     solids: props.solids.length,
     biomes: props.debugBiomes(),
-    rails: props.rails.length,
     terrainVerts: terrain.vertexCount,
     helicopter: heli.debug(),
     weather: {

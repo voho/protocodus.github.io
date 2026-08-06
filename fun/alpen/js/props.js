@@ -1,5 +1,4 @@
-/* Everything standing on the mountain: trees, shrubs, rocks, slalom gates,
-   the rails and the park.
+/* Everything standing on the mountain: trees, shrubs, rocks and slalom gates.
 
    The hill is filled a band at a time — forty metres of it — and every band
    is generated from its own index, so the same stretch of mountain always
@@ -7,8 +6,8 @@
    instances handed to bands ahead. Nothing is stored between visits because
    nothing needs to be: the seed is the coordinate.
 
-   THERE ARE NO KICKERS ANY MORE, and their going is worth a paragraph
-   because they took a whole mechanism with them.
+   NOTHING ON THIS MOUNTAIN IS BUILT ANY MORE, and the going of it is worth a
+   paragraph because each piece took a whole mechanism with it.
 
    A kicker used to be a shape added to the height function — `liftAt` — so
    that the rider rode it for the same reason they rode the hill, and its mesh
@@ -29,6 +28,18 @@
    The visible saving is that `world.height` is now `heightAt` and nothing
    else. That function is called about twenty-five times per physics step at
    120 Hz, and every one of those calls used to walk a list of ramps first.
+
+   THE PARK AND ITS RAILS WENT THE SAME WAY, later and for the same reason.
+   What survived the kickers was a hundred and fifty metres of hill with three
+   steel bars laid down it, announced by a gate pair — which is still a venue
+   somebody dressed rather than a mountain. And it was expensive in a way a
+   prop is not: a rail is a line the rider gets locked onto, so it needed a
+   catch test in the air step, a whole `grind` state in the physics, a friction
+   constant, a scoring event, two queries on the world adapter, two instanced
+   pools, and a stretch of hill that had to be *told* it was special. All of
+   that is gone. What is left — the solids list, the gates, the ecology — is
+   made entirely of facts about positions, with no place anywhere that has
+   rules attached to it.
 
    The forest used to be one tree. A cylinder, a cone and a smaller cone,
    scaled to three sizes and tinted four greens — and a hillside of that
@@ -87,7 +98,7 @@ import { compose } from './geom.js';
 import { PROPS } from './config.js';
 
 const {
-  band, ahead, behind, park: PARK, rail: RAIL, biomes: BIOMES,
+  band, ahead, behind, biomes: BIOMES,
 } = PROPS;
 
 const TAU = Math.PI * 2;
@@ -162,6 +173,32 @@ const BARE_STOP = '#ffffff';
    See the head of the file: this is the number the vertex shader mixes on. */
 const OWN_SNOW = 0;
 const OWN_ALL = 1;
+
+/* HOW MUCH SOONER A PROP GOES INTO THE WEATHER THAN THE HILL DOES.
+
+   Everything standing on this mountain is darker than the snow it stands in,
+   and that is a problem the fog cannot solve on its own. One extinction curve
+   applied to both takes the ground out of the picture at about half the
+   distance it takes a conifer out, so beyond a couple of hundred metres the
+   hill has dissolved and the forest on it has not — which reads, unmistakably
+   and wrongly, as trees hanging in the air with nothing under them.
+
+   It is worth saying that this was measured rather than assumed. Every live
+   tree instance was raycast down onto the drawn terrain, binned by range: the
+   mean gap is *negative* half a metre at three hundred metres and the worst
+   positive gap anywhere is one metre, against a fifteen-metre tree. Nothing is
+   floating. The ground had simply gone.
+
+   So the fix is in the curtain and not in the placement. See `uFogPull` in
+   shading.js: the number is how much further away the surface pretends to be
+   when it asks how faded it should be. The forest is the worst offender and
+   gets the most; stone is dark too and gets a little less, because a crag is
+   a landmark and losing it early costs the flanks the silhouette they were
+   put there for. Low vegetation is small enough to be gone on its own terms
+   long before any of this matters. */
+const FOG_PULL_TREE = 2.45;
+const FOG_PULL_STONE = 2.15;
+const FOG_PULL_FLORA = 2.10;
 
 /* WHERE THE TREES ARE, which is a different question from what they look
    like and had never been asked.
@@ -273,7 +310,7 @@ function ecologyAt(x, z, out) {
    These numbers stay here rather than in config because nothing outside this
    module can tune or collide with either prop. Their placement uses dedicated
    `hash2` channels below, not the band's `rnd` stream, so adding them cannot
-   reshuffle a tree, gate or rail. */
+   reshuffle a tree or a gate. */
 const ALPINE = {
   fence: {
     from: 320,          // leave the opening stretch visually quiet
@@ -1376,7 +1413,7 @@ class Pool {
     this.full = 0;
     /* And the opposite trade for the sparse furniture: a pool marked cullable
        gets a real bounding sphere from its written instances in `end()` and
-       is handed back to three's frustum test, because a rail or a fence line
+       is handed back to three's frustum test, because a fence line
        is usually entirely off screen and the trees never are. */
     this.cullable = false;
     if (tinted) this.mesh.setColorAt(0, new THREE.Color(0xffffff));
@@ -1490,7 +1527,7 @@ export function createProps(THREE, shading) {
         .replace('#include <project_vertex>', `#include <project_vertex>
         vN64Sheen = 1.0 - surfaceOwn;`);
     };
-    return shading.apply(m, { cameraFade: true, sheen: 1 });
+    return shading.apply(m, { cameraFade: true, sheen: 1, fogPull: FOG_PULL_TREE });
   };
 
   /* Low vegetation shares one wind program. Its baked snow mask feeds the
@@ -1507,7 +1544,7 @@ export function createProps(THREE, shading) {
         .replace('#include <project_vertex>', `#include <project_vertex>
         vN64Sheen = 1.0 - surfaceOwn;`);
     };
-    return shading.apply(m, { cameraFade: true, sheen: 1 });
+    return shading.apply(m, { cameraFade: true, sheen: 1, fogPull: FOG_PULL_FLORA });
   };
 
   /* Boulder snow uses the same mask without wind. A separate static program
@@ -1520,7 +1557,7 @@ export function createProps(THREE, shading) {
         .replace('#include <project_vertex>', `#include <project_vertex>
         vN64Sheen = 1.0 - surfaceOwn;`);
     };
-    return shading.apply(m, { cameraFade: true, sheen: 1 });
+    return shading.apply(m, { cameraFade: true, sheen: 1, fogPull: FOG_PULL_STONE });
   };
 
   /* The flag's cloth, rippled by the same clock. Its own factory for the same
@@ -1689,12 +1726,6 @@ export function createProps(THREE, shading) {
   const flagGeo = new THREE.PlaneGeometry(0.72, 0.46, 6, 3);
   flagGeo.translate(0.36, 1.95, 0);
   // Laid down the fall line at construction rather than rotated per instance,
-  // so a rail is placed with the same plain scale-and-translate every other
-  // pool uses and its length is simply its z scale
-  const railGeo = new THREE.CylinderGeometry(RAIL.radius, RAIL.radius, 1, 16);
-  railGeo.rotateX(Math.PI / 2);
-  const railPostGeo = new THREE.BoxGeometry(0.12, 1, 0.12);
-  railPostGeo.translate(0, 0.5, 0);
 
   /* Five instanced calls make the ecology: one whole plant patch, two winter
      shrubs and two stone families. Shapes, snow masks and colours are baked
@@ -1755,8 +1786,6 @@ export function createProps(THREE, shading) {
 
   const poles = new Pool(THREE, poleGeo, lit('#2a2f38'), bands * 2 + 16);
   const flags = new Pool(THREE, flagGeo, flagMat(), poles.capacity, true);
-  const railBars = new Pool(THREE, railGeo, lit('#aab6c8'), 8);
-  const railPosts = new Pool(THREE, railPostGeo, lit('#2a2f38'), 32);
 
   /* Two calls for all of the Swiss-specific infrastructure in the active
      window: one fence geometry and one marker geometry, sharing one material
@@ -1775,53 +1804,19 @@ export function createProps(THREE, shading) {
   avalancheFences.mesh.name = 'avalanche-fences';
   waymarks.mesh.name = 'swiss-waymarks';
 
-  /* The sparse furniture is worth culling: a whole rail park, or a fence line
-     on one bank, is a compact cluster that spends most of every orbit of the
-     camera entirely off screen. The trees stay unculled — they surround the
-     camera at all times and a sphere over three hundred metres of forest
-     would never say no. */
-  for (const p of [railBars, railPosts, avalancheFences, waymarks]) p.cullable = true;
+  /* The sparse furniture is worth culling: a fence line on one bank is a
+     compact cluster that spends most of every orbit of the camera entirely
+     off screen. The trees stay unculled — they surround the camera at all
+     times and a sphere over three hundred metres of forest would never say
+     no. */
+  for (const p of [avalancheFences, waymarks]) p.cullable = true;
 
   const pools = [
     plantPool, ...shrubPools, ...rockPools, ...cragPools,
-    poles, flags, railBars, railPosts, avalancheFences, waymarks,
+    poles, flags, avalancheFences, waymarks,
   ];
   pools.forEach((p) => group.add(p.mesh));
   const allPools = pools.concat(treePools);
-
-  // --- rails ---------------------------------------------------------------
-  // A rail is not part of the height field — it is a metre-wide line in the
-  // air, and putting it in `heightAt` would mean the whole mountain paid for
-  // it on every sample. So it is its own short list, and the rider asks
-  // about it separately, only while falling towards one.
-  const rails = [];
-
-  /* The rail the rider is close enough to catch, or null. `y` is where the
-     board is: a rider passing under a rail is not grinding it. */
-  function railAt(x, z, y) {
-    for (let i = 0; i < rails.length; i++) {
-      const r = rails[i];
-      if (z > r.z0 + 0.6 || z < r.z1 - 0.6) continue;
-      const t = (r.z0 - z) / (r.z0 - r.z1);
-      const lineX = r.x0 + (r.x1 - r.x0) * t;
-      if (Math.abs(x - lineX) > RAIL.catchWidth) continue;
-      const top = r.y0 + (r.y1 - r.y0) * t + RAIL.height;
-      if (Math.abs(y - top) > RAIL.catchHeight) continue;
-      return r;
-    }
-    return null;
-  }
-
-  /* Where a rail's line sits at a point down it, for the rider to be held
-     against while it is riding one. */
-  function railPoint(r, z, out) {
-    const t = Math.max(0, Math.min(1, (r.z0 - z) / (r.z0 - r.z1)));
-    out.x = r.x0 + (r.x1 - r.x0) * t;
-    out.y = r.y0 + (r.y1 - r.y0) * t + RAIL.height;
-    out.z = z;
-    out.t = t;
-    return out;
-  }
 
   // --- collision -----------------------------------------------------------
   // Flat array of {x, z, r, kind, top}, rebuilt whenever the bands change.
@@ -1899,18 +1894,6 @@ export function createProps(THREE, shading) {
     return Math.atan2(-(downX - upX), reach * 2);
   }
 
-  /* Is this stretch of hill a built park, and how far into it are we? The
-     park sits inside its own period so that it is a place you arrive at
-     rather than something that happens continuously. */
-  function parkAt(z) {
-    const b = Math.floor(-z / PARK.period);
-    if (b < 1) return null;
-    if (hash2(b, 3313, 71) > PARK.chance) return null;
-    const top = -(b * PARK.period) - (PARK.period - PARK.length) * hash2(b, 617, 72);
-    const t = (top - z) / PARK.length;
-    if (t <= 0 || t >= 1) return null;
-    return { b, top, t };
-  }
 
   /* A fork island is useful habitat, but only for things the rider can pass
      through. Decorative stone stays beyond the outer lips so its missing
@@ -2040,7 +2023,7 @@ export function createProps(THREE, shading) {
       && previousRoll >= BIOMES.hazardChance) {
       const padding = BIOMES.hazardPadding;
       const z = z0 + padding + hash2(b, 3401, 227) * (band - padding * 2);
-      if (!parkAt(z)) {
+      {
         centersAt(z, centres);
         const leftBranch = hash2(b, 3402, 227) < 0.5;
         const branch = leftBranch ? centres[0] : centres[1];
@@ -2194,7 +2177,7 @@ export function createProps(THREE, shading) {
     /* --- continuous vegetation biomes -----------------------------------
 
        Dedicated hash channels make these loops independent of the forest,
-       gates and rails. A fixed candidate budget is filtered by smooth ecology
+       gates. A fixed candidate budget is filtered by smooth ecology
        weights, so density changes continuously even though instances are
        rewritten only at an invisible streamed boundary. */
     const eco = {};
@@ -2390,27 +2373,11 @@ export function createProps(THREE, shading) {
       waymarks.add(x, y, z, yaw, scale, scale, scale);
     }
 
-    // A band runs from z0 up to z0 + band, so this is what "inside it" means
-    // for anything the park lays out at a fixed point down the mountain
-    const inBand = (z) => z >= z0 && z < z0 + band;
-    const parked = parkAt(z0 + band / 2);
-
     // --- slalom gates ------------------------------------------------------
-    // Out on the piste they are a line to take; at the head of a park they
-    // are the sign that says one is coming, which is the difference between
-    // a park and an ambush.
-    if (parked) {
-      const z = parked.top - 6;
-      if (inBand(z)) {
-        const cx = nearestCenter(0, z);
-        for (const side of [-1, 1]) {
-          const x = cx + side * 5.5;
-          const y = heightAt(x, z);
-          poles.add(x, y, z, 0, 1, 1, 1);
-          flags.add(x, y, z, side < 0 ? 0 : Math.PI, 1, 1, 1, tint.copy(gateA));
-        }
-      }
-    } else if (rnd() < PROPS.gateChance) {
+    // A line to take, and the only thing on the piste that is neither a jump
+    // nor an obstacle. The park's own announcing pair used to live here too;
+    // with the park gone, every gate is an ordinary one.
+    if (rnd() < PROPS.gateChance) {
       const z = z0 + rnd() * band;
       const cx = nearestCenter(0, z) + (rnd() * 2 - 1) * 12;
       const colour = rnd() < 0.5 ? gateA : gateB;
@@ -2438,44 +2405,11 @@ export function createProps(THREE, shading) {
         x: cx, z, half: PROPS.gateHalf, taken: false, warm: colour === gateB,
       });
     }
-
-    /* --- rails ------------------------------------------------------------
-
-       All that is left of the park, and it is enough for one. A park was a
-       graded line of kickers with a rail beside it; without the kickers it is
-       a stretch of hill with steel on it, announced by its gate pair, and that
-       is a perfectly good thing for a park to be. The jumping it used to
-       supply is now the mountain's job everywhere rather than this stretch's
-       job in particular, which is the whole point of the change.
-
-       Several of them, though, where there used to be one. A single rail in a
-       hundred and fifty metres of announced ground was thin even when there
-       were three kickers keeping it company. */
-    if (parked) {
-      const step = PARK.length / (PARK.rails + 1);
-      for (let i = 0; i < PARK.rails; i++) {
-        const z = parked.top - step * (i + 1);
-        if (!inBand(z)) continue;
-        if (hash2(parked.b * 31 + i, 887, 73) > PARK.railChance) continue;
-        // Alternated either side of the line, so riding the park is a slalom
-        // between them rather than a single straight to hold
-        const off = (i % 2 === 0 ? -1 : 1) * (5 + hash2(parked.b + i, 41, 74) * 5);
-        const cx = nearestCenter(0, z) + off;
-        rails.push({
-          x0: cx, z0: z + RAIL.length / 2,
-          x1: cx, z1: z - RAIL.length / 2,
-          y0: heightAt(cx, z + RAIL.length / 2),
-          y1: heightAt(cx, z - RAIL.length / 2),
-          key: `${parked.b}:${i}`,
-        });
-      }
-    }
   }
 
   function rebuild(riderZ) {
     allPools.forEach((p) => p.begin());
     solids.length = 0;
-    rails.length = 0;
     gates.length = 0;
 
     /* Nearest band first, spiralling outward, rather than a straight sweep
@@ -2496,24 +2430,6 @@ export function createProps(THREE, shading) {
       if (k <= ahead) place(bi - k);
       for (let i = 0; i < shadowPools.length; i++) {
         shadowPools[i].shadowEnds[k] = shadowPools[i].n;
-      }
-    }
-
-    // Nearest first, because the pool is what it is and a rail behind the
-    // rider is not worth a bar that one in front of them could have had
-    rails.sort((a, b) => Math.abs(a.z0 - riderZ) - Math.abs(b.z0 - riderZ));
-    rails.length = Math.min(rails.length, railBars.capacity);
-
-    for (let i = 0; i < rails.length; i++) {
-      const r = rails[i];
-      const mz = (r.z0 + r.z1) / 2;
-      const mx = (r.x0 + r.x1) / 2;
-      const my = (r.y0 + r.y1) / 2 + RAIL.height;
-      railBars.add(mx, my, mz, 0, 1, 1, RAIL.length);
-      for (const e of [-1, 1]) {
-        const pz = mz + (e * RAIL.length) / 2.4;
-        const py = heightAt(mx, pz);
-        railPosts.add(mx, py, pz, 0, 1, Math.max(0.2, my - py), 1);
       }
     }
 
@@ -2560,6 +2476,6 @@ export function createProps(THREE, shading) {
   }
 
   return {
-    group, update, setAir, railAt, railPoint, solids, rails, gates, debugBiomes,
+    group, update, setAir, solids, gates, debugBiomes,
   };
 }

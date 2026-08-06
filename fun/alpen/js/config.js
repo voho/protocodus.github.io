@@ -1703,9 +1703,6 @@ export const SCORE = {
      of the scoring. */
   gate: 120,
   gateRunMax: 8,
-  // Rails pay by the second, and pay again for getting off one cleanly
-  grindPerSecond: 420,
-  grindOut: 250,
   /* Stopping for a cocoa, which is worth about a landed 540.
 
      It has to be worth that much because of what it costs: coming to a
@@ -1829,49 +1826,29 @@ export const PROPS = {
   gateChance: 0.20,
   clearLane: 8,       // no hard obstacle closer than this to a centre line
 
-  /* THERE ARE NO BUILT KICKERS. This is where they were.
+  /* THERE IS NOTHING BUILT ON THIS MOUNTAIN. This is where it all was.
 
-     They went in stages and the last stage was the honest one. First there
-     was a kicker in two bands out of three, which made the piste a corridor
-     of identical yellow-lipped wedges. Then there was one in eight, on the
-     reasoning that what was left of them would read as something somebody
-     built. Then it became clear that the reasoning was upside down: the
-     problem was never how *many* wedges there were, it was that a wedge is a
-     printed answer to the only question the terrain should be asking. Ride at
-     the amber lip, get air. Ride anywhere else, do not.
+     The kickers went first, and their going is documented at length in
+     `props.js`. A built ramp is a games idea: it is the same wedge every
+     time, it announces itself in amber, and it turns *where do I get air* —
+     the only interesting question a hillside asks — into a question with a
+     printed answer. `TERRAIN.character` replaced them: the hill rides in
+     chapters, and a chapter of short bumps throws a rider further, more often
+     and in more different ways than a row of identical wedges ever did.
 
-     A mountain does not work like that, and this one did not need the help.
-     Curvature is what launches a rider — see the slope budget in TERRAIN —
-     and there are four octaves of it out there plus the knolls, which are the
-     mountain's own kickers and come in every size and shape the hash can
-     make. What was missing was not a ramp, it was *variety over distance*:
-     eight hundred metres of hill all had the same statistics, so it was all
-     equally jumpable and therefore none of it was memorable.
+     THE PARK AND ITS RAILS HAVE NOW GONE THE SAME WAY, and the argument is
+     the same argument finished properly. What survived the kickers was a
+     hundred and fifty metres of hill with three steel bars on it, announced
+     by a gate pair — and that is still a venue somebody dressed. It carried a
+     whole mechanism with it: a line the rider was locked onto, a state the
+     physics had to hold them in, a friction constant, a catch test, a scoring
+     event, and a stretch of mountain that had to be *told* it was special.
+     Every one of those is a rule the mountain did not need.
 
-     `TERRAIN.character` is what replaced them, and it is the change this
-     whole revision is about. See the long note there.
-
-     The park went with them, mostly. A park was a graded line of kickers with
-     a rail beside it; it is now a stretch of hill with several rails on it,
-     announced by the same gate pair, and it is still worth choosing to ride.
-     Nothing in the game builds snow any more. */
-  park: {
-    period: 780,      // metres between chances at one
-    chance: 0.6,
-    length: 150,      // how much hill a park occupies
-    rails: 3,         // laid out down it, alternating sides
-    railChance: 0.8,  // …and each one is only probably there
-  },
-  rail: {
-    length: 14,
-    height: 0.85,
-    radius: 0.34,
-    // How close the board has to be to the rail's line, and how close to its
-    // height, before the rider is riding it rather than passing it
-    catchWidth: 0.85,
-    catchHeight: 0.55,
-    friction: 0.012,  // a rail is not snow
-  },
+     What is left is a mountain. Air comes from curvature, which is everywhere
+     and never the same twice; the only thing on the piste with a name is a
+     slalom gate, and the only thing it asks is whether you went through it.
+     Nothing here builds snow or steel any more. */
 };
 
 export const WILDLIFE = {
