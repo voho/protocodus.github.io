@@ -35,7 +35,7 @@ import { createTrail } from './trail.js';
 import { createHelicopter } from './helicopter.js';
 import { createHuts } from './huts.js';
 import {
-  Rider, trickName, butterName, CLEAN, SKETCHY, BAIL,
+  Rider, trickName, butterName, butterHalfTurns, CLEAN, SKETCHY, BAIL,
 } from './rider.js';
 import { createRiderModel } from './riderModel.js';
 import { createChaseCamera } from './camera.js';
@@ -702,7 +702,9 @@ rider.on('grind', () => {
 rider.on('butter', (spin, time) => {
   if (game.mode !== 'playing') return;
   if (time < RIDER.pressMinTime || spin < RIDER.pressMinSpin) return;
-  const halves = Math.round(spin / Math.PI);
+  // The half turns that actually came round — see `butterHalfTurns`, which
+  // the name below reads too, so the callout and the payout are one figure.
+  const halves = butterHalfTurns(spin);
   const pts = halves * 0.5 * SCORE.butterPerTurn * game.combo;
   award(pts, butterName(spin), '');
   game.combo = Math.min(SCORE.comboMax, game.combo + SCORE.comboStep);

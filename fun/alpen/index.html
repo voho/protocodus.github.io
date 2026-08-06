@@ -236,21 +236,38 @@
         },
       };
     }());
-    /* An exception during boot means there is no game behind the title card,
-       and the card must stop pretending otherwise.
+    /* A boot that died means there is no game behind the title card, and the
+       card must stop pretending otherwise.
 
-       Both conditions matter. `ready` is set once the mountain has actually
-       drawn a frame, and an error after that is the running game's problem
-       rather than the loader's — a wipeout that throws must not put a failure
-       notice over a working run. And the filename has to be ours: browser
-       extensions and injected scripts throw into this handler all the time,
-       and none of that is a reason to tell somebody the game is broken. */
+       IT IS REGISTERED IN THE CAPTURE PHASE, and that is not tidiness. Two
+       completely different things arrive here. A script that *threw* fires a
+       bubbling ErrorEvent at the window, which the default phase sees. A
+       resource that failed to *load* — the engine 404ing, or any module in
+       the graph — fires a plain event at the element that asked for it and
+       does not bubble at all, so a window listener in the bubble phase never
+       hears it. That second one is precisely the case with no other backstop:
+       nothing in `main.js` runs, so nothing ever closes the first stage, and
+       the card sits on "Fetching the engine" for as long as the tab is open.
+
+       Everything else here is about not crying wolf. `ready` is set once the
+       mountain has drawn a frame, and an exception after that belongs to the
+       running game rather than to the loader — a wipeout that throws must not
+       put a failure notice over a working run. And the source has to be ours,
+       by whichever of the two names the event carries: extensions and injected
+       scripts throw into this handler constantly, and a stylesheet or an icon
+       that fails to load is not the game either. */
     window.addEventListener('error', function (e) {
       if (!window.__alpenBoot) return;
       if (document.body.classList.contains('ready')) return;
-      if (e && e.filename && e.filename.indexOf(location.origin) !== 0) return;
+      var target = e && e.target;
+      if (target && target !== window && target.nodeType === 1) {
+        if (target.tagName !== 'SCRIPT') return;
+        if (target.src && target.src.indexOf(location.origin) !== 0) return;
+      } else if (e && e.filename && e.filename.indexOf(location.origin) !== 0) {
+        return;
+      }
       window.__alpenBoot.fail();
-    });
+    }, true);
   </script>
   <script type="module" src="./js/main.js"></script>
 </body>

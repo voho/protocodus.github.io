@@ -1514,16 +1514,24 @@ export class Rider {
     this.flip = 0;
     this.grabTime = 0;
     this.grabbing = false;
-    // A press that was still on the snow the moment the snow left is a press
-    // that finished, so it is judged here rather than being carried into the
-    // air where it would be rolled into the jump's own rotation.
-    this.releasePress();
     // Preserve the real yaw rate the edge had at the lip. Air control can add
     // to it or bleed it away, but takeoff itself should not erase momentum.
     this.flipVel = 0;
     this.charging = false;
     this.charge = 0;
     this.emit('launch', this.vel.y);
+    /* A press that was still on the snow the moment the snow left is a press
+       that finished, so it is judged here rather than being carried into the
+       air where it would be rolled into the jump's own rotation.
+
+       AFTER THE LAUNCH, and the order is load-bearing rather than incidental.
+       Leaving the ground retires the last jump's verdict — the launch handler
+       clears the banner so the new air has the read-out to itself — so a
+       butter judged before that put its callout up and had it wiped in the
+       same physics step. The points were paid and the player was never told
+       what for, which on the one trick that ends by accident is exactly the
+       moment they most need telling. */
+    this.releasePress();
   }
 
   /* The press, closed out. Called wherever the board can stop being on the
@@ -2270,9 +2278,31 @@ export function trickName(s, verdict) {
   return name;
 }
 
-/* And what a butter carried, which is a name rather than a sentence for the
-   same reason a cork is: the rotation and the press are one trick. */
+/* HOW MUCH OF A BUTTER ACTUALLY CAME ROUND, and it is a floor with a window
+   rather than a rounding.
+
+   An aerial rotation is rounded to the nearest half turn and that is honest,
+   because the landing has already refused anything more than `landWindow` off
+   a clean stance — the rounding is a statement about a rotation that has been
+   checked. A press has no such check. It ends when the player lets go, at
+   whatever angle they let go at, so rounding to the nearest paid a
+   three-quarter turn as a full one: two hundred and seventy degrees came out
+   as BUTTER 360, with the points and the combo to match, while the board was
+   still visibly sideways.
+
+   So it counts the half turns that arrived, and the same window a landing
+   allows is added before the floor so that a rotation which has essentially
+   got there still counts as having got there. Reading `landWindow` rather
+   than choosing a second number is the point: the two paths now agree about
+   what "completed" means by construction, and cannot drift apart. */
+export function butterHalfTurns(spin) {
+  return Math.floor((Math.abs(spin) + RIDER.landWindow) / Math.PI);
+}
+
+/* And what it is called, which is a name rather than a sentence for the same
+   reason a cork is: the rotation and the press are one trick. It reads the
+   same quantisation the score does, so the label and the payout can never
+   disagree — the standing rule for every other trick in this file. */
 export function butterName(spin) {
-  const turns = Math.round(spin / Math.PI) * 180;
-  return turns >= 360 ? `BUTTER ${turns}` : 'BUTTER 180';
+  return `BUTTER ${Math.max(1, butterHalfTurns(spin)) * 180}`;
 }
