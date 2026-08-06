@@ -396,6 +396,71 @@ export const TERRAIN = {
       ribStart: [10, 22],
       ribWidth: 32,
     },
+
+    /* RUNNELS — the channels snow cuts in a flank on its way down it.
+
+       Everything above varies the wall *along* the run, and that is why the
+       flanks still read as two poured ramps from inside the piste: seen from
+       a rider looking down the hill, a term that only changes over hundreds
+       of metres of z is a term that does not change at all. What a real
+       steep snow flank is covered in runs the other way — the vertical
+       fluting every sluff, every point release and every wet slide leaves
+       behind, a hundred parallel channels pointing straight down the fall
+       line, and the single most recognisable thing about alpine terrain
+       above a piste.
+
+       So this is a carrier across the wall with a phase that wanders slowly
+       down it: channels that run downhill, meander a little, and are spaced
+       differently on the two sides because they read the same side-specific
+       geology the shoulders do.
+
+       IT DOES NOT COST THE SLOPE BUDGET, because it does not lie on the fall
+       line — the whole variation is across the hill, which is free for the
+       same reason the corridor's dish is. What it does have to respect is the
+       *containment* invariant: the ground outside the lip is monotonically
+       uphill, so gravity always points home, and a channel deep enough to
+       reverse that would be a pocket a rider could sit in.
+
+       That is arranged by construction rather than by measurement. The wall's
+       own outward slope is `height/scale · s(u)` for `s(u) = 2u·e^(−u²)`, and
+       `depth` is scaled by the *square* of that same shape — so the ratio
+       between the channel's steepest wall and the mountain's is a constant,
+       set here, and cannot be broken by a stretch of hill where the flank
+       happens to lie back. `scale/localScale` keeps it constant against the
+       breadth variation too: a broader flank is a shallower one, and its
+       channels shallow with it. The number that matters is that ratio, and at
+       these amplitudes it is three quarters at the steepest point of the face
+       and less everywhere else — so the flank still climbs everywhere, and the
+       remaining margin is spent on the two shoulders and the buttress.
+
+       The square is the part that took a second attempt. A linear scaling
+       bounds the *carrier's* slope correctly and says nothing about the
+       amplitude's own arrival, which contributes about `depth` over the length
+       it arrives in — a constant, against a wall gradient that goes to zero
+       linearly at the lip. There is therefore always a band just past the lip
+       where a linear arrival out-climbs the mountain, and there was: an
+       ordinary stretch of flank seven metres out measured +0.11 without the
+       channels and −0.02 with them, which is a pocket in ground whose entire
+       job is to be uphill. Squared, the amplitude is quadratic in the distance
+       past the lip and its derivative is linear — the same order as the wall's
+       — so the constant ratio covers the arrival as well as the carrier, and
+       the channels simply concentrate on the steepest third of the face, which
+       is where a slide cuts them anyway. */
+    runnels: {
+      wave: 24,          // metres across the flank between channels
+      waveVary: 0.30,    // share of it the side's own broad field moves
+      depth: 2.6,        // metres from rib to channel floor at full steepness
+      fineWave: 8.5,     // and a second, shallower corrugation over the top
+      fineDepth: 0.18,
+      meander: 5.5,      // metres a channel wanders across the flank…
+      meanderFreq: 0.0026, // …over roughly four hundred metres of descent
+      seed: 149,
+      /* And the cell size at which the mesh stops being able to carry them.
+         A twenty-six metre channel wants four samples across it; past six
+         metres a cell the term is being sampled below what it describes, and
+         what would reach the screen is not fluting, it is aliasing. */
+      lod: [5.5, 11.0],
+    },
   },
 
   /* Four octaves of value noise, two of them warped.
@@ -1286,6 +1351,83 @@ export const RIDER = {
      lands and a 540 that lands at 519 and gets called sketchy. */
   assistTime: 0.35,
   assistRate: 3.4,
+
+  /* THE GRAB, which was one reach and is now three, chosen by what the rest
+     of the body is already doing rather than by two more keys.
+
+     A grab is the only trick in the game that pays for how long you hold it,
+     and for a long time it was also the only trick with exactly one shape —
+     so a rider who had learned it had learned all of it, and holding Q was a
+     tap you made once per jump and then forgot. What the sport actually has
+     is a dozen of them, and which one you get is decided by where your weight
+     is when your hand goes down.
+
+     So that is the input. W folds the body forward and the leading hand
+     reaches past the binding for the nose; S sits the weight back, the knees
+     come up behind and the trailing hand takes the heel edge in a method;
+     neither, and the trailing hand drops straight onto the toe edge between
+     the feet, which is an indy and is what a hand does when you do not tell
+     it anything. No key was added, the two modifiers already mean forward and
+     back everywhere else in the game, and the pose the rig draws is the pose
+     the physics of the reach implies.
+
+     `reach` is how far past the nominal grab point the hand has to travel and
+     therefore how far the body has to fold; the score follows it, because
+     what makes one grab worth more than another is exactly how far out of
+     shape you have to get to hold it. */
+  grabs: [
+    // indy — trailing hand, toe edge, between the bindings
+    { name: 'INDY', reach: 1.0 },
+    // nose — leading hand, past the front binding, body folded over it
+    { name: 'NOSE GRAB', reach: 1.35 },
+    // method — trailing hand, heel edge, board pulled up behind the back
+    { name: 'METHOD', reach: 1.6 },
+  ],
+  // Seconds of hold past which a grab stops being a touch and starts being a
+  // tweak, and the second stop where it is being held for its own sake.
+  grabHold: [0.18, 0.55],
+
+  /* THE PRESS, and why the same key does it.
+
+     Everything this game scores happens in the air, and most of a run is not
+     in the air. On a plain chapter — which the terrain deliberately spends a
+     third of its length being, so that the next rough one means something —
+     there was nothing to do but hold a line and wait for the ground to change
+     its mind. That is the gap this fills, and it fills it with the one thing
+     every snowboarder does on flat ground: they stand on one end of the board
+     and spin on it.
+
+     A press is a real mechanic and not a pose, because lifting one end of the
+     board out of the snow genuinely changes three things at once, and all
+     three of them are already quantities this model has:
+
+       THE EDGE MOSTLY GOES. Half the effective edge is in the air, so the
+       grip the sidecut can ask for collapses — which is why a press held
+       through a hard carve washes out on its own and no rule had to be
+       written saying you cannot do both.
+
+       THE BOARD PIVOTS FREELY. With the tail unweighted there is nothing
+       buried to resist a rotation, so the skid clamp — the rule that a board
+       may never point more than sixty degrees off its own travel — is exactly
+       the rule a butter is defined by breaking. It opens with the press, and
+       when the board passes ninety degrees the leading end has genuinely
+       changed and the rider comes out switch.
+
+       AND IT COSTS SPEED. A board standing on its nose is ploughing with its
+       nose, and a butter is a slow trick everywhere it has ever been done.
+
+     `spinPay` is per full rotation carried through a press. It is deliberately
+     modest against a jumped 360 — this is a trick you can do anywhere, at any
+     speed, without leaving the snow, so it has to be worth doing and must
+     never be worth more than committing to a lip. */
+  pressRate: 6.5,       // per second the board comes up onto one end
+  pressRelease: 9.0,    // and settles back down a little quicker
+  pressGrip: 0.62,      // share of the edge a full press takes away
+  pressPivot: 3.4,      // rad/s of free rotation it hands back, at any speed
+  pressDrag: 2.6,       // m/s² of plough for standing on one end of the board
+  pressSkid: 3.05,      // radians the skid clamp opens to — nearly a half turn
+  pressMinSpin: 2.62,   // radians (150°) under which a butter is just a press
+  pressMinTime: 0.3,    // seconds under which it is just a wobble
   // Landing. Anything inside the window snaps straight; anything outside
   // is a bail. Switch is the same window rotated half a turn.
   landWindow: 0.92,   // radians ≈ 53°
@@ -1373,6 +1515,18 @@ export const SCORE = {
   grabPerSecond: 260,
   airPerSecond: 70,
   switchBonus: 1.5,
+  /* Taking a spin off its axis, which is the difference between a rotation
+     and a trick worth a name. A flip laid into a spin is much harder to see
+     out of and much harder to land than either of them alone, and until this
+     existed the game paid for it as though the two had happened one after the
+     other. Multiplied, not added, so it scales with whatever was already
+     being attempted. */
+  corkBonus: 0.45,
+  /* Buttering, per full rotation carried through a press. Deliberately small
+     against a jumped 360: this is a trick you can do on flat ground at any
+     speed without leaving the snow, so it must be worth doing and must never
+     be worth more than committing to a lip. */
+  butterPerTurn: 240,
   /* Risk is worth something. Fast tricks climb to a 1.5× premium, while a
      pop released on the lip gets its own timing bonus. Neither creates
      points by itself; they only amplify something the player actually lands. */

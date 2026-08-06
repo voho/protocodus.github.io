@@ -212,6 +212,15 @@ const CH_MOGULS = 2;
 const CH_CHATTER = 3;
 const CH_KNOLLS = 4;
 
+const TAU = Math.PI * 2;
+
+/* The peak of s(u) = 2u·e^(−u²), which is the shape of the containment wall's
+   own outward gradient — the profile is `height·(1 − e^(−u²))` and this is its
+   derivative up to the constant. Dividing by the peak turns it into a plain
+   0…1 answer to "how steep is the flank here", which is what the runnels ride
+   so that their depth can never out-climb the mountain they are cut into. */
+const WALL_STEEP_PEAK = Math.SQRT2 * Math.exp(-0.5);
+
 const smoothstep = (a, b, t) => {
   const u = Math.min(1, Math.max(0, (t - a) / (b - a)));
   return u * u * (3 - 2 * u);
@@ -539,7 +548,7 @@ function rowContext(z, ctx) {
 }
 
 function heightIn(ctx, x, coarseDetail = 1, fineDetail = coarseDetail,
-  mogulDetail = 1) {
+  mogulDetail = 1, flankDetail = 1) {
   const z = ctx.z;
   let h = ctx.base;
 
@@ -708,7 +717,72 @@ function heightIn(ctx, x, coarseDetail = 1, fineDetail = coarseDetail,
          lip and exponential wall both arrive flat, so introducing a 17-degree
          crease precisely at their join defeated the otherwise smooth profile. */
       const creepShape = w - wall.creepEase * (1 - Math.exp(-w / wall.creepEase));
-      h += wall.height * (1 - Math.exp(-u * u)) + wall.creep * creepShape;
+      const eu = Math.exp(-u * u);
+      h += wall.height * (1 - eu) + wall.creep * creepShape;
+
+      /* THE FLUTING, and it is the only term on this whole profile that
+         varies across the flank rather than along it.
+
+         Everything else out here — the breadth, the two shoulders, the
+         buttress — is a function of z, which is exactly why the walls still
+         read as two poured ramps from a rider looking down the hill: a term
+         that only changes over hundreds of metres of descent does not change
+         at all in the frame. What covers a real flank above a piste runs the
+         other way, straight down the fall line, cut by every sluff and point
+         release that has come off it since November.
+
+         `steep` is the flank's own outward gradient normalised to its peak,
+         so the channels are exactly as deep as the wall is steep: nothing at
+         the lip, nothing out on the plateau, deepest across the face in
+         between. That is both what a slide actually does and what keeps the
+         containment guarantee intact — the ratio between a channel's steepest
+         wall and the mountain's is a constant chosen in the config rather
+         than an amplitude that has to be re-checked whenever the flank lies
+         back. `wall.scale / localScale` holds the same ratio against the
+         breadth variation: a broader flank is a shallower one, and its
+         channels shallow with it.
+
+         The phase wanders on one slow noise per side, so the channels lean
+         and braid down the hill instead of standing as a comb, and the two
+         sides of the valley never mirror each other. */
+      if (flankDetail > 0.001) {
+        const steep = (2 * u * eu) / WALL_STEEP_PEAK;
+        if (steep > 0.004) {
+          const R = wall.runnels;
+          const drift = R.meander * snoise2(
+            z * R.meanderFreq, left ? -5.7 : 5.7, R.seed,
+          );
+          /* SQUARED, and that is the whole of the containment argument near
+             the lip rather than a shaping choice.
+
+             The ratio below bounds the *carrier's* slope against the wall's,
+             and it is a complete argument only for a term whose amplitude is
+             constant. It is not: the amplitude has to arrive from zero
+             somewhere, and an arrival ramp contributes its own slope of about
+             depth over its length — a constant — while the wall's own
+             gradient near the lip is going to zero linearly. So there is
+             always a band just past the lip where a linear arrival out-climbs
+             the mountain, and it was measurable: an ordinary stretch of flank
+             seven metres out went from +0.11 to −0.02, which is a pocket in
+             ground that is supposed to be monotonically uphill everywhere.
+
+             `steep` is already linear in w near the lip, so squaring it makes
+             the amplitude quadratic and its derivative linear — the same
+             order as the wall's, with a constant ratio between them, which is
+             the property the rest of this block is built on. It costs nothing
+             anybody will miss: the channels simply concentrate on the steepest
+             third of the face, which is where a slide actually cuts them. */
+          const amp = flankDetail * steep * steep * (wall.scale / localScale);
+          const lambda = R.wave * (1 - R.waveVary + 2 * R.waveVary * broad);
+          // Squared, so the channel floors are narrow and the ribs between
+          // them broad — which is the section a slide leaves, and not the
+          // symmetrical corrugation a bare cosine draws.
+          const t = 0.5 - 0.5 * Math.cos((w + drift) * (TAU / lambda));
+          h -= R.depth * amp * t * t;
+          h -= R.fineDepth * amp
+            * (0.5 - 0.5 * Math.cos((w + drift * 0.4) * (TAU / R.fineWave)));
+        }
+      }
 
       const lowerStart = S.lowerStart[0]
         + (S.lowerStart[1] - S.lowerStart[0]) * broad;
@@ -867,6 +941,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   const coarseDetailMask = new Float32Array(count);
   const fineDetailMask = new Float32Array(count);
   const mogulDetailMask = new Float32Array(count);
+  const flankDetailMask = new Float32Array(count);
   const heights = new Float64Array(count);
   const indices = new (count > 65535 ? Uint32Array : Uint16Array)(rows * cols * 6);
 
@@ -912,6 +987,12 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       );
       mogulDetailMask[m] = 1 - smoothstep(
         moguls.lod[0], moguls.lod[1], cell,
+      );
+      // The flank fluting is much longer than the mogul octave and survives
+      // much wider cells, so it keeps its own fade rather than borrowing one
+      // that would delete it while the wall is still the whole left of frame.
+      flankDetailMask[m] = 1 - smoothstep(
+        wall.runnels.lod[0], wall.runnels.lod[1], cell,
       );
     }
   }
@@ -1302,20 +1383,35 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     return texture;
   };
   const surfaceLoader = new THREE.TextureLoader();
-  surfaceLoader.load(
-    new URL('../assets/textures/snow/powder-surface.webp', import.meta.url).href,
-    (texture) => {
-      powderSurface.value = prepareSurface(texture);
+  /* …and one promise over the pair of them, so the page can tell a player
+     that the snow is still arriving.
+
+     It settles rather than resolving: a plate that fails to fetch leaves the
+     neutral one-pixel texture in place and the ground keeps its procedural
+     fallback, which is a complete and playable mountain. A progress read-out
+     that waits forever on a 404 would be reporting a problem the game does
+     not have. */
+  const loadSurface = (name, apply) => new Promise((settle) => {
+    surfaceLoader.load(
+      new URL(`../assets/textures/snow/${name}`, import.meta.url).href,
+      (texture) => {
+        apply(prepareSurface(texture));
+        settle();
+      },
+      undefined,
+      settle,
+    );
+  });
+  const surfacesReady = Promise.all([
+    loadSurface('powder-surface.webp', (t) => {
+      powderSurface.value = t;
       snowReadyTarget.x = 1;
-    },
-  );
-  surfaceLoader.load(
-    new URL('../assets/textures/snow/groomed-surface.webp', import.meta.url).href,
-    (texture) => {
-      groomedSurface.value = prepareSurface(texture);
+    }),
+    loadSurface('groomed-surface.webp', (t) => {
+      groomedSurface.value = t;
       snowReadyTarget.y = 1;
-    },
-  );
+    }),
+  ]);
 
   /* Surface detail, in the fragment shader rather than in the mesh.
 
@@ -1645,6 +1741,114 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
           // as relief.
           normal = normalize(normal + mat3(viewMatrix)
             * vec3(n64SlopeX, 0.0, n64SlopeZ) * n64SnowMask);
+        }
+        /* THE SNOW BETWEEN THE PLATES AND THE CURTAIN.
+
+           Every surface this mountain has has let go by a hundred and eighty
+           metres: the corduroy at 38, the plate normals at 90, the plate
+           albedo at 180, and the geometry's own wind octaves at whatever cell
+           size the graded grid has reached by then. Past that the ground is a
+           sheet of paper — and on a surface that fills two thirds of the
+           frame, a sheet of paper is the single loudest thing in the picture
+           saying this is a rendering of snow rather than snow. Every fade in
+           this file is individually correct and together they leave four
+           hundred metres of mountain with nothing on it at all.
+
+           What is genuinely out there is the same wind relief the near field
+           has, at the only scale still worth resolving at that range: drift
+           lines about eight metres apart, stretched a hundred metres down the
+           prevailing wind. So this is that field continued — analytically,
+           because a sine has an exact derivative and this is spent entirely
+           as a normal, and because the one thing that must not happen at this
+           distance is a repeating carrier landing on the pixel grid. It rides
+           the same anisotropic axes as the chatter octave in the config and
+           arrives as that octave's LOD gives up, so the near ground and the
+           far ground are one surface described twice rather than two surfaces
+           meeting at a ring.
+           (No back-ticks in here: this comment is inside a template literal.)
+
+           Two things stop it becoming wallpaper. The ridge lines are bent by
+           their own long axis, so they braid and lean instead of combing; and
+           one slow noise field decides where the wind has actually worked, so
+           the drifts come in fields with smooth snow between them.
+
+           ON THE PISTE IT IS A DIFFERENT SURFACE, chosen by the same groom
+           mask the plates use — because a piste is not wind-blown. What a
+           groomed slope shows at two hundred metres is not corduroy; the ribs
+           went at 38. It is the seams between the machine's own passes, about
+           five metres apart, running down the fall line in the groomer's
+           frame and therefore bending with the route and forking with it. */
+        float n64FarLive = smoothstep(60.0, 125.0, vDist)
+          * (1.0 - smoothstep(380.0, 520.0, vDist)) * n64SnowMask;
+        /* THE THREE PHASES AND THEIR FOOTPRINTS, MEASURED OUT HERE, where
+           every fragment in the quad still agrees that they are being
+           measured. Derivatives are only defined in uniform control flow, and
+           the gate below is not uniform: it varies with distance across the
+           60-125 m and 380-520 m fades and with the snow mask at every rock
+           boundary, so a quad split along any of those owes the fragments
+           inside no meaningful rate of change. Taking fwidth in there would
+           hand the anti-moire gate a driver-dependent number in exactly the
+           places it exists to protect. The same argument, and the same
+           remedy, as the plate fetches above.
+           (No back-ticks in here: this comment is inside a template literal.) */
+        float n64FarAcross = vWorld.x * 0.985 - vWorld.z * 0.174;
+        float n64FarAlong = vWorld.x * 0.174 + vWorld.z * 0.985;
+        // Drift lines: eight metres across, a hundred down the wind.
+        float n64FarSwayA = n64FarAlong * 0.0628;
+        float n64FarPhaseA = n64FarAcross * 0.816 + sin(n64FarSwayA) * 2.1;
+        // Soft sastrugi over the top: three metres across, thirty along.
+        float n64FarSwayB = n64FarAlong * 0.224 + 2.1;
+        float n64FarPhaseB = n64FarAcross * 1.904 + sin(n64FarSwayB) * 1.3;
+        // The machine's passes, in the groomer's own frame.
+        float n64FarPhaseG = (vWorld.x - vGroomFrame.x) * 1.30;
+        /* Each carrier dissolves against its own screen footprint, and this
+           is the load-bearing part rather than a nicety: measured in radians
+           of phase per pixel, past about one and a half there are fewer than
+           four pixels to a cycle and what reaches the screen is not drift, it
+           is the moire this file has been burned by before. The anisotropy is
+           what keeps the gate open at all down a piste seen nearly edge-on —
+           almost all of the variation is across the run, which is the axis a
+           grazing view foreshortens least. */
+        float n64FarFadeA = 1.0 - smoothstep(0.55, 1.55, fwidth(n64FarPhaseA));
+        float n64FarFadeB = 1.0 - smoothstep(0.55, 1.55, fwidth(n64FarPhaseB));
+        float n64FarFadeG = 1.0 - smoothstep(0.55, 1.55, fwidth(n64FarPhaseG));
+        if (n64FarLive > 0.003) {
+          float n64FarPatch = 0.26 + 0.74 * n64Noise(vWorld.xz * 0.0135);
+          /* THE MATERIAL, NOT THE TEXTURE. Which of the two far fields this
+             ground gets is a question about whether a machine drove over it,
+             and the groom *blend* is that answer — the generated groom mask
+             with the storm's burial of it. The groom *weight* is the same
+             answer multiplied by whether a WebP has finished decoding, which
+             is the right gate for a texture fetch and the wrong one for this:
+             none of these three carriers reads a texture. Keyed to readiness,
+             a plate that never arrives left the piste permanently wind-drifted
+             and permanently without its groomer seams, in a fallback the
+             loader explicitly supports.
+             (No back-ticks in here: this comment is inside a template literal.) */
+          float n64FarWindLevel = n64FarLive * n64FarPatch
+            * (1.0 - n64GroomBlend);
+          float n64FarA = 0.215 * n64FarWindLevel * n64FarFadeA;
+          float n64FarB = 0.082 * n64FarWindLevel * n64FarFadeB;
+          float n64FarG = 0.062 * n64FarLive * n64GroomBlend * n64FarFadeG;
+
+          float n64FarCosA = cos(n64FarPhaseA) * n64FarA;
+          float n64FarCosB = cos(n64FarPhaseB) * n64FarB;
+          // The two field axes, then the same two rotated back into world XZ.
+          float n64FarDAcross = n64FarCosA * 0.816 + n64FarCosB * 1.904;
+          float n64FarDAlong = n64FarCosA * (2.1 * 0.0628 * cos(n64FarSwayA))
+            + n64FarCosB * (1.3 * 0.224 * cos(n64FarSwayB));
+          float n64FarSlopeX = n64FarDAcross * 0.985 + n64FarDAlong * 0.174;
+          float n64FarSlopeZ = -n64FarDAcross * 0.174 + n64FarDAlong * 0.985;
+          /* The groomer's V axis moves with x at unity and with z at minus the
+             route tangent the vertex already carries, so a pass seam bends
+             with the piste and chooses its own branch through a fork exactly
+             as the corduroy does. */
+          float n64FarCosG = cos(n64FarPhaseG) * n64FarG * 1.30;
+          n64FarSlopeX += n64FarCosG;
+          n64FarSlopeZ += n64FarCosG * -vGroomFrame.y;
+
+          normal = normalize(normal + mat3(viewMatrix)
+            * vec3(n64FarSlopeX, 0.0, n64FarSlopeZ));
         }`);
   };
   /* Keep direction-aware atmospheric fog and continuous Lambert response,
@@ -1736,7 +1940,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       for (let c = 0; c < vertsX; c++, i++) {
         heights[i] = heightIn(
           ctx, ax + xs[c], coarseDetailMask[i], fineDetailMask[i],
-          mogulDetailMask[i],
+          mogulDetailMask[i], flankDetailMask[i],
         );
       }
     }
@@ -2391,6 +2595,10 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     mesh,
     setSun,
     update,
+    // Settles once both snow plates have finished arriving, one way or the
+    // other. The loading read-out is its only consumer; nothing in the game
+    // waits on it, because nothing in the game has to.
+    surfacesReady,
     vertexCount: count,
     debug: () => ({
       anchorX, anchorY, anchorZ, morphing, morphAge,
