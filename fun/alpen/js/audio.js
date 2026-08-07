@@ -156,18 +156,9 @@ export function createAudio() {
   /* `carveLoad` is optional only so that a caller which has not been updated
      still makes a sensible noise: without it the edge simply never sings and
      everything else behaves exactly as before. */
-  function ambience(speed, slide, grounded, storm, carveLoad = 0, tumbleSlide = 0) {
+  function ambience(speed, slide, grounded, storm, carveLoad = 0, tumbleSlide = 0, surf = null) {
     if (!started || !ctx || parked || muted) return;
 
-    /* Called every rendered frame, but a frame is faster than the ear. The
-       twelve automations below all have time constants of fifty milliseconds
-       and up, so re-aiming them at 144 Hz is pure churn — the curves land in
-       the same place — while the automation events themselves have a real
-       cost in the audio thread's event queues. Thirty-five milliseconds keeps
-       the update comfortably inside the shortest time constant and cuts the
-       event traffic by whatever multiple of ~28 Hz the display manages.
-       While muted the whole graph is behind a master gain of zero, so there
-       is nothing to steer at all. */
     const ms = performance.now();
     if (ms - ambienceAt < 35) return;
     ambienceAt = ms;
@@ -175,6 +166,10 @@ export function createAudio() {
     const t = now();
     const v = Math.min(1, speed / 42);
     const on = grounded ? 1 : 0;
+
+    const ice = surf ? surf.ice : 0;
+    const rock = surf ? surf.rock : 0;
+    const powder = surf ? surf.powder : 0;
 
     /* Gusting, computed here rather than with an LFO node because it is two
        sines and a multiply. A wind held at a constant level is a fan; what
@@ -192,28 +187,28 @@ export function createAudio() {
     whistle.gain.gain.setTargetAtTime(fast * fast * 0.10 * gust * (grounded ? 1 : 0.9), t, 0.15);
     whistle.filter.frequency.setTargetAtTime(950 + fast * 1750, t, 0.25);
 
-    // The board over the snow: the floor of the whole mix, and the thing
-    // whose disappearance makes a jump feel like a jump
-    rumble.gain.gain.setTargetAtTime((0.025 + v * v * 0.17) * on, t, 0.09);
-    rumble.filter.frequency.setTargetAtTime(95 + v * 200, t, 0.15);
+    // The board over the ground: higher pitch chatter on ice, deep bass on powder, rougher on rock
+    const rumbleFreq = 95 + v * 200 + ice * 120 - powder * 30 + rock * 150;
+    rumble.gain.gain.setTargetAtTime((0.025 + v * v * 0.17 + rock * 0.08) * on, t, 0.09);
+    rumble.filter.frequency.setTargetAtTime(rumbleFreq, t, 0.15);
 
-    // The edge, holding. Squared, because a carve is nearly silent until it
-    // is really loaded and then it is the loudest thing on the hill.
+    // The edge, holding. High-pitched metallic chime on ice, soft swoosh on powder
     const load = clamp01(carveLoad);
-    edge.gain.gain.setTargetAtTime(load * load * (0.05 + v * 0.22) * on, t, 0.05);
-    edge.filter.frequency.setTargetAtTime(2300 + load * 2400 + v * 800, t, 0.08);
+    const edgeFreq = 2300 + load * 2400 + v * 800 + ice * 900 - powder * 400;
+    edge.gain.gain.setTargetAtTime(load * load * (0.05 + v * 0.22 + ice * 0.06) * on, t, 0.05);
+    edge.filter.frequency.setTargetAtTime(edgeFreq, t, 0.08);
 
-    // The edge, gone. Broad, low and unmistakably a different event.
+    // The edge, gone. Broad, low slide wash, with higher frequency on ice
     const skid = clamp01(slide / 10);
-    wash.gain.gain.setTargetAtTime(skid * (0.09 + v * 0.15) * on, t, 0.05);
-    wash.filter.frequency.setTargetAtTime(650 + Math.min(slide, 14) * 145, t, 0.08);
+    const washFreq = 650 + Math.min(slide, 14) * 145 + ice * 350;
+    wash.gain.gain.setTargetAtTime((skid * (0.09 + v * 0.15) + rock * 0.10) * on, t, 0.05);
+    wash.filter.frequency.setTargetAtTime(washFreq, t, 0.08);
 
-    // The contact half of a fall. Airborne tumbles retain only the wind;
-    // once the body meets the hill this broad scrape follows actual sliding
-    // speed, so each bounce opens a pocket of silence before the snow returns.
+    // The contact half of a fall or rock scrubbing
     const drag = clamp01(tumbleSlide / 24);
-    scrape.gain.gain.setTargetAtTime(drag * (0.045 + drag * 0.16), t, 0.035);
-    scrape.filter.frequency.setTargetAtTime(720 + drag * 1500, t, 0.07);
+    const rockScrape = rock * (v * 0.15);
+    scrape.gain.gain.setTargetAtTime((drag * (0.045 + drag * 0.16) + rockScrape) * (grounded ? 1 : 0), t, 0.035);
+    scrape.filter.frequency.setTargetAtTime(720 + (drag + rock) * 1500, t, 0.07);
   }
 
   /* --- one-shots ------------------------------------------------------- */

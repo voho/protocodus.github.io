@@ -23,6 +23,7 @@ import * as THREE from 'three';
 import { RENDER, RIDER, SCORE, PROPS, GRADE } from './config.js';
 import {
   createTerrain, heightAt, nearestCenter, corridorHalfAt, beyondLipAt,
+  getTerrainMaterialAt, guideAt,
 } from './terrain.js';
 import { createProps, HARD } from './props.js';
 import { createWildlife } from './wildlife.js';
@@ -34,6 +35,7 @@ import {
 import { createTrail } from './trail.js';
 import { createHelicopter } from './helicopter.js';
 import { createHuts } from './huts.js';
+import { createMountainLife } from './mountainLife.js';
 import { Rider, trickName, CLEAN, SKETCHY, BAIL } from './rider.js';
 import { createRiderModel } from './riderModel.js';
 import { createChaseCamera } from './camera.js';
@@ -229,6 +231,7 @@ for (const group of [props.group, wildlife.group, huts.group]) shadowCasting(gro
    samples per physics step at 120 Hz — and it no longer walks a list first. */
 const world = {
   height: heightAt,
+  surfaceAt: getTerrainMaterialAt,
   /* Running out of momentum on the wall is a real failed commitment. Doing
      the same on a steep-looking patch inside the groomed piste is not: the
      board can wash out and recover downhill there without a hidden wipeout. */
@@ -289,6 +292,7 @@ model.shadow.receiveShadow = false;
 
 const chase = createChaseCamera(THREE, camera);
 const audio = createAudio();
+const mountainLife = createMountainLife(THREE, scene, shading, spray, audio);
 const hud = createHud(hudRoot);
 const touchPause = pad.querySelector('[data-action="pause"]');
 const touchMute = pad.querySelector('[data-action="mute"]');
@@ -389,16 +393,18 @@ function pause() {
   persistBest(true);
 }
 
+let lastPassedGate = null;
+
 function restart() {
-  const start = rider.pos.z;
+  /* A restart resumes from the last gate taken — the run is a course now,
+     and a course has checkpoints — and always on the guide line, which is
+     groomed by construction: no spawn ever lands on a mogul. */
+  const start = lastPassedGate ? lastPassedGate.z : rider.pos.z;
+  const startX = lastPassedGate ? lastPassedGate.x : guideAt(start);
   rider.reset(start);
-  // The interpolation anchor is from before the teleport; drawing a lerp
-  // across a restart would smear the rider over half the mountain.
   hadStep = false;
-  // The run forks, so the middle of the piste is sometimes the island in
-  // between. Whichever branch is nearer is always rideable ground.
-  rider.pos.x = nearestCenter(rider.pos.x, start);
-  rider.pos.y = world.height(rider.pos.x, start);
+  rider.pos.x = startX;
+  rider.pos.y = world.height(startX, start);
   game.score = 0;
   game.combo = 1;
   game.gateRun = 0;
@@ -459,9 +465,10 @@ function onKey(e) {
   if (game.mode !== 'playing') begin();
 }
 
-/* Chrome grants touch user activation on the synthesized click, not always on
-   pointerdown. Starting here keeps the first tap audible as well as playable;
-   desktop clicks still arrive without a perceptible delay. */
+/* Any key starts via onKey's fallthrough; the curtain overlays the whole
+   screen whenever the game is not playing, so a click anywhere lands here.
+   Chrome grants touch user activation on the synthesized click, not always on
+   pointerdown, which is why the tap path starts from this click handler. */
 curtain.addEventListener('click', begin);
 touchPause?.addEventListener('click', (e) => {
   e.preventDefault();
@@ -713,6 +720,10 @@ function checkGates() {
     const pts = SCORE.gate * game.gateRun * game.combo;
     award(pts, game.gateRun > 1 ? `GATE ×${game.gateRun}` : 'GATE', 'near');
     audio.whoosh();
+    lastPassedGate = { x: g.x, z: g.z - 3.0 };
+    if (spray) {
+      spray.burst({ x: g.x, y: world.height(g.x, g.z) + 0.4, z: g.z }, 0, -6, 14, 1.2);
+    }
   }
 }
 
@@ -847,7 +858,9 @@ function demoInput(dt) {
   demo.t += dt;
   // Steer for the middle of whichever branch of the piste is nearer, with a
   // lazy wander laid over it, so the hill is being ridden rather than tracked
-  const target = nearestCenter(rider.pos.x, rider.pos.z - 26) + Math.sin(demo.t * 0.31) * 11;
+  // The demo rider knows the course: it carves about the guide line, which
+  // keeps the attract loop on the corduroy the camera is there to sell.
+  const target = guideAt(rider.pos.z - 26) + Math.sin(demo.t * 0.31) * 6;
   const err = target - rider.pos.x;
   const heading = Math.atan2(rider.vel.x, -rider.vel.z);
   const want = Math.atan2(err, 34) - heading;
@@ -972,6 +985,7 @@ function frame(now) {
       u.uFar.value = w.fogFar;
     }
     sky.update(viewPos, w, dt);
+    mountainLife.update(dt, rider);
     // The terrain's horizon atlas evaluates this direction immediately; a
     // re-anchor only precalculates geometry and the direction-independent
     // horizon facts for the next patch of mountain.
@@ -1052,8 +1066,9 @@ function frame(now) {
     streaks.update(dt, camera, rider.vel, rider.speed, wind);
 
     const tumbleSlide = rider.state === 'fall' && !rider.airborne ? rider.speed : 0;
+    const surfMat = getTerrainMaterialAt(rider.pos.x, rider.pos.z);
     audio.ambience(rider.speed, rider.slide, rider.grounded, w.storm,
-      rider.carveLoad, tumbleSlide);
+      rider.carveLoad, tumbleSlide, surfMat);
     retro.setSpeed(rider.speed);
     riderScreen.copy(rider.pos).addScaledVector(rider.normal, 0.9).project(camera);
     retro.setFocus(riderScreen.x * 0.5 + 0.5, riderScreen.y * 0.5 + 0.5);

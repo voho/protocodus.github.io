@@ -606,7 +606,9 @@ export class Rider {
        wind-loaded snow does not hold a carved traverse: the board sinks,
        washes out and goes down the fall line, which on the containment wall
        points back at the run. See `RIDER.wallWash`. */
-    const surfaceGrip = RIDER.grip * (this.world.grip ?? 1)
+    const surf = this.world.surfaceAt?.(pos.x, pos.z) || { rock: 0, groomed: 1, ice: 0, powder: 0 };
+    const matGrip = surf.groomed * 1.0 + surf.powder * 1.25 + surf.ice * 0.65 + surf.rock * 0.70;
+    const surfaceGrip = RIDER.grip * (this.world.grip ?? 1) * matGrip
       * (1 - RIDER.wallWash * this.offPiste);
 
     /* THE CARVE.
@@ -919,7 +921,8 @@ export class Rider {
     // Pressure progressively moves from a waxed base to an edged speed check.
     const mu = RIDER.friction
       + (RIDER.brakeFriction - RIDER.friction) * braking;
-    const dec = mu * (this.world.surfaceDrag ?? 1)
+    const matDrag = surf.groomed * 1.0 + surf.powder * 1.15 + surf.ice * 0.72 + surf.rock * 1.45;
+    const dec = mu * (this.world.surfaceDrag ?? 1) * matDrag
       * RIDER.gravity * Math.max(0.2, n.y);
     // The initial tail kick is already cutting snow before the board has
     // reached full transverse velocity; afterwards real vLat dominates this.

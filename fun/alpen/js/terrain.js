@@ -197,7 +197,7 @@ export const SNOWPACK = {
   iron: ['#443a41', '#948579'],
 };
 
-const { wander, route, corridor, wall, cliffs, knolls,
+const { wander, route, corridor, wall, cliffs, knolls, zones, guide,
   ridges, rolls, moguls, chatter, warp, bulgeVary, character } = TERRAIN;
 const GRADE = TERRAIN.grade;
 const SHADE = TERRAIN.shade;
@@ -249,7 +249,7 @@ const FOG_SKIP_SQ = FOG_ROW_SKIP * FOG_ROW_SKIP;
    ========================================================================== */
 
 /* The mid-line: where the run would be if it never split. */
-function wanderAt(z) {
+export function wanderAt(z) {
   let x = 0;
   for (let i = 0; i < wander.length; i++) x += Math.sin(z * wander[i].freq) * wander[i].amp;
   return x;
@@ -275,6 +275,106 @@ function forkSplit(z) {
 /* The groomed half-width, which breathes on a long sine. */
 export function corridorHalfAt(z) {
   return corridor.half + corridor.vary * Math.sin(z * corridor.freq);
+}
+
+/* The two shoulder bands past the groomed edge — ungroomed snow, then the
+   rocky ground — as row facts. One definition, used by the height field,
+   the colour pass, the surface materials, the props and the cable car, so
+   none of them can disagree about where the powder ends and the talus
+   starts. */
+export function bandWidthsAt(z, out = [0, 0]) {
+  out[0] = zones.powder[0] + (zones.powder[1] - zones.powder[0])
+    * (0.5 + 0.5 * snoise2(z * zones.freq, 5.1, 173));
+  out[1] = zones.rock[0] + (zones.rock[1] - zones.rock[0])
+    * (0.5 + 0.5 * snoise2(z * zones.freq, -3.7, 179));
+  return out;
+}
+
+/* Everything the cable car needs to hang itself over the rocky band: the
+   groomed edge, and where the band it flies above begins and ends. */
+export function rockBandAt(z, out = {}) {
+  const w = bandWidthsAt(z, rockBandScratch);
+  out.half = corridorHalfAt(z);
+  out.powder = w[0];
+  out.rock = w[1];
+  return out;
+}
+const rockBandScratch = [0, 0];
+
+/* ==========================================================================
+   The guide — the racing line, and the groomed ribbon that follows it.
+
+   Gates stand on a fixed rhythm down the mountain: one per `guide.every`
+   metres, jittered inside its own slot, everything about it hashed off the
+   slot index alone so a gate stands in the same place however the terrain
+   around it is rebuilt, restarted or re-entered. The guide line is the
+   smooth curve through those gates — flat through each gate, swinging
+   between them — and the groomer drives exactly that line: glass corduroy
+   `guide.tol` metres to either side, regular snow across the rest of the
+   corridor. Height field, colour pass, surface materials and the props all
+   read the same slots, so the ribbon the rider sees is the line the gates
+   score.
+   ========================================================================== */
+
+function gateSlotZ(k) {
+  // 0.25..0.75 into the slot: adjacent gates can never stand closer than
+  // half a slot — a cadence, not a cluster.
+  return -(k + 0.25 + 0.50 * hash2(k, 61, 47)) * guide.every;
+}
+
+/* The course's own centre: the piste centre, taking whichever branch the
+   fork window's hash chose — one decision per window, so the line never
+   hops branches mid-fork. Continuous by construction, because the split
+   itself opens and closes smoothly and the side holds while it does. */
+function courseCentreAt(z) {
+  const s = forkSplit(z);
+  if (s <= 0) return wanderAt(z);
+  const b = Math.floor(-z / route.period);
+  return wanderAt(z) + (hash2(b, 5501, 53) < 0.5 ? -s : s);
+}
+
+function gateSlotOff(k) {
+  const z = gateSlotZ(k);
+  // Capped so consecutive gates never ask for more than a carveable swing.
+  const drift = Math.min(16, Math.max(0, corridorHalfAt(z) - guide.margin));
+  return (hash2(k, 397, 11) * 2 - 1) * drift;
+}
+
+function gateSlotX(k) {
+  return courseCentreAt(gateSlotZ(k)) + gateSlotOff(k);
+}
+
+/* The line itself, at any z. The course centre is evaluated *here*, not at
+   the bracketing gates — so through bends and forks the line sweeps with
+   the same geometry the corridor does, and only the gate-to-gate offset is
+   eased between slots: flat through every gate, swinging between them.
+   Slot zero is a virtual gate on the centre line, which keeps the line
+   defined from the start hut to the first panel. */
+export function guideAt(z) {
+  let k = Math.max(0, Math.floor(-z / guide.every));
+  let zA = k === 0 ? -0.25 * guide.every : gateSlotZ(k);
+  if (z > zA) {
+    if (k === 0) return courseCentreAt(z);
+    k -= 1;
+    zA = k === 0 ? -0.25 * guide.every : gateSlotZ(k);
+  }
+  const zB = gateSlotZ(k + 1);
+  const t = smooth01(clamp01((zA - z) / (zA - zB)));
+  const offA = k === 0 ? 0 : gateSlotOff(k);
+  return courseCentreAt(z) + offA + (gateSlotOff(k + 1) - offA) * t;
+}
+
+/* Every gate slot inside [zLo, zHi), for whoever plants the poles. */
+export function gateSlotsIn(zLo, zHi, out = []) {
+  out.length = 0;
+  const kLo = Math.max(1, Math.floor(-zHi / guide.every));
+  const kHi = Math.max(1, Math.floor(-zLo / guide.every) + 1);
+  for (let k = kLo; k <= kHi; k++) {
+    const z = gateSlotZ(k);
+    if (z < zLo || z >= zHi) continue;
+    out.push({ k, z, x: gateSlotX(k) });
+  }
+  return out;
 }
 
 /* Where the middle of the piste is. When the run has forked there are two of
@@ -303,8 +403,10 @@ export function centersAt(z, out = []) {
    on ground the mesh is drawing as a ramp. */
 export function lipEdgeAt(z) {
   const vary = 1 + wall.lipVary * snoise2(z * wall.lipFreq, 0, 23);
-  return corridorHalfAt(z) + wall.lipWidth * vary;
+  const w = bandWidthsAt(z, lipEdgeScratch);
+  return corridorHalfAt(z) + w[0] + w[1] + wall.lipWidth * vary;
 }
+const lipEdgeScratch = [0, 0];
 
 /* How far past that a point is, in metres. Negative anywhere on the run. */
 export function beyondLipAt(x, z) {
@@ -316,6 +418,35 @@ export function nearestCenter(x, z) {
   const s = forkSplit(z);
   if (s <= 0) return mid;
   return Math.abs(x - (mid - s)) < Math.abs(x - (mid + s)) ? mid - s : mid + s;
+}
+
+/* What the board is standing on, as the four weights the physics and the
+   audio mix by. Read straight off the zone model — the same row facts the
+   height field and the colour pass use — so the ground that looks like
+   talus is the ground that grinds, and the corduroy that looks groomed is
+   the corduroy that grips. The groomed fade matches `heightIn`'s bump
+   mask exactly: where the surface starts visibly roughening is where the
+   board starts feeling it. */
+const surfScratch = [0, 0];
+export function getTerrainMaterialAt(x, z) {
+  const half = corridorHalfAt(z);
+  const d = Math.abs(x - nearestCenter(x, z));
+  const w = bandWidthsAt(z, surfScratch);
+
+  /* Full machine hardpack on the ribbon; the regular corridor snow rides
+     as a blend — a bit under half groomed response, the rest soft. */
+  const corridorF = 1 - smoothstep(half - 4, half + 10, d);
+  const ribbonF = 1 - smoothstep(guide.tol - 3, guide.tol + 6,
+    Math.abs(x - guideAt(z)));
+  const groomed = corridorF * (0.45 + 0.55 * ribbonF);
+  const past = Math.max(0, d - half);
+  const rock = smoothstep(w[0], w[0] + 12, past)
+    * (1 - 0.7 * smoothstep(w[0] + w[1], w[0] + w[1] + 90, past));
+  // Scoured névé where the wall starts shedding its cover.
+  const ice = smoothstep(w[0] + w[1], w[0] + w[1] + 50, past) * 0.6;
+  const powder = Math.max(0, (1 - groomed) * (1 - rock) * (1 - ice));
+
+  return { rock, groomed, ice, powder };
 }
 
 /* The coordinate frame a grooming machine would actually have driven.
@@ -356,6 +487,10 @@ function makeContext() {
     mid: 0,
     split: 0,
     half: 0,
+    powderW: 30,   // ungroomed snow band width — see TERRAIN.zones
+    rockW: 50,     // rocky band width
+    bandW: 80,     // the two together: where the wall's lip finally begins
+    guideX: 0,     // where the racing line — and its corduroy — runs
     lipW: 1,
     lipH: 0,
     wallBroadLeft: 0.5,
@@ -406,6 +541,8 @@ function characterAt(z, ctx) {
   }
 }
 
+const ctxBandScratch = [0, 0];
+
 function rowContext(z, ctx) {
   if (ctx.z === z) return ctx;
   ctx.z = z;
@@ -423,6 +560,11 @@ function rowContext(z, ctx) {
   ctx.mid = wanderAt(z);
   ctx.split = forkSplit(z);
   ctx.half = corridorHalfAt(z);
+  const zw = bandWidthsAt(z, ctxBandScratch);
+  ctx.powderW = zw[0];
+  ctx.rockW = zw[1];
+  ctx.bandW = zw[0] + zw[1];
+  ctx.guideX = guideAt(z);
   /* Which of the two branches is the high one, and by how much. Hashed off
      the fork's own block so a given crossroads always leans the same way,
      and faded in with the split so the offset arrives as the branches part
@@ -577,14 +719,48 @@ function heightIn(ctx, x, coarseDetail = 1, fineDetail = coarseDetail,
      the two middle ones: the chapter says what kind of ground this stretch is,
      and the vary says which patches of it got the worst of it. */
   const mix = ctx.mix;
+
+  /* Where the nearest rideable centre line is. Computed here rather than at
+     the wall below because the groomed mask needs it first — and it must be
+     the branch distance, not the raw mid: when the run forks the pistes ride
+     at mid ± split, and a mask measured from the empty middle would groom
+     the island and leave both actual routes rough. */
+  let d;
+  let branchCentre;
+  if (ctx.split > 0) {
+    const d0 = Math.abs(x - (ctx.mid - ctx.split));
+    const d1 = Math.abs(x - (ctx.mid + ctx.split));
+    if (d0 < d1) {
+      d = d0;
+      branchCentre = ctx.mid - ctx.split;
+    } else {
+      d = d1;
+      branchCentre = ctx.mid + ctx.split;
+    }
+  } else {
+    d = Math.abs(x - ctx.mid);
+    branchCentre = ctx.mid;
+  }
+
+  /* Three surfaces, two masks. The groomer drives the guide line, so glass
+     corduroy exists only within `guide.tol` of it; the rest of the corridor
+     is regular skied-in snow — the same octaves at `guide.rough` strength —
+     and past the corridor's edge the full spectrum fades in over the first
+     metres of the powder band, the way a real piste edge roughens rather
+     than snapping to moguls on a painted line. */
+  const ribbonF = 1.0 - smoothstep(guide.tol - 3.0, guide.tol + 6.0,
+    Math.abs(x - ctx.guideX));
+  const corridorF = 1.0 - smoothstep(ctx.half - 4.0, ctx.half + 10.0, d);
+  const offPisteFactor = (1.0 - corridorF)
+    + corridorF * (1.0 - ribbonF) * guide.rough;
+
   h += snoise2(ridgeX * ridges.freq, ridgeZ * ridges.freq, ridges.seed)
-    * ridges.amp * mix[CH_RIDGES];
+    * ridges.amp * mix[CH_RIDGES] * offPisteFactor;
   h += snoise2(rollX * rolls.freq, rollZ * rolls.freq, rolls.seed)
-    * rolls.amp * rollVary * mix[CH_ROLLS];
-  /* The moguls, and their own patch field with them. Both leave together
-     because the second exists only to modulate the first, so a cell too wide
-     to resolve a twenty-metre wavelength stops paying for either — two of the
-     eight noise lookups in this function, over most of the graded field. */
+    * rolls.amp * rollVary * mix[CH_ROLLS] * offPisteFactor;
+
+  /* Moguls and micro-chatter are filtered OFF the groomed piste to keep the groomed
+     track 100% smooth, reserved exclusively for off-piste snow. */
   if (mogulDetail > 0.001) {
     const mogulVary = bulgeVary.floor + (1 - bulgeVary.floor) * noise2(
       (x * 0.526 + z * 0.851) * bulgeVary.freq,
@@ -592,17 +768,9 @@ function heightIn(ctx, x, coarseDetail = 1, fineDetail = coarseDetail,
       bulgeVary.seed + 17,
     );
     h += snoise2(mogulX * moguls.freq, mogulZ * moguls.freq, moguls.seed)
-      * moguls.amp * mogulVary * mix[CH_MOGULS] * mogulDetail;
+      * moguls.amp * mogulVary * mix[CH_MOGULS] * mogulDetail * offPisteFactor;
   }
-  /* Wind slab and soft sastrugi at the scale the board can actually cross.
 
-     The coordinates are deliberately anisotropic: most of the variation is
-     across the piste, while the same feature stretches far down it. That is
-     how wind-shaped snow behaves, but it also matters technically. A random
-     metre-scale normal map becomes a screen-frequency carpet at grazing
-     angles; this is up to forty centimetres of continuous geometry with long,
-     irregular streamers and no repeating carrier to alias against the display.
-     Broad patch modulation keeps it out of the old procedural-wallpaper trap. */
   if (coarseDetail > 0.001 || fineDetail > 0.001) {
     const windPatch = 0.55 + 0.45 * noise2(
       (x * 0.411 + z * 0.912) * chatter.patchFreq,
@@ -617,19 +785,11 @@ function heightIn(ctx, x, coarseDetail = 1, fineDetail = coarseDetail,
     const coarseN = snoise2(
       rotatedAcross * wc.acrossFreq, rotatedAlong * wc.alongFreq, wc.seed,
     );
-    /* The odd quadratic term fattens the windward/lee shoulders without a
-       cusp or a new noise sample. At full strength the pillows remain under
-       forty centimetres combined, enough for the board and side light to read. */
     h += (coarseN * wc.amp + coarseN * Math.abs(coarseN) * wc.bulge)
-      * windPatch * chatterMix * coarseDetail;
-    /* The fine octave leaves the LOD before the coarse one does, so on most
-       of the graded grid this block is entered for the coarse term alone —
-       and the fine sample was being evaluated anyway and multiplied by zero.
-       The guard uses the same threshold as the block's own gate, so wherever
-       the mask is meaningfully nonzero the height is bit-identical. */
+      * windPatch * chatterMix * coarseDetail * offPisteFactor;
     if (fineDetail > 0.001) {
       h += snoise2(rotatedAcross * wf.acrossFreq, rotatedAlong * wf.alongFreq, wf.seed)
-        * wf.amp * windPatch * chatterMix * fineDetail;
+        * wf.amp * windPatch * chatterMix * fineDetail * offPisteFactor;
     }
   }
 
@@ -640,18 +800,7 @@ function heightIn(ctx, x, coarseDetail = 1, fineDetail = coarseDetail,
      genuine convex rollover and the reason a rider who commits speed to it
      gets thrown rather than handed their speed back. Past it the wall takes
      over from zero gradient too, so the two meet without a crease. */
-  let d;
-  let branchCentre;
-  if (ctx.split > 0) {
-    const d0 = Math.abs(x - (ctx.mid - ctx.split));
-    const d1 = Math.abs(x - (ctx.mid + ctx.split));
-    if (d0 < d1) {
-      d = d0;
-      branchCentre = ctx.mid - ctx.split;
-    } else {
-      d = d1;
-      branchCentre = ctx.mid + ctx.split;
-    }
+  if (ctx.split > 0 && ctx.tilt !== 0) {
     /* The two ways sit at different heights, blended by inverse-square
        proximity rather than switched at the midpoint. Switching would put a
        vertical step down the middle of the island; weighting means each
@@ -659,26 +808,46 @@ function heightIn(ctx, x, coarseDetail = 1, fineDetail = coarseDetail,
        mean, and the surface is smooth everywhere — which it has to be,
        because the rider's normals are central differences of this and a step
        would fling them sideways for a frame. */
-    if (ctx.tilt !== 0) {
-      const w0 = 1 / (d0 * d0 + 25);
-      const w1 = 1 / (d1 * d1 + 25);
-      h += ctx.tilt * (w1 - w0) / (w0 + w1);
-    }
-  } else {
-    d = Math.abs(x - ctx.mid);
-    branchCentre = ctx.mid;
+    const d0 = Math.abs(x - (ctx.mid - ctx.split));
+    const d1 = Math.abs(x - (ctx.mid + ctx.split));
+    const w0 = 1 / (d0 * d0 + 25);
+    const w1 = 1 / (d1 * d1 + 25);
+    h += ctx.tilt * (w1 - w0) / (w0 + w1);
   }
-  const over = d - ctx.half;
+  const past = d - ctx.half;
   // Inside the groomed part, a shallow dish that gathers a drifting rider
   // back towards the fall line. It never pushes — at the corridor's edge it
   // is a slope of about a fifteenth — and being entirely lateral it costs
   // nothing against the budget the octaves are fighting over.
-  if (over <= 0) {
+  if (past <= 0) {
     const u = d / Math.max(1, ctx.half);
     h += corridor.bowl * u * u;
-  }
-  if (over > 0) {
+  } else {
     h += corridor.bowl;
+
+    /* The shoulder: ungroomed snow first, then the rocky band, together
+       `ctx.bandW` metres of ground a rider can actually use before the wall
+       stands up. A gentle smooth01 rise across the whole of it — flat at
+       both joins — keeps gravity pointing home without fencing the powder. */
+    h += zones.rise * smooth01(Math.min(1, past / ctx.bandW));
+
+    /* The boulder field. Two octaves that exist only where the rock zone
+       does: swells the size of a van and lumps the size of a board. They
+       fade in past the powder, and fade most of the way back out as the
+       wall climbs — the wall has its own geology, and bounded noise on a
+       62-metre exponential would be invisible anyway. */
+    const rockZone = smoothstep(ctx.powderW, ctx.powderW + 12, past)
+      * (1 - 0.7 * smooth01(Math.min(1, Math.max(0, past - ctx.bandW) / 90)));
+    if (rockZone > 0.001 && coarseDetail > 0.001) {
+      let bump = snoise2(x * 0.083, z * 0.083, 57) * zones.rockBump[0] * coarseDetail;
+      if (fineDetail > 0.001) {
+        bump += snoise2(x * 0.21, z * 0.21, 91) * zones.rockBump[1] * fineDetail;
+      }
+      h += bump * rockZone;
+    }
+  }
+  const over = past - ctx.bandW;
+  if (over > 0) {
     /* The launchable bank remains a smooth quarterpipe across its width, but
        its shoulder now follows the same slow left/right geology as the wall
        behind it. That creates broad folds down the valley without putting a
@@ -732,24 +901,28 @@ function heightIn(ctx, x, coarseDetail = 1, fineDetail = coarseDetail,
     }
   }
 
-  /* The knolls. A squared dome — (1 − r²)² — which is one at the crest,
-     zero at the rim, and flat at both, so a knoll joins the hill without a
-     crease and has no edge anywhere on it. Overlapping ones simply add. */
-  for (let i = 0; i < ctx.nKnolls; i++) {
-    const dx = (x - ctx.kx[i]) / ctx.krx[i];
-    if (dx <= -1 || dx >= 1) continue;
-    const dz = ctx.kdz[i];
-    const r2 = dx * dx + dz * dz;
-    if (r2 >= 1) continue;
-    const f = 1 - r2;
-    h += ctx.kh[i] * f * f;
-  }
+  /* Knolls and cliffs live outside the corridor entirely — a rideable run
+     with a hidden three-metre ledge on it is an ambush, not terrain. They
+     fade in with the powder band and are at full strength by the talus. */
+  const beyondF = 1 - corridorF;
+  if (beyondF > 0.001) {
+    for (let i = 0; i < ctx.nKnolls; i++) {
+      const dx = (x - ctx.kx[i]) / ctx.krx[i];
+      if (dx <= -1 || dx >= 1) continue;
+      const dz = ctx.kdz[i];
+      const r2 = dx * dx + dz * dz;
+      if (r2 >= 1) continue;
+      const f = 1 - r2;
+      h += ctx.kh[i] * f * f * beyondF;
+    }
 
-  for (let i = 0; i < ctx.nCliffs; i++) {
-    const ax = Math.abs(x - ctx.cliffX[i]);
-    if (ax >= cliffs.halfWidth + cliffs.shoulder) continue;
-    h -= ctx.cliffA[i]
-      * (1 - smoothstep(cliffs.halfWidth, cliffs.halfWidth + cliffs.shoulder, ax));
+    for (let i = 0; i < ctx.nCliffs; i++) {
+      const ax = Math.abs(x - ctx.cliffX[i]);
+      if (ax >= cliffs.halfWidth + cliffs.shoulder) continue;
+      h -= ctx.cliffA[i]
+        * (1 - smoothstep(cliffs.halfWidth, cliffs.halfWidth + cliffs.shoulder, ax))
+        * beyondF;
+    }
   }
 
   return h;
@@ -1272,21 +1445,13 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
 
   const powderSurface = { value: neutralSurface };
   const groomedSurface = { value: neutralSurface };
+  const rockSurface = { value: neutralSurface };
+  const sandstoneSurface = { value: neutralSurface };
   const snowReady = { value: new THREE.Vector2() };
   const snowReadyTarget = new THREE.Vector2();
-  // Only deliberately low-passed macro versions of the plates reach albedo.
-  // Fine generated crystals and groomer ribs form interference when resolved
-  // there and then displayed or captured at another scale. The broad 24 m
-  // field (x) keeps irregular snow tone without placing a screen-frequency
-  // carrier under the rider. The 4 m tile (y) feeds only the low-bias height
-  // reads behind the fragment detail normal below, which carries its own
-  // distance and derivative fades.
+
   const snowTile = { value: new THREE.Vector2(24.0, 4.0) };
   const snowAlbedo = { value: new THREE.Vector2(0.012, 0.020) };
-  // Height-to-normal gain for powder and corduroy respectively. Powder keeps
-  // the old hard-coded value. The packed groomed height has a stronger
-  // directional range, so its lower gain reads as shallow machine ribs rather
-  // than embossing the piste into trenches.
   const snowHeight = { value: new THREE.Vector2(0.85, 0.72) };
 
   const prepareSurface = (texture) => {
@@ -1294,9 +1459,6 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     texture.minFilter = THREE.LinearMipmapLinearFilter;
     texture.magFilter = THREE.LinearFilter;
     texture.colorSpace = THREE.NoColorSpace;
-    // The piste is normally viewed at a very shallow angle. Use the full
-    // hardware anisotropy budget so the generated snow maps collapse through
-    // their mip chain along the fall line instead of forming distant bands.
     texture.anisotropy = maxAnisotropy;
     texture.generateMipmaps = true;
     return texture;
@@ -1314,6 +1476,18 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     (texture) => {
       groomedSurface.value = prepareSurface(texture);
       snowReadyTarget.y = 1;
+    },
+  );
+  surfaceLoader.load(
+    new URL('../assets/textures/rock/rock-granite.jpg', import.meta.url).href,
+    (texture) => {
+      rockSurface.value = prepareSurface(texture);
+    },
+  );
+  surfaceLoader.load(
+    new URL('../assets/textures/rock/rock-sandstone.jpg', import.meta.url).href,
+    (texture) => {
+      sandstoneSurface.value = prepareSurface(texture);
     },
   );
 
@@ -1340,6 +1514,8 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     Object.assign(shader.uniforms, {
       uSnowPowder: powderSurface,
       uSnowGroomed: groomedSurface,
+      uRockTex: rockSurface,
+      uSandstoneTex: sandstoneSurface,
       uSnowReady: snowReady,
       uSnowTile: snowTile,
       uSnowAlbedo: snowAlbedo,
@@ -1378,6 +1554,8 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
         varying vec2 vGroomFrame;
         uniform sampler2D uSnowPowder;
         uniform sampler2D uSnowGroomed;
+        uniform sampler2D uRockTex;
+        uniform sampler2D uSandstoneTex;
         uniform vec2 uSnowReady;
         uniform vec2 uSnowTile;
         uniform vec2 uSnowAlbedo;
@@ -1388,6 +1566,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
            palest rock sparkle like ice; the explicit continuous mask is both
            cheaper and correct through every time-of-day palette. */
         float n64SnowMask = 1.0 - clamp(vRock, 0.0, 1.0);
+
         /* Machine corduroy is a surface state, not a second ground material.
            A storm lays powder over it continuously, so the same weather dial
            that roughens the shared snow response also reveals the powder
@@ -1524,6 +1703,8 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
             * (1.0 - smoothstep(0.35, 1.10, n64JointFoot)) * 0.11;
           float n64RockInk = mix(n64SlateInk, n64IronShelf + n64IronJoint,
             clamp(vRockKind, 0.0, 1.0));
+          vec4 n64RockSample = texture2D(uRockTex, vWorld.xz * 0.08);
+          diffuseColor.rgb *= mix(vec3(1.0), n64RockSample.rgb * 1.35, (1.0 - n64SnowMask) * 0.45);
           diffuseColor.rgb *= 1.0 - n64RockInk * (1.0 - n64SnowMask)
             * smoothstep(0.30, 0.72, 1.0 - n64StrataUp);
         }`)
@@ -1986,7 +2167,15 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
         const toCentre = ctx.split > 0
           ? Math.min(Math.abs(wx - (ctx.mid - ctx.split)), Math.abs(wx - (ctx.mid + ctx.split)))
           : Math.abs(wx - ctx.mid);
-        const groomed = 1 - smoothstep(ctx.half + 1, ctx.half + 4, toCentre);
+        /* Corduroy exists only on the ribbon the groomer actually drove —
+           the guide line through the gates — while the corridor around it
+           is regular skied-in snow: still compacted enough to keep most of
+           its cover, but matte, and with no machine pattern on it. */
+        const corridorMask = 1 - smoothstep(ctx.half - 4, ctx.half + 10, toCentre);
+        const ribbon = 1 - smoothstep(guide.tol - 3, guide.tol + 6,
+          Math.abs(wx - ctx.guideX));
+        const groomed = ribbon * corridorMask;
+        const pisteCover = corridorMask * (0.55 + 0.45 * ribbon);
 
         /* The budget. Everything above, summed and then clamped — summed
            rather than multiplied because a product crowds towards the middle
@@ -2005,7 +2194,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
           + P.driftWeight * (1 - smoothstep(P.drift[0], P.drift[1], relief))
           - P.aspectWeight * (face > 0 ? face : 0)
           + P.shadeWeight * (face < 0 ? -face : 0)
-          + P.groomed * groomed);
+          + P.groomed * pisteCover);
 
         /* Rock, which is not a separate decision from the snow — it is where
            the snow ran out. Two ways for that to happen: the ground got too
@@ -2022,15 +2211,29 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
            band and side-specific geology that shape the wall expose coherent
            ribs through that snow. Nothing is screen-space and nothing moves
            with the sun; this is a material fact that morphs with the terrain. */
-        const flank = smoothstep(ctx.half + 4,
-          ctx.half + ctx.lipW + 46, toCentre);
         const sideDetail = wx < ctx.mid
           ? ctx.wallDetailLeft : ctx.wallDetailRight;
         const outcropBand = smoothstep(0.30, 0.70,
           band * 0.55 + sideDetail * 0.45);
-        const flankRock = flank * smoothstep(2.5, 18, relief)
+        /* The rocky band is rock because of where it is, not how tall it
+           stands: the same zone the height field fills with boulders is the
+           one the colour pass strips. The outcrop field leaves wind-pocket
+           snow between the stones, so the band reads as talus rather than
+           tarmac — and the powder band before it is left entirely alone. */
+        const zoneRock = smoothstep(ctx.half + ctx.powderW - 4,
+          ctx.half + ctx.powderW + 10, toCentre)
+          * (0.52 + 0.48 * outcropBand);
+        /* The wall above holds snow on its first metres the way a real
+           valley side does; only faces standing well over the run shed it. */
+        const flank = smoothstep(ctx.half + ctx.bandW,
+          ctx.half + ctx.bandW + ctx.lipW + 46, toCentre);
+        const flankRock = flank * smoothstep(10, 34, relief)
           * (0.46 + 0.54 * outcropBand);
-        const rock = Math.max(steepRock, thinRock, flankRock);
+        /* No stone inside the corridor at all — the physics has no plate of
+           rock under three centimetres of snow in its model, so the picture
+           must not either. Outside it, all four reasons apply. */
+        const rock = (1 - corridorMask)
+          * Math.max(steepRock, thinRock, zoneRock, flankRock);
 
         /* Snow, along the axis of what it has been through rather than of how
            bright it is. Deep cover is soft and pale; thin cover is what the

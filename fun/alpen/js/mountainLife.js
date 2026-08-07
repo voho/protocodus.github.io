@@ -1,0 +1,308 @@
+/* Mountain life — the cable car over the rocky band, and other people.
+
+   The gondola line is the one piece of infrastructure that says "resort"
+   from any distance, and it flies exactly where the terrain's zone model
+   says the talus is: past the groomed corridor and the powder field, over
+   the boulders no groomer visits. Pylons stand on a fixed 200-metre grid
+   down the run, the cables are drawn tower-top to tower-top, and the
+   cabins hang from the cable with a touch of mid-span sag — not from the
+   terrain, which is what makes a cable car read as suspended rather than
+   floated.
+
+   The NPC skiers and boarders ride the piste the same direction the player
+   does (downhill is −z on this mountain), carving S-turns about the
+   nearest branch line. Colliding with one puts both parties in the snow:
+   the player through the rider's own 'fall' event — which already carries
+   the crash sound, the camera kick and the powder curtain — and the NPC
+   through a tumble staged here. */
+
+import {
+  heightAt, nearestCenter, centersAt, rockBandAt,
+} from './terrain.js';
+
+const PYLON_SPACING = 200;
+const NUM_PYLONS = 5;
+const SPAN = PYLON_SPACING * (NUM_PYLONS - 1);
+const CABLE_SIDE = 1.8;   // the two ropes, either side of the arm's wheels
+const SAG = 2.4;          // metres of droop at mid-span
+const CABIN_SPEED = 11;   // m/s along the line
+
+export function createMountainLife(THREE, scene, shading, spray, audio) {
+  const root = new THREE.Group();
+  scene.add(root);
+
+  /* --- the line: towers, ropes, cabins ---------------------------------- */
+
+  const cabinBodyMat = new THREE.MeshLambertMaterial({ color: 0xb31f1f });
+  const cabinGlassMat = new THREE.MeshLambertMaterial({
+    color: 0x1a3450, transparent: true, opacity: 0.85,
+  });
+  const metalMat = new THREE.MeshLambertMaterial({ color: 0x333842 });
+
+  const bodyMesh = new THREE.Mesh(new THREE.BoxGeometry(2.4, 2.2, 1.8), cabinBodyMat);
+  bodyMesh.position.y = -1.1;
+  const glassMesh = new THREE.Mesh(new THREE.BoxGeometry(2.45, 0.9, 1.85), cabinGlassMat);
+  glassMesh.position.y = -0.9;
+  const hangerMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.2, 8), metalMat);
+  hangerMesh.position.y = 0.5;
+  const gripMesh = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.3, 0.4), metalMat);
+  gripMesh.position.y = 1.6;
+
+  const gondolaProto = new THREE.Group();
+  gondolaProto.add(bodyMesh, glassMesh, hangerMesh, gripMesh);
+
+  const NUM_GONDOLAS = 6;
+  const gondolas = [];
+  for (let i = 0; i < NUM_GONDOLAS; i++) {
+    const mesh = gondolaProto.clone();
+    root.add(mesh);
+    gondolas.push({
+      mesh,
+      // Spread along the span; alternate cabins ride the two ropes, which
+      // is the two directions of travel.
+      at: (i / NUM_GONDOLAS) * SPAN,
+      dir: i % 2 === 0 ? -1 : 1,
+      side: i % 2 === 0 ? -CABLE_SIDE : CABLE_SIDE,
+    });
+  }
+
+  const pylonMat = new THREE.MeshLambertMaterial({ color: 0x5a6270 });
+  const wheelMat = new THREE.MeshLambertMaterial({ color: 0x22262c });
+  const pylonGeo = new THREE.CylinderGeometry(0.35, 0.7, 22.0, 8);
+  const armGeo = new THREE.BoxGeometry(7.0, 0.6, 0.6);
+  const wheelGeo = new THREE.CylinderGeometry(0.6, 0.6, 0.2, 12);
+  wheelGeo.rotateX(Math.PI / 2);
+
+  const pylons = [];
+  for (let i = 0; i < NUM_PYLONS; i++) {
+    const tower = new THREE.Mesh(pylonGeo, pylonMat);
+    const arm = new THREE.Mesh(armGeo, pylonMat);
+    arm.position.y = 10.5;
+    const wheelL = new THREE.Mesh(wheelGeo, wheelMat);
+    wheelL.position.set(-CABLE_SIDE, 10.5, 0);
+    const wheelR = new THREE.Mesh(wheelGeo, wheelMat);
+    wheelR.position.set(CABLE_SIDE, 10.5, 0);
+    tower.add(arm, wheelL, wheelR);
+    root.add(tower);
+    pylons.push({ tower, wheelL, wheelR });
+  }
+  // Tower-top line points, refreshed every frame; x/y/z per pylon.
+  const topX = new Float64Array(NUM_PYLONS);
+  const topY = new Float64Array(NUM_PYLONS);
+  const topZ = new Float64Array(NUM_PYLONS);
+
+  const cableMat = new THREE.MeshBasicMaterial({ color: 0x22262c });
+  const cableGeo = new THREE.CylinderGeometry(0.05, 0.05, 1, 6);
+  const cables = [];
+  for (let i = 0; i < (NUM_PYLONS - 1) * 2; i++) {
+    const mesh = new THREE.Mesh(cableGeo, cableMat);
+    root.add(mesh);
+    cables.push(mesh);
+  }
+  const UP = new THREE.Vector3(0, 1, 0);
+  const cableDir = new THREE.Vector3();
+
+  const band = {};
+  // Where the line flies: over the middle of the rocky band, on the sunny
+  // side of whichever branch is rightmost. One definition — the terrain's.
+  const lineCentres = [0, 0];
+  function cableXAt(z) {
+    rockBandAt(z, band);
+    centersAt(z, lineCentres);
+    return lineCentres[1] + band.half + band.powder + band.rock * 0.55;
+  }
+
+  /* --- the other people --------------------------------------------------- */
+
+  const npcJacketColors = [0xb32626, 0x2f6fce, 0x2f9e53, 0xd98c1f,
+    0x8a3fd1, 0x1fb3a8, 0xc23a68, 0x4a6b8a];
+  const npcEquipmentMat = new THREE.MeshLambertMaterial({ color: 0x181c24 });
+
+  function createSkierMesh(jacketColor) {
+    const group = new THREE.Group();
+    const jacketMat = new THREE.MeshLambertMaterial({ color: jacketColor });
+    const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.22, 0.9, 8), jacketMat);
+    torso.position.y = 0.85;
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), npcEquipmentMat);
+    head.position.y = 1.42;
+    const skiGeo = new THREE.BoxGeometry(0.12, 0.04, 1.7);
+    const skiL = new THREE.Mesh(skiGeo, npcEquipmentMat);
+    skiL.position.set(-0.2, 0.02, 0);
+    const skiR = new THREE.Mesh(skiGeo, npcEquipmentMat);
+    skiR.position.set(0.2, 0.02, 0);
+    const poleGeo = new THREE.CylinderGeometry(0.02, 0.02, 1.2, 6);
+    const poleL = new THREE.Mesh(poleGeo, npcEquipmentMat);
+    poleL.position.set(-0.4, 0.6, -0.1);
+    poleL.rotation.x = 0.3;
+    const poleR = new THREE.Mesh(poleGeo, npcEquipmentMat);
+    poleR.position.set(0.4, 0.6, -0.1);
+    poleR.rotation.x = 0.3;
+    group.add(torso, head, skiL, skiR, poleL, poleR);
+    return group;
+  }
+
+  function createBoarderMesh(jacketColor) {
+    const group = new THREE.Group();
+    const jacketMat = new THREE.MeshLambertMaterial({ color: jacketColor });
+    const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.24, 0.95, 8), jacketMat);
+    torso.position.y = 0.85;
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), npcEquipmentMat);
+    head.position.y = 1.45;
+    const board = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.05, 1.55), npcEquipmentMat);
+    board.position.set(0, 0.025, 0);
+    group.add(torso, head, board);
+    return group;
+  }
+
+  const NUM_NPCS = 5;
+  const npcs = [];
+  for (let i = 0; i < NUM_NPCS; i++) {
+    const isSkier = i % 2 === 0;
+    const mesh = isSkier
+      ? createSkierMesh(npcJacketColors[i % npcJacketColors.length])
+      : createBoarderMesh(npcJacketColors[i % npcJacketColors.length]);
+    root.add(mesh);
+    npcs.push({
+      mesh,
+      x: 0,
+      z: 100 + i * 40,   // parked uphill until the first respawn places them
+      y: 0,
+      vx: 0,
+      vz: -(11 + (i % 4) * 3),
+      tumbled: false,
+      tumbleTimer: 0,
+      sPhase: Math.random() * Math.PI * 2,
+    });
+  }
+
+  return {
+    update(dt, rider) {
+      if (!rider) return;
+      const rz = rider.pos.z;
+
+      /* Towers on a fixed grid so they never swim: the window simply slides
+         one slot at a time as the rider descends past them. Ahead is −z. */
+      const baseZ = Math.floor(rz / PYLON_SPACING) * PYLON_SPACING;
+      const backZ = baseZ + 2 * PYLON_SPACING;   // two slots behind…
+      for (let i = 0; i < NUM_PYLONS; i++) {
+        const pz = backZ - i * PYLON_SPACING;    // …to two slots ahead
+        const px = cableXAt(pz);
+        const py = heightAt(px, pz);
+        pylons[i].tower.position.set(px, py + 11.0, pz);
+        pylons[i].wheelL.rotation.z += 3.0 * dt;
+        pylons[i].wheelR.rotation.z -= 3.0 * dt;
+        topX[i] = px;
+        topY[i] = py + 21.5;
+        topZ[i] = pz;
+      }
+
+      // The ropes, tower-top to tower-top.
+      for (let i = 0; i < NUM_PYLONS - 1; i++) {
+        for (let s = 0; s < 2; s++) {
+          const mesh = cables[i * 2 + s];
+          const off = s === 0 ? -CABLE_SIDE : CABLE_SIDE;
+          const x0 = topX[i] + off;
+          const x1 = topX[i + 1] + off;
+          cableDir.set(x1 - x0, topY[i + 1] - topY[i], topZ[i + 1] - topZ[i]);
+          const len = cableDir.length();
+          mesh.position.set((x0 + x1) / 2, (topY[i] + topY[i + 1]) / 2,
+            (topZ[i] + topZ[i + 1]) / 2);
+          mesh.scale.set(1, len, 1);
+          mesh.quaternion.setFromUnitVectors(UP, cableDir.normalize());
+        }
+      }
+
+      /* Cabins ride the rope between towers: position interpolated along
+         the span they are on, dropped by a touch of parabolic sag, hung by
+         the grip. `at` is metres behind the backmost tower. */
+      for (const g of gondolas) {
+        g.at += g.dir * CABIN_SPEED * dt;
+        if (g.at < 0) g.at += SPAN;
+        if (g.at >= SPAN) g.at -= SPAN;
+        const seg = Math.min(NUM_PYLONS - 2, Math.floor(g.at / PYLON_SPACING));
+        const t = g.at / PYLON_SPACING - seg;
+        const cx = topX[seg] + (topX[seg + 1] - topX[seg]) * t + g.side;
+        const cz = topZ[seg] + (topZ[seg + 1] - topZ[seg]) * t;
+        const cy = topY[seg] + (topY[seg + 1] - topY[seg]) * t
+          - SAG * 4 * t * (1 - t);
+        g.mesh.position.set(cx, cy - 1.7, cz);
+        g.mesh.rotation.z = Math.sin(cz * 0.08 + g.at * 0.02) * 0.05;
+      }
+
+      /* --- the other people, and running into them ---------------------- */
+      for (let i = 0; i < NUM_NPCS; i++) {
+        const npc = npcs[i];
+
+        // Fallen far behind (uphill of the rider): return well ahead.
+        if (npc.z > rz + 60) {
+          npc.z = rz - 180 - Math.random() * 80;
+          npc.x = nearestCenter(rider.pos.x, npc.z)
+            + (Math.random() - 0.5) * 30.0;
+          npc.tumbled = false;
+          npc.tumbleTimer = 0;
+          npc.vz = -(11 + (i % 4) * 3);
+          npc.mesh.rotation.set(0, 0, 0);
+        }
+
+        if (npc.tumbled) {
+          npc.tumbleTimer -= dt;
+          npc.vz *= Math.exp(-2.0 * dt);
+          npc.z += npc.vz * dt;
+          npc.x += npc.vx * dt;
+          npc.mesh.rotation.z += 5.0 * dt;
+          npc.mesh.rotation.x += 3.0 * dt;
+          npc.y = heightAt(npc.x, npc.z);
+          npc.mesh.position.set(npc.x, npc.y + 0.3, npc.z);
+          if (npc.tumbleTimer <= 0) {
+            npc.tumbled = false;
+            npc.vz = -11.0;
+            npc.mesh.rotation.set(0, 0, 0);
+          }
+          continue;
+        }
+
+        // Easy S-turns about the nearest branch line, so they stay on the
+        // corduroy through forks instead of skiing the island.
+        npc.sPhase += dt * 1.4;
+        const sTurn = Math.sin(npc.sPhase) * 11.0;
+        const targetX = nearestCenter(npc.x, npc.z) + sTurn;
+        npc.vx = (targetX - npc.x) * 2.2;
+
+        npc.x += npc.vx * dt;
+        npc.z += npc.vz * dt;
+        npc.y = heightAt(npc.x, npc.z);
+        npc.mesh.position.set(npc.x, npc.y, npc.z);
+        npc.mesh.rotation.set(0, Math.atan2(npc.vx, npc.vz) + Math.PI,
+          Math.sin(npc.sPhase) * 0.12);
+
+        // A little carve spray off their turns.
+        if (spray && Math.random() < 0.25) {
+          spray.burst(npc.mesh.position, -npc.vx * 0.2, -npc.vz * 0.2, 3, 0.5);
+        }
+
+        const dx = rider.pos.x - npc.x;
+        const dy = rider.pos.y - npc.y;
+        const dz = rider.pos.z - npc.z;
+        if (dx * dx + dz * dz < 2.5 && Math.abs(dy) < 2.2) {
+          // Both go down. The rider's own 'fall' event carries the crash
+          // sound, camera kick and powder curtain; only the NPC's half of
+          // the collision is staged here.
+          if (rider.state !== 'fall') {
+            rider.fall('npc', 15.0);
+          }
+          npc.tumbled = true;
+          npc.tumbleTimer = 3.5;
+          npc.vx = (Math.random() - 0.5) * 14.0;
+          npc.vz *= 0.2;
+          if (spray) {
+            spray.burst({
+              x: (rider.pos.x + npc.x) * 0.5,
+              y: (rider.pos.y + npc.y) * 0.5 + 0.3,
+              z: (rider.pos.z + npc.z) * 0.5,
+            }, (Math.random() - 0.5) * 8.0, (Math.random() - 0.5) * 8.0, 24, 1.4);
+          }
+        }
+      }
+    },
+  };
+}

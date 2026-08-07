@@ -470,21 +470,21 @@ const FRAG_SHEEN = `
          grid, fresh storm snow buries them, and the recovered shadow term
          keeps them out of cast shade. */
       float n64GDist = length(vN64View);
-      if (n64GDist < 42.0 && n64Lit > 0.02) {
+      if (n64GDist < 56.0 && n64Lit > 0.015) {
         vec3 n64WDir = normalize(vN64View * mat3(viewMatrix));
         vec2 n64GPos = mod((cameraPosition + n64WDir * n64GDist).xz, 64.0);
         vec2 n64GCell = floor(n64GPos * 32.0);
         vec2 n64GTile = floor(n64GCell / 64.0);
         n64GCell += floor(vec2(n64Hash(n64GTile), n64Hash(n64GTile.yx + 3.0)) * 64.0);
-        if (n64Hash(n64GCell) > 0.976) {
+        if (n64Hash(n64GCell) > 0.962) {
           vec3 n64GJit = vec3(n64Hash(n64GCell + 7.0) - 0.5,
             n64Hash(n64GCell + 13.0) - 0.5,
             n64Hash(n64GCell + 29.0) - 0.5);
           vec3 n64GN = normalize(normal + n64GJit * 0.55);
-          float n64Spark = pow(max(dot(n64GN, n64H), 0.0), 64.0);
-          float n64GFade = (1.0 - smoothstep(14.0, 42.0, n64GDist))
-            * n64Open * (1.0 - uSnowFresh * 0.85);
-          n64Add += n64Sun * (n64Spark * n64GFade * 2.6);
+          float n64Spark = pow(max(dot(n64GN, n64H), 0.0), 48.0);
+          float n64GFade = (1.0 - smoothstep(18.0, 56.0, n64GDist))
+            * n64Open * (1.0 - uSnowFresh * 0.70);
+          n64Add += n64Sun * (n64Spark * n64GFade * 3.8);
         }
       }
 

@@ -91,75 +91,23 @@ export const GRADE = {
      single violently coloured human being in the middle of it, and none of
      that survives a picture graded to be tasteful. The sky stops carry most
      of it now; this is what stops the snow from meeting them halfway. */
-  contrast: 1.06,
-  saturation: 1.04,
-  // Enough to close the corners, not enough to notice. Anything past about
-  // 0.2 turns a wide screen into a porthole.
+  contrast: 1.08,
+  saturation: 1.06,
   vignette: 0.12,
-  /* Peripheral speed cues stay subordinate to steering and terrain detail —
-     and they are half of what they were.
-
-     These two and `blurAmount` were doubled when the picture went from a
-     640×360 buffer to native resolution, on the reasoning that the same
-     numbers were barely perceptible at the larger size. That reasoning holds
-     for a *blur*, which is measured in screen fractions and does read
-     differently at four times the pixels. It does not hold for a vignette or
-     a channel split: both close the frame and separate the colours by the
-     same proportion whatever the resolution, so doubling them simply doubled
-     them. A fast run became a porthole with fringing on it, and the treatment
-     stopped describing the speed and started sitting on top of the game.
-
-     So all three are halved, the blur included — because the ramp under them
-     no longer clamps (see `blurSpan`) and now spends a long run climbing past
-     where the old one stopped. The ramp's shape is what carries the cue; the
-     amplitude only has to be enough to notice. */
   speedVignette: 0.225,
   aberration: 0.00225,
 
-  /* `shoulder` is where the highlight roll-off starts, in linear light.
-     Everything under it is untouched; above it the range is compressed
-     asymptotically towards one. Snow under any real key light runs straight
-     off the top of the scale, and a clipped channel has no shape left in it —
-     which on a surface filling most of the frame means the hill stops having
-     folds and becomes a sheet of paper. */
   shoulder: 0.64,
-  /* Bloom, from a quarter-resolution bright pass. Kept small enough that the
-     snow retains shape instead of becoming one wide soft glow. */
-  bloom: 0.13,
-  /* …and a second octave at a sixteenth of the resolution: the wide, dim
-     halo the air wears around a low sun and over a lit snowfield. The tight
-     kernel above rims edges; this one glows. It is fainter than it looks —
-     a sixteenth-res texel covers a lot of screen, so a little goes far. */
-  bloomWide: 0.07,
+  bloom: 0.16,
+  bloomWide: 0.09,
   bloomThreshold: 0.83,
-  /* Near-field screen-space contact occlusion.
-
-     The shadow map says which way the sun is coming from; this says where
-     the sky cannot reach at all — under the board, between a trunk and the
-     snow, under a chalet eave and inside the folds of the hill. It is
-     reconstructed from the scene depth at half resolution and blurred with
-     that depth as a guide, so it costs no normal pass and cannot bleed over
-     a silhouette. The radius is in world metres; it stays tight to actual
-     contacts because a multi-metre horizon sample over a shallow snow plane
-     magnifies depth-buffer steps into moving screen-row bands. The larger
-     angular bias rejects those nearly coplanar samples while retaining board,
-     tree and hut grounding. */
-  // Disabled: the half-resolution reconstructed horizon produced coherent
-  // screen-row bands over a shallow snow plane at every non-trivial strength.
-  // Directional shadows and the model's contact shadow still ground objects.
   aoStrength: 0.0,
   aoRadius: 1.0,
   aoBias: 0.18,
   aoFade: [105, 175],
-  /* Crepuscular rays, marched from every pixel towards the sun's position on
-     screen through that same bright buffer. `density` is how far along that
-     line the sixteen steps reach and `decay` is how fast each one gives up —
-     together they set whether this reads as light through a ridge or as a
-     smear. It is the one effect here no machine of the era could have
-     attempted, and the one that most makes a low sun look like weather. */
-  rays: 0.46,
-  rayDecay: 0.94,
-  rayDensity: 0.62,
+  rays: 0.58,
+  rayDecay: 0.95,
+  rayDensity: 0.72,
 
   /* Velocity blur. Six taps along the vector towards the centre of the
      frame, so the corners streak and the middle — where the rider is, and
@@ -247,7 +195,13 @@ export const TERRAIN = {
     base: 0.30,       // 16.7° — the low end of a real red run
     waves: [
       { freq: 0.00085, amp: 0.050, phase: 0 },      // ~7.4 km, the big chapters
-      { freq: 0.00310, amp: 0.030, phase: 2.1 },    // ~2.0 km, pitches inside them
+      { freq: 0.00310, amp: 0.035, phase: 2.1 },    // ~2.0 km, pitches inside them
+      /* ~700 m: the scale a single run actually feels. A steep pitch the
+         rider has to check speed on, a mellow shelf to catch a breath and
+         pump for the next one — the difference between a treadmill and a
+         mountain. Kept small enough that the combined trough stays near 10°,
+         which the slope budget below still survives. */
+      { freq: 0.00900, amp: 0.040, phase: 4.4 },
     ],
   },
   /* Range: 0.30 ± 0.115, so 10.5° at its most generous and 22.5° at its
@@ -316,7 +270,45 @@ export const TERRAIN = {
      against the slope budget: the dish rises across the hill, not down it,
      and lateral gradients are free because no part of them lies on the
      direction the rider is descending. */
-  corridor: { half: 40, vary: 16, freq: 0.00118, bowl: 1.5 },
+  /* Twenty-six metres of half-width is a real groomed run — around fifty
+     metres of corduroy, wide enough to carve line after line — with the
+     powder, the moguls and the treeline starting where it ends rather than
+     a rock wall. Fourteen read as a bobsled canyon: the containment wall
+     began thirty metres from the centre line and towered over every frame. */
+  corridor: { half: 26, vary: 8, freq: 0.00118, bowl: 1.2 },
+
+  /* Between the groomed edge and the containment wall the mountain crosses
+     two more kinds of ground, in the order a real valley side offers them:
+     first ungroomed snow — the powder field where the bump octaves live —
+     then a rocky band where the cover thins over talus and boulders. The
+     widths breathe slowly along the run so the zoning never reads as three
+     painted stripes, and the wall's lip begins only past both, so the run
+     is contained by the same profile as before, just further from the
+     corduroy. `rise` is a gentle climb spread across both bands: enough
+     that gravity always points back at the piste, never enough to fence it. */
+  zones: {
+    powder: [26, 40],       // metres of ungroomed snow past the groomed edge
+    rock: [42, 64],         // metres of bouldery ground past the powder
+    freq: 0.0011,           // how slowly the two widths breathe down the run
+    rise: 6,                // metres climbed across the whole shoulder
+    rockBump: [1.15, 0.45], // boulder-field octaves: ~12 m swells, ~5 m lumps
+  },
+
+  /* The guide: the ribbon of machine corduroy that snakes from gate to
+     gate. A groomer drives a line, not a field — so the glass-smooth
+     surface is this ribbon, `tol` metres to either side of the racing line
+     through the gates, and the rest of the corridor is regular skied-in
+     snow: honest grip, a little texture, no reward for leaving the line
+     beyond the shorter way to the next gate. `rough` is how much of the
+     full off-piste bump spectrum that regular snow carries, and `margin`
+     keeps the line — and therefore every gate — inside the corridor with
+     the whole ribbon width to spare. */
+  guide: {
+    every: 150,   // one gate per this many metres of hill, jittered in-slot
+    tol: 8,       // groomed half-width around the racing line
+    rough: 0.30,  // bump share on the regular snow between ribbon and edge
+    margin: 14,   // line offset ceiling: corridor half minus this
+  },
 
   /* Outside the corridor: a transition, a lip, and then a wall that cannot
      be climbed.
@@ -383,10 +375,10 @@ export const TERRAIN = {
       scaleVary: 0.26,
       broadSeed: 113,
       detailSeed: 127,
-      lowerHeight: [4, 9],
+      lowerHeight: [6, 14],
       lowerStart: [16, 28],
       lowerWidth: 16,
-      upperHeight: [6, 14],
+      upperHeight: [10, 22],
       upperStart: [58, 76],
       upperWidth: 26,
       /* A sharper buttress cut from the existing detail field. It adds no

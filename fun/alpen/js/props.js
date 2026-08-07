@@ -68,7 +68,7 @@
    while nothing on this mountain cast a shadow onto anything else. */
 
 import {
-  heightAt, nearestCenter, corridorHalfAt, centersAt, normalFrom, SNOWPACK,
+  heightAt, nearestCenter, corridorHalfAt, centersAt, normalFrom, gateSlotsIn, SNOWPACK,
 } from './terrain.js';
 import { stream, hash2, noise2 } from './noise.js';
 import { compose } from './geom.js';
@@ -123,14 +123,14 @@ const THICKET = '#7d8496';
    dark, unsaturated brown and it is capped below full brightness on purpose:
    one warm thing in the frame is a rider, two is a mess. */
 export const STAND = {
-  cold: '#356b60',       // a spruce with the sky in it
-  warm: '#58784d',       // a pine that has had some sun
-  rust: '#684832',       // the odd one dying on its feet
-  ghost: '#6d7365',      // and the odd one that has finished
-  timberCold: '#918f88', // a dead larch, weathered grey
-  timberWarm: '#94836f', // and one that still has some sap in the memory
-  deep: 0.52,            // how dark the back of a wet stand goes
-  lit: 1.08,             // and how light a tree catching the low sun does
+  cold: '#1f483b',       // deep alpine spruce needle green
+  warm: '#2f5b28',       // sunlit mountain pine green
+  rust: '#5a422d',       // the odd one dying on its feet
+  ghost: '#50564b',      // and the odd one that has finished
+  timberCold: '#807e78', // a dead larch, weathered grey
+  timberWarm: '#857866', // and one that still has some sap in the memory
+  deep: 0.42,            // how dark the back of a wet stand goes
+  lit: 1.15,             // and how light a tree catching the low sun does
   odds: 0.05,            // how often a conifer is rust, and how often a ghost
   cap: 0.92,             // the brightest either of those two is allowed
   wood: 0.35,            // how much of its tree's cast a needled trunk takes
@@ -1369,16 +1369,56 @@ export function createProps(THREE, shading) {
      routed into the shading's per-vertex sheen carve-out — written after
      the shared default because shading.apply injects its own line directly
      behind the `project_vertex` include this replacement preserves. */
+  const neutralTreeTex = new THREE.DataTexture(
+    new Uint8Array([128, 128, 128, 255]), 1, 1, THREE.RGBAFormat,
+  );
+  neutralTreeTex.needsUpdate = true;
+
+  const texLoader = new THREE.TextureLoader();
+  const barkTex = { value: neutralTreeTex };
+  texLoader.load(
+    new URL('../assets/textures/tree/tree-bark.jpg', import.meta.url).href,
+    (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; barkTex.value = t; },
+  );
+  const needleTex = { value: neutralTreeTex };
+  texLoader.load(
+    new URL('../assets/textures/tree/pine-needles.jpg', import.meta.url).href,
+    (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; needleTex.value = t; },
+  );
+
   const treeMat = (height) => {
     const m = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false });
     m.onBeforeCompile = (shader) => {
-      Object.assign(shader.uniforms, air, { uSwayHeight: { value: height } });
+      Object.assign(shader.uniforms, air, {
+        uSwayHeight: { value: height },
+        uBarkTex: barkTex,
+        uNeedleTex: needleTex,
+      });
       shader.vertexShader = shader.vertexShader
-        .replace('#include <common>', `#include <common>${OWN_DECL}${AIR_DECL}`)
+        .replace('#include <common>', `#include <common>${OWN_DECL}${AIR_DECL}
+        varying vec3 vTreeWorldPos;`)
         .replace('#include <color_vertex>', OWN_MIX)
         .replace('#include <begin_vertex>', SWAY)
         .replace('#include <project_vertex>', `#include <project_vertex>
+        vTreeWorldPos = (modelMatrix * vec4(transformed, 1.0)).xyz;
         vN64Sheen = 1.0 - surfaceOwn;`);
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', `#include <common>
+        varying vec3 vTreeWorldPos;
+        uniform sampler2D uBarkTex;
+        uniform sampler2D uNeedleTex;`)
+        .replace('#include <color_fragment>', `#include <color_fragment>
+        /* surfaceOwn is a vertex attribute; the sheen varying already
+           carries its complement to this stage, so ownership is read back
+           from there rather than re-declared. Owned surfaces — bark and
+           needles rather than settled snow — take the grain of the plates. */
+        float treeOwn = 1.0 - vN64Sheen;
+        if (treeOwn > 0.05) {
+          vec4 barkSamp = texture2D(uBarkTex, vTreeWorldPos.xy * 0.4);
+          vec4 needleSamp = texture2D(uNeedleTex, vTreeWorldPos.xz * 0.5);
+          vec3 texColor = mix(barkSamp.rgb, needleSamp.rgb * 1.25, step(0.4, diffuseColor.g));
+          diffuseColor.rgb *= mix(vec3(1.0), texColor * 1.35, 0.45 * treeOwn);
+        }`);
     };
     return shading.apply(m, { cameraFade: true, sheen: 1 });
   };
@@ -1720,6 +1760,7 @@ export function createProps(THREE, shading) {
      goes because the tree's snow is no longer listening. See the head of the
      file. The shrub tints that sat beside them went with the shrubs. */
   const centres = [0, 0];
+  const gateSlots = [];
   const courseAbove = [0, 0];
   const courseBelow = [0, 0];
   const bankNormal = new THREE.Vector3();
@@ -1938,16 +1979,14 @@ export function createProps(THREE, shading) {
         x = (centres[0] + centres[1]) / 2 + (rnd() * 2 - 1) * (gap - 1.5);
       } else {
         const c = side < 0 ? centres[0] : centres[1];
-        // pow biases the crowd towards the treeline rather than the far edge
-        x = c + side * (half - 2.5 + Math.pow(rnd(), 0.6) * 78);
+        // The treeline proper: from just past the groomed edge out across
+        // the powder band, biased towards the piste so the run reads lined.
+        x = c + side * (half + 2.0 + Math.pow(rnd(), 0.6) * 65.0);
       }
-      /* And whether anything grows here at all. The stand field is sampled at
-         the tree's own position rather than the band's, so a clearing has an
-         edge that runs across the hill wherever the field puts it instead of
-         starting and stopping at a band boundary. The draw is taken either
-         way, so refusing a tree cannot shift the ones behind it in the
-         stream — a mountain that reshuffles when a clearing opens is a
-         mountain that reshuffles for no reason. */
+      /* Whether anything grows here at all. The stand field is sampled at
+         the tree's own position, so a clearing has an edge that runs across
+         the hill wherever the field puts it instead of starting and stopping
+         at a band boundary — without it the treeline is a uniform hedge. */
       const stand = FOREST.clearing + (1 - FOREST.clearing) * smoothstep(
         FOREST.standBand[0], FOREST.standBand[1],
         noise2(x * FOREST.standFreq, z * FOREST.standFreq, FOREST.standSeed),
@@ -1964,8 +2003,7 @@ export function createProps(THREE, shading) {
       const colour = castOf(treeBare[v], v, rnd(), tint);
       const radius = 0.5 + s * 0.45;
       if (!clearOfBandHazards(x, z, radius, bandHazards, 2.0)) continue;
-      treePools[v].addOnSlope(x, y, z, yaw,
-        s, sy, s, normal, colour);
+      treePools[v].addOnSlope(x, y, z, yaw, s, sy, s, normal, colour);
       solids.push({ x, z, r: radius, kind: HARD, top: 99 });
     }
 
@@ -2152,27 +2190,22 @@ export function createProps(THREE, shading) {
           flags.add(x, y, z, side < 0 ? 0 : Math.PI, 1, 1, 1, tint.copy(gateA));
         }
       }
-    } else if (rnd() < PROPS.gateChance) {
-      const z = z0 + rnd() * band;
-      const cx = nearestCenter(0, z) + (rnd() * 2 - 1) * 12;
-      const colour = rnd() < 0.5 ? gateA : gateB;
-      for (const side of [-1, 1]) {
-        const x = cx + side * PROPS.gateHalf;
-        const y = heightAt(x, z);
-        poles.add(x, y, z, 0, 1, 1, 1);
-        flags.add(x, y, z, side < 0 ? 0 : Math.PI, 1, 1, 1, tint.copy(colour));
+    } else {
+      /* The gates stand where the terrain's guide says they stand — the
+         same slots the groomed ribbon is carved through — so every panel
+         is planted mid-corduroy on the racing line, at a steady rhythm no
+         band rebuild can disturb. See `gateSlotsIn` in terrain.js. */
+      for (const slot of gateSlotsIn(z0, z0 + band, gateSlots)) {
+        // Alternating panels, the way a set course actually reads.
+        const colour = slot.k % 2 === 0 ? gateA : gateB;
+        for (const side of [-1, 1]) {
+          const x = slot.x + side * PROPS.gateHalf;
+          const y = heightAt(x, slot.z);
+          poles.add(x, y, slot.z, 0, 1, 1, 1);
+          flags.add(x, y, slot.z, side < 0 ? 0 : Math.PI, 1, 1, 1, tint.copy(colour));
+        }
+        gates.push({ x: slot.x, z: slot.z, half: PROPS.gateHalf, taken: false });
       }
-      /* And the gate is remembered, which it never used to be.
-
-         Slalom gates were pure scenery — two poles and a flag, drawn and
-         forgotten, "a line to take" that the game had no way of knowing you
-         had taken. Recording the pair gives the run the one thing it was
-         missing: something to aim at that is neither a jump nor an obstacle.
-         `half` travels with it because the caller has to know how wide the
-         gate was to decide whether the rider went through it, and a gate that
-         is scored against the wrong width is worse than one that is not
-         scored at all. */
-      gates.push({ x: cx, z, half: PROPS.gateHalf, taken: false });
     }
 
     /* --- rails ------------------------------------------------------------

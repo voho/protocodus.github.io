@@ -515,10 +515,10 @@ const MIST = {
    heights are once again what they say they are: how far the tallest summit
    on the ring stands above the curtain. */
 export const RANGES = [
-  { radius: 2380, height: 785, far: 42000, seed: 21, segments: 720, tint: '#d5dce7' },
-  { radius: 2010, height: 623, far: 21000, seed: 33, segments: 660, tint: '#aeb9cc' },
-  { radius: 1640, height: 476, far: 11500, seed: 47, segments: 600, tint: '#7c899f' },
-  { radius: 1280, height: 348, far: 6200, seed: 59, segments: 540, tint: '#53596a' },
+  { radius: 2380, height: 1220, far: 42000, seed: 21, segments: 720, tint: '#d5dce7' },
+  { radius: 2010, height: 980, far: 21000, seed: 33, segments: 660, tint: '#aeb9cc' },
+  { radius: 1640, height: 750, far: 11500, seed: 47, segments: 600, tint: '#7c899f' },
+  { radius: 1280, height: 560, far: 6200, seed: 59, segments: 540, tint: '#53596a' },
 ];
 
 /* What the horizon is made of, in the units a photograph would give you.
@@ -1385,6 +1385,9 @@ export function createSky(THREE) {
   let stormSettled = false;
   let panoReady = 0;
   let panoTarget = 0;
+  // 1 while the bound plate is the one the hour wants; 0 while the reveal is
+  // being walked down so the sampler can be exchanged out of sight.
+  let panoWish = 1;
   // 0 waits for both requests, 1 gives their replacements one invisible
   // binding/upload frame, and 2 starts the continuous reveal on the next.
   let panoStage = 0;
@@ -1453,12 +1456,14 @@ export function createSky(THREE) {
        for both load/error callbacks makes the sampler replacement atomic. A
        single survivor remains a complete fallback for the missing plate. */
     if (!clearSettled || !stormSettled) return;
-    const any = clearPlate || stormPlate;
+    const any = clearPlate || stormPlate || sunrisePlate || nightPlate;
     if (!any) return;
-    panoClear.value = clearPlate || stormPlate;
+    panoClear.value = clearPlate || sunrisePlate || stormPlate;
     panoStorm.value = stormPlate || clearPlate;
     panoStage = 1;
   };
+  let sunrisePlate = null;
+  let nightPlate = null;
   const plateLoader = new THREE.TextureLoader();
   plateLoader.load(
     new URL('../assets/textures/sky/alps-clear.webp', import.meta.url).href,
@@ -1479,6 +1484,20 @@ export function createSky(THREE) {
     },
     undefined,
     () => { stormSettled = true; settlePlates(); },
+  );
+  plateLoader.load(
+    new URL('../assets/textures/sky/alps-sunrise.jpg', import.meta.url).href,
+    (texture) => {
+      sunrisePlate = preparePlate(texture);
+      settlePlates();
+    },
+  );
+  plateLoader.load(
+    new URL('../assets/textures/sky/alps-aurora-night.jpg', import.meta.url).href,
+    (texture) => {
+      nightPlate = preparePlate(texture);
+      settlePlates();
+    },
   );
 
   // --- the counterglow -----------------------------------------------------
@@ -2445,7 +2464,25 @@ export function createSky(THREE) {
       panoStage = 0;
       panoTarget = 1;
     }
-    panoReady += (panoTarget - panoReady) * (1 - Math.exp(-2.8 * dt));
+    /* Which plate the hour wants: the aurora night under real darkness, the
+       alpenglow plate through dawn and dusk, the clear morning otherwise.
+       The swap itself is never shown — when the wish changes, the reveal
+       ramp is sent back to zero, the sampler is exchanged only once the
+       plate's contribution has actually reached nothing, and the same ramp
+       then brings the new picture up through the procedural sky. */
+    if (panoStage === 0 && panoTarget > 0) {
+      const want = (w.night > 0.4 && nightPlate) ? nightPlate
+        : ((w.tod >= 0.05 && w.tod <= 0.25 || w.tod >= 0.65 && w.tod <= 0.78)
+          && sunrisePlate) ? sunrisePlate
+          : clearPlate || panoClear.value;
+      if (want && panoClear.value !== want) {
+        if (panoReady < 0.02) {
+          panoClear.value = want;
+          panoWish = 1;
+        } else panoWish = 0;
+      } else panoWish = 1;
+    }
+    panoReady += (panoTarget * panoWish - panoReady) * (1 - Math.exp(-2.8 * dt));
     domeMat.uniforms.uPanoStormMix.value = ramp(w.storm, 0.12, 0.78);
     // Night keeps a faint mountain plate under the stars; a whiteout gives it
     // up entirely because the fog curtain has already won by then.
@@ -2860,8 +2897,10 @@ export function createSky(THREE) {
     key.intensity = w.keyI;
     // The fill takes the sky's hue but not its saturation. Snow bounce is
     // pale; lighting a whole mountain with undiluted #6f9ad6 turns every
-    // surface the sun is not on into flat blue paper.
-    fill.copy(atmosphere.mid).lerp(WHITE, 0.5);
+    // surface the sun is not on into flat blue paper. Scale white mix by
+    // daylight so night fill remains deep dark blue.
+    const dayFill = 1 - (w.night || 0);
+    fill.copy(atmosphere.mid).lerp(WHITE, 0.5 * dayFill);
     hemi.color.copy(fill);
     // On the night a display lands, the sky is the brightest lamp out and it
     // is green — so the fill takes a breath of the curtain's own colour and
@@ -2870,7 +2909,7 @@ export function createSky(THREE) {
     if (w.aurora > 0.004) {
       hemi.color.lerp(auroraMat.uniforms.uLow.value, w.aurora * 0.15);
     }
-    fill.copy(atmosphere.haze).lerp(WHITE, 0.35);
+    fill.copy(atmosphere.haze).lerp(WHITE, 0.35 * dayFill);
     hemi.groundColor.copy(fill);
     // And the strike, added rather than scaled: a flash lights the clouds
     // from inside, so it arrives through the fill and not through the key.

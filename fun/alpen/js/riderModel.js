@@ -121,13 +121,13 @@ import { createHeadlamp } from './headlamp.js';
    navy that keeps the legs reading against the snow, and the mint and yellow
    the rest of the site is built from stay exactly where they were — on the
    visor, the collar and the board — because they are what tie him to it. */
-const INK = '#232830';
-const SHELL = '#ff5a1f';    // the jacket, and the brightest thing on the hill
-const SHELL_DARK = '#d8410f';
-const MINT = '#00ffc3';
-const YELLOW = '#ffc400';
+const INK = '#181c24';
+const SHELL = '#ff4d12';    // high-vis pro technical Gore-Tex jacket
+const SHELL_DARK = '#cc3704';
+const MINT = '#00ffd5';     // chrome mint goggles & collar accent
+const YELLOW = '#ffbe00';   // pro binding straps & wrist cuffs
 const SKIN = '#c98f6a';
-const DENIM = '#1f2a4d';
+const DENIM = '#162342';    // deep navy technical snow pants
 
 const RISE_TIME = RIDER.riseTime;
 const TAU = Math.PI * 2;
@@ -450,6 +450,11 @@ function loft(THREE, rings, capStart = true, capEnd = true) {
 
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
+  const uvs = [];
+  for (let i = 0; i < positions.length; i += 3) {
+    uvs.push((positions[i] + 0.2) / 0.4, (positions[i + 2] + 0.8) / 1.6);
+  }
+  g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(uvs), 2));
   g.setIndex(indices);
   g.computeVertexNormals();
   return g;
@@ -809,11 +814,14 @@ export function createRiderModel(THREE, shading) {
     vec3 n64H = n64HalfSum * inversesqrt(max(dot(n64HalfSum, n64HalfSum), 1e-6));
     float n64NoL = clamp(dot(normal, uSunView), 0.0, 1.0);
     float n64Trim = smoothstep(0.30, 0.50, diffuseColor.g);
-    float n64Spec = pow(max(dot(normal, n64H), 0.0), 60.0) * n64NoL
-      * (${base.toFixed(3)} + ${gloss.toFixed(3)} * n64Trim);
-    float n64Rim = pow(1.0 - n64NoV, 3.0);
+    float n64Fabric = 1.0 + 0.06 * sin(dot(normal, vec3(17.0, 31.0, 13.0)));
+    float n64Spec = pow(max(dot(normal, n64H), 0.0), 50.0) * n64NoL
+      * (${base.toFixed(3)} + ${gloss.toFixed(3)} * n64Trim) * n64Fabric;
+    float n64Rim = pow(1.0 - n64NoV, 2.5);
+    float n64GroundBounce = max(-normal.y, 0.0) * 0.18;
+    vec3 n64SnowBounceColor = vec3(0.85, 0.92, 1.0) * uSunLevel * n64GroundBounce;
     reflectedLight.directDiffuse += uSunTint * (uSunLevel * n64Spec)
-      + uSkyMid * (n64Rim * 0.16)
+      + uSkyMid * (n64Rim * 0.22) + n64SnowBounceColor
       + vec3(0.45, 0.62, 0.85) * (uLampGlow * (0.35 + 0.65 * n64NoV) * 0.12);
   }`;
 
@@ -867,8 +875,17 @@ export function createRiderModel(THREE, shading) {
      the board the physics has anchored the rider to, however hard it is
      driven. It is a bow between the contacts and nothing else, which is what a
      snowboard does. */
+  const boardGraphicTex = new THREE.TextureLoader().load(
+    new URL('../assets/textures/rider/snowboard-graphics.jpg', import.meta.url).href,
+  );
+  boardGraphicTex.colorSpace = THREE.SRGBColorSpace;
+
   const boardMat = (() => {
-    const m = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false });
+    const m = new THREE.MeshLambertMaterial({
+      vertexColors: true,
+      flatShading: false,
+      map: boardGraphicTex,
+    });
     m.onBeforeCompile = (shader) => {
       shader.uniforms.uBend = flexUniform;
       shader.uniforms.uLampGlow = lampUniform;
