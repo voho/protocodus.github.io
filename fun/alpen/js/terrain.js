@@ -822,6 +822,14 @@ function heightIn(ctx, x, coarseDetail = 1, fineDetail = coarseDetail,
   if (past <= 0) {
     const u = d / Math.max(1, ctx.half);
     h += corridor.bowl * u * u;
+    /* And within the dish, a shallower one centred on the ribbon itself.
+       The groomed line is the guide, so the ground agrees: half a metre of
+       gather, faded out before the corridor's edge so it never argues with
+       the profile outside. A drifting rider is handed back to the corduroy
+       by gravity, not by a wall. */
+    const gd = Math.min(1, Math.abs(x - ctx.guideX) / 22);
+    h += guide.gather * gd * gd
+      * (1 - smoothstep(ctx.half - 10, ctx.half, d));
   } else {
     h += corridor.bowl;
 
@@ -1704,7 +1712,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
           float n64RockInk = mix(n64SlateInk, n64IronShelf + n64IronJoint,
             clamp(vRockKind, 0.0, 1.0));
           vec4 n64RockSample = texture2D(uRockTex, vWorld.xz * 0.08);
-          diffuseColor.rgb *= mix(vec3(1.0), n64RockSample.rgb * 1.35, (1.0 - n64SnowMask) * 0.45);
+          diffuseColor.rgb *= mix(vec3(1.0), n64RockSample.rgb * 1.55, (1.0 - n64SnowMask) * 0.40);
           diffuseColor.rgb *= 1.0 - n64RockInk * (1.0 - n64SnowMask)
             * smoothstep(0.30, 0.72, 1.0 - n64StrataUp);
         }`)
@@ -2222,7 +2230,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
            tarmac — and the powder band before it is left entirely alone. */
         const zoneRock = smoothstep(ctx.half + ctx.powderW - 4,
           ctx.half + ctx.powderW + 10, toCentre)
-          * (0.52 + 0.48 * outcropBand);
+          * (0.35 + 0.65 * outcropBand);
         /* The wall above holds snow on its first metres the way a real
            valley side does; only faces standing well over the run shed it. */
         const flank = smoothstep(ctx.half + ctx.bandW,

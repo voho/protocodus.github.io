@@ -335,7 +335,7 @@ if (window.matchMedia('(hover: none)').matches || 'ontouchstart' in window) {
   input.bindTouch(pad);
 }
 
-const demo = { t: 0, turn: 0 };
+const demo = { t: 0, turn: 0, stall: 0 };
 const prev = new THREE.Vector3();
 const wind = new THREE.Vector3();
 const riderScreen = new THREE.Vector3();
@@ -860,11 +860,11 @@ function demoInput(dt) {
   // lazy wander laid over it, so the hill is being ridden rather than tracked
   // The demo rider knows the course: it carves about the guide line, which
   // keeps the attract loop on the corduroy the camera is there to sell.
-  const target = guideAt(rider.pos.z - 26) + Math.sin(demo.t * 0.31) * 6;
+  const target = guideAt(rider.pos.z - 26) + Math.sin(demo.t * 0.31) * 4;
   const err = target - rider.pos.x;
   const heading = Math.atan2(rider.vel.x, -rider.vel.z);
-  const want = Math.atan2(err, 34) - heading;
-  demo.turn += (Math.max(-1, Math.min(1, want * 1.8)) - demo.turn) * Math.min(1, dt * 4);
+  const want = Math.atan2(err, 30) - heading;
+  demo.turn += (Math.max(-1, Math.min(1, want * 2.4)) - demo.turn) * Math.min(1, dt * 5);
   return {
     turn: demo.turn,
     tuck: Math.sin(demo.t * 0.17) > 0.55,
@@ -925,6 +925,22 @@ function frame(now) {
   if (running) {
     pausedRendered = false;
     input.update(dt);
+    /* The demo rider is a salesman, not a survivor: if it stalls on the
+       shoulder or loses the course entirely, it is quietly stood back on
+       the line a couple of metres further down and the loop goes on. A
+       player never sees a spawn; they see a rider who always knows the way. */
+    if (game.mode === 'attract') {
+      demo.stall = rider.speed < 2.5 ? demo.stall + dt : 0;
+      const offLine = Math.abs(rider.pos.x - guideAt(rider.pos.z));
+      if (demo.stall > 2.5 || offLine > 34) {
+        const z = rider.pos.z - 4;
+        rider.reset(z);
+        rider.pos.x = guideAt(z);
+        rider.pos.y = world.height(rider.pos.x, z);
+        hadStep = false;
+        demo.stall = 0;
+      }
+    }
     const control = game.mode === 'attract' ? demoInput(dt) : input.state;
 
     // Fixed-step physics, so a jump is the same size on every machine

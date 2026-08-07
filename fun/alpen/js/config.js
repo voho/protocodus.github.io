@@ -308,6 +308,7 @@ export const TERRAIN = {
     tol: 8,       // groomed half-width around the racing line
     rough: 0.30,  // bump share on the regular snow between ribbon and edge
     margin: 14,   // line offset ceiling: corridor half minus this
+    gather: 0.55, // metres of dish centred on the line: gravity points at it
   },
 
   /* Outside the corridor: a transition, a lip, and then a wall that cannot

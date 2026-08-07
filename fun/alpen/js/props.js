@@ -70,6 +70,7 @@
 import {
   heightAt, nearestCenter, corridorHalfAt, centersAt, normalFrom, gateSlotsIn, SNOWPACK,
 } from './terrain.js';
+import { createModelUpgrader } from './importedModels.js';
 import { stream, hash2, noise2 } from './noise.js';
 import { compose } from './geom.js';
 import { PROPS } from './config.js';
@@ -1540,6 +1541,29 @@ export function createProps(THREE, shading) {
     group.add(pool.mesh);
   }
 
+  /* Real trees, when they arrive. Each grown variant's pool is upgraded in
+     place to a Quaternius CC0 model of the same height — winter pines for
+     the needled species, dead snow-caught hardwoods for the bare ones —
+     while every instance, cast, sway and shadow stays exactly where it
+     was. Until (or unless) a file loads, the grown tree stands in. */
+  const upgrader = createModelUpgrader(THREE);
+  {
+    // Pines only: this is a treeline, not a park. The broadleaf variants
+    // in the pack read as summer trees wearing snow and break the biome.
+    const leafy = ['PineTree_Snow_1', 'PineTree_Snow_2', 'PineTree_Snow_3',
+      'PineTree_Snow_4', 'PineTree_Snow_5'];
+    const dead = ['CommonTree_Dead_Snow_1', 'CommonTree_Dead_Snow_2',
+      'BirchTree_Dead_Snow_1'];
+    let leafyAt = 0;
+    let deadAt = 0;
+    for (let i = 0; i < treePools.length; i++) {
+      const name = treeBare[i]
+        ? dead[deadAt++ % dead.length]
+        : leafy[leafyAt++ % leafy.length];
+      upgrader.upgrade(treePools[i], name, 'tree', treeHeights[i], null, 0.03);
+    }
+  }
+
   /* The shadow pass draws only the prefix that can reach its own camera.
 
      This used to be a fixed three-band prefix. Every forty-metre stream step
@@ -1664,6 +1688,17 @@ export function createProps(THREE, shading) {
   for (const p of shrubPools) p.mesh.userData.noShadow = true;
   rockPools[0].mesh.name = 'slate-boulders';
   rockPools[1].mesh.name = 'iron-boulders';
+
+  /* Real boulders, same trade as the trees: an imported CC0 rock rebaked
+     into whichever stone palette this pool already spoke, sunk a little
+     below grade so its downhill edge never stands on air. */
+  for (let i = 0; i < rockPools.length; i++) {
+    const grownGeo = boulderVariants[i].geometry;
+    grownGeo.computeBoundingBox();
+    const h = grownGeo.boundingBox.max.y - grownGeo.boundingBox.min.y;
+    upgrader.upgrade(rockPools[i], i === 0 ? 'Rock_Snow_2' : 'Rock_Snow_5',
+      'rock', h, i === 0 ? SNOWPACK.slate : SNOWPACK.iron, 0.16);
+  }
   for (const p of rockPools) {
     p.shadowEnds = new Uint16Array(streamSpan + 1);
     shadowPools.push(p);
