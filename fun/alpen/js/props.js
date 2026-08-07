@@ -255,6 +255,31 @@ const FOREST = {
   wobble: 0.09,           // …and a little more, so no two agree
   size: [0.46, 1.22],
   sizeBias: 1.45,         // >1 puts most of the stand at the small end
+  /* AND THE VETERANS, which are what a stand is measured against.
+
+     A forest of one size is a field of cones however well each cone is
+     grown, because there is nothing in it to read the others against. Real
+     subalpine forest is not like that: a few old trees escaped whatever
+     took the rest — an avalanche year, a windthrow, a century of browsing —
+     and stand clear above the canopy, and the eye uses them for scale the
+     moment it sees one. This stand ran 4 to 12 metres with the rarest
+     touching twenty, so the tallest tree and the shortest were the same
+     kind of object seen at two distances.
+
+     Drawn as a height in metres rather than as a multiplier on whatever
+     variant came up, because that is the quantity worth controlling: a
+     veteran is a tree of a certain size, and deriving the scale from the
+     variant's own grown height is what makes that true whichever species
+     the hash landed on. `from` keeps it to species that grow tall in the
+     first place — a five-metre nursery spruce scaled by five is not a
+     veteran, it is the same sapling drawn closer. The treeline scale still
+     applies on top, so the thin forest at the top of the run has smaller
+     veterans, which is the point of having a treeline at all. */
+  veteran: {
+    chance: 0.055,        // about one tree in eighteen, so a stand has a few
+    from: 9,              // metres of grown height a variant needs to qualify
+    height: [17, 26],     // …and what it is stood up to, before lean and jitter
+  },
   /* How far past the groomed edge a tree is still worth a collision hull.
      See the note at the placement: the forest reaches far further than a
      rider ever will, and a hull out there is a linear-scan cost with nothing
@@ -351,9 +376,10 @@ const OWN_MIX = `#include <color_vertex>
 
 /* Wind, as the vertex shader sees it.
 
-   Both the forest and the gate flags share these two uniform records, and
+   The forest and the gate beacons share these two uniform records, and
    `setAir` writes them once per frame — the same one-write-moves-everything
-   arrangement the shared shading uses for the sky. The time wraps at 200π
+   arrangement the shared shading uses for the sky. The lamps take only the
+   clock out of it; the wind is the forest's. The time wraps at 200π
    rather than growing forever because a float's precision does not: every
    frequency used below is a multiple of 0.01 Hz-ish, so `f * 200π` is a whole
    number of turns and the wrap is invisible.
@@ -391,25 +417,41 @@ const SWAY = `#include <begin_vertex>
 }
 #endif`;
 
-/* The flag's ripple travels along the cloth — a phase that advances with x —
-   and its amplitude grows from nothing at the pole edge, because the hoist is
-   sewn to the pole and the fly is the end that snaps. A small constant term
-   keeps a becalmed flag from ironing itself flat; the wind term on top is what
-   makes a storm read at the gates before it reads anywhere else. */
-const FLAG_DECL = `
-uniform float uAirTime;
-uniform vec2 uAirWind;`;
+/* THE GATE LAMP, and why a checkpoint is a light rather than a cloth.
 
-const FLUTTER = `#include <begin_vertex>
+   A flag says where a gate is only while there is daylight on it and no
+   weather in the way, which on this mountain is a minority of the run: the
+   day cycles into dusk and aurora, and a storm takes the far distance long
+   before it takes the near. A lamp is the opposite — it is brightest exactly
+   when the snow has gone flat and grey, which is when a rider most needs to
+   know where the next gate is. So the pair of them are two beacons on two
+   masts, and the course reads as a line of lights down the hill.
+
+   The flash is a function of the clock and nothing else, so it costs one
+   shader instruction and no per-frame work at all. Its phase comes from the
+   instance's world z, which has two consequences and both are wanted: the two
+   lamps of one gate sit at the same z and therefore flash *together*, so a
+   gate reads as one signal rather than two unrelated lights; and consecutive
+   gates are a hundred and fifty metres apart, so they land far enough apart in
+   phase that the run ahead ripples instead of strobing as one.
+
+   Sharpened with a power rather than left as a sine, because a beacon is
+   mostly dark with a snap in it — a sine reads as something slowly breathing.
+   The floor keeps the lens visible between flashes: an unlit gate that is
+   invisible for two thirds of a second is worse than no gate at all. */
+const LAMP_DECL = `
+uniform float uAirTime;`;
+
+const BEACON = `#include <color_vertex>
 {
   float n64Ph = 0.0;
   #ifdef USE_INSTANCING
-    n64Ph = fract(dot(instanceMatrix[3].xz, vec2(0.31, 0.17))) * 6.2832;
+    n64Ph = fract(instanceMatrix[3].z * 0.0177) * 6.2832;
   #endif
-  float n64Fly = clamp(transformed.x / 0.72, 0.0, 1.0);
-  float n64Amp = 0.035 + min(0.085, length(uAirWind) * 0.005);
-  transformed.z += sin(uAirTime * 8.0 + transformed.x * 6.0 + n64Ph)
-    * n64Amp * n64Fly;
+  float n64Flash = pow(max(0.0, sin(uAirTime * 2.4 + n64Ph)), 4.0);
+  #if defined( USE_COLOR )
+    vColor.rgb *= 0.55 + 2.10 * n64Flash;
+  #endif
 }`;
 
 /* The mask itself, built from the same array `compose` is about to eat.
@@ -1601,18 +1643,23 @@ export function createProps(THREE, shading) {
     return shading.apply(m, { cameraFade: true, sheen: 1, fogPull: FOG_PULL_STONE });
   };
 
-  /* The flag's cloth, rippled by the same clock. Its own factory for the same
-     reason the trees have one: the patch has to go on before `shading.apply`
-     folds its text into the cache key. */
-  const flagMat = () => {
-    const m = new THREE.MeshLambertMaterial({ flatShading: false, side: THREE.DoubleSide });
+  /* The beacon's lens, flashed by the same clock. Deliberately unlit — a lamp
+     that took the key light would go out at dusk, which is the one hour it
+     exists for — so this is the one material on the mountain whose colour is
+     its own output. It keeps three's fog, so a gate still dissolves into a
+     storm at the same distance everything else does; a beacon burning at full
+     strength through a whiteout would be the one object in the scene claiming
+     the weather does not apply to it. */
+  const lampMat = () => {
+    const m = new THREE.MeshBasicMaterial({ vertexColors: true, fog: true });
+    m.toneMapped = false;
     m.onBeforeCompile = (shader) => {
       Object.assign(shader.uniforms, air);
       shader.vertexShader = shader.vertexShader
-        .replace('#include <common>', `#include <common>${FLAG_DECL}`)
-        .replace('#include <begin_vertex>', FLUTTER);
+        .replace('#include <common>', `#include <common>${LAMP_DECL}`)
+        .replace('#include <color_vertex>', BEACON);
     };
-    return shading.apply(m);
+    return m;
   };
   const castOf = makeCasts(THREE);
 
@@ -1785,10 +1832,13 @@ export function createProps(THREE, shading) {
   // --- everything else ------------------------------------------------------
   const poleGeo = new THREE.CylinderGeometry(0.05, 0.05, 2.3, 12);
   poleGeo.translate(0, 1.15, 0);
-  // Segmented so the flutter has joints to bend at — a two-triangle quad can
-  // only shear, and a shearing flag reads as a sign swinging on a hinge
-  const flagGeo = new THREE.PlaneGeometry(0.72, 0.46, 6, 3);
-  flagGeo.translate(0.36, 1.95, 0);
+  /* The lens sits on the head of the mast. Two subdivisions of an
+     icosahedron is eighty triangles for a ball that is a dozen pixels across
+     at the distance it is read from — the silhouette has to survive being
+     the only thing visible in a whiteout, and a low-poly one reads as a
+     rotating facet rather than a steady light. */
+  const lampGeo = new THREE.IcosahedronGeometry(0.19, 2);
+  lampGeo.translate(0, 2.4, 0);
   // Laid down the fall line at construction rather than rotated per instance,
 
   /* Five instanced calls make the ecology: one whole plant patch, two winter
@@ -1861,7 +1911,12 @@ export function createProps(THREE, shading) {
   }
 
   const poles = new Pool(THREE, poleGeo, lit('#2a2f38'), bands * 2 + 16);
-  const flags = new Pool(THREE, flagGeo, flagMat(), poles.capacity, true);
+  const lamps = new Pool(THREE, lampGeo, lampMat(), poles.capacity, true);
+  // A self-luminous lens must not also be an opaque ball in the depth pass:
+  // two dark spheres hanging over every gate is what a beacon that casts
+  // looks like. `shadowCasting` in main.js reads this flag by name.
+  lamps.mesh.userData.noShadow = true;
+  lamps.mesh.name = 'gate-lamps';
 
   /* Two calls for all of the Swiss-specific infrastructure in the active
      window: one fence geometry and one marker geometry, sharing one material
@@ -1889,7 +1944,7 @@ export function createProps(THREE, shading) {
 
   const pools = [
     plantPool, ...shrubPools, ...rockPools, ...cragPools,
-    poles, flags, avalancheFences, waymarks,
+    poles, lamps, avalancheFences, waymarks,
   ];
   pools.forEach((p) => group.add(p.mesh));
   const allPools = pools.concat(treePools);
@@ -2180,9 +2235,16 @@ export function createProps(THREE, shading) {
       if (rnd() > stand * lineCover) continue;
       const y = heightAt(x, z);
       // Mostly small, with the odd one standing over them.
-      const s = lerp(FOREST.size[0], FOREST.size[1],
-        Math.pow(rnd(), FOREST.sizeBias)) * lineScale;
       const v = (rnd() * treePools.length) | 0;
+      let s = lerp(FOREST.size[0], FOREST.size[1],
+        Math.pow(rnd(), FOREST.sizeBias)) * lineScale;
+      // …and once in a while a tree that got away with it. See `FOREST.veteran`.
+      const vet = treeHeights[v] >= FOREST.veteran.from
+        && rnd() < FOREST.veteran.chance;
+      if (vet) {
+        s = (lerp(FOREST.veteran.height[0], FOREST.veteran.height[1], rnd())
+          / treeHeights[v]) * lineScale;
+      }
       const yaw = rnd() * TAU;
       const sy = s * (0.85 + rnd() * 0.35);
       const normal = treeLean(x, z, y, rnd);
@@ -2445,7 +2507,7 @@ export function createProps(THREE, shading) {
         const x = slot.x + side * PROPS.gateHalf;
         const y = heightAt(x, slot.z);
         poles.add(x, y, slot.z, 0, 1, 1, 1);
-        flags.add(x, y, slot.z, side < 0 ? 0 : Math.PI, 1, 1, 1, tint.copy(colour));
+        lamps.add(x, y, slot.z, 0, 1, 1, 1, tint.copy(colour));
       }
       /* `half` travels with the gate because the caller has to know how wide
          it was to decide whether the rider went through it. `warm` is which

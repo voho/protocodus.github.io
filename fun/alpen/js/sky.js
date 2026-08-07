@@ -287,8 +287,60 @@ const CONE_R = RADIUS * 0.95;
    looks; together they have to bracket everything that can cast into the box,
    which on this mountain means the tallest tree plus the deepest hollow plus
    however high a rider can be thrown. */
-const SHADOW_MAP = 2048;
+/* Density, because everything else about a shadow follows from it.
+
+   A snowboard is 1.5 m long and about 25 cm across. At the old 2048 over
+   `SHADOW_REACH` metres — nine centimetres a texel — the board's own shadow
+   was three texels wide, which is less than the tap pattern that then blurs
+   it, so the one shadow a rider looks at all the time was the one the map
+   could not draw. Doubling to 4096 halves the texel to four and a half
+   centimetres and the board becomes six texels: still small, but now it
+   survives the filter and arrives under the board instead of as a grey haze
+   somewhere near it.
+
+   Doubling costs a four-times-larger depth map and four times the shadow-pass
+   fill, which a phone should not be asked for. `shadowMapFor` picks the size
+   from what the device actually reports; everything below is derived from
+   whichever it got, so the two paths cannot drift apart. */
 const SHADOW_REACH = 92;
+const SHADOW_MAP_NEAR = 4096;
+const SHADOW_MAP_FAR = 2048;
+
+/* And the bias in texels rather than in metres, which is the unit it is
+   actually in.
+
+   Acne is a depth slope sampled across one texel, so the offset a map needs
+   to stay clean is proportional to how much world one texel covers — and the
+   offset it can afford before a shadow detaches from its caster is a fixed
+   number of centimetres. Those two facts pull in opposite directions and the
+   old 0.25 m was the truce at nine centimetres a texel: about 2.8 texels,
+   and about a board's width, which is why the board's contact never landed.
+
+   Written as texels the truce survives a change of resolution. Measured on a
+   frozen frame at both sizes: below about two texels the trees break out in
+   self-shadow acne, and at 2.2 they are clean at either resolution — but at
+   4096 those same 2.2 texels are ten centimetres instead of twenty-five, and
+   ten centimetres is under a boot rather than over a board. */
+const SHADOW_BIAS_TEXELS = 2.2;
+/* A phone is not asked for the dense map. `hover: none` is the same test the
+   touch pad uses in main.js, so the two agree about what kind of device this
+   is rather than each guessing separately. Decided once, here, because the
+   texel size is read both by the light's setup and by the per-frame snap that
+   keeps the shadow box on whole texels — and those two disagreeing about how
+   big a texel is would put a crawl back into every edge. */
+const SHADOW_MAP = typeof window !== 'undefined'
+  && window.matchMedia?.('(hover: none)').matches
+  ? SHADOW_MAP_FAR : SHADOW_MAP_NEAR;
+// Metres of world per texel — the unit the two offsets below are really in.
+const SHADOW_TEXEL = (2 * SHADOW_REACH) / SHADOW_MAP;
+/* The sun is half a degree wide, so nothing it casts has a hard edge, and
+   this is the cheap stand-in: it widens the PCF taps by a constant, which is
+   a constant penumbra rather than one that grows with distance from the
+   caster. In texels for the same reason as the bias — and deliberately a
+   little tighter in world terms than the old 2.6 taps of nine centimetres,
+   because a constant 23 cm penumbra is far too soft where it matters most.
+   The true penumbra a metre under the board is about a centimetre. */
+const SHADOW_RADIUS_TEXELS = 2.6;
 // Dynamic caster shadows cannot be baked, but their contribution can still
 // have temporal inertia. A one-second fade prevents horizon/storm thresholds
 // from ever publishing a whole new lighting state in one frame.
@@ -2312,17 +2364,29 @@ export function createSky(THREE) {
      it on the snow at any sun angle — because the snow was never in this
      path; what actually holds the mountain together is the constant `bias`
      below, which is in the light camera's own depth units and does apply to
-     everything. It is unchanged. */
+     everything. It is unchanged.
+
+     …AND IT IS NOW WRITTEN AS A COUNT OF TEXELS, so the truce it represents
+     travels with the resolution instead of being a metre figure that silently
+     becomes the wrong one. See `SHADOW_BIAS_TEXELS`: at the dense map this is
+     ten centimetres rather than twenty-five, which is the difference between
+     a board that is standing on the snow and a board that is hovering a hand's
+     width over its own shadow. A quarter of a metre was chosen when a texel
+     was nine centimetres, and a snowboard was three texels wide — so the one
+     shadow a player looks at continuously was the one the map could not
+     resolve and the offset then pushed off the board entirely. */
   key.shadow.bias = -0.0004;
-  key.shadow.normalBias = 0.25;
+  key.shadow.normalBias = SHADOW_BIAS_TEXELS * SHADOW_TEXEL;
   /* The sun is half a degree wide, so nothing it casts has a hard edge. This
      is the cheap stand-in for that: it widens the PCF tap pattern, which
      softens every shadow by a constant amount rather than by distance from
      the caster — not the real penumbra, but far closer to it than a hard
      edge, and it costs nothing. Kept modest, because at nine centimetres a
      texel a large radius starts eating the shadows of thin things like
-     branches and slalom poles entirely. */
-  key.shadow.radius = 2.6;
+     branches and slalom poles entirely. Counted in texels for the same reason
+     as the bias, so the denser map buys a tighter penumbra rather than the
+     same blur drawn at higher cost. */
+  key.shadow.radius = SHADOW_RADIUS_TEXELS;
   lights.add(key, key.target);
   const hemi = new THREE.HemisphereLight('#74a3de', '#dfe8f4', 1.35);
   lights.add(hemi);
@@ -2825,7 +2889,7 @@ export function createSky(THREE) {
        box then advances in discrete steps of exactly one texel, so every
        texel lands on the same world position it did last frame and the edges
        are still. */
-    const texel = (2 * SHADOW_REACH) / SHADOW_MAP;
+    const texel = SHADOW_TEXEL;
     shadowRight.crossVectors(UP, sunDir);
     if (shadowRight.lengthSq() < 1e-6) shadowRight.set(1, 0, 0);
     shadowRight.normalize();

@@ -38,11 +38,29 @@ const BINDINGS = {
 const RAMP = 7.5;
 const RELEASE = 12;
 
+/* The latched tap is measured in physics steps, not in rendered frames.
+
+   `jumpPulse` is 0 when there is none, 1 while the sampled press is being
+   shown, and 2 while the sampled release is. It only advances once a physics
+   step has actually looked at it, which `stepped()` reports — and that is the
+   whole of the fix for an ollie that silently never happened.
+
+   The rider reads `state` from inside the fixed 120 Hz loop, and a display
+   faster than 120 Hz runs frames that step the physics zero times. A pulse
+   retired on frame boundaries therefore had a chance of living and dying
+   entirely inside one of those frames, having been seen by nothing. Measured
+   against the real loop with ten tapped ollies: one lost at 144 Hz, three at
+   165 Hz, and at 240 Hz the tap never worked at all. */
+const PULSE_NONE = 0;
+const PULSE_PRESS = 1;
+const PULSE_RELEASE = 2;
+
 export function createInput(target, hooks = {}) {
   const down = new Set();
   let jumpPressedSinceUpdate = false;
   let jumpTapPending = false;
-  let jumpPulseRelease = false;
+  let jumpPulse = PULSE_NONE;
+  let jumpPulseSeen = false;
   const state = {
     turn: 0, tuck: false, brake: false, jump: false,
     trickGrab: false, trickFlip: false,
@@ -88,7 +106,7 @@ export function createInput(target, hooks = {}) {
 
   const keydown = (e) => onKey(e, true);
   const keyup = (e) => onKey(e, false);
-  const blur = () => down.clear();
+  const blur = () => clear();
 
   target.addEventListener('keydown', keydown);
   target.addEventListener('keyup', keyup);
@@ -104,20 +122,42 @@ export function createInput(target, hooks = {}) {
     state.brake = held('brake');
     /* A complete tap can happen between two animation frames. Latch that
        edge into one sampled press and one sampled release so the 120 Hz rider
-       always gets an ollie, however the browser scheduled the key events. */
-    if (jumpPulseRelease) {
-      state.jump = false;
-      jumpPulseRelease = false;
+       always gets an ollie, however the browser scheduled the key events —
+       and hold each half until a step has been run on it. See `jumpPulse`. */
+    if (jumpPulse === PULSE_PRESS) {
+      if (jumpPulseSeen) {
+        jumpPulse = PULSE_RELEASE;
+        jumpPulseSeen = false;
+        state.jump = false;
+      } else {
+        state.jump = true;
+      }
+    } else if (jumpPulse === PULSE_RELEASE) {
+      if (jumpPulseSeen) {
+        jumpPulse = PULSE_NONE;
+        jumpPulseSeen = false;
+        state.jump = held('jump');
+      } else {
+        state.jump = false;
+      }
     } else if (jumpTapPending) {
       state.jump = true;
       jumpTapPending = false;
-      jumpPulseRelease = true;
+      jumpPulse = PULSE_PRESS;
+      jumpPulseSeen = false;
     } else {
       state.jump = held('jump');
     }
     jumpPressedSinceUpdate = false;
     state.trickGrab = held('grab');
     state.trickFlip = held('flip');
+  }
+
+  /* Called once per physics step, by whoever owns the fixed-step loop. It is
+     the only thing that lets a latched tap move on, so a frame that runs no
+     steps at all cannot consume one. */
+  function stepped() {
+    if (jumpPulse !== PULSE_NONE) jumpPulseSeen = true;
   }
 
   /* Wires the on-screen pad. Each button is a pointer capture rather than a
@@ -165,15 +205,35 @@ export function createInput(target, hooks = {}) {
     window.removeEventListener('blur', blur);
   }
 
-  function clear() {
-    down.clear();
-    for (const k of Object.keys(touch)) touch[k] = false;
+  /* Everything the game inferred, dropped — but not what the hands are
+     actually doing.
+
+     This is what a pause wants, and the distinction is the whole point of
+     having two of these. A pause does not take the player's hands off the
+     keyboard: they are still holding W, the window still has focus, and the
+     keyup will still be delivered whenever they let go, so `down` remains a
+     true statement about the keyboard for the entire pause. Emptying it
+     anyway left the game unable to ever learn that W was down — a key that is
+     already held is never announced again, and auto-repeat is deliberately
+     dropped a few lines above — so resuming gave the player a dead key until
+     they released and pressed it a second time. */
+  function calm() {
     state.turn = 0;
     state.jump = false;
     jumpPressedSinceUpdate = false;
     jumpTapPending = false;
-    jumpPulseRelease = false;
+    jumpPulse = PULSE_NONE;
+    jumpPulseSeen = false;
   }
 
-  return { state, update, bindTouch, dispose, clear };
+  /* And the hard version, for when the key states genuinely can no longer be
+     trusted: losing focus is exactly the case where the keyup goes to somebody
+     else and never arrives here. */
+  function clear() {
+    down.clear();
+    for (const k of Object.keys(touch)) touch[k] = false;
+    calm();
+  }
+
+  return { state, update, stepped, bindTouch, dispose, clear, calm };
 }

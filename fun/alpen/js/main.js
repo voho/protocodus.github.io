@@ -434,7 +434,10 @@ function pause() {
   curtain.dataset.screen = 'paused';
   retro.fade(0.42);
   audio.quiet();
-  input.clear();
+  // The steering ramp and any half-spent tap go; the keys the player is
+  // physically still holding stay, because they will still be held when the
+  // run resumes and nothing will ever announce them again. See `input.calm`.
+  input.calm();
   persistBest(true);
 }
 
@@ -536,7 +539,7 @@ canvas.addEventListener('webglcontextlost', (e) => {
   const note = curtain.querySelector('.pause-only.tagline');
   if (note) note.textContent = 'Graphics paused while the browser restores WebGL.';
   audio.quiet();
-  input.clear();
+  input.calm();
 });
 
 canvas.addEventListener('webglcontextrestored', () => {
@@ -1019,6 +1022,10 @@ function frame(now) {
       stepFromYaw = rider.yaw;
       hadStep = true;
       rider.step(STEP, control);
+      // A latched tap is retired by the step that read it, never by the frame
+      // that produced it — above 120 Hz some frames run no steps at all, and
+      // an ollie consumed by one of those was an ollie that never happened.
+      input.stepped();
       // Obstacle sweeps belong to the same clock as motion. Running this once
       // per rendered frame made a fast tree impact subtly display-rate
       // dependent even though the rider itself was fixed-step.

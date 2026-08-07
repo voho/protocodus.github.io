@@ -114,43 +114,132 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
 
   /* --- the other people --------------------------------------------------- */
 
+  /* THE OTHER PEOPLE, who used to be a cylinder with a ball on it.
+
+     A skier was a tapered cylinder, a sphere and two flat boxes; a boarder
+     was the same with one box instead of two, standing square to its own
+     board — which is the one thing a snowboarder never does. At any distance
+     where you could tell they were people at all, you could tell they were
+     three primitives, and they were the only figures on a mountain whose own
+     rider is a fully articulated rig.
+
+     They are still cheap: about a dozen small meshes each, no skinning and no
+     animation beyond the lean the run gives them. What they now have is a
+     *silhouette* — bent knees, a forward hinge at the waist, arms carried out
+     from the body and a helmet that is not the same sphere as the head. At
+     forty metres that outline is the whole of what reads, and it is the
+     difference between another skier and a traffic cone.
+
+     They also take the shared alpine shading and cast into the depth map,
+     neither of which they did before. That was not a stylistic gap: every
+     other solid on this mountain dims into dusk and lays a shadow, so five
+     figures lit by nothing and standing on nothing were five cut-outs. */
   const npcJacketColors = [0xb32626, 0x2f6fce, 0x2f9e53, 0xd98c1f,
     0x8a3fd1, 0x1fb3a8, 0xc23a68, 0x4a6b8a];
-  const npcEquipmentMat = new THREE.MeshLambertMaterial({ color: 0x181c24 });
+  const npcHelmetColors = [0x1b1f27, 0xe8edf4, 0x2b3444, 0xb8c2d0];
+  const gear = (hex) => shading.apply(
+    new THREE.MeshLambertMaterial({ color: hex, flatShading: false }),
+  );
+  const npcEquipmentMat = gear(0x181c24);   // skis, board, poles, boots
+  const npcTrouserMat = gear(0x27303f);
+  const npcGoggleMat = gear(0x6fd9e8);
+  const npcHelmetMats = npcHelmetColors.map(gear);
 
-  function createSkierMesh(jacketColor) {
+  // Geometry is shared across every figure; only the jacket colour differs.
+  const GEO = {
+    torso: new THREE.CylinderGeometry(0.20, 0.26, 0.62, 10),
+    hip: new THREE.CylinderGeometry(0.21, 0.19, 0.16, 10),
+    thigh: new THREE.CylinderGeometry(0.095, 0.085, 0.42, 8),
+    shin: new THREE.CylinderGeometry(0.080, 0.070, 0.40, 8),
+    boot: new THREE.BoxGeometry(0.15, 0.14, 0.26),
+    upperArm: new THREE.CylinderGeometry(0.062, 0.055, 0.34, 7),
+    foreArm: new THREE.CylinderGeometry(0.052, 0.046, 0.32, 7),
+    head: new THREE.SphereGeometry(0.105, 9, 7),
+    helmet: new THREE.SphereGeometry(0.128, 10, 8),
+    goggles: new THREE.BoxGeometry(0.215, 0.075, 0.10),
+    ski: new THREE.BoxGeometry(0.10, 0.035, 1.62),
+    skiTip: new THREE.BoxGeometry(0.10, 0.035, 0.22),
+    board: new THREE.BoxGeometry(0.30, 0.045, 1.50),
+    boardTip: new THREE.BoxGeometry(0.28, 0.045, 0.20),
+    pole: new THREE.CylinderGeometry(0.014, 0.011, 1.15, 5),
+    basket: new THREE.CylinderGeometry(0.055, 0.055, 0.015, 7),
+  };
+
+  const put = (group, geo, mat, x, y, z, rx = 0, ry = 0, rz = 0) => {
+    const m = new THREE.Mesh(geo, mat);
+    m.position.set(x, y, z);
+    m.rotation.set(rx, ry, rz);
+    group.add(m);
+    return m;
+  };
+
+  /* The body, shared by both disciplines. `open` is how far the feet are
+     apart across the fall line — a skier rides them close, a boarder has
+     them a board's length apart and turned across it — and `face` is the
+     direction the shoulders are pointed, which is the only thing that
+     really separates the two stances from behind. */
+  function buildBody(group, jacketMat, helmetMat, open, face) {
+    const lean = 0.20;                       // forward hinge, radians
+    const s = Math.sin(face);
+    const c = Math.cos(face);
+    // legs: bent, and the knees drive forward over the toes
+    for (const side of [-1, 1]) {
+      const fx = side * open * c;
+      const fz = -side * open * s;
+      put(group, GEO.thigh, npcTrouserMat,
+        fx * 0.55, 0.56, fz * 0.55 + 0.05, 0.55, face, 0);
+      put(group, GEO.shin, npcTrouserMat,
+        fx * 0.85, 0.26, fz * 0.85 - 0.02, -0.30, face, 0);
+      put(group, GEO.boot, npcEquipmentMat,
+        fx, 0.09, fz, 0, face, 0);
+    }
+    put(group, GEO.hip, npcTrouserMat, 0, 0.80, 0.02, lean * 0.5, face, 0);
+    put(group, GEO.torso, jacketMat,
+      0, 1.10, -0.09, lean, face, 0);
+    // arms, carried out from the body for balance rather than hanging
+    for (const side of [-1, 1]) {
+      const ax = side * 0.235 * c;
+      const az = -side * 0.235 * s;
+      put(group, GEO.upperArm, jacketMat,
+        ax, 1.16, az - 0.04, 0.25, face, side * 0.42);
+      put(group, GEO.foreArm, jacketMat,
+        ax * 1.5, 0.92, az * 1.5 + 0.12, 0.85, face, side * 0.30);
+    }
+    put(group, GEO.head, npcEquipmentMat, 0, 1.48, 0.06, 0, face, 0);
+    const helmet = put(group, GEO.helmet, helmetMat, 0, 1.505, 0.05, 0, face, 0);
+    helmet.scale.set(1, 0.86, 1.04);
+    put(group, GEO.goggles, npcGoggleMat,
+      0.0 + s * 0.09, 1.485, 0.09 * c, 0, face, 0);
+  }
+
+  function createSkierMesh(jacketColor, helmetMat) {
     const group = new THREE.Group();
-    const jacketMat = new THREE.MeshLambertMaterial({ color: jacketColor });
-    const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.22, 0.9, 8), jacketMat);
-    torso.position.y = 0.85;
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), npcEquipmentMat);
-    head.position.y = 1.42;
-    const skiGeo = new THREE.BoxGeometry(0.12, 0.04, 1.7);
-    const skiL = new THREE.Mesh(skiGeo, npcEquipmentMat);
-    skiL.position.set(-0.2, 0.02, 0);
-    const skiR = new THREE.Mesh(skiGeo, npcEquipmentMat);
-    skiR.position.set(0.2, 0.02, 0);
-    const poleGeo = new THREE.CylinderGeometry(0.02, 0.02, 1.2, 6);
-    const poleL = new THREE.Mesh(poleGeo, npcEquipmentMat);
-    poleL.position.set(-0.4, 0.6, -0.1);
-    poleL.rotation.x = 0.3;
-    const poleR = new THREE.Mesh(poleGeo, npcEquipmentMat);
-    poleR.position.set(0.4, 0.6, -0.1);
-    poleR.rotation.x = 0.3;
-    group.add(torso, head, skiL, skiR, poleL, poleR);
+    const jacketMat = gear(jacketColor);
+    buildBody(group, jacketMat, helmetMat, 0.17, 0);
+    for (const side of [-1, 1]) {
+      const x = side * 0.17;
+      put(group, GEO.ski, npcEquipmentMat, x, 0.018, 0);
+      // an upturned tip, which is most of what says "ski" at distance
+      put(group, GEO.skiTip, npcEquipmentMat, x, 0.055, -0.88, -0.38);
+      // poles trail back and out, baskets just clear of the snow
+      put(group, GEO.pole, npcEquipmentMat, side * 0.42, 0.62, 0.30, 0.42);
+      put(group, GEO.basket, npcEquipmentMat, side * 0.42, 0.10, 0.53);
+    }
     return group;
   }
 
-  function createBoarderMesh(jacketColor) {
+  function createBoarderMesh(jacketColor, helmetMat) {
     const group = new THREE.Group();
-    const jacketMat = new THREE.MeshLambertMaterial({ color: jacketColor });
-    const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.24, 0.95, 8), jacketMat);
-    torso.position.y = 0.85;
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), npcEquipmentMat);
-    head.position.y = 1.45;
-    const board = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.05, 1.55), npcEquipmentMat);
-    board.position.set(0, 0.025, 0);
-    group.add(torso, head, board);
+    const jacketMat = gear(jacketColor);
+    /* Sideways, which is the whole point. The board runs along z and the
+       rider stands across it, so the shoulders are turned a bit under a
+       right angle to the direction of travel — the stance angle a real
+       binding is set to, and the reason a boarder reads as a boarder from
+       behind while a skier reads as a skier. */
+    buildBody(group, jacketMat, helmetMat, 0.30, Math.PI * 0.42);
+    put(group, GEO.board, npcEquipmentMat, 0, 0.022, 0);
+    put(group, GEO.boardTip, npcEquipmentMat, 0, 0.052, -0.82, -0.30);
+    put(group, GEO.boardTip, npcEquipmentMat, 0, 0.052, 0.82, 0.30);
     return group;
   }
 
@@ -158,9 +247,18 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
   const npcs = [];
   for (let i = 0; i < NUM_NPCS; i++) {
     const isSkier = i % 2 === 0;
+    const helmetMat = npcHelmetMats[(i * 3) % npcHelmetMats.length];
     const mesh = isSkier
-      ? createSkierMesh(npcJacketColors[i % npcJacketColors.length])
-      : createBoarderMesh(npcJacketColors[i % npcJacketColors.length]);
+      ? createSkierMesh(npcJacketColors[i % npcJacketColors.length], helmetMat)
+      : createBoarderMesh(npcJacketColors[i % npcJacketColors.length], helmetMat);
+    // Everything solid on this mountain casts, and these are the only figures
+    // on it besides the rider. Without this they stood on their own shadowless
+    // patch of snow, which reads as pasted on however good the model is.
+    mesh.traverse((o) => {
+      if (!o.isMesh) return;
+      o.castShadow = true;
+      o.receiveShadow = true;
+    });
     root.add(mesh);
     npcs.push({
       mesh,

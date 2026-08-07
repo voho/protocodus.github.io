@@ -449,8 +449,13 @@ export function getTerrainMaterialAt(x, z) {
     Math.abs(x - guideAt(z)));
   const groomed = corridorF * (0.45 + 0.55 * ribbonF);
   const past = Math.max(0, d - half);
+  /* Capped to match what the colour pass now paints. The two have to agree —
+     the ground that looks like talus is the ground that grinds — and the
+     picture out here is snow with stone through it rather than bare stone,
+     so the handling should be too. */
   const rock = smoothstep(w[0], w[0] + 12, past)
-    * (1 - 0.7 * smoothstep(w[0] + w[1], w[0] + w[1] + 90, past));
+    * (1 - 0.7 * smoothstep(w[0] + w[1], w[0] + w[1] + 90, past))
+    * 0.74;
   // Scoured névé where the wall starts shedding its cover.
   const ice = smoothstep(w[0] + w[1], w[0] + w[1] + 50, past) * 0.6;
   const powder = Math.max(0, (1 - groomed) * (1 - rock) * (1 - ice));
@@ -1910,7 +1915,40 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
             * (1.0 - smoothstep(0.35, 1.10, n64JointFoot)) * 0.11;
           float n64RockInk = mix(n64SlateInk, n64IronShelf + n64IronJoint,
             clamp(vRockKind, 0.0, 1.0));
-          vec4 n64RockSample = texture2D(uRockTex, vWorld.xz * 0.08);
+          /* TRIPLANAR, because a top-down projection has no area to give a
+             cliff.
+
+             This sampled the plate at vWorld.xz — projected straight down.
+             On the piste and the shoulder that is
+             fine and it is what the whole surface used, but the containment
+             wall and the flanks are the steepest ground in the game, and a
+             face approaching vertical has almost no XZ footprint to sample
+             across: one row of texels gets smeared down the entire height of
+             it. That is the diagonal streaking the flanks wore, and it is why
+             the largest object on the screen read as a slab of wet cardboard
+             rather than as rock.
+
+             So the plate is projected from all three axes and blended by the
+             surface normal, which is the standard answer and the only one
+             that needs no UVs on a heightfield that has none. The normal is
+             taken from the world position's own derivatives rather than from
+             vSmoothNormal: the weights want the *facet* the fragment is
+             actually on, and this way the term needs nothing plumbed through
+             from the vertex stage. Raised to a fourth power so the blend band
+             is narrow — a wide one cross-fades two projections over most of
+             the mountain and doubles the visible texture everywhere.
+
+             Three samples instead of one, and only inside this branch, which
+             is already gated on there being any rock here at all. */
+          vec3 n64TriN = normalize(cross(dFdx(vWorld), dFdy(vWorld)));
+          vec3 n64TriW = abs(n64TriN);
+          n64TriW *= n64TriW;
+          n64TriW *= n64TriW;
+          n64TriW /= max(n64TriW.x + n64TriW.y + n64TriW.z, 1e-4);
+          vec4 n64RockSample =
+              texture2D(uRockTex, vWorld.zy * 0.08) * n64TriW.x
+            + texture2D(uRockTex, vWorld.xz * 0.08) * n64TriW.y
+            + texture2D(uRockTex, vWorld.xy * 0.08) * n64TriW.z;
           diffuseColor.rgb *= mix(vec3(1.0), n64RockSample.rgb * 1.55, (1.0 - n64SnowMask) * 0.40);
           diffuseColor.rgb *= 1.0 - n64RockInk * (1.0 - n64SnowMask)
             * smoothstep(0.30, 0.72, 1.0 - n64StrataUp);
@@ -2563,33 +2601,71 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
            hold in the first place. The first threshold slides with the cover,
            because thin snow slides off slopes deep snow sits on quite
            happily, and that is one phenomenon and so it is one term. */
-        const slip = P.slip[0] + P.hold * cover;
-        const steepRock = smoothstep(slip, slip + (P.slip[1] - P.slip[0]), steep);
-        const thinRock = smoothstep(P.thin[0], P.thin[1], cover);
         /* Broad flank outcrops. The containment wall eventually lies back to
            a modest grade, so steepness alone reburied its largest visible
            faces in a smooth white sheet. The same kilometre-scale material
            band and side-specific geology that shape the wall expose coherent
            ribs through that snow. Nothing is screen-space and nothing moves
-           with the sun; this is a material fact that morphs with the terrain. */
+           with the sun; this is a material fact that morphs with the terrain.
+
+           Hoisted above the rock terms because `steepRock` needs it too. It
+           used to be computed after them and therefore could not reach the
+           one term that matters most on the biggest thing in frame. */
         const sideDetail = wx < ctx.mid
           ? ctx.wallDetailLeft : ctx.wallDetailRight;
         const outcropBand = smoothstep(0.30, 0.70,
           band * 0.55 + sideDetail * 0.45);
+        const slip = P.slip[0] + P.hold * cover;
+        /* …and the steep face keeps snow in its ledges.
+
+           This term saturates at one across the whole containment wall, and
+           because the four rock reasons are combined with `Math.max` a
+           saturated `steepRock` overrode every other one — including the
+           outcrop field that exists precisely to stop a face reading as a
+           single material. The result was the largest object on the screen
+           rendered as one flat slab of brown with no variation anywhere in
+           it, which is the honest description of what a real face never
+           looks like: rock steep enough to shed a snowfield still holds it
+           on every bench, ledge and hollow, and those are what give a
+           mountainside its shape at distance. Modulated by the same field
+           the flank band already uses, so the two agree about where the
+           geology is rather than each inventing its own. */
+        const steepRock = smoothstep(slip, slip + (P.slip[1] - P.slip[0]), steep)
+          * (0.55 + 0.45 * outcropBand);
+        const thinRock = smoothstep(P.thin[0], P.thin[1], cover);
         /* The rocky band is rock because of where it is, not how tall it
            stands: the same zone the height field fills with boulders is the
            one the colour pass strips. The outcrop field leaves wind-pocket
            snow between the stones, so the band reads as talus rather than
            tarmac — and the powder band before it is left entirely alone. */
+        /* …and it is talus in WINTER, which is the part the old range got
+           wrong. `0.35 + 0.65·outcrop` bottoms out at a third of bare stone
+           everywhere past the powder and reaches *fully* bare across every
+           patch the outcrop field pushes over its upper knee — which is most
+           of them. The result was a continuous brown slab standing over the
+           piste with no snow anywhere in it: at the distance the shoulder is
+           actually seen from it read as a wall of dirt rather than as a
+           mountain, and it is the single largest thing in frame whenever the
+           rider is near the edge of the corridor.
+
+           Snow falls on this run continuously and it is above a groomed
+           piste, so the honest picture is snow with stone breaking through
+           it, not stone with snow in the cracks. The floor comes down so the
+           wind pockets between boulders are genuinely white, and the ceiling
+           comes down so even the most exposed block keeps a rime of cover —
+           which is also what gives the band its shape back, because a slab
+           at a constant 1.0 has no variation left to shade. */
         const zoneRock = smoothstep(ctx.half + ctx.powderW - 4,
           ctx.half + ctx.powderW + 10, toCentre)
-          * (0.35 + 0.65 * outcropBand);
+          * (0.12 + 0.62 * outcropBand);
         /* The wall above holds snow on its first metres the way a real
            valley side does; only faces standing well over the run shed it. */
         const flank = smoothstep(ctx.half + ctx.bandW,
           ctx.half + ctx.bandW + ctx.lipW + 46, toCentre);
+        // The same correction on the wall above, and for the same reason: a
+        // face that sheds its cover still keeps rime in every hollow on it.
         const flankRock = flank * smoothstep(10, 34, relief)
-          * (0.46 + 0.54 * outcropBand);
+          * (0.30 + 0.52 * outcropBand);
         /* No stone inside the corridor at all — the physics has no plate of
            rock under three centimetres of snow in its model, so the picture
            must not either. Outside it, all four reasons apply. */

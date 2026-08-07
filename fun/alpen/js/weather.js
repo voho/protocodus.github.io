@@ -197,19 +197,32 @@ const BANDS = [
 
 /* How long everything takes.
 
-   The day is intentionally compressed to three minutes: five times the
+   The day is intentionally compressed to ninety seconds: ten times the
    original fifteen-minute cycle, so every run gets daylight, blue hour and
    the headlamp-lit night without a long wait. The phase table still blends
    continuously, so the faster clock never becomes a sequence of switches.
 
    The storm clock went the same way for the same reason. Weather that turns
-   over every minute is not weather, it is a strobe — and this one drives the
-   fog distance, so a fast storm dial is also a horizon that visibly breathes
-   in and out. At a hundred and ten seconds a front takes a couple of minutes
-   to arrive, which is long enough to watch it coming. */
-const DAY_SECONDS = 180;
+   over every few seconds is not weather, it is a strobe — and this one drives
+   the fog distance, so a fast storm dial is also a horizon that visibly
+   breathes in and out. The periods below are still written in their own
+   seconds and still sit in the same order against each other; `WEATHER_RATE`
+   is what decides how fast the clock reading them runs, so a front now takes
+   about a minute to arrive, which is still long enough to watch it coming. */
+const DAY_SECONDS = 90;
 const START_TOD = 0.34;      // a bright morning, so the first look is the best one
 const STORM_PERIOD = 110;    // seconds per unit of the noise that drives it
+/* And the whole weather clock runs at this multiple of real time.
+
+   One dial rather than five. The storm, the mist, the aurora, the cloud deck
+   and the lightning cells are all read off `weatherClock` at periods that
+   were chosen against each other — the mist deliberately slower than the
+   storm, the aurora slower again — so scaling the clock keeps every one of
+   those ratios exactly as it was and simply runs the whole system faster.
+   Halving five periods by hand would not: it is five chances to get one of
+   them wrong, and the next person to add a sixth would have no way of
+   knowing they had joined a convention. */
+const WEATHER_RATE = 2;
 /* The quietest the sky is ever allowed to get. See `BANDS`: the run is never
    without falling snow, so the dial's bottom is a light fall rather than
    clear air. Small enough that a calm minute still looks calm. */
@@ -423,7 +436,7 @@ export function createWeather(THREE) {
 
   function update(dt) {
     dayClock += dt;
-    weatherClock += dt;
+    weatherClock += dt * WEATHER_RATE;
     if (frozen === null) {
       state.tod = (START_TOD + dayClock / DAY_SECONDS) % 1;
     } else {

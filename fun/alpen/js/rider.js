@@ -833,11 +833,36 @@ export class Rider {
        and pointing himself downhill on his own. Above 3.5 m/s the board is
        genuinely tracking and lining it up with the direction of travel is
        what keeps the handling honest; below it, a rider who has stopped is
-       allowed to stay pointed wherever they stopped pointing. */
+       allowed to stay pointed wherever they stopped pointing.
+
+       AND IT IS MEASURED ON THE SNOW, which is the whole correctness of it.
+
+       The error used to be `atan2(vel.x, -vel.z)` against `this.yaw` — a
+       bearing taken in the world horizontal plane against a bearing taken in
+       the world horizontal plane, which sounds like it must be right and is
+       not. The velocity this rule reads is rebuilt further down as `h·vFwd`,
+       and `h` is the board's heading *projected onto the slope*: on any
+       cross-slope that projection comes out at a different compass bearing
+       from the raw yaw it was built from. So the rule saw a steering error
+       that was nothing but the projection, rotated the board to remove it,
+       and thereby tilted the heading further — which made the projection
+       difference bigger on the next step. Positive feedback, on a rider
+       touching nothing: measured on the opening pitch, the board came round
+       at up to eleven degrees a second and a hands-off run left the twenty-
+       metre corridor inside five seconds and was a hundred and thirty metres
+       out at half a minute, on every seed tried.
+
+       `atan2(vLat, vFwd)` is the same question asked in the board's own
+       tangent frame — the slip angle, the thing a rider actually feels — and
+       a pure projection difference is invisible to it. A real wash-out still
+       has real lateral velocity, so the board still comes back into line
+       after a nudge, which is what the rule is for. */
     if (!brakeActive && Math.abs(input.turn) < 0.05 && speed > 3.5) {
-      const travelYaw = Math.atan2(vel.x, -vel.z);
-      const stanceYaw = travelYaw + (this.switchStance ? Math.PI : 0);
-      this.yaw += wrapPi(stanceYaw - this.yaw) * (1 - Math.exp(-RIDER.selfCentre * dt));
+      // In switch the direction of travel is the board's tail, so both
+      // components flip and the slip angle is the same small number.
+      const stance = this.switchStance ? -1 : 1;
+      const slip = Math.atan2(vLat * stance, vFwd * stance);
+      this.yaw += slip * (1 - Math.exp(-RIDER.selfCentre * dt));
     } else if (!brakeActive && Math.abs(input.turn) < 0.05 && speed < RIDER.fallLineSpeed) {
       /* …and below that, towards the fall line rather than towards the
          direction of travel, because a rider who has almost stopped has no
@@ -850,11 +875,34 @@ export class Rider {
          rider does with their back foot when they have stopped on a slope and
          want to be moving again, and without it the run can end in a place
          the player cannot get out of, which nothing in this game is allowed
-         to do. */
+         to do.
+
+         AND IT HAS TO ASK FOR A DIRECTION THE COURSE RULE WILL GRANT, or the
+         two of them cancel and it is the trap it was written to prevent.
+
+         The fall line is a fact about the ground and it does not care about
+         the course. On a bank steep enough across the run, it points further
+         round than `courseLimit` allows the board to be — so this rule swung
+         the board towards it, `limitCourseYaw` swung it straight back the
+         same amount on the same step, and the net rotation was zero. The
+         rider stayed pointed up the hill with gravity taking away what little
+         speed the skate strokes returned. Measured on one seed: twenty-six
+         seconds motionless at a dead stop, rear foot still working, and no
+         way out of it — the exact failure described above, reached by a
+         different road.
+
+         So the target is the nearest legal downhill: the true fall line if
+         the course rule would allow it, and the edge of the cone it permits
+         if not. Both rules then want the same thing and the board turns. */
       const dl = Math.hypot(n.x, n.z);
       if (dl > 1e-4) {
-        const fallYaw = Math.atan2(n.x / dl, -(n.z / dl))
-          + (this.switchStance ? Math.PI : 0);
+        const flow = this.courseFrame(n);
+        const courseYaw = Math.atan2(flow.x, -flow.z);
+        const rawFall = Math.atan2(n.x / dl, -(n.z / dl));
+        const legalFall = courseYaw + clamp(
+          wrapPi(rawFall - courseYaw), -RIDER.courseLimit, RIDER.courseLimit,
+        );
+        const fallYaw = legalFall + (this.switchStance ? Math.PI : 0);
         const swing = wrapPi(fallYaw - this.yaw) * (1 - Math.exp(-1.8 * dt));
         this.yaw += swing;
         /* …and whatever speed is left comes round with the board.
