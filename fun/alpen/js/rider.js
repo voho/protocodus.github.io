@@ -52,10 +52,9 @@
    has finished with them — so a spill at walking pace is over in a second
    and catching a trunk at 150 km/h throws you a long way down the hill. */
 
-import { RIDER, PROPS } from './config.js';
+import { RIDER } from './config.js';
 import { normalFrom } from './terrain.js';
 
-const RAIL = PROPS.rail;
 
 const TAU = Math.PI * 2;
 
@@ -173,6 +172,13 @@ export const CLEAN = 0;
 export const SKETCHY = 1;
 export const BAIL = 2;
 
+/* The three reaches, indexing `RIDER.grabs`. Named rather than numbered
+   because the pose book in `riderModel.js` indexes the same table and a bare
+   2 in two files is how a nose grab quietly becomes a method. */
+export const GRAB_INDY = 0;
+export const GRAB_NOSE = 1;
+export const GRAB_METHOD = 2;
+
 export class Rider {
   /* `world.height(x, z)` is the hill plus whatever kickers sit on it.
      `world.canStall(x, z)`, when supplied, distinguishes a committed wall
@@ -201,9 +207,8 @@ export class Rider {
 
     this.events = {
       launch: [], land: [], fall: [], rise: [], carve: [], impact: [],
-      grind: [], grindOut: [], pump: [], push: [],
+      pump: [], push: [], butter: [],
     };
-    this._rail = { x: 0, y: 0, z: 0, t: 0 };
 
     this.reset(0);
   }
@@ -250,9 +255,13 @@ export class Rider {
     this.grabTime = 0;
     this.grab = 0;           // 0..1, how far into the grab pose
     this.grabbing = false;
+    this.grabKind = 0;       // which of RIDER.grabs the hand went for
+    this.press = 0;          // 0..1 pressure into a nose or tail press
+    this.pressNose = false;  // …whether the rider called it a nose press…
+    this.pressEnd = 1;       // …and which end of the *board* that froze onto
+    this.pressTime = 0;
+    this.pressSpin = 0;      // radians the board has come round on that end
     this.switchStance = false;
-    this.rail = null;        // the rail being ridden, if any
-    this.grindTime = 0;
     this.stallTimer = 0;     // how long the board has been too slow for the pitch
     this.edge = 0;           // radians the board is rolled up onto its edge
     this.bend = 0;           // g of load the ground's own curvature is adding
@@ -366,7 +375,6 @@ export class Rider {
     // `fallStep` promoted itself to 'rise' — the rider went back to normal
     // physics while the model still had them face-down.
     if (this.state === 'fall' || this.state === 'rise') return this.fallStep(dt);
-    if (this.state === 'grind') return this.grindStep(dt, input);
     if (this.grounded) this.groundStep(dt, input);
     else this.airStep(dt, input);
     this.springStep(dt);
@@ -396,7 +404,69 @@ export class Rider {
     );
     const braking = this.brake;
     const brakeActive = braking > 0.02;
-    this.tucking = !!input.tuck && !input.brake && braking < 0.05;
+
+    /* THE PRESS. Q on the snow does what Q in the air does — it puts the
+       board where the hands are — and on the snow that means standing on one
+       end of it and letting the other one come out of the running surface.
+
+       W chooses the nose because W means forward everywhere else in this
+       game; without it the weight goes back onto the tail, which is the press
+       anybody does without thinking about it. A speed check cancels it
+       outright: there is no version of a butter that is also a rider setting
+       an edge across the hill to stop.
+
+       The pressure ramps rather than switching, and everything the press
+       affects is scaled by it, so a tap is a shift of weight and a hold is a
+       trick. `pressSpin` is the only bookkeeping — how much the board has
+       actually come round since the nose or the tail went light — and it is
+       what the run is paid for when the press ends. */
+    const wantPress = !!input.trickGrab && !input.brake && !input.jump
+      && !this.pushing && this.speed > 1.2;
+    if (wantPress && this.press < 0.02) {
+      this.pressNose = !!input.tuck;
+      /* …and which *physical* end of the board that is, frozen here.
+
+         "Nose" is a fact about the rider — it is whichever end is leading —
+         and a butter is the one manoeuvre that changes which end that is
+         halfway through itself. Left to be re-derived from the live stance,
+         the drawn press eased through flat and stood the rider up on the
+         opposite end at the moment the rotation passed ninety degrees, which
+         is precisely the thing the mechanic is defined as not doing: the
+         board rotates on one buried contact point. So the stance at capture
+         is folded in once, and −1 is the board's own −Z end for ever after. */
+      this.pressEnd = (input.tuck ? -1 : 1) * (this.switchStance ? -1 : 1);
+      this.pressSpin = 0;
+      this.pressTime = 0;
+    }
+    this.press = approach(this.press, wantPress ? 1 : 0,
+      wantPress ? RIDER.pressRate : RIDER.pressRelease, dt);
+    const pressing = this.press > 0.02;
+    if (pressing) this.pressTime += dt;
+    else if (this.pressTime > 0) {
+      // The press has settled back onto both contact points. Whatever it
+      // carried round is the trick, and it is judged once, here.
+      this.emit('butter', Math.abs(this.pressSpin), this.pressTime);
+      this.pressTime = 0;
+      this.pressSpin = 0;
+    }
+
+    /* …and the tuck comes off while one is on, which is why the press is
+       resolved first.
+
+       W means two things at once here — it is the powered tuck and it is the
+       nose selector — and holding it with Q used to give both. The powered
+       floor is applied after friction and after the press's own plough, so a
+       nose press accelerated at seven and a half metres per second squared
+       while a tail press slowed down, which made the modifier that picks the
+       nose strictly better than not pressing the key. That is a mechanic
+       paying for itself.
+
+       Refusing the combination is also the more honest statement: a tuck is a
+       body folded over the board and a press is a body standing on one end of
+       it, and nobody has ever been in both. So W still chooses the nose, and
+       for as long as the press is on it chooses nothing else. */
+    this.tucking = !!input.tuck && !input.brake && braking < 0.05
+      && !pressing;
     // Capture the W baseline before the new contact plane removes any velocity
     // pointing into it. Otherwise a sharp terrain-normal change can make the
     // displayed speed dip before the powered floor for this step is formed.
@@ -657,6 +727,10 @@ export class Rider {
     const gripNow = surfaceGrip * engaged * loadGrip
       * (1 - braking * 0.55)
       * (this.tucking ? RIDER.tuckGrip : 1)
+      // Half the effective edge is in the air during a press, and it is the
+      // reason a butter and a carve are two different things you cannot do at
+      // once — not a rule saying so, just an edge that is not in the snow.
+      * (1 - RIDER.pressGrip * this.press)
       * (1 - RIDER.balanceGrip + RIDER.balanceGrip * this.balance);
 
     /* The edge the rider is *allowed* to set, measured against the grip they
@@ -717,6 +791,20 @@ export class Rider {
        there is enough speed for the edge to do the job properly. */
     const pivot = RIDER.pivotRate * (1 - clamp(speed / RIDER.pivotSpeed, 0, 1));
     if (pivot > 0) lipYawRate += input.turn * pivot;
+
+    // Where the board was pointing before any of the rules below moved it.
+    // The press is paid against this, once, after all of them have had their
+    // say — see the note beside `pressSpin` further down.
+    const stepYaw = this.yaw;
+
+    /* …and the press hands back a second one that has nothing to do with
+       speed at all. That is the whole point of standing on one end of the
+       board: with the other end unweighted there is no buried edge left to
+       resist a rotation, so the board spins under a rider who is otherwise
+       going in a perfectly straight line. It is the only steering authority
+       in the model that does not come from the sidecut or from a skid, and it
+       is what makes a butter possible at ninety km/h as well as at ten. */
+    if (this.press > 0.02) lipYawRate += input.turn * RIDER.pressPivot * this.press;
 
     this.yaw += lipYawRate * dt;
     // A speed check kicks the tail around towards a transverse target. The
@@ -844,11 +932,30 @@ export class Rider {
        that would let it persist. A brake gets almost eighty-two degrees —
        enough to throw a wall of snow and stop — but not enough to cross over
        and silently change which end of the board is leading. */
+    /* …and a press is exactly the thing that rule is describing the absence
+       of. Sixty degrees is how far a board with both contact points buried can
+       be held off its own travel; a board standing on its nose has no tail in
+       the snow to hold anything, which is why a butter works at all. So the
+       clamp opens with the pressure rather than being suspended by it, and a
+       half-hearted press still cannot spin.
+
+       Passing ninety degrees is not a wider skid, it is a change of stance:
+       the end of the board that was leading is now trailing, and from there
+       the rider is riding switch. Flipping the reference at that crossing is
+       also what makes the clamp hysteretic — the error jumps from just over a
+       right angle to just under one and cannot flap. */
     if (speed > 0.6) {
       const travelYaw = Math.atan2(vel.x, -vel.z);
-      const stanceYaw = travelYaw + (this.switchStance ? Math.PI : 0);
-      const off = wrapPi(this.yaw - stanceYaw);
-      const limit = brakeActive ? RIDER.brakeSkid : RIDER.maxSkid;
+      let stanceYaw = travelYaw + (this.switchStance ? Math.PI : 0);
+      let off = wrapPi(this.yaw - stanceYaw);
+      if (this.press > 0.02 && Math.abs(off) > Math.PI / 2) {
+        this.switchStance = !this.switchStance;
+        stanceYaw = travelYaw + (this.switchStance ? Math.PI : 0);
+        off = wrapPi(this.yaw - stanceYaw);
+      }
+      const limit = this.press > 0.02
+        ? RIDER.maxSkid + (RIDER.pressSkid - RIDER.maxSkid) * this.press
+        : brakeActive ? RIDER.brakeSkid : RIDER.maxSkid;
       if (off > limit) this.yaw -= off - limit;
       else if (off < -limit) this.yaw -= off + limit;
     }
@@ -856,8 +963,23 @@ export class Rider {
     // A carve can cross almost the entire hill, but it cannot become a U-turn.
     // Killing the stored lip rate when the limit catches also prevents the
     // invisible excess rotation reappearing on the next jump.
-    const courseLimit = brakeActive ? RIDER.brakeCourseLimit : RIDER.courseLimit;
+    /* A press opens this one too, and it is safe to open because of what it
+       limits. This rule is about the *board*: it stops ordinary steering from
+       pointing the rider back up the mountain. What keeps the run going
+       downhill is `limitCourseVelocity` below, and that is untouched — so
+       during a butter the board may swing past the course while the momentum
+       carries straight on, which is exactly the trick and nothing else. */
+    const courseLimit = this.press > 0.02
+      ? RIDER.courseLimit + (RIDER.pressSkid - RIDER.courseLimit) * this.press
+      : brakeActive ? RIDER.brakeCourseLimit : RIDER.courseLimit;
     if (this.limitCourseYaw(n, courseLimit)) this.spinVel = 0;
+
+    /* What the press actually carried round, booked once and here.
+       `stepYaw` is from before any of the rotation rules ran and this is
+       after all of them, so what is counted is the rotation that survived —
+       a butter cannot be paid for a spin the skid clamp took straight back
+       off it, and it cannot be paid twice for the same radians either. */
+    if (this.press > 0.02) this.pressSpin += wrapPi(this.yaw - stepYaw);
 
     /* What the edge could not hold becomes sideways speed — the wash-out —
        and what it did hold is scrubbed out of the lateral velocity, which is
@@ -878,8 +1000,25 @@ export class Rider {
     // losses from the magnitude of forward speed, not pushes towards the
     // board's tail: switch riding has negative vFwd, so subtracting them
     // directly would accelerate it.
+    /* THE ONE THING A PRESS HAS TO BE PROTECTED FROM, which is this model's
+       own idea of what a sideways board means.
+
+       `vFwd` and `vLat` are the velocity written in the board's frame, so the
+       moment the board pivots away from its travel the whole of the momentum
+       is booked as lateral — and lateral is what the scrub and the damping
+       below exist to destroy, because everywhere else in this game a board
+       across its own travel is a wash-out or a speed check and destroying it
+       is the entire point. Measured: a butter held for a second and a bit
+       took ninety-four km/h down to nine, which is not a trick, it is a wall.
+
+       A press is the one case where that reading is wrong. The board has
+       pivoted but it has not dug in — one end is out of the snow, the base
+       is still flat on it, and the rider is still going the way they were
+       going. So both terms are scaled out with the pressure. What is left is
+       the plough below, which is the honest cost and is a fifth of the size. */
+    const pressGlide = 1 - 0.86 * this.press;
     let forwardLoss = Math.abs(held) * RIDER.carveDrag
-      + this.slide * RIDER.slideScrub * dt;
+      + this.slide * RIDER.slideScrub * pressGlide * dt;
     /* And cutting the trench is not free either. A carved edge is slicing
        through snow rather than gliding over it, and the further it is rolled
        over the more of it is buried — which is why a run held on a hard edge
@@ -887,6 +1026,11 @@ export class Rider {
        run flat between turns. That trade is most of what makes a line a
        decision rather than a shape. */
     forwardLoss += RIDER.edgeDrag * sinEdge * this.carveLoad * dt;
+
+    // …and a board standing on one end of itself is ploughing with that end.
+    // A butter is a slow trick everywhere it has ever been done, and this is
+    // the whole of why: there is nothing gliding.
+    forwardLoss += RIDER.pressDrag * this.press * dt;
 
     /* And climbing costs more than gravity alone charges for.
 
@@ -914,8 +1058,8 @@ export class Rider {
     // A deliberate braking sideslip remains broad and controllable; an
     // accidental wash catches its edge and aligns much faster. Kinetic base
     // friction below supplies the rest of the stop.
-    const slideDamping = 2.6
-      + (RIDER.brakeSlideDamping - 2.6) * braking;
+    const slideDamping = (2.6
+      + (RIDER.brakeSlideDamping - 2.6) * braking) * pressGlide;
     vLat *= Math.exp(-slideDamping * dt);
 
     // Pressure progressively moves from a waxed base to an edged speed check.
@@ -1391,6 +1535,29 @@ export class Rider {
     this.charging = false;
     this.charge = 0;
     this.emit('launch', this.vel.y);
+    /* A press that was still on the snow the moment the snow left is a press
+       that finished, so it is judged here rather than being carried into the
+       air where it would be rolled into the jump's own rotation.
+
+       AFTER THE LAUNCH, and the order is load-bearing rather than incidental.
+       Leaving the ground retires the last jump's verdict — the launch handler
+       clears the banner so the new air has the read-out to itself — so a
+       butter judged before that put its callout up and had it wiped in the
+       same physics step. The points were paid and the player was never told
+       what for, which on the one trick that ends by accident is exactly the
+       moment they most need telling. */
+    this.releasePress();
+  }
+
+  /* The press, closed out. Called wherever the board can stop being on the
+     snow under a rider's feet — a lip, a tree — so that a butter is always
+     judged exactly once and nothing can carry its accumulated rotation into
+     whatever happens next. */
+  releasePress() {
+    if (this.pressTime > 0) this.emit('butter', Math.abs(this.pressSpin), this.pressTime);
+    this.press = 0;
+    this.pressTime = 0;
+    this.pressSpin = 0;
   }
 
   /* --- in the air ---------------------------------------------------- */
@@ -1431,16 +1598,39 @@ export class Rider {
     this.yaw += this.spinVel * dt;
     this.spinAccum += this.spinVel * dt;
 
-    // Flip, on its own key, so it can be corked into a spin
-    const wantFlip = input.trickFlip ? -RIDER.flipRate : 0;
+    /* Flip, on its own key, so it can be corked into a spin — and it goes
+       whichever way the weight is going.
+
+       E on its own throws the shoulders back and the board over the head,
+       which is a backflip and is what E has always done. Held with S it goes
+       the other way: S is the key that sits the weight back everywhere else
+       in this game, and letting go of that while the body is already folded
+       is precisely how a front flip starts. One key, two rotations, and the
+       modifier means the same thing it means on the snow. */
+    const wantFlip = input.trickFlip
+      ? (input.brake ? RIDER.flipRate : -RIDER.flipRate)
+      : 0;
     this.flipVel = approach(this.flipVel, wantFlip, RIDER.spinRamp * 1.4, dt);
     this.flip += this.flipVel * dt;
     this.flipAccum += this.flipVel * dt;
 
-    // Grab: the only trick that is worth more the longer you hold it, and
-    // the only one that asks you to let go before the snow arrives
+    /* Grab: the only trick that is worth more the longer you hold it, the
+       only one that asks you to let go before the snow arrives, and now the
+       only one with more than one shape.
+
+       Which shape is decided once, at the moment the hand leaves the knee,
+       and then held — a grab is one reach and not a menu to scroll through in
+       the air. W is already forward and S is already back, so the body
+       position the rider is holding for every other reason is the body
+       position that picks it: folded over the nose, sat back into a method,
+       or neither, which is a hand dropped straight onto the toe edge. */
     this.grabbing = !!input.trickGrab;
-    if (this.grabbing) this.grabTime += dt;
+    if (this.grabbing) {
+      if (this.grabTime <= 0) {
+        this.grabKind = input.tuck ? GRAB_NOSE : input.brake ? GRAB_METHOD : GRAB_INDY;
+      }
+      this.grabTime += dt;
+    }
     this.grab = approach(this.grab, this.grabbing ? 1 : 0, 11, dt);
 
     // A little drift, for picking a landing line. It is relative to the line
@@ -1512,18 +1702,6 @@ export class Rider {
       }
     }
 
-    /* A rail caught on the way down. Only ever on the way down: a rider
-       rising through the height of a rail is jumping over it, and catching
-       one from underneath is the single most infuriating thing a park can
-       do to you. */
-    if (vel.y < 0 && this.world.rail) {
-      const r = this.world.rail(pos.x, pos.z, pos.y);
-      if (r) {
-        this.catchRail(r);
-        return;
-      }
-    }
-
     if (pos.y <= gy) {
       // The launch look-ahead deliberately commits just before a lip. Without
       // a tiny contact window the following air tick sees the last centimetres
@@ -1534,7 +1712,12 @@ export class Rider {
         this.world.height, pos.x, pos.z, vel, this._n,
       );
       const approaching = vel.dot(contact) < -0.02;
-      const descending = vel.y <= 0;
+      // …or buried, whichever comes first. A rising contact is normally
+      // refused so a pop off an uphill transition is not taken back — but
+      // ground that climbs faster than the rider does turns that refusal
+      // into a rider inside the mountain, one step at a time. See
+      // `RIDER.buryDepth`.
+      const descending = vel.y <= 0 || gy - pos.y > RIDER.buryDepth;
       if (this.airTime >= RIDER.launchContactGrace && descending && approaching) {
         pos.y = gy;
         this.land();
@@ -1547,98 +1730,6 @@ export class Rider {
     } else {
       this.extension = pos.y - gy;
     }
-  }
-
-  /* --- on the rail ----------------------------------------------------- */
-
-  catchRail(r) {
-    this.rail = r;
-    this.state = 'grind';
-    this.grounded = true;
-    this.grindTime = 0;
-    this.spinVel = 0;
-    this.flipVel = 0;
-    this.flip = 0;
-    this.grab = 0;
-    this.grabbing = false;
-    this.extension = 0;
-    this.slide = 0;
-    this.carveLoad = 0;
-    this.bend = 0;
-    this._bendReady = false;
-    this.lipPop = false;
-    this.compressionVel += 6;
-    this.emit('grind', r);
-  }
-
-  /* Steel is not snow. A rail takes the rider's line away entirely — they go
-     where it goes — and gives back almost no friction in exchange, so a long
-     one is genuinely fast. What it costs is every option: no carving, no
-     edge, and the only way off before the end is up. */
-  grindStep(dt, input) {
-    const { pos, vel } = this;
-    const r = this.rail;
-    this.grindTime += dt;
-    this.pushing = false;
-    this.brake = approach(this.brake, 0, RIDER.brakeRelease, dt);
-    this.tucking = !!input.tuck && !input.brake && this.brake < 0.05;
-
-    const dx = r.x1 - r.x0;
-    const dy = r.y1 - r.y0;
-    const dz = r.z1 - r.z0;
-    const dl = Math.hypot(dx, dy, dz) || 1;
-    const ux = dx / dl;
-    const uy = dy / dl;
-    const uz = dz / dl;
-
-    // Everything the rider has, resolved onto the one axis they are allowed
-    let v = vel.x * ux + vel.y * uy + vel.z * uz;
-    const poweredRailSpeed = this.tucking
-      ? Math.abs(v) + RIDER.tuckAcceleration * dt
-      : 0;
-    v += -RIDER.gravity * uy * dt;
-    const scrub = RAIL.friction * RIDER.gravity * dt;
-    v = v > 0 ? Math.max(0, v - scrub) : Math.min(0, v + scrub);
-    if (poweredRailSpeed > 0 && Math.abs(v) < poweredRailSpeed) {
-      v = (Math.sign(v) || 1) * poweredRailSpeed;
-    }
-    vel.set(ux * v, uy * v, uz * v);
-
-    pos.x += vel.x * dt;
-    pos.z += vel.z * dt;
-    const p = this.world.railPoint(r, pos.z, this._rail);
-    pos.x = p.x;
-    pos.y = p.y;
-
-    this.normal.set(0, 1, 0);
-    const railYaw = Math.atan2(ux, -uz);
-    this.yaw += wrapPi(railYaw - this.yaw) * (1 - Math.exp(-9 * dt));
-    this.roll = approach(this.roll, input.turn * 0.2, 6, dt);
-
-    /* Off the end, or off the side on purpose. Popping off a rail is the
-       whole point of riding one, so a jump released here launches properly
-       rather than just dropping the rider on the snow. */
-    const past = p.t >= 1 || p.t <= 0 || Math.abs(v) < 1.2;
-    if (input.jump || past) {
-      const pop = input.jump ? RIDER.popMin * 0.9 : 0;
-      this.rail = null;
-      this.state = 'air';
-      this.grounded = false;
-      this.airTime = 0;
-      this.spinAccum = 0;
-      this.flipAccum = 0;
-      this.takeoffSpeed = vel.length();
-      this.lipPop = false;
-      this.charging = false;
-      this.charge = 0;
-      vel.y += pop;
-      this.emit('grindOut', this.grindTime);
-      this.emit('launch', vel.y);
-      this.grindTime = 0;
-      return;
-    }
-
-    this.springStep(dt);
   }
 
   /* --- the moment it matters ----------------------------------------- */
@@ -1715,6 +1806,7 @@ export class Rider {
       halfTurns,
       flipTurns,
       grabTime: this.grabTime,
+      grabKind: this.grabKind,
       switchStance: isSwitch,
       impact,
       judged,
@@ -1792,6 +1884,12 @@ export class Rider {
     this.grab = 0;
     this.grabbing = false;
     this.grabTime = 0;
+    // A butter interrupted by a tree is not a butter. Clearing rather than
+    // releasing is the difference between the trick ending and it having
+    // happened, and going down is the one way it can end without having.
+    this.press = 0;
+    this.pressTime = 0;
+    this.pressSpin = 0;
     this.extension = 0;
     this.bend = 0;
     this._bendReady = false;
@@ -2033,17 +2131,57 @@ export class Rider {
 
 /* The name of what just happened, in the language of the sport. Reads the
    quantised counts rather than the raw radians, so it always says the same
-   number the score is paying for. */
+   number the score is paying for.
+
+   THE OFF-AXIS NAMES are the part worth explaining, because they are the
+   reason this function is no longer a list of clauses joined by plus signs.
+   A spin is a rotation about the rider's vertical and a flip is a rotation
+   about their horizontal, and a rider who does both at once has not done two
+   tricks — they have done one trick about a tilted axis, which is much harder
+   to see out of than either half and which the sport has always had its own
+   names for. Written as "BACKSIDE 720 + BACKFLIP" the game was describing the
+   inputs; written as "CORK 720" it is describing the trick.
+
+   The mapping is the common one. A backward flip laid into a backside spin is
+   a cork and into a frontside spin is a rodeo; a forward flip either way is a
+   misty. Two flips make it a double. It is a simplification of a vocabulary
+   that genuinely does distinguish more cases than this — but every case it
+   does name, it names correctly, and a rider who knows the difference will
+   recognise what they just did. */
 export function trickName(s, verdict) {
   const parts = [];
   const steps = s.halfTurns * 180;
-  if (steps >= 180) parts.push(`${s.spin > 0 ? 'FRONTSIDE' : 'BACKSIDE'} ${steps}`);
-
   const flips = s.flipTurns;
-  if (flips >= 1) parts.push(flips > 1 ? `${flips}× BACKFLIP` : 'BACKFLIP');
+  const frontside = s.spin > 0;
 
-  if (s.grabTime > 0.55) parts.push('TWEAKED GRAB');
-  else if (s.grabTime > 0.18) parts.push('GRAB');
+  if (flips >= 1 && steps >= 360) {
+    // Both axes: one trick about a tilted one.
+    const base = s.flips > 0 ? 'MISTY' : frontside ? 'RODEO' : 'CORK';
+    /* The sport has words for two and three and then stops having them, and
+       this hill has no ceiling on airtime — the powered tuck is unbounded, so
+       a long enough hang time genuinely reaches four. Past three it counts,
+       because announcing a quadruple cork as a triple while paying for four
+       is the label and the score disagreeing, which is the one thing this
+       function exists to prevent. */
+    const many = flips > 3 ? `${flips}× ` : flips > 2 ? 'TRIPLE ' : flips > 1 ? 'DOUBLE ' : '';
+    parts.push(`${many}${base} ${steps}`);
+  } else {
+    if (steps >= 180) parts.push(`${frontside ? 'FRONTSIDE' : 'BACKSIDE'} ${steps}`);
+    if (flips >= 1) {
+      // `flips` counts whole revolutions; `s.flips` is the signed total, and
+      // its sign is the one thing that says which way the world went round.
+      const way = s.flips > 0 ? 'FRONTFLIP' : 'BACKFLIP';
+      parts.push(flips > 1 ? `${flips}× ${way}` : way);
+    }
+  }
+
+  // The grab is named rather than counted, and the tweak stop is where a
+  // reach stops being a touch and becomes something being held.
+  if (s.grabTime > RIDER.grabHold[0]) {
+    const grab = RIDER.grabs[s.grabKind] || RIDER.grabs[0];
+    parts.push(s.grabTime > RIDER.grabHold[1]
+      ? `TWEAKED ${grab.name}` : grab.name);
+  }
 
   if (!parts.length) {
     if (s.airTime > 1.25) parts.push('BIG AIR');
@@ -2053,4 +2191,33 @@ export function trickName(s, verdict) {
   let name = parts.join(' + ');
   if (verdict === SKETCHY) name += ' (SKETCHY)';
   return name;
+}
+
+/* HOW MUCH OF A BUTTER ACTUALLY CAME ROUND, and it is a floor with a window
+   rather than a rounding.
+
+   An aerial rotation is rounded to the nearest half turn and that is honest,
+   because the landing has already refused anything more than `landWindow` off
+   a clean stance — the rounding is a statement about a rotation that has been
+   checked. A press has no such check. It ends when the player lets go, at
+   whatever angle they let go at, so rounding to the nearest paid a
+   three-quarter turn as a full one: two hundred and seventy degrees came out
+   as BUTTER 360, with the points and the combo to match, while the board was
+   still visibly sideways.
+
+   So it counts the half turns that arrived, and the same window a landing
+   allows is added before the floor so that a rotation which has essentially
+   got there still counts as having got there. Reading `landWindow` rather
+   than choosing a second number is the point: the two paths now agree about
+   what "completed" means by construction, and cannot drift apart. */
+export function butterHalfTurns(spin) {
+  return Math.floor((Math.abs(spin) + RIDER.landWindow) / Math.PI);
+}
+
+/* And what it is called, which is a name rather than a sentence for the same
+   reason a cork is: the rotation and the press are one trick. It reads the
+   same quantisation the score does, so the label and the payout can never
+   disagree — the standing rule for every other trick in this file. */
+export function butterName(spin) {
+  return `BUTTER ${Math.max(1, butterHalfTurns(spin)) * 180}`;
 }

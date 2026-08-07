@@ -157,6 +157,36 @@ climbing for ever. Crossing it would take more kinetic energy than the game
 can produce. There is no barrier and no invisible wall — the ground outside
 the run is monotonically uphill, so gravity is always pointing home.
 
+The flanks are fluted. Everything else out there varies *along* the run — the
+breadth of the wall, two long shoulders, a buttress — which is why they read
+as two poured ramps from inside the piste: a term that changes over hundreds
+of metres of descent does not change at all in the frame. What actually covers
+a steep snow flank runs the other way, straight down the fall line, cut by
+every sluff and point release that has come off it since November. The
+channels are as deep as the square of how steep the wall is, so they are
+nothing at the lip, nothing on the plateau and deepest across the face between
+— which is both what a slide does and what keeps the containment intact,
+because the ratio between a channel's steepest wall and the mountain's is a
+constant rather than an amplitude somebody has to re-check.
+
+The square is the part that took a second attempt, and it is worth writing
+down because the first attempt looked complete. Scaling by the steepness bounds
+the *carrier's* slope and says nothing about the amplitude's own arrival: a
+ramp that brings the channels in over ten metres contributes about their depth
+over that ten metres — a constant — against a wall gradient that goes to zero
+linearly at the lip. So there is always a band just past the lip where the
+arrival out-climbs the mountain, and there was one: a stretch of flank seven
+metres out measured +0.11 without the channels and −0.02 with them, a pocket in
+ground whose entire job is to be uphill. Squared, the amplitude is quadratic in
+the distance past the lip and its derivative is linear, the same order as the
+wall's, so one constant covers the arrival and the carrier together. Swept at
+25 cm across both flanks over thirty kilometres of run — 28 million samples —
+the worst outward slope and the deepest pocket are now the ones that were
+already there.
+
+The snowpack then paints them for free: crests scour to rock, hollows fill with
+drift, and a flank comes out striped the way a real one is.
+
 **The rider is a velocity vector on a surface**, not a speed along a track,
 and most of how the game feels falls out of that. Gravity is resolved on the
 slope tangent, so riding up a bank costs speed and gives it back on the way
@@ -223,6 +253,39 @@ how much ground a pixel covers, because a rib every metre and a half seen at a
 grazing angle beats against the pixel grid and throws moiré across the hill.
 The rider is high-vis orange, because it is the one colour snow never is.
 
+Every one of those fades is individually correct and together they used to
+leave four hundred metres of mountain with nothing on it at all: the corduroy
+goes at 38 m, the snow plates' relief at 90, their tone at 180, and the
+geometry's own wind octaves whenever the graded grid's cells outgrow them. Past
+that the ground was a sheet of paper, which on a surface filling two thirds of
+the frame is the loudest thing in the picture. So the same wind relief carries
+on analytically at the one scale still worth resolving out there — drift lines
+about eight metres apart, stretched a hundred down the prevailing wind, on the
+same axes the geometry uses so the near ground and the far ground are one
+surface described twice rather than two meeting at a ring. Sines rather than a
+plate, because a sine has an exact derivative and this is spent entirely as a
+normal; ridge lines bent by their own long axis so they braid instead of
+combing; and one slow field deciding where the wind has actually worked. On the
+piste it is a different surface for the same reason it is a different surface
+up close: what a groomed slope shows at two hundred metres is not corduroy, it
+is the seams between the machine's own passes, five metres apart and bending
+with the route.
+
+The rider is cloth. The rig was lofted well enough that its silhouette and its
+shadow were right, and it still read as one continuous piece of moulded
+plastic, because it was one continuous piece of smooth geometry with one flat
+colour on it. A shell jacket is a stack of down-filled tubes stitched across
+the body every nine centimetres, so the baffles run along each garment's own
+local axis — the torso stands up its Y and every limb hangs down its Y from
+its joint, so one expression puts bands across the chest and rings around the
+sleeves, and they stay welded to the garment through every pose. Woven fabric
+also scatters a light into a wide soft band at grazing incidence, which is why
+a shoulder goes pale in a photograph while the chest stays saturated, and no
+amount of the lacquer highlight the board wears produces it. The trousers get
+the sheen and not the baffles, because snowboard trousers are a smooth shell —
+and because a strong ripple against a sixteen-sided tapered tube is a moiré
+waiting to happen, so the honest fix and the correct one were the same fix.
+
 The read-out is a second canvas holding the same buffer as the world, so a HUD
 pixel and a snow pixel are the same square by construction. That is why there
 is no typeface: every glyph is a hand-drawn 5×7 bitmap with a one-pixel
@@ -238,15 +301,61 @@ skies is what makes a blizzard at dusk look like dusk.
 Physics runs on a fixed 120 Hz step and everything else per frame, so a jump
 is the same size on every machine.
 
+**A grab is one reach and there are three of them**, chosen by where the weight
+already is rather than by two more keys. W folds the body forward and the hand
+reaches past the binding for the nose; S sits it back, the knees come up behind
+and the trailing hand takes the heel edge in a method; neither, and the hand
+drops onto the toe edge between the feet, which is an indy and is what a hand
+does when you do not tell it anything. Each pays for how far out of shape you
+had to get to hold it. The same two modifiers turn E's backflip into a
+frontflip, because they mean forward and back everywhere else in the game.
+
+And a spin taken past the vertical is named as one trick rather than two. A
+rider who flips inside a spin has not done a rotation and then another one —
+they have done a single rotation about a tilted axis, which is much harder to
+see out of and which the sport has its own words for. A backward flip in a
+backside spin is a cork and in a frontside spin is a rodeo; a forward flip
+either way is a misty; two flips make it a double. Written as "BACKSIDE 720 +
+BACKFLIP" the read-out was describing the keys that were pressed.
+
+**On the snow, Q presses.** Everything the game scores used to happen in the
+air, and a third of the run is deliberately a plain — a long open pitch with
+nothing in the way, so that the next rough chapter means something. Standing on
+one end of the board is what anybody does with that, and it is a real mechanic
+rather than a pose, because lifting one end genuinely changes three things this
+model already has. Half the effective edge is in the air, so the grip collapses
+and a press held through a hard carve washes out on its own. With nothing
+buried at the back there is nothing to resist a rotation, so the rule that a
+board may never point more than sixty degrees off its own travel — which is
+exactly the rule a butter is defined by breaking — opens with the pressure, and
+when the board passes ninety the leading end has genuinely changed and the
+rider comes out switch. And it ploughs, because a butter is a slow trick
+everywhere it has ever been done.
+
 There is also a carve trail, a terrain park with rails to slide, refreshment
 huts that glow at night and pay out for stopping in for a cocoa, a rescue
 helicopter that spotlights the next animal when it is dark, and — rarely — a
 bear.
 
 Controls are A/D to carve and to spin, W to tuck, S to brake, space held to
-load the legs and released to pop at the lip, Q to grab and E to flip. They
-are listed permanently on screen. `window.__alpen` is a debug hatch: every
-tunable is a plain object on it, and `__alpen.debug()` prints the run.
+load the legs and released to pop at the lip, Q to grab or to press and E to
+flip, with W and S choosing which. They are listed permanently on screen.
+`window.__alpen` is a debug hatch: every tunable is a plain object on it, and
+`__alpen.debug()` prints the run.
+
+**The title card waits for the mountain.** The opening horizon cache is a
+quarter of a million probes marched on the main thread and the world's shaders
+are the sort of thing a driver can take most of a second over, and all of it
+used to run as one synchronous block — measured at two and a half seconds on a
+slow machine, during which the browser cannot paint, cannot respond, and cannot
+show a loading bar that would have been the whole point of having one. None of
+that work got faster; it happens in three pieces with a paint between them, so
+the read-out can name the piece that is running. The four stages are real
+things finishing rather than a bar animating on a timer, and the invitation to
+drop in arrives when the mountain is actually on the screen. The first stage is
+tracked by the page's one inline script, because a module cannot report its own
+arrival — only its successor can, and on a cold cache the arrival is the
+longest stage of the four.
 
 ## Development
 

@@ -36,7 +36,9 @@ import { createTrail } from './trail.js';
 import { createHelicopter } from './helicopter.js';
 import { createHuts } from './huts.js';
 import { createMountainLife } from './mountainLife.js';
-import { Rider, trickName, CLEAN, SKETCHY, BAIL } from './rider.js';
+import {
+  Rider, trickName, butterName, butterHalfTurns, CLEAN, SKETCHY, BAIL,
+} from './rider.js';
 import { createRiderModel } from './riderModel.js';
 import { createChaseCamera } from './camera.js';
 import { createRetro } from './retro.js';
@@ -51,6 +53,23 @@ import {
 const STEP = 1 / 120;
 const TAU = Math.PI * 2;
 const BEST_KEY = 'alpen.best';
+
+/* The loading bar's first stage closes on this line, and it is the earliest
+   instant at which closing it would be true: imports are evaluated before any
+   statement in a module body, so by the time this runs the engine, this file
+   and everything it pulls in have all been fetched, parsed and executed.
+
+   That is also why the read-out itself is an inline script in `index.html`
+   rather than a module of its own. A module cannot report its own arrival —
+   only its successor can, and on a cold cache the arrival is the longest
+   stage of the four.
+
+   Everything downstream is written to survive the object not being there at
+   all. This is one page's worth of progress read-out; nothing in the game may
+   depend on it, and a host that embeds `main.js` without the markup must
+   still get a mountain. */
+const boot = window.__alpenBoot || { step() {}, giveUp() {} };
+boot.step('engine');
 
 const seedParams = new URLSearchParams(window.location.search);
 const suppliedSeed = seedParams.get('seed');
@@ -103,6 +122,9 @@ try {
   }
   curtain.classList.add('on');
   curtain.style.cursor = 'default';
+  // Nothing else is going to arrive, so the read-out must stop saying it is
+  // waiting for it. The message above is the page now.
+  boot.giveUp();
   throw err;
 }
 renderer.setClearColor(0x000000, 1);
@@ -267,10 +289,6 @@ const world = {
     }
     return false;
   },
-  // Rails are not part of the height field — they are a metre-wide line in
-  // the air, and the rider only ever asks about one while falling onto it
-  rail: (x, z, y) => props.railAt(x, z, y),
-  railPoint: (r, z, out) => props.railPoint(r, z, out),
 };
 
 // Hoisted out of the frame loop: an array literal there is a fresh
@@ -370,10 +388,37 @@ function showMuted(value) {
   if (touchMute) touchMute.setAttribute('aria-pressed', String(!!value));
 }
 
+/* THE DROP-IN WAITS FOR THE MOUNTAIN, and it is queued rather than ignored.
+
+   Hiding the invitation is not the same as refusing it. Every listener that
+   can call this is live from the moment the module evaluates, which is now
+   three frames and a whole mountain build before the game can actually show
+   anything — so a key press or a tap during the horizon march used to take
+   the curtain away and leave the player looking at a canvas that is still
+   deliberately hidden, with the progress bar they were watching gone with it.
+
+   Refusing the press outright would be worse than either: somebody who taps a
+   title card and gets nothing taps it again, and the one that finally works
+   is the one that arrived after the boot happened to finish. So the request is
+   remembered and honoured the instant the first frame is on the screen, which
+   is what the player asked for and when they can have it.
+
+   `audio.start()` is the exception and stays on this side of the gate. An
+   audio context can only be unlocked from inside the gesture that asked for
+   it; deferred to a later animation frame the gesture is gone and the run
+   comes up silent. Unlocking it early costs nothing — there is nothing
+   playing yet. */
+let bootReady = false;
+let dropInWanted = false;
+
 function begin() {
   if (game.mode === 'playing') return;
   audio.start();
   showMuted(audio.muted);
+  if (!bootReady) {
+    dropInWanted = true;
+    return;
+  }
   if (game.mode === 'attract') restart();
   game.mode = 'playing';
   pausedRendered = false;
@@ -541,10 +586,19 @@ function scoreLanding(s) {
   // 540 — the label and the score used to round in different directions
   const deg = s.halfTurns * 180;
   const flips = s.flipTurns;
+  // A grab pays for how far out of shape you had to get to hold it, which is
+  // the `reach` beside its name in the config and nothing else.
+  const reach = (RIDER.grabs[s.grabKind] || RIDER.grabs[0]).reach;
   let pts = deg * SCORE.perDegree
     + flips * SCORE.perFlip
-    + s.grabTime * SCORE.grabPerSecond
+    + s.grabTime * SCORE.grabPerSecond * reach
     + s.airTime * SCORE.airPerSecond;
+  /* And taking the whole thing off its axis is worth more than the two
+     rotations were worth separately, because it is one trick and a harder
+     one: the horizon leaves the frame and the landing has to be found
+     without it. Multiplied, so it scales with whatever was attempted —
+     the same reason `switchBonus` is. */
+  if (flips >= 1 && deg >= 360) pts *= 1 + SCORE.corkBonus;
   if (s.switchStance) pts *= SCORE.switchBonus;
   const fast = Math.max(0, Math.min(1,
     (s.takeoffSpeed - SCORE.speedBonusFrom) / (SCORE.speedBonusFull - SCORE.speedBonusFrom)));
@@ -636,9 +690,23 @@ rider.on('push', (impulse) => {
     8, 0.48);
 });
 
-rider.on('grind', () => {
+/* A butter, judged once when the board settles back onto both ends.
+
+   The two floors are what stop this paying out for a shift of weight. Under
+   a hundred and fifty degrees the press carried a wobble rather than a
+   rotation; under a third of a second the board never really came up. Neither
+   is a failure and neither says anything — a press that did not become a
+   butter is simply a press, which is a perfectly good thing to be doing. */
+rider.on('butter', (spin, time) => {
   if (game.mode !== 'playing') return;
-  audio.whoosh();
+  if (time < RIDER.pressMinTime || spin < RIDER.pressMinSpin) return;
+  // The half turns that actually came round — see `butterHalfTurns`, which
+  // the name below reads too, so the callout and the payout are one figure.
+  const halves = butterHalfTurns(spin);
+  const pts = halves * 0.5 * SCORE.butterPerTurn * game.combo;
+  award(pts, butterName(spin), '');
+  game.combo = Math.min(SCORE.comboMax, game.combo + SCORE.comboStep);
+  audio.combo(game.combo);
 });
 
 /* A pump pays in speed, so it is deliberately not paid in points as well.
@@ -653,18 +721,6 @@ rider.on('pump', (drive) => {
   spray.burst(rider.pos, -rider.heading.x * 0.5, -rider.heading.z * 0.5,
     Math.round(3 + drive * 2), 0.3 + drive * 0.12);
   chase.kick(Math.min(0.5, drive * 0.09));
-});
-
-/* A rail pays by the second and pays again for leaving it on purpose, which
-   is the whole shape of the trick: getting on is luck, staying on is the
-   skill, and popping off the end rather than falling off the side is what
-   the points are actually for. */
-rider.on('grindOut', (t) => {
-  if (game.mode !== 'playing' || t < 0.35) return;
-  const pts = (t * SCORE.grindPerSecond + SCORE.grindOut) * game.combo;
-  award(pts, t > 1.4 ? 'LONG GRIND' : 'RAIL SLIDE', '');
-  game.combo = Math.min(SCORE.comboMax, game.combo + SCORE.comboStep);
-  audio.combo(game.combo);
 });
 
 /* A near miss is now only ever a bear.
@@ -786,7 +842,7 @@ function sweepCircle(ax, az, bx, bz, cx, cz, radius, out) {
 }
 
 function collide() {
-  if (rider.state === 'fall' || rider.state === 'grind') return;
+  if (rider.state === 'fall') return;
   const solids = props.solids;
   const zLo = Math.min(prev.z, rider.pos.z) - 4;
   const zHi = Math.max(prev.z, rider.pos.z) + 4;
@@ -880,7 +936,16 @@ function demoInput(dt) {
    ========================================================================== */
 
 function liveTrickName() {
-  if (rider.grounded) return '';
+  /* On the snow the live line is the press, once it has carried enough to
+     have a name — which is the only feedback a butter gets while it is
+     happening, and it is what tells a rider they have made the half turn
+     before they let go of it. */
+  if (rider.grounded) {
+    if (rider.press > 0.35 && Math.abs(rider.pressSpin) >= RIDER.pressMinSpin) {
+      return butterName(Math.abs(rider.pressSpin));
+    }
+    return '';
+  }
   return trickName({
     spin: rider.spinAccum,
     flips: rider.flipAccum,
@@ -890,6 +955,7 @@ function liveTrickName() {
     halfTurns: Math.floor(Math.abs(rider.spinAccum) / Math.PI),
     flipTurns: Math.floor(Math.abs(rider.flipAccum) / TAU),
     grabTime: rider.grabTime,
+    grabKind: rider.grabKind,
     airTime: rider.airTime,
     switchStance: false,
   }, CLEAN) || '';
@@ -1030,6 +1096,13 @@ function frame(now) {
     }
 
     huts.update(dt, rider, w, onCocoa);
+
+    /* The gates light the snow they stand on, and the ground's own shader is
+       what draws it — so this hands the terrain the nearest few and nothing
+       else. It runs here, with the rest of the world's per-frame state,
+       because the prop field's gate list is only rebuilt at band boundaries
+       and the *choice* of which four are lit has to follow the rider. */
+    terrain.setGates(props.gates, rider.pos.z);
 
     /* Everything below this line is drawing, so it reads the interpolated
        rider. Everything above — collisions, wildlife, scoring, the huts —
@@ -1259,7 +1332,6 @@ window.__alpen = {
     },
     solids: props.solids.length,
     biomes: props.debugBiomes(),
-    rails: props.rails.length,
     terrainVerts: terrain.vertexCount,
     helicopter: heli.debug(),
     weather: {
@@ -1277,26 +1349,85 @@ window.__alpen = {
   }),
 };
 
-/* The sun, before the ground it has to light. The world-fixed horizon cache
-   itself is direction-independent, but its very first shader evaluation still
-   needs the correct bearing and fade. Zero-length ticks advance no clock. */
-{
+/* THE REST OF THE BOOT, broken across three paints instead of run as one.
+
+   Everything below this line used to be a single synchronous block at the end
+   of the module, and it is by some distance the longest thing the page does:
+   the mountain's opening horizon cache is a quarter of a million probes
+   marched on the main thread, and compiling the world's shaders is the sort
+   of work a driver can take most of a second over. Measured on a slow machine
+   it was two and a half seconds in one task — two and a half seconds in which
+   the browser cannot paint, cannot respond, and cannot show a loading bar that
+   would otherwise have been the whole point of having one.
+
+   None of that work got faster. What changed is that it now happens in three
+   pieces with a paint between them, so the read-out can say which piece is
+   running and the title card stays alive while it does. Nothing is deferred
+   past the first frame — the mountain is still complete and the shaders are
+   still warm before a single pixel of it is shown — and the order is exactly
+   the order it was in.
+
+   Two frames rather than one, because one only guarantees the callback runs
+   *before* the next paint. The second is what puts the work after it. */
+function afterPaint(fn) {
+  requestAnimationFrame(() => requestAnimationFrame(fn));
+}
+
+/* The plates arrive on the network's own clock and nothing waits for them, so
+   this stage closes whenever it closes — usually during the horizon march.
+
+   And it closes on a timer as well, because "whenever it closes" is not the
+   same as "eventually". A request that is stalled rather than failed fires
+   neither load nor error, and an image element will sit on one for as long as
+   the network lets it — which would leave the bar stuck at ninety per cent and
+   the invitation hidden over a mountain that is complete, drawn and playable.
+   Nothing in the game waits for these plates: the terrain keeps its procedural
+   fallback and takes the real one whenever it lands. So after a few seconds
+   the honest thing for the read-out to say is that the wait is over, and the
+   plate is welcome to arrive afterwards. */
+const SNOW_PATIENCE = 6000;
+Promise.race([
+  terrain.surfacesReady,
+  new Promise((settle) => setTimeout(settle, SNOW_PATIENCE)),
+]).then(() => boot.step('snow'));
+
+afterPaint(() => {
+  /* The sun, before the ground it has to light. The world-fixed horizon cache
+     itself is direction-independent, but its very first shader evaluation
+     still needs the correct bearing and fade. Zero-length ticks advance no
+     clock. */
   const w0 = weather.update(0);
   retro.setGrade(w0, 0);
   sky.update(rider.pos, w0, 0);
   terrain.setSun(sky.sunDir.x, sky.sunDir.y, sky.sunDir.z, sky.shadowLevel);
-}
 
-restart();
-game.mode = 'attract';
-showMuted(audio.muted);
-/* Compile every currently resident world material, allocate the shadow map,
-   upload the complete opening horizon cache and warm the post stack while the
-   canvas is still covered. First use during a landing is the wrong time for a
-   driver to discover a shader or a 3.3 MiB texture. */
-renderer.compile(scene, camera);
-retro.render(scene, camera);
-requestAnimationFrame((now) => {
-  frame(now);
-  document.body.classList.add('ready');
+  restart();
+  game.mode = 'attract';
+  showMuted(audio.muted);
+  boot.step('mountain');
+
+  afterPaint(() => {
+    /* Compile every currently resident world material, allocate the shadow
+       map, upload the complete opening horizon cache and warm the post stack
+       while the canvas is still covered. First use during a landing is the
+       wrong time for a driver to discover a shader or a 3.3 MiB texture. */
+    renderer.compile(scene, camera);
+    retro.render(scene, camera);
+    requestAnimationFrame((now) => {
+      frame(now);
+      document.body.classList.add('ready');
+      // Last, and after the first real frame rather than before it, because
+      // that frame is where a driver finishes linking what `compile` only
+      // asked for. "Ready" should mean the mountain is on the screen.
+      boot.step('shaders');
+      /* …and now anybody who asked to drop in while that was happening gets
+         what they asked for. See `bootReady`: the press was kept rather than
+         refused, so the title card answers the first tap and not the third. */
+      bootReady = true;
+      if (dropInWanted) {
+        dropInWanted = false;
+        begin();
+      }
+    });
+  });
 });

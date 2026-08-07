@@ -217,10 +217,26 @@ export const TERRAIN = {
   /* The piste is not a chute. Its centre line wanders on two long sines, so
      the run arrives somewhere rather than pointing at the same spot forever,
      and a bend gives the rider a reason to carve that the terrain alone
-     never would. Both amplitudes are small against their wavelengths: the
-     route drifts about seven metres sideways every hundred it descends. */
+     never would.
+
+     THE LATERAL RATE IS Σ(amp·freq), and it is a budget for the same reason
+     the fall-line one is — it was simply never written down, so nothing kept
+     it honest. The line under this table used to claim the route drifts about
+     seven metres sideways for every hundred it descends; the three sines
+     actually summed to thirteen, because a claim about "both amplitudes"
+     being small against "their wavelengths" is a statement about each of them
+     separately and the rider only ever meets the sum. At thirteen per cent
+     the corridor slides sideways at four metres a second under a rider doing
+     thirty, which is most of a piste width every ten seconds and is felt as
+     the run walking out from under you.
+
+     The shortest wave is where nearly all of it was: at a wavelength of 1570
+     metres it carried half the total rate on a fifth of the amplitude. Pulled
+     back to eleven it costs the route almost none of its shape, and the two
+     long ones — which are the ones that make the run arrive somewhere — are
+     untouched. */
   wander: [
-    { freq: 0.0040, amp: 16 },
+    { freq: 0.0040, amp: 11 },
     { freq: 0.0013, amp: 34 },
     { freq: 0.00047, amp: 52 },   // the long one: whole shoulders of mountain
   ],
@@ -263,14 +279,27 @@ export const TERRAIN = {
      run is scaled against, and it is roughly three times what it was. */
   /* The groomed part, and the shallow bowl across it.
 
-     A flat corridor between two walls is a corridor. A corridor with a metre
-     and a half of dish in it is a fall line — it gathers a drifting rider
-     back towards the middle without ever pushing them, and it is the reason
-     the run reads as a route rather than a lane. It also costs nothing
-     against the slope budget: the dish rises across the hill, not down it,
-     and lateral gradients are free because no part of them lies on the
-     direction the rider is descending. */
-  /* Twenty-six metres of half-width is a real groomed run — around fifty
+     A flat corridor between two walls is a corridor. A corridor with a dish
+     in it is a fall line — it gathers a drifting rider back towards the
+     middle without ever pushing them, and it is the reason the run reads as a
+     route rather than a lane. It costs nothing against the fall-line slope
+     budget: the dish rises across the hill, not down it, and lateral
+     gradients are free because no part of them lies on the direction the
+     rider is descending.
+
+     THEY ARE FREE AGAINST THE SPEED AND THEY ARE NOT FREE AGAINST THE
+     STEERING — a passive rider settles wherever the dish's lateral gradient
+     balances whatever else has one, and on the old ungated corridor that
+     was every off-piste octave at full strength, everywhere inside it. This
+     corridor no longer works that way: `heightIn` masks ridges, rolls,
+     moguls and wind chatter down near to nothing across the whole width
+     (see the groomed/ribbon split below), so the dish here is fighting a
+     much smaller lateral gradient than it once was and does not need to be
+     as deep. It still has to be *checked* hands-off rather than assumed —
+     see the note beside `TERRAIN.guide.gather`, which does the same job
+     centred on the racing line instead of the corridor's geometric middle.
+
+     Twenty-six metres of half-width is a real groomed run — around fifty
      metres of corduroy, wide enough to carve line after line — with the
      powder, the moguls and the treeline starting where it ends rather than
      a rock wall. Fourteen read as a bobsled canyon: the containment wall
@@ -310,6 +339,14 @@ export const TERRAIN = {
     margin: 14,   // line offset ceiling: corridor half minus this
     gather: 0.55, // metres of dish centred on the line: gravity points at it
   },
+
+  /* How hard a lit gate burns into the snow, and how far ahead the light
+     carries. The shader is in `terrain.js` and the reasoning with it; these
+     two are here because they are the only part of it worth a player's
+     opinion. The reach is deliberately shorter than the fog: a gate should
+     resolve out of the storm rather than be visible through it. */
+  gateGlow: 0.85,
+  gateGlowReach: 230,
 
   /* Outside the corridor: a transition, a lip, and then a wall that cannot
      be climbed.
@@ -389,6 +426,110 @@ export const TERRAIN = {
       ribStart: [10, 22],
       ribWidth: 32,
     },
+
+    /* RUNNELS — the channels snow cuts in a flank on its way down it.
+
+       Everything above varies the wall *along* the run, and that is why the
+       flanks still read as two poured ramps from inside the piste: seen from
+       a rider looking down the hill, a term that only changes over hundreds
+       of metres of z is a term that does not change at all. What a real
+       steep snow flank is covered in runs the other way — the vertical
+       fluting every sluff, every point release and every wet slide leaves
+       behind, a hundred parallel channels pointing straight down the fall
+       line, and the single most recognisable thing about alpine terrain
+       above a piste.
+
+       So this is a carrier across the wall with a phase that wanders slowly
+       down it: channels that run downhill, meander a little, and are spaced
+       differently on the two sides because they read the same side-specific
+       geology the shoulders do.
+
+       IT DOES NOT COST THE SLOPE BUDGET, because it does not lie on the fall
+       line — the whole variation is across the hill, which is free for the
+       same reason the corridor's dish is. What it does have to respect is the
+       *containment* invariant: the ground outside the lip is monotonically
+       uphill, so gravity always points home, and a channel deep enough to
+       reverse that would be a pocket a rider could sit in.
+
+       That is arranged by construction rather than by measurement. The wall's
+       own outward slope is `height/scale · s(u)` for `s(u) = 2u·e^(−u²)`, and
+       `depth` is scaled by the *square* of that same shape — so the ratio
+       between the channel's steepest wall and the mountain's is a constant,
+       set here, and cannot be broken by a stretch of hill where the flank
+       happens to lie back. `scale/localScale` keeps it constant against the
+       breadth variation too: a broader flank is a shallower one, and its
+       channels shallow with it. The number that matters is that ratio, and at
+       these amplitudes it is three quarters at the steepest point of the face
+       and less everywhere else — so the flank still climbs everywhere, and the
+       remaining margin is spent on the two shoulders and the buttress.
+
+       The square is the part that took a second attempt. A linear scaling
+       bounds the *carrier's* slope correctly and says nothing about the
+       amplitude's own arrival, which contributes about `depth` over the length
+       it arrives in — a constant, against a wall gradient that goes to zero
+       linearly at the lip. There is therefore always a band just past the lip
+       where a linear arrival out-climbs the mountain, and there was: an
+       ordinary stretch of flank seven metres out measured +0.11 without the
+       channels and −0.02 with them, which is a pocket in ground whose entire
+       job is to be uphill. Squared, the amplitude is quadratic in the distance
+       past the lip and its derivative is linear — the same order as the wall's
+       — so the constant ratio covers the arrival as well as the carrier, and
+       the channels simply concentrate on the steepest third of the face, which
+       is where a slide cuts them anyway. */
+    runnels: {
+      wave: 24,          // metres across the flank between channels
+      waveVary: 0.30,    // share of it the side's own broad field moves
+      depth: 2.6,        // metres from rib to channel floor at full steepness
+      fineWave: 8.5,     // and a second, shallower corrugation over the top
+      fineDepth: 0.18,
+      meander: 5.5,      // metres a channel wanders across the flank…
+      meanderFreq: 0.0026, // …over roughly four hundred metres of descent
+      seed: 149,
+      /* And the cell size at which the mesh stops being able to carry them.
+         A twenty-six metre channel wants four samples across it; past six
+         metres a cell the term is being sampled below what it describes, and
+         what would reach the screen is not fluting, it is aliasing. */
+      lod: [5.5, 11.0],
+    },
+    /* THE BULK, which is the steepness answering the question "and what is
+       this face made of".
+
+       The runnels above are a slide's work: parallel channels down the fall
+       line, and they gave the flanks a grain. What they could not give them
+       is MASS. A fluted ramp is still a ramp, and a real face above a piste
+       is not a ramp with grooves in it — it is buttresses and gullies at a
+       scale of tens of metres, with a broken surface over the top of that,
+       and the steeper the ground the more of both it has. Snow slides off
+       steep rock and stops on shallow rock, so a shallow flank is smooth
+       because it is buried and a steep one is rough because it is not.
+
+       So both terms below ride the same `steep²` the runnels do, which is
+       what makes the roughness proportional to the steepness rather than
+       merely present. And they ride it for the same second reason: a term
+       whose amplitude is quadratic in the flank's own gradient has a
+       derivative of the same order as the wall's, so the ratio between what
+       this cuts and what the mountain climbs is a constant. The flanks stay
+       monotonically uphill, which is the one property the containment is not
+       allowed to lose. Both are pure cuts — the noise is mapped to 0…1 and
+       subtracted — so neither can build a bump with a downhill side on it.
+
+       `wave` is deliberately much longer than the runnels': at seventy
+       metres these are the gullies the runnels run down, not a second set of
+       runnels. `grain` is the opposite end, a couple of metres of broken
+       surface that only survives near the camera. */
+    bulk: {
+      depth: 5.2,          // metres from buttress to gully at full steepness
+      wave: 70,            // metres across the flank between gullies
+      waveZ: 130,          // …and how far they stretch down it
+      grain: 0.85,         // the broken surface over the top
+      grainWave: 6.5,
+      seed: 181,
+      /* Same reasoning as the runnels' own LOD, one octave coarser: a
+         seventy-metre gully survives a much larger cell than a twenty-four
+         metre channel does, so the bulk is still there on ground where the
+         fluting has already faded out. */
+      lod: [9.0, 22.0],
+    },
   },
 
   /* Four octaves of value noise, two of them warped.
@@ -436,6 +577,25 @@ export const TERRAIN = {
      budget and half again the shallowest grade the run reaches. Lateral
      terms would be free — they do not sit on the fall line — but these are
      isotropic noise, so they are not. */
+  /* THE SECOND BUDGET, which these two octaves spend unwatched.
+
+     Everything above is about the gradient these terms lay along the fall
+     line, because that is what costs a rider speed. It is not the only
+     gradient they have. The same noise leans just as hard *across* the run,
+     and what that steers is the rider — a hands-off rider goes down the local
+     fall line, and the local fall line is the sum of every lateral gradient
+     on the hill. Ridges and rolls between them come to 0.077 of it.
+
+     Stretching them across the run the way `chatter` below is stretched is
+     the obvious answer and it is not this one. Tried at 0.45 it moved the
+     hands-off excursion by about a fifth — and it put the rider *through* the
+     mountain six times in six minutes of soak, because a rolling crest
+     stretched twice as far across the hill keeps rising under a ballistic
+     path for twice as long, and `airStep` has no landing test for a rider
+     travelling upward into ground that is rising faster than they are. That
+     hole is real and predates this, and papering an octave over it is how it
+     would have been found by a player instead. The corridor's dish carries
+     the fix on its own for now — see `bowl`. */
   ridges: { freq: 0.0032, amp: 3.5, seed: 5 },
   rolls: { freq: 0.009, amp: 1.6, seed: 1 },
   /* The mogul octave carries its own LOD, for the same reason the chatter
@@ -899,8 +1059,18 @@ export const RIDER = {
      rate at which the uphill component of a rider's velocity is taken away
      once they are in it — the last of which is the actual invariant, since it
      is applied after the powered tuck's floor and therefore cannot be
-     outrun by any speed however it was obtained. */
-  wallSpan: 16,
+     outrun by any speed however it was obtained.
+
+     ALL THREE WENT UP, and the measurement that moved them is worth keeping.
+     A rider tucking and steering deliberately at the left bank reached 52.5
+     metres above the piste — most of a 62-metre wall, which is to say they
+     were climbing the mountain rather than riding the bank of the run. The
+     same trial now tops out at 23.5 m, and the three hands-off trials that
+     bracket it moved by tenths, which is the shape the change had to have:
+     the quarterpipe a rider *uses* is the first ten metres past the lip and
+     nothing above that was ever meant to be reachable. Deeper snow sooner,
+     and it refuses harder once you are in it. */
+  wallSpan: 12,
   /* What the deep snow costs a rider trying to gain height in it, on top of
      `climbScrub`. It is charged against the climb rather than flat against
      the speed, and that is not a detail: a flat term large enough to stop a
@@ -922,7 +1092,7 @@ export const RIDER = {
   /* The refusal itself: the rate at which the component of travel pointing up
      the fall line is taken back out. It saturates with depth — see the note
      in `rider.js` — so past `wallSpan` metres the answer is simply no. */
-  wallGrab: 7.5,
+  wallGrab: 11.0,
   /* And the sluff, which is the term that finally closed the last way out.
 
      Refusing the climb is not enough on a run that descends nearly a third of
@@ -940,7 +1110,7 @@ export const RIDER = {
      the way home. So it contains without ever pushing anybody anywhere they
      were not already being pulled, and it can never strand a rider, because
      the direction it acts in is the one they want to go. */
-  wallSluff: 7,
+  wallSluff: 10.5,
   /* And the pivot, which is the one that does the containing. A board buried
      across the fall line has a metre of edge on the uphill side and nothing
      under the downhill one, so it swings to point down the hill — see the
@@ -1279,6 +1449,83 @@ export const RIDER = {
      lands and a 540 that lands at 519 and gets called sketchy. */
   assistTime: 0.35,
   assistRate: 3.4,
+
+  /* THE GRAB, which was one reach and is now three, chosen by what the rest
+     of the body is already doing rather than by two more keys.
+
+     A grab is the only trick in the game that pays for how long you hold it,
+     and for a long time it was also the only trick with exactly one shape —
+     so a rider who had learned it had learned all of it, and holding Q was a
+     tap you made once per jump and then forgot. What the sport actually has
+     is a dozen of them, and which one you get is decided by where your weight
+     is when your hand goes down.
+
+     So that is the input. W folds the body forward and the leading hand
+     reaches past the binding for the nose; S sits the weight back, the knees
+     come up behind and the trailing hand takes the heel edge in a method;
+     neither, and the trailing hand drops straight onto the toe edge between
+     the feet, which is an indy and is what a hand does when you do not tell
+     it anything. No key was added, the two modifiers already mean forward and
+     back everywhere else in the game, and the pose the rig draws is the pose
+     the physics of the reach implies.
+
+     `reach` is how far past the nominal grab point the hand has to travel and
+     therefore how far the body has to fold; the score follows it, because
+     what makes one grab worth more than another is exactly how far out of
+     shape you have to get to hold it. */
+  grabs: [
+    // indy — trailing hand, toe edge, between the bindings
+    { name: 'INDY', reach: 1.0 },
+    // nose — leading hand, past the front binding, body folded over it
+    { name: 'NOSE GRAB', reach: 1.35 },
+    // method — trailing hand, heel edge, board pulled up behind the back
+    { name: 'METHOD', reach: 1.6 },
+  ],
+  // Seconds of hold past which a grab stops being a touch and starts being a
+  // tweak, and the second stop where it is being held for its own sake.
+  grabHold: [0.18, 0.55],
+
+  /* THE PRESS, and why the same key does it.
+
+     Everything this game scores happens in the air, and most of a run is not
+     in the air. On a plain chapter — which the terrain deliberately spends a
+     third of its length being, so that the next rough one means something —
+     there was nothing to do but hold a line and wait for the ground to change
+     its mind. That is the gap this fills, and it fills it with the one thing
+     every snowboarder does on flat ground: they stand on one end of the board
+     and spin on it.
+
+     A press is a real mechanic and not a pose, because lifting one end of the
+     board out of the snow genuinely changes three things at once, and all
+     three of them are already quantities this model has:
+
+       THE EDGE MOSTLY GOES. Half the effective edge is in the air, so the
+       grip the sidecut can ask for collapses — which is why a press held
+       through a hard carve washes out on its own and no rule had to be
+       written saying you cannot do both.
+
+       THE BOARD PIVOTS FREELY. With the tail unweighted there is nothing
+       buried to resist a rotation, so the skid clamp — the rule that a board
+       may never point more than sixty degrees off its own travel — is exactly
+       the rule a butter is defined by breaking. It opens with the press, and
+       when the board passes ninety degrees the leading end has genuinely
+       changed and the rider comes out switch.
+
+       AND IT COSTS SPEED. A board standing on its nose is ploughing with its
+       nose, and a butter is a slow trick everywhere it has ever been done.
+
+     `spinPay` is per full rotation carried through a press. It is deliberately
+     modest against a jumped 360 — this is a trick you can do anywhere, at any
+     speed, without leaving the snow, so it has to be worth doing and must
+     never be worth more than committing to a lip. */
+  pressRate: 6.5,       // per second the board comes up onto one end
+  pressRelease: 9.0,    // and settles back down a little quicker
+  pressGrip: 0.62,      // share of the edge a full press takes away
+  pressPivot: 3.4,      // rad/s of free rotation it hands back, at any speed
+  pressDrag: 2.6,       // m/s² of plough for standing on one end of the board
+  pressSkid: 3.05,      // radians the skid clamp opens to — nearly a half turn
+  pressMinSpin: 2.62,   // radians (150°) under which a butter is just a press
+  pressMinTime: 0.3,    // seconds under which it is just a wobble
   // Landing. Anything inside the window snaps straight; anything outside
   // is a bail. Switch is the same window rotated half a turn.
   landWindow: 0.92,   // radians ≈ 53°
@@ -1318,6 +1565,25 @@ export const RIDER = {
      lip. Give that decision a tiny contact window so floating-point overlap
      cannot immediately "re-land" against the same ramp. */
   launchContactGrace: 0.03,
+  /* HOW FAR INSIDE THE MOUNTAIN A RIDER MAY BE BEFORE IT COUNTS AS SNOW,
+     whatever direction they are travelling.
+
+     The touchdown test asks for a contact that is both *approaching* and
+     *descending*, and the second half of that has a hole in it. A rider
+     flying up a containment wall is approaching its surface — the wall's
+     normal leans in towards them — but they are not descending, so the test
+     refuses the contact and the ballistic position is left where it was.
+     That is fine for one step. It is not fine for eighty, and if the ground
+     is rising faster than the rider is, eighty is what it takes: the soak
+     found riders three and a half metres inside the hill and still sinking.
+
+     `descending` is not wrong, it is just doing two jobs. It is there to
+     protect a pop — a rider who ollies off an uphill transition is rising
+     into ground that is still rising, and re-landing them immediately would
+     take the trick away. So it stays, and this is the backstop underneath
+     it: a pop clears the snow within a few centimetres or it was never a
+     pop, and nothing legitimate is ever half a metre under it. */
+  buryDepth: 0.5,
   // A hop small enough not to count: below this the landing is never
   // judged, so chattering over moguls can never end a combo.
   minJudgedAir: 0.34,
@@ -1366,6 +1632,18 @@ export const SCORE = {
   grabPerSecond: 260,
   airPerSecond: 70,
   switchBonus: 1.5,
+  /* Taking a spin off its axis, which is the difference between a rotation
+     and a trick worth a name. A flip laid into a spin is much harder to see
+     out of and much harder to land than either of them alone, and until this
+     existed the game paid for it as though the two had happened one after the
+     other. Multiplied, not added, so it scales with whatever was already
+     being attempted. */
+  corkBonus: 0.45,
+  /* Buttering, per full rotation carried through a press. Deliberately small
+     against a jumped 360: this is a trick you can do on flat ground at any
+     speed without leaving the snow, so it must be worth doing and must never
+     be worth more than committing to a lip. */
+  butterPerTurn: 240,
   /* Risk is worth something. Fast tricks climb to a 1.5× premium, while a
      pop released on the lip gets its own timing bonus. Neither creates
      points by itself; they only amplify something the player actually lands. */
@@ -1397,9 +1675,6 @@ export const SCORE = {
      of the scoring. */
   gate: 120,
   gateRunMax: 8,
-  // Rails pay by the second, and pay again for getting off one cleanly
-  grindPerSecond: 420,
-  grindOut: 250,
   /* Stopping for a cocoa, which is worth about a landed 540.
 
      It has to be worth that much because of what it costs: coming to a
@@ -1434,14 +1709,29 @@ export const PROPS = {
      band still carries roughly the twenty-two it always did — the difference
      is that they are now bunched into stands with real clearings between
      them instead of being spread evenly over every hillside on the mountain. */
-  treesPerBand: 34,
+  /* Fifty-eight, up from thirty-four, and the reach they are scattered over
+     went from seventy-eight metres to a hundred and thirty — so the density
+     on the shoulder beside the piste is about what it was and the new trees
+     are almost all up the containment banks, which is where a valley in the
+     Alps actually keeps its forest. Trees far enough out to be unreachable
+     no longer carry a collision hull; see `FOREST.solidOut` in props.js. */
+  treesPerBand: 58,
   innerTreesAt: 400,  // metres before trees start appearing on the piste
   innerTreesMax: 3,
   /* Slalom gates, and how wide the pair stands.
      It is also the width the scoring is judged against, so the two can never
      drift apart — a gate scored against a different width than it was drawn
-     at is a gate that pays out when you visibly missed it. */
-  gateHalf: 2.6,
+     at is a gate that pays out when you visibly missed it.
+
+     Nine metres, up from five. Five was a real slalom gate and it was the
+     wrong measurement to have copied: a real slalom is ridden at twelve
+     metres a second down a course somebody has inspected, and this is ridden
+     at forty, blind, in a storm, on a piste eighty metres wide. Five metres
+     of gate at forty metres a second is an eighth of a second of aim. What
+     made it *feel* unfair was never the scoring, it was that the target was
+     smaller than the reaction — so the pair is wider and, more to the point,
+     the snow between them is lit. See `TERRAIN.gateGlow`. */
+  gateHalf: 4.6,
   /* Trees, grown rather than modelled.
 
      There used to be one tree — a cylinder, a cone and a smaller cone —
@@ -1473,59 +1763,56 @@ export const PROPS = {
      grown once at startup and instanced from fixed hashes. */
   biomes: {
     plantCandidates: 12,
-    shrubCandidates: 8,
-    sideRockCandidates: 5,
+    /* Shrubs went from eight candidates a band to twenty. The ecology refuses
+       most of them — a candidate is an offer, not a plant — so the visible
+       change is not twenty shrubs every forty metres, it is that a bank the
+       moisture field likes now fills in properly instead of carrying four
+       token bushes. Scrub is the one thing on a treeline that is genuinely
+       dense, and the old count could not express dense at all. */
+    shrubCandidates: 20,
+    sideRockCandidates: 9,
+    /* How large a scenic stone can be, as a multiple of the grown boulder.
+       The draw is squared — see the note at the placement — so the low end is
+       where most of them land: a fifth is a cobble you would step over and
+       three and a half is a glacial erratic with trees growing beside it. */
+    stoneSize: [0.20, 3.5],
+    /* And the crags: how far up the bank, how big, and how rare. `out` is
+       measured from the outer groomed edge, so eighty metres is well up the
+       containment wall and a hundred and seventy is near the top of it. */
+    cragFrom: 300,
+    cragChance: 0.17,      // one band in six: a face every ~230 m
+    cragOut: [78, 170],
+    cragSize: [2.0, 4.4],
     hazardFrom: 360,       // keep the opening stretch generous
     hazardChance: 0.19,    // then about one readable boulder every 200 m
     hazardPadding: 8,      // never crowd a streamed band boundary
     hazardEdge: 3.2,       // clear snow between the rock and the piste lip
   },
-  gateChance: 0.35,
   clearLane: 8,       // no hard obstacle closer than this to a centre line
 
-  /* THERE ARE NO BUILT KICKERS. This is where they were.
+  /* THERE IS NOTHING BUILT ON THIS MOUNTAIN. This is where it all was.
 
-     They went in stages and the last stage was the honest one. First there
-     was a kicker in two bands out of three, which made the piste a corridor
-     of identical yellow-lipped wedges. Then there was one in eight, on the
-     reasoning that what was left of them would read as something somebody
-     built. Then it became clear that the reasoning was upside down: the
-     problem was never how *many* wedges there were, it was that a wedge is a
-     printed answer to the only question the terrain should be asking. Ride at
-     the amber lip, get air. Ride anywhere else, do not.
+     The kickers went first, and their going is documented at length in
+     `props.js`. A built ramp is a games idea: it is the same wedge every
+     time, it announces itself in amber, and it turns *where do I get air* —
+     the only interesting question a hillside asks — into a question with a
+     printed answer. `TERRAIN.character` replaced them: the hill rides in
+     chapters, and a chapter of short bumps throws a rider further, more often
+     and in more different ways than a row of identical wedges ever did.
 
-     A mountain does not work like that, and this one did not need the help.
-     Curvature is what launches a rider — see the slope budget in TERRAIN —
-     and there are four octaves of it out there plus the knolls, which are the
-     mountain's own kickers and come in every size and shape the hash can
-     make. What was missing was not a ramp, it was *variety over distance*:
-     eight hundred metres of hill all had the same statistics, so it was all
-     equally jumpable and therefore none of it was memorable.
+     THE PARK AND ITS RAILS HAVE NOW GONE THE SAME WAY, and the argument is
+     the same argument finished properly. What survived the kickers was a
+     hundred and fifty metres of hill with three steel bars on it, announced
+     by a gate pair — and that is still a venue somebody dressed. It carried a
+     whole mechanism with it: a line the rider was locked onto, a state the
+     physics had to hold them in, a friction constant, a catch test, a scoring
+     event, and a stretch of mountain that had to be *told* it was special.
+     Every one of those is a rule the mountain did not need.
 
-     `TERRAIN.character` is what replaced them, and it is the change this
-     whole revision is about. See the long note there.
-
-     The park went with them, mostly. A park was a graded line of kickers with
-     a rail beside it; it is now a stretch of hill with several rails on it,
-     announced by the same gate pair, and it is still worth choosing to ride.
-     Nothing in the game builds snow any more. */
-  park: {
-    period: 780,      // metres between chances at one
-    chance: 0.6,
-    length: 150,      // how much hill a park occupies
-    rails: 3,         // laid out down it, alternating sides
-    railChance: 0.8,  // …and each one is only probably there
-  },
-  rail: {
-    length: 14,
-    height: 0.85,
-    radius: 0.34,
-    // How close the board has to be to the rail's line, and how close to its
-    // height, before the rider is riding it rather than passing it
-    catchWidth: 0.85,
-    catchHeight: 0.55,
-    friction: 0.012,  // a rail is not snow
-  },
+     What is left is a mountain. Air comes from curvature, which is everywhere
+     and never the same twice; the only thing on the piste with a name is a
+     slalom gate, and the only thing it asks is whether you went through it.
+     Nothing here builds snow or steel any more. */
 };
 
 export const WILDLIFE = {
@@ -1555,6 +1842,51 @@ export const WILDLIFE = {
   bearSpawnRange: [140, 250],
   bearSpeed: 2.4,
   bearRadius: 1.5,
+
+  /* Deer and wolves, which are the third kind of animal on this hill and
+     want saying out loud because the first two set a pattern they break.
+
+     A rabbit is scenery that reacts to you. A bear is a hazard. Both are
+     *about* the rider — they exist inside the fifteen or twenty metres where
+     the rider can affect them, and if you never went near one it would have
+     been wasted. These are the opposite: they live out past the trees, they
+     are never collided with, they are never scored, and the rider cannot
+     reach them without leaving the run. What they are for is the thing a
+     mountain has that a racetrack does not, which is somewhere else — a
+     hillside with something living on it that is not interested in you.
+
+     That is why the offsets are so large. Sixty to a hundred and thirty
+     metres puts a herd out beyond the treeline and up the containment wall,
+     which is exactly where it is visible over the forest and exactly where
+     nobody is riding. Bringing them closer was tried first and it is wrong
+     twice over: they read as obstacles the player is trying to avoid, and
+     they stop being somewhere else.
+
+     Deer are the common one and stand in groups, because a single deer is a
+     lost deer. Wolves are rare, travel in file, and are further out again —
+     a pack crossing a distant shoulder is worth ten times a wolf you can see
+     the eyes of, and it is the only thing on this mountain that is meant to
+     be watched rather than looked at. */
+  deer: 5,                  // pool size, and the largest a herd can be
+  deerHerd: [2, 5],
+  deerFrom: 260,            // metres before the first herd
+  deerChance: 0.62,
+  deerRespawn: [9, 24],
+  deerSpawnRange: [130, 280],
+  deerOffset: [58, 132],    // beyond the corridor edge, either side
+  deerSpread: 13,           // how loosely a herd stands together
+  deerSpeed: 5.2,           // trotting off, once it has noticed the rider
+  deerNotice: 62,
+
+  wolves: 4,
+  wolfPack: [2, 4],
+  wolfFrom: 900,
+  wolfChance: 0.30,
+  wolfRespawn: [34, 80],
+  wolfSpawnRange: [170, 320],
+  wolfOffset: [86, 200],
+  wolfFile: 3.4,            // metres between one wolf and the next in the line
+  wolfSpeed: 3.6,
 };
 
 export const CAMERA = {
