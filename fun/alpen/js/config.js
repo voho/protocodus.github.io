@@ -289,22 +289,26 @@ export const TERRAIN = {
 
      THEY ARE FREE AGAINST THE SPEED AND THEY ARE NOT FREE AGAINST THE
      STEERING — a passive rider settles wherever the dish's lateral gradient
-     balances whatever else has one, and on the old ungated corridor that
-     was every off-piste octave at full strength, everywhere inside it. This
-     corridor no longer works that way: `heightIn` masks ridges, rolls,
-     moguls and wind chatter down near to nothing across the whole width
-     (see the groomed/ribbon split below), so the dish here is fighting a
-     much smaller lateral gradient than it once was and does not need to be
-     as deep. It still has to be *checked* hands-off rather than assumed —
-     see the note beside `TERRAIN.guide.gather`, which does the same job
-     centred on the racing line instead of the corridor's geometric middle.
+     balances whatever else has one, and `heightIn`'s groomed/ribbon mask
+     (see below) only fades the off-piste octaves down near the centre; by
+     the nominal edge they are already back to something like half strength,
+     which a shallow dish cannot out-climb. Checked hands-off rather than
+     assumed: at 1.2, with `guide.gather` also fading out over the corridor's
+     outer third — right where a drifting rider needs it most — a passive
+     rider was outside the corridor within nine seconds and sixty-odd metres
+     into the rock band by sixteen, and still climbing. At 3.0, with that
+     fade narrowed to the last two metres, the same rider stays inside the
+     corridor for a full thirty seconds, drifting single digits to low teens
+     of metres and settling back towards the line rather than away from it —
+     including through a fork closing underneath it, the one geometry this
+     was not built to promise anything about at all.
 
      Twenty-six metres of half-width is a real groomed run — around fifty
      metres of corduroy, wide enough to carve line after line — with the
      powder, the moguls and the treeline starting where it ends rather than
      a rock wall. Fourteen read as a bobsled canyon: the containment wall
      began thirty metres from the centre line and towered over every frame. */
-  corridor: { half: 26, vary: 8, freq: 0.00118, bowl: 1.2 },
+  corridor: { half: 26, vary: 8, freq: 0.00118, bowl: 3.0 },
 
   /* Between the groomed edge and the containment wall the mountain crosses
      two more kinds of ground, in the order a real valley side offers them:

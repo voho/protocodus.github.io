@@ -853,12 +853,15 @@ function heightIn(ctx, x, coarseDetail = 1, fineDetail = coarseDetail,
     h += corridor.bowl * u * u;
     /* And within the dish, a shallower one centred on the ribbon itself.
        The groomed line is the guide, so the ground agrees: half a metre of
-       gather, faded out before the corridor's edge so it never argues with
-       the profile outside. A drifting rider is handed back to the corduroy
-       by gravity, not by a wall. */
+       gather, pulling a drifting rider back to the corduroy by gravity
+       rather than by a wall. It only has to stop arguing with the profile
+       outside right at the join — fading it over the outer third of the
+       corridor too, the first attempt, switched it off exactly where a
+       drifting rider needs it most and measured as part of the runaway
+       above `corridor.bowl` was fixed for. */
     const gd = Math.min(1, Math.abs(x - ctx.guideX) / 22);
     h += guide.gather * gd * gd
-      * (1 - smoothstep(ctx.half - 10, ctx.half, d));
+      * (1 - smoothstep(ctx.half - 2, ctx.half, d));
   } else {
     h += corridor.bowl;
 
