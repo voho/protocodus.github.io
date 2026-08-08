@@ -351,6 +351,16 @@ export const TERRAIN = {
      resolve out of the storm rather than be visible through it. */
   gateGlow: 0.85,
   gateGlowReach: 230,
+  /* …and what the next one is worth over the three behind it. The course was
+     legible as a course and mute as an instruction: four identical pools of
+     light down the hill say where the run goes and not which of them has to be
+     threaded in the next second and a half. Past about 1.0 the mix inside the
+     mouth saturates, so this is the number at which the leading gate stops
+     being one of a row and becomes a mark on the snow — which is exactly what
+     it should be, because it is the only one the rider can still do anything
+     about. The masts above it are promoted by the same rule; see `BEACON` in
+     `props.js`. */
+  gateLead: 1.7,
 
   /* Outside the corridor: a transition, a lip, and then a wall that cannot
      be climbed.
@@ -1726,8 +1736,23 @@ export const PROPS = {
      Alps actually keeps its forest. Trees far enough out to be unreachable
      no longer carry a collision hull; see `FOREST.solidOut` in props.js. */
   treesPerBand: 58,
-  innerTreesAt: 400,  // metres before trees start appearing on the piste
-  innerTreesMax: 3,
+  /* Where the forest is allowed to begin, measured out from the groomed edge.
+
+     THE PISTE IS EMPTY, and this number is the whole of the rule. A groomed
+     run is a machine-made surface and the machine drives the full width of it,
+     so there is nothing standing on it — not a spruce, not a boulder, nothing
+     — and the two places that used to put something there are gone: a handful
+     of trees planted between the centre line and the corridor edge once the
+     run had warmed up, and a forest whose inner reach started two and a half
+     metres *inside* that edge. Both were difficulty bought with the one thing
+     a piste is supposed to guarantee.
+
+     What replaces them as difficulty is the ground and the verge: the hill's
+     own curvature throws the rider, and everything solid now waits just past
+     the corduroy, which is precisely where a blown turn puts you. A metre and
+     a half is a trunk's own girth clear of the snow the groomer touched, so
+     even the crowns lean over powder rather than over the run. */
+  verge: 1.5,
   /* Slalom gates, and how wide the pair stands.
      It is also the width the scoring is judged against, so the two can never
      drift apart — a gate scored against a different width than it was drawn
@@ -1796,9 +1821,14 @@ export const PROPS = {
     hazardFrom: 360,       // keep the opening stretch generous
     hazardChance: 0.19,    // then about one readable boulder every 200 m
     hazardPadding: 8,      // never crowd a streamed band boundary
-    hazardEdge: 3.2,       // clear snow between the rock and the piste lip
+    /* The band the boulder stands in, measured out from the groomed edge: a
+       margin of clear snow first, then far enough out to be well into the
+       powder shoulder and no further, because past about fifteen metres the
+       deep snow has already refused the rider and a collider out there would
+       only ever fire on somebody the mountain had turned round anyway. */
+    hazardEdge: 3.2,
+    hazardOut: 15,
   },
-  clearLane: 8,       // no hard obstacle closer than this to a centre line
 
   /* THERE IS NOTHING BUILT ON THIS MOUNTAIN. This is where it all was.
 

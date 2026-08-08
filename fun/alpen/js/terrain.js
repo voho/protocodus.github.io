@@ -1082,6 +1082,65 @@ export function heightAt(x, z) {
   return heightIn(rowContext(z, scratch), x);
 }
 
+/* THE SNOW AS IT IS DRAWN, which is not the snow the physics stands on.
+
+   `heightAt` is exact at any coordinate. The mesh is only its linear
+   interpolation across a `TERRAIN.spacing` lattice, and a straight line
+   between two samples of a hollow stands *above* the hollow. Measured over
+   the groomed corridor that gap averages a millimetre and reaches eight
+   centimetres in the sharper compressions — nothing to a rider, and
+   everything to anything printed flat onto the snow, because the board's
+   trail spends a total of two centimetres on clearance. Six per cent of the
+   piste is enough to bury the mark's packed floor and about one per cent
+   buries the berms with it, and a buried mark does not vanish cleanly: the
+   depth test drops whichever fragments the drawn surface happens to be over
+   and keeps the rest, so bright snow tears through the trench in slivers that
+   change with every metre the camera moves. That is the flicker, and it is
+   worst in the air, where the frame lifts, looks down, and hands the whole
+   strip of fresh mark to the bottom of the screen while nothing is redrawing
+   it.
+
+   The quad's diagonal alternates with lattice parity — see the index build in
+   `createTerrain` — so both splits are evaluated and the higher taken. This is
+   therefore an upper bound on the drawn surface whichever way the triangle
+   actually runs, too high by at most the couple of millimetres between the two
+   diagonals, which is the right direction to be wrong in for a clearance.
+
+   Only meaningful within `TERRAIN.uniformNear` of the rider. That is exactly
+   where the mesh samples this function at these corners — the anchor snaps by
+   whole cells, so the near field lands on this world lattice every time — and
+   it is also the only place anything prints itself on the snow. */
+export function drawnHeightAt(x, z) {
+  const s = TERRAIN.spacing;
+  const gx = Math.floor(x / s) * s;
+  const gz = Math.floor(z / s) * s;
+  const fx = (x - gx) / s;
+  const fz = (z - gz) / s;
+  // Two rows, two samples each, and `rowContext` caches on z — so the pair
+  // that shares a row costs one context between them.
+  const near = rowContext(gz, scratch);
+  const h00 = heightIn(near, gx);
+  const h10 = heightIn(near, gx + s);
+  const far = rowContext(gz + s, scratch);
+  const h01 = heightIn(far, gx);
+  const h11 = heightIn(far, gx + s);
+  const a = fx >= fz
+    ? h00 + (h10 - h00) * fx + (h11 - h10) * fz
+    : h00 + (h11 - h01) * fx + (h01 - h00) * fz;
+  const b = fx + fz <= 1
+    ? h00 + (h10 - h00) * fx + (h01 - h00) * fz
+    : h11 + (h01 - h11) * (1 - fx) + (h10 - h11) * (1 - fz);
+  return a > b ? a : b;
+}
+
+/* How far the drawn surface stands over the exact one at a point: the
+   clearance anything lying on the snow has to add to stay out of the mesh.
+   Zero wherever the ground is flat or convex, which is most of the hill. */
+export function meshLiftAt(x, z) {
+  const lift = drawnHeightAt(x, z) - heightAt(x, z);
+  return lift > 0 ? lift : 0;
+}
+
 /* Surface normal by central difference. `fn` is passed in so the rider can
    ask about the hill *plus* whatever kickers are sitting on it, while the
    mesh asks about the bare hill. */
@@ -3060,6 +3119,18 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       gateOrder.push(g);
     }
     gateOrder.sort((a, b) => (riderZ - a.z) - (riderZ - b.z));
+    /* The one still to take, which is not simply the first of the four: the
+       window reaches twelve metres *behind* the rider so a gate does not go
+       out under their feet, and a gate ridden past — through the poles or
+       beside them — is finished either way. Whatever the boost is worth, it
+       has to land on the same pair the masts are flashing, or the ground says
+       one thing and the beacons say another. */
+    let lead = -1;
+    for (let i = 0; i < gateOrder.length; i++) {
+      if (gateOrder[i].taken || gateOrder[i].z > riderZ) continue;
+      lead = i;
+      break;
+    }
     for (let i = 0; i < GATE_SLOTS; i++) {
       const g = gateOrder[i];
       const slot = gateGlow.value[i];
@@ -3067,8 +3138,9 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       /* The far end of the reach fades in rather than switching on, so a gate
          entering the fourth slot does not appear as a disc of light. */
       const near = 1 - Math.max(0, (riderZ - g.z) / TERRAIN.gateGlowReach);
+      const weight = g.taken ? 0.22 : i === lead ? TERRAIN.gateLead : 1;
       slot.set(g.x, g.z, g.half, TERRAIN.gateGlow
-        * (g.taken ? 0.22 : 1) * (0.25 + 0.75 * near * near));
+        * weight * (0.25 + 0.75 * near * near));
       gateTint.value[i].copy(g.warm ? gateWarm : gateCool);
     }
   }

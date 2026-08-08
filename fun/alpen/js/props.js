@@ -79,16 +79,27 @@
    while nothing on this mountain cast a shadow onto anything else.
 
    And the stone now comes in three jobs rather than one. A *hazard* is the
-   single readable boulder on the piste that the rider has to deal with. A
-   *stone* is scenery outside the groomed edge, and it now runs from a cobble
-   to a glacial erratic twenty times its volume — one family, one growth, a
-   squared draw over a factor of twenty, and every one of them bedded against
-   the lowest ground its own footprint covers rather than the height under its
-   middle. A *crag* is the flanks' geology: a stack of tipped slabs standing
-   out of the containment bank, which is the first thing on this mountain to
-   put a hard edge on that skyline. None of the last two has a collider and
-   none of them ever will — they live past the point where the deep snow has
-   already turned the rider around. */
+   single readable boulder standing on the verge that a rider who has left the
+   line has to deal with. A *stone* is scenery further out, and it now runs
+   from a cobble to a glacial erratic twenty times its volume — one family, one
+   growth, a squared draw over a factor of twenty, and every one of them bedded
+   against the lowest ground its own footprint covers rather than the height
+   under its middle. A *crag* is the flanks' geology: a stack of tipped slabs
+   standing out of the containment bank, which is the first thing on this
+   mountain to put a hard edge on that skyline. None of the last two has a
+   collider and none of them ever will — they live past the point where the
+   deep snow has already turned the rider around.
+
+   NOTHING STANDS ON THE GROOMED SNOW. Not a tree, not a rock, nothing but the
+   gates — and that is a rule about what a piste *is* rather than a difficulty
+   setting. A groomer drives the full width of the corridor; anything it would
+   have driven over is not there. Two things used to break it and both are
+   gone: a few trees planted inside the corridor once the run had warmed up,
+   and the boulder hazard, which was authored between the centre line and the
+   piste lip. The forest now starts `PROPS.verge` past the groomed edge and the
+   boulder stands in the powder shoulder just beyond it, which is where a blown
+   turn actually puts a rider — so nothing has stopped being dangerous, it has
+   only stopped being in the middle of the run. */
 
 import {
   heightAt, nearestCenter, corridorHalfAt, centersAt, normalFrom, gateSlotsIn, SNOWPACK,
@@ -424,8 +435,19 @@ const SWAY = `#include <begin_vertex>
    day cycles into dusk and aurora, and a storm takes the far distance long
    before it takes the near. A lamp is the opposite — it is brightest exactly
    when the snow has gone flat and grey, which is when a rider most needs to
-   know where the next gate is. So the pair of them are two beacons on two
-   masts, and the course reads as a line of lights down the hill.
+   know where the next gate is. So the pair of them are two lit masts, and the
+   course reads as a line of lights down the hill.
+
+   The mast is lit along its length rather than only at its head, and that is
+   a fix and not a flourish. A single lens on a two-and-a-half-metre pole is
+   under a pixel by the time it is far enough away to be useful, and there is
+   nothing else to see: in flat light the dark mast has already dissolved into
+   the snow behind it. Three bands up the pole and the lens above them are a
+   vertical dashed line, and a dashed line survives being two pixels wide,
+   because what reads at that size is not the shape but that something on that
+   bearing is brighter than the snow and blinking. The mast under the bands
+   also flies the panel colour now, so a gate says which way it wants to be
+   taken in daylight, when the beacon is the least of what is visible.
 
    The flash is a function of the clock and nothing else, so it costs one
    shader instruction and no per-frame work at all. Its phase comes from the
@@ -438,13 +460,25 @@ const SWAY = `#include <begin_vertex>
    Sharpened with a power rather than left as a sine, because a beacon is
    mostly dark with a snap in it — a sine reads as something slowly breathing.
    The floor keeps the lens visible between flashes: an unlit gate that is
-   invisible for two thirds of a second is worse than no gate at all. */
+   invisible for two thirds of a second is worse than no gate at all.
+
+   AND ONE OF THEM IS THE NEXT ONE, which the line of lights could not say.
+   Eight beacons rippling down the hill in the same colour at the same rate is
+   a course; it is not an instruction, and the gate a rider has to commit to
+   *now* was indistinguishable from the four behind it. `uNextGate` is that
+   gate's z, written once a frame by `setNextGate` — one float for the whole
+   field, because both masts of a pair stand at the same z and are therefore
+   promoted together, whole. What it buys the leader is a faster clock, its
+   own phase rather than a place in the downhill wave, and about twice the
+   output: it steps out of the ripple instead of riding it. */
 const LAMP_DECL = `
-uniform float uAirTime;`;
+uniform float uAirTime;
+uniform float uNextGate;`;
 
 const BEACON = `#include <color_vertex>
 {
   float n64Ph = 0.0;
+  float n64Lead = 0.0;
   #ifdef USE_INSTANCING
     /* z only, exactly as the note above says, and the x term that briefly
        joined it is gone. It was meant to make a gate's two lamps alternate —
@@ -454,10 +488,17 @@ const BEACON = `#include <color_vertex>
        signal. The corridor also wanders in x, so it broke the downhill
        ripple between gates as well. */
     n64Ph = fract(instanceMatrix[3].z * 0.0177) * 6.2832;
+    /* Slots are 150 m apart and a pair shares its z exactly, so any
+       tolerance between a metre and a slot separates the leader cleanly.
+       Four metres of falloff means the promotion arrives over the last
+       fraction of a second before the gate is taken rather than snapping. */
+    n64Lead = 1.0 - smoothstep(1.0, 4.0, abs(instanceMatrix[3].z - uNextGate));
   #endif
-  float n64Flash = pow(max(0.0, sin(uAirTime * 2.4 + n64Ph)), 4.0);
-  #if defined( USE_COLOR )
-    vColor.rgb *= 0.55 + 2.10 * n64Flash;
+  float n64Rate = mix(2.4, 5.0, n64Lead);
+  float n64Flash = pow(
+    max(0.0, sin(uAirTime * n64Rate + n64Ph * (1.0 - n64Lead))), 4.0);
+  #if defined( USE_COLOR ) || defined( USE_INSTANCING_COLOR )
+    vColor.rgb *= (0.55 + 2.10 * n64Flash) * (1.0 + 0.80 * n64Lead);
   #endif
 }`;
 
@@ -1531,11 +1572,11 @@ export function createProps(THREE, shading) {
   // Every material the field makes goes through the shared shading, which is
   // the only reason a tree and the snow it is standing in are lit by the same
   // five bands and dissolve into the same sky. There is no unpatched path out
-  // of these three functions on purpose — a prop that forgot is a prop that
-  // stops belonging to the mountain the moment the light moves.
-  const lit = (color) => shading.apply(
-    new THREE.MeshLambertMaterial({ color, flatShading: false }),
-  );
+  // of these builders on purpose — a prop that forgot is a prop that stops
+  // belonging to the mountain the moment the light moves. (The flat `lit`
+  // helper that used to sit here went with its last caller: the gate mast was
+  // the only surface left on the hill wearing a colour of its own rather than
+  // one carried on the instance.)
   /* The wind's two uniforms, shared by every material that listens to it.
      `setAir` below is the one writer; the integrator calls it once a frame
      with the weather's own wind, and a frame that forgets simply leaves the
@@ -1543,6 +1584,14 @@ export function createProps(THREE, shading) {
   const air = {
     uAirTime: { value: 0 },
     uAirWind: { value: new THREE.Vector2() },
+  };
+
+  /* The beacons' own record: the forest's clock, shared by reference, plus
+     the one thing only they read. Far enough from any gate that nothing is
+     promoted until `setNextGate` has actually found one. */
+  const beacon = {
+    uAirTime: air.uAirTime,
+    uNextGate: { value: -1e9 },
   };
 
   /* The same, plus the one thing a tree needs that nothing else on the
@@ -1661,13 +1710,20 @@ export function createProps(THREE, shading) {
     const m = new THREE.MeshBasicMaterial({ vertexColors: true, fog: true });
     m.toneMapped = false;
     m.onBeforeCompile = (shader) => {
-      Object.assign(shader.uniforms, air);
+      Object.assign(shader.uniforms, beacon);
       shader.vertexShader = shader.vertexShader
         .replace('#include <common>', `#include <common>${LAMP_DECL}`)
         .replace('#include <color_vertex>', BEACON);
     };
     return m;
   };
+
+  /* The mast under it: an ordinary lit surface that takes its colour from the
+     instance, so a gate's two poles fly the panel colour in daylight when the
+     beacon is only a small part of what is visible. */
+  const poleMat = () => shading.apply(
+    new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false }),
+  );
   const castOf = makeCasts(THREE);
 
   // --- the trees ------------------------------------------------------------
@@ -1837,16 +1893,45 @@ export function createProps(THREE, shading) {
   for (const pool of treePools) bindShadowPrefix(pool);
 
   // --- everything else ------------------------------------------------------
-  const poleGeo = new THREE.CylinderGeometry(0.05, 0.05, 2.3, 12);
-  poleGeo.translate(0, 1.15, 0);
-  /* The lens sits on the head of the mast. Two subdivisions of an
-     icosahedron is eighty triangles for a ball that is a dozen pixels across
-     at the distance it is read from — the silhouette has to survive being
-     the only thing visible in a whiteout, and a low-poly one reads as a
-     rotating facet rather than a steady light. */
-  const lampGeo = new THREE.IcosahedronGeometry(0.19, 2);
-  lampGeo.translate(0, 2.4, 0);
-  // Laid down the fall line at construction rather than rotated per instance,
+  /* THE MAST, which now flies the gate's own colour.
+
+     It was a single dark grey for both panels, which meant the one thing on
+     the course carrying a left/right decision said nothing about it until the
+     lens above it happened to be mid-flash. The colour arrives per instance,
+     so the geometry only has to be a white mast for the instance to tint —
+     hence `compose` over a bare cylinder, which is here purely to give the
+     vertex colour attribute the tinted material needs. */
+  const poleGeo = compose(THREE, [{
+    geo: new THREE.CylinderGeometry(0.05, 0.05, 2.3, 12),
+    pos: [0, 1.15, 0],
+    color: '#ffffff',
+  }]);
+
+  /* THE BEACON, and why it is most of the pole rather than a ball on top.
+
+     A lens on the head of the mast is the right shape for a light and the
+     wrong size for the job it has: at a hundred metres — which is where a
+     rider has to *start* setting up for a gate at forty metres a second — a
+     nineteen-centimetre ball is under a pixel, and in flat light or a storm
+     the dark mast under it has already gone. So the mast wears three lit
+     bands as well, and the four of them together are a vertical dashed line
+     rather than a dot. A dashed line survives being two pixels wide, because
+     what reads at that size is not the shape, it is that something on that
+     bearing is brighter than the snow and blinking.
+
+     They are one geometry and one draw call with the lens, they share its
+     unlit fogged material, and they cast nothing — see `noShadow` below. Two
+     subdivisions on the lens is eighty triangles for the one part of this
+     that is ever seen close up; a low-poly one reads as a rotating facet
+     rather than as a steady light. */
+  const bandGeo = new THREE.CylinderGeometry(0.085, 0.085, 0.30, 12);
+  const lampGeo = compose(THREE, [
+    { geo: new THREE.IcosahedronGeometry(0.19, 2), pos: [0, 2.4, 0], color: '#ffffff' },
+    { geo: bandGeo, pos: [0, 1.90, 0], color: '#ffffff' },
+    { geo: bandGeo, pos: [0, 1.25, 0], color: '#ffffff' },
+    { geo: bandGeo, pos: [0, 0.60, 0], color: '#ffffff' },
+  ]);
+  bandGeo.dispose();
 
   /* Five instanced calls make the ecology: one whole plant patch, two winter
      shrubs and two stone families. Shapes, snow masks and colours are baked
@@ -1917,13 +2002,14 @@ export function createProps(THREE, shading) {
     bindShadowPrefix(p);
   }
 
-  const poles = new Pool(THREE, poleGeo, lit('#2a2f38'), bands * 2 + 16);
+  const poles = new Pool(THREE, poleGeo, poleMat(), bands * 2 + 16, true);
   const lamps = new Pool(THREE, lampGeo, lampMat(), poles.capacity, true);
   // A self-luminous lens must not also be an opaque ball in the depth pass:
   // two dark spheres hanging over every gate is what a beacon that casts
   // looks like. `shadowCasting` in main.js reads this flag by name.
   lamps.mesh.userData.noShadow = true;
   lamps.mesh.name = 'gate-lamps';
+  poles.mesh.name = 'gate-poles';
 
   /* Two calls for all of the Swiss-specific infrastructure in the active
      window: one fence geometry and one marker geometry, sharing one material
@@ -1966,6 +2052,7 @@ export function createProps(THREE, shading) {
 
   // --- band generation -----------------------------------------------------
   const tint = new THREE.Color();
+  const mastTint = new THREE.Color();
   const gateA = new THREE.Color('#00d4ff');
   const gateB = new THREE.Color('#ffab00');
   /* The four tree tints that used to sit here are gone. They were multipliers
@@ -2148,12 +2235,20 @@ export function createProps(THREE, shading) {
 
     /* --- readable rock hazard -------------------------------------------
 
-       The centre remains a guaranteed route. At most one band in any
-       adjacent pair may own a boulder, its silhouette is visible from the
-       uphill approach, and its finite top lets an airborne rider clear it.
-       The candidate is authored before trees so their existing random stream
-       can stay byte-for-byte unchanged while placements too close to the rock
-       are simply refused. */
+       At most one band in any adjacent pair may own a boulder, its silhouette
+       is visible from the uphill approach, and its finite top lets an airborne
+       rider clear it. The candidate is authored before trees so their existing
+       random stream can stay byte-for-byte unchanged while placements too
+       close to the rock are simply refused.
+
+       IT STANDS ON THE VERGE NOW, not on the corduroy. It used to be placed
+       inside the corridor — a lane clear of the centre line, but on the
+       groomed snow — and a groomed piste with a boulder parked on it is not a
+       piste, it is a slalom course somebody left a rock on. Out here it is the
+       thing it always was for a rider who has drifted off the line: the
+       shoulder is exactly where a blown turn puts you, so a rock on it still
+       has to be read and still has to be avoided, and the run down the middle
+       is now genuinely clean. */
     const bandHazards = [];
     const hazardRoll = hash2(b, 3400, 227);
     const previousRoll = hash2(b - 1, 3400, 227);
@@ -2179,8 +2274,12 @@ export function createProps(THREE, shading) {
         const sz = s * lerp(0.88, 1.12, hash2(b, 3408, 227));
         const half = corridorHalfAt(z);
         const rough = boulderTransform(v, 0, sx, sy, sz);
-        const minOff = PROPS.clearLane + 2 + rough.r;
-        const maxOff = half - BIOMES.hazardEdge - rough.r;
+        /* Clear of the corduroy by its own radius plus the margin, and no
+           further out than the powder band the rider can still reach — past
+           that the deep snow has already turned them round and the rock would
+           only ever be scenery with a collider on it. */
+        const minOff = half + BIOMES.hazardEdge + rough.r;
+        const maxOff = half + BIOMES.hazardOut - rough.r;
 
         if (maxOff >= minOff) {
           const off = lerp(minOff, maxOff, hash2(b, 3409, 227));
@@ -2228,8 +2327,16 @@ export function createProps(THREE, shading) {
            up there read as trees hanging in the sky. A flat draw spreads
            them evenly instead, so the shoulder — now much wider, with a
            whole powder and rock band before the wall even begins — gets
-           forest all the way across it rather than a clump at one end. */
-        x = c + side * (half - 2.5 + rnd() * 132);
+           forest all the way across it rather than a clump at one end.
+
+           It starts at `PROPS.verge` *past* the groomed edge and not two and
+           a half metres inside it. The old inward reach was there to stop the
+           treeline reading as a ruled line, and what it actually did was
+           stand the odd spruce in the corduroy — see the note at the head of
+           `place`. The edge is broken by the stand field above and by the
+           corridor's own breathing width, both of which move with the hill
+           rather than across the piste. */
+        x = c + side * (half + PROPS.verge + rnd() * 132);
       }
       /* Whether anything grows here at all. The stand field is sampled at
          the tree's own position, so a clearing has an edge that runs across
@@ -2274,30 +2381,6 @@ export function createProps(THREE, shading) {
       if (Math.abs(x - nearestCenter(x, z)) < half + FOREST.solidOut) {
         solids.push({ x, z, r: radius, kind: HARD, top: 99 });
       }
-    }
-
-    // --- trees on the piste, once the run has warmed up --------------------
-    const innerCount = Math.min(
-      PROPS.innerTreesMax,
-      Math.floor((travelled - PROPS.innerTreesAt) / 700) + 1,
-    );
-    for (let i = 0; i < innerCount; i++) {
-      if (rnd() > 0.72) continue;
-      const z = z0 + rnd() * band;
-      const half = corridorHalfAt(z);
-      const side = rnd() < 0.5 ? -1 : 1;
-      const off = PROPS.clearLane + rnd() * Math.max(1, half - PROPS.clearLane - 2);
-      const x = nearestCenter(0, z) + side * off;
-      const y = heightAt(x, z);
-      const s = (0.6 + rnd() * 0.4) * lineScale;
-      const v = (rnd() * treePools.length) | 0;
-      const yaw = rnd() * TAU;
-      const normal = treeLean(x, z, y, rnd);
-      const colour = castOf(treeBare[v], v, rnd(), tint);
-      const radius = 0.5 + s * 0.45;
-      if (!clearOfBandHazards(x, z, radius, bandHazards, 2.0)) continue;
-      treePools[v].addOnSlope(x, y, z, yaw, s, s, s, normal, colour);
-      solids.push({ x, z, r: radius, kind: HARD, top: 99 });
     }
 
     /* --- continuous vegetation biomes -----------------------------------
@@ -2355,8 +2438,8 @@ export function createProps(THREE, shading) {
       );
     }
 
-    /* Scenic talus lives outside the groomed edge and has no collider. Large
-       piste boulders above are the only rocks that ask the rider to react.
+    /* Scenic talus lives well outside the groomed edge and has no collider.
+       The verge boulder above is the only rock that asks the rider to react.
 
        A SINGLE STONE, IN EVERY SIZE FROM PEBBLE TO ERRATIC. The old range was
        0.58 to 1.52, which is a factor of two and a half — near enough one
@@ -2510,10 +2593,15 @@ export function createProps(THREE, shading) {
     for (const slot of gateSlotsIn(z0, z0 + band, gateSlots)) {
       // Alternating panels, the way a set course actually reads.
       const colour = slot.k % 2 === 0 ? gateA : gateB;
+      /* The mast is the same panel colour taken well down towards the dark
+         grey it used to be. It has to read as a coloured pole against snow in
+         full sun without competing with the beacon it is carrying, and a mast
+         at the lens's own value is a stick of neon in daylight. */
+      mastTint.copy(colour).multiplyScalar(0.42).addScalar(0.10);
       for (const side of [-1, 1]) {
         const x = slot.x + side * PROPS.gateHalf;
         const y = heightAt(x, slot.z);
-        poles.add(x, y, slot.z, 0, 1, 1, 1);
+        poles.add(x, y, slot.z, 0, 1, 1, 1, mastTint);
         lamps.add(x, y, slot.z, 0, 1, 1, 1, tint.copy(colour));
       }
       /* `half` travels with the gate because the caller has to know how wide
@@ -2603,6 +2691,28 @@ export function createProps(THREE, shading) {
     air.uAirWind.value.set(windX, windZ);
   }
 
+  /* Which pair the run is pointed at, handed to the beacons as a single z.
+
+     Downhill is negative, so the gate to take is the *largest* z still below
+     the rider among the ones that are neither crossed nor missed — both of
+     which `main.js` marks `taken`, because a gate you rode past is finished
+     whichever side of the poles you were on.
+
+     It is a scan and not a cached index because the list is rebuilt at every
+     band boundary and the rider can be put back onto the hill at a checkpoint
+     between two of them. The list is the streamed window, gates are a hundred
+     and fifty metres apart, and the window is under a kilometre: this walks
+     about five entries. */
+  function setNextGate(riderZ) {
+    let lead = -1e9;
+    for (let i = 0; i < gates.length; i++) {
+      const g = gates[i];
+      if (g.taken || g.z > riderZ || g.z <= lead) continue;
+      lead = g.z;
+    }
+    beacon.uNextGate.value = lead;
+  }
+
   function debugBiomes() {
     const hazards = [];
     for (let i = 0; i < solids.length; i++) {
@@ -2625,6 +2735,6 @@ export function createProps(THREE, shading) {
   }
 
   return {
-    group, update, setAir, solids, gates, debugBiomes,
+    group, update, setAir, setNextGate, solids, gates, debugBiomes,
   };
 }

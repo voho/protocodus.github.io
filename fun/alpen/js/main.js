@@ -1246,8 +1246,11 @@ function frame(now) {
        what draws it — so this hands the terrain the nearest few and nothing
        else. It runs here, with the rest of the world's per-frame state,
        because the prop field's gate list is only rebuilt at band boundaries
-       and the *choice* of which four are lit has to follow the rider. */
+       and the *choice* of which four are lit has to follow the rider. The
+       beacons on the masts need the same answer for the same reason, and take
+       it as the one gate the run is actually pointed at. */
     terrain.setGates(props.gates, rider.pos.z);
+    props.setNextGate(rider.pos.z);
 
     /* Everything below this line is drawing, so it reads the interpolated
        rider. Everything above — collisions, wildlife, scoring, the huts —
