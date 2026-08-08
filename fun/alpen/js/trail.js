@@ -24,8 +24,8 @@
    through the draw range; and the age fade is one clock uniform against
    per-vertex birth stamps instead of a re-streamed buffer. */
 
-import { TERRAIN, TRAIL } from './config.js';
-import { heightAt, meshLiftAt } from './terrain.js';
+import { TRAIL } from './config.js';
+import { heightAt, drawnHeightAt } from './terrain.js';
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const mix = (a, b, t) => a + (b - a) * t;
@@ -621,37 +621,6 @@ export function createTrail(THREE, shading) {
     return clamp(profile, -TRAIL.lift + 0.003, 0.105);
   }
 
-  /* How far this section has to rise to sit on the snow that is *drawn*.
-
-     Every height in this file is `heightAt`, which is the surface the board
-     collides with; the surface the eye sees is the terrain's lattice
-     interpolation of it, and over a hollow that stands as much as eight
-     centimetres higher. The mark's whole clearance budget is two, so on the
-     concave few per cent of the piste the trench was being cut underneath the
-     picture of the ground and the depth test then tore bright snow through it
-     in slivers. `meshLiftAt` is that difference; adding it to the section
-     puts the mark back on top of the ground the player is looking at, and it
-     is zero on the flat and convex ground that is most of the mountain.
-
-     One sample at the contact point covers a carve, which is narrower than a
-     single lattice cell. A full sideslip is three cells wide and the cell
-     under one edge of it knows nothing about the cell under the other, so
-     that case pays for two more and takes the worst — a section is lifted
-     rigidly, never bent, because bending it would be inventing relief the
-     snow does not have. */
-  const CELL = TERRAIN.spacing;
-  function sectionMeshLift(cx, cz, carrierHalf) {
-    let lift = meshLiftAt(cx, cz);
-    if (carrierHalf > CELL * 0.5) {
-      const ex = sectionLat.x * carrierHalf;
-      const ez = sectionLat.z * carrierHalf;
-      lift = Math.max(lift,
-        meshLiftAt(cx + ex, cz + ez),
-        meshLiftAt(cx - ex, cz - ez));
-    }
-    return lift;
-  }
-
   /* Write all twenty-five terrain-conforming lanes of one sample. `contactShift`
      moves the board centre away from the buried-edge pivot during a carve,
      putting the dominant groove exactly on rider.pos. */
@@ -662,10 +631,6 @@ export function createTrail(THREE, shading) {
     const cy = y + sectionLat.y * state.contactShift;
     const cz = z + sectionLat.z * state.contactShift;
     baseNormal.set(state.normalX, state.normalY, state.normalZ).normalize();
-    /* Vertical, not along the normal: the gap it is closing is the difference
-       between two heights sampled at the same coordinate, so it is a rise and
-       not a clearance measured off the slope. */
-    const meshLift = sectionMeshLift(cx, cz, carrierHalf);
 
     const leftWalk = edgeWalkL[slot];
     const rightWalk = edgeWalkR[slot];
@@ -685,7 +650,31 @@ export function createTrail(THREE, shading) {
       const planeY = cy + sectionLat.y * d;
       const pz = cz + sectionLat.z * d;
       const groundY = heightAt(px, pz);
-      const surfaceY = Math.max(planeY, groundY) + meshLift;
+      /* THE MARK LIES ON THE SNOW THAT IS DRAWN, not on the snow the board
+         collides with, and they are not the same surface. `heightAt` is exact;
+         the mesh is its linear interpolation over a 75 cm lattice, and a
+         straight line across a hollow stands above the hollow — as much as
+         eight centimetres of it, against a trail whose entire clearance budget
+         is two. Where that happened the trench was cut underneath the picture
+         of the ground, and a buried mark does not vanish cleanly: the depth
+         test drops whichever fragments the drawn snow covers and keeps the
+         rest, so bright snow tears through it in slivers that change with the
+         camera.
+
+         Per lane rather than per section, and that is the cheap way round as
+         well as the correct one. The alternative — one lift for the whole
+         cross-section — has to be an upper bound over every lane to be safe,
+         and no small number of probes can bound a field whose peaks sit inside
+         cells nothing sampled. Asking each lane about its own point is exact,
+         and `drawnHeightAt` keeps the last cell's four corners: the lanes are
+         a line shorter than three cells walked in order, so twenty-five
+         queries cost two or three cells' worth of height samples.
+
+         `max` and not a replacement, because over a convex bump the
+         interpolation runs *below* the true surface — there the collision
+         ground is still the higher of the two and still what the mark should
+         sit on. */
+      const surfaceY = Math.max(planeY, groundY, drawnHeightAt(px, pz));
       const organic = clamp(pressure * (1 - a * 0.32) + sideWalk * a, -1, 1);
       const relief = reliefAt(s, state.wash, state.bite, state.brake,
         state.bias, state.load, state.chatter, organic);

@@ -2713,6 +2713,23 @@ export function createProps(THREE, shading) {
     beacon.uNextGate.value = lead;
   }
 
+  /* Everything downhill of a point is an unridden course again.
+
+     A restart resumes from the last gate taken, which is uphill of every gate
+     the rider had reached by the time they asked for it — and those gates
+     carry a `taken` that outlives the reset, because the key set exists
+     precisely so a band rebuild cannot forget one. Left standing, the replay
+     would ride past its own first few gates scoring nothing while both lead
+     indicators pointed at a gate two hundred metres further on. Downhill is
+     negative, so "below" is a smaller z; the gate the checkpoint *is* sits
+     above the resume point and keeps its state. */
+  function reopenGatesBelow(z) {
+    for (const key of takenGates) if (key < z) takenGates.delete(key);
+    for (let i = 0; i < gates.length; i++) {
+      if (gates[i].z < z) gates[i].taken = false;
+    }
+  }
+
   function debugBiomes() {
     const hazards = [];
     for (let i = 0; i < solids.length; i++) {
@@ -2735,6 +2752,7 @@ export function createProps(THREE, shading) {
   }
 
   return {
-    group, update, setAir, setNextGate, solids, gates, debugBiomes,
+    group, update, setAir, setNextGate, reopenGatesBelow,
+    solids, gates, debugBiomes,
   };
 }

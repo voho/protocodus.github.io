@@ -504,6 +504,12 @@ function restart() {
   heli.reset();
   huts.reset();
   hud.resetScore();
+  /* The course below the checkpoint is unridden again. Without this the gates
+     the rider had already reached — taken, or missed, which counts the same —
+     stayed marked, so the replay scored nothing for them, their light on the
+     snow stayed at the dimmed ember, and both lead indicators pointed past the
+     gate directly ahead at one further down the hill. */
+  props.reopenGatesBelow(rider.pos.z);
   props.update(rider.pos.z);
   terrain.update(rider.pos.x, rider.pos.z);
 }
