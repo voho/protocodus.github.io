@@ -670,7 +670,6 @@ function scoreLanding(s) {
   if (s.verdict === CLEAN) {
     game.combo = Math.min(SCORE.comboMax, game.combo + SCORE.comboStep);
     audio.combo(game.combo);
-    if (pts > 1000) audio.announce('Stomped it');
   } else {
     audio.thud();
   }
@@ -724,8 +723,6 @@ rider.on('fall', (cause, into = 0) => {
   spray.burst(rider.pos, backX * push, backZ * push,
     Math.round(34 + severity * 58), plume);
   hud.banner('WIPEOUT', 0, 'bad');
-  
-  if (severity > 0.5) audio.announce('Wipeout');
 });
 
 rider.on('impact', (v) => {
@@ -817,7 +814,6 @@ function stepFlow() {
   }
   if (game.flow >= 0.99 && !game.flowMaxAnnounced) {
     game.flowMaxAnnounced = true;
-    audio.announce('Superb');
     award(500 * game.combo, 'MAX FLOW', 'near');
   } else if (game.flow < 0.5) {
     game.flowMaxAnnounced = false;   // armed again once it has genuinely dropped
@@ -1230,7 +1226,6 @@ function frame(now) {
         game.maxSpeedAnnounced = 100;
         award(SCORE.comboStep * 200 * game.combo, '100 KM/H CLUB!', 'near');
         audio.combo(game.combo);
-        audio.announce('Maximum speed');
       }
       
       const dist = Math.floor(-rider.pos.z);

@@ -68,9 +68,6 @@ export function createAudio() {
   let parked = false;
   let parkTimer = 0;
   let ambienceAt = 0;
-  let announcedAt = -Infinity;
-  // Utterances the speech engine has not finished with — see `announce`.
-  const liveUtterances = [];
 
   try {
     muted = localStorage.getItem('alpen.muted') === '1';
@@ -292,9 +289,6 @@ export function createAudio() {
         if (ctx) master.gain.setTargetAtTime(muted ? 0 : 0.55, ctx.currentTime, 0.02);
         else master.gain.value = muted ? 0 : 0.55;
       }
-      // The voice line is outside the AudioContext graph entirely, so the
-      // master gain cannot touch it — an in-flight callout has to be cut.
-      if (muted && window.speechSynthesis) window.speechSynthesis.cancel();
       try { localStorage.setItem('alpen.muted', muted ? '1' : '0'); } catch { /* ignore */ }
       return muted;
     },
@@ -456,41 +450,6 @@ export function createAudio() {
           ctx.suspend().catch(() => { /* muted is silent enough */ });
         }
       }, 350);
-      // The voice is not in the context graph, so parking the context does
-      // not park it — without this the callout kept talking over the pause.
-      if (window.speechSynthesis) window.speechSynthesis.cancel();
-    },
-
-    announce(text) {
-      if (!started || muted || parked || !window.speechSynthesis) return;
-      /* One voice, never interrupted, never queued deep.
-
-         The old shape was `cancel()` immediately followed by `speak()`,
-         which truncated whatever was still being said — land a big trick
-         and eat it two seconds later and the ear got "Stom—" — and is also
-         the long-standing Chrome sequence that can wedge the speech engine
-         silent for the rest of the page. A callout still in flight now
-         simply keeps the floor: these are flavour lines, and a flavour line
-         that arrives late is worse than one that does not arrive. The
-         throttle keeps a hot run from turning the announcer into a
-         commentary track. */
-      const ms = performance.now();
-      if (ms - announcedAt < 2500) return;
-      if (window.speechSynthesis.speaking || window.speechSynthesis.pending) return;
-      announcedAt = ms;
-      const u = new SpeechSynthesisUtterance(text);
-      u.rate = 0.85;
-      u.pitch = 0.6;
-      // Chrome garbage-collects an unreferenced utterance mid-word; hold it
-      // until the engine says it is finished with it.
-      liveUtterances.push(u);
-      const release = () => {
-        const at = liveUtterances.indexOf(u);
-        if (at >= 0) liveUtterances.splice(at, 1);
-      };
-      u.onend = release;
-      u.onerror = release;
-      window.speechSynthesis.speak(u);
     },
   };
 }
