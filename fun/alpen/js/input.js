@@ -55,12 +55,22 @@ const PULSE_NONE = 0;
 const PULSE_PRESS = 1;
 const PULSE_RELEASE = 2;
 
+/* Where a stick starts being a steering input. Real thumbsticks rest off
+   centre — a worn one sits at 0.15 all day — so the zone is generous, and
+   what leaves it is rescaled to start from zero rather than stepping
+   straight to the zone's edge. */
+const GP_DEADZONE = 0.18;
+
 export function createInput(target, hooks = {}) {
   const down = new Set();
   let jumpPressedSinceUpdate = false;
   let jumpTapPending = false;
   let jumpPulse = PULSE_NONE;
   let jumpPulseSeen = false;
+  // Gamepad edge state — see the pad block in `update`.
+  let gamepadSuppressed = false;
+  let gpJumpHeld = false;
+  let gpJumpFrames = 0;
   const state = {
     turn: 0, tuck: false, brake: false, jump: false,
     trickGrab: false, trickFlip: false,
@@ -118,27 +128,71 @@ export function createInput(target, hooks = {}) {
   });
 
   function update(dt) {
+    /* The pad, folded in beside the keys rather than over them.
+
+       Reading it is necessarily a poll — the Gamepad API has no stick
+       events — and the fold used to be a straight override: any non-zero
+       stick beat the keyboard, so a controller with ordinary rest drift
+       plugged in anywhere on the machine permanently killed A and D with
+       nothing on screen to say why. Axes now pass a real dead zone and are
+       rescaled from its edge, several pads OR together instead of the last
+       in the array silencing the rest, and steering takes whichever of pad
+       and keys is asking harder. */
     let gpTurn = 0, gpTuck = false, gpBrake = false, gpJump = false, gpGrab = false, gpFlip = false;
     if (hasGamepads) {
       const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
       for (let i = 0; i < gamepads.length; i++) {
         const gp = gamepads[i];
-      if (!gp) continue;
-      
-      if (Math.abs(gp.axes[0]) > 0.1) gpTurn = gp.axes[0]; // Left stick X
-      if (gp.buttons[7] && gp.buttons[7].pressed) gpTuck = true; // RT
-      if (gp.buttons[6] && gp.buttons[6].pressed) gpBrake = true; // LT
-      if (gp.buttons[0] && gp.buttons[0].pressed) gpJump = true; // A button
-      if (gp.buttons[2] && gp.buttons[2].pressed) gpGrab = true; // X button
-      if (gp.buttons[3] && gp.buttons[3].pressed) gpFlip = true; // Y button
-      if (gp.buttons[14] && gp.buttons[14].pressed) gpTurn = -1; // D-pad Left
-      if (gp.buttons[15] && gp.buttons[15].pressed) gpTurn = 1; // D-pad Right
-      if (gp.buttons[12] && gp.buttons[12].pressed) gpTuck = true; // D-pad Up
-      if (gp.buttons[13] && gp.buttons[13].pressed) gpBrake = true; // D-pad Down
+        if (!gp) continue;
+        const raw = gp.axes[0] || 0;   // left stick X
+        const mag = Math.abs(raw);
+        if (mag > GP_DEADZONE) {
+          const scaled = Math.sign(raw)
+            * Math.min(1, (mag - GP_DEADZONE) / (1 - GP_DEADZONE));
+          if (Math.abs(scaled) > Math.abs(gpTurn)) gpTurn = scaled;
+        }
+        // The d-pad is a pair, not two overrides: right used to silently win
+        // over a held left, and either over a stick deflected the other way.
+        const dpad = (gp.buttons[15]?.pressed ? 1 : 0) - (gp.buttons[14]?.pressed ? 1 : 0);
+        if (Math.abs(dpad) > Math.abs(gpTurn)) gpTurn = dpad;
+        gpTuck = gpTuck || !!gp.buttons[7]?.pressed || !!gp.buttons[12]?.pressed;   // RT · d-up
+        gpBrake = gpBrake || !!gp.buttons[6]?.pressed || !!gp.buttons[13]?.pressed; // LT · d-down
+        gpJump = gpJump || !!gp.buttons[0]?.pressed;   // A
+        gpGrab = gpGrab || !!gp.buttons[2]?.pressed;   // X
+        gpFlip = gpFlip || !!gp.buttons[3]?.pressed;   // Y
       }
+
+      /* `clear()` cannot reach inside a controller the way it empties the
+         key set — the poll would simply re-assert every held button on the
+         next frame, exactly the failure `clear` exists to prevent. So a
+         cleared pad is ignored until every one of its controls has passed
+         through neutral once. */
+      if (gamepadSuppressed) {
+        if (gpTurn === 0 && !gpTuck && !gpBrake && !gpJump && !gpGrab && !gpFlip) {
+          gamepadSuppressed = false;
+        } else {
+          gpTurn = 0;
+          gpTuck = gpBrake = gpJump = gpGrab = gpFlip = false;
+        }
+      }
+
+      /* A pad tap has no key events to latch, so its edges are found here at
+         poll time. A press two frames short or less may have straddled only
+         frames that ran zero physics steps — the same lost-ollie failure the
+         keyboard latch fixes — so its release replays the press through the
+         same pulse machine. Longer holds have certainly been seen; their
+         release is a level change the next step cannot miss. */
+      if (gpJump && !gpJumpHeld) {
+        state.anyPressed = true;
+        gpJumpFrames = 0;
+      }
+      if (gpJump) gpJumpFrames += 1;
+      if (!gpJump && gpJumpHeld && gpJumpFrames <= 2) jumpTapPending = true;
+      gpJumpHeld = gpJump;
     }
 
-    const want = gpTurn !== 0 ? gpTurn : ((held('right') ? 1 : 0) - (held('left') ? 1 : 0));
+    const keyTurn = (held('right') ? 1 : 0) - (held('left') ? 1 : 0);
+    const want = Math.abs(gpTurn) > Math.abs(keyTurn) ? gpTurn : keyTurn;
     const rate = want === 0 ? RELEASE : RAMP;
     state.turn += (want - state.turn) * (1 - Math.exp(-rate * dt));
     if (Math.abs(state.turn) < 0.004) state.turn = 0;
@@ -257,6 +311,10 @@ export function createInput(target, hooks = {}) {
   function clear() {
     down.clear();
     for (const k of Object.keys(touch)) touch[k] = false;
+    // The pad cannot be emptied, only distrusted — see the poll in `update`.
+    gamepadSuppressed = true;
+    gpJumpHeld = false;
+    gpJumpFrames = 0;
     calm();
   }
 

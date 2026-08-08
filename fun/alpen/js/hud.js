@@ -406,8 +406,13 @@ export function createHud(root) {
   function drawBitmapMenu(g, isPaused) {
     ctx.clearRect(0, 0, W, H);
 
-    // Dark backdrop overlay
-    ctx.fillStyle = 'rgba(9, 15, 26, 0.90)';
+    /* Dark backdrop overlay — dark enough to carry the type, light enough
+       that the mountain stays visible through it. At the old 0.90 the
+       attract run behind the title was effectively blacked out, which
+       defeats the entire point of an attract mode: the demo rider exists to
+       be seen carving behind the invitation. Every glyph carries its own
+       ink outline, so legibility does not lean on the wash. */
+    ctx.fillStyle = 'rgba(9, 15, 26, 0.62)';
     ctx.fillRect(0, 0, W, H);
 
     // Outer pixel frame

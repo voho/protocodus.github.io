@@ -955,7 +955,13 @@ export const TERRAIN = {
     directions: 32,
     azimuth: [0.25, 2.05],
     tileSamples: 32,
-    tileGrid: 7, // Increased from 5 to push shadow edge further into fog
+    /* 5, and briefly 7 "to push the shadow edge further into fog" — which it
+       cannot do: the visible shadow reach is `shade.half` faded in the
+       shader, and the torus page only has to exceed twice that, which five
+       tiles already does with headroom. What the 7 actually bought was a
+       doubled atlas (3.3 → 6.5 MB re-uploaded on every batch install) and a
+       near-doubled synchronous horizon march on boot. */
+    tileGrid: 5,
     directionGrid: [8, 4],
     angularSoftness: 0.018,
   },

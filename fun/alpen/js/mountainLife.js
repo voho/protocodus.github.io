@@ -373,8 +373,9 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
         npc.mesh.rotation.set(0, Math.atan2(npc.vx, npc.vz) + Math.PI,
           Math.sin(npc.sPhase) * 0.12);
 
-        // A little carve spray off their turns.
-        if (spray && Math.random() < 0.25) {
+        // A little carve spray off their turns — as a rate per second, not
+        // per frame, or a 120 Hz display threw twice the snow a 60 Hz one did.
+        if (spray && Math.random() < 15 * dt) {
           spray.burst(npc.mesh.position, -npc.vx * 0.2, -npc.vz * 0.2, 3, 0.5);
         }
 
@@ -384,8 +385,12 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
         if (dx * dx + dz * dz < 2.5 && Math.abs(dy) < 2.2) {
           // Both go down. The rider's own 'fall' event carries the crash
           // sound, camera kick and powder curtain; only the NPC's half of
-          // the collision is staged here.
-          if (rider.state !== 'fall') {
+          // the collision is staged here. The grace window is the same one
+          // every other hazard honours — the NPCs ski the guide line and a
+          // checkpoint restart stands the rider on it, so without the
+          // grace a respawn inside someone's skis felled the rider again
+          // on the spot, repeatedly.
+          if (rider.state !== 'fall' && rider.grace <= 0) {
             rider.fall('npc', 15.0);
           }
           npc.tumbled = true;

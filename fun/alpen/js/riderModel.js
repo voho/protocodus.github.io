@@ -109,6 +109,7 @@
 
 import { compose } from './geom.js';
 import { RIDER } from './config.js';
+import { GRAB_NOSE, GRAB_METHOD } from './rider.js';
 import { createHeadlamp } from './headlamp.js';
 
 /* The rider is the only saturated thing in the frame, and that is the job.
@@ -1522,15 +1523,22 @@ export function createRiderModel(THREE, shading) {
     up.copy(rider.normal);
     if (!rider.grounded) up.lerp(UP, Math.min(1, rider.airTime * 2.5)).normalize();
     q.setFromUnitVectors(UP, up);
+    /* Body english for the two shaped grabs, continuous in `grab` — the old
+       `grab > 0.05` gate added nothing but a one-frame snap at the crossing,
+       since the terms already scale by `grab` and `grab` already carries the
+       airborne fade. The magnitudes are deliberately modest: this rotates
+       the *whole rig* about the contact patch, and the deck's own per-grab
+       tilt (`G.tweak`, below) is still the star of the pose — at the old
+       fifty-two degrees of rig roll a method buried the far edge, the tail
+       and the rear boot in the snow whenever the grab was held to
+       touchdown. */
     let tweakPitch = 0;
     let tweakRoll = 0;
-    if (grab > 0.05) {
-      if (rider.grabKind === 2) { // METHOD
-        tweakRoll = 0.9 * grab;
-        tweakPitch = 0.4 * grab;
-      } else if (rider.grabKind === 1) { // NOSE
-        tweakPitch = -0.7 * grab;
-      }
+    if (rider.grabKind === GRAB_METHOD) {
+      tweakRoll = 0.3 * grab;
+      tweakPitch = 0.15 * grab;
+    } else if (rider.grabKind === GRAB_NOSE) {
+      tweakPitch = -0.3 * grab;
     }
 
     // Negative, and this is the fix rather than a convention: the physics

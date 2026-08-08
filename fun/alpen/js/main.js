@@ -70,14 +70,26 @@ const BEST_KEY = 'alpen.best';
    still get a mountain. */
 const rawBoot = window.__alpenBoot || { step() {}, giveUp() {} };
 let bootGameRef = null;
+/* The canvas title card mirrors the four stages onto the game object, and
+   the mirror only ever moves forwards. The DOM read-out gets that for free
+   from its `done` map; this one did not, and the stages genuinely finish out
+   of order — the snow plates race a six-second timeout while the shader
+   stage closes on the first frame, so on any slow network 'snow' lands
+   *after* 'shaders' and used to drag the title card from READY back to a
+   loading bar stuck at 85% for the rest of the session. */
+const BOOT_STAGES = {
+  engine: { at: 0.42, label: 'FETCHING ENGINE' },
+  mountain: { at: 0.72, label: 'MARCHING HORIZON' },
+  snow: { at: 0.85, label: 'DECODING SNOW' },
+  shaders: { at: 1.0, label: 'READY' },
+};
 const boot = {
   step(id) {
     if (rawBoot && rawBoot.step) rawBoot.step(id);
-    if (bootGameRef) {
-      if (id === 'engine') { bootGameRef.loadingProgress = 0.42; bootGameRef.loadingLabel = 'FETCHING ENGINE'; }
-      else if (id === 'mountain') { bootGameRef.loadingProgress = 0.72; bootGameRef.loadingLabel = 'MARCHING HORIZON'; }
-      else if (id === 'snow') { bootGameRef.loadingProgress = 0.85; bootGameRef.loadingLabel = 'DECODING SNOW'; }
-      else if (id === 'shaders') { bootGameRef.loadingProgress = 1.0; bootGameRef.loadingLabel = 'READY'; }
+    const stage = BOOT_STAGES[id];
+    if (bootGameRef && stage && stage.at > bootGameRef.loadingProgress) {
+      bootGameRef.loadingProgress = stage.at;
+      bootGameRef.loadingLabel = stage.label;
     }
   },
   giveUp() { if (rawBoot && rawBoot.giveUp) rawBoot.giveUp(); }
@@ -374,6 +386,7 @@ if (window.matchMedia('(hover: none)').matches || 'ontouchstart' in window) {
 }
 
 const demo = { t: 0, turn: 0, stall: 0 };
+let sparkCarry = 0;   // fractional overdrive sparks owed — see the emit below
 const prev = new THREE.Vector3();
 const wind = new THREE.Vector3();
 const riderScreen = new THREE.Vector3();
@@ -408,20 +421,18 @@ function showMuted(value) {
   if (touchMute) touchMute.setAttribute('aria-pressed', String(!!value));
 }
 
-/* THE DROP-IN WAITS FOR THE MOUNTAIN, and it is queued rather than ignored.
+/* THE DROP-IN WAITS FOR THE MOUNTAIN, and waits all the way.
 
-   Hiding the invitation is not the same as refusing it. Every listener that
-   can call this is live from the moment the module evaluates, which is now
-   three frames and a whole mountain build before the game can actually show
-   anything — so a key press or a tap during the horizon march used to take
-   the curtain away and leave the player looking at a canvas that is still
-   deliberately hidden, with the progress bar they were watching gone with it.
-
-   Refusing the press outright would be worse than either: somebody who taps a
-   title card and gets nothing taps it again, and the one that finally works
-   is the one that arrived after the boot happened to finish. So the request is
-   remembered and honoured the instant the first frame is on the screen, which
-   is what the player asked for and when they can have it.
+   Every listener that can call this is live from the moment the module
+   evaluates, which is three frames and a whole mountain build before the
+   game can show anything. A press during that window used to be queued and
+   honoured the instant the boot finished — which read as the game starting
+   *itself*: the player taps a loading screen to see whether it is alive,
+   looks away, and seconds later a run is in progress without them. The
+   loading card never shows the invitation — "press any key" only appears
+   once the mountain is ready — so a press that arrives before then is not
+   an answer to anything, and the honest response is to stay paused on the
+   title until the player answers the invitation they can actually see.
 
    `audio.start()` is the exception and stays on this side of the gate. An
    audio context can only be unlocked from inside the gesture that asked for
@@ -429,16 +440,12 @@ function showMuted(value) {
    comes up silent. Unlocking it early costs nothing — there is nothing
    playing yet. */
 let bootReady = false;
-let dropInWanted = false;
 
 function begin() {
   if (game.mode === 'playing') return;
   audio.start();
   showMuted(audio.muted);
-  if (!bootReady) {
-    dropInWanted = true;
-    return;
-  }
+  if (!bootReady) return;
   if (game.mode === 'attract') restart();
   game.mode = 'playing';
   pausedRendered = false;
@@ -480,8 +487,16 @@ function restart() {
   game.bestAtStart = game.best;
   game.flow = 0;
   game.flowMaxAnnounced = false;
-  game.maxDistanceAnnounced = 0,
-  game.maxSpeedAnnounced = 0,
+  /* Seeded from where the run resumes, not zeroed. A restart picks up from
+     the last gate taken, so the rider can already be four kilometres down
+     the mountain — with the flags at zero, every checkpoint restart replayed
+     "1,000M DESCENT!" (and banked its points) the instant the first frame
+     measured the position. A milestone is only news the first time the run
+     is on the shallow side of it. */
+  const resumeDist = Math.floor(-rider.pos.z);
+  game.maxDistanceAnnounced = resumeDist >= 5000 ? 5000
+    : resumeDist >= 1000 ? 1000 : 0;
+  game.maxSpeedAnnounced = 0;
   chase.reset();
   spray.clear();
   trail.clear();
@@ -667,7 +682,10 @@ rider.on('land', (s) => {
   audio.land(s.impact);
   chase.kick(Math.min(1.8, s.impact * 0.09));
   chase.land(s.impact);
-  if (s.impact > RIDER.softImpact * 1.5) {
+  // A stomp is the emphatic landing, not every landing: half of hardImpact,
+  // rather than a hair over soft, keeps the big radial ring and its bass hit
+  // for the airs that earn them.
+  if (s.impact > RIDER.hardImpact * 0.5) {
     audio.stomp(s.impact / RIDER.hardImpact);
     if (spray) spray.radialBurst(rider.pos, Math.min(60, Math.floor(s.impact * 1.5)));
   }
@@ -772,16 +790,39 @@ rider.on('pump', (drive) => {
   chase.kick(Math.min(0.5, drive * 0.09));
 });
 
-/* Flow from carving. Clean carves build up the flow meter. */
-rider.on('carve', (slide, carveLoad) => {
+/* Flow, from carving — built, bled and spent on the physics clock.
+
+   This was three fragments in two places: an event fired from inside every
+   120 Hz step, a decay in the render loop on frame time, and a speed boost
+   in the render loop that scaled only the horizontal velocity — which on any
+   real pitch rotated the rider a little out of the fall line every frame,
+   and did it harder at low refresh rates. It is one function now, run once
+   per fixed step like every other force on the rider, reading the same
+   public fields the HUD and camera already read. The boost scales the whole
+   velocity vector, so it pushes along the slope the rider is actually on. */
+function stepFlow() {
   if (game.mode !== 'playing') return;
-  // Increase flow based on carveLoad, decrease based on slide
-  if (carveLoad > 0.4 && slide < 1.0) {
-    game.flow = Math.min(1.0, game.flow + (carveLoad * 0.3) * STEP);
-  } else if (slide > 2.0) {
-    game.flow = Math.max(0, game.flow - (slide * 0.1) * STEP);
+  if (rider.grounded) {
+    if (rider.state === 'ride' && rider.carveLoad > 0.4 && rider.slide < 1.0) {
+      game.flow = Math.min(1, game.flow + rider.carveLoad * 0.3 * STEP);
+    } else if (rider.slide > 2.0) {
+      game.flow = Math.max(0, game.flow - rider.slide * 0.1 * STEP);
+    }
+    game.flow = Math.max(0, game.flow - 0.05 * STEP);
+    if (game.flow > 0.2 && rider.state === 'ride') {
+      rider.vel.multiplyScalar(1 + game.flow * 0.03 * STEP);
+    }
+  } else {
+    game.flow = Math.max(0, game.flow - 0.1 * STEP);  // bleeds faster in air
   }
-});
+  if (game.flow >= 0.99 && !game.flowMaxAnnounced) {
+    game.flowMaxAnnounced = true;
+    audio.announce('Superb');
+    award(500 * game.combo, 'MAX FLOW', 'near');
+  } else if (game.flow < 0.5) {
+    game.flowMaxAnnounced = false;   // armed again once it has genuinely dropped
+  }
+}
 
 /* A near miss is now only ever a bear.
 
@@ -1065,6 +1106,14 @@ function frame(now) {
         rider.pos.y = world.height(rider.pos.x, z);
         hadStep = false;
         demo.stall = 0;
+        /* The spawn is meant to be invisible, and two systems could still
+           betray it: the trail bridged the teleport with a dead-straight
+           ribbon the rider never rode (its catch-up interpolation is built
+           for motion, not relocation), and the chase camera swept across the
+           gap at spring rate. A cleared mark and a cut are what an attract
+           loop actually wants. */
+        trail.clear();
+        chase.reset();
       }
     }
     const control = game.mode === 'attract' ? demoInput(dt) : input.state;
@@ -1088,6 +1137,7 @@ function frame(now) {
       // dependent even though the rider itself was fixed-step.
       collide();
       checkGates();
+      stepFlow();
       lastStep -= STEP;
       steps += 1;
     }
@@ -1109,8 +1159,14 @@ function frame(now) {
        forest received the previous wind; that one-frame lag was normally
        small, but it became an obvious discontinuity whenever a build happened
        to begin near dawn, dusk or a storm front. */
+    /* A called storm, over and above whatever the ambient dial is doing —
+       the guarantee that a session sees real weather without waiting on the
+       noise's tail. The call only *opens* a front: the weather walks it in
+       over twelve seconds, holds the whiteout, and hands back — see the
+       envelope beside `triggerStorm`, which also ignores calls while a front
+       is still on the mountain, so this line can stay a plain rate. */
     if (game.mode === 'playing') {
-      if (Math.random() < dt / 90) { // ~once every 1.5 minutes
+      if (Math.random() < dt / 180) { // on average one call every 3 minutes
         weather.triggerStorm();
       }
     }
@@ -1238,8 +1294,19 @@ function frame(now) {
         Math.max(1, Math.round(1 + drag * 4)), 0.38 + drag * 0.62);
     }
 
+    /* The overdrive spark trail at max combo, budgeted against time rather
+       than frames — a per-frame emit was twice as dense at 120 Hz as at 60,
+       and rolled the whole spray pool over in seconds, cutting rooster tails
+       short mid-flight. 120 sparks a second is the authored 60 Hz look. */
     if (game.combo >= SCORE.comboMax && rider.state === 'ride' && rider.grounded && rider.speed > 5) {
-      spray.sparks(rider.pos, -rider.vel.x * 0.1, -rider.vel.z * 0.1, 2);
+      sparkCarry += dt * 120;
+      const embers = Math.min(4, Math.floor(sparkCarry));
+      if (embers > 0) {
+        sparkCarry -= embers;
+        spray.sparks(rider.pos, -rider.vel.x * 0.1, -rider.vel.z * 0.1, embers);
+      }
+    } else {
+      sparkCarry = 0;
     }
 
     wind.set(w.windX, 0, w.windZ);
@@ -1269,28 +1336,7 @@ function frame(now) {
       retro.setSun(s.x, s.y, s.visible, shading.uniforms.uSkyGlow.value);
     }
 
-    /* Decay flow over time if not building it up */
-    if (game.mode === 'playing' && rider.grounded) {
-      // Natural bleed
-      game.flow = Math.max(0, game.flow - 0.05 * dt);
-      if (game.flow >= 0.99 && !game.flowMaxAnnounced) {
-        game.flowMaxAnnounced = true;
-        audio.announce('Superb');
-        award(500 * game.combo, 'MAX FLOW', 'near');
-      } else if (game.flow < 0.5) {
-        game.flowMaxAnnounced = false; // Reset when it drops
-      }
-      // Apply speed boost when flow is high
-      if (game.flow > 0.2) {
-        rider.vel.x += (rider.vel.x * game.flow * 0.03) * dt;
-        rider.vel.z += (rider.vel.z * game.flow * 0.03) * dt;
-      }
-    } else if (game.mode === 'playing' && !rider.grounded) {
-      game.flow = Math.max(0, game.flow - 0.1 * dt); // Bleed faster in air
-    }
-
     game.liveTrick = liveTrickName();
-    hud.update(game, dt);
 
     // The integrator's numbers come back before anything else can run — the
     // next physics step must never see the lens's in-between state.
@@ -1299,6 +1345,13 @@ function frame(now) {
       rider.yaw = trueYaw;
     }
   }
+
+  /* The read-out runs whether or not the world does. It is the surface the
+     pause and title screens are drawn on — gated behind `running` it could
+     never show the one word ("PAUSED") that explains why nothing is moving,
+     and the resume prompt froze mid-blink. Its own signature check keeps a
+     still menu costing nothing. */
+  hud.update(game, dt);
 
   retro.updateEffects(dt, running);
   retro.updatePerformance(dt, running);
@@ -1534,14 +1587,10 @@ afterPaint(() => {
       // that frame is where a driver finishes linking what `compile` only
       // asked for. "Ready" should mean the mountain is on the screen.
       boot.step('shaders');
-      /* …and now anybody who asked to drop in while that was happening gets
-         what they asked for. See `bootReady`: the press was kept rather than
-         refused, so the title card answers the first tap and not the third. */
+      /* …and only now does the invitation mean anything. See `bootReady`:
+         presses during the boot unlocked audio and nothing else, so the
+         game is guaranteed to still be sitting on the title card here. */
       bootReady = true;
-      if (dropInWanted) {
-        dropInWanted = false;
-        begin();
-      }
     });
   });
 });

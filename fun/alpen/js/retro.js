@@ -584,7 +584,14 @@ export function createRetro(THREE, renderer) {
      that the change is not visible through motion. Returning true lets the
      diagnostics know the backing store changed; camera aspect is unchanged. */
   function updatePerformance(dt, active = true) {
-    if (!active || dt <= 0 || dt > 0.1) return false;
+    /* The stall rejection tests against the caller's own clamp, not 0.1 —
+       `main.js` caps dt at 0.05 before it arrives, so `dt > 0.1` could never
+       be true and a genuine stall (a tab switch, a GC pause, a terrain
+       refill) landed as a full-weight worst-case sample. A frame sitting at
+       the clamp ceiling is a stall being reported at reduced size, and a
+       governor that reacts to it steps resolution down for pressure that
+       was never sustained GPU load. */
+    if (!active || dt <= 0 || dt >= 0.049) return false;
     averageFrame += (dt - averageFrame) * (1 - Math.exp(-dt * 2.5));
 
     if (averageFrame > 1 / 48) {
@@ -705,10 +712,11 @@ export function createRetro(THREE, renderer) {
     const fadeNext = fadeNow + (fadeTarget - fadeNow) * (1 - Math.exp(-13 * dt));
     material.uniforms.uFade.value = Math.abs(fadeTarget - fadeNext) < 0.001
       ? fadeTarget : fadeNext;
-    if (!active) return;
-    // The dither's clock. Wrapped well inside float precision; the exact
-    // period is irrelevant, only that consecutive frames differ.
-    material.uniforms.uTime.value = (material.uniforms.uTime.value + dt) % 64;
+    /* The lens snow is a lens fact too, for the same reason as the fade —
+       and a wipeout is exactly when a player reaches for Escape. Decayed
+       only while active, the full-strength powder wash froze on the glass
+       the moment the game paused and sat over the pause menu (and the
+       resumed run) indefinitely. */
     if (fallHold > 0) {
       fallHold = Math.max(0, fallHold - dt);
     } else if (fallFx > 0) {
@@ -716,6 +724,10 @@ export function createRetro(THREE, renderer) {
       if (fallFx < 0.002) fallFx = 0;
     }
     material.uniforms.uFall.value = fallFx;
+    if (!active) return;
+    // The dither's clock. Wrapped well inside float precision; the exact
+    // period is irrelevant, only that consecutive frames differ.
+    material.uniforms.uTime.value = (material.uniforms.uTime.value + dt) % 64;
   }
 
   /* Where the sun is on screen, in UV, and how much of it is getting through.
@@ -812,7 +824,11 @@ export function createRetro(THREE, renderer) {
     get rayStrength() { return rayMat.uniforms.uStrength.value; },
     get fallEffect() { return material.uniforms.uFall.value; },
     get animating() {
-      return Math.abs(fadeTarget - material.uniforms.uFade.value) >= 0.001;
+      // Both lens facts: the menu dim, and any crash powder still clearing
+      // off the glass. `main.js` keeps rendering paused frames while either
+      // is moving, then settles on the single frozen pause frame.
+      return Math.abs(fadeTarget - material.uniforms.uFade.value) >= 0.001
+        || fallFx > 0;
     },
     // Kept for diagnostics compatibility now that AO is a neutral input.
     get aoStrength() { return 0; },

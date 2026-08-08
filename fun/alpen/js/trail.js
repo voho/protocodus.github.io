@@ -1088,21 +1088,19 @@ export function createTrail(THREE, shading) {
       let dz = pos.z - lastCommitZ;
       let remaining = Math.hypot(dx, dz);
 
-      /* No finite mesh can preserve kilometres of history per frame under
-         unlimited acceleration. When one update outruns the fixed budget,
-         retain a fully sampled near-board tail and break only the unseen gap
-         behind it. The mark therefore never degenerates or disappears. */
+      /* A gap wider than the whole catch-up budget cannot be riding: at the
+         speed cap and the clamped frame delta the board covers three metres
+         a frame at the outside, and the budget is four and a half. It is a
+         relocation — a restart, a respawn — and the mark restarts *at the
+         board*. This used to keep a "tail": four metres of dead-straight
+         ribbon walked back along the teleport chord, ground-conformed so it
+         looked exactly like a mark the rider never made. */
       if (remaining > spacing * maxCatchup) {
-        const keep = spacing * (maxCatchup - 1);
-        const tail = keep / remaining;
-        const sx = pos.x - dx * tail;
-        const sz = pos.z - dz * tail;
-        const sy = heightAt(sx, sz);
         open = false;
-        startStroke(sx, sy, sz, currentState);
-        dx = pos.x - lastCommitX;
-        dz = pos.z - lastCommitZ;
-        remaining = Math.hypot(dx, dz);
+        startStroke(pos.x, pos.y, pos.z, currentState);
+        dx = 0;
+        dz = 0;
+        remaining = 0;
       }
 
       copyState(segmentStartState, committedState);
