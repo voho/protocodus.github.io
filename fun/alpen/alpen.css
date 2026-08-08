@@ -129,12 +129,40 @@ body.ready .hud {
   visibility: visible;
 }
 
+/* Once the canvas menus own the picture, the curtain is only a click-catcher
+   and must not shade them: the bitmap card carries its own backdrop, and this
+   gradient stacked on top of it dimmed the menu text by up to ninety per cent
+   at the edges of the frame — and blacked out the attract run behind it. */
+body.ready .curtain {
+  background: transparent;
+}
+
 .curtain-inner {
   width: 100%;
   max-width: 620px;
   max-height: 100%;
   overflow-y: auto;
   text-align: left;
+}
+
+/* The loading screen is the DOM's one remaining visual job. The canvas
+   read-out draws every menu once the game runs, but it cannot draw a pixel
+   until the engine has been fetched and the first frame rendered — which is
+   precisely the period the loading card covers. So until the body is
+   `.ready`, the curtain's inner column comes out of its screen-reader
+   clipping and is the boot screen: wordmark, controls, and the stage-by-
+   stage progress bar the inline script feeds. (It is also what shows the
+   WebGL failure notice, which the clipping used to hide entirely.) The
+   first rendered frame collapses it back to sr-only and the bitmap title
+   card takes over. */
+body:not(.ready) .curtain-inner.sr-only {
+  position: static;
+  width: 100%;
+  height: auto;
+  margin: 0;
+  overflow: hidden auto;
+  clip-path: none;
+  white-space: normal;
 }
 
 .eyebrow {

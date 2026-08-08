@@ -495,13 +495,15 @@ const FRAG = `
     float k = max(1.0 - r * 4.0, 0.0001);
     float a = vAlpha * pow(k, vSoft);
     // A field of identical flakes reads as a pattern; each one leaning its
-    // own fixed step towards the haze reads as depth the field does not have
-    vec3 col;
-    if (vTint < -0.5) {
-      col = vec3(1.0, 0.7, 0.1); // Bright orange spark
-    } else {
-      col = mix(uColor, uFog, vTint * 0.35);
-    }
+    // own fixed step towards the haze reads as depth the field does not have.
+    // Below zero the tint runs towards the overdrive ember instead — the
+    // same lerp continued, not a branch, so the whole field pays nothing for
+    // a feature only the max-combo sparks use, and an ember still takes the
+    // fog, scatter and glint treatment every other grain takes.
+    vec3 col = mix(
+      mix(uColor, uFog, max(vTint, 0.0) * 0.35),
+      vec3(1.0, 0.62, 0.16),
+      clamp(-vTint, 0.0, 1.0));
     // The backlit lift: the sun's own hue folded into the flake, and a modest
     // raise in coverage, strongest looking straight down the light. The mix
     // is capped so a flake never becomes a lamp, only a lit flake.
@@ -579,8 +581,9 @@ function pointCloud(THREE, count, shading) {
   const streak = new Float32Array(count);
   const seed = new Float32Array(count);
   const tint = new Float32Array(count);
-  // Everything but the tint is rewritten while the game runs — position and
-  // alpha every frame, size and streak on every weather rebuild or emit — so
+  // Everything here is rewritten while the game runs — position and alpha
+  // every frame, size and streak on every weather rebuild or emit, and the
+  // tint whenever the spray recycles a slot into or out of an ember — so
   // the driver is told so up front rather than left to discover it.
   const dyn = (attr) => attr.setUsage(THREE.DynamicDrawUsage);
   geo.setAttribute('position', dyn(new THREE.BufferAttribute(position, 3)));
@@ -588,7 +591,7 @@ function pointCloud(THREE, count, shading) {
   geo.setAttribute('aAlpha', dyn(new THREE.BufferAttribute(alpha, 1)));
   geo.setAttribute('aStreak', dyn(new THREE.BufferAttribute(streak, 1)));
   geo.setAttribute('aSeed', dyn(new THREE.BufferAttribute(seed, 1)));
-  geo.setAttribute('aTint', new THREE.BufferAttribute(tint, 1));
+  geo.setAttribute('aTint', dyn(new THREE.BufferAttribute(tint, 1)));
   geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e6);
   const points = new THREE.Points(geo, pointMaterial(THREE, shading));
   points.frustumCulled = false;
@@ -1025,7 +1028,7 @@ export function createSnowfall(THREE, shading) {
 export function createSpray(THREE, shading) {
   const n = SNOW.sprayCount;
   const cloud = pointCloud(THREE, n, shading);
-  const { position, size, alpha, streak, seed, geo } = cloud;
+  const { position, size, alpha, streak, seed, tint, geo } = cloud;
   const uniforms = cloud.points.material.uniforms;
   // Spray is the one cloud that glints: it is made of thrown crust rather
   // than falling aggregate, and it is the only one close enough to resolve
@@ -1085,9 +1088,12 @@ export function createSpray(THREE, shading) {
       const f = Math.random() * (1 - 0.45 * p);
       fine[i] = f;
       // This ring slot may previously have held an elongated cutting-sheet
-      // particle. Event bursts keep their compact landing/fall smear.
+      // particle — or an overdrive ember, which is why the tint is written
+      // back to snow here: a poisoned slot otherwise stayed orange for the
+      // rest of the run. Event bursts keep their compact landing/fall smear.
       streak[i] = SPRAY.streak;
       seed[i] = Math.random();
+      tint[i] = 0;
       streakDirty = true;
       position[j] = pos.x + (Math.random() - 0.5) * 0.7;
       position[j + 1] = pos.y + 0.1 + Math.random() * 0.25;
@@ -1270,6 +1276,7 @@ export function createSpray(THREE, shading) {
       streak[i] = 0.65 + skid * 0.35;
     }
     seed[i] = Math.random();
+    tint[i] = 0;             // reclaim the slot from any earlier ember
     streakDirty = true;
     life[i] = maxLife[i];
     tumble[i] = (kind === 2 ? 1.1 : kind === 3 ? 0.9 : 0.45)
@@ -1475,6 +1482,9 @@ export function createSpray(THREE, shading) {
     if (streakDirty) {
       geo.attributes.aStreak.needsUpdate = true;
       geo.attributes.aSeed.needsUpdate = true;
+      // The tint changes exactly when a slot is recycled, which is exactly
+      // when the streak does — one dirty flag serves all three.
+      geo.attributes.aTint.needsUpdate = true;
       streakDirty = false;
     }
 
@@ -1499,6 +1509,15 @@ export function createSpray(THREE, shading) {
     geo.attributes.aAlpha.needsUpdate = true;
   }
 
+  /* The stomp ring: crust thrown outwards in a circle from a landing heavy
+     enough to have properly broken the surface. Every per-particle field the
+     update loop reads is written here — this emitter used to leave `born`,
+     `grow`, `peak`, `tumble`, `spin`, `phase` and `alpha` to whatever the
+     slot's previous occupant left behind, so a stomp inherited mist's near-
+     invisible opacity or a spark's blowout at random, and the recycled dot
+     kept its old alpha for one frame at the new position — a visible
+     teleport. (Its size also read `SPRAY.lumpScale`, a config field that
+     does not exist.) */
   function radialBurst(pos, count) {
     for (let k = 0; k < count; k++) {
       const i = head;
@@ -1508,28 +1527,42 @@ export function createSpray(THREE, shading) {
       fine[i] = f;
       streak[i] = SPRAY.streak;
       seed[i] = Math.random();
+      tint[i] = 0;
       streakDirty = true;
-      
+
       const angle = Math.random() * Math.PI * 2;
       const r = 0.5 + Math.random() * 1.5;
       const vx = Math.cos(angle);
       const vz = Math.sin(angle);
-      
+
       position[j] = pos.x + vx * r;
       position[j + 1] = pos.y + 0.1 + Math.random() * 0.3;
       position[j + 2] = pos.z + vz * r;
-      
+
       const power = 2.0 + Math.random() * 2.5;
       vel[j] = vx * power;
-      vel[j + 1] = 2.0 + Math.random() * 3.0; // Shoot up
+      vel[j + 1] = 2.0 + Math.random() * 3.0; // shoot up
       vel[j + 2] = vz * power;
-      
+
       maxLife[i] = SNOW.sprayLife * (0.5 + Math.random() * 0.6) * (1 + f * 0.5);
       life[i] = maxLife[i];
-      size[i] = Math.max(0, SPRAY.lumpScale * 1.5 * (1 - f) - 0.05);
+      born[i] = SNOW.spraySize * SPRAY.born * (0.5 + Math.random() * 0.9)
+        * (1 - SPRAY.fineSmall * f);
+      grow[i] = lerp(SPRAY.grow[0], SPRAY.grow[1], f);
+      peak[i] = 0.92 - f * 0.3;
+      tumble[i] = (0.7 + Math.random() * 2.4) * (0.35 + f);
+      spin[i] = (2 + Math.random() * 5) * (Math.random() < 0.5 ? -1 : 1);
+      phase[i] = Math.random() * Math.PI * 2;
+      size[i] = born[i];
+      alpha[i] = 0;
     }
   }
 
+  /* The overdrive embers at max combo — the one emitter allowed off the
+     snow palette, via the negative tint the fragment shader folds towards
+     its ember colour. Peak stays at one: brightness above that flattened
+     the falloff into an opaque disc with a hard rim, which is the exact
+     soap-bubble artefact the header of this file exists to forbid. */
   function sparks(pos, dirX, dirZ, count) {
     for (let k = 0; k < count; k++) {
       const i = head;
@@ -1538,27 +1571,31 @@ export function createSpray(THREE, shading) {
       fine[i] = 1.0;
       streak[i] = 1.0;
       seed[i] = Math.random();
+      tint[i] = -1.0;
       streakDirty = true;
-      tint[i] = -1.0; // Magic number for spark color
-      
+
       const angle = Math.random() * Math.PI * 2;
       const vx = dirX + Math.cos(angle) * 1.5;
       const vz = dirZ + Math.sin(angle) * 1.5;
-      
+
       position[j] = pos.x + Math.random() - 0.5;
       position[j + 1] = pos.y + 0.1;
       position[j + 2] = pos.z + Math.random() - 0.5;
-      
+
       vel[j] = vx * 4.0;
       vel[j + 1] = 4.0 + Math.random() * 4.0;
       vel[j + 2] = vz * 4.0;
-      
+
       maxLife[i] = 0.5 + Math.random() * 0.5;
       life[i] = maxLife[i];
-      size[i] = SPRAY.lumpScale * 0.5;
-      peak[i] = 1.5; // very bright
-      born[i] = 0.1;
+      born[i] = SNOW.spraySize * SPRAY.born * 0.55;
       grow[i] = 0.5;
+      peak[i] = 1.0;
+      tumble[i] = 0.6 + Math.random() * 1.2;
+      spin[i] = (2 + Math.random() * 4) * (Math.random() < 0.5 ? -1 : 1);
+      phase[i] = Math.random() * Math.PI * 2;
+      size[i] = born[i];
+      alpha[i] = 0;
     }
   }
 
@@ -1753,8 +1790,13 @@ export function createStreaks(THREE) {
     rx *= inv; ry *= inv; rz *= inv;
     material.uniforms.uDir.value.set(-rx * len, -ry * len, -rz * len);
     // Thin when the field first appears, and never more than about three
-    // pixels: past that they stop being air and start being bars
-    material.uniforms.uWidth.value = 1.4 + t * 1.9;
+    // pixels — past that they stop being air and start being bars. The three
+    // pixels are of the 288-line buffer this was authored on, scaled to the
+    // buffer actually in use: held at a literal count, the ribbons were a
+    // third of the intended width on a 4K frame — the same sub-pixel
+    // hairline failure `WEATHER.wide` was already converted away from.
+    material.uniforms.uWidth.value = (1.4 + t * 1.9)
+      * Math.max(1, RENDER.buffer.height / 288);
     material.uniforms.uScale.value = pointScale(camera);
     /* And they are the colour of the air rather than white.
 

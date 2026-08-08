@@ -256,6 +256,10 @@ export function createTrail(THREE, shading) {
   const verts = N * L;
   const spacing = TRAIL.spacing;
   const maxCatchup = TRAIL.maxCatchup;
+  /* The line between "a very fast frame" and "the rider is somewhere else
+     now". Sixty metres in one clamped frame is twelve hundred metres a
+     second — no tuck reaches it, every restart and respawn exceeds it. */
+  const TELEPORT_GAP = 60;
   const clodCapacity = N * CLOD_CLUSTER;
 
   const position = new Float32Array(verts * 3);
@@ -1088,11 +1092,27 @@ export function createTrail(THREE, shading) {
       let dz = pos.z - lastCommitZ;
       let remaining = Math.hypot(dx, dz);
 
-      /* No finite mesh can preserve kilometres of history per frame under
-         unlimited acceleration. When one update outruns the fixed budget,
-         retain a fully sampled near-board tail and break only the unseen gap
-         behind it. The mark therefore never degenerates or disappears. */
-      if (remaining > spacing * maxCatchup) {
+      /* Two different things can outrun the catch-up budget, and they get
+         two different answers.
+
+         A gap the budget cannot cover but a board conceivably could — the
+         tuck has no speed cap, and at the clamped frame delta a very fast
+         run genuinely covers five metres a frame — is still riding, so the
+         old behaviour stands: retain a fully sampled near-board tail and
+         break only the unseen gap behind it, and the mark never degenerates.
+
+         A gap no board covers in one frame is a relocation, and the mark
+         restarts *at the board*. Walking the tail back along a teleport
+         chord painted four metres of dead-straight ribbon, ground-conformed
+         so it looked exactly like a mark the rider never made. (Every known
+         relocation also calls `clear()`; this is the belt to that brace.) */
+      if (remaining > TELEPORT_GAP) {
+        open = false;
+        startStroke(pos.x, pos.y, pos.z, currentState);
+        dx = 0;
+        dz = 0;
+        remaining = 0;
+      } else if (remaining > spacing * maxCatchup) {
         const keep = spacing * (maxCatchup - 1);
         const tail = keep / remaining;
         const sx = pos.x - dx * tail;

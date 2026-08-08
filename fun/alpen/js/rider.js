@@ -179,6 +179,10 @@ export const GRAB_INDY = 0;
 export const GRAB_NOSE = 1;
 export const GRAB_METHOD = 2;
 
+// What the board stands on when the world cannot say: plain groomed piste.
+// Hoisted so the hot path never carries an object literal.
+const GROOMED_FALLBACK = { rock: 0, groomed: 1, ice: 0, powder: 0 };
+
 export class Rider {
   /* `world.height(x, z)` is the hill plus whatever kickers sit on it.
      `world.canStall(x, z)`, when supplied, distinguishes a committed wall
@@ -206,8 +210,8 @@ export class Rider {
     this.UP = new THREE.Vector3(0, 1, 0);
 
     this.events = {
-      launch: [], land: [], fall: [], rise: [], carve: [], impact: [],
-      pump: [], push: [], butter: [],
+      launch: [], land: [], fall: [], rise: [], impact: [],
+      pump: [], push: [], butter: [], perfectPop: [],
     };
 
     this.reset(0);
@@ -220,6 +224,11 @@ export class Rider {
 
   emit(name, a, b) {
     const list = this.events[name];
+    // An event nobody registered must be a no-op, not a TypeError: this runs
+    // inside the physics step, where one bad name used to crash the frame —
+    // `perfectPop` fired on exactly the pop it was named after and its list
+    // was missing from the registry above.
+    if (!list) return;
     for (let i = 0; i < list.length; i++) list[i](a, b);
   }
 
@@ -676,7 +685,7 @@ export class Rider {
        wind-loaded snow does not hold a carved traverse: the board sinks,
        washes out and goes down the fall line, which on the containment wall
        points back at the run. See `RIDER.wallWash`. */
-    const surf = this.world.surfaceAt?.(pos.x, pos.z) || { rock: 0, groomed: 1, ice: 0, powder: 0 };
+    const surf = this.world.surfaceAt?.(pos.x, pos.z) || GROOMED_FALLBACK;
     const matGrip = surf.groomed * 1.0 + surf.powder * 1.25 + surf.ice * 0.65 + surf.rock * 0.70;
     const surfaceGrip = RIDER.grip * (this.world.grip ?? 1) * matGrip
       * (1 - RIDER.wallWash * this.offPiste);
@@ -810,7 +819,11 @@ export class Rider {
     // A speed check kicks the tail around towards a transverse target. The
     // rate closes smoothly near it, and pressure scales both the target and
     // the authority so tapping S produces a check rather than a full stop.
-    if (brakeActive && speed > 0.35) {
+    // Gated on speed *over the ground*, not tangent speed. High on a wall
+    // the tangent speed is mostly vertical, and `atan2` over a near-zero
+    // horizontal velocity is a compass with no needle — the pivot used to
+    // yank the yaw towards whatever it happened to read.
+    if (brakeActive && Math.hypot(vel.x, vel.z) > 0.35) {
       const travelYaw = Math.atan2(vel.x, -vel.z);
       const stanceYaw = travelYaw + (this.switchStance ? Math.PI : 0);
       const brakeYaw = stanceYaw + this.brakeSide * RIDER.brakeAngle * braking;
@@ -992,7 +1005,10 @@ export class Rider {
        the rider is riding switch. Flipping the reference at that crossing is
        also what makes the clamp hysteretic — the error jumps from just over a
        right angle to just under one and cannot flap. */
-    if (speed > 0.6) {
+    // The same ground-speed gate as the brake pivot above, and for the same
+    // reason: the skid clamp must not measure stance against a bearing that
+    // does not exist.
+    if (Math.hypot(vel.x, vel.z) > 0.6) {
       const travelYaw = Math.atan2(vel.x, -vel.z);
       let stanceYaw = travelYaw + (this.switchStance ? Math.PI : 0);
       let off = wrapPi(this.yaw - stanceYaw);
@@ -1531,12 +1547,16 @@ export class Rider {
     const baseBalanceWindow = Math.min(RIDER.balanceWindow, RIDER.lean * 0.25);
     const balanceWindow = baseBalanceWindow
       * (1 + (RIDER.speedBalanceWindow - 1) * stable);
-    this.balance = speed > 4
-      ? clamp(1 - Math.abs(this.leanErr) / balanceWindow, 0, 1)
-      : 1;
+    /* Faded in over 3–5 m/s rather than switched at 4. The old ternary was a
+       cliff: crossing 4 m/s with an open lean error snapped `balance` from 1
+       to its true value in one step, and `balanceGrip` turned that into a
+       forty-per-cent grip step mid-scrub — felt as a twitch in exactly the
+       slow, deliberate manoeuvre least able to absorb one. */
+    const balanceIn = clamp((speed - 3) / 2, 0, 1);
+    this.balance = 1 - balanceIn
+      * (1 - clamp(1 - Math.abs(this.leanErr) / balanceWindow, 0, 1));
 
     this.roll = approach(this.roll, target, RIDER.leanRate, dt);
-    if (this.slide > 1.5 || this.carveLoad > 0.35) this.emit('carve', this.slide, this.carveLoad);
   }
 
   /* Takeoff is a release, not an impulse invented by the ramp.
@@ -1944,6 +1964,15 @@ export class Rider {
     this.extension = 0;
     this.bend = 0;
     this._bendReady = false;
+    /* The flight that just ended is over, and its ledger goes with it. These
+       three survived a fall untouched, and everything that reads "airborne"
+       state read them as live: the HUD kept the last jump's trick name up
+       for the whole tumble, the audio played rotation blips for spins from
+       a minute ago, and the chase camera framed the wipeout as a soaring
+       air because `airTime` still held the old flight's value. */
+    this.airTime = 0;
+    this.spinAccum = 0;
+    this.flipAccum = 0;
 
     // What the body keeps, and what the collision turns into height. A rider
     // doing 40 m/s into a trunk leaves it doing 25 and climbing, which is

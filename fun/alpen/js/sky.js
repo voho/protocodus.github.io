@@ -1100,7 +1100,7 @@ const MIST_FRAG = `
        under it is what stops the exponent below from being an infinity right
        on the horizon line, and it is set where a sheet is already opaque, so
        nothing is lost by clamping there. */
-    float rawGraze = abs(vRel.y) / dist;
+    float rawGraze = abs(vRel.y) / max(dist, 1e-4);
     float graze = max(rawGraze, 0.075);
     float n = texture2D(uNoise, vQ).r * 0.62
       + texture2D(uNoise, vQ * 3.0 + vec2(0.37, 0.61)).b * 0.38;
@@ -1443,6 +1443,9 @@ export function createSky(THREE) {
   // 0 waits for both requests, 1 gives their replacements one invisible
   // binding/upload frame, and 2 starts the continuous reveal on the next.
   let panoStage = 0;
+  // Which hour plate the dome is currently showing — the anchor the
+  // hysteresis in `update` measures its margins from.
+  let plateChoice = 'clear';
 
   // --- dome ----------------------------------------------------------------
   const domeMat = new THREE.ShaderMaterial({
@@ -1500,22 +1503,33 @@ export function createSky(THREE) {
     texture.generateMipmaps = true;
     return texture;
   };
+  let sunrisePlate = null;
+  let nightPlate = null;
+  let platesBound = false;
   const settlePlates = () => {
     /* Never reveal one weather plate while the other request is outstanding.
        If, say, clear arrived first, both samplers used to point at it and the
        later storm callback replaced one of them under whatever storm mix was
        live that frame — an asynchronous, full-strength picture cut. Waiting
        for both load/error callbacks makes the sampler replacement atomic. A
-       single survivor remains a complete fallback for the missing plate. */
+       single survivor remains a complete fallback for the missing plate.
+
+       And it binds exactly once. The two hour plates are far heavier files
+       than the weather pair and land seconds later on a cold cache — their
+       callbacks also arrive here, and re-running the assignment below would
+       yank a live sampler back to the clear plate at full strength: the same
+       asynchronous picture cut this function exists to prevent, arriving by
+       the other door. A late hour plate only fills its variable; the wish
+       logic in `update` swaps it in through the ordinary out-of-sight dip. */
+    if (platesBound) return;
     if (!clearSettled || !stormSettled) return;
     const any = clearPlate || stormPlate || sunrisePlate || nightPlate;
     if (!any) return;
-    panoClear.value = clearPlate || sunrisePlate || stormPlate;
-    panoStorm.value = stormPlate || clearPlate;
+    panoClear.value = clearPlate || sunrisePlate || stormPlate || any;
+    panoStorm.value = stormPlate || clearPlate || any;
     panoStage = 1;
+    platesBound = true;
   };
-  let sunrisePlate = null;
-  let nightPlate = null;
   const plateLoader = new THREE.TextureLoader();
   plateLoader.load(
     new URL('../assets/textures/sky/alps-clear.webp', import.meta.url).href,
@@ -2535,16 +2549,29 @@ export function createSky(THREE) {
        plate's contribution has actually reached nothing, and the same ramp
        then brings the new picture up through the procedural sky. */
     if (panoStage === 0 && panoTarget > 0) {
-      const want = (w.night > 0.4 && nightPlate) ? nightPlate
-        : ((w.tod >= 0.05 && w.tod <= 0.25 || w.tod >= 0.65 && w.tod <= 0.78)
-          && sunrisePlate) ? sunrisePlate
+      /* With hysteresis on both gates: the margin to *enter* a plate sits
+         short of the margin to leave it, so an hour hovering exactly at a
+         boundary — a pinned dusk, a night whose depth is still building —
+         cannot strobe the three-second dip-and-return swap back and forth. */
+      const sunPad = plateChoice === 'sunrise' ? 0.02 : 0;
+      const nightAt = plateChoice === 'night' ? 0.34 : 0.46;
+      const dawnDusk = (w.tod >= 0.05 - sunPad && w.tod <= 0.25 + sunPad)
+        || (w.tod >= 0.65 - sunPad && w.tod <= 0.78 + sunPad);
+      const choice = (w.night > nightAt && nightPlate) ? 'night'
+        : (dawnDusk && sunrisePlate) ? 'sunrise' : 'clear';
+      const want = choice === 'night' ? nightPlate
+        : choice === 'sunrise' ? sunrisePlate
           : clearPlate || panoClear.value;
       if (want && panoClear.value !== want) {
         if (panoReady < 0.02) {
           panoClear.value = want;
+          plateChoice = choice;
           panoWish = 1;
         } else panoWish = 0;
-      } else panoWish = 1;
+      } else {
+        plateChoice = choice;
+        panoWish = 1;
+      }
     }
     panoReady += (panoTarget * panoWish - panoReady) * (1 - Math.exp(-2.8 * dt));
     domeMat.uniforms.uPanoStormMix.value = ramp(w.storm, 0.12, 0.78);

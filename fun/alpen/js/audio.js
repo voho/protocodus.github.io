@@ -79,7 +79,18 @@ export function createAudio() {
     ctx = new AC();
     master = ctx.createGain();
     master.gain.value = muted ? 0 : 0.55;
-    master.connect(ctx.destination);
+    /* A hard landing sums the land mix, the stomp and six ambient voices —
+       comfortably past unity into the destination, which clips digitally on
+       every big hit. A gentle limiter on the way out lets the loud moments
+       stay loud without the crack: high ratio, soft knee, fast enough attack
+       that the transient is caught rather than let through. */
+    const limiter = ctx.createDynamicsCompressor();
+    limiter.threshold.value = -10;
+    limiter.knee.value = 24;
+    limiter.ratio.value = 12;
+    limiter.attack.value = 0.003;
+    limiter.release.value = 0.25;
+    master.connect(limiter).connect(ctx.destination);
 
     /* Two noises, because a rush and a hiss are not the same material.
 
@@ -157,7 +168,11 @@ export function createAudio() {
      still makes a sensible noise: without it the edge simply never sings and
      everything else behaves exactly as before. */
   function ambience(speed, slide, grounded, storm, carveLoad = 0, tumbleSlide = 0, surf = null) {
-    if (!started || !ctx || parked || muted) return;
+    /* Not gated on `muted`: the master gain is already zero, so the voices
+       are silent either way, and the gains have to keep tracking the run —
+       frozen at their pre-mute values, unmuting at a standstill replayed a
+       third of a second of 120 km/h wind before the ramps caught up. */
+    if (!started || !ctx || parked) return;
 
     const ms = performance.now();
     if (ms - ambienceAt < 35) return;
@@ -266,7 +281,14 @@ export function createAudio() {
 
     toggleMute() {
       muted = !muted;
-      if (master) master.gain.value = muted ? 0 : 0.55;
+      // Ramped, not written: an instantaneous gain step under six running
+      // voices is a discontinuity in the waveform — an audible click on
+      // every press of M. Twenty milliseconds is below perception as a fade
+      // and above it as a pop.
+      if (master) {
+        if (ctx) master.gain.setTargetAtTime(muted ? 0 : 0.55, ctx.currentTime, 0.02);
+        else master.gain.value = muted ? 0 : 0.55;
+      }
       try { localStorage.setItem('alpen.muted', muted ? '1' : '0'); } catch { /* ignore */ }
       return muted;
     },
@@ -286,11 +308,16 @@ export function createAudio() {
       tone(freq * 1.5, freq * 1.45, 0.25, 0.15, 'triangle', 0.05);
     },
 
-    // A sub-bass thud for heavy stomps (perfect pop/massive air landings)
+    /* A sub-bass thud for heavy stomps. The tone bottoms out at 45 Hz, not
+       20: nothing most speakers own reproduces 20 Hz, so the tail of the old
+       sweep was pure cone excursion — rattle, not bass. And it sits a step
+       under the old level because it plays *on top of* `land`, which is
+       already the loudest mix in the file; the pair used to sum well past
+       clipping on every big landing. */
     stomp(intensity) {
       const k = clamp01(intensity);
-      tone(80 + k * 40, 20, 0.35 + k * 0.2, 0.25 + k * 0.15, 'sine', 0);
-      burst(0.3, 1200 + k * 800, 0.15 + k * 0.1, 'lowpass', 150);
+      tone(80 + k * 40, 45, 0.35 + k * 0.2, 0.16 + k * 0.10, 'sine', 0);
+      burst(0.3, 1200 + k * 800, 0.09 + k * 0.06, 'lowpass', 150);
     },
 
     /* Everything the snow takes, all at once.
@@ -423,18 +450,6 @@ export function createAudio() {
           ctx.suspend().catch(() => { /* muted is silent enough */ });
         }
       }, 350);
-    },
-
-    announce(text) {
-      if (!started || muted || !window.speechSynthesis) return;
-      // Filter out some voices if possible to ensure we get a deep/robotic one,
-      // but standard Web Speech API doesn't guarantee specific stylized voices.
-      // Pitch and rate are our best tools for the retro feel.
-      const u = new SpeechSynthesisUtterance(text);
-      u.rate = 0.85;
-      u.pitch = 0.6;
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.speak(u);
     },
   };
 }

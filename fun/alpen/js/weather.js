@@ -197,19 +197,19 @@ const BANDS = [
 
 /* How long everything takes.
 
-   The day is intentionally compressed to ninety seconds: ten times the
+   The day is intentionally compressed to three minutes: five times the
    original fifteen-minute cycle, so every run gets daylight, blue hour and
    the headlamp-lit night without a long wait. The phase table still blends
    continuously, so the faster clock never becomes a sequence of switches.
 
-   The storm clock went the same way for the same reason. Weather that turns
-   over every few seconds is not weather, it is a strobe — and this one drives
-   the fog distance, so a fast storm dial is also a horizon that visibly
-   breathes in and out. The periods below are still written in their own
-   seconds and still sit in the same order against each other; `WEATHER_RATE`
-   is what decides how fast the clock reading them runs, so a front now takes
-   about a minute to arrive, which is still long enough to watch it coming. */
-const DAY_SECONDS = 90;
+   It was ninety seconds for one release, and ninety seconds is where the
+   trick collapses. The table's shortest chapters — dusk into blue hour is
+   seven hundredths of the day — last six seconds at that rate, the sun
+   visibly slides, and the kilometre-scale mountain shadows march across the
+   piste while you watch. A compressed day only works while each hour is
+   still longer than the glance that takes it in; three minutes is the
+   fastest clock that keeps that true. */
+const DAY_SECONDS = 180;
 const START_TOD = 0.34;      // a bright morning, so the first look is the best one
 const STORM_PERIOD = 110;    // seconds per unit of the noise that drives it
 /* And the whole weather clock runs at this multiple of real time.
@@ -221,8 +221,16 @@ const STORM_PERIOD = 110;    // seconds per unit of the noise that drives it
    those ratios exactly as it was and simply runs the whole system faster.
    Halving five periods by hand would not: it is five chances to get one of
    them wrong, and the next person to add a sixth would have no way of
-   knowing they had joined a convention. */
-const WEATHER_RATE = 2;
+   knowing they had joined a convention.
+
+   It sits at one, which is not the same as not existing. The doubled clock
+   shipped alongside the ninety-second day and failed the same way: the fog
+   distance rides the storm dial, so a front every half minute is a horizon
+   that visibly breathes in and out. At real time a front takes a couple of
+   minutes to arrive, which is long enough to watch it coming — and the
+   called storms (`triggerStorm`) now guarantee the drama the fast clock was
+   trying to buy. */
+const WEATHER_RATE = 1;
 /* The quietest the sky is ever allowed to get. See `BANDS`: the run is never
    without falling snow, so the dial's bottom is a light fall rather than
    clear air. Small enough that a calm minute still looks calm. */
@@ -410,8 +418,25 @@ export function createWeather(THREE) {
   let weatherClock = 0;
   let frozen = null;   // target time of day, if the player has pinned one
   let pinnedTod = START_TOD;
-  let stormOverride = 0;
-  const STORM_DURATION = 35; // 35 seconds of whiteout
+  /* A called storm is a front, not a switch.
+
+     `triggerStorm` used to write 1.0 straight into the override, which is a
+     whiteout in a single frame: the fog wall teleporting from four hundred
+     metres to seventy, every colour snapping to the haze, the snowfall going
+     from flurries to blizzard between one frame and the next. Weather never
+     does that, and on screen it read as a glitch rather than a storm.
+
+     The call now only opens the front. The override climbs to the whiteout
+     over `STORM_ATTACK` seconds — long enough to watch it coming, which is
+     the entire drama of a front — holds it for `STORM_HOLD`, and hands back
+     to the ambient dial over `STORM_RELEASE`. Both corners go through
+     `smooth`, so the fog distance never changes direction with a kink. A
+     call while a front is already on the mountain is ignored rather than
+     stacked: one storm at a time is a readability rule, not meteorology. */
+  let stormCalled = -1;      // seconds since the front was called; <0 = none
+  const STORM_ATTACK = 12;
+  const STORM_HOLD = 16;
+  const STORM_RELEASE = 14;
 
   function sample(tod) {
     // Find the pair of moments this time falls between, wrapping the table
@@ -496,9 +521,22 @@ export function createWeather(THREE) {
        air, the fog a little in, and the snow underfoot a shade softer,
        without touching how the picture reads on a quiet day. */
     state.storm = STORM_FLOOR + (1 - STORM_FLOOR) * Math.pow(spread, 1.7);
-    if (stormOverride > 0) {
-      stormOverride = Math.max(0, stormOverride - dt / STORM_DURATION);
-      state.storm = Math.max(state.storm, stormOverride);
+    if (stormCalled >= 0) {
+      stormCalled += dt;
+      const t = stormCalled;
+      let front = 0;
+      if (t < STORM_ATTACK) {
+        front = smooth(t / STORM_ATTACK);
+      } else if (t < STORM_ATTACK + STORM_HOLD) {
+        front = 1;
+      } else if (t < STORM_ATTACK + STORM_HOLD + STORM_RELEASE) {
+        front = 1 - smooth((t - STORM_ATTACK - STORM_HOLD) / STORM_RELEASE);
+      } else {
+        stormCalled = -1;
+      }
+      // `max`, so a called front can only ever add to whatever the ambient
+      // dial was already doing — never carve a hole in a natural blizzard.
+      state.storm = Math.max(state.storm, front);
     }
     const s = state.storm;
 
@@ -676,7 +714,8 @@ export function createWeather(THREE) {
   }
 
   function triggerStorm() {
-    stormOverride = 1.0;
+    if (stormCalled >= 0) return;    // a front is already on the mountain
+    stormCalled = 0;
   }
 
   update(0);

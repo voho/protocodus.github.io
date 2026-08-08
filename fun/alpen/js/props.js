@@ -446,13 +446,18 @@ const BEACON = `#include <color_vertex>
 {
   float n64Ph = 0.0;
   #ifdef USE_INSTANCING
-    // x * 0.0277 offsets the phase by exactly 0.5 (pi) across the 18m gate width,
-    // creating a perfect alternating train-crossing blink between the two poles!
-    n64Ph = fract(instanceMatrix[3].z * 0.0177 + instanceMatrix[3].x * 0.02777) * 6.2832;
+    /* z only, exactly as the note above says, and the x term that briefly
+       joined it is gone. It was meant to make a gate's two lamps alternate —
+       claimed as half a cycle across the gate, but the poles are 9.2 m
+       apart, so it came out at ninety-two degrees: neither together nor
+       alternating, just two unrelated lights where the design put one
+       signal. The corridor also wanders in x, so it broke the downhill
+       ripple between gates as well. */
+    n64Ph = fract(instanceMatrix[3].z * 0.0177) * 6.2832;
   #endif
-  float n64Flash = pow(max(0.0, sin(uAirTime * 3.2 + n64Ph)), 4.0);
+  float n64Flash = pow(max(0.0, sin(uAirTime * 2.4 + n64Ph)), 4.0);
   #if defined( USE_COLOR )
-    vColor.rgb *= 0.6 + 4.5 * n64Flash; // Boosted brightness
+    vColor.rgb *= 0.55 + 2.10 * n64Flash;
   #endif
 }`;
 
@@ -2518,15 +2523,32 @@ export function createProps(THREE, shading) {
          modules away, and a gate lit in a colour it is not flying is two
          gates in the same place. */
       gates.push({
-        x: slot.x, z: slot.z, half: PROPS.gateHalf, taken: false,
+        x: slot.x, z: slot.z, half: PROPS.gateHalf,
+        taken: takenGates.has(slot.z),
         warm: colour === gateB,
       });
     }
   }
 
+  /* Which gates the run has already crossed, by their slot z — deterministic
+     per seed, so the same gate gets the same key on every rebuild. Without
+     this a rebuild re-pushed every gate with `taken: false`, and since a
+     rebuild happens every band, about a third of the gates just passed
+     re-lit from their dimmed ember to full brightness behind the rider. */
+  const takenGates = new Set();
+
   function rebuild(riderZ) {
     allPools.forEach((p) => p.begin());
     solids.length = 0;
+    for (let i = 0; i < gates.length; i++) {
+      if (gates[i].taken) takenGates.add(gates[i].z);
+    }
+    // Passed gates scroll uphill and out of the stream; their keys must not
+    // accumulate for the length of an endless run.
+    if (takenGates.size > 256) {
+      const horizon = riderZ + (behind + 2) * band;
+      for (const zKey of takenGates) if (zKey > horizon) takenGates.delete(zKey);
+    }
     gates.length = 0;
 
     /* Nearest band first, spiralling outward, rather than a straight sweep
@@ -2558,6 +2580,16 @@ export function createProps(THREE, shading) {
   function update(riderZ) {
     const bi = Math.floor(riderZ / band);
     if (bi === currentBand) return;
+    /* Two metres of dead band on the boundary just crossed. A full rebuild
+       regenerates all eighteen streamed bands in one frame, which is fine
+       forty metres apart and pathological when a tumble bounces back and
+       forth across one exact boundary — that was a rebuild per frame for as
+       long as the bouncing lasted. The band the content actually needs is
+       streamed eleven ahead, so arriving two metres late costs nothing. */
+    if (!Number.isNaN(currentBand)) {
+      const edge = (bi > currentBand ? currentBand + 1 : currentBand) * band;
+      if (Math.abs(riderZ - edge) < 2) return;
+    }
     currentBand = bi;
     rebuild(riderZ);
   }

@@ -121,6 +121,20 @@ const TREE_RELEASE_RATE = 3.2;
    then a short binary search places its boundary continuously; using the
    coarse sample itself is what made the old camera change distance in visible
    steps as a tree crossed the sightline. */
+/* A free function rather than a closure over the frame — the same rule
+   `aboveSlope` follows and for the same reason: the walk below asks this up
+   to fourteen times a frame, and a fresh closure per frame is exactly the
+   steady GC churn the rest of the file is written to avoid. */
+const treeBlockedAt = (world, rider, dx, dz, t) => {
+  const cx = rider.pos.x + dx * t;
+  const cz = rider.pos.z + dz * t;
+  const near = clamp((t - TREE_SUBJECT_START) / (1 - TREE_SUBJECT_START), 0, 1);
+  const shaped = near * near * (3 - 2 * near);
+  const foliage = TREE_NEAR_RADIUS
+    + shaped * (TREE_LENS_RADIUS - TREE_NEAR_RADIUS);
+  return world.blocked(cx, cz, foliage);
+};
+
 const treeClearFraction = (world, rider, point) => {
   if (!world.blocked) return 1;
 
@@ -128,25 +142,15 @@ const treeClearFraction = (world, rider, point) => {
   const dz = point.z - rider.pos.z;
   if (dx * dx + dz * dz < 0.01) return 1;
 
-  const blocked = (t) => {
-    const cx = rider.pos.x + dx * t;
-    const cz = rider.pos.z + dz * t;
-    const near = clamp((t - TREE_SUBJECT_START) / (1 - TREE_SUBJECT_START), 0, 1);
-    const shaped = near * near * (3 - 2 * near);
-    const foliage = TREE_NEAR_RADIUS
-      + shaped * (TREE_LENS_RADIUS - TREE_NEAR_RADIUS);
-    return world.blocked(cx, cz, foliage);
-  };
-
   let previous = TREE_SUBJECT_START;
-  let wasBlocked = blocked(previous);
+  let wasBlocked = treeBlockedAt(world, rider, dx, dz, previous);
 
   /* A crown already touching the rider cannot be fixed by moving the camera.
      Ignore that innermost overlap, but start again soon enough to catch a
      second tree or the same crown surrounding the lens. */
   if (wasBlocked) {
     previous = TREE_SUBJECT_RESCAN;
-    wasBlocked = blocked(previous);
+    wasBlocked = treeBlockedAt(world, rider, dx, dz, previous);
     if (wasBlocked) return Math.max(TREE_MIN_BOOM, previous - 0.10);
   }
 
@@ -154,7 +158,7 @@ const treeClearFraction = (world, rider, point) => {
   let lastClear = previous;
   for (let i = 1; i <= count; i++) {
     const t = Math.min(1, previous + i * TREE_SAMPLE_STEP);
-    if (!blocked(t)) {
+    if (!treeBlockedAt(world, rider, dx, dz, t)) {
       lastClear = t;
       continue;
     }
@@ -163,7 +167,7 @@ const treeClearFraction = (world, rider, point) => {
     let hi = t;
     for (let j = 0; j < 5; j++) {
       const mid = (lo + hi) * 0.5;
-      if (blocked(mid)) hi = mid;
+      if (treeBlockedAt(world, rider, dx, dz, mid)) hi = mid;
       else lo = mid;
     }
     return Math.max(TREE_MIN_BOOM, lo - TREE_GUARD);
@@ -214,7 +218,10 @@ export function createChaseCamera(THREE, camera) {
   function update(rider, dt, world) {
     const speed = rider.speed;
     const ratio = clamp(speed / 42, 0, 1);
-    const air = !rider.grounded;
+    // A flight, not merely an absence of ground: a wipeout also leaves the
+    // ground, and framing the tumble with the flight's opened boom and lens
+    // made every crash look like a soaring air.
+    const air = rider.state === 'air';
     const tuck = rider.tucking ? 1 : 0;
     // Eased rather than linear, so the frame opens promptly off a small
     // roller and still has somewhere left to go through a long flight
@@ -223,12 +230,20 @@ export function createChaseCamera(THREE, camera) {
 
     // Which way the run is actually heading: mostly the velocity, a little
     // the board. Pure velocity swims about at low speed; pure heading hides
-    // every slide the rider makes.
+    // every slide the rider makes — so trust in the velocity fades in over
+    // 1.5–3.5 m/s instead of switching at 3. The hard switch sat exactly in
+    // the band where board and travel diverge most, and crossing it during
+    // a scrubbing stop swung the whole frame one way and back in two steps.
     const stanceYaw = rider.yaw - (rider.switchStance ? Math.PI : 0);
     flat.set(rider.vel.x, 0, rider.vel.z);
-    if (flat.lengthSq() < 9) flat.set(Math.sin(stanceYaw), 0, -Math.cos(stanceYaw));
-    flat.normalize();
+    const travel = flat.length();
     tmp.set(Math.sin(stanceYaw), 0, -Math.cos(stanceYaw));
+    if (travel < 1e-4) {
+      flat.copy(tmp);
+    } else {
+      const trust = clamp((travel - 1.5) / 2, 0, 1);
+      flat.multiplyScalar(1 / travel).lerp(tmp, 1 - trust).normalize();
+    }
     dir.copy(flat).multiplyScalar(CAMERA.velocityBias)
       .addScaledVector(tmp, 1 - CAMERA.velocityBias).normalize();
 
@@ -366,8 +381,11 @@ export function createChaseCamera(THREE, camera) {
 
     // Roll the frame a little into the carve, and a little onto the wall.
     // Small — past about ten degrees it stops reading as lean and starts
-    // reading as a broken horizon.
-    const wantRoll = -rider.roll * CAMERA.roll
+    // reading as a broken horizon. A tumble is not a carve: `rider.roll` is
+    // only written by riding and flying, so through a fall it holds the last
+    // carve's lean, and the frame stayed banked for the whole wipeout.
+    const carveRoll = rider.state === 'fall' || rider.state === 'rise' ? 0 : rider.roll;
+    const wantRoll = -carveRoll * CAMERA.roll
       - clamp(bank * BANK_SHARE, -BANK_MAX, BANK_MAX)
       + sx * amp * 0.06;
     roll += (wantRoll - roll) * (1 - Math.exp(-5 * dt));

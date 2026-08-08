@@ -640,7 +640,13 @@ const FRAG_SHADE = `#include <lights_fragment_maps>
     vec2 n64ShadeUv = fract(n64ShadeW.xz / ${asFloat(SHADE_PAGE_SPAN)});
     float n64ShadeLo = floor(uShadeSlice);
     float n64ShadeHi = min(n64ShadeLo + 1.0, ${asFloat(SHADE_DIRECTIONS - 1)});
+    /* Smoothed, because what the two slices hold is a max-slope horizon,
+       not a shadow mask: blended linearly the result is continuous but its
+       derivative kinks at every slice boundary, and with the sun crossing
+       one slice in a couple of game minutes the terrain shadow edge
+       ratcheted with a visible hitch at each crossing. */
     float n64ShadeBearing = fract(uShadeSlice);
+    n64ShadeBearing = n64ShadeBearing * n64ShadeBearing * (3.0 - 2.0 * n64ShadeBearing);
     vec2 n64ShadeLayerLo = vec2(
       mod(n64ShadeLo, ${asFloat(SHADE_DIRECTION_COLS)}),
       floor(n64ShadeLo / ${asFloat(SHADE_DIRECTION_COLS)}));
@@ -891,11 +897,19 @@ export function createShading(THREE) {
     uniforms.uSkyHaze.value.copy(w.haze);
     uniforms.uSkyGlow.value.copy(w.glow);
     /* A lightning flash lights the dome, and the world's fog dissolves into
-       that dome — leave these two out and every fogged ridge holds its old
-       colour against a white sky for the length of the strike. */
+       that dome — so every stop the dome whitens has to whiten here too.
+       This used to touch only the horizon and the haze, and the difference
+       was visible exactly where the two skies meet: the strike whitened the
+       dome's zenith, mid stop and sun lobe while the fogged ridges kept the
+       old colours in theirs, drawing a bright seam along the fog line for
+       the length of every strike. Same stops, same 0.8, as `sky.js`. */
     if (w.flash > 0.003) {
-      uniforms.uSkyHorizon.value.lerp(flashWhite, w.flash * 0.8);
-      uniforms.uSkyHaze.value.lerp(flashWhite, w.flash * 0.8);
+      const flashMix = Math.min(1, w.flash) * 0.8;
+      uniforms.uSkyZenith.value.lerp(flashWhite, flashMix);
+      uniforms.uSkyMid.value.lerp(flashWhite, flashMix);
+      uniforms.uSkyHorizon.value.lerp(flashWhite, flashMix);
+      uniforms.uSkyHaze.value.lerp(flashWhite, flashMix);
+      uniforms.uSkyGlow.value.lerp(flashWhite, flashMix);
     }
     uniforms.uGlowStrength.value = 1 - w.storm * 0.8;
     uniforms.uFogNear.value = w.fogNear;

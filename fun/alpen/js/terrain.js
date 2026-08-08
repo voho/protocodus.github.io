@@ -437,6 +437,12 @@ export function nearestCenter(x, z) {
    mask exactly: where the surface starts visibly roughening is where the
    board starts feeling it. */
 const surfScratch = [0, 0];
+/* One record, reused — the same convention as `surfScratch` a line up, and
+   for the same caller: this runs inside every 120 Hz physics step (plus once
+   a frame for the audio), and a fresh four-field object per call was the
+   last steady allocation left in the fixed-step path. Both consumers read
+   the weights synchronously and never hold the reference. */
+const surfMaterial = { rock: 0, groomed: 1, ice: 0, powder: 0 };
 export function getTerrainMaterialAt(x, z) {
   const half = corridorHalfAt(z);
   const d = Math.abs(x - nearestCenter(x, z));
@@ -460,7 +466,11 @@ export function getTerrainMaterialAt(x, z) {
   const ice = smoothstep(w[0] + w[1], w[0] + w[1] + 50, past) * 0.6;
   const powder = Math.max(0, (1 - groomed) * (1 - rock) * (1 - ice));
 
-  return { rock, groomed, ice, powder };
+  surfMaterial.rock = rock;
+  surfMaterial.groomed = groomed;
+  surfMaterial.ice = ice;
+  surfMaterial.powder = powder;
+  return surfMaterial;
 }
 
 /* The coordinate frame a grooming machine would actually have driven.
