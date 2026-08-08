@@ -69,14 +69,15 @@ const BEST_KEY = 'alpen.best';
    depend on it, and a host that embeds `main.js` without the markup must
    still get a mountain. */
 const rawBoot = window.__alpenBoot || { step() {}, giveUp() {} };
+let bootGameRef = null;
 const boot = {
   step(id) {
     if (rawBoot && rawBoot.step) rawBoot.step(id);
-    if (typeof game !== 'undefined') {
-      if (id === 'engine') { game.loadingProgress = 0.42; game.loadingLabel = 'FETCHING ENGINE'; }
-      else if (id === 'mountain') { game.loadingProgress = 0.72; game.loadingLabel = 'MARCHING HORIZON'; }
-      else if (id === 'snow') { game.loadingProgress = 0.85; game.loadingLabel = 'DECODING SNOW'; }
-      else if (id === 'shaders') { game.loadingProgress = 1.0; game.loadingLabel = 'READY'; }
+    if (bootGameRef) {
+      if (id === 'engine') { bootGameRef.loadingProgress = 0.42; bootGameRef.loadingLabel = 'FETCHING ENGINE'; }
+      else if (id === 'mountain') { bootGameRef.loadingProgress = 0.72; bootGameRef.loadingLabel = 'MARCHING HORIZON'; }
+      else if (id === 'snow') { bootGameRef.loadingProgress = 0.85; bootGameRef.loadingLabel = 'DECODING SNOW'; }
+      else if (id === 'shaders') { bootGameRef.loadingProgress = 1.0; bootGameRef.loadingLabel = 'READY'; }
     }
   },
   giveUp() { if (rawBoot && rawBoot.giveUp) rawBoot.giveUp(); }
@@ -356,6 +357,7 @@ const game = {
   maxSpeedAnnounced: 0,
   manualWeather: 0,
 };
+bootGameRef = game;
 
 try {
   game.best = Number(localStorage.getItem(BEST_KEY)) || 0;
