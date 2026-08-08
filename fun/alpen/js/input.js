@@ -70,7 +70,7 @@ export function createInput(target, hooks = {}) {
   // Gamepad edge state — see the pad block in `update`.
   let gamepadSuppressed = false;
   let gpJumpHeld = false;
-  let gpJumpFrames = 0;
+  let gpJumpStepSeen = false;
   const state = {
     turn: 0, tuck: false, brake: false, jump: false,
     trickGrab: false, trickFlip: false,
@@ -177,17 +177,17 @@ export function createInput(target, hooks = {}) {
       }
 
       /* A pad tap has no key events to latch, so its edges are found here at
-         poll time. A press two frames short or less may have straddled only
-         frames that ran zero physics steps — the same lost-ollie failure the
-         keyboard latch fixes — so its release replays the press through the
-         same pulse machine. Longer holds have certainly been seen; their
-         release is a level change the next step cannot miss. */
+         poll time. A press may have straddled only frames that ran zero
+         physics steps — the same lost-ollie failure the keyboard latch
+         fixes — so a release whose press *no step consumed* replays it
+         through the same pulse machine. Consumption is the test, not frame
+         counting: `stepped()` reports the actual read, so a press the rider
+         already charged from is never replayed as extra charge on top. */
       if (gpJump && !gpJumpHeld) {
         state.anyPressed = true;
-        gpJumpFrames = 0;
+        gpJumpStepSeen = false;
       }
-      if (gpJump) gpJumpFrames += 1;
-      if (!gpJump && gpJumpHeld && gpJumpFrames <= 2) jumpTapPending = true;
+      if (!gpJump && gpJumpHeld && !gpJumpStepSeen) jumpTapPending = true;
       gpJumpHeld = gpJump;
     }
 
@@ -237,6 +237,9 @@ export function createInput(target, hooks = {}) {
      steps at all cannot consume one. */
   function stepped() {
     if (jumpPulse !== PULSE_NONE) jumpPulseSeen = true;
+    // The pad press is consumed the same way the latched tap is: by a
+    // physics step actually reading it. See the pad block in `update`.
+    if (gpJumpHeld && state.jump) gpJumpStepSeen = true;
   }
 
   /* Wires the on-screen pad. Each button is a pointer capture rather than a
@@ -314,7 +317,7 @@ export function createInput(target, hooks = {}) {
     // The pad cannot be emptied, only distrusted — see the poll in `update`.
     gamepadSuppressed = true;
     gpJumpHeld = false;
-    gpJumpFrames = 0;
+    gpJumpStepSeen = false;
     calm();
   }
 

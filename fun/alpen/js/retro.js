@@ -584,14 +584,16 @@ export function createRetro(THREE, renderer) {
      that the change is not visible through motion. Returning true lets the
      diagnostics know the backing store changed; camera aspect is unchanged. */
   function updatePerformance(dt, active = true) {
-    /* The stall rejection tests against the caller's own clamp, not 0.1 —
-       `main.js` caps dt at 0.05 before it arrives, so `dt > 0.1` could never
-       be true and a genuine stall (a tab switch, a GC pause, a terrain
-       refill) landed as a full-weight worst-case sample. A frame sitting at
-       the clamp ceiling is a stall being reported at reduced size, and a
-       governor that reacts to it steps resolution down for pressure that
-       was never sustained GPU load. */
-    if (!active || dt <= 0 || dt >= 0.049) return false;
+    /* This is the one consumer that receives the *unclamped* frame delta —
+       `main.js` caps the simulation dt at 0.05, and against that clamp a
+       stall guard is unsatisfiable: a genuine stall arrives looking exactly
+       like a heavy frame, and rejecting the ceiling instead disables the
+       governor for any device sustainedly below 20 fps, which is precisely
+       the device it exists for. With the real duration the two are
+       distinguishable again: a quarter of a second is a tab switch or a GC
+       pause and is ignored; anything under it is honest rendering load and
+       feeds the average. */
+    if (!active || dt <= 0 || dt > 0.25) return false;
     averageFrame += (dt - averageFrame) * (1 - Math.exp(-dt * 2.5));
 
     if (averageFrame > 1 / 48) {

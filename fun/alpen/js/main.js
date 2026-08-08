@@ -1085,7 +1085,11 @@ let tickStep = 0;
 function frame(now) {
   requestAnimationFrame(frame);
   if (!last) last = now;
-  const dt = Math.min(0.05, (now - last) / 1000);
+  // The unclamped delta exists for exactly one consumer: the resolution
+  // governor, which has to tell a sustained 20 fps (act) from a one-off
+  // stall (ignore), and cannot do either through the simulation clamp.
+  const frameDt = (now - last) / 1000;
+  const dt = Math.min(0.05, frameDt);
   last = now;
 
   const running = game.mode !== 'paused';
@@ -1305,6 +1309,11 @@ function frame(now) {
         sparkCarry -= embers;
         spray.sparks(rider.pos, -rider.vel.x * 0.1, -rider.vel.z * 0.1, embers);
       }
+      // Sparks the frame cap refused are forgiven, not banked: below 30 fps
+      // the debt otherwise grows without bound and is then paid back at the
+      // full four-per-frame the moment performance recovers — rolling the
+      // spray pool over during the exact recovery the cap exists to protect.
+      sparkCarry = Math.min(sparkCarry, 1);
     } else {
       sparkCarry = 0;
     }
@@ -1354,7 +1363,7 @@ function frame(now) {
   hud.update(game, dt);
 
   retro.updateEffects(dt, running);
-  retro.updatePerformance(dt, running);
+  retro.updatePerformance(frameDt, running);
   if (running || !pausedRendered || retro.animating) {
     retro.render(scene, camera);
     pausedRendered = !running && !retro.animating;
