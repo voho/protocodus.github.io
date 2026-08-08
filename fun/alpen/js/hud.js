@@ -489,7 +489,7 @@ export function createHud(root) {
       });
 
       // Loading Bar or Prompt
-      if (g.loadingProgress != null && g.loadingProgress < 1) {
+      if (g.loadingProgress !== null && g.loadingProgress !== undefined && g.loadingProgress < 1) {
         const loadY = cardsY + controls.length * 11 * UI + 6 * UI;
         const barW = Math.min(200 * UI, W - 40 * UI);
         const barH = 5 * UI;
