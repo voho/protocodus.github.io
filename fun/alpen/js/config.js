@@ -955,7 +955,7 @@ export const TERRAIN = {
     directions: 32,
     azimuth: [0.25, 2.05],
     tileSamples: 32,
-    tileGrid: 5,
+    tileGrid: 7, // Increased from 5 to push shadow edge further into fog
     directionGrid: [8, 4],
     angularSoftness: 0.018,
   },

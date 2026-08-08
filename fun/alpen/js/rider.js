@@ -1583,6 +1583,9 @@ export class Rider {
     this.charging = false;
     this.charge = 0;
     this.emit('launch', this.vel.y);
+    if (this.lipPop && pop > 0) {
+      this.emit('perfectPop');
+    }
     /* A press that was still on the snow the moment the snow left is a press
        that finished, so it is judged here rather than being carried into the
        air where it would be rolled into the jump's own rotation.

@@ -124,8 +124,8 @@ import { createHeadlamp } from './headlamp.js';
 const INK = '#181c24';
 const SHELL = '#ff4d12';    // high-vis pro technical Gore-Tex jacket
 const SHELL_DARK = '#cc3704';
-const MINT = '#00ffd5';     // chrome mint goggles & collar accent
-const YELLOW = '#ffbe00';   // pro binding straps & wrist cuffs
+const MINT = '#00d4ff';     // Alpine glacier ice goggles & collar accent
+const YELLOW = '#ffab00';   // Alpine sun gold binding straps & wrist cuffs
 const SKIN = '#c98f6a';
 const DENIM = '#162342';    // deep navy technical snow pants
 
@@ -1522,12 +1522,23 @@ export function createRiderModel(THREE, shading) {
     up.copy(rider.normal);
     if (!rider.grounded) up.lerp(UP, Math.min(1, rider.airTime * 2.5)).normalize();
     q.setFromUnitVectors(UP, up);
+    let tweakPitch = 0;
+    let tweakRoll = 0;
+    if (grab > 0.05) {
+      if (rider.grabKind === 2) { // METHOD
+        tweakRoll = 0.9 * grab;
+        tweakPitch = 0.4 * grab;
+      } else if (rider.grabKind === 1) { // NOSE
+        tweakPitch = -0.7 * grab;
+      }
+    }
+
     // Negative, and this is the fix rather than a convention: the physics
     // heading is (sin yaw, 0, −cos yaw), which is this rotation and not its
     // mirror. See the note at the top of the file.
     qy.setFromAxisAngle(UP, -rider.yaw);
-    qx.setFromAxisAngle(AX, rider.flip + rider.tumble * s.down);
-    qz.setFromAxisAngle(AZ, -s.lean * (1 + 1.2 * s.down));
+    qx.setFromAxisAngle(AX, rider.flip + rider.tumble * s.down + tweakPitch);
+    qz.setFromAxisAngle(AZ, -s.lean * (1 + 1.2 * s.down) + tweakRoll);
     q.multiply(qy).multiply(qx).multiply(qz);
 
     root.quaternion.copy(q);

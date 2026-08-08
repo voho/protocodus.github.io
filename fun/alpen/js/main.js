@@ -68,7 +68,19 @@ const BEST_KEY = 'alpen.best';
    all. This is one page's worth of progress read-out; nothing in the game may
    depend on it, and a host that embeds `main.js` without the markup must
    still get a mountain. */
-const boot = window.__alpenBoot || { step() {}, giveUp() {} };
+const rawBoot = window.__alpenBoot || { step() {}, giveUp() {} };
+const boot = {
+  step(id) {
+    if (rawBoot && rawBoot.step) rawBoot.step(id);
+    if (typeof game !== 'undefined') {
+      if (id === 'engine') { game.loadingProgress = 0.42; game.loadingLabel = 'FETCHING ENGINE'; }
+      else if (id === 'mountain') { game.loadingProgress = 0.72; game.loadingLabel = 'MARCHING HORIZON'; }
+      else if (id === 'snow') { game.loadingProgress = 0.85; game.loadingLabel = 'DECODING SNOW'; }
+      else if (id === 'shaders') { game.loadingProgress = 1.0; game.loadingLabel = 'READY'; }
+    }
+  },
+  giveUp() { if (rawBoot && rawBoot.giveUp) rawBoot.giveUp(); }
+};
 boot.step('engine');
 
 const seedParams = new URLSearchParams(window.location.search);
@@ -321,6 +333,8 @@ const touchMute = pad.querySelector('[data-action="mute"]');
 
 const game = {
   mode: 'attract',       // attract | playing | paused
+  loadingProgress: 0.42,
+  loadingLabel: 'FETCHING ENGINE',
   score: 0,
   combo: 1,
   best: 0,
@@ -335,8 +349,12 @@ const game = {
   rider,
   weather: weather.state,
   liveTrick: '',
-  // consecutive gates threaded; each one is worth more than the last
   gateRun: 0,
+  flow: 0,
+  flowMaxAnnounced: false,
+  maxDistanceAnnounced: 0,
+  maxSpeedAnnounced: 0,
+  manualWeather: 0,
 };
 
 try {
@@ -458,6 +476,10 @@ function restart() {
   game.gateRun = 0;
   game.liveTrick = '';
   game.bestAtStart = game.best;
+  game.flow = 0;
+  game.flowMaxAnnounced = false;
+  game.maxDistanceAnnounced = 0,
+  game.maxSpeedAnnounced = 0,
   chase.reset();
   spray.clear();
   trail.clear();
@@ -501,6 +523,19 @@ function onKey(e) {
   if (e.code === 'KeyF') {
     toggleFullscreen();
     if (game.mode !== 'playing') begin();
+    return;
+  }
+  if (e.code === 'KeyT') {
+    game.manualWeather = (game.manualWeather + 1) % 4;
+    if (game.manualWeather === 0) {
+      weather.release();
+    } else if (game.manualWeather === 1) {
+      weather.pin(8 / 24); // Morning
+    } else if (game.manualWeather === 2) {
+      weather.pin(17.5 / 24); // Sunset
+    } else if (game.manualWeather === 3) {
+      weather.pin(21 / 24); // Night
+    }
     return;
   }
   if (e.code === 'KeyR' && game.mode !== 'attract') {
@@ -618,6 +653,7 @@ function scoreLanding(s) {
   if (s.verdict === CLEAN) {
     game.combo = Math.min(SCORE.comboMax, game.combo + SCORE.comboStep);
     audio.combo(game.combo);
+    if (pts > 1000) audio.announce('Stomped it');
   } else {
     audio.thud();
   }
@@ -629,8 +665,14 @@ rider.on('land', (s) => {
   audio.land(s.impact);
   chase.kick(Math.min(1.8, s.impact * 0.09));
   chase.land(s.impact);
-  spray.burst(rider.pos, -rider.vel.x * 0.1, -rider.vel.z * 0.1,
-    Math.round(8 + Math.min(34, s.impact * 2.2)), 0.5 + Math.min(1.4, s.impact * 0.07));
+  if (s.impact > RIDER.softImpact * 1.5) {
+    audio.stomp(s.impact / RIDER.hardImpact);
+    if (spray) spray.radialBurst(rider.pos, Math.min(60, Math.floor(s.impact * 1.5)));
+  }
+  if (spray) {
+    spray.burst(rider.pos, -rider.vel.x * 0.1, -rider.vel.z * 0.1,
+      Math.round(8 + Math.min(34, s.impact * 2.2)), 0.5 + Math.min(1.4, s.impact * 0.07));
+  }
 });
 
 rider.on('launch', (vy) => {
@@ -662,6 +704,8 @@ rider.on('fall', (cause, into = 0) => {
   spray.burst(rider.pos, backX * push, backZ * push,
     Math.round(34 + severity * 58), plume);
   hud.banner('WIPEOUT', 0, 'bad');
+  
+  if (severity > 0.5) audio.announce('Wipeout');
 });
 
 rider.on('impact', (v) => {
@@ -726,6 +770,17 @@ rider.on('pump', (drive) => {
   chase.kick(Math.min(0.5, drive * 0.09));
 });
 
+/* Flow from carving. Clean carves build up the flow meter. */
+rider.on('carve', (slide, carveLoad) => {
+  if (game.mode !== 'playing') return;
+  // Increase flow based on carveLoad, decrease based on slide
+  if (carveLoad > 0.4 && slide < 1.0) {
+    game.flow = Math.min(1.0, game.flow + (carveLoad * 0.3) * STEP);
+  } else if (slide > 2.0) {
+    game.flow = Math.max(0, game.flow - (slide * 0.1) * STEP);
+  }
+});
+
 /* A near miss is now only ever a bear.
 
    Threading a tree used to pay out as CLOSE ONE, and so did brushing past a
@@ -778,7 +833,7 @@ function checkGates() {
     game.gateRun = Math.min(SCORE.gateRunMax, game.gateRun + 1);
     const pts = SCORE.gate * game.gateRun * game.combo;
     award(pts, game.gateRun > 1 ? `GATE ×${game.gateRun}` : 'GATE', 'near');
-    audio.whoosh();
+    audio.chime(game.gateRun);
     lastPassedGate = { x: g.x, z: g.z - 3.0 };
     if (spray) {
       spray.burst({ x: g.x, y: world.height(g.x, g.z) + 0.4, z: g.z }, 0, -6, 14, 1.2);
@@ -1052,6 +1107,11 @@ function frame(now) {
        forest received the previous wind; that one-frame lag was normally
        small, but it became an obvious discontinuity whenever a build happened
        to begin near dawn, dusk or a storm front. */
+    if (game.mode === 'playing') {
+      if (Math.random() < dt / 90) { // ~once every 1.5 minutes
+        weather.triggerStorm();
+      }
+    }
     const w = weather.update(dt);
     retro.setGrade(w, dt);
     // Falling snow is fresh snow: progressively softer, slower and easier to
@@ -1100,6 +1160,27 @@ function frame(now) {
     heli.update(dt, rider, wildlife, w);
     if (game.mode === 'playing' && heli.claimLight(rider)) {
       award(SCORE.searchlight * game.combo, 'IN THE SPOTLIGHT', 'near');
+    }
+    
+    if (game.mode === 'playing') {
+      const kmh = Math.round(rider.speed * 3.6);
+      if (kmh >= 100 && game.maxSpeedAnnounced < 100) {
+        game.maxSpeedAnnounced = 100;
+        award(SCORE.comboStep * 200 * game.combo, '100 KM/H CLUB!', 'near');
+        audio.combo(game.combo);
+        audio.announce('Maximum speed');
+      }
+      
+      const dist = Math.floor(-rider.pos.z);
+      if (dist >= 1000 && game.maxDistanceAnnounced < 1000) {
+        game.maxDistanceAnnounced = 1000;
+        award(SCORE.comboStep * 250 * game.combo, '1,000M DESCENT!', 'near');
+        audio.combo(game.combo);
+      } else if (dist >= 5000 && game.maxDistanceAnnounced < 5000) {
+        game.maxDistanceAnnounced = 5000;
+        award(SCORE.comboStep * 500 * game.combo, '5,000M ALPINE LEGEND!', 'near');
+        audio.combo(game.combo);
+      }
     }
 
     huts.update(dt, rider, w, onCocoa);
@@ -1155,6 +1236,10 @@ function frame(now) {
         Math.max(1, Math.round(1 + drag * 4)), 0.38 + drag * 0.62);
     }
 
+    if (game.combo >= SCORE.comboMax && rider.state === 'ride' && rider.grounded && rider.speed > 5) {
+      spray.sparks(rider.pos, -rider.vel.x * 0.1, -rider.vel.z * 0.1, 2);
+    }
+
     wind.set(w.windX, 0, w.windZ);
     snowfall.setIntensity(w.snow);
     snowfall.update(dt, camera, wind);
@@ -1180,6 +1265,26 @@ function frame(now) {
       // The glow stop rides along so the ray march inherits the sun's own
       // colour — white at noon, amber through the golden hour.
       retro.setSun(s.x, s.y, s.visible, shading.uniforms.uSkyGlow.value);
+    }
+
+    /* Decay flow over time if not building it up */
+    if (game.mode === 'playing' && rider.grounded) {
+      // Natural bleed
+      game.flow = Math.max(0, game.flow - 0.05 * dt);
+      if (game.flow >= 0.99 && !game.flowMaxAnnounced) {
+        game.flowMaxAnnounced = true;
+        audio.announce('Superb');
+        award(500 * game.combo, 'MAX FLOW', 'near');
+      } else if (game.flow < 0.5) {
+        game.flowMaxAnnounced = false; // Reset when it drops
+      }
+      // Apply speed boost when flow is high
+      if (game.flow > 0.2) {
+        rider.vel.x += (rider.vel.x * game.flow * 0.03) * dt;
+        rider.vel.z += (rider.vel.z * game.flow * 0.03) * dt;
+      }
+    } else if (game.mode === 'playing' && !rider.grounded) {
+      game.flow = Math.max(0, game.flow - 0.1 * dt); // Bleed faster in air
     }
 
     game.liveTrick = liveTrickName();

@@ -277,6 +277,22 @@ export function createAudio() {
       burst(0.13, 2400, 0.10, 'highpass', null, 0, whiteBuf);
     },
 
+    // A synthesized chime for slalom gate streaks. Pitch increases with the streak.
+    chime(streak) {
+      const baseFreq = 523.25; // C5
+      // Pitch goes up a major scale degree approximately (simplified as 1.1x per step)
+      const freq = baseFreq * Math.pow(1.122, Math.min(streak - 1, 12));
+      tone(freq, freq * 0.95, 0.35, 0.25, 'sine');
+      tone(freq * 1.5, freq * 1.45, 0.25, 0.15, 'triangle', 0.05);
+    },
+
+    // A sub-bass thud for heavy stomps (perfect pop/massive air landings)
+    stomp(intensity) {
+      const k = clamp01(intensity);
+      tone(80 + k * 40, 20, 0.35 + k * 0.2, 0.25 + k * 0.15, 'sine', 0);
+      burst(0.3, 1200 + k * 800, 0.15 + k * 0.1, 'lowpass', 150);
+    },
+
     /* Everything the snow takes, all at once.
 
        It used to be one number over eighteen, which meant a two-metre drop
@@ -407,6 +423,18 @@ export function createAudio() {
           ctx.suspend().catch(() => { /* muted is silent enough */ });
         }
       }, 350);
+    },
+
+    announce(text) {
+      if (!started || muted || !window.speechSynthesis) return;
+      // Filter out some voices if possible to ensure we get a deep/robotic one,
+      // but standard Web Speech API doesn't guarantee specific stylized voices.
+      // Pitch and rate are our best tools for the retro feel.
+      const u = new SpeechSynthesisUtterance(text);
+      u.rate = 0.85;
+      u.pitch = 0.6;
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(u);
     },
   };
 }

@@ -175,14 +175,16 @@ function q5(hex) {
    INK is the outline every glyph carries, and it is what makes the whole
    thing legible over a white glacier at noon and a blue-black sky at
    midnight with no panel behind it. */
-const MINT = q5('#00ffc3');
-const AMBER = q5('#ffc400');
+const ICE = q5('#00d4ff');        // Alpine glacier ice blue
+const GOLD = q5('#ffab00');       // Alpine sun gold
+const MINT = ICE;
+const AMBER = GOLD;
 const SNOW = q5('#e6eefa');       // read-outs — blue-biased, never #ffffff
 const QUIET = q5('#9db2cc');      // secondary read-outs
 const DIM = q5('#63788f');        // labels that are only there to be found
 const INK = q5('#060c16');        // the outline
-const KEY = q5('#00b891');        // the legend's mint, one stop down
-const LEG = q5('#7d90a8');        // and the legend's text
+const KEY = q5('#00a8cc');        // ice, one stop down
+const LEG = q5('#7d90a8');        // legend text
 
 /* Banner tones. `near` reuses mint because a near miss is the game telling
    you that you did something on purpose, which is what mint means here. */
@@ -401,11 +403,136 @@ export function createHud(root) {
     return { surface, w, h };
   }
 
+  function drawBitmapMenu(g, isPaused) {
+    ctx.clearRect(0, 0, W, H);
+
+    // Dark backdrop overlay
+    ctx.fillStyle = 'rgba(9, 15, 26, 0.90)';
+    ctx.fillRect(0, 0, W, H);
+
+    // Outer pixel frame
+    ctx.strokeStyle = ICE;
+    ctx.lineWidth = Math.max(1, 2 * UI);
+    const margin = 8 * UI;
+    ctx.strokeRect(margin, margin, W - margin * 2, H - margin * 2);
+
+    const blink = Math.floor(clock * 3) % 2 === 0;
+
+    if (isPaused) {
+      // PAUSED MENU
+      const topY = margin + 14 * UI;
+      centreLine('PAUSED', topY, GOLD, 3);
+
+      // Stats box
+      const boxY = topY + 38 * UI;
+      centreLine('CURRENT RUN', boxY, ICE, 1);
+      const scoreStr = `SCORE    ${fmt.format(Math.round(shownScore))}`;
+      const bestStr =  `BEST     ${fmt.format(Math.round(g.bestAtStart || 0))}`;
+      const distStr =  `DISTANCE ${(g.rider ? g.rider.distance / 1000 : 0).toFixed(2)} KM`;
+
+      centreLine(scoreStr, boxY + 14 * UI, SNOW, 1);
+      centreLine(bestStr, boxY + 26 * UI, GOLD, 1);
+      centreLine(distStr, boxY + 38 * UI, QUIET, 1);
+
+      // Controls recap
+      const ctrlY = boxY + 58 * UI;
+      centreLine('CONTROLS', ctrlY, ICE, 1);
+      centreLine('[A][D] CARVE & SPIN  ·  [W] BOOST  ·  [S] BRAKE', ctrlY + 14 * UI, LEG, 1);
+      centreLine('[SPACE] POP JUMP     ·  [Q][E] TRICKS & FLIPS', ctrlY + 26 * UI, LEG, 1);
+      centreLine('[R] RESTART  ·  [N] NEW MOUNTAIN  ·  [M] MUTE', ctrlY + 38 * UI, LEG, 1);
+
+      // Prompt
+      const touch = document.body.classList.contains('touch');
+      const promptText = touch ? 'TAP ANYWHERE TO RESUME' : 'PRESS ANY KEY TO RESUME';
+      if (blink || CALM) {
+        centreLine(`[ ${promptText} ]`, H - margin - 20 * UI, GOLD, 2);
+      }
+    } else {
+      // START SCREEN TITLE CARD MENU
+      const topY = margin + 10 * UI;
+
+      centreLine('ALPEN · ENDLESS SNOWBOARDING', topY, ICE, 1);
+
+      const titleY = topY + 12 * UI;
+      const titleSize = centreLine('ALPEN', titleY, SNOW, 4);
+
+      const seedY = titleY + GLYPH_H * titleSize * UI + 4 * UI;
+      const seedCode = g.seed || 'ALPEN';
+      centreLine(`MOUNTAIN SEED · ${seedCode}`, seedY, QUIET, 1);
+
+      const descY = seedY + 14 * UI;
+      centreLine('AN ENDLESS MOUNTAIN, A BOARD, AND WHATEVER YOU CAN LAND.', descY, LEG, 1);
+
+      const cardsY = descY + 16 * UI;
+      const controls = [
+        ['[ A ][ D ]', 'CARVE ON SNOW · SPIN IN AIR'],
+        ['[ W ]', 'POWERED TUCK (BOOST)'],
+        ['[ S ]', 'SPEED CHECK (BRAKE)'],
+        ['[ SPACE ]', 'HOLD TO LOAD LEGS, RELEASE TO POP'],
+        ['[ Q ][ E ]', 'GRAB / TAIL PRESS · BACKFLIP'],
+        ['[ ESC / R ]', 'PAUSE · RESTART MOUNTAIN'],
+      ];
+
+      controls.forEach(([keys, desc], i) => {
+        const y = cardsY + i * 11 * UI;
+        const kw = measure(keys, UI);
+        const dw = measure(desc, UI);
+        const totalW = kw + 8 * UI + dw;
+        const startX = CENTRE - (totalW >> 1);
+        text(keys, startX, y, ICE, 1);
+        text(desc, startX + kw + 8 * UI, y, LEG, 1);
+      });
+
+      // Loading Bar or Prompt
+      if (g.loadingProgress != null && g.loadingProgress < 1) {
+        const loadY = cardsY + controls.length * 11 * UI + 6 * UI;
+        const barW = Math.min(200 * UI, W - 40 * UI);
+        const barH = 5 * UI;
+        const barX = CENTRE - (barW >> 1);
+        ctx.fillStyle = INK;
+        ctx.fillRect(barX - UI, loadY - UI, barW + 2 * UI, barH + 2 * UI);
+        ctx.strokeStyle = ICE;
+        ctx.lineWidth = UI;
+        ctx.strokeRect(barX - UI, loadY - UI, barW + 2 * UI, barH + 2 * UI);
+
+        const fillW = Math.round(barW * (g.loadingProgress || 0));
+        if (fillW > 0) {
+          ctx.fillStyle = ICE;
+          ctx.fillRect(barX, loadY, fillW, barH);
+        }
+        const pct = Math.round((g.loadingProgress || 0) * 100);
+        const lbl = g.loadingLabel ? `${g.loadingLabel} · ${pct}%` : `LOADING · ${pct}%`;
+        centreLine(lbl, loadY + barH + 4 * UI, QUIET, 1);
+      } else {
+        const touch = document.body.classList.contains('touch');
+        const promptText = touch ? 'TAP ANYWHERE TO DROP IN' : 'PRESS ANY KEY TO DROP IN';
+        if (blink || CALM) {
+          centreLine(`[ ${promptText} ]`, H - margin - 20 * UI, GOLD, 2);
+        }
+      }
+    }
+  }
+
   /* ------------------------------------------------------------------------
      The frame
      --------------------------------------------------------------------- */
 
+  let cachedCurtain = null;
+  function getCurtain() {
+    if (!cachedCurtain) cachedCurtain = document.querySelector('.curtain');
+    return cachedCurtain;
+  }
+
   function draw(g) {
+    const curtain = getCurtain();
+    const isAttract = g.mode === 'attract' || (curtain && curtain.classList.contains('on') && curtain.dataset.screen === 'start');
+    const isPaused = g.mode === 'paused' || (curtain && curtain.classList.contains('on') && curtain.dataset.screen === 'paused');
+
+    if (isAttract || isPaused) {
+      drawBitmapMenu(g, isPaused);
+      return;
+    }
+
     ctx.clearRect(0, 0, W, H);
     const rider = g.rider;
     const line = GLYPH_H * UI;          // one stop of type, in buffer pixels
@@ -570,6 +697,20 @@ export function createHud(root) {
       if (w > 0) ctx.fillRect(left, CHARGE_Y, w, CHARGE_H);
     }
 
+    // --- the flow meter -------------------------------------------------
+    if (g.flow > 0.01) {
+      const flowY = BOTTOM - 36 * UI;
+      from('FLOW', PAD_L, flowY, MINT, 1);
+      const flowW = 80 * UI;
+      const flowH = 4 * UI;
+      const flowX = PAD_L + measure('FLOW ', UI);
+      ctx.fillStyle = INK;
+      ctx.fillRect(flowX - UI, flowY - UI, flowW + 2 * UI, flowH + 2 * UI);
+      ctx.fillStyle = g.flow > 0.99 && (CALM || Math.floor(clock * 10) % 2 === 0) ? SNOW : MINT;
+      const fw = Math.round(flowW * g.flow);
+      if (fw > 0) ctx.fillRect(flowX, flowY, fw, flowH);
+    }
+
     // --- the quiet corners ----------------------------------------------
     // "Sound on" is useful while learning the controls and then becomes
     // chrome. "Sound off" stays visible because silence needs an explanation.
@@ -639,30 +780,37 @@ export function createHud(root) {
      One string allocation per frame, traded for hundreds of draw calls on
      the frames it skips. */
   function signature(g) {
+    const curtain = getCurtain();
+    const isAttract = g.mode === 'attract' || (curtain && curtain.classList.contains('on') && curtain.dataset.screen === 'start');
+    const isPaused = g.mode === 'paused' || (curtain && curtain.classList.contains('on') && curtain.dataset.screen === 'paused');
+    const blink = Math.floor(clock * 3) % 2;
     const rider = g.rider;
     const age = BANNER_HOLD - bannerTimer;
-    const charge = rider.charging ? Math.min(1, Math.max(0, rider.charge)) : 0;
+    const charge = rider && rider.charging ? Math.min(1, Math.max(0, rider.charge)) : 0;
     const full = charge > 0.995;
-    return `${W} ${H} ${Math.round(shownScore)}`
+    return `${W} ${H} ${g.mode || ''} ${isAttract} ${isPaused} ${g.loadingProgress || 0} ${g.loadingLabel || ''} ${blink}`
+      + ` ${Math.round(shownScore)}`
       + ` ${Math.round(g.combo)}`
       + ` ${comboFlash > 0 && !CALM ? Math.floor((COMBO_FLASH - comboFlash) / 0.06) % 2 : -1}`
       + ` ${Math.round(g.bestAtStart || 0)}`
       + ` ${g.bestAtStart > 0 && g.score >= g.bestAtStart ? 1 : 0}`
       + ` ${bestFlash > 0 ? (CALM ? 1 : Math.floor((BEST_FLASH - bestFlash) / 0.18) % 2) : -1}`
-      + ` ${Math.round(rider.speed * 3.6)}`
-      + ` ${(rider.distance / 1000).toFixed(2)} ${Math.round(rider.drop)}`
-      + ` ${Math.round(Math.atan(gradeAt(rider.pos.z)) * 180 / Math.PI)}`
-      + ` ${g.weather.phase}·${g.weather.conditions}`
+      + ` ${rider ? Math.round(rider.speed * 3.6) : 0}`
+      + ` ${rider ? (rider.distance / 1000).toFixed(2) : 0} ${rider ? Math.round(rider.drop) : 0}`
+      + ` ${rider ? Math.round(Math.atan(gradeAt(rider.pos.z)) * 180 / Math.PI) : 0}`
+      + ` ${g.weather ? `${g.weather.phase}·${g.weather.conditions}` : ''}`
       + ` ${g.gateRun > 0 ? g.gateRun : 0}`
-      + ` ${!rider.grounded && rider.airTime > 0.25 ? rider.airTime.toFixed(1) : ''}`
-      + ` ${!rider.grounded && g.liveTrick ? g.liveTrick : ''}`
+      + ` ${rider && !rider.grounded && rider.airTime > 0.25 ? rider.airTime.toFixed(1) : ''}`
+      + ` ${rider && !rider.grounded && g.liveTrick ? g.liveTrick : ''}`
       + ` ${bannerTimer > 0
         ? `${bannerName}|${bannerPoints}|${bannerTone}`
           + `|${CALM ? 0 : age < 0.05 ? 3 : age < 0.10 ? 1 : 0}`
           + `|${!CALM && age < 0.18 ? Math.floor(age / 0.06) % 2 : -1}`
         : ''}`
-      + ` ${rider.charging ? Math.round(CHARGE_W * charge) : -1}`
+      + ` ${rider && rider.charging ? Math.round(CHARGE_W * charge) : -1}`
       + ` ${full ? 1 : 0} ${full && !CALM ? Math.floor(clock * 10) % 2 : -1}`
+      + ` ${g.flow > 0 ? Math.round(g.flow * 100) : 0}`
+      + ` ${g.flow > 0.99 && !CALM ? Math.floor(clock * 10) % 2 : -1}`
       + ` ${muted ? 1 : 0} ${legendTime < LEGEND_SECONDS ? 1 : 0}`
       + ` ${document.body.classList.contains('touch') ? 1 : 0}`;
   }

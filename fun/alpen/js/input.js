@@ -111,15 +111,40 @@ export function createInput(target, hooks = {}) {
   target.addEventListener('keydown', keydown);
   target.addEventListener('keyup', keyup);
   window.addEventListener('blur', blur);
+  let hasGamepads = false;
+  window.addEventListener('gamepadconnected', () => hasGamepads = true);
+  window.addEventListener('gamepaddisconnected', () => {
+    hasGamepads = (navigator.getGamepads ? navigator.getGamepads() : []).filter(g => g).length > 0;
+  });
 
   function update(dt) {
-    const want = (held('right') ? 1 : 0) - (held('left') ? 1 : 0);
+    let gpTurn = 0, gpTuck = false, gpBrake = false, gpJump = false, gpGrab = false, gpFlip = false;
+    if (hasGamepads) {
+      const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+      for (let i = 0; i < gamepads.length; i++) {
+        const gp = gamepads[i];
+      if (!gp) continue;
+      
+      if (Math.abs(gp.axes[0]) > 0.1) gpTurn = gp.axes[0]; // Left stick X
+      if (gp.buttons[7] && gp.buttons[7].pressed) gpTuck = true; // RT
+      if (gp.buttons[6] && gp.buttons[6].pressed) gpBrake = true; // LT
+      if (gp.buttons[0] && gp.buttons[0].pressed) gpJump = true; // A button
+      if (gp.buttons[2] && gp.buttons[2].pressed) gpGrab = true; // X button
+      if (gp.buttons[3] && gp.buttons[3].pressed) gpFlip = true; // Y button
+      if (gp.buttons[14] && gp.buttons[14].pressed) gpTurn = -1; // D-pad Left
+      if (gp.buttons[15] && gp.buttons[15].pressed) gpTurn = 1; // D-pad Right
+      if (gp.buttons[12] && gp.buttons[12].pressed) gpTuck = true; // D-pad Up
+      if (gp.buttons[13] && gp.buttons[13].pressed) gpBrake = true; // D-pad Down
+      }
+    }
+
+    const want = gpTurn !== 0 ? gpTurn : ((held('right') ? 1 : 0) - (held('left') ? 1 : 0));
     const rate = want === 0 ? RELEASE : RAMP;
     state.turn += (want - state.turn) * (1 - Math.exp(-rate * dt));
     if (Math.abs(state.turn) < 0.004) state.turn = 0;
 
-    state.tuck = held('tuck');
-    state.brake = held('brake');
+    state.tuck = held('tuck') || gpTuck;
+    state.brake = held('brake') || gpBrake;
     /* A complete tap can happen between two animation frames. Latch that
        edge into one sampled press and one sampled release so the 120 Hz rider
        always gets an ollie, however the browser scheduled the key events —
@@ -136,7 +161,7 @@ export function createInput(target, hooks = {}) {
       if (jumpPulseSeen) {
         jumpPulse = PULSE_NONE;
         jumpPulseSeen = false;
-        state.jump = held('jump');
+        state.jump = held('jump') || gpJump;
       } else {
         state.jump = false;
       }
@@ -146,11 +171,11 @@ export function createInput(target, hooks = {}) {
       jumpPulse = PULSE_PRESS;
       jumpPulseSeen = false;
     } else {
-      state.jump = held('jump');
+      state.jump = held('jump') || gpJump;
     }
     jumpPressedSinceUpdate = false;
-    state.trickGrab = held('grab');
-    state.trickFlip = held('flip');
+    state.trickGrab = held('grab') || gpGrab;
+    state.trickFlip = held('flip') || gpFlip;
   }
 
   /* Called once per physics step, by whoever owns the fixed-step loop. It is

@@ -446,11 +446,13 @@ const BEACON = `#include <color_vertex>
 {
   float n64Ph = 0.0;
   #ifdef USE_INSTANCING
-    n64Ph = fract(instanceMatrix[3].z * 0.0177) * 6.2832;
+    // x * 0.0277 offsets the phase by exactly 0.5 (pi) across the 18m gate width,
+    // creating a perfect alternating train-crossing blink between the two poles!
+    n64Ph = fract(instanceMatrix[3].z * 0.0177 + instanceMatrix[3].x * 0.02777) * 6.2832;
   #endif
-  float n64Flash = pow(max(0.0, sin(uAirTime * 2.4 + n64Ph)), 4.0);
+  float n64Flash = pow(max(0.0, sin(uAirTime * 3.2 + n64Ph)), 4.0);
   #if defined( USE_COLOR )
-    vColor.rgb *= 0.55 + 2.10 * n64Flash;
+    vColor.rgb *= 0.6 + 4.5 * n64Flash; // Boosted brightness
   #endif
 }`;
 
@@ -1959,8 +1961,8 @@ export function createProps(THREE, shading) {
 
   // --- band generation -----------------------------------------------------
   const tint = new THREE.Color();
-  const gateA = new THREE.Color('#00ffc3');
-  const gateB = new THREE.Color('#ffc400');
+  const gateA = new THREE.Color('#00d4ff');
+  const gateB = new THREE.Color('#ffab00');
   /* The four tree tints that used to sit here are gone. They were multipliers
      over vertex colours that were already bark and needle, so they had to
      stay near one — and four multipliers near one is not a colour scheme, it

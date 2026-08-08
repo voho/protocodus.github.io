@@ -496,7 +496,12 @@ const FRAG = `
     float a = vAlpha * pow(k, vSoft);
     // A field of identical flakes reads as a pattern; each one leaning its
     // own fixed step towards the haze reads as depth the field does not have
-    vec3 col = mix(uColor, uFog, vTint * 0.35);
+    vec3 col;
+    if (vTint < -0.5) {
+      col = vec3(1.0, 0.7, 0.1); // Bright orange spark
+    } else {
+      col = mix(uColor, uFog, vTint * 0.35);
+    }
     // The backlit lift: the sun's own hue folded into the flake, and a modest
     // raise in coverage, strongest looking straight down the light. The mix
     // is capped so a flake never becomes a lamp, only a lit flake.
@@ -1494,7 +1499,70 @@ export function createSpray(THREE, shading) {
     geo.attributes.aAlpha.needsUpdate = true;
   }
 
-  return { points: cloud.points, burst, edgeSample, update, clear };
+  function radialBurst(pos, count) {
+    for (let k = 0; k < count; k++) {
+      const i = head;
+      head = (head + 1) % n;
+      const j = i * 3;
+      const f = Math.random() * 0.6; // mostly chunky
+      fine[i] = f;
+      streak[i] = SPRAY.streak;
+      seed[i] = Math.random();
+      streakDirty = true;
+      
+      const angle = Math.random() * Math.PI * 2;
+      const r = 0.5 + Math.random() * 1.5;
+      const vx = Math.cos(angle);
+      const vz = Math.sin(angle);
+      
+      position[j] = pos.x + vx * r;
+      position[j + 1] = pos.y + 0.1 + Math.random() * 0.3;
+      position[j + 2] = pos.z + vz * r;
+      
+      const power = 2.0 + Math.random() * 2.5;
+      vel[j] = vx * power;
+      vel[j + 1] = 2.0 + Math.random() * 3.0; // Shoot up
+      vel[j + 2] = vz * power;
+      
+      maxLife[i] = SNOW.sprayLife * (0.5 + Math.random() * 0.6) * (1 + f * 0.5);
+      life[i] = maxLife[i];
+      size[i] = Math.max(0, SPRAY.lumpScale * 1.5 * (1 - f) - 0.05);
+    }
+  }
+
+  function sparks(pos, dirX, dirZ, count) {
+    for (let k = 0; k < count; k++) {
+      const i = head;
+      head = (head + 1) % n;
+      const j = i * 3;
+      fine[i] = 1.0;
+      streak[i] = 1.0;
+      seed[i] = Math.random();
+      streakDirty = true;
+      tint[i] = -1.0; // Magic number for spark color
+      
+      const angle = Math.random() * Math.PI * 2;
+      const vx = dirX + Math.cos(angle) * 1.5;
+      const vz = dirZ + Math.sin(angle) * 1.5;
+      
+      position[j] = pos.x + Math.random() - 0.5;
+      position[j + 1] = pos.y + 0.1;
+      position[j + 2] = pos.z + Math.random() - 0.5;
+      
+      vel[j] = vx * 4.0;
+      vel[j + 1] = 4.0 + Math.random() * 4.0;
+      vel[j + 2] = vz * 4.0;
+      
+      maxLife[i] = 0.5 + Math.random() * 0.5;
+      life[i] = maxLife[i];
+      size[i] = SPRAY.lumpScale * 0.5;
+      peak[i] = 1.5; // very bright
+      born[i] = 0.1;
+      grow[i] = 0.5;
+    }
+  }
+
+  return { points: cloud.points, burst, radialBurst, sparks, edgeSample, update, clear };
 }
 
 /* ==========================================================================

@@ -410,6 +410,8 @@ export function createWeather(THREE) {
   let weatherClock = 0;
   let frozen = null;   // target time of day, if the player has pinned one
   let pinnedTod = START_TOD;
+  let stormOverride = 0;
+  const STORM_DURATION = 35; // 35 seconds of whiteout
 
   function sample(tod) {
     // Find the pair of moments this time falls between, wrapping the table
@@ -494,6 +496,10 @@ export function createWeather(THREE) {
        air, the fog a little in, and the snow underfoot a shade softer,
        without touching how the picture reads on a quiet day. */
     state.storm = STORM_FLOOR + (1 - STORM_FLOOR) * Math.pow(spread, 1.7);
+    if (stormOverride > 0) {
+      stormOverride = Math.max(0, stormOverride - dt / STORM_DURATION);
+      state.storm = Math.max(state.storm, stormOverride);
+    }
     const s = state.storm;
 
     /* The aurora, on the same shape of clock as the storm and cut higher up
@@ -669,6 +675,10 @@ export function createWeather(THREE) {
       : (state.tod - START_TOD) * DAY_SECONDS;
   }
 
+  function triggerStorm() {
+    stormOverride = 1.0;
+  }
+
   update(0);
-  return { state, update, pin, release };
+  return { state, update, pin, release, triggerStorm };
 }

@@ -197,7 +197,7 @@ function hutGeometry(THREE) {
   const snow = '#f4f8ff';
   const drift = '#e7effb';
   const split = '#8a6440';
-  const sign = '#ffc400';
+  const sign = '#ffab00';
 
   // The roof, worked out once: half-width across, length along the ridge,
   // the height of the walls it sits on, and the rise from eave to ridge.

@@ -4,17 +4,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Alpen — Protocodus</title>
+  <title>Alpen — Endless Snowboarding</title>
   <meta name="description"
     content="A full-window snowboard run across a detailed seeded mountain, with arcade physics and changing Swiss Alpine weather.">
   <meta name="theme-color" content="#0d1420">
-  <meta property="og:title" content="Alpen — endless snowboarding">
+  <meta property="og:title" content="Alpen — Endless Snowboarding">
   <meta property="og:description"
     content="Carve, launch, spin and land it across a richly rendered Swiss Alpine mountain that never ends.">
   <meta property="og:type" content="website">
-  <meta property="og:url" content="https://protocodus.cz/fun/alpen/">
-  <link rel="canonical" href="https://protocodus.cz/fun/alpen/">
-  <link rel="icon" type="image/svg+xml" href="/assets/images/logo.svg">
   <link rel="stylesheet" href="./alpen.css">
   <script type="importmap">
     { "imports": { "three": "/assets/vendor/three/three.module.min.js" } }
@@ -25,34 +22,15 @@
   <canvas id="stage"></canvas>
 
   <!-- ================= HUD =================
-       The read-out is a high-DPI bitmap surface, not a text layer. Every
-       glyph is a hand-drawn 5×7 cell: see js/font.js and js/hud.js.
-
-       The opening control legend used to live here as a <dl>. It is drawn
-       into the buffer now, for the same reason as everything else: a legend
-       in a real typeface sitting next to a read-out in a bitmap one is the
-       one seam this arrangement exists to remove.
-
-       The paragraph is the one thing a canvas cannot do. It carries the
-       score, the best and the speed for a screen reader, refreshed once a
-       second and deliberately not announced. -->
+       The readout canvas renders all HUD elements, menus, titles, controls,
+       and progress overlays in retro 5x7 bitmap graphics. -->
   <div class="hud">
     <canvas class="readout" width="640" height="360" aria-hidden="true"></canvas>
     <p class="sr-only" data-readout aria-live="off"></p>
-    <!-- And the event stream, which the paragraph above deliberately is not.
-         That one is refreshed once a second and is not announced, because a
-         score narrated every second is unbearable. This one is written only
-         when something happens — a landed trick, a wipeout, a new best — so it
-         can be polite and still be quiet. -->
     <p class="sr-only" data-callout aria-live="polite" aria-atomic="true"></p>
   </div>
 
-  <!-- ================= TOUCH PAD =================
-       These are the only controls a phone has, so they stay in the
-       accessibility tree. `aria-hidden` on a container full of focusable
-       buttons hides them from switch and voice control while leaving them
-       tabbable, which is both an ARIA violation and, on a touch device with
-       no keyboard, the whole game. The glyphs get labels instead. -->
+  <!-- ================= TOUCH PAD ================= -->
   <div class="pad" role="group" aria-label="Touch controls">
     <div class="pad-tools">
       <button type="button" class="pad-btn pad-tool" data-action="pause" aria-label="Pause">Ⅱ</button>
@@ -74,11 +52,11 @@
     </div>
   </div>
 
-  <!-- ================= CURTAIN ================= -->
+  <!-- ================= CURTAIN (ACCESSIBILITY & EVENT CAPTURE) ================= -->
   <div class="curtain on" data-screen="start" role="dialog" aria-modal="true"
     aria-labelledby="alpen-title" tabindex="-1">
-    <div class="curtain-inner">
-      <p class="eyebrow">Protocodus · Fun · Mountain <span data-seed>—</span></p>
+    <div class="curtain-inner sr-only">
+      <p class="eyebrow">ALPEN · ENDLESS SNOWBOARDING <span data-seed>—</span></p>
       <h1 class="wordmark" id="alpen-title">ALPEN<i class="spark" aria-hidden="true">✦</i></h1>
       <p class="tagline start-only">An endless mountain, a board, and whatever you can land.
         Nothing here can end your run — falling over just costs you the combo.</p>
@@ -94,10 +72,6 @@
         <div><dt>Esc</dt><dt>R</dt><dt>N</dt><dt>M</dt><dt>F</dt><dd>Pause · restart · new mountain · sound · fullscreen</dd></div>
       </dl>
 
-      <!-- Phones get the verbs, not a keyboard diagram underneath a second
-           complete set of controls. The pad itself stays hidden until drop-in
-           so the title remains one deliberate surface instead of two layers
-           fighting for the same lower half of the screen. -->
       <dl class="touch-guide start-only">
         <div><dt>◀ ▶</dt><dd>Carve on the snow · spin in the air</dd></div>
         <div><dt>Boost</dt><dd>Tuck for speed · brake to scrub it</dd></div>
@@ -106,19 +80,6 @@
         <div><dt>+ Boost · Brake</dt><dd>Nose it · method and frontflip</dd></div>
       </dl>
 
-      <!-- ================= LOADING =================
-           Four named stages, and every one of them is a real thing finishing
-           rather than a bar animating for a fixed number of seconds. The
-           mountain takes a moment to arrive on a cold cache — the engine, a
-           quarter of a megabyte of horizon shadow, two snow plates and a
-           shader set that has to be compiled before the first frame — and
-           until this existed the title card invited a key press through the
-           whole of it and then dropped the player into a mountain that was
-           still assembling itself around them.
-
-           `aria-busy` on the dialog is what a screen reader reads; the
-           percentage is written into the label element's own text so it is
-           announced once per stage rather than once per frame. -->
       <div class="loading start-only" data-loading>
         <div class="loading-track" role="progressbar" aria-labelledby="alpen-loading-label"
           aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" data-loading-bar>
@@ -131,7 +92,6 @@
         <span class="start-only"><span class="go-key">Press any key</span><span class="go-tap">Tap anywhere</span> to drop in</span>
         <span class="pause-only"><span class="go-key">Press any key</span><span class="go-tap">Tap anywhere</span> to resume</span>
       </p>
-      <a class="back" href="/#fun">← Back to protocodus.cz</a>
     </div>
   </div>
 
@@ -140,7 +100,6 @@
       <div class="curtain-inner">
         <h1 class="wordmark">ALPEN</h1>
         <p class="tagline">This one needs JavaScript and WebGL — it is a 3D game.</p>
-        <a class="back" href="/#fun">← Back to protocodus.cz</a>
       </div>
     </div>
   </noscript>
