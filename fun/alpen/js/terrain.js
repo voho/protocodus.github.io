@@ -155,6 +155,23 @@ export const SNOWPACK = {
   shadeWeight: 0.10,
   groomed: 0.22,
 
+  /* How much of the surface the groomer actually replaces, which is what the
+     lift towards `groom` is scaled by.
+
+     At one the piste comes off the weather axis completely and takes the
+     groomed stop whole. Measured on the vertex colours that is a 36 per cent
+     jump in luminance and two and a half times the contrast across the piste
+     edge — correct in principle, and it reads as a painted stripe laid over
+     the mountain rather than as part of it, because the ground either side has
+     been through a winter and this has not been through anything at all.
+
+     Seven tenths keeps the run unmistakably the brightest thing on the hill
+     while leaving the last of what the weather did to it showing through: the
+     altitude, the band it is crossing, the aspect it faces. The piste still
+     goes bluer as the run climbs, which is the whole reason those terms exist,
+     and it is still the piste. */
+  groomLift: 0.70,
+
   /* Where snow lets go of a slope. `slip` is the steepness it starts and
      finishes letting go at with no cover at all, and `hold` is how much
      steeper it can be before letting go when the cover is full — so thin snow
@@ -183,6 +200,30 @@ export const SNOWPACK = {
      slightly more violet blue than the ice is, because what is lighting it is
      the sky and the sky at this altitude is close to navy.
 
+     `groom` is the piste, and it is the one stop that is above `deep` rather
+     than below it. Every other surface on this hill is snow that something was
+     done *to* — scoured, buried, blown into a crust — and the whole palette is
+     an axis of how much. A groomed run is the opposite: it is snow that is
+     maintained, tilled flat and fine-grained twice a day, and a flat
+     fine-grained surface returns more of the light that hits it than a rough
+     one does, because a rough one shadows itself. So the run is genuinely the
+     brightest ground on the mountain, and now it is drawn that way.
+
+     It is still not white, and it must not become white — the rule this
+     palette is built on survives at #e4edf8, which is four per cent of value
+     over `deep` and a shade less blue with it.
+
+     KNOW WHAT THIS DOES AND WHAT IT DOES NOT. Measured on the vertex colours
+     it doubles the contrast across the piste edge, from 0.12 to 0.25. Measured
+     on the *screen*, with the sun up, it does nothing at all: the near ground
+     already renders at about 223 of 255 and `GRADE.shoulder` has spent the top
+     of the range, which is the same fact that made this palette come down a
+     tenth in the first place — see the head of `SNOWPACK`. So the lift is
+     worth having where the picture still has somewhere to go, which is thin
+     cover, the mountain's own shadow, and night under the headlamp, and the
+     thing that actually carries the piste edge in daylight is the geometry:
+     `corridor.crown` and the crest-and-cavity shading its transition earns.
+
      Then two stones, and the point of there being two is that a single grey
      makes every cliff on the mountain the same cliff. `slate` is a cold
      blue-grey, `iron` a russet one — barely saturated, but enough that a rock
@@ -191,6 +232,7 @@ export const SNOWPACK = {
      the strongest contrast on the hill and it does not need help. Each is a
      pair: the cleft and the ridge it catches the light on. */
   deep: '#d6e2f0',
+  groom: '#e4edf8',
   ice: '#adc4d6',
   shade: '#a7bcd1',
   slate: ['#2c3646', '#7d8ba3'],
@@ -844,6 +886,21 @@ function heightIn(ctx, x, coarseDetail = 1, fineDetail = coarseDetail,
   // is a slope of about a fifteenth — and being entirely lateral it costs
   // nothing against the budget the octaves are fighting over.
   if (past <= 0) {
+    /* THE PISTE STANDS PROUD OF THE MOUNTAIN, and it stands proud of all of
+       it: a constant inside the corridor, so there is no lateral gradient
+       here to argue with the dish below. See `corridor.crown`.
+
+       It does NOT ride on `corridorF`, which was the first version and was
+       wrong in the one place it mattered. That mask starts fading four metres
+       *inside* the groomed edge, because a piste edge roughens rather than
+       snapping to moguls on a painted line — the right shape for a texture and
+       the wrong one for the ground. What it did was tilt the outer four metres
+       of the corridor outwards by about a twelfth, cancelling a third of the
+       bowl's restoring slope exactly where a drifting rider needs it most, and
+       deliver only 0.72 m of the 0.9 at the edge. The measurement that was
+       supposed to catch that binned its samples at `half - 6` and never looked
+       at the last six metres. */
+    h += corridor.crown;
     const u = d / Math.max(1, ctx.half);
     /* A PARABOLA, AND IT WAS WORTH FINDING OUT WHY.
 
@@ -879,6 +936,12 @@ function heightIn(ctx, x, coarseDetail = 1, fineDetail = coarseDetail,
       * (1 - smoothstep(ctx.half - 2, ctx.half, d));
   } else {
     h += corridor.bowl;
+    /* …and comes back down entirely outside the groomed snow. Flat at both
+       ends like everything else that joins here, so the collision normal stays
+       smooth, and steepest at about a ninth — which is out on the powder
+       shoulder where the zone rise below is already climbing anyway. */
+    h += corridor.crown
+      * (1 - smooth01(Math.min(1, past / corridor.crownFade)));
 
     /* The shoulder: ungroomed snow first, then the rocky band, together
        `ctx.bandW` metres of ground a rider can actually use before the wall
@@ -1747,6 +1810,82 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     value: Array.from({ length: GATE_SLOTS }, () => new THREE.Color()),
   };
 
+  /* WHERE THE TEXTURE COORDINATES COUNT FROM, and why they cannot count from
+     the top of the mountain.
+
+     This run is twenty-six kilometres long and every surface on it is tiled
+     off world z. Held in a float32 varying, a coordinate that size is quantised
+     to a couple of millimetres — and the ground at the bottom of the screen,
+     which is the nearest ground and therefore the ground whose texture
+     coordinate changes slowest per pixel, moves about four millimetres of world
+     z across one. Measured: sixty-seven quanta per pixel in the first half
+     kilometre, four by eight kilometres, and **one** by twenty. Past that the
+     rasteriser's derivative is not a rate of change, it is noise — the macro
+     and detail footprints flip between nothing and everything from one 2x2
+     quad to the next, and the gradient fetches choose their mip out of a hat.
+     Flat rectangular patches along the bottom of the frame, on whichever
+     driver rounds least kindly.
+
+     The fix is to stop counting from the summit. This is a whole number of
+     macro tiles, kept near the rider, and the tiling reads `vTileZ` — the same
+     coordinate with this taken out. Because it moves only in multiples of the
+     macro tile, and the macro tile is a whole number of detail tiles, every
+     pattern on the ground is bit-identical across a move: nothing slides, and
+     the arithmetic never sees the big number at all. */
+  const tilePowderMacro = { value: new THREE.Vector2() };
+  const tilePowderDetail = { value: new THREE.Vector2() };
+  const tileGroomZ = { value: 0 };
+  /* The plates' own rotation, written the way the shader actually applies it.
+
+     GLSL's mat2 is column major, so `mat2(0.9563, -0.2924, 0.2924, 0.9563)`
+     multiplies a vector by the rows (0.9563, 0.2924) and (-0.2924, 0.9563).
+     The first version of this rotated the anchor by the transpose — the
+     inverse turn — which cancels nothing, and the powder plates stepped
+     sideways by 0.15 of a macro tile and 0.88 of a detail tile on every
+     six-metre re-anchor. It survived a five-thousand-case invariance test
+     because that test rotated both sides with this same function: a check that
+     shares the mistake it is looking for cannot fail. The test that catches it
+     is at the bottom of this file's verification — render one patch of ground
+     under two anchors and compare the pixels.
+
+     The corduroy needs none of this: a groomer drives in straight lines. */
+  const rotatePlate = (x, z, out) => out.set(
+    x * 0.9563 + z * 0.2924,
+    -x * 0.2924 + z * 0.9563,
+  );
+  const plateScratch = new THREE.Vector2();
+
+  /* Work out where each tiling counts from, given where the mesh is anchored.
+
+     All of it is done in doubles, which hold a coordinate this size to a
+     picometre, and every result is wrapped into its own tile — the textures
+     repeat, so a whole tile is free to throw away, and throwing it away is the
+     entire point. What reaches the shader is a fraction, and what the shader
+     adds to it never exceeds the grid's own nine hundred metres.
+
+     Nothing slides when the anchor moves, and that is a stronger claim than it
+     sounds. The corduroy folds in a plain z, so any anchor works. The powder
+     plates are rotated seventeen degrees, so a whole tile along the world axis
+     is a *fraction* of one along theirs — shifting their z would step the
+     pattern sideways every six metres of travel. Rotating the anchor first and
+     wrapping afterwards is exact for the same reason the rotation is linear. */
+  function setTileOrigins(ax, az) {
+    const macro = snowTile.value.x;
+    const detail = snowTile.value.y;
+    const wrap = (v) => v - Math.floor(v);
+    rotatePlate(ax, az, plateScratch);
+    tilePowderMacro.value.set(
+      wrap(plateScratch.x / macro), wrap(plateScratch.y / macro),
+    );
+    tilePowderDetail.value.set(
+      wrap(plateScratch.x / detail), wrap(plateScratch.y / detail),
+    );
+    /* One scalar for all three corduroy reads: the macro tile is a whole
+       number of detail tiles, so a z wrapped into the macro one is wrapped
+       into the detail one as well. */
+    tileGroomZ.value = az - Math.floor(az / macro) * macro;
+  }
+
   const prepareSurface = (texture) => {
     texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
     texture.minFilter = THREE.LinearMipmapLinearFilter;
@@ -1829,6 +1968,9 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       uSandstoneTex: sandstoneSurface,
       uSnowReady: snowReady,
       uSnowTile: snowTile,
+      uTilePowderMacro: tilePowderMacro,
+      uTilePowderDetail: tilePowderDetail,
+      uTileGroomZ: tileGroomZ,
       uSnowAlbedo: snowAlbedo,
       uSnowHeight: snowHeight,
       uGateGlow: gateGlow,
@@ -1840,6 +1982,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
         attribute vec4 aSurface;
         attribute vec2 aGroomFrame;
         varying vec3 vWorld;
+        varying vec2 vLocal;
         varying vec3 vSmoothNormal;
         varying float vDist;
         varying float vGroomed;
@@ -1848,6 +1991,28 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
         varying vec2 vGroomFrame;`)
       .replace('#include <project_vertex>', `#include <project_vertex>
         vWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;
+        /* THE MESH'S OWN COORDINATES, WHICH ARE THE ONLY ONES A FLOAT CAN
+           STILL SEE.
+
+           Every texture on this ground is tiled off world position, and the run
+           goes to twenty-six kilometres. A float32 varying holding 26000 has an
+           ulp of 2.4 mm; the near ground at the bottom of the frame — the
+           closest ground, and therefore the ground whose texture coordinate
+           changes slowest per pixel — moves about 4 mm of world z across one.
+           So dFdx of that varying comes back quantised to one or two steps,
+           and everything downstream is noise: the macro and detail footprints
+           flip between nothing and everything from one 2x2 quad to the next,
+           and the explicit-gradient fetches choose their mip out of a hat. What
+           that draws is hard-edged rectangular patches of flat colour along the
+           bottom of the screen, and which driver you are on decides how bad it
+           gets. See tileOrigins for the measurements.
+
+           transformed is the position the mesh was built with — metres from
+           the anchor, never more than nine hundred of them, and exact. The
+           anchor's own share of each tiling arrives as a uniform, worked out in
+           double precision on the way in and already wrapped into its own tile.
+           Nothing here ever forms the big number. */
+        vLocal = transformed.xz;
         vSmoothNormal = normalize(normalMatrix * aSmoothNormal);
         vN64Ice = aSurface.x;
         vN64Sheen = 1.0 - aSurface.z;
@@ -1859,6 +2024,17 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>
         varying vec3 vWorld;
+        /* The mesh's own x and z, in metres from its anchor. Everything that
+           is tiled, differentiated, or fetched with a gradient is built from
+           this and its matching uTile* origin, and never from vWorld — see
+           the note beside it in the vertex shader. vWorld stays true world
+           space for the things that genuinely need it: the gate glow subtracts
+           a gate's own world position from it, and the far field's phases and
+           patch noise are read at world scale on purpose. */
+        varying vec2 vLocal;
+        uniform vec2 uTilePowderMacro;
+        uniform vec2 uTilePowderDetail;
+        uniform float uTileGroomZ;
         varying vec3 vSmoothNormal;
         varying float vDist;
         varying float vGroomed;
@@ -1894,12 +2070,17 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
            the piste. The reveal therefore cannot pass through a neutral,
            textureless patch if the two WebPs finish on different frames. */
         float n64PowderWeight = (1.0 - n64GroomWeight) * uSnowReady.x;
-        vec2 powderUv = mat2(0.9563, -0.2924, 0.2924, 0.9563)
-          * (vWorld.xz / uSnowTile.x);
+        /* The plate's rotation is why this one cannot simply take a shifted
+           z: a whole number of tiles along the world axis is a fraction of one
+           along the rotated axis, so the pattern would step sideways every
+           time the origin moved. The rotation is linear, so the anchor's share
+           is rotated on the CPU instead and wrapped into the tile there. */
+        vec2 powderUv = uTilePowderMacro + mat2(0.9563, -0.2924, 0.2924, 0.9563)
+          * (vLocal / uSnowTile.x);
         /* The groomer travelled down the fall line. U advances downhill; V
            is measured from the precomputed local phase origin, so equal-V
            ribs bend with the piste and choose their own separated fork. */
-        vec2 groomedUv = vec2(vWorld.z, vWorld.x - vGroomFrame.x)
+        vec2 groomedUv = vec2(vLocal.y + uTileGroomZ, vWorld.x - vGroomFrame.x)
           / uSnowTile.x;
         /* The screen footprint, taken as gradients rather than as a width,
            because the fetch below needs the same two vectors and this is the
@@ -1965,7 +2146,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
            it before the stripe period approaches a pixel. This keeps the
            piste readable beside the board without exporting moire into the
            landscape or the retro resolution pass. */
-        vec2 n64CordColorUv = vec2(vWorld.z, vWorld.x - vGroomFrame.x)
+        vec2 n64CordColorUv = vec2(vLocal.y + uTileGroomZ, vWorld.x - vGroomFrame.x)
           / uSnowTile.y;
         vec2 n64CordColorDx = dFdx(n64CordColorUv);
         vec2 n64CordColorDy = dFdy(n64CordColorUv);
@@ -2082,9 +2263,9 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
            it, at a scale the 75 cm mesh cannot carry. Powder keeps its broad
            nine-centimetre probe; corduroy uses less than a quarter of one rib
            so the two samples cannot land on equivalent points and cancel. */
-        vec2 n64DetailUv = mat2(0.9563, -0.2924, 0.2924, 0.9563)
-          * (vWorld.xz / uSnowTile.y);
-        vec2 n64GroomDetailUv = vec2(vWorld.z, vWorld.x - vGroomFrame.x)
+        vec2 n64DetailUv = uTilePowderDetail + mat2(0.9563, -0.2924, 0.2924, 0.9563)
+          * (vLocal / uSnowTile.y);
+        vec2 n64GroomDetailUv = vec2(vLocal.y + uTileGroomZ, vWorld.x - vGroomFrame.x)
           / uSnowTile.y;
         float n64DetailStep = 0.09 / uSnowTile.y;
         float n64GroomStep = 0.018 / uSnowTile.y;
@@ -2394,6 +2575,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   const rgb = (hex) => { const c = new THREE.Color(hex); return [c.r, c.g, c.b]; };
   const P = SNOWPACK;
   const cDeep = rgb(P.deep);
+  const cGroom = rgb(P.groom);
   const cIce = rgb(P.ice);
   const cShade = rgb(P.shade);
   const cSlate = [rgb(P.slate[0]), rgb(P.slate[1])];
@@ -2788,8 +2970,17 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
            Broad wind crust keeps the material variation, but its direction is
            now free to respond honestly when the sun moves across the sky. */
         const packField = noise2(wx * 0.02, wz * 0.02, 7);
-        const crust = (1 - groomed) * icy * (0.35 + 0.65 * packField);
-        const dim = packField * 0.18 + crust * 0.14;
+        /* Wind crust and the broad pack mottle are both things that happen to
+           snow nobody is maintaining, and the machine takes out both. The
+           suppression used to be `groomed` — the corduroy ribbon alone, sixteen
+           metres of a fifty-metre run — so four fifths of the piste kept a
+           wind-crust dimming it has not had since the last time a groomer drove
+           over it. It is `pisteCover` now, which is the whole corridor with the
+           ribbon weighted highest, and the mottle goes with it: a tilled
+           surface is uniform, and the patchiness that gives the open mountain
+           its shape is exactly what a piste does not have. */
+        const crust = (1 - pisteCover) * icy * (0.35 + 0.65 * packField);
+        const dim = packField * 0.18 * (1 - 0.75 * pisteCover) + crust * 0.14;
         let cr = cDeep[0] + (cIce[0] - cDeep[0]) * icy;
         let cg = cDeep[1] + (cIce[1] - cDeep[1]) * icy;
         let cb = cDeep[2] + (cIce[2] - cDeep[2]) * icy;
@@ -2802,6 +2993,25 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
         cr += (cDeep[0] - cr) * crestLift;
         cg += (cDeep[1] - cg) * crestLift;
         cb += (cDeep[2] - cb) * crestLift;
+        /* …and then the piste is lifted off the top of the snow axis entirely.
+
+           Everything above this line is a scale of what the weather has done to
+           the ground, and `deep` is its bright end. A maintained run is not on
+           that scale at all, so it gets its own stop above it — and it is taken
+           after the relief terms rather than before them, because `crestLift`
+           pulls towards `deep` and would otherwise spend part of its lift
+           dragging the piste back down its own axis.
+
+           Scaled by `pisteCover`, so the corduroy is the brightest of it, the
+           corridor around the ribbon most of the way there, and the fade dies
+           exactly where the mask does — which is the same edge the crown is
+           standing on, so the tonal step and the geometric one are one step. */
+        const lift = pisteCover * P.groomLift;
+        if (lift > 0.002) {
+          cr += (cGroom[0] - cr) * lift;
+          cg += (cGroom[1] - cg) * lift;
+          cb += (cGroom[2] - cb) * lift;
+        }
         const cavityValue = 1 - cavityShade * 0.70;
         cr *= cavityValue;
         cg *= cavityValue;
@@ -3042,6 +3252,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     anchorZ = next.az;
     anchorY = next.ay;
     mesh.position.set(anchorX, anchorY, anchorZ);
+    setTileOrigins(anchorX, anchorZ);
     morphAge = 0;
     morphing = true;
     morphSnap = true;
@@ -3100,6 +3311,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       anchorZ = az;
       anchorY = ay;
       mesh.position.set(ax, ay, az);
+      setTileOrigins(ax, az);
       fill(ax, az, ay, positions, normals, colors, surface, groomFrame);
       publish();
       return;
