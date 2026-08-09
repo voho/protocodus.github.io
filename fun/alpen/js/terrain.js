@@ -1801,6 +1801,69 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     value: Array.from({ length: GATE_SLOTS }, () => new THREE.Color()),
   };
 
+  /* WHERE THE TEXTURE COORDINATES COUNT FROM, and why they cannot count from
+     the top of the mountain.
+
+     This run is twenty-six kilometres long and every surface on it is tiled
+     off world z. Held in a float32 varying, a coordinate that size is quantised
+     to a couple of millimetres — and the ground at the bottom of the screen,
+     which is the nearest ground and therefore the ground whose texture
+     coordinate changes slowest per pixel, moves about four millimetres of world
+     z across one. Measured: sixty-seven quanta per pixel in the first half
+     kilometre, four by eight kilometres, and **one** by twenty. Past that the
+     rasteriser's derivative is not a rate of change, it is noise — the macro
+     and detail footprints flip between nothing and everything from one 2x2
+     quad to the next, and the gradient fetches choose their mip out of a hat.
+     Flat rectangular patches along the bottom of the frame, on whichever
+     driver rounds least kindly.
+
+     The fix is to stop counting from the summit. This is a whole number of
+     macro tiles, kept near the rider, and the tiling reads `vTileZ` — the same
+     coordinate with this taken out. Because it moves only in multiples of the
+     macro tile, and the macro tile is a whole number of detail tiles, every
+     pattern on the ground is bit-identical across a move: nothing slides, and
+     the arithmetic never sees the big number at all. */
+  const tilePowderMacro = { value: new THREE.Vector2() };
+  const tilePowderDetail = { value: new THREE.Vector2() };
+  const tileGroomZ = { value: 0 };
+  // The plates' own rotation, kept here so the CPU and the shader cannot
+  // disagree about it. Both powder reads use it; the corduroy is unrotated
+  // because a groomer drives in straight lines.
+  const PLATE_COS = 0.9563;
+  const PLATE_SIN = 0.2924;
+
+  /* Work out where each tiling counts from, given where the mesh is anchored.
+
+     All of it is done in doubles, which hold a coordinate this size to a
+     picometre, and every result is wrapped into its own tile — the textures
+     repeat, so a whole tile is free to throw away, and throwing it away is the
+     entire point. What reaches the shader is a fraction, and what the shader
+     adds to it never exceeds the grid's own nine hundred metres.
+
+     Nothing slides when the anchor moves, and that is a stronger claim than it
+     sounds. The corduroy folds in a plain z, so any anchor works. The powder
+     plates are rotated seventeen degrees, so a whole tile along the world axis
+     is a *fraction* of one along theirs — shifting their z would step the
+     pattern sideways every six metres of travel. Rotating the anchor first and
+     wrapping afterwards is exact for the same reason the rotation is linear. */
+  function setTileOrigins(ax, az) {
+    const macro = snowTile.value.x;
+    const detail = snowTile.value.y;
+    const wrap = (v) => v - Math.floor(v);
+    tilePowderMacro.value.set(
+      wrap((ax * PLATE_COS - az * PLATE_SIN) / macro),
+      wrap((ax * PLATE_SIN + az * PLATE_COS) / macro),
+    );
+    tilePowderDetail.value.set(
+      wrap((ax * PLATE_COS - az * PLATE_SIN) / detail),
+      wrap((ax * PLATE_SIN + az * PLATE_COS) / detail),
+    );
+    /* One scalar for all three corduroy reads: the macro tile is a whole
+       number of detail tiles, so a z wrapped into the macro one is wrapped
+       into the detail one as well. */
+    tileGroomZ.value = az - Math.floor(az / macro) * macro;
+  }
+
   const prepareSurface = (texture) => {
     texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
     texture.minFilter = THREE.LinearMipmapLinearFilter;
@@ -1883,6 +1946,9 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       uSandstoneTex: sandstoneSurface,
       uSnowReady: snowReady,
       uSnowTile: snowTile,
+      uTilePowderMacro: tilePowderMacro,
+      uTilePowderDetail: tilePowderDetail,
+      uTileGroomZ: tileGroomZ,
       uSnowAlbedo: snowAlbedo,
       uSnowHeight: snowHeight,
       uGateGlow: gateGlow,
@@ -1894,6 +1960,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
         attribute vec4 aSurface;
         attribute vec2 aGroomFrame;
         varying vec3 vWorld;
+        varying vec2 vLocal;
         varying vec3 vSmoothNormal;
         varying float vDist;
         varying float vGroomed;
@@ -1902,6 +1969,28 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
         varying vec2 vGroomFrame;`)
       .replace('#include <project_vertex>', `#include <project_vertex>
         vWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;
+        /* THE MESH'S OWN COORDINATES, WHICH ARE THE ONLY ONES A FLOAT CAN
+           STILL SEE.
+
+           Every texture on this ground is tiled off world position, and the run
+           goes to twenty-six kilometres. A float32 varying holding 26000 has an
+           ulp of 2.4 mm; the near ground at the bottom of the frame — the
+           closest ground, and therefore the ground whose texture coordinate
+           changes slowest per pixel — moves about 4 mm of world z across one.
+           So dFdx of that varying comes back quantised to one or two steps,
+           and everything downstream is noise: the macro and detail footprints
+           flip between nothing and everything from one 2x2 quad to the next,
+           and the explicit-gradient fetches choose their mip out of a hat. What
+           that draws is hard-edged rectangular patches of flat colour along the
+           bottom of the screen, and which driver you are on decides how bad it
+           gets. See tileOrigins for the measurements.
+
+           transformed is the position the mesh was built with — metres from
+           the anchor, never more than nine hundred of them, and exact. The
+           anchor's own share of each tiling arrives as a uniform, worked out in
+           double precision on the way in and already wrapped into its own tile.
+           Nothing here ever forms the big number. */
+        vLocal = transformed.xz;
         vSmoothNormal = normalize(normalMatrix * aSmoothNormal);
         vN64Ice = aSurface.x;
         vN64Sheen = 1.0 - aSurface.z;
@@ -1913,6 +2002,17 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>
         varying vec3 vWorld;
+        /* The mesh's own x and z, in metres from its anchor. Everything that
+           is tiled, differentiated, or fetched with a gradient is built from
+           this and its matching uTile* origin, and never from vWorld — see
+           the note beside it in the vertex shader. vWorld stays true world
+           space for the things that genuinely need it: the gate glow subtracts
+           a gate's own world position from it, and the far field's phases and
+           patch noise are read at world scale on purpose. */
+        varying vec2 vLocal;
+        uniform vec2 uTilePowderMacro;
+        uniform vec2 uTilePowderDetail;
+        uniform float uTileGroomZ;
         varying vec3 vSmoothNormal;
         varying float vDist;
         varying float vGroomed;
@@ -1948,12 +2048,17 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
            the piste. The reveal therefore cannot pass through a neutral,
            textureless patch if the two WebPs finish on different frames. */
         float n64PowderWeight = (1.0 - n64GroomWeight) * uSnowReady.x;
-        vec2 powderUv = mat2(0.9563, -0.2924, 0.2924, 0.9563)
-          * (vWorld.xz / uSnowTile.x);
+        /* The plate's rotation is why this one cannot simply take a shifted
+           z: a whole number of tiles along the world axis is a fraction of one
+           along the rotated axis, so the pattern would step sideways every
+           time the origin moved. The rotation is linear, so the anchor's share
+           is rotated on the CPU instead and wrapped into the tile there. */
+        vec2 powderUv = uTilePowderMacro + mat2(0.9563, -0.2924, 0.2924, 0.9563)
+          * (vLocal / uSnowTile.x);
         /* The groomer travelled down the fall line. U advances downhill; V
            is measured from the precomputed local phase origin, so equal-V
            ribs bend with the piste and choose their own separated fork. */
-        vec2 groomedUv = vec2(vWorld.z, vWorld.x - vGroomFrame.x)
+        vec2 groomedUv = vec2(vLocal.y + uTileGroomZ, vWorld.x - vGroomFrame.x)
           / uSnowTile.x;
         /* The screen footprint, taken as gradients rather than as a width,
            because the fetch below needs the same two vectors and this is the
@@ -2019,7 +2124,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
            it before the stripe period approaches a pixel. This keeps the
            piste readable beside the board without exporting moire into the
            landscape or the retro resolution pass. */
-        vec2 n64CordColorUv = vec2(vWorld.z, vWorld.x - vGroomFrame.x)
+        vec2 n64CordColorUv = vec2(vLocal.y + uTileGroomZ, vWorld.x - vGroomFrame.x)
           / uSnowTile.y;
         vec2 n64CordColorDx = dFdx(n64CordColorUv);
         vec2 n64CordColorDy = dFdy(n64CordColorUv);
@@ -2136,9 +2241,9 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
            it, at a scale the 75 cm mesh cannot carry. Powder keeps its broad
            nine-centimetre probe; corduroy uses less than a quarter of one rib
            so the two samples cannot land on equivalent points and cancel. */
-        vec2 n64DetailUv = mat2(0.9563, -0.2924, 0.2924, 0.9563)
-          * (vWorld.xz / uSnowTile.y);
-        vec2 n64GroomDetailUv = vec2(vWorld.z, vWorld.x - vGroomFrame.x)
+        vec2 n64DetailUv = uTilePowderDetail + mat2(0.9563, -0.2924, 0.2924, 0.9563)
+          * (vLocal / uSnowTile.y);
+        vec2 n64GroomDetailUv = vec2(vLocal.y + uTileGroomZ, vWorld.x - vGroomFrame.x)
           / uSnowTile.y;
         float n64DetailStep = 0.09 / uSnowTile.y;
         float n64GroomStep = 0.018 / uSnowTile.y;
@@ -3125,6 +3230,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     anchorZ = next.az;
     anchorY = next.ay;
     mesh.position.set(anchorX, anchorY, anchorZ);
+    setTileOrigins(anchorX, anchorZ);
     morphAge = 0;
     morphing = true;
     morphSnap = true;
@@ -3183,6 +3289,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       anchorZ = az;
       anchorY = ay;
       mesh.position.set(ax, ay, az);
+      setTileOrigins(ax, az);
       fill(ax, az, ay, positions, normals, colors, surface, groomFrame);
       publish();
       return;
