@@ -2284,7 +2284,14 @@ export function createProps(THREE, shading) {
         if (maxOff >= minOff) {
           const off = lerp(minOff, maxOff, hash2(b, 3409, 227));
           const x = branch + side * off;
-          const groundY = heightAt(x, z);
+          /* Bedded against the lowest ground its own footprint covers, exactly
+             like the scenic stones — which it did not need while it stood on
+             the corduroy, because a groomer leaves a surface flat enough that
+             the height under a boulder's middle is the height under all of it.
+             The shoulder is not that surface: it carries the full mogul and
+             chatter relief, and a two-metre rock bedded off its centre there
+             stands half a metre clear of the snow on its downhill side. */
+          const groundY = beddedGroundY(x, z, rough.r, 0.05 + rough.r * 0.16);
           const shape = boulderTransform(v, groundY, sx, sy, sz);
           if (visibleFromApproach(x, z, shape.top)
             && rockPools[v].add(
@@ -2347,7 +2354,6 @@ export function createProps(THREE, shading) {
         noise2(x * FOREST.standFreq, z * FOREST.standFreq, FOREST.standSeed),
       );
       if (rnd() > stand * lineCover) continue;
-      const y = heightAt(x, z);
       // Mostly small, with the odd one standing over them.
       const v = (rnd() * treePools.length) | 0;
       let s = lerp(FOREST.size[0], FOREST.size[1],
@@ -2359,11 +2365,43 @@ export function createProps(THREE, shading) {
         s = (lerp(FOREST.veteran.height[0], FOREST.veteran.height[1], rnd())
           / treeHeights[v]) * lineScale;
       }
+      const radius = 0.5 + s * 0.45;
+      /* THE VERGE IS MEASURED TO THE HULL, not to the trunk, and it has to be
+         because the two are metres apart on the trees that matter. `verge` is
+         a trunk's own girth of clearance, which is the whole answer for the
+         stand — a full-size spruce carries a metre of collision circle — and
+         no answer at all for a veteran: twenty-six metres of tree is a hull
+         nearly two metres across, so a draw that put its trunk at the near end
+         of the range hung the circle over the corduroy. A rider clipping
+         nothing, on groomed snow, is exactly the promise this file makes.
+
+         Pushed out rather than refused, because refusing thins the treeline at
+         precisely the distance the eye reads it from. The push is away from the
+         nearest centre line, which on an island means towards its middle — and
+         if the island is too narrow to hold the hull from both branches at
+         once, then there is no room and the tree does not grow there.
+
+         The stand field above is still sampled at the drawn position and not
+         at this one. It decides whether a tree grows in this part of the hill
+         at all, over a wavelength of tens of metres; moving the trunk a metre
+         inside that answer changes nothing about it, and re-sampling would
+         cost a noise fetch on every tree to relocate a handful. */
+      {
+        // `centres` is already this row's pair; the nearer of the two is the
+        // line the hull has to clear.
+        const near = Math.abs(x - centres[0]) < Math.abs(x - centres[1])
+          ? centres[0] : centres[1];
+        const clear = half + PROPS.verge + radius;
+        if (Math.abs(x - near) < clear) {
+          if (island && (centres[1] - centres[0]) * 0.5 < clear) continue;
+          x = near + (Math.sign(x - near) || side) * clear;
+        }
+      }
+      const y = heightAt(x, z);
       const yaw = rnd() * TAU;
       const sy = s * (0.85 + rnd() * 0.35);
       const normal = treeLean(x, z, y, rnd);
       const colour = castOf(treeBare[v], v, rnd(), tint);
-      const radius = 0.5 + s * 0.45;
       if (!clearOfBandHazards(x, z, radius, bandHazards, 2.0)) continue;
       treePools[v].addOnSlope(x, y, z, yaw, s, sy, s, normal, colour);
       /* A COLLIDER ONLY WHERE A RIDER CAN GET TO, which is a real question
