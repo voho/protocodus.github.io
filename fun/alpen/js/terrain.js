@@ -155,6 +155,23 @@ export const SNOWPACK = {
   shadeWeight: 0.10,
   groomed: 0.22,
 
+  /* How much of the surface the groomer actually replaces, which is what the
+     lift towards `groom` is scaled by.
+
+     At one the piste comes off the weather axis completely and takes the
+     groomed stop whole. Measured on the vertex colours that is a 36 per cent
+     jump in luminance and two and a half times the contrast across the piste
+     edge — correct in principle, and it reads as a painted stripe laid over
+     the mountain rather than as part of it, because the ground either side has
+     been through a winter and this has not been through anything at all.
+
+     Seven tenths keeps the run unmistakably the brightest thing on the hill
+     while leaving the last of what the weather did to it showing through: the
+     altitude, the band it is crossing, the aspect it faces. The piste still
+     goes bluer as the run climbs, which is the whole reason those terms exist,
+     and it is still the piste. */
+  groomLift: 0.70,
+
   /* Where snow lets go of a slope. `slip` is the steepness it starts and
      finishes letting go at with no cover at all, and `hold` is how much
      steeper it can be before letting go when the cover is full — so thin snow
@@ -183,6 +200,30 @@ export const SNOWPACK = {
      slightly more violet blue than the ice is, because what is lighting it is
      the sky and the sky at this altitude is close to navy.
 
+     `groom` is the piste, and it is the one stop that is above `deep` rather
+     than below it. Every other surface on this hill is snow that something was
+     done *to* — scoured, buried, blown into a crust — and the whole palette is
+     an axis of how much. A groomed run is the opposite: it is snow that is
+     maintained, tilled flat and fine-grained twice a day, and a flat
+     fine-grained surface returns more of the light that hits it than a rough
+     one does, because a rough one shadows itself. So the run is genuinely the
+     brightest ground on the mountain, and now it is drawn that way.
+
+     It is still not white, and it must not become white — the rule this
+     palette is built on survives at #e4edf8, which is four per cent of value
+     over `deep` and a shade less blue with it.
+
+     KNOW WHAT THIS DOES AND WHAT IT DOES NOT. Measured on the vertex colours
+     it doubles the contrast across the piste edge, from 0.12 to 0.25. Measured
+     on the *screen*, with the sun up, it does nothing at all: the near ground
+     already renders at about 223 of 255 and `GRADE.shoulder` has spent the top
+     of the range, which is the same fact that made this palette come down a
+     tenth in the first place — see the head of `SNOWPACK`. So the lift is
+     worth having where the picture still has somewhere to go, which is thin
+     cover, the mountain's own shadow, and night under the headlamp, and the
+     thing that actually carries the piste edge in daylight is the geometry:
+     `corridor.crown` and the crest-and-cavity shading its transition earns.
+
      Then two stones, and the point of there being two is that a single grey
      makes every cliff on the mountain the same cliff. `slate` is a cold
      blue-grey, `iron` a russet one — barely saturated, but enough that a rock
@@ -191,6 +232,7 @@ export const SNOWPACK = {
      the strongest contrast on the hill and it does not need help. Each is a
      pair: the cleft and the ridge it catches the light on. */
   deep: '#d6e2f0',
+  groom: '#e4edf8',
   ice: '#adc4d6',
   shade: '#a7bcd1',
   slate: ['#2c3646', '#7d8ba3'],
@@ -838,6 +880,18 @@ function heightIn(ctx, x, coarseDetail = 1, fineDetail = coarseDetail,
     const w1 = 1 / (d1 * d1 + 25);
     h += ctx.tilt * (w1 - w0) / (w0 + w1);
   }
+  /* THE PISTE STANDS PROUD OF THE MOUNTAIN, by half a metre of platform.
+
+     `corridorF` is already the answer to "how groomed is this", and it is
+     flat-topped: one across the middle of the corridor, smoothstepped to zero
+     over the fourteen metres that straddle the edge. Multiplying the crown by
+     it therefore adds nothing to the lateral gradient where the rider spends
+     the run — the gathering dish below keeps its exact shape — and spends the
+     whole of the rise on the transition, where it becomes the thing it is for:
+     a tilt in the surface, which is a change in shading, which is an edge the
+     piste keeps at any distance and in any weather. See `corridor.crown`. */
+  h += corridor.crown * corridorF;
+
   const past = d - ctx.half;
   // Inside the groomed part, a shallow dish that gathers a drifting rider
   // back towards the fall line. It never pushes — at the corridor's edge it
@@ -2394,6 +2448,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   const rgb = (hex) => { const c = new THREE.Color(hex); return [c.r, c.g, c.b]; };
   const P = SNOWPACK;
   const cDeep = rgb(P.deep);
+  const cGroom = rgb(P.groom);
   const cIce = rgb(P.ice);
   const cShade = rgb(P.shade);
   const cSlate = [rgb(P.slate[0]), rgb(P.slate[1])];
@@ -2788,8 +2843,17 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
            Broad wind crust keeps the material variation, but its direction is
            now free to respond honestly when the sun moves across the sky. */
         const packField = noise2(wx * 0.02, wz * 0.02, 7);
-        const crust = (1 - groomed) * icy * (0.35 + 0.65 * packField);
-        const dim = packField * 0.18 + crust * 0.14;
+        /* Wind crust and the broad pack mottle are both things that happen to
+           snow nobody is maintaining, and the machine takes out both. The
+           suppression used to be `groomed` — the corduroy ribbon alone, sixteen
+           metres of a fifty-metre run — so four fifths of the piste kept a
+           wind-crust dimming it has not had since the last time a groomer drove
+           over it. It is `pisteCover` now, which is the whole corridor with the
+           ribbon weighted highest, and the mottle goes with it: a tilled
+           surface is uniform, and the patchiness that gives the open mountain
+           its shape is exactly what a piste does not have. */
+        const crust = (1 - pisteCover) * icy * (0.35 + 0.65 * packField);
+        const dim = packField * 0.18 * (1 - 0.75 * pisteCover) + crust * 0.14;
         let cr = cDeep[0] + (cIce[0] - cDeep[0]) * icy;
         let cg = cDeep[1] + (cIce[1] - cDeep[1]) * icy;
         let cb = cDeep[2] + (cIce[2] - cDeep[2]) * icy;
@@ -2802,6 +2866,25 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
         cr += (cDeep[0] - cr) * crestLift;
         cg += (cDeep[1] - cg) * crestLift;
         cb += (cDeep[2] - cb) * crestLift;
+        /* …and then the piste is lifted off the top of the snow axis entirely.
+
+           Everything above this line is a scale of what the weather has done to
+           the ground, and `deep` is its bright end. A maintained run is not on
+           that scale at all, so it gets its own stop above it — and it is taken
+           after the relief terms rather than before them, because `crestLift`
+           pulls towards `deep` and would otherwise spend part of its lift
+           dragging the piste back down its own axis.
+
+           Scaled by `pisteCover`, so the corduroy is the brightest of it, the
+           corridor around the ribbon most of the way there, and the fade dies
+           exactly where the mask does — which is the same edge the crown is
+           standing on, so the tonal step and the geometric one are one step. */
+        const lift = pisteCover * P.groomLift;
+        if (lift > 0.002) {
+          cr += (cGroom[0] - cr) * lift;
+          cg += (cGroom[1] - cg) * lift;
+          cb += (cGroom[2] - cb) * lift;
+        }
         const cavityValue = 1 - cavityShade * 0.70;
         cr *= cavityValue;
         cg *= cavityValue;

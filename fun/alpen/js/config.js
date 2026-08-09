@@ -308,7 +308,45 @@ export const TERRAIN = {
      powder, the moguls and the treeline starting where it ends rather than
      a rock wall. Fourteen read as a bobsled canyon: the containment wall
      began thirty metres from the centre line and towered over every frame. */
-  corridor: { half: 26, vary: 8, freq: 0.00118, bowl: 3.0 },
+  corridor: {
+    half: 26, vary: 8, freq: 0.00118, bowl: 3.0,
+    /* And the whole of it stands a little proud of the mountain.
+
+       A piste is the one surface here that is *maintained*, and until now the
+       only thing that said so was its texture: the corduroy stopped, the
+       moguls started, and at any distance where a rider actually needs to know
+       where the run goes, both had already dissolved into the same white. A
+       platform gives the edge a shading break and a silhouette instead — the
+       ground tilts across the transition, so the piste keeps an edge in flat
+       light and in a storm, when the pattern that used to carry it has gone.
+
+       What lands on the screen is not this number, because the shoulder is
+       climbing away underneath it: measured across the cross-section, 0.9 here
+       leaves the piste's outer lip about half a metre over the verge just past
+       it, which is a groomer's cut against untracked snow and reads as one.
+
+       It rides on `corridorF`, the same mask that decides where the bump
+       octaves are filtered out, so the raised ground and the smooth ground are
+       the same ground by construction rather than by two numbers agreeing.
+       That mask is flat-topped and smoothstepped at both ends, which is what
+       makes this safe. Measured against the field without it, over forty
+       thousand samples: the corridor rises by exactly 0.900 m everywhere
+       inside it — mean and maximum are the same number, so not one millimetre
+       of lateral gradient is added where the rider rides, and the gathering
+       dish is untouched. The whole of the rise is spent on the transition,
+       whose steepest point is a tenth, and the worst lateral slope anywhere on
+       the corridor and its verge comes out at 1.024 either way — the crown
+       never becomes the steepest thing a rider meets. Nobody is fenced in by
+       this and nobody is flung by it; a rider leaving the piste rides a shallow
+       ramp down and one coming back rides it up.
+
+       It also earns its shading for free. `cavityShade` and `crestLift` are
+       driven by the real curvature of the drawn surface, and a 0.9 m rise
+       shaped over fourteen metres is well past both of their upper knees — so
+       the convex lip of the platform lights and the concave join beneath it
+       shades, which is the pair of lines that makes an edge an edge. */
+    crown: 0.9,
+  },
 
   /* Between the groomed edge and the containment wall the mountain crosses
      two more kinds of ground, in the order a real valley side offers them:
