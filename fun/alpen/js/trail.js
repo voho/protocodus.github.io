@@ -25,7 +25,7 @@
    per-vertex birth stamps instead of a re-streamed buffer. */
 
 import { TRAIL } from './config.js';
-import { heightAt } from './terrain.js';
+import { heightAt, drawnHeightAt } from './terrain.js';
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const mix = (a, b, t) => a + (b - a) * t;
@@ -650,7 +650,31 @@ export function createTrail(THREE, shading) {
       const planeY = cy + sectionLat.y * d;
       const pz = cz + sectionLat.z * d;
       const groundY = heightAt(px, pz);
-      const surfaceY = Math.max(planeY, groundY);
+      /* THE MARK LIES ON THE SNOW THAT IS DRAWN, not on the snow the board
+         collides with, and they are not the same surface. `heightAt` is exact;
+         the mesh is its linear interpolation over a 75 cm lattice, and a
+         straight line across a hollow stands above the hollow — as much as
+         eight centimetres of it, against a trail whose entire clearance budget
+         is two. Where that happened the trench was cut underneath the picture
+         of the ground, and a buried mark does not vanish cleanly: the depth
+         test drops whichever fragments the drawn snow covers and keeps the
+         rest, so bright snow tears through it in slivers that change with the
+         camera.
+
+         Per lane rather than per section, and that is the cheap way round as
+         well as the correct one. The alternative — one lift for the whole
+         cross-section — has to be an upper bound over every lane to be safe,
+         and no small number of probes can bound a field whose peaks sit inside
+         cells nothing sampled. Asking each lane about its own point is exact,
+         and `drawnHeightAt` keeps the last cell's four corners: the lanes are
+         a line shorter than three cells walked in order, so twenty-five
+         queries cost two or three cells' worth of height samples.
+
+         `max` and not a replacement, because over a convex bump the
+         interpolation runs *below* the true surface — there the collision
+         ground is still the higher of the two and still what the mark should
+         sit on. */
+      const surfaceY = Math.max(planeY, groundY, drawnHeightAt(px, pz));
       const organic = clamp(pressure * (1 - a * 0.32) + sideWalk * a, -1, 1);
       const relief = reliefAt(s, state.wash, state.bite, state.brake,
         state.bias, state.load, state.chatter, organic);

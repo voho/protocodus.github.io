@@ -1082,6 +1082,79 @@ export function heightAt(x, z) {
   return heightIn(rowContext(z, scratch), x);
 }
 
+/* THE SNOW AS IT IS DRAWN, which is not the snow the physics stands on.
+
+   `heightAt` is exact at any coordinate. The mesh is only its linear
+   interpolation across a `TERRAIN.spacing` lattice, and a straight line
+   between two samples of a hollow stands *above* the hollow. Measured over
+   the groomed corridor that gap averages a millimetre and reaches eight
+   centimetres in the sharper compressions — nothing to a rider, and
+   everything to anything printed flat onto the snow, because the board's
+   trail spends a total of two centimetres on clearance. Six per cent of the
+   piste is enough to bury the mark's packed floor and about one per cent
+   buries the berms with it, and a buried mark does not vanish cleanly: the
+   depth test drops whichever fragments the drawn surface happens to be over
+   and keeps the rest, so bright snow tears through the trench in slivers that
+   change with every metre the camera moves. That is the flicker, and it is
+   worst in the air, where the frame lifts, looks down, and hands the whole
+   strip of fresh mark to the bottom of the screen while nothing is redrawing
+   it.
+
+   THE CELL IS CUT ONE PARTICULAR WAY and this answers with that triangle, not
+   with the higher of the two. Taking the maximum was the first version and it
+   is wrong by more than it sounds: on a saddle the unused split runs as much
+   as twelve centimetres above the one the renderer draws, and a clearance
+   built on it would hold the trench that far off the snow — trading a mark
+   that tears for a mark that hovers. `CELL_PARITY` carries the index buffer's
+   own alternation, which the anchor cannot disturb, so the right triangle is
+   one compare away.
+
+   Only meaningful within `TERRAIN.uniformNear` of the rider. That is exactly
+   where the mesh samples this function at these corners — the anchor snaps by
+   whole cells, so the near field lands on this world lattice every time — and
+   it is also the only place anything prints itself on the snow. */
+const cell = { seed: -1, gx: NaN, gz: NaN, h00: 0, h10: 0, h01: 0, h11: 0 };
+
+export function drawnHeightAt(x, z) {
+  const s = TERRAIN.spacing;
+  const gx = Math.floor(x / s) * s;
+  const gz = Math.floor(z / s) * s;
+  /* One cell, remembered. The caller is a cross-section of a board:
+     twenty-five lanes strung along a line shorter than three cells, walked in
+     order, so nearly every lane after the first lands on the cell its
+     predecessor already paid four height samples for. The seed is in the key
+     because `heightAt` is a function of it and a worker re-seeds this module
+     per message. */
+  const seed = getWorldSeed();
+  if (cell.gx !== gx || cell.gz !== gz || cell.seed !== seed) {
+    // Two rows, two samples each, and `rowContext` caches on z — so the pair
+    // that shares a row costs one context between them.
+    const back = rowContext(gz, scratch);
+    cell.h00 = heightIn(back, gx);
+    cell.h10 = heightIn(back, gx + s);
+    const front = rowContext(gz + s, scratch);
+    cell.h01 = heightIn(front, gx);
+    cell.h11 = heightIn(front, gx + s);
+    cell.gx = gx;
+    cell.gz = gz;
+    cell.seed = seed;
+  }
+  const { h00, h10, h01, h11 } = cell;
+  const fx = (x - gx) / s;
+  const fz = (z - gz) / s;
+  /* Parity one is the diagonal from the low-x/high-z corner to its opposite,
+     which in this frame is the split along `fx + fz = 1`; parity zero is the
+     other one. See `CELL_PARITY`. */
+  if ((CELL_PARITY + Math.round(gx / s) + Math.round(gz / s)) & 1) {
+    return fx + fz <= 1
+      ? h00 + (h10 - h00) * fx + (h01 - h00) * fz
+      : h11 + (h01 - h11) * (1 - fx) + (h10 - h11) * (1 - fz);
+  }
+  return fx >= fz
+    ? h00 + (h10 - h00) * fx + (h11 - h10) * fz
+    : h00 + (h11 - h01) * fx + (h01 - h00) * fz;
+}
+
 /* Surface normal by central difference. `fn` is passed in so the rider can
    ask about the hill *plus* whatever kickers are sitting on it, while the
    mesh asks about the bare hill. */
@@ -1122,31 +1195,50 @@ function graded(step, growth, reach, uniformReach = 0) {
   return out;
 }
 
+/* Columns mirrored about the rider, rows graded in both directions from them.
+   All four fans share the same uniform near field, which is what lets the
+   anchor snap: inside `uniformNear` every offset is a whole number of cells,
+   so those vertices land on the same world lattice every time the mesh
+   re-anchors and the facets under the board stay welded to the hill. Only past
+   it do the rings widen, and only there does anything morph.
+
+   It is built out here rather than inside `createTerrain` because it depends
+   on nothing but `TERRAIN`, and because `drawnHeightAt` above has to agree with
+   it exactly — down to which way each quad is cut. Two copies of this
+   arithmetic would be two chances to disagree about that. */
+const half = graded(TERRAIN.spacing, TERRAIN.sideGrowth, TERRAIN.side,
+  TERRAIN.uniformNear);
+const xs = [];
+for (let i = half.length - 1; i >= 1; i--) xs.push(-half[i]);
+for (let i = 0; i < half.length; i++) xs.push(half[i]);
+
+const bwd = graded(TERRAIN.spacing, TERRAIN.behindGrowth, TERRAIN.behind,
+  TERRAIN.uniformNear);
+const fwd = graded(TERRAIN.spacing, TERRAIN.aheadGrowth, TERRAIN.ahead,
+  TERRAIN.uniformNear);
+const zs = [];
+for (let i = bwd.length - 1; i >= 1; i--) zs.push(bwd[i]);
+for (let i = 0; i < fwd.length; i++) zs.push(-fwd[i]);
+
+const vertsX = xs.length;
+const vertsZ = zs.length;
+
+/* Which way a given world cell is cut, as a parity.
+
+   The index build below alternates the diagonal on `(row + column) & 1`, and
+   both indices are fixed offsets from the lattice: column zero sits at
+   `half.length - 1`, row zero at `bwd.length - 1`, x runs with the column and
+   z runs *against* the row. The anchor moves in whole multiples of eight
+   cells, so it drops out of the parity entirely and a world cell is cut the
+   same way for the whole run. This constant is everything about the mesh's
+   index buffer that a point query needs to know. */
+const CELL_PARITY = ((half.length - 1) + (bwd.length - 1) + 1) & 1;
+
 export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   const {
-    spacing, uniformNear, behind, behindGrowth, ahead, aheadGrowth,
-    side, sideGrowth, morphNear, morphFar, morphRate, morphSettle,
+    spacing, morphNear, morphFar, morphRate, morphSettle,
   } = TERRAIN;
 
-  /* Columns mirrored about the rider, rows graded in both directions from
-     them. All four fans share the same uniform near field, which is what lets
-     the anchor snap: inside `uniformNear` every offset is a whole number of
-     cells, so those vertices land on the same world lattice every time the
-     mesh re-anchors and the facets under the board stay welded to the hill.
-     Only past it do the rings widen, and only there does anything morph. */
-  const half = graded(spacing, sideGrowth, side, uniformNear);
-  const xs = [];
-  for (let i = half.length - 1; i >= 1; i--) xs.push(-half[i]);
-  for (let i = 0; i < half.length; i++) xs.push(half[i]);
-
-  const zs = [];
-  const bwd = graded(spacing, behindGrowth, behind, uniformNear);
-  for (let i = bwd.length - 1; i >= 1; i--) zs.push(bwd[i]);
-  const fwd = graded(spacing, aheadGrowth, ahead, uniformNear);
-  for (let i = 0; i < fwd.length; i++) zs.push(-fwd[i]);
-
-  const vertsX = xs.length;
-  const vertsZ = zs.length;
   const cols = vertsX - 1;
   const rows = vertsZ - 1;
   const count = vertsX * vertsZ;
@@ -1587,7 +1679,8 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   // never frustum-culled so nothing was reading it, but a bounding volume that
   // does not bound is a trap left for whoever turns culling back on.
   geometry.boundingSphere = new THREE.Sphere(
-    new THREE.Vector3(), Math.hypot(side, Math.max(ahead, behind)),
+    new THREE.Vector3(),
+    Math.hypot(TERRAIN.side, Math.max(TERRAIN.ahead, TERRAIN.behind)),
   );
 
   /* The generated snow plates, packed as data rather than as baked light.
@@ -3060,6 +3153,18 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       gateOrder.push(g);
     }
     gateOrder.sort((a, b) => (riderZ - a.z) - (riderZ - b.z));
+    /* The one still to take, which is not simply the first of the four: the
+       window reaches twelve metres *behind* the rider so a gate does not go
+       out under their feet, and a gate ridden past — through the poles or
+       beside them — is finished either way. Whatever the boost is worth, it
+       has to land on the same pair the masts are flashing, or the ground says
+       one thing and the beacons say another. */
+    let lead = -1;
+    for (let i = 0; i < gateOrder.length; i++) {
+      if (gateOrder[i].taken || gateOrder[i].z > riderZ) continue;
+      lead = i;
+      break;
+    }
     for (let i = 0; i < GATE_SLOTS; i++) {
       const g = gateOrder[i];
       const slot = gateGlow.value[i];
@@ -3067,8 +3172,9 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       /* The far end of the reach fades in rather than switching on, so a gate
          entering the fourth slot does not appear as a disc of light. */
       const near = 1 - Math.max(0, (riderZ - g.z) / TERRAIN.gateGlowReach);
+      const weight = g.taken ? 0.22 : i === lead ? TERRAIN.gateLead : 1;
       slot.set(g.x, g.z, g.half, TERRAIN.gateGlow
-        * (g.taken ? 0.22 : 1) * (0.25 + 0.75 * near * near));
+        * weight * (0.25 + 0.75 * near * near));
       gateTint.value[i].copy(g.warm ? gateWarm : gateCool);
     }
   }
