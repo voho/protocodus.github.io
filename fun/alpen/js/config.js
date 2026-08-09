@@ -325,20 +325,22 @@ export const TERRAIN = {
        leaves the piste's outer lip about half a metre over the verge just past
        it, which is a groomer's cut against untracked snow and reads as one.
 
-       It rides on `corridorF`, the same mask that decides where the bump
-       octaves are filtered out, so the raised ground and the smooth ground are
-       the same ground by construction rather than by two numbers agreeing.
-       That mask is flat-topped and smoothstepped at both ends, which is what
-       makes this safe. Measured against the field without it, over forty
-       thousand samples: the corridor rises by exactly 0.900 m everywhere
-       inside it — mean and maximum are the same number, so not one millimetre
-       of lateral gradient is added where the rider rides, and the gathering
-       dish is untouched. The whole of the rise is spent on the transition,
-       whose steepest point is a tenth, and the worst lateral slope anywhere on
-       the corridor and its verge comes out at 1.024 either way — the crown
-       never becomes the steepest thing a rider meets. Nobody is fenced in by
-       this and nobody is flung by it; a rider leaving the piste rides a shallow
-       ramp down and one coming back rides it up.
+       It is a constant across the corridor and comes back down over
+       `crownFade` metres of the powder shoulder beyond it — every metre of the
+       rise spent outside the groomed snow, none of it inside. That is the
+       whole safety argument, and the first version got it wrong by riding on
+       the texture mask instead: that one starts fading four metres *inside*
+       the edge, because a piste edge roughens rather than snapping to moguls
+       on a painted line. It is the right shape for a texture and the wrong one
+       for the ground — it tilted the outer four metres of the corridor
+       outwards and cancelled a third of the bowl's restoring slope precisely
+       where a drifting rider needs it. Measured against the field without any
+       crown at all: the corridor now rises by exactly 0.900 m everywhere
+       inside it, mean and maximum the same number, so not one millimetre of
+       lateral gradient is added where the rider rides and the gathering dish
+       is untouched. Nobody is fenced in by this and nobody is flung by it; a
+       rider leaving the piste rides a shallow ramp down and one coming back
+       rides it up.
 
        It also earns its shading for free. `cavityShade` and `crestLift` are
        driven by the real curvature of the drawn surface, and a 0.9 m rise
@@ -346,6 +348,10 @@ export const TERRAIN = {
        the convex lip of the platform lights and the concave join beneath it
        shades, which is the pair of lines that makes an edge an edge. */
     crown: 0.9,
+    // …and the metres of powder shoulder it takes to come back down. Long
+    // enough that the ramp off the piste is a ramp, short enough that the
+    // shading break at the top of it is a line and not a wash.
+    crownFade: 12,
   },
 
   /* Between the groomed edge and the containment wall the mountain crosses

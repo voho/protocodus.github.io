@@ -880,24 +880,27 @@ function heightIn(ctx, x, coarseDetail = 1, fineDetail = coarseDetail,
     const w1 = 1 / (d1 * d1 + 25);
     h += ctx.tilt * (w1 - w0) / (w0 + w1);
   }
-  /* THE PISTE STANDS PROUD OF THE MOUNTAIN, by half a metre of platform.
-
-     `corridorF` is already the answer to "how groomed is this", and it is
-     flat-topped: one across the middle of the corridor, smoothstepped to zero
-     over the fourteen metres that straddle the edge. Multiplying the crown by
-     it therefore adds nothing to the lateral gradient where the rider spends
-     the run — the gathering dish below keeps its exact shape — and spends the
-     whole of the rise on the transition, where it becomes the thing it is for:
-     a tilt in the surface, which is a change in shading, which is an edge the
-     piste keeps at any distance and in any weather. See `corridor.crown`. */
-  h += corridor.crown * corridorF;
-
   const past = d - ctx.half;
   // Inside the groomed part, a shallow dish that gathers a drifting rider
   // back towards the fall line. It never pushes — at the corridor's edge it
   // is a slope of about a fifteenth — and being entirely lateral it costs
   // nothing against the budget the octaves are fighting over.
   if (past <= 0) {
+    /* THE PISTE STANDS PROUD OF THE MOUNTAIN, and it stands proud of all of
+       it: a constant inside the corridor, so there is no lateral gradient
+       here to argue with the dish below. See `corridor.crown`.
+
+       It does NOT ride on `corridorF`, which was the first version and was
+       wrong in the one place it mattered. That mask starts fading four metres
+       *inside* the groomed edge, because a piste edge roughens rather than
+       snapping to moguls on a painted line — the right shape for a texture and
+       the wrong one for the ground. What it did was tilt the outer four metres
+       of the corridor outwards by about a twelfth, cancelling a third of the
+       bowl's restoring slope exactly where a drifting rider needs it most, and
+       deliver only 0.72 m of the 0.9 at the edge. The measurement that was
+       supposed to catch that binned its samples at `half - 6` and never looked
+       at the last six metres. */
+    h += corridor.crown;
     const u = d / Math.max(1, ctx.half);
     /* A PARABOLA, AND IT WAS WORTH FINDING OUT WHY.
 
@@ -933,6 +936,12 @@ function heightIn(ctx, x, coarseDetail = 1, fineDetail = coarseDetail,
       * (1 - smoothstep(ctx.half - 2, ctx.half, d));
   } else {
     h += corridor.bowl;
+    /* …and comes back down entirely outside the groomed snow. Flat at both
+       ends like everything else that joins here, so the collision normal stays
+       smooth, and steepest at about a ninth — which is out on the powder
+       shoulder where the zone rise below is already climbing anyway. */
+    h += corridor.crown
+      * (1 - smooth01(Math.min(1, past / corridor.crownFade)));
 
     /* The shoulder: ungroomed snow first, then the rocky band, together
        `ctx.bandW` metres of ground a rider can actually use before the wall
@@ -1826,11 +1835,25 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   const tilePowderMacro = { value: new THREE.Vector2() };
   const tilePowderDetail = { value: new THREE.Vector2() };
   const tileGroomZ = { value: 0 };
-  // The plates' own rotation, kept here so the CPU and the shader cannot
-  // disagree about it. Both powder reads use it; the corduroy is unrotated
-  // because a groomer drives in straight lines.
-  const PLATE_COS = 0.9563;
-  const PLATE_SIN = 0.2924;
+  /* The plates' own rotation, written the way the shader actually applies it.
+
+     GLSL's mat2 is column major, so `mat2(0.9563, -0.2924, 0.2924, 0.9563)`
+     multiplies a vector by the rows (0.9563, 0.2924) and (-0.2924, 0.9563).
+     The first version of this rotated the anchor by the transpose — the
+     inverse turn — which cancels nothing, and the powder plates stepped
+     sideways by 0.15 of a macro tile and 0.88 of a detail tile on every
+     six-metre re-anchor. It survived a five-thousand-case invariance test
+     because that test rotated both sides with this same function: a check that
+     shares the mistake it is looking for cannot fail. The test that catches it
+     is at the bottom of this file's verification — render one patch of ground
+     under two anchors and compare the pixels.
+
+     The corduroy needs none of this: a groomer drives in straight lines. */
+  const rotatePlate = (x, z, out) => out.set(
+    x * 0.9563 + z * 0.2924,
+    -x * 0.2924 + z * 0.9563,
+  );
+  const plateScratch = new THREE.Vector2();
 
   /* Work out where each tiling counts from, given where the mesh is anchored.
 
@@ -1850,13 +1873,12 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     const macro = snowTile.value.x;
     const detail = snowTile.value.y;
     const wrap = (v) => v - Math.floor(v);
+    rotatePlate(ax, az, plateScratch);
     tilePowderMacro.value.set(
-      wrap((ax * PLATE_COS - az * PLATE_SIN) / macro),
-      wrap((ax * PLATE_SIN + az * PLATE_COS) / macro),
+      wrap(plateScratch.x / macro), wrap(plateScratch.y / macro),
     );
     tilePowderDetail.value.set(
-      wrap((ax * PLATE_COS - az * PLATE_SIN) / detail),
-      wrap((ax * PLATE_SIN + az * PLATE_COS) / detail),
+      wrap(plateScratch.x / detail), wrap(plateScratch.y / detail),
     );
     /* One scalar for all three corduroy reads: the macro tile is a whole
        number of detail tiles, so a z wrapped into the macro one is wrapped
