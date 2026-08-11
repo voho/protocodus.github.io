@@ -1773,7 +1773,7 @@ export function createStreaks(THREE) {
     const t = Math.min(1, Math.max(0, (speed - STREAKS.from) / (STREAKS.full - STREAKS.from)));
     const active = Math.round(n * t * t);
     // Density reaches full strength at `STREAKS.full`; line length may keep
-    // communicating more speed, but it cannot grow with an uncapped W drive
+    // communicating more speed, but it cannot grow all the way to the W cap
     // forever or each streak eventually becomes a screen-filling white bar.
     const len = Math.min(STREAKS.maxLength, speed * STREAKS.length);
 

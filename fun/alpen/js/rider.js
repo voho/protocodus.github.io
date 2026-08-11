@@ -527,7 +527,7 @@ export class Rider {
     }
     const finishPush = this.pushing && enteringSpeed >= RIDER.pushStop;
 
-    // W is an uncapped powered tuck. This is a speed floor rather than a
+    // W is a powered tuck. This is a speed floor rather than a
     // one-off force: snow friction, a traverse, or an extreme drag value can
     // never quietly create another terminal velocity. Gravity and clean
     // terrain can still add more than the floor, so the mountain remains part
@@ -1215,9 +1215,8 @@ export class Rider {
 
     /* THE ONE THING THE BOUNDARY MOUNTAINS ARE NOT ALLOWED TO PERMIT.
 
-       Everything above is a cost, and a cost can be paid: W has no terminal
-       speed, so any finite amount of drag out there can be outrun by a rider
-       willing to hold one key for long enough. This is the invariant, and it
+       Everything above is a cost, and full flow carries enough speed to pay
+       any finite amount tuned for ordinary riding. This is the invariant, and it
        has to live *after* the powered floor for exactly that reason — the
        floor is the last thing that writes a speed, so anything hoping to
        bound the climb has to come after it.
@@ -1720,7 +1719,7 @@ export class Rider {
       vel.z += Math.sin(travelYaw) * steer * dt;
     }
 
-    // Keep the same unbounded W drive through jumps. Raise only the horizontal
+    // Keep the same powered W drive through jumps. Raise only the horizontal
     // component by enough to reach the total-speed floor; vertical velocity
     // remains the ballistic value gravity produced, so the jump arc and
     // landing timing are not falsified even while total speed keeps climbing.
@@ -2238,8 +2237,8 @@ export function trickName(s, verdict) {
     // Both axes: one trick about a tilted one.
     const base = s.flips > 0 ? 'MISTY' : frontside ? 'RODEO' : 'CORK';
     /* The sport has words for two and three and then stops having them, and
-       this hill has no ceiling on airtime — the powered tuck is unbounded, so
-       a long enough hang time genuinely reaches four. Past three it counts,
+       this hill has no practical ceiling on airtime, so a long enough hang
+       time genuinely reaches four. Past three it counts,
        because announcing a quadruple cork as a triple while paying for four
        is the label and the score disagreeing, which is the one thing this
        function exists to prevent. */

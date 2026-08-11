@@ -8,7 +8,7 @@
    of it, so real scene lights describe the displaced snow.
 
    The mesh is still a fixed ring. Samples are now spaced by distance rather
-   than only by the render clock; unlimited W speed therefore adds enough
+   than only by the render clock; the 250 m/s W ceiling therefore adds enough
    intermediate sections to keep the trench attached to the terrain instead
    of stretching one huge triangle down the mountain. Gaps remain explicit for
    jumps, rails and airborne tumbles.
@@ -1120,7 +1120,7 @@ export function createTrail(THREE, shading) {
          two different answers.
 
          A gap the budget cannot cover but a board conceivably could — the
-         tuck has no speed cap, and at the clamped frame delta a very fast
+         tuck can reach 250 m/s, and at the clamped frame delta a very fast
          run genuinely covers five metres a frame — is still riding, so the
          old behaviour stands: retain a fully sampled near-board tail and
          break only the unseen gap behind it, and the mark never degenerates.

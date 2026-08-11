@@ -27,10 +27,10 @@
    And you cannot leave it. Outside the groomed part the ground rises into a
    quarterpipe with a real lip you can launch off, and past that into a wall
    that climbs towards a hundred and thirty metres and then keeps creeping up
-   forever. Crossing it would take 75 m/s of kinetic energy and the game
-   tops out at 50. There is no barrier and no invisible wall — the ground
-   outside the run is simply, monotonically, uphill everywhere, so gravity is
-   always pointing home. That is the whole containment mechanism.
+   forever. Crossing it takes about 75 m/s of kinetic energy; high flow can
+   now clear it, while ordinary runs remain contained. There is no barrier or
+   invisible wall — the ground outside the run is simply, monotonically,
+   uphill everywhere, so gravity is always pointing home.
 
    The mesh is a single graded grid, re-anchored to the rider in whole cells
    and refilled from `heightAt`. Snapping to whole cells is what keeps the

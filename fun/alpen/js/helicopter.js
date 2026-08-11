@@ -912,7 +912,7 @@ export function createHelicopter(THREE, shading) {
     const radius = HELI.radius * HELI.scoreRadius;
     let distance2 = dx * dx + dz * dz;
     /* Sweep the rider relative to the moving pool. Ordinary frame steps are
-       much smaller than the light, but W has no speed ceiling by design; the
+       much smaller than the light, but W can reach 250 m/s; the
        segment test keeps an extreme-speed crossing scoreable as well. */
     if (scoreSampleValid) {
       const vx = dx - scoreDx;

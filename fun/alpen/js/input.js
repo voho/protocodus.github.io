@@ -4,7 +4,7 @@
 
      turn        -1 … 1, and it ramps rather than switching, so a tap is a
                  nudge and a hold is a full-lock carve
-     tuck        powered tuck; continuously accelerate with no speed cap
+     tuck        powered tuck; accelerate up to the current flow speed cap
      brake       heel-side speed check; pivot across travel and sideslip
      jump        held to charge, released to pop
      trickGrab   Q — reach down and hold the board

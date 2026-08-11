@@ -25,7 +25,7 @@ import {
   createTerrain, heightAt, nearestCenter, corridorHalfAt, beyondLipAt,
   getTerrainMaterialAt, guideAt,
 } from './terrain.js';
-import { createProps, HARD } from './props.js';
+import { createProps, HARD, SOFT } from './props.js';
 import { createWildlife } from './wildlife.js';
 import { createSky } from './sky.js';
 import { createWeather } from './weather.js';
@@ -470,6 +470,8 @@ function pause() {
 
 let lastPassedGate = null;
 
+let resetPropDensity = false;
+
 function restart() {
   /* A restart resumes from the last gate taken — the run is a course now,
      and a course has checkpoints — and always on the guide line, which is
@@ -510,7 +512,8 @@ function restart() {
      snow stayed at the dimmed ember, and both lead indicators pointed past the
      gate directly ahead at one further down the hill. */
   props.reopenGatesBelow(rider.pos.z);
-  props.update(rider.pos.z);
+  resetPropDensity = false;
+  props.reset(rider.pos.z, 1);
   terrain.update(rider.pos.x, rider.pos.z);
 }
 
@@ -709,6 +712,11 @@ rider.on('launch', (vy) => {
 
 rider.on('fall', (cause, into = 0) => {
   game.combo = 1;
+  game.flow = 0;
+  game.flowMaxAnnounced = false;
+  // Rebuild after this physics batch; mutating the collision list from inside
+  // a strike would replace the array while `collide()` is still walking it.
+  resetPropDensity = true;
   if (game.mode !== 'playing') return;
 
   const physical = Math.max(0, Math.min(1, into / RIDER.hardImpact));
@@ -804,25 +812,43 @@ rider.on('pump', (drive) => {
    public fields the HUD and camera already read. The boost scales the whole
    velocity vector, so it pushes along the slope the rider is actually on. */
 function stepFlow() {
-  if (game.mode !== 'playing') return;
-  if (rider.grounded) {
-    if (rider.state === 'ride' && rider.carveLoad > 0.4 && rider.slide < 1.0) {
-      game.flow = Math.min(1, game.flow + rider.carveLoad * 0.3 * STEP);
-    } else if (rider.slide > 2.0) {
-      game.flow = Math.max(0, game.flow - rider.slide * 0.1 * STEP);
+  if (game.mode === 'playing') {
+    if (rider.grounded) {
+      if (rider.state === 'ride' && rider.carveLoad > 0.4 && rider.slide < 1.0) {
+        game.flow = Math.min(1, game.flow + rider.carveLoad * 0.3 * STEP);
+      } else if (rider.slide > 2.0) {
+        game.flow = Math.max(0, game.flow - rider.slide * 0.1 * STEP);
+      }
+      game.flow = Math.max(0, game.flow - 0.05 * STEP);
+      if (game.flow > 0.2 && rider.state === 'ride') {
+        rider.vel.multiplyScalar(1 + game.flow * 0.03 * STEP);
+      }
     }
-    game.flow = Math.max(0, game.flow - 0.05 * STEP);
-    if (game.flow > 0.2 && rider.state === 'ride') {
-      rider.vel.multiplyScalar(1 + game.flow * 0.03 * STEP);
+    if (game.flow >= 0.99 && !game.flowMaxAnnounced) {
+      game.flowMaxAnnounced = true;
+      award(500 * game.combo, 'MAX FLOW', 'near');
+    } else if (game.flow < 0.5) {
+      game.flowMaxAnnounced = false;   // armed again once it has genuinely dropped
     }
-  } else {
-    game.flow = Math.max(0, game.flow - 0.1 * STEP);  // bleeds faster in air
   }
-  if (game.flow >= 0.99 && !game.flowMaxAnnounced) {
-    game.flowMaxAnnounced = true;
-    award(500 * game.combo, 'MAX FLOW', 'near');
-  } else if (game.flow < 0.5) {
-    game.flowMaxAnnounced = false;   // armed again once it has genuinely dropped
+
+  /* Flow opens the speed ceiling continuously from the old 50 m/s limit to
+     five times that at a full meter. Flow holds steady through a clean jump,
+     so the horizontal cap cannot brake a ballistic arc merely because the
+     board left the snow; a fall resets it instead. Falls keep their impact
+     momentum and already recover at a bounded 6–12 m/s. */
+  const limit = RIDER.baseMaxSpeed
+    + (RIDER.maxSpeed - RIDER.baseMaxSpeed) * game.flow;
+  if (rider.state === 'ride') {
+    const speed = rider.speed;
+    if (speed > limit) rider.vel.multiplyScalar(limit / speed);
+  } else if (rider.state === 'air') {
+    const horizontal = Math.hypot(rider.vel.x, rider.vel.z);
+    if (horizontal > limit) {
+      const scale = limit / horizontal;
+      rider.vel.x *= scale;
+      rider.vel.z *= scale;
+    }
   }
 }
 
@@ -969,11 +995,24 @@ function collide() {
     const impactY = prev.y + (rider.pos.y - prev.y) * sweepHit.t;
     if (impactY > s.top + 0.15) continue;
     if (rider.grace > 0 || game.mode === 'attract') continue;
+    const contact = s.contact || s;
+    if (s.kind === SOFT) {
+      if (contact.hit) continue;
+      contact.hit = true;
+      s.hit = true;
+      rider.brush(s.drag ?? PROPS.shrubDrag);
+      spray.burst(rider.pos,
+        (rider.pos.x - s.x) * 0.6, (rider.pos.z - s.z) * 0.6, 18, 0.7);
+      audio.thud();
+      chase.kick(0.5);
+      continue;
+    }
     // One response per contact. `collide()` runs per physics substep, so a
     // rider still inside the trunk's radius on the next step would take a fresh
     // impulse and a fresh multiplicative speed cut each time — which made
     // the same graze measurably harsher on a 144 Hz display than a 60 Hz one.
-    if (s.hit) continue;
+    if (contact.hit) continue;
+    contact.hit = true;
     s.hit = true;
     s.grazed = true;
 
@@ -985,9 +1024,9 @@ function collide() {
        decides whether that is a wobble or a very long tumble. */
     const closeness = sweepHit.approach;
     const outcome = rider.strike(sweepHit.nx, sweepHit.nz, closeness);
-    if (s.type === 'boulder') {
-      /* A boulder is a volume, not a trigger. Resolve to the swept entry point
-         and remove only velocity still aimed into the stone; the tangential
+    if (s.volume) {
+      /* A rock or fence is a volume, not a trigger. Resolve to the swept entry
+         point and remove only velocity still aimed into it; the tangential
          component remains, so a graze slides past while a direct fall stops. */
       rider.pos.x = s.x + sweepHit.nx * (reach + 0.03);
       rider.pos.z = s.z + sweepHit.nz * (reach + 0.03);
@@ -998,6 +1037,9 @@ function collide() {
         rider.vel.z -= inward * restitution * sweepHit.nz;
       }
     }
+    // A fall changes the simulation state immediately. Do not let another
+    // overlapping hull reposition or strike the tumbling rider in this step.
+    if (outcome === 'fall') return;
     if (outcome === 'brush') {
       audio.thud();
       chase.kick(0.4);
@@ -1148,6 +1190,12 @@ function frame(now) {
       steps += 1;
     }
     if (steps >= 8) lastStep = 0;
+    if (resetPropDensity) {
+      // A crash is the one safe moment to repopulate the streamed window at
+      // low-speed density: the wipeout already masks the otherwise visible swap.
+      props.reset(rider.pos.z, 1);
+      resetPropDensity = false;
+    }
 
     /* The environment is rendered, so its positional half uses the same
        fixed-step interpolation as the lens and rider model. Keep this as a
@@ -1204,7 +1252,11 @@ function frame(now) {
     // horizon facts for the next patch of mountain.
     terrain.setSun(sky.sunDir.x, sky.sunDir.y, sky.sunDir.z, sky.shadowLevel);
     terrain.update(rider.pos.x, rider.pos.z, dt);
-    props.update(rider.pos.z);
+    const maxSpacing = RIDER.maxSpeed / RIDER.baseMaxSpeed;
+    const spacingSpeed = rider.state === 'ride' || rider.state === 'air'
+      ? rider.speed : 0;
+    props.update(rider.pos.z, 1 + (maxSpacing - 1)
+      * Math.min(1, spacingSpeed / RIDER.maxSpeed));
     // The forest answers this exact frame's weather: crowns lash in a storm
     // wind, flags ripple, and a calm day barely stirs.
     props.setAir(dt, w.windX, w.windZ);

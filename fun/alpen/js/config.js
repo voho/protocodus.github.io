@@ -13,8 +13,8 @@
    along a heading, so momentum is real: gravity is resolved on the surface
    tangent, the edge holds sideways up to a grip limit and slides past it,
    and a turn taken too fast at the top of the hill costs the speed it was
-   carrying. Nothing here clamps the rider's speed. Ordinary riding finds a
-   terminal speed through drag; the powered tuck deliberately does not.
+   carrying. Ordinary riding finds a terminal speed through drag; flow opens
+   the powered tuck's ceiling from 50 m/s to a maximum of 250 m/s.
 
    That last claim used to be half true. Three numbers quietly propped the
    rider up — a floor speed that pushed, a tuck that pushed, and an edge
@@ -128,22 +128,20 @@ export const GRADE = {
      it reads — and it all still starts from nothing below `blurFrom`, so a
      slow run is as clean as it ever was. */
   blurFrom: 24,       // m/s before tunnel vision starts to become visible
-  /* …and there is no speed at which it is finished, because there is no
-     speed at which the *rider* is finished.
+  /* The treatment stays useful across the full 50–250 m/s flow range.
 
      This used to be `blurFull: 48` — a linear ramp clamped at forty-eight
      metres a second, which was a defensible ceiling back when drag set a
-     terminal speed near there. The powered tuck has had no terminal speed for
-     some time, and a run spends most of its life above that mark, so the
-     three effects sat pinned at maximum for minutes together. Pinned, they
-     are not a speed cue at all: a treatment that says the same thing at a
+     terminal speed near there. Powered flow now reaches far beyond that mark,
+     so the three effects sat pinned at maximum for minutes together. Pinned,
+     they are not a speed cue at all: a treatment that says the same thing at a
      hundred and seventy and at three hundred and ten is a filter over the
      game rather than a read-out of it, and it is on hardest exactly when the
      rider most needs to see where they are going.
 
      So the ramp is asymptotic instead. `blurSpan` is how much speed past
      `blurFrom` it takes to reach halfway, and the curve then keeps climbing
-     for ever without arriving — the effect is always moving with the run, and
+     without arriving — the effect keeps moving with the run, and
      it never reaches the strength the old ramp reached at a hundred and
      seventy. It is airborne-agnostic by construction: the input is the whole
      velocity, so a jump keeps whatever the takeoff earned and loses it again
@@ -1047,6 +1045,10 @@ export const RIDER = {
   // Drag is what sets ordinary top speed, not a clamp: 6.3 m/s² of slope
   // pull balances at about 40 m/s, or 143 km/h.
   drag: 0.0034,
+  /* Flow owns the speed ceiling. With no flow the old 50 m/s limit remains;
+     a full meter opens it to five times that value. */
+  baseMaxSpeed: 50,   // m/s — 180 km/h
+  maxSpeed: 250,      // m/s — 900 km/h at full flow
   // Where drag stiffens beyond v² when the powered tuck is not held.
   // A big kicker landing converts a lot of height into speed and can
   // overshoot this for a second or two; past it the run is pulled back
@@ -1100,10 +1102,8 @@ export const RIDER = {
      which buys v²/2g = fifty-seven metres of climb against the sixty-two the
      exponential saturates at. Comfortable.
 
-     And then W stopped having a terminal speed. `tuckAcceleration` is a floor
-     that accumulates for as long as the key is held, deliberately with no
-     ceiling — which means the kinetic energy available to a determined rider
-     is unbounded, and an unbounded climb budget beats any finite wall. At
+     Full flow now raises that ceiling fivefold. The kinetic energy available
+     to a determined rider still beats any finite wall shaped for 50 m/s. At
      eighty metres a second the same sum buys a hundred and forty-five metres,
      and the containment is a suggestion.
 
@@ -1222,9 +1222,8 @@ export const RIDER = {
   stallCap: 9.0,
   stallTime: 0.32,
   // The powered tuck. Holding it guarantees this much additional speed each
-  // second and bypasses aerodynamic drag, so there is deliberately no upper
-  // speed. The edge still goes soft and the board stops answering quickly —
-  // the trade is infinite acceleration for the ability to change your line.
+  // second and bypasses aerodynamic drag until the flow-owned cap. The edge
+  // still goes soft and the board stops answering quickly.
   tuckAcceleration: 7.5, // m/s², accumulated for as long as W is held
   tuckTurn: 0.45,     // share of the turn rate left while folded down
   tuckGrip: 0.72,     // and of the grip
@@ -1604,9 +1603,8 @@ export const RIDER = {
      allowed to become flight. Explicit kicker/cliff edges bypass that second
      condition and release directly from their trailing tangent. */
   launchSampleSpacing: 0.30,
-  // W has no speed ceiling, so distance/spacing cannot be allowed to turn
-  // the predictor into unbounded per-step work. Normal play is far below this
-  // count; only extreme powered speeds widen the sweep samples.
+  // The 250 m/s ceiling still needs a bounded predictor budget. Normal play
+  // is far below this count; only extreme powered speeds widen the sweep.
   launchSampleMax: 192,
   launchSupportLength: 0.68,
   launchSupportShare: 0.55,
@@ -1777,8 +1775,7 @@ export const PROPS = {
      went from seventy-eight metres to a hundred and thirty — so the density
      on the shoulder beside the piste is about what it was and the new trees
      are almost all up the containment banks, which is where a valley in the
-     Alps actually keeps its forest. Trees far enough out to be unreachable
-     no longer carry a collision hull; see `FOREST.solidOut` in props.js. */
+     Alps actually keeps its forest. */
   treesPerBand: 58,
   /* Where the forest is allowed to begin, measured out from the groomed edge.
 
@@ -1873,6 +1870,8 @@ export const PROPS = {
     hazardEdge: 3.2,
     hazardOut: 15,
   },
+  // Low vegetation bends and scrubs speed instead of causing a wipeout.
+  shrubDrag: 0.42,
 
   /* THERE IS NOTHING BUILT ON THIS MOUNTAIN. This is where it all was.
 
@@ -1993,7 +1992,7 @@ export const CAMERA = {
      that back. */
   lag: 13.0,          // higher follows tighter
   airLag: 5.0,
-  /* Fixed lag becomes unbounded positional error when W has no speed limit:
+  /* Fixed lag creates a large positional error near the 250 m/s speed limit:
      a first-order chase trails by roughly speed / lag. Preserve the weighted
      normal-speed camera, then tighten only as needed to keep the rider within
      a small, readable envelope at extreme speed. Air is allowed more float,

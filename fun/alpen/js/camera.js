@@ -323,9 +323,9 @@ export function createChaseCamera(THREE, camera) {
 
     const baseLag = air ? CAMERA.airLag : CAMERA.lag;
     const followError = air ? CAMERA.maxAirFollowError : CAMERA.maxFollowError;
-    // A first-order chase trails steady motion by roughly speed / lag. W has
-    // no terminal speed now, so a fixed response would eventually put the
-    // camera kilometres behind the rider. The ordinary range keeps its tuned
+    // A first-order chase trails steady motion by roughly speed / lag. Near
+    // the 250 m/s flow cap a fixed response would put the camera far behind
+    // the rider. The ordinary range keeps its tuned
     // spring; only extreme speed raises the response enough to bound that
     // additional separation.
     const lag = Math.max(baseLag, speed / followError);

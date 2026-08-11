@@ -86,9 +86,8 @@
    against the lowest ground its own footprint covers rather than the height
    under its middle. A *crag* is the flanks' geology: a stack of tipped slabs
    standing out of the containment bank, which is the first thing on this
-   mountain to put a hard edge on that skyline. None of the last two has a
-   collider and none of them ever will — they live past the point where the
-   deep snow has already turned the rider around.
+   mountain to put a hard edge on that skyline. Every visible scenery prop is
+   solid again; only course gates and Swiss waymarks remain pass-through.
 
    NOTHING STANDS ON THE GROOMED SNOW. Not a tree, not a rock, nothing but the
    gates — and that is a rule about what a piste *is* rather than a difficulty
@@ -291,11 +290,6 @@ const FOREST = {
     from: 9,              // metres of grown height a variant needs to qualify
     height: [17, 26],     // …and what it is stood up to, before lean and jitter
   },
-  /* How far past the groomed edge a tree is still worth a collision hull.
-     See the note at the placement: the forest reaches far further than a
-     rider ever will, and a hull out there is a linear-scan cost with nothing
-     on the other end of it. */
-  solidOut: 40,
 };
 
 /* Ecology is deliberately a set of overlapping weights, not a biome label.
@@ -345,7 +339,7 @@ function ecologyAt(x, z, out) {
    says Switzerland without turning the valley into a run of flags.
 
    These numbers stay here rather than in config because nothing outside this
-   module can tune or collide with either prop. Their placement uses dedicated
+   module tunes either prop. Their placement uses dedicated
    `hash2` channels below, not the band's `rnd` stream, so adding them cannot
    reshuffle a tree or a gate. */
 const ALPINE = {
@@ -2035,6 +2029,51 @@ export function createProps(THREE, shading) {
      no. */
   for (const p of [avalancheFences, waymarks]) p.cullable = true;
 
+  /* Conservative spheres for the small grown props. Keep the centre as well
+     as the radius: these meshes grow upward and sideways from their origin,
+     so discarding that offset leaves visible tips outside the collider. */
+  const sphereHull = (pool) => {
+    const geometry = pool.mesh.geometry;
+    if (!geometry.boundingSphere) geometry.computeBoundingSphere();
+    return {
+      center: geometry.boundingSphere.center.clone(),
+      radius: geometry.boundingSphere.radius,
+    };
+  };
+  const plantHull = sphereHull(plantPool);
+  const shrubHulls = shrubPools.map(sphereHull);
+  const hullUp = new THREE.Vector3(0, 1, 0);
+  const hullScale = new THREE.Vector3();
+  const hullOffset = new THREE.Vector3();
+  const hullCorner = new THREE.Vector3();
+  const hullQ = new THREE.Quaternion();
+  const hullTurn = new THREE.Quaternion();
+
+  function hullRotation(yaw, normal) {
+    if (normal) hullQ.setFromUnitVectors(hullUp, normal);
+    else hullQ.identity();
+    hullTurn.setFromAxisAngle(hullUp, yaw);
+    return hullQ.multiply(hullTurn);
+  }
+
+  function placedSphereHull(hull, x, y, z, yaw, sx, sy, sz, normal) {
+    hullScale.set(sx, sy, sz);
+    hullOffset.copy(hull.center).multiply(hullScale)
+      .applyQuaternion(hullRotation(yaw, normal));
+    const r = hull.radius * Math.max(Math.abs(sx), Math.abs(sy), Math.abs(sz));
+    return { x: x + hullOffset.x, z: z + hullOffset.z, r, top: y + hullOffset.y + r };
+  }
+
+  /* A six-metre fence is long and thin, so one bounding sphere would block
+     metres of empty snow. Five short circles follow its actual footprint. */
+  const fenceGeometry = avalancheFences.mesh.geometry;
+  if (!fenceGeometry.boundingBox) fenceGeometry.computeBoundingBox();
+  const fenceBox = fenceGeometry.boundingBox;
+  const fenceCells = 5;
+  const fenceCellWidth = (fenceBox.max.x - fenceBox.min.x) / fenceCells;
+  const fenceCenterY = (fenceBox.min.y + fenceBox.max.y) * 0.5;
+  const fenceCenterZ = (fenceBox.min.z + fenceBox.max.z) * 0.5;
+
   const pools = [
     plantPool, ...shrubPools, ...rockPools, ...cragPools,
     poles, lamps, avalancheFences, waymarks,
@@ -2121,9 +2160,8 @@ export function createProps(THREE, shading) {
   }
 
 
-  /* A fork island is useful habitat, but only for things the rider can pass
-     through. Decorative stone stays beyond the outer lips so its missing
-     collider can never become a lie. */
+  /* A fork island is useful habitat for low vegetation. Decorative stone
+     stays beyond the outer lips so it never blocks either branch. */
   function vergeXAt(z, side, distance, islandDraw, spreadDraw) {
     centersAt(z, centres);
     const half = corridorHalfAt(z);
@@ -2216,10 +2254,13 @@ export function createProps(THREE, shading) {
     return true;
   }
 
-  function place(b) {
+  function place(b, spacing = 1) {
     const rnd = stream(b * 2654435761);
     const z0 = b * band;
     const travelled = Math.max(0, -z0);
+    // Candidate thinning changes average distance without moving the
+    // surviving props. A factor of five therefore keeps one in five.
+    const density = 1 / Math.max(1, spacing);
 
     // Every offset below is measured from the middle of the piste at that
     // point, never from the world's x = 0. The route wanders, and it forks,
@@ -2254,7 +2295,8 @@ export function createProps(THREE, shading) {
     const previousRoll = hash2(b - 1, 3400, 227);
     if (travelled >= BIOMES.hazardFrom
       && hazardRoll < BIOMES.hazardChance
-      && previousRoll >= BIOMES.hazardChance) {
+      && previousRoll >= BIOMES.hazardChance
+      && hash2(b, 3411, 227) < density) {
       const padding = BIOMES.hazardPadding;
       const z = z0 + padding + hash2(b, 3401, 227) * (band - padding * 2);
       {
@@ -2300,7 +2342,7 @@ export function createProps(THREE, shading) {
             const solid = {
               key: `boulder:${b}`,
               type: 'boulder', x, z, r: shape.r,
-              kind: HARD, groundY, top: shape.top, cameraPad: 0.55,
+              kind: HARD, groundY, top: shape.top, cameraPad: 0.55, volume: true,
             };
             solids.push(solid);
             bandHazards.push(solid);
@@ -2402,23 +2444,10 @@ export function createProps(THREE, shading) {
       const sy = s * (0.85 + rnd() * 0.35);
       const normal = treeLean(x, z, y, rnd);
       const colour = castOf(treeBare[v], v, rnd(), tint);
+      if (hash2(b, 3800 + i, 239) > density) continue;
       if (!clearOfBandHazards(x, z, radius, bandHazards, 2.0)) continue;
-      treePools[v].addOnSlope(x, y, z, yaw, s, sy, s, normal, colour);
-      /* A COLLIDER ONLY WHERE A RIDER CAN GET TO, which is a real question
-         once the forest reaches out across the whole powder-and-rock
-         shoulder. `collide()` is a linear scan over `solids` at every one
-         of the 120 physics steps a second, and the forest is nearly all of
-         that list — paying it for hulls around trees standing well up a
-         containment bank the deep snow has already refused to let anybody
-         climb is pure waste. The measured ceiling for a rider who is
-         *trying* is a shade under twenty-four metres above the piste;
-         `FOREST.solidOut` metres of lateral offset past the groomed edge is
-         well beyond where that puts them. Everything inside that keeps its
-         collider, so nothing a rider can actually hit has stopped being
-         solid. */
-      if (Math.abs(x - nearestCenter(x, z)) < half + FOREST.solidOut) {
-        solids.push({ x, z, r: radius, kind: HARD, top: 99 });
-      }
+      if (!treePools[v].addOnSlope(x, y, z, yaw, s, sy, s, normal, colour)) continue;
+      solids.push({ x, z, r: radius, kind: HARD, top: 99 });
     }
 
     /* --- continuous vegetation biomes -----------------------------------
@@ -2443,11 +2472,15 @@ export function createProps(THREE, shading) {
       if (hash2(b, 3300 + i, 211) > cover) continue;
       const y = heightAt(x, z) - 0.02;
       const s = lerp(0.62, 1.34, hash2(b, 3320 + i, 211));
-      plantPool.addOnSlope(
-        x, y, z, hash2(b, 3340 + i, 211) * TAU,
-        s, s * lerp(0.82, 1.12, hash2(b, 3360 + i, 211)), s,
-        setFloraNormal(x, z),
-      );
+      const sy = s * lerp(0.82, 1.12, hash2(b, 3360 + i, 211));
+      if (hash2(b, 3380 + i, 211) > density) continue;
+      const yaw = hash2(b, 3340 + i, 211) * TAU;
+      const normal = setFloraNormal(x, z);
+      if (!plantPool.addOnSlope(x, y, z, yaw, s, sy, s, normal)) continue;
+      solids.push({
+        ...placedSphereHull(plantHull, x, y, z, yaw, s, sy, s, normal),
+        type: 'plant', kind: SOFT, drag: PROPS.shrubDrag * 0.5,
+      });
     }
 
     for (let i = 0; i < BIOMES.shrubCandidates; i++) {
@@ -2469,15 +2502,19 @@ export function createProps(THREE, shading) {
       const v = hash2(b, 3120 + i, 223) < berryCover ? 1 : 0;
       const y = heightAt(x, z) - 0.05;
       const s = lerp(0.78, 1.52, hash2(b, 3140 + i, 223));
-      shrubPools[v].addOnSlope(
-        x, y, z, hash2(b, 3160 + i, 223) * TAU,
-        s, s * lerp(0.90, 1.18, hash2(b, 3180 + i, 223)), s,
-        setFloraNormal(x, z),
-      );
+      const sy = s * lerp(0.90, 1.18, hash2(b, 3180 + i, 223));
+      if (hash2(b, 3190 + i, 223) > density) continue;
+      const yaw = hash2(b, 3160 + i, 223) * TAU;
+      const normal = setFloraNormal(x, z);
+      if (!shrubPools[v].addOnSlope(x, y, z, yaw, s, sy, s, normal)) continue;
+      solids.push({
+        ...placedSphereHull(shrubHulls[v], x, y, z, yaw, s, sy, s, normal),
+        type: 'shrub', kind: SOFT,
+      });
     }
 
-    /* Scenic talus lives well outside the groomed edge and has no collider.
-       The verge boulder above is the only rock that asks the rider to react.
+    /* Scenic talus lives well outside the groomed edge but remains solid.
+       The verge boulder above is still the closest rock the rider meets.
 
        A SINGLE STONE, IN EVERY SIZE FROM PEBBLE TO ERRATIC. The old range was
        0.58 to 1.52, which is a factor of two and a half — near enough one
@@ -2509,10 +2546,15 @@ export function createProps(THREE, shading) {
       const rough = boulderTransform(v, 0, sx, sy, sz);
       const groundY = beddedGroundY(x, z, rough.r, 0.05 + rough.r * 0.16);
       const shape = boulderTransform(v, groundY, sx, sy, sz);
+      if (hash2(b, 3690 + i, 229) > density) continue;
       if (!clearOfBandHazards(x, z, shape.r, bandHazards, 1.0)) continue;
-      rockPools[v].add(
+      if (!rockPools[v].add(
         x, shape.y, z, hash2(b, 3680 + i, 229) * TAU, sx, sy, sz,
-      );
+      )) continue;
+      solids.push({
+        type: 'rock', x, z, r: shape.r,
+        kind: JUMPABLE, top: shape.top, cameraPad: 0.55, volume: true,
+      });
     }
 
     /* --- the crags -------------------------------------------------------
@@ -2528,12 +2570,10 @@ export function createProps(THREE, shading) {
        alpine cushions go, so a crag stands at the top of its own scree slope
        instead of in the middle of a stand of trees.
 
-       No collider, and nothing in `solids`. These are eighty to a hundred and
-       sixty metres off the centre line, which is past the point where the
-       deep snow has already refused the rider — see `RIDER.wallSpan`. A
-       collision hull out there would only ever fire on a rider the mountain
-       had already turned around, and it would fire invisibly. */
-    if (travelled >= BIOMES.cragFrom && hash2(b, 3700, 233) < BIOMES.cragChance) {
+       These are eighty to a hundred and sixty metres off the centre line,
+       but remain solid if an extreme-speed rider reaches them. */
+    if (travelled >= BIOMES.cragFrom
+      && hash2(b, 3700, 233) < BIOMES.cragChance * density) {
       const z = z0 + 6 + hash2(b, 3701, 233) * (band - 12);
       const side = hash2(b, 3702, 233) < 0.5 ? -1 : 1;
       const distance = lerp(BIOMES.cragOut[0], BIOMES.cragOut[1], hash2(b, 3703, 233));
@@ -2555,7 +2595,12 @@ export function createProps(THREE, shading) {
            behind. */
         const yaw = (side < 0 ? Math.PI / 2 : -Math.PI / 2)
           + (hash2(b, 3710, 233) - 0.5) * 0.9;
-        cragPools[v].add(x, shape.y, z, yaw, sx, sy, sz);
+        if (cragPools[v].add(x, shape.y, z, yaw, sx, sy, sz)) {
+          solids.push({
+            type: 'rock', x, z, r: shape.r,
+            kind: HARD, top: shape.top, cameraPad: 0.55, volume: true,
+          });
+        }
       }
     }
 
@@ -2565,14 +2610,10 @@ export function createProps(THREE, shading) {
        branches. A cluster is two or three adjacent six-metre sections along
        the contour, each planted and tilted from its own terrain sample. All
        choices come from hash channels reserved for this feature, so this does
-       not consume `rnd` and cannot move gameplay-bearing props downstream.
-
-       Nothing is added to `solids`: these are distant identity and scale
-       cues, deliberately not a new class of invisible collision on the
-       containment wall. */
+       not consume `rnd` and cannot move gameplay-bearing props downstream. */
     let fenceSide = 0;
     if (travelled >= ALPINE.fence.from
-      && hash2(b, 2001, 141) < ALPINE.fence.chance) {
+      && hash2(b, 2001, 141) < ALPINE.fence.chance * density) {
       fenceSide = hash2(b, 2002, 141) < 0.5 ? -1 : 1;
       const sections = ALPINE.fence.sections[0]
         + (hash2(b, 2003, 141) < 0.38 ? 1 : 0);
@@ -2594,7 +2635,38 @@ export function createProps(THREE, shading) {
         const yaw = courseYawAt(z, fenceSide) + Math.PI / 2
           + (hash2(b, 2020 + i, 141) - 0.5) * 0.10;
         const sy = scale * (0.94 + hash2(b, 2030 + i, 141) * 0.12);
-        avalancheFences.addOnSlope(x, y, z, yaw, scale, sy, scale, bankNormal);
+        if (avalancheFences.addOnSlope(
+          x, y, z, yaw, scale, sy, scale, bankNormal,
+        )) {
+          const contact = { hit: false };
+          const rotation = hullRotation(yaw, bankNormal);
+          for (let cell = 0; cell < fenceCells; cell++) {
+            const localX = fenceBox.min.x + fenceCellWidth * (cell + 0.5);
+            hullOffset.set(localX * scale, fenceCenterY * sy, fenceCenterZ * scale)
+              .applyQuaternion(rotation);
+            let radius = 0;
+            let top = -Infinity;
+            for (const edgeX of [localX - fenceCellWidth * 0.5,
+              localX + fenceCellWidth * 0.5]) {
+              for (const edgeY of [fenceBox.min.y, fenceBox.max.y]) {
+                for (const edgeZ of [fenceBox.min.z, fenceBox.max.z]) {
+                  hullCorner.set(edgeX * scale, edgeY * sy, edgeZ * scale)
+                    .applyQuaternion(rotation);
+                  radius = Math.max(radius, Math.hypot(
+                    hullCorner.x - hullOffset.x,
+                    hullCorner.z - hullOffset.z,
+                  ));
+                  top = Math.max(top, y + hullCorner.y);
+                }
+              }
+            }
+            solids.push({
+              x: x + hullOffset.x, z: z + hullOffset.z,
+              r: radius + 0.03, type: 'fence', kind: HARD, top,
+              cameraPad: 0.55, volume: true, contact,
+            });
+          }
+        }
       }
     }
 
@@ -2662,8 +2734,12 @@ export function createProps(THREE, shading) {
      rebuild happens every band, about a third of the gates just passed
      re-lit from their dimmed ember to full brightness behind the rider. */
   const takenGates = new Set();
+  /* A band's density is fixed when it first enters the streamed window.
+     Keeping it thereafter means a change of speed only affects newly created
+     scenery instead of making nearby trees pop in and out. */
+  const spacingByBand = new Map();
 
-  function rebuild(riderZ) {
+  function rebuild(riderZ, currentSpacing) {
     allPools.forEach((p) => p.begin());
     solids.length = 0;
     for (let i = 0; i < gates.length; i++) {
@@ -2686,24 +2762,38 @@ export function createProps(THREE, shading) {
        capacity, the trees dropped are the far ones, which is the right way
        round. */
     const bi = Math.floor(riderZ / band);
-    place(bi);
+    const placeRemembered = (b) => {
+      let spacing = spacingByBand.get(b);
+      if (spacing === undefined) {
+        spacing = currentSpacing;
+        spacingByBand.set(b, spacing);
+      }
+      place(b, spacing);
+    };
+    placeRemembered(bi);
     for (let i = 0; i < shadowPools.length; i++) {
       shadowPools[i].shadowEnds[0] = shadowPools[i].n;
     }
     for (let k = 1; k <= streamSpan; k++) {
-      if (k <= behind) place(bi + k);
-      if (k <= ahead) place(bi - k);
+      if (k <= behind) placeRemembered(bi + k);
+      if (k <= ahead) placeRemembered(bi - k);
       for (let i = 0; i < shadowPools.length; i++) {
         shadowPools[i].shadowEnds[k] = shadowPools[i].n;
       }
     }
 
     allPools.forEach((p) => p.end());
+
+    const first = bi - ahead;
+    const last = bi + behind;
+    for (const b of spacingByBand.keys()) {
+      if (b < first || b > last) spacingByBand.delete(b);
+    }
   }
 
   let currentBand = NaN;
 
-  function update(riderZ) {
+  function update(riderZ, spacing = 1) {
     const bi = Math.floor(riderZ / band);
     if (bi === currentBand) return;
     /* Two metres of dead band on the boundary just crossed. A full rebuild
@@ -2717,7 +2807,13 @@ export function createProps(THREE, shading) {
       if (Math.abs(riderZ - edge) < 2) return;
     }
     currentBand = bi;
-    rebuild(riderZ);
+    rebuild(riderZ, Math.max(1, spacing));
+  }
+
+  function reset(riderZ, spacing = 1) {
+    spacingByBand.clear();
+    currentBand = Math.floor(riderZ / band);
+    rebuild(riderZ, Math.max(1, spacing));
   }
 
   /* The frame's wind, handed over once by the caller. The time wraps at 200π
@@ -2781,6 +2877,7 @@ export function createProps(THREE, shading) {
     }
     return {
       band: currentBand,
+      spacing: +(spacingByBand.get(currentBand) || 1).toFixed(2),
       plants: plantPool.n,
       shrubs: shrubPools[0].n + shrubPools[1].n,
       berries: shrubPools[1].n,
@@ -2790,7 +2887,7 @@ export function createProps(THREE, shading) {
   }
 
   return {
-    group, update, setAir, setNextGate, reopenGatesBelow,
+    group, update, reset, setAir, setNextGate, reopenGatesBelow,
     solids, gates, debugBiomes,
   };
 }
