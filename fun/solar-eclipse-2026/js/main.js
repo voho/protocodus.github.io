@@ -377,7 +377,29 @@ orbitRig.add(orbitPlane);
 function createShadowCone(opacity) {
   return new THREE.Mesh(
     new THREE.CylinderGeometry(1, 1, 1, 48, 1, true),
-    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity, side: THREE.DoubleSide, depthWrite: false }),
+    new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      uniforms: { maxOpacity: { value: opacity } },
+      vertexShader: `
+        varying vec3 vNormal;
+        varying vec3 vView;
+        void main() {
+          vNormal = normalize(normalMatrix * normal);
+          vec4 viewPosition = modelViewMatrix * vec4(position, 1.0);
+          vView = -viewPosition.xyz;
+          gl_Position = projectionMatrix * viewPosition;
+        }`,
+      fragmentShader: `
+        uniform float maxOpacity;
+        varying vec3 vNormal;
+        varying vec3 vView;
+        void main() {
+          float facing = abs(dot(normalize(vNormal), normalize(vView)));
+          gl_FragColor = vec4(0.0, 0.0, 0.0, maxOpacity * smoothstep(0.0, 0.6, facing));
+        }`,
+    }),
   );
 }
 
@@ -392,8 +414,8 @@ function setConeRadii(mesh, radiusAtMoon, radiusAtEarth) {
 }
 
 const shadowCones = new THREE.Group();
-const penumbraCone = createShadowCone(.12);
-const umbraCone = createShadowCone(.5);
+const penumbraCone = createShadowCone(.16);
+const umbraCone = createShadowCone(.55);
 shadowCones.add(penumbraCone, umbraCone);
 systemRoot.add(shadowCones);
 
@@ -498,27 +520,26 @@ function orientOnSphere(group, point) {
   group.quaternion.setFromUnitVectors(Z_AXIS, tempVector.copy(point).normalize());
 }
 
-function updateLightRays(moonPosition, shadowPoint) {
-  const axes = [
-    new THREE.Vector3(0, 1, 0),
-    new THREE.Vector3(0, -1, 0),
-  ];
+const rayAxis = new THREE.Vector3();
+const rayUp = new THREE.Vector3();
+const rayPoint = new THREE.Vector3();
+
+function updateLightRays(shadowPoint, umbraAtEarth, penumbraAtEarth) {
   const sunPosition = sunVisual.position;
+  rayAxis.subVectors(shadowPoint, sunPosition).normalize();
+  rayUp.set(0, 1, 0).addScaledVector(rayAxis, -rayAxis.y).normalize();
   let cursor = 0;
-  axes.forEach((axis) => {
-    const from = sunPosition.clone().addScaledVector(axis, SUN_RADIUS);
-    const sameMoonLimb = moonPosition.clone().addScaledVector(axis, MOON_RADIUS);
-    const oppositeMoonLimb = moonPosition.clone().addScaledVector(axis, -MOON_RADIUS);
-    const extendToEarth = (through) => {
-      const amount = (shadowPoint.x - from.x) / Math.max(.001, through.x - from.x);
-      return from.clone().lerp(through, amount);
-    };
-    [from, extendToEarth(sameMoonLimb), from, extendToEarth(oppositeMoonLimb)].forEach((point) => {
-      rayPositions[cursor] = point.x;
-      rayPositions[cursor + 1] = point.y;
-      rayPositions[cursor + 2] = point.z;
-      cursor += 3;
-    });
+  const put = (point) => {
+    rayPositions[cursor] = point.x;
+    rayPositions[cursor + 1] = point.y;
+    rayPositions[cursor + 2] = point.z;
+    cursor += 3;
+  };
+  [1, -1].forEach((side) => {
+    put(rayPoint.copy(sunPosition).addScaledVector(rayUp, side * SUN_RADIUS));
+    put(rayPoint.copy(shadowPoint).addScaledVector(rayUp, side * umbraAtEarth));
+    put(rayPoint.copy(sunPosition).addScaledVector(rayUp, side * SUN_RADIUS));
+    put(rayPoint.copy(shadowPoint).addScaledVector(rayUp, -side * penumbraAtEarth));
   });
   lightRaysGeometry.attributes.position.needsUpdate = true;
 }
@@ -577,7 +598,7 @@ function updateSystem(eclipseState, delta) {
   alignBetween(umbraCone, moonPosition, shadowWorld);
   shadowSkin.material.uniforms.moonCenter.value.copy(moonPosition);
   shadowSkin.material.uniforms.moonRadius.value = moonRadiusNow;
-  updateLightRays(moonPosition, shadowWorld);
+  updateLightRays(shadowWorld, umbraAtEarth, penumbraAtEarth);
 
   if (!prefersReducedMotion) {
     markerRing.scale.setScalar(1 + Math.sin(state.elapsed * 3) * .14);
