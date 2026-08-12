@@ -1,8 +1,6 @@
 import * as THREE from 'three';
 import {
   LOCATIONS,
-  chapterAt,
-  chapterStart,
   clamp,
   eclipseStateAt,
   formatClock,
@@ -701,7 +699,11 @@ const elements = {
 };
 
 function currentChapter() {
-  if (state.automaticCamera) return chapterAt(state.location, state.progress);
+  if (state.automaticCamera) {
+    const maxProgress = Math.min(1,
+      (state.location.maximum - state.location.start) / (state.location.end - state.location.start));
+    return state.progress >= maxProgress - 0.2 ? 2 : 0;
+  }
   return { system: 0, orbit: 1, shadow: 2, observer: 3 }[state.manualView] ?? 0;
 }
 
@@ -893,6 +895,7 @@ const labelElements = Object.fromEntries(
 
 function updateLabels() {
   if (!state.layers.labels) return;
+  camera.updateMatrixWorld();
   const compact = innerWidth <= 600;
   const observer = state.effectiveView === 'observer';
   if (observer) {
@@ -919,14 +922,6 @@ document.querySelectorAll('[data-view]').forEach((button) => {
     if (button.dataset.view === 'observer' && state.trueSizes) setScaleMode(false);
     setView(button.dataset.view, button.dataset.view === 'auto');
   });
-});
-
-document.querySelector('[data-next-chapter]').addEventListener('click', () => {
-  const next = (currentChapter() + 1) % 4;
-  state.progress = chapterStart(state.location, next);
-  state.loopHold = 0;
-  state.playing = !prefersReducedMotion;
-  setView('auto', true);
 });
 
 elements.scale.addEventListener('click', () => setScaleMode(!state.trueSizes));

@@ -219,8 +219,7 @@ input[type='range'] {
 .view-nav button,
 .learn-button,
 .play-button,
-.speed-button,
-.lesson button {
+.speed-button {
   border: 1px solid var(--line);
   background: rgba(10, 13, 24, 0.82);
   -webkit-backdrop-filter: blur(20px) saturate(115%);
@@ -230,8 +229,7 @@ input[type='range'] {
 }
 
 .location-button,
-.learn-button,
-.lesson button {
+.learn-button {
   border-radius: 10px;
 }
 
@@ -417,22 +415,6 @@ input[type='range'] {
   color: var(--muted);
   font-size: 0.92rem;
   line-height: 1.5;
-}
-
-.lesson button {
-  margin-top: 0.9rem;
-  padding: 0.55rem 0.7rem;
-  color: var(--flare);
-  font-family: var(--font-mono);
-  font-size: 0.63rem;
-  font-weight: 600;
-  letter-spacing: 0.015em;
-}
-
-.lesson button:hover {
-  color: var(--night);
-  background: var(--flare);
-  border-color: var(--flare);
 }
 
 .learn-button {
@@ -1198,17 +1180,7 @@ body.no-webgl .loading-screen p {
     -webkit-line-clamp: 1;
   }
 
-  .lesson button {
-    position: absolute;
-    top: 0.55rem;
-    right: 0.7rem;
-    margin: 0;
-    padding: 0.35rem 0.45rem;
-    font-size: 0.56rem;
-  }
-
   .lesson-count {
-    padding-right: 5.6rem;
     font-size: 0.56rem;
   }
 
@@ -1329,13 +1301,8 @@ body.no-webgl .loading-screen p {
     display: none;
   }
 
-  .lesson button,
   .coverage {
     display: none;
-  }
-
-  .lesson-count {
-    padding-right: 0;
   }
 
   .timeline {
@@ -1439,10 +1406,6 @@ body.no-webgl .loading-screen p {
     bottom: 4.4rem;
     width: min(300px, calc(100vw - 7rem));
     padding: 0.65rem 0.75rem;
-  }
-
-  .lesson button {
-    display: none;
   }
 
   .lesson > p:nth-of-type(2) {
