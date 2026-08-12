@@ -946,7 +946,7 @@ function setLocation(id) {
   syncLocationUI();
 }
 
-function projectLabel(element, worldPosition, visible = true, offsetX = 0, offsetY = 0) {
+function projectLabel(element, worldPosition, visible = true, offsetX = 0, offsetY = 0, minY = 0) {
   const projected = tempVector.copy(worldPosition).project(camera);
   const onScreen = visible && projected.z > -1 && projected.z < 1
     && Math.abs(projected.x) < 1.08 && Math.abs(projected.y) < 1.08;
@@ -957,9 +957,20 @@ function projectLabel(element, worldPosition, visible = true, offsetX = 0, offse
   const halfWidth = element.offsetWidth * .5;
   const halfHeight = element.offsetHeight * .5;
   const x = clamp(rawX, halfWidth + 8, innerWidth - halfWidth - 8);
-  const y = clamp(rawY, halfHeight + 8, innerHeight - halfHeight - 8);
+  const y = clamp(rawY, Math.max(halfHeight + 8, minY + halfHeight),
+    innerHeight - halfHeight - 8);
   element.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px)`;
 }
+
+const labelProbe = new THREE.Vector3();
+const labelScreenX = (worldPosition) =>
+  (labelProbe.copy(worldPosition).project(camera).x * .5 + .5) * innerWidth;
+const labelScreenY = (worldPosition) =>
+  (-labelProbe.copy(worldPosition).project(camera).y * .5 + .5) * innerHeight;
+
+// Popisek normálně visí nad tělesem; když je Slunce vysoko, skončil by pod
+// ovládáním u horní hrany, a tak ho překlopíme pod něj.
+const labelSide = (worldPosition, guard) => (labelScreenY(worldPosition) < guard ? 1 : -1);
 
 const labelElements = Object.fromEntries(
   [...document.querySelectorAll('[data-world-label]')].map((node) => [node.dataset.worldLabel, node]),
@@ -973,8 +984,15 @@ function updateLabels() {
   const compact = innerWidth <= 600;
   const observer = state.effectiveView === 'observer';
   if (observer) {
-    projectLabel(labelElements.sun, skySun.position, true, compact ? -34 : -66, compact ? -24 : -34);
-    projectLabel(labelElements.moon, skyMoon.position, true, compact ? 34 : 66, compact ? -16 : -22);
+    const guard = compact ? 172 : 232;
+    const spread = compact ? 34 : 66;
+    // Každý popisek odsadíme na opačnou stranu, než leží to druhé těleso,
+    // aby se u sebe Slunce s Měsícem nepřekryly.
+    const moonSide = labelScreenX(skyMoon.position) >= labelScreenX(skySun.position) ? 1 : -1;
+    projectLabel(labelElements.sun, skySun.position, true, -spread * moonSide,
+      (compact ? 24 : 34) * labelSide(skySun.position, guard), guard);
+    projectLabel(labelElements.moon, skyMoon.position, true, spread * moonSide,
+      (compact ? 16 : 22) * labelSide(skyMoon.position, guard), guard);
     projectLabel(labelElements.earth, tempVector, false);
     projectLabel(labelElements.umbra, tempVector, false);
     projectLabel(labelElements.penumbra, tempVector, false);
