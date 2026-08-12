@@ -318,32 +318,34 @@ const umbraOutline = shadowOutline(.55);
 const penumbraOutline = shadowOutline(.25);
 earthVisual.add(umbraOutline, penumbraOutline);
 
-const outlineCenter = new THREE.Vector3();
 const outlineU = new THREE.Vector3();
 const outlineV = new THREE.Vector3();
+const outlineW = new THREE.Vector3();
+const outlineOrigin = new THREE.Vector3();
+const outlineDir = new THREE.Vector3();
+const outlineOc = new THREE.Vector3();
 
-function setSphericalCircle(line, pathPoint, worldRadius) {
-  const localRadius = worldRadius / earthVisual.scale.x;
-  const angular = Math.asin(clamp(localRadius / EARTH_RADIUS, 0, .999));
-  outlineCenter.copy(pathPoint).normalize();
-  outlineU.set(0, 1, 0).cross(outlineCenter);
+function setConeOutline(line, moonPosition, axis, moonRadius, slope) {
+  outlineU.set(0, 1, 0).cross(axis);
   if (outlineU.lengthSq() < 1e-6) outlineU.set(1, 0, 0);
   outlineU.normalize();
-  outlineV.crossVectors(outlineCenter, outlineU);
+  outlineV.crossVectors(axis, outlineU);
   const positions = line.geometry.attributes.position;
   const lift = EARTH_RADIUS * 1.006;
-  const along = Math.cos(angular);
-  const across = Math.sin(angular);
   for (let i = 0; i < positions.count; i += 1) {
     const phi = i / positions.count * Math.PI * 2;
-    const ring = Math.cos(phi);
-    const ring2 = Math.sin(phi);
-    positions.setXYZ(
-      i,
-      (outlineCenter.x * along + (outlineU.x * ring + outlineV.x * ring2) * across) * lift,
-      (outlineCenter.y * along + (outlineU.y * ring + outlineV.y * ring2) * across) * lift,
-      (outlineCenter.z * along + (outlineU.z * ring + outlineV.z * ring2) * across) * lift,
-    );
+    outlineW.copy(outlineU).multiplyScalar(Math.cos(phi))
+      .addScaledVector(outlineV, Math.sin(phi));
+    outlineOrigin.copy(moonPosition).addScaledVector(outlineW, moonRadius);
+    outlineDir.copy(axis).addScaledVector(outlineW, slope).normalize();
+    outlineOc.copy(outlineOrigin).sub(earthVisual.position);
+    const b = outlineOc.dot(outlineDir);
+    const c = outlineOc.lengthSq() - EARTH_RADIUS * EARTH_RADIUS;
+    const disc = b * b - c;
+    const t = disc > 0 ? -b - Math.sqrt(disc) : -b;
+    outlineOc.copy(outlineOrigin).addScaledVector(outlineDir, t)
+      .sub(earthVisual.position).normalize().multiplyScalar(lift);
+    positions.setXYZ(i, outlineOc.x, outlineOc.y, outlineOc.z);
   }
   positions.needsUpdate = true;
 }
@@ -633,8 +635,11 @@ function updateSystem(eclipseState, delta) {
   const penumbraAtEarth = moonRadiusNow + shadowLength * (SUN_RADIUS + moonRadiusNow) / sunDistance;
   setConeRadii(umbraCone, moonRadiusNow * .985, umbraAtEarth);
   alignBetween(umbraCone, moonPosition, shadowWorld);
-  setSphericalCircle(umbraOutline, pathPoint, umbraAtEarth);
-  setSphericalCircle(penumbraOutline, pathPoint, penumbraAtEarth);
+  rayAxis.subVectors(shadowWorld, sunVisual.position).normalize();
+  setConeOutline(umbraOutline, moonPosition, rayAxis, moonRadiusNow * .985,
+    -(SUN_RADIUS - moonRadiusNow) / sunDistance);
+  setConeOutline(penumbraOutline, moonPosition, rayAxis, moonRadiusNow,
+    (SUN_RADIUS + moonRadiusNow) / sunDistance);
   penumbraShells.forEach((shell, index) => {
     const t = (index + 1) / penumbraShells.length;
     setConeRadii(shell, moonRadiusNow * .985, umbraAtEarth + (penumbraAtEarth - umbraAtEarth) * t);
