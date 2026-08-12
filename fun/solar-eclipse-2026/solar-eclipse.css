@@ -145,23 +145,6 @@ input[type='range'] {
   clip-path: inset(50%);
 }
 
-.skip-link {
-  position: fixed;
-  z-index: 5000;
-  top: -5rem;
-  left: 1rem;
-  padding: 0.65rem 0.9rem;
-  color: var(--night);
-  background: var(--flare);
-  font-size: 0.78rem;
-  font-weight: 700;
-  transition: top 0.2s var(--ease);
-}
-
-.skip-link:focus {
-  top: 1rem;
-}
-
 #stage {
   position: absolute;
   inset: 0;
@@ -195,10 +178,11 @@ input[type='range'] {
 
 .interface button,
 .interface a,
-.interface input,
-.lesson {
+.interface input {
   pointer-events: auto;
 }
+
+
 
 .topbar {
   position: absolute;
@@ -250,7 +234,6 @@ input[type='range'] {
 
 .identity p,
 .eyebrow,
-.lesson-count,
 .scene-note,
 .timeline-labels,
 .coverage span {
@@ -355,54 +338,6 @@ input[type='range'] {
   color: var(--flare);
   font-size: 0.5rem;
   font-style: normal;
-}
-
-.lesson {
-  position: absolute;
-  bottom: clamp(8.1rem, 17vh, 10.8rem);
-  left: var(--edge-left);
-  width: min(345px, calc(100vw - var(--edge-left) - var(--edge-right)));
-  padding: 1.15rem 1.2rem;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: linear-gradient(135deg, rgba(11, 15, 28, 0.93), rgba(11, 15, 28, 0.72));
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.22);
-  -webkit-backdrop-filter: blur(22px) saturate(115%);
-  backdrop-filter: blur(22px) saturate(115%);
-  transition: opacity 0.3s var(--ease), transform 0.45s var(--ease);
-}
-
-.lesson.is-changing {
-  opacity: 0;
-  transform: translateY(8px);
-}
-
-.lesson-count {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  color: var(--flare);
-}
-
-.lesson-count span:last-child {
-  color: var(--faint);
-}
-
-.lesson h2 {
-  margin-top: 0.7rem;
-  font-family: var(--font-display);
-  font-size: clamp(1.4rem, 2vw, 1.75rem);
-  font-weight: 500;
-  line-height: 1.12;
-  letter-spacing: -0.01em;
-  text-wrap: balance;
-}
-
-.lesson > p:nth-of-type(2) {
-  margin-top: 0.65rem;
-  color: var(--muted);
-  font-size: 0.92rem;
-  line-height: 1.5;
 }
 
 .learn-button {
@@ -1090,13 +1025,6 @@ body.no-webgl .loading-screen p {
 
 }
 
-@media (max-width: 1000px) {
-
-  .lesson {
-    bottom: 8.2rem;
-  }
-}
-
 @media (max-width: 760px) {
   :root {
     --gutter: 0.65rem;
@@ -1163,36 +1091,6 @@ body.no-webgl .loading-screen p {
     min-height: 44px;
     padding: 0.4rem 0.62rem;
     font-size: 0.6rem;
-  }
-
-  .lesson {
-    right: var(--edge-right);
-    bottom: calc(max(var(--gutter), env(safe-area-inset-bottom)) + 76px);
-    width: auto;
-    padding: 0.72rem 0.82rem;
-  }
-
-  .lesson h2 {
-    margin-top: 0.4rem;
-    font-size: 1.12rem;
-  }
-
-  .lesson > p:nth-of-type(2) {
-    display: -webkit-box;
-    margin-top: 0.38rem;
-    overflow: hidden;
-    font-size: 0.78rem;
-    line-height: 1.4;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 1;
-  }
-
-  .lesson-count {
-    font-size: 0.56rem;
-  }
-
-  .lesson-count span:last-child {
-    display: none;
   }
 
   .timeline {
@@ -1340,19 +1238,10 @@ body.no-webgl .loading-screen p {
     min-width: 108px;
   }
 
-  .lesson {
-    padding-block: 0.62rem;
-  }
-
-  .lesson > p:nth-of-type(2),
   .timeline-labels,
   .scrubber-readout > span,
   [data-world-label='place'] {
     display: none;
-  }
-
-  .lesson h2 {
-    font-size: 1rem;
   }
 
   .timeline {
@@ -1404,28 +1293,6 @@ body.no-webgl .loading-screen p {
 
   .scene-note {
     display: none;
-  }
-
-  .lesson {
-    right: auto;
-    bottom: 4.4rem;
-    width: min(300px, calc(100vw - 7rem));
-    padding: 0.65rem 0.75rem;
-  }
-
-  .lesson > p:nth-of-type(2) {
-    display: -webkit-box;
-    margin-top: 0.35rem;
-    overflow: hidden;
-    font-size: 0.75rem;
-    line-height: 1.35;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 1;
-  }
-
-  .lesson h2 {
-    margin-top: 0.3rem;
-    font-size: 1rem;
   }
 
   .world-label i {

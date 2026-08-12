@@ -27,8 +27,6 @@
 </head>
 
 <body class="is-loading">
-  <a class="skip-link" href="#lesson">Přejít k vysvětlení</a>
-
   <canvas id="stage" aria-hidden="true"></canvas>
 
   <div class="world-labels" aria-hidden="true">
@@ -63,12 +61,6 @@
     </nav>
 
     <p class="scene-note">Model není v měřítku</p>
-
-    <section class="lesson" id="lesson" aria-labelledby="lesson-title">
-      <p class="lesson-count"><span data-chapter-count>01 / 04</span><span data-chapter-label>Seřazení</span></p>
-      <h2 id="lesson-title" data-chapter-title>Tři tělesa. Jedna přímka.</h2>
-      <p data-chapter-copy>Slunce svítí, Měsíc světlo zastaví a Země zachytí jeho stín.</p>
-    </section>
 
     <button class="learn-button" type="button" data-open="learn-dialog"
       aria-label="Otevřít průvodce zatměním" aria-haspopup="dialog" aria-controls="learn-dialog">
@@ -105,7 +97,6 @@
       <button class="speed-button" type="button" data-speed aria-label="Rychlost časosběru">5×</button>
     </section>
 
-    <p class="sr-only" data-scene-summary aria-live="polite">Slunce, Měsíc a Země jsou seřazené v prostoru.</p>
   </main>
 
   <dialog class="sheet location-sheet" id="location-dialog" aria-labelledby="location-title" autofocus>

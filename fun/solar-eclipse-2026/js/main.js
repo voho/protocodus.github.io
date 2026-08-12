@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import {
   LOCATIONS,
+  circleOverlapFraction,
   clamp,
   eclipseStateAt,
   formatClock,
@@ -65,7 +66,6 @@ const state = {
   automaticCamera: true,
   manualView: 'system',
   effectiveView: 'system',
-  lastChapter: -1,
   layers: { labels: true, rays: true, shadows: true },
   elapsed: 0,
   dialogWasPlaying: false,
@@ -581,6 +581,45 @@ function updateLightRays(shadowPoint, umbraAtEarth, penumbraAtEarth) {
   lightRaysGeometry.attributes.position.needsUpdate = true;
 }
 
+function sceneOcclusion(worldPoint, moonPosition) {
+  const toSunLength = worldPoint.distanceTo(sunVisual.position);
+  const toMoonLength = worldPoint.distanceTo(moonPosition);
+  const sunAngle = Math.asin(Math.min(1, SUN_RADIUS / toSunLength));
+  const moonAngle = Math.asin(Math.min(1, MOON_RADIUS / toMoonLength));
+  const toSun = new THREE.Vector3().subVectors(sunVisual.position, worldPoint);
+  const toMoon = new THREE.Vector3().subVectors(moonPosition, worldPoint);
+  return circleOverlapFraction(toSun.angleTo(toMoon), sunAngle, moonAngle);
+}
+
+function calibratedMarkerPoint(location) {
+  const maxProgress = Math.min(1,
+    (location.maximum - location.start) / (location.end - location.start));
+  const atMax = eclipseStateAt(location, maxProgress);
+  const pathPoint = pathCurve.getPoint(globalPathProgress(atMax));
+  const shadowWorld = pathPoint.clone().add(earthVisual.position);
+  const rayAmount = (MOON_X - SUN_X) / Math.max(1, shadowWorld.x - SUN_X);
+  const moonPosition = new THREE.Vector3(
+    MOON_X, shadowWorld.y * rayAmount, shadowWorld.z * rayAmount);
+  const axisPoint = pathPoint.clone().normalize();
+  const hint = surfacePoint(...location.marker).normalize();
+  const hintDir = hint.clone().addScaledVector(axisPoint, -hint.dot(axisPoint));
+  if (hintDir.lengthSq() < 1e-6) hintDir.set(0, 1, 0);
+  hintDir.normalize();
+  const surfaceRadius = EARTH_RADIUS * 1.008;
+  const pointAt = (t) => axisPoint.clone().multiplyScalar(Math.cos(t))
+    .addScaledVector(hintDir, Math.sin(t)).multiplyScalar(surfaceRadius);
+  let low = 0;
+  let high = 1.3;
+  for (let i = 0; i < 40; i += 1) {
+    const middle = (low + high) / 2;
+    const occlusion = sceneOcclusion(
+      pointAt(middle).add(earthVisual.position), moonPosition);
+    if (occlusion > atMax.coverage) low = middle;
+    else high = middle;
+  }
+  return pointAt((low + high) / 2);
+}
+
 let glyphMoon = null;
 const GLYPH_TILT_COS = Math.cos(-.38);
 const GLYPH_TILT_SIN = Math.sin(-.38);
@@ -591,11 +630,13 @@ function updateLocationMarker() {
       / (state.location.end - state.location.start);
     const maximumState = eclipseStateAt(state.location, maxProgress);
     orientOnSphere(locationMarker, pathCurve.getPoint(globalPathProgress(maximumState)));
-  } else {
+  } else if (state.location.kind === 'none') {
     const [y, z] = state.location.marker;
     const point = surfacePoint(y, z);
-    if (state.location.farSide) point.x *= -1;
+    point.x *= -1;
     orientOnSphere(locationMarker, point);
+  } else {
+    orientOnSphere(locationMarker, calibratedMarkerPoint(state.location));
   }
   const place = document.querySelector('[data-world-label="place"]');
   if (state.location.kind === 'none') {
@@ -694,56 +735,8 @@ function updateObserver(eclipseState) {
   horizonGlow.material.opacity = .36 - darkness * .24;
 }
 
-const chapterContent = [
-  {
-    label: 'Seřazení',
-    title: 'Tři tělesa. Jedna přímka.',
-    copy: () => 'Slunce svítí, Měsíc světlo zastaví a Země zachytí jeho stín.',
-    summary: () => 'Slunce, Měsíc a Země jsou seřazené. Měsíc leží mezi Sluncem a Zemí.',
-  },
-  {
-    label: 'Sklon dráhy',
-    title: 'Malý sklon mění všechno.',
-    copy: () => 'Dráha Měsíce je vůči dráze Země skloněná asi o 5°. Jeho stín proto většinou Zemi mine a zatmění nenastává každý měsíc.',
-    summary: () => 'Měsíc obíhá po dráze skloněné asi o pět stupňů.',
-  },
-  {
-    label: 'Stín',
-    title: 'Jeden Měsíc. Dva druhy stínu.',
-    copy: (location) => location.kind === 'total'
-      ? `${location.name} vstoupí do úzkého plného stínu, takže celé Slunce na chvíli zmizí.`
-      : location.kind === 'none'
-        ? `${location.name} je na noční straně Země — stín ho úplně mine.`
-        : `${location.name} leží v širokém polostínu, takže Měsíc zakryje jen část Slunce.`,
-    summary: (location) => location.kind === 'total'
-      ? `${location.name} leží v plném stínu a uvidí úplné zatmění.`
-      : location.kind === 'none'
-        ? `${location.name} je na noční straně Země.`
-        : `${location.name} leží v polostínu a uvidí částečné zatmění.`,
-  },
-  {
-    label: 'Vaše obloha',
-    title: 'Teď se postavte na Zemi.',
-    copy: (location) => location.id === 'prague'
-      ? 'V Praze bude ve 20:12 zakryto 86,3 % Slunce. Ve 20:26 pak Slunce zapadne za obzor stále částečně zakryté.'
-      : location.kind === 'total'
-        ? `${location.over} se den na chvíli promění v soumrak, protože Měsíc zakryje celý jasný kotouč Slunce.`
-        : location.kind === 'none'
-          ? `${location.over} je hluboká noc — Slunce i Měsíc jsou pod obzorem a zatmění odtud vidět není.`
-          : `${location.over} Měsíc zakryje část Slunce — kolik, to určuje vzdálenost místa od osy stínu.`,
-    summary: (location) => location.kind === 'none'
-      ? `Zatmění ${location.from} vidět není — je noc.`
-      : `Pohled na oblohu ${location.from} ukazuje přechod Měsíce přes Slunce.`,
-  },
-];
 
 const elements = {
-  lesson: document.querySelector('.lesson'),
-  chapterCount: document.querySelector('[data-chapter-count]'),
-  chapterLabel: document.querySelector('[data-chapter-label]'),
-  chapterTitle: document.querySelector('[data-chapter-title]'),
-  chapterCopy: document.querySelector('[data-chapter-copy]'),
-  sceneSummary: document.querySelector('[data-scene-summary]'),
   time: document.querySelector('[data-time]'),
   zone: document.querySelector('[data-zone]'),
   phase: document.querySelector('[data-phase]'),
@@ -766,28 +759,6 @@ function autoStage() {
   return state.progress >= maxProgress - .2 ? 'shadow' : 'system';
 }
 
-function currentChapter() {
-  if (state.automaticCamera) return autoStage() === 'shadow' ? 2 : 0;
-  return { system: 0, orbit: 1, shadow: 2, observer: 3 }[state.manualView] ?? 0;
-}
-
-function refreshChapter(force = false) {
-  const chapter = currentChapter();
-  if (!force && chapter === state.lastChapter) return;
-  state.lastChapter = chapter;
-  const content = chapterContent[chapter];
-  elements.lesson.classList.add('is-changing');
-  const update = () => {
-    elements.chapterCount.textContent = `0${chapter + 1} / 04`;
-    elements.chapterLabel.textContent = content.label;
-    elements.chapterTitle.textContent = content.title;
-    elements.chapterCopy.textContent = content.copy(state.location);
-    elements.sceneSummary.textContent = content.summary(state.location);
-    elements.lesson.classList.remove('is-changing');
-  };
-  if (prefersReducedMotion || force) update();
-  else setTimeout(update, 130);
-}
 
 function setView(view, automatic = false) {
   state.automaticCamera = automatic || view === 'auto';
@@ -797,8 +768,6 @@ function setView(view, automatic = false) {
     const pressed = state.automaticCamera ? button.dataset.view === 'auto' : button.dataset.view === state.manualView;
     button.setAttribute('aria-pressed', String(pressed));
   });
-  state.lastChapter = -1;
-  refreshChapter(true);
 }
 
 function switchWorld(nextView) {
@@ -903,8 +872,6 @@ function syncLocationUI() {
     : `Maximum · ${formatClock(state.location.maximum)}`;
   elements.endLabel.textContent = `${state.location.endKind === 'sunset' ? 'Západ' : 'Poslední kontakt'} · ${formatClock(state.location.end)}`;
   updateLocationMarker();
-  state.lastChapter = -1;
-  refreshChapter(true);
 }
 
 function syncLayers() {
@@ -1176,7 +1143,6 @@ renderer.setAnimationLoop((frameTime) => {
   updateSystem(eclipseState, delta);
   updateObserver(eclipseState);
   updateCamera(delta);
-  refreshChapter();
   syncTimeline(eclipseState);
   updateLabels();
 
