@@ -60,8 +60,9 @@
       <button type="button" data-view="system" aria-pressed="false">Soustava</button>
       <button type="button" data-view="shadow" aria-pressed="false">Stín</button>
       <button type="button" data-view="observer" aria-pressed="false">Obloha · <span data-sky-label>Praha</span></button>
-      <button class="size-button" type="button" data-scale aria-pressed="false">Měřítko: názorné</button>
     </nav>
+
+    <p class="scene-note">Model není v měřítku</p>
 
     <section class="lesson" id="lesson" aria-labelledby="lesson-title">
       <p class="lesson-count"><span data-chapter-count>01 / 04</span><span data-chapter-label>Seřazení</span></p>
@@ -104,7 +105,6 @@
       <button class="speed-button" type="button" data-speed aria-label="Rychlost časosběru">1×</button>
     </section>
 
-    <p class="scene-note" data-scene-note>Názorný model · tělesa zvětšena, vzdálenosti zkráceny</p>
     <p class="sr-only" data-scene-summary aria-live="polite">Slunce, Měsíc a Země jsou seřazené v prostoru.</p>
   </main>
 
@@ -112,19 +112,13 @@
     <form method="dialog" class="sheet-head">
       <div>
         <p class="eyebrow">Přesuňte pozorovatele</p>
-        <h2 id="location-title">Stejné zatmění. Jiný západ.</h2>
+        <h2 id="location-title">Stejné zatmění. Jiná obloha.</h2>
       </div>
       <button class="close-button" value="close" aria-label="Zavřít výběr místa">×</button>
     </form>
     <div class="location-list">
-      <button type="button" data-location="plzen" aria-pressed="false">
-        <span><strong>Plzeň</strong><i>maximum 20:13 · západ 20:30</i></span><b>86,8&nbsp;%</b>
-      </button>
       <button type="button" data-location="prague" aria-pressed="true">
         <span><strong>Praha</strong><i>maximum 20:12 · západ 20:26</i></span><b>86,3&nbsp;%</b>
-      </button>
-      <button type="button" data-location="pardubice" aria-pressed="false">
-        <span><strong>Pardubice</strong><i>maximum 20:11 · západ 20:21</i></span><b>85,9&nbsp;%</b>
       </button>
       <button type="button" data-location="brno" aria-pressed="false">
         <span><strong>Brno</strong><i>maximum na obzoru · západ 20:15</i></span><b>86,4&nbsp;%</b>
@@ -132,10 +126,22 @@
       <button type="button" data-location="ostrava" aria-pressed="false">
         <span><strong>Ostrava</strong><i>západ 20:10, ještě před maximem</i></span><b>≈85&nbsp;%</b>
       </button>
+      <button type="button" data-location="reykjavik" aria-pressed="false">
+        <span><strong>Reykjavík</strong><i>úplné zatmění 17:48–17:49</i></span><b>100&nbsp;%</b>
+      </button>
+      <button type="button" data-location="madrid" aria-pressed="false">
+        <span><strong>Madrid</strong><i>maximum 20:32 · těsně mimo pás totality</i></span><b>99,9&nbsp;%</b>
+      </button>
+      <button type="button" data-location="newyork" aria-pressed="false">
+        <span><strong>New York</strong><i>maximum 13:54 EDT</i></span><b>9,4&nbsp;%</b>
+      </button>
+      <button type="button" data-location="sydney" aria-pressed="false">
+        <span><strong>Sydney</strong><i>noc — zatmění není vidět</i></span><b>0&nbsp;%</b>
+      </button>
     </div>
-    <p class="sheet-note">Čím dál na východ, tím níž Slunce v době zatmění stojí — v Ostravě zapadne
-      dřív, než zatmění vyvrcholí. Časy jsou zaokrouhlené na minuty; vycházejí z místních okolností
-      zatmění podle U.S. Naval Observatory.</p>
+    <p class="sheet-note">V Česku zapadne Slunce ještě zatmělé, Reykjavík leží přímo v pásu totality
+      a Madrid těsně vedle něj. V New Yorku Měsíc ukousne jen okraj Slunce a v Sydney je v tu chvíli
+      noc. Časy jsou místní, zaokrouhlené na minuty; vycházejí z výpočtů U.S. Naval Observatory.</p>
   </dialog>
 
   <dialog class="sheet guide-sheet" id="learn-dialog" aria-labelledby="guide-title" autofocus>

@@ -37,7 +37,7 @@ renderer.toneMappingExposure = 1.05;
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x090c17);
-const camera = new THREE.PerspectiveCamera(43, 1, 0.1, 4000);
+const camera = new THREE.PerspectiveCamera(43, 1, 0.1, 300);
 const cameraTarget = new THREE.Vector3();
 const desiredCamera = new THREE.Vector3();
 const desiredTarget = new THREE.Vector3();
@@ -49,9 +49,6 @@ const MOON_X = 18.8;
 const SUN_RADIUS = 5.8;
 const EARTH_RADIUS = 3.2;
 const MOON_RADIUS = 0.88;
-const TRUE_EARTH_X = SUN_X + 1263.6;
-const TRUE_MOON_GAP = 3.1;
-let moonPlaneX = MOON_X;
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
 const Z_AXIS = new THREE.Vector3(0, 0, 1);
 const tempVector = new THREE.Vector3();
@@ -64,14 +61,13 @@ const state = {
   playing: !prefersReducedMotion,
   speedIndex: 0,
   speedOptions: [1, 2, 4],
+  direction: 1,
   automaticCamera: true,
   manualView: 'system',
   effectiveView: 'system',
-  trueSizes: false,
   lastChapter: -1,
   layers: { labels: true, rays: true, shadows: true },
   elapsed: 0,
-  loopHold: 0,
   dialogWasPlaying: false,
   orbit: { active: false, theta: 0, phi: Math.PI / 2.2, distance: 45 },
 };
@@ -364,14 +360,6 @@ const markerRing = new THREE.Mesh(
 locationMarker.add(markerDot, markerRing);
 earthVisual.add(locationMarker);
 
-const earthLocator = new THREE.Mesh(
-  new THREE.RingGeometry(.72, .76, 48),
-  new THREE.MeshBasicMaterial({ color: 0xff8a70, transparent: true, opacity: .8, side: THREE.DoubleSide, depthTest: false }),
-);
-earthLocator.position.copy(earthVisual.position);
-earthLocator.visible = false;
-systemRoot.add(earthLocator);
-
 const moonVisual = new THREE.Group();
 systemRoot.add(moonVisual);
 const moonMesh = new THREE.Mesh(
@@ -379,13 +367,6 @@ const moonMesh = new THREE.Mesh(
   new THREE.MeshStandardMaterial({ color: 0x9a9fa8, roughness: 1, metalness: 0 }),
 );
 moonVisual.add(moonMesh);
-
-const moonHalo = new THREE.Mesh(
-  new THREE.RingGeometry(1.08, 1.12, 48),
-  new THREE.MeshBasicMaterial({ color: 0xff8a70, transparent: true, opacity: .45, side: THREE.DoubleSide, depthWrite: false }),
-);
-moonHalo.visible = false;
-moonVisual.add(moonHalo);
 
 function createShadowCone(opacity, edge, lengthFade) {
   return new THREE.Mesh(
@@ -610,10 +591,18 @@ function updateLocationMarker() {
     orientOnSphere(locationMarker, pathCurve.getPoint(globalPathProgress(maximumState)));
   } else {
     const [y, z] = state.location.marker;
-    orientOnSphere(locationMarker, surfacePoint(y, z));
+    const point = surfacePoint(y, z);
+    if (state.location.farSide) point.x *= -1;
+    orientOnSphere(locationMarker, point);
+  }
+  const place = document.querySelector('[data-world-label="place"]');
+  if (state.location.kind === 'none') {
+    place.innerHTML = `${state.location.name} <i>Zatmění není vidět</i>`;
+    glyphMoon = null;
+    return;
   }
   const coverage = (Math.round(state.location.maxCoverage * 1000) / 10).toLocaleString('cs-CZ');
-  document.querySelector('[data-world-label="place"]').innerHTML = `<b class="phase-glyph"><i data-glyph-moon></i></b>${state.location.name} <i>Zakryto ${coverage}\u00a0%</i>`;
+  place.innerHTML = `<b class="phase-glyph"><i data-glyph-moon></i></b>${state.location.name} <i>Zakryto ${coverage} %</i>`;
   glyphMoon = document.querySelector('[data-glyph-moon]');
   const glyphSize = Math.round(20 * state.location.moonRadius);
   glyphMoon.style.width = `${glyphSize}px`;
@@ -626,39 +615,19 @@ function globalPathProgress(eclipseState) {
 }
 
 function updateSystem(eclipseState, delta) {
-  const scaleEase = prefersReducedMotion ? 1 : 1 - Math.exp(-delta * 5);
-  const earthScale = state.trueSizes ? .0166 : 1;
-  const moonScale = state.trueSizes ? .01645 : 1;
-  earthVisual.scale.lerp(new THREE.Vector3(earthScale, earthScale, earthScale), scaleEase);
-  moonVisual.scale.lerp(new THREE.Vector3(moonScale, moonScale, moonScale), scaleEase);
-  const earthTargetX = state.trueSizes ? TRUE_EARTH_X : EARTH_X;
-  const moonTargetX = state.trueSizes ? TRUE_EARTH_X - TRUE_MOON_GAP : MOON_X;
-  earthVisual.position.x += (earthTargetX - earthVisual.position.x) * scaleEase;
-  moonPlaneX += (moonTargetX - moonPlaneX) * scaleEase;
-  earthLocator.position.copy(earthVisual.position);
-  if (state.trueSizes) {
-    const ringDistance = camera.position.distanceTo(earthVisual.position);
-    earthLocator.scale.setScalar(Math.max(1, ringDistance * .014 / .76));
-    moonHalo.scale.setScalar(Math.max(1, ringDistance * .01 / (1.12 * Math.max(.01645, moonVisual.scale.x))));
-  } else {
-    earthLocator.scale.setScalar(1);
-    moonHalo.scale.setScalar(1);
-  }
-
   const pathPoint = pathCurve.getPoint(globalPathProgress(eclipseState));
   const shadowWorld = pathPoint.clone().multiplyScalar(earthVisual.scale.x).add(earthVisual.position);
-  const rayAmount = (moonPlaneX - SUN_X) / Math.max(1, shadowWorld.x - SUN_X);
+  const rayAmount = (MOON_X - SUN_X) / Math.max(1, shadowWorld.x - SUN_X);
   const moonPosition = new THREE.Vector3(
-    moonPlaneX,
+    MOON_X,
     shadowWorld.y * rayAmount,
     shadowWorld.z * rayAmount,
   );
   moonVisual.position.copy(moonPosition);
-  moonVisual.lookAt(camera.position);
 
   const sunDistance = moonPosition.distanceTo(sunVisual.position);
   const shadowLength = moonPosition.distanceTo(shadowWorld);
-  const moonRadiusNow = MOON_RADIUS * moonVisual.scale.x;
+  const moonRadiusNow = MOON_RADIUS;
   const umbraAtEarth = Math.max(moonRadiusNow * .01,
     moonRadiusNow - shadowLength * (SUN_RADIUS - moonRadiusNow) / sunDistance);
   const penumbraAtEarth = moonRadiusNow + shadowLength * (SUN_RADIUS + moonRadiusNow) / sunDistance;
@@ -692,7 +661,7 @@ function updateSystem(eclipseState, delta) {
 function updateObserver(eclipseState) {
   const p = eclipseState.progress;
   const sunX = -8 + p * 14;
-  const sunY = -5.25 + clamp(eclipseState.altitude, -2, 32) * .63;
+  const sunY = -5.25 + clamp(eclipseState.altitude, state.location.kind === 'none' ? -12 : -2, 32) * .63;
   skySun.position.set(sunX, sunY, -40);
 
   const angle = -.38;
@@ -710,9 +679,11 @@ function updateObserver(eclipseState) {
   corona.position.copy(skySun.position);
   corona.position.z = -40.2;
 
-  const darkness = Math.pow(eclipseState.coverage, 2.1);
-  skyMaterial.color.setRGB(1 - darkness * .48, 1 - darkness * .4, 1 - darkness * .25);
-  observerStarMaterial.opacity = clamp((darkness - .48) * 1.25) * (state.location.kind === 'total' ? 1 : .45);
+  const night = state.location.kind === 'none';
+  const darkness = night ? 1 : Math.pow(eclipseState.coverage, 2.1);
+  if (night) skyMaterial.color.setRGB(.14, .17, .24);
+  else skyMaterial.color.setRGB(1 - darkness * .48, 1 - darkness * .4, 1 - darkness * .25);
+  observerStarMaterial.opacity = clamp((darkness - .48) * 1.25) * (state.location.kind === 'partial' ? .45 : 1);
   skySunGlow.material.opacity = .82 - darkness * .42;
   corona.material.opacity = state.location.kind === 'total' ? clamp((eclipseState.coverage - .9995) * 2000) * .88 : 0;
   horizonGlow.material.opacity = .36 - darkness * .24;
@@ -736,10 +707,14 @@ const chapterContent = [
     title: 'Jeden Měsíc. Dva druhy stínu.',
     copy: (location) => location.kind === 'total'
       ? `${location.name} vstoupí do úzkého plného stínu, takže celé Slunce na chvíli zmizí.`
-      : `${location.name} leží v širokém polostínu, takže Měsíc zakryje jen část Slunce.`,
+      : location.kind === 'none'
+        ? `${location.name} je na noční straně Země — stín ho úplně mine.`
+        : `${location.name} leží v širokém polostínu, takže Měsíc zakryje jen část Slunce.`,
     summary: (location) => location.kind === 'total'
       ? `${location.name} leží v plném stínu a uvidí úplné zatmění.`
-      : `${location.name} leží v polostínu a uvidí částečné zatmění.`,
+      : location.kind === 'none'
+        ? `${location.name} je na noční straně Země.`
+        : `${location.name} leží v polostínu a uvidí částečné zatmění.`,
   },
   {
     label: 'Vaše obloha',
@@ -748,8 +723,12 @@ const chapterContent = [
       ? 'V Praze bude ve 20:12 zakryto 86,3 % Slunce. Ve 20:26 pak Slunce zapadne za obzor stále částečně zakryté.'
       : location.kind === 'total'
         ? `${location.over} se den na chvíli promění v soumrak, protože Měsíc zakryje celý jasný kotouč Slunce.`
-        : `${location.over} Měsíc zakryje přes 85 % Slunce, které pak zapadne ještě během zatmění.`,
-    summary: (location) => `Pohled na oblohu ${location.from} ukazuje přechod Měsíce přes Slunce.`,
+        : location.kind === 'none'
+          ? `${location.over} je hluboká noc — Slunce i Měsíc jsou pod obzorem a zatmění odtud vidět není.`
+          : `${location.over} Měsíc zakryje část Slunce — kolik, to určuje vzdálenost místa od osy stínu.`,
+    summary: (location) => location.kind === 'none'
+      ? `Zatmění ${location.from} vidět není — je noc.`
+      : `Pohled na oblohu ${location.from} ukazuje přechod Měsíce přes Slunce.`,
   },
 ];
 
@@ -772,8 +751,6 @@ const elements = {
   play: document.querySelector('[data-play]'),
   playIcon: document.querySelector('[data-play-icon]'),
   speed: document.querySelector('[data-speed]'),
-  scale: document.querySelector('[data-scale]'),
-  sceneNote: document.querySelector('[data-scene-note]'),
   labels: document.querySelector('.world-labels'),
   veil: document.querySelector('.view-veil'),
 };
@@ -816,7 +793,6 @@ function refreshChapter(force = false) {
 }
 
 function setView(view, automatic = false) {
-  if ((automatic || view === 'auto') && state.trueSizes) setScaleMode(false);
   state.automaticCamera = automatic || view === 'auto';
   if (!state.automaticCamera) state.manualView = view;
   state.orbit.active = false;
@@ -848,13 +824,6 @@ function switchWorld(nextView) {
 function shotFor(view) {
   const aspect = innerWidth / innerHeight;
   const halfFov = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
-  if (view === 'system' && state.trueSizes) {
-    const middle = (SUN_X + TRUE_EARTH_X) / 2;
-    return {
-      position: new THREE.Vector3(middle, 50, Math.max(500, 680 / (halfFov * aspect))),
-      target: new THREE.Vector3(middle, 0, 0),
-    };
-  }
   if (view === 'orbit') {
     return {
       position: new THREE.Vector3(18, 12, Math.max(29, 17 / (halfFov * aspect))),
@@ -925,8 +894,8 @@ function syncTimeline(eclipseState) {
   elements.rangeProgress.style.width = `${percent}%`;
   elements.maximumTick.style.display = eclipseState.maxProgress < 1 ? '' : 'none';
   elements.maximumTick.style.left = `${Math.min(eclipseState.maxProgress, 1) * 100}%`;
-  elements.playIcon.textContent = state.loopHold > 0 ? '↺' : state.playing ? 'Ⅱ' : state.progress >= .999 ? '↺' : '▶︎';
-  elements.play.setAttribute('aria-label', state.playing ? 'Pozastavit časosběr' : state.progress >= .999 ? 'Přehrát časosběr znovu' : 'Spustit časosběr');
+  elements.playIcon.textContent = state.playing ? 'Ⅱ' : '▶︎';
+  elements.play.setAttribute('aria-label', state.playing ? 'Pozastavit časosběr' : 'Spustit časosběr');
   if (glyphMoon) {
     const gx = (-eclipseState.offsetX * GLYPH_TILT_COS - eclipseState.offsetY * GLYPH_TILT_SIN) * 10;
     const gy = -(-eclipseState.offsetX * GLYPH_TILT_SIN + eclipseState.offsetY * GLYPH_TILT_COS) * 10;
@@ -959,28 +928,14 @@ function syncLayers() {
   sightLine.visible = state.layers.rays && systemRoot.visible;
 }
 
-function setScaleMode(trueSizes) {
-  state.trueSizes = trueSizes;
-  elements.scale.setAttribute('aria-pressed', String(trueSizes));
-  elements.scale.textContent = trueSizes ? 'Měřítko: skutečné' : 'Měřítko: názorné';
-  elements.sceneNote.textContent = trueSizes
-    ? 'Skutečné velikosti i vzdálenosti · kroužky označují Zemi a Měsíc'
-    : 'Názorný model · tělesa zvětšena, vzdálenosti zkráceny';
-  earthLocator.visible = trueSizes;
-  moonHalo.visible = trueSizes;
-  if (trueSizes) setView('system');
-  syncLayers();
-}
-
 function setLocation(id) {
   const location = LOCATIONS[id];
   if (!location) return;
   state.location = location;
   state.progress = 0;
-  state.loopHold = 0;
+  state.direction = 1;
   state.playing = !prefersReducedMotion;
   state.automaticCamera = true;
-  setScaleMode(false);
   setView('auto', true);
   syncLocationUI();
 }
@@ -1025,28 +980,19 @@ function updateLabels() {
   projectLabel(labelElements.sun, sunVisual.position, true, compact ? 30 : 45, 0);
   projectLabel(labelElements.moon, moonVisual.position, true, -16, compact ? -26 : -36);
   projectLabel(labelElements.earth, earthVisual.position, true, 0, compact ? 34 : 48);
-  projectLabel(labelElements.umbra, umbraCone.position, shadowView && state.layers.shadows && !state.trueSizes, 0, -34);
-  projectLabel(labelElements.penumbra, penumbraCone.position.clone().lerp(earthVisual.position, .4), shadowView && state.layers.shadows && !state.trueSizes, 0, 38);
-  projectLabel(labelElements.place, markerWorld, !state.trueSizes, compact ? 28 : 58, -28);
+  projectLabel(labelElements.umbra, umbraCone.position, shadowView && state.layers.shadows, 0, -34);
+  projectLabel(labelElements.penumbra, penumbraCone.position.clone().lerp(earthVisual.position, .4), shadowView && state.layers.shadows, 0, 38);
+  projectLabel(labelElements.place, markerWorld, true, compact ? 28 : 58, -28);
 }
 
 document.querySelectorAll('[data-view]').forEach((button) => {
   button.addEventListener('click', () => {
-    if (state.trueSizes && (button.dataset.view === 'observer' || button.dataset.view === 'shadow')) setScaleMode(false);
     setView(button.dataset.view, button.dataset.view === 'auto');
   });
 });
 
-elements.scale.addEventListener('click', () => setScaleMode(!state.trueSizes));
-
 elements.play.addEventListener('click', () => {
-  if (state.playing) {
-    state.playing = false;
-    state.loopHold = 0;
-    return;
-  }
-  if (state.progress >= .999) state.progress = 0;
-  state.playing = true;
+  state.playing = !state.playing;
 });
 
 elements.speed.addEventListener('click', () => {
@@ -1056,7 +1002,6 @@ elements.speed.addEventListener('click', () => {
 
 elements.slider.addEventListener('input', () => {
   state.progress = Number(elements.slider.value) / 1000;
-  state.loopHold = 0;
   state.playing = false;
 });
 
@@ -1129,7 +1074,7 @@ canvas.addEventListener('pointermove', (event) => {
     pointer.x = event.clientX;
     pointer.y = event.clientY;
     const gap = pointerGap();
-    state.orbit.distance = clamp(state.orbit.distance * (1 + (pinchDistance - gap) * .004), state.trueSizes ? .5 : 8, state.trueSizes ? 2600 : 110);
+    state.orbit.distance = clamp(state.orbit.distance * (1 + (pinchDistance - gap) * .004), 8, 110);
     pinchDistance = gap;
     return;
   }
@@ -1152,7 +1097,7 @@ canvas.addEventListener('wheel', (event) => {
   if (state.effectiveView === 'observer') return;
   event.preventDefault();
   if (!state.orbit.active) beginOrbit();
-  state.orbit.distance = clamp(state.orbit.distance * (1 + event.deltaY * .0012), state.trueSizes ? .5 : 8, state.trueSizes ? 2600 : 110);
+  state.orbit.distance = clamp(state.orbit.distance * (1 + event.deltaY * .0012), 8, 110);
 }, { passive: false });
 
 addEventListener('keydown', (event) => {
@@ -1219,17 +1164,15 @@ renderer.setAnimationLoop((frameTime) => {
   const delta = rawDelta || 0;
   state.elapsed += delta;
 
-  if (state.playing && state.loopHold > 0) {
-    state.loopHold -= delta;
-    if (state.loopHold <= 0) {
-      state.progress = 0;
-      if (state.automaticCamera) setView('auto', true);
-    }
-  } else if (state.playing) {
-    state.progress += delta / 11.25 * state.speedOptions[state.speedIndex];
+  if (state.playing) {
+    const ease = .3 + 1.1 * Math.sin(Math.PI * clamp(state.progress));
+    state.progress += delta / 11.25 * state.speedOptions[state.speedIndex] * state.direction * ease;
     if (state.progress >= 1) {
       state.progress = 1;
-      state.loopHold = 1.6;
+      state.direction = -1;
+    } else if (state.progress <= 0) {
+      state.progress = 0;
+      state.direction = 1;
     }
   }
 
