@@ -758,19 +758,11 @@ const elements = {
 function autoStage() {
   const maxProgress = Math.min(1,
     (state.location.maximum - state.location.start) / (state.location.end - state.location.start));
-  if (state.progress >= .94) return 'observer';
-  if (state.progress >= .86) return 'approach';
-  if (state.progress >= maxProgress - .2) return 'shadow';
-  return 'system';
+  return state.progress >= maxProgress - .2 ? 'shadow' : 'system';
 }
 
 function currentChapter() {
-  if (state.automaticCamera) {
-    const stage = autoStage();
-    if (stage === 'system') return 0;
-    if (stage === 'shadow') return 2;
-    return 3;
-  }
+  if (state.automaticCamera) return autoStage() === 'shadow' ? 2 : 0;
   return { system: 0, orbit: 1, shadow: 2, observer: 3 }[state.manualView] ?? 0;
 }
 
@@ -834,14 +826,6 @@ function shotFor(view) {
     return {
       position: new THREE.Vector3(11.5, 6, Math.max(19, 10 / (halfFov * aspect))),
       target: new THREE.Vector3(24.2, 1.1, .45),
-    };
-  }
-  if (view === 'approach') {
-    const markerWorld = locationMarker.getWorldPosition(new THREE.Vector3());
-    const outward = markerWorld.clone().sub(earthVisual.position).normalize();
-    return {
-      position: markerWorld.clone().addScaledVector(outward, 4.2),
-      target: markerWorld,
     };
   }
   if (view === 'observer') {
@@ -1165,7 +1149,14 @@ renderer.setAnimationLoop((frameTime) => {
   state.elapsed += delta;
 
   if (state.playing) {
-    const ease = .3 + 1.1 * Math.sin(Math.PI * clamp(state.progress));
+    const maxProgress = Math.min(1,
+      (state.location.maximum - state.location.start) / (state.location.end - state.location.start));
+    const p = clamp(state.progress);
+    let hump;
+    if (maxProgress >= .999) hump = Math.sin(Math.PI * p);
+    else if (p <= maxProgress) hump = Math.sin(Math.PI * p / maxProgress);
+    else hump = Math.sin(Math.PI * (p - maxProgress) / (1 - maxProgress));
+    const ease = .25 + 1.15 * hump;
     state.progress += delta / 11.25 * state.speedOptions[state.speedIndex] * state.direction * ease;
     if (state.progress >= 1) {
       state.progress = 1;
