@@ -59,8 +59,8 @@ const state = {
   location: LOCATIONS.prague,
   progress: 0,
   playing: !prefersReducedMotion,
-  speedIndex: 0,
-  speedOptions: [1, 2, 4],
+  speedIndex: 2,
+  speedOptions: [1, 2, 5, 10],
   direction: 1,
   automaticCamera: true,
   manualView: 'system',
@@ -1157,7 +1157,7 @@ renderer.setAnimationLoop((frameTime) => {
     else if (p <= maxProgress) hump = Math.sin(Math.PI * p / maxProgress);
     else hump = Math.sin(Math.PI * (p - maxProgress) / (1 - maxProgress));
     const ease = .25 + 1.15 * hump;
-    state.progress += delta / 11.25 * state.speedOptions[state.speedIndex] * state.direction * ease;
+    state.progress += delta / 56.25 * state.speedOptions[state.speedIndex] * state.direction * ease;
     if (state.progress >= 1) {
       state.progress = 1;
       state.direction = -1;
