@@ -58,7 +58,6 @@
     <nav class="view-nav" aria-label="Pohled kamery">
       <button type="button" data-view="auto" aria-pressed="true"><i aria-hidden="true">●</i> Prohlídka</button>
       <button type="button" data-view="system" aria-pressed="false">Soustava</button>
-      <button type="button" data-view="orbit" aria-pressed="false">Dráha</button>
       <button type="button" data-view="shadow" aria-pressed="false">Stín</button>
       <button type="button" data-view="observer" aria-pressed="false">Obloha · <span data-sky-label>Praha</span></button>
       <button class="size-button" type="button" data-scale aria-pressed="false">Velikosti: názorné</button>
@@ -70,11 +69,6 @@
       <p data-chapter-copy>Slunce svítí, Měsíc světlo zastaví a Země zachytí jeho stín.</p>
       <button type="button" data-next-chapter>Další pohled <span aria-hidden="true">→</span></button>
     </section>
-
-    <button class="safety-chip" type="button" data-open="safety-dialog"
-      aria-label="Otevřít bezpečnostní pokyny" aria-haspopup="dialog" aria-controls="safety-dialog">
-      <span aria-hidden="true">☀&#xFE0E;</span><strong data-safety-chip>Brýle na zatmění jsou nutné</strong><i>Bezpečnost</i>
-    </button>
 
     <button class="learn-button" type="button" data-open="learn-dialog"
       aria-label="Otevřít průvodce zatměním" aria-haspopup="dialog" aria-controls="learn-dialog">
@@ -89,7 +83,7 @@
       <div class="scrubber">
         <div class="scrubber-readout">
           <time datetime="19:19" data-time>19:19</time>
-          <span data-zone>CEST</span>
+          <span data-zone>SELČ</span>
           <strong data-phase>První kontakt</strong>
         </div>
         <div class="range-wrap">
@@ -137,7 +131,7 @@
         <span><strong>Brno</strong><i>maximum na obzoru · západ 20:15</i></span><b>86,4&nbsp;%</b>
       </button>
       <button type="button" data-location="ostrava" aria-pressed="false">
-        <span><strong>Ostrava</strong><i>západ 20:10, ještě před maximem</i></span><b>85,5&nbsp;%</b>
+        <span><strong>Ostrava</strong><i>západ 20:10, ještě před maximem</i></span><b>≈85&nbsp;%</b>
       </button>
     </div>
     <p class="sheet-note">Čím dál na východ, tím níž Slunce v době zatmění stojí — v Ostravě zapadne
@@ -164,7 +158,7 @@
       <section>
         <p class="guide-num">02</p>
         <h3>Proč ne každý měsíc?</h3>
-        <p>Dráha Měsíce je skloněná asi o 5°. Při většině novů proto jeho stín proletí nad Zemí nebo pod ní.</p>
+        <p>Dráha Měsíce je vůči dráze Země skloněná asi o 5°. Při většině novů proto jeho stín proletí nad Zemí nebo pod ní.</p>
       </section>
       <section>
         <p class="guide-num">03</p>
@@ -196,27 +190,6 @@
         href="https://aa.usno.navy.mil/data/SolarEclipses"
         target="_blank" rel="noopener">U.S. Naval Observatory</a>. Model vysvětluje geometrii; není předpovědí
       počasí ani pozorovacích podmínek.</p>
-  </dialog>
-
-  <dialog class="sheet safety-sheet" id="safety-dialog" aria-labelledby="safety-title">
-    <form method="dialog" class="sheet-head">
-      <div>
-        <p class="eyebrow safety-eyebrow">Dívejte se bezpečně</p>
-        <h2 id="safety-title">Slunce může poškodit oči během několika sekund.</h2>
-      </div>
-      <button class="close-button" value="close" aria-label="Zavřít bezpečnostní pokyny">×</button>
-    </form>
-    <p class="safety-lede"><strong data-safety-summary>Praha: zatmění je částečné, takže bezpečný okamžik bez brýlí nenastane.</strong>
-      Děti by měly pozorovat s dospělým.</p>
-    <ul class="safety-list">
-      <li><span>01</span>Použijte spolehlivé brýle s označením <strong>ISO 12312-2</strong>. Běžné sluneční brýle nestačí.</li>
-      <li><span>02</span>Před použitím zkontrolujte, zda brýle nemají škrábance, dírky nebo trhliny. Poškozené vyhoďte.</li>
-      <li><span>03</span>Nedívejte se přes fotoaparát, triedr ani dalekohled bez slunečního filtru nasazeného vpředu na objektivu.</li>
-      <li><span>04</span>Nemáte brýle? Promítněte Slunce malým otvorem a sledujte obraz — nikdy se nedívejte skrz otvor.</li>
-    </ul>
-    <a class="nasa-link" href="https://science.nasa.gov/eclipses/safety/" target="_blank" rel="noopener">
-      Bezpečnostní průvodce NASA <span aria-hidden="true">↗</span>
-    </a>
   </dialog>
 
   <div class="view-veil" aria-hidden="true"></div>

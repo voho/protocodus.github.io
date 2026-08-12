@@ -384,7 +384,7 @@ const umbraCone = createShadowCone(.82, .12, 0x000107, .46);
 shadowCones.add(penumbraCone, umbraCone);
 systemRoot.add(shadowCones);
 
-const rayPositions = new Float32Array(16 * 3);
+const rayPositions = new Float32Array(8 * 3);
 const lightRaysGeometry = new THREE.BufferGeometry();
 lightRaysGeometry.setAttribute('position', new THREE.BufferAttribute(rayPositions, 3));
 const lightRays = new THREE.LineSegments(
@@ -505,8 +505,6 @@ function updateLightRays(moonPosition, shadowPoint) {
   const axes = [
     new THREE.Vector3(0, 1, 0),
     new THREE.Vector3(0, -1, 0),
-    new THREE.Vector3(0, 0, 1),
-    new THREE.Vector3(0, 0, -1),
   ];
   const sunPosition = sunVisual.position;
   let cursor = 0;
@@ -626,7 +624,7 @@ const chapterContent = [
   {
     label: 'Sklon dráhy',
     title: 'Malý sklon mění všechno.',
-    copy: () => 'Dráha Měsíce je skloněná asi o 5°. Jeho stín proto většinou Zemi mine a zatmění nenastává každý měsíc.',
+    copy: () => 'Dráha Měsíce je vůči dráze Země skloněná asi o 5°. Jeho stín proto většinou Zemi mine a zatmění nenastává každý měsíc.',
     summary: () => 'Měsíc obíhá po dráze skloněné asi o pět stupňů.',
   },
   {
@@ -634,7 +632,7 @@ const chapterContent = [
     title: 'Jeden Měsíc. Dva druhy stínu.',
     copy: (location) => location.kind === 'total'
       ? `${location.name} vstoupí do úzkého plného stínu, takže celé Slunce na chvíli zmizí.`
-      : `${location.name} zůstane v širokém polostínu, takže Měsíc zakryje jen část Slunce.`,
+      : `${location.name} leží v širokém polostínu, takže Měsíc zakryje jen část Slunce.`,
     summary: (location) => location.kind === 'total'
       ? `${location.name} leží v plném stínu a uvidí úplné zatmění.`
       : `${location.name} leží v polostínu a uvidí částečné zatmění.`,
@@ -672,8 +670,6 @@ const elements = {
   speed: document.querySelector('[data-speed]'),
   scale: document.querySelector('[data-scale]'),
   sceneNote: document.querySelector('[data-scene-note]'),
-  safetyChip: document.querySelector('[data-safety-chip]'),
-  safetySummary: document.querySelector('[data-safety-summary]'),
   labels: document.querySelector('.world-labels'),
   veil: document.querySelector('.view-veil'),
 };
@@ -790,7 +786,9 @@ function syncTimeline(eclipseState) {
   elements.phase.textContent = phaseAt(state.location, eclipseState);
   elements.coverage.textContent = `${Math.round(eclipseState.coverage * 100)} %`;
   elements.slider.value = Math.round(state.progress * 1000);
-  elements.slider.setAttribute('aria-valuetext', `${formatClock(eclipseState.minutes)} ${state.location.zone}, zakryto ${Math.round(eclipseState.coverage * 100)} procent Slunce`);
+  const pct = Math.round(eclipseState.coverage * 100);
+  const pctWord = pct === 1 ? 'procento' : pct >= 2 && pct <= 4 ? 'procenta' : 'procent';
+  elements.slider.setAttribute('aria-valuetext', `${formatClock(eclipseState.minutes)} ${state.location.zone}, zakryto ${pct} ${pctWord} Slunce`);
   elements.rangeProgress.style.width = `${percent}%`;
   elements.maximumTick.style.display = eclipseState.maxProgress < 1 ? '' : 'none';
   elements.maximumTick.style.left = `${Math.min(eclipseState.maxProgress, 1) * 100}%`;
@@ -808,12 +806,6 @@ function syncLocationUI() {
     ? 'Maximum až po západu'
     : `Maximum · ${formatClock(state.location.maximum)}`;
   elements.endLabel.textContent = `${state.location.endKind === 'sunset' ? 'Západ' : 'Poslední kontakt'} · ${formatClock(state.location.end)}`;
-  elements.safetyChip.textContent = state.location.kind === 'total'
-    ? 'Brýle mimo úplnou fázi'
-    : 'Brýle na zatmění jsou nutné';
-  elements.safetySummary.textContent = state.location.kind === 'total'
-    ? `${state.location.name}: brýle lze sundat jen během krátké úplné fáze, až jasný kotouč Slunce zcela zmizí.`
-    : `${state.location.name}: zatmění je částečné, takže bezpečný okamžik bez brýlí nenastane.`;
   updateLocationMarker();
   state.lastChapter = -1;
   refreshChapter(true);
