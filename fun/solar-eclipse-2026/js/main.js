@@ -108,26 +108,6 @@ function makeGlowTexture() {
   });
 }
 
-function makeSunTexture() {
-  const random = seededRandom(12);
-  return makeCanvasTexture(512, 256, (context, width, height) => {
-    const gradient = context.createLinearGradient(0, 0, 0, height);
-    gradient.addColorStop(0, '#fff4ad');
-    gradient.addColorStop(0.5, '#ffbd31');
-    gradient.addColorStop(1, '#ff8a1f');
-    context.fillStyle = gradient;
-    context.fillRect(0, 0, width, height);
-    context.globalAlpha = 0.16;
-    for (let i = 0; i < 180; i += 1) {
-      context.fillStyle = random() > 0.55 ? '#fffbd7' : '#d95b15';
-      context.beginPath();
-      context.ellipse(random() * width, random() * height, 2 + random() * 14, 1 + random() * 4,
-        random() * Math.PI, 0, Math.PI * 2);
-      context.fill();
-    }
-  });
-}
-
 const glowTexture = makeGlowTexture();
 
 function addStars() {
@@ -171,8 +151,8 @@ sunVisual.position.set(SUN_X, 0, 0);
 systemRoot.add(sunVisual);
 
 const sunMesh = new THREE.Mesh(
-  new THREE.SphereGeometry(SUN_RADIUS, 56, 32),
-  new THREE.MeshBasicMaterial({ map: makeSunTexture(), color: 0xffd36a }),
+  new THREE.SphereGeometry(SUN_RADIUS, 64, 40),
+  new THREE.MeshBasicMaterial({ color: 0xffd36a }),
 );
 sunVisual.add(sunMesh);
 
@@ -470,8 +450,8 @@ observerRoot.add(horizonGlow);
 
 const skySun = new THREE.Group();
 const skySunMesh = new THREE.Mesh(
-  new THREE.SphereGeometry(3, 48, 28),
-  new THREE.MeshBasicMaterial({ map: makeSunTexture(), color: 0xffd57a }),
+  new THREE.SphereGeometry(3, 64, 40),
+  new THREE.MeshBasicMaterial({ color: 0xffd57a }),
 );
 const skySunGlow = new THREE.Sprite(new THREE.SpriteMaterial({
   map: glowTexture,
@@ -487,10 +467,10 @@ skySun.position.z = -40;
 observerRoot.add(skySun);
 
 const skyMoon = new THREE.Mesh(
-  new THREE.SphereGeometry(3, 48, 28),
+  new THREE.SphereGeometry(3, 64, 40),
   new THREE.MeshBasicMaterial({ color: 0x02040a }),
 );
-skyMoon.position.z = -39.2;
+skyMoon.position.z = -33;
 observerRoot.add(skyMoon);
 
 const corona = new THREE.Sprite(new THREE.SpriteMaterial({
@@ -600,7 +580,6 @@ function updateSystem(eclipseState, delta) {
   updateLightRays(moonPosition, shadowWorld);
 
   if (!prefersReducedMotion) {
-    sunMesh.rotation.y += delta * .025;
     markerRing.scale.setScalar(1 + Math.sin(state.elapsed * 3) * .14);
   }
 }
@@ -624,7 +603,7 @@ function updateObserver(eclipseState) {
   skyMoon.position.set(
     sunX * projectionScale + dx * cos - dy * sin,
     sunY * projectionScale + dx * sin + dy * cos,
-    -39.2,
+    -33,
   );
   corona.position.copy(skySun.position);
   corona.position.z = -40.2;
