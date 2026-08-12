@@ -37,7 +37,7 @@ renderer.toneMappingExposure = 1.05;
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x090c17);
-const camera = new THREE.PerspectiveCamera(43, 1, 0.1, 300);
+const camera = new THREE.PerspectiveCamera(43, 1, 0.1, 4000);
 const cameraTarget = new THREE.Vector3();
 const desiredCamera = new THREE.Vector3();
 const desiredTarget = new THREE.Vector3();
@@ -49,6 +49,9 @@ const MOON_X = 18.8;
 const SUN_RADIUS = 5.8;
 const EARTH_RADIUS = 3.2;
 const MOON_RADIUS = 0.88;
+const TRUE_EARTH_X = SUN_X + 1263.6;
+const TRUE_MOON_GAP = 3.1;
+let moonPlaneX = MOON_X;
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
 const Z_AXIS = new THREE.Vector3(0, 0, 1);
 const tempVector = new THREE.Vector3();
@@ -150,9 +153,33 @@ const sunVisual = new THREE.Group();
 sunVisual.position.set(SUN_X, 0, 0);
 systemRoot.add(sunVisual);
 
+function sunMaterial() {
+  return new THREE.ShaderMaterial({
+    vertexShader: `
+      varying vec3 vNormal;
+      varying vec3 vView;
+      void main() {
+        vNormal = normalize(normalMatrix * normal);
+        vec4 viewPosition = modelViewMatrix * vec4(position, 1.0);
+        vView = -viewPosition.xyz;
+        gl_Position = projectionMatrix * viewPosition;
+      }`,
+    fragmentShader: `
+      varying vec3 vNormal;
+      varying vec3 vView;
+      void main() {
+        float mu = clamp(dot(normalize(vNormal), normalize(vView)), 0.0, 1.0);
+        float darkening = 1.0 - 0.6 * (1.0 - mu);
+        vec3 center = vec3(1.0, 0.93, 0.72);
+        vec3 limb = vec3(1.0, 0.55, 0.2);
+        gl_FragColor = vec4(mix(limb, center, pow(mu, 0.5)) * darkening, 1.0);
+      }`,
+  });
+}
+
 const sunMesh = new THREE.Mesh(
   new THREE.SphereGeometry(SUN_RADIUS, 64, 40),
-  new THREE.MeshBasicMaterial({ color: 0xffd36a }),
+  sunMaterial(),
 );
 sunVisual.add(sunMesh);
 
@@ -172,7 +199,7 @@ earthVisual.position.set(EARTH_X, 0, 0);
 systemRoot.add(earthVisual);
 
 const earthMesh = new THREE.Mesh(
-  new THREE.SphereGeometry(EARTH_RADIUS, 56, 36),
+  new THREE.SphereGeometry(EARTH_RADIUS, 96, 64),
   new THREE.MeshPhysicalMaterial({
     color: 0x126a9f,
     roughness: .52,
@@ -186,14 +213,28 @@ earthMesh.rotation.z = -0.12;
 earthVisual.add(earthMesh);
 
 const atmosphere = new THREE.Mesh(
-  new THREE.SphereGeometry(EARTH_RADIUS * 1.035, 48, 28),
-  new THREE.MeshBasicMaterial({
-    color: 0x4aaeff,
+  new THREE.SphereGeometry(EARTH_RADIUS * 1.045, 64, 40),
+  new THREE.ShaderMaterial({
     transparent: true,
-    opacity: .14,
-    side: THREE.BackSide,
-    blending: THREE.AdditiveBlending,
     depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    vertexShader: `
+      varying vec3 vNormal;
+      varying vec3 vView;
+      void main() {
+        vNormal = normalize(normalMatrix * normal);
+        vec4 viewPosition = modelViewMatrix * vec4(position, 1.0);
+        vView = -viewPosition.xyz;
+        gl_Position = projectionMatrix * viewPosition;
+      }`,
+    fragmentShader: `
+      varying vec3 vNormal;
+      varying vec3 vView;
+      void main() {
+        float facing = clamp(dot(normalize(vNormal), normalize(vView)), 0.0, 1.0);
+        float rim = pow(1.0 - facing, 3.0);
+        gl_FragColor = vec4(vec3(0.3, 0.6, 1.0) * rim, rim);
+      }`,
   }),
 );
 earthVisual.add(atmosphere);
@@ -271,7 +312,7 @@ earthVisual.add(shadowSkin);
 const locationMarker = new THREE.Group();
 const markerDot = new THREE.Mesh(
   new THREE.SphereGeometry(.095, 16, 10),
-  new THREE.MeshBasicMaterial({ color: 0xff8a70 }),
+  new THREE.MeshBasicMaterial({ color: 0xff8a70, transparent: true }),
 );
 const markerRing = new THREE.Mesh(
   new THREE.RingGeometry(.18, .22, 32),
@@ -292,13 +333,7 @@ const moonVisual = new THREE.Group();
 systemRoot.add(moonVisual);
 const moonMesh = new THREE.Mesh(
   new THREE.SphereGeometry(MOON_RADIUS, 64, 40),
-  new THREE.MeshPhysicalMaterial({
-    color: 0x8f959e,
-    roughness: .58,
-    metalness: 0,
-    clearcoat: .18,
-    clearcoatRoughness: .7,
-  }),
+  new THREE.MeshStandardMaterial({ color: 0x9a9fa8, roughness: 1, metalness: 0 }),
 );
 moonVisual.add(moonMesh);
 
@@ -351,8 +386,9 @@ function createShadowCone(opacity, edge, lengthFade) {
 
 function setConeRadii(mesh, radiusAtMoon, radiusAtEarth) {
   const fitted = mesh.userData;
-  if (Math.abs((fitted.near ?? -1) - radiusAtMoon) < 0.01
-    && Math.abs((fitted.far ?? -1) - radiusAtEarth) < 0.01) return;
+  const epsilon = (radiusAtMoon + radiusAtEarth) * .01 + .0005;
+  if (Math.abs((fitted.near ?? -1) - radiusAtMoon) < epsilon
+    && Math.abs((fitted.far ?? -1) - radiusAtEarth) < epsilon) return;
   fitted.near = radiusAtMoon;
   fitted.far = radiusAtEarth;
   mesh.geometry.dispose();
@@ -427,7 +463,7 @@ observerRoot.add(horizonGlow);
 const skySun = new THREE.Group();
 const skySunMesh = new THREE.Mesh(
   new THREE.SphereGeometry(3, 64, 40),
-  new THREE.MeshBasicMaterial({ color: 0xffd57a }),
+  sunMaterial(),
 );
 const skySunGlow = new THREE.Sprite(new THREE.SpriteMaterial({
   map: glowTexture,
@@ -548,17 +584,29 @@ function globalPathProgress(eclipseState) {
 
 function updateSystem(eclipseState, delta) {
   const scaleEase = prefersReducedMotion ? 1 : 1 - Math.exp(-delta * 5);
-  const earthScale = state.trueSizes ? .0167 : 1;
-  const moonScale = state.trueSizes ? .0165 : 1;
+  const earthScale = state.trueSizes ? .0166 : 1;
+  const moonScale = state.trueSizes ? .01645 : 1;
   earthVisual.scale.lerp(new THREE.Vector3(earthScale, earthScale, earthScale), scaleEase);
   moonVisual.scale.lerp(new THREE.Vector3(moonScale, moonScale, moonScale), scaleEase);
-  moonHalo.scale.setScalar(state.trueSizes ? 1 / Math.max(.0165, moonVisual.scale.x) : 1);
+  const earthTargetX = state.trueSizes ? TRUE_EARTH_X : EARTH_X;
+  const moonTargetX = state.trueSizes ? TRUE_EARTH_X - TRUE_MOON_GAP : MOON_X;
+  earthVisual.position.x += (earthTargetX - earthVisual.position.x) * scaleEase;
+  moonPlaneX += (moonTargetX - moonPlaneX) * scaleEase;
+  earthLocator.position.copy(earthVisual.position);
+  if (state.trueSizes) {
+    const ringDistance = camera.position.distanceTo(earthVisual.position);
+    earthLocator.scale.setScalar(Math.max(1, ringDistance * .014 / .76));
+    moonHalo.scale.setScalar(Math.max(1, ringDistance * .01 / (1.12 * Math.max(.01645, moonVisual.scale.x))));
+  } else {
+    earthLocator.scale.setScalar(1);
+    moonHalo.scale.setScalar(1);
+  }
 
   const pathPoint = pathCurve.getPoint(globalPathProgress(eclipseState));
   const shadowWorld = pathPoint.clone().multiplyScalar(earthVisual.scale.x).add(earthVisual.position);
-  const rayAmount = (MOON_X - SUN_X) / Math.max(1, shadowWorld.x - SUN_X);
+  const rayAmount = (moonPlaneX - SUN_X) / Math.max(1, shadowWorld.x - SUN_X);
   const moonPosition = new THREE.Vector3(
-    MOON_X,
+    moonPlaneX,
     shadowWorld.y * rayAmount,
     shadowWorld.z * rayAmount,
   );
@@ -568,7 +616,7 @@ function updateSystem(eclipseState, delta) {
   const sunDistance = moonPosition.distanceTo(sunVisual.position);
   const shadowLength = moonPosition.distanceTo(shadowWorld);
   const moonRadiusNow = MOON_RADIUS * moonVisual.scale.x;
-  const umbraAtEarth = Math.max(.03,
+  const umbraAtEarth = Math.max(moonRadiusNow * .01,
     moonRadiusNow - shadowLength * (SUN_RADIUS - moonRadiusNow) / sunDistance);
   const penumbraAtEarth = moonRadiusNow + shadowLength * (SUN_RADIUS + moonRadiusNow) / sunDistance;
   setConeRadii(umbraCone, moonRadiusNow * .985, umbraAtEarth);
@@ -587,6 +635,9 @@ function updateSystem(eclipseState, delta) {
   sightPositions.setXYZ(1, sunVisual.position.x, sunVisual.position.y, sunVisual.position.z);
   sightPositions.needsUpdate = true;
   sightLine.computeLineDistances();
+  const markerFade = clamp((camera.position.distanceTo(sightFrom) - 2.5) / 5);
+  markerDot.material.opacity = markerFade;
+  markerRing.material.opacity = .75 * markerFade;
 
   if (!prefersReducedMotion) {
     markerRing.scale.setScalar(1 + Math.sin(state.elapsed * 3) * .14);
@@ -596,10 +647,7 @@ function updateSystem(eclipseState, delta) {
 function updateObserver(eclipseState) {
   const p = eclipseState.progress;
   const sunX = -8 + p * 14;
-  let sunY = -5.25 + clamp(eclipseState.altitude, -2, 32) * .63;
-  if (state.location.endKind === 'sunset' && p > .9) {
-    sunY += (-9 - sunY) * ((p - .9) / .1);
-  }
+  const sunY = -5.25 + clamp(eclipseState.altitude, -2, 32) * .63;
   skySun.position.set(sunX, sunY, -40);
 
   const angle = -.38;
@@ -625,7 +673,6 @@ function updateObserver(eclipseState) {
   horizonGlow.material.opacity = .36 - darkness * .24;
 }
 
-const chapterViews = ['system', 'orbit', 'shadow', 'observer'];
 const chapterContent = [
   {
     label: 'Seřazení',
@@ -686,11 +733,21 @@ const elements = {
   veil: document.querySelector('.view-veil'),
 };
 
+function autoStage() {
+  const maxProgress = Math.min(1,
+    (state.location.maximum - state.location.start) / (state.location.end - state.location.start));
+  if (state.progress >= .94) return 'observer';
+  if (state.progress >= .86) return 'approach';
+  if (state.progress >= maxProgress - .2) return 'shadow';
+  return 'system';
+}
+
 function currentChapter() {
   if (state.automaticCamera) {
-    const maxProgress = Math.min(1,
-      (state.location.maximum - state.location.start) / (state.location.end - state.location.start));
-    return state.progress >= maxProgress - 0.2 ? 2 : 0;
+    const stage = autoStage();
+    if (stage === 'system') return 0;
+    if (stage === 'shadow') return 2;
+    return 3;
   }
   return { system: 0, orbit: 1, shadow: 2, observer: 3 }[state.manualView] ?? 0;
 }
@@ -746,6 +803,13 @@ function switchWorld(nextView) {
 function shotFor(view) {
   const aspect = innerWidth / innerHeight;
   const halfFov = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+  if (view === 'system' && state.trueSizes) {
+    const middle = (SUN_X + TRUE_EARTH_X) / 2;
+    return {
+      position: new THREE.Vector3(middle, 50, Math.max(500, 680 / (halfFov * aspect))),
+      target: new THREE.Vector3(middle, 0, 0),
+    };
+  }
   if (view === 'orbit') {
     return {
       position: new THREE.Vector3(18, 12, Math.max(29, 17 / (halfFov * aspect))),
@@ -756,6 +820,14 @@ function shotFor(view) {
     return {
       position: new THREE.Vector3(11.5, 6, Math.max(19, 10 / (halfFov * aspect))),
       target: new THREE.Vector3(24.2, 1.1, .45),
+    };
+  }
+  if (view === 'approach') {
+    const markerWorld = locationMarker.getWorldPosition(new THREE.Vector3());
+    const outward = markerWorld.clone().sub(earthVisual.position).normalize();
+    return {
+      position: markerWorld.clone().addScaledVector(outward, 4.2),
+      target: markerWorld,
     };
   }
   if (view === 'observer') {
@@ -771,7 +843,7 @@ function shotFor(view) {
 }
 
 function updateCamera(delta) {
-  const requestedView = state.automaticCamera ? chapterViews[currentChapter()] : state.manualView;
+  const requestedView = state.automaticCamera ? autoStage() : state.manualView;
   if (requestedView !== state.effectiveView) switchWorld(requestedView);
   const shot = shotFor(requestedView);
 
@@ -834,18 +906,18 @@ function syncLocationUI() {
 
 function syncLayers() {
   elements.labels.classList.toggle('is-hidden', !state.layers.labels);
-  lightRays.visible = state.layers.rays && systemRoot.visible && !state.trueSizes;
-  shadowCones.visible = state.layers.shadows && systemRoot.visible && !state.trueSizes;
-  shadowSkin.visible = state.layers.shadows && !state.trueSizes;
-  sightLine.visible = state.layers.rays && systemRoot.visible && !state.trueSizes;
+  lightRays.visible = state.layers.rays && systemRoot.visible;
+  shadowCones.visible = state.layers.shadows && systemRoot.visible;
+  shadowSkin.visible = state.layers.shadows;
+  sightLine.visible = state.layers.rays && systemRoot.visible;
 }
 
 function setScaleMode(trueSizes) {
   state.trueSizes = trueSizes;
   elements.scale.setAttribute('aria-pressed', String(trueSizes));
-  elements.scale.textContent = trueSizes ? 'Velikosti: skutečné' : 'Velikosti: názorné';
+  elements.scale.textContent = trueSizes ? 'Měřítko: skutečné' : 'Měřítko: názorné';
   elements.sceneNote.textContent = trueSizes
-    ? 'Skutečný poměr velikostí · vzdálenosti zůstávají zkrácené · kroužky ukazují polohu'
+    ? 'Skutečné velikosti i vzdálenosti · kroužky označují Zemi a Měsíc'
     : 'Názorný model · tělesa zvětšena, vzdálenosti zkráceny';
   earthLocator.visible = trueSizes;
   moonHalo.visible = trueSizes;
@@ -913,7 +985,7 @@ function updateLabels() {
 
 document.querySelectorAll('[data-view]').forEach((button) => {
   button.addEventListener('click', () => {
-    if (button.dataset.view === 'observer' && state.trueSizes) setScaleMode(false);
+    if (state.trueSizes && (button.dataset.view === 'observer' || button.dataset.view === 'shadow')) setScaleMode(false);
     setView(button.dataset.view, button.dataset.view === 'auto');
   });
 });
@@ -1010,7 +1082,7 @@ canvas.addEventListener('pointermove', (event) => {
     pointer.x = event.clientX;
     pointer.y = event.clientY;
     const gap = pointerGap();
-    state.orbit.distance = clamp(state.orbit.distance + (pinchDistance - gap) * .12, 8, 110);
+    state.orbit.distance = clamp(state.orbit.distance * (1 + (pinchDistance - gap) * .004), state.trueSizes ? .5 : 8, state.trueSizes ? 2600 : 110);
     pinchDistance = gap;
     return;
   }
@@ -1033,7 +1105,7 @@ canvas.addEventListener('wheel', (event) => {
   if (state.effectiveView === 'observer') return;
   event.preventDefault();
   if (!state.orbit.active) beginOrbit();
-  state.orbit.distance = clamp(state.orbit.distance + event.deltaY * .03, 8, 110);
+  state.orbit.distance = clamp(state.orbit.distance * (1 + event.deltaY * .0012), state.trueSizes ? .5 : 8, state.trueSizes ? 2600 : 110);
 }, { passive: false });
 
 addEventListener('keydown', (event) => {
