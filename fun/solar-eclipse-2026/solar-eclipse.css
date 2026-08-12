@@ -682,7 +682,31 @@ input[type='range'] {
 }
 
 .place-label {
+  grid-template-columns: auto 1fr;
+  gap: 0 0.45rem;
   border-left-color: var(--flare);
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.place-label .phase-glyph {
+  position: relative;
+  grid-row: 1 / span 2;
+  align-self: center;
+  width: 20px;
+  height: 20px;
+  overflow: hidden;
+  background: var(--gold);
+  border-radius: 50%;
+}
+
+.place-label .phase-glyph i {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin: 0;
+  background: #0d1120;
+  border-radius: 50%;
 }
 
 .sheet {

@@ -375,6 +375,13 @@ const lightRays = new THREE.LineSegments(
 );
 systemRoot.add(lightRays);
 
+const sightFrom = new THREE.Vector3();
+const sightLine = new THREE.Line(
+  new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
+  new THREE.LineDashedMaterial({ color: 0xffb648, transparent: true, opacity: .6, dashSize: .4, gapSize: .25 }),
+);
+systemRoot.add(sightLine);
+
 const observerRoot = new THREE.Group();
 observerRoot.visible = false;
 scene.add(observerRoot);
@@ -512,6 +519,10 @@ function updateLightRays(shadowPoint, umbraAtEarth, penumbraAtEarth) {
   lightRaysGeometry.attributes.position.needsUpdate = true;
 }
 
+let glyphMoon = null;
+const GLYPH_TILT_COS = Math.cos(-.38);
+const GLYPH_TILT_SIN = Math.sin(-.38);
+
 function updateLocationMarker() {
   if (state.location.kind === 'total') {
     const maxProgress = (state.location.maximum - state.location.start)
@@ -523,7 +534,11 @@ function updateLocationMarker() {
     orientOnSphere(locationMarker, surfacePoint(y, z));
   }
   const coverage = (Math.round(state.location.maxCoverage * 1000) / 10).toLocaleString('cs-CZ');
-  document.querySelector('[data-world-label="place"]').innerHTML = `${state.location.name} <i>Zakryto ${coverage} %</i>`;
+  document.querySelector('[data-world-label="place"]').innerHTML = `<b class="phase-glyph"><i data-glyph-moon></i></b>${state.location.name} <i>Zakryto ${coverage}\u00a0%</i>`;
+  glyphMoon = document.querySelector('[data-glyph-moon]');
+  const glyphSize = Math.round(20 * state.location.moonRadius);
+  glyphMoon.style.width = `${glyphSize}px`;
+  glyphMoon.style.height = `${glyphSize}px`;
 }
 
 function globalPathProgress(eclipseState) {
@@ -566,6 +581,12 @@ function updateSystem(eclipseState, delta) {
   shadowSkin.material.uniforms.moonCenter.value.copy(moonPosition);
   shadowSkin.material.uniforms.moonRadius.value = moonRadiusNow;
   updateLightRays(shadowWorld, umbraAtEarth, penumbraAtEarth);
+  locationMarker.getWorldPosition(sightFrom);
+  const sightPositions = sightLine.geometry.attributes.position;
+  sightPositions.setXYZ(0, sightFrom.x, sightFrom.y, sightFrom.z);
+  sightPositions.setXYZ(1, sunVisual.position.x, sunVisual.position.y, sunVisual.position.z);
+  sightPositions.needsUpdate = true;
+  sightLine.computeLineDistances();
 
   if (!prefersReducedMotion) {
     markerRing.scale.setScalar(1 + Math.sin(state.elapsed * 3) * .14);
@@ -789,6 +810,11 @@ function syncTimeline(eclipseState) {
   elements.maximumTick.style.left = `${Math.min(eclipseState.maxProgress, 1) * 100}%`;
   elements.playIcon.textContent = state.loopHold > 0 ? '↺' : state.playing ? 'Ⅱ' : state.progress >= .999 ? '↺' : '▶︎';
   elements.play.setAttribute('aria-label', state.playing ? 'Pozastavit časosběr' : state.progress >= .999 ? 'Přehrát časosběr znovu' : 'Spustit časosběr');
+  if (glyphMoon) {
+    const gx = (-eclipseState.offsetX * GLYPH_TILT_COS - eclipseState.offsetY * GLYPH_TILT_SIN) * 10;
+    const gy = -(-eclipseState.offsetX * GLYPH_TILT_SIN + eclipseState.offsetY * GLYPH_TILT_COS) * 10;
+    glyphMoon.style.transform = `translate(-50%, -50%) translate(${gx.toFixed(1)}px, ${gy.toFixed(1)}px)`;
+  }
 }
 
 function syncLocationUI() {
@@ -811,6 +837,7 @@ function syncLayers() {
   lightRays.visible = state.layers.rays && systemRoot.visible && !state.trueSizes;
   shadowCones.visible = state.layers.shadows && systemRoot.visible && !state.trueSizes;
   shadowSkin.visible = state.layers.shadows && !state.trueSizes;
+  sightLine.visible = state.layers.rays && systemRoot.visible && !state.trueSizes;
 }
 
 function setScaleMode(trueSizes) {
@@ -857,6 +884,8 @@ function projectLabel(element, worldPosition, visible = true, offsetX = 0, offse
 const labelElements = Object.fromEntries(
   [...document.querySelectorAll('[data-world-label]')].map((node) => [node.dataset.worldLabel, node]),
 );
+
+labelElements.place.addEventListener('click', () => setView('observer'));
 
 function updateLabels() {
   if (!state.layers.labels) return;
