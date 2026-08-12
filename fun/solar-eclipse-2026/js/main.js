@@ -309,6 +309,49 @@ const shadowSkin = new THREE.Mesh(
 );
 earthVisual.add(shadowSkin);
 
+function shadowOutline(opacity) {
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(64 * 3), 3));
+  return new THREE.LineLoop(
+    geometry,
+    new THREE.LineBasicMaterial({ color: 0xeef0f6, transparent: true, opacity }),
+  );
+}
+
+const umbraOutline = shadowOutline(.55);
+const penumbraOutline = shadowOutline(.25);
+earthVisual.add(umbraOutline, penumbraOutline);
+
+const outlineCenter = new THREE.Vector3();
+const outlineU = new THREE.Vector3();
+const outlineV = new THREE.Vector3();
+
+function setSphericalCircle(line, pathPoint, worldRadius) {
+  const localRadius = worldRadius / earthVisual.scale.x;
+  const angular = Math.asin(clamp(localRadius / EARTH_RADIUS, 0, .999));
+  outlineCenter.copy(pathPoint).normalize();
+  outlineU.set(0, 1, 0).cross(outlineCenter);
+  if (outlineU.lengthSq() < 1e-6) outlineU.set(1, 0, 0);
+  outlineU.normalize();
+  outlineV.crossVectors(outlineCenter, outlineU);
+  const positions = line.geometry.attributes.position;
+  const lift = EARTH_RADIUS * 1.006;
+  const along = Math.cos(angular);
+  const across = Math.sin(angular);
+  for (let i = 0; i < positions.count; i += 1) {
+    const phi = i / positions.count * Math.PI * 2;
+    const ring = Math.cos(phi);
+    const ring2 = Math.sin(phi);
+    positions.setXYZ(
+      i,
+      (outlineCenter.x * along + (outlineU.x * ring + outlineV.x * ring2) * across) * lift,
+      (outlineCenter.y * along + (outlineU.y * ring + outlineV.y * ring2) * across) * lift,
+      (outlineCenter.z * along + (outlineU.z * ring + outlineV.z * ring2) * across) * lift,
+    );
+  }
+  positions.needsUpdate = true;
+}
+
 const locationMarker = new THREE.Group();
 const markerDot = new THREE.Mesh(
   new THREE.SphereGeometry(.095, 16, 10),
@@ -621,6 +664,8 @@ function updateSystem(eclipseState, delta) {
   const penumbraAtEarth = moonRadiusNow + shadowLength * (SUN_RADIUS + moonRadiusNow) / sunDistance;
   setConeRadii(umbraCone, moonRadiusNow * .985, umbraAtEarth);
   alignBetween(umbraCone, moonPosition, shadowWorld);
+  setSphericalCircle(umbraOutline, pathPoint, umbraAtEarth);
+  setSphericalCircle(penumbraOutline, pathPoint, penumbraAtEarth);
   penumbraShells.forEach((shell, index) => {
     const t = (index + 1) / penumbraShells.length;
     setConeRadii(shell, moonRadiusNow * .985, umbraAtEarth + (penumbraAtEarth - umbraAtEarth) * t);
@@ -909,6 +954,8 @@ function syncLayers() {
   lightRays.visible = state.layers.rays && systemRoot.visible;
   shadowCones.visible = state.layers.shadows && systemRoot.visible;
   shadowSkin.visible = state.layers.shadows;
+  umbraOutline.visible = state.layers.shadows;
+  penumbraOutline.visible = state.layers.shadows;
   sightLine.visible = state.layers.rays && systemRoot.visible;
 }
 
