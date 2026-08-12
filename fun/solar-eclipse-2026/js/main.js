@@ -309,14 +309,18 @@ const moonHalo = new THREE.Mesh(
 moonHalo.visible = false;
 moonVisual.add(moonHalo);
 
-function createShadowCone(opacity) {
+function createShadowCone(opacity, edge, lengthFade) {
   return new THREE.Mesh(
     new THREE.CylinderGeometry(1, 1, 1, 48, 1, true),
     new THREE.ShaderMaterial({
       transparent: true,
       depthWrite: false,
       side: THREE.DoubleSide,
-      uniforms: { maxOpacity: { value: opacity } },
+      uniforms: {
+        maxOpacity: { value: opacity },
+        edge: { value: edge },
+        lengthFade: { value: lengthFade },
+      },
       vertexShader: `
         varying vec3 vNormal;
         varying vec3 vView;
@@ -330,14 +334,16 @@ function createShadowCone(opacity) {
         }`,
       fragmentShader: `
         uniform float maxOpacity;
+        uniform float edge;
+        uniform float lengthFade;
         varying vec3 vNormal;
         varying vec3 vView;
         varying float vAlong;
         void main() {
           float facing = abs(dot(normalize(vNormal), normalize(vView)));
-          float soft = smoothstep(0.0, 0.9, facing);
-          float lengthFade = 1.0 - vAlong * 0.85;
-          gl_FragColor = vec4(0.0, 0.0, 0.0, maxOpacity * soft * lengthFade);
+          float soft = smoothstep(0.0, edge, facing);
+          float fade = 1.0 - vAlong * lengthFade;
+          gl_FragColor = vec4(0.0, 0.0, 0.0, maxOpacity * soft * fade);
         }`,
     }),
   );
@@ -354,9 +360,10 @@ function setConeRadii(mesh, radiusAtMoon, radiusAtEarth) {
 }
 
 const shadowCones = new THREE.Group();
-const penumbraCone = createShadowCone(.1);
-const umbraCone = createShadowCone(.42);
-shadowCones.add(penumbraCone, umbraCone);
+const umbraCone = createShadowCone(.5, .35, .6);
+const penumbraShells = Array.from({ length: 5 }, () => createShadowCone(.05, .9, .85));
+const penumbraCone = penumbraShells[2];
+shadowCones.add(umbraCone, ...penumbraShells);
 systemRoot.add(shadowCones);
 
 const rayPositions = new Float32Array(8 * 3);
@@ -462,10 +469,15 @@ function orientOnSphere(group, point) {
 
 const rayAxis = new THREE.Vector3();
 const rayUp = new THREE.Vector3();
+const rayFrom = new THREE.Vector3();
+const rayDir = new THREE.Vector3();
+const rayTarget = new THREE.Vector3();
 const rayPoint = new THREE.Vector3();
+const RAY_EXTEND = 5;
 
 function updateLightRays(shadowPoint, umbraAtEarth, penumbraAtEarth) {
   const sunPosition = sunVisual.position;
+  const earthRadius = EARTH_RADIUS * earthVisual.scale.x;
   rayAxis.subVectors(shadowPoint, sunPosition).normalize();
   rayUp.set(0, 1, 0).addScaledVector(rayAxis, -rayAxis.y).normalize();
   let cursor = 0;
@@ -475,11 +487,27 @@ function updateLightRays(shadowPoint, umbraAtEarth, penumbraAtEarth) {
     rayPositions[cursor + 2] = point.z;
     cursor += 3;
   };
+  const emitRay = () => {
+    put(rayFrom);
+    rayDir.subVectors(rayTarget, rayFrom);
+    let reach = rayDir.length() * RAY_EXTEND;
+    rayDir.normalize();
+    rayPoint.subVectors(rayFrom, earthVisual.position);
+    const b = rayPoint.dot(rayDir);
+    const c = rayPoint.lengthSq() - earthRadius * earthRadius;
+    const disc = b * b - c;
+    if (disc > 0) {
+      const hit = -b - Math.sqrt(disc);
+      if (hit > 0 && hit < reach) reach = hit;
+    }
+    put(rayPoint.copy(rayFrom).addScaledVector(rayDir, reach));
+  };
   [1, -1].forEach((side) => {
-    put(rayPoint.copy(sunPosition).addScaledVector(rayUp, side * SUN_RADIUS));
-    put(rayPoint.copy(shadowPoint).addScaledVector(rayUp, side * umbraAtEarth));
-    put(rayPoint.copy(sunPosition).addScaledVector(rayUp, side * SUN_RADIUS));
-    put(rayPoint.copy(shadowPoint).addScaledVector(rayUp, -side * penumbraAtEarth));
+    rayFrom.copy(sunPosition).addScaledVector(rayUp, side * SUN_RADIUS);
+    rayTarget.copy(shadowPoint).addScaledVector(rayUp, side * umbraAtEarth);
+    emitRay();
+    rayTarget.copy(shadowPoint).addScaledVector(rayUp, -side * penumbraAtEarth);
+    emitRay();
   });
   lightRaysGeometry.attributes.position.needsUpdate = true;
 }
@@ -529,9 +557,12 @@ function updateSystem(eclipseState, delta) {
     moonRadiusNow - shadowLength * (SUN_RADIUS - moonRadiusNow) / sunDistance);
   const penumbraAtEarth = moonRadiusNow + shadowLength * (SUN_RADIUS + moonRadiusNow) / sunDistance;
   setConeRadii(umbraCone, moonRadiusNow * .985, umbraAtEarth);
-  setConeRadii(penumbraCone, moonRadiusNow * .985, penumbraAtEarth);
-  alignBetween(penumbraCone, moonPosition, shadowWorld);
   alignBetween(umbraCone, moonPosition, shadowWorld);
+  penumbraShells.forEach((shell, index) => {
+    const t = (index + 1) / penumbraShells.length;
+    setConeRadii(shell, moonRadiusNow * .985, umbraAtEarth + (penumbraAtEarth - umbraAtEarth) * t);
+    alignBetween(shell, moonPosition, shadowWorld);
+  });
   shadowSkin.material.uniforms.moonCenter.value.copy(moonPosition);
   shadowSkin.material.uniforms.moonRadius.value = moonRadiusNow;
   updateLightRays(shadowWorld, umbraAtEarth, penumbraAtEarth);
