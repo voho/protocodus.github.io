@@ -764,6 +764,13 @@ input[type='range'] {
   background: var(--flare);
 }
 
+.close-button:focus-visible {
+  outline: none;
+  color: var(--flare);
+  border-color: var(--flare);
+  box-shadow: 0 0 0 1px rgba(255, 138, 112, 0.35);
+}
+
 .location-sheet {
   width: min(530px, calc(100vw - 2rem));
 }
@@ -834,8 +841,7 @@ input[type='range'] {
 }
 
 .guide-grid section {
-  min-height: 180px;
-  padding: 1.25rem 1.35rem;
+  padding: 1.25rem 1.35rem 1.4rem;
   background: #181e31;
 }
 
@@ -886,18 +892,17 @@ input[type='range'] {
 }
 
 .layers {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1px;
-  padding: 1.2rem 1.35rem 1.35rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 1.1rem 1.35rem 1.3rem;
   border: 0;
   background: #0d1120;
 }
 
 .layers legend {
-  float: left;
   width: 100%;
-  margin-bottom: 0.7rem;
+  margin-bottom: 0.55rem;
   color: var(--faint);
   font-family: var(--font-mono);
   font-size: 0.62rem;
@@ -907,7 +912,7 @@ input[type='range'] {
 
 .layers label {
   position: relative;
-  min-height: 42px;
+  min-height: 40px;
 }
 
 .layers input {
@@ -919,11 +924,11 @@ input[type='range'] {
   display: grid;
   place-items: center;
   height: 100%;
-  padding: 0.45rem;
+  padding: 0.5rem 0.9rem;
   color: var(--muted);
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 0.68rem;
   text-align: center;
 }
@@ -1310,14 +1315,6 @@ body.no-webgl .loading-screen p {
 
   .guide-grid {
     grid-template-columns: 1fr;
-  }
-
-  .guide-grid section {
-    min-height: 0;
-  }
-
-  .layers {
-    grid-template-columns: 1fr 1fr;
   }
 }
 

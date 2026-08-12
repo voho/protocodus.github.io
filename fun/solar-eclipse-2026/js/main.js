@@ -130,30 +130,6 @@ function makeSunTexture() {
   });
 }
 
-function makeMoonTexture() {
-  const random = seededRandom(27);
-  return makeCanvasTexture(512, 256, (context, width, height) => {
-    const gradient = context.createLinearGradient(0, 0, 0, height);
-    gradient.addColorStop(0, '#a9adb2');
-    gradient.addColorStop(0.55, '#747981');
-    gradient.addColorStop(1, '#555b64');
-    context.fillStyle = gradient;
-    context.fillRect(0, 0, width, height);
-    for (let i = 0; i < 110; i += 1) {
-      const radius = 2 + random() * 14;
-      context.beginPath();
-      context.arc(random() * width, random() * height, radius, 0, Math.PI * 2);
-      context.fillStyle = `rgba(30,34,40,${0.08 + random() * 0.16})`;
-      context.fill();
-      context.beginPath();
-      context.arc(random() * width, random() * height, radius * .72, 0, Math.PI * 2);
-      context.strokeStyle = `rgba(238,240,234,${0.06 + random() * 0.12})`;
-      context.lineWidth = Math.max(1, radius * .16);
-      context.stroke();
-    }
-  });
-}
-
 const glowTexture = makeGlowTexture();
 
 function addStars() {
@@ -374,8 +350,14 @@ systemRoot.add(earthLocator);
 const moonVisual = new THREE.Group();
 systemRoot.add(moonVisual);
 const moonMesh = new THREE.Mesh(
-  new THREE.SphereGeometry(MOON_RADIUS, 40, 24),
-  new THREE.MeshStandardMaterial({ map: makeMoonTexture(), color: 0xb9bec5, roughness: 1 }),
+  new THREE.SphereGeometry(MOON_RADIUS, 64, 40),
+  new THREE.MeshPhysicalMaterial({
+    color: 0x8f959e,
+    roughness: .58,
+    metalness: 0,
+    clearcoat: .18,
+    clearcoatRoughness: .7,
+  }),
 );
 moonVisual.add(moonMesh);
 
@@ -475,28 +457,12 @@ const observerStarMaterial = new THREE.PointsMaterial({ color: 0xe7f3ff, size: .
 const observerStars = new THREE.Points(observerStarGeometry, observerStarMaterial);
 observerRoot.add(observerStars);
 
-function createSkyline() {
-  const shape = new THREE.Shape();
-  const points = [
-    [-70, -24], [-70, -6], [-59, -5.5], [-56, -7], [-49, -5.2], [-45, -5.2],
-    [-43, -1], [-42.3, -4.9], [-39, -4.7], [-36, -6.2], [-29, -5.7], [-25, -4.5],
-    [-22, -4.5], [-20, -8], [-18, -4.8], [-14, -4.8], [-12, -1.2], [-11.2, -4.4],
-    [-7, -4.2], [-4, -5.7], [1, -5.4], [4, -3.5], [8, -3.5], [9, -7], [10, -2.8],
-    [10.7, 1.8], [11.4, -2.8], [13, -2.1], [13.8, 3.3], [14.6, -2.1], [16, -3.2],
-    [21, -3.2], [24, -5.3], [30, -4.8], [34, -6.4], [39, -5], [43, -5], [46, -2.3],
-    [47, -5.1], [53, -4.7], [58, -6], [64, -5.4], [70, -6], [70, -24],
-  ];
-  points.forEach(([x, y], index) => index ? shape.lineTo(x, y) : shape.moveTo(x, y));
-  const mesh = new THREE.Mesh(
-    new THREE.ShapeGeometry(shape),
-    new THREE.MeshBasicMaterial({ color: 0x070910 }),
-  );
-  mesh.position.z = -29;
-  return mesh;
-}
-
-const skyline = createSkyline();
-observerRoot.add(skyline);
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(150, 19),
+  new THREE.MeshBasicMaterial({ color: 0x070910 }),
+);
+ground.position.set(0, -14.6, -29);
+observerRoot.add(ground);
 const horizonGlow = new THREE.Mesh(
   new THREE.PlaneGeometry(150, .12),
   new THREE.MeshBasicMaterial({ color: 0xffb35b, transparent: true, opacity: .38 }),
@@ -627,8 +593,8 @@ function updateSystem(eclipseState, delta) {
   const umbraAtEarth = Math.max(.03,
     moonRadiusNow - shadowLength * (SUN_RADIUS - moonRadiusNow) / sunDistance);
   const penumbraAtEarth = moonRadiusNow + shadowLength * (SUN_RADIUS + moonRadiusNow) / sunDistance;
-  setConeRadii(umbraCone, moonRadiusNow, umbraAtEarth);
-  setConeRadii(penumbraCone, moonRadiusNow, penumbraAtEarth);
+  setConeRadii(umbraCone, moonRadiusNow * .985, umbraAtEarth);
+  setConeRadii(penumbraCone, moonRadiusNow * .985, penumbraAtEarth);
   alignBetween(penumbraCone, moonPosition, shadowWorld);
   alignBetween(umbraCone, moonPosition, shadowWorld);
   shadowSkin.material.uniforms.moonCenter.value.copy(moonPosition);
@@ -637,7 +603,6 @@ function updateSystem(eclipseState, delta) {
 
   if (!prefersReducedMotion) {
     sunMesh.rotation.y += delta * .025;
-    moonMesh.rotation.y -= delta * .035;
     markerRing.scale.setScalar(1 + Math.sin(state.elapsed * 3) * .14);
   }
 }
@@ -702,7 +667,7 @@ const chapterContent = [
     label: 'Vaše obloha',
     title: 'Teď se postavte na Zemi.',
     copy: (location) => location.id === 'prague'
-      ? 'V Praze bude ve 20:12 zakryto 86,3 % Slunce. O patnáct minut později Slunce zapadne za obzor stále částečně zakryté.'
+      ? 'V Praze bude ve 20:12 zakryto 86,3 % Slunce. Ve 20:26 pak Slunce zapadne za obzor stále částečně zakryté.'
       : location.kind === 'total'
         ? `${location.over} se den na chvíli promění v soumrak, protože Měsíc zakryje celý jasný kotouč Slunce.`
         : `${location.over} Měsíc zakryje přes 85 % Slunce, které pak zapadne ještě během zatmění.`,
@@ -1153,7 +1118,7 @@ renderer.setAnimationLoop((frameTime) => {
       if (state.automaticCamera) setView('auto', true);
     }
   } else if (state.playing) {
-    state.progress += delta / 45 * state.speedOptions[state.speedIndex];
+    state.progress += delta / 11.25 * state.speedOptions[state.speedIndex];
     if (state.progress >= 1) {
       state.progress = 1;
       state.loopHold = 1.6;
