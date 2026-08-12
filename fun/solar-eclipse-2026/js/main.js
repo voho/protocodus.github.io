@@ -66,7 +66,7 @@ const state = {
   effectiveView: 'system',
   trueSizes: false,
   lastChapter: -1,
-  layers: { labels: true, rays: true, shadows: true, orbit: true },
+  layers: { labels: true, rays: true, shadows: true },
   elapsed: 0,
   loopHold: 0,
   dialogWasPlaying: false,
@@ -140,7 +140,7 @@ function addStars() {
 const stars = addStars();
 scene.add(new THREE.HemisphereLight(0xaecfff, 0x07101e, 1.15));
 const sunlight = new THREE.DirectionalLight(0xfff1c4, 3.8);
-sunlight.position.set(SUN_X, 7, 5);
+sunlight.position.set(SUN_X, 0, 0);
 scene.add(sunlight);
 
 const systemRoot = new THREE.Group();
@@ -198,37 +198,6 @@ const atmosphere = new THREE.Mesh(
 );
 earthVisual.add(atmosphere);
 
-function createGlobeGrid() {
-  const grid = new THREE.Group();
-  const material = new THREE.LineBasicMaterial({ color: 0x8fdcff, transparent: true, opacity: .075 });
-  for (let latitude = -60; latitude <= 60; latitude += 30) {
-    const lat = THREE.MathUtils.degToRad(latitude);
-    const radius = EARTH_RADIUS * Math.cos(lat) * 1.007;
-    const y = EARTH_RADIUS * Math.sin(lat);
-    const points = Array.from({ length: 65 }, (_, index) => {
-      const angle = index / 64 * Math.PI * 2;
-      return new THREE.Vector3(Math.cos(angle) * radius, y, Math.sin(angle) * radius);
-    });
-    grid.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), material));
-  }
-  for (let longitude = 0; longitude < 180; longitude += 30) {
-    const lon = THREE.MathUtils.degToRad(longitude);
-    const points = Array.from({ length: 65 }, (_, index) => {
-      const angle = index / 64 * Math.PI * 2;
-      return new THREE.Vector3(
-        Math.cos(angle) * Math.cos(lon) * EARTH_RADIUS * 1.007,
-        Math.sin(angle) * EARTH_RADIUS * 1.007,
-        Math.cos(angle) * Math.sin(lon) * EARTH_RADIUS * 1.007,
-      );
-    });
-    grid.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), material));
-  }
-  return grid;
-}
-
-const globeGrid = createGlobeGrid();
-earthVisual.add(globeGrid);
-
 function surfacePoint(y, z, radius = EARTH_RADIUS * 1.008) {
   return new THREE.Vector3(-Math.sqrt(Math.max(.01, radius ** 2 - y ** 2 - z ** 2)), y, z);
 }
@@ -240,12 +209,6 @@ const pathCurve = new THREE.CatmullRomCurve3([
   surfacePoint(2.2, .78),
   surfacePoint(1.94, 1.16),
 ]);
-const eclipsePath = new THREE.Line(
-  new THREE.BufferGeometry().setFromPoints(pathCurve.getPoints(90)),
-  new THREE.LineBasicMaterial({ color: 0xffb648, transparent: true, opacity: .9 }),
-);
-earthVisual.add(eclipsePath);
-
 const shadowSkin = new THREE.Mesh(
   new THREE.SphereGeometry(EARTH_RADIUS * 1.002, 96, 64),
   new THREE.ShaderMaterial({
@@ -346,34 +309,6 @@ const moonHalo = new THREE.Mesh(
 moonHalo.visible = false;
 moonVisual.add(moonHalo);
 
-const orbitRig = new THREE.Group();
-orbitRig.position.set(EARTH_X, 0, 0);
-systemRoot.add(orbitRig);
-const ORBIT_HOME = new THREE.Vector3(-1, 0, 0);
-
-const orbitPoints = Array.from({ length: 129 }, (_, index) => {
-  const angle = index / 128 * Math.PI * 2;
-  const tilt = THREE.MathUtils.degToRad(5.1);
-  return new THREE.Vector3(
-    Math.cos(angle) * 7.2,
-    Math.sin(angle) * Math.sin(tilt) * 7.2,
-    Math.sin(angle) * Math.cos(tilt) * 7.2,
-  );
-});
-const moonOrbit = new THREE.Line(
-  new THREE.BufferGeometry().setFromPoints(orbitPoints),
-  new THREE.LineDashedMaterial({ color: 0xff8a70, transparent: true, opacity: .55, dashSize: .28, gapSize: .2 }),
-);
-moonOrbit.computeLineDistances();
-orbitRig.add(moonOrbit);
-
-const orbitPlane = new THREE.Mesh(
-  new THREE.RingGeometry(7.05, 7.12, 96),
-  new THREE.MeshBasicMaterial({ color: 0xff8a70, transparent: true, opacity: .055, side: THREE.DoubleSide, depthWrite: false }),
-);
-orbitPlane.rotation.x = Math.PI / 2 - THREE.MathUtils.degToRad(5.1);
-orbitRig.add(orbitPlane);
-
 function createShadowCone(opacity) {
   return new THREE.Mesh(
     new THREE.CylinderGeometry(1, 1, 1, 48, 1, true),
@@ -385,19 +320,24 @@ function createShadowCone(opacity) {
       vertexShader: `
         varying vec3 vNormal;
         varying vec3 vView;
+        varying float vAlong;
         void main() {
           vNormal = normalize(normalMatrix * normal);
           vec4 viewPosition = modelViewMatrix * vec4(position, 1.0);
           vView = -viewPosition.xyz;
+          vAlong = uv.y;
           gl_Position = projectionMatrix * viewPosition;
         }`,
       fragmentShader: `
         uniform float maxOpacity;
         varying vec3 vNormal;
         varying vec3 vView;
+        varying float vAlong;
         void main() {
           float facing = abs(dot(normalize(vNormal), normalize(vView)));
-          gl_FragColor = vec4(0.0, 0.0, 0.0, maxOpacity * smoothstep(0.0, 0.6, facing));
+          float soft = smoothstep(0.0, 0.9, facing);
+          float lengthFade = 1.0 - vAlong * 0.85;
+          gl_FragColor = vec4(0.0, 0.0, 0.0, maxOpacity * soft * lengthFade);
         }`,
     }),
   );
@@ -414,8 +354,8 @@ function setConeRadii(mesh, radiusAtMoon, radiusAtEarth) {
 }
 
 const shadowCones = new THREE.Group();
-const penumbraCone = createShadowCone(.16);
-const umbraCone = createShadowCone(.55);
+const penumbraCone = createShadowCone(.1);
+const umbraCone = createShadowCone(.42);
 shadowCones.add(penumbraCone, umbraCone);
 systemRoot.add(shadowCones);
 
@@ -581,10 +521,6 @@ function updateSystem(eclipseState, delta) {
   );
   moonVisual.position.copy(moonPosition);
   moonVisual.lookAt(camera.position);
-  orbitRig.quaternion.setFromUnitVectors(
-    ORBIT_HOME,
-    tempVector2.copy(moonPosition).sub(earthVisual.position).normalize(),
-  );
 
   const sunDistance = moonPosition.distanceTo(sunVisual.position);
   const shadowLength = moonPosition.distanceTo(shadowWorld);
@@ -844,8 +780,6 @@ function syncLayers() {
   lightRays.visible = state.layers.rays && systemRoot.visible && !state.trueSizes;
   shadowCones.visible = state.layers.shadows && systemRoot.visible && !state.trueSizes;
   shadowSkin.visible = state.layers.shadows && !state.trueSizes;
-  moonOrbit.visible = state.layers.orbit && systemRoot.visible;
-  orbitPlane.visible = state.layers.orbit && systemRoot.visible;
 }
 
 function setScaleMode(trueSizes) {
