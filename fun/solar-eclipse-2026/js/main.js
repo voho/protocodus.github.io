@@ -246,6 +246,22 @@ const pathCurve = new THREE.CatmullRomCurve3([
   surfacePoint(2.2, .78),
   surfacePoint(1.94, 1.16),
 ]);
+
+// Osa stínu protíná Zemi jen 16:59:15–18:32:30 UT; mimo to Měsíc dál letí,
+// jen jeho plný stín míjí Zemi. Křivku proto za okraji lineárně protahujeme.
+const PATH_START_UTC = 16 * 60 + 59.25;
+const PATH_MINUTES = 93.25;
+const pathLength = pathCurve.getLength();
+const pathHead = pathCurve.getPoint(0);
+const pathTail = pathCurve.getPoint(1);
+const pathHeadTangent = pathCurve.getTangent(0).multiplyScalar(pathLength);
+const pathTailTangent = pathCurve.getTangent(1).multiplyScalar(pathLength);
+
+function pathPointAt(t, target) {
+  if (t < 0) return target.copy(pathHead).addScaledVector(pathHeadTangent, t);
+  if (t > 1) return target.copy(pathTail).addScaledVector(pathTailTangent, t - 1);
+  return pathCurve.getPoint(t, target);
+}
 const shadowSkin = new THREE.Mesh(
   new THREE.SphereGeometry(EARTH_RADIUS * 1.002, 96, 64),
   new THREE.ShaderMaterial({
@@ -448,7 +464,7 @@ const observerRoot = new THREE.Group();
 observerRoot.visible = false;
 scene.add(observerRoot);
 
-const skyTexture = makeCanvasTexture(64, 512, (context, width, height) => {
+const sunsetSkyTexture = makeCanvasTexture(64, 512, (context, width, height) => {
   const gradient = context.createLinearGradient(0, 0, 0, height);
   gradient.addColorStop(0, '#071426');
   gradient.addColorStop(.58, '#334768');
@@ -457,7 +473,22 @@ const skyTexture = makeCanvasTexture(64, 512, (context, width, height) => {
   context.fillStyle = gradient;
   context.fillRect(0, 0, width, height);
 });
-const skyMaterial = new THREE.MeshBasicMaterial({ map: skyTexture, color: 0xffffff, depthWrite: false });
+const daySkyTexture = makeCanvasTexture(64, 512, (context, width, height) => {
+  const gradient = context.createLinearGradient(0, 0, 0, height);
+  gradient.addColorStop(0, '#1d4a94');
+  gradient.addColorStop(.55, '#4a7fc0');
+  gradient.addColorStop(.85, '#9dc3e2');
+  gradient.addColorStop(1, '#d5e4ee');
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, width, height);
+});
+const daySkyMaterial = new THREE.MeshBasicMaterial({ map: daySkyTexture, color: 0xffffff, depthWrite: false });
+const daySky = new THREE.Mesh(new THREE.PlaneGeometry(152, 86), daySkyMaterial);
+daySky.position.set(0, 5, -52.5);
+observerRoot.add(daySky);
+const skyMaterial = new THREE.MeshBasicMaterial({
+  map: sunsetSkyTexture, color: 0xffffff, transparent: true, depthWrite: false,
+});
 const sky = new THREE.Mesh(new THREE.PlaneGeometry(150, 85), skyMaterial);
 sky.position.set(0, 5, -52);
 observerRoot.add(sky);
@@ -542,7 +573,7 @@ const rayFrom = new THREE.Vector3();
 const rayDir = new THREE.Vector3();
 const rayTarget = new THREE.Vector3();
 const rayPoint = new THREE.Vector3();
-const RAY_EXTEND = 5;
+const RAY_EXTEND = 1.12;
 
 function updateLightRays(shadowPoint, umbraAtEarth, penumbraAtEarth) {
   const sunPosition = sunVisual.position;
@@ -595,11 +626,11 @@ function calibratedMarkerPoint(location) {
   const maxProgress = Math.min(1,
     (location.maximum - location.start) / (location.end - location.start));
   const atMax = eclipseStateAt(location, maxProgress);
-  const pathPoint = pathCurve.getPoint(globalPathProgress(atMax));
-  const shadowWorld = pathPoint.clone().add(earthVisual.position);
-  const rayAmount = (MOON_X - SUN_X) / Math.max(1, shadowWorld.x - SUN_X);
-  const moonPosition = new THREE.Vector3(
-    MOON_X, shadowWorld.y * rayAmount, shadowWorld.z * rayAmount);
+  const pathPoint = pathPointAt(globalPathProgress(atMax), new THREE.Vector3());
+  const maximumShadow = pathPoint.clone().add(earthVisual.position);
+  const rayAmount = (MOON_X - SUN_X) / Math.max(1, maximumShadow.x - SUN_X);
+  const maximumMoon = new THREE.Vector3(
+    MOON_X, maximumShadow.y * rayAmount, maximumShadow.z * rayAmount);
   const axisPoint = pathPoint.clone().normalize();
   const hint = surfacePoint(...location.marker).normalize();
   const hintDir = hint.clone().addScaledVector(axisPoint, -hint.dot(axisPoint));
@@ -613,7 +644,7 @@ function calibratedMarkerPoint(location) {
   for (let i = 0; i < 40; i += 1) {
     const middle = (low + high) / 2;
     const occlusion = sceneOcclusion(
-      pointAt(middle).add(earthVisual.position), moonPosition);
+      pointAt(middle).add(earthVisual.position), maximumMoon);
     if (occlusion > atMax.coverage) low = middle;
     else high = middle;
   }
@@ -621,15 +652,14 @@ function calibratedMarkerPoint(location) {
 }
 
 let glyphMoon = null;
-const GLYPH_TILT_COS = Math.cos(-.38);
-const GLYPH_TILT_SIN = Math.sin(-.38);
 
 function updateLocationMarker() {
   if (state.location.kind === 'total') {
     const maxProgress = (state.location.maximum - state.location.start)
       / (state.location.end - state.location.start);
     const maximumState = eclipseStateAt(state.location, maxProgress);
-    orientOnSphere(locationMarker, pathCurve.getPoint(globalPathProgress(maximumState)));
+    orientOnSphere(locationMarker,
+      pathPointAt(globalPathProgress(maximumState), new THREE.Vector3()));
   } else if (state.location.kind === 'none') {
     const [y, z] = state.location.marker;
     const point = surfacePoint(y, z);
@@ -654,40 +684,43 @@ function updateLocationMarker() {
 
 function globalPathProgress(eclipseState) {
   const utcMinutes = eclipseState.minutes - state.location.utcOffset * 60;
-  return clamp((utcMinutes - (17 * 60 + 2)) / 90);
+  return (utcMinutes - PATH_START_UTC) / PATH_MINUTES;
 }
 
-function updateSystem(eclipseState, delta) {
-  const pathPoint = pathCurve.getPoint(globalPathProgress(eclipseState));
-  const shadowWorld = pathPoint.clone().multiplyScalar(earthVisual.scale.x).add(earthVisual.position);
+const systemPathPoint = new THREE.Vector3();
+const shadowWorld = new THREE.Vector3();
+const moonPosition = new THREE.Vector3();
+
+function updateSystem(eclipseState) {
+  const pathProgress = globalPathProgress(eclipseState);
+  const axisOnEarth = pathProgress >= 0 && pathProgress <= 1;
+  pathPointAt(pathProgress, systemPathPoint);
+  shadowWorld.copy(systemPathPoint).multiplyScalar(earthVisual.scale.x).add(earthVisual.position);
   const rayAmount = (MOON_X - SUN_X) / Math.max(1, shadowWorld.x - SUN_X);
-  const moonPosition = new THREE.Vector3(
-    MOON_X,
-    shadowWorld.y * rayAmount,
-    shadowWorld.z * rayAmount,
-  );
+  moonPosition.set(MOON_X, shadowWorld.y * rayAmount, shadowWorld.z * rayAmount);
   moonVisual.position.copy(moonPosition);
 
   const sunDistance = moonPosition.distanceTo(sunVisual.position);
   const shadowLength = moonPosition.distanceTo(shadowWorld);
-  const moonRadiusNow = MOON_RADIUS;
-  const umbraAtEarth = Math.max(moonRadiusNow * .01,
-    moonRadiusNow - shadowLength * (SUN_RADIUS - moonRadiusNow) / sunDistance);
-  const penumbraAtEarth = moonRadiusNow + shadowLength * (SUN_RADIUS + moonRadiusNow) / sunDistance;
-  setConeRadii(umbraCone, moonRadiusNow * .985, umbraAtEarth);
+  const umbraAtEarth = Math.max(MOON_RADIUS * .01,
+    MOON_RADIUS - shadowLength * (SUN_RADIUS - MOON_RADIUS) / sunDistance);
+  const penumbraAtEarth = MOON_RADIUS + shadowLength * (SUN_RADIUS + MOON_RADIUS) / sunDistance;
+  setConeRadii(umbraCone, MOON_RADIUS * .985, umbraAtEarth);
   alignBetween(umbraCone, moonPosition, shadowWorld);
   rayAxis.subVectors(shadowWorld, sunVisual.position).normalize();
-  setConeOutline(umbraOutline, moonPosition, rayAxis, moonRadiusNow * .985,
-    -(SUN_RADIUS - moonRadiusNow) / sunDistance);
-  setConeOutline(penumbraOutline, moonPosition, rayAxis, moonRadiusNow,
-    (SUN_RADIUS + moonRadiusNow) / sunDistance);
+  setConeOutline(umbraOutline, moonPosition, rayAxis, MOON_RADIUS * .985,
+    -(SUN_RADIUS - MOON_RADIUS) / sunDistance);
+  setConeOutline(penumbraOutline, moonPosition, rayAxis, MOON_RADIUS,
+    (SUN_RADIUS + MOON_RADIUS) / sunDistance);
   penumbraShells.forEach((shell, index) => {
     const t = (index + 1) / penumbraShells.length;
-    setConeRadii(shell, moonRadiusNow * .985, umbraAtEarth + (penumbraAtEarth - umbraAtEarth) * t);
+    setConeRadii(shell, MOON_RADIUS * .985, umbraAtEarth + (penumbraAtEarth - umbraAtEarth) * t);
     alignBetween(shell, moonPosition, shadowWorld);
   });
   shadowSkin.material.uniforms.moonCenter.value.copy(moonPosition);
-  shadowSkin.material.uniforms.moonRadius.value = moonRadiusNow;
+  // Obrysy kreslíme jen dokud stín skutečně leží na Zemi.
+  umbraOutline.visible = state.layers.shadows && axisOnEarth;
+  penumbraOutline.visible = state.layers.shadows && axisOnEarth;
   updateLightRays(shadowWorld, umbraAtEarth, penumbraAtEarth);
   locationMarker.getWorldPosition(sightFrom);
   const sightPositions = sightLine.geometry.attributes.position;
@@ -706,13 +739,13 @@ function updateSystem(eclipseState, delta) {
 
 function updateObserver(eclipseState) {
   const p = eclipseState.progress;
+  const night = state.location.kind === 'none';
   const sunX = -8 + p * 14;
-  const sunY = -5.25 + clamp(eclipseState.altitude, state.location.kind === 'none' ? -12 : -2, 32) * .63;
+  const sunY = -5.25 + clamp(eclipseState.altitude, night ? -12 : -2, 65) * .21;
   skySun.position.set(sunX, sunY, -40);
 
-  const angle = -.38;
-  const cos = Math.cos(angle);
-  const sin = Math.sin(angle);
+  const cos = Math.cos(state.location.trackTilt);
+  const sin = Math.sin(state.location.trackTilt);
   const projectionScale = (18 - skyMoon.position.z) / (18 - skySun.position.z);
   const dx = -eclipseState.offsetX * 3 * projectionScale;
   const dy = eclipseState.offsetY * 3 * projectionScale;
@@ -725,14 +758,31 @@ function updateObserver(eclipseState) {
   corona.position.copy(skySun.position);
   corona.position.z = -40.2;
 
-  const night = state.location.kind === 'none';
-  const darkness = night ? 1 : Math.pow(eclipseState.coverage, 2.1);
-  if (night) skyMaterial.color.setRGB(.14, .17, .24);
-  else skyMaterial.color.setRGB(1 - darkness * .48, 1 - darkness * .4, 1 - darkness * .25);
-  observerStarMaterial.opacity = clamp((darkness - .48) * 1.25) * (state.location.kind === 'partial' ? .45 : 1);
-  skySunGlow.material.opacity = .82 - darkness * .42;
+  // Světla neubývá lineárně se zakrytím: i poslední procento slunečního kotouče
+  // krajinu osvětlí, takže obloha znatelně ztmavne až těsně před úplným zatměním.
+  const sunlight = night ? 0 : 1 - eclipseState.coverage;
+  const darkness = 1 - Math.pow(sunlight, .28);
+  // Nízké Slunce znamená barvy západu, vysoké modrou denní oblohu.
+  const dusk = night ? 1 : clamp((16 - eclipseState.altitude) / 14);
+  skyMaterial.opacity = dusk;
+  if (night) {
+    skyMaterial.color.setRGB(.14, .17, .24);
+    daySkyMaterial.color.setRGB(.14, .17, .24);
+  } else {
+    const grey = 1 - darkness * .88;
+    const blue = 1 - darkness * .85;
+    skyMaterial.color.setRGB(grey, grey, blue);
+    daySkyMaterial.color.setRGB(grey, grey, blue);
+  }
+  observerStarMaterial.opacity = night
+    ? .65
+    : clamp((eclipseState.coverage - .98) * 30) * (state.location.kind === 'partial' ? .45 : 1);
+  skySunGlow.material.opacity = .82 * Math.pow(sunlight, .18);
   corona.material.opacity = state.location.kind === 'total' ? clamp((eclipseState.coverage - .9995) * 2000) * .88 : 0;
-  horizonGlow.material.opacity = .36 - darkness * .24;
+  // Při hlubokém zatmění se obzor rozsvítí dokola, i když je Slunce vysoko —
+  // pozorovatel stojí uvnitř stínu a kolem dokola vidí osvětlenou krajinu.
+  const twilight = Math.pow(darkness, 6);
+  horizonGlow.material.opacity = clamp(.36 * dusk + .55 * twilight);
 }
 
 
@@ -855,8 +905,10 @@ function syncTimeline(eclipseState) {
   elements.playIcon.textContent = state.playing ? 'Ⅱ' : '▶︎';
   elements.play.setAttribute('aria-label', state.playing ? 'Pozastavit časosběr' : 'Spustit časosběr');
   if (glyphMoon) {
-    const gx = (-eclipseState.offsetX * GLYPH_TILT_COS - eclipseState.offsetY * GLYPH_TILT_SIN) * 10;
-    const gy = -(-eclipseState.offsetX * GLYPH_TILT_SIN + eclipseState.offsetY * GLYPH_TILT_COS) * 10;
+    const cos = Math.cos(state.location.trackTilt);
+    const sin = Math.sin(state.location.trackTilt);
+    const gx = (-eclipseState.offsetX * cos - eclipseState.offsetY * sin) * 10;
+    const gy = -(-eclipseState.offsetX * sin + eclipseState.offsetY * cos) * 10;
     glyphMoon.style.transform = `translate(-50%, -50%) translate(${gx.toFixed(1)}px, ${gy.toFixed(1)}px)`;
   }
 }
@@ -879,8 +931,6 @@ function syncLayers() {
   lightRays.visible = state.layers.rays && systemRoot.visible;
   shadowCones.visible = state.layers.shadows && systemRoot.visible;
   shadowSkin.visible = state.layers.shadows;
-  umbraOutline.visible = state.layers.shadows;
-  penumbraOutline.visible = state.layers.shadows;
   sightLine.visible = state.layers.rays && systemRoot.visible;
 }
 
@@ -1005,7 +1055,6 @@ function beginOrbit() {
   state.orbit.theta = spherical.theta;
   state.orbit.phi = spherical.phi;
   state.orbit.distance = spherical.radius;
-  state.orbit.active = true;
   setView(state.effectiveView);
   state.orbit.active = true;
 }
@@ -1140,7 +1189,7 @@ renderer.setAnimationLoop((frameTime) => {
   }
 
   const eclipseState = eclipseStateAt(state.location, state.progress);
-  updateSystem(eclipseState, delta);
+  updateSystem(eclipseState);
   updateObserver(eclipseState);
   updateCamera(delta);
   syncTimeline(eclipseState);

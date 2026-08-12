@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import {
   LOCATIONS,
-  chapterAt,
   circleOverlapFraction,
   eclipseStateAt,
   formatClock,
@@ -22,7 +21,7 @@ const pragueMaximumProgress = (LOCATIONS.prague.maximum - LOCATIONS.prague.start
 const pragueMaximum = eclipseStateAt(LOCATIONS.prague, pragueMaximumProgress);
 assert.ok(Math.abs(pragueMaximum.coverage - 0.863) < 1e-6);
 assert.equal(formatClock(pragueMaximum.minutes), '20:12');
-assert.equal(chapterAt(LOCATIONS.prague, pragueMaximumProgress), 3);
+assert.ok(pragueMaximum.offsetY < 0, 'From Prague the Moon passes below the Sun');
 
 const pragueSunset = eclipseStateAt(LOCATIONS.prague, 1);
 assert.ok(pragueSunset.coverage > 0, 'Sunset happens before the Moon leaves the Sun in Prague');
@@ -33,6 +32,11 @@ for (const location of Object.values(LOCATIONS)) {
   const start = eclipseStateAt(location, 0);
   const maximum = eclipseStateAt(location, maximumProgress);
   const end = eclipseStateAt(location, 1);
+  assert.ok(Number.isFinite(location.trackTilt), `${location.name}: has a sky-track tilt`);
+  assert.ok(location.passSide === 1 || location.passSide === -1,
+    `${location.name}: passSide says which side of the Sun the Moon passes`);
+  assert.ok(Math.sign(maximum.offsetY) === location.passSide || maximum.offsetY === 0,
+    `${location.name}: offsetY at maximum follows passSide`);
   assert.ok(start.coverage < 1e-9, `${location.name}: first contact starts at zero coverage`);
   if (location.maximum <= location.end) {
     assert.ok(Math.abs(maximum.coverage - location.maxCoverage) < 1e-6,

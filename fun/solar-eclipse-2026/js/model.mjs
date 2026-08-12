@@ -1,3 +1,6 @@
+// trackTilt: sklon dráhy Měsíce po obloze (rad, 0 = vodorovně, kladně proti směru
+// hodinových ručiček). passSide: střed Měsíce míjí střed Slunce nad ním (+1),
+// nebo pod ním (-1). Ověřeno topocentrickou efemeridou (astronomy-engine).
 export const LOCATIONS = Object.freeze({
   prague: Object.freeze({
     id: 'prague',
@@ -21,6 +24,8 @@ export const LOCATIONS = Object.freeze({
     startAltitude: 9.4,
     maximumAltitude: 1.3,
     endAltitude: 0,
+    trackTilt: -0.21,
+    passSide: -1,
     marker: [2.48, 1.72],
   }),
   brno: Object.freeze({
@@ -45,6 +50,8 @@ export const LOCATIONS = Object.freeze({
     startAltitude: 7.7,
     maximumAltitude: -0.4,
     endAltitude: -0.8,
+    trackTilt: -0.21,
+    passSide: -1,
     marker: [2.44, 1.87],
   }),
   ostrava: Object.freeze({
@@ -58,7 +65,7 @@ export const LOCATIONS = Object.freeze({
     latitude: 49.8209,
     longitude: 18.2625,
     start: 19 * 60 + 19 + 2.7 / 60,
-    maximum: 20 * 60 + 12,
+    maximum: 20 * 60 + 10 + 33 / 60,
     end: 20 * 60 + 10 + 29 / 60,
     geometricEnd: 21 * 60 + 2,
     maxCoverage: 0.855,
@@ -69,6 +76,8 @@ export const LOCATIONS = Object.freeze({
     startAltitude: 7,
     maximumAltitude: -0.7,
     endAltitude: 0,
+    trackTilt: -0.2,
+    passSide: -1,
     marker: [2.47, 1.99],
   }),
   reykjavik: Object.freeze({
@@ -89,12 +98,14 @@ export const LOCATIONS = Object.freeze({
     totalityEnd: 17 * 60 + 49 + 15.5 / 60,
     maxCoverage: 1,
     magnitude: 1.002,
-    moonRadius: 1.028,
+    moonRadius: 1.039,
     kind: 'total',
     endKind: 'contact',
     startAltitude: 30.6,
     maximumAltitude: 24.5,
     endAltitude: 18.2,
+    trackTilt: 0.07,
+    passSide: -1,
     marker: [2.73, -0.15],
   }),
   madrid: Object.freeze({
@@ -110,15 +121,17 @@ export const LOCATIONS = Object.freeze({
     start: 19 * 60 + 36 + 42.4 / 60,
     maximum: 20 * 60 + 32 + 18.5 / 60,
     end: 21 * 60 + 16 + 24 / 60,
-    geometricEnd: 21 * 60 + 30,
+    geometricEnd: 21 * 60 + 24 + 21 / 60,
     maxCoverage: 0.999,
     magnitude: 0.999,
-    moonRadius: 1.038,
+    moonRadius: 1.034,
     kind: 'partial',
     endKind: 'sunset',
     startAltitude: 17.7,
     maximumAltitude: 7.2,
     endAltitude: 0,
+    trackTilt: -0.38,
+    passSide: 1,
     marker: [1.9, 1.15],
   }),
   newyork: Object.freeze({
@@ -137,12 +150,14 @@ export const LOCATIONS = Object.freeze({
     geometricEnd: 14 * 60 + 38 + 45.2 / 60,
     maxCoverage: 0.094,
     magnitude: 0.186,
-    moonRadius: 1.033,
+    moonRadius: 1.048,
     kind: 'partial',
     endKind: 'contact',
     startAltitude: 64.1,
     maximumAltitude: 61.6,
     endAltitude: 56.5,
+    trackTilt: 0.31,
+    passSide: 1,
     marker: [1.9, -2.4],
   }),
   sydney: Object.freeze({
@@ -167,13 +182,15 @@ export const LOCATIONS = Object.freeze({
     startAltitude: -35,
     maximumAltitude: -48,
     endAltitude: -30,
+    trackTilt: 0,
+    passSide: -1,
     marker: [-2.4, 1.9],
     farSide: true,
   }),
 });
 
 export const clamp = (value, low = 0, high = 1) => Math.min(high, Math.max(low, value));
-export const lerp = (a, b, amount) => a + (b - a) * amount;
+const lerp = (a, b, amount) => a + (b - a) * amount;
 
 export function circleOverlapFraction(distance, sunRadius = 1, moonRadius = 1) {
   const d = Math.max(0, distance);
@@ -257,17 +274,26 @@ export function eclipseStateAt(location, progress) {
   const separation = Math.hypot(offsetX, maximumSeparation);
   const coverage = circleOverlapFraction(separation, 1, location.moonRadius);
   const maxProgress = (location.maximum - location.start) / (location.end - location.start);
-  const altitude = minutes <= location.maximum
-    ? lerp(location.startAltitude, location.maximumAltitude,
-      (minutes - location.start) / Math.max(1, location.maximum - location.start))
-    : lerp(location.maximumAltitude, location.endAltitude,
+
+  // Tam, kde Slunce zapadne dřív než nastane maximum, klesá po celou dobu
+  // k obzoru — maximum nad obzorem už nenastane.
+  let altitude;
+  if (location.maximum >= location.end) {
+    altitude = lerp(location.startAltitude, location.endAltitude,
+      (minutes - location.start) / Math.max(1, location.end - location.start));
+  } else if (minutes <= location.maximum) {
+    altitude = lerp(location.startAltitude, location.maximumAltitude,
+      (minutes - location.start) / Math.max(1, location.maximum - location.start));
+  } else {
+    altitude = lerp(location.maximumAltitude, location.endAltitude,
       (minutes - location.maximum) / Math.max(1, location.end - location.maximum));
+  }
 
   return {
     progress: p,
     minutes,
     offsetX,
-    offsetY: -maximumSeparation,
+    offsetY: location.passSide * maximumSeparation,
     separation,
     coverage,
     altitude,
@@ -281,22 +307,9 @@ export function phaseAt(location, state) {
   if (Math.abs(minute - location.start) < 0.35) return 'První kontakt';
   if (location.totalityStart != null
     && minute >= location.totalityStart && minute <= location.totalityEnd) return 'Úplné zatmění';
-  if (Math.abs(minute - location.maximum) < 0.55) return 'Maximum zatmění';
   if (state.progress >= 0.999) return location.endKind === 'sunset' ? 'Západ · pozorování končí' : 'Poslední kontakt';
+  if (Math.abs(minute - location.maximum) < 0.55) return 'Maximum zatmění';
   return minute < location.maximum ? 'Měsíc zakrývá Slunce' : 'Měsíc ustupuje';
-}
-
-export function chapterAt(location, progress) {
-  const maxProgress = (location.maximum - location.start) / (location.end - location.start);
-  if (progress < maxProgress * 0.3) return 0;
-  if (progress < maxProgress * 0.62) return 1;
-  if (progress < maxProgress * 0.9) return 2;
-  return 3;
-}
-
-export function chapterStart(location, chapter) {
-  const maxProgress = (location.maximum - location.start) / (location.end - location.start);
-  return [0, maxProgress * 0.31, maxProgress * 0.63, maxProgress * 0.91][clamp(chapter, 0, 3)];
 }
 
 export function formatClock(minutes) {
