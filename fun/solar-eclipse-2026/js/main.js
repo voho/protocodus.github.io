@@ -292,21 +292,64 @@ const eclipsePath = new THREE.Line(
 );
 earthVisual.add(eclipsePath);
 
-const footprint = new THREE.Group();
-const penumbraFootprint = new THREE.Mesh(
-  new THREE.CircleGeometry(1.75, 48),
-  new THREE.MeshBasicMaterial({ color: 0x8aa0c7, transparent: true, opacity: .14, side: THREE.DoubleSide, depthWrite: false }),
+const shadowSkin = new THREE.Mesh(
+  new THREE.SphereGeometry(EARTH_RADIUS * 1.002, 96, 64),
+  new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    uniforms: {
+      moonCenter: { value: new THREE.Vector3() },
+      moonRadius: { value: MOON_RADIUS },
+      sunCenter: { value: new THREE.Vector3(SUN_X, 0, 0) },
+      sunRadius: { value: SUN_RADIUS },
+    },
+    vertexShader: `
+      varying vec3 vWorld;
+      varying vec3 vWorldNormal;
+      void main() {
+        vWorld = (modelMatrix * vec4(position, 1.0)).xyz;
+        vWorldNormal = normalize(mat3(modelMatrix) * position);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 moonCenter;
+      uniform float moonRadius;
+      uniform vec3 sunCenter;
+      uniform float sunRadius;
+      varying vec3 vWorld;
+      varying vec3 vWorldNormal;
+
+      float discOverlap(float d, float sunAngle, float moonAngle) {
+        float total = sunAngle + moonAngle;
+        if (d >= total) return 0.0;
+        float difference = abs(sunAngle - moonAngle);
+        float smaller = min(sunAngle, moonAngle);
+        if (d <= difference) return (smaller * smaller) / (sunAngle * sunAngle);
+        float a = acos(clamp((d * d + sunAngle * sunAngle - moonAngle * moonAngle) / (2.0 * d * sunAngle), -1.0, 1.0));
+        float b = acos(clamp((d * d + moonAngle * moonAngle - sunAngle * sunAngle) / (2.0 * d * moonAngle), -1.0, 1.0));
+        float lens = 0.5 * sqrt(max(0.0,
+          (-d + total) * (d + sunAngle - moonAngle) * (d - sunAngle + moonAngle) * (d + total)));
+        return clamp((sunAngle * sunAngle * a + moonAngle * moonAngle * b - lens)
+          / (3.14159265 * sunAngle * sunAngle), 0.0, 1.0);
+      }
+
+      void main() {
+        vec3 toSun = sunCenter - vWorld;
+        vec3 toMoon = moonCenter - vWorld;
+        float sunDistance = length(toSun);
+        float moonDistance = length(toMoon);
+        float sunAngle = asin(clamp(sunRadius / sunDistance, 0.0, 1.0));
+        float moonAngle = asin(clamp(moonRadius / moonDistance, 0.0, 1.0));
+        float separation = acos(clamp(dot(toSun / sunDistance, toMoon / moonDistance), -1.0, 1.0));
+        float covered = discOverlap(separation, sunAngle, moonAngle);
+        float daylight = smoothstep(-0.1, 0.25, dot(vWorldNormal, toSun / sunDistance));
+        gl_FragColor = vec4(0.0, 0.0, 0.0, covered * 0.85 * daylight);
+      }
+    `,
+  }),
 );
-const umbraFootprint = new THREE.Mesh(
-  new THREE.CircleGeometry(.22, 36),
-  new THREE.MeshBasicMaterial({ color: 0x010208, transparent: true, opacity: .9, side: THREE.DoubleSide, depthWrite: false }),
-);
-const footprintRing = new THREE.Mesh(
-  new THREE.RingGeometry(1.7, 1.76, 48),
-  new THREE.MeshBasicMaterial({ color: 0xdce6f6, transparent: true, opacity: .35, side: THREE.DoubleSide, depthWrite: false }),
-);
-footprint.add(penumbraFootprint, umbraFootprint, footprintRing);
-earthVisual.add(footprint);
+earthVisual.add(shadowSkin);
 
 const locationMarker = new THREE.Group();
 const markerDot = new THREE.Mesh(
@@ -371,16 +414,26 @@ const orbitPlane = new THREE.Mesh(
 orbitPlane.rotation.x = Math.PI / 2 - THREE.MathUtils.degToRad(5.1);
 orbitRig.add(orbitPlane);
 
-function createShadowCone(radiusAtMoon, radiusAtEarth, color, opacity) {
+function createShadowCone(opacity) {
   return new THREE.Mesh(
-    new THREE.CylinderGeometry(radiusAtEarth, radiusAtMoon, 1, 48, 1, true),
-    new THREE.MeshBasicMaterial({ color, transparent: true, opacity, side: THREE.DoubleSide, depthWrite: false }),
+    new THREE.CylinderGeometry(1, 1, 1, 48, 1, true),
+    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity, side: THREE.DoubleSide, depthWrite: false }),
   );
 }
 
+function setConeRadii(mesh, radiusAtMoon, radiusAtEarth) {
+  const fitted = mesh.userData;
+  if (Math.abs((fitted.near ?? -1) - radiusAtMoon) < 0.01
+    && Math.abs((fitted.far ?? -1) - radiusAtEarth) < 0.01) return;
+  fitted.near = radiusAtMoon;
+  fitted.far = radiusAtEarth;
+  mesh.geometry.dispose();
+  mesh.geometry = new THREE.CylinderGeometry(radiusAtEarth, radiusAtMoon, 1, 48, 1, true);
+}
+
 const shadowCones = new THREE.Group();
-const penumbraCone = createShadowCone(.95, 2.55, 0x8190af, .095);
-const umbraCone = createShadowCone(.82, .12, 0x000107, .46);
+const penumbraCone = createShadowCone(.12);
+const umbraCone = createShadowCone(.5);
 shadowCones.add(penumbraCone, umbraCone);
 systemRoot.add(shadowCones);
 
@@ -509,7 +562,7 @@ function updateLightRays(moonPosition, shadowPoint) {
   const sunPosition = sunVisual.position;
   let cursor = 0;
   axes.forEach((axis) => {
-    const from = sunPosition.clone().addScaledVector(axis, SUN_RADIUS * .86);
+    const from = sunPosition.clone().addScaledVector(axis, SUN_RADIUS);
     const sameMoonLimb = moonPosition.clone().addScaledVector(axis, MOON_RADIUS);
     const oppositeMoonLimb = moonPosition.clone().addScaledVector(axis, -MOON_RADIUS);
     const extendToEarth = (through) => {
@@ -554,8 +607,6 @@ function updateSystem(eclipseState, delta) {
   moonHalo.scale.setScalar(state.trueSizes ? 1 / Math.max(.0165, moonVisual.scale.x) : 1);
 
   const pathPoint = pathCurve.getPoint(globalPathProgress(eclipseState));
-  orientOnSphere(footprint, pathPoint);
-
   const shadowWorld = pathPoint.clone().multiplyScalar(earthVisual.scale.x).add(earthVisual.position);
   const rayAmount = (MOON_X - SUN_X) / Math.max(1, shadowWorld.x - SUN_X);
   const moonPosition = new THREE.Vector3(
@@ -570,8 +621,18 @@ function updateSystem(eclipseState, delta) {
     tempVector2.copy(moonPosition).sub(earthVisual.position).normalize(),
   );
 
+  const sunDistance = moonPosition.distanceTo(sunVisual.position);
+  const shadowLength = moonPosition.distanceTo(shadowWorld);
+  const moonRadiusNow = MOON_RADIUS * moonVisual.scale.x;
+  const umbraAtEarth = Math.max(.03,
+    moonRadiusNow - shadowLength * (SUN_RADIUS - moonRadiusNow) / sunDistance);
+  const penumbraAtEarth = moonRadiusNow + shadowLength * (SUN_RADIUS + moonRadiusNow) / sunDistance;
+  setConeRadii(umbraCone, moonRadiusNow, umbraAtEarth);
+  setConeRadii(penumbraCone, moonRadiusNow, penumbraAtEarth);
   alignBetween(penumbraCone, moonPosition, shadowWorld);
   alignBetween(umbraCone, moonPosition, shadowWorld);
+  shadowSkin.material.uniforms.moonCenter.value.copy(moonPosition);
+  shadowSkin.material.uniforms.moonRadius.value = moonRadiusNow;
   updateLightRays(moonPosition, shadowWorld);
 
   if (!prefersReducedMotion) {
@@ -815,7 +876,7 @@ function syncLayers() {
   elements.labels.classList.toggle('is-hidden', !state.layers.labels);
   lightRays.visible = state.layers.rays && systemRoot.visible && !state.trueSizes;
   shadowCones.visible = state.layers.shadows && systemRoot.visible && !state.trueSizes;
-  footprint.visible = state.layers.shadows && !state.trueSizes;
+  shadowSkin.visible = state.layers.shadows && !state.trueSizes;
   moonOrbit.visible = state.layers.orbit && systemRoot.visible;
   orbitPlane.visible = state.layers.orbit && systemRoot.visible;
 }
