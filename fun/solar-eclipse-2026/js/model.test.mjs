@@ -29,13 +29,19 @@ assert.ok(pragueSunset.coverage > 0, 'Sunset happens before the Moon leaves the 
 assert.equal(formatClock(LOCATIONS.prague.end), '20:26');
 
 for (const location of Object.values(LOCATIONS)) {
-  const maximumProgress = (location.maximum - location.start) / (location.end - location.start);
+  const maximumProgress = Math.min(1, (location.maximum - location.start) / (location.end - location.start));
   const start = eclipseStateAt(location, 0);
   const maximum = eclipseStateAt(location, maximumProgress);
   const end = eclipseStateAt(location, 1);
   assert.ok(start.coverage < 1e-9, `${location.name}: first contact starts at zero coverage`);
-  assert.ok(Math.abs(maximum.coverage - location.maxCoverage) < 1e-6,
-    `${location.name}: maximum coverage matches its data`);
+  if (location.maximum <= location.end) {
+    assert.ok(Math.abs(maximum.coverage - location.maxCoverage) < 1e-6,
+      `${location.name}: maximum coverage matches its data`);
+  } else {
+    assert.ok(maximum.coverage < location.maxCoverage
+      && maximum.coverage > location.maxCoverage - 0.015,
+      `${location.name}: sunset cuts the eclipse just short of its maximum`);
+  }
   if (location.endKind === 'contact') {
     assert.ok(end.coverage < 1e-9, `${location.name}: last contact ends at zero coverage`);
   }

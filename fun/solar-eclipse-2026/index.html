@@ -7,16 +7,19 @@
   <title>Zatmění Slunce 2026 — Interaktivní 3D příběh</title>
   <meta name="description"
     content="Sledujte stín Měsíce z vesmíru až do Prahy v názorném 3D modelu zatmění Slunce 12. srpna 2026.">
-  <meta name="theme-color" content="#05070d">
+  <meta name="theme-color" content="#090c17">
   <meta property="og:title" content="Zatmění Slunce 2026 — Interaktivní 3D příběh">
   <meta property="og:description"
     content="Podívejte se, jak se Slunce, Měsíc a Země seřadí, a pak sledujte zatmění z Prahy.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://protocodus.cz/fun/solar-eclipse-2026/">
   <link rel="canonical" href="https://protocodus.cz/fun/solar-eclipse-2026/">
-  <link rel="icon" type="image/svg+xml" href="/assets/images/logo.svg">
-  <link rel="preload" href="/assets/fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="preload" href="/assets/fonts/space-grotesk-latin-ext.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="icon" type="image/svg+xml"
+    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='15' cy='17' r='11' fill='%23ffb648'/%3E%3Ccircle cx='20' cy='12' r='11' fill='%23090c17'/%3E%3C/svg%3E">
+  <link rel="preload" href="./fonts/spectral-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="./fonts/spectral-latin-ext-500-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="./fonts/ibm-plex-mono-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="./fonts/ibm-plex-mono-latin-ext-400-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="./solar-eclipse.css">
   <script type="importmap">
     { "imports": { "three": "/assets/vendor/three/three.module.min.js" } }
@@ -34,13 +37,13 @@
     <span class="world-label" data-world-label="earth">Země <i>Zachytí stín</i></span>
     <span class="world-label shadow-label" data-world-label="umbra">Plný stín <i>Úplné zatmění</i></span>
     <span class="world-label shadow-label" data-world-label="penumbra">Polostín <i>Částečné zatmění</i></span>
-    <span class="world-label place-label" data-world-label="place">Praha <i>Zakryto 86,3 %</i></span>
+    <span class="world-label place-label" data-world-label="place">Praha <i>Zakryto 86,3&nbsp;%</i></span>
   </div>
 
   <main class="interface">
     <header class="topbar">
       <div class="identity">
-        <p>Protocodus · vesmírná laboratoř 02</p>
+        <p>12. srpna 2026 · interaktivní model</p>
         <h1>Zatmění Slunce <span>2026</span></h1>
       </div>
 
@@ -55,13 +58,14 @@
     <nav class="view-nav" aria-label="Pohled kamery">
       <button type="button" data-view="auto" aria-pressed="true"><i aria-hidden="true">●</i> Prohlídka</button>
       <button type="button" data-view="system" aria-pressed="false">Soustava</button>
+      <button type="button" data-view="orbit" aria-pressed="false">Dráha</button>
       <button type="button" data-view="shadow" aria-pressed="false">Stín</button>
       <button type="button" data-view="observer" aria-pressed="false">Obloha · <span data-sky-label>Praha</span></button>
       <button class="size-button" type="button" data-scale aria-pressed="false">Velikosti: názorné</button>
     </nav>
 
     <section class="lesson" id="lesson" aria-labelledby="lesson-title">
-      <p class="lesson-count"><span data-chapter-count>01 / 04</span><span data-chapter-label>SEŘAZENÍ</span></p>
+      <p class="lesson-count"><span data-chapter-count>01 / 04</span><span data-chapter-label>Seřazení</span></p>
       <h2 id="lesson-title" data-chapter-title>Tři tělesa. Jedna přímka.</h2>
       <p data-chapter-copy>Slunce svítí, Měsíc světlo zastaví a Země zachytí jeho stín.</p>
       <button type="button" data-next-chapter>Další pohled <span aria-hidden="true">→</span></button>
@@ -69,7 +73,7 @@
 
     <button class="safety-chip" type="button" data-open="safety-dialog"
       aria-label="Otevřít bezpečnostní pokyny" aria-haspopup="dialog" aria-controls="safety-dialog">
-      <span aria-hidden="true">☀</span><strong data-safety-chip>Brýle na zatmění jsou nutné</strong><i>Bezpečnost</i>
+      <span aria-hidden="true">☀&#xFE0E;</span><strong data-safety-chip>Brýle na zatmění jsou nutné</strong><i>Bezpečnost</i>
     </button>
 
     <button class="learn-button" type="button" data-open="learn-dialog"
@@ -95,16 +99,16 @@
           <i class="maximum-tick" data-maximum-tick aria-hidden="true"></i>
         </div>
         <div class="timeline-labels" aria-hidden="true">
-          <span>První dotek</span><span data-maximum-label>Maximum · 20:12</span><span data-end-label>Západ · 20:26</span>
+          <span>První kontakt</span><span data-maximum-label>Maximum · 20:12</span><span data-end-label>Západ · 20:26</span>
         </div>
       </div>
 
       <div class="coverage" aria-label="Aktuální zakrytí Slunce">
-        <strong data-coverage>0%</strong>
-        <span>Zakryto Slunce</span>
+        <strong data-coverage>0&nbsp;%</strong>
+        <span>Zakrytí Slunce</span>
       </div>
 
-      <button class="speed-button" type="button" data-speed aria-label="Rychlost časosběru">2×</button>
+      <button class="speed-button" type="button" data-speed aria-label="Rychlost časosběru">1×</button>
     </section>
 
     <p class="scene-note" data-scene-note>Názorný model · tělesa zvětšena, vzdálenosti zkráceny</p>
@@ -115,26 +119,30 @@
     <form method="dialog" class="sheet-head">
       <div>
         <p class="eyebrow">Přesuňte pozorovatele</p>
-        <h2 id="location-title">Stejné zatmění. Jiná obloha.</h2>
+        <h2 id="location-title">Stejné zatmění. Jiný západ.</h2>
       </div>
       <button class="close-button" value="close" aria-label="Zavřít výběr místa">×</button>
     </form>
     <div class="location-list">
+      <button type="button" data-location="plzen" aria-pressed="false">
+        <span><strong>Plzeň</strong><i>maximum 20:13 · západ 20:30</i></span><b>86,8&nbsp;%</b>
+      </button>
       <button type="button" data-location="prague" aria-pressed="true">
-        <span><strong>Praha</strong><i>Česko · částečné při západu</i></span><b>86,3 %</b>
+        <span><strong>Praha</strong><i>maximum 20:12 · západ 20:26</i></span><b>86,3&nbsp;%</b>
       </button>
-      <button type="button" data-location="reykjavik" aria-pressed="false">
-        <span><strong>Reykjavík</strong><i>Island · úplné zatmění</i></span><b>100 %</b>
+      <button type="button" data-location="pardubice" aria-pressed="false">
+        <span><strong>Pardubice</strong><i>maximum 20:11 · západ 20:21</i></span><b>85,9&nbsp;%</b>
       </button>
-      <button type="button" data-location="leon" aria-pressed="false">
-        <span><strong>León</strong><i>Španělsko · úplné zatmění</i></span><b>100 %</b>
+      <button type="button" data-location="brno" aria-pressed="false">
+        <span><strong>Brno</strong><i>maximum na obzoru · západ 20:15</i></span><b>86,4&nbsp;%</b>
       </button>
-      <button type="button" data-location="london" aria-pressed="false">
-        <span><strong>Londýn</strong><i>Velká Británie · částečné</i></span><b>91,4 %</b>
+      <button type="button" data-location="ostrava" aria-pressed="false">
+        <span><strong>Ostrava</strong><i>západ 20:10, ještě před maximem</i></span><b>85,5&nbsp;%</b>
       </button>
     </div>
-    <p class="sheet-note">Místní časy jsou zaokrouhlené na minuty. Časy, výšky Slunce a míra zakrytí
-      vycházejí z místních výpočtů U.S. Naval Observatory.</p>
+    <p class="sheet-note">Čím dál na východ, tím níž Slunce v době zatmění stojí — v Ostravě zapadne
+      dřív, než zatmění vyvrcholí. Časy jsou zaokrouhlené na minuty; vycházejí z místních okolností
+      zatmění podle U.S. Naval Observatory.</p>
   </dialog>
 
   <dialog class="sheet guide-sheet" id="learn-dialog" aria-labelledby="guide-title">
@@ -161,16 +169,16 @@
       <section>
         <p class="guide-num">03</p>
         <h3>Jeden stín má dvě části</h3>
-        <p>Úzký plný stín skryje celé Slunce. Široký polostín jen jeho část. Výchozí Praha bude 12. srpna 2026 v polostínu.</p>
+        <p>Úzký plný stín skryje celé Slunce. Široký polostín jen jeho část. Celé Česko bude 12.&nbsp;srpna&nbsp;2026 v&nbsp;polostínu.</p>
       </section>
       <section>
         <p class="guide-num">04</p>
         <h3>Skutečné rozměry jsou ohromné</h3>
         <dl class="facts">
-          <div><dt>Slunce</dt><dd>šířka 1,4 milionu km</dd></div>
-          <div><dt>Země</dt><dd>šířka 12 756 km</dd></div>
-          <div><dt>Měsíc</dt><dd>šířka 3 480 km</dd></div>
-          <div><dt>Měsíc → Země</dt><dd>384 400 km</dd></div>
+          <div><dt>Slunce</dt><dd>průměr 1,4&nbsp;milionu&nbsp;km</dd></div>
+          <div><dt>Země</dt><dd>průměr 12&nbsp;756&nbsp;km</dd></div>
+          <div><dt>Měsíc</dt><dd>průměr 3&nbsp;475&nbsp;km</dd></div>
+          <div><dt>Měsíc → Země</dt><dd>384&nbsp;400&nbsp;km</dd></div>
         </dl>
       </section>
     </div>
@@ -202,8 +210,8 @@
       Děti by měly pozorovat s dospělým.</p>
     <ul class="safety-list">
       <li><span>01</span>Použijte spolehlivé brýle s označením <strong>ISO 12312-2</strong>. Běžné sluneční brýle nestačí.</li>
-      <li><span>02</span>Před použitím zkontrolujte škrábance, dírky a trhliny. Poškozené brýle vyhoďte.</li>
-      <li><span>03</span>Nedívejte se přes fotoaparát, dalekohled ani teleskop bez filtru upevněného před optikou.</li>
+      <li><span>02</span>Před použitím zkontrolujte, zda brýle nemají škrábance, dírky nebo trhliny. Poškozené vyhoďte.</li>
+      <li><span>03</span>Nedívejte se přes fotoaparát, triedr ani dalekohled bez slunečního filtru nasazeného vpředu na objektivu.</li>
       <li><span>04</span>Nemáte brýle? Promítněte Slunce malým otvorem a sledujte obraz — nikdy se nedívejte skrz otvor.</li>
     </ul>
     <a class="nasa-link" href="https://science.nasa.gov/eclipses/safety/" target="_blank" rel="noopener">
@@ -225,6 +233,14 @@
     </div>
   </noscript>
 
+  <script>
+    setTimeout(() => {
+      const note = document.querySelector('.loading-screen p');
+      if (document.body.classList.contains('is-loading') && note) {
+        note.textContent = 'Načítání se nedaří. Zkontrolujte připojení, nebo stránku otevřete v novějším prohlížeči s podporou WebGL.';
+      }
+    }, 10000);
+  </script>
   <script type="module" src="./js/main.js"></script>
 </body>
 
