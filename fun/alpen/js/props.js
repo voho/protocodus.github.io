@@ -2859,15 +2859,23 @@ export function createProps(THREE, shading) {
         hash2(b, 3260 + i, 211), hash2(b, 3280 + i, 211),
       );
       ecologyAt(x, z, eco);
-      const cover = clamp01(0.20 + 0.65 * Math.max(
+
+      /* Multi-scale procedural density: alternating groves, tight clumps & clearings */
+      const groveNoise = noise2(x * 0.022, z * 0.016, 733);
+      const clumpNoise = Math.pow(0.5 + 0.5 * snoise2(x * 0.075, z * 0.075, 419), 2.2);
+      const sideAsymmetry = 0.5 + 0.5 * snoise2(z * 0.009, side * 12.0, 911);
+      const dynamicDensity = clamp01(
+        (0.12 + 0.55 * groveNoise + 0.48 * clumpNoise) * (0.45 + 0.55 * sideAsymmetry) * density
+      );
+
+      const cover = clamp01(0.15 + 0.70 * Math.max(
         eco.alpine, eco.heath * 0.78, eco.exposure * 0.65,
       ));
-      if (hash2(b, 3300 + i, 211) > cover) continue;
+      if (hash2(b, 3300 + i, 211) > cover * dynamicDensity) continue;
       const pv = Math.floor(hash2(b, 3210 + i, 211) * plantPools.length);
       const y = heightAt(x, z) - 0.02;
-      const s = lerp(0.65, 1.55, hash2(b, 3320 + i, 211));
-      const sy = s * lerp(0.80, 1.15, hash2(b, 3360 + i, 211));
-      if (hash2(b, 3380 + i, 211) > density) continue;
+      const s = lerp(0.60, 1.65, hash2(b, 3320 + i, 211)) * (0.85 + 0.35 * clumpNoise);
+      const sy = s * lerp(0.78, 1.22, hash2(b, 3360 + i, 211));
       const yaw = hash2(b, 3340 + i, 211) * TAU;
       const normal = setFloraNormal(x, z);
       if (!plantPools[pv].addOnSlope(x, y, z, yaw, s, sy, s, normal)) continue;
@@ -2886,15 +2894,23 @@ export function createProps(THREE, shading) {
         hash2(b, 3060 + i, 223), hash2(b, 3080 + i, 223),
       );
       ecologyAt(x, z, eco);
-      const shrubCover = clamp01(0.18 + 0.70 * Math.max(
+
+      /* Multi-scale procedural density: dense alpine thickets vs open snowy basins */
+      const groveNoise = noise2(x * 0.020, z * 0.015, 617);
+      const thicketNoise = Math.pow(0.5 + 0.5 * snoise2(x * 0.065, z * 0.065, 827), 2.0);
+      const sideAsymmetry = 0.5 + 0.5 * snoise2(z * 0.008, side * 10.0, 353);
+      const dynamicDensity = clamp01(
+        (0.10 + 0.58 * groveNoise + 0.50 * thicketNoise) * (0.40 + 0.60 * sideAsymmetry) * density
+      );
+
+      const shrubCover = clamp01(0.15 + 0.72 * Math.max(
         eco.heath, eco.understory, eco.avalanche * 0.45, eco.alpine * 0.35,
       ));
-      if (hash2(b, 3100 + i, 223) > shrubCover) continue;
+      if (hash2(b, 3100 + i, 223) > shrubCover * dynamicDensity) continue;
       const v = Math.floor(hash2(b, 3120 + i, 223) * shrubPools.length);
       const y = heightAt(x, z) - 0.05;
-      const s = lerp(0.75, 1.75, hash2(b, 3140 + i, 223));
-      const sy = s * lerp(0.85, 1.25, hash2(b, 3180 + i, 223));
-      if (hash2(b, 3190 + i, 223) > density) continue;
+      const s = lerp(0.70, 1.85, hash2(b, 3140 + i, 223)) * (0.85 + 0.35 * thicketNoise);
+      const sy = s * lerp(0.80, 1.30, hash2(b, 3180 + i, 223));
       const yaw = hash2(b, 3160 + i, 223) * TAU;
       const normal = setFloraNormal(x, z);
       if (!shrubPools[v].addOnSlope(x, y, z, yaw, s, sy, s, normal)) continue;

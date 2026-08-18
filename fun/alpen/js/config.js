@@ -1762,8 +1762,8 @@ export const PROPS = {
   },
   /* Mountain environment: rich alpine vegetation on verges and mountain flanks */
   biomes: {
-    plantCandidates: 24,
-    shrubCandidates: 32,
+    plantCandidates: 36,
+    shrubCandidates: 48,
     sideRockCandidates: 4,
     stoneSize: [0.4, 2.8],
     cragFrom: 200,
