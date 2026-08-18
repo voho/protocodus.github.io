@@ -1058,6 +1058,15 @@ function collide() {
    Attract mode
    ========================================================================== */
 
+const demoControl = {
+  turn: 0,
+  tuck: false,
+  brake: false,
+  jump: false,
+  trickGrab: false,
+  trickFlip: false,
+};
+
 function demoInput(dt) {
   demo.t += dt;
   // Steer for the middle of whichever branch of the piste is nearer, with a
@@ -1069,19 +1078,26 @@ function demoInput(dt) {
   const heading = Math.atan2(rider.vel.x, -rider.vel.z);
   const want = Math.atan2(err, 30) - heading;
   demo.turn += (Math.max(-1, Math.min(1, want * 2.4)) - demo.turn) * Math.min(1, dt * 5);
-  return {
-    turn: demo.turn,
-    tuck: Math.sin(demo.t * 0.17) > 0.55,
-    brake: false,
-    jump: false,
-    trickGrab: !rider.grounded && rider.airTime > 0.2,
-    trickFlip: false,
-  };
+  demoControl.turn = demo.turn;
+  demoControl.tuck = Math.sin(demo.t * 0.17) > 0.55;
+  demoControl.trickGrab = !rider.grounded && rider.airTime > 0.2;
+  return demoControl;
 }
 
 /* ==========================================================================
    Loop
    ========================================================================== */
+
+const liveTrickQuery = {
+  spin: 0,
+  flips: 0,
+  halfTurns: 0,
+  flipTurns: 0,
+  grabTime: 0,
+  grabKind: null,
+  airTime: 0,
+  switchStance: false,
+};
 
 function liveTrickName() {
   /* On the snow the live line is the press, once it has carried enough to
@@ -1094,19 +1110,14 @@ function liveTrickName() {
     }
     return '';
   }
-  return trickName({
-    spin: rider.spinAccum,
-    flips: rider.flipAccum,
-    // Floored rather than rounded: in the air you have only completed the
-    // rotation you have actually been through. Rounding is what the landing
-    // does, once it has decided the rotation counts.
-    halfTurns: Math.floor(Math.abs(rider.spinAccum) / Math.PI),
-    flipTurns: Math.floor(Math.abs(rider.flipAccum) / TAU),
-    grabTime: rider.grabTime,
-    grabKind: rider.grabKind,
-    airTime: rider.airTime,
-    switchStance: false,
-  }, CLEAN) || '';
+  liveTrickQuery.spin = rider.spinAccum;
+  liveTrickQuery.flips = rider.flipAccum;
+  liveTrickQuery.halfTurns = Math.floor(Math.abs(rider.spinAccum) / Math.PI);
+  liveTrickQuery.flipTurns = Math.floor(Math.abs(rider.flipAccum) / TAU);
+  liveTrickQuery.grabTime = rider.grabTime;
+  liveTrickQuery.grabKind = rider.grabKind;
+  liveTrickQuery.airTime = rider.airTime;
+  return trickName(liveTrickQuery, CLEAN) || '';
 }
 
 /* The per-frame callbacks, built once. Arrow literals in the loop body are

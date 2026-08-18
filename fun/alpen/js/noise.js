@@ -49,6 +49,8 @@ export function randomWorldSeed() {
   return (Date.now() ^ Math.floor((globalThis.performance?.now?.() || 0) * 1000)) >>> 0;
 }
 
+const INV_2_32 = 1 / 4294967296;
+
 /* One round of xxhash-shaped mixing over two integers. Returns [0, 1). */
 export function hash2(x, y, seed = 0) {
   const runSeed = (seed | 0) ^ (worldSeed | 0);
@@ -56,7 +58,7 @@ export function hash2(x, y, seed = 0) {
     ^ Math.imul(runSeed, 0x9e3779b1);
   h = Math.imul(h ^ (h >>> 15), 0x85ebca6b);
   h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
-  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+  return ((h ^ (h >>> 16)) >>> 0) * INV_2_32;
 }
 
 /* Value noise: smoothstep between four hashed lattice corners. Cheaper than
@@ -70,10 +72,32 @@ export function noise2(x, y, seed = 0) {
   const ux = fx * fx * (3 - 2 * fx);
   const uy = fy * fy * (3 - 2 * fy);
 
-  const a = hash2(x0, y0, seed);
-  const b = hash2(x0 + 1, y0, seed);
-  const c = hash2(x0, y0 + 1, seed);
-  const d = hash2(x0 + 1, y0 + 1, seed);
+  const runSeed = (seed | 0) ^ (worldSeed | 0);
+  const seedTerm = Math.imul(runSeed, 0x9e3779b1);
+  const base0 = Math.imul(y0 | 0, 0x165667b1) ^ seedTerm;
+  const base1 = Math.imul((y0 + 1) | 0, 0x165667b1) ^ seedTerm;
+  const hx0 = Math.imul(x0 | 0, 0x27d4eb2d);
+  const hx1 = Math.imul((x0 + 1) | 0, 0x27d4eb2d);
+
+  let hA = hx0 ^ base0;
+  hA = Math.imul(hA ^ (hA >>> 15), 0x85ebca6b);
+  hA = Math.imul(hA ^ (hA >>> 13), 0xc2b2ae35);
+  const a = ((hA ^ (hA >>> 16)) >>> 0) * INV_2_32;
+
+  let hB = hx1 ^ base0;
+  hB = Math.imul(hB ^ (hB >>> 15), 0x85ebca6b);
+  hB = Math.imul(hB ^ (hB >>> 13), 0xc2b2ae35);
+  const b = ((hB ^ (hB >>> 16)) >>> 0) * INV_2_32;
+
+  let hC = hx0 ^ base1;
+  hC = Math.imul(hC ^ (hC >>> 15), 0x85ebca6b);
+  hC = Math.imul(hC ^ (hC >>> 13), 0xc2b2ae35);
+  const c = ((hC ^ (hC >>> 16)) >>> 0) * INV_2_32;
+
+  let hD = hx1 ^ base1;
+  hD = Math.imul(hD ^ (hD >>> 15), 0x85ebca6b);
+  hD = Math.imul(hD ^ (hD >>> 13), 0xc2b2ae35);
+  const d = ((hD ^ (hD >>> 16)) >>> 0) * INV_2_32;
 
   const top = a + (b - a) * ux;
   const bottom = c + (d - c) * ux;
@@ -94,6 +118,6 @@ export function stream(key) {
     let t = a;
     t = Math.imul(t ^ (t >>> 15), t | 1);
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    return ((t ^ (t >>> 14)) >>> 0) * INV_2_32;
   };
 }
