@@ -692,6 +692,60 @@ const SPECIES = [
     liftLow: 0.06, liftHigh: 0.38, droop: 0.30,
     spire: 1.2, snow: 0.86, lean: 0.08, fringe: 0.2,
   },
+  {
+    name: 'arolla',            // Swiss Stone Pine / Zirbelkiefer — hardy, dense, rounded
+    bark: '#68503b',
+    foliage: 1.15,
+    height: [8, 14], whorls: [5, 8], perWhorl: [5, 8],
+    reach: 0.44, bushy: 0.65, squash: 0.85, joint: 0.48,
+    liftLow: 0.12, liftHigh: 0.45, droop: 0.22,
+    spire: 0.8, snow: 0.75, lean: 0.08, tuftFrom: 0.35,
+  },
+  {
+    name: 'weepingSpruce',     // subalpine weeping conifer with heavy snow curtains
+    bark: '#4c3b2c',
+    foliage: 0.90,
+    height: [11, 19], whorls: [10, 15], perWhorl: [4, 6],
+    reach: 0.38, bushy: 0.55, squash: 0.65, joint: 0.38,
+    liftLow: -0.35, liftHigh: 0.40, droop: 0.85,
+    spire: 1.8, snow: 0.92, lean: 0.04, fringe: 0.8,
+  },
+  {
+    name: 'krummholz',         // prostrate mountain dwarf pine hugging the snow
+    bark: '#5a4634',
+    foliage: 1.05,
+    height: [3.5, 6.0], whorls: [5, 7], perWhorl: [6, 9],
+    reach: 0.62, bushy: 0.70, squash: 0.45, joint: 0.55,
+    liftLow: 0.25, liftHigh: 0.50, droop: 0.15,
+    spire: 0.4, snow: 0.95, lean: 0.18, tuftFrom: 0.20,
+  },
+  {
+    name: 'ghostSnag',         // ancient bleached silver snag struck by lightning
+    bark: '#a39b8e',
+    foliage: null,
+    height: [6, 11], whorls: [5, 7], perWhorl: [3, 4],
+    reach: 0.48, bushy: 0, squash: 1, joint: 0.42,
+    liftLow: -0.15, liftHigh: 0.40, droop: 0.45,
+    spire: 0, snow: 0.45, lean: 0.22, broken: true, branchy: true,
+  },
+  {
+    name: 'douglas',           // grand towering alpine fir with tiered horizontal boughs
+    bark: '#614b35',
+    foliage: 0.92,
+    height: [14, 22], whorls: [11, 16], perWhorl: [4, 6],
+    reach: 0.42, bushy: 0.50, squash: 0.58, joint: 0.45,
+    liftLow: -0.05, liftHigh: 0.35, droop: 0.40,
+    spire: 1.4, snow: 0.68, lean: 0.03, fringe: 0.4,
+  },
+  {
+    name: 'blueSpruce',        // frosted blue-green high-elevation spruce
+    bark: '#534438',
+    foliage: 1.10,
+    height: [8, 15], whorls: [8, 12], perWhorl: [4, 5],
+    reach: 0.35, bushy: 0.58, squash: 0.70, joint: 0.44,
+    liftLow: -0.10, liftHigh: 0.42, droop: 0.50,
+    spire: 1.6, snow: 0.80, lean: 0.06, fringe: 0.6,
+  },
 ];
 
 /* Turning a direction into the euler `compose` will accept. A unit cylinder
@@ -2391,32 +2445,17 @@ export function createProps(THREE, shading) {
       // forked — sometimes on the island between the two, which is what
       // makes an island read as a place rather than a gap
       const side = rnd() < 0.5 ? -1 : 1;
-      const island = centres[0] !== centres[1] && rnd() < 0.35;
+      const island = centres[0] !== centres[1] && rnd() < 0.25;
       let x;
       if (island) {
         const gap = (centres[1] - centres[0]) / 2 - half;
-        if (gap < 3) continue;
-        x = (centres[0] + centres[1]) / 2 + (rnd() * 2 - 1) * (gap - 1.5);
+        if (gap < 5.0) continue;
+        x = (centres[0] + centres[1]) / 2 + (rnd() * 2 - 1) * (gap - 2.2);
       } else {
         const c = side < 0 ? centres[0] : centres[1];
-        /* How far out the forest reaches. A flat draw rather than an
-           exponent biased inward — biased scatter piled most of the trees
-           in the outer part of the range, which at this distance is high on
-           the containment bank where the fog has taken the ground: white
-           snow fades into white haze and a dark crown does not, so a stand
-           up there read as trees hanging in the sky. A flat draw spreads
-           them evenly instead, so the shoulder — now much wider, with a
-           whole powder and rock band before the wall even begins — gets
-           forest all the way across it rather than a clump at one end.
-
-           It starts at `PROPS.verge` *past* the groomed edge and not two and
-           a half metres inside it. The old inward reach was there to stop the
-           treeline reading as a ruled line, and what it actually did was
-           stand the odd spruce in the corduroy — see the note at the head of
-           `place`. The edge is broken by the stand field above and by the
-           corridor's own breathing width, both of which move with the hill
-           rather than across the piste. */
-        x = c + side * (half + PROPS.verge + rnd() * 132);
+        /* Wide, natural forest distribution extending up the mountain shoulders
+           and containment banks, completely outside the groomed corduroy. */
+        x = c + side * (half + PROPS.verge + Math.pow(rnd(), 1.08) * 155);
       }
       /* Whether anything grows here at all. The stand field is sampled at
          the tree's own position, so a clearing has an edge that runs across
@@ -2464,9 +2503,9 @@ export function createProps(THREE, shading) {
         // line the hull has to clear.
         const near = Math.abs(x - centres[0]) < Math.abs(x - centres[1])
           ? centres[0] : centres[1];
-        const clear = half + PROPS.verge + radius;
+        const clear = half + PROPS.verge + radius + 0.4;
         if (Math.abs(x - near) < clear) {
-          if (island && (centres[1] - centres[0]) * 0.5 < clear) continue;
+          if (island && (centres[1] - centres[0]) * 0.5 < clear + 1.2) continue;
           x = near + (Math.sign(x - near) || side) * clear;
         }
       }

@@ -1776,7 +1776,7 @@ export const PROPS = {
      on the shoulder beside the piste is about what it was and the new trees
      are almost all up the containment banks, which is where a valley in the
      Alps actually keeps its forest. */
-  treesPerBand: 58,
+  treesPerBand: 95,
   /* Where the forest is allowed to begin, measured out from the groomed edge.
 
      THE PISTE IS EMPTY, and this number is the whole of the rule. A groomed
@@ -1793,7 +1793,7 @@ export const PROPS = {
      the corduroy, which is precisely where a blown turn puts you. A metre and
      a half is a trunk's own girth clear of the snow the groomer touched, so
      even the crowns lean over powder rather than over the run. */
-  verge: 1.5,
+  verge: 2.2,
   /* Slalom gates, and how wide the pair stands.
      It is also the width the scoring is judged against, so the two can never
      drift apart — a gate scored against a different width than it was drawn
@@ -1826,7 +1826,7 @@ export const PROPS = {
      that go bare and leggy at altitude, and the odd dead larch with no
      needles left on it at all. */
   trees: {
-    variants: 12,
+    variants: 24,
     depth: 4,           // levels of branching before the needles go on
     minLength: 0.35,    // metres — below this a branch is not worth a cylinder
     sides: 5,           // radial segments on a branch; they are seen from 20 m
