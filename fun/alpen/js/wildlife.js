@@ -125,78 +125,6 @@ function rabbitGeometry(THREE) {
   ]);
 }
 
-/* A brown bear, facing -Z, feet at y = 0.
-
-   Two things were wrong with the old one. Its legs were four identical
-   cylinders, which is what makes a quadruped read as a table; and it was
-   built facing -Z while the animation code below turned and pitched it as
-   though it faced +Z, so the bear walked backwards and ducked its head
-   instead of rearing. The second is fixed at the call site — see the compose
-   step in `update` — and the geometry now commits properly to -Z.
-
-   For the legs: the front pair are straight columns hung off a shoulder cap,
-   the rear pair are a big haunch mass over a shorter shank, and both taper
-   into a paw with claws on the front edge. That asymmetry is most of what
-   separates a bear from a large dog at any distance. The shoulder hump is
-   the other half — it is the highest point on a grizzly, it sits forward of
-   the middle, and putting it in a lighter coat than the flanks means the
-   animal has a readable back line even against a white hill. */
-function bearGeometry(THREE) {
-  const ball = new THREE.SphereGeometry(0.5, 24, 16);
-  const bead = new THREE.SphereGeometry(0.5, 16, 12);
-  const box = new THREE.BoxGeometry(1, 1, 1);
-  // Tapered so a limb has a wrist; the snout is the same cone used nose-first
-  const limb = new THREE.CylinderGeometry(0.5, 0.38, 1, 16, 2);
-  const snout = new THREE.CylinderGeometry(0.32, 0.5, 1, 20, 2);
-
-  const coat = '#4a3628';
-  const light = '#5b452f';
-  const dark = '#33241a';
-  const belly = '#2a1d15';
-  const muzzle = '#7c5f45';
-  const claw = '#cbbda2';
-  const eye = '#12100e';
-
-  const side = (s) => ([
-    // front: shoulder cap, straight column, broad paw, claws on the toe
-    { geo: ball, color: coat, pos: [s * 0.52, 1.00, -0.70], scale: [0.56, 0.66, 0.62] },
-    { geo: limb, color: dark, pos: [s * 0.50, 0.52, -0.72], scale: [0.40, 1.04, 0.40] },
-    { geo: box, color: dark, pos: [s * 0.50, 0.09, -0.80], scale: [0.40, 0.20, 0.52] },
-    { geo: box, color: claw, pos: [s * 0.50, 0.055, -1.02], scale: [0.36, 0.10, 0.10] },
-    // rear: the haunch carries the mass and the shank below it is shorter
-    { geo: ball, color: coat, pos: [s * 0.50, 0.80, 0.86], scale: [0.62, 0.94, 0.92] },
-    { geo: limb, color: dark, pos: [s * 0.47, 0.40, 0.74], scale: [0.38, 0.80, 0.38] },
-    { geo: box, color: dark, pos: [s * 0.47, 0.09, 0.66], scale: [0.38, 0.20, 0.56] },
-    { geo: box, color: claw, pos: [s * 0.47, 0.055, 0.36], scale: [0.34, 0.09, 0.09] },
-    // small round ears, set wide and well back, with the inside facing forward
-    { geo: ball, color: coat, pos: [s * 0.44, 1.62, -1.22], scale: [0.34, 0.34, 0.18] },
-    { geo: ball, color: dark, pos: [s * 0.45, 1.62, -1.29], scale: [0.20, 0.20, 0.14] },
-    { geo: bead, color: eye, pos: [s * 0.30, 1.40, -1.58], scale: [0.13, 0.13, 0.11] },
-  ]);
-
-  return compose(THREE, [
-    { geo: ball, color: belly, pos: [0, 0.72, 0.05], scale: [1.30, 0.80, 2.30] },
-    { geo: ball, color: coat, pos: [0, 1.04, 0.10], scale: [1.44, 1.30, 2.35] },
-    // the hump, and a lighter band along the spine so the back line survives
-    // being seen against snow at distance
-    { geo: ball, color: light, pos: [0, 1.44, -0.58], scale: [1.16, 0.92, 1.20] },
-    { geo: ball, color: light, pos: [0, 1.34, 0.30], scale: [1.12, 0.76, 1.90] },
-    { geo: ball, color: coat, pos: [0, 0.92, -0.78], scale: [1.20, 1.06, 1.10] },
-    { geo: ball, color: coat, pos: [0, 1.22, -1.10], scale: [0.86, 0.80, 0.70] },
-    { geo: ball, color: coat, pos: [0, 1.26, -1.42], scale: [0.74, 0.70, 0.80] },
-    // brow ridge, so the eyes sit in shadow rather than on a bald curve
-    { geo: box, color: dark, pos: [0, 1.46, -1.56], rot: [0.12, 0, 0], scale: [0.56, 0.12, 0.30] },
-    // the cone stood on its side, narrow end forward: +Y becomes -Z under a
-    // quarter turn about X, which is why the taper is written backwards
-    { geo: snout, color: muzzle, pos: [0, 1.16, -1.72], rot: [-Math.PI / 2, 0, 0], scale: [0.66, 0.58, 0.56] },
-    { geo: box, color: dark, pos: [0, 1.00, -1.72], scale: [0.34, 0.14, 0.46] },
-    { geo: ball, color: eye, pos: [0, 1.155, -2.00], scale: [0.30, 0.22, 0.14] },
-    { geo: ball, color: dark, pos: [0, 1.10, 1.32], scale: [0.24, 0.22, 0.20] },
-    ...side(-1),
-    ...side(1),
-  ]);
-}
-
 /* A red deer, facing -Z, feet at y = 0 — and only from the withers down.
 
    The head is a separate mesh and that is the whole reason the deer are worth
@@ -390,14 +318,9 @@ export function createWildlife(THREE, shading) {
   const rabbits = new THREE.InstancedMesh(
     rabbitGeometry(THREE), animalMaterial(), WILDLIFE.rabbits,
   );
-  const bears = new THREE.InstancedMesh(
-    bearGeometry(THREE), animalMaterial(), WILDLIFE.bears,
-  );
   rabbits.frustumCulled = false;
-  bears.frustumCulled = false;
   rabbits.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-  bears.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-  group.add(rabbits, bears);
+  group.add(rabbits);
 
   /* The far animals. Three pools for the deer rather than one, because the
      head is a separate instance and the stag's is a different mesh — and the
@@ -434,8 +357,7 @@ export function createWildlife(THREE, shading) {
      `setLamp` each frame with the headlamp's level, origin and direction —
      see the wiring note on the returned object. */
   const RABBIT_EYES = [[-0.076, 0.352, -0.388], [0.076, 0.352, -0.388]];
-  const BEAR_EYES = [[-0.30, 1.40, -1.58], [0.30, 1.40, -1.58]];
-  const EYE_MAX = (WILDLIFE.rabbits + WILDLIFE.bears) * 2;
+  const EYE_MAX = WILDLIFE.rabbits * 2;
   const EYE_REACH = 45;
   const eyeGeo = new THREE.PlaneGeometry(1, 1);
   const eyeGlow = new THREE.InstancedBufferAttribute(new Float32Array(EYE_MAX), 1);
@@ -548,9 +470,6 @@ export function createWildlife(THREE, shading) {
     hares.push({ x: 0, z: 1, yaw: 0, vx: 0, vz: 0, flee: 0, hop: Math.random() * 10, alive: false, seen: false });
   }
   const beasts = [];
-  for (let i = 0; i < WILDLIFE.bears; i++) {
-    beasts.push({ x: 0, z: 1, yaw: 0, dir: 1, rear: 0, alive: false, hit: false, near: false, walk: Math.random() * 6 });
-  }
 
   function placeRabbit(r, rider) {
     const z = rider.pos.z - range(WILDLIFE.rabbitSpawnRange);
@@ -566,29 +485,6 @@ export function createWildlife(THREE, shading) {
     r.alive = true;
     r.seen = false;
   }
-
-  function placeBear(b, rider) {
-    const z = rider.pos.z - range(WILDLIFE.bearSpawnRange);
-    b.z = z;
-    // Almost always the branch the rider's line is already nearer. At a fork
-    // that is a guess about which side of the island they will take, and
-    // sometimes it is wrong — but a bear seen across the trees is a fine
-    // outcome too, and it is the only way the far branch is ever inhabited.
-    b.x = branchAt(z, rider.pos.x, 0.12)
-      + (Math.random() * 2 - 1) * corridorHalfAt(z) * BEAR_OFFSET;
-    b.dir = Math.random() < 0.5 ? -1 : 1;
-    b.yaw = b.dir > 0 ? Math.PI / 2 : -Math.PI / 2;
-    b.rear = 0;
-    b.alive = true;
-    b.hit = false;
-    b.near = false;
-  }
-
-  /* Seconds until the next chance of a bear. Drawn fresh after every
-     attempt, taken or refused, so the gap between two bears is a respawn
-     wait times however many refusals it took — which is what actually makes
-     the mountain empty rather than merely thinned out. */
-  let bearClock = range(WILDLIFE.bearRespawn);
 
   /* --- the far animals ---------------------------------------------------
 
@@ -755,101 +651,6 @@ export function createWildlife(THREE, shading) {
     // only queued when there are live instances to carry.
     if (n > 0) rabbits.instanceMatrix.needsUpdate = true;
 
-    // --- bears -------------------------------------------------------------
-    /* The spawn window, which is deliberately most of the reason there is
-       usually no bear. The clock only runs when the hill is empty of them
-       and the run has gone far enough to have earned one — if it ran during
-       the first kilometre a bear would be waiting at the exact metre the
-       rule expires, every single time — and reaching zero only offers a
-       spawn, which `bearChance` then usually turns down. */
-    if (rider.distance > WILDLIFE.bearFrom) {
-      const idle = beasts.find((b) => !b.alive);
-      if (idle) {
-        bearClock -= dt;
-        if (bearClock <= 0) {
-          bearClock = range(WILDLIFE.bearRespawn);
-          if (Math.random() < WILDLIFE.bearChance) placeBear(idle, rider);
-        }
-      }
-    }
-
-    let bn = 0;
-    for (const b of beasts) {
-      // Nothing here kills a live bear for being below `bearFrom`: the debug
-      // hatch places one by hand at any distance, and it used to be wiped
-      // the next frame.
-      if (!b.alive) continue;
-      if (b.z > rz + 30) { b.alive = false; continue; }
-
-      const dx = b.x - rx;
-      const dz = b.z - rz;
-      const dist = Math.hypot(dx, dz);
-
-      // A bear notices you long before you reach it, and stands up about it
-      const near = clamp(1 - (dist - 8) / 22, 0, 1);
-      b.rear += (near - b.rear) * (1 - Math.exp(-3 * dt));
-      const walk = 1 - b.rear;
-      b.walk += dt * 2.4 * walk;
-      b.x += b.dir * WILDLIFE.bearSpeed * walk * dt;
-
-      /* Turn around at the treeline rather than wandering into the forest —
-         but the treeline is not a constant any more, and there may be two of
-         them. The corridor is measured from whichever branch centre is
-         nearer, which also makes a fork behave correctly on its own: while
-         the split is narrower than the corridor the two overlap, and a bear
-         crossing the middle simply hands off to the other centre and keeps
-         going, so it walks the full width of a briefly doubled piste.
-
-         The direction test matters. Without it, a bear that starts outside
-         its corridor for any reason flips every frame and vibrates on the
-         spot instead of walking back in. */
-      const out = b.x - nearestCenter(b.x, b.z);
-      if (Math.abs(out) > corridorHalfAt(b.z) && Math.sign(out) === b.dir) b.dir *= -1;
-      b.yaw = b.dir > 0 ? Math.PI / 2 : -Math.PI / 2;
-
-      // A hit and a near miss are tracked separately, and the near miss is
-      // only awarded once the bear is behind. Sharing one flag meant every
-      // head-on approach crossed the 2.4–3.4 m band first, claimed BEAR
-      // DODGED, and then suppressed the collision — so the one genuinely
-      // dangerous thing on the mountain was harmless in the common case.
-      const level = Math.abs(rider.pos.y - heightAt(b.x, b.z)) < 2.4;
-      if (!b.hit && level && dist < WILDLIFE.bearRadius + 0.9) {
-        b.hit = true;
-        onHit(b.x, b.z);
-      } else if (!b.hit && !b.near && dz > 0.5 && dist < 3.4) {
-        b.near = true;
-        onNear(b.x, b.z, 'bear');
-      }
-
-      /* The rear, and the two sign fixes that come with the model now
-         honestly facing -Z. The yaw gains a half turn — exactly the one the
-         rabbits always had and the bear never did, which is why it used to
-         walk backwards — and the pitch loses its minus, because on a model
-         whose head is at -Z a positive rotation about the local X axis is
-         what lifts the head rather than what buries it. The old bear
-         approached the rider tail first and ducked. */
-      const pitch = b.rear * 0.55;
-      // Rolling about the model's own long axis is the shoulder sway of a
-      // walking bear, and reads as weight in a way the vertical squash never
-      // did on its own. Both fade out as the animal stands up.
-      const roll = Math.sin(b.walk) * 0.05 * walk;
-      // Rearing about the origin swings the hind paws below the snow, so the
-      // whole animal rises by just enough to leave them planted
-      v.set(b.x, heightAt(b.x, b.z) + Math.sin(pitch) * BEAR_HIND, b.z);
-      e.set(pitch, b.yaw + Math.PI, roll, 'YXZ');
-      q.setFromEuler(e);
-      const lumber = 1 + Math.sin(b.walk * 2) * 0.045 * walk;
-      s.set(1, lumber, 1);
-      m.compose(v, q, s);
-      bears.setMatrixAt(bn++, m);
-      if (lampOn) shineEyes(BEAR_EYES);
-    }
-    bears.count = bn;
-    /* The guard matters most here: most runs have no bear at all, and this
-       was flagging a zero-instance buffer dirty on every frame of them. A
-       0 -> 0 frame now uploads nothing for either pool. */
-    if (bn > 0) bears.instanceMatrix.needsUpdate = true;
-
     // --- deer --------------------------------------------------------------
     /* The herd's own clock, run exactly like the bear's: it only ticks while
        the hill is empty of deer, and reaching zero offers a herd rather than
@@ -980,14 +781,12 @@ export function createWildlife(THREE, shading) {
     herd.alive = false;
     pack.alive = false;
     rabbits.count = 0;
-    bears.count = 0;
     deerBodies.count = 0;
     deerHeads.count = 0;
     stagHeads.count = 0;
     wolves.count = 0;
     eyes.count = 0;
     eyes.visible = false;
-    bearClock = range(WILDLIFE.bearRespawn);
     deerClock = range(WILDLIFE.deerRespawn);
     wolfClock = range(WILDLIFE.wolfRespawn);
   }

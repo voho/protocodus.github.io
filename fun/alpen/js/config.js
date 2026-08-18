@@ -1911,20 +1911,6 @@ export const WILDLIFE = {
   rabbitFlee: 15,
   rabbitSpeed: 9.5,
   rabbitHop: 6.2,     // hops per second, and the height comes from it
-  /* Bears do not move out of the way. They are rare, they are slow, and they
-     are the one thing on the hill that will put a rider down at speed.
-
-     There is now one, it does not appear in the first kilometre, and even
-     once the run is long enough to have earned it the spawn is refused about
-     two times in three. A bear should be a story you tell about a run, not a
-     feature of every run. */
-  bears: 1,
-  bearFrom: 1200,     // metres before the first one appears
-  bearChance: 0.35,   // and how often a spawn window is actually taken
-  bearRespawn: [14, 40], // seconds of quiet between attempts
-  bearSpawnRange: [140, 250],
-  bearSpeed: 2.4,
-  bearRadius: 1.5,
 
   /* Deer and wolves, which are the third kind of animal on this hill and
      want saying out loud because the first two set a pattern they break.

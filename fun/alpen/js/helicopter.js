@@ -540,23 +540,12 @@ export function createHelicopter(THREE, shading) {
 
   /* ------------------------------------------------------------------ */
 
-  /* Nearest live animal ahead of the rider, bears first. `beasts` is one
-     animal and `hares` is sixteen, so this is seventeen comparisons and it
-     only runs while the machine is deciding something. */
-  function findTarget(rider, targets, wantBearOnly) {
+  /* Nearest live animal ahead of the rider. `hares` is sixteen, so this
+     is sixteen comparisons and it only runs while the machine is deciding something. */
+  function findTarget(rider, targets) {
     const rz = rider.pos.z;
     let best = null;
     let bestGap = Infinity;
-
-    const beasts = targets.beasts;
-    for (let i = 0; i < beasts.length; i++) {
-      const b = beasts[i];
-      if (!b.alive) continue;
-      const gap = rz - b.z;
-      if (gap < HELI.searchNear || gap > HELI.bearSearch) continue;
-      if (gap < bestGap) { best = b; bestGap = gap; }
-    }
-    if (best || wantBearOnly) return best;
 
     const hares = targets.hares;
     for (let i = 0; i < hares.length; i++) {
@@ -840,15 +829,7 @@ export function createHelicopter(THREE, shading) {
       return;
     }
 
-    // A bear outranks a rabbit at any point in the sortie, and the swing of
-    // the beam across the snow from one to the other is the best thing the
-    // whole feature does. `rear` is how a bear is told from a rabbit — only
-    // one of the two rears up — because wildlife hands out plain objects
-    // from two pools and nothing on them says which pool they came from.
-    if (target.rear === undefined) {
-      const bear = findTarget(rider, targets, true);
-      if (bear) target = bear;
-    }
+
 
     orbit += HELI.orbitRate * dt;
     hold.x = target.x + Math.cos(orbit) * HELI.orbit;

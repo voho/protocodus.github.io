@@ -856,17 +856,10 @@ function stepFlow() {
   }
 }
 
-/* A near miss is now only ever a bear.
-
-   Threading a tree used to pay out as CLOSE ONE, and so did brushing past a
-   rabbit. It fired constantly — the piste is lined with trees and the banner
-   is centred, so most of what the read-out ever said was CLOSE ONE, which
-   made the one banner that should mean something mean nothing. A bear is
-   rare, deliberate and genuinely dangerous, and it is the only near miss
-   worth telling the player about. */
+/* Near miss encounters with wildlife. */
 function nearMiss(kind) {
-  if (kind !== 'bear') return;
-  award(SCORE.nearMiss * SCORE.bearDodge * game.combo, 'BEAR DODGED', 'near');
+  if (kind !== 'hare' && kind !== 'rabbit') return;
+  award(SCORE.nearMiss * game.combo, 'HARE DODGED', 'near');
   audio.whoosh();
 }
 
@@ -1127,9 +1120,6 @@ function liveTrickName() {
 const onWildlifeNear = (x, z, kind) => {
   if (game.mode === 'playing') nearMiss(kind);
 };
-const onBearContact = () => {
-  if (game.mode === 'playing' && rider.grace <= 0) rider.fall('bear', rider.speed);
-};
 const onCocoa = () => {
   if (game.mode !== 'playing') return;
   award(SCORE.cocoa * game.combo, 'COCOA STOP', 'near');
@@ -1286,7 +1276,7 @@ function frame(now) {
       tickStep = step;
     }
 
-    wildlife.update(dt, rider, onWildlifeNear, onBearContact);
+    wildlife.update(dt, rider, onWildlifeNear);
 
     heli.update(dt, rider, wildlife, w);
     if (game.mode === 'playing' && heli.claimLight(rider)) {
