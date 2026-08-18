@@ -1,48 +1,35 @@
 # Alpen generated texture sources
 
-Generated with Codex's built-in image-generation tool on 2026-07-31, then
-prepared locally for real-time WebGL use. The panorama edges were blended into
-a continuous 360-degree wrap. Snow sources were made periodic and packed as:
+Generated with built-in image-generation tools for real-time WebGL use.
 
-- R: neutral albedo variation, centred at 0.5
-- G: surface height, centred at 0.5
-- B: crystalline-density mask
-- A: reserved
+## Texture Asset Catalog
 
-## Source prompt set
+### 1. Terrain & Snowpack (`assets/textures/snow/`, `assets/textures/rock/`)
+- **`snow/powder-surface.webp`**: Seamless fresh high-alpine powder snow with micro-crystalline grain.
+- **`snow/groomed-surface.webp`**: Seamless groomed Swiss-piste corduroy ribs.
+- **`snow/ice-glacier.jpg`**: Compressed glacial hard-pack blue ice with luminous cyan subsurface depth.
+- **`rock/rock-granite.jpg`**: High-relief Swiss granite cliff rock.
+- **`rock/rock-sandstone.jpg`**: Warm alpine sandstone rock outcropping.
+- **`rock/rock-slate.jpg`**: Dark layered Swiss alpine slate rock with fine fissures and frost crystals.
 
-The clear plate was generated before the runtime moved away from its original
-low-poly direction; the shipped shader now relights and combines it with the
-high-density scene rather than enforcing that prompt's geometry style.
+### 2. Player & NPCs (`assets/textures/rider/`)
+- **`rider/snowboard-graphics.jpg`**: High-contrast geometric alpine racing snowboard top-sheet graphic.
+- **`rider/snowboard-retro.jpg`**: 1990s retro alpine freestyle snowboarding graphic with vibrant electric cyan, magenta, and solar yellow geometric angles.
+- **`rider/rider-fabric.jpg`**: Technical waterproof micro-ripstop Gore-Tex outerwear fabric with mountain weatherproofing weave.
 
-### Clear Swiss Alps panorama
+### 3. Alpine Huts & Architecture (`assets/textures/huts/`)
+- **`huts/alpine-wood-planks.jpg`**: Weathered rustic Swiss alpine timber planks with natural grain and snow dust.
+- **`huts/shingle-roof-snow.jpg`**: Weathered mountain cabin wooden roof shingles with snow patches and frost dusting.
 
-Production 360-degree equirectangular game skybox for a low-poly snowboarding
-game: a continuous, distant Swiss Alpine range inspired by the Bernese
-Oberland and Engadin; layered snow peaks and glacial bowls; restrained
-hand-painted 3D environment style; crisp cold morning; level horizon; seamless
-left/right join; no foreground, buildings, people, text, sun disc, or fantasy
-elements.
+### 4. Trees & Flora (`assets/textures/tree/`)
+- **`tree/pine-needles.jpg`**: Alpine conifer evergreen needles.
+- **`tree/frosty-conifer-boughs.jpg`**: Dense frost-covered Norway spruce and stone pine conifer needles.
+- **`tree/tree-bark.jpg`**: Deep conifer pine bark texture.
+- **`tree/weathered-tree-bark.jpg`**: Rugged alpine conifer pine bark with deep vertical furrows and settled snow.
 
-### Storm Swiss Alps panorama
-
-Edit the clear panorama by changing only weather and lighting to a readable
-Swiss Alpine snow squall. Preserve projection, camera, horizon, every mountain
-silhouette, and the seamless wrap for runtime crossfade. Use diffuse silver and
-steel-blue overcast light, distant snowfall and ridge cloud; no lightning,
-black clouds, new landmarks, text, or composition shift.
-
-### Powder snow
-
-Perfectly seamless square, top-down material texture of fresh high-Alpine
-powder with neutral diffuse light, fine crystal grain, shallow wind-packed
-microstructure, soft powder pockets and restrained glacier-blue variation. No
-tracks, footprints, rocks, dirt, objects, shadows, border, text, or dominant
-centre.
-
-### Groomed snow
-
-Edit the powder material into a perfectly seamless groomed Swiss-piste surface,
-preserving snow colour, crystal scale, exposure and orthographic presentation.
-Add uniform, shallow horizontal corduroy ribs with natural softening. No deep
-trenches, tracks, moire, objects, dirt, borders, text, or directional light.
+### 5. Mountains & Sky Panoramas (`assets/textures/sky/`)
+- **`sky/alps-clear.webp`**: Production 360-degree equirectangular game skybox of distant Swiss Alps peaks on a crisp clear morning.
+- **`sky/alps-storm.webp`**: Swiss Alpine snow squall panorama with diffuse steel-blue overcast light.
+- **`sky/alps-sunrise.jpg`**: Alpine sunrise alpenglow mountain panorama.
+- **`sky/alps-aurora-night.jpg`**: Polar aurora borealis curtains over nighttime alpine peaks.
+- **`sky/alps-peaks-sunset.jpg`**: 360-degree panoramic golden-hour sunset Alpenglow across jagged Swiss alpine crests.
