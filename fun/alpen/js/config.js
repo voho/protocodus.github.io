@@ -1763,102 +1763,33 @@ export const PROPS = {
      band still carries roughly the twenty-two it always did — the difference
      is that they are now bunched into stands with real clearings between
      them instead of being spread evenly over every hillside on the mountain. */
-  /* Fifty-eight, up from thirty-four, and the reach they are scattered over
-     went from seventy-eight metres to a hundred and thirty — so the density
-     on the shoulder beside the piste is about what it was and the new trees
-     are almost all up the containment banks, which is where a valley in the
-     Alps actually keeps its forest. */
-  treesPerBand: 95,
+  /* Trees are strictly confined to the low valley verges near the piste,
+     leaving the high mountain flanks and slopes completely free of trees. */
+  treesPerBand: 28,
   /* Where the forest is allowed to begin, measured out from the groomed edge.
-
-     THE PISTE IS EMPTY, and this number is the whole of the rule. A groomed
-     run is a machine-made surface and the machine drives the full width of it,
-     so there is nothing standing on it — not a spruce, not a boulder, nothing
-     — and the two places that used to put something there are gone: a handful
-     of trees planted between the centre line and the corridor edge once the
-     run had warmed up, and a forest whose inner reach started two and a half
-     metres *inside* that edge. Both were difficulty bought with the one thing
-     a piste is supposed to guarantee.
-
-     What replaces them as difficulty is the ground and the verge: the hill's
-     own curvature throws the rider, and everything solid now waits just past
-     the corduroy, which is precisely where a blown turn puts you. A metre and
-     a half is a trunk's own girth clear of the snow the groomer touched, so
-     even the crowns lean over powder rather than over the run. */
+     THE PISTE IS EMPTY. */
   verge: 2.2,
-  /* Slalom gates, and how wide the pair stands.
-     It is also the width the scoring is judged against, so the two can never
-     drift apart — a gate scored against a different width than it was drawn
-     at is a gate that pays out when you visibly missed it.
-
-     Nine metres, up from five. Five was a real slalom gate and it was the
-     wrong measurement to have copied: a real slalom is ridden at twelve
-     metres a second down a course somebody has inspected, and this is ridden
-     at forty, blind, in a storm, on a piste eighty metres wide. Five metres
-     of gate at forty metres a second is an eighth of a second of aim. What
-     made it *feel* unfair was never the scoring, it was that the target was
-     smaller than the reaction — so the pair is wider and, more to the point,
-     the snow between them is lit. See `TERRAIN.gateGlow`. */
+  /* Slalom gates, and how wide the pair stands. */
   gateHalf: 4.6,
-  /* Trees, grown rather than modelled.
-
-     There used to be one tree — a cylinder, a cone and a smaller cone —
-     scaled to three sizes and tinted four greens, and a forest of it reads
-     as wallpaper because every silhouette is the same silhouette. These are
-     grown instead: a trunk that recurses into branches, each one shorter,
-     thinner and turned off its parent, with needles hung on whatever the
-     recursion has left at the bottom. It is the oldest fractal in graphics
-     and it is still the cheapest way to get a hundred trees that are all
-     recognisably the same species and none of them the same tree.
-
-     `variants` of them are grown once at load from fixed seeds and then
-     instanced, so the forest costs one draw call per variant however many
-     thousand are standing in it. The species table is what makes a treeline
-     read as a treeline: spruces that hold a spire, firs that spread, pines
-     that go bare and leggy at altitude, and the odd dead larch with no
-     needles left on it at all. */
   trees: {
     variants: 24,
     depth: 4,           // levels of branching before the needles go on
     minLength: 0.35,    // metres — below this a branch is not worth a cylinder
     sides: 5,           // radial segments on a branch; they are seen from 20 m
   },
-  /* A continuous ecology field, sampled only while a 40 m band is rebuilt.
-     These are candidates rather than guaranteed counts: slow moisture,
-     exposure and treeline fields accept different proportions of them, so
-     alpine cushions give way to berry heath, then forest understory, without
-     a biome boundary ever moving through the picture. The geometry itself is
-     grown once at startup and instanced from fixed hashes. */
+  /* Biome distribution: rocky massifs, jagged crags, and extensive stone fields */
   biomes: {
-    plantCandidates: 12,
-    /* Shrubs went from eight candidates a band to twenty. The ecology refuses
-       most of them — a candidate is an offer, not a plant — so the visible
-       change is not twenty shrubs every forty metres, it is that a bank the
-       moisture field likes now fills in properly instead of carrying four
-       token bushes. Scrub is the one thing on a treeline that is genuinely
-       dense, and the old count could not express dense at all. */
-    shrubCandidates: 20,
-    sideRockCandidates: 9,
-    /* How large a scenic stone can be, as a multiple of the grown boulder.
-       The draw is squared — see the note at the placement — so the low end is
-       where most of them land: a fifth is a cobble you would step over and
-       three and a half is a glacial erratic with trees growing beside it. */
-    stoneSize: [0.20, 3.5],
-    /* And the crags: how far up the bank, how big, and how rare. `out` is
-       measured from the outer groomed edge, so eighty metres is well up the
-       containment wall and a hundred and seventy is near the top of it. */
-    cragFrom: 300,
-    cragChance: 0.17,      // one band in six: a face every ~230 m
-    cragOut: [78, 170],
-    cragSize: [2.0, 4.4],
-    hazardFrom: 360,       // keep the opening stretch generous
-    hazardChance: 0.19,    // then about one readable boulder every 200 m
-    hazardPadding: 8,      // never crowd a streamed band boundary
-    /* The band the boulder stands in, measured out from the groomed edge: a
-       margin of clear snow first, then far enough out to be well into the
-       powder shoulder and no further, because past about fifteen metres the
-       deep snow has already refused the rider and a collider out there would
-       only ever fire on somebody the mountain had turned round anyway. */
+    plantCandidates: 8,
+    shrubCandidates: 12,
+    sideRockCandidates: 38,
+    stoneSize: [0.35, 5.5],
+    cragFrom: 80,
+    cragChance: 0.85,      // multiple dramatic rocky massifs per band
+    cragOut: [20, 160],    // rugged rocky massif slopes from shoulder to containment wall
+    cragSize: [3.8, 9.8],  // towering imposing rock massifs and jagged cliffs
+    hazardFrom: 200,
+    hazardChance: 0.25,
+    hazardPadding: 8,
     hazardEdge: 3.2,
     hazardOut: 15,
   },

@@ -2124,7 +2124,7 @@ export function createProps(THREE, shading) {
     growCrag(THREE, 0x51c433 + 9743, geos, SNOWPACK.slate),
   ];
   const cragPools = cragVariants.map((grown) => new Pool(
-    THREE, grown.geometry, stoneMaterial, bands + 8,
+    THREE, grown.geometry, stoneMaterial, bands * 4 + 32,
   ));
 
   plantPool.mesh.name = 'alpine-plant-patches';
@@ -2517,7 +2517,7 @@ export function createProps(THREE, shading) {
       }
     }
 
-    // --- forest, either side of the corridor -------------------------------
+    // --- forest, strictly on lower verges beside the corridor --------------
     for (let i = 0; i < PROPS.treesPerBand; i++) {
       const z = z0 + rnd() * band;
       const half = corridorHalfAt(z);
@@ -2534,10 +2534,13 @@ export function createProps(THREE, shading) {
         x = (centres[0] + centres[1]) / 2 + (rnd() * 2 - 1) * (gap - 2.2);
       } else {
         const c = side < 0 ? centres[0] : centres[1];
-        /* Wide, natural forest distribution extending up the mountain shoulders
-           and containment banks, completely outside the groomed corduroy. */
-        x = c + side * (half + PROPS.verge + Math.pow(rnd(), 1.08) * 155);
+        /* Strictly confined to the lower valley floor near the verge.
+           Trees NEVER grow on the steep mountain slopes, flanks, or peaks. */
+        x = c + side * (half + PROPS.verge + Math.pow(rnd(), 1.6) * 16.0);
       }
+      const c = side < 0 ? centres[0] : centres[1];
+      if (!island && Math.abs(x - c) > half + 20.0) continue;
+
       /* Whether anything grows here at all. The stand field is sampled at
          the tree's own position, so a clearing has an edge that runs across
          the hill wherever the field puts it instead of starting and stopping
@@ -2594,6 +2597,8 @@ export function createProps(THREE, shading) {
       const yaw = rnd() * TAU;
       const sy = s * (0.85 + rnd() * 0.35);
       const normal = treeLean(x, z, y, rnd);
+      // Trees never grow on steep mountain slopes
+      if (normal.y < 0.88) continue;
       const colour = castOf(treeBare[v], v, rnd(), tint);
       if (hash2(b, 3800 + i, 239) > density) continue;
       if (!clearOfBandHazards(x, z, radius, bandHazards, 2.0)) continue;
@@ -2723,29 +2728,28 @@ export function createProps(THREE, shading) {
 
        These are eighty to a hundred and sixty metres off the centre line,
        but remain solid if an extreme-speed rider reaches them. */
-    if (travelled >= BIOMES.cragFrom
-      && hash2(b, 3700, 233) < BIOMES.cragChance * density) {
-      const z = z0 + 6 + hash2(b, 3701, 233) * (band - 12);
-      const side = hash2(b, 3702, 233) < 0.5 ? -1 : 1;
-      const distance = lerp(BIOMES.cragOut[0], BIOMES.cragOut[1], hash2(b, 3703, 233));
-      const x = outerEdgeAt(z, side) + side * distance;
-      ecologyAt(x, z, eco);
-      if (hash2(b, 3704, 233) < 0.18 + 0.82 * eco.exposure) {
-        const v = Math.floor(hash2(b, 3705, 233) * cragPools.length);
-        const s = lerp(BIOMES.cragSize[0], BIOMES.cragSize[1], hash2(b, 3706, 233));
-        const sx = s * lerp(0.86, 1.24, hash2(b, 3707, 233));
-        const sy = s * lerp(0.88, 1.30, hash2(b, 3708, 233));
-        const sz = s * lerp(0.86, 1.24, hash2(b, 3709, 233));
+    /* --- rocky massifs and rugged mountain crags -------------------------
+       Dramatic alpine stone massifs, towering jagged crags, and sheer rock
+       buttresses across the mountain flanks and containment slopes. */
+    for (let i = 0; i < 4; i++) {
+      if (travelled >= BIOMES.cragFrom
+        && hash2(b, 3700 + i, 233) < BIOMES.cragChance * density) {
+        const z = z0 + 4 + hash2(b, 3701 + i, 233) * (band - 8);
+        const side = (i % 2 === 0) ? -1 : 1;
+        const distance = lerp(BIOMES.cragOut[0], BIOMES.cragOut[1], hash2(b, 3703 + i, 233));
+        const x = outerEdgeAt(z, side) + side * distance;
+        ecologyAt(x, z, eco);
+        const v = Math.floor(hash2(b, 3705 + i, 233) * cragPools.length);
+        const s = lerp(BIOMES.cragSize[0], BIOMES.cragSize[1], hash2(b, 3706 + i, 233));
+        const sx = s * lerp(0.86, 1.28, hash2(b, 3707 + i, 233));
+        const sy = s * lerp(0.92, 1.45, hash2(b, 3708 + i, 233));
+        const sz = s * lerp(0.86, 1.28, hash2(b, 3709 + i, 233));
         const grown = cragVariants[v];
         const rough = stoneTransform(grown, 0, sx, sy, sz);
         const groundY = beddedGroundY(x, z, rough.r, 0.4 + rough.r * 0.22);
         const shape = stoneTransform(grown, groundY, sx, sy, sz);
-        /* Turned to face the run rather than turned at random. A crag has a
-           front — the tipped beds and the ledges are all on one side of it —
-           and a face pointed into the mountain is a pile of rubble seen from
-           behind. */
         const yaw = (side < 0 ? Math.PI / 2 : -Math.PI / 2)
-          + (hash2(b, 3710, 233) - 0.5) * 0.9;
+          + (hash2(b, 3710 + i, 233) - 0.5) * 0.9;
         if (cragPools[v].add(x, shape.y, z, yaw, sx, sy, sz)) {
           solids.push({
             type: 'rock', x, z, r: shape.r,
