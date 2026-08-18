@@ -2189,10 +2189,24 @@ export function createRiderModel(THREE, shading) {
     lampUniform.value = headlamp.level;
   }
 
+  function reset() {
+    seen = false;
+    s.down = 0;
+    s.air = 0;
+    s.grab = 0;
+    s.tuck = 0;
+    s.push = 0;
+    s.charge = 0;
+    s.wash = 0;
+    s.switched = 0;
+    headlamp.reset();
+  }
+
   return {
     root,
     shadow,
     update,
+    reset,
     rearBoot,
     headlamp,
     debug: () => ({

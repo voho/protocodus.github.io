@@ -964,5 +964,9 @@ export function createShading(THREE) {
     uniforms.uSunView.value.copy(sunDir).transformDirection(viewInv);
   }
 
-  return { uniforms, apply, update };
+  function reset() {
+    mistFloor = Number.NaN;
+  }
+
+  return { uniforms, apply, update, reset };
 }

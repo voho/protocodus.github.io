@@ -505,6 +505,9 @@ function restart() {
   wildlife.reset();
   heli.reset();
   huts.reset();
+  mountainLife.reset(rider.pos.z);
+  model.reset();
+  shading.reset();
   hud.resetScore();
   /* The course below the checkpoint is unridden again. Without this the gates
      the rider had already reached — taken, or missed, which counts the same —
@@ -514,7 +517,7 @@ function restart() {
   props.reopenGatesBelow(rider.pos.z);
   resetPropDensity = false;
   props.reset(rider.pos.z, 1);
-  terrain.update(rider.pos.x, rider.pos.z);
+  terrain.reset(rider.pos.x, rider.pos.z);
 }
 
 function newMountain() {
@@ -1618,12 +1621,12 @@ function afterPaint(fn) {
    the honest thing for the read-out to say is that the wait is over, and the
    plate is welcome to arrive afterwards. */
 const SNOW_PATIENCE = 6000;
-Promise.race([
+const surfacesPromise = Promise.race([
   terrain.surfacesReady,
   new Promise((settle) => setTimeout(settle, SNOW_PATIENCE)),
-]).then(() => boot.step('snow'));
+]);
 
-afterPaint(() => {
+afterPaint(async () => {
   /* The sun, before the ground it has to light. The world-fixed horizon cache
      itself is direction-independent, but its very first shader evaluation
      still needs the correct bearing and fade. Zero-length ticks advance no
@@ -1637,6 +1640,10 @@ afterPaint(() => {
   game.mode = 'attract';
   showMuted(audio.muted);
   boot.step('mountain');
+
+  await surfacesPromise;
+  boot.step('snow');
+  terrain.snapSnowReady();
 
   afterPaint(() => {
     /* Compile every currently resident world material, allocate the shadow

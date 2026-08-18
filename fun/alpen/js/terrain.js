@@ -1617,6 +1617,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       );
       shadeWorkerHealthy = true;
       shadeWorker.onmessage = (event) => {
+        if (event.data.id !== shadeWorkerBatch) return;
         let installed = false;
         for (const result of event.data.results) {
           const { tile, horizon, ground } = result;
@@ -1691,6 +1692,8 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
        equally distant and gives its worker a 36 m lead before it can matter.
        Biasing the resident page downhill would queue earlier, but it would
        also overwrite an uphill tile while it was still visibly shadowed. */
+    pendingShadeTiles.clear();
+    ++shadeWorkerBatch;
     shadeCenterX = Math.floor(x / shadeTileSpan);
     shadeCenterZ = Math.floor(z / shadeTileSpan);
     const radius = (shadeTileGrid - 1) >> 1;
@@ -1720,6 +1723,10 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     const cx = Math.floor(x / shadeTileSpan);
     const cz = Math.floor(z / shadeTileSpan);
     if (cx === shadeCenterX && cz === shadeCenterZ) return;
+    if (Math.abs(cx - shadeCenterX) > 1 || Math.abs(cz - shadeCenterZ) > 1) {
+      initializeShadowCache(x, z);
+      return;
+    }
     shadeCenterX = cx;
     shadeCenterZ = cz;
     queueShadowTiles(cx, cz);
@@ -1915,6 +1922,17 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       settle,
     );
   });
+  const loadRock = (name, target) => new Promise((settle) => {
+    surfaceLoader.load(
+      new URL(`../assets/textures/rock/${name}`, import.meta.url).href,
+      (texture) => {
+        target.value = prepareSurface(texture);
+        settle();
+      },
+      undefined,
+      settle,
+    );
+  });
   const surfacesReady = Promise.all([
     loadSurface('powder-surface.webp', (t) => {
       powderSurface.value = t;
@@ -1924,22 +1942,9 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       groomedSurface.value = t;
       snowReadyTarget.y = 1;
     }),
+    loadRock('rock-granite.jpg', rockSurface),
+    loadRock('rock-sandstone.jpg', sandstoneSurface),
   ]);
-  // Rock and sandstone are supplementary detail textures rather than the
-  // near-field snow the loading bar's "snow" step is actually waiting on,
-  // so they stay outside `surfacesReady` and load without gating anything.
-  surfaceLoader.load(
-    new URL('../assets/textures/rock/rock-granite.jpg', import.meta.url).href,
-    (texture) => {
-      rockSurface.value = prepareSurface(texture);
-    },
-  );
-  surfaceLoader.load(
-    new URL('../assets/textures/rock/rock-sandstone.jpg', import.meta.url).href,
-    (texture) => {
-      sandstoneSurface.value = prepareSurface(texture);
-    },
-  );
 
   /* Surface detail, in the fragment shader rather than in the mesh.
 
@@ -3327,6 +3332,34 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     advanceBuild();
   }
 
+  function snapSnowReady() {
+    if (snowReadyTarget.x === 1) snowReady.value.x = 1;
+    if (snowReadyTarget.y === 1) snowReady.value.y = 1;
+  }
+
+  function reset(x, z) {
+    build = null;
+    morphing = false;
+    morphAge = 0;
+    morphSnap = false;
+
+    const ax = Math.round(x / stride) * stride;
+    const az = Math.round(z / stride) * stride;
+    const ay = heightAt(ax, az);
+
+    anchorX = ax;
+    anchorZ = az;
+    anchorY = ay;
+    mesh.position.set(ax, ay, az);
+    setTileOrigins(ax, az);
+
+    fill(ax, az, ay, positions, normals, colors, surface, groomFrame);
+    publish();
+
+    initializeShadowCache(x, z);
+    snapSnowReady();
+  }
+
   /* Where the sun is, and how much of its shadow is being spent. `main.js`
      hands both over once a frame from the shared shading block and from the
      sky's own fade, so the mountain's precomputed shadow arrives and leaves
@@ -3396,6 +3429,8 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     setSun,
     setGates,
     update,
+    reset,
+    snapSnowReady,
     // Settles once both snow plates have finished arriving, one way or the
     // other. The loading read-out is its only consumer; nothing in the game
     // waits on it, because nothing in the game has to.

@@ -979,6 +979,14 @@ export function createWildlife(THREE, shading) {
     for (const b of beasts) b.alive = false;
     herd.alive = false;
     pack.alive = false;
+    rabbits.count = 0;
+    bears.count = 0;
+    deerBodies.count = 0;
+    deerHeads.count = 0;
+    stagHeads.count = 0;
+    wolves.count = 0;
+    eyes.count = 0;
+    eyes.visible = false;
     bearClock = range(WILDLIFE.bearRespawn);
     deerClock = range(WILDLIFE.deerRespawn);
     wolfClock = range(WILDLIFE.wolfRespawn);

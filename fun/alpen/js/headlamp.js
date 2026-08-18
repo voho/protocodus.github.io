@@ -560,11 +560,24 @@ export function createHeadlamp(THREE, shading, head) {
     pool.visible = draped;
   }
 
+  function reset() {
+    draped = false;
+    drapeBlend = 1;
+    displayedHitReady = false;
+    hitVisibility = 0;
+    lastDrape.set(0, 0, 0);
+    lastDrapeDirection.set(0, 0, -1);
+    lastDrapeFootprint = 0;
+    poolMat.uniforms.uStrength.value = 0;
+    pool.visible = false;
+  }
+
   return {
     rig,
     beam,
     pool,
     update,
+    reset,
     get level() { return level; },
     // The live beam state, for anything that wants to answer the lamp —
     // the wildlife's eye-shine reads all three. These are the working
