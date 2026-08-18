@@ -3367,8 +3367,8 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
      vanishes at the exact moment the rider is between the poles and cannot
      see why. Fading it says *that one is done* while the pair is still in
      shot, which is the entire message. */
-  const gateWarm = new THREE.Color('#ffb43c');
-  const gateCool = new THREE.Color('#3cffd0');
+  const gateWarm = new THREE.Color('#ffa818');
+  const gateCool = new THREE.Color('#ff7800');
   const gateOrder = [];
   function setGates(gates, riderZ) {
     gateOrder.length = 0;

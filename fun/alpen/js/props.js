@@ -494,6 +494,27 @@ const BEACON = `#include <color_vertex>
   #endif
 }`;
 
+/* Airfield runway guiding light shader: smooth pulsating wave flowing down the mountain */
+const PISTE_BEACON = `#include <color_vertex>
+{
+  float n64Ph = 0.0;
+  float n64Lead = 0.0;
+  #ifdef USE_INSTANCING
+    n64Ph = fract(instanceMatrix[3].z * 0.018) * 6.2832;
+    /* Promotion for the upcoming active waypoint gate pair */
+    n64Lead = 1.0 - smoothstep(1.0, 5.0, abs(instanceMatrix[3].z - uNextGate));
+  #endif
+  /* Airfield runway guiding wave: smooth progressive pulse running down the mountain */
+  float n64Rate = mix(3.2, 5.6, n64Lead);
+  float n64Wave = sin(uAirTime * n64Rate - instanceMatrix[3].z * 0.045 + n64Ph * 0.4);
+  float n64Norm = 0.5 + 0.5 * n64Wave;
+  float n64Flash = n64Norm * n64Norm * (3.0 - 2.0 * n64Norm);
+  #if defined( USE_COLOR ) || defined( USE_INSTANCING_COLOR )
+    // Warm airfield amber output with bright promotion on active leader
+    vColor.rgb *= (1.40 + 3.60 * n64Flash) * (1.0 + 1.20 * n64Lead);
+  #endif
+}`;
+
 /* The mask itself, built from the same array `compose` is about to eat.
 
    `compose` concatenates its parts in order and keeps every corner of every
@@ -1527,27 +1548,52 @@ function waymarkGeometry(THREE) {
 /* Piste boundary stakes — slender fluorescent trail poles placed along the
    groomed corridor margins to guide riders through fog, storms, and flat light. */
 function pisteStakeGeometry(THREE) {
-  const box = new THREE.BoxGeometry(1, 1, 1);
   const cyl = new THREE.CylinderGeometry(0.038, 0.038, 2.1, 7);
   cyl.translate(0, 1.05, 0);
   const ring1 = new THREE.CylinderGeometry(0.048, 0.048, 0.20, 7);
   ring1.translate(0, 1.80, 0);
   const ring2 = new THREE.CylinderGeometry(0.048, 0.048, 0.14, 7);
   ring2.translate(0, 1.40, 0);
-  const disc = new THREE.BoxGeometry(0.20, 0.20, 0.04);
-  disc.translate(0, 2.02, 0);
+  const housing = new THREE.CylinderGeometry(0.065, 0.065, 0.12, 8);
+  housing.translate(0, 2.05, 0);
 
   const geometry = compose(THREE, [
-    { geo: cyl, color: '#ff4d12' },
-    { geo: ring1, color: '#ffffff' },
-    { geo: ring2, color: '#ffffff' },
-    { geo: disc, color: '#ff4d12' },
+    { geo: cyl, color: '#ff6600' },
+    { geo: ring1, color: '#1c2026' },
+    { geo: ring2, color: '#1c2026' },
+    { geo: housing, color: '#14181e' },
   ]);
-  box.dispose();
   cyl.dispose();
   ring1.dispose();
   ring2.dispose();
-  disc.dispose();
+  housing.dispose();
+  return geometry;
+}
+
+/* Luminous airfield runway beacon for piste stakes */
+function pisteStakeLampGeometry(THREE) {
+  const lanternLens = new THREE.IcosahedronGeometry(0.14, 2);
+  const coronaInner = new THREE.IcosahedronGeometry(0.26, 1);
+  const coronaOuter = new THREE.IcosahedronGeometry(0.44, 1);
+  const band1 = new THREE.CylinderGeometry(0.052, 0.052, 0.18, 8);
+  const band2 = new THREE.CylinderGeometry(0.052, 0.052, 0.14, 8);
+
+  const geometry = compose(THREE, [
+    // Bright luminous core airfield beacon lantern
+    { geo: lanternLens, pos: [0, 2.12, 0], color: '#ffffff' },
+    // Glowing radiant inner corona
+    { geo: coronaInner, pos: [0, 2.12, 0], color: '#ffffff' },
+    // Soft outer airfield beacon halo
+    { geo: coronaOuter, pos: [0, 2.12, 0], color: '#ffffff' },
+    // Reflective luminous bands along the mast
+    { geo: band1, pos: [0, 1.80, 0], color: '#ffffff' },
+    { geo: band2, pos: [0, 1.40, 0], color: '#ffffff' },
+  ]);
+  lanternLens.dispose();
+  coronaInner.dispose();
+  coronaOuter.dispose();
+  band1.dispose();
+  band2.dispose();
   return geometry;
 }
 
@@ -1787,6 +1833,19 @@ export function createProps(THREE, shading) {
       shader.vertexShader = shader.vertexShader
         .replace('#include <common>', `#include <common>${LAMP_DECL}`)
         .replace('#include <color_vertex>', BEACON);
+    };
+    return m;
+  };
+
+  /* Airfield runway guiding beacon material for piste boundary stakes */
+  const pisteStakeLampMat = () => {
+    const m = new THREE.MeshBasicMaterial({ vertexColors: true, fog: true });
+    m.toneMapped = false;
+    m.onBeforeCompile = (shader) => {
+      Object.assign(shader.uniforms, beacon);
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', `#include <common>${LAMP_DECL}`)
+        .replace('#include <color_vertex>', PISTE_BEACON);
     };
     return m;
   };
@@ -2109,8 +2168,13 @@ export function createProps(THREE, shading) {
     THREE, waymarkGeometry(THREE), alpineMat, bands,
   );
   const pisteStakes = new Pool(
-    THREE, pisteStakeGeometry(THREE), alpineMat, bands * 4 + 16,
+    THREE, pisteStakeGeometry(THREE), alpineMat, bands * 4 + 32,
   );
+  const pisteStakeLamps = new Pool(
+    THREE, pisteStakeLampGeometry(THREE), pisteStakeLampMat(), pisteStakes.capacity, true,
+  );
+  pisteStakeLamps.mesh.userData.noShadow = true;
+  pisteStakeLamps.mesh.name = 'piste-stake-lamps';
   avalancheFences.mesh.name = 'avalanche-fences';
   waymarks.mesh.name = 'swiss-waymarks';
   pisteStakes.mesh.name = 'piste-stakes';
@@ -2120,7 +2184,7 @@ export function createProps(THREE, shading) {
      off screen. The trees stay unculled — they surround the camera at all
      times and a sphere over three hundred metres of forest would never say
      no. */
-  for (const p of [avalancheFences, waymarks, pisteStakes]) p.cullable = true;
+  for (const p of [avalancheFences, waymarks, pisteStakes, pisteStakeLamps]) p.cullable = true;
 
   /* Conservative spheres for the small grown props. Keep the centre as well
      as the radius: these meshes grow upward and sideways from their origin,
@@ -2169,7 +2233,7 @@ export function createProps(THREE, shading) {
 
   const pools = [
     plantPool, ...shrubPools, ...rockPools, ...cragPools,
-    poles, lamps, avalancheFences, waymarks, pisteStakes,
+    poles, lamps, avalancheFences, waymarks, pisteStakes, pisteStakeLamps,
   ];
   pools.forEach((p) => group.add(p.mesh));
   const allPools = pools.concat(treePools);
@@ -2770,57 +2834,46 @@ export function createProps(THREE, shading) {
       waymarks.add(x, y, z, yaw, scale, scale, scale);
     }
 
-    // --- piste boundary guide stakes ---------------------------------------
-    // Slender fluorescent trail poles placed rhythmically along the outer
+    // --- piste boundary guide stakes & airfield waypoints ------------------
+    // Slender airfield guiding poles placed rhythmically along the outer
     // left and right boundaries of the groomed corduroy. They frame the course
-    // down the mountain, giving essential visual guidance through storms,
-    // flat light, and curves.
-    const stakeStep = 20;
+    // down the mountain with warm airfield amber lights.
+    // Selected pairs along the runway act as the waypoint gates so we do not
+    // have duplicate poles or clutter the groomed track.
+    const stakeStep = 18;
     const numStakes = Math.floor(band / stakeStep);
-    for (let k = 0; k < numStakes; k++) {
-      const z = z0 + k * stakeStep + 10;
-      for (const side of [-1, 1]) {
-        const x = outerEdgeAt(z, side) + side * 0.35;
-        const y = heightAt(x, z);
-        const yaw = courseYawAt(z, side);
-        pisteStakes.add(x, y, z, yaw, 1, 1, 1);
-      }
-    }
+    const stakeAirfield = new THREE.Color('#ff7800');
+    const stakeWaypoint = new THREE.Color('#ffa818');
 
-    // --- slalom gates ------------------------------------------------------
-    // A line to take, and the only thing on the piste that is neither a jump
-    // nor an obstacle. The park's own announcing pair used to live here too;
-    // with the park gone, every gate is an ordinary one — and "ordinary" is
-    // now the terrain's own guide line: the gates stand where the groomed
-    // ribbon is carved, the same slots `terrain.js`'s `gateSlotsIn` hands
-    // out, so every panel is planted mid-corduroy on the racing line at a
-    // steady rhythm no band rebuild can disturb.
-    for (const slot of gateSlotsIn(z0, z0 + band, gateSlots)) {
-      // Alternating panels, the way a set course actually reads.
-      const colour = slot.k % 2 === 0 ? gateA : gateB;
-      /* The mast is the same panel colour taken well down towards the dark
-         grey it used to be. It has to read as a coloured pole against snow in
-         full sun without competing with the beacon it is carrying, and a mast
-         at the lens's own value is a stick of neon in daylight. */
-      mastTint.copy(colour).multiplyScalar(0.42).addScalar(0.10);
-      for (const side of [-1, 1]) {
-        const x = slot.x + side * PROPS.gateHalf;
-        const y = heightAt(x, slot.z);
-        const yaw = side < 0 ? 0 : Math.PI;
-        poles.add(x, y, slot.z, yaw, 1, 1, 1, mastTint);
-        lamps.add(x, y, slot.z, yaw, 1, 1, 1, tint.copy(colour));
+    for (let k = 0; k < numStakes; k++) {
+      const z = z0 + k * stakeStep + 9;
+      // Designate every 8th stake pair (~144m) as a scoring waypoint gate
+      const isWaypoint = (Math.round(-z / stakeStep) % 8 === 0);
+      const activeColor = isWaypoint ? stakeWaypoint : stakeAirfield;
+      const xLeft = outerEdgeAt(z, -1) - 0.35;
+      const xRight = outerEdgeAt(z, 1) + 0.35;
+      const yLeft = heightAt(xLeft, z);
+      const yRight = heightAt(xRight, z);
+      const yawLeft = courseYawAt(z, -1);
+      const yawRight = courseYawAt(z, 1);
+
+      pisteStakes.add(xLeft, yLeft, z, yawLeft, 1, 1, 1);
+      pisteStakeLamps.add(xLeft, yLeft, z, yawLeft, 1, 1, 1, tint.copy(activeColor));
+
+      pisteStakes.add(xRight, yRight, z, yawRight, 1, 1, 1);
+      pisteStakeLamps.add(xRight, yRight, z, yawRight, 1, 1, 1, tint.copy(activeColor));
+
+      if (isWaypoint) {
+        const midX = (xLeft + xRight) * 0.5;
+        const half = (xRight - xLeft) * 0.5;
+        gates.push({
+          x: midX,
+          z: z,
+          half: half,
+          taken: takenGates.has(z),
+          warm: true,
+        });
       }
-      /* `half` travels with the gate because the caller has to know how wide
-         it was to decide whether the rider went through it. `warm` is which
-         of the two flag colours this pair flies, and it travels too: the
-         light on the snow between the poles is drawn by the terrain, three
-         modules away, and a gate lit in a colour it is not flying is two
-         gates in the same place. */
-      gates.push({
-        x: slot.x, z: slot.z, half: PROPS.gateHalf,
-        taken: takenGates.has(slot.z),
-        warm: colour === gateB,
-      });
     }
   }
 
