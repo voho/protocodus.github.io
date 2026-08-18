@@ -2484,35 +2484,17 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
         for (int n64Gi = 0; n64Gi < ${GATE_SLOTS}; n64Gi++) {
           vec4 n64Gate = uGateGlow[n64Gi];
           if (n64Gate.w <= 0.0) continue;
-          // Distance to the SEGMENT between the poles, not to its middle
-          vec2 n64GateP = vWorld.xz - n64Gate.xy;
-          float n64GateAx = max(abs(n64GateP.x) - n64Gate.z, 0.0);
-          float n64GateD = length(vec2(n64GateAx, n64GateP.y)) * ${(1 / GATE_FALLOFF).toFixed(5)};
+          // Distance to the two individual pole bases ONLY — leaving the middle piste unlit
+          float n64DistLeft = length(vWorld.xz - vec2(n64Gate.x - n64Gate.z, n64Gate.y));
+          float n64DistRight = length(vWorld.xz - vec2(n64Gate.x + n64Gate.z, n64Gate.y));
+          float n64PoleDist = min(n64DistLeft, n64DistRight);
+          float n64GateD = n64PoleDist * 0.38;
           if (n64GateD >= 1.0) continue;
-          float n64GateA = n64Gate.w * exp(-2.3 * n64GateD * n64GateD)
-            * (1.0 - smoothstep(0.55, 1.0, n64GateD));
-          /* MULTIPLY FIRST, THEN ADD, and the first attempt did only the
-             second half — which is a light that works at night and does
-             nothing at all in the day.
-
-             Sunlit snow is already at the top of the range. Adding amber to
-             it moves nothing a player can see: the channels clip and the
-             pool is white on white. That is not a strength problem and
-             turning it up ten times over did not fix it; it made a patch
-             appear in the one shaded dip beside the gate and stay invisible
-             between the poles, which is precisely backwards.
-
-             A coloured light on snow does two things and only one of them is
-             addition. It also *takes away* the parts of the daylight the
-             lamp is not made of, because the snow under it is being lit by
-             the lamp instead. So the ground is pushed towards the tint and
-             then given a little glow on top, and the result reads on white
-             snow at noon and in the dark at midnight for the same reason a
-             real one does.
-             (No back-ticks in here: this comment is inside a template literal.) */
+          float n64GateA = n64Gate.w * exp(-2.8 * n64GateD * n64GateD)
+            * (1.0 - smoothstep(0.50, 1.0, n64GateD));
           vec3 n64GateC = uGateTint[n64Gi];
           gl_FragColor.rgb = mix(gl_FragColor.rgb,
-            gl_FragColor.rgb * n64GateC * 1.25 + n64GateC * 0.30,
+            gl_FragColor.rgb * n64GateC * 1.30 + n64GateC * 0.35,
             min(n64GateA, 1.0));
         }`);
   };

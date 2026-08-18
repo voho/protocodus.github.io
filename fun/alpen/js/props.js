@@ -473,26 +473,24 @@ const BEACON = `#include <color_vertex>
 {
   float n64Ph = 0.0;
   float n64Lead = 0.0;
+  float n64Side = 0.0;
   #ifdef USE_INSTANCING
-    /* z only, exactly as the note above says, and the x term that briefly
-       joined it is gone. It was meant to make a gate's two lamps alternate —
-       claimed as half a cycle across the gate, but the poles are 9.2 m
-       apart, so it came out at ninety-two degrees: neither together nor
-       alternating, just two unrelated lights where the design put one
-       signal. The corridor also wanders in x, so it broke the downhill
-       ripple between gates as well. */
     n64Ph = fract(instanceMatrix[3].z * 0.0177) * 6.2832;
+    /* Instance rotation encodes pole side: left pole has yaw=0 (cos=1), right pole has yaw=PI (cos=-1) */
+    n64Side = instanceMatrix[0].x > 0.0 ? 0.0 : 3.14159;
     /* Slots are 150 m apart and a pair shares its z exactly, so any
        tolerance between a metre and a slot separates the leader cleanly.
        Four metres of falloff means the promotion arrives over the last
        fraction of a second before the gate is taken rather than snapping. */
     n64Lead = 1.0 - smoothstep(1.0, 4.0, abs(instanceMatrix[3].z - uNextGate));
   #endif
-  float n64Rate = mix(2.4, 5.0, n64Lead);
-  float n64Flash = pow(
-    max(0.0, sin(uAirTime * n64Rate + n64Ph * (1.0 - n64Lead))), 4.0);
+  float n64Rate = mix(2.6, 5.2, n64Lead);
+  /* Smooth sinusoidal wave blinking smoothly from left to right */
+  float n64Wave = sin(uAirTime * n64Rate + n64Ph * (1.0 - n64Lead) - n64Side);
+  float n64Norm = 0.5 + 0.5 * n64Wave;
+  float n64Flash = n64Norm * n64Norm * (3.0 - 2.0 * n64Norm);
   #if defined( USE_COLOR ) || defined( USE_INSTANCING_COLOR )
-    vColor.rgb *= (0.55 + 2.10 * n64Flash) * (1.0 + 0.80 * n64Lead);
+    vColor.rgb *= (1.20 + 3.60 * n64Flash) * (1.0 + 1.20 * n64Lead);
   #endif
 }`;
 
@@ -2000,13 +1998,23 @@ export function createProps(THREE, shading) {
      that is ever seen close up; a low-poly one reads as a rotating facet
      rather than as a steady light. */
   const bandGeo = new THREE.CylinderGeometry(0.085, 0.085, 0.30, 12);
+  const coronaInnerGeo = new THREE.IcosahedronGeometry(0.34, 2);
+  const coronaOuterGeo = new THREE.IcosahedronGeometry(0.52, 1);
   const lampGeo = compose(THREE, [
-    { geo: new THREE.IcosahedronGeometry(0.19, 2), pos: [0, 2.4, 0], color: '#ffffff' },
+    // Bright luminous central core lens
+    { geo: new THREE.IcosahedronGeometry(0.20, 2), pos: [0, 2.4, 0], color: '#ffffff' },
+    // Glowing inner radiant corona
+    { geo: coronaInnerGeo, pos: [0, 2.4, 0], color: '#ffffff' },
+    // Soft outer beacon halo
+    { geo: coronaOuterGeo, pos: [0, 2.4, 0], color: '#ffffff' },
+    // Radiant mast bands
     { geo: bandGeo, pos: [0, 1.90, 0], color: '#ffffff' },
     { geo: bandGeo, pos: [0, 1.25, 0], color: '#ffffff' },
     { geo: bandGeo, pos: [0, 0.60, 0], color: '#ffffff' },
   ]);
   bandGeo.dispose();
+  coronaInnerGeo.dispose();
+  coronaOuterGeo.dispose();
 
   /* Five instanced calls make the ecology: one whole plant patch, two winter
      shrubs and two stone families. Shapes, snow masks and colours are baked
@@ -2798,8 +2806,9 @@ export function createProps(THREE, shading) {
       for (const side of [-1, 1]) {
         const x = slot.x + side * PROPS.gateHalf;
         const y = heightAt(x, slot.z);
-        poles.add(x, y, slot.z, 0, 1, 1, 1, mastTint);
-        lamps.add(x, y, slot.z, 0, 1, 1, 1, tint.copy(colour));
+        const yaw = side < 0 ? 0 : Math.PI;
+        poles.add(x, y, slot.z, yaw, 1, 1, 1, mastTint);
+        lamps.add(x, y, slot.z, yaw, 1, 1, 1, tint.copy(colour));
       }
       /* `half` travels with the gate because the caller has to know how wide
          it was to decide whether the rider went through it. `warm` is which
