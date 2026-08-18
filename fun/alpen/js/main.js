@@ -368,6 +368,7 @@ const game = {
   maxDistanceAnnounced: 0,
   maxSpeedAnnounced: 0,
   manualWeather: 0,
+  pisteOffset: 0,
 };
 bootGameRef = game;
 
@@ -1323,6 +1324,10 @@ function frame(now) {
        it as the one gate the run is actually pointed at. */
     terrain.setGates(props.gates, rider.pos.z);
     props.setNextGate(rider.pos.z);
+
+    const center = nearestCenter(rider.pos.x, rider.pos.z);
+    const half = corridorHalfAt(rider.pos.z);
+    game.pisteOffset = (rider.pos.x - center) / Math.max(1, half);
 
     /* Everything below this line is drawing, so it reads the interpolated
        rider. Everything above — collisions, wildlife, scoring, the huts —

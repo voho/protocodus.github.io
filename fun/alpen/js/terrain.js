@@ -2069,7 +2069,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
            plate here. The broad vertex mask keeps the transition at the
            piste edge soft and agrees with the cover calculation exactly. */
         float n64FreshCover = smoothstep(0.10, 0.82, uSnowFresh);
-        float n64GroomBlend = clamp(vGroomed * (1.0 - n64FreshCover), 0.0, 1.0);
+        float n64GroomBlend = clamp(vGroomed * (1.0 - n64FreshCover * 0.55), 0.0, 1.0);
         float n64GroomWeight = n64GroomBlend * uSnowReady.y;
         /* Until the groomed plate has decoded, powder remains the fallback on
            the piste. The reveal therefore cannot pass through a neutral,
@@ -2160,12 +2160,12 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
         float n64CordColorResolve = 1.0
           - smoothstep(0.20, 0.58, n64CordColorFoot / 0.021);
         float n64CordColor = n64GroomWeight * n64CordColorResolve
-          * (1.0 - smoothstep(18.0, 38.0, vDist)) * n64SnowMask;
+          * (1.0 - smoothstep(22.0, 52.0, vDist)) * n64SnowMask;
         if (n64CordColor > 0.002) {
           float n64CordHeight = texture2DGradEXT(uSnowGroomed,
             n64CordColorUv, n64CordColorDx, n64CordColorDy).g;
           diffuseColor.rgb *= 1.0 + (n64CordHeight - 0.5)
-            * 0.11 * n64CordColor;
+            * 0.16 * n64CordColor;
         }
         /* Two stones, with two structures. Blue slate is thin, tilted bedding;
            iron rock breaks into broader shelves crossed by dark vertical

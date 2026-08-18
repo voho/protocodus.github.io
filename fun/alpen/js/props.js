@@ -1472,6 +1472,33 @@ function waymarkGeometry(THREE) {
   return geometry;
 }
 
+/* Piste boundary stakes — slender fluorescent trail poles placed along the
+   groomed corridor margins to guide riders through fog, storms, and flat light. */
+function pisteStakeGeometry(THREE) {
+  const box = new THREE.BoxGeometry(1, 1, 1);
+  const cyl = new THREE.CylinderGeometry(0.038, 0.038, 2.1, 7);
+  cyl.translate(0, 1.05, 0);
+  const ring1 = new THREE.CylinderGeometry(0.048, 0.048, 0.20, 7);
+  ring1.translate(0, 1.80, 0);
+  const ring2 = new THREE.CylinderGeometry(0.048, 0.048, 0.14, 7);
+  ring2.translate(0, 1.40, 0);
+  const disc = new THREE.BoxGeometry(0.20, 0.20, 0.04);
+  disc.translate(0, 2.02, 0);
+
+  const geometry = compose(THREE, [
+    { geo: cyl, color: '#ff4d12' },
+    { geo: ring1, color: '#ffffff' },
+    { geo: ring2, color: '#ffffff' },
+    { geo: disc, color: '#ff4d12' },
+  ]);
+  box.dispose();
+  cyl.dispose();
+  ring1.dispose();
+  ring2.dispose();
+  disc.dispose();
+  return geometry;
+}
+
 /* ==========================================================================
    Instanced pools
    ========================================================================== */
@@ -2019,15 +2046,19 @@ export function createProps(THREE, shading) {
   const waymarks = new Pool(
     THREE, waymarkGeometry(THREE), alpineMat, bands,
   );
+  const pisteStakes = new Pool(
+    THREE, pisteStakeGeometry(THREE), alpineMat, bands * 4 + 16,
+  );
   avalancheFences.mesh.name = 'avalanche-fences';
   waymarks.mesh.name = 'swiss-waymarks';
+  pisteStakes.mesh.name = 'piste-stakes';
 
   /* The sparse furniture is worth culling: a fence line on one bank is a
      compact cluster that spends most of every orbit of the camera entirely
      off screen. The trees stay unculled — they surround the camera at all
      times and a sphere over three hundred metres of forest would never say
      no. */
-  for (const p of [avalancheFences, waymarks]) p.cullable = true;
+  for (const p of [avalancheFences, waymarks, pisteStakes]) p.cullable = true;
 
   /* Conservative spheres for the small grown props. Keep the centre as well
      as the radius: these meshes grow upward and sideways from their origin,
@@ -2076,7 +2107,7 @@ export function createProps(THREE, shading) {
 
   const pools = [
     plantPool, ...shrubPools, ...rockPools, ...cragPools,
-    poles, lamps, avalancheFences, waymarks,
+    poles, lamps, avalancheFences, waymarks, pisteStakes,
   ];
   pools.forEach((p) => group.add(p.mesh));
   const allPools = pools.concat(treePools);
@@ -2690,6 +2721,23 @@ export function createProps(THREE, shading) {
       const scale = lerp(ALPINE.waymark.scale[0], ALPINE.waymark.scale[1],
         hash2(b, 2107, 151));
       waymarks.add(x, y, z, yaw, scale, scale, scale);
+    }
+
+    // --- piste boundary guide stakes ---------------------------------------
+    // Slender fluorescent trail poles placed rhythmically along the outer
+    // left and right boundaries of the groomed corduroy. They frame the course
+    // down the mountain, giving essential visual guidance through storms,
+    // flat light, and curves.
+    const stakeStep = 20;
+    const numStakes = Math.floor(band / stakeStep);
+    for (let k = 0; k < numStakes; k++) {
+      const z = z0 + k * stakeStep + 10;
+      for (const side of [-1, 1]) {
+        const x = outerEdgeAt(z, side) + side * 0.35;
+        const y = heightAt(x, z);
+        const yaw = courseYawAt(z, side);
+        pisteStakes.add(x, y, z, yaw, 1, 1, 1);
+      }
     }
 
     // --- slalom gates ------------------------------------------------------

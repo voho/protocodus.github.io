@@ -656,6 +656,17 @@ export function createHud(root) {
     // holding a spin one instant longer a decision
     if (!rider.grounded && g.liveTrick) centreLine(g.liveTrick, LIVE_Y, SNOW, 1);
 
+    // --- course direction guide when off-piste or in heavy blizzard ---------
+    // A subtle console compass arrow showing the way back to the groomed run
+    // when drifting into deep powder or during low-visibility whiteouts.
+    const offset = g.pisteOffset || 0;
+    const isBlizzard = g.weather && g.weather.storm > 0.45;
+    if (g.mode === 'playing' && (Math.abs(offset) > 0.9 || (isBlizzard && Math.abs(offset) > 0.4))) {
+      const guideText = offset > 0 ? '◄ PISTE' : 'PISTE ►';
+      const guideColor = Math.abs(offset) > 1.3 ? AMBER : MINT;
+      centreLine(guideText, BOTTOM - 48 * UI, guideColor, 1);
+    }
+
     // --- the banner -----------------------------------------------------
     if (bannerTimer > 0) {
       const age = BANNER_HOLD - bannerTimer;
@@ -816,6 +827,7 @@ export function createHud(root) {
       + ` ${full ? 1 : 0} ${full && !CALM ? Math.floor(clock * 10) % 2 : -1}`
       + ` ${g.flow > 0 ? Math.round(g.flow * 100) : 0}`
       + ` ${g.flow > 0.99 && !CALM ? Math.floor(clock * 10) % 2 : -1}`
+      + ` ${Math.round((g.pisteOffset || 0) * 10)}`
       + ` ${muted ? 1 : 0} ${legendTime < LEGEND_SECONDS ? 1 : 0}`
       + ` ${document.body.classList.contains('touch') ? 1 : 0}`;
   }
