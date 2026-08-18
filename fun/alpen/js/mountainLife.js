@@ -130,6 +130,37 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
     return lineCentres[1] + band.half + band.powder + band.rock * 0.55;
   }
 
+  /* --- snow cannons (Schneekanonen) along the piste edge --- */
+  const cannonBarrelMat = new THREE.MeshLambertMaterial({ color: 0xdfa008, map: metalTex });
+  const cannonRingMat = new THREE.MeshLambertMaterial({ color: 0x1f5ab8, map: metalTex });
+  const cannonTowerMat = new THREE.MeshLambertMaterial({ color: 0x6e7682, map: metalTex });
+
+  const cannonProto = new THREE.Group();
+  const cTower = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 4.4, 8), cannonTowerMat);
+  cTower.position.y = 2.2;
+  const cArm = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.24, 0.85), cannonTowerMat);
+  cArm.position.set(0, 4.2, 0.35);
+  cArm.rotation.x = -0.28;
+  const cBarrel = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.32, 1.3, 12), cannonBarrelMat);
+  cBarrel.position.set(0, 4.4, 0.8);
+  cBarrel.rotation.x = Math.PI / 2 - 0.32;
+  const cNozzle = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.045, 6, 12), cannonRingMat);
+  cNozzle.position.set(0, 4.6, 1.4);
+  cNozzle.rotation.x = Math.PI / 2 - 0.32;
+  cannonProto.add(cTower, cArm, cBarrel, cNozzle);
+  cannonProto.traverse((o) => {
+    if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; }
+  });
+
+  const NUM_CANNONS = 8;
+  const CANNON_SPACING = 160;
+  const cannons = [];
+  for (let i = 0; i < NUM_CANNONS; i++) {
+    const mesh = cannonProto.clone();
+    root.add(mesh);
+    cannons.push({ mesh, side: i % 2 === 0 ? 1 : -1 });
+  }
+
   /* --- the other people --------------------------------------------------- */
 
   /* THE OTHER PEOPLE — authentic skiers and snowboarders sharing the mountain.
@@ -464,6 +495,30 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
           - SAG * 4 * t * (1 - t);
         g.mesh.position.set(cx, cy - 1.7, cz);
         g.mesh.rotation.z = Math.sin(cz * 0.08 + g.at * 0.02) * 0.05;
+      }
+
+      /* --- snow cannons streaming and snowmaking spray --- */
+      const baseCannonZ = Math.floor(rz / CANNON_SPACING) * CANNON_SPACING;
+      for (let i = 0; i < NUM_CANNONS; i++) {
+        const c = cannons[i];
+        const cz = baseCannonZ - i * CANNON_SPACING + 120;
+        rockBandAt(cz, band);
+        centersAt(cz, lineCentres);
+        const center = c.side > 0 ? lineCentres[1] : lineCentres[0];
+        const cx = center + c.side * (band.half + 3.2);
+        const cy = heightAt(cx, cz);
+        c.mesh.position.set(cx, cy, cz);
+        c.mesh.rotation.y = c.side > 0 ? -Math.PI * 0.65 : Math.PI * 0.65;
+
+        // Active snowmaking spray plumes
+        if (spray && Math.abs(cz - rz) < 220 && Math.random() < 24 * dt) {
+          const nozzleX = cx + (c.side > 0 ? -1.2 : 1.2);
+          const nozzleY = cy + 4.5;
+          const nozzleZ = cz - 0.8;
+          const sprayVx = c.side > 0 ? -(8.0 + Math.random() * 4.0) : (8.0 + Math.random() * 4.0);
+          const sprayVz = -(4.0 + Math.random() * 3.0);
+          spray.burst({ x: nozzleX, y: nozzleY, z: nozzleZ }, sprayVx, sprayVz, 8, 3.5);
+        }
       }
 
       /* --- the other people, and running into them ---------------------- */
