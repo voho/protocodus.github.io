@@ -1532,7 +1532,7 @@ export function createSky(THREE) {
   };
   const plateLoader = new THREE.TextureLoader();
   plateLoader.load(
-    new URL('../assets/textures/sky/alps-clear.webp', import.meta.url).href,
+    new URL('../assets/textures/sky/alps-clear.jpg', import.meta.url).href,
     (texture) => {
       clearPlate = preparePlate(texture);
       clearSettled = true;
@@ -1542,7 +1542,7 @@ export function createSky(THREE) {
     () => { clearSettled = true; settlePlates(); },
   );
   plateLoader.load(
-    new URL('../assets/textures/sky/alps-storm.webp', import.meta.url).href,
+    new URL('../assets/textures/sky/alps-storm.jpg', import.meta.url).href,
     (texture) => {
       stormPlate = preparePlate(texture);
       stormSettled = true;
