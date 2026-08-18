@@ -1471,6 +1471,197 @@ function growPlantPatch(THREE, seed, geos) {
   return geometry;
 }
 
+/* Low, sprawling Alpine Mugo Pine / Krummholz dwarf pine conifer shrub */
+function growDwarfPine(THREE, seed, geos) {
+  const rnd = stream(seed);
+  const parts = [];
+  const spent = [];
+  const pineNeedles = ['#294033', '#334c3e', '#1f3529'];
+
+  const armCount = 5 + ((rnd() * 3) | 0);
+  const base = rnd() * TAU;
+  for (let i = 0; i < armCount; i++) {
+    const a = base + (i / armCount) * TAU + (rnd() - 0.5) * 0.55;
+    const len = 0.55 + rnd() * 0.45;
+    const d = dirOf(a, 0.45 + rnd() * 0.35);
+    parts.push({
+      geo: geos.twig, color: THICKET, own: OWN_ALL,
+      pos: [Math.cos(a) * 0.08, 0.04 + rnd() * 0.06, Math.sin(a) * 0.08],
+      rot: aim(d[0], d[1], d[2]), scale: [0.045, len, 0.045],
+    });
+    const boughCount = 3;
+    for (let j = 0; j < boughCount; j++) {
+      const frac = (j + 1) / boughCount;
+      const bx = Math.cos(a) * (0.15 + len * frac * 0.75);
+      const bz = Math.sin(a) * (0.15 + len * frac * 0.75);
+      const by = 0.12 + len * frac * 0.35;
+      const br = 0.22 + rnd() * 0.14;
+      const g = weather(THREE, geos.stone, rnd, 0.52);
+      spent.push(g);
+      parts.push({
+        geo: g, color: new THREE.Color(pineNeedles[(i + j) % pineNeedles.length]).multiplyScalar(0.85 + rnd() * 0.25),
+        own: OWN_ALL,
+        pos: [bx, by, bz],
+        rot: [(rnd() - 0.5) * 0.35, rnd() * TAU, (rnd() - 0.5) * 0.35],
+        scale: [br * 1.25, br * 0.45, br * 0.85],
+      });
+      if (rnd() < 0.75) {
+        parts.push({
+          geo: g, color: SNOW, own: OWN_SNOW,
+          pos: [bx, by + br * 0.28, bz],
+          rot: [0, rnd() * TAU, 0],
+          scale: [br * 1.05, br * 0.16, br * 0.75],
+        });
+      }
+    }
+  }
+  const geometry = compose(THREE, parts);
+  geometry.setAttribute('surfaceOwn', ownership(THREE, parts));
+  spent.forEach((g) => g.dispose());
+  return geometry;
+}
+
+/* Alpine Winter Heath with rust/burgundy blossoms */
+function growAlpineHeath(THREE, seed, geos) {
+  const rnd = stream(seed);
+  const parts = [];
+  const spent = [];
+  const heathTone = ['#5a464c', '#6d4847', '#4b5444'];
+  const bloomTone = ['#8b4859', '#a25562', '#7c3848'];
+
+  const lobeCount = 4 + ((rnd() * 2) | 0);
+  const base = rnd() * TAU;
+  for (let i = 0; i < lobeCount; i++) {
+    const a = base + (i / lobeCount) * TAU + (rnd() - 0.5) * 0.6;
+    const r = 0.22 + rnd() * 0.12;
+    const off = 0.10 + rnd() * 0.22;
+    const y = 0.14 + rnd() * 0.18;
+    const g = weather(THREE, geos.stone, rnd, 0.45);
+    spent.push(g);
+    parts.push({
+      geo: g, color: new THREE.Color(heathTone[i % heathTone.length]).multiplyScalar(0.9 + rnd() * 0.2),
+      own: OWN_ALL,
+      pos: [Math.cos(a) * off, y, Math.sin(a) * off],
+      rot: [(rnd() - 0.5) * 0.35, rnd() * TAU, (rnd() - 0.5) * 0.35],
+      scale: [r, r * 0.52, r * 0.9],
+    });
+    const bloomCount = 3 + ((rnd() * 3) | 0);
+    for (let k = 0; k < bloomCount; k++) {
+      const ba = rnd() * TAU;
+      const boff = r * (0.4 + rnd() * 0.5);
+      parts.push({
+        geo: geos.berry, color: bloomTone[k % bloomTone.length], own: OWN_ALL,
+        pos: [Math.cos(a) * off + Math.cos(ba) * boff, y + r * 0.35 + rnd() * 0.08, Math.sin(a) * off + Math.sin(ba) * boff],
+        scale: [0.048, 0.058, 0.048],
+      });
+    }
+    if (rnd() < 0.6) {
+      parts.push({
+        geo: g, color: SNOW, own: OWN_SNOW,
+        pos: [Math.cos(a) * off, y + r * 0.32, Math.sin(a) * off],
+        rot: [0, rnd() * TAU, 0],
+        scale: [r * 0.75, r * 0.14, r * 0.70],
+      });
+    }
+  }
+  const geometry = compose(THREE, parts);
+  geometry.setAttribute('surfaceOwn', ownership(THREE, parts));
+  spent.forEach((g) => g.dispose());
+  return geometry;
+}
+
+/* Frosty mountain willow and deciduous scrub with bare twigs */
+function growWinterBramble(THREE, seed, geos) {
+  const rnd = stream(seed);
+  const parts = [];
+  const spent = [];
+  const stemTones = ['#382d27', '#4b3c33', '#524339'];
+
+  const mainStems = 8 + ((rnd() * 5) | 0);
+  const stem = rnd() * TAU;
+  for (let i = 0; i < mainStems; i++) {
+    const a = stem + (i / mainStems) * TAU + (rnd() - 0.5) * 0.65;
+    const tilt = 0.75 + rnd() * 0.55;
+    const d = dirOf(a, tilt);
+    const len = 0.52 + rnd() * 0.48;
+    parts.push({
+      geo: geos.twig, color: stemTones[i % stemTones.length], own: OWN_ALL,
+      pos: [Math.cos(a) * 0.06, 0.02 + rnd() * 0.05, Math.sin(a) * 0.06],
+      rot: aim(d[0], d[1], d[2]), scale: [0.032, len, 0.032],
+    });
+    if (rnd() < 0.7) {
+      const subA = a + (rnd() - 0.5) * 0.9;
+      const subD = dirOf(subA, tilt + 0.3);
+      const subLen = len * 0.55;
+      parts.push({
+        geo: geos.twig, color: stemTones[(i + 1) % stemTones.length], own: OWN_ALL,
+        pos: [Math.cos(a) * 0.06 + d[0] * len * 0.5, 0.02 + d[1] * len * 0.5, Math.sin(a) * 0.06 + d[2] * len * 0.5],
+        rot: aim(subD[0], subD[1], subD[2]), scale: [0.022, subLen, 0.022],
+      });
+    }
+  }
+  for (let i = 0; i < 3; i++) {
+    const r = 0.12 + rnd() * 0.08;
+    const g = weather(THREE, geos.stone, rnd, 0.35);
+    spent.push(g);
+    parts.push({
+      geo: g, color: SNOW, own: OWN_SNOW,
+      pos: [(rnd() - 0.5) * 0.18, 0.08 + rnd() * 0.12, (rnd() - 0.5) * 0.18],
+      scale: [r, r * 0.4, r],
+    });
+  }
+  const geometry = compose(THREE, parts);
+  geometry.setAttribute('surfaceOwn', ownership(THREE, parts));
+  spent.forEach((g) => g.dispose());
+  return geometry;
+}
+
+/* Alpine tussock grass and cushion moss patch */
+function growTussockPatch(THREE, seed, geos) {
+  const rnd = stream(seed);
+  const parts = [];
+  const spent = [];
+  const tussockColors = ['#697159', '#7e765d', '#535b48'];
+
+  for (let i = 0; i < 5; i++) {
+    const a = rnd() * TAU;
+    const off = 0.12 + rnd() * 0.45;
+    const r = 0.18 + rnd() * 0.14;
+    const g = weather(THREE, geos.stone, rnd, 0.45);
+    spent.push(g);
+    const x = Math.cos(a) * off;
+    const z = Math.sin(a) * off;
+    parts.push({
+      geo: g, color: tussockColors[i % tussockColors.length], own: OWN_ALL,
+      pos: [x, 0.08 + rnd() * 0.06, z], rot: [0, rnd() * TAU, 0],
+      scale: [r * 1.1, r * 0.38, r * 0.9],
+    });
+    if (i < 3) {
+      parts.push({
+        geo: g, color: SNOW, own: OWN_SNOW,
+        pos: [x, 0.16 + rnd() * 0.03, z], rot: [0, rnd() * TAU, 0],
+        scale: [r * 0.85, r * 0.10, r * 0.75],
+      });
+    }
+  }
+  for (let i = 0; i < 16; i++) {
+    const a = rnd() * TAU;
+    const off = 0.10 + rnd() * 0.55;
+    const d = dirOf(a, 0.95 + rnd() * 0.45);
+    const len = 0.30 + rnd() * 0.40;
+    parts.push({
+      geo: geos.blade, color: tussockColors[i % tussockColors.length], own: OWN_ALL,
+      pos: [Math.cos(a) * off, 0.02, Math.sin(a) * off],
+      rot: aim(d[0], d[1], d[2]),
+      scale: [0.028 + rnd() * 0.015, len, 0.022 + rnd() * 0.012],
+    });
+  }
+  const geometry = compose(THREE, parts);
+  geometry.setAttribute('surfaceOwn', ownership(THREE, parts));
+  spent.forEach((g) => g.dispose());
+  return geometry;
+}
+
 /* ==========================================================================
    Alpine infrastructure
 
@@ -1750,6 +1941,11 @@ export function createProps(THREE, shading) {
     new URL('../assets/textures/tree/frosty-conifer-boughs.jpg', import.meta.url).href,
     (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; needleTex.value = t; },
   );
+  const rockTex = { value: neutralTreeTex };
+  texLoader.load(
+    new URL('../assets/textures/rock/rock-slate.jpg', import.meta.url).href,
+    (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; rockTex.value = t; },
+  );
 
   const treeMat = (height) => {
     const m = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false });
@@ -1797,32 +1993,83 @@ export function createProps(THREE, shading) {
     return shading.apply(m, { cameraFade: true, sheen: 1, fogPull: FOG_PULL_TREE });
   };
 
-  /* Low vegetation shares one wind program. Its baked snow mask feeds the
-     same crystalline response as tree snow, while wood, berries and leaves
-     stay matte. These meshes do not cast, so the slight sway cannot disagree
-     with a static depth silhouette. */
+  /* Low vegetation shares one wind program and organic botanical textures */
   const floraMat = () => {
     const m = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false });
     m.onBeforeCompile = (shader) => {
-      Object.assign(shader.uniforms, air, { uSwayHeight: { value: 1.2 } });
+      Object.assign(shader.uniforms, air, {
+        uSwayHeight: { value: 1.2 },
+        uBarkTex: barkTex,
+        uNeedleTex: needleTex,
+      });
       shader.vertexShader = shader.vertexShader
-        .replace('#include <common>', `#include <common>${OWN_DECL}${AIR_DECL}`)
+        .replace('#include <common>', `#include <common>${OWN_DECL}${AIR_DECL}
+        varying vec3 vFloraWorldPos;
+        varying vec3 vFloraNormal;`)
+        .replace('#include <color_vertex>', OWN_MIX)
         .replace('#include <begin_vertex>', SWAY)
         .replace('#include <project_vertex>', `#include <project_vertex>
+        #ifdef USE_INSTANCING
+          vFloraWorldPos = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;
+          vFloraNormal = normalize((modelMatrix * instanceMatrix * vec4(normal, 0.0)).xyz);
+        #else
+          vFloraWorldPos = (modelMatrix * vec4(transformed, 1.0)).xyz;
+          vFloraNormal = normalize((modelMatrix * vec4(normal, 0.0)).xyz);
+        #endif
         vN64Sheen = 1.0 - surfaceOwn;`);
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', `#include <common>
+        varying vec3 vFloraWorldPos;
+        varying vec3 vFloraNormal;
+        uniform sampler2D uBarkTex;
+        uniform sampler2D uNeedleTex;`)
+        .replace('#include <color_fragment>', `#include <color_fragment>
+        /* Apply organic shrub foliage, bark, and heather textures */
+        float floraOwn = 1.0 - vN64Sheen;
+        if (floraOwn > 0.05) {
+          vec4 leafSample = texture2D(uNeedleTex, vFloraWorldPos.xz * 0.95);
+          vec4 twigSample = texture2D(uBarkTex, vFloraWorldPos.xy * 0.75);
+          vec3 texColor = mix(twigSample.rgb * 1.30, leafSample.rgb * 1.55, step(0.28, diffuseColor.g));
+          diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * texColor * 1.80, 0.72 * floraOwn);
+        }`);
     };
     return shading.apply(m, { cameraFade: true, sheen: 1, fogPull: FOG_PULL_FLORA });
   };
 
   /* Boulder snow uses the same mask without wind. A separate static program
-     keeps the rock faceting still and is shared by both stone families. */
+     keeps the rock faceting still and maps authentic slate/granite textures. */
   const rockMat = () => {
     const m = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false });
     m.onBeforeCompile = (shader) => {
+      Object.assign(shader.uniforms, { uRockTex: rockTex });
       shader.vertexShader = shader.vertexShader
-        .replace('#include <common>', `#include <common>${OWN_DECL}`)
+        .replace('#include <common>', `#include <common>${OWN_DECL}
+        varying vec3 vRockWorldPos;
+        varying vec3 vRockNormal;`)
         .replace('#include <project_vertex>', `#include <project_vertex>
+        #ifdef USE_INSTANCING
+          vRockWorldPos = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;
+          vRockNormal = normalize((modelMatrix * instanceMatrix * vec4(normal, 0.0)).xyz);
+        #else
+          vRockWorldPos = (modelMatrix * vec4(transformed, 1.0)).xyz;
+          vRockNormal = normalize((modelMatrix * vec4(normal, 0.0)).xyz);
+        #endif
         vN64Sheen = 1.0 - surfaceOwn;`);
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', `#include <common>
+        varying vec3 vRockWorldPos;
+        varying vec3 vRockNormal;
+        uniform sampler2D uRockTex;`)
+        .replace('#include <color_fragment>', `#include <color_fragment>
+        float rockOwn = 1.0 - vN64Sheen;
+        if (rockOwn > 0.05) {
+          vec3 nAbs = abs(vRockNormal);
+          vec4 rockX = texture2D(uRockTex, vRockWorldPos.yz * 0.25);
+          vec4 rockY = texture2D(uRockTex, vRockWorldPos.xz * 0.25);
+          vec4 rockZ = texture2D(uRockTex, vRockWorldPos.xy * 0.25);
+          vec3 rockColor = (rockX.rgb * nAbs.x + rockY.rgb * nAbs.y + rockZ.rgb * nAbs.z) / max(0.001, nAbs.x + nAbs.y + nAbs.z);
+          diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * rockColor * 1.95, 0.75 * rockOwn);
+        }`);
     };
     return shading.apply(m, { cameraFade: true, sheen: 1, fogPull: FOG_PULL_STONE });
   };
@@ -2092,20 +2339,28 @@ export function createProps(THREE, shading) {
      as trees, so distant instances never enter the depth pass. */
   const floraMaterial = floraMat();
   const stoneMaterial = rockMat();
-  const plantPool = new Pool(
-    THREE, growPlantPatch(THREE, 0x63a91d, geos), floraMaterial,
-    bands * BIOMES.plantCandidates + 16,
-  );
-  const shrubPools = [
-    new Pool(
-      THREE, growShrub(THREE, 0x2b7f41, geos, false), floraMaterial,
-      bands * BIOMES.shrubCandidates + 16,
-    ),
-    new Pool(
-      THREE, growShrub(THREE, 0x2b7f41 + 5827, geos, true), floraMaterial,
-      bands * BIOMES.shrubCandidates + 16,
-    ),
+
+  const plantVariants = [
+    growPlantPatch(THREE, 0x63a91d, geos),
+    growTussockPatch(THREE, 0x63a91d + 3317, geos),
   ];
+  const plantPools = plantVariants.map((grownGeo, i) => new Pool(
+    THREE, grownGeo, floraMaterial,
+    Math.ceil((bands * BIOMES.plantCandidates + 32) / plantVariants.length),
+  ));
+
+  const shrubVariants = [
+    growShrub(THREE, 0x2b7f41, geos, false),
+    growShrub(THREE, 0x2b7f41 + 5827, geos, true),
+    growDwarfPine(THREE, 0x2b7f41 + 9913, geos),
+    growAlpineHeath(THREE, 0x2b7f41 + 14421, geos),
+    growWinterBramble(THREE, 0x2b7f41 + 19937, geos),
+  ];
+  const shrubPools = shrubVariants.map((grownGeo, i) => new Pool(
+    THREE, grownGeo, floraMaterial,
+    Math.ceil((bands * BIOMES.shrubCandidates + 48) / shrubVariants.length),
+  ));
+
   const boulderVariants = [
     growBoulder(THREE, 0x9d2b1f, geos, SNOWPACK.slate),
     growBoulder(THREE, 0x9d2b1f + 6151, geos, SNOWPACK.iron),
@@ -2124,11 +2379,14 @@ export function createProps(THREE, shading) {
     THREE, grown.geometry, stoneMaterial, bands * 2 + 16,
   ));
 
-  plantPool.mesh.name = 'alpine-plant-patches';
-  plantPool.mesh.userData.noShadow = true;
-  shrubPools[0].mesh.name = 'snowy-alpine-shrubs';
-  shrubPools[1].mesh.name = 'snowy-berry-shrubs';
-  for (const p of shrubPools) p.mesh.userData.noShadow = true;
+  for (const p of plantPools) {
+    p.mesh.name = 'alpine-plant-patches';
+    p.mesh.userData.noShadow = true;
+  }
+  for (const p of shrubPools) {
+    p.mesh.name = 'alpine-shrubs';
+    p.mesh.userData.noShadow = true;
+  }
   rockPools[0].mesh.name = 'slate-boulders';
   rockPools[1].mesh.name = 'iron-boulders';
 
@@ -2152,18 +2410,10 @@ export function createProps(THREE, shading) {
 
   const poles = new Pool(THREE, poleGeo, poleMat(), bands * 2 + 16, true);
   const lamps = new Pool(THREE, lampGeo, lampMat(), poles.capacity, true);
-  // A self-luminous lens must not also be an opaque ball in the depth pass:
-  // two dark spheres hanging over every gate is what a beacon that casts
-  // looks like. `shadowCasting` in main.js reads this flag by name.
   lamps.mesh.userData.noShadow = true;
   lamps.mesh.name = 'gate-lamps';
   poles.mesh.name = 'gate-poles';
 
-  /* Two calls for all of the Swiss-specific infrastructure in the active
-     window: one fence geometry and one marker geometry, sharing one material
-     and carrying their colours in the vertices. Capacities are hard maxima —
-     at most three fence sections and one marker can be authored by a band —
-     while the hashes below normally fill only a small fraction of them. */
   const alpineMat = shading.apply(
     new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false }),
   );
@@ -2185,16 +2435,8 @@ export function createProps(THREE, shading) {
   waymarks.mesh.name = 'swiss-waymarks';
   pisteStakes.mesh.name = 'piste-stakes';
 
-  /* The sparse furniture is worth culling: a fence line on one bank is a
-     compact cluster that spends most of every orbit of the camera entirely
-     off screen. The trees stay unculled — they surround the camera at all
-     times and a sphere over three hundred metres of forest would never say
-     no. */
   for (const p of [avalancheFences, waymarks, pisteStakes, pisteStakeLamps]) p.cullable = true;
 
-  /* Conservative spheres for the small grown props. Keep the centre as well
-     as the radius: these meshes grow upward and sideways from their origin,
-     so discarding that offset leaves visible tips outside the collider. */
   const sphereHull = (pool) => {
     const geometry = pool.mesh.geometry;
     if (!geometry.boundingSphere) geometry.computeBoundingSphere();
@@ -2203,7 +2445,7 @@ export function createProps(THREE, shading) {
       radius: geometry.boundingSphere.radius,
     };
   };
-  const plantHull = sphereHull(plantPool);
+  const plantHulls = plantPools.map(sphereHull);
   const shrubHulls = shrubPools.map(sphereHull);
   const hullUp = new THREE.Vector3(0, 1, 0);
   const hullScale = new THREE.Vector3();
@@ -2227,8 +2469,6 @@ export function createProps(THREE, shading) {
     return { x: x + hullOffset.x, z: z + hullOffset.z, r, top: y + hullOffset.y + r };
   }
 
-  /* A six-metre fence is long and thin, so one bounding sphere would block
-     metres of empty snow. Five short circles follow its actual footprint. */
   const fenceGeometry = avalancheFences.mesh.geometry;
   if (!fenceGeometry.boundingBox) fenceGeometry.computeBoundingBox();
   const fenceBox = fenceGeometry.boundingBox;
@@ -2238,7 +2478,7 @@ export function createProps(THREE, shading) {
   const fenceCenterZ = (fenceBox.min.z + fenceBox.max.z) * 0.5;
 
   const pools = [
-    plantPool, ...shrubPools, ...rockPools, ...cragPools,
+    ...plantPools, ...shrubPools, ...rockPools, ...cragPools,
     poles, lamps, avalancheFences, waymarks, pisteStakes, pisteStakeLamps,
   ];
   pools.forEach((p) => group.add(p.mesh));
@@ -2613,25 +2853,26 @@ export function createProps(THREE, shading) {
     for (let i = 0; i < BIOMES.plantCandidates; i++) {
       const z = z0 + hash2(b, 3200 + i, 211) * band;
       const side = hash2(b, 3220 + i, 211) < 0.5 ? -1 : 1;
-      const distance = lerp(1.5, 85, Math.pow(hash2(b, 3240 + i, 211), 1.25));
+      const distance = lerp(1.2, 75, Math.pow(hash2(b, 3240 + i, 211), 1.25));
       const x = vergeXAt(
         z, side, distance,
         hash2(b, 3260 + i, 211), hash2(b, 3280 + i, 211),
       );
       ecologyAt(x, z, eco);
-      const cover = clamp01(0.18 + 0.64 * Math.max(
+      const cover = clamp01(0.20 + 0.65 * Math.max(
         eco.alpine, eco.heath * 0.78, eco.exposure * 0.65,
       ));
       if (hash2(b, 3300 + i, 211) > cover) continue;
+      const pv = Math.floor(hash2(b, 3210 + i, 211) * plantPools.length);
       const y = heightAt(x, z) - 0.02;
-      const s = lerp(0.62, 1.45, hash2(b, 3320 + i, 211));
-      const sy = s * lerp(0.82, 1.12, hash2(b, 3360 + i, 211));
+      const s = lerp(0.65, 1.55, hash2(b, 3320 + i, 211));
+      const sy = s * lerp(0.80, 1.15, hash2(b, 3360 + i, 211));
       if (hash2(b, 3380 + i, 211) > density) continue;
       const yaw = hash2(b, 3340 + i, 211) * TAU;
       const normal = setFloraNormal(x, z);
-      if (!plantPool.addOnSlope(x, y, z, yaw, s, sy, s, normal)) continue;
+      if (!plantPools[pv].addOnSlope(x, y, z, yaw, s, sy, s, normal)) continue;
       solids.push({
-        ...placedSphereHull(plantHull, x, y, z, yaw, s, sy, s, normal),
+        ...placedSphereHull(plantHulls[pv], x, y, z, yaw, s, sy, s, normal),
         type: 'plant', kind: SOFT, drag: PROPS.shrubDrag * 0.5,
       });
     }
@@ -2639,23 +2880,20 @@ export function createProps(THREE, shading) {
     for (let i = 0; i < BIOMES.shrubCandidates; i++) {
       const z = z0 + hash2(b, 3000 + i, 223) * band;
       const side = hash2(b, 3020 + i, 223) < 0.5 ? -1 : 1;
-      const distance = lerp(2.0, 95, Math.pow(hash2(b, 3040 + i, 223), 1.25));
+      const distance = lerp(1.8, 85, Math.pow(hash2(b, 3040 + i, 223), 1.2));
       const x = vergeXAt(
         z, side, distance,
         hash2(b, 3060 + i, 223), hash2(b, 3080 + i, 223),
       );
       ecologyAt(x, z, eco);
-      const shrubCover = clamp01(0.16 + 0.68 * Math.max(
+      const shrubCover = clamp01(0.18 + 0.70 * Math.max(
         eco.heath, eco.understory, eco.avalanche * 0.45, eco.alpine * 0.35,
       ));
       if (hash2(b, 3100 + i, 223) > shrubCover) continue;
-      const berryCover = clamp01(
-        eco.moisture * (eco.heath * 0.92 + eco.understory * 0.42),
-      );
-      const v = hash2(b, 3120 + i, 223) < berryCover ? 1 : 0;
+      const v = Math.floor(hash2(b, 3120 + i, 223) * shrubPools.length);
       const y = heightAt(x, z) - 0.05;
-      const s = lerp(0.78, 1.65, hash2(b, 3140 + i, 223));
-      const sy = s * lerp(0.90, 1.18, hash2(b, 3180 + i, 223));
+      const s = lerp(0.75, 1.75, hash2(b, 3140 + i, 223));
+      const sy = s * lerp(0.85, 1.25, hash2(b, 3180 + i, 223));
       if (hash2(b, 3190 + i, 223) > density) continue;
       const yaw = hash2(b, 3160 + i, 223) * TAU;
       const normal = setFloraNormal(x, z);
@@ -3004,9 +3242,8 @@ export function createProps(THREE, shading) {
     return {
       band: currentBand,
       spacing: +(spacingByBand.get(currentBand) || 1).toFixed(2),
-      plants: plantPool.n,
-      shrubs: shrubPools[0].n + shrubPools[1].n,
-      berries: shrubPools[1].n,
+      plants: plantPools.reduce((sum, p) => sum + p.n, 0),
+      shrubs: shrubPools.reduce((sum, p) => sum + p.n, 0),
       scenicRocks: rockPools[0].n + rockPools[1].n - hazards.length,
       hazards,
     };

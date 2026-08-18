@@ -1760,10 +1760,10 @@ export const PROPS = {
     minLength: 0.35,    // metres — below this a branch is not worth a cylinder
     sides: 5,           // radial segments on a branch; they are seen from 20 m
   },
-  /* Mountain environment: sheer rocky mountain walls and natural alpine features */
+  /* Mountain environment: rich alpine vegetation on verges and mountain flanks */
   biomes: {
-    plantCandidates: 10,
-    shrubCandidates: 14,
+    plantCandidates: 24,
+    shrubCandidates: 32,
     sideRockCandidates: 4,
     stoneSize: [0.4, 2.8],
     cragFrom: 200,
