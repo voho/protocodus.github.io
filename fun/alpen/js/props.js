@@ -2114,14 +2114,14 @@ export function createProps(THREE, shading) {
     THREE, grown.geometry, stoneMaterial,
     bands * (BIOMES.sideRockCandidates + 1) + 16,
   ));
-  /* Large imposing crags and rocky massifs */
+  /* Natural rock buttresses along the mountain flanks */
   const cragVariants = [
     growCrag(THREE, 0x51c433, geos, SNOWPACK.slate),
     growCrag(THREE, 0x51c433 + 4877, geos, SNOWPACK.iron),
     growCrag(THREE, 0x51c433 + 9743, geos, SNOWPACK.slate),
   ];
   const cragPools = cragVariants.map((grown) => new Pool(
-    THREE, grown.geometry, stoneMaterial, bands * 6 + 32,
+    THREE, grown.geometry, stoneMaterial, bands * 2 + 16,
   ));
 
   plantPool.mesh.name = 'alpine-plant-patches';
@@ -2666,22 +2666,22 @@ export function createProps(THREE, shading) {
       });
     }
 
-    /* Scenic talus and rugged boulder fields stretching across the mountain flanks */
+    /* Occasional natural glacial erratics along the mountain verge */
     for (let i = 0; i < BIOMES.sideRockCandidates; i++) {
       const z = z0 + hash2(b, 3500 + i, 229) * band;
       const side = hash2(b, 3520 + i, 229) < 0.5 ? -1 : 1;
       const grade = hash2(b, 3600 + i, 229);
-      const s = lerp(BIOMES.stoneSize[0], BIOMES.stoneSize[1], grade * grade);
-      const distance = lerp(2.5, 155, Math.pow(hash2(b, 3540 + i, 229), 1.15))
-        + s * 2.0;
+      const s = lerp(BIOMES.stoneSize[0], BIOMES.stoneSize[1], grade);
+      const distance = lerp(12.0, 60, Math.pow(hash2(b, 3540 + i, 229), 1.3))
+        + s * 1.5;
       const x = outerEdgeAt(z, side) + side * distance;
       ecologyAt(x, z, eco);
-      const rockCover = clamp01(0.24 + 0.65 * Math.max(eco.talus, eco.alpine * 0.8, eco.exposure));
+      const rockCover = clamp01(0.12 + 0.50 * Math.max(eco.talus, eco.exposure));
       if (hash2(b, 3560 + i, 229) > rockCover) continue;
       const v = hash2(b, 3580 + i, 229) < eco.exposure ? 0 : 1;
-      const sx = s * lerp(0.82, 1.22, hash2(b, 3620 + i, 229));
-      const sy = s * lerp(0.70, 1.12, hash2(b, 3640 + i, 229));
-      const sz = s * lerp(0.82, 1.22, hash2(b, 3660 + i, 229));
+      const sx = s * lerp(0.85, 1.15, hash2(b, 3620 + i, 229));
+      const sy = s * lerp(0.75, 1.08, hash2(b, 3640 + i, 229));
+      const sz = s * lerp(0.85, 1.15, hash2(b, 3660 + i, 229));
       const rough = boulderTransform(v, 0, sx, sy, sz);
       const groundY = beddedGroundY(x, z, rough.r, 0.05 + rough.r * 0.16);
       const shape = boulderTransform(v, groundY, sx, sy, sz);
@@ -2696,34 +2696,30 @@ export function createProps(THREE, shading) {
       });
     }
 
-    /* --- rocky massifs and rugged mountain crags -------------------------
-       Dramatic alpine stone massifs, towering jagged crags, and sheer rock
-       buttresses across the mountain flanks and containment slopes. */
-    for (let i = 0; i < 5; i++) {
-      if (travelled >= BIOMES.cragFrom
-        && hash2(b, 3700 + i, 233) < BIOMES.cragChance * density) {
-        const z = z0 + 3 + hash2(b, 3701 + i, 233) * (band - 6);
-        const side = (i % 2 === 0) ? -1 : 1;
-        const distance = lerp(BIOMES.cragOut[0], BIOMES.cragOut[1], hash2(b, 3703 + i, 233));
-        const x = outerEdgeAt(z, side) + side * distance;
-        ecologyAt(x, z, eco);
-        const v = Math.floor(hash2(b, 3705 + i, 233) * cragPools.length);
-        const s = lerp(BIOMES.cragSize[0], BIOMES.cragSize[1], hash2(b, 3706 + i, 233));
-        const sx = s * lerp(0.86, 1.30, hash2(b, 3707 + i, 233));
-        const sy = s * lerp(0.92, 1.50, hash2(b, 3708 + i, 233));
-        const sz = s * lerp(0.86, 1.30, hash2(b, 3709 + i, 233));
-        const grown = cragVariants[v];
-        const rough = stoneTransform(grown, 0, sx, sy, sz);
-        const groundY = beddedGroundY(x, z, rough.r, 0.4 + rough.r * 0.22);
-        const shape = stoneTransform(grown, groundY, sx, sy, sz);
-        const yaw = (side < 0 ? Math.PI / 2 : -Math.PI / 2)
-          + (hash2(b, 3710 + i, 233) - 0.5) * 0.9;
-        if (cragPools[v].add(x, shape.y, z, yaw, sx, sy, sz)) {
-          solids.push({
-            type: 'rock', x, z, r: shape.r,
-            kind: HARD, top: shape.top, cameraPad: 0.55, volume: true,
-          });
-        }
+    /* Natural rock buttresses along the mountain flanks */
+    if (travelled >= BIOMES.cragFrom
+      && hash2(b, 3700, 233) < BIOMES.cragChance * density) {
+      const z = z0 + 5 + hash2(b, 3701, 233) * (band - 10);
+      const side = hash2(b, 3702, 233) < 0.5 ? -1 : 1;
+      const distance = lerp(BIOMES.cragOut[0], BIOMES.cragOut[1], hash2(b, 3703, 233));
+      const x = outerEdgeAt(z, side) + side * distance;
+      ecologyAt(x, z, eco);
+      const v = Math.floor(hash2(b, 3705, 233) * cragPools.length);
+      const s = lerp(BIOMES.cragSize[0], BIOMES.cragSize[1], hash2(b, 3706, 233));
+      const sx = s * lerp(0.88, 1.22, hash2(b, 3707, 233));
+      const sy = s * lerp(0.90, 1.35, hash2(b, 3708, 233));
+      const sz = s * lerp(0.88, 1.22, hash2(b, 3709, 233));
+      const grown = cragVariants[v];
+      const rough = stoneTransform(grown, 0, sx, sy, sz);
+      const groundY = beddedGroundY(x, z, rough.r, 0.4 + rough.r * 0.22);
+      const shape = stoneTransform(grown, groundY, sx, sy, sz);
+      const yaw = (side < 0 ? Math.PI / 2 : -Math.PI / 2)
+        + (hash2(b, 3710, 233) - 0.5) * 0.9;
+      if (cragPools[v].add(x, shape.y, z, yaw, sx, sy, sz)) {
+        solids.push({
+          type: 'rock', x, z, r: shape.r,
+          kind: HARD, top: shape.top, cameraPad: 0.55, volume: true,
+        });
       }
     }
 

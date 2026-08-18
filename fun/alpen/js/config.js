@@ -1760,16 +1760,16 @@ export const PROPS = {
     minLength: 0.35,    // metres — below this a branch is not worth a cylinder
     sides: 5,           // radial segments on a branch; they are seen from 20 m
   },
-  /* Biome distribution: rocky massifs, jagged crags, and extensive stone fields */
+  /* Mountain environment: sheer rocky mountain walls and natural alpine features */
   biomes: {
-    plantCandidates: 28,
-    shrubCandidates: 36,
-    sideRockCandidates: 56,
-    stoneSize: [0.35, 6.0],
-    cragFrom: 40,
-    cragChance: 0.95,      // multiple dramatic rocky massifs per band
-    cragOut: [18, 165],    // rugged rocky massif slopes from shoulder to containment wall
-    cragSize: [4.2, 11.5], // towering imposing rock massifs and jagged cliffs
+    plantCandidates: 10,
+    shrubCandidates: 14,
+    sideRockCandidates: 4,
+    stoneSize: [0.4, 2.8],
+    cragFrom: 200,
+    cragChance: 0.20,
+    cragOut: [40, 140],
+    cragSize: [3.5, 7.5],
     hazardFrom: 200,
     hazardChance: 0.25,
     hazardPadding: 8,

@@ -1950,8 +1950,8 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       groomedSurface.value = t;
       snowReadyTarget.y = 1;
     }),
-    loadRock('rock-granite.jpg', rockSurface),
-    loadRock('rock-sandstone.jpg', sandstoneSurface),
+    loadRock('rock-slate.jpg', rockSurface),
+    loadRock('rock-granite.jpg', sandstoneSurface),
   ]);
 
   /* Surface detail, in the fragment shader rather than in the mesh.
@@ -2243,12 +2243,17 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
           n64TriW *= n64TriW;
           n64TriW /= max(n64TriW.x + n64TriW.y + n64TriW.z, 1e-4);
           vec4 n64RockSample =
-              texture2D(uRockTex, vWorld.zy * 0.08) * n64TriW.x
-            + texture2D(uRockTex, vWorld.xz * 0.08) * n64TriW.y
-            + texture2D(uRockTex, vWorld.xy * 0.08) * n64TriW.z;
-          diffuseColor.rgb *= mix(vec3(1.0), n64RockSample.rgb * 1.55, (1.0 - n64SnowMask) * 0.40);
+              texture2D(uRockTex, vWorld.zy * 0.055) * n64TriW.x
+            + texture2D(uRockTex, vWorld.xz * 0.055) * n64TriW.y
+            + texture2D(uRockTex, vWorld.xy * 0.055) * n64TriW.z;
+          vec4 n64GraniteSample =
+              texture2D(uSandstoneTex, vWorld.zy * 0.04) * n64TriW.x
+            + texture2D(uSandstoneTex, vWorld.xz * 0.04) * n64TriW.y
+            + texture2D(uSandstoneTex, vWorld.xy * 0.04) * n64TriW.z;
+          vec3 n64RockTexel = mix(n64RockSample.rgb, n64GraniteSample.rgb, clamp(vRockKind, 0.0, 1.0));
+          diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * n64RockTexel * 2.1, (1.0 - n64SnowMask) * 0.80);
           diffuseColor.rgb *= 1.0 - n64RockInk * (1.0 - n64SnowMask)
-            * smoothstep(0.30, 0.72, 1.0 - n64StrataUp);
+            * smoothstep(0.20, 0.72, 1.0 - n64StrataUp);
         }`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
         // Hide the graded grid's triangle topology from lighting while leaving
@@ -2910,42 +2915,18 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
            mountainside its shape at distance. Modulated by the same field
            the flank band already uses, so the two agree about where the
            geology is rather than each inventing its own. */
-        const steepRock = smoothstep(slip, slip + (P.slip[1] - P.slip[0]), steep)
-          * (0.55 + 0.45 * outcropBand);
+        /* Mountain cliff rock on steep faces and containment flanks */
+        const steepRock = smoothstep(slip, slip + (P.slip[1] - P.slip[0]) * 0.85, steep)
+          * (0.65 + 0.35 * outcropBand);
         const thinRock = smoothstep(P.thin[0], P.thin[1], cover);
-        /* The rocky band is rock because of where it is, not how tall it
-           stands: the same zone the height field fills with boulders is the
-           one the colour pass strips. The outcrop field leaves wind-pocket
-           snow between the stones, so the band reads as talus rather than
-           tarmac — and the powder band before it is left entirely alone. */
-        /* …and it is talus in WINTER, which is the part the old range got
-           wrong. `0.35 + 0.65·outcrop` bottoms out at a third of bare stone
-           everywhere past the powder and reaches *fully* bare across every
-           patch the outcrop field pushes over its upper knee — which is most
-           of them. The result was a continuous brown slab standing over the
-           piste with no snow anywhere in it: at the distance the shoulder is
-           actually seen from it read as a wall of dirt rather than as a
-           mountain, and it is the single largest thing in frame whenever the
-           rider is near the edge of the corridor.
-
-           Snow falls on this run continuously and it is above a groomed
-           piste, so the honest picture is snow with stone breaking through
-           it, not stone with snow in the cracks. The floor comes down so the
-           wind pockets between boulders are genuinely white, and the ceiling
-           comes down so even the most exposed block keeps a rime of cover —
-           which is also what gives the band its shape back, because a slab
-           at a constant 1.0 has no variation left to shade. */
-        const zoneRock = smoothstep(ctx.half + ctx.powderW - 4,
-          ctx.half + ctx.powderW + 10, toCentre)
-          * (0.12 + 0.62 * outcropBand);
-        /* The wall above holds snow on its first metres the way a real
-           valley side does; only faces standing well over the run shed it. */
-        const flank = smoothstep(ctx.half + ctx.bandW,
-          ctx.half + ctx.bandW + ctx.lipW + 46, toCentre);
-        // The same correction on the wall above, and for the same reason: a
-        // face that sheds its cover still keeps rime in every hollow on it.
-        const flankRock = flank * smoothstep(10, 34, relief)
-          * (0.30 + 0.52 * outcropBand);
+        const zoneRock = smoothstep(ctx.half + ctx.powderW + 4,
+          ctx.half + ctx.powderW + 18, toCentre)
+          * (0.08 + 0.40 * outcropBand);
+        /* The side mountain walls: steep rocky cliff faces framing the valley */
+        const flank = smoothstep(ctx.half + ctx.bandW * 0.5,
+          ctx.half + ctx.bandW + ctx.lipW + 32, toCentre);
+        const flankRock = flank * smoothstep(5, 24, relief)
+          * (0.68 + 0.32 * outcropBand);
         /* No stone inside the corridor at all — the physics has no plate of
            rock under three centimetres of snow in its model, so the picture
            must not either. Outside it, all four reasons apply. */
