@@ -554,11 +554,6 @@ function onKey(e) {
     newMountain();
     return;
   }
-  if (e.code === 'KeyF') {
-    toggleFullscreen();
-    if (game.mode !== 'playing') begin();
-    return;
-  }
   if (e.code === 'KeyT') {
     game.manualWeather = (game.manualWeather + 1) % 4;
     if (game.manualWeather === 0) {
