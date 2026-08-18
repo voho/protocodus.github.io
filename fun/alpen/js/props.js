@@ -250,45 +250,19 @@ const FOREST = {
   standSeed: 137,
   clearing: 0.34,
   /* Metres of descent over which the treeline closes, and what it closes
-     from and to. Both ends are deliberately gentle: the top of the run is
-     thinner and its trees are smaller, and it is still unmistakably a piste
-     through a forest rather than a bare bowl. A treeline you can *see* is
-     worth having; one that empties the first kilometre is not. */
+     from and to. */
   line: [80, 1600],
-  lineCover: [0.58, 1.0],
-  lineScale: [0.74, 1.08],
-  /* How much of the ground's own normal a trunk takes. Conifers grow towards
-     the light rather than square to the slope, so this is a lean and not a
-     right angle — but it is not zero either, and a hillside of perfectly
-     plumb trees is the tell that they were placed by a loop. */
-  lean: 0.26,
-  wobble: 0.09,           // …and a little more, so no two agree
-  size: [0.46, 1.22],
-  sizeBias: 1.45,         // >1 puts most of the stand at the small end
-  /* AND THE VETERANS, which are what a stand is measured against.
-
-     A forest of one size is a field of cones however well each cone is
-     grown, because there is nothing in it to read the others against. Real
-     subalpine forest is not like that: a few old trees escaped whatever
-     took the rest — an avalanche year, a windthrow, a century of browsing —
-     and stand clear above the canopy, and the eye uses them for scale the
-     moment it sees one. This stand ran 4 to 12 metres with the rarest
-     touching twenty, so the tallest tree and the shortest were the same
-     kind of object seen at two distances.
-
-     Drawn as a height in metres rather than as a multiplier on whatever
-     variant came up, because that is the quantity worth controlling: a
-     veteran is a tree of a certain size, and deriving the scale from the
-     variant's own grown height is what makes that true whichever species
-     the hash landed on. `from` keeps it to species that grow tall in the
-     first place — a five-metre nursery spruce scaled by five is not a
-     veteran, it is the same sapling drawn closer. The treeline scale still
-     applies on top, so the thin forest at the top of the run has smaller
-     veterans, which is the point of having a treeline at all. */
+  lineCover: [0.65, 1.0],
+  lineScale: [0.88, 1.18],
+  /* How much of the ground's own normal a trunk takes. */
+  lean: 0.16,
+  wobble: 0.08,           // …and a little more, so no two agree
+  size: [0.85, 1.35],
+  sizeBias: 1.20,
   veteran: {
-    chance: 0.055,        // about one tree in eighteen, so a stand has a few
-    from: 9,              // metres of grown height a variant needs to qualify
-    height: [17, 26],     // …and what it is stood up to, before lean and jitter
+    chance: 0.085,
+    from: 16,
+    height: [26, 38],
   },
 };
 
@@ -657,113 +631,112 @@ function makeCasts(THREE) {
    `branchy`       spend the recursion on twigs instead of hanging needles */
 const SPECIES = [
   {
-    name: 'spruce',            // tall, narrow, holds a spire, skirts hang
-    bark: '#54422f',
-    foliage: 0.95,
-    height: [9, 16], whorls: [9, 12], perWhorl: [3, 4],
-    reach: 0.30, bushy: 0.46, squash: 0.72, joint: 0.42,
-    liftLow: -0.20, liftHigh: 0.46, droop: 0.66,
-    spire: 1.5, snow: 0.5, lean: 0.05, fringe: 0.5,
-  },
-  {
-    name: 'fir',               // broad, layered, the classic christmas card
-    bark: '#5e4833',
-    foliage: 0.88,
-    height: [7, 12], whorls: [7, 9], perWhorl: [4, 5],
-    reach: 0.42, bushy: 0.52, squash: 0.55, joint: 0.52,
-    liftLow: 0.02, liftHigh: 0.30, droop: 0.20,
-    spire: 1.1, snow: 0.72, lean: 0.07, fringe: 0.15,
-  },
-  {
-    name: 'pine',              // leggy, bare below, tufted at the ends
-    bark: '#77593d',
-    foliage: 1.08,
-    height: [10, 17], whorls: [4, 6], perWhorl: [5, 7],
-    reach: 0.36, bushy: 0.58, squash: 1.0, joint: 0.50,
-    liftLow: 0.18, liftHigh: 0.34, droop: 0.34,
-    spire: 0.7, snow: 0.4, lean: 0.10, bareTo: 0.62, tuftFrom: 0.50,
-  },
-  {
-    name: 'larch',             // dead, bare, all structure and no needles
-    bark: '#8c8579',
-    foliage: null,
-    height: [5, 9], whorls: [4, 6], perWhorl: [3, 5],
-    reach: 0.42, bushy: 0, squash: 1, joint: 0.46,
-    liftLow: -0.05, liftHigh: 0.34, droop: 0.30,
-    spire: 0, snow: 0.6, lean: 0.16, branchy: true,
-  },
-  {
-    name: 'storm',             // topped by weather, flagged away from the wind
-    bark: '#503e2e',
-    foliage: 0.85,
-    height: [7, 13], whorls: [7, 10], perWhorl: [3, 4],
-    reach: 0.28, bushy: 0.44, squash: 0.66, joint: 0.40,
-    liftLow: -0.30, liftHigh: 0.30, droop: 0.78,
-    spire: 0, snow: 0.66, lean: 0.13, fringe: 0.7,
-    flag: 0.7, broken: true,
-  },
-  {
-    name: 'young',             // dense, low, and buried — the treeline's floor
-    bark: '#594533',
-    foliage: 1.0,
-    height: [4, 7], whorls: [6, 8], perWhorl: [4, 5],
-    reach: 0.46, bushy: 0.52, squash: 0.60, joint: 0.46,
-    liftLow: 0.06, liftHigh: 0.38, droop: 0.30,
-    spire: 1.2, snow: 0.86, lean: 0.08, fringe: 0.2,
-  },
-  {
-    name: 'arolla',            // Swiss Stone Pine / Zirbelkiefer — hardy, dense, rounded
-    bark: '#68503b',
+    name: 'swissHighPine',     // Swiss Stone Pine / Zirbelkiefer — majestic, tall, tufted crown
+    bark: '#644e3b',
     foliage: 1.15,
-    height: [8, 14], whorls: [5, 8], perWhorl: [5, 8],
-    reach: 0.44, bushy: 0.65, squash: 0.85, joint: 0.48,
-    liftLow: 0.12, liftHigh: 0.45, droop: 0.22,
-    spire: 0.8, snow: 0.75, lean: 0.08, tuftFrom: 0.35,
+    height: [18, 28], whorls: [7, 11], perWhorl: [5, 8],
+    reach: 0.40, bushy: 0.65, squash: 0.85, joint: 0.48,
+    liftLow: 0.12, liftHigh: 0.46, droop: 0.22,
+    spire: 1.2, snow: 0.75, lean: 0.05, bareTo: 0.36, tuftFrom: 0.40,
   },
   {
-    name: 'weepingSpruce',     // subalpine weeping conifer with heavy snow curtains
-    bark: '#4c3b2c',
-    foliage: 0.90,
-    height: [11, 19], whorls: [10, 15], perWhorl: [4, 6],
-    reach: 0.38, bushy: 0.55, squash: 0.65, joint: 0.38,
-    liftLow: -0.35, liftHigh: 0.40, droop: 0.85,
-    spire: 1.8, snow: 0.92, lean: 0.04, fringe: 0.8,
+    name: 'toweringAlpineSpruce', // Tall needle spire, dense tiered horizontal boughs
+    bark: '#544230',
+    foliage: 0.96,
+    height: [20, 32], whorls: [12, 16], perWhorl: [4, 6],
+    reach: 0.34, bushy: 0.52, squash: 0.68, joint: 0.42,
+    liftLow: -0.15, liftHigh: 0.44, droop: 0.62,
+    spire: 1.7, snow: 0.85, lean: 0.04, fringe: 0.65, bareTo: 0.22, tuftFrom: 0.15,
   },
   {
-    name: 'krummholz',         // prostrate mountain dwarf pine hugging the snow
-    bark: '#5a4634',
-    foliage: 1.05,
-    height: [3.5, 6.0], whorls: [5, 7], perWhorl: [6, 9],
-    reach: 0.62, bushy: 0.70, squash: 0.45, joint: 0.55,
-    liftLow: 0.25, liftHigh: 0.50, droop: 0.15,
-    spire: 0.4, snow: 0.95, lean: 0.18, tuftFrom: 0.20,
+    name: 'monarchCathedralPine', // Emergent giant pine with soaring trunk and broad crown
+    bark: '#5c4533',
+    foliage: 1.08,
+    height: [24, 36], whorls: [9, 13], perWhorl: [6, 9],
+    reach: 0.42, bushy: 0.68, squash: 0.80, joint: 0.46,
+    liftLow: 0.10, liftHigh: 0.48, droop: 0.28,
+    spire: 1.3, snow: 0.80, lean: 0.04, bareTo: 0.38, tuftFrom: 0.38,
   },
   {
-    name: 'ghostSnag',         // ancient bleached silver snag struck by lightning
-    bark: '#a39b8e',
-    foliage: null,
-    height: [6, 11], whorls: [5, 7], perWhorl: [3, 4],
-    reach: 0.48, bushy: 0, squash: 1, joint: 0.42,
-    liftLow: -0.15, liftHigh: 0.40, droop: 0.45,
-    spire: 0, snow: 0.45, lean: 0.22, broken: true, branchy: true,
-  },
-  {
-    name: 'douglas',           // grand towering alpine fir with tiered horizontal boughs
-    bark: '#614b35',
-    foliage: 0.92,
-    height: [14, 22], whorls: [11, 16], perWhorl: [4, 6],
-    reach: 0.42, bushy: 0.50, squash: 0.58, joint: 0.45,
-    liftLow: -0.05, liftHigh: 0.35, droop: 0.40,
-    spire: 1.4, snow: 0.68, lean: 0.03, fringe: 0.4,
-  },
-  {
-    name: 'blueSpruce',        // frosted blue-green high-elevation spruce
-    bark: '#534438',
+    name: 'glacierWhitePine',  // High-altitude frosted pine with thick snow pillows
+    bark: '#584638',
     foliage: 1.10,
-    height: [8, 15], whorls: [8, 12], perWhorl: [4, 5],
-    reach: 0.35, bushy: 0.58, squash: 0.70, joint: 0.44,
-    liftLow: -0.10, liftHigh: 0.42, droop: 0.50,
-    spire: 1.6, snow: 0.80, lean: 0.06, fringe: 0.6,
+    height: [17, 27], whorls: [8, 12], perWhorl: [5, 7],
+    reach: 0.38, bushy: 0.60, squash: 0.75, joint: 0.45,
+    liftLow: 0.05, liftHigh: 0.42, droop: 0.35,
+    spire: 1.4, snow: 0.90, lean: 0.05, bareTo: 0.30, tuftFrom: 0.30,
+  },
+  {
+    name: 'montaneSilverFir',  // Grand silver fir with layered snowy boughs
+    bark: '#604c3a',
+    foliage: 0.92,
+    height: [19, 29], whorls: [10, 14], perWhorl: [5, 6],
+    reach: 0.36, bushy: 0.55, squash: 0.62, joint: 0.48,
+    liftLow: 0.02, liftHigh: 0.36, droop: 0.28,
+    spire: 1.5, snow: 0.82, lean: 0.03, fringe: 0.45, bareTo: 0.25, tuftFrom: 0.20,
+  },
+  {
+    name: 'highAlpineLarch',   // Weathered alpine larch with golden-amber branches
+    bark: '#8c8275',
+    foliage: null,
+    height: [18, 26], whorls: [7, 11], perWhorl: [4, 6],
+    reach: 0.44, bushy: 0, squash: 1, joint: 0.46,
+    liftLow: -0.05, liftHigh: 0.38, droop: 0.30,
+    spire: 0, snow: 0.65, lean: 0.08, branchy: true, bareTo: 0.32,
+  },
+  {
+    name: 'weepingHighSpruce', // Cascading alpine weeping spruce
+    bark: '#4e3d2e',
+    foliage: 0.90,
+    height: [22, 34], whorls: [13, 18], perWhorl: [4, 6],
+    reach: 0.38, bushy: 0.58, squash: 0.65, joint: 0.38,
+    liftLow: -0.35, liftHigh: 0.40, droop: 0.85,
+    spire: 1.9, snow: 0.92, lean: 0.03, fringe: 0.85, bareTo: 0.20,
+  },
+  {
+    name: 'crestedRidgePine',  // Sturdy high-elevation ridge pine
+    bark: '#6a523e',
+    foliage: 1.12,
+    height: [16, 25], whorls: [6, 9], perWhorl: [5, 8],
+    reach: 0.42, bushy: 0.70, squash: 0.90, joint: 0.50,
+    liftLow: 0.15, liftHigh: 0.45, droop: 0.25,
+    spire: 1.1, snow: 0.70, lean: 0.06, bareTo: 0.42, tuftFrom: 0.45,
+  },
+  {
+    name: 'stormHighPine',     // Weather-flagged high pine with fractured crown
+    bark: '#524032',
+    foliage: 0.88,
+    height: [17, 26], whorls: [8, 12], perWhorl: [4, 6],
+    reach: 0.32, bushy: 0.50, squash: 0.68, joint: 0.40,
+    liftLow: -0.25, liftHigh: 0.32, droop: 0.72,
+    spire: 0, snow: 0.75, lean: 0.08, broken: true, flag: 0.65, bareTo: 0.34,
+  },
+  {
+    name: 'frostHighPine',     // Crystalline frosted high pine
+    bark: '#564436',
+    foliage: 1.05,
+    height: [18, 28], whorls: [8, 11], perWhorl: [5, 7],
+    reach: 0.39, bushy: 0.62, squash: 0.78, joint: 0.46,
+    liftLow: 0.08, liftHigh: 0.44, droop: 0.32,
+    spire: 1.4, snow: 0.88, lean: 0.04, bareTo: 0.32, tuftFrom: 0.35,
+  },
+  {
+    name: 'nobleHighSpruce',   // Lofty high-altitude spruce
+    bark: '#503e2f',
+    foliage: 0.94,
+    height: [21, 31], whorls: [11, 15], perWhorl: [4, 6],
+    reach: 0.35, bushy: 0.54, squash: 0.64, joint: 0.44,
+    liftLow: -0.08, liftHigh: 0.40, droop: 0.52,
+    spire: 1.6, snow: 0.85, lean: 0.03, bareTo: 0.24, tuftFrom: 0.22,
+  },
+  {
+    name: 'alpineTimberPine',  // Stately timber pine with soaring clear trunk
+    bark: '#66503c',
+    foliage: 1.14,
+    height: [19, 29], whorls: [7, 10], perWhorl: [5, 8],
+    reach: 0.41, bushy: 0.66, squash: 0.88, joint: 0.50,
+    liftLow: 0.14, liftHigh: 0.42, droop: 0.26,
+    spire: 1.2, snow: 0.78, lean: 0.05, bareTo: 0.40, tuftFrom: 0.40,
   },
 ];
 
@@ -809,7 +782,7 @@ function growTree(THREE, seed, spec, geos) {
 
   const height = lerp(spec.height[0], spec.height[1], rnd());
   const whorls = Math.round(lerp(spec.whorls[0], spec.whorls[1], rnd()));
-  const trunkR = height * 0.019 + 0.05;
+  const trunkR = height * 0.024 + 0.065;
   /* Whichever surface gives this species its colour is baked as a value and
      painted per instance; everything else keeps its own. A conifer is its
      needles, so its needles come out neutral and its trunk stays bark. A dead
@@ -830,18 +803,7 @@ function growTree(THREE, seed, spec, geos) {
   // measured against the leader it actually has rather than the one it wanted.
   const standing = height * (spec.broken ? lerp(0.54, 0.72, rnd()) : 1);
 
-  /* The leader, walked rather than drawn.
-
-     It used to be one tapered cylinder with a fixed lean, which under a
-     shadow is a ruler — and nothing in a forest is a ruler. Three frusta
-     stacked end to end, each tilted a little further and swung to a new
-     quarter, give a trunk that sways; the taper is then real rather than
-     cosmetic, because each segment starts where the last one finished and
-     the stock's own ratio does the narrowing. `spine` keeps the joints so
-     that the whorls can be hung off the trunk's actual centreline. Attaching
-     them to x = 0 was fine while the trunk was straight and put the top
-     whorl a metre off the tree the moment it was not. */
-  const SEGS = 3;
+  const SEGS = 4;
   const spine = [[0, 0, 0]];
   let lean = 0;
   let sway = rnd() * TAU;
@@ -852,7 +814,7 @@ function growTree(THREE, seed, spec, geos) {
     sway += (rnd() - 0.5) * 1.6;
     const s = Math.sin(lean);
     const d = [Math.cos(sway) * s, Math.cos(lean), Math.sin(sway) * s];
-    const r = trunkR * Math.pow(0.74, k);
+    const r = trunkR * Math.pow(0.78, k);
     parts.push({
       geo: geos.bole, color: bark(), own: woodOwn,
       pos: p, rot: aim(d[0], d[1], d[2]), scale: [r, len, r],

@@ -420,10 +420,10 @@ export function createHuts(THREE, shading) {
     new URL('../assets/textures/huts/alpine-wood-planks.jpg', import.meta.url).href,
     (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; woodPlanksTex.value = t; },
   );
-  const shingleTex = { value: neutralWoodTex };
+  const stoneTex = { value: neutralWoodTex };
   texLoader.load(
-    new URL('../assets/textures/huts/shingle-roof-snow.jpg', import.meta.url).href,
-    (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; shingleTex.value = t; },
+    new URL('../assets/textures/rock/rock-slate.jpg', import.meta.url).href,
+    (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; stoneTex.value = t; },
   );
 
   const hutMat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false });
@@ -431,40 +431,46 @@ export function createHuts(THREE, shading) {
     Object.assign(shader.uniforms, {
       uWoodPlanksTex: woodPlanksTex,
       uShingleTex: shingleTex,
+      uStoneTex: stoneTex,
     });
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>
-      varying vec3 vHutWorldPos;
-      varying vec3 vHutNormal;`)
+      varying vec3 vHutLocalPos;
+      varying vec3 vHutLocalNormal;`)
       .replace('#include <project_vertex>', `#include <project_vertex>
-      #ifdef USE_INSTANCING
-        vHutWorldPos = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;
-        vHutNormal = normalize((modelMatrix * instanceMatrix * vec4(normal, 0.0)).xyz);
-      #else
-        vHutWorldPos = (modelMatrix * vec4(transformed, 1.0)).xyz;
-        vHutNormal = normalize((modelMatrix * vec4(normal, 0.0)).xyz);
-      #endif`);
+      vHutLocalPos = transformed;
+      vHutLocalNormal = normalize(normal);`);
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>
-      varying vec3 vHutWorldPos;
-      varying vec3 vHutNormal;
+      varying vec3 vHutLocalPos;
+      varying vec3 vHutLocalNormal;
       uniform sampler2D uWoodPlanksTex;
-      uniform sampler2D uShingleTex;`)
+      uniform sampler2D uShingleTex;
+      uniform sampler2D uStoneTex;`)
       .replace('#include <color_fragment>', `#include <color_fragment>
-      vec3 nAbs = abs(vHutNormal);
-      // Triplanar wood planks on vertical walls and timber frame
-      vec4 woodX = texture2D(uWoodPlanksTex, vHutWorldPos.yz * 0.25);
-      vec4 woodY = texture2D(uWoodPlanksTex, vHutWorldPos.xz * 0.25);
-      vec4 woodZ = texture2D(uWoodPlanksTex, vHutWorldPos.xy * 0.25);
-      vec3 woodColor = (woodX.rgb * nAbs.x + woodY.rgb * nAbs.y + woodZ.rgb * nAbs.z) / max(0.001, nAbs.x + nAbs.y + nAbs.z);
+      float hutLum = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
+      vec3 nAbs = abs(vHutLocalNormal);
       
-      // Shingles on roofs and horizontal surfaces
-      vec3 roofColor = texture2D(uShingleTex, vHutWorldPos.xz * 0.28).rgb;
-      
-      // Select texture based on surface type (roof/snow vs timber wall)
-      bool isWall = nAbs.y < 0.70 && (diffuseColor.r > 0.15 || diffuseColor.g > 0.10);
-      vec3 texDetail = isWall ? woodColor * 1.30 : roofColor * 1.20;
-      diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * texDetail * 1.5, 0.75);`);
+      // 1. Pristine snow on roof, chimney cap, and woodpile: keep bright and clean
+      if (hutLum > 0.70) {
+        // Leave snow pure and sparkling with GGX sheen
+      }
+      // 2. Masonry stone chimney and foundation plinth (grey hues)
+      else if (abs(diffuseColor.r - diffuseColor.g) < 0.08 && abs(diffuseColor.g - diffuseColor.b) < 0.08 && diffuseColor.r < 0.55) {
+        vec3 stoneColor = (
+          texture2D(uStoneTex, vHutLocalPos.yz * 0.45).rgb * nAbs.x +
+          texture2D(uStoneTex, vHutLocalPos.xz * 0.45).rgb * nAbs.y +
+          texture2D(uStoneTex, vHutLocalPos.xy * 0.45).rgb * nAbs.z
+        ) / max(0.001, nAbs.x + nAbs.y + nAbs.z);
+        diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * stoneColor * 1.6, 0.75);
+      }
+      // 3. Wooden walls, logs, timber frame, and terrace
+      else {
+        // Horizontal wood grain along the walls
+        vec2 woodUv = nAbs.x > 0.5 ? vHutLocalPos.zy * 0.40 : (nAbs.z > 0.5 ? vHutLocalPos.xy * 0.40 : vHutLocalPos.xz * 0.40);
+        vec3 woodSample = texture2D(uWoodPlanksTex, woodUv).rgb;
+        diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * woodSample * 1.45, 0.70);
+      }`);
   };
 
   // `sheen: 1` because the roof is carrying half a metre of the same snow the
