@@ -19,37 +19,26 @@
    the downhill line being ridden, including through a carve or switch run. */
 
 export const HEADLAMP = {
-  nightFrom: 0.28,      // begins to glow in blue hour
-  nightFull: 0.76,      // fully established by nightfall
-  fadeIn: 4.0,          // response per second; a fade, never a switch
-  fadeOut: 2.8,
-  reach: 42,            // metres searched for the first snow intersection
-  /* The march grows geometrically rather than pacing off the whole reach in
-     fixed strides: the ground the beam hits is usually near, so the search
-     spends its small steps where the answer probably is and covers the far
-     half of the reach in a few long ones. Ten samples worst case against
-     the thirty-four the fixed step cost, and the crossing is still refined
-     by interpolation afterwards, so the pool does not get coarser. */
-  marchStep: 0.8,       // the first stride, in metres
-  marchGrow: 1.35,      // and how much longer each following stride is
-  overshoot: 1.0,       // fade reaches zero exactly at the terrain hit
-  drop: 0.105,          // radians below the animated line of sight
-  angle: 0.40,          // broad 23-degree half-angle; soft situational light
-  beam: '#b7d7f2',
-  beamStrength: 0.008,
-  poolStrength: 0.032,
-  hitFadeIn: 10.0,      // terrain contact establishes without a binary edge
-  hitFadeOut: 5.0,
-  hitTrack: 12.0,       // visible contact follows a changing ray with weight
-  drapeBlend: 0.18,     // complete prepared fans blend in on the GPU
+  nightFrom: 0.22,      // begins to glow in blue hour / twilight
+  nightFull: 0.65,      // fully established earlier for crisp night vision
+  fadeIn: 4.5,          // responsive fade per second
+  fadeOut: 3.0,
+  reach: 60,            // extended 60m search reach for high-speed downhill lines
+  marchStep: 0.75,      // initial stride
+  marchGrow: 1.32,      // geometric stride growth
+  overshoot: 1.05,      // clean seamless connection to terrain hit
+  drop: 0.11,           // radians below the animated line of sight
+  angle: 0.42,          // broad 24-degree half-angle with concentrated core
+  beam: '#d6edff',      // crisp, high-CRI alpine LED beam
+  beamStrength: 0.028,  // visible atmospheric volumetric shaft
+  poolStrength: 0.095,  // bright, readable ground illumination on snow
+  hitFadeIn: 12.0,      // smooth terrain contact transition
+  hitFadeOut: 6.0,
+  hitTrack: 14.0,       // responsive tracking on changing slope
+  drapeBlend: 0.16,     // seamless GPU fan transitions
 };
 
 const TAU = Math.PI * 2;
-/* The drape's density. It was 48 x 8, which is 384 height-field samples and
-   a full vertex upload every lit frame — for a soft additive gaussian whose
-   whole job is to have no features. 24 x 5 is 120 samples, and on a footprint
-   a few metres wide that is still a vertex every fraction of a metre, well
-   under anything the blur in the fragment shader could resolve. */
 const POOL_SEG = 24;
 const POOL_RING = 5;
 
@@ -88,16 +77,16 @@ const BEAM_FRAG = `
     if (uStrength <= 0.001) discard;
     float along = vUv.x;
     float across = abs(vUv.y * 2.0 - 1.0);
-    // A camera-facing slice through a volume: there is no lit polygon edge,
-    // only a soft radial density that falls to zero before the quad ends.
-    float radial = exp(-2.6 * across * across)
-      * (1.0 - smoothstep(0.72, 1.0, across));
-    float enter = smoothstep(0.0, 0.10, along);
-    float leave = 1.0 - smoothstep(0.58, 0.94, along);
+    // Concentrated core beam + soft peripheral volumetric scatter
+    float core = exp(-8.5 * across * across) * 1.75;
+    float flood = exp(-2.2 * across * across) * (1.0 - smoothstep(0.65, 1.0, across));
+    float radial = core + flood;
+    float enter = smoothstep(0.0, 0.08, along);
+    float leave = 1.0 - smoothstep(0.60, 0.98, along);
     float a = uStrength * radial * enter * leave
-      * (0.28 + 0.72 * (1.0 - along));
+      * (0.35 + 0.65 * (1.0 - along));
     float f = clamp((vDepth - uNear) / max(0.001, uFar - uNear), 0.0, 1.0);
-    gl_FragColor = vec4(mix(uColor, uFog, f * 0.82), a * (1.0 - f));
+    gl_FragColor = vec4(mix(uColor, uFog, f * 0.75), a * (1.0 - f));
   }
 `;
 
@@ -128,25 +117,28 @@ const POOL_FRAG = `
   void main() {
     if (uStrength <= 0.001) discard;
     float r = length(vUv);
-    float a = uStrength * exp(-0.8 * r * r)
-      * (1.0 - smoothstep(0.40, 1.0, r));
+    // Dual-intensity alpine headlamp profile: piercing center hotspot + wide soft flood
+    float hotspot = exp(-5.0 * r * r) * 1.5;
+    float spill = exp(-0.90 * r * r) * (1.0 - smoothstep(0.35, 1.0, r));
+    float a = uStrength * (hotspot + spill);
     float f = clamp((vDepth - uNear) / max(0.001, uFar - uNear), 0.0, 1.0);
-    gl_FragColor = vec4(mix(uColor, uFog, f * 0.82), a * (1.0 - f));
+    gl_FragColor = vec4(mix(uColor, uFog, f * 0.75), a * (1.0 - f));
   }
 `;
 
 function haloTexture(THREE) {
   const canvas = document.createElement('canvas');
-  canvas.width = 64;
-  canvas.height = 64;
+  canvas.width = 128;
+  canvas.height = 128;
   const g = canvas.getContext('2d');
-  const glow = g.createRadialGradient(32, 32, 1, 32, 32, 31);
+  const glow = g.createRadialGradient(64, 64, 2, 64, 64, 63);
   glow.addColorStop(0, 'rgba(255,255,255,1)');
-  glow.addColorStop(0.16, 'rgba(220,242,255,0.95)');
-  glow.addColorStop(0.48, 'rgba(145,205,255,0.28)');
-  glow.addColorStop(1, 'rgba(80,150,255,0)');
+  glow.addColorStop(0.12, 'rgba(235,248,255,0.95)');
+  glow.addColorStop(0.35, 'rgba(175,220,255,0.45)');
+  glow.addColorStop(0.70, 'rgba(100,180,255,0.15)');
+  glow.addColorStop(1, 'rgba(60,140,255,0)');
   g.fillStyle = glow;
-  g.fillRect(0, 0, 64, 64);
+  g.fillRect(0, 0, 128, 128);
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   return texture;
@@ -211,9 +203,9 @@ export function createHeadlamp(THREE, shading, head) {
   rig.add(housing);
 
   const offColor = new THREE.Color('#18304a');
-  const onColor = new THREE.Color('#e8f8ff');
+  const onColor = new THREE.Color('#ffffff');
   const lensMat = new THREE.MeshBasicMaterial({ color: offColor, toneMapped: false });
-  const lens = new THREE.Mesh(new THREE.CircleGeometry(0.032, 28), lensMat);
+  const lens = new THREE.Mesh(new THREE.CircleGeometry(0.035, 28), lensMat);
   lens.position.set(0.164, 0.205, 0);
   lens.rotation.y = Math.PI / 2;
   lens.name = 'rider-headlamp-lens';
@@ -221,13 +213,13 @@ export function createHeadlamp(THREE, shading, head) {
   rig.add(lens);
 
   const haloMat = new THREE.SpriteMaterial({
-    map: haloTexture(THREE), color: HEADLAMP.beam,
+    map: haloTexture(THREE), color: '#ffffff',
     transparent: true, opacity: 0, depthWrite: false,
     blending: THREE.AdditiveBlending, toneMapped: false,
   });
   const halo = new THREE.Sprite(haloMat);
-  halo.position.set(0.174, 0.205, 0);
-  halo.scale.set(0.20, 0.20, 1);
+  halo.position.set(0.176, 0.205, 0);
+  halo.scale.set(0.36, 0.36, 1);
   halo.name = 'rider-headlamp-glow';
   halo.visible = false;
   rig.add(halo);
