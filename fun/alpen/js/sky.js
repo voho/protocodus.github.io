@@ -614,21 +614,21 @@ export const HORIZON = {
    down-run sector; everywhere else this shell supplies the facets, overlap and
    real depth a 1774-pixel equirectangular plate cannot invent. */
 const RELIEF = {
-  inner: 660,
-  crest: 1180,
-  outer: 1600,
-  height: 560,
+  inner: 750,
+  crest: 1350,
+  outer: 1950,
+  height: 520,
   apparentFar: 5600,
   segments: 768,
   radialSegments: 24,
   seed: 83,
-  crestAt: 0.62,
-  profilePower: 0.72,
-  corridorFrom: 0.72,
-  corridorTo: 0.92,
-  corridorCut: 0.35,
-  snowLine: 0.38,
-  snowFade: 0.10,
+  crestAt: 0.60,
+  profilePower: 0.65,
+  corridorFrom: 0.68,
+  corridorTo: 0.94,
+  corridorCut: 0.40,
+  snowLine: 0.32,
+  snowFade: 0.12,
 };
 
 /* One source of truth for the plate's maximum contribution. The range
@@ -740,33 +740,23 @@ const DOME_FRAG = `
        The whole block is behind a uniform branch — the same style the storm
        plate already uses one level down — because at night and in a whiteout
        the plate's strength falls to nothing and two texture fetches over the
-       most expensive shader on screen would be buying nothing at all. The
-       condition is uniform, so the derivatives the mip selector needs are
-       still well defined inside it. */
+       most expensive shader should be skipped. */
     if (uPanoStrength > 0.005) {
       vec2 panoUv = vec2(
         vPanoU,
-        /* Sample panorama slightly lower so peaks rise dramatically above the horizon */
-        clamp(asin(clamp(dir.y, -1.0, 1.0)) * 0.3183098862 + 0.505, 0.0, 1.0)
+        clamp(asin(clamp(dir.y, -1.0, 1.0)) * 0.38 + 0.485, 0.0, 1.0)
       );
       vec3 pano = texture2D(uPanoClear, panoUv).rgb;
-      // Clear weather is the common case, so it pays for one sky lookup. The
-      // second plate is sampled only while a front is actually crossfading in.
       if (uPanoStormMix > 0.001) {
         pano = mix(pano, texture2D(uPanoStorm, panoUv).rgb, uPanoStormMix);
       }
       float panoLum = dot(pano, vec3(0.2126, 0.7152, 0.0722));
-      vec3 panoChroma = clamp(pano / max(0.035, panoLum), vec3(0.40), vec3(2.2));
-      /* Relight relative source luminance around the plate's own mid-grey.
-         Enhanced high-dynamic range contrast preserves deep rock crevices and sparkling snow. */
-      float panoForm = clamp(1.0 + (panoLum - 0.46) * 1.35, 0.50, 1.40);
-      vec3 relitPano = c * panoForm * mix(vec3(1.0), panoChroma, 0.42);
-      /* Radiant Alpenglow on the high summits facing the sun */
+      vec3 panoChroma = clamp(pano / max(0.04, panoLum), vec3(0.50), vec3(2.0));
+      float panoForm = clamp(1.0 + (panoLum - 0.45) * 1.40, 0.45, 1.50);
+      vec3 relitPano = mix(c * panoForm, pano * 1.15, 0.65);
       float az = max(0.0, dot(dir.xz, uSunAz) / max(length(dir.xz), 0.001));
-      relitPano += uSunlit * (pow(az, 4.5)
-        * smoothstep(0.45, 1.10, panoForm) * 0.65);
-      // The plate provides the epic mountain background, cleanly fading into the high zenith dome
-      float panoBand = 1.0 - smoothstep(0.32, 0.58, up);
+      relitPano += uSunlit * (pow(az, 4.0) * smoothstep(0.40, 1.10, panoForm) * 0.55);
+      float panoBand = 1.0 - smoothstep(0.28, 0.55, up);
       c = mix(c, relitPano, uPanoStrength * panoBand);
     }
     // One dot product of atmosphere: the sky is brighter and warmer near
@@ -1179,17 +1169,11 @@ const RELIEF_FRAG = `
     body += uIce * iceSpec;
     body += uAlpenglow * direct * snow * (0.20 + 0.80 * vAltitude);
 
-    /* The model is an atmospheric layer over the distant photographic range,
-       not an opaque cardboard replacement for it. Its base disappears over
-       real altitude, air removes contrast continuously, and a storm removes
-       opacity rather than leaving the last few peaks as floating islands. */
-    float foot = smoothstep(0.04, 0.34, vAltitude);
-    float extinction = clamp(uAir * (0.92 - vAltitude * 0.30), 0.0, 0.64);
-    vec3 c = mix(body, uHaze, extinction);
-    float stormFade = 1.0 - smoothstep(0.18, 0.78, uStorm);
-    float alpha = foot * (1.0 - uAir * 0.25) * stormFade * 0.78;
-    if (alpha <= 0.002) discard;
-    gl_FragColor = vec4(c, alpha);
+    /* Atmospheric aerial perspective: mountains dissolve into horizon haze near their foot */
+    float foot = smoothstep(0.02, 0.28, vAltitude);
+    float extinction = clamp(uAir * (0.85 - vAltitude * 0.25), 0.0, 0.75);
+    vec3 c = mix(body, uHaze, mix(1.0, extinction, foot));
+    gl_FragColor = vec4(c, 1.0);
   }
 `;
 
@@ -1884,11 +1868,11 @@ export function createSky(THREE) {
         // closes bit-for-bit and the normal average cannot expose a hairline.
         const angle = i === RELIEF.segments ? 0 : (i / RELIEF.segments) * TAU;
         const massif = 0.5 + 0.5 * circleNoise(angle, 1.25, RELIEF.seed);
-        const horn = 1 - Math.abs(circleNoise(angle, 3.7, RELIEF.seed + 1));
-        const knife = 1 - Math.abs(circleNoise(angle, 8.4, RELIEF.seed + 2));
-        const skyline = 0.30 + 0.70 * clamp01(
-          massif * 0.22 + Math.pow(horn, 2.65) * 0.53
-            + Math.pow(knife, 1.90) * 0.25,
+        const ridgeA = 0.5 + 0.5 * circleNoise(angle, 3.2, RELIEF.seed + 1);
+        const ridgeB = 0.5 + 0.5 * circleNoise(angle, 6.8, RELIEF.seed + 2);
+        const fineRidge = 0.5 + 0.5 * circleNoise(angle, 14.5, RELIEF.seed + 3);
+        const skyline = 0.35 + 0.65 * clamp01(
+          massif * 0.40 + ridgeA * 0.35 + ridgeB * 0.18 + fineRidge * 0.07,
         );
         // Down-run remains the panorama's deep view; true shoulders frame it.
         const ahead = Math.max(0, -Math.sin(angle));
@@ -1992,7 +1976,7 @@ export function createSky(THREE) {
       vertexShader: RELIEF_VERT,
       fragmentShader: RELIEF_FRAG,
       side: THREE.FrontSide,
-      transparent: true,
+      transparent: false,
       depthWrite: true,
       depthTest: true,
       fog: false,
@@ -2755,7 +2739,7 @@ export function createSky(THREE) {
          haze; returning a crisp silhouette inside ninety-metre visibility
          made the old rings look like floating islands. */
       const panoMix = smooth01(clamp01(panoStrength.value / PANO_MAX));
-      const rangeAlpha = Math.max(0.65, 1.0 - panoMix * 0.35) * (1 - ramp(w.storm, 0.28, 0.82));
+      const rangeAlpha = (1.0 - panoMix) * (1 - ramp(w.storm, 0.28, 0.82));
       r.mat.uniforms.uAlpha.value = rangeAlpha;
       r.mesh.visible = rangeAlpha > 0.002;
       const spin = (travel * r.spin) % TAU;
