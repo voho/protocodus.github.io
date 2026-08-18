@@ -1035,31 +1035,42 @@ export function createRiderModel(THREE, shading) {
      it — `shading.apply` keeps a prior hook and folds its text into the
      program cache key, so this material cannot collide with the plain
      Lambert everything else on the mountain compiles to. */
+  const fabricTex = new THREE.TextureLoader().load(
+    new URL('../assets/textures/rider/rider-fabric.jpg', import.meta.url).href,
+    (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; },
+  );
+  fabricTex.colorSpace = THREE.SRGBColorSpace;
+
   const cloth = (() => {
     const m = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false });
     m.onBeforeCompile = (shader) => {
       shader.uniforms.uLampGlow = lampUniform;
-      /* Two varyings and one attribute buy the whole fabric response: is this
-         surface cloth at all, where it stands up the garment's own axis, and
-         which way that axis points from here. The axis is a direction, so it
-         goes through the normal matrix rather than the model one — a squashed
-         sleeve keeps its rings perpendicular to itself. */
+      shader.uniforms.uFabricTex = { value: fabricTex };
       shader.vertexShader = shader.vertexShader
         .replace('#include <common>', `#include <common>
           attribute vec2 aCloth;
           varying vec2 vCloth;
           varying float vLocalY;
-          varying vec3 vClothAxis;`)
+          varying vec3 vClothAxis;
+          varying vec3 vClothWorld;`)
         .replace('#include <begin_vertex>', `#include <begin_vertex>
           vCloth = aCloth;
           vLocalY = position.y;
-          vClothAxis = normalize(normalMatrix * vec3(0.0, 1.0, 0.0));`);
+          vClothAxis = normalize(normalMatrix * vec3(0.0, 1.0, 0.0));
+          vClothWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;`);
       shader.fragmentShader = shader.fragmentShader
         .replace('#include <common>', `#include <common>
           uniform float uLampGlow;
+          uniform sampler2D uFabricTex;
           varying vec2 vCloth;
           varying float vLocalY;
-          varying vec3 vClothAxis;`)
+          varying vec3 vClothAxis;
+          varying vec3 vClothWorld;`)
+        .replace('#include <color_fragment>', `#include <color_fragment>
+          if (vCloth.x > 0.05) {
+            vec3 weave = texture2D(uFabricTex, vClothWorld.xy * 6.0 + vClothWorld.yz * 6.0).rgb;
+            diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * weave * 1.55, 0.45 * vCloth.x);
+          }`)
         .replace(RIG_NORMAL_ANCHOR, CLOTH_BAFFLES)
         .replace(RIG_ANCHOR, rigLight(0.12, 0.30, true));
     };

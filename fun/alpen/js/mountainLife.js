@@ -33,11 +33,23 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
 
   /* --- the line: towers, ropes, cabins ---------------------------------- */
 
-  const cabinBodyMat = new THREE.MeshLambertMaterial({ color: 0xb31f1f });
+  const texLoader = new THREE.TextureLoader();
+  const fabricTex = texLoader.load(
+    new URL('../assets/textures/rider/rider-fabric.jpg', import.meta.url).href,
+    (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; },
+  );
+  fabricTex.colorSpace = THREE.SRGBColorSpace;
+  const metalTex = texLoader.load(
+    new URL('../assets/textures/rock/rock-slate.jpg', import.meta.url).href,
+    (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; },
+  );
+  metalTex.colorSpace = THREE.SRGBColorSpace;
+
+  const cabinBodyMat = new THREE.MeshLambertMaterial({ color: 0xb31f1f, map: metalTex });
   const cabinGlassMat = new THREE.MeshLambertMaterial({
     color: 0x1a3450, transparent: true, opacity: 0.85,
   });
-  const metalMat = new THREE.MeshLambertMaterial({ color: 0x333842 });
+  const metalMat = new THREE.MeshLambertMaterial({ color: 0x333842, map: metalTex });
 
   const bodyMesh = new THREE.Mesh(new THREE.BoxGeometry(2.4, 2.2, 1.8), cabinBodyMat);
   bodyMesh.position.y = -1.1;
@@ -69,8 +81,8 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
     });
   }
 
-  const pylonMat = new THREE.MeshLambertMaterial({ color: 0x5a6270 });
-  const wheelMat = new THREE.MeshLambertMaterial({ color: 0x22262c });
+  const pylonMat = new THREE.MeshLambertMaterial({ color: 0x5a6270, map: metalTex });
+  const wheelMat = new THREE.MeshLambertMaterial({ color: 0x22262c, map: metalTex });
   const pylonGeo = new THREE.CylinderGeometry(0.35, 0.7, 22.0, 8);
   const armGeo = new THREE.BoxGeometry(7.0, 0.6, 0.6);
   const wheelGeo = new THREE.CylinderGeometry(0.6, 0.6, 0.2, 12);
@@ -156,7 +168,7 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
   const npcHelmetColors = [0x1b1f27, 0xf0f4f8, 0x2b3444, 0x90a4ae];
 
   const gear = (hex, sheen = 0.25) => shading.apply(
-    new THREE.MeshLambertMaterial({ color: hex, flatShading: false }),
+    new THREE.MeshLambertMaterial({ color: hex, flatShading: false, map: fabricTex }),
     { sheen },
   );
 

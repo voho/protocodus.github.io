@@ -309,12 +309,35 @@ const BEAR_OFFSET = 0.45;
 export function createWildlife(THREE, shading) {
   const group = new THREE.Group();
 
-  // Smooth normals keep the denser rounded forms from breaking into visible
-  // facets, while the boxes used for paws, ears and claws retain their hard
-  // edges because BoxGeometry supplies split face normals.
-  const animalMaterial = () => shading.apply(
-    new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false }),
+  const furTex = new THREE.TextureLoader().load(
+    new URL('../assets/textures/rider/rider-fabric.jpg', import.meta.url).href,
+    (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; },
   );
+  furTex.colorSpace = THREE.SRGBColorSpace;
+
+  const animalMaterial = () => {
+    const m = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false });
+    m.onBeforeCompile = (shader) => {
+      shader.uniforms.uFurTex = { value: furTex };
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', `#include <common>
+        varying vec3 vAnimalWorldPos;`)
+        .replace('#include <project_vertex>', `#include <project_vertex>
+        #ifdef USE_INSTANCING
+          vAnimalWorldPos = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;
+        #else
+          vAnimalWorldPos = (modelMatrix * vec4(transformed, 1.0)).xyz;
+        #endif`);
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', `#include <common>
+        varying vec3 vAnimalWorldPos;
+        uniform sampler2D uFurTex;`)
+        .replace('#include <color_fragment>', `#include <color_fragment>
+        vec3 furDetail = texture2D(uFurTex, vAnimalWorldPos.xy * 4.5 + vAnimalWorldPos.yz * 4.5).rgb;
+        diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * furDetail * 1.5, 0.45);`);
+    };
+    return shading.apply(m);
+  };
   const rabbits = new THREE.InstancedMesh(
     rabbitGeometry(THREE), animalMaterial(), WILDLIFE.rabbits,
   );

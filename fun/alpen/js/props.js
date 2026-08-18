@@ -1946,6 +1946,11 @@ export function createProps(THREE, shading) {
     new URL('../assets/textures/rock/rock-slate.jpg', import.meta.url).href,
     (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; rockTex.value = t; },
   );
+  const woodPlanksTex = { value: neutralTreeTex };
+  texLoader.load(
+    new URL('../assets/textures/huts/alpine-wood-planks.jpg', import.meta.url).href,
+    (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; woodPlanksTex.value = t; },
+  );
 
   const treeMat = (height) => {
     const m = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false });
@@ -2414,9 +2419,29 @@ export function createProps(THREE, shading) {
   lamps.mesh.name = 'gate-lamps';
   poles.mesh.name = 'gate-poles';
 
-  const alpineMat = shading.apply(
-    new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false }),
-  );
+  const alpineMat = (() => {
+    const m = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false });
+    m.onBeforeCompile = (shader) => {
+      Object.assign(shader.uniforms, { uWoodTex: woodPlanksTex });
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', `#include <common>
+        varying vec3 vAlpineWorldPos;`)
+        .replace('#include <project_vertex>', `#include <project_vertex>
+        #ifdef USE_INSTANCING
+          vAlpineWorldPos = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;
+        #else
+          vAlpineWorldPos = (modelMatrix * vec4(transformed, 1.0)).xyz;
+        #endif`);
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', `#include <common>
+        varying vec3 vAlpineWorldPos;
+        uniform sampler2D uWoodTex;`)
+        .replace('#include <color_fragment>', `#include <color_fragment>
+        vec3 woodSample = texture2D(uWoodTex, vAlpineWorldPos.xy * 0.45 + vAlpineWorldPos.yz * 0.45).rgb;
+        diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * woodSample * 1.65, 0.65);`);
+    };
+    return shading.apply(m);
+  })();
   const avalancheFences = new Pool(
     THREE, avalancheFenceGeometry(THREE), alpineMat, bands * ALPINE.fence.sections[1],
   );
