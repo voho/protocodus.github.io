@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "ba462b7a1240",
+  "session_id": "22db6cfd-6d68-46ef-af84-da52f66d850f",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-18T19:06:47.160805Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "fun/alpen/js/props.js",
+    "fun/alpen/alpen.css"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "f54d13c310a3",
+  "token_usage": {
+    "input_tokens": 62,
+    "cache_creation_tokens": 205892,
+    "cache_read_tokens": 3580389,
+    "output_tokens": 44612,
+    "api_call_count": 33
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-18T19:06:46.441031Z",
+    "agent_lines": 0,
+    "human_added": 0,
+    "human_modified": 81,
+    "human_removed": 2,
+    "total_committed": 0,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude/projects/-Users-vojta-Dev-protocodus-github-io/22db6cfd-6d68-46ef-af84-da52f66d850f.jsonl"
+}

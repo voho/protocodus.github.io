@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "ba462b7a1240",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "fun/alpen/alpen.css",
+    "fun/alpen/js/props.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ba/462b7a1240/0/metadata.json",
+      "transcript": "/ba/462b7a1240/0/full.jsonl",
+      "context": "/ba/462b7a1240/0/context.md",
+      "content_hash": "/ba/462b7a1240/0/content_hash.txt",
+      "prompt": "/ba/462b7a1240/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 62,
+    "cache_creation_tokens": 205892,
+    "cache_read_tokens": 3580389,
+    "output_tokens": 44612,
+    "api_call_count": 33
+  }
+}
