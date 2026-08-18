@@ -104,7 +104,7 @@ import {
   heightAt, nearestCenter, corridorHalfAt, centersAt, normalFrom, gateSlotsIn, SNOWPACK,
 } from './terrain.js';
 import { createModelUpgrader } from './importedModels.js';
-import { stream, hash2, noise2 } from './noise.js';
+import { stream, hash2, noise2, snoise2 } from './noise.js';
 import { compose } from './geom.js';
 import { PROPS } from './config.js';
 

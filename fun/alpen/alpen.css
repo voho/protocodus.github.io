@@ -50,8 +50,9 @@ body {
   inset: 0;
   background: var(--ink);
   color: var(--paper);
-  font-family: 'Courier New', Courier, monospace;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   touch-action: none;
   -webkit-tap-highlight-color: transparent;
 }
@@ -117,7 +118,7 @@ body.ready .hud {
   display: grid;
   place-items: center;
   padding: calc(var(--gutter) * 1.5);
-  background: radial-gradient(120% 90% at 50% 40%, rgba(9, 15, 26, 0.55), rgba(9, 15, 26, 0.92));
+  background: radial-gradient(circle at 50% 35%, rgba(13, 28, 48, 0.75), rgba(7, 12, 20, 0.96));
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.35s var(--ease), visibility 0.35s;
@@ -129,32 +130,25 @@ body.ready .hud {
   visibility: visible;
 }
 
-/* Once the canvas menus own the picture, the curtain is only a click-catcher
-   and must not shade them: the bitmap card carries its own backdrop, and this
-   gradient stacked on top of it dimmed the menu text by up to ninety per cent
-   at the edges of the frame — and blacked out the attract run behind it. */
 body.ready .curtain {
   background: transparent;
 }
 
 .curtain-inner {
   width: 100%;
-  max-width: 620px;
+  max-width: 680px;
   max-height: 100%;
   overflow-y: auto;
   text-align: left;
+  padding: 1.5rem;
+  border-radius: 16px;
+  background: rgba(13, 20, 32, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
 }
 
-/* The loading screen is the DOM's one remaining visual job. The canvas
-   read-out draws every menu once the game runs, but it cannot draw a pixel
-   until the engine has been fetched and the first frame rendered — which is
-   precisely the period the loading card covers. So until the body is
-   `.ready`, the curtain's inner column comes out of its screen-reader
-   clipping and is the boot screen: wordmark, controls, and the stage-by-
-   stage progress bar the inline script feeds. (It is also what shows the
-   WebGL failure notice, which the clipping used to hide entirely.) The
-   first rendered frame collapses it back to sr-only and the bitmap title
-   card takes over. */
 body:not(.ready) .curtain-inner.sr-only {
   position: static;
   width: 100%;
@@ -166,71 +160,83 @@ body:not(.ready) .curtain-inner.sr-only {
 }
 
 .eyebrow {
-  font-size: var(--label);
-  font-weight: 600;
-  letter-spacing: var(--label-track);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--mint);
+  color: var(--ice);
+  opacity: 0.95;
 }
 
 .wordmark {
-  margin-top: 0.4rem;
-  font-size: clamp(3.2rem, 13vw, 6.5rem);
-  font-weight: 700;
-  line-height: 0.92;
-  letter-spacing: -0.05em;
+  margin-top: 0.3rem;
+  font-size: clamp(3.0rem, 10vw, 5.0rem);
+  font-weight: 900;
+  line-height: 0.95;
+  letter-spacing: -0.04em;
+  color: #ffffff;
+  text-shadow: 0 2px 20px rgba(0, 212, 255, 0.25);
 }
 
 .spark {
   display: inline-block;
-  margin-left: 0.06em;
-  font-size: 0.26em;
+  margin-left: 0.08em;
+  font-size: 0.32em;
   font-style: normal;
   color: var(--yellow);
   vertical-align: 0.55em;
+  filter: drop-shadow(0 0 8px rgba(255, 171, 0, 0.6));
 }
 
 .tagline {
-  margin-top: 1rem;
-  max-width: 48ch;
-  color: var(--fg-muted);
-  font-size: clamp(0.95rem, 2.2vw, 1.05rem);
-  line-height: 1.6;
+  margin-top: 0.85rem;
+  max-width: 52ch;
+  color: rgba(240, 246, 255, 0.75);
+  font-size: clamp(0.92rem, 2vw, 1.0rem);
+  line-height: 1.55;
   text-wrap: pretty;
 }
 
 .keys {
-  margin-top: 1.8rem;
+  margin-top: 1.4rem;
   display: grid;
-  gap: 0.55rem;
-  border-top: 1px solid rgba(250, 250, 250, 0.14);
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 0.7rem 1.2rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.10);
   padding-top: 1.2rem;
 }
 
 .keys > div {
   display: flex;
-  align-items: baseline;
-  gap: 0.4rem;
-  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.0rem;
 }
 
 .keys dt {
-  flex: 0 0 auto;
-  min-width: 1.9rem;
-  padding: 0.22rem 0.45rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.85rem;
+  height: 1.7rem;
+  padding: 0 0.45rem;
   text-align: center;
-  font-size: 0.68rem;
+  font-size: 0.72rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--mint);
-  border: 1px solid rgba(0, 255, 195, 0.4);
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.09);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 5px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
 
 .keys dd {
-  margin-left: 0.5rem;
-  color: var(--fg-muted);
-  font-size: 0.9rem;
+  margin-left: 0.35rem;
+  color: rgba(240, 246, 255, 0.78);
+  font-size: 0.85rem;
+  line-height: 1.3;
 }
 
 .touch-guide {
@@ -242,11 +248,11 @@ body.touch .keys {
 }
 
 body.touch .touch-guide {
-  margin-top: 1.6rem;
+  margin-top: 1.4rem;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.9rem 1.1rem;
-  border-top: 1px solid rgba(250, 250, 250, 0.14);
+  gap: 0.85rem 1.2rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.10);
   padding-top: 1.15rem;
 }
 
@@ -256,23 +262,23 @@ body.touch .touch-guide {
 
 .touch-guide dt {
   color: var(--mint);
-  font-size: 0.72rem;
+  font-size: 0.74rem;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.10em;
   text-transform: uppercase;
 }
 
 .touch-guide dd {
-  margin-top: 0.26rem;
-  color: var(--fg-muted);
-  font-size: 0.86rem;
+  margin-top: 0.25rem;
+  color: rgba(240, 246, 255, 0.75);
+  font-size: 0.85rem;
   line-height: 1.35;
 }
 
 .go {
-  margin-top: 1.8rem;
+  margin-top: 1.5rem;
   font-size: var(--label);
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: var(--label-track);
   text-transform: uppercase;
   color: var(--yellow);
@@ -300,7 +306,7 @@ body.touch .go-tap {
 
 .back {
   display: inline-block;
-  margin-top: 1.6rem;
+  margin-top: 1.4rem;
   color: var(--fg-faint);
   font-size: 0.82rem;
   letter-spacing: 0.04em;
@@ -318,19 +324,17 @@ body.touch .go-tap {
 .curtain[data-screen='start'] .pause-only { display: none; }
 
 /* Loading
-   ==========================================================================
-   The bar occupies exactly the space the invitation is about to, so the
-   title card does not jump when the mountain finishes arriving. Mint,
-   because mint is the colour of structure and of anything you can act on,
-   and this is the thing standing between the player and acting. */
+   ========================================================================== */
 .loading {
-  margin-top: 1.8rem;
+  margin-top: 1.6rem;
 }
 
 .loading-track {
-  width: min(20rem, 100%);
-  height: 3px;
-  background: rgba(250, 250, 250, 0.14);
+  width: min(24rem, 100%);
+  height: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
   overflow: hidden;
 }
 
@@ -338,30 +342,24 @@ body.touch .go-tap {
   display: block;
   width: 0;
   height: 100%;
-  background: var(--mint);
-  /* Stages land at their own pace and the bar should not pretend otherwise —
-     this eases the step rather than filling on a clock of its own. */
+  border-radius: 999px;
+  background: linear-gradient(90deg, #00d4ff, #00ffaa);
+  box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
   transition: width 0.35s var(--ease);
 }
 
 .loading-label {
   margin-top: 0.6rem;
-  font-size: var(--label);
+  font-size: 0.72rem;
   font-weight: 600;
-  letter-spacing: var(--label-track);
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--fg-faint);
+  color: rgba(240, 246, 255, 0.55);
 }
 
-/* A boot that died keeps the bar exactly where it stopped and stops being
-   mint, because mint is the colour of things you can act on and this is not
-   one. Yellow is the palette's emphasis, and there is nothing else on this
-   screen for it to compete with. */
-.loading.failed .loading-fill { background: var(--yellow); }
+.loading.failed .loading-fill { background: var(--yellow); box-shadow: 0 0 10px rgba(255, 171, 0, 0.5); }
 .loading.failed .loading-label { color: var(--yellow); }
 
-/* The invitation waits for the mountain. Both are `.go`'s own margin apart,
-   so exactly one of them is on screen at any moment and neither moves. */
 body:not(.loaded) .curtain[data-screen='start'] .go { display: none; }
 
 @media (prefers-reduced-motion: reduce) {
