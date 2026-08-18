@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "b20831273455",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "fun/alpen/js/headlamp.js",
+    "fun/alpen/js/huts.js",
+    "fun/alpen/js/props.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/b2/0831273455/0/metadata.json",
+      "transcript": "/b2/0831273455/0/full.jsonl",
+      "context": "/b2/0831273455/0/context.md",
+      "content_hash": "/b2/0831273455/0/content_hash.txt",
+      "prompt": "/b2/0831273455/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 78,
+    "cache_creation_tokens": 265677,
+    "cache_read_tokens": 5507944,
+    "output_tokens": 100548,
+    "api_call_count": 41
+  }
+}
