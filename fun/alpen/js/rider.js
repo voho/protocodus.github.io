@@ -232,9 +232,9 @@ export class Rider {
     for (let i = 0; i < list.length; i++) list[i](a, b);
   }
 
-  reset(z = 0) {
-    const x = 0;
-    this.pos.set(x, this.world.height(x, z), z);
+  reset(z = 0, x = null) {
+    const posX = x !== null ? x : 0;
+    this.pos.set(posX, this.world.height(posX, z), z);
     this.vel.set(0, 0, -10);
     this.yaw = 0;
     this.flip = 0;

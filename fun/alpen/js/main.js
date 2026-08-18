@@ -471,15 +471,22 @@ let lastPassedGate = null;
 
 let resetPropDensity = false;
 
-function restart() {
+function restart(fullReset = false) {
   /* A restart resumes from the last gate taken — the run is a course now,
-     and a course has checkpoints — and always on the guide line, which is
-     groomed by construction: no spawn ever lands on a mogul. */
-  const start = lastPassedGate ? lastPassedGate.z : rider.pos.z;
-  const startX = lastPassedGate ? lastPassedGate.x : guideAt(start);
-  rider.reset(start);
+     and a course has checkpoints — and always on the groomed piste line:
+     no spawn or reset can ever land off piste or on a mogul. */
+  if (fullReset) lastPassedGate = null;
+  const start = lastPassedGate ? lastPassedGate.z : (rider.pos.z !== 0 ? rider.pos.z : 0);
+  const rawX = lastPassedGate ? lastPassedGate.x : guideAt(start);
+  const center = nearestCenter(rawX, start);
+  const half = corridorHalfAt(start);
+  // Ensure startX is ALWAYS safely centered within the groomed piste
+  const startX = Math.max(center - half * 0.35, Math.min(center + half * 0.35, rawX));
+
+  rider.reset(start, startX);
   hadStep = false;
   rider.pos.x = startX;
+  rider.pos.z = start;
   rider.pos.y = world.height(startX, start);
   game.score = 0;
   game.combo = 1;
