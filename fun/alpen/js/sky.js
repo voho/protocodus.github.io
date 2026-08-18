@@ -567,10 +567,10 @@ const MIST = {
    heights are once again what they say they are: how far the tallest summit
    on the ring stands above the curtain. */
 export const RANGES = [
-  { radius: 2380, height: 1220, far: 42000, seed: 21, segments: 720, tint: '#d5dce7' },
-  { radius: 2010, height: 980, far: 21000, seed: 33, segments: 660, tint: '#aeb9cc' },
-  { radius: 1640, height: 750, far: 11500, seed: 47, segments: 600, tint: '#7c899f' },
-  { radius: 1280, height: 560, far: 6200, seed: 59, segments: 540, tint: '#53596a' },
+  { radius: 2550, height: 1520, far: 52000, seed: 21, segments: 720, tint: '#d8dfea' },
+  { radius: 2120, height: 1220, far: 26000, seed: 33, segments: 660, tint: '#b2bdd0' },
+  { radius: 1720, height: 920, far: 14000, seed: 47, segments: 600, tint: '#818da2' },
+  { radius: 1340, height: 680, far: 7500, seed: 59, segments: 540, tint: '#585e6f' },
 ];
 
 /* What the horizon is made of, in the units a photograph would give you.
@@ -623,16 +623,16 @@ export const HORIZON = {
   massif: 5,
   horn: 18,
   knife: 48,
-  sharp: 1.6,
-  floor: 0.24,
-  fill: 0.62,
-  relief: 0.66,
-  flatten: 0.50,
-  detail: 0.05,
-  bias: 0.50,
-  above: 0.85,
+  sharp: 1.8,
+  floor: 0.22,
+  fill: 0.64,
+  relief: 0.72,
+  flatten: 0.48,
+  detail: 0.06,
+  bias: 0.48,
+  above: 0.88,
   wobble: 0.12,
-  glacier: 0.30,
+  glacier: 0.36,
   // Tiles of the shared noise field around a whole ring. An integer, because
   // the field repeats at one and the ring has to close on itself.
   tiles: 4,
@@ -646,13 +646,13 @@ export const HORIZON = {
    down-run sector; everywhere else this shell supplies the facets, overlap and
    real depth a 1774-pixel equirectangular plate cannot invent. */
 const RELIEF = {
-  inner: 620,
-  crest: 1020,
-  outer: 1420,
-  height: 400,
-  apparentFar: 4600,
+  inner: 660,
+  crest: 1180,
+  outer: 1600,
+  height: 560,
+  apparentFar: 5600,
   segments: 768,
-  radialSegments: 18,
+  radialSegments: 24,
   seed: 83,
   crestAt: 0.62,
   profilePower: 0.72,
@@ -666,7 +666,7 @@ const RELIEF = {
 /* One source of truth for the plate's maximum contribution. The range
    crossfade consumes the same value, so changing the image/model balance can
    never leave the fallback ribbons stuck half-visible. */
-const PANO_MAX = 0.74;
+const PANO_MAX = 0.90;
 
 /* The scale height of the air, in metres — the distance over which it eats
    1/e of whatever is behind it. Twelve kilometres is thick for real alpine
@@ -778,14 +778,8 @@ const DOME_FRAG = `
     if (uPanoStrength > 0.005) {
       vec2 panoUv = vec2(
         vPanoU,
-        /* The source was generated from a high Alpine viewpoint, so almost
-           all of its mountain mass lies below its own geometric horizon.
-           Sampling that horizon at world 0 degrees hid the plate behind the
-           terrain and haze cone. Aim 3.5% lower into the source: its
-           photographed skyline then stands about 6.3 degrees above the game
-           horizon, with its base still disappearing naturally behind the
-           real valley. */
-        clamp(asin(clamp(dir.y, -1.0, 1.0)) * 0.3183098862 + 0.515, 0.0, 1.0)
+        /* Sample panorama slightly lower so peaks rise dramatically above the horizon */
+        clamp(asin(clamp(dir.y, -1.0, 1.0)) * 0.3183098862 + 0.505, 0.0, 1.0)
       );
       vec3 pano = texture2D(uPanoClear, panoUv).rgb;
       // Clear weather is the common case, so it pays for one sky lookup. The
@@ -794,30 +788,17 @@ const DOME_FRAG = `
         pano = mix(pano, texture2D(uPanoStorm, panoUv).rgb, uPanoStormMix);
       }
       float panoLum = dot(pano, vec3(0.2126, 0.7152, 0.0722));
-      vec3 panoChroma = clamp(pano / max(0.035, panoLum), vec3(0.48), vec3(1.8));
+      vec3 panoChroma = clamp(pano / max(0.035, panoLum), vec3(0.40), vec3(2.2));
       /* Relight relative source luminance around the plate's own mid-grey.
-         Snow, sky and dark rock all sat near the bright end of the previous
-         smoothstep, which erased the very folds that identify the photograph.
-         This centred exposure keeps a bounded 0.42–1.42 range while inheriting
-         the procedural hour-of-day colour from c. */
-      float panoForm = clamp(1.0 + (panoLum - 0.45) * 1.20, 0.58, 1.30);
-      vec3 relitPano = c * panoForm * mix(vec3(1.0), panoChroma, 0.12);
-      /* Alpenglow on the plate. The procedural ranges already catch the one
-         amber in the palette on the flanks facing a low sun; the plate never
-         did, so at golden hour the hero range sat cold behind foothills that
-         were on fire. The term is the same borrowed colour they use —
-         uSunlit, already zero at noon, at night and in a storm — landed on
-         the bright pano pixels near the sun's own azimuth. Gated on the
-         plate's relit form rather than a snow line, because bright in this
-         source *is* snow, and added rather than mixed for the reason the
-         ranges' note gives: alpenglow is light arriving on snow, and a lerp
-         towards orange turns the range to cardboard. */
+         Enhanced high-dynamic range contrast preserves deep rock crevices and sparkling snow. */
+      float panoForm = clamp(1.0 + (panoLum - 0.46) * 1.35, 0.50, 1.40);
+      vec3 relitPano = c * panoForm * mix(vec3(1.0), panoChroma, 0.42);
+      /* Radiant Alpenglow on the high summits facing the sun */
       float az = max(0.0, dot(dir.xz, uSunAz) / max(length(dir.xz), 0.001));
-      relitPano += uSunlit * (pow(az, 6.0)
-        * smoothstep(0.60, 1.15, panoForm) * 0.30);
-      // The plate is the distant range, not the entire atmosphere. Let it own
-      // the lower sky and hand the zenith back to the procedural gradient/deck.
-      float panoBand = 1.0 - smoothstep(0.30, 0.54, up);
+      relitPano += uSunlit * (pow(az, 4.5)
+        * smoothstep(0.45, 1.10, panoForm) * 0.65);
+      // The plate provides the epic mountain background, cleanly fading into the high zenith dome
+      float panoBand = 1.0 - smoothstep(0.32, 0.58, up);
       c = mix(c, relitPano, uPanoStrength * panoBand);
     }
     // One dot product of atmosphere: the sky is brighter and warmer near
