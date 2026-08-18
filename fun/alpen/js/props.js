@@ -2094,16 +2094,16 @@ export function createProps(THREE, shading) {
   const stoneMaterial = rockMat();
   const plantPool = new Pool(
     THREE, growPlantPatch(THREE, 0x63a91d, geos), floraMaterial,
-    bands * BIOMES.plantCandidates + 12,
+    bands * BIOMES.plantCandidates + 16,
   );
   const shrubPools = [
     new Pool(
       THREE, growShrub(THREE, 0x2b7f41, geos, false), floraMaterial,
-      bands * BIOMES.shrubCandidates + 12,
+      bands * BIOMES.shrubCandidates + 16,
     ),
     new Pool(
       THREE, growShrub(THREE, 0x2b7f41 + 5827, geos, true), floraMaterial,
-      bands * BIOMES.shrubCandidates + 12,
+      bands * BIOMES.shrubCandidates + 16,
     ),
   ];
   const boulderVariants = [
@@ -2112,19 +2112,16 @@ export function createProps(THREE, shading) {
   ];
   const rockPools = boulderVariants.map((grown) => new Pool(
     THREE, grown.geometry, stoneMaterial,
-    bands * (BIOMES.sideRockCandidates + 1) + 12,
+    bands * (BIOMES.sideRockCandidates + 1) + 16,
   ));
-  /* Three crags, and three is enough because they are never seen together:
-     the placement below allows one band in several to carry one at all, and
-     the two that are in shot at any moment are two hundred metres apart on
-     opposite banks. */
+  /* Large imposing crags and rocky massifs */
   const cragVariants = [
     growCrag(THREE, 0x51c433, geos, SNOWPACK.slate),
     growCrag(THREE, 0x51c433 + 4877, geos, SNOWPACK.iron),
     growCrag(THREE, 0x51c433 + 9743, geos, SNOWPACK.slate),
   ];
   const cragPools = cragVariants.map((grown) => new Pool(
-    THREE, grown.geometry, stoneMaterial, bands * 4 + 32,
+    THREE, grown.geometry, stoneMaterial, bands * 6 + 32,
   ));
 
   plantPool.mesh.name = 'alpine-plant-patches';
@@ -2616,18 +2613,18 @@ export function createProps(THREE, shading) {
     for (let i = 0; i < BIOMES.plantCandidates; i++) {
       const z = z0 + hash2(b, 3200 + i, 211) * band;
       const side = hash2(b, 3220 + i, 211) < 0.5 ? -1 : 1;
-      const distance = lerp(0.8, 16, Math.pow(hash2(b, 3240 + i, 211), 1.35));
+      const distance = lerp(1.5, 85, Math.pow(hash2(b, 3240 + i, 211), 1.25));
       const x = vergeXAt(
         z, side, distance,
         hash2(b, 3260 + i, 211), hash2(b, 3280 + i, 211),
       );
       ecologyAt(x, z, eco);
-      const cover = clamp01(0.10 + 0.66 * Math.max(
-        eco.alpine, eco.heath * 0.78, eco.avalanche * 0.46,
+      const cover = clamp01(0.18 + 0.64 * Math.max(
+        eco.alpine, eco.heath * 0.78, eco.exposure * 0.65,
       ));
       if (hash2(b, 3300 + i, 211) > cover) continue;
       const y = heightAt(x, z) - 0.02;
-      const s = lerp(0.62, 1.34, hash2(b, 3320 + i, 211));
+      const s = lerp(0.62, 1.45, hash2(b, 3320 + i, 211));
       const sy = s * lerp(0.82, 1.12, hash2(b, 3360 + i, 211));
       if (hash2(b, 3380 + i, 211) > density) continue;
       const yaw = hash2(b, 3340 + i, 211) * TAU;
@@ -2642,14 +2639,14 @@ export function createProps(THREE, shading) {
     for (let i = 0; i < BIOMES.shrubCandidates; i++) {
       const z = z0 + hash2(b, 3000 + i, 223) * band;
       const side = hash2(b, 3020 + i, 223) < 0.5 ? -1 : 1;
-      const distance = lerp(1.2, 24, Math.pow(hash2(b, 3040 + i, 223), 1.3));
+      const distance = lerp(2.0, 95, Math.pow(hash2(b, 3040 + i, 223), 1.25));
       const x = vergeXAt(
         z, side, distance,
         hash2(b, 3060 + i, 223), hash2(b, 3080 + i, 223),
       );
       ecologyAt(x, z, eco);
-      const shrubCover = clamp01(0.06 + 0.68 * Math.max(
-        eco.heath, eco.understory, eco.avalanche * 0.38, eco.alpine * 0.18,
+      const shrubCover = clamp01(0.16 + 0.68 * Math.max(
+        eco.heath, eco.understory, eco.avalanche * 0.45, eco.alpine * 0.35,
       ));
       if (hash2(b, 3100 + i, 223) > shrubCover) continue;
       const berryCover = clamp01(
@@ -2657,7 +2654,7 @@ export function createProps(THREE, shading) {
       );
       const v = hash2(b, 3120 + i, 223) < berryCover ? 1 : 0;
       const y = heightAt(x, z) - 0.05;
-      const s = lerp(0.78, 1.52, hash2(b, 3140 + i, 223));
+      const s = lerp(0.78, 1.65, hash2(b, 3140 + i, 223));
       const sy = s * lerp(0.90, 1.18, hash2(b, 3180 + i, 223));
       if (hash2(b, 3190 + i, 223) > density) continue;
       const yaw = hash2(b, 3160 + i, 223) * TAU;
@@ -2669,36 +2666,22 @@ export function createProps(THREE, shading) {
       });
     }
 
-    /* Scenic talus lives well outside the groomed edge but remains solid.
-       The verge boulder above is still the closest rock the rider meets.
-
-       A SINGLE STONE, IN EVERY SIZE FROM PEBBLE TO ERRATIC. The old range was
-       0.58 to 1.52, which is a factor of two and a half — near enough one
-       stone that sometimes came out a bit bigger. The range below is a factor
-       of twenty, and the exponent is what makes that usable: squared, the
-       draw puts three quarters of the stones under a third of the maximum, so
-       the hillside is mostly gravel and cobbles with the occasional block
-       standing over them. A uniform draw over the same range would be a field
-       of medium rocks, which is what an even distribution always is.
-
-       And the big ones stand further out. It is not a rule about crowding,
-       it is where the sizes actually are: the fines wash down to the verge
-       and the erratics are left where the ice dropped them, up the bank. */
+    /* Scenic talus and rugged boulder fields stretching across the mountain flanks */
     for (let i = 0; i < BIOMES.sideRockCandidates; i++) {
       const z = z0 + hash2(b, 3500 + i, 229) * band;
       const side = hash2(b, 3520 + i, 229) < 0.5 ? -1 : 1;
       const grade = hash2(b, 3600 + i, 229);
       const s = lerp(BIOMES.stoneSize[0], BIOMES.stoneSize[1], grade * grade);
-      const distance = lerp(3.0, 40, Math.pow(hash2(b, 3540 + i, 229), 1.2))
-        + s * 3.4;
+      const distance = lerp(2.5, 155, Math.pow(hash2(b, 3540 + i, 229), 1.15))
+        + s * 2.0;
       const x = outerEdgeAt(z, side) + side * distance;
       ecologyAt(x, z, eco);
-      const rockCover = clamp01(0.12 + 0.56 * Math.max(eco.talus, eco.alpine * 0.8));
+      const rockCover = clamp01(0.24 + 0.65 * Math.max(eco.talus, eco.alpine * 0.8, eco.exposure));
       if (hash2(b, 3560 + i, 229) > rockCover) continue;
       const v = hash2(b, 3580 + i, 229) < eco.exposure ? 0 : 1;
-      const sx = s * lerp(0.82, 1.16, hash2(b, 3620 + i, 229));
-      const sy = s * lerp(0.70, 1.06, hash2(b, 3640 + i, 229));
-      const sz = s * lerp(0.82, 1.18, hash2(b, 3660 + i, 229));
+      const sx = s * lerp(0.82, 1.22, hash2(b, 3620 + i, 229));
+      const sy = s * lerp(0.70, 1.12, hash2(b, 3640 + i, 229));
+      const sz = s * lerp(0.82, 1.22, hash2(b, 3660 + i, 229));
       const rough = boulderTransform(v, 0, sx, sy, sz);
       const groundY = beddedGroundY(x, z, rough.r, 0.05 + rough.r * 0.16);
       const shape = boulderTransform(v, groundY, sx, sy, sz);
@@ -2713,37 +2696,22 @@ export function createProps(THREE, shading) {
       });
     }
 
-    /* --- the crags -------------------------------------------------------
-
-       Rock cliffs, well up the containment banks. `cragFrom` keeps them out
-       of the opening stretch for the same reason everything else is kept out
-       of it, and one band in six carries one — which at forty metres a band
-       is a face every quarter kilometre, so the flanks have geology in them
-       without turning into a canyon.
-
-       They are placed where the bank is *exposed* rather than uniformly: the
-       ecology's exposure field is the same one that decides where talus and
-       alpine cushions go, so a crag stands at the top of its own scree slope
-       instead of in the middle of a stand of trees.
-
-       These are eighty to a hundred and sixty metres off the centre line,
-       but remain solid if an extreme-speed rider reaches them. */
     /* --- rocky massifs and rugged mountain crags -------------------------
        Dramatic alpine stone massifs, towering jagged crags, and sheer rock
        buttresses across the mountain flanks and containment slopes. */
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 5; i++) {
       if (travelled >= BIOMES.cragFrom
         && hash2(b, 3700 + i, 233) < BIOMES.cragChance * density) {
-        const z = z0 + 4 + hash2(b, 3701 + i, 233) * (band - 8);
+        const z = z0 + 3 + hash2(b, 3701 + i, 233) * (band - 6);
         const side = (i % 2 === 0) ? -1 : 1;
         const distance = lerp(BIOMES.cragOut[0], BIOMES.cragOut[1], hash2(b, 3703 + i, 233));
         const x = outerEdgeAt(z, side) + side * distance;
         ecologyAt(x, z, eco);
         const v = Math.floor(hash2(b, 3705 + i, 233) * cragPools.length);
         const s = lerp(BIOMES.cragSize[0], BIOMES.cragSize[1], hash2(b, 3706 + i, 233));
-        const sx = s * lerp(0.86, 1.28, hash2(b, 3707 + i, 233));
-        const sy = s * lerp(0.92, 1.45, hash2(b, 3708 + i, 233));
-        const sz = s * lerp(0.86, 1.28, hash2(b, 3709 + i, 233));
+        const sx = s * lerp(0.86, 1.30, hash2(b, 3707 + i, 233));
+        const sy = s * lerp(0.92, 1.50, hash2(b, 3708 + i, 233));
+        const sz = s * lerp(0.86, 1.30, hash2(b, 3709 + i, 233));
         const grown = cragVariants[v];
         const rough = stoneTransform(grown, 0, sx, sy, sz);
         const groundY = beddedGroundY(x, z, rough.r, 0.4 + rough.r * 0.22);

@@ -442,45 +442,28 @@ export const TERRAIN = {
        v²/2g = 57 metres of climb, which is less than the 62 the exponential
        saturates at — and `creep` then goes on rising for ever behind it, so
        there is no height at which the ground stops pointing home. */
-    height: 62,
-    scale: 78,
-    /* And past the wall's own saturation, a slow permanent climb.
-
-       Without it the profile flattens into a plateau a hundred and thirty
-       metres above the piste, and a rider thrown up there by a cliff would
-       simply land on it and stop, off the run and out of the game. A gentle
-       17° that never ends means the ground outside the corridor is
-       monotonically uphill everywhere, so gravity is always pointing home.
-       That, and not a barrier, is what makes leaving the track impossible. */
-    creep: 0.30,
+    /* Towering, rugged alpine mountain containment flanks */
+    height: 110,
+    scale: 88,
+    creep: 0.42,
     creepEase: 18,
-    /* Large-scale flank geology.
-
-       The containment profile above is intentionally simple and monotonic,
-       but a perfectly identical exponential on both sides reads as two
-       poured-concrete ramps. These frequencies vary its breadth over several
-       hundred metres of run and add two broad, always-upward shoulders well
-       beyond the rideable lip. `terrain.js` evaluates them in the height
-       field itself, so collision, placement, cached horizon shadow and the
-       visible mesh all receive exactly the same mountain. */
+    /* Large-scale flank geology. */
     structure: {
       broadFreq: 0.0024,
       detailFreq: 0.0041,
-      scaleVary: 0.26,
+      scaleVary: 0.28,
       broadSeed: 113,
       detailSeed: 127,
-      lowerHeight: [6, 14],
-      lowerStart: [16, 28],
-      lowerWidth: 16,
-      upperHeight: [10, 22],
-      upperStart: [58, 76],
-      upperWidth: 26,
-      /* A sharper buttress cut from the existing detail field. It adds no
-         noise sample: terrain.js turns only the upper part of that row fact
-         into a ridge, so adjacent valleys retain the snowfield between them. */
-      ribHeight: 18,
-      ribStart: [10, 22],
-      ribWidth: 32,
+      lowerHeight: [10, 26],
+      lowerStart: [14, 26],
+      lowerWidth: 18,
+      upperHeight: [22, 48],
+      upperStart: [52, 72],
+      upperWidth: 32,
+      /* Sharper buttresses cut from detail field */
+      ribHeight: 34,
+      ribStart: [8, 20],
+      ribWidth: 36,
     },
 
     /* RUNNELS — the channels snow cuts in a flank on its way down it.
@@ -1779,14 +1762,14 @@ export const PROPS = {
   },
   /* Biome distribution: rocky massifs, jagged crags, and extensive stone fields */
   biomes: {
-    plantCandidates: 8,
-    shrubCandidates: 12,
-    sideRockCandidates: 38,
-    stoneSize: [0.35, 5.5],
-    cragFrom: 80,
-    cragChance: 0.85,      // multiple dramatic rocky massifs per band
-    cragOut: [20, 160],    // rugged rocky massif slopes from shoulder to containment wall
-    cragSize: [3.8, 9.8],  // towering imposing rock massifs and jagged cliffs
+    plantCandidates: 28,
+    shrubCandidates: 36,
+    sideRockCandidates: 56,
+    stoneSize: [0.35, 6.0],
+    cragFrom: 40,
+    cragChance: 0.95,      // multiple dramatic rocky massifs per band
+    cragOut: [18, 165],    // rugged rocky massif slopes from shoulder to containment wall
+    cragSize: [4.2, 11.5], // towering imposing rock massifs and jagged cliffs
     hazardFrom: 200,
     hazardChance: 0.25,
     hazardPadding: 8,

@@ -998,6 +998,14 @@ function heightIn(ctx, x, coarseDetail = 1, fineDetail = coarseDetail,
       const eu = Math.exp(-u * u);
       h += wall.height * (1 - eu) + wall.creep * creepShape;
 
+      /* Alpine mountain flank geology: jagged ribs, rocky spines, stepped terraces,
+         and sculpted couloirs that give the side mountains dramatic 3D relief. */
+      const flankArrival = smoothstep(4.0, 26.0, w);
+      const ridgeNoise = snoise2(w * 0.038, z * 0.024, left ? 101 : 203);
+      const spineDetail = snoise2(w * 0.082, z * 0.054, left ? 307 : 409);
+      const jaggedTerrace = Math.abs(snoise2(w * 0.14, z * 0.11, left ? 521 : 619));
+      h += (Math.abs(ridgeNoise) * 16.0 + spineDetail * 6.5 + jaggedTerrace * 3.8) * flankArrival;
+
       /* THE FLUTING, and it is the only term on this whole profile that
          varies across the flank rather than along it.
 
