@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "8bc088dd7ee8",
+  "session_id": "22db6cfd-6d68-46ef-af84-da52f66d850f",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-18T19:20:09.393281Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "fun/alpen/js/props.js",
+    "fun/alpen/js/sky.js",
+    "fun/alpen/js/terrain.js"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "f54d13c310a3",
+  "token_usage": {
+    "input_tokens": 80,
+    "cache_creation_tokens": 270627,
+    "cache_read_tokens": 5773621,
+    "output_tokens": 111887,
+    "api_call_count": 42
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-18T19:20:08.627436Z",
+    "agent_lines": 0,
+    "human_added": 30,
+    "human_modified": 13,
+    "human_removed": 0,
+    "total_committed": 30,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude/projects/-Users-vojta-Dev-protocodus-github-io/22db6cfd-6d68-46ef-af84-da52f66d850f.jsonl"
+}

@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "8bc088dd7ee8",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "fun/alpen/js/props.js",
+    "fun/alpen/js/sky.js",
+    "fun/alpen/js/terrain.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/8b/c088dd7ee8/0/metadata.json",
+      "transcript": "/8b/c088dd7ee8/0/full.jsonl",
+      "context": "/8b/c088dd7ee8/0/context.md",
+      "content_hash": "/8b/c088dd7ee8/0/content_hash.txt",
+      "prompt": "/8b/c088dd7ee8/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 80,
+    "cache_creation_tokens": 270627,
+    "cache_read_tokens": 5773621,
+    "output_tokens": 111887,
+    "api_call_count": 42
+  }
+}
