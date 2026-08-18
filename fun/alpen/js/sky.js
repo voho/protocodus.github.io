@@ -1478,10 +1478,10 @@ export function createSky(THREE) {
   const preparePlate = (texture) => {
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.ClampToEdgeWrapping;
-    texture.minFilter = THREE.LinearMipmapLinearFilter;
+    texture.minFilter = THREE.LinearFilter;
     texture.magFilter = THREE.LinearFilter;
+    texture.generateMipmaps = false;
     texture.colorSpace = THREE.SRGBColorSpace;
-    texture.generateMipmaps = true;
     return texture;
   };
   let sunrisePlate = null;
@@ -2787,7 +2787,7 @@ export function createSky(THREE) {
          haze; returning a crisp silhouette inside ninety-metre visibility
          made the old rings look like floating islands. */
       const panoMix = smooth01(clamp01(panoStrength.value / PANO_MAX));
-      const rangeAlpha = (1 - panoMix) * (1 - ramp(w.storm, 0.28, 0.82));
+      const rangeAlpha = Math.max(0.65, 1.0 - panoMix * 0.35) * (1 - ramp(w.storm, 0.28, 0.82));
       r.mat.uniforms.uAlpha.value = rangeAlpha;
       r.mesh.visible = rangeAlpha > 0.002;
       const spin = (travel * r.spin) % TAU;

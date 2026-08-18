@@ -410,16 +410,70 @@ export function createHuts(THREE, shading) {
   const group = new THREE.Group();
   const S = HUTS.smoke;
 
+  const texLoader = new THREE.TextureLoader();
+  const neutralWoodTex = new THREE.DataTexture(
+    new Uint8Array([200, 180, 160, 255]), 1, 1, THREE.RGBAFormat,
+  );
+  neutralWoodTex.needsUpdate = true;
+  const woodPlanksTex = { value: neutralWoodTex };
+  texLoader.load(
+    new URL('../assets/textures/huts/alpine-wood-planks.jpg', import.meta.url).href,
+    (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; woodPlanksTex.value = t; },
+  );
+  const shingleTex = { value: neutralWoodTex };
+  texLoader.load(
+    new URL('../assets/textures/huts/shingle-roof-snow.jpg', import.meta.url).href,
+    (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; shingleTex.value = t; },
+  );
+
+  const hutMat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false });
+  hutMat.onBeforeCompile = (shader) => {
+    Object.assign(shader.uniforms, {
+      uWoodPlanksTex: woodPlanksTex,
+      uShingleTex: shingleTex,
+    });
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', `#include <common>
+      varying vec3 vHutWorldPos;
+      varying vec3 vHutNormal;`)
+      .replace('#include <project_vertex>', `#include <project_vertex>
+      #ifdef USE_INSTANCING
+        vHutWorldPos = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;
+        vHutNormal = normalize((modelMatrix * instanceMatrix * vec4(normal, 0.0)).xyz);
+      #else
+        vHutWorldPos = (modelMatrix * vec4(transformed, 1.0)).xyz;
+        vHutNormal = normalize((modelMatrix * vec4(normal, 0.0)).xyz);
+      #endif`);
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>
+      varying vec3 vHutWorldPos;
+      varying vec3 vHutNormal;
+      uniform sampler2D uWoodPlanksTex;
+      uniform sampler2D uShingleTex;`)
+      .replace('#include <color_fragment>', `#include <color_fragment>
+      vec3 nAbs = abs(vHutNormal);
+      // Triplanar wood planks on vertical walls and timber frame
+      vec4 woodX = texture2D(uWoodPlanksTex, vHutWorldPos.yz * 0.25);
+      vec4 woodY = texture2D(uWoodPlanksTex, vHutWorldPos.xz * 0.25);
+      vec4 woodZ = texture2D(uWoodPlanksTex, vHutWorldPos.xy * 0.25);
+      vec3 woodColor = (woodX.rgb * nAbs.x + woodY.rgb * nAbs.y + woodZ.rgb * nAbs.z) / max(0.001, nAbs.x + nAbs.y + nAbs.z);
+      
+      // Shingles on roofs and horizontal surfaces
+      vec3 roofColor = texture2D(uShingleTex, vHutWorldPos.xz * 0.28).rgb;
+      
+      // Select texture based on surface type (roof/snow vs timber wall)
+      bool isWall = nAbs.y < 0.70 && (diffuseColor.r > 0.15 || diffuseColor.g > 0.10);
+      vec3 texDetail = isWall ? woodColor * 1.30 : roofColor * 1.20;
+      diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * texDetail * 1.5, 0.75);`);
+  };
+
   // `sheen: 1` because the roof is carrying half a metre of the same snow the
   // ground is made of, and a roof that refuses the low sun the hill is
   // catching is what gives a model village away. The mask keeps the timber,
   // stone and beams matte — every one of them sits well under its lower stop.
   const shell = new THREE.InstancedMesh(
     hutGeometry(THREE),
-    shading.apply(
-      new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false }),
-      { sheen: 1 },
-    ),
+    shading.apply(hutMat, { sheen: 1 }),
     HUTS.live,
   );
 

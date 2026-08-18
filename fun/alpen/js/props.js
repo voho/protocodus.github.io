@@ -207,9 +207,9 @@ const OWN_ALL = 1;
    a landmark and losing it early costs the flanks the silhouette they were
    put there for. Low vegetation is small enough to be gone on its own terms
    long before any of this matters. */
-const FOG_PULL_TREE = 2.45;
-const FOG_PULL_STONE = 2.15;
-const FOG_PULL_FLORA = 2.10;
+const FOG_PULL_TREE = 1.0;
+const FOG_PULL_STONE = 1.0;
+const FOG_PULL_FLORA = 1.0;
 
 /* WHERE THE TREES ARE, which is a different question from what they look
    like and had never been asked.
@@ -1742,12 +1742,12 @@ export function createProps(THREE, shading) {
   const texLoader = new THREE.TextureLoader();
   const barkTex = { value: neutralTreeTex };
   texLoader.load(
-    new URL('../assets/textures/tree/tree-bark.jpg', import.meta.url).href,
+    new URL('../assets/textures/tree/weathered-tree-bark.jpg', import.meta.url).href,
     (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; barkTex.value = t; },
   );
   const needleTex = { value: neutralTreeTex };
   texLoader.load(
-    new URL('../assets/textures/tree/pine-needles.jpg', import.meta.url).href,
+    new URL('../assets/textures/tree/frosty-conifer-boughs.jpg', import.meta.url).href,
     (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; needleTex.value = t; },
   );
 
@@ -1761,28 +1761,37 @@ export function createProps(THREE, shading) {
       });
       shader.vertexShader = shader.vertexShader
         .replace('#include <common>', `#include <common>${OWN_DECL}${AIR_DECL}
-        varying vec3 vTreeWorldPos;`)
+        varying vec3 vTreeWorldPos;
+        varying vec3 vTreeNormal;`)
         .replace('#include <color_vertex>', OWN_MIX)
         .replace('#include <begin_vertex>', SWAY)
         .replace('#include <project_vertex>', `#include <project_vertex>
-        vTreeWorldPos = (modelMatrix * vec4(transformed, 1.0)).xyz;
+        #ifdef USE_INSTANCING
+          vTreeWorldPos = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;
+          vTreeNormal = normalize((modelMatrix * instanceMatrix * vec4(normal, 0.0)).xyz);
+        #else
+          vTreeWorldPos = (modelMatrix * vec4(transformed, 1.0)).xyz;
+          vTreeNormal = normalize((modelMatrix * vec4(normal, 0.0)).xyz);
+        #endif
         vN64Sheen = 1.0 - surfaceOwn;`);
       shader.fragmentShader = shader.fragmentShader
         .replace('#include <common>', `#include <common>
         varying vec3 vTreeWorldPos;
+        varying vec3 vTreeNormal;
         uniform sampler2D uBarkTex;
         uniform sampler2D uNeedleTex;`)
         .replace('#include <color_fragment>', `#include <color_fragment>
-        /* surfaceOwn is a vertex attribute; the sheen varying already
-           carries its complement to this stage, so ownership is read back
-           from there rather than re-declared. Owned surfaces — bark and
-           needles rather than settled snow — take the grain of the plates. */
+        /* Apply organic tree bark and frosty needle textures */
         float treeOwn = 1.0 - vN64Sheen;
         if (treeOwn > 0.05) {
-          vec4 barkSamp = texture2D(uBarkTex, vTreeWorldPos.xy * 0.4);
-          vec4 needleSamp = texture2D(uNeedleTex, vTreeWorldPos.xz * 0.5);
-          vec3 texColor = mix(barkSamp.rgb, needleSamp.rgb * 1.25, step(0.4, diffuseColor.g));
-          diffuseColor.rgb *= mix(vec3(1.0), texColor * 1.35, 0.45 * treeOwn);
+          vec3 nAbs = abs(vTreeNormal);
+          vec4 barkX = texture2D(uBarkTex, vTreeWorldPos.yz * 0.35);
+          vec4 barkY = texture2D(uBarkTex, vTreeWorldPos.xz * 0.35);
+          vec4 barkZ = texture2D(uBarkTex, vTreeWorldPos.xy * 0.35);
+          vec3 barkColor = (barkX.rgb * nAbs.x + barkY.rgb * nAbs.y + barkZ.rgb * nAbs.z) / max(0.001, nAbs.x + nAbs.y + nAbs.z);
+          vec3 needleColor = texture2D(uNeedleTex, vTreeWorldPos.xz * 0.45).rgb;
+          vec3 texColor = mix(barkColor * 1.20, needleColor * 1.40, step(0.35, diffuseColor.g));
+          diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * texColor * 1.85, 0.75 * treeOwn);
         }`);
     };
     return shading.apply(m, { cameraFade: true, sheen: 1, fogPull: FOG_PULL_TREE });
