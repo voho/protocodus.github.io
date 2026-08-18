@@ -302,56 +302,24 @@ const CONE_R = RADIUS * 0.95;
    fill, which a phone should not be asked for. `shadowMapFor` picks the size
    from what the device actually reports; everything below is derived from
    whichever it got, so the two paths cannot drift apart. */
-const SHADOW_REACH = 92;
+const SHADOW_REACH = 180;
 const SHADOW_MAP_NEAR = 4096;
 const SHADOW_MAP_FAR = 2048;
 
 /* And the bias in texels rather than in metres, which is the unit it is
-   actually in.
-
-   Acne is a depth slope sampled across one texel, so the offset a map needs
-   to stay clean is proportional to how much world one texel covers — and the
-   offset it can afford before a shadow detaches from its caster is a fixed
-   number of centimetres. Those two facts pull in opposite directions and the
-   old 0.25 m was the truce at nine centimetres a texel: about 2.8 texels,
-   and about a board's width, which is why the board's contact never landed.
-
-   Written as texels the truce survives a change of resolution. Measured on a
-   frozen frame at both sizes: below about two texels the trees break out in
-   self-shadow acne, and at 2.2 they are clean at either resolution — but at
-   4096 those same 2.2 texels are ten centimetres instead of twenty-five, and
-   ten centimetres is under a boot rather than over a board. */
-const SHADOW_BIAS_TEXELS = 2.2;
-/* A phone is not asked for the dense map. `hover: none` is the same test the
-   touch pad uses in main.js, so the two agree about what kind of device this
-   is rather than each guessing separately. Decided once, here, because the
-   texel size is read both by the light's setup and by the per-frame snap that
-   keeps the shadow box on whole texels — and those two disagreeing about how
-   big a texel is would put a crawl back into every edge. */
+   actually in. */
+const SHADOW_BIAS_TEXELS = 2.0;
 const SHADOW_MAP = typeof window !== 'undefined'
   && window.matchMedia?.('(hover: none)').matches
   ? SHADOW_MAP_FAR : SHADOW_MAP_NEAR;
 // Metres of world per texel — the unit the two offsets below are really in.
 const SHADOW_TEXEL = (2 * SHADOW_REACH) / SHADOW_MAP;
-/* The sun is half a degree wide, so nothing it casts has a hard edge, and
-   this is the cheap stand-in: it widens the PCF taps by a constant, which is
-   a constant penumbra rather than one that grows with distance from the
-   caster. In texels for the same reason as the bias — and deliberately a
-   little tighter in world terms than the old 2.6 taps of nine centimetres,
-   because a constant 23 cm penumbra is far too soft where it matters most.
-   The true penumbra a metre under the board is about a centimetre. */
-const SHADOW_RADIUS_TEXELS = 2.6;
-// Dynamic caster shadows cannot be baked, but their contribution can still
-// have temporal inertia. A one-second fade prevents horizon/storm thresholds
-// from ever publishing a whole new lighting state in one frame.
+const SHADOW_RADIUS_TEXELS = 2.5;
 const SHADOW_FADE_RATE = 5;
-const SHADOW_DIST = 190;
-const SHADOW_DEPTH = 150;
-// The orthographic map ends at a real line in world space. Without a receiver
-// fade, a long tree shadow is present on one side of that line and absent on
-// the other. Fourteen metres is wide enough that the hand-over reads as light
-// falloff, while leaving the detailed central 156 m of the map untouched.
-const SHADOW_EDGE_FADE = 14;
+const SHADOW_DIST = 340;
+const SHADOW_DEPTH = 280;
+// Wide 32m gradual boundary fade so shadow remapping at far distance is invisible
+const SHADOW_EDGE_FADE = 32;
 
 /* Three's mapped-light helper deliberately returns fully lit the instant a
    receiver leaves the orthographic projection. DirectionalLightShadow has no

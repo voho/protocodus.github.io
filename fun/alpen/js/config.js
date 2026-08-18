@@ -950,24 +950,15 @@ export const TERRAIN = {
      constant is both more physical and more stable than interpolating the
      distance of two unrelated blockers between adjacent bearings. */
   shade: {
-    reach: 118,
-    steps: 12,
+    reach: 160,
+    steps: 14,
     /* The lattice, in metres either side of the anchor and in samples across
        it. `half`/`size` come to exactly three metres a sample, and the mesh
        re-anchors every six — so the lattice advances by a whole number of
        samples and every sample lands on the same world position it did last
-       time. That is the same reason the mesh's own near field snaps, and it
-       matters for the same reason: a shadow edge that moves by a fraction of
-       a sample every six metres is a shadow edge that crawls.
-
-       The window is narrower than the graded one it replaced and carries more
-       field, which is not a contradiction: the graded version reached two
-       hundred metres ahead at a spacing of fifteen to twenty out there, so
-       most of what it nominally covered it could not resolve. Three metres
-       everywhere inside a hundred and fifty-six is finer than the old lattice
-       was anywhere past seventy, for a fraction of the samples. */
-    half: 156,
-    size: 104,
+       time. */
+    half: 216,
+    size: 144,
     soften: 1.5,
     /* The height a *second* copy of the field is measured at.
 

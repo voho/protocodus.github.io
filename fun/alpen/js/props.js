@@ -2253,11 +2253,11 @@ export function createProps(THREE, shading) {
       }
     }
 
-    /* Expand by a whole streamed band, substantially more than the reach of
+    /* Expand by two whole streamed bands, substantially more than the reach of
        the largest grown crown. A band endpoint may then cross this range
        without a branch touching the light frustum on the crossing frame. */
-    const first = Math.floor(lo / band) - 1;
-    const last = Math.floor(hi / band) + 1;
+    const first = Math.floor(lo / band) - 2;
+    const last = Math.floor(hi / band) + 2;
     shadowBands = Math.min(streamSpan, Math.max(
       0,
       Math.abs(first - currentBand),
