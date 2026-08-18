@@ -1717,15 +1717,7 @@ export const SCORE = {
   comboMax: 12,
   // Below this a landing is just a landing: no banner, no combo, no points.
   minTrickScore: 60,
-  /* A near miss is only ever a bear now. Threading a tree paid out too, and
-     on a piste lined with trees that meant the centred banner spent most of
-     the run saying CLOSE ONE — which is how a banner stops meaning anything.
-     A bear is rare and genuinely dangerous, so it is the one worth saying. */
   nearMiss: 40,
-  bearDodge: 3,       // multiplier on top, because it is the only one left
-  /* Reaching the patrol helicopter's searchlight is a deliberate line choice,
-     and only pays once per sortie so circling inside the pool cannot farm it. */
-  searchlight: 500,
 
   /* Threading a slalom gate, and the ladder that consecutive ones build.
 

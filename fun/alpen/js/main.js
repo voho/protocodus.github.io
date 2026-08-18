@@ -33,7 +33,6 @@ import {
   createSnowfall, createSpray, createStreaks, setPointSizeCap,
 } from './particles.js';
 import { createTrail } from './trail.js';
-import { createHelicopter } from './helicopter.js';
 import { createHuts } from './huts.js';
 import { createMountainLife } from './mountainLife.js';
 import {
@@ -205,11 +204,10 @@ const streaks = createStreaks(THREE);
 setPointSizeCap(renderer.getContext()
   .getParameter(renderer.getContext().ALIASED_POINT_SIZE_RANGE)[1]);
 const trail = createTrail(THREE, shading);
-const heli = createHelicopter(THREE, shading);
 const huts = createHuts(THREE, shading);
 
 scene.add(sky.group, sky.lights, terrain.mesh, props.group, wildlife.group,
-  heli.group, huts.group, trail.mesh, snowfall.points, spray.points, streaks.lines);
+  huts.group, trail.mesh, snowfall.points, spray.points, streaks.lines);
 
 /* Who casts and who receives, decided here and by name.
 
@@ -504,7 +502,6 @@ function restart() {
   spray.clear();
   trail.clear();
   wildlife.reset();
-  heli.reset();
   huts.reset();
   mountainLife.reset(rider.pos.z);
   model.reset();
@@ -1277,11 +1274,6 @@ function frame(now) {
     }
 
     wildlife.update(dt, rider, onWildlifeNear);
-
-    heli.update(dt, rider, wildlife, w);
-    if (game.mode === 'playing' && heli.claimLight(rider)) {
-      award(SCORE.searchlight * game.combo, 'IN THE SPOTLIGHT', 'near');
-    }
     
     if (game.mode === 'playing') {
       const kmh = Math.round(rider.speed * 3.6);
@@ -1527,7 +1519,7 @@ window.__alpen = {
   // the fall line, which is invisible going straight and 180° out in a carve.
   // Without a handle on it that can only be checked by eye, and it is exactly
   // the class of bug an eye slides over.
-  wildlife, audio, trail, heli, huts, model,
+  wildlife, audio, trail, huts, model,
   /* And the handles needed to *drive* the game from here rather than only
      read it. `input` is the live control state, so a carve can be held from
      the console; the three particle systems are the parts of the picture
@@ -1574,7 +1566,6 @@ window.__alpen = {
     solids: props.solids.length,
     biomes: props.debugBiomes(),
     terrainVerts: terrain.vertexCount,
-    helicopter: heli.debug(),
     weather: {
       tod: +weather.state.tod.toFixed(3),
       phase: weather.state.phase,
