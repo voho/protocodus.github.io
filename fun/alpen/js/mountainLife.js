@@ -152,13 +152,27 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
     if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; }
   });
 
-  const NUM_CANNONS = 8;
-  const CANNON_SPACING = 160;
+  const NUM_CANNONS = 12;
+  const CANNON_SPACING = 120;
   const cannons = [];
+
+  function placeCannon(c, cz) {
+    c.z = cz;
+    rockBandAt(cz, band);
+    centersAt(cz, lineCentres);
+    const center = c.side > 0 ? lineCentres[1] : lineCentres[0];
+    c.x = center + c.side * (band.half + 3.2);
+    c.y = heightAt(c.x, cz);
+    c.mesh.position.set(c.x, c.y, cz);
+    c.mesh.rotation.y = c.side > 0 ? -Math.PI * 0.65 : Math.PI * 0.65;
+  }
+
   for (let i = 0; i < NUM_CANNONS; i++) {
     const mesh = cannonProto.clone();
     root.add(mesh);
-    cannons.push({ mesh, side: i % 2 === 0 ? 1 : -1 });
+    const c = { mesh, side: i % 2 === 0 ? 1 : -1, z: 0, x: 0, y: 0 };
+    placeCannon(c, 40 - i * CANNON_SPACING);
+    cannons.push(c);
   }
 
   /* --- the other people --------------------------------------------------- */
@@ -498,23 +512,20 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
       }
 
       /* --- snow cannons streaming and snowmaking spray --- */
-      const baseCannonZ = Math.floor(rz / CANNON_SPACING) * CANNON_SPACING;
       for (let i = 0; i < NUM_CANNONS; i++) {
         const c = cannons[i];
-        const cz = baseCannonZ - i * CANNON_SPACING + 120;
-        rockBandAt(cz, band);
-        centersAt(cz, lineCentres);
-        const center = c.side > 0 ? lineCentres[1] : lineCentres[0];
-        const cx = center + c.side * (band.half + 3.2);
-        const cy = heightAt(cx, cz);
-        c.mesh.position.set(cx, cy, cz);
-        c.mesh.rotation.y = c.side > 0 ? -Math.PI * 0.65 : Math.PI * 0.65;
+        // If cannon is behind the rider (> 80m uphill), wrap it far downstream
+        if (c.z > rz + 80) {
+          placeCannon(c, c.z - NUM_CANNONS * CANNON_SPACING);
+        } else if (c.z < rz - NUM_CANNONS * CANNON_SPACING) {
+          placeCannon(c, c.z + NUM_CANNONS * CANNON_SPACING);
+        }
 
         // Active snowmaking spray plumes
-        if (spray && Math.abs(cz - rz) < 220 && Math.random() < 24 * dt) {
-          const nozzleX = cx + (c.side > 0 ? -1.2 : 1.2);
-          const nozzleY = cy + 4.5;
-          const nozzleZ = cz - 0.8;
+        if (spray && Math.abs(c.z - rz) < 240 && Math.random() < 24 * dt) {
+          const nozzleX = c.x + (c.side > 0 ? -1.2 : 1.2);
+          const nozzleY = c.y + 4.5;
+          const nozzleZ = c.z - 0.8;
           const sprayVx = c.side > 0 ? -(8.0 + Math.random() * 4.0) : (8.0 + Math.random() * 4.0);
           const sprayVz = -(4.0 + Math.random() * 3.0);
           spray.burst({ x: nozzleX, y: nozzleY, z: nozzleZ }, sprayVx, sprayVz, 8, 3.5);
@@ -613,6 +624,10 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
       }
     },
     reset(riderZ = 0) {
+      for (let i = 0; i < NUM_CANNONS; i++) {
+        const c = cannons[i];
+        placeCannon(c, riderZ + 40 - i * CANNON_SPACING);
+      }
       for (let i = 0; i < NUM_NPCS; i++) {
         const npc = npcs[i];
         npc.z = riderZ - 80 - i * 40 - Math.random() * 30;
