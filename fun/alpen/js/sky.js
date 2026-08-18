@@ -1167,7 +1167,14 @@ const RELIEF_FRAG = `
     float iceSpec = pow(max(0.0, dot(n, halfDir)), 36.0)
       * glacier * (1.0 - uStorm) * 0.24;
     body += uIce * iceSpec;
-    body += uAlpenglow * direct * snow * (0.20 + 0.80 * vAltitude);
+    body += uAlpenglow * direct * snow * (0.25 + 0.75 * vAltitude);
+
+    // High summit windblown snow spindrift & sunlit crest plumes
+    float summitWind = smoothstep(0.70, 0.98, vAltitude) * smoothstep(0.40, 0.88, 1.0 - abs(n.y));
+    if (summitWind > 0.005) {
+      vec3 spindriftColor = mix(uSnow, uAlpenglow, direct * 0.85);
+      body = mix(body, spindriftColor * 1.28, summitWind * 0.40 * (1.0 - uStorm * 0.45));
+    }
 
     /* Atmospheric aerial perspective: mountains dissolve into horizon haze near their foot */
     float foot = smoothstep(0.02, 0.28, vAltitude);

@@ -2251,9 +2251,16 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
             + texture2D(uSandstoneTex, vWorld.xz * 0.04) * n64TriW.y
             + texture2D(uSandstoneTex, vWorld.xy * 0.04) * n64TriW.z;
           vec3 n64RockTexel = mix(n64RockSample.rgb, n64GraniteSample.rgb, clamp(vRockKind, 0.0, 1.0));
-          diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * n64RockTexel * 2.1, (1.0 - n64SnowMask) * 0.80);
+          diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * n64RockTexel * 2.15, (1.0 - n64SnowMask) * 0.82);
           diffuseColor.rgb *= 1.0 - n64RockInk * (1.0 - n64SnowMask)
             * smoothstep(0.20, 0.72, 1.0 - n64StrataUp);
+          
+          /* Real Alpine Geology: Flatter benches & ledges on steep rock horns catch and hold snow */
+          float n64LedgeSnow = smoothstep(0.42, 0.76, n64StrataUp) * (1.0 - n64SnowMask);
+          if (n64LedgeSnow > 0.005) {
+            vec3 snowLedgeColor = vec3(0.86, 0.92, 0.98);
+            diffuseColor.rgb = mix(diffuseColor.rgb, snowLedgeColor, n64LedgeSnow * 0.72);
+          }
         }`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
         // Hide the graded grid's triangle topology from lighting while leaving

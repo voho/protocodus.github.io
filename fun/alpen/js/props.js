@@ -1698,28 +1698,44 @@ function waymarkGeometry(THREE) {
   return geometry;
 }
 
-/* Piste boundary stakes — slender fluorescent trail poles placed along the
-   groomed corridor margins to guide riders through fog, storms, and flat light. */
+/* Piste boundary stakes — slender fluorescent trail poles with iconic European
+   round run marker discs placed along the groomed corridor margins. */
 function pisteStakeGeometry(THREE) {
-  const cyl = new THREE.CylinderGeometry(0.038, 0.038, 2.1, 7);
-  cyl.translate(0, 1.05, 0);
-  const ring1 = new THREE.CylinderGeometry(0.048, 0.048, 0.20, 7);
-  ring1.translate(0, 1.80, 0);
-  const ring2 = new THREE.CylinderGeometry(0.048, 0.048, 0.14, 7);
-  ring2.translate(0, 1.40, 0);
+  const pole = new THREE.CylinderGeometry(0.04, 0.04, 2.3, 8);
+  pole.translate(0, 1.15, 0);
+  const ring1 = new THREE.CylinderGeometry(0.05, 0.05, 0.20, 8);
+  ring1.translate(0, 2.10, 0);
+  const ring2 = new THREE.CylinderGeometry(0.05, 0.05, 0.16, 8);
+  ring2.translate(0, 1.65, 0);
   const housing = new THREE.CylinderGeometry(0.065, 0.065, 0.12, 8);
-  housing.translate(0, 2.05, 0);
+  housing.translate(0, 2.25, 0);
+
+  // Iconic round circular European alpine piste marker disc
+  const disc = new THREE.CylinderGeometry(0.25, 0.25, 0.035, 16);
+  disc.rotateX(Math.PI / 2);
+  disc.translate(0, 1.85, 0.04);
+  const discRim = new THREE.TorusGeometry(0.25, 0.022, 6, 16);
+  discRim.translate(0, 1.85, 0.04);
+  const discEmblem = new THREE.CylinderGeometry(0.09, 0.09, 0.04, 12);
+  discEmblem.rotateX(Math.PI / 2);
+  discEmblem.translate(0, 1.85, 0.045);
 
   const geometry = compose(THREE, [
-    { geo: cyl, color: '#ff6600' },
+    { geo: pole, color: '#e66000' },     // Fluorescent boundary pole
     { geo: ring1, color: '#1c2026' },
     { geo: ring2, color: '#1c2026' },
     { geo: housing, color: '#14181e' },
+    { geo: disc, color: '#d02020' },     // Red European piste run marker
+    { geo: discRim, color: '#ffffff' },  // White circular border
+    { geo: discEmblem, color: '#ffffff' }, // Piste run number badge
   ]);
-  cyl.dispose();
+  pole.dispose();
   ring1.dispose();
   ring2.dispose();
   housing.dispose();
+  disc.dispose();
+  discRim.dispose();
+  discEmblem.dispose();
   return geometry;
 }
 
