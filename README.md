@@ -2,20 +2,87 @@
 
 Protocodus company website — software for startups, built with care.
 
+The site is two pages sharing one document. The **voyage** is the front
+door: an immersive 3D flight around the company's orbital HQ, with the
+sections of the site as waypoints. The **classic page** is the same
+document without the canvas — and it is not a degraded voyage, it is the
+original site, kept whole as the fallback and reachable any time via TEXT
+mode.
+
 ## Stack
 
 Static site, no build step and nothing fetched at runtime:
 
-- `index.html` — single-page site
-- `assets/css/style.css` — design system (Space Grotesk, self-hosted in `assets/fonts/`)
-- `assets/js/main.js` — vanilla JS: entrance sequence, scroll reveals, the mobile menu, the mint dash in the spine that marks the section you are reading, and Conway's Life behind the hero
+- `index.html` — single-page site; the voyage chrome (canvas, boot
+  terminal, HUD) is inert markup until the page proves it can carry it
+- `assets/css/style.css` — design system (Space Grotesk + IBM Plex Mono,
+  self-hosted in `assets/fonts/`); everything the voyage adds hangs off
+  `html.voyage` in one appended layer, so the classic rules above it are
+  untouched
+- `assets/js/main.js` — the page script: the gate that decides which page a
+  visitor gets, plus entrance sequence, scroll reveals, the mobile menu,
+  the spine dash, HUD wiring and warp navigation
+- `assets/js/boot.js` — the boot terminal (glyph rain, typed wake-up log, a
+  progress bar that only moves when something real finished)
+- `assets/js/life.js` — Conway's Life behind the classic hero, unchanged,
+  now a module the voyage never loads
+- `assets/js/voyage/` — the 3D layer (see below)
 - `fun/` — the games (see below)
-- `assets/vendor/three/` — three.js r185, vendored rather than pulled from a CDN, so the site still has no third-party requests
+- `assets/vendor/three/` — three.js r185, vendored rather than pulled from
+  a CDN, so the site still has no third-party requests
 
-Everything degrades: without JavaScript the page renders complete, and
-`prefers-reduced-motion` drops the animation down to nothing. The games are
-the exception and say so — a 3D game without JavaScript is a paragraph
-explaining that it needs JavaScript.
+Everything degrades, deliberately and in layers. The voyage requires
+JavaScript, WebGL, motion being welcome and no standing request for text
+mode — fail any test and the classic page renders exactly as it always
+did, Conway's Life and all. No JavaScript at all still renders the complete
+document. If the flight software dies mid-load, or a machine turns out
+unable to hold a usable frame rate even at reduced resolution, the page
+drops itself back to classic for the rest of the session and says so in
+the boot log. The games are the exception and say so — a 3D game without
+JavaScript is a paragraph explaining that it needs JavaScript.
+
+## The voyage
+
+One WebGL canvas behind the whole document: a massive orbital station — a
+spindle on the vertical, two counter-rotating habitat tori with their own
+revolving windows, three docking cradles, a forge arm where a hull sits
+half-built in a lit scaffold (solid at the bow, wireframe at the stern —
+shipping one release at a time, drawn literally), and a signal spire with
+a slow dish. A ringed planet owns a corner of the sky, its cities faded in
+across the terminator by the same sun that lights the hull. Ships jump in
+at a hyperspace gate, cruise curved lanes to the cradles — holding pattern
+round the station when the cradles are full — berth, leave, and jump out
+again; two liners cross the deep background and never dock. Below it all
+waits the abyss: a pocket of true dark where bioluminescent medusae pulse
+on their own slow clocks amid marine snow, which is where the games live.
+
+Scrolling flies the camera between waypoints threaded on a Catmull-Rom —
+each section's real scroll position is its waypoint, so a layout change
+moves the flight plan without anyone touching a number. On top of the
+spline ride an idle orbital drift (the station wheels slowly past even
+when nobody scrolls), a lean toward the pointer, and drag-to-look that
+eases back home. Clicking a nav link is a warp jump: streaks, a field-of-
+view kick, dimmed stars, one long eased scroll. The HUD frames it in IBM
+Plex Mono — zone name, stardate, velocity, heading, a rail down the spine
+with the ship marker riding scroll progress — and holds the two controls
+that matter: SND (a synthesised drone, opt-in, no samples) and TEXT (the
+way out, remembered).
+
+It boots like a ship: a wall of falling glyphs, a typed wake-up log with
+one nod per franchise the site owes a debt to, a progress bar whose stages
+are real (the import graph landing, the world built, the first frame
+rendered), and ENGAGE — which lifts the curtain on a capital ship passing
+overhead, close enough to read its belly windows, before it stretches and
+jumps. Every texture is painted into a canvas at load time; there is no
+model file and no fetched asset anywhere in it.
+
+The scene budget is honest about phones: half the crowds and a capped
+pixel ratio on coarse pointers, an adaptive governor that trades buffer
+resolution for frame time on any machine slower than its class, additive
+sprites instead of postprocessing for every glow, and points — one draw
+call a cloud — for every window on the station. The tab pausing, the
+curtain, and `prefers-reduced-motion` never reaching the voyage at all are
+the same rule at three scales: nothing runs that is not being watched.
 
 ## Design
 

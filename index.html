@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-0TEFG3XSN5"></script>
   <script>
@@ -30,14 +30,80 @@
   <link rel="stylesheet" href="assets/css/style.css">
   <!-- `.js` means JavaScript is running: the mobile nav collapses into a
        button, reveals start hidden, and the hero entrance is armed. Without
-       it every one of those stays in its finished state. -->
+       it every one of those stays in its finished state.
+
+       `.voyage` is added later, and only after the page has proven it can
+       carry it: JavaScript running, WebGL present, motion welcome, and no
+       standing request for text mode. Everything the orbital voyage adds —
+       the canvas, the boot terminal, the HUD — hangs off that class, so the
+       page without it is the same page this site has always been. -->
   <script>document.documentElement.classList.add('js');</script>
+  <script type="importmap">
+    { "imports": { "three": "/assets/vendor/three/three.module.min.js" } }
+  </script>
 </head>
 
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
 
-  <!-- ================= SPINE (desktop) / BAR (mobile) ================= -->
+  <!-- ================= THE VOYAGE (progressive enhancement) =================
+       One WebGL canvas behind the whole document: a massive orbital station,
+       a planet close enough to fill a corner of the sky, ships docking and
+       leaving, a hyperspace gate taking traffic, and the abyss below.
+       Scrolling the page flies the camera between waypoints. If any of it
+       cannot run, none of it appears — see the `.voyage` note in <head>. -->
+  <canvas id="space" aria-hidden="true"></canvas>
+
+  <!-- Boot terminal. Covers the page while the flight software loads, and
+       reads as the ship waking up. Dismissed by ENGAGE, Enter, or the text
+       mode link; never rendered without the `.voyage` class. -->
+  <div class="boot" id="boot" role="dialog" aria-modal="true" aria-labelledby="boot-title" hidden>
+    <canvas class="boot-rain" aria-hidden="true"></canvas>
+    <div class="boot-core">
+      <p class="boot-eyebrow">Protocodus orbital command · Prague sector</p>
+      <p class="wordmark" id="boot-title">PROTOCODUS<i class="spark" aria-hidden="true">✦</i></p>
+      <div class="boot-log" data-boot-log></div>
+      <div class="boot-track" role="progressbar" aria-label="Flight systems loading"
+        aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" data-boot-bar>
+        <i class="boot-fill" data-boot-fill></i>
+      </div>
+      <div class="boot-actions">
+        <button type="button" class="boot-go" data-boot-go disabled>ENGAGE<span class="boot-go-key"> · enter</span></button>
+        <button type="button" class="boot-text" data-boot-text>skip the ride — text mode</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HUD chrome. Fixed instrument frame around the viewport; every value in
+       it is written by the page script. The readouts are theatre and hidden
+       from assistive tech; the two buttons are real and are not. -->
+  <div class="hud">
+    <div class="hud-top">
+      <p class="hud-ship" aria-hidden="true">PCS PROTOCODUS · REG 24589101</p>
+      <p class="hud-zone" data-hud-zone aria-hidden="true">APPROACH VECTOR</p>
+      <p class="hud-right">
+        <span data-hud-stardate aria-hidden="true">STARDATE —</span>
+        <button type="button" class="hud-btn" data-hud-sound aria-pressed="false" title="Ambient sound">SND OFF</button>
+        <button type="button" class="hud-btn" data-hud-text title="Switch to the plain page">TEXT</button>
+      </p>
+    </div>
+    <div class="hud-bottom" aria-hidden="true">
+      <p class="hud-telemetry"><span data-hud-vel>VEL 0.00c</span><span data-hud-hdg>HDG 000</span><span
+          data-hud-rng>RNG 420m</span></p>
+      <p class="hud-hint" data-hud-hint>Scroll to fly <span class="hud-hint-arrow">▾</span></p>
+    </div>
+    <i class="hud-corner hud-tl" aria-hidden="true"></i><i class="hud-corner hud-tr" aria-hidden="true"></i>
+    <i class="hud-corner hud-bl" aria-hidden="true"></i><i class="hud-corner hud-br" aria-hidden="true"></i>
+  </div>
+
+  <!-- Re-entry hatch for people who chose text mode: one quiet fixed button,
+       only shown in classic mode when the machine could fly. -->
+  <button type="button" class="relaunch" data-relaunch hidden>▲ Launch 3D</button>
+
+  <!-- ================= SPINE (desktop) / BAR (mobile) =================
+       In classic mode this is the section index it has always been. In the
+       voyage it doubles as the nav chart: a progress rail runs down it and
+       the ship marker rides your scroll position. -->
   <header class="spine">
     <a href="#top" class="brand">
       <img src="assets/images/logo.svg" alt="" class="brand-mark">
@@ -45,6 +111,7 @@
     </a>
 
     <nav class="spine-nav" aria-label="Sections">
+      <i class="rail" aria-hidden="true"><i class="rail-ship" data-rail-ship></i></i>
       <ol class="index">
         <li><a href="#what-we-do" class="index-link"><span>01</span><span class="index-name">What we do</span></a></li>
         <li><a href="#how-we-work" class="index-link"><span>02</span><span class="index-name">How we work</span></a></li>
@@ -75,9 +142,10 @@
   <main id="main">
 
     <!-- ================= HERO ================= -->
-    <section class="hero" id="top">
+    <section class="hero" id="top" data-zone="approach">
       <div class="hero-inner">
-        <p class="tag enter">// a software company built for startups</p>
+        <p class="tag enter">// a software company built for startups<span class="wp"> · orbital HQ in
+            view</span></p>
 
         <div class="statement">
           <svg class="frame frame-l" viewBox="0 0 60 400" aria-hidden="true" preserveAspectRatio="none">
@@ -111,10 +179,10 @@
     </section>
 
     <!-- ================= WHAT WE DO ================= -->
-    <section class="band" id="what-we-do">
+    <section class="band" id="what-we-do" data-zone="forge">
       <div class="wrap">
         <div class="head reveal">
-          <p class="tag">// 01 — what we do</p>
+          <p class="tag">// 01 — what we do<span class="wp"> · waypoint “the forge”</span></p>
           <h2 class="title">Product development,<br>end to end.</h2>
           <p class="lede">You bring the idea and the domain knowledge. We cover the rest — design, code,
             infrastructure, and the decisions in between.</p>
@@ -145,14 +213,17 @@
               far along it is.</p>
           </article>
         </div>
+
+        <a class="know-more" href="#how-we-work">Would you like to know more?<span class="know-more-arrow"
+            aria-hidden="true">▾</span></a>
       </div>
     </section>
 
     <!-- ================= HOW WE WORK ================= -->
-    <section class="band band-well" id="how-we-work">
+    <section class="band band-well" id="how-we-work" data-zone="lanes">
       <div class="wrap">
         <div class="head reveal">
-          <p class="tag">// 02 — how we work</p>
+          <p class="tag">// 02 — how we work<span class="wp"> · waypoint “approach lanes”</span></p>
           <h2 class="title">Six habits we stick to.</h2>
           <p class="lede">Years of startup projects taught us what actually moves a product forward. It comes
             down to this.</p>
@@ -194,14 +265,17 @@
         <p class="flow reveal">
           <span>Idea</span><span>Prototype</span><span>Feedback</span><span>Product</span>
         </p>
+
+        <a class="know-more" href="#who-we-are">Would you like to know more?<span class="know-more-arrow"
+            aria-hidden="true">▾</span></a>
       </div>
     </section>
 
     <!-- ================= WHO WE ARE ================= -->
-    <section class="band" id="who-we-are">
+    <section class="band" id="who-we-are" data-zone="ring">
       <div class="wrap">
         <div class="head reveal">
-          <p class="tag">// 03 — who we are</p>
+          <p class="tag">// 03 — who we are<span class="wp"> · waypoint “habitat ring”</span></p>
           <h2 class="title">A small team, on purpose.</h2>
         </div>
 
@@ -226,14 +300,17 @@
             <dd>focus on startups</dd>
           </div>
         </dl>
+
+        <a class="know-more" href="#fun">Would you like to know more?<span class="know-more-arrow"
+            aria-hidden="true">▾</span></a>
       </div>
     </section>
 
     <!-- ================= FUN ================= -->
-    <section class="band band-well" id="fun">
+    <section class="band band-well" id="fun" data-zone="abyss">
       <div class="wrap">
         <div class="head reveal">
-          <p class="tag">// 04 — have fun</p>
+          <p class="tag">// 04 — have fun<span class="wp"> · waypoint “the abyss”</span></p>
           <h2 class="title">Games we built<br>because we wanted to.</h2>
           <p class="lede">Between projects we build small things for no reason at all. They ship the same
             way client work does — finished, in a browser, no install and no account — because that is the
@@ -255,17 +332,21 @@
             <p class="game-foot"><span class="game-tech">Three.js · Astronomy</span><span class="game-go">Explore</span></p>
           </a>
         </div>
+
+        <a class="know-more" href="#contact">Would you like to know more?<span class="know-more-arrow"
+            aria-hidden="true">▾</span></a>
       </div>
     </section>
 
     <!-- ================= CONTACT ================= -->
-    <section class="band band-hi" id="contact">
+    <section class="band band-hi" id="contact" data-zone="spire">
       <div class="wrap">
         <div class="hi reveal">
-          <p class="tag">// 05 — say hello</p>
+          <p class="tag">// 05 — say hello<span class="wp"> · waypoint “signal spire”</span></p>
           <h2 class="title">Tell us what you're building.</h2>
           <p class="lede">A few sentences are enough. You'll get a reply from an engineer, not a sales script —
             what we'd build first, roughly what it takes, and whether we're a good fit.</p>
+          <p class="hail wp">// hailing frequencies open</p>
           <a href="mailto:vojtech.hordejcuk@gmail.com" class="mail">vojtech.hordejcuk@gmail.com</a>
           <p class="signed">Vojtech Hordejcuk · Founder</p>
         </div>
@@ -275,14 +356,15 @@
   </main>
 
   <!-- ================= FOOTER ================= -->
-  <footer class="footer">
+  <footer class="footer" data-zone="registry">
     <div class="wrap">
       <div class="footer-top">
         <a href="#top" class="brand">
           <img src="assets/images/logo.svg" alt="" class="brand-mark">
           <span class="brand-name">PROTOCODUS</span>
         </a>
-        <p class="footer-tagline">Software for startups, built with care.</p>
+        <p class="footer-tagline">Software for startups, built with care.<span class="wp"> Ship's registry
+            follows.</span></p>
       </div>
 
       <dl class="details">
@@ -315,11 +397,13 @@
       <div class="footer-bottom">
         <p class="footer-meta">© <span id="year">2026</span> Protocodus — built by hand, with help from robots.</p>
         <p class="footer-meta">Commercial Bulletin OV11324029 · Collection of Deeds, Prague · published 9 March 2026</p>
+        <p class="footer-meta wp">Course plotted somewhere between Star Trek, Star Wars, The Matrix, Starship
+          Troopers and The Abyss.</p>
       </div>
     </div>
   </footer>
 
-  <script src="assets/js/main.js"></script>
+  <script type="module" src="assets/js/main.js"></script>
 </body>
 
 </html>
