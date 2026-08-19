@@ -14,6 +14,9 @@
 (() => {
   'use strict';
 
+  // The module arrived and parsed; the inline failsafe in <head> stands down
+  window.__pageAlive = true;
+
   const root = document.documentElement;
   // Kept as a live query, not a sample: the preference can change while the
   // page is open, and the voyage has to stand down when it does.
@@ -59,6 +62,7 @@
 
   let voyage = null;        // the live 3D controller, once created
   let lifeStarted = false;
+  let lifeInstance = null;
 
   // ===========================================================================
   // Mobile menu
@@ -336,10 +340,17 @@
 
   // The preference can flip while the page is open; honoring it live is the
   // difference between a setting and a suggestion. Without this, the CSS
-  // side hides the boot dialog while the lock stays on — a frozen page.
+  // side hides the boot dialog while the lock stays on — a frozen page. The
+  // classic page's Life is a requestAnimationFrame loop, which no CSS rule
+  // can stop, so it is stood down here too.
   if (motionMq.addEventListener) {
     motionMq.addEventListener('change', (e) => {
-      if (e.matches && root.classList.contains('voyage')) textMode(false);
+      if (!e.matches) return;
+      if (root.classList.contains('voyage')) textMode(false);
+      if (lifeInstance) {
+        lifeInstance.halt();
+        lifeInstance = null;
+      }
     });
   }
 
@@ -444,7 +455,12 @@
     lifeStarted = true;
     const hero = document.querySelector('.hero');
     if (hero && 'ResizeObserver' in window) {
-      const begin = () => import('./life.js').then((m) => m.startLife(hero));
+      // The preference is re-read at fire time: an idle callback can
+      // outlive the setting it was scheduled under
+      const begin = () => {
+        if (motionMq.matches) return;
+        import('./life.js').then((m) => { lifeInstance = m.startLife(hero); });
+      };
       if ('requestIdleCallback' in window) requestIdleCallback(begin, { timeout: 2000 });
       else setTimeout(begin, 200);
     }

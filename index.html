@@ -36,8 +36,29 @@
        carry it: JavaScript running, WebGL present, motion welcome, and no
        standing request for text mode. Everything the orbital voyage adds —
        the canvas, the boot terminal, the HUD — hangs off that class, so the
-       page without it is the same page this site has always been. -->
-  <script>document.documentElement.classList.add('js');</script>
+       page without it is the same page this site has always been.
+
+       The error listener is the promise behind the class. A browser old
+       enough to run this inline script but choke on the module — or a
+       network that drops it — would otherwise keep `.js` armed with nothing
+       behind it: reveals hidden forever, a menu button that does nothing.
+       Registered in the capture phase because a script that fails to LOAD
+       fires a non-bubbling error at its own element, which a bubble-phase
+       window listener never hears. `__pageAlive` is set by the module's
+       first line; after that, errors belong to the running page, not to
+       the boot, and the class stays. -->
+  <script>
+    document.documentElement.classList.add('js');
+    window.addEventListener('error', function (e) {
+      if (window.__pageAlive) return;
+      var t = e && e.target;
+      var script = t && t !== window && t.nodeType === 1;
+      if (script && t.tagName !== 'SCRIPT') return;
+      if (script && t.src && t.src.indexOf(location.origin) !== 0) return;
+      if (!script && e && e.filename && e.filename.indexOf(location.origin) !== 0) return;
+      document.documentElement.classList.remove('js', 'voyage', 'boot-lock');
+    }, true);
+  </script>
   <script type="importmap">
     { "imports": { "three": "/assets/vendor/three/three.module.min.js" } }
   </script>

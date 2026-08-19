@@ -117,6 +117,10 @@ export class Stage {
     const dt = Math.min(rawDt, 0.1);
     this.last = now;
     this.elapsed = (this.elapsed || 0) + dt;
+    // Wall time for the accounting below — the animation clock crawls on a
+    // slow machine, which is exactly when the accounting matters most.
+    // Capped so a backgrounded stretch doesn't count as time served.
+    this.wall = (this.wall || 0) + Math.min(rawDt, 2);
     const t = this.elapsed;
 
     for (const u of this.updaters) u(dt, t);
@@ -146,7 +150,7 @@ export class Stage {
     // A grace period covers shader warm-up, and one report is all it gets.
     // Intervals over 2s are a tab coming back from the background, not a
     // slow frame, and count for nothing.
-    if (this.onTooSlow && this.pixelScale <= 0.6 && this.elapsed > 6) {
+    if (this.onTooSlow && this.pixelScale <= 0.6 && this.wall > 6) {
       if (rawDt > 0.085 && rawDt < 2) this.slowSeconds += rawDt;
       else this.slowSeconds = Math.max(0, this.slowSeconds - rawDt * 2);
       if (this.slowSeconds > 6) {

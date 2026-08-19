@@ -430,7 +430,7 @@ class Life {
   }
 
   frame(now) {
-    if (!this.visible || document.hidden) {
+    if (this.dead || !this.visible || document.hidden) {
       this.running = false;
       return;
     }
@@ -445,9 +445,17 @@ class Life {
 
   // Runs only while the hero is on screen and the tab is in front
   wake() {
-    if (this.running || !this.visible || document.hidden) return;
+    if (this.dead || this.running || !this.visible || document.hidden) return;
     this.running = true;
     requestAnimationFrame(this.frame);
+  }
+
+  // The one way out, for a reduced-motion preference arriving mid-session:
+  // CSS cannot stop a requestAnimationFrame loop, so this does.
+  halt() {
+    this.dead = true;
+    this.running = false;
+    this.canvas.remove();
   }
 }
 
