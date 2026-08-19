@@ -389,7 +389,7 @@
   // Ignition
   // ===========================================================================
   const igniteVoyage = async () => {
-    root.classList.add('voyage', 'boot-lock');
+    root.classList.add('voyage');
 
     // The boot module is voyage furniture; the classic page never pays for it
     let startBoot;
@@ -405,6 +405,11 @@
     // reduced motion switching on is the realistic route — and a curtain
     // raised after the audience left would lock an empty theatre.
     if (abandoned) return;
+
+    // Only now that the module holding ENGAGE and the escape hatch has
+    // actually arrived does the page lock: a stalled import must never
+    // trap the visitor behind a lock with no controls in front of it.
+    root.classList.add('boot-lock');
 
     bootCtl = startBoot({
       revisit: session.get('pcs-booted') === '1',
@@ -478,7 +483,12 @@
       // outlive the setting it was scheduled under
       const begin = () => {
         if (motionMq.matches) return;
-        import('./life.js').then((m) => { lifeInstance = m.startLife(hero); });
+        import('./life.js').then((m) => {
+          // …and once more when the module lands: the preference can change
+          // while the import is in flight, with no instance yet to halt
+          if (motionMq.matches) return;
+          lifeInstance = m.startLife(hero);
+        });
       };
       if ('requestIdleCallback' in window) requestIdleCallback(begin, { timeout: 2000 });
       else setTimeout(begin, 200);

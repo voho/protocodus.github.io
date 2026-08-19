@@ -137,8 +137,12 @@ export class Stage {
     // them. It never grows back within a visit — a machine that struggled
     // once will struggle again, and resolution flapping is worse than
     // either setting.
-    if (rawDt > 0.034 && rawDt < 2) {
-      this.slowFrames += rawDt;
+    // Capped, never discarded: hidden-tab gaps are already excluded by the
+    // visibility pause resetting the timestamp, so a huge interval here IS
+    // the machine being slow — a two-second render must count, or the worst
+    // machines are exactly the ones the governor never helps.
+    if (rawDt > 0.034) {
+      this.slowFrames += Math.min(rawDt, 2);
       if (this.slowFrames > 3 && this.pixelScale > 0.6) {
         this.pixelScale = Math.max(0.6, this.pixelScale - 0.2);
         this.slowFrames = 0;
@@ -152,10 +156,8 @@ export class Stage {
     // rate still unusable, this machine has no business flying — a page at
     // three frames a second is broken, whatever it looks like in stills.
     // A grace period covers shader warm-up, and one report is all it gets.
-    // Intervals over 2s are a tab coming back from the background, not a
-    // slow frame, and count for nothing.
     if (this.onTooSlow && this.pixelScale <= 0.6 && this.wall > 6) {
-      if (rawDt > 0.085 && rawDt < 2) this.slowSeconds += rawDt;
+      if (rawDt > 0.085) this.slowSeconds += Math.min(rawDt, 2);
       else this.slowSeconds = Math.max(0, this.slowSeconds - rawDt * 2);
       if (this.slowSeconds > 6) {
         const report = this.onTooSlow;

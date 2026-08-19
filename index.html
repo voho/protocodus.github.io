@@ -3,7 +3,11 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <!-- No viewport-fit=cover: the fixed chrome (bar, HUD, relaunch) uses
+       plain edge offsets, and on a notched phone `cover` would slide them
+       under the cutout. The insets paint in the body's ink instead, which
+       against this page is indistinguishable from more space. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-0TEFG3XSN5"></script>
   <script>
@@ -59,6 +63,10 @@
       document.documentElement.classList.remove('js', 'voyage', 'boot-lock');
     }, true);
   </script>
+  <!-- A browser with no module support at all ignores the module script
+       silently — no error event, so the failsafe above never hears about
+       it. This one runs exactly there and nowhere else. -->
+  <script nomodule>document.documentElement.classList.remove('js');</script>
   <script type="importmap">
     { "imports": { "three": "/assets/vendor/three/three.module.min.js" } }
   </script>
