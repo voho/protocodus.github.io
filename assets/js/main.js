@@ -256,7 +256,10 @@
       warpJob = null;
       root.classList.remove('warping');
       root.style.scrollBehavior = '';
-      history.replaceState(null, '', job.hash);
+      // Pushed, not replaced: a native anchor click makes a history entry,
+      // and Back is expected to retrace the jumps. A retargeted warp still
+      // lands as one entry — the one the visitor ended up choosing.
+      history.pushState(null, '', job.hash);
     }
   };
 
@@ -322,6 +325,14 @@
   const textMode = (remember) => {
     if (remember) local.set('pcs-mode', 'text');
     abandoned = true;
+    // A warp in flight dies with the voyage — its tween would go on
+    // scrolling the classic page toward a destination measured in a layout
+    // that no longer exists.
+    if (warpJob) {
+      warpJob = null;
+      root.classList.remove('warping');
+      root.style.scrollBehavior = '';
+    }
     if (bootCtl) {
       bootCtl.abort();
       bootCtl = null;
@@ -339,17 +350,25 @@
   };
 
   // The preference can flip while the page is open; honoring it live is the
-  // difference between a setting and a suggestion. Without this, the CSS
-  // side hides the boot dialog while the lock stays on — a frozen page. The
-  // classic page's Life is a requestAnimationFrame loop, which no CSS rule
-  // can stop, so it is stood down here too.
+  // difference between a setting and a suggestion — in both directions.
+  // Reduction arriving: the voyage stands down (without this, the CSS side
+  // hides the boot dialog while the lock stays on — a frozen page), and so
+  // does Life, a requestAnimationFrame loop no CSS rule can stop. Reduction
+  // leaving: the classic weather may resume, and the way back to 3D shows.
   if (motionMq.addEventListener) {
     motionMq.addEventListener('change', (e) => {
-      if (!e.matches) return;
-      if (root.classList.contains('voyage')) textMode(false);
-      if (lifeInstance) {
-        lifeInstance.halt();
-        lifeInstance = null;
+      if (e.matches) {
+        if (root.classList.contains('voyage')) textMode(false);
+        if (lifeInstance) {
+          lifeInstance.halt();
+          lifeInstance = null;
+        }
+      } else {
+        if (lifeStarted && !lifeInstance) lifeStarted = false;   // a halt is not forever
+        startLife();
+        if (relaunch && !root.classList.contains('voyage') && canWebGL()) {
+          relaunch.hidden = false;
+        }
       }
     });
   }

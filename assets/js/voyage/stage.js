@@ -83,11 +83,15 @@ export class Stage {
     if (this.running || this.disposed || this.held) return;
     this.running = true;
     this.last = undefined;
-    requestAnimationFrame(this.frame);
+    this.raf = requestAnimationFrame(this.frame);
   }
 
   pause() {
     this.running = false;
+    // The queued frame goes too: left pending, it would fire on the next
+    // play() alongside the new one and each would breed its own loop —
+    // one extra full render per display frame per hide/restore cycle.
+    cancelAnimationFrame(this.raf);
   }
 
   /* A hold outranks everything that calls play() — the visibility handler
@@ -105,7 +109,7 @@ export class Stage {
 
   frame(now) {
     if (!this.running) return;
-    requestAnimationFrame(this.frame);
+    this.raf = requestAnimationFrame(this.frame);
 
     // A backgrounded tab hands the first frame back a huge delta; clamping
     // keeps every animation continuous rather than teleporting. The raw
