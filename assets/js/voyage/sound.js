@@ -65,6 +65,17 @@ export function createSound() {
       master.gain.setTargetAtTime(on ? 1 : 0, ctx.currentTime, 0.4);
       return on;
     },
+    /* Silence is part of disposal: the oscillators outlive the renderer
+       otherwise, droning behind a page that says text mode is on. */
+    dispose() {
+      if (!ctx) return;
+      try {
+        master.gain.value = 0;
+        ctx.close();
+      } catch { /* already closing */ }
+      ctx = null;
+      on = false;
+    },
     blip(freq = 880) {
       if (!on || !ctx) return;
       const o = ctx.createOscillator();

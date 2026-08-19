@@ -1475,9 +1475,11 @@ html.voyage {
    burns to the right of its panel, the habitat ring turns to the left of
    its own. Below 1100px the bands are too thin to compose in and the panel
    goes back to centre. */
-@media (min-width: 1100px) {
+@media (min-width: 1200px) {
   .voyage .band > .wrap {
-    max-width: 1000px;
+    /* Never wider than the room the spine and the side margin leave — a
+       panel pushed past the body's overflow clip loses its own edge */
+    max-width: min(1000px, calc(100vw - var(--spine) - 2.4 * var(--gutter)));
   }
 
   .voyage section[data-zone='forge'] > .wrap,

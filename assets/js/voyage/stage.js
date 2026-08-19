@@ -55,10 +55,13 @@ export class Stage {
     addEventListener('resize', this.resize);
     this.resize();
 
-    document.addEventListener('visibilitychange', () => {
+    // Named so dispose() can take it back down — a retained visibility
+    // listener would happily restart a disposed stage behind the page
+    this.onVisibility = () => {
       if (document.hidden) this.pause();
       else this.play();
-    });
+    };
+    document.addEventListener('visibilitychange', this.onVisibility);
   }
 
   resize() {
@@ -77,7 +80,7 @@ export class Stage {
   }
 
   play() {
-    if (this.running) return;
+    if (this.running || this.disposed) return;
     this.running = true;
     this.last = undefined;
     requestAnimationFrame(this.frame);
@@ -92,9 +95,13 @@ export class Stage {
     requestAnimationFrame(this.frame);
 
     // A backgrounded tab hands the first frame back a huge delta; clamping
-    // keeps every animation continuous rather than teleporting.
+    // keeps every animation continuous rather than teleporting. The raw
+    // interval survives alongside it, because the performance accounting
+    // below has to measure wall time — a clamped delta makes a 3fps machine
+    // look three times faster than it is.
     if (this.last === undefined) this.last = now;
-    const dt = Math.min((now - this.last) / 1000, 0.1);
+    const rawDt = (now - this.last) / 1000;
+    const dt = Math.min(rawDt, 0.1);
     this.last = now;
     this.elapsed = (this.elapsed || 0) + dt;
     const t = this.elapsed;
@@ -103,28 +110,33 @@ export class Stage {
     this.renderer.render(this.scene, this.camera);
     if (this.onFrame) this.onFrame(dt, t);
 
-    // The governor: a run of missed frames and the buffer shrinks a step.
-    // It never grows back within a visit — a machine that struggled once
-    // will struggle again, and resolution flapping is worse than either
-    // setting.
-    if (dt > 0.034) {
-      if (++this.slowFrames > 90 && this.pixelScale > 0.6) {
+    // The governor: three wall-clock seconds spent missing frames and the
+    // buffer shrinks a step. Time rather than a frame count, because a
+    // machine at five frames a second takes half a minute to show ninety of
+    // them. It never grows back within a visit — a machine that struggled
+    // once will struggle again, and resolution flapping is worse than
+    // either setting.
+    if (rawDt > 0.034 && rawDt < 2) {
+      this.slowFrames += rawDt;
+      if (this.slowFrames > 3 && this.pixelScale > 0.6) {
         this.pixelScale = Math.max(0.6, this.pixelScale - 0.2);
         this.slowFrames = 0;
         this.resize();
       }
     } else if (this.slowFrames > 0) {
-      this.slowFrames -= 1;
+      this.slowFrames = Math.max(0, this.slowFrames - rawDt);
     }
 
     // The last resort: with the dial already on the floor and the frame
     // rate still unusable, this machine has no business flying — a page at
     // three frames a second is broken, whatever it looks like in stills.
     // A grace period covers shader warm-up, and one report is all it gets.
-    if (this.onTooSlow && this.pixelScale <= 0.6 && this.elapsed > 8) {
-      if (dt > 0.085) this.slowSeconds += dt;
-      else this.slowSeconds = Math.max(0, this.slowSeconds - dt * 2);
-      if (this.slowSeconds > 8) {
+    // Intervals over 2s are a tab coming back from the background, not a
+    // slow frame, and count for nothing.
+    if (this.onTooSlow && this.pixelScale <= 0.6 && this.elapsed > 6) {
+      if (rawDt > 0.085 && rawDt < 2) this.slowSeconds += rawDt;
+      else this.slowSeconds = Math.max(0, this.slowSeconds - rawDt * 2);
+      if (this.slowSeconds > 6) {
         const report = this.onTooSlow;
         this.onTooSlow = null;
         report();
@@ -133,8 +145,10 @@ export class Stage {
   }
 
   dispose() {
+    this.disposed = true;
     this.pause();
     removeEventListener('resize', this.resize);
+    document.removeEventListener('visibilitychange', this.onVisibility);
     this.renderer.dispose();
   }
 }

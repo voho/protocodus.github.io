@@ -86,12 +86,16 @@ export function startBoot({ revisit, load, onEngage, onTextMode, onFail }) {
   const text = boot.querySelector('[data-boot-text]');
 
   boot.hidden = false;
+  // The dialog takes focus at once: a keyboard user's first Tab must land on
+  // the controls in front of them, not on the page the overlay is covering.
+  boot.focus({ preventScroll: true });
   const stopRain = startRain(boot.querySelector('.boot-rain'));
 
   let typed = revisit;      // the log's side of readiness
   let loaded = false;       // the machine's side
   let failed = false;
   let engaged = false;
+  let bailed = false;       // the visitor left for text mode; nothing engages
   let progress = 0;
 
   const paint = () => {
@@ -116,7 +120,7 @@ export function startBoot({ revisit, load, onEngage, onTextMode, onFail }) {
   };
 
   const maybeReady = () => {
-    if (!typed || !loaded || failed || engaged) return;
+    if (!typed || !loaded || failed || engaged || bailed) return;
     if (revisit) {
       // This session has seen the show; straight to the bridge
       engage();
@@ -127,7 +131,7 @@ export function startBoot({ revisit, load, onEngage, onTextMode, onFail }) {
   };
 
   const engage = () => {
-    if (engaged || failed) return;
+    if (engaged || failed || bailed) return;
     engaged = true;
     document.removeEventListener('keydown', onKey);
     boot.classList.add('lift');
@@ -140,6 +144,7 @@ export function startBoot({ revisit, load, onEngage, onTextMode, onFail }) {
   };
 
   const bail = (handler) => {
+    bailed = true;
     document.removeEventListener('keydown', onKey);
     stopRain();
     boot.hidden = true;
@@ -149,6 +154,14 @@ export function startBoot({ revisit, load, onEngage, onTextMode, onFail }) {
   const onKey = (e) => {
     if (e.key === 'Enter' && !go.disabled) engage();
     if (e.key === 'Escape') bail(onTextMode);
+    // A modal owns Tab: focus cycles between its own two controls and never
+    // reaches the page underneath, which aria-modal already declares inert
+    if (e.key === 'Tab') {
+      const cycle = [go, text].filter((b) => !b.disabled);
+      const at = cycle.indexOf(document.activeElement);
+      e.preventDefault();
+      cycle[(at + (e.shiftKey ? -1 : 1) + cycle.length) % cycle.length].focus();
+    }
   };
 
   go.addEventListener('click', engage);
@@ -185,9 +198,18 @@ export function startBoot({ revisit, load, onEngage, onTextMode, onFail }) {
 
   /* The machine's side, running while the log types. */
   load(milestone).catch((err) => {
+    if (bailed) return;
     console.error('[voyage] boot failed:', err);
     failed = true;
     print('> visual systems offline — dropping to text mode');
     setTimeout(() => bail(onFail), 1400);
   });
+
+  /* A handle for the page: the boot can be renounced from outside — say,
+     reduced motion switching on mid-load — and must strike its own set. */
+  return {
+    abort() {
+      if (!engaged && !bailed) bail(() => {});
+    },
+  };
 }

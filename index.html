@@ -57,7 +57,7 @@
   <!-- Boot terminal. Covers the page while the flight software loads, and
        reads as the ship waking up. Dismissed by ENGAGE, Enter, or the text
        mode link; never rendered without the `.voyage` class. -->
-  <div class="boot" id="boot" role="dialog" aria-modal="true" aria-labelledby="boot-title" hidden>
+  <div class="boot" id="boot" role="dialog" aria-modal="true" aria-labelledby="boot-title" tabindex="-1" hidden>
     <canvas class="boot-rain" aria-hidden="true"></canvas>
     <div class="boot-core">
       <p class="boot-eyebrow">Protocodus orbital command · Prague sector</p>

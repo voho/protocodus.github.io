@@ -15,7 +15,10 @@
   'use strict';
 
   const root = document.documentElement;
-  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // Kept as a live query, not a sample: the preference can change while the
+  // page is open, and the voyage has to stand down when it does.
+  const motionMq = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const reduced = motionMq.matches;
 
   // Storage can throw — on the property access itself in a sandboxed frame,
   // or on the call in a private window. A preference that cannot be read is
@@ -36,10 +39,11 @@
   // ===========================================================================
   // The gate
   // ===========================================================================
+  // WebGL2 specifically: three r185 requests a webgl2 context and nothing
+  // else, so a WebGL1-only device would boot into a guaranteed failure.
   const canWebGL = () => {
     try {
-      const c = document.createElement('canvas');
-      return !!(c.getContext('webgl2') || c.getContext('webgl'));
+      return !!document.createElement('canvas').getContext('webgl2');
     } catch {
       return false;
     }
@@ -262,6 +266,9 @@
 
   const armWarpNav = () => {
     document.addEventListener('click', (e) => {
+      // A modified click is a request for native behavior — a new tab, a
+      // context menu — and the warp has no business intercepting it.
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
       const a = e.target.closest('a[href^="#"]');
       if (!a || !voyage || a.classList.contains('skip-link')) return;
       if (warpTo(a.getAttribute('href'))) e.preventDefault();
@@ -290,9 +297,16 @@
   // Mode switches
   // ===========================================================================
   const relaunch = document.querySelector('[data-relaunch]');
+  let abandoned = false;    // set the moment the voyage is renounced, so the
+  let bootCtl = null;       // in-flight load knows to stand down
 
   const textMode = (remember) => {
     if (remember) local.set('pcs-mode', 'text');
+    abandoned = true;
+    if (bootCtl) {
+      bootCtl.abort();
+      bootCtl = null;
+    }
     if (voyage) {
       voyage.dispose();
       voyage = null;
@@ -302,8 +316,17 @@
     const boot = document.getElementById('boot');
     if (boot) boot.hidden = true;
     startLife();
-    if (relaunch && !reduced) relaunch.hidden = false;
+    if (relaunch && !motionMq.matches) relaunch.hidden = false;
   };
+
+  // The preference can flip while the page is open; honoring it live is the
+  // difference between a setting and a suggestion. Without this, the CSS
+  // side hides the boot dialog while the lock stays on — a frozen page.
+  if (motionMq.addEventListener) {
+    motionMq.addEventListener('change', (e) => {
+      if (e.matches && root.classList.contains('voyage')) textMode(false);
+    });
+  }
 
   if (relaunch) {
     relaunch.addEventListener('click', () => {
@@ -329,13 +352,20 @@
       textMode(false);
       return;
     }
+    // The voyage can be renounced while that import was in flight —
+    // reduced motion switching on is the realistic route — and a curtain
+    // raised after the audience left would lock an empty theatre.
+    if (abandoned) return;
 
-    startBoot({
+    bootCtl = startBoot({
       revisit: session.get('pcs-booted') === '1',
 
-      // The heavy work, reported stage by stage to the boot bar
+      // The heavy work, reported stage by stage to the boot bar. The
+      // `abandoned` checks bracket the expensive steps: text mode chosen
+      // mid-download must not leave a renderer running behind the page.
       load: async (milestone) => {
         const mod = await import('./voyage/main.js');
+        if (abandoned) return;
         milestone('engine');
         voyage = mod.createVoyage({
           canvas: document.getElementById('space'),
@@ -345,10 +375,18 @@
           // resolution gets the page instead of the slideshow — this visit
           // only, in case it was a fluke of load.
           onTooSlow: () => {
+            // `?fx=on` overrides the bailout: some people insist on the
+            // scenic route whatever it costs, and they get to.
+            if (new URLSearchParams(location.search).get('fx') === 'on') return;
             session.set('pcs-no3d', '1');
             textMode(false);
           },
         });
+        if (abandoned) {
+          voyage.dispose();
+          voyage = null;
+          return;
+        }
         milestone('station');
         // Two frames: one to compile every shader, one to prove it flows
         await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
@@ -383,7 +421,7 @@
   // but now only summoned when the voyage is not flying.
   // ===========================================================================
   function startLife() {
-    if (lifeStarted || reduced) return;
+    if (lifeStarted || motionMq.matches) return;
     lifeStarted = true;
     const hero = document.querySelector('.hero');
     if (hero && 'ResizeObserver' in window) {
@@ -393,6 +431,15 @@
     }
   }
 
-  if (voyageWanted) igniteVoyage();
-  else startLife();
+  if (voyageWanted) {
+    igniteVoyage();
+  } else {
+    startLife();
+    // A visitor who chose text mode and came back must still be able to
+    // change their mind — the way back cannot only exist right after the
+    // way out.
+    if (relaunch && !reduced && local.get('pcs-mode') === 'text' && canWebGL()) {
+      relaunch.hidden = false;
+    }
+  }
 })();

@@ -161,6 +161,7 @@ export function createVoyage({ canvas, sectionIds, onTelemetry, onTooSlow }) {
       removeEventListener('pointerup', onUp);
       removeEventListener('pointercancel', onUp);
       removeEventListener('resize', onResize);
+      sound.dispose();
       stage.dispose();
     },
   };
