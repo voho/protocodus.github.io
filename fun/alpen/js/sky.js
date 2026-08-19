@@ -701,8 +701,8 @@ const DOME_FRAG = `
   uniform float uGlowStrength;
   uniform float uCloud;
   uniform vec2 uCloudDrift;
-  uniform sampler2D uPanoClear, uPanoStorm;
-  uniform float uPanoStrength, uPanoStormMix;
+  uniform sampler2D uPanoClear, uPanoPrev, uPanoStorm;
+  uniform float uPanoStrength, uPanoStormMix, uPanoFade;
   uniform vec2 uSunAz;
   uniform vec3 uSunlit;
   varying highp vec3 vDir;
@@ -742,11 +742,20 @@ const DOME_FRAG = `
        the plate's strength falls to nothing and two texture fetches over the
        most expensive shader should be skipped. */
     if (uPanoStrength > 0.005) {
+      /* True equirectangular V now: elevation over pi, centred. The old
+         0.38/0.485 stretched the plate ~19% vertically and floated its
+         horizon — every peak stood at the wrong elevation. */
       vec2 panoUv = vec2(
         vPanoU,
-        clamp(asin(clamp(dir.y, -1.0, 1.0)) * 0.38 + 0.485, 0.0, 1.0)
+        clamp(asin(clamp(dir.y, -1.0, 1.0)) * 0.3183 + 0.5, 0.0, 1.0)
       );
       vec3 pano = texture2D(uPanoClear, panoUv).rgb;
+      /* The hour plates crossfade through this second sampler instead of
+         the old dip-to-zero-and-back, which dissolved the whole distant
+         range and brought it back as a different photograph. */
+      if (uPanoFade < 0.999) {
+        pano = mix(texture2D(uPanoPrev, panoUv).rgb, pano, uPanoFade);
+      }
       if (uPanoStormMix > 0.001) {
         pano = mix(pano, texture2D(uPanoStorm, panoUv).rgb, uPanoStormMix);
       }
@@ -793,7 +802,14 @@ const STAR_VERT = `
     vFade = uAlpha * extinct * (0.55 + 0.45 * sin(uTime * 1.7 + aTwinkle * 40.0));
     vTint = aTint;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-    gl_PointSize = aSize * uScale;
+    /* A sub-pixel point rasterises as one pixel that pops on and off as the
+       camera yaws — scintillation against the pixel grid rather than a
+       twinkle. Floor the sprite at ~1.8 px and pay the star's energy back
+       through its alpha so a faint star stays faint, just steady. */
+    float px = aSize * uScale;
+    float drawn = max(px, 1.8);
+    vFade *= (px * px) / (drawn * drawn);
+    gl_PointSize = drawn;
   }
 `;
 
@@ -802,10 +818,12 @@ const STAR_FRAG = `
   varying float vFade;
   varying vec3 vTint;
   void main() {
-    if (vFade <= 0.01) discard;
+    if (vFade <= 0.003) discard;
     vec2 d = gl_PointCoord - 0.5;
-    if (dot(d, d) > 0.25) discard;
-    gl_FragColor = vec4(vTint, vFade);
+    float r = dot(d, d);
+    if (r > 0.25) discard;
+    // A soft limb instead of a hard-edged disc: the edge is what aliased.
+    gl_FragColor = vec4(vTint, vFade * (1.0 - smoothstep(0.08, 0.24, r)));
   }
 `;
 
@@ -1009,12 +1027,14 @@ const MIST_VERT = `
   uniform vec2 uOrigin, uCell;
   varying vec2 vQ;
   varying vec3 vRel;
+  varying float vRim;
   void main() {
     // The disc is built at unit radius and grown here rather than scaled on
     // the mesh, so that p is honest metres from the rider and the noise
     // coordinate below does not have to undo a scale to find them
     vec3 p = vec3(position.x * uRadius, position.y, position.z * uRadius);
     vQ = p.xz * uCell + uOrigin;
+    vRim = length(position.xz);
     vec4 world = modelMatrix * vec4(p, 1.0);
     vRel = world.xyz - cameraPosition;
     gl_Position = projectionMatrix * viewMatrix * world;
@@ -1028,6 +1048,7 @@ const MIST_FRAG = `
   uniform float uDensity, uCut, uCap, uNear, uFar, uSun;
   varying vec2 vQ;
   varying vec3 vRel;
+  varying float vRim;
   void main() {
     /* As with the aurora, a zero-density warm-up draw is deliberately allowed
        through object visibility, but it must leave before two field samples. */
@@ -1054,6 +1075,12 @@ const MIST_FRAG = `
        sheets and the distance fog retain the bank while its carrier geometry
        becomes impossible to identify. */
     a *= smoothstep(0.018, 0.120, rawGraze);
+    /* And the rim. Seen from a little above its own plane a disc's boundary
+       projects as a straight-edged pale panel hanging in the valley — the
+       noise fold ran at full strength right up to the geometry's edge. A
+       radial feather turns each sheet into a soft-centred bank whose carrier
+       cannot be identified from any angle. */
+    a *= 1.0 - smoothstep(0.62, 0.97, vRim);
     // Clear in front of the lens, and already the haze past the curtain.
     // Both ends of that are the fog's own two numbers wearing a hat.
     a *= smoothstep(uNear * 0.28, uNear * 0.92, dist);
@@ -1369,8 +1396,10 @@ export function createSky(THREE) {
   panoFallback.colorSpace = THREE.SRGBColorSpace;
   panoFallback.needsUpdate = true;
   const panoClear = { value: panoFallback };
+  const panoPrev = { value: panoFallback };
   const panoStorm = { value: panoFallback };
   const panoStrength = { value: 0 };
+  const panoFade = { value: 1 };
   let clearPlate = null;
   let stormPlate = null;
   let clearSettled = false;
@@ -1400,9 +1429,11 @@ export function createSky(THREE) {
       uCloud: { value: 0 },
       uCloudDrift: { value: new THREE.Vector2() },
       uPanoClear: panoClear,
+      uPanoPrev: panoPrev,
       uPanoStorm: panoStorm,
       uPanoStrength: panoStrength,
       uPanoStormMix: { value: 0 },
+      uPanoFade: panoFade,
       // Source centre looks down-run; its joined edge sits safely uphill.
       uPanoYaw: { value: 0.25 },
       // The plate's alpenglow: the ranges' own borrowed amber, and the sun's
@@ -1437,13 +1468,19 @@ export function createSky(THREE) {
   const preparePlate = (texture) => {
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.ClampToEdgeWrapping;
-    texture.minFilter = THREE.LinearFilter;
+    /* Mipmapped and anisotropic now. The plate is heavily minified exactly
+       where it matters most — the ridge band at the horizon — and a
+       linear-only sampler made that band shimmer whenever the camera
+       yawed. WebGL2 mips NPOT textures without complaint. */
+    texture.minFilter = THREE.LinearMipmapLinearFilter;
     texture.magFilter = THREE.LinearFilter;
-    texture.generateMipmaps = false;
+    texture.generateMipmaps = true;
+    texture.anisotropy = 4;
     texture.colorSpace = THREE.SRGBColorSpace;
     return texture;
   };
   let sunrisePlate = null;
+  let sunsetPlate = null;
   let nightPlate = null;
   let platesBound = false;
   const settlePlates = () => {
@@ -1472,7 +1509,7 @@ export function createSky(THREE) {
   };
   const plateLoader = new THREE.TextureLoader();
   plateLoader.load(
-    new URL('../assets/textures/sky/alps-clear.jpg', import.meta.url).href,
+    new URL('../assets/textures/sky/alps-clear.webp', import.meta.url).href,
     (texture) => {
       clearPlate = preparePlate(texture);
       clearSettled = true;
@@ -1482,7 +1519,7 @@ export function createSky(THREE) {
     () => { clearSettled = true; settlePlates(); },
   );
   plateLoader.load(
-    new URL('../assets/textures/sky/alps-storm.jpg', import.meta.url).href,
+    new URL('../assets/textures/sky/alps-storm.webp', import.meta.url).href,
     (texture) => {
       stormPlate = preparePlate(texture);
       stormSettled = true;
@@ -1502,6 +1539,15 @@ export function createSky(THREE) {
     new URL('../assets/textures/sky/alps-aurora-night.jpg', import.meta.url).href,
     (texture) => {
       nightPlate = preparePlate(texture);
+      settlePlates();
+    },
+  );
+  // Dusk gets its own plate now instead of borrowing the sunrise: golden
+  // hour across the crests rather than a morning alpenglow played twice.
+  plateLoader.load(
+    new URL('../assets/textures/sky/alps-peaks-sunset.jpg', import.meta.url).href,
+    (texture) => {
+      sunsetPlate = preparePlate(texture);
       settlePlates();
     },
   );
@@ -1652,8 +1698,10 @@ export function createSky(THREE) {
     const tex = new THREE.CanvasTexture(cv);
     tex.wrapS = THREE.RepeatWrapping;
     tex.wrapT = THREE.RepeatWrapping;
-    tex.generateMipmaps = false;
-    tex.minFilter = THREE.LinearFilter;
+    // Mipmapped: the third octave samples this at 6.3x frequency, and an
+    // unmipped 128px field aliased visibly in the curtain's fine rays.
+    tex.generateMipmaps = true;
+    tex.minFilter = THREE.LinearMipmapLinearFilter;
     tex.magFilter = THREE.LinearFilter;
     // Deliberately not sRGB: these are numbers, not a colour
     return tex;
@@ -1768,17 +1816,31 @@ export function createSky(THREE) {
 
   // --- the light in the sky ------------------------------------------------
   const glowTex = (() => {
-    const s = 64;
+    /* Drawn per pixel rather than from gradient stops. Four stops magnified
+       to six hundred metres put a visible kink at every stop and 8-bit
+       banding between them; an analytic exponential profile at 256px has
+       neither, and the additive blend gets a curve that actually looks
+       like glare. */
+    const s = 256;
     const cv = document.createElement('canvas');
     cv.width = cv.height = s;
     const g = cv.getContext('2d');
-    const grd = g.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
-    grd.addColorStop(0, 'rgba(255,255,255,1)');
-    grd.addColorStop(0.18, 'rgba(255,255,255,0.66)');
-    grd.addColorStop(0.5, 'rgba(255,255,255,0.16)');
-    grd.addColorStop(1, 'rgba(255,255,255,0)');
-    g.fillStyle = grd;
-    g.fillRect(0, 0, s, s);
+    const img = g.createImageData(s, s);
+    for (let y = 0; y < s; y++) {
+      for (let x = 0; x < s; x++) {
+        const dx = (x + 0.5) / s - 0.5;
+        const dy = (y + 0.5) / s - 0.5;
+        const r = Math.min(1, Math.hypot(dx, dy) * 2);
+        const core = Math.exp(-r * r * 18.0);
+        const halo = Math.exp(-r * 3.4) * 0.30;
+        const edge = 1 - Math.pow(r, 6); // reach exactly zero at the rim
+        const a = Math.max(0, (core + halo) * edge);
+        const o = (y * s + x) * 4;
+        img.data[o] = img.data[o + 1] = img.data[o + 2] = 255;
+        img.data[o + 3] = Math.round(a * 255);
+      }
+    }
+    g.putImageData(img, 0, 0);
     const tex = new THREE.CanvasTexture(cv);
     tex.colorSpace = THREE.SRGBColorSpace;
     return tex;
@@ -1991,8 +2053,13 @@ export function createSky(THREE) {
     });
     const mesh = new THREE.Mesh(geo, mat);
     mesh.name = 'mid-distance massifs';
-    // Far ribbons and the sun sit behind it; local mist remains in front.
-    mesh.renderOrder = -2.5;
+    /* After the terrain (0), before the dome (1) — the same early-z trade
+       the dome already made. Drawn at -2.5 this was the second most
+       expensive opaque on screen and the mountain then painted over most
+       of it; drawn here the depth buffer is already full of terrain. Its
+       occlusion of the far ribbons and the sun never depended on order —
+       it writes depth and they are transparencies drawn after all opaques. */
+    mesh.renderOrder = 0.5;
     mesh.frustumCulled = false;
     group.add(mesh);
     return { mesh, mat };
@@ -2489,30 +2556,36 @@ export function createSky(THREE) {
        plate's contribution has actually reached nothing, and the same ramp
        then brings the new picture up through the procedural sky. */
     if (panoStage === 0 && panoTarget > 0) {
-      /* With hysteresis on both gates: the margin to *enter* a plate sits
-         short of the margin to leave it, so an hour hovering exactly at a
+      /* With hysteresis on both gates so an hour hovering exactly at a
          boundary — a pinned dusk, a night whose depth is still building —
-         cannot strobe the three-second dip-and-return swap back and forth. */
-      const sunPad = plateChoice === 'sunrise' ? 0.02 : 0;
+         cannot strobe the swap back and forth. Dawn and dusk each have
+         their own plate now: a sunrise alpenglow in the morning window, a
+         golden-hour crest plate in the evening one. */
+      const sunPad = plateChoice === 'sunrise' || plateChoice === 'sunset' ? 0.02 : 0;
       const nightAt = plateChoice === 'night' ? 0.34 : 0.46;
-      const dawnDusk = (w.tod >= 0.05 - sunPad && w.tod <= 0.25 + sunPad)
-        || (w.tod >= 0.65 - sunPad && w.tod <= 0.78 + sunPad);
+      const dawn = w.tod >= 0.05 - sunPad && w.tod <= 0.25 + sunPad;
+      const dusk = w.tod >= 0.65 - sunPad && w.tod <= 0.78 + sunPad;
       const choice = (w.night > nightAt && nightPlate) ? 'night'
-        : (dawnDusk && sunrisePlate) ? 'sunrise' : 'clear';
+        : (dawn && sunrisePlate) ? 'sunrise'
+          : (dusk && (sunsetPlate || sunrisePlate)) ? 'sunset' : 'clear';
       const want = choice === 'night' ? nightPlate
         : choice === 'sunrise' ? sunrisePlate
-          : clearPlate || panoClear.value;
+          : choice === 'sunset' ? (sunsetPlate || sunrisePlate)
+            : clearPlate || panoClear.value;
       if (want && panoClear.value !== want) {
-        if (panoReady < 0.02) {
-          panoClear.value = want;
-          plateChoice = choice;
-          panoWish = 1;
-        } else panoWish = 0;
+        /* The swap is a crossfade through the second sampler, not the old
+           three-second dip: the outgoing photograph hands over to the
+           incoming one in place, and the distant range never dissolves. */
+        panoPrev.value = panoClear.value;
+        panoClear.value = want;
+        panoFade.value = 0;
+        plateChoice = choice;
       } else {
         plateChoice = choice;
-        panoWish = 1;
       }
+      panoWish = 1;
     }
+    panoFade.value += (1 - panoFade.value) * (1 - Math.exp(-1.1 * dt));
     panoReady += (panoTarget * panoWish - panoReady) * (1 - Math.exp(-2.8 * dt));
     domeMat.uniforms.uPanoStormMix.value = ramp(w.storm, 0.12, 0.78);
     // Night keeps a faint mountain plate under the stars; a whiteout gives it
