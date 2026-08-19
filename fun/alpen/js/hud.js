@@ -713,13 +713,24 @@ export function createHud(root) {
       if (w > 0) ctx.fillRect(left, CHARGE_Y, w, CHARGE_H);
     }
 
-    // --- the flow meter -------------------------------------------------
+    /* --- the flow meter -------------------------------------------------
+
+       Flow is the multiplier now (see `stepFlow` in main.js), so the bar
+       says which one it is buying. The number to its right is the same
+       `×N` the score already shows; having it on the bar is what makes the
+       bar legible as a thing worth filling rather than a decoration, and
+       what makes spending it on a tuck read as a decision. */
     if (g.flow > 0.01) {
       const flowY = BOTTOM - 36 * UI;
       from('FLOW', PAD_L, flowY, MINT, 1);
       const flowW = 80 * UI;
       const flowH = 4 * UI;
       const flowX = PAD_L + measure('FLOW ', UI);
+      const mult = Math.round(g.combo);
+      if (mult > 1) {
+        from(`×${mult}`, flowX + flowW + 4 * UI, flowY,
+          g.flow > 0.99 ? SNOW : MINT, 1);
+      }
       ctx.fillStyle = INK;
       ctx.fillRect(flowX - UI, flowY - UI, flowW + 2 * UI, flowH + 2 * UI);
       ctx.fillStyle = g.flow > 0.99 && (CALM || Math.floor(clock * 10) % 2 === 0) ? SNOW : MINT;

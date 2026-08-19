@@ -1053,7 +1053,15 @@ export const RIDER = {
   /* Flow owns the speed ceiling. With no flow the old 50 m/s limit remains;
      a full meter opens it to five times that value. */
   baseMaxSpeed: 50,   // m/s — 180 km/h
-  maxSpeed: 250,      // m/s — 900 km/h at full flow
+  /* The ceiling flow unlocks. It was 250 m/s — nine hundred kilometres an
+     hour, which is not a snowboard and not steerable; the number existed
+     because flow was the only thing it fed and nothing else bounded it.
+     Flow is the score multiplier now (see `stepFlow` in main.js) and speed
+     is something you SPEND it on, so the ceiling only has to be worth
+     spending on: ninety-six metres a second is three hundred and forty-six
+     kilometres an hour at a full meter, which is still faster than anything
+     else on the hill and still a line you can hold. */
+  maxSpeed: 96,
   // Where drag stiffens beyond v² when the powered tuck is not held.
   // A big kicker landing converts a lot of height into speed and can
   // overshoot this for a second or two; past it the run is pulled back
@@ -1742,6 +1750,31 @@ export const SCORE = {
   lipBonus: 1.25,
   comboStep: 1,       // multiplier gained per clean landing
   comboMax: 12,
+  /* FLOW, which is now the multiplier itself rather than a speed governor
+     with a number beside it. See `stepFlow` in main.js.
+
+     `flowPerPoint` is the exchange rate from a trick's payout into meter,
+     applied to the SQUARE ROOT of the payout so that a trick worth ten
+     times another does not fill the bar ten times faster — one enormous
+     air would end the progression and everything after it would be
+     decoration. A 60-point minimum trick is worth half a per cent, a
+     landed 900 with a grab about a sixth of the bar, and a 4,000-point
+     switch cork better than a quarter of it. `flowGate` and `flowButter`
+     are the flat awards for the two things that are not scored by size.
+     `flowBail` is what a wipeout costs — not everything, because losing a
+     full meter to one caught edge is the kind of punishment that stops
+     people trying tricks at all, which is the opposite of the point. */
+  flowPerPoint: 0.0042,
+  flowGate: 0.035,
+  flowButter: 0.05,
+  flowSketchy: 0.35,   // share of a clean landing's flow a sketchy one earns
+  flowBail: 0.55,      // share of the meter a wipeout takes
+  /* And what it costs to spend. W converts flow into speed: while the tuck
+     is held the meter drains at this rate, and the powered floor it buys
+     scales with what is left. Banking flow for the multiplier and burning
+     it for a fast line are now the same currency, which is the whole of
+     the decision this rework exists to create. */
+  flowTuckDrain: 0.085,
   // Below this a landing is just a landing: no banner, no combo, no points.
   minTrickScore: 60,
   nearMiss: 40,

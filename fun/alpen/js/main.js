@@ -676,15 +676,21 @@ function scoreLanding(s) {
   const name = trickName(s, s.verdict);
   if (!name || pts < SCORE.minTrickScore) return;
 
+  const earned = pts;   // before the multiplier: the meter pays for the trick
   pts *= game.combo;
   const callout = s.lipPop && s.verdict === CLEAN ? `PERFECT POP · ${name}` : name;
   award(pts, callout, s.verdict === SKETCHY ? 'warn' : '');
-  if (s.verdict === CLEAN) {
-    game.combo = Math.min(SCORE.comboMax, game.combo + SCORE.comboStep);
-    audio.combo(game.combo);
-  } else {
-    audio.thud();
-  }
+  /* The trick is what fills the meter now, and it fills it by how good the
+     trick was rather than by the fact that one happened. A tidy 180 nudges
+     it; a switch cork 900 held to the snow is most of a bar. The multiplier
+     is deliberately NOT in that number — paying flow on the already-
+     multiplied score would compound, and a meter that fills faster the
+     fuller it is has no middle. */
+  const gained = flowFromPoints(earned)
+    * (s.verdict === CLEAN ? 1 : SCORE.flowSketchy);
+  game.flow = Math.min(1, game.flow + gained);
+  syncCombo();
+  if (s.verdict !== CLEAN) audio.thud();
 }
 
 rider.on('land', (s) => {
@@ -714,8 +720,13 @@ rider.on('launch', (vy) => {
 });
 
 rider.on('fall', (cause, into = 0) => {
-  game.combo = 1;
-  game.flow = 0;
+  /* A wipeout costs most of the meter, not all of it. Flow is the
+     multiplier now, and zeroing it on one caught edge is the punishment
+     that stops people trying tricks at all — which is the opposite of what
+     a trick game wants. Losing over half of it still hurts, and the run
+     keeps something to build on. */
+  game.flow = Math.max(0, game.flow * (1 - SCORE.flowBail));
+  syncCombo();
   game.flowMaxAnnounced = false;
   // Rebuild after this physics batch; mutating the collision list from inside
   // a strike would replace the array while `collide()` is still walking it.
@@ -786,8 +797,8 @@ rider.on('butter', (spin, time) => {
   const halves = butterHalfTurns(spin);
   const pts = halves * 0.5 * SCORE.butterPerTurn * game.combo;
   award(pts, butterName(spin), '');
-  game.combo = Math.min(SCORE.comboMax, game.combo + SCORE.comboStep);
-  audio.combo(game.combo);
+  game.flow = Math.min(1, game.flow + SCORE.flowButter * halves * 0.5);
+  syncCombo();
 });
 
 /* A pump pays in speed, so it is deliberately not paid in points as well.
@@ -814,29 +825,87 @@ rider.on('pump', (drive) => {
    per fixed step like every other force on the rider, reading the same
    public fields the HUD and camera already read. The boost scales the whole
    velocity vector, so it pushes along the slope the rider is actually on. */
+/* THE MULTIPLIER, derived rather than counted.
+
+   `game.combo` used to be an integer that a clean landing incremented and a
+   fall reset, and `game.flow` was a separate meter that governed speed and
+   paid out once. Two currencies, and only one of them was about how well
+   the run was going. They are one thing now: flow is the meter, and the
+   multiplier is where the meter has got to. Everything downstream still
+   reads `game.combo`, and it still steps in whole numbers so the HUD and
+   the combo tone have something to land on. */
+function syncCombo() {
+  /* `>= 0.99` counts as full, which is the same threshold MAX FLOW fires
+     on: a meter the player has been told is full must show the multiplier
+     they were promised, and a bar that stops one short of its own top is
+     the kind of detail that reads as a bug. */
+  const t = game.flow >= 0.99 ? 1 : game.flow;
+  const want = Math.min(SCORE.comboMax,
+    1 + Math.floor(t * (SCORE.comboMax - 1) + 1e-6));
+  if (want > game.combo) {
+    game.combo = want;
+    audio.combo(game.combo);
+  } else {
+    game.combo = want;
+  }
+}
+
+/* What a payout is worth in meter. Sub-linear on purpose: a trick worth ten
+   times another should not fill the bar ten times faster, or one enormous
+   air ends the progression and everything after it is decoration. */
+function flowFromPoints(pts) {
+  return Math.sqrt(Math.max(0, pts)) * SCORE.flowPerPoint;
+}
+
 function stepFlow() {
   if (game.mode === 'playing') {
     if (rider.grounded) {
-      if (rider.state === 'ride' && rider.carveLoad > 0.4 && rider.slide < 1.0) {
-        game.flow = Math.min(1, game.flow + rider.carveLoad * 0.3 * STEP);
+      /* WHAT FILLS THE METER, and it used to be almost nothing.
+
+         The build was gated on `carveLoad > 0.4`. Measured, a full-lock
+         turn on the piste sits around 0.08 — carve load is the fraction of
+         available GRIP a turn is using, and ordinary riding does not spend
+         half its grip — so the gate was above anything the game produces
+         and flow only ever moved when a trick or a gate moved it. That was
+         survivable while flow was a speed governor with a bar beside it.
+         It is the score multiplier now, so it has to answer to riding.
+
+         Three terms, and they are the three things "flow" means on a
+         snowboard: keep moving, keep it clean, and put the board on edge.
+         The base barely clears the decay on its own, so a straight line
+         holds the meter roughly where it is; speed and edge are what
+         actually fill it. */
+      const clean = rider.state === 'ride' && rider.slide < 1.2;
+      if (clean && rider.speed > 6) {
+        const fast = Math.min(1, Math.max(0,
+          (rider.speed - 6) / (RIDER.baseMaxSpeed - 6)));
+        game.flow = Math.min(1, game.flow
+          + (0.058 + fast * 0.06 + rider.carveLoad * 0.40) * STEP);
       } else if (rider.slide > 2.0) {
         game.flow = Math.max(0, game.flow - rider.slide * 0.1 * STEP);
       }
       game.flow = Math.max(0, game.flow - 0.05 * STEP);
-      if (game.flow > 0.2 && rider.state === 'ride') {
-        rider.vel.multiplyScalar(1 + game.flow * 0.03 * STEP);
+      /* …and W spends it. The powered tuck used to be free speed with an
+         invisible hand behind it — a compounding `vel *= 1 + flow` push
+         nobody asked for. Now the meter is the fuel: hold the tuck and it
+         drains, and `rider.flowDrive` (read by the powered floor) is what
+         is left. Fast line or big multiplier, not both at once. */
+      if (rider.tucking && rider.state === 'ride') {
+        game.flow = Math.max(0, game.flow - SCORE.flowTuckDrain * STEP);
       }
     }
+    rider.flowDrive = game.flow;
     if (game.flow >= 0.99 && !game.flowMaxAnnounced) {
       game.flowMaxAnnounced = true;
       award(500 * game.combo, 'MAX FLOW', 'near');
     } else if (game.flow < 0.5) {
       game.flowMaxAnnounced = false;   // armed again once it has genuinely dropped
     }
+    syncCombo();
   }
 
-  /* Flow opens the speed ceiling continuously from the old 50 m/s limit to
-     five times that at a full meter. Flow holds steady through a clean jump,
+  /* Flow opens the speed ceiling continuously from the base 50 m/s limit to
+     `RIDER.maxSpeed` at a full meter. Flow holds steady through a clean jump,
      so the horizontal cap cannot brake a ballistic arc merely because the
      board left the snow; a fall resets it instead. Falls keep their impact
      momentum and already recover at a bounded 6–12 m/s. */
@@ -900,6 +969,10 @@ function checkGates() {
     game.gateRun = Math.min(SCORE.gateRunMax, game.gateRun + 1);
     const pts = SCORE.gate * game.gateRun * game.combo;
     award(pts, game.gateRun > 1 ? `GATE ×${game.gateRun}` : 'GATE', 'near');
+    /* Taking the line is riding well, so it pays the meter — scaled by the
+       run, because the fifth gate in a row is the one that was hard. */
+    game.flow = Math.min(1, game.flow + SCORE.flowGate * Math.sqrt(game.gateRun));
+    syncCombo();
     audio.chime(game.gateRun);
     lastPassedGate = { x: g.x, z: g.z - 3.0 };
     if (spray) {
@@ -1122,8 +1195,9 @@ const onWildlifeNear = (x, z, kind) => {
 const onCocoa = () => {
   if (game.mode !== 'playing') return;
   award(SCORE.cocoa * game.combo, 'COCOA STOP', 'near');
-  game.combo = Math.min(SCORE.comboMax, game.combo + SCORE.comboStep);
-  audio.combo(game.combo);
+  // A stop at the hut is a rest, and it hands back a chunk of meter.
+  game.flow = Math.min(1, game.flow + 0.22);
+  syncCombo();
 };
 
 let lastStep = 0;

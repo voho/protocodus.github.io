@@ -293,6 +293,7 @@ export class Rider {
     this.startZ = z;
     this.startY = this.pos.y;
     this.landing = null;     // set for one frame after a landing
+    this.flowDrive = 0;      // how much meter the powered tuck may spend
     this.yawGlide = 0;       // presentation-only remainder of a landing snap
     this.contactFootprint = CONTACT_EPS * 2;
     this._handlingReady = false;
@@ -543,8 +544,15 @@ export class Rider {
     // never quietly create another terminal velocity. Gravity and clean
     // terrain can still add more than the floor, so the mountain remains part
     // of the acceleration instead of being overwritten by it.
+    /* …and how hard, which is what the flow meter is spent on. `flowDrive`
+       is written once a step by `stepFlow` in main.js: a full meter is the
+       whole powered tuck this has always been, an empty one is a third of
+       it. The floor still cannot create a second terminal velocity — it is
+       still a floor, and gravity and a clean line still beat it — but the
+       speed it guarantees is now something the run has to have earned. */
+    const drive = 0.34 + 0.66 * Math.min(1, Math.max(0, this.flowDrive));
     const poweredSpeed = this.tucking
-      ? poweredEntrySpeed + RIDER.tuckAcceleration * dt
+      ? poweredEntrySpeed + RIDER.tuckAcceleration * drive * dt
       : 0;
 
     // Gravity, resolved on the tangent. This is the whole engine: steep is
