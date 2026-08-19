@@ -120,10 +120,62 @@ function normalise(THREE, g, targetHeight, sink = 0) {
   return g;
 }
 
+/* One merged, indexed-free geometry that KEEPS its texture coordinates.
+
+   The value/palette bake above exists because the low-poly set carries its
+   colour in materials. A photoscan is the opposite: everything it knows is
+   in its texture, so here the job is only to world-bake the primitives into
+   one buffer and keep `uv` alive. The caller pairs the result with a
+   material built around the scan's own baseColor map. `surfaceOwn` and
+   `color` still ride along so the shared prop shaders can carve snow and
+   sheen the same way they do everywhere else. */
+export function bakeTexturedGeometry(THREE, root) {
+  const positions = [];
+  const normals = [];
+  const uvs = [];
+
+  const v = new THREE.Vector3();
+  const n = new THREE.Vector3();
+  const nm = new THREE.Matrix3();
+
+  root.updateMatrixWorld(true);
+  root.traverse((node) => {
+    if (!node.isMesh || !node.geometry) return;
+    const geo = node.geometry;
+    const pos = geo.attributes.position;
+    const nor = geo.attributes.normal;
+    const tex = geo.attributes.uv;
+    if (!pos || !nor || !tex) return;
+    const index = geo.index;
+    const count = index ? index.count : pos.count;
+    nm.getNormalMatrix(node.matrixWorld);
+    for (let i = 0; i < count; i++) {
+      const idx = index ? index.getX(i) : i;
+      v.fromBufferAttribute(pos, idx).applyMatrix4(node.matrixWorld);
+      positions.push(v.x, v.y, v.z);
+      n.fromBufferAttribute(nor, idx).applyMatrix3(nm).normalize();
+      normals.push(n.x, n.y, n.z);
+      uvs.push(tex.getX(idx), tex.getY(idx));
+    }
+  });
+
+  const total = positions.length / 3;
+  const colors = new Float32Array(total * 3).fill(1);
+  const own = new Float32Array(total).fill(1);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
+  g.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(normals), 3));
+  g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(uvs), 2));
+  g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  g.setAttribute('surfaceOwn', new THREE.BufferAttribute(own, 1));
+  return g;
+}
+
 export function createModelUpgrader(THREE) {
   const loader = new GLTFLoader();
   const url = (name) => new URL(
-    `../assets/models/nature/${name}.gltf`, import.meta.url,
+    `../assets/models/nature/${name.includes('.') ? name : `${name}.gltf`}`,
+    import.meta.url,
   ).href;
 
   /* Swap the instanced mesh's geometry in place. Existing instance
@@ -142,5 +194,26 @@ export function createModelUpgrader(THREE) {
     }, undefined, () => { /* the grown variant simply remains */ });
   }
 
-  return { upgrade };
+  /* The photoscan path: keep the UVs, find the scan's own baseColor map,
+     and let the caller wrap it in whichever patched material the pool
+     should wear. Same hot-swap contract as `upgrade` otherwise — until the
+     file lands the grown variant stands in, and a 404 changes nothing. */
+  function upgradeTextured(pool, name, targetHeight, makeMaterial, sink = 0) {
+    loader.load(url(name), (gltf) => {
+      let map = null;
+      gltf.scene.traverse((node) => {
+        if (!map && node.isMesh && node.material?.map) map = node.material.map;
+      });
+      const g = bakeTexturedGeometry(THREE, gltf.scene);
+      if (!g.attributes.position || g.attributes.position.count === 0) return;
+      swap(pool, normalise(THREE, g, targetHeight, sink));
+      if (map && makeMaterial) {
+        map.colorSpace = THREE.SRGBColorSpace;
+        map.anisotropy = 4;
+        pool.mesh.material = makeMaterial(map);
+      }
+    }, undefined, () => { /* the grown variant simply remains */ });
+  }
+
+  return { upgrade, upgradeTextured };
 }

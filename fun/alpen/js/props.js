@@ -104,6 +104,7 @@ import {
   heightAt, nearestCenter, corridorHalfAt, centersAt, normalFrom, gateSlotsIn, SNOWPACK,
 } from './terrain.js';
 import { createModelUpgrader } from './importedModels.js';
+import { growCardSpruce } from './spruce.js';
 import { stream, hash2, noise2, snoise2 } from './noise.js';
 import { compose } from './geom.js';
 import { PROPS } from './config.js';
@@ -2019,6 +2020,45 @@ export function createProps(THREE, shading) {
     return shading.apply(m, { cameraFade: true, sheen: 1, fogPull: FOG_PULL_FLORA });
   };
 
+  /* Photoscanned props wear their own scan. The baseColor map (diffuse with
+     the scan's ambient occlusion pre-multiplied) carries all the colour, so
+     this material's whole job is snow: a per-vertex mask from how much of
+     the world's up a face sees, settled a little harder where the scan is
+     open and pale, painted in the same prop snow as everything else and
+     routed into the sheen carve-out so the dusting sparkles like the ground
+     while the stone under it stays matte. */
+  const photoMat = (map, snowAmount) => {
+    const m = new THREE.MeshLambertMaterial({ map });
+    m.onBeforeCompile = (shader) => {
+      Object.assign(shader.uniforms, { uSnowAmount: { value: snowAmount } });
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', `#include <common>
+        uniform float uSnowAmount;
+        varying float vSnowT;`)
+        .replace('#include <project_vertex>', `#include <project_vertex>
+        {
+          #ifdef USE_INSTANCING
+            vec3 n64WN = normalize((modelMatrix * instanceMatrix * vec4(normal, 0.0)).xyz);
+          #else
+            vec3 n64WN = normalize((modelMatrix * vec4(normal, 0.0)).xyz);
+          #endif
+          vSnowT = uSnowAmount * smoothstep(0.38, 0.82, n64WN.y);
+        }
+        vN64Sheen = vSnowT;`);
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', `#include <common>
+        varying float vSnowT;`)
+        .replace('#include <map_fragment>', `#include <map_fragment>
+        {
+          float n64Lum = dot(diffuseColor.rgb, vec3(0.30, 0.55, 0.15));
+          float n64Settle = vSnowT * (0.55 + 0.85 * smoothstep(0.06, 0.42, n64Lum));
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.839, 0.890, 0.957),
+            clamp(n64Settle, 0.0, 0.96));
+        }`);
+    };
+    return shading.apply(m, { cameraFade: true, sheen: 1, fogPull: FOG_PULL_STONE });
+  };
+
   /* Boulder snow uses the same mask without wind. A separate static program
      keeps the rock faceting still and maps authentic slate/granite textures. */
   const rockMat = () => {
@@ -2176,20 +2216,75 @@ export function createProps(THREE, shading) {
      was. Until (or unless) a file loads, the grown tree stands in. */
   const upgrader = createModelUpgrader(THREE);
   {
-    // Pines only: this is a treeline, not a park. The broadleaf variants
-    // in the pack read as summer trees wearing snow and break the biome.
-    const leafy = ['PineTree_Snow_1', 'PineTree_Snow_2', 'PineTree_Snow_3',
-      'PineTree_Snow_4', 'PineTree_Snow_5'];
+    // The bare species still wear the low-poly dead hardwoods — a dead
+    // larch is mostly silhouette and the imports read well at any range.
     const dead = ['CommonTree_Dead_Snow_1', 'CommonTree_Dead_Snow_2',
       'BirchTree_Dead_Snow_1'];
-    let leafyAt = 0;
     let deadAt = 0;
     for (let i = 0; i < treePools.length; i++) {
-      const name = treeBare[i]
-        ? dead[deadAt++ % dead.length]
-        : leafy[leafyAt++ % leafy.length];
-      upgrader.upgrade(treePools[i], name, 'tree', treeHeights[i], null, 0.03);
+      if (!treeBare[i]) continue;
+      upgrader.upgrade(treePools[i], dead[deadAt++ % dead.length],
+        'tree', treeHeights[i], null, 0.03);
     }
+  }
+
+  /* The needled species become photo-textured card conifers the moment
+     their atlas lands: real fir sprigs on a few dozen instanced cards per
+     tree (see spruce.js). The material is a sibling of `treeMat` — same
+     wind, same instance-cast tinting through `surfaceOwn`, same shared
+     shading — plus the atlas itself and a cutout, so the depth pass needs
+     its own material or every card would cast a rectangle. Until the file
+     arrives (or if it never does) the grown trees simply keep standing. */
+  {
+    const spruceMat = (height, atlas) => {
+      const m = new THREE.MeshLambertMaterial({
+        map: atlas,
+        vertexColors: true,
+        alphaTest: 0.36,
+        side: THREE.DoubleSide,
+      });
+      m.alphaToCoverage = true;
+      m.onBeforeCompile = (shader) => {
+        Object.assign(shader.uniforms, air, { uSwayHeight: { value: height } });
+        shader.vertexShader = shader.vertexShader
+          .replace('#include <common>', `#include <common>${OWN_DECL}${AIR_DECL}`)
+          .replace('#include <color_vertex>', OWN_MIX)
+          .replace('#include <begin_vertex>', SWAY)
+          .replace('#include <project_vertex>', `#include <project_vertex>
+          vN64Sheen = 1.0 - surfaceOwn;`);
+        shader.fragmentShader = shader.fragmentShader
+          .replace('#include <alphamap_fragment>', `
+          /* The sprig cells store needle luminance, not colour: the cast on
+             the instance is the colour. Lift them back to needle brightness;
+             frost (sheen 1) and bark (sheen ~0.65) keep the map's own level. */
+          diffuseColor.rgb *= mix(1.0, 1.85, smoothstep(0.5, 0.05, vN64Sheen));
+          #include <alphamap_fragment>`);
+      };
+      return shading.apply(m, { cameraFade: true, sheen: 1, fogPull: FOG_PULL_TREE });
+    };
+
+    texLoader.load(
+      new URL('../assets/textures/tree/spruce-card-atlas.webp', import.meta.url).href,
+      (t) => {
+        t.colorSpace = THREE.SRGBColorSpace;
+        t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+        t.anisotropy = 4;
+        for (let i = 0; i < treePools.length; i++) {
+          if (treeBare[i]) continue;
+          const spec = SPECIES[i % SPECIES.length];
+          const g = growCardSpruce(THREE, 0x3ac1f7 + i * 6367, spec, treeHeights[i]);
+          const old = treePools[i].mesh.geometry;
+          treePools[i].mesh.geometry = g;
+          old.dispose();
+          treePools[i].mesh.material = spruceMat(treeHeights[i], t);
+          treePools[i].mesh.customDepthMaterial = new THREE.MeshDepthMaterial({
+            depthPacking: THREE.RGBADepthPacking,
+            map: t,
+            alphaTest: 0.36,
+          });
+        }
+      },
+    );
   }
 
   /* The shadow pass draws only the prefix that can reach its own camera.
@@ -2373,18 +2468,42 @@ export function createProps(THREE, shading) {
   rockPools[0].mesh.name = 'slate-boulders';
   rockPools[1].mesh.name = 'iron-boulders';
 
-  /* Real boulders, same trade as the trees: an imported CC0 rock rebaked
-     into whichever stone palette this pool already spoke, sunk a little
+  /* Real boulders — photoscanned ones now. Each pool trades its grown stone
+     for a Poly Haven scan at the same height, wearing the scan's own
+     texture with a snow dusting on every up-facing surface, sunk a little
      below grade so its downhill edge never stands on air. */
-  for (let i = 0; i < rockPools.length; i++) {
-    const grownGeo = boulderVariants[i].geometry;
+  const heightOfGrown = (grownGeo) => {
     grownGeo.computeBoundingBox();
-    const h = grownGeo.boundingBox.max.y - grownGeo.boundingBox.min.y;
-    upgrader.upgrade(rockPools[i], i === 0 ? 'Rock_Snow_2' : 'Rock_Snow_5',
-      'rock', h, i === 0 ? SNOWPACK.slate : SNOWPACK.iron, 0.16);
+    return grownGeo.boundingBox.max.y - grownGeo.boundingBox.min.y;
+  };
+  {
+    const scans = ['rock_07.glb', 'rock_09.glb'];
+    for (let i = 0; i < rockPools.length; i++) {
+      upgrader.upgradeTextured(rockPools[i], scans[i],
+        heightOfGrown(boulderVariants[i].geometry),
+        (map) => photoMat(map, 0.62), 0.16);
+    }
   }
 
   cragPools.forEach((p, i) => { p.mesh.name = `flank-crag-${i}`; });
+
+  /* The flank buttresses go the same way: cliff-face photoscans, less snow
+     — a near-vertical face holds a dusting at most. */
+  {
+    const scans = ['rock_face_01.glb', 'mountainside.glb', 'boulder_01.glb'];
+    for (let i = 0; i < cragPools.length; i++) {
+      upgrader.upgradeTextured(cragPools[i], scans[i],
+        heightOfGrown(cragVariants[i].geometry),
+        (map) => photoMat(map, 0.42), 0.20);
+    }
+  }
+
+  /* One of the five shrub slots becomes a photoscanned stump: forest floor
+     furniture where the bramble used to be, same streaming, same bands. It
+     keeps the shrubs' no-shadow trade, and being under a metre it never
+     needed the wind. */
+  upgrader.upgradeTextured(shrubPools[4], 'tree_stump_01.glb',
+    heightOfGrown(shrubVariants[4]), (map) => photoMat(map, 0.55), 0.06);
   for (const p of rockPools.concat(cragPools)) {
     p.shadowEnds = new Uint16Array(streamSpan + 1);
     shadowPools.push(p);
