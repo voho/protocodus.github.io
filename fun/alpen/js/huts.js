@@ -56,6 +56,7 @@ import {
   heightAt, normalFrom, nearestCenter, corridorHalfAt, gradeAt, pisteCenter,
 } from './terrain.js';
 import { hash2, stream } from './noise.js';
+import { getPointSizeCap } from './particles.js';
 import { RENDER, SKY } from './config.js';
 
 /* ==========================================================================
@@ -831,8 +832,13 @@ export function createHuts(THREE, shading) {
     smokeMat.uniforms.uScale.value = RENDER.buffer.height
       / (2 * Math.tan((RENDER.fov * Math.PI) / 360));
     // A third of the frame is as big as a puff is ever allowed to draw — see
-    // the note beside gl_PointSize in the vertex shader
-    smokeMat.uniforms.uMaxSize.value = RENDER.buffer.height * 0.34;
+    // the note beside gl_PointSize in the vertex shader. The share must
+    // still lose to the driver's own point-size limit: on a tall buffer a
+    // third of the frame can exceed it, and a point past the limit is not
+    // scaled down but cropped to a square window out of the puff's middle.
+    smokeMat.uniforms.uMaxSize.value = Math.min(
+      RENDER.buffer.height * 0.34, getPointSizeCap(),
+    );
     /* How much of the weather's glow the smoke may borrow. The first clamp is
        "the sun is low", gone by fifteen degrees up; the second is "the sun has
        not left", gone shortly under the horizon; and the night and storm terms

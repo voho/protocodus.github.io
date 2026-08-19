@@ -438,7 +438,10 @@ const VERT = `
     float wide = aSize * uScale / max(vDepth, 0.01);
     float reach = wide + length(d) * aStreak;
     float w = min(wide, uWide);
-    float l = clamp(reach, w, uLong);
+    /* min-after-max rather than clamp: GLSL's clamp is undefined when its
+       bounds cross, and on the one driver where the caps ever meet that
+       undefined result is exactly the oversize point this is preventing. */
+    float l = min(max(reach, w), uLong);
     gl_PointSize = max(l, 1.0);
     vStretch = l / max(w, 0.01);
     vClip = min(1.0, uWide / max(wide, 0.01));
@@ -630,6 +633,14 @@ let pointCap = 128;
 
 export function setPointSizeCap(px) {
   if (Number.isFinite(px) && px > 0) pointCap = Math.max(16, Math.min(1024, px));
+}
+
+/* For the other point systems (hut smoke) whose ceilings are authored as
+   shares of the buffer height: those shares must still lose to the driver,
+   or a puff drifting past the lens comes back as the cropped square this
+   cap exists to prevent. */
+export function getPointSizeCap() {
+  return pointCap;
 }
 
 /* The size caps, likewise, are shares of that same height and are read at

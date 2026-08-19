@@ -10,19 +10,33 @@
 import { RENDER, MIST, TERRAIN } from './config.js';
 
 // The height the shade field's second layer sits at — see `FRAG_SHADE`.
+// The torus is 5 tiles across the run and 6 along it (the extra one
+// resident downhill), so the page — and everything derived from it — is
+// per-axis now. See terrain.js for the residency story.
 const SHADE_RAISE = TERRAIN.shade.raise;
 const SHADE_DIRECTIONS = TERRAIN.shade.directions;
-const SHADE_PAGE_SAMPLES = TERRAIN.shade.tileSamples * TERRAIN.shade.tileGrid;
-const SHADE_PAGE_SPAN = SHADE_PAGE_SAMPLES
-  * ((2 * TERRAIN.shade.half) / TERRAIN.shade.size);
-const SHADE_LAYER_SAMPLES = SHADE_PAGE_SAMPLES + 2;
+const SHADE_SPACING = (2 * TERRAIN.shade.half) / TERRAIN.shade.size;
+const SHADE_TILE_SPAN = TERRAIN.shade.tileSamples * SHADE_SPACING;
+const SHADE_PAGE_SAMPLES_X = TERRAIN.shade.tileSamples * TERRAIN.shade.tileGrid;
+const SHADE_PAGE_SAMPLES_Z = TERRAIN.shade.tileSamples
+  * (TERRAIN.shade.tileGrid + TERRAIN.shade.tileGridAhead);
+const SHADE_PAGE_SPAN_X = SHADE_PAGE_SAMPLES_X * SHADE_SPACING;
+const SHADE_PAGE_SPAN_Z = SHADE_PAGE_SAMPLES_Z * SHADE_SPACING;
+const SHADE_LAYER_SAMPLES_X = SHADE_PAGE_SAMPLES_X + 2;
+const SHADE_LAYER_SAMPLES_Z = SHADE_PAGE_SAMPLES_Z + 2;
 const SHADE_DIRECTION_COLS = TERRAIN.shade.directionGrid[0];
 const SHADE_DIRECTION_ROWS = TERRAIN.shade.directionGrid[1];
-const SHADE_ATLAS_WIDTH = SHADE_LAYER_SAMPLES * SHADE_DIRECTION_COLS;
-const SHADE_ATLAS_HEIGHT = SHADE_LAYER_SAMPLES * SHADE_DIRECTION_ROWS;
+const SHADE_ATLAS_WIDTH = SHADE_LAYER_SAMPLES_X * SHADE_DIRECTION_COLS;
+const SHADE_ATLAS_HEIGHT = SHADE_LAYER_SAMPLES_Z * SHADE_DIRECTION_ROWS;
 const SHADE_SOFTNESS = TERRAIN.shade.angularSoftness;
 const SHADE_GRADE = TERRAIN.grade.base;
-const SHADE_RADIUS = TERRAIN.shade.half;
+/* The visible reach of the baked shade must sit INSIDE the torus's
+   residency guarantee — two whole tiles from wherever the rider stands in
+   the centre tile — or a slot swap lands inside the fade and a 96 m square
+   of slope visibly changes its shadow. `shade.half` (216) was outside that
+   guarantee (192); the derived value keeps the invariant if any of the
+   tile numbers move. */
+const SHADE_RADIUS = Math.min(TERRAIN.shade.half, 2 * SHADE_TILE_SPAN - 6);
 
 /* Snow is a rough dielectric, not white paint. A GGX microfacet response
    carries the sun, Schlick Fresnel replaces the body colour with reflected sky
@@ -637,7 +651,8 @@ const FRAG_SHADE = `#include <lights_fragment_maps>
        therefore cannot slide when the render mesh re-centres. A one-texel
        gutter around each direction layer makes the spatial seam filter into
        its own opposite edge instead of into the neighbouring bearing. */
-    vec2 n64ShadeUv = fract(n64ShadeW.xz / ${asFloat(SHADE_PAGE_SPAN)});
+    vec2 n64ShadeUv = fract(n64ShadeW.xz
+      / vec2(${asFloat(SHADE_PAGE_SPAN_X)}, ${asFloat(SHADE_PAGE_SPAN_Z)}));
     float n64ShadeLo = floor(uShadeSlice);
     float n64ShadeHi = min(n64ShadeLo + 1.0, ${asFloat(SHADE_DIRECTIONS - 1)});
     /* Smoothed, because what the two slices hold is a max-slope horizon,
@@ -653,13 +668,17 @@ const FRAG_SHADE = `#include <lights_fragment_maps>
     vec2 n64ShadeLayerHi = vec2(
       mod(n64ShadeHi, ${asFloat(SHADE_DIRECTION_COLS)}),
       floor(n64ShadeHi / ${asFloat(SHADE_DIRECTION_COLS)}));
+    vec2 n64ShadeLayerSize = vec2(
+      ${asFloat(SHADE_LAYER_SAMPLES_X)}, ${asFloat(SHADE_LAYER_SAMPLES_Z)});
+    vec2 n64ShadePage = vec2(
+      ${asFloat(SHADE_PAGE_SAMPLES_X)}, ${asFloat(SHADE_PAGE_SAMPLES_Z)});
     vec2 n64ShadeAtlasLo = (
-      n64ShadeLayerLo * ${asFloat(SHADE_LAYER_SAMPLES)}
-      + vec2(1.0) + n64ShadeUv * ${asFloat(SHADE_PAGE_SAMPLES)})
+      n64ShadeLayerLo * n64ShadeLayerSize
+      + vec2(1.0) + n64ShadeUv * n64ShadePage)
       / vec2(${asFloat(SHADE_ATLAS_WIDTH)}, ${asFloat(SHADE_ATLAS_HEIGHT)});
     vec2 n64ShadeAtlasHi = (
-      n64ShadeLayerHi * ${asFloat(SHADE_LAYER_SAMPLES)}
-      + vec2(1.0) + n64ShadeUv * ${asFloat(SHADE_PAGE_SAMPLES)})
+      n64ShadeLayerHi * n64ShadeLayerSize
+      + vec2(1.0) + n64ShadeUv * n64ShadePage)
       / vec2(${asFloat(SHADE_ATLAS_WIDTH)}, ${asFloat(SHADE_ATLAS_HEIGHT)});
     vec2 n64ShadeH = mix(
       texture2D(uShadeMap, n64ShadeAtlasLo).rg,

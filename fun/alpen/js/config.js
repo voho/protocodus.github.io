@@ -986,8 +986,21 @@ export const TERRAIN = {
        shader, and the torus page only has to exceed twice that, which five
        tiles already does with headroom. What the 7 actually bought was a
        doubled atlas (3.3 → 6.5 MB re-uploaded on every batch install) and a
-       near-doubled synchronous horizon march on boot. */
+       near-doubled synchronous horizon march on boot.
+
+       The page-diameter arithmetic above holds only from the centre tile's
+       CENTRE; from its edges the residency guarantee is two whole tiles —
+       192 m — which is why the fade radius in shading.js is derived as
+       `2·tileSpan − 6` rather than trusting `half`. */
     tileGrid: 5,
+    /* One extra tile of residency ahead (downhill, −z). Without it the row
+       entering the wanted window appears exactly at the 192 m guarantee with
+       zero worker lead time, so at speed its install landed inside the
+       visible fade — a 96 m square of slope changing its shadow in front of
+       the rider. With it, an incoming row is queued 288 m out and has ~100 m
+       of travel to build before it can matter, while the row it evicts in
+       the 6-deep torus is 288 m behind. */
+    tileGridAhead: 1,
     directionGrid: [8, 4],
     angularSoftness: 0.018,
   },

@@ -610,8 +610,15 @@ function characterAt(z, ctx) {
 const ctxBandScratch = [0, 0];
 
 function rowContext(z, ctx) {
-  if (ctx.z === z) return ctx;
+  /* Keyed on the seed as well as the row: `setWorldSeed` (a reset, or the
+     shadow worker's own realm) changes every field this caches, and a
+     context reused across that boundary hands back the previous mountain's
+     heights for one poisoned row. `drawnHeightAt` already keys its cell
+     cache the same way. */
+  const seed = getWorldSeed();
+  if (ctx.z === z && ctx.seed === seed) return ctx;
   ctx.z = z;
+  ctx.seed = seed;
   characterAt(z, ctx);
 
   // The grade, integrated. d/dz of this is base + Σ amp·sin(freq·z + phase),
@@ -1443,26 +1450,36 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
      THE SUN'S SHADOW, as a world-fixed horizon cache
 
      The render mesh is camera-centred and graded; lighting must be neither.
-     A five-by-five torus of canonical 96 m tiles is sampled directly in world
-     coordinates. Its 32 sun bearings are complete before the first frame.
-     Later, a module worker prepares only the row or column beyond the visible
-     156 m shadow radius and writes it into a slot whose previous world tile is
-     already hundreds of metres away. A texel that can be seen never changes.
+     A five-by-six torus of canonical 96 m tiles is sampled directly in world
+     coordinates — five across the run, six along it, the extra tile resident
+     downhill. Its 32 sun bearings are complete before the first frame.
+     Later, a module worker prepares only the row or column entering the
+     wanted window ~288 m out and writes it into a slot whose previous world
+     tile is equally far behind; the shader's fade radius (shading.js,
+     `2·tileSpan − 6` = 186 m) sits inside the two-tile residency guarantee,
+     so a texel that can be seen never changes. That was the claim before,
+     too, but with a square torus the incoming row appeared exactly at the
+     192 m guarantee with no worker lead — at speed its install landed
+     visibly, a 96 m square of slope changing its shadow ahead of the rider.
      ------------------------------------------------------------------------ */
   const shadeDirections = SHADE.directions;
   const shadeSpacing = (2 * SHADE.half) / SHADE.size;
   const shadeTileSamples = SHADE.tileSamples;
-  const shadeTileGrid = SHADE.tileGrid;
+  const shadeTileGridX = SHADE.tileGrid;
+  const shadeTileGridZ = SHADE.tileGrid + SHADE.tileGridAhead;
   const shadeTileSpan = shadeTileSamples * shadeSpacing;
-  const shadePageSamples = shadeTileSamples * shadeTileGrid;
-  const shadePageSpan = shadePageSamples * shadeSpacing;
-  const shadeLayerSamples = shadePageSamples + 2; // one wrapped gutter each side
+  const shadePageSamplesX = shadeTileSamples * shadeTileGridX;
+  const shadePageSamplesZ = shadeTileSamples * shadeTileGridZ;
+  const shadePageSpanX = shadePageSamplesX * shadeSpacing;
+  const shadePageSpanZ = shadePageSamplesZ * shadeSpacing;
+  const shadeLayerSamplesX = shadePageSamplesX + 2; // one wrapped gutter each side
+  const shadeLayerSamplesZ = shadePageSamplesZ + 2;
   const shadeDirectionCols = SHADE.directionGrid[0];
   const shadeDirectionRows = SHADE.directionGrid[1];
-  const shadeAtlasWidth = shadeLayerSamples * shadeDirectionCols;
-  const shadeAtlasHeight = shadeLayerSamples * shadeDirectionRows;
+  const shadeAtlasWidth = shadeLayerSamplesX * shadeDirectionCols;
+  const shadeAtlasHeight = shadeLayerSamplesZ * shadeDirectionRows;
   const shadeAtlasData = new Uint16Array(shadeAtlasWidth * shadeAtlasHeight * 2);
-  const shadeHeightData = new Uint16Array(shadePageSamples * shadePageSamples);
+  const shadeHeightData = new Uint16Array(shadePageSamplesX * shadePageSamplesZ);
   const shadeTexture = new THREE.DataTexture(
     shadeAtlasData, shadeAtlasWidth, shadeAtlasHeight,
     THREE.RGFormat, THREE.HalfFloatType,
@@ -1474,7 +1491,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   shadeTexture.wrapT = THREE.ClampToEdgeWrapping;
   shadeTexture.generateMipmaps = false;
   const shadeHeightTexture = new THREE.DataTexture(
-    shadeHeightData, shadePageSamples, shadePageSamples,
+    shadeHeightData, shadePageSamplesX, shadePageSamplesZ,
     THREE.RedFormat, THREE.HalfFloatType,
   );
   shadeHeightTexture.colorSpace = THREE.NoColorSpace;
@@ -1514,11 +1531,11 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   };
   const mod = (v, n) => ((v % n) + n) % n;
   const EMPTY_TILE = -2147483648;
-  const slotTileX = new Int32Array(shadeTileGrid * shadeTileGrid);
-  const slotTileZ = new Int32Array(shadeTileGrid * shadeTileGrid);
+  const slotTileX = new Int32Array(shadeTileGridX * shadeTileGridZ);
+  const slotTileZ = new Int32Array(shadeTileGridX * shadeTileGridZ);
   slotTileX.fill(EMPTY_TILE);
   slotTileZ.fill(EMPTY_TILE);
-  const wantedSlot = new Array(shadeTileGrid * shadeTileGrid).fill('');
+  const wantedSlot = new Array(shadeTileGridX * shadeTileGridZ).fill('');
   const pendingShadeTiles = new Set();
   let shadeWorker = null;
   let shadeWorkerBatch = 0;
@@ -1529,8 +1546,8 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   let shadeCenterZ = NaN;
   let sunLevel = 1;
 
-  const slotIndex = (tx, tz) => mod(tz, shadeTileGrid) * shadeTileGrid
-    + mod(tx, shadeTileGrid);
+  const slotIndex = (tx, tz) => mod(tz, shadeTileGridZ) * shadeTileGridX
+    + mod(tx, shadeTileGridX);
   const tileKey = (tx, tz) => `${tx}:${tz}`;
 
   function copyRG(src, srcIndex, dst, dstIndex) {
@@ -1543,21 +1560,21 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
      next sun bearing in the 2D atlas. */
   function refreshShadeGutters() {
     for (let direction = 0; direction < shadeDirections; direction++) {
-      const ox = (direction % shadeDirectionCols) * shadeLayerSamples;
-      const oy = Math.floor(direction / shadeDirectionCols) * shadeLayerSamples;
-      for (let y = 1; y <= shadePageSamples; y++) {
+      const ox = (direction % shadeDirectionCols) * shadeLayerSamplesX;
+      const oy = Math.floor(direction / shadeDirectionCols) * shadeLayerSamplesZ;
+      for (let y = 1; y <= shadePageSamplesZ; y++) {
         const left = ((oy + y) * shadeAtlasWidth + ox) * 2;
         const first = ((oy + y) * shadeAtlasWidth + ox + 1) * 2;
-        const last = ((oy + y) * shadeAtlasWidth + ox + shadePageSamples) * 2;
-        const right = ((oy + y) * shadeAtlasWidth + ox + shadePageSamples + 1) * 2;
+        const last = ((oy + y) * shadeAtlasWidth + ox + shadePageSamplesX) * 2;
+        const right = ((oy + y) * shadeAtlasWidth + ox + shadePageSamplesX + 1) * 2;
         copyRG(shadeAtlasData, last, shadeAtlasData, left);
         copyRG(shadeAtlasData, first, shadeAtlasData, right);
       }
       const top = oy * shadeAtlasWidth + ox;
       const firstRow = (oy + 1) * shadeAtlasWidth + ox;
-      const lastRow = (oy + shadePageSamples) * shadeAtlasWidth + ox;
-      const bottom = (oy + shadePageSamples + 1) * shadeAtlasWidth + ox;
-      for (let x = 0; x < shadeLayerSamples; x++) {
+      const lastRow = (oy + shadePageSamplesZ) * shadeAtlasWidth + ox;
+      const bottom = (oy + shadePageSamplesZ + 1) * shadeAtlasWidth + ox;
+      for (let x = 0; x < shadeLayerSamplesX; x++) {
         copyRG(shadeAtlasData, (lastRow + x) * 2, shadeAtlasData, (top + x) * 2);
         copyRG(shadeAtlasData, (firstRow + x) * 2, shadeAtlasData, (bottom + x) * 2);
       }
@@ -1568,21 +1585,21 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     const { originTileX, originTileZ, tilesX, tilesZ, width, height } = result;
     for (let y = 0; y < height; y++) {
       const worldCellZ = originTileZ * shadeTileSamples + y;
-      const py = mod(worldCellZ, shadePageSamples);
+      const py = mod(worldCellZ, shadePageSamplesZ);
       for (let x = 0; x < width; x++) {
         const worldCellX = originTileX * shadeTileSamples + x;
-        const px = mod(worldCellX, shadePageSamples);
-        shadeHeightData[py * shadePageSamples + px] = result.ground[y * width + x];
+        const px = mod(worldCellX, shadePageSamplesX);
+        shadeHeightData[py * shadePageSamplesX + px] = result.ground[y * width + x];
       }
     }
     for (let direction = 0; direction < shadeDirections; direction++) {
-      const ox = (direction % shadeDirectionCols) * shadeLayerSamples + 1;
-      const oy = Math.floor(direction / shadeDirectionCols) * shadeLayerSamples + 1;
+      const ox = (direction % shadeDirectionCols) * shadeLayerSamplesX + 1;
+      const oy = Math.floor(direction / shadeDirectionCols) * shadeLayerSamplesZ + 1;
       const srcBase = direction * width * height * 2;
       for (let y = 0; y < height; y++) {
-        const py = mod(originTileZ * shadeTileSamples + y, shadePageSamples);
+        const py = mod(originTileZ * shadeTileSamples + y, shadePageSamplesZ);
         for (let x = 0; x < width; x++) {
-          const px = mod(originTileX * shadeTileSamples + x, shadePageSamples);
+          const px = mod(originTileX * shadeTileSamples + x, shadePageSamplesX);
           const src = srcBase + (y * width + x) * 2;
           const dst = ((oy + py) * shadeAtlasWidth + ox + px) * 2;
           copyRG(result.horizon, src, shadeAtlasData, dst);
@@ -1667,15 +1684,20 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     }
   }
 
+  /* The wanted window: symmetric across the run, one extra tile downhill
+     (travel is towards −z), matching the atlas's 5×6 torus. */
+  const shadeRadiusX = (shadeTileGridX - 1) >> 1;
+  const shadeBehindZ = (SHADE.tileGrid - 1) >> 1;
+  const shadeAheadZ = shadeBehindZ + SHADE.tileGridAhead;
+
   function queueShadowTiles(centerX, centerZ) {
     if (!shadeWorker) {
       shadeWorkerHealthy = false;
       return;
     }
     const tiles = [];
-    const radius = (shadeTileGrid - 1) >> 1;
-    for (let tz = centerZ - radius; tz <= centerZ + radius; tz++) {
-      for (let tx = centerX - radius; tx <= centerX + radius; tx++) {
+    for (let tz = centerZ - shadeAheadZ; tz <= centerZ + shadeBehindZ; tz++) {
+      for (let tx = centerX - shadeRadiusX; tx <= centerX + shadeRadiusX; tx++) {
         const slot = slotIndex(tx, tz);
         const key = tileKey(tx, tz);
         wantedSlot[slot] = key;
@@ -1694,27 +1716,26 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   }
 
   function initializeShadowCache(x, z) {
-    /* Residency is centred on the tile containing the rider. When that tile
-       changes, the torus slot being replaced begins at least two complete
-       tiles (192 m) away, outside the 156 m live radius; the incoming row is
-       equally distant and gives its worker a 36 m lead before it can matter.
-       Biasing the resident page downhill would queue earlier, but it would
-       also overwrite an uphill tile while it was still visibly shadowed. */
+    /* Residency is centred on the tile containing the rider, with the
+       6-deep torus's extra tile resident downhill. When the centre tile
+       changes, the slot being replaced held a tile three complete rows
+       (288 m) behind, and the incoming row is equally far ahead — both far
+       outside the 186 m fade the shader applies — and the worker gets a
+       whole tile of travel as lead time before its result could matter. */
     pendingShadeTiles.clear();
     ++shadeWorkerBatch;
     shadeCenterX = Math.floor(x / shadeTileSpan);
     shadeCenterZ = Math.floor(z / shadeTileSpan);
-    const radius = (shadeTileGrid - 1) >> 1;
     const result = buildShadowRegion({
       ...shadowSpec,
-      originTileX: shadeCenterX - radius,
-      originTileZ: shadeCenterZ - radius,
-      tilesX: shadeTileGrid,
-      tilesZ: shadeTileGrid,
+      originTileX: shadeCenterX - shadeRadiusX,
+      originTileZ: shadeCenterZ - shadeAheadZ,
+      tilesX: shadeTileGridX,
+      tilesZ: shadeTileGridZ,
     }, heightAt);
     installShadowRegion(result);
-    for (let tz = shadeCenterZ - radius; tz <= shadeCenterZ + radius; tz++) {
-      for (let tx = shadeCenterX - radius; tx <= shadeCenterX + radius; tx++) {
+    for (let tz = shadeCenterZ - shadeAheadZ; tz <= shadeCenterZ + shadeBehindZ; tz++) {
+      for (let tx = shadeCenterX - shadeRadiusX; tx <= shadeCenterX + shadeRadiusX; tx++) {
         wantedSlot[slotIndex(tx, tz)] = tileKey(tx, tz);
       }
     }
@@ -2671,11 +2692,18 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
              not. Classify obvious walls from the normal already being paid for
              so a distant side mountain cannot collapse into one featureless
              white sheet merely because its material noise was skipped. */
-          const farToCentre = ctx.split > 0
-            ? Math.min(Math.abs(wx - (ctx.mid - ctx.split)),
-              Math.abs(wx - (ctx.mid + ctx.split)))
-            : Math.abs(wx - ctx.mid);
-          const farSide = wx < ctx.mid;
+          /* Same nearest-branch rule as `heightIn`'s wall terms: inside a
+             fork the flank fields belong to whichever branch is nearer, and
+             measuring the side off the raw midline instead handed geometry
+             built from one flank's noise the other flank's palette across
+             up to a full split width of ground. */
+          const farCentre = ctx.split > 0
+            ? (Math.abs(wx - (ctx.mid - ctx.split))
+              <= Math.abs(wx - (ctx.mid + ctx.split))
+              ? ctx.mid - ctx.split : ctx.mid + ctx.split)
+            : ctx.mid;
+          const farToCentre = Math.abs(wx - farCentre);
+          const farSide = wx < farCentre;
           const farBroad = farSide ? ctx.wallBroadLeft : ctx.wallBroadRight;
           const farDetail = farSide ? ctx.wallDetailLeft : ctx.wallDetailRight;
           const farFlank = smoothstep(ctx.half + ctx.lipW * 0.55,
@@ -2747,11 +2775,18 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
           outNormals[p] = -dx * invFar;
           outNormals[p + 1] = invFar;
           outNormals[p + 2] = -dz * invFar;
-          const farToCentre = ctx.split > 0
-            ? Math.min(Math.abs(wx - (ctx.mid - ctx.split)),
-              Math.abs(wx - (ctx.mid + ctx.split)))
-            : Math.abs(wx - ctx.mid);
-          const farSide = wx < ctx.mid;
+          /* Same nearest-branch rule as `heightIn`'s wall terms: inside a
+             fork the flank fields belong to whichever branch is nearer, and
+             measuring the side off the raw midline instead handed geometry
+             built from one flank's noise the other flank's palette across
+             up to a full split width of ground. */
+          const farCentre = ctx.split > 0
+            ? (Math.abs(wx - (ctx.mid - ctx.split))
+              <= Math.abs(wx - (ctx.mid + ctx.split))
+              ? ctx.mid - ctx.split : ctx.mid + ctx.split)
+            : ctx.mid;
+          const farToCentre = Math.abs(wx - farCentre);
+          const farSide = wx < farCentre;
           const farBroad = farSide ? ctx.wallBroadLeft : ctx.wallBroadRight;
           const farDetail = farSide ? ctx.wallDetailLeft : ctx.wallDetailRight;
           const farFlank = smoothstep(ctx.half + ctx.lipW * 0.55,
@@ -2854,10 +2889,16 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
           + noise1(bu * 3.1 + 11.3, P.band.seed + 4) * 0.32;
 
         // Machine-compacted snow, measured to whichever branch is nearer, so
-        // both sides of a route island get the same hardpack response.
-        const toCentre = ctx.split > 0
-          ? Math.min(Math.abs(wx - (ctx.mid - ctx.split)), Math.abs(wx - (ctx.mid + ctx.split)))
-          : Math.abs(wx - ctx.mid);
+        // both sides of a route island get the same hardpack response. The
+        // branch centre itself is kept: every side-keyed field below must
+        // agree with `heightIn`, which keys its walls off the nearest
+        // branch, not the raw midline.
+        const nearCentre = ctx.split > 0
+          ? (Math.abs(wx - (ctx.mid - ctx.split))
+            <= Math.abs(wx - (ctx.mid + ctx.split))
+            ? ctx.mid - ctx.split : ctx.mid + ctx.split)
+          : ctx.mid;
+        const toCentre = Math.abs(wx - nearCentre);
         /* Corduroy exists only on the ribbon the groomer actually drove —
            the guide line through the gates — while the corridor around it
            is regular skied-in snow: still compacted enough to keep most of
@@ -2903,7 +2944,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
            Hoisted above the rock terms because `steepRock` needs it too. It
            used to be computed after them and therefore could not reach the
            one term that matters most on the biggest thing in frame. */
-        const sideDetail = wx < ctx.mid
+        const sideDetail = wx < nearCentre
           ? ctx.wallDetailLeft : ctx.wallDetailRight;
         const outcropBand = smoothstep(0.30, 0.70,
           band * 0.55 + sideDetail * 0.45);
@@ -3036,7 +3077,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
         outSurface[q + 1] = groomed * (1 - rock);
         outSurface[q + 2] = rock;
         outSurface[q + 3] = rockKind;
-        const frameRightSide = wx >= ctx.mid;
+        const frameRightSide = wx >= nearCentre;
         outGroomFrame[g] = frameRightSide ? frameRight : frameLeft;
         outGroomFrame[g + 1] = frameRightSide ? frameSlopeRight : frameSlopeLeft;
 
@@ -3422,8 +3463,8 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
         +g.x.toFixed(1), +g.y.toFixed(1), +g.z.toFixed(1), +g.w.toFixed(2),
       ]),
       shade: {
-        page: shadePageSamples,
-        span: shadePageSpan,
+        page: [shadePageSamplesX, shadePageSamplesZ],
+        span: [shadePageSpanX, shadePageSpanZ],
         texel: +shadeSpacing.toFixed(2),
         directions: shadeDirections,
         slice: +shading.uniforms.uShadeSlice.value.toFixed(2),
