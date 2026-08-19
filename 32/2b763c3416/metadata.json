@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "322b763c3416",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "fun/alpen/js/huts.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/32/2b763c3416/0/metadata.json",
+      "transcript": "/32/2b763c3416/0/full.jsonl",
+      "context": "/32/2b763c3416/0/context.md",
+      "content_hash": "/32/2b763c3416/0/content_hash.txt",
+      "prompt": "/32/2b763c3416/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 276,
+    "cache_creation_tokens": 1227385,
+    "cache_read_tokens": 40735671,
+    "output_tokens": 269451,
+    "api_call_count": 147
+  }
+}

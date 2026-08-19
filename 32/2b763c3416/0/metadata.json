@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "322b763c3416",
+  "session_id": "22db6cfd-6d68-46ef-af84-da52f66d850f",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-19T06:39:59.654615Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "fun/alpen/js/huts.js"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "158e46a11a73",
+  "token_usage": {
+    "input_tokens": 276,
+    "cache_creation_tokens": 1227385,
+    "cache_read_tokens": 40735671,
+    "output_tokens": 269451,
+    "api_call_count": 147
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-19T06:39:58.343646Z",
+    "agent_lines": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 2,
+    "total_committed": 0,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude/projects/-Users-vojta-Dev-protocodus-github-io/22db6cfd-6d68-46ef-af84-da52f66d850f.jsonl"
+}

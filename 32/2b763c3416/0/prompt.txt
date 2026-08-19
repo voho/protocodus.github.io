@@ -1,0 +1,53 @@
+A session-scoped Stop hook is now active with condition: "create a new fun (game) called sommer. it will be similar principle as alpen with infinite generated terrain, but it will be a summer game, where you will ride a bmx bike (first person view) downhill. get inspired by images. terrain: pine forest, mixed forest, narrow rocky roads, meadows, bike track, dirty roads... make the terrain rich and download public textures as needed". Briefly acknowledge the goal, then immediately start (or continue) working toward it — treat the condition itself as your directive and do not pause to ask the user what to do. The hook will block stopping until the condition holds. It auto-clears once the condition is met — do not tell the user to run `/goal clear` after success; that's only for clearing a goal early.
+
+---
+
+[Image: original 2048x2048, displayed at 2000x2000. Multiply coordinates by 1.02 to map to original image.]
+
+---
+
+[Image: original 2048x2048, displayed at 2000x2000. Multiply coordinates by 1.02 to map to original image.]
+
+---
+
+<task-notification>
+<task-id>aa5f4a101ecc696ac</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>failed</status>
+<summary>Agent "Map alpen terrain architecture" failed: Agent stalled: no progress for 600s (stream watchdog did not recover)</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Now the terrain-related config.</result>
+</task-notification>
+
+---
+
+resume
+
+---
+
+[Image: original 3381x1323, displayed at 2000x783. Multiply coordinates by 1.69 to map to original image.]
+
+---
+
+resme
+
+---
+
+resume
+
+---
+
+resume
+
+---
+
+resume
+
+---
+
+resume
+
+---
+
+continue
