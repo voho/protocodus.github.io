@@ -430,7 +430,6 @@ export function createHuts(THREE, shading) {
   hutMat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, {
       uWoodPlanksTex: woodPlanksTex,
-      uShingleTex: shingleTex,
       uStoneTex: stoneTex,
     });
     shader.vertexShader = shader.vertexShader
@@ -445,7 +444,6 @@ export function createHuts(THREE, shading) {
       varying vec3 vHutLocalPos;
       varying vec3 vHutLocalNormal;
       uniform sampler2D uWoodPlanksTex;
-      uniform sampler2D uShingleTex;
       uniform sampler2D uStoneTex;`)
       .replace('#include <color_fragment>', `#include <color_fragment>
       float hutLum = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
