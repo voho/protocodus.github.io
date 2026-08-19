@@ -39,10 +39,12 @@
   // ===========================================================================
   // The gate
   // ===========================================================================
-  // WebGL2 specifically: three r185 requests a webgl2 context and nothing
-  // else, so a WebGL1-only device would boot into a guaranteed failure.
+  // WebGL2 specifically — three r185 requests a webgl2 context and nothing
+  // else — and import maps, which every voyage module leans on to resolve
+  // `three`. A browser missing either would boot into a guaranteed failure.
   const canWebGL = () => {
     try {
+      if (!HTMLScriptElement.supports || !HTMLScriptElement.supports('importmap')) return false;
       return !!document.createElement('canvas').getContext('webgl2');
     } catch {
       return false;
@@ -220,8 +222,9 @@
   // ===========================================================================
   // Warp navigation — in the voyage, an anchor click is a jump: streaks up,
   // one long eased scroll, streaks down. Native behavior everywhere else.
+  // A click during a jump retargets the jump: the newest order wins.
   // ===========================================================================
-  let warping = false;
+  let warpJob = null;   // { from, target, hash, t0 } while a jump is flying
 
   const scrollTargetFor = (hash) => {
     if (hash === '#top') return 0;
@@ -235,32 +238,44 @@
     return Math.max(0, Math.min(max, scrollY + rect.top + rect.height / 2 - innerHeight / 2));
   };
 
+  const WARP_MS = 1000;
+  const warpEase = (u) => (u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2);
+
+  const warpStep = (now) => {
+    const job = warpJob;
+    if (!job) return;
+    const u = Math.min((now - job.t0) / WARP_MS, 1);
+    scrollTo(0, job.from + (job.target - job.from) * warpEase(u));
+    if (u < 1) {
+      requestAnimationFrame(warpStep);
+    } else {
+      warpJob = null;
+      root.classList.remove('warping');
+      root.style.scrollBehavior = '';
+      history.replaceState(null, '', job.hash);
+    }
+  };
+
   const warpTo = (hash) => {
     const target = scrollTargetFor(hash);
-    if (target === null || warping) return false;
-    const from = scrollY;
-    if (Math.abs(target - from) < innerHeight * 0.75) return false;   // too close to bother
+    if (target === null) return false;
 
-    warping = true;
-    const ms = 1000;
-    voyage.warpBurst(ms);
+    // Mid-jump, a new order replaces the old one: same streaks, new course.
+    // Without this the browser's native jump and the running tween fight,
+    // and the running tween wins — over the visitor's newest choice.
+    if (warpJob) {
+      warpJob = { from: scrollY, target, hash, t0: performance.now() };
+      voyage.warpBurst(WARP_MS);
+      return true;
+    }
+
+    if (Math.abs(target - scrollY) < innerHeight * 0.75) return false;   // too close to bother
+
+    warpJob = { from: scrollY, target, hash, t0: performance.now() };
+    voyage.warpBurst(WARP_MS);
     root.classList.add('warping');
     root.style.scrollBehavior = 'auto';
-    const t0 = performance.now();
-    const ease = (u) => (u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2);
-    const step = (now) => {
-      const u = Math.min((now - t0) / ms, 1);
-      scrollTo(0, from + (target - from) * ease(u));
-      if (u < 1) {
-        requestAnimationFrame(step);
-      } else {
-        warping = false;
-        root.classList.remove('warping');
-        root.style.scrollBehavior = '';
-        history.replaceState(null, '', hash);
-      }
-    };
-    requestAnimationFrame(step);
+    requestAnimationFrame(warpStep);
     return true;
   };
 
@@ -330,8 +345,12 @@
 
   if (relaunch) {
     relaunch.addEventListener('click', () => {
-      // A reload is the honest way back: the voyage assumes a fresh document
+      // A reload is the honest way back: the voyage assumes a fresh
+      // document. A deliberate retry also clears the session's automatic
+      // rejection — otherwise the button would reload into the very gate
+      // that hid the voyage, and do nothing at all.
       local.set('pcs-mode', '3d');
+      session.set('pcs-no3d', '');
       location.reload();
     });
   }
@@ -398,8 +417,8 @@
         root.classList.remove('boot-lock');
         root.classList.add('hud-on');
         startHud();
-        if (!revisit) voyage.engage();   // the flyby is a first-time honor
-        else voyage.remeasure();
+        // Engaging releases the held stage; the flyby is a first-time honor
+        voyage.engage(!revisit);
       },
 
       onTextMode: () => textMode(true),
@@ -435,10 +454,12 @@
     igniteVoyage();
   } else {
     startLife();
-    // A visitor who chose text mode and came back must still be able to
-    // change their mind — the way back cannot only exist right after the
-    // way out.
-    if (relaunch && !reduced && local.get('pcs-mode') === 'text' && canWebGL()) {
+    // A visitor who chose text mode — or was dropped to it by a failed or
+    // too-slow session — must still be able to change their mind: the way
+    // back cannot only exist right after the way out. The relaunch click
+    // clears the session rejection, so the retry is real.
+    const declined = local.get('pcs-mode') === 'text' || session.get('pcs-no3d') === '1';
+    if (relaunch && !reduced && declined && canWebGL()) {
       relaunch.hidden = false;
     }
   }

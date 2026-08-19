@@ -80,7 +80,7 @@ export class Stage {
   }
 
   play() {
-    if (this.running || this.disposed) return;
+    if (this.running || this.disposed || this.held) return;
     this.running = true;
     this.last = undefined;
     requestAnimationFrame(this.frame);
@@ -88,6 +88,19 @@ export class Stage {
 
   pause() {
     this.running = false;
+  }
+
+  /* A hold outranks everything that calls play() — the visibility handler
+     included. It exists for the boot: the scene warms its shaders, then
+     waits without spending a single frame until ENGAGE releases it. */
+  hold() {
+    this.held = true;
+    this.pause();
+  }
+
+  release() {
+    this.held = false;
+    this.play();
   }
 
   frame(now) {
