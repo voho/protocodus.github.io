@@ -143,15 +143,17 @@ import { heightAt, gradeAt } from './terrain.js';
 export const WEATHER = {
   /* What `main.js` actually hands to `setIntensity`.
 
-     It passes `weather.snow`, and `weather.snow` is the storm dial with a
-     floor under it — `0.12 + storm · 0.88` — because there is always a
-     little snow in the air on this mountain and a hard zero looked like a
-     bug rather than like clear weather. Everything below wants the storm
-     part of that dial, so the floor is taken back off here. The particle
-     tables still have their own non-zero calm end: weather adds density to
-     a permanent fine snowfall instead of switching snowfall on and off. If
-     the two ever disagree, calm weather simply keeps that subtle baseline. */
-  clearFloor: 0.12,
+     It passes `weather.snow`, and `weather.snow` is now the storm dial
+     itself, honestly reaching zero. It used to carry a floor — `0.12 +
+     storm · 0.88` — because the run was never without falling snow, and
+     this constant existed to take that floor back off. Weather has an
+     airmass now (see AIRMASS there): a settled high over the range is
+     genuinely clear, and flakes drifting past a cloudless sun were the one
+     thing left contradicting it. So nothing is subtracted, and a zero dial
+     means zero snow. The particle tables' own calm end still keeps the
+     lightest fall subtle rather than sparse — a flurry is a few flakes
+     close by, not a thin sheet of them everywhere. */
+  clearFloor: 0,
 
   /* Pool sizes, as multiples of SNOW.count.
 
@@ -812,7 +814,9 @@ export function createSnowfall(THREE, shading) {
     alphaFull = true;
   }
 
-  /* `main.js` hands over `weather.snow`; the dial is what is wanted. */
+  /* `main.js` hands over `weather.snow`, which IS the dial. `clearFloor` is
+     zero now and this stays a mapping rather than a pass-through only so a
+     future floor can be reintroduced in one place. */
   function setIntensity(t) {
     const s = clamp01((t - WEATHER.clearFloor) / (1 - WEATHER.clearFloor));
     if (Math.abs(s - dial) < WEATHER.step) return;

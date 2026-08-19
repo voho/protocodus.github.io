@@ -188,6 +188,7 @@ const PHASES = [
    `state.snow` further down is what makes the label true rather than
    decorative. */
 const BANDS = [
+  { to: 0.045, name: 'CLEAR' },
   { to: 0.16, name: 'FLURRIES' },
   { to: 0.36, name: 'LIGHT SNOW' },
   { to: 0.60, name: 'SNOWING' },
@@ -231,10 +232,90 @@ const STORM_PERIOD = 110;    // seconds per unit of the noise that drives it
    called storms (`triggerStorm`) now guarantee the drama the fast clock was
    trying to buy. */
 const WEATHER_RATE = 1;
-/* The quietest the sky is ever allowed to get. See `BANDS`: the run is never
-   without falling snow, so the dial's bottom is a light fall rather than
-   clear air. Small enough that a calm minute still looks calm. */
+/* The quietest the sky is allowed to get IN AN UNSETTLED AIRMASS. See
+   `BANDS`: while a front is anywhere in the region the run is never without
+   falling snow, so the dial's bottom is a light fall rather than clear air.
+   Small enough that a calm minute still looks calm. */
 const STORM_FLOOR = 0.085;
+
+/* THE AIRMASS, which is the weather above the weather.
+
+   Two comments in this file used to disagree with each other. One said the
+   run is never without falling snow and put a floor under the dial; the
+   other said clear air has to be the common case, because it is the only
+   condition in which the sky is blue, the snow is white and the sun is
+   visible — the only condition the game looks like itself in. Both are
+   right, and they are right about different timescales: a front brings its
+   own permanent flurries for as long as it is in the region, and then it
+   leaves and the range sits under a high for a day.
+
+   So the storm dial no longer runs between fixed ends. A much slower clock
+   than the storm's decides what kind of airmass this stretch of hours is,
+   and the dial's floor AND ceiling ride it: settled air drops the floor to
+   nothing — genuine blue-sky alpine cold, full draw distance, no flakes at
+   all — and holds the ceiling down where a blizzard cannot reach. Unsettled
+   air lifts the floor back to a light fall and opens the ceiling to a real
+   whiteout. The tail of each is still decided by the storm noise, so what
+   the airmass changes is the odds, never the shape.
+
+   `period` is deliberately several times the storm's: a front should pass
+   through an airmass, not the other way round. The band is wide, so most of
+   the clock is spent committed to one kind of weather rather than between
+   two. Called storms (`triggerStorm`) ignore all of this by construction —
+   they `max` over the dial — so a settled sky can still be interrupted on
+   demand. */
+const AIRMASS = {
+  period: 430,
+  seed: 613,
+  /* Cut a little below where the noise sits, so the range spends more of
+     its time under an unsettled airmass than a settled one. A settled
+     spell should be the good weather you ride out to, not the default. */
+  band: [0.30, 0.58],
+  // floor and ceiling at each end: [settled, unsettled]
+  floor: [0, STORM_FLOOR],
+  /* Settled air still gets its afternoon flurry — the ceiling is where a
+     light snow starts, not where clear air ends — and unsettled air is
+     uncapped, so the tail of the storm noise still reaches a whiteout. */
+  ceiling: [0.42, 1],
+};
+
+/* THE GUST, which is what wind on a mountain actually is.
+
+   The swing below was one slow noise: a wind that changed direction over
+   half a minute and never did anything in between. Real alpine wind is a
+   lull and then a blast — the flakes hang, then they go sideways, the
+   spruces lash, and a rider in the air feels a shove they did not ask for
+   (see `RIDER.windAir`). That texture is entirely in the envelope, so it is
+   one more noise on a fast clock multiplying the swing rather than a second
+   wind with a direction of its own.
+
+   `floor` is what survives between gusts, so a gusty minute is not a
+   stroboscopic one, and the whole envelope stiffens with the storm: a
+   blizzard is not a series of gusts, it is a continuous blast. */
+const GUST = {
+  period: 6.5,
+  seed: 733,
+  floor: 0.34,
+  reach: 2.1,
+  /* The raw field is two octaves of value noise and spends its life near
+     the middle of its range; taken straight it gives a gust that breathes
+     rather than one that hits. This stretches the middle out to the ends
+     before the envelope shapes it. */
+  band: [0.34, 0.70],
+};
+
+/* How fast the horizon is allowed to move, in metres of draw distance per
+   second.
+
+   `fogFar` used to be a pure function of the storm dial, and the file said
+   so: a dial on a slow noise is still a continuously moving curtain, and
+   the horizon visibly breathed in and out. Rate-limiting it means the fog
+   answers a front rather than tracking it — a whiteout still closes in over
+   a few seconds, which is what a squall does, but ordinary drift in the
+   dial no longer moves the far distance at all. Near fog is limited to a
+   share of it, because the near curtain is small and a slow one reads as
+   lag rather than as weather. */
+const FOG_RATE = 120;
 /* Menu/debug time presets are camera moves through the day, not cuts.  This
    rate takes roughly five seconds to settle after a large request, slow
    enough that the sun, fog line and kilometer-scale mountain shadows travel
@@ -356,6 +437,8 @@ const CALM = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? 
 
 const lerp = (a, b, t) => a + (b - a) * t;
 const smooth = (t) => t * t * (3 - 2 * t);
+// A step towards a target, bounded in magnitude. See `FOG_RATE`.
+const clampAbs = (v, m) => (v > m ? m : v < -m ? -m : v);
 /* Into the deck's own repeat. The noise field wraps at 64, so this is the same
    sample and not an approximation of it — see the drift note in `update`. */
 const wrap64 = (v) => v - Math.floor(v / 64) * 64;
@@ -395,6 +478,10 @@ export function createWeather(THREE) {
     snow: 0.3,
     windX: 0,
     windZ: 0,
+    // 0 = a settled high over the range, 1 = an unsettled front-bearing
+    // airmass. See `AIRMASS`; it sets both ends of the storm dial.
+    airmass: 1,
+    gust: 1,
     night: 0,
     aurora: 0,
     mist: 0,
@@ -416,6 +503,7 @@ export function createWeather(THREE) {
      it is. */
   let dayClock = 0;
   let weatherClock = 0;
+  let fogSettled = false;   // see FOG_RATE: the first frame takes its target whole
   let frozen = null;   // target time of day, if the player has pinned one
   let pinnedTod = START_TOD;
   /* A called storm is a front, not a switch.
@@ -520,7 +608,18 @@ export function createWeather(THREE) {
        longer nothing. A twelfth of the dial is enough to keep flakes in the
        air, the fog a little in, and the snow underfoot a shade softer,
        without touching how the picture reads on a quiet day. */
-    state.storm = STORM_FLOOR + (1 - STORM_FLOOR) * Math.pow(spread, 1.7);
+    /* The airmass sets both ends of the dial. `unsettled` is the same
+       smoothstep-over-a-band shape the terrain's chapters use, so the range
+       spends its time committed to one kind of sky rather than sliding
+       between two, and `state.airmass` is published for anything that wants
+       to know which it is in. */
+    const airRaw = noise2(weatherClock / AIRMASS.period, 7.5, AIRMASS.seed);
+    const unsettled = smooth(Math.min(1, Math.max(0,
+      (airRaw - AIRMASS.band[0]) / (AIRMASS.band[1] - AIRMASS.band[0]))));
+    state.airmass = unsettled;
+    const floor = lerp(AIRMASS.floor[0], AIRMASS.floor[1], unsettled);
+    const ceiling = lerp(AIRMASS.ceiling[0], AIRMASS.ceiling[1], unsettled);
+    state.storm = floor + (ceiling - floor) * Math.pow(spread, 1.7);
     if (stormCalled >= 0) {
       stormCalled += dt;
       const t = stormCalled;
@@ -605,7 +704,7 @@ export function createWeather(THREE) {
          aurora". */
       state.conditions = s < BANDS[0].to
         ? 'AURORA' : `${state.conditions} · AURORA`;
-    } else if (state.mist > MIST.say && s < BANDS[1].to) {
+    } else if (state.mist > MIST.say && s < BANDS[2].to) {
       state.conditions = s < BANDS[0].to
         ? 'MIST' : `${state.conditions} · MIST`;
     }
@@ -638,9 +737,24 @@ export function createWeather(THREE) {
     // the curtain moves when that number moves. Both ends of the storm are
     // absolute: a whiteout is seventy metres of visibility whether the
     // engine is drawing three hundred or four.
-    state.fogNear = lerp(RENDER.fogNear, 10, s * s);
-    state.fogFar = lerp(RENDER.fogFar, 68, Math.pow(s, 0.85));
-    state.snow = 0.12 + s * 0.88;
+    const wantNear = lerp(RENDER.fogNear, 10, s * s);
+    const wantFar = lerp(RENDER.fogFar, 68, Math.pow(s, 0.85));
+    // Rate-limited rather than assigned: see `FOG_RATE`. The first frame
+    // takes the target whole, so a fresh run opens on the sky it should.
+    if (!fogSettled) {
+      state.fogNear = wantNear;
+      state.fogFar = wantFar;
+      fogSettled = true;
+    } else {
+      const step = FOG_RATE * dt;
+      state.fogFar += clampAbs(wantFar - state.fogFar, step);
+      state.fogNear += clampAbs(wantNear - state.fogNear, step * 0.35);
+    }
+    /* Falling snow follows the dial the whole way down now. The old 0.12
+       floor was the always-snowing rule wearing a different hat, and under
+       a settled airmass it was the one thing left contradicting a blue
+       sky — flakes drifting past a sun with no cloud anywhere near it. */
+    state.snow = s * 1.06;
     /* Lightning — see FLASH above. The gate is a ramp rather than the bare
        `> 0.8` so a storm sliding across the threshold fades its strikes in
        instead of switching them on, and it multiplies the flash rather than
@@ -656,10 +770,20 @@ export function createWeather(THREE) {
       }
     }
 
-    // Wind swings slowly, and hard, once there is enough weather to carry it
+    /* Wind swings slowly, and hard, once there is enough weather to carry
+       it — and gusts on top of that. See `GUST`: the envelope is what turns
+       a direction into weather you can feel, and it stiffens towards a
+       constant blast as the storm closes so a blizzard does not pulse. */
     const swing = noise2(weatherClock / 23, 9.5, 5) * 2 - 1;
-    state.windX = swing * (1.5 + s * 16);
-    state.windZ = (noise2(weatherClock / 31, 2.5, 6) * 2 - 1) * (1 + s * 6);
+    const gustField = noise2(weatherClock / GUST.period, 3.5, GUST.seed) * 0.7
+      + noise2(weatherClock / (GUST.period * 2.6), 8.5, GUST.seed + 1) * 0.3;
+    const gustRaw = smooth(Math.min(1, Math.max(0,
+      (gustField - GUST.band[0]) / (GUST.band[1] - GUST.band[0]))));
+    const gustDepth = (1 - GUST.floor) * (1 - s * 0.55);
+    state.gust = 1 - gustDepth + gustDepth * GUST.reach * gustRaw;
+    state.windX = swing * (1.5 + s * 16) * state.gust;
+    state.windZ = (noise2(weatherClock / 31, 2.5, 6) * 2 - 1) * (1 + s * 6)
+      * state.gust;
 
     /* THE DECK. How much cloud is overhead, and where the wind has taken it.
 
