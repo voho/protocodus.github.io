@@ -293,6 +293,7 @@ export class Rider {
     this.startZ = z;
     this.startY = this.pos.y;
     this.landing = null;     // set for one frame after a landing
+    this.yawGlide = 0;       // presentation-only remainder of a landing snap
     this.contactFootprint = CONTACT_EPS * 2;
     this._handlingReady = false;
   }
@@ -361,7 +362,7 @@ export class Rider {
   /* `yaw` is the nose of the board; in switch the direction of travel is its
      tail. Clamp that stance-adjusted heading, not the raw nose, so regular and
      switch controls obey exactly the same course rule. */
-  limitCourseYaw(n, limit) {
+  limitCourseYaw(n, limit, dt = Infinity) {
     const flow = this.courseFrame(n);
     const courseYaw = Math.atan2(flow.x, -flow.z);
     const stanceOffset = this.switchStance ? Math.PI : 0;
@@ -369,7 +370,12 @@ export class Rider {
     const off = wrapPi(travelYaw - courseYaw);
     const fixed = clamp(off, -limit, limit);
     if (Math.abs(fixed - off) < 1e-5) return false;
-    this.yaw += wrapPi(courseYaw + fixed + stanceOffset - this.yaw);
+    // Same bounded pull-back as the skid clamp, and for the same reason: a
+    // press release shrinks `limit` in one frame, and the board should come
+    // back to course over a few steps rather than in one write.
+    const corr = wrapPi(courseYaw + fixed + stanceOffset - this.yaw);
+    const maxCorr = RIDER.skidRecover * dt;
+    this.yaw += clamp(corr, -maxCorr, maxCorr);
     return true;
   }
 
@@ -378,6 +384,11 @@ export class Rider {
   step(dt, input) {
     this.landing = null;
     this.grace = Math.max(0, this.grace - dt);
+    /* The rendered pose's share of the last landing snap, draining. Purely
+       visual — see where it is written in `land` and read in main's view
+       swap — so nothing in this step may consult it. */
+    this.yawGlide *= Math.exp(-RIDER.glideRate * dt);
+    if (Math.abs(this.yawGlide) < 0.002) this.yawGlide = 0;
 
     // Getting up is part of going down, so both states run the recovery
     // step. Dispatching only on 'fall' stopped the timer the moment
@@ -1020,8 +1031,14 @@ export class Rider {
       const limit = this.press > 0.02
         ? RIDER.maxSkid + (RIDER.pressSkid - RIDER.maxSkid) * this.press
         : brakeActive ? RIDER.brakeSkid : RIDER.maxSkid;
-      if (off > limit) this.yaw -= off - limit;
-      else if (off < -limit) this.yaw -= off + limit;
+      /* Bounded correction rather than a hard subtract. Steering grows the
+         excess by less than `skidRecover·dt` a step, so in continuous play
+         this binds identically — but when the LIMIT itself drops in one
+         input frame (a butter released, a brake let go) the board now swings
+         back over a few frames instead of teleporting to legal. */
+      const maxCorr = RIDER.skidRecover * dt;
+      if (off > limit) this.yaw -= Math.min(off - limit, maxCorr);
+      else if (off < -limit) this.yaw -= Math.max(off + limit, -maxCorr);
     }
 
     // A carve can cross almost the entire hill, but it cannot become a U-turn.
@@ -1036,7 +1053,7 @@ export class Rider {
     const courseLimit = this.press > 0.02
       ? RIDER.courseLimit + (RIDER.pressSkid - RIDER.courseLimit) * this.press
       : brakeActive ? RIDER.brakeCourseLimit : RIDER.courseLimit;
-    if (this.limitCourseYaw(n, courseLimit)) this.spinVel = 0;
+    if (this.limitCourseYaw(n, courseLimit, dt)) this.spinVel = 0;
 
     /* What the press actually carried round, booked once and here.
        `stepYaw` is from before any of the rotation rules ran and this is
@@ -1719,6 +1736,17 @@ export class Rider {
       vel.z += Math.sin(travelYaw) * steer * dt;
     }
 
+    /* And the weather's own hand. With no edge in the snow an airborne board
+       is a sail: the storm's surface wind leans on the flight, calm days
+       imperceptibly, a blizzard by enough to move a long air's landing by a
+       board length or two. The ground never takes this — grip owns it. */
+    const windX = this.world.windX || 0;
+    const windZ = this.world.windZ || 0;
+    if (windX !== 0 || windZ !== 0) {
+      vel.x += windX * RIDER.windAir * dt;
+      vel.z += windZ * RIDER.windAir * dt;
+    }
+
     // Keep the same powered W drive through jumps. Raise only the horizontal
     // component by enough to reach the total-speed floor; vertical velocity
     // remains the ballistic value gravity produced, so the jump arc and
@@ -1913,7 +1941,14 @@ export class Rider {
          "this was a trick rather than chatter", and it is the right test
          here too. */
       if (judged) {
-        this.yaw = isSwitch ? travelYaw + Math.PI : travelYaw;
+        /* The physics squares the board in one write — judging and the next
+           carve both need the aligned stance now — but the few degrees the
+           landing assist did not close are handed to `yawGlide`, which the
+           renderer subtracts and drains over a tenth of a second. The same
+           landing, minus the one-frame twitch. */
+        const snapped = isSwitch ? travelYaw + Math.PI : travelYaw;
+        this.yawGlide = clamp(wrapPi(this.yaw - snapped), -1.1, 1.1);
+        this.yaw = snapped;
         this.switchStance = isSwitch;
       }
       // A sketchy landing wobbles and costs speed; a clean one costs nothing
@@ -2073,7 +2108,7 @@ export class Rider {
         const n = normalFrom(this.world.height, pos.x, pos.z, this._n);
         const restart = clamp(vel.length(), 6, 12);
         this.switchStance = false;
-        this.limitCourseYaw(n, RIDER.recoveryCourseLimit);
+        this.limitCourseYaw(n, RIDER.recoveryCourseLimit, dt);
         const h = this._h.set(Math.sin(this.yaw), 0, -Math.cos(this.yaw));
         h.addScaledVector(n, -h.dot(n)).normalize();
         vel.copy(h).multiplyScalar(restart);
@@ -2098,7 +2133,7 @@ export class Rider {
       if (Math.hypot(vel.x, vel.z) > 0.5) {
         const travelYaw = Math.atan2(vel.x, -vel.z);
         this.yaw += wrapPi(travelYaw - this.yaw) * (1 - Math.exp(-5 * dt));
-        this.limitCourseYaw(n, RIDER.recoveryCourseLimit);
+        this.limitCourseYaw(n, RIDER.recoveryCourseLimit, dt);
       }
       pos.x += vel.x * dt;
       pos.z += vel.z * dt;

@@ -200,6 +200,18 @@ export function createChaseCamera(THREE, camera) {
   let bank = 0;
   let seed = 0;
   let treeBoom = 1;
+  /* The air frame's own crossfade. `rider.state` flips in one physics step,
+     and everything the boolean used to gate — boom, height, look sink, lag,
+     lens, bank, chatter — changed target in the same frame, which read as
+     the camera catching on something at every touchdown. The blend eases
+     in fast enough to open with a real jump and out slow enough that a
+     landing settles instead of snapping; the two memories hold the flight's
+     last opening and sink so the descent of the frame is from where the
+     flight actually left it, not from a target that collapsed to zero the
+     moment `airTime` reset. */
+  let airBlend = 0;
+  let hangMem = 0;
+  let sinkMem = 0;
 
   function kick(amount) {
     shake = Math.min(2.4, shake + amount);
@@ -223,10 +235,17 @@ export function createChaseCamera(THREE, camera) {
     // made every crash look like a soaring air.
     const air = rider.state === 'air';
     const tuck = rider.tucking ? 1 : 0;
+    airBlend += ((air ? 1 : 0) - airBlend)
+      * (1 - Math.exp(-(air ? 9 : 6.5) * dt));
+    if (airBlend < 0.002) airBlend = 0;
     // Eased rather than linear, so the frame opens promptly off a small
     // roller and still has somewhere left to go through a long flight
-    const hang = clamp(rider.airTime / AIR_OPEN, 0, 1);
-    const airT = air ? hang * (2 - hang) : 0;
+    if (air) {
+      const hang = clamp(rider.airTime / AIR_OPEN, 0, 1);
+      hangMem = hang * (2 - hang);
+      sinkMem = Math.min(2.0, Math.max(0, -rider.vel.y) * 0.11);
+    }
+    const airT = airBlend * hangMem;
 
     // Which way the run is actually heading: mostly the velocity, a little
     // the board. Pure velocity swims about at low speed; pure heading hides
@@ -254,7 +273,8 @@ export function createChaseCamera(THREE, camera) {
        decay, so the ease-out needs no clock of its own. */
     const back = CAMERA.distance + ratio * 1.6 + tuck * CAMERA.tuckPull + airT * AIR_PULL
       - punch * 0.075;
-    const up = (air ? CAMERA.airHeight + airT * AIR_LIFT : CAMERA.height)
+    const up = CAMERA.height
+      + (CAMERA.airHeight - CAMERA.height) * airBlend + airT * AIR_LIFT
       - rider.compression * 0.85
       - tuck * CAMERA.tuckDrop;
 
@@ -280,11 +300,24 @@ export function createChaseCamera(THREE, camera) {
        the bottom of a bowl. */
     const ny = Math.max(0.25, rider.normal.y);
     if (aboveSlope(world, rider, ny, want.x, want.z) > CLIMB) {
+      /* Coarse walk to bracket the wall, then a short bisection to place
+         its boundary continuously — the same refinement the tree sightline
+         already earned. Using the coarse sample alone stepped the boom in
+         visible 19% jumps as a quarterpipe rose behind the rider. */
       let clear = 0.3;
+      let blocked = 1.0;
       for (let t = 0.86; t >= 0.29; t -= 0.19) {
         const cx = rider.pos.x + (want.x - rider.pos.x) * t;
         const cz = rider.pos.z + (want.z - rider.pos.z) * t;
         if (aboveSlope(world, rider, ny, cx, cz) <= CLIMB) { clear = t; break; }
+        blocked = t;
+      }
+      for (let j = 0; j < 4; j++) {
+        const mid = (clear + blocked) * 0.5;
+        const cx = rider.pos.x + (want.x - rider.pos.x) * mid;
+        const cz = rider.pos.z + (want.z - rider.pos.z) * mid;
+        if (aboveSlope(world, rider, ny, cx, cz) <= CLIMB) clear = mid;
+        else blocked = mid;
       }
       want.x = rider.pos.x + (want.x - rider.pos.x) * clear;
       want.z = rider.pos.z + (want.z - rider.pos.z) * clear;
@@ -312,7 +345,7 @@ export function createChaseCamera(THREE, camera) {
     // In the air the look point sinks towards the snow the rider is falling
     // at — partly with the flight, and partly with how fast they are coming
     // down, so a long float looks ahead and a plummet looks under itself
-    const drop = air ? 1.2 + airT * AIR_SINK + Math.min(2.0, Math.max(0, -rider.vel.y) * 0.11) : 0;
+    const drop = airBlend * (1.2 + sinkMem) + airT * AIR_SINK;
     wantLook.y = rider.pos.y + 1.1 - drop;
 
     if (!started) {
@@ -321,8 +354,9 @@ export function createChaseCamera(THREE, camera) {
       look.copy(wantLook);
     }
 
-    const baseLag = air ? CAMERA.airLag : CAMERA.lag;
-    const followError = air ? CAMERA.maxAirFollowError : CAMERA.maxFollowError;
+    const baseLag = CAMERA.lag + (CAMERA.airLag - CAMERA.lag) * airBlend;
+    const followError = CAMERA.maxFollowError
+      + (CAMERA.maxAirFollowError - CAMERA.maxFollowError) * airBlend;
     // A first-order chase trails steady motion by roughly speed / lag. Near
     // the 250 m/s flow cap a fixed response would put the camera far behind
     // the rider. The ordinary range keeps its tuned
@@ -353,9 +387,9 @@ export function createChaseCamera(THREE, camera) {
     // --- shake ------------------------------------------------------------
     // Two sources, both earned: the ground chattering under the board at
     // speed, and whatever just hit the rider. Neither happens in the air.
-    const chatter = air || rider.state === 'fall'
+    const chatter = rider.state === 'fall'
       ? 0
-      : ratio * ratio * CAMERA.shake * (0.5 + 0.5 * rider.carveLoad);
+      : (1 - airBlend) * ratio * ratio * CAMERA.shake * (0.5 + 0.5 * rider.carveLoad);
     shake = Math.max(0, shake - dt * 4.5);
     const amp = (chatter + shake) * 0.06;
     seed += dt * 47;
@@ -375,7 +409,8 @@ export function createChaseCamera(THREE, camera) {
        `rider.normal` is a memory of the lip rather than a report on the
        ground, and eased at all times so a quarterpipe arrives rather than
        snaps. */
-    const tilt = air ? 0 : rider.normal.z * dir.x - rider.normal.x * dir.z;
+    const tilt = (1 - airBlend)
+      * (rider.normal.z * dir.x - rider.normal.x * dir.z);
     const graded = Math.sign(tilt) * Math.max(0, Math.abs(tilt) - BANK_DEAD) / (1 - BANK_DEAD);
     bank += (graded - bank) * (1 - Math.exp(-BANK_RATE * dt));
 
@@ -399,7 +434,7 @@ export function createChaseCamera(THREE, camera) {
     const wantFov = RENDER.fov
       + (RENDER.fovAtSpeed - RENDER.fov) * ratio * ratio
       + tuck * CAMERA.tuckFov
-      + (air ? -3 + airT * AIR_FOV : 0);
+      + airBlend * -3 + airT * AIR_FOV;
     fov += (wantFov - fov) * (1 - Math.exp(-3.5 * dt));
     punch *= Math.exp(-CAMERA.landFovDecay * dt);
     if (punch < 0.02) punch = 0;
@@ -429,6 +464,9 @@ export function createChaseCamera(THREE, camera) {
     roll = 0;
     bank = 0;
     treeBoom = 1;
+    airBlend = 0;
+    hangMem = 0;
+    sinkMem = 0;
   }
 
   return { update, kick, land, reset, get shake() { return shake; } };

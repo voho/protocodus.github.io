@@ -1488,6 +1488,28 @@ export const RIDER = {
   spinRamp: 3.2,      // rad/s² — the spin winds up rather than snapping on
   flipRate: 6.2,
   airSteer: 2.6,      // m/s² of drift, for picking a landing line
+  /* The storm leaning on an airborne rider. Multiplied by the weather's own
+     surface wind (roughly ±1.5 m/s calm, ±17 m/s in a blizzard), so a calm
+     day is imperceptible and a whiteout genuinely pushes a long air off its
+     line — the one place the wind can grab a board with no edge in the
+     snow. Grounded riding stays wind-free: grip owns the ground. */
+  windAir: 0.055,
+  /* Two rates that keep yaw corrections from teleporting the board.
+
+     `skidRecover` bounds how fast the skid and course clamps may pull
+     excess heading back once their limit is exceeded. During ordinary
+     riding the excess grows by less than this in a step, so the clamps
+     bind exactly as before; the difference is the discrete events — a
+     butter released, a brake let go — where the allowed skid shrinks by
+     sixty degrees in one input frame and the board used to snap to match.
+
+     `glideRate` drains the presentation-only remainder of a landing snap:
+     the physics still squares the board on touchdown (judging and the
+     next carve need it), but the few degrees the assist did not close
+     glide out of the *rendered* pose over about a tenth of a second
+     instead of jumping. */
+  skidRecover: 9.5,   // rad/s
+  glideRate: 11,      // per second, exponential
   /* Landing assist.
 
      Instead of a second key for air steering, the board finds its own way

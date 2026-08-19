@@ -1234,6 +1234,10 @@ function frame(now) {
     // wash out on. The endpoints stay arcade-readable rather than punitive.
     world.grip = 1 - w.storm * (1 - RIDER.stormGrip);
     world.surfaceDrag = 1 + w.storm * (RIDER.stormFriction - 1);
+    // The same surface wind the trees and snowfall already answer to now
+    // reaches the physics: an airborne rider is leaned on by the storm.
+    world.windX = w.windX;
+    world.windZ = w.windZ;
     scene.fog.color.copy(w.haze);
     // Lightning whitens the dome, so everything dissolving into the dome
     // whitens with it — a strike that leaves the fog its old colour reads
@@ -1323,7 +1327,11 @@ function frame(now) {
       truePos.copy(rider.pos);
       trueYaw = rider.yaw;
       rider.pos.copy(viewPos);
-      rider.yaw = stepFromYaw + (trueYaw - stepFromYaw) * stepAlpha;
+      // `yawGlide` is the un-drained remainder of the last landing snap —
+      // presentation only, so it is subtracted here where the pose becomes
+      // a picture and never seen by the physics that wrote it.
+      rider.yaw = stepFromYaw + (trueYaw - stepFromYaw) * stepAlpha
+        + rider.yawGlide;
       viewSwapped = true;
     }
 
