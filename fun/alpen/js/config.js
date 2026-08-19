@@ -742,6 +742,24 @@ export const TERRAIN = {
      hundred metres of descent has no edge at all. It costs two noise lookups
      per row rather than two per vertex, which is the entire reason it is
      affordable inside the physics step. */
+  /* THE MASSIF CYCLE — the mountain's kilometre-scale table of contents.
+
+     Everything below `character` varies the ground at hundreds of metres,
+     which reads as texture; nothing varied it at thousands, which is why
+     five kilometres in, the run had settled into one statistical mountain
+     for ever (see the note above `snowLine`). Chapters fix that at the
+     scale a real descent changes: every `period` metres the run crosses
+     into the next cirque of the range — a glacier shelf, a walled couloir,
+     a forested vale, open powder bowls, a wind-scoured crest — each a
+     profile over the SAME generators (corridor width, wall height, band
+     widths, the five octave channels, snow cover, iciness, tree cover),
+     lerped across `edge` metres of transition so nothing steps. Profiles
+     live beside the generators in terrain.js; these are the dials. */
+  chapters: {
+    period: 1700,
+    edge: 220,
+    seed: 6011,
+  },
   character: {
     busyFreq: 0.0022,   // ≈455 m of hill per chapter of "how much is going on"
     fineFreq: 0.0031,   // ≈323 m of "and how short its wavelength is"

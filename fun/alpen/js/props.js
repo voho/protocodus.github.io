@@ -102,6 +102,7 @@
 
 import {
   heightAt, nearestCenter, corridorHalfAt, centersAt, normalFrom, gateSlotsIn, SNOWPACK,
+  chapterTreesAt,
 } from './terrain.js';
 import { createModelUpgrader } from './importedModels.js';
 import { growCardSpruce } from './spruce.js';
@@ -2796,7 +2797,13 @@ export function createProps(THREE, shading) {
        One value for the whole band, because a band is forty metres and the
        treeline moves over hundreds. */
     const down = smoothstep(FOREST.line[0], FOREST.line[1], travelled);
-    const lineCover = lerp(FOREST.lineCover[0], FOREST.lineCover[1], down);
+    /* The chapter owns the second factor: the treeline used to close over
+       the first 1.6 km and then hold for ever; now a glacier shelf or a
+       wind crest thins the stand back to scattered survivors and a forest
+       vale doubles down, for as long as the run goes. z-keyed like every
+       other placement fact, so bands re-stream identically. */
+    const lineCover = lerp(FOREST.lineCover[0], FOREST.lineCover[1], down)
+      * chapterTreesAt(z0 + band * 0.5);
     const lineScale = lerp(FOREST.lineScale[0], FOREST.lineScale[1], down);
 
     /* --- readable rock hazard -------------------------------------------

@@ -67,7 +67,11 @@ import { buildShadowRegion } from './shadow-cache.js';
    pack stops deepening with height and starts varying with everything else,
    and below the snow line proper there is no snow at all — which this run
    cannot have, because it is a snowboard game. So the altitude term does its
-   work over the first kilometre and a half of descent and then hands over.
+   work over the first kilometre and a half of descent and then hands over —
+   to the CHAPTERS now, not to statistics: the massif cycle (see
+   TERRAIN.chapters and `chapterTraitsAt`) keeps re-weighing cover, ice,
+   octaves, corridor and treeline every couple of kilometres for as long as
+   the run goes, which is what "endless" failed to mean before.
 
    RELIEF is what it hands over to, and it is permanent because it is local:
    `h - ctx.base` is how far this vertex stands above the plane the grade says
@@ -240,7 +244,8 @@ export const SNOWPACK = {
 };
 
 const { wander, route, corridor, wall, cliffs, knolls, zones, guide,
-  ridges, rolls, moguls, chatter, warp, bulgeVary, character } = TERRAIN;
+  ridges, rolls, moguls, chatter, warp, bulgeVary, character,
+  chapters } = TERRAIN;
 const GRADE = TERRAIN.grade;
 const SHADE = TERRAIN.shade;
 
@@ -323,9 +328,109 @@ function forkSplit(z) {
   return route.split * smooth01(k);
 }
 
-/* The groomed half-width, which breathes on a long sine. */
+/* ==========================================================================
+   The chapters — the massif cycle. See TERRAIN.chapters in the config.
+
+   Each profile is a set of multipliers over generators that already exist,
+   so a chapter can only re-weigh the mountain, never invent a new failure
+   mode: the slope budget, the containment guarantee and the collision
+   normals all survive because every term they protect is scaled, not
+   replaced. Everything is keyed off block index and world seed alone —
+   the same purity rule the forks, gates, cliffs and knolls follow — so a
+   chapter stands exactly where it stood however the run is re-entered.
+
+   `oct` is per octave channel: ridges, rolls, moguls, chatter, knolls.
+   `icy`/`cover` bias the snowpack (blue scoured hardpack vs deep fill),
+   `trees` is read by the props' treeline, and `cliffs` gates the drop
+   generator. The opening block is always the forest vale, so the first
+   minute of every run reads as the familiar treelined piste before the
+   range starts turning. */
+const CHAPTERS = [
+  { name: 'glacier shelf', corridor: 1.30, lip: 0.74, wallH: 0.90,
+    powder: 0.62, rock: 1.35, oct: [0.85, 0.72, 0.45, 0.78, 0.70],
+    icy: 0.72, cover: -0.20, trees: 0.15, cliffs: 1.35 },
+  { name: 'walled couloir', corridor: 0.62, lip: 1.50, wallH: 1.14,
+    powder: 0.72, rock: 1.28, oct: [1.12, 1.18, 0.85, 1.10, 0.85],
+    icy: 0.28, cover: -0.05, trees: 0.40, cliffs: 1.5 },
+  { name: 'forest vale', corridor: 1.00, lip: 0.85, wallH: 0.92,
+    powder: 1.16, rock: 0.66, oct: [0.85, 1.00, 1.15, 1.00, 1.10],
+    icy: 0.03, cover: 0.15, trees: 1.45, cliffs: 0.55 },
+  { name: 'powder bowls', corridor: 1.16, lip: 1.00, wallH: 1.00,
+    powder: 1.38, rock: 0.88, oct: [1.22, 1.15, 1.32, 0.85, 1.40],
+    icy: 0.08, cover: 0.22, trees: 0.72, cliffs: 0.85 },
+  { name: 'wind crest', corridor: 0.84, lip: 1.16, wallH: 1.05,
+    powder: 0.85, rock: 1.14, oct: [1.32, 0.88, 0.62, 1.28, 1.00],
+    icy: 0.40, cover: -0.12, trees: 0.48, cliffs: 1.1 },
+];
+
+function chapterIndexAt(b) {
+  if (b <= 0) return 2; // the vale, always, for the opening
+  const pick = Math.floor(hash2(b, chapters.seed, 91) * CHAPTERS.length)
+    % CHAPTERS.length;
+  const prev = b === 1 ? 2
+    : Math.floor(hash2(b - 1, chapters.seed, 91) * CHAPTERS.length)
+      % CHAPTERS.length;
+  if (pick !== prev) return pick;
+  // Never the same cirque twice in a row: variety is the whole point.
+  return (pick + 1 + Math.floor(hash2(b, chapters.seed, 93) * (CHAPTERS.length - 2)))
+    % CHAPTERS.length;
+}
+
+const chapterScratch = {
+  z: NaN, seed: NaN, name: '', corridor: 1, lip: 1, wallH: 1,
+  powder: 1, rock: 1, oct: [1, 1, 1, 1, 1], icy: 0, cover: 0,
+  trees: 1, cliffs: 1,
+};
+
+/* The blended profile at z. One shared scratch, memoised on (z, seed):
+   every caller inside one row — the corridor, the bands, the row context,
+   the material — asks about the same z and pays for one blend. Callers
+   must copy out anything they hold past their own call. */
+function chapterTraitsAt(z) {
+  const seed = getWorldSeed();
+  const out = chapterScratch;
+  if (out.z === z && out.seed === seed) return out;
+  out.z = z;
+  out.seed = seed;
+  const p = -z / chapters.period;
+  const b = Math.floor(p);
+  const f = p - b;
+  const cur = CHAPTERS[chapterIndexAt(b)];
+  const nxt = CHAPTERS[chapterIndexAt(b + 1)];
+  const span = chapters.edge / chapters.period;
+  const t = smooth01(clamp01((f - (1 - span)) / span));
+  out.name = t < 0.5 ? cur.name : nxt.name;
+  out.corridor = cur.corridor + (nxt.corridor - cur.corridor) * t;
+  out.lip = cur.lip + (nxt.lip - cur.lip) * t;
+  out.wallH = cur.wallH + (nxt.wallH - cur.wallH) * t;
+  out.powder = cur.powder + (nxt.powder - cur.powder) * t;
+  out.rock = cur.rock + (nxt.rock - cur.rock) * t;
+  for (let i = 0; i < 5; i++) out.oct[i] = cur.oct[i] + (nxt.oct[i] - cur.oct[i]) * t;
+  out.icy = cur.icy + (nxt.icy - cur.icy) * t;
+  out.cover = cur.cover + (nxt.cover - cur.cover) * t;
+  out.trees = cur.trees + (nxt.trees - cur.trees) * t;
+  out.cliffs = cur.cliffs + (nxt.cliffs - cur.cliffs) * t;
+  return out;
+}
+
+/* For the props: how much of a treeline this stretch of the range keeps. */
+export function chapterTreesAt(z) {
+  return chapterTraitsAt(z).trees;
+}
+
+/* For the HUD and the debugger: where the run is. */
+export function chapterNameAt(z) {
+  return chapterTraitsAt(z).name;
+}
+
+/* The groomed half-width, which breathes on a long sine — and with the
+   chapter: a glacier shelf is a boulevard, a couloir is a corridor you
+   thread. Scaled here, at the single definition, so the height field, the
+   colour pass, the props' verge, the huts and the rider's stall rule all
+   agree about where the groomed edge is. */
 export function corridorHalfAt(z) {
-  return corridor.half + corridor.vary * Math.sin(z * corridor.freq);
+  return (corridor.half + corridor.vary * Math.sin(z * corridor.freq))
+    * chapterTraitsAt(z).corridor;
 }
 
 /* The two shoulder bands past the groomed edge — ungroomed snow, then the
@@ -334,10 +439,11 @@ export function corridorHalfAt(z) {
    none of them can disagree about where the powder ends and the talus
    starts. */
 export function bandWidthsAt(z, out = [0, 0]) {
-  out[0] = zones.powder[0] + (zones.powder[1] - zones.powder[0])
-    * (0.5 + 0.5 * snoise2(z * zones.freq, 5.1, 173));
-  out[1] = zones.rock[0] + (zones.rock[1] - zones.rock[0])
-    * (0.5 + 0.5 * snoise2(z * zones.freq, -3.7, 179));
+  const tr = chapterTraitsAt(z);
+  out[0] = (zones.powder[0] + (zones.powder[1] - zones.powder[0])
+    * (0.5 + 0.5 * snoise2(z * zones.freq, 5.1, 173))) * tr.powder;
+  out[1] = (zones.rock[0] + (zones.rock[1] - zones.rock[0])
+    * (0.5 + 0.5 * snoise2(z * zones.freq, -3.7, 179))) * tr.rock;
   return out;
 }
 
@@ -504,8 +610,13 @@ export function getTerrainMaterialAt(x, z) {
   const rock = smoothstep(w[0], w[0] + 12, past)
     * (1 - 0.7 * smoothstep(w[0] + w[1], w[0] + w[1] + 90, past))
     * 0.74;
-  // Scoured névé where the wall starts shedding its cover.
-  const ice = smoothstep(w[0] + w[1], w[0] + w[1] + 50, past) * 0.6;
+  // Scoured névé where the wall starts shedding its cover — and, in a
+  // glacier or crest chapter, spread across the open ground as well: the
+  // picture up there is blue hardpack, so the handling is too. The groomed
+  // ribbon keeps its machine surface; the piste stays the reliable line.
+  const chapIce = chapterTraitsAt(z).icy * 0.55 * (1 - groomed);
+  const ice = Math.min(1,
+    smoothstep(w[0] + w[1], w[0] + w[1] + 50, past) * 0.6 + chapIce);
   const powder = Math.max(0, (1 - groomed) * (1 - rock) * (1 - ice));
 
   surfMaterial.rock = rock;
@@ -574,6 +685,9 @@ function makeContext() {
     // What this stretch of mountain is made of: one multiplier per octave,
     // mixed from the three characters. See `TERRAIN.character`.
     mix: [1, 1, 1, 1, 1],
+    chapterIcy: 0,       // the chapter's snowpack bias — see TERRAIN.chapters
+    chapterCover: 0,
+    chapterWallH: 1,
     plain: 0,            // …and the mixture itself, for anything that wants
     bumps: 0,            // to know what kind of ground this is rather than
     swells: 0,           // merely how rough it is
@@ -620,6 +734,19 @@ function rowContext(z, ctx) {
   ctx.z = z;
   ctx.seed = seed;
   characterAt(z, ctx);
+  /* The chapter's re-weighing of this row. The octave channels multiply
+     into the character mix (same slope-budget arithmetic — a product of
+     bounded weights), and the snowpack/wall factors ride the context so
+     the height and colour passes read one agreed set of numbers. */
+  const chap = chapterTraitsAt(z);
+  for (let i = 0; i < 5; i++) {
+    ctx.mix[i] = Math.min(2.6, ctx.mix[i] * chap.oct[i]);
+  }
+  ctx.chapterIcy = chap.icy;
+  ctx.chapterCover = chap.cover;
+  ctx.chapterWallH = chap.wallH;
+  const chapterLip = chap.lip;
+  const chapterCliffs = chap.cliffs;
 
   // The grade, integrated. d/dz of this is base + Σ amp·sin(freq·z + phase),
   // which is the pitch the rider actually feels underneath them.
@@ -652,7 +779,7 @@ function rowContext(z, ctx) {
   // Some stretches get a wall worth aiming at and some get a mellow bank
   const v = 1 + wall.lipVary * snoise2(z * wall.lipFreq, 0, 23);
   ctx.lipW = wall.lipWidth * v;
-  ctx.lipH = wall.lipHeight * v;
+  ctx.lipH = wall.lipHeight * v * chapterLip;
   /* The flank fields are row facts. Precomputing both sides here avoids four
      identical noise samples for every lateral vertex in a generated row —
      and `heightAt`, which asks for only one point, still takes the exact same
@@ -675,7 +802,13 @@ function rowContext(z, ctx) {
   for (let k = 0; k <= 1; k++) {
     const b = b0 - k;
     if (b < 1) continue;   // the first stretch of the run is left alone
-    if (hash2(b, 5501, 61) > cliffs.chance) continue;
+    /* The chapter dials the drop generator, and it is evaluated at the
+       block's own anchor rather than at this row — a cliff whose existence
+       varied row by row across a chapter edge would be a step in the height
+       field. Forested vales lose most of their drops; couloirs and glacier
+       walls gain them. */
+    const cliffGate = chapterTraitsAt(-(b * cliffs.period)).cliffs;
+    if (hash2(b, 5501, 61) > cliffs.chance * cliffGate) continue;
     // Placed anywhere in its block that leaves room for the whole feature —
     // the face and its runout — to finish before the next block starts
     const lip = -(b * cliffs.period) - (cliffs.period - CLIFF_SPAN) * hash2(b, 173, 62);
@@ -1003,7 +1136,7 @@ function heightIn(ctx, x, coarseDetail = 1, fineDetail = coarseDetail,
          crease precisely at their join defeated the otherwise smooth profile. */
       const creepShape = w - wall.creepEase * (1 - Math.exp(-w / wall.creepEase));
       const eu = Math.exp(-u * u);
-      h += wall.height * (1 - eu) + wall.creep * creepShape;
+      h += wall.height * ctx.chapterWallH * (1 - eu) + wall.creep * creepShape;
 
       /* Alpine mountain flank geology: jagged ribs, rocky spines, stepped terraces,
          and sculpted couloirs that give the side mountains dramatic 3D relief. */
@@ -1799,6 +1932,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   const groomedSurface = { value: neutralSurface };
   const rockSurface = { value: neutralSurface };
   const sandstoneSurface = { value: neutralSurface };
+  const iceSurface = { value: neutralSurface };
   const snowReady = { value: new THREE.Vector2() };
   const snowReadyTarget = new THREE.Vector2();
 
@@ -1973,6 +2107,9 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     }),
     loadRock('rock-slate.jpg', rockSurface),
     loadRock('rock-granite.jpg', sandstoneSurface),
+    // The glacier plate, finally earning its place on disk: blue compressed
+    // hard-pack for the chapters whose ground is ice rather than snow.
+    loadSurface('ice-glacier.jpg', (t) => { iceSurface.value = t; }),
   ]);
 
   /* Surface detail, in the fragment shader rather than in the mesh.
@@ -2000,6 +2137,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       uSnowGroomed: groomedSurface,
       uRockTex: rockSurface,
       uSandstoneTex: sandstoneSurface,
+      uIceTex: iceSurface,
       uSnowReady: snowReady,
       uSnowTile: snowTile,
       uTilePowderMacro: tilePowderMacro,
@@ -2082,6 +2220,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
         uniform sampler2D uRockTex;
         uniform sampler2D uSandstoneTex;
         uniform vec2 uSnowReady;
+        uniform sampler2D uIceTex;
         uniform vec2 uSnowTile;
         uniform vec2 uSnowAlbedo;
         uniform vec2 uSnowHeight;`)
@@ -2173,6 +2312,18 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
               * uSnowAlbedo.y * n64GroomMacro;
           }
           diffuseColor.rgb *= 1.0 + n64AlbedoDelta * n64SurfaceFade;
+        }
+        /* Glacier hardpack. The surface's own reflect channel already says
+           where the pack has gone to ice — the sheen reads it — so the blue
+           glacier plate arrives on exactly that ground and nowhere else.
+           Reusing the powder plate's world-stable uv (rescaled) keeps it
+           welded to the mountain without a second set of origin uniforms. */
+        float n64IceW = smoothstep(0.58, 0.90, vN64Ice)
+          * n64SnowMask * n64SurfaceFade;
+        if (n64IceW > 0.004) {
+          vec3 n64IceSample = texture2D(uIceTex, powderUv * 2.2).rgb;
+          diffuseColor.rgb = mix(diffuseColor.rgb,
+            diffuseColor.rgb * (0.52 + 1.05 * n64IceSample), n64IceW * 0.8);
         }
         /* The deliberately blurred macro pass above preserves large snow
            tone but erases the groomer's finest ribs. Restore just a trace of
@@ -2750,7 +2901,10 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
          riding the altitude term has said all it has to say and the bands and
          the relief carry the mountain on their own. */
       const alt = smoothstep(P.snowLine[0], P.snowLine[1], -ctx.base);
-      const rowCover = P.base + P.altitude * alt;
+      /* The altitude term saturates by design (see the head of the file);
+         the chapter is what varies the pack for ever after: a glacier
+         shelf sheds cover, a powder bowl deepens it. */
+      const rowCover = P.base + P.altitude * alt + ctx.chapterCover;
       const bandZ = wz * P.band.freq;
 
       for (let c = 0; c < vertsX; c++, i++, p += 3, q += 4, g += 2) {
@@ -2987,13 +3141,14 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
            lift towards the shade stop for the broad wind-packed patches and
            for faces turned away from where the sun goes — snow lying in the
            mountain's own shadow is the bluest thing on it. */
-        const icy = 1 - smoothstep(P.pack[0], P.pack[1], cover);
         /* Albedo describes snowpack, not a lamp. The old lee-face term baked a
            permanent cobalt shadow into the vertex colour and the live sun,
            hemisphere, terrain horizon and post grade all shaded it again.
            Broad wind crust keeps the material variation, but its direction is
            now free to respond honestly when the sun moves across the sky. */
         const packField = noise2(wx * 0.02, wz * 0.02, 7);
+        const icy = clamp01((1 - smoothstep(P.pack[0], P.pack[1], cover))
+          + ctx.chapterIcy * (1 - pisteCover) * (0.45 + 0.55 * packField));
         /* Wind crust and the broad pack mottle are both things that happen to
            snow nobody is maintaining, and the machine takes out both. The
            suppression used to be `groomed` — the corduroy ribbon alone, sixteen
@@ -3457,6 +3612,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     vertexCount: count,
     debug: () => ({
       anchorX, anchorY, anchorZ, morphing, morphAge,
+      chapter: chapterNameAt(anchorZ),
       // What the four gate slots are lit with this frame — the only way to
       // tell a glow that is in the wrong place from one that is not there
       gates: gateGlow.value.map((g) => [
