@@ -3422,6 +3422,43 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
      keeps the denser `fill` pass from running more often than the old mesh. */
   const stride = spacing * 8;
 
+  /* HOW OFTEN THE MESH RE-CENTRES, and why that is not a constant.
+
+     A rebuild is a hundred and ten thousand vertices through two passes —
+     measured at about a hundred and ten milliseconds on an ordinary machine
+     — and `advanceBuild` below spends it four milliseconds at a time, so it
+     occupies roughly eighteen frames. One stride is six metres, so the
+     anchor moves every 6/v seconds. Those two numbers meet at twenty metres
+     a second, which is not fast on this mountain: past it the next anchor
+     arrives before the last build has committed, and the rebuild simply
+     never stops. Instrumented on the run, ninety-five per cent of frames
+     were carrying build work — permanently, for a mesh that was permanently
+     an anchor behind where it should have been.
+
+     So the cadence measures itself. Every commit records how long its build
+     took and how long the mesh had been idle before it started; when that
+     duty cycle saturates the anchor grid coarsens by a stride, and when it
+     falls away the grid fines back. The dwell is what stops it oscillating
+     across a boundary.
+
+     Coarsening costs less than it looks. The lattice is uniform for seventy
+     metres around the anchor, so even at the widest step the rider still has
+     sixty metres of stable seventy-five-centimetre cells ahead of them — and
+     every step is a whole number of cells, which is the invariant the
+     near-field snap actually rests on. It also hands the LOD morph *more*
+     time between anchors rather than less, which is the opposite of the
+     failure described above the stride: a far field permanently in motion
+     because its target moved again before the glide could arrive.
+
+     And none of it engages on a machine that is keeping up. A desktop at
+     riding speed never leaves one stride. */
+  const ANCHOR_MUL_MAX = 4;
+  const ANCHOR_DWELL = 3;    // commits to hold a level before moving again
+  let anchorMul = 1;
+  let anchorDwell = 0;
+  let buildStartedAt = 0;
+  let buildIdleFrom = 0;
+
   /* A full 109k-vertex target fill is too large for one animation frame. The
      old synchronous rebuild could take roughly forty milliseconds, turning a
      six-metre anchor into a recurring camera hitch. Generate the next lattice
@@ -3432,13 +3469,17 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
      longer one of them: the world cache above is independent and its future
      off-screen tiles run in a worker. */
   const BUILD_BUDGET_MS = 4.0;
-  const BUILD_BATCH_ROWS = 8;
+  /* The deadline is only tested between batches, so a batch is also the
+     budget's overrun. Eight rows cost about 1.3 ms and turned a 4 ms budget
+     into a measured 6; four rows halve the tail for no extra per-row work. */
+  const BUILD_BATCH_ROWS = 4;
   let build = null;
   const clockNow = () => (globalThis.performance?.now?.() ?? Date.now());
 
   function beginBuild(ax, az, ay) {
     // The spare arrays are independent of an in-flight visible convergence.
     build = { ax, az, ay, stage: 0, row: 0 };
+    buildStartedAt = clockNow();
   }
 
   function commitBuild(next) {
@@ -3474,6 +3515,27 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     // Translation is the only live attribute changed on the commit frame.
     // The remaining four start their continuous trip on the next morph tick.
     geometry.attributes.position.needsUpdate = true;
+
+    /* What this build cost, against what the mesh had spare before it. A
+       duty near one means the anchors are arriving faster than the builds
+       can retire them and the grid has to coarsen; a low one means there is
+       room to buy the near lattice back. See the note beside `anchorMul`. */
+    const settled = clockNow();
+    const span = settled - buildStartedAt;
+    const idle = Math.max(0, buildStartedAt - buildIdleFrom);
+    buildIdleFrom = settled;
+    if (anchorDwell > 0) {
+      anchorDwell -= 1;
+    } else {
+      const duty = span / Math.max(1e-3, span + idle);
+      if (duty > 0.75 && anchorMul < ANCHOR_MUL_MAX) {
+        anchorMul += 1;
+        anchorDwell = ANCHOR_DWELL;
+      } else if (duty < 0.35 && anchorMul > 1) {
+        anchorMul -= 1;
+        anchorDwell = ANCHOR_DWELL;
+      }
+    }
   }
 
   function advanceBuild() {
@@ -3516,8 +3578,23 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     shadeHealth += (shadeHealthTarget - shadeHealth)
       * (1 - Math.exp(-3.5 * Math.max(0, dt)));
     shading.uniforms.uShadeLevel.value = sunLevel * shadeHealth;
-    const ax = Math.round(x / stride) * stride;
-    const az = Math.round(z / stride) * stride;
+    /* The rail under the control loop above. Coarsening trades the anchor's
+       proximity for frames, and the one thing it must never spend is the
+       rider's own footing: past three quarters of the uniform near lattice
+       the grid goes straight back to one stride whatever the duty cycle
+       thinks, and holds there for a dwell. Measured at thirty-five metres a
+       second the anchor trails by about thirty-five metres against a
+       seventy-two metre radius, so this is a guard against a runaway rather
+       than part of the ordinary cycle — but a controller with no bound on
+       the quantity it is allowed to degrade is not a controller. */
+    if (anchorMul > 1
+      && Math.hypot(x - anchorX, z - anchorZ) > TERRAIN.uniformNear * 0.75) {
+      anchorMul = 1;
+      anchorDwell = ANCHOR_DWELL;
+    }
+    const step = stride * anchorMul;
+    const ax = Math.round(x / step) * step;
+    const az = Math.round(z / step) * step;
 
     const ay = heightAt(ax, az);
     if (!Number.isFinite(anchorX)) {
@@ -3554,6 +3631,12 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     morphTick = 0;
     morphSnap = false;
 
+    // A restart is a fresh read on the machine, not a continuation of the
+    // last one's verdict: give the near lattice back and let it re-earn any
+    // coarsening from the frames that follow.
+    anchorMul = 1;
+    anchorDwell = 0;
+    buildIdleFrom = clockNow();
     const ax = Math.round(x / stride) * stride;
     const az = Math.round(z / stride) * stride;
     const ay = heightAt(ax, az);
@@ -3662,7 +3745,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     surfacesReady,
     vertexCount: count,
     debug: () => ({
-      anchorX, anchorY, anchorZ, morphing, morphAge,
+      anchorX, anchorY, anchorZ, morphing, morphAge, anchorMul,
       chapter: chapterNameAt(anchorZ),
       // What the four gate slots are lit with this frame — the only way to
       // tell a glow that is in the wrong place from one that is not there
