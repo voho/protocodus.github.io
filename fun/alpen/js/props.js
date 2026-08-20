@@ -3439,10 +3439,38 @@ export function createProps(THREE, shading) {
   }
 
   let currentBand = NaN;
+  /* Bands still carrying a stale density after a `reset`, retargeted one per
+     frame rather than all eighteen at once. See `reset`. */
+  let staleBands = null;
 
   function update(riderZ, spacing = 1) {
     const bi = Math.floor(riderZ / band);
-    if (bi === currentBand) return;
+    /* Drain one retarget per frame, whatever else this frame is doing. A
+       reset asks every band to come back to full density, and doing that in
+       one go is the same eighteen-band stall this file just stopped paying
+       at band crossings — landed on the frame after a wipeout, which is the
+       worst possible moment for it. One band is retired here and the other
+       seventeen replay from cache, so the forest thickens over about a third
+       of a second instead of stalling the frame it was asked on.
+
+       Deliberately NOT gated on standing still in one band: a rider crossing
+       boundaries steadily would otherwise never drain the queue, and the far
+       field would keep the density it was given at speed indefinitely. At
+       most one rebuild happens per frame either way — the crossing below
+       does it if it fires, and the flag makes this do it if it does not. */
+    let drained = false;
+    if (staleBands && staleBands.size) {
+      const b = staleBands.values().next().value;
+      staleBands.delete(b);
+      spacingByBand.delete(b);
+      bandCache.delete(b);
+      if (!staleBands.size) staleBands = null;
+      drained = true;
+    }
+    if (bi === currentBand) {
+      if (drained) rebuild(riderZ, Math.max(1, spacing));
+      return;
+    }
     /* Two metres of dead band on the boundary just crossed. A full rebuild
        regenerates all eighteen streamed bands in one frame, which is fine
        forty metres apart and pathological when a tumble bounces back and
@@ -3451,19 +3479,42 @@ export function createProps(THREE, shading) {
        streamed eleven ahead, so arriving two metres late costs nothing. */
     if (!Number.isNaN(currentBand)) {
       const edge = (bi > currentBand ? currentBand + 1 : currentBand) * band;
-      if (Math.abs(riderZ - edge) < 2) return;
+      if (Math.abs(riderZ - edge) < 2) {
+        if (drained) rebuild(riderZ, Math.max(1, spacing));
+        return;
+      }
     }
     currentBand = bi;
     rebuild(riderZ, Math.max(1, spacing));
   }
 
+  /* A reset restores full prop density — the streaming thins candidates with
+     speed, and a rider who has just stopped should not be looking at the
+     forest they had at forty metres a second.
+
+     It does NOT clear the snapshot cache. A band is a pure function of its
+     index and the world seed, and the seed cannot change inside a session:
+     `setWorldSeed` is called exactly once per page, and a new mountain is a
+     full page reload rather than a reseed. Clearing it only guaranteed that
+     every band missed and paid `place` again.
+
+     What does have to change is the frozen per-band spacing, and that is
+     retargeted lazily: the bands the rider can actually reach are re-placed
+     now, and the rest are queued for `update` to drain one per frame. */
   function reset(riderZ, spacing = 1) {
-    // A reset can carry a new world seed, which changes what every band
-    // holds; nothing captured under the old one may survive it.
-    bandCache.clear();
-    spacingByBand.clear();
+    const want = Math.max(1, spacing);
     currentBand = Math.floor(riderZ / band);
-    rebuild(riderZ, Math.max(1, spacing));
+    staleBands = new Set();
+    for (const b of spacingByBand.keys()) {
+      if (Math.abs(b - currentBand) <= 1) {
+        spacingByBand.delete(b);
+        bandCache.delete(b);
+      } else if (spacingByBand.get(b) !== want) {
+        staleBands.add(b);
+      }
+    }
+    if (!staleBands.size) staleBands = null;
+    rebuild(riderZ, want);
   }
 
   /* The frame's wind, handed over once by the caller. The time wraps at 200π

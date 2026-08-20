@@ -3558,14 +3558,28 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     const az = Math.round(z / stride) * stride;
     const ay = heightAt(ax, az);
 
+    /* The whole-lattice fill is a hundred and eleven thousand vertices taken
+       in one frame — the same work `advanceBuild` deliberately spreads over
+       ten at a four-millisecond budget — and a restart that resumes exactly
+       where it already was does not need any of it. A checkpoint restart
+       lands the rider back on the gate they took, so the rounded anchor is
+       routinely the one already standing, and the buffers already hold it.
+       (This cannot be extended to a moved anchor by routing through
+       `beginBuild`: `commitBuild` translates the previous anchor's world
+       state into the new one, and on the uncurtained `R` path that would
+       show two or three frames of the old location.) */
+    const sameAnchor = ax === anchorX && az === anchorZ && !Number.isNaN(anchorY);
+
     anchorX = ax;
     anchorZ = az;
     anchorY = ay;
     mesh.position.set(ax, ay, az);
     setTileOrigins(ax, az);
 
-    fill(ax, az, ay, positions, normals, colors, surface, groomFrame);
-    publish();
+    if (!sameAnchor) {
+      fill(ax, az, ay, positions, normals, colors, surface, groomFrame);
+      publish();
+    }
 
     initializeShadowCache(x, z);
     snapSnowReady();
