@@ -183,10 +183,18 @@ const TRACK_COLOR = `
   float n64TrackFoot = 1.0 - smoothstep(${n(TRENCH.foot)}
     - n64TrackAA * 2.0, 1.0, n64TrackA);
 
-  // A snowboard does not ink both steel edges into the hill. Flat running
-  // leaves only a quiet base polish; once edged, one loaded cut owns the
-  // mark and its unloaded partner nearly disappears.
-  float n64CleanCut = mix(0.12,
+  /* A snowboard does not ink both steel edges into the hill. Flat running
+     leaves a base polish rather than a cut; once edged, one loaded cut owns
+     the mark and its unloaded partner nearly disappears.
+
+     That base polish used to be worth 0.12 of a mark, which against the
+     0.82 track opacity came out at about a tenth of an alpha — a board
+     going straight left, in practice, nothing at all. A board tracking
+     down a groomed pitch does leave a line: two steel edges compress a
+     strip of corduroy flat and it reads darker than the snow either side
+     of it. So flat running is a real mark now, and still an obviously
+     quieter one than a carve. */
+  float n64CleanCut = mix(0.42,
     mix(0.02, 0.68, n64TrackLoaded), n64TrackBite);
   float n64CutStrength = mix(n64CleanCut,
     0.035 + n64TrackLoaded * 0.10
@@ -204,10 +212,12 @@ const TRACK_COLOR = `
   float n64RidgeSide = mix(0.46, mix(0.06, 1.0, n64TrackLoaded),
     n64RidgeActivity);
 
-  // The bed is intentionally quiet during a clean run. Most of that mark is
-  // read from the single cut and the raised snow beside it, not from paint.
+  /* The bed stays quieter than the cut during a clean run — most of a
+     carve's mark is the single loaded cut and the snow it threw, not paint
+     across the whole width — but it is no longer silent: the strip a board
+     has just run over is packed, and packed snow is darker than corduroy. */
   float n64BedWeight = n64TrackBed * n64Organic
-    * (0.065 + (1.0 - n64TrackBite) * 0.030
+    * (0.17 + (1.0 - n64TrackBite) * 0.12
       + n64TrackWash * 0.205 + n64TrackBrake * 0.095);
   float n64GrooveWeight = n64TrackGroove * n64CutStrength;
   float n64RidgeWeight = n64TrackRidge * n64Organic
@@ -587,9 +597,11 @@ export function createTrail(THREE, shading) {
     const grooveWidth = mix(0.026, 0.062, wash);
     const groove = 1 - smoothstep(0.012, grooveWidth,
       Math.abs(a - TRENCH.groove));
-    const grooveSide = mix(0.26, mix(0.04, 1, loaded), activity);
+    // Flat running gets a shallow pair of edge lines rather than almost
+    // nothing, so the mark catches the light as well as the albedo.
+    const grooveSide = mix(0.46, mix(0.04, 1, loaded), activity);
     const grooveDepth = Math.min(0.008,
-      0.003 + bite * 0.005 + wash * 0.0015 + brake * 0.0010)
+      0.0045 + bite * 0.005 + wash * 0.0015 + brake * 0.0010)
       * grooveSide * (0.78 + load * 0.22);
 
     const rise = smoothstep(TRENCH.groove + 0.010, TRENCH.ridge, a);
@@ -597,7 +609,7 @@ export function createTrail(THREE, shading) {
     const berm = rise * fall;
     // A railed board displaces snow almost entirely beyond its loaded edge.
     // The flat-board value is deliberately tiny; it is not a pair of rails.
-    const sideWeight = mix(0.18, mix(0.05, 1.78, loaded), activity);
+    const sideWeight = mix(0.30, mix(0.05, 1.78, loaded), activity);
     const loadScale = 0.72 + load * 0.38;
     const breakupActivity = clamp(bite * 0.20 + wash * 0.78
       + brake * 0.56 + chatter * 0.55, 0, 1);
