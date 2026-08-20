@@ -3284,6 +3284,64 @@ export function createProps(THREE, shading) {
      scenery instead of making nearby trees pop in and out. */
   const spacingByBand = new Map();
 
+  /* One placed band's complete contribution, captured straight out of the
+     pools it just wrote into — no instrumentation on the write path, just a
+     slice of each instance buffer between the marks taken either side of
+     `place`. See the long note in `rebuild`. */
+  const bandCache = new Map();
+
+  function snapshotBand(spacing, startN, solidFrom, gateFrom) {
+    const poolData = [];
+    for (let i = 0; i < allPools.length; i++) {
+      const pool = allPools[i];
+      const from = startN[i];
+      const count = pool.n - from;
+      if (count <= 0) { poolData.push(null); continue; }
+      const colors = pool.tinted && pool.mesh.instanceColor
+        ? pool.mesh.instanceColor.array.slice(from * 3, pool.n * 3)
+        : null;
+      poolData.push({
+        m: pool.mesh.instanceMatrix.array.slice(from * 16, pool.n * 16),
+        c: colors,
+      });
+    }
+    return {
+      spacing,
+      pools: poolData,
+      solids: solids.slice(solidFrom),
+      gates: gates.slice(gateFrom),
+    };
+  }
+
+  function replayBand(rec) {
+    for (let i = 0; i < allPools.length; i++) {
+      const data = rec.pools[i];
+      if (!data) continue;
+      const pool = allPools[i];
+      const want = data.m.length / 16;
+      // The order differs from the order it was captured in, so a pool can
+      // run out here where it did not before. Dropping the tail is the same
+      // thing a full rebuild does, and for the same reason: the far ones go.
+      const room = pool.capacity - pool.n;
+      const count = want < room ? want : room;
+      if (count <= 0) continue;
+      const src = count === want ? data.m : data.m.subarray(0, count * 16);
+      pool.mesh.instanceMatrix.array.set(src, pool.n * 16);
+      if (data.c && pool.mesh.instanceColor) {
+        const cs = count === want ? data.c : data.c.subarray(0, count * 3);
+        pool.mesh.instanceColor.array.set(cs, pool.n * 3);
+      }
+      pool.n += count;
+    }
+    // Fresh objects: `collide` writes `hit` onto these, and a shared one
+    // would carry that into every later rebuild.
+    for (let i = 0; i < rec.solids.length; i++) solids.push({ ...rec.solids[i] });
+    for (let i = 0; i < rec.gates.length; i++) {
+      const g = rec.gates[i];
+      gates.push({ ...g, taken: takenGates.has(g.z) });
+    }
+  }
+
   function rebuild(riderZ, currentSpacing) {
     allPools.forEach((p) => p.begin());
     solids.length = 0;
@@ -3307,13 +3365,51 @@ export function createProps(THREE, shading) {
        capacity, the trees dropped are the far ones, which is the right way
        round. */
     const bi = Math.floor(riderZ / band);
+    /* THE SAME BAND, PLACED ONCE.
+
+       This used to run `place` for all eighteen streamed bands on every
+       forty-metre crossing, and `place` is the expensive half of this file:
+       a couple of thousand candidates, each costing terrain height samples
+       and several noise fields. Profiled, that was a 5.6-21.8 ms stall
+       roughly every 1.7 seconds of riding - the one clean, recurring,
+       self-inflicted hitch in the frame clock.
+
+       Almost none of that work was new. Crossing one boundary retires one
+       band and admits one; the other seventeen are the same ground, and a
+       band is a pure function of its index and the world seed, so what they
+       produce cannot have changed. What DOES change is where each lands in
+       the pools, because the fill order is nearest-first so the shadow pass
+       can draw a prefix - and re-ordering is all it ever needed.
+
+       So a placed band keeps a snapshot of exactly what it wrote: the slice
+       of each pool's instance matrices and colours, and the descriptors of
+       the solids and gates it contributed. Replaying is then a typed-array
+       copy into whatever offset the new order gives it, at no noise cost.
+       Only a genuinely new band pays for `place`.
+
+       Two details keep the semantics identical to a full rebuild. Solids are
+       CLONED on replay rather than shared, because `collide` marks them with
+       `hit` and a shared object would carry that mark into the next rebuild
+       - a tree struck once would never be struck again. And a gate's `taken`
+       is recomputed from `takenGates` rather than restored, which is exactly
+       what `place` does, so passing and re-opening gates behave as before. */
     const placeRemembered = (b) => {
       let spacing = spacingByBand.get(b);
       if (spacing === undefined) {
         spacing = currentSpacing;
         spacingByBand.set(b, spacing);
       }
+      const cached = bandCache.get(b);
+      if (cached && cached.spacing === spacing) {
+        replayBand(cached);
+        return;
+      }
+      const startN = [];
+      for (let i = 0; i < allPools.length; i++) startN.push(allPools[i].n);
+      const solidFrom = solids.length;
+      const gateFrom = gates.length;
       place(b, spacing);
+      bandCache.set(b, snapshotBand(spacing, startN, solidFrom, gateFrom));
     };
     placeRemembered(bi);
     for (let i = 0; i < shadowPools.length; i++) {
@@ -3333,6 +3429,12 @@ export function createProps(THREE, shading) {
     const last = bi + behind;
     for (const b of spacingByBand.keys()) {
       if (b < first || b > last) spacingByBand.delete(b);
+    }
+    // The cache is bounded by the same window, plus a little slack so a
+    // rider drifting back and forth over one boundary does not keep paying
+    // to re-place the band they just left.
+    for (const b of bandCache.keys()) {
+      if (b < first - 2 || b > last + 2) bandCache.delete(b);
     }
   }
 
@@ -3356,6 +3458,9 @@ export function createProps(THREE, shading) {
   }
 
   function reset(riderZ, spacing = 1) {
+    // A reset can carry a new world seed, which changes what every band
+    // holds; nothing captured under the old one may survive it.
+    bandCache.clear();
     spacingByBand.clear();
     currentBand = Math.floor(riderZ / band);
     rebuild(riderZ, Math.max(1, spacing));
