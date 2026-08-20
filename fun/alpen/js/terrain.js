@@ -2775,6 +2775,11 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   let anchorY = NaN;
   let morphing = false;
   let morphAge = 0;
+  /* The glide is stepped on alternate frames — see `settleMorph`. `carry`
+     is the time owed to the skipped frame so the easing still integrates
+     the real elapsed time rather than half of it. */
+  let morphCarry = 0;
+  let morphTick = 0;
   // The near disc's one-time copy from the target is still owed for this
   // anchor — see `settleMorph`.
   let morphSnap = false;
@@ -3293,8 +3298,28 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
 
   function settleMorph(dt) {
     if (!morphing) return;
-    morphAge += dt;
-    const frameAlpha = 1 - Math.exp(-morphRate * dt);
+    /* HALF AS OFTEN, and it cannot be seen.
+
+       Everything on `morphList` is past `morphNear` — a hundred and eighty
+       metres out, on its way into the haze — and it is gliding over a fifth
+       of a second. Stepping that on alternate frames halves both the lerp
+       over eighty-one thousand vertices and the six-megabyte attribute
+       upload that follows it, and what is given up is one frame of temporal
+       resolution on a slow movement of a sub-metre displacement at the far
+       end of the fog. The skipped frame's time is carried, not dropped, so
+       the easing still integrates real elapsed time.
+
+       Two things are never deferred: the frame a new anchor snaps its near
+       field on, which is the exact collision surface around the board, and
+       the frame the glide finishes on, so nothing is left part-way. */
+    morphCarry += dt;
+    morphTick ^= 1;
+    const finishing = (morphAge + morphCarry) >= morphSettle;
+    if (morphTick === 1 && !finishing && !morphSnap) return;
+    const step = morphCarry;
+    morphCarry = 0;
+    morphAge += step;
+    const frameAlpha = 1 - Math.exp(-morphRate * step);
 
     if (morphSnap) {
       /* mask=0 is the exact collision surface around the rider, and its
@@ -3441,6 +3466,8 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     mesh.position.set(anchorX, anchorY, anchorZ);
     setTileOrigins(anchorX, anchorZ);
     morphAge = 0;
+    morphCarry = 0;
+    morphTick = 0;
     morphing = true;
     morphSnap = true;
     build = null;
@@ -3523,6 +3550,8 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     build = null;
     morphing = false;
     morphAge = 0;
+    morphCarry = 0;
+    morphTick = 0;
     morphSnap = false;
 
     const ax = Math.round(x / stride) * stride;
