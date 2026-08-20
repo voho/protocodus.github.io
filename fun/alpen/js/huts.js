@@ -604,7 +604,7 @@ export function createHuts(THREE, shading) {
      the ground under a hut here falls two and a half metres from corner to
      corner and it has to be the *top* corner, or the uphill wall is buried to
      the windowsill. Both come out of the same four samples. */
-  const probe = { drop: 0, rise: 0 };
+  const probe = { drop: 0, rise: 0, base: 0 };
 
   function shelf(x, z, grade) {
     const f = HUTS.footprint;
@@ -612,9 +612,15 @@ export function createHuts(THREE, shading) {
     let lo = 0;
     let hi = 0;
     let crest = 0;
+    /* The four corners, walked so that BOTH samples at one z come before
+       both at the other. `heightAt` rebuilds its row context whenever z
+       changes, and the old order alternated z on every sample — four row
+       builds for four corners, where two will do. The set of corners is
+       identical and the loop only takes minima and maxima over it, so the
+       result is unchanged to the bit. */
     for (let i = 0; i < 4; i++) {
-      const dx = i < 2 ? -f : f;
-      const dz = i % 2 === 0 ? -f : f;
+      const dz = i < 2 ? -f : f;
+      const dx = i % 2 === 0 ? -f : f;
       const d = heightAt(x + dx, z + dz) - h0;
       if (d > crest) crest = d;
       const r = d - grade * dz;
@@ -623,12 +629,43 @@ export function createHuts(THREE, shading) {
     }
     probe.drop = hi - lo;
     probe.rise = crest;
+    // The centre sample, kept so the caller planting the hut does not pay
+    // for the same lookup — and the same row rebuild — a second time.
+    probe.base = h0;
   }
 
   /* One block of hill, one hut or none. Everything here is a pure function of
      the block index, so the same stretch of mountain always grows the same
      hut in the same place — and a block the mountain refused stays refused. */
+  /* THE SITE SEARCH, ASKED ONCE PER BLOCK.
+
+     `siteFor` is documented as a pure function of the block index, and it
+     is — every draw in it comes off that index's own stream. But the window
+     it is asked over slides only 130 m of a 520 m block per rebuild, so
+     three quarters of the blocks searched had already been answered,
+     identically, on the previous rebuild. Each miss costs up to six tries
+     of an eight-stride walk, and every stride is a `shelf` of five terrain
+     samples.
+
+     Memoising is safe for the same reason the prop bands' snapshot cache is:
+     the world seed is set once per page and a new mountain is a page reload,
+     so a block's answer cannot change inside a session. What is handed back
+     is a COPY — `emit` and `dwell` are advanced every frame on the live hut,
+     and the cached record has to stay the pristine one a fresh search would
+     have produced. */
+  const siteCache = new Map();
+
   function siteFor(b) {
+    if (siteCache.has(b)) {
+      const hit = siteCache.get(b);
+      return hit && { ...hit };
+    }
+    const found = searchSite(b);
+    siteCache.set(b, found);
+    return found && { ...found };
+  }
+
+  function searchSite(b) {
     if (b < 1) return null;    // the first half-kilometre is left to itself
     if (hash2(b, 4441, 71) > HUTS.chance) return null;
 
@@ -666,7 +703,7 @@ export function createHuts(THREE, shading) {
 
         // Planted at its highest corner, with a hand's breadth over for the
         // true corners the four axis-aligned samples cannot see
-        const y = heightAt(x, z) + probe.rise + 0.15;
+        const y = probe.base + probe.rise + 0.15;
         const cos = Math.cos(yaw);
         const sin = Math.sin(yaw);
         return {
@@ -720,6 +757,13 @@ export function createHuts(THREE, shading) {
     huts.length = 0;
     const first = Math.floor(-(riderZ + HUTS.behind) / HUTS.period);
     const last = Math.floor(-(riderZ - HUTS.ahead - HUTS.step) / HUTS.period);
+    // Bounded by the window it serves, with a block of slack either side so
+    // riding back and forth over one boundary does not re-search.
+    if (siteCache.size > 24) {
+      for (const key of siteCache.keys()) {
+        if (key < first - 1 || key > last + 1) siteCache.delete(key);
+      }
+    }
     for (let b = Math.max(1, first); b <= last && huts.length < HUTS.live; b++) {
       const site = siteFor(b);
       if (site) huts.push(site);
