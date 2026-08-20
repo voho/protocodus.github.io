@@ -446,7 +446,23 @@ const VERT = `
     float l = min(max(reach, w), uLong);
     gl_PointSize = max(l, 1.0);
     vStretch = l / max(w, 0.01);
-    vClip = min(1.0, uWide / max(wide, 0.01));
+    /* Fade against BOTH caps, which is the whole of the white-square fix.
+
+       The width cap was faded and the length cap was not, and the length
+       cap is the one that sets gl_PointSize. A sprite can therefore be
+       narrow enough to pass the width fade untouched while its smear runs
+       far past uLong — which is exactly what a grain of spray does when the
+       board is carrying speed. It was then drawn at FULL alpha at whatever
+       size the hardware was willing to rasterise, and a driver that crops
+       rather than scales hands back the documented square window cut out of
+       the flake's opaque middle: a hard white block at the bottom of the
+       frame, right where the spray is thrown. Fading on the length ratio
+       too means anything the cap is truncating dissolves instead. The 1.4
+       is slack, so ordinary clipping still draws its shortened smear at
+       full strength and only genuine over-run disappears. */
+    vClip = min(
+      min(1.0, uWide / max(wide, 0.01)),
+      min(1.0, (uLong * 1.4) / max(reach, 0.01)));
     // Small sprites need every pixel they have and want a nearly flat top;
     // a big one is a puff of air and must not have an edge anywhere on it.
     vSoft = mix(0.75, 2.4, smoothstep(3.0, 24.0, l));
@@ -651,8 +667,16 @@ function applyLimits(uniforms, camera, wide, long) {
   const h = RENDER.buffer.height;
   uniforms.uScale.value = pointScale(camera, h);
   uniforms.uHalfRes.value.set(RENDER.buffer.width * 0.5, h * 0.5);
-  uniforms.uWide.value = Math.max(3, Math.min(96, h * wide, pointCap));
-  uniforms.uLong.value = Math.max(4, Math.min(180, h * long, pointCap));
+  /* Never ask for the driver's stated maximum, only most of it. A limit
+     reported through ALIASED_POINT_SIZE_RANGE is a promise about what will
+     rasterise, not about what will rasterise *correctly*, and the drivers
+     that crop instead of scaling tend to do it at the boundary. The
+     absolute ceiling comes down to 128 for the same reason: a smear longer
+     than that is not carrying any more information, and 128 is inside every
+     limit this game is likely to meet. */
+  const safe = pointCap * 0.85;
+  uniforms.uWide.value = Math.max(3, Math.min(96, h * wide, safe));
+  uniforms.uLong.value = Math.max(4, Math.min(128, h * long, safe));
 }
 
 const lerp = (a, b, t) => a + (b - a) * t;
