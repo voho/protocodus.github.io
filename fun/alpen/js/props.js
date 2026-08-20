@@ -247,10 +247,27 @@ const FOG_PULL_FLORA = 1.0;
    mostly small trees with a few emergents standing over them, which is what
    the exponent on the draw is for. */
 const FOREST = {
-  standFreq: 0.0046,      // ≈220 m from a stand to the clearing beside it
-  standBand: [0.28, 0.72],
+  /* THE STAND FIELD, and why it is not round.
+
+     It used to be one isotropic noise at ~220 m. Two consequences, and both
+     of them are the reason the run reads as a tunnel. A 220 m wavelength
+     barely changes across the sixty-odd metres between the left verge and
+     the right one, so the two sides of the piste were handed almost the
+     same density and the forest arrived as a matched pair of hedges. And
+     the floor under it was a third, so even the thinnest stretch still grew
+     a third of a forest — there were no clearings anywhere on the mountain.
+
+     Anisotropic now: short across the hill, long down it. Eighty metres of
+     lateral wavelength decorrelates the two verges completely — thick trees
+     on the left against an open shoulder on the right is now an ordinary
+     thing to ride past — while three hundred metres along z keeps a stand a
+     stand rather than a stripe. And the floor is small enough that a genuine
+     clearing is a place the run goes through. */
+  standFreqX: 0.0125,     // ≈80 m across the hill: the two sides disagree
+  standFreqZ: 0.0034,     // ≈294 m down it: stands stay long
+  standBand: [0.30, 0.66],
   standSeed: 137,
-  clearing: 0.34,
+  clearing: 0.05,
   /* Metres of descent over which the treeline closes, and what it closes
      from and to. */
   line: [80, 1600],
@@ -259,10 +276,15 @@ const FOREST = {
   /* How much of the ground's own normal a trunk takes. */
   lean: 0.16,
   wobble: 0.08,           // …and a little more, so no two agree
-  size: [0.85, 1.35],
-  sizeBias: 1.20,
+  /* A wider spread than a nursery. The old range was half a stop either
+     side of one size, so a stand was thirty copies of the same tree at
+     thirty slightly different scales; this reaches from genuine saplings to
+     trees half again the nominal height, and the heavier bias keeps most of
+     them small so the big ones read as big. */
+  size: [0.58, 1.48],
+  sizeBias: 1.40,
   veteran: {
-    chance: 0.085,
+    chance: 0.10,
     from: 16,
     height: [26, 38],
   },
@@ -289,7 +311,7 @@ function ecologyAt(x, z, out) {
   ));
   const stand = FOREST.clearing + (1 - FOREST.clearing) * smoothstep(
     FOREST.standBand[0], FOREST.standBand[1],
-    noise2(x * FOREST.standFreq, z * FOREST.standFreq, FOREST.standSeed),
+    noise2(x * FOREST.standFreqX, z * FOREST.standFreqZ, FOREST.standSeed),
   );
 
   out.moisture = moisture;
@@ -2901,11 +2923,25 @@ export function createProps(THREE, shading) {
       } else {
         const c = side < 0 ? centres[0] : centres[1];
         /* Strictly confined to the lower valley floor near the verge.
-           Trees NEVER grow on the steep mountain slopes, flanks, or peaks. */
-        x = c + side * (half + PROPS.verge + Math.pow(rnd(), 1.6) * 16.0);
+           Trees NEVER grow on the steep mountain slopes, flanks, or peaks.
+
+           HOW DEEP the band goes is a field rather than a constant, and
+           that is the other half of the tunnel fix. Sixteen metres on both
+           sides for the whole run is a hedge of fixed thickness however
+           the density inside it varies: the eye reads the OUTLINE, and the
+           outline never moved. This one runs from a nine-metre fringe to a
+           thirty-five-metre wood, keyed on z and on the side — the two
+           verges are sampled a long way apart in the field's own space, so
+           a deep wood on the left against a thin fringe on the right is an
+           ordinary thing to ride past rather than a coincidence. */
+        const depth = 9 + 26 * smoothstep(0.32, 0.74,
+          noise2(z * 0.0026, side * 37.3, 421));
+        x = c + side * (half + PROPS.verge + Math.pow(rnd(), 1.35) * depth);
       }
       const c = side < 0 ? centres[0] : centres[1];
-      if (!island && Math.abs(x - c) > half + 20.0) continue;
+      // Raised in step with the deepest the band above can reach; the old
+      // twenty was the real ceiling on forest depth whatever asked for more.
+      if (!island && Math.abs(x - c) > half + 40.0) continue;
 
       /* Whether anything grows here at all. The stand field is sampled at
          the tree's own position, so a clearing has an edge that runs across
@@ -2913,7 +2949,7 @@ export function createProps(THREE, shading) {
          at a band boundary — without it the treeline is a uniform hedge. */
       const stand = FOREST.clearing + (1 - FOREST.clearing) * smoothstep(
         FOREST.standBand[0], FOREST.standBand[1],
-        noise2(x * FOREST.standFreq, z * FOREST.standFreq, FOREST.standSeed),
+        noise2(x * FOREST.standFreqX, z * FOREST.standFreqZ, FOREST.standSeed),
       );
       if (rnd() > stand * lineCover) continue;
       // Mostly small, with the odd one standing over them.

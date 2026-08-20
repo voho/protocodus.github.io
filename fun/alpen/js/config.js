@@ -190,7 +190,14 @@ export const TERRAIN = {
      amplitudes are held well under the base so the sum never reaches zero:
      the hill is allowed to get lazy and is never allowed to point back up. */
   grade: {
-    base: 0.30,       // 16.7° — the low end of a real red run
+    /* 19.6°. Raised from 16.7° by exactly the amplitude of the pitch wave
+       added below, which is the whole trick: adding A to the base and A to
+       the amplitude leaves the SHALLOW end of the run exactly where the
+       slope budget put it and moves only the steep end, from 23° to 28°.
+       The mountain now has pitches you have to check speed on and shelves
+       you can breathe on, and nothing that was budgeted against the mellow
+       end has to be re-derived. */
+    base: 0.355,
     waves: [
       { freq: 0.00085, amp: 0.050, phase: 0 },      // ~7.4 km, the big chapters
       { freq: 0.00310, amp: 0.035, phase: 2.1 },    // ~2.0 km, pitches inside them
@@ -200,6 +207,11 @@ export const TERRAIN = {
          mountain. Kept small enough that the combined trough stays near 10°,
          which the slope budget below still survives. */
       { freq: 0.00900, amp: 0.040, phase: 4.4 },
+      /* ~1.2 km: the headwall scale. Deliberately not a harmonic of any of
+         the three above, so the four never line up into one repeating
+         profile — what the rider gets is a pitch sequence that does not
+         come round again. */
+      { freq: 0.00520, amp: 0.055, phase: 1.3 },
     ],
   },
   /* Range: 0.30 ± 0.115, so 10.5° at its most generous and 22.5° at its
