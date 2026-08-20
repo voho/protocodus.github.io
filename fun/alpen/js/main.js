@@ -909,8 +909,21 @@ function stepFlow() {
      so the horizontal cap cannot brake a ballistic arc merely because the
      board left the snow; a fall resets it instead. Falls keep their impact
      momentum and already recover at a bounded 6–12 m/s. */
-  const limit = RIDER.baseMaxSpeed
-    + (RIDER.maxSpeed - RIDER.baseMaxSpeed) * game.flow;
+  /* …and the surface decides how much of that ceiling is available. The
+     groomed ribbon runs slightly over it, open snow well under, talus under
+     that; see the note on `pisteSpeed` in the config. The ceiling is read
+     at the rider's own position, so drifting off the corduroy costs top
+     speed the moment the board leaves it rather than at some boundary. */
+  const surf = world.surfaceAt
+    ? world.surfaceAt(rider.pos.x, rider.pos.z)
+    : null;
+  const surfaceCeil = surf
+    ? Math.max(0.42, Math.min(1.15,
+      surf.groomed * RIDER.pisteSpeed + surf.powder * RIDER.powderSpeed
+      + surf.ice * RIDER.iceSpeed + surf.rock * RIDER.rockSpeed))
+    : 1;
+  const limit = (RIDER.baseMaxSpeed
+    + (RIDER.maxSpeed - RIDER.baseMaxSpeed) * game.flow) * surfaceCeil;
   if (rider.state === 'ride') {
     const speed = rider.speed;
     if (speed > limit) rider.vel.multiplyScalar(limit / speed);

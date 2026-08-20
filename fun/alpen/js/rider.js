@@ -1154,7 +1154,12 @@ export class Rider {
     // Pressure progressively moves from a waxed base to an edged speed check.
     const mu = RIDER.friction
       + (RIDER.brakeFriction - RIDER.friction) * braking;
-    const matDrag = surf.groomed * 1.0 + surf.powder * 1.15 + surf.ice * 0.72 + surf.rock * 1.45;
+    /* Deep snow is not a texture, it is work. Powder was 1.15x a groomed
+       run, which at any speed worth having is indistinguishable from the
+       piste; it ploughs properly now, and the corduroy is a touch slicker
+       than neutral so the ribbon actually rewards being on it. */
+    const matDrag = surf.groomed * 0.88 + surf.powder * 2.30
+      + surf.ice * 0.68 + surf.rock * 2.05;
     const dec = mu * (this.world.surfaceDrag ?? 1) * matDrag
       * RIDER.gravity * Math.max(0.2, n.y);
     // The initial tail kick is already cutting snow before the board has

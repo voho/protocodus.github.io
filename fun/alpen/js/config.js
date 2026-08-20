@@ -1032,6 +1032,25 @@ export const RIDER = {
   gravity: 22,
 
   // Snow under a waxed base. The number is real; the grade does the rest.
+  /* WHAT THE SURFACE IS WORTH, as a top speed rather than only as drag.
+
+     The piste is a machine-made ribbon of hard, fast snow and the mountain
+     either side of it is not, and the model barely said so: open powder
+     dragged 1.15x a groomed run, which at speed is a rounding error, and
+     the speed ceiling ignored the surface completely. So the fastest line
+     down the hill was wherever the fall line happened to point, and the
+     corduroy the whole course is built around was worth nothing to ride.
+
+     These are multipliers on the flow-unlocked ceiling: the groomed ribbon
+     runs a little over it, settled powder is held well under, and the talus
+     and scoured rock under it is slower still. Ice keeps piste speed - it
+     is the fastest surface on the hill, and it is where the grip is not.
+     Combined with the drag figures below, the piste is now the fast line
+     and leaving it costs real speed rather than a little texture. */
+  pisteSpeed: 1.12,
+  powderSpeed: 0.60,
+  iceSpeed: 1.10,
+  rockSpeed: 0.50,
   friction: 0.045,
   brakeFriction: 0.62,
   /* A one-button heel-side speed check.
