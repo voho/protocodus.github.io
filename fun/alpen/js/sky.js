@@ -2451,6 +2451,14 @@ export function createSky(THREE) {
   const shadowRight = new THREE.Vector3();
   const shadowUp = new THREE.Vector3();
   const shadowAt = new THREE.Vector3();
+  /* The snapped centre of the shadow box, held in WORLD space and refreshed
+     only on the frames the depth map is actually redrawn — see the interleave
+     below. The lamp hangs off `lights`, which rides with the rider, so a
+     world anchor is the only thing that can keep the box still while the
+     group under it moves. */
+  const shadowWorld = new THREE.Vector3();
+  let shadowTick = 0;
+  let shadowPrimed = false;
   let time = 0;
   let pitch = -1;
   /* The aurora and mist are too large to submit forever at zero, even with an
@@ -2934,11 +2942,38 @@ export function createSky(THREE) {
     if (shadowRight.lengthSq() < 1e-6) shadowRight.set(1, 0, 0);
     shadowRight.normalize();
     shadowUp.crossVectors(sunDir, shadowRight).normalize();
-    shadowAt.copy(shadowRight)
-      .multiplyScalar(Math.round(pos.dot(shadowRight) / texel) * texel)
-      .addScaledVector(shadowUp, Math.round(pos.dot(shadowUp) / texel) * texel)
-      .addScaledVector(sunDir, pos.dot(sunDir))
-      .sub(pos);   // the lamp hangs off `lights`, which is already at the rider
+    /* THE DEPTH PASS, EVERY OTHER FRAME.
+
+       Measured, it was half the GPU frame and five milliseconds of main
+       thread: a hundred and eighty-seven draws of three hundred and forty-
+       two casters into a 4096 map, redrawn from scratch every single frame
+       for a picture that is a snapped, slowly-moving thing. Redrawing it on
+       alternate frames halves that outright.
+
+       The catch, and it is the whole of why this is not a one-line change:
+       the box centre is re-snapped to the rider every frame, and skipping
+       only the RENDER would leave the shader projecting a moved light
+       against a stale texture — the shadows would slide off their casters.
+       So the centre and the render move together. `shadowWorld` is held in
+       world space and refreshed only on the frames that redraw, and the
+       light is then placed relative to the rider-following group from that
+       frozen anchor, which keeps the box genuinely still in the world in
+       between. Two frames of drift is under a metre at riding speed against
+       a box a hundred and eighty metres across, so nothing leaves it.
+
+       The map is always drawn while it has never existed: `shadow.map` is
+       null until the first pass runs, and a run that never primes it
+       compiles every lit material against a sampler that is never bound.
+       See the note below on that failure. */
+    const shadowStep = !shadowPrimed || (shadowTick & 1) === 0;
+    shadowTick = (shadowTick + 1) & 1023;
+    if (shadowStep) {
+      shadowWorld.copy(shadowRight)
+        .multiplyScalar(Math.round(pos.dot(shadowRight) / texel) * texel)
+        .addScaledVector(shadowUp, Math.round(pos.dot(shadowUp) / texel) * texel)
+        .addScaledVector(sunDir, pos.dot(sunDir));
+    }
+    shadowAt.copy(shadowWorld).sub(pos);
     key.target.position.copy(shadowAt);
     key.position.copy(shadowAt).addScaledVector(sunDir, SHADOW_DIST);
     /* A sun on the horizon casts shadows the length of the mountain, which
@@ -2992,11 +3027,14 @@ export function createSky(THREE) {
         * (1 - Math.exp(-SHADOW_FADE_RATE * Math.max(0, dt)));
     }
     key.shadow.intensity = shadowLevel;
+    /* Driven rather than automatic. `autoUpdate` means "redraw every frame",
+       which is exactly what the interleave above is removing, so the pass is
+       armed by hand instead: on a step frame while the shadow is worth
+       anything, and unconditionally until the map has been created once. */
     const casting = shadowLevel > 0.001 || !key.shadow.map;
-    if (casting !== key.shadow.autoUpdate) {
-      key.shadow.autoUpdate = casting;
-      key.shadow.needsUpdate = casting;
-    }
+    key.shadow.autoUpdate = false;
+    key.shadow.needsUpdate = casting && shadowStep;
+    if (key.shadow.map) shadowPrimed = true;
     key.color.copy(w.key);
     key.intensity = w.keyI;
     // The fill takes the sky's hue but not its saturation. Snow bounce is

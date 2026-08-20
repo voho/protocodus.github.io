@@ -936,7 +936,26 @@ export const TERRAIN = {
   morphNear: 72,
   morphFar: 240,
   morphRate: 26,
-  morphSettle: 1,
+  /* HOW LONG THE GLIDE IS ALLOWED TO RUN, and it was costing more than
+     everything else in the frame put together.
+
+     `morphRate: 26` is a time constant of 38 ms, so the glide is converged
+     to within a third of a per cent after about six of them. This was one
+     full second — so for eight hundred milliseconds of every anchor the
+     loop went on lerping eighty-one thousand vertices by sixteen floats
+     each, a million and a third of lerps a frame, towards values they had
+     already reached; and because the update range it publishes always spans
+     the whole lattice, it also re-uploaded six and a third megabytes of
+     attribute buffer every one of those frames.
+
+     Worse, it never got to finish. The anchor re-arms every eight fine
+     cells — six metres — which at riding speed is about four times a
+     second, so a one-second settle meant `morphing` was true in 99% of all
+     frames and the mountain was permanently paying its worst case. At 0.22 s
+     the glide still runs nearly six time constants, which is visually
+     complete, and then stops. Profiled at 3.98 ms/frame of pure self time
+     before this, the largest single cost in the game. */
+  morphSettle: 0.22,
 
   /* THE MOUNTAIN'S SHADOW ON ITSELF, worked out rather than drawn.
 
