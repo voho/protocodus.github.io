@@ -595,6 +595,36 @@ const FRAG_FOG = `
 const FRAG_CAMERA_FADE = `#include <alphamap_fragment>
   diffuseColor.a *= smoothstep(2.2, 6.5, length(vN64View));`;
 
+/* …and the hash that fade is paid for only runs where the fade exists.
+
+   `alphaHash` is switched on for every prop material that asks for the
+   camera fade, which is all five of them — the forest, the low flora, the
+   stone, the alpine timber and the spruce cards, i.e. the highest-overdraw
+   surfaces in the scene. Three's chunk is not cheap: eight sines, screen
+   derivatives of a vec3, two lengths and a handful of log2/exp2 per
+   fragment. And past 6.5 m it cannot do anything at all — the fade above is
+   exactly 1.0 there, so an opaque prop's alpha is 1.0 and the threshold,
+   which lives below 1, can never cut it.
+
+   The guard is on view distance rather than on alpha because it has to be
+   quad-coherent: `getAlphaHashThreshold` takes derivatives, and branching
+   on a per-pixel alpha would leave them undefined on exactly the spruce
+   cards this most needs to be correct on. At the boundary itself the fade
+   has already reached 1, so a quad that straddles it discards nothing
+   either way.
+
+   One honest consequence beyond the saving: the alpha-tested cards stop
+   being stochastically dithered at range. Inside 6.5 m the screen-door
+   fade is unchanged, which is what stops the documented hard pop; beyond
+   it their partial-coverage edges now resolve against `alphaTest` alone —
+   the same rule their depth material already uses — so distant foliage
+   holds still instead of shimmering. */
+const FRAG_ALPHA_HASH = `
+#ifdef USE_ALPHAHASH
+  if ( length( vN64View ) < 6.5
+    && diffuseColor.a < getAlphaHashThreshold( vPosition ) ) discard;
+#endif`;
+
 /* THE MOUNTAIN'S SHADOW, on everything that is standing in it.
 
    `terrain.js` marches the sun's horizon over the height field and keeps the
@@ -737,6 +767,7 @@ const SHADE_ANCHOR = '#include <lights_fragment_maps>';
 const LIGHT_ANCHOR = '#include <lights_fragment_end>';
 const FOG_ANCHOR = '#include <fog_fragment>';
 const ALPHA_ANCHOR = '#include <alphamap_fragment>';
+const HASH_ANCHOR = '#include <alphahash_fragment>';
 
 export function createShading(THREE) {
   /* The shared block. Every patched material is handed *these* objects rather
@@ -861,6 +892,9 @@ export function createShading(THREE) {
         .replace('#include <common>', `#include <common>${FRAG_PARS}`);
       if (cameraFade && frag.indexOf(ALPHA_ANCHOR) !== -1) {
         frag = frag.replace(ALPHA_ANCHOR, FRAG_CAMERA_FADE);
+      }
+      if (cameraFade && frag.indexOf(HASH_ANCHOR) !== -1) {
+        frag = frag.replace(HASH_ANCHOR, FRAG_ALPHA_HASH);
       }
       // Unlit materials have no light loop to shade, and the two anchors
       // below are how that is detected rather than asserted.
