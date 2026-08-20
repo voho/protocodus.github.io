@@ -2321,7 +2321,15 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
         float n64IceW = smoothstep(0.58, 0.90, vN64Ice)
           * n64SnowMask * n64SurfaceFade;
         if (n64IceW > 0.004) {
-          vec3 n64IceSample = texture2D(uIceTex, powderUv * 2.2).rgb;
+          /* Explicit gradients, for exactly the reason spelled out above the
+             macro fetches: this branch is a material-and-distance fade, which
+             is precisely the condition that splits a quad, and a plain
+             texture2D inside non-uniform control flow has no defined
+             derivative. Taken implicitly it picked an unstable mip and the
+             far flanks shimmered. The uv is the powder plate's own, scaled,
+             so its gradients are that plate's gradients scaled to match. */
+          vec3 n64IceSample = texture2DGradEXT(uIceTex, powderUv * 2.2,
+            n64MacroDx * 2.2, n64MacroDy * 2.2).rgb;
           diffuseColor.rgb = mix(diffuseColor.rgb,
             diffuseColor.rgb * (0.52 + 1.05 * n64IceSample), n64IceW * 0.8);
         }
