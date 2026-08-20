@@ -11,7 +11,17 @@
    turns out not to matter: at 240 pixels tall, a hop is a squash and a rear
    is a rotation, and neither needs a skeleton. */
 
-export function compose(THREE, parts) {
+/* Two attributes are optional because they are not free and most callers do
+   not need them. `opts.uv` keeps each primitive's own unwrapping, which a
+   baked figure needs the moment its material carries a map — without it
+   three still compiles USE_MAP, reads a varying nothing wrote, and paints
+   the whole animal in texel (0,0). `opts.sheen` writes `part.sheen` per
+   vertex, which is what lets one merged mesh hold a matte glove and a
+   mirrored goggle lens: the snow response reads `vN64Sheen`, so a per-part
+   value in an attribute buys back exactly the thing merging took away. */
+export function compose(THREE, parts, opts = {}) {
+  const wantUv = opts.uv === true;
+  const wantSheen = opts.sheen === true;
   const prepared = [];
   let total = 0;
 
@@ -29,22 +39,31 @@ export function compose(THREE, parts) {
     g.applyMatrix4(m);
 
     const n = g.attributes.position.count;
-    prepared.push({ g, n, color: new THREE.Color(part.color) });
+    prepared.push({
+      g,
+      n,
+      color: new THREE.Color(part.color),
+      sheen: part.sheen === undefined ? 1 : part.sheen,
+    });
     total += n;
   }
 
   const position = new Float32Array(total * 3);
   const normal = new Float32Array(total * 3);
   const color = new Float32Array(total * 3);
+  const uv = wantUv ? new Float32Array(total * 2) : null;
+  const sheen = wantSheen ? new Float32Array(total) : null;
 
   let o = 0;
-  for (const { g, n, color: c } of prepared) {
+  for (const { g, n, color: c, sheen: s } of prepared) {
     position.set(g.attributes.position.array, o * 3);
     normal.set(g.attributes.normal.array, o * 3);
+    if (uv && g.attributes.uv) uv.set(g.attributes.uv.array, o * 2);
     for (let i = 0; i < n; i++) {
       color[(o + i) * 3] = c.r;
       color[(o + i) * 3 + 1] = c.g;
       color[(o + i) * 3 + 2] = c.b;
+      if (sheen) sheen[o + i] = s;
     }
     o += n;
     g.dispose();
@@ -54,6 +73,8 @@ export function compose(THREE, parts) {
   out.setAttribute('position', new THREE.BufferAttribute(position, 3));
   out.setAttribute('normal', new THREE.BufferAttribute(normal, 3));
   out.setAttribute('color', new THREE.BufferAttribute(color, 3));
+  if (uv) out.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  if (sheen) out.setAttribute('aSheen', new THREE.BufferAttribute(sheen, 1));
   out.computeBoundingSphere();
   return out;
 }
