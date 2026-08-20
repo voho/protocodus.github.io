@@ -129,7 +129,15 @@ let renderer;
 try {
   renderer = new THREE.WebGLRenderer({
     canvas,
-    antialias: true,
+    /* NOT on the default framebuffer, because nothing is ever drawn to it
+       except one fullscreen quad. The world is rendered into an offscreen
+       target that carries its own MSAA (`scene3d.samples`, retro.js), and
+       the only draw that reaches the canvas is the post stack's final
+       two-triangle blit — which has no interior edges to antialias. Asking
+       for a multisampled default framebuffer bought a resolve every frame
+       and a second full-size colour buffer at the panel's own resolution,
+       to smooth the outline of a rectangle exactly covering the screen. */
+    antialias: false,
     alpha: false,
     powerPreference: 'high-performance',
   });
@@ -274,6 +282,11 @@ for (const group of [props.group, wildlife.group, huts.group]) shadowCasting(gro
    and the ground the mesh draws are not merely consistent, they are the same
    call. It is also the hottest function in the game — about twenty-five
    samples per physics step at 120 Hz — and it no longer walks a list first. */
+/* The chase camera's per-frame shortlist of trunks — see `beginBlockedSpan`.
+   One reused array; it never escapes the frame that filled it. */
+const blockedSpan = [];
+let blockedSpanActive = false;
+
 const world = {
   height: heightAt,
   surfaceAt: getTerrainMaterialAt,
@@ -296,8 +309,40 @@ const world = {
   surfaceDrag: 1,
   // Only the chase camera asks this, and only about trunks: is there
   // something solid standing here?
-  blocked: (x, z, r) => {
+  /* …and a shortlist for the fifteen-odd probes the boom makes along one
+     segment every frame.
+
+     Each probe used to walk the entire solids array — three hundred to
+     twelve hundred entries — so the chase camera was scanning tens of
+     thousands of records a frame, several times the cost of the rider's own
+     collision pass, to ask about a handful of trunks beside one line. The
+     probes all lie between the rider and the wanted boom point, so one pass
+     per frame collects everything whose circle could reach that segment's
+     bounding box and the probes then walk the shortlist.
+
+     Conservative by construction, and therefore bit-identical: the box is
+     the whole segment, grown by the largest radius any probe can ask for,
+     and every probe's own reach is at most that — `min(r, cameraPad)` can
+     only shrink it. Nothing that would have answered true can be missing. */
+  beginBlockedSpan: (x0, z0, x1, z1, maxR) => {
     const solids = props.solids;
+    const loX = (x0 < x1 ? x0 : x1) - maxR;
+    const hiX = (x0 > x1 ? x0 : x1) + maxR;
+    const loZ = (z0 < z1 ? z0 : z1) - maxR;
+    const hiZ = (z0 > z1 ? z0 : z1) + maxR;
+    blockedSpan.length = 0;
+    for (let i = 0; i < solids.length; i++) {
+      const s = solids[i];
+      if (s.kind !== HARD) continue;
+      if (s.x + s.r < loX || s.x - s.r > hiX) continue;
+      if (s.z + s.r < loZ || s.z - s.r > hiZ) continue;
+      blockedSpan.push(s);
+    }
+    blockedSpanActive = true;
+  },
+  endBlockedSpan: () => { blockedSpanActive = false; },
+  blocked: (x, z, r) => {
+    const solids = blockedSpanActive ? blockedSpan : props.solids;
     for (let i = 0; i < solids.length; i++) {
       const s = solids[i];
       if (s.kind !== HARD) continue;

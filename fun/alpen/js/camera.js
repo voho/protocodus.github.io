@@ -328,7 +328,15 @@ export function createChaseCamera(THREE, camera) {
        and a single clearance threshold could therefore throw the camera
        seventy degrees sideways in one frame. Pull in promptly, release more
        slowly, and let the ordinary chase spring carry both transitions. */
+    /* One pass over the solids for the whole boom, instead of one per
+       probe. See `beginBlockedSpan` in main.js — the shortlist is a
+       conservative superset, so the answer is unchanged. */
+    if (world.beginBlockedSpan) {
+      world.beginBlockedSpan(rider.pos.x, rider.pos.z, want.x, want.z,
+        TREE_LENS_RADIUS);
+    }
     const treeLimit = treeClearFraction(world, rider, want);
+    if (world.endBlockedSpan) world.endBlockedSpan();
     if (!started) {
       treeBoom = treeLimit;
     } else {

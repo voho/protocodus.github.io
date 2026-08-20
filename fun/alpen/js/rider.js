@@ -1388,7 +1388,13 @@ export class Rider {
       const ballistic = pos.y + predictorVy * t - 0.5 * RIDER.gravity * t * t;
       const gap = ballistic - ground;
       if (gap > clearance) clearance = gap;
-      if (gap < -RIDER.launchObstruction) blocked = true;
+      /* Nothing after this point can change the answer. Both readers of
+         this sweep test `!blocked` first — see `launching` below — so once
+         the ground has come up through the arc, `clearance` and
+         `longestClearRun` are provably unread and the remaining samples are
+         world height lookups nobody asks about. On the groomed ribbon that
+         is the whole loop collapsing at the first sample. */
+      if (gap < -RIDER.launchObstruction) { blocked = true; break; }
       if (gap > RIDER.launchGap) {
         if (k > 0) clearRun += distance - previousDistance;
         if (clearRun > longestClearRun) longestClearRun = clearRun;
