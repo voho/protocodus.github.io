@@ -1870,12 +1870,19 @@ export const PROPS = {
   // Speed takes care of the rest.
   /* Attempts per band, not trees. The stand field and the treeline in
      `props.js` between them refuse about a third of these, so the average
-     band still carries roughly the twenty-two it always did — the difference
-     is that they are now bunched into stands with real clearings between
-     them instead of being spread evenly over every hillside on the mountain. */
+     band carries roughly two thirds of this number — bunched into stands
+     with real clearings between them rather than spread evenly over every
+     hillside on the mountain.
+
+     Raised by half once the draw-call budget could pay for it: the stands
+     were reading as a scatter of individual trees rather than as woods, and
+     the fix for that is not a wider treeline but more trunks inside the
+     same one. It buys depth rather than frontage — see the band depth
+     field in `props.js`, widened in the same step so the extra trees stack
+     behind the front rank instead of thickening it into a hedge. */
   /* Trees are strictly confined to the low valley verges near the piste,
      leaving the high mountain flanks and slopes completely free of trees. */
-  treesPerBand: 28,
+  treesPerBand: 42,
   /* Where the forest is allowed to begin, measured out from the groomed edge.
      THE PISTE IS EMPTY. */
   verge: 2.2,

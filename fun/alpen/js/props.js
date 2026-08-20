@@ -271,7 +271,15 @@ const FOREST = {
   /* Metres of descent over which the treeline closes, and what it closes
      from and to. */
   line: [80, 1600],
-  lineCover: [0.65, 1.0],
+  /* THE OPENING IS THE ONE EVERY PLAYER SEES. Cover climbing from a third
+     off to full over a kilometre and a half sounds like a difficulty curve
+     and is not one: trees are held off the corduroy by `PROPS.verge` and
+     never stand on it, so what this dial moves is scenery rather than
+     hazard — while the sparsest forest on the mountain was being handed to
+     a rider in their first two hundred metres, which is where they decide
+     what this mountain looks like. It still opens out; it now opens out
+     from a treeline rather than from a scatter. */
+  lineCover: [0.88, 1.0],
   lineScale: [0.88, 1.18],
   /* How much of the ground's own normal a trunk takes. */
   lean: 0.16,
@@ -2934,14 +2942,14 @@ export function createProps(THREE, shading) {
            verges are sampled a long way apart in the field's own space, so
            a deep wood on the left against a thin fringe on the right is an
            ordinary thing to ride past rather than a coincidence. */
-        const depth = 9 + 26 * smoothstep(0.32, 0.74,
+        const depth = 9 + 34 * smoothstep(0.32, 0.74,
           noise2(z * 0.0026, side * 37.3, 421));
         x = c + side * (half + PROPS.verge + Math.pow(rnd(), 1.35) * depth);
       }
       const c = side < 0 ? centres[0] : centres[1];
       // Raised in step with the deepest the band above can reach; the old
       // twenty was the real ceiling on forest depth whatever asked for more.
-      if (!island && Math.abs(x - c) > half + 40.0) continue;
+      if (!island && Math.abs(x - c) > half + 50.0) continue;
 
       /* Whether anything grows here at all. The stand field is sampled at
          the tree's own position, so a clearing has an edge that runs across
