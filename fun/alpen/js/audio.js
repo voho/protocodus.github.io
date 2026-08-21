@@ -142,6 +142,36 @@ export function createAudio() {
     return true;
   }
 
+  /* The safety net under every resume that a browser is allowed to refuse.
+
+     Most calls to `start` arrive from a user gesture — the curtain's click
+     or a keydown in `begin` — which is precisely the condition under which
+     a browser permits `resume`. But not all of them: a gamepad press is
+     polled off the animation frame and carries no user activation, so its
+     `resume()` is allowed to reject, and the run would open silent with
+     the HUD still saying sound was on. When that happens, the next real
+     gesture of any kind — a key, a tap, a click, anywhere — retries the
+     resume and then takes itself back off the listeners. One shot, armed
+     at most once. */
+  let gestureRetryArmed = false;
+
+  function armGestureResume() {
+    if (gestureRetryArmed) return;
+    gestureRetryArmed = true;
+    const retry = () => {
+      gestureRetryArmed = false;
+      for (const type of ['pointerdown', 'keydown', 'touchstart']) {
+        window.removeEventListener(type, retry, true);
+      }
+      if (ctx && started && ctx.state !== 'running') {
+        ctx.resume().catch(() => {});
+      }
+    };
+    for (const type of ['pointerdown', 'keydown', 'touchstart']) {
+      window.addEventListener(type, retry, true);
+    }
+  }
+
   /* Called on every resume, not just the first. Browsers suspend an
      AudioContext when the tab goes to the background or the device takes
      the audio away, and returning early on `started` left the graph running
@@ -153,16 +183,20 @@ export function createAudio() {
     parked = false;
     clearTimeout(parkTimer);
     ambienceAt = 0;
-    /* Every call to `start` arrives from a user gesture — the curtain's click
-       or a keydown in `begin` — which is precisely the condition
-       under which a browser permits `resume`, whether the context was
-       suspended by `quiet` below or by the platform taking the audio away.
-       Tested against anything-but-running rather than 'suspended': iOS
+    /* Tested against anything-but-running rather than 'suspended': iOS
        reports the non-standard 'interrupted' after a phone call or Siri,
        and matching only 'suspended' left those sessions permanently silent
        with the HUD still saying sound was on. The catch covers a context
-       that has been closed under us, where resume() rejects. */
-    if (ctx.state !== 'running') ctx.resume().catch(() => {});
+       that has been closed under us, where resume() rejects. The resume can
+       also be *refused* — a start reached from the gamepad poll has no user
+       activation behind it — so if the context has not come up by the next
+       frame, the retry below waits on the next genuine gesture. */
+    if (ctx.state !== 'running') {
+      ctx.resume().catch(() => {});
+      requestAnimationFrame(() => {
+        if (ctx && started && ctx.state !== 'running') armGestureResume();
+      });
+    }
   }
 
   const now = () => (ctx ? ctx.currentTime : 0);

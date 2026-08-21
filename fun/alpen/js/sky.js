@@ -1130,12 +1130,29 @@ const RELIEF_VERT = `
        to the mountain height before the pitch shear below, exactly where
        the bake used to multiply it. */
     float corAngle = atan(position.z, position.x) - uSpin;
+    float corAhead = max(0.0, -sin(corAngle));
+    float corS = clamp((corAhead - ${RELIEF.corridorFrom.toFixed(4)})
+      / ${(RELIEF.corridorTo - RELIEF.corridorFrom).toFixed(4)}, 0.0, 1.0);
     float corridor = 1.0 - ${RELIEF.corridorCut.toFixed(4)}
-      * smoothstep(${RELIEF.corridorFrom.toFixed(4)}, ${RELIEF.corridorTo.toFixed(4)},
-        max(0.0, -sin(corAngle)));
+      * corS * corS * (3.0 - 2.0 * corS);
     p.y *= corridor;
     p.y -= aRadius * pitch;
+    /* The normal takes the same deformation the height just did. The baked
+       normals describe the uncut shell; for a heightfield written as
+       (-grad h, 1), scaling h by c scales the normal's horizontal half by
+       c, and the cut's own angular gradient adds a tangential slope of
+       y * dc/dphi / r. Skipping this lit the cut shoulders as if they kept
+       their full shape, and wrongly harder as uSpin walked the cut around
+       the shell. Multiplied through by n.y so there is no division: the
+       expression degenerates to the plain normal wherever c is 1. */
     vec3 n = normal;
+    float corR = length(position.xz);
+    float dcdphi = -${RELIEF.corridorCut.toFixed(4)}
+      * (6.0 * corS * (1.0 - corS) / ${(RELIEF.corridorTo - RELIEF.corridorFrom).toFixed(4)})
+      * (-cos(corAngle)) * step(0.0001, corAhead);
+    vec3 corTan = vec3(-position.z, 0.0, position.x) / max(corR, 1.0);
+    n = normalize(vec3(corridor * n.x, n.y, corridor * n.z)
+      - corTan * (position.y * dcdphi / max(corR, 1.0)) * n.y);
     vec2 radial = normalize(position.xz);
     n.xz += radial * (pitch * n.y);
     vec4 world = modelMatrix * vec4(p, 1.0);
