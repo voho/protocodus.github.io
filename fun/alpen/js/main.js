@@ -1477,6 +1477,7 @@ function frame(now) {
        looks between one frame and the next, and telling them apart by eye is
        the only method available for a report that software rendering cannot
        reproduce. See `flickerProbe` below for what each one is. */
+    applyHides();
     if (flickerProbe.noShade) shading.uniforms.uShadeLevel.value = 0;
     if (flickerProbe.noCloud) shading.uniforms.uCloud.value = 0;
     if (flickerProbe.shadowEveryFrame || flickerProbe.noShadow) {
@@ -1579,7 +1580,7 @@ function frame(now) {
   hud.update(game, dt);
 
   retro.updateEffects(dt, running);
-  retro.updatePerformance(frameDt, running);
+  retro.updatePerformance(flickerProbe.freezeResolution ? 0 : frameDt, running);
   if (running || !pausedRendered || retro.animating) {
     retro.render(scene, camera);
     pausedRendered = !running && !retro.animating;
@@ -1688,7 +1689,43 @@ const flickerProbe = {
   shadowEveryFrame: false,  // …or on, but refreshed every frame not every other
   get snapMorph() { return terrain.probe.snapMorph; },
   set snapMorph(v) { terrain.probe.snapMorph = !!v; },
+  /* AND THE OTHER AXIS. The five above all change how a surface is *shaded*,
+     and none of them moved the reported flicker — which rules shading out and
+     points at which surface is being drawn at all. These hide whole objects
+     instead, so the question becomes "which one of you is it" rather than
+     "which effect".
+
+     The relief is the one to try first. `sky.js` puts its mid-distance
+     massifs on a shell running from 750 m to 1950 m, the sky group is
+     re-centred on the viewer every frame, and the terrain mesh reaches 900 m
+     ahead — so the two interpenetrate permanently between 750 and 900 m.
+     Both write depth. And the relief's material sets `fog: false` while the
+     terrain at that range is entirely fog colour, so the two sides of that
+     depth comparison are not even the same colour: whichever wins a given
+     pixel, flipping as the far edge of the terrain re-samples under it, is a
+     visible difference rather than a harmless one. */
+  hideRelief: false,        // sky.js 'mid-distance massifs'
+  hideRanges: false,        // the two far fallback ribbons behind it
+  hideDome: false,          // the painted sky dome itself
+  hideTerrain: false,       // the ground, to see what is behind it
+  freezeResolution: false,  // pin the adaptive render scale
 };
+const hideByName = { hideRelief: 'mid-distance massifs', hideRanges: 'far-range', hideDome: 'sky-dome' };
+/* Costs nothing until something is actually hidden, and one more frame after
+   that to put it back. A debug switch that traverses the sky graph on every
+   frame of every session is a debug switch that has become a tax. */
+let hidesActive = false;
+function applyHides() {
+  const want = flickerProbe.hideRelief || flickerProbe.hideRanges
+    || flickerProbe.hideDome || flickerProbe.hideTerrain;
+  if (!want && !hidesActive) return;
+  hidesActive = want;
+  for (const [flag, name] of Object.entries(hideByName)) {
+    const show = !flickerProbe[flag];
+    sky.group.traverse((o) => { if (o.name === name) o.visible = show; });
+  }
+  terrain.mesh.visible = !flickerProbe.hideTerrain;
+}
 let keyLightCache = null;
 function keyLight() {
   if (!keyLightCache && sky.lights) {

@@ -1463,6 +1463,7 @@ export function createSky(THREE) {
      opaques whatever their renderOrder says, so their own ordering among
      themselves is untouched by this. */
   dome.renderOrder = 1;
+  dome.name = 'sky-dome';
   group.add(dome);
 
   const preparePlate = (texture) => {
@@ -2308,7 +2309,11 @@ export function createSky(THREE) {
      shell. Their former near pair is deliberately omitted: actual radial
      geometry now owns that distance, and transparent skirts over it would
      flatten the facets while still costing two submissions. */
-  for (const spec of RANGES.slice(0, 2)) group.add(range(spec));
+  for (const spec of RANGES.slice(0, 2)) {
+    const m = range(spec);
+    m.name = 'far-range';
+    group.add(m);
+  }
 
   /* --- light ---------------------------------------------------------------
 
