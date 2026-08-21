@@ -401,7 +401,15 @@ export function createRetro(THREE, renderer) {
     const supported = gl.getInternalformatParameter(gl.RENDERBUFFER, fmt, gl.SAMPLES);
     maxSamples = supported && supported.length ? supported[0] : 0;
   }
-  scene3d.samples = Math.min(4, maxSamples);
+  /* Four samples on an ordinary panel, two on a dense one. At 2× density a
+     geometric edge is already half the visual size, so the second doubling
+     of MSAA buys the least visible smoothing in the frame while costing the
+     most memory bandwidth — a native-res HDR target at 4× on an integrated
+     GPU is most of its fill budget. Decided once at creation: the sample
+     count of a live multisampled target cannot be re-picked cheaply, and a
+     window dragged between panels is what the resolution governor is for. */
+  const dense = (window.devicePixelRatio || 1) > 1.4;
+  scene3d.samples = Math.min(dense ? 2 : 4, maxSamples);
 
   const bright = new THREE.WebGLRenderTarget(BASE_W / 4, BASE_H / 4,
     { ...targetOpts, depthBuffer: false });

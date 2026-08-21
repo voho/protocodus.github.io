@@ -1414,56 +1414,64 @@ export function gradeAt(z) {
    The grid
    ========================================================================== */
 
-/* Offsets that start at `step` and grow by `growth` each one, until they
-   have covered `reach`. Returns the list of positions, not the steps.
-
-   EVERY OFFSET IS A WHOLE NUMBER OF CELLS, including the graded ones, and
-   that one line is what stops the mountain redrawing itself two or three
-   times a second.
+/* Offsets that start at `step` and grow until they have covered `reach` —
+   IN DYADIC RINGS, and that structure is the whole flicker fix.
 
    The lattice is anchor-relative: a vertex samples the ground at
-   `anchor + offset`. Inside `uniformReach` the offsets were already whole
-   cells, so when the anchor hopped its eight-cell stride every one of those
-   vertices landed on a world position some other vertex had just held — the
-   data shifted along the buffer and the surface did not move at all. That is
-   why the ground under the board has always been welded to the hill.
+   `anchor + offset`, and the anchor hops in six-metre strides. Whether a hop
+   redraws the mountain comes down to one question per vertex: does the world
+   point it now samples already carry a vertex from before the hop? Inside
+   `uniformReach` the answer was always yes — offsets one cell apart, hop a
+   whole number of cells, so the data re-indexed along the buffer and the
+   surface never moved. That is why the ground under the board has always
+   been welded to the hill.
 
-   Past it the offsets were a geometric series and landed wherever they
-   landed, so the same hop moved every graded sample to ground it had never
-   sampled. The heights genuinely changed, and the mesh genuinely had to be
-   rebuilt to match. `morphSettle` and its glide exist to hide that, and they
-   cannot: they only choose whether the change arrives as a pop or as a
-   crawl. At riding speed the anchor moves every 400 milliseconds or so —
-   which is the two-or-three-times-a-second flicker, arriving at the same
-   shape each time because it is the same mountain being re-measured.
+   Past it the offsets used to be a geometric series rounded to the cell,
+   which is on-grid but SPARSE: after a hop, roughly a third of graded
+   samples landed on world points no vertex had ever held. Those heights
+   genuinely changed, and no easing rate can hide a measurement that keeps
+   changing — fast convergence read as a pop two or three times a second,
+   slow convergence read as the whole rock face crawling. Both were
+   reported, because both are real.
 
-   Rounding each offset onto the base grid puts every sample point, at any
-   distance, on one global lattice of `step` metres, and the anchor only
-   ever moves by whole multiples of it — so any two vertices that ever ask
-   about the same world point get bit-identical answers, and inside the
-   contiguous uniform field a re-anchor re-indexes and never re-measures.
-   Past it the series is sparse, so that guarantee weakens to "on-grid":
-   roughly a third of graded offsets still land on world points no vertex
-   held before the hop (the morph glide is what eases those — see the note
-   at the morph loop). The cost is that the far rings grow in quantised
-   jumps instead of smoothly, which is invisible at the hundreds of metres
-   where the grading actually bites.
+   So the graded region is now rings of constant spacing, each a power of
+   two times the cell: 1.5 m, 3 m, 6 m, 12 m, 24 m, doubling whenever the
+   old geometric ideal has grown past the next power (the 1.2 bias keeps
+   the total vertex count at par with the old series). Within a ring every
+   offset is a multiple of its stride and consecutive offsets differ by
+   exactly it — so for strides up to the six-metre hop, every hop re-indexes
+   the ring exactly, and for wider strides the world-snap in `snapLattice`
+   holds each sample still on its own world grid until the anchor crosses a
+   stride boundary, where it re-indexes too. Either way the drawn surface
+   is the same set of world samples before and after: nothing is ever
+   re-measured mid-ring, and the LOD morph has nothing left to hide (see
+   `morphMask`). Ring boundaries and the far edge still take fresh samples;
+   they are one or two rows deep, and the far edge is behind the curtain.
 
-   The `max` keeps the sequence strictly increasing: early in the graded
-   region the growth factor is still worth less than a cell, and without it
-   two consecutive offsets would round onto the same position and collapse a
-   ring of quads to zero width. */
+   `strides[k]` is the ring stride the k-th offset belongs to, which is the
+   grid `snapLattice` snaps that lane of samples onto. */
 function graded(step, growth, reach, uniformReach = 0) {
-  const out = [0];
+  const offsets = [0];
+  const strides = [step];
   let d = 0;
   let s = step;
+  let q = step;
   while (d < reach) {
-    const grown = d + s;
-    d = Math.max(out[out.length - 1] + step, Math.round(grown / step) * step);
-    out.push(d);
-    if (d >= uniformReach) s *= growth;
+    if (d >= uniformReach) {
+      s *= growth;
+      while (s >= q * 1.2 && q < 24) {
+        q *= 2;
+        // Ring starts land on a multiple of their own stride, which is what
+        // keeps consecutive same-ring samples exactly one stride apart on
+        // the world grid across every anchor phase.
+        d = Math.ceil(d / q - 1e-9) * q;
+      }
+    }
+    d += q;
+    offsets.push(d);
+    strides.push(q);
   }
-  return out;
+  return { offsets, strides };
 }
 
 /* Columns mirrored about the rider, rows graded in both directions from them.
@@ -1480,16 +1488,30 @@ function graded(step, growth, reach, uniformReach = 0) {
 const half = graded(TERRAIN.spacing, TERRAIN.sideGrowth, TERRAIN.side,
   TERRAIN.uniformNear);
 const xs = [];
-for (let i = half.length - 1; i >= 1; i--) xs.push(-half[i]);
-for (let i = 0; i < half.length; i++) xs.push(half[i]);
+const xStrides = [];
+for (let i = half.offsets.length - 1; i >= 1; i--) {
+  xs.push(-half.offsets[i]);
+  xStrides.push(half.strides[i]);
+}
+for (let i = 0; i < half.offsets.length; i++) {
+  xs.push(half.offsets[i]);
+  xStrides.push(half.strides[i]);
+}
 
 const bwd = graded(TERRAIN.spacing, TERRAIN.behindGrowth, TERRAIN.behind,
   TERRAIN.uniformNear);
 const fwd = graded(TERRAIN.spacing, TERRAIN.aheadGrowth, TERRAIN.ahead,
   TERRAIN.uniformNear);
 const zs = [];
-for (let i = bwd.length - 1; i >= 1; i--) zs.push(bwd[i]);
-for (let i = 0; i < fwd.length; i++) zs.push(-fwd[i]);
+const zStrides = [];
+for (let i = bwd.offsets.length - 1; i >= 1; i--) {
+  zs.push(bwd.offsets[i]);
+  zStrides.push(bwd.strides[i]);
+}
+for (let i = 0; i < fwd.offsets.length; i++) {
+  zs.push(-fwd.offsets[i]);
+  zStrides.push(fwd.strides[i]);
+}
 
 const vertsX = xs.length;
 const vertsZ = zs.length;
@@ -1503,11 +1525,11 @@ const vertsZ = zs.length;
    cells, so it drops out of the parity entirely and a world cell is cut the
    same way for the whole run. This constant is everything about the mesh's
    index buffer that a point query needs to know. */
-const CELL_PARITY = ((half.length - 1) + (bwd.length - 1) + 1) & 1;
+const CELL_PARITY = ((half.offsets.length - 1) + (bwd.offsets.length - 1) + 1) & 1;
 
 export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   const {
-    spacing, morphNear, morphFar, morphRate, morphSettle,
+    spacing, morphRate, morphSettle,
   } = TERRAIN;
 
   const cols = vertsX - 1;
@@ -1575,7 +1597,18 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   let m = 0;
   for (let r = 0; r < vertsZ; r++) {
     for (let c = 0; c < vertsX; c++, m++) {
-      morphMask[m] = smoothstep(morphNear, morphFar, Math.hypot(xs[c], zs[r]));
+      /* Zero everywhere: the whole lattice snaps now, because the dyadic
+         rings make every ordinary anchor hop a pure re-index — the target
+         holds the same world samples the live surface is already drawing,
+         merely shifted along the buffer, and MORPHING between re-indexed
+         data is itself an artifact: it interpolates each vertex between two
+         different points of a surface that never changed, which is the
+         far-field crawl that got reported. What little genuinely changes
+         (ring boundaries, the far edge scrolling in behind the curtain,
+         LOD-mask deltas of the faded octaves) is centimetres at a hundred
+         -plus metres, far cheaper to cut than to animate. The glide
+         machinery below stays intact for any future mask that wants it. */
+      morphMask[m] = 0;
       const cellX = Math.max(
         c > 0 ? Math.abs(xs[c] - xs[c - 1]) : 0,
         c + 1 < vertsX ? Math.abs(xs[c + 1] - xs[c]) : 0,
@@ -2292,6 +2325,27 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
         uniform vec2 uSnowTile;
         uniform vec2 uSnowAlbedo;
         uniform vec2 uSnowHeight;`)
+      .replace('#include <map_fragment>', `
+        /* FULLY BEHIND THE CURTAIN, so the fragment is pure atmosphere and
+           leaves before any of the expensive work below it. At n64Fog = 1
+           the shared fog chunk's answer is exactly n64Sky(dir) — the mist
+           term carries a (1 − fog) factor and everything else is mixed all
+           the way out — so this is the same colour the full pipeline would
+           produce, minus four texture layers, the corduroy, the snow
+           response, the shadow reads and the whole light loop. The ground
+           past the fog distance fills a band of every frame and most of the
+           screen in a storm, which is when the GPU is busiest. Terrain only:
+           an alpha-tested material taking this exit would paint its whole
+           card. The branch is coherent — fog is monotonic in depth. */
+        {
+          float n64EarlyD = length(vN64View);
+          if (n64EarlyD * uFogPull >= uFogFar) {
+            vec3 n64EarlyDir = vN64View * (1.0 / max(n64EarlyD, 1e-4)) * mat3(viewMatrix);
+            gl_FragColor = vec4(n64Sky(n64EarlyDir), 1.0);
+            return;
+          }
+        }
+        #include <map_fragment>`)
       .replace('#include <color_fragment>', `#include <color_fragment>
         /* Material identity is generated with the terrain. Recovering it from
            albedo luminance made blue shaded snow look like rock and let the
@@ -2907,15 +2961,50 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   // anchor — see `settleMorph`.
   let morphSnap = false;
 
+  /* The snapped lattice for the anchor a build is running against.
+
+     Each lane's world sample is the nearest multiple of its ring stride —
+     see `graded`. For strides that divide the six-metre anchor grid this is
+     the identity (the anchor is itself a multiple of every one of them), so
+     the uniform field and the sub-hop rings sample exactly where they
+     always did; only the 12 m and 24 m rings genuinely snap, which is what
+     holds their world samples still between stride crossings instead of
+     dragging them six metres through never-sampled ground on every hop.
+     Recomputed whenever a build begins, into fixed arrays the two fill
+     passes read in place of the nominal offsets. */
+  const sxs = new Float64Array(vertsX);
+  const szs = new Float64Array(vertsZ);
+
+  function snapLattice(ax, az) {
+    for (let c = 0; c < vertsX; c++) {
+      const g = xStrides[c];
+      sxs[c] = Math.round((ax + xs[c]) / g) * g - ax;
+    }
+    // Ring boundaries can tie or cross for a few anchor phases; a monotonic
+    // guard keeps the mesh from folding. The nudged vertex re-measures on
+    // some hops — one lane at a ring seam, centimetres, behind the fog.
+    for (let c = 1; c < vertsX; c++) {
+      if (sxs[c] <= sxs[c - 1] + 1e-6) sxs[c] = sxs[c - 1] + spacing * 0.5;
+    }
+    for (let r = 0; r < vertsZ; r++) {
+      const g = zStrides[r];
+      szs[r] = Math.round((az + zs[r]) / g) * g - az;
+    }
+    // zs runs from behind (+) to ahead (−), so the guard descends.
+    for (let r = 1; r < vertsZ; r++) {
+      if (szs[r] >= szs[r - 1] - 1e-6) szs[r] = szs[r - 1] - spacing * 0.5;
+    }
+  }
+
   function fillHeightRows(ax, az, rowFrom, rowTo) {
     // Heights are generated a row at a time so everything depending only on z
     // is computed once for the whole row rather than once per vertex.
     let i = rowFrom * vertsX;
     for (let r = rowFrom; r < rowTo; r++) {
-      rowContext(az + zs[r], ctx);
+      rowContext(az + szs[r], ctx);
       for (let c = 0; c < vertsX; c++, i++) {
         heights[i] = heightIn(
-          ctx, ax + xs[c], coarseDetailMask[i], fineDetailMask[i],
+          ctx, ax + sxs[c], coarseDetailMask[i], fineDetailMask[i],
           mogulDetailMask[i], flankDetailMask[i], bulkDetailMask[i],
         );
       }
@@ -2931,11 +3020,11 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     let q = i * 4;
     let g = i * 2;
     for (let r = rowFrom; r < rowTo; r++) {
-      const lz = zs[r];
+      const lz = szs[r];
       const wz = az + lz;
       const rPrev = Math.max(0, r - 1);
       const rNext = Math.min(vertsZ - 1, r + 1);
-      const dz2 = zs[rNext] - zs[rPrev] || 1;
+      const dz2 = szs[rNext] - szs[rPrev] || 1;
       // The haze is radial and this test used to be one-dimensional, so a
       // vertex four hundred metres down the hill *and* four hundred to the
       // side — a corner of the grid, and there are a great many of them — was
@@ -2962,13 +3051,13 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       if (lzSq >= FOG_SKIP_SQ) {
         for (let c = 0; c < vertsX; c++, i++, p += 3, q += 4, g += 2) {
           const h = heights[i];
-          const wx = ax + xs[c];
-          outPositions[p] = xs[c];
+          const wx = ax + sxs[c];
+          outPositions[p] = sxs[c];
           outPositions[p + 1] = h - ay;
           outPositions[p + 2] = lz;
           const cPrev = Math.max(0, c - 1);
           const cNext = Math.min(vertsX - 1, c + 1);
-          const dx2 = xs[cNext] - xs[cPrev] || 1;
+          const dx2 = sxs[cNext] - sxs[cPrev] || 1;
           const dx = (heights[r * vertsX + cNext] - heights[r * vertsX + cPrev]) / dx2;
           const dz = (heights[rNext * vertsX + c] - heights[rPrev * vertsX + c]) / dz2;
           const invNormal = 1 / Math.hypot(dx, 1, dz);
@@ -3044,7 +3133,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       const bandZ = wz * P.band.freq;
 
       for (let c = 0; c < vertsX; c++, i++, p += 3, q += 4, g += 2) {
-        const lx = xs[c];
+        const lx = sxs[c];
         const wx = ax + lx;
         const h = heights[i];
 
@@ -3054,7 +3143,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
 
         const cPrev = Math.max(0, c - 1);
         const cNext = Math.min(vertsX - 1, c + 1);
-        const dx2 = xs[cNext] - xs[cPrev] || 1;
+        const dx2 = sxs[cNext] - sxs[cPrev] || 1;
         const dx = (heights[r * vertsX + cNext] - heights[r * vertsX + cPrev]) / dx2;
         const dz = (heights[rNext * vertsX + c] - heights[rPrev * vertsX + c]) / dz2;
 
@@ -3112,15 +3201,15 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
            filtered by the same LOD mask, it cannot form display-row moire. */
         let curvature = 0;
         if (c > 0 && c + 1 < vertsX) {
-          const stepL = Math.abs(xs[c] - xs[cPrev]);
-          const stepR = Math.abs(xs[cNext] - xs[c]);
+          const stepL = Math.abs(sxs[c] - sxs[cPrev]);
+          const stepR = Math.abs(sxs[cNext] - sxs[c]);
           const slopeL = (h - heights[r * vertsX + cPrev]) / stepL;
           const slopeR = (heights[r * vertsX + cNext] - h) / stepR;
           curvature += 2 * (slopeR - slopeL) / (stepL + stepR);
         }
         if (r > 0 && r + 1 < vertsZ) {
-          const stepB = Math.abs(zs[r] - zs[rPrev]);
-          const stepF = Math.abs(zs[rNext] - zs[r]);
+          const stepB = Math.abs(szs[r] - szs[rPrev]);
+          const stepF = Math.abs(szs[rNext] - szs[r]);
           const slopeB = (h - heights[rPrev * vertsX + c]) / stepB;
           const slopeF = (heights[rNext * vertsX + c] - h) / stepF;
           curvature += 2 * (slopeF - slopeB) / (stepB + stepF);
@@ -3382,6 +3471,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   function fill(
     ax, az, ay, outPositions, outNormals, outColors, outSurface, outGroomFrame,
   ) {
+    snapLattice(ax, az);
     fillHeightRows(ax, az, 0, vertsZ);
     fillSurfaceRows(
       ax, az, ay, outPositions, outNormals, outColors, outSurface, outGroomFrame,
@@ -3474,6 +3564,18 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
         groomFrame[g + 1] = targetGroomFrame[g + 1];
       }
       morphSnap = false;
+    }
+
+    /* Nothing morphs any more — see `morphMask`. The snap above just moved
+       the whole lattice in one write, so the commit finishes here with one
+       full upload, replacing the old glide's per-tick range publishes (an
+       81k-vertex lerp over five attributes plus megabytes of buffer traffic
+       on most frames at speed). `publishMorph`'s covering range would be
+       empty with no morph list, so it cannot carry this. */
+    if (morphList.length === 0) {
+      morphing = false;
+      publish();
+      return;
     }
 
     for (let k = 0; k < morphList.length; k++) {
@@ -3645,6 +3747,9 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
 
   function beginBuild(ax, az, ay) {
     // The spare arrays are independent of an in-flight visible convergence.
+    // The snapped lattice belongs to the build's own anchor and holds still
+    // for its whole amortised run — the live surface never reads it.
+    snapLattice(ax, az);
     build = { ax, az, ay, stage: 0, row: 0 };
     buildStartedAt = clockNow();
   }

@@ -1885,8 +1885,13 @@ export const PROPS = {
      field in `props.js`, widened in the same step so the extra trees stack
      behind the front rank instead of thickening it into a hedge. */
   /* Trees are strictly confined to the low valley verges near the piste,
-     leaving the high mountain flanks and slopes completely free of trees. */
-  treesPerBand: 42,
+     leaving the high mountain flanks and slopes completely free of trees.
+     Trimmed by a quarter from 42 in the performance pass: trees are the
+     dearest object on the hill — card overdraw, shadow casting, placement
+     probes and a collision record each — and the stands' clump-and-clearing
+     read survives the thinning because the stand field decides the shape,
+     not the count. */
+  treesPerBand: 32,
   /* Where the forest is allowed to begin, measured out from the groomed edge.
      THE PISTE IS EMPTY. */
   verge: 2.2,
@@ -1900,8 +1905,10 @@ export const PROPS = {
   },
   /* Mountain environment: rich alpine vegetation on verges and mountain flanks */
   biomes: {
-    plantCandidates: 36,
-    shrubCandidates: 48,
+    // Both trimmed ~a quarter with the trees above; low vegetation reads as
+    // texture long before it reads as a count.
+    plantCandidates: 28,
+    shrubCandidates: 36,
     sideRockCandidates: 4,
     stoneSize: [0.4, 2.8],
     cragFrom: 200,
