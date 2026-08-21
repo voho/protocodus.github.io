@@ -2367,6 +2367,37 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
         float n64IronFoot = fwidth(n64IronC);
         float n64JointC = vWorld.x * 0.39 - vWorld.z * 0.27;
         float n64JointFoot = fwidth(n64JointC);
+        /* THE FACET NORMAL, TAKEN OUT HERE ON PURPOSE.
+
+           This is the triplanar blend's normal, and it used to be derived
+           inside the rock branch below, next to where it is consumed. That is
+           the one thing a derivative may not do. The mask it branches on is a
+           per-fragment value, so that branch is non-uniform control flow, and
+           dFdx/dFdy are defined only in uniform control flow: they are
+           differences taken across a 2x2 quad, so a fragment that skipped the
+           branch never supplied its neighbours anything to difference
+           against. On a mountain the snow/rock threshold runs through
+           practically every quad on the face — so practically every quad
+           differenced against nothing. A garbage cross product, a normalize
+           of near-zero, and NaN. NaN rasterises white, which is the flashing;
+           the quads that survived got wild weights, which is the texture
+           crawl. Both only on rock, both only where the mask is mixed, and
+           both immune to every shading switch, because none of them turned
+           this branch off.
+
+           The same rule is the note above the ice plate's explicit-gradient
+           fetch, and every other derivative in this shader already sits at
+           this level. This was the one that got away.
+
+           Guarded rather than normalized outright: at a silhouette, or where
+           two quad neighbours land on one world position, the cross product
+           is zero and a bare normalize would put the NaN straight back.
+           (No back-ticks in here: this comment is inside a template literal.) */
+        vec3 n64TriRaw = cross(dFdx(vWorld), dFdy(vWorld));
+        float n64TriLen = length(n64TriRaw);
+        vec3 n64TriN = n64TriLen > 1e-12
+          ? n64TriRaw / n64TriLen
+          : vec3(0.0, 1.0, 0.0);
         if (n64SnowMask < 0.998) {
           float n64SlateW = mod(n64SlateC, 64.0);
           float n64IronW = mod(n64IronC, 64.0);
@@ -2411,13 +2442,14 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
              taken from the world position's own derivatives rather than from
              vSmoothNormal: the weights want the *facet* the fragment is
              actually on, and this way the term needs nothing plumbed through
-             from the vertex stage. Raised to a fourth power so the blend band
+             from the vertex stage. It is computed above the branch, not here
+             — see the note there for why that is not a stylistic choice.
+             Raised to a fourth power so the blend band
              is narrow — a wide one cross-fades two projections over most of
              the mountain and doubles the visible texture everywhere.
 
              Three samples instead of one, and only inside this branch, which
              is already gated on there being any rock here at all. */
-          vec3 n64TriN = normalize(cross(dFdx(vWorld), dFdy(vWorld)));
           vec3 n64TriW = abs(n64TriN);
           n64TriW *= n64TriW;
           n64TriW *= n64TriW;
