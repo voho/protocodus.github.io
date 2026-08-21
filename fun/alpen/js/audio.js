@@ -150,24 +150,37 @@ export function createAudio() {
      polled off the animation frame and carries no user activation, so its
      `resume()` is allowed to reject, and the run would open silent with
      the HUD still saying sound was on. When that happens, the next real
-     gesture of any kind — a key, a tap, a click, anywhere — retries the
-     resume and then takes itself back off the listeners. One shot, armed
-     at most once. */
+     gesture — a key, a tap, a click, anywhere — retries the resume.
+
+     Armed until a resume actually SUCCEEDS, not until a gesture merely
+     arrives. Not every event here carries activation on every browser —
+     Chrome on touch grants it on the synthesized click rather than on
+     pointerdown (the same quirk the curtain's click handler documents) —
+     and a one-shot that disarmed on the first event burned its only try
+     on the one that doesn't qualify, leaving every later gesture unable
+     to unlock the audio it was armed for. */
   let gestureRetryArmed = false;
+  const RETRY_GESTURES = ['pointerdown', 'touchstart', 'keydown', 'click'];
 
   function armGestureResume() {
     if (gestureRetryArmed) return;
     gestureRetryArmed = true;
-    const retry = () => {
+    const disarm = () => {
       gestureRetryArmed = false;
-      for (const type of ['pointerdown', 'keydown', 'touchstart']) {
+      for (const type of RETRY_GESTURES) {
         window.removeEventListener(type, retry, true);
       }
-      if (ctx && started && ctx.state !== 'running') {
-        ctx.resume().catch(() => {});
-      }
     };
-    for (const type of ['pointerdown', 'keydown', 'touchstart']) {
+    function retry() {
+      if (!ctx || !started || ctx.state === 'running') {
+        disarm();
+        return;
+      }
+      // Disarm only on fulfilment. A rejection means this gesture carried
+      // no activation; the listeners stay for one that does.
+      ctx.resume().then(disarm, () => {});
+    }
+    for (const type of RETRY_GESTURES) {
       window.addEventListener(type, retry, true);
     }
   }
