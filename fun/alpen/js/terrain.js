@@ -1459,15 +1459,19 @@ function graded(step, growth, reach, uniformReach = 0) {
   while (d < reach) {
     if (d >= uniformReach) {
       s *= growth;
-      while (s >= q * 1.2 && q < 24) {
-        q *= 2;
-        // Ring starts land on a multiple of their own stride, which is what
-        // keeps consecutive same-ring samples exactly one stride apart on
-        // the world grid across every anchor phase.
-        d = Math.ceil(d / q - 1e-9) * q;
-      }
+      if (s >= q * 1.2 && q < 24) q *= 2;
     }
-    d += q;
+    /* The next lane is the previous one rounded UP onto the ring's grid —
+       one stride within a ring, and at a doubling either the old or the new
+       stride, whichever the grid demands. NEVER more: an earlier draft
+       aligned the running distance before advancing and opened holes of up
+       to two coarse strides at every seam, and a hole is a band of lanes
+       whose re-index partner does not exist — a strip beside each seam that
+       re-measured fresh ground on every hop, which is the artifact this
+       whole function exists to end. */
+    let next = Math.ceil((d + 1e-9) / q) * q;
+    if (next <= d + 1e-9) next = d + q;
+    d = next;
     offsets.push(d);
     strides.push(q);
   }
@@ -1609,18 +1613,19 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
          -plus metres, far cheaper to cut than to animate. The glide
          machinery below stays intact for any future mask that wants it. */
       morphMask[m] = 0;
-      const cellX = Math.max(
-        c > 0 ? Math.abs(xs[c] - xs[c - 1]) : 0,
-        c + 1 < vertsX ? Math.abs(xs[c + 1] - xs[c]) : 0,
-      );
-      const cellZ = Math.max(
-        r > 0 ? Math.abs(zs[r] - zs[r - 1]) : 0,
-        r + 1 < vertsZ ? Math.abs(zs[r + 1] - zs[r]) : 0,
-      );
       /* Geometry LOD is also the anti-aliasing filter for the two finest
          height octaves. Fade them before a cell grows wide enough to sample
-         them unreliably; the rider's collision query keeps full detail. */
-      const cell = Math.max(cellX, cellZ);
+         them unreliably; the rider's collision query keeps full detail.
+
+         The cell size is THE LANE'S OWN RING STRIDE, not the larger of its
+         neighbour gaps. The old max-of-neighbours bled each ring seam's
+         coarser value one lane into the finer ring, and a lane whose mask
+         differs from its ring's produces different heights for the same
+         world point — so on every ring crossing that lane snapped by the
+         masked octave's amplitude, which on the wall bands is metres.
+         Keyed to the stride, masks are exactly constant per ring and a
+         re-index inside one is bit-identical. */
+      const cell = Math.max(xStrides[c], zStrides[r]);
       coarseDetailMask[m] = 1 - smoothstep(
         chatter.lod.coarse[0], chatter.lod.coarse[1], cell,
       );
@@ -2980,11 +2985,16 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       const g = xStrides[c];
       sxs[c] = Math.round((ax + xs[c]) / g) * g - ax;
     }
-    // Ring boundaries can tie or cross for a few anchor phases; a monotonic
-    // guard keeps the mesh from folding. The nudged vertex re-measures on
-    // some hops — one lane at a ring seam, centimetres, behind the fog.
+    /* Ring boundaries can tie or cross for a few anchor phases; a monotonic
+       guard keeps the mesh from folding. THE GUARD STAYS ON A GRID: the
+       colliding lane is pushed one whole neighbour-stride along, so it lands
+       on a world point the neighbouring ring holds anyway and re-indexes
+       with it. The first cut nudged by half a cell instead, which put the
+       lane off every grid — one lane at each affected seam re-sampled fresh
+       ground on every hop, a single vertical shimmer line standing on the
+       wall, on exactly the snow-flute band the whole rework is for. */
     for (let c = 1; c < vertsX; c++) {
-      if (sxs[c] <= sxs[c - 1] + 1e-6) sxs[c] = sxs[c - 1] + spacing * 0.5;
+      if (sxs[c] <= sxs[c - 1] + 1e-6) sxs[c] = sxs[c - 1] + xStrides[c - 1];
     }
     for (let r = 0; r < vertsZ; r++) {
       const g = zStrides[r];
@@ -2992,7 +3002,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     }
     // zs runs from behind (+) to ahead (−), so the guard descends.
     for (let r = 1; r < vertsZ; r++) {
-      if (szs[r] >= szs[r - 1] - 1e-6) szs[r] = szs[r - 1] - spacing * 0.5;
+      if (szs[r] >= szs[r - 1] - 1e-6) szs[r] = szs[r - 1] - zStrides[r - 1];
     }
   }
 
