@@ -241,6 +241,14 @@ export class Rider {
     this.roll = 0;
     this.grounded = true;
     this.state = 'ride';
+    /* The board frame goes back to the spawn's own facts. Left alone it
+       carried the previous run's last surface — a restart out of a crash
+       against the containment wall drew its first frame (and aimed the
+       chase camera) with the rig still banked on the wall's normal until
+       the first physics step happened to run. */
+    this.normal.set(0, 1, 0);
+    this.heading.set(0, 0, -1);
+    this.right.set(1, 0, 0);
 
     this.compression = 0;
     this.compressionVel = 0;
@@ -295,6 +303,7 @@ export class Rider {
     this.landing = null;     // set for one frame after a landing
     this.flowDrive = 0;      // how much meter the powered tuck may spend
     this.yawGlide = 0;       // presentation-only remainder of a landing snap
+    this.flipGlide = 0;      // …and the same for the board's landed pitch
     this.contactFootprint = CONTACT_EPS * 2;
     this._handlingReady = false;
   }
@@ -390,6 +399,8 @@ export class Rider {
        swap — so nothing in this step may consult it. */
     this.yawGlide *= Math.exp(-RIDER.glideRate * dt);
     if (Math.abs(this.yawGlide) < 0.002) this.yawGlide = 0;
+    this.flipGlide *= Math.exp(-RIDER.glideRate * dt);
+    if (Math.abs(this.flipGlide) < 0.002) this.flipGlide = 0;
 
     // Getting up is part of going down, so both states run the recovery
     // step. Dispatching only on 'fall' stopped the timer the moment
@@ -953,8 +964,12 @@ export class Rider {
         const sn = Math.sin(swing);
         const vx = vel.x;
         const vz = vel.z;
-        vel.x = vx * cs + vz * sn;
-        vel.z = -vx * sn + vz * cs;
+        /* In this file's yaw convention (yaw = atan2(vx, -vz)) a +swing on
+           the heading is vx' = vx·cos − vz·sin, vz' = vx·sin + vz·cos. The
+           signs were flipped, so the momentum pivoted *against* the board —
+           doubling the exact divergence this rotation exists to remove. */
+        vel.x = vx * cs - vz * sn;
+        vel.z = vx * sn + vz * cs;
       }
     }
 
@@ -1934,6 +1949,11 @@ export class Rider {
     this.grounded = true;
     this.state = 'ride';
     this.extension = 0;
+    // The pitch the landing forgives, kept for the renderer. The yaw snap
+    // below hands its residual to `yawGlide`; the flip's residual — up to
+    // ~78° on the sketchiest landed flip — was zeroed in one write, and the
+    // board's nose visibly teleported level. Same cure, same drain.
+    const flipResidual = wrapPi(this.flip);
     this.flip = 0;
     this.flipVel = 0;
     this.spinVel = 0;
@@ -1967,6 +1987,7 @@ export class Rider {
            landing, minus the one-frame twitch. */
         const snapped = isSwitch ? travelYaw + Math.PI : travelYaw;
         this.yawGlide = clamp(wrapPi(this.yaw - snapped), -1.1, 1.1);
+        this.flipGlide = clamp(flipResidual, -1.4, 1.4);
         this.yaw = snapped;
         this.switchStance = isSwitch;
       }

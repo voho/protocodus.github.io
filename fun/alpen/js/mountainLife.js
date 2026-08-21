@@ -152,6 +152,8 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
   const topX = new Float64Array(NUM_PYLONS);
   const topY = new Float64Array(NUM_PYLONS);
   const topZ = new Float64Array(NUM_PYLONS);
+  // Where the cabin datum stood last frame — see the slide handover below.
+  let lastBackZ = null;
 
   const cableMat = shading.apply(
     new THREE.MeshBasicMaterial({ color: 0x22262c }), { sheen: 0 },
@@ -640,6 +642,23 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
          one slot at a time as the rider descends past them. Ahead is −z. */
       const baseZ = Math.floor(rz / PYLON_SPACING) * PYLON_SPACING;
       const backZ = baseZ + 2 * PYLON_SPACING;   // two slots behind…
+      /* The cabins measure `at` from `backZ`, so the towers' world-fixed
+         grid was not enough on its own: every slide of the window moved the
+         datum by a whole slot and all six cabins teleported 200 m in one
+         frame, in view, on the rope. Shifting `at` by the same slide keeps
+         each cabin's world position continuous; the wrap hands cabins over
+         only at the window's far ends, out past the fog. */
+      if (lastBackZ === null) lastBackZ = backZ;
+      if (backZ !== lastBackZ) {
+        const slide = backZ - lastBackZ;
+        for (let i = 0; i < NUM_GONDOLAS; i++) {
+          let at = gondolas[i].at + slide;
+          at %= SPAN;
+          if (at < 0) at += SPAN;
+          gondolas[i].at = at;
+        }
+        lastBackZ = backZ;
+      }
       wheelSpin += 3.0 * dt;
       for (let i = 0; i < NUM_PYLONS; i++) {
         const pz = backZ - i * PYLON_SPACING;    // …to two slots ahead
@@ -805,12 +824,16 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
         // Direction of travel (yaw) where 0 = straight downhill (-Z)
         const yaw = Math.atan2(npc.vx, -npc.vz);
 
-        // Slope pitch along heading
+        /* Slope pitch along heading. Ahead is −z, so the point 0.9 m ahead
+           sits at x + hRatio·0.9 — the old negated offsets sampled the
+           heights mirrored across the fall line, feeding the lateral
+           gradient into the pitch with the wrong sign exactly at the apex
+           of the S-turns, where vx is largest. */
         const zAhead = npc.z - 0.9;
         const zBehind = npc.z + 0.9;
         const hRatio = npc.vx / Math.max(1, Math.abs(npc.vz));
-        const yAhead = heightAt(npc.x + hRatio * -0.9, zAhead);
-        const yBehind = heightAt(npc.x - hRatio * -0.9, zBehind);
+        const yAhead = heightAt(npc.x + hRatio * 0.9, zAhead);
+        const yBehind = heightAt(npc.x - hRatio * 0.9, zBehind);
         const pitch = Math.atan2(yAhead - yBehind, 1.8);
 
         // Bank angle (lean into the carve)
@@ -857,6 +880,9 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
       }
     },
     reset(riderZ = 0) {
+      // A checkpoint restart teleports the datum; take the fresh one rather
+      // than treating the jump as a slide to compensate.
+      lastBackZ = null;
       for (let i = 0; i < NUM_CANNONS; i++) {
         const c = cannons[i];
         placeCannon(c, riderZ + 40 - i * CANNON_SPACING);

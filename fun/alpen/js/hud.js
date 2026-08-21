@@ -839,6 +839,11 @@ export function createHud(root) {
       + ` ${g.flow > 0 ? Math.round(g.flow * 100) : 0}`
       + ` ${g.flow > 0.99 && !CALM ? Math.floor(clock * 10) % 2 : -1}`
       + ` ${Math.round((g.pisteOffset || 0) * 10)}`
+      /* The piste guide's blizzard gate. The offset above only moves in
+         tenths, and the storm crossing 0.45 changes what is drawn without
+         changing any other term — the one drawn fact this string did not
+         carry. */
+      + ` ${g.weather && g.weather.storm > 0.45 ? 1 : 0}`
       + ` ${muted ? 1 : 0} ${legendTime < LEGEND_SECONDS ? 1 : 0}`
       + ` ${document.body.classList.contains('touch') ? 1 : 0}`;
   }
@@ -853,9 +858,14 @@ export function createHud(root) {
     shownScore += (g.score - shownScore) * Math.min(1, dt * 7);
     if (Math.abs(g.score - shownScore) < 1) shownScore = g.score;
 
-    if (bannerTimer > 0) bannerTimer -= dt;
-    if (bestFlash > 0) bestFlash -= dt;
-    if (comboFlash > 0) comboFlash -= dt;
+    // The banner belongs to the run, so the pause clock must not eat it:
+    // paused mid-trick-name for ten seconds used to resume onto a blank
+    // band, with the verdict the player stopped to read already gone.
+    if (g.mode !== 'paused') {
+      if (bannerTimer > 0) bannerTimer -= dt;
+      if (bestFlash > 0) bestFlash -= dt;
+      if (comboFlash > 0) comboFlash -= dt;
+    }
 
     // The edge, found here rather than in `award` — the scoring path runs
     // inside the physics step and has no business carrying a display concern.

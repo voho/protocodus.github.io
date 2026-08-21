@@ -156,8 +156,13 @@ export function createAudio() {
     /* Every call to `start` arrives from a user gesture — the curtain's click
        or a keydown in `begin` — which is precisely the condition
        under which a browser permits `resume`, whether the context was
-       suspended by `quiet` below or by the platform taking the audio away. */
-    if (ctx.state === 'suspended') ctx.resume();
+       suspended by `quiet` below or by the platform taking the audio away.
+       Tested against anything-but-running rather than 'suspended': iOS
+       reports the non-standard 'interrupted' after a phone call or Siri,
+       and matching only 'suspended' left those sessions permanently silent
+       with the HUD still saying sound was on. The catch covers a context
+       that has been closed under us, where resume() rejects. */
+    if (ctx.state !== 'running') ctx.resume().catch(() => {});
   }
 
   const now = () => (ctx ? ctx.currentTime : 0);

@@ -742,7 +742,8 @@ rider.on('land', (s) => {
   if (game.mode !== 'playing') return;
   scoreLanding(s);
   audio.land(s.impact);
-  chase.kick(Math.min(1.8, s.impact * 0.09));
+  // `chase.land` applies the impact kick itself; a second kick here doubled
+  // every landing's shake over what the camera authored.
   chase.land(s.impact);
   // A stomp is the emphatic landing, not every landing: half of hardImpact,
   // rather than a hair over soft, keeps the big radial ring and its bass hit
@@ -940,13 +941,17 @@ function stepFlow() {
       }
     }
     rider.flowDrive = game.flow;
+    // The multiplier catches up with the meter *before* the announcement
+    // pays out: a meter the player just filled promises the top multiplier,
+    // and the MAX FLOW bonus paying the previous step's combo contradicted
+    // the number sliding onto the screen beside it.
+    syncCombo();
     if (game.flow >= 0.99 && !game.flowMaxAnnounced) {
       game.flowMaxAnnounced = true;
       award(500 * game.combo, 'MAX FLOW', 'near');
     } else if (game.flow < 0.5) {
       game.flowMaxAnnounced = false;   // armed again once it has genuinely dropped
     }
-    syncCombo();
   }
 
   /* Flow opens the speed ceiling continuously from the base 50 m/s limit to
@@ -1273,9 +1278,25 @@ function frame(now) {
   last = now;
 
   const running = game.mode !== 'paused';
+  /* The resolution governor decides FIRST, so a scale step lands before any
+     system converts metres to pixels for this frame. Run at the tail of the
+     loop, a step's target resize arrived after the particle systems had
+     already baked the old buffer height into their point-size uniforms —
+     one frame of subtly mis-sized sprites on exactly the frame the governor
+     acted. The unclamped delta is deliberate; see `updatePerformance`. */
+  retro.updatePerformance(flickerProbe.freezeResolution ? 0 : frameDt, running);
   if (running) {
     pausedRendered = false;
     input.update(dt);
+    /* The gamepad's route onto the mountain. `anyPressed` is the edge the
+       input module raises for exactly this (its keydown path raises it too,
+       redundantly — the keyboard already arrives through `onKey`), and it
+       was never read: a pad-only player sat on the title card pressing A at
+       a game that could not hear them. Consumed here, as an edge. */
+    if (input.state.anyPressed) {
+      input.state.anyPressed = false;
+      if (game.mode === 'attract') begin();
+    }
     /* The demo rider is a salesman, not a survivor: if it stalls on the
        shoulder or loses the course entirely, it is quietly stood back on
        the line a couple of metres further down and the loop goes on. A
@@ -1462,7 +1483,16 @@ function frame(now) {
       // `yawGlide` is the un-drained remainder of the last landing snap —
       // presentation only, so it is subtracted here where the pose becomes
       // a picture and never seen by the physics that wrote it.
-      rider.yaw = stepFromYaw + (trueYaw - stepFromYaw) * stepAlpha
+      /* The delta is wrapped to the nearest half turn before it is scaled.
+         Ordinary steps move the yaw a few hundredths of a radian and the
+         wrap is the identity — but the landing snap rewrites the yaw by
+         whole turns in one step (a landed 720 leaves `trueYaw` about 4π
+         from `stepFromYaw`), and lerping across that raw gap swept the
+         model through every heading in between: one frame of the rider
+         facing somewhere arbitrary, on exactly the landings the eye is
+         following most closely. */
+      const yawStep = trueYaw - stepFromYaw;
+      rider.yaw = stepFromYaw + (yawStep - TAU * Math.round(yawStep / TAU)) * stepAlpha
         + rider.yawGlide;
       viewSwapped = true;
     }
@@ -1580,7 +1610,6 @@ function frame(now) {
   hud.update(game, dt);
 
   retro.updateEffects(dt, running);
-  retro.updatePerformance(flickerProbe.freezeResolution ? 0 : frameDt, running);
   if (running || !pausedRendered || retro.animating) {
     retro.render(scene, camera);
     pausedRendered = !running && !retro.animating;

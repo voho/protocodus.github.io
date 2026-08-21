@@ -1057,7 +1057,13 @@ export function createRiderModel(THREE, shading) {
           vCloth = aCloth;
           vLocalY = position.y;
           vClothAxis = normalize(normalMatrix * vec3(0.0, 1.0, 0.0));
-          vClothWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;`);
+          /* Rig-local, not world. Sampled at the world position the weave
+             streamed across the jacket as the rider moved — cloth crawling
+             over its own wearer — and kilometres into a run the UV grew
+             into the tens of thousands, where float precision turns a
+             fine weave into shimmer. Local coordinates travel with the
+             cloth and stay small forever. */
+          vClothWorld = transformed;`);
       shader.fragmentShader = shader.fragmentShader
         .replace('#include <common>', `#include <common>
           uniform float uLampGlow;
@@ -1556,7 +1562,10 @@ export function createRiderModel(THREE, shading) {
     // heading is (sin yaw, 0, −cos yaw), which is this rotation and not its
     // mirror. See the note at the top of the file.
     qy.setFromAxisAngle(UP, -rider.yaw);
-    qx.setFromAxisAngle(AX, rider.flip + rider.tumble * s.down + tweakPitch);
+    // `flipGlide` is the un-drained remainder of the last landing's pitch
+    // snap — presentation only, exactly like `yawGlide` on the axis above.
+    qx.setFromAxisAngle(AX, rider.flip + rider.flipGlide
+      + rider.tumble * s.down + tweakPitch);
     qz.setFromAxisAngle(AZ, -s.lean * (1 + 1.2 * s.down) + tweakRoll);
     q.multiply(qy).multiply(qx).multiply(qz);
 

@@ -682,6 +682,34 @@ function applyLimits(uniforms, camera, wide, long) {
 const lerp = (a, b, t) => a + (b - a) * t;
 const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
 
+/* Camera-anchored coordinates, because the run is endless and Float32 is not.
+
+   Every system in this file used to write absolute world positions into its
+   Float32 attributes on an object standing at the origin. Kilometres down
+   the mountain that subtraction — vertex minus camera, performed in 32 bits
+   inside the GPU's modelView transform — loses its low bits to catastrophic
+   cancellation: at |z| ≈ 30 km the quantum is ~4 mm, which on a snowflake
+   two metres from the lens is over a pixel of frame-to-frame jitter, and it
+   only grows from there. The terrain and trail already rebase; this brings
+   the particles onto the same discipline.
+
+   The mechanism: each system parents its cloud at an anchor snapped to a
+   coarse grid of the camera position and stores every coordinate relative
+   to that anchor. The anchor is applied through `object.position`, so the
+   world transform carries it in the CPU's own float64 and the attribute
+   values stay small forever. A step of the anchor is rare — once per grid
+   cell of descent — and costs one subtraction pass over the pool. */
+const REBASE_GRID = 256;
+
+function snapAnchor(anchor, c) {
+  const ax = Math.round(c.x / REBASE_GRID) * REBASE_GRID;
+  const ay = Math.round(c.y / REBASE_GRID) * REBASE_GRID;
+  const az = Math.round(c.z / REBASE_GRID) * REBASE_GRID;
+  if (ax === anchor.x && ay === anchor.y && az === anchor.z) return false;
+  anchor.set(ax, ay, az);
+  return true;
+}
+
 /* How fast the camera is going through the world.
 
    Nobody tells this file about the rider, and it does not need telling: the
@@ -759,6 +787,10 @@ export function createSnowfall(THREE, shading) {
   const gustDir = new THREE.Vector3(0, 1, 0);
   const fwd = new THREE.Vector3();
   const rgt = new THREE.Vector3();
+  // The rebase frame — see `snapAnchor`. Every stored coordinate below is
+  // anchor-relative; only the heightAt/gradeAt probes translate back.
+  const anchor = new THREE.Vector3(0, 0, 0);
+  const cl = new THREE.Vector3();
 
   let clock = 0;
   let gustPhase = 0;
@@ -876,7 +908,9 @@ export function createSnowfall(THREE, shading) {
     const z = c.z + fwd.z * ahead + rgt.z * across;
     position[j] = x;
     position[j + 2] = z;
-    dGround[k] = heightAt(x, z);
+    // The probe asks the mountain in world coordinates; the answer is
+    // stored back in the anchor's frame like everything else here.
+    dGround[k] = heightAt(x + anchor.x, z + anchor.z) - anchor.y;
     dLift[k] = Math.random() * SPINDRIFT.height * 0.6;
     dRise[k] = lerp(SPINDRIFT.loft[0], SPINDRIFT.loft[1], Math.random()) * Math.random();
     dAge[k] = 0;
@@ -916,9 +950,10 @@ export function createSnowfall(THREE, shading) {
          noise octaves, which over a couple of metres of travel is a few
          centimetres — so the correction is eased rather than applied, and
          nothing is ever seen to step. */
-      dGround[k] += gradeAt(position[j + 2]) * mz;
+      dGround[k] += gradeAt(position[j + 2] + anchor.z) * mz;
       if (k % SPINDRIFT.resample === resamplePhase) {
-        dGround[k] += (heightAt(position[j], position[j + 2]) - dGround[k]) * 0.5;
+        dGround[k] += (heightAt(position[j] + anchor.x, position[j + 2] + anchor.z)
+          - anchor.y - dGround[k]) * 0.5;
       }
       position[j + 1] = dGround[k] + dLift[k];
 
@@ -947,7 +982,30 @@ export function createSnowfall(THREE, shading) {
   }
 
   function update(dt, camera, wind) {
-    const c = camera.position;
+    /* The anchor step. Everything below works in the anchor's frame, so a
+       step is one subtraction pass and a full re-upload; between steps the
+       code is exactly what it was when it worked in world coordinates. */
+    const oax = anchor.x;
+    const oay = anchor.y;
+    const oaz = anchor.z;
+    if (snapAnchor(anchor, camera.position)) {
+      cloud.points.position.copy(anchor);
+      if (seeded) {
+        const dx = anchor.x - oax;
+        const dy = anchor.y - oay;
+        const dz = anchor.z - oaz;
+        for (let i = 0; i < n; i++) {
+          const j = i * 3;
+          position[j] -= dx;
+          position[j + 1] -= dy;
+          position[j + 2] -= dz;
+        }
+        for (let k = 0; k < driftCount; k++) dGround[k] -= dy;
+        uploadAll = true;
+      }
+    }
+    cl.copy(camera.position).sub(anchor);
+    const c = cl;
     const wx = wind ? wind.x : 0;
     const wz = wind ? wind.z : 0;
     const windSpeed = Math.sqrt(wx * wx + wz * wz);
@@ -1052,9 +1110,15 @@ export function createSnowfall(THREE, shading) {
       gustDir.set(0, 1, 0);
     }
     uniforms.uGustDir.value.copy(gustDir);
+    /* The gust field is a world-space sine and the shader now reads
+       anchor-relative positions, so the anchor's share of the phase rides
+       in with the clock's — without it every anchor step would reshuffle
+       the gust bands in one frame. */
+    const anchorPhase = (anchor.x * gustDir.x + anchor.y * gustDir.y
+      + anchor.z * gustDir.z) * WEATHER.gustScale;
     uniforms.uGust.value.set(
       lerp(WEATHER.gust[0], WEATHER.gust[1], dial < 0 ? 0 : dial),
-      WEATHER.gustScale, gustPhase);
+      WEATHER.gustScale, gustPhase + anchorPhase);
   }
 
   return { points: cloud.points, update, setIntensity };
@@ -1108,6 +1172,9 @@ export function createSpray(THREE, shading) {
 
   const track = cameraTracker(THREE);
   const flow = new THREE.Vector3();
+  // The rebase frame — see `snapAnchor`. Emitters receive world positions
+  // and subtract this on the way into the attribute.
+  const anchor = new THREE.Vector3(0, 0, 0);
 
   // Usage is already dynamic — `pointCloud` marks every rewritten attribute —
   // and the geometry's first draw uploads this initial table by itself.
@@ -1134,9 +1201,9 @@ export function createSpray(THREE, shading) {
       seed[i] = Math.random();
       tint[i] = 0;
       streakDirty = true;
-      position[j] = pos.x + (Math.random() - 0.5) * 0.7;
-      position[j + 1] = pos.y + 0.1 + Math.random() * 0.25;
-      position[j + 2] = pos.z + (Math.random() - 0.5) * 0.7;
+      position[j] = pos.x - anchor.x + (Math.random() - 0.5) * 0.7;
+      position[j + 1] = pos.y - anchor.y + 0.1 + Math.random() * 0.25;
+      position[j + 2] = pos.z - anchor.z + (Math.random() - 0.5) * 0.7;
       vel[j] = dirX * power * (0.5 + Math.random()) + (Math.random() - 0.5) * spread * 4;
       vel[j + 1] = (0.9 + Math.random() * 1.5) * (1.4 + power * 1.7) * (1 - 0.3 * f);
       vel[j + 2] = dirZ * power * (0.5 + Math.random()) + (Math.random() - 0.5) * spread * 4;
@@ -1401,9 +1468,11 @@ export function createSpray(THREE, shading) {
     edgeWander = Math.max(-1, Math.min(1,
       edgeWander * 0.80 + (Math.random() * 2 - 1) * 0.17));
     const sourceWander = edgeWander * (0.008 + skid * 0.040);
-    const sx = x + lx * (edgeOffset + sourceWander) + nx * 0.012;
-    const sy = y + ly * (edgeOffset + sourceWander) + ny * 0.012;
-    const sz = z + lz * (edgeOffset + sourceWander) + nz * 0.012;
+    // Into the anchor's frame here, once, so `edgeParticle` stays a pure
+    // scalar hot path that never needs to know the anchor exists.
+    const sx = x - anchor.x + lx * (edgeOffset + sourceWander) + nx * 0.012;
+    const sy = y - anchor.y + ly * (edgeOffset + sourceWander) + ny * 0.012;
+    const sz = z - anchor.z + lz * (edgeOffset + sourceWander) + nz * 0.012;
 
     /* Counts per committed section. Poisson sampling keeps the expected mass
        constant per metre while removing the breadcrumb rhythm that a rounded
@@ -1452,6 +1521,24 @@ export function createSpray(THREE, shading) {
   }
 
   function update(dt, camera, wind) {
+    // The anchor step — see `snapAnchor`. Dead slots are shifted too, so a
+    // recycled slot never carries a stale frame's coordinates.
+    const oax = anchor.x;
+    const oay = anchor.y;
+    const oaz = anchor.z;
+    if (snapAnchor(anchor, camera.position)) {
+      cloud.points.position.copy(anchor);
+      const dx = anchor.x - oax;
+      const dy = anchor.y - oay;
+      const dz = anchor.z - oaz;
+      for (let i = 0; i < n; i++) {
+        const j = i * 3;
+        position[j] -= dx;
+        position[j + 1] -= dy;
+        position[j + 2] -= dz;
+      }
+      geo.attributes.position.needsUpdate = true;
+    }
     const wx = wind ? wind.x : 0;
     const wz = wind ? wind.z : 0;
     const camVel = track(camera, dt);
@@ -1574,9 +1661,9 @@ export function createSpray(THREE, shading) {
       const vx = Math.cos(angle);
       const vz = Math.sin(angle);
 
-      position[j] = pos.x + vx * r;
-      position[j + 1] = pos.y + 0.1 + Math.random() * 0.3;
-      position[j + 2] = pos.z + vz * r;
+      position[j] = pos.x - anchor.x + vx * r;
+      position[j + 1] = pos.y - anchor.y + 0.1 + Math.random() * 0.3;
+      position[j + 2] = pos.z - anchor.z + vz * r;
 
       const power = 2.0 + Math.random() * 2.5;
       vel[j] = vx * power;
@@ -1617,9 +1704,9 @@ export function createSpray(THREE, shading) {
       const vx = dirX + Math.cos(angle) * 1.5;
       const vz = dirZ + Math.sin(angle) * 1.5;
 
-      position[j] = pos.x + Math.random() - 0.5;
-      position[j + 1] = pos.y + 0.1;
-      position[j + 2] = pos.z + Math.random() - 0.5;
+      position[j] = pos.x - anchor.x + Math.random() - 0.5;
+      position[j + 1] = pos.y - anchor.y + 0.1;
+      position[j + 2] = pos.z - anchor.z + Math.random() - 0.5;
 
       vel[j] = vx * 4.0;
       vel[j + 1] = 4.0 + Math.random() * 4.0;
@@ -1765,6 +1852,10 @@ export function createStreaks(THREE) {
   const fwd = new THREE.Vector3();
   const rgt = new THREE.Vector3();
   const up = new THREE.Vector3();
+  // The rebase frame — see `snapAnchor`. `home` and the corner positions
+  // are anchor-relative; `cl` is the camera brought into the same frame.
+  const anchor = new THREE.Vector3(0, 0, 0);
+  const cl = new THREE.Vector3();
   let placed = false;
   let posDirty = false;
   let idle = false;
@@ -1775,15 +1866,15 @@ export function createStreaks(THREE) {
      not move, its four corners are written here, once, when it is homed:
      between respawns the vertex buffer has nothing new to say and the
      per-frame loop below no longer repeats it. */
-  function respawn(i, camera) {
+  function respawn(i) {
     const a = Math.random() * Math.PI * 2;
     const f = Math.sqrt(0.05 + Math.random() * 0.95);
     const r = STREAKS.radius * f;
     const d = 4 + Math.random() * STREAKS.ahead;
     const j = i * 3;
-    home[j] = camera.position.x + fwd.x * d + rgt.x * Math.cos(a) * r + up.x * Math.sin(a) * r;
-    home[j + 1] = camera.position.y + fwd.y * d + rgt.y * Math.cos(a) * r + up.y * Math.sin(a) * r;
-    home[j + 2] = camera.position.z + fwd.z * d + rgt.z * Math.cos(a) * r + up.z * Math.sin(a) * r;
+    home[j] = cl.x + fwd.x * d + rgt.x * Math.cos(a) * r + up.x * Math.sin(a) * r;
+    home[j + 1] = cl.y + fwd.y * d + rgt.y * Math.cos(a) * r + up.y * Math.sin(a) * r;
+    home[j + 2] = cl.z + fwd.z * d + rgt.z * Math.cos(a) * r + up.z * Math.sin(a) * r;
     for (let c = 0; c < 4; c++) {
       const k = (i * 4 + c) * 3;
       position[k] = home[j];
@@ -1804,6 +1895,29 @@ export function createStreaks(THREE) {
   };
 
   function update(dt, camera, velocity, speed, wind) {
+    // The anchor step — see `snapAnchor`.
+    const oax = anchor.x;
+    const oay = anchor.y;
+    const oaz = anchor.z;
+    if (snapAnchor(anchor, camera.position)) {
+      lines.position.copy(anchor);
+      const dx = anchor.x - oax;
+      const dy = anchor.y - oay;
+      const dz = anchor.z - oaz;
+      for (let i = 0; i < n; i++) {
+        const j = i * 3;
+        home[j] -= dx;
+        home[j + 1] -= dy;
+        home[j + 2] -= dz;
+      }
+      for (let k = 0; k < n * 12; k += 3) {
+        position[k] -= dx;
+        position[k + 1] -= dy;
+        position[k + 2] -= dz;
+      }
+      posDirty = true;
+    }
+    cl.copy(camera.position).sub(anchor);
     camera.getWorldDirection(fwd);
     up.set(0, 1, 0);
     rgt.crossVectors(fwd, up).normalize();
@@ -1852,7 +1966,7 @@ export function createStreaks(THREE) {
 
     if (!placed) {
       placed = true;
-      for (let i = 0; i < n; i++) respawn(i, camera);
+      for (let i = 0; i < n; i++) respawn(i);
     }
 
     /* Below streaking speed there is nothing to age, nothing to fade and
@@ -1876,12 +1990,12 @@ export function createStreaks(THREE) {
         continue;
       }
       // Behind the camera, or too far off to one side: put it back in front
-      const dx = home[j] - camera.position.x;
-      const dy = home[j + 1] - camera.position.y;
-      const dz = home[j + 2] - camera.position.z;
+      const dx = home[j] - cl.x;
+      const dy = home[j + 1] - cl.y;
+      const dz = home[j + 2] - cl.z;
       const along = dx * fwd.x + dy * fwd.y + dz * fwd.z;
       if (along < -2 || along > STREAKS.ahead + 30 || (dx * dx + dy * dy + dz * dz) > 4900) {
-        respawn(i, camera);
+        respawn(i);
         blank(i);
         continue;
       }

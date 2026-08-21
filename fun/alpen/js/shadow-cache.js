@@ -28,9 +28,18 @@ export function toHalfFloat(value) {
     return sign | (mantissa ? 0x7e00 : 0x7c00);
   }
   exponent -= 127;
-  if (exponent < -24) return sign;
+  // -25, not -24: values just under 2^-24 still round up to the smallest
+  // subnormal, and the shift below stays comfortably inside JS's 32-bit
+  // shift range. Anything smaller genuinely is zero in half precision.
+  if (exponent < -25) return sign;
   if (exponent < -14) {
-    mantissa = (mantissa | 0x00800000) >>> (-exponent - 1);
+    /* Subnormal halves. The implicit bit is restored and the value shifted
+       so the target mantissa still sits 13 bits up, where the shared
+       round-to-nearest below expects it — shifting all the way down here
+       and then 13 more (the old `-exponent - 1`) flushed every |v| < 2^-14
+       to signed zero. Rounding overflow at the 2^-14 boundary carries into
+       0x0400, the smallest normal half, which is exactly right. */
+    mantissa = (mantissa | 0x00800000) >>> (-exponent - 14);
     return sign | ((mantissa + 0x00001000) >>> 13);
   }
   if (exponent > 15) return sign | 0x7c00;

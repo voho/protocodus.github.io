@@ -101,7 +101,7 @@
    only stopped being in the middle of the run. */
 
 import {
-  heightAt, nearestCenter, corridorHalfAt, centersAt, normalFrom, gateSlotsIn, SNOWPACK,
+  heightAt, nearestCenter, corridorHalfAt, centersAt, normalFrom, SNOWPACK,
   chapterTreesAt,
 } from './terrain.js';
 import { createModelUpgrader } from './importedModels.js';
@@ -202,13 +202,16 @@ const OWN_ALL = 1;
    positive gap anywhere is one metre, against a fifteen-metre tree. Nothing is
    floating. The ground had simply gone.
 
-   So the fix is in the curtain and not in the placement. See `uFogPull` in
-   shading.js: the number is how much further away the surface pretends to be
-   when it asks how faded it should be. The forest is the worst offender and
-   gets the most; stone is dark too and gets a little less, because a crag is
-   a landmark and losing it early costs the flanks the silhouette they were
-   put there for. Low vegetation is small enough to be gone on its own terms
-   long before any of this matters. */
+   So the knob lives in the curtain and not in the placement. See `uFogPull`
+   in shading.js: the number is how much further away the surface pretends to
+   be when it asks how faded it should be.
+
+   All three sit at neutral now, on purpose. The first cut (2.45 on trees)
+   overshot the other way — at that strength a conifer three hundred metres
+   out was already a pure white cutout against ground that still had detail,
+   which is the same mismatch mirrored. Until someone re-tunes these against
+   the current fog distances, neutral is the better-looking of the two
+   failure modes; these constants remain the live knobs for that pass. */
 const FOG_PULL_TREE = 1.0;
 const FOG_PULL_STONE = 1.0;
 const FOG_PULL_FLORA = 1.0;
@@ -387,10 +390,10 @@ const OWN_MIX = `#include <color_vertex>
 
 /* Wind, as the vertex shader sees it.
 
-   The forest and the gate beacons share these two uniform records, and
-   `setAir` writes them once per frame — the same one-write-moves-everything
-   arrangement the shared shading uses for the sky. The lamps take only the
-   clock out of it; the wind is the forest's. The time wraps at 200π
+   The forest and the piste-stake beacons share these two uniform records,
+   and `setAir` writes them once per frame — the same one-write-moves-
+   everything arrangement the shared shading uses for the sky. The lamps
+   take only the clock out of it; the wind is the forest's. The time wraps at 200π
    rather than growing forever because a float's precision does not: every
    frequency used below is a multiple of 0.01 Hz-ish, so `f * 200π` is a whole
    number of turns and the wrap is invisible.
@@ -474,31 +477,6 @@ const SWAY = `#include <begin_vertex>
 const LAMP_DECL = `
 uniform float uAirTime;
 uniform float uNextGate;`;
-
-const BEACON = `#include <color_vertex>
-{
-  float n64Ph = 0.0;
-  float n64Lead = 0.0;
-  float n64Side = 0.0;
-  #ifdef USE_INSTANCING
-    n64Ph = fract(instanceMatrix[3].z * 0.0177) * 6.2832;
-    /* Instance rotation encodes pole side: left pole has yaw=0 (cos=1), right pole has yaw=PI (cos=-1) */
-    n64Side = instanceMatrix[0].x > 0.0 ? 0.0 : 3.14159;
-    /* Slots are 150 m apart and a pair shares its z exactly, so any
-       tolerance between a metre and a slot separates the leader cleanly.
-       Four metres of falloff means the promotion arrives over the last
-       fraction of a second before the gate is taken rather than snapping. */
-    n64Lead = 1.0 - smoothstep(1.0, 4.0, abs(instanceMatrix[3].z - uNextGate));
-  #endif
-  float n64Rate = mix(2.6, 5.2, n64Lead);
-  /* Smooth sinusoidal wave blinking smoothly from left to right */
-  float n64Wave = sin(uAirTime * n64Rate + n64Ph * (1.0 - n64Lead) - n64Side);
-  float n64Norm = 0.5 + 0.5 * n64Wave;
-  float n64Flash = n64Norm * n64Norm * (3.0 - 2.0 * n64Norm);
-  #if defined( USE_COLOR ) || defined( USE_INSTANCING_COLOR )
-    vColor.rgb *= (1.20 + 3.60 * n64Flash) * (1.0 + 1.20 * n64Lead);
-  #endif
-}`;
 
 /* Airfield runway guiding light shader: smooth pulsating wave flowing down the mountain */
 const PISTE_BEACON = `#include <color_vertex>
@@ -1771,28 +1749,27 @@ function pisteStakeGeometry(THREE) {
   return geometry;
 }
 
-/* Luminous airfield runway beacon for piste stakes */
+/* Luminous airfield runway beacon for piste stakes.
+
+   One globe, not three. This used to compose a 0.14 lens and a 0.26 inner
+   corona inside the 0.44 outer shell — language borrowed from an additive
+   halo that was never implemented: the pool draws an opaque MeshBasic, so
+   the outer icosahedron is the entire silhouette and the two shells inside
+   it were four hundred triangles per instance that no camera could ever
+   see. The soft halo itself is the post stack's job (the lamp is
+   `toneMapped: false`, so a lit beacon clears the bloom threshold). */
 function pisteStakeLampGeometry(THREE) {
-  const lanternLens = new THREE.IcosahedronGeometry(0.14, 2);
-  const coronaInner = new THREE.IcosahedronGeometry(0.26, 1);
-  const coronaOuter = new THREE.IcosahedronGeometry(0.44, 1);
+  const globe = new THREE.IcosahedronGeometry(0.44, 1);
   const band1 = new THREE.CylinderGeometry(0.052, 0.052, 0.18, 8);
   const band2 = new THREE.CylinderGeometry(0.052, 0.052, 0.14, 8);
 
   const geometry = compose(THREE, [
-    // Bright luminous core airfield beacon lantern
-    { geo: lanternLens, pos: [0, 2.12, 0], color: '#ffffff' },
-    // Glowing radiant inner corona
-    { geo: coronaInner, pos: [0, 2.12, 0], color: '#ffffff' },
-    // Soft outer airfield beacon halo
-    { geo: coronaOuter, pos: [0, 2.12, 0], color: '#ffffff' },
+    { geo: globe, pos: [0, 2.12, 0], color: '#ffffff' },
     // Reflective luminous bands along the mast
     { geo: band1, pos: [0, 1.80, 0], color: '#ffffff' },
     { geo: band2, pos: [0, 1.40, 0], color: '#ffffff' },
   ]);
-  lanternLens.dispose();
-  coronaInner.dispose();
-  coronaOuter.dispose();
+  globe.dispose();
   band1.dispose();
   band2.dispose();
   return geometry;
@@ -2137,26 +2114,13 @@ export function createProps(THREE, shading) {
     return shading.apply(m, { cameraFade: true, sheen: 1, fogPull: FOG_PULL_STONE });
   };
 
-  /* The beacon's lens, flashed by the same clock. Deliberately unlit — a lamp
-     that took the key light would go out at dusk, which is the one hour it
-     exists for — so this is the one material on the mountain whose colour is
-     its own output. It keeps three's fog, so a gate still dissolves into a
-     storm at the same distance everything else does; a beacon burning at full
-     strength through a whiteout would be the one object in the scene claiming
-     the weather does not apply to it. */
-  const lampMat = () => {
-    const m = new THREE.MeshBasicMaterial({ vertexColors: true, fog: true });
-    m.toneMapped = false;
-    m.onBeforeCompile = (shader) => {
-      Object.assign(shader.uniforms, beacon);
-      shader.vertexShader = shader.vertexShader
-        .replace('#include <common>', `#include <common>${LAMP_DECL}`)
-        .replace('#include <color_vertex>', BEACON);
-    };
-    return m;
-  };
-
-  /* Airfield runway guiding beacon material for piste boundary stakes */
+  /* The beacon lens material, flashed by the shared clock. Deliberately
+     unlit — a lamp that took the key light would go out at dusk, which is
+     the one hour it exists for — so this is the one material on the mountain
+     whose colour is its own output. It keeps three's fog, so a beacon still
+     dissolves into a storm at the same distance everything else does; one
+     burning at full strength through a whiteout would be the one object in
+     the scene claiming the weather does not apply to it. */
   const pisteStakeLampMat = () => {
     const m = new THREE.MeshBasicMaterial({ vertexColors: true, fog: true });
     m.toneMapped = false;
@@ -2169,12 +2133,6 @@ export function createProps(THREE, shading) {
     return m;
   };
 
-  /* The mast under it: an ordinary lit surface that takes its colour from the
-     instance, so a gate's two poles fly the panel colour in daylight when the
-     beacon is only a small part of what is visible. */
-  const poleMat = () => shading.apply(
-    new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false }),
-  );
   const castOf = makeCasts(THREE);
 
   // --- the trees ------------------------------------------------------------
@@ -2296,8 +2254,11 @@ export function createProps(THREE, shading) {
           .replace('#include <alphamap_fragment>', `
           /* The sprig cells store needle luminance, not colour: the cast on
              the instance is the colour. Lift them back to needle brightness;
-             frost (sheen 1) and bark (sheen ~0.65) keep the map's own level. */
-          diffuseColor.rgb *= mix(1.0, 1.85, smoothstep(0.5, 0.05, vN64Sheen));
+             frost (sheen 1) and bark (sheen ~0.65) keep the map's own level.
+             Written as 1 − smoothstep(lo, hi, x): smoothstep with its edges
+             reversed is undefined by the GLSL spec — most drivers guess the
+             intent, the ones that don't draw garbage. */
+          diffuseColor.rgb *= mix(1.0, 1.85, 1.0 - smoothstep(0.05, 0.5, vN64Sheen));
           #include <alphamap_fragment>`);
       };
       return shading.apply(m, { cameraFade: true, sheen: 1, fogPull: FOG_PULL_TREE });
@@ -2407,47 +2368,12 @@ export function createProps(THREE, shading) {
      so the geometry only has to be a white mast for the instance to tint —
      hence `compose` over a bare cylinder, which is here purely to give the
      vertex colour attribute the tinted material needs. */
-  const poleGeo = compose(THREE, [{
-    geo: new THREE.CylinderGeometry(0.05, 0.05, 2.3, 12),
-    pos: [0, 1.15, 0],
-    color: '#ffffff',
-  }]);
-
-  /* THE BEACON, and why it is most of the pole rather than a ball on top.
-
-     A lens on the head of the mast is the right shape for a light and the
-     wrong size for the job it has: at a hundred metres — which is where a
-     rider has to *start* setting up for a gate at forty metres a second — a
-     nineteen-centimetre ball is under a pixel, and in flat light or a storm
-     the dark mast under it has already gone. So the mast wears three lit
-     bands as well, and the four of them together are a vertical dashed line
-     rather than a dot. A dashed line survives being two pixels wide, because
-     what reads at that size is not the shape, it is that something on that
-     bearing is brighter than the snow and blinking.
-
-     They are one geometry and one draw call with the lens, they share its
-     unlit fogged material, and they cast nothing — see `noShadow` below. Two
-     subdivisions on the lens is eighty triangles for the one part of this
-     that is ever seen close up; a low-poly one reads as a rotating facet
-     rather than as a steady light. */
-  const bandGeo = new THREE.CylinderGeometry(0.085, 0.085, 0.30, 12);
-  const coronaInnerGeo = new THREE.IcosahedronGeometry(0.34, 2);
-  const coronaOuterGeo = new THREE.IcosahedronGeometry(0.52, 1);
-  const lampGeo = compose(THREE, [
-    // Bright luminous central core lens
-    { geo: new THREE.IcosahedronGeometry(0.20, 2), pos: [0, 2.4, 0], color: '#ffffff' },
-    // Glowing inner radiant corona
-    { geo: coronaInnerGeo, pos: [0, 2.4, 0], color: '#ffffff' },
-    // Soft outer beacon halo
-    { geo: coronaOuterGeo, pos: [0, 2.4, 0], color: '#ffffff' },
-    // Radiant mast bands
-    { geo: bandGeo, pos: [0, 1.90, 0], color: '#ffffff' },
-    { geo: bandGeo, pos: [0, 1.25, 0], color: '#ffffff' },
-    { geo: bandGeo, pos: [0, 0.60, 0], color: '#ffffff' },
-  ]);
-  bandGeo.dispose();
-  coronaInnerGeo.dispose();
-  coronaOuterGeo.dispose();
+  /* The old slalom-gate pole and beacon pools stood here. The stake-gate
+     rework replaced them — gates are pairs of piste stakes now, lit by
+     `pisteStakeLamps` — but the pools, their geometry and their compiled
+     BEACON material survived it, empty: nothing ever called `.add` on
+     either again. They spent a compiled program, two instance buffers and
+     a slot in every band snapshot to draw nothing, so they are gone. */
 
   /* Five instanced calls make the ecology: one whole plant patch, two winter
      shrubs and two stone families. Shapes, snow masks and colours are baked
@@ -2550,12 +2476,6 @@ export function createProps(THREE, shading) {
     bindShadowPrefix(p);
   }
 
-  const poles = new Pool(THREE, poleGeo, poleMat(), bands * 2 + 16, true);
-  const lamps = new Pool(THREE, lampGeo, lampMat(), poles.capacity, true);
-  lamps.mesh.userData.noShadow = true;
-  lamps.mesh.name = 'gate-lamps';
-  poles.mesh.name = 'gate-poles';
-
   const alpineMat = (() => {
     const m = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false });
     m.onBeforeCompile = (shader) => {
@@ -2641,7 +2561,7 @@ export function createProps(THREE, shading) {
 
   const pools = [
     ...plantPools, ...shrubPools, ...rockPools, ...cragPools,
-    poles, lamps, avalancheFences, waymarks, pisteStakes, pisteStakeLamps,
+    avalancheFences, waymarks, pisteStakes, pisteStakeLamps,
   ];
   pools.forEach((p) => group.add(p.mesh));
   const allPools = pools.concat(treePools);
@@ -2656,9 +2576,6 @@ export function createProps(THREE, shading) {
 
   // --- band generation -----------------------------------------------------
   const tint = new THREE.Color();
-  const mastTint = new THREE.Color();
-  const gateA = new THREE.Color('#00d4ff');
-  const gateB = new THREE.Color('#ffab00');
   /* The four tree tints that used to sit here are gone. They were multipliers
      over vertex colours that were already bark and needle, so they had to
      stay near one — and four multipliers near one is not a colour scheme, it
@@ -2667,7 +2584,6 @@ export function createProps(THREE, shading) {
      goes because the tree's snow is no longer listening. See the head of the
      file. The shrub tints that sat beside them went with the shrubs. */
   const centres = [0, 0];
-  const gateSlots = [];
   const courseAbove = [0, 0];
   const courseBelow = [0, 0];
   const bankNormal = new THREE.Vector3();
@@ -3330,6 +3246,9 @@ export function createProps(THREE, shading) {
     };
   }
 
+  // One reused map for the contact re-sharing below; never escapes a replay.
+  const contactRemap = new Map();
+
   function replayBand(rec) {
     for (let i = 0; i < allPools.length; i++) {
       const data = rec.pools[i];
@@ -3350,9 +3269,31 @@ export function createProps(THREE, shading) {
       }
       pool.n += count;
     }
-    // Fresh objects: `collide` writes `hit` onto these, and a shared one
-    // would carry that into every later rebuild.
-    for (let i = 0; i < rec.solids.length; i++) solids.push({ ...rec.solids[i] });
+    /* Fresh objects: `collide` writes `hit` onto these, and a shared one
+       would carry that into every later rebuild. The spread alone was not
+       enough for that, twice over. The snapshot's records ARE the live
+       objects of the band that was on screen when it was captured — `slice`
+       copies the array, not its entries — so a shrub brushed or a trunk
+       grazed after the capture wrote `hit: true` straight into the cache,
+       and every replay of that band restored the prop pre-struck: silent to
+       ride through, permanently inert. And a fence's cells share one
+       `contact` record so a strike counts once per fence — spread copies the
+       *reference*, which stitched every replay of the band (and the cached
+       original) into one contact whose `hit` never reset. Both transients
+       are cleared here, and shared contacts are re-shared per replay. */
+    contactRemap.clear();
+    for (let i = 0; i < rec.solids.length; i++) {
+      const s = { ...rec.solids[i], hit: false, grazed: false };
+      if (s.contact) {
+        let fresh = contactRemap.get(s.contact);
+        if (!fresh) {
+          fresh = { hit: false };
+          contactRemap.set(s.contact, fresh);
+        }
+        s.contact = fresh;
+      }
+      solids.push(s);
+    }
     for (let i = 0; i < rec.gates.length; i++) {
       const g = rec.gates[i];
       gates.push({ ...g, taken: takenGates.has(g.z) });

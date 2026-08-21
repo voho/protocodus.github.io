@@ -363,17 +363,39 @@ const CHAPTERS = [
     icy: 0.40, cover: -0.12, trees: 0.48, cliffs: 1.1 },
 ];
 
+/* The resolved chapter walk, memoised per seed.
+
+   The old dedupe compared this block's raw pick against the previous
+   block's RAW pick — but the previous block may itself have been remapped
+   by the same rule, and when its remap landed on this block's raw pick the
+   test passed and the same cirque ran twice in a row anyway. "Resolved
+   index" is inherently sequential (each depends on the one before), so it
+   is walked once from the vale and cached; the walk is a handful of hashes
+   per block, still a pure function of block index and world seed, and a
+   re-entered run replays it identically. */
+const chapterWalk = { seed: NaN, resolved: [2] };
+
 function chapterIndexAt(b) {
   if (b <= 0) return 2; // the vale, always, for the opening
-  const pick = Math.floor(hash2(b, chapters.seed, 91) * CHAPTERS.length)
-    % CHAPTERS.length;
-  const prev = b === 1 ? 2
-    : Math.floor(hash2(b - 1, chapters.seed, 91) * CHAPTERS.length)
+  // `hash2` reads the world seed globally, so the cache keys on that —
+  // the same key `chapterTraitsAt`'s memo already uses.
+  const worldSeed = getWorldSeed();
+  if (chapterWalk.seed !== worldSeed) {
+    chapterWalk.seed = worldSeed;
+    chapterWalk.resolved.length = 1;
+  }
+  const resolved = chapterWalk.resolved;
+  for (let k = resolved.length; k <= b; k++) {
+    const pick = Math.floor(hash2(k, chapters.seed, 91) * CHAPTERS.length)
       % CHAPTERS.length;
-  if (pick !== prev) return pick;
-  // Never the same cirque twice in a row: variety is the whole point.
-  return (pick + 1 + Math.floor(hash2(b, chapters.seed, 93) * (CHAPTERS.length - 2)))
-    % CHAPTERS.length;
+    resolved[k] = pick !== resolved[k - 1] ? pick
+      // Never the same cirque twice in a row: variety is the whole point.
+      // The offset stays in [1, N-2], so the remap can land anywhere but
+      // where it started — which is the previous block's chapter.
+      : (pick + 1 + Math.floor(hash2(k, chapters.seed, 93) * (CHAPTERS.length - 2)))
+        % CHAPTERS.length;
+  }
+  return resolved[b];
 }
 
 const chapterScratch = {
@@ -1415,12 +1437,17 @@ export function gradeAt(z) {
    which is the two-or-three-times-a-second flicker, arriving at the same
    shape each time because it is the same mountain being re-measured.
 
-   Rounding each offset onto the base grid extends the near field's guarantee
-   to the whole mesh: every sample point, at any distance, now sits on one
-   global lattice of `step` metres, and the anchor only ever moves by whole
-   multiples of it. So a re-anchor re-indexes and never re-measures. The cost
-   is that the far rings grow in quantised jumps instead of smoothly, which
-   is invisible at the hundreds of metres where the grading actually bites.
+   Rounding each offset onto the base grid puts every sample point, at any
+   distance, on one global lattice of `step` metres, and the anchor only
+   ever moves by whole multiples of it — so any two vertices that ever ask
+   about the same world point get bit-identical answers, and inside the
+   contiguous uniform field a re-anchor re-indexes and never re-measures.
+   Past it the series is sparse, so that guarantee weakens to "on-grid":
+   roughly a third of graded offsets still land on world points no vertex
+   held before the hop (the morph glide is what eases those — see the note
+   at the morph loop). The cost is that the far rings grow in quantised
+   jumps instead of smoothly, which is invisible at the hundreds of metres
+   where the grading actually bites.
 
    The `max` keeps the sequence strictly increasing: early in the graded
    region the growth factor is still worth less than a cell, and without it
@@ -1808,7 +1835,16 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       );
       shadeWorkerHealthy = true;
       shadeWorker.onmessage = (event) => {
-        if (event.data.id !== shadeWorkerBatch) return;
+        /* Every reply is processed, whatever batch it came from. A bake is a
+           pure function of the tile and the world seed, and the per-result
+           `wantedSlot` test below already rejects tiles the window has moved
+           off. The old `id !== shadeWorkerBatch` gate dropped a superseded
+           batch wholesale — but its tiles stayed in `pendingShadeTiles`, so
+           a tile that was still wanted was never re-queued (pending) and
+           never installed (dropped): a stale horizon square riding along in
+           the visible window until the next big teleport rebuilt everything.
+           Two boundary crossings inside one worker turnaround was all it
+           took, which is ordinary riding speed. */
         let installed = false;
         for (const result of event.data.results) {
           const { tile, horizon, ground } = result;
@@ -1995,17 +2031,16 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
      is a function of that. It conforms perfectly because it is not a surface,
      and it costs four distance tests on the one material that wants them.
 
-     The shape is a lozenge rather than a disc, because a gate has a width:
-     the distance is measured to the SEGMENT between the two poles, so the
-     bright part is the mouth and the falloff is a soft margin all round it.
+     The shape is two pools, one at each pole base, and deliberately NOT a
+     lozenge across the mouth: the distance is measured to the two poles
+     only (see the loop in the fragment patch), each with about two and a
+     half metres of reach, so the beacons light the snow they stand on and
+     the middle of the piste stays unlit. An earlier draft measured to the
+     segment between them and washed the whole mouth in colour.
 
      `w` is the strength and zero means an unused slot, which is what keeps
      the loop branchless-ish and lets the writer simply stop early. */
   const GATE_SLOTS = 4;
-  /* How far past the mouth the light reaches before it is gone. Six metres
-     spills a little onto the snow either side of each pole, which is what
-     makes the pair read as one gate rather than as two separate lamps. */
-  const GATE_FALLOFF = 6.0;
   const gateGlow = {
     value: Array.from({ length: GATE_SLOTS }, () => new THREE.Vector4()),
   };
@@ -3442,34 +3477,39 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     }
 
     for (let k = 0; k < morphList.length; k++) {
-      /* ONE RATE FOR THE WHOLE BAND, and the mask no longer weights it.
+      /* ONE RATE FOR THE WHOLE BAND. This line has now been both ways twice,
+         so the arithmetic that settles it is written down.
 
-         It used to: `alpha = 1 - mask * (1 - frameAlpha)`, so convergence ran
-         from instant at the disc edge to a full glide at two hundred and
-         forty metres. Written out, that put the near half of the band one
-         frame from its target — mask 0.1 (~104 m) converged 94% in a single
-         frame, mask 0.3 (~131 m) 81% — which is not a glide, it is a pop with
-         a ramp on it. Flat ground forgives that because a few metres of
-         re-sampled position barely moves the height. A mountain face does
-         not: the same shift crosses metres of relief, and every anchor threw
-         the wall a frame's worth of it. That band is exactly what fills the
-         screen when you ride at a mountain, which is where it was reported.
+         The mask-weighted form (`1 - mask * (1 - frameAlpha)`) converges the
+         72-240 m band 85-99% in a single frame — mask 0.1 is 94% home in one
+         step — which is a pop with a ramp on it, in exactly the band that
+         fills the screen when you ride at a mountain face.
 
-         It also explains why stretching `morphGlide` could not touch this.
-         The glide only reaches this loop through `frameAlpha`, and at mask
-         0.1 the expression is 1 - 0.1 * (1 - frameAlpha) — pinned above 0.9
-         however long the glide is given. The near band's rate was never the
-         glide's to set.
+         The revert that brought it back argued that after `graded` rounded
+         every offset onto the base cell there was nothing left to ease —
+         "a re-anchor re-indexes and never re-measures". That is true of the
+         uniform disc and overbroad past it: the graded series is *sparse*,
+         so being on the global cell grid does not mean the post-hop sample
+         point was in the previous set. Counted, roughly a third of graded
+         offsets (25-32 per axis inside the morph band) land on world points
+         no vertex held before the hop. Those targets genuinely move, the
+         mask hands them to a single frame, and the hop cadence at riding
+         speed is 2-3 per second.
+
+         And the fear that motivated the revert — a uniform rate putting the
+         near band into permanent motion — does not hold at these numbers:
+         the glide's time constant is ~38 ms against a ~400 ms hop cadence,
+         so the band settles with time to spare. (It was written when the
+         off-grid re-measurement still existed, and no rate can ease a
+         measurement that keeps changing.)
 
          The mask still decides *membership*: mask exactly zero is the
          cell-aligned disc, whose samples are the same world points before and
          after the anchor moves, so `snapList` above assigns it outright and
-         moves nothing. Everything past it now eases at one rate, and the
-         handover at the boundary is seamless because the jump there is
-         nearly nil and grows with distance from it. */
+         moves nothing. */
       const i = morphList[k];
       const p = i * 3;
-      const alpha = probe.snapMorph ? 1 : 1 - morphMask[i] * (1 - frameAlpha);
+      const alpha = probe.snapMorph ? 1 : frameAlpha;
       positions[p] += (targetPositions[p] - positions[p]) * alpha;
       positions[p + 1] += (targetPositions[p + 1] - positions[p + 1]) * alpha;
       positions[p + 2] += (targetPositions[p + 2] - positions[p + 2]) * alpha;

@@ -194,7 +194,13 @@ export function growCardSpruce(THREE, seed, spec, height) {
         quad(p[0], p[1], p[2], p[3], n, cell, mirror, FROST_DROP, SNOW_COL, 0);
         p[1].addScaledVector(side, W);
         p[2].addScaledVector(side, W * 0.6);
-        quad(p[0], p[3], p[2], p[1], n, cell, !mirror, FROST_DROP, SNOW_COL, 0);
+        /* Same corner order as the first half — root-centre, root-outer,
+           tip-outer, tip-centre — so u stays across the sprig and v stays
+           root→tip. The old (p0, p3, p2, p1) order swapped which edges
+           carried u and v, and the +side half wore its snow sprig rotated
+           ninety degrees. The material is double-sided, so the winding
+           this order gives up decided nothing. */
+        quad(p[0], p[1], p[2], p[3], n, cell, !mirror, FROST_DROP, SNOW_COL, 0);
       }
     }
   }

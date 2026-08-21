@@ -1798,7 +1798,11 @@ export const SCORE = {
   speedBonusFull: 45,
   speedBonus: 0.5,
   lipBonus: 1.25,
-  comboStep: 1,       // multiplier gained per clean landing
+  // Scales the three one-shot milestone awards (100 km/h, 1,000 m, 5,000 m)
+  // in main.js — the only thing it still does. The old "multiplier per clean
+  // landing" mechanism it once named is gone: the combo is derived from the
+  // flow meter now (see `syncCombo`).
+  comboStep: 1,
   comboMax: 12,
   /* FLOW, which is now the multiplier itself rather than a speed governor
      with a number beside it. See `stepFlow` in main.js.

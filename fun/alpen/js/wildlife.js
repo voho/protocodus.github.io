@@ -1,11 +1,11 @@
-/* Rabbits, bears, deer and wolves.
+/* Rabbits, deer and wolves.
 
-   FOUR ANIMALS AND THREE JOBS, and the third one is the newest and the least
-   obvious. The first two are about the rider. The last two are not about the
-   rider at all, and that is the entire point of them — see the long note in
-   `config.js` under `deer`. A herd out past the treeline that never collides,
-   never scores and cannot be reached is doing the one thing nothing else on
-   this hill does, which is being somewhere else.
+   THREE ANIMALS AND TWO JOBS. The first is about the rider. The other two
+   are not about the rider at all, and that is the entire point of them —
+   see the long note in `config.js` under `deer`. A herd out past the
+   treeline that never collides, never scores and cannot be reached is doing
+   the one thing nothing else on this hill does, which is being somewhere
+   else.
 
    The rabbits exist to react: they sit in
    the snow twitching until a rider gets inside fifteen metres and then bolt,
@@ -13,32 +13,29 @@
    mountain feel inhabited rather than decorated. Threading one is worth a
    few points, so there is a reason to aim at them.
 
-   The bears exist to be the only thing on the hill that is genuinely
-   dangerous, and for a long time they were far too common for that to mean
-   anything. A bear respawned the instant the last one went past the rider,
-   so a long run was a queue of them and the player stopped reading a bear as
-   a threat and started reading it as traffic. There is now one bear at most,
-   it does not appear inside the first kilometre, and when a spawn window
-   finally comes round it is refused about two times in three — with tens of
-   seconds of quiet before the next one is even offered. Most runs have no
-   bear in them at all. That is the point: a bear should be a story you tell
-   about a run, not a feature of every run.
+   THERE IS NO BEAR, and the file should say so, because it used to say the
+   opposite at length. A bear — the one genuinely dangerous animal, rare
+   enough to be a story rather than traffic — was designed, tuned in the
+   config, and given hooks here (`beasts`, the `onHit` parameter, and the
+   hind-leg rear constants), but its body, its spawn clock and its strike
+   wiring were never built: `main.js` calls `update` without an `onHit`
+   handler and nothing ever pushes into `beasts`. The hooks stay, honestly
+   labelled as the empty sockets they are, for whoever builds it.
 
    The other thing that changed underneath this file is the shape of the run.
    The corridor is roughly three times wider than it was, its width breathes
    along the descent, and the piste periodically splits into two lines around
    an island of trees. Nothing here may assume a single centre or a constant
    half-width any more: animals are placed against `centersAt`/`nearestCenter`
-   and `corridorHalfAt`, and the bear turns around at the edge the mountain
-   actually has at its own z rather than at a number from the config.
+   and `corridorHalfAt`.
 
-   Both are single instanced meshes with their parts baked in by `compose`,
-   so seventeen animals are two draw calls. Neither has a skeleton, and
-   neither needs one: a bound is a squash plus a pitch about the hare's own
-   lateral axis, and a rear is a rotation about the bear's hips. The models
-   themselves are much heavier than they were — the game renders at native
-   resolution now, and the budget that justified a bear with four identical
-   cylinders for legs no longer exists. */
+   The hares and the herd animals are single instanced meshes with their
+   parts baked in by `compose`, so seventeen animals are two draw calls.
+   Neither has a skeleton, and neither needs one: a bound is a squash plus a
+   pitch about the hare's own lateral axis. The models themselves are much
+   heavier than they were — the game renders at native resolution now, and
+   the budget that justified four identical cylinders for legs no longer
+   exists. */
 
 import { compose } from './geom.js';
 import { WILDLIFE } from './config.js';
@@ -295,15 +292,14 @@ function wolfGeometry(THREE) {
   ]);
 }
 
-/* How far the bear's hind paws sit behind its origin. A rear is a rotation
-   about that origin, so without lifting by this much the animal stands up by
-   burying its back feet in the snow. */
+/* FOR THE UNBUILT BEAR — see the header. Kept so its eventual builder does
+   not have to re-derive them: hind paws sit this far behind the origin (a
+   rear is a rotation about the origin, so without lifting by this much the
+   animal stands up by burying its back feet in the snow), and it should
+   spawn across this share of the corridor, near the middle of a branch,
+   because something this rare wasted at the treeline is a wasted encounter.
+   Nothing reads either constant today. */
 const BEAR_HIND = 0.75;
-/* And how much of the corridor a bear is allowed to spawn across. The
-   corridor is wide enough now that a uniform placement puts the bear well
-   outside the line anyone is riding, which for something this rare is a
-   wasted encounter — so it starts near the middle of a branch and walks out
-   from there. */
 const BEAR_OFFSET = 0.45;
 
 export function createWildlife(THREE, shading) {
@@ -409,6 +405,13 @@ export function createWildlife(THREE, shading) {
         vGlow = aGlow;
         vec4 mv = modelViewMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0);
         vDepth = -mv.z;
+        /* Nudged toward the camera, because the quad is billboarded from
+           the centre of the opaque eye bead: left at the bead's own depth
+           every fragment of the gaussian core failed the depth test against
+           the bead itself, and all that survived was a clipped ring past
+           its silhouette. Six centimetres clears the ~2.5 cm bead without
+           ever leaking through a head or a tree. */
+        mv.z += 0.06;
         // The quad grows a little with depth so a far eye never collapses
         // under a pixel — a sub-pixel additive point is exactly the kind of
         // detail the retro resample turns into shimmer.
@@ -534,7 +537,14 @@ export function createWildlife(THREE, shading) {
   function farSpot(z, range_) {
     const side = Math.random() < 0.5 ? -1 : 1;
     const off = corridorHalfAt(z) + range_[0] + Math.random() * (range_[1] - range_[0]);
-    return { x: nearestCenter(0, z) + side * off, side };
+    /* From the OUTER branch centre for the chosen side, not from
+       `nearestCenter(0, z)` — that was the branch nearest world x = 0,
+       unrelated to the side of the toss, and on a forked stretch an offset
+       thrown across the run from it landed the herd inside the other
+       line's corridor: deer standing in the middle of a piste. */
+    const [c0, c1] = centersAt(z);
+    const outer = side > 0 ? Math.max(c0, c1) : Math.min(c0, c1);
+    return { x: outer + side * off, side };
   }
 
   function placeHerd(rider) {
