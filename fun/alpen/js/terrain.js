@@ -1393,13 +1393,46 @@ export function gradeAt(z) {
    ========================================================================== */
 
 /* Offsets that start at `step` and grow by `growth` each one, until they
-   have covered `reach`. Returns the list of positions, not the steps. */
+   have covered `reach`. Returns the list of positions, not the steps.
+
+   EVERY OFFSET IS A WHOLE NUMBER OF CELLS, including the graded ones, and
+   that one line is what stops the mountain redrawing itself two or three
+   times a second.
+
+   The lattice is anchor-relative: a vertex samples the ground at
+   `anchor + offset`. Inside `uniformReach` the offsets were already whole
+   cells, so when the anchor hopped its eight-cell stride every one of those
+   vertices landed on a world position some other vertex had just held — the
+   data shifted along the buffer and the surface did not move at all. That is
+   why the ground under the board has always been welded to the hill.
+
+   Past it the offsets were a geometric series and landed wherever they
+   landed, so the same hop moved every graded sample to ground it had never
+   sampled. The heights genuinely changed, and the mesh genuinely had to be
+   rebuilt to match. `morphSettle` and its glide exist to hide that, and they
+   cannot: they only choose whether the change arrives as a pop or as a
+   crawl. At riding speed the anchor moves every 400 milliseconds or so —
+   which is the two-or-three-times-a-second flicker, arriving at the same
+   shape each time because it is the same mountain being re-measured.
+
+   Rounding each offset onto the base grid extends the near field's guarantee
+   to the whole mesh: every sample point, at any distance, now sits on one
+   global lattice of `step` metres, and the anchor only ever moves by whole
+   multiples of it. So a re-anchor re-indexes and never re-measures. The cost
+   is that the far rings grow in quantised jumps instead of smoothly, which
+   is invisible at the hundreds of metres where the grading actually bites.
+
+   The `max` keeps the sequence strictly increasing: early in the graded
+   region the growth factor is still worth less than a cell, and without it
+   two consecutive offsets would round onto the same position and collapse a
+   ring of quads to zero width. */
 function graded(step, growth, reach, uniformReach = 0) {
   const out = [0];
   let d = 0;
   let s = step;
   while (d < reach) {
-    d += s;
+    const grown = d + s;
+    d = Math.max(out[out.length - 1] + step, Math.round(grown / step) * step);
     out.push(d);
     if (d >= uniformReach) s *= growth;
   }
@@ -3436,7 +3469,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
          nearly nil and grows with distance from it. */
       const i = morphList[k];
       const p = i * 3;
-      const alpha = probe.snapMorph ? 1 : frameAlpha;
+      const alpha = probe.snapMorph ? 1 : 1 - morphMask[i] * (1 - frameAlpha);
       positions[p] += (targetPositions[p] - positions[p]) * alpha;
       positions[p + 1] += (targetPositions[p + 1] - positions[p + 1]) * alpha;
       positions[p + 2] += (targetPositions[p + 2] - positions[p + 2]) * alpha;
