@@ -229,9 +229,16 @@ float n64Noise(vec2 p) {
 vec2 n64Deck(vec3 dir, vec2 drift, float amount) {
   if (amount <= 0.002 || dir.y <= 0.04) return vec2(0.0);
   vec2 p = dir.xz * (0.62 / max(dir.y, 0.075)) + drift;
+  /* Integer lacunarity, and it is not a style choice: the hash tiles at 64
+     and the drift arrives wrapped to that period (weather.js's wrap64). The
+     base octave crosses the wrap seamlessly, but an octave at ×2.3 saw the
+     64-cell jump as a 19.2-cell one — every wrap of the wind reshuffled the
+     fine structure of every cloud in the sky, and of the deck inside every
+     fogged material, in a single frame. ×2 and ×5 carry the wrap exactly;
+     the offsets keep the octaves decorrelated. */
   float n = n64Noise(p) * 0.58
-          + n64Noise(p * 2.3 + 7.7) * 0.28
-          + n64Noise(p * 5.1 + 19.3) * 0.14;
+          + n64Noise(p * 2.0 + 7.7) * 0.28
+          + n64Noise(p * 5.0 + 19.3) * 0.14;
   // A cut that opens with the amount, so a clear day has a few isolated cells
   // and an overcast one has a lid with holes in it rather than more of the
   // same cloud.

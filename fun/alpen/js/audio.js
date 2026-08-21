@@ -142,6 +142,49 @@ export function createAudio() {
     return true;
   }
 
+  /* The safety net under every resume that a browser is allowed to refuse.
+
+     Most calls to `start` arrive from a user gesture — the curtain's click
+     or a keydown in `begin` — which is precisely the condition under which
+     a browser permits `resume`. But not all of them: a gamepad press is
+     polled off the animation frame and carries no user activation, so its
+     `resume()` is allowed to reject, and the run would open silent with
+     the HUD still saying sound was on. When that happens, the next real
+     gesture — a key, a tap, a click, anywhere — retries the resume.
+
+     Armed until a resume actually SUCCEEDS, not until a gesture merely
+     arrives. Not every event here carries activation on every browser —
+     Chrome on touch grants it on the synthesized click rather than on
+     pointerdown (the same quirk the curtain's click handler documents) —
+     and a one-shot that disarmed on the first event burned its only try
+     on the one that doesn't qualify, leaving every later gesture unable
+     to unlock the audio it was armed for. */
+  let gestureRetryArmed = false;
+  const RETRY_GESTURES = ['pointerdown', 'touchstart', 'keydown', 'click'];
+
+  function armGestureResume() {
+    if (gestureRetryArmed) return;
+    gestureRetryArmed = true;
+    const disarm = () => {
+      gestureRetryArmed = false;
+      for (const type of RETRY_GESTURES) {
+        window.removeEventListener(type, retry, true);
+      }
+    };
+    function retry() {
+      if (!ctx || !started || ctx.state === 'running') {
+        disarm();
+        return;
+      }
+      // Disarm only on fulfilment. A rejection means this gesture carried
+      // no activation; the listeners stay for one that does.
+      ctx.resume().then(disarm, () => {});
+    }
+    for (const type of RETRY_GESTURES) {
+      window.addEventListener(type, retry, true);
+    }
+  }
+
   /* Called on every resume, not just the first. Browsers suspend an
      AudioContext when the tab goes to the background or the device takes
      the audio away, and returning early on `started` left the graph running
@@ -153,11 +196,20 @@ export function createAudio() {
     parked = false;
     clearTimeout(parkTimer);
     ambienceAt = 0;
-    /* Every call to `start` arrives from a user gesture — the curtain's click
-       or a keydown in `begin` — which is precisely the condition
-       under which a browser permits `resume`, whether the context was
-       suspended by `quiet` below or by the platform taking the audio away. */
-    if (ctx.state === 'suspended') ctx.resume();
+    /* Tested against anything-but-running rather than 'suspended': iOS
+       reports the non-standard 'interrupted' after a phone call or Siri,
+       and matching only 'suspended' left those sessions permanently silent
+       with the HUD still saying sound was on. The catch covers a context
+       that has been closed under us, where resume() rejects. The resume can
+       also be *refused* — a start reached from the gamepad poll has no user
+       activation behind it — so if the context has not come up by the next
+       frame, the retry below waits on the next genuine gesture. */
+    if (ctx.state !== 'running') {
+      ctx.resume().catch(() => {});
+      requestAnimationFrame(() => {
+        if (ctx && started && ctx.state !== 'running') armGestureResume();
+      });
+    }
   }
 
   const now = () => (ctx ? ctx.currentTime : 0);

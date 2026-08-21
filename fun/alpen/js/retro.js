@@ -131,6 +131,27 @@ const BLUR_FRAG = `
   }
 `;
 
+/* The wide octave's downsample, as a real filter. Reading the quarter-res
+   bloom straight into a sixteenth-res target leans on one bilinear fetch —
+   a 2×2 tent across a 4×4 block — so three of every four source texels
+   never reached the halo and it pulsed as highlights moved. Four taps on
+   the block's interior corners average the full 4×4 exactly (each bilinear
+   fetch lands on a corner shared by four texels), same trick as the bright
+   pass's own box. */
+const DOWN_FRAG = `
+  precision mediump float;
+  uniform sampler2D tBright;
+  uniform vec2 uTexel;
+  varying vec2 vUv;
+  void main() {
+    vec3 c = texture2D(tBright, vUv + vec2(-uTexel.x, -uTexel.y)).rgb
+           + texture2D(tBright, vUv + vec2( uTexel.x, -uTexel.y)).rgb
+           + texture2D(tBright, vUv + vec2(-uTexel.x,  uTexel.y)).rgb
+           + texture2D(tBright, vUv + vec2( uTexel.x,  uTexel.y)).rgb;
+    gl_FragColor = vec4(c * 0.25, 1.0);
+  }
+`;
+
 const FRAG = `
   precision highp float;
   uniform sampler2D tDiffuse;
@@ -380,7 +401,15 @@ export function createRetro(THREE, renderer) {
     const supported = gl.getInternalformatParameter(gl.RENDERBUFFER, fmt, gl.SAMPLES);
     maxSamples = supported && supported.length ? supported[0] : 0;
   }
-  scene3d.samples = Math.min(4, maxSamples);
+  /* Four samples on an ordinary panel, two on a dense one. At 2× density a
+     geometric edge is already half the visual size, so the second doubling
+     of MSAA buys the least visible smoothing in the frame while costing the
+     most memory bandwidth — a native-res HDR target at 4× on an integrated
+     GPU is most of its fill budget. Decided once at creation: the sample
+     count of a live multisampled target cannot be re-picked cheaply, and a
+     window dragged between panels is what the resolution governor is for. */
+  const dense = (window.devicePixelRatio || 1) > 1.4;
+  scene3d.samples = Math.min(dense ? 2 : 4, maxSamples);
 
   const bright = new THREE.WebGLRenderTarget(BASE_W / 4, BASE_H / 4,
     { ...targetOpts, depthBuffer: false });
@@ -418,6 +447,17 @@ export function createRetro(THREE, renderer) {
     },
     vertexShader: VERT,
     fragmentShader: BLUR_FRAG,
+    depthTest: false,
+    depthWrite: false,
+  });
+
+  const downMat = new THREE.ShaderMaterial({
+    uniforms: {
+      tBright: { value: bright.texture },
+      uTexel: { value: new THREE.Vector2(4 / BASE_W, 4 / BASE_H) },
+    },
+    vertexShader: VERT,
+    fragmentShader: DOWN_FRAG,
     depthTest: false,
     depthWrite: false,
   });
@@ -494,6 +534,7 @@ export function createRetro(THREE, renderer) {
   let averageFrame = 1 / 60;
   let slowFor = 0;
   let fastFor = 0;
+  let stallRun = 0;   // consecutive frames past the stall threshold
   let sized = false;
   let fallFx = 0;
   let fallHold = 0;
@@ -593,7 +634,21 @@ export function createRetro(THREE, renderer) {
        distinguishable again: a quarter of a second is a tab switch or a GC
        pause and is ignored; anything under it is honest rendering load and
        feeds the average. */
-    if (!active || dt <= 0 || dt > 0.25) return false;
+    if (!active || dt <= 0) return false;
+    /* One quarter-second frame is a tab switch or a GC pause and is ignored.
+       A *run* of them is not a stall, it is the machine's honest speed — and
+       rejecting those too made the governor blind to any GPU sustainedly
+       below 4 fps, which is precisely the GPU it exists for. The first two
+       long frames are still forgiven; from the third the time is fed in,
+       capped, so the average responds without a single real hitch ever
+       dragging it. */
+    if (dt > 0.25) {
+      stallRun += 1;
+      if (stallRun < 3) return false;
+      dt = 0.25;
+    } else {
+      stallRun = 0;
+    }
     averageFrame += (dt - averageFrame) * (1 - Math.exp(-dt * 2.5));
 
     if (averageFrame > 1 / 48) {
@@ -646,15 +701,28 @@ export function createRetro(THREE, renderer) {
     renderer.setRenderTarget(bright);
     renderer.render(passScene, flat);
 
-    /* The halo octave. The first pass reads the finished quarter-res bloom
-       into a buffer a quarter smaller again in each direction — its own
-       bilinear minification is the downsample — and the second blurs across
-       it. Both passes touch a 256th of the frame's pixels; the texel the
-       kernel is measured in is four times as wide, so the same five taps
-       reach four times as far. */
+    /* The halo octave: a real filtered downsample, then the two blurs.
+
+       The old first pass read the quarter-res bloom straight through one
+       bilinear fetch per sixteenth-res texel — a 2×2 tent across a 4×4
+       block, so three of every four source texels never reached the halo
+       and it pulsed as highlights moved. The box downsample (DOWN_FRAG)
+       averages the full block first; the blur pair then works entirely at
+       sixteenth res, where its texel is four times as wide and the same
+       five taps reach four times as far. `wide` is scratch for the first
+       two passes and holds the finished halo after the third, which is the
+       buffer the composite reads. */
     const ww = Math.max(1, Math.floor(width / 16));
     const wh = Math.max(1, Math.floor(height / 16));
-    blurMat.uniforms.tBright.value = bright.texture;
+    passQuad.material = downMat;
+    downMat.uniforms.uTexel.value.set(
+      1 / Math.max(1, Math.floor(width / 4)),
+      1 / Math.max(1, Math.floor(height / 4)),
+    );
+    renderer.setRenderTarget(wide);
+    renderer.render(passScene, flat);
+    passQuad.material = blurMat;
+    blurMat.uniforms.tBright.value = wide.texture;
     blurMat.uniforms.uTexel.value.set(1 / ww, 1 / wh);
     blurMat.uniforms.uDir.value.set(1, 0);
     renderer.setRenderTarget(wideTmp);

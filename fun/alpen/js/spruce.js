@@ -59,14 +59,22 @@ export function growCardSpruce(THREE, seed, spec, height) {
   const col = [];
   const own = [];
 
-  const quad = (a, b, c, d, n, rect, mirror, vshift, colour, ownership) => {
-    // two triangles a-b-c, a-c-d; uv corners follow the same winding
+  /* Two triangles a-b-c, a-c-d, with each corner's uv fixed by its role:
+     a=(u0,v0), b=(u1,v0), c=(u1,v1), d=(u0,v1). `flip` reverses the
+     triangle winding while keeping those assignments — for a quad whose
+     corners are the mirror of another's, so both come out facing the same
+     way. Winding matters even on the double-sided foliage material: three
+     flips a Lambert normal on back faces, and the shadow pass's depth
+     material is front-side only. */
+  const quad = (a, b, c, d, n, rect, mirror, vshift, colour, ownership, flip = false) => {
     const u0 = mirror ? rect.u1 : rect.u0;
     const u1 = mirror ? rect.u0 : rect.u1;
     const v0 = rect.v0 - vshift;
     const v1 = rect.v1 - vshift;
-    const P = [a, b, c, a, c, d];
-    const U = [[u0, v0], [u1, v0], [u1, v1], [u0, v0], [u1, v1], [u0, v1]];
+    const P = flip ? [a, c, b, a, d, c] : [a, b, c, a, c, d];
+    const U = flip
+      ? [[u0, v0], [u1, v1], [u1, v0], [u0, v0], [u0, v1], [u1, v1]]
+      : [[u0, v0], [u1, v0], [u1, v1], [u0, v0], [u1, v1], [u0, v1]];
     for (let i = 0; i < 6; i++) {
       pos.push(P[i].x, P[i].y, P[i].z);
       nrm.push(n.x, n.y, n.z);
@@ -194,7 +202,15 @@ export function growCardSpruce(THREE, seed, spec, height) {
         quad(p[0], p[1], p[2], p[3], n, cell, mirror, FROST_DROP, SNOW_COL, 0);
         p[1].addScaledVector(side, W);
         p[2].addScaledVector(side, W * 0.6);
-        quad(p[0], p[3], p[2], p[1], n, cell, !mirror, FROST_DROP, SNOW_COL, 0);
+        /* Same corner ROLES as the first half — root-centre, root-outer,
+           tip-outer, tip-centre — so u stays across the sprig and v stays
+           root→tip. The old (p0, p3, p2, p1) order kept the winding right
+           (these corners are the first half's mirror) but swapped which
+           edges carried u and v, so the +side half wore its snow sprig
+           rotated ninety degrees; passing the roles in order fixed the
+           sprig and would have flipped the facing instead. `flip` keeps
+           both: role-true uvs, winding matching the first half. */
+        quad(p[0], p[1], p[2], p[3], n, cell, !mirror, FROST_DROP, SNOW_COL, 0, true);
       }
     }
   }

@@ -766,7 +766,16 @@ const DOME_FRAG = `
       float az = max(0.0, dot(dir.xz, uSunAz) / max(length(dir.xz), 0.001));
       relitPano += uSunlit * (pow(az, 4.0) * smoothstep(0.40, 1.10, panoForm) * 0.55);
       float panoBand = 1.0 - smoothstep(0.28, 0.55, up);
-      c = mix(c, relitPano, uPanoStrength * panoBand);
+      /* The join azimuth, hidden. The two weather plates are seamless
+         (measured: their edge columns differ by ~1.5 of 255) but the three
+         hour plates are not (~25-34), so through dawn, dusk and night the
+         plate's wrap put a hard vertical picture cut in the sky uphill.
+         Rather than flag which plate happens to be bound — a crossfade can
+         hold one of each — the plate always hands the few degrees around
+         its own join back to the procedural sky it is drawn over. */
+      float seamD = abs(vPanoU - floor(vPanoU + 0.5));
+      float seamHide = smoothstep(0.02, 0.075, seamD);
+      c = mix(c, relitPano, uPanoStrength * panoBand * seamHide);
     }
     // One dot product of atmosphere: the sky is brighter and warmer near
     // whatever is lighting it, and the effect is strongest at the horizon
@@ -1106,6 +1115,7 @@ const RELIEF_VERT = `
   attribute float aAltitude;
   attribute vec3 aGeology;
   uniform float uPitch;
+  uniform float uSpin;
   varying highp vec3 vWorld;
   varying highp vec3 vLocal;
   varying vec3 vNormal;
@@ -1114,15 +1124,44 @@ const RELIEF_VERT = `
   void main() {
     float pitch = uPitch + ${FOOT.toFixed(4)};
     vec3 p = position;
+    /* The down-run corridor, applied at the WORLD angle so it cannot rotate
+       away with the shell's apparent travel. Three's rotation.y sends a
+       local angle a to world angle a − θ, and down-run is world −z. Applied
+       to the mountain height before the pitch shear below, exactly where
+       the bake used to multiply it. */
+    float corAngle = atan(position.z, position.x) - uSpin;
+    float corAhead = max(0.0, -sin(corAngle));
+    float corS = clamp((corAhead - ${RELIEF.corridorFrom.toFixed(4)})
+      / ${(RELIEF.corridorTo - RELIEF.corridorFrom).toFixed(4)}, 0.0, 1.0);
+    float corridor = 1.0 - ${RELIEF.corridorCut.toFixed(4)}
+      * corS * corS * (3.0 - 2.0 * corS);
+    p.y *= corridor;
     p.y -= aRadius * pitch;
+    /* The normal takes the same deformation the height just did. The baked
+       normals describe the uncut shell; for a heightfield written as
+       (-grad h, 1), scaling h by c scales the normal's horizontal half by
+       c, and the cut's own angular gradient adds a tangential slope of
+       y * dc/dphi / r. Skipping this lit the cut shoulders as if they kept
+       their full shape, and wrongly harder as uSpin walked the cut around
+       the shell. Multiplied through by n.y so there is no division: the
+       expression degenerates to the plain normal wherever c is 1. */
     vec3 n = normal;
+    float corR = length(position.xz);
+    float dcdphi = -${RELIEF.corridorCut.toFixed(4)}
+      * (6.0 * corS * (1.0 - corS) / ${(RELIEF.corridorTo - RELIEF.corridorFrom).toFixed(4)})
+      * (-cos(corAngle)) * step(0.0001, corAhead);
+    vec3 corTan = vec3(-position.z, 0.0, position.x) / max(corR, 1.0);
+    n = normalize(vec3(corridor * n.x, n.y, corridor * n.z)
+      - corTan * (position.y * dcdphi / max(corR, 1.0)) * n.y);
     vec2 radial = normalize(position.xz);
     n.xz += radial * (pitch * n.y);
     vec4 world = modelMatrix * vec4(p, 1.0);
     vWorld = world.xyz;
     vLocal = position;
     vNormal = normalize(mat3(modelMatrix) * n);
-    vAltitude = aAltitude;
+    // The altitude regime follows the drawn height, so the snow line does
+    // not climb the cut sector's shoulders.
+    vAltitude = aAltitude * corridor;
     vGeology = aGeology;
     gl_Position = projectionMatrix * viewMatrix * world;
   }
@@ -1132,7 +1171,7 @@ const RELIEF_FRAG = `
   precision highp float;
   uniform vec3 uSunDir;
   uniform vec3 uHaze, uSnow, uRockCool, uRockWarm, uIce, uAlpenglow;
-  uniform float uStorm, uAir;
+  uniform float uStorm, uAir, uWhiteout;
   varying highp vec3 vWorld;
   varying highp vec3 vLocal;
   varying vec3 vNormal;
@@ -1207,6 +1246,14 @@ const RELIEF_FRAG = `
     float foot = smoothstep(0.02, 0.28, vAltitude);
     float extinction = clamp(uAir * (0.85 - vAltitude * 0.25), 0.0, 0.75);
     vec3 c = mix(body, uHaze, mix(1.0, extinction, foot));
+    /* The storm's own curtain, over the top of the clear-air extinction.
+       The far ribbons and the panorama both dissolve on this exact ramp
+       (rangeAlpha and panoStrength in update) — the relief shell did not,
+       and because its extinction is capped at 0.75 a quarter of the rock
+       body survived any weather: a dark massif floating in the middle of
+       a whiteout, well past a fog distance of ninety metres.
+       (No back-ticks in here: this comment lives inside a template.) */
+    c = mix(c, uHaze, uWhiteout);
     gl_FragColor = vec4(c, 1.0);
   }
 `;
@@ -1884,12 +1931,16 @@ export function createSky(THREE) {
   const cone = new THREE.Mesh(
     new THREE.ConeGeometry(CONE_R, coneH, 192, 1, true), hazeMat,
   );
-  // After the dome, for the same reason the dome now goes after the terrain:
-  // most of the cone is behind real ground, and drawing it once the depth
-  // buffer knows that costs only the fragments that are actually the horizon.
-  // It still writes depth, exactly as it always did, and it still lands
-  // before every transparent layer because all the opaques do.
-  cone.renderOrder = 2;
+  /* After the terrain and the relief shell, BEFORE the dome. The cone is a
+     cheap opaque that writes depth and covers the whole band under the
+     horizon, and the dome is the most expensive shader on screen — drawn
+     at 2 the cone arrived after the dome had already shaded every pixel
+     the cone was about to cover, forfeiting exactly the early-z trade the
+     relief (0.5) and dome (1) both make. All three are depth-tested
+     opaques, so the picture is bit-identical; only the wasted dome
+     fragments go. It still lands before every transparent layer because
+     all the opaques do. */
+  cone.renderOrder = 0.7;
   group.add(cone);
 
   // --- the ranges ----------------------------------------------------------
@@ -1944,10 +1995,13 @@ export function createSky(THREE) {
         const skyline = 0.35 + 0.65 * clamp01(
           massif * 0.40 + ridgeA * 0.35 + ridgeB * 0.18 + fineRidge * 0.07,
         );
-        // Down-run remains the panorama's deep view; true shoulders frame it.
-        const ahead = Math.max(0, -Math.sin(angle));
-        const corridor = 1 - RELIEF.corridorCut
-          * ramp(ahead, RELIEF.corridorFrom, RELIEF.corridorTo);
+        /* The down-run corridor is NOT baked here any more. The shell spins
+           with apparent travel (`relief.mesh.rotation.y` in update), so a
+           corridor cut into the vertices rotated away from down-run — after
+           nine kilometres of riding the full-height relief stood exactly
+           where the deep view was promised. The cut now lives in
+           RELIEF_VERT, evaluated at the *world* angle each frame, so it
+           stays pinned to the run however far the shell has turned. */
 
         /* Long gullies are coherent from the crest to the foot. Their small
            radial drift prevents each one being a ruler-straight spoke, while
@@ -1972,7 +2026,7 @@ export function createSky(THREE) {
         const stone = 0.5 + 0.5 * circleNoise(angle, 1.8, RELIEF.seed + 11);
         const ridgeShift = circleNoise(angle, 3.2, RELIEF.seed + 13)
           * 54 * radialProfile;
-        const y = RELIEF.height * skyline * corridor * radialProfile
+        const y = RELIEF.height * skyline * radialProfile
           * (0.72 + facet * 0.14 + buttress * 0.25
             - drainage * (1 - t) * 0.10);
 
@@ -2033,6 +2087,7 @@ export function createSky(THREE) {
     const mat = new THREE.ShaderMaterial({
       uniforms: {
         uPitch: { value: TERRAIN.grade.base },
+        uSpin: { value: 0 },
         uSunDir: { value: sunDir },
         uHaze: { value: new THREE.Color('#d7e2ec') },
         uSnow: { value: new THREE.Color('#dce7f1') },
@@ -2041,6 +2096,7 @@ export function createSky(THREE) {
         uIce: { value: new THREE.Color('#b9d2df') },
         uAlpenglow: { value: new THREE.Color(0, 0, 0) },
         uStorm: { value: 0 },
+        uWhiteout: { value: 0 },
         uAir: { value: airAt(RELIEF.apparentFar) },
       },
       vertexShader: RELIEF_VERT,
@@ -2577,7 +2633,13 @@ export function createSky(THREE) {
       const sunPad = plateChoice === 'sunrise' || plateChoice === 'sunset' ? 0.02 : 0;
       const nightAt = plateChoice === 'night' ? 0.34 : 0.46;
       const dawn = w.tod >= 0.05 - sunPad && w.tod <= 0.25 + sunPad;
-      const dusk = w.tod >= 0.65 - sunPad && w.tod <= 0.78 + sunPad;
+      /* The dusk window reaches to where the night gate actually opens.
+         `night` (the max of the star and moon curves) only crosses 0.46
+         around tod 0.835, so a window ending at 0.78 handed the sky to
+         'clear' for the half-minute in between — every dusk crossfaded
+         sunset → clear morning → night, with a daybreak plate in the
+         middle of nightfall. */
+      const dusk = w.tod >= 0.65 - sunPad && w.tod <= 0.865 + sunPad;
       const choice = (w.night > nightAt && nightPlate) ? 'night'
         : (dawn && sunrisePlate) ? 'sunrise'
           : (dusk && (sunsetPlate || sunrisePlate)) ? 'sunset' : 'clear';
@@ -2805,6 +2867,8 @@ export function createSky(THREE) {
        or async state to reveal during play. */
     const reliefSpin = (travel / RELIEF.apparentFar) % TAU;
     relief.mesh.rotation.y = reliefSpin;
+    // The corridor cut counter-rotates in the vertex shader — see RELIEF_VERT.
+    relief.mat.uniforms.uSpin.value = reliefSpin;
     relief.mesh.position.set(
       -lateral * (RELIEF.crest / RELIEF.apparentFar), 0, 0,
     );
@@ -2822,6 +2886,8 @@ export function createSky(THREE) {
     relief.mat.uniforms.uIce.value.copy(iceTmp);
     relief.mat.uniforms.uAlpenglow.value.copy(sunlit).multiplyScalar(0.46);
     relief.mat.uniforms.uStorm.value = w.storm;
+    // The same dissolution the far ribbons ride — see the shader note.
+    relief.mat.uniforms.uWhiteout.value = ramp(w.storm, 0.28, 0.82);
 
     for (const r of ranges) {
       /* The generated equirectangular plate is the hero distant range. As it
