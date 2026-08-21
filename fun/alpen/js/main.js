@@ -1472,6 +1472,23 @@ function frame(now) {
     // dissolving into. It follows both the sky and the chase camera so the
     // view-space sun cannot lag a carve by one rendered frame.
     shading.update(w, camera, dt, world.height(rider.pos.x, rider.pos.z));
+    /* THE BISECT, applied after every system that writes these, so a switch
+       actually holds for the frame. Four things can change how a mountain
+       looks between one frame and the next, and telling them apart by eye is
+       the only method available for a report that software rendering cannot
+       reproduce. See `flickerProbe` below for what each one is. */
+    if (flickerProbe.noShade) shading.uniforms.uShadeLevel.value = 0;
+    if (flickerProbe.noCloud) shading.uniforms.uCloud.value = 0;
+    if (flickerProbe.shadowEveryFrame || flickerProbe.noShadow) {
+      const key = keyLight();
+      if (key) {
+        key.shadow.needsUpdate = !flickerProbe.noShadow;
+        // Only `noShadow` touches intensity. `shadowEveryFrame` is about the
+        // refresh cadence alone, and pinning intensity here would also freeze
+        // the sky's dusk fade — a second variable in a one-variable test.
+        if (flickerProbe.noShadow) key.shadow.intensity = 0;
+      }
+    }
     model.update(rider, dt, w, camera);
     // The animals' eyes answer the lamp: retroreflection needs to know where
     // the beam is, and only the model knows that after its pose is written.
@@ -1654,7 +1671,34 @@ resize();
 /* A hatch for tuning. Everything in the game is a plain object, so this is
    the whole debugger: read the numbers, or write one and watch what it does
    to the run. */
+/* WHAT MIGHT BE MOVING ON THAT MOUNTAIN. Four independent systems change a
+   distant face frame to frame, and a flicker report cannot say which: the
+   baked horizon self-shadow, the drifting cloud-shadow field, the depth map
+   (which deliberately re-renders on alternate frames), and the LOD morph that
+   walks re-sampled far-field vertices to their new positions.
+
+   Set one at a time from the console — `__alpen.flicker.noShadow = true` —
+   and whichever one stops it is the culprit. `shadowEveryFrame` is the
+   interesting one: it undoes the alternate-frame interleave, so if the
+   flicker stops with it on, the interleave is what you were seeing. */
+const flickerProbe = {
+  noShade: false,           // the terrain's own baked horizon shadow
+  noCloud: false,           // cloud shadows drifting over the slope
+  noShadow: false,          // the dynamic depth map, off entirely
+  shadowEveryFrame: false,  // …or on, but refreshed every frame not every other
+  get snapMorph() { return terrain.probe.snapMorph; },
+  set snapMorph(v) { terrain.probe.snapMorph = !!v; },
+};
+let keyLightCache = null;
+function keyLight() {
+  if (!keyLightCache && sky.lights) {
+    keyLightCache = sky.lights.children.find((c) => c.isDirectionalLight) || null;
+  }
+  return keyLightCache;
+}
+
 window.__alpen = {
+  flicker: flickerProbe,
   game, rider, camera, chase, world, weather, scene, sky, terrain, props, retro, renderer,
   // `model` is on here for one reason: the rider's drawn orientation is
   // derived from the physics yaw and has been wrong before — mirrored about

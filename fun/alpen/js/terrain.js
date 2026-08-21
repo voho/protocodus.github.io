@@ -3377,11 +3377,34 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     }
 
     for (let k = 0; k < morphList.length; k++) {
-      // mask=1 is a distant vertex that converges exponentially instead of
-      // popping; everything on this list is somewhere on that slope.
+      /* ONE RATE FOR THE WHOLE BAND, and the mask no longer weights it.
+
+         It used to: `alpha = 1 - mask * (1 - frameAlpha)`, so convergence ran
+         from instant at the disc edge to a full glide at two hundred and
+         forty metres. Written out, that put the near half of the band one
+         frame from its target — mask 0.1 (~104 m) converged 94% in a single
+         frame, mask 0.3 (~131 m) 81% — which is not a glide, it is a pop with
+         a ramp on it. Flat ground forgives that because a few metres of
+         re-sampled position barely moves the height. A mountain face does
+         not: the same shift crosses metres of relief, and every anchor threw
+         the wall a frame's worth of it. That band is exactly what fills the
+         screen when you ride at a mountain, which is where it was reported.
+
+         It also explains why stretching `morphGlide` could not touch this.
+         The glide only reaches this loop through `frameAlpha`, and at mask
+         0.1 the expression is 1 - 0.1 * (1 - frameAlpha) — pinned above 0.9
+         however long the glide is given. The near band's rate was never the
+         glide's to set.
+
+         The mask still decides *membership*: mask exactly zero is the
+         cell-aligned disc, whose samples are the same world points before and
+         after the anchor moves, so `snapList` above assigns it outright and
+         moves nothing. Everything past it now eases at one rate, and the
+         handover at the boundary is seamless because the jump there is
+         nearly nil and grows with distance from it. */
       const i = morphList[k];
       const p = i * 3;
-      const alpha = 1 - morphMask[i] * (1 - frameAlpha);
+      const alpha = probe.snapMorph ? 1 : frameAlpha;
       positions[p] += (targetPositions[p] - positions[p]) * alpha;
       positions[p + 1] += (targetPositions[p + 1] - positions[p + 1]) * alpha;
       positions[p + 2] += (targetPositions[p + 2] - positions[p + 2]) * alpha;
@@ -3484,6 +3507,13 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
      roughly half. Four strides bought a little more headroom and spent it on
      a far field that stood still and then lurched, which is the reading an
      eye reports as flicker. */
+  /* Bisect switches. Nothing in the game writes these; they exist so that a
+     "the mountains flicker" report — which is a thing only an eye on real
+     hardware can see, and which software rendering here cannot reproduce at
+     a usable frame rate — can be halved in a few seconds from the console
+     instead of guessed at across a round trip. See `__alpen.flicker`. */
+  const probe = { snapMorph: false };
+
   const ANCHOR_MUL_MAX = 2;
   const ANCHOR_DWELL = 3;    // commits to hold a level before moving again
   let anchorMul = 1;
@@ -3781,6 +3811,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     // waits on it, because nothing in the game has to.
     surfacesReady,
     vertexCount: count,
+    probe,
     debug: () => ({
       anchorX, anchorY, anchorZ, morphing, morphAge, anchorMul,
       chapter: chapterNameAt(anchorZ),
