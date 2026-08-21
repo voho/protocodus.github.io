@@ -1669,6 +1669,15 @@ window.__alpen = {
      the loop happened to be in. Between them the plume a committed turn
      throws can be produced deliberately and then looked at. */
   input, spray, snowfall, streaks,
+  /* And the block that decides how everything on the mountain is lit. It is
+     the one shared piece of state with no other handle on it: the sun, the
+     fog curtain, the cloud deck and its shadow, and the terrain's own baked
+     horizon all arrive through here, so a question of the form "which of
+     these is putting that on the wall" can only be answered by switching
+     them off one at a time. `mountainLife` is here for the same reason —
+     its riders are the only things on the hill that move under their own
+     steam, and a pose that is wrong is a pose you have to be able to stop. */
+  shading, mountainLife,
   config: { RENDER, RIDER, SCORE, PROPS, GRADE },
   debug: () => ({
     mode: game.mode,

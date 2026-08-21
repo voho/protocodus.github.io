@@ -2780,6 +2780,29 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
      the real elapsed time rather than half of it. */
   let morphCarry = 0;
   let morphTick = 0;
+  /* HOW LONG THE FAR FIELD TAKES TO ARRIVE, and why that cannot be a constant
+     either once the anchor cadence stopped being one.
+
+     Past `morphNear` the lattice genuinely re-samples when the anchor moves,
+     and the glide below walks it from where it was to where it now belongs.
+     The distance is proportional to the anchor step — so coarsening the grid
+     to buy frames also multiplied how far every distant vertex travels, while
+     leaving it the same fifth of a second to travel in.
+
+     Measured over twenty seconds at twenty-five metres a second, that turned
+     a worst per-frame far-field movement of 16.8 m into 38.4 m, on half as
+     many frames: 273 frames moving more than three metres became 126 moving
+     more than three. The total displacement is the same either way. What
+     changed is that a near-continuous drift — an anchor every 0.24 s against
+     a 0.22 s glide — became a discrete pulse every second, and a pulse is
+     the thing an eye reports as flicker.
+
+     So the glide fills the gap instead of racing across it: stretched in
+     proportion to the step, and clipped to the interval the last two commits
+     actually measured so it still converges before the next anchor lands —
+     which is the failure the note above `stride` describes, and the one thing
+     worse than a pulse is a far field permanently in motion. */
+  let morphGlide = morphSettle;
   // The near disc's one-time copy from the target is still owed for this
   // anchor — see `settleMorph`.
   let morphSnap = false;
@@ -3314,12 +3337,12 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
        the frame the glide finishes on, so nothing is left part-way. */
     morphCarry += dt;
     morphTick ^= 1;
-    const finishing = (morphAge + morphCarry) >= morphSettle;
+    const finishing = (morphAge + morphCarry) >= morphGlide;
     if (morphTick === 1 && !finishing && !morphSnap) return;
     const step = morphCarry;
     morphCarry = 0;
     morphAge += step;
-    const frameAlpha = 1 - Math.exp(-morphRate * step);
+    const frameAlpha = 1 - Math.exp(-morphRate * (morphSettle / morphGlide) * step);
 
     if (morphSnap) {
       /* mask=0 is the exact collision surface around the rider, and its
@@ -3378,7 +3401,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       groomFrame[g + 1] += (targetGroomFrame[g + 1] - groomFrame[g + 1]) * alpha;
     }
 
-    if (morphAge >= morphSettle) {
+    if (morphAge >= morphGlide) {
       positions.set(targetPositions);
       normals.set(targetNormals);
       colors.set(targetColors);
@@ -3452,7 +3475,16 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
 
      And none of it engages on a machine that is keeping up. A desktop at
      riding speed never leaves one stride. */
-  const ANCHOR_MUL_MAX = 4;
+  /* TWO STRIDES, NOT FOUR, and the reason is the glide below rather than the
+     build budget. Coarsening moves every far-field vertex proportionally
+     further per morph; `morphGlide` gives it proportionally longer to travel,
+     so the *rate* of that motion holds — but only while the interval between
+     anchors is long enough to contain the stretched glide. At two strides the
+     two stay matched at any riding speed, and the duty cycle still falls by
+     roughly half. Four strides bought a little more headroom and spent it on
+     a far field that stood still and then lurched, which is the reading an
+     eye reports as flicker. */
+  const ANCHOR_MUL_MAX = 2;
   const ANCHOR_DWELL = 3;    // commits to hold a level before moving again
   let anchorMul = 1;
   let anchorDwell = 0;
@@ -3524,6 +3556,10 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     const span = settled - buildStartedAt;
     const idle = Math.max(0, buildStartedAt - buildIdleFrom);
     buildIdleFrom = settled;
+    /* Before `anchorMul` is retuned below: the jump this glide has to absorb
+       was produced by the step in force when the build began. */
+    morphGlide = Math.max(morphSettle,
+      Math.min(morphSettle * anchorMul, (span + idle) * 0.00085));
     if (anchorDwell > 0) {
       anchorDwell -= 1;
     } else {
@@ -3636,6 +3672,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     // coarsening from the frames that follow.
     anchorMul = 1;
     anchorDwell = 0;
+    morphGlide = morphSettle;
     buildIdleFrom = clockNow();
     const ax = Math.round(x / stride) * stride;
     const az = Math.round(z / stride) * stride;

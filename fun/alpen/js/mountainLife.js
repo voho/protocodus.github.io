@@ -86,6 +86,13 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
 
   const instanced = (geo, mat, count, cast = true) => {
     const mesh = new THREE.InstancedMesh(geo, mat, count);
+    /* Three fills a new instance buffer with zeros, and a zero matrix puts
+       every vertex on w = 0 — a degenerate triangle the rasteriser may
+       stretch across the frame rather than drop. Nothing here is frustum
+       culled, so the frames between construction and the first `update` were
+       drawing exactly that. Draw nothing until the first update has written
+       every slot. */
+    mesh.count = 0;
     // Every pool here spans hundreds of metres of run while its geometry
     // measures a few, so three's per-object sphere would cull the lot the
     // moment the prototype left the frustum. One draw is cheaper than the
@@ -95,8 +102,12 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
     mesh.receiveShadow = cast;
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     root.add(mesh);
+    pools.push(mesh);
     return mesh;
   };
+  // Raised once the first update has written every matrix in every pool.
+  const pools = [];
+  let poolsLive = false;
 
   const cabinGeo = compose(THREE, [
     { geo: new THREE.BoxGeometry(2.4, 2.2, 1.8), color: 0xb31f1f, pos: [0, -1.1, 0] },
@@ -728,6 +739,16 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
         }
         cannonMesh.instanceMatrix.needsUpdate = true;
         cannonsDirty = false;
+      }
+
+      /* Every pool now holds a real matrix in every slot, so they can start
+         drawing. Until this line they stand at `count = 0` — see `instanced`,
+         and the zero-matrix note there for why that is not just tidiness. */
+      if (!poolsLive) {
+        for (let k = 0; k < pools.length; k++) {
+          pools[k].count = pools[k].instanceMatrix.count;
+        }
+        poolsLive = true;
       }
 
       /* --- the other people, and running into them ---------------------- */

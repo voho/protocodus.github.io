@@ -1805,6 +1805,15 @@ function pisteStakeLampGeometry(THREE) {
 class Pool {
   constructor(THREE, geometry, material, capacity, tinted = false) {
     this.mesh = new THREE.InstancedMesh(geometry, material, capacity);
+    /* THREE STARTS AN InstancedMesh AT count = capacity WITH EVERY MATRIX
+       ZERO, and a zero matrix is not an invisible object: it collapses every
+       vertex onto w = 0, which the rasteriser is free to turn into a triangle
+       stretched across the frame. These pools opt out of frustum culling, so
+       any frame drawn between construction and the first `end()` — the boot
+       precompile, and every `NEW MOUNTAIN` reload — was submitting six and a
+       half thousand degenerate instances. Draw nothing until there is
+       something to draw; `end()` raises this to what was actually written. */
+    this.mesh.count = 0;
     this.mesh.frustumCulled = false;
     this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.capacity = capacity;
