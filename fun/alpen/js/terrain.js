@@ -1598,6 +1598,20 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     }
   }
 
+  // The smoothed lane gaps the mask loop below reads — see the note there.
+  const cellXSmooth = new Float64Array(vertsX);
+  for (let c = 0; c < vertsX; c++) {
+    const lo = Math.max(0, c - 3);
+    const hi = Math.min(vertsX - 1, c + 3);
+    cellXSmooth[c] = Math.abs(xs[hi] - xs[lo]) / Math.max(1, hi - lo);
+  }
+  const cellZSmooth = new Float64Array(vertsZ);
+  for (let r = 0; r < vertsZ; r++) {
+    const lo = Math.max(0, r - 3);
+    const hi = Math.min(vertsZ - 1, r + 3);
+    cellZSmooth[r] = Math.abs(zs[hi] - zs[lo]) / Math.max(1, hi - lo);
+  }
+
   let m = 0;
   for (let r = 0; r < vertsZ; r++) {
     for (let c = 0; c < vertsX; c++, m++) {
@@ -1617,15 +1631,17 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
          height octaves. Fade them before a cell grows wide enough to sample
          them unreliably; the rider's collision query keeps full detail.
 
-         The cell size is THE LANE'S OWN RING STRIDE, not the larger of its
-         neighbour gaps. The old max-of-neighbours bled each ring seam's
-         coarser value one lane into the finer ring, and a lane whose mask
-         differs from its ring's produces different heights for the same
-         world point — so on every ring crossing that lane snapped by the
-         masked octave's amplitude, which on the wall bands is metres.
-         Keyed to the stride, masks are exactly constant per ring and a
-         re-index inside one is bit-identical. */
-      const cell = Math.max(xStrides[c], zStrides[r]);
+         The cell size is a ±3-lane average of the actual gaps, and the
+         smoothing is load-bearing. Keyed to the lane's own ring stride the
+         masks were exactly constant per ring — and therefore STEPPED at
+         every seam, so a world point handed across one on an anchor hop was
+         regenerated under a detail level a whole fade-step away: the seam
+         band snapped by the masked octave's amplitude, every hop, on
+         exactly the wall flutes this rework is for. Averaged over seven
+         lanes the step becomes a ramp, and any handoff — across a seam or
+         within a ring — changes a sample's mask by one lane's gradient:
+         millimetres of the faded octaves, snapped invisibly. */
+      const cell = Math.max(cellXSmooth[c], cellZSmooth[r]);
       coarseDetailMask[m] = 1 - smoothstep(
         chatter.lod.coarse[0], chatter.lod.coarse[1], cell,
       );

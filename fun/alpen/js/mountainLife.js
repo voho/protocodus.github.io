@@ -39,7 +39,13 @@ import {
 import { compose } from './geom.js';
 
 const PYLON_SPACING = 200;
-const NUM_PYLONS = 5;
+/* Seven, so the span's ends stand ±600 m from the rider — past the 560 m
+   clear-day fog distance. A cabin recycles by jumping one full span from
+   one end to the other, and with five pylons the ends sat ±400 m out,
+   inside the curtain's visibility: the jump was watchable in clear
+   weather. Two more towers are two instances on meshes that already
+   exist, and they buy the handover happening behind the haze. */
+const NUM_PYLONS = 7;
 const SPAN = PYLON_SPACING * (NUM_PYLONS - 1);
 const CABLE_SIDE = 1.8;   // the two ropes, either side of the arm's wheels
 const SAG = 2.4;          // metres of droop at mid-span
@@ -641,7 +647,7 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
       /* Towers on a fixed grid so they never swim: the window simply slides
          one slot at a time as the rider descends past them. Ahead is −z. */
       const baseZ = Math.floor(rz / PYLON_SPACING) * PYLON_SPACING;
-      const backZ = baseZ + 2 * PYLON_SPACING;   // two slots behind…
+      const backZ = baseZ + 3 * PYLON_SPACING;   // three slots behind…
       /* The cabins measure `at` from `backZ`, so the towers' world-fixed
          grid was not enough on its own: every slide of the window moved the
          datum by a whole slot and all six cabins teleported 200 m in one
@@ -661,7 +667,7 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
       }
       wheelSpin += 3.0 * dt;
       for (let i = 0; i < NUM_PYLONS; i++) {
-        const pz = backZ - i * PYLON_SPACING;    // …to two slots ahead
+        const pz = backZ - i * PYLON_SPACING;    // …to three slots ahead
         const px = cableXAt(pz);
         const py = heightAt(px, pz);
         _m.makeTranslation(px, py + 11.0, pz);

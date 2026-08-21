@@ -245,10 +245,21 @@ export class Rider {
        carried the previous run's last surface — a restart out of a crash
        against the containment wall drew its first frame (and aimed the
        chase camera) with the rig still banked on the wall's normal until
-       the first physics step happened to run. */
-    this.normal.set(0, 1, 0);
-    this.heading.set(0, 0, -1);
-    this.right.set(1, 0, 0);
+       the first physics step happened to run. And "the spawn's own facts"
+       means the actual slope, not world-up: the piste's base grade alone
+       is ~17°, and on the zero-step render frames that are routine at
+       144 Hz+ a flat frame drew the board through the hill and made the
+       boom read the ground behind the rider as an obstruction. Same
+       central difference the step itself uses, same heading projection. */
+    const eps = 0.35;
+    const dhx = (this.world.height(posX + eps, z)
+      - this.world.height(posX - eps, z)) / (2 * eps);
+    const dhz = (this.world.height(posX, z + eps)
+      - this.world.height(posX, z - eps)) / (2 * eps);
+    this.normal.set(-dhx, 1, -dhz).normalize();
+    this.heading.set(0, 0, -1)
+      .addScaledVector(this.normal, this.normal.z).normalize();
+    this.right.crossVectors(this.heading, this.normal).normalize();
 
     this.compression = 0;
     this.compressionVel = 0;
