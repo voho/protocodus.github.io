@@ -321,5 +321,26 @@ export function createInput(target, hooks = {}) {
     calm();
   }
 
-  return { state, update, stepped, bindTouch, dispose, clear, calm };
+  /* Gamepad dual-rumble haptic feedback.
+     Safely triggers vibration actuators on connected gamepads. */
+  function rumble(weakMagnitude = 0.3, strongMagnitude = 0.3, durationMs = 150) {
+    if (!hasGamepads || !navigator.getGamepads) return;
+    try {
+      const gamepads = navigator.getGamepads();
+      for (let i = 0; i < gamepads.length; i++) {
+        const gp = gamepads[i];
+        if (!gp) continue;
+        if (gp.vibrationActuator && typeof gp.vibrationActuator.playEffect === 'function') {
+          gp.vibrationActuator.playEffect('dual-rumble', {
+            startDelay: 0,
+            duration: Math.max(10, Math.min(1000, durationMs)),
+            weakMagnitude: Math.max(0, Math.min(1, weakMagnitude)),
+            strongMagnitude: Math.max(0, Math.min(1, strongMagnitude)),
+          }).catch(() => { /* gamepad disconnected or backgrounded */ });
+        }
+      }
+    } catch { /* platform or security restriction */ }
+  }
+
+  return { state, update, stepped, bindTouch, dispose, clear, calm, rumble };
 }

@@ -498,15 +498,16 @@ const FRAG_SHEEN = `
         vec2 n64GCell = floor(n64GPos * 32.0);
         vec2 n64GTile = floor(n64GCell / 64.0);
         n64GCell += floor(vec2(n64Hash(n64GTile), n64Hash(n64GTile.yx + 3.0)) * 64.0);
-        if (n64Hash(n64GCell) > 0.962) {
+        if (n64Hash(n64GCell) > 0.958) {
           vec3 n64GJit = vec3(n64Hash(n64GCell + 7.0) - 0.5,
             n64Hash(n64GCell + 13.0) - 0.5,
             n64Hash(n64GCell + 29.0) - 0.5);
-          vec3 n64GN = normalize(normal + n64GJit * 0.55);
-          float n64Spark = pow(max(dot(n64GN, n64H), 0.0), 48.0);
-          float n64GFade = (1.0 - smoothstep(18.0, 56.0, n64GDist))
+          vec3 n64VJit = mat3(viewMatrix) * n64GJit;
+          vec3 n64GN = normalize(normal + n64VJit * 0.65);
+          float n64Spark = pow(max(dot(n64GN, n64H), 0.0), 52.0);
+          float n64GFade = (1.0 - smoothstep(16.0, 58.0, n64GDist))
             * n64Open * (1.0 - uSnowFresh * 0.70);
-          n64Add += n64Sun * (n64Spark * n64GFade * 3.8);
+          n64Add += n64Sun * (n64Spark * n64GFade * 4.2);
         }
       }
 

@@ -214,7 +214,7 @@ const LEGEND = [
   ['Q', 'GRAB · PRESS'],
   ['E', 'BACKFLIP'],
   ['+ W S', 'NOSE · METHOD · FRONTFLIP'],
-  ['ESC R N M F', 'PAUSE · RESET · NEW · AUDIO · FULL'],
+  ['ESC R N M', 'PAUSE · RESET · NEW · AUDIO'],
 ];
 
 const fmt = new Intl.NumberFormat('en-US');

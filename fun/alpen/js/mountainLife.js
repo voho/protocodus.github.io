@@ -124,8 +124,13 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
   const glassGeo = new THREE.BoxGeometry(2.45, 0.9, 1.85);
   glassGeo.translate(0, -0.9, 0);
   const cabinGlassMat = shading.apply(new THREE.MeshLambertMaterial({
-    color: 0x1a3450, transparent: true, opacity: 0.85,
+    color: 0x1a3450,
+    emissive: 0x000000,
+    transparent: true,
+    opacity: 0.85,
   }), { sheen: 0.2 });
+  const cabinWarmColor = new THREE.Color(0xffaa44);
+  const cabinColdColor = new THREE.Color(0x000000);
 
   const NUM_GONDOLAS = 6;
   const cabinMesh = instanced(cabinGeo, hardwareMat, NUM_GONDOLAS);
@@ -640,9 +645,17 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
   }
 
   return {
-    update(dt, rider) {
+    update(dt, rider, w = null) {
       if (!rider) return;
       const rz = rider.pos.z;
+
+      if (w) {
+        const nightFactor = Math.max(0, Math.min(1, (w.night - 0.2) / 0.5));
+        const stormFactor = Math.max(0, Math.min(1, (w.snow - 0.4) / 0.5)) * 0.4;
+        const glow = Math.max(nightFactor, stormFactor);
+        cabinGlassMat.emissive.copy(cabinColdColor).lerp(cabinWarmColor, glow * 0.85);
+        cabinGlassMat.color.setHex(glow > 0.1 ? 0xffe4b8 : 0x1a3450);
+      }
 
       /* Towers on a fixed grid so they never swim: the window simply slides
          one slot at a time as the rider descends past them. Ahead is −z. */

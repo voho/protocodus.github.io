@@ -311,6 +311,9 @@ export class Rider {
     this.tumble = 0;
     this.startZ = z;
     this.startY = this.pos.y;
+    if (z === 0 || this.summitY === undefined) {
+      this.summitY = this.pos.y;
+    }
     this.landing = null;     // set for one frame after a landing
     this.flowDrive = 0;      // how much meter the powered tuck may spend
     this.yawGlide = 0;       // presentation-only remainder of a landing snap
@@ -324,6 +327,10 @@ export class Rider {
   }
 
   get distance() {
+    return Math.max(0, -this.pos.z);
+  }
+
+  get legDistance() {
     return Math.max(0, this.startZ - this.pos.z);
   }
 
@@ -332,7 +339,7 @@ export class Rider {
      little under three hundred metres of drop, and that is the number a rider
      actually quotes about a day. */
   get drop() {
-    return Math.max(0, this.startY - this.pos.y);
+    return Math.max(0, (this.summitY !== undefined ? this.summitY : this.startY) - this.pos.y);
   }
 
   get boardForward() {

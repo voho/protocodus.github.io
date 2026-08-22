@@ -751,6 +751,9 @@ rider.on('land', (s) => {
   if (s.impact > RIDER.hardImpact * 0.5) {
     audio.stomp(s.impact / RIDER.hardImpact);
     if (spray) spray.radialBurst(rider.pos, Math.min(60, Math.floor(s.impact * 1.5)));
+    input.rumble(0.5, Math.min(1, s.impact / RIDER.hardImpact), 240);
+  } else {
+    input.rumble(0.25, Math.min(0.6, (s.impact / RIDER.softImpact) * 0.4), 140);
   }
   if (spray) {
     spray.burst(rider.pos, -rider.vel.x * 0.1, -rider.vel.z * 0.1,
@@ -759,7 +762,10 @@ rider.on('land', (s) => {
 });
 
 rider.on('launch', (vy) => {
-  if (vy > 3.5) audio.jump(Math.min(1, vy / 12));
+  if (vy > 3.5) {
+    audio.jump(Math.min(1, vy / 12));
+    input.rumble(0.18, 0.0, 70);
+  }
   // Leaving the ground retires the last jump's verdict, so the air clock for
   // this one has the band to itself — see the note beside it in hud.js.
   hud.clearBanner();
@@ -788,6 +794,7 @@ rider.on('fall', (cause, into = 0) => {
   audio.crash(into, cause);
   chase.kick(1.0 + severity * 1.35);
   retro.crash(severity);
+  input.rumble(0.7 + severity * 0.3, 0.8 + severity * 0.2, 380);
 
   // The first contact throws a broad powder curtain back into the chase
   // camera. Both its mass and its reach come from the impact that launched
@@ -949,6 +956,8 @@ function stepFlow() {
     if (game.flow >= 0.99 && !game.flowMaxAnnounced) {
       game.flowMaxAnnounced = true;
       award(500 * game.combo, 'MAX FLOW', 'near');
+      audio.flowMax();
+      input.rumble(0.4, 0.1, 180);
     } else if (game.flow < 0.5) {
       game.flowMaxAnnounced = false;   // armed again once it has genuinely dropped
     }
@@ -988,10 +997,11 @@ function stepFlow() {
 }
 
 /* Near miss encounters with wildlife. */
-function nearMiss(kind) {
+function nearMiss(kind, side = 0) {
   if (kind !== 'hare' && kind !== 'rabbit') return;
   award(SCORE.nearMiss * game.combo, 'HARE DODGED', 'near');
-  audio.whoosh();
+  audio.whoosh(side);
+  input.rumble(0.2, 0.0, 80);
 }
 
 /* Threading a gate.
@@ -1137,6 +1147,7 @@ function collide() {
         (rider.pos.x - s.x) * 0.6, (rider.pos.z - s.z) * 0.6, 18, 0.7);
       audio.thud();
       chase.kick(0.5);
+      input.rumble(0.25, 0.1, 90);
       continue;
     }
     // One response per contact. `collide()` runs per physics substep, so a
@@ -1175,10 +1186,12 @@ function collide() {
     if (outcome === 'brush') {
       audio.thud();
       chase.kick(0.4);
+      input.rumble(0.3, 0.1, 100);
     } else if (outcome === 'graze') {
       audio.thud();
       chase.kick(1.0);
       spray.burst(rider.pos, (rider.pos.x - s.x) * 0.5, (rider.pos.z - s.z) * 0.5, 22, 0.9);
+      input.rumble(0.6, 0.35, 180);
     }
   }
 }
@@ -1253,7 +1266,7 @@ function liveTrickName() {
    a fresh closure allocation every frame — individually nothing, together
    the steady GC churn behind the occasional minor-collection hitch. */
 const onWildlifeNear = (x, z, kind) => {
-  if (game.mode === 'playing') nearMiss(kind);
+  if (game.mode === 'playing') nearMiss(kind, x > rider.pos.x ? 0.7 : -0.7);
 };
 const onCocoa = () => {
   if (game.mode !== 'playing') return;
@@ -1261,6 +1274,8 @@ const onCocoa = () => {
   // A stop at the hut is a rest, and it hands back a chunk of meter.
   game.flow = Math.min(1, game.flow + 0.22);
   syncCombo();
+  audio.cocoa();
+  input.rumble(0.3, 0.15, 200);
 };
 
 let lastStep = 0;
@@ -1407,7 +1422,7 @@ function frame(now) {
       u.uFar.value = w.fogFar;
     }
     sky.update(viewPos, w, dt);
-    mountainLife.update(dt, rider);
+    mountainLife.update(dt, rider, w);
     // The terrain's horizon atlas evaluates this direction immediately; a
     // re-anchor only precalculates geometry and the direction-independent
     // horizon facts for the next patch of mountain.
@@ -1439,18 +1454,21 @@ function frame(now) {
       if (kmh >= 100 && game.maxSpeedAnnounced < 100) {
         game.maxSpeedAnnounced = 100;
         award(SCORE.comboStep * 200 * game.combo, '100 KM/H CLUB!', 'near');
-        audio.combo(game.combo);
+        audio.speedClub();
+        input.rumble(0.5, 0.2, 220);
       }
       
       const dist = Math.floor(-rider.pos.z);
       if (dist >= 1000 && game.maxDistanceAnnounced < 1000) {
         game.maxDistanceAnnounced = 1000;
         award(SCORE.comboStep * 250 * game.combo, '1,000M DESCENT!', 'near');
-        audio.combo(game.combo);
+        audio.descentMilestone(1000);
+        input.rumble(0.45, 0.25, 250);
       } else if (dist >= 5000 && game.maxDistanceAnnounced < 5000) {
         game.maxDistanceAnnounced = 5000;
         award(SCORE.comboStep * 500 * game.combo, '5,000M ALPINE LEGEND!', 'near');
-        audio.combo(game.combo);
+        audio.descentMilestone(5000);
+        input.rumble(0.7, 0.5, 350);
       }
     }
 

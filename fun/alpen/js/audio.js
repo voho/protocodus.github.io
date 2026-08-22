@@ -301,7 +301,7 @@ export function createAudio() {
     o.stop(t + dur + 0.05);
   }
 
-  function burst(dur, freq, gain, type = 'lowpass', sweepTo = null, delay = 0, buffer = null) {
+  function burst(dur, freq, gain, type = 'lowpass', sweepTo = null, delay = 0, buffer = null, pan = 0) {
     if (!started || !ctx || parked) return;
     const t = now() + delay;
     const src = ctx.createBufferSource();
@@ -317,6 +317,17 @@ export function createAudio() {
     const g = ctx.createGain();
     g.gain.setValueAtTime(gain, t);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+
+    if (pan !== 0 && ctx.createStereoPanner) {
+      try {
+        const panner = ctx.createStereoPanner();
+        panner.pan.setValueAtTime(Math.max(-1, Math.min(1, pan)), t);
+        src.connect(f).connect(g).connect(panner).connect(master);
+        src.start(t, Math.random() * (NOISE_SECONDS * 0.5));
+        src.stop(t + dur + 0.05);
+        return;
+      } catch { /* fallback to standard routing */ }
+    }
     src.connect(f).connect(g).connect(master);
     src.start(t, Math.random() * (NOISE_SECONDS * 0.5));
     src.stop(t + dur + 0.05);
@@ -358,6 +369,44 @@ export function createAudio() {
       const freq = baseFreq * Math.pow(1.122, Math.min(streak - 1, 12));
       tone(freq, freq * 0.95, 0.35, 0.25, 'sine');
       tone(freq * 1.5, freq * 1.45, 0.25, 0.15, 'triangle', 0.05);
+    },
+
+    // 100 KM/H Club: Ascending arpeggiated power fanfare
+    speedClub() {
+      tone(587.33, 620, 0.12, 0.15, 'triangle', 0.00);
+      tone(739.99, 780, 0.12, 0.16, 'triangle', 0.07);
+      tone(880.00, 930, 0.15, 0.18, 'triangle', 0.14);
+      tone(1174.66, 1200, 0.28, 0.22, 'sine', 0.21);
+      burst(0.18, 3200, 0.06, 'highpass', null, 0.21, whiteBuf);
+    },
+
+    // Alpine descent milestones (1,000m & 5,000m)
+    descentMilestone(dist) {
+      const base = dist >= 5000 ? 523.25 : 440;
+      tone(base, base * 1.02, 0.16, 0.16, 'triangle', 0.00);
+      tone(base * 1.25, base * 1.28, 0.16, 0.18, 'triangle', 0.09);
+      tone(base * 1.5, base * 1.52, 0.18, 0.20, 'triangle', 0.18);
+      tone(base * 2.0, base * 2.0, 0.40, 0.24, 'sine', 0.27);
+      if (dist >= 5000) {
+        tone(base * 2.5, base * 2.5, 0.45, 0.16, 'sine', 0.29);
+        tone(base * 0.5, base * 0.5, 0.50, 0.18, 'triangle', 0.27);
+      }
+    },
+
+    // Max Flow overdrive shimmer
+    flowMax() {
+      tone(659.25, 1318.5, 0.35, 0.16, 'triangle', 0.00);
+      tone(830.61, 1661.2, 0.35, 0.14, 'sine', 0.06);
+      tone(987.77, 1975.5, 0.40, 0.12, 'sine', 0.12);
+      burst(0.22, 4200, 0.08, 'highpass', null, 0.05, whiteBuf);
+    },
+
+    // Hot Cocoa stop cozy bell chime
+    cocoa() {
+      tone(392.00, 392.00, 0.25, 0.18, 'sine', 0.00);
+      tone(523.25, 523.25, 0.30, 0.20, 'sine', 0.09);
+      tone(659.25, 659.25, 0.45, 0.22, 'sine', 0.18);
+      tone(783.99, 783.99, 0.55, 0.15, 'sine', 0.27);
     },
 
     /* A sub-bass thud for heavy stomps. The tone bottoms out at 45 Hz, not
@@ -472,8 +521,8 @@ export function createAudio() {
 
     // A near miss is a whoosh past the ear, and the only reward for taking
     // a line close enough to a tree to regret it
-    whoosh() {
-      burst(0.22, 700, 0.16, 'bandpass', 2600);
+    whoosh(pan = 0) {
+      burst(0.22, 700, 0.16, 'bandpass', 2600, 0, null, pan);
     },
 
     thud() {
