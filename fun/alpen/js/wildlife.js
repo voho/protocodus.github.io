@@ -48,6 +48,8 @@ const range = ([lo, hi]) => lo + Math.random() * (hi - lo);
    uniform scatter puts most of the rabbits somewhere the rider is never
    going to be, and the mountain reads as emptier than its animal count. */
 const spread = () => Math.random() + Math.random() - 1;
+const centersScratch = [0, 0];
+const farSpotSpot = { x: 0, side: 1 };
 
 /* Which of the two branch centres to hang an animal off at this z.
 
@@ -59,7 +61,9 @@ const spread = () => Math.random() + Math.random() - 1;
    nearer wins the toss most of the time, and `away` is the share that goes
    to the other one anyway. */
 function branchAt(z, riderX, away) {
-  const [c0, c1] = centersAt(z);
+  centersAt(z, centersScratch);
+  const c0 = centersScratch[0];
+  const c1 = centersScratch[1];
   if (Math.abs(c0 - c1) < 1e-6) return c0;
   const near = Math.abs(riderX - c0) <= Math.abs(riderX - c1) ? c0 : c1;
   return Math.random() < away ? (near === c0 ? c1 : c0) : near;
@@ -527,6 +531,12 @@ export function createWildlife(THREE, shading) {
      herd does that a collection of deer does not. */
   const herd = { alive: false, x: 0, z: 0, dir: 1, alert: 0, run: 0, members: [] };
   const pack = { alive: false, x: 0, z: 0, dir: 1, yaw: 0, members: [] };
+  const deerMembers = Array.from({ length: WILDLIFE.deer }, () => ({
+    ox: 0, oz: 0, stag: false, clock: 0, yaw: 0, scale: 1,
+  }));
+  const wolfMembers = Array.from({ length: WILDLIFE.wolves }, () => ({
+    file: 0, drift: 0, gait: 0, scale: 1,
+  }));
   let deerClock = range(WILDLIFE.deerRespawn);
   let wolfClock = range(WILDLIFE.wolfRespawn);
 
@@ -542,9 +552,13 @@ export function createWildlife(THREE, shading) {
        unrelated to the side of the toss, and on a forked stretch an offset
        thrown across the run from it landed the herd inside the other
        line's corridor: deer standing in the middle of a piste. */
-    const [c0, c1] = centersAt(z);
+    centersAt(z, centersScratch);
+    const c0 = centersScratch[0];
+    const c1 = centersScratch[1];
     const outer = side > 0 ? Math.max(c0, c1) : Math.min(c0, c1);
-    return { x: outer + side * off, side };
+    farSpotSpot.x = outer + side * off;
+    farSpotSpot.side = side;
+    return farSpotSpot;
   }
 
   function placeHerd(rider) {
@@ -560,20 +574,21 @@ export function createWildlife(THREE, shading) {
     const n = 2 + Math.floor(Math.random()
       * (WILDLIFE.deerHerd[1] - WILDLIFE.deerHerd[0] + 1));
     herd.members.length = 0;
-    for (let i = 0; i < Math.min(n, WILDLIFE.deer); i++) {
-      herd.members.push({
-        ox: spread() * WILDLIFE.deerSpread,
-        oz: spread() * WILDLIFE.deerSpread,
-        // A herd is one stag at most, and only sometimes. Two stags standing
-        // together is the one arrangement red deer never make.
-        stag: i === 0 && Math.random() < 0.45,
-        // Every deer keeps its own grazing clock, because a herd that lifts
-        // its heads in unison is a herd that has noticed something — and
-        // nothing has happened yet.
-        clock: Math.random() * 9,
-        yaw: Math.random() * Math.PI * 2,
-        scale: 0.88 + Math.random() * 0.26,
-      });
+    const count = Math.min(n, WILDLIFE.deer);
+    for (let i = 0; i < count; i++) {
+      const m = deerMembers[i];
+      m.ox = spread() * WILDLIFE.deerSpread;
+      m.oz = spread() * WILDLIFE.deerSpread;
+      // A herd is one stag at most, and only sometimes. Two stags standing
+      // together is the one arrangement red deer never make.
+      m.stag = i === 0 && Math.random() < 0.45;
+      // Every deer keeps its own grazing clock, because a herd that lifts
+      // its heads in unison is a herd that has noticed something — and
+      // nothing has happened yet.
+      m.clock = Math.random() * 9;
+      m.yaw = Math.random() * Math.PI * 2;
+      m.scale = 0.88 + Math.random() * 0.26;
+      herd.members.push(m);
     }
   }
 
@@ -590,15 +605,16 @@ export function createWildlife(THREE, shading) {
     const n = WILDLIFE.wolfPack[0] + Math.floor(Math.random()
       * (WILDLIFE.wolfPack[1] - WILDLIFE.wolfPack[0] + 1));
     pack.members.length = 0;
-    for (let i = 0; i < Math.min(n, WILDLIFE.wolves); i++) {
-      pack.members.push({
-        // Position in the file, with the gaps uneven — a wolf pack in snow
-        // walks in one another's tracks but not to a ruler
-        file: i * WILDLIFE.wolfFile * (0.82 + Math.random() * 0.36),
-        drift: spread() * 0.8,
-        gait: Math.random() * 6,
-        scale: i === 0 ? 1.06 : 0.88 + Math.random() * 0.18,
-      });
+    const count = Math.min(n, WILDLIFE.wolves);
+    for (let i = 0; i < count; i++) {
+      const m = wolfMembers[i];
+      // Position in the file, with the gaps uneven — a wolf pack in snow
+      // walks in one another's tracks but not to a ruler
+      m.file = i * WILDLIFE.wolfFile * (0.82 + Math.random() * 0.36);
+      m.drift = spread() * 0.8;
+      m.gait = Math.random() * 6;
+      m.scale = i === 0 ? 1.06 : 0.88 + Math.random() * 0.18;
+      pack.members.push(m);
     }
   }
 

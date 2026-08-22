@@ -542,6 +542,11 @@ export function createRetro(THREE, renderer) {
 
   const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
+  const DIR_H = new THREE.Vector2(1, 0);
+  const DIR_V = new THREE.Vector2(0, 1);
+  const quarterTexel = new THREE.Vector2();
+  const sixteenthTexel = new THREE.Vector2();
+
   /* Full-window, native-resolution output.
 
      `displayWidth/Height` are the panel-sized backing store. The world targets
@@ -564,9 +569,13 @@ export function createRetro(THREE, renderer) {
     wide.setSize(ww, wh);
     wideTmp.setSize(ww, wh);
 
+    quarterTexel.set(1 / bw, 1 / bh);
+    sixteenthTexel.set(1 / ww, 1 / wh);
+
     material.uniforms.uResolution.value.set(width, height);
     brightMat.uniforms.uTexel.value.set(1 / width, 1 / height);
-    blurMat.uniforms.uTexel.value.set(1 / bw, 1 / bh);
+    downMat.uniforms.uTexel.value = quarterTexel;
+    blurMat.uniforms.uTexel.value = quarterTexel;
 
     /* The canvas and final grade stay at the panel's resolution. On a slow
        GPU only the 3D and lighting targets step down, then `tDiffuse` is
@@ -693,49 +702,35 @@ export function createRetro(THREE, renderer) {
     // this happened.
     passQuad.material = blurMat;
     blurMat.uniforms.tBright.value = bright.texture;
-    blurMat.uniforms.uDir.value.set(1, 0);
+    blurMat.uniforms.uTexel.value = quarterTexel;
+    blurMat.uniforms.uDir.value = DIR_H;
     renderer.setRenderTarget(blurTmp);
     renderer.render(passScene, flat);
+
     blurMat.uniforms.tBright.value = blurTmp.texture;
-    blurMat.uniforms.uDir.value.set(0, 1);
+    blurMat.uniforms.uDir.value = DIR_V;
     renderer.setRenderTarget(bright);
     renderer.render(passScene, flat);
 
-    /* The halo octave: a real filtered downsample, then the two blurs.
-
-       The old first pass read the quarter-res bloom straight through one
-       bilinear fetch per sixteenth-res texel — a 2×2 tent across a 4×4
-       block, so three of every four source texels never reached the halo
-       and it pulsed as highlights moved. The box downsample (DOWN_FRAG)
-       averages the full block first; the blur pair then works entirely at
-       sixteenth res, where its texel is four times as wide and the same
-       five taps reach four times as far. `wide` is scratch for the first
-       two passes and holds the finished halo after the third, which is the
-       buffer the composite reads. */
-    const ww = Math.max(1, Math.floor(width / 16));
-    const wh = Math.max(1, Math.floor(height / 16));
+    /* The halo octave: a real filtered downsample, then the two blurs. */
     passQuad.material = downMat;
-    downMat.uniforms.uTexel.value.set(
-      1 / Math.max(1, Math.floor(width / 4)),
-      1 / Math.max(1, Math.floor(height / 4)),
-    );
     renderer.setRenderTarget(wide);
     renderer.render(passScene, flat);
+
     passQuad.material = blurMat;
     blurMat.uniforms.tBright.value = wide.texture;
-    blurMat.uniforms.uTexel.value.set(1 / ww, 1 / wh);
-    blurMat.uniforms.uDir.value.set(1, 0);
+    blurMat.uniforms.uTexel.value = sixteenthTexel;
+    blurMat.uniforms.uDir.value = DIR_H;
     renderer.setRenderTarget(wideTmp);
     renderer.render(passScene, flat);
+
     blurMat.uniforms.tBright.value = wideTmp.texture;
-    blurMat.uniforms.uDir.value.set(0, 1);
+    blurMat.uniforms.uDir.value = DIR_V;
     renderer.setRenderTarget(wide);
     renderer.render(passScene, flat);
+
     // Restore the quarter-res texel for next frame's tight pair.
-    blurMat.uniforms.uTexel.value.set(
-      1 / Math.max(1, Math.floor(width / 4)),
-      1 / Math.max(1, Math.floor(height / 4)),
-    );
+    blurMat.uniforms.uTexel.value = quarterTexel;
 
     if (rayMat.uniforms.uStrength.value > 0.001) {
       passQuad.material = rayMat;

@@ -1808,6 +1808,7 @@ class Pool {
        actual frustum without rebuilding or sorting an instance buffer. */
     this.shadowEnds = null;
     this.full = 0;
+    this.lastN = 0;
     /* And the opposite trade for the sparse furniture: a pool marked cullable
        gets a real bounding sphere from its written instances in `end()` and
        is handed back to three's frustum test, because a fence line
@@ -1852,9 +1853,12 @@ class Pool {
 
   end() {
     this.mesh.count = this.n;
-    this.mesh.instanceMatrix.needsUpdate = true;
-    if (this.tinted && this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true;
-    if (this.cullable) {
+    if (this.n > 0 || this.lastN > 0) {
+      this.mesh.instanceMatrix.needsUpdate = true;
+      if (this.tinted && this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true;
+    }
+    this.lastN = this.n;
+    if (this.cullable && this.n > 0) {
       /* `InstancedMesh.computeBoundingSphere` walks the live instances against
          the geometry's own sphere, so the result hugs exactly what was
          written. It runs once per band crossing, not per frame, and
