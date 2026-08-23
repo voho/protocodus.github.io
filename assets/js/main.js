@@ -19,10 +19,9 @@
   // Mobile menu
   // ===========================================================================
   const toggle = document.querySelector('.menu-toggle');
-  const menu = document.getElementById('spine-menu');
+  const menu = document.getElementById('mobile-menu') || document.getElementById('spine-menu');
 
   if (toggle && menu) {
-    // `hidden` is the only state — the stylesheet reads it directly
     const setMenu = (open) => {
       menu.hidden = !open;
       document.body.style.overflow = open ? 'hidden' : '';
@@ -63,129 +62,83 @@
   }
 
   // ===========================================================================
-  // Spine index — mark the section you are reading
+  // Navigation active spy
   // ===========================================================================
-  const sections = [...document.querySelectorAll('.index-link')]
+  const navLinks = [...document.querySelectorAll('.nav-link, .mobile-link, .index-link')];
+  const sections = navLinks
     .map((link) => ({ link, section: document.querySelector(link.getAttribute('href')), on: false }))
     .filter((entry) => entry.section);
 
   if (sections.length && 'IntersectionObserver' in window) {
     const spy = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
-        const match = sections.find((s) => s.section === entry.target);
-        if (match) match.on = entry.isIntersecting;
+        const matching = sections.filter((s) => s.section === entry.target);
+        matching.forEach((m) => { m.on = entry.isIntersecting; });
       });
 
-      // The topmost section crossing the middle of the viewport wins
       const active = sections.find((s) => s.on);
-      sections.forEach(({ link }) => {
-        const current = link === active?.link;
+      navLinks.forEach((link) => {
+        const current = active && link.getAttribute('href') === active.link.getAttribute('href');
         link.classList.toggle('current', current);
-        // The dash is only half the message — say it out loud too
         if (current) link.setAttribute('aria-current', 'location');
         else link.removeAttribute('aria-current');
       });
-    }, { rootMargin: '-45% 0px -45% 0px' });
+    }, { rootMargin: '-20% 0px -60% 0px' });
 
-    sections.forEach(({ section }) => spy.observe(section));
+    const uniqueSections = [...new Set(sections.map((s) => s.section))];
+    uniqueSections.forEach((section) => spy.observe(section));
   }
 
   // ===========================================================================
-  // Conway's Life behind the hero, in four species
-  //
-  // Wrapped on a torus so the field never runs out of room, and slow enough to
-  // read as weather rather than animation. A finite board always settles into
-  // still lifes and blinkers, so a glider is dropped in periodically — it
-  // travels forever and breaks up whatever it collides with, which is what
-  // keeps the field genuinely infinite instead of merely long-running.
-  //
-  // The rule is QuadLife: births and deaths follow Conway exactly, so the
-  // dynamics are the ones that are known to stay interesting, but every live
-  // cell also carries a species. A cell born to parents of two or fewer
-  // species joins the majority; a cell born where three *different* species
-  // meet becomes the fourth. So the glyphs are not decoration — they are
-  // inheritance, and you can watch one lineage overrun another.
-  //
-  // Newborns of any species show the mark for one generation before settling
-  // into their own, and every one of them is a shade of the company green —
-  // the field never reaches for a second hue.
-  //
-  // A little randomness is stirred in on top — see SPONTANEOUS and MUTATION.
+  // Ambient Canvas Background
   // ===========================================================================
-  // Every number below is a Fibonacci number, or a Fibonacci number over a
-  // power of ten. Not because the sequence has any bearing on Conway's rule —
-  // it doesn't — but because a field of tuning constants wants a reason to
-  // hold the values it holds, and this one is at least honest about being
-  // arbitrary. Each is the nearest term to the value it replaced.
-  const CELL = 21;         // lattice spacing, px
-  const CUR_W = 8;         // a cursor's width
-  const CUR_H = 13;        // and its height — 8:13 is the golden rectangle
-  const GEN_MS = 610;      // one generation
-  const DENSITY = 0.13;    // share of cells alive at seed
-  const ALIVE_A = 0.21;    // alpha of a settled cell
-  // Kept low deliberately: a bright birth flash is most of what reads as
-  // flicker when a lot of cells turn over at once
-  const BORN_A = 0.34;
-  const GLIDER_EVERY = 34; // generations — about one every twenty seconds
-  const DPR_CAP = 2;       // the edges are the whole shape, so they earn it
+  const CELL = 22;
+  const CUR_W = 7;
+  const CUR_H = 12;
+  const GEN_MS = 680;
+  const DENSITY = 0.11;
+  const ALIVE_A = 0.18;
+  const BORN_A = 0.28;
+  const GLIDER_EVERY = 34;
+  const DPR_CAP = 2;
 
-  // Every cell crossfades across its whole generation, so the field is never
-  // still — no held frame, no step you can catch it taking
-  const GLOW_PASSES = 2;   // stamped twice, for a denser bloom
-  const DRIFT_PX = 8;      // ambient wander of the whole lattice
-  const PARALLAX_PX = 13;  // how far the field leans towards the pointer
-  const EASE_TO_POINTER = 0.055;
+  const GLOW_PASSES = 2;
+  const DRIFT_PX = 8;
+  const PARALLAX_PX = 12;
+  const EASE_TO_POINTER = 0.05;
 
-  // The lattice breathes: its pitch opens and closes about the centre of the
-  // hero, slowly enough that you notice the field has changed rather than
-  // catching it changing
-  const BREATH = 0.089;    // share of the pitch, either way
-  const BREATH_MS = 17711; // a full inhale and exhale
+  const BREATH = 0.08;
+  const BREATH_MS = 18000;
 
-  // The four species are the four cursors every terminal has ever offered:
-  // the block, the hollow block a window wears when it loses focus, the
-  // underline, and the bar. Shapes rather than glyphs, so the field owes
-  // nothing to a webfont and nothing to a fallback.
-  //
-  // Each also sits at its own distance. Going down the list they get sharper,
-  // lighter, larger and more responsive to the pointer, so the four read as
-  // four planes rather than four symbols on one. shade is the step from
-  // --mint: negative towards black, positive towards white; alpha thins a
-  // shape that carries more ink than the rest, so no one species dominates.
   const SPECIES = [
     { shape: (g, w, h) => g.fillRect(0, 0, w, h),
-      shade: -0.52, blur: 13, scale: 0.8, depth: 0.5, alpha: 0.55 },
+      shade: -0.4, blur: 10, scale: 0.8, depth: 0.5, alpha: 0.5 },
     { shape: (g, w, h) => { g.lineWidth = 1.5; g.strokeRect(0.75, 0.75, w - 1.5, h - 1.5); },
-      shade: -0.2, blur: 8, scale: 0.9, depth: 0.8, alpha: 1 },
-    { shape: (g, w, h) => g.fillRect(0, h - 2.5, w, 2.5),
-      shade: 0.08, blur: 5, scale: 1.1, depth: 1, alpha: 1 },
+      shade: -0.15, blur: 6, scale: 0.9, depth: 0.8, alpha: 0.9 },
+    { shape: (g, w, h) => g.fillRect(0, h - 2, w, 2),
+      shade: 0.1, blur: 4, scale: 1.0, depth: 1, alpha: 1 },
     { shape: (g, w, h) => g.fillRect(0, 0, 2, h),
-      shade: 0.3, blur: 2, scale: 1.3, depth: 1.3, alpha: 1 },
+      shade: 0.25, blur: 2, scale: 1.2, depth: 1.2, alpha: 1 },
   ];
 
-  const NEWBORN_SHADE = 0.55;  // brightest of the ramp, so a birth still lands
-  const NEWBORN_BLUR = 5;
+  const NEWBORN_SHADE = 0.45;
+  const NEWBORN_BLUR = 4;
 
-  // Conway is deterministic, which is the one thing a background cannot be:
-  // watch it long enough and it visibly repeats. These two keep it from ever
-  // quite settling — both small enough that the rule still reads as Life.
-  const SPONTANEOUS = 0.00013;  // chance an empty cell ignites on its own
-  const MUTATION = 0.034;       // chance a newborn ignores what it inherited
+  const SPONTANEOUS = 0.00012;
+  const MUTATION = 0.03;
 
-  // One glider; addGlider() reflects it into the other three orientations
   const GLIDER = [[1, 0], [2, 1], [0, 2], [1, 2], [2, 2]];
 
-  // Cell states, as bucketed by draw()
   const SURVIVOR = 0;
   const DYING = 1;
   const NEWBORN = 2;
 
   const readToken = (name) => {
-    const hex = getComputedStyle(root).getPropertyValue(name).trim();
-    return [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+    const raw = getComputedStyle(root).getPropertyValue(name).trim();
+    if (!raw || !raw.startsWith('#')) return [16, 185, 129];
+    return [1, 3, 5].map((i) => parseInt(raw.slice(i, i + 2), 16));
   };
 
-  // Lightens towards white or darkens towards black, holding the hue
   const shade = (rgb, t) => rgb.map((c) => Math.round(
     t >= 0 ? c + (255 - c) * t : c * (1 + t)
   ));
@@ -199,8 +152,7 @@
       this.ctx = this.canvas.getContext('2d');
       host.prepend(this.canvas);
 
-      // The palette lives in :root; reading it keeps one source of truth
-      this.mint = readToken('--mint');
+      this.mint = readToken('--teal') || readToken('--mint') || [16, 185, 129];
 
       this.sprites = [];
       this.gen = 0;

@@ -13,13 +13,13 @@
 
     gtag('config', 'G-0TEFG3XSN5');
   </script>
-  <title>Protocodus — Software for Startups</title>
+  <title>Protocodus — Software Engineering for Startups</title>
   <meta name="description"
-    content="Protocodus builds software for startups: sharp priorities, solid foundations, iterative delivery, and AI used with judgment. From first prototype to production.">
-  <meta name="theme-color" content="#1A1A1A">
-  <meta property="og:title" content="Protocodus — Software for Startups">
+    content="Protocodus builds software for startups: sharp priorities, solid architecture, rapid iterative shipping, and senior engineer judgment. From prototype to production.">
+  <meta name="theme-color" content="#0d0e12">
+  <meta property="og:title" content="Protocodus — Software Engineering for Startups">
   <meta property="og:description"
-    content="We help founders decide what to build first — then we build it properly, one release at a time.">
+    content="We partner with founders to prioritize, design, and build production-grade software, one release at a time.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://protocodus.cz/">
   <link rel="canonical" href="https://protocodus.cz/">
@@ -28,121 +28,133 @@
   <link rel="preload" href="assets/fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="assets/fonts/space-grotesk-latin-ext.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="assets/css/style.css">
-  <!-- `.js` means JavaScript is running: the mobile nav collapses into a
-       button, reveals start hidden, and the hero entrance is armed. Without
-       it every one of those stays in its finished state. -->
   <script>document.documentElement.classList.add('js');</script>
 </head>
 
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
 
-  <!-- ================= SPINE (desktop) / BAR (mobile) ================= -->
-  <header class="spine">
-    <a href="#top" class="brand">
-      <img src="assets/images/logo.svg" alt="" class="brand-mark">
-      <span class="brand-name">PROTOCODUS</span>
-    </a>
+  <!-- ================= TOP NAVIGATION ================= -->
+  <header class="site-header">
+    <div class="wrap header-inner">
+      <a href="#top" class="brand" aria-label="Protocodus home">
+        <img src="assets/images/logo.svg" alt="" class="brand-mark">
+        <span class="brand-name">Protocodus</span>
+      </a>
 
-    <nav class="spine-nav" aria-label="Sections">
-      <ol class="index">
-        <li><a href="#what-we-do" class="index-link"><span>01</span><span class="index-name">What we do</span></a></li>
-        <li><a href="#how-we-work" class="index-link"><span>02</span><span class="index-name">How we work</span></a></li>
-        <li><a href="#who-we-are" class="index-link"><span>03</span><span class="index-name">Who we are</span></a></li>
-        <li><a href="#fun" class="index-link"><span>04</span><span class="index-name">Have fun</span></a></li>
-        <li><a href="#contact" class="index-link"><span>05</span><span class="index-name">Say hello</span></a></li>
-      </ol>
-    </nav>
+      <nav class="nav" aria-label="Main navigation">
+        <a href="#what-we-do" class="nav-link">What we do</a>
+        <a href="#how-we-work" class="nav-link">How we work</a>
+        <a href="#who-we-are" class="nav-link">Who we are</a>
+        <a href="#fun" class="nav-link">Playground</a>
+        <a href="#contact" class="nav-link">Contact</a>
+      </nav>
 
-    <a href="#contact" class="spine-cta">Start a project</a>
-
-    <button class="menu-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="spine-menu">
-      <span></span><span></span>
-    </button>
+      <div class="header-actions">
+        <a href="#contact" class="btn btn-sm btn-header">Start a project</a>
+        <button class="menu-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="mobile-menu">
+          <span></span><span></span>
+        </button>
+      </div>
+    </div>
   </header>
 
-  <div class="menu" id="spine-menu" hidden>
-    <nav aria-label="Sections">
-      <a href="#what-we-do"><span>01</span> What we do</a>
-      <a href="#how-we-work"><span>02</span> How we work</a>
-      <a href="#who-we-are"><span>03</span> Who we are</a>
-      <a href="#fun"><span>04</span> Have fun</a>
-      <a href="#contact"><span>05</span> Say hello</a>
+  <!-- Mobile Drawer Menu -->
+  <div class="mobile-menu" id="mobile-menu" hidden>
+    <nav class="mobile-nav" aria-label="Mobile navigation">
+      <a href="#what-we-do" class="mobile-link">What we do</a>
+      <a href="#how-we-work" class="mobile-link">How we work</a>
+      <a href="#who-we-are" class="mobile-link">Who we are</a>
+      <a href="#fun" class="mobile-link">Playground</a>
+      <a href="#contact" class="mobile-link">Contact</a>
     </nav>
-    <a href="mailto:vojtech.hordejcuk@gmail.com" class="menu-mail">vojtech.hordejcuk@gmail.com</a>
+    <div class="mobile-foot">
+      <a href="#contact" class="btn btn-primary" style="width: 100%; justify-content: center;">Start a project</a>
+      <a href="mailto:vojtech.hordejcuk@gmail.com" class="mobile-mail">vojtech.hordejcuk@gmail.com</a>
+    </div>
   </div>
 
   <main id="main">
 
     <!-- ================= HERO ================= -->
     <section class="hero" id="top">
-      <div class="hero-inner">
-        <p class="tag enter">// a software company built for startups</p>
-
-        <div class="statement">
-          <svg class="frame frame-l" viewBox="0 0 60 400" aria-hidden="true" preserveAspectRatio="none">
-            <path d="M58 2 L4 200 L58 398" />
-          </svg>
-          <svg class="frame frame-r" viewBox="0 0 60 400" aria-hidden="true" preserveAspectRatio="none">
-            <path d="M2 2 L56 200 L2 398" />
-          </svg>
-
-          <h1 class="hero-title">
-            <span class="rise"><span>We build</span></span>
-            <span class="rise"><span>software</span></span>
-            <span class="rise"><span>for startups<i class="spark" aria-hidden="true">✦</i></span></span>
-          </h1>
+      <div class="hero-inner wrap">
+        <div class="tag-pill enter">
+          <span class="tag-dot"></span>
+          <span>Software studio for startups</span>
         </div>
-        <p class="hero-sub enter">From first prototype to production. We help founders decide what to build
-          first — then we build it properly, one release at a time.</p>
+
+        <h1 class="hero-title">
+          <span class="rise"><span>We build software</span></span>
+          <span class="rise"><span>for startups.</span></span>
+        </h1>
+
+        <p class="hero-sub enter">
+          From first prototype to production scale. We help founders clarify what to build first — then we build it properly, shipping reliable software every week.
+        </p>
+
         <div class="hero-actions enter">
-          <a href="#contact" class="btn">Start a project</a>
-          <a href="#fun" class="btn btn-fun">Let's have fun!</a>
-          <a href="#how-we-work" class="btn btn-quiet">How we work</a>
+          <a href="#contact" class="btn btn-primary">Start a project</a>
+          <a href="#how-we-work" class="btn btn-secondary">How we work</a>
+          <a href="#fun" class="btn btn-ghost">Playground</a>
+        </div>
+
+        <div class="hero-foot enter">
+          <span class="loop-label">Our cycle</span>
+          <div class="loop">
+            <span>Prioritize</span>
+            <span>Design</span>
+            <span>Build</span>
+            <span>Ship</span>
+            <span>Learn</span>
+            <span>Iterate</span>
+          </div>
         </div>
       </div>
+    </section>
 
-      <p class="hero-foot enter">
-        <span class="loop-label">The loop</span>
-        <span class="loop">
-          <span>Prioritize</span><span>Design</span><span>Build</span><span>Ship</span><span>Learn</span><span>Repeat</span>
-        </span>
-      </p>
+    <!-- ================= EXPERIENCE STRIP ================= -->
+    <section class="experience-strip">
+      <div class="wrap experience-inner">
+        <span class="experience-label">Engineering experience from</span>
+        <div class="experience-logos">
+          <span class="experience-item">Česká spořitelna</span>
+          <span class="experience-item">GoodData</span>
+          <span class="experience-item">Amazon</span>
+          <span class="experience-item">Binance</span>
+        </div>
+      </div>
     </section>
 
     <!-- ================= WHAT WE DO ================= -->
     <section class="band" id="what-we-do">
       <div class="wrap">
         <div class="head reveal">
-          <p class="tag">// 01 — what we do</p>
+          <span class="tag">What we do</span>
           <h2 class="title">Product development,<br>end to end.</h2>
-          <p class="lede">You bring the idea and the domain knowledge. We cover the rest — design, code,
-            infrastructure, and the decisions in between.</p>
+          <p class="lede">You bring the vision and domain insight. We cover the entire execution — interface design, system architecture, engineering, and infrastructure.</p>
         </div>
 
         <div class="cards stagger">
           <article class="card reveal">
-            <p class="card-num">01</p>
+            <span class="card-num">01</span>
             <h3>Full-stack engineering</h3>
-            <p>Web apps, APIs, data models, deployments. Software built to run in production, not just in a demo.</p>
+            <p>Web applications, robust APIs, data architecture, and cloud infrastructure. Software engineered to excel in production, not just demos.</p>
           </article>
           <article class="card reveal">
-            <p class="card-num">02</p>
-            <h3>Interface design</h3>
-            <p>Interfaces people understand without a manual. Designed and built by the same team, so nothing gets
-              lost in handoff.</p>
+            <span class="card-num">02</span>
+            <h3>Interface &amp; product design</h3>
+            <p>Clear, responsive interfaces that users navigate instinctively. Designed and implemented by the same team, eliminating handoff loss.</p>
           </article>
           <article class="card reveal">
-            <p class="card-num">03</p>
-            <h3>AI &amp; integrations</h3>
-            <p>AI features where they genuinely help, and integrations that make separate tools behave like one
-              product. We're honest about what AI can and can't do for you.</p>
+            <span class="card-num">03</span>
+            <h3>Applied AI &amp; integrations</h3>
+            <p>AI capabilities where they deliver genuine user value and leverage. Honest technical guidance on what AI can solve reliably and what it cannot.</p>
           </article>
           <article class="card reveal">
-            <p class="card-num">04</p>
-            <h3>Product guidance</h3>
-            <p>Priorities, estimates, and a working demo every week. You always know what's being built, why, and how
-              far along it is.</p>
+            <span class="card-num">04</span>
+            <h3>Product strategy &amp; guidance</h3>
+            <p>Clear roadmaps, realistic estimates, and working software delivered every week. Constant visibility into progress and upcoming milestones.</p>
           </article>
         </div>
       </div>
@@ -152,48 +164,50 @@
     <section class="band band-well" id="how-we-work">
       <div class="wrap">
         <div class="head reveal">
-          <p class="tag">// 02 — how we work</p>
+          <span class="tag">How we work</span>
           <h2 class="title">Six habits we stick to.</h2>
-          <p class="lede">Years of startup projects taught us what actually moves a product forward. It comes
-            down to this.</p>
+          <p class="lede">Years of building startup products taught us what actually moves companies forward. It comes down to disciplined execution.</p>
         </div>
 
         <div class="habits stagger">
           <article class="habit reveal">
+            <span class="habit-num">01</span>
             <h3>First things first</h3>
-            <p>A startup can't build everything at once — and shouldn't try. We help you find the one thing worth
-              building next, and park the rest without guilt.</p>
+            <p>A startup cannot build everything at once. We identify the single highest-leverage feature to build next and park distractions.</p>
           </article>
           <article class="habit reveal">
+            <span class="habit-num">02</span>
             <h3>Foundations that hold</h3>
-            <p>Moving fast doesn't require breaking things. We build the load-bearing parts properly, so the next
-              feature lands on solid ground.</p>
+            <p>Moving fast does not mean writing disposable code. We construct load-bearing architectures properly so future features land easily.</p>
           </article>
           <article class="habit reveal">
-            <h3>Craftsmanship</h3>
-            <p>We care how things are made. Readable code, tested behavior, deployments so uneventful you forget
-              about them.</p>
+            <span class="habit-num">03</span>
+            <h3>Engineering craft</h3>
+            <p>We take pride in clean code, automated testing, and dependable CI/CD pipelines so stable that releases are routine and uneventful.</p>
           </article>
           <article class="habit reveal">
-            <h3>AI, used wisely</h3>
-            <p>AI tools make us faster every day. They don't make our decisions. Everything that ships passes an
-              engineer's judgment first.</p>
+            <span class="habit-num">04</span>
+            <h3>AI with human judgment</h3>
+            <p>Modern AI accelerates our workflow daily, but never replaces critical thinking. Every commit passes strict senior engineer review.</p>
           </article>
           <article class="habit reveal">
-            <h3>Small steps, shipped often</h3>
-            <p>Tight releases, real feedback, steady corrections. You see working software every week — not a big
-              reveal after six months.</p>
+            <span class="habit-num">05</span>
+            <h3>Small steps, shipped weekly</h3>
+            <p>Frequent releases, direct user feedback, and rapid iterations. You see working software every week rather than a delayed big reveal.</p>
           </article>
           <article class="habit reveal">
-            <h3>Calm in the chaos</h3>
-            <p>Startups change direction. That's not a crisis — that's the job. Our process bends with your
-              priorities instead of breaking.</p>
+            <span class="habit-num">06</span>
+            <h3>Calm adaptability</h3>
+            <p>Startups evolve as market signals arrive. That is expected. Our modular engineering process adapts seamlessly to changing needs.</p>
           </article>
         </div>
 
-        <p class="flow reveal">
-          <span>Idea</span><span>Prototype</span><span>Feedback</span><span>Product</span>
-        </p>
+        <div class="flow reveal">
+          <span>Idea</span>
+          <span>Prototype</span>
+          <span>Feedback</span>
+          <span>Scale</span>
+        </div>
       </div>
     </section>
 
@@ -201,71 +215,71 @@
     <section class="band" id="who-we-are">
       <div class="wrap">
         <div class="head reveal">
-          <p class="tag">// 03 — who we are</p>
-          <h2 class="title">A small team, on purpose.</h2>
+          <span class="tag">Who we are</span>
+          <h2 class="title">A senior team, on purpose.</h2>
         </div>
 
         <div class="about reveal">
-          <p>Protocodus is a compact crew of senior engineers. When you work with us, you talk directly to the people
-            writing your code — no account managers, no telephone game.</p>
-          <p>We've spent the past decade building software, and startups are where we do our best work: decisions
-            matter more, feedback arrives faster, and shipping is the whole point.</p>
+          <p>Protocodus is a focused studio of senior software engineers. When you collaborate with us, you speak directly with the engineers designing and writing your software — no middlemen, no account handlers.</p>
+          <p>Our background includes engineering and scaling systems at companies like <strong>Amazon</strong>, <strong>Binance</strong>, <strong>GoodData</strong>, and <strong>Česká spořitelna</strong>. We bring enterprise-grade robustness to the speed and agility that early-stage startups need.</p>
         </div>
 
         <dl class="facts stagger">
           <div class="fact reveal">
             <dt>10+</dt>
-            <dd>years of engineering</dd>
+            <dd>Years of engineering</dd>
           </div>
           <div class="fact reveal">
             <dt>30+</dt>
-            <dd>projects shipped</dd>
+            <dd>Projects shipped</dd>
           </div>
           <div class="fact reveal">
             <dt>100%</dt>
-            <dd>focus on startups</dd>
+            <dd>Startup focus</dd>
           </div>
         </dl>
       </div>
     </section>
 
-    <!-- ================= FUN ================= -->
+    <!-- ================= PLAYGROUND / FUN ================= -->
     <section class="band band-well" id="fun">
       <div class="wrap">
         <div class="head reveal">
-          <p class="tag">// 04 — have fun</p>
-          <h2 class="title">Games we built<br>because we wanted to.</h2>
-          <p class="lede">Between projects we build small things for no reason at all. They ship the same
-            way client work does — finished, in a browser, no install and no account — because that is the
-            only way we know how to build anything.</p>
+          <span class="tag">Playground</span>
+          <h2 class="title">Experiments &amp; interactive games.</h2>
+          <p class="lede">Between client engagements, we build browser-native experiments and games. Instant play in your browser with zero installation or account requirements.</p>
         </div>
 
         <div class="games stagger">
           <a class="game reveal" href="/fun/alpen/">
-            <p class="game-num">01</p>
+            <span class="game-num">01</span>
             <h3>Alpen</h3>
-            <p>An endless snowboard run down a procedurally generated mountain — a 1997 console's
-              art direction with none of its limits. Real carving, weather that turns, and whatever you can land.</p>
-            <p class="game-foot"><span class="game-tech">Three.js · WebGL</span><span class="game-go">Play</span></p>
+            <p>An endless snowboarding run down a procedurally generated mountain with 1990s retro aesthetic, responsive carving physics, and dynamic weather.</p>
+            <div class="game-foot">
+              <span class="game-tech">Three.js · WebGL</span>
+              <span class="game-go">Play game</span>
+            </div>
           </a>
           <a class="game reveal" href="/fun/solar-eclipse-2026/">
-            <p class="game-num">02</p>
+            <span class="game-num">02</span>
             <h3>Solar Eclipse 2026</h3>
-            <p>Follow the Moon's shadow from space to Prague and see why the Sun disappears — or only partly does.</p>
-            <p class="game-foot"><span class="game-tech">Three.js · Astronomy</span><span class="game-go">Explore</span></p>
+            <p>Track the Moon's shadow from orbital space down to Prague and explore why solar eclipses occur and how totality unfolds.</p>
+            <div class="game-foot">
+              <span class="game-tech">Three.js · Astronomy</span>
+              <span class="game-go">Explore</span>
+            </div>
           </a>
         </div>
       </div>
     </section>
 
     <!-- ================= CONTACT ================= -->
-    <section class="band band-hi" id="contact">
+    <section class="band band-contact" id="contact">
       <div class="wrap">
-        <div class="hi reveal">
-          <p class="tag">// 05 — say hello</p>
+        <div class="contact-box reveal">
+          <span class="tag">Get in touch</span>
           <h2 class="title">Tell us what you're building.</h2>
-          <p class="lede">A few sentences are enough. You'll get a reply from an engineer, not a sales script —
-            what we'd build first, roughly what it takes, and whether we're a good fit.</p>
+          <p class="lede">A brief summary of your idea and timeframe is plenty. You will receive a direct reply from an engineer with initial architecture thoughts and how we can collaborate.</p>
           <a href="mailto:vojtech.hordejcuk@gmail.com" class="mail">vojtech.hordejcuk@gmail.com</a>
           <p class="signed">Vojtech Hordejcuk · Founder</p>
         </div>
@@ -278,11 +292,11 @@
   <footer class="footer">
     <div class="wrap">
       <div class="footer-top">
-        <a href="#top" class="brand">
+        <a href="#top" class="brand" aria-label="Protocodus home">
           <img src="assets/images/logo.svg" alt="" class="brand-mark">
-          <span class="brand-name">PROTOCODUS</span>
+          <span class="brand-name">Protocodus</span>
         </a>
-        <p class="footer-tagline">Software for startups, built with care.</p>
+        <p class="footer-tagline">Software engineering for startups, built with care.</p>
       </div>
 
       <dl class="details">
@@ -313,12 +327,11 @@
       </dl>
 
       <div class="footer-bottom">
-        <p class="footer-meta">© <span id="year">2026</span> Protocodus — built by hand, with help from robots.</p>
+        <p class="footer-meta">© <span id="year">2026</span> Protocodus s.r.o. · Prague, Czech Republic</p>
         <p class="footer-meta">Commercial Bulletin OV11324029 · Collection of Deeds, Prague · published 9 March 2026</p>
       </div>
     </div>
   </footer>
-
   <script src="assets/js/main.js"></script>
 </body>
 
