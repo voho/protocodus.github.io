@@ -90,42 +90,42 @@
   }
 
   // ===========================================================================
-  // Ambient Canvas Background
+  // Conway's Life QuadLife Matrix Canvas Animation
   // ===========================================================================
-  const CELL = 22;
-  const CUR_W = 7;
-  const CUR_H = 12;
-  const GEN_MS = 680;
-  const DENSITY = 0.11;
-  const ALIVE_A = 0.18;
-  const BORN_A = 0.28;
-  const GLIDER_EVERY = 34;
+  const CELL = 21;         // lattice spacing, px
+  const CUR_W = 8;         // a cursor's width
+  const CUR_H = 13;        // and its height — 8:13 is the golden rectangle
+  const GEN_MS = 610;      // one generation
+  const DENSITY = 0.13;    // share of cells alive at seed
+  const ALIVE_A = 0.22;    // alpha of a settled cell
+  const BORN_A = 0.45;     // brightness pop on newborn cell
+  const GLIDER_EVERY = 34; // generations
   const DPR_CAP = 2;
 
-  const GLOW_PASSES = 2;
-  const DRIFT_PX = 8;
-  const PARALLAX_PX = 12;
-  const EASE_TO_POINTER = 0.05;
+  const GLOW_PASSES = 2;   // stamped twice, for a denser bloom
+  const DRIFT_PX = 8;      // ambient wander of the whole lattice
+  const PARALLAX_PX = 14;  // how far the field leans towards the pointer
+  const EASE_TO_POINTER = 0.055;
 
-  const BREATH = 0.08;
-  const BREATH_MS = 18000;
+  const BREATH = 0.089;    // share of the pitch, either way
+  const BREATH_MS = 17711; // a full inhale and exhale
 
   const SPECIES = [
     { shape: (g, w, h) => g.fillRect(0, 0, w, h),
-      shade: -0.4, blur: 10, scale: 0.8, depth: 0.5, alpha: 0.5 },
+      shade: -0.52, blur: 13, scale: 0.8, depth: 0.5, alpha: 0.55 },
     { shape: (g, w, h) => { g.lineWidth = 1.5; g.strokeRect(0.75, 0.75, w - 1.5, h - 1.5); },
-      shade: -0.15, blur: 6, scale: 0.9, depth: 0.8, alpha: 0.9 },
-    { shape: (g, w, h) => g.fillRect(0, h - 2, w, 2),
-      shade: 0.1, blur: 4, scale: 1.0, depth: 1, alpha: 1 },
+      shade: -0.2, blur: 8, scale: 0.9, depth: 0.8, alpha: 1 },
+    { shape: (g, w, h) => g.fillRect(0, h - 2.5, w, 2.5),
+      shade: 0.08, blur: 5, scale: 1.1, depth: 1, alpha: 1 },
     { shape: (g, w, h) => g.fillRect(0, 0, 2, h),
-      shade: 0.25, blur: 2, scale: 1.2, depth: 1.2, alpha: 1 },
+      shade: 0.3, blur: 2, scale: 1.3, depth: 1.3, alpha: 1 },
   ];
 
-  const NEWBORN_SHADE = 0.45;
-  const NEWBORN_BLUR = 4;
+  const NEWBORN_SHADE = 0.55;
+  const NEWBORN_BLUR = 5;
 
-  const SPONTANEOUS = 0.00012;
-  const MUTATION = 0.03;
+  const SPONTANEOUS = 0.00013;
+  const MUTATION = 0.034;
 
   const GLIDER = [[1, 0], [2, 1], [0, 2], [1, 2], [2, 2]];
 
@@ -135,7 +135,7 @@
 
   const readToken = (name) => {
     const raw = getComputedStyle(root).getPropertyValue(name).trim();
-    if (!raw || !raw.startsWith('#')) return [16, 185, 129];
+    if (!raw || !raw.startsWith('#')) return null;
     return [1, 3, 5].map((i) => parseInt(raw.slice(i, i + 2), 16));
   };
 
@@ -152,7 +152,7 @@
       this.ctx = this.canvas.getContext('2d');
       host.prepend(this.canvas);
 
-      this.mint = readToken('--teal') || readToken('--mint') || [16, 185, 129];
+      this.mint = readToken('--mint') || readToken('--teal') || [0, 255, 195];
 
       this.sprites = [];
       this.gen = 0;
