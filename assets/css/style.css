@@ -1145,3 +1145,96 @@ p {
   }
 }
 
+
+/* Audio Lab / VST instruments
+   ========================================================================== */
+.instruments {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 12% 20%, rgba(0, 255, 195, 0.1), transparent 32%),
+    radial-gradient(circle at 88% 70%, rgba(130, 80, 255, 0.12), transparent 34%),
+    #08090c;
+}
+
+.instruments::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.16;
+  background-image: linear-gradient(rgba(255,255,255,.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.08) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: linear-gradient(to bottom, transparent, #000 20%, #000 80%, transparent);
+}
+
+.instrument-head {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1.2fr .8fr;
+  gap: clamp(2rem, 7vw, 7rem);
+  align-items: end;
+  margin-bottom: clamp(3rem, 6vw, 5rem);
+}
+
+.instrument-head .title { font-size: clamp(2.5rem, 1.3rem + 4vw, 5.2rem); }
+.instrument-intro { color: var(--fg-muted); }
+.instrument-intro p { max-width: 42ch; margin-bottom: 1.5rem; }
+.instrument-intro .btn { margin-right: .75rem; }
+.platforms { display: block; margin-top: 1rem; color: var(--fg-faint); font-size: .78rem; letter-spacing: .12em; }
+
+.instrument-grid { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; }
+.instrument {
+  --signal: var(--mint);
+  overflow: hidden;
+  min-height: 470px;
+  display: grid;
+  grid-template-rows: 1.25fr 1fr;
+  background: rgba(20, 22, 28, .8);
+  border: 1px solid rgba(255,255,255,.11);
+  border-radius: 22px;
+  box-shadow: 0 24px 70px rgba(0,0,0,.28);
+  transition: transform .35s var(--ease), border-color .35s var(--ease), box-shadow .35s var(--ease);
+}
+.instrument:hover { transform: translateY(-7px); border-color: color-mix(in srgb, var(--signal) 55%, transparent); box-shadow: 0 28px 80px color-mix(in srgb, var(--signal) 12%, transparent); }
+.instrument-acustry { --signal: #ffb547; }
+.instrument-youknow { --signal: #ff5db1; }
+.instrument-septum { --signal: #8e7dff; }
+.instrument-display {
+  position: relative;
+  overflow: hidden;
+  background: radial-gradient(circle at 50%, color-mix(in srgb, var(--signal) 18%, transparent), transparent 58%), #0b0d12;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
+.instrument-display::before, .instrument-display::after { content: ''; position: absolute; inset: 0; }
+.instrument-display::before { opacity: .22; background: repeating-linear-gradient(0deg, transparent 0 5px, rgba(255,255,255,.08) 6px); }
+.instrument-display::after { inset: 14%; border: 1px solid color-mix(in srgb, var(--signal) 32%, transparent); border-radius: 50%; box-shadow: 0 0 50px color-mix(in srgb, var(--signal) 20%, transparent); }
+.instrument-display i { position: absolute; z-index: 2; width: 9px; height: 9px; border: 1px solid var(--signal); border-radius: 50%; box-shadow: 0 0 12px var(--signal); }
+.instrument-display i:nth-of-type(1) { left: 15%; top: 24%; }
+.instrument-display i:nth-of-type(2) { right: 20%; top: 38%; }
+.instrument-display i:nth-of-type(3) { left: 42%; bottom: 17%; }
+.wave { position: absolute; z-index: 1; left: 8%; right: 8%; top: 50%; height: 2px; background: var(--signal); filter: drop-shadow(0 0 8px var(--signal)); clip-path: polygon(0 40%, 10% 40%, 16% 0, 23% 100%, 30% 28%, 40% 70%, 48% 15%, 57% 90%, 66% 32%, 76% 65%, 84% 10%, 91% 45%, 100% 45%, 100% 100%, 0 100%); transform: scaleY(38); }
+.rings, .orbit, .bars { position: absolute; z-index: 1; inset: 21%; border: 2px solid var(--signal); border-radius: 50%; box-shadow: 0 0 22px var(--signal), inset 0 0 22px color-mix(in srgb, var(--signal) 35%, transparent); }
+.rings::before, .rings::after { content:''; position:absolute; border:1px solid var(--signal); border-radius:50%; inset: 17%; }
+.rings::after { inset: 35%; background: var(--signal); box-shadow: 0 0 24px var(--signal); }
+.orbit { border-radius: 44% 56% 61% 39%; transform: rotate(25deg); }
+.orbit::before { content:''; position:absolute; inset: 18%; border: 1px dashed var(--signal); border-radius: 61% 39% 44% 56%; transform: rotate(70deg); }
+.bars { inset: 20% 12%; border: 0; border-radius: 0; box-shadow: none; background: repeating-linear-gradient(90deg, var(--signal) 0 4px, transparent 4px 12.5%); clip-path: polygon(0 44%, 8% 20%, 17% 70%, 27% 5%, 37% 56%, 48% 29%, 60% 88%, 71% 16%, 82% 63%, 91% 34%, 100% 48%, 100% 52%, 0 52%); filter: drop-shadow(0 0 8px var(--signal)); }
+.instrument-copy { position: relative; z-index: 2; padding: clamp(1.5rem, 3vw, 2.25rem); }
+.instrument-index { color: var(--signal); font-size: .72rem; font-weight: 600; letter-spacing: .16em; }
+.instrument-copy h3 { margin: .5rem 0; font-size: clamp(2rem, 1.5rem + 1.2vw, 2.8rem); line-height: 1; letter-spacing: -.045em; }
+.instrument-copy p { color: var(--fg-muted); font-size: .94rem; max-width: 46ch; }
+.instrument-copy a { display: inline-block; margin-top: 1.2rem; color: var(--signal); font-size: .88rem; font-weight: 600; }
+.instrument-copy a:hover { text-decoration: underline; text-underline-offset: 4px; }
+.instrument-cta { position: relative; display: flex; justify-content: space-between; align-items: center; gap: 1.5rem; margin-top: 1.25rem; padding: 1.25rem 1.5rem; border: 1px solid var(--line-lift); border-radius: 14px; background: rgba(255,255,255,.035); font-size: .9rem; }
+.instrument-cta div { display: flex; align-items: center; gap: .75rem; }
+.instrument-cta div span:last-child { color: var(--fg-muted); }
+.instrument-cta > a { color: var(--accent); font-weight: 600; }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--mint); box-shadow: 0 0 12px var(--mint); }
+
+@media (max-width: 760px) {
+  .instrument-head, .instrument-grid { grid-template-columns: 1fr; }
+  .instrument-head { align-items: start; }
+  .instrument { min-height: 430px; }
+  .instrument-cta, .instrument-cta div { align-items: flex-start; flex-direction: column; }
+}
