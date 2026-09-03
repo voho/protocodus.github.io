@@ -405,21 +405,28 @@ export function createTwigAtlas(THREE) {
     ctx.stroke();
   }
 
+  /* Nothing thinner than this, in texels. A bare tree is mostly holes, so
+     what reaches the screen is decided by whether a twig survives the mip
+     chain: a one-texel line is a quarter of a pixel by twenty metres, its
+     alpha falls under the cutout, and the branch arrives as a row of
+     speckles. Wide strokes and a shallow recursion give the same silhouette
+     out of fewer, fatter marks, which is what a card can actually carry. */
+  const MIN_TWIG = 2.4;
   const branch = (x, y, ang, len, wid, depth) => {
     const ex = x + Math.cos(ang) * len;
     const ey = y + Math.sin(ang) * len;
-    const g = 118 + Math.floor((4 - depth) * 16 + rnd() * 20);
+    const g = 118 + Math.floor((3 - depth) * 16 + rnd() * 20);
     ctx.lineCap = 'round';
     ctx.strokeStyle = `rgb(${g}, ${g}, ${g})`;
-    ctx.lineWidth = wid;
+    ctx.lineWidth = Math.max(MIN_TWIG, wid);
     ctx.beginPath();
     ctx.moveTo(x, y);
     ctx.lineTo(ex, ey);
     ctx.stroke();
     // Snow lies along the upper edge of wood that is flat enough to hold it.
-    if (Math.abs(Math.cos(ang)) > 0.30 && wid > 2.2) {
+    if (Math.abs(Math.cos(ang)) > 0.30 && wid > 3.0) {
       ctx.strokeStyle = 'rgb(200, 222, 255)';
-      ctx.lineWidth = Math.max(1.6, wid * 0.55);
+      ctx.lineWidth = Math.max(2.0, wid * 0.55);
       const oy = -wid * 0.42;
       ctx.beginPath();
       ctx.moveTo(x, y + oy);
@@ -433,16 +440,16 @@ export function createTwigAtlas(THREE) {
       const sideSign = rnd() < 0.5 ? -1 : 1;
       branch(x + Math.cos(ang) * len * at, y + Math.sin(ang) * len * at,
         ang + sideSign * (0.45 + 0.55 * rnd()), len * (0.48 + 0.28 * rnd()),
-        wid * 0.62, depth - 1);
+        wid * 0.70, depth - 1);
     }
-    branch(ex, ey, ang + (rnd() - 0.5) * 0.5, len * 0.70, wid * 0.72, depth - 1);
+    branch(ex, ey, ang + (rnd() - 0.5) * 0.5, len * 0.70, wid * 0.78, depth - 1);
   };
   const cell = (x0, w) => {
     ctx.save();
     ctx.beginPath();
     ctx.rect(x0, 0, w, H);
     ctx.clip();
-    branch(x0 + w * 0.5, H * 0.985, -Math.PI / 2 + (rnd() - 0.5) * 0.25, H * 0.30, 11, 4);
+    branch(x0 + w * 0.5, H * 0.985, -Math.PI / 2 + (rnd() - 0.5) * 0.25, H * 0.30, 16, 3);
     ctx.restore();
   };
   cell(112, 448);

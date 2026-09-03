@@ -2294,7 +2294,7 @@ export function createProps(THREE, shading) {
         {
           float n64NeedleUp = dot(normalize(vNormal), viewMatrix[1].xyz);
           float n64Load = smoothstep(0.15, 0.75, n64NeedleUp) * uSnowFresh * n64Needle;
-          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.839, 0.890, 0.957), n64Load * 0.7);
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.839, 0.890, 0.957), n64Load * 0.55);
         }
         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.839, 0.890, 0.957) * 1.15, n64FrostTexel);
         #include <alphamap_fragment>`)
