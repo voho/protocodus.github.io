@@ -527,10 +527,33 @@ const FRAG_SHEEN = `
 const FRAG_SUN_END = `
   }`;
 
+/* SHADE IS BLUE, and a little darker than the fill beside it.
+
+   Everything that takes the sun off a surface — the depth map, the mountain's
+   own horizon, the cloud deck — has been folded into `n64Open` by the time
+   this runs, and what is left in `indirectDiffuse` is one hemisphere fill
+   that knows nothing about any of them. Real shade is not that fill dimmed:
+   the ground bouncing light into a sunlit patch is itself sunlit snow, warm
+   and bright, and in a cast shadow that bounce is gone and the blue dome is
+   most of what remains. So the fill goes towards the sky's own mid stop and
+   down a little, by exactly the amount the sun was taken away. Scaled by the
+   key's strength, because the effect is the *difference* between a sunlit
+   bounce and a shaded one, and under a moon there is no difference to speak
+   of. One mix per fragment, no fetch. */
+const FRAG_SHADE_TINT = `
+    {
+      vec3 n64ShadeSky = clamp(uSkyMid / max(dot(uSkyMid, ${LUMA}), 0.05),
+        vec3(0.6), vec3(1.4));
+      float n64ShadeAmt = (1.0 - n64Open) * smoothstep(0.3, 1.5, uSunLevel);
+      reflectedLight.indirectDiffuse *= mix(vec3(1.0),
+        mix(vec3(1.0), n64ShadeSky, 0.42) * 0.88, n64ShadeAmt);
+    }`;
+
 /* Recover the light-loop shadow before adding the snow response. */
 function lightPatch(sheen) {
   return FRAG_SUN
     + (sheen ? FRAG_RECOVER : '')
+    + (sheen ? FRAG_SHADE_TINT : '')
     + (sheen ? FRAG_SHEEN : '')
     + FRAG_SUN_END;
 }

@@ -2040,13 +2040,18 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
 
   /* The generated snow plates, packed as data rather than as baked light.
 
-     R is albedo variation centred at one half, G is height centred at one
-     half and B is crystalline density. The terrain has no UVs by design, so
-     they are sampled from stable world XZ below. A shared neutral one-pixel
-     texture keeps the material identical to the procedural fallback while a
-     WebP is loading, or forever if an asset cannot be fetched. */
+     R is albedo variation centred at one half and G is height centred at one
+     half. B and A are the height's own slope, baked offline along the two
+     world axes the shader used to difference it along (`GENERATED.md`), so
+     the relief is one fetch and its mip chain is a correctly filtered mean
+     slope rather than a noisy difference of filtered heights. The terrain
+     has no UVs by design, so they are sampled from stable world XZ below. A
+     shared neutral one-pixel texture — half grey in every channel, which is
+     a flat plate with zero slope — keeps the material identical to the
+     procedural fallback while a WebP is loading, or forever if an asset
+     cannot be fetched. */
   const neutralSurface = new THREE.DataTexture(
-    new Uint8Array([128, 128, 128, 255]), 1, 1, THREE.RGBAFormat,
+    new Uint8Array([128, 128, 128, 128]), 1, 1, THREE.RGBAFormat,
   );
   neutralSurface.colorSpace = THREE.NoColorSpace;
   neutralSurface.needsUpdate = true;
@@ -2060,7 +2065,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   const snowReadyTarget = new THREE.Vector2();
 
   const snowTile = { value: new THREE.Vector2(24.0, 4.0) };
-  const snowAlbedo = { value: new THREE.Vector2(0.012, 0.020) };
+  const snowAlbedo = { value: new THREE.Vector2(0.034, 0.030) };
   const snowHeight = { value: new THREE.Vector2(0.85, 0.72) };
 
   /* THE LIT GATE, which is a light on the snow and not a light in the scene.
@@ -2496,7 +2501,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
           float n64CordHeight = texture2DGradEXT(uSnowGroomed,
             n64CordColorUv, n64CordColorDx, n64CordColorDy).g;
           diffuseColor.rgb *= 1.0 + (n64CordHeight - 0.5)
-            * 0.16 * n64CordColor;
+            * 0.20 * n64CordColor;
         }
         /* Two stones, with two structures. Blue slate is thin, tilted bedding;
            iron rock breaks into broader shelves crossed by dark vertical
@@ -2606,15 +2611,31 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
             + texture2D(uSandstoneTex, vWorld.xz * 0.04) * n64TriW.y
             + texture2D(uSandstoneTex, vWorld.xy * 0.04) * n64TriW.z;
           vec3 n64RockTexel = mix(n64RockSample.rgb, n64GraniteSample.rgb, clamp(vRockKind, 0.0, 1.0));
-          diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * n64RockTexel * 2.15, (1.0 - n64SnowMask) * 0.82);
-          diffuseColor.rgb *= 1.0 - n64RockInk * (1.0 - n64SnowMask)
+          /* THE CONTACT. The vertex field says how much of this cell is
+             rock; the plate says where on the face it breaks through. Snow
+             settles in the plate's dark seams and the bright ribs shed it,
+             so the transition sharpens from a cross-fade a cell wide into
+             stone standing out of snow. No extra fetch: the texel is the one
+             already in hand. The 4r(1-r) hump confines the breakup to the
+             mixed band, so pure snow and pure rock are exactly what they were.
+             (No back-ticks in here: this comment is inside a template literal.) */
+          float n64RockLum = dot(n64RockTexel, vec3(0.30, 0.55, 0.15));
+          float n64RockRaw = 1.0 - n64SnowMask;
+          float n64RockW = smoothstep(0.10, 0.90, n64RockRaw
+            + (n64RockLum - 0.44) * 2.4 * n64RockRaw * (1.0 - n64RockRaw));
+          vec3 n64SnowBody = diffuseColor.rgb;
+          diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * n64RockTexel * 2.15, n64RockW * 0.82);
+          diffuseColor.rgb *= 1.0 - n64RockInk * n64RockW
             * smoothstep(0.20, 0.72, 1.0 - n64StrataUp);
-          
-          /* Real Alpine Geology: Flatter benches & ledges on steep rock horns catch and hold snow */
-          float n64LedgeSnow = smoothstep(0.42, 0.76, n64StrataUp) * (1.0 - n64SnowMask);
+          /* Benches and ledges on a steep face hold snow, and hold it in the
+             seams first. The cover is the snow body this face started with
+             rather than a painted constant, so it keeps the snowpack's own
+             palette through every hour of the day. */
+          float n64LedgeSnow = smoothstep(0.42, 0.76, n64StrataUp) * n64RockW
+            * clamp(0.55 + 0.9 * (0.5 - n64RockLum), 0.0, 1.0);
           if (n64LedgeSnow > 0.005) {
-            vec3 snowLedgeColor = vec3(0.86, 0.92, 0.98);
-            diffuseColor.rgb = mix(diffuseColor.rgb, snowLedgeColor, n64LedgeSnow * 0.72);
+            diffuseColor.rgb = mix(diffuseColor.rgb, n64SnowBody * 1.04,
+              min(n64LedgeSnow * 0.72, 0.8));
           }
         }`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
@@ -2637,30 +2658,29 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
           n64IronDir * n64IronLean, clamp(vRockKind, 0.0, 1.0));
         normal = normalize(normal + mat3(viewMatrix) * n64RockLean
           * vRock * 0.12);
-        /* The plates' height channels, spent as light rather than geometry.
-           A short world difference of G makes a slope, and that slope leans
-           the smooth normal — powder sastrugi off-piste and machine ribs on
-           it, at a scale the 75 cm mesh cannot carry. Powder keeps its broad
-           nine-centimetre probe; corduroy uses less than a quarter of one rib
-           so the two samples cannot land on equivalent points and cancel. */
+        /* The plates' height, spent as light rather than geometry: its
+           slope leans the smooth normal — powder sastrugi off-piste and
+           machine ribs on it, at a scale the 75 cm mesh cannot carry. */
         vec2 n64DetailUv = uTilePowderDetail + mat2(0.9563, -0.2924, 0.2924, 0.9563)
           * (vLocal / uSnowTile.y);
         vec2 n64GroomDetailUv = vec2(vLocal.y + uTileGroomZ, vWorld.x - vGroomFrame.x)
           / uSnowTile.y;
-        float n64DetailStep = 0.09 / uSnowTile.y;
-        float n64GroomStep = 0.018 / uSnowTile.y;
-        // The macro fade above lets go at 80-180 m, far too late for detail
-        // this fine. Distance takes it out across 55-90 m, and the derivative
-        // gate takes it out sooner wherever a grazing angle stretches one
-        // pixel's footprint towards the differencing step itself — past that
-        // point the slope is sampling noise, and the retro pipeline would
-        // resample it into shimmer. The gate is the anti-moire clause.
-        // Gradients rather than a width, taken before the gate below for the
-        // same reason as the macro read: all three fetches are behind it,
-        // and a quad split along a fade boundary owes them nothing. The two
-        // offset reads are the centre footprint shifted by a local tangent;
-        // the frame changes only over route-scale distances, so they share
-        // its gradients to first order.
+        /* THE SLOPES ARE BAKED. The plates' B and A channels carry the two
+           finite differences this block used to take with three fetches: the
+           same 9 cm powder probe and 1.8 cm corduroy probe, along the same
+           world axes, so the lean is the lean it was. One fetch per plate
+           now — and because a mip level of a slope map is the mean slope
+           over its footprint, the relief anti-aliases itself with distance
+           instead of needing to be cut off at a range. The old forward
+           difference of a mip-filtered height turned to noise once a pixel
+           outgrew the probe, and its gates had to kill it inside thirty
+           metres at native resolution — which is most of why the mountain
+           past the board read as a sheet of paper. The gates that remain are
+           the two the mip chain cannot supply: a coherent early-out for the
+           fetch once the footprint is reading a mip whose mean slope is
+           nothing, and the corduroy's own rib footprint, because a regular
+           carrier still owes the screen a Nyquist margin.
+           (No back-ticks in here: this comment is inside a template literal.) */
         vec2 n64DetailDx = dFdx(n64DetailUv);
         vec2 n64DetailDy = dFdy(n64DetailUv);
         vec2 n64GroomDetailDx = dFdx(n64GroomDetailUv);
@@ -2668,71 +2688,49 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
         float n64DetailFoot = max(
           abs(n64DetailDx.x) + abs(n64DetailDy.x),
           abs(n64DetailDx.y) + abs(n64DetailDy.y));
-        float n64PowderResolve = 1.0
-          - smoothstep(0.5, 1.0, n64DetailFoot / n64DetailStep);
-        /* Corduroy is strongly directional and therefore less forgiving than
-           powder grain. Its ribs repeat about every 0.021 source UV; measure
-           the footprint across them specifically and dissolve the height
-           response before one pixel spans a rib. Mip filtering then handles
-           the colour without a screen-frequency carrier. */
+        float n64PowderResolve = 1.0 - smoothstep(0.035, 0.075, n64DetailFoot);
         float n64CordFoot = abs(n64GroomDetailDx.y) + abs(n64GroomDetailDy.y);
         float n64GroomResolve = 1.0
-          - smoothstep(0.32, 0.78, n64CordFoot / 0.021);
+          - smoothstep(0.55, 1.25, n64CordFoot / 0.021);
         float n64PowderDetail = n64PowderWeight * n64PowderResolve
-          * (1.0 - smoothstep(55.0, 90.0, vDist));
+          * (1.0 - smoothstep(150.0, 260.0, vDist));
         float n64GroomDetail = n64GroomWeight * n64GroomResolve
-          * (1.0 - smoothstep(45.0, 78.0, vDist));
+          * (1.0 - smoothstep(90.0, 150.0, vDist));
         float n64DetailLive = max(n64PowderDetail, n64GroomDetail) * n64SnowMask;
-        // Three fetches, and they are the most expensive thing this material
-        // does per pixel — so each plate lives behind its own coherent
-        // surface gate. The piste boundary and fresh-snow crossfade pay for
-        // both; ordinary clear or fully buried snow does not.
         if (n64DetailLive > 0.002) {
           float n64SlopeX = 0.0;
           float n64SlopeZ = 0.0;
           if (n64PowderDetail * n64SnowMask > 0.002) {
-            // One mip up, as a gradient scale of two: the old plus-one bias.
-            vec2 n64DetailGx = n64DetailDx * 2.0;
-            vec2 n64DetailGy = n64DetailDy * 2.0;
-            float n64DetailC = texture2DGradEXT(uSnowPowder, n64DetailUv,
-              n64DetailGx, n64DetailGy).g;
-            float n64DetailX = texture2DGradEXT(uSnowPowder,
-              n64DetailUv + vec2(0.9563, -0.2924) * n64DetailStep,
-              n64DetailGx, n64DetailGy).g;
-            float n64DetailZ = texture2DGradEXT(uSnowPowder,
-              n64DetailUv + vec2(0.2924, 0.9563) * n64DetailStep,
-              n64DetailGx, n64DetailGy).g;
-            n64SlopeX += (n64DetailC - n64DetailX)
-              * uSnowHeight.x * n64PowderDetail;
-            n64SlopeZ += (n64DetailC - n64DetailZ)
-              * uSnowHeight.x * n64PowderDetail;
+            vec2 n64PowderSlope = texture2DGradEXT(uSnowPowder, n64DetailUv,
+              n64DetailDx, n64DetailDy).ba * 2.0 - 1.0;
+            n64SlopeX += n64PowderSlope.x * uSnowHeight.x * n64PowderDetail;
+            n64SlopeZ += n64PowderSlope.y * uSnowHeight.x * n64PowderDetail;
+            /* Crystal grain inside the riding space: the same slope plate
+               at a third of the tile, so the nine-centimetre probe becomes
+               a three-centimetre one. A whole-number multiple of the wrapped
+               uv stays welded through a re-anchor for the same reason the
+               macro and detail tiles do — see the tile origins. */
+            float n64GrainLive = n64PowderDetail
+              * (1.0 - smoothstep(14.0, 34.0, vDist));
+            if (n64GrainLive > 0.002) {
+              vec2 n64GrainSlope = texture2DGradEXT(uSnowPowder,
+                n64DetailUv * 3.0 + vec2(0.37, 0.61),
+                n64DetailDx * 3.0, n64DetailDy * 3.0).ba * 2.0 - 1.0;
+              n64SlopeX += n64GrainSlope.x * uSnowHeight.x * 0.5 * n64GrainLive;
+              n64SlopeZ += n64GrainSlope.y * uSnowHeight.x * 0.5 * n64GrainLive;
+            }
           }
           if (n64GroomDetail * n64SnowMask > 0.002) {
-            vec2 n64GroomGx = n64GroomDetailDx * 2.0;
-            vec2 n64GroomGy = n64GroomDetailDy * 2.0;
-            float n64GroomC = texture2DGradEXT(uSnowGroomed, n64GroomDetailUv,
-              n64GroomGx, n64GroomGy).g;
-            /* +world X is +V. +world Z advances U while subtracting the local
-               route slope from V; carrying that tangent into the offset is
-               what makes the normal follow the bent ribs rather than merely
-               rotating their colour. */
-            float n64GroomX = texture2DGradEXT(uSnowGroomed,
-              n64GroomDetailUv + vec2(0.0, n64GroomStep),
-              n64GroomGx, n64GroomGy).g;
-            float n64GroomZ = texture2DGradEXT(uSnowGroomed,
-              n64GroomDetailUv
-                + vec2(n64GroomStep, -vGroomFrame.y * n64GroomStep),
-              n64GroomGx, n64GroomGy).g;
-            n64SlopeX += (n64GroomC - n64GroomX)
-              * uSnowHeight.y * n64GroomDetail;
-            n64SlopeZ += (n64GroomC - n64GroomZ)
+            /* B is the difference along +V, which is world X; A is along +U,
+               which is world Z. The route tangent the vertex carries bends
+               the second one with the ribs, exactly as the offset fetch it
+               replaces did. */
+            vec2 n64GroomSlope = texture2DGradEXT(uSnowGroomed, n64GroomDetailUv,
+              n64GroomDetailDx, n64GroomDetailDy).ba * 2.0 - 1.0;
+            n64SlopeX += n64GroomSlope.x * uSnowHeight.y * n64GroomDetail;
+            n64SlopeZ += (n64GroomSlope.y - vGroomFrame.y * n64GroomSlope.x)
               * uSnowHeight.y * n64GroomDetail;
           }
-          // A heightfield's normal is (-dh/dx, 1, -dh/dz); the lean is built
-          // in the world frame the offsets were taken in, then rotated through
-          // the view matrix to join the view-space normal. The gain is
-          // deliberately shy of embossing — the plate reads as shading, not
-          // as relief.
           normal = normalize(normal + mat3(viewMatrix)
             * vec3(n64SlopeX, 0.0, n64SlopeZ) * n64SnowMask);
         }
@@ -2840,6 +2838,14 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
           float n64FarCosG = cos(n64FarPhaseG) * n64FarG * 1.30;
           n64FarSlopeX += n64FarCosG;
           n64FarSlopeZ += n64FarCosG * -vGroomFrame.y;
+          /* The drifts read in flat light too. A windward face is packed
+             and pale and a lee is loose and shaded, so a little of the same
+             carrier goes into the albedo, and the slow patch field leaves
+             the worked ground a shade darker than the smooth snow between —
+             which is what keeps the mid-field from going blank the moment a
+             cloud takes the sun. Both reuse values already in registers. */
+          diffuseColor.rgb *= 1.0 + (n64FarCosA + n64FarCosB) * 0.22
+            - (1.0 - n64FarPatch) * 0.025 * n64FarLive;
 
           normal = normalize(normal + mat3(viewMatrix)
             * vec3(n64FarSlopeX, 0.0, n64FarSlopeZ));
