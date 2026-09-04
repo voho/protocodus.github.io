@@ -180,6 +180,7 @@ function hutGeometry(THREE) {
   const box = new THREE.BoxGeometry(1, 1, 1);
   const post = new THREE.CylinderGeometry(0.5, 0.5, 1, 18);
   const log = new THREE.CylinderGeometry(0.5, 0.5, 1, 16);
+  const icicle = new THREE.ConeGeometry(0.5, 1, 6);
   /* Three radial segments is a triangular prism with both ends capped, and a
      triangular prism lying on its side is a gable roof. Rotated -90° about x
      it has a flat face underneath, an apex on top and its length running
@@ -212,7 +213,7 @@ function hutGeometry(THREE) {
   const rz = RISE / 1.5;
   const ry = EAVE + rz * 0.5;
 
-  return compose(THREE, [
+  const parts = [
     /* --- the ground it stands on -------------------------------------------
 
        Four metres of stone under a floor that is only two and a half metres
@@ -296,7 +297,52 @@ function hutGeometry(THREE) {
     { geo: log, color: split, pos: [-3.0, 0.7, 0.5], rot: [Math.PI / 2, 0, 0], scale: [0.28, 1.9, 0.28] },
     { geo: log, color: '#7a5636', pos: [-3.15, 0.98, 0.5], rot: [Math.PI / 2, 0, 0], scale: [0.28, 1.9, 0.28] },
     { geo: box, color: snow, pos: [-3.15, 1.15, 0.5], scale: [1.0, 0.16, 2.0] },
-  ]);
+  ];
+  // Open shutters, divided glass and exposed rafters give the facade scale.
+  for (const x of [0.35, 1.85]) {
+    parts.push(
+      { geo: box, color: beam, pos: [x, 1.75, -2.32], scale: [0.045, 0.88, 0.055] },
+      { geo: box, color: beam, pos: [x, 1.75, -2.32], scale: [0.99, 0.045, 0.055] },
+      { geo: box, color: snow, pos: [x, 1.18, -2.33], scale: [1.29, 0.11, 0.30] },
+    );
+    for (const s of [-1, 1]) {
+      parts.push({ geo: box, color: '#365954', pos: [x + s * 0.73, 1.75, -2.25],
+        rot: [0, s * 0.14, 0], scale: [0.32, 0.94, 0.07] });
+    }
+  }
+  parts.push(
+    { geo: box, color: beam, pos: [2.73, 1.75, 0.3], scale: [0.055, 0.88, 0.045] },
+    { geo: box, color: beam, pos: [2.73, 1.75, 0.3], scale: [0.055, 0.045, 0.99] },
+    { geo: box, color: '#bda877', pos: [-0.96, 1.56, -2.31], scale: [0.05, 0.16, 0.07] },
+  );
+  for (let i = 0; i < 9; i++) {
+    const x = -3.0 + i * 0.75;
+    const edgeY = EAVE + RISE * (1 - Math.abs(x) / RW);
+    const length = 0.18 + 0.22 * (0.5 + 0.5 * Math.sin(i * 4.7));
+    parts.push({ geo: icicle, color: '#dcebf1',
+      pos: [x, edgeY - length * 0.5, -RL * 0.485],
+      rot: [0, 0, Math.PI], scale: [0.075, length, 0.075] });
+  }
+  for (let i = 0; i < 5; i++) {
+    const z = -2.2 + i * 1.1;
+    for (const s of [-1, 1]) {
+      parts.push({ geo: box, color: beam, pos: [s * 2.82, 3.07, z],
+        scale: [1.0, 0.15, 0.17] });
+    }
+  }
+  // Terrace slats and a pair of skis waiting by the door are baked into the
+  // existing instanced shell, with no extra draw calls or runtime objects.
+  for (let i = 0; i < 7; i++) {
+    parts.push({ geo: box, color: beam, pos: [-2.0 + i * 0.65, 0.92, -4.35],
+      scale: [0.065, 0.74, 0.07] });
+  }
+  for (const x of [-2.27, -2.02]) {
+    parts.push({ geo: box, color: '#a84931', pos: [x, 1.42, -2.56],
+      rot: [-0.13, 0, 0.16], scale: [0.13, 1.82, 0.06] });
+  }
+  const geometry = compose(THREE, parts);
+  for (const g of [box, post, log, prism, icicle]) g.dispose();
+  return geometry;
 }
 
 /* The glass, alone.

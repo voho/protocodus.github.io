@@ -116,18 +116,28 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
   let poolsLive = false;
 
   const cabinGeo = compose(THREE, [
-    { geo: new THREE.BoxGeometry(2.4, 2.2, 1.8), color: 0xb31f1f, pos: [0, -1.1, 0] },
+    { geo: new THREE.CylinderGeometry(1, 0.87, 1, 8), color: 0xb73b2d,
+      pos: [0, -1.78, 0], scale: [1.26, 0.76, 1.0] },
+    { geo: new THREE.CylinderGeometry(0.94, 1.03, 1, 8), color: 0xdbe4e8,
+      pos: [0, -0.36, 0], scale: [1.26, 0.20, 1.0] },
+    { geo: new THREE.CylinderGeometry(0.89, 0.89, 1, 8), color: 0x26333c,
+      pos: [0, -2.15, 0], scale: [1.26, 0.12, 1.0] },
     { geo: new THREE.CylinderGeometry(0.06, 0.06, 2.2, 8), color: 0x333842, pos: [0, 0.5, 0] },
     { geo: new THREE.BoxGeometry(0.6, 0.3, 0.4), color: 0x333842, pos: [0, 1.6, 0] },
+    ...[-1, 1].flatMap((x) => [-1, 1].map((z) => ({
+      geo: new THREE.BoxGeometry(0.065, 1.10, 0.065), color: 0x28343d,
+      pos: [x * 0.89, -0.94, z * 0.705],
+    }))),
+    { geo: new THREE.BoxGeometry(0.045, 1.0, 0.055), color: 0x28343d, pos: [0, -0.97, -1.012] },
+    { geo: new THREE.BoxGeometry(0.55, 0.06, 0.055), color: 0xcbd6dc, pos: [0, -1.05, -1.03] },
   ], { uv: true });
 
-  const glassGeo = new THREE.BoxGeometry(2.45, 0.9, 1.85);
-  glassGeo.translate(0, -0.9, 0);
+  const glassGeo = new THREE.CylinderGeometry(1.0, 0.985, 1.05, 8);
+  glassGeo.scale(1.245, 1, 0.99);
+  glassGeo.translate(0, -0.97, 0);
   const cabinGlassMat = shading.apply(new THREE.MeshLambertMaterial({
     color: 0x1a3450,
     emissive: 0x000000,
-    transparent: true,
-    opacity: 0.85,
   }), { sheen: 0.2 });
   const cabinWarmColor = new THREE.Color(0xffaa44);
   const cabinColdColor = new THREE.Color(0x000000);
@@ -147,8 +157,15 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
   }
 
   const pylonGeo = compose(THREE, [
-    { geo: new THREE.CylinderGeometry(0.35, 0.7, 22.0, 8), color: 0x5a6270, pos: [0, 0, 0] },
+    { geo: new THREE.CylinderGeometry(0.35, 0.7, 22.0, 12), color: 0x5a6270, pos: [0, 0, 0] },
     { geo: new THREE.BoxGeometry(7.0, 0.6, 0.6), color: 0x5a6270, pos: [0, 10.5, 0] },
+    ...[-1, 1].map((s) => ({ geo: new THREE.BoxGeometry(0.16, 2.8, 0.20),
+      color: 0x78858c, pos: [s * 1.0, 9.35, 0], rot: [0, 0, -s * 0.80] })),
+    { geo: new THREE.CylinderGeometry(0.95, 1.1, 0.65, 8), color: 0x8b9499, pos: [0, -10.8, 0] },
+    ...Array.from({ length: 12 }, (_, i) => ({
+      geo: new THREE.BoxGeometry(0.48, 0.07, 0.13), color: 0x34434c,
+      pos: [0, -7.8 + i * 1.4, 0.64 - i * 0.018],
+    })),
   ], { uv: true });
   const wheelGeo = new THREE.CylinderGeometry(0.6, 0.6, 0.2, 12);
   wheelGeo.rotateX(Math.PI / 2);
@@ -195,16 +212,21 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
       rot: [-0.28, 0, 0],
     },
     {
-      geo: new THREE.CylinderGeometry(0.38, 0.32, 1.3, 12),
+      geo: new THREE.CylinderGeometry(0.38, 0.32, 1.3, 16, 1, true),
       color: 0xdfa008,
       pos: [0, 4.4, 0.8],
       rot: [Math.PI / 2 - 0.32, 0, 0],
     },
+    { geo: new THREE.CircleGeometry(0.32, 16), color: 0x1f2d38,
+      pos: [0, 4.61, 1.43], rot: [-0.32, 0, 0] },
+    { geo: new THREE.CylinderGeometry(0.085, 0.10, 0.09, 10), color: 0x9aabb2,
+      pos: [0, 4.63, 1.49], rot: [Math.PI / 2 - 0.32, 0, 0] },
+    { geo: new THREE.BoxGeometry(0.42, 0.52, 0.28), color: 0x34576b, pos: [0.24, 1.2, 0] },
     {
       geo: new THREE.TorusGeometry(0.34, 0.045, 6, 12),
       color: 0x1f5ab8,
       pos: [0, 4.6, 1.4],
-      rot: [Math.PI / 2 - 0.32, 0, 0],
+      rot: [-0.32, 0, 0],
     },
   ], { uv: true });
 
@@ -332,7 +354,7 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
     goggleFrame: new THREE.BoxGeometry(0.21, 0.078, 0.08),
     goggleLens: new THREE.BoxGeometry(0.19, 0.065, 0.02),
     goggleStrap: new THREE.CylinderGeometry(0.135, 0.135, 0.04, 10, 1, true),
-    packBody: new THREE.BoxGeometry(0.235, 0.30, 0.13),
+    packBody: new THREE.SphereGeometry(0.5, 10, 8).scale(0.25, 0.34, 0.16),
     packStrap: new THREE.BoxGeometry(0.05, 0.27, 0.035),
 
     // Skis & Poles
@@ -625,6 +647,8 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
       pack: i % 3 === 1,
     };
     const fig = makeFigure(isSkier ? buildSkier(v) : buildBoarder(v));
+    const stature = 0.92 + (i % 4) * 0.045;
+    fig.group.scale.set(stature * (0.96 + (i % 3) * 0.035), stature, stature);
     root.add(fig.group);
     npcs.push({
       mesh: fig.group,
@@ -858,7 +882,7 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
         // Bank angle (lean into the carve)
         const bank = Math.max(-0.35, Math.min(0.35, -npc.vx * 0.045));
 
-        npc.mesh.rotation.set(pitch, yaw, bank);
+        npc.mesh.rotation.set(pitch, -yaw, bank);
 
         /* And the half of the figure that argues with all of that. Real
            riders absorb at the apex of a turn, hold their shoulders down
@@ -869,7 +893,7 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
         const b = npc.body;
         b.position.y = npc.hip - 0.055 * load;
         b.rotation.set(0.055 * Math.cos(npc.sPhase * 2.0),
-          -yaw * npc.counter, -bank * 0.55);
+          yaw * npc.counter, -bank * 0.55);
 
         // A little carve spray off their turns
         if (spray && Math.random() < 15 * dt) {

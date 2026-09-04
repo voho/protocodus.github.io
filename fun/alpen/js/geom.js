@@ -26,8 +26,7 @@ export function compose(THREE, parts, opts = {}) {
   let total = 0;
 
   for (const part of parts) {
-    let g = part.geo.clone();
-    if (g.index) g = g.toNonIndexed();
+    const g = part.geo.index ? part.geo.toNonIndexed() : part.geo.clone();
 
     const m = new THREE.Matrix4().compose(
       new THREE.Vector3(...(part.pos || [0, 0, 0])),

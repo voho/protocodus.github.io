@@ -221,25 +221,6 @@ const FRAG = `
     return fract(52.9829189 * fract(dot(frag, vec2(0.06711056, 0.00583715))));
   }
 
-  /* The speed treatment belongs to the world rushing past the rider, not to
-     the rider himself. The focus mask that protects him is computed once in
-     main() — it used to be re-derived inside this function on every one of
-     the blur loop's taps, six lengths and six smoothsteps per pixel measuring
-     the same distance — and the resolved aberration arrives as a parameter.
-     Both the colour split and the blur now pivot on uFocus rather than the
-     screen centre, so the world streams away from the rider rather than from
-     a point above his head whenever the air moves him off-centre. */
-  vec3 sceneSample(vec2 uv, float aberration) {
-    uv = clamp(uv, vec2(0.001), vec2(0.999));
-    if (aberration <= 0.00001) return texture2D(tDiffuse, uv).rgb;
-    vec2 split = (uv - uFocus) * aberration;
-    return vec3(
-      texture2D(tDiffuse, clamp(uv + split, vec2(0.001), vec2(0.999))).r,
-      texture2D(tDiffuse, uv).g,
-      texture2D(tDiffuse, clamp(uv - split, vec2(0.001), vec2(0.999))).b
-    );
-  }
-
   void main() {
     /* Velocity blur, first and in linear light.
 
@@ -262,7 +243,15 @@ const FRAG = `
     vec2 focusDelta = (vUv - uFocus) * vec2(uResolution.x / uResolution.y, 1.0);
     float outsideFocus = smoothstep(0.075, 0.20, length(focusDelta));
     float aberration = uAberration * outsideFocus;
-    vec3 lin = sceneSample(vUv, aberration);
+    vec3 center = texture2D(tDiffuse, vUv).rgb;
+    vec3 lin = center;
+    // Split the color once: eight scene reads during blur instead of eighteen.
+    if (aberration > 0.00001) {
+      vec2 split = (vUv - uFocus) * aberration;
+      lin.r += texture2D(tDiffuse, clamp(vUv + split, vec2(0.001), vec2(0.999))).r - center.r;
+      lin.b += texture2D(tDiffuse, clamp(vUv - split, vec2(0.001), vec2(0.999))).b - center.b;
+      lin = max(lin, vec3(0.0));
+    }
     float localBlur = uBlur * outsideFocus;
     if (localBlur > 0.0005) {
       /* The sample ladder is decorrelated per pixel, which is the difference
@@ -277,7 +266,7 @@ const FRAG = `
          done and what the eye reads as motion. */
       vec2 toFocus = uFocus - vUv;
       for (int i = 1; i < 6; i++) {
-        lin += sceneSample(vUv + toFocus * localBlur * (float(i) - 0.5 + jitter), aberration);
+        lin += texture2D(tDiffuse, vUv + toFocus * localBlur * (float(i) - 0.5 + jitter)).rgb;
       }
       lin /= 6.0;
     } else if (uSharpen > 0.001) {
@@ -397,6 +386,7 @@ export function createRetro(THREE, renderer) {
      universal on real WebGL2 hardware; everything falls back to bytes —
      including MSAA, which some mobile GPUs refuse on float targets, checked
      per-format below rather than assumed. */
+  renderer.info.autoReset = false;
   const gl = renderer.getContext();
   const isWebGL2 = renderer.capabilities.isWebGL2;
   const hdr = isWebGL2
@@ -551,6 +541,7 @@ export function createRetro(THREE, renderer) {
   const passScene = new THREE.Scene();
   passScene.add(passQuad);
   let raysLive = false;
+  let halo = 1;
 
   let width = BASE_W;
   let height = BASE_H;
@@ -714,6 +705,7 @@ export function createRetro(THREE, renderer) {
   }
 
   function render(worldScene, worldCamera) {
+    renderer.info.reset();
     renderer.setRenderTarget(scene3d);
     renderer.clear();
     renderer.render(worldScene, worldCamera);
@@ -739,22 +731,28 @@ export function createRetro(THREE, renderer) {
     renderer.setRenderTarget(bright);
     renderer.render(passScene, flat);
 
-    /* The halo octave: a real filtered downsample, then the two blurs. */
-    passQuad.material = downMat;
-    renderer.setRenderTarget(wide);
-    renderer.render(passScene, flat);
+    // Fade out the wide halo under sustained GPU pressure, saving three
+    // passes while preserving the tight bloom and avoiding a visible switch.
+    const wideBloom = halo > 0.002;
+    material.uniforms.uBloomWide.value = GRADE.bloomWide * halo;
+    if (wideBloom) {
+      /* The halo octave: a real filtered downsample, then the two blurs. */
+      passQuad.material = downMat;
+      renderer.setRenderTarget(wide);
+      renderer.render(passScene, flat);
 
-    passQuad.material = blurMat;
-    blurMat.uniforms.tBright.value = wide.texture;
-    blurMat.uniforms.uTexel.value = sixteenthTexel;
-    blurMat.uniforms.uDir.value = DIR_H;
-    renderer.setRenderTarget(wideTmp);
-    renderer.render(passScene, flat);
+      passQuad.material = blurMat;
+      blurMat.uniforms.tBright.value = wide.texture;
+      blurMat.uniforms.uTexel.value = sixteenthTexel;
+      blurMat.uniforms.uDir.value = DIR_H;
+      renderer.setRenderTarget(wideTmp);
+      renderer.render(passScene, flat);
 
-    blurMat.uniforms.tBright.value = wideTmp.texture;
-    blurMat.uniforms.uDir.value = DIR_V;
-    renderer.setRenderTarget(wide);
-    renderer.render(passScene, flat);
+      blurMat.uniforms.tBright.value = wideTmp.texture;
+      blurMat.uniforms.uDir.value = DIR_V;
+      renderer.setRenderTarget(wide);
+      renderer.render(passScene, flat);
+    }
 
     // Restore the quarter-res texel for next frame's tight pair.
     blurMat.uniforms.uTexel.value = quarterTexel;
@@ -797,6 +795,7 @@ export function createRetro(THREE, renderer) {
 
   function updateEffects(dt, active = true) {
     if (dt <= 0) return;
+    halo += ((scale > 0.75 ? 1 : 0) - halo) * (1 - Math.exp(-5 * dt));
     /* Menu dimming is part of the picture, not a state switch. It keeps
        advancing while simulation is paused; `main.js` renders those few
        settling frames and then returns to the single frozen pause frame. */
@@ -909,6 +908,7 @@ export function createRetro(THREE, renderer) {
     get dpr() { return dpr; },
     get scale() { return scale; },
     get samples() { return scene3d.samples; },
+    get frameMs() { return averageFrame * 1000; },
     get pixel() { return 1; },
     get blur() { return material.uniforms.uBlur.value; },
     get aberration() { return material.uniforms.uAberration.value; },

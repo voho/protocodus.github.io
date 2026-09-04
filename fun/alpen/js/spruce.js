@@ -120,13 +120,21 @@ export function growCardSpruce(THREE, seed, spec, height, layout = SPRUCE_LAYOUT
   const o = new THREE.Vector3();
   const p = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
 
-  /* ---- trunk: two stacked open frustums, seven sides, bark-mapped ---- */
+  // The trunk and every branch share one curved centreline. Variation is
+  // baked once per species, so wind never pulls foliage off its timber.
+  const leanYaw = rnd() * Math.PI * 2;
+  const lean = height * (0.012 + rnd() * 0.030 + (spec.flag || 0) * 0.028);
+  const stemX = (y) => Math.cos(leanYaw) * lean * (y / height) ** 2;
+  const stemZ = (y) => Math.sin(leanYaw) * lean * (y / height) ** 2;
+
+  /* ---- trunk: gently curved open frustums, bark-mapped ---- */
   const r0 = Math.min(0.62, height * 0.020 + 0.10);
   const r1 = r0 * 0.55;
-  const rings = [[0, r0], [height * 0.55, r1], [height * 0.985, 0.035]];
-  const SIDES = 7;
+  const rings = [[0, r0], [height * 0.30, r0 * 0.78],
+    [height * 0.62, r1], [height * 0.985, 0.035]];
+  const SIDES = 9;
   const white = [1, 1, 1];
-  for (let s = 0; s < 2; s++) {
+  for (let s = 0; s < rings.length - 1; s++) {
     const [yA, rA] = rings[s];
     const [yB, rB] = rings[s + 1];
     for (let k = 0; k < SIDES; k++) {
@@ -136,12 +144,11 @@ export function growCardSpruce(THREE, seed, spec, height, layout = SPRUCE_LAYOUT
       const u1 = BARK.u0 + (BARK.u1 - BARK.u0) * ((k + 1) / SIDES);
       const vA = BARK.v0 + (BARK.v1 - BARK.v0) * (yA / height);
       const vB = BARK.v0 + (BARK.v1 - BARK.v0) * (yB / height);
-      p[0].set(Math.cos(a0) * rA, yA, Math.sin(a0) * rA);
-      p[1].set(Math.cos(a1) * rA, yA, Math.sin(a1) * rA);
-      p[2].set(Math.cos(a1) * rB, yB, Math.sin(a1) * rB);
-      p[3].set(Math.cos(a0) * rB, yB, Math.sin(a0) * rB);
-      // Each corner takes its own edge's normal, so the seven sides shade
-      // round instead of as seven flat planks.
+      p[0].set(stemX(yA) + Math.cos(a0) * rA, yA, stemZ(yA) + Math.sin(a0) * rA);
+      p[1].set(stemX(yA) + Math.cos(a1) * rA, yA, stemZ(yA) + Math.sin(a1) * rA);
+      p[2].set(stemX(yB) + Math.cos(a1) * rB, yB, stemZ(yB) + Math.sin(a1) * rB);
+      p[3].set(stemX(yB) + Math.cos(a0) * rB, yB, stemZ(yB) + Math.sin(a0) * rB);
+      // Smooth corner normals keep the modest trunk round in low sunlight.
       const taper = (rA - rB) / Math.max(0.001, yB - yA) * 0.3;
       nRoot.set(Math.cos(a0), taper, Math.sin(a0)).normalize();
       nTip.set(Math.cos(a1), taper, Math.sin(a1)).normalize();
@@ -231,6 +238,8 @@ export function growCardSpruce(THREE, seed, spec, height, layout = SPRUCE_LAYOUT
   const yTo = height * 0.93;
   const flagYaw = rnd() * Math.PI * 2; // the wind this one grew in, if flagged
   const maxR = spec.reach * height * 0.9;
+  const crownYaw = rnd() * Math.PI * 2;
+  const crownBias = 0.10 + rnd() * 0.14;
 
   for (let w = 0; w < whorls; w++) {
     const t = whorls > 1 ? w / (whorls - 1) : 0;
@@ -240,11 +249,11 @@ export function growCardSpruce(THREE, seed, spec, height, layout = SPRUCE_LAYOUT
       spec.perWhorl[0] + (spec.perWhorl[1] - spec.perWhorl[0]) * rnd(),
     ));
     for (let b = 0; b < perW; b++) {
-      const yaw = (b / perW) * Math.PI * 2 + rnd() * 1.1;
+      const yaw = (b / perW) * Math.PI * 2 + w * 2.39996 + rnd() * 0.65;
       if (spec.flag && Math.cos(yaw - flagYaw) > 0.15 && rnd() < spec.flag) continue;
       const liftT = spec.liftLow + (spec.liftHigh - spec.liftLow) * t;
       const tilt = liftT * 0.55 - spec.droop * 0.22 + (rnd() - 0.5) * 0.12;
-      const L = R * (1.30 + 0.40 * rnd());
+      const L = R * (1.30 + 0.40 * rnd()) * (1 + crownBias * Math.cos(yaw - crownYaw));
       const W = L * (0.74 + 0.20 * rnd());
       const bend = L * (0.10 + spec.droop * 0.30); // tips settle under their snow
 
@@ -256,7 +265,9 @@ export function growCardSpruce(THREE, seed, spec, height, layout = SPRUCE_LAYOUT
       const mirror = rnd() < 0.5;
       const fold = W * 0.16;
 
-      o.set(Math.cos(yaw) * r1 * 0.4, y, Math.sin(yaw) * r1 * 0.4);
+      const branchY = y + (rnd() - 0.5) * height / whorls * 0.28;
+      o.set(stemX(branchY) + Math.cos(yaw) * r1 * 0.4, branchY,
+        stemZ(branchY) + Math.sin(yaw) * r1 * 0.4);
       /* THE NORMALS ARE THE CANOPY'S, NOT THE CARD'S. A card lit by its own
          face normal is a flat lozenge, and a tree of them is a stack of
          lozenges that go dark one at a time as the sun moves. What a real
@@ -349,6 +360,7 @@ export function growCardSpruce(THREE, seed, spec, height, layout = SPRUCE_LAYOUT
       p[1].copy(side).multiplyScalar(sw * 0.15); p[1].y = yTop - sh;
       p[2].copy(side).multiplyScalar(sw * 0.5); p[2].y = yTop;
       p[3].copy(side).multiplyScalar(-sw * 0.5); p[3].y = yTop;
+      for (const q of p) { q.x += stemX(q.y); q.z += stemZ(q.y); }
       quad(p[0], p[1], p[2], p[3], n, cell, k === 1, 0, white, 1);
       if (rnd() < spec.snow) {
         for (const q of p) q.y += 0.08;

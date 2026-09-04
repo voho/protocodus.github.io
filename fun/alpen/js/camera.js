@@ -263,8 +263,11 @@ export function createChaseCamera(THREE, camera) {
       const trust = clamp((travel - 1.5) / 2, 0, 1);
       flat.multiplyScalar(1 / travel).lerp(tmp, 1 - trust).normalize();
     }
-    dir.copy(flat).multiplyScalar(CAMERA.velocityBias)
-      .addScaledVector(tmp, 1 - CAMERA.velocityBias).normalize();
+    // In flight the board may spin several times while its landing line
+    // stays fixed. Remove its steering influence as the air frame opens.
+    const velocityBias = CAMERA.velocityBias + (1 - CAMERA.velocityBias) * airBlend;
+    dir.copy(flat).multiplyScalar(velocityBias)
+      .addScaledVector(tmp, 1 - velocityBias).normalize();
 
     /* The punch also pulls the boom in a fraction. Widening the lens alone
        reads as a lens event; a lens that widens *while the camera lunges
@@ -407,6 +410,10 @@ export function createChaseCamera(THREE, camera) {
     camera.position.copy(at);
     camera.position.x += sx * amp;
     camera.position.y += sy * amp;
+    // The desired boom can be clear while its smoothed path crosses a bank.
+    // Keep the actual lens above that path too, including landing shake.
+    camera.position.y = Math.max(camera.position.y,
+      world.height(camera.position.x, camera.position.z) + FLOOR);
     camera.lookAt(look);
 
     /* How much the ground under the board tilts across the frame: the

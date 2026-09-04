@@ -1978,10 +1978,10 @@ export function createProps(THREE, shading) {
         .replace('#include <project_vertex>', `#include <project_vertex>
         #ifdef USE_INSTANCING
           vTreeWorldPos = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;
-          vTreeNormal = normalize((modelMatrix * instanceMatrix * vec4(normal, 0.0)).xyz);
+          vTreeNormal = inverseTransformDirection(transformedNormal, viewMatrix);
         #else
           vTreeWorldPos = (modelMatrix * vec4(transformed, 1.0)).xyz;
-          vTreeNormal = normalize((modelMatrix * vec4(normal, 0.0)).xyz);
+          vTreeNormal = inverseTransformDirection(transformedNormal, viewMatrix);
         #endif
         vN64Sheen = 1.0 - surfaceOwn;`);
       shader.fragmentShader = shader.fragmentShader
@@ -2023,10 +2023,10 @@ export function createProps(THREE, shading) {
         .replace('#include <project_vertex>', `#include <project_vertex>
         #ifdef USE_INSTANCING
           vFloraWorldPos = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;
-          vFloraNormal = normalize((modelMatrix * instanceMatrix * vec4(normal, 0.0)).xyz);
+          vFloraNormal = inverseTransformDirection(transformedNormal, viewMatrix);
         #else
           vFloraWorldPos = (modelMatrix * vec4(transformed, 1.0)).xyz;
-          vFloraNormal = normalize((modelMatrix * vec4(normal, 0.0)).xyz);
+          vFloraNormal = inverseTransformDirection(transformedNormal, viewMatrix);
         #endif
         vN64Sheen = 1.0 - surfaceOwn;`);
       shader.fragmentShader = shader.fragmentShader
@@ -2061,12 +2061,14 @@ export function createProps(THREE, shading) {
         varying float vSnowT;`)
         .replace('#include <project_vertex>', `#include <project_vertex>
         {
+          vec3 n64WN = inverseTransformDirection(transformedNormal, viewMatrix);
+          float snowExposure = 1.0;
           #ifdef USE_INSTANCING
-            vec3 n64WN = normalize((modelMatrix * instanceMatrix * vec4(normal, 0.0)).xyz);
-          #else
-            vec3 n64WN = normalize((modelMatrix * vec4(normal, 0.0)).xyz);
+            snowExposure = 0.68 + 0.58 * fract(sin(dot(instanceMatrix[3].xz,
+              vec2(0.1271, 0.3117))) * 437.585);
           #endif
-          vSnowT = uSnowAmount * smoothstep(0.38, 0.82, n64WN.y);
+          float snowPocket = 0.88 + 0.12 * sin(position.x * 3.1 + position.z * 2.7);
+          vSnowT = uSnowAmount * snowExposure * snowPocket * smoothstep(0.32, 0.82, n64WN.y);
         }
         vN64Sheen = vSnowT;`);
       shader.fragmentShader = shader.fragmentShader
@@ -2096,10 +2098,10 @@ export function createProps(THREE, shading) {
         .replace('#include <project_vertex>', `#include <project_vertex>
         #ifdef USE_INSTANCING
           vRockWorldPos = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;
-          vRockNormal = normalize((modelMatrix * instanceMatrix * vec4(normal, 0.0)).xyz);
+          vRockNormal = inverseTransformDirection(transformedNormal, viewMatrix);
         #else
           vRockWorldPos = (modelMatrix * vec4(transformed, 1.0)).xyz;
-          vRockNormal = normalize((modelMatrix * vec4(normal, 0.0)).xyz);
+          vRockNormal = inverseTransformDirection(transformedNormal, viewMatrix);
         #endif
         vN64Sheen = 1.0 - surfaceOwn;`);
       shader.fragmentShader = shader.fragmentShader
@@ -2328,6 +2330,27 @@ export function createProps(THREE, shading) {
     return shading.apply(m, { cameraFade: true, sheen: 1, fogPull: FOG_PULL_TREE });
   };
 
+  const spruceDepth = (height, atlas, alphaTest) => {
+    const m = new THREE.MeshDepthMaterial({
+      depthPacking: THREE.RGBADepthPacking, map: atlas, alphaTest,
+      side: THREE.DoubleSide,
+    });
+    m.onBeforeCompile = (shader) => {
+      Object.assign(shader.uniforms, air, { uSwayHeight: { value: height } });
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', `#include <common>${OWN_DECL}${AIR_DECL}
+          varying float vCardSolid;`)
+        .replace('#include <begin_vertex>', `${SWAY}
+          vCardSolid = surfaceOwn < -0.5 ? 1.0 : 0.0;`);
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', `#include <common>\nvarying float vCardSolid;`)
+        .replace('#include <alphatest_fragment>', `
+          if (vCardSolid > 0.5) diffuseColor.a = 1.0;
+          #include <alphatest_fragment>`);
+    };
+    return m;
+  };
+
   /* The bare species, first: card larches off a drawn atlas — see
      `createTwigAtlas` — built now, because a canvas has nothing to wait for.
      The two pools that wore the low-poly dead hardwoods keep every instance,
@@ -2343,11 +2366,7 @@ export function createProps(THREE, shading) {
       old.dispose();
       treePools[i].mesh.material = spruceMat(treeHeights[i], twig.texture,
         { frost: true, alphaTest: 0.22 });
-      treePools[i].mesh.customDepthMaterial = new THREE.MeshDepthMaterial({
-        depthPacking: THREE.RGBADepthPacking,
-        map: twig.texture,
-        alphaTest: 0.22,
-      });
+      treePools[i].mesh.customDepthMaterial = spruceDepth(treeHeights[i], twig.texture, 0.22);
     }
   }
 
@@ -2369,11 +2388,7 @@ export function createProps(THREE, shading) {
         treePools[i].mesh.geometry = g;
         old.dispose();
         treePools[i].mesh.material = spruceMat(treeHeights[i], t);
-        treePools[i].mesh.customDepthMaterial = new THREE.MeshDepthMaterial({
-          depthPacking: THREE.RGBADepthPacking,
-          map: t,
-          alphaTest: 0.36,
-        });
+        treePools[i].mesh.customDepthMaterial = spruceDepth(treeHeights[i], t, 0.36);
       }
     },
   );

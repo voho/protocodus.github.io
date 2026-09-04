@@ -268,6 +268,9 @@ export class Rider {
 
     this.charge = 0;
     this.charging = false;
+    this._latePopAllowed = false;
+    this._jumpBuffer = 0;
+    this._bufferCharge = 0;
     this.tucking = false;
     this.pushing = false;       // rear foot is out of the binding and skating
     this.pushPhase = 0;         // 0..1 authored cycle, shared by physics and rig
@@ -411,6 +414,7 @@ export class Rider {
 
   step(dt, input) {
     this.landing = null;
+    this._jumpBuffer = Math.max(0, this._jumpBuffer - dt);
     this.grace = Math.max(0, this.grace - dt);
     /* The rendered pose's share of the last landing snap, draining. Purely
        visual — see where it is written in `land` and read in main's view
@@ -1448,8 +1452,9 @@ export class Rider {
        you, and the old jump had no opinion about it at all. */
     let pop = 0;
     this.lipPop = false;
-    if (this.charging && !input.jump) {
-      const held = this.charge;
+    if (!input.jump && (this.charging || this._jumpBuffer > 0)) {
+      const held = this.charging ? this.charge : this._bufferCharge;
+      this._jumpBuffer = 0;
       pop = RIDER.popMin + (RIDER.popMax - RIDER.popMin) * held;
       if (!blocked && clearance > -0.25) {
         pop *= RIDER.lipBonus;
@@ -1534,12 +1539,9 @@ export class Rider {
       // tangent through the lip instead of moving x/z while leaving y behind;
       // the first airborne state is then already separated from the ramp.
       pos.y += moveY * dt;
-      // Natural suspension movement must not invent speed in an automatic
-      // ramp launch. It can reinforce an ollie the player actually released.
-      const unweight = pop > 0
-        ? Math.max(0, -this.compressionVel) * 0.55
-        : 0;
-      this.takeOff(pop + unweight, launchNormal);
+      // The configured pop already represents the legs' work. Reading the
+      // just-reset spring velocity here added 7.7 m/s to every tap.
+      this.takeOff(pop, launchNormal);
     } else {
       const gy = this.world.height(pos.x, pos.z);
       this.extension = 0;
@@ -1668,8 +1670,13 @@ export class Rider {
     // Preserve the real yaw rate the edge had at the lip. Air control can add
     // to it or bleed it away, but takeoff itself should not erase momentum.
     this.flipVel = 0;
-    this.charging = false;
-    this.charge = 0;
+    // Keep a held charge across a natural lip. Releasing a fraction late
+    // should still pop, and a second airborne press must never double-jump.
+    this._latePopAllowed = pop <= 0;
+    if (pop > 0) {
+      this.charging = false;
+      this.charge = 0;
+    }
     this.emit('launch', this.vel.y);
     if (this.lipPop && pop > 0) {
       this.emit('perfectPop');
@@ -1704,6 +1711,27 @@ export class Rider {
   airStep(dt, input) {
     const { pos, vel } = this;
     this.airTime += dt;
+    if (input.jump) {
+      this.charging = true;
+      this.charge = Math.min(1, this.charge + dt / RIDER.chargeTime);
+    } else if (this.charging) {
+      if (this._latePopAllowed && this.airTime <= RIDER.lipWindow) {
+        const pop = (RIDER.popMin + (RIDER.popMax - RIDER.popMin) * this.charge)
+          * RIDER.lipBonus;
+        this.vel.addScaledVector(this._p.copy(this.normal).add(this.UP).normalize(), pop);
+        this._latePopAllowed = false;
+        this.lipPop = true;
+        this.compressionVel = -14;
+        this.emit('perfectPop');
+      } else {
+        // A release just before touchdown is kept for the next grounded
+        // step. Older presses expire, so a long air cannot queue a surprise.
+        this._jumpBuffer = 0.14;
+        this._bufferCharge = this.charge;
+      }
+      this.charging = false;
+      this.charge = 0;
+    }
     this.pushing = false;
     this.brake = approach(this.brake, 0, RIDER.brakeRelease, dt);
     this.tucking = !!input.tuck && !input.brake && this.brake < 0.05;
@@ -1720,20 +1748,19 @@ export class Rider {
     // trims horizontal travel here, so it cannot create an apex float or
     // weaken the downward acceleration the player is judging.
     const startVy = vel.y;
-    const poweredAirSpeed = this.tucking
-      ? vel.length() + RIDER.tuckAcceleration * dt
-      : 0;
     vel.y -= RIDER.gravity * dt;
-    if (!this.tucking) {
-      const airDrag = 1 / (1 + RIDER.drag * 0.45 * vel.length() * dt);
-      vel.x *= airDrag;
-      vel.z *= airDrag;
-    }
+    // A tuck reduces drag; it cannot propel the board without snow to push
+    // against. Takeoff momentum now predicts the landing distance.
+    const airDrag = 1 / (1 + RIDER.drag * (this.tucking ? 0.16 : 0.45)
+      * vel.length() * dt);
+    vel.x *= airDrag;
+    vel.z *= airDrag;
 
     // Spin. It winds up rather than snapping on, so a 180 and a 900 are
     // different amounts of commitment rather than different key presses.
-    const wantSpin = input.turn * RIDER.spinRate;
-    this.spinVel = approach(this.spinVel, wantSpin, RIDER.spinRamp, dt);
+    const wantSpin = input.turn * RIDER.spinRate * (1 + this.grab * 0.14);
+    const spinResponse = Math.abs(input.turn) < 0.05 ? RIDER.spinRamp * 2.2 : RIDER.spinRamp;
+    this.spinVel = approach(this.spinVel, wantSpin, spinResponse, dt);
     this.yaw += this.spinVel * dt;
     this.spinAccum += this.spinVel * dt;
 
@@ -1749,7 +1776,8 @@ export class Rider {
     const wantFlip = input.trickFlip
       ? (input.brake ? RIDER.flipRate : -RIDER.flipRate)
       : 0;
-    this.flipVel = approach(this.flipVel, wantFlip, RIDER.spinRamp * 1.4, dt);
+    this.flipVel = approach(this.flipVel, wantFlip,
+      RIDER.spinRamp * (input.trickFlip ? 1.4 : 2.4), dt);
     this.flip += this.flipVel * dt;
     this.flipAccum += this.flipVel * dt;
 
@@ -1799,27 +1827,6 @@ export class Rider {
       vel.z += windZ * RIDER.windAir * dt;
     }
 
-    // Keep the same powered W drive through jumps. Raise only the horizontal
-    // component by enough to reach the total-speed floor; vertical velocity
-    // remains the ballistic value gravity produced, so the jump arc and
-    // landing timing are not falsified even while total speed keeps climbing.
-    if (poweredAirSpeed > 0) {
-      const horizontal = Math.hypot(vel.x, vel.z);
-      const poweredHorizontal = Math.sqrt(Math.max(0,
-        poweredAirSpeed * poweredAirSpeed - vel.y * vel.y));
-      if (horizontal > 1e-5) {
-        if (horizontal < poweredHorizontal) {
-          const scale = poweredHorizontal / horizontal;
-          vel.x *= scale;
-          vel.z *= scale;
-        }
-      } else {
-        const travelYaw = this.yaw - (this.switchStance ? Math.PI : 0);
-        vel.x = Math.sin(travelYaw) * poweredHorizontal;
-        vel.z = -Math.cos(travelYaw) * poweredHorizontal;
-      }
-    }
-
     pos.x += vel.x * dt;
     // Trapezoidal integration is exact for constant acceleration, so the
     // simulated centre of mass stays on y = y0 + vy0·t - ½g·t² instead of
@@ -1831,24 +1838,31 @@ export class Rider {
 
     const gy = this.world.height(pos.x, pos.z);
 
-    /* Landing assist, which is the air control the game does not have a key
-       for. Inside the last third of a second before touchdown, and only
-       while the rider is not asking for more rotation, the board eases
-       towards whichever clean stance is nearer. It is far too slow to
-       rescue a spin that was never going to make it — perhaps twenty
-       degrees over the whole window — but that is the exact width of the
-       band between a 540 that lands and a 540 that lands at 519 and gets
-       called sketchy for it. */
-    // …and only on a real jump, for the same reason the landing snap is:
-    // easing the yaw around during a hop over a roller is the game taking
-    // the steering off the player without telling them.
-    if (vel.y < -0.5 && Math.abs(input.turn) < 0.05 && this.airTime > RIDER.minJudgedAir) {
-      const toGround = (pos.y - gy) / -vel.y;
-      if (toGround < RIDER.assistTime) {
-        const travelYaw = Math.atan2(vel.x, -vel.z);
-        const off = wrapPi(this.yaw - travelYaw);
-        const target = Math.abs(off) > Math.PI / 2 ? travelYaw + Math.PI : travelYaw;
-        this.yaw += wrapPi(target - this.yaw) * (1 - Math.exp(-RIDER.assistRate * dt));
+    // Estimate contact against the slope we are approaching. Vertical fall
+    // speed alone assisted far too early on a steep landing and too late on
+    // a rising face. One nearby height sample keeps the estimate inexpensive.
+    if (this.airTime > RIDER.minJudgedAir
+      && (Math.abs(input.turn) < 0.05 || !input.trickFlip)) {
+      const ahead = this.world.height(pos.x + vel.x * 0.08, pos.z + vel.z * 0.08);
+      const closing = (ahead - gy) / 0.08 - vel.y;
+      const gap = Math.max(0, pos.y - gy);
+      const toGround = (Math.sqrt(closing * closing + 2 * RIDER.gravity * gap)
+        - closing) / RIDER.gravity;
+      if (closing > 0 && toGround < RIDER.assistTime) {
+        const assist = 1 - Math.exp(-RIDER.assistRate * dt);
+        if (Math.abs(input.turn) < 0.05) {
+          const travelYaw = Math.atan2(vel.x, -vel.z);
+          const off = wrapPi(this.yaw - travelYaw);
+          const target = Math.abs(off) > Math.PI / 2 ? travelYaw + Math.PI : travelYaw;
+          this.yaw += wrapPi(target - this.yaw) * assist;
+        }
+        const pitchError = wrapPi(this.flip);
+        // Only finish an almost-complete flip after release. Half a flip
+        // still needs commitment; the assist cannot turn it into a landing.
+        if (!input.trickFlip && Math.abs(this.flipAccum) > Math.PI
+          && Math.abs(pitchError) < RIDER.landPitchWindow * 1.5) {
+          this.flip -= pitchError * assist;
+        }
       }
     }
 
@@ -2043,6 +2057,8 @@ export class Rider {
     this.tumble = 0;
     this.charge = 0;
     this.charging = false;
+    this._latePopAllowed = false;
+    this._jumpBuffer = 0;
     this.pushing = false;
     this.grab = 0;
     this.grabbing = false;

@@ -711,8 +711,21 @@ function buildGeometries(THREE) {
       { y: 0.370, rx: 0.098, rz: 0.086, round: 1 },
       { y: 0.428, rx: 0.084, rz: 0.078, round: 1 },
     ])), color: SHELL_DARK, pos: [0, 0, SHOULDER_Z] },
-    { geo: box, color: YELLOW, pos: [0.138, 0.20, 0], scale: [0.035, 0.30, 0.10] },
+    { geo: box, color: INK, pos: [0.150, 0.20, 0], scale: [0.012, 0.30, 0.014] },
+    { geo: box, color: YELLOW, pos: [0.158, 0.32, 0], scale: [0.015, 0.035, 0.022] },
     { geo: box, color: SHELL_DARK, pos: [0.132, 0.24, -0.075], scale: [0.03, 0.26, 0.045] },
+    // A compact touring pack follows the torso through every grab and fall.
+    { geo: use(tube(THREE, [
+      { y: 0.015, x: -0.16, rx: 0.045, rz: 0.11, n: 12 },
+      { y: 0.070, x: -0.19, rx: 0.070, rz: 0.14, n: 12 },
+      { y: 0.285, x: -0.19, rx: 0.078, rz: 0.145, n: 12 },
+      { y: 0.375, x: -0.17, rx: 0.056, rz: 0.12, n: 12 },
+    ])), color: '#304b50' },
+    { geo: box, color: INK, pos: [-0.264, 0.20, 0], scale: [0.012, 0.22, 0.018] },
+    { geo: box, color: '#b8ccc5', pos: [-0.264, 0.12, 0], scale: [0.012, 0.024, 0.14] },
+    ...[-1, 1].map((s) => ({ geo: box, color: INK,
+      pos: [0.147, 0.29, s * 0.125], rot: [s * 0.12, 0, 0],
+      scale: [0.016, 0.21, 0.030] })),
   ]);
 
   /* The head. The visor is a band bent round the front of the helmet and the
@@ -737,13 +750,20 @@ function buildGeometries(THREE) {
       { y: 0.298, rx: 0.042, rz: 0.040, round: 1, n: 24 },
     ])), color: INK },
     { geo: use(arc(THREE, {
-      a0: -1.15, a1: 1.15, steps: 18, r: 0.106, y: 0.136,
-      depth: 0.028, height: 0.044, n: 12, round: 0.5,
+      a0: -1.18, a1: 1.18, steps: 14, r: 0.106, y: 0.136,
+      depth: 0.032, height: 0.053, n: 8, round: 0.5,
+    })), color: INK },
+    { geo: use(arc(THREE, {
+      a0: -1.15, a1: 1.15, steps: 14, r: 0.113, y: 0.136,
+      depth: 0.028, height: 0.044, n: 8, round: 0.5,
     })), color: MINT },
     { geo: use(arc(THREE, {
-      a0: 1.05, a1: 5.25, steps: 28, r: 0.120, y: 0.140,
-      depth: 0.014, height: 0.026, n: 12, round: 0.5,
+      a0: 1.05, a1: 5.25, steps: 18, r: 0.120, y: 0.140,
+      depth: 0.014, height: 0.026, n: 8, round: 0.5,
     })), color: SHELL_DARK },
+    ...[-1, 1].map((s) => ({ geo: box, color: '#343c47',
+      pos: [0.005, 0.278, s * 0.052], rot: [s * 0.30, 0, 0],
+      scale: [0.09, 0.010, 0.017] })),
   ]);
 
   /* Every limb segment hangs down its own -Y from its joint, which is the
@@ -798,6 +818,10 @@ function buildGeometries(THREE) {
       { y: -0.260, rx: 0.100, rz: 0.098, round: 0.75 },
       { y: -0.420, rx: 0.086, rz: 0.086, round: 0.85 },
     ])), color: DENIM },
+    { geo: box, color: '#24324c', pos: [0.106, -0.15, 0],
+      scale: [0.025, 0.14, 0.11] },
+    { geo: box, color: INK, pos: [0.122, -0.085, 0],
+      scale: [0.008, 0.016, 0.105] },
   ]);
   const shin = compose(THREE, [
     { geo: use(tube(THREE, [

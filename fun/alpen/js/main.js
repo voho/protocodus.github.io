@@ -1834,6 +1834,13 @@ window.__alpen = {
     seed: game.seed,
     buffer: [retro.width, retro.height, `${Math.round(retro.scale * 100)}%`],
     msaa: retro.samples,
+    performance: {
+      frameMs: +retro.frameMs.toFixed(2),
+      drawCalls: renderer.info.render.calls,
+      triangles: renderer.info.render.triangles,
+      geometries: renderer.info.memory.geometries,
+      textures: renderer.info.memory.textures,
+    },
     display: [retro.displayWidth, retro.displayHeight, `${retro.dpr.toFixed(2)} dpr`],
     speedFx: {
       blur: +retro.blur.toFixed(5),

@@ -619,8 +619,8 @@ const RELIEF = {
   outer: 1950,
   height: 520,
   apparentFar: 5600,
-  segments: 768,
-  radialSegments: 24,
+  segments: 640,
+  radialSegments: 28,
   seed: 83,
   crestAt: 0.60,
   profilePower: 0.65,
@@ -781,6 +781,16 @@ const DOME_FRAG = `
     float lobe = max(0.0, dot(dir, uSunDir));
     c += uGlow * (pow(lobe, 7.0) * 0.85 + pow(lobe, 2.0) * 0.14)
        * uGlowStrength * (1.0 - smoothstep(0.1, 0.75, up) * 0.55);
+    // Thin high cirrus above the cloud deck. Integer noise scales keep wind
+    // wrapping seamless; the horizon fade leaves the shared fog untouched.
+    if (up > 0.20) {
+      vec2 highCloud = dir.xz * (0.9 / max(up, 0.20)) + uCloudDrift;
+      float wisps = n64Noise(highCloud * vec2(2.0, 12.0)) * 0.7
+        + n64Noise(highCloud * vec2(4.0, 24.0) + 17.0) * 0.3;
+      float veil = smoothstep(0.53, 0.79, wisps) * smoothstep(0.20, 0.40, up)
+        * (1.0 - uCloud * 0.75) * 0.18;
+      c = mix(c, uHorizon + uGlow * pow(lobe, 8.0) * 0.2, veil);
+    }
     // The deck, from the same string shading.js's fog term includes, so the
     // sky a ridge dissolves into and the sky above it are the same sky.
     vec2 deck = n64Deck(dir, uCloudDrift, uCloud);
@@ -1114,7 +1124,6 @@ const RELIEF_VERT = `
   attribute float aAltitude;
   attribute vec3 aGeology;
   uniform float uPitch;
-  uniform float uSpin;
   varying highp vec3 vWorld;
   varying highp vec3 vLocal;
   varying vec3 vNormal;
@@ -1123,12 +1132,8 @@ const RELIEF_VERT = `
   void main() {
     float pitch = uPitch + ${FOOT.toFixed(4)};
     vec3 p = position;
-    /* The down-run corridor, applied at the WORLD angle so it cannot rotate
-       away with the shell's apparent travel. Three's rotation.y sends a
-       local angle a to world angle a − θ, and down-run is world −z. Applied
-       to the mountain height before the pitch shear below, exactly where
-       the bake used to multiply it. */
-    float corAngle = atan(position.z, position.x) - uSpin;
+    /* The downhill opening stays aligned with the piste. */
+    float corAngle = atan(position.z, position.x);
     float corAhead = max(0.0, -sin(corAngle));
     float corS = clamp((corAhead - ${RELIEF.corridorFrom.toFixed(4)})
       / ${(RELIEF.corridorTo - RELIEF.corridorFrom).toFixed(4)}, 0.0, 1.0);
@@ -1141,8 +1146,7 @@ const RELIEF_VERT = `
        (-grad h, 1), scaling h by c scales the normal's horizontal half by
        c, and the cut's own angular gradient adds a tangential slope of
        y * dc/dphi / r. Skipping this lit the cut shoulders as if they kept
-       their full shape, and wrongly harder as uSpin walked the cut around
-       the shell. Multiplied through by n.y so there is no division: the
+       their full shape. Multiplied through by n.y so there is no division: the
        expression degenerates to the plain normal wherever c is 1. */
     vec3 n = normal;
     float corR = length(position.xz);
@@ -1183,15 +1187,17 @@ const RELIEF_FRAG = `
     vec3 n = normalize(vNormal);
     vec3 faceNormal = normalize(cross(dFdx(vWorld), dFdy(vWorld)));
     if (dot(faceNormal, n) < 0.0) faceNormal = -faceNormal;
-    n = normalize(mix(n, faceNormal, 0.30));
+    n = normalize(mix(n, faceNormal, 0.12));
     float steep = smoothstep(0.16, 0.58, 1.0 - abs(n.y));
 
     /* Drainage has already been generated with the geometry. It lowers the
        snow line in a few coherent gullies, which creates glacier tongues
        rather than a texture full of unrelated pale streaks. */
     float line = ${RELIEF.snowLine.toFixed(4)} - vGeology.x * 0.16;
+    // Snow gathers in sheltered gullies and sheds from exposed rock faces.
+    float exposure = max(0.0, dot(n.xz, uSunDir.xz));
     float snow = smoothstep(line - ${RELIEF.snowFade.toFixed(4)},
-      line + ${RELIEF.snowFade.toFixed(4)}, vAltitude);
+      line + ${RELIEF.snowFade.toFixed(4)}, vAltitude - exposure * 0.045);
     float summitRock = steep * smoothstep(0.48, 0.84, vAltitude)
       * (1.0 - vGeology.x * 0.58);
     float ridgeRock = smoothstep(0.54, 0.90, vGeology.z)
@@ -1994,16 +2000,13 @@ export function createSky(THREE) {
         const ridgeA = 0.5 + 0.5 * circleNoise(angle, 3.2, RELIEF.seed + 1);
         const ridgeB = 0.5 + 0.5 * circleNoise(angle, 6.8, RELIEF.seed + 2);
         const fineRidge = 0.5 + 0.5 * circleNoise(angle, 14.5, RELIEF.seed + 3);
-        const skyline = 0.35 + 0.65 * clamp01(
-          massif * 0.40 + ridgeA * 0.35 + ridgeB * 0.18 + fineRidge * 0.07,
+        const horn = Math.pow(1 - Math.abs(circleNoise(angle, 4.6, RELIEF.seed + 17)), 2.8);
+        const arete = Math.pow(1 - Math.abs(circleNoise(angle, 12.5, RELIEF.seed + 19)), 1.6);
+        const skyline = 0.26 + 0.74 * clamp01(
+          massif * 0.28 + ridgeA * 0.12 + ridgeB * 0.08
+          + horn * 0.36 + arete * 0.12 + fineRidge * 0.04,
         );
-        /* The down-run corridor is NOT baked here any more. The shell spins
-           with apparent travel (`relief.mesh.rotation.y` in update), so a
-           corridor cut into the vertices rotated away from down-run — after
-           nine kilometres of riding the full-height relief stood exactly
-           where the deep view was promised. The cut now lives in
-           RELIEF_VERT, evaluated at the *world* angle each frame, so it
-           stays pinned to the run however far the shell has turned. */
+        /* The corridor cut is applied in RELIEF_VERT with its matching normal. */
 
         /* Long gullies are coherent from the crest to the foot. Their small
            radial drift prevents each one being a ruler-straight spoke, while
@@ -2028,7 +2031,10 @@ export function createSky(THREE) {
         const stone = 0.5 + 0.5 * circleNoise(angle, 1.8, RELIEF.seed + 11);
         const ridgeShift = circleNoise(angle, 3.2, RELIEF.seed + 13)
           * 54 * radialProfile;
-        const y = RELIEF.height * skyline * radialProfile
+        // Broken crests above broad glacial shoulders, in the same mesh.
+        const crest = Math.pow(Math.max(0, 1 - Math.abs(t - RELIEF.crestAt) / 0.24), 1.35);
+        const profile = radialProfile * 0.78 + crest * 0.22;
+        const y = RELIEF.height * skyline * profile
           * (0.72 + facet * 0.14 + buttress * 0.25
             - drainage * (1 - t) * 0.10);
 
@@ -2089,7 +2095,6 @@ export function createSky(THREE) {
     const mat = new THREE.ShaderMaterial({
       uniforms: {
         uPitch: { value: TERRAIN.grade.base },
-        uSpin: { value: 0 },
         uSunDir: { value: sunDir },
         uHaze: { value: new THREE.Color('#d7e2ec') },
         uSnow: { value: new THREE.Color('#dce7f1') },
@@ -2348,9 +2353,6 @@ export function createSky(THREE) {
       // Metres of band per metre of camera — the whole of the parallax, and
       // a ratio rather than a taste
       parallax: radius / far,
-      // Radians of spin per metre the run descends. Same thing, expressed at
-      // this band's own radius, which is where the debt has to be paid.
-      spin: 1 / far,
       air,
       /* And how much of its own snow line, rock and ice the air has left it,
          which is the same exponential a third time over. A floor under it
@@ -2520,7 +2522,9 @@ export function createSky(THREE) {
      world anchor is the only thing that can keep the box still while the
      group under it moves. */
   const shadowWorld = new THREE.Vector3();
-  let shadowTick = 0;
+  let shadowElapsed = 0;
+  const shadowSun = new THREE.Vector3();
+  const shadowPosition = new THREE.Vector3();
   let shadowPrimed = false;
   let time = 0;
   let pitch = -1;
@@ -2867,12 +2871,10 @@ export function createSky(THREE) {
        travel is a pure function of world position, while pitch and every
        material regime move through uniforms; there is no rebuild, threshold
        or async state to reveal during play. */
-    const reliefSpin = (travel / RELIEF.apparentFar) % TAU;
-    relief.mesh.rotation.y = reliefSpin;
-    // The corridor cut counter-rotates in the vertex shader — see RELIEF_VERT.
-    relief.mat.uniforms.uSpin.value = reliefSpin;
+    // Stable landmark bearings, with bounded parallax for an endless descent.
     relief.mesh.position.set(
-      -lateral * (RELIEF.crest / RELIEF.apparentFar), 0, 0,
+      -lateral * (RELIEF.crest / RELIEF.apparentFar), 0,
+      Math.tanh(travel / RELIEF.apparentFar) * 120,
     );
     relief.mat.uniforms.uPitch.value = pitch;
     relief.mat.uniforms.uHaze.value.copy(atmosphere.haze);
@@ -2903,19 +2905,10 @@ export function createSky(THREE) {
       const rangeAlpha = (1.0 - panoMix) * (1 - ramp(w.storm, 0.28, 0.82));
       r.mat.uniforms.uAlpha.value = rangeAlpha;
       r.mesh.visible = rangeAlpha > 0.002;
-      const spin = (travel * r.spin) % TAU;
-      r.mesh.rotation.y = spin;
       r.mesh.position.set(-lateral * r.parallax, -r.radius * (pitch + FOOT), 0);
 
-      /* The sun, brought into the band's own frame rather than the world's.
-         Three's rotation about y sends a local (x, z) to
-         (x·cos + z·sin, −x·sin + z·cos), so the inverse — which is what
-         turns a world direction into a local one — is the transpose. Getting
-         this backwards is not subtle: the ridges catch the light on the wrong
-         side and the whole range lights itself from the far horizon. */
-      const cs = Math.cos(spin);
-      const sn = Math.sin(spin);
-      r.sunLocal.set(cs * sunXZ.x - sn * sunXZ.y, sn * sunXZ.x + cs * sunXZ.y);
+      /* The range and sun share world axes. */
+      r.sunLocal.copy(sunXZ);
 
       /* Even the foot is not quite the curtain any more.
 
@@ -3015,32 +3008,16 @@ export function createSky(THREE) {
     if (shadowRight.lengthSq() < 1e-6) shadowRight.set(1, 0, 0);
     shadowRight.normalize();
     shadowUp.crossVectors(sunDir, shadowRight).normalize();
-    /* THE DEPTH PASS, EVERY OTHER FRAME.
-
-       Measured, it was half the GPU frame and five milliseconds of main
-       thread: a hundred and eighty-seven draws of three hundred and forty-
-       two casters into a 4096 map, redrawn from scratch every single frame
-       for a picture that is a snapped, slowly-moving thing. Redrawing it on
-       alternate frames halves that outright.
-
-       The catch, and it is the whole of why this is not a one-line change:
-       the box centre is re-snapped to the rider every frame, and skipping
-       only the RENDER would leave the shader projecting a moved light
-       against a stale texture — the shadows would slide off their casters.
-       So the centre and the render move together. `shadowWorld` is held in
-       world space and refreshed only on the frames that redraw, and the
-       light is then placed relative to the rider-following group from that
-       frozen anchor, which keeps the box genuinely still in the world in
-       between. Two frames of drift is under a metre at riding speed against
-       a box a hundred and eighty metres across, so nothing leaves it.
-
-       The map is always drawn while it has never existed: `shadow.map` is
-       null until the first pass runs, and a run that never primes it
-       compiles every lit material against a sampler that is never bound.
-       See the note below on that failure. */
-    const shadowStep = !shadowPrimed || (shadowTick & 1) === 0;
-    shadowTick = (shadowTick + 1) & 1023;
+    // Refresh at 30 Hz, or sooner after fast travel or a light change.
+    // Freeze both the anchor and light direction between refreshes.
+    shadowElapsed += dt;
+    const shadowStep = !shadowPrimed || shadowElapsed >= 1 / 30
+      || shadowPosition.distanceToSquared(pos) > 2.25
+      || shadowSun.dot(sunDir) < 0.99999;
     if (shadowStep) {
+      shadowElapsed %= 1 / 30;
+      shadowSun.copy(sunDir);
+      shadowPosition.copy(pos);
       shadowWorld.copy(shadowRight)
         .multiplyScalar(Math.round(pos.dot(shadowRight) / texel) * texel)
         .addScaledVector(shadowUp, Math.round(pos.dot(shadowUp) / texel) * texel)
@@ -3048,7 +3025,7 @@ export function createSky(THREE) {
     }
     shadowAt.copy(shadowWorld).sub(pos);
     key.target.position.copy(shadowAt);
-    key.position.copy(shadowAt).addScaledVector(sunDir, SHADOW_DIST);
+    key.position.copy(shadowAt).addScaledVector(shadowSun, SHADOW_DIST);
     /* A sun on the horizon casts shadows the length of the mountain, which
        the box cannot hold and which read as black stripes across everything.
        So the shadow lets go as the sun goes down and as a storm closes in —

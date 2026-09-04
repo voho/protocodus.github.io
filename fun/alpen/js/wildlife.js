@@ -81,11 +81,10 @@ function branchAt(z, riderX, away) {
    potato. The long flat hind feet and the shaded haunches do the rest: they
    are what makes a crouched hare look coiled rather than seated. */
 function rabbitGeometry(THREE) {
-  // These meshes are instanced, so the rounded silhouette is paid for once
-  // in memory and shared by every animal.  The old 6--10 sided primitives
-  // were visible as facets whenever a hare crossed the foreground.
-  const ball = new THREE.SphereGeometry(0.5, 24, 16);
-  const bead = new THREE.SphereGeometry(0.5, 16, 12);
+  // Smooth normals keep the silhouette round at this animal's screen size;
+  // spending thousands of triangles on eyes and paws cannot improve it.
+  const ball = new THREE.SphereGeometry(0.5, 16, 10);
+  const bead = new THREE.SphereGeometry(0.5, 10, 8);
   const box = new THREE.BoxGeometry(1, 1, 1);
 
   const fur = '#eef3fb';
@@ -96,15 +95,16 @@ function rabbitGeometry(THREE) {
   // Both ears share an axis; the tip rides further along the same one so the
   // black tips stay glued to the ear whatever the sweep is set to
   const ear = (side) => ([
-    { geo: box, color: shade, pos: [side * 0.082, 0.514, -0.268], rot: [0.26, 0, -side * 0.16], scale: [0.055, 0.25, 0.024] },
-    { geo: box, color: dark, pos: [side * 0.098, 0.612, -0.243], rot: [0.26, 0, -side * 0.16], scale: [0.058, 0.055, 0.026] },
+    { geo: bead, color: fur, pos: [side * 0.082, 0.514, -0.268], rot: [0.26, 0, -side * 0.16], scale: [0.074, 0.29, 0.046] },
+    { geo: bead, color: shade, pos: [side * 0.082, 0.528, -0.291], rot: [0.26, 0, -side * 0.16], scale: [0.036, 0.19, 0.012] },
+    { geo: bead, color: dark, pos: [side * 0.101, 0.633, -0.237], rot: [0.26, 0, -side * 0.16], scale: [0.050, 0.065, 0.039] },
   ]);
 
   const side = (s) => ([
     // haunch, shaded so the rear leg reads as a separate mass against the flank
     { geo: ball, color: shade, pos: [s * 0.135, 0.165, 0.115], scale: [0.145, 0.25, 0.30] },
     // the long hind foot, laid flat under the body — the giveaway that this is a hare
-    { geo: box, color: fur, pos: [s * 0.115, 0.042, 0.055], rot: [0.05, s * 0.10, 0], scale: [0.08, 0.075, 0.30] },
+    { geo: bead, color: fur, pos: [s * 0.115, 0.042, 0.055], rot: [0.05, s * 0.10, 0], scale: [0.095, 0.085, 0.33] },
     { geo: box, color: fur, pos: [s * 0.085, 0.085, -0.245], rot: [0.16, 0, 0], scale: [0.055, 0.175, 0.07] },
     { geo: box, color: shade, pos: [s * 0.085, 0.022, -0.268], scale: [0.06, 0.045, 0.105] },
     { geo: bead, color: dark, pos: [s * 0.076, 0.352, -0.388], scale: [0.046, 0.05, 0.038] },
@@ -149,7 +149,7 @@ const DEER_RUMP = '#bfb6a4';    // the pale patch, which is most of the silhouet
 const DEER_HOOF = '#221c17';
 
 function deerBodyGeometry(THREE) {
-  const ball = new THREE.SphereGeometry(0.5, 20, 14);
+  const ball = new THREE.SphereGeometry(0.5, 14, 10);
   const box = new THREE.BoxGeometry(1, 1, 1);
   const limb = new THREE.CylinderGeometry(0.5, 0.36, 1, 10, 1);
 
@@ -192,8 +192,8 @@ function deerBodyGeometry(THREE) {
    muzzle is in the snow. `antlers` is the only difference between the two
    variants, so the stag is the same call with one flag. */
 function deerHeadGeometry(THREE, antlers) {
-  const ball = new THREE.SphereGeometry(0.5, 16, 12);
-  const bead = new THREE.SphereGeometry(0.5, 10, 8);
+  const ball = new THREE.SphereGeometry(0.5, 14, 10);
+  const bead = new THREE.SphereGeometry(0.5, 8, 6);
   const box = new THREE.BoxGeometry(1, 1, 1);
   const taper = new THREE.CylinderGeometry(0.34, 0.5, 1, 12, 1);
 
@@ -209,8 +209,8 @@ function deerHeadGeometry(THREE, antlers) {
     { geo: bead, color: DEER_HOOF, pos: [-0.095, 0.645, -0.44], scale: [0.05, 0.05, 0.045] },
     { geo: bead, color: DEER_HOOF, pos: [0.095, 0.645, -0.44], scale: [0.05, 0.05, 0.045] },
     // ears, set wide and swept back, which is what says deer at any distance
-    { geo: box, color: DEER_LIGHT, pos: [-0.15, 0.695, -0.31], rot: [0.34, -0.50, -0.34], scale: [0.045, 0.16, 0.095] },
-    { geo: box, color: DEER_LIGHT, pos: [0.15, 0.695, -0.31], rot: [0.34, 0.50, 0.34], scale: [0.045, 0.16, 0.095] },
+    { geo: bead, color: DEER_LIGHT, pos: [-0.15, 0.695, -0.31], rot: [0.34, -0.50, -0.34], scale: [0.070, 0.20, 0.13] },
+    { geo: bead, color: DEER_LIGHT, pos: [0.15, 0.695, -0.31], rot: [0.34, 0.50, 0.34], scale: [0.070, 0.20, 0.13] },
   ];
 
   if (antlers) {
@@ -255,7 +255,7 @@ const WOLF_PALE = '#b9c0cc';
 const WOLF_DARK = '#23262c';
 
 function wolfGeometry(THREE) {
-  const ball = new THREE.SphereGeometry(0.5, 18, 12);
+  const ball = new THREE.SphereGeometry(0.5, 14, 10);
   const bead = new THREE.SphereGeometry(0.5, 10, 8);
   const box = new THREE.BoxGeometry(1, 1, 1);
   const limb = new THREE.CylinderGeometry(0.44, 0.34, 1, 10, 1);
@@ -289,8 +289,8 @@ function wolfGeometry(THREE) {
     { geo: bead, color: WOLF_DARK, pos: [0.078, 0.755, -0.76], scale: [0.040, 0.040, 0.034] },
     // upright ears, kept small — a wolf's are short and round-tipped, and the
     // tall pointed pair the first attempt had belong on a shepherd dog
-    { geo: box, color: WOLF_SADDLE, pos: [-0.082, 0.815, -0.63], rot: [-0.10, -0.25, -0.16], scale: [0.048, 0.105, 0.042] },
-    { geo: box, color: WOLF_SADDLE, pos: [0.082, 0.815, -0.63], rot: [-0.10, 0.25, 0.16], scale: [0.048, 0.105, 0.042] },
+    { geo: bead, color: WOLF_SADDLE, pos: [-0.082, 0.815, -0.63], rot: [-0.10, -0.25, -0.16], scale: [0.067, 0.13, 0.061] },
+    { geo: bead, color: WOLF_SADDLE, pos: [0.082, 0.815, -0.63], rot: [-0.10, 0.25, 0.16], scale: [0.067, 0.13, 0.061] },
     ...leg(-1, -0.30, 1), ...leg(1, -0.30, 1),
     ...leg(-1, 0.34, -1), ...leg(1, 0.34, -1),
   ]);
@@ -339,8 +339,9 @@ export function createWildlife(THREE, shading) {
     };
     return shading.apply(m);
   };
+  const furMaterial = animalMaterial();
   const rabbits = new THREE.InstancedMesh(
-    rabbitGeometry(THREE), animalMaterial(), WILDLIFE.rabbits,
+    rabbitGeometry(THREE), furMaterial, WILDLIFE.rabbits,
   );
   rabbits.frustumCulled = false;
   rabbits.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -351,17 +352,26 @@ export function createWildlife(THREE, shading) {
      body pool is shared between the two, which is why a stag costs one extra
      draw call for the whole herd rather than a duplicate of everything. */
   const deerBodies = new THREE.InstancedMesh(
-    deerBodyGeometry(THREE), animalMaterial(), WILDLIFE.deer,
+    deerBodyGeometry(THREE), furMaterial, WILDLIFE.deer,
   );
   const deerHeads = new THREE.InstancedMesh(
-    deerHeadGeometry(THREE, false), animalMaterial(), WILDLIFE.deer,
+    deerHeadGeometry(THREE, false), furMaterial, WILDLIFE.deer,
   );
   const stagHeads = new THREE.InstancedMesh(
-    deerHeadGeometry(THREE, true), animalMaterial(), WILDLIFE.deer,
+    deerHeadGeometry(THREE, true), furMaterial, WILDLIFE.deer,
   );
   const wolves = new THREE.InstancedMesh(
-    wolfGeometry(THREE), animalMaterial(), WILDLIFE.wolves,
+    wolfGeometry(THREE), furMaterial, WILDLIFE.wolves,
   );
+  const coatTint = new THREE.Color();
+  for (let i = 0; i < WILDLIFE.rabbits; i++) {
+    const warmth = (i % 4) / 3;
+    rabbits.setColorAt(i, coatTint.setRGB(1, 0.98 - warmth * 0.04, 0.96 - warmth * 0.10));
+  }
+  for (let i = 0; i < WILDLIFE.wolves; i++) {
+    const shade = 0.78 + (i % 3) * 0.11;
+    wolves.setColorAt(i, coatTint.setRGB(shade, shade * 0.97, shade * 0.90));
+  }
   for (const mesh of [deerBodies, deerHeads, stagHeads, wolves]) {
     mesh.frustumCulled = false;
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);

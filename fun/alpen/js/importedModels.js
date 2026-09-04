@@ -120,7 +120,7 @@ function normalise(THREE, g, targetHeight, sink = 0) {
   return g;
 }
 
-/* One merged, indexed-free geometry that KEEPS its texture coordinates.
+/* One merged, indexed geometry that keeps its texture coordinates.
 
    The value/palette bake above exists because the low-poly set carries its
    colour in materials. A photoscan is the opposite: everything it knows is
@@ -133,6 +133,7 @@ export function bakeTexturedGeometry(THREE, root) {
   const positions = [];
   const normals = [];
   const uvs = [];
+  const indices = [];
 
   const v = new THREE.Vector3();
   const n = new THREE.Vector3();
@@ -148,15 +149,16 @@ export function bakeTexturedGeometry(THREE, root) {
     if (!pos || !nor || !tex) return;
     const index = geo.index;
     const count = index ? index.count : pos.count;
+    const offset = positions.length / 3;
     nm.getNormalMatrix(node.matrixWorld);
-    for (let i = 0; i < count; i++) {
-      const idx = index ? index.getX(i) : i;
-      v.fromBufferAttribute(pos, idx).applyMatrix4(node.matrixWorld);
+    for (let i = 0; i < pos.count; i++) {
+      v.fromBufferAttribute(pos, i).applyMatrix4(node.matrixWorld);
       positions.push(v.x, v.y, v.z);
-      n.fromBufferAttribute(nor, idx).applyMatrix3(nm).normalize();
+      n.fromBufferAttribute(nor, i).applyMatrix3(nm).normalize();
       normals.push(n.x, n.y, n.z);
-      uvs.push(tex.getX(idx), tex.getY(idx));
+      uvs.push(tex.getX(i), tex.getY(i));
     }
+    for (let i = 0; i < count; i++) indices.push(offset + (index ? index.getX(i) : i));
   });
 
   const total = positions.length / 3;
@@ -168,6 +170,7 @@ export function bakeTexturedGeometry(THREE, root) {
   g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(uvs), 2));
   g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   g.setAttribute('surfaceOwn', new THREE.BufferAttribute(own, 1));
+  g.setIndex(indices);
   return g;
 }
 

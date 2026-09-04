@@ -63,10 +63,10 @@ const GP_DEADZONE = 0.18;
 
 export function createInput(target, hooks = {}) {
   const down = new Set();
-  let jumpPressedSinceUpdate = false;
+  let jumpStepSeen = false;
+  const touchButtons = [];
   let jumpTapPending = false;
   let jumpPulse = PULSE_NONE;
-  let jumpPulseSeen = false;
   // Gamepad edge state — see the pad block in `update`.
   let gamepadSuppressed = false;
   let gpJumpHeld = false;
@@ -103,11 +103,11 @@ export function createInput(target, hooks = {}) {
       if (isDown) {
         if (!down.has(e.code)) {
           state.anyPressed = true;
-          if (jumpKey) jumpPressedSinceUpdate = true;
+          if (jumpKey) jumpStepSeen = false;
         }
         down.add(e.code);
       } else {
-        if (jumpKey && jumpPressedSinceUpdate && down.has(e.code)) jumpTapPending = true;
+        if (jumpKey && !jumpStepSeen && down.has(e.code)) jumpTapPending = true;
         down.delete(e.code);
       }
     }
@@ -121,11 +121,14 @@ export function createInput(target, hooks = {}) {
   target.addEventListener('keydown', keydown);
   target.addEventListener('keyup', keyup);
   window.addEventListener('blur', blur);
-  let hasGamepads = false;
-  window.addEventListener('gamepadconnected', () => hasGamepads = true);
-  window.addEventListener('gamepaddisconnected', () => {
-    hasGamepads = (navigator.getGamepads ? navigator.getGamepads() : []).filter(g => g).length > 0;
-  });
+  // A controller may already be connected when a resumed page creates input.
+  let hasGamepads = (navigator.getGamepads?.() || []).some(Boolean);
+  const connected = () => { hasGamepads = true; };
+  const disconnected = () => {
+    hasGamepads = (navigator.getGamepads?.() || []).some(Boolean);
+  };
+  window.addEventListener('gamepadconnected', connected);
+  window.addEventListener('gamepaddisconnected', disconnected);
 
   function update(dt) {
     /* The pad, folded in beside the keys rather than over them.
@@ -147,8 +150,8 @@ export function createInput(target, hooks = {}) {
         const raw = gp.axes[0] || 0;   // left stick X
         const mag = Math.abs(raw);
         if (mag > GP_DEADZONE) {
-          const scaled = Math.sign(raw)
-            * Math.min(1, (mag - GP_DEADZONE) / (1 - GP_DEADZONE));
+          const linear = Math.min(1, (mag - GP_DEADZONE) / (1 - GP_DEADZONE));
+          const scaled = Math.sign(raw) * linear * (0.7 + 0.3 * linear * linear);
           if (Math.abs(scaled) > Math.abs(gpTurn)) gpTurn = scaled;
         }
         // The d-pad is a pair, not two overrides: right used to silently win
@@ -193,7 +196,8 @@ export function createInput(target, hooks = {}) {
 
     const keyTurn = (held('right') ? 1 : 0) - (held('left') ? 1 : 0);
     const want = Math.abs(gpTurn) > Math.abs(keyTurn) ? gpTurn : keyTurn;
-    const rate = want === 0 ? RELEASE : RAMP;
+    // Changing edges should release the old edge as promptly as letting go.
+    const rate = want === 0 || want * state.turn < 0 ? RELEASE : RAMP;
     state.turn += (want - state.turn) * (1 - Math.exp(-rate * dt));
     if (Math.abs(state.turn) < 0.004) state.turn = 0;
 
@@ -203,31 +207,15 @@ export function createInput(target, hooks = {}) {
        edge into one sampled press and one sampled release so the 120 Hz rider
        always gets an ollie, however the browser scheduled the key events —
        and hold each half until a step has been run on it. See `jumpPulse`. */
-    if (jumpPulse === PULSE_PRESS) {
-      if (jumpPulseSeen) {
-        jumpPulse = PULSE_RELEASE;
-        jumpPulseSeen = false;
-        state.jump = false;
-      } else {
-        state.jump = true;
-      }
-    } else if (jumpPulse === PULSE_RELEASE) {
-      if (jumpPulseSeen) {
-        jumpPulse = PULSE_NONE;
-        jumpPulseSeen = false;
-        state.jump = held('jump') || gpJump;
-      } else {
-        state.jump = false;
-      }
+    if (jumpPulse !== PULSE_NONE) {
+      state.jump = jumpPulse === PULSE_PRESS;
     } else if (jumpTapPending) {
       state.jump = true;
       jumpTapPending = false;
       jumpPulse = PULSE_PRESS;
-      jumpPulseSeen = false;
     } else {
       state.jump = held('jump') || gpJump;
     }
-    jumpPressedSinceUpdate = false;
     state.trickGrab = held('grab') || gpGrab;
     state.trickFlip = held('flip') || gpFlip;
   }
@@ -236,10 +224,17 @@ export function createInput(target, hooks = {}) {
      the only thing that lets a latched tap move on, so a frame that runs no
      steps at all cannot consume one. */
   function stepped() {
-    if (jumpPulse !== PULSE_NONE) jumpPulseSeen = true;
-    // The pad press is consumed the same way the latched tap is: by a
-    // physics step actually reading it. See the pad block in `update`.
+    if (held('jump') && state.jump) jumpStepSeen = true;
     if (gpJumpHeld && state.jump) gpJumpStepSeen = true;
+    // Retire each pulse half on this clock, including several physics ticks
+    // in one render frame. A tap gets the same charge at 30 Hz and 240 Hz.
+    if (jumpPulse === PULSE_PRESS) {
+      jumpPulse = PULSE_RELEASE;
+      state.jump = false;
+    } else if (jumpPulse === PULSE_RELEASE) {
+      jumpPulse = PULSE_NONE;
+      state.jump = held('jump') || gpJumpHeld;
+    }
   }
 
   /* Wires the on-screen pad. Each button is a pointer capture rather than a
@@ -248,23 +243,34 @@ export function createInput(target, hooks = {}) {
     state.touch = true;
     root.querySelectorAll('[data-key]').forEach((el) => {
       const name = el.dataset.key;
+      const pointers = new Set();
+      touchButtons.push({ el, pointers });
       let keyboardPulse = 0;
       const set = (v, e) => {
         e.preventDefault();
+        if (name === 'jump') {
+          if (v && !touch[name]) jumpStepSeen = false;
+          if (!v && touch[name] && !jumpStepSeen) jumpTapPending = true;
+        }
         touch[name] = v;
         if (v) state.anyPressed = true;
         el.classList.toggle('on', v);
       };
       el.addEventListener('pointerdown', (e) => {
+        pointers.add(e.pointerId);
         el.setPointerCapture?.(e.pointerId);
         set(true, e);
       });
+      const releasePointer = (e) => {
+        pointers.delete(e.pointerId);
+        set(pointers.size > 0, e);
+      };
       el.addEventListener('pointerup', (e) => {
+        releasePointer(e);
         if (el.hasPointerCapture?.(e.pointerId)) el.releasePointerCapture(e.pointerId);
-        set(false, e);
       });
-      el.addEventListener('pointercancel', (e) => set(false, e));
-      el.addEventListener('lostpointercapture', (e) => set(false, e));
+      el.addEventListener('pointercancel', releasePointer);
+      el.addEventListener('lostpointercapture', releasePointer);
 
       // Switch control, voice control and keyboard activation dispatch a
       // click without a pointer sequence. Give those activations a short,
@@ -274,8 +280,7 @@ export function createInput(target, hooks = {}) {
         set(true, e);
         window.clearTimeout(keyboardPulse);
         keyboardPulse = window.setTimeout(() => {
-          touch[name] = false;
-          el.classList.remove('on');
+          set(false, e);
         }, 160);
       });
     });
@@ -285,6 +290,8 @@ export function createInput(target, hooks = {}) {
     target.removeEventListener('keydown', keydown);
     target.removeEventListener('keyup', keyup);
     window.removeEventListener('blur', blur);
+    window.removeEventListener('gamepadconnected', connected);
+    window.removeEventListener('gamepaddisconnected', disconnected);
   }
 
   /* Everything the game inferred, dropped — but not what the hands are
@@ -302,10 +309,9 @@ export function createInput(target, hooks = {}) {
   function calm() {
     state.turn = 0;
     state.jump = false;
-    jumpPressedSinceUpdate = false;
+    jumpStepSeen = false;
     jumpTapPending = false;
     jumpPulse = PULSE_NONE;
-    jumpPulseSeen = false;
   }
 
   /* And the hard version, for when the key states genuinely can no longer be
@@ -314,6 +320,10 @@ export function createInput(target, hooks = {}) {
   function clear() {
     down.clear();
     for (const k of Object.keys(touch)) touch[k] = false;
+    for (const { el, pointers } of touchButtons) {
+      el.classList.remove('on');
+      pointers.clear();
+    }
     // The pad cannot be emptied, only distrusted — see the poll in `update`.
     gamepadSuppressed = true;
     gpJumpHeld = false;

@@ -56,20 +56,28 @@ export function toHalfFloat(value) {
 
 function buildOffsets(spec) {
   const { directions, azimuth, steps, spacing } = spec;
-  const dx = new Int16Array(directions * steps.length);
-  const dz = new Int16Array(directions * steps.length);
+  const count = directions * steps.length;
+  const dx = new Int16Array(count);
+  const dz = new Int16Array(count);
+  const fx = new Float64Array(count);
+  const fz = new Float64Array(count);
+  let minX = 0, maxX = 0, minZ = 0, maxZ = 0;
   for (let direction = 0; direction < directions; direction++) {
     const t = directions > 1 ? direction / (directions - 1) : 0;
     const angle = azimuth[0] + (azimuth[1] - azimuth[0]) * t;
-    const sx = Math.sin(angle);
-    const sz = -Math.cos(angle);
     for (let k = 0; k < steps.length; k++) {
       const p = direction * steps.length + k;
-      dx[p] = Math.round((sx * steps[k]) / spacing);
-      dz[p] = Math.round((sz * steps[k]) / spacing);
+      const x = Math.sin(angle) * steps[k] / spacing;
+      const z = -Math.cos(angle) * steps[k] / spacing;
+      dx[p] = Math.floor(x);
+      dz[p] = Math.floor(z);
+      fx[p] = x - dx[p];
+      fz[p] = z - dz[p];
+      minX = Math.min(minX, dx[p]); maxX = Math.max(maxX, dx[p] + 1);
+      minZ = Math.min(minZ, dz[p]); maxZ = Math.max(maxZ, dz[p] + 1);
     }
   }
-  return { dx, dz };
+  return { dx, dz, fx, fz, minX, maxX, minZ, maxZ };
 }
 
 /* Build one or more adjacent tiles with one shared guard-height plate. The
@@ -82,19 +90,21 @@ export function buildShadowRegion(spec, heightAt) {
   } = spec;
   const width = tilesX * tileSamples;
   const height = tilesZ * tileSamples;
-  const guard = Math.ceil(steps[steps.length - 1] / spacing) + 2;
-  const guardWidth = width + guard * 2;
-  const guardHeight = height + guard * 2;
+  const { dx, dz, fx, fz, minX, maxX, minZ, maxZ } = buildOffsets(spec);
+  // Only sample the halo the sun can reach; its daily arc never uses the
+  // opposite side of the old square guard plate.
+  const guardWidth = width + maxX - minX;
+  const guardHeight = height + maxZ - minZ;
   const tileSpan = tileSamples * spacing;
   const worldX0 = originTileX * tileSpan;
   const worldZ0 = originTileZ * tileSpan;
   const heights = new Float32Array(guardWidth * guardHeight);
 
   for (let z = 0; z < guardHeight; z++) {
-    const wz = worldZ0 + (z - guard + 0.5) * spacing;
+    const wz = worldZ0 + (z + minZ + 0.5) * spacing;
     const row = z * guardWidth;
     for (let x = 0; x < guardWidth; x++) {
-      const wx = worldX0 + (x - guard + 0.5) * spacing;
+      const wx = worldX0 + (x + minX + 0.5) * spacing;
       heights[row + x] = heightAt(wx, wz);
     }
   }
@@ -102,7 +112,7 @@ export function buildShadowRegion(spec, heightAt) {
   const ground = new Uint16Array(width * height);
   for (let z = 0; z < height; z++) {
     const wz = worldZ0 + (z + 0.5) * spacing;
-    const src = (z + guard) * guardWidth + guard;
+    const src = (z - minZ) * guardWidth - minX;
     const dst = z * width;
     for (let x = 0; x < width; x++) {
       ground[dst + x] = toHalfFloat(heights[src + x] - gradeBase * wz);
@@ -111,25 +121,32 @@ export function buildShadowRegion(spec, heightAt) {
 
   // Direction-major RG: horizon at the snow, then horizon `raise` metres up.
   const horizon = new Uint16Array(directions * width * height * 2);
-  const { dx, dz } = buildOffsets(spec);
   const stepCount = steps.length;
+  const inverseSteps = Float64Array.from(steps, (step) => 1 / step);
+  const offsets = Int32Array.from(dx, (x, i) => dz[i] * guardWidth + x);
   for (let direction = 0; direction < directions; direction++) {
     const directionBase = direction * width * height * 2;
     const offsetBase = direction * stepCount;
     for (let z = 0; z < height; z++) {
-      const gz = z + guard;
+      const gz = z - minZ;
       for (let x = 0; x < width; x++) {
-        const gx = x + guard;
-        const h = heights[gz * guardWidth + gx];
+        const gx = x - minX;
+        const point = gz * guardWidth + gx;
+        const h = heights[point];
         let seen = -4;
         let seenRaised = -4;
         for (let k = 0; k < stepCount; k++) {
-          const sample = heights[
-            (gz + dz[offsetBase + k]) * guardWidth + gx + dx[offsetBase + k]
-          ];
-          const rise = sample - h;
-          const slope = rise / steps[k];
-          const raisedSlope = (rise - raise) / steps[k];
+          // Bilinear samples stay on the actual ray. Rounding a short ray
+          // to a 3 m lattice cell gave it the wrong bearing and slope, and
+          // made adjacent sun bearings change shadow in visible steps.
+          const ray = offsetBase + k;
+          const p = point + offsets[ray];
+          const a = heights[p] + (heights[p + 1] - heights[p]) * fx[ray];
+          const b = heights[p + guardWidth]
+            + (heights[p + guardWidth + 1] - heights[p + guardWidth]) * fx[ray];
+          const rise = a + (b - a) * fz[ray] - h;
+          const slope = rise * inverseSteps[k];
+          const raisedSlope = (rise - raise) * inverseSteps[k];
           if (slope > seen) seen = slope;
           if (raisedSlope > seenRaised) seenRaised = raisedSlope;
         }
@@ -147,4 +164,42 @@ export function buildShadowRegion(spec, heightAt) {
 
 export function buildShadowTile(spec, heightAt) {
   return buildShadowRegion({ ...spec, tilesX: 1, tilesZ: 1 }, heightAt);
+}
+
+/* Adjacent new rows/columns share their overlapping height halo. Preserve
+   per-tile payloads so the main thread can still reject obsolete torus slots. */
+export function buildShadowTiles(spec, tiles, heightAt) {
+  const pending = new Map(tiles.map((tile) => [`${tile.x}:${tile.z}`, tile]));
+  const results = [];
+  while (pending.size) {
+    const tile = pending.values().next().value;
+    let tilesX = 1;
+    while (pending.has(`${tile.x + tilesX}:${tile.z}`)) tilesX++;
+    let tilesZ = 1;
+    while (Array.from({ length: tilesX }, (_, x) =>
+      pending.has(`${tile.x + x}:${tile.z + tilesZ}`)).every(Boolean)) tilesZ++;
+    const region = buildShadowRegion({ ...spec,
+      originTileX: tile.x, originTileZ: tile.z, tilesX, tilesZ,
+    }, heightAt);
+    const n = spec.tileSamples;
+    for (let z = 0; z < tilesZ; z++) {
+      for (let x = 0; x < tilesX; x++) {
+        const key = `${tile.x + x}:${tile.z + z}`;
+        const ground = new Uint16Array(n * n);
+        const horizon = new Uint16Array(spec.directions * n * n * 2);
+        for (let row = 0; row < n; row++) {
+          const src = (z * n + row) * region.width + x * n;
+          ground.set(region.ground.subarray(src, src + n), row * n);
+          for (let d = 0; d < spec.directions; d++) {
+            const start = (d * region.width * region.height + src) * 2;
+            horizon.set(region.horizon.subarray(start, start + n * 2),
+              (d * n * n + row * n) * 2);
+          }
+        }
+        results.push({ tile: pending.get(key), horizon, ground });
+        pending.delete(key);
+      }
+    }
+  }
+  return results;
 }

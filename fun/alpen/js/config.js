@@ -94,14 +94,14 @@ export const GRADE = {
   contrast: 1.08,
   saturation: 1.06,
   vignette: 0.12,
-  speedVignette: 0.225,
-  aberration: 0.00225,
+  speedVignette: 0.14,
+  aberration: 0.0011,
 
   shoulder: 0.64,
   /* The composite's unsharp mask — see retro.js. Enough to put the edge
      back that one bilinear read of the multisampled target takes off, and
      well short of the point where snow grain starts to ring. */
-  sharpen: 0.30,
+  sharpen: 0.22,
   bloom: 0.16,
   bloomWide: 0.09,
   bloomThreshold: 0.83,
@@ -151,7 +151,7 @@ export const GRADE = {
      velocity, so a jump keeps whatever the takeoff earned and loses it again
      with the landing. */
   blurSpan: 10,
-  blurAmount: 0.012,
+  blurAmount: 0.007,
 };
 
 /* The only sky colour anything outside `weather.js` needs: the haze the
@@ -1549,8 +1549,8 @@ export const RIDER = {
   hardImpact: 32,
   // Ollie: held to charge, released to pop.
   chargeTime: 0.45,
-  popMin: 5.0,
-  popMax: 11.0,
+  popMin: 7.0,
+  popMax: 14.0,
   /* Popping off the lip.
 
      A pop released in the last breath before the ground leaves is worth more
