@@ -760,7 +760,6 @@ const DOME_FRAG = `
         pano = mix(pano, texture2D(uPanoStorm, panoUv).rgb, uPanoStormMix);
       }
       float panoLum = dot(pano, vec3(0.2126, 0.7152, 0.0722));
-      vec3 panoChroma = clamp(pano / max(0.04, panoLum), vec3(0.50), vec3(2.0));
       float panoForm = clamp(1.0 + (panoLum - 0.45) * 1.40, 0.45, 1.50);
       vec3 relitPano = mix(c * panoForm, pano * 1.15, 0.65);
       float az = max(0.0, dot(dir.xz, uSunAz) / max(length(dir.xz), 0.001));
@@ -1523,7 +1522,10 @@ export function createSky(THREE) {
     texture.minFilter = THREE.LinearMipmapLinearFilter;
     texture.magFilter = THREE.LinearFilter;
     texture.generateMipmaps = true;
-    texture.anisotropy = 4;
+    // Three clamps this to whatever the device offers, so asking for more
+    // than a mobile part has costs nothing there and sharpens the ridge
+    // band on a desktop that can.
+    texture.anisotropy = 8;
     texture.colorSpace = THREE.SRGBColorSpace;
     return texture;
   };

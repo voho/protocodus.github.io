@@ -98,6 +98,10 @@ export const GRADE = {
   aberration: 0.00225,
 
   shoulder: 0.64,
+  /* The composite's unsharp mask — see retro.js. Enough to put the edge
+     back that one bilinear read of the multisampled target takes off, and
+     well short of the point where snow grain starts to ring. */
+  sharpen: 0.30,
   bloom: 0.16,
   bloomWide: 0.09,
   bloomThreshold: 0.83,

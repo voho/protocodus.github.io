@@ -492,6 +492,12 @@ const FRAG = `
   uniform vec3 uFog;
   uniform vec3 uSunTint;
   uniform vec3 uSkyGlow;
+  /* Explicitly highp, because the vertex stage above is a highp shader and
+     declares these same two uniforms: a uniform whose precision differs
+     between the stages is a link error, not a warning, and it takes the
+     whole point cloud with it. */
+  uniform highp vec3 uSunView;
+  uniform highp float uSunLevel;
   uniform float uNear;
   uniform float uFar;
   uniform vec2 uDepthFade;
@@ -530,6 +536,17 @@ const FRAG = `
     // is capped so a flake never becomes a lamp, only a lit flake.
     col = mix(col, mix(uSunTint, uSkyGlow, 0.35), min(vScatter * 0.7, 0.7));
     a *= 1.0 + vScatter * 0.35;
+    /* The front-lit half. Backscatter above only exists against a low sun;
+       under a high one a plume was a flat disc of haze colour. A puff is
+       roughly a ball, so its sprite gets a ball's normal — the point
+       coordinate lifted into view space, y flipped to match the axis
+       above — and a wrapped Lambert against the same sun the ground uses:
+       a lit side and a shaded side, faintly, because powder is translucent
+       and its dark side is only a little dark. Gone with the sun. */
+    vec2 dn = d * 2.0;
+    vec3 puff = vec3(dn.x, -dn.y, sqrt(max(0.0, 1.0 - dot(dn, dn))));
+    float lit = 0.5 + 0.5 * dot(puff, uSunView);
+    col *= 1.0 + (lit - 0.5) * 0.36 * min(uSunLevel, 1.3);
     // …and the glint, which is the one legal exception to "snow is never
     // white": a facet flashing the sun back is a specular event, not a body
     // colour, and it is brief, rare, near, and gone in a storm.

@@ -6,8 +6,10 @@ Quaternius low-poly nature set (winter variants) — CC0 / public domain,
 by Quaternius (https://quaternius.com), downloaded 2026-08-07 from the
 MIT-licensed mirror https://github.com/flo-bit/tiny-planets
 (`public/lowpoly_nature/`). glTF 2.0 with embedded buffers, exported by
-FBX2glTF. Still used for the bare/dead tree species; the needled species
-now use the photo-textured card conifers below.
+FBX2glTF. No longer drawn: the needled species use the photo-textured
+card conifers below, and the bare species use card larches off a twig
+atlas `js/spruce.js#createTwigAtlas` draws on a canvas at boot. The
+loader path (`js/importedModels.js#upgrade`) is kept for the rocks.
 
 ## nature/ — Poly Haven photoscans (*.glb)
 
@@ -40,7 +42,10 @@ atlas is composed offline from the Poly Haven **fir_tree_01** asset
 as luminance values so the per-instance cast supplies the colour, plus
 frost variants derived from the alpha's top edges) and its
 `bark_diff/_ao` maps supply the trunk strip. Layout is documented at the
-head of `js/spruce.js`.
+head of `js/spruce.js`. The same builder grows the bare larches from a
+second atlas drawn at boot (`createTwigAtlas`): two fractal twig sprigs
+as luminance values, with their snow drawn a shade bluer than grey so the
+card material can turn it back into the prop snow colour per texel.
 
 ## Vendored loaders
 

@@ -323,11 +323,12 @@ export function createWildlife(THREE, shading) {
         .replace('#include <common>', `#include <common>
         varying vec3 vAnimalWorldPos;`)
         .replace('#include <project_vertex>', `#include <project_vertex>
-        #ifdef USE_INSTANCING
-          vAnimalWorldPos = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;
-        #else
-          vAnimalWorldPos = (modelMatrix * vec4(transformed, 1.0)).xyz;
-        #endif`);
+        /* The animal's own frame, not the world's: sampled at the world
+           position the fur streamed across the body as it moved, and
+           kilometres down an endless run the coordinate outgrows float
+           precision and the weave turns to shimmer — the same bug the
+           rider's jacket fixed. Local coordinates stay small forever. */
+        vAnimalWorldPos = transformed;`);
       shader.fragmentShader = shader.fragmentShader
         .replace('#include <common>', `#include <common>
         varying vec3 vAnimalWorldPos;

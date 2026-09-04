@@ -168,6 +168,7 @@ const FRAG = `
   uniform float uFade;
   uniform float uBlur;
   uniform float uAberration;
+  uniform float uSharpen;
   uniform float uBloom;
   uniform float uBloomWide;
   uniform float uTime;
@@ -279,6 +280,31 @@ const FRAG = `
         lin += sceneSample(vUv + toFocus * localBlur * (float(i) - 0.5 + jitter), aberration);
       }
       lin /= 6.0;
+    } else if (uSharpen > 0.001) {
+      /* A contrast-adaptive sharpen, on the part of the frame that is not
+         being smeared on purpose. The scene target is multisampled and then
+         read through one bilinear fetch — at native size that is already a
+         quarter-texel softening, and when the governor has stepped the
+         world down it is most of a pixel — so the snow's grain and the
+         needles' edges arrive a little blurred everywhere. Four neighbours
+         and an unsharp mask put the edge back; the weight falls away where
+         the local contrast is already high, which is what keeps a dark
+         trunk against the sky from wearing a halo. Four fetches, and none
+         at all while the velocity blur owns the pixel. */
+      vec2 px = 1.0 / uResolution;
+      vec3 n = texture2D(tDiffuse, vUv + vec2(0.0, px.y)).rgb;
+      vec3 s = texture2D(tDiffuse, vUv - vec2(0.0, px.y)).rgb;
+      vec3 e = texture2D(tDiffuse, vUv + vec2(px.x, 0.0)).rgb;
+      vec3 w = texture2D(tDiffuse, vUv - vec2(px.x, 0.0)).rgb;
+      vec3 ring = (n + s + e + w) * 0.25;
+      float lC = dot(lin, vec3(0.2126, 0.7152, 0.0722));
+      float lHi = max(max(dot(n, vec3(0.2126, 0.7152, 0.0722)), dot(s, vec3(0.2126, 0.7152, 0.0722))),
+        max(dot(e, vec3(0.2126, 0.7152, 0.0722)), dot(w, vec3(0.2126, 0.7152, 0.0722))));
+      float lLo = min(min(dot(n, vec3(0.2126, 0.7152, 0.0722)), dot(s, vec3(0.2126, 0.7152, 0.0722))),
+        min(dot(e, vec3(0.2126, 0.7152, 0.0722)), dot(w, vec3(0.2126, 0.7152, 0.0722))));
+      float contrast = (max(lHi, lC) - min(lLo, lC)) / (max(lHi, lC) + 0.05);
+      float amount = uSharpen * (1.0 - smoothstep(0.18, 0.62, contrast));
+      lin = max(lin + (lin - ring) * amount, vec3(0.0));
     }
     lin += texture2D(tBright, vUv).rgb * uBloom;
     /* The second octave: the same light at a sixteenth of the resolution,
@@ -493,6 +519,7 @@ export function createRetro(THREE, renderer) {
       uFade: { value: 1 },
       uBlur: { value: 0 },
       uAberration: { value: 0 },
+      uSharpen: { value: GRADE.sharpen },
       uBloom: { value: GRADE.bloom },
       uBloomWide: { value: GRADE.bloomWide },
       uTime: { value: 0 },

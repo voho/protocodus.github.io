@@ -105,7 +105,7 @@ import {
   chapterTreesAt,
 } from './terrain.js';
 import { createModelUpgrader } from './importedModels.js';
-import { growCardSpruce } from './spruce.js';
+import { growCardSpruce, createTwigAtlas } from './spruce.js';
 import { stream, hash2, noise2, snoise2 } from './noise.js';
 import { compose } from './geom.js';
 import { PROPS } from './config.js';
@@ -1931,25 +1931,35 @@ export function createProps(THREE, shading) {
   neutralTreeTex.needsUpdate = true;
 
   const texLoader = new THREE.TextureLoader();
+  /* Photographs, so sRGB, and the loader has to be told: read as linear
+     (which is what an unlabelled texture is) a photograph arrives with its
+     gamma curve baked into its contrast — mid-tones twice as bright as they
+     are, and every crevice and grain crushed towards one flat grey. That is
+     what the bark and the stone looked like, and the gains beside each
+     fetch below were tuned to compensate. They now put the mean back where
+     the old decode had it, so the only thing that changes is the contrast:
+     bark that is bark, stone that is stone. Anisotropy because every one of
+     these is seen at a grazing angle up a trunk or across a face. */
+  const photoPlate = (target) => (t) => {
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = 8;
+    target.value = t;
+  };
   const barkTex = { value: neutralTreeTex };
   texLoader.load(
     new URL('../assets/textures/tree/weathered-tree-bark.jpg', import.meta.url).href,
-    (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; barkTex.value = t; },
-  );
-  const needleTex = { value: neutralTreeTex };
-  texLoader.load(
-    new URL('../assets/textures/tree/frosty-conifer-boughs.jpg', import.meta.url).href,
-    (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; needleTex.value = t; },
+    photoPlate(barkTex),
   );
   const rockTex = { value: neutralTreeTex };
   texLoader.load(
     new URL('../assets/textures/rock/rock-slate.jpg', import.meta.url).href,
-    (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; rockTex.value = t; },
+    photoPlate(rockTex),
   );
   const woodPlanksTex = { value: neutralTreeTex };
   texLoader.load(
     new URL('../assets/textures/huts/alpine-wood-planks.jpg', import.meta.url).href,
-    (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; woodPlanksTex.value = t; },
+    photoPlate(woodPlanksTex),
   );
 
   const treeMat = (height) => {
@@ -1958,7 +1968,6 @@ export function createProps(THREE, shading) {
       Object.assign(shader.uniforms, air, {
         uSwayHeight: { value: height },
         uBarkTex: barkTex,
-        uNeedleTex: needleTex,
       });
       shader.vertexShader = shader.vertexShader
         .replace('#include <common>', `#include <common>${OWN_DECL}${AIR_DECL}
@@ -1979,10 +1988,11 @@ export function createProps(THREE, shading) {
         .replace('#include <common>', `#include <common>
         varying vec3 vTreeWorldPos;
         varying vec3 vTreeNormal;
-        uniform sampler2D uBarkTex;
-        uniform sampler2D uNeedleTex;`)
+        uniform sampler2D uBarkTex;`)
         .replace('#include <color_fragment>', `#include <color_fragment>
-        /* Apply organic tree bark and frosty needle textures */
+        /* Triplanar bark over the tree's own timber. The gain is the plate's
+           linear mean inverted, so the texture shapes the colour without
+           moving its level — see the loader note. */
         float treeOwn = 1.0 - vN64Sheen;
         if (treeOwn > 0.05) {
           vec3 nAbs = abs(vTreeNormal);
@@ -1990,9 +2000,7 @@ export function createProps(THREE, shading) {
           vec4 barkY = texture2D(uBarkTex, vTreeWorldPos.xz * 0.35);
           vec4 barkZ = texture2D(uBarkTex, vTreeWorldPos.xy * 0.35);
           vec3 barkColor = (barkX.rgb * nAbs.x + barkY.rgb * nAbs.y + barkZ.rgb * nAbs.z) / max(0.001, nAbs.x + nAbs.y + nAbs.z);
-          vec3 needleColor = texture2D(uNeedleTex, vTreeWorldPos.xz * 0.45).rgb;
-          vec3 texColor = mix(barkColor * 1.20, needleColor * 1.40, step(0.35, diffuseColor.g));
-          diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * texColor * 1.85, 0.75 * treeOwn);
+          diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * barkColor * 4.75, 0.75 * treeOwn);
         }`);
     };
     return shading.apply(m, { cameraFade: true, sheen: 1, fogPull: FOG_PULL_TREE });
@@ -2005,7 +2013,6 @@ export function createProps(THREE, shading) {
       Object.assign(shader.uniforms, air, {
         uSwayHeight: { value: 1.2 },
         uBarkTex: barkTex,
-        uNeedleTex: needleTex,
       });
       shader.vertexShader = shader.vertexShader
         .replace('#include <common>', `#include <common>${OWN_DECL}${AIR_DECL}
@@ -2026,16 +2033,12 @@ export function createProps(THREE, shading) {
         .replace('#include <common>', `#include <common>
         varying vec3 vFloraWorldPos;
         varying vec3 vFloraNormal;
-        uniform sampler2D uBarkTex;
-        uniform sampler2D uNeedleTex;`)
+        uniform sampler2D uBarkTex;`)
         .replace('#include <color_fragment>', `#include <color_fragment>
-        /* Apply organic shrub foliage, bark, and heather textures */
         float floraOwn = 1.0 - vN64Sheen;
         if (floraOwn > 0.05) {
-          vec4 leafSample = texture2D(uNeedleTex, vFloraWorldPos.xz * 0.95);
-          vec4 twigSample = texture2D(uBarkTex, vFloraWorldPos.xy * 0.75);
-          vec3 texColor = mix(twigSample.rgb * 1.30, leafSample.rgb * 1.55, step(0.28, diffuseColor.g));
-          diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * texColor * 1.80, 0.72 * floraOwn);
+          vec3 twigSample = texture2D(uBarkTex, vFloraWorldPos.xy * 0.75).rgb;
+          diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * twigSample * 5.0, 0.72 * floraOwn);
         }`);
     };
     return shading.apply(m, { cameraFade: true, sheen: 1, fogPull: FOG_PULL_FLORA });
@@ -2112,7 +2115,7 @@ export function createProps(THREE, shading) {
           vec4 rockY = texture2D(uRockTex, vRockWorldPos.xz * 0.25);
           vec4 rockZ = texture2D(uRockTex, vRockWorldPos.xy * 0.25);
           vec3 rockColor = (rockX.rgb * nAbs.x + rockY.rgb * nAbs.y + rockZ.rgb * nAbs.z) / max(0.001, nAbs.x + nAbs.y + nAbs.z);
-          diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * rockColor * 1.95, 0.75 * rockOwn);
+          diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * rockColor * 7.2, 0.75 * rockOwn);
         }`);
     };
     return shading.apply(m, { cameraFade: true, sheen: 1, fogPull: FOG_PULL_STONE });
@@ -2211,86 +2214,169 @@ export function createProps(THREE, shading) {
     group.add(pool.mesh);
   }
 
-  /* Real trees, when they arrive. Each grown variant's pool is upgraded in
-     place to a Quaternius CC0 model of the same height — winter pines for
-     the needled species, dead snow-caught hardwoods for the bare ones —
-     while every instance, cast, sway and shadow stays exactly where it
-     was. Until (or unless) a file loads, the grown tree stands in. */
+  /* The photoscan upgrader — the rocks and the stump take it below. The
+     trees no longer do: every species is a card tree now. */
   const upgrader = createModelUpgrader(THREE);
+
+  /* THE CARD MATERIAL, for the needled species and the bare ones alike.
+     A sibling of `treeMat` — same wind, same instance-cast tinting through
+     `surfaceOwn`, same shared shading — plus the atlas itself and a cutout,
+     so the depth pass needs its own material or every card would cast a
+     rectangle. Four things on top of that, all of them about a card being
+     a picture of foliage rather than foliage:
+
+     THE BACK OF A CARD IS NOT THE BACK OF A TREE. Three flips a double-sided
+     material's normal on its back faces, so a card seen from behind was lit
+     by a normal pointing into the ground and went black — half of every
+     tree, from most angles. The baked normals point out of the canopy and
+     are right from either side, so the flip is undone.
+
+     NEEDLES LEAK LIGHT. A sprig is a few millimetres of green, and the sun
+     comes through it: a wrap that carries the terminator a little past
+     ninety degrees, and a lobe for the sun seen through the card from
+     behind, which is the rim glow a conifer wears against a low sun. Both
+     pay the real shadow test — the shared shading's recovered shadow is
+     not in scope here, and a term that lit shaded needles would put a glow
+     in every tree's own shade — but only on needle fragments, and only
+     while the sun is where either term can do anything.
+
+     THE WEATHER LOADS THE BRANCHES. The frost cards are baked; this is the
+     storm's own snow settling on every up-facing needle by the dial the
+     ground already answers to, so a whiteout leaves the forest white.
+
+     AND THE FOOT OF THE TREE IS SOLID SNOW. The well `spruce.js` builds is
+     owned by nobody — below zero, which the shared mix clamps and this
+     material reads as "opaque, and the vertex colour is the whole answer",
+     because the atlas has no opaque white texel to give it.
+
+     `opts.frost` is the bare larch's snow: drawn a shade bluer than grey
+     into an atlas that is otherwise luminance, and turned back into the
+     prop snow colour per texel here. */
+  const spruceMat = (height, atlas, opts = {}) => {
+    const m = new THREE.MeshLambertMaterial({
+      map: atlas,
+      vertexColors: true,
+      alphaTest: opts.alphaTest === undefined ? 0.36 : opts.alphaTest,
+      side: THREE.DoubleSide,
+    });
+    m.alphaToCoverage = true;
+    const frost = opts.frost === true;
+    m.onBeforeCompile = (shader) => {
+      Object.assign(shader.uniforms, air, { uSwayHeight: { value: height } });
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', `#include <common>${OWN_DECL}${AIR_DECL}
+        varying float vCardSolid;`)
+        .replace('#include <color_vertex>', `#include <color_vertex>
+        #if defined( USE_COLOR ) && defined( USE_INSTANCING_COLOR )
+          vColor.rgb = mix( color, vColor.rgb, clamp( surfaceOwn, 0.0, 1.0 ) );
+        #endif`)
+        .replace('#include <begin_vertex>', SWAY)
+        .replace('#include <project_vertex>', `#include <project_vertex>
+        vN64Sheen = 1.0 - clamp( surfaceOwn, 0.0, 1.0 );
+        vCardSolid = surfaceOwn < -0.5 ? 1.0 : 0.0;`);
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', `#include <common>
+        varying float vCardSolid;`)
+        .replace('#include <map_fragment>', `#include <map_fragment>
+        float n64FrostTexel = ${frost
+    ? 'smoothstep(1.06, 1.16, diffuseColor.b / max(diffuseColor.r, 0.02))'
+    : '0.0'};`)
+        .replace('#include <alphamap_fragment>', `
+        if (vCardSolid > 0.5) diffuseColor = vec4(vColor.rgb, 1.0);
+        /* The sprig cells store needle luminance, not colour: the cast on
+           the instance is the colour. Lift them back to needle brightness;
+           frost (sheen 1) and bark (sheen ~0.65) keep the map's own level.
+           Written as 1 − smoothstep(lo, hi, x): smoothstep with its edges
+           reversed is undefined by the GLSL spec — most drivers guess the
+           intent, the ones that don't draw garbage. */
+        float n64Needle = 1.0 - smoothstep(0.05, 0.5, vN64Sheen);
+        diffuseColor.rgb *= mix(1.0, 1.85, n64Needle);
+        {
+          float n64NeedleUp = dot(normalize(vNormal), viewMatrix[1].xyz);
+          float n64Load = smoothstep(0.15, 0.75, n64NeedleUp) * uSnowFresh * n64Needle;
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.839, 0.890, 0.957), n64Load * 0.55);
+        }
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.839, 0.890, 0.957) * 1.15, n64FrostTexel);
+        #include <alphamap_fragment>`)
+        .replace('#include <normal_fragment_begin>', `#include <normal_fragment_begin>
+        normal = normalize( vNormal );
+        nonPerturbedNormal = normal;`)
+        .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
+        if (n64Needle > 0.01 && uSunLevel > 0.02) {
+          vec3 n64V = normalize(-vN64View);
+          float n64NL = dot(normal, uSunView);
+          float n64Wrap = clamp((n64NL + 0.55) / 1.55, 0.0, 1.0) - clamp(n64NL, 0.0, 1.0);
+          float n64Through = clamp(-dot(uSunView, n64V), 0.0, 1.0);
+          n64Through *= n64Through;
+          n64Through *= n64Through;
+          float n64Leak = n64Wrap * 0.35 + n64Through * 0.55;
+          if (n64Leak > 0.01) {
+            float n64Lit = 1.0;
+            #if defined( USE_SHADOWMAP ) && ( NUM_DIR_LIGHT_SHADOWS > 0 )
+              n64Lit = getShadow( directionalShadowMap[ 0 ],
+                directionalLightShadows[ 0 ].shadowMapSize,
+                directionalLightShadows[ 0 ].shadowIntensity,
+                directionalLightShadows[ 0 ].shadowBias,
+                directionalLightShadows[ 0 ].shadowRadius,
+                vDirectionalShadowCoord[ 0 ] );
+            #endif
+            reflectedLight.directDiffuse += diffuseColor.rgb * uSunTint
+              * (uSunLevel * n64Lit * n64Leak * n64Needle * RECIPROCAL_PI);
+          }
+        }`);
+    };
+    return shading.apply(m, { cameraFade: true, sheen: 1, fogPull: FOG_PULL_TREE });
+  };
+
+  /* The bare species, first: card larches off a drawn atlas — see
+     `createTwigAtlas` — built now, because a canvas has nothing to wait for.
+     The two pools that wore the low-poly dead hardwoods keep every instance,
+     cast, sway and shadow exactly where it was. */
   {
-    // The bare species still wear the low-poly dead hardwoods — a dead
-    // larch is mostly silhouette and the imports read well at any range.
-    const dead = ['CommonTree_Dead_Snow_1', 'CommonTree_Dead_Snow_2',
-      'BirchTree_Dead_Snow_1'];
-    let deadAt = 0;
+    const twig = createTwigAtlas(THREE);
     for (let i = 0; i < treePools.length; i++) {
       if (!treeBare[i]) continue;
-      upgrader.upgrade(treePools[i], dead[deadAt++ % dead.length],
-        'tree', treeHeights[i], null, 0.03);
+      const spec = SPECIES[i % SPECIES.length];
+      const g = growCardSpruce(THREE, 0x5be77a + i * 4211, spec, treeHeights[i], twig.layout);
+      const old = treePools[i].mesh.geometry;
+      treePools[i].mesh.geometry = g;
+      old.dispose();
+      treePools[i].mesh.material = spruceMat(treeHeights[i], twig.texture,
+        { frost: true, alphaTest: 0.22 });
+      treePools[i].mesh.customDepthMaterial = new THREE.MeshDepthMaterial({
+        depthPacking: THREE.RGBADepthPacking,
+        map: twig.texture,
+        alphaTest: 0.22,
+      });
     }
   }
 
   /* The needled species become photo-textured card conifers the moment
      their atlas lands: real fir sprigs on a few dozen instanced cards per
-     tree (see spruce.js). The material is a sibling of `treeMat` — same
-     wind, same instance-cast tinting through `surfaceOwn`, same shared
-     shading — plus the atlas itself and a cutout, so the depth pass needs
-     its own material or every card would cast a rectangle. Until the file
-     arrives (or if it never does) the grown trees simply keep standing. */
-  {
-    const spruceMat = (height, atlas) => {
-      const m = new THREE.MeshLambertMaterial({
-        map: atlas,
-        vertexColors: true,
-        alphaTest: 0.36,
-        side: THREE.DoubleSide,
-      });
-      m.alphaToCoverage = true;
-      m.onBeforeCompile = (shader) => {
-        Object.assign(shader.uniforms, air, { uSwayHeight: { value: height } });
-        shader.vertexShader = shader.vertexShader
-          .replace('#include <common>', `#include <common>${OWN_DECL}${AIR_DECL}`)
-          .replace('#include <color_vertex>', OWN_MIX)
-          .replace('#include <begin_vertex>', SWAY)
-          .replace('#include <project_vertex>', `#include <project_vertex>
-          vN64Sheen = 1.0 - surfaceOwn;`);
-        shader.fragmentShader = shader.fragmentShader
-          .replace('#include <alphamap_fragment>', `
-          /* The sprig cells store needle luminance, not colour: the cast on
-             the instance is the colour. Lift them back to needle brightness;
-             frost (sheen 1) and bark (sheen ~0.65) keep the map's own level.
-             Written as 1 − smoothstep(lo, hi, x): smoothstep with its edges
-             reversed is undefined by the GLSL spec — most drivers guess the
-             intent, the ones that don't draw garbage. */
-          diffuseColor.rgb *= mix(1.0, 1.85, 1.0 - smoothstep(0.05, 0.5, vN64Sheen));
-          #include <alphamap_fragment>`);
-      };
-      return shading.apply(m, { cameraFade: true, sheen: 1, fogPull: FOG_PULL_TREE });
-    };
-
-    texLoader.load(
-      new URL('../assets/textures/tree/spruce-card-atlas.webp', import.meta.url).href,
-      (t) => {
-        t.colorSpace = THREE.SRGBColorSpace;
-        t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
-        t.anisotropy = 4;
-        for (let i = 0; i < treePools.length; i++) {
-          if (treeBare[i]) continue;
-          const spec = SPECIES[i % SPECIES.length];
-          const g = growCardSpruce(THREE, 0x3ac1f7 + i * 6367, spec, treeHeights[i]);
-          const old = treePools[i].mesh.geometry;
-          treePools[i].mesh.geometry = g;
-          old.dispose();
-          treePools[i].mesh.material = spruceMat(treeHeights[i], t);
-          treePools[i].mesh.customDepthMaterial = new THREE.MeshDepthMaterial({
-            depthPacking: THREE.RGBADepthPacking,
-            map: t,
-            alphaTest: 0.36,
-          });
-        }
-      },
-    );
-  }
+     tree (see spruce.js). Until the file arrives (or if it never does) the
+     grown trees simply keep standing. */
+  texLoader.load(
+    new URL('../assets/textures/tree/spruce-card-atlas.webp', import.meta.url).href,
+    (t) => {
+      t.colorSpace = THREE.SRGBColorSpace;
+      t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+      t.anisotropy = 8;
+      for (let i = 0; i < treePools.length; i++) {
+        if (treeBare[i]) continue;
+        const spec = SPECIES[i % SPECIES.length];
+        const g = growCardSpruce(THREE, 0x3ac1f7 + i * 6367, spec, treeHeights[i]);
+        const old = treePools[i].mesh.geometry;
+        treePools[i].mesh.geometry = g;
+        old.dispose();
+        treePools[i].mesh.material = spruceMat(treeHeights[i], t);
+        treePools[i].mesh.customDepthMaterial = new THREE.MeshDepthMaterial({
+          depthPacking: THREE.RGBADepthPacking,
+          map: t,
+          alphaTest: 0.36,
+        });
+      }
+    },
+  );
 
   /* The shadow pass draws only the prefix that can reach its own camera.
 
@@ -2499,7 +2585,7 @@ export function createProps(THREE, shading) {
         uniform sampler2D uWoodTex;`)
         .replace('#include <color_fragment>', `#include <color_fragment>
         vec3 woodSample = texture2D(uWoodTex, vAlpineWorldPos.xy * 0.45 + vAlpineWorldPos.yz * 0.45).rgb;
-        diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * woodSample * 1.65, 0.65);`);
+        diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * woodSample * 5.9, 0.65);`);
     };
     return shading.apply(m);
   })();

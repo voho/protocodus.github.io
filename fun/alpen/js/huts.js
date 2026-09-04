@@ -417,14 +417,26 @@ export function createHuts(THREE, shading) {
   );
   neutralWoodTex.needsUpdate = true;
   const woodPlanksTex = { value: neutralWoodTex };
+  /* Both plates are photographs, so they are sRGB and say so. Read as
+     linear — which was the default they were loaded under — a photograph
+     comes out with a gamma curve baked into its contrast: mid-tones twice
+     as bright as they are, grain and shadow crushed towards one flat grey.
+     The gains in the shader below are what put the mean back where the
+     old decode had it, so only the contrast changes. */
+  const prepare = (t) => {
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = 8;
+    return t;
+  };
   texLoader.load(
     new URL('../assets/textures/huts/alpine-wood-planks.jpg', import.meta.url).href,
-    (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; woodPlanksTex.value = t; },
+    (t) => { woodPlanksTex.value = prepare(t); },
   );
   const stoneTex = { value: neutralWoodTex };
   texLoader.load(
     new URL('../assets/textures/rock/rock-slate.jpg', import.meta.url).href,
-    (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; stoneTex.value = t; },
+    (t) => { stoneTex.value = prepare(t); },
   );
 
   const hutMat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false });
@@ -461,14 +473,14 @@ export function createHuts(THREE, shading) {
           texture2D(uStoneTex, vHutLocalPos.xz * 0.45).rgb * nAbs.y +
           texture2D(uStoneTex, vHutLocalPos.xy * 0.45).rgb * nAbs.z
         ) / max(0.001, nAbs.x + nAbs.y + nAbs.z);
-        diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * stoneColor * 1.6, 0.75);
+        diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * stoneColor * 5.9, 0.75);
       }
       // 3. Wooden walls, logs, timber frame, and terrace
       else {
         // Horizontal wood grain along the walls
         vec2 woodUv = nAbs.x > 0.5 ? vHutLocalPos.zy * 0.40 : (nAbs.z > 0.5 ? vHutLocalPos.xy * 0.40 : vHutLocalPos.xz * 0.40);
         vec3 woodSample = texture2D(uWoodPlanksTex, woodUv).rgb;
-        diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * woodSample * 1.45, 0.70);
+        diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * woodSample * 5.2, 0.70);
       }`);
   };
 

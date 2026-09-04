@@ -634,15 +634,19 @@ function buildGeometries(THREE) {
     { geo: bootShell, color: INK, pos: [FOOT_X, DECK_TOP + 0.02, z], rot: [0, yaw, 0] },
   ];
 
+  /* `uv: true`, because the deck wears a printed top-sheet now and a merged
+     buffer without the attribute paints the whole board in one texel — the
+     trap geom.js warns about, and the one this board was in. `loft` writes a
+     planar top-sheet parameterisation for every ring solid; the material
+     below confines the print to the deck by its colour, which is white for
+     exactly that reason: the graphic is the deck's colour. */
   const board = compose(THREE, [
-    { geo: use(loft(THREE, deckRings(0, 11, 1, 1, 0))), color: YELLOW },
+    { geo: use(loft(THREE, deckRings(0, 11, 1, 1, 0))), color: '#ffffff' },
     // a broader mint nose cap and a clipped dark tail: direction has to be
     // legible through spray, at night, and in the middle of a spin
     { geo: use(loft(THREE, deckRings(0, 3, 1.05, 1.18, 0))), color: MINT },
     { geo: use(loft(THREE, deckRings(8, 11, 1.05, 1.18, 0))), color: INK },
-    // the topsheet graphic, and the stripe down the base so a spin still
-    // reads from underneath
-    { geo: use(loft(THREE, sticker(1, 10, 0.058, 1, 0.005))), color: INK },
+    // the stripe down the base, so a spin still reads from underneath
     { geo: use(loft(THREE, sticker(2, 9, 0.044, -1, 0.004))), color: MINT },
     // steel edges, which also stop the deck reading as a slab of butter, and
     // which now follow the sidecut rather than being two straight sticks
@@ -654,7 +658,7 @@ function buildGeometries(THREE) {
     ...binding(-FOOT_Z, 0.28),
     ...boot(-FOOT_Z, 0.28),
     ...binding(FOOT_Z, 0.10),
-  ]);
+  ], { uv: true });
   const rearBoot = compose(THREE, boot(0, 0.10));
 
   /* The torso: wide across Z and shallow across X, because the shoulder line
@@ -925,7 +929,14 @@ export function createRiderModel(THREE, shading) {
      facing the camera, so the rider reads as the thing carrying the light
      rather than a shadow between two lit patches of snow. */
   const RIG_ANCHOR = '#include <lights_fragment_end>';
-  const rigLight = (base, gloss, fabric = false) => `${RIG_ANCHOR}
+  /* `power` is the lobe: fifty for a shell and its trim, a hundred and
+     forty for lacquer. `envBase`/`envTrim` are how much of the sky the
+     surface mirrors — the shared shading's own analytic dome, `n64SkyReflect`,
+     which is already compiled into every patched material for the snow's
+     Fresnel and costs two powers here. Schlick's curve puts it at the
+     grazing edge of a sleeve and across the whole of a goggle lens, and it
+     stays in palette by construction: navy at noon, amber at dusk. */
+  const rigLight = (base, gloss, fabric = false, power = 50, envBase = 0, envTrim = 0.9) => `${RIG_ANCHOR}
   {
     vec3 n64V = normalize(-vN64View);
     float n64NoV = max(dot(normal, n64V), 0.0);
@@ -934,13 +945,17 @@ export function createRiderModel(THREE, shading) {
     float n64NoL = clamp(dot(normal, uSunView), 0.0, 1.0);
     float n64Trim = smoothstep(0.30, 0.50, diffuseColor.g);
     float n64Fabric = 1.0 + 0.06 * sin(dot(normal, vec3(17.0, 31.0, 13.0)));
-    float n64Spec = pow(max(dot(normal, n64H), 0.0), 50.0) * n64NoL
+    float n64Spec = pow(max(dot(normal, n64H), 0.0), ${power.toFixed(1)}) * n64NoL
       * (${base.toFixed(3)} + ${gloss.toFixed(3)} * n64Trim) * n64Fabric;
     float n64Rim = pow(1.0 - n64NoV, 2.5);
     float n64GroundBounce = max(-normal.y, 0.0) * 0.18;
     vec3 n64SnowBounceColor = vec3(0.85, 0.92, 1.0) * uSunLevel * n64GroundBounce;
+    vec3 n64R = normalize(reflect(-n64V, normal) * mat3(viewMatrix));
+    float n64Fres = 0.04 + 0.96 * pow(1.0 - n64NoV, 5.0);
+    vec3 n64Mirror = n64SkyReflect(n64R)
+      * (n64Fres * (${envBase.toFixed(3)} + ${envTrim.toFixed(3)} * n64Trim));
     reflectedLight.directDiffuse += uSunTint * (uSunLevel * n64Spec)
-      + uSkyMid * (n64Rim * 0.22) + n64SnowBounceColor
+      + uSkyMid * (n64Rim * 0.22) + n64SnowBounceColor + n64Mirror
       + vec3(0.45, 0.62, 0.85) * (uLampGlow * (0.35 + 0.65 * n64NoV) * 0.12);${fabric ? `
     /* THE SHEEN CLOTH HAS AND PLASTIC DOES NOT.
 
@@ -1025,6 +1040,19 @@ export function createRiderModel(THREE, shading) {
       }
       diffuseColor.rgb *= 1.0 - 0.055 * max(0.0, -n64Baffle);
     }
+    /* …and the weave itself as relief. The same plate the colour reads,
+       differenced across three texels, leans the normal along the plane's
+       two axes — so a ripstop grid catches the sun as a grid and the sleeve
+       stops reading as painted. Two fetches on a figure that is a few
+       hundred pixels tall. */
+    if (vCloth.x > 0.05) {
+      vec2 n64WUv = n64WeaveUv();
+      float n64W0 = dot(texture2D(uFabricTex, n64WUv).rgb, vec3(0.3333));
+      float n64W1 = dot(texture2D(uFabricTex, n64WUv + vec2(0.003, 0.0)).rgb, vec3(0.3333));
+      float n64W2 = dot(texture2D(uFabricTex, n64WUv + vec2(0.0, 0.003)).rgb, vec3(0.3333));
+      normal = normalize(normal + (vClothAcross * (n64W0 - n64W1)
+        + vClothAxis * (n64W0 - n64W2)) * (1.1 * vCloth.x));
+    }
   }`;
 
   /* One smooth material for the lot: colours are already in the vertices, so
@@ -1040,6 +1068,7 @@ export function createRiderModel(THREE, shading) {
     (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; },
   );
   fabricTex.colorSpace = THREE.SRGBColorSpace;
+  fabricTex.anisotropy = 8;
 
   const cloth = (() => {
     const m = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false });
@@ -1052,11 +1081,20 @@ export function createRiderModel(THREE, shading) {
           varying vec2 vCloth;
           varying float vLocalY;
           varying vec3 vClothAxis;
+          varying vec3 vClothAcross;
+          varying vec3 vClothLocalN;
           varying vec3 vClothWorld;`)
         .replace('#include <begin_vertex>', `#include <begin_vertex>
           vCloth = aCloth;
           vLocalY = position.y;
           vClothAxis = normalize(normalMatrix * vec3(0.0, 1.0, 0.0));
+          /* The weave is projected along whichever of the garment's own
+             horizontal axes faces this vertex least — a limb is a tube, so
+             one projection stretches on half of it — and the relief below
+             needs that plane's across-axis in view space. */
+          vClothLocalN = normal;
+          vClothAcross = normalize(normalMatrix
+            * (abs(normal.x) > abs(normal.z) ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0)));
           /* Rig-local, not world. Sampled at the world position the weave
              streamed across the jacket as the rider moved — cloth crawling
              over its own wearer — and kilometres into a run the UV grew
@@ -1071,10 +1109,16 @@ export function createRiderModel(THREE, shading) {
           varying vec2 vCloth;
           varying float vLocalY;
           varying vec3 vClothAxis;
-          varying vec3 vClothWorld;`)
+          varying vec3 vClothAcross;
+          varying vec3 vClothLocalN;
+          varying vec3 vClothWorld;
+          vec2 n64WeaveUv() {
+            return (abs(vClothLocalN.x) > abs(vClothLocalN.z)
+              ? vClothWorld.zy : vClothWorld.xy) * 6.0;
+          }`)
         .replace('#include <color_fragment>', `#include <color_fragment>
           if (vCloth.x > 0.05) {
-            vec3 weave = texture2D(uFabricTex, vClothWorld.xy * 6.0 + vClothWorld.yz * 6.0).rgb;
+            vec3 weave = texture2D(uFabricTex, n64WeaveUv()).rgb;
             diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * weave * 1.55, 0.45 * vCloth.x);
           }`)
         .replace(RIG_NORMAL_ANCHOR, CLOTH_BAFFLES)
@@ -1113,10 +1157,14 @@ export function createRiderModel(THREE, shading) {
      the board the physics has anchored the rider to, however hard it is
      driven. It is a bow between the contacts and nothing else, which is what a
      snowboard does. */
+  /* The top-sheet: the board photograph cropped to the deck and turned so
+     its length runs up v — the parameterisation `loft` writes — with the
+     deck's own u range inside the print's edges (see `GENERATED.md`). */
   const boardGraphicTex = new THREE.TextureLoader().load(
-    new URL('../assets/textures/rider/snowboard-graphics.jpg', import.meta.url).href,
+    new URL('../assets/textures/rider/snowboard-topsheet.webp', import.meta.url).href,
   );
   boardGraphicTex.colorSpace = THREE.SRGBColorSpace;
+  boardGraphicTex.anisotropy = 8;
 
   const boardMat = (() => {
     const m = new THREE.MeshLambertMaterial({
@@ -1135,13 +1183,23 @@ export function createRiderModel(THREE, shading) {
             float u = clamp(transformed.z / ${FLEX_SPAN.toFixed(3)}, -1.0, 1.0);
             transformed.y += uBend * (1.0 - u * u);
           }`);
-      // The same three light terms as the cloth, with a harder lobe: a
-      // topsheet is lacquer, not fabric, and it is the one surface here that
-      // ought to flash as a carve rolls it through the sun.
+      // The same light terms as the cloth, with a much harder lobe and the
+      // sky in it: a topsheet is lacquer, not fabric, and it is the one
+      // surface here that ought to flash as a carve rolls it through the
+      // sun. The print goes on the deck alone — the deck is the one white
+      // part, so the bindings and boots keep their own colours.
       shader.fragmentShader = shader.fragmentShader
         .replace('#include <common>', `#include <common>
           uniform float uLampGlow;`)
-        .replace(RIG_ANCHOR, rigLight(0.18, 0.45));
+        .replace('#include <map_fragment>', `
+          #ifdef USE_MAP
+          {
+            vec4 n64Sheet = texture2D( map, vMapUv );
+            float n64Deck = step(2.9, vColor.r + vColor.g + vColor.b);
+            diffuseColor.rgb *= mix(vec3(1.0), n64Sheet.rgb, n64Deck);
+          }
+          #endif`)
+        .replace(RIG_ANCHOR, rigLight(0.18, 0.45, false, 140, 0.35, 0.65));
     };
     return shading.apply(m);
   })();
