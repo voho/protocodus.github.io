@@ -84,7 +84,7 @@
             <span>VST3 · AU · Standalone</span>
             <span>Nine oscillator waveforms</span>
             <span>13 built-in programs</span>
-            <span>11 committed audio demos</span>
+            <span>Unreleased development build</span>
           </div>
         </div>
       </div>
@@ -112,7 +112,7 @@
           <article class="card reveal">
             <span class="card-num">01</span>
             <h3>Seven-saw SUPER SAW</h3>
-            <p>SUPER SAW puts seven sawtooth waves inside one oscillator slot, with the PW knob setting the pitch spread. The detune offsets and the spread curve follow Adam Szabo’s published JP-8000 measurements, the seven phases are randomised and free-running at each note-on, and the summed stack passes a high-pass tracked to the note’s own fundamental.</p>
+            <p>SUPER SAW puts seven sawtooth waves inside one oscillator slot, with the PW knob setting the pitch spread. The detune offsets and the spread curve follow Adam Szabo's published JP-8000 measurements, the seven phases are randomised and free-running at each note-on, and the summed stack passes a high-pass tracked to the note's own fundamental.</p>
           </article>
           <article class="card reveal">
             <span class="card-num">02</span>
@@ -127,7 +127,7 @@
           <article class="card reveal">
             <span class="card-num">04</span>
             <h3>Arpeggiator and rear input</h3>
-            <p>The documented 32 by 16 arpeggiator grid with shuffled divisions, tie chains, all twelve motifs, octave range, accent, velocity, end step, hold and split arpeggio; the 16 styles supplied are original patterns rather than Roland data. The rear INPUT jacks add input volume, centre cancel and a four-type AUDIO FILTER, and EXT-IN is selectable as an oscillator waveform.</p>
+            <p>The arpeggiator implements the documented 32 by 16 style grid, with shuffled divisions, tie chains, all twelve motifs, octave range, accent, velocity, end step, hold and split arpeggio. The 16 styles supplied are original patterns rather than Roland data. The rear INPUT jacks add input volume, centre cancel and a four-type AUDIO FILTER, and EXT-IN is selectable as an oscillator waveform.</p>
           </article>
         </div>
       </div>
@@ -166,6 +166,10 @@
             <dd>13 built-in programs, INIT PATCH first</dd>
           </div>
           <div>
+            <dt>Release status</dt>
+            <dd>The release history carries no released version</dd>
+          </div>
+          <div>
             <dt>Overdrive oversampling</dt>
             <dd>A fixed internal rate through half-band polyphase stages with antiderivative anti-aliasing</dd>
           </div>
@@ -192,12 +196,12 @@
           </a>
           <a class="linkcard reveal" href="https://github.com/voho/vst-instruments/blob/main/septum/README.md">
             <h3>Read the manual</h3>
-            <p>One README covering how the instrument works block by block, what it does not model, and its release history.</p>
+            <p>How the instrument works block by block, what it does not model, and the sources behind each modelling decision.</p>
             <span>Open the README <span aria-hidden="true">↗</span></span>
           </a>
           <a class="linkcard reveal" href="https://github.com/voho/vst-instruments/blob/main/septum/README.md#audio-demos">
             <h3>Listen to the demos</h3>
-            <p>Eleven committed takes, rendered by continuous integration from this instrument’s own shipping engine, so they cannot drift from the code.</p>
+            <p>Eleven committed takes, rendered by continuous integration from this instrument's own shipping engine, so they cannot drift from the code.</p>
             <span>Open the audio demos <span aria-hidden="true">↗</span></span>
           </a>
           <a class="linkcard reveal" href="https://github.com/voho/vst-instruments/tree/main/septum">
@@ -216,7 +220,7 @@
           <h2 class="title">Stated plainly.</h2>
         </div>
         <div class="notice reveal">
-          <p>The D Beam, the step recorder, tap tempo and CLOCK SOURCE with external MIDI clock are not included. The recorder, SysEx transmit and the USB audio topology are deferred, the codec’s own digital filter is left to the host’s converters, and a patch name is dropped on load.</p>
+          <p>The D Beam, the step recorder, tap tempo and CLOCK SOURCE with external MIDI clock are not included. The recorder, SysEx transmit and the USB audio topology are deferred, the codec's own digital filter is left to the host's converters, and a patch name is dropped on load.</p>
           <p>Septum is an independent original implementation, not affiliated with or licensed by Roland Corporation. It contains no firmware, ROM data, samples, captured audio, factory patches or factory arpeggio styles.</p>
         </div>
       </div>

@@ -95,7 +95,7 @@
         <figure class="shot">
           <img src="youknow-panel.webp" width="1400" height="1025"
             alt="Front panel of the YouKnow Rack Extension">
-          <figcaption>The YouKnow front panel. The rear panel carries the CV jacks, the four engine policies, Unit Character and Aging.</figcaption>
+          <figcaption>The front panel, read left to right: LFO and DCO into HPF, VCF, VCA and ENV, then CHORUS, with the Performance and Keyboard bays below.</figcaption>
         </figure>
         <figure class="shot" style="margin-top: clamp(1rem, 2vw, 1.4rem);">
           <img src="YouKnow_Back.png" width="1600" height="1171" loading="lazy"
@@ -202,7 +202,7 @@
           </div>
           <a class="linkcard reveal" href="mailto:protocodus@proton.me?subject=YouKnow%20support">
             <h3>Report a problem</h3>
-            <p>Include the YouKnow version, Reason version, operating system, computer model, audio sample rate, patch name and clear reproduction steps.</p>
+            <p>Anything reproducible, from a patch that will not load to a CPU figure that looks wrong. The checklist to send with it is below.</p>
             <span>protocodus@proton.me</span>
           </a>
           <a class="linkcard reveal" href="YouKnow_User_Manual.pdf#page=5">
@@ -214,6 +214,18 @@
       </div>
     </section>
 
+    <section class="band">
+      <div class="wrap">
+        <div class="head reveal">
+          <span class="tag">Troubleshooting</span>
+          <h2 class="title">If something is wrong.</h2>
+        </div>
+        <div class="notice reveal">
+          <p>If notes arrive but there is no sound, load Init or reset the device, verify Volume and VCA Level, and confirm both stereo outputs are connected. For high CPU, select 1x, Poly, Cubic and Normal on the rear and reduce Voices. If a quality change seems delayed, release all notes and let the output tail settle; the change is applied only at a safe silent boundary. For no CV response, connect both Gate and Note CV.</p>
+        </div>
+      </div>
+    </section>
+
     <section class="band band-well">
       <div class="wrap">
         <div class="head reveal">
@@ -221,8 +233,8 @@
           <h2 class="title">Stated plainly.</h2>
         </div>
         <div class="notice reveal">
-          <p>Quick help: if notes arrive but there is no sound, load Init or reset the device, verify Volume and VCA Level, and confirm both stereo outputs are connected. For high CPU, select 1x, Poly, Cubic and Normal on the rear and reduce Voices. If a quality change seems delayed, release all notes and let the output tail settle; the change is applied only at a safe silent boundary. For no CV response, connect both Gate and Note CV.</p>
-          <p>YouKnow is an independent Protocodus product. It is not affiliated with, endorsed by, sponsored by, or licensed by Roland Corporation. Reason, Reason Studios and Rack Extension are Reason Studios AB trademarks and identify the compatible platform. Reason Studios’ applicable customer terms govern Shop delivery.</p>
+          <p>YouKnow does not expose MIDI Program Change or SysEx file import and export; use Reason's patch browser and patch files instead. The rear Note and Gate CV pair is monophonic, so CV plays one note at a time while MIDI stays polyphonic up to the selected Voices limit. Unit Character, Aging, Chorus Hiss and the four rear engine policies are available to Remote but are deliberately left outside sequencer automation. The Universal 45 development archive is for Reason Studios' build service and is not a customer installer.</p>
+          <p>YouKnow is an independent Protocodus product. It is not affiliated with, endorsed by, sponsored by, or licensed by Roland Corporation. Reason, Reason Studios and Rack Extension are Reason Studios AB trademarks and identify the compatible platform. Reason Studios' applicable customer terms govern Shop delivery.</p>
         </div>
       </div>
     </section>

@@ -84,7 +84,7 @@
             <span>VST3 · AU · Standalone</span>
             <span>macOS 11 or later</span>
             <span>128 factory tone-memory states</span>
-            <span>Ten committed audio demos</span>
+            <span>Unreleased development build</span>
           </div>
         </div>
       </div>
@@ -95,7 +95,7 @@
         <figure class="shot">
           <img src="youknow106-panel.webp" width="1360" height="718"
             alt="Editor panel of the YouKnow106 plug-in">
-          <figcaption>The YouKnow106 editor keeps the reference instrument’s control inventory and reading order.</figcaption>
+          <figcaption>The YouKnow106 editor keeps the reference instrument's control inventory and reading order.</figcaption>
         </figure>
       </div>
     </section>
@@ -105,29 +105,29 @@
         <div class="head reveal">
           <span class="tag">Inside the instrument</span>
           <h2 class="title">Block by block,<br>source by source.</h2>
-          <p class="lede">The panel keeps the reference instrument’s control inventory and its reading order, with the plug-in additions placed next to the hardware families they belong to.</p>
+          <p class="lede">The panel keeps the reference instrument's control inventory and its reading order, with the plug-in additions placed next to the hardware families they belong to.</p>
         </div>
 
         <div class="cards stagger">
           <article class="card reveal">
             <span class="card-num">01</span>
             <h3>All 128 factory tones</h3>
-            <p>The original 128 tone-memory states are included in the physical instrument’s order, each as the hardware’s complete 18-byte state with no corrective gain, hidden EQ or per-preset rebalancing. The bytes were mechanically decoded and cross-checked with zero mismatches against three public archives.</p>
+            <p>The original 128 tone-memory states are included in the physical instrument's order, each as the hardware's complete 18-byte state with no corrective gain, hidden EQ or per-preset rebalancing. The bytes were mechanically decoded and cross-checked with zero mismatches against three public archives.</p>
           </article>
           <article class="card reveal">
             <span class="card-num">02</span>
             <h3>Four chorus states</h3>
-            <p>Two uncompanded 256-stage MN3009 delay lines are driven anti-phase by one triangle, at rates derived from the instrument’s own oscillator circuit. Off, I, II and I+II are all available live and in the session; the original’s owner manual says I and II cannot be used together, so I+II is a plug-in mode and hardware-format patch files save it as II.</p>
+            <p>Two uncompanded 256-stage MN3009 delay lines are driven anti-phase by one triangle, at rates derived from the instrument's own oscillator circuit. Off, I, II and I+II are all available live and in the session; the original's owner manual says I and II cannot be used together, so I+II is a plug-in mode and hardware-format patch files save it as II.</p>
           </article>
           <article class="card reveal">
             <span class="card-num">03</span>
             <h3>Calibrated self-oscillating filter</h3>
-            <p>The four-pole filter is solved directly as its continuous nonlinear equations, with cutoff anchored on Roland’s own service calibration point where converter code 6272 self-oscillates at 248 Hz, which the model predicts within a cent rather than fitting.</p>
+            <p>The four-pole filter is solved directly as its continuous nonlinear equations, with cutoff anchored on Roland's own service calibration point where converter code 6272 self-oscillates at 248 Hz, which the model predicts within a cent rather than fitting.</p>
           </article>
           <article class="card reveal">
             <span class="card-num">04</span>
             <h3>Unit Character and Aging</h3>
-            <p>Unit Character scales every modelled tolerance from calibrated-nominal at 0 percent, through the 100 percent default described as matching real hardware, to exaggerated at 200 percent. Seeds are fixed, so the same patch renders identically every launch. Aging sits beside it and drifts each voice’s filter trim flat by its own share of up to a quarter tone while lifting the noise source by up to 3.5 dB.</p>
+            <p>Unit Character scales every modelled tolerance from calibrated-nominal at 0 percent, through the 100 percent default described as matching real hardware, to exaggerated at 200 percent. Seeds are fixed, so the same patch renders identically every launch. Aging sits beside it and drifts each voice's filter trim flat by its own share of up to a quarter tone while lifting the noise source by up to 3.5 dB.</p>
           </article>
         </div>
       </div>
@@ -150,12 +150,16 @@
             <dd>VST3, Audio Unit, Standalone</dd>
           </div>
           <div>
-            <dt>Platform</dt>
-            <dd>macOS, universal arm64 and x86_64</dd>
+            <dt>Platforms</dt>
+            <dd>macOS, universal arm64 and x86_64; the nightly workflow also builds Linux and Windows</dd>
           </div>
           <div>
             <dt>Minimum OS</dt>
             <dd>macOS 11 or later</dd>
+          </div>
+          <div>
+            <dt>Release status</dt>
+            <dd>The release history lists 1.1.0 as unreleased</dd>
           </div>
           <div>
             <dt>Internal oversampling</dt>
@@ -167,7 +171,7 @@
           </div>
           <div>
             <dt>Patch exchange</dt>
-            <dd>Reads and writes the hardware’s own SysEx patch format in both directions</dd>
+            <dd>Reads and writes the hardware's own SysEx patch format in both directions</dd>
           </div>
           <div>
             <dt>Reported latency</dt>
@@ -192,12 +196,12 @@
           </a>
           <a class="linkcard reveal" href="https://github.com/voho/vst-instruments/blob/main/youknow106/README.md">
             <h3>Read the manual</h3>
-            <p>One README covering how the instrument works block by block, what it does not model, and its release history.</p>
+            <p>How the instrument works block by block, what it does not model, and the sources behind each modelling decision.</p>
             <span>Open the README <span aria-hidden="true">↗</span></span>
           </a>
           <a class="linkcard reveal" href="https://github.com/voho/vst-instruments/blob/main/youknow106/README.md#audio-demos">
             <h3>Listen to the demos</h3>
-            <p>Ten committed takes, rendered by continuous integration from this instrument’s own shipping engine, so they cannot drift from the code.</p>
+            <p>Ten committed takes, rendered by continuous integration from this instrument's own shipping engine, so they cannot drift from the code.</p>
             <span>Open the audio demos <span aria-hidden="true">↗</span></span>
           </a>
           <a class="linkcard reveal" href="https://github.com/voho/vst-instruments/tree/main/youknow106">
@@ -218,8 +222,8 @@
           <h2 class="title">Stated plainly.</h2>
         </div>
         <div class="notice reveal">
-          <p>It models no pitch drift and no inter-voice detune, so six voices on one key are always exactly in tune and unison carries no detune generator, no mains ripple and no velocity from the modelled keybed. It also deliberately leaves out mechanisms whose magnitude the sources cannot fix, including chorus wet-mute click and leakage, high-pass mode-change transients, converter charge injection, and the common output amplifier’s untrimmed even-order distortion.</p>
-          <p>YouKnow106 is an independent original implementation, not affiliated with or licensed by Roland Corporation, and it contains no firmware, ROM data, samples or captured audio. It does include the original 128 factory tone-memory states as functional 18-byte parameter data, independently decoded and checksum-verified; no Roland Cloud content was extracted. Its panel follows that instrument’s functional geometry and 1980s colour vocabulary while retaining independent branding, typography and project-drawn controls.</p>
+          <p>It models no pitch drift and no inter-voice detune, so six voices on one key are always exactly in tune and unison carries no detune generator, no mains ripple and no velocity from the modelled keybed. It also deliberately leaves out mechanisms whose magnitude the sources cannot fix, including chorus wet-mute click and leakage, high-pass mode-change transients, converter charge injection, and the common output amplifier's untrimmed even-order distortion.</p>
+          <p>YouKnow106 is an independent original implementation, not affiliated with or licensed by Roland Corporation, and it contains no firmware, ROM data, samples or captured audio. It does include the original 128 factory tone-memory states as functional 18-byte parameter data, independently decoded and checksum-verified; no Roland Cloud content was extracted. Its panel follows that instrument's functional geometry and 1980s colour vocabulary while retaining independent branding, typography and project-drawn controls.</p>
         </div>
       </div>
     </section>

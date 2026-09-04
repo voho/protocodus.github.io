@@ -818,7 +818,7 @@ p {
   display: block;
 }
 
-.game h3 {
+.game :is(h2, h3) {
   margin: 0.9rem 0 0.5rem;
   font-size: clamp(1.25rem, 1rem + 0.6vw, 1.55rem);
   font-weight: 700;
@@ -965,6 +965,18 @@ p {
   font-size: 0.85rem;
 }
 
+.footer-meta a {
+  color: var(--fg-muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--line-lift);
+}
+
+.footer-meta a:hover {
+  color: var(--fg);
+  text-decoration-color: var(--accent);
+}
+
 /* Motion & Reveals
    ========================================================================== */
 .js .rise > span {
@@ -1008,6 +1020,8 @@ p {
 .js .stagger > .reveal:nth-child(4) { transition-delay: 0.21s; }
 .js .stagger > .reveal:nth-child(5) { transition-delay: 0.28s; }
 .js .stagger > .reveal:nth-child(6) { transition-delay: 0.35s; }
+.js .stagger > .reveal:nth-child(7) { transition-delay: 0.42s; }
+.js .stagger > .reveal:nth-child(8) { transition-delay: 0.49s; }
 
 /* Responsive — Tablet & Mobile Optimization
    ========================================================================== */
@@ -1197,7 +1211,7 @@ p {
   letter-spacing: 0.14em;
 }
 
-.product-card h3 {
+.product-card :is(h2, h3) {
   margin: 0.55rem 0 0.5rem;
   font-size: clamp(1.5rem, 1.2rem + 0.9vw, 2.1rem);
   font-weight: 700;
