@@ -23,6 +23,9 @@
     .arcade .brand-name { font-size: 1rem; font-weight: 700; }
     .back-home { display: inline-flex; align-items: center; gap: 0.5rem; margin-top: clamp(3rem, 6vw, 4rem); color: var(--fg-faint); transition: color 0.2s ease; }
     .back-home:hover { color: var(--fg); }
+    .arcade-foot { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.8rem 2rem; }
+    .arcade-mail { margin-top: clamp(3rem, 6vw, 4rem); color: var(--fg-muted); font-size: 0.92rem; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: var(--line-lift); }
+    .arcade-mail:hover { color: var(--accent); text-decoration-color: var(--accent); }
   </style>
 </head>
 
@@ -61,7 +64,10 @@
         </a>
       </div>
 
-      <a class="back-home" href="/">← Back to Protocodus</a>
+      <div class="arcade-foot">
+        <a class="back-home" href="/">← Back to Protocodus</a>
+        <a class="arcade-mail" href="mailto:protocodus@proton.me">protocodus@proton.me</a>
+      </div>
     </div>
   </main>
 </body>

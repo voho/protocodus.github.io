@@ -609,6 +609,43 @@ p {
   font-weight: 400;
 }
 
+/* Experience strip
+   ========================================================================== */
+.experience-strip {
+  padding: 1.8rem 0;
+  background: var(--bg-well);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.experience-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1.2rem 2rem;
+}
+
+.experience-label {
+  font-size: 0.86rem;
+  font-weight: 500;
+  color: var(--fg-muted);
+}
+
+.experience-logos {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1.2rem clamp(1.5rem, 3vw, 2.8rem);
+}
+
+.experience-item {
+  font-size: clamp(0.95rem, 0.9rem + 0.2vw, 1.08rem);
+  font-weight: 600;
+  color: var(--fg-muted);
+  letter-spacing: -0.01em;
+}
+
 /* Bands
    ========================================================================== */
 .band {
@@ -1082,6 +1119,12 @@ p {
   .hero-actions .btn {
     width: 100%;
     justify-content: center;
+  }
+
+  .experience-inner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.8rem;
   }
 }
 
