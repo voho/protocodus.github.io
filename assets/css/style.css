@@ -609,48 +609,6 @@ p {
   font-weight: 400;
 }
 
-/* Experience / Proven Track Record Strip
-   ========================================================================== */
-.experience-strip {
-  padding: 1.8rem 0;
-  background: var(--bg-well);
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
-}
-
-.experience-inner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 1.2rem 2rem;
-}
-
-.experience-label {
-  font-size: 0.86rem;
-  font-weight: 500;
-  color: var(--fg-faint);
-}
-
-.experience-logos {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 1.2rem clamp(1.5rem, 3vw, 2.8rem);
-}
-
-.experience-item {
-  font-size: clamp(0.95rem, 0.9rem + 0.2vw, 1.08rem);
-  font-weight: 600;
-  color: var(--fg-muted);
-  letter-spacing: -0.01em;
-  transition: color 0.2s ease;
-}
-
-.experience-item:hover {
-  color: var(--fg);
-}
-
 /* Bands
    ========================================================================== */
 .band {
@@ -1111,12 +1069,6 @@ p {
     width: 100%;
     justify-content: center;
   }
-
-  .experience-inner {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.8rem;
-  }
 }
 
 /* Reduced Motion
@@ -1146,9 +1098,9 @@ p {
 }
 
 
-/* Audio Lab / VST instruments
+/* Products — showcase grid and product pages
    ========================================================================== */
-.instruments {
+.showcase {
   position: relative;
   overflow: hidden;
   background:
@@ -1157,84 +1109,313 @@ p {
     #08090c;
 }
 
-.instruments::before {
+.showcase::before {
   content: '';
   position: absolute;
   inset: 0;
   pointer-events: none;
   opacity: 0.16;
-  background-image: linear-gradient(rgba(255,255,255,.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.08) 1px, transparent 1px);
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
   background-size: 48px 48px;
   mask-image: linear-gradient(to bottom, transparent, #000 20%, #000 80%, transparent);
 }
 
-.instrument-head {
+.showcase > .wrap {
   position: relative;
-  display: grid;
-  grid-template-columns: 1.2fr .8fr;
-  gap: clamp(2rem, 7vw, 7rem);
-  align-items: end;
-  margin-bottom: clamp(3rem, 6vw, 5rem);
 }
 
-.instrument-head .title { font-size: clamp(2.5rem, 1.3rem + 4vw, 5.2rem); }
-.instrument-intro { color: var(--fg-muted); }
-.instrument-intro p { max-width: 42ch; margin-bottom: 1.5rem; }
-.instrument-intro .btn { margin-right: .75rem; }
-.platforms { display: block; margin-top: 1rem; color: var(--fg-faint); font-size: .78rem; letter-spacing: .12em; }
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(1rem, 2vw, 1.4rem);
+}
 
-.instrument-grid { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; }
-.instrument {
+.product-card {
   --signal: var(--mint);
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
-  min-height: 470px;
-  display: grid;
-  grid-template-rows: 1.25fr 1fr;
-  background: rgba(20, 22, 28, .8);
-  border: 1px solid rgba(255,255,255,.11);
+  background: rgba(20, 22, 28, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.11);
   border-radius: 22px;
-  box-shadow: 0 24px 70px rgba(0,0,0,.28);
-  transition: transform .35s var(--ease), border-color .35s var(--ease), box-shadow .35s var(--ease);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+  transition: transform 0.35s var(--ease), border-color 0.35s var(--ease), box-shadow 0.35s var(--ease);
 }
-.instrument:hover { transform: translateY(-7px); border-color: color-mix(in srgb, var(--signal) 55%, transparent); box-shadow: 0 28px 80px color-mix(in srgb, var(--signal) 12%, transparent); }
-.instrument-acustry { --signal: #ffb547; }
-.instrument-youknow { --signal: #ff5db1; }
-.instrument-septum { --signal: #8e7dff; }
-.instrument-display {
+
+/* Each product carries its own signal colour; the grid and its page share it */
+.p-youknow,
+.p-youknow106 { --signal: #ff5db1; }
+.p-drumalor { --signal: #ff6b4a; }
+.p-electry { --signal: #00ffc3; }
+.p-taikor { --signal: #ffb547; }
+.p-acustra { --signal: #9ad14b; }
+.p-septum { --signal: #8e7dff; }
+.p-ghostar { --signal: #4aa8ff; }
+
+.product-card:hover {
+  transform: translateY(-7px);
+  border-color: color-mix(in srgb, var(--signal) 55%, transparent);
+  box-shadow: 0 28px 80px color-mix(in srgb, var(--signal) 12%, transparent);
+}
+
+.product-shot {
   position: relative;
   overflow: hidden;
-  background: radial-gradient(circle at 50%, color-mix(in srgb, var(--signal) 18%, transparent), transparent 58%), #0b0d12;
-  border-bottom: 1px solid rgba(255,255,255,.08);
+  aspect-ratio: 16 / 9;
+  background: #0b0d12;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
-.instrument-display::before, .instrument-display::after { content: ''; position: absolute; inset: 0; }
-.instrument-display::before { opacity: .22; background: repeating-linear-gradient(0deg, transparent 0 5px, rgba(255,255,255,.08) 6px); }
-.instrument-display::after { inset: 14%; border: 1px solid color-mix(in srgb, var(--signal) 32%, transparent); border-radius: 50%; box-shadow: 0 0 50px color-mix(in srgb, var(--signal) 20%, transparent); }
-.instrument-display i { position: absolute; z-index: 2; width: 9px; height: 9px; border: 1px solid var(--signal); border-radius: 50%; box-shadow: 0 0 12px var(--signal); }
-.instrument-display i:nth-of-type(1) { left: 15%; top: 24%; }
-.instrument-display i:nth-of-type(2) { right: 20%; top: 38%; }
-.instrument-display i:nth-of-type(3) { left: 42%; bottom: 17%; }
-.wave { position: absolute; z-index: 1; left: 8%; right: 8%; top: 50%; height: 2px; background: var(--signal); filter: drop-shadow(0 0 8px var(--signal)); clip-path: polygon(0 40%, 10% 40%, 16% 0, 23% 100%, 30% 28%, 40% 70%, 48% 15%, 57% 90%, 66% 32%, 76% 65%, 84% 10%, 91% 45%, 100% 45%, 100% 100%, 0 100%); transform: scaleY(38); }
-.rings, .orbit, .bars { position: absolute; z-index: 1; inset: 21%; border: 2px solid var(--signal); border-radius: 50%; box-shadow: 0 0 22px var(--signal), inset 0 0 22px color-mix(in srgb, var(--signal) 35%, transparent); }
-.rings::before, .rings::after { content:''; position:absolute; border:1px solid var(--signal); border-radius:50%; inset: 17%; }
-.rings::after { inset: 35%; background: var(--signal); box-shadow: 0 0 24px var(--signal); }
-.orbit { border-radius: 44% 56% 61% 39%; transform: rotate(25deg); }
-.orbit::before { content:''; position:absolute; inset: 18%; border: 1px dashed var(--signal); border-radius: 61% 39% 44% 56%; transform: rotate(70deg); }
-.bars { inset: 20% 12%; border: 0; border-radius: 0; box-shadow: none; background: repeating-linear-gradient(90deg, var(--signal) 0 4px, transparent 4px 12.5%); clip-path: polygon(0 44%, 8% 20%, 17% 70%, 27% 5%, 37% 56%, 48% 29%, 60% 88%, 71% 16%, 82% 63%, 91% 34%, 100% 48%, 100% 52%, 0 52%); filter: drop-shadow(0 0 8px var(--signal)); }
-.instrument-copy { position: relative; z-index: 2; padding: clamp(1.5rem, 3vw, 2.25rem); }
-.instrument-index { color: var(--signal); font-size: .72rem; font-weight: 600; letter-spacing: .16em; }
-.instrument-copy h3 { margin: .5rem 0; font-size: clamp(2rem, 1.5rem + 1.2vw, 2.8rem); line-height: 1; letter-spacing: -.045em; }
-.instrument-copy p { color: var(--fg-muted); font-size: .94rem; max-width: 46ch; }
-.instrument-copy a { display: inline-block; margin-top: 1.2rem; color: var(--signal); font-size: .88rem; font-weight: 600; }
-.instrument-copy a:hover { text-decoration: underline; text-underline-offset: 4px; }
-.instrument-cta { position: relative; display: flex; justify-content: space-between; align-items: center; gap: 1.5rem; margin-top: 1.25rem; padding: 1.25rem 1.5rem; border: 1px solid var(--line-lift); border-radius: 14px; background: rgba(255,255,255,.035); font-size: .9rem; }
-.instrument-cta div { display: flex; align-items: center; gap: .75rem; }
-.instrument-cta div span:last-child { color: var(--fg-muted); }
-.instrument-cta > a { color: var(--accent); font-weight: 600; }
-.status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--mint); box-shadow: 0 0 12px var(--mint); }
 
-@media (max-width: 760px) {
-  .instrument-head, .instrument-grid { grid-template-columns: 1fr; }
-  .instrument-head { align-items: start; }
-  .instrument { min-height: 430px; }
-  .instrument-cta, .instrument-cta div { align-items: flex-start; flex-direction: column; }
+.product-shot img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+  transition: transform 0.5s var(--ease);
+}
+
+.product-card:hover .product-shot img {
+  transform: scale(1.03);
+}
+
+.product-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  padding: clamp(1.4rem, 3vw, 2rem);
+}
+
+.product-kicker {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--signal);
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+}
+
+.product-card h3 {
+  margin: 0.55rem 0 0.5rem;
+  font-size: clamp(1.5rem, 1.2rem + 0.9vw, 2.1rem);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+}
+
+.product-card p {
+  color: var(--fg-muted);
+  font-size: 0.94rem;
+  line-height: 1.6;
+  max-width: 46ch;
+}
+
+.product-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: auto;
+  padding-top: 1.3rem;
+  color: var(--signal);
+  font-size: 0.88rem;
+  font-weight: 600;
+  transition: gap 0.2s var(--ease);
+}
+
+.product-card:hover .product-more {
+  gap: 0.7rem;
+}
+
+/* Small caption under a grid, e.g. how the builds are distributed */
+.showcase-note {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.8rem 1.5rem;
+  margin-top: 1.25rem;
+  padding: 1.25rem 1.5rem;
+  border: 1px solid var(--line-lift);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.035);
+  font-size: 0.9rem;
+  color: var(--fg-muted);
+}
+
+.showcase-note strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  color: var(--fg);
+}
+
+.showcase-note a {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.showcase-note a:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--mint);
+  box-shadow: 0 0 12px var(--mint);
+}
+
+/* Product page
+   ========================================================================== */
+.product-page .tag,
+.product-page .card-num,
+.product-page .tag-dot {
+  color: var(--signal);
+}
+
+.product-page .tag-dot {
+  background: var(--signal);
+  box-shadow: 0 0 8px var(--signal);
+}
+
+.quickfacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem clamp(0.9rem, 2vw, 1.8rem);
+  font-size: 0.9rem;
+  color: var(--fg-muted);
+}
+
+.quickfacts span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.quickfacts span::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--signal, var(--teal));
+}
+
+.shot {
+  padding: clamp(0.7rem, 1.6vw, 1.2rem);
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 24px 50px -24px rgba(0, 0, 0, 0.8);
+}
+
+.shot img {
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius-sm);
+}
+
+.shot figcaption {
+  margin-top: 0.9rem;
+  color: var(--fg-muted);
+  font-size: 0.85rem;
+}
+
+.specs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.specs > div {
+  padding: clamp(1.1rem, 2.2vw, 1.5rem);
+  background: var(--panel);
+}
+
+.specs dt {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--signal, var(--fg-faint));
+}
+
+.specs dd {
+  margin-top: 0.4rem;
+  font-size: 0.94rem;
+  line-height: 1.55;
+  color: var(--fg);
+}
+
+.linkset {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(1rem, 2vw, 1.4rem);
+}
+
+.linkcard {
+  display: flex;
+  flex-direction: column;
+  padding: clamp(1.4rem, 2.6vw, 1.9rem);
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-lg);
+  transition: all 0.25s var(--ease);
+}
+
+.linkcard:hover {
+  background: var(--panel-lift);
+  border-color: var(--panel-border-hover);
+  transform: translateY(-2px);
+}
+
+.linkcard h3 {
+  font-size: 1.08rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--fg);
+}
+
+.linkcard p {
+  margin-top: 0.4rem;
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: var(--fg-muted);
+}
+
+.linkcard span:last-child {
+  margin-top: auto;
+  padding-top: 1.2rem;
+  color: var(--signal);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.notice {
+  max-width: 74ch;
+  color: var(--fg-muted);
+  font-size: 0.88rem;
+  line-height: 1.65;
+}
+
+.notice p + p {
+  margin-top: 0.8rem;
+}
+
+@media (max-width: 880px) {
+  .specs {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 680px) {
+  .product-grid,
+  .linkset {
+    grid-template-columns: 1fr;
+  }
 }

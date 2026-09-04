@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Drumalor — Procedural Drum Instrument | Protocodus</title>
+  <meta name="description" content="Drumalor is a thirteen-voice procedural drum instrument for VST3, Audio Unit and Standalone hosts. Every hit is synthesised, with no samples and no ROM images.">
+  <meta name="theme-color" content="#0d0e12">
+  <meta property="og:title" content="Drumalor — Procedural drum instrument">
+  <meta property="og:description" content="Drumalor is a thirteen-voice procedural drum instrument for VST3, Audio Unit and Standalone hosts. Every hit is synthesised, with no samples and no ROM images.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://protocodus.cz/product/drumalor/">
+  <meta property="og:image" content="https://protocodus.cz/product/drumalor/drumalor-panel.webp">
+  <link rel="canonical" href="https://protocodus.cz/product/drumalor/">
+  <link rel="icon" type="image/svg+xml" href="/assets/images/logo.svg">
+  <link rel="preload" href="/assets/fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <script>document.documentElement.classList.add('js');</script>
+</head>
+
+<body class="product-page p-drumalor">
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap header-inner">
+      <a href="/" class="brand" aria-label="Protocodus home">
+        <img src="/assets/images/logo.svg" alt="" class="brand-mark">
+        <span class="brand-name">Protocodus</span>
+      </a>
+
+      <nav class="nav" aria-label="Main navigation">
+        <a href="/product/" class="nav-link">All products</a>
+        <a href="#get" class="nav-link">Downloads</a>
+        <a href="#support" class="nav-link">Support</a>
+      </nav>
+
+      <div class="header-actions">
+        <a href="#get" class="btn btn-sm btn-header">Downloads &amp; docs</a>
+        <button class="menu-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="mobile-menu">
+          <span></span><span></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div class="mobile-menu" id="mobile-menu" hidden>
+    <nav class="mobile-nav" aria-label="Mobile navigation">
+      <a href="/product/" class="mobile-link">All products</a>
+      <a href="#get" class="mobile-link">Downloads</a>
+      <a href="#support" class="mobile-link">Support</a>
+      <a href="/" class="mobile-link">Protocodus home</a>
+    </nav>
+    <div class="mobile-foot">
+      <a href="mailto:protocodus@proton.me" class="mobile-mail">protocodus@proton.me</a>
+    </div>
+  </div>
+
+  <main id="main">
+    <section class="hero" id="top">
+      <div class="hero-inner wrap">
+        <div class="statement">
+          <div class="tag-pill enter">
+            <span class="tag-dot"></span>
+            <span>Procedural drum instrument</span>
+          </div>
+
+          <h1 class="hero-title">
+            <span class="rise"><span>Drumalor</span></span>
+          </h1>
+
+          <p class="hero-sub enter">A thirteen-voice drum instrument that generates every hit as you play it, from oscillators, noise, filters, envelopes, resonators and circuit-inspired nonlinear shaping, rather than playing back recorded samples.</p>
+
+          <div class="hero-actions enter">
+            <a href="https://github.com/voho/vst-instruments/actions/workflows/nightly.yml" class="btn btn-primary">Download the nightly build</a>
+            <a href="https://github.com/voho/vst-instruments/blob/main/drumalor/README.md" class="btn btn-secondary">Read the manual</a>
+          </div>
+        </div>
+
+        <div class="hero-foot enter">
+          <span class="loop-label">At a glance</span>
+          <div class="quickfacts">
+            <span>Thirteen synthesised voices</span>
+            <span>VST3 · AU · Standalone</span>
+            <span>96 host parameters</span>
+            <span>General MIDI percussion map</span>
+            <span>Seven committed audio demos</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="band band-well" aria-label="Drumalor panel">
+      <div class="wrap">
+        <figure class="shot">
+          <img src="drumalor-panel.webp" width="1280" height="880"
+            alt="Editor panel of the Drumalor plug-in">
+          <figcaption>Thirteen voices, each with two character controls, pitch, decay, level, pan and a choke group.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="band">
+      <div class="wrap">
+        <div class="head reveal">
+          <span class="tag">Inside the kit</span>
+          <h2 class="title">No samples.<br>No ROM images.</h2>
+          <p class="lede">Every hit is generated in the audio callback. What you change is the drum, not a playback rate.</p>
+        </div>
+
+        <div class="cards stagger">
+          <article class="card reveal">
+            <span class="card-num">01</span>
+            <h3>Thirteen synthesised voices</h3>
+            <p>Kick, snare, clap, closed and open hats, ride, crash, three toms, shaker and two percussion voices, each generated in the audio callback from oscillators, noise, filters, envelopes, resonators and circuit-inspired nonlinear shaping.</p>
+          </article>
+          <article class="card reveal">
+            <span class="card-num">02</span>
+            <h3>Velocity plays the drum</h3>
+            <p>MIDI velocity is a timbre control across the struck voices, not only a level control, so a soft stroke is duller as well as quieter. The snare’s wires only rattle while the resonant head lifts them off their resting contact, so hard strikes buzz and soft ones stay dry.</p>
+          </article>
+          <article class="card reveal">
+            <span class="card-num">03</span>
+            <h3>Articulations, not extra voices</h3>
+            <p>The snare answers notes 38, 40 and 37 for head, rimshot and cross-stick, and the metallic voices answer notes 44, 53, 52 and 55 for hi-hat foot chick, ride bell, china and splash. Hi-hat pedal position follows CC 4 continuously, CC 88 carries high-resolution velocity, and aftertouch chokes ringing cymbals progressively with pressure.</p>
+          </article>
+          <article class="card reveal">
+            <span class="card-num">04</span>
+            <h3>Kit mixer and bus</h3>
+            <p>Per-voice Level and Pan, choke groups A, B and C, Kit Humanise, Kit Bleed, Bus Drive, Bus Compression and an Output control sit alongside each voice’s character, pitch and decay controls, for 96 host parameters in total: seven per voice, or 91, plus five kit controls.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="band band-well">
+      <div class="wrap">
+        <div class="head reveal">
+          <span class="tag">Specifications</span>
+          <h2 class="title">The numbers.</h2>
+        </div>
+
+        <dl class="specs reveal">
+          <div>
+            <dt>Voices</dt>
+            <dd>Thirteen separately playable synthesised voices</dd>
+          </div>
+          <div>
+            <dt>Formats</dt>
+            <dd>VST3, Audio Unit and Standalone</dd>
+          </div>
+          <div>
+            <dt>Platforms</dt>
+            <dd>macOS, plus Linux and Windows builds</dd>
+          </div>
+          <div>
+            <dt>Host parameters</dt>
+            <dd>96 in total: 91 voice parameters plus 5 kit controls</dd>
+          </div>
+          <div>
+            <dt>MIDI map</dt>
+            <dd>General MIDI percussion, with kit-layout aliases, CC 4, CC 88, CC 120, CC 123 and channel and polyphonic aftertouch</dd>
+          </div>
+          <div>
+            <dt>Oversampling</dt>
+            <dd>Local adaptive oversampling on the metallic oscillator and ring-modulation sections; first-order ADAA on the other nonlinear stages</dd>
+          </div>
+          <div>
+            <dt>Included content</dt>
+            <dd>No drum samples, impulse responses, neural model weights, factory ROMs or third-party presets</dd>
+          </div>
+          <div>
+            <dt>Licence</dt>
+            <dd>Original code under the MIT license; JUCE under its own terms</dd>
+          </div>
+        </dl>
+      </div>
+    </section>
+
+    <section class="band" id="get">
+      <div class="wrap">
+        <div class="head reveal">
+          <span class="tag">Downloads &amp; docs</span>
+          <h2 class="title">Get Drumalor.</h2>
+        </div>
+
+        <div class="linkset stagger">
+          <a class="linkcard reveal" href="https://github.com/voho/vst-instruments/actions/workflows/nightly.yml">
+            <h3>Download the nightly build</h3>
+            <p>The latest successful Nightly run carries one artifact with every instrument, for macOS, Linux and Windows. Artifacts are kept for 14 days and a GitHub account is needed to download them.</p>
+            <span>Open the Nightly runs <span aria-hidden="true">↗</span></span>
+          </a>
+          <a class="linkcard reveal" href="https://github.com/voho/vst-instruments/blob/main/drumalor/README.md">
+            <h3>Read the manual</h3>
+            <p>One README covering how the instrument works block by block, what it does not model, and its release history.</p>
+            <span>Open the README <span aria-hidden="true">↗</span></span>
+          </a>
+          <a class="linkcard reveal" href="https://github.com/voho/vst-instruments/blob/main/drumalor/README.md#audio-demos">
+            <h3>Listen to the demos</h3>
+            <p>Seven committed takes, rendered by continuous integration from this instrument’s own shipping engine, so they cannot drift from the code.</p>
+            <span>Open the audio demos <span aria-hidden="true">↗</span></span>
+          </a>
+          <a class="linkcard reveal" href="https://github.com/voho/vst-instruments/tree/main/drumalor">
+            <h3>Browse the source</h3>
+            <p>C++20 and JUCE 8. The original code is under the MIT license; JUCE is used under its own terms.</p>
+            <span>Open the source <span aria-hidden="true">↗</span></span>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <section class="band band-well">
+      <div class="wrap">
+        <div class="head reveal">
+          <span class="tag">What it does not do</span>
+          <h2 class="title">Stated plainly.</h2>
+        </div>
+        <div class="notice reveal">
+          <p>No room or ambience is modelled, and no recorded cymbal is used: the digital cymbal channel’s tables are generated rather than embedded. There is no calibrated correspondence to any particular unit of the machines whose published circuit analyses the cymbal channels follow.</p>
+          <p>Drumalor’s voices are circuit-inspired behavioral models, not a claim of component-for-component emulation of a TR-808, TR-909 or any other specific machine. It emulates no particular branded machine, embeds no sample, recording or ROM image, and is a modern behavioral design rather than a calibrated hardware replica.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="band band-contact" id="support">
+      <div class="wrap">
+        <div class="contact-box reveal">
+          <span class="tag">Product support</span>
+          <h2 class="title">Tell us what happened.</h2>
+          <p class="lede">Include the instrument and its version, your host application, your operating system and clear reproduction steps.</p>
+          <a href="mailto:protocodus@proton.me?subject=Drumalor" class="mail">protocodus@proton.me</a>
+          <p class="signed">Direct support from Protocodus.</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <div class="wrap">
+      <div class="footer-top">
+        <a href="/" class="brand" aria-label="Protocodus home">
+          <img src="/assets/images/logo.svg" alt="" class="brand-mark">
+          <span class="brand-name">Protocodus</span>
+        </a>
+        <p class="footer-tagline">Drumalor is a Protocodus product. Creative software development in Prague.</p>
+      </div>
+      <div class="footer-bottom">
+        <p class="footer-meta">© <span id="year">2026</span> Protocodus s.r.o. · Prague, Czech Republic</p>
+        <p class="footer-meta"><a href="/product/">All products</a> · <a href="/">Protocodus home</a></p>
+      </div>
+    </div>
+  </footer>
+  <script src="/assets/js/main.js"></script>
+</body>
+
+</html>

@@ -65,9 +65,15 @@
   // Navigation active spy
   // ===========================================================================
   const navLinks = [...document.querySelectorAll('.nav-link, .mobile-link, .index-link')];
+  // Only same-page anchors can be spied on; a cross-page href would be an
+  // invalid selector and take the whole script down with it
   const sections = navLinks
-    .map((link) => ({ link, section: document.querySelector(link.getAttribute('href')), on: false }))
-    .filter((entry) => entry.section);
+    .map((link) => {
+      const href = link.getAttribute('href') || '';
+      if (href.length < 2 || href[0] !== '#') return null;
+      return { link, section: document.querySelector(href), on: false };
+    })
+    .filter((entry) => entry && entry.section);
 
   if (sections.length && 'IntersectionObserver' in window) {
     const spy = new IntersectionObserver((entries) => {

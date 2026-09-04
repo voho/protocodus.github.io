@@ -4,11 +4,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>YouKnow Support | Protocodus</title>
-  <meta name="description" content="Support, documentation, and troubleshooting for the YouKnow circuit-modelled synthesizer Rack Extension for Reason 14 and later.">
+  <title>YouKnow — Circuit-Modelled Synth for Reason | Protocodus</title>
+  <meta name="description" content="YouKnow is a circuit-modelled analogue polysynth Rack Extension for Reason 14 and later, with 77 original patches, stereo chorus, CV, and scalable engine quality.">
   <meta name="theme-color" content="#0d0e12">
-  <meta property="og:title" content="YouKnow Circuit-Modelled Synth">
-  <meta property="og:description" content="Support and documentation for the YouKnow Rack Extension by Protocodus.">
+  <meta property="og:title" content="YouKnow — Rack Extension for Reason 14 and later">
+  <meta property="og:description" content="YouKnow is a circuit-modelled analogue polysynth Rack Extension for Reason 14 and later, with 77 original patches, stereo chorus, CV, and scalable engine quality.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://protocodus.cz/product/youknow/">
   <meta property="og:image" content="https://protocodus.cz/product/youknow/YouKnow_Front.png">
@@ -16,40 +16,10 @@
   <link rel="icon" type="image/svg+xml" href="/assets/images/logo.svg">
   <link rel="preload" href="/assets/fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/assets/css/style.css">
-  <style>
-    .product-panel {
-      padding: clamp(1rem, 2vw, 1.5rem);
-      background: var(--panel);
-      border: 1px solid var(--panel-border);
-      border-radius: var(--radius-lg);
-      box-shadow: 0 24px 50px -24px rgba(0, 0, 0, 0.8);
-    }
-
-    .product-panel img {
-      width: 100%;
-      height: auto;
-    }
-
-    .product-facts {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.7rem 1.8rem;
-      color: var(--fg-muted);
-      font-size: 0.92rem;
-    }
-
-    .support-copy {
-      max-width: 68ch;
-      color: var(--fg-muted);
-    }
-
-    .support-copy p + p {
-      margin-top: 1rem;
-    }
-  </style>
+  <script>document.documentElement.classList.add('js');</script>
 </head>
 
-<body>
+<body class="product-page p-youknow">
   <a class="skip-link" href="#main">Skip to content</a>
 
   <header class="site-header">
@@ -58,91 +28,217 @@
         <img src="/assets/images/logo.svg" alt="" class="brand-mark">
         <span class="brand-name">Protocodus</span>
       </a>
+
+      <nav class="nav" aria-label="Main navigation">
+        <a href="/product/" class="nav-link">All products</a>
+        <a href="#get" class="nav-link">Downloads</a>
+        <a href="#support" class="nav-link">Support</a>
+      </nav>
+
       <div class="header-actions">
-        <a href="#support" class="btn btn-sm btn-header">Get support</a>
+        <a href="#get" class="btn btn-sm btn-header">Downloads &amp; docs</a>
+        <button class="menu-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="mobile-menu">
+          <span></span><span></span>
+        </button>
       </div>
     </div>
   </header>
+
+  <div class="mobile-menu" id="mobile-menu" hidden>
+    <nav class="mobile-nav" aria-label="Mobile navigation">
+      <a href="/product/" class="mobile-link">All products</a>
+      <a href="#get" class="mobile-link">Downloads</a>
+      <a href="#support" class="mobile-link">Support</a>
+      <a href="/" class="mobile-link">Protocodus home</a>
+    </nav>
+    <div class="mobile-foot">
+      <a href="mailto:protocodus@proton.me" class="mobile-mail">protocodus@proton.me</a>
+    </div>
+  </div>
 
   <main id="main">
     <section class="hero" id="top">
       <div class="hero-inner wrap">
         <div class="statement">
-          <div class="tag-pill">
+          <div class="tag-pill enter">
             <span class="tag-dot"></span>
-            <span>Rack Extension for Reason 14+</span>
+            <span>Rack Extension for Reason 14 and later</span>
           </div>
-          <h1 class="hero-title">YouKnow</h1>
-          <p class="hero-sub">A circuit-modelled analogue polysynth with a direct subtractive signal path, stereo chorus, polyphonic MIDI, Note/Gate CV, and scalable rear-panel engine quality.</p>
-          <div class="hero-actions">
-            <a href="YouKnow_User_Manual.pdf" class="btn btn-primary">Download user guide</a>
+
+          <h1 class="hero-title">
+            <span class="rise"><span>YouKnow</span></span>
+          </h1>
+
+          <p class="hero-sub enter">A circuit-modelled analogue polysynth for the Reason rack: a direct subtractive signal path, stereo chorus, polyphonic MIDI, monophonic Note and Gate CV, and rear-panel engine quality you can scale to the session.</p>
+
+          <div class="hero-actions enter">
+            <a href="YouKnow_User_Manual.pdf" class="btn btn-primary">Download the user guide</a>
             <a href="mailto:protocodus@proton.me?subject=YouKnow%20support" class="btn btn-secondary">Email support</a>
           </div>
         </div>
-        <div class="hero-foot product-facts" aria-label="Product information">
-          <span>Current version: 1.0.0f3</span>
-          <span>Requires Reason 14 or later</span>
-          <span>77 original patches</span>
-          <span>34 sequencer automation lanes</span>
-          <span>Offline audio processing</span>
+
+        <div class="hero-foot enter">
+          <span class="loop-label">At a glance</span>
+          <div class="quickfacts">
+            <span>Version 1.0.0f3</span>
+            <span>Reason 14 or later</span>
+            <span>77 original patches</span>
+            <span>34 automation lanes</span>
+            <span>Offline audio processing</span>
+          </div>
         </div>
       </div>
     </section>
 
-    <section class="band band-well" aria-label="YouKnow front panel">
+    <section class="band band-well" aria-label="YouKnow panel">
       <div class="wrap">
-        <figure class="product-panel">
-          <img src="YouKnow_Front.png" width="1600" height="1171" alt="Front panel of the YouKnow circuit-modelled synthesizer Rack Extension">
+        <figure class="shot">
+          <img src="youknow-panel.webp" width="1400" height="1025"
+            alt="Front panel of the YouKnow Rack Extension">
+          <figcaption>The YouKnow front panel. The rear panel carries the CV jacks, the four engine policies, Unit Character and Aging.</figcaption>
+        </figure>
+        <figure class="shot" style="margin-top: clamp(1rem, 2vw, 1.4rem);">
+          <img src="YouKnow_Back.png" width="1600" height="1171" loading="lazy"
+            alt="Rear panel of the YouKnow Rack Extension">
+          <figcaption>The rear panel: monophonic Note and Gate CV, stereo outputs, the four engine policies, and the Unit Character and Aging controls.</figcaption>
         </figure>
       </div>
     </section>
 
-    <section class="band" id="help">
+    <section class="band">
       <div class="wrap">
-        <div class="head">
-          <span class="tag">Quick help</span>
-          <h2 class="title">Start with the efficient defaults.</h2>
-          <p class="lede">New devices use 1x Quality, Poly VCF Tanh, Cubic Fast Early, and the Normal VCF Solver. The four engine controls live on the rear panel and are stored with the song. The rear also has two distinct character controls: Unit Character is patch-persistent from 0–200%; Aging is song-persistent from 0–100% and defaults to 0% (freshly serviced). Both are editable only on the rear, Remote-mappable, and deliberately omitted from sequencer automation; read-only header cells keep their values visible from the front.</p>
+        <div class="head reveal">
+          <span class="tag">Inside the device</span>
+          <h2 class="title">Familiar panel,<br>scalable engine.</h2>
+          <p class="lede">The front panel follows the signal: LFO and DCO through HPF, VCF, VCA, ENV and CHORUS, with performance and keyboard controls in the lower bays. The engine policies that cost CPU live on the rear, out of the way of the sequencer.</p>
         </div>
-        <div class="cards">
-          <article class="card">
+
+        <div class="cards stagger">
+          <article class="card reveal">
             <span class="card-num">01</span>
-            <h3>Notes but no sound</h3>
-            <p>Load Init or reset the device, verify Volume and VCA Level, and confirm both stereo outputs are connected. Current builds include the preset-switch held-key recovery fix.</p>
+            <h3>A direct subtractive path</h3>
+            <p>LFO sets modulation rate and delayed onset. DCO selects octave range, waveforms, PWM source and depth, sub level, noise and oscillator modulation. HPF gives four high-pass positions including bass boost, and VCF adds cutoff, resonance, envelope polarity and amount, LFO amount and keyboard tracking. At high resonance the filter can self-oscillate.</p>
           </article>
-          <article class="card">
+          <article class="card reveal">
             <span class="card-num">02</span>
-            <h3>High CPU</h3>
-            <p>Select 1x, Poly, Cubic, and Normal on the rear, then reduce Voices for dense arrangements. Reserve 4x with many voices for offline or lightly loaded work.</p>
+            <h3>Four chorus states</h3>
+            <p>Off, I, II, and a dedicated narrow I+II combination, with Chorus Hiss beside them in the same bay. Init and patches that inherit the engine default use the quieter MN3009 typical signal-to-noise estimate; Chorus Hiss at 100 percent retains the datasheet maximum.</p>
           </article>
-          <article class="card">
+          <article class="card reveal">
             <span class="card-num">03</span>
-            <h3>Quality change waits</h3>
-            <p>Release all notes and let the output tail settle. Quality changes apply at a safe silent boundary to avoid disruptive transitions.</p>
+            <h3>Engine quality you choose</h3>
+            <p>Quality (1x, 2x, 4x), VCF Tanh (Exact, Fast, Poly), Fast Early (Hermite, Cubic) and VCF Solver (Max, High, Normal) are song-persistent rear-panel policies. New devices use the efficient defaults; a quality change waits for voices and tails to fall silent, then crosses through a short safety fade.</p>
           </article>
-          <article class="card">
+          <article class="card reveal">
             <span class="card-num">04</span>
-            <h3>No CV response</h3>
-            <p>Connect both Gate CV and Note CV. The rear CV input is monophonic and expects Reason's normal pitch and positive-gate ranges.</p>
+            <h3>Unit Character and Aging</h3>
+            <p>Unit Character varies calibrated circuit tolerances across 0 to 200 percent and is saved with the patch. Aging is a separate 0 to 100 percent control stored with the song, starting at 0 percent for a freshly serviced instrument; raising it moves per-voice filter trims by their share of up to a quarter tone and lifts the noise source by up to 3.5 dB.</p>
           </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="band band-well">
+      <div class="wrap">
+        <div class="head reveal">
+          <span class="tag">Specifications</span>
+          <h2 class="title">The numbers.</h2>
+        </div>
+
+        <dl class="specs reveal">
+          <div>
+            <dt>Version</dt>
+            <dd>1.0.0f3</dd>
+          </div>
+          <div>
+            <dt>Format</dt>
+            <dd>Rack Extension for Reason 14 or later</dd>
+          </div>
+          <div>
+            <dt>Patches</dt>
+            <dd>77 original Protocodus patches, including Init</dd>
+          </div>
+          <div>
+            <dt>Categories</dt>
+            <dd>Bass, Leads, Keys, Brass, Pads, Strings, Effects</dd>
+          </div>
+          <div>
+            <dt>Automation</dt>
+            <dd>34 musical front-panel controls with stable sequencer lanes</dd>
+          </div>
+          <div>
+            <dt>CV</dt>
+            <dd>Monophonic rear Note and Gate CV; MIDI stays polyphonic</dd>
+          </div>
+          <div>
+            <dt>Voices</dt>
+            <dd>Selectable 1 to 16</dd>
+          </div>
+          <div>
+            <dt>Reported latency</dt>
+            <dd>A fixed 41 samples at every Quality setting</dd>
+          </div>
+        </dl>
+      </div>
+    </section>
+
+    <section class="band" id="get">
+      <div class="wrap">
+        <div class="head reveal">
+          <span class="tag">Downloads &amp; docs</span>
+          <h2 class="title">Get YouKnow.</h2>
+        </div>
+
+        <div class="linkset stagger">
+          <a class="linkcard reveal" href="YouKnow_User_Manual.pdf">
+            <h3>User guide (PDF)</h3>
+            <p>Install and first sound, the front and rear panels, the engine policies, patches, CV and timing, troubleshooting, and the full legal notices.</p>
+            <span>Download the PDF</span>
+          </a>
+          <div class="linkcard reveal">
+            <h3>Install and update</h3>
+            <p>YouKnow installs and updates through your Reason Studios account and the Reason Rack Extension browser. After installation it appears as YouKnow Circuit-Modelled Synth under Instruments in the device palette.</p>
+            <span>Reason Studios account and Rack Extension browser</span>
+          </div>
+          <a class="linkcard reveal" href="mailto:protocodus@proton.me?subject=YouKnow%20support">
+            <h3>Report a problem</h3>
+            <p>Include the YouKnow version, Reason version, operating system, computer model, audio sample rate, patch name and clear reproduction steps.</p>
+            <span>protocodus@proton.me</span>
+          </a>
+          <a class="linkcard reveal" href="YouKnow_User_Manual.pdf#page=5">
+            <h3>Privacy and licensing</h3>
+            <p>YouKnow processes audio offline and contains no telemetry or network client. The MIT notice for Protocodus-authored source and artwork, the privacy notice and third-party provenance follow the guide.</p>
+            <span>Read the notices</span>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <section class="band band-well">
+      <div class="wrap">
+        <div class="head reveal">
+          <span class="tag">What it does not do</span>
+          <h2 class="title">Stated plainly.</h2>
+        </div>
+        <div class="notice reveal">
+          <p>Quick help: if notes arrive but there is no sound, load Init or reset the device, verify Volume and VCA Level, and confirm both stereo outputs are connected. For high CPU, select 1x, Poly, Cubic and Normal on the rear and reduce Voices. If a quality change seems delayed, release all notes and let the output tail settle; the change is applied only at a safe silent boundary. For no CV response, connect both Gate and Note CV.</p>
+          <p>YouKnow is an independent Protocodus product. It is not affiliated with, endorsed by, sponsored by, or licensed by Roland Corporation. Reason, Reason Studios and Rack Extension are Reason Studios AB trademarks and identify the compatible platform. Reason Studios’ applicable customer terms govern Shop delivery.</p>
         </div>
       </div>
     </section>
 
     <section class="band band-contact" id="support">
       <div class="wrap">
-        <div class="contact-box">
+        <div class="contact-box reveal">
           <span class="tag">Product support</span>
           <h2 class="title">Tell us what happened.</h2>
-          <div class="support-copy">
-            <p>Include the YouKnow version, Reason version, operating system, computer model, audio sample rate, patch name, and clear reproduction steps.</p>
-            <p>Please do not send confidential songs, credentials, or recordings unless they are necessary and safe to share. Support information is used to answer the request and investigate the issue.</p>
-          </div>
+          <p class="lede">Include the YouKnow version, Reason version, operating system, computer model, audio sample rate, patch name and clear reproduction steps. Please do not send confidential songs, credentials or recordings unless they are necessary and safe to share.</p>
           <a href="mailto:protocodus@proton.me?subject=YouKnow%20support" class="mail">protocodus@proton.me</a>
-          <p class="signed">Direct support from Protocodus</p>
+          <p class="signed">Direct support from Protocodus.</p>
         </div>
       </div>
     </section>
+
   </main>
 
   <footer class="footer">
@@ -152,14 +248,15 @@
           <img src="/assets/images/logo.svg" alt="" class="brand-mark">
           <span class="brand-name">Protocodus</span>
         </a>
-        <p class="footer-tagline">YouKnow is an independent Protocodus product for the Reason rack.</p>
+        <p class="footer-tagline">YouKnow is a Protocodus product. Creative software development in Prague.</p>
       </div>
       <div class="footer-bottom">
-        <p class="footer-meta">© 2026 Protocodus s.r.o. · Prague, Czech Republic</p>
-        <p class="footer-meta">YouKnow 1.0.0f3</p>
+        <p class="footer-meta">© <span id="year">2026</span> Protocodus s.r.o. · Prague, Czech Republic</p>
+        <p class="footer-meta"><a href="/product/">All products</a> · <a href="/">Protocodus home</a></p>
       </div>
     </div>
   </footer>
+  <script src="/assets/js/main.js"></script>
 </body>
 
 </html>

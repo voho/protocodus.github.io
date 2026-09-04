@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Acustra — Physically Modelled Acoustic Guitar | Protocodus</title>
+  <meta name="description" content="Acustra is an acoustic-guitar instrument for VST3, Audio Unit and Standalone hosts. Every note is synthesised from six string models, a measured bridge and a measured body.">
+  <meta name="theme-color" content="#0d0e12">
+  <meta property="og:title" content="Acustra — Physically modelled acoustic guitar">
+  <meta property="og:description" content="Acustra is an acoustic-guitar instrument for VST3, Audio Unit and Standalone hosts. Every note is synthesised from six string models, a measured bridge and a measured body.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://protocodus.cz/product/acustra/">
+  <meta property="og:image" content="https://protocodus.cz/product/acustra/acustra-panel.webp">
+  <link rel="canonical" href="https://protocodus.cz/product/acustra/">
+  <link rel="icon" type="image/svg+xml" href="/assets/images/logo.svg">
+  <link rel="preload" href="/assets/fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <script>document.documentElement.classList.add('js');</script>
+</head>
+
+<body class="product-page p-acustra">
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap header-inner">
+      <a href="/" class="brand" aria-label="Protocodus home">
+        <img src="/assets/images/logo.svg" alt="" class="brand-mark">
+        <span class="brand-name">Protocodus</span>
+      </a>
+
+      <nav class="nav" aria-label="Main navigation">
+        <a href="/product/" class="nav-link">All products</a>
+        <a href="#get" class="nav-link">Downloads</a>
+        <a href="#support" class="nav-link">Support</a>
+      </nav>
+
+      <div class="header-actions">
+        <a href="#get" class="btn btn-sm btn-header">Downloads &amp; docs</a>
+        <button class="menu-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="mobile-menu">
+          <span></span><span></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div class="mobile-menu" id="mobile-menu" hidden>
+    <nav class="mobile-nav" aria-label="Mobile navigation">
+      <a href="/product/" class="mobile-link">All products</a>
+      <a href="#get" class="mobile-link">Downloads</a>
+      <a href="#support" class="mobile-link">Support</a>
+      <a href="/" class="mobile-link">Protocodus home</a>
+    </nav>
+    <div class="mobile-foot">
+      <a href="mailto:protocodus@proton.me" class="mobile-mail">protocodus@proton.me</a>
+    </div>
+  </div>
+
+  <main id="main">
+    <section class="hero" id="top">
+      <div class="hero-inner wrap">
+        <div class="statement">
+          <div class="tag-pill enter">
+            <span class="tag-dot"></span>
+            <span>Physically modelled acoustic guitar</span>
+          </div>
+
+          <h1 class="hero-title">
+            <span class="rise"><span>Acustra</span></span>
+          </h1>
+
+          <p class="hero-sub enter">An acoustic-guitar instrument whose every note is synthesised in real time from six physical string models, a passive measured bridge and a measurement-derived body, behind a panel of ten controls.</p>
+
+          <div class="hero-actions enter">
+            <a href="https://github.com/voho/vst-instruments/actions/workflows/nightly.yml" class="btn btn-primary">Download the nightly build</a>
+            <a href="https://github.com/voho/vst-instruments/blob/main/acustra/README.md" class="btn btn-secondary">Read the manual</a>
+          </div>
+        </div>
+
+        <div class="hero-foot enter">
+          <span class="loop-label">At a glance</span>
+          <div class="quickfacts">
+            <span>Six modelled strings</span>
+            <span>VST3 · AU · Standalone</span>
+            <span>Ten panel controls</span>
+            <span>Five tunings</span>
+            <span>Eight committed audio demos</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="band band-well" aria-label="Acustra panel">
+      <div class="wrap">
+        <figure class="shot">
+          <img src="acustra-panel.webp" width="1120" height="720"
+            alt="Editor panel of the Acustra plug-in">
+          <figcaption>Ten controls: Shape, Body Material, String Material, Tuning, String Age, Pluck Position, Touch, Body Amount, Stereo Width and Output.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="band">
+      <div class="wrap">
+        <div class="head reveal">
+          <span class="tag">Inside the instrument</span>
+          <h2 class="title">Six strings,<br>and only six.</h2>
+          <p class="lede">MIDI first selects one of six strings, each covering its open note plus twenty frets, so chords, repeated notes and still-ringing strings are constrained the way a guitar is.</p>
+        </div>
+
+        <div class="cards stagger">
+          <article class="card reveal">
+            <span class="card-num">01</span>
+            <h3>Nothing is sampled</h3>
+            <p>Each note is generated as it plays, from six string waveguides driving a 50-mode measured bridge and 96 measured body modes. The plug-in contains no sample player and no recorded note audio; the reference recordings link only into the offline fit renderer and its tests.</p>
+          </article>
+          <article class="card reveal">
+            <span class="card-num">02</span>
+            <h3>Six strings, twenty frets</h3>
+            <p>The allocator replucks a note on the string still sounding it once its key is up, prefers a free string requiring the lowest valid fret, and steals deterministically only when every playable string is occupied. A group of three or more notes arriving on one sample is swept as a strum, low to high then back, so consecutive strums alternate; every pluck draws its own point within 0.02 of the string length either way, so a repeated stroke is a new take rather than a copy.</p>
+          </article>
+          <article class="card reveal">
+            <span class="card-num">03</span>
+            <h3>Both hands on the strings</h3>
+            <p>CC2 is continuous bridge-hand pressure, darkening the note as it shortens it, and is an exact no-op at zero. CC68 is the fretting hand: while it is down, a note a sounding string can already reach is hammered on rather than replucked, releasing it pulls off to whatever the hand still holds, and note-off velocity decides whether the finger stays on the string or lifts and leaves the open string ringing.</p>
+          </article>
+          <article class="card reveal">
+            <span class="card-num">04</span>
+            <h3>Stereo from the guitar itself</h3>
+            <p>The 96 body modes carry independent complex residues that reproduce the two microphone paths of one measured guitar: close microphones placed 10 cm above the top plate and 20 cm apart, one each side of the bridge. The stereo image comes from body radiation rather than artificial delay or reverb.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="band band-well">
+      <div class="wrap">
+        <div class="head reveal">
+          <span class="tag">Specifications</span>
+          <h2 class="title">The numbers.</h2>
+        </div>
+
+        <dl class="specs reveal">
+          <div>
+            <dt>Voices</dt>
+            <dd>Six modelled strings, each covering its open note plus twenty frets</dd>
+          </div>
+          <div>
+            <dt>Formats</dt>
+            <dd>VST3, Audio Unit, Standalone</dd>
+          </div>
+          <div>
+            <dt>Platforms</dt>
+            <dd>macOS builds VST3, Audio Unit and Standalone, universal arm64 and x86_64 by default; other supported desktop platforms build VST3 and Standalone</dd>
+          </div>
+          <div>
+            <dt>Panel controls</dt>
+            <dd>10</dd>
+          </div>
+          <div>
+            <dt>Tunings</dt>
+            <dd>Standard, Drop D, DADGAD, Open G, half-step-down</dd>
+          </div>
+          <div>
+            <dt>Audio demos</dt>
+            <dd>8 committed PCM16 stereo WAV files</dd>
+          </div>
+          <div>
+            <dt>Measured runtime</dt>
+            <dd>A six-string runtime ratio of 0.0326x realtime, measured in the JUCE-free suite against its 0.25x gate</dd>
+          </div>
+          <div>
+            <dt>Licence</dt>
+            <dd>Original source under MIT; measured bridge and body coefficient tables and the DAFx-26 EJ45 construction data under CC BY 4.0; JUCE under AGPLv3 or a commercial JUCE licence</dd>
+          </div>
+        </dl>
+      </div>
+    </section>
+
+    <section class="band" id="get">
+      <div class="wrap">
+        <div class="head reveal">
+          <span class="tag">Downloads &amp; docs</span>
+          <h2 class="title">Get Acustra.</h2>
+        </div>
+
+        <div class="linkset stagger">
+          <a class="linkcard reveal" href="https://github.com/voho/vst-instruments/actions/workflows/nightly.yml">
+            <h3>Download the nightly build</h3>
+            <p>The latest successful Nightly run carries one artifact with every instrument, for macOS, Linux and Windows. Artifacts are kept for 14 days and a GitHub account is needed to download them.</p>
+            <span>Open the Nightly runs <span aria-hidden="true">↗</span></span>
+          </a>
+          <a class="linkcard reveal" href="https://github.com/voho/vst-instruments/blob/main/acustra/README.md">
+            <h3>Read the manual</h3>
+            <p>One README covering how the instrument works block by block, what it does not model, and its release history.</p>
+            <span>Open the README <span aria-hidden="true">↗</span></span>
+          </a>
+          <a class="linkcard reveal" href="https://github.com/voho/vst-instruments/blob/main/acustra/README.md#audio-demos">
+            <h3>Listen to the demos</h3>
+            <p>Eight committed takes, rendered by continuous integration from this instrument’s own shipping engine, so they cannot drift from the code.</p>
+            <span>Open the audio demos <span aria-hidden="true">↗</span></span>
+          </a>
+          <a class="linkcard reveal" href="https://github.com/voho/vst-instruments/tree/main/acustra">
+            <h3>Browse the source</h3>
+            <p>C++20 and JUCE 8. The original code is under the MIT license; JUCE is used under its own terms.</p>
+            <span>Open the source <span aria-hidden="true">↗</span></span>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <section class="band band-well">
+      <div class="wrap">
+        <div class="head reveal">
+          <span class="tag">What it does not do</span>
+          <h2 class="title">Stated plainly.</h2>
+        </div>
+        <div class="notice reveal">
+          <p>Apart from bridge-hand damping, legato, natural harmonics and the fretting hand’s strike and lift, version 0.1 is sustain-only: fret and finger noise, string squeak, buzz, artificial and pinch harmonics, body knocks, pick direction, tapping and slapping are absent, the bridge radiates one transverse string axis rather than two, fret collision is not modelled, and MPE is lower-zone only. Shape and Body Material morph one measured flamenca-body model rather than separate measurements of four guitar sizes or four woods, and no controlled expert study has compared this build with real guitars or leading commercial instruments.</p>
+          <p>Measured bridge and body coefficient tables are adapted from Robert Mores’ archive under CC BY 4.0, and the DAFx-26 EJ45 construction data is used under CC BY 4.0. The FreePats, Shinyguitar and Eastman E1D recordings are dedicated under CC0 1.0 and are not linked into the plug-in.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="band band-contact" id="support">
+      <div class="wrap">
+        <div class="contact-box reveal">
+          <span class="tag">Product support</span>
+          <h2 class="title">Tell us what happened.</h2>
+          <p class="lede">Include the instrument and its version, your host application, your operating system and clear reproduction steps.</p>
+          <a href="mailto:protocodus@proton.me?subject=Acustra" class="mail">protocodus@proton.me</a>
+          <p class="signed">Direct support from Protocodus.</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <div class="wrap">
+      <div class="footer-top">
+        <a href="/" class="brand" aria-label="Protocodus home">
+          <img src="/assets/images/logo.svg" alt="" class="brand-mark">
+          <span class="brand-name">Protocodus</span>
+        </a>
+        <p class="footer-tagline">Acustra is a Protocodus product. Creative software development in Prague.</p>
+      </div>
+      <div class="footer-bottom">
+        <p class="footer-meta">© <span id="year">2026</span> Protocodus s.r.o. · Prague, Czech Republic</p>
+        <p class="footer-meta"><a href="/product/">All products</a> · <a href="/">Protocodus home</a></p>
+      </div>
+    </div>
+  </footer>
+  <script src="/assets/js/main.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Taikor — Physically Modelled Taiko | Protocodus</title>
+  <meta name="description" content="Taikor is a physically modelled taiko for VST3, Audio Unit and Standalone hosts. Four drums and four strokes on a 4 by 4 keyboard grid, with no samples.">
+  <meta name="theme-color" content="#0d0e12">
+  <meta property="og:title" content="Taikor — Physically modelled taiko">
+  <meta property="og:description" content="Taikor is a physically modelled taiko for VST3, Audio Unit and Standalone hosts. Four drums and four strokes on a 4 by 4 keyboard grid, with no samples.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://protocodus.cz/product/taikor/">
+  <meta property="og:image" content="https://protocodus.cz/product/taikor/taikor-panel.webp">
+  <link rel="canonical" href="https://protocodus.cz/product/taikor/">
+  <link rel="icon" type="image/svg+xml" href="/assets/images/logo.svg">
+  <link rel="preload" href="/assets/fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <script>document.documentElement.classList.add('js');</script>
+</head>
+
+<body class="product-page p-taikor">
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap header-inner">
+      <a href="/" class="brand" aria-label="Protocodus home">
+        <img src="/assets/images/logo.svg" alt="" class="brand-mark">
+        <span class="brand-name">Protocodus</span>
+      </a>
+
+      <nav class="nav" aria-label="Main navigation">
+        <a href="/product/" class="nav-link">All products</a>
+        <a href="#get" class="nav-link">Downloads</a>
+        <a href="#support" class="nav-link">Support</a>
+      </nav>
+
+      <div class="header-actions">
+        <a href="#get" class="btn btn-sm btn-header">Downloads &amp; docs</a>
+        <button class="menu-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="mobile-menu">
+          <span></span><span></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div class="mobile-menu" id="mobile-menu" hidden>
+    <nav class="mobile-nav" aria-label="Mobile navigation">
+      <a href="/product/" class="mobile-link">All products</a>
+      <a href="#get" class="mobile-link">Downloads</a>
+      <a href="#support" class="mobile-link">Support</a>
+      <a href="/" class="mobile-link">Protocodus home</a>
+    </nav>
+    <div class="mobile-foot">
+      <a href="mailto:protocodus@proton.me" class="mobile-mail">protocodus@proton.me</a>
+    </div>
+  </div>
+
+  <main id="main">
+    <section class="hero" id="top">
+      <div class="hero-inner wrap">
+        <div class="statement">
+          <div class="tag-pill enter">
+            <span class="tag-dot"></span>
+            <span>Physically modelled taiko</span>
+          </div>
+
+          <h1 class="hero-title">
+            <span class="rise"><span>Taikor</span></span>
+          </h1>
+
+          <p class="hero-sub enter">A taiko instrument that solves every stroke from a struck circular membrane rather than replaying a recording: four drums, four strokes, sixteen notes, no keyswitches.</p>
+
+          <div class="hero-actions enter">
+            <a href="https://github.com/voho/vst-instruments/actions/workflows/nightly.yml" class="btn btn-primary">Download the nightly build</a>
+            <a href="https://github.com/voho/vst-instruments/blob/main/taikor/README.md" class="btn btn-secondary">Read the manual</a>
+          </div>
+        </div>
+
+        <div class="hero-foot enter">
+          <span class="loop-label">At a glance</span>
+          <div class="quickfacts">
+            <span>Four drums, four strokes</span>
+            <span>VST3 · AU · Standalone</span>
+            <span>16 notes, C3 to D♯6</span>
+            <span>20 resolved head modes</span>
+            <span>27 committed audio demos</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="band band-well" aria-label="Taikor panel">
+      <div class="wrap">
+        <figure class="shot">
+          <img src="taikor-panel.webp" width="1280" height="880"
+            alt="Editor panel of the Taikor plug-in">
+          <figcaption>The octave chooses the drum, the bottom four semitones choose the stroke.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="band">
+      <div class="wrap">
+        <div class="head reveal">
+          <span class="tag">Inside the drums</span>
+          <h2 class="title">A 4 by 4 grid,<br>and nothing else.</h2>
+          <p class="lede">No keyswitches and no articulation menu. Sixteen notes, and every other key on the keyboard is silent.</p>
+        </div>
+
+        <div class="cards stagger">
+          <article class="card reveal">
+            <span class="card-num">01</span>
+            <h3>Sixteen notes, no keyswitches</h3>
+            <p>The octave picks the drum and the bottom four semitones pick the stroke: Don, Ka, Tsu and Don Rim. Sixteen notes from C3 to D♯6, and every other key on the keyboard is silent.</p>
+          </article>
+          <article class="card reveal">
+            <span class="card-num">02</span>
+            <h3>Four drums, not one resized</h3>
+            <p>Ō-daiko, chū-daiko, okedo-daiko and shime-daiko each have their own diameter, body depth, hide and shell, from a 150 cm carved ō-daiko sounding at 59.7 Hz to a 30 cm shime at 478.0 Hz. The Drum Layout switch changes what a keyboard row is: one design retuned across the rows, or the four independently sized family members.</p>
+          </article>
+          <article class="card reveal">
+            <span class="card-num">03</span>
+            <h3>Velocity is stick speed</h3>
+            <p>MIDI velocity sets the impact speed of the bachi, from 0.12 m/s to 6 m/s, so a harder stroke comes out shorter, brighter and louder at once instead of only louder. At full Velocity Depth that is 33.6 dB between a ghost stroke and a full blow on an open Don on the ō-daiko, and 39.1 dB on the shime.</p>
+          </article>
+          <article class="card reveal">
+            <span class="card-num">04</span>
+            <h3>Played with hands and wheels</h3>
+            <p>MIDI CC1 lays a palm-sized damping patch on the head and goes on damping while it is held, so a stroke played with the hand down is a muted stroke. The pitch wheel presses the head and bends a stroke that is already ringing, and CC16 and CC17 place each hit around and across the head sample-accurately.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="band band-well">
+      <div class="wrap">
+        <div class="head reveal">
+          <span class="tag">Specifications</span>
+          <h2 class="title">The numbers.</h2>
+        </div>
+
+        <dl class="specs reveal">
+          <div>
+            <dt>Formats</dt>
+            <dd>VST3, Audio Unit, Standalone</dd>
+          </div>
+          <div>
+            <dt>Platforms</dt>
+            <dd>macOS, plus Linux and Windows builds</dd>
+          </div>
+          <div>
+            <dt>Playable range</dt>
+            <dd>16 notes, C3 to D♯6, being 4 drums by 4 strokes</dd>
+          </div>
+          <div>
+            <dt>Host parameters</dt>
+            <dd>25; 24 automatable, plus Performer as a persisted non-automatable identity</dd>
+          </div>
+          <div>
+            <dt>Resolved head modes</dt>
+            <dd>20 per head: 4 axisymmetric and 16 with a circumferential order</dd>
+          </div>
+          <div>
+            <dt>Audio demos</dt>
+            <dd>27 takes, synthesised by the engine and committed to the repository</dd>
+          </div>
+          <div>
+            <dt>Included content</dt>
+            <dd>No samples, impulse responses, pretrained weights or third-party preset libraries</dd>
+          </div>
+          <div>
+            <dt>Licence</dt>
+            <dd>Original code under MIT; JUCE used under its own terms</dd>
+          </div>
+        </dl>
+      </div>
+    </section>
+
+    <section class="band" id="get">
+      <div class="wrap">
+        <div class="head reveal">
+          <span class="tag">Downloads &amp; docs</span>
+          <h2 class="title">Get Taikor.</h2>
+        </div>
+
+        <div class="linkset stagger">
+          <a class="linkcard reveal" href="https://github.com/voho/vst-instruments/actions/workflows/nightly.yml">
+            <h3>Download the nightly build</h3>
+            <p>The latest successful Nightly run carries one artifact with every instrument, for macOS, Linux and Windows. Artifacts are kept for 14 days and a GitHub account is needed to download them.</p>
+            <span>Open the Nightly runs <span aria-hidden="true">↗</span></span>
+          </a>
+          <a class="linkcard reveal" href="https://github.com/voho/vst-instruments/blob/main/taikor/README.md">
+            <h3>Read the manual</h3>
+            <p>One README covering how the instrument works block by block, what it does not model, and its release history.</p>
+            <span>Open the README <span aria-hidden="true">↗</span></span>
+          </a>
+          <a class="linkcard reveal" href="https://github.com/voho/vst-instruments/blob/main/taikor/README.md#audio-demos">
+            <h3>Listen to the demos</h3>
+            <p>Twenty-seven committed takes, rendered by continuous integration from this instrument’s own shipping engine, so they cannot drift from the code.</p>
+            <span>Open the audio demos <span aria-hidden="true">↗</span></span>
+          </a>
+          <a class="linkcard reveal" href="https://github.com/voho/vst-instruments/tree/main/taikor">
+            <h3>Browse the source</h3>
+            <p>C++20 and JUCE 8. The original code is under the MIT license; JUCE is used under its own terms.</p>
+            <span>Open the source <span aria-hidden="true">↗</span></span>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <section class="band band-well">
+      <div class="wrap">
+        <div class="head reveal">
+          <span class="tag">What it does not do</span>
+          <h2 class="title">Stated plainly.</h2>
+        </div>
+        <div class="notice reveal">
+          <p>Taikor does not model the room, the player’s body, the stand, or the far head’s radiation into the space behind the drum. It gives the enclosed air stiffness but neither mass, its own resonances nor any loss, and it never rings the bachi itself, which acts only as a force.</p>
+          <p>Taikor loads no samples, replays no recording, and emulates no particular branded instrument. The demonstration audio is generated by the project’s own code.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="band band-contact" id="support">
+      <div class="wrap">
+        <div class="contact-box reveal">
+          <span class="tag">Product support</span>
+          <h2 class="title">Tell us what happened.</h2>
+          <p class="lede">Include the instrument and its version, your host application, your operating system and clear reproduction steps.</p>
+          <a href="mailto:protocodus@proton.me?subject=Taikor" class="mail">protocodus@proton.me</a>
+          <p class="signed">Direct support from Protocodus.</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <div class="wrap">
+      <div class="footer-top">
+        <a href="/" class="brand" aria-label="Protocodus home">
+          <img src="/assets/images/logo.svg" alt="" class="brand-mark">
+          <span class="brand-name">Protocodus</span>
+        </a>
+        <p class="footer-tagline">Taikor is a Protocodus product. Creative software development in Prague.</p>
+      </div>
+      <div class="footer-bottom">
+        <p class="footer-meta">© <span id="year">2026</span> Protocodus s.r.o. · Prague, Czech Republic</p>
+        <p class="footer-meta"><a href="/product/">All products</a> · <a href="/">Protocodus home</a></p>
+      </div>
+    </div>
+  </footer>
+  <script src="/assets/js/main.js"></script>
+</body>
+
+</html>

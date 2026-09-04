@@ -13,15 +13,16 @@
 
     gtag('config', 'G-0TEFG3XSN5');
   </script>
-  <title>Protocodus — Software Engineering for Startups</title>
+  <title>Protocodus — Creative Software Development</title>
   <meta name="description"
-    content="Protocodus builds software for startups: sharp priorities, solid architecture, rapid iterative shipping, and senior engineer judgment. From prototype to production.">
+    content="Protocodus is a creative software development studio in Prague. Modelled instruments, browser-native games, and the engines underneath them.">
   <meta name="theme-color" content="#0d0e12">
-  <meta property="og:title" content="Protocodus — Software Engineering for Startups">
+  <meta property="og:title" content="Protocodus — Creative Software Development">
   <meta property="og:description"
-    content="We partner with founders to prioritize, design, and build production-grade software, one release at a time.">
+    content="Original software, built end to end: circuit-modelled and physically modelled instruments, browser-native games, and the engines underneath them.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://protocodus.cz/">
+  <meta property="og:image" content="https://protocodus.cz/product/youknow/YouKnow_Front.png">
   <link rel="canonical" href="https://protocodus.cz/">
   <link rel="icon" type="image/svg+xml" href="assets/images/logo.svg">
   <!-- Fonts (self-hosted) -->
@@ -43,14 +44,14 @@
       </a>
 
       <nav class="nav" aria-label="Main navigation">
-        <a href="#what-we-do" class="nav-link">What we do</a>
-        <a href="#instruments" class="nav-link">Instruments</a>
-        <a href="#fun" class="nav-link">Playground</a>
+        <a href="#products" class="nav-link">Products</a>
+        <a href="#approach" class="nav-link">How it is built</a>
+        <a href="#playground" class="nav-link">Playground</a>
         <a href="#contact" class="nav-link">Contact</a>
       </nav>
 
       <div class="header-actions">
-        <a href="#contact" class="btn btn-sm btn-header">Start a project</a>
+        <a href="#products" class="btn btn-sm btn-header">See the products</a>
         <button class="menu-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="mobile-menu">
           <span></span><span></span>
         </button>
@@ -61,14 +62,14 @@
   <!-- Mobile Drawer Menu -->
   <div class="mobile-menu" id="mobile-menu" hidden>
     <nav class="mobile-nav" aria-label="Mobile navigation">
-      <a href="#what-we-do" class="mobile-link">What we do</a>
-      <a href="#instruments" class="mobile-link">Instruments</a>
-      <a href="#fun" class="mobile-link">Playground</a>
+      <a href="#products" class="mobile-link">Products</a>
+      <a href="#approach" class="mobile-link">How it is built</a>
+      <a href="#playground" class="mobile-link">Playground</a>
       <a href="#contact" class="mobile-link">Contact</a>
     </nav>
     <div class="mobile-foot">
-      <a href="#contact" class="btn btn-primary" style="width: 100%; justify-content: center;">Start a project</a>
-      <a href="mailto:vojtech.hordejcuk@gmail.com" class="mobile-mail">vojtech.hordejcuk@gmail.com</a>
+      <a href="#products" class="btn btn-primary" style="width: 100%; justify-content: center;">See the products</a>
+      <a href="mailto:protocodus@proton.me" class="mobile-mail">protocodus@proton.me</a>
     </div>
   </div>
 
@@ -80,160 +81,227 @@
         <div class="statement">
           <div class="tag-pill enter">
             <span class="tag-dot"></span>
-            <span>Software studio for startups</span>
+            <span>Creative software development · Prague</span>
           </div>
 
           <h1 class="hero-title">
-            <span class="rise"><span>We build software</span></span>
-            <span class="rise"><span>for startups.</span></span>
+            <span class="rise"><span>Creative software</span></span>
+            <span class="rise"><span>development.</span></span>
           </h1>
 
           <p class="hero-sub enter">
-            From first prototype to production scale. We help founders clarify what to build first — then we build it properly, shipping reliable software every week.
+            Protocodus makes original software end to end: instruments that synthesise every note instead of replaying
+            a recording, games that run in a browser tab, and the engines underneath both.
           </p>
 
           <div class="hero-actions enter">
-            <a href="#contact" class="btn btn-primary">Start a project</a>
-            <a href="#instruments" class="btn btn-secondary">Explore our instruments</a>
+            <a href="#products" class="btn btn-primary">See the products</a>
+            <a href="#approach" class="btn btn-secondary">How it is built</a>
           </div>
         </div>
 
         <div class="hero-foot enter">
-          <span class="loop-label">Our cycle</span>
+          <span class="loop-label">How a product gets made</span>
           <div class="loop">
-            <span>Prioritize</span>
+            <span>Research</span>
+            <span>Model</span>
             <span>Design</span>
             <span>Build</span>
-            <span>Ship</span>
-            <span>Learn</span>
-            <span>Iterate</span>
+            <span>Measure</span>
+            <span>Release</span>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- ================= EXPERIENCE STRIP ================= -->
-    <section class="experience-strip">
-      <div class="wrap experience-inner">
-        <span class="experience-label">Engineering experience from</span>
-        <div class="experience-logos">
-          <span class="experience-item">Česká spořitelna</span>
-          <span class="experience-item">GoodData</span>
-          <span class="experience-item">Amazon</span>
-          <span class="experience-item">Binance</span>
+    <!-- ================= PRODUCTS ================= -->
+    <section class="band showcase" id="products">
+      <div class="wrap">
+        <div class="head reveal">
+          <span class="tag">Products</span>
+          <h2 class="title">Eight instruments.<br>Every note synthesised.</h2>
+          <p class="lede">Seven plug-ins for VST3, Audio Unit and Standalone hosts, and one Rack Extension for the
+            Reason rack. Each one has a page with the panel, the specifications, the downloads and the documentation.</p>
+        </div>
+
+        <div class="product-grid stagger">
+          <a class="product-card p-youknow reveal" href="/product/youknow/">
+            <div class="product-shot">
+              <img src="product/youknow/youknow-card.webp" width="880" height="644" loading="lazy"
+                alt="Front panel of the YouKnow Rack Extension">
+            </div>
+            <div class="product-body">
+              <span class="product-kicker">01 / Rack Extension</span>
+              <h3>YouKnow</h3>
+              <p>A circuit-modelled analogue polysynth for Reason 14 and later: a direct subtractive signal path,
+                stereo chorus, 77 original patches, and engine quality you can scale to the session.</p>
+              <span class="product-more">Product page <span aria-hidden="true">→</span></span>
+            </div>
+          </a>
+
+          <a class="product-card p-youknow106 reveal" href="/product/youknow106/">
+            <div class="product-shot">
+              <img src="product/youknow106/youknow106-card.webp" width="880" height="465" loading="lazy"
+                alt="Editor panel of the YouKnow106 plug-in">
+            </div>
+            <div class="product-body">
+              <span class="product-kicker">02 / DCO polysynth</span>
+              <h3>YouKnow106</h3>
+              <p>A six-voice DCO polysynth modelled block by block on the 1984 Roland Juno-106, shipping all 128
+                original factory tone-memory states in the hardware's own order.</p>
+              <span class="product-more">Product page <span aria-hidden="true">→</span></span>
+            </div>
+          </a>
+
+          <a class="product-card p-drumalor reveal" href="/product/drumalor/">
+            <div class="product-shot">
+              <img src="product/drumalor/drumalor-card.webp" width="880" height="605" loading="lazy"
+                alt="Editor panel of the Drumalor plug-in">
+            </div>
+            <div class="product-body">
+              <span class="product-kicker">03 / Drum instrument</span>
+              <h3>Drumalor</h3>
+              <p>Thirteen drum voices, every hit generated as you play it from oscillators, noise, filters and
+                resonators. No samples and no ROM images.</p>
+              <span class="product-more">Product page <span aria-hidden="true">→</span></span>
+            </div>
+          </a>
+
+          <a class="product-card p-electry reveal" href="/product/electry/">
+            <div class="product-shot">
+              <img src="product/electry/electry-card.webp" width="880" height="701" loading="lazy"
+                alt="Editor panel of the Electry plug-in">
+            </div>
+            <div class="product-body">
+              <span class="product-kicker">04 / Modelled guitar</span>
+              <h3>Electry</h3>
+              <p>An eight-string Drop-E electric guitar modelled string by string, with a fretting hand that decides
+                where in the neck a phrase actually lands.</p>
+              <span class="product-more">Product page <span aria-hidden="true">→</span></span>
+            </div>
+          </a>
+
+          <a class="product-card p-acustra reveal" href="/product/acustra/">
+            <div class="product-shot">
+              <img src="product/acustra/acustra-card.webp" width="880" height="566" loading="lazy"
+                alt="Editor panel of the Acustra plug-in">
+            </div>
+            <div class="product-body">
+              <span class="product-kicker">05 / Modelled guitar</span>
+              <h3>Acustra</h3>
+              <p>An acoustic guitar synthesised from six string models, a passive measured bridge and a
+                measurement-derived body, behind ten panel controls.</p>
+              <span class="product-more">Product page <span aria-hidden="true">→</span></span>
+            </div>
+          </a>
+
+          <a class="product-card p-taikor reveal" href="/product/taikor/">
+            <div class="product-shot">
+              <img src="product/taikor/taikor-card.webp" width="880" height="605" loading="lazy"
+                alt="Editor panel of the Taikor plug-in">
+            </div>
+            <div class="product-body">
+              <span class="product-kicker">06 / Modelled taiko</span>
+              <h3>Taikor</h3>
+              <p>Four taiko drums and four strokes on a 4 by 4 keyboard grid, every stroke solved from a struck
+                circular membrane rather than replayed.</p>
+              <span class="product-more">Product page <span aria-hidden="true">→</span></span>
+            </div>
+          </a>
+
+          <a class="product-card p-septum reveal" href="/product/septum/">
+            <div class="product-shot">
+              <img src="product/septum/septum-card.webp" width="880" height="457" loading="lazy"
+                alt="Editor panel of the Septum plug-in">
+            </div>
+            <div class="product-body">
+              <span class="product-kicker">07 / Virtual analog</span>
+              <h3>Septum</h3>
+              <p>A ten-voice virtual-analog synthesizer modelling the Roland SH-201, with two complete tones in every
+                patch and a seven-saw SUPER SAW.</p>
+              <span class="product-more">Product page <span aria-hidden="true">→</span></span>
+            </div>
+          </a>
+
+          <a class="product-card p-ghostar reveal" href="/product/ghostar/">
+            <div class="product-shot">
+              <img src="product/ghostar/ghostar-card.webp" width="880" height="470" loading="lazy"
+                alt="Editor panel of the Ghostar plug-in">
+            </div>
+            <div class="product-body">
+              <span class="product-kicker">08 / Monophonic synth</span>
+              <h3>Ghostar</h3>
+              <p>A monophonic synthesizer built from the documentation of the 1983 Crumar Spirit, and the series dual
+                filter that gives it its voice.</p>
+              <span class="product-more">Product page <span aria-hidden="true">→</span></span>
+            </div>
+          </a>
+        </div>
+
+        <div class="showcase-note reveal">
+          <strong><span class="status-dot"></span>Nightly builds</strong>
+          <span>Every plug-in arrives in one cross-platform artifact for macOS, Linux and Windows.</span>
+          <a href="https://github.com/voho/vst-instruments">Source, documentation and downloads
+            <span aria-hidden="true">↗</span></a>
         </div>
       </div>
     </section>
 
-    <!-- ================= WHAT WE DO ================= -->
-    <section class="band" id="what-we-do">
+    <!-- ================= HOW IT IS BUILT ================= -->
+    <section class="band" id="approach">
       <div class="wrap">
         <div class="head reveal">
-          <span class="tag">What we do</span>
-          <h2 class="title">Product development,<br>end to end.</h2>
-          <p class="lede">You bring the vision and domain insight. We cover the entire execution — interface design, system architecture, engineering, and infrastructure.</p>
+          <span class="tag">How it is built</span>
+          <h2 class="title">Modelled from<br>primary sources.</h2>
+          <p class="lede">These instruments are built the slow way: from service notes, datasheets, manuals and
+            published research, with every modelling decision written down and every claim left testable.</p>
         </div>
 
         <div class="cards stagger">
           <article class="card reveal">
             <span class="card-num">01</span>
-            <h3>Full-stack engineering</h3>
-            <p>Web applications, robust APIs, data architecture, and cloud infrastructure. Software engineered to excel in production, not just demos.</p>
+            <h3>Primary sources first</h3>
+            <p>Service notes, datasheets, owner's manuals and published papers, read at page level. The documentation
+              names the source behind each modelling law rather than asking you to take the sound on trust.</p>
           </article>
           <article class="card reveal">
             <span class="card-num">02</span>
-            <h3>Interface &amp; product design</h3>
-            <p>Clear, responsive interfaces that users navigate instinctively. Designed and implemented together, eliminating handoff loss.</p>
+            <h3>Decisions written down</h3>
+            <p>Where the sources leave a value open, the choice is recorded as a choice, together with the measurement
+              that would settle it. Known gaps are published alongside what is settled.</p>
           </article>
           <article class="card reveal">
             <span class="card-num">03</span>
-            <h3>Applied AI &amp; integrations</h3>
-            <p>AI capabilities where they deliver genuine user value and leverage. Honest technical guidance on what AI can solve reliably and what it cannot.</p>
+            <h3>Demos rendered by CI</h3>
+            <p>The audio demos committed with each instrument are rendered by continuous integration from that
+              instrument's own shipping engine, so a demo cannot drift away from the code that made it.</p>
           </article>
           <article class="card reveal">
             <span class="card-num">04</span>
-            <h3>Product strategy &amp; guidance</h3>
-            <p>Clear roadmaps, realistic estimates, and working software delivered every week. Constant visibility into progress and upcoming milestones.</p>
+            <h3>Built to ship</h3>
+            <p>C++20 and JUCE 8, packaged for macOS, Linux and Windows, with signed and notarised release pipelines
+              and documentation that ships as part of the product.</p>
           </article>
         </div>
       </div>
     </section>
 
-    <!-- ================= VST INSTRUMENTS ================= -->
-    <section class="band instruments" id="instruments">
-      <div class="wrap">
-        <div class="instrument-head reveal">
-          <div>
-            <span class="tag">Protocodus Audio Lab</span>
-            <h2 class="title">Four instruments.<br>A new sonic vocabulary.</h2>
-          </div>
-          <div class="instrument-intro">
-            <p>We develop VST instruments for musicians who want to move beyond presets. Strange by design, immediate to play, and built for discovery.</p>
-            <a class="btn btn-primary" href="https://github.com/voho/vst-instruments/releases/latest">Download latest nightly <span aria-hidden="true">↓</span></a>
-            <span class="platforms">VST3 · macOS · Windows · Linux</span>
-          </div>
-        </div>
-
-        <div class="instrument-grid stagger">
-          <article class="instrument instrument-electry reveal">
-            <div class="instrument-display" aria-hidden="true"><span class="wave"></span><i></i><i></i><i></i></div>
-            <div class="instrument-copy">
-              <span class="instrument-index">01 / ELECTRIC</span>
-              <h3>Electry</h3>
-              <p>Charged tones with a volatile edge. Shape bright movement, harmonic tension, and currents that refuse to sit still.</p>
-              <a href="https://github.com/voho/vst-instruments#electry">Screenshots &amp; details <span aria-hidden="true">↗</span></a>
-            </div>
-          </article>
-          <article class="instrument instrument-acustry reveal">
-            <div class="instrument-display" aria-hidden="true"><span class="rings"></span><i></i><i></i><i></i></div>
-            <div class="instrument-copy">
-              <span class="instrument-index">02 / RESONANT</span>
-              <h3>Acustry</h3>
-              <p>Organic resonance without imitation. Plucks, knocks, and tactile bodies made to feel played rather than programmed.</p>
-              <a href="https://github.com/voho/vst-instruments#acustry">Screenshots &amp; details <span aria-hidden="true">↗</span></a>
-            </div>
-          </article>
-          <article class="instrument instrument-youknow reveal">
-            <div class="instrument-display" aria-hidden="true"><span class="orbit"></span><i></i><i></i><i></i></div>
-            <div class="instrument-copy">
-              <span class="instrument-index">03 / UNEXPECTED</span>
-              <h3>YouKnow</h3>
-              <p>Familiar until it isn't. A playful sound engine for uncanny textures, happy accidents, and the hook you did not plan.</p>
-              <a href="https://github.com/voho/vst-instruments#youknow">Screenshots &amp; details <span aria-hidden="true">↗</span></a>
-            </div>
-          </article>
-          <article class="instrument instrument-septum reveal">
-            <div class="instrument-display" aria-hidden="true"><span class="bars"></span><i></i><i></i><i></i></div>
-            <div class="instrument-copy">
-              <span class="instrument-index">04 / PRISMATIC</span>
-              <h3>Septum</h3>
-              <p>Split a sound into vivid layers. Build deep, shifting timbres that open gradually and reward long notes.</p>
-              <a href="https://github.com/voho/vst-instruments#septum">Screenshots &amp; details <span aria-hidden="true">↗</span></a>
-            </div>
-          </article>
-        </div>
-
-        <div class="instrument-cta reveal">
-          <div><span class="status-dot"></span><strong>Nightly builds</strong><span>Fresh from the audio lab</span></div>
-          <a href="https://github.com/voho/vst-instruments">Source, documentation &amp; all downloads <span aria-hidden="true">↗</span></a>
-        </div>
-      </div>
-    </section>
-
-    <!-- ================= PLAYGROUND / FUN ================= -->
-    <section class="band band-well" id="fun">
+    <!-- ================= PLAYGROUND ================= -->
+    <section class="band band-well" id="playground">
       <div class="wrap">
         <div class="head reveal">
           <span class="tag">Playground</span>
-          <h2 class="title">Experiments &amp; interactive games.</h2>
-          <p class="lede">Alongside startup work and audio experiments, we build browser-native games. Instant play in your browser with zero installation or account requirements.</p>
+          <h2 class="title">Experiments that run<br>in a browser tab.</h2>
+          <p class="lede">The same appetite for real-time systems, pointed at graphics instead of audio. Nothing to
+            install, no account to make.</p>
         </div>
 
         <div class="games stagger">
           <a class="game reveal" href="/fun/alpen/">
             <span class="game-num">01</span>
             <h3>Alpen</h3>
-            <p>An endless snowboarding run down a procedurally generated mountain with 1990s retro aesthetic, responsive carving physics, and dynamic weather.</p>
+            <p>An endless snowboarding run down a procedurally generated mountain with 1990s retro aesthetic,
+              responsive carving physics, and dynamic weather.</p>
             <div class="game-foot">
               <span class="game-tech">Three.js · WebGL</span>
               <span class="game-go">Play game</span>
@@ -242,7 +310,8 @@
           <a class="game reveal" href="/fun/solar-eclipse-2026/">
             <span class="game-num">02</span>
             <h3>Solar Eclipse 2026</h3>
-            <p>Track the Moon's shadow from orbital space down to Prague and explore why solar eclipses occur and how totality unfolds.</p>
+            <p>Track the Moon's shadow from orbital space down to Prague and explore why solar eclipses occur and how
+              totality unfolds.</p>
             <div class="game-foot">
               <span class="game-tech">Three.js · Astronomy</span>
               <span class="game-go">Explore</span>
@@ -256,11 +325,13 @@
     <section class="band band-contact" id="contact">
       <div class="wrap">
         <div class="contact-box reveal">
-          <span class="tag">Get in touch</span>
-          <h2 class="title">Tell us what you're building.</h2>
-          <p class="lede">A brief summary of your idea and timeframe is plenty. You will receive a direct reply from an engineer with initial architecture thoughts and how we can collaborate.</p>
-          <a href="mailto:vojtech.hordejcuk@gmail.com" class="mail">vojtech.hordejcuk@gmail.com</a>
-          <p class="signed">Vojtech Hordejcuk · Founder</p>
+          <span class="tag">Contact</span>
+          <h2 class="title">Start a conversation.</h2>
+          <p class="lede">Product support, a licensing question, or a piece of creative software you would like built.
+            One address, answered directly.</p>
+          <a href="mailto:protocodus@proton.me" class="mail">protocodus@proton.me</a>
+          <p class="signed">For support, include the product, its version, your host application and your operating
+            system.</p>
         </div>
       </div>
     </section>
@@ -275,7 +346,7 @@
           <img src="assets/images/logo.svg" alt="" class="brand-mark">
           <span class="brand-name">Protocodus</span>
         </a>
-        <p class="footer-tagline">Software engineering for startups, built with care.</p>
+        <p class="footer-tagline">Creative software development in Prague.</p>
       </div>
 
       <dl class="details">

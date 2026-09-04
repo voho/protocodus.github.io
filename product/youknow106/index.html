@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YouKnow106 — Circuit-Modelled DCO Polysynth | Protocodus</title>
+  <meta name="description" content="YouKnow106 is a six-voice circuit-modelled DCO polysynth for VST3, Audio Unit and Standalone hosts, shipping all 128 original factory tone-memory states.">
+  <meta name="theme-color" content="#0d0e12">
+  <meta property="og:title" content="YouKnow106 — Circuit-modelled DCO polysynth">
+  <meta property="og:description" content="YouKnow106 is a six-voice circuit-modelled DCO polysynth for VST3, Audio Unit and Standalone hosts, shipping all 128 original factory tone-memory states.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://protocodus.cz/product/youknow106/">
+  <meta property="og:image" content="https://protocodus.cz/product/youknow106/youknow106-panel.webp">
+  <link rel="canonical" href="https://protocodus.cz/product/youknow106/">
+  <link rel="icon" type="image/svg+xml" href="/assets/images/logo.svg">
+  <link rel="preload" href="/assets/fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <script>document.documentElement.classList.add('js');</script>
+</head>
+
+<body class="product-page p-youknow106">
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap header-inner">
+      <a href="/" class="brand" aria-label="Protocodus home">
+        <img src="/assets/images/logo.svg" alt="" class="brand-mark">
+        <span class="brand-name">Protocodus</span>
+      </a>
+
+      <nav class="nav" aria-label="Main navigation">
+        <a href="/product/" class="nav-link">All products</a>
+        <a href="#get" class="nav-link">Downloads</a>
+        <a href="#support" class="nav-link">Support</a>
+      </nav>
+
+      <div class="header-actions">
+        <a href="#get" class="btn btn-sm btn-header">Downloads &amp; docs</a>
+        <button class="menu-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="mobile-menu">
+          <span></span><span></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div class="mobile-menu" id="mobile-menu" hidden>
+    <nav class="mobile-nav" aria-label="Mobile navigation">
+      <a href="/product/" class="mobile-link">All products</a>
+      <a href="#get" class="mobile-link">Downloads</a>
+      <a href="#support" class="mobile-link">Support</a>
+      <a href="/" class="mobile-link">Protocodus home</a>
+    </nav>
+    <div class="mobile-foot">
+      <a href="mailto:protocodus@proton.me" class="mobile-mail">protocodus@proton.me</a>
+    </div>
+  </div>
+
+  <main id="main">
+    <section class="hero" id="top">
+      <div class="hero-inner wrap">
+        <div class="statement">
+          <div class="tag-pill enter">
+            <span class="tag-dot"></span>
+            <span>Circuit-modelled DCO polysynth</span>
+          </div>
+
+          <h1 class="hero-title">
+            <span class="rise"><span>YouKnow106</span></span>
+          </h1>
+
+          <p class="hero-sub enter">A six-voice DCO polysynth whose voice architecture is modelled block by block on the 1984 Roland Juno-106, from its integer-divided note timers through its four-pole transconductor filter to its uncompanded bucket-brigade chorus.</p>
+
+          <div class="hero-actions enter">
+            <a href="https://github.com/voho/vst-instruments/actions/workflows/nightly.yml" class="btn btn-primary">Download the nightly build</a>
+            <a href="https://github.com/voho/vst-instruments/blob/main/youknow106/README.md" class="btn btn-secondary">Read the manual</a>
+          </div>
+        </div>
+
+        <div class="hero-foot enter">
+          <span class="loop-label">At a glance</span>
+          <div class="quickfacts">
+            <span>Six modelled voice cards</span>
+            <span>VST3 · AU · Standalone</span>
+            <span>macOS 11 or later</span>
+            <span>128 factory tone-memory states</span>
+            <span>Ten committed audio demos</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="band band-well" aria-label="YouKnow106 panel">
+      <div class="wrap">
+        <figure class="shot">
+          <img src="youknow106-panel.webp" width="1360" height="718"
+            alt="Editor panel of the YouKnow106 plug-in">
+          <figcaption>The YouKnow106 editor keeps the reference instrument’s control inventory and reading order.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="band">
+      <div class="wrap">
+        <div class="head reveal">
+          <span class="tag">Inside the instrument</span>
+          <h2 class="title">Block by block,<br>source by source.</h2>
+          <p class="lede">The panel keeps the reference instrument’s control inventory and its reading order, with the plug-in additions placed next to the hardware families they belong to.</p>
+        </div>
+
+        <div class="cards stagger">
+          <article class="card reveal">
+            <span class="card-num">01</span>
+            <h3>All 128 factory tones</h3>
+            <p>The original 128 tone-memory states are included in the physical instrument’s order, each as the hardware’s complete 18-byte state with no corrective gain, hidden EQ or per-preset rebalancing. The bytes were mechanically decoded and cross-checked with zero mismatches against three public archives.</p>
+          </article>
+          <article class="card reveal">
+            <span class="card-num">02</span>
+            <h3>Four chorus states</h3>
+            <p>Two uncompanded 256-stage MN3009 delay lines are driven anti-phase by one triangle, at rates derived from the instrument’s own oscillator circuit. Off, I, II and I+II are all available live and in the session; the original’s owner manual says I and II cannot be used together, so I+II is a plug-in mode and hardware-format patch files save it as II.</p>
+          </article>
+          <article class="card reveal">
+            <span class="card-num">03</span>
+            <h3>Calibrated self-oscillating filter</h3>
+            <p>The four-pole filter is solved directly as its continuous nonlinear equations, with cutoff anchored on Roland’s own service calibration point where converter code 6272 self-oscillates at 248 Hz, which the model predicts within a cent rather than fitting.</p>
+          </article>
+          <article class="card reveal">
+            <span class="card-num">04</span>
+            <h3>Unit Character and Aging</h3>
+            <p>Unit Character scales every modelled tolerance from calibrated-nominal at 0 percent, through the 100 percent default described as matching real hardware, to exaggerated at 200 percent. Seeds are fixed, so the same patch renders identically every launch. Aging sits beside it and drifts each voice’s filter trim flat by its own share of up to a quarter tone while lifting the noise source by up to 3.5 dB.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="band band-well">
+      <div class="wrap">
+        <div class="head reveal">
+          <span class="tag">Specifications</span>
+          <h2 class="title">The numbers.</h2>
+        </div>
+
+        <dl class="specs reveal">
+          <div>
+            <dt>Voices</dt>
+            <dd>Six modelled voice cards, polyphony selectable 1 to 16</dd>
+          </div>
+          <div>
+            <dt>Formats</dt>
+            <dd>VST3, Audio Unit, Standalone</dd>
+          </div>
+          <div>
+            <dt>Platform</dt>
+            <dd>macOS, universal arm64 and x86_64</dd>
+          </div>
+          <div>
+            <dt>Minimum OS</dt>
+            <dd>macOS 11 or later</dd>
+          </div>
+          <div>
+            <dt>Internal oversampling</dt>
+            <dd>1x, 2x or 4x ladder; new instances ship at 4x</dd>
+          </div>
+          <div>
+            <dt>Factory bank</dt>
+            <dd>128 original tone-memory states, A11 to A88 then B11 to B88</dd>
+          </div>
+          <div>
+            <dt>Patch exchange</dt>
+            <dd>Reads and writes the hardware’s own SysEx patch format in both directions</dd>
+          </div>
+          <div>
+            <dt>Reported latency</dt>
+            <dd>A fixed 41 host samples</dd>
+          </div>
+        </dl>
+      </div>
+    </section>
+
+    <section class="band" id="get">
+      <div class="wrap">
+        <div class="head reveal">
+          <span class="tag">Downloads &amp; docs</span>
+          <h2 class="title">Get YouKnow106.</h2>
+        </div>
+
+        <div class="linkset stagger">
+          <a class="linkcard reveal" href="https://github.com/voho/vst-instruments/actions/workflows/nightly.yml">
+            <h3>Download the nightly build</h3>
+            <p>The latest successful Nightly run carries one artifact with every instrument, for macOS, Linux and Windows. Artifacts are kept for 14 days and a GitHub account is needed to download them.</p>
+            <span>Open the Nightly runs <span aria-hidden="true">↗</span></span>
+          </a>
+          <a class="linkcard reveal" href="https://github.com/voho/vst-instruments/blob/main/youknow106/README.md">
+            <h3>Read the manual</h3>
+            <p>One README covering how the instrument works block by block, what it does not model, and its release history.</p>
+            <span>Open the README <span aria-hidden="true">↗</span></span>
+          </a>
+          <a class="linkcard reveal" href="https://github.com/voho/vst-instruments/blob/main/youknow106/README.md#audio-demos">
+            <h3>Listen to the demos</h3>
+            <p>Ten committed takes, rendered by continuous integration from this instrument’s own shipping engine, so they cannot drift from the code.</p>
+            <span>Open the audio demos <span aria-hidden="true">↗</span></span>
+          </a>
+          <a class="linkcard reveal" href="https://github.com/voho/vst-instruments/tree/main/youknow106">
+            <h3>Browse the source</h3>
+            <p>C++20 and JUCE 8. The original code is under the MIT license; JUCE is used under its own terms.</p>
+            <span>Open the source <span aria-hidden="true">↗</span></span>
+          </a>
+        </div>
+        <p class="notice reveal" style="margin-top: clamp(1.5rem, 3vw, 2.2rem);">A separate Protocodus product, YouKnow, is a Rack Extension for Reason 14 and later that models the same historical instrument.
+          <a href="/product/youknow/" style="color: var(--signal); font-weight: 600;">Open the YouKnow page →</a></p>
+      </div>
+    </section>
+
+    <section class="band band-well">
+      <div class="wrap">
+        <div class="head reveal">
+          <span class="tag">What it does not do</span>
+          <h2 class="title">Stated plainly.</h2>
+        </div>
+        <div class="notice reveal">
+          <p>It models no pitch drift and no inter-voice detune, so six voices on one key are always exactly in tune and unison carries no detune generator, no mains ripple and no velocity from the modelled keybed. It also deliberately leaves out mechanisms whose magnitude the sources cannot fix, including chorus wet-mute click and leakage, high-pass mode-change transients, converter charge injection, and the common output amplifier’s untrimmed even-order distortion.</p>
+          <p>YouKnow106 is an independent original implementation, not affiliated with or licensed by Roland Corporation, and it contains no firmware, ROM data, samples or captured audio. It does include the original 128 factory tone-memory states as functional 18-byte parameter data, independently decoded and checksum-verified; no Roland Cloud content was extracted. Its panel follows that instrument’s functional geometry and 1980s colour vocabulary while retaining independent branding, typography and project-drawn controls.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="band band-contact" id="support">
+      <div class="wrap">
+        <div class="contact-box reveal">
+          <span class="tag">Product support</span>
+          <h2 class="title">Tell us what happened.</h2>
+          <p class="lede">Include the instrument and its version, your host application, your operating system and clear reproduction steps.</p>
+          <a href="mailto:protocodus@proton.me?subject=YouKnow106" class="mail">protocodus@proton.me</a>
+          <p class="signed">Direct support from Protocodus.</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <div class="wrap">
+      <div class="footer-top">
+        <a href="/" class="brand" aria-label="Protocodus home">
+          <img src="/assets/images/logo.svg" alt="" class="brand-mark">
+          <span class="brand-name">Protocodus</span>
+        </a>
+        <p class="footer-tagline">YouKnow106 is a Protocodus product. Creative software development in Prague.</p>
+      </div>
+      <div class="footer-bottom">
+        <p class="footer-meta">© <span id="year">2026</span> Protocodus s.r.o. · Prague, Czech Republic</p>
+        <p class="footer-meta"><a href="/product/">All products</a> · <a href="/">Protocodus home</a></p>
+      </div>
+    </div>
+  </footer>
+  <script src="/assets/js/main.js"></script>
+</body>
+
+</html>
