@@ -1203,12 +1203,7 @@ p {
 
 /* Each product carries its own signal colour; the grid and its page share it */
 .p-youknow { --signal: #ff5db1; }
-.p-drumalor { --signal: #ff6b4a; }
 .p-electry { --signal: #00ffc3; }
-.p-taikor { --signal: #ffb547; }
-.p-acustra { --signal: #9ad14b; }
-.p-septum { --signal: #8e7dff; }
-.p-ghostar { --signal: #4aa8ff; }
 
 .product-card:hover {
   transform: translateY(-7px);
