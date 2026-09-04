@@ -4,11 +4,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>YouKnow — Circuit-Modelled Synth for Reason | Protocodus</title>
-  <meta name="description" content="YouKnow is a circuit-modelled analogue polysynth Rack Extension for Reason 14 and later, with 77 original patches, stereo chorus, CV, and scalable engine quality.">
+  <title>YouKnow — Circuit-Modelled Analogue Polysynth | Protocodus</title>
+  <meta name="description" content="YouKnow is a six-voice circuit-modelled analogue polysynth, available as a Rack Extension for Reason 14 and later and as a VST3, Audio Unit and Standalone plug-in.">
   <meta name="theme-color" content="#0d0e12">
-  <meta property="og:title" content="YouKnow — Rack Extension for Reason 14 and later">
-  <meta property="og:description" content="YouKnow is a circuit-modelled analogue polysynth Rack Extension for Reason 14 and later, with 77 original patches, stereo chorus, CV, and scalable engine quality.">
+  <meta property="og:title" content="YouKnow — Circuit-modelled analogue polysynth">
+  <meta property="og:description" content="YouKnow is a six-voice circuit-modelled analogue polysynth, available as a Rack Extension for Reason 14 and later and as a VST3, Audio Unit and Standalone plug-in.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://protocodus.cz/product/youknow/">
   <meta property="og:image" content="https://protocodus.cz/product/youknow/YouKnow_Front.png">
@@ -62,28 +62,29 @@
         <div class="statement">
           <div class="tag-pill enter">
             <span class="tag-dot"></span>
-            <span>Rack Extension for Reason 14 and later</span>
+            <span>Circuit-modelled analogue polysynth</span>
           </div>
 
           <h1 class="hero-title">
             <span class="rise"><span>YouKnow</span></span>
           </h1>
 
-          <p class="hero-sub enter">A circuit-modelled analogue polysynth for the Reason rack: a direct subtractive signal path, stereo chorus, polyphonic MIDI, monophonic Note and Gate CV, and rear-panel engine quality you can scale to the session.</p>
+          <p class="hero-sub enter">A six-voice circuit-modelled analogue polysynth with a direct subtractive signal path, a stereo bucket-brigade chorus, and calibrated circuit tolerances you can dial from nominal to exaggerated. It comes in two editions: a Rack Extension for Reason, and a plug-in for VST3, Audio Unit and Standalone hosts.</p>
 
           <div class="hero-actions enter">
-            <a href="YouKnow_User_Manual.pdf" class="btn btn-primary">Download the user guide</a>
-            <a href="mailto:protocodus@proton.me?subject=YouKnow%20support" class="btn btn-secondary">Email support</a>
+            <a href="https://protocodus.gumroad.com/l/youknow" class="btn btn-primary">Get it free on Gumroad</a>
+            <a href="YouKnow_User_Manual.pdf" class="btn btn-secondary">Download the user guide</a>
           </div>
+          <p class="price-note enter">Free, or name your price.</p>
         </div>
 
         <div class="hero-foot enter">
           <span class="loop-label">At a glance</span>
           <div class="quickfacts">
-            <span>Version 1.0.0f3</span>
-            <span>Reason 14 or later</span>
-            <span>77 original patches</span>
-            <span>34 automation lanes</span>
+            <span>Six modelled voices</span>
+            <span>Two editions</span>
+            <span>Stereo bucket-brigade chorus</span>
+            <span>Unit Character and Aging</span>
             <span>Offline audio processing</span>
           </div>
         </div>
@@ -95,44 +96,81 @@
         <figure class="shot">
           <img src="youknow-panel.webp" width="1400" height="1025"
             alt="Front panel of the YouKnow Rack Extension">
-          <figcaption>The front panel, read left to right: LFO and DCO into HPF, VCF, VCA and ENV, then CHORUS, with the Performance and Keyboard bays below.</figcaption>
+          <figcaption>Rack Extension edition, front panel, read left to right: LFO and DCO into HPF, VCF, VCA and ENV, then CHORUS, with the Performance and Keyboard bays below.</figcaption>
         </figure>
         <figure class="shot" style="margin-top: clamp(1rem, 2vw, 1.4rem);">
           <img src="YouKnow_Back.png" width="1600" height="1171" loading="lazy"
             alt="Rear panel of the YouKnow Rack Extension">
-          <figcaption>The rear panel: monophonic Note and Gate CV, stereo outputs, the four engine policies, and the Unit Character and Aging controls.</figcaption>
+          <figcaption>Rack Extension edition, rear panel: monophonic Note and Gate CV, stereo outputs, the four engine policies, and the Unit Character and Aging controls.</figcaption>
+        </figure>
+        <figure class="shot" style="margin-top: clamp(1rem, 2vw, 1.4rem);">
+          <img src="youknow-plugin-panel.webp" width="1360" height="718" loading="lazy"
+            alt="Editor panel of the YouKnow plug-in edition">
+          <figcaption>Plug-in edition: the same control inventory and reading order, with the plug-in additions placed next to the hardware families they belong to.</figcaption>
         </figure>
       </div>
     </section>
 
-    <section class="band">
+    <section class="band" id="editions">
       <div class="wrap">
         <div class="head reveal">
-          <span class="tag">Inside the device</span>
-          <h2 class="title">Familiar panel,<br>scalable engine.</h2>
-          <p class="lede">The front panel follows the signal: LFO and DCO through HPF, VCF, VCA, ENV and CHORUS, with performance and keyboard controls in the lower bays. The engine policies that cost CPU live on the rear, out of the way of the sequencer.</p>
+          <span class="tag">Editions</span>
+          <h2 class="title">One instrument,<br>two editions.</h2>
+          <p class="lede">The Rack Extension is the shipping edition, installed through Reason. The plug-in edition runs in VST3, Audio Unit and Standalone hosts and is still in development.</p>
         </div>
 
         <div class="cards stagger">
-          <article class="card reveal">
-            <span class="card-num">01</span>
-            <h3>A direct subtractive path</h3>
-            <p>LFO sets modulation rate and delayed onset. DCO selects octave range, waveforms, PWM source and depth, sub level, noise and oscillator modulation. HPF gives four high-pass positions including bass boost, and VCF adds cutoff, resonance, envelope polarity and amount, LFO amount and keyboard tracking. At high resonance the filter can self-oscillate.</p>
+          <article class="card edition reveal">
+            <span class="card-num">Rack Extension</span>
+            <h3>YouKnow for Reason</h3>
+            <p>Appears as YouKnow Circuit-Modelled Synth under Instruments in the Reason device palette, with monophonic Note and Gate CV on the rear and four engine-quality policies you can trade against CPU.</p>
+            <dl class="edition-facts">
+              <div>
+                <dt>Version</dt>
+                <dd>1.0.0f3</dd>
+              </div>
+              <div>
+                <dt>Requires</dt>
+                <dd>Reason 14 or later</dd>
+              </div>
+              <div>
+                <dt>Patches</dt>
+                <dd>77 original Protocodus patches</dd>
+              </div>
+              <div>
+                <dt>Automation</dt>
+                <dd>34 sequencer lanes</dd>
+              </div>
+            </dl>
+            <div class="edition-actions">
+            <a href="YouKnow_User_Manual.pdf" class="btn btn-primary btn-sm">User guide (PDF)</a>
+            </div>
           </article>
-          <article class="card reveal">
-            <span class="card-num">02</span>
-            <h3>Four chorus states</h3>
-            <p>Off, I, II, and a dedicated narrow I+II combination, with Chorus Hiss beside them in the same bay. Init and patches that inherit the engine default use the quieter MN3009 typical signal-to-noise estimate; Chorus Hiss at 100 percent retains the datasheet maximum.</p>
-          </article>
-          <article class="card reveal">
-            <span class="card-num">03</span>
-            <h3>Engine quality you choose</h3>
-            <p>Quality (1x, 2x, 4x), VCF Tanh (Exact, Fast, Poly), Fast Early (Hermite, Cubic) and VCF Solver (Max, High, Normal) are song-persistent rear-panel policies. New devices use the efficient defaults; a quality change waits for voices and tails to fall silent, then crosses through a short safety fade.</p>
-          </article>
-          <article class="card reveal">
-            <span class="card-num">04</span>
-            <h3>Unit Character and Aging</h3>
-            <p>Unit Character varies calibrated circuit tolerances across 0 to 200 percent and is saved with the patch. Aging is a separate 0 to 100 percent control stored with the song, starting at 0 percent for a freshly serviced instrument; raising it moves per-voice filter trims by their share of up to a quarter tone and lifts the noise source by up to 3.5 dB.</p>
+          <article class="card edition reveal">
+            <span class="card-num">Plug-in</span>
+            <h3>YouKnow for VST3, AU and Standalone</h3>
+            <p>Carries all 128 original factory tone-memory states in the hardware's own order, reads and writes the hardware's own SysEx patch format in both directions, and runs its ladder at 1x, 2x or 4x.</p>
+            <dl class="edition-facts">
+              <div>
+                <dt>Version</dt>
+                <dd>1.1.0, in development</dd>
+              </div>
+              <div>
+                <dt>Requires</dt>
+                <dd>macOS 11 or later</dd>
+              </div>
+              <div>
+                <dt>Factory bank</dt>
+                <dd>128 tone-memory states</dd>
+              </div>
+              <div>
+                <dt>Formats</dt>
+                <dd>VST3, Audio Unit, Standalone</dd>
+              </div>
+            </dl>
+            <div class="edition-actions">
+            <a href="https://github.com/voho/vst-instruments/actions/workflows/nightly.yml" class="btn btn-secondary btn-sm">Download the nightly build</a>
+            </div>
           </article>
         </div>
       </div>
@@ -141,42 +179,83 @@
     <section class="band band-well">
       <div class="wrap">
         <div class="head reveal">
+          <span class="tag">Inside the instrument</span>
+          <h2 class="title">Familiar panel,<br>modelled block by block.</h2>
+          <p class="lede">The panel follows the signal: LFO and DCO through HPF, VCF, VCA, ENV and CHORUS, with performance and keyboard controls below. Both editions run the same voice architecture.</p>
+        </div>
+
+        <div class="cards stagger">
+          <article class="card reveal">
+            <span class="card-num">01</span>
+            <h3>A direct subtractive path</h3>
+            <p>LFO sets modulation rate and delayed onset. DCO selects octave range, waveforms, PWM source and depth, sub level, noise and oscillator modulation. HPF gives four high-pass positions including bass boost, and VCF adds cutoff, resonance, envelope polarity and amount, LFO amount and keyboard tracking.</p>
+          </article>
+          <article class="card reveal">
+            <span class="card-num">02</span>
+            <h3>Four chorus states</h3>
+            <p>Two uncompanded 256-stage MN3009 delay lines driven anti-phase by one triangle, at rates derived from the instrument's own oscillator circuit. Off, I, II and a narrow I+II combination are all available, with a Chorus Hiss control beside them.</p>
+          </article>
+          <article class="card reveal">
+            <span class="card-num">03</span>
+            <h3>A filter that self-oscillates</h3>
+            <p>The four-pole filter is solved directly as its continuous nonlinear equations, with cutoff anchored on Roland's own service calibration point where converter code 6272 self-oscillates at 248 Hz, which the model predicts within a cent rather than fitting.</p>
+          </article>
+          <article class="card reveal">
+            <span class="card-num">04</span>
+            <h3>Unit Character and Aging</h3>
+            <p>Unit Character scales every modelled tolerance from calibrated-nominal at 0 percent, through the 100 percent default described as matching real hardware, to exaggerated at 200 percent. Aging sits beside it and drifts each voice's filter trim flat by its own share of up to a quarter tone while lifting the noise source by up to 3.5 dB.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="band">
+      <div class="wrap">
+        <div class="head reveal">
           <span class="tag">Specifications</span>
           <h2 class="title">The numbers.</h2>
         </div>
 
         <dl class="specs reveal">
           <div>
-            <dt>Version</dt>
-            <dd>1.0.0f3</dd>
+            <dt>Voices</dt>
+            <dd>Six modelled voice cards, polyphony selectable 1 to 16</dd>
           </div>
           <div>
-            <dt>Format</dt>
-            <dd>Rack Extension for Reason 14 or later</dd>
+            <dt>Rack Extension edition</dt>
+            <dd>Version 1.0.0f3, for Reason 14 or later</dd>
+          </div>
+          <div>
+            <dt>Plug-in edition</dt>
+            <dd>VST3, Audio Unit and Standalone; the release history lists 1.1.0 as still in development</dd>
+          </div>
+          <div>
+            <dt>Plug-in platforms</dt>
+            <dd>macOS 11 or later, universal arm64 and x86_64; the nightly workflow also builds Linux and Windows</dd>
           </div>
           <div>
             <dt>Patches</dt>
-            <dd>77 original Protocodus patches, including Init</dd>
+            <dd>Rack Extension: 77 original Protocodus patches, in Bass, Leads, Keys, Brass, Pads, Strings and Effects. Plug-in: all 128 original tone-memory states, A11 to A88 then B11 to B88</dd>
           </div>
           <div>
-            <dt>Categories</dt>
-            <dd>Bass, Leads, Keys, Brass, Pads, Strings, Effects</dd>
+            <dt>Patch exchange</dt>
+            <dd>The plug-in reads and writes the hardware's own SysEx patch format in both directions; the Rack Extension uses Reason's patch browser and patch files</dd>
           </div>
           <div>
-            <dt>Automation</dt>
-            <dd>34 musical front-panel controls with stable sequencer lanes</dd>
+            <dt>Engine quality</dt>
+            <dd>Rack Extension: rear-panel Quality, VCF Tanh, Fast Early and VCF Solver policies, stored with the song. Plug-in: a 1x, 2x or 4x ladder, new instances at 4x</dd>
           </div>
           <div>
             <dt>CV</dt>
-            <dd>Monophonic rear Note and Gate CV; MIDI stays polyphonic</dd>
-          </div>
-          <div>
-            <dt>Voices</dt>
-            <dd>Selectable 1 to 16</dd>
+            <dd>Rack Extension only: monophonic rear Note and Gate CV, while MIDI stays polyphonic</dd>
           </div>
           <div>
             <dt>Reported latency</dt>
-            <dd>A fixed 41 samples at every Quality setting</dd>
+            <dd>A fixed 41 samples in both editions</dd>
+          </div>
+          <div>
+            <dt>Licence</dt>
+            <dd>Protocodus-authored source and artwork under the MIT license</dd>
           </div>
         </dl>
       </div>
@@ -190,25 +269,40 @@
         </div>
 
         <div class="linkset stagger">
+          <a class="linkcard reveal" href="https://protocodus.gumroad.com/l/youknow">
+            <h3>Get it on Gumroad</h3>
+            <p>Free, or name your price. The store page carries the installers and the release notes, and tells you when a new version lands.</p>
+            <span>Open the store page <span aria-hidden="true">↗</span></span>
+          </a>
           <a class="linkcard reveal" href="YouKnow_User_Manual.pdf">
             <h3>User guide (PDF)</h3>
-            <p>Install and first sound, the front and rear panels, the engine policies, patches, CV and timing, troubleshooting, and the full legal notices.</p>
+            <p>The Rack Extension guide: install and first sound, the front and rear panels, the engine policies, patches, CV and timing, troubleshooting, and the full legal notices.</p>
             <span>Download the PDF</span>
           </a>
           <div class="linkcard reveal">
-            <h3>Install and update</h3>
-            <p>YouKnow installs and updates through your Reason Studios account and the Reason Rack Extension browser. After installation it appears as YouKnow Circuit-Modelled Synth under Instruments in the device palette.</p>
+            <h3>Install the Rack Extension</h3>
+            <p>The Rack Extension installs and updates through your Reason Studios account and the Reason Rack Extension browser. Creating it makes a sequencer track and auto-routes its stereo output.</p>
             <span>Reason Studios account and Rack Extension browser</span>
           </div>
+          <a class="linkcard reveal" href="https://github.com/voho/vst-instruments/actions/workflows/nightly.yml">
+            <h3>Download the plug-in</h3>
+            <p>The latest successful Nightly run carries one artifact with every Protocodus instrument, for macOS, Linux and Windows. Artifacts are kept for 14 days and a GitHub account is needed to download them. Current builds and the source tree still carry the YouKnow106 working name.</p>
+            <span>Open the Nightly runs <span aria-hidden="true">↗</span></span>
+          </a>
+          <a class="linkcard reveal" href="https://github.com/voho/vst-instruments/blob/main/youknow106/README.md">
+            <h3>Read the plug-in manual</h3>
+            <p>How the instrument works block by block, what it does not model, and the sources behind each modelling decision, down to the service-note page each constant came from.</p>
+            <span>Open the README <span aria-hidden="true">↗</span></span>
+          </a>
+          <a class="linkcard reveal" href="https://github.com/voho/vst-instruments/blob/main/youknow106/README.md#audio-demos">
+            <h3>Listen to the demos</h3>
+            <p>Ten committed takes, rendered by continuous integration from the plug-in's own shipping engine, so they cannot drift from the code.</p>
+            <span>Open the audio demos <span aria-hidden="true">↗</span></span>
+          </a>
           <a class="linkcard reveal" href="mailto:protocodus@proton.me?subject=YouKnow%20support">
             <h3>Report a problem</h3>
             <p>Anything reproducible, from a patch that will not load to a CPU figure that looks wrong. The checklist to send with it is below.</p>
             <span>protocodus@proton.me</span>
-          </a>
-          <a class="linkcard reveal" href="YouKnow_User_Manual.pdf#page=5">
-            <h3>Privacy and licensing</h3>
-            <p>YouKnow processes audio offline and contains no telemetry or network client. The MIT notice for Protocodus-authored source and artwork, the privacy notice and third-party provenance follow the guide.</p>
-            <span>Read the notices</span>
           </a>
         </div>
       </div>
@@ -221,7 +315,7 @@
           <h2 class="title">If something is wrong.</h2>
         </div>
         <div class="notice reveal">
-          <p>If notes arrive but there is no sound, load Init or reset the device, verify Volume and VCA Level, and confirm both stereo outputs are connected. For high CPU, select 1x, Poly, Cubic and Normal on the rear and reduce Voices. If a quality change seems delayed, release all notes and let the output tail settle; the change is applied only at a safe silent boundary. For no CV response, connect both Gate and Note CV.</p>
+          <p>If notes arrive but there is no sound, load Init or reset the device, verify Volume and VCA Level, and confirm both stereo outputs are connected. For high CPU on the Rack Extension, select 1x, Poly, Cubic and Normal on the rear and reduce Voices. If a quality change seems delayed, release all notes and let the output tail settle; the change is applied only at a safe silent boundary. For no CV response, connect both Gate and Note CV.</p>
         </div>
       </div>
     </section>
@@ -233,8 +327,8 @@
           <h2 class="title">Stated plainly.</h2>
         </div>
         <div class="notice reveal">
-          <p>YouKnow does not expose MIDI Program Change or SysEx file import and export; use Reason's patch browser and patch files instead. The rear Note and Gate CV pair is monophonic, so CV plays one note at a time while MIDI stays polyphonic up to the selected Voices limit. Unit Character, Aging, Chorus Hiss and the four rear engine policies are available to Remote but are deliberately left outside sequencer automation. The Universal 45 development archive is for Reason Studios' build service and is not a customer installer.</p>
-          <p>YouKnow is an independent Protocodus product. It is not affiliated with, endorsed by, sponsored by, or licensed by Roland Corporation. Reason, Reason Studios and Rack Extension are Reason Studios AB trademarks and identify the compatible platform. Reason Studios' applicable customer terms govern Shop delivery.</p>
+          <p>Neither edition models pitch drift or inter-voice detune, so six voices on one key are always exactly in tune, and unison carries no detune generator. Mechanisms whose magnitude the sources cannot fix are deliberately left out, including chorus wet-mute click and leakage, high-pass mode-change transients, converter charge injection, and the common output amplifier's untrimmed even-order distortion. The Rack Extension does not expose MIDI Program Change or SysEx file import and export; use Reason's patch browser and patch files instead, and note that its rear Note and Gate CV pair is monophonic. Unit Character, Aging, Chorus Hiss and the four rear engine policies are available to Remote but are deliberately left outside sequencer automation.</p>
+          <p>YouKnow is an independent Protocodus product and an original implementation. It is not affiliated with, endorsed by, sponsored by, or licensed by Roland Corporation, and it contains no firmware, ROM data, samples or captured audio. The plug-in edition does include the original 128 factory tone-memory states as functional 18-byte parameter data, independently decoded and checksum-verified; no Roland Cloud content was extracted. Its panel follows that instrument's functional geometry and 1980s colour vocabulary while retaining independent branding, typography and project-drawn controls. Reason, Reason Studios and Rack Extension are Reason Studios AB trademarks and identify the compatible platform; Reason Studios' applicable customer terms govern Shop delivery.</p>
         </div>
       </div>
     </section>
@@ -244,7 +338,7 @@
         <div class="contact-box reveal">
           <span class="tag">Product support</span>
           <h2 class="title">Tell us what happened.</h2>
-          <p class="lede">Include the YouKnow version, Reason version, operating system, computer model, audio sample rate, patch name and clear reproduction steps. Please do not send confidential songs, credentials or recordings unless they are necessary and safe to share.</p>
+          <p class="lede">Include the edition and its version, your Reason or host version, operating system, computer model, audio sample rate, patch name and clear reproduction steps. Please do not send confidential songs, credentials or recordings unless they are necessary and safe to share.</p>
           <a href="mailto:protocodus@proton.me?subject=YouKnow%20support" class="mail">protocodus@proton.me</a>
           <p class="signed">Direct support from Protocodus.</p>
         </div>

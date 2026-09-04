@@ -1159,8 +1159,7 @@ p {
 }
 
 /* Each product carries its own signal colour; the grid and its page share it */
-.p-youknow,
-.p-youknow106 { --signal: #ff5db1; }
+.p-youknow { --signal: #ff5db1; }
 .p-drumalor { --signal: #ff6b4a; }
 .p-electry { --signal: #00ffc3; }
 .p-taikor { --signal: #ffb547; }
@@ -1408,6 +1407,52 @@ p {
   color: var(--signal);
   font-size: 0.88rem;
   font-weight: 600;
+}
+
+.price-note {
+  margin-top: 0.9rem;
+  color: var(--signal, var(--teal));
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+/* Edition cards carry a fact list and a button row, so they pin their actions
+   to the bottom and stay the same height beside each other */
+.edition {
+  display: flex;
+  flex-direction: column;
+}
+
+.edition-facts {
+  margin: 1.3rem 0 0;
+  display: grid;
+  gap: 0.55rem;
+  font-size: 0.9rem;
+}
+
+.edition-facts > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.edition-facts dt {
+  color: var(--fg-muted);
+}
+
+.edition-facts dd {
+  color: var(--fg);
+  text-align: right;
+}
+
+.edition-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: auto;
+  padding-top: 1.5rem;
 }
 
 .notice {
