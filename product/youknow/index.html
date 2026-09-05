@@ -4,14 +4,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>YouKnow — Circuit-Modelled Analogue Polysynth | Protocodus</title>
-  <meta name="description" content="A six-voice circuit-modelled analogue polysynth for the Reason rack and for VST3, Audio Unit and Standalone hosts. Free, name your price.">
+  <title>YouKnow — Circuit-Modelled Polysynth | Protocodus</title>
+  <meta name="description" content="A Juno-106-inspired software synth for pads, strings, bass and leads, with stereo chorus, variable polyphony and adjustable voice character.">
   <meta name="theme-color" content="#0d0e12">
-  <meta property="og:title" content="YouKnow — Circuit-modelled analogue polysynth">
-  <meta property="og:description" content="A six-voice circuit-modelled analogue polysynth for the Reason rack and for VST3, Audio Unit and Standalone hosts. Free, name your price.">
+  <meta property="og:title" content="YouKnow — Circuit-modelled polysynth">
+  <meta property="og:description" content="A Juno-106-inspired software synth for pads, strings, bass and leads, with stereo chorus, variable polyphony and adjustable voice character.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://protocodus.cz/product/youknow/">
-  <meta property="og:image" content="https://protocodus.cz/product/youknow/YouKnow_Front.png">
+  <meta property="og:image" content="https://protocodus.cz/product/youknow/youknow-plugin-panel.webp">
   <link rel="canonical" href="https://protocodus.cz/product/youknow/">
   <link rel="icon" type="image/svg+xml" href="/assets/images/logo.svg">
   <link rel="preload" href="/assets/fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
@@ -28,11 +28,35 @@
         <img src="/assets/images/logo.svg" alt="" class="brand-mark">
         <span class="brand-name">Protocodus</span>
       </a>
+
+      <nav class="nav" aria-label="Main navigation">
+        <a href="/#top" class="nav-link">Studio</a>
+        <a href="/#products" class="nav-link current" aria-current="location">Products</a>
+        <a href="/#fun" class="nav-link">Fun</a>
+        <a href="/#company" class="nav-link">Company</a>
+        <a href="/#contact" class="nav-link">Contact</a>
+      </nav>
+
       <div class="header-actions">
-        <a href="https://protocodus.gumroad.com/l/youknow" class="btn btn-sm btn-header">Get it free</a>
+        <button class="menu-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="mobile-menu">
+          <span></span><span></span>
+        </button>
       </div>
     </div>
   </header>
+
+  <div class="mobile-menu" id="mobile-menu" hidden>
+    <nav class="mobile-nav" aria-label="Mobile navigation">
+      <a href="/#top" class="mobile-link">Studio</a>
+      <a href="/#products" class="mobile-link current" aria-current="location">Products</a>
+      <a href="/#fun" class="mobile-link">Fun</a>
+      <a href="/#company" class="mobile-link">Company</a>
+      <a href="/#contact" class="mobile-link">Contact</a>
+    </nav>
+    <div class="mobile-foot">
+      <a href="mailto:protocodus@proton.me" class="mobile-mail">protocodus@proton.me</a>
+    </div>
+  </div>
 
   <main id="main">
     <section class="hero" id="top">
@@ -40,20 +64,20 @@
         <div class="statement">
           <div class="tag-pill enter">
             <span class="tag-dot"></span>
-            <span>Circuit-modelled analogue polysynth</span>
+            <span>Circuit-modelled polysynth</span>
           </div>
 
           <h1 class="hero-title">
             <span class="rise"><span>YouKnow</span></span>
           </h1>
 
-          <p class="hero-sub enter">A six-voice analogue polysynth modelled circuit by circuit: a direct subtractive path, a stereo bucket-brigade chorus, and calibrated tolerances you can dial from factory-fresh to worn.</p>
+          <p class="hero-sub enter">Pads, strings, bass and leads from a synth inspired by the Juno-106. YouKnow models
+            its six-voice architecture in software, with the synthesis controls together on one panel.</p>
 
           <div class="hero-actions enter">
-            <a href="https://protocodus.gumroad.com/l/youknow" class="btn btn-primary">Get it free on Gumroad</a>
-            <a href="YouKnow_User_Manual.pdf" class="btn btn-secondary">User guide (PDF)</a>
+            <a href="https://protocodus.gumroad.com/l/youknow" class="btn btn-primary">Get for free or buy</a>
           </div>
-          <p class="price-note enter">Free, or name your price.</p>
+          <p class="price-note enter">Name your price on Gumroad. Downloads are not yet available.</p>
         </div>
       </div>
     </section>
@@ -62,9 +86,11 @@
       <div class="wrap">
         <figure class="shot">
           <img src="youknow-panel.webp" width="1400" height="1025" alt="Front panel of the YouKnow Rack Extension">
+          <figcaption class="footer-tagline">Reason Rack Extension</figcaption>
         </figure>
         <figure class="shot" style="margin-top: clamp(1rem, 2vw, 1.4rem);">
           <img src="youknow-plugin-panel.webp" width="1360" height="718" loading="lazy" alt="Editor panel of the YouKnow plug-in">
+          <figcaption class="footer-tagline">VST3, Audio Unit and standalone</figcaption>
         </figure>
       </div>
     </section>
@@ -72,31 +98,48 @@
     <section class="band">
       <div class="wrap">
         <div class="head reveal">
-          <span class="tag">Features</span>
-          <h2 class="title">What it does.</h2>
+          <span class="tag">Synthesis</span>
+          <h2 class="title">Oscillators, filter and chorus.</h2>
         </div>
         <ul class="features reveal">
-          <li>Six modelled voices, playable up to sixteen</li>
-          <li>Direct subtractive path: LFO, DCO, HPF, VCF, VCA and envelope</li>
-          <li>Four-pole filter that self-oscillates at full resonance</li>
-          <li>Stereo bucket-brigade chorus: off, I, II, and a narrow I+II</li>
-          <li>Unit Character, from calibrated-nominal to exaggerated</li>
-          <li>Aging, for the drift a serviced instrument picks up</li>
-          <li>Engine quality you scale against CPU, 1x to 4x</li>
-          <li>Monophonic Note and Gate CV in the Reason rack</li>
-          <li>77 original patches, or the 128 classic factory tones</li>
-          <li>Offline audio processing, no telemetry, no network</li>
+          <li><span><strong>Oscillators.</strong> Combine saw and pulse waves, add a sub oscillator and blend in noise.
+            Pulse-width modulation adds movement to a held note.</span></li>
+          <li><span><strong>Filter and envelope.</strong> Shape swells, stabs and sweeps. At full resonance, the filter
+            self-oscillates and becomes a playable tone.</span></li>
+          <li><span><strong>Stereo chorus.</strong> Choose mode I for a slower swirl, II for faster movement or I+II
+            for a narrower texture. Adjust the hiss separately.</span></li>
+          <li><span><strong>Voice character.</strong> Unit Character varies the modelled components between voices.
+            Aging adds filter drift and noise.</span></li>
+          <li><span><strong>Polyphony and unison.</strong> Set the voice count from one to sixteen for chords, or stack
+            voices on a single note. Add portamento to glide between notes.</span></li>
+          <li><span><strong>Performance controls.</strong> Set velocity response, play with pitch bend and modulation,
+            and automate synthesis controls in your DAW.</span></li>
         </ul>
-        <p class="requirements reveal">Reason 14 or later · macOS 11 or later · VST3, Audio Unit, Standalone</p>
+      </div>
+    </section>
+
+    <section class="band band-well">
+      <div class="wrap">
+        <div class="head reveal">
+          <span class="tag">Workflow</span>
+          <h2 class="title">Presets and session recall.</h2>
+          <p class="lede">Browse the plug-in's factory bank or choose INIT to build a patch from scratch. Hover a
+            control for help, then save your DAW project or a host preset to keep the complete setup.</p>
+          <p class="lede">The Rack Extension uses Reason's patch browser and a separate bank of original Protocodus
+            sounds. Both versions offer quality settings to balance CPU use and oversampling.</p>
+        </div>
+        <p class="requirements reveal">Plug-in: macOS 11 or later, Apple silicon or Intel · VST3, Audio Unit and a standalone app.</p>
+        <p class="requirements reveal">Rack Extension: Reason 14 or later.</p>
       </div>
     </section>
 
     <section class="band band-contact" id="support">
       <div class="wrap">
         <div class="contact-box reveal">
-          <span class="tag">Support</span>
-          <h2 class="title">Something wrong?</h2>
-          <p class="lede">Send the version, your host and your operating system, and what you did to see it.</p>
+          <h2 class="title">YouKnow support.</h2>
+          <p class="lede">For setup help or troubleshooting, email your YouKnow version, DAW, operating system and
+            a description of the issue.</p>
+          <p class="footer-meta requirements"><a href="YouKnow_User_Manual.pdf">Rack Extension guide (PDF)</a></p>
           <a href="mailto:protocodus@proton.me?subject=YouKnow" class="mail">protocodus@proton.me</a>
         </div>
       </div>
@@ -110,11 +153,12 @@
           <img src="/assets/images/logo.svg" alt="" class="brand-mark">
           <span class="brand-name">Protocodus</span>
         </a>
-        <p class="footer-tagline">YouKnow is an independent Protocodus product, not affiliated with, endorsed by or licensed by Roland Corporation. Reason, Reason Studios and Rack Extension are Reason Studios AB trademarks.</p>
+        <p class="footer-tagline">YouKnow is an independent Protocodus product, not affiliated with or endorsed by
+          Roland Corporation.</p>
       </div>
       <div class="footer-bottom">
-        <p class="footer-meta">© <span id="year">2026</span> Protocodus s.r.o. · Prague, Czech Republic</p>
-        <p class="footer-meta"><a href="/">Protocodus home</a></p>
+        <p class="footer-meta">© <span id="year">2026</span> Protocodus s.r.o.</p>
+        <p class="footer-meta"><a href="/#company">Company details</a></p>
       </div>
     </div>
   </footer>

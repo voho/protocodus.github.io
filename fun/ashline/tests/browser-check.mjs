@@ -20,17 +20,22 @@ const point = (page, x, y) => page.evaluate(({ x, y }) => {
   return { x: p.x + rect.x, y: p.y + rect.y };
 }, { x, y });
 const clickWorld = async (page, x, y, button = 'left') => { const p = await point(page, x, y); await page.mouse.click(p.x, p.y, { button }); };
+const baseWorld = (page, x, y) => page.evaluate(({x, y}) => {
+  const core = ashline.state.entities.find(e => e.team === 0 && e.type === 'core');
+  return {x: core.x + x - 10, y: core.y + y - 35};
+}, {x, y});
+const clickBase = async (page, x, y, button = 'left') => { const p = await baseWorld(page, x, y); await clickWorld(page, p.x, p.y, button); };
 async function construct(page, type) {
   if (await page.locator('#command-console').isHidden()) await page.locator('#command-toggle').click();
   await page.locator('#build-tab').click();
   const spot = await page.evaluate(async type => {
     const { canPlace } = await import('./sim.js'), s = ashline.state;
-    const spots = [];
-    for (let y = 25; y < 44; y++) for (let x = 5; x < 25; x++) {
+    const spots = [], core = s.entities.find(e => e.team === 0 && e.type === 'core');
+    for (let y = core.y - 10; y < core.y + 9; y++) for (let x = core.x - 5; x < core.x + 15; x++) {
       const p = ashline.renderer.worldToScreen(x, y, ashline.view);
       if (p.x > 30 && p.y > 100 && p.x < ashline.renderer.width - 120 && p.y < ashline.renderer.height - 100 && canPlace(s, 0, type, x, y).ok) spots.push({ x, y });
     }
-    return spots.sort((a, b) => Math.hypot(a.x - 12, a.y - 30) - Math.hypot(b.x - 12, b.y - 30))[0];
+    return spots.sort((a, b) => Math.hypot(a.x - core.x - 2, a.y - core.y + 5) - Math.hypot(b.x - core.x - 2, b.y - core.y + 5))[0];
   }, type);
   assert(spot, `Valid ${type} build location`);
   await page.locator(`[data-type="${type}"]`).click();
@@ -41,13 +46,14 @@ try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } }); watch(page);
   await page.goto(url); await page.waitForFunction(() => window.ashline?.assets.ready);
   assert.deepEqual(await state(page, () => ashline.assets.errors), []);
-  assert.equal(await state(page, () => ashline.assets.loaded), 4, 'All generated sprite and terrain assets load');
+  assert.equal(await state(page, () => ashline.assets.loaded), 7, 'All seven generated sprite and terrain assets load');
   const graphics = await page.evaluate(async () => {
     const { drawSprite, spriteStats } = await import('./assets.js');
+    const { UNITS } = await import('./sim.js');
     const c = document.createElement('canvas'); c.width = c.height = 128;
     const ctx = c.getContext('2d', { willReadFrequently: true });
     let cases = 0, empty = 0, matte = 0;
-    for (const type of ['rifle', 'scout', 'tank', 'artillery', 'harvester']) for (let team = 0; team < 2; team++) for (let direction = 0; direction < 8; direction++) for (const moving of [false, true]) {
+    for (const type of Object.keys(UNITS)) for (let team = 0; team < 2; team++) for (let direction = 0; direction < 8; direction++) for (const moving of [false, true]) {
       ctx.clearRect(0, 0, 128, 128); ctx.save(); ctx.translate(64, 64);
       drawSprite(ctx, { type, team, angle: direction * Math.PI / 4, moving, id: 1 }, .4); ctx.restore();
       const rgba = ctx.getImageData(0, 0, 128, 128).data;
@@ -59,11 +65,11 @@ try {
       if (occupied < 20) empty++;
       cases++;
     }
-    return { ...spriteStats(), cases, empty, matte };
+    return { ...spriteStats(), unitTypes: Object.keys(UNITS).length, cases, empty, matte };
   });
   assert.equal(graphics.frames.rifle, 2);
   assert.equal(graphics.props.rock, 3); assert.equal(graphics.props.ore, 3);
-  assert.equal(graphics.cases, 160); assert.equal(graphics.empty, 0); assert.equal(graphics.matte, 0, 'Generated sprites have clean transparent silhouettes');
+  assert.equal(graphics.cases, graphics.unitTypes * 32); assert.equal(graphics.empty, 0); assert.equal(graphics.matte, 0, 'Generated sprites have clean transparent silhouettes');
   assert(await page.locator('#briefing').evaluate(e => e.open));
   assert(await state(page, () => ashline.paused && ashline.state.time === 0));
   await page.screenshot({ path: `${output}/briefing.png` });
@@ -79,6 +85,63 @@ try {
   assert.equal(await state(page, () => ashline.state.seed), 'BROWSER-CHECK');
   assert(await page.locator('[data-type="factory"]').isDisabled(), 'Technology prerequisite disables foundry');
 
+  // Freeze only the animation loop so real selection input can inspect a stable viewport.
+  await page.evaluate(() => {
+    window.selectionFixture = {raf: requestAnimationFrame};
+    requestAnimationFrame = frame => { selectionFixture.frame = frame; return 0; };
+  });
+  await page.waitForFunction(() => !!selectionFixture.frame);
+  await page.evaluate(() => Object.assign(selectionFixture, {game: structuredClone(ashline.state), view: structuredClone(ashline.view)}));
+  try {
+    for (const camera of [{x: 36, y: 28, zoom: 38}, {x: 43, y: 25, zoom: 58}]) {
+      const expected = await page.evaluate(async camera => {
+        const {UNITS} = await import('./sim.js'), s = ashline.state, r = ashline.renderer, v = ashline.view;
+        const template = type => selectionFixture.game.entities.find(e => e.team === 0 && e.type === type);
+        Object.assign(v, camera); v.selected.clear(); s.entities = [];
+        const a = r.screenToWorld(0, 0, v), b = r.screenToWorld(r.width, r.height, v);
+        const add = (x, y, type = 'rifle', team = 0, hp = UNITS[type].hp) => {
+          const e = {...structuredClone(template(type)), id: s.nextId++, x, y, type, team, hp, maxHp: UNITS[type].hp, size: UNITS[type].size};
+          s.entities.push(e); return e.id;
+        };
+        const visible = [[v.x, v.y], [a.x + .25, v.y], [b.x - .25, v.y], [v.x, a.y + .25], [v.x, b.y - .25]].map(([x, y]) => add(x, y));
+        for (const [x, y] of [[a.x - .25, v.y], [b.x + .25, v.y], [v.x, a.y - .25], [v.x, b.y + .25]]) add(x, y);
+        add(v.x + 2, v.y + 2, 'scout'); add(v.x - 2, v.y - 2, 'rifle', 1); add(v.x + 3, v.y - 3, 'rifle', 0, 0);
+        add(v.x + 3, v.y + 3, 'harvester'); add(v.x + 5, v.y + 3, 'harvester');
+        r.draw(s, v); return visible;
+      }, camera);
+      const p = await point(page, camera.x, camera.y); await page.mouse.dblclick(p.x, p.y);
+      assert.deepEqual(await state(page, () => [...ashline.view.selected].sort((a, b) => a - b)), expected.sort((a, b) => a - b), 'Double-click selects only living friendly units of the same type inside all four viewport edges after pan/zoom');
+    }
+    const fixture = await state(page, () => ({
+      rifle: ashline.state.entities.find(e => e.x === ashline.view.x && e.y === ashline.view.y),
+      scout: ashline.state.entities.find(e => e.type === 'scout'), haulers: ashline.state.entities.filter(e => e.type === 'harvester'),
+    }));
+    const selected = () => state(page, () => [...ashline.view.selected].sort((a, b) => a - b));
+    const shiftAdd = async unit => { await page.keyboard.down('Shift'); await clickWorld(page, unit.x, unit.y); await page.keyboard.up('Shift'); };
+    const dragFrom = await point(page, fixture.rifle.x - .7, fixture.rifle.y - .7), dragTo = await point(page, fixture.haulers[1].x + .7, fixture.haulers[1].y + .7);
+    await page.mouse.move(dragFrom.x, dragFrom.y); await page.mouse.down(); await page.mouse.move(dragTo.x, dragTo.y, {steps: 6}); await page.mouse.up();
+    assert.deepEqual(await selected(), [fixture.rifle.id, fixture.scout.id], 'Mixed box selection keeps combat units and excludes haulers');
+    await page.keyboard.press('a'); await clickWorld(page, fixture.rifle.x - 3, fixture.rifle.y + 3);
+    assert.deepEqual(await state(page, () => ashline.state.entities.filter(e => e.type === 'harvester').map(e => e.order)), fixture.haulers.map(e => e.order), 'Excluded haulers do not receive a combat move');
+    for (const [first, added] of [[fixture.rifle, fixture.haulers[0]], [fixture.haulers[0], fixture.rifle]]) {
+      await clickWorld(page, first.x, first.y); await shiftAdd(added);
+      assert.deepEqual(await selected(), [fixture.rifle.id], 'Shift selection excludes haulers regardless of selection order');
+    }
+    await clickWorld(page, fixture.haulers[0].x, fixture.haulers[0].y); await shiftAdd(fixture.haulers[1]);
+    const haulerIds = fixture.haulers.map(e => e.id);
+    assert.deepEqual(await selected(), haulerIds, 'Hauler-only Shift selection remains available');
+    const haulerPoint = await point(page, fixture.haulers[0].x, fixture.haulers[0].y); await page.mouse.dblclick(haulerPoint.x, haulerPoint.y);
+    assert.deepEqual(await selected(), haulerIds, 'Double-click retains a hauler-only group');
+    await page.keyboard.press('Control+5'); await clickWorld(page, fixture.rifle.x, fixture.rifle.y); await page.keyboard.press('5');
+    assert.deepEqual(await selected(), haulerIds, 'Control group recall preserves a hauler-only group');
+  } finally {
+    await page.keyboard.press('Escape'); await page.keyboard.press('Control+5');
+    await page.evaluate(() => {
+      Object.assign(ashline.state, selectionFixture.game); Object.assign(ashline.view, selectionFixture.view);
+      requestAnimationFrame = selectionFixture.raf; requestAnimationFrame(selectionFixture.frame); delete window.selectionFixture;
+    });
+  }
+
   // Real selection, box selection, control groups and context orders.
   const rifle = await state(page, () => ashline.state.entities.find(e => e.team === 0 && e.type === 'rifle'));
   await clickWorld(page, rifle.x, rifle.y);
@@ -91,17 +154,19 @@ try {
   await page.locator('#explore-order').click();
   assert.equal(await page.locator('#explore-order').getAttribute('aria-pressed'), 'false');
   await page.keyboard.press('x');
-  await clickWorld(page, 14.5, 31.5, 'right');
+  const moveDestination = await baseWorld(page, 14.5, 31.5);
+  await clickWorld(page, moveDestination.x, moveDestination.y, 'right');
   assert.equal(await page.evaluate(id => ashline.state.entities.find(e => e.id === id).order.type, rifle.id), 'move');
   assert.equal(await page.locator('#explore-order').getAttribute('aria-pressed'), 'false', 'Manual movement overrides exploration');
   await advance(page, 3);
-  assert(await page.evaluate(id => ashline.state.entities.find(e => e.id === id).y < 33, rifle.id), 'Move command changes position');
+  assert(await page.evaluate(({id, y}) => ashline.state.entities.find(e => e.id === id).y < y + 1.5, {id: rifle.id, y: moveDestination.y}), 'Move command changes position');
   await page.keyboard.press('Escape'); await page.keyboard.press('1');
   assert.equal(await state(page, () => ashline.view.selected.size), 1);
-  const a = await point(page, 9, 29), b = await point(page, 18, 36);
+  const dragA = await baseWorld(page, 9, 29), dragB = await baseWorld(page, 18, 36);
+  const a = await point(page, dragA.x, dragA.y), b = await point(page, dragB.x, dragB.y);
   await page.mouse.move(a.x, a.y); await page.mouse.down(); await page.mouse.move(b.x, b.y, { steps: 6 }); await page.mouse.up();
   assert(await state(page, () => ashline.view.selected.size >= 3), 'Drag selects multiple units');
-  await page.keyboard.press('a'); await clickWorld(page, 23, 29);
+  await page.keyboard.press('a'); await clickBase(page, 23, 29);
   assert(await state(page, () => ashline.state.entities.filter(e => ashline.view.selected.has(e.id)).some(e => e.order.type === 'attackMove')));
   await page.keyboard.press('s');
   assert(await state(page, () => ashline.state.entities.filter(e => ashline.view.selected.has(e.id)).every(e => e.order.type === 'idle')));
@@ -120,21 +185,22 @@ try {
   await page.keyboard.press('s');
   assert.equal(await page.evaluate(id => ashline.state.entities.find(e => e.id === id).order.type, hauler.id), 'harvest', 'Stopping a hauler restores automatic harvesting');
   await page.waitForFunction(() => /Auto-harvesting|Returning cargo/.test(document.querySelector('#selection-detail').textContent));
-  await clickWorld(page, 16.5, 39.5, 'right');
+  await clickBase(page, 16.5, 39.5, 'right');
   await advance(page, 5);
   assert.equal(await page.evaluate(id => ashline.state.entities.find(e => e.id === id).order.type, hauler.id), 'harvest', 'Clicking the refinery lets a hauler resume work at its perimeter');
   await page.waitForFunction(() => /Auto-harvesting|Returning cargo/.test(document.querySelector('#selection-detail').textContent));
   await page.screenshot({ path: `${output}/automatic-hauler.png` });
   await page.keyboard.down('Shift');
   await clickWorld(page, escort.x, escort.y); await page.keyboard.up('Shift');
-  await clickWorld(page, 20.5, 38.5, 'right');
+  assert.equal(await page.evaluate(id => ashline.view.selected.has(id), hauler.id), false, 'Adding a combat escort deselects the hauler');
+  await clickBase(page, 20.5, 38.5, 'right');
   assert.equal(await page.evaluate(id => ashline.state.entities.find(e => e.id === id).order.type, hauler.id), 'harvest');
-  assert.equal(await page.evaluate(id => ashline.state.entities.find(e => e.id === id).order.type, escort.id), 'move', 'Combat escorts move when mixed groups harvest');
+  assert.equal(await page.evaluate(id => ashline.state.entities.find(e => e.id === id).order.type, escort.id), 'move', 'Combat escorts move while excluded haulers keep harvesting');
 
   // Occupied construction does not charge; a valid build unlocks real production.
   await page.locator('[data-type="barracks"]').click();
   const credits = await state(page, () => ashline.state.teams[0].credits);
-  await clickWorld(page, 10.2, 35.2);
+  await clickBase(page, 10.2, 35.2);
   assert.equal(await state(page, () => ashline.state.teams[0].credits), credits);
   assert.equal(await state(page, () => ashline.view.placement), 'barracks');
   await page.keyboard.press('Escape');
@@ -153,11 +219,11 @@ try {
 
   // Minimap uses the same aspect-fit transform as its renderer; pause freezes simulation.
   const mapPoint = await page.locator('#minimap').evaluate(e => {
-    const r = e.getBoundingClientRect(), s = Math.min(r.width / 72, r.height / 56);
-    return { x: r.x + (r.width - 72 * s) / 2 + 36 * s, y: r.y + (r.height - 56 * s) / 2 + 28 * s };
+    const r = e.getBoundingClientRect();
+    return {x: r.x + r.width / 2, y: r.y + r.height / 2};
   });
   await page.mouse.click(mapPoint.x, mapPoint.y);
-  assert(await state(page, () => Math.abs(ashline.view.x - 36) < .5 && Math.abs(ashline.view.y - 28) < .5));
+  assert(await state(page, () => Math.abs(ashline.view.x - ashline.state.width / 2) < .5 && Math.abs(ashline.view.y - ashline.state.height / 2) < .5));
   await page.locator('#home').click(); await page.locator('#pause').click();
   const pausedTime = await state(page, () => ashline.state.time);
   await page.waitForTimeout(350); assert.equal(await state(page, () => ashline.state.time), pausedTime);
@@ -206,7 +272,8 @@ try {
   await advance(mobile, 4);
   assert(await mobile.evaluate(before => ashline.state.explored[0].reduce((n, tile) => n + tile, 0) > before, exploredBefore), 'Touch exploration reveals new terrain');
   await mobile.screenshot({ path: `${output}/auto-explore-mobile.png` });
-  const destination = await point(mobile, 18, 31); await mobile.touchscreen.tap(destination.x, destination.y);
+  const groundDestination = await baseWorld(mobile, 18, 31);
+  const destination = await point(mobile, groundDestination.x, groundDestination.y); await mobile.touchscreen.tap(destination.x, destination.y);
   assert.equal(await mobile.evaluate(id => ashline.state.entities.find(e => e.id === id).order.type, mobileScout.id), 'move');
   assert.equal(await mobile.locator('#explore-order').getAttribute('aria-pressed'), 'false');
   const beforePan = await state(mobile, () => ashline.view.x);
@@ -223,8 +290,8 @@ try {
   await mobile.locator('[data-type="barracks"]').tap();
   assert(await mobile.locator('#command-console').isHidden(), 'Touch construction closes the tray to expose placement');
   const mobileSpot = await mobile.evaluate(async () => {
-    const { canPlace } = await import('./sim.js');
-    for (let y = 27; y < 39; y++) for (let x = 9; x < 24; x++) {
+    const { canPlace } = await import('./sim.js'), core = ashline.state.entities.find(e => e.team === 0 && e.type === 'core');
+    for (let y = core.y - 8; y < core.y + 4; y++) for (let x = core.x - 1; x < core.x + 14; x++) {
       const p = ashline.renderer.worldToScreen(x + .2, y + .2, ashline.view);
       if (p.x > 25 && p.x < innerWidth - 25 && p.y > 190 && p.y < innerHeight - 170 && canPlace(ashline.state, 0, 'barracks', x, y).ok) return p;
     }
@@ -233,5 +300,5 @@ try {
   await mobile.touchscreen.tap(mobileSpot.x, mobileSpot.y);
   assert(await state(mobile, () => ashline.state.entities.some(e => e.team === 0 && e.type === 'barracks' && e.progress < 1)), 'Touch placement starts construction');
   assert.deepEqual(errors, [], 'Browser has no runtime/console errors');
-  console.log(`Ashline browser checks passed: deployment, selection/groups/orders, auto-explore toggle/shortcut/overrides, construction, infantry/armor production, minimap, pause/reset, victory/defeat, mobile touch/exploration/pan. Screenshots: ${output}`);
+  console.log(`Ashline browser checks passed: deployment, viewport double-click selection/groups/orders, auto-explore toggle/shortcut/overrides, construction, infantry/armor production, minimap, pause/reset, victory/defeat, mobile touch/exploration/pan. Screenshots: ${output}`);
 } finally { await browser.close(); }

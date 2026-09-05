@@ -31,7 +31,7 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 button, summary { font: inherit; }
-button:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 5px; }
+button:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 5px; }
 #stage { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 body:not(.ready) #stage { visibility: hidden; }
 .sr-only {
@@ -171,6 +171,8 @@ kbd {
 .run-stats small { font-size: 0.55em; }
 .curtain-footer { position: absolute; bottom: max(26px, env(safe-area-inset-bottom)); left: max(7vw, env(safe-area-inset-left)); right: max(7vw, env(safe-area-inset-right)); display: flex; justify-content: space-between; gap: 20px; color: var(--muted); font-size: var(--ui-label); line-height: 1.5; text-transform: uppercase; letter-spacing: 0.14em; }
 .curtain-footer b { font-weight: 500; color: var(--paper); }
+.curtain-footer .exit-link { display: inline-flex; align-items: center; gap: 0.4em; min-height: 24px; color: inherit; font-size: var(--ui-label); letter-spacing: 0.06em; text-underline-offset: 4px; }
+.curtain-footer .exit-link:hover { color: var(--accent); }
 .curtain[data-screen='paused'] .start-only, .curtain[data-screen='start'] .pause-only { display: none; }
 .loading { margin-top: 32px; }
 .loading-track { width: min(280px, 100%); height: 2px; background: var(--line); overflow: hidden; }

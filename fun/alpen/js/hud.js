@@ -47,6 +47,7 @@ export function createHud(root) {
   const callout = root.querySelector('[data-callout]');
   const curtain = document.querySelector('.curtain');
   const guide = curtain?.querySelector('.control-guide');
+  const exitLink = curtain?.querySelector('.exit-link');
   const menuScore = curtain?.querySelector('[data-menu-score]');
   const menuDistance = curtain?.querySelector('[data-menu-distance]');
   const menuDrop = curtain?.querySelector('[data-menu-drop]');
@@ -69,8 +70,11 @@ export function createHud(root) {
     if (fields[name].style.transform !== scale) fields[name].style.transform = scale;
   };
 
-  // The curtain's existing click-anywhere handler starts the run. Native help
-  // must be an exception, including keyboard activation of its summary.
+  // Help and navigation must not trigger the curtain's click-anywhere start.
+  exitLink?.addEventListener('click', event => event.stopPropagation());
+  exitLink?.addEventListener('keydown', event => {
+    if (event.key !== 'Tab' && event.key !== 'Escape') event.stopPropagation();
+  });
   guide?.addEventListener('click', event => event.stopPropagation());
   guide?.addEventListener('keydown', event => {
     if (event.key === 'Tab' || (event.key === 'Escape' && !guide.open)) return;
@@ -84,7 +88,7 @@ export function createHud(root) {
     if (event.key !== 'Tab') return;
     event.preventDefault();
     event.stopPropagation(); // Tab must never become the game's "any key".
-    const targets = [...curtain.querySelectorAll('button, summary')].filter(node => node.getClientRects().length);
+    const targets = [...curtain.querySelectorAll('button, summary, a[href]')].filter(node => node.getClientRects().length);
     if (!targets.length) return;
     const at = targets.indexOf(document.activeElement);
     const next = event.shiftKey ? (at <= 0 ? targets.length - 1 : at - 1) : (at + 1) % targets.length;

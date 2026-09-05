@@ -1,7 +1,6 @@
 /* Protocodus — just enough JavaScript.
-   Entrance sequence, scroll reveals, the mobile menu, the mint dash in the
-   spine that marks the section you are reading, and Conway's Life running
-   quietly behind the hero. Nothing else. */
+   Entrance sequence, scroll reveals, the mobile menu, active section links,
+   and one Conway's Life background shared by every section. */
 
 (() => {
   'use strict';
@@ -22,23 +21,48 @@
   const menu = document.getElementById('mobile-menu') || document.getElementById('spine-menu');
 
   if (toggle && menu) {
+    const links = [...menu.querySelectorAll('a[href]')];
     const setMenu = (open) => {
       menu.hidden = !open;
-      document.body.style.overflow = open ? 'hidden' : '';
+      root.style.overflow = open ? 'hidden' : '';
       toggle.setAttribute('aria-expanded', String(open));
       toggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+      if (open) (links[0] || toggle).focus();
+      else if (menu.contains(document.activeElement)) toggle.focus();
     };
 
     toggle.addEventListener('click', () => setMenu(menu.hidden));
-    menu.querySelectorAll('a').forEach((link) => {
-      link.addEventListener('click', () => setMenu(false));
+    links.forEach((link) => {
+      link.addEventListener('click', () => {
+        setMenu(false);
+        const href = link.getAttribute('href');
+        const target = href.startsWith('#') && document.getElementById(href.slice(1));
+        if (target) {
+          if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
+          target.focus({ preventScroll: true });
+        }
+      });
     });
 
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && !menu.hidden) {
+      if (menu.hidden) return;
+      if (e.key === 'Escape') {
         setMenu(false);
         toggle.focus();
+      } else if (e.key === 'Tab') {
+        const controls = [toggle, ...links];
+        const current = controls.indexOf(document.activeElement);
+        const next = (current + (e.shiftKey ? -1 : 1) + controls.length) % controls.length;
+        e.preventDefault();
+        controls[next].focus();
       }
+    });
+
+    window.matchMedia('(max-width: 880px)').addEventListener('change', ({ matches }) => {
+      if (matches || menu.hidden) return;
+      const hadFocus = menu.contains(document.activeElement) || document.activeElement === toggle;
+      setMenu(false);
+      if (hadFocus) document.querySelector('.nav-link')?.focus();
     });
   }
 
@@ -76,23 +100,31 @@
     .filter((entry) => entry && entry.section);
 
   if (sections.length && 'IntersectionObserver' in window) {
-    const spy = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        const matching = sections.filter((s) => s.section === entry.target);
-        matching.forEach((m) => { m.on = entry.isIntersecting; });
-      });
-
-      const active = sections.find((s) => s.on);
-      navLinks.forEach((link) => {
-        const current = active && link.getAttribute('href') === active.link.getAttribute('href');
-        link.classList.toggle('current', current);
-        if (current) link.setAttribute('aria-current', 'location');
-        else link.removeAttribute('aria-current');
-      });
-    }, { rootMargin: '-20% 0px -60% 0px' });
-
     const uniqueSections = [...new Set(sections.map((s) => s.section))];
-    uniqueSections.forEach((section) => spy.observe(section));
+    let spy;
+    const watchSections = () => {
+      if (spy) spy.disconnect();
+      spy = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          const matching = sections.filter((s) => s.section === entry.target);
+          matching.forEach((m) => { m.on = entry.isIntersecting; });
+        });
+
+        const active = sections.find((s) => s.on);
+        navLinks.forEach((link) => {
+          const current = active && link.getAttribute('href') === active.link.getAttribute('href');
+          link.classList.toggle('current', current);
+          if (current) link.setAttribute('aria-current', 'location');
+          else link.removeAttribute('aria-current');
+        });
+      }, {
+        // Percentage root margins use viewport width, even on the vertical axis.
+        rootMargin: `-${window.innerHeight * 0.2}px 0px -${window.innerHeight * 0.6}px 0px`,
+      });
+      uniqueSections.forEach((section) => spy.observe(section));
+    };
+    watchSections();
+    window.addEventListener('resize', watchSections, { passive: true });
   }
 
   // ===========================================================================
@@ -150,13 +182,13 @@
   ));
 
   class Life {
-    constructor(host) {
-      this.host = host;
+    constructor() {
       this.canvas = document.createElement('canvas');
       this.canvas.className = 'life';
       this.canvas.setAttribute('aria-hidden', 'true');
       this.ctx = this.canvas.getContext('2d');
-      host.prepend(this.canvas);
+      if (!this.ctx) return;
+      document.body.prepend(this.canvas);
 
       this.mint = readToken('--mint') || readToken('--teal') || [0, 255, 195];
 
@@ -164,7 +196,6 @@
       this.gen = 0;
       this.last = 0;
       this.recent = [];
-      this.visible = false;
       this.running = false;
 
       // -1..1 from the centre of the viewport; leanX/Y chase it, one frame at
@@ -185,11 +216,7 @@
         }, { passive: true });
       }
 
-      new ResizeObserver(() => this.resize()).observe(host);
-      new IntersectionObserver(([entry]) => {
-        this.visible = entry.isIntersecting;
-        this.wake();
-      }).observe(host);
+      new ResizeObserver(() => this.resize()).observe(this.canvas);
       document.addEventListener('visibilitychange', this.wake);
 
       this.resize();
@@ -197,8 +224,8 @@
     }
 
     resize() {
-      const w = this.host.clientWidth;
-      const h = this.host.clientHeight;
+      const w = this.canvas.clientWidth;
+      const h = this.canvas.clientHeight;
       if (!w || !h) return;
 
       const dpr = Math.min(window.devicePixelRatio || 1, DPR_CAP);
@@ -442,7 +469,7 @@
       const dx = Math.sin(s * 0.11) * DRIFT_PX + this.leanX * PARALLAX_PX;
       const dy = Math.cos(s * 0.083) * DRIFT_PX + this.leanY * PARALLAX_PX;
 
-      // Breathing opens the pitch about the middle of the hero, so the field
+      // Breathing opens the pitch about the middle of the viewport, so the field
       // expands into its own margins rather than sliding out of one corner
       this.pitch = CELL * (1 + Math.sin((now / BREATH_MS) * Math.PI * 2) * BREATH);
       this.originX = (w - (this.cols - 1) * this.pitch) / 2;
@@ -482,7 +509,7 @@
     }
 
     frame(now) {
-      if (!this.visible || document.hidden) {
+      if (document.hidden) {
         this.running = false;
         return;
       }
@@ -495,20 +522,18 @@
       requestAnimationFrame(this.frame);
     }
 
-    // Runs only while the hero is on screen and the tab is in front
+    // The fixed background follows every section; pause while the tab is hidden.
     wake() {
-      if (this.running || !this.visible || document.hidden) return;
+      if (this.running || document.hidden) return;
       this.running = true;
       requestAnimationFrame(this.frame);
     }
   }
 
-  const hero = document.querySelector('.hero');
-
-  if (hero && !reduced && 'ResizeObserver' in window) {
+  if (!reduced && 'ResizeObserver' in window) {
     // A background decoration has no business on the path to first paint —
-    // it allocates a canvas and forces layout to measure the hero
-    const begin = () => new Life(hero);
+    // it allocates a viewport-sized canvas and forces layout to measure it
+    const begin = () => new Life();
     if ('requestIdleCallback' in window) requestIdleCallback(begin, { timeout: 2000 });
     else setTimeout(begin, 200);
   }

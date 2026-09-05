@@ -4,78 +4,104 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Playground — Protocodus</title>
+  <title>Fun — Protocodus</title>
   <meta name="description"
-    content="Experiments and games built by Protocodus. Playable directly in your browser, with nothing to install and no account to make.">
+    content="Play Ashline, a real-time strategy game, and Alpen, an endless snowboarding game. No installation or account needed.">
   <meta name="theme-color" content="#0d0e12">
-  <meta property="og:title" content="Playground — Protocodus">
-  <meta property="og:description" content="Experiments and interactive games built by Protocodus.">
+  <meta property="og:title" content="Fun — Protocodus">
+  <meta property="og:description" content="Play Ashline, a real-time strategy game, and Alpen, an endless snowboarding game.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://protocodus.cz/fun/">
   <link rel="canonical" href="https://protocodus.cz/fun/">
   <link rel="icon" type="image/svg+xml" href="/assets/images/logo.svg">
   <link rel="preload" href="/assets/fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/assets/css/style.css">
-  <style>
-    body { padding-left: 0; padding-top: 0; }
-    .arcade { padding: clamp(4rem, 10vw, 7rem) 0 clamp(5rem, 10vw, 8rem); }
-    .arcade .brand { margin-bottom: clamp(3rem, 7vw, 5rem); }
-    .arcade .brand-name { font-size: 1rem; font-weight: 700; }
-    .back-home { display: inline-flex; align-items: center; gap: 0.5rem; margin-top: clamp(3rem, 6vw, 4rem); color: var(--fg-faint); transition: color 0.2s ease; }
-    .back-home:hover { color: var(--fg); }
-    .arcade-foot { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.8rem 2rem; }
-    .arcade-mail { margin-top: clamp(3rem, 6vw, 4rem); color: var(--fg-muted); font-size: 0.92rem; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: var(--line-lift); }
-    .arcade-mail:hover { color: var(--accent); text-decoration-color: var(--accent); }
-  </style>
+  <script>document.documentElement.classList.add('js');</script>
 </head>
 
 <body>
-  <main class="arcade">
-    <div class="wrap">
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap header-inner">
       <a href="/" class="brand" aria-label="Protocodus home">
         <img src="/assets/images/logo.svg" alt="" class="brand-mark">
         <span class="brand-name">Protocodus</span>
       </a>
 
+      <nav class="nav" aria-label="Main navigation">
+        <a href="/#top" class="nav-link">Studio</a>
+        <a href="/#products" class="nav-link">Products</a>
+        <a href="/#fun" class="nav-link current" aria-current="location">Fun</a>
+        <a href="/#company" class="nav-link">Company</a>
+        <a href="/#contact" class="nav-link">Contact</a>
+      </nav>
+
+      <div class="header-actions">
+        <button class="menu-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="mobile-menu">
+          <span></span><span></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div class="mobile-menu" id="mobile-menu" hidden>
+    <nav class="mobile-nav" aria-label="Mobile navigation">
+      <a href="/#top" class="mobile-link">Studio</a>
+      <a href="/#products" class="mobile-link">Products</a>
+      <a href="/#fun" class="mobile-link current" aria-current="location">Fun</a>
+      <a href="/#company" class="mobile-link">Company</a>
+      <a href="/#contact" class="mobile-link">Contact</a>
+    </nav>
+    <div class="mobile-foot">
+      <a href="mailto:protocodus@proton.me" class="mobile-mail">protocodus@proton.me</a>
+    </div>
+  </div>
+
+  <main class="band" id="main">
+    <div class="wrap">
       <div class="head">
-        <span class="tag">Playground</span>
-        <h1 class="title">Experiments &amp; interactive games.</h1>
-        <p class="lede">The same appetite for real-time systems, pointed at graphics instead of audio. Nothing to install, no account to make.</p>
+        <span class="tag">Fun</span>
+        <h1 class="title">Games for your browser.</h1>
+        <p class="lede">No installation or account needed.</p>
       </div>
 
       <div class="games">
         <a class="game" href="/fun/ashline/">
           <h2>Ashline</h2>
-          <p>Command an expedition across the ashlands. Harvest minerals, build a base and outmaneuver an adaptive rival through the fog of war on a new battlefield every time.</p>
+          <p>Scout mineral fields, protect your haulers and build an army. Destroy the enemy core to win.</p>
           <div class="game-foot">
-            <span class="game-tech">2D · Real-time strategy</span>
-            <span class="game-go">Play game</span>
+            <span class="game-tech">Real-time strategy</span>
+            <span class="game-go">Play game <span aria-hidden="true">→</span></span>
           </div>
         </a>
         <a class="game" href="/fun/alpen/">
           <h2>Alpen</h2>
-          <p>An endless snowboarding run down a procedurally generated mountain with a 1990s retro aesthetic, responsive carving physics and dynamic weather.</p>
+          <p>Carve through changing weather, land tricks and build your score. A fall costs you flow, but the run continues.</p>
           <div class="game-foot">
-            <span class="game-tech">Three.js · WebGL</span>
-            <span class="game-go">Play game</span>
+            <span class="game-tech">Snowboarding</span>
+            <span class="game-go">Play game <span aria-hidden="true">→</span></span>
           </div>
         </a>
-        <a class="game" href="/fun/solar-eclipse-2026/">
-          <h2>Solar Eclipse 2026</h2>
-          <p>Track the Moon's shadow from orbital space down to Prague and explore why solar eclipses occur and how totality unfolds.</p>
-          <div class="game-foot">
-            <span class="game-tech">Three.js · Astronomy</span>
-            <span class="game-go">Explore</span>
-          </div>
-        </a>
-      </div>
-
-      <div class="arcade-foot">
-        <a class="back-home" href="/">← Back to Protocodus</a>
-        <a class="arcade-mail" href="mailto:protocodus@proton.me">protocodus@proton.me</a>
       </div>
     </div>
   </main>
+
+  <footer class="footer">
+    <div class="wrap">
+      <div class="footer-top">
+        <a href="/" class="brand" aria-label="Protocodus home">
+          <img src="/assets/images/logo.svg" alt="" class="brand-mark">
+          <span class="brand-name">Protocodus</span>
+        </a>
+      </div>
+      <div class="footer-bottom">
+        <p class="footer-meta">© <span id="year">2026</span> Protocodus s.r.o.</p>
+        <p class="footer-meta"><a href="/#company">Company details</a></p>
+      </div>
+    </div>
+  </footer>
+  <script src="/assets/js/main.js"></script>
 </body>
 
 </html>

@@ -5,10 +5,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Electry — Physically Modelled Eight-String Guitar | Protocodus</title>
-  <meta name="description" content="An eight-string Drop-E electric guitar, modelled string by string, for VST3, Audio Unit and Standalone hosts. Free, name your price.">
+  <meta name="description" content="Write riffs and leads with Electry, a physically modelled eight-string Drop-E guitar with MIDI articulations, pickup controls, amps and effects.">
   <meta name="theme-color" content="#0d0e12">
   <meta property="og:title" content="Electry — Physically modelled eight-string guitar">
-  <meta property="og:description" content="An eight-string Drop-E electric guitar, modelled string by string, for VST3, Audio Unit and Standalone hosts. Free, name your price.">
+  <meta property="og:description" content="Write riffs and leads with Electry, a physically modelled eight-string Drop-E guitar with MIDI articulations, pickup controls, amps and effects.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://protocodus.cz/product/electry/">
   <meta property="og:image" content="https://protocodus.cz/product/electry/electry-panel.webp">
@@ -28,11 +28,35 @@
         <img src="/assets/images/logo.svg" alt="" class="brand-mark">
         <span class="brand-name">Protocodus</span>
       </a>
+
+      <nav class="nav" aria-label="Main navigation">
+        <a href="/#top" class="nav-link">Studio</a>
+        <a href="/#products" class="nav-link current" aria-current="location">Products</a>
+        <a href="/#fun" class="nav-link">Fun</a>
+        <a href="/#company" class="nav-link">Company</a>
+        <a href="/#contact" class="nav-link">Contact</a>
+      </nav>
+
       <div class="header-actions">
-        <a href="https://protocodus.gumroad.com/l/electry" class="btn btn-sm btn-header">Get it free</a>
+        <button class="menu-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="mobile-menu">
+          <span></span><span></span>
+        </button>
       </div>
     </div>
   </header>
+
+  <div class="mobile-menu" id="mobile-menu" hidden>
+    <nav class="mobile-nav" aria-label="Mobile navigation">
+      <a href="/#top" class="mobile-link">Studio</a>
+      <a href="/#products" class="mobile-link current" aria-current="location">Products</a>
+      <a href="/#fun" class="mobile-link">Fun</a>
+      <a href="/#company" class="mobile-link">Company</a>
+      <a href="/#contact" class="mobile-link">Contact</a>
+    </nav>
+    <div class="mobile-foot">
+      <a href="mailto:protocodus@proton.me" class="mobile-mail">protocodus@proton.me</a>
+    </div>
+  </div>
 
   <main id="main">
     <section class="hero" id="top">
@@ -40,19 +64,20 @@
         <div class="statement">
           <div class="tag-pill enter">
             <span class="tag-dot"></span>
-            <span>Physically modelled eight-string guitar</span>
+            <span>Physically modelled electric guitar</span>
           </div>
 
           <h1 class="hero-title">
             <span class="rise"><span>Electry</span></span>
           </h1>
 
-          <p class="hero-sub enter">An eight-string Drop-E electric guitar with a waveguide voice per string and a fretting hand that decides where in the neck a phrase actually lands. No samples of a guitar, anywhere in it.</p>
+          <p class="hero-sub enter">Write low-tuned riffs, chord parts and leads from your MIDI keyboard. Electry models
+            an eight-string Drop-E guitar across 22 frets, from E1 to D6.</p>
 
           <div class="hero-actions enter">
-            <a href="https://protocodus.gumroad.com/l/electry" class="btn btn-primary">Get it free on Gumroad</a>
+            <a href="https://protocodus.gumroad.com/l/electry" class="btn btn-primary">Get for free or buy</a>
           </div>
-          <p class="price-note enter">Free, or name your price.</p>
+          <p class="price-note enter">Name your price on Gumroad. Downloads are not yet available.</p>
         </div>
       </div>
     </section>
@@ -68,31 +93,48 @@
     <section class="band">
       <div class="wrap">
         <div class="head reveal">
-          <span class="tag">Features</span>
-          <h2 class="title">What it does.</h2>
+          <span class="tag">Articulations &amp; tone</span>
+          <h2 class="title">Control the performance.</h2>
+          <p class="lede">Strings resonate together, picking varies between strokes, and a modelled fretting hand
+            chooses where each note is played along the neck.</p>
         </div>
         <ul class="features reveal">
-          <li>Eight modelled strings, Drop-E, 22 frets, E1 to D6</li>
-          <li>A fretting hand that keeps a phrase where you played it</li>
-          <li>Keyswitched pick stroke: down, up or alternate</li>
-          <li>Keyswitched styles: sustain, mute, legato, harmonics, slide, dead note</li>
-          <li>Held keys for vibrato and for tremolo picking up to 20 strokes a second</li>
-          <li>One shared bridge, so idle strings ring and fingered ones trade energy</li>
-          <li>A modulation wheel that opens the feedback path into self-sustain</li>
-          <li>Distortion pedal, three amp and cabinet voices, compression</li>
-          <li>Lead delay and a stereo room, every amount dry-bypassed at zero</li>
-          <li>Up to 8x oversampling around the nonlinear stages</li>
+          <li><span><strong>Seven playing styles.</strong> Sustain, palm mute, hammer-on / pull-off, natural harmonic,
+            pinch harmonic, slide and dead note. Hold a keyswitch briefly or latch the style for a whole phrase.</span></li>
+          <li><span><strong>Pick direction.</strong> Choose down, up or alternate strokes independently of the playing
+            style. Hold the tremolo keyswitch for automatic repeated picking at an adjustable rate.</span></li>
+          <li><span><strong>Bends, vibrato and feedback.</strong> Use the pitch wheel for bends, a held keyswitch for
+            vibrato and the modulation wheel to push an amplified note into sustained feedback.</span></li>
+          <li><span><strong>Pickups and strings.</strong> Choose single-coil or humbucker pickups. Adjust pick position,
+            pick hardness, string age and guitar construction to change the attack and tone.</span></li>
+          <li><span><strong>Mono, Stereo or Double.</strong> Keep one centred guitar, spread its strings across the
+            stereo field, or use two separately modelled performances, one on each side.</span></li>
+          <li><span><strong>Individual string triggers.</strong> Hold a chord and repick its strings from MIDI or the
+            on-screen fretboard to add rhythmic patterns and accents.</span></li>
         </ul>
-        <p class="requirements reveal">macOS, Linux or Windows · VST3, Audio Unit, Standalone</p>
+      </div>
+    </section>
+
+    <section class="band band-well">
+      <div class="wrap">
+        <div class="head reveal">
+          <span class="tag">Workflow</span>
+          <h2 class="title">Amps, effects and factory rigs.</h2>
+          <p class="lede">Four factory rigs cover a dry guitar, Drop-E metal, muted DI and blues rock lead.</p>
+          <p class="lede">Choose American Clean, British Crunch or Modern High-Gain, then add distortion,
+            compression, delay and room ambience. Set all five effect amounts to zero for a dry signal you can run through
+            your own amp and effect plug-ins.</p>
+        </div>
+        <p class="requirements reveal">VST3 and Standalone for macOS, Windows and Linux · Audio Unit for macOS</p>
       </div>
     </section>
 
     <section class="band band-contact" id="support">
       <div class="wrap">
         <div class="contact-box reveal">
-          <span class="tag">Support</span>
-          <h2 class="title">Something wrong?</h2>
-          <p class="lede">Send the version, your host and your operating system, and what you did to see it.</p>
+          <h2 class="title">Electry support.</h2>
+          <p class="lede">For setup help or troubleshooting, email your Electry version, DAW, operating system and
+            a description of the issue.</p>
           <a href="mailto:protocodus@proton.me?subject=Electry" class="mail">protocodus@proton.me</a>
         </div>
       </div>
@@ -106,11 +148,10 @@
           <img src="/assets/images/logo.svg" alt="" class="brand-mark">
           <span class="brand-name">Protocodus</span>
         </a>
-        <p class="footer-tagline">Electry does not claim to be a capture of any one instrument. Its amplifier paths are bounded circuit-derived families rather than replicas of named amplifiers, microphones or rooms.</p>
       </div>
       <div class="footer-bottom">
-        <p class="footer-meta">© <span id="year">2026</span> Protocodus s.r.o. · Prague, Czech Republic</p>
-        <p class="footer-meta"><a href="/">Protocodus home</a></p>
+        <p class="footer-meta">© <span id="year">2026</span> Protocodus s.r.o.</p>
+        <p class="footer-meta"><a href="/#company">Company details</a></p>
       </div>
     </div>
   </footer>

@@ -59,21 +59,21 @@ assert.equal(entities(capped,0).filter(e=>e.kind==='unit').length,60);
 
 // Explicit movement can reposition haulers, then automatic harvesting resumes.
 const haulerField=seed=>{
-  const s=quiet(seed),u=entities(s,0,'harvester')[0],tile=43*s.width+22;
-  s.minerals[tile]=10000;s.explored[0].fill(1);u.x=22.5;u.y=43.5;u.path=[];
+  const s=quiet(seed),u=entities(s,0,'harvester')[0],r=entities(s,0,'refinery')[0],x=r.x+7,y=r.y+5,tile=y*s.width+x;
+  s.minerals[tile]=10000;s.explored[0].fill(1);u.x=x+.5;u.y=y+.5;u.path=[];
   return{s,u,tile};
 };
 for(const command of ['start','stop','move','attackMove','attack']){
   const {s,u,tile}=haulerField(`automatic-${command}`);
   if(command==='stop')stopUnits(s,[u.id]);
-  else if(command!=='start')issueOrder(s,[u.id],{type:command,x:24.5,y:43.5});
+  else if(command!=='start')issueOrder(s,[u.id],{type:command,x:u.x+2,y:u.y});
   advance(s,20);
   assert(s.minerals[tile]<10000,`Hauler automatically gathers after ${command}`);
   assert.equal(u.order.type,'harvest',`Hauler resumes automatic work after ${command}`);
 }
 for(const command of ['move','attack']){
   const {s,u,tile}=haulerField(`hauler-building-${command}`),building=entities(s,command==='attack'?1:0,'refinery')[0];
-  if(command==='attack'){building.x=26;building.y=43;s.navVersion++;s.visible[0].fill(1);}
+  if(command==='attack'){building.x=u.x+3.5;building.y=u.y-.5;s.navVersion++;s.visible[0].fill(1);}
   issueOrder(s,[u.id],{type:command,x:building.x+building.size/2,y:building.y+building.size/2,...(command==='attack'?{targetId:building.id}:{})});
   advance(s,20);
   assert.equal(u.order.type,'harvest',`Hauler finishes ${command} at a building's reachable perimeter`);
@@ -81,14 +81,14 @@ for(const command of ['move','attack']){
 }
 const cargo=haulerField('cargo-redirect');
 cargo.u.cargo=UNITS.harvester.capacity;cargo.u.harvestPhase='return';
-issueOrder(cargo.s,[cargo.u.id],{type:'harvest',x:22.5,y:43.5});
+issueOrder(cargo.s,[cargo.u.id],{type:'harvest',x:cargo.u.x,y:cargo.u.y});
 const credits=cargo.s.teams[0].credits;advance(cargo.s,12);
 assert(cargo.s.teams[0].credits>=credits+UNITS.harvester.capacity,'Redirecting a full returning hauler must still deposit its cargo');
 for(const command of ['harvest','move','stop']){
   const {s,u,tile}=haulerField(`partial-return-${command}`),partialLoad=75,before=s.teams[0].credits;
   u.cargo=partialLoad;u.harvestPhase='return';
   if(command==='stop')stopUnits(s,[u.id]);
-  else issueOrder(s,[u.id],{type:command,x:24.5,y:43.5});
+  else issueOrder(s,[u.id],{type:command,x:u.x+2,y:u.y});
   for(let i=0;i<200&&s.teams[0].credits===before;i++){
     advance(s,.1);
     assert.equal(s.minerals[tile],10000,`${command} must preserve partial-load return before gathering more`);

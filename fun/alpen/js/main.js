@@ -148,8 +148,8 @@ try {
     inner.querySelectorAll('.keys, .go, .pause-only').forEach((n) => n.remove());
     const note = inner.querySelector('.tagline');
     if (note) {
-      note.textContent = 'This one needs WebGL, and your browser could not start it. '
-        + 'It is usually a setting called hardware acceleration, or a very old graphics driver.';
+      note.textContent = 'Alpen could not start WebGL. Try enabling graphics acceleration '
+        + 'in your browser or updating your graphics driver.';
     }
   }
   curtain.classList.add('on');

@@ -10,7 +10,7 @@ class Node {
   setAttribute(k,v) { this[k] = v; }
   appendChild(n) { return n; }
   querySelector(s) { return this.nodes[s] || null; }
-  querySelectorAll(s) { return s === '[data-hud]' ? Object.values(this.fields) : this.targets || []; }
+  querySelectorAll(s) { return s === '[data-hud]' ? Object.values(this.fields) : (this.targets || []).filter(node => !node.href || s.includes('a[href]')); }
   insertAdjacentHTML(where,s) { this.fields = Object.fromEntries([...s.matchAll(/data-hud="([^"]+)"/g)].map(m => [m[1],new Node(m[1])])); }
   addEventListener(k, fn) { this.listeners[k] = fn; }
   focus() { document.activeElement = this; }
@@ -18,13 +18,15 @@ class Node {
   contains(n) { return this.targets?.includes(n) || n === this; }
   getClientRects() { return [{}]; }
 }
-const root = new Node(), curtain = new Node(), guide = new Node(), button = new Node(), summary = new Node();
+const root = new Node(), curtain = new Node(), guide = new Node(), button = new Node(), summary = new Node(), exitLink = new Node();
 root.nodes['canvas'] = new Node();
 root.nodes['[data-readout]'] = new Node();
 root.nodes['[data-callout]'] = new Node();
 curtain.nodes['.control-guide'] = guide;
+curtain.nodes['.exit-link'] = exitLink;
+exitLink.href = '/fun/';
 for (const name of ['score','distance','drop']) curtain.nodes[`[data-menu-${name}]`] = new Node();
-curtain.targets = [button, summary];
+curtain.targets = [button, summary, exitLink];
 guide.nodes.summary = summary;
 globalThis.document = { activeElement: null, querySelector: () => curtain, createElement: () => new Node() };
 globalThis.window = { devicePixelRatio: 2, innerHeight: 800 };
@@ -89,9 +91,22 @@ guide.open = true;
 guide.listeners.keydown({ key: 'Escape', stopPropagation() {} });
 assert.equal(guide.open, false); assert.equal(document.activeElement, summary);
 curtain.listeners.keydown({ key: 'Tab', shiftKey: false, preventDefault() { prevented = true; }, stopPropagation() {} });
-assert.equal(prevented, true); assert.equal(document.activeElement, button);
+assert.equal(prevented, true); assert.equal(document.activeElement, exitLink, 'Tab reaches the return link');
+curtain.listeners.keydown({ key: 'Tab', shiftKey: false, preventDefault() {}, stopPropagation() {} });
+assert.equal(document.activeElement, button);
 curtain.listeners.keydown({ key: 'Tab', shiftKey: true, preventDefault() {}, stopPropagation() {} });
-assert.equal(document.activeElement, summary);
+assert.equal(document.activeElement, exitLink, 'Shift+Tab wraps to the return link');
+for (const [type, key] of [['click', undefined], ['keydown', 'Enter']]) {
+  stopped = prevented = false;
+  exitLink.listeners[type]({ key, stopPropagation() { stopped = true; }, preventDefault() { prevented = true; } });
+  assert.equal(stopped, true, 'return navigation cannot start the ride');
+  assert.equal(prevented, false, 'return navigation keeps the native link action');
+}
+for (const key of ['Tab', 'Escape']) {
+  stopped = false;
+  exitLink.listeners.keydown({ key, stopPropagation() { stopped = true; } });
+  assert.equal(stopped, false, `${key} retains the menu behavior`);
+}
 const beforeStill = writes;
 for (let i=0; i<9;i++) hud.update(g,.09);
 assert.equal(writes, beforeStill, 'stable visible values do not touch DOM text');

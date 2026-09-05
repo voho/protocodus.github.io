@@ -13,10 +13,49 @@ try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(url); await page.waitForFunction(() => window.ashline?.assets.ready);
+  // Cropping can conceal a barrel crossing into the next atlas cell. Check the source too.
+  const clearCellBorders = await page.evaluate(async () => {
+    const { removeMatte } = await import('./assets.js');
+    for (const [name, columns, rows] of [['units-lowres', 3, 2], ['rocket-infantry-lowres', 2, 1], ['buildings-lowres', 3, 2], ['rocket-tower-lowres', 1, 1]]) {
+      const image = new Image(); image.src = `./assets/generated/${name}.webp`; await image.decode();
+      const canvas = document.createElement('canvas'); canvas.width = image.width; canvas.height = image.height;
+      const ctx = canvas.getContext('2d'); ctx.drawImage(image, 0, 0);
+      const cellWidth = image.width / columns, cellHeight = image.height / rows;
+      for (let cell = 0; cell < columns * rows; cell++) {
+        // Use the real per-cell decoder; a single global key misses local matte gradients.
+        const pixels = ctx.getImageData(cell % columns * cellWidth, Math.floor(cell / columns) * cellHeight, cellWidth, cellHeight);
+        removeMatte(pixels);
+        for (let y = 0; y < cellHeight; y++) for (let x = 0; x < cellWidth; x++) {
+          if (x >= 16 && x < cellWidth - 16 && y >= 16 && y < cellHeight - 16) continue;
+          if (pixels.data[(y * cellWidth + x) * 4 + 3] > 32) throw Error(`${name} cell ${cell}: sprite crosses source safety border`);
+        }
+      }
+    }
+    return true;
+  });
+  assert(clearCellBorders, 'Every source sprite has clear cell borders, without clipping or neighbouring fragments');
   const report = await page.evaluate(async () => {
     const { drawSprite } = await import('./assets.js');
+    const { UNITS } = await import('./sim.js');
     const canvas = document.createElement('canvas'); canvas.width = canvas.height = 192;
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    // Test actual prepared images and draw state, including portraits/production callers
+    // whose canvas starts with browser-default smoothing enabled.
+    const nativeDraw = ctx.drawImage;
+    const pixels = {rifle: 32, rocket: 40, scout: 48, tank: 56, artillery: 64, harvester: 56, core: 104, reactor: 72, refinery: 104, barracks: 72, factory: 104, turret: 40, rocketTower: 72};
+    for (const [type, size] of Object.entries(pixels)) for (const team of [0, 1]) for (const moving of [false, true]) {
+      let drawn = false;
+      ctx.drawImage = function (source, ...args) {
+        drawn = true;
+        if (source.width !== size || source.height !== size) throw Error(`${type}: expected ${size}px prepared sprite, got ${source.width}×${source.height}`);
+        if (this.imageSmoothingEnabled) throw Error(`${type}: sprite sampling blurs the low-resolution source`);
+        return nativeDraw.call(this, source, ...args);
+      };
+      ctx.imageSmoothingEnabled = true;
+      drawSprite(ctx, {type, team, moving, id: 0}, .2);
+      if (!drawn || !ctx.imageSmoothingEnabled) throw Error(`${type}: drawing must restore the caller's smoothing state`);
+    }
+    ctx.drawImage = nativeDraw;
     function sample(type, team, moving, angle) {
       ctx.clearRect(0, 0, 192, 192); ctx.save(); ctx.translate(96, 96); ctx.scale(2, 2);
       drawSprite(ctx, { type, team, moving, angle, id: 0 }, .25); ctx.restore();
@@ -33,7 +72,7 @@ try {
     }
     const difference = (a, b) => a.alpha.reduce((sum, value, i) => sum + Math.abs(value - b.alpha[i]), 0) / a.area;
     const rows = [];
-    for (const type of ['rifle', 'scout', 'tank', 'artillery', 'harvester']) for (const team of [0, 1]) for (const moving of [false, true]) {
+    for (const type of Object.keys(UNITS)) for (const team of [0, 1]) for (const moving of [false, true]) {
       const samples = Array.from({ length: 32 }, (_, n) => sample(type, team, moving, n * Math.PI / 16));
       let jump = 0, poseDrift = 0;
       // Cross every old eight-direction frame boundary, plus intermediate headings.
@@ -60,17 +99,22 @@ try {
     assert.equal(row.matte, 0, `${label}: no chroma-key fringe`);
     assert(row.fullTurn < .005, `${label}: full turn returns to the original view`);
   }
+  for (const team of [0, 1]) for (const moving of [false, true]) {
+    const area = type => report.find(row => row.type === type && row.team === team && row.moving === moving).minArea;
+    assert(area('tank') > area('scout'), 'Heavy tanks retain a larger silhouette than recon rovers');
+    assert(area('harvester') > area('scout'), 'Industrial haulers retain a larger silhouette than recon rovers');
+  }
   await writeFile(`${output}/measurements.json`, JSON.stringify(report, null, 2));
 
   // Show real gameplay pixel sizes at sixteen headings, both factions and animation poses.
   for (const team of [0, 1]) for (const zoom of [38, 16]) {
     const data = await page.evaluate(async ({ team, zoom }) => {
       const { drawSprite, drawProp, terrainImages } = await import('./assets.js');
-      const canvas = document.createElement('canvas'); canvas.width = 1440; canvas.height = 860;
+      const { UNITS } = await import('./sim.js'), types = Object.keys(UNITS);
+      const canvas = document.createElement('canvas'); canvas.width = 1440; canvas.height = types.length * 160 + 60;
       const ctx = canvas.getContext('2d'); ctx.fillStyle = '#111b20'; ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.fillStyle = '#dbe4de'; ctx.font = '16px monospace'; ctx.fillText(`Fixed high camera · faction ${team} · zoom ${zoom} · idle / moving pairs`, 16, 24);
-      const types = ['rifle', 'scout', 'tank', 'artillery', 'harvester'];
-      for (let row = 0; row < 10; row++) for (let heading = 0; heading < 16; heading++) {
+      for (let row = 0; row < types.length * 2; row++) for (let heading = 0; heading < 16; heading++) {
         const x = heading * 88 + 16, y = row * 80 + 40;
         if (terrainImages.ground) ctx.drawImage(terrainImages.ground, heading * 31, row * 37, 88, 76, x, y, 84, 76);
         ctx.fillStyle = '#111b2066'; ctx.fillRect(x, y, 84, 76);
@@ -91,7 +135,7 @@ try {
   await page.evaluate(async () => {
     const { UNITS } = await import('./sim.js'), s = ashline.state;
     s.entities = s.entities.filter(e => e.kind === 'building');
-    for (const team of [0, 1]) for (const [index, type] of ['rifle', 'scout', 'tank', 'artillery', 'harvester'].entries()) {
+    for (const team of [0, 1]) for (const [index, type] of Object.keys(UNITS).entries()) {
       const d = UNITS[type];
       s.entities.push({ id: s.nextId++, kind: 'unit', type, team, x: 8 + index * 3.2, y: 29 + team * 3,
         angle: index * .71 + team * Math.PI, hp: d.hp, maxHp: d.hp, size: d.size, progress: 1, order: { type: 'idle' }, path: [] });
@@ -102,15 +146,16 @@ try {
   });
   for (const width of [1440, 390]) for (const zoom of [38, 16]) {
     await page.setViewportSize({ width, height: width === 390 ? 844 : 1000 });
-    await page.evaluate(({ width, zoom }) => {
+    await page.evaluate(async ({ width, zoom }) => {
+      const { UNITS } = await import('./sim.js');
       if (width === 390) for (const entity of ashline.state.entities.filter(e => e.kind === 'unit')) {
         entity.x = 13 + entity.team * 4;
-        entity.y = 26 + ['rifle', 'scout', 'tank', 'artillery', 'harvester'].indexOf(entity.type) * 2;
+        entity.y = 26 + Object.keys(UNITS).indexOf(entity.type) * 2;
       }
       ashline.view.zoom = zoom; ashline.renderer.draw(ashline.state, ashline.view);
     }, { width, zoom });
     await page.screenshot({ path: `${output}/battlefield-${width}-zoom${zoom}.png` });
   }
   assert.deepEqual(errors, [], 'No browser errors');
-  console.log(`Camera checks passed: 640 full-turn sprite cases, smooth arbitrary headings, both factions and poses. Review screenshots in ${output}`);
+  console.log(`Camera checks passed: ${report.length * 32} full-turn sprite cases, smooth arbitrary headings, both factions and poses. Review screenshots in ${output}`);
 } finally { await browser.close(); }

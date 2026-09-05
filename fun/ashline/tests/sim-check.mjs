@@ -4,7 +4,27 @@ import {BUILDINGS,UNITS,createGame,updateGame,canPlace,placeBuilding,trainUnit,i
 const advance=(s,seconds)=>{for(let i=0;i<Math.ceil(seconds/.1);i++)updateGame(s,.1);};
 const quiet=seed=>{const s=createGame(seed);s.ai.nextThink=Infinity;return s;};
 const entities=(s,team,type)=>s.entities.filter(e=>e.team===team&&e.type===type);
-const available=(s,type)=>{for(let y=20;y<50;y++)for(let x=1;x<32;x++)if(canPlace(s,0,type,x,y).ok)return{x,y};throw Error(`No placement for ${type}`);};
+const available=(s,type)=>{const core=entities(s,0,'core')[0];for(let y=core.y-15;y<core.y+15;y++)for(let x=Math.max(1,core.x-12);x<core.x+22;x++)if(canPlace(s,0,type,x,y).ok)return{x,y};throw Error(`No placement for ${type}`);};
+
+// New sectors have four times the area; both saved dimensions work when stepped together.
+const expanded=createGame('map-dimensions'),legacy=createGame('map-dimensions','normal',{width:72,height:56});
+assert.deepEqual([expanded.width,expanded.height],[144,112]);
+assert.equal(expanded.terrain.length,legacy.terrain.length*4);
+assert.deepEqual(expanded.teams,legacy.teams,'Larger maps preserve the starting economy');
+assert.deepEqual(expanded.entities.map(({type,team,size,hp})=>({type,team,size,hp})),legacy.entities.map(({type,team,size,hp})=>({type,team,size,hp})),'Starting armies and physical scale stay unchanged');
+const mineralCells=s=>s.minerals.reduce((n,v)=>n+(v>0),0);
+assert(mineralCells(expanded)>mineralCells(legacy)*3.5,'The enlarged terrain also contains proportionately more resource fields');
+const edgeCases=[legacy,expanded].map(s=>{
+  const u=entities(s,0,'scout')[0];s.entities=[u];s.ai.nextThink=Infinity;s.terrain.fill(0);s.minerals.fill(0);s.navVersion++;
+  u.x=s.width-14.5;u.y=s.height-14.5;const goal={x:s.width-3.5,y:s.height-3.5};
+  issueOrder(s,[u.id],{type:'move',...goal});return{s,u,goal};
+});
+for(let i=0;i<100;i++)for(const {s} of edgeCases)updateGame(s,.1);
+for(const {s,u,goal} of edgeCases){
+  assert(Math.hypot(u.x-goal.x,u.y-goal.y)<1.1,'Units can navigate to either map size’s far corner');
+  assert.equal(s.visible[0][Math.floor(goal.y)*s.width+Math.floor(goal.x)],1,'Far-edge fog uses the saved row width');
+  issueOrder(s,[u.id],{type:'move',x:1000,y:1000});assert.deepEqual([u.order.x,u.order.y],[s.width-.5,s.height-.5]);
+}
 
 // Seeds reproduce terrain/resources and both factions begin with concealed enemies.
 const first=quiet('deterministic'),second=quiet('deterministic');
@@ -30,8 +50,9 @@ assert(economy.teams[0].credits>beforeFallback,'Nexus accepts emergency cargo');
 const prospect=quiet('prospect'),hauler=entities(prospect,0,'harvester')[0];
 prospect.terrain.fill(0);prospect.minerals.fill(0);prospect.navVersion++;
 advance(prospect,2);assert.equal(hauler.mineralTile,-1);
-for(const [x,y] of [[16,43],[18,43],[17,42],[17,44]])prospect.terrain[y*prospect.width+x]=1;
-const isolated=43*prospect.width+17,reachable=42*prospect.width+22;
+const prospectCore=entities(prospect,0,'core')[0],px=prospectCore.x-10,py=prospectCore.y-35;
+for(const [x,y] of [[16,43],[18,43],[17,42],[17,44]])prospect.terrain[(y+py)*prospect.width+x+px]=1;
+const isolated=(43+py)*prospect.width+17+px,reachable=(42+py)*prospect.width+22+px;
 prospect.minerals[isolated]=600;prospect.minerals[reachable]=600;
 prospect.explored[0].fill(1);prospect.navVersion++;
 advance(prospect,1.2);assert.equal(hauler.mineralTile,reachable,'Hauler must choose a reachable newly discovered field');
@@ -55,6 +76,7 @@ assert.equal(trainUnit({...base,status:'victory'},0,'rifle').ok,false);
 
 // Orders route around a blocking wall and existing buildings, and expose explored terrain.
 const travel=quiet('path'),scout=entities(travel,0,'scout')[0];
+scout.x=15.5;scout.y=33;
 travel.terrain.fill(0);travel.minerals.fill(0);
 for(let y=0;y<47;y++)travel.terrain[y*travel.width+28]=1;
 travel.navVersion++;issueOrder(travel,[scout.id],{type:'move',x:38.5,y:36.5});
@@ -80,21 +102,23 @@ for(let seed=0;seed<12;seed++){
 }
 
 // Full unattended skirmish exercises AI construction, economics, scouting, raids and victory state.
-const battle=createGame('smoke','normal');advance(battle,360);
+const battle=createGame('smoke','normal'),battleCore=entities(battle,0,'core')[0];advance(battle,360);
 assert(battle.ai.raid>=1,'AI must launch a raid');
 assert(battle.entities.some(e=>e.team===1&&e.type==='factory'),'AI must reach armor production');
 assert(battle.teams[1].kills>0,'AI must engage player forces');
 assert.equal(battle.status,'defeat','Unopposed AI must finish the operation');
 assert(Object.keys(battle.ai.known).length>0,'AI must scout before attacking');
+assert.equal(battle.explored[1][(battleCore.y+1)*battle.width+battleCore.x+1],1,'AI scouting reaches the player base across the expanded map');
 assert(Object.values(UNITS).every(d=>d.cost>0&&d.trainTime>0));
 
 // A capable player can win against the enabled AI using only public, paid commands.
 const victory=createGame('player-victory','normal');
+const home=entities(victory,0,'core')[0],enemy=entities(victory,1,'core')[0],enemyDestination={x:enemy.x+enemy.size/2,y:enemy.y+enemy.size/2};
 const player=type=>victory.entities.filter(e=>e.team===0&&(!type||e.type===type));
 const waiting=type=>player().reduce((sum,e)=>sum+(e.queue?.filter(q=>q.type===type).length||0),0);
 function expand(type){
   let best;
-  for(let y=23;y<46;y++)for(let x=4;x<30;x++)if(canPlace(victory,0,type,x,y).ok){const score=Math.hypot(x-18,y-32);if(!best||score<best.score)best={x,y,score};}
+  for(let y=home.y-12;y<home.y+11;y++)for(let x=home.x-6;x<home.x+20;x++)if(canPlace(victory,0,type,x,y).ok){const score=Math.hypot(x-home.x-8,y-home.y+3);if(!best||score<best.score)best={x,y,score};}
   if(best)placeBuilding(victory,0,type,best.x,best.y);
 }
 let advanced=false;
@@ -109,12 +133,17 @@ for(let tick=0;tick<6000&&victory.status==='playing';tick++){
       else if(player('reactor').length<3&&player('turret').length>=2)expand('reactor');
     }
     if(player('harvester').length+waiting('harvester')<3)trainUnit(victory,0,'harvester');
+    // Rifle/rover escorts screen armor against enemy rocket infantry.
+    if(victory.teams[0].credits>450&&player('barracks').some(e=>e.progress>=1)){
+      const escort=player('rifle').length+waiting('rifle')<7?'rifle':'scout';
+      if(escort==='rifle'||player('scout').length+waiting('scout')<3)trainUnit(victory,0,escort);
+    }
     if(player('factory').some(e=>e.progress>=1)){
       const type=player('tank').length>=3&&player('artillery').length+waiting('artillery')<Math.floor(player('tank').length/3)?'artillery':'tank';
       if(waiting(type)<2)trainUnit(victory,0,type);
     }
     // Staging and advancing into a map quadrant requires no knowledge of concealed entities.
-    const destination=victory.time<150?{x:25,y:30}:{x:58.5,y:11.5};
+    const destination=victory.time<150?{x:home.x+15,y:home.y-5}:enemyDestination;
     for(const u of player().filter(e=>e.kind==='unit'&&e.type!=='harvester'))if(u.order.type==='idle'||victory.time>=150&&!advanced)issueOrder(victory,[u.id],{type:'attackMove',...destination});
     if(victory.time>=150)advanced=true;
   }

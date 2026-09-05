@@ -62,6 +62,7 @@
   --header-height: 68px;
 
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --interaction: 0.22s var(--ease);
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
@@ -80,15 +81,19 @@
 
 html,
 body {
-  overflow-x: hidden;
+  overflow-x: clip;
   max-width: 100vw;
 }
 
 html {
   scroll-behavior: smooth;
-  scroll-padding-top: calc(var(--header-height) + 1.5rem);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+main[id],
+section[id] {
+  scroll-margin-top: calc(var(--header-height) + 1.5rem);
 }
 
 body {
@@ -103,6 +108,8 @@ body {
 a {
   color: inherit;
   text-decoration: none;
+  transition: color var(--interaction), background-color var(--interaction),
+    border-color var(--interaction), text-decoration-color var(--interaction);
 }
 
 ol,
@@ -149,6 +156,8 @@ p {
 }
 
 .wrap {
+  position: relative;
+  z-index: 2;
   width: 100%;
   max-width: var(--wrap);
   margin: 0 auto;
@@ -225,7 +234,8 @@ p {
   padding: 0.85rem 1.6rem;
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: all 0.22s var(--ease);
+  transition: color var(--interaction), background-color var(--interaction),
+    border-color var(--interaction), box-shadow var(--interaction), translate var(--interaction);
   white-space: nowrap;
 }
 
@@ -236,15 +246,11 @@ p {
   box-shadow: 0 4px 16px var(--accent-glow);
 }
 
-.btn-primary:hover {
+.btn-primary:is(:hover, :focus-visible) {
   background: var(--accent-hover);
   border-color: var(--accent-hover);
-  transform: translateY(-1px);
+  translate: 0 -2px;
   box-shadow: 0 6px 20px rgba(245, 158, 11, 0.32);
-}
-
-.btn-primary:active {
-  transform: translateY(1px);
 }
 
 .btn-secondary {
@@ -253,16 +259,15 @@ p {
   border: 1px solid var(--line-lift);
 }
 
-.btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.09);
-  border-color: rgba(255, 255, 255, 0.25);
-  transform: translateY(-1px);
+.btn-secondary:is(:hover, :focus-visible) {
+  color: var(--accent);
+  background: var(--accent-subtle);
+  border-color: var(--accent);
+  translate: 0 -2px;
 }
 
-.btn-sm {
-  font-size: 0.88rem;
-  padding: 0.55rem 1.15rem;
-  border-radius: var(--radius-sm);
+.btn:active {
+  translate: 0 0;
 }
 
 /* Top Navigation Header
@@ -296,6 +301,16 @@ p {
   align-items: center;
   gap: 0.65rem;
   flex-shrink: 0;
+  width: fit-content;
+}
+
+.brand:is(:hover, :focus-visible),
+.mobile-mail:is(:hover, :focus-visible),
+.mail:is(:hover, :focus-visible),
+.text-link:is(:hover, :focus-visible),
+.footer-meta a:is(:hover, :focus-visible) {
+  color: var(--accent);
+  text-decoration-color: var(--accent);
 }
 
 .brand-mark {
@@ -307,7 +322,7 @@ p {
   font-size: 1.08rem;
   font-weight: 700;
   letter-spacing: -0.02em;
-  color: var(--fg);
+  color: inherit;
 }
 
 .nav {
@@ -322,37 +337,25 @@ p {
   color: var(--fg-muted);
   padding: 0.45rem 0.85rem;
   border-radius: var(--radius-sm);
-  transition: all 0.2s var(--ease);
 }
 
-.nav-link:hover {
-  color: var(--fg);
-  background: rgba(255, 255, 255, 0.04);
+.nav-link:is(:hover, :focus-visible),
+.mobile-link:is(:hover, :focus-visible) {
+  color: var(--accent);
+  background: var(--accent-subtle);
 }
 
-.nav-link.current {
-  color: var(--fg);
-  background: rgba(255, 255, 255, 0.08);
+.nav-link.current,
+.mobile-link.current {
+  color: var(--accent);
+  background: var(--accent-subtle);
 }
 
 .header-actions {
-  display: flex;
+  display: none;
   align-items: center;
   gap: 0.8rem;
   flex-shrink: 0;
-}
-
-.btn-header {
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--fg);
-  border: 1px solid var(--line-lift);
-}
-
-.btn-header:hover {
-  background: var(--accent);
-  color: #0d0e12;
-  border-color: var(--accent);
-  box-shadow: 0 4px 14px var(--accent-glow);
 }
 
 .menu-toggle {
@@ -364,16 +367,24 @@ p {
   align-items: center;
   justify-content: center;
   background: rgba(255, 255, 255, 0.04);
+  color: var(--fg);
   border: 1px solid var(--line-lift);
   border-radius: var(--radius-sm);
   cursor: pointer;
+  transition: color var(--interaction), background-color var(--interaction), border-color var(--interaction);
+}
+
+.menu-toggle:is(:hover, :focus-visible) {
+  color: var(--accent);
+  background: var(--accent-subtle);
+  border-color: var(--accent);
 }
 
 .menu-toggle span {
   display: block;
   width: 20px;
   height: 2px;
-  background: var(--fg);
+  background: currentColor;
   border-radius: 2px;
   transition: transform 0.25s var(--ease);
 }
@@ -416,16 +427,12 @@ p {
 .mobile-link {
   font-size: 1.2rem;
   font-weight: 600;
-  padding: 0.9rem 0;
+  padding: 0.9rem 0.85rem;
   border-bottom: 1px solid var(--line);
   color: var(--fg);
   display: flex;
   align-items: center;
   justify-content: space-between;
-}
-
-.mobile-link:hover {
-  color: var(--accent);
 }
 
 .mobile-foot {
@@ -452,7 +459,6 @@ p {
   justify-content: center;
   padding: clamp(4.5rem, 9vh, 7rem) 0 clamp(3.5rem, 6vh, 5rem);
   overflow: hidden;
-  isolation: isolate;
   background: radial-gradient(circle at 50% 15%, rgba(0, 255, 195, 0.03) 0%, transparent 65%);
 }
 
@@ -472,11 +478,12 @@ p {
 }
 
 .life {
-  position: absolute;
+  position: fixed;
   inset: 0;
   width: 100%;
   height: 100%;
-  z-index: 0;
+  z-index: 1;
+  opacity: 0.6;
   pointer-events: none;
   -webkit-mask-image: linear-gradient(
     to bottom,
@@ -612,9 +619,7 @@ p {
   background: var(--bg-well);
 }
 
-/* What we do — Cards Grid
-   ========================================================================== */
-/* Playground / Games
+/* Fun / Games
    ========================================================================== */
 .games {
   display: grid;
@@ -630,13 +635,14 @@ p {
   background: var(--panel);
   border: 1px solid var(--panel-border);
   border-radius: var(--radius-lg);
-  transition: all 0.25s var(--ease);
+  transition: background-color var(--interaction), border-color var(--interaction),
+    box-shadow var(--interaction), translate var(--interaction);
 }
 
-.game:hover {
+.game:is(:hover, :focus-visible) {
   background: var(--panel-lift);
-  border-color: var(--panel-border-hover);
-  transform: translateY(-2px);
+  border-color: var(--accent);
+  translate: 0 -2px;
   box-shadow: 0 12px 28px -10px rgba(0, 0, 0, 0.5);
 }
 
@@ -677,10 +683,11 @@ p {
   color: var(--accent);
   font-size: 0.92rem;
   font-weight: 600;
-  transition: gap 0.2s var(--ease);
+  transition: gap var(--interaction), color var(--interaction);
 }
 
-.game:hover .game-go {
+.game:is(:hover, :focus-visible) .game-go {
+  color: var(--accent-hover);
   gap: 0.7rem;
 }
 
@@ -712,11 +719,6 @@ p {
   text-decoration: underline;
   text-decoration-color: var(--accent);
   text-underline-offset: 6px;
-  transition: color 0.2s var(--ease);
-}
-
-.mail:hover {
-  color: var(--accent);
 }
 
 /* Footer
@@ -776,16 +778,12 @@ p {
   font-size: 0.85rem;
 }
 
+.text-link,
 .footer-meta a {
   color: var(--fg-muted);
   text-decoration: underline;
   text-underline-offset: 3px;
   text-decoration-color: var(--line-lift);
-}
-
-.footer-meta a:hover {
-  color: var(--fg);
-  text-decoration-color: var(--accent);
 }
 
 /* Motion & Reveals
@@ -823,16 +821,19 @@ p {
 .js .reveal.visible {
   opacity: 1;
   transform: none;
-  transition: opacity 0.65s var(--ease), transform 0.65s var(--ease);
+  transition: opacity 0.65s var(--ease) var(--reveal-delay, 0s),
+    transform 0.65s var(--ease) var(--reveal-delay, 0s),
+    background-color var(--interaction), border-color var(--interaction),
+    box-shadow var(--interaction), translate var(--interaction);
 }
 
-.js .stagger > .reveal:nth-child(2) { transition-delay: 0.07s; }
-.js .stagger > .reveal:nth-child(3) { transition-delay: 0.14s; }
-.js .stagger > .reveal:nth-child(4) { transition-delay: 0.21s; }
-.js .stagger > .reveal:nth-child(5) { transition-delay: 0.28s; }
-.js .stagger > .reveal:nth-child(6) { transition-delay: 0.35s; }
-.js .stagger > .reveal:nth-child(7) { transition-delay: 0.42s; }
-.js .stagger > .reveal:nth-child(8) { transition-delay: 0.49s; }
+.js .stagger > .reveal:nth-child(2) { --reveal-delay: 0.07s; }
+.js .stagger > .reveal:nth-child(3) { --reveal-delay: 0.14s; }
+.js .stagger > .reveal:nth-child(4) { --reveal-delay: 0.21s; }
+.js .stagger > .reveal:nth-child(5) { --reveal-delay: 0.28s; }
+.js .stagger > .reveal:nth-child(6) { --reveal-delay: 0.35s; }
+.js .stagger > .reveal:nth-child(7) { --reveal-delay: 0.42s; }
+.js .stagger > .reveal:nth-child(8) { --reveal-delay: 0.49s; }
 
 /* Responsive — Tablet & Mobile Optimization
    ========================================================================== */
@@ -841,6 +842,7 @@ p {
     display: none;
   }
 
+  .header-actions,
   .menu-toggle {
     display: flex;
   }
@@ -862,10 +864,6 @@ p {
   .details {
     grid-template-columns: 1fr;
     gap: 1.3rem;
-  }
-
-  .btn-header {
-    display: none;
   }
 
   .hero-actions {
@@ -937,10 +935,6 @@ p {
   mask-image: linear-gradient(to bottom, transparent, #000 20%, #000 80%, transparent);
 }
 
-.showcase > .wrap {
-  position: relative;
-}
-
 .product-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -956,15 +950,15 @@ p {
   border: 1px solid rgba(255, 255, 255, 0.11);
   border-radius: 22px;
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
-  transition: transform 0.35s var(--ease), border-color 0.35s var(--ease), box-shadow 0.35s var(--ease);
+  transition: border-color var(--interaction), box-shadow var(--interaction), translate var(--interaction);
 }
 
 /* Each product carries its own signal colour; the grid and its page share it */
 .p-youknow { --signal: #ff5db1; }
 .p-electry { --signal: #00ffc3; }
 
-.product-card:hover {
-  transform: translateY(-7px);
+.product-card:is(:hover, :focus-visible) {
+  translate: 0 -2px;
   border-color: color-mix(in srgb, var(--signal) 55%, transparent);
   box-shadow: 0 28px 80px color-mix(in srgb, var(--signal) 12%, transparent);
 }
@@ -982,10 +976,10 @@ p {
   height: 100%;
   object-fit: cover;
   object-position: center top;
-  transition: transform 0.5s var(--ease);
+  transition: transform var(--interaction);
 }
 
-.product-card:hover .product-shot img {
+.product-card:is(:hover, :focus-visible) .product-shot img {
   transform: scale(1.03);
 }
 
@@ -1030,10 +1024,10 @@ p {
   color: var(--signal);
   font-size: 0.88rem;
   font-weight: 600;
-  transition: gap 0.2s var(--ease);
+  transition: gap var(--interaction);
 }
 
-.product-card:hover .product-more {
+.product-card:is(:hover, :focus-visible) .product-more {
   gap: 0.7rem;
 }
 
@@ -1063,6 +1057,10 @@ p {
   width: 100%;
   height: auto;
   border-radius: var(--radius-sm);
+}
+
+.shot figcaption {
+  margin-top: 0.75rem;
 }
 
 .features {

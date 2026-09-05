@@ -1,6 +1,8 @@
-import { BUILDINGS, UNITS, createGame, updateGame, placeBuilding, canPlace, trainUnit, issueOrder, stopUnits, powerStats, getEntity } from './sim.js';
+import { BUILDINGS, UNITS, createGame, updateGame, placeBuilding, canPlace, trainUnit, setRallyPoint, issueOrder, stopUnits, powerStats, getEntity, unitRank, unitStats } from './sim.js';
 import { Renderer, drawIcon } from './render.js';
 import { assetsReady, assetStatus } from './assets.js';
+import { createAudio } from './audio.js';
+import { saveGame, loadGame, getSaveInfo } from './save.js';
 
 const $ = id => document.getElementById(id);
 const canvas = $('world');
@@ -10,35 +12,27 @@ const view = { x: 14, y: 37, zoom: innerWidth <= 680 ? 24 : 38, selected: new Se
 let game, launched = false, paused = true, activeTab = 'build', orderMode = null;
 let lastTime = performance.now(), accumulator = 0, hudTimer = 0, toastUntil = 0, lastEvent = 0;
 let pointer = null, pointerPosition = null, lastPortrait = '', lastQueue = '', lastNotice = '';
-let soundEnabled = false, audioContext, nextCombatSound = 0;
+const audio = createAudio();
+audio.setPaused(true);
+let heardEffects = new WeakSet();
 const keys = new Set(), groups = new Map();
-const buildTypes = ['reactor', 'refinery', 'barracks', 'factory', 'turret'];
-const unitTypes = ['rifle', 'scout', 'tank', 'artillery', 'harvester'];
+const buildTypes = ['reactor', 'refinery', 'barracks', 'factory', 'turret', 'rocketTower'];
+const unitTypes = ['rifle', 'rocket', 'scout', 'tank', 'artillery', 'harvester'];
 const fmt = value => Math.floor(value).toLocaleString('en-US');
 const minutes = time => `${Math.floor(time / 60).toString().padStart(2, '0')}:${Math.floor(time % 60).toString().padStart(2, '0')}`;
 const randomSeed = () => `ASH-${crypto.getRandomValues(new Uint32Array(1))[0].toString(36).slice(0, 5).toUpperCase()}`;
 const entityCenter = e => ({ x: e.x + (e.kind === 'building' ? e.size / 2 : 0), y: e.y + (e.kind === 'building' ? e.size / 2 : 0) });
 const selectedEntities = () => game.entities.filter(e => e.team === 0 && e.hp > 0 && view.selected.has(e.id));
 const selectedUnits = () => selectedEntities().filter(e => e.kind === 'unit');
+const selectedProducers = () => selectedEntities().filter(e => e.kind === 'building' && ['barracks', 'factory', 'refinery'].includes(e.type));
+const chosenProducer = type => {
+  const producers = selectedProducers().filter(e => e.type === UNITS[type].producer);
+  return producers.length === 1 ? producers[0] : null;
+};
 const busy = () => !launched || paused || game.status !== 'playing';
 
 function playSound(kind = 'confirm') {
-  if (!soundEnabled) return;
-  try {
-    audioContext ||= new (window.AudioContext || window.webkitAudioContext)();
-    if (audioContext.state === 'suspended') audioContext.resume();
-    const oscillator = audioContext.createOscillator(), gain = audioContext.createGain();
-    const now = audioContext.currentTime;
-    const frequencies = { confirm: 480, select: 340, error: 130, build: 640, combat: 85 };
-    oscillator.type = kind === 'combat' ? 'sawtooth' : 'sine';
-    oscillator.frequency.setValueAtTime(frequencies[kind] || 480, now);
-    oscillator.frequency.exponentialRampToValueAtTime(kind === 'error' ? 75 : kind === 'combat' ? 32 : (frequencies[kind] || 480) * 1.5, now + .10);
-    gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(kind === 'combat' ? .016 : .035, now + .008);
-    gain.gain.exponentialRampToValueAtTime(.0001, now + .16);
-    oscillator.connect(gain); gain.connect(audioContext.destination);
-    oscillator.start(now); oscillator.stop(now + .17);
-  } catch { soundEnabled = false; updateSoundButton(); }
+  audio.play(kind);
 }
 
 function notify(text, warning = false) {
@@ -48,16 +42,24 @@ function notify(text, warning = false) {
   if (warning) playSound('error');
 }
 
-function reset(seed, difficulty) {
-  game = createGame(seed, difficulty);
+function reset(seed, difficulty, restored) {
+  game = restored?.game || createGame(seed, difficulty);
   view.selected.clear(); groups.clear(); keys.clear();
   view.placement = null; view.drag = null; view.hover = null; view.commandMarker = null;
   orderMode = null; pointer = null; pointerPosition = null; accumulator = 0; lastEvent = game.events.length;
   lastPortrait = ''; lastQueue = null; lastNotice = ''; view.showGrid = false;
+  heardEffects = new WeakSet(game.effects);
+  renderer.terrainSource = null;
+  if (restored) {
+    renderer.createTerrain(game);
+    renderer.rememberedBuildings = new Map(restored.rememberedBuildings.map(e => [e.id, e]));
+    renderer.knownOre = restored.knownOre;
+  }
   $('seed-label').textContent = `SECTOR ${seed}`;
   $('sector-label').textContent = seed;
   setConsole(!compactScreen.matches && !matchMedia('(pointer: coarse)').matches);
   centerBase();
+  if (restored?.view) { Object.assign(view, restored.view); clampCamera(); }
   setTab('build'); updateHUD();
 }
 
@@ -99,7 +101,9 @@ function setTab(tab) {
     const name = document.createElement('span'); name.className = 'card-name'; name.textContent = def.name;
     const cost = document.createElement('span'); cost.className = 'card-price'; cost.textContent = `◈ ${def.cost}`;
     const meta = document.createElement('span'); meta.className = 'card-meta'; meta.textContent = `${def.buildTime || def.trainTime}s`;
-    button.append(icon, name, cost, meta);
+    const count = document.createElement('span'); count.className = 'card-queue-count'; count.hidden = true;
+    const production = document.createElement('span'); production.className = 'card-production'; production.hidden = true;
+    button.append(icon, name, cost, meta, count, production);
     button.addEventListener('click', event => chooseProduction(type, event.pointerType === 'touch'));
     button.setAttribute('aria-describedby', 'catalog-tip');
     button.addEventListener('mouseenter', () => { $('catalog-tip').textContent = `${def.description || def.name}${button.dataset.reason ? ` · ${button.dataset.reason}` : ''}`; });
@@ -110,18 +114,45 @@ function setTab(tab) {
 }
 
 function updateCatalog() {
-  const own = game.entities.filter(e => e.team === 0 && e.kind === 'building' && e.hp > 0 && e.progress >= 1);
+  const buildings = game.entities.filter(e => e.team === 0 && e.kind === 'building' && e.hp > 0);
+  const own = buildings.filter(e => e.progress >= 1);
+  const selected = selectedProducers();
+  $('production-target').textContent = activeTab === 'build' ? 'BUILD WITHIN YOUR BASE' : selected.length === 1 ? `COMPATIBLE UNITS → ${BUILDINGS[selected[0].type].name.toUpperCase()} #${selected[0].id} · OTHERS AUTO-ASSIGN` : 'AUTOMATIC FACTORY ASSIGNMENT';
   for (const button of $('catalog').children) {
     const type = button.dataset.type, def = (activeTab === 'build' ? BUILDINGS : UNITS)[type];
     const missing = (def.requires || []).filter(type => !own.some(e => e.type === type));
     let reason = missing.length ? `Requires ${missing.map(type => BUILDINGS[type]?.name || type).join(', ')}` : '';
     if (activeTab === 'train' && !own.some(e => e.type === def.producer)) reason ||= `Requires ${BUILDINGS[def.producer]?.name || def.producer}`;
+    const producer = activeTab === 'train' ? chosenProducer(type) : null;
+    if (producer?.progress < 1) reason ||= 'Selected producer is under construction';
+    if (activeTab === 'train' && (producer ? (producer.queue || []).length >= 6 : own.filter(e => e.type === def.producer).every(e => (e.queue || []).length >= 6))) reason ||= 'Production queues full';
     if (game.teams[0].credits < def.cost) reason ||= 'Insufficient minerals';
     button.dataset.reason = reason;
     button.setAttribute('aria-label', `${activeTab === 'build' ? 'Construct' : 'Recruit'} ${def.name}, ${def.cost} minerals${reason ? `, ${reason}` : ''}`);
     button.disabled = !launched || paused || game.status !== 'playing' || Boolean(reason);
     button.title = [`${def.name} · ${def.cost} minerals · ${def.buildTime || def.trainTime}s`, def.description, reason].filter(Boolean).join(' · ');
     button.classList.toggle('active', view.placement === type);
+    const queued = activeTab === 'build' ? buildings.filter(e => e.type === type && e.progress < 1).map(e => ({ producer: e, progress: e.progress, active: true })) : buildings.flatMap(e => (e.queue || []).flatMap((item, i) => item.type === type ? [{ producer: e, progress: item.progress || 0, active: i === 0 }] : []));
+    const active = queued.filter(item => item.active);
+    const count = button.querySelector('.card-queue-count'), progress = button.querySelector('.card-production');
+    count.hidden = progress.hidden = !queued.length;
+    count.textContent = queued.length;
+    count.setAttribute('aria-label', `${queued.length} queued`);
+    const progressKey = `${queued.length}:${active.map(item => `${item.producer.id}:${Math.floor(item.progress * 100)}`).join(',')}`;
+    if (progress.dataset.key !== progressKey) {
+      progress.dataset.key = progressKey; progress.replaceChildren();
+      const label = document.createElement('span'); label.textContent = active.length ? `${active.length} ${activeTab === 'build' ? 'building' : 'training'} · ${active.map(item => `${Math.floor(item.progress * 100)}%`).join(' / ')}` : 'Waiting';
+      const bars = document.createElement('span'); bars.className = 'card-progress-bars';
+      for (const item of active) {
+        const bar = document.createElement('span'), fill = document.createElement('i');
+        bar.title = `${BUILDINGS[item.producer.type].name} #${item.producer.id}: ${Math.floor(item.progress * 100)}%`;
+        bar.setAttribute('role', 'progressbar'); bar.setAttribute('aria-label', `${def.name} at ${BUILDINGS[item.producer.type].name} #${item.producer.id}`);
+        bar.setAttribute('aria-valuemin', '0'); bar.setAttribute('aria-valuemax', '100'); bar.setAttribute('aria-valuenow', String(Math.floor(item.progress * 100)));
+        fill.style.width = `${item.progress * 100}%`; bar.append(fill); bars.append(bar);
+      }
+      progress.append(label, bars);
+    }
+    if (queued.length) button.setAttribute('aria-label', `${button.getAttribute('aria-label')}, ${queued.length} queued, ${progress.textContent}`);
   }
 }
 
@@ -136,7 +167,7 @@ function chooseProduction(type, touch = false) {
       notify(`Place ${BUILDINGS[type].name} within your base perimeter.`);
     }
   } else {
-    const result = trainUnit(game, 0, type);
+    const result = trainUnit(game, 0, type, chosenProducer(type)?.id);
     if (result.ok) { notify(`${UNITS[type].name} added to production.`); playSound('build'); }
     else notify(result.reason, true);
     updateHUD();
@@ -145,16 +176,17 @@ function chooseProduction(type, touch = false) {
 
 function setOrderHint() {
   $('order-hint').hidden = !view.placement && !orderMode;
-  $('order-hint').textContent = view.placement ? `PLACE ${BUILDINGS[view.placement].name.toUpperCase()} · ESC TO CANCEL` : orderMode === 'attackMove' ? 'ATTACK MOVE · SELECT A DESTINATION' : 'MOVE · SELECT A DESTINATION';
+  $('order-hint').textContent = view.placement ? `PLACE ${BUILDINGS[view.placement].name.toUpperCase()} · ESC TO CANCEL` : orderMode === 'rally' ? 'RALLY POINT · SELECT A DESTINATION' : orderMode === 'attackMove' ? 'ATTACK MOVE · SELECT A DESTINATION' : 'MOVE · SELECT A DESTINATION';
   canvas.classList.toggle('ordering', Boolean(view.placement || orderMode));
   $('attack-order').classList.toggle('active', orderMode === 'attackMove');
   $('move-order').classList.toggle('active', orderMode === 'move');
+  $('rally-order').classList.toggle('active', orderMode === 'rally');
 }
 
 function cancelOrder() { view.placement = null; view.showGrid = false; orderMode = null; view.drag = null; setOrderHint(); updateCatalog(); }
 
 function setOrder(type) {
-  if (busy() || !selectedUnits().length) return;
+  if (busy() || !(type === 'rally' ? selectedProducers() : selectedUnits()).length) return;
   view.placement = null; view.showGrid = false;
   orderMode = orderMode === type ? null : type;
   setOrderHint(); updateCatalog();
@@ -183,14 +215,23 @@ function selectAt(point, additive = false, touch = false) {
     if (!additive) view.selected.clear();
     if (additive && view.selected.has(hit.id)) view.selected.delete(hit.id); else view.selected.add(hit.id);
     playSound('select'); updateHUD();
-  } else if (touch && selectedUnits().length) commandAt(point);
+  } else if (touch && (selectedUnits().length || selectedProducers().length)) commandAt(point);
   else if (!additive) { view.selected.clear(); updateHUD(); }
 }
 
 function commandAt(point, explicitType) {
   const units = selectedUnits();
-  if (!units.length) return;
   const x = Math.max(.5, Math.min(game.width - .5, point.x)), y = Math.max(.5, Math.min(game.height - .5, point.y));
+  const producers = selectedProducers();
+  if (explicitType === 'rally' || (!units.length && producers.length)) {
+    const result = setRallyPoint(game, 0, producers.map(e => e.id), { x, y });
+    if (!result.ok) { notify(result.reason, true); return; }
+    view.commandMarker = { x, y, time: performance.now() / 1000, type: 'rally' };
+    orderMode = null; setOrderHint(); updateHUD(); playSound('order');
+    notify(`Rally point set for ${producers.length === 1 ? BUILDINGS[producers[0].type].name : `${producers.length} producers`}.`);
+    return;
+  }
+  if (!units.length) return;
   const hit = entityAt({ x, y });
   const index = Math.floor(y) * game.width + Math.floor(x);
   let type = explicitType || 'move';
@@ -223,7 +264,12 @@ function updateHUD() {
   $('army').textContent = game.entities.filter(e => e.team === 0 && e.kind === 'unit' && e.hp > 0).length;
   $('mission-time').textContent = minutes(game.time);
   for (const id of view.selected) if (!getEntity(game, id) || getEntity(game, id).hp <= 0) view.selected.delete(id);
-  const selection = selectedEntities(), units = selection.filter(e => e.kind === 'unit');
+  let selection = selectedEntities();
+  if (selection.some(e => e.kind === 'unit' && UNITS[e.type].damage > 0)) {
+    for (const e of selection) if (e.type === 'harvester') view.selected.delete(e.id);
+    selection = selection.filter(e => e.type !== 'harvester');
+  }
+  const units = selection.filter(e => e.kind === 'unit');
   const first = selection[0];
   $('selection-panel').hidden = !first;
   document.body.dataset.selection = String(Boolean(first));
@@ -236,36 +282,66 @@ function updateHUD() {
       selection.forEach(e => counts.set(e.type, (counts.get(e.type) || 0) + 1));
       const exploring = units.filter(e => e.order?.type === 'explore').length;
       detail = `${exploring ? `${exploring} auto-exploring · ` : ''}${[...counts].map(([type, n]) => `${n} ${(UNITS[type] || BUILDINGS[type]).name}`).join(' · ')}`;
-    } else if (first.kind === 'building') detail = first.progress < 1 ? `Under construction · ${Math.floor(first.progress * 100)}%` : `${Math.ceil(first.hp)} / ${first.maxHp} integrity · ${first.haulerPending ? 'Included hauler awaiting deployment' : (first.queue || []).length ? 'Production active' : 'Operational'}`;
-    else if (first.type === 'harvester') detail = `Cargo ${Math.floor(first.cargo || 0)} · ${first.order?.type === 'explore' ? 'Auto-exploring' : first.order?.type === 'move' ? 'Relocating · auto-harvest next' : first.harvestPhase === 'return' ? 'Returning cargo' : 'Auto-harvesting'}`;
+    } else if (first.kind === 'building') {
+      const job = first.queue?.[0], producer = ['barracks', 'factory', 'refinery'].includes(first.type);
+      const activity = [job ? `${UNITS[job.type].name} ${Math.floor(job.progress * 100)}%` : first.processingAmount > 0 ? 'Processing minerals' : producer ? 'Idle · bay empty' : 'Operational'];
+      if (first.processingAmount > 0) activity.push(`${Math.ceil(first.processingAmount)} shards remaining`);
+      if (first.haulerPending) activity.push('Included hauler awaiting deployment');
+      detail = first.progress < 1 ? `Under construction · ${Math.floor(first.progress * 100)}%` : `${Math.ceil(first.hp)} / ${first.maxHp} integrity · ${activity.join(' · ')}`;
+      if (selectedProducers().length) detail += first.rally ? ` · Rally ${Math.floor(first.rally.x)}:${Math.floor(first.rally.y)}` : ' · Set rally with R or right click';
+    }
+    else if (first.type === 'harvester') {
+      const cargo = (first.cargo || 0) * (first.unloadDepotId ? Math.max(0, 1 - (first.unload || 0) / 1.2) : 1);
+      detail = `${cargo < 1 ? 'Empty' : cargo >= UNITS.harvester.capacity ? 'Full' : `Cargo ${Math.ceil(cargo)} / ${UNITS.harvester.capacity}`} · ${first.unloadDepotId ? 'Unloading minerals' : first.order?.type === 'explore' ? 'Auto-exploring' : first.order?.type === 'move' ? 'Relocating · auto-harvest next' : first.harvestPhase === 'return' ? 'Returning cargo' : 'Auto-harvesting'}`;
+    }
     else detail = `${Math.ceil(first.hp)} / ${first.maxHp} integrity · ${first.order?.type === 'explore' ? `Auto-exploring${first.targetId ? ' · Engaging' : ''}` : first.order?.type === 'move' ? 'Moving' : first.targetId || first.order?.type === 'attack' ? 'Engaging' : first.order?.type === 'attackMove' ? 'Advancing' : 'Guarding'}`;
   }
   $('selection-detail').textContent = detail;
+  const rankedUnit = selection.length === 1 && first.kind === 'unit' ? first : null;
+  const rankInfo = $('selection-rank'); rankInfo.hidden = !rankedUnit;
+  if (rankedUnit) {
+    const rank = unitRank(rankedUnit), kills = rankedUnit.kills || 0, stats = unitStats(rankedUnit);
+    const next = rank < 3 ? (rank + 1) * 5 : null, bonus = rank * 20;
+    rankInfo.dataset.rank = rank; rankInfo.dataset.kills = kills;
+    rankInfo.textContent = `Rank ${rank}/3 · ${kills}${next ? `/${next}` : ''} kills · +${bonus}%`;
+    const summary = `Rank ${rank} of 3. ${kills} kills. ${next ? `${next - kills} kills to next rank.` : 'Maximum rank.'} +${bonus}% damage, speed and maximum HP. Damage ${Number(stats.damage.toFixed(2))}, speed ${Number(stats.speed.toFixed(2))} tiles/second, maximum HP ${stats.hp}.`;
+    rankInfo.title = summary; rankInfo.setAttribute('aria-label', summary);
+  } else {
+    rankInfo.textContent = ''; rankInfo.removeAttribute('title'); rankInfo.removeAttribute('aria-label');
+    delete rankInfo.dataset.rank; delete rankInfo.dataset.kills;
+  }
   $('selected-count').textContent = first ? `${selection.length}`.padStart(2, '0') : '07';
-  $('selection-health').hidden = !first;
+  $('selection-health').hidden = selection.length !== 1;
   if (first) $('selection-health').firstElementChild.style.width = `${Math.max(0, first.hp / first.maxHp * 100)}%`;
-  const portraitKey = first?.type || 'core';
-  if (portraitKey !== lastPortrait) { drawIcon($('portrait'), portraitKey, 0); lastPortrait = portraitKey; }
-  for (const id of ['move-order', 'attack-order', 'explore-order', 'stop-order']) $(id).disabled = busy() || !units.length;
+  const portraitKey = first ? `${first.type}:${Math.floor(first.progress * 10)}:${first.queue?.[0]?.type}:${Math.floor((first.queue?.[0]?.progress || 0) * 10)}:${Math.ceil((first.processingAmount || 0) / 50)}:${Math.ceil((first.cargo || 0) * (first.unloadDepotId ? Math.max(0, 1 - (first.unload || 0) / 1.2) : 1) / 50)}` : 'core';
+  if (portraitKey !== lastPortrait) { drawIcon($('portrait'), first?.type || 'core', 0, first); lastPortrait = portraitKey; }
+  for (const id of ['move-order', 'attack-order', 'explore-order', 'stop-order']) { $(id).disabled = busy() || !units.length; $(id).hidden = !units.length; }
+  $('rally-order').hidden = !selectedProducers().length;
+  $('rally-order').disabled = busy() || !selectedProducers().length;
   const exploring = units.filter(e => e.order?.type === 'explore').length;
   $('explore-order').setAttribute('aria-pressed', exploring ? exploring === units.length ? 'true' : 'mixed' : 'false');
   $('explore-order').classList.toggle('active', exploring > 0);
   $('select-army').disabled = busy();
-  const queue = [];
+  const queue = []; let queueCount = 0;
   for (const e of game.entities) if (e.team === 0 && e.kind === 'building' && e.hp > 0) {
-    if (e.progress < 1) queue.push({ name: BUILDINGS[e.type].name, progress: e.progress, label: 'BUILD' });
-    for (const item of e.queue || []) queue.push({ name: UNITS[item.type].name, progress: item.progress || 0, label: 'TRAIN' });
+    if (e.progress < 1) { queue.push({ id: e.id, name: BUILDINGS[e.type].name, progress: e.progress, label: 'CONSTRUCTION' }); queueCount++; }
+    if (e.queue?.length) {
+      queueCount += e.queue.length;
+      queue.push({ id: e.id, name: UNITS[e.queue[0].type].name, progress: e.queue[0].progress || 0, label: `${BUILDINGS[e.type].name} #${e.id}${e.queue.length > 1 ? ` · +${e.queue.length - 1} waiting` : ''}` });
+    }
   }
-  $('queue-count').textContent = String(queue.length).padStart(2, '0');
-  $('pending-count').hidden = !queue.length;
-  $('pending-count').textContent = queue.length;
-  $('pending-count').setAttribute('aria-label', `${queue.length} in production`);
-  const queueKey = queue.map(q => `${q.name}:${Math.floor(q.progress * 100)}`).join('|');
+  $('queue-count').textContent = String(queueCount).padStart(2, '0');
+  $('pending-count').hidden = !queueCount;
+  $('pending-count').textContent = queueCount;
+  $('pending-count').setAttribute('aria-label', `${queueCount} in production`);
+  const queueKey = queue.map(q => `${q.id}:${q.name}:${q.label}:${Math.floor(q.progress * 100)}`).join('|');
   if (queueKey !== lastQueue) {
     $('queue-list').replaceChildren();
     if (!queue.length) { const p = document.createElement('p'); p.textContent = 'Production idle'; $('queue-list').append(p); }
-    for (const item of queue.slice(0, 3)) {
-      const row = document.createElement('div'); row.className = 'queue-item'; row.append(document.createTextNode(item.name));
+    for (const item of queue) {
+      const row = document.createElement('div'); row.className = 'queue-item';
+      const name = document.createElement('b'); name.textContent = item.name;
+      const label = document.createElement('small'); label.textContent = item.label; name.append(label); row.append(name);
       const percent = document.createElement('span'); percent.textContent = `${Math.floor(item.progress * 100)}%`;
       const bar = document.createElement('i'); bar.style.width = `${Math.floor(item.progress * 100)}%`;
       row.append(percent, bar); $('queue-list').append(row);
@@ -277,6 +353,7 @@ function updateHUD() {
 
 function showMenu(finished = false, guide = false) {
   paused = true; keys.clear(); pointer = null; view.drag = null;
+  audio.setPaused(true);
   $('menu-title').textContent = finished ? game.status === 'victory' ? 'The frontier is yours.' : 'The line has fallen.' : 'Hold the line.';
   $('menu-description').textContent = finished ? game.status === 'victory' ? 'The Red Foundry command core is down. Your expedition holds the sector.' : 'Your command core was destroyed. Regroup and take another sector.' : 'The battlefield is paused.';
   $('resume').hidden = finished;
@@ -285,19 +362,51 @@ function showMenu(finished = false, guide = false) {
   $('full-guide').open = guide;
   if (!$('menu').open) $('menu').showModal();
   $('pause').textContent = '▶'; $('pause').setAttribute('aria-label', 'Resume game');
-  updateHUD();
+  refreshSaveControls(); updateHUD();
 }
 
 function resume() {
   if (!launched || game.status !== 'playing') return;
   $('menu').close(); paused = false; accumulator = 0;
+  audio.unlock(); audio.setPaused(false);
   $('pause').textContent = 'Ⅱ'; $('pause').setAttribute('aria-label', 'Pause game');
   updateHUD(); canvas.focus({ preventScroll: true });
 }
 
 function updateSoundButton() {
-  $('sound').setAttribute('aria-pressed', String(soundEnabled));
-  $('sound').setAttribute('aria-label', soundEnabled ? 'Mute sound' : 'Enable sound');
+  const { sfxEnabled, musicEnabled } = audio.status;
+  $('sound').setAttribute('aria-pressed', String(sfxEnabled));
+  $('sound').setAttribute('aria-label', sfxEnabled ? 'Mute sound effects' : 'Enable sound effects');
+  $('sfx-toggle').setAttribute('aria-pressed', String(sfxEnabled));
+  $('sfx-toggle').textContent = `EFFECTS ${sfxEnabled ? 'ON' : 'OFF'}`;
+  $('music-toggle').setAttribute('aria-pressed', String(musicEnabled));
+  $('music-toggle').textContent = `MUSIC ${musicEnabled ? 'ON' : 'OFF'}`;
+}
+
+function refreshSaveControls(message) {
+  const info = getSaveInfo();
+  const description = info.ok ? `${info.seed} · ${minutes(info.time)} · ${new Date(info.savedAt).toLocaleString()}` : info.reason;
+  $('save-status').textContent = message || description;
+  $('saved-operation').textContent = description;
+  $('load-game').disabled = $('load-saved').disabled = !assetStatus.ready || !info.ok;
+  $('save-game').disabled = !launched || game.status !== 'playing';
+}
+
+function saveOperation() {
+  const result = saveGame(game, { ...view, rememberedBuildings: [...renderer.rememberedBuildings.values()], knownOre: renderer.knownOre });
+  refreshSaveControls(result.ok ? 'Operation saved in this browser.' : result.reason);
+}
+
+function loadOperation() {
+  if (!assetStatus.ready) return;
+  const result = loadGame();
+  if (!result.ok) { refreshSaveControls(result.reason); return; }
+  paused = true; launched = true;
+  $('seed').value = result.game.seed; $('difficulty').value = result.game.difficulty;
+  reset(result.game.seed, result.game.difficulty, result);
+  $('briefing').close(); audio.unlock(); showMenu(game.status !== 'playing');
+  $('menu-description').textContent = 'Operation restored. Resume when ready.';
+  refreshSaveControls('Loaded the saved operation.');
 }
 
 function selectArmy() {
@@ -381,7 +490,10 @@ canvas.addEventListener('dblclick', event => {
   if (busy()) return;
   const point = localPoint(event), entity = entityAt(renderer.screenToWorld(point.x, point.y, view));
   if (entity?.team === 0 && entity.kind === 'unit') {
-    view.selected = new Set(game.entities.filter(e => e.team === 0 && e.type === entity.type && e.hp > 0).map(e => e.id)); updateHUD();
+    const topLeft = renderer.screenToWorld(0, 0, view), bottomRight = renderer.screenToWorld(renderer.width, renderer.height, view);
+    view.selected = new Set(game.entities.filter(e => e.team === 0 && e.kind === 'unit' && e.type === entity.type && e.hp > 0
+      && e.x >= topLeft.x && e.x <= bottomRight.x && e.y >= topLeft.y && e.y <= bottomRight.y).map(e => e.id));
+    updateHUD();
   }
 });
 canvas.addEventListener('wheel', event => { event.preventDefault(); if (!busy()) zoom(Math.exp(-event.deltaY * .001), localPoint(event)); }, { passive: false });
@@ -415,6 +527,7 @@ document.addEventListener('keydown', event => {
   else if (key === 'b') { event.preventDefault(); setConsole($('command-console').hidden); }
   else if (key === 'p') showMenu();
   else if (key === 'a') setOrder('attackMove');
+  else if (key === 'r') setOrder('rally');
   else if (key === 's') stopSelection();
   else if (key === 'x') toggleExplore();
   else if (key === 'e') selectArmy();
@@ -445,6 +558,7 @@ $('build-tab').addEventListener('click', () => setTab('build'));
 $('train-tab').addEventListener('click', () => setTab('train'));
 $('attack-order').addEventListener('click', () => setOrder('attackMove'));
 $('move-order').addEventListener('click', () => setOrder('move'));
+$('rally-order').addEventListener('click', () => setOrder('rally'));
 $('stop-order').addEventListener('click', stopSelection);
 $('explore-order').addEventListener('click', toggleExplore);
 $('select-army').addEventListener('click', selectArmy);
@@ -453,14 +567,21 @@ $('zoom-in').addEventListener('click', () => zoom(1.18));
 $('zoom-out').addEventListener('click', () => zoom(1 / 1.18));
 $('pause').addEventListener('click', () => { if (launched) paused ? resume() : showMenu(); });
 $('help').addEventListener('click', () => { if (launched) showMenu(game.status !== 'playing', true); });
-$('sound').addEventListener('click', () => { soundEnabled = !soundEnabled; updateSoundButton(); playSound('select'); });
+function toggleSfx() { audio.unlock(); audio.setSfxEnabled(!audio.status.sfxEnabled); updateSoundButton(); playSound('select'); }
+$('sound').addEventListener('click', toggleSfx);
+$('sfx-toggle').addEventListener('click', toggleSfx);
+$('music-toggle').addEventListener('click', () => { audio.unlock(); audio.setMusicEnabled(!audio.status.musicEnabled); updateSoundButton(); });
+$('save-game').addEventListener('click', saveOperation);
+$('load-game').addEventListener('click', loadOperation);
+$('load-saved').addEventListener('click', loadOperation);
 $('resume').addEventListener('click', resume);
 $('menu').addEventListener('cancel', event => { event.preventDefault(); if (game.status === 'playing') resume(); });
 $('briefing').addEventListener('cancel', event => event.preventDefault());
 $('new-game').addEventListener('click', () => {
   $('menu').close(); launched = false; paused = true; cancelOrder();
+  audio.setPaused(true);
   $('seed').value = randomSeed(); reset($('seed').value, $('difficulty').value);
-  $('briefing').showModal(); $('deploy').focus();
+  refreshSaveControls(); $('briefing').showModal(); $('deploy').focus();
 });
 $('random-seed').addEventListener('click', () => { $('seed').value = randomSeed(); reset($('seed').value, $('difficulty').value); });
 $('launch-form').addEventListener('submit', event => {
@@ -468,6 +589,7 @@ $('launch-form').addEventListener('submit', event => {
   if (!assetStatus.ready) return;
   const seed = $('seed').value.trim() || randomSeed(); $('seed').value = seed;
   reset(seed, $('difficulty').value); launched = true; paused = false;
+  audio.unlock(); audio.setPaused(false);
   $('briefing').close(); $('pause').textContent = 'Ⅱ'; $('pause').setAttribute('aria-label', 'Pause game');
   canvas.focus({ preventScroll: true }); updateHUD(); playSound('confirm');
   notify('Expedition deployed. Build a barracks and recruit your first squad.');
@@ -479,7 +601,7 @@ function frame(now) {
     accumulator += elapsed;
     while (accumulator >= .05) {
       updateGame(game, .05); accumulator -= .05;
-      if (game.status !== 'playing') { showMenu(true); accumulator = 0; break; }
+      if (game.status !== 'playing') { showMenu(true); playSound(game.status); accumulator = 0; break; }
     }
     const panSpeed = 400 / view.zoom * elapsed;
     if (keys.has('arrowleft')) view.x -= panSpeed;
@@ -497,10 +619,20 @@ function frame(now) {
     if (game.events.length < lastEvent) lastEvent = 0;
     for (let i = lastEvent; i < game.events.length; i++) {
       const event = game.events[i];
-      if ((event.team === 0 || event.team === undefined) && event.text !== lastNotice) { notify(event.text, /attack|destroyed|low power/i.test(event.text)); lastNotice = event.text; }
+      if (event.team !== 0 && event.team !== undefined) continue;
+      if (event.text.startsWith('Shard delivery:')) { playSound('delivery'); continue; }
+      if (/ online$/.test(event.text)) playSound('buildComplete');
+      else if (/ ready$/.test(event.text)) playSound('unitReady');
+      if (event.text !== lastNotice) { notify(event.text, /attack|destroyed|low power/i.test(event.text)); lastNotice = event.text; }
     }
     lastEvent = game.events.length;
-    if (soundEnabled && now > nextCombatSound && game.effects.some(e => e.type === 'shot' && game.visible[0][Math.floor(e.y) * game.width + Math.floor(e.x)])) { playSound('combat'); nextCombatSound = now + 200; }
+    for (const effect of game.effects) {
+      if (heardEffects.has(effect)) continue;
+      heardEffects.add(effect);
+      if (!game.visible[0][Math.floor(effect.y) * game.width + Math.floor(effect.x)]) continue;
+      if (effect.type === 'shot' || effect.type === 'shell' || effect.type === 'rocket') playSound(effect.weapon || 'rifle');
+      else if (effect.type === 'explosion') playSound('explosion');
+    }
   }
   if (pointerPosition && !busy()) view.hover = renderer.screenToWorld(pointerPosition.x, pointerPosition.y, view);
   if (view.placement && view.hover) view.placementValid = canPlace(game, 0, view.placement, Math.floor(view.hover.x), Math.floor(view.hover.y)).ok;
@@ -517,6 +649,7 @@ function frame(now) {
 $('seed').value = randomSeed();
 renderer.resize();
 reset($('seed').value, 'normal');
+updateSoundButton(); refreshSaveControls();
 $('briefing').showModal();
 assetsReady.then(() => {
   if (!assetStatus.ready) {
@@ -525,6 +658,7 @@ assetsReady.then(() => {
   }
   $('asset-status').textContent = 'UPLINK READY';
   $('deploy').disabled = false;
+  refreshSaveControls();
   renderer.terrainSource = null;
   setTab(activeTab); lastPortrait = ''; updateHUD();
   $('deploy').focus();
@@ -532,4 +666,4 @@ assetsReady.then(() => {
 requestAnimationFrame(frame);
 
 // Live state handles for reproducible browser playtests and performance inspection.
-window.ashline = { get state() { return game; }, view, renderer, assets: assetStatus, get paused() { return paused; } };
+window.ashline = { get state() { return game; }, view, renderer, assets: assetStatus, get paused() { return paused; }, get audio() { return audio.status; } };
