@@ -1,0 +1,52 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "d239a0a3ec8b",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "fun/ashline/AGENTS.md",
+    "fun/ashline/README.md",
+    "fun/ashline/ashline.css",
+    "fun/ashline/assets.js",
+    "fun/ashline/assets/generated/ASSETS.md",
+    "fun/ashline/assets/generated/buildings-hires.webp",
+    "fun/ashline/assets/generated/rocket-infantry-hires.webp",
+    "fun/ashline/assets/generated/rocket-tower-hires.webp",
+    "fun/ashline/assets/generated/units-hires.webp",
+    "fun/ashline/index.html",
+    "fun/ashline/main.js",
+    "fun/ashline/render.js",
+    "fun/ashline/save.js",
+    "fun/ashline/sim.js",
+    "fun/ashline/tests/building-actions-browser-check.mjs",
+    "fun/ashline/tests/building-actions-check.mjs",
+    "fun/ashline/tests/camera-check.mjs",
+    "fun/ashline/tests/cargo-check.mjs",
+    "fun/ashline/tests/distribution-check.mjs",
+    "fun/ashline/tests/formation-check.mjs",
+    "fun/ashline/tests/lava-browser-check.mjs",
+    "fun/ashline/tests/lava-check.mjs",
+    "fun/ashline/tests/path-smoothing-check.mjs",
+    "fun/ashline/tests/production-check.mjs",
+    "fun/ashline/tests/save-check.mjs",
+    "fun/ashline/tests/traffic-browser-check.mjs",
+    "fun/ashline/tests/trees-browser-check.mjs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/d2/39a0a3ec8b/0/metadata.json",
+      "transcript": "/d2/39a0a3ec8b/0/full.jsonl",
+      "context": "/d2/39a0a3ec8b/0/context.md",
+      "content_hash": "/d2/39a0a3ec8b/0/content_hash.txt",
+      "prompt": "/d2/39a0a3ec8b/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 408,
+    "cache_creation_tokens": 1294070,
+    "cache_read_tokens": 69069870,
+    "output_tokens": 315211,
+    "api_call_count": 217
+  }
+}
