@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Ashline — A frontier worth fighting for</title>
+  <meta name="description" content="Command an expedition on the ash frontier. Build a base, harvest luminous minerals, and outmaneuver the Red Foundry in an original browser real-time strategy game.">
+  <meta name="theme-color" content="#111b20">
+  <link rel="canonical" href="https://protocodus.cz/fun/ashline/">
+  <link rel="icon" type="image/svg+xml" href="/assets/images/logo.svg">
+  <link rel="preload" href="/assets/fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="./ashline.css">
+</head>
+<body data-ui="compact">
+  <div id="game-shell">
+    <header class="topbar">
+      <a class="game-brand" href="/fun/" aria-label="Back to Protocodus playground"><svg viewBox="0 0 36 36" aria-hidden="true"><path d="M2 30 17 3h5L9 30Zm12 0L25 10l10 20h-8l-4-9-5 9Z" fill="currentColor"/></svg><span>ASHLINE<small>FRONTIER COMMAND</small></span></a>
+      <div class="resources" aria-label="Resources">
+        <div class="resource mineral"><span class="resource-symbol">◈</span><span><strong id="credits">1,800</strong><small>MINERALS</small></span></div>
+        <div class="resource" id="power-resource"><span class="resource-symbol">ϟ</span><span><strong id="power">—</strong><small>POWER</small></span></div>
+        <div class="resource army-resource"><span class="resource-symbol">▱</span><span><strong id="army">—</strong><small>UNITS / 60</small></span></div>
+      </div>
+      <div class="top-actions"><span id="mission-time">00:00</span><button id="select-army" class="text-button" title="Select all combat units · E"><span aria-hidden="true">▱</span><span class="action-label">Army</span><kbd>E</kbd></button><button id="command-toggle" class="text-button" aria-controls="command-console" aria-expanded="true" title="Open or close command console · B"><span aria-hidden="true">⌘</span> Command <kbd>B</kbd><span id="pending-count" hidden></span></button><button id="sound" class="icon-button" aria-label="Enable sound" aria-pressed="false" title="Toggle sound">♪</button><button id="pause" class="icon-button" aria-label="Pause game" title="Pause · P">Ⅱ</button><button id="help" class="icon-button" aria-label="Controls and field guide" title="Field guide">?</button></div>
+    </header>
+
+    <main class="battlefield" id="battlefield">
+      <canvas id="world" tabindex="0" aria-label="Battlefield. Select units with left click or drag. Right click to move, attack, or harvest. Arrow keys pan the camera."></canvas>
+      <div class="field-label"><span class="signal-dot"></span><span>EXPEDITION 07 <i>/</i> <b id="sector-label">ASH FRONTIER</b></span></div>
+      <div id="objective" class="objective"><span>OBJECTIVE</span> Destroy the enemy command core</div>
+      <div id="notifications" role="status" aria-live="polite" aria-atomic="true"></div>
+      <div id="order-hint" hidden></div>
+
+    </main>
+
+    <section class="tactical-map" aria-label="Sector overview">
+      <div class="map-heading"><span>TACTICAL MAP</span><span class="map-north">N ↑</span></div>
+      <div class="minimap-wrap"><canvas id="minimap" width="384" height="288" tabindex="0" aria-label="Tactical map. Click or tap to center the camera."></canvas></div>
+      <div class="sector-info"><span id="seed-label">SECTOR —</span><span id="fog-label">FOG ACTIVE</span></div>
+      <div class="map-tools"><button id="home" title="Center on base · Space" aria-label="Center on base">⌂</button><span class="field-coordinates" id="coordinates">00 : 00</span><button id="zoom-out" aria-label="Zoom out">−</button><button id="zoom-in" aria-label="Zoom in">+</button></div>
+    </section>
+
+    <aside class="sidebar" id="command-console" aria-label="Command console">
+      <div class="console-label"><span>FIELD OPERATIONS</span><button id="command-close" aria-label="Close command console" title="Close · B">×</button></div>
+      <div class="console-tabs" role="tablist" aria-label="Production category"><button id="build-tab" role="tab" aria-selected="true" aria-controls="catalog" data-tab="build">Construct</button><button id="train-tab" role="tab" aria-selected="false" aria-controls="catalog" data-tab="train" tabindex="-1">Recruit</button></div>
+      <div id="catalog" role="tabpanel" aria-labelledby="build-tab"></div>
+      <div id="catalog-tip">Build within your base perimeter.</div>
+      <div class="production"><div class="section-label"><span>IN PRODUCTION</span><span id="queue-count">00</span></div><div id="queue-list"><p>Production idle</p></div></div>
+    </aside>
+
+    <footer class="commandbar" id="selection-panel" aria-label="Selected units" hidden>
+      <div class="selection-portrait"><canvas id="portrait" width="128" height="112" aria-hidden="true"></canvas><span id="selected-count">07</span></div>
+      <div class="selection-info"><span class="section-label" id="selection-label">COMMAND NETWORK</span><strong id="selection-name">Expedition standing by</strong><span id="selection-detail">Select a unit or structure to issue orders.</span><div id="selection-health" hidden><i></i></div></div>
+      <div class="unit-actions"><button id="move-order" title="Move selected units"><span>↗</span>MOVE</button><button id="attack-order" title="Attack move · A"><span>⌖</span>ATTACK <kbd>A</kbd></button><button id="explore-order" aria-pressed="false" title="Toggle auto-explore · X"><span aria-hidden="true">⌁</span>EXPLORE <kbd>X</kbd></button><button id="stop-order" title="Stop · S"><span>■</span>STOP <kbd>S</kbd></button></div>
+    </footer>
+  </div>
+
+  <dialog id="briefing" aria-labelledby="briefing-title">
+    <div class="briefing-art" aria-hidden="true"><span class="art-grid"></span><span class="art-orbit"></span><span class="art-number">07</span><span class="art-caption">EXPEDITION 07<br><b>THE ASH FRONTIER</b><small>38° N / FORWARD OPERATING SECTOR</small></span></div>
+    <div class="briefing-content"><p class="eyebrow"><span class="signal-dot"></span> A PROTOCODUS ORIGINAL / REAL-TIME STRATEGY</p><h1 id="briefing-title">ASHLINE<span>A frontier worth fighting for.</span></h1><p class="briefing-copy">The frontier is yours to command. Establish a foothold, claim the mineral fields, and break the Red Foundry’s hold on the ashlands.</p>
+      <div class="mission-steps"><div><b>01</b><span>ESTABLISH<small>Build & power your base</small></span></div><div><b>02</b><span>EXPAND<small>Harvest & field an army</small></span></div><div><b>03</b><span>ENDURE<small>Scout & crush the enemy</small></span></div></div>
+      <form id="launch-form"><div class="mission-options"><label>OPPOSITION<select id="difficulty"><option value="easy">Cadet — room to learn</option><option value="normal" selected>Commander — balanced</option><option value="hard">Veteran — relentless</option></select></label><label>SECTOR SEED<div class="seed-input"><input id="seed" maxlength="24" aria-label="Map seed" autocomplete="off" spellcheck="false"><button type="button" id="random-seed" title="Generate another sector" aria-label="Randomize map seed">⤨</button></div></label></div><button class="primary-button" type="submit" id="deploy" disabled>DEPLOY EXPEDITION <span>↗</span></button></form>
+      <p class="briefing-foot"><span>PROCEDURAL SECTORS · ADAPTIVE OPPOSITION</span><span id="asset-status" role="status"></span></p>
+      <details class="quick-guide"><summary>New to command? Field notes <span>+</span></summary><p>Every refinery includes a hauler that automatically collects and delivers minerals. Build a barracks and recruit rifle teams, then build a vehicle factory for armor. Armed units automatically fire at nearby enemies while guarding. Reactors keep production running. Select units and use Explore (X) to automatically scout into the fog. Destroy the enemy core to win.</p><p><b>Mouse:</b> left click or drag to select; right click to move, attack, or harvest. <b>Touch:</b> tap a unit, then tap its destination; drag to pan. Pause at any time for the full field guide.</p></details>
+    </div>
+  </dialog>
+
+  <dialog id="menu" aria-labelledby="menu-title"><div class="menu-inner"><p class="eyebrow">EXPEDITION 07 / COMMAND</p><h2 id="menu-title">Hold the line.</h2><p id="menu-description">The battlefield is paused.</p><div id="match-summary" hidden></div><div class="menu-buttons"><button id="resume" class="primary-button">RESUME OPERATION <span>↗</span></button><button id="new-game" class="secondary-button">NEW SKIRMISH</button></div><details id="full-guide"><summary>Controls & field guide <span>+</span></summary><dl><div><dt>Left click / drag</dt><dd>Select one / several units</dd></div><div><dt>Shift + select</dt><dd>Add to selection</dd></div><div><dt>Right click</dt><dd>Move, attack, or harvest</dd></div><div><dt>A, then click</dt><dd>Attack move; engage on the way</dd></div><div><dt>X / Explore</dt><dd>Toggle automatic exploration</dd></div><div><dt>S / E</dt><dd>Stop / select combat army</dd></div><div><dt>Arrows / middle drag</dt><dd>Pan camera</dd></div><div><dt>Scroll / Space</dt><dd>Zoom / return to base</dd></div><div><dt>Ctrl + 1–5 / 1–5</dt><dd>Assign / recall control group</dd></div><div><dt>B</dt><dd>Open / close command console</dd></div><div><dt>P / Escape</dt><dd>Pause / cancel current action</dd></div><div><dt>Touch</dt><dd>Tap to select & order; drag to pan</dd></div></dl><p>Every completed refinery deploys one free hauler. Haulers automatically collect finite minerals and deliver their loads, resuming after move or stop orders. Armed units guard by default, firing at visible enemies in range without chasing them. Move to reposition, or attack move to engage along the way. Explore (X) sends selected units, including haulers, into reachable unexplored areas. Armed explorers pause to fire at nearby visible enemies, then continue scouting. Toggle Explore again, stop, or issue a manual order to take control. Once exploration is complete, armed units guard and haulers resume harvesting. Construct near your existing base and keep power supply above demand; low power slows production and disables turrets. Rifle squads hold ground, recon rovers counter infantry, tanks break defensive lines, and artillery outranges turrets. Protect your core: losing it ends the operation.</p><p>The Red Foundry builds and harvests with the same economy. It scouts, defends, raids exposed harvesters, and assembles attacks from what it discovers.</p></details><a href="/fun/" class="exit-link">← Back to playground</a></div></dialog>
+  <noscript><div class="no-script">Ashline needs JavaScript to run the battlefield simulation.</div></noscript>
+  <script type="module" src="./main.js"></script>
+</body>
+</html>
