@@ -587,8 +587,8 @@ function toggleFullscreen() {
 
 function onKey(e) {
   if (e.code === 'Escape') {
-    if (game.mode === 'paused') begin();
-    else pause();
+    if (game.mode === 'playing') pause();
+    else begin();
     return;
   }
   if (e.code === 'KeyM') {
@@ -1294,6 +1294,15 @@ function frame(now) {
   const dt = Math.min(0.05, frameDt);
   last = now;
 
+  // Controllers have no key events: keep polling through a pause so Start
+  // and a fresh A press can resume, including after a visibility pause.
+  if (!document.hidden) {
+    input.update(dt);
+    if (input.state.anyPressed) {
+      input.state.anyPressed = false;
+      if (game.mode !== 'playing') begin();
+    }
+  }
   const running = game.mode !== 'paused';
   /* The resolution governor decides FIRST, so a scale step lands before any
      system converts metres to pixels for this frame. Run at the tail of the
@@ -1304,16 +1313,6 @@ function frame(now) {
   retro.updatePerformance(flickerProbe.freezeResolution ? 0 : frameDt, running);
   if (running) {
     pausedRendered = false;
-    input.update(dt);
-    /* The gamepad's route onto the mountain. `anyPressed` is the edge the
-       input module raises for exactly this (its keydown path raises it too,
-       redundantly — the keyboard already arrives through `onKey`), and it
-       was never read: a pad-only player sat on the title card pressing A at
-       a game that could not hear them. Consumed here, as an edge. */
-    if (input.state.anyPressed) {
-      input.state.anyPressed = false;
-      if (game.mode === 'attract') begin();
-    }
     /* The demo rider is a salesman, not a survivor: if it stalls on the
        shoulder or loses the course entirely, it is quietly stood back on
        the line a couple of metres further down and the loop goes on. A

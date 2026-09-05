@@ -43,15 +43,24 @@ const radius = relief.geometry.attributes.aRadius.array;
 const columns = radius.findIndex(value => value !== radius[0]);
 assert.ok(columns > 1 && radius.length % columns === 0, 'closed radial grid');
 for (let start = 0; start < radius.length; start += columns) {
-  for (const name of ['position', 'normal']) {
+  for (const name of ['position', 'normal', 'aGeology']) {
     const attribute = relief.geometry.attributes[name];
     for (let axis = 0; axis < 3; axis++) {
-      close(attribute.array[start * 3 + axis], attribute.array[(start + columns - 1) * 3 + axis],
+      close(attribute.array[start * attribute.itemSize + axis],
+        attribute.array[(start + columns - 1) * attribute.itemSize + axis],
         `${name} closes without a seam`);
     }
   }
 }
-assert.ok(relief.geometry.index.count / 3 < 40000, 'bounded mountain complexity');
+assert.equal(relief.geometry.index.count / 3, 35840, 'scenery polish keeps its triangle budget');
+const geology = relief.geometry.attributes.aGeology;
+for (let start = 0; start < radius.length; start += columns) {
+  const turns = geology.getW(start + columns - 1) - geology.getW(start);
+  assert.ok(Number.isInteger(turns), 'material field closes on a whole texture repeat');
+}
+const rangeNoise = sky.group.getObjectByName('far-range').material.uniforms.uNoise.value;
+assert.equal(relief.material.uniforms.uNoise.value, rangeNoise, 'mountain detail reuses the sky texture');
+assert.ok(rangeNoise.generateMipmaps, 'distant material detail remains filtered');
 
 // Frozen shadow texture, anchor and sun must describe one world transform.
 const shadowRates = [];

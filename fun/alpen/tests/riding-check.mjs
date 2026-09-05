@@ -115,6 +115,12 @@ for (const touch of [false, true]) {
   assert.equal(input.state.jump, false, 'next physics tick sees release, even in the same frame');
   input.stepped(); input.update(1 / 240);
   assert.equal(input.state.jump, false, 'tap does not replay');
+  send(target, touch ? 'pointerdown' : 'keydown', { code: 'Space', pointerId: 1 });
+  input.calm();
+  assert.equal(input.state.anyPressed, false, 'pause consumes a pending input edge rather than immediately resuming');
+  send(target, touch ? 'pointerup' : 'keyup', { code: 'Space', pointerId: 1 });
+  input.update(dt);
+  assert.equal(input.state.jump, false, 'a release during pause does not become a fresh buffered tap');
   input.dispose();
 }
 pads = [{ axes: [0.8], buttons: [] }];
@@ -124,6 +130,87 @@ assert.ok(gamepad.state.turn > 0.3, 'a previously connected pad works without an
 gamepad.clear(); gamepad.update(0.2);
 assert.equal(gamepad.state.turn, 0, 'blur suppresses held controller input until neutral');
 gamepad.dispose();
+
+// A release is player intent even while the ground steering ramp is still
+// unwinding. Feed the actual input state into a nearly completed 360: the
+// old double smoothing kept spinning through the remaining landing window.
+pads = [];
+const releaseTarget = new Target();
+const released = createInput(releaseTarget);
+send(releaseTarget, 'keydown', { code: 'KeyD' });
+released.update(dt);
+assert.ok(released.state.turn > 0 && released.state.turn < 0.1, 'ground steering still eases in');
+assert.equal(released.state.turnIntent, 1);
+for (let i = 0; i < 120; i++) released.update(dt);
+send(releaseTarget, 'keyup', { code: 'KeyD' });
+released.update(dt);
+assert.ok(released.state.turn > 0.8, 'ground steering still eases out');
+assert.equal(released.state.turnIntent, 0, 'air rotation sees release immediately');
+const finishing = rider();
+const remaining = 0.28;
+finishing.pos.y = 3 * remaining + 0.5 * RIDER.gravity * remaining ** 2;
+finishing.vel.set(0, -3, -15);
+finishing.state = 'air'; finishing.grounded = false; finishing.airTime = 1.5;
+finishing.yaw = finishing.spinAccum = 6.5;
+finishing.spinVel = 5;
+for (let i = 0; i < 80 && finishing.state === 'air'; i++) {
+  released.update(dt);
+  finishing.step(dt, released.state);
+  released.stepped();
+}
+assert.equal(finishing.landing?.verdict, CLEAN, 'releasing before touchdown completes a clean landing');
+assert.equal(finishing.landing?.halfTurns, 2, 'the intended 360 remains a 360');
+released.dispose();
+const committed = rider();
+committed.pos.y = 0.4; committed.vel.set(0, -5, -15);
+committed.state = 'air'; committed.grounded = false; committed.airTime = 1;
+committed.yaw = 0.8;
+committed.step(dt, { ...neutral, turnIntent: 0.5 });
+close(committed.yaw, 0.8 + committed.spinVel * dt, 'landing help never fights a held stick');
+
+// Menu edges and focus-loss suppression must work without any physics steps.
+// The main-loop pause/resume integration is also exercised in the browser.
+let menuEdges = 0;
+const menuPad = { axes: [0], buttons: Array.from({ length: 16 }, () => ({ pressed: false })) };
+pads = [menuPad];
+const menuInput = createInput(new Target(), { key: e => {
+  assert.equal(e.code, 'Escape');
+  menuEdges++;
+  if (menuEdges % 2 === 1) menuInput.calm(); // The production pause callback.
+} });
+menuPad.buttons[0].pressed = menuPad.buttons[9].pressed = true;
+for (let i = 0; i < 60; i++) menuInput.update(dt);
+assert.equal(menuEdges, 1, 'holding Start pauses only once');
+assert.equal(menuInput.state.anyPressed, false, 'Start wins over simultaneous A without resuming immediately');
+menuPad.buttons[0].pressed = menuPad.buttons[9].pressed = false;
+menuInput.update(dt);
+assert.equal(menuInput.state.jump, false, 'releasing A after a menu pause cannot queue a surprise jump');
+menuPad.buttons[9].pressed = true;
+for (let i = 0; i < 60; i++) menuInput.update(dt);
+assert.equal(menuEdges, 2, 'a fresh Start press resumes only once');
+menuPad.buttons[0].pressed = true;
+menuInput.clear();
+for (let i = 0; i < 60; i++) menuInput.update(dt);
+assert.equal(menuEdges, 2, 'focus loss suppresses a held Start until neutral');
+assert.equal(menuInput.state.jump, false, 'focus loss still suppresses a held jump');
+assert.equal(menuInput.state.anyPressed, false);
+menuPad.buttons[0].pressed = menuPad.buttons[9].pressed = false;
+menuInput.update(dt);
+menuPad.buttons[0].pressed = true;
+menuInput.update(dt);
+assert.equal(menuInput.state.anyPressed, true, 'a fresh A press can resume after neutral');
+menuInput.state.anyPressed = false;
+for (let i = 0; i < 20; i++) menuInput.update(dt);
+assert.equal(menuInput.state.anyPressed, false, 'held A does not repeat the resume edge');
+menuPad.buttons[0].pressed = false;
+menuPad.axes[0] = 0.1;
+menuInput.update(dt);
+assert.equal(menuInput.state.turnIntent, 0, 'stick intent keeps the existing dead zone');
+menuPad.axes[0] = 0.8;
+menuInput.update(dt);
+assert.ok(menuInput.state.turnIntent > 0 && menuInput.state.turnIntent < 0.8,
+  'stick intent remains analog after dead-zone rescaling');
+menuInput.dispose();
 
 // Spinning the board must not orbit the chase view away from its landing.
 const flying = rider();
@@ -137,4 +224,4 @@ flying.yaw = Math.PI / 2;
 for (let i = 0; i < 60; i++) chase.update(flying, 1 / 60, flat);
 assert.ok(camera.position.distanceTo(original) < 0.02, 'camera tracks flight instead of board rotation');
 assert.ok(camera.position.y >= flat.height(camera.position.x, camera.position.z) + 1.5);
-console.log('Riding checks passed: charged/late/buffered pops, ballistic air, landing assist, input taps/pads and camera.');
+console.log('Riding checks passed: charged/late/buffered pops, ballistic air, landing assist, input taps/pads, release intent, controller menus and camera.');

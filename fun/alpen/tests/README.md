@@ -13,6 +13,8 @@ node tests/hud-check.mjs
 These cover jump charge and timing, ballistic flight, trick landing assistance,
 input pulses, camera tracking, terrain continuity and determinism, shadow seams,
 model geometry budgets, shadow refresh timing, and adaptive rendering recovery.
+Input regressions include releasing a spin before touchdown, controller menu
+edges, and discarding stale jump gestures across pause and focus loss.
 HUD checks cover mode transitions, controls disclosure, focus and idle DOM writes.
 The graphics check uses a renderer stub; it does not compile GPU shaders.
 
@@ -23,6 +25,18 @@ The existing T key cycles morning, dusk and blue hour. `window.__alpen.debug()`
 reports frame time, draw calls, triangles, render scale and simulation state.
 It also reports CPU submission time and optional asynchronous GPU timing,
 including separate averages for frames that refresh or reuse shadows.
+
+The follow-up pass verified A/Start pause and resume through the production
+loop with a simulated controller, plus actual touch jump and pause controls
+at 390×844. Day, dusk and blue-hour captures at 8 km compiled without errors.
+Conifer volume uses 7.2% fewer triangles in the seeded model sample; snow
+variants share one surface and hanging needle cards supply depth. Mountain
+geometry stays at 35,840 triangles and adds one existing 1024² granite map.
+A local 160-frame renderer comparison against `76b47f0`, with a fixed camera
+and 100% internal resolution at 1440×900, measured mean sampled GPU work
+7.06 → 6.49 ms and render submission 1.03 → 0.98 ms. Both runs had 16.7 ms
+median / 18.5 ms p95 frame intervals. This isolates rendering, not gameplay
+CPU cost, and does not predict performance on other hardware.
 
 The presentation pass was checked at 1440×900 and 390×844 with desktop and
 native touch input, charged jumps, controls disclosure, pause/resume, restart,
@@ -47,3 +61,5 @@ An intermittent flat block appeared in blue-hour captures and one pause
 screenshot. It did not reproduce in direct framebuffer checks or a subsequent
 frozen-frame comparison with every particle system hidden. Its cause remains
 unconfirmed; no speculative particle fixes were applied.
+The follow-up investigation also found 30 successive frozen renders stable
+and no nonfinite values in the HDR target; it did not reproduce the block.

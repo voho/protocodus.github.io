@@ -70,9 +70,10 @@ export function createInput(target, hooks = {}) {
   // Gamepad edge state — see the pad block in `update`.
   let gamepadSuppressed = false;
   let gpJumpHeld = false;
+  let gpMenuHeld = false;
   let gpJumpStepSeen = false;
   const state = {
-    turn: 0, tuck: false, brake: false, jump: false,
+    turn: 0, turnIntent: 0, tuck: false, brake: false, jump: false,
     trickGrab: false, trickFlip: false,
     anyPressed: false, touch: false,
   };
@@ -142,6 +143,7 @@ export function createInput(target, hooks = {}) {
        in the array silencing the rest, and steering takes whichever of pad
        and keys is asking harder. */
     let gpTurn = 0, gpTuck = false, gpBrake = false, gpJump = false, gpGrab = false, gpFlip = false;
+    let gpMenu = false;
     if (hasGamepads) {
       const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
       for (let i = 0; i < gamepads.length; i++) {
@@ -163,6 +165,7 @@ export function createInput(target, hooks = {}) {
         gpJump = gpJump || !!gp.buttons[0]?.pressed;   // A
         gpGrab = gpGrab || !!gp.buttons[2]?.pressed;   // X
         gpFlip = gpFlip || !!gp.buttons[3]?.pressed;   // Y
+        gpMenu = gpMenu || !!gp.buttons[9]?.pressed;   // Start / Menu
       }
 
       /* `clear()` cannot reach inside a controller the way it empties the
@@ -171,11 +174,11 @@ export function createInput(target, hooks = {}) {
          cleared pad is ignored until every one of its controls has passed
          through neutral once. */
       if (gamepadSuppressed) {
-        if (gpTurn === 0 && !gpTuck && !gpBrake && !gpJump && !gpGrab && !gpFlip) {
+        if (gpTurn === 0 && !gpTuck && !gpBrake && !gpJump && !gpGrab && !gpFlip && !gpMenu) {
           gamepadSuppressed = false;
         } else {
           gpTurn = 0;
-          gpTuck = gpBrake = gpJump = gpGrab = gpFlip = false;
+          gpTuck = gpBrake = gpJump = gpGrab = gpFlip = gpMenu = false;
         }
       }
 
@@ -196,6 +199,9 @@ export function createInput(target, hooks = {}) {
 
     const keyTurn = (held('right') ? 1 : 0) - (held('left') ? 1 : 0);
     const want = Math.abs(gpTurn) > Math.abs(keyTurn) ? gpTurn : keyTurn;
+    // Air rotation has its own inertia. Keep the player's actual release
+    // available without waiting for the ground steering ramp to settle.
+    state.turnIntent = want;
     // Changing edges should release the old edge as promptly as letting go.
     const rate = want === 0 || want * state.turn < 0 ? RELEASE : RAMP;
     state.turn += (want - state.turn) * (1 - Math.exp(-rate * dt));
@@ -218,6 +224,14 @@ export function createInput(target, hooks = {}) {
     }
     state.trickGrab = held('grab') || gpGrab;
     state.trickFlip = held('flip') || gpFlip;
+    const menuPressed = gpMenu && !gpMenuHeld;
+    gpMenuHeld = gpMenu;
+    if (menuPressed) {
+      // One menu edge wins over a simultaneous A press. Otherwise pausing
+      // here would be immediately undone by the main loop's resume edge.
+      state.anyPressed = false;
+      hooks.key?.({ code: 'Escape' });
+    }
   }
 
   /* Called once per physics step, by whoever owns the fixed-step loop. It is
@@ -308,8 +322,13 @@ export function createInput(target, hooks = {}) {
      they released and pressed it a second time. */
   function calm() {
     state.turn = 0;
+    state.turnIntent = 0;
     state.jump = false;
-    jumpStepSeen = false;
+    state.anyPressed = false;
+    // Held buttons belong to the paused gesture, not a fresh tap to replay
+    // when physics resumes. The next new press resets these flags normally.
+    jumpStepSeen = held('jump');
+    gpJumpStepSeen = gpJumpHeld;
     jumpTapPending = false;
     jumpPulse = PULSE_NONE;
   }
@@ -327,6 +346,7 @@ export function createInput(target, hooks = {}) {
     // The pad cannot be emptied, only distrusted — see the poll in `update`.
     gamepadSuppressed = true;
     gpJumpHeld = false;
+    gpMenuHeld = false;
     gpJumpStepSeen = false;
     calm();
   }

@@ -1116,19 +1116,19 @@ const MIST_FRAG = `
 
    Unlike the range ribbons below, this carries a real radial surface and
    normals. Pitch is applied analytically in the vertex shader instead of by
-   rebuilding its 14,611 vertices whenever the route changes chapter. The
+   rebuilding its mesh whenever the route changes chapter. The
    matching radial shear on the normal keeps the precomputed facets correctly
    lit while the whole shell settles with the haze curtain. */
 const RELIEF_VERT = `
   attribute float aRadius;
   attribute float aAltitude;
-  attribute vec3 aGeology;
+  attribute vec4 aGeology;
   uniform float uPitch;
-  varying highp vec3 vWorld;
-  varying highp vec3 vLocal;
+  varying highp float vHeight;
   varying vec3 vNormal;
   varying float vAltitude;
-  varying vec3 vGeology;
+  varying float vNaturalSlope;
+  varying vec4 vGeology;
   void main() {
     float pitch = uPitch + ${FOOT.toFixed(4)};
     vec3 p = position;
@@ -1159,12 +1159,11 @@ const RELIEF_VERT = `
     vec2 radial = normalize(position.xz);
     n.xz += radial * (pitch * n.y);
     vec4 world = modelMatrix * vec4(p, 1.0);
-    vWorld = world.xyz;
-    vLocal = position;
+    vHeight = position.y;
     vNormal = normalize(mat3(modelMatrix) * n);
-    // The altitude regime follows the drawn height, so the snow line does
-    // not climb the cut sector's shoulders.
-    vAltitude = aAltitude * corridor;
+    // Cutting a view corridor changes the silhouette, not its snow climate.
+    vAltitude = aAltitude;
+    vNaturalSlope = 1.0 - abs(normal.y);
     vGeology = aGeology;
     gl_Position = projectionMatrix * viewMatrix * world;
   }
@@ -1173,71 +1172,53 @@ const RELIEF_VERT = `
 const RELIEF_FRAG = `
   precision highp float;
   uniform vec3 uSunDir;
+  uniform sampler2D uNoise;
+  uniform sampler2D uRockDetail;
   uniform vec3 uHaze, uSnow, uRockCool, uRockWarm, uIce, uAlpenglow;
   uniform float uStorm, uAir, uWhiteout;
-  varying highp vec3 vWorld;
-  varying highp vec3 vLocal;
+  varying highp float vHeight;
   varying vec3 vNormal;
   varying float vAltitude;
-  varying vec3 vGeology;
+  varying float vNaturalSlope;
+  varying vec4 vGeology;
   void main() {
-    /* Preserve the welded normal, but let the physical folds still catch the
-       moving light. The denser carrier keeps this as geology instead of
-       exposing the triangulation as a low-poly art style. */
     vec3 n = normalize(vNormal);
-    vec3 faceNormal = normalize(cross(dFdx(vWorld), dFdy(vWorld)));
-    if (dot(faceNormal, n) < 0.0) faceNormal = -faceNormal;
-    n = normalize(mix(n, faceNormal, 0.12));
-    float steep = smoothstep(0.16, 0.58, 1.0 - abs(n.y));
+    float steep = smoothstep(0.08, 0.40, vNaturalSlope);
 
-    /* Drainage has already been generated with the geometry. It lowers the
-       snow line in a few coherent gullies, which creates glacier tongues
-       rather than a texture full of unrelated pale streaks. */
-    float line = ${RELIEF.snowLine.toFixed(4)} - vGeology.x * 0.16;
-    // Snow gathers in sheltered gullies and sheds from exposed rock faces.
-    float exposure = max(0.0, dot(n.xz, uSunDir.xz));
-    float snow = smoothstep(line - ${RELIEF.snowFade.toFixed(4)},
-      line + ${RELIEF.snowFade.toFixed(4)}, vAltitude - exposure * 0.045);
-    float summitRock = steep * smoothstep(0.48, 0.84, vAltitude)
-      * (1.0 - vGeology.x * 0.58);
-    float ridgeRock = smoothstep(0.54, 0.90, vGeology.z)
-      * smoothstep(line - 0.03, 0.90, vAltitude) * 0.88;
-    float rock = clamp(max(1.0 - snow, max(summitRock, ridgeRock)), 0.0, 1.0);
-    float glacier = vGeology.x * snow
-      * smoothstep(line - 0.06, line + 0.10, vAltitude)
-      * (1.0 - smoothstep(0.78, 0.96, vAltitude));
+    // Two mipmapped samples replace the old three sine stripes. The angular
+    // coordinate closes on an integer texture repeat; the height shear gives
+    // rock ribs and snow-filled gullies rather than horizontal contour bands.
+    vec2 strata = vec2(vGeology.w + vHeight * 0.00038,
+      vAltitude * 0.28);
+    vec3 folds = texture2D(uNoise, strata).rgb;
+    vec3 grain = texture2D(uNoise, strata * vec2(8.0, 18.0)
+      + vec2(0.31, 0.17)).rgb;
+    float channel = smoothstep(0.42, 0.72,
+      folds.g * 0.65 + vGeology.x * 0.25 + grain.g * 0.10);
+    float outcrop = smoothstep(0.25, 0.75,
+      folds.r * 0.55 + vGeology.z * 0.25 + grain.r * 0.20);
+    float winter = smoothstep(${(RELIEF.snowLine - RELIEF.snowFade).toFixed(4)},
+      ${(RELIEF.snowLine + RELIEF.snowFade).toFixed(4)}, vAltitude);
+    // Geology must survive the artificial horizon pitch, which flattens the
+    // visible normals. Snow channels interrupt distinct rock ribs even there.
+    float rock = clamp(steep * (0.48 + outcrop * 0.52)
+      * (1.0 - channel * 0.72) + (1.0 - winter) * 0.16, 0.0, 1.0);
+    float snow = 1.0 - rock;
+    float glacier = channel * winter * (1.0 - steep * 0.65)
+      * (1.0 - smoothstep(0.52, 0.82, vAltitude));
+    // The existing terrain granite supplies fissures at several metres,
+    // while slope and drainage decide where snow can settle above it.
+    vec3 stone = texture2D(uRockDetail, vec2(vGeology.w * 4.0, vHeight * 0.006)).rgb;
+    float fissures = dot(stone, vec3(0.2126, 0.7152, 0.0722));
+    vec3 rockColor = mix(uRockCool, uRockWarm, vGeology.y)
+      * (0.50 + fissures * 1.60);
+    vec3 body = mix(uSnow * (0.88 + grain.g * 0.09), rockColor, rock);
+    body = mix(body, uIce, glacier * 0.20);
 
-    vec3 rockColor = mix(uRockCool, uRockWarm, vGeology.y);
-    vec3 body = mix(uSnow, rockColor, rock);
-    body = mix(body, uIce, glacier * 0.82);
-
-    /* Stone still has structure beyond the geometry's facets. Slate carries
-       fine tilted bedding; iron rock uses broader benches and cross joints.
-       Every carrier fades by screen footprint before its period aliases. */
-    float slateC = vLocal.y + vLocal.x * 0.20 + vLocal.z * 0.09;
-    float ironC = vLocal.y * 0.60 - vLocal.x * 0.13 + vLocal.z * 0.17;
-    float jointC = vLocal.x * 0.34 - vLocal.z * 0.25;
-    float slateWave = sin(mod(slateC, 64.0) * 1.276272)
-      * (1.0 - smoothstep(1.2, 3.8, fwidth(slateC)));
-    float ironWave = sin(mod(ironC, 64.0) * 0.785398)
-      * (1.0 - smoothstep(1.6, 4.5, fwidth(ironC)));
-    float jointWave = abs(sin(mod(jointC, 64.0) * 0.589049));
-    float slateInk = smoothstep(0.12, 0.90, slateWave) * 0.12;
-    float ironInk = smoothstep(-0.25, 0.78, ironWave) * 0.07
-      + (1.0 - smoothstep(0.03, 0.25, jointWave))
-        * (1.0 - smoothstep(0.35, 1.20, fwidth(jointC))) * 0.10;
-    body *= 1.0 - mix(slateInk, ironInk, vGeology.y) * rock;
-
-    /* The broad response belongs to the actual facets. A restrained ice lobe
-       is the only sharp term, and it vanishes into weather before a whiteout. */
+    // Distant snow and stone keep a broad matte response.
     float direct = max(0.0, dot(n, uSunDir));
-    float skylight = 0.64 + max(n.y, 0.0) * 0.16;
-    body *= skylight + direct * 0.38;
-    vec3 viewDir = normalize(cameraPosition - vWorld);
-    vec3 halfDir = normalize(viewDir + uSunDir);
-    float iceSpec = pow(max(0.0, dot(n, halfDir)), 36.0)
-      * glacier * (1.0 - uStorm) * 0.24;
-    body += uIce * iceSpec;
+    float skylight = 0.60 + max(n.y, 0.0) * 0.12;
+    body *= skylight + direct * 0.26;
     body += uAlpenglow * direct * snow * (0.25 + 0.75 * vAltitude);
 
     // High summit windblown snow spindrift & sunlit crest plumes
@@ -1954,19 +1935,26 @@ export function createSky(THREE) {
   // --- the ranges ----------------------------------------------------------
   const ranges = [];
 
-  /* A real mid-distance massif, generated and uploaded before the first
-     frame. Eighteen radial rows provide depth and self-occlusion; 768 angular
-     columns keep the skyline below an eight-pixel sampling interval at native
-     output. All geology masks are vertex facts and never rebuild; day, storm
-     and pitch are uniform-only changes. */
+  /* The massif's geometry and geology are generated once. Day, storm and
+     horizon pitch change only uniforms; material detail stays mipmapped. */
   const relief = (() => {
+    const rockDetail = { value: fieldTex };
+    new THREE.TextureLoader().load(
+      new URL('../assets/textures/rock/rock-granite.jpg', import.meta.url).href,
+      texture => {
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        texture.colorSpace = THREE.SRGBColorSpace;
+        texture.anisotropy = 4;
+        rockDetail.value = texture;
+      },
+    );
     const cols = RELIEF.segments + 1;
     const rows = RELIEF.radialSegments + 1;
     const count = cols * rows;
     const positions = new Float32Array(count * 3);
     const altitude = new Float32Array(count);
     const radii = new Float32Array(count);
-    const geology = new Float32Array(count * 3);
+    const geology = new Float32Array(count * 4);
     const indices = new (count > 65535 ? Uint32Array : Uint16Array)(
       RELIEF.segments * RELIEF.radialSegments * 6,
     );
@@ -2046,9 +2034,10 @@ export function createSky(THREE) {
         positions[p + 2] = Math.sin(angle) * (radius + ridgeShift);
         altitude[q] = clamp01(y / RELIEF.height);
         radii[q] = radius + ridgeShift;
-        geology[q * 3] = drainage;
-        geology[q * 3 + 1] = stone;
-        geology[q * 3 + 2] = buttress;
+        geology[q * 4] = drainage;
+        geology[q * 4 + 1] = stone;
+        geology[q * 4 + 2] = buttress;
+        geology[q * 4 + 3] = i / RELIEF.segments * 16;
         p += 3;
         q += 1;
       }
@@ -2075,7 +2064,7 @@ export function createSky(THREE) {
     geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     geo.setAttribute('aRadius', new THREE.BufferAttribute(radii, 1));
     geo.setAttribute('aAltitude', new THREE.BufferAttribute(altitude, 1));
-    geo.setAttribute('aGeology', new THREE.BufferAttribute(geology, 3));
+    geo.setAttribute('aGeology', new THREE.BufferAttribute(geology, 4));
     geo.setIndex(new THREE.BufferAttribute(indices, 1));
     geo.computeVertexNormals();
     /* The duplicate angular seam has identical positions but distinct index
@@ -2098,6 +2087,8 @@ export function createSky(THREE) {
     const mat = new THREE.ShaderMaterial({
       uniforms: {
         uPitch: { value: TERRAIN.grade.base },
+        uNoise: { value: fieldTex },
+        uRockDetail: rockDetail,
         uSunDir: { value: sunDir },
         uHaze: { value: new THREE.Color('#d7e2ec') },
         uSnow: { value: new THREE.Color('#dce7f1') },

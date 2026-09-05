@@ -1710,6 +1710,9 @@ export class Rider {
 
   airStep(dt, input) {
     const { pos, vel } = this;
+    // Ground steering eases at the input layer; air spin already eases via
+    // spinVel. A release must reach that damping and landing help immediately.
+    const turn = input.turnIntent ?? input.turn;
     this.airTime += dt;
     if (input.jump) {
       this.charging = true;
@@ -1758,8 +1761,8 @@ export class Rider {
 
     // Spin. It winds up rather than snapping on, so a 180 and a 900 are
     // different amounts of commitment rather than different key presses.
-    const wantSpin = input.turn * RIDER.spinRate * (1 + this.grab * 0.14);
-    const spinResponse = Math.abs(input.turn) < 0.05 ? RIDER.spinRamp * 2.2 : RIDER.spinRamp;
+    const wantSpin = turn * RIDER.spinRate * (1 + this.grab * 0.14);
+    const spinResponse = Math.abs(turn) < 0.05 ? RIDER.spinRamp * 2.2 : RIDER.spinRamp;
     this.spinVel = approach(this.spinVel, wantSpin, spinResponse, dt);
     this.yaw += this.spinVel * dt;
     this.spinAccum += this.spinVel * dt;
@@ -1803,7 +1806,7 @@ export class Rider {
     // A little drift, for picking a landing line. It is relative to the line
     // of travel, not to the spinning board, so D keeps moving screen-right
     // during a 360 and behaves identically in regular and switch stance.
-    const steer = input.turn * RIDER.airSteer;
+    const steer = turn * RIDER.airSteer;
     const horizontal = Math.hypot(vel.x, vel.z);
     if (horizontal > 0.5) {
       const rightX = -vel.z / horizontal;
@@ -1834,7 +1837,7 @@ export class Rider {
     pos.y += (startVy + vel.y) * 0.5 * dt;
     pos.z += vel.z * dt;
 
-    this.roll = approach(this.roll, input.turn * 0.22, 6, dt);
+    this.roll = approach(this.roll, turn * 0.22, 6, dt);
 
     const gy = this.world.height(pos.x, pos.z);
 
@@ -1842,7 +1845,7 @@ export class Rider {
     // speed alone assisted far too early on a steep landing and too late on
     // a rising face. One nearby height sample keeps the estimate inexpensive.
     if (this.airTime > RIDER.minJudgedAir
-      && (Math.abs(input.turn) < 0.05 || !input.trickFlip)) {
+      && (Math.abs(turn) < 0.05 || !input.trickFlip)) {
       const ahead = this.world.height(pos.x + vel.x * 0.08, pos.z + vel.z * 0.08);
       const closing = (ahead - gy) / 0.08 - vel.y;
       const gap = Math.max(0, pos.y - gy);
@@ -1850,7 +1853,7 @@ export class Rider {
         - closing) / RIDER.gravity;
       if (closing > 0 && toGround < RIDER.assistTime) {
         const assist = 1 - Math.exp(-RIDER.assistRate * dt);
-        if (Math.abs(input.turn) < 0.05) {
+        if (Math.abs(turn) < 0.05) {
           const travelYaw = Math.atan2(vel.x, -vel.z);
           const off = wrapPi(this.yaw - travelYaw);
           const target = Math.abs(off) > Math.PI / 2 ? travelYaw + Math.PI : travelYaw;

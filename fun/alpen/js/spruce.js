@@ -3,7 +3,7 @@
    The generated spruce-boughs-v2.png atlas keeps the original scan's layout:
    bark at the left, two green boughs above and their snowy variants below.
    Its black background is keyed in both colour and depth shaders in props.js.
-   Needle vertices carry canopy occlusion; frost owns its near-white colour
+   Bough vertices carry canopy occlusion; frost owns its near-white colour
    and uses the shared snow response. See assets/textures/GENERATED.md. */
 
 // UV rectangles matching the atlas build (three.js flipY space: v=0 is the
@@ -264,11 +264,17 @@ export function growCardSpruce(THREE, seed, spec, height, layout = SPRUCE_LAYOUT
       n.copy(nRoot).add(nTip).normalize();
       const aoR = aoRoot(t);
       const aoT = aoTip(t);
+      // The snowy atlas cell already contains the complete needled bough.
+      // Choose its surface here: overlaying another copy made floating,
+      // doubled stems and mapped a whole sprig onto each half of the fold.
+      const snowy = !layout.bare && rnd() < spec.snow * (0.45 + 0.45 * t);
+      const cRoot = (snowy ? SNOW_COL : white).map(v => v * aoR);
+      const cTip = (snowy ? SNOW_COL : white).map(v => v * aoT);
 
       for (const s of [-1, 1]) {
         // root edge is narrow (the stem), tip edge full width; outer long
         // edge folded down so the pair reads as a shallow drooping V
-        p[0].copy(o).addScaledVector(side, s * W * 0.06);
+        p[0].copy(o);
         p[1].copy(o).addScaledVector(side, s * W * 0.5)
           .addScaledVector(lift, -fold).addScaledVector(dir, L * 0.12);
         p[2].copy(o).addScaledVector(dir, L).addScaledVector(side, s * W * 0.30)
@@ -278,49 +284,25 @@ export function growCardSpruce(THREE, seed, spec, height, layout = SPRUCE_LAYOUT
         const halfU = mirror !== (s < 0)
           ? { u0: (cell.u0 + cell.u1) / 2, u1: cell.u1, v0: cell.v0, v1: cell.v1 }
           : { u0: (cell.u0 + cell.u1) / 2, u1: cell.u0, v0: cell.v0, v1: cell.v1 };
-        // corners: root-centre, root-outer, tip-outer, tip-centre
-        const P = [p[0], p[1], p[2], p[0], p[2], p[3]];
-        const N = [nRoot, nRoot, nTip, nRoot, nTip, nTip];
-        const A = [aoR, aoR, aoT, aoR, aoT, aoT];
-        const U = [
-          [halfU.u0, halfU.v0], [halfU.u1, halfU.v0], [halfU.u1, halfU.v1],
-          [halfU.u0, halfU.v0], [halfU.u1, halfU.v1], [halfU.u0, halfU.v1],
-        ];
-        for (let i = 0; i < 6; i++) {
-          pos.push(P[i].x, P[i].y, P[i].z);
-          nrm.push(N[i].x, N[i].y, N[i].z);
-          uv.push(U[i][0], U[i][1]);
-          // Needle cards own their whole colour, so the attribute is free
-          // to carry the occlusion; the card material multiplies it in.
-          col.push(A[i], A[i], A[i]);
-          own.push(1);
-        }
+        // Each side uses its own half-cell, with the same stem-to-tip UVs
+        // for green and snow-loaded boughs. Both halves face out of the crown.
+        quad(p[0], p[1], p[2], p[3], [nRoot, nRoot, nTip, nTip], halfU, false,
+          snowy ? FROST_DROP : 0, [cRoot, cRoot, cTip, cTip], snowy ? 0 : 1, s > 0);
       }
 
-      /* frost overlay: the same card, a hand above, wearing the snow cell.
-         More likely near the crown, where the fresh loads sit. */
-      if (!layout.bare && rnd() < spec.snow * (0.45 + 0.45 * t)) {
-        p[0].copy(o).addScaledVector(lift, 0.10).addScaledVector(up, 0.05);
-        p[1].copy(o).addScaledVector(side, -W * 0.5).addScaledVector(dir, L * 0.12)
-          .addScaledVector(lift, 0.10 - fold).addScaledVector(up, 0.05);
-        p[2].copy(o).addScaledVector(dir, L).addScaledVector(side, -W * 0.3)
-          .addScaledVector(lift, 0.10 - bend - fold * 0.5).addScaledVector(up, 0.05);
-        p[3].copy(o).addScaledVector(dir, L).addScaledVector(lift, 0.10 - bend)
-          .addScaledVector(up, 0.05);
+      // Needle curtains give a bough thickness from the low chase camera.
+      // A narrow vertical sprig sits below the load-bearing fold, where
+      // sheltered needles remain green. Two triangles on selected branches
+      // replace the old floating snow copies with actual crossing volume.
+      if (!layout.bare && (b + w) % 3 !== 0) {
+        p[0].copy(o).addScaledVector(dir, L * 0.18).addScaledVector(lift, -W * 0.06);
+        p[1].copy(o).addScaledVector(dir, L * 0.18).addScaledVector(lift, W * 0.02);
+        p[2].copy(o).addScaledVector(dir, L * 0.94).addScaledVector(lift, -bend + W * 0.08);
+        p[3].copy(o).addScaledVector(dir, L * 0.94).addScaledVector(lift, -bend - W * 0.34);
+        const underRoot = [aoR * 0.86, aoR * 0.86, aoR * 0.86];
+        const underTip = [aoT * 0.90, aoT * 0.90, aoT * 0.90];
         quad(p[0], p[1], p[2], p[3], [nRoot, nRoot, nTip, nTip], cell, mirror,
-          FROST_DROP, SNOW_COL, 0);
-        p[1].addScaledVector(side, W);
-        p[2].addScaledVector(side, W * 0.6);
-        /* Same corner ROLES as the first half — root-centre, root-outer,
-           tip-outer, tip-centre — so u stays across the sprig and v stays
-           root→tip. The old (p0, p3, p2, p1) order kept the winding right
-           (these corners are the first half's mirror) but swapped which
-           edges carried u and v, so the +side half wore its snow sprig
-           rotated ninety degrees; passing the roles in order fixed the
-           sprig and would have flipped the facing instead. `flip` keeps
-           both: role-true uvs, winding matching the first half. */
-        quad(p[0], p[1], p[2], p[3], [nRoot, nRoot, nTip, nTip], cell, !mirror,
-          FROST_DROP, SNOW_COL, 0, true);
+          0, [underRoot, underRoot, underTip, underTip], 1);
       }
     }
   }
@@ -340,11 +322,9 @@ export function growCardSpruce(THREE, seed, spec, height, layout = SPRUCE_LAYOUT
       p[2].copy(side).multiplyScalar(sw * 0.5); p[2].y = yTop;
       p[3].copy(side).multiplyScalar(-sw * 0.5); p[3].y = yTop;
       for (const q of p) { q.x += stemX(q.y); q.z += stemZ(q.y); }
-      quad(p[0], p[1], p[2], p[3], n, cell, k === 1, 0, white, 1);
-      if (rnd() < spec.snow) {
-        for (const q of p) q.y += 0.08;
-        quad(p[0], p[1], p[2], p[3], n, cell, k === 1, FROST_DROP, SNOW_COL, 0);
-      }
+      const snowy = rnd() < spec.snow;
+      quad(p[0], p[1], p[2], p[3], n, cell, k === 1,
+        snowy ? FROST_DROP : 0, snowy ? SNOW_COL : white, snowy ? 0 : 1);
     }
   }
 
