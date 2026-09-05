@@ -103,11 +103,12 @@ const RAY_FRAG = `
    were a fifth of a pixel and the whole question was moot, which is why this
    was never noticed: at native resolution they are four.
 
-   Two separable five-tap passes, run on the quarter-res buffer where they
-   cost a sixteenth of what they would at full size. The weights are the
-   binomial [1 4 6 4 1] taken at ±1 and ±2 texels — but sampled at ±1.2 and
-   ±3.0 rather than on the integers, so each fetch's own bilinear filter is
-   doing half the work and five taps cover the support of nine.
+   Two separable four-fetch passes, run on the quarter-res buffer where they
+   cost a sixteenth of what they would at full size. The former five fetches
+   produced the seven-texel kernel
+   [.067, .0484, .1936, .382, .1936, .0484, .067]. Split the centre between
+   its two neighbours and bilinear filtering reproduces that exact kernel
+   with four fetches, including clamp-to-edge behaviour.
 
    It runs before the ray march rather than after it, which is worth a
    sentence because it was the other way round in the first attempt. The
@@ -122,11 +123,14 @@ const BLUR_FRAG = `
   varying vec2 vUv;
   void main() {
     vec2 d = uDir * uTexel;
-    vec3 sum = texture2D(tBright, vUv).rgb * 0.382;
-    sum += (texture2D(tBright, vUv + d * 1.2).rgb
-          + texture2D(tBright, vUv - d * 1.2).rgb) * 0.242;
-    sum += (texture2D(tBright, vUv + d * 3.0).rgb
-          + texture2D(tBright, vUv - d * 3.0).rgb) * 0.067;
+    const float innerWeight = 0.3846;
+    const float outerWeight = 0.1154;
+    const float innerOffset = 0.5033801352054082;
+    const float outerOffset = 2.580589254766031;
+    vec3 sum = (texture2D(tBright, vUv + d * innerOffset).rgb
+              + texture2D(tBright, vUv - d * innerOffset).rgb) * innerWeight;
+    sum += (texture2D(tBright, vUv + d * outerOffset).rgb
+          + texture2D(tBright, vUv - d * outerOffset).rgb) * outerWeight;
     gl_FragColor = vec4(sum, 1.0);
   }
 `;
@@ -301,7 +305,8 @@ const FRAG = `
        the wide, dim halo the air itself wears around a low sun — the part of
        a glow that a single small kernel can never reach. */
     lin += texture2D(tWide, vUv).rgb * uBloomWide;
-    lin += texture2D(tRays, vUv).rgb * uRays;
+    // The disabled ray target is black; skip its full-resolution fetch.
+    if (uRays > 0.0) lin += texture2D(tRays, vUv).rgb * uRays;
 
     /* The highlight shoulder, applied in linear light where it belongs.
 
@@ -556,12 +561,21 @@ export function createRetro(THREE, renderer) {
   const gradeHighlightTarget = new THREE.Color();
   const gradeWhite = new THREE.Color(0xffffff);
 
-  const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material);
+  // One covering triangle preserves UVs without the quad's diagonal, where
+  // helper fragments otherwise execute these fullscreen shaders twice.
+  const fullscreen = new THREE.BufferGeometry();
+  fullscreen.setAttribute('position', new THREE.Float32BufferAttribute([
+    -1, -1, 0, 3, -1, 0, -1, 3, 0,
+  ], 3));
+  fullscreen.setAttribute('uv', new THREE.Float32BufferAttribute([
+    0, 0, 2, 0, 0, 2,
+  ], 2));
+  const quad = new THREE.Mesh(fullscreen, material);
   quad.frustumCulled = false;
   const post = new THREE.Scene();
   post.add(quad);
   const flat = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-  const passQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), brightMat);
+  const passQuad = new THREE.Mesh(fullscreen, brightMat);
   passQuad.frustumCulled = false;
   const passScene = new THREE.Scene();
   passScene.add(passQuad);
@@ -813,7 +827,9 @@ export function createRetro(THREE, renderer) {
       // Restore the quarter-res texel for next frame's tight pair.
       blurMat.uniforms.uTexel.value = quarterTexel;
 
-      if (rayMat.uniforms.uStrength.value > 0.001) {
+      const raysVisible = rayMat.uniforms.uStrength.value > 0.001;
+      material.uniforms.uRays.value = raysVisible ? GRADE.rays : 0;
+      if (raysVisible) {
         passQuad.material = rayMat;
         renderer.setRenderTarget(rays);
         renderer.render(passScene, flat);

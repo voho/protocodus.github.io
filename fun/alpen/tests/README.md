@@ -26,6 +26,26 @@ reports frame time, draw calls, triangles, render scale and simulation state.
 It also reports CPU submission time and optional asynchronous GPU timing,
 including separate averages for frames that refresh or reuse shadows.
 
+The efficiency pass was checked from 390×844 through 3840×2160, including
+expanded help, pause/resume and a native touch charged jump. Desktop labels
+scale from about 14.5 px at 1440 pixels wide to 25 px at 4K, independently of
+world rendering resolution. No horizontal overflow or shader errors occurred.
+A frozen-scene framebuffer comparison against `dab491a`, at 1920×1080 with
+4× MSAA, found a maximum difference of one 8-bit color step with rays both
+enabled and disabled. The equivalent blur uses four texture reads instead of
+five, inactive rays skip their composite read, and postpasses share a triangle.
+
+Four alternating baseline/current eight-second opening rides at that same
+resolution measured mean main-loop CPU time of 2.97 → 1.84 ms (about 38% less)
+and total terrain-update time of 735 → 199 ms (about 73% less). Terrain retains
+exact matching heights and surface neighborhoods across streamed builds.
+Regression checks compare six complete terrain buffers in 48 streaming/reset
+cases, including interrupted builds and seed changes at the same anchor.
+The reuse buffers add about 0.94 MiB of CPU memory and no GPU memory.
+Frame intervals stayed at 16.7 ms median / 17.6 ms p95 in both versions; GPU
+timings varied without a clear overall change. These local measurements show
+additional CPU headroom, not a guaranteed FPS increase on other hardware.
+
 The follow-up pass verified A/Start pause and resume through the production
 loop with a simulated controller, plus actual touch jump and pause controls
 at 390×844. Day, dusk and blue-hour captures at 8 km compiled without errors.

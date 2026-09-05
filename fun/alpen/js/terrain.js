@@ -1416,7 +1416,8 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   const mogulDetailMask = new Float32Array(count);
   const flankDetailMask = new Float32Array(count);
   const bulkDetailMask = new Float32Array(count);
-  const heights = new Float64Array(count);
+  let heights = new Float64Array(count);
+  let previousHeights = new Float64Array(count);
   const indices = new (count > 65535 ? Uint32Array : Uint16Array)(rows * cols * 6);
 
   // Alternate the diagonal through successive quads. Repeating one diagonal
@@ -2760,6 +2761,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   let anchorX = NaN;
   let anchorZ = NaN;
   let anchorY = NaN;
+  let anchorSeed;
   /* The snapped lattice for the anchor a build is running against.
 
      Each lane's world sample is the nearest multiple of its ring stride —
@@ -2800,18 +2802,87 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     }
   }
 
+  const previousXs = new Float64Array(vertsX);
+  const previousZs = new Float64Array(vertsZ);
+  const reuseColumns = new Int32Array(vertsX);
+  const reuseRows = new Int32Array(vertsZ);
+  const heightReused = new Uint8Array(count);
+  let heightsReady = false;
+  let heightsSeed, heightsAnchorX, heightsAnchorZ;
+  let reusedHeights = 0;
+  let reusedSurfaces = 0;
+  let surfaceSourceMatches = false;
+
+  function prepareHeightReuse(ax, az) {
+    const reusable = heightsReady && heightsSeed === getWorldSeed();
+    surfaceSourceMatches = reusable && heightsSeed === anchorSeed
+      && heightsAnchorX === anchorX && heightsAnchorZ === anchorZ;
+    if (reusable) {
+      for (let c = 0; c < vertsX; c++) previousXs[c] = heightsAnchorX + sxs[c];
+      for (let r = 0; r < vertsZ; r++) previousZs[r] = heightsAnchorZ + szs[r];
+      [heights, previousHeights] = [previousHeights, heights];
+    }
+    heightsReady = false;
+    reusedHeights = 0;
+    reusedSurfaces = 0;
+    heightReused.fill(0);
+    snapLattice(ax, az);
+    reuseColumns.fill(-1);
+    reuseRows.fill(-1);
+    if (!reusable) return;
+
+    // Both grids are sorted world lattices. Match exact coordinates once per
+    // axis; never resample, round, or interpolate a retained height.
+    let before = 0;
+    for (let c = 0; c < vertsX; c++) {
+      const x = ax + sxs[c];
+      while (before < vertsX && previousXs[before] < x) before++;
+      if (before < vertsX && previousXs[before] === x) reuseColumns[c] = before;
+    }
+    before = 0;
+    for (let r = 0; r < vertsZ; r++) {
+      const z = az + szs[r];
+      while (before < vertsZ && previousZs[before] > z) before++;
+      if (before < vertsZ && previousZs[before] === z) reuseRows[r] = before;
+    }
+  }
+
   function fillHeightRows(ax, az, rowFrom, rowTo) {
-    // Heights are generated a row at a time so everything depending only on z
-    // is computed once for the whole row rather than once per vertex.
     let i = rowFrom * vertsX;
     for (let r = rowFrom; r < rowTo; r++) {
-      rowContext(az + szs[r], ctx);
+      const previousRow = reuseRows[r];
+      let contextReady = false;
       for (let c = 0; c < vertsX; c++, i++) {
+        const previousColumn = reuseColumns[c];
+        const old = previousRow * vertsX + previousColumn;
+        // The same coordinate can cross a detail fade when the camera moves.
+        // Reuse only if every actual height-generator input still matches.
+        if (previousRow >= 0 && previousColumn >= 0
+          && coarseDetailMask[i] === coarseDetailMask[old]
+          && fineDetailMask[i] === fineDetailMask[old]
+          && mogulDetailMask[i] === mogulDetailMask[old]
+          && flankDetailMask[i] === flankDetailMask[old]
+          && bulkDetailMask[i] === bulkDetailMask[old]) {
+          heights[i] = previousHeights[old];
+          heightReused[i] = 1;
+          reusedHeights++;
+          continue;
+        }
+        if (!contextReady) {
+          rowContext(az + szs[r], ctx);
+          contextReady = true;
+        }
         heights[i] = heightIn(
           ctx, ax + sxs[c], coarseDetailMask[i], fineDetailMask[i],
           mogulDetailMask[i], flankDetailMask[i], bulkDetailMask[i],
         );
       }
+    }
+    if (rowTo === vertsZ) {
+      heightsReady = true;
+      heightsSeed = getWorldSeed();
+      heightsAnchorX = ax;
+      heightsAnchorZ = az;
     }
   }
 
@@ -2829,6 +2900,10 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       const rPrev = Math.max(0, r - 1);
       const rNext = Math.min(vertsZ - 1, r + 1);
       const dz2 = szs[rNext] - szs[rPrev] || 1;
+      const oldRow = reuseRows[r];
+      const reuseSurfaceRow = surfaceSourceMatches && outColors !== colors
+        && r > 0 && r + 1 < vertsZ && oldRow > 0 && oldRow + 1 < vertsZ
+        && reuseRows[r - 1] === oldRow - 1 && reuseRows[r + 1] === oldRow + 1;
       // The haze is radial and this test used to be one-dimensional, so a
       // vertex four hundred metres down the hill *and* four hundred to the
       // side — a corner of the grid, and there are a great many of them — was
@@ -2945,6 +3020,33 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
         outPositions[p] = lx;
         outPositions[p + 1] = h - ay;
         outPositions[p + 2] = lz;
+
+        // Material and curvature are unchanged only when the whole five-point
+        // stencil survived. Copy from the separate live buffers, never from a
+        // partially written build or across the fog shortcut's boundary.
+        const oldColumn = reuseColumns[c];
+        if (reuseSurfaceRow && c > 0 && c + 1 < vertsX
+          && oldColumn > 0 && oldColumn + 1 < vertsX
+          && reuseColumns[c - 1] === oldColumn - 1
+          && reuseColumns[c + 1] === oldColumn + 1
+          && heightReused[i] && heightReused[i - 1] && heightReused[i + 1]
+          && heightReused[i - vertsX] && heightReused[i + vertsX]
+          && lzSq + lx * lx < FOG_SKIP_SQ) {
+          const old = oldRow * vertsX + oldColumn;
+          const op = old * 3;
+          const oldX = positions[op], oldZ = positions[op + 2];
+          if (oldX * oldX + oldZ * oldZ < FOG_SKIP_SQ) {
+            for (let a = 0; a < 3; a++) {
+              outNormals[p + a] = normals[op + a];
+              outColors[p + a] = colors[op + a];
+            }
+            for (let a = 0; a < 4; a++) outSurface[q + a] = surface[old * 4 + a];
+            outGroomFrame[g] = groomFrame[old * 2];
+            outGroomFrame[g + 1] = groomFrame[old * 2 + 1];
+            reusedSurfaces++;
+            continue;
+          }
+        }
 
         const cPrev = Math.max(0, c - 1);
         const cNext = Math.min(vertsX - 1, c + 1);
@@ -3280,7 +3382,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   function fill(
     ax, az, ay, outPositions, outNormals, outColors, outSurface, outGroomFrame,
   ) {
-    snapLattice(ax, az);
+    prepareHeightReuse(ax, az);
     fillHeightRows(ax, az, 0, vertsZ);
     fillSurfaceRows(
       ax, az, ay, outPositions, outNormals, outColors, outSurface, outGroomFrame,
@@ -3323,7 +3425,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   function beginBuild(ax, az, ay) {
     // The snapped lattice belongs to the build's own anchor and holds still
     // for its whole amortised run — the live surface never reads it.
-    snapLattice(ax, az);
+    prepareHeightReuse(ax, az);
     build = { ax, az, ay, stage: 0, row: 0 };
     buildStartedAt = clockNow();
   }
@@ -3345,6 +3447,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     anchorX = next.ax;
     anchorZ = next.az;
     anchorY = next.ay;
+    anchorSeed = getWorldSeed();
     mesh.position.set(anchorX, anchorY, anchorZ);
     setTileOrigins(anchorX, anchorZ);
     build = null;
@@ -3430,6 +3533,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       anchorX = ax;
       anchorZ = az;
       anchorY = ay;
+      anchorSeed = getWorldSeed();
       mesh.position.set(ax, ay, az);
       setTileOrigins(ax, az);
       fill(ax, az, ay, positions, normals, colors, surface, groomFrame);
@@ -3475,11 +3579,13 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
        `beginBuild`: `commitBuild` translates the previous anchor's world
        state into the new one, and on the uncurtained `R` path that would
        show two or three frames of the old location.) */
-    const sameAnchor = ax === anchorX && az === anchorZ && !Number.isNaN(anchorY);
+    const sameAnchor = ax === anchorX && az === anchorZ && !Number.isNaN(anchorY)
+      && anchorSeed === getWorldSeed();
 
     anchorX = ax;
     anchorZ = az;
     anchorY = ay;
+    anchorSeed = getWorldSeed();
     mesh.position.set(ax, ay, az);
     setTileOrigins(ax, az);
 
@@ -3571,6 +3677,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     probe,
     debug: () => ({
       anchorX, anchorY, anchorZ, morphing: false, morphAge: 0, anchorMul,
+      reusedHeights, reusedSurfaces,
       chapter: chapterNameAt(anchorZ),
       // What the four gate slots are lit with this frame — the only way to
       // tell a glow that is in the wrong place from one that is not there

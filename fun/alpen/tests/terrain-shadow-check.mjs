@@ -1,5 +1,7 @@
 // Run from the game directory: node tests/terrain-shadow-check.mjs
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import * as THREE from '../../../assets/vendor/three/three.module.min.js';
 import { buildShadowTile, buildShadowTiles, toHalfFloat } from '../js/shadow-cache.js';
 import { heightAt, drawnHeightAt, corridorHalfAt, centersAt, chapterNameAt,
   guideAt, wanderAt } from '../js/terrain.js';
@@ -130,4 +132,80 @@ setWorldSeed('fresh-powder');
 assert.notEqual(heightAt(12.7, -719.2), original, 'Seeds must change the mountain');
 setWorldSeed('alpen-check');
 assert.equal(heightAt(12.7, -719.2), original, 'Restoring a seed must restore its mountain');
-console.log(`Terrain/shadow checks passed; shared tile halos use ${batchSamples}/${individualSamples} height samples; max shoulder slope jump ${maxShoulderSlopeJump.toFixed(5)}.`);
+
+// Exercise the real staged builder against fresh generator output. Private
+// hooks stay in this check; shadow initialization is already covered above.
+const terrainURL = new URL('../js/terrain.js', import.meta.url);
+let terrainSource = await readFile(terrainURL, 'utf8');
+terrainSource = terrainSource.replace(/from\s+(['"])(\.\.?\/[^'"]+)\1/g,
+  (_, quote, path) => `from ${quote}${new URL(path, terrainURL).href}${quote}`)
+  .replaceAll('import.meta.url', JSON.stringify(terrainURL.href))
+  .replace('    initializeShadowCache(x, z);\n    snapSnowReady();', '    snapSnowReady();')
+  .replace('    mesh,\n    setSun,', `    mesh,
+    checkCold(x, z) {
+      heightsReady = false;
+      fill(x, z, heightAt(x, z), positions, normals, colors, surface, groomFrame);
+    },
+    checkStream(x, z) {
+      beginBuild(x, z, heightAt(x, z));
+      while (build) advanceBuild();
+    },
+    checkInterrupt(x, z, stage) {
+      beginBuild(x, z, heightAt(x, z));
+      fillHeightRows(x, z, 0, stage ? vertsZ : 4);
+      if (stage) fillSurfaceRows(x, z, build.ay, buildPositions, buildNormals,
+        buildColors, buildSurface, buildGroomFrame, 0, 4);
+      build.stage = stage;
+      build.row = 4;
+    },
+    checkBuffers: () => [heights, positions, normals, colors, surface, groomFrame],
+    checkReuse: () => [reusedHeights, reusedSurfaces],
+    setSun,`);
+const { createTerrain } = await import('data:text/javascript;base64,'
+  + Buffer.from(terrainSource).toString('base64'));
+const headlessTHREE = { ...THREE, TextureLoader: class {
+  load(url, ready, progress, fail) { fail?.(); return new THREE.Texture(); }
+} };
+const makeTerrain = () => createTerrain(headlessTHREE, { apply: m => m, uniforms: {} });
+const streamed = makeTerrain();
+const cold = makeTerrain();
+const bufferNames = ['height', 'position', 'normal', 'color', 'surface', 'groom frame'];
+let streamChecks = 0, heightHits = 0, surfaceHits = 0;
+function compareTerrain(x, z, includeHeights = true) {
+  cold.checkCold(x, z);
+  const actual = streamed.checkBuffers(), expected = cold.checkBuffers();
+  for (let i = includeHeights ? 0 : 1; i < expected.length; i++) {
+    assert.deepEqual(actual[i], expected[i], `${bufferNames[i]} must match cold generation at ${x}, ${z}`);
+  }
+  streamChecks++;
+}
+for (const seed of ['alpen-check', 'fresh-powder', 73291]) {
+  setWorldSeed(seed);
+  streamed.reset(0, -396);
+  compareTerrain(0, -396);
+  for (const [x, z] of [[0, -402], [6, -408], [-6, -420], [0, -414], [18, -426],
+    [0, -3600], [6, -3606], [-12, -3624], [0, -8004], [6, -8010], [0, -396]]) {
+    streamed.checkStream(x, z);
+    compareTerrain(x, z);
+    const hits = streamed.checkReuse();
+    heightHits += hits[0]; surfaceHits += hits[1];
+  }
+}
+assert.ok(heightHits > streamed.vertexCount, 'Nearby anchors must reuse exact heights');
+assert.ok(surfaceHits > streamed.vertexCount, 'Unchanged stencils must reuse surface attributes');
+for (const stage of [0, 1]) {
+  for (const restart of ['same anchor', 'moved anchor', 'new seed']) {
+    setWorldSeed('alpen-check');
+    streamed.reset(0, -396);
+    streamed.checkInterrupt(6, -402, stage);
+    if (restart === 'new seed') setWorldSeed('fresh-powder');
+    const x = restart === 'moved anchor' ? -6 : 0;
+    streamed.reset(x, -396);
+    // A same-anchor restart can retain the live attributes while discarding
+    // unfinished scratch heights. The next build must refresh those safely.
+    compareTerrain(x, -396, restart !== 'same anchor');
+    streamed.checkStream(0, -408);
+    compareTerrain(0, -408);
+  }
+}
+console.log(`Terrain/shadow checks passed; ${streamChecks} exact streaming/reset cases; shared tile halos use ${batchSamples}/${individualSamples} height samples; max shoulder slope jump ${maxShoulderSlopeJump.toFixed(5)}.`);

@@ -6,7 +6,7 @@ import * as THREE from '../../../assets/vendor/three/three.module.min.js';
 import { createSky } from '../js/sky.js';
 import { createRetro } from '../js/retro.js';
 import { createSnowfall, createSpray, createStreaks } from '../js/particles.js';
-import { RENDER, SNOW, STREAKS } from '../js/config.js';
+import { RENDER, GRADE, SNOW, STREAKS } from '../js/config.js';
 
 globalThis.window = { devicePixelRatio: 1, matchMedia: () => ({ matches: false }) };
 globalThis.document = {
@@ -117,6 +117,8 @@ for (const distance of [0, 12000, 1000000]) {
 
 // Count actual render submissions and reject texture/attachment feedback.
 let target = null, submissions = 0, lastComposite = null, canvasSizes = 0, clears = 0;
+const postGeometries = new Set();
+let blurShader = '';
 const renderer = {
   autoClear: true,
   info: { reset() { submissions = 0; clears = 0; } },
@@ -132,6 +134,8 @@ const renderer = {
     scene.traverse(object => {
       const uniforms = object.material?.uniforms;
       if (!uniforms) return;
+      postGeometries.add(object.geometry);
+      if (uniforms.uDir) blurShader = object.material.fragmentShader;
       for (const uniform of Object.values(uniforms)) {
         if (target) assert.notEqual(uniform.value, target.texture, 'render target cannot sample itself');
       }
@@ -150,6 +154,53 @@ assert.equal(fullPasses, 8, 'world, tight bloom, wide bloom and composite');
 assert.equal(clears, 1, 'clear world once; fullscreen passes overwrite their targets');
 assert.equal(renderer.autoClear, true, 'post stack restores renderer clearing policy');
 assert.equal(renderer.info.autoReset, false, 'renderer statistics cover the full frame');
+assert.equal(lastComposite.uRays.value, 0, 'inactive rays contribute exactly zero without a texture fetch');
+
+// One triangle covers the same viewport and reconstructs the original UVs.
+assert.equal(postGeometries.size, 1, 'all post passes share one fullscreen geometry');
+const fullscreen = [...postGeometries][0];
+assert.equal(fullscreen.attributes.position.count, 3);
+const p = fullscreen.attributes.position;
+const uv = fullscreen.attributes.uv;
+const cross = (ax, ay, bx, by) => ax * by - ay * bx;
+const area = cross(p.getX(1) - p.getX(0), p.getY(1) - p.getY(0),
+  p.getX(2) - p.getX(0), p.getY(2) - p.getY(0));
+for (const x of [-1, -0.43, 0, 0.28, 1]) {
+  for (const y of [-1, -0.72, 0, 0.61, 1]) {
+    const a = cross(p.getX(1) - x, p.getY(1) - y, p.getX(2) - x, p.getY(2) - y) / area;
+    const b = cross(p.getX(2) - x, p.getY(2) - y, p.getX(0) - x, p.getY(0) - y) / area;
+    const c = 1 - a - b;
+    assert.ok(Math.min(a, b, c) > -1e-12, 'viewport lies inside the covering triangle');
+    close(a * uv.getX(0) + b * uv.getX(1) + c * uv.getX(2), (x + 1) / 2, 'unchanged full-screen U');
+    close(a * uv.getY(0) + b * uv.getY(1) + c * uv.getY(2), (y + 1) / 2, 'unchanged full-screen V');
+  }
+}
+
+// Read the actual shader coefficients. Impulses span all possible source
+// rows, proving the four bilinear fetches preserve the old filter, including
+// its clamped borders and tiny render targets.
+const coefficient = name => Number(blurShader.match(new RegExp(`const float ${name} = ([0-9.]+);`))[1]);
+const innerWeight = coefficient('innerWeight'), outerWeight = coefficient('outerWeight');
+const innerOffset = coefficient('innerOffset'), outerOffset = coefficient('outerOffset');
+assert.equal([...blurShader.matchAll(/texture2D\(/g)].length, 4, 'blur submits four texture fetches');
+function sample(row, x) {
+  const left = Math.floor(x), t = x - left;
+  const at = i => row[Math.min(row.length - 1, Math.max(0, i))];
+  return at(left) * (1 - t) + at(left + 1) * t;
+}
+for (const size of [1, 2, 3, 5, 9, 32]) {
+  for (let impulse = 0; impulse < size; impulse++) {
+    const row = Array.from({ length: size }, (_, i) => i === impulse ? 4 : 0);
+    for (let x = 0; x < size; x++) {
+      const original = sample(row, x) * 0.382
+        + (sample(row, x - 1.2) + sample(row, x + 1.2)) * 0.242
+        + (sample(row, x - 3) + sample(row, x + 3)) * 0.067;
+      const optimized = (sample(row, x - innerOffset) + sample(row, x + innerOffset)) * innerWeight
+        + (sample(row, x - outerOffset) + sample(row, x + outerOffset)) * outerWeight;
+      close(optimized, original, 'same HDR blur kernel at every texel and border');
+    }
+  }
+}
 retro.updatePerformance(0.6);
 assert.equal(retro.scale, RENDER.maxScale, 'an isolated stall does not reduce resolution');
 for (let i = 0; i < 120; i++) retro.updatePerformance(1 / 50);
@@ -173,9 +224,11 @@ retro.setSun(0.5, 0.8, 1);
 retro.render(scene, camera);
 assert.equal(submissions, fullPasses + 1);
 assert.equal(clears, 1);
+assert.equal(lastComposite.uRays.value, GRADE.rays, 'visible rays retain their authored strength');
 retro.setSun(0.5, 0.8, 0);
 retro.render(scene, camera);
 assert.equal(clears, 2, 'sunset clears the former ray image once');
+assert.equal(lastComposite.uRays.value, 0, 'ray sampling stops on the same frame as the light pass');
 retro.render(scene, camera);
 assert.equal(clears, 1, 'settled darkness stops clearing the unused ray target');
 retro.fade(0.6);
