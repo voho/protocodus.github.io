@@ -109,6 +109,52 @@ export function buildShadowRegion(spec, heightAt) {
     }
   }
 
+  // Distant peaks need long rays, but not the near field's dense height grid.
+  // A world-aligned coarse plate shares all long-ray probes across this batch.
+  // Precompute interpolation addresses per row/column so no height queries or
+  // coordinate rounding happen in the horizon loop below.
+  const farSteps = spec.farSteps || [];
+  const inverseFarSteps = Float64Array.from(farSteps, (step) => 1 / step);
+  let farHeights, farWidth, farX, farZ, farFX, farFZ;
+  if (farSteps.length) {
+    const farSpacing = spec.farSpacing;
+    const offsets = buildOffsets({ ...spec, spacing: farSpacing, steps: farSteps });
+    const x0 = Math.floor(worldX0 / farSpacing) + offsets.minX - 1;
+    const z0 = Math.floor(worldZ0 / farSpacing) + offsets.minZ - 1;
+    farWidth = Math.ceil((worldX0 + width * spacing) / farSpacing)
+      - x0 + offsets.maxX + 1;
+    const farHeight = Math.ceil((worldZ0 + height * spacing) / farSpacing)
+      - z0 + offsets.maxZ + 1;
+    farHeights = new Float32Array(farWidth * farHeight);
+    for (let z = 0; z < farHeight; z++) {
+      for (let x = 0; x < farWidth; x++) {
+        farHeights[z * farWidth + x] = heightAt((x0 + x) * farSpacing,
+          (z0 + z) * farSpacing);
+      }
+    }
+    const rays = directions * farSteps.length;
+    farX = new Int32Array(rays * width);
+    farZ = new Int32Array(rays * height);
+    farFX = new Float64Array(rays * width);
+    farFZ = new Float64Array(rays * height);
+    for (let ray = 0; ray < rays; ray++) {
+      for (let x = 0; x < width; x++) {
+        const u = (worldX0 + (x + 0.5) * spacing) / farSpacing - x0
+          + offsets.dx[ray] + offsets.fx[ray];
+        const i = ray * width + x;
+        farX[i] = Math.floor(u);
+        farFX[i] = u - farX[i];
+      }
+      for (let z = 0; z < height; z++) {
+        const v = (worldZ0 + (z + 0.5) * spacing) / farSpacing - z0
+          + offsets.dz[ray] + offsets.fz[ray];
+        const i = ray * height + z;
+        farZ[i] = Math.floor(v) * farWidth;
+        farFZ[i] = v - Math.floor(v);
+      }
+    }
+  }
+
   const ground = new Uint16Array(width * height);
   for (let z = 0; z < height; z++) {
     const wz = worldZ0 + (z + 0.5) * spacing;
@@ -147,6 +193,20 @@ export function buildShadowRegion(spec, heightAt) {
           const rise = a + (b - a) * fz[ray] - h;
           const slope = rise * inverseSteps[k];
           const raisedSlope = (rise - raise) * inverseSteps[k];
+          if (slope > seen) seen = slope;
+          if (raisedSlope > seenRaised) seenRaised = raisedSlope;
+        }
+        for (let k = 0; k < farSteps.length; k++) {
+          const ray = direction * farSteps.length + k;
+          const ix = ray * width + x;
+          const iz = ray * height + z;
+          const p = farX[ix] + farZ[iz];
+          const a = farHeights[p] + (farHeights[p + 1] - farHeights[p]) * farFX[ix];
+          const b = farHeights[p + farWidth]
+            + (farHeights[p + farWidth + 1] - farHeights[p + farWidth]) * farFX[ix];
+          const rise = a + (b - a) * farFZ[iz] - h;
+          const slope = rise * inverseFarSteps[k];
+          const raisedSlope = (rise - raise) * inverseFarSteps[k];
           if (slope > seen) seen = slope;
           if (raisedSlope > seenRaised) seenRaised = raisedSlope;
         }

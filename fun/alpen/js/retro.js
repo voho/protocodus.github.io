@@ -392,6 +392,31 @@ export function createRetro(THREE, renderer) {
   const hdr = isWebGL2
     && (renderer.extensions.has('EXT_color_buffer_float')
       || renderer.extensions.has('EXT_color_buffer_half_float'));
+  // Sample GPU work asynchronously, without gl.finish/readPixels or a query
+  // every frame. The frame clock includes vsync; this reveals real headroom.
+  let timer = null;
+  let gpuQuery = null;
+  let gpuPending = false;
+  let gpuFrame = 0;
+  let gpuMs = null;
+  let gpuShadowSample = false;
+  let gpuFreshShadowMs = null;
+  let gpuReusedShadowMs = null;
+
+  function resetGpuTiming() {
+    if (gpuQuery && !gl.isContextLost()) gl.deleteQuery(gpuQuery);
+    timer = isWebGL2 && !gl.isContextLost()
+      && renderer.extensions.has('EXT_disjoint_timer_query_webgl2')
+      ? renderer.extensions.get('EXT_disjoint_timer_query_webgl2') : null;
+    gpuQuery = timer ? gl.createQuery() : null;
+    gpuPending = false;
+    gpuFrame = 0;
+    gpuMs = gpuFreshShadowMs = gpuReusedShadowMs = null;
+  }
+  resetGpuTiming();
+  // Three restores its own resources; raw WebGL queries need the same care.
+  renderer.domElement?.addEventListener('webglcontextlost', resetGpuTiming);
+  renderer.domElement?.addEventListener('webglcontextrestored', resetGpuTiming);
 
   const targetOpts = {
     minFilter: THREE.LinearFilter,
@@ -678,7 +703,9 @@ export function createRetro(THREE, renderer) {
     }
     averageFrame += (dt - averageFrame) * (1 - Math.exp(-dt * 2.5));
 
-    if (averageFrame > 1 / 48) {
+    // A persistent 50 FPS is already visibly uneven on a 60 Hz display.
+    // Keep hysteresis around 60, while still ignoring isolated refill hitches.
+    if (averageFrame > 1 / 55) {
       slowFor += dt;
       fastFor = Math.max(0, fastFor - dt * 2);
     } else if (averageFrame < 1 / 57) {
@@ -704,72 +731,109 @@ export function createRetro(THREE, renderer) {
     return true;
   }
 
-  function render(worldScene, worldCamera) {
+  function render(worldScene, worldCamera, shadowUpdate = false) {
+    let timeGpu = false;
+    // An odd cadence samples both phases of the 30 Hz shadow refresh.
+    if (gpuQuery && ++gpuFrame % 13 === 0) {
+      if (gpuPending && gl.getQueryParameter(gpuQuery, gl.QUERY_RESULT_AVAILABLE)) {
+        if (!gl.getParameter(timer.GPU_DISJOINT_EXT)) {
+          gpuMs = gl.getQueryParameter(gpuQuery, gl.QUERY_RESULT) / 1e6;
+          if (gpuShadowSample) {
+            gpuFreshShadowMs = gpuFreshShadowMs === null ? gpuMs : gpuFreshShadowMs * 0.75 + gpuMs * 0.25;
+          } else {
+            gpuReusedShadowMs = gpuReusedShadowMs === null ? gpuMs : gpuReusedShadowMs * 0.75 + gpuMs * 0.25;
+          }
+        } else {
+          gpuMs = null;
+          gpuFreshShadowMs = null;
+          gpuReusedShadowMs = null;
+        }
+        gpuPending = false;
+      }
+      if (!gpuPending && !gl.getQuery(timer.TIME_ELAPSED_EXT, gl.CURRENT_QUERY)) {
+        gl.beginQuery(timer.TIME_ELAPSED_EXT, gpuQuery);
+        gpuShadowSample = shadowUpdate;
+        timeGpu = true;
+      }
+    }
     renderer.info.reset();
-    renderer.setRenderTarget(scene3d);
-    renderer.clear();
-    renderer.render(worldScene, worldCamera);
-
-    // Bright pass, blur, then the march. All three stay at quarter resolution
-    // while the scene and the final composite remain native.
-    passQuad.material = brightMat;
-    renderer.setRenderTarget(bright);
-    renderer.render(passScene, flat);
-
-    // Across, then down, and back into `bright` so everything downstream —
-    // the march and the composite — reads one buffer and neither has to know
-    // this happened.
-    passQuad.material = blurMat;
-    blurMat.uniforms.tBright.value = bright.texture;
-    blurMat.uniforms.uTexel.value = quarterTexel;
-    blurMat.uniforms.uDir.value = DIR_H;
-    renderer.setRenderTarget(blurTmp);
-    renderer.render(passScene, flat);
-
-    blurMat.uniforms.tBright.value = blurTmp.texture;
-    blurMat.uniforms.uDir.value = DIR_V;
-    renderer.setRenderTarget(bright);
-    renderer.render(passScene, flat);
-
-    // Fade out the wide halo under sustained GPU pressure, saving three
-    // passes while preserving the tight bloom and avoiding a visible switch.
-    const wideBloom = halo > 0.002;
-    material.uniforms.uBloomWide.value = GRADE.bloomWide * halo;
-    if (wideBloom) {
-      /* The halo octave: a real filtered downsample, then the two blurs. */
-      passQuad.material = downMat;
-      renderer.setRenderTarget(wide);
-      renderer.render(passScene, flat);
-
-      passQuad.material = blurMat;
-      blurMat.uniforms.tBright.value = wide.texture;
-      blurMat.uniforms.uTexel.value = sixteenthTexel;
-      blurMat.uniforms.uDir.value = DIR_H;
-      renderer.setRenderTarget(wideTmp);
-      renderer.render(passScene, flat);
-
-      blurMat.uniforms.tBright.value = wideTmp.texture;
-      blurMat.uniforms.uDir.value = DIR_V;
-      renderer.setRenderTarget(wide);
-      renderer.render(passScene, flat);
-    }
-
-    // Restore the quarter-res texel for next frame's tight pair.
-    blurMat.uniforms.uTexel.value = quarterTexel;
-
-    if (rayMat.uniforms.uStrength.value > 0.001) {
-      passQuad.material = rayMat;
-      renderer.setRenderTarget(rays);
-      renderer.render(passScene, flat);
-      raysLive = true;
-    } else if (raysLive) {
-      renderer.setRenderTarget(rays);
+    // Every post shader covers its target completely. Clear the world once;
+    // autoClear otherwise clears it twice and each fullscreen pass again.
+    const autoClear = renderer.autoClear;
+    renderer.autoClear = false;
+    try {
+      renderer.setRenderTarget(scene3d);
       renderer.clear();
-      raysLive = false;
-    }
+      renderer.render(worldScene, worldCamera);
 
-    renderer.setRenderTarget(null);
-    renderer.render(post, flat);
+      // Bright pass, blur, then the march. All three stay at quarter resolution
+      // while the scene and the final composite remain native.
+      passQuad.material = brightMat;
+      renderer.setRenderTarget(bright);
+      renderer.render(passScene, flat);
+
+      // Across, then down, and back into `bright` so everything downstream —
+      // the march and the composite — reads one buffer and neither has to know
+      // this happened.
+      passQuad.material = blurMat;
+      blurMat.uniforms.tBright.value = bright.texture;
+      blurMat.uniforms.uTexel.value = quarterTexel;
+      blurMat.uniforms.uDir.value = DIR_H;
+      renderer.setRenderTarget(blurTmp);
+      renderer.render(passScene, flat);
+
+      blurMat.uniforms.tBright.value = blurTmp.texture;
+      blurMat.uniforms.uDir.value = DIR_V;
+      renderer.setRenderTarget(bright);
+      renderer.render(passScene, flat);
+
+      // Fade out the wide halo under sustained GPU pressure, saving three
+      // passes while preserving the tight bloom and avoiding a visible switch.
+      const wideBloom = halo > 0.002;
+      material.uniforms.uBloomWide.value = GRADE.bloomWide * halo;
+      if (wideBloom) {
+        /* The halo octave: a real filtered downsample, then the two blurs. */
+        passQuad.material = downMat;
+        renderer.setRenderTarget(wide);
+        renderer.render(passScene, flat);
+
+        passQuad.material = blurMat;
+        blurMat.uniforms.tBright.value = wide.texture;
+        blurMat.uniforms.uTexel.value = sixteenthTexel;
+        blurMat.uniforms.uDir.value = DIR_H;
+        renderer.setRenderTarget(wideTmp);
+        renderer.render(passScene, flat);
+
+        blurMat.uniforms.tBright.value = wideTmp.texture;
+        blurMat.uniforms.uDir.value = DIR_V;
+        renderer.setRenderTarget(wide);
+        renderer.render(passScene, flat);
+      }
+
+      // Restore the quarter-res texel for next frame's tight pair.
+      blurMat.uniforms.uTexel.value = quarterTexel;
+
+      if (rayMat.uniforms.uStrength.value > 0.001) {
+        passQuad.material = rayMat;
+        renderer.setRenderTarget(rays);
+        renderer.render(passScene, flat);
+        raysLive = true;
+      } else if (raysLive) {
+        renderer.setRenderTarget(rays);
+        renderer.clear();
+        raysLive = false;
+      }
+
+      renderer.setRenderTarget(null);
+      renderer.render(post, flat);
+    } finally {
+      renderer.setRenderTarget(null);
+      renderer.autoClear = autoClear;
+      if (timeGpu) {
+        gl.endQuery(timer.TIME_ELAPSED_EXT);
+        gpuPending = true;
+      }
+    }
   }
 
   /* Used to dip the whole picture behind a menu, so the game reads as
@@ -909,6 +973,9 @@ export function createRetro(THREE, renderer) {
     get scale() { return scale; },
     get samples() { return scene3d.samples; },
     get frameMs() { return averageFrame * 1000; },
+    get gpuMs() { return gpuMs; },
+    get gpuFreshShadowMs() { return gpuFreshShadowMs; },
+    get gpuReusedShadowMs() { return gpuReusedShadowMs; },
     get pixel() { return 1; },
     get blur() { return material.uniforms.uBlur.value; },
     get aberration() { return material.uniforms.uAberration.value; },

@@ -2254,6 +2254,11 @@ export function createProps(THREE, shading) {
      `opts.frost` is the bare larch's snow: drawn a shade bluer than grey
      into an atlas that is otherwise luminance, and turned back into the
      prop snow colour per texel here. */
+  // The coloured bough atlas uses black outside the foliage. Derive the
+  // same coverage in both passes, including filtered edges and distant mips.
+  const boughCoverage = `
+    diffuseColor.a *= smoothstep(0.006, 0.065,
+      max(sampledDiffuseColor.r, max(sampledDiffuseColor.g, sampledDiffuseColor.b)));`;
   const spruceMat = (height, atlas, opts = {}) => {
     const m = new THREE.MeshLambertMaterial({
       map: atlas,
@@ -2280,10 +2285,18 @@ export function createProps(THREE, shading) {
         .replace('#include <common>', `#include <common>
         varying float vCardSolid;`)
         .replace('#include <map_fragment>', `#include <map_fragment>
+        ${opts.colored ? boughCoverage : ''}
         float n64FrostTexel = ${frost
     ? 'smoothstep(1.06, 1.16, diffuseColor.b / max(diffuseColor.r, 0.02))'
     : '0.0'};`)
         .replace('#include <alphamap_fragment>', `
+        ${opts.colored ? `
+        // Preserve the atlas's needle colour; the instance still supplies
+        // canopy occlusion and a restrained variation in stand brightness.
+        if (vN64Sheen < 0.5) {
+          float canopyLight = clamp(max(vColor.r, max(vColor.g, vColor.b)) * 5.5, 0.40, 1.15);
+          diffuseColor.rgb = sampledDiffuseColor.rgb * canopyLight;
+        }` : ''}
         if (vCardSolid > 0.5) diffuseColor = vec4(vColor.rgb, 1.0);
         /* The sprig cells store needle luminance, not colour: the cast on
            the instance is the colour. Lift them back to needle brightness;
@@ -2292,7 +2305,7 @@ export function createProps(THREE, shading) {
            reversed is undefined by the GLSL spec — most drivers guess the
            intent, the ones that don't draw garbage. */
         float n64Needle = 1.0 - smoothstep(0.05, 0.5, vN64Sheen);
-        diffuseColor.rgb *= mix(1.0, 1.85, n64Needle);
+        diffuseColor.rgb *= mix(1.0, ${opts.colored ? '1.0' : '1.85'}, n64Needle);
         {
           float n64NeedleUp = dot(normalize(vNormal), viewMatrix[1].xyz);
           float n64Load = smoothstep(0.15, 0.75, n64NeedleUp) * uSnowFresh * n64Needle;
@@ -2327,10 +2340,13 @@ export function createProps(THREE, shading) {
           }
         }`);
     };
-    return shading.apply(m, { cameraFade: true, sheen: 1, fogPull: FOG_PULL_TREE });
+    shading.apply(m, { cameraFade: true, sheen: 1, fogPull: FOG_PULL_TREE });
+    const programKey = m.customProgramCacheKey();
+    m.customProgramCacheKey = () => `${programKey}|bough:${!!opts.colored}|frost:${frost}`;
+    return m;
   };
 
-  const spruceDepth = (height, atlas, alphaTest) => {
+  const spruceDepth = (height, atlas, alphaTest, colored = false) => {
     const m = new THREE.MeshDepthMaterial({
       depthPacking: THREE.RGBADepthPacking, map: atlas, alphaTest,
       side: THREE.DoubleSide,
@@ -2344,10 +2360,12 @@ export function createProps(THREE, shading) {
           vCardSolid = surfaceOwn < -0.5 ? 1.0 : 0.0;`);
       shader.fragmentShader = shader.fragmentShader
         .replace('#include <common>', `#include <common>\nvarying float vCardSolid;`)
+        .replace('#include <map_fragment>', `#include <map_fragment>${colored ? boughCoverage : ''}`)
         .replace('#include <alphatest_fragment>', `
           if (vCardSolid > 0.5) diffuseColor.a = 1.0;
           #include <alphatest_fragment>`);
     };
+    m.customProgramCacheKey = () => `spruce-depth:${colored}`;
     return m;
   };
 
@@ -2375,7 +2393,7 @@ export function createProps(THREE, shading) {
      tree (see spruce.js). Until the file arrives (or if it never does) the
      grown trees simply keep standing. */
   texLoader.load(
-    new URL('../assets/textures/tree/spruce-card-atlas.webp', import.meta.url).href,
+    new URL('../assets/textures/tree/spruce-boughs-v2.png', import.meta.url).href,
     (t) => {
       t.colorSpace = THREE.SRGBColorSpace;
       t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
@@ -2387,8 +2405,8 @@ export function createProps(THREE, shading) {
         const old = treePools[i].mesh.geometry;
         treePools[i].mesh.geometry = g;
         old.dispose();
-        treePools[i].mesh.material = spruceMat(treeHeights[i], t);
-        treePools[i].mesh.customDepthMaterial = spruceDepth(treeHeights[i], t, 0.36);
+        treePools[i].mesh.material = spruceMat(treeHeights[i], t, { colored: true });
+        treePools[i].mesh.customDepthMaterial = spruceDepth(treeHeights[i], t, 0.36, true);
       }
     },
   );

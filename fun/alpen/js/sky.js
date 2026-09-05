@@ -617,7 +617,7 @@ const RELIEF = {
   inner: 750,
   crest: 1350,
   outer: 1950,
-  height: 520,
+  height: 860,
   apparentFar: 5600,
   segments: 640,
   radialSegments: 28,
@@ -1987,15 +1987,18 @@ export function createSky(THREE) {
       const radius = beforeCrest
         ? RELIEF.inner + (RELIEF.crest - RELIEF.inner) * rt
         : RELIEF.crest + (RELIEF.outer - RELIEF.crest) * rt;
-      const rise = smooth01(clamp01(t / RELIEF.crestAt));
-      const fall = smooth01(clamp01((1 - t) / (1 - RELIEF.crestAt)));
-      const radialProfile = Math.pow(rise * fall, RELIEF.profilePower);
-
       for (let i = 0; i <= RELIEF.segments; i++) {
         // Reuse exactly zero for the duplicate seam column rather than rely on
         // sin(2pi) rounding to nearly zero; every generated attribute then
         // closes bit-for-bit and the normal average cannot expose a hairline.
         const angle = i === RELIEF.segments ? 0 : (i / RELIEF.segments) * TAU;
+        // Different cirques crest at different distances. A fixed radial
+        // peak made the shell read as a single circular ridge around the run.
+        const crestAt = RELIEF.crestAt
+          + circleNoise(angle, 2.0, RELIEF.seed + 23) * 0.13;
+        const rise = smooth01(clamp01(t / crestAt));
+        const fall = smooth01(clamp01((1 - t) / (1 - crestAt)));
+        const radialProfile = Math.pow(rise * fall, RELIEF.profilePower);
         const massif = 0.5 + 0.5 * circleNoise(angle, 1.25, RELIEF.seed);
         const ridgeA = 0.5 + 0.5 * circleNoise(angle, 3.2, RELIEF.seed + 1);
         const ridgeB = 0.5 + 0.5 * circleNoise(angle, 6.8, RELIEF.seed + 2);
@@ -2030,9 +2033,9 @@ export function createSky(THREE) {
         const buttress = Math.pow(buttressField, 1.7);
         const stone = 0.5 + 0.5 * circleNoise(angle, 1.8, RELIEF.seed + 11);
         const ridgeShift = circleNoise(angle, 3.2, RELIEF.seed + 13)
-          * 54 * radialProfile;
+          * 110 * radialProfile;
         // Broken crests above broad glacial shoulders, in the same mesh.
-        const crest = Math.pow(Math.max(0, 1 - Math.abs(t - RELIEF.crestAt) / 0.24), 1.35);
+        const crest = Math.pow(Math.max(0, 1 - Math.abs(t - crestAt) / 0.24), 1.35);
         const profile = radialProfile * 0.78 + crest * 0.22;
         const y = RELIEF.height * skyline * profile
           * (0.72 + facet * 0.14 + buttress * 0.25

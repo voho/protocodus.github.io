@@ -51,6 +51,8 @@ for (let i = 0; i < 20; i++) {
   const tree = growCardSpruce(THREE, i * 7121, spec, 8 + i);
   const count = valid('tree.' + i, tree);
   assert.ok(count < 1000, 'bounded tree complexity');
+  assert.ok(tree.boundingBox.max.x - tree.boundingBox.min.x < (8 + i) * 0.8,
+    'conifer crowns leave a readable downhill corridor');
   const again = growCardSpruce(THREE, i * 7121, spec, 8 + i);
   assert.deepEqual(tree.attributes.position.array, again.attributes.position.array, 'seeded model stability');
 }

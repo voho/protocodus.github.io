@@ -53,13 +53,55 @@ for (const value of batch) {
 }
 assert.ok(batchSamples < individualSamples * 0.7, 'Adjacent tiles must share their height halo');
 
+// A shoulder several hundred metres away must still hide a low sun. The
+// coarse extension shares the near atlas and must keep its global tile seams.
+const farSpec = { ...spec, farSteps: [80, 120, 180], farSpacing: 12 };
+const farBatch = buildShadowTiles(farSpec, tiles, heightAt);
+for (let i = 0; i < tiles.length; i++) {
+  const tile = tiles[i];
+  const single = buildShadowTile({ ...farSpec,
+    originTileX: tile.x, originTileZ: tile.z }, heightAt);
+  assert.deepEqual(farBatch[i].horizon, single.horizon, 'Long rays remain seamless');
+  assert.deepEqual(farBatch[i].ground, single.ground, 'Far terrain cannot alter receivers');
+}
+const hillSpec = { ...farSpec, directions: 1, azimuth: [Math.PI / 2, Math.PI / 2],
+  originTileX: 0, originTileZ: 0 };
+const remoteHill = (x, z) => 0.28 * z + 120 * Math.exp(-(((x - 120) / 22) ** 2));
+const shortHorizon = buildShadowTile({ ...hillSpec, farSteps: [] }, remoteHill);
+const longHorizon = buildShadowTile(hillSpec, remoteHill);
+assert.ok(fromHalf(shortHorizon.horizon[0]) < 0.01, 'Near probes cannot see the remote summit');
+assert.ok(fromHalf(longHorizon.horizon[0]) > 0.90, 'Far probes include the remote summit');
+assert.ok(longHorizon.horizon[1] < longHorizon.horizon[0], 'Raised receivers clear more of the summit');
+const farPlane = buildShadowTile(farSpec, plane);
+for (let d = 0; d < spec.directions; d++) {
+  const angle = spec.azimuth[0] + d / (spec.directions - 1)
+    * (spec.azimuth[1] - spec.azimuth[0]);
+  const slope = 0.12 * Math.sin(angle) - 0.28 * Math.cos(angle);
+  const p = d * spec.tileSamples ** 2 * 2;
+  assert.ok(Math.abs(fromHalf(farPlane.horizon[p]) - slope) < 0.0003);
+  assert.ok(Math.abs(fromHalf(farPlane.horizon[p + 1])
+    - (slope - spec.raise / farSpec.farSteps.at(-1))) < 0.0006);
+}
+
 let maxShoulderSlopeJump = 0;
+let apronRelief = 0, apronAsymmetry = 0, apronSamples = 0, downhillSamples = 0;
 const chapters = new Set();
 for (const seed of ['alpen-check', 'fresh-powder', 73291]) {
   setWorldSeed(seed);
   for (let z = -10; z > -12000; z -= 19.37) {
     chapters.add(chapterNameAt(z));
     const half = corridorHalfAt(z);
+    const midpoint = (centersAt(z)[0] + centersAt(z).at(-1)) * 0.5;
+    const base = heightAt(wanderAt(z), z);
+    const leftApron = heightAt(midpoint - 250, z) - base;
+    const rightApron = heightAt(midpoint + 250, z) - base;
+    apronRelief += leftApron + rightApron;
+    apronAsymmetry += Math.abs(leftApron - rightApron);
+    apronSamples++;
+    const line = guideAt(z);
+    const pitch = (heightAt(line, z + 0.35) - heightAt(line, z - 0.35)) / 0.7;
+    downhillSamples += pitch > 0;
+    assert.ok(half >= 15, 'Even a couloir keeps a broad usable piste');
     const center = centersAt(z)[0];
     for (const x of [guideAt(z), center - half, center + half, wanderAt(z)]) {
       const h = heightAt(x, z);
@@ -79,6 +121,9 @@ for (const seed of ['alpen-check', 'fresh-powder', 73291]) {
 }
 assert.ok(maxShoulderSlopeJump < 0.025, `Shoulders must be smooth: ${maxShoulderSlopeJump}`);
 assert.equal(chapters.size, 5, 'Long descents must retain all five terrain chapters');
+assert.ok(apronRelief / (apronSamples * 2) < 90, 'Open shoulders must not become a tall canyon');
+assert.ok(apronAsymmetry / apronSamples > 8, 'Opposite flanks must describe different mountains');
+assert.ok(downhillSamples / apronSamples > 0.99, 'The easy guide line must keep descending');
 setWorldSeed('alpen-check');
 const original = heightAt(12.7, -719.2);
 setWorldSeed('fresh-powder');

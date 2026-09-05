@@ -32,6 +32,7 @@ height channel ever changes.
 - **`huts/shingle-roof-snow.jpg`**: Weathered mountain cabin wooden roof shingles with snow patches and frost dusting.
 
 ### 4. Trees & Flora (`assets/textures/tree/`)
+- **`tree/spruce-boughs-v2.png`**: Dense green spruce boughs and snow-loaded variants, generated from the original card atlas layout with the built-in image tool. Black background is keyed identically in colour and shadow shaders; bark occupies the left strip. Original atlas is retained. Used by the instanced conifer crowns, with no added mesh triangles.
 - **`tree/pine-needles.jpg`**: Alpine conifer evergreen needles.
 - **`tree/frosty-conifer-boughs.jpg`**: Dense frost-covered Norway spruce and stone pine conifer needles.
 - **`tree/tree-bark.jpg`**: Deep conifer pine bark texture.

@@ -1,33 +1,10 @@
-/* Photo-textured card conifers.
-
-   The grown trees and the low-poly imports both model a conifer as solid
-   lumps — geometry standing in for a million needles. This builder goes the
-   way real-time forests actually go: a modest trunk mesh and a few dozen
-   double-quad "branch cards", each mapped onto a photoscanned fir sprig from
-   Poly Haven's fir_tree_01 (CC0). The needle detail lives in the texture,
-   where it is genuinely photographic, and the silhouette stays light enough
-   to instance a whole treeline.
-
-   The atlas (assets/textures/tree/spruce-card-atlas.webp, built offline —
-   see assets/models/MODELS.md) is laid out for exactly this builder:
-
-     x[0..128]              tiling fir bark, opaque — the trunk samples this
-     x[128..576]  top half  sprig A, needle luminance VALUES + cutout alpha
-     x[576..1024] top half  sprig B, same
-     bottom half            frost variants of A and B — bluish white, alpha
-                            only where snow would sit on the needle tops
-
-   The sprigs are stored as VALUES (grey) rather than colours for the same
-   reason the imported models are: the per-instance cast IS the colour, so a
-   stand of card spruces scatters along the same lit/deep green axis, with
-   the same rust and ghost odds, as everything else on the hill. The frost
-   cards carry their own near-white and surfaceOwn = 0, which routes them
-   into the scene's snow tint and sparkle instead.
-
-   Species stay species: the card layout is driven by the same SPECIES table
-   the growers use — whorl counts, reach, droop, lift, bare trunk fraction,
-   snow load, storm flagging — so a weeping spruce still weeps and a storm
-   pine still leans out of the wind, just wearing real needles now. */
+/* Instanced conifers: a small trunk and folded bough cards retain species
+   variation in whorls, reach, droop, bare trunk, snow load and wind flagging.
+   The generated spruce-boughs-v2.png atlas keeps the original scan's layout:
+   bark at the left, two green boughs above and their snowy variants below.
+   Its black background is keyed in both colour and depth shaders in props.js.
+   Needle vertices carry canopy occlusion; frost owns its near-white colour
+   and uses the shared snow response. See assets/textures/GENERATED.md. */
 
 // UV rectangles matching the atlas build (three.js flipY space: v=0 is the
 // image's bottom row). Root of a sprig (its stem) sits at LOW v.
@@ -237,7 +214,9 @@ export function growCardSpruce(THREE, seed, spec, height, layout = SPRUCE_LAYOUT
   const yFrom = height * Math.max(0.10, spec.bareTo * 0.8);
   const yTo = height * 0.93;
   const flagYaw = rnd() * Math.PI * 2; // the wind this one grew in, if flagged
-  const maxR = spec.reach * height * 0.9;
+  // Narrower, deeper crowns overlap into a canopy instead of thin sheets
+  // reaching halfway across the piste. Bare larches retain their open form.
+  const maxR = spec.reach * height * (layout.bare ? 0.72 : 0.43);
   const crownYaw = rnd() * Math.PI * 2;
   const crownBias = 0.10 + rnd() * 0.14;
 
@@ -263,7 +242,7 @@ export function growCardSpruce(THREE, seed, spec, height, layout = SPRUCE_LAYOUT
 
       const cell = CELLS[(rnd() * CELLS.length) | 0];
       const mirror = rnd() < 0.5;
-      const fold = W * 0.16;
+      const fold = W * (layout.bare ? 0.16 : 0.30);
 
       const branchY = y + (rnd() - 0.5) * height / whorls * 0.28;
       o.set(stemX(branchY) + Math.cos(yaw) * r1 * 0.4, branchY,

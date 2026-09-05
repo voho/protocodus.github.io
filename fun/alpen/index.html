@@ -24,11 +24,9 @@
 <body>
   <canvas id="stage"></canvas>
 
-  <!-- ================= HUD =================
-       The readout canvas renders all HUD elements, menus, titles, controls,
-       and progress overlays in retro 5x7 bitmap graphics. -->
+  <!-- Text stays at CSS resolution even when the world scales to GPU load. -->
   <div class="hud">
-    <canvas class="readout" width="640" height="360" aria-hidden="true"></canvas>
+    <canvas class="readout" width="1" height="1" hidden aria-hidden="true"></canvas>
     <p class="sr-only" data-readout aria-live="off"></p>
     <p class="sr-only" data-callout aria-live="polite" aria-atomic="true"></p>
   </div>
@@ -48,54 +46,73 @@
     </div>
     <div class="pad-stack pad-tricks">
       <div class="pad-row">
-        <button type="button" class="pad-btn" data-key="grab" aria-label="Grab">Q</button>
-        <button type="button" class="pad-btn" data-key="flip" aria-label="Flip">E</button>
+        <button type="button" class="pad-btn" data-key="grab" aria-label="Grab">GRAB</button>
+        <button type="button" class="pad-btn" data-key="flip" aria-label="Flip">FLIP</button>
       </div>
       <button type="button" class="pad-btn pad-jump" data-key="jump">JUMP</button>
     </div>
   </div>
 
-  <!-- ================= CURTAIN (ACCESSIBILITY & EVENT CAPTURE) ================= -->
   <div class="curtain on" data-screen="start" role="dialog" aria-modal="true"
     aria-labelledby="alpen-title" tabindex="-1">
-    <div class="curtain-inner sr-only">
-      <p class="eyebrow">ALPEN · ENDLESS SNOWBOARDING <span data-seed>—</span></p>
-      <h1 class="wordmark" id="alpen-title">ALPEN<i class="spark" aria-hidden="true">✦</i></h1>
-      <p class="tagline start-only">An endless mountain, a board, and whatever you can land.
-        Nothing here can end your run — falling over just costs you the combo.</p>
+    <div class="curtain-inner">
+      <p class="eyebrow"><svg class="alpine-mark" viewBox="0 0 40 28" fill="none" aria-hidden="true"><path d="M2 25 15 3l7 12 5-8 11 18H2Z" stroke="currentColor" stroke-width="1.6"/><path d="m10 12 5 3 4-5m4 6 4 2 4-3" stroke="currentColor" stroke-width="1.3"/></svg> The mountain is yours</p>
+      <h1 class="wordmark" id="alpen-title"><span class="start-only">ALPEN</span><span class="pause-only">A breath.<br>Then back in.</span></h1>
+      <p class="tagline start-only">Find your line. Leave your tracks.<br>An endless alpine ride, at your own pace.</p>
       <p class="tagline pause-only">Paused.</p>
 
-      <dl class="keys">
-        <div><dt>A</dt><dt>D</dt><dd>Carve — and spin, once you are in the air</dd></div>
-        <div><dt>W</dt><dd>Powered tuck — accelerate up to the speed your flow unlocks. Less grip</dd></div>
-        <div><dt>S</dt><dd>Speed check — pivot across the fall line and hold the skidded edge</dd></div>
-        <div><dt>Space</dt><dd>Hold to load the legs, release to pop</dd></div>
-        <div><dt>Q</dt><dd>Grab — let go before the snow · on the snow, press the tail</dd></div>
-        <div><dt>E</dt><dd>Backflip · W noses the grab and the press, S methods it and flips forward</dd></div>
-        <div><dt>Esc</dt><dt>R</dt><dt>N</dt><dt>M</dt><dd>Pause · restart · new mountain · sound</dd></div>
-      </dl>
-
-      <dl class="touch-guide start-only">
-        <div><dt>◀ ▶</dt><dd>Carve on the snow · spin in the air</dd></div>
-        <div><dt>Boost</dt><dd>Tuck for speed · brake to scrub it</dd></div>
-        <div><dt>Jump</dt><dd>Hold to load · release to pop</dd></div>
-        <div><dt>Q · E</dt><dd>Grab or press the tail · backflip</dd></div>
-        <div><dt>+ Boost · Brake</dt><dd>Nose it · method and frontflip</dd></div>
-      </dl>
+      <div class="run-stats pause-only" aria-label="Current run">
+        <p><span>Run score</span><strong data-menu-score>0</strong></p>
+        <p><span>Distance</span><strong data-menu-distance>0.00 <small>km</small></strong></p>
+        <p><span>Vertical</span><strong data-menu-drop>0 <small>m</small></strong></p>
+      </div>
 
       <div class="loading start-only" data-loading>
         <div class="loading-track" role="progressbar" aria-labelledby="alpen-loading-label"
           aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" data-loading-bar>
           <i class="loading-fill" data-loading-fill></i>
         </div>
-        <p class="loading-label" id="alpen-loading-label" data-loading-label>Fetching the engine</p>
+        <p class="loading-label" id="alpen-loading-label" data-loading-label>Opening the mountain</p>
       </div>
 
-      <p class="go">
-        <span class="start-only"><span class="go-key">Press any key</span><span class="go-tap">Tap anywhere</span> to drop in</span>
-        <span class="pause-only"><span class="go-key">Press any key</span><span class="go-tap">Tap anywhere</span> to resume</span>
-      </p>
+      <div class="go">
+        <button class="drop-in" type="button"><span class="start-only">Drop in</span><span class="pause-only">Keep riding</span><span aria-hidden="true">↗</span></button>
+        <p class="go-hint"><span class="go-key">Press Enter or click anywhere</span><span class="go-tap">Tap anywhere to ride</span></p>
+      </div>
+
+      <div class="first-steps start-only" aria-label="The essentials">
+        <p><kbd>A</kbd> <kbd>D</kbd><span>Carve</span></p>
+        <p><kbd>Space</kbd><span>Hold, release, jump</span></p>
+        <p><kbd>S</kbd><span>Brake</span></p>
+      </div>
+      <p class="touch-first start-only">Carve with the arrows. Hold Jump, then let go.</p>
+
+      <details class="control-guide">
+        <summary>Controls &amp; tricks <span aria-hidden="true">+</span></summary>
+        <div class="control-guide-content">
+          <p class="guide-note">Falling only costs your flow. Get up and keep riding.</p>
+          <dl class="keys">
+            <div><dt>A · D / ← · →</dt><dd>Carve on snow. Spin in the air.</dd></div>
+            <div><dt>Space</dt><dd>Hold to load the legs, release to jump.</dd></div>
+            <div><dt>W / ↑</dt><dd>Tuck for speed. More flow unlocks more boost.</dd></div>
+            <div><dt>S / ↓</dt><dd>Brake and skid across the slope.</dd></div>
+            <div><dt>Q</dt><dd>Grab in the air, tail press on snow. Release before landing.</dd></div>
+            <div><dt>E</dt><dd>Backflip. Hold S for a frontflip.</dd></div>
+            <div><dt>Q + W / S</dt><dd>Nose grab or press / method grab.</dd></div>
+            <div><dt>Esc · R · N · M</dt><dd>Pause · restart · new mountain · sound.</dd></div>
+          </dl>
+          <dl class="touch-guide">
+            <div><dt>◀ · ▶</dt><dd>Carve on snow. Spin in the air.</dd></div>
+            <div><dt>Jump</dt><dd>Hold to load, release to jump.</dd></div>
+            <div><dt>Boost · Brake</dt><dd>Tuck for speed · scrub speed.</dd></div>
+            <div><dt>Grab · Flip</dt><dd>Grab or press the tail · backflip.</dd></div>
+            <div><dt>+ Boost · Brake</dt><dd>Nose grab or press · method grab and frontflip.</dd></div>
+          </dl>
+          <p class="controller-guide">Controller: left stick to carve · A to jump · X to grab · Y to flip · triggers to boost and brake.</p>
+        </div>
+      </details>
     </div>
+    <div class="curtain-footer"><span>Freeride / Endless descent</span><span>Mountain <b data-seed>—</b></span></div>
   </div>
 
   <noscript>
@@ -126,10 +143,10 @@
   <script>
     window.__alpenBoot = (function () {
       var stages = [
-        { id: 'engine', weight: 0.42, label: 'Fetching the engine' },
-        { id: 'mountain', weight: 0.30, label: 'Marching the horizon' },
-        { id: 'snow', weight: 0.10, label: 'Decoding the snow' },
-        { id: 'shaders', weight: 0.18, label: 'Compiling shaders' },
+        { id: 'engine', weight: 0.42, label: 'Opening the mountain' },
+        { id: 'mountain', weight: 0.30, label: 'Finding your horizon' },
+        { id: 'snow', weight: 0.10, label: 'Laying fresh snow' },
+        { id: 'shaders', weight: 0.18, label: 'Catching the light' },
       ];
       var done = {};
       var root = document.querySelector('[data-loading]');

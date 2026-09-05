@@ -492,10 +492,14 @@ const FRAG_SHEEN = `
          grid, fresh storm snow buries them, and the recovered shadow term
          keeps them out of cast shade. */
       float n64GDist = length(vN64View);
-      if (n64GDist < 56.0 && n64Lit > 0.015) {
+      if (n64GDist < 32.0 && n64Lit > 0.015) {
         vec3 n64WDir = normalize(vN64View * mat3(viewMatrix));
         vec2 n64GPos = mod((cameraPosition + n64WDir * n64GDist).xz, 64.0);
-        vec2 n64GCell = floor(n64GPos * 32.0);
+        vec2 n64CrystalUV = n64GPos * 32.0;
+        float n64Footprint = max(length(dFdx(n64CrystalUV)), length(dFdy(n64CrystalUV)));
+        float n64Crystal = 1.0 - smoothstep(0.18, 0.48, length(fract(n64CrystalUV) - 0.5));
+        n64Crystal *= 1.0 - smoothstep(0.35, 1.0, n64Footprint);
+        vec2 n64GCell = floor(n64CrystalUV);
         vec2 n64GTile = floor(n64GCell / 64.0);
         n64GCell += floor(vec2(n64Hash(n64GTile), n64Hash(n64GTile.yx + 3.0)) * 64.0);
         if (n64Hash(n64GCell) > 0.958) {
@@ -505,9 +509,9 @@ const FRAG_SHEEN = `
           vec3 n64VJit = mat3(viewMatrix) * n64GJit;
           vec3 n64GN = normalize(normal + n64VJit * 0.65);
           float n64Spark = pow(max(dot(n64GN, n64H), 0.0), 52.0);
-          float n64GFade = (1.0 - smoothstep(16.0, 58.0, n64GDist))
-            * n64Open * (1.0 - uSnowFresh * 0.70);
-          n64Add += n64Sun * (n64Spark * n64GFade * 4.2);
+          float n64GFade = (1.0 - smoothstep(10.0, 32.0, n64GDist))
+            * n64Crystal * n64Open * (1.0 - uSnowFresh * 0.70);
+          n64Add += n64Sun * (n64Spark * n64GFade * 1.6);
         }
       }
 

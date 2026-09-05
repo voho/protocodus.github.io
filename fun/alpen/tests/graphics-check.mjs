@@ -5,7 +5,8 @@ import assert from 'node:assert/strict';
 import * as THREE from '../../../assets/vendor/three/three.module.min.js';
 import { createSky } from '../js/sky.js';
 import { createRetro } from '../js/retro.js';
-import { RENDER } from '../js/config.js';
+import { createSnowfall, createSpray, createStreaks } from '../js/particles.js';
+import { RENDER, SNOW, STREAKS } from '../js/config.js';
 
 globalThis.window = { devicePixelRatio: 1, matchMedia: () => ({ matches: false }) };
 globalThis.document = {
@@ -106,16 +107,18 @@ for (const distance of [0, 12000, 1000000]) {
 }
 
 // Count actual render submissions and reject texture/attachment feedback.
-let target = null, submissions = 0, lastComposite = null, canvasSizes = 0;
+let target = null, submissions = 0, lastComposite = null, canvasSizes = 0, clears = 0;
 const renderer = {
-  info: { reset() { submissions = 0; } },
+  autoClear: true,
+  info: { reset() { submissions = 0; clears = 0; } },
   capabilities: { isWebGL2: false },
   getContext: () => ({}),
   setPixelRatio() {},
   setSize() { canvasSizes++; },
   setRenderTarget(value) { target = value; },
-  clear() {},
+  clear() { clears++; },
   render(scene) {
+    if (this.autoClear) this.clear();
     submissions++;
     scene.traverse(object => {
       const uniforms = object.material?.uniforms;
@@ -135,9 +138,13 @@ retro.render(scene, camera);
 const fullPasses = submissions;
 const fullWidth = retro.width;
 assert.equal(fullPasses, 8, 'world, tight bloom, wide bloom and composite');
+assert.equal(clears, 1, 'clear world once; fullscreen passes overwrite their targets');
+assert.equal(renderer.autoClear, true, 'post stack restores renderer clearing policy');
 assert.equal(renderer.info.autoReset, false, 'renderer statistics cover the full frame');
 retro.updatePerformance(0.6);
 assert.equal(retro.scale, RENDER.maxScale, 'an isolated stall does not reduce resolution');
+for (let i = 0; i < 120; i++) retro.updatePerformance(1 / 50);
+assert.ok(retro.scale < RENDER.maxScale, 'persistent 50 FPS pressure targets smoother 60 Hz riding');
 for (let i = 0; i < 300; i++) { retro.updatePerformance(1 / 25); retro.updateEffects(1 / 25); }
 assert.equal(retro.scale, RENDER.minScale, 'sustained pressure reaches the quality floor');
 assert.ok(retro.width < fullWidth);
@@ -153,4 +160,116 @@ retro.render(scene, camera);
 assert.equal(submissions, fullPasses, 'wide halo returns with recovered quality');
 assert.equal(retro.width, fullWidth);
 assert.equal(canvasSizes, 1);
+retro.setSun(0.5, 0.8, 1);
+retro.render(scene, camera);
+assert.equal(submissions, fullPasses + 1);
+assert.equal(clears, 1);
+retro.setSun(0.5, 0.8, 0);
+retro.render(scene, camera);
+assert.equal(clears, 2, 'sunset clears the former ray image once');
+retro.render(scene, camera);
+assert.equal(clears, 1, 'settled darkness stops clearing the unused ray target');
+retro.fade(0.6);
+for (let i = 0; i < 120; i++) retro.updateEffects(1 / 60, false);
+assert.equal(retro.animating, false, 'paused fade settles so rendering can sleep');
+retro.fade(1);
+for (let i = 0; i < 120; i++) retro.updateEffects(1 / 60);
+assert.equal(retro.animating, false, 'resume fade settles normally');
+
+// Timer results are optional and read only after the driver reports ready.
+let available = false, disjoint = false, timerActive = false, queries = 0;
+let contextLost = false, generation = 0;
+const timer = { TIME_ELAPSED_EXT: 1, GPU_DISJOINT_EXT: 2 };
+renderer.capabilities.isWebGL2 = true;
+renderer.extensions = { has: name => name === 'EXT_disjoint_timer_query_webgl2', get: () => timer };
+renderer.domElement = new EventTarget();
+renderer.getContext = () => ({
+  QUERY_RESULT_AVAILABLE: 3, QUERY_RESULT: 4,
+  getInternalformatParameter: () => [4, 2],
+  isContextLost: () => contextLost,
+  createQuery: () => ({ generation }),
+  deleteQuery() {},
+  getQuery: () => timerActive,
+  beginQuery(type, query) {
+    assert.equal(query.generation, generation, 'query belongs to current context');
+    assert.equal(timerActive, false); timerActive = true; queries++;
+  },
+  endQuery() { assert.equal(timerActive, true); timerActive = false; },
+  getParameter: () => disjoint,
+  getQueryParameter(query, field) {
+    assert.equal(query.generation, generation, 'never query a lost context resource');
+    if (field === 3) return available;
+    assert.equal(available, true, 'never block waiting for GPU timing');
+    return 11000000;
+  },
+});
+const timed = createRetro(THREE, renderer);
+for (let i = 0; i < 26; i++) timed.render(scene, camera);
+assert.equal(queries, 1, 'one pending sample bounds query work');
+assert.equal(timed.gpuMs, null);
+available = true;
+for (let i = 0; i < 13; i++) timed.render(scene, camera, true);
+assert.equal(timed.gpuMs, 11);
+assert.equal(timed.gpuReusedShadowMs, 11);
+disjoint = true;
+for (let i = 0; i < 13; i++) timed.render(scene, camera, true);
+assert.equal(timed.gpuMs, null, 'discard invalid GPU samples');
+assert.equal(timed.gpuReusedShadowMs, null);
+disjoint = false;
+for (let i = 0; i < 13; i++) timed.render(scene, camera);
+assert.equal(timed.gpuFreshShadowMs, 11, 'shadow refresh timing follows the sampled frame');
+contextLost = true;
+renderer.domElement.dispatchEvent(new Event('webglcontextlost'));
+assert.equal(timed.gpuMs, null, 'context loss clears stale GPU diagnostics');
+contextLost = false;
+generation++;
+renderer.domElement.dispatchEvent(new Event('webglcontextrestored'));
+for (let i = 0; i < 25; i++) timed.render(scene, camera);
+const submit = renderer.render;
+renderer.render = () => { throw new Error('test submission failure'); };
+assert.throws(() => timed.render(scene, camera), /test submission failure/);
+assert.equal(renderer.autoClear, true, 'submission failure restores clearing policy');
+assert.equal(target, null, 'submission failure restores the visible render target');
+assert.equal(timerActive, false, 'submission failure closes the active timer query');
+renderer.render = submit;
+timed.render(scene, camera);
+
+// Pool capacity must not become submitted work when only a few grains live.
+const wind = new THREE.Vector3();
+const spray = createSpray(THREE);
+const sprayGeo = spray.points.geometry;
+assert.equal(spray.points.visible, false);
+spray.burst(new THREE.Vector3(), 1, 0, 12, 0.6);
+spray.update(1 / 60, camera, wind);
+assert.equal(sprayGeo.drawRange.count, 12, 'a small burst submits only its live particles');
+assert.equal(spray.points.visible, true);
+for (let i = 0; i < SNOW.sprayCount + 20; i++) {
+  if (i % 10 === 0) spray.burst(new THREE.Vector3(), 1, 0, 13, 0.6);
+  spray.update(1 / 60, camera, wind);
+}
+const submitted = sprayGeo.index.array.subarray(0, sprayGeo.drawRange.count);
+assert.equal(new Set(submitted).size, submitted.length, 'recycled ring slots submit once');
+for (const i of submitted) assert.ok(i < SNOW.sprayCount && sprayGeo.attributes.aAlpha.array[i] >= 0);
+for (let i = 0; i < 300; i++) spray.update(1 / 60, camera, wind);
+assert.equal(spray.points.visible, false, 'expired spray stops drawing');
+assert.equal(sprayGeo.drawRange.count, 0);
+spray.burst(new THREE.Vector3(), 0, 1, 3, 0.2);
+spray.update(1 / 60, camera, wind);
+assert.equal(sprayGeo.drawRange.count, 3, 'empty pool wakes on emission');
+spray.clear();
+assert.equal(sprayGeo.drawRange.count, 0, 'restart clears submissions immediately');
+const snowfall = createSnowfall(THREE);
+snowfall.setIntensity(0);
+snowfall.update(1 / 60, camera, wind);
+assert.ok(snowfall.points.geometry.drawRange.count < SNOW.count / 2, 'flurries skip unused storm capacity');
+snowfall.setIntensity(1);
+snowfall.update(1 / 60, camera, wind);
+assert.equal(snowfall.points.geometry.drawRange.count, snowfall.points.geometry.attributes.position.count,
+  'full weather retains every authored flake and drift grain');
+const streaks = createStreaks(THREE);
+streaks.update(1 / 60, camera, wind, 0, wind);
+assert.equal(streaks.lines.visible, false, 'slow riding draws no invisible speed ribbons');
+streaks.update(1 / 60, camera, new THREE.Vector3(0, 0, -STREAKS.full), STREAKS.full, wind);
+assert.equal(streaks.lines.geometry.drawRange.count, STREAKS.count * 6);
+assert.equal(streaks.lines.visible, true);
 console.log(`Graphics checks passed: ${geometries.size} geometries, welded seams; shadows ${shadowRates.join(', ')}; stable backdrop and ${fullPasses} → ${fullPasses - 3} → ${fullPasses} post passes.`);

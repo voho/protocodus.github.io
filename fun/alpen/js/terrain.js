@@ -1,41 +1,8 @@
-/* The mountain.
-
-   There is no terrain data. `heightAt` is a pure function of a coordinate and
-   everything else in the game reads the hill through it: the rider stands on
-   it, ramps are built on top of it, trees are planted on it, and the mesh
-   below is only ever a picture of it.
-
-   Four things have changed about what that function says, and they are the
-   whole of the mountain's character.
-
-   The pitch is no longer constant. It is two long sines over a base, and the
-   height is their analytic integral — which matters more than it sounds,
-   because the alternative is marching down the hill from the summit every
-   time anything asks how high the ground is, five times per physics step. So
-   the run has chapters: pitches that stand up and ask for a real carve, and
-   runouts that hand the speed back slowly.
-
-   The route forks. Every few hundred metres the single centre line has a
-   chance of splitting in two, drifting apart around an island and closing
-   again below. The corridor is measured to whichever branch is nearer, so
-   the geometry does the rest by itself: the piste widens, an island of hill
-   rises out of the middle of it, two lines run either side, and they rejoin.
-
-   The corridor is roughly three times wider than it was, and it breathes —
-   gullies where it draws in, bowls where it opens out.
-
-   And you cannot leave it. Outside the groomed part the ground rises into a
-   quarterpipe with a real lip you can launch off, and past that into a wall
-   that climbs towards a hundred and thirty metres and then keeps creeping up
-   forever. Crossing it takes about 75 m/s of kinetic energy; high flow can
-   now clear it, while ordinary runs remain contained. There is no barrier or
-   invisible wall — the ground outside the run is simply, monotonically,
-   uphill everywhere, so gravity is always pointing home.
-
-   The mesh is a single graded grid, re-anchored to the rider in whole cells
-   and refilled from `heightAt`. Snapping to whole cells is what keeps the
-   facets welded to the ground instead of crawling across it; grading the
-   cells is what lets six thousand vertices cover most of a kilometre. */
+/* One deterministic heightfield serves riding, scenery, mesh generation and
+   shadow workers. A broad groomed line crosses asymmetric glacial shoulders;
+   the surrounding mountains rise over hundreds of metres rather than forming
+   a continuous wall. The graded grid keeps fine detail under the board and
+   world-fixed coarse samples across the distant slopes. */
 
 import { snoise2, noise2, hash2, getWorldSeed } from './noise.js';
 import { TERRAIN, RENDER } from './config.js';
@@ -346,19 +313,19 @@ function forkSplit(z) {
    minute of every run reads as the familiar treelined piste before the
    range starts turning. */
 const CHAPTERS = [
-  { name: 'glacier shelf', corridor: 1.30, lip: 0.74, wallH: 0.90,
+  { name: 'glacier shelf', corridor: 1.30, lip: 0.74, wallH: 0.86, wallW: 2.30,
     powder: 0.62, rock: 1.35, oct: [0.85, 0.72, 0.45, 0.78, 0.70],
     icy: 0.72, cover: -0.20, trees: 0.15, cliffs: 1.35 },
-  { name: 'walled couloir', corridor: 0.62, lip: 1.50, wallH: 1.14,
+  { name: 'walled couloir', corridor: 0.88, lip: 1.15, wallH: 1.22, wallW: 1.45,
     powder: 0.72, rock: 1.28, oct: [1.12, 1.18, 0.85, 1.10, 0.85],
     icy: 0.28, cover: -0.05, trees: 0.40, cliffs: 1.5 },
-  { name: 'forest vale', corridor: 1.00, lip: 0.85, wallH: 0.92,
+  { name: 'forest vale', corridor: 1.00, lip: 0.85, wallH: 0.70, wallW: 2.50,
     powder: 1.16, rock: 0.66, oct: [0.85, 1.00, 1.15, 1.00, 1.10],
     icy: 0.03, cover: 0.15, trees: 1.45, cliffs: 0.55 },
-  { name: 'powder bowls', corridor: 1.16, lip: 1.00, wallH: 1.00,
+  { name: 'powder bowls', corridor: 1.22, lip: 0.80, wallH: 0.82, wallW: 2.80,
     powder: 1.38, rock: 0.88, oct: [1.22, 1.15, 1.32, 0.85, 1.40],
     icy: 0.08, cover: 0.22, trees: 0.72, cliffs: 0.85 },
-  { name: 'wind crest', corridor: 0.84, lip: 1.16, wallH: 1.05,
+  { name: 'wind crest', corridor: 0.96, lip: 1.00, wallH: 1.05, wallW: 1.90,
     powder: 0.85, rock: 1.14, oct: [1.32, 0.88, 0.62, 1.28, 1.00],
     icy: 0.40, cover: -0.12, trees: 0.48, cliffs: 1.1 },
 ];
@@ -399,7 +366,7 @@ function chapterIndexAt(b) {
 }
 
 const chapterScratch = {
-  z: NaN, seed: NaN, name: '', corridor: 1, lip: 1, wallH: 1,
+  z: NaN, seed: NaN, name: '', corridor: 1, lip: 1, wallH: 1, wallW: 1,
   powder: 1, rock: 1, oct: [1, 1, 1, 1, 1], icy: 0, cover: 0,
   trees: 1, cliffs: 1,
 };
@@ -425,6 +392,7 @@ function chapterTraitsAt(z) {
   out.corridor = cur.corridor + (nxt.corridor - cur.corridor) * t;
   out.lip = cur.lip + (nxt.lip - cur.lip) * t;
   out.wallH = cur.wallH + (nxt.wallH - cur.wallH) * t;
+  out.wallW = cur.wallW + (nxt.wallW - cur.wallW) * t;
   out.powder = cur.powder + (nxt.powder - cur.powder) * t;
   out.rock = cur.rock + (nxt.rock - cur.rock) * t;
   for (let i = 0; i < 5; i++) out.oct[i] = cur.oct[i] + (nxt.oct[i] - cur.oct[i]) * t;
@@ -712,6 +680,7 @@ function makeContext() {
     chapterIcy: 0,       // the chapter's snowpack bias — see TERRAIN.chapters
     chapterCover: 0,
     chapterWallH: 1,
+    chapterWallW: 1,
     plain: 0,            // …and the mixture itself, for anything that wants
     bumps: 0,            // to know what kind of ground this is rather than
     swells: 0,           // merely how rough it is
@@ -769,6 +738,7 @@ function rowContext(z, ctx) {
   ctx.chapterIcy = chap.icy;
   ctx.chapterCover = chap.cover;
   ctx.chapterWallH = chap.wallH;
+  ctx.chapterWallW = chap.wallW;
   const chapterLip = chap.lip;
   const chapterCliffs = chap.cliffs;
 
@@ -1124,145 +1094,43 @@ function heightIn(ctx, x, coarseDetail = 1, fineDetail = coarseDetail,
     h += bankHeight * smooth01(Math.min(1, over / ctx.lipW));
     const w = over - ctx.lipW;
     if (w > 0) {
-      /* The walls are mountain flanks now, not one extrusion copied to both
-         sides. Two low-frequency, side-specific fields are sampled only once
-         the rideable lip is behind us. The first varies the breadth of the
-         whole flank; the other raises two long geological shoulders. Every
-         added term is monotonic across the wall, and each joins with a flat
-         derivative, so the original containment guarantee and the smooth
-         collision normal both survive. Because this is real height rather
-         than shader displacement, trees, tracks and the precomputed horizon
-         cache agree with the structure automatically. */
-      const S = wall.structure;
       const left = x < branchCentre;
       const broad = left ? ctx.wallBroadLeft : ctx.wallBroadRight;
       const detail = left ? ctx.wallDetailLeft : ctx.wallDetailRight;
-      const localScale = wall.scale * (1 - S.scaleVary + 2 * S.scaleVary * broad);
+      const localScale = wall.scale * ctx.chapterWallW * (0.72 + broad * 0.76);
       const u = w / localScale;
-      /* Ease the permanent creep in with zero value and zero derivative. The
-         lip and exponential wall both arrive flat, so introducing a 17-degree
-         crease precisely at their join defeated the otherwise smooth profile. */
-      const creepShape = w - wall.creepEase * (1 - Math.exp(-w / wall.creepEase));
       const eu = Math.exp(-u * u);
-      h += wall.height * ctx.chapterWallH * (1 - eu) + wall.creep * creepShape;
+      const rise = 1 - eu;
+      // Each side has its own drainage basin, shoulder breadth and summit.
+      // At normal riding distances this is an open snow apron; the large
+      // mountain arrives farther out and can be seen across intervening bowls.
+      const summit = wall.height * ctx.chapterWallH * (0.62 + detail * 0.92);
+      const creepEase = wall.creepEase * 5;
+      const creep = w - creepEase * (1 - Math.exp(-w / creepEase));
+      h += summit * rise + wall.creep * 0.45 * creep;
 
-      /* Alpine mountain flank geology: jagged ribs, rocky spines, stepped terraces,
-         and sculpted couloirs that give the side mountains dramatic 3D relief. */
-      const flankArrival = smoothstep(4.0, 26.0, w);
-      const ridgeNoise = snoise2(w * 0.038, z * 0.024, left ? 101 : 203);
-      const spineDetail = snoise2(w * 0.082, z * 0.054, left ? 307 : 409);
-      const jaggedTerrace = Math.abs(snoise2(w * 0.14, z * 0.11, left ? 521 : 619));
-      h += (Math.abs(ridgeNoise) * 16.0 + spineDetail * 6.5 + jaggedTerrace * 3.8) * flankArrival;
-
-      /* THE FLUTING, and it is the only term on this whole profile that
-         varies across the flank rather than along it.
-
-         Everything else out here — the breadth, the two shoulders, the
-         buttress — is a function of z, which is exactly why the walls still
-         read as two poured ramps from a rider looking down the hill: a term
-         that only changes over hundreds of metres of descent does not change
-         at all in the frame. What covers a real flank above a piste runs the
-         other way, straight down the fall line, cut by every sluff and point
-         release that has come off it since November.
-
-         `steep` is the flank's own outward gradient normalised to its peak,
-         so the channels are exactly as deep as the wall is steep: nothing at
-         the lip, nothing out on the plateau, deepest across the face in
-         between. That is both what a slide actually does and what keeps the
-         containment guarantee intact — the ratio between a channel's steepest
-         wall and the mountain's is a constant chosen in the config rather
-         than an amplitude that has to be re-checked whenever the flank lies
-         back. `wall.scale / localScale` holds the same ratio against the
-         breadth variation: a broader flank is a shallower one, and its
-         channels shallow with it.
-
-         The phase wanders on one slow noise per side, so the channels lean
-         and braid down the hill instead of standing as a comb, and the two
-         sides of the valley never mirror each other. */
-      if (flankDetail > 0.001) {
-        const steep = (2 * u * eu) / WALL_STEEP_PEAK;
-        if (steep > 0.004) {
-          const R = wall.runnels;
-          const drift = R.meander * snoise2(
-            z * R.meanderFreq, left ? -5.7 : 5.7, R.seed,
-          );
-          /* SQUARED, and that is the whole of the containment argument near
-             the lip rather than a shaping choice.
-
-             The ratio below bounds the *carrier's* slope against the wall's,
-             and it is a complete argument only for a term whose amplitude is
-             constant. It is not: the amplitude has to arrive from zero
-             somewhere, and an arrival ramp contributes its own slope of about
-             depth over its length — a constant — while the wall's own
-             gradient near the lip is going to zero linearly. So there is
-             always a band just past the lip where a linear arrival out-climbs
-             the mountain, and it was measurable: an ordinary stretch of flank
-             seven metres out went from +0.11 to −0.02, which is a pocket in
-             ground that is supposed to be monotonically uphill everywhere.
-
-             `steep` is already linear in w near the lip, so squaring it makes
-             the amplitude quadratic and its derivative linear — the same
-             order as the wall's, with a constant ratio between them, which is
-             the property the rest of this block is built on. It costs nothing
-             anybody will miss: the channels simply concentrate on the steepest
-             third of the face, which is where a slide actually cuts them. */
-          const amp = flankDetail * steep * steep * (wall.scale / localScale);
-          const lambda = R.wave * (1 - R.waveVary + 2 * R.waveVary * broad);
-          // Squared, so the channel floors are narrow and the ribs between
-          // them broad — which is the section a slide leaves, and not the
-          // symmetrical corrugation a bare cosine draws.
-          const t = 0.5 - 0.5 * Math.cos((w + drift) * (TAU / lambda));
-          h -= R.depth * amp * t * t;
-          h -= R.fineDepth * amp
-            * (0.5 - 0.5 * Math.cos((w + drift * 0.4) * (TAU / R.fineWave)));
-        }
-      }
-
-      /* THE BULK — gullies and buttresses at the scale of the face itself,
-         plus a broken surface over them, both proportional to how steep the
-         flank is here. The reasoning is in `wall.bulk`; what matters at the
-         call site is that it shares the runnels' `steep²` amplitude for the
-         same containment reason, and that both terms are pure cuts: the
-         noise is mapped into 0…1 and subtracted, so nothing here can build a
-         bump with a downhill face on it.
-
-         It has its own detail mask because it survives a far coarser mesh
-         than the fluting does — which is the point of it. The far wall is
-         several hundred metres of screen and the fluting has faded out of it
-         long before the eye stops asking what shape the mountain is. */
+      // Ridges cut diagonally across the face rather than forming repeated
+      // horizontal terraces. Smooth squared noise gives broad ribs separated
+      // by glacial channels, with no absolute-value crease under the board.
+      // Their wavelength survives the outer grid; only smaller erosion fades.
+      const ridge = snoise2(w * 0.006 + z * 0.0018,
+        z * 0.008 - w * 0.0025, left ? 101 : 203);
+      const rib = 1 - ridge * ridge;
+      h += rise * (rib * rib - 0.58) * (22 + detail * 34);
       if (bulkDetail > 0.001) {
-        const steepB = (2 * u * eu) / WALL_STEEP_PEAK;
-        if (steepB > 0.004) {
-          const B = wall.bulk;
-          const ampB = bulkDetail * steepB * steepB * (wall.scale / localScale);
-          h -= B.depth * ampB * (0.5 - 0.5 * snoise2(
-            w / B.wave, z / B.waveZ, left ? B.seed : B.seed + 41,
-          ));
-          h -= B.grain * ampB * (0.5 - 0.5 * snoise2(
-            w / B.grainWave, z / B.grainWave, left ? B.seed + 7 : B.seed + 53,
-          ));
-        }
+        const channel = snoise2(w * 0.013 + z * 0.003,
+          z * 0.021, left ? 307 : 409);
+        const steep = (2 * u * eu) / WALL_STEEP_PEAK;
+        h -= wall.bulk.depth * bulkDetail * steep * steep
+          * (0.5 + 0.5 * channel);
       }
-
-      const lowerStart = S.lowerStart[0]
-        + (S.lowerStart[1] - S.lowerStart[0]) * broad;
-      const lowerHeight = S.lowerHeight[0]
-        + (S.lowerHeight[1] - S.lowerHeight[0]) * detail;
-      const upperStart = S.upperStart[0]
-        + (S.upperStart[1] - S.upperStart[0]) * detail;
-      const upperHeight = S.upperHeight[0]
-        + (S.upperHeight[1] - S.upperHeight[0]) * broad;
-      h += lowerHeight * smoothstep(lowerStart, lowerStart + S.lowerWidth, w);
-      h += upperHeight * smoothstep(upperStart, upperStart + S.upperWidth, w);
-      /* Sharpen the high half of the already precomputed detail field into a
-         buttress. The ramp is monotonic across the flank, preserving the
-         containment guarantee, while variation down the run gives the side
-         mountain real ridges and gullies instead of one triangular plane. */
-      const rib = smoothstep(0.38, 0.78, detail);
-      const ribStart = S.ribStart[0]
-        + (S.ribStart[1] - S.ribStart[0]) * (1 - broad);
-      h += S.ribHeight * rib
-        * smoothstep(ribStart, ribStart + S.ribWidth, w);
+      if (flankDetail > 0.001) {
+        const R = wall.runnels;
+        const drift = detail * R.meander;
+        const t = 0.5 - 0.5 * Math.cos((z + w * 0.28 + drift) * TAU / R.wave);
+        const steep = (2 * u * eu) / WALL_STEEP_PEAK;
+        h -= R.depth * flankDetail * steep * steep * t * t;
+      }
     }
   }
 
@@ -1701,6 +1569,10 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     directions: shadeDirections,
     azimuth: SHADE.azimuth,
     steps: Array.from(shadeStep),
+    // Broad side mountains cast onto the run from beyond the 160 m near
+    // march. Three coarse probes add reach without enlarging its dense halo.
+    farSteps: [SHADE.reach * 1.5, SHADE.reach * 2.25, SHADE.reach * 3.375],
+    farSpacing: shadeSpacing * 4,
     raise: SHADE.raise,
     gradeBase: GRADE.base,
     // Workers have a separate module realm and therefore a separate copy of
@@ -3019,7 +2891,8 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
             * smoothstep(5, 34, h - ctx.base);
           const farRock = Math.max(
             smoothstep(0.48, 0.92, Math.hypot(-dx, grade - dz)),
-            farFlank * (0.72 + 0.28 * farDetail),
+            farFlank * smoothstep(0.30, 0.95, Math.hypot(-dx, grade - dz))
+              * (0.25 + 0.65 * farDetail),
           );
           const farKind = smoothstep(0.22, 0.78,
             farBroad * 0.62 + farDetail * 0.38);
@@ -3105,7 +2978,8 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
             * smoothstep(5, 34, h - ctx.base);
           const farRock = Math.max(
             smoothstep(0.48, 0.92, Math.hypot(-dx, grade - dz)),
-            farFlank * (0.72 + 0.28 * farDetail),
+            farFlank * smoothstep(0.30, 0.95, Math.hypot(-dx, grade - dz))
+              * (0.25 + 0.65 * farDetail),
           );
           const farKind = smoothstep(0.22, 0.78,
             farBroad * 0.62 + farDetail * 0.38);
@@ -3233,7 +3107,9 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
         const cover = clamp01(rowCover
           + P.bandWeight * (band * 2 - 1)
           - P.crestWeight * smoothstep(P.crest[0], P.crest[1], relief)
+            * smoothstep(0.12, 0.70, steep)
           - P.scourWeight * smoothstep(P.scour[0], P.scour[1], relief)
+            * smoothstep(0.38, 1.10, steep)
           + P.driftWeight * (1 - smoothstep(P.drift[0], P.drift[1], relief))
           - P.aspectWeight * (face > 0 ? face : 0)
           + P.shadeWeight * (face < 0 ? -face : 0)
@@ -3277,7 +3153,8 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
         /* Mountain cliff rock on steep faces and containment flanks */
         const steepRock = smoothstep(slip, slip + (P.slip[1] - P.slip[0]) * 0.85, steep)
           * (0.65 + 0.35 * outcropBand);
-        const thinRock = smoothstep(P.thin[0], P.thin[1], cover);
+        const thinRock = smoothstep(P.thin[0], P.thin[1], cover)
+          * smoothstep(0.18, 0.65, steep);
         const zoneRock = smoothstep(ctx.half + ctx.powderW + 4,
           ctx.half + ctx.powderW + 18, toCentre)
           * (0.08 + 0.40 * outcropBand);
@@ -3285,7 +3162,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
         const flank = smoothstep(ctx.half + ctx.bandW * 0.5,
           ctx.half + ctx.bandW + ctx.lipW + 32, toCentre);
         const flankRock = flank * smoothstep(5, 24, relief)
-          * (0.68 + 0.32 * outcropBand);
+          * smoothstep(0.30, 0.95, steep) * (0.25 + 0.65 * outcropBand);
         /* No stone inside the corridor at all — the physics has no plate of
            rock under three centimetres of snow in its model, so the picture
            must not either. Outside it, all four reasons apply. */

@@ -1281,9 +1281,11 @@ const onCocoa = () => {
 let lastStep = 0;
 let last = 0;
 let tickStep = 0;
+let cpuFrameMs = 0;
 
 function frame(now) {
   requestAnimationFrame(frame);
+  const cpuStart = performance.now();
   if (!last) last = now;
   // The unclamped delta exists for exactly one consumer: the resolution
   // governor, which has to tell a sustained 20 fps (act) from a one-off
@@ -1629,9 +1631,10 @@ function frame(now) {
 
   retro.updateEffects(dt, running);
   if (running || !pausedRendered || retro.animating) {
-    retro.render(scene, camera);
+    retro.render(scene, camera, !!keyLight()?.shadow.needsUpdate);
     pausedRendered = !running && !retro.animating;
   }
+  cpuFrameMs = performance.now() - cpuStart;
 }
 
 /* ==========================================================================
@@ -1836,6 +1839,10 @@ window.__alpen = {
     msaa: retro.samples,
     performance: {
       frameMs: +retro.frameMs.toFixed(2),
+      cpuMs: +cpuFrameMs.toFixed(2),
+      gpuMs: retro.gpuMs === null ? null : +retro.gpuMs.toFixed(2),
+      gpuFreshShadowMs: retro.gpuFreshShadowMs === null ? null : +retro.gpuFreshShadowMs.toFixed(2),
+      gpuReusedShadowMs: retro.gpuReusedShadowMs === null ? null : +retro.gpuReusedShadowMs.toFixed(2),
       drawCalls: renderer.info.render.calls,
       triangles: renderer.info.render.triangles,
       geometries: renderer.info.memory.geometries,

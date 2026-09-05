@@ -880,6 +880,9 @@ export function createSnowfall(THREE, shading) {
       streak[i] = SPINDRIFT.streak;
       if (k >= driftActive) alpha[i] = 0;
     }
+    // Falling flakes occupy the first slice, drift the last. At low wind
+    // there is no reason to run the point shader for the unused pool behind it.
+    geo.setDrawRange(0, driftActive > 0 ? fallCount + driftActive : active);
     geo.attributes.aSize.needsUpdate = true;
     geo.attributes.aStreak.needsUpdate = true;
     // The alpha upload is deferred to `update`, which knows whether this
@@ -1150,6 +1153,12 @@ export function createSpray(THREE, shading) {
   const cloud = pointCloud(THREE, n, shading);
   const { position, size, alpha, streak, seed, tint, geo } = cloud;
   const uniforms = cloud.points.material.uniforms;
+  // Ring slots stay stable for emitters; a compact index submits only live
+  // grains, preserving their existing blending order without moving records.
+  const liveIndices = new Uint16Array(n);
+  geo.setIndex(new THREE.BufferAttribute(liveIndices, 1).setUsage(THREE.DynamicDrawUsage));
+  geo.setDrawRange(0, 0);
+  cloud.points.visible = false;
   // Spray is the one cloud that glints: it is made of thrown crust rather
   // than falling aggregate, and it is the only one close enough to resolve
   // a flash. The clock below wraps well before float precision frays it.
@@ -1571,7 +1580,7 @@ export function createSpray(THREE, shading) {
         if (alpha[i] !== 0) { alpha[i] = 0; snuffed = true; }
         continue;
       }
-      live += 1;
+      liveIndices[live++] = i;
       const j = i * 3;
       life[i] -= dt;
       const f = fine[i];
@@ -1616,12 +1625,17 @@ export function createSpray(THREE, shading) {
       alpha[i] = rise * t * t * peak[i];
     }
     if (live > 0) {
+      geo.index.clearUpdateRanges();
+      geo.index.addUpdateRange(0, live);
+      geo.index.needsUpdate = true;
       geo.attributes.position.needsUpdate = true;
       geo.attributes.aSize.needsUpdate = true;
     }
     // A particle's dying frame writes one last zero into the alpha table
     // after its life has gone, so the alpha travels once more than the rest.
     if (live > 0 || snuffed) geo.attributes.aAlpha.needsUpdate = true;
+    geo.setDrawRange(0, live);
+    cloud.points.visible = live > 0;
     if (streakDirty) {
       geo.attributes.aStreak.needsUpdate = true;
       geo.attributes.aSeed.needsUpdate = true;
@@ -1649,6 +1663,8 @@ export function createSpray(THREE, shading) {
   function clear() {
     for (let i = 0; i < n; i++) { life[i] = 0; alpha[i] = 0; }
     edgeWander = 0;
+    geo.setDrawRange(0, 0);
+    cloud.points.visible = false;
     geo.attributes.aAlpha.needsUpdate = true;
   }
 
@@ -1942,6 +1958,8 @@ export function createStreaks(THREE) {
 
     const t = Math.min(1, Math.max(0, (speed - STREAKS.from) / (STREAKS.full - STREAKS.from)));
     const active = Math.round(n * t * t);
+    geo.setDrawRange(0, active * 6);
+    lines.visible = active > 0;
     // Density reaches full strength at `STREAKS.full`; line length may keep
     // communicating more speed, but it cannot grow all the way to the W cap
     // forever or each streak eventually becomes a screen-filling white bar.
