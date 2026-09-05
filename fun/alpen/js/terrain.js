@@ -2159,17 +2159,47 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
         uniform vec2 uSnowAlbedo;
         uniform vec2 uSnowHeight;`)
       .replace('#include <map_fragment>', `
-        /* FULLY BEHIND THE CURTAIN, so the fragment is pure atmosphere and
-           leaves before any of the expensive work below it. At n64Fog = 1
-           the shared fog chunk's answer is exactly n64Sky(dir) — the mist
-           term carries a (1 − fog) factor and everything else is mixed all
-           the way out — so this is the same colour the full pipeline would
-           produce, minus four texture layers, the corduroy, the snow
-           response, the shadow reads and the whole light loop. The ground
-           past the fog distance fills a band of every frame and most of the
-           screen in a storm, which is when the GPU is busiest. Terrain only:
-           an alpha-tested material taking this exit would paint its whole
-           card. The branch is coherent — fog is monotonic in depth. */
+        // Fogged fragments must still supply their neighbours' gradients.
+        // Only coordinates and derivatives run here; texture reads, material
+        // detail and lighting stay below the fully fogged early exit.
+        vec2 powderUv = uTilePowderMacro + mat2(0.9563, -0.2924, 0.2924, 0.9563)
+          * (vLocal / uSnowTile.x);
+        vec2 groomedUv = vec2(vLocal.y + uTileGroomZ, vWorld.x - vGroomFrame.x)
+          / uSnowTile.x;
+        vec2 n64MacroDx = dFdx(powderUv);
+        vec2 n64MacroDy = dFdy(powderUv);
+        vec2 n64GroomMacroDx = dFdx(groomedUv);
+        vec2 n64GroomMacroDy = dFdy(groomedUv);
+        vec2 n64CordColorUv = vec2(vLocal.y + uTileGroomZ, vWorld.x - vGroomFrame.x)
+          / uSnowTile.y;
+        vec2 n64CordColorDx = dFdx(n64CordColorUv);
+        vec2 n64CordColorDy = dFdy(n64CordColorUv);
+        float n64SlateC = vWorld.y + vWorld.x * 0.22 + vWorld.z * 0.11;
+        float n64SlateFoot = fwidth(n64SlateC);
+        float n64IronC = vWorld.y * 0.62 - vWorld.x * 0.14 + vWorld.z * 0.18;
+        float n64IronFoot = fwidth(n64IronC);
+        float n64JointC = vWorld.x * 0.39 - vWorld.z * 0.27;
+        float n64JointFoot = fwidth(n64JointC);
+        vec3 n64WorldDx = dFdx(vWorld);
+        vec3 n64WorldDy = dFdy(vWorld);
+        vec3 n64TriRaw = cross(n64WorldDx, n64WorldDy);
+        vec2 n64DetailUv = uTilePowderDetail + mat2(0.9563, -0.2924, 0.2924, 0.9563)
+          * (vLocal / uSnowTile.y);
+        vec2 n64GroomDetailUv = n64CordColorUv;
+        vec2 n64DetailDx = dFdx(n64DetailUv);
+        vec2 n64DetailDy = dFdy(n64DetailUv);
+        vec2 n64GroomDetailDx = n64CordColorDx;
+        vec2 n64GroomDetailDy = n64CordColorDy;
+        float n64FarAcross = vWorld.x * 0.985 - vWorld.z * 0.174;
+        float n64FarAlong = vWorld.x * 0.174 + vWorld.z * 0.985;
+        float n64FarSwayA = n64FarAlong * 0.0628;
+        float n64FarPhaseA = n64FarAcross * 0.816 + sin(n64FarSwayA) * 2.1;
+        float n64FarSwayB = n64FarAlong * 0.224 + 2.1;
+        float n64FarPhaseB = n64FarAcross * 1.904 + sin(n64FarSwayB) * 1.3;
+        float n64FarPhaseG = (vWorld.x - vGroomFrame.x) * 1.30;
+        float n64FarFadeA = 1.0 - smoothstep(0.55, 1.55, fwidth(n64FarPhaseA));
+        float n64FarFadeB = 1.0 - smoothstep(0.55, 1.55, fwidth(n64FarPhaseB));
+        float n64FarFadeG = 1.0 - smoothstep(0.55, 1.55, fwidth(n64FarPhaseG));
         {
           float n64EarlyD = length(vN64View);
           if (n64EarlyD * uFogPull >= uFogFar) {
@@ -2203,13 +2233,9 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
            along the rotated axis, so the pattern would step sideways every
            time the origin moved. The rotation is linear, so the anchor's share
            is rotated on the CPU instead and wrapped into the tile there. */
-        vec2 powderUv = uTilePowderMacro + mat2(0.9563, -0.2924, 0.2924, 0.9563)
-          * (vLocal / uSnowTile.x);
         /* The groomer travelled down the fall line. U advances downhill; V
            is measured from the precomputed local phase origin, so equal-V
            ribs bend with the piste and choose their own separated fork. */
-        vec2 groomedUv = vec2(vLocal.y + uTileGroomZ, vWorld.x - vGroomFrame.x)
-          / uSnowTile.x;
         /* The screen footprint, taken as gradients rather than as a width,
            because the fetch below needs the same two vectors and this is the
            only place in the shader where they can honestly be measured.
@@ -2219,14 +2245,10 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
            the ones inside it a meaningful rate of change. Both fetches below
            now sit behind a distance-and-material fade, which is exactly the
            kind of condition that splits a quad along a fade boundary — so
-           the gradients are measured out here where every fragment still
-           agrees, and handed to the fetch explicitly. A width is |ddx| plus
+           the gradients are measured before the fog exit, while every
+           neighbour is still present, and handed to the fetch explicitly. A width is |ddx| plus
            |ddy| by definition, so the footprint is unchanged.
            (No back-ticks in here: this comment is inside a template literal.) */
-        vec2 n64MacroDx = dFdx(powderUv);
-        vec2 n64MacroDy = dFdy(powderUv);
-        vec2 n64GroomMacroDx = dFdx(groomedUv);
-        vec2 n64GroomMacroDy = dFdy(groomedUv);
         float n64PowderMacroFoot = max(
           abs(n64MacroDx.x) + abs(n64MacroDy.x),
           abs(n64MacroDx.y) + abs(n64MacroDy.y)) * 32.0;
@@ -2294,10 +2316,6 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
            it before the stripe period approaches a pixel. This keeps the
            piste readable beside the board without exporting moire into the
            landscape or the retro resolution pass. */
-        vec2 n64CordColorUv = vec2(vLocal.y + uTileGroomZ, vWorld.x - vGroomFrame.x)
-          / uSnowTile.y;
-        vec2 n64CordColorDx = dFdx(n64CordColorUv);
-        vec2 n64CordColorDy = dFdy(n64CordColorUv);
         float n64CordColorFoot = abs(n64CordColorDx.y)
           + abs(n64CordColorDy.y);
         float n64CordColorResolve = 1.0
@@ -2316,12 +2334,6 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
            carriers dissolve against their own screen footprint before they
            can turn into distant stripes. The material family is the generated
            W channel, so a geological band stays one stone from base to crest. */
-        float n64SlateC = vWorld.y + vWorld.x * 0.22 + vWorld.z * 0.11;
-        float n64SlateFoot = fwidth(n64SlateC);
-        float n64IronC = vWorld.y * 0.62 - vWorld.x * 0.14 + vWorld.z * 0.18;
-        float n64IronFoot = fwidth(n64IronC);
-        float n64JointC = vWorld.x * 0.39 - vWorld.z * 0.27;
-        float n64JointFoot = fwidth(n64JointC);
         /* THE FACET NORMAL, TAKEN OUT HERE ON PURPOSE.
 
            This is the triplanar blend's normal, and it used to be derived
@@ -2348,7 +2360,6 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
            two quad neighbours land on one world position, the cross product
            is zero and a bare normalize would put the NaN straight back.
            (No back-ticks in here: this comment is inside a template literal.) */
-        vec3 n64TriRaw = cross(dFdx(vWorld), dFdy(vWorld));
         float n64TriLen = length(n64TriRaw);
         vec3 n64TriN = n64TriLen > 1e-12
           ? n64TriRaw / n64TriLen
@@ -2410,13 +2421,19 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
           n64TriW *= n64TriW;
           n64TriW /= max(n64TriW.x + n64TriW.y + n64TriW.z, 1e-4);
           vec4 n64RockSample =
-              texture2D(uRockTex, vWorld.zy * 0.055) * n64TriW.x
-            + texture2D(uRockTex, vWorld.xz * 0.055) * n64TriW.y
-            + texture2D(uRockTex, vWorld.xy * 0.055) * n64TriW.z;
+              texture2DGradEXT(uRockTex, vWorld.zy * 0.055,
+                n64WorldDx.zy * 0.055, n64WorldDy.zy * 0.055) * n64TriW.x
+            + texture2DGradEXT(uRockTex, vWorld.xz * 0.055,
+                n64WorldDx.xz * 0.055, n64WorldDy.xz * 0.055) * n64TriW.y
+            + texture2DGradEXT(uRockTex, vWorld.xy * 0.055,
+                n64WorldDx.xy * 0.055, n64WorldDy.xy * 0.055) * n64TriW.z;
           vec4 n64GraniteSample =
-              texture2D(uSandstoneTex, vWorld.zy * 0.04) * n64TriW.x
-            + texture2D(uSandstoneTex, vWorld.xz * 0.04) * n64TriW.y
-            + texture2D(uSandstoneTex, vWorld.xy * 0.04) * n64TriW.z;
+              texture2DGradEXT(uSandstoneTex, vWorld.zy * 0.04,
+                n64WorldDx.zy * 0.04, n64WorldDy.zy * 0.04) * n64TriW.x
+            + texture2DGradEXT(uSandstoneTex, vWorld.xz * 0.04,
+                n64WorldDx.xz * 0.04, n64WorldDy.xz * 0.04) * n64TriW.y
+            + texture2DGradEXT(uSandstoneTex, vWorld.xy * 0.04,
+                n64WorldDx.xy * 0.04, n64WorldDy.xy * 0.04) * n64TriW.z;
           vec3 n64RockTexel = mix(n64RockSample.rgb, n64GraniteSample.rgb, clamp(vRockKind, 0.0, 1.0));
           /* THE CONTACT. The vertex field says how much of this cell is
              rock; the plate says where on the face it breaks through. Snow
@@ -2445,10 +2462,14 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
               min(n64LedgeSnow * 0.72, 0.8));
           }
         }`)
+      // Terrain always uses its height-field normal. Skip Three's unused
+      // flat-normal derivatives, which would otherwise run after the fog exit.
+      // The material's flatShading flag still preserves the shadow layout.
+      .replace('#include <normal_fragment_begin>', `
+        float faceDirection = gl_FrontFacing ? 1.0 : -1.0;
+        vec3 normal = normalize(vSmoothNormal);
+        vec3 nonPerturbedNormal = normal;`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
-        // Hide the graded grid's triangle topology from lighting while leaving
-        // its actual geometry, depth and shadow coordinates untouched.
-        normal = normalize(vSmoothNormal);
         /* The same beds that break up rock albedo lean its normal a few
            degrees, so they catch and lose the moving sun instead of reading as
            stripes painted on a smooth wall. Slate leans across its thin beds;
@@ -2468,10 +2489,6 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
         /* The plates' height, spent as light rather than geometry: its
            slope leans the smooth normal — powder sastrugi off-piste and
            machine ribs on it, at a scale the 75 cm mesh cannot carry. */
-        vec2 n64DetailUv = uTilePowderDetail + mat2(0.9563, -0.2924, 0.2924, 0.9563)
-          * (vLocal / uSnowTile.y);
-        vec2 n64GroomDetailUv = vec2(vLocal.y + uTileGroomZ, vWorld.x - vGroomFrame.x)
-          / uSnowTile.y;
         /* THE SLOPES ARE BAKED. The plates' B and A channels carry the two
            finite differences this block used to take with three fetches: the
            same 9 cm powder probe and 1.8 cm corduroy probe, along the same
@@ -2488,10 +2505,6 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
            nothing, and the corduroy's own rib footprint, because a regular
            carrier still owes the screen a Nyquist margin.
            (No back-ticks in here: this comment is inside a template literal.) */
-        vec2 n64DetailDx = dFdx(n64DetailUv);
-        vec2 n64DetailDy = dFdy(n64DetailUv);
-        vec2 n64GroomDetailDx = dFdx(n64GroomDetailUv);
-        vec2 n64GroomDetailDy = dFdy(n64GroomDetailUv);
         float n64DetailFoot = max(
           abs(n64DetailDx.x) + abs(n64DetailDy.x),
           abs(n64DetailDx.y) + abs(n64DetailDy.y));
@@ -2579,9 +2592,8 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
            frame and therefore bending with the route and forking with it. */
         float n64FarLive = smoothstep(60.0, 125.0, vDist)
           * (1.0 - smoothstep(380.0, 520.0, vDist)) * n64SnowMask;
-        /* THE THREE PHASES AND THEIR FOOTPRINTS, MEASURED OUT HERE, where
-           every fragment in the quad still agrees that they are being
-           measured. Derivatives are only defined in uniform control flow, and
+        /* THE THREE PHASES AND THEIR FOOTPRINTS are measured before the
+           fog exit, while every fragment in the quad is still present. Derivatives are only defined in uniform control flow, and
            the gate below is not uniform: it varies with distance across the
            60-125 m and 380-520 m fades and with the snow mask at every rock
            boundary, so a quad split along any of those owes the fragments
@@ -2590,16 +2602,9 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
            places it exists to protect. The same argument, and the same
            remedy, as the plate fetches above.
            (No back-ticks in here: this comment is inside a template literal.) */
-        float n64FarAcross = vWorld.x * 0.985 - vWorld.z * 0.174;
-        float n64FarAlong = vWorld.x * 0.174 + vWorld.z * 0.985;
         // Drift lines: eight metres across, a hundred down the wind.
-        float n64FarSwayA = n64FarAlong * 0.0628;
-        float n64FarPhaseA = n64FarAcross * 0.816 + sin(n64FarSwayA) * 2.1;
         // Soft sastrugi over the top: three metres across, thirty along.
-        float n64FarSwayB = n64FarAlong * 0.224 + 2.1;
-        float n64FarPhaseB = n64FarAcross * 1.904 + sin(n64FarSwayB) * 1.3;
         // The machine's passes, in the groomer's own frame.
-        float n64FarPhaseG = (vWorld.x - vGroomFrame.x) * 1.30;
         /* Each carrier dissolves against its own screen footprint, and this
            is the load-bearing part rather than a nicety: measured in radians
            of phase per pixel, past about one and a half there are fewer than
@@ -2608,9 +2613,6 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
            what keeps the gate open at all down a piste seen nearly edge-on —
            almost all of the variation is across the run, which is the axis a
            grazing view foreshortens least. */
-        float n64FarFadeA = 1.0 - smoothstep(0.55, 1.55, fwidth(n64FarPhaseA));
-        float n64FarFadeB = 1.0 - smoothstep(0.55, 1.55, fwidth(n64FarPhaseB));
-        float n64FarFadeG = 1.0 - smoothstep(0.55, 1.55, fwidth(n64FarPhaseG));
         if (n64FarLive > 0.003) {
           float n64FarPatch = 0.26 + 0.74 * n64Noise(vWorld.xz * 0.0135);
           /* THE MATERIAL, NOT THE TEXTURE. Which of the two far fields this

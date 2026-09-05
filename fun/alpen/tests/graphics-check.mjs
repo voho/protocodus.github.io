@@ -2,6 +2,7 @@
 // Real geometry, materials and targets; stand-ins cover only canvas, image IO
 // and renderer submissions. Shader compilation and appearance need browser QA.
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import * as THREE from '../../../assets/vendor/three/three.module.min.js';
 import { createSky } from '../js/sky.js';
 import { createRetro } from '../js/retro.js';
@@ -113,6 +114,104 @@ for (const distance of [0, 12000, 1000000]) {
   }
   const massif = sky.group.getObjectByName('mid-distance massifs');
   assert.ok(Math.abs(massif.position.z) <= 120, 'forward backdrop parallax remains bounded');
+}
+
+// Pin both weather axes inside the test module so every band is checked with
+// its complete derived palette, fog, wind and snowfall. Production stays free
+// of test overrides, and the existing graphics scene exercises each result.
+const weatherURL = new URL('../js/weather.js', import.meta.url);
+let weatherSource = await readFile(weatherURL, 'utf8');
+weatherSource = weatherSource.replace(/from\s+(['"])(\.\.?\/[^'"]+)\1/g,
+  (_, quote, path) => `from ${quote}${new URL(path, weatherURL).href}${quote}`)
+  .replace('  let dayClock = 0;', '  let testStorm;\n  let dayClock = 0;')
+  .replace('    const s = state.storm;', '    state.storm = testStorm ?? state.storm;\n    const s = state.storm;')
+  .replace('return { state, update, pin, release, triggerStorm };', `return {
+    check(tod, storm) { testStorm = storm; frozen = tod; pinnedTod = tod;
+      fogSettled = false; return update(0); }
+  };`);
+const modeWeather = (await import('data:text/javascript;base64,'
+  + Buffer.from(weatherSource).toString('base64'))).createWeather(THREE);
+const skyPosition = new THREE.Vector3(0, -2800, -8000);
+const luma = c => c.r * 0.2126 + c.g * 0.7152 + c.b * 0.0722;
+const hemisphere = sky.lights.children.find(light => light.isHemisphereLight);
+const farRange = sky.group.getObjectByName('far-range');
+const bands = new Set();
+let weatherCases = 0;
+for (const tod of [0, 0.09, 0.17, 0.30, 0.48, 0.66, 0.79, 0.86, 0.95]) {
+  let previousFar = Infinity, previousKey = Infinity;
+  for (const storm of [0, 0.1, 0.26, 0.48, 0.72, 1]) {
+    const mode = modeWeather.check(tod, storm);
+    bands.add(mode.conditions.split(' · ')[0]);
+    for (const value of Object.values(mode)) {
+      if (typeof value === 'number') assert.ok(Number.isFinite(value));
+      if (value?.isColor) assert.ok(value.toArray().every(Number.isFinite));
+    }
+    assert.ok(mode.fogFar <= previousFar && mode.keyI <= previousKey);
+    assert.ok(mode.fogFar >= 68 && mode.fogNear >= 10 && mode.fogNear < mode.fogFar);
+    assert.equal(mode.snow, storm * 1.06, 'atmospheric tuning keeps every authored flake');
+    previousFar = mode.fogFar; previousKey = mode.keyI;
+    sky.update(skyPosition, mode, 1 / 60);
+    if (tod === 0 && storm === 1) {
+      assert.ok(luma(hemisphere.color) * hemisphere.intensity > 0.045,
+        'a night storm retains diffuse light for the immediate riding line');
+    }
+    weatherCases++;
+  }
+}
+assert.equal(bands.size, 6, 'all six snowfall bands are exercised');
+sky.update(skyPosition, modeWeather.check(0.48, 0), 0);
+const dayRange = luma(farRange.material.uniforms.uPeak.value);
+const nightMode = modeWeather.check(0, 0);
+sky.update(skyPosition, nightMode, 0);
+assert.ok(luma(farRange.material.uniforms.uPeak.value) < dayRange * 0.25,
+  'night fallback mountains cannot retain their daytime exposure');
+const star = sky.group.children.find(object => object.isPoints);
+sky.update(skyPosition, { ...nightMode, cloud: 0 }, 0);
+const clearStars = star.material.uniforms.uAlpha.value;
+sky.update(skyPosition, { ...nightMode, cloud: 0.8 }, 0);
+assert.ok(star.material.uniforms.uAlpha.value < clearStars * 0.4,
+  'cloud veils the star field even without falling snow');
+
+// Loaded plates must hide a sun behind their ridge, including an outgoing
+// photograph during crossfade. Synthetic images have an unambiguous skyline.
+const createCanvas = document.createElement;
+document.createElement = () => {
+  const canvas = createCanvas();
+  const context = canvas.getContext('2d');
+  let skylineY = 51;
+  context.drawImage = image => { skylineY = image.skylineY; };
+  context.getImageData = (x, y, width, height) => ({ data: Uint8ClampedArray.from(
+    { length: width * height * 4 }, (_, i) => Math.floor(i / 4 / width) < skylineY ? 20 : 220) });
+  canvas.getContext = () => context;
+  return canvas;
+};
+const plateSky = createSky({ ...THREE, TextureLoader: class {
+  load(url, ready) {
+    const texture = new THREE.Texture();
+    texture.image = { skylineY: url.includes('sunset') ? 63 : 51 };
+    ready?.(texture); return texture;
+  }
+} });
+document.createElement = createCanvas;
+const disc = plateSky.group.children.find(object => object.material?.uniforms?.uMoon);
+const daylight = { ...modeWeather.check(0.48, 0), cloud: 0, elevation: 0.15 };
+for (let i = 0; i < 4; i++) plateSky.update(skyPosition, daylight, 1);
+assert.equal(disc.material.uniforms.uOpacity.value, 0, 'a photographed ridge occludes the disc');
+plateSky.update(skyPosition, { ...daylight, elevation: 0.6 }, 0);
+assert.ok(disc.material.uniforms.uOpacity.value > 0.9, 'the sun above the ridge remains visible');
+const sunset = { ...daylight, tod: 0.66 };
+plateSky.update(skyPosition, sunset, 0.5);
+assert.equal(disc.material.uniforms.uOpacity.value, 0, 'an outgoing high ridge still hides the sun');
+for (let i = 0; i < 40; i++) plateSky.update(skyPosition, sunset, 1 / 6);
+assert.ok(disc.material.uniforms.uOpacity.value > 0.9, 'the sun clears the incoming lower ridge');
+for (const tod of [0, 0.09, 0.86, 0.95]) {
+  const mode = modeWeather.check(tod, 0);
+  plateSky.update(skyPosition, mode, 1 / 60);
+  sky.update(skyPosition, mode, 1 / 60);
+  assert.ok(plateSky.group.children.filter(object => object.name === 'far-range')
+    .every(object => !object.visible), 'dim night photos must not revive fallback ribbons');
+  assert.ok(sky.group.children.filter(object => object.name === 'far-range')
+    .every(object => object.visible), 'missing photos retain the procedural skyline');
 }
 
 // Count actual render submissions and reject texture/attachment feedback.
@@ -334,4 +433,4 @@ assert.equal(streaks.lines.visible, false, 'slow riding draws no invisible speed
 streaks.update(1 / 60, camera, new THREE.Vector3(0, 0, -STREAKS.full), STREAKS.full, wind);
 assert.equal(streaks.lines.geometry.drawRange.count, STREAKS.count * 6);
 assert.equal(streaks.lines.visible, true);
-console.log(`Graphics checks passed: ${geometries.size} geometries, welded seams; shadows ${shadowRates.join(', ')}; stable backdrop and ${fullPasses} → ${fullPasses - 3} → ${fullPasses} post passes.`);
+console.log(`Graphics checks passed: ${geometries.size} geometries, ${weatherCases} weather cases; shadows ${shadowRates.join(', ')}; stable backdrop and ${fullPasses} → ${fullPasses - 3} → ${fullPasses} post passes.`);

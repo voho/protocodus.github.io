@@ -20,22 +20,34 @@ const VERT = `
   }
 `;
 
+// One invalid HDR texel otherwise spreads through both bloom kernels into a
+// large rectangle. Keep valid radiance unchanged and contain invalid samples
+// before filtering or grading. Three's WebGL2 shaders provide isnan/isinf.
+const SCENE_SAMPLE = `
+  vec3 sceneColor(vec2 uv) {
+    vec3 c = texture2D(tDiffuse, uv).rgb;
+    if (any(isnan(c)) || any(isinf(c))) return vec3(0.0);
+    return c;
+  }
+`;
+
 /* Pass one of the light: everything above the shoulder, at a quarter size,
    with the sun's own disc allowed through hardest. Four taps a fetch, so the
    downsample is a box filter rather than a point sample — point-sampling a
    bright pass is how you get bloom that crawls. */
 const BRIGHT_FRAG = `
-  precision mediump float;
+  precision highp float;
   uniform sampler2D tDiffuse;
   uniform vec2 uTexel;
   uniform float uThreshold;
   varying vec2 vUv;
+  ${SCENE_SAMPLE}
 
   void main() {
-    vec3 c = texture2D(tDiffuse, vUv + vec2(-uTexel.x, -uTexel.y)).rgb
-           + texture2D(tDiffuse, vUv + vec2( uTexel.x, -uTexel.y)).rgb
-           + texture2D(tDiffuse, vUv + vec2(-uTexel.x,  uTexel.y)).rgb
-           + texture2D(tDiffuse, vUv + vec2( uTexel.x,  uTexel.y)).rgb;
+    vec3 c = sceneColor(vUv + vec2(-uTexel.x, -uTexel.y))
+           + sceneColor(vUv + vec2( uTexel.x, -uTexel.y))
+           + sceneColor(vUv + vec2(-uTexel.x,  uTexel.y))
+           + sceneColor(vUv + vec2( uTexel.x,  uTexel.y));
     c *= 0.25;
     float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
     gl_FragColor = vec4(c * smoothstep(uThreshold, uThreshold + 0.35, l), 1.0);
@@ -183,6 +195,7 @@ const FRAG = `
   uniform vec2 uFocus;
   uniform vec2 uResolution;
   varying vec2 vUv;
+  ${SCENE_SAMPLE}
 
   vec3 linearToSrgb(vec3 c) {
     c = clamp(c, 0.0, 1.0);
@@ -247,13 +260,13 @@ const FRAG = `
     vec2 focusDelta = (vUv - uFocus) * vec2(uResolution.x / uResolution.y, 1.0);
     float outsideFocus = smoothstep(0.075, 0.20, length(focusDelta));
     float aberration = uAberration * outsideFocus;
-    vec3 center = texture2D(tDiffuse, vUv).rgb;
+    vec3 center = sceneColor(vUv);
     vec3 lin = center;
     // Split the color once: eight scene reads during blur instead of eighteen.
     if (aberration > 0.00001) {
       vec2 split = (vUv - uFocus) * aberration;
-      lin.r += texture2D(tDiffuse, clamp(vUv + split, vec2(0.001), vec2(0.999))).r - center.r;
-      lin.b += texture2D(tDiffuse, clamp(vUv - split, vec2(0.001), vec2(0.999))).b - center.b;
+      lin.r += sceneColor(clamp(vUv + split, vec2(0.001), vec2(0.999))).r - center.r;
+      lin.b += sceneColor(clamp(vUv - split, vec2(0.001), vec2(0.999))).b - center.b;
       lin = max(lin, vec3(0.0));
     }
     float localBlur = uBlur * outsideFocus;
@@ -270,7 +283,7 @@ const FRAG = `
          done and what the eye reads as motion. */
       vec2 toFocus = uFocus - vUv;
       for (int i = 1; i < 6; i++) {
-        lin += texture2D(tDiffuse, vUv + toFocus * localBlur * (float(i) - 0.5 + jitter)).rgb;
+        lin += sceneColor(vUv + toFocus * localBlur * (float(i) - 0.5 + jitter));
       }
       lin /= 6.0;
     } else if (uSharpen > 0.001) {
@@ -285,10 +298,10 @@ const FRAG = `
          trunk against the sky from wearing a halo. Four fetches, and none
          at all while the velocity blur owns the pixel. */
       vec2 px = 1.0 / uResolution;
-      vec3 n = texture2D(tDiffuse, vUv + vec2(0.0, px.y)).rgb;
-      vec3 s = texture2D(tDiffuse, vUv - vec2(0.0, px.y)).rgb;
-      vec3 e = texture2D(tDiffuse, vUv + vec2(px.x, 0.0)).rgb;
-      vec3 w = texture2D(tDiffuse, vUv - vec2(px.x, 0.0)).rgb;
+      vec3 n = sceneColor(vUv + vec2(0.0, px.y));
+      vec3 s = sceneColor(vUv - vec2(0.0, px.y));
+      vec3 e = sceneColor(vUv + vec2(px.x, 0.0));
+      vec3 w = sceneColor(vUv - vec2(px.x, 0.0));
       vec3 ring = (n + s + e + w) * 0.25;
       float lC = dot(lin, vec3(0.2126, 0.7152, 0.0722));
       float lHi = max(max(dot(n, vec3(0.2126, 0.7152, 0.0722)), dot(s, vec3(0.2126, 0.7152, 0.0722))),

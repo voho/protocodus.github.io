@@ -6,6 +6,7 @@ import { buildShadowTile, buildShadowTiles, toHalfFloat } from '../js/shadow-cac
 import { heightAt, drawnHeightAt, corridorHalfAt, centersAt, chapterNameAt,
   guideAt, wanderAt } from '../js/terrain.js';
 import { setWorldSeed } from '../js/noise.js';
+import { createShading } from '../js/shading.js';
 
 function fromHalf(h) {
   const sign = h & 0x8000 ? -1 : 1;
@@ -169,6 +170,26 @@ const headlessTHREE = { ...THREE, TextureLoader: class {
 const makeTerrain = () => createTerrain(headlessTHREE, { apply: m => m, uniforms: {} });
 const streamed = makeTerrain();
 const cold = makeTerrain();
+// A fogged fragment still supplies its neighbours' texture gradients. An
+// early shader exit breaks those quads and can seed NaN into the HDR scene.
+createShading(THREE).apply(streamed.mesh.material, { sheen: 1 });
+const terrainShader = { ...THREE.ShaderLib.lambert, uniforms: {} };
+streamed.mesh.material.onBeforeCompile(terrainShader);
+const terrainMain = terrainShader.fragmentShader
+  .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '')
+  .split('void main() {')[1];
+const lastGradient = Math.max(...['dFdx(', 'dFdy(', 'fwidth(']
+  .map(token => terrainMain.lastIndexOf(token)));
+assert.ok(lastGradient > 0, 'exercise the terrain material texture gradients');
+assert.doesNotMatch(terrainMain.slice(0, lastGradient), /\b(?:return|discard)\s*;/,
+  'terrain fragments must stay alive until all screen derivatives are evaluated');
+const fogExit = terrainMain.indexOf('return;');
+assert.ok(fogExit > lastGradient, 'fully fogged terrain still skips material and lighting work');
+assert.doesNotMatch(terrainMain.slice(fogExit), /\btexture2D\s*\(/,
+  'custom texture reads after the fog exit use explicit gradients or a fixed mip level');
+assert.equal(streamed.mesh.material.normalMap, null);
+assert.equal(streamed.mesh.material.bumpMap, null,
+  'terrain owns its smooth normal and has no built-in derivative normal maps');
 const bufferNames = ['height', 'position', 'normal', 'color', 'surface', 'groom frame'];
 let streamChecks = 0, heightHits = 0, surfaceHits = 0;
 function compareTerrain(x, z, includeHeights = true) {

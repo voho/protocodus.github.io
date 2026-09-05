@@ -17,6 +17,8 @@ Input regressions include releasing a spin before touchdown, controller menu
 edges, and discarding stale jump gestures across pause and focus loss.
 HUD checks cover mode transitions, controls disclosure, focus and idle DOM writes.
 The graphics check uses a renderer stub; it does not compile GPU shaders.
+It exercises all six snowfall bands across nine times of day, cloud extinction,
+night-storm visibility, panorama skyline occlusion and photograph fallbacks.
 
 For browser checks, serve the repository root and open
 `/fun/alpen/?seed=alpine-review`. Exercise carve, charged pop, grab/spin, landing,
@@ -77,9 +79,43 @@ five-tile shadow row about 38% faster; those are local measurements, not a
 cross-device FPS guarantee. Adaptive halo rendering saves three passes when
 resolution falls below 80%, fading back in as performance recovers.
 
-An intermittent flat block appeared in blue-hour captures and one pause
-screenshot. It did not reproduce in direct framebuffer checks or a subsequent
-frozen-frame comparison with every particle system hidden. Its cause remains
-unconfirmed; no speculative particle fixes were applied.
-The follow-up investigation also found 30 successive frozen renders stable
-and no nonfinite values in the HDR target; it did not reproduce the block.
+The weather pass was visually checked across clear, flurries, light snow,
+snowing, heavy snow and blizzard conditions, all nine daylight phases, mist,
+cloud cover and aurora. Light snowfall retains longer views, storm lighting
+becomes more diffuse, and night storms retain enough ambient light to read
+the near piste. Sun, glow and rays respect the photographed skyline, including
+plate crossfades; dim night photographs no longer revive the fallback ribbons.
+These changes add no GPU passes, geometry or textures. The skyline lookup is
+cached once per decoded photograph, using about 5 KB of CPU memory in total.
+
+The intermittent rectangle was captured during live riding: a single NaN
+terrain pixel spread through the bloom filters into a roughly 144-pixel square.
+A frozen redraw erased the original invalid pixel, which explains why earlier
+particle-isolation checks missed it. Fog exits must preserve the neighboring
+fragments needed by texture derivatives, and Fresnel inputs must stay within
+their mathematical domain. Postprocessing also rejects nonfinite scene colors
+before bloom or motion blur can spread them, without clipping valid HDR light.
+The corrected shader keeps its fog shortcut by evaluating gradients first;
+its texture-read and explicit-derivative counts remain unchanged. Live riding
+through all 54 weather/time combinations produced 800 full-resolution HDR
+scans without a nonfinite pixel or runtime/shader error. A 390×844 check also
+verified native touch jump, pause and resume without horizontal HUD overflow.
+
+Paired 1440×900 renderer checks with 4× MSAA retained a 16.7 ms median frame
+interval and 17.5–17.8 ms p95. The safe terrain shader cost about 0.2–1.4 ms
+more sampled GPU time than its unsafe predecessor across these runs; retaining
+the fog shortcut recovered most of the storm cost of simply removing it.
+These local timings vary with other system work and do not guarantee the same
+FPS on other devices. No quality settings were reduced for the comparison.
+
+To exercise that safeguard on the actual GPU, run this in the game console:
+
+```js
+await (await import('./tests/post-hdr-browser-check.mjs')).runPostHdrCheck()
+```
+
+This uses and disposes a separate offscreen WebGL context. It injects NaN,
+positive infinity and negative infinity at idle and maximum speed, checks all
+bloom/ray targets, and compares valid HDR images with the safeguard disabled.
+All six cases passed locally: over 26,000 affected pixels fell to at most five,
+and the valid images remained pixel-identical.

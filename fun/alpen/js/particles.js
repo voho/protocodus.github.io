@@ -446,20 +446,9 @@ const VERT = `
     float l = min(max(reach, w), uLong);
     gl_PointSize = max(l, 1.0);
     vStretch = l / max(w, 0.01);
-    /* Fade against BOTH caps, which is the whole of the white-square fix.
-
-       The width cap was faded and the length cap was not, and the length
-       cap is the one that sets gl_PointSize. A sprite can therefore be
-       narrow enough to pass the width fade untouched while its smear runs
-       far past uLong — which is exactly what a grain of spray does when the
-       board is carrying speed. It was then drawn at FULL alpha at whatever
-       size the hardware was willing to rasterise, and a driver that crops
-       rather than scales hands back the documented square window cut out of
-       the flake's opaque middle: a hard white block at the bottom of the
-       frame, right where the spray is thrown. Fading on the length ratio
-       too means anything the cap is truncating dissolves instead. The 1.4
-       is slack, so ordinary clipping still draws its shortened smear at
-       full strength and only genuine over-run disappears. */
+    /* Fade against both visual caps. Near-lens grains dissolve as their
+       width or motion smear outgrows the sprite, instead of collecting at
+       one fixed size. The length allowance preserves ordinary short smears. */
     vClip = min(
       min(1.0, uWide / max(wide, 0.01)),
       min(1.0, (uLong * 1.4) / max(reach, 0.01)));
@@ -649,31 +638,16 @@ export function pointScale(camera, height = RENDER.buffer.height) {
   return height / (2 * Math.tan((camera.fov * Math.PI) / 360));
 }
 
-/* What the hardware will actually rasterise.
-
-   `gl_PointSize` has a driver limit — `ALIASED_POINT_SIZE_RANGE` — and it is
-   not a large number everywhere: plenty of mobile GPUs stop at 64 or 255
-   while a desktop part offers 1024. A point past the limit is not scaled
-   down, it is *cropped*: the sprite keeps claiming the size the shader
-   asked for, `gl_PointCoord` keeps running over that claimed size, and what
-   is drawn is a square window cut out of the middle of the flake. The limit
-   cannot be queried from inside a shader, so it is held here and folded into
-   the two caps below — every size the shader computes is already bounded by
-   `uLong`, so bounding `uLong` and `uWide` on the CPU bounds `gl_PointSize`
-   itself, and the stretch and clip-fade maths downstream of them stay
-   consistent without a second clamp in the shader. The default is a
-   conservative floor that every WebGL implementation must meet or beat;
-   `setPointSizeCap` lets the assembly raise it to the real queried limit. */
+/* Keep authored point sizes within the queried native rasterizer limit, so
+   the shader's stretch and fade agree with the size that is actually drawn.
+   The assembly supplies ALIASED_POINT_SIZE_RANGE before the first update. */
 let pointCap = 128;
 
 export function setPointSizeCap(px) {
   if (Number.isFinite(px) && px > 0) pointCap = Math.max(16, Math.min(1024, px));
 }
 
-/* For the other point systems (hut smoke) whose ceilings are authored as
-   shares of the buffer height: those shares must still lose to the driver,
-   or a puff drifting past the lens comes back as the cropped square this
-   cap exists to prevent. */
+/* Hut smoke shares the same native size limit. */
 export function getPointSizeCap() {
   return pointCap;
 }
@@ -684,13 +658,7 @@ function applyLimits(uniforms, camera, wide, long) {
   const h = RENDER.buffer.height;
   uniforms.uScale.value = pointScale(camera, h);
   uniforms.uHalfRes.value.set(RENDER.buffer.width * 0.5, h * 0.5);
-  /* Never ask for the driver's stated maximum, only most of it. A limit
-     reported through ALIASED_POINT_SIZE_RANGE is a promise about what will
-     rasterise, not about what will rasterise *correctly*, and the drivers
-     that crop instead of scaling tend to do it at the boundary. The
-     absolute ceiling comes down to 128 for the same reason: a smear longer
-     than that is not carrying any more information, and 128 is inside every
-     limit this game is likely to meet. */
+  // Leave headroom below the native limit and bound large-sprite overdraw.
   const safe = pointCap * 0.85;
   uniforms.uWide.value = Math.max(3, Math.min(96, h * wide, safe));
   uniforms.uLong.value = Math.max(4, Math.min(128, h * long, safe));

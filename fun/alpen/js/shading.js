@@ -419,6 +419,16 @@ const FRAG_RECOVER = `
 
    And `n64Snow` takes all three away again on anything that is not snow, so
    a cliff face keeps the matte read that makes it look like rock. */
+// These derivatives run before clipping/material/fog exits. The expensive
+// facet hashes and lighting still run only on nearby, lit snow.
+const FRAG_SHEEN_GRADIENTS = `
+    float n64GDist = length(vN64View);
+    vec3 n64WDir = normalize(vN64View * mat3(viewMatrix));
+    vec2 n64GPos = mod((cameraPosition + n64WDir * n64GDist).xz, 64.0);
+    vec2 n64CrystalUV = n64GPos * 32.0;
+    float n64Footprint = max(length(dFdx(n64CrystalUV)), length(dFdy(n64CrystalUV)));
+`;
+
 const FRAG_SHEEN = `
     float n64Snow = smoothstep(${asFloat(SNOW_LO)}, ${asFloat(SNOW_HI)}, n64Alb)
       * uSheen * vN64Sheen;
@@ -428,19 +438,21 @@ const FRAG_SHEEN = `
     // (No back-ticks in here: this comment is inside a template literal.)
     if (n64Snow > 0.002) {
       vec3 n64V = normalize(-vN64View);
-      float n64NoV = max(dot(normal, n64V), 0.04);
+      // Keep Fresnel's pow(1 - dot, 5) in its defined, nonnegative domain
+      // when normalization rounds a dot product slightly above one.
+      float n64NoV = clamp(dot(normal, n64V), 0.04, 1.0);
       float n64NoL = n64Lit;
       vec3 n64HalfSum = uSunView + n64V;
       vec3 n64H = n64HalfSum * inversesqrt(max(dot(n64HalfSum, n64HalfSum), 1e-6));
-      float n64NoH = max(dot(normal, n64H), 0.0);
-      float n64VoH = max(dot(n64V, n64H), 0.0);
+      float n64NoH = clamp(dot(normal, n64H), 0.0, 1.0);
+      float n64VoH = clamp(dot(n64V, n64H), 0.0, 1.0);
 
       // The snowpack field controls roughness, then weather and distance push
       // it back towards powder. This is the reflection LOD: no sharp lobe is
       // allowed to survive into a footprint too small to resolve it.
       float n64Smooth = clamp(vN64Ice, 0.0, 1.0);
       n64Smooth *= 1.0 - uSnowFresh * 0.72;
-      n64Smooth *= 1.0 - smoothstep(90.0, 180.0, length(vN64View));
+      n64Smooth *= 1.0 - smoothstep(90.0, 180.0, n64GDist);
       float n64Rough = mix(${asFloat(SHEEN.roughFresh)},
         ${asFloat(SHEEN.roughIce)}, n64Smooth);
 
@@ -491,12 +503,7 @@ const FRAG_SHEEN = `
          Distance fades them out well before a cell approaches the pixel
          grid, fresh storm snow buries them, and the recovered shadow term
          keeps them out of cast shade. */
-      float n64GDist = length(vN64View);
       if (n64GDist < 32.0 && n64Lit > 0.015) {
-        vec3 n64WDir = normalize(vN64View * mat3(viewMatrix));
-        vec2 n64GPos = mod((cameraPosition + n64WDir * n64GDist).xz, 64.0);
-        vec2 n64CrystalUV = n64GPos * 32.0;
-        float n64Footprint = max(length(dFdx(n64CrystalUV)), length(dFdy(n64CrystalUV)));
         float n64Crystal = 1.0 - smoothstep(0.18, 0.48, length(fract(n64CrystalUV) - 0.5));
         n64Crystal *= 1.0 - smoothstep(0.35, 1.0, n64Footprint);
         vec2 n64GCell = floor(n64CrystalUV);
@@ -707,11 +714,20 @@ const FRAG_ALPHA_HASH = `
    a second one, for the reason given beside the fog: a view position has
    already been through instancing, batching and skinning and a world one has
    not. */
-const FRAG_SHADE = `#include <lights_fragment_maps>
-  if (uShadeLevel > 0.002) {
+// Cloud mip selection also needs the neighbours that terrain fog can skip.
+const FRAG_SHADE_GRADIENTS = `
     float n64ShadeD = length(vN64View);
     vec3 n64ShadeW = cameraPosition
       + (vN64View * (1.0 / max(n64ShadeD, 1e-4)) * mat3(viewMatrix)) * n64ShadeD;
+    vec2 n64CloudWorld = n64ShadeW.xz
+      + uSunDir.xz * (95.0 / max(uSunDir.y, 0.16));
+    vec2 n64CloudUv = n64CloudWorld * (1.0 / 560.0) - uCloudShadowOffset;
+    vec2 n64CloudDx = dFdx(n64CloudUv);
+    vec2 n64CloudDy = dFdy(n64CloudUv);
+`;
+
+const FRAG_SHADE = `#include <lights_fragment_maps>
+  if (uShadeLevel > 0.002) {
     /* World modulo is the torus address. It has no camera/anchor uniform and
        therefore cannot slide when the render mesh re-centres. A one-texel
        gutter around each direction layer makes the spatial seam filter into
@@ -745,11 +761,13 @@ const FRAG_SHADE = `#include <lights_fragment_maps>
       n64ShadeLayerHi * n64ShadeLayerSize
       + vec2(1.0) + n64ShadeUv * n64ShadePage)
       / vec2(${asFloat(SHADE_ATLAS_WIDTH)}, ${asFloat(SHADE_ATLAS_HEIGHT)});
+    // The horizon and height atlases have one mip level; keep their linear
+    // filtering without asking skipped fragments for implicit derivatives.
     vec2 n64ShadeH = mix(
-      texture2D(uShadeMap, n64ShadeAtlasLo).rg,
-      texture2D(uShadeMap, n64ShadeAtlasHi).rg, n64ShadeBearing);
+      texture2DLodEXT(uShadeMap, n64ShadeAtlasLo, 0.0).rg,
+      texture2DLodEXT(uShadeMap, n64ShadeAtlasHi, 0.0).rg, n64ShadeBearing);
     float n64ShadeGround = n64ShadeW.z * ${asFloat(SHADE_GRADE)}
-      + texture2D(uShadeHeightMap, n64ShadeUv).r;
+      + texture2DLodEXT(uShadeHeightMap, n64ShadeUv, 0.0).r;
     float n64SunSlope = uSunDir.y / max(length(uSunDir.xz), 0.001);
 
     float n64ShadeUp = clamp(
@@ -784,10 +802,8 @@ const FRAG_SHADE = `#include <lights_fragment_maps>
        modulated: the blue sky fill still reaches the ground, which is why a
        cloud shadow on snow is blue rather than grey-black. */
     if (uCloud > 0.035 && uSunLevel > 0.035) {
-      vec2 n64CloudWorld = n64ShadeW.xz
-        + uSunDir.xz * (95.0 / max(uSunDir.y, 0.16));
-      vec2 n64CloudUv = n64CloudWorld * (1.0 / 560.0) - uCloudShadowOffset;
-      float n64CloudField = texture2D(uCloudShadowMap, n64CloudUv).r;
+      float n64CloudField = texture2DGradEXT(uCloudShadowMap, n64CloudUv,
+        n64CloudDx, n64CloudDy).r;
       float n64CloudCover = smoothstep(
         0.52 - uCloud * 0.18,
         0.72 - uCloud * 0.14,
@@ -800,6 +816,7 @@ const FRAG_SHADE = `#include <lights_fragment_maps>
 
 const SHADE_ANCHOR = '#include <lights_fragment_maps>';
 const LIGHT_ANCHOR = '#include <lights_fragment_end>';
+const GRADIENT_ANCHOR = '#include <clipping_planes_fragment>';
 const FOG_ANCHOR = '#include <fog_fragment>';
 const ALPHA_ANCHOR = '#include <alphamap_fragment>';
 const HASH_ANCHOR = '#include <alphahash_fragment>';
@@ -934,13 +951,15 @@ export function createShading(THREE) {
       // Unlit materials have no light loop to shade, and the two anchors
       // below are how that is detected rather than asserted.
       if (wantShade && frag.indexOf(SHADE_ANCHOR) !== -1) {
-        frag = frag.replace(SHADE_ANCHOR, FRAG_SHADE);
+        frag = frag.replace(SHADE_ANCHOR, FRAG_SHADE)
+          .replace(GRADIENT_ANCHOR, `${FRAG_SHADE_GRADIENTS}${GRADIENT_ANCHOR}`);
       }
       // Only a lit material exposes the light-loop anchor used by the snow
       // response. The custom fog owns Three's fog slot on opaque surfaces.
       if (sheen > 0 && frag.indexOf(LIGHT_ANCHOR) !== -1) {
         frag = frag.replace(LIGHT_ANCHOR,
-          `${LIGHT_ANCHOR}${lightPatch(true)}`);
+          `${LIGHT_ANCHOR}${lightPatch(true)}`)
+          .replace(GRADIENT_ANCHOR, `${FRAG_SHEEN_GRADIENTS}${GRADIENT_ANCHOR}`);
       }
       if (wantFog && frag.indexOf(FOG_ANCHOR) !== -1) {
         frag = frag.replace(FOG_ANCHOR, FRAG_FOG);

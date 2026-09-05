@@ -176,17 +176,8 @@ const PHASES = [
   },
 ];
 
-/* IT IS ALWAYS SNOWING. CLEAR came off this list, and with it the idea that
-   the dial's bottom end is an absence of weather.
-
-   The band names are only labels, but they were honest ones: the bottom of
-   the storm dial genuinely was nothing falling at all, and a mountain with
-   nothing falling on it is a postcard. What the run wants is the other thing
-   the Alps do constantly — a sky that is never quite finished, from a few
-   flakes drifting through the headlamp to a whiteout you steer by feel. So
-   the scale now runs from a light fall to a blizzard, and the floor under
-   `state.snow` further down is what makes the label true rather than
-   decorative. */
+// Settled air opens the clear end; an arriving front carries these snowfall
+// bands continuously, with mist and aurora announced separately below.
 const BANDS = [
   { to: 0.045, name: 'CLEAR' },
   { to: 0.16, name: 'FLURRIES' },
@@ -723,22 +714,27 @@ export function createWeather(THREE) {
       Math.min(1, stormLuma * 1.08),
     );
     stormTint.lerp(neutralStormTint, ramp(s, 0.12, 0.90) * 0.9);
-    const pull = s * 0.78;
+    // Flurries can fall through clear alpine air. The overcast builds later,
+    // then closes firmly into heavy snow without a threshold or palette cut.
+    const overcast = smooth(s);
+    const pull = overcast * 0.78;
     state.haze.lerp(stormTint, ramp(s, 0.25, 0.95) * 0.88);
     state.zenith.lerp(stormTint, pull * 0.85);
     state.mid.lerp(stormTint, pull);
     state.horizon.lerp(stormTint, pull);
     state.glow.lerp(stormTint, pull);
     state.key.lerp(stormTint, pull * 0.90);
-    state.keyI *= 1 - 0.6 * s;
-    state.hemiI *= 1 - 0.25 * s;
+    // Thick cloud replaces the direct beam with broad snow/sky bounce. Keep
+    // that diffuse light so the immediate riding line remains readable.
+    state.keyI *= 1 - 0.72 * overcast;
+    state.hemiI *= 1 - 0.08 * overcast;
 
     // Clear air is whatever the renderer's draw distance currently is, so
     // the curtain moves when that number moves. Both ends of the storm are
     // absolute: a whiteout is seventy metres of visibility whether the
     // engine is drawing three hundred or four.
     const wantNear = lerp(RENDER.fogNear, 10, s * s);
-    const wantFar = lerp(RENDER.fogFar, 68, Math.pow(s, 0.85));
+    const wantFar = lerp(RENDER.fogFar, 68, overcast);
     // Rate-limited rather than assigned: see `FOG_RATE`. The first frame
     // takes the target whole, so a fresh run opens on the sky it should.
     if (!fogSettled) {

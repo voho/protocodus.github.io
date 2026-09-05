@@ -817,7 +817,8 @@ const STAR_VERT = `
        dome is its elevation's sine; gone by the horizon, full a little over
        twelve degrees up. */
     float extinct = smoothstep(0.06, 0.21, normalize(position).y);
-    vFade = uAlpha * extinct * (0.55 + 0.45 * sin(uTime * 1.7 + aTwinkle * 40.0));
+    vFade = uAlpha * extinct
+      * (0.84 + 0.16 * sin(uTime * (0.7 + aTwinkle * 0.8) + aTwinkle * 40.0));
     vTint = aTint;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
     /* A sub-pixel point rasterises as one pixel that pops on and off as the
@@ -1499,6 +1500,7 @@ export function createSky(THREE) {
   dome.name = 'sky-dome';
   group.add(dome);
 
+  const plateSkylines = new WeakMap();
   const preparePlate = (texture) => {
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.ClampToEdgeWrapping;
@@ -1514,7 +1516,42 @@ export function createSky(THREE) {
     // band on a desktop that can.
     texture.anisotropy = 8;
     texture.colorSpace = THREE.SRGBColorSpace;
+    // The photographs carry no depth. Read their sharp skyline once, while
+    // decoding, so the sun cannot be composited over a photographed summit.
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = 256; canvas.height = 128;
+      const context = canvas.getContext('2d', { willReadFrequently: true });
+      context.drawImage(texture.image, 0, 0, 256, 128);
+      const pixels = context.getImageData(0, 0, 256, 128).data;
+      const skyline = new Float32Array(256);
+      const edges = new Float32Array(128);
+      for (let x = 0; x < 256; x++) {
+        let strongest = 0;
+        for (let y = 40; y < 76; y++) {
+          const above = ((y - 1) * 256 + x) * 4;
+          const below = ((y + 1) * 256 + x) * 4;
+          edges[y] = Math.max(Math.abs(pixels[below] - pixels[above]),
+            Math.abs(pixels[below + 1] - pixels[above + 1]),
+            Math.abs(pixels[below + 2] - pixels[above + 2]));
+          strongest = Math.max(strongest, edges[y]);
+        }
+        let y = 40;
+        while (y < 75 && edges[y] < Math.max(12, strongest * 0.5)) y++;
+        skyline[x] = (0.5 - (y + 0.5) / 128) * Math.PI;
+      }
+      plateSkylines.set(texture, skyline);
+    } catch {
+      // Failed image reads retain the procedural sky's normal horizon fade.
+    }
     return texture;
+  };
+  const plateHorizon = (texture, u) => {
+    const skyline = plateSkylines.get(texture);
+    if (!skyline) return -Math.PI / 2;
+    const x = frac(u) * skyline.length;
+    const i = Math.floor(x), t = x - i;
+    return skyline[i] * (1 - t) + skyline[(i + 1) % skyline.length] * t;
   };
   let sunrisePlate = null;
   let sunsetPlate = null;
@@ -2671,7 +2708,12 @@ export function createSky(THREE) {
     // Four hundred and twenty zero-alpha points are cheap enough to remain in
     // the render list. That buys a compiled night-sky program before dusk;
     // their fragment shader discards them while the sky is bright.
-    const starAlpha = w.star * (1 - w.storm) * 0.9;
+    // Fair-weather cloud still veils the night sky and softens the disc.
+    // Existing uniforms carry this extinction; it adds no sky pass or sample.
+    const cloudVeil = ramp(w.cloud, 0.18, 0.8);
+    const nightTransmission = 1 - 0.72 * cloudVeil;
+    const beamTransmission = 1 - 0.48 * cloudVeil;
+    const starAlpha = w.star * (1 - w.storm) * 0.9 * nightTransmission;
     starMat.uniforms.uAlpha.value = starAlpha;
     starMat.uniforms.uTime.value = time;
     // A star is a fixed number of pixels, so it has to be told how many
@@ -2682,7 +2724,7 @@ export function createSky(THREE) {
     // On three nights in four this is zero. It gets one zero-cost warm-up draw,
     // then returns to standing down so its large carrier spends no daytime fill.
     auroraMat.uniforms.uTime.value = time;
-    auroraMat.uniforms.uStrength.value = w.aurora * AURORA.gain;
+    auroraMat.uniforms.uStrength.value = w.aurora * AURORA.gain * nightTransmission;
     aurora.visible = warmingLayers || w.aurora > 0.004;
 
     /* The counterglow, which is a couple of minutes out of the fifteen.
@@ -2718,11 +2760,32 @@ export function createSky(THREE) {
        somebody notices switching off. */
     const moon = w.moon;
     const risen = ramp(w.elevation, -0.028, 0.018);
+    const discRadius = (0.085 - moon * 0.032) * 0.46 / 0.85;
+    const panoU = frac(0.25 + domeMat.uniforms.uPanoYaw.value + w.azimuth / TAU);
+    const currentRidge = Math.max(
+      plateHorizon(panoClear.value, panoU - discRadius / TAU),
+      plateHorizon(panoClear.value, panoU),
+      plateHorizon(panoClear.value, panoU + discRadius / TAU));
+    const previousRidge = Math.max(
+      plateHorizon(panoPrev.value, panoU - discRadius / TAU),
+      plateHorizon(panoPrev.value, panoU),
+      plateHorizon(panoPrev.value, panoU + discRadius / TAU));
+    // Both ranges are visible during a crossfade. Respect the higher skyline,
+    // easing its arrival/departure only at the faint ends of that transition.
+    const ridge = Math.max(
+      previousRidge + (currentRidge - previousRidge) * ramp(panoFade.value, 0, 0.2),
+      currentRidge + (previousRidge - currentRidge) * (1 - ramp(panoFade.value, 0.8, 1)));
+    const photoVisibility = ramp(w.elevation - ridge, discRadius, discRadius + 0.025);
+    const ridgeVisibility = 1 - (1 - photoVisibility)
+      * ramp(panoStrength.value / PANO_MAX, 0.05, 0.22);
     disc.position.copy(sunDir).multiplyScalar(RADIUS * 0.85);
     disc.scale.setScalar(RADIUS * (0.085 - moon * 0.032));
-    discMat.uniforms.uColor.value.copy(w.key);
+    // The sun emits light; using the snow's key tint alone made it a dark
+    // coin against the sunset plate. Moonlight keeps its existing exposure.
+    discMat.uniforms.uColor.value.copy(w.key).multiplyScalar(2.4 - 1.4 * moon);
     discMat.uniforms.uMoon.value = moon;
-    const discFade = (1 - w.storm) * (0.55 + 0.45 * (1 - moon)) * risen;
+    const discFade = (1 - w.storm) * (0.55 + 0.45 * (1 - moon))
+      * risen * beamTransmission * ridgeVisibility;
     discMat.uniforms.uOpacity.value = discFade;
     // The two-sprite light is cheap enough to stay submitted at zero opacity.
     // There is therefore no visibility threshold on the brightest object in
@@ -2734,7 +2797,8 @@ export function createSky(THREE) {
     glow.position.copy(sunDir).multiplyScalar(RADIUS * 0.84);
     glow.scale.setScalar(RADIUS * (0.20 - moon * 0.10));
     glow.material.color.copy(w.glow);
-    glow.material.opacity = (1 - w.storm) * (0.5 - moon * 0.28) * risen;
+    glow.material.opacity = (1 - w.storm) * (0.5 - moon * 0.28)
+      * risen * beamTransmission * ridgeVisibility;
 
     /* How much light is arriving from up there, as one number.
 
@@ -2749,7 +2813,7 @@ export function createSky(THREE) {
        night into a stage. */
     sunLight = ramp(w.elevation, -0.02, 0.10)
       * (1 - ramp(w.storm, 0.10, 0.78))
-      * (1 - 0.74 * moon);
+      * (1 - 0.74 * moon) * beamTransmission * ridgeVisibility;
     sun.tint.copy(w.glow);
 
     /* And the colour that lands on a ridge facing it.
@@ -2888,15 +2952,11 @@ export function createSky(THREE) {
     relief.mat.uniforms.uWhiteout.value = ramp(w.storm, 0.28, 0.82);
 
     for (const r of ranges) {
-      /* The generated equirectangular plate is the hero distant range. As it
-         becomes visible, the two far procedural fallback rings yield to it.
-         The relief shell remains in front and supplies the parallax and
-         material depth their former near pair only suggested. At night or in
-         a whiteout both the plate and its fallback dissolve into the same
-         haze; returning a crisp silhouette inside ninety-metre visibility
-         made the old rings look like floating islands. */
-      const panoMix = smooth01(clamp01(panoStrength.value / PANO_MAX));
-      const rangeAlpha = (1.0 - panoMix) * (1 - ramp(w.storm, 0.28, 0.82));
+      // Fallback means a missing panorama, not a dim one. Night deliberately
+      // lowers photo exposure; reviving these ribbons then covered the actual
+      // range with a second flat skyline. The relief shell still supplies
+      // the same foreground parallax and material depth at every hour.
+      const rangeAlpha = (1 - panoReady) * (1 - ramp(w.storm, 0.28, 0.82));
       r.mat.uniforms.uAlpha.value = rangeAlpha;
       r.mesh.visible = rangeAlpha > 0.002;
       r.mesh.position.set(-lateral * r.parallax, -r.radius * (pitch + FOOT), 0);
@@ -2919,7 +2979,9 @@ export function createSky(THREE) {
       /* Apply the palette transform to the band's one local colour before it
          is mixed. Because lerps are affine, mixing flashed endpoints gives
          every derived surface exactly one — and only one — flash exposure. */
-      rangeTintTmp.copy(r.tint).lerp(WHITE, flashMix);
+      // Night exposes more of the fallback ribbons. Their daytime tint must
+      // yield with the light, or pale polygon sheets cover the distant peaks.
+      rangeTintTmp.copy(r.tint).lerp(w.mid, w.night * 0.90).lerp(WHITE, flashMix);
       footTmp.copy(atmosphere.haze)
         .lerp(rangeTintTmp, (1 - r.air) * 0.17);
       r.mat.uniforms.uHaze.value.copy(footTmp);
@@ -3084,18 +3146,20 @@ export function createSky(THREE) {
     // The fill takes the sky's hue but not its saturation. Snow bounce is
     // pale; lighting a whole mountain with undiluted #6f9ad6 turns every
     // surface the sun is not on into flat blue paper. Scale white mix by
-    // daylight so night fill remains deep dark blue.
+    // daylight; a small cool bounce keeps the moonlit riding line readable
+    // when cloud removes the direct beam.
     const dayFill = 1 - (w.night || 0);
-    fill.copy(atmosphere.mid).lerp(WHITE, 0.5 * dayFill);
+    const nightBounce = (w.night || 0) * (0.055 + 0.17 * smooth01(w.storm));
+    fill.copy(atmosphere.mid).lerp(WHITE, 0.5 * dayFill + nightBounce);
     hemi.color.copy(fill);
     // On the night a display lands, the sky is the brightest lamp out and it
     // is green — so the fill takes a breath of the curtain's own colour and
     // the snow knows the sky is on fire. A sixth at full strength: enough to
     // read, and not enough to turn the mountain into a billiard table.
     if (w.aurora > 0.004) {
-      hemi.color.lerp(auroraMat.uniforms.uLow.value, w.aurora * 0.15);
+      hemi.color.lerp(auroraMat.uniforms.uLow.value, w.aurora * 0.15 * nightTransmission);
     }
-    fill.copy(atmosphere.haze).lerp(WHITE, 0.35 * dayFill);
+    fill.copy(atmosphere.haze).lerp(WHITE, 0.35 * dayFill + nightBounce * 0.4);
     hemi.groundColor.copy(fill);
     // And the strike, added rather than scaled: a flash lights the clouds
     // from inside, so it arrives through the fill and not through the key.
