@@ -31,10 +31,36 @@ try {
       if (hasLava !== lava) { pool.forEach(i => { s.terrain[i] = lava ? 3 : 0; }); renderer.createTerrain(s); hasLava = lava; }
       s.time = time; s.visible[0].fill(visibility === 'visible' ? 1 : 0); s.explored[0].fill(visibility === 'unexplored' ? 0 : 1);
       renderer.draw(s, view); renderer.drawMinimap(s, view, () => false);
-      return {world: renderer.ctx.getImageData(0, 0, world.width, world.height).data, map: minimap.getContext('2d').getImageData(0, 0, minimap.width, minimap.height).data};
+      const surface = renderer.lavaPools[0]?.surface;
+      return {world: renderer.ctx.getImageData(0, 0, world.width, world.height).data, map: minimap.getContext('2d').getImageData(0, 0, minimap.width, minimap.height).data,
+        surface: surface?.getContext('2d').getImageData(0, 0, surface.width, surface.height).data};
     };
     const lit = frame(1.2); await new Promise(resolve => setTimeout(resolve, 50));
     const paused = frame(1.2), moving = frame(3.7);
+    let shoreChanges = 0;
+    for (let i = 3; i < lit.surface.length; i += 4) shoreChanges += lit.surface[i] !== moving.surface[i];
+    // Correlate actual rendered colors: translating folds should line up after a small offset,
+    // whereas an opacity pulse cannot make a displaced image match substantially better.
+    const a = renderer.worldToScreen(30, 30, view), b = renderer.worldToScreen(32, 31, view), dpr = renderer.dpr;
+    const motionError = (dx, dy) => {
+      let error = 0, count = 0;
+      for (let y = Math.ceil(a.y * dpr); y < b.y * dpr; y += 2) for (let x = Math.ceil(a.x * dpr); x < b.x * dpr; x += 2) {
+        const i = (y * world.width + x) * 4, j = ((y + dy) * world.width + x + dx) * 4;
+        for (let c = 0; c < 3; c++) { error += Math.abs(lit.world[i + c] - moving.world[j + c]); count++; }
+      }
+      return error / count;
+    };
+    const unshiftedError = motionError(0, 0); let advectedError = unshiftedError, flowOffset = {x: 0, y: 0};
+    for (let dy = -10; dy <= 10; dy++) for (let dx = -10; dx <= 10; dx++) {
+      const error = motionError(dx, dy); if (error < advectedError) { advectedError = error; flowOffset = {x: dx, y: dy}; }
+    }
+    const corner = renderer.worldToScreen(29, 29, view), end = renderer.worldToScreen(33, 32, view);
+    let area = 0, molten = 0, yellow = 0;
+    for (let y = Math.ceil(corner.y * dpr); y < end.y * dpr; y++) for (let x = Math.ceil(corner.x * dpr); x < end.x * dpr; x++) {
+      const i = (y * world.width + x) * 4, [r, g, b] = lit.world.slice(i, i + 3); area++;
+      if (r > 170 && g > 40 && r > g * .9 && g > b * 1.8) molten++;
+      if (r > 210 && g > 150 && b < 135) yellow++;
+    }
     const remembered = frame(1.2, 'remembered'), rememberedLater = frame(3.7, 'remembered');
     const hidden = frame(1.2, 'unexplored'), hiddenLater = frame(3.7, 'unexplored');
     const plainHidden = frame(1.2, 'unexplored', false), plainRemembered = frame(1.2, 'remembered', false);
@@ -74,7 +100,8 @@ try {
     }
     real.visible[0].fill(1); real.explored[0].fill(1); real.effects = []; real.time = 2.4;
     preview.style.width = '100vw'; preview.style.height = '100vh';
-    window.lavaPreview = zoom => {
+    window.lavaPreview = (zoom, time = 2.4) => {
+      real.time = time;
       renderer.resize();
       const clamp = (center, pixels, tiles) => pixels / zoom >= tiles ? tiles / 2 : Math.max(pixels / zoom / 2, Math.min(tiles - pixels / zoom / 2, center));
       Object.assign(view, {x: clamp((crossing.left + crossing.right) / 2, renderer.width, real.width), y: clamp(crossing.y + 2, renderer.height, real.height), zoom});
@@ -83,6 +110,7 @@ try {
     lavaPreview(38);
     return {
       animation: difference(lit.world, moving.world), ambient: difference(plain.world, plainLater.world), paused: difference(lit.world, paused.world),
+      moltenCoverage: molten / area, yellowCoverage: yellow / area, shoreChanges, flowOffset, unshiftedError, advectedError,
       rememberedAnimation: difference(remembered.world, rememberedLater.world), rememberedSurface: difference(remembered.world, plainRemembered.world),
       hiddenSurface: difference(hidden.world, plainHidden.world), hiddenAnimation: difference(hidden.world, hiddenLater.world),
       hiddenMap: difference(hidden.map, plainHidden.map), rememberedMap: difference(remembered.map, plainRemembered.map),
@@ -90,6 +118,9 @@ try {
     };
   });
   assert(checks.animation > checks.ambient + 50, 'Visible lava animates with simulation time');
+  assert(checks.moltenCoverage > .5 && checks.yellowCoverage > .1, 'Most of each pool is visibly molten orange/red, with broad yellow heat folds');
+  assert(Math.hypot(checks.flowOffset.x, checks.flowOffset.y) > 1 && checks.advectedError < checks.unshiftedError * .4, 'Surface detail slowly translates rather than only pulsing');
+  assert.equal(checks.shoreChanges, 0, 'Surface advection never moves the shoreline mask');
   assert.equal(checks.paused, 0, 'Paused lava ignores wall-clock time');
   assert.equal(checks.rememberedAnimation, 0, 'Explored, unseen lava has no live surface animation or glow');
   assert(checks.rememberedSurface > 50 && checks.rememberedMap > 0, 'Previously explored pools retain a static surface and minimap marker');
@@ -103,6 +134,9 @@ try {
       await page.locator('#lava-preview').screenshot({path: `${output}/lava-${name}-${zoom}.png`});
     }
   }
+  await page.setViewportSize({width: 1440, height: 900});
+  await page.evaluate(() => lavaPreview(38, 8));
+  await page.locator('#lava-preview').screenshot({path: `${output}/lava-desktop-flow-later.png`});
   assert.deepEqual(errors, []);
-  console.log(`Lava browser checks passed: simulation-time animation/pause, remembered/unexplored fog, minimap discovery, generated pool collision and desktop/mobile zoom screenshots. Review: ${output}`);
+  console.log(`Lava browser checks passed: molten coverage ${(checks.moltenCoverage * 100).toFixed(1)}%, yellow coverage ${(checks.yellowCoverage * 100).toFixed(1)}%, flow offset ${JSON.stringify(checks.flowOffset)}, correlation error ${checks.advectedError.toFixed(2)}/${checks.unshiftedError.toFixed(2)}; fixed shores, pause, fog, minimap, collision and desktop/mobile screenshots. Review: ${output}`);
 } finally { await browser.close(); }

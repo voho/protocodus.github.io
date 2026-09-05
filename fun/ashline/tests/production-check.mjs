@@ -71,16 +71,21 @@ for (const team of [0, 1]) {
   const free = own(match, 'harvester', team).find(e => !freeBefore.has(e.id));
   assert(free && free.order.type === 'move', 'Included hauler follows the refinery rally');
   assert.equal(free.order.x, refinery.rally.x);
+  assert.equal(free.order.y, refinery.rally.y, 'The first free rally spot preserves the exact click');
+  const arrivals = [{unit: free, goal: {...free.order}}];
   for (const [producer, type] of [[barracks, 'rifle'], [factory, 'tank'], [refinery, 'harvester']]) {
     const ids = new Set(own(match, type, team).map(e => e.id));
     assert(trainUnit(match, team, type, producer.id).ok);
     advance(match, UNITS[type].trainTime + .1);
     const trained = own(match, type, team).find(e => !ids.has(e.id));
     assert(trained); assert.equal(trained.order.type, type === 'harvester' ? 'move' : 'attackMove');
-    assert.equal(trained.order.x, producer.rally.x); assert.equal(trained.order.y, producer.rally.y);
+    assert(Math.hypot(trained.order.x - producer.rally.x, trained.order.y - producer.rally.y) < 3, 'Later units reserve a nearby free rally spot');
+    arrivals.push({unit: trained, goal: {...trained.order}});
   }
   advance(match, 35);
   assert(own(match, 'harvester', team).every(e => e.order.type === 'harvest'), 'Rallied haulers resume automatic harvesting');
+  assert.equal(new Set(arrivals.map(({goal}) => `${goal.x},${goal.y}`)).size, arrivals.length, 'Independent producers share the rally area without sharing a destination');
+  for (const {unit, goal} of arrivals) assert(Math.hypot(unit.x - goal.x, unit.y - goal.y) <= .081, 'Rallied units settle at their reserved spot');
   const previous = { ...barracks.rally }, enemyRefinery = own(match, 'refinery', 1 - team)[0];
   for (const ids of [[], [barracks.id, enemyRefinery.id], [barracks.id, own(match, 'core', team)[0].id], [-1]]) {
     assert.equal(setRallyPoint(match, team, ids, { x: 30, y: 30 }).ok, false);

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {BUILDINGS, UNITS, createGame, updateGame, canPlace, placeBuilding, trainUnit, issueOrder, getEntity, powerStats, unitRank, unitStats} from '../sim.js';
+import {BUILDINGS, UNITS, createGame, updateGame, canPlace, placeBuilding, trainUnit, issueOrder, getEntity, powerStats, unitRank, unitStats, toggleRepair, sellBuilding} from '../sim.js';
 import {SAVE_KEY, saveGame, loadGame, getSaveInfo, encodeGame, decodeGame} from '../save.js';
 
 const memory = new Map();
@@ -61,6 +61,22 @@ assert.deepEqual(memorySave.rememberedBuildings[0].queue, rememberedFactory.queu
 rememberedFactory.queue[0].progress = .95;
 assert.equal(memorySave.rememberedBuildings[0].queue[0].progress, .45, 'Loaded memory owns its queue snapshot');
 
+// Active and credit-starved repair orders resume exactly, including old-sized operations.
+for (const dimensions of [{width: 144, height: 112}, {width: 72, height: 56}]) {
+  const repairing = createGame('saved-repairs', 'normal', dimensions); repairing.ai.nextThink = 1e12; repairing.minerals.fill(0);
+  const reactor = repairing.entities.find(e => e.team === 0 && e.type === 'reactor'); reactor.hp *= .5;
+  repairing.teams[0].credits = .4; assert(toggleRepair(repairing, reactor.id).ok); advance(repairing, 1);
+  assert.equal(repairing.teams[0].credits, 0); assert(reactor.repairing);
+  const restored = decodeGame(encodeGame(repairing)).game;
+  assert(getEntity(restored, reactor.id).repairing);
+  updateGame(restored, 0); assert.deepEqual(stateJSON(restored), stateJSON(repairing));
+  for (const match of [repairing, restored]) { match.teams[0].credits = 100; advance(match, 2); }
+  assert.deepEqual(stateJSON(restored), stateJSON(repairing), 'Saved repair resumes with exact HP and credit charging');
+  for (const match of [repairing, restored]) assert(sellBuilding(match, reactor.id).ok);
+  const sold = decodeGame(encodeGame(restored)).game; advance(restored, .1); advance(sold, .1);
+  assert.deepEqual(stateJSON(sold), stateJSON(restored), 'A sale saves the pending navigation rebuild without restoring the structure');
+}
+
 // A save made between construction and the next navigation rebuild preserves that boundary.
 const dirty = createGame('dirty-nav'); dirty.navVersion++;
 const dirtyLoaded = decodeGame(encodeGame(dirty)).game;
@@ -74,6 +90,14 @@ assert.deepEqual(lavaLoaded.terrain, lava.terrain, 'Lava terrain round-trips exa
 advance(lava, 3); advance(lavaLoaded, 3);
 assert.equal(lavaLoaded.blocked[lavaCell], 1, 'Loaded lava remains impassable');
 assert.deepEqual(stateJSON(lavaLoaded), stateJSON(lava), 'Lava maps continue deterministically');
+
+const trees = createGame('save-scattered-trees'), treeCell = 25 * trees.width + 35;
+trees.terrain[treeCell] = 4; trees.minerals[treeCell] = 0; trees.navVersion++;
+const treesLoaded = decodeGame(encodeGame(trees)).game;
+assert.deepEqual(treesLoaded.terrain, trees.terrain, 'Scattered tree locations survive saving exactly');
+advance(trees, 1); advance(treesLoaded, 1);
+assert.equal(treesLoaded.blocked[treeCell], 1, 'Saved tree roots remain navigation obstacles');
+assert.deepEqual(stateJSON(treesLoaded), stateJSON(trees), 'Tree maps continue deterministically');
 
 // Both map sizes can load and advance in one session without sharing coordinate/grid bounds.
 const large = createGame('expanded-save'), small = createGame('legacy-size-save', 'hard', {width: 72, height: 56});
@@ -279,7 +303,7 @@ const corruptions = [
   data => { data.version = 999; },
   data => { data.game.width = 999999; },
   data => { data.game.terrain.pop(); },
-  data => { data.game.terrain[0] = 4; },
+  data => { data.game.terrain[0] = 5; },
   data => { data.game.minerals[0] = -1; },
   data => { data.game.entities[0].size = 100000; },
   data => { data.game.entities.find(e => e.kind === 'building').kills = 0; },
@@ -290,6 +314,8 @@ const corruptions = [
   data => { data.game.entities[1].id = data.game.entities[0].id; },
   data => { data.game.entities[0].order = {type: 'move', x: 999999, y: 1}; },
   data => { data.game.entities.find(e => e.kind === 'unit').queue = {}; },
+  data => { data.game.entities.find(e => e.kind === 'unit').repairing = true; },
+  ...[null, 1, 'true', {}].map(value => data => { data.game.entities.find(e => e.kind === 'building').repairing = value; }),
   ...['trafficWait', 'passUntil'].flatMap(key => [
     data => { data.game.entities.find(e => e.kind === 'building')[key] = 0; },
     ...[null, -1, '0', {}].map(value => data => { data.game.entities.find(e => e.kind === 'unit')[key] = value; }),
@@ -321,8 +347,8 @@ for (const text of ['{bad JSON', 'null', '[]', 'x'.repeat(2_000_001)]) {
 }
 memory.set(SAVE_KEY, before); assert(loadGame(storage).ok);
 const legacy = JSON.parse(before); delete legacy.rememberedBuildings; delete legacy.knownOre;
-legacy.game.terrain = legacy.game.terrain.map(value => value === 3 ? 0 : value); legacy.game.navVersion++;
-for (const entity of legacy.game.entities) { delete entity.processingAmount; delete entity.processingTotal; delete entity.unloadDepotId; delete entity.trafficWait; delete entity.passUntil; delete entity.kills; }
+legacy.game.terrain = legacy.game.terrain.map(value => value >= 3 ? 0 : value); legacy.game.navVersion++;
+for (const entity of legacy.game.entities) { delete entity.processingAmount; delete entity.processingTotal; delete entity.unloadDepotId; delete entity.trafficWait; delete entity.passUntil; delete entity.kills; delete entity.repairing; }
 const legacyLoaded = decodeGame(JSON.stringify(legacy));
 assert.deepEqual(legacyLoaded.rememberedBuildings, []);
 assert.equal(legacyLoaded.knownOre.length, game.width * game.height);

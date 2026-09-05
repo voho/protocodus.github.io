@@ -1,12 +1,103 @@
 # Ashline visual assets
 
-## Low-resolution military redraw
+## High-resolution military redraw (current)
+
+Generated with **built-in image_gen mode** on 2026-09-05. All six unit classes and seven buildings now use smooth military-miniature artwork with broad readable armor, restrained mechanical detail and consistent overhead geometry. Unit frames are prepared at rifle64 / rocket80 / scout96 / tank112 / artillery128 / hauler112 pixels; buildings use footprint×64+16 (80,144,208 pixels). This doubles the earlier prepared resolution for high-density displays while keeping game-world sizes unchanged. High-quality filtered preparation and sprite drawing preserve smooth contours, rotation and zoom without repeatedly drawing full atlas cells. The fixed .88 projection, shallow side depth, faction paint, operational states and soft shadows remain in use.
+
+| Current file | Layout / contents |
+| --- | --- |
+| units-hires.webp | 3×2: rifle idle, rifle walking, rover; tank, siege crawler, hauler |
+| rocket-infantry-hires.webp | 2×1: rocket infantry idle and walking |
+| buildings-hires.webp | 3×2: nexus, reactor, refinery; barracks, factory, rail sentry |
+| rocket-tower-hires.webp | Single paired missile-pod tower |
+
+Initial outputs contained a painted checkerboard. Built-in image edits replaced it with flat magenta and corrected atlas padding; the existing runtime chroma-key decoder supplies transparency. All four project exports are lossless WebP. Source PNGs are retained outside the repository at the paths below. Older military atlases in this document are retained as generation references and are not loaded by the game. Props and terrain are unchanged.
+
+### Current unit provenance and exact prompts
+
+References: `units-topdown-v2.webp` (identity/camera), `units-lowres.webp` (large readable forms), and `rocket-infantry.webp` (rocket identity/camera). Unit generation: `exec-e3c51ab1-8e49-4443-a9ad-3d403a469368.png`; final correction: `exec-8ab05d66-f2b1-46be-a460-691a13344dc2.png`. Rocket generation: `exec-b476d3b7-9a2d-4578-a701-354ee9e7d09e.png`; final correction: `exec-aff0a41b-3655-4a42-9887-cde6459b714e.png`. All four originals are under `/Users/vojta/.codex/generated_images/01a06fb8-249d-7982-bab7-c0719d6254e2/`.
+
+#### Six-unit redraw
+
+```text
+Use case: style-transfer. Asset type: production high-resolution unit atlas for the original military RTS ASHLINE.
+Input1 is the detailed unit identity and fixed-overhead-camera reference. Input2 is the simplified silhouette and large readable forms reference. Create a NEW refined smooth-rendered atlas of these same six designs/poses, NOT pixel art and not merely upscaling either reference. Quality appropriate to 26–56 CSS pixel units: runtime caches64–128px at2x for crisp retina display. Render clean broad ivory armor surfaces, carefully shaped graphite mechanisms, distinct cobalt-blue armor panels, controlled bevel highlights and a few purposeful structural details. Smooth geometric contours, readable tracks/wheels/weapons. No scratches, rivet noise, gritty grain, tiny ornamental panels, logos or microtexture. Avoid blurry airbrushed rendering, excessive softness, cartoon proportions, thick black outlines and pixel blocks. This should feel like refined physically modeled military miniatures whose large shapes survive reduction.
+Output1536x1024 EXACTLY3columns×2rows, six512x512cells. ALL units face precisely EAST/right, body centered, all limbs/barrels within central384x384 of their owncell, at least64px clear transparent margins all sides. Matching scale and torso anchor for both infantry poses. Camera is STRICT ORTHOGRAPHIC VERTICAL OVERHEAD roof source: tops of helmets/shoulders/roofs; no face/chest-front, side-on view, prone figures, scene or perspective. Game rotates roofs then applies fixed.88projection/shallow sidewalls for final80%top20%side.
+Row1left: rifle soldier idle, round ivory helmet, two ivory shoulders, graphite backpack and boots, short dark rifle pointingright; broad clear cobalt shoulder panel. Compact upright standing HUMAN seen overhead, not robot or vehicle.
+Row1middle: EXACT same rifle soldier WALKING, torso/helmet/backpack same position and size as idle, only compact boots/elbows alternate.
+Row1right: recon rover, small agile tapered ivory cabin/hood, four large separate graphite offroad wheels, broad cobalt rear roof panel, small roof gun pointingright. Narrow pointed chassis distinct from tank.
+Row2left: vanguard tank, broad heavy squat ivory armored hull, two wide graphite caterpillar tracks, large central angular turret with cobalt side panel, ONE robust medium-length cannon pointingright. Tank must look wider/heavier than rover.
+Row2middle: siege crawler, long slim tracked artillery chassis with dark exposed rear machinery, oversized ivory gunmount and a LONG single thick-enough steel barrel extendingright beyond the hull, cobalt panel. No delicate hairline barrel: recognizable silhouette at28pxwide minimumzoom.
+Row2right: shard hauler, bulky6wheel truck with ivory-rimmed open rear mineral hopper at LEFT holding a few LARGE mint crystal facets, asymmetric ivory driver cabin at RIGHT with cobalt panel, short collector teeth atfar right, no weapon. Preserve hopper completely within left half of body for runtime cargo removal/fill.
+Lighting: nearly diffuse overhead model lighting with concise bevel highlights, dark crevices, no strong directional ground shadow or specular glare. Ivory must be neutral/light (not yellow gold); cobalt remains blue (not mint). Minerals mint/green, sparse tiny amber lamps. Enemy armor recolored at runtime.
+Genuinely TRANSPARENT RGBA background alpha0 outside silhouettes/gaps, no painted checkerboard, white/grey floor, vignette, smoke, backdrop, outside shadows, captions, gridlines, labels or watermark. Six isolated complete production sprites only. Preserve class identities and camera while giving smooth clean hi-res contours and moderate game-scale detail.
+```
+
+#### Six-unit matte and padding correction
+
+```text
+Use case: background-replacement and atlas padding correction. Edit this exact 1536x1024 six-sprite atlas, preserve smooth detailed military designs, same overhead camera, colors, poses and 3columns x2rows grid. Replace ALL checkerboard outside objects AND in gaps with absolutely uniform solid flat saturated #ff00ff MAGENTA. No gridlines, floor, checkerboard remnants, halos or shadows outside the solid objects. Preserve all neutral ivory, cobalt, graphite and mint material colors exactly; magenta occurs ONLY on background. Keep each sprite completely inside its own512x512cell with at least48pixels magenta padding on every edge. Bottom-middle artillery is TOO WIDE: scale that entire artillery uniformly to fit width400px, centered inside its cell (x512..1023,y512..1023). Keep its long barrel complete. Bottom-left tank also ensure48pixels right margin. Both top rifle poses same torso anchor and scale. All six objects isolated, no objects added/removed/merged. Smooth sharp contours, no pixelation, no glow. Background must be flat #ff00ff everywhere. No captions, logos or text.
+```
+
+#### Rocket infantry redraw
+
+```text
+Use case: style-transfer. Asset type: hi-res production rocket-infantry atlas for original RTS ASHLINE. Input is identity/camera reference. Re-render the same rocket soldier as a refined smooth military miniature with deliberate game-scale details, suitable for a32px unit with80px retina sprite cache. NOT pixel art, not an enlarged pixel sprite, no blocky edges. Broad neutral-IVORY helmet/shoulder armor, graphite fatigues and mechanisms, cobalt BLUE panels/bands, smooth modeled contours and controlled bevel highlights. No dense scratches/rivets, tiny texture, heavy weathering, grain, thick cartoon outlines, blur or glow.
+Output1536x1024, exactlyTWO equal768x1024cells side by side. Leftidle, rightwalking with alternative short boot positions; identical round helmet, shoulder/torso/backpack position and body scale acrossposes. Both point exactlyEAST/right. STRICT overhead vertical orthographic source as reference, looking on top of upright HUMAN helmet/shoulders/pack. No hanging side-view chest, face, long standing portrait, prone body or camera tilt. Runtimeaddsonefixed80%top20%sideprojection.
+Keep human identity clear: round ivory helmet beside a HUGE thick shoulder launcher extendingright, large dark muzzle, broad ivory tube and cobalt band; three readable spare rockets on rear backpack atleft, separate compact boots and arms. Distinguish from a rifle soldier using substantial launcher/pack silhouette. Refine and clean source details, reduce minor ornaments, increase large coherent armor/blue areas. Soft nondirectional model lighting only; no external groundshadow.
+Each complete sprite contained within central500x500ofitscell (center384,512), generous≥120pxclearleft/right margins including launcher tips, stable commonbodyanchor. GENUINE RGBA transparent alpha outside eachsprite andin gaps; no painted checkerboard, background color, scene, floor, smoke, effects, labels, text, symbols or watermark.
+```
+
+#### Rocket infantry matte correction
+
+```text
+Use case: background-replacement. Edit this exact1536x1024two-pose smooth overhead rocket infantry atlas. Preserve both soldiers, designs, overhead camera, neutral ivory armor/cobalt panels/graphite/muzzle colors, all silhouette details and pose alignment. Replace ALL checkerboard outside objects AND gaps with absolutely uniform solid saturated MAGENTA #ff00ff. Remove center dividing line entirely to magenta. No gridlines, shadow, checkerboard remnants, glow, background variation, captions or text. Every background pixel flat #ff00ff, with no magenta within object materials. Keep same two equal768x1024cells, each soldier isolated and fully within itscell with at least64px clear magenta padding all edges including long muzzle tip. Smooth sharp contours, preserve rendering quality. Do not redesign or pixelate the soldiers.
+```
+
+### Current building provenance and exact prompts
+
+References: `buildings-lowres.webp` and `buildings.webp` for the six structures; `rocket-tower.webp` for the missile tower. Final building source: `/Users/vojta/.codex/generated_images/01a07212-5009-72a2-bf07-851a6ba77b96/exec-6a863a0a-1b77-4636-935b-882865e603c8.png`. Final tower source: `/Users/vojta/.codex/generated_images/01a07212-5009-72a2-bf07-851a6ba77b96/exec-4f1fdbb5-135a-4c32-9509-ebd93ce6768b.png`.
+
+#### buildingsHiresPrompt
+
+```text
+Use case: style-transfer. Asset type: polished production building sprites for ASHLINE, an original military sci-fi RTS. FIRST input supplies the six building identities and functional layout ONLY, NOT its pixel-art surface. SECOND input supplies physical miniature material inspiration ONLY, NOT its excessive fine scratches or smoke. Completely RE-RENDER all six as refined SMOOTH pre-rendered 3D military miniatures with high-quality rounded bevel shading, clean edges, broad readable architecture. NO pixel art, pixel clusters, mosaic, nearest-neighbor blocks, thick ink outlines or low-poly facets. These sprites will display at50–125screenpixels with80/144/208px source preparation, so use medium-scale details that survive reduction: large vents, thick pipes, clear roof panels, obvious machinery; avoid photographic grain, noisy wear, tiny rivets, fine scratches, tiny lettering and excessive greebles. Sharply defined silhouettes and broad ivory roofs, dark graphite mechanisms, strong COBALT BLUE faction bands, sparse small amber lamps. Restrained industrial realism, original designs.
+Output ONE1536x1024 sheet EXACTLY3columns×2rows, six512x512cells, same order as reference. Every complete object centered in its own cell; confine ALL architecture including antenna, ramp, crane and barrel to its central384x384rectangle, minimum64px empty transparent margin on EVERY cell edge. Keep distinct readable shapes, no crossing cell boundaries, no accidental debris outside silhouettes.
+CAMERA: fixed orthographic HIGH OVERHEAD, approximately80% TOP and20% shallow visible south/front and right side. Roof surfaces dominate and circular top fan faces are broad ellipses. Short side-wall depth rather than tall frontal profiles. Align foundations to horizontal/vertical world grid; no diamond-isometric footprints or perspective convergence. Consistent soft diffuse overhead lighting, gentle ambient occlusion only inside the forms, NO cast ground shadows outside silhouettes; runtime adds shadows.
+TOP LEFT NEXUS: broad octagonal command platform, faceted blue-grey observation roof, compact large radar dish and two SHORT communications antennae, broad ivory/cobalt panels, empty south doorway. TOP MIDDLE REACTOR: two stout round cooling cylinders with dark circular fan tops, thick joining pipes and a small central reactor housing. No visible smoke, steam or glow clouds. TOP RIGHT REFINERY: original rectangular industrial processor; LARGE OPEN MINT CRYSTAL HOPPER in UPPER LEFT; diagonal conveyor, two right-side round tanks, compact rightmost smokestack with dark opening and NO smoke. CRITICAL hopper location within tightly cropped refinery silhouette: x12%–49%,y12%–46%, center about30%,28%; never move cargo to the center/right/bottom. Mint crystals ONLY inside that hopper. Empty DARK south-facing hauler service bay with clear ramp. BOTTOM LEFT BARRACKS: compact square low bunkhouse, large cobalt south canopy over an EMPTY entrance, a few broad roof vents and short antenna. BOTTOM MIDDLE FACTORY: broad ivory garage roof, four large roof vent panels, side crane, EMPTY wide DARK south-facing garage bay with ramp. No vehicle, person, robot or machine filling the garage; runtime depicts actual production there. BOTTOM RIGHT RAIL SENTRY: small octagonal pedestal, compact single turret with long clear cannon pointing RIGHT, short sensor mast, no missiles.
+Background: genuine TRANSPARENT RGBA alpha outside each silhouette and in all gutters; no painted checkerboard, solid color, white backdrop, floor, terrain, vignette, smoke, exhaust, fire, glow bloom or baked shadows. No labels, numbers, text, gridlines, panel frames, logos, symbols or watermark. Each sprite should look like a clean refined smooth miniature designed to remain recognizable when small, NOT a grainy photo and NOT pixel art.
+```
+
+#### buildingsHiresFinalPrompt
+
+```text
+Use case: precise-object-edit. This smooth ASHLINE six-building atlas has the CORRECT art style and designs. Make ONLY these two production corrections: (1) replace all painted white/grey checkerboard backdrop with flat SOLID PURE MAGENTA #FF00FF RGB255,0,255; (2) make the six complete objects SMALLER and precisely recenter them inside their respective atlas cells. Keep the same smooth render, camera, broad ivory/cobalt armor, dark machinery, all building identity and material shading; do not redesign or pixelate.
+Canvas stays EXACT1536x1024,3columns×2rows of512x512cells. Scale every ENTIRE building including antenna, dish, crane, ramp and long gun down so its complete bounding box is MAXIMUM340pixels wide and MAXIMUM340pixels high. Center its complete bounding box EXACTLY at one of these six pixel centers: nexus(256,256), reactor(768,256), refinery(1280,256), barracks(256,768), factory(768,768), rail turret(1280,768). Each bounding box must fit inside a340x340rectangle around that center, leaving86pixels blank magenta to ALL cell edges. In particular the barracks antenna must be below y598, NEVER near/cross y512. The factory crane must be left of x938. The rail cannon tip must remain left of x1450. Whole sprites uniformly scaled, no clipping and no different scale within a building. Preserve refinery hopper at upper-left within its own object, dark empty south bays, and right refinery stack without smoke.
+Background everywhere outside every silhouette INCLUDING ALL gutters and object gaps must be one FLAT PURE MAGENTA color, no transparency/checkerboard, no white/grey residue, no gradients, no floor, no cast shadows. Do not depict a grid or labels. No other changes. Smooth anti-aliased object edges are fine; no pixel-art treatment. This edit MUST visibly increase the blank space between all six buildings and shrink their full silhouettes while preserving their design.
+```
+
+#### rocketTowerHiresPrompt
+
+```text
+Use case: style-transfer. Asset type: single production sprite for ASHLINE original military sci-fi RTS. Re-render the referenced rocket defense tower as a refined SMOOTH pre-rendered miniature, with crisp silhouette, rounded armor bevels, controlled material shading and broad ivory/COBALT BLUE panels over dark graphite mechanisms. Moderate detail designed to read at60–85screenpixels, prepared at144px; remove noisy fine scratches, grain, tiny rivets and cluttered micro-mechanics. No pixel art, blocky nearest-neighbor edges, thick black outlines, cartoon styling or low-poly facets. It should remain the SAME distinct paired-pod missile defense tower on a compact square two-tile pedestal.
+Exactly ONE complete tower centered in a1024x1024 square with at least110pixels clear transparent margin around every extremity. Two separate broad chunky ivory launch pods side by side, each roof showing SIX clearly recessed BLACK launch tubes in a2columns×3rows arrangement; obvious thick armored pod rims, thick dark joint arms between pods, small short rear sensor mast and dish, broad squared foundation with a south service hatch, strong cobalt panels on pod outer sides and foundation corners, tiny restrained amber readiness lights. No long cannon, wheels, tracks or people. Shorten mast and pedestal to keep the camera very high overhead.
+CAMERA fixed orthographic approximately80percent TOP/roof and20percent shallow SOUTH/front and RIGHT side depth. Look mostly DOWN into launch-cell openings. Roof faces must dominate and short front faces merely convey thickness. Foundation square aligned horizontally/vertically to world grid, not rotated into a diamond; no perspective vanishing points, no tall portrait side elevation. Soft nearly diffuse overhead lighting and subtle internal ambient occlusion only; no ground cast shadow outside the silhouette. Materials neutral warm ivory (not gold/tan), cobalt, slate steel, black recesses. Original industrial design, no franchise motifs.
+Genuinely transparent RGBA background including gaps around mast and pods. No painted transparency checkerboard, white/grey/black backdrop, floor, terrain, vignette, external shadows, smoke, exhaust, missiles in flight, fire, effects or bloom. No text, symbols, logos, frame or watermark. Deliver a clean, smooth and detailed miniature sprite with large readable architectural forms, not a noisy full-size illustration.
+```
+
+#### rocketTowerHiresFinalPrompt
+
+```text
+Use case: background-extraction. Change ONLY the background of this smooth ivory/cobalt ASHLINE missile tower sprite. Replace the painted white/light-grey checkerboard with perfectly flat PURE SATURATED MAGENTA #FF00FF RGB255,0,255. Solid opaque chroma-key background in every exterior pixel and gap around the mast and pods. No transparency, no painted checkerboard, no white/grey halo, no gradient, no vignette, no shadow or floor. Preserve the exact tower design, proportions, scale, position, high overhead camera, smooth bevel shading, ivory armor and blue panels, dark launch cells, sensor dish, base hatch and tiny amber lamps. Keep the complete tower inside its existing generous margin on a square canvas. Do NOT redesign, blur, pixelate, resize or add detail. No smoke, new objects, labels, symbols or watermark. This is exclusively a clean-background-to-magenta edit.
+```
+
+## Low-resolution military redraw (historical)
 
 Re-rendered with **built-in image_gen mode** on 2026-09-05 to replace high-detail art that lost clarity at gameplay scale. The new sources deliberately simplify armor, weapons, machinery, and cargo into larger color clusters. The runtime prepares unit canvases at rifle32 / rocket40 / scout48 / tank56 / artillery64 / hauler56 pixels, and building canvases at footprint×32+8 pixels (40,72,104). Normalization and body drawing use nearest-neighbor sampling; terrain/fog and soft shadow rendering remain smooth. Continuous headings still precede the same fixed .88 camera projection and shallow side depth.
 
 Source atlas layouts are unchanged, preserving both infantry walking poses and all existing operational states. Fresh generated images initially contained a painted checkerboard; built-in background-only correction supplied a clean chroma-key source where needed. Project exports use lossless WebP. Source PNGs remain under `/Users/vojta/.codex/generated_images/01a06fb8-249d-7982-bab7-c0719d6254e2/`.
 
-| Current file | Contents |
+| Historical file | Contents |
 | --- | --- |
 | units-lowres.webp | Rifle idle / rifle walking / rover; tank / siege crawler / hauler; 3×2 cells |
 | rocket-infantry-lowres.webp | Rocket infantry idle and walking; 2×1 cells |
@@ -126,7 +217,7 @@ The five earlier directional sheets (`tank.webp`, `scout.webp`, `artillery.webp`
 
 Generated with the built-in `image_gen` tool, then encoded as lossless WebP with `cwebp`, preserving transparency. Selected source: `exec-6e994a37-ca16-401e-b2c8-9d45899de6c4.png` in the Codex generated-images directory. The project consumes `desolate-trees.webp` locally.
 
-The source shows branch crowns from directly overhead. `assets.js` caches the same 0.88 vertical projection used for unit roofs, small fixed side depth, and lower-right silhouette shadows. The renderer places sparse groves on existing rocky ground, varying all six silhouettes and their sizes without changing navigation or save data. Trees keep their camera orientation; visible units behind branches reduce canopy opacity.
+The source shows branch crowns from directly overhead. `assets.js` caches the same 0.88 vertical projection used for unit roofs, small fixed side depth, and lower-right silhouette shadows. New maps scatter individual trees on open ground using saved terrain value4 for their obstructing roots. The renderer varies all six silhouettes and sizes at those locations; older saves without tree terrain retain their existing rocky groves. Trees keep their camera orientation; visible units behind branches reduce canopy opacity.
 
 Final generation prompt:
 

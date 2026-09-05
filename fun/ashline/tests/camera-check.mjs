@@ -16,7 +16,7 @@ try {
   // Cropping can conceal a barrel crossing into the next atlas cell. Check the source too.
   const clearCellBorders = await page.evaluate(async () => {
     const { removeMatte } = await import('./assets.js');
-    for (const [name, columns, rows] of [['units-lowres', 3, 2], ['rocket-infantry-lowres', 2, 1], ['buildings-lowres', 3, 2], ['rocket-tower-lowres', 1, 1]]) {
+    for (const [name, columns, rows] of [['units-hires', 3, 2], ['rocket-infantry-hires', 2, 1], ['buildings-hires', 3, 2], ['rocket-tower-hires', 1, 1]]) {
       const image = new Image(); image.src = `./assets/generated/${name}.webp`; await image.decode();
       const canvas = document.createElement('canvas'); canvas.width = image.width; canvas.height = image.height;
       const ctx = canvas.getContext('2d'); ctx.drawImage(image, 0, 0);
@@ -39,21 +39,20 @@ try {
     const { UNITS } = await import('./sim.js');
     const canvas = document.createElement('canvas'); canvas.width = canvas.height = 192;
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    // Test actual prepared images and draw state, including portraits/production callers
-    // whose canvas starts with browser-default smoothing enabled.
+    // Test actual prepared images and draw state, including portraits/production callers.
     const nativeDraw = ctx.drawImage;
-    const pixels = {rifle: 32, rocket: 40, scout: 48, tank: 56, artillery: 64, harvester: 56, core: 104, reactor: 72, refinery: 104, barracks: 72, factory: 104, turret: 40, rocketTower: 72};
+    const pixels = {rifle: 64, rocket: 80, scout: 96, tank: 112, artillery: 128, harvester: 112, core: 208, reactor: 144, refinery: 208, barracks: 144, factory: 208, turret: 80, rocketTower: 144};
     for (const [type, size] of Object.entries(pixels)) for (const team of [0, 1]) for (const moving of [false, true]) {
       let drawn = false;
       ctx.drawImage = function (source, ...args) {
         drawn = true;
         if (source.width !== size || source.height !== size) throw Error(`${type}: expected ${size}px prepared sprite, got ${source.width}×${source.height}`);
-        if (this.imageSmoothingEnabled) throw Error(`${type}: sprite sampling blurs the low-resolution source`);
+        if (!this.imageSmoothingEnabled || this.imageSmoothingQuality !== 'high') throw Error(`${type}: high-resolution art needs smooth high-quality sampling`);
         return nativeDraw.call(this, source, ...args);
       };
-      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingEnabled = false; ctx.imageSmoothingQuality = 'low';
       drawSprite(ctx, {type, team, moving, id: 0}, .2);
-      if (!drawn || !ctx.imageSmoothingEnabled) throw Error(`${type}: drawing must restore the caller's smoothing state`);
+      if (!drawn || ctx.imageSmoothingEnabled || ctx.imageSmoothingQuality !== 'low') throw Error(`${type}: drawing must restore the caller's smoothing state`);
     }
     ctx.drawImage = nativeDraw;
     function sample(type, team, moving, angle) {

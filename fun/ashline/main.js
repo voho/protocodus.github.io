@@ -1,4 +1,4 @@
-import { BUILDINGS, UNITS, createGame, updateGame, placeBuilding, canPlace, trainUnit, setRallyPoint, issueOrder, stopUnits, powerStats, getEntity, unitRank, unitStats } from './sim.js';
+import { BUILDINGS, UNITS, createGame, updateGame, placeBuilding, canPlace, trainUnit, setRallyPoint, issueOrder, stopUnits, powerStats, getEntity, unitRank, unitStats, toggleRepair, sellBuilding, salvageValue } from './sim.js';
 import { Renderer, drawIcon } from './render.js';
 import { assetsReady, assetStatus } from './assets.js';
 import { createAudio } from './audio.js';
@@ -287,6 +287,7 @@ function updateHUD() {
       const activity = [job ? `${UNITS[job.type].name} ${Math.floor(job.progress * 100)}%` : first.processingAmount > 0 ? 'Processing minerals' : producer ? 'Idle · bay empty' : 'Operational'];
       if (first.processingAmount > 0) activity.push(`${Math.ceil(first.processingAmount)} shards remaining`);
       if (first.haulerPending) activity.push('Included hauler awaiting deployment');
+      if (first.repairing) activity.unshift(game.teams[0].credits > 0 ? 'Repairing' : 'Repair waiting for credits');
       detail = first.progress < 1 ? `Under construction · ${Math.floor(first.progress * 100)}%` : `${Math.ceil(first.hp)} / ${first.maxHp} integrity · ${activity.join(' · ')}`;
       if (selectedProducers().length) detail += first.rally ? ` · Rally ${Math.floor(first.rally.x)}:${Math.floor(first.rally.y)}` : ' · Set rally with R or right click';
     }
@@ -318,6 +319,24 @@ function updateHUD() {
   for (const id of ['move-order', 'attack-order', 'explore-order', 'stop-order']) { $(id).disabled = busy() || !units.length; $(id).hidden = !units.length; }
   $('rally-order').hidden = !selectedProducers().length;
   $('rally-order').disabled = busy() || !selectedProducers().length;
+  const building = selection.length === 1 && first.kind === 'building' ? first : null;
+  for (const id of ['repair-building', 'sell-building', 'building-actions-note']) $(id).hidden = !building;
+  if (building) {
+    const repair = $('repair-building'), sell = $('sell-building'), refund = salvageValue(building);
+    repair.disabled = busy() || building.progress < 1 || building.hp >= building.maxHp;
+    repair.setAttribute('aria-pressed', String(Boolean(building.repairing)));
+    repair.classList.toggle('active', Boolean(building.repairing));
+    $('repair-label').textContent = building.repairing ? 'STOP REPAIR' : 'REPAIR';
+    repair.title = 'Restore 2% integrity per second. A full health bar costs half the structure price; waits if credits run out.';
+    sell.disabled = busy() || building.type === 'core';
+    $('sell-label').textContent = `SELL +${fmt(refund)}`;
+    sell.title = building.type === 'core' ? 'The command nexus cannot be sold' : `Sell immediately for ${refund} credits, including all paid unit queues. Haulers keep their cargo.`;
+    const notes = [building.progress < 1 ? 'Finish construction to repair.' : building.repairing && game.teams[0].credits <= 0 ? 'Waiting for credits; repair resumes automatically.' : `Repair: 2% HP/s · ${BUILDINGS[building.type].cost / 100} credits/s.`];
+    if (building.type === 'core') notes.push('Nexus cannot be sold.');
+    if (building.type === 'refinery' && !building.haulerPending) notes.push('Hauler value excluded from sale.');
+    if (building.queue.length) notes.push(`Sale includes ${fmt(building.queue.reduce((sum, q) => sum + UNITS[q.type].cost, 0))} queued credits.`);
+    $('building-actions-note').textContent = notes.join(' ');
+  }
   const exploring = units.filter(e => e.order?.type === 'explore').length;
   $('explore-order').setAttribute('aria-pressed', exploring ? exploring === units.length ? 'true' : 'mixed' : 'false');
   $('explore-order').classList.toggle('active', exploring > 0);
@@ -559,6 +578,21 @@ $('train-tab').addEventListener('click', () => setTab('train'));
 $('attack-order').addEventListener('click', () => setOrder('attackMove'));
 $('move-order').addEventListener('click', () => setOrder('move'));
 $('rally-order').addEventListener('click', () => setOrder('rally'));
+$('repair-building').addEventListener('click', () => {
+  if (busy()) return;
+  const selection = selectedEntities(); if (selection.length !== 1) return;
+  const result = toggleRepair(game, selection[0].id);
+  if (!result.ok) notify(result.reason, true); else playSound('confirm');
+  updateHUD();
+});
+$('sell-building').addEventListener('click', () => {
+  if (busy()) return;
+  const selection = selectedEntities(); if (selection.length !== 1) return;
+  const result = sellBuilding(game, selection[0].id);
+  if (!result.ok) notify(result.reason, true);
+  else { cancelOrder(); playSound('confirm'); notify(`Structure sold · +${fmt(result.refund)} credits`); }
+  updateHUD(); updateCatalog();
+});
 $('stop-order').addEventListener('click', stopSelection);
 $('explore-order').addEventListener('click', toggleExplore);
 $('select-army').addEventListener('click', selectArmy);

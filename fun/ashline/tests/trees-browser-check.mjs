@@ -47,21 +47,36 @@ try {
       r.createTerrain(s); const first = JSON.stringify(trees()), count = trees().length;
       const invalid = trees().filter(p => {
         const x = Math.floor(p.x), y = Math.floor(p.y), i = y * s.width + x;
-        return s.terrain[i] !== 1 || s.minerals[i] > 0 || !s.blocked[i] || s.entities.some(e => e.kind === 'building' && x >= e.x && x < e.x + e.size && y >= e.y && y < e.y + e.size);
+        return s.terrain[i] !== 4 || s.minerals[i] > 0 || !s.blocked[i] || s.entities.some(e => e.kind === 'building' && x >= e.x && x < e.x + e.size && y >= e.y && y < e.y + e.size);
       }).length;
       const variants = new Set(trees().map(p => p.variant)).size, rocks = r.rockProps.filter(p => p.kind === 'rock').length;
+      const sectors = new Set(trees().map(p => `${Math.floor(p.x / s.width * 4)},${Math.floor(p.y / s.height * 4)}`)).size;
+      const treeTiles = s.terrain.reduce((n, tile) => n + (tile === 4), 0);
       r.createTerrain(s); const repeated = JSON.stringify(trees()) === first;
       r.createTerrain(decodeGame(encodeGame(s)).game); const restored = JSON.stringify(trees()) === first;
       r.createTerrain(createGame('TREES-OTHER-SEED', 'normal', dimensions));
-      rows.push({width: s.width, count, invalid, variants, rocks, repeated, restored, varied: JSON.stringify(trees()) !== first, unchanged: before.every(([key, values]) => s[key].every((value, i) => value === values[i]))});
+      rows.push({width: s.width, count, invalid, variants, rocks, sectors, treeTiles, repeated, restored, varied: JSON.stringify(trees()) !== first, unchanged: before.every(([key, values]) => s[key].every((value, i) => value === values[i]))});
     }
     r.createTerrain(ashline.state); return rows;
   });
   for (const row of placement) {
     assert(row.count > 6 && row.rocks > 6 && row.variants === 6, `Tree variety retains basalt formations on width ${row.width}`);
-    assert.equal(row.invalid, 0, 'Trees only replace blocked rock terrain outside ore, lava and building footprints');
+    assert.equal(row.invalid, 0, 'Scattered trees match their own root obstacles outside ore, lava and building footprints');
+    assert.equal(row.count, row.treeTiles, 'Every generated tree is rendered once');
+    assert(row.sectors >= 10, 'Trees appear across the map rather than only in a few mountain groves');
     assert(row.repeated && row.restored && row.varied && row.unchanged, 'Placement is seeded, save-stable and leaves simulation topology unchanged');
   }
+
+  const legacyTrees = await page.evaluate(async () => {
+    const {createGame} = await import('./sim.js'), {encodeGame, decodeGame} = await import('./save.js'), r = ashline.renderer;
+    const s = createGame('TREES-LEGACY', 'normal', {width: 72, height: 56});
+    s.terrain = s.terrain.map(tile => tile === 4 ? 0 : tile); s.navVersion++;
+    const snapshot = () => JSON.stringify(r.rockProps.filter(p => p.kind === 'tree'));
+    r.createTerrain(s); const first = snapshot(), count = r.rockProps.filter(p => p.kind === 'tree').length;
+    r.createTerrain(decodeGame(encodeGame(s)).game); const same = snapshot() === first;
+    r.createTerrain(ashline.state); return {count, same};
+  });
+  assert(legacyTrees.count > 6 && legacyTrees.same, 'Older saves retain their existing deterministic rocky groves');
 
   const fog = await page.evaluate(async () => {
     const {UNITS} = await import('./sim.js'), {state: s, renderer: r, view: v} = ashline;
@@ -135,5 +150,5 @@ try {
   }
   assert.deepEqual(errors, []);
   console.log(JSON.stringify({placement, fog}, null, 2));
-  console.log(`Tree browser checks passed: six varieties, seeded/new/legacy placement, unchanged topology, mineral/lava/building exclusion, fog and concealed-enemy opacity, desktop/mobile unit selection and zoom previews. Review: ${output}`);
+  console.log(`Tree browser checks passed: six varieties, scattered root obstacles across sectors, seeded/save-stable placement, legacy groves, mineral/lava/building exclusion, fog and concealed-enemy opacity, desktop/mobile unit selection and zoom previews. Review: ${output}`);
 } finally { await browser.close(); }

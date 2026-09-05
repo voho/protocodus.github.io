@@ -33,7 +33,7 @@ function validateGame(s) {
   valid(['playing', 'victory', 'defeat'].includes(s.status) && number(s.time, 0));
   valid(integer(s.rng, 1, 0xffffffff) && integer(s.nextId, 1) && integer(s.navVersion) && integer(s.navBuilt, -1) && s.navBuilt <= s.navVersion && number(s.fogClock, -1, 1));
   const grid = (values, max, whole = true) => Array.isArray(values) && values.length === cells && values.every(value => whole ? integer(value, 0, max) : number(value, 0, max));
-  valid(grid(s.terrain, 3) && grid(s.minerals, 1e6, false) && grid(s.blocked, 1) && grid(s.regions, cells));
+  valid(grid(s.terrain, 4) && grid(s.minerals, 1e6, false) && grid(s.blocked, 1) && grid(s.regions, cells));
   for (const key of ['visible', 'explored']) valid(Array.isArray(s[key]) && s[key].length === 2 && s[key].every(values => grid(values, 1)));
   valid(Array.isArray(s.teams) && s.teams.length === 2 && s.teams.every(t => object(t) && number(t.credits, 0) && integer(t.kills)));
   valid(Array.isArray(s.entities) && s.entities.length <= cells + 120);
@@ -57,6 +57,7 @@ function validateGame(s) {
     if (e.rally !== undefined) valid(point(e.rally));
     if (e.trafficWait !== undefined) valid(e.kind === 'unit' && number(e.trafficWait, 0, .8));
     if (e.passUntil !== undefined) valid(e.kind === 'unit' && number(e.passUntil, 0, s.time + 1.5));
+    if (e.repairing !== undefined) valid(e.kind === 'building' && typeof e.repairing === 'boolean');
     if (e.processingAmount !== undefined || e.processingTotal !== undefined) valid(e.kind === 'building' && ['refinery', 'core'].includes(e.type) && number(e.processingAmount, 0) && number(e.processingTotal, e.processingAmount));
     if (e.unload !== undefined) valid(e.kind === 'unit' && e.type === 'harvester' && number(e.unload, 0, 1.2));
     if (e.unloadDepotId !== undefined) {

@@ -63,24 +63,57 @@ function generateMap(s){
     const x=2+Math.floor(random(s)*(W-4)),y=2+Math.floor(random(s)*(H-4)),r=1+random(s)*2.1;
     for(let yy=Math.floor(y-r);yy<=y+r;yy++)for(let xx=Math.floor(x-r);xx<=x+r;xx++)if(inside(s,xx,yy)&&sq(xx-x)+sq(yy-y)<r*r&&random(s)>.13)s.terrain[yy*W+xx]=1;
   }
-  const clear=(x,y,r)=>{for(let yy=Math.floor(y-r);yy<=y+r;yy++)for(let xx=Math.floor(x-r);xx<=x+r;xx++)if(inside(s,xx,yy)&&sq(xx-x)+sq(yy-y)<=r*r)s.terrain[yy*W+xx]=0;};
+  const protectedGround=new Uint8Array(N);
+  const clear=(x,y,r)=>{for(let yy=Math.floor(y-r);yy<=y+r;yy++)for(let xx=Math.floor(x-r);xx<=x+r;xx++)if(inside(s,xx,yy)&&sq(xx-x)+sq(yy-y)<=r*r){const i=yy*W+xx;s.terrain[i]=0;protectedGround[i]=1;}};
   clear(start.x,start.y,11);clear(end.x,end.y,11);
   // Three guaranteed routes prevent unlucky seeds from sealing either base.
   const routeSteps=Math.round(100*Math.sqrt(area));
   for(let i=0;i<=routeSteps;i++){const t=i/routeSteps,x=start.x+(end.x-start.x)*t,y=start.y+(end.y-start.y)*t;clear(x,y,2.6);clear(x,y+Math.sin(t*Math.PI)*bend,2.1);clear(x,y-Math.sin(t*Math.PI)*bend,2.1);}
-  const centers=[],patch=(x,y,amounts)=>{centers.push({x,y});let k=0;for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++)if(dx*dx+dy*dy<=5){const xx=x+dx,yy=y+dy;if(inside(s,xx,yy)){s.terrain[yy*W+xx]=0;s.minerals[yy*W+xx]=amounts[k++];}}};
+  // Separate distribution draws from gameplay RNG; both sides receive the same loose patch and budget.
+  const centers=[],scatterRng={rng:hash(`${s.seed}:mineral-scatter`)},treeRng={rng:hash(`${s.seed}:trees`)};
+  rebuildNavigation(s);const region=s.regions[cell(s,start.x,start.y)];
+  const access=(a,b)=>{const steps=Math.max(1,Math.ceil(distance(a,b)*2));for(let i=0;i<=steps;i++)clear(a.x+(b.x-a.x)*i/steps,a.y+(b.y-a.y)*i/steps,.8);};
+  const patch=(c,offsets,amounts,mirror)=>{
+    centers.push(c);
+    if(s.regions[cell(s,c.x,c.y)]!==region){
+      let nearest,score=Infinity;
+      for(let i=0;i<N;i++)if(s.regions[i]===region){const p={x:i%W,y:Math.floor(i/W)},d=sq(p.x-c.x)+sq(p.y-c.y);if(d<score){score=d;nearest=p;}}
+      if(nearest)access(c,nearest);
+    }
+    offsets.forEach((p,i)=>{const x=c.x+p.x*mirror,y=c.y+p.y*mirror;access(c,{x,y});s.minerals[y*W+x]+=amounts[i];});
+  };
+  const field=(a,b,amounts)=>{
+    const candidates=[];
+    for(let y=-4;y<=4;y++)for(let x=-4;x<=4;x++){
+      const radius=x*x+y*y;if(!radius||radius>20)continue;
+      const points=[{x:a.x+x,y:a.y+y},{x:b.x-x,y:b.y-y}];
+      if(points.some(p=>p.x<1||p.y<1||p.x>=W-1||p.y>=H-1||distance(p,start)<6.5||distance(p,end)<6.5))continue;
+      candidates.push({x,y,radius,score:random(scatterRng)});
+    }
+    candidates.sort((a,b)=>a.score-b.score);
+    const offsets=[{x:0,y:0},...candidates.filter(p=>p.radius<=8).slice(0,12),...candidates.filter(p=>p.radius>8).slice(0,8)];
+    for(const p of candidates)if(offsets.length<21&&!offsets.includes(p))offsets.push(p);
+    patch(a,offsets,amounts,1);patch(b,offsets,amounts,-1);
+  };
   const fields=[[start.x+8,start.y+1],[start.x,start.y+7],[start.x-6,start.y-12],[Math.round(W*29/72),Math.round(H*27/56)],[Math.round(W*35/72),Math.round(H*40/56)]];
   for(const [x,y] of fields){
-    const amounts=Array.from({length:21},()=>320+Math.floor(random(s)*300));patch(x,y,amounts);patch(start.x+end.x-1-x,start.y+end.y-1-y,amounts);
+    const amounts=Array.from({length:21},()=>320+Math.floor(random(s)*300));field({x,y},{x:start.x+end.x-1-x,y:start.y+end.y-1-y},amounts);
   }
   // Extra remote fields fill the enlarged sector without changing the starting cargo routes.
   const resourceRng={rng:hash(`${s.seed}:fields`)};
   for(let attempt=0;centers.length<Math.round(10*area)&&attempt<1000;attempt++){
     const a={x:4+Math.floor(random(resourceRng)*(W/2-8)),y:4+Math.floor(random(resourceRng)*(H-8))},b={x:W-1-a.x,y:H-1-a.y};
     if([a,b].some(p=>distance(p,start)<17||distance(p,end)<17||centers.some(c=>distance(c,p)<6))||distance(a,b)<6)continue;
-    const amounts=Array.from({length:21},()=>320+Math.floor(random(s)*300));patch(a.x,a.y,amounts);patch(b.x,b.y,amounts);
+    const amounts=Array.from({length:21},()=>320+Math.floor(random(s)*300));field(a,b,amounts);
   }
   addLavaPools(s);
+  for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++){
+    const at=y*W+x;if(random(treeRng)>.035||protectedGround[at])continue;
+    let open=true;
+    // An open eight-neighbor ring guarantees that one new root cannot sever a passage.
+    for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const i=(y+dy)*W+x+dx;if(![0,2].includes(s.terrain[i])||s.minerals[i]>0)open=false;}
+    if(open)s.terrain[at]=4;
+  }
 }
 
 function addLavaPools(s){
@@ -127,7 +160,7 @@ export function createGame(seed='ASH-001',difficulty='normal',{width:W=MAP_WIDTH
 function rebuildNavigation(s){
   const {width:W,height:H}=s,N=W*H;
   if(s.navBuilt===s.navVersion)return;
-  for(let i=0;i<N;i++)s.blocked[i]=s.terrain[i]===1||s.terrain[i]===3?1:0;
+  for(let i=0;i<N;i++)s.blocked[i]=s.terrain[i]===1||s.terrain[i]===3||s.terrain[i]===4?1:0;
   for(const e of s.entities)if(alive(e)&&e.kind==='building')for(let y=e.y;y<e.y+e.size;y++)for(let x=e.x;x<e.x+e.size;x++)s.blocked[y*W+x]=1;
   // Connected regions let haulers skip isolated mineral pockets without repeated A* failures.
   s.regions=new Uint16Array(N);let region=0;const queue=new Int32Array(N);
@@ -155,7 +188,7 @@ export function canPlace(s,team,type,x,y){
   if(x<1||y<1||x+d.size>=W||y+d.size>=H)return bad('Outside construction zone');
   rebuildNavigation(s);
   for(let yy=y;yy<y+d.size;yy++)for(let xx=x;xx<x+d.size;xx++){
-    const i=yy*W+xx;if(!s.visible[team][i])return bad('Requires sensor coverage');if(s.terrain[i]===3)return bad('Lava prevents construction');if(s.blocked[i])return bad('Ground is obstructed');if(s.minerals[i]>0)return bad('Shard field obstructs construction');
+    const i=yy*W+xx;if(!s.visible[team][i])return bad('Requires sensor coverage');if(s.terrain[i]===3)return bad('Lava prevents construction');if(s.terrain[i]===4)return bad('Tree roots obstruct construction');if(s.blocked[i])return bad('Ground is obstructed');if(s.minerals[i]>0)return bad('Shard field obstructs construction');
   }
   if(s.entities.some(e=>alive(e)&&e.kind==='unit'&&e.x>x-.3&&e.x<x+d.size+.3&&e.y>y-.3&&e.y<y+d.size+.3))return bad('Unit in construction area');
   if(!own(s,team).some(e=>e.kind==='building'&&e.progress>=1&&Math.hypot(Math.max(e.x-x-d.size,x-e.x-e.size,0),Math.max(e.y-y-d.size,y-e.y-e.size,0))<=7))return bad('Build within 7 tiles of your base');
@@ -164,6 +197,31 @@ export function canPlace(s,team,type,x,y){
 export function placeBuilding(s,team,type,x,y){
   const result=canPlace(s,team,type,x,y);if(!result.ok)return result;
   s.teams[team].credits-=BUILDINGS[type].cost;const entity=addEntity(s,team,'building',type,x,y,false);event(s,`${BUILDINGS[type].name}: construction started`,team);return{...result,id:entity.id};
+}
+export function toggleRepair(s,id,team=0){
+  if(s.status!=='playing')return bad('Operation has ended');
+  const e=getEntity(s,id);
+  if(!e||e.kind!=='building'||e.team!==team||![0,1].includes(team))return bad('Select one of your structures');
+  if(e.progress<1)return bad('Finish construction before repairing');
+  if(e.hp>=e.maxHp){e.repairing=false;return bad('Structure is at full integrity');}
+  e.repairing=!e.repairing;return{...good(),repairing:e.repairing};
+}
+export function salvageValue(e){
+  if(e?.kind!=='building'||e.type==='core'||!alive(e))return 0;
+  // A deployed included hauler survives the sale; its value cannot be cashed out again.
+  const cost=BUILDINGS[e.type].cost-(e.type==='refinery'&&!e.haulerPending?UNITS.harvester.cost:0);
+  return Math.floor(cost*.5*clamp(e.hp/e.maxHp,0,1)+1e-8)+e.queue.reduce((sum,q)=>sum+UNITS[q.type].cost,0);
+}
+export function sellBuilding(s,id,team=0){
+  if(s.status!=='playing')return bad('Operation has ended');
+  const e=getEntity(s,id);
+  if(!e||e.kind!=='building'||e.team!==team||![0,1].includes(team))return bad('Select one of your structures');
+  if(e.type==='core')return bad('The command nexus cannot be sold');
+  const refund=salvageValue(e);s.teams[team].credits+=refund;
+  s.entities=s.entities.filter(entity=>entity!==e);s.navVersion++;
+  for(const hauler of s.entities)if(hauler.unloadDepotId===id){hauler.unload=0;hauler.unloadDepotId=null;hauler.path=[];hauler.repath=0;}
+  event(s,`${BUILDINGS[e.type].name} sold: +${refund} credits`,team);
+  return{...good(),refund};
 }
 export function trainUnit(s,team,type,producerId){
   const d=UNITS[type];if(s.status!=='playing')return bad('Operation has ended');if(!d||![0,1].includes(team))return bad('Unknown unit');
@@ -188,18 +246,64 @@ export function setRallyPoint(s,team,ids,point){
   return good();
 }
 
+function movementDestinations(s,units,x,y){
+  rebuildNavigation(s);
+  const selected=new Set(units.map(u=>u.id)),groups=new Map(),slots=[];
+  for(const u of units){const region=s.regions[cell(s,u.x,u.y)];if(!groups.has(region))groups.set(region,{count:0,size:0});const g=groups.get(region);g.count++;g.size=Math.max(g.size,u.size);}
+  const occupied=[];
+  for(const e of s.entities)if(alive(e)&&e.kind==='unit'&&!selected.has(e.id)){
+    if(e.team===units[0].team&&['move','attackMove'].includes(e.order.type))occupied.push({...e.order,size:e.size});
+    else if((e.order.type==='idle'||!e.moving)&&seen(s,units[0].team,e))occupied.push(e);
+  }
+  const free=(p,size)=>walkable(s,p.x,p.y,size*.43+.08)&&occupied.every(e=>distance(p,e)>(size+e.size)*.43+.18);
+  const region=s.regions[cell(s,x,y)];
+  // Keep precise single-unit clicks when free; groups reserve distinct cells so A* cannot merge them.
+  if(units.length===1&&region&&region===s.regions[cell(s,units[0].x,units[0].y)]&&free({x,y},units[0].size))return new Map([[units[0].id,{x,y}]]);
+  const candidates=[];
+  for(let i=0;i<s.blocked.length;i++)if(!s.blocked[i]&&groups.has(s.regions[i])&&s.regions[i])candidates.push(i);
+  const score=i=>sq(i%s.width+.5-x)+sq(Math.floor(i/s.width)+.5-y);
+  candidates.sort((a,b)=>score(a)-score(b)||a-b);
+  // One bounded map scan also handles blocked clicks, map edges and disconnected destinations.
+  for(const i of candidates){
+    const region=s.regions[i],g=groups.get(region);if(!g.count)continue;
+    const p={x:i%s.width+.5,y:Math.floor(i/s.width)+.5,region};
+    if(!free(p,g.size))continue;slots.push(p);occupied.push({...p,size:g.size});g.count--;
+    if(slots.length===units.length)break;
+  }
+  const assigned=new Map(),remaining=[...units].sort((a,b)=>a.id-b.id);
+  // Repeated orders keep the same individual slot, including an active traffic yield.
+  for(let i=remaining.length-1;i>=0;i--){const u=remaining[i],at=slots.findIndex(p=>p.x===u.order.x&&p.y===u.order.y&&p.region===s.regions[cell(s,u.x,u.y)]);if(at>=0){assigned.set(u.id,slots.splice(at,1)[0]);remaining.splice(i,1);}}
+  while(remaining.length&&slots.length){
+    let best=Infinity,unit=-1,slot=-1;
+    for(let i=0;i<remaining.length;i++)for(let j=0;j<slots.length;j++)if(slots[j].region===s.regions[cell(s,remaining[i].x,remaining[i].y)]){
+      const d=sq(remaining[i].x-slots[j].x)+sq(remaining[i].y-slots[j].y);if(d<best){best=d;unit=i;slot=j;}
+    }
+    if(unit<0)break;
+    assigned.set(remaining[unit].id,slots.splice(slot,1)[0]);remaining.splice(unit,1);
+  }
+  return assigned;
+}
+
 export function issueOrder(s,ids,order){
   const {width:W,height:H}=s;
   if(!order||!['move','attack','attackMove','attackmove','harvest','explore'].includes(order.type))return;
-  const units=ids.map(id=>getEntity(s,id)).filter(e=>e?.kind==='unit');
-  const width=Math.ceil(Math.sqrt(units.length));
-  units.forEach((u,i)=>{
+  const units=[...new Set(ids)].map(id=>getEntity(s,id)).filter(e=>e?.kind==='unit');
+  const plans=units.map(u=>{
     let x=Number.isFinite(order.x)?clamp(order.x,.5,W-.5):u.x,y=Number.isFinite(order.y)?clamp(order.y,.5,H-.5):u.y;
     const target=getEntity(s,order.targetId);if(target&&seen(s,u.team,target)){const c=center(target);x=c.x;y=c.y;}
     const type=u.type==='harvester'&&!['harvest','explore'].includes(order.type)?'move':order.type==='attackmove'?'attackMove':order.type;
-    if((type==='move'||type==='attackMove')&&units.length>1){x=clamp(x+(i%width-(width-1)/2)*.8,.5,W-.5);y=clamp(y+(Math.floor(i/width)-(Math.ceil(units.length/width)-1)/2)*.8,.5,H-.5);}
+    return{u,type,x,y,target:target&&seen(s,u.team,target)?target.id:null};
+  });
+  const groups=new Map();
+  for(const p of plans)if(p.type==='move'||p.type==='attackMove'){const key=`${p.x},${p.y}`;if(!groups.has(key))groups.set(key,[]);groups.get(key).push(p);}
+  for(const group of groups.values()){
+    const goals=movementDestinations(s,group.map(p=>p.u),group[0].x,group[0].y);
+    for(const p of group){const goal=goals.get(p.u.id);if(goal){p.x=goal.x;p.y=goal.y;}else p.type=p.u.type==='harvester'?'harvest':'idle';}
+  }
+  plans.forEach(({u,type,x,y,target})=>{
+    if(u.order.type===type&&u.order.x===x&&u.order.y===y&&(u.order.targetId??null)===target)return;
     if(u.order.type!==type||Math.hypot((u.order.x??u.x)-x,(u.order.y??u.y)-y)>1){delete u.trafficWait;delete u.passUntil;}
-    u.order=type==='explore'?{type}:{type,x,y,...(target&&seen(s,u.team,target)?{targetId:target.id}:{})};u.targetId=null;u.path=[];u.repath=0;
+    u.order=type==='explore'||type==='idle'||type==='harvest'&&order.type!=='harvest'?{type}:{type,x,y,...(target?{targetId:target}:{})};u.targetId=null;u.path=[];u.repath=0;
     if(u.type==='harvester'){u.unloadDepotId=null;if(u.cargo>=UNITS.harvester.capacity)u.harvestPhase='return';}
   });
 }
@@ -220,6 +324,7 @@ function updateFog(s){
 
 // A* searches static terrain/buildings. Units use local separation instead of blocking routes.
 function findPath(s,u,tx,ty,stop=0){
+  if(clearStep(s,u,tx,ty))return[{x:tx,y:ty}];
   const {width:W,height:H}=s,N=W*H;
   const start=cell(s,u.x,u.y),goalX=clamp(Math.floor(tx),0,W-1),goalY=clamp(Math.floor(ty),0,H-1);
   const costs=new Float32Array(N);costs.fill(Infinity);costs[start]=0;
@@ -231,14 +336,27 @@ function findPath(s,u,tx,ty,stop=0){
   while(heap.length&&count++<N){
     const cur=pop();if(closed[cur])continue;closed[cur]=1;
     const h=heuristic(cur);if(h<bestH){best=cur;bestH=h;}
-    const x=cur%W,y=Math.floor(cur/W);if(h<=Math.max(.75,stop)||(x===goalX&&y===goalY)){best=cur;break;}
+    const x=cur%W,y=Math.floor(cur/W);if(stop>=.2&&h<=Math.max(.75,stop)||(x===goalX&&y===goalY)){best=cur;break;}
     for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
       if(!dx&&!dy)continue;const xx=x+dx,yy=y+dy;if(!inside(s,xx,yy))continue;
       const next=yy*W+xx;if(s.blocked[next]||closed[next]||(dx&&dy&&(s.blocked[y*W+xx]||s.blocked[yy*W+x])))continue;
       const g=costs[cur]+(dx&&dy?1.4142:1);if(g>=costs[next])continue;costs[next]=g;parent[next]=cur;push(next,g+heuristic(next));
     }
   }
-  const path=[];for(let at=best;at!==start&&at>=0;at=parent[at])path.push({x:at%W+.5,y:Math.floor(at/W)+.5});path.reverse();return path;
+  const path=[];for(let at=best;at!==start&&at>=0;at=parent[at])path.push({x:at%W+.5,y:Math.floor(at/W)+.5});path.reverse();
+  if(stop<.2&&clearStep(s,path.at(-1)||u,tx,ty))path.push({x:tx,y:ty});
+  // Long straight grid runs share one bend candidate, avoiding repeated long swept checks.
+  const bends=path.filter((p,i)=>!i||i===path.length-1||
+    (p.x-path[i-1].x)*(path[i+1].y-p.y)!==(p.y-path[i-1].y)*(path[i+1].x-p.x));
+  // Extend each clear leg until the next bend is blocked; don't rescan the distant route per corner.
+  const route=[];let anchor=u;
+  for(let i=0;i<bends.length;){
+    let end=i;
+    // After the first shortcut, limit extra rays to 12 tiles so full-army detours stay responsive.
+    while(end+1<bends.length&&(end===i||distance(anchor,bends[end+1])<=12)&&clearStep(s,anchor,bends[end+1].x,bends[end+1].y))end++;
+    anchor=bends[end];route.push(anchor);i=end+1;
+  }
+  return route;
 }
 
 function clearStep(s,u,x,y){
@@ -255,11 +373,26 @@ function clearStep(s,u,x,y){
 function unitSpacing(a,b,time){return(a.size+b.size)*.43*(a.team===b.team&&Math.max(a.passUntil||0,b.passUntil||0)>time?.16:1);}
 
 function navigate(s,u,tx,ty,dt,stop=.2,movement){
-  if(Math.hypot(tx-u.x,ty-u.y)<=stop+.12){u.path=[];return true;}
+  const precise=stop<.2;
+  if(precise&&(!walkable(s,tx,ty,u.size*.43+.08)||s.regions[cell(s,tx,ty)]!==s.regions[cell(s,u.x,u.y)])){
+    const goal=movementDestinations(s,[u],tx,ty).get(u.id);if(!goal)return false;
+    tx=u.order.x=goal.x;ty=u.order.y=goal.y;u.repath=0;
+  }
+  if(Math.hypot(tx-u.x,ty-u.y)<=stop+(precise?0:.12)){u.path=[];return true;}
   if(u.repath<=0||u.pathVersion!==s.navVersion||!u.pathGoal||Math.hypot(u.pathGoal.x-tx,u.pathGoal.y-ty)>1.4){u.path=findPath(s,u,tx,ty,stop);u.pathGoal={x:tx,y:ty};u.pathVersion=s.navVersion;u.repath=1.3+random(s)*.6;}
-  if(!u.path.length)return Math.hypot(tx-u.x,ty-u.y)<=Math.max(stop+.8,1.1);
-  // A path node is a guide, not a parking slot that must be touched behind another unit.
-  while(u.path.length>1&&distance(u,u.path[0])<1.1&&clearStep(s,u,u.path[1].x,u.path[1].y))u.path.shift();
+  if(!u.path.length){
+    if(!precise)return Math.hypot(tx-u.x,ty-u.y)<=Math.max(stop+.8,1.1);
+    if(!clearStep(s,u,tx,ty))return false;
+    u.path=[{x:tx,y:ty}];
+  }
+  // Follow a short distance around each bend, rounding it only while the swept route stays clear.
+  const lookahead=Math.max(.65,unitStats(u).speed*.35);
+  while(u.path.length>1&&distance(u,u.path[0])<lookahead){
+    const a=u.path[0],b=u.path[1],t=Math.min(1,(lookahead-distance(u,a))/Math.max(.001,distance(a,b)));
+    const ahead={x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t};
+    if(!clearStep(s,u,ahead.x,ahead.y))break;
+    if(t<1){u.path[0]=ahead;break;}u.path.shift();
+  }
   const p=u.path[0],dx=p.x-u.x,dy=p.y-u.y,d=Math.hypot(dx,dy),step=Math.min(d,unitStats(u).speed*dt);
   if(d<.08){u.path.shift();return false;}
   const fx=dx/d,fy=dy/d,intent={x:u.x,y:u.y,dx:fx,dy:fy,step,traffic:false};movement.set(u.id,intent);
@@ -286,7 +419,10 @@ function navigate(s,u,tx,ty,dt,stop=.2,movement){
       if(next>=unitSpacing(u,other,s.time)-.001||next>=distance(u,other)-.001)return false;
       if(other.team===u.team)intent.traffic=true;return true;
     }))continue;
-    u.x=nx;u.y=ny;u.angle=Math.atan2(vy,vx);
+    u.x=nx;u.y=ny;
+    const heading=Math.atan2(vy,vx),turn=Math.atan2(Math.sin(heading-u.angle),Math.cos(heading-u.angle));
+    const turnRate=UNITS[u.type].armor==='infantry'?9:6;
+    u.angle+=clamp(turn,-turnRate*dt,turnRate*dt);
     if(distance(u,p)<.08)u.path.shift();return false;
   }
   if(!intent.traffic&&!avoid){u.repath=0;u.path=[];}
@@ -404,9 +540,9 @@ function stepUnit(s,u,dt,movement){
   if(u.type==='harvester'&&!['move','explore'].includes(u.order.type)){if(u.order.type!=='harvest')u.order={type:'harvest'};harvest(s,u,dt,movement);return;}
   const d=UNITS[u.type],order=u.order;
   if(order.type==='move'){
-    const arrived=navigate(s,u,order.x,order.y,dt,.35,movement);
-    // A hauler resumes work at the closest reachable point, even when ordered into a building.
-    if(arrived||u.type==='harvester'&&!u.path.length)u.order={type:u.type==='harvester'?'harvest':'idle'};
+    const arrived=navigate(s,u,order.x,order.y,dt,.08,movement);
+    // Movement goals are reachable parking slots; traffic must not cancel an unfinished delivery move.
+    if(arrived)u.order={type:u.type==='harvester'?'harvest':'idle'};
     return;
   }
   let target=getEntity(s,order.type==='attack'?order.targetId:u.targetId);
@@ -420,7 +556,7 @@ function stepUnit(s,u,dt,movement){
     if(order.type==='attack'||order.type==='attackMove'){navigate(s,u,c.x,c.y,dt,d.range+(target.kind==='building'?target.size*.45:0)-.2,movement);return;}
   }
   if(order.type==='explore'){explore(s,u,dt,movement);return;}
-  if(order.type==='attackMove'||order.type==='attack'){if(navigate(s,u,order.x,order.y,dt,.45,movement))u.order={type:'idle'};}
+  if(order.type==='attackMove'||order.type==='attack'){if(navigate(s,u,order.x,order.y,dt,order.type==='attackMove'?.08:.45,movement))u.order={type:'idle'};}
 }
 
 function spawnAt(s,producer,type){
@@ -433,7 +569,7 @@ function spawnAt(s,producer,type){
   }
   if(!best)return false;
   const u=addEntity(s,producer.team,'unit',type,best.x,best.y);
-  if(producer.rally)u.order={type:type==='harvester'?'move':'attackMove',x:producer.rally.x,y:producer.rally.y};
+  if(producer.rally)issueOrder(s,[u.id],{type:type==='harvester'?'move':'attackMove',...producer.rally});
   event(s,`${UNITS[type].name} ready`,producer.team);return true;
 }
 
@@ -539,6 +675,12 @@ function step(s,dt){
     if(e.kind==='building'){
       const rate=Math.max(.2,powers[e.team].ratio);
       if(e.progress<1){const delta=Math.min(1-e.progress,dt/BUILDINGS[e.type].buildTime*rate);e.progress=Math.min(1,e.progress+delta);e.hp=Math.min(e.maxHp,e.hp+e.maxHp*.8*delta);if(e.progress>=1){event(s,`${BUILDINGS[e.type].name} online`,e.team);deliverRefineryHauler(s,e);}continue;}
+      if(e.repairing){
+        const costPerHp=BUILDINGS[e.type].cost*.5/e.maxHp;
+        const amount=Math.min(e.maxHp-e.hp,dt*e.maxHp*.02,s.teams[e.team].credits/costPerHp);
+        e.hp=Math.min(e.maxHp,e.hp+amount);s.teams[e.team].credits=Math.max(0,s.teams[e.team].credits-amount*costPerHp);
+        if(e.hp>=e.maxHp)e.repairing=false;
+      }
       if(e.processingAmount>0){e.processingAmount=Math.max(0,e.processingAmount-dt*UNITS.harvester.capacity/6);if(e.processingAmount<1e-8)e.processingAmount=e.processingTotal=0;}
       deliverRefineryHauler(s,e);
       const q=e.queue[0];if(q){q.progress=Math.min(1,q.progress+dt/UNITS[q.type].trainTime*rate);if(q.progress>=1&&spawnAt(s,e,q.type))e.queue.shift();}

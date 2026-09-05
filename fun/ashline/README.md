@@ -4,9 +4,9 @@ An original 2D real-time strategy game for the browser. Lead an expedition into 
 
 New skirmishes use a procedurally generated 144 × 112 tile battlefield: 16,128 tiles, four times the original map area. Mineral deposits, rocky obstacles, lava pools, and three connecting routes span the expanded sector under fog of war. Construct production buildings and defenses, recruit specialized units, and face an AI that develops its economy and adapts its attacks.
 
-Lava pools have rugged basalt banks, slowly flowing molten surfaces, and brief bubbles. They block movement and construction; units and the AI route around them. Seeded pools preserve starting clearings, mineral access, and the map’s guaranteed routes. Fog hides undiscovered pools and stops live animation outside current vision. Pools persist through save/load, and older saves remain compatible.
+Lava pools have rugged basalt banks, broad red/orange molten surfaces, yellow-hot folds, and brief bubbles. The molten texture slowly flows inside a fixed shoreline, pausing with the simulation. Pools block movement and construction; units and the AI route around them. Seeded pools preserve starting clearings, mineral access, and the map’s guaranteed routes. Fog hides undiscovered pools and stops live animation outside current vision. Pools persist through save/load, and older saves remain compatible.
 
-Sparse deadwood groves mix bare hardwoods, charred conifers, twisted trees, bleached snags, hollow stumps, and fallen trunks. Their rough roots share the rocky ground’s impassable footprint. Varied silhouettes and sizes enrich the ashlands, with soft shadows and branches that fade when they would obscure visible units. Placement is seeded and remains consistent after loading a save.
+Individual dead trees scatter randomly across open ground: bare hardwoods, charred conifers, twisted trees, bleached snags, hollow stumps, and fallen trunks. Their roots block movement and construction while base clearings and guaranteed routes stay open. Varied silhouettes and sizes enrich the ashlands, with soft shadows and branches that fade when they would obscure visible units. Mineral fields form looser, irregular patches with smaller outlying deposits, preserving balanced supplies and accessible starting resources. Placement is seeded and remains consistent after loading a save. Start a new operation for the scattered layout; existing saves retain their terrain and deposits.
 
 Barracks train **Rocket infantry** for mobile anti-armor support. Their slow-firing shoulder launchers hit vehicles hard and deal a small amount of splash damage; rifle squads and recon rovers counter them. **Rocket towers** provide longer-range missile defense with a wider blast radius, require a barracks and reactor, and stop firing without sufficient power. Rockets travel before exploding. The AI recruits rocket infantry and builds rocket towers as part of its defenses.
 
@@ -16,13 +16,19 @@ Every completed refinery includes one free hauler. Haulers automatically collect
 
 Units steer around nearby traffic and leave parked allies in place. If friendly units jam in a tight passage, their spacing briefly softens so they can pass and continue their orders. Rocks, lava, buildings, and enemy collision boundaries remain solid. This also keeps haulers moving through shared refinery approaches.
 
+Clear routes follow direct lines at any angle. Obstacle routes discard unnecessary grid waypoints and look ahead around bends for smoother movement, with gradual facing changes. Every shortcut and rounded corner still checks the swept path against solid ground. The same routing serves manual orders, rallies, harvesting, scouting, and combat pursuit.
+
+Group move and attack-move orders assign each unit its own reachable destination near the click, with room for its size. Positions avoid obstacles, parked units, and other ordered destinations; nearby units take nearby positions. Each unit finishes at its assigned spot. Repeating an order preserves those positions, and blocked or unreachable clicks resolve to available ground on each unit’s side of the obstacle.
+
 Select units and toggle **Explore** (X) to automatically scout reachable unexplored areas. Armed explorers stop to fire at nearby visible enemies and resume exploring afterward. Haulers can explore too; they resume harvesting when exploration ends. Toggle Explore again, stop, or issue a manual move, attack, or harvest order to end auto-explore. When no reachable unexplored areas remain, armed units return to guarding.
 
-Every barracks, vehicle foundry, and refinery has its own rally point. Select it and right click a destination, or choose **Rally** (R) and click/tap. New combat units attack move there; haulers relocate and resume automatic harvesting. Each building trains one unit at a time, independently of the others. Recruiting with a compatible producer selected adds to that producer’s queue; otherwise recruitment chooses the available producer with the least remaining work. Card badges show total queued items, with a progress bar for each active producer, and the production list identifies each working building.
+Every barracks, vehicle foundry, and refinery has its own rally point. Select it and right click a destination, or choose **Rally** (R) and click/tap. New units reserve separate positions around that rally point; combat units attack move there, while haulers relocate and resume automatic harvesting. Each building trains one unit at a time, independently of the others. Recruiting with a compatible producer selected adds to that producer’s queue; otherwise recruitment chooses the available producer with the least remaining work. Card badges show total queued items, with a progress bar for each active producer, and the production list identifies each working building.
 
 Buildings show their actual activity. Production bays contain the current queued unit as it assembles or trains; empty queues leave a dim, empty bay with its machinery stopped. Refineries process delivered minerals with a filling hopper, moving conveyor, and exhaust. Haulers visibly carry empty, partial, or full loads and drain their cargo during unloading. Command scanning, reactor fans, and sentry scanning/recoil remain distinct. Animations pause with the simulation and respect fog and power.
 
-The pause menu saves one operation to this browser’s local storage and loads it again, including the exact simulation, fog knowledge, production queues, rally points, camera, economy, and AI. The briefing offers **Load saved operation** on the next visit. Loading pauses the restored operation until you resume. Existing 72 × 56 saves remain playable at their original size; start a new skirmish for the larger battlefield. Saving again replaces that slot; clearing browser site data removes it.
+Select a building to **Repair** or **Sell** it. Repair restores 2% of maximum health per second, spends credits only for actual healing, waits when funds run out, and stops at full health; click again to stop early. Restoring an entire health bar costs half the building price. Construction must finish before repair starts. Selling immediately returns half the building’s price scaled by its remaining health, plus all paid unit queues; the button shows the exact refund. A refinery’s deployed included hauler keeps its cargo and resumes work, with its value excluded from the building refund. The command nexus can be repaired but cannot be sold.
+
+The pause menu saves one operation to this browser’s local storage and loads it again, including the exact simulation, fog knowledge, production queues, rally points, active repairs, camera, economy, and AI. The briefing offers **Load saved operation** on the next visit. Loading pauses the restored operation until you resume. Existing 72 × 56 saves remain playable at their original size; start a new skirmish for the larger battlefield. Saving again replaces that slot; clearing browser site data removes it.
 
 Original synthesized sound effects cover orders, production, weapons, explosions, and deliveries. Sound begins after a user gesture; effects and music have independent toggles in the pause menu. The locally hosted synthwave loop **Space Adventure** by **MintoDog** is CC0; its creator’s license and source are recorded in [audio credits](assets/audio/CREDITS.md).
 
@@ -46,6 +52,7 @@ Open <http://localhost:8000/fun/ashline/>. No build step or installation is requ
 | Right click | Move, attack an enemy, or send a harvester to minerals |
 | A, then click | Attack move |
 | R, then click / Rally button | Set selected production buildings’ rally point |
+| Repair / Sell buttons | Repair or sell the selected building |
 | X / Explore button | Toggle auto-explore for selected units |
 | S | Stop selected units and disable auto-explore |
 | E | Select all combat units |
@@ -75,7 +82,11 @@ node tests/processing-check.mjs
 node tests/rocket-check.mjs
 node tests/rank-check.mjs
 node tests/collision-check.mjs
+node tests/formation-check.mjs
+node tests/path-smoothing-check.mjs
+node tests/building-actions-check.mjs
 node tests/lava-check.mjs
+node tests/distribution-check.mjs
 node tests/save-check.mjs
 ```
 
@@ -98,6 +109,7 @@ ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs node tests/map-browser-check.mj
 ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs node tests/trees-browser-check.mjs
 ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs node tests/features-browser-check.mjs
 ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs node tests/building-animation-check.mjs
+ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs node tests/building-actions-browser-check.mjs
 ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs node tests/audio-check.mjs
 ```
 
@@ -107,7 +119,7 @@ ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs node tests/audio-check.mjs
 
 The game runs directly from static files. `sim.js` owns the deterministic simulation and opponent, `render.js` draws the battlefield with Canvas 2D, and `main.js` connects pointer/keyboard/touch input to the compact DOM command console. `save.js` validates and restores the versioned local save, and `audio.js` generates sound effects with native Web Audio and plays the local soundtrack. No runtime packages or network services are required.
 
-Units and buildings use freshly rendered low-resolution military sprites: broad armor panels, substantial weapons and machinery, and clean color clusters designed for gameplay size. Unit frames are 32–64 pixels and building frames are 40–104 pixels. Nearest-neighbor normalization and sprite drawing keep roofs, turns, zoom, portraits, and production previews crisp; terrain, fog, and soft shadows retain smooth rendering. Friendly units and buildings have ivory armor with cobalt panels and blue square insignia; enemies have broad crimson armor and red diamond insignia. These colors and shapes carry through production previews, cargo/idle states, and the minimap. `assets.js` loads and normalizes the sprite atlases once, prepares faction colors, and supplies the textured terrain. The battlefield fills the viewport; a collapsible production console and contextual selection controls preserve space for play. Asset provenance and the complete built-in image-generation prompt set are in [assets/generated/ASSETS.md](assets/generated/ASSETS.md).
+Units and buildings use newly generated high-resolution military sprites with smooth contours, broad armor panels, substantial weapons and restrained mechanical detail designed for gameplay size. Unit frames are prepared at 64–128 pixels and building frames at 80–208 pixels for high-density displays, keeping their existing battlefield sizes. High-quality filtered preparation and sprite drawing keep roofs, turns, zoom, portraits, and production previews smooth. Friendly units and buildings have ivory armor with cobalt panels and blue square insignia; enemies have broad crimson armor and red diamond insignia. These colors and shapes carry through production previews, cargo/idle states, and the minimap. `assets.js` loads and normalizes the sprite atlases once, prepares faction colors, and supplies the textured terrain. The battlefield fills the viewport; a collapsible production console and contextual selection controls preserve space for play. Asset provenance and the complete built-in image-generation prompt set are in [assets/generated/ASSETS.md](assets/generated/ASSETS.md).
 
 Units keep a fixed, mostly overhead view with shallow side depth as they turn. A shared overhead unit atlas supplies the roof textures; continuous ground-plane rotation, fixed foreshortening, and screen-space side walls preserve one camera angle for every facing. The camera check covers full turns, animation registration, transparency, and desktop/mobile previews at normal and minimum zoom.
 

@@ -460,6 +460,19 @@ export function drawIcon(canvas, type, team = 0, state = {}) {
   else unit(ctx, entity);
 }
 
+function lavaSurface(pool, time) {
+  if (pool.flowTime !== time) {
+    const ctx = pool.surface.getContext('2d');
+    ctx.clearRect(0, 0, pool.width, pool.height);
+    // Advect the cached folds under a stationary shore, rather than flashing their opacity.
+    const x = Math.sin(time * .1 + pool.phase) * 20, y = Math.sin(time * .08 + pool.phase * 1.7) * 14;
+    ctx.drawImage(pool.flow, x - 24, y - 24);
+    ctx.globalCompositeOperation = 'destination-in'; ctx.drawImage(pool.mask, 0, 0);
+    ctx.globalCompositeOperation = 'source-over'; pool.flowTime = time;
+  }
+  return pool.surface;
+}
+
 export class Renderer {
   constructor(canvas, minimapCanvas) {
     this.canvas = canvas; this.ctx = canvas.getContext('2d');
@@ -551,6 +564,7 @@ export class Renderer {
       }
     }
     ctx.restore();
+    const scatteredTrees = state.terrain.includes(4);
     for (let y = 0; y < state.height; y++) for (let x = 0; x < state.width; x++) {
       const i = y * state.width + x, px = x * TILE, py = y * TILE;
       const n = noise(x, y, seed), type = state.terrain[i];
@@ -565,11 +579,12 @@ export class Renderer {
         const nx = noise(x * 19 + j, y, seed), ny = noise(x, y * 19 + j, seed);
         rect(ctx, px + nx * TILE, py + ny * TILE, j % 5 === 0 ? 2 : .8, .7, j % 2 ? '#c8baa32b' : '#111a2433');
       }
-      if (type === 1) {
+      if (type === 1 || type === 4) {
         const cx = px + 16 + (n - .5) * 9, cy = py + 20 + (noise(x, y, seed + 2) - .5) * 9;
         const count = [[-1, 0], [1, 0], [0, -1], [0, 1]].filter(([dx, dy]) => state.terrain[(y + dy) * state.width + x + dx] === 1).length;
         const grove = smoothNoise(x / 6, y / 6, seed + 23);
-        const isTree = grove > .48 && noise(x, y, seed + 41) < (count < 4 ? .44 : .25);
+        // New maps place individual trees in the simulation; old saves keep their rocky groves.
+        const isTree = type === 4 || !scatteredTrees && grove > .48 && noise(x, y, seed + 41) < (count < 4 ? .44 : .25);
         const variant = Math.floor(noise(x, y, seed + 5) * (isTree ? 6 : 8));
         const size = isTree ? [54, 56, 48, 46, 31, 42][variant] * (.9 + noise(x, y, seed + 11) * .22) : 35 + n * 14 + count * 2;
         const halo = ctx.createRadialGradient(cx, cy, 6, cx, cy, size * .8);
@@ -605,7 +620,7 @@ export class Renderer {
   createLava(state) {
     this.lavaPools = [];
     const visited = new Uint8Array(state.terrain.length), ctx = this.terrain.getContext('2d');
-    const palette = [[47, 41, 36], [89, 34, 22], [194, 49, 9], [248, 104, 16], [255, 206, 91]];
+    const palette = [[96, 28, 15], [191, 38, 8], [244, 85, 9], [255, 159, 20], [255, 220, 80]];
     for (let start = 0; start < visited.length; start++) {
       if (visited[start] || state.terrain[start] !== 3) continue;
       const cells = [start]; visited[start] = 1;
@@ -617,14 +632,14 @@ export class Renderer {
       }
       const x0 = Math.min(...cells.map(i => i % state.width)), x1 = Math.max(...cells.map(i => i % state.width));
       const y0 = Math.min(...cells.map(i => Math.floor(i / state.width))), y1 = Math.max(...cells.map(i => Math.floor(i / state.width)));
-      // Detailed surfaces and rounded shores are cached once; only the flow blend changes during play.
+      // The bank, alpha mask and padded molten texture are built once; live flow uses canvas blits.
       const w = (x1 - x0 + 1) * TILE + 32, h = (y1 - y0 + 1) * TILE + 32;
       const mask = document.createElement('canvas'); mask.width = w; mask.height = h;
       const m = mask.getContext('2d');
       for (const i of cells) rect(m, (i % state.width - x0) * TILE + 16, (Math.floor(i / state.width) - y0) * TILE + 16, TILE, TILE, '#fff');
       const layers = Array.from({ length: 3 }, () => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; });
       const bank = layers[0].getContext('2d'); bank.filter = 'blur(9px)'; bank.drawImage(mask, 0, 0); bank.filter = 'none';
-      const pixels = bank.getImageData(0, 0, w, h), heat = [bank.createImageData(w, h), bank.createImageData(w, h)];
+      const pixels = bank.getImageData(0, 0, w, h), shore = m.createImageData(w, h);
       for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
         const i = (y * w + x) * 4, raw = pixels.data[i + 3];
         if (!raw) continue;
@@ -634,23 +649,28 @@ export class Renderer {
         const alpha = Math.max(0, Math.min(255, (edge - 145) * 6));
         const rock = 37 + grain * 22 + grit * 14 + Math.max(0, 150 - raw) * .1;
         pixels.data.set([rock, rock * .94, rock * .86, Math.max(0, Math.min(255, (edge - 93) * 6))], i);
-        for (let phase = 0; phase < 2; phase++) {
-          const flow = smoothNoise((wx + Math.sin(wy / 27) * 9 + phase * 2) / 22, (wy + phase * 1.5) / 20, this.seed + 37);
-          const hot = Math.max(0, Math.min(1, Math.max(0, 1 - Math.abs(flow - .5) * 3.5) ** 1.3 + (grain - .5) * .22));
-          const value = Math.max(0, hot * Math.min(1, Math.max(0, (edge - 145) / 65)) * 4 - grit * .16);
-          const index = Math.min(3, Math.floor(value)), blend = value - index;
-          const crust = ((grain - .5) * 22 + (grit - .5) * 18) * (1 - hot);
-          for (let c = 0; c < 3; c++) heat[phase].data[i + c] = palette[index][c] * (1 - blend) + palette[index + 1][c] * blend + crust;
-          heat[phase].data[i + 3] = alpha;
-        }
+        shore.data.set([255, 255, 255, alpha], i);
       }
       bank.putImageData(pixels, 0, 0);
-      layers[1].getContext('2d').putImageData(heat[0], 0, 0); layers[2].getContext('2d').putImageData(heat[1], 0, 0);
-      const pool = { cells, x: x0 * TILE - 16, y: y0 * TILE - 16, width: w, height: h, surface: layers[1], flow: layers[2] };
+      m.putImageData(shore, 0, 0);
+      const flow = layers[2]; flow.width = w + 48; flow.height = h + 48;
+      const f = flow.getContext('2d'), heat = f.createImageData(flow.width, flow.height);
+      for (let y = 0; y < flow.height; y++) for (let x = 0; x < flow.width; x++) {
+        const i = (y * flow.width + x) * 4, wx = x0 * TILE + x - 40, wy = y0 * TILE + y - 40;
+        const warp = smoothNoise(wx / 64, wy / 56, this.seed + 37);
+        const fold = (1 + Math.sin(wx / 10 + Math.sin(wy / 24 + warp * 4) * 2 + warp * 6)) / 2;
+        const crust = smoothNoise(wx / 16, wy / 14, this.seed + 51);
+        const value = Math.max(0, Math.min(4, 1.2 + fold ** .7 * 2.8 - Math.max(0, crust - .62) * 10 * (1 - fold)));
+        const index = Math.min(3, Math.floor(value)), blend = value - index;
+        for (let c = 0; c < 3; c++) heat.data[i + c] = palette[index][c] * (1 - blend) + palette[index + 1][c] * blend;
+        heat.data[i + 3] = 255;
+      }
+      f.putImageData(heat, 0, 0);
+      const pool = { cells, x: x0 * TILE - 16, y: y0 * TILE - 16, width: w, height: h, surface: layers[1], flow, mask, phase: noise(start, 7, this.seed) * Math.PI * 2 };
       ctx.save(); ctx.shadowColor = '#130f1299'; ctx.shadowBlur = 4; ctx.shadowOffsetY = 3;
       ctx.drawImage(layers[0], pool.x, pool.y, pool.width, pool.height);
       ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
-      ctx.drawImage(pool.surface, pool.x, pool.y, pool.width, pool.height); ctx.restore();
+      ctx.drawImage(lavaSurface(pool, 0), pool.x, pool.y, pool.width, pool.height); ctx.restore();
       this.lavaPools.push(pool);
     }
   }
@@ -663,14 +683,12 @@ export class Renderer {
       ctx.save(); ctx.beginPath();
       for (const i of cells) ctx.rect(i % state.width * TILE, Math.floor(i / state.width) * TILE, TILE, TILE);
       ctx.clip();
-      ctx.globalAlpha = .32 + Math.sin(time * .7 + pool.x * .03) * .26;
-      ctx.drawImage(pool.flow, pool.x, pool.y, pool.width, pool.height);
-      ctx.globalAlpha = 1;
+      ctx.drawImage(lavaSurface(pool, time), pool.x, pool.y, pool.width, pool.height);
       for (const i of cells) {
         const n = noise(i, 4, this.seed), age = (time * .18 + n) % 1;
         if (age < .8) continue;
-        const p = (age - .8) * 5, x = (i % state.width + .5) * TILE + (n - .5) * 10;
-        const y = (Math.floor(i / state.width) + .5) * TILE + (noise(i, 8, this.seed) - .5) * 10;
+        const p = (age - .8) * 5, x = (i % state.width + .5) * TILE + (n - .5) * 10 + Math.sin(time * .1 + pool.phase) * 3;
+        const y = (Math.floor(i / state.width) + .5) * TILE + (noise(i, 8, this.seed) - .5) * 10 + Math.sin(time * .08 + pool.phase * 1.7) * 2;
         ctx.globalAlpha = Math.sin(p * Math.PI) * .45;
         glow(ctx, x, y, 6, '#ffa44e75'); ellipse(ctx, x, y, 1 + p * 3, .8 + p * 2, null, '#f7b663');
       }
@@ -1114,7 +1132,7 @@ export class Renderer {
     for (let y = 0; y < state.height; y++) for (let x = 0; x < state.width; x++) {
       const i = y * state.width + x;
       if (explored && !explored[i]) continue;
-      const color = state.terrain[i] === 3 ? '#bf602e' : state.terrain[i] === 1 ? '#8b8b82' : state.terrain[i] === 2 ? '#434b4e' : '#575e60';
+      const color = state.terrain[i] === 3 ? '#ed7b22' : state.terrain[i] === 4 ? '#79776a' : state.terrain[i] === 1 ? '#8b8b82' : state.terrain[i] === 2 ? '#434b4e' : '#575e60';
       rect(ctx, ox + x * s, oy + y * s, s + .5, s + .5, color);
       if (this.knownOre[i] > 0) rect(ctx, ox + x * s, oy + y * s, s + .5, s + .5, '#83d5c9');
       if (visible && !visible[i]) rect(ctx, ox + x * s, oy + y * s, s + .5, s + .5, '#0a152080');

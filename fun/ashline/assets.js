@@ -5,7 +5,7 @@ export const terrainImages = { ground: null, detail: null };
 
 const BUILDINGS = { core: 3, reactor: 2, refinery: 3, barracks: 2, factory: 3, turret: 1, rocketTower: 2 };
 const UNIT_SIZES = { tank: 44, scout: 36, artillery: 56, harvester: 45, rifle: 26, rocket: 32 };
-const UNIT_PIXELS = { rifle: 32, rocket: 40, scout: 48, tank: 56, artillery: 64, harvester: 56 };
+const UNIT_PIXELS = { rifle: 64, rocket: 80, scout: 96, tank: 112, artillery: 128, harvester: 112 };
 const UNIT_DEPTH = { tank: 3, scout: 2, artillery: 3, harvester: 4, rifle: 1.5, rocket: 1.5 };
 const sprites = {}, props = {};
 // Every unit faces east in the atlas; rotation never changes its overhead projection.
@@ -78,7 +78,8 @@ function bounds(pixels, isolate) {
 }
 
 function factionFrame(source, team) {
-  const result = canvas(source.width, source.height), ctx = result.getContext('2d');
+  // Pixel-edited variants must share one raster path so downsampling preserves identical alpha.
+  const result = canvas(source.width, source.height), ctx = result.getContext('2d', { willReadFrequently: true });
   ctx.drawImage(source, 0, 0);
   const pixels = ctx.getImageData(0, 0, result.width, result.height), data = pixels.data;
   for (let i = 0; i < data.length; i += 4) {
@@ -224,8 +225,8 @@ function splitSheet(image, columns, rows, size, keyed, anchored = false, recolor
     const dimension = anchored ? maxDimension : Math.max(box.width, box.height);
     const scale = (size - 8) / (anchored ? maxRadius * 2 : dimension);
     const prepared = canvas(size), ctx = prepared.getContext('2d');
-    // Military art is designed for these small frames; keep its color clusters crisp.
-    ctx.imageSmoothingEnabled = !recolor;
+    // Prepare enough detail for high-density displays without drawing full atlases per frame.
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(source, box.left, box.top, box.width, box.height,
       size / 2 + (box.left - box.cx) * scale, size / 2 + (box.top - box.cy) * scale,
       box.width * scale, box.height * scale);
@@ -250,23 +251,23 @@ async function load(name, prepare) {
 }
 
 export const assetsReady = Promise.all([
-  load('buildings-lowres', image => {
+  load('buildings-hires', image => {
     ['core', 'reactor', 'refinery', 'barracks', 'factory', 'turret'].forEach((type, i) => {
-      const [frame] = splitSheet(image, 3, 2, BUILDINGS[type] * 32 + 8, true, false, true, [i]);
+      const [frame] = splitSheet(image, 3, 2, BUILDINGS[type] * 64 + 16, true, false, true, [i]);
       if (type === 'refinery') prepareHopper(frame, [.12, .12, .49, .46]);
       if (['barracks', 'factory', 'refinery'].includes(type)) frame.idleTeams = (frame.hopperTeams?.[0] || frame.teams).map(idleFrame);
       sprites[type] = [frame];
     });
   }),
-  load('units-lowres', image => {
+  load('units-hires', image => {
     for (const [type, indices] of Object.entries(UNIT_CELLS)) {
       // Normalize each class independently; the long siege gun must not shrink infantry.
       sprites[type] = splitSheet(image, 3, 2, UNIT_PIXELS[type], true, true, true, indices);
       if (type === 'harvester') for (const frame of sprites[type]) prepareHopper(frame, [0, .2, .55, .8]);
     }
   }),
-  load('rocket-infantry-lowres', image => { sprites.rocket = splitSheet(image, 2, 1, UNIT_PIXELS.rocket, true, true); }),
-  load('rocket-tower-lowres', image => { sprites.rocketTower = splitSheet(image, 1, 1, BUILDINGS.rocketTower * 32 + 8, true); }),
+  load('rocket-infantry-hires', image => { sprites.rocket = splitSheet(image, 2, 1, UNIT_PIXELS.rocket, true, true); }),
+  load('rocket-tower-hires', image => { sprites.rocketTower = splitSheet(image, 1, 1, BUILDINGS.rocketTower * 64 + 16, true); }),
   load('props', image => {
     const frames = splitSheet(image, 3, 2, 160, false, false, false);
     props.rock = frames.slice(0, 3); props.ore = frames.slice(3);
@@ -331,7 +332,7 @@ export function drawSprite(ctx, entity, time = 0) {
     ? frame.idleTeams : frame.hopperTeams?.[hopperLevel(entity)] || frame.teams;
   const source = teams[entity.team === 1 ? 1 : 0];
   // Applies equally to the battlefield, portraits and units inside production bays.
-  ctx.save(); ctx.imageSmoothingEnabled = false;
+  ctx.save(); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
   if (building) {
     ctx.translate(0, -8);
     ctx.drawImage(source, -size / 2, -size / 2, size, size);

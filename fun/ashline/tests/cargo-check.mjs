@@ -62,9 +62,9 @@ try {
     drawSprite({save() {}, restore() {}, translate() {}, drawImage(source) {refinerySource = source;}}, {type: 'refinery', processingAmount: 200});
     const refineryPixels = refinerySource.getContext('2d').getImageData(0, 0, refinerySource.width, refinerySource.height).data;
     let bakedPlumeAlpha = 0;
-    // New smokeless refinery: the stack rim starts at y10 in its 104px prepared frame.
-    for (let y = 0; y < 9; y++) for (let x = 80; x < refinerySource.width; x++) bakedPlumeAlpha += refineryPixels[(y * refinerySource.width + x) * 4 + 3];
-    const stackAlpha = refineryPixels[(14 * refinerySource.width + 89) * 4 + 3];
+    // The high-resolution smokeless refinery's stack rim starts at y18 in its208px frame.
+    for (let y = 0; y < 16; y++) for (let x = 155; x < refinerySource.width; x++) bakedPlumeAlpha += refineryPixels[(y * refinerySource.width + x) * 4 + 3];
+    const stackAlpha = refineryPixels[(30 * refinerySource.width + 180) * 4 + 3];
     const sheet = document.createElement('canvas'); sheet.width = 1100; sheet.height = 1580;
     const c = sheet.getContext('2d'); c.fillStyle = '#172126'; c.fillRect(0, 0, sheet.width, sheet.height);
     c.font = '18px monospace'; c.textAlign = 'center'; c.fillStyle = '#dbe4de';
