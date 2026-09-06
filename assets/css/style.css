@@ -956,6 +956,7 @@ p {
 /* Each product carries its own signal colour; the grid and its page share it */
 .p-youknow { --signal: #ff5db1; }
 .p-electry { --signal: #00ffc3; }
+.p-taikor { --signal: #ffb547; }
 
 .product-card:is(:hover, :focus-visible) {
   translate: 0 -2px;
