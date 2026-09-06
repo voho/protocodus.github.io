@@ -1,0 +1,53 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "ac5ff3fb710d",
+  "session_id": "22db6cfd-6d68-46ef-af84-da52f66d850f",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-06T06:36:53.272881Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "fun/ashline/assets/generated/ground.webp",
+    "fun/ashline/index.html",
+    "fun/ashline/tests/save-check.mjs",
+    ".assetsignore",
+    "fun/ashline/assets/generated/buildings-hires.webp",
+    "fun/ashline/assets/generated/units-hires.webp",
+    "fun/ashline/render.js",
+    "fun/ashline/sim.js",
+    "fun/ashline/tests/orders-check.mjs",
+    "fun/ashline/tests/relief-check.mjs",
+    "fun/ashline/AGENTS.md",
+    "fun/ashline/README.md",
+    "fun/ashline/assets/generated/rocket-infantry-hires.webp",
+    "fun/ashline/assets/generated/rocket-tower-hires.webp",
+    "fun/ashline/main.js",
+    "fun/ashline/tests/rocket-check.mjs",
+    "fun/ashline/ashline.css",
+    "fun/ashline/assets/generated/ASSETS.md",
+    "fun/ashline/assets/generated/desolate-trees.webp",
+    "fun/ashline/assets/generated/props.webp",
+    "fun/ashline/tests/production-check.mjs",
+    "fun/ashline/tests/rank-check.mjs",
+    "fun/ashline/assets/ashline-card.jpg"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "6f2d6f4dcdc1",
+  "token_usage": {
+    "input_tokens": 408,
+    "cache_creation_tokens": 1294070,
+    "cache_read_tokens": 69069870,
+    "output_tokens": 315211,
+    "api_call_count": 217
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-06T06:36:51.819702Z",
+    "agent_lines": 488,
+    "human_added": 0,
+    "human_modified": 7,
+    "human_removed": 0,
+    "total_committed": 495,
+    "agent_percentage": 98.58585858585859
+  },
+  "transcript_path": ".claude/projects/-Users-vojta-Dev-protocodus-github-io/22db6cfd-6d68-46ef-af84-da52f66d850f.jsonl"
+}

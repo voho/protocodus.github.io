@@ -1,0 +1,48 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "ac5ff3fb710d",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".assetsignore",
+    "fun/ashline/AGENTS.md",
+    "fun/ashline/README.md",
+    "fun/ashline/ashline.css",
+    "fun/ashline/assets/ashline-card.jpg",
+    "fun/ashline/assets/generated/ASSETS.md",
+    "fun/ashline/assets/generated/buildings-hires.webp",
+    "fun/ashline/assets/generated/desolate-trees.webp",
+    "fun/ashline/assets/generated/ground.webp",
+    "fun/ashline/assets/generated/props.webp",
+    "fun/ashline/assets/generated/rocket-infantry-hires.webp",
+    "fun/ashline/assets/generated/rocket-tower-hires.webp",
+    "fun/ashline/assets/generated/units-hires.webp",
+    "fun/ashline/index.html",
+    "fun/ashline/main.js",
+    "fun/ashline/render.js",
+    "fun/ashline/sim.js",
+    "fun/ashline/tests/orders-check.mjs",
+    "fun/ashline/tests/production-check.mjs",
+    "fun/ashline/tests/rank-check.mjs",
+    "fun/ashline/tests/relief-check.mjs",
+    "fun/ashline/tests/rocket-check.mjs",
+    "fun/ashline/tests/save-check.mjs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ac/5ff3fb710d/0/metadata.json",
+      "transcript": "/ac/5ff3fb710d/0/full.jsonl",
+      "context": "/ac/5ff3fb710d/0/context.md",
+      "content_hash": "/ac/5ff3fb710d/0/content_hash.txt",
+      "prompt": "/ac/5ff3fb710d/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 408,
+    "cache_creation_tokens": 1294070,
+    "cache_read_tokens": 69069870,
+    "output_tokens": 315211,
+    "api_call_count": 217
+  }
+}
