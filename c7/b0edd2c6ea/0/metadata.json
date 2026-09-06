@@ -1,0 +1,48 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "c7b0edd2c6ea",
+  "session_id": "22db6cfd-6d68-46ef-af84-da52f66d850f",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-06T06:44:19.052163Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "fun/solar-eclipse-2026/fonts/ibm-plex-mono-latin-400-normal.woff2",
+    "fun/solar-eclipse-2026/fonts/ibm-plex-mono-latin-600-normal.woff2",
+    "fun/solar-eclipse-2026/fonts/ibm-plex-mono-latin-ext-400-normal.woff2",
+    "fun/solar-eclipse-2026/fonts/spectral-latin-ext-500-normal.woff2",
+    "fun/solar-eclipse-2026/js/model.test.mjs",
+    "product/taikor/taikor-card.webp",
+    "fun/solar-eclipse-2026/index.html",
+    "fun/solar-eclipse-2026/js/model.mjs",
+    "index.html",
+    "product/taikor/index.html",
+    "assets/css/style.css",
+    "fun/solar-eclipse-2026/fonts/ibm-plex-mono-latin-ext-600-normal.woff2",
+    "fun/solar-eclipse-2026/solar-eclipse.css",
+    "fun/solar-eclipse-2026/fonts/spectral-latin-500-normal.woff2",
+    "fun/solar-eclipse-2026/js/main.js",
+    "product/electry/index.html",
+    "product/taikor/taikor-panel.webp",
+    "product/youknow/index.html"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "6f2d6f4dcdc1",
+  "token_usage": {
+    "input_tokens": 408,
+    "cache_creation_tokens": 1294070,
+    "cache_read_tokens": 69069870,
+    "output_tokens": 315211,
+    "api_call_count": 217
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-06T06:44:17.628334Z",
+    "agent_lines": 179,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 179,
+    "agent_percentage": 100
+  },
+  "transcript_path": ".claude/projects/-Users-vojta-Dev-protocodus-github-io/22db6cfd-6d68-46ef-af84-da52f66d850f.jsonl"
+}
