@@ -1,0 +1,39 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "ac5ff3fb710d",
+  "session_id": "e4579ffe-4972-4933-96c3-c3bfa7d14d12",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-06T06:36:56.682511Z",
+  "branch": "main",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "fun/ashline/AGENTS.md",
+    "fun/ashline/README.md",
+    "fun/ashline/ashline.css",
+    "fun/ashline/assets/ashline-card.jpg",
+    "fun/ashline/index.html",
+    "fun/ashline/main.js",
+    "fun/ashline/render.js",
+    "fun/ashline/sim.js"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "0eae06757c53",
+  "transcript_identifier_at_start": "2acfc2e5-d886-4539-a4c9-14f9a04008e6",
+  "token_usage": {
+    "input_tokens": 2196,
+    "cache_creation_tokens": 992866,
+    "cache_read_tokens": 30790127,
+    "output_tokens": 188405,
+    "api_call_count": 77
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-06T06:36:54.503521Z",
+    "agent_lines": 0,
+    "human_added": 298,
+    "human_modified": 102,
+    "human_removed": 0,
+    "total_committed": 396,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude/projects/-Users-vojta-Dev-protocodus-github-io/e4579ffe-4972-4933-96c3-c3bfa7d14d12.jsonl"
+}

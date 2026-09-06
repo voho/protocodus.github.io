@@ -1,0 +1,433 @@
+look into the fun/ashline game
+1) understand what it is, game mechanics
+2) refine the game and polish it for public release
+3) improve terrain generation and graphics, if possible
+
+---
+
+<skill-format>true</skill-format>
+
+---
+
+# Workflow authoring reference
+
+A workflow structures work across many agents — to be comprehensive (decompose and cover in parallel), to be confident (independent perspectives and adversarial checks before committing), or to take on scale one context can't hold (migrations, audits, broad sweeps). The script is where you encode that structure: what fans out, what verifies, what synthesizes.
+
+When you do call it, the right move is often **hybrid**: scout inline first (list the files, find the channels, scope the diff) to discover the work-list, then call Workflow to pipeline over it. You don't need to know the shape before the *task* — only before the *orchestration step*.
+
+Common single-phase workflows you can chain across turns:
+- **Understand** — parallel readers over relevant subsystems → structured map
+- **Design** — judge panel of N independent approaches → scored synthesis
+- **Review** — dimensions → find → adversarially verify (the review-changes example)
+- **Research** — multi-modal sweep → deep-read → synthesize
+- **Migrate** — discover sites → transform each (worktree isolation) → verify
+
+For larger work, run several in sequence — read each result before deciding the next phase. You stay in the loop; each workflow is one well-scoped fan-out.
+
+**Ultracode.** When a system-reminder confirms ultracode is on, that opt-in is standing: author and run a workflow for every substantive task by default. The goal is the most exhaustive, correct answer you can produce — token cost is not a constraint. For multi-phase work (understand → design → implement → review), that often means several workflows in sequence — one per phase — so you stay in the loop between them. The quality patterns below (adversarial verify, multi-modal sweep, completeness critic, loop-until-dry) are the tools; pick what fits the task. Lean toward orchestrating with workflows and adversarially verifying your findings — unless the work is trivial or already verified. Solo only on conversational turns or trivial mechanical edits. When a reminder says ultracode is off, revert to the opt-in rule in the Workflow tool description.
+
+Pass the script inline via `script` — do not Write it to a file first. Every invocation automatically persists its script to a file under the session directory and returns the path in the tool result. To iterate on a workflow, edit that file with Write/Edit and re-invoke Workflow with `{scriptPath: "<path>"}` instead of resending the full script.
+
+Every script must begin with `export const meta = {...}`:
+  export const meta = {
+    name: 'find-flaky-tests',
+    description: 'Find flaky tests and propose fixes',   // one-line, shown in permission dialog
+    phases: [                                            // one entry per phase() call
+      { title: 'Scan', detail: 'grep test logs for retries' },
+      { title: 'Fix', detail: 'one agent per flaky test' },
+    ],
+  }
+  // script body starts here — use agent()/parallel()/pipeline()/phase()/log()
+  phase('Scan')
+  const flaky = await agent('grep CI logs for retry markers', {schema: FLAKY_SCHEMA})
+  ...
+
+The `meta` object must be a PURE LITERAL — no variables, function calls, spreads, or template interpolation. Required fields: `name`, `description`. Optional: `whenToUse` (shown in the workflow list), `phases`. Use the SAME phase titles in meta.phases as in phase() calls — titles are matched exactly; a phase() call with no matching meta entry just gets its own progress group. Add `model` to a phase entry when that phase uses a specific model override.
+
+Script body hooks:
+- agent(prompt: string, opts?: {label?: string, phase?: string, schema?: object, model?: string, effort?: string, isolation?: 'worktree', agentType?: string}): Promise<any> — spawn a subagent. Without schema, returns its final text as a string. With schema (a JSON Schema), the subagent is forced to call a StructuredOutput tool and agent() returns the validated object — no parsing needed. Returns null if the user skips the agent mid-run or the subagent dies on a terminal API error after retries (filter with .filter(Boolean)). opts.label overrides the display label. opts.phase explicitly assigns this agent to a progress group (use this inside pipeline()/parallel() stages to avoid races on the global phase() state — same phase string → same group box). opts.model overrides the model for this agent call. Default to omitting it — the agent inherits the main-loop model (the resolved session model), which is almost always correct. Only set it when you're highly confident a different tier fits the task; when unsure, omit. opts.effort overrides the reasoning effort for this agent call ('low' | 'medium' | 'high' | 'xhigh' | 'max') — omit to inherit the session effort; use 'low' for cheap mechanical stages and higher tiers only for the hardest verify/judge stages. opts.isolation: 'worktree' runs the agent in a fresh git worktree — EXPENSIVE (~200-500ms setup + disk per agent), use ONLY when agents mutate files in parallel and would otherwise conflict; the worktree is auto-removed if unchanged. opts.agentType uses a custom subagent type (e.g. 'general-purpose', 'code-reviewer') instead of the default workflow subagent — resolved from the same registry as the Agent tool; composes with schema (the custom agent's system prompt gets a StructuredOutput instruction appended).
+- pipeline(items, stage1, stage2, ...): Promise<any[]> — run each item through all stages independently, NO barrier between stages. Item A can be in stage 3 while item B is still in stage 1. This is the DEFAULT for multi-stage work. Wall-clock = slowest single-item chain, not sum-of-slowest-per-stage. Every stage callback receives (prevResult, originalItem, index) — use originalItem/index in later stages to label work without threading context through stage 1's return value. A stage that throws drops that item to `null` and skips its remaining stages.
+- parallel(thunks: Array<() => Promise<any>>): Promise<any[]> — run tasks concurrently. This is a BARRIER: awaits all thunks before returning. A thunk that throws (or whose agent errors) resolves to `null` in the result array — the call itself never rejects, so `.filter(Boolean)` before using the results. Use ONLY when you genuinely need all results together.
+- log(message: string): void — emit a progress message to the user (shown as a narrator line above the progress tree)
+- phase(title: string): void — start a new phase; subsequent agent() calls are grouped under this title in the progress display
+- args: any — the value passed as Workflow's `args` input, verbatim (undefined if not provided). Pass arrays/objects as actual JSON values in the tool call, NOT as a JSON-encoded string — `args: ["a.ts", "b.ts"]`, not `args: "[\"a.ts\", ...]"` (a stringified list reaches the script as one string, so `args.filter`/`args.map` throw). Use this to parameterize named workflows — e.g. pass a research question, target path, or config object directly instead of via a side-channel file.
+- budget: {total: number|null, spent(): number, remaining(): number} — the turn's token target from the user's "+500k"-style directive. `budget.total` is null if no target was set. `budget.spent()` returns output tokens spent this turn across the main loop and all workflows — the pool is shared, not per-workflow. `budget.remaining()` returns `max(0, total - spent())`, or `Infinity` if no target. The target is a HARD ceiling, not advisory: once `spent()` reaches `total`, further `agent()` calls throw. Use for dynamic loops: `while (budget.total && budget.remaining() > 50_000) { ... }`, or static scaling: `const FLEET = budget.total ? Math.floor(budget.total / 100_000) : 5`.
+- workflow(nameOrRef: string | {scriptPath: string}, args?: any): Promise<any> — run another workflow inline as a sub-step and return whatever it returns. Pass a name to invoke a saved workflow (same registry as {name: "..."}), or {scriptPath} to run a script file you Wrote earlier. The child shares this run's concurrency cap, agent counter, abort signal, and token budget — its agents appear under a "▸ name" group in /workflows and its tokens count toward budget.spent(). The args param becomes the child's `args` global. Nesting is one level only: workflow() inside a child throws. Throws on unknown name / unreadable scriptPath / child syntax error; catch to handle gracefully.
+
+Subagents are told their final text IS the return value (not a human-facing message), so they return raw data. For structured output, use the schema option — validation happens at the tool-call layer so the model retries on mismatch.
+Schemas need {type: 'object', properties: {...}} at root and required ⊆ properties; unsatisfiable ones throw at agent().
+
+Workflow agents can reach all session-connected MCP tools via ToolSearch — schemas load on demand per agent. Caveat: interactively-authenticated MCP servers (e.g. claude.ai) may be absent in headless/cron runs.
+
+Scripts are plain JavaScript, NOT TypeScript — type annotations (`: string[]`), interfaces, and generics fail to parse. The script body runs in an async context — use await directly. Standard JS built-ins (JSON, Math, Array, etc.) are available — EXCEPT `Date.now()`/`Math.random()`/argless `new Date()`, which throw (they would break resume); pass timestamps in via `args`, stamp results after the workflow returns, and for randomness vary the agent prompt/label by index. No filesystem or Node.js API access.
+
+DEFAULT TO pipeline(). Only reach for a barrier (parallel between stages) when you genuinely need ALL prior-stage results together.
+
+A barrier is correct ONLY when stage N needs cross-item context from all of stage N-1:
+- Dedup/merge across the full result set before expensive downstream work
+- Early-exit if the total count is zero ("0 bugs found → skip verification entirely")
+- Stage N's prompt references "the other findings" for comparison
+
+A barrier is NOT justified by:
+- "I need to flatten/map/filter first" — do it inside a pipeline stage: pipeline(items, stageA, r => transform([r]).flat(), stageB)
+- "The stages are conceptually separate" — that's what pipeline() models. Separate stages ≠ synchronized stages.
+- "It's cleaner code" — barrier latency is real. If 5 finders run and the slowest takes 3× the fastest, a barrier wastes 2/3 of the fast finders' idle time.
+
+Smell test: if you wrote
+  const a = await parallel(...)
+  const b = transform(a)        // flatten, map, filter — no cross-item dependency
+  const c = await parallel(b.map(...))
+that middle transform doesn't need the barrier. Rewrite as a pipeline with the transform inside a stage. When in doubt: pipeline.
+
+Concurrent agent() calls are capped at min(16, available CPUs - 2) per workflow — excess calls queue and run as slots free up. You can still pass 100 items to parallel()/pipeline() and they all complete; only ~10 run at any moment. Total agent count across a workflow's lifetime is capped at 1000 — a runaway-loop backstop set far above any real workflow. A single parallel()/pipeline() call accepts at most 4096 items; passing more is an explicit error, not a silent truncation.
+
+When a barrier IS correct — dedup across all findings before expensive verification:
+  const all = await parallel(DIMENSIONS.map(d => () => agent(d.prompt, {schema: FINDINGS_SCHEMA})))
+  const deduped = dedupeByFileAndLine(all.filter(Boolean).flatMap(r => r.findings))  // <-- genuinely needs ALL at once
+  const verified = await parallel(deduped.map(f => () => agent(verifyPrompt(f), {schema: VERDICT_SCHEMA})))
+
+Loop-until-count pattern — accumulate to a target:
+  const bugs = []
+  while (bugs.length < 10) {
+    const result = await agent("Find bugs in this codebase.", {schema: BUGS_SCHEMA})
+    bugs.push(...result.bugs)
+    log(`${bugs.length}/10 found`)
+  }
+
+Loop-until-budget pattern — scale depth to the user's "+500k" directive. Guard on budget.total: with no target set, remaining() is Infinity and the loop would run straight to the 1000-agent cap.
+  const bugs = []
+  while (budget.total && budget.remaining() > 50_000) {
+    const result = await agent("Find bugs in this codebase.", {schema: BUGS_SCHEMA})
+    bugs.push(...result.bugs)
+    log(`${bugs.length} found, ${Math.round(budget.remaining()/1000)}k remaining`)
+  }
+
+Composing patterns — exhaustive review (find → dedup vs seen → diverse-lens panel → loop-until-dry):
+  const seen = new Set(), confirmed = []
+  let dry = 0
+  while (dry < 2) {                                              // loop-until-dry
+    const found = (await parallel(FINDERS.map(f => () =>          // barrier: collect all finders this round
+      agent(f.prompt, {phase: 'Find', schema: BUGS})))).filter(Boolean).flatMap(r => r.bugs)
+    const fresh = found.filter(b => !seen.has(key(b)))           // dedup vs ALL seen — plain code, not an agent
+    if (!fresh.length) { dry++; continue }
+    dry = 0; fresh.forEach(b => seen.add(key(b)))
+    const judged = await parallel(fresh.map(b => () =>           // every fresh bug judged concurrently...
+      parallel(['correctness','security','repro'].map(lens => () =>   // ...each by 3 distinct lenses
+        agent(`Judge "${b.desc}" via the ${lens} lens — real?`, {phase: 'Verify', schema: VERDICT})))
+        .then(vs => ({ b, real: vs.filter(Boolean).filter(v => v.real).length >= 2 }))))
+    confirmed.push(...judged.filter(v => v.real).map(v => v.b))
+  }
+  return confirmed
+  // dedup vs `seen`, NOT `confirmed` — else judge-rejected findings reappear every round and it never converges.
+
+Quality patterns — common shapes; pick by task and compose freely:
+- Adversarial verify: spawn N independent skeptics per finding, each prompted to REFUTE. Kill if ≥majority refute. Prevents plausible-but-wrong findings from surviving.
+    const votes = await parallel(Array.from({length: 3}, () => () =>
+      agent(`Try to refute: ${claim}. Default to refuted=true if uncertain.`, {schema: VERDICT})))
+    const survives = votes.filter(Boolean).filter(v => !v.refuted).length >= 2
+- Perspective-diverse verify: when a finding can fail in more than one way, give each verifier a distinct lens (correctness, security, perf, does-it-reproduce) instead of N identical refuters — diversity catches failure modes redundancy can't.
+- Judge panel: generate N independent attempts from different angles (e.g. MVP-first, risk-first, user-first), score with parallel judges, synthesize from the winner while grafting the best ideas from runners-up. Beats one-attempt-iterated when the solution space is wide.
+- Loop-until-dry: for unknown-size discovery (bugs, issues, edge cases), keep spawning finders until K consecutive rounds return nothing new. Simple counters (while count < N) miss the tail.
+- Multi-modal sweep: parallel agents each searching a different way (by-container, by-content, by-entity, by-time). Each is blind to what the others surface; useful when one search angle won't find everything.
+- Completeness critic: a final agent that asks "what's missing — modality not run, claim unverified, source unread?" What it finds becomes the next round of work.
+- No silent caps: if a workflow bounds coverage (top-N, no-retry, sampling), `log()` what was dropped — silent truncation reads as "covered everything" when it didn't.
+
+Scale to what the user asked for. "find any bugs" → a few finders, single-vote verify. "thoroughly audit this" or "be comprehensive" → larger finder pool, 3–5 vote adversarial pass, synthesis stage. When unsure, lean toward thoroughness for research/review/audit requests and toward brevity for quick checks.
+
+These patterns aren't exhaustive — compose novel harnesses when the task calls for it (tournament brackets, self-repair loops, staged escalation, whatever fits).
+
+Use this tool for multi-step orchestration where control flow should be deterministic (loops, conditionals, fan-out) rather than model-driven.
+
+## Resume
+
+The tool result includes a runId. To resume after a pause, kill, or script edit, relaunch with Workflow({scriptPath, resumeFromRunId}) — the longest unchanged prefix of agent() calls returns cached results instantly; the first edited/new call and everything after it runs live. Same script + same args → 100% cache hit. Before diagnosing why a completed workflow returned an empty or unexpected result, Read <transcriptDir>/journal.jsonl — it records each agent's actual return value; do not assume cached results are non-empty. Date.now()/Math.random()/new Date() are unavailable in scripts (they would break this) — stamp results after the workflow returns, or pass timestamps via args. Fallback when no journal is available: Read agent-<id>.jsonl files in the transcript directory and hand-author a continuation script.
+
+---
+
+Base directory for this skill: /Users/vojta/.claude/plugins/cache/claude-plugins-official/superpowers/6.3.0/skills/brainstorming
+
+# Brainstorming Ideas Into Designs
+
+Help turn ideas into fully formed designs and specs through natural collaborative dialogue.
+
+Start by classifying how much process the request needs, then work
+through your path: understand the context, refine the idea, present a
+design, and get your human partner's approval.
+
+<HARD-GATE>
+Do NOT invoke any implementation skill, write any code, scaffold any
+project, or take any implementation action until you have told your
+human partner what you intend and they have approved it. This applies
+to EVERY task on EVERY path below — the ceremony scales with the task;
+the approval gate never does.
+</HARD-GATE>
+
+## Three Paths
+
+Before your first question, classify the request and say the
+classification out loud — "this looks bounded, so I'll present a short
+design here rather than write a spec" — so your human partner can
+override it:
+
+- **Spike** — a feasibility question ("can we...", "is it possible...",
+  "quick and dirty is fine") whose output is an answer, not code you
+  keep. Present the question and what you'll try in 2-3 sentences, get
+  a nod, then find out as cheaply as correctness allows. No design
+  doc, no spec file. Report findings as a recommendation; anything you
+  built stays labeled throwaway.
+- **Bounded** — a well-scoped change to code that already exists in
+  this repo: a new flag, a small endpoint, a one-file fix.
+  Understanding the kind of app is not enough — bounded means the flow
+  you are changing is already here to read. If there is no existing
+  flow to change, the task is not bounded. Ask the clarifying
+  questions that matter, present a short design IN CHAT (a few
+  sentences to a few short paragraphs), and STOP. Implementation
+  starts only after your human partner says yes to that design — a
+  bounded task's approval is as hard a gate as an architectural
+  one. No spec file, no implementation plan document.
+- **Architectural** — new projects, new subsystems, changes that
+  restructure how components fit together or alter interfaces others
+  depend on. Follow the full process: questions, approaches, sectioned
+  design, written spec, then the writing-plans skill.
+
+When in doubt between two paths, take the heavier one. The ratchet is
+one-way: hidden complexity discovered mid-task upgrades the path —
+stop, say so, and step up. Nothing downgrades mid-task.
+
+## Anti-Pattern: "Too Simple To Need Approval"
+
+Every path ends with your human partner approving your intent before
+implementation. A todo list, a single-function utility, a config
+change — the design may be two sentences in chat, but you MUST present
+it and get approval. "Simple" tasks are where unexamined assumptions
+cause the most wasted work. What scales with simplicity is the
+artifact, never the approval.
+
+## Red Flags
+
+| Thought | Reality |
+|---------|---------|
+| "This is too simple to need a design" | Simple means a short design, not no design. Two sentences in chat, then approval. |
+| "I'll call it bounded and skip the spec" | Reaching for a label to skip work IS the doubt — take the heavier path. |
+| "It's bounded and the design is obvious — I'll start while they read it" | The gate is the approval, not the design's length. Present, then stop until you hear yes. |
+| "I understand this kind of app, so it's bounded" | Bounded measures the repo, not your familiarity. A new project has no existing flow — it is architectural. |
+| "The spike works, so I'll keep the code" | A spike's output is an answer. Keeping the code is a new request — classify it. |
+| "It grew, but I'm almost done — no need to re-classify" | Hidden complexity upgrades the path mid-task. Stop and say so. |
+| "They approved the spike, so the follow-up change is approved too" | Each task gets its own classification and its own approval. |
+
+## Checklist
+
+Classify first, announce the path, then create a task for each item on
+your path and complete them in order.
+
+**Spike:**
+1. **Explore project context** — enough to frame the probe
+2. **Present question + probe plan** — 2-3 sentences
+3. **Get approval** — a nod is enough
+4. **Investigate** — as cheaply as correctness allows
+5. **Report findings** — a recommendation; label anything built as throwaway
+
+**Bounded:**
+1. **Explore project context** — check files, docs, recent commits
+2. **Ask clarifying questions** — one at a time, the ones that matter
+3. **Present short design in chat** — approach, files touched, testing
+4. **Get approval** — STOP and wait for an explicit yes; presenting the design and starting in the same breath is skipping the gate
+5. **Implement** — proceed with the normal development workflow (TDD applies); no plan document
+
+**Architectural:**
+1. **Explore project context** — check files, docs, recent commits
+2. **Offer the visual companion just-in-time** — NOT upfront. The first time a question would genuinely be clearer shown than described, offer it then (its own message); on approval its browser tab opens for you. If no visual question ever arises, never offer it. See the Visual Companion section below.
+3. **Ask clarifying questions** — one at a time, understand purpose/constraints/success criteria
+4. **Propose 2-3 approaches** — with trade-offs and your recommendation
+5. **Present design** — in sections scaled to their complexity, get user approval after each section
+6. **Write design doc** — save to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` and commit
+7. **Spec self-review** — quick inline check for placeholders, contradictions, ambiguity, scope (see below)
+8. **User reviews written spec** — ask user to review the spec file before proceeding
+9. **Transition to implementation** — invoke writing-plans skill to create implementation plan
+
+## Process Flow
+
+```dot
+digraph brainstorming {
+    "Classify: spike / bounded / architectural" [shape=diamond];
+    "Present question + probe (2-3 sentences)" [shape=box];
+    "Ask clarifying questions (bounded)" [shape=box];
+    "Present short design in chat" [shape=box];
+    "Human approves?" [shape=diamond];
+    "Investigate; report recommendation" [shape=doublecircle];
+    "Implement via normal workflow (no plan doc)" [shape=doublecircle];
+    "Explore project context" [shape=box];
+    "Ask clarifying questions" [shape=box];
+    "Propose 2-3 approaches" [shape=box];
+    "Present design sections" [shape=box];
+    "User approves design?" [shape=diamond];
+    "Write design doc" [shape=box];
+    "Spec self-review\n(fix inline)" [shape=box];
+    "User reviews spec?" [shape=diamond];
+    "Invoke writing-plans skill" [shape=doublecircle];
+    "Hidden complexity? Upgrade path" [shape=box];
+
+    "Classify: spike / bounded / architectural" -> "Present question + probe (2-3 sentences)" [label="spike"];
+    "Classify: spike / bounded / architectural" -> "Ask clarifying questions (bounded)" [label="bounded"];
+    "Classify: spike / bounded / architectural" -> "Explore project context" [label="architectural"];
+    "Present question + probe (2-3 sentences)" -> "Human approves?";
+    "Ask clarifying questions (bounded)" -> "Present short design in chat";
+    "Present short design in chat" -> "Human approves?";
+    "Human approves?" -> "Investigate; report recommendation" [label="spike: yes"];
+    "Human approves?" -> "Implement via normal workflow (no plan doc)" [label="bounded: yes"];
+    "Hidden complexity? Upgrade path" -> "Classify: spike / bounded / architectural";
+    "Explore project context" -> "Ask clarifying questions";
+    "Ask clarifying questions" -> "Propose 2-3 approaches";
+    "Propose 2-3 approaches" -> "Present design sections";
+    "Present design sections" -> "User approves design?";
+    "User approves design?" -> "Present design sections" [label="no, revise"];
+    "User approves design?" -> "Write design doc" [label="yes"];
+    "Write design doc" -> "Spec self-review\n(fix inline)";
+    "Spec self-review\n(fix inline)" -> "User reviews spec?";
+    "User reviews spec?" -> "Write design doc" [label="changes requested"];
+    "User reviews spec?" -> "Invoke writing-plans skill" [label="approved"];
+}
+```
+
+**Terminal states are path-bound.** Architectural: the ONLY skill you
+invoke after brainstorming is writing-plans — never frontend-design,
+mcp-builder, or any other implementation skill. Bounded: after
+approval, implementation proceeds directly through the normal
+development workflow; no plan document. Spike: the terminal state is a
+reported recommendation.
+
+## The Process
+
+The subsections below serve the bounded and architectural paths (a
+spike stops at "present the probe, get a nod"). Sections from
+**Exploring approaches** onward are architectural-path depth — for
+bounded work, context plus a few questions plus a short in-chat design
+is the whole process.
+
+**Understanding the idea:**
+
+- Check out the current project state first (files, docs, recent commits)
+- Before asking detailed questions, assess scope: if the request describes multiple independent subsystems (e.g., "build a platform with chat, file storage, billing, and analytics"), flag this immediately. Don't spend questions refining details of a project that needs to be decomposed first.
+- If the project is too large for a single spec, help the user decompose into sub-projects: what are the independent pieces, how do they relate, what order should they be built? Then brainstorm the first sub-project through the normal design flow. Each sub-project gets its own spec → plan → implementation cycle.
+- For appropriately-scoped projects, ask questions one at a time to refine the idea
+- Prefer multiple choice questions when possible, but open-ended is fine too
+- Only one question per message - if a topic needs more exploration, break it into multiple questions
+- Focus on understanding: purpose, constraints, success criteria
+
+**Exploring approaches:**
+
+- Propose 2-3 different approaches with trade-offs
+- Present options conversationally with your recommendation and reasoning
+- Lead with your recommended option and explain why
+- YAGNI ruthlessly - remove unnecessary features from every approach and design
+
+**Presenting the design:**
+
+- Once you believe you understand what you're building, present the design
+- Scale each section to its complexity: a few sentences if straightforward, up to 200-300 words if nuanced
+- Ask after each section whether it looks right so far
+- Cover: architecture, components, data flow, error handling, testing
+- Be ready to go back and clarify if something doesn't make sense
+
+**Design for isolation and clarity:**
+
+- Break the system into smaller units that each have one clear purpose, communicate through well-defined interfaces, and can be understood and tested independently
+- For each unit, you should be able to answer: what does it do, how do you use it, and what does it depend on?
+- Can someone understand what a unit does without reading its internals? Can you change the internals without breaking consumers? If not, the boundaries need work.
+- Smaller, well-bounded units are also easier for you to work with - you reason better about code you can hold in context at once, and your edits are more reliable when files are focused. When a file grows large, that's often a signal that it's doing too much.
+
+**Working in existing codebases:**
+
+- Explore the current structure before proposing changes. Follow existing patterns.
+- Where existing code has problems that affect the work (e.g., a file that's grown too large, unclear boundaries, tangled responsibilities), include targeted improvements as part of the design - the way a good developer improves code they're working in.
+- Don't propose unrelated refactoring. Stay focused on what serves the current goal.
+
+## After the Design (architectural path)
+
+**Documentation:**
+
+- Write the validated design (spec) to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md`
+  - (User preferences for spec location override this default)
+- Use elements-of-style:writing-clearly-and-concisely skill if available
+- Commit the design document to git
+
+**Spec Self-Review:**
+After writing the spec document, look at it with fresh eyes:
+
+1. **Placeholder scan:** Any "TBD", "TODO", incomplete sections, or vague requirements? Fix them.
+2. **Internal consistency:** Do any sections contradict each other? Does the architecture match the feature descriptions?
+3. **Scope check:** Is this focused enough for a single implementation plan, or does it need decomposition?
+4. **Ambiguity check:** Could any requirement be interpreted two different ways? If so, pick one and make it explicit.
+
+Fix any issues inline. No need to re-review — just fix and move on.
+
+**User Review Gate:**
+After the spec review loop passes, ask the user to review the written spec before proceeding:
+
+> "Spec written and committed to `<path>`. Please review it and let me know if you want to make any changes before we start writing out the implementation plan."
+
+Wait for the user's response. If they request changes, make them and re-run the spec review loop. Only proceed once the user approves.
+
+**Implementation:**
+
+- Invoke the writing-plans skill to create a detailed implementation plan
+- Do NOT invoke any other skill. writing-plans is the next step.
+
+## Visual Companion
+
+A browser-based companion for showing mockups, diagrams, and visual options during brainstorming. Available as a tool — not a mode. Accepting the companion means it's available for questions that benefit from visual treatment; it does NOT mean every question goes through the browser.
+
+**Offering the companion (just-in-time):** Do NOT offer it upfront. Wait until a question would genuinely be clearer shown than told — a real mockup / layout / diagram question, not merely a UI *topic*. The first time that happens, offer it then, as its own message:
+> "This next part might be easier if I show you — I can put together mockups, diagrams, and comparisons in a browser tab as we go. It's still new and can be token-intensive. Want me to? I'll open it for you."
+
+**This offer MUST be its own message.** Only the offer — no clarifying question, summary, or other content. Wait for the user's response. If they accept, start the server with `--open` so their browser opens to the first screen automatically. If they decline, continue text-only and don't offer again unless they raise it.
+
+**Per-question decision:** Even after the user accepts, decide FOR EACH QUESTION whether to use the browser or the terminal. The test: **would the user understand this better by seeing it than reading it?**
+
+- **Use the browser** for content that IS visual — mockups, wireframes, layout comparisons, architecture diagrams, side-by-side visual designs
+- **Use the terminal** for content that is text — requirements questions, conceptual choices, tradeoff lists, A/B/C/D text options, scope decisions
+
+A question about a UI topic is not automatically a visual question. "What does personality mean in this context?" is a conceptual question — use the terminal. "Which wizard layout works better?" is a visual question — use the browser.
+
+If they agree to the companion, read the detailed guide before proceeding:
+`skills/brainstorming/visual-companion.md`
+
+---
+
+<task-notification>
+<task-id>wnjofxsfa</task-id>
+<tool-use-id>toolu_01M1okokjXdfGVkBogKmGf8X</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Dynamic workflow "Multi-lens audit of the Ashline RTS for public release, with adversarial verification and a prioritized plan" completed</summary>
+<result>{"plan":"# Ashline release plan\n\nVerified line numbers against the working tree (sim.js:143/162/382/495/499/511/562/621/629/640/659/663/676/687; main.js:38/103/132/262/556/660/666/672/679; render.js:641/660-661/730-731/764-766/818/861-863/906-908/1055/1135). Run after every sim change: `node tests/sim-check.mjs &amp;&amp; node tests/orders-check.mjs &amp;&amp; node tests/save-check.mjs &amp;&amp; node tests/rank-check.mjs &amp;&amp; node tests/rocket-check.mjs`.\n\n## P0 — must fix before release\n\n### P0.1 Units spawn into sealed 1–2 cell pockets and ignore orders forever\n- **sim.js:162** `if(s.navBuilt===s.navVersion&amp;&amp;s.regionSize)return;` (loaded saves restore navBuilt/regions without the new array; without this guard spawnAt throws on load).\n- **sim.js:170** after the region BFS, before `s.navBuilt=s.navVersion;`: `s.regionSize=new Uint32Array(region+1);for(let i=0;i&lt;N;i++)s.regionSize[s.regions[i]]++;`\n- **sim.js:566** after the `walkable` check in spawnAt: `const r=s.regions[y*s.width+x];if(!r||s.regionSize[r]&lt;40)continue;` — producer whose whole ring is pockets waits like the existing blocked-exit case.\n- Why: reproduced for player (barracks core+3,-2 / reactor core+4,0 / turret core+3,+1 → 7th rifle stuck, orders degrade to idle) and AI (3/5 seeds park units in size-1/2 regions; they eat the 60 cap).\n- Do NOT add regionSize to save.js FIELDS. Skip canPlace flood-fill and HUD notice.\n- Test: tests/orders-check.mjs — add the barracks/reactor/turret layout, train 12 rifles, assert every team-0 unit's region has `regionSize&gt;=40`.\n\n### P0.2 Easy/normal AI pacing (labels \"room to learn\"/\"balanced\" are false)\nApply the measured set (sim-check passes; normal first raid must stay 150 s or tests/sim-check.mjs:158 `ai.raid&gt;0` fails because the scripted player wins at ~221 s first):\n- **sim.js:143** `s.ai.nextRaid=s.difficulty==='easy'?300:s.difficulty==='hard'?100:150;`\n- **sim.js:629** `else if(s.teams[1].credits&gt;1200&amp;&amp;own(s,1,'barracks').length&lt;2&amp;&amp;s.time&gt;(easy?1e9:hard?0:240))aiBuild(s,'barracks');`\n- **sim.js:636** rifle cap `(easy?6:hard?14:10)`.\n- **sim.js:640** easy never fields artillery, caps tanks: `const type=!easy&amp;&amp;tanks&gt;=3&amp;&amp;siege&lt;Math.floor(tanks/3)?'artillery':'tank';if(!(easy&amp;&amp;tanks&gt;=4)&amp;&amp;queued(s,1,type)&lt;2)trainUnit(s,1,type);`\n- **sim.js:663** `issueOrder(s,fighting.slice(0,easy?8:hard?Infinity:10).map(e=&gt;e.id),...);ai.nextRaid=s.time+(easy?150:hard?50:90);`\n- **sim.js:676** `const rate=Math.max(.2,powers[e.team].ratio)*(e.team===1?{easy:.55,normal:.75,hard:1}[s.difficulty]:1);` — note `rate` is reused at :687 so AI towers also fire slower; if unwanted, multiply only into `delta` (:677) and the queue increment (:686).\n- Do NOT use a harvest income multiplier (sim.js:450): AI banks 4.6–4.9k credits, income never gates it.\n- The :640 easy armor cap comes from a second verified finding; combined with the rate multiplier it is unmeasured — after applying, re-run `scratchpad/exp7-mediocre.mjs sim.js normal,easy` and `exp1-unopposed.mjs`; if easy becomes a pushover (mediocre script wins &lt; 400 s), drop the tank cap first.\n- Test: tests/sim-check.mjs (both the 360 s unopposed smoke at :105-109 and the victory regression at :157-158) must stay green. Optional: pin \"easy first raid contains no artillery\".\n\n### P0.3 Rocket infantry loses to the tank it is documented to counter\n- **sim.js:495** rocket `heavy:1.35`→`1.8`, tank `infantry:.65`→`.5`.\n- Why: 2 rockets (320 cr) vs 1 tank (300 cr) → rockets wiped, tank at 115/520; field guide says \"rocket infantry counter armor\". After fix rockets are a soft counter (2 beat 1 with one survivor at 59 hp), tank still beats rocket+rifle, rifles still crush rockets.\n- Tests to update: tests/rank-check.mjs:61 `['rocket','harvester',1.35]`→`1.8`, :69 `.3*1.35`→`.3*1.8`, :88 `81`→`108`; tests/rocket-check.mjs:61 `81`→`108`. rank-check:66 (`damage,96`, pre-armor) stays.\n\n### P0.4 No \"under attack\" / \"unit lost\" / \"haulers lost\" feedback; warnings overwritten by info toasts\n- **sim.js:499** after `target.attackerId=attacker.id;`: `if(target.team===0&amp;&amp;s.time-(s.alertAt??-99)&gt;8){s.alertAt=s.time;event(s,`${definition(target).name} under attack`,0);}` (alertAt not in save FIELDS).\n- **sim.js:511** death branch, add: `if(target.kind==='unit'){event(s,`${UNITS[target.type].name} lost`,target.team);if(target.type==='harvester'&amp;&amp;!own(s,target.team,'harvester').length)event(s,'All haulers lost. Train a new one at the refinery.',target.team);}` (own() filters alive; dying unit already excluded). Keep \"lost\" out of the main.js:660 warning regex so a squad wipe doesn't fire the error tone per unit.\n- **render.js** drawMinimap after the dot loop (~1148): `for(const e of state.entities)if(e.team===0&amp;&amp;e.hp&gt;0&amp;&amp;state.time-(e.lastHit??-99)&lt;3){const c=e.kind==='building'?e.size/2:0;ctx.strokeStyle='#e29677';ctx.lineWidth=1.5;ctx.strokeRect(ox+(e.x+c)*s-4,oy+(e.y+c)*s-4,8,8);}` (building e.x is top-left, hence the centre offset).\n- **main.js:38** notify(): before assigning text add `const el=$('notifications'); if(!warning&amp;&amp;el.classList.contains('warning')&amp;&amp;performance.now()&lt;toastUntil)return;` so \"Rifle squad ready\" can't overwrite a live warning.\n- **main.js:679** toast expiry: also `lastNotice='';` so a repeated \"X under attack\" 8 s later shows again.\n- Optional: regex at :660 flags the victory line \"Hostile nexus destroyed\" as a warning; use `/attack|low power|^(?!Hostile).*destroyed/i`.\n- Test: tests/rank-check counts \"promoted\" only; no pins break. Add to tests/orders-check or sim-check: after enemy damages a team-0 building, `events` contains \"under attack\".\n\n### P0.5 Enemy shells/tracers fired from fog are never drawn or heard (siege damage \"from nowhere\")\n- **render.js:906-911**: interpolate shells like rockets and stop culling shots at the launch cell:\n  ```js\n  const flying = rocket || fx.type === 'shell';\n  const px = flying ? launchX + (fx.tx - launchX) * age : fx.x;\n  const py = flying ? fx.y + (fx.ty - fx.y) * age : fx.y;\n  const cell = (cx, cy) =&gt; !visible || visible[Math.floor(cy) * state.width + Math.floor(cx)];\n  if (fx.type !== 'shot' &amp;&amp; !cell(px, py)) continue;\n  ```\n- **render.js:914-931** ('shot' branch) gate each piece by its own cell so nothing points back into fog (AGENTS.md \"never reveal a concealed launch site\"): tracer only if both `cell(tail point)` and `cell(head point)`; muzzle glow (age&lt;.55) only if `cell(fx.x,fx.y)`; impact sparks only if `cell(fx.tx,fx.ty)`. Do NOT draw the tracer from fx.x when only the target is visible.\n- **main.js:666**: `const v=game.visible[0],W=game.width,at=(x,y)=&gt;v[Math.floor(y)*W+Math.floor(x)]; if(!at(effect.x,effect.y)&amp;&amp;!((effect.type==='shot'||effect.type==='shell')&amp;&amp;at(effect.tx,effect.ty)))continue;`\n- Why: crawler range 11.5 / tower 9 outrange every unit sight; repro showed 63/63 shell frames culled while a tank went 520→244 HP.\n\n### P0.6 Low power is colour-only while it silently disables every tower\n- **main.js** module scope `let lowPower=false;`; in updateHUD after `power`: `const low=power.supply&lt;power.demand; if(low!==lowPower){lowPower=low; if(low)notify('Low power: towers offline, production slowed. Build a Flux reactor.',true);} $('power').textContent=`${power.supply} / ${power.demand}${low?' LOW':''}`;`\n- **main.js:50** reset(): `lowPower=false;`.\n- **main.js:263** tooltip: \"Low power slows production and shuts down defenses.\"\n- **main.js:103** show power draw on cards: `meta.textContent=`${def.buildTime||def.trainTime}s${def.power&lt;0?` · ${-def.power}ϟ`:''}`;` (verify field name/sign in BUILDINGS first).\n- Why: starting supply 120; barracks+refinery+turret+factory = 135 demand → every turret inert (sim.js:687) with no text anywhere. Keep the hard cutoff (documented design); no sim
+... (truncated 328017 chars, full result in REDACTED.output)</result>
+<diagnostics>Per-agent results: /Users/vojta/.REDACTED.jsonl — one {"type":"result",...} line per completed agent with its full return value.
+If the result above is empty or unexpected, Read this file BEFORE diagnosing — do not assume agents returned non-empty results.
+To re-run with edited post-processing: Workflow({scriptPath: '/Users/vojta/.REDACTED.js', resumeFromRunId: 'wf_238c5e9f-60b'}) — agents whose (prompt, opts) are unchanged replay from cache.</diagnostics>
+<usage><agent_count>110</agent_count><agents_done>110</agents_done><agents_error>0</agents_error><agents_skipped>0</agents_skipped><agents_empty_result>0</agents_empty_result><subagent_tokens>7420358</subagent_tokens><tool_uses>797</tool_uses><duration_ms>2164483</duration_ms></usage>
+</task-notification>
+
+---
+
+resume
+
+---
+
+<task-notification>
+<task-id>w638cv34i</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Dynamic workflow "Adversarial review of the uncommitted Ashline release diff across four lenses, with refutation and a consolidated findings list" completed</summary>
+<result>{"confirmed":[{"title":"'Under attack' alert fires during the player's own offensive and starves plain notices","file":"/Users/vojta/Dev/protocodus.github.io/fun/ashline/sim.js","line":590,"severity":"low","description":"hurt() emits the throttled 'X under attack' event for every team-0 target regardless of context, including units the player just ordered to attack and that are trading fire in full view. Because main.js notify() gives warnings priority (a plain toast is dropped while a warning is showing), a 60 s battle produces a warning toast plus the error sound every 8 s and suppresses 'X ready' / 'X online' notices for roughly half of that time.","evidence":"sim.js:590 `if(target.team===0&amp;&amp;s.time-(s.alertAt??-99)&gt;8){s.alertAt=s.time;event(s,`${definition(target).name} under attack`,0);}` has no check on the target's order or recent fire. main.js:41 `if (!warning &amp;&amp; $('notifications').classList.contains('warning') &amp;&amp; performance.now() &lt; toastUntil) return;`. Sweep: 35 alert events per 700 s on easy while the base was besieged.","fix":"Skip the alert for units that are engaging: `if(target.team===0&amp;&amp;!(target.kind==='unit'&amp;&amp;(['attack','attackMove'].includes(target.order.type)||s.time-(target.lastShot??-99)&lt;3))&amp;&amp;s.time-(s.alertAt??-99)&gt;8){...}` (lastShot is already set in shoot()). Optionally add 'alertAt' to save.js FIELDS so a load does not re-fire immediately.","lens":"sim","verdict":{"refuted":false,"confidence":0.6,"reasoning":"Mechanics confirmed by reading and by a node run. sim.js:590 fires `X under attack` for any team-0 target whenever 8 s have passed since the last alert, with no regard to the target's order; main.js:683 classifies any text matching /attack/ as a warning, and main.js:41 drops every plain notice while a warning toast is showing (4.3 s per alert). Script: 8 player rifles ordered `attack` on the AI nexus (easy, ASH-001) produced 'Rifle squad under attack' at t=4.9 and t=13.0 while 8/8 and 2/2 survivors still carried the attack order and had fired within 3 s -- i.e. the alert (with error sound) fires for the player's own offensive, and in a longer fight it re-fires every 8 s, hiding 'X ready'/'X online' for ~4.3 of every 8 s. The code comment says 'one alert per engagement' but the throttle is time-based, so a sustained battle is many alerts. Severity is genuinely low (some RTSes alert on all damage), but the toast-suppression side effect is a real player-visible annoyance, so the finding stands. Proposed fix is valid: every entity has `order:{type:'idle'}` (addEntity, sim.js:53) and `lastShot` is set in shoot() (sim.js:608); buildings and haulers keep alerting. The optional save.js note is accurate too (`alertAt` is not in FIELDS, so the first hit after a load always re-fires) but is negligible."}},{"title":"spawnAt pocket rejection stalls the queue silently at 100%","file":"/Users/vojta/Dev/protocodus.github.io/fun/ashline/sim.js","line":663,"severity":"low","description":"The new `regionSize&lt;40` rule is correct, but when every bay cell around a producer is blocked or pocketed spawnAt returns false, the queue item sits at progress 1 forever, trainUnit keeps accepting credits into that producer (up to 6 items), and no event tells the player why nothing deploys. Before the diff a pocketed bay at least produced a (stuck) unit, so the failure was visible; now it looks like open ground and simply never delivers. No AI stall was observed in 72 sweep games, so this is a player-built-base case (barracks boxed by own turrets/reactors and rock).","evidence":"sim.js:663 `if(!walkable(s,x+.5,y+.5,.3)||s.regionSize[s.regions[y*s.width+x]]&lt;40)continue;` and :667 `if(!best)return false;`; step() at line 791 `if(q.progress&gt;=1&amp;&amp;spawnAt(s,e,q.type))e.queue.shift();` retries every tick with no event.","fix":"In step(), when `q.progress&gt;=1` and spawnAt fails, emit a throttled notice, e.g. `if(!(e.bayAlertAt&gt;s.time-10)){e.bayAlertAt=s.time;event(s,`${BUILDINGS[e.type].name}: deployment bay blocked`,e.team);}` (main.js's warning regex can match 'blocked'). bayAlertAt is transient; add it to save.js's optional per-entity fields or reset it on load.","lens":"sim","verdict":{"refuted":false,"confidence":0.7,"reasoning":"Confirmed by running both trees. Script: createGame('ASH-001'), place a barracks, ring it with rock leaving only a &lt;40-tile pocket around it, trainUnit twice, advance 60 s. New sim.js: queue stays [{rifle,progress:1},{rifle,0}], zero units deployed, no team-0 event about it; credits already spent, and there is no queue-cancel API so they stay locked until the building is sold. HEAD sim.js (spawnAt only checked walkable): both units deploy into the pocket. So the diff does turn a visible failure (stuck unit) into a silent one at sim.js:663/:667 with the retry at :791 never emitting anything; trainUnit (:316) keeps accepting items up to 6. Caveats that keep this low severity: the ring searched is producer±2 tiles, so a player must wall the barracks in on all sides with own buildings/rock (self-inflicted), and the HUD does show 'Rifle squad 100%' when the barracks is selected (main.js:294). Two errors in the proposed fix: (1) main.js:683's warning regex is /attack|low power|^All haulers lost|^(?!Hostile).*destroyed/i and does NOT match 'blocked', so the notice would be a plain toast unless the regex is extended; (2) save.js only validates known optional fields and does not reject unknown ones, so a bayAlertAt field needs no save.js change — but a new per-entity field is unnecessary anyway.","correctedFix":"sim.js:791 — no new entity field; throttle on the sim clock: `const q=e.queue[0];if(q){q.progress=Math.min(1,q.progress+dt/UNITS[q.type].trainTime*pace);if(q.progress&gt;=1){if(spawnAt(s,e,q.type))e.queue.shift();else if(Math.floor(s.time/10)!==Math.floor((s.time-dt)/10))event(s,`${BUILDINGS[e.type].name}: deployment bay blocked`,e.team);}}`. If it should surface as a warning toast/sound, also extend the regex at main.js:683 to `/attack|low power|bay blocked|^All haulers lost|^(?!Hostile).*destroyed/i`. save.js needs no change (unknown fields are tolerated, and this variant adds none)."}},{"title":"'All haulers lost' tells the player to train one they may already have queued","file":"/Users/vojta/Dev/protocodus.github.io/fun/ashline/sim.js","line":603,"severity":"low","description":"The new warning checks only living haulers. If a replacement is already in a refinery queue, or a freshly built refinery still has its included hauler pending, the player gets a warning toast plus error sound telling them to 'Train a new one at the refinery' for something they have already paid for.","evidence":"sim.js:603 `if(target.type==='harvester'&amp;&amp;!own(s,target.team,'harvester').length)event(s,'All haulers lost. Train a new one at the refinery.',target.team);` ignores `queued(s,team,'harvester')` (sim.js:711) and `refinery.haulerPending`.","fix":"`if(target.type==='harvester'&amp;&amp;!own(s,target.team,'harvester').length&amp;&amp;!queued(s,target.team,'harvester')&amp;&amp;!own(s,target.team,'refinery').some(r=&gt;r.haulerPending))event(s,'All haulers lost. Train a new one at the refinery.',target.team);`","lens":"sim","verdict":{"refuted":false,"confidence":0.9,"reasoning":"Confirmed by reading and by a node repro. sim.js:603 checks only `own(s,team,'harvester').length` before emitting 'All haulers lost. Train a new one at the refinery.', which main.js:683 matches with the warning regex (`^All haulers lost`) so it becomes a warning toast plus error sound. Repro: createGame, mark the refinery complete, trainUnit(s,0,'harvester') (queue length 1), then kill the sole hauler via an enemy tank in updateGame -&gt; events include 'Shard hauler lost' followed by 'All haulers lost. Train a new one at the refinery.' while ref.queue still holds the paid-for harvester. The same gap applies to a freshly placed refinery with haulerPending=true (sim.js:55/675). The A
+... (truncated 31330 chars, full result in REDACTED.output)</result>
+<diagnostics>Per-agent results: /Users/vojta/.REDACTED.jsonl — one {"type":"result",...} line per completed agent with its full return value.
+If the result above is empty or unexpected, Read this file BEFORE diagnosing — do not assume agents returned non-empty results.
+To re-run with edited post-processing: Workflow({scriptPath: '/Users/vojta/.REDACTED.js', resumeFromRunId: 'wf_9391f006-808'}) — agents whose (prompt, opts) are unchanged replay from cache.</diagnostics>
+<usage><agent_count>17</agent_count><agents_done>17</agents_done><agents_error>0</agents_error><agents_skipped>0</agents_skipped><agents_empty_result>0</agents_empty_result><subagent_tokens>1238268</subagent_tokens><tool_uses>175</tool_uses><duration_ms>984302</duration_ms></usage>
+</task-notification>
+
+---
+
+cool push to main

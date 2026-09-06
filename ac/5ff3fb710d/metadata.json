@@ -3,7 +3,7 @@
   "checkpoint_id": "ac5ff3fb710d",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 2,
+  "checkpoints_count": 4,
   "files_touched": [
     ".assetsignore",
     "fun/ashline/AGENTS.md",
@@ -43,13 +43,20 @@
       "context": "/ac/5ff3fb710d/1/context.md",
       "content_hash": "/ac/5ff3fb710d/1/content_hash.txt",
       "prompt": "/ac/5ff3fb710d/1/prompt.txt"
+    },
+    {
+      "metadata": "/ac/5ff3fb710d/2/metadata.json",
+      "transcript": "/ac/5ff3fb710d/2/full.jsonl",
+      "context": "/ac/5ff3fb710d/2/context.md",
+      "content_hash": "/ac/5ff3fb710d/2/content_hash.txt",
+      "prompt": "/ac/5ff3fb710d/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 562,
-    "cache_creation_tokens": 1428370,
-    "cache_read_tokens": 78396572,
-    "output_tokens": 364314,
-    "api_call_count": 294
+    "input_tokens": 2758,
+    "cache_creation_tokens": 2421236,
+    "cache_read_tokens": 109186699,
+    "output_tokens": 552719,
+    "api_call_count": 371
   }
 }
