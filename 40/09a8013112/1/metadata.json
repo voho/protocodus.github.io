@@ -1,0 +1,38 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "4009a8013112",
+  "session_id": "8ec6a8e4-93e4-4f7c-bb19-ae72d352661c",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-06T07:14:11.050929Z",
+  "branch": "main",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "assets/css/style.css",
+    "index.html",
+    "product/electry/index.html",
+    "product/taikor/index.html",
+    "product/youknow/index.html"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "1b6e673ae96e",
+  "transcript_identifier_at_start": "210df5bf-a8f8-4e3a-83ec-3bf4598a3a1f",
+  "checkpoint_transcript_start": 381,
+  "transcript_lines_at_start": 381,
+  "token_usage": {
+    "input_tokens": 114,
+    "cache_creation_tokens": 59581,
+    "cache_read_tokens": 11385092,
+    "output_tokens": 29192,
+    "api_call_count": 57
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-06T07:14:10.350551Z",
+    "agent_lines": 33,
+    "human_added": 0,
+    "human_modified": 4,
+    "human_removed": 0,
+    "total_committed": 35,
+    "agent_percentage": 94.28571428571428
+  },
+  "transcript_path": ".claude/projects/-Users-vojta-Dev-protocodus-github-io/8ec6a8e4-93e4-4f7c-bb19-ae72d352661c.jsonl"
+}
