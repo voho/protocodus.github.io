@@ -450,6 +450,10 @@ p {
   text-align: center;
 }
 
+.back-nav {
+  padding-top: clamp(1.4rem, 3vw, 2rem);
+}
+
 /* Hero Section
    ========================================================================== */
 .hero {
@@ -761,6 +765,11 @@ p {
   line-height: 1.5;
   color: var(--fg);
   font-variant-numeric: tabular-nums;
+}
+
+.detail-note {
+  color: var(--fg-faint);
+  font-size: 0.84rem;
 }
 
 .footer-bottom {
