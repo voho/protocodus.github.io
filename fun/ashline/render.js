@@ -9,6 +9,16 @@ const TEAM = [
 const SIZES = { core: 3, reactor: 2, refinery: 3, barracks: 2, factory: 3, turret: 1, rocketTower: 2 };
 const BUILDINGS = new Set(Object.keys(SIZES));
 const isInfantry = e => UNITS[e.type]?.armor === 'infantry';
+// Basalt only forms a plate where at least two orthogonal neighbours share it; lone rubble stays ash.
+function coherentBasalt(state, i, x, y) {
+  if (state.terrain[i] !== 2) return false;
+  let n = 0;
+  if (x > 0 && state.terrain[i - 1] === 2) n++;
+  if (x < state.width - 1 && state.terrain[i + 1] === 2) n++;
+  if (y > 0 && state.terrain[i - state.width] === 2) n++;
+  if (y < state.height - 1 && state.terrain[i + state.width] === 2) n++;
+  return n >= 2;
+}
 
 function polygon(ctx, points, fill, stroke) {
   ctx.beginPath();
@@ -534,7 +544,7 @@ export class Renderer {
       const broad = smoothNoise(x / 43, y / 43, seed);
       const detail = smoothNoise(x / 13, y / 13, seed + 9);
       const rusty = Math.max(0, smoothNoise(x / 31 + 4, y / 31, seed + 4) - .47) * 1.7;
-      const c = broad * 38 + detail * 17, i = (y * base.width + x) * 4;
+      const c = broad * 30 + detail * 14, i = (y * base.width + x) * 4;
       colors.data[i] = 41 + c + rusty * 38;
       colors.data[i + 1] = 44 + c + rusty * 8;
       colors.data[i + 2] = 45 + c - rusty * 13;
@@ -543,14 +553,20 @@ export class Renderer {
     }
     baseCtx.putImageData(colors, 0, 0); ctx.imageSmoothingEnabled = true;
     ctx.drawImage(base, 0, 0, width, height);
-    // Haul roads share the generator’s layout for both current maps and older saves.
+    // The fog tint is baked once; updateFog only re-shapes its alpha.
+    this.fogTint = document.createElement('canvas'); this.fogTint.width = base.width; this.fogTint.height = base.height;
+    const tint = this.fogTint.getContext('2d').createImageData(base.width, base.height);
+    for (let i = 0; i < this.fogNoise.length; i++) { const n = this.fogNoise[i]; tint.data.set([10 + n * .65, 17 + n * .8, 24 + n, 255], i * 4); }
+    this.fogTint.getContext('2d').putImageData(tint, 0, 0);
+    // Haul roads share the generator’s layout for both current maps and older saves; ruts only wear into open ground.
     const { start, end, bend: routeBend } = mapLayout(state);
+    const openTile = (x, y) => [0, 2].includes(state.terrain[Math.floor(y) * state.width + Math.floor(x)]);
     const road = (bend, offset = 0) => {
       ctx.beginPath();
       for (let j = 0; j <= 120; j++) {
-        const t = j / 120, x = (start.x + (end.x - start.x) * t) * TILE;
-        const y = (start.y + (end.y - start.y) * t + Math.sin(t * Math.PI) * bend) * TILE + offset;
-        if (j === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        const t = j / 120, tx = start.x + (end.x - start.x) * t, ty = start.y + (end.y - start.y) * t + Math.sin(t * Math.PI) * bend;
+        const x = tx * TILE, y = ty * TILE + offset;
+        if (j === 0 || !openTile(tx, ty)) ctx.moveTo(x, y); else ctx.lineTo(x, y);
       }
     };
     ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
@@ -564,6 +580,7 @@ export class Renderer {
       }
     }
     ctx.restore();
+    this.paintMaterials(state, ctx, seed);
     const scatteredTrees = state.terrain.includes(4);
     for (let y = 0; y < state.height; y++) for (let x = 0; x < state.width; x++) {
       const i = y * state.width + x, px = x * TILE, py = y * TILE;
@@ -575,9 +592,10 @@ export class Renderer {
         stain.addColorStop(0, '#93684b39'); stain.addColorStop(1, '#93684b00');
         ellipse(ctx, px + 16, py + 18, 33, 26, stain);
       }
-      for (let j = 0; j < 17; j++) {
+      // Rock plates carry their own grit; basalt takes only dark flecks.
+      if (type !== 1) for (let j = 0; j < 17; j++) {
         const nx = noise(x * 19 + j, y, seed), ny = noise(x, y * 19 + j, seed);
-        rect(ctx, px + nx * TILE, py + ny * TILE, j % 5 === 0 ? 2 : .8, .7, j % 2 ? '#c8baa32b' : '#111a2433');
+        rect(ctx, px + nx * TILE, py + ny * TILE, j % 5 === 0 ? 2 : .8, .7, j % 2 && type !== 2 ? '#c8baa32b' : '#111a2433');
       }
       if (type === 1 || type === 4) {
         const cx = px + 16 + (n - .5) * 9, cy = py + 20 + (noise(x, y, seed + 2) - .5) * 9;
@@ -585,12 +603,23 @@ export class Renderer {
         const grove = smoothNoise(x / 6, y / 6, seed + 23);
         // New maps place individual trees in the simulation; old saves keep their rocky groves.
         const isTree = type === 4 || !scatteredTrees && grove > .48 && noise(x, y, seed + 41) < (count < 4 ? .44 : .25);
+        // Interior rock reads through the plate; boulders concentrate on formation edges.
+        if (!isTree && count === 4 && noise(x, y, seed + 44) >= .35) continue;
         const variant = Math.floor(noise(x, y, seed + 5) * (isTree ? 6 : 8));
         const size = isTree ? [54, 56, 48, 46, 31, 42][variant] * (.9 + noise(x, y, seed + 11) * .22) : 35 + n * 14 + count * 2;
-        const halo = ctx.createRadialGradient(cx, cy, 6, cx, cy, size * .8);
-        halo.addColorStop(0, '#151b224e'); halo.addColorStop(1, '#151b2200');
-        ellipse(ctx, cx, cy + 5, size * .8, size * .65, halo);
+        if (isTree) {
+          const halo = ctx.createRadialGradient(cx, cy, 6, cx, cy, size * .8);
+          halo.addColorStop(0, '#151b224e'); halo.addColorStop(1, '#151b2200');
+          ellipse(ctx, cx, cy + 5, size * .8, size * .65, halo);
+        }
         this.rockProps.push({ kind: isTree ? 'tree' : 'rock', x: cx / TILE, y: cy / TILE, size, variant });
+      } else if (type === 2) {
+        if (!coherentBasalt(state, i, x, y)) continue;
+        // Two joint seams per basalt tile: sub-pixel at minimum zoom, fine cracks up close.
+        const a = noise(x, y, seed + 13) * Math.PI, jx = px + 8 + noise(x, y, seed + 14) * 16, jy = py + 8 + noise(x, y, seed + 15) * 16;
+        line(ctx, jx - Math.cos(a) * 11, jy - Math.sin(a) * 11, jx + Math.cos(a) * 11, jy + Math.sin(a) * 11, '#0d121555', 1.2);
+        line(ctx, jx, jy, jx + Math.sin(a) * 9, jy - Math.cos(a) * 9, '#0d121544', 1);
+        line(ctx, jx - Math.cos(a) * 11 - 1, jy - Math.sin(a) * 11 - 1, jx + Math.cos(a) * 11 - 1, jy + Math.sin(a) * 11 - 1, '#9a918222', .6);
       } else if (n > .974) {
         const r = 7 + noise(x, y, seed + 8) * 19;
         ellipse(ctx, px + 15, py + 18, r + 2, r * .62, '#bea98824');
@@ -617,6 +646,64 @@ export class Renderer {
     this.createLava(state);
   }
 
+  // Terrain materials bake once at 8 px/tile: basalt sinks below the ash, rock rises above it with a lit rim and a shaded foot.
+  paintMaterials(state, ctx, seed) {
+    const width = state.width * TILE, height = state.height * TILE, mw = state.width * 8, mh = state.height * 8;
+    const scratch = () => { const c = document.createElement('canvas'); c.width = mw; c.height = mh; return c; };
+    // Tile test -> soft, organic alpha mask (blur, then threshold).
+    const tileMask = (test, blur = 4) => {
+      const raw = scratch(), r = raw.getContext('2d');
+      for (let y = 0; y < state.height; y++) for (let x = 0; x < state.width; x++) if (test(y * state.width + x, x, y)) r.fillRect(x * 8, y * 8, 8, 8);
+      const soft = scratch(), s = soft.getContext('2d');
+      s.filter = `blur(${blur}px)`; s.drawImage(raw, 0, 0); s.filter = 'none';
+      const px = s.getImageData(0, 0, mw, mh);
+      for (let i = 3; i < px.data.length; i += 4) px.data[i] = px.data[i] >= 128 ? 255 : 0;
+      s.putImageData(px, 0, 0); return soft;
+    };
+    // Flat colour through a mask; offsets and blur are in world pixels.
+    const stamp = (mask, color, dx = 0, dy = 0, alpha = 1, blur = 0) => {
+      const c = scratch(), t = c.getContext('2d');
+      if (blur) t.filter = `blur(${blur / 4}px)`;
+      t.drawImage(mask, 0, 0); t.filter = 'none';
+      t.globalCompositeOperation = 'source-in'; t.fillStyle = color; t.fillRect(0, 0, mw, mh);
+      ctx.save(); ctx.globalAlpha = alpha; ctx.imageSmoothingEnabled = true; ctx.drawImage(c, dx, dy, width, height); ctx.restore();
+    };
+    // Per-pixel material at 4 px/tile, upsampled and clipped by the mask.
+    const plate = (mask, paint) => {
+      const lw = state.width * 4, lh = state.height * 4, low = document.createElement('canvas'); low.width = lw; low.height = lh;
+      const l = low.getContext('2d'), img = l.createImageData(lw, lh);
+      for (let y = 0; y < lh; y++) for (let x = 0; x < lw; x++) paint(x, y, img.data, (y * lw + x) * 4);
+      l.putImageData(img, 0, 0);
+      const c = scratch(), t = c.getContext('2d');
+      t.imageSmoothingEnabled = true; t.drawImage(low, 0, 0, mw, mh);
+      t.globalCompositeOperation = 'destination-in'; t.drawImage(mask, 0, 0);
+      ctx.imageSmoothingEnabled = true; ctx.drawImage(c, 0, 0, width, height);
+    };
+    // A tighter blur keeps single rock tiles on the plate while corners still round.
+    const rockMask = tileMask(i => state.terrain[i] === 1, 3);
+    const basaltMask = tileMask((i, x, y) => coherentBasalt(state, i, x, y));
+    // One blurred scorch stain around every lava pool; the basalt banks later cover its inner part.
+    if (state.terrain.includes(3)) stamp(tileMask(i => state.terrain[i] === 3, 2), '#1d100b', 0, 0, .6, 14);
+    stamp(basaltMask, '#7a7d76', 0, -1, .18);
+    plate(basaltMask, (x, y, data, at) => {
+      const fleck = smoothNoise(x / 36, y / 36, seed + 61), seam = smoothNoise(x / 92, y / 92, seed + 67);
+      let r = 47, g = 53, b = 55;
+      if (fleck > .62) { r += (106 - r) * .16; g += (111 - g) * .16; b += (106 - b) * .16; }
+      if (Math.abs(seam - .5) < .008) { r += (29 - r) * .35; g += (34 - g) * .35; b += (36 - b) * .35; }
+      data[at] = r; data[at + 1] = g; data[at + 2] = b; data[at + 3] = 158;
+    });
+    stamp(rockMask, '#171c20', 3, 5, .34, 10);
+    stamp(rockMask, '#2c2b28', 0, 3); stamp(rockMask, '#3a3833', 0, 1.5);
+    stamp(rockMask, '#8f8877', -1.5, -2, .5);
+    plate(rockMask, (x, y, data, at) => {
+      const n = smoothNoise(x / 28, y / 28, seed + 71), grit = (noise(x, y, seed + 72) - .5) * 8;
+      const light = Math.max(0, Math.min(1, (n - .58) * 6)) * .55, dark = Math.max(0, Math.min(1, (.40 - n) * 6)) * .55;
+      let r = 92, g = 89, b = 82;
+      r += (107 - r) * light + (69 - r) * dark; g += (102 - g) * light + (67 - g) * dark; b += (92 - b) * light + (63 - b) * dark;
+      data[at] = r + grit; data[at + 1] = g + grit; data[at + 2] = b + grit; data[at + 3] = 255;
+    });
+  }
+
   createLava(state) {
     this.lavaPools = [];
     const visited = new Uint8Array(state.terrain.length), ctx = this.terrain.getContext('2d');
@@ -636,7 +723,7 @@ export class Renderer {
       const w = (x1 - x0 + 1) * TILE + 32, h = (y1 - y0 + 1) * TILE + 32;
       const mask = document.createElement('canvas'); mask.width = w; mask.height = h;
       const m = mask.getContext('2d');
-      for (const i of cells) rect(m, (i % state.width - x0) * TILE + 16, (Math.floor(i / state.width) - y0) * TILE + 16, TILE, TILE, '#fff');
+      for (const i of cells) rect(m, (i % state.width - x0) * TILE + 16, (Math.floor(i / state.width) - y0) * TILE + 16, TILE, TILE, '#1d100b');
       const layers = Array.from({ length: 3 }, () => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; });
       const bank = layers[0].getContext('2d'); bank.filter = 'blur(9px)'; bank.drawImage(mask, 0, 0); bank.filter = 'none';
       const pixels = bank.getImageData(0, 0, w, h), shore = m.createImageData(w, h);
@@ -644,28 +731,35 @@ export class Renderer {
         const i = (y * w + x) * 4, raw = pixels.data[i + 3];
         if (!raw) continue;
         const wx = x0 * TILE + x - 16, wy = y0 * TILE + y - 16;
-        const grain = smoothNoise(wx / 5, wy / 5, this.seed + 71), grit = noise(wx, wy, this.seed + 79);
-        const edge = raw - (grain - .5) * 55;
-        const alpha = Math.max(0, Math.min(255, (edge - 145) * 6));
-        const rock = 37 + grain * 22 + grit * 14 + Math.max(0, 150 - raw) * .1;
-        pixels.data.set([rock, rock * .94, rock * .86, Math.max(0, Math.min(255, (edge - 93) * 6))], i);
-        shore.data.set([255, 255, 255, alpha], i);
+        // A broad wander plus fine grit turns the tile outline into an irregular shoreline.
+        const grain = smoothNoise(wx / 24, wy / 24, this.seed + 71) * .65 + smoothNoise(wx / 6, wy / 6, this.seed + 73) * .35, grit = noise(wx, wy, this.seed + 79);
+        const edge = raw - (grain - .5) * 100;
+        const alpha = Math.max(0, Math.min(255, (edge - 138) * 4));
+        // Dark basalt bank, warmed where it meets the melt.
+        const heatTint = Math.max(0, Math.min(1, (edge - 110) / 40)), rock = 28 + grain * 18 + grit * 12 + Math.max(0, 150 - raw) * .08;
+        pixels.data.set([rock + heatTint * 26, rock * .94 + heatTint * 6, rock * .86, Math.max(0, Math.min(255, (edge - 84) * 5))], i);
+        shore.data.set([29, 16, 11, alpha], i);
       }
       bank.putImageData(pixels, 0, 0);
       m.putImageData(shore, 0, 0);
+      // The molten texture is computed at half resolution (its folds are far wider than 2 px) and upsampled.
       const flow = layers[2]; flow.width = w + 48; flow.height = h + 48;
-      const f = flow.getContext('2d'), heat = f.createImageData(flow.width, flow.height);
-      for (let y = 0; y < flow.height; y++) for (let x = 0; x < flow.width; x++) {
-        const i = (y * flow.width + x) * 4, wx = x0 * TILE + x - 40, wy = y0 * TILE + y - 40;
+      const half = document.createElement('canvas'); half.width = Math.ceil(flow.width / 2); half.height = Math.ceil(flow.height / 2);
+      const hc = half.getContext('2d'), heat = hc.createImageData(half.width, half.height);
+      for (let y = 0; y < half.height; y++) for (let x = 0; x < half.width; x++) {
+        const i = (y * half.width + x) * 4, wx = x0 * TILE + x * 2 - 40, wy = y0 * TILE + y * 2 - 40;
+        // Swirled fractal folds: broad red/orange body, amber folds, yellow only on the hottest crests, sparse dark crust.
         const warp = smoothNoise(wx / 64, wy / 56, this.seed + 37);
-        const fold = (1 + Math.sin(wx / 10 + Math.sin(wy / 24 + warp * 4) * 2 + warp * 6)) / 2;
+        const swirl = smoothNoise(wx / 26 + Math.sin(wy / 31 + warp * 5) * 2.2, wy / 24 + Math.cos(wx / 37 + warp * 4) * 2.2, this.seed + 41);
+        const fold = swirl * .58 + smoothNoise(wx / 9, wy / 8, this.seed + 45) * .24 + warp * .12 + (smoothNoise(wx / 4.5, wy / 4.5, this.seed + 47) - .5) * .12;
         const crust = smoothNoise(wx / 16, wy / 14, this.seed + 51);
-        const value = Math.max(0, Math.min(4, 1.2 + fold ** .7 * 2.8 - Math.max(0, crust - .62) * 10 * (1 - fold)));
+        const value = Math.max(0, Math.min(4, .15 + Math.max(0, fold) ** 1.05 * 5.15 - Math.max(0, crust - .62) * 7));
         const index = Math.min(3, Math.floor(value)), blend = value - index;
         for (let c = 0; c < 3; c++) heat.data[i + c] = palette[index][c] * (1 - blend) + palette[index + 1][c] * blend;
         heat.data[i + 3] = 255;
       }
-      f.putImageData(heat, 0, 0);
+      hc.putImageData(heat, 0, 0);
+      const f = flow.getContext('2d'); f.imageSmoothingEnabled = true; f.imageSmoothingQuality = 'high'; f.drawImage(half, 0, 0, flow.width, flow.height);
       const pool = { cells, x: x0 * TILE - 16, y: y0 * TILE - 16, width: w, height: h, surface: layers[1], flow, mask, phase: noise(start, 7, this.seed) * Math.PI * 2 };
       ctx.save(); ctx.shadowColor = '#130f1299'; ctx.shadowBlur = 4; ctx.shadowOffsetY = 3;
       ctx.drawImage(layers[0], pool.x, pool.y, pool.width, pool.height);
@@ -681,7 +775,8 @@ export class Renderer {
       const cells = pool.cells.filter(i => (!visible || visible[i]) && i % state.width >= x0 && i % state.width < x1 && Math.floor(i / state.width) >= y0 && Math.floor(i / state.width) < y1);
       if (!cells.length) continue;
       ctx.save(); ctx.beginPath();
-      for (const i of cells) ctx.rect(i % state.width * TILE, Math.floor(i / state.width) * TILE, TILE, TILE);
+      // The wandering shoreline overshoots its tiles; pad the clip so the live surface covers the whole fringe.
+      for (const i of cells) ctx.rect(i % state.width * TILE - 8, Math.floor(i / state.width) * TILE - 8, TILE + 16, TILE + 16);
       ctx.clip();
       ctx.drawImage(lavaSurface(pool, time), pool.x, pool.y, pool.width, pool.height);
       for (const i of cells) {
@@ -728,9 +823,10 @@ export class Renderer {
     for (const id of this.unitPositions.keys()) if (!currentlySeen.has(id)) this.unitPositions.delete(id);
     for (const fx of state.effects || []) {
       if (fx.type !== 'explosion' || this.seenEffects.has(fx)) continue;
-      this.seenEffects.add(fx);
       const i = Math.floor(fx.y) * state.width + Math.floor(fx.x);
       if (visible && !visible[i]) continue;
+      // Once seen, a blast keeps playing even if the dying unit's own sight collapses.
+      this.seenEffects.add(fx);
       const x = fx.x * TILE, y = fx.y * TILE, radius = 19 * Math.sqrt(fx.size || 1);
       const scorch = ctx.createRadialGradient(x, y, 2, x, y, radius);
       scorch.addColorStop(0, '#0e161de0'); scorch.addColorStop(.45, '#19202790'); scorch.addColorStop(1, '#19202700');
@@ -759,18 +855,14 @@ export class Renderer {
       data.data[p + 3] = visible[i] ? 0 : explored[i] ? 162 : 255;
     }
     low.putImageData(data, 0, 0);
+    // The baked tint keeps its colour; the blurred low-res coverage only shapes its alpha.
     const ctx = this.fog.getContext('2d');
     ctx.clearRect(0, 0, this.fog.width, this.fog.height);
+    ctx.drawImage(this.fogTint, 0, 0);
+    ctx.globalCompositeOperation = 'destination-in';
     ctx.imageSmoothingEnabled = true; ctx.filter = 'blur(1.5px)';
-    ctx.drawImage(this.fogLow, -2, -2, this.fog.width + 4, this.fog.height + 4); ctx.filter = 'none';
-    const pixels = ctx.getImageData(0, 0, this.fog.width, this.fog.height);
-    for (let y = 0; y < this.fog.height; y++) for (let x = 0; x < this.fog.width; x++) {
-      const p = (y * this.fog.width + x) * 4, alpha = pixels.data[p + 3];
-      if (alpha < 15) continue;
-      const n = this.fogNoise[y * this.fog.width + x];
-      pixels.data[p] = 10 + n * .65; pixels.data[p + 1] = 17 + n * .8; pixels.data[p + 2] = 24 + n;
-    }
-    ctx.putImageData(pixels, 0, 0);
+    ctx.drawImage(this.fogLow, -2, -2, this.fog.width + 4, this.fog.height + 4);
+    ctx.filter = 'none'; ctx.globalCompositeOperation = 'source-over';
   }
 
   draw(state, view) {
@@ -813,9 +905,10 @@ export class Renderer {
       drawSpriteShadow(ctx, e, time);
       ctx.restore();
     }
+    // Mineral knowledge refreshes wherever there is sensor coverage, not only inside the viewport.
+    if (visible) { for (let i = 0; i < this.knownOre.length; i++) if (visible[i]) this.knownOre[i] = state.minerals[i]; } else this.knownOre.set(state.minerals);
     for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
       const i = y * state.width + x;
-      if (!visible || visible[i]) this.knownOre[i] = state.minerals[i];
       if (explored && !explored[i]) continue;
       const amount = this.knownOre[i];
       if (amount <= 0) continue;
@@ -859,14 +952,18 @@ export class Renderer {
       const x = (e.x + n) * TILE, y = (e.y + n) * TILE;
       ctx.save(); ctx.translate(x, y);
       if (view.selected?.has(e.id)) {
-        const r = isBuilding ? e.size * TILE / 2 + 2 : isInfantry(e) ? (e.type === 'rocket' ? 10 : 7) : 17;
-        ctx.strokeStyle = '#b4e2e6'; ctx.lineWidth = .8 / scale;
+        // Ground ring sized to the body so the sprite never hides it; width stays ~1 screen pixel at any zoom.
+        const r = isBuilding ? e.size * TILE / 2 + 2 : { rifle: 9, rocket: 11, scout: 18, artillery: 26 }[e.type] ?? 22;
+        ctx.strokeStyle = '#b4e2e6'; ctx.lineWidth = 1.2 / scale;
         if (isBuilding) {
           const d = r * .27;
           for (const [xx, yy, dx, dy] of [[-r, -r, d, d], [r, -r, -d, d], [-r, r, d, -d], [r, r, -d, -d]]) {
             ctx.beginPath(); ctx.moveTo(xx, yy + dy); ctx.lineTo(xx, yy); ctx.lineTo(xx + dx, yy); ctx.stroke();
           }
-        } else ellipse(ctx, 0, 2, r, r * .68, '#8edbe313', '#b4e2e6');
+        } else {
+          ctx.beginPath(); ctx.ellipse(0, 3, r, r * .62, 0, 0, Math.PI * 2);
+          ctx.fillStyle = '#8edbe316'; ctx.fill(); ctx.stroke();
+        }
       }
       if (isBuilding) building(ctx, e, e.team === 1 && !entityVisible(e) ? e.rememberedAt : time); else unit(ctx, e, time);
       if ((e.team === 0 || entityVisible(e)) && e.progress >= 1) this.drawEntityActivity(ctx, e, time, powers[e.team]);
@@ -901,26 +998,31 @@ export class Renderer {
         polygon(ctx, [[px - 2, py], [px, py - 3], [px + 2.5, py], [px, py + 1.5]], '#9fdec5', '#3c756d');
       }
     }
+    // Every effect piece is gated by the cell it occupies, so fire from fog shows where it lands but never where it came from.
+    const seenAt = (cx, cy) => !visible || !!visible[Math.floor(cy) * state.width + Math.floor(cx)];
     for (const fx of state.effects || []) {
       const alpha = Math.max(0, Math.min(1, fx.life / (fx.maxLife || .3))), age = 1 - alpha;
-      const rocket = fx.type === 'rocket';
+      const rocket = fx.type === 'rocket', flying = rocket || fx.type === 'shell';
       const launchX = fx.x - (rocket && fx.weapon === 'rocketTower' ? 14.8 / TILE : 0);
-      const px = rocket ? launchX + (fx.tx - launchX) * age : fx.x;
-      const py = rocket ? fx.y + (fx.ty - fx.y) * age : fx.y;
-      const i = Math.floor(py) * state.width + Math.floor(px);
-      if (visible && !visible[i]) continue;
+      const px = flying ? launchX + (fx.tx - launchX) * age : fx.x;
+      const py = flying ? fx.y + (fx.ty - fx.y) * age : fx.y;
+      if (fx.type !== 'shot' && !seenAt(px, py) && !(fx.type === 'explosion' && this.seenEffects.has(fx))) continue;
       const x = fx.x * TILE, y = fx.y * TILE - 3;
       ctx.save();
       if (fx.type === 'shot') {
         const dx = (fx.tx - fx.x) * TILE, dy = (fx.ty - fx.y) * TILE;
         const head = Math.min(1, age * 2.2), tail = Math.max(0, head - .18);
         ctx.globalAlpha = alpha;
-        line(ctx, x + dx * tail, y + dy * tail, x + dx * head, y + dy * head, '#f3d8a98c', 2.6);
-        line(ctx, x + dx * tail, y + dy * tail, x + dx * head, y + dy * head, '#fff5d8', .8);
+        if (seenAt(fx.x + (fx.tx - fx.x) * tail, fx.y + (fx.ty - fx.y) * tail) && seenAt(fx.x + (fx.tx - fx.x) * head, fx.y + (fx.ty - fx.y) * head)) {
+          line(ctx, x + dx * tail, y + dy * tail, x + dx * head, y + dy * head, '#f3d8a98c', 2.6);
+          line(ctx, x + dx * tail, y + dy * tail, x + dx * head, y + dy * head, '#fff5d8', .8);
+        }
         if (age < .55) {
-          glow(ctx, x, y, 12 * alpha, '#ffc0708f');
-          ellipse(ctx, x, y, 3.5 * alpha, 2.5 * alpha, '#fff5dd');
-        } else {
+          if (seenAt(fx.x, fx.y)) {
+            glow(ctx, x, y, 12 * alpha, '#ffc0708f');
+            ellipse(ctx, x, y, 3.5 * alpha, 2.5 * alpha, '#fff5dd');
+          }
+        } else if (seenAt(fx.tx, fx.ty)) {
           const impact = (age - .55) / .45;
           glow(ctx, fx.tx * TILE, fx.ty * TILE - 3, 7, '#ffab4a64');
           for (let j = 0; j < 4; j++) {
@@ -1054,7 +1156,7 @@ export class Renderer {
     rect(ctx, 0, 0, this.width, this.height, vignette);
     if (performance.now() - this.lastMinimap > 130) {
       this.drawMinimap(state, view, entityVisible); this.lastMinimap = performance.now();
-    }
+    } else this.drawMinimapOverlay(state, view);
   }
 
   drawEntityActivity(ctx, e, time, power = 1) {
@@ -1118,25 +1220,33 @@ export class Renderer {
     ctx.restore();
   }
 
+  minimapLayout(state) {
+    const c = this.minimap, bounds = c.getBoundingClientRect();
+    const w = bounds.width || 200, h = bounds.height || 150, s = Math.min(w / state.width, h / state.height);
+    return { w, h, s, ox: (w - state.width * s) / 2, oy: (h - state.height * s) / 2 };
+  }
+
+  // The tactical map bakes terrain, fog and markers a few times per second; the viewport and hit pings redraw every frame.
   drawMinimap(state, view, entityVisible) {
     if (!this.minimap) return;
-    const c = this.minimap, bounds = c.getBoundingClientRect();
-    const w = bounds.width || 200, h = bounds.height || 150;
+    const c = this.minimap, { w, h, s, ox, oy } = this.minimapLayout(state);
     const pw = Math.round(w * this.dpr), ph = Math.round(h * this.dpr);
     if (c.width !== pw || c.height !== ph) { c.width = pw; c.height = ph; }
-    const ctx = c.getContext('2d'); ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    this.minimapBase ??= document.createElement('canvas');
+    if (this.minimapBase.width !== pw || this.minimapBase.height !== ph) { this.minimapBase.width = pw; this.minimapBase.height = ph; }
+    const ctx = this.minimapBase.getContext('2d'); ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     rect(ctx, 0, 0, w, h, '#0d1720');
-    const s = Math.min(w / state.width, h / state.height);
-    const ox = (w - state.width * s) / 2, oy = (h - state.height * s) / 2;
     const visible = state.visible?.[0], explored = state.explored?.[0];
-    for (let y = 0; y < state.height; y++) for (let x = 0; x < state.width; x++) {
-      const i = y * state.width + x;
+    if (!this.miniTiles || this.miniTiles.width !== state.width) { this.miniTiles = document.createElement('canvas'); this.miniTiles.width = state.width; this.miniTiles.height = state.height; }
+    const tiles = this.miniTiles.getContext('2d'), img = tiles.createImageData(state.width, state.height), data = img.data;
+    const palette = [[87, 94, 96], [139, 139, 130], [52, 59, 62], [237, 123, 34], [121, 119, 106]], ore = [131, 213, 201];
+    for (let i = 0; i < state.terrain.length; i++) {
       if (explored && !explored[i]) continue;
-      const color = state.terrain[i] === 3 ? '#ed7b22' : state.terrain[i] === 4 ? '#79776a' : state.terrain[i] === 1 ? '#8b8b82' : state.terrain[i] === 2 ? '#434b4e' : '#575e60';
-      rect(ctx, ox + x * s, oy + y * s, s + .5, s + .5, color);
-      if (this.knownOre[i] > 0) rect(ctx, ox + x * s, oy + y * s, s + .5, s + .5, '#83d5c9');
-      if (visible && !visible[i]) rect(ctx, ox + x * s, oy + y * s, s + .5, s + .5, '#0a152080');
+      const color = this.knownOre[i] > 0 ? ore : palette[state.terrain[i]] || palette[0], p = i * 4, dim = visible && !visible[i] ? .5 : 0;
+      data[p] = color[0] + (10 - color[0]) * dim; data[p + 1] = color[1] + (21 - color[1]) * dim; data[p + 2] = color[2] + (32 - color[2]) * dim; data[p + 3] = 255;
     }
+    tiles.putImageData(img, 0, 0);
+    ctx.imageSmoothingEnabled = false; ctx.drawImage(this.miniTiles, ox, oy, state.width * s, state.height * s);
     const drawDot = (e) => {
       const building = e.kind === 'building', size = building ? Math.max(4, e.size * s) : Math.max(3, s * .65);
       const center = building ? e.size / 2 : 0;
@@ -1144,10 +1254,25 @@ export class Renderer {
     };
     for (const e of state.entities) if (e.hp > 0 && (e.team === 0 || entityVisible(e))) drawDot(e);
     for (const e of this.rememberedBuildings.values()) if (!entityVisible(e)) { ctx.globalAlpha = .4; drawDot(e); ctx.globalAlpha = 1; }
+    ctx.strokeStyle = '#9bbbc522'; ctx.strokeRect(.5, .5, w - 1, h - 1);
+    this.drawMinimapOverlay(state, view);
+  }
+
+  drawMinimapOverlay(state, view) {
+    if (!this.minimap || !this.minimapBase) return;
+    const c = this.minimap, { w, h, s, ox, oy } = this.minimapLayout(state), ctx = c.getContext('2d');
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(this.minimapBase, 0, 0);
+    ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     ctx.save(); ctx.beginPath(); ctx.rect(ox, oy, state.width * s, state.height * s); ctx.clip();
+    // Recent hits on friendly forces ping in warning orange so an off-screen raid is never silent.
+    const time = state.time || 0;
+    for (const e of state.entities) if (e.team === 0 && e.hp > 0 && time - (e.lastHit ?? -99) < 3) {
+      const n = e.kind === 'building' ? e.size / 2 : 0, pulse = 4 + ((time * 2) % 1) * 4;
+      ctx.strokeStyle = '#e29677'; ctx.lineWidth = 1.5;
+      ctx.strokeRect(ox + (e.x + n) * s - pulse, oy + (e.y + n) * s - pulse, pulse * 2, pulse * 2);
+    }
     ctx.strokeStyle = '#c5e7eebb'; ctx.lineWidth = 1;
     ctx.strokeRect(ox + (view.x - this.width / view.zoom / 2) * s, oy + (view.y - this.height / view.zoom / 2) * s, this.width / view.zoom * s, this.height / view.zoom * s);
     ctx.restore();
-    ctx.strokeStyle = '#9bbbc522'; ctx.strokeRect(.5, .5, w - 1, h - 1);
   }
 }

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {BUILDINGS,UNITS,createGame,updateGame,canPlace,placeBuilding,trainUnit,setRallyPoint,stopUnits,powerStats,getEntity} from '../sim.js';
+import {BUILDINGS,UNITS,createGame,updateGame,canPlace,placeBuilding,trainUnit,setRallyPoint,stopUnits,powerStats,getEntity,productionRate} from '../sim.js';
 
 const advance=(s,seconds)=>{for(let i=0;i<Math.ceil(seconds*20);i++)updateGame(s,.05);};
 const own=(s,type,team=0)=>s.entities.filter(e=>e.team===team&&e.type===type&&e.hp>0);
@@ -14,7 +14,7 @@ function construct(s,type,team=0,finish=true){
   for(let y=1;y<s.height-4;y++)for(let x=1;x<s.width-4;x++)if(canPlace(s,team,type,x,y).ok){
     const result=placeBuilding(s,team,type,x,y);assert(result.ok);
     const e=getEntity(s,result.id);
-    if(finish){advance(s,BUILDINGS[type].buildTime/Math.max(.2,powerStats(s,team).ratio)+.1);assert.equal(e.progress,1);}
+    if(finish){advance(s,BUILDINGS[type].buildTime/productionRate(s,team)+.1);assert.equal(e.progress,1);}
     return e;
   }
   throw Error(`No legal ${type} site`);
@@ -39,15 +39,16 @@ for(const team of [0,1]){
   assert(trainUnit(s,team,'rocket',barracks.id).ok);
   assert.equal(s.teams[team].credits,before-UNITS.rocket.cost);
   advance(s,4);assert.equal(own(s,'rocket',team).length,0);
-  close(barracks.queue[0].progress,4/UNITS.rocket.trainTime,'Training advances at declared speed');
-  advance(s,5.1);const rocket=own(s,'rocket',team)[0];assert(rocket);
+  close(barracks.queue[0].progress,4*productionRate(s,team)/UNITS.rocket.trainTime,'Training advances at declared speed');
+  advance(s,UNITS.rocket.trainTime/productionRate(s,team)-4+.1);const rocket=own(s,'rocket',team)[0];assert(rocket);
   assert.deepEqual(rocket.order,{type:'attackMove',...rally});
   stopUnits(s,[rocket.id]);assert.equal(rocket.order.type,'idle');rocket.cooldown=999;
   const credits=s.teams[team].credits,tower=construct(s,'rocketTower',team,false);
   assert.equal(s.teams[team].credits,credits-BUILDINGS.rocketTower.cost);
   assert.equal(tower.size,2);assert.equal(tower.progress,0);tower.cooldown=0;
   const enemy=fixture(s,'harvester',1-team,tower.x+5,tower.y+1);
-  advance(s,23);assert.equal(enemy.hp,enemy.maxHp,'Construction cannot fire');
+  const build=BUILDINGS.rocketTower.buildTime/productionRate(s,team);
+  advance(s,build-1);assert.equal(enemy.hp,enemy.maxHp,'Construction cannot fire');
   advance(s,2);assert.equal(tower.progress,1);assert(enemy.hp<enemy.maxHp,'Completed powered tower guards automatically');
 }
 
@@ -58,7 +59,7 @@ for(const type of ['harvester','rifle']){
   const fx=s.effects.find(e=>e.type==='rocket');assert(fx);
   assert.equal(fx.weapon,'rocket');assert.equal(fx.attackerId,rocket.id);assert.equal(fx.targetId,target.id);
   assert.equal(target.hp,target.maxHp,'Launch does not apply hitscan damage');
-  advance(s,.4);close(target.maxHp-target.hp,type==='harvester'?81:18,'Anti-armor multiplier');
+  advance(s,.4);close(target.maxHp-target.hp,type==='harvester'?108:18,'Anti-armor multiplier');
   assert(s.effects.some(e=>e.type==='explosion'&&e.weapon==='rocket'),'Missile ends in an impact burst');
   const hp=target.hp;advance(s,1);assert.equal(target.hp,hp,'Launcher has a slow reload');
 }

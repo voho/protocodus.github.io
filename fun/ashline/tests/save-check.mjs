@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {BUILDINGS, UNITS, createGame, updateGame, canPlace, placeBuilding, trainUnit, issueOrder, getEntity, powerStats, unitRank, unitStats, toggleRepair, sellBuilding} from '../sim.js';
+import {BUILDINGS, UNITS, createGame, updateGame, canPlace, placeBuilding, trainUnit, issueOrder, getEntity, powerStats, unitRank, unitStats, toggleRepair, sellBuilding, productionRate} from '../sim.js';
 import {SAVE_KEY, saveGame, loadGame, getSaveInfo, encodeGame, decodeGame} from '../save.js';
 
 const memory = new Map();
@@ -213,7 +213,7 @@ rockets.teams.forEach(team => { team.credits = 50000; });
 const rocketBuild = (team, type) => {
   for (let y = 1; y < rockets.height - 3; y++) for (let x = 1; x < rockets.width - 3; x++) if (canPlace(rockets, team, type, x, y).ok) {
     const e = getEntity(rockets, placeBuilding(rockets, team, type, x, y).id);
-    advance(rockets, BUILDINGS[type].buildTime / Math.max(.2, powerStats(rockets, team).ratio) + .2);
+    advance(rockets, BUILDINGS[type].buildTime / productionRate(rockets, team) + .2);
     assert.equal(e.progress, 1); return e;
   }
   throw new Error(`No rocket test site for ${type}`);

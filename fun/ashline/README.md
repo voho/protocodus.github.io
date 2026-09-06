@@ -2,17 +2,19 @@
 
 An original 2D real-time strategy game for the browser. Lead an expedition into the ashlands, harvest minerals, build and defend a base, and defeat the opposing command center.
 
-New skirmishes use a procedurally generated 144 × 112 tile battlefield: 16,128 tiles, four times the original map area. Mineral deposits, rocky obstacles, lava pools, and three connecting routes span the expanded sector under fog of war. Construct production buildings and defenses, recruit specialized units, and face an AI that develops its economy and adapts its attacks.
+New skirmishes use a procedurally generated 144 × 112 tile battlefield: 16,128 tiles under fog of war. Layered, domain-warped value noise shapes the relief: gapped ridge walls and mesas of impassable rock, sunken basalt basins, a broken plateau ring around each base whose gates the three guaranteed routes cut, open bowls around every mineral field, and scattered boulder outcrops. The relief is point-symmetric about the map centre, so both bases face the same ground, and every pocket of 30 or more tiles is breached back to the main sector. Rock renders as a raised plate with a lit rim and a shaded foot; basalt as a darker, cooler plate with joint seams; haul ruts only wear into open ground. Construct production buildings and defenses, recruit specialized units, and face an AI that develops its economy and adapts its attacks. Cadet and Commander opposition build and train at 55% and 75% of full speed, raid later with smaller groups, and Cadet never fields siege crawlers.
 
-Lava pools have rugged basalt banks, broad red/orange molten surfaces, yellow-hot folds, and brief bubbles. The molten texture slowly flows inside a fixed shoreline, pausing with the simulation. Pools block movement and construction; units and the AI route around them. Seeded pools preserve starting clearings, mineral access, and the map’s guaranteed routes. Fog hides undiscovered pools and stops live animation outside current vision. Pools persist through save/load, and older saves remain compatible.
+Lava pools have rugged basalt banks, broad red/orange molten surfaces with swirled amber folds and sparse dark crust, a scorched stain on the surrounding ash, and brief bubbles. The molten texture slowly flows inside a fixed shoreline, pausing with the simulation. Pools block movement and construction; units and the AI route around them. Seeded pools preserve starting clearings, mineral access, and the map’s guaranteed routes. Fog hides undiscovered pools and stops live animation outside current vision. Pools persist through save/load, and older saves remain compatible.
 
 Individual dead trees scatter randomly across open ground: bare hardwoods, charred conifers, twisted trees, bleached snags, hollow stumps, and fallen trunks. Their roots block movement and construction while base clearings and guaranteed routes stay open. Varied silhouettes and sizes enrich the ashlands, with soft shadows and branches that fade when they would obscure visible units. Mineral fields form looser, irregular patches with smaller outlying deposits, preserving balanced supplies and accessible starting resources. Placement is seeded and remains consistent after loading a save. Start a new operation for the scattered layout; existing saves retain their terrain and deposits.
 
-Barracks train **Rocket infantry** for mobile anti-armor support. Their slow-firing shoulder launchers hit vehicles hard and deal a small amount of splash damage; rifle squads and recon rovers counter them. **Rocket towers** provide longer-range missile defense with a wider blast radius, require a barracks and reactor, and stop firing without sufficient power. Rockets travel before exploding. The AI recruits rocket infantry and builds rocket towers as part of its defenses.
+Barracks train **Rocket infantry** for mobile anti-armor support. Their slow-firing shoulder launchers hit vehicles hard (1.8× against heavy armor) and deal a small amount of splash damage; rifle squads and recon rovers counter them, and tanks only deal half damage to infantry. **Rocket towers** provide longer-range missile defense with a wider blast radius, require a barracks and reactor, and stop firing without sufficient power. Rockets travel before exploding. The AI recruits rocket infantry and builds rocket towers as part of its defenses.
 
 Units earn three ranks through combat: rank 1 at **5 kills**, rank 2 at **10 kills**, and rank 3 at **15 kills**. Each rank adds 20% of base damage, movement speed, and maximum HP, for totals of **+20%, +40%, and +60%**. Promotion adds the gained maximum HP to current health, preserving damage already taken. Three chevrons below each visible unit show its earned ranks; the selected-unit panel shows kills toward the next threshold and the current bonus. A surviving unit receives credit for its own kills, including splash and rocket impacts. Ranks and kills persist in saves; existing units without a kill count start unranked.
 
-Every completed refinery includes one free hauler. Haulers automatically collect and deliver minerals, and resume harvesting after moving or stopping. Armed units guard by default: they fire at visible enemies in weapon range while holding their position. Moving or stopping returns them to guard when the order finishes.
+Every completed refinery includes one free hauler. Haulers automatically collect and deliver minerals, and resume harvesting after moving or stopping. Armed units guard by default: they fire at visible enemies in weapon range while holding their position. Moving or stopping returns them to guard when the order finishes. New units never deploy into a sealed pocket between buildings; a producer whose exits are walled in waits until ground opens.
+
+Damage to your forces raises a throttled **under attack** warning with an orange ping on the tactical map, destroyed units are reported, losing the last hauler prompts a replacement, and low power warns once and marks the power readout while defenses stay offline. Shells and tracers fired from concealed positions are drawn and heard where they land, never where they came from.
 
 Units steer around nearby traffic and leave parked allies in place. If friendly units jam in a tight passage, their spacing briefly softens so they can pass and continue their orders. Rocks, lava, buildings, and enemy collision boundaries remain solid. This also keeps haulers moving through shared refinery approaches.
 
@@ -58,16 +60,16 @@ Open <http://localhost:8000/fun/ashline/>. No build step or installation is requ
 | E | Select all combat units |
 | Space | Center the camera on your base |
 | Arrow keys / middle-button drag | Pan the camera |
-| Mouse wheel | Zoom |
-| Ctrl + 1–5 / 1–5 | Assign / select a control group |
+| Mouse wheel / pinch | Zoom |
+| Shift (or Ctrl) + 1–5 / 1–5 | Assign / select a control group |
 | P | Pause or resume |
 | B / Command button | Open or close the production console |
-| Escape | Cancel the current action |
+| Escape / × button | Cancel the current action / clear the selection |
 | Sidebar | Construct buildings and train units |
 
 Selections containing any military unit automatically exclude haulers, including drag selection, Shift selection, and control groups. Select haulers on their own to command them together.
 
-On touchscreens, tap to select, then tap a destination or target. Drag empty ground to pan. The production console starts collapsed and closes after choosing a structure so its placement stays visible.
+On touchscreens, tap to select, then tap a destination or target. Drag empty ground to pan; pinch to zoom. The production console starts collapsed and closes after choosing a structure so its placement stays visible.
 
 ## Simulation checks
 
@@ -87,10 +89,11 @@ node tests/path-smoothing-check.mjs
 node tests/building-actions-check.mjs
 node tests/lava-check.mjs
 node tests/distribution-check.mjs
+node tests/relief-check.mjs
 node tests/save-check.mjs
 ```
 
-The checks exercise seeded maps, route connectivity, fog, finite harvesting and recovery, construction, production, power, complete skirmishes, included refinery haulers, automatic harvesting orders, default guarding, auto-exploration with cancellation and route recovery, and lava generation, safe detours, and save compatibility.
+The checks exercise seeded maps, route connectivity, fog, finite harvesting and recovery, construction, production, power, complete skirmishes, included refinery haulers, automatic harvesting orders, default guarding, auto-exploration with cancellation and route recovery, lava generation, safe detours, relief connectivity and pocket-safe deployment, and save compatibility.
 
 For browser interaction checks, use an existing Playwright installation and Chrome while the local server is running:
 

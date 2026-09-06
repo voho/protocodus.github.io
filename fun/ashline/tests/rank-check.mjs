@@ -58,7 +58,7 @@ for(const type of Object.keys(UNITS))for(const kills of [0,5,10,15]){
 }
 
 // Every weapon applies rank damage before the existing armor multiplier; splash scales too.
-for(const [type,targetType,multiplier] of [['rifle','rifle',1],['scout','rifle',1.25],['tank','harvester',1],['artillery','reactor',1.5],['rocket','harvester',1.35]]){
+for(const [type,targetType,multiplier] of [['rifle','rifle',1],['scout','rifle',1.25],['tank','harvester',1],['artillery','reactor',1.5],['rocket','harvester',1.8]]){
   const s=quiet(),u=add(s,type,0,30.5,30.5,15),target=add(s,targetType,1,targetType==='reactor'?34:34.5,targetType==='reactor'?29:30.5);
   target.cooldown=999;
   const collateral=type==='artillery'?add(s,'harvester',1,36.3,30):type==='rocket'?add(s,'harvester',1,35.3,30.5):null;
@@ -66,7 +66,7 @@ for(const [type,targetType,multiplier] of [['rifle','rifle',1],['scout','rifle',
   attack(s,u,target);updateGame(s,.05);
   if(type==='rocket'){assert.equal(target.hp,before);assert.equal(s.effects.find(e=>e.type==='rocket').damage,96);advance(s,.4);}
   close(before-target.hp,UNITS[type].damage*1.6*multiplier,`${type} ranked damage`);
-  if(collateral)close(collateral.maxHp-collateral.hp,UNITS[type].damage*1.6*(type==='artillery'?.45*.8:.3*1.35),`${type} ranked splash`);
+  if(collateral)close(collateral.maxHp-collateral.hp,UNITS[type].damage*1.6*(type==='artillery'?.45*.8:.3*1.8),`${type} ranked splash`);
   assert.equal(friend.hp,friend.maxHp,'Ranked splash still protects friendly units');
 }
 
@@ -85,7 +85,7 @@ for(const [type,targetType,multiplier] of [['rifle','rifle',1],['scout','rifle',
   attack(s,u,far);updateGame(s,.05);const first=s.effects.find(e=>e.type==='rocket');assert.equal(first.damage,60);
   u.cooldown=0;attack(s,u,near);updateGame(s,.05);advance(s,.15);
   assert.equal(u.kills,5);assert.equal(unitRank(u),1);assert(first.life>0,'The earlier long flight is still airborne at promotion');
-  advance(s,.2);close(far.maxHp-far.hp,81,'Airborne damage does not change after a promotion');
+  advance(s,.2);close(far.maxHp-far.hp,108,'Airborne damage does not change after a promotion');
   u.cooldown=0;attack(s,u,far);updateGame(s,.05);assert.equal(s.effects.find(e=>e.type==='rocket').damage,72,'Later launches use the new rank');
 }
 

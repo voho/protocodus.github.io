@@ -11,11 +11,11 @@ Generated with **built-in image_gen mode** on 2026-09-05. All six unit classes a
 | buildings-hires.webp | 3×2: nexus, reactor, refinery; barracks, factory, rail sentry |
 | rocket-tower-hires.webp | Single paired missile-pod tower |
 
-Initial outputs contained a painted checkerboard. Built-in image edits replaced it with flat magenta and corrected atlas padding; the existing runtime chroma-key decoder supplies transparency. All four project exports are lossless WebP. Source PNGs are retained outside the repository at the paths below. Older military atlases in this document are retained as generation references and are not loaded by the game. Props and terrain are unchanged.
+Initial outputs contained a painted checkerboard. Built-in image edits replaced it with flat magenta and corrected atlas padding; the existing runtime chroma-key decoder supplies transparency. The four project exports were generated as lossless WebP and re-encoded for release with `cwebp -q 90 -alpha_q 100 -m 6` (the four hires atlases 4.2 MB down to 0.43 MB; `props.webp`, `ground.webp` and `desolate-trees.webp` were re-encoded the same way, 2.7 MB down to 1.6 MB; the chroma-key decoder and sprite bounds were verified unchanged). Source PNGs are retained outside the repository. Older military atlases in this document are retained as generation references and are not loaded by the game.
 
 ### Current unit provenance and exact prompts
 
-References: `units-topdown-v2.webp` (identity/camera), `units-lowres.webp` (large readable forms), and `rocket-infantry.webp` (rocket identity/camera). Unit generation: `exec-e3c51ab1-8e49-4443-a9ad-3d403a469368.png`; final correction: `exec-8ab05d66-f2b1-46be-a460-691a13344dc2.png`. Rocket generation: `exec-b476d3b7-9a2d-4578-a701-354ee9e7d09e.png`; final correction: `exec-aff0a41b-3655-4a42-9887-cde6459b714e.png`. All four originals are under `/Users/vojta/.codex/generated_images/01a06fb8-249d-7982-bab7-c0719d6254e2/`.
+References: `units-topdown-v2.webp` (identity/camera), `units-lowres.webp` (large readable forms), and `rocket-infantry.webp` (rocket identity/camera). Unit generation: `exec-e3c51ab1-8e49-4443-a9ad-3d403a469368.png`; final correction: `exec-8ab05d66-f2b1-46be-a460-691a13344dc2.png`. Rocket generation: `exec-b476d3b7-9a2d-4578-a701-354ee9e7d09e.png`; final correction: `exec-aff0a41b-3655-4a42-9887-cde6459b714e.png`. All four originals are under the generator output retained outside the repository.
 
 #### Six-unit redraw
 
@@ -56,7 +56,7 @@ Use case: background-replacement. Edit this exact1536x1024two-pose smooth overhe
 
 ### Current building provenance and exact prompts
 
-References: `buildings-lowres.webp` and `buildings.webp` for the six structures; `rocket-tower.webp` for the missile tower. Final building source: `/Users/vojta/.codex/generated_images/01a07212-5009-72a2-bf07-851a6ba77b96/exec-6a863a0a-1b77-4636-935b-882865e603c8.png`. Final tower source: `/Users/vojta/.codex/generated_images/01a07212-5009-72a2-bf07-851a6ba77b96/exec-4f1fdbb5-135a-4c32-9509-ebd93ce6768b.png`.
+References: `buildings-lowres.webp` and `buildings.webp` for the six structures; `rocket-tower.webp` for the missile tower. Final building source: the generator output retained outside the repository. Final tower source: the generator output retained outside the repository.
 
 #### buildingsHiresPrompt
 
@@ -95,7 +95,7 @@ Use case: background-extraction. Change ONLY the background of this smooth ivory
 
 Re-rendered with **built-in image_gen mode** on 2026-09-05 to replace high-detail art that lost clarity at gameplay scale. The new sources deliberately simplify armor, weapons, machinery, and cargo into larger color clusters. The runtime prepares unit canvases at rifle32 / rocket40 / scout48 / tank56 / artillery64 / hauler56 pixels, and building canvases at footprint×32+8 pixels (40,72,104). Normalization and body drawing use nearest-neighbor sampling; terrain/fog and soft shadow rendering remain smooth. Continuous headings still precede the same fixed .88 camera projection and shallow side depth.
 
-Source atlas layouts are unchanged, preserving both infantry walking poses and all existing operational states. Fresh generated images initially contained a painted checkerboard; built-in background-only correction supplied a clean chroma-key source where needed. Project exports use lossless WebP. Source PNGs remain under `/Users/vojta/.codex/generated_images/01a06fb8-249d-7982-bab7-c0719d6254e2/`.
+Source atlas layouts are unchanged, preserving both infantry walking poses and all existing operational states. Fresh generated images initially contained a painted checkerboard; built-in background-only correction supplied a clean chroma-key source where needed. Project exports were generated lossless and are shipped as quality-90 lossy WebP. Source PNGs remain under the generator output retained outside the repository.
 
 | Historical file | Contents |
 | --- | --- |
@@ -104,7 +104,7 @@ Source atlas layouts are unchanged, preserving both infantry walking poses and a
 | buildings-lowres.webp | Nexus / reactor / refinery; barracks / factory / rail sentry; 3×2 cells |
 | rocket-tower-lowres.webp | Paired missile-pod tower; one sprite |
 
-The older military atlases listed below are retained as generation references and are no longer loaded by the game. Props and terrain are unchanged.
+The older military atlases listed below are retained as generation references and are no longer loaded by the game.
 
 ### Unit redraw provenance and prompt
 
@@ -147,7 +147,7 @@ Use case: background-extraction. Production pixel-sprite atlas correction. Repla
 
 ### Building redraw provenance and prompts
 
-Six-building reference: `buildings.webp`. Final source: `/Users/vojta/.codex/generated_images/01a07212-5009-72a2-bf07-851a6ba77b96/exec-ca5a7b26-6ebb-4c3e-adb4-ef1c0d8002b6.png`. The completed atlas uses a magenta chroma key. Tower reference: `rocket-tower.webp`; final RGBA source: `/Users/vojta/.codex/generated_images/01a07212-5009-72a2-bf07-851a6ba77b96/exec-da8c8879-1b79-4d73-8553-42c9a13af71b.png`. The tower retains actual alpha. Both are lossless WebP exports in this directory. New refinery art contains no baked plume, so the old source-specific exhaust crop was removed; processing exhaust remains driven by the simulation.
+Six-building reference: `buildings.webp`. Final source: the generator output retained outside the repository. The completed atlas uses a magenta chroma key. Tower reference: `rocket-tower.webp`; final RGBA source: the generator output retained outside the repository. The tower retains actual alpha. `rocket-tower.webp` is a lossless export; `buildings.webp` is lossy WebP with alpha; the shipped `buildings-hires.webp` and `rocket-tower-hires.webp` are quality-90 lossy. New refinery art contains no baked plume, so the old source-specific exhaust crop was removed; processing exhaust remains driven by the simulation.
 
 #### buildingLowresPrompt
 
@@ -190,7 +190,7 @@ Use case: background-extraction. Preserve this exact low-resolution pixel-art mi
 
 ## Earlier detailed military art and current terrain
 
-Generated for this project with the built-in `image_gen` tool on 2026-09-05. No external stock art or image API/CLI was used. The earlier unit atlas is lossless WebP; the earlier building, prop, and ground exports use quality 94. The browser normalizes atlas cells once, removes chroma keys, and caches faction material variants.
+Generated for this project with the built-in `image_gen` tool on 2026-09-05. No external stock art or image API/CLI was used. The earlier unit atlas is lossless WebP; the earlier building, prop, and ground exports use quality 94, and the shipped `props.webp` and `ground.webp` were re-encoded at quality 90 for release. The browser normalizes atlas cells once, removes chroma keys, and caches faction material variants.
 
 The source art uses realistic pre-rendered military miniatures: weathered ivory armor, graphite mechanisms, blue/cyan faction markings, warm work lights, charcoal basalt and mint mineral deposits. Runtime `factionFrame` in `assets.js` strengthens friendly blue panels to cobalt and recolors broad enemy armor surfaces crimson, retaining texture, shading, alpha, dark mechanisms, amber lamps, and mint cargo. This deliberately replaces the earlier subtle enemy accent-only tint. All idle and hopper states use the same faction preparation. The original source atlases and generation prompts below are unchanged. Square friendly and diamond enemy insignia in `render.js` reinforce ownership on the battlefield and minimap without relying on color alone. The interface uses charcoal, ivory, cyan and amber.
 
@@ -215,7 +215,7 @@ The five earlier directional sheets (`tank.webp`, `scout.webp`, `artillery.webp`
 
 ## Desolate trees
 
-Generated with the built-in `image_gen` tool, then encoded as lossless WebP with `cwebp`, preserving transparency. Selected source: `exec-6e994a37-ca16-401e-b2c8-9d45899de6c4.png` in the Codex generated-images directory. The project consumes `desolate-trees.webp` locally.
+Generated with the built-in `image_gen` tool, then encoded as lossless WebP with `cwebp`, preserving transparency, and re-encoded at quality 90 (`-alpha_q 100`) for release. Selected source: `exec-6e994a37-ca16-401e-b2c8-9d45899de6c4.png` in the Codex generated-images directory. The project consumes `desolate-trees.webp` locally.
 
 The source shows branch crowns from directly overhead. `assets.js` caches the same 0.88 vertical projection used for unit roofs, small fixed side depth, and lower-right silhouette shadows. New maps scatter individual trees on open ground using saved terrain value4 for their obstructing roots. The renderer varies all six silhouettes and sizes at those locations; older saves without tree terrain retain their existing rocky groves. Trees keep their camera orientation; visible units behind branches reduce canopy opacity.
 
@@ -231,7 +231,7 @@ Generated on 2026-09-05 using **built-in image_gen mode**. The rifle/vehicle roo
 
 - Final project asset: `fun/ashline/assets/generated/rocket-infantry.webp`, two equal cells, idle then walking, both east-facing. Source roof pixels use the existing magenta removal, body-anchor normalization, fixed 0.88 projection, shallow depth, and faction recoloring. The launcher/pack gives this class a larger silhouette than rifle infantry.
 - Final project asset: `fun/ashline/assets/generated/rocket-tower.webp`, one RGBA sprite for `rocketTower`. Its actual alpha is retained; white/yellow RGB in fully transparent pixels is invisible in the canvas. The raised paired launch pods and square pedestal differ from the single-barrel rail sentry. Runtime effects provide launches and exhaust; the source has no firing effect.
-- Both project exports use `cwebp -lossless -m 6`. Original outputs remain under `/Users/vojta/.codex/generated_images/01a07213-7aad-73e0-9ce8-812b11c7e16c/`.
+- Both project exports use `cwebp -lossless -m 6`. Original outputs remain in the generator output retained outside the repository.
 - Infantry initial source: `exec-f76925fb-da1b-4f0e-91e8-e6a0ff8e6d8b.png`. Camera correction: `exec-76144505-aea9-4f4a-958a-36b1b9548133.png`. Final background correction/export source: `exec-4fb305e8-c790-442c-982a-a9591bf98c85.png`.
 - Tower export source: `exec-534e1809-ec1b-40ac-a3af-b9821c67c08d.png`.
 

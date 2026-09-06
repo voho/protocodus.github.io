@@ -8,10 +8,11 @@ const $ = id => document.getElementById(id);
 const canvas = $('world');
 const compactScreen = matchMedia('(max-width: 680px)');
 const renderer = new Renderer(canvas, $('minimap'));
-const view = { x: 14, y: 37, zoom: innerWidth <= 680 ? 24 : 38, selected: new Set(), hover: null, placement: null, placementValid: false, drag: null, commandMarker: null, showGrid: false };
+const view = { x: 14, y: 37, zoom: innerWidth <= 680 ? 24 : 38, selected: new Set(), hover: null, placement: null, placementValid: false, placementReason: '', drag: null, commandMarker: null, showGrid: false };
 let game, launched = false, paused = true, activeTab = 'build', orderMode = null;
 let lastTime = performance.now(), accumulator = 0, hudTimer = 0, toastUntil = 0, lastEvent = 0;
-let pointer = null, pointerPosition = null, lastPortrait = '', lastQueue = '', lastNotice = '';
+let pointer = null, pointerPosition = null, lastPortrait = '', lastQueue = '', lastNotice = '', lowPower = false, pinchDistance = 0;
+const touches = new Map();
 const audio = createAudio();
 audio.setPaused(true);
 let heardEffects = new WeakSet();
@@ -30,12 +31,15 @@ const chosenProducer = type => {
   return producers.length === 1 ? producers[0] : null;
 };
 const busy = () => !launched || paused || game.status !== 'playing';
+const cardMeta = def => `${def.buildTime || def.trainTime}s` + (def.power < 0 ? ` · ${-def.power}ϟ` : def.power > 0 ? ` · +${def.power}ϟ` : '');
 
 function playSound(kind = 'confirm') {
   audio.play(kind);
 }
 
-function notify(text, warning = false) {
+function notify(text, warning = false, soft = false) {
+  // Only low-value simulation chatter defers to a live warning; direct feedback to a click always replaces it.
+  if (soft && $('notifications').classList.contains('warning') && performance.now() < toastUntil) return;
   $('notifications').textContent = text;
   $('notifications').className = `show${warning ? ' warning' : ''}`;
   toastUntil = performance.now() + 4300;
@@ -47,7 +51,7 @@ function reset(seed, difficulty, restored) {
   view.selected.clear(); groups.clear(); keys.clear();
   view.placement = null; view.drag = null; view.hover = null; view.commandMarker = null;
   orderMode = null; pointer = null; pointerPosition = null; accumulator = 0; lastEvent = game.events.length;
-  lastPortrait = ''; lastQueue = null; lastNotice = ''; view.showGrid = false;
+  lastPortrait = ''; lastQueue = null; lastNotice = ''; view.showGrid = false; lowPower = false; touches.clear();
   heardEffects = new WeakSet(game.effects);
   renderer.terrainSource = null;
   if (restored) {
@@ -90,17 +94,17 @@ function setTab(tab) {
     button.tabIndex = button.dataset.tab === tab ? 0 : -1;
   }
   $('catalog').setAttribute('aria-labelledby', `${tab}-tab`);
-  $('catalog-tip').textContent = tab === 'build' ? 'Build within your base perimeter.' : 'Recruit into an available production queue.';
+  $('catalog-tip').textContent = tab === 'build' ? 'Build within 7 tiles of a finished structure.' : 'Recruit into an available production queue.';
   $('catalog').replaceChildren();
   const defs = tab === 'build' ? BUILDINGS : UNITS;
   for (const type of tab === 'build' ? buildTypes : unitTypes) {
     const def = defs[type], button = document.createElement('button');
     button.className = 'build-card'; button.dataset.type = type;
-    button.setAttribute('aria-label', `${tab === 'build' ? 'Construct' : 'Recruit'} ${def.name}, ${def.cost} minerals`);
+    button.setAttribute('aria-label', `${tab === 'build' ? 'Construct' : 'Recruit'} ${def.name}, ${def.cost} credits`);
     const icon = document.createElement('canvas'); icon.width = 128; icon.height = 112; icon.setAttribute('aria-hidden', 'true');
     const name = document.createElement('span'); name.className = 'card-name'; name.textContent = def.name;
     const cost = document.createElement('span'); cost.className = 'card-price'; cost.textContent = `◈ ${def.cost}`;
-    const meta = document.createElement('span'); meta.className = 'card-meta'; meta.textContent = `${def.buildTime || def.trainTime}s`;
+    const meta = document.createElement('span'); meta.className = 'card-meta'; meta.textContent = cardMeta(def);
     const count = document.createElement('span'); count.className = 'card-queue-count'; count.hidden = true;
     const production = document.createElement('span'); production.className = 'card-production'; production.hidden = true;
     button.append(icon, name, cost, meta, count, production);
@@ -117,7 +121,7 @@ function updateCatalog() {
   const buildings = game.entities.filter(e => e.team === 0 && e.kind === 'building' && e.hp > 0);
   const own = buildings.filter(e => e.progress >= 1);
   const selected = selectedProducers();
-  $('production-target').textContent = activeTab === 'build' ? 'BUILD WITHIN YOUR BASE' : selected.length === 1 ? `COMPATIBLE UNITS → ${BUILDINGS[selected[0].type].name.toUpperCase()} #${selected[0].id} · OTHERS AUTO-ASSIGN` : 'AUTOMATIC FACTORY ASSIGNMENT';
+  $('production-target').textContent = activeTab === 'build' ? 'BUILD WITHIN 7 TILES OF A FINISHED STRUCTURE' : selected.length === 1 ? `COMPATIBLE UNITS → ${BUILDINGS[selected[0].type].name.toUpperCase()} #${selected[0].id} · OTHERS AUTO-ASSIGN` : 'AUTOMATIC FACTORY ASSIGNMENT';
   for (const button of $('catalog').children) {
     const type = button.dataset.type, def = (activeTab === 'build' ? BUILDINGS : UNITS)[type];
     const missing = (def.requires || []).filter(type => !own.some(e => e.type === type));
@@ -126,11 +130,12 @@ function updateCatalog() {
     const producer = activeTab === 'train' ? chosenProducer(type) : null;
     if (producer?.progress < 1) reason ||= 'Selected producer is under construction';
     if (activeTab === 'train' && (producer ? (producer.queue || []).length >= 6 : own.filter(e => e.type === def.producer).every(e => (e.queue || []).length >= 6))) reason ||= 'Production queues full';
-    if (game.teams[0].credits < def.cost) reason ||= 'Insufficient minerals';
+    if (game.teams[0].credits < def.cost) reason ||= 'Insufficient credits';
     button.dataset.reason = reason;
-    button.setAttribute('aria-label', `${activeTab === 'build' ? 'Construct' : 'Recruit'} ${def.name}, ${def.cost} minerals${reason ? `, ${reason}` : ''}`);
+    button.querySelector('.card-meta').textContent = reason || cardMeta(def);
+    button.setAttribute('aria-label', `${activeTab === 'build' ? 'Construct' : 'Recruit'} ${def.name}, ${def.cost} credits${reason ? `, ${reason}` : ''}`);
     button.disabled = !launched || paused || game.status !== 'playing' || Boolean(reason);
-    button.title = [`${def.name} · ${def.cost} minerals · ${def.buildTime || def.trainTime}s`, def.description, reason].filter(Boolean).join(' · ');
+    button.title = [`${def.name} · ${def.cost} credits · ${def.buildTime || def.trainTime}s`, def.description, reason].filter(Boolean).join(' · ');
     button.classList.toggle('active', view.placement === type);
     const queued = activeTab === 'build' ? buildings.filter(e => e.type === type && e.progress < 1).map(e => ({ producer: e, progress: e.progress, active: true })) : buildings.flatMap(e => (e.queue || []).flatMap((item, i) => item.type === type ? [{ producer: e, progress: item.progress || 0, active: i === 0 }] : []));
     const active = queued.filter(item => item.active);
@@ -164,7 +169,7 @@ function chooseProduction(type, touch = false) {
     setOrderHint(); updateCatalog(); playSound('select');
     if (view.placement) {
       if (touch || compactScreen.matches) { setConsole(false); canvas.focus({ preventScroll: true }); }
-      notify(`Place ${BUILDINGS[type].name} within your base perimeter.`);
+      notify(`Place ${BUILDINGS[type].name} within 7 tiles of a finished structure.`);
     }
   } else {
     const result = trainUnit(game, 0, type, chosenProducer(type)?.id);
@@ -176,14 +181,14 @@ function chooseProduction(type, touch = false) {
 
 function setOrderHint() {
   $('order-hint').hidden = !view.placement && !orderMode;
-  $('order-hint').textContent = view.placement ? `PLACE ${BUILDINGS[view.placement].name.toUpperCase()} · ESC TO CANCEL` : orderMode === 'rally' ? 'RALLY POINT · SELECT A DESTINATION' : orderMode === 'attackMove' ? 'ATTACK MOVE · SELECT A DESTINATION' : 'MOVE · SELECT A DESTINATION';
+  $('order-hint').textContent = view.placement ? `PLACE ${BUILDINGS[view.placement].name.toUpperCase()} · ${(view.placementReason || 'Click to build').toUpperCase()} · ESC TO CANCEL` : orderMode === 'rally' ? 'RALLY POINT · SELECT A DESTINATION' : orderMode === 'attackMove' ? 'ATTACK MOVE · SELECT A DESTINATION' : 'MOVE · SELECT A DESTINATION';
   canvas.classList.toggle('ordering', Boolean(view.placement || orderMode));
   $('attack-order').classList.toggle('active', orderMode === 'attackMove');
   $('move-order').classList.toggle('active', orderMode === 'move');
   $('rally-order').classList.toggle('active', orderMode === 'rally');
 }
 
-function cancelOrder() { view.placement = null; view.showGrid = false; orderMode = null; view.drag = null; setOrderHint(); updateCatalog(); }
+function cancelOrder() { view.placement = null; view.placementReason = ''; view.showGrid = false; orderMode = null; view.drag = null; setOrderHint(); updateCatalog(); }
 
 function setOrder(type) {
   if (busy() || !(type === 'rally' ? selectedProducers() : selectedUnits()).length) return;
@@ -258,9 +263,12 @@ function placeAt(point) {
 function updateHUD() {
   $('credits').textContent = fmt(game.teams[0].credits);
   const power = powerStats(game, 0);
-  $('power').textContent = `${power.supply} / ${power.demand}`;
-  $('power-resource').classList.toggle('low-power', power.supply < power.demand);
-  $('power-resource').title = `Supply ${power.supply} / demand ${power.demand}${power.ratio < 1 ? '. Low power slows production.' : ''}`;
+  const low = power.supply < power.demand;
+  // Let a live warning (such as the reactor's destruction) finish before the low-power line replaces it.
+  if (low !== lowPower && !(low && performance.now() < toastUntil && $('notifications').classList.contains('warning'))) { lowPower = low; if (low && game.status === 'playing' && !paused) notify('Low power: defenses offline and production slowed. Build a Flux reactor.', true); }
+  $('power').textContent = `${power.supply} / ${power.demand}${low ? ' LOW' : ''}`;
+  $('power-resource').classList.toggle('low-power', low);
+  $('power-resource').title = `Supply ${power.supply} / demand ${power.demand}${low ? '. Low power slows production and shuts down defenses.' : ''}`;
   $('army').textContent = game.entities.filter(e => e.team === 0 && e.kind === 'unit' && e.hp > 0).length;
   $('mission-time').textContent = minutes(game.time);
   for (const id of view.selected) if (!getEntity(game, id) || getEntity(game, id).hp <= 0) view.selected.delete(id);
@@ -271,7 +279,10 @@ function updateHUD() {
   }
   const units = selection.filter(e => e.kind === 'unit');
   const first = selection[0];
-  $('selection-panel').hidden = !first;
+  const panel = $('selection-panel');
+  if (!first && !panel.hidden && panel.contains(document.activeElement)) canvas.focus({ preventScroll: true });
+  panel.hidden = !first;
+  $('deselect').hidden = !view.selected.size;
   document.body.dataset.selection = String(Boolean(first));
   $('selection-label').textContent = first ? selection.length > 1 ? 'BATTLE GROUP' : first.kind === 'building' ? 'STRUCTURE' : 'UNIT' : 'COMMAND NETWORK';
   $('selection-name').textContent = first ? selection.length > 1 ? `${selection.length} units selected` : (BUILDINGS[first.type] || UNITS[first.type]).name : 'Expedition standing by';
@@ -462,6 +473,7 @@ function localPoint(event) {
 
 canvas.addEventListener('contextmenu', event => event.preventDefault());
 canvas.addEventListener('pointerdown', event => {
+  if (event.pointerType === 'touch') { canvas.setPointerCapture(event.pointerId); touches.set(event.pointerId, localPoint(event)); pinchDistance = 0; }
   if (busy() || pointer) return;
   event.preventDefault(); canvas.focus({ preventScroll: true });
   const point = localPoint(event), world = renderer.screenToWorld(point.x, point.y, view);
@@ -473,6 +485,17 @@ canvas.addEventListener('pointermove', event => {
   const point = localPoint(event); pointerPosition = point;
   view.hover = renderer.screenToWorld(point.x, point.y, view);
   $('coordinates').textContent = `${String(Math.floor(view.hover.x)).padStart(2, '0')} : ${String(Math.floor(view.hover.y)).padStart(2, '0')}`;
+  if (touches.has(event.pointerId)) {
+    touches.set(event.pointerId, point);
+    if (touches.size === 2 && pointer) {
+      // Pinch: zoom around the midpoint; the primary pointer keeps panning (pan stays true) so no tap or box select fires on release.
+      const [a, b] = [...touches.values()], distance = Math.hypot(a.x - b.x, a.y - b.y), mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+      if (pinchDistance && !busy()) zoom(distance / pinchDistance, mid);
+      pinchDistance = distance; pointer.dragged = true; view.drag = null;
+      if (event.pointerId === pointer.id) pointer.last = point;
+      return;
+    }
+  }
   if (!pointer || event.pointerId !== pointer.id || busy()) return;
   if (Math.hypot(point.x - pointer.start.x, point.y - pointer.start.y) > 6) pointer.dragged = true;
   if (pointer.dragged) {
@@ -482,6 +505,7 @@ canvas.addEventListener('pointermove', event => {
   pointer.last = point;
 });
 canvas.addEventListener('pointerup', event => {
+  if (touches.delete(event.pointerId) && pinchDistance) { pinchDistance = 0; if (pointer && touches.size === 1) pointer.last = touches.values().next().value; }
   if (!pointer || event.pointerId !== pointer.id) return;
   const active = pointer; pointer = null;
   if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
@@ -503,7 +527,7 @@ canvas.addEventListener('pointerup', event => {
     else selectAt(world, active.shift, active.touch);
   }
 });
-canvas.addEventListener('pointercancel', () => { pointer = null; view.drag = null; });
+canvas.addEventListener('pointercancel', event => { touches.delete(event.pointerId); pinchDistance = 0; pointer = null; view.drag = null; });
 canvas.addEventListener('pointerleave', () => { if (!pointer) { pointerPosition = null; view.hover = null; } });
 canvas.addEventListener('dblclick', event => {
   if (busy()) return;
@@ -551,16 +575,17 @@ document.addEventListener('keydown', event => {
   else if (key === 'x') toggleExplore();
   else if (key === 'e') selectArmy();
   else if (key === ' ') centerBase();
+  else if (/^Digit[1-5]$/.test(event.code)) {
+    const digit = event.code.slice(-1);
+    event.preventDefault();
+    if (event.ctrlKey || event.metaKey || event.shiftKey) { groups.set(digit, [...view.selected]); notify(`Control group ${digit} assigned.`); }
+    else if (groups.has(digit)) { view.selected = new Set(groups.get(digit).filter(id => getEntity(game, id)?.hp > 0)); updateHUD(); }
+  }
   else if (key === '+' || key === '=') zoom(1.15);
   else if (key === '-') zoom(1 / 1.15);
-  else if (/^[1-5]$/.test(key)) {
-    event.preventDefault();
-    if (event.ctrlKey || event.metaKey) { groups.set(key, [...view.selected]); notify(`Control group ${key} assigned.`); }
-    else if (groups.has(key)) { view.selected = new Set(groups.get(key).filter(id => getEntity(game, id)?.hp > 0)); updateHUD(); }
-  }
 });
 document.addEventListener('keyup', event => keys.delete(event.key.toLowerCase()));
-window.addEventListener('blur', () => { keys.clear(); pointer = null; pointerPosition = null; view.drag = null; if (launched && !paused && game.status === 'playing') showMenu(); });
+window.addEventListener('blur', () => { keys.clear(); touches.clear(); pointer = null; pointerPosition = null; view.drag = null; if (launched && !paused && game.status === 'playing') showMenu(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden && launched && !paused && game.status === 'playing') showMenu(); });
 window.addEventListener('resize', () => { renderer.resize(); if (game) clampCamera(); });
 
@@ -594,6 +619,7 @@ $('sell-building').addEventListener('click', () => {
   updateHUD(); updateCatalog();
 });
 $('stop-order').addEventListener('click', stopSelection);
+$('deselect').addEventListener('click', () => { cancelOrder(); view.selected.clear(); updateHUD(); });
 $('explore-order').addEventListener('click', toggleExplore);
 $('select-army').addEventListener('click', selectArmy);
 $('home').addEventListener('click', centerBase);
@@ -637,7 +663,7 @@ function frame(now) {
       updateGame(game, .05); accumulator -= .05;
       if (game.status !== 'playing') { showMenu(true); playSound(game.status); accumulator = 0; break; }
     }
-    const panSpeed = 400 / view.zoom * elapsed;
+    const panSpeed = 400 / view.zoom * elapsed; // WASD intentionally unbound: A (attack move) and S (stop) are order hotkeys.
     if (keys.has('arrowleft')) view.x -= panSpeed;
     if (keys.has('arrowright')) view.x += panSpeed;
     if (keys.has('arrowup')) view.y -= panSpeed;
@@ -657,26 +683,32 @@ function frame(now) {
       if (event.text.startsWith('Shard delivery:')) { playSound('delivery'); continue; }
       if (/ online$/.test(event.text)) playSound('buildComplete');
       else if (/ ready$/.test(event.text)) playSound('unitReady');
-      if (event.text !== lastNotice) { notify(event.text, /attack|destroyed|low power/i.test(event.text)); lastNotice = event.text; }
+      // Warnings: under attack, low power, the last hauler lost, or a friendly structure destroyed; the victory line ("Hostile nexus destroyed") and single unit losses stay plain.
+      if (event.text !== lastNotice) { const warn = /attack|low power|bay blocked|^All haulers lost|^(?!Hostile).*destroyed/i.test(event.text); notify(event.text, warn, !warn); lastNotice = event.text; }
     }
     lastEvent = game.events.length;
     for (const effect of game.effects) {
       if (heardEffects.has(effect)) continue;
       heardEffects.add(effect);
-      if (!game.visible[0][Math.floor(effect.y) * game.width + Math.floor(effect.x)]) continue;
+      const v = game.visible[0], W = game.width, at = (x, y) => v[Math.floor(y) * W + Math.floor(x)];
+      if (!at(effect.x, effect.y) && !((effect.type === 'shot' || effect.type === 'shell' || effect.type === 'rocket') && Number.isFinite(effect.tx) && at(effect.tx, effect.ty))) continue;
       if (effect.type === 'shot' || effect.type === 'shell' || effect.type === 'rocket') playSound(effect.weapon || 'rifle');
       else if (effect.type === 'explosion') playSound('explosion');
     }
   }
   if (pointerPosition && !busy()) view.hover = renderer.screenToWorld(pointerPosition.x, pointerPosition.y, view);
-  if (view.placement && view.hover) view.placementValid = canPlace(game, 0, view.placement, Math.floor(view.hover.x), Math.floor(view.hover.y)).ok;
+  const check = view.placement && view.hover ? canPlace(game, 0, view.placement, Math.floor(view.hover.x), Math.floor(view.hover.y)) : null;
+  view.placementValid = Boolean(check?.ok);
+  if ((check?.reason || '') !== view.placementReason) { view.placementReason = check?.reason || ''; setOrderHint(); }
   if (view.commandMarker && now / 1000 - view.commandMarker.time > .85) view.commandMarker = null;
   renderer.draw(game, view);
+  // Boot counts once the textured battlefield has drawn; until then a thrown frame still shows the boot error.
+  if (assetStatus.ready) window.ashline.booted = true;
   if (now - hudTimer > 150) {
     updateHUD(); hudTimer = now;
     if (!assetStatus.ready && !assetStatus.errors.length) $('asset-status').textContent = `Loading battlefield ${assetStatus.loaded}/${assetStatus.total}`;
   }
-  if (toastUntil && now > toastUntil) { $('notifications').className = ''; toastUntil = 0; }
+  if (toastUntil && now > toastUntil) { $('notifications').className = ''; toastUntil = 0; lastNotice = ''; }
   requestAnimationFrame(frame);
 }
 

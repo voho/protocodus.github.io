@@ -1,3 +1,14 @@
 **/.git
 **/.DS_Store
 **/node_modules
+# Ashline generation references that the game never loads (see fun/ashline/assets/generated/ASSETS.md)
+fun/ashline/assets/generated/*-lowres.webp
+fun/ashline/assets/generated/units-topdown*.webp
+fun/ashline/assets/generated/buildings.webp
+fun/ashline/assets/generated/rocket-infantry.webp
+fun/ashline/assets/generated/rocket-tower.webp
+fun/ashline/assets/generated/artillery.webp
+fun/ashline/assets/generated/harvester.webp
+fun/ashline/assets/generated/rifle.webp
+fun/ashline/assets/generated/scout.webp
+fun/ashline/assets/generated/tank.webp

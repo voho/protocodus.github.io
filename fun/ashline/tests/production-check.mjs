@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { BUILDINGS, UNITS, createGame, updateGame, canPlace, placeBuilding, getEntity, trainUnit, setRallyPoint, powerStats } from '../sim.js';
+import { BUILDINGS, UNITS, createGame, updateGame, canPlace, placeBuilding, getEntity, trainUnit, setRallyPoint, powerStats, productionRate } from '../sim.js';
 
 const advance = (s, seconds) => { for (let i = 0; i < Math.ceil(seconds * 10); i++) updateGame(s, .1); };
 const own = (s, type, team = 0) => s.entities.filter(e => e.hp > 0 && e.team === team && e.type === type);
@@ -13,7 +13,7 @@ function construct(s, type, team = 0, finish = true) {
   for (let y = 1; y < s.height - 4; y++) for (let x = 1; x < s.width - 4; x++) if (canPlace(s, team, type, x, y).ok) {
     const result = placeBuilding(s, team, type, x, y), e = getEntity(s, result.id);
     assert(result.ok);
-    if (finish) { advance(s, BUILDINGS[type].buildTime / Math.max(.2, powerStats(s, team).ratio) + 1); assert.equal(e.progress, 1); }
+    if (finish) { advance(s, BUILDINGS[type].buildTime / productionRate(s, team) + 1); assert.equal(e.progress, 1); }
     return e;
   }
   throw Error(`No valid ${type} site`);
@@ -67,7 +67,7 @@ for (const team of [0, 1]) {
   assert(setRallyPoint(match, team, producers.map(e => e.id), point).ok);
   point.x += 1; assert.notEqual(barracks.rally.x, point.x, 'Rally destinations are copied');
   const freeBefore = new Set(own(match, 'harvester', team).map(e => e.id));
-  advance(match, BUILDINGS.refinery.buildTime + .1);
+  advance(match, BUILDINGS.refinery.buildTime / productionRate(match, team) + .1);
   const free = own(match, 'harvester', team).find(e => !freeBefore.has(e.id));
   assert(free && free.order.type === 'move', 'Included hauler follows the refinery rally');
   assert.equal(free.order.x, refinery.rally.x);
@@ -76,7 +76,7 @@ for (const team of [0, 1]) {
   for (const [producer, type] of [[barracks, 'rifle'], [factory, 'tank'], [refinery, 'harvester']]) {
     const ids = new Set(own(match, type, team).map(e => e.id));
     assert(trainUnit(match, team, type, producer.id).ok);
-    advance(match, UNITS[type].trainTime + .1);
+    advance(match, UNITS[type].trainTime / productionRate(match, team) + .1);
     const trained = own(match, type, team).find(e => !ids.has(e.id));
     assert(trained); assert.equal(trained.order.type, type === 'harvester' ? 'move' : 'attackMove');
     assert(Math.hypot(trained.order.x - producer.rally.x, trained.order.y - producer.rally.y) < 3, 'Later units reserve a nearby free rally spot');

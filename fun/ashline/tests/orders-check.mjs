@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {BUILDINGS,UNITS,createGame,updateGame,canPlace,placeBuilding,trainUnit,issueOrder,stopUnits,getEntity} from '../sim.js';
+import {BUILDINGS,UNITS,createGame,updateGame,canPlace,placeBuilding,trainUnit,issueOrder,stopUnits,getEntity,productionRate} from '../sim.js';
 
 const advance=(s,seconds)=>{for(let i=0;i<Math.ceil(seconds/.1);i++)updateGame(s,.1);};
 const entities=(s,team,type)=>s.entities.filter(e=>e.hp>0&&e.team===team&&(!type||e.type===type));
@@ -18,9 +18,10 @@ for(const team of [0,1]){
   assert.equal(entities(s,team,'harvester')[0].order.type,'harvest');
   const before=s.teams[team].credits,originalIds=new Set(entities(s,team,'harvester').map(e=>e.id));
   const refinery=construct(s,team,'refinery');
-  advance(s,BUILDINGS.refinery.buildTime/2);
+  const build=BUILDINGS.refinery.buildTime/productionRate(s,team);
+  advance(s,build/2);
   assert(refinery.progress<1);assert.equal(entities(s,team,'harvester').length,1,'Construction must finish before delivery');
-  advance(s,BUILDINGS.refinery.buildTime/2+1);
+  advance(s,build/2+1);
   assert.equal(refinery.progress,1);
   const delivered=entities(s,team,'harvester').filter(e=>!originalIds.has(e.id));
   assert.equal(delivered.length,1,'Completed refinery delivers one hauler');
@@ -29,7 +30,7 @@ for(const team of [0,1]){
   delivered[0].hp=0;advance(s,3);
   assert.equal(entities(s,team,'harvester').length,1,'Destroying an included hauler must not grant replacements');
   assert(trainUnit(s,team,'harvester').ok,'Extra haulers remain available for paid training');
-  advance(s,UNITS.harvester.trainTime+1);
+  advance(s,UNITS.harvester.trainTime/productionRate(s,team)+1);
   assert.equal(entities(s,team,'harvester').length,2);
   assert.equal(s.teams[team].credits,before-BUILDINGS.refinery.cost-UNITS.harvester.cost);
 }
