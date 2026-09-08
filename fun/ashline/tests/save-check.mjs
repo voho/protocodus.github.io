@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {BUILDINGS, UNITS, createGame, updateGame, canPlace, placeBuilding, trainUnit, issueOrder, getEntity, powerStats, unitRank, unitStats, toggleRepair, sellBuilding, productionRate} from '../sim.js';
+import {BUILDINGS, UNITS, MAP_SIZES, createGame, updateGame, canPlace, placeBuilding, trainUnit, issueOrder, getEntity, powerStats, unitRank, unitStats, toggleRepair, sellBuilding, productionRate} from '../sim.js';
 import {SAVE_KEY, saveGame, loadGame, getSaveInfo, encodeGame, decodeGame} from '../save.js';
 
 const memory = new Map();
@@ -101,7 +101,7 @@ assert.deepEqual(stateJSON(treesLoaded), stateJSON(trees), 'Tree maps continue d
 
 // Both map sizes can load and advance in one session without sharing coordinate/grid bounds.
 const large = createGame('expanded-save'), small = createGame('legacy-size-save', 'hard', {width: 72, height: 56});
-assert.deepEqual([large.width, large.height], [144, 112]);
+assert.deepEqual([large.width, large.height], [MAP_SIZES.frontier.width, MAP_SIZES.frontier.height]);
 assert.deepEqual([small.width, small.height], [72, 56]);
 large.ai.nextThink = 1e12; large.terrain.fill(0); large.minerals.fill(0); large.navVersion++;
 const farScout = large.entities.find(e => e.team === 0 && e.type === 'scout');
@@ -121,7 +121,7 @@ const largeRaw = encodeGame(large, largeView), smallRaw = encodeGame(small, {x: 
 const largeRestored = decodeGame(largeRaw), smallRestored = decodeGame(smallRaw);
 assert.deepEqual(largeRestored.view, {x: largeView.x, y: largeView.y, zoom: largeView.zoom});
 assert.deepEqual(largeRestored.knownOre, distantOre); assert.deepEqual(largeRestored.rememberedBuildings, [distantMemory]);
-assert.equal(smallRestored.knownOre.length, 72 * 56); assert.equal(largeRestored.knownOre.length, 144 * 112);
+assert.equal(smallRestored.knownOre.length, 72 * 56); assert.equal(largeRestored.knownOre.length, large.width * large.height);
 for (let i = 0; i < 10; i++) {
   for (const match of [large, small, largeRestored.game, smallRestored.game]) advance(match, 1);
   assert.deepEqual(stateJSON(largeRestored.game), stateJSON(large), 'Expanded maps continue exactly alongside an old operation');
@@ -303,7 +303,7 @@ const corruptions = [
   data => { data.version = 999; },
   data => { data.game.width = 999999; },
   data => { data.game.terrain.pop(); },
-  data => { data.game.terrain[0] = 5; },
+  data => { data.game.terrain[0] = 6; },
   data => { data.game.minerals[0] = -1; },
   data => { data.game.entities[0].size = 100000; },
   data => { data.game.entities.find(e => e.kind === 'building').kills = 0; },

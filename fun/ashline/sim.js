@@ -1,10 +1,14 @@
 // Ashline: deterministic, dependency-free skirmish simulation. Coordinates are tiles.
+export const UNIT_CAP=200;
 export const BUILDINGS = {
+  wall: {name:'Bulwark wall',cost:40,hp:600,size:1,buildTime:4,power:0,requires:['core'],race:'both',role:'wall',description:'Low armored barrier. Blocks movement, shields approaches, and can be repaired or sold.',sight:3},
   core: {name:'Command nexus',cost:1800,hp:3000,size:3,buildTime:40,power:20,requires:[],description:'Your command center. Lose it and the operation ends.',sight:12},
   reactor: {name:'Flux reactor',cost:240,hp:700,size:2,buildTime:12,power:100,requires:['core'],description:'Produces 100 power for production and defenses.',sight:7},
   refinery: {name:'Shard refinery',cost:500,hp:1400,size:3,buildTime:20,power:-30,requires:['core'],description:'Includes one automatic shard hauler. Converts deliveries into credits.',sight:9},
   barracks: {name:'Field barracks',cost:320,hp:1100,size:2,buildTime:15,power:-15,requires:['core'],description:'Trains rifle squads, rocket infantry, and recon rovers.',sight:8},
-  factory: {name:'War foundry',cost:650,hp:1700,size:3,buildTime:26,power:-40,requires:['barracks','refinery'],description:'Builds tanks and siege crawlers.',sight:8},
+  factory: {name:'War foundry',cost:650,hp:1700,size:3,buildTime:26,power:-40,requires:['barracks','refinery'],description:'Builds armored vehicles and field engineers.',sight:8},
+  lab: {name:'Signal laboratory',cost:450,hp:950,size:2,buildTime:22,power:-25,requires:['barracks','reactor'],description:'Researches permanent army and grid upgrades. One project per laboratory.',sight:9},
+  capacitor: {name:'Grid capacitor',cost:300,hp:850,size:2,buildTime:16,power:-5,requires:['reactor'],reserveCapacity:1200,description:'Stores 1,200 power-seconds from surplus generation. Bridges outages until its reserve empties.',sight:7},
   turret: {name:'Rail sentry',cost:300,hp:900,size:1,buildTime:15,power:-20,requires:['barracks'],description:'Powered anti-vehicle defense. Vulnerable to siege fire.',sight:11,range:8,damage:42,interval:1.1},
   rocketTower: {name:'Rocket tower',cost:480,hp:1100,size:2,buildTime:24,power:-35,requires:['barracks','reactor'],description:'Powered missile defense with explosive splash. Strong against clustered armor.',sight:11,range:9,damage:85,interval:2.6,splash:1.8,splashDamage:.45},
 };
@@ -15,9 +19,73 @@ export const UNITS = {
   tank: {name:'Vanguard tank',cost:300,hp:520,size:.8,speed:2.1,range:7,damage:72,trainTime:14,buildTime:14,power:0,requires:[],producer:'factory',description:'Armored main battle tank. Crushes vehicles and defenses.',sight:9,interval:1.55,armor:'heavy'},
   artillery: {name:'Siege crawler',cost:380,hp:270,size:.8,speed:1.7,range:11.5,damage:115,trainTime:19,buildTime:19,power:0,requires:[],producer:'factory',description:'Long-range splash damage. Devastates buildings; protect it.',sight:9,interval:3.2,armor:'light'},
   harvester: {name:'Shard hauler',cost:300,hp:600,size:.8,speed:2.7,range:0,damage:0,trainTime:14,buildTime:14,power:0,requires:[],producer:'refinery',description:'Automatically collects shards and delivers 200 credits per load. Resumes after moving.',sight:8,interval:1,armor:'heavy',capacity:200},
+  engineer: {name:'Field engineer',cost:220,hp:290,size:.7,speed:2.8,range:0,damage:0,trainTime:11,buildTime:11,power:0,requires:[],producer:'factory',description:'Unarmed maintenance vehicle. Automatically repairs nearby vehicles and structures for credits; needs power.',sight:9,interval:1,armor:'light',repairRange:4,repairRate:18},
+  striker: {name:'Pike striker',cost:260,hp:320,size:.7,speed:3.5,range:6,damage:27,trainTime:12,buildTime:12,power:0,requires:[],research:'advancedBallistics',producer:'factory',description:'Fast six-wheel assault vehicle with twin autocannons. Shreds infantry; weak against heavy armor.',sight:10,interval:.55,armor:'light'},
 };
 
-export const MAP_WIDTH=144,MAP_HEIGHT=112;
+export const RACES = {
+  organics:{name:'Organics',description:'Human and alien crews field rugged industrial armor. Reliable firepower, sturdy vehicles and fast infantry.'},
+  aiUnity:{name:'AI Unity',description:'Costlier autonomous cohorts combine durable combat robots with agile, lighter machines and efficient infrastructure.'},
+};
+const unityId=role=>`unity${role[0].toUpperCase()}${role.slice(1)}`;
+const UNITY_BUILDINGS={
+  core:{name:'Unity mainframe',hp:3100,power:20},reactor:{name:'Resonance spire',hp:800,power:95,description:'Armored autonomous generator. Produces 95 power for industry and defenses.'},refinery:{name:'Prism assimilator',hp:1300,power:-28,description:'Includes one automatic Prism carrier. Efficient conversion of shard deliveries into credits.'},
+  barracks:{name:'Cohort assembler',hp:1050,description:'Prints Needle cohorts, Breach automata and Veil skimmers.'},factory:{name:'Walker forge',hp:1550,power:-38,description:'Builds articulated combat walkers and Mender drones.'},lab:{name:'Logic archive',hp:1000,power:-24,description:'Develops permanent combat and infrastructure algorithms. One project per archive.'},
+  capacitor:{name:'Charge nexus',hp:800},turret:{name:'Lance node',hp:820,damage:44,interval:1.15},rocketTower:{name:'Shard battery',hp:1000,damage:80,interval:2.45},
+  wall:{name:'Interlock barrier',hp:600},
+};
+const UNITY_UNITS={
+  rifle:{name:'Needle cohort',cost:90,hp:120,speed:2.4,damage:13,description:'Durable biped combat robots. Slower than organic infantry, with sustained pulse fire.'},
+  rocket:{name:'Breach automaton',cost:175,hp:108,speed:2.15,damage:53,description:'Heavy biped launcher platforms. Tougher but slower than organic rocket teams.'},
+  scout:{name:'Veil skimmer',cost:150,hp:165,speed:4.55,description:'Agile sensor machine with light armor. Wide sight and rapid anti-infantry fire.'},
+  tank:{name:'Bastion walker',cost:325,hp:470,speed:2.4,damage:67,interval:1.5,description:'Articulated assault walker. Trades some armor and shell weight for mobility.'},
+  artillery:{name:'Arc siege walker',cost:410,hp:235,speed:1.95,damage:110,interval:3.1,description:'Mobile long-range siege platform. Lighter armor demands careful screening.'},
+  harvester:{name:'Prism carrier',hp:540,speed:2.7,description:'Autonomous shard carrier with a rear mineral chamber. Same cargo capacity and extraction economy as organic haulers.'},
+  engineer:{name:'Mender drone',hp:250,speed:3.1,repairRate:18,description:'Unarmed maintenance machine. Fast relocation; repairs nearby vehicles and structures for credits and power.'},
+  striker:{name:'Talon runner',cost:280,hp:285,speed:3.85,damage:26,interval:.53,description:'Fast multi-legged hunter with paired anti-infantry pulse cannons. Vulnerable to heavy armor.'},
+};
+// Distinct identities share gameplay roles; faction ownership paint is independent of race.
+for(const [role,d] of Object.entries(BUILDINGS)){
+  if(d.race==='both'){d.role=role;continue;}
+  Object.assign(d,{role,race:'organics'});
+  BUILDINGS[unityId(role)]={...d,...UNITY_BUILDINGS[role],role,race:'aiUnity',requires:d.requires.map(unityId)};
+}
+for(const [role,d] of Object.entries(UNITS)){
+  Object.assign(d,{role,race:'organics'});
+  UNITS[unityId(role)]={...d,...UNITY_UNITS[role],role,race:'aiUnity',producer:unityId(d.producer),requires:d.requires.map(unityId)};
+}
+export function buildingRole(value){const type=typeof value==='string'?value:value?.type;return BUILDINGS[type]?.role||type;}
+export function unitRole(value){const type=typeof value==='string'?value:value?.type;return UNITS[type]?.role||type;}
+export function teamRace(s,team){return s.teams[team]?.race||'organics';}
+export function raceBuilding(s,team,role){const key=buildingRole(role);return BUILDINGS[key]?.race==='both'?key:teamRace(s,team)==='aiUnity'?unityId(key):key;}
+export function raceUnit(s,team,role){return teamRace(s,team)==='aiUnity'?unityId(unitRole(role)):unitRole(role);}
+const entityRole=value=>buildingRole(unitRole(value));
+
+export const RESEARCH = {
+  infantryWeapons:{name:'Pulse accelerators',branch:'Infantry',cost:220,time:30,requires:[],description:'Rifle and rocket infantry deal 18% more damage.'},
+  infantryArmor:{name:'Composite field armor',branch:'Infantry',cost:320,time:40,requires:['infantryWeapons'],description:'Infantry gain 20% maximum health, including deployed squads.'},
+  vehicleWeapons:{name:'Stabilized armaments',branch:'Vehicles',cost:300,time:35,requires:[],description:'Armed vehicles deal 18% more damage.'},
+  mobility:{name:'Adaptive drivetrains',branch:'Vehicles',cost:350,time:40,requires:['vehicleWeapons'],description:'All vehicles, including haulers and engineers, move 15% faster.'},
+  gridEfficiency:{name:'Efficient power routing',branch:'Infrastructure',cost:250,time:30,requires:[],description:'All structures consume 20% less electricity.'},
+  advancedBallistics:{name:'Advanced ballistics',branch:'Infrastructure',cost:400,time:45,requires:['gridEfficiency'],description:'Unlocks the Pike striker. Rocket infantry and siege crawlers deal 10% more damage.'},
+};
+export const BUILDING_UPGRADES = {
+  speed:{name:'Accelerated operations',cost:200,time:25,types:['barracks','factory','refinery','lab'],requires:['lab'],description:'This facility trains units, researches and processes minerals 25% faster.'},
+  efficiency:{name:'Efficient converters',cost:180,time:25,types:['refinery','barracks','factory','lab','capacitor','turret','rocketTower'],requires:['lab'],description:'This structure consumes 25% less electricity. Combines with grid research.'},
+  advancedProduction:{name:'Advanced assembly bay',cost:260,time:35,types:['factory'],requires:['lab'],description:'This foundry can build Pike strikers after Advanced ballistics research.'},
+};
+
+export const MAP_SIZES={
+  standard:{name:'Standard',width:144,height:112},
+  frontier:{name:'Frontier',width:192,height:144},
+  vast:{name:'Vast',width:224,height:168},
+};
+export const MAP_PROFILES={
+  rift:{name:'Volcanic rift',description:'Lava shores, broken ridges, and exposed rich central deposits.'},
+  basin:{name:'Basalt basin',description:'Broad open basalt plains, sheltered expansions, and scattered mesas.'},
+  highlands:{name:'Shattered highlands',description:'Raised plateaus, defended passes, and valuable flanking expansions.'},
+};
+export const MAP_WIDTH=MAP_SIZES.frontier.width,MAP_HEIGHT=MAP_SIZES.frontier.height;
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const sq=(x)=>x*x;
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
@@ -27,206 +95,330 @@ const inside=(s,x,y)=>x>=0&&y>=0&&x<s.width&&y<s.height;
 const good=()=>({ok:true,reason:''});
 const bad=reason=>({ok:false,reason});
 const alive=e=>e.hp>0;
-const own=(s,t,type)=>s.entities.filter(e=>alive(e)&&e.team===t&&(!type||e.type===type));
+const own=(s,t,type)=>s.entities.filter(e=>alive(e)&&e.team===t&&(!type||e.type===type||entityRole(e)===type));
 const completed=(s,t,type)=>own(s,t,type).some(e=>e.kind==='building'&&e.progress>=1);
 const definition=e=>e.kind==='building'?BUILDINGS[e.type]:UNITS[e.type];
 
 export function unitRank(e){return e?.kind==='unit'?Math.min(3,Math.floor(Math.max(0,e.kills||0)/5)):0;}
 export function unitStats(e){
   const d=UNITS[e?.type];if(!d)return null;
-  const rank=unitRank(e),bonus=1+rank*.2;
-  return{rank,hp:d.hp*bonus,damage:d.damage*bonus,speed:d.speed*bonus};
+  const rank=unitRank(e),bonus=1+rank*.2,tech=e.tech||[],infantry=d.armor==='infantry';
+  return{rank,hp:d.hp*bonus*(infantry&&tech.includes('infantryArmor')?1.2:1),damage:d.damage*bonus*(tech.includes(infantry?'infantryWeapons':'vehicleWeapons')?1.18:1)*(tech.includes('advancedBallistics')&&['rocket','artillery'].includes(entityRole(e))?1.1:1),speed:d.speed*bonus*(!infantry&&tech.includes('mobility')?1.15:1)};
 }
 
 export function mapLayout(s){
-  return{start:{x:Math.round(s.width/6),y:Math.round(s.height*37/56)},end:{x:Math.round(s.width*59/72),y:Math.round(s.height*12/56)},bend:10*Math.min(s.width/72,s.height/56)};
+  if(s.width===72&&s.height===56)return{start:{x:12,y:37},end:{x:59,y:12},bend:10};
+  const start={x:Math.round(s.width/6),y:Math.round(s.height*.72)},end={x:s.width+1-start.x,y:s.height+1-start.y};
+  const bend=(s.mapProfile==='basin'?12:s.mapProfile==='highlands'?9:10)*Math.min(s.width/72,s.height/56);
+  return{start,end,bend};
 }
 
 function random(s){let x=s.rng|0;x^=x<<13;x^=x>>>17;x^=x<<5;s.rng=x>>>0;return s.rng/4294967296;}
 function hash(seed){let h=2166136261;for(const c of String(seed)){h^=c.charCodeAt(0);h=Math.imul(h,16777619);}return h>>>0||1;}
 function event(s,text,team=0){s.events.push({text,team,time:s.time});}
 export function getEntity(s,id){return s.entities.find(e=>e.id===id&&alive(e));}
-export function powerStats(s,team){let supply=0,demand=0;for(const e of own(s,team)){if(e.kind!=='building'||e.progress<1)continue;const p=BUILDINGS[e.type].power;if(p>0)supply+=p;else demand-=p;}return{supply,demand,ratio:demand?Math.min(1,supply/demand):1};}
+export function powerStats(s,team){
+  let supply=0,demand=0,reserve=0,reserveCapacity=0;
+  for(const e of own(s,team)){
+    if(e.kind!=='building'||e.progress<1)continue;const d=BUILDINGS[e.type],p=d.power;
+    if(p>0)supply+=p;else demand-=p*(e.upgrades?.efficiency?.75:1);
+    if(d.reserveCapacity){reserveCapacity+=d.reserveCapacity;reserve+=clamp(e.reserve||0,0,d.reserveCapacity);}
+  }
+  if(s.teams[team]?.research?.gridEfficiency)demand*=.8;
+  const gridRatio=demand?Math.min(1,supply/demand):1,usingReserve=gridRatio<1&&reserve>1e-8,ratio=usingReserve?1:gridRatio;
+  return{supply,demand,gridRatio,ratio,reserve,reserveCapacity,usingReserve,status:usingReserve?'reserve':gridRatio<1?'brownout':'stable',reserveSeconds:demand>supply?reserve/(demand-supply):0};
+}
+
+function advancePower(s,team,dt){
+  const p=powerStats(s,team),capacitors=own(s,team,'capacitor').filter(e=>e.progress>=1);
+  if(p.usingReserve){
+    const needed=(p.demand-p.supply)*dt,used=Math.min(p.reserve,needed);let remaining=used;
+    for(const e of capacitors){const draw=Math.min(e.reserve||0,remaining);e.reserve=(e.reserve||0)-draw;remaining-=draw;}
+    p.ratio=Math.min(1,(p.supply+used/dt)/p.demand);
+  }else if(p.supply>p.demand){
+    let charge=(p.supply-p.demand)*dt;
+    for(const e of capacitors){const amount=Math.min(BUILDINGS[e.type].reserveCapacity-(e.reserve||0),30*dt,charge);e.reserve=(e.reserve||0)+amount;charge-=amount;}
+  }
+  const previous=s.teams[team].powerStatus;
+  if(previous!==p.status){s.teams[team].powerStatus=p.status;if(p.status==='brownout')event(s,'Power shortage: defenses offline; production, research and repairs slowed.',team);else if(p.status==='reserve')event(s,'Capacitor reserve engaged. Restore power before it empties.',team);else if(previous)event(s,'Power grid restored.',team);}
+  return p;
+}
+
+export function researchStatus(s,team,id){
+  const base={completed:!!s.teams[team]?.research?.[id],queued:own(s,team,'lab').some(e=>e.research?.id===id)};
+  const result=reason=>({...bad(reason),...base});
+  if(!Object.hasOwn(RESEARCH,id)||![0,1].includes(team))return result('Unknown research');
+  if(base.completed)return result('Research complete');
+  if(base.queued)return result('Research in progress');
+  if(s.status!=='playing')return result('Operation has ended');
+  const missing=RESEARCH[id].requires.find(key=>!s.teams[team].research?.[key]);
+  if(missing)return result(`Requires ${RESEARCH[missing].name}`);
+  const labs=own(s,team,'lab').filter(e=>e.progress>=1);
+  if(!labs.length)return result(`Requires ${BUILDINGS[raceBuilding(s,team,'lab')].name}`);
+  if(!labs.some(e=>!e.research))return result('Laboratory is busy');
+  if(s.teams[team].credits<RESEARCH[id].cost)return result('Insufficient credits');
+  return{...good(),...base};
+}
+export function startResearch(s,team,id,labId){
+  const result=researchStatus(s,team,id);if(!result.ok)return result;
+  const lab=own(s,team,'lab').find(e=>e.progress>=1&&!e.research&&(labId===undefined||e.id===labId));
+  if(!lab)return bad('Selected laboratory unavailable');
+  s.teams[team].credits-=RESEARCH[id].cost;lab.research={id,progress:0};event(s,`${RESEARCH[id].name}: research started`,team);return{...good(),id:lab.id};
+}
+export function cancelResearch(s,id,team=0){
+  const lab=getEntity(s,id);
+  if(s.status!=='playing'||!lab||lab.team!==team||entityRole(lab)!=='lab'||!lab.research)return bad('Select your active laboratory');
+  const refund=RESEARCH[lab.research.id].cost;s.teams[team].credits+=refund;delete lab.research;return{...good(),refund};
+}
+function finishResearch(s,lab){
+  const id=lab.research.id;s.teams[lab.team].research??={};s.teams[lab.team].research[id]=true;delete lab.research;
+  for(const e of own(s,lab.team))if(e.kind==='unit'){e.tech=Object.keys(RESEARCH).filter(key=>s.teams[e.team].research[key]);const hp=unitStats(e).hp;e.hp=Math.min(hp,e.hp+hp-e.maxHp);e.maxHp=hp;}
+  event(s,`${RESEARCH[id].name}: research complete`,lab.team);
+}
+export function buildingUpgradeStatus(s,team,entityId,id){
+  const e=getEntity(s,entityId),d=BUILDING_UPGRADES[id],base={completed:!!e?.upgrades?.[id],queued:e?.upgrade?.id===id};
+  const result=reason=>({...bad(reason),...base});
+  if(!Object.hasOwn(BUILDING_UPGRADES,id)||!e||e.kind!=='building'||e.team!==team)return result('Select your structure');
+  if(!d.types.includes(entityRole(e)))return result('Upgrade unavailable for this structure');
+  if(base.completed)return result('Upgrade complete');if(base.queued)return result('Upgrade in progress');
+  if(s.status!=='playing')return result('Operation has ended');
+  if(e.progress<1)return result('Finish construction first');
+  if(e.upgrade)return result('Structure upgrade in progress');
+  const missing=d.requires.find(key=>!completed(s,team,key));if(missing)return result(`Requires ${BUILDINGS[raceBuilding(s,team,missing)].name}`);
+  if(s.teams[team].credits<d.cost)return result('Insufficient credits');
+  return{...good(),...base};
+}
+export function startBuildingUpgrade(s,team,entityId,id){
+  const result=buildingUpgradeStatus(s,team,entityId,id);if(!result.ok)return result;
+  s.teams[team].credits-=BUILDING_UPGRADES[id].cost;getEntity(s,entityId).upgrade={id,progress:0};event(s,`${BUILDING_UPGRADES[id].name}: upgrade started`,team);return good();
+}
 
 function addEntity(s,team,kind,type,x,y,built=true){
   const d=kind==='building'?BUILDINGS[type]:UNITS[type];
   const e={id:s.nextId++,team,kind,type,x,y,hp:built?d.hp:d.hp*.2,maxHp:d.hp,size:d.size,angle:team?Math.PI:0,progress:built?1:0,cooldown:random(s),order:{type:'idle'},path:[],repath:0};
-  if(kind==='unit')e.kills=0;
-  if(kind==='building'){e.queue=[];if(type==='refinery')e.haulerPending=true;if(type==='refinery'||type==='core'){e.processingAmount=0;e.processingTotal=0;}s.navVersion++;}else if(type==='harvester'){e.cargo=0;e.unload=0;e.unloadDepotId=null;e.harvestPhase='gather';e.order={type:'harvest'};}
+  if(kind==='unit'){e.kills=0;e.tech=Object.keys(RESEARCH).filter(key=>s.teams[team].research?.[key]);e.hp=e.maxHp=unitStats(e).hp;}
+  const role=entityRole(type);
+  if(role==='capacitor')e.reserve=0;
+  if(kind==='building'){e.queue=[];if(role==='refinery')e.haulerPending=true;if(role==='refinery'||role==='core'){e.processingAmount=0;e.processingTotal=0;}s.navVersion++;}else if(role==='harvester'){e.cargo=0;e.unload=0;e.unloadDepotId=null;e.harvestPhase='gather';e.order={type:'harvest'};}
   s.entities.push(e);return e;
 }
 
-// Relief primitives: integer-hash value noise, so terrain is identical in every engine and never touches gameplay RNG.
+// Relief primitives: integer-hash value noise. Map generation never consumes combat RNG.
 const lat=(x,y,k)=>{let h=(Math.imul(x|0,374761393)+Math.imul(y|0,668265263)+Math.imul(k|0,1274126177))|0;h=Math.imul(h^h>>>15,2246822519);h=Math.imul(h^h>>>13,3266489917);return((h^h>>>16)>>>0)/4294967296;};
 function vnoise(x,y,k){const ix=Math.floor(x),iy=Math.floor(y),fx=x-ix,fy=y-iy,u=fx*fx*(3-2*fx),v=fy*fy*(3-2*fy);return(lat(ix,iy,k)*(1-u)+lat(ix+1,iy,k)*u)*(1-v)+(lat(ix,iy+1,k)*(1-u)+lat(ix+1,iy+1,k)*u)*v;}
 function fbm(x,y,k,oct=3){let sum=0,amp=1,norm=0;for(let o=0;o<oct;o++){sum+=vnoise(x,y,k+o*101)*amp;norm+=amp;x=x*2.03+7.1;y=y*1.97+3.3;amp*=.5;}return sum/norm;}
 const quantile=(a,q)=>{const sorted=a.slice().sort();return sorted[Math.min(a.length-1,Math.floor(a.length*q))];};
+const PROFILE_RELIEF={
+  rift:{wavelength:23,ridges:.22,mesas:.045,basalt:.22,gap:.43,ring:2.4,route:2.9,flank:2.5,trees:.028,lava:7,outcrop:4.5},
+  basin:{wavelength:29,ridges:.10,mesas:.07,basalt:.47,gap:.5,ring:1.9,route:3.9,flank:3.2,trees:.04,lava:2,outcrop:3.8},
+  highlands:{wavelength:19,ridges:.26,mesas:.08,basalt:.16,gap:.4,ring:3,route:2.7,flank:2.4,trees:.035,lava:3.5,outcrop:3.4},
+};
+const terrainProfile=s=>PROFILE_RELIEF[s.mapProfile]||PROFILE_RELIEF.rift;
+// Every terrain mutation has a mirrored partner, including gates, mineral access, lava and tree roots.
+function mirroredTerrain(s,i,type){s.terrain[i]=type;s.terrain[s.terrain.length-1-i]=type;}
 
-// Writes 0 ground / 1 rock / 2 basalt for every tile from layered, domain-warped value noise in a route-aligned frame.
-// The field is point-symmetric about the mineral mirror centre, so both bases face the same relief.
 function relief(s){
-  const {width:W,height:H}=s,N=W*H,area=N/(72*56),k=hash(`${s.seed}:relief`),{start,end}=mapLayout(s);
-  const cx=(start.x+end.x)/2,cy=(start.y+end.y)/2,dx=end.x-start.x,dy=end.y-start.y,len=Math.hypot(dx,dy),ux=dx/len,uy=dy/len;
+  const {width:W,height:H}=s,N=W*H,k=hash(`${s.seed}:relief:${s.mapProfile}`),rules=terrainProfile(s),{start,end}=mapLayout(s);
+  const cx=W/2,cy=H/2,dx=end.x-start.x,dy=end.y-start.y,len=Math.hypot(dx,dy),ux=dx/len,uy=dy/len;
   const field=(u,v)=>{
-    const px=u/18,py=v*.6/18; // 18-tile wavelength; the anisotropy makes contours tend to cross the routes
+    const px=u/rules.wavelength,py=v*.63/rules.wavelength;
     const wx=px+(fbm(px*.7+31,py*.7,k+7,2)-.5)*.9,wy=py+(fbm(px*.7,py*.7+17,k+13,2)-.5)*.9;
     const r=fbm(wx*1.3+5,wy*1.3,k+40,2);
-    return[fbm(wx,wy,k,3),1-Math.abs(2*r-1),vnoise(u/9,v/9,k+120)]; // height, ridge (peaks on the r=.5 contour), gap
+    return[fbm(wx,wy,k,3),1-Math.abs(2*r-1),vnoise(u/10,v/10,k+120)];
   };
   const height=new Float32Array(N),ridge=new Float32Array(N),gap=new Float32Array(N);
-  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
-    // Tile centres make u,v exactly negate under the mineral mirror (start+end-1-x); fold u<0 onto u>0 with a 6-tile blend band instead of a seam.
-    const u=(x+.5-cx)*ux+(y+.5-cy)*uy,v=-(x+.5-cx)*uy+(y+.5-cy)*ux,i=y*W+x;
+  for(let i=0;i<N/2;i++){
+    const x=i%W+.5-cx,y=Math.floor(i/W)+.5-cy,u=x*ux+y*uy,v=-x*uy+y*ux;
     let f;
     if(u>=3)f=field(u,v);else if(u<=-3)f=field(-u,-v);
     else{const a=field(u,v),b=field(-u,-v),t=u/6+.5,w=t*t*(3-2*t);f=[a[0]*w+b[0]*(1-w),a[1]*w+b[1]*(1-w),a[2]*w+b[2]*(1-w)];}
-    height[i]=f[0];ridge[i]=f[1];gap[i]=f[2];
+    const m=N-1-i;height[i]=height[m]=f[0];ridge[i]=ridge[m]=f[1];gap[i]=gap[m]=f[2];
   }
-  // Per-map quantiles pin the material shares before clearing: 4% mesa, 20% gapped ridge, 27% basalt.
-  const open=ridge.filter((_,i)=>gap[i]>.45),mesa=quantile(height,.96),basin=quantile(height,.27),crest=open.length?quantile(open,Math.max(0,1-.20*N/open.length)):Infinity;
-  for(let i=0;i<N;i++)s.terrain[i]=ridge[i]>crest&&gap[i]>.45||height[i]>mesa?1:height[i]<basin?2:0;
-  // Boulder outcrops in mirrored pairs: separate small formations the lava pass can recolour.
-  const rng={rng:hash(`${s.seed}:outcrops`)},scale=Math.min(W/72,H/56),ringOut=12.5+scale+2.2,mx=start.x+end.x-1,my=start.y+end.y-1;
+  const open=ridge.filter((_,i)=>gap[i]>rules.gap),mesa=quantile(height,1-rules.mesas),basin=quantile(height,rules.basalt),crest=open.length?quantile(open,Math.max(0,1-rules.ridges*N/open.length)):Infinity;
+  for(let i=0;i<N/2;i++)mirroredTerrain(s,i,ridge[i]>crest&&gap[i]>rules.gap||height[i]>mesa?1:height[i]<basin?2:0);
+  // Rounded satellite outcrops leave room for maneuver, and supply separate broad lava shores.
+  const rng={rng:hash(`${s.seed}:outcrops:${s.mapProfile}`)},target=Math.round(6*Math.sqrt(N/(72*56))),exclusion=19;
   const rockNear=(x,y,R)=>{for(let yy=Math.floor(y-R);yy<=y+R;yy++)for(let xx=Math.floor(x-R);xx<=x+R;xx++)if(inside(s,xx,yy)&&sq(xx-x)+sq(yy-y)<=R*R&&s.terrain[yy*W+xx]===1)return true;return false;};
-  for(let attempt=0,placed=0;placed<Math.round(10*area)&&attempt<2000*area;attempt++){
-    const r=1.6+random(rng)*1.6,x=4+Math.floor(random(rng)*(W-8)),y=4+Math.floor(random(rng)*(H-8)),spots=[{x,y},{x:mx-x,y:my-y}];
-    if(Math.hypot(x-spots[1].x,y-spots[1].y)<2*r+4)continue;
-    if(spots.some(p=>p.x<4||p.y<4||p.x>=W-4||p.y>=H-4||height[p.y*W+p.x]>mesa||Math.hypot(p.x-start.x,p.y-start.y)<ringOut+r+2||Math.hypot(p.x-end.x,p.y-end.y)<ringOut+r+2||rockNear(p.x,p.y,r+1.5)))continue;
+  for(let attempt=0,placed=0;placed<target&&attempt<target*48;attempt++){
+    const r=2+random(rng)*(rules.outcrop-2),x=5+Math.floor(random(rng)*(W-10)),y=5+Math.floor(random(rng)*(H/2-10)),m={x:W-1-x,y:H-1-y};
+    if(distance({x,y},m)<2*r+4||[start,end].some(c=>distance(c,{x,y})<exclusion+r||distance(c,m)<exclusion+r)||rockNear(x,y,r+1.2))continue;
     placed++;
-    for(const p of spots)for(let yy=Math.floor(p.y-r-1);yy<=p.y+r+1;yy++)for(let xx=Math.floor(p.x-r-1);xx<=p.x+r+1;xx++){
-      const rr=r+(vnoise(xx/2.5,yy/2.5,k+77)-.5)*1.4;
-      if(inside(s,xx,yy)&&sq(xx-p.x)+sq(yy-p.y)<rr*rr)s.terrain[yy*W+xx]=1;
+    for(let yy=Math.floor(y-r-1);yy<=y+r+1;yy++)for(let xx=Math.floor(x-r-1);xx<=x+r+1;xx++){
+      const rr=r+(vnoise(xx/3,yy/3,k+77)-.5)*1.4;
+      if(inside(s,xx,yy)&&sq(xx-x)+sq(yy-y)<rr*rr)mirroredTerrain(s,yy*W+xx,1);
     }
   }
 }
-// A wobbly rock ring around each base; the three route clearings cut its gates afterwards.
+// Broken plateau gates and protected approach lanes give each base the same defensive footprint.
 function plateauRing(s,protectedGround){
-  const {width:W,height:H}=s,k=hash(`${s.seed}:relief`)+50,{start,end}=mapLayout(s),scale=Math.min(W/72,H/56),ringIn=12.5+scale,ringOut=ringIn+2.2;
-  if(scale<2)return; // legacy 72x56 has no room: the ring would eat the only tree-eligible band
-  for(const c of [start,end])for(let y=Math.max(0,Math.floor(c.y-ringOut-2));y<=Math.min(H-1,c.y+ringOut+2);y++)for(let x=Math.max(0,Math.floor(c.x-ringOut-2));x<=Math.min(W-1,c.x+ringOut+2);x++){
+  const {width:W,height:H}=s,k=hash(`${s.seed}:relief`)+50,{start}=mapLayout(s),scale=Math.min(W/72,H/56),ringIn=12.5+scale,ringOut=ringIn+terrainProfile(s).ring;
+  if(scale<2)return;
+  const c=start;
+  for(let y=Math.max(0,Math.floor(c.y-ringOut-2));y<=Math.min(H-1,c.y+ringOut+2);y++)for(let x=Math.max(0,Math.floor(c.x-ringOut-2));x<=Math.min(W-1,c.x+ringOut+2);x++){
     const i=y*W+x;if(protectedGround[i])continue;
     const d=Math.hypot(x-c.x,y-c.y)+(vnoise(x/5,y/5,k)-.5)*3;
-    if(d>=ringIn&&d<=ringOut)s.terrain[i]=1;
+    if(d>=ringIn&&d<=ringOut)mirroredTerrain(s,i,1);
   }
 }
-// Rock within 5.5 tiles of a mineral field centre opens up; only rock is touched, so this can only add connectivity.
 function mineralBowls(s,centers){
   const {width:W,height:H}=s,k=hash(`${s.seed}:relief`)+60;
-  for(const c of centers)for(let y=Math.max(0,Math.floor(c.y-7.5));y<=Math.min(H-1,c.y+7.5);y++)for(let x=Math.max(0,Math.floor(c.x-7.5));x<=Math.min(W-1,c.x+7.5);x++){
-    const i=y*W+x,d=Math.hypot(x-c.x,y-c.y)+(vnoise(x/4,y/4,k)-.5)*2.5;
-    if(d<=5.5&&s.terrain[i]===1)s.terrain[i]=0;
+  for(const c of centers)for(let y=Math.max(0,Math.floor(c.y-7));y<=Math.min(H-1,c.y+7);y++)for(let x=Math.max(0,Math.floor(c.x-7));x<=Math.min(W-1,c.x+7);x++){
+    const i=y*W+x,d=Math.hypot(x-c.x,y-c.y)+(vnoise(x/4,y/4,k)-.5)*2;
+    if(d<=5.7&&s.terrain[i]===1)mirroredTerrain(s,i,0);
   }
 }
-// Every enclosed pocket of 30+ tiles gets one 3-wide back door to the main region.
+// One flood and one multi-source breadth-first search connect every large or resource-bearing pocket.
+// Unlike the former all-pairs nearest-tile scan, work is linear in map area, even on the vast setting.
 function breachPockets(s,clear){
-  const {width:W}=s,N=W*s.height,{start}=mapLayout(s);
-  for(let guard=0;guard<12;guard++){
-    s.navVersion++;rebuildNavigation(s);const main=s.regions[cell(s,start.x,start.y)],sizes=new Map();
-    for(let i=0;i<N;i++)if(s.regions[i]&&s.regions[i]!==main)sizes.set(s.regions[i],(sizes.get(s.regions[i])||0)+1);
-    const pocket=[...sizes.entries()].filter(([,n])=>n>=30).sort((a,b)=>b[1]-a[1])[0];if(!pocket)return;
-    let best=Infinity,a,b;const inMain=[],inPocket=[];
-    for(let i=0;i<N;i++){if(s.regions[i]===main)inMain.push(i);else if(s.regions[i]===pocket[0])inPocket.push(i);}
-    // ponytail: sampled every 3rd tile of each side, O(pocket*main/9); measured <2 ms, replace with a BFS from the pocket if it ever matters.
-    for(let p=0;p<inPocket.length;p+=3){const px=inPocket[p]%W,py=Math.floor(inPocket[p]/W);for(let m=0;m<inMain.length;m+=3){const mx=inMain[m]%W,my=Math.floor(inMain[m]/W),d=sq(px-mx)+sq(py-my);if(d<best){best=d;a={x:px,y:py};b={x:mx,y:my};}}}
-    const steps=Math.max(1,Math.ceil(Math.sqrt(best)*2));for(let i=0;i<=steps;i++)clear(a.x+(b.x-a.x)*i/steps,a.y+(b.y-a.y)*i/steps,1.3);
+  const {width:W}=s,N=s.terrain.length,{start}=mapLayout(s),regions=new Uint32Array(N),queue=new Int32Array(N),sizes=[0],resources=[false];
+  let count=0;
+  const neighbors=(at,visit)=>{const x=at%W;if(x>0)visit(at-1);if(x<W-1)visit(at+1);if(at>=W)visit(at-W);if(at<N-W)visit(at+W);};
+  for(let i=0;i<N;i++){
+    if(regions[i]||s.terrain[i]===1||s.terrain[i]===3||s.terrain[i]===4)continue;
+    const id=++count;let tail=1;queue[0]=i;regions[i]=id;sizes[id]=0;resources[id]=false;
+    for(let head=0;head<tail;head++){
+      const at=queue[head];sizes[id]++;if(s.minerals[at]>0)resources[id]=true;
+      neighbors(at,next=>{if(!regions[next]&&[0,2,5].includes(s.terrain[next])){regions[next]=id;queue[tail++]=next;}});
+    }
+  }
+  const main=regions[cell(s,start.x,start.y)],needed=new Set();
+  for(let id=1;id<=count;id++)if(id!==main&&(sizes[id]>=30||resources[id]))needed.add(id);
+  if(!needed.size)return;
+  const parent=new Int32Array(N);parent.fill(-1);let tail=0;
+  for(let i=0;i<N;i++)if(regions[i]===main){queue[tail++]=i;parent[i]=i;}
+  for(let head=0;head<tail&&needed.size;head++){
+    const at=queue[head];
+    neighbors(at,next=>{
+      if(parent[next]!==-1)return;parent[next]=at;queue[tail++]=next;
+      const id=regions[next];if(!needed.has(id))return;
+      needed.delete(id);
+      for(let p=next;parent[p]!==p;p=parent[p])clear(p%W,Math.floor(p/W),1.65);
+    });
   }
 }
 
 function generateMap(s){
-  const {width:W,height:H}=s,N=W*H,area=N/(72*56),{start,end,bend}=mapLayout(s);
-  // The original scatter only remains to consume the same gameplay RNG draws; relief() overwrites every tile.
-  for(let i=0;i<N;i++)s.terrain[i]=random(s)<.18?2:0;
-  for(let b=0;b<Math.round(105*area);b++){
-    const x=2+Math.floor(random(s)*(W-4)),y=2+Math.floor(random(s)*(H-4)),r=1+random(s)*2.1;
-    for(let yy=Math.floor(y-r);yy<=y+r;yy++)for(let xx=Math.floor(x-r);xx<=x+r;xx++)if(inside(s,xx,yy)&&sq(xx-x)+sq(yy-y)<r*r&&random(s)>.13)s.terrain[yy*W+xx]=1;
-  }
+  const {width:W,height:H}=s,N=W*H,{start,end,bend}=mapLayout(s),rules=terrainProfile(s);
   relief(s);
   const protectedGround=new Uint8Array(N);
-  const clear=(x,y,r)=>{for(let yy=Math.floor(y-r);yy<=y+r;yy++)for(let xx=Math.floor(x-r);xx<=x+r;xx++)if(inside(s,xx,yy)&&sq(xx-x)+sq(yy-y)<=r*r){const i=yy*W+xx;s.terrain[i]=0;protectedGround[i]=1;}};
-  clear(start.x,start.y,11);clear(end.x,end.y,11);
+  const clear=(x,y,r)=>{for(let yy=Math.floor(y-r);yy<=y+r;yy++)for(let xx=Math.floor(x-r);xx<=x+r;xx++)if(inside(s,xx,yy)&&sq(xx-x)+sq(yy-y)<=r*r){const i=yy*W+xx;mirroredTerrain(s,i,0);protectedGround[i]=protectedGround[N-1-i]=1;}};
+  clear(start.x,start.y,11.5);clear(end.x,end.y,11.5);
   plateauRing(s,protectedGround);
-  // Three guaranteed routes prevent unlucky seeds from sealing either base.
-  const routeSteps=Math.round(100*Math.sqrt(area));
-  for(let i=0;i<=routeSteps;i++){const t=i/routeSteps,x=start.x+(end.x-start.x)*t,y=start.y+(end.y-start.y)*t;clear(x,y,2.6);clear(x,y+Math.sin(t*Math.PI)*bend,2.1);clear(x,y-Math.sin(t*Math.PI)*bend,2.1);}
-  // Separate distribution draws from gameplay RNG; both sides receive the same loose patch and budget.
+  // Three broad, continuous routes; their bends leave flanking expansion shelves between them.
+  const routeSteps=Math.ceil(distance(start,end)*2);
+  for(let i=0;i<=routeSteps;i++){
+    const t=i/routeSteps,x=start.x+(end.x-start.x)*t,y=start.y+(end.y-start.y)*t;
+    clear(x,y,rules.route);clear(x,y+Math.sin(t*Math.PI)*bend,rules.flank);clear(x,y-Math.sin(t*Math.PI)*bend,rules.flank);
+  }
   const centers=[],scatterRng={rng:hash(`${s.seed}:mineral-scatter`)},treeRng={rng:hash(`${s.seed}:trees`)};
-  rebuildNavigation(s);const region=s.regions[cell(s,start.x,start.y)];
-  const access=(a,b)=>{const steps=Math.max(1,Math.ceil(distance(a,b)*2));for(let i=0;i<=steps;i++)clear(a.x+(b.x-a.x)*i/steps,a.y+(b.y-a.y)*i/steps,.8);};
-  const patch=(c,offsets,amounts,mirror)=>{
-    centers.push(c);
-    if(s.regions[cell(s,c.x,c.y)]!==region){
-      let nearest,score=Infinity;
-      for(let i=0;i<N;i++)if(s.regions[i]===region){const p={x:i%W,y:Math.floor(i/W)},d=sq(p.x-c.x)+sq(p.y-c.y);if(d<score){score=d;nearest=p;}}
-      if(nearest)access(c,nearest);
-    }
-    offsets.forEach((p,i)=>{const x=c.x+p.x*mirror,y=c.y+p.y*mirror;access(c,{x,y});s.minerals[y*W+x]+=amounts[i];});
-  };
-  const field=(a,b,amounts)=>{
-    const candidates=[];
+  const access=(a,b)=>{const steps=Math.max(1,Math.ceil(distance(a,b)*2));for(let i=0;i<=steps;i++)clear(a.x+(b.x-a.x)*i/steps,a.y+(b.y-a.y)*i/steps,.95);};
+  const field=(a,type)=>{
+    const b={x:W-1-a.x,y:H-1-a.y},candidates=[];
     for(let y=-4;y<=4;y++)for(let x=-4;x<=4;x++){
-      const radius=x*x+y*y;if(!radius||radius>20)continue;
+      const radius=x*x+y*y;if(!radius||radius>22)continue;
       const points=[{x:a.x+x,y:a.y+y},{x:b.x-x,y:b.y-y}];
-      if(points.some(p=>p.x<1||p.y<1||p.x>=W-1||p.y>=H-1||distance(p,start)<6.5||distance(p,end)<6.5))continue;
+      if(points.some(p=>p.x<1||p.y<1||p.x>=W-1||p.y>=H-1||distance(p,start)<7||distance(p,end)<7))continue;
       candidates.push({x,y,radius,score:random(scatterRng)});
     }
     candidates.sort((a,b)=>a.score-b.score);
-    const offsets=[{x:0,y:0},...candidates.filter(p=>p.radius<=8).slice(0,12),...candidates.filter(p=>p.radius>8).slice(0,8)];
-    for(const p of candidates)if(offsets.length<21&&!offsets.includes(p))offsets.push(p);
-    patch(a,offsets,amounts,1);patch(b,offsets,amounts,-1);
+    // Loose inner deposits and outer satellites retain visible gaps at every zoom.
+    const offsets=[{x:0,y:0},...candidates.filter(p=>p.radius<=8).slice(0,10),...candidates.filter(p=>p.radius>8).slice(0,8)];
+    centers.push(a,b);
+    for(const p of offsets){
+      const x=a.x+p.x,y=a.y+p.y,i=y*W+x,amount=(320+Math.floor(random(scatterRng)*300))*(type===3?2:1);
+      access(a,{x,y});s.minerals[i]=s.minerals[N-1-i]=amount;s.mineralTypes[i]=s.mineralTypes[N-1-i]=type;
+    }
   };
-  const fields=[[start.x+8,start.y+1],[start.x,start.y+7],[start.x-6,start.y-12],[Math.round(W*29/72),Math.round(H*27/56)],[Math.round(W*35/72),Math.round(H*40/56)]];
-  for(const [x,y] of fields){
-    const amounts=Array.from({length:21},()=>320+Math.floor(random(s)*300));field({x,y},{x:start.x+end.x-1-x,y:start.y+end.y-1-y},amounts);
-  }
-  // Extra remote fields fill the enlarged sector without changing the starting cargo routes.
-  const resourceRng={rng:hash(`${s.seed}:fields`)};
-  for(let attempt=0;centers.length<Math.round(10*area)&&attempt<1000;attempt++){
-    const a={x:4+Math.floor(random(resourceRng)*(W/2-8)),y:4+Math.floor(random(resourceRng)*(H-8))},b={x:W-1-a.x,y:H-1-a.y};
-    if([a,b].some(p=>distance(p,start)<17||distance(p,end)<17||centers.some(c=>distance(c,p)<6))||distance(a,b)<6)continue;
-    const amounts=Array.from({length:21},()=>320+Math.floor(random(s)*300));field(a,b,amounts);
+  // Safe mint starter fields, a blue natural expansion, and richer exposed central red reserves.
+  field({x:start.x+8,y:start.y+1},1);field({x:start.x,y:start.y+9},1);
+  const near={x:start.x-7,y:start.y-14};field(near,2);
+  const central={x:Math.round(W*.43),y:Math.round(H*.46)};field(central,3);
+  const flank={x:Math.round(W*.39),y:Math.round(H*(s.mapProfile==='highlands'?.76:.70))};field(flank,s.mapProfile==='basin'?2:3);
+  const resourceRng={rng:hash(`${s.seed}:fields:${s.mapProfile}`)},targetPairs=Math.max(5,Math.round(4+N/2400));
+  for(let attempt=0;centers.length<targetPairs*2&&attempt<1600;attempt++){
+    const a={x:6+Math.floor(random(resourceRng)*(W/2-12)),y:6+Math.floor(random(resourceRng)*(H-12))},b={x:W-1-a.x,y:H-1-a.y};
+    if([a,b].some(p=>distance(p,start)<20||distance(p,end)<20||centers.some(c=>distance(c,p)<10))||distance(a,b)<10)continue;
+    const contested=Math.abs(a.x-W/2)<W*.18&&distance(a,start)>W*.26;
+    field(a,contested?3:2);
   }
   mineralBowls(s,centers);
   breachPockets(s,clear);
   addLavaPools(s);
-  for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++){
-    const at=y*W+x;if(random(treeRng)>.035||protectedGround[at])continue;
+  // Each mirrored pair is isolated by an open neighbor ring, so roots cannot close a route.
+  for(let i=W+1;i<N/2;i++){
+    const x=i%W,y=Math.floor(i/W),mx=W-1-x,my=H-1-y,m=N-1-i;
+    if(x<1||x>=W-1||random(treeRng)>rules.trees||protectedGround[i]||protectedGround[m]||Math.abs(x-mx)<3&&Math.abs(y-my)<3)continue;
     let open=true;
-    // An open eight-neighbor ring guarantees that one new root cannot sever a passage.
-    for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const i=(y+dy)*W+x+dx;if(![0,2].includes(s.terrain[i])||s.minerals[i]>0)open=false;}
-    if(open)s.terrain[at]=4;
+    for(const at of [i,m])for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const p=at+dy*W+dx;if(![0,2,5].includes(s.terrain[p])||s.minerals[p]>0)open=false;}
+    if(open)mirroredTerrain(s,i,4);
   }
+  addCraters(s,protectedGround,centers);
+}
+
+// Craters offer exposed firing positions beside the main approaches. They never overwrite a route,
+// resource bowl, base clearing, tree root or rock obstacle, so cover cannot close a guaranteed path.
+function addCraters(s,protectedGround,fields){
+  const {width:W,height:H}=s,N=W*H;if(N<8000)return;
+  const rng={rng:hash(`${s.seed}:craters:${s.mapProfile}`)},k=hash(`${s.seed}:crater-rims`),{start,end}=mapLayout(s);
+  const dx=end.x-start.x,dy=end.y-start.y,length=Math.hypot(dx,dy),target=Math.round((s.mapProfile==='highlands'?5:s.mapProfile==='basin'?3:4)*Math.sqrt(N/(72*56))),centers=[];
+  for(let attempt=0;centers.length<target&&attempt<target*90;attempt++){
+    const c={x:7+Math.floor(random(rng)*(W-14)),y:7+Math.floor(random(rng)*(H/2-14))},r=2.8+random(rng)*2.1,m={x:W-1-c.x,y:H-1-c.y};
+    const routeDistance=Math.abs(-dy*(c.x-start.x)+dx*(c.y-start.y))/length;
+    if(routeDistance>Math.min(W,H)*.3||distance(c,m)<r*2+4||[c,m].some(p=>[start,end].some(base=>distance(p,base)<r+18)||fields.some(field=>distance(p,field)<r+6)||centers.some(other=>distance(p,other)<r+7)))continue;
+    const cells=[];let available=true;
+    for(let y=Math.floor(c.y-r-1);y<=c.y+r+1;y++)for(let x=Math.floor(c.x-r-1);x<=c.x+r+1;x++){
+      const edge=r+(vnoise(x/3,y/3,k)-.5)*.6;
+      if(sq(x-c.x)+sq((y-c.y)/.83)>edge*edge)continue;
+      const i=y*W+x;
+      if(!inside(s,x,y)||protectedGround[i]||![0,2].includes(s.terrain[i])||s.minerals[i]>0){available=false;break;}
+      cells.push(i);
+    }
+    if(!available||cells.length<16)continue;
+    centers.push(c);for(const i of cells)mirroredTerrain(s,i,5);
+  }
+}
+export function terrainCover(s,e){
+  return e?.kind==='unit'&&e.hp>0&&inside(s,e.x,e.y)&&s.terrain[cell(s,e.x,e.y)]===5?.15:0;
 }
 
 function addLavaPools(s){
-  const {width:W,height:H}=s,N=W*H,area=N/(72*56),{start:base,end}=mapLayout(s),dx=end.x-base.x,dy=end.y-base.y;
-  // Recolor whole rock formations: routes, minerals, base clearings and combat RNG stay unchanged.
-  const visited=new Uint8Array(N),pools=[],lavaRng={rng:hash(`${s.seed}:lava`)};
+  const {width:W,height:H}=s,N=W*H,{start:base,end}=mapLayout(s),dx=end.x-base.x,dy=end.y-base.y,rules=terrainProfile(s);
+  // Recolor complete, compact formations; shorelines cannot obstruct an existing route.
+  const visited=new Uint8Array(N),pools=[],lavaRng={rng:hash(`${s.seed}:lava:${s.mapProfile}`)};
   for(let start=0;start<N;start++){
     if(visited[start]||s.terrain[start]!==1)continue;
-    const tiles=[start];visited[start]=1;
+    const tiles=[start];visited[start]=1;let minX=W,maxX=0,minY=H,maxY=0,maxAt=start;
     for(let head=0;head<tiles.length;head++){
-      const at=tiles[head],x=at%W,y=Math.floor(at/W);
+      const at=tiles[head],x=at%W,y=Math.floor(at/W);minX=Math.min(minX,x);maxX=Math.max(maxX,x);minY=Math.min(minY,y);maxY=Math.max(maxY,y);maxAt=Math.max(maxAt,at);
       for(const next of [x>0?at-1:-1,x<W-1?at+1:-1,y>0?at-W:-1,y<H-1?at+W:-1])if(next>=0&&!visited[next]&&s.terrain[next]===1){visited[next]=1;tiles.push(next);}
     }
-    if(tiles.length<6||tiles.length>65||tiles.some(at=>at%W<3||at%W>=W-3||Math.floor(at/W)<3||Math.floor(at/W)>=H-3))continue;
-    const x=tiles.reduce((sum,at)=>sum+at%W,0)/tiles.length,y=tiles.reduce((sum,at)=>sum+Math.floor(at/W),0)/tiles.length;
-    const routeDistance=Math.abs(-dy*(x-base.x)+dx*(y-base.y))/Math.hypot(dx,dy);
-    pools.push({tiles,score:Math.max(0,routeDistance-7)+random(lavaRng)*12});
+    // Only select one member of a mirror pair, and keep long ridge walls as raised rock.
+    if(start>N-1-maxAt||tiles.length<12||tiles.length>220||minX<3||maxX>=W-3||minY<3||maxY>=H-3||tiles.length/((maxX-minX+1)*(maxY-minY+1))<.38)continue;
+    const x=(minX+maxX)/2,y=(minY+maxY)/2,routeDistance=Math.abs(-dy*(x-base.x)+dx*(y-base.y))/Math.hypot(dx,dy);
+    pools.push({tiles,score:Math.max(0,routeDistance-7)+random(lavaRng)*14});
   }
   pools.sort((a,b)=>a.score-b.score||a.tiles[0]-b.tiles[0]);
-  for(const pool of pools.slice(0,Math.round((5+Math.floor(random(lavaRng)*3))*area)))for(const at of pool.tiles)s.terrain[at]=3;
+  const count=Math.round(rules.lava*Math.sqrt(N/(72*56)));
+  for(const pool of pools.slice(0,count))for(const at of pool.tiles)mirroredTerrain(s,at,3);
 }
 
-export function createGame(seed='ASH-001',difficulty='normal',{width:W=MAP_WIDTH,height:H=MAP_HEIGHT}={}){
-  if(!((W===72&&H===56)||(W===MAP_WIDTH&&H===MAP_HEIGHT)))throw new RangeError('Unsupported map dimensions');
+const newAI=difficulty=>({nextThink:3,nextRaid:difficulty==='easy'?300:difficulty==='hard'?100:150,known:{},mode:'Establishing base',scoutIndex:0,buildIndex:0,raid:0});
+function aiState(s,team){return team===1?s.ai:s.aiByTeam?.[team];}
+export function createGame(seed='ASH-001',difficulty='normal',{width:W=MAP_WIDTH,height:H=MAP_HEIGHT,profile='rift',races=['organics','organics'],aiTeams=[1]}={}){
+  if(!((W===72&&H===56)||Object.values(MAP_SIZES).some(size=>W===size.width&&H===size.height)))throw new RangeError('Unsupported map dimensions');
+  if(!Object.hasOwn(MAP_PROFILES,profile))throw new RangeError('Unsupported terrain profile');
+  if(!Array.isArray(races)||races.length!==2||races.some(race=>!Object.hasOwn(RACES,race)))throw new RangeError('Unsupported race pairing');
+  if(!Array.isArray(aiTeams)||aiTeams.some(team=>![0,1].includes(team))||new Set(aiTeams).size!==aiTeams.length)throw new RangeError('Unsupported AI teams');
   const N=W*H;
-  const s={width:W,height:H,seed:String(seed),difficulty:['easy','normal','hard'].includes(difficulty)?difficulty:'normal',rng:hash(seed),nextId:1,time:0,status:'playing',terrain:new Uint8Array(N),minerals:new Float32Array(N),visible:[new Uint8Array(N),new Uint8Array(N)],explored:[new Uint8Array(N),new Uint8Array(N)],entities:[],teams:[{credits:1800,kills:0},{credits:1800,kills:0}],effects:[],events:[],navVersion:0,navBuilt:-1,blocked:new Uint8Array(N),fogClock:0,ai:{nextThink:3,nextRaid:105,known:{},mode:'Establishing base',scoutIndex:0,buildIndex:0,raid:0}};
+  const s={width:W,height:H,mapProfile:profile,seed:String(seed),difficulty:['easy','normal','hard'].includes(difficulty)?difficulty:'normal',rng:hash(seed),nextId:1,time:0,status:'playing',terrain:new Uint8Array(N),minerals:new Float32Array(N),mineralTypes:new Uint8Array(N),visible:[new Uint8Array(N),new Uint8Array(N)],explored:[new Uint8Array(N),new Uint8Array(N)],entities:[],teams:[{credits:1800,kills:0},{credits:1800,kills:0}],effects:[],events:[],navVersion:0,navBuilt:-1,blocked:new Uint8Array(N),fogClock:0,ai:{nextThink:3,nextRaid:105,known:{},mode:'Establishing base',scoutIndex:0,buildIndex:0,raid:0}};
   s.ai.nextRaid=s.difficulty==='easy'?300:s.difficulty==='hard'?100:150;
+  s.teams.forEach((team,index)=>{team.race=races[index];});s.aiTeams=[...aiTeams];
+  if(aiTeams.includes(0))s.aiByTeam={0:newAI(s.difficulty)};
   generateMap(s);
   const {start,end}=mapLayout(s);
   for(let team=0;team<2;team++){
-    const building=(type,x,y)=>addEntity(s,team,'building',type,team?end.x+11-x-BUILDINGS[type].size:start.x+x-12,team?end.y+36-y-BUILDINGS[type].size:start.y+y-37);
-    const unit=(type,x,y)=>addEntity(s,team,'unit',type,team?end.x+11-x:start.x+x-12,team?end.y+36-y:start.y+y-37);
+    const building=(role,x,y)=>{const type=raceBuilding(s,team,role);return addEntity(s,team,'building',type,team?end.x+11-x-BUILDINGS[type].size:start.x+x-12,team?end.y+36-y-BUILDINGS[type].size:start.y+y-37);};
+    const unit=(role,x,y)=>addEntity(s,team,'unit',raceUnit(s,team,role),team?end.x+11-x:start.x+x-12,team?end.y+36-y:start.y+y-37);
     building('core',10,35);building('reactor',6,35);building('refinery',15,38);
     for(let j=0;j<3;j++)unit('rifle',11+j,33.7);
     unit('scout',15.5,33);
@@ -264,23 +456,69 @@ function seen(s,team,e){if(e.team===team)return true;const c=center(e);if(!insid
 export function canPlace(s,team,type,x,y){
   const {width:W,height:H}=s;
   const d=BUILDINGS[type];if(s.status!=='playing')return bad('Operation has ended');if(!d||![0,1].includes(team))return bad('Unknown structure');
+  if(d.race!=='both'&&d.race!==teamRace(s,team))return bad('Structure belongs to a different race');
   if(!Number.isFinite(x)||!Number.isFinite(y)||x!==Math.floor(x)||y!==Math.floor(y))return bad('Place on the ground grid');
-  if(type==='core')return bad('Only one command nexus per operation');
+  if(buildingRole(type)==='core')return bad('Only one command nexus per operation');
   if(s.teams[team].credits<d.cost)return bad('Insufficient credits');
   const missing=d.requires.find(key=>!completed(s,team,key));if(missing)return bad(`Requires ${BUILDINGS[missing].name}`);
   if(x<1||y<1||x+d.size>=W||y+d.size>=H)return bad('Outside construction zone');
   rebuildNavigation(s);
   for(let yy=y;yy<y+d.size;yy++)for(let xx=x;xx<x+d.size;xx++){
-    const i=yy*W+xx;if(!s.visible[team][i])return bad('Requires sensor coverage');if(s.terrain[i]===3)return bad('Lava prevents construction');if(s.terrain[i]===4)return bad('Tree roots obstruct construction');if(s.blocked[i])return bad('Ground is obstructed');if(s.minerals[i]>0)return bad('Shard field obstructs construction');
+    const i=yy*W+xx;if(!s.visible[team][i])return bad('Requires sensor coverage');if(s.terrain[i]===3)return bad('Lava prevents construction');if(s.terrain[i]===4)return bad('Tree roots obstruct construction');if(s.terrain[i]===5)return bad('Crater ground cannot support construction');if(s.blocked[i])return bad('Ground is obstructed');if(s.minerals[i]>0)return bad('Shard field obstructs construction');
   }
   if(s.entities.some(e=>alive(e)&&e.kind==='unit'&&e.x>x-.3&&e.x<x+d.size+.3&&e.y>y-.3&&e.y<y+d.size+.3))return bad('Unit in construction area');
-  if(!own(s,team).some(e=>e.kind==='building'&&e.progress>=1&&Math.hypot(Math.max(e.x-x-d.size,x-e.x-e.size,0),Math.max(e.y-y-d.size,y-e.y-e.size,0))<=7))return bad('Build within 7 tiles of a finished structure');
+  const nearFinished=own(s,team).some(e=>e.kind==='building'&&e.progress>=1&&Math.hypot(Math.max(e.x-x-d.size,x-e.x-e.size,0),Math.max(e.y-y-d.size,y-e.y-e.size,0))<=7);
+  const extendsWall=buildingRole(type)==='wall'&&own(s,team).some(e=>e.kind==='building'&&buildingRole(e)==='wall'&&Math.abs(e.x-x)+Math.abs(e.y-y)===1);
+  if(!nearFinished&&!extendsWall)return bad('Build within 7 tiles of a finished structure');
   return good();
 }
 export function placeBuilding(s,team,type,x,y){
   const result=canPlace(s,team,type,x,y);if(!result.ok)return result;
   s.teams[team].credits-=BUILDINGS[type].cost;const entity=addEntity(s,team,'building',type,x,y,false);event(s,`${BUILDINGS[type].name}: construction started`,team);return{...result,id:entity.id};
 }
+// Four-connected stair steps make diagonal drags solid, without corner-sized holes.
+function wallLineCells(x1,y1,x2,y2){
+  const reverse=x1>x2||x1===x2&&y1>y2;
+  if(reverse)[x1,y1,x2,y2]=[x2,y2,x1,y1];
+  const dx=Math.abs(x2-x1),dy=Math.abs(y2-y1),sx=Math.sign(x2-x1),sy=Math.sign(y2-y1),cells=[{x:x1,y:y1}];
+  let x=x1,y=y1,nx=0,ny=0;
+  while(nx<dx||ny<dy){
+    if(ny===dy||nx<dx&&(nx+.5)*dy<=(ny+.5)*dx){x+=sx;nx++;}else{y+=sy;ny++;}
+    cells.push({x,y});
+  }
+  return reverse?cells.reverse():cells;
+}
+export function planWallLine(s,team,x1,y1,x2,y2){
+  const empty=reason=>({ok:false,reason,cells:[],count:0,cost:0,affordable:false,truncated:false});
+  if(![0,1].includes(team)||![x1,y1,x2,y2].every(Number.isFinite))return empty('Choose two ground cells');
+  [x1,y1,x2,y2]=[x1,y1,x2,y2].map(Math.floor);
+  if(x1<1||x2<1||y1<1||y2<1||x1>=s.width-1||x2>=s.width-1||y1>=s.height-1||y2>=s.height-1)return empty('Outside construction zone');
+  const all=wallLineCells(x1,y1,x2,y2),raw=all.slice(0,48),cost=BUILDINGS.wall.cost,cells=[];
+  let remaining=s.teams[team].credits,reason='',count=0;
+  for(const point of raw){
+    let result=reason?bad('Previous segment is unavailable'):canPlace(s,team,'wall',point.x,point.y);
+    // A valid preceding segment supplies construction adjacency without altering the real battlefield.
+    if(!result.ok&&result.reason==='Build within 7 tiles of a finished structure'&&count>0)result=good();
+    if(result.ok&&remaining<cost)result=bad('Insufficient credits for the next wall segment');
+    if(result.ok){remaining-=cost;count++;}else if(!reason)reason=result.reason;
+    cells.push({...point,...result,cost});
+  }
+  const truncated=all.length>48;if(!reason&&truncated)reason='Maximum 48 wall segments per drag';
+  return{ok:!reason,reason,cells,count,cost:count*cost,affordable:s.teams[team].credits>=raw.length*cost,truncated};
+}
+export function buildWallLine(s,team,x1,y1,x2,y2){
+  const plan=planWallLine(s,team,x1,y1,x2,y2),ids=[];let reason=plan.reason;
+  for(const segment of plan.cells){
+    if(!segment.ok)break;
+    const eventsBefore=s.events.length,result=placeBuilding(s,team,'wall',segment.x,segment.y);
+    if(!result.ok){reason=result.reason;break;}
+    ids.push(result.id);s.events.splice(eventsBefore); // Summarize one drag with one event.
+  }
+  const cost=ids.length*BUILDINGS.wall.cost;
+  if(ids.length)event(s,`${ids.length} wall segment${ids.length===1?'':'s'} started: ${cost} credits`,team);
+  return{ok:ids.length>0,count:ids.length,cost,reason,ids};
+}
+
 export function toggleRepair(s,id,team=0){
   if(s.status!=='playing')return bad('Operation has ended');
   const e=getEntity(s,id);
@@ -290,16 +528,16 @@ export function toggleRepair(s,id,team=0){
   e.repairing=!e.repairing;return{...good(),repairing:e.repairing};
 }
 export function salvageValue(e){
-  if(e?.kind!=='building'||e.type==='core'||!alive(e))return 0;
+  if(e?.kind!=='building'||entityRole(e)==='core'||!alive(e))return 0;
   // A deployed included hauler survives the sale; its value cannot be cashed out again.
-  const cost=BUILDINGS[e.type].cost-(e.type==='refinery'&&!e.haulerPending?UNITS.harvester.cost:0);
-  return Math.floor(cost*.5*clamp(e.hp/e.maxHp,0,1)+1e-8)+e.queue.reduce((sum,q)=>sum+UNITS[q.type].cost,0);
+  const cost=BUILDINGS[e.type].cost-(entityRole(e)==='refinery'&&!e.haulerPending?UNITS.harvester.cost:0)+Object.keys(e.upgrades||{}).reduce((sum,id)=>sum+BUILDING_UPGRADES[id].cost,0);
+  return Math.floor(cost*.5*clamp(e.hp/e.maxHp,0,1)+1e-8)+e.queue.reduce((sum,q)=>sum+UNITS[q.type].cost,0)+(e.research?RESEARCH[e.research.id].cost:0)+(e.upgrade?BUILDING_UPGRADES[e.upgrade.id].cost:0);
 }
 export function sellBuilding(s,id,team=0){
   if(s.status!=='playing')return bad('Operation has ended');
   const e=getEntity(s,id);
   if(!e||e.kind!=='building'||e.team!==team||![0,1].includes(team))return bad('Select one of your structures');
-  if(e.type==='core')return bad('The command nexus cannot be sold');
+  if(entityRole(e)==='core')return bad('The command nexus cannot be sold');
   const refund=salvageValue(e);s.teams[team].credits+=refund;
   s.entities=s.entities.filter(entity=>entity!==e);s.navVersion++;
   for(const hauler of s.entities)if(hauler.unloadDepotId===id){hauler.unload=0;hauler.unloadDepotId=null;hauler.path=[];hauler.repath=0;}
@@ -308,14 +546,17 @@ export function sellBuilding(s,id,team=0){
 }
 export function trainUnit(s,team,type,producerId){
   const d=UNITS[type];if(s.status!=='playing')return bad('Operation has ended');if(!d||![0,1].includes(team))return bad('Unknown unit');
+  if(d.race!==teamRace(s,team))return bad('Unit belongs to a different race');
   if(s.teams[team].credits<d.cost)return bad('Insufficient credits');
   const producers=own(s,team,d.producer).filter(e=>e.kind==='building'&&e.progress>=1&&(producerId===undefined||e.id===producerId));
   if(!producers.length)return bad(producerId===undefined?`Requires ${BUILDINGS[d.producer].name}`:'Selected producer unavailable');
   if(d.requires.some(key=>!completed(s,team,key)))return bad('Technology unavailable');
+  if(d.research&&!s.teams[team].research?.[d.research])return bad(`Requires ${RESEARCH[d.research].name}`);
   const remaining=e=>e.queue.reduce((seconds,q)=>seconds+UNITS[q.type].trainTime*(1-q.progress),0);
-  const producer=producers.filter(e=>e.queue.length<6).sort((a,b)=>remaining(a)-remaining(b)||a.id-b.id)[0];
+  if(unitRole(type)==='striker'&&!producers.some(e=>e.upgrades?.advancedProduction))return bad('Requires Advanced assembly bay at the foundry');
+  const producer=producers.filter(e=>e.queue.length<6&&(unitRole(type)!=='striker'||e.upgrades?.advancedProduction)).sort((a,b)=>remaining(a)-remaining(b)||a.id-b.id)[0];
   if(!producer)return bad('Production queue full');
-  if(own(s,team).reduce((n,e)=>n+(e.kind==='unit'?1:e.queue.length+(e.haulerPending?1:0)),0)>=60)return bad('Unit limit reached (60)');
+  if(own(s,team).reduce((n,e)=>n+(e.kind==='unit'?1:e.queue.length+(e.haulerPending?1:0)),0)>=UNIT_CAP)return bad(`Unit limit reached (${UNIT_CAP})`);
   s.teams[team].credits-=d.cost;producer.queue.push({type,progress:0});return good();
 }
 
@@ -324,7 +565,7 @@ export function setRallyPoint(s,team,ids,point){
   if(![0,1].includes(team)||!Array.isArray(ids)||!ids.length)return bad('Select a production building');
   if(!point||!Number.isFinite(point.x)||!Number.isFinite(point.y)||!inside(s,point.x,point.y))return bad('Rally point outside the sector');
   const producers=[...new Set(ids)].map(id=>getEntity(s,id));
-  if(producers.some(e=>!e||e.team!==team||e.kind!=='building'||!['barracks','factory','refinery'].includes(e.type)))return bad('Select your barracks, foundries, or refineries');
+  if(producers.some(e=>!e||e.team!==team||e.kind!=='building'||!['barracks','factory','refinery'].includes(entityRole(e))))return bad('Select your barracks, foundries, or refineries');
   for(const e of producers)e.rally={x:point.x,y:point.y};
   return good();
 }
@@ -374,23 +615,23 @@ export function issueOrder(s,ids,order){
   const plans=units.map(u=>{
     let x=Number.isFinite(order.x)?clamp(order.x,.5,W-.5):u.x,y=Number.isFinite(order.y)?clamp(order.y,.5,H-.5):u.y;
     const target=getEntity(s,order.targetId);if(target&&seen(s,u.team,target)){const c=center(target);x=c.x;y=c.y;}
-    const type=u.type==='harvester'&&!['harvest','explore'].includes(order.type)?'move':order.type==='attackmove'?'attackMove':order.type;
+    const type=entityRole(u)==='harvester'&&!['harvest','explore'].includes(order.type)?'move':order.type==='attackmove'?'attackMove':order.type;
     return{u,type,x,y,target:target&&seen(s,u.team,target)?target.id:null};
   });
   const groups=new Map();
   for(const p of plans)if(p.type==='move'||p.type==='attackMove'){const key=`${p.x},${p.y}`;if(!groups.has(key))groups.set(key,[]);groups.get(key).push(p);}
   for(const group of groups.values()){
     const goals=movementDestinations(s,group.map(p=>p.u),group[0].x,group[0].y);
-    for(const p of group){const goal=goals.get(p.u.id);if(goal){p.x=goal.x;p.y=goal.y;}else p.type=p.u.type==='harvester'?'harvest':'idle';}
+    for(const p of group){const goal=goals.get(p.u.id);if(goal){p.x=goal.x;p.y=goal.y;}else p.type=entityRole(p.u)==='harvester'?'harvest':'idle';}
   }
   plans.forEach(({u,type,x,y,target})=>{
     if(u.order.type===type&&u.order.x===x&&u.order.y===y&&(u.order.targetId??null)===target)return;
     if(u.order.type!==type||Math.hypot((u.order.x??u.x)-x,(u.order.y??u.y)-y)>1){delete u.trafficWait;delete u.passUntil;}
     u.order=type==='explore'||type==='idle'||type==='harvest'&&order.type!=='harvest'?{type}:{type,x,y,...(target?{targetId:target}:{})};u.targetId=null;u.path=[];u.repath=0;
-    if(u.type==='harvester'){u.unloadDepotId=null;if(u.cargo>=UNITS.harvester.capacity)u.harvestPhase='return';}
+    if(entityRole(u)==='harvester'){u.unloadDepotId=null;if(u.cargo>=UNITS.harvester.capacity)u.harvestPhase='return';}
   });
 }
-export function stopUnits(s,ids){for(const id of ids){const u=getEntity(s,id);if(u?.kind==='unit'){u.order={type:u.type==='harvester'?'harvest':'idle'};u.targetId=null;u.path=[];u.repath=0;delete u.trafficWait;delete u.passUntil;if(u.type==='harvester')u.unloadDepotId=null;}}}
+export function stopUnits(s,ids){for(const id of ids){const u=getEntity(s,id);if(u?.kind==='unit'){u.order={type:entityRole(u)==='harvester'?'harvest':'idle'};u.targetId=null;u.path=[];u.repath=0;delete u.trafficWait;delete u.passUntil;if(entityRole(u)==='harvester')u.unloadDepotId=null;}}}
 
 function updateFog(s){
   const {width:W,height:H}=s;
@@ -401,12 +642,15 @@ function updateFog(s){
       for(let y=Math.max(0,Math.floor(c.y-r));y<=Math.min(H-1,c.y+r);y++)for(let x=Math.max(0,Math.floor(c.x-r));x<=Math.min(W-1,c.x+r);x++)if(sq(x+.5-c.x)+sq(y+.5-c.y)<=r*r){v[y*W+x]=1;explored[y*W+x]=1;}
     }
   }
-  for(const e of s.entities)if(e.team===0&&alive(e)&&seen(s,1,e)){const c=center(e);s.ai.known[e.id]={id:e.id,kind:e.kind,type:e.type,x:c.x,y:c.y,hp:e.hp,seenAt:s.time};}
-  for(const [id,m] of Object.entries(s.ai.known))if(s.visible[1][cell(s,m.x,m.y)]&&!s.entities.some(e=>e.id===Number(id)&&alive(e)&&seen(s,1,e)))delete s.ai.known[id];
+  for(const team of s.aiTeams||[1]){
+    const ai=aiState(s,team);if(!ai)continue;
+    for(const e of s.entities)if(e.team!==team&&alive(e)&&seen(s,team,e)){const c=center(e);ai.known[e.id]={id:e.id,kind:e.kind,type:e.type,x:c.x,y:c.y,hp:e.hp,seenAt:s.time};}
+    for(const [id,m] of Object.entries(ai.known))if(s.visible[team][cell(s,m.x,m.y)]&&!s.entities.some(e=>e.id===Number(id)&&alive(e)&&seen(s,team,e)))delete ai.known[id];
+  }
 }
 
 // A* searches static terrain/buildings. Units use local separation instead of blocking routes.
-// ponytail: a per-tick search budget spreads a 60-unit group order over a few ticks; raise it if armies grow.
+// A fixed search budget spreads obstructed army orders across ticks; direct open routes bypass A*.
 let pathBudget=16,scratch={N:0};
 function findPath(s,u,tx,ty,stop=0){
   if(clearStep(s,u,tx,ty))return[{x:tx,y:ty}];
@@ -458,13 +702,26 @@ function clearStep(s,u,x,y){
 }
 function unitSpacing(a,b,time){return(a.size+b.size)*.43*(a.team===b.team&&Math.max(a.passUntil||0,b.passUntil||0)>time?.16:1);}
 
+function turnUnit(u,heading,dt,aiming=false){
+  const infantry=UNITS[u.type].armor==='infantry';
+  const delta=Math.atan2(Math.sin(heading-u.angle),Math.cos(heading-u.angle));
+  if(Math.abs(delta)<.012){u.turnVelocity=0;return;}
+  const rate=infantry?7:aiming?3.2:['scout','striker'].includes(entityRole(u))?2.6:1.8;
+  const desired=clamp(delta*5,-rate,rate),acceleration=infantry?28:aiming?12:7;
+  u.turnVelocity=(u.turnVelocity||0)+clamp(desired-(u.turnVelocity||0),-acceleration*dt,acceleration*dt);
+  const turn=u.turnVelocity*dt;
+  if(Math.sign(turn)===Math.sign(delta)&&Math.abs(turn)>=Math.abs(delta)){u.angle+=delta;u.turnVelocity=0;}
+  else u.angle+=turn;
+  u.angle=Math.atan2(Math.sin(u.angle),Math.cos(u.angle));
+}
+
 function navigate(s,u,tx,ty,dt,stop=.2,movement){
   const precise=stop<.2;
   if(precise&&(!walkable(s,tx,ty,u.size*.43+.08)||s.regions[cell(s,tx,ty)]!==s.regions[cell(s,u.x,u.y)])){
     const goal=movementDestinations(s,[u],tx,ty).get(u.id);if(!goal)return false;
     tx=u.order.x=goal.x;ty=u.order.y=goal.y;u.repath=0;
   }
-  if(Math.hypot(tx-u.x,ty-u.y)<=stop+(precise?0:.12)){u.path=[];return true;}
+  if(Math.hypot(tx-u.x,ty-u.y)<=stop+(precise?0:.12)){u.path=[];u.moveSpeed=0;u.turnVelocity=0;return true;}
   if(u.repath<=0||u.pathVersion!==s.navVersion||!u.pathGoal||Math.hypot(u.pathGoal.x-tx,u.pathGoal.y-ty)>1.4){
     const found=findPath(s,u,tx,ty,stop);if(!found){u.path=[];return false;}
     u.path=found;u.pathGoal={x:tx,y:ty};u.pathVersion=s.navVersion;u.repath=1.3+random(s)*.6;
@@ -475,17 +732,23 @@ function navigate(s,u,tx,ty,dt,stop=.2,movement){
     u.path=[{x:tx,y:ty}];
   }
   // Follow a short distance around each bend, rounding it only while the swept route stays clear.
-  const lookahead=Math.max(.65,unitStats(u).speed*.35);
+  const cruiseSpeed=Math.min(unitStats(u).speed,u.order.speedLimit??Infinity),lookahead=Math.max(.65,cruiseSpeed*.35);
   while(u.path.length>1&&distance(u,u.path[0])<lookahead){
     const a=u.path[0],b=u.path[1],t=Math.min(1,(lookahead-distance(u,a))/Math.max(.001,distance(a,b)));
     const ahead={x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t};
     if(!clearStep(s,u,ahead.x,ahead.y))break;
     if(t<1){u.path[0]=ahead;break;}u.path.shift();
   }
-  const p=u.path[0],dx=p.x-u.x,dy=p.y-u.y,d=Math.hypot(dx,dy),step=Math.min(d,unitStats(u).speed*dt);
+  const p=u.path[0],dx=p.x-u.x,dy=p.y-u.y,d=Math.hypot(dx,dy),baseSpeed=cruiseSpeed;
+  const heading=Math.atan2(dy,dx),turn=Math.abs(Math.atan2(Math.sin(heading-u.angle),Math.cos(heading-u.angle)));
+  const cornerSpeed=UNITS[u.type].armor==='infantry'?1:Math.max(.4,1-turn/Math.PI*.65);
+  const remaining=precise?Math.hypot(tx-u.x,ty-u.y):Infinity;
+  const targetSpeed=Math.min(baseSpeed*cornerSpeed,Math.max(.35,Math.sqrt(Math.max(0,remaining-stop)*baseSpeed*3)));
+  u.moveSpeed=Math.min(targetSpeed,(u.moveSpeed||0)+baseSpeed*2.8*dt);
+  const step=Math.min(d,u.moveSpeed*dt);
   if(d<.08){u.path.shift();return false;}
   const fx=dx/d,fy=dy/d,intent={x:u.x,y:u.y,dx:fx,dy:fy,step,traffic:false};movement.set(u.id,intent);
-  const neighbors=s.entities.filter(e=>e!==u&&e.kind==='unit'&&alive(e)&&distance(u,e)<1.7);
+  const neighbors=s.entities.filter(e=>e!==u&&e.kind==='unit'&&alive(e)&&Math.abs(e.x-u.x)<1.7&&Math.abs(e.y-u.y)<1.7&&sq(e.x-u.x)+sq(e.y-u.y)<2.89);
   let avoid=0;
   for(const other of neighbors){
     const ox=other.x-u.x,oy=other.y-u.y,ahead=ox*fx+oy*fy,side=-ox*fy+oy*fx;
@@ -493,9 +756,12 @@ function navigate(s,u,tx,ty,dt,stop=.2,movement){
     if(ahead<-.1||ahead>reach||Math.abs(side)>spacing+.1)continue;
     if(other.team===u.team)intent.traffic=true;
     if(spacing<(u.size+other.size)*.2)continue;
-    const strength=(1-Math.max(0,ahead)/reach)*(side>.06?-1:1);
+    // Commit to one passing side briefly: adjacent units must not reverse their steering every tick.
+    const direction=u.steerUntil>s.time?u.steerSide:side>.12?-1:1;
+    const strength=(1-Math.max(0,ahead)/reach)*direction;
     if(Math.abs(strength)>Math.abs(avoid))avoid=strength;
   }
+  if(avoid&&!(u.steerUntil>s.time)){u.steerSide=Math.sign(avoid);u.steerUntil=s.time+.85;}
   const side=avoid<0?-1:1,candidates=[[fx-fy*avoid*2,fy+fx*avoid*2],[fx,fy]];
   if(avoid||intent.traffic)candidates.push([-fy*side,fx*side],[fy*side,-fx*side]);
   // Off-center units can round a solid corner in two axis steps when a diagonal is blocked.
@@ -509,11 +775,12 @@ function navigate(s,u,tx,ty,dt,stop=.2,movement){
       if(other.team===u.team)intent.traffic=true;return true;
     }))continue;
     u.x=nx;u.y=ny;
-    const heading=Math.atan2(vy,vx),turn=Math.atan2(Math.sin(heading-u.angle),Math.cos(heading-u.angle));
-    const turnRate=UNITS[u.type].armor==='infantry'?9:6;
-    u.angle+=clamp(turn,-turnRate*dt,turnRate*dt);
+    // Emergency sidesteps separate bodies, but the hull follows the route with a small steering bias.
+    // Holding route-facing avoids a 90-degree snap when collision candidates alternate.
+    turnUnit(u,heading+Math.atan(avoid*.3),dt);
     if(distance(u,p)<.08)u.path.shift();return false;
   }
+  u.moveSpeed=0;u.turnVelocity=0;
   if(!intent.traffic&&!avoid){u.repath=0;u.path=[];}
   return false;
 }
@@ -524,7 +791,7 @@ function nearestMineral(s,u,x=u.x,y=u.y){
   for(let i=0;i<N;i++)if(s.minerals[i]>0&&s.explored[u.team][i]&&!s.blocked[i]&&s.regions[i]===region){const d=sq(i%W+.5-x)+sq(Math.floor(i/W)+.5-y);if(d<score){best=i;score=d;}}
   return best;
 }
-function harvest(s,u,dt,movement){
+function harvest(s,u,dt,movement,power){
   const W=s.width;
   const cap=UNITS.harvester.capacity;
   if(u.cargo>=cap-.001)u.harvestPhase='return';
@@ -534,21 +801,28 @@ function harvest(s,u,dt,movement){
     const c=center(depot),stop=depot.size/2+.7;
     if(navigate(s,u,c.x,c.y,dt,stop,movement)||distance(u,c)<stop+.4){
       if(u.cargo>0)u.unloadDepotId=depot.id;
-      u.unload=(u.unload||0)+dt;
+      u.unload=Math.min(1.2,(u.unload||0)+dt*power.ratio*(depot.upgrades?.speed?1.25:1));
       if(u.unload>=1.2){
-        const amount=u.cargo*(depot.type==='core'?.6:1);s.teams[u.team].credits+=amount;
+        const amount=u.cargo*(entityRole(depot)==='core'?.6:1);s.teams[u.team].credits+=amount;
         // Processing is visual bookkeeping after the existing immediate credit deposit.
+        depot.processingType=depot.processingAmount>0&&depot.processingType!==(u.cargoType??1)?0:(u.cargoType??1);
         depot.processingAmount=(depot.processingAmount||0)+u.cargo;depot.processingTotal=(depot.processingTotal||0)+u.cargo;
         event(s,`Shard delivery: +${Math.floor(amount)} credits`,u.team);
-        u.cargo=0;u.unload=0;u.unloadDepotId=null;u.harvestPhase='gather';u.repath=0;
+        u.cargo=0;u.cargoType=0;u.unload=0;u.unloadDepotId=null;u.harvestPhase='gather';u.repath=0;
       }
     }
     return;
   }
-  if(u.mineralTile===undefined||s.minerals[u.mineralTile]<=0||u.mineralTile<0&&s.time>=(u.mineralSearchAt||0)||u.mineralNavVersion!==s.navVersion||u.harvestTargetX!==u.order.x||u.harvestTargetY!==u.order.y){u.mineralTile=nearestMineral(s,u,u.order.x??u.x,u.order.y??u.y);u.harvestTargetX=u.order.x;u.harvestTargetY=u.order.y;u.mineralNavVersion=s.navVersion;u.mineralSearchAt=s.time+1;u.repath=0;}
+  if(u.mineralTile===undefined||s.minerals[u.mineralTile]<=0||u.mineralTile<0&&s.time>=(u.mineralSearchAt||0)||u.mineralNavVersion!==s.navVersion||u.harvestTargetX!==u.order.x||u.harvestTargetY!==u.order.y){
+    u.mineralTile=nearestMineral(s,u,u.order.x??u.x,u.order.y??u.y);u.harvestTargetX=u.order.x;u.harvestTargetY=u.order.y;u.mineralNavVersion=s.navVersion;u.repath=0;
+    // An empty known field needs occasional scouting retries, not synchronized whole-map scans.
+    // Only failed searches back off; new orders and navigation changes still wake the carrier immediately.
+    if(u.mineralTile<0){u.mineralRetryDelay=Math.min(12,(u.mineralRetryDelay||2)*2);u.mineralSearchAt=s.time+u.mineralRetryDelay+(u.id%5)*.1;}
+    else{delete u.mineralRetryDelay;u.mineralSearchAt=s.time+1;}
+  }
   if(u.mineralTile<0){if(u.cargo>0)u.harvestPhase='return';return;}
   const x=u.mineralTile%W+.5,y=Math.floor(u.mineralTile/W)+.5;
-  if(navigate(s,u,x,y,dt,.75,movement)||Math.hypot(u.x-x,u.y-y)<1.1){const amount=Math.min(28*dt,s.minerals[u.mineralTile],cap-u.cargo);s.minerals[u.mineralTile]-=amount;u.cargo+=amount;}
+  if(navigate(s,u,x,y,dt,.75,movement)||Math.hypot(u.x-x,u.y-y)<1.1){const type=s.mineralTypes?.[u.mineralTile]||1,amount=Math.min(28*dt*(type===3?2:1),s.minerals[u.mineralTile],cap-u.cargo);if(amount>0)u.cargoType=u.cargo<=0?type:(u.cargoType??1)===type?type:0;s.minerals[u.mineralTile]-=amount;u.cargo+=amount;}
 }
 
 function explore(s,u,dt,movement){
@@ -576,16 +850,18 @@ function explore(s,u,dt,movement){
 
 function targetDistance(a,b){const ca=center(a),cb=center(b);return Math.max(0,distance(ca,cb)-(b.kind==='building'?b.size*.45:0));}
 function acquire(s,e,r){
-  let best=null,score=Infinity;for(const enemy of s.entities){if(enemy.team===e.team||!alive(enemy)||!seen(s,e.team,enemy))continue;const d=targetDistance(e,enemy);if(d>r)continue;const threat=enemy.kind==='building'?(BUILDINGS[enemy.type].damage?-1:1):enemy.type==='harvester'?.8:0;const value=d+threat;if(value<score){score=value;best=enemy;}}
+  let best=null,score=Infinity;for(const enemy of s.entities){if(enemy.team===e.team||!alive(enemy)||!seen(s,e.team,enemy))continue;const d=targetDistance(e,enemy);if(d>r)continue;const threat=enemy.kind==='building'?(BUILDINGS[enemy.type].damage?-1:1):entityRole(enemy)==='harvester'?.8:0;const value=d+threat;if(value<score){score=value;best=enemy;}}
   return best;
 }
 function armorMultiplier(attacker,target){
   const armor=target.kind==='building'?'building':UNITS[target.type].armor;
-  const table={rifle:{infantry:1,light:.55,heavy:.23,building:.4},rocket:{infantry:.3,light:.9,heavy:1.8,building:.7},scout:{infantry:1.25,light:.65,heavy:.26,building:.4},tank:{infantry:.5,light:1.1,heavy:1,building:1},artillery:{infantry:.9,light:1,heavy:.8,building:1.5},turret:{infantry:.75,light:1,heavy:1,building:.8},rocketTower:{infantry:.45,light:1,heavy:1.2,building:.8}};
-  return table[attacker.type]?.[armor]??1;
+  const table={rifle:{infantry:1,light:.55,heavy:.23,building:.4},rocket:{infantry:.3,light:.9,heavy:1.8,building:.7},scout:{infantry:1.25,light:.65,heavy:.26,building:.4},striker:{infantry:1.5,light:.8,heavy:.22,building:.35},tank:{infantry:.5,light:1.1,heavy:1,building:1},artillery:{infantry:.9,light:1,heavy:.8,building:1.5},turret:{infantry:.75,light:1,heavy:1,building:.8},rocketTower:{infantry:.45,light:1,heavy:1.2,building:.8}};
+  return table[entityRole(attacker)]?.[armor]??1;
 }
 function hurt(s,target,amount,attacker){
-  if(!alive(target))return;target.hp-=amount;target.lastHit=s.time;target.attackerId=attacker.id;
+  if(!alive(target))return;
+  if(!['artillery','rocket','rocketTower'].includes(entityRole(attacker)))amount*=1-terrainCover(s,target);
+  target.hp-=amount;target.lastHit=s.time;target.attackerId=attacker.id;
   // A throttled alert for forces that are not already fighting on the player's orders; the HUD turns it into a warning toast and minimap ping.
   const engaging=target.kind==='unit'&&(target.order.type==='attack'||target.order.type==='attackMove'||s.time-(target.lastShot??-99)<3);
   if(target.team===0&&!engaging&&s.time-(s.alertAt??-99)>8){s.alertAt=s.time;event(s,`${definition(target).name} under attack`,0);}
@@ -601,20 +877,20 @@ function hurt(s,target,amount,attacker){
     }
     const c=center(target);s.effects.push({type:'explosion',x:c.x,y:c.y,life:.6,maxLife:.6,team:target.team,size:target.kind==='building'?target.size:1});
     if(target.kind==='building'){s.navVersion++;event(s,`${BUILDINGS[target.type].name} destroyed`,target.team);}
-    else{event(s,`${UNITS[target.type].name} lost`,target.team);if(target.type==='harvester'&&!own(s,target.team,'harvester').length&&!queued(s,target.team,'harvester')&&!own(s,target.team,'refinery').some(r=>r.haulerPending))event(s,'All haulers lost. Train a new one at the refinery.',target.team);}
-    if(target.type==='core'){s.status=target.team===0?'defeat':'victory';event(s,target.team===0?'Command nexus lost. Operation failed.':'Hostile nexus destroyed. Sector secured.');}
+    else{event(s,`${UNITS[target.type].name} lost`,target.team);if(entityRole(target)==='harvester'&&!own(s,target.team,'harvester').length&&!queued(s,target.team,'harvester')&&!own(s,target.team,'refinery').some(r=>r.haulerPending))event(s,'All haulers lost. Train a new one at the refinery.',target.team);}
+    if(entityRole(target)==='core'){s.status=target.team===0?'defeat':'victory';event(s,target.team===0?'Command nexus lost. Operation failed.':'Hostile nexus destroyed. Sector secured.');}
   }
 }
 function shoot(s,e,target){
-  const d=definition(e),a=center(e),b=center(target),damage=e.kind==='unit'?unitStats(e).damage:d.damage;e.angle=Math.atan2(b.y-a.y,b.x-a.x);e.cooldown=d.interval||1;e.lastShot=s.time;
-  if(e.type==='rocket'||e.type==='rocketTower'){
+  const d=definition(e),a=center(e),b=center(target),damage=e.kind==='unit'?unitStats(e).damage:d.damage;e.aimAngle=Math.atan2(b.y-a.y,b.x-a.x);if(e.kind==='building')e.angle=e.aimAngle;e.cooldown=d.interval||1;e.lastShot=s.time;
+  if(entityRole(e)==='rocket'||entityRole(e)==='rocketTower'){
     const flight=clamp(distance(a,b)/15,.2,.65);
-    s.effects.push({type:'rocket',weapon:e.type,attackerId:e.id,targetId:target.id,damage,x:a.x,y:a.y,tx:b.x,ty:b.y,life:flight,maxLife:flight,team:e.team});
+    s.effects.push({type:'rocket',weapon:entityRole(e),attackerId:e.id,targetId:target.id,damage,x:a.x,y:a.y,tx:b.x,ty:b.y,life:flight,maxLife:flight,team:e.team});
     return;
   }
-  s.effects.push({type:e.type==='artillery'?'shell':'shot',weapon:e.type,x:a.x,y:a.y,tx:b.x,ty:b.y,life:e.type==='artillery'?.35:.13,maxLife:e.type==='artillery'?.35:.13,team:e.team});
+  s.effects.push({type:entityRole(e)==='artillery'?'shell':'shot',weapon:entityRole(e),x:a.x,y:a.y,tx:b.x,ty:b.y,life:entityRole(e)==='artillery'?.35:.13,maxLife:entityRole(e)==='artillery'?.35:.13,team:e.team});
   hurt(s,target,damage*armorMultiplier(e,target),e);
-  if(e.type==='artillery')for(const other of s.entities)if(other!==target&&other.team!==e.team&&alive(other)&&distance(center(other),b)<1.6)hurt(s,other,damage*.45*armorMultiplier(e,other),e);
+  if(entityRole(e)==='artillery')for(const other of s.entities)if(other!==target&&other.team!==e.team&&alive(other)&&distance(center(other),b)<1.6)hurt(s,other,damage*.45*armorMultiplier(e,other),e);
 }
 
 function rocketImpact(s,fx){
@@ -627,15 +903,28 @@ function rocketImpact(s,fx){
   }
 }
 
-function stepUnit(s,u,dt,movement){
-  if(u.type==='harvester')u.unloadDepotId=null;
+function stepUnit(s,u,dt,movement,power){
+  if(entityRole(u)==='harvester')u.unloadDepotId=null;
   u.repath-=dt;u.cooldown=Math.max(0,u.cooldown-dt);
-  if(u.type==='harvester'&&!['move','explore'].includes(u.order.type)){if(u.order.type!=='harvest')u.order={type:'harvest'};harvest(s,u,dt,movement);return;}
+  if(entityRole(u)==='harvester'&&!['move','explore'].includes(u.order.type)){if(u.order.type!=='harvest')u.order={type:'harvest'};harvest(s,u,dt,movement,power);return;}
   const d=UNITS[u.type],order=u.order;
   if(order.type==='move'){
+    if(entityRole(u)==='engineer'){u.repairActive=false;u.repairTargetId=null;}
     const arrived=navigate(s,u,order.x,order.y,dt,.08,movement);
     // Movement goals are reachable parking slots; traffic must not cancel an unfinished delivery move.
-    if(arrived)u.order={type:u.type==='harvester'?'harvest':'idle'};
+    if(arrived)u.order={type:entityRole(u)==='harvester'?'harvest':'idle'};
+    return;
+  }
+  if(entityRole(u)==='engineer'){
+    u.repairActive=false;u.repairTargetId=null;u.targetId=null;
+    const target=own(s,u.team).filter(e=>e!==u&&e.progress>=1&&e.hp<e.maxHp&&(e.kind==='building'||UNITS[e.type].armor!=='infantry')&&targetDistance(u,e)<=d.repairRange).sort((a,b)=>a.hp/a.maxHp-b.hp/b.maxHp||a.id-b.id)[0];
+    if(target&&s.teams[u.team].credits>0){
+      const costPerHp=definition(target).cost*.35/target.maxHp,amount=Math.min(target.maxHp-target.hp,dt*d.repairRate*power.ratio,s.teams[u.team].credits/costPerHp);
+      target.hp+=amount;s.teams[u.team].credits=Math.max(0,s.teams[u.team].credits-amount*costPerHp);u.repairTargetId=target.id;u.repairActive=amount>0;
+      if(u.repairActive){const c=center(target);turnUnit(u,Math.atan2(c.y-u.y,c.x-u.x),dt,true);return;}
+    }
+    if(order.type==='explore')explore(s,u,dt,movement);
+    else if(['attack','attackMove'].includes(order.type)&&navigate(s,u,order.x,order.y,dt,.08,movement))u.order={type:'idle'};
     return;
   }
   let target=getEntity(s,order.type==='attack'?order.targetId:u.targetId);
@@ -645,8 +934,17 @@ function stepUnit(s,u,dt,movement){
   u.targetId=target?.id??null;
   if(target){
     const c=center(target);if(order.type==='attack'&&target.id===order.targetId){order.x=c.x;order.y=c.y;}
-    if(targetDistance(u,target)<=d.range){if(order.type==='explore'){u.path=[];u.repath=0;}if(u.cooldown<=0)shoot(s,u,target);return;}
-    if(order.type==='attack'||order.type==='attackMove'){navigate(s,u,c.x,c.y,dt,d.range+(target.kind==='building'?target.size*.45:0)-.2,movement);return;}
+    if(targetDistance(u,target)<=d.range){u.path=[];u.repath=0;const heading=Math.atan2(c.y-u.y,c.x-u.x);turnUnit(u,heading,dt,true);if(u.cooldown<=0)shoot(s,u,target);return;}
+    if(order.type==='attack'||order.type==='attackMove'){
+      // A committed target beyond a barrier must not leave an army walking into the wall forever.
+      const dx=c.x-u.x,dy=c.y-u.y,length=Math.hypot(dx,dy);
+      const barrier=s.entities.filter(e=>e.kind==='building'&&buildingRole(e)==='wall'&&e.team!==u.team&&alive(e)&&seen(s,u.team,e)&&targetDistance(u,e)<=d.range).filter(e=>{
+        const p=center(e),along=((p.x-u.x)*dx+(p.y-u.y)*dy)/Math.max(.01,length),across=Math.abs((p.x-u.x)*dy-(p.y-u.y)*dx)/Math.max(.01,length);
+        return along>0&&along<length&&across<e.size*.72+.25;
+      }).sort((a,b)=>targetDistance(u,a)-targetDistance(u,b)||a.id-b.id)[0];
+      if(barrier){u.targetId=barrier.id;const p=center(barrier);turnUnit(u,Math.atan2(p.y-u.y,p.x-u.x),dt,true);if(u.cooldown<=0)shoot(s,u,barrier);return;}
+      navigate(s,u,c.x,c.y,dt,d.range+(target.kind==='building'?target.size*.45:0)-.2,movement);return;
+    }
   }
   if(order.type==='explore'){explore(s,u,dt,movement);return;}
   if(order.type==='attackMove'||order.type==='attack'){
@@ -657,7 +955,7 @@ function stepUnit(s,u,dt,movement){
 }
 
 function spawnAt(s,producer,type){
-  if(own(s,producer.team).filter(e=>e.kind==='unit').length>=60)return false;
+  if(own(s,producer.team).filter(e=>e.kind==='unit').length>=UNIT_CAP)return false;
   const c=center(producer);let best=null,bestScore=Infinity;
   for(let y=producer.y-2;y<=producer.y+producer.size+2;y++)for(let x=producer.x-2;x<=producer.x+producer.size+2;x++){
     // Never deploy into a sealed pocket between buildings: such a unit could not follow any order.
@@ -667,29 +965,51 @@ function spawnAt(s,producer,type){
   }
   if(!best)return false;
   const u=addEntity(s,producer.team,'unit',type,best.x,best.y);
-  if(producer.rally)issueOrder(s,[u.id],{type:type==='harvester'?'move':'attackMove',...producer.rally});
+  if(producer.rally)issueOrder(s,[u.id],{type:unitRole(type)==='harvester'?'move':'attackMove',...producer.rally});
   event(s,`${UNITS[type].name} ready`,producer.team);return true;
 }
 
 function deliverRefineryHauler(s,e){
   // Keep the included hauler pending if its exit is blocked or the army is full.
-  if(e.haulerPending&&e.progress>=1&&spawnAt(s,e,'harvester'))e.haulerPending=false;
+  if(e.haulerPending&&e.progress>=1&&spawnAt(s,e,raceUnit(s,e.team,'harvester')))e.haulerPending=false;
 }
 
 function separateUnits(s,dt,movement){
-  // ponytail: pairwise separation is bounded by the 60-unit cap per team; use buckets for larger armies.
   const units=s.entities.filter(e=>e.kind==='unit'&&alive(e));
-  for(let i=0;i<units.length;i++)for(let j=i+1;j<units.length;j++){
+  // A deterministic spatial broad phase keeps 400-unit battles local. Candidate pairs retain entity order.
+  const buckets=new Map(),locations=new Array(units.length),key=u=>`${Math.floor(u.x/2)},${Math.floor(u.y/2)}`;
+  const relocate=i=>{
+    const next=key(units[i]),previous=locations[i];if(previous===next)return false;
+    if(previous!==undefined){const list=buckets.get(previous);list.splice(list.indexOf(i),1);if(!list.length)buckets.delete(previous);}
+    if(!buckets.has(next))buckets.set(next,[]);buckets.get(next).push(i);locations[i]=next;return true;
+  };
+  units.forEach((_,i)=>relocate(i));
+  const neighbors=(i,after)=>{
+    const u=units[i],x=Math.floor(u.x/2),y=Math.floor(u.y/2),list=[];
+    for(let yy=y-1;yy<=y+1;yy++)for(let xx=x-1;xx<=x+1;xx++)for(const j of buckets.get(`${xx},${yy}`)||[])if(j>after)list.push(j);
+    return list.sort((a,b)=>a-b);
+  };
+  for(let i=0;i<units.length;i++){
+    const candidates=neighbors(i,i),pending=new Set(candidates);
+    for(let index=0;index<candidates.length;index++){
+    const j=candidates[index];pending.delete(j);
     const a=units[i],b=units[j];let dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy);const min=unitSpacing(a,b,s.time);
     if(d>=min)continue;if(d<.001){dx=.01;dy=.004;d=Math.hypot(dx,dy);}
     const movingA=movement.has(a.id),movingB=movement.has(b.id),shareA=movingA===movingB?.5:movingA?1:0;
     const push=Math.min((min-d)*.9,dt*1.8),px=dx/d*push,py=dy/d*push;
     if(clearStep(s,a,a.x-px*shareA,a.y-py*shareA)){a.x-=px*shareA;a.y-=py*shareA;}
     if(clearStep(s,b,b.x+px*(1-shareA),b.y+py*(1-shareA))){b.x+=px*(1-shareA);b.y+=py*(1-shareA);}
+    const changed=relocate(i);relocate(j);
+    if(changed){
+      for(const next of neighbors(i,j))if(!pending.has(next)){candidates.push(next);pending.add(next);}
+      const tail=candidates.splice(index+1).sort((a,b)=>a-b);candidates.push(...tail);
+    }
+    }
   }
   for(const u of units){
     const intent=movement.get(u.id);
-    if(!intent){delete u.trafficWait;delete u.passUntil;continue;}
+    u.moving=!!intent&&Math.hypot(u.x-intent.x,u.y-intent.y)>.008;
+    if(!intent){u.moveSpeed=0;if(!u.targetId&&!u.repairActive)u.turnVelocity=0;delete u.trafficWait;delete u.passUntil;continue;}
     if(u.passUntil<=s.time)delete u.passUntil;
     const progress=(u.x-intent.x)*intent.dx+(u.y-intent.y)*intent.dy;
     if(intent.traffic&&!(u.passUntil>s.time)&&progress<intent.step*.25)u.trafficWait=Math.min(.8,(u.trafficWait||0)+dt);
@@ -699,45 +1019,75 @@ function separateUnits(s,dt,movement){
   }
 }
 
-function aiBuild(s,type){
+function aiBuild(s,team,type,near){
+  type=raceBuilding(s,team,type);
   const {width:W,height:H}=s;
-  const base=own(s,1,'core')[0];if(!base)return false;
+  const base=own(s,team,'core')[0];if(!base)return false;
   const c=center(base),toward={x:(W/2-c.x),y:(H/2-c.y)};const length=Math.hypot(toward.x,toward.y);toward.x/=length;toward.y/=length;
-  const preferred=BUILDINGS[type].damage?{x:c.x+toward.x*9,y:c.y+toward.y*9}:c;
+  const preferred=near||(BUILDINGS[type].damage?{x:c.x+toward.x*9,y:c.y+toward.y*9}:c);
   const candidates=[];
-  for(let y=Math.max(1,base.y-11);y<Math.min(H-4,base.y+14);y++)for(let x=Math.max(1,base.x-12);x<Math.min(W-4,base.x+14);x++)if(canPlace(s,1,type,x,y).ok)candidates.push({x,y,score:Math.hypot(x-preferred.x,y-preferred.y)});
+  if(s.teams[team].credits<BUILDINGS[type].cost||BUILDINGS[type].requires.some(key=>!completed(s,team,key)))return false;
+  const checked=new Set(),anchors=near?own(s,team).filter(e=>e.kind==='building'&&e.progress>=1):[base];
+  for(const anchor of anchors)for(let y=Math.max(1,anchor.y-11);y<Math.min(H-4,anchor.y+14);y++)for(let x=Math.max(1,anchor.x-12);x<Math.min(W-4,anchor.x+14);x++){
+    const at=y*W+x;if(checked.has(at))continue;checked.add(at);
+    if(canPlace(s,team,type,x,y).ok)candidates.push({x,y,score:Math.hypot(x+BUILDINGS[type].size/2-preferred.x,y+BUILDINGS[type].size/2-preferred.y)});
+  }
   candidates.sort((a,b)=>a.score-b.score);if(!candidates.length)return false;
-  const spot=candidates[Math.min(candidates.length-1,Math.floor(random(s)*3))];return placeBuilding(s,1,type,spot.x,spot.y).ok;
+  const spot=candidates[Math.min(candidates.length-1,Math.floor(random(s)*3))];return placeBuilding(s,team,type,spot.x,spot.y).ok;
 }
-function queued(s,team,type){return own(s,team).reduce((sum,e)=>sum+(e.queue?.filter(q=>q.type===type).length||0),0);}
-function thinkAI(s){
+function queued(s,team,type){return own(s,team).reduce((sum,e)=>sum+(e.queue?.filter(q=>q.type===type||unitRole(q)===type).length||0),0);}
+function thinkAI(s,team=1){
   const {width:W,height:H}=s;
-  const ai=s.ai,hard=s.difficulty==='hard',easy=s.difficulty==='easy';ai.nextThink=s.time+(hard?1.2:easy?3.5:2);
-  const core=own(s,1,'core')[0];if(!core)return;const c=center(core),buildings=own(s,1).filter(e=>e.kind==='building');
-  const units=own(s,1).filter(e=>e.kind==='unit'),army=units.filter(e=>e.type!=='harvester');
-  const enemies=s.entities.filter(e=>e.team===0&&alive(e)&&seen(s,1,e));
+  const ai=aiState(s,team),hard=s.difficulty==='hard',easy=s.difficulty==='easy';ai.nextThink=s.time+(hard?1.2:easy?3.5:2);
+  const core=own(s,team,'core')[0];if(!core)return;const c=center(core),buildings=own(s,team).filter(e=>e.kind==='building');
+  const units=own(s,team).filter(e=>e.kind==='unit'),army=units.filter(e=>UNITS[e.type].damage>0),support=units.filter(e=>entityRole(e)==='engineer');
+  const expansion=Math.max(0,army.length-50);
+  const enemies=s.entities.filter(e=>e.team!==team&&alive(e)&&seen(s,team,e));
+  // Composition is inferred only from recent sightings; concealed reinforcements cannot change a decision.
+  const intelligence=Object.values(ai.known).filter(e=>e.kind==='building'||s.time-e.seenAt<90),knownBuildings=intelligence.filter(e=>e.kind==='building');
+  const armorSeen=intelligence.filter(e=>e.kind==='unit'&&UNITS[e.type].armor==='heavy').length,infantrySeen=intelligence.filter(e=>e.kind==='unit'&&UNITS[e.type].armor==='infantry').length,defensesSeen=knownBuildings.filter(e=>BUILDINGS[e.type].damage).length;
   // A parked rover or hauler is left to the guards; only an armed intrusion pulls the army home.
-  const intruders=enemies.filter(e=>e.kind==='unit'&&e.type!=='scout'&&e.type!=='harvester'&&buildings.some(b=>distance(center(b),e)<13));
-  const constructing=buildings.some(e=>e.progress<1),power=powerStats(s,1);
+  const intruders=enemies.filter(e=>e.kind==='unit'&&entityRole(e)!=='scout'&&UNITS[e.type].damage>0&&buildings.some(b=>distance(center(b),e)<13));
+  const constructing=buildings.some(e=>e.progress<1),power=powerStats(s,team);
+  // Emergency generation can be rebuilt alongside a stalled construction project.
+  if(constructing&&power.gridRatio<1&&!buildings.some(e=>entityRole(e)==='reactor'&&e.progress<1))aiBuild(s,team,'reactor');
   if(!constructing){
-    if(!completed(s,1,'refinery'))aiBuild(s,'refinery');
-    else if(power.supply-power.demand<25)aiBuild(s,'reactor');
-    else if(!completed(s,1,'barracks'))aiBuild(s,'barracks');
-    else if(!completed(s,1,'factory')&&s.time>(easy?70:35))aiBuild(s,'factory');
-    else if(own(s,1,'turret').length+own(s,1,'rocketTower').length<(hard?3:2)&&s.time>75)aiBuild(s,own(s,1,'turret').length?'rocketTower':'turret');
-    else if(s.teams[1].credits>1200&&own(s,1,'barracks').length<2&&!easy&&s.time>(hard?0:240))aiBuild(s,'barracks');
+    if(!completed(s,team,'refinery'))aiBuild(s,team,'refinery');
+    else if(power.supply-power.demand<25)aiBuild(s,team,'reactor');
+    else if(!completed(s,team,'barracks'))aiBuild(s,team,'barracks');
+    else if(!completed(s,team,'factory')&&s.time>(easy?70:35))aiBuild(s,team,'factory');
+    else if(!easy&&!completed(s,team,'lab')&&s.time>(hard?105:160)&&s.teams[team].credits>650)aiBuild(s,team,'lab');
+    else if(!easy&&!own(s,team,'capacitor').length&&s.time>160&&s.teams[team].credits>700)aiBuild(s,team,'capacitor');
+    else if(own(s,team,'turret').length+own(s,team,'rocketTower').length<(hard?3:2)&&s.time>75)aiBuild(s,team,own(s,team,'turret').length?'rocketTower':'turret');
+    else if(s.teams[team].credits>1200&&own(s,team,'barracks').length<2&&!easy&&s.time>(hard?0:240))aiBuild(s,team,'barracks');
+    else if(!easy&&expansion>0&&s.teams[team].credits>1400&&own(s,team,'factory').length<3)aiBuild(s,team,'factory');
+    else if(!easy&&s.time>(ai.nextExpand??220)&&s.teams[team].credits>900&&own(s,team,'refinery').length<(hard?4:3)){
+      const refineries=own(s,team,'refinery'),deposits=[];
+      for(let i=0;i<s.minerals.length;i++)if(s.visible[team][i]&&s.minerals[i]>100){const p={x:i%W+.5,y:Math.floor(i/W)+.5};if(refineries.every(e=>distance(center(e),p)>11))deposits.push(p);}
+      deposits.sort((a,b)=>distance(a,c)-distance(b,c));
+      if(deposits.length){if(aiBuild(s,team,'refinery',deposits[0]))ai.mode='Expanding shard operations';ai.nextExpand=s.time+45;}else ai.nextExpand=s.time+30;
+    }
   }
-  const haulers=units.filter(e=>e.type==='harvester');
-  if(haulers.length+queued(s,1,'harvester')<(easy?2:3))trainUnit(s,1,'harvester');
-  if(completed(s,1,'barracks')){
-    if(!units.some(e=>e.type==='scout')&&!queued(s,1,'scout'))trainUnit(s,1,'scout');
-    if(s.time>(easy?75:45)&&units.filter(e=>e.type==='rocket').length+queued(s,1,'rocket')<Math.min(easy?2:hard?5:4,Math.floor(army.length/3))&&s.teams[1].credits>(completed(s,1,'factory')?300:600))trainUnit(s,1,'rocket');
-    if(queued(s,1,'rifle')<2&&units.filter(e=>e.type==='rifle').length<(easy?6:hard?14:10)&&s.teams[1].credits>(completed(s,1,'factory')?180:450))trainUnit(s,1,'rifle');
+  for(const b of buildings)if(b.progress>=1&&b.hp<b.maxHp*.7&&s.teams[team].credits>150)b.repairing=true;
+  if(!easy&&completed(s,team,'lab')&&s.teams[team].credits>550&&power.gridRatio>=1){
+    const priorities=armorSeen>infantrySeen?['gridEfficiency','infantryWeapons','vehicleWeapons','advancedBallistics','mobility','infantryArmor']:['gridEfficiency','vehicleWeapons','infantryWeapons','advancedBallistics','infantryArmor','mobility'];
+    const next=priorities.find(id=>researchStatus(s,team,id).ok);if(next)startResearch(s,team,next);
+    const factory=buildings.find(e=>entityRole(e)==='factory'&&e.progress>=1);
+    if(factory&&s.teams[team].credits>650){const id=s.teams[team].research?.advancedBallistics?'advancedProduction':'speed';if(buildingUpgradeStatus(s,team,factory.id,id).ok)startBuildingUpgrade(s,team,factory.id,id);}
   }
-  if(completed(s,1,'factory')&&s.teams[1].credits>300){
-    const tanks=units.filter(e=>e.type==='tank').length,siege=units.filter(e=>e.type==='artillery').length;
+  const haulers=units.filter(e=>entityRole(e)==='harvester');
+  if(haulers.length+queued(s,team,'harvester')<(easy?2:Math.min(hard?7:5,2+own(s,team,'refinery').length)))trainUnit(s,team,raceUnit(s,team,'harvester'));
+  if(completed(s,team,'barracks')){
+    if(!units.some(e=>entityRole(e)==='scout')&&!queued(s,team,'scout'))trainUnit(s,team,raceUnit(s,team,'scout'));
+    if(s.time>(easy?75:45)&&units.filter(e=>entityRole(e)==='rocket').length+queued(s,team,'rocket')<Math.min(easy?2:(hard?8:6)+Math.floor(expansion/12),Math.floor(army.length/3)+armorSeen)&&s.teams[team].credits>(completed(s,team,'factory')?300:600))trainUnit(s,team,raceUnit(s,team,'rocket'));
+    if(queued(s,team,'rifle')<2&&units.filter(e=>entityRole(e)==='rifle').length<(easy?6:(hard?14:10)+Math.floor(expansion/6))&&s.teams[team].credits>(completed(s,team,'factory')?180:450))trainUnit(s,team,raceUnit(s,team,'rifle'));
+  }
+  if(completed(s,team,'factory')&&s.teams[team].credits>300){
+    if(!easy&&support.length+queued(s,team,'engineer')<1+Math.floor(expansion/50)&&army.length>7&&s.teams[team].credits>600)trainUnit(s,team,raceUnit(s,team,'engineer'));
+    const tanks=units.filter(e=>entityRole(e)==='tank').length,siege=units.filter(e=>entityRole(e)==='artillery').length;
     // Cadet opposition fields a small armored column and never brings siege guns.
-    const type=!easy&&tanks>=3&&siege<Math.floor(tanks/3)?'artillery':'tank';if(!(easy&&tanks>=4)&&queued(s,1,type)<2)trainUnit(s,1,type);
+    const strikerReady=s.teams[team].research?.advancedBallistics&&buildings.some(e=>entityRole(e)==='factory'&&e.upgrades?.advancedProduction);
+    const type=!easy&&strikerReady&&infantrySeen>armorSeen&&units.filter(e=>entityRole(e)==='striker').length<tanks?'striker':!easy&&tanks>=2&&siege<Math.min(4+Math.floor(expansion/25),Math.floor(tanks/3)+Math.min(2,defensesSeen))?'artillery':'tank';if(!(easy&&tanks>=4)&&queued(s,team,type)<2&&power.gridRatio>.65)trainUnit(s,team,raceUnit(s,team,type));
   }
   const rally={x:c.x+(W/2-c.x)*.3,y:c.y+(H/2-c.y)*.3};
   for(const b of buildings)b.rally=rally;
@@ -745,25 +1095,38 @@ function thinkAI(s){
     ai.mode='Defending perimeter';const threat=intruders.sort((a,b)=>distance(c,a)-distance(c,b))[0];
     // One grouped order per response keeps the destination search bounded for large armies.
     issueOrder(s,army.filter(u=>u.hp/u.maxHp>.25).map(u=>u.id),{type:'attack',targetId:threat.id,x:threat.x,y:threat.y});
-    const fleeing=haulers.filter(h=>enemies.some(e=>e.kind==='unit'&&e.type!=='harvester'&&distance(h,e)<7));
+    const fleeing=haulers.filter(h=>enemies.some(e=>e.kind==='unit'&&entityRole(e)!=='harvester'&&distance(h,e)<7));
     if(fleeing.length)issueOrder(s,fleeing.map(h=>h.id),{type:'move',x:c.x+3,y:c.y+4});
     return;
   }
-  const wounded=army.filter(u=>u.hp/u.maxHp<.25&&distance(u,c)>7);
+  const wounded=army.filter(u=>u.hp/u.maxHp<.3&&distance(u,c)>7);
   if(wounded.length)issueOrder(s,wounded.map(u=>u.id),{type:'move',x:c.x+4,y:c.y+4});
-  const knownBuildings=Object.values(ai.known).filter(e=>e.kind==='building');
-  const scout=army.find(e=>e.type==='scout'&&e.hp/e.maxHp>.3);
+  const scout=army.find(e=>entityRole(e)==='scout'&&e.hp/e.maxHp>.3);
   const {start}=mapLayout(s);
-  const waypoints=[{x:W*35/72,y:H/2},{x:start.x+6,y:start.y+3},{x:W/6,y:H*15/56},{x:W*50/72,y:H*43/56},{x:start.x-3,y:start.y+11}];
+  const waypoints=[{x:W*35/72,y:H/2},{x:start.x+6,y:start.y+3},{x:W/6,y:H*15/56},{x:W*50/72,y:H*43/56},{x:start.x-3,y:start.y+11}].map(p=>team===1?p:{x:W-p.x,y:H-p.y});
   if(scout&&!knownBuildings.length&&(scout.order.type==='idle'||s.time>25&&scout.order.type==='attackMove')){
     const point=waypoints[ai.scoutIndex%waypoints.length];if(distance(scout,point)<3)ai.scoutIndex++;const dest=waypoints[ai.scoutIndex%waypoints.length];issueOrder(s,[scout.id],{type:'move',...dest});ai.mode='Scouting the sector';
   }
   const fighting=army.filter(e=>e!==scout&&e.hp/e.maxHp>.3);
-  if(s.time>=ai.nextRaid&&fighting.length>=(easy?9:hard?5:7)){
-    const priority={refinery:0,reactor:1,turret:3,rocketTower:3,core:2,barracks:2,factory:2};
-    const target=knownBuildings.sort((a,b)=>(priority[a.type]??2)-(priority[b.type]??2)||distance(c,a)-distance(c,b))[0];
+  // Local threat estimates use current vision only. Pull back a losing column, then wait for replacements.
+  const exposed=fighting.filter(u=>distance(u,c)>18&&enemies.some(e=>definition(e).damage>0&&distance(u,center(e))<10));
+  if(!easy&&exposed.length){
+    const front={x:exposed.reduce((sum,u)=>sum+u.x,0)/exposed.length,y:exposed.reduce((sum,u)=>sum+u.y,0)/exposed.length};
+    const friendly=army.filter(u=>distance(u,front)<12).reduce((sum,u)=>sum+u.hp,0),hostile=enemies.filter(e=>definition(e).damage>0&&distance(center(e),front)<12).reduce((sum,e)=>sum+e.hp*(e.kind==='building'?.7:1),0);
+    if(hostile>friendly*1.65){issueOrder(s,exposed.map(u=>u.id),{type:'move',...rally});ai.regroupUntil=s.time+35;ai.nextRaid=Math.max(ai.nextRaid,ai.regroupUntil);ai.mode='Regrouping under pressure';}
+  }
+  for(const engineer of support)if(engineer.order.type==='idle'&&!engineer.repairActive&&fighting.length){const escort=fighting.find(u=>['tank','artillery'].includes(entityRole(u)))||fighting[0];if(distance(engineer,escort)>5)issueOrder(s,[engineer.id],{type:'attackMove',x:escort.x,y:escort.y});}
+  if(s.time<(ai.regroupUntil||0)){ai.mode='Regrouping and repairing';return;}
+  const staged=fighting.filter(u=>distance(u,rally)<8&&u.order.type!=='move');
+  if(s.time>=ai.nextRaid&&staged.length>=(easy?9:hard?5:7)){
+    const priority={refinery:1,reactor:defensesSeen?0:1,lab:1,capacitor:2,turret:4,rocketTower:4,core:2,barracks:2,factory:2};
+    const target=knownBuildings.sort((a,b)=>(priority[entityRole(a)]??2)-(priority[entityRole(b)]??2)||distance(c,a)-distance(c,b))[0];
     const dest=target||waypoints[ai.scoutIndex++%waypoints.length];
-    issueOrder(s,fighting.slice(0,easy?8:hard?Infinity:10).map(e=>e.id),{type:'attackMove',x:dest.x,y:dest.y});ai.nextRaid=s.time+(easy?150:hard?50:90);ai.raid++;ai.mode=target?'Raiding enemy infrastructure':'Probing unexplored territory';
+    const wave=staged.slice(0,easy?8:hard?Infinity:10),pace=Math.min(...wave.map(u=>unitStats(u).speed));
+    issueOrder(s,wave.map(e=>e.id),{type:'attackMove',x:dest.x,y:dest.y});
+    // Strategic waves travel together; combat, retreat and later manual orders retain individual speed.
+    for(const u of wave)if(u.order.type==='attackMove')u.order.speedLimit=pace;
+    ai.nextRaid=s.time+(easy?150:hard?50:90);ai.raid++;ai.mode=target?'Raiding enemy infrastructure':'Probing unexplored territory';
   }else{
     const idle=fighting.filter(u=>u.order.type==='idle'&&distance(u,rally)>4);
     if(idle.length)issueOrder(s,idle.map(u=>u.id),{type:'attackMove',...rally});
@@ -772,42 +1135,46 @@ function thinkAI(s){
 
 // Power throttles everything; the opposition additionally builds and trains slower below Veteran.
 const AI_PACE={easy:.55,normal:.75,hard:1};
-export function productionRate(s,team,power=powerStats(s,team)){return Math.max(.2,power.ratio)*(team===1?AI_PACE[s.difficulty]:1);}
+const teamPace=(s,team)=>(s.aiTeams||[1]).includes(team)?AI_PACE[s.difficulty]:1;
+export function productionRate(s,team,power=powerStats(s,team)){return power.ratio*teamPace(s,team);}
 function step(s,dt){
   if(s.status!=='playing')return;s.time+=dt;rebuildNavigation(s);pathBudget=16;
   s.fogClock-=dt;if(s.fogClock<=0){updateFog(s);s.fogClock=.2;}
-  const powers=[powerStats(s,0),powerStats(s,1)],movement=new Map();
+  const powers=[advancePower(s,0,dt),advancePower(s,1,dt)],movement=new Map();
   for(const e of [...s.entities]){
     if(!alive(e))continue;
     if(e.kind==='building'){
-      const rate=Math.max(.2,powers[e.team].ratio),pace=productionRate(s,e.team,powers[e.team]);
-      if(e.progress<1){const delta=Math.min(1-e.progress,dt/BUILDINGS[e.type].buildTime*pace);e.progress=Math.min(1,e.progress+delta);e.hp=Math.min(e.maxHp,e.hp+e.maxHp*.8*delta);if(e.progress>=1){event(s,`${BUILDINGS[e.type].name} online`,e.team);deliverRefineryHauler(s,e);}continue;}
+      const rate=powers[e.team].ratio,pace=productionRate(s,e.team,powers[e.team])*(e.upgrades?.speed?1.25:1);
+      // Emergency construction retains 20% speed, allowing reactors to recover a collapsed grid.
+      if(e.progress<1){const buildPace=Math.max(.2,rate)*teamPace(s,e.team),delta=Math.min(1-e.progress,dt/BUILDINGS[e.type].buildTime*buildPace);e.progress=Math.min(1,e.progress+delta);e.hp=Math.min(e.maxHp,e.hp+e.maxHp*.8*delta);if(e.progress>=1){event(s,`${BUILDINGS[e.type].name} online`,e.team);deliverRefineryHauler(s,e);}continue;}
       if(e.repairing){
         const costPerHp=BUILDINGS[e.type].cost*.5/e.maxHp;
-        const amount=Math.min(e.maxHp-e.hp,dt*e.maxHp*.02,s.teams[e.team].credits/costPerHp);
+        const amount=Math.min(e.maxHp-e.hp,dt*e.maxHp*.02*rate,s.teams[e.team].credits/costPerHp);
         e.hp=Math.min(e.maxHp,e.hp+amount);s.teams[e.team].credits=Math.max(0,s.teams[e.team].credits-amount*costPerHp);
         if(e.hp>=e.maxHp)e.repairing=false;
       }
-      if(e.processingAmount>0){e.processingAmount=Math.max(0,e.processingAmount-dt*UNITS.harvester.capacity/6);if(e.processingAmount<1e-8)e.processingAmount=e.processingTotal=0;}
+      if(e.processingAmount>0){e.processingAmount=Math.max(0,e.processingAmount-dt*UNITS.harvester.capacity/6*rate*(e.upgrades?.speed?1.25:1));if(e.processingAmount<1e-8){e.processingAmount=e.processingTotal=0;e.processingType=0;}}
+      if(e.research){e.research.progress=Math.min(1,e.research.progress+dt/RESEARCH[e.research.id].time*pace);if(e.research.progress>=1)finishResearch(s,e);}
+      if(e.upgrade){e.upgrade.progress=Math.min(1,e.upgrade.progress+dt/BUILDING_UPGRADES[e.upgrade.id].time*productionRate(s,e.team,powers[e.team]));if(e.upgrade.progress>=1){const id=e.upgrade.id;e.upgrades??={};e.upgrades[id]=true;delete e.upgrade;event(s,`${BUILDING_UPGRADES[id].name}: upgrade complete`,e.team);}}
       deliverRefineryHauler(s,e);
       const q=e.queue[0];if(q){q.progress=Math.min(1,q.progress+dt/UNITS[q.type].trainTime*pace);if(q.progress>=1){if(spawnAt(s,e,q.type))e.queue.shift();else if(Math.floor(s.time/10)!==Math.floor((s.time-dt)/10))event(s,`${BUILDINGS[e.type].name}: deployment bay blocked`,e.team);}}
       if(BUILDINGS[e.type].damage){e.cooldown=Math.max(0,e.cooldown-dt*rate);const target=acquire(s,e,BUILDINGS[e.type].range);e.targetId=target?.id??null;if(target&&e.cooldown<=0&&powers[e.team].ratio>=1)shoot(s,e,target);}
-    }else stepUnit(s,e,dt,movement);
+    }else stepUnit(s,e,dt,movement,powers[e.team]);
   }
   separateUnits(s,dt,movement);
   // Damaged vehicles can fall back to their nexus for slow paid repairs.
-  for(const e of s.entities)if(alive(e)&&e.kind==='unit'&&e.hp<e.maxHp&&s.time-(e.lastHit??-99)>8&&s.teams[e.team].credits>1&&own(s,e.team,'core').some(core=>distance(e,center(core))<7)){const amount=Math.min(e.maxHp-e.hp,dt*5,s.teams[e.team].credits*8);e.hp+=amount;s.teams[e.team].credits-=amount/8;}
+  for(const e of s.entities)if(alive(e)&&e.kind==='unit'&&e.hp<e.maxHp&&s.time-(e.lastHit??-99)>8&&s.teams[e.team].credits>1&&own(s,e.team,'core').some(core=>distance(e,center(core))<7)){const amount=Math.min(e.maxHp-e.hp,dt*5*powers[e.team].ratio,s.teams[e.team].credits*8);e.hp+=amount;s.teams[e.team].credits-=amount/8;}
   for(const effect of s.effects){
-    if(effect.type==='rocket'){
+    if(entityRole(effect)==='rocket'){
       const target=getEntity(s,effect.targetId);
       if(target&&seen(s,effect.team,target)){const c=center(target);effect.tx=c.x;effect.ty=c.y;}
     }
     effect.life-=dt;
-    if(effect.type==='rocket'&&effect.life<=1e-8){effect.life=0;if(s.status==='playing')rocketImpact(s,effect);}
+    if(entityRole(effect)==='rocket'&&effect.life<=1e-8){effect.life=0;if(s.status==='playing')rocketImpact(s,effect);}
   }
   s.effects=s.effects.filter(e=>e.life>0);
   s.entities=s.entities.filter(alive);
-  if(s.status==='playing'&&s.time>=s.ai.nextThink)thinkAI(s);
+  if(s.status==='playing')for(const team of s.aiTeams||[1])if(s.time>=aiState(s,team).nextThink)thinkAI(s,team);
 }
 export function updateGame(s,dt){
   if(!Number.isFinite(dt)||dt<=0||s.status!=='playing')return;

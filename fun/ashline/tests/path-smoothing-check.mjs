@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {UNITS,createGame,issueOrder,updateGame} from '../sim.js';
+import {UNITS,unitRole,createGame,issueOrder,updateGame} from '../sim.js';
 import {encodeGame,decodeGame} from '../save.js';
 
 const dt=.05,distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
@@ -7,7 +7,7 @@ const turn=(a,b)=>Math.abs(Math.atan2(Math.sin(a-b),Math.cos(a-b)));
 function scene(type='tank',start={x:20.31,y:20.67}){
   const s=createGame('path-smoothing');s.ai.nextThink=1e12;s.terrain.fill(0);s.minerals.fill(0);
   const refinery=structuredClone(s.entities.find(e=>e.type==='refinery'&&e.team===0));refinery.haulerPending=false;
-  const u=structuredClone(s.entities.find(e=>e.type===(type==='harvester'?type:'rifle'))),d=UNITS[type];
+  const u=structuredClone(s.entities.find(e=>e.type===(unitRole(type)==='harvester'?'harvester':'rifle'))),d=UNITS[type];
   Object.assign(u,{type,size:d.size,hp:d.hp,maxHp:d.hp,...start,order:{type:'idle'},path:[]});
   s.entities=[u];s.navVersion++;return{s,u,refinery};
 }
@@ -28,7 +28,7 @@ function advance(s,u){
 function finish(s,u,goal){
   for(let i=0;i<1600&&u.order.type==='move';i++)advance(s,u);
   assert(distance(u,goal)<=.081,`${u.type} must finish at its exact assigned destination`);
-  assert.equal(u.order.type,u.type==='harvester'?'harvest':'idle');
+  assert.equal(u.order.type,unitRole(u)==='harvester'?'harvest':'idle');
 }
 
 // Non-compass headings stay straight instead of alternating diagonal and horizontal grid legs.

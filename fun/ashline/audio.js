@@ -1,7 +1,7 @@
 // Original synthesized effects; the locally hosted CC0 soundtrack is credited in assets/audio/CREDITS.md.
 export const SOUND_KINDS = ['select', 'order', 'error', 'buildStart', 'buildComplete', 'unitReady', 'rifle', 'scout', 'tank', 'artillery', 'explosion', 'delivery', 'victory', 'defeat', 'rocket'];
 const durations = [.12, .18, .24, .5, .65, .48, .2, .24, .6, .85, 1, .4, 1.5, 1.5, .65];
-const aliases = { confirm: 'order', build: 'buildStart', combat: 'rifle', turret: 'tank', rocketTower: 'rocket' };
+const aliases = { confirm: 'order', build: 'buildStart', combat: 'rifle', turret: 'tank', rocketTower: 'rocket', striker: 'scout' };
 const cooldowns = { rifle: .08, scout: .1, tank: .16, artillery: .24, rocket: .18, explosion: .16, delivery: .5 };
 
 function createEffects(context) {

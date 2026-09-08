@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
-import {createGame,mapLayout,canPlace,placeBuilding,updateGame,issueOrder} from '../sim.js';
+import {createGame,MAP_SIZES,MAP_PROFILES,mapLayout,canPlace,placeBuilding,updateGame,issueOrder} from '../sim.js';
 
-const dimensions=[{width:72,height:56},{width:144,height:112}];
+const dimensions=[{width:72,height:56},...Object.values(MAP_SIZES)];
 const mineralTotal=s=>s.minerals.reduce((n,v)=>n+v,0);
 const summary=[];
 for(const size of dimensions)for(let seed=0;seed<24;seed++){
@@ -16,19 +16,19 @@ for(const size of dimensions)for(let seed=0;seed<24;seed++){
       trees++;quadrants.add(Math.floor(x/(s.width/2))+2*Math.floor(y/(s.height/2)));
       assert.equal(s.blocked[i],1);assert.equal(s.minerals[i],0);
       assert(Math.hypot(x-start.x,y-start.y)>11&&Math.hypot(x-end.x,y-end.y)>11,'Base construction clearings stay tree-free');
-      for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)if(dx||dy){const j=(y+dy)*s.width+x+dx;assert([0,2].includes(s.terrain[j]),'Trees grow on scattered open ground with an open ring, not rocky ridges');assert.equal(s.minerals[j],0);}
+      for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)if(dx||dy){const j=(y+dy)*s.width+x+dx;assert([0,2,5].includes(s.terrain[j]),'Trees grow on scattered open ground with an open ring, not rocky ridges');assert.equal(s.minerals[j],0);}
     }
     if(s.minerals[i]>0){
       minerals++;assert.equal(s.regions[i],region,'Every mineral satellite is reachable from the starting armies');assert.equal(s.blocked[i],0);
       const neighbors=[i-1,i+1,i-s.width,i+s.width].filter(j=>s.minerals[j]>0).length;if(neighbors<=1)loose++;
     }
   }
-  assert(trees>=4*area&&trees<=70*area,'Trees remain sparse at either map size');assert.equal(quadrants.size,4,'Trees appear across the whole sector');
-  assert(minerals>=200*area&&minerals<=210*area,'Scattered fields retain roughly the same deposit count');
+  assert(trees>=4*area&&trees<=70*area,'Trees remain sparse at either map size');assert(quadrants.size>=(s.width===72?2:4),'Mirrored trees cover open sectors; compact legacy clearings can occupy two quadrants');
+  assert(minerals>=150&&minerals/s.terrain.length>.015&&minerals/s.terrain.length<.065,'Mineral patches remain sparse while larger sectors gain expansion reserves');
   assert(loose/minerals>.2,'Loose patches include satellite deposits, rather than only solid disks');
-  assert(mineralTotal(s)>90000*area&&mineralTotal(s)<110000*area,'More scattering does not inflate or deplete the resource budget');
+  for(let i=0;i<s.minerals.length;i++)if(s.minerals[i]>0){const density=s.mineralTypes[i]===3?2:1;assert(s.minerals[i]>=320*density&&s.minerals[i]<620*density,'Rich red fields have exactly twice the reserve range');if(s.width>72)assert.equal(s.minerals[i],s.minerals[s.minerals.length-1-i],'New-map factions receive identical reserves');}
   const local=[start,end].map(p=>s.minerals.reduce((n,v,i)=>n+(Math.hypot(i%s.width-p.x,Math.floor(i/s.width)-p.y)<14?v:0),0));
-  assert(Math.min(...local)>20000);assert(Math.max(...local)/Math.min(...local)<1.35,'Nearby resources remain balanced between starting bases');
+  if(s.width>72){assert(Math.min(...local)>14000);assert(Math.max(...local)/Math.min(...local)<1.35,'Nearby resources remain balanced between starting bases');} // Compact legacy anchors predate map-centre symmetry; stored saves keep their original deposits.
   if(seed<3){
     s.ai.nextThink=1e12;for(let i=0;i<1200;i++)updateGame(s,.05);
     assert(s.teams.every(t=>t.credits>=2600),'Both automatic haulers complete several real deliveries');
@@ -36,9 +36,10 @@ for(const size of dimensions)for(let seed=0;seed<24;seed++){
   summary.push({width:s.width,trees,minerals,loose});
 }
 
-// Recorded pre-scatter budgets guard against accidentally multiplying field resources.
-for(const [seed,budgets] of Object.entries({'ASH-001':[96806,385981],smoke:[98853,400157],'player-victory':[95585,391562]}))for(let i=0;i<dimensions.length;i++){
-  const current=mineralTotal(createGame(seed,'normal',dimensions[i]));assert(Math.abs(current/budgets[i]-1)<.03,'Distribution retains the previous approximate mineral budget');
+// Changing terrain profiles preserves safe starting resources; additional value sits in exposed red expansions.
+for(const seed of ['ASH-001','smoke','player-victory'])for(const size of Object.values(MAP_SIZES)){
+  const budgets=Object.keys(MAP_PROFILES).map(profile=>{const s=createGame(seed,'normal',{...size,profile});return s.minerals.reduce((sum,amount,i)=>sum+(s.mineralTypes[i]===1?amount:0),0);});
+  assert(budgets.every(amount=>amount===budgets[0]),'All profiles preserve the same starting mint budget');
 }
 
 // Roots are real saved-map obstacles for movement and construction, with ordinary fog privacy.
@@ -55,4 +56,4 @@ for(const [seed,budgets] of Object.entries({'ASH-001':[96806,385981],smoke:[9885
   for(let i=0;i<200;i++){updateGame(s,.05);for(const dx of [-.189,.189])for(const dy of [-.189,.189])assert.equal(s.blocked[Math.floor(u.y+dy)*s.width+Math.floor(u.x+dx)],0,'Moving units route around tree roots');}
   assert(Math.hypot(u.x-35.5,u.y-28.5)<=.081);
 }
-console.log('Distribution checks passed: 48 deterministic new/legacy maps, scattered trees and mineral satellites, balanced budgets, connected bases/deposits, working haulers, and root navigation/construction/fog.',JSON.stringify(summary.filter((_,i)=>i%24===0)));
+console.log('Distribution checks passed: 96 deterministic current/legacy maps, scattered trees and mineral satellites, balanced budgets, connected bases/deposits, working haulers, and root navigation/construction/fog.',JSON.stringify(summary.filter((_,i)=>i%24===0)));

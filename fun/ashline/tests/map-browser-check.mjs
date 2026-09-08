@@ -1,3 +1,4 @@
+import {MAP_SIZES} from '../sim.js';
 // Browser QA: set ASHLINE_PLAYWRIGHT, ASHLINE_URL, and optionally ASHLINE_SCREENSHOTS.
 import assert from 'node:assert/strict';
 import {mkdir} from 'node:fs/promises';
@@ -26,7 +27,7 @@ try {
     await page.locator('#seed').fill('LARGE-MAP-BROWSER');
     await page.locator('#deploy')[touch ? 'tap' : 'click']();
     await page.waitForFunction(() => !ashline.paused);
-    assert.deepEqual(await page.evaluate(() => [ashline.state.width, ashline.state.height, ashline.state.terrain.length]), [144, 112, 16128]);
+    assert.deepEqual(await page.evaluate(() => [ashline.state.width, ashline.state.height, ashline.state.terrain.length]), [MAP_SIZES.frontier.width, MAP_SIZES.frontier.height, MAP_SIZES.frontier.width*MAP_SIZES.frontier.height]);
     assert(await page.evaluate(() => {
       const e = ashline.state.entities.find(e => e.team === 0 && e.type === 'core'), p = ashline.renderer.worldToScreen(e.x + 1.5, e.y + 1.5, ashline.view);
       return p.x > 30 && p.x < innerWidth - 30 && p.y > 130 && p.y < innerHeight - 140;
@@ -39,7 +40,7 @@ try {
     await page.screenshot({path: `${output}/map-${name}-normal.png`});
     const zoom = await page.evaluate(() => ashline.view.zoom);
     // Two tiles inset stays inside the canvas after touch coordinates round to pixels.
-    for (const [x, y] of [[2, 2], [142, 2], [142, 110], [2, 110]]) {
+    for (const [x, y] of [[2, 2], [MAP_SIZES.frontier.width-2, 2], [MAP_SIZES.frontier.width-2, MAP_SIZES.frontier.height-2], [2, MAP_SIZES.frontier.height-2]]) {
       await click(page, await mapPoint(page, x, y), touch);
       assert(await page.evaluate(({x, y}) => {
         const {state: s, renderer: r, view: v} = ashline;
@@ -54,16 +55,16 @@ try {
       const generation = []; for (let i = 0; i < 3; i++) { const start = performance.now(); createGame(`large-map-timing-${i}`); generation.push(performance.now() - start); }
       const start = performance.now(); r.createTerrain(s); const bakeMs = performance.now() - start;
       const draw = () => { const values = []; for (let i = 0; i < 12; i++) { const start = performance.now(); r.draw(s, v); values.push(performance.now() - start); } return median(values.slice(2)); };
-      const initialDrawMs = draw(), original = {visible: s.visible[0].slice(), explored: s.explored[0].slice(), x: v.x, y: v.y, zoom: v.zoom, knownOre: r.knownOre.slice(), remembered: new Map(r.rememberedBuildings)};
+      const initialDrawMs = draw(), original = {visible: s.visible[0].slice(), explored: s.explored[0].slice(), x: v.x, y: v.y, zoom: v.zoom, knownOre: r.knownOre.slice(), knownMineralTypes: r.knownMineralTypes.slice(), remembered: new Map(r.rememberedBuildings)};
       s.visible[0].fill(1); s.explored[0].fill(1); v.x = 94; v.y = 72; v.zoom = 16;
       const revealedDrawMs = draw();
       const caches = ['terrain', 'decals', 'fog', 'fogLow'].map(key => ({key, width: r[key].width, height: r[key].height}));
-      s.visible[0].set(original.visible); s.explored[0].set(original.explored); r.knownOre = original.knownOre; r.rememberedBuildings = original.remembered;
+      s.visible[0].set(original.visible); s.explored[0].set(original.explored); r.knownOre = original.knownOre; r.knownMineralTypes = original.knownMineralTypes; r.rememberedBuildings = original.remembered;
       Object.assign(v, {x: original.x, y: original.y, zoom: original.zoom}); r.draw(s, v);
       return {generationMs: median(generation), bakeMs, initialDrawMs, revealedDrawMs, caches, cacheMiB: caches.reduce((n, c) => n + c.width * c.height * 4, 0) / 1048576};
     });
     measurements.push({device: name, ...performance});
-    while (await page.evaluate(() => ashline.view.zoom > 16)) await page.locator('#zoom-out')[touch ? 'tap' : 'click']();
+    while (!(await page.locator('#zoom-out').isDisabled())) await page.locator('#zoom-out')[touch ? 'tap' : 'click']();
     await page.evaluate(() => { ashline.renderer.draw(ashline.state, ashline.view); });
     await page.screenshot({path: `${output}/map-${name}-minimum.png`});
     await page.evaluate(zoom => { ashline.view.zoom = zoom; }, zoom);
@@ -104,7 +105,7 @@ try {
     await page.locator('#pause')[touch ? 'tap' : 'click']();
     await page.locator('#save-game')[touch ? 'tap' : 'click']();
     const saved = await page.evaluate(async () => { const {SAVE_KEY} = await import('./save.js'); return {key: SAVE_KEY, raw: localStorage.getItem(SAVE_KEY)}; });
-    const record = JSON.parse(saved.raw); assert.deepEqual([record.game.width, record.game.height], [144, 112]); assert(record.view.x > 72 && record.view.y > 56);
+    const record = JSON.parse(saved.raw); assert.deepEqual([record.game.width, record.game.height], [MAP_SIZES.frontier.width, MAP_SIZES.frontier.height]); assert(record.view.x > 72 && record.view.y > 56);
     await page.evaluate(() => { ashline.view.x = 20; ashline.view.y = 20; });
     await page.locator('#load-game')[touch ? 'tap' : 'click']();
     assert.deepEqual(await page.evaluate(() => ({x: ashline.view.x, y: ashline.view.y, zoom: ashline.view.zoom})), record.view);
@@ -120,7 +121,7 @@ try {
     assert.deepEqual(await page.evaluate(() => [ashline.state.width, ashline.state.height, ashline.view.x, ashline.view.y]), [72, 56, 36, 28]);
     await page.evaluate(({key, raw}) => localStorage.setItem(key, raw), saved);
     await page.locator('#load-game')[touch ? 'tap' : 'click']();
-    assert.deepEqual(await page.evaluate(() => [ashline.state.width, ashline.state.height]), [144, 112]);
+    assert.deepEqual(await page.evaluate(() => [ashline.state.width, ashline.state.height]), [MAP_SIZES.frontier.width, MAP_SIZES.frontier.height]);
     assert.deepEqual(await page.evaluate(() => ({x: ashline.view.x, y: ashline.view.y, zoom: ashline.view.zoom})), record.view);
     await page.locator('#resume')[touch ? 'tap' : 'click']();
     await page.evaluate(() => { requestAnimationFrame = mapFixture.raf; requestAnimationFrame(mapFixture.frame); });
@@ -129,5 +130,5 @@ try {
   }
   assert.deepEqual(errors, []);
   console.log(JSON.stringify(measurements, null, 2));
-  console.log(`Expanded map browser checks passed: 144×112 deployment, four corners, far-side selection/movement/fog, large/legacy save transitions, desktop/mobile screenshots. Review: ${output}`);
+  console.log(`Expanded map browser checks passed: 192×144 Frontier deployment, four corners, far-side selection/movement/fog, large/legacy save transitions, desktop/mobile screenshots. Review: ${output}`);
 } finally { await browser.close(); }

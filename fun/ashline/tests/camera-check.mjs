@@ -16,7 +16,7 @@ try {
   // Cropping can conceal a barrel crossing into the next atlas cell. Check the source too.
   const clearCellBorders = await page.evaluate(async () => {
     const { removeMatte } = await import('./assets.js');
-    for (const [name, columns, rows] of [['units-hires', 3, 2], ['rocket-infantry-hires', 2, 1], ['buildings-hires', 3, 2], ['rocket-tower-hires', 1, 1]]) {
+    for (const [name, columns, rows] of [['units-hires', 3, 2], ['organics-alien-rocket', 2, 1], ['organics-buildings', 3, 3], ['organics-vehicles', 3, 2], ['unity-light', 3, 2], ['unity-heavy', 2, 2], ['unity-buildings', 3, 3]]) {
       const image = new Image(); image.src = `./assets/generated/${name}.webp`; await image.decode();
       const canvas = document.createElement('canvas'); canvas.width = image.width; canvas.height = image.height;
       const ctx = canvas.getContext('2d'); ctx.drawImage(image, 0, 0);
@@ -36,12 +36,13 @@ try {
   assert(clearCellBorders, 'Every source sprite has clear cell borders, without clipping or neighbouring fragments');
   const report = await page.evaluate(async () => {
     const { drawSprite } = await import('./assets.js');
-    const { UNITS } = await import('./sim.js');
+    const { UNITS, BUILDINGS, unitRole } = await import('./sim.js');
     const canvas = document.createElement('canvas'); canvas.width = canvas.height = 192;
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     // Test actual prepared images and draw state, including portraits/production callers.
     const nativeDraw = ctx.drawImage;
-    const pixels = {rifle: 64, rocket: 80, scout: 96, tank: 112, artillery: 128, harvester: 112, core: 208, reactor: 144, refinery: 208, barracks: 144, factory: 208, turret: 80, rocketTower: 144};
+    const unitPixels = { rifle: 64, rocket: 80, scout: 96, tank: 112, artillery: 128, harvester: 112, engineer: 112, striker: 128 };
+    const pixels = Object.fromEntries([...Object.keys(UNITS).map(type => [type, unitPixels[unitRole(type)]]), ...Object.entries(BUILDINGS).map(([type, d]) => [type, d.size * 64 + 16])]);
     for (const [type, size] of Object.entries(pixels)) for (const team of [0, 1]) for (const moving of [false, true]) {
       let drawn = false;
       ctx.drawImage = function (source, ...args) {

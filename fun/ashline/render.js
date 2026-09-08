@@ -1,12 +1,19 @@
 import { drawSprite, drawSpriteShadow, drawProp, drawPropShadow, terrainImages, assetsReady } from './assets.js';
-import { powerStats, UNITS, mapLayout, unitRank } from './sim.js';
+import { powerStats, UNITS, BUILDINGS as BUILDING_DEFS, mapLayout, unitRank, buildingRole, unitRole } from './sim.js';
 
 const TILE = 32;
 const TEAM = [
   { light: '#dcf1ff', paint: '#2d7cf2', dark: '#163b75', glow: '#79bcff' },
   { light: '#ffd8d5', paint: '#d8344c', dark: '#6d142b', glow: '#ff7582' },
 ];
-const SIZES = { core: 3, reactor: 2, refinery: 3, barracks: 2, factory: 3, turret: 1, rocketTower: 2 };
+const SIZES = Object.fromEntries(Object.entries(BUILDING_DEFS).map(([type, d]) => [type, d.size]));
+const entityRole = e => buildingRole(unitRole(e));
+const wallKey = e => `${e.team}:${e.x}:${e.y}`;
+function wallConnections(e, walls) {
+  let bits = 0;
+  for (const [dx, dy, bit] of [[0, -1, 1], [1, 0, 2], [0, 1, 4], [-1, 0, 8]]) if (walls.has(`${e.team}:${e.x + dx}:${e.y + dy}`)) bits |= bit;
+  return bits;
+}
 const BUILDINGS = new Set(Object.keys(SIZES));
 const isInfantry = e => UNITS[e.type]?.armor === 'infantry';
 // Basalt only forms a plate where at least two orthogonal neighbours share it; lone rubble stays ash.
@@ -115,56 +122,51 @@ function crystal(ctx, x, y, scale, seed) {
 }
 
 function buildingActivity(ctx, e, time, power) {
+  if (BUILDING_DEFS[e.type]?.race === 'aiUnity') { unityActivity(ctx, e, time, power); return; }
   const s = e.size * TILE, t = TEAM[e.team], working = !!e.queue?.length;
   const processing = e.processingAmount > 0;
-  if (['barracks', 'factory', 'refinery'].includes(e.type) && !working && !processing) return;
-  const rate = e.type === 'reactor' || e.type === 'core' ? 1 : Math.max(.2, power);
+  if (['barracks', 'factory', 'refinery'].includes(entityRole(e)) && !working && !processing) return;
+  const rate = entityRole(e) === 'reactor' || entityRole(e) === 'core' ? 1 : Math.max(.08, power);
   const phase = time * rate + e.id * .37;
   ctx.save(); ctx.globalAlpha *= power < 1 && rate < 1 ? .55 : .85;
-  const fan = (x, y, radius, speed = 2) => {
-    ellipse(ctx, x, y, radius, radius * .7, '#15232acc', '#a7b7b75c');
-    for (let i = 0; i < 4; i++) {
-      const angle = phase * speed + i * Math.PI / 2;
-      line(ctx, x, y, x + Math.cos(angle) * (radius - 1), y + Math.sin(angle) * (radius - 1) * .7, '#bac5c18f', 1.3);
-    }
-    ellipse(ctx, x, y, 1.3, 1, '#d5dacf');
-  };
-  if (e.type === 'core') {
-    const x = s * .14, y = -s * .38, angle = phase * .75;
+  if (entityRole(e) === 'core') {
+    const x = s * .29, y = -s * .46, angle = phase * .75;
     ellipse(ctx, x, y, 8, 5.5, '#2031399c', '#a7b7b775');
     ctx.save(); ctx.translate(x, y); ctx.scale(1, .7);
     ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, 7, angle - .75, angle); ctx.closePath();
     ctx.fillStyle = t.paint + '60'; ctx.fill();
     line(ctx, 0, 0, Math.cos(angle) * 7, Math.sin(angle) * 7, t.light, .9); ctx.restore();
-    light(ctx, -s * .24, -s * .45, Math.sin(phase * 2.5) > .4 ? '#f4c784' : '#806743');
+    light(ctx, -s * .16, s * .23, Math.sin(phase * 2.5) > .4 ? '#f4c784' : '#806743');
     if (processing) for (let i = 0; i < 3; i++) {
       const p = (phase * .45 + i / 3) % 1, x = (i - 1) * 4, y = s * (.43 - p * .12);
       polygon(ctx, [[x - 1.5, y], [x, y - 2], [x + 1.5, y], [x, y + 1]], '#a4ddc8');
     }
-  } else if (e.type === 'reactor') {
-    for (const x of [-s * .16, s * .17]) fan(x, -s * .37, s * .072, 4);
-    ctx.save(); ctx.globalAlpha *= .45 + Math.sin(phase * 2.2) * .15;
-    glow(ctx, 0, s * .04, s * .1, t.glow + '80'); ctx.restore();
-  } else if (e.type === 'refinery') {
+  } else if (entityRole(e) === 'reactor') {
+    // Slow pressure needles and work lamps suit the obsolete sealed boiler drums.
+    for (const x of [-s * .24, s * .24]) {
+      const y = -s * .40, angle = -.8 + Math.sin(phase * .7 + x) * .12;
+      ellipse(ctx, x, y, 2.5, 1.7, '#263038', '#a1a8a080');
+      line(ctx, x, y, x + Math.cos(angle) * 1.8, y + Math.sin(angle) * 1.3, '#dacba8', .6);
+    }
+    light(ctx, -s * .10, s * .25, Math.sin(phase * 1.3) > -.4 ? '#dabc86' : '#806641');
+    light(ctx, s * .10, s * .25, Math.sin(phase * 1.3) < .4 ? '#dabc86' : '#806641');
+  } else if (entityRole(e) === 'refinery') {
     if (processing) {
       // The belt runs only while an actual delivery remains in the processing hopper.
       for (let i = 0; i < 5; i++) {
         const p = (phase * .19 + i / 5) % 1, x = s * (-.32 + p * .43), y = s * (.12 - p * .40);
-        polygon(ctx, [[x - 1.8, y], [x, y - 2], [x + 2, y], [x, y + 1]], '#b1e8d2');
+        polygon(ctx, [[x - 1.8, y], [x, y - 2], [x + 2, y], [x, y + 1]], e.processingType === 3 ? '#ef9eb1' : e.processingType === 2 ? '#8ec7f0' : '#b1e8d2');
       }
-      fan(-s * .17, s * .12, s * .035);
       light(ctx, -s * .06, s * .28, Math.sin(phase * 3) > 0 ? '#b6efd5' : '#466e5e');
     }
     if (working) light(ctx, s * .08, s * .33, Math.sin(phase * 4) > 0 ? '#f1c58b' : '#8c6840');
-  } else if (e.type === 'barracks') {
-    fan(s * .06, -s * .16, s * .048);
-    light(ctx, s * .025, -s * .55, Math.sin(phase * 2.3) > .5 ? t.light : t.dark);
+  } else if (entityRole(e) === 'barracks') {
+    light(ctx, -s * .32, -s * .44, Math.sin(phase * 2.3) > .5 ? t.light : t.dark);
     if (working) {
       const stride = (phase * .6) % 1;
       for (let i = 0; i < 3; i++) rect(ctx, -7 + i * 6, s * .25, 3, 1.5, stride > i / 3 ? '#ebc68f' : '#64553c');
     }
-  } else if (e.type === 'factory') {
-    fan(s * .31, -s * .18, s * .032);
+  } else if (entityRole(e) === 'factory') {
     if (working) {
       const x = Math.sin(phase * 1.6) * s * .09, y = s * .21;
       ctx.save(); ctx.globalAlpha *= .5 + Math.sin(phase * 23) * .25;
@@ -177,7 +179,21 @@ function buildingActivity(ctx, e, time, power) {
       const door = Math.max(0, (e.queue[0].progress - .8) / .2);
       line(ctx, -s * .15, s * (.15 - door * .035), s * .15, s * (.15 - door * .035), '#dcb46b9c', 1.4);
     }
-  } else if (e.type === 'rocketTower') {
+  } else if (entityRole(e) === 'lab') {
+    // The laboratory follows actual project progress, so no free-running research under fog or while idle.
+    if (e.research) {
+      const progress = Math.max(0, Math.min(1, e.research.progress || 0)), y = -s * .24;
+      ctx.save(); ctx.translate(0, y); ctx.scale(1, .86);
+      ctx.beginPath(); ctx.arc(0, 0, s * .14, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
+      ctx.strokeStyle = power < 1 ? '#b99165' : '#a2d9e2'; ctx.lineWidth = 1.4; ctx.stroke();
+      ctx.restore();
+      for (let i = 0; i < 3; i++) light(ctx, -5 + i * 4, s * .25, (phase * 2) % 3 > i ? '#d6e5da' : '#394d51');
+    }
+  } else if (entityRole(e) === 'capacitor') {
+    const fill = Math.max(0, Math.min(1, (e.reserve || 0) / 1200));
+    rect(ctx, -6, s * .23, 12, 4, '#142027');
+    for (let i = 0; i < 4; i++) rect(ctx, -5 + i * 2.8, s * .23 + 1, 1.8, 2, fill > i / 4 ? e.powerStatus === 'reserve' ? '#edb66f' : '#a7dcd1' : '#3d514f');
+  } else if (entityRole(e) === 'rocketTower') {
     const ready = power >= 1, firing = Math.max(0, 1 - (time - (e.lastShot ?? -99)) / .35);
     for (const x of [-s * .28, s * .28]) {
       light(ctx, x, s * .26, !ready ? '#70533b' : e.cooldown > .1 ? '#bb8d51' : t.light);
@@ -186,7 +202,7 @@ function buildingActivity(ctx, e, time, power) {
       ctx.globalAlpha *= firing;
       glow(ctx, -s * .231, -s * .405, 12, '#ffcf8aac');
     }
-  } else if (e.type === 'turret') {
+  } else if (entityRole(e) === 'turret') {
     const angle = e.targetId ? e.angle : phase * .3, recoil = Math.max(0, 1 - (time - (e.lastShot ?? -99)) / .22);
     const reach = 13 - recoil * 3;
     ctx.save(); ctx.translate(0, -7); ctx.scale(1, .8);
@@ -201,9 +217,65 @@ function buildingActivity(ctx, e, time, power) {
   ctx.restore();
 }
 
+function unityActivity(ctx, e, time, power) {
+  const role = buildingRole(e), s = e.size * TILE, t = TEAM[e.team], working = !!e.queue?.length;
+  const processing = e.processingAmount > 0, phase = time * Math.max(.06, power) + e.id * .17;
+  if (['refinery', 'barracks', 'factory'].includes(role) && !working && !processing) return;
+  ctx.save(); ctx.globalAlpha *= power < 1 ? .48 : .78;
+  if (role === 'core') {
+    const r = s * .052, y = -s * .24;
+    const points = Array.from({ length: 6 }, (_, i) => [Math.cos(i * Math.PI / 3) * r, y + Math.sin(i * Math.PI / 3) * r * .82]);
+    polygon(ctx, points, '#243a49', '#9abfc8');
+    line(ctx, -r + (time * 1.2 % 1) * r * 2, y - r * .65, -r + (time * 1.2 % 1) * r * 2, y + r * .65, t.light, .7);
+  } else if (role === 'reactor') {
+    const y = -s * .20;
+    for (let i = 0; i < 6; i++) {
+      const a = i * Math.PI / 3, on = (time * .65 + i / 6) % 1 < .3;
+      line(ctx, Math.cos(a) * s * .14, y + Math.sin(a) * s * .12, Math.cos(a) * s * .21, y + Math.sin(a) * s * .18, on ? '#a8cbd3' : '#344d5d', 1.3);
+    }
+  } else if (role === 'refinery') {
+    if (processing) for (let i = 0; i < 4; i++) {
+      const p = (phase * .2 + i / 4) % 1, x = s * (-.28 + p * .38), y = s * (.08 - p * .34);
+      polygon(ctx, [[x - 1.5, y], [x, y - 2], [x + 1.5, y], [x, y + 1]], e.processingType === 3 ? '#ef9eb1' : e.processingType === 2 ? '#8ec7f0' : '#addccc');
+    }
+    if (working) light(ctx, s * .10, s * .32, Math.sin(phase * 4) > 0 ? '#e5bf81' : '#4c5049');
+  } else if (role === 'barracks') {
+    for (let i = 0; i < 3; i++) light(ctx, (i - 1) * 4, s * .25, (phase * .8) % 1 > i / 3 ? '#b9d8dc' : '#45575e');
+  } else if (role === 'factory') {
+    const progress = e.queue[0].progress;
+    // Tool tips follow the actual assembly front; inactive docks stay dark and empty.
+    for (const side of [-1, 1]) {
+      const x = side * s * .16, y = s * (.15 + progress * .19);
+      line(ctx, side * s * .28, s * .12, x, y, '#a5b8b8', 1.2);
+      light(ctx, x, y, Math.sin(phase * 17 + side) > .3 ? '#d3e5e5' : '#586b72');
+    }
+  } else if (role === 'lab') {
+    if (e.research) {
+      const p = e.research.progress, r = s * .13, cy = -s * .12;
+      const vertices = [[0, cy - r], [r * .86, cy + r * .5], [-r * .86, cy + r * .5], [0, cy - r]];
+      for (let i = 0; i < 3; i++) {
+        const part = Math.max(0, Math.min(1, p * 3 - i)), a = vertices[i], b = vertices[i + 1];
+        line(ctx, a[0], a[1], a[0] + (b[0] - a[0]) * part, a[1] + (b[1] - a[1]) * part, '#a2d9e2', 1.3);
+      }
+    }
+  } else if (role === 'capacitor') {
+    const fill = Math.max(0, Math.min(1, (e.reserve || 0) / (BUILDING_DEFS[e.type].reserveCapacity || 1200)));
+    for (let i = 0; i < 3; i++) {
+      const x = (i - 1) * s * .19;
+      line(ctx, x, -s * .26, x, s * .11, '#253740', 1.7);
+      line(ctx, x, s * .11, x, s * (.11 - fill * .37), e.powerStatus === 'reserve' ? '#dcb17a' : '#aad5d8', 1);
+    }
+  } else if (role === 'turret' || role === 'rocketTower') {
+    const ready = power >= 1, firing = Math.max(0, 1 - (time - (e.lastShot ?? -99)) / .22);
+    for (const x of role === 'turret' ? [0] : [-s * .25, s * .25]) light(ctx, x, s * .22, ready ? t.light : '#6b5845');
+    if (firing && ready) { ctx.globalAlpha *= firing; glow(ctx, role === 'turret' ? s * .25 : -s * .22, -s * .20, 8, '#d2e4e683'); }
+  }
+  ctx.restore();
+}
+
 function productionBay(ctx, e) {
-  if (!['barracks', 'factory', 'refinery'].includes(e.type)) return;
-  const small = e.type === 'barracks', s = e.size * TILE;
+  if (!['barracks', 'factory', 'refinery'].includes(entityRole(e))) return;
+  const small = entityRole(e) === 'barracks', s = e.size * TILE;
   const w = s * (small ? .52 : .58), top = s * .09, bottom = s * .44;
   const job = e.queue?.[0], progress = Math.max(0, Math.min(1, job?.progress || 0));
   ctx.save();
@@ -252,7 +324,7 @@ function building(ctx, entity, time = 0) {
     else productionBay(ctx, entity);
     return;
   }
-  const { type, team = 0 } = entity;
+  const { team = 0 } = entity, type = buildingRole(entity);
   const t = TEAM[team] || TEAM[0];
   const s = (entity.size || SIZES[type] || 2) * TILE;
   const w = s - 8, a = -w / 2;
@@ -380,7 +452,7 @@ function unit(ctx, entity, time = 0) {
   const t = TEAM[entity.team || 0] || TEAM[0];
   const angle = entity.angle || 0;
   const infantry = isInfantry(entity);
-  const moving = entity.moving || entity.path?.length > 0;
+  const moving = entity.moving ?? entity.path?.length > 0;
   if (drawSprite(ctx, entity, time)) return;
   ellipse(ctx, 3, 4, infantry ? 5 : 15, infantry ? 3 : 10, '#111d195d');
   ctx.save(); ctx.rotate(angle);
@@ -397,13 +469,13 @@ function unit(ctx, entity, time = 0) {
     rect(ctx, -3 + stride, -3, 5, 2, '#242f2b'); rect(ctx, -3 - stride, 2, 5, 2, '#242f2b');
     ellipse(ctx, -1, 0, 3.8, 4, t.paint, '#243d37');
     rect(ctx, -3, -3, 2, 6, '#b8baa0');
-    if (entity.type === 'rocket') {
+    if (entityRole(entity) === 'rocket') {
       rect(ctx, -6, -6, 5, 10, '#555f60');
       rect(ctx, -5, 2, 16, 4, '#dddccd'); rect(ctx, 9, 2, 3, 4, '#283236');
     } else { line(ctx, 1, 2, 8, 2, '#152e29', 2); line(ctx, 3, 1, 8, 1, '#aebfaa'); }
     ellipse(ctx, 0, -.5, 2.4, 2.4, '#c0c4a5');
     ellipse(ctx, 1, -.5, 1.8, 2.2, t.paint);
-  } else if (entity.type === 'scout') {
+  } else if (entityRole(entity) === 'scout') {
     for (const x of [-9, 7]) for (const y of [-9, 6]) {
       rect(ctx, x, y, 6, 4, '#1e2e27'); line(ctx, x + 1, y + 1, x + 5, y + 1, '#67725b');
     }
@@ -413,8 +485,8 @@ function unit(ctx, entity, time = 0) {
     ellipse(ctx, -2, 0, 4, 4, '#91a187'); rect(ctx, -1, -1, 10, 2, '#293e32');
     light(ctx, 11, -4, '#edebbb'); light(ctx, 11, 3, '#edebbb');
   } else {
-    const isHarvester = entity.type === 'harvester';
-    const isArtillery = entity.type === 'artillery';
+    const isHarvester = entityRole(entity) === 'harvester';
+    const isArtillery = entityRole(entity) === 'artillery';
     const length = isHarvester ? 28 : 27;
     for (const y of [-12, 7]) {
       rect(ctx, -length / 2, y, length, 6, '#223027');
@@ -515,17 +587,23 @@ export class Renderer {
 
   createTerrain(state) {
     const width = state.width * TILE, height = state.height * TILE;
-    this.terrain.width = width; this.terrain.height = height;
-    this.decals.width = width; this.decals.height = height;
+    // Bound both full-map surfaces together to 64 MiB, even on the largest battlefield.
+    // Fine object art stays in native sprite caches; broad terrain tolerates this filtered bake.
+    this.terrainScale = Math.min(1, 4096 / width, 4096 / height, Math.sqrt(8388608 / (width * height)));
+    this.terrain.width = Math.ceil(width * this.terrainScale); this.terrain.height = Math.ceil(height * this.terrainScale);
+    this.decals.width = this.terrain.width; this.decals.height = this.terrain.height;
     this.fog.width = state.width * 4; this.fog.height = state.height * 4;
     this.fogLow.width = state.width; this.fogLow.height = state.height;
     this.knownOre = new Float32Array(state.width * state.height);
+    this.knownMineralTypes = new Uint8Array(state.width * state.height);
     this.rememberedBuildings.clear();
     this.unitPositions = new Map(); this.seenEffects = new WeakSet();
     this.lastDecalFade = 0; this.fogVisible = null; this.fogExplored = null; this.rockProps = [];
     this.terrainSource = state.terrain;
     this.groundImage = terrainImages.ground;
     const ctx = this.terrain.getContext('2d');
+    ctx.setTransform(this.terrainScale, 0, 0, this.terrainScale, 0, 0);
+    this.decals.getContext('2d').setTransform(this.terrainScale, 0, 0, this.terrainScale, 0, 0);
     const seed = [...String(state.seed)].reduce((n, c) => (n * 31 + c.charCodeAt(0)) % 10000, 17);
     this.seed = seed;
     // One baked material surface: broad ash/rust deposits over a seamless scanned-style texture.
@@ -545,9 +623,10 @@ export class Renderer {
       const detail = smoothNoise(x / 13, y / 13, seed + 9);
       const rusty = Math.max(0, smoothNoise(x / 31 + 4, y / 31, seed + 4) - .47) * 1.7;
       const c = broad * 30 + detail * 14, i = (y * base.width + x) * 4;
-      colors.data[i] = 41 + c + rusty * 38;
-      colors.data[i + 1] = 44 + c + rusty * 8;
-      colors.data[i + 2] = 45 + c - rusty * 13;
+      const profile = state.mapProfile, warm = profile === 'highlands' ? 4 : profile === 'basin' ? -3 : 0;
+      colors.data[i] = 41 + c + rusty * 38 + warm;
+      colors.data[i + 1] = 44 + c + rusty * 8 + warm * .4;
+      colors.data[i + 2] = 45 + c - rusty * 13 - warm * .6;
       colors.data[i + 3] = terrainImages.ground ? 97 : 255;
       this.fogNoise[y * base.width + x] = broad * 6 + detail * 5;
     }
@@ -560,7 +639,7 @@ export class Renderer {
     this.fogTint.getContext('2d').putImageData(tint, 0, 0);
     // Haul roads share the generator’s layout for both current maps and older saves; ruts only wear into open ground.
     const { start, end, bend: routeBend } = mapLayout(state);
-    const openTile = (x, y) => [0, 2].includes(state.terrain[Math.floor(y) * state.width + Math.floor(x)]);
+    const openTile = (x, y) => [0, 2, 5].includes(state.terrain[Math.floor(y) * state.width + Math.floor(x)]);
     const road = (bend, offset = 0) => {
       ctx.beginPath();
       for (let j = 0; j <= 120; j++) {
@@ -585,7 +664,7 @@ export class Renderer {
     for (let y = 0; y < state.height; y++) for (let x = 0; x < state.width; x++) {
       const i = y * state.width + x, px = x * TILE, py = y * TILE;
       const n = noise(x, y, seed), type = state.terrain[i];
-      if (type === 3) continue;
+      if (type === 3 || type === 5) continue;
       // Irregular mineral stains remain when a field is exhausted.
       if (state.minerals[i] > 0) {
         const stain = ctx.createRadialGradient(px + 16, py + 18, 2, px + 16, py + 18, 33);
@@ -692,9 +771,29 @@ export class Renderer {
       if (Math.abs(seam - .5) < .008) { r += (29 - r) * .35; g += (34 - g) * .35; b += (36 - b) * .35; }
       data[at] = r; data[at + 1] = g; data[at + 2] = b; data[at + 3] = 158;
     });
-    stamp(rockMask, '#171c20', 3, 5, .34, 10);
-    stamp(rockMask, '#2c2b28', 0, 3); stamp(rockMask, '#3a3833', 0, 1.5);
-    stamp(rockMask, '#8f8877', -1.5, -2, .5);
+    if (state.terrain.includes(5)) {
+      const craterMask = tileMask(i => state.terrain[i] === 5, 5);
+      stamp(craterMask, '#928574', 0, 0, .24, 10);
+      plate(craterMask, (x, y, data, at) => {
+        const n = smoothNoise(x / 21, y / 21, seed + 95), fold = smoothNoise(x / 8, y / 8, seed + 97);
+        // Keep the original granular ash visible through the bowl floor so it reads as
+        // shallow traversable ground instead of a dark liquid pool or bottomless hole.
+        data[at] = 53 + n * 12 + fold * 7; data[at + 1] = 53 + n * 9 + fold * 4; data[at + 2] = 47 + n * 8; data[at + 3] = 118;
+      });
+      const innerEdge = (dx, dy) => {
+        const edge = scratch(), e = edge.getContext('2d'); e.drawImage(craterMask, 0, 0);
+        e.globalCompositeOperation = 'destination-out'; e.drawImage(craterMask, dx / 4, dy / 4); return edge;
+      };
+      // The sunken near wall faces the upper-left light; the opposite inner wall stays in shadow.
+      stamp(innerEdge(7, 9), '#182228', 0, 0, .43, 3);
+      stamp(innerEdge(-6, -8), '#a3957d', 0, 0, .38, 2);
+      stamp(innerEdge(-2, -3), '#b6aa91', 0, 0, .26);
+    }
+    // Two soft shadow lobes and short exposed strata make cliffs read above the ash at minimum zoom.
+    stamp(rockMask, '#111920', 6, 10, .32, 16);
+    stamp(rockMask, '#13191d', 3, 6, .30, 5);
+    stamp(rockMask, '#2b2c2b', 0, 6); stamp(rockMask, '#403d37', 0, 3);
+    stamp(rockMask, '#a29a87', -2, -2.5, .48);
     plate(rockMask, (x, y, data, at) => {
       const n = smoothNoise(x / 28, y / 28, seed + 71), grit = (noise(x, y, seed + 72) - .5) * 8;
       const light = Math.max(0, Math.min(1, (n - .58) * 6)) * .55, dark = Math.max(0, Math.min(1, (.40 - n) * 6)) * .55;
@@ -795,7 +894,7 @@ export class Renderer {
     const ctx = this.decals.getContext('2d');
     if (time - this.lastDecalFade > 8) {
       ctx.save(); ctx.globalCompositeOperation = 'destination-out';
-      rect(ctx, 0, 0, this.decals.width, this.decals.height, '#00000008'); ctx.restore();
+      rect(ctx, 0, 0, state.width * TILE, state.height * TILE, '#00000008'); ctx.restore();
       this.lastDecalFade = time;
     }
     const currentlySeen = new Set();
@@ -811,9 +910,14 @@ export class Renderer {
         if (length < TILE * 1.5) {
           const angle = Math.atan2(y - previous.y, x - previous.x);
           ctx.save(); ctx.translate(x, y); ctx.rotate(angle);
-          for (const offset of [-7, 7]) {
-            rect(ctx, -length, offset, length, 2.5, '#16202720');
-            for (let step = 0; step < length; step += 3.5) line(ctx, -step, offset, -step, offset + 2.5, '#0a172420', .7);
+          if (UNITS[e.type]?.race === 'aiUnity') {
+            // Articulated machines leave separated foot contacts; the skimmer leaves no tread trail.
+            if (unitRole(e) !== 'scout') for (const offset of [-9, 9]) {
+              rect(ctx, -length, offset + ((e.id || 0) % 2 ? 1 : -1), 2.3, 3, '#13202a21');
+            }
+          } else for (const offset of [-7, 7]) {
+              rect(ctx, -length, offset, length, 2.5, '#16202720');
+              for (let step = 0; step < length; step += 3.5) line(ctx, -step, offset, -step, offset + 2.5, '#0a172420', .7);
           }
           ctx.restore();
         }
@@ -880,6 +984,10 @@ export class Renderer {
       }
       return !!visible[Math.floor(e.y) * state.width + Math.floor(e.x)];
     };
+    const knownWalls = new Map();
+    for (const e of this.rememberedBuildings.values()) if (entityRole(e) === 'wall' && !entityVisible(e)) knownWalls.set(wallKey(e), e);
+    for (const e of state.entities) if (e.hp > 0 && entityRole(e) === 'wall' && (e.team === 0 || entityVisible(e))) knownWalls.set(wallKey(e), e);
+    const wallVisual = e => entityRole(e) === 'wall' ? { ...e, wallConnections: wallConnections(e, knownWalls) } : e;
     const x0 = Math.max(0, Math.floor(view.x - this.width / zoom / 2) - 2);
     const y0 = Math.max(0, Math.floor(view.y - this.height / zoom / 2) - 3);
     const x1 = Math.min(state.width, Math.ceil(view.x + this.width / zoom / 2) + 2);
@@ -892,9 +1000,9 @@ export class Renderer {
     ctx.save(); ctx.translate(left, top); ctx.scale(scale, scale);
     this.drawLava(state, visible, time, x0, y0, x1, y1);
     for (const prop of this.rockProps) {
-      if (prop.kind !== 'tree' || prop.x < x0 - 2 || prop.x > x1 + 2 || prop.y < y0 - 2 || prop.y > y1 + 2) continue;
+      if (prop.x < x0 - 2 || prop.x > x1 + 2 || prop.y < y0 - 2 || prop.y > y1 + 2) continue;
       if (explored && !explored[Math.floor(prop.y) * state.width + Math.floor(prop.x)]) continue;
-      drawPropShadow(ctx, 'tree', prop.x * TILE, prop.y * TILE, prop.size, prop.variant);
+      drawPropShadow(ctx, prop.kind, prop.x * TILE, prop.y * TILE, prop.size, prop.variant);
     }
     // Ground shadows cannot cover neighbouring roofs or disclose enemies hidden by fog.
     for (const e of state.entities) {
@@ -902,32 +1010,38 @@ export class Renderer {
       if (e.x < x0 - 4 || e.x > x1 + 2 || e.y < y0 - 4 || e.y > y1 + 3) continue;
       const n = e.kind === 'building' ? e.size / 2 : 0;
       ctx.save(); ctx.translate((e.x + n) * TILE, (e.y + n) * TILE);
-      drawSpriteShadow(ctx, e, time);
+      drawSpriteShadow(ctx, wallVisual(e), time);
       ctx.restore();
     }
     // Mineral knowledge refreshes wherever there is sensor coverage, not only inside the viewport.
-    if (visible) { for (let i = 0; i < this.knownOre.length; i++) if (visible[i]) this.knownOre[i] = state.minerals[i]; } else this.knownOre.set(state.minerals);
+    for (let i = 0; i < this.knownOre.length; i++) if (!visible || visible[i]) {
+      this.knownOre[i] = state.minerals[i]; this.knownMineralTypes[i] = state.mineralTypes?.[i] || 1;
+    }
     for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
       const i = y * state.width + x;
       if (explored && !explored[i]) continue;
       const amount = this.knownOre[i];
       if (amount <= 0) continue;
-      const richness = Math.min(1, amount / 500);
+      const mineralType = this.knownMineralTypes[i] || 1, richness = Math.min(1, amount / (mineralType === 3 ? 1000 : 500));
       const n = noise(x, y), cx = x * TILE + 16 + (n - .5) * 8, cy = y * TILE + 18 + (noise(x, y, 11) - .5) * 8;
-      const clusterSize = (25 + richness * 14) * (.82 + noise(x, y, 31) * .32);
-      if (!drawProp(ctx, 'ore', cx, cy - 2, clusterSize, Math.floor(n * 3))) {
+      const clusterSize = (25 + richness * 14) * (.82 + noise(x, y, 31) * .32) * (mineralType === 3 ? 1.10 : 1);
+      const variant = mineralType === 3 ? n < .7 ? 2 : 0 : mineralType === 2 ? n < .5 ? 0 : 1 : Math.floor(n * 3);
+      drawPropShadow(ctx, 'ore', cx, cy - 2, clusterSize, variant);
+      if (!drawProp(ctx, 'ore', cx, cy - 2, clusterSize, variant, mineralType)) {
         for (let j = 0; j < 3 + richness * 3; j++) {
           crystal(ctx, cx - 9 + noise(x + j * 8, y) * 19, cy - 6 + noise(x, y + j * 7) * 16, .5 + richness * .42, j + n * 100);
         }
       }
       if (visible?.[i] && Math.sin(time * 1.5 + n * 10) > .88) {
-        light(ctx, cx + n * 8, cy - 9, '#c4fff0');
+        light(ctx, cx + n * 8, cy - 9, mineralType === 3 ? '#ffd3e0' : mineralType === 2 ? '#d6edff' : '#c4fff0');
       }
     }
-    const powers = [powerStats(state, 0).ratio, powerStats(state, 1).ratio];
+    const powers = [powerStats(state, 0), powerStats(state, 1)];
     const liveIds = new Set(state.entities.filter(e => e.hp > 0).map(e => e.id));
     for (const e of state.entities) if (e.hp > 0 && e.team === 1 && e.kind === 'building' && entityVisible(e)) {
-      this.rememberedBuildings.set(e.id, { ...e, queue: (e.queue || []).map(item => ({ ...item })), rememberedAt: time });
+      this.rememberedBuildings.set(e.id, { ...wallVisual(e), queue: (e.queue || []).map(item => ({ ...item })), research: e.research ? { ...e.research } : null,
+        upgrade: e.upgrade ? { ...e.upgrade } : null, upgrades: e.upgrades ? { ...e.upgrades } : undefined,
+        powerRatio: powers[e.team].ratio, powerStatus: powers[e.team].status, rememberedAt: time });
     }
     for (const [id, e] of this.rememberedBuildings) if (!liveIds.has(id) && entityVisible(e)) this.rememberedBuildings.delete(id);
     const entities = state.entities.filter(e => e.hp > 0 && (e.team === 0 || entityVisible(e)));
@@ -953,7 +1067,7 @@ export class Renderer {
       ctx.save(); ctx.translate(x, y);
       if (view.selected?.has(e.id)) {
         // Ground ring sized to the body so the sprite never hides it; width stays ~1 screen pixel at any zoom.
-        const r = isBuilding ? e.size * TILE / 2 + 2 : { rifle: 9, rocket: 11, scout: 18, artillery: 26 }[e.type] ?? 22;
+        const r = isBuilding ? e.size * TILE / 2 + 2 : { rifle: 9, rocket: 11, scout: 18, artillery: 26 }[entityRole(e)] ?? 22;
         ctx.strokeStyle = '#b4e2e6'; ctx.lineWidth = 1.2 / scale;
         if (isBuilding) {
           const d = r * .27;
@@ -965,32 +1079,42 @@ export class Renderer {
           ctx.fillStyle = '#8edbe316'; ctx.fill(); ctx.stroke();
         }
       }
-      if (isBuilding) building(ctx, e, e.team === 1 && !entityVisible(e) ? e.rememberedAt : time); else unit(ctx, e, time);
-      if ((e.team === 0 || entityVisible(e)) && e.progress >= 1) this.drawEntityActivity(ctx, e, time, powers[e.team]);
+      const remembered = e.team === 1 && !entityVisible(e);
+      const visual = isBuilding && !remembered ? { ...wallVisual(e), powerRatio: powers[e.team].ratio, powerStatus: powers[e.team].status } : e;
+      if (isBuilding) building(ctx, visual, remembered ? e.rememberedAt : time); else unit(ctx, e, time);
+      if (!remembered && (e.progress ?? 1) >= 1) this.drawEntityActivity(ctx, visual, time, powers[e.team].ratio);
+      else if (remembered && e.progress >= 1 && ['lab', 'capacitor'].includes(entityRole(e))) buildingActivity(ctx, e, e.rememberedAt, e.powerRatio ?? 1);
+      if (isBuilding && !remembered && e.progress >= 1 && powers[e.team].ratio < 1 && BUILDING_DEFS[e.type].power < 0) {
+        // One compact fixed-screen warning per affected facility, never a global flicker.
+        ctx.save(); ctx.translate(e.size * TILE * .30, e.size * TILE * .43); ctx.scale(1 / scale, 1 / scale);
+        ellipse(ctx, 0, 0, 5, 5, '#171b20e8');
+        polygon(ctx, [[0, -4], [-3, 1], [0, 1], [-1, 4], [3, -1], [0, -1]], '#e5ab6c'); ctx.restore();
+      }
       if (isBuilding) {
+        const wall = buildingRole(e) === 'wall';
         ctx.save(); ctx.translate(-e.size * TILE * .32, e.size * TILE * .43); ctx.scale(1 / scale, 1 / scale);
-        ellipse(ctx, 0, 0, 5.5, 5.5, '#0a151ddd');
-        teamInsignia(ctx, e.team, 0, 0, 7); ctx.restore();
+        ellipse(ctx, 0, 0, wall ? 3.3 : 5.5, wall ? 3.3 : 5.5, '#0a151ddd');
+        teamInsignia(ctx, e.team, 0, 0, wall ? 4.5 : 7); ctx.restore();
       }
       if ((view.selected?.has(e.id) || e.hp < e.maxHp * .98) && (e.team === 0 || entityVisible(e))) {
-        const w = isBuilding ? Math.min(44, e.size * TILE - 4) : isInfantry(e) ? (e.type === 'rocket' ? 16 : 13) : 25;
+        const w = isBuilding ? Math.min(44, e.size * TILE - 4) : isInfantry(e) ? (entityRole(e) === 'rocket' ? 16 : 13) : 25;
         const yy = isBuilding ? -e.size * TILE / 2 - 16 : -19;
         rect(ctx, -w / 2 - 1, yy - 1, w + 2, 5, '#0a1620ec');
         rect(ctx, -w / 2, yy, w * Math.max(0, e.hp / e.maxHp), 3, e.hp / e.maxHp < .3 ? '#e3855e' : TEAM[e.team].glow);
-        if (e.queue?.length) {
+        if (e.queue?.length || e.research || e.upgrade) {
           rect(ctx, -w / 2 - 1, yy + 5, w + 2, 3, '#0a1620ec');
-          rect(ctx, -w / 2, yy + 6, w * e.queue[0].progress, 1, '#dec48a');
+          rect(ctx, -w / 2, yy + 6, w * (e.upgrade?.progress ?? e.research?.progress ?? e.queue[0].progress), 1, '#dec48a');
         }
       }
       ctx.restore();
     }
     for (const hauler of state.entities) {
-      if (hauler.type !== 'harvester' || !hauler.unloadDepotId || hauler.hp <= 0 || !entityVisible(hauler)) continue;
+      if (entityRole(hauler) !== 'harvester' || !hauler.unloadDepotId || hauler.hp <= 0 || !entityVisible(hauler)) continue;
       const depot = state.entities.find(e => e.id === hauler.unloadDepotId && e.hp > 0);
       if (!depot || !entityVisible(depot)) continue;
       const dx = (depot.x + depot.size / 2) * TILE, dy = (depot.y + depot.size / 2) * TILE;
-      const targetX = dx - (depot.type === 'refinery' ? depot.size * TILE * .20 : 0);
-      const targetY = dy + depot.size * TILE * (depot.type === 'refinery' ? -.30 : .32);
+      const targetX = dx - (entityRole(depot) === 'refinery' ? depot.size * TILE * .20 : 0);
+      const targetY = dy + depot.size * TILE * (entityRole(depot) === 'refinery' ? -.30 : .32);
       const x = hauler.x * TILE - Math.cos(hauler.angle || 0) * 10, y = hauler.y * TILE - Math.sin(hauler.angle || 0) * 9;
       for (let i = 0; i < 5; i++) {
         const p = (time * 1.7 + i / 5) % 1;
@@ -1000,6 +1124,30 @@ export class Renderer {
     }
     // Every effect piece is gated by the cell it occupies, so fire from fog shows where it lands but never where it came from.
     const seenAt = (cx, cy) => !visible || !!visible[Math.floor(cy) * state.width + Math.floor(cx)];
+    const entityById = new Map(state.entities.map(e => [e.id, e]));
+    for (const engineer of visibleUnits) {
+      if (entityRole(engineer) !== 'engineer' || !engineer.repairActive) continue;
+      const target = entityById.get(engineer.repairTargetId);
+      if (!target || target.hp <= 0 || !entityVisible(target)) continue;
+      const n = target.kind === 'building' ? target.size / 2 : 0;
+      const tx = target.x + n, ty = target.y + n, dx = tx - engineer.x, dy = ty - engineer.y;
+      const length = Math.hypot(dx, dy), segments = Math.max(1, Math.ceil(length * 8));
+      // Broken amber service pulses keep the repair readable without covering vehicle silhouettes.
+      for (let i = 0; i < segments; i++) {
+        if ((i + Math.floor(time * 6)) % 4 > 1) continue;
+        const a = i / segments, b = Math.min(1, (i + .65) / segments);
+        const x = engineer.x + dx * a, y = engineer.y + dy * a, xx = engineer.x + dx * b, yy = engineer.y + dy * b;
+        if (!seenAt(x, y) || !seenAt(xx, yy)) continue;
+        line(ctx, x * TILE, y * TILE - 3, xx * TILE, yy * TILE - 3, '#edc58b78', 1);
+      }
+      const spark = .5 + Math.sin(time * 29 + engineer.id) * .5;
+      glow(ctx, tx * TILE, ty * TILE - 3, 5 + spark * 3, '#ffd5a270');
+      for (let i = 0; i < 3; i++) {
+        const angle = i * 2.4 + time * 3, r = 3 + spark * 5;
+        line(ctx, tx * TILE + Math.cos(angle) * 2, ty * TILE - 3 + Math.sin(angle) * 2,
+          tx * TILE + Math.cos(angle) * r, ty * TILE - 3 + Math.sin(angle) * r, '#ffdda888', .7);
+      }
+    }
     for (const fx of state.effects || []) {
       const alpha = Math.max(0, Math.min(1, fx.life / (fx.maxLife || .3))), age = 1 - alpha;
       const rocket = fx.type === 'rocket', flying = rocket || fx.type === 'shell';
@@ -1008,18 +1156,19 @@ export class Renderer {
       const py = flying ? fx.y + (fx.ty - fx.y) * age : fx.y;
       if (fx.type !== 'shot' && !seenAt(px, py) && !(fx.type === 'explosion' && this.seenEffects.has(fx))) continue;
       const x = fx.x * TILE, y = fx.y * TILE - 3;
+      const unity = state.teams[fx.team]?.race === 'aiUnity';
       ctx.save();
       if (fx.type === 'shot') {
         const dx = (fx.tx - fx.x) * TILE, dy = (fx.ty - fx.y) * TILE;
         const head = Math.min(1, age * 2.2), tail = Math.max(0, head - .18);
         ctx.globalAlpha = alpha;
         if (seenAt(fx.x + (fx.tx - fx.x) * tail, fx.y + (fx.ty - fx.y) * tail) && seenAt(fx.x + (fx.tx - fx.x) * head, fx.y + (fx.ty - fx.y) * head)) {
-          line(ctx, x + dx * tail, y + dy * tail, x + dx * head, y + dy * head, '#f3d8a98c', 2.6);
-          line(ctx, x + dx * tail, y + dy * tail, x + dx * head, y + dy * head, '#fff5d8', .8);
+          line(ctx, x + dx * tail, y + dy * tail, x + dx * head, y + dy * head, unity ? '#afcbd38c' : '#f3d8a98c', 2.6);
+          line(ctx, x + dx * tail, y + dy * tail, x + dx * head, y + dy * head, unity ? '#e3f2f4' : '#fff5d8', .8);
         }
         if (age < .55) {
           if (seenAt(fx.x, fx.y)) {
-            glow(ctx, x, y, 12 * alpha, '#ffc0708f');
+            glow(ctx, x, y, 12 * alpha, unity ? '#bad9e08f' : '#ffc0708f');
             ellipse(ctx, x, y, 3.5 * alpha, 2.5 * alpha, '#fff5dd');
           }
         } else if (seenAt(fx.tx, fx.ty)) {
@@ -1109,7 +1258,36 @@ export class Renderer {
     }
     // Screen-space overlays stay crisp at every camera zoom.
     for (const e of visibleUnits) this.drawUnitRank(e, view);
-    for (const e of state.entities) if (e.hp > 0 && e.team === 0 && view.selected?.has(e.id) && e.rally && ['barracks', 'factory', 'refinery'].includes(e.type)) {
+    for (const e of visibleUnits) {
+      if (e.team !== 0 || !view.selected?.has(e.id) || !['move', 'attackMove'].includes(e.order?.type)) continue;
+      const goal = e.order, gx = goal.x, gy = goal.y;
+      if (!Number.isFinite(gx) || !Number.isFinite(gy) || Math.hypot(e.x - gx, e.y - gy) < .12) continue;
+      const point = this.worldToScreen(gx, gy, view), color = goal.type === 'attackMove' ? '#e2b67e' : '#a8dcd9';
+      ctx.save(); ctx.lineWidth = 1;
+      // The player knows their own assigned order in fog. Paths show only observed cells,
+      // so a destination never reveals hidden obstacle routing or an enemy position.
+      const route = [{ x: e.x, y: e.y }, ...(e.path || []), { x: gx, y: gy }];
+      ctx.setLineDash([3, 7]);
+      for (let i = 1; i < route.length; i++) {
+        const a = route[i - 1], b = route[i];
+        if (!seenAt(a.x, a.y) || !seenAt(b.x, b.y)) continue;
+        const steps = Math.max(1, Math.ceil(Math.hypot(a.x - b.x, a.y - b.y) * 2));
+        let clear = true;
+        for (let j = 1; j < steps; j++) if (!seenAt(a.x + (b.x - a.x) * j / steps, a.y + (b.y - a.y) * j / steps)) { clear = false; break; }
+        if (!clear) continue;
+        const p = this.worldToScreen(a.x, a.y, view), q = this.worldToScreen(b.x, b.y, view);
+        line(ctx, p.x, p.y, q.x, q.y, color + '45', .8);
+      }
+      ctx.setLineDash([]);
+      ellipse(ctx, point.x, point.y, 4.5, 3, '#12202bd0');
+      for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+        line(ctx, point.x + dx * 3, point.y + dy * 4, point.x + dx * 5, point.y + dy * 4, color);
+        line(ctx, point.x + dx * 5, point.y + dy * 4, point.x + dx * 5, point.y + dy * 2, color);
+      }
+      rect(ctx, point.x - .7, point.y - .7, 1.4, 1.4, color);
+      ctx.restore();
+    }
+    for (const e of state.entities) if (e.hp > 0 && e.team === 0 && view.selected?.has(e.id) && e.rally && ['barracks', 'factory', 'refinery'].includes(entityRole(e))) {
       const origin = this.worldToScreen(e.x + e.size / 2, e.y + e.size / 2, view);
       const point = this.worldToScreen(e.rally.x, e.rally.y, view);
       ctx.save(); ctx.setLineDash([4, 5]);
@@ -1125,7 +1303,19 @@ export class Renderer {
       for (let y = y0; y <= y1; y++) line(ctx, left + x0 * zoom, top + y * zoom, left + x1 * zoom, top + y * zoom, '#aac7dc14');
       ctx.restore();
     }
-    if (view.placement && view.hover) {
+    if (view.placement === 'wall' && view.wallPlan?.cells?.length) {
+      const previewWalls = new Map(knownWalls);
+      for (const cell of view.wallPlan.cells) previewWalls.set(`0:${cell.x}:${cell.y}`, cell);
+      for (const cell of view.wallPlan.cells) {
+        const p = this.worldToScreen(cell.x + .5, cell.y + .5, view), color = cell.ok ? '#a6dddb' : '#e39881';
+        const wall = { type: 'wall', team: 0, size: 1, progress: 1, x: cell.x, y: cell.y };
+        wall.wallConnections = wallConnections(wall, previewWalls);
+        ctx.save(); ctx.translate(p.x, p.y); ctx.scale(scale, scale); ctx.globalAlpha = .7;
+        drawSprite(ctx, wall, time);
+        rect(ctx, -TILE / 2, -TILE / 2, TILE, TILE, cell.ok ? '#8de1e824' : '#ed796847');
+        ctx.strokeStyle = color; ctx.lineWidth = 1 / scale; ctx.strokeRect(-TILE / 2, -TILE / 2, TILE, TILE); ctx.restore();
+      }
+    } else if (view.placement && view.hover) {
       const size = SIZES[view.placement] || 2, x = Math.floor(view.hover.x), y = Math.floor(view.hover.y);
       const p = this.worldToScreen(x, y, view), color = view.placementValid ? '#b0e6e8' : '#ef967b';
       ctx.save(); ctx.translate(p.x + size * zoom / 2, p.y + size * zoom / 2); ctx.scale(scale, scale);
@@ -1162,17 +1352,26 @@ export class Renderer {
   drawEntityActivity(ctx, e, time, power = 1) {
     if (e.hp <= 0 || e.progress < 1) return;
     if (e.kind === 'building') buildingActivity(ctx, e, time, power);
+    if (e.kind === 'building' && e.upgrade) {
+      const s = e.size * TILE, p = Math.max(0, Math.min(1, e.upgrade.progress || 0));
+      ctx.save(); ctx.globalAlpha *= .7;
+      line(ctx, -s * .3, -s * .4, -s * .3 + s * .6 * p, -s * .4, '#e4bd80', 1.2);
+      glow(ctx, -s * .3 + s * .6 * p, -s * .4, 4, '#e8c08870'); ctx.restore();
+    }
     if (e.kind === 'unit') {
-      const moving = e.moving || e.path?.length > 0;
+      const moving = e.moving ?? e.path?.length > 0;
       if (moving && !isInfantry(e)) {
         ctx.save(); ctx.rotate(e.angle || 0);
+        const walker = UNITS[e.type]?.race === 'aiUnity' && unitRole(e) !== 'scout';
         for (let j = 0; j < 4; j++) {
           const age = (time * .9 + j * .25 + e.id * .17) % 1;
-          ctx.globalAlpha = (1 - age) * .11;
-          ellipse(ctx, -13 - age * 19, Math.sin(j * 7) * 6, 4 + age * 8, 3 + age * 4, '#bbaa92');
+          ctx.globalAlpha = (1 - age) * (walker ? .075 : .11);
+          ellipse(ctx, walker ? (j % 2 ? 8 : -8) - age * 2 : -13 - age * 19,
+            walker ? (j < 2 ? -10 : 10) : Math.sin(j * 7) * 6, walker ? 1.5 + age * 3 : 4 + age * 8,
+            walker ? 1 + age * 2 : 3 + age * 4, '#bbaa92');
         }
         ctx.restore();
-      } else if (e.type === 'harvester' && e.order?.type === 'harvest' && e.harvestPhase === 'gather' && e.cargo > 0) {
+      } else if (entityRole(e) === 'harvester' && e.order?.type === 'harvest' && e.harvestPhase === 'gather' && e.cargo > 0) {
         ctx.save(); ctx.rotate(e.angle || 0);
         for (let j = 0; j < 3; j++) {
           const age = (time * 1.5 + j / 3) % 1;
@@ -1181,13 +1380,24 @@ export class Renderer {
         }
         ctx.restore();
       }
+      const shot = Math.max(0, 1 - (time - (e.lastShot ?? -99)) / .14);
+      if (shot > 0 && !['engineer', 'harvester'].includes(entityRole(e))) {
+        const reach = { rifle: 11, rocket: 15, scout: 16, tank: 24, artillery: 31, striker: 25 }[entityRole(e)] || 18;
+        const unity = UNITS[e.type]?.race === 'aiUnity';
+        ctx.save(); ctx.scale(1, .88); ctx.rotate(e.angle || 0); ctx.globalAlpha *= shot;
+        for (const y of entityRole(e) === 'striker' ? [-2, 2] : [0]) {
+          polygon(ctx, [[reach, y - 1.2], [reach + 7 * shot, y], [reach, y + 1.2]], unity ? '#e0eef0' : '#ffe2ac');
+          glow(ctx, reach + 1, y, 4 + shot * 3, unity ? '#b4d4db65' : '#ffc27e65');
+        }
+        ctx.restore();
+      }
     }
     const damaged = e.hp < e.maxHp * .4;
-    if (e.kind === 'building' && (e.type === 'reactor' || e.type === 'refinery' && e.processingAmount > 0) || damaged) {
+    if (e.kind === 'building' && BUILDING_DEFS[e.type]?.race !== 'aiUnity' && (entityRole(e) === 'reactor' || entityRole(e) === 'refinery' && e.processingAmount > 0) || damaged) {
       const s = e.kind === 'building' ? e.size * TILE : 28;
       for (let j = 0; j < (damaged ? 5 : 3); j++) {
         const age = (time * (damaged ? .42 : .28) + j / (damaged ? 5 : 3) + e.id * .13) % 1;
-        const refineryStack = e.type === 'refinery' && !damaged;
+        const refineryStack = entityRole(e) === 'refinery' && !damaged;
         const x = (refineryStack ? s * .345 : -s * .2) + age * 14 + Math.sin(time + j) * 2;
         const y = (refineryStack ? -s * .427 : -s * .38) - age * 30;
         ctx.save(); ctx.globalAlpha = Math.sin(age * Math.PI) * (damaged ? .25 : .085);
@@ -1207,7 +1417,7 @@ export class Renderer {
   drawUnitRank(entity, view) {
     const ctx = this.ctx, p = this.worldToScreen(entity.x, entity.y, view);
     if (p.x < 0 || p.x > this.width || p.y < 0 || p.y > this.height) return;
-    const radius = entity.type === 'artillery' ? 30 : isInfantry(entity) ? 16 : 25;
+    const radius = entityRole(entity) === 'artillery' ? 30 : isInfantry(entity) ? 16 : 25;
     const y = Math.round(p.y + Math.max(11, radius * view.zoom / TILE) + 3), x = Math.round(p.x);
     const rank = unitRank(entity);
     ctx.save();
@@ -1239,10 +1449,11 @@ export class Renderer {
     const visible = state.visible?.[0], explored = state.explored?.[0];
     if (!this.miniTiles || this.miniTiles.width !== state.width) { this.miniTiles = document.createElement('canvas'); this.miniTiles.width = state.width; this.miniTiles.height = state.height; }
     const tiles = this.miniTiles.getContext('2d'), img = tiles.createImageData(state.width, state.height), data = img.data;
-    const palette = [[87, 94, 96], [139, 139, 130], [52, 59, 62], [237, 123, 34], [121, 119, 106]], ore = [131, 213, 201];
+    const palette = [[87, 94, 96], [139, 139, 130], [52, 59, 62], [237, 123, 34], [121, 119, 106], [69, 67, 58]];
+    const ore = [[131, 213, 201], [131, 213, 201], [118, 183, 249], [247, 121, 153]];
     for (let i = 0; i < state.terrain.length; i++) {
       if (explored && !explored[i]) continue;
-      const color = this.knownOre[i] > 0 ? ore : palette[state.terrain[i]] || palette[0], p = i * 4, dim = visible && !visible[i] ? .5 : 0;
+      const color = this.knownOre[i] > 0 ? ore[this.knownMineralTypes[i] || 1] : palette[state.terrain[i]] || palette[0], p = i * 4, dim = visible && !visible[i] ? .5 : 0;
       data[p] = color[0] + (10 - color[0]) * dim; data[p + 1] = color[1] + (21 - color[1]) * dim; data[p + 2] = color[2] + (32 - color[2]) * dim; data[p + 3] = 255;
     }
     tiles.putImageData(img, 0, 0);

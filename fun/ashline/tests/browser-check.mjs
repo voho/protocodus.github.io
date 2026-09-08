@@ -46,7 +46,7 @@ try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } }); watch(page);
   await page.goto(url); await page.waitForFunction(() => window.ashline?.assets.ready);
   assert.deepEqual(await state(page, () => ashline.assets.errors), []);
-  assert.equal(await state(page, () => ashline.assets.loaded), 7, 'All seven generated sprite and terrain assets load');
+  assert.equal(await state(page, () => ashline.assets.loaded), await state(page, () => ashline.assets.total), 'Every registered sprite and terrain asset loads');
   const graphics = await page.evaluate(async () => {
     const { drawSprite, spriteStats } = await import('./assets.js');
     const { UNITS } = await import('./sim.js');
@@ -121,7 +121,7 @@ try {
     const dragFrom = await point(page, fixture.rifle.x - .7, fixture.rifle.y - .7), dragTo = await point(page, fixture.haulers[1].x + .7, fixture.haulers[1].y + .7);
     await page.mouse.move(dragFrom.x, dragFrom.y); await page.mouse.down(); await page.mouse.move(dragTo.x, dragTo.y, {steps: 6}); await page.mouse.up();
     assert.deepEqual(await selected(), [fixture.rifle.id, fixture.scout.id], 'Mixed box selection keeps combat units and excludes haulers');
-    await page.keyboard.press('a'); await clickWorld(page, fixture.rifle.x - 3, fixture.rifle.y + 3);
+    await page.keyboard.press('q'); await clickWorld(page, fixture.rifle.x - 3, fixture.rifle.y + 3);
     assert.deepEqual(await state(page, () => ashline.state.entities.filter(e => e.type === 'harvester').map(e => e.order)), fixture.haulers.map(e => e.order), 'Excluded haulers do not receive a combat move');
     for (const [first, added] of [[fixture.rifle, fixture.haulers[0]], [fixture.haulers[0], fixture.rifle]]) {
       await clickWorld(page, first.x, first.y); await shiftAdd(added);
@@ -166,9 +166,9 @@ try {
   const a = await point(page, dragA.x, dragA.y), b = await point(page, dragB.x, dragB.y);
   await page.mouse.move(a.x, a.y); await page.mouse.down(); await page.mouse.move(b.x, b.y, { steps: 6 }); await page.mouse.up();
   assert(await state(page, () => ashline.view.selected.size >= 3), 'Drag selects multiple units');
-  await page.keyboard.press('a'); await clickBase(page, 23, 29);
+  await page.keyboard.press('q'); await clickBase(page, 23, 29);
   assert(await state(page, () => ashline.state.entities.filter(e => ashline.view.selected.has(e.id)).some(e => e.order.type === 'attackMove')));
-  await page.keyboard.press('s');
+  await page.keyboard.press('h');
   assert(await state(page, () => ashline.state.entities.filter(e => ashline.view.selected.has(e.id)).every(e => e.order.type === 'idle')));
 
   await page.keyboard.press('1'); await page.keyboard.press('x'); await page.keyboard.press('e');
@@ -177,12 +177,12 @@ try {
   assert.equal(await page.locator('#explore-order').getAttribute('aria-pressed'), 'true');
   assert(await state(page, () => ashline.state.entities.filter(e => ashline.view.selected.has(e.id)).every(e => e.order.type === 'explore')), 'Group toggle enables every selected explorer');
   await page.screenshot({ path: `${output}/auto-explore.png` });
-  await page.keyboard.press('s');
+  await page.keyboard.press('h');
 
   const hauler = await state(page, () => ashline.state.entities.find(e => e.team === 0 && e.type === 'harvester'));
   const escort = await state(page, () => ashline.state.entities.find(e => e.team === 0 && e.type === 'rifle'));
   await clickWorld(page, hauler.x, hauler.y);
-  await page.keyboard.press('s');
+  await page.keyboard.press('h');
   assert.equal(await page.evaluate(id => ashline.state.entities.find(e => e.id === id).order.type, hauler.id), 'harvest', 'Stopping a hauler restores automatic harvesting');
   await page.waitForFunction(() => /Auto-harvesting|Returning cargo/.test(document.querySelector('#selection-detail').textContent));
   await clickBase(page, 16.5, 39.5, 'right');
@@ -241,10 +241,10 @@ try {
   for (const outcome of ['victory', 'defeat']) {
     await page.locator('#deploy').click();
     await page.evaluate(async outcome => {
-      const { issueOrder } = await import('./sim.js'), s = ashline.state;
+      const { issueOrder, buildingRole, unitRole } = await import('./sim.js'), s = ashline.state;
       const loser = outcome === 'victory' ? 1 : 0;
-      const core = s.entities.find(e => e.team === loser && e.type === 'core');
-      const attacker = s.entities.find(e => e.team !== loser && e.type === 'rifle');
+      const core = s.entities.find(e => e.team === loser && buildingRole(e) === 'core');
+      const attacker = s.entities.find(e => e.team !== loser && unitRole(e) === 'rifle');
       core.hp = 1; attacker.x = core.x - .6; attacker.y = core.y + 1.5; attacker.cooldown = 0;
       s.fogClock = 0;
       issueOrder(s, [attacker.id], { type: 'attackMove', x: core.x + 1.5, y: core.y + 1.5 });
@@ -262,7 +262,7 @@ try {
   await mobile.locator('#deploy').tap();
   assert(await state(mobile, () => document.documentElement.scrollWidth <= innerWidth), 'Mobile has no horizontal overflow');
   assert(await pageIsCompact(mobile), 'Mobile starts with a compact, collapsed console');
-  assert(await state(mobile, () => ashline.view.zoom >= 20), 'Full-width mobile battlefield keeps sprites legible');
+  assert(await mobile.evaluate(async () => { const {spriteNativeZoom}=await import('./assets.js');return Math.abs(ashline.view.zoom-spriteNativeZoom(ashline.renderer.dpr)*.625)<1e-6; }), 'Mobile starts at the second of five native-resolution zoom levels');
   const mobileScout = await state(mobile, () => ashline.state.entities.find(e => e.team === 0 && e.type === 'scout'));
   const scoutPoint = await point(mobile, mobileScout.x, mobileScout.y); await mobile.touchscreen.tap(scoutPoint.x, scoutPoint.y);
   assert.equal(await state(mobile, () => ashline.view.selected.size), 1);

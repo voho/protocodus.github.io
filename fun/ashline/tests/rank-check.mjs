@@ -49,11 +49,12 @@ assert.equal(unitRank({kind:'building',type:'turret',kills:20}),0);assert.equal(
   advance(s,1);assert.equal(u.kills,18);assert.equal(s.teams[0].kills,18,'Expired effects cannot award duplicate kills');
 }
 
-// Measured movement uses each class's effective speed, including unarmed haulers.
+// After the acceleration ramp, movement uses each class's exact effective speed, including unarmed haulers.
 for(const type of Object.keys(UNITS))for(const kills of [0,5,10,15]){
   const s=quiet(),u=add(s,type,0,20.5,20.5,kills);
-  issueOrder(s,[u.id],{type:'move',x:60.5,y:20.5});advance(s,.5);
-  close(u.x-20.5,unitStats(u).speed*.5,`${type} rank ${unitRank(u)} actual movement`);
+  issueOrder(s,[u.id],{type:'move',x:60.5,y:20.5});advance(s,1);
+  const start=u.x;advance(s,.5);
+  close(u.x-start,unitStats(u).speed*.5,`${type} rank ${unitRank(u)} steady movement`);
   assert.equal(u.y,20.5);
 }
 

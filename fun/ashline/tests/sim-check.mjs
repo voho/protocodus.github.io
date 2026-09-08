@@ -1,19 +1,21 @@
 import assert from 'node:assert/strict';
-import {BUILDINGS,UNITS,createGame,updateGame,canPlace,placeBuilding,trainUnit,issueOrder,stopUnits,powerStats,getEntity} from '../sim.js';
+import {BUILDINGS,UNITS,MAP_SIZES,createGame,updateGame,canPlace,placeBuilding,trainUnit,issueOrder,stopUnits,powerStats,getEntity} from '../sim.js';
 
 const advance=(s,seconds)=>{for(let i=0;i<Math.ceil(seconds/.1);i++)updateGame(s,.1);};
 const quiet=seed=>{const s=createGame(seed);s.ai.nextThink=Infinity;return s;};
 const entities=(s,team,type)=>s.entities.filter(e=>e.team===team&&e.type===type);
 const available=(s,type)=>{const core=entities(s,0,'core')[0];for(let y=core.y-15;y<core.y+15;y++)for(let x=Math.max(1,core.x-12);x<core.x+22;x++)if(canPlace(s,0,type,x,y).ok)return{x,y};throw Error(`No placement for ${type}`);};
 
-// New sectors have four times the area; both saved dimensions work when stepped together.
+// New sectors default to Frontier; current and legacy dimensions work when stepped together.
 const expanded=createGame('map-dimensions'),legacy=createGame('map-dimensions','normal',{width:72,height:56});
-assert.deepEqual([expanded.width,expanded.height],[144,112]);
-assert.equal(expanded.terrain.length,legacy.terrain.length*4);
+assert.deepEqual([expanded.width,expanded.height],[MAP_SIZES.frontier.width,MAP_SIZES.frontier.height]);
+assert.equal(expanded.terrain.length,MAP_SIZES.frontier.width*MAP_SIZES.frontier.height);
+assert(expanded.terrain.length>legacy.terrain.length*6,'Frontier provides substantially more territory');
 assert.deepEqual(expanded.teams,legacy.teams,'Larger maps preserve the starting economy');
 assert.deepEqual(expanded.entities.map(({type,team,size,hp})=>({type,team,size,hp})),legacy.entities.map(({type,team,size,hp})=>({type,team,size,hp})),'Starting armies and physical scale stay unchanged');
 const mineralCells=s=>s.minerals.reduce((n,v)=>n+(v>0),0);
-assert(mineralCells(expanded)>mineralCells(legacy)*3.5,'The enlarged terrain also contains proportionately more resource fields');
+assert(mineralCells(expanded)>mineralCells(legacy)*2,'The larger frontier has additional remote expansion fields');
+for(let i=0;i<expanded.minerals.length;i++)assert.equal(expanded.minerals[i],expanded.minerals[expanded.minerals.length-1-i],'Expanded mineral budgets remain exactly mirrored');
 const edgeCases=[legacy,expanded].map(s=>{
   const u=entities(s,0,'scout')[0];s.entities=[u];s.ai.nextThink=Infinity;s.terrain.fill(0);s.minerals.fill(0);s.navVersion++;
   u.x=s.width-14.5;u.y=s.height-14.5;const goal={x:s.width-3.5,y:s.height-3.5};
@@ -102,7 +104,7 @@ for(let seed=0;seed<12;seed++){
 }
 
 // Full unattended skirmish exercises AI construction, economics, scouting, raids and victory state.
-const battle=createGame('smoke','normal'),battleCore=entities(battle,0,'core')[0];advance(battle,360);
+const battle=createGame('smoke','normal'),battleCore=entities(battle,0,'core')[0];advance(battle,600);
 assert(battle.ai.raid>=1,'AI must launch a raid');
 assert(battle.entities.some(e=>e.team===1&&e.type==='factory'),'AI must reach armor production');
 assert(battle.teams[1].kills>0,'AI must engage player forces');

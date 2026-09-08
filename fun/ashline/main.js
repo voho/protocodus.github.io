@@ -1,6 +1,7 @@
-import { BUILDINGS, UNITS, createGame, updateGame, placeBuilding, canPlace, trainUnit, setRallyPoint, issueOrder, stopUnits, powerStats, getEntity, unitRank, unitStats, toggleRepair, sellBuilding, salvageValue } from './sim.js';
+import { BUILDINGS, UNITS, UNIT_CAP, RESEARCH, BUILDING_UPGRADES, MAP_SIZES, MAP_PROFILES, RACES, buildingRole, unitRole, teamRace, raceBuilding, raceUnit, planWallLine, buildWallLine, terrainCover, researchStatus, startResearch, buildingUpgradeStatus, startBuildingUpgrade, createGame, updateGame, placeBuilding, canPlace, trainUnit, setRallyPoint, issueOrder, stopUnits, powerStats, getEntity, unitRank, unitStats, toggleRepair, sellBuilding, salvageValue } from './sim.js';
 import { Renderer, drawIcon } from './render.js';
-import { assetsReady, assetStatus } from './assets.js';
+import { assetsReady, assetStatus, spriteNativeZoom } from './assets.js';
+import { zoomLevels, nearestZoom, steppedZoom, cameraDirection } from './camera.js';
 import { createAudio } from './audio.js';
 import { saveGame, loadGame, getSaveInfo } from './save.js';
 
@@ -13,19 +14,29 @@ let game, launched = false, paused = true, activeTab = 'build', orderMode = null
 let lastTime = performance.now(), accumulator = 0, hudTimer = 0, toastUntil = 0, lastEvent = 0;
 let pointer = null, pointerPosition = null, lastPortrait = '', lastQueue = '', lastNotice = '', lowPower = false, pinchDistance = 0;
 const touches = new Map();
+let edgePointer = null, wheelTravel = 0, lastZoomAt = 0;
+let wallPreviewKey = '', wallPreviewAt = 0;
+let preferredZoomIndex = compactScreen.matches ? 1 : 2;
+const cameraLevels = () => zoomLevels(spriteNativeZoom(renderer.dpr));
 const audio = createAudio();
 audio.setPaused(true);
 let heardEffects = new WeakSet();
 const keys = new Set(), groups = new Map();
-const buildTypes = ['reactor', 'refinery', 'barracks', 'factory', 'turret', 'rocketTower'];
-const unitTypes = ['rifle', 'rocket', 'scout', 'tank', 'artillery', 'harvester'];
+const buildTypes = ['reactor', 'refinery', 'barracks', 'factory', 'lab', 'capacitor', 'turret', 'rocketTower', 'wall'];
+const unitTypes = ['rifle', 'rocket', 'scout', 'tank', 'artillery', 'striker', 'engineer', 'harvester'];
+const researchBranches = [
+  { name: 'INFANTRY DOCTRINE', ids: ['infantryWeapons', 'infantryArmor'] },
+  { name: 'ARMORED WARFARE', ids: ['vehicleWeapons', 'mobility'] },
+  { name: 'GRID & SYSTEMS', ids: ['gridEfficiency', 'advancedBallistics'] },
+];
 const fmt = value => Math.floor(value).toLocaleString('en-US');
 const minutes = time => `${Math.floor(time / 60).toString().padStart(2, '0')}:${Math.floor(time % 60).toString().padStart(2, '0')}`;
 const randomSeed = () => `ASH-${crypto.getRandomValues(new Uint32Array(1))[0].toString(36).slice(0, 5).toUpperCase()}`;
 const entityCenter = e => ({ x: e.x + (e.kind === 'building' ? e.size / 2 : 0), y: e.y + (e.kind === 'building' ? e.size / 2 : 0) });
 const selectedEntities = () => game.entities.filter(e => e.team === 0 && e.hp > 0 && view.selected.has(e.id));
 const selectedUnits = () => selectedEntities().filter(e => e.kind === 'unit');
-const selectedProducers = () => selectedEntities().filter(e => e.kind === 'building' && ['barracks', 'factory', 'refinery'].includes(e.type));
+const researchText = def => def.description.replaceAll('Pike striker', UNITS[raceUnit(game, 0, 'striker')].name).replace('Rifle and rocket infantry', 'Light and heavy infantry');
+const selectedProducers = () => selectedEntities().filter(e => e.kind === 'building' && ['barracks', 'factory', 'refinery'].includes(buildingRole(e)));
 const chosenProducer = type => {
   const producers = selectedProducers().filter(e => e.type === UNITS[type].producer);
   return producers.length === 1 ? producers[0] : null;
@@ -47,28 +58,33 @@ function notify(text, warning = false, soft = false) {
 }
 
 function reset(seed, difficulty, restored) {
-  game = restored?.game || createGame(seed, difficulty);
+  game = restored?.game || createGame(seed, difficulty, { ...MAP_SIZES[$('map-size').value], profile: $('map-profile').value, races: [$('player-race').value, $('enemy-race').value] });
   view.selected.clear(); groups.clear(); keys.clear();
   view.placement = null; view.drag = null; view.hover = null; view.commandMarker = null;
+  view.wallStart = null; view.wallPlan = null;
   orderMode = null; pointer = null; pointerPosition = null; accumulator = 0; lastEvent = game.events.length;
   lastPortrait = ''; lastQueue = null; lastNotice = ''; view.showGrid = false; lowPower = false; touches.clear();
+  delete $('building-upgrades').dataset.entity;
   heardEffects = new WeakSet(game.effects);
   renderer.terrainSource = null;
   if (restored) {
     renderer.createTerrain(game);
     renderer.rememberedBuildings = new Map(restored.rememberedBuildings.map(e => [e.id, e]));
     renderer.knownOre = restored.knownOre;
+    // Mineral material is immutable; only previously explored deposits have known colors.
+    renderer.knownMineralTypes = Uint8Array.from(game.mineralTypes, (type, i) => game.explored[0][i] ? type : 0);
   }
-  $('seed-label').textContent = `SECTOR ${seed}`;
-  $('sector-label').textContent = seed;
+  $('seed-label').textContent = `${seed} · ${game.width}×${game.height}`;
+  $('sector-label').textContent = `${MAP_PROFILES[game.mapProfile]?.name || 'Ash frontier'} / ${seed}`;
   setConsole(!compactScreen.matches && !matchMedia('(pointer: coarse)').matches);
   centerBase();
-  if (restored?.view) { Object.assign(view, restored.view); clampCamera(); }
+  if (restored?.view) Object.assign(view, restored.view);
+  view.zoom = restored?.view?.zoom ? nearestZoom(view.zoom, cameraLevels()) : cameraLevels()[preferredZoomIndex]; clampCamera(); updateZoomLabel();
   setTab('build'); updateHUD();
 }
 
 function centerBase() {
-  const core = game.entities.find(e => e.team === 0 && e.type === 'core' && e.hp > 0);
+  const core = game.entities.find(e => e.team === 0 && buildingRole(e) === 'core' && e.hp > 0);
   if (core) { const c = entityCenter(core); view.x = c.x + 3; view.y = c.y - 1; }
   clampCamera();
 }
@@ -88,16 +104,20 @@ function setConsole(open) {
 }
 
 function setTab(tab) {
+  if (tab !== activeTab && view.placement) { view.placement = null; view.showGrid = false; setOrderHint(); }
   activeTab = tab;
   for (const button of document.querySelectorAll('[data-tab]')) {
     button.setAttribute('aria-selected', String(button.dataset.tab === tab));
     button.tabIndex = button.dataset.tab === tab ? 0 : -1;
   }
   $('catalog').setAttribute('aria-labelledby', `${tab}-tab`);
+  $('catalog').dataset.category = tab;
+  updateBuildingUpgrades();
+  if (tab === 'research') { createResearchCatalog(); updateCatalog(); return; }
   $('catalog-tip').textContent = tab === 'build' ? 'Build within 7 tiles of a finished structure.' : 'Recruit into an available production queue.';
   $('catalog').replaceChildren();
   const defs = tab === 'build' ? BUILDINGS : UNITS;
-  for (const type of tab === 'build' ? buildTypes : unitTypes) {
+  for (const type of tab === 'build' ? buildTypes.map(role => raceBuilding(game, 0, role)) : unitTypes.map(role => raceUnit(game, 0, role))) {
     const def = defs[type], button = document.createElement('button');
     button.className = 'build-card'; button.dataset.type = type;
     button.setAttribute('aria-label', `${tab === 'build' ? 'Construct' : 'Recruit'} ${def.name}, ${def.cost} credits`);
@@ -118,18 +138,24 @@ function setTab(tab) {
 }
 
 function updateCatalog() {
+  if (activeTab === 'research') { updateResearchCatalog(); return; }
   const buildings = game.entities.filter(e => e.team === 0 && e.kind === 'building' && e.hp > 0);
   const own = buildings.filter(e => e.progress >= 1);
+  const population = game.entities.filter(e => e.team === 0 && e.kind === 'unit' && e.hp > 0).length + buildings.reduce((n, e) => n + e.queue.length + (e.haulerPending ? 1 : 0), 0);
   const selected = selectedProducers();
   $('production-target').textContent = activeTab === 'build' ? 'BUILD WITHIN 7 TILES OF A FINISHED STRUCTURE' : selected.length === 1 ? `COMPATIBLE UNITS → ${BUILDINGS[selected[0].type].name.toUpperCase()} #${selected[0].id} · OTHERS AUTO-ASSIGN` : 'AUTOMATIC FACTORY ASSIGNMENT';
   for (const button of $('catalog').children) {
     const type = button.dataset.type, def = (activeTab === 'build' ? BUILDINGS : UNITS)[type];
-    const missing = (def.requires || []).filter(type => !own.some(e => e.type === type));
+    const missing = (def.requires || []).filter(type => !own.some(e => buildingRole(e) === buildingRole(type)));
     let reason = missing.length ? `Requires ${missing.map(type => BUILDINGS[type]?.name || type).join(', ')}` : '';
     if (activeTab === 'train' && !own.some(e => e.type === def.producer)) reason ||= `Requires ${BUILDINGS[def.producer]?.name || def.producer}`;
+    if (activeTab === 'train' && def.research && !game.teams[0].research?.[def.research]) reason ||= `Research ${RESEARCH[def.research]?.name || def.research}`;
+    if (activeTab === 'train' && unitRole(type) === 'striker' && !(chosenProducer(type) ? chosenProducer(type).upgrades?.advancedProduction : own.some(e => buildingRole(e) === 'factory' && e.upgrades?.advancedProduction))) reason ||= 'Requires Advanced assembly bay';
     const producer = activeTab === 'train' ? chosenProducer(type) : null;
+    const eligibleProducers = activeTab === 'train' ? own.filter(e => e.type === def.producer && (unitRole(type) !== 'striker' || e.upgrades?.advancedProduction)) : [];
     if (producer?.progress < 1) reason ||= 'Selected producer is under construction';
-    if (activeTab === 'train' && (producer ? (producer.queue || []).length >= 6 : own.filter(e => e.type === def.producer).every(e => (e.queue || []).length >= 6))) reason ||= 'Production queues full';
+    if (activeTab === 'train' && (producer ? (producer.queue || []).length >= 6 : eligibleProducers.every(e => (e.queue || []).length >= 6))) reason ||= 'Production queues full';
+    if (activeTab === 'train' && population >= UNIT_CAP) reason ||= `Unit limit reached (${UNIT_CAP})`;
     if (game.teams[0].credits < def.cost) reason ||= 'Insufficient credits';
     button.dataset.reason = reason;
     button.querySelector('.card-meta').textContent = reason || cardMeta(def);
@@ -161,6 +187,90 @@ function updateCatalog() {
   }
 }
 
+function createResearchCatalog() {
+  $('catalog').replaceChildren();
+  $('catalog-tip').textContent = 'Each branch unlocks its next project. Upgrades apply to existing and future forces.';
+  for (const branch of researchBranches) {
+    const section = document.createElement('section'); section.className = 'research-branch';
+    const heading = document.createElement('h3'); heading.textContent = branch.name; section.append(heading);
+    branch.ids.forEach((id, tier) => {
+      const def = RESEARCH[id], button = document.createElement('button');
+      button.className = 'research-card'; button.dataset.research = id;
+      const badge = document.createElement('span'); badge.className = 'research-tier'; badge.textContent = String(tier + 1).padStart(2, '0'); badge.setAttribute('aria-hidden', 'true');
+      const name = document.createElement('b'); name.textContent = def.name;
+      const description = document.createElement('span'); description.className = 'research-description'; description.textContent = researchText(def);
+      const status = document.createElement('span'); status.className = 'research-state';
+      const progress = document.createElement('span'); progress.className = 'research-progress'; progress.hidden = true;
+      const fill = document.createElement('i'); progress.append(fill);
+      button.append(badge, name, description, status, progress);
+      button.addEventListener('click', () => {
+        if (busy()) return;
+        const lab = selectedEntities().find(e => buildingRole(e) === 'lab' && e.progress >= 1 && !e.research);
+        const result = startResearch(game, 0, id, lab?.id);
+        if (result.ok) { notify(`${def.name} research started.`); playSound('build'); }
+        else notify(result.reason, true);
+        updateHUD();
+      });
+      section.append(button);
+    });
+    $('catalog').append(section);
+  }
+}
+
+function updateResearchCatalog() {
+  const labs = game.entities.filter(e => e.team === 0 && buildingRole(e) === 'lab' && e.hp > 0 && e.progress >= 1);
+  const complete = Object.keys(RESEARCH).filter(id => game.teams[0].research?.[id]).length;
+  $('production-target').textContent = `${complete} / ${Object.keys(RESEARCH).length} UPGRADES · ${labs.length ? `${labs.length} LAB${labs.length === 1 ? '' : 'S'} ONLINE` : `BUILD ${BUILDINGS[raceBuilding(game, 0, 'lab')].name.toUpperCase()}`}`;
+  for (const button of $('catalog').querySelectorAll('[data-research]')) {
+    const id = button.dataset.research, def = RESEARCH[id], status = researchStatus(game, 0, id);
+    const lab = labs.find(e => e.research?.id === id), progress = lab?.research?.progress || 0;
+    const state = status.completed ? 'complete' : status.queued ? 'active' : status.ok ? 'available' : 'locked';
+    button.dataset.state = state;
+    button.disabled = busy() || !status.ok;
+    const label = status.completed ? '✓ RESEARCHED' : status.queued ? `RESEARCHING · ${Math.floor(progress * 100)}%` : status.ok ? `◈ ${def.cost} · ${def.time}s` : `${status.reason} · ◈ ${def.cost}`;
+    button.querySelector('.research-state').textContent = label;
+    button.querySelector('.research-tier').textContent = status.completed ? '✓' : status.queued ? '…' : (researchBranches.find(b => b.ids.includes(id)).ids.indexOf(id) + 1).toString().padStart(2, '0');
+    button.title = `${def.name} · ${def.cost} credits · ${def.time}s. ${researchText(def)}${status.reason ? ` ${status.reason}` : ''}`;
+    button.setAttribute('aria-label', `${def.name}. ${researchText(def)} ${label}`);
+    const bar = button.querySelector('.research-progress'); bar.hidden = !status.queued;
+    bar.firstElementChild.style.width = `${progress * 100}%`;
+    if (status.queued) { bar.setAttribute('role', 'progressbar'); bar.setAttribute('aria-label', def.name); bar.setAttribute('aria-valuemin', '0'); bar.setAttribute('aria-valuemax', '100'); bar.setAttribute('aria-valuenow', String(Math.floor(progress * 100))); }
+  }
+}
+
+function updateBuildingUpgrades() {
+  const selected = selectedEntities(), building = selected.length === 1 && selected[0].kind === 'building' ? selected[0] : null;
+  const ids = building ? Object.keys(BUILDING_UPGRADES).filter(id => BUILDING_UPGRADES[id].types.includes(buildingRole(building))) : [];
+  $('upgrade-building').hidden = !ids.length;
+  $('upgrade-building').disabled = busy();
+  const panel = $('building-upgrades'); panel.hidden = activeTab !== 'research' || !ids.length;
+  if (panel.hidden) return;
+  $('upgrade-target').textContent = `${BUILDINGS[building.type].name} #${building.id}`;
+  if (panel.dataset.entity !== `${building.id}:${building.type}`) {
+    panel.dataset.entity = `${building.id}:${building.type}`; $('upgrade-list').replaceChildren();
+    for (const id of ids) {
+      const def = BUILDING_UPGRADES[id], button = document.createElement('button'); button.className = 'upgrade-card'; button.dataset.upgrade = id;
+      const name = document.createElement('b'); name.textContent = def.name;
+      const status = document.createElement('span'); button.append(name, status);
+      button.addEventListener('click', () => {
+        if (busy()) return;
+        const result = startBuildingUpgrade(game, 0, building.id, id);
+        if (result.ok) { notify(`${def.name} upgrade started.`); playSound('build'); } else notify(result.reason, true);
+        updateHUD();
+      });
+      $('upgrade-list').append(button);
+    }
+  }
+  for (const button of $('upgrade-list').children) {
+    const id = button.dataset.upgrade, def = BUILDING_UPGRADES[id], status = buildingUpgradeStatus(game, 0, building.id, id);
+    const complete = !!building.upgrades?.[id], running = building.upgrade?.id === id;
+    const label = complete ? '✓ INSTALLED' : running ? `${Math.floor(building.upgrade.progress * 100)}% · INSTALLING` : status.ok ? `◈ ${def.cost} · ${def.time}s` : status.reason;
+    button.disabled = busy() || !status.ok; button.dataset.state = complete ? 'complete' : running ? 'active' : 'available';
+    button.lastElementChild.textContent = label; button.title = `${def.description} ${def.cost} credits · ${def.time}s. ${label}`;
+    button.setAttribute('aria-label', `${def.name}. ${def.description} ${label}`);
+  }
+}
+
 function chooseProduction(type, touch = false) {
   if (busy()) return;
   if (activeTab === 'build') {
@@ -181,14 +291,20 @@ function chooseProduction(type, touch = false) {
 
 function setOrderHint() {
   $('order-hint').hidden = !view.placement && !orderMode;
-  $('order-hint').textContent = view.placement ? `PLACE ${BUILDINGS[view.placement].name.toUpperCase()} · ${(view.placementReason || 'Click to build').toUpperCase()} · ESC TO CANCEL` : orderMode === 'rally' ? 'RALLY POINT · SELECT A DESTINATION' : orderMode === 'attackMove' ? 'ATTACK MOVE · SELECT A DESTINATION' : 'MOVE · SELECT A DESTINATION';
   canvas.classList.toggle('ordering', Boolean(view.placement || orderMode));
   $('attack-order').classList.toggle('active', orderMode === 'attackMove');
   $('move-order').classList.toggle('active', orderMode === 'move');
   $('rally-order').classList.toggle('active', orderMode === 'rally');
+  if (view.placement === 'wall') {
+    const plan = view.wallPlan;
+    $('order-hint-text').textContent = `WALL LINE · ${plan?.count ?? 1} SEGMENTS · ◈ ${plan?.cost ?? BUILDINGS.wall.cost}${plan?.reason ? ` · ${plan.reason}` : ' · DRAG TO BUILD'}`;
+    return;
+  }
+  $('order-hint-text').textContent = view.placement ? `PLACE ${BUILDINGS[view.placement].name.toUpperCase()} · ${(view.placementReason || 'Click to build').toUpperCase()}` : orderMode === 'rally' ? 'RALLY POINT · SELECT A DESTINATION' : orderMode === 'attackMove' ? 'ATTACK MOVE · SELECT A DESTINATION' : 'MOVE · SELECT A DESTINATION';
 }
 
-function cancelOrder() { view.placement = null; view.placementReason = ''; view.showGrid = false; orderMode = null; view.drag = null; setOrderHint(); updateCatalog(); }
+function cancelOrder() { view.placement = null; view.placementReason = ''; view.showGrid = false; view.wallStart = null; view.wallPlan = null; orderMode = null; view.drag = null; setOrderHint(); updateCatalog(); }
+$('cancel-order').addEventListener('click', () => { cancelOrder(); canvas.focus({preventScroll:true}); });
 
 function setOrder(type) {
   if (busy() || !(type === 'rally' ? selectedProducers() : selectedUnits()).length) return;
@@ -242,11 +358,11 @@ function commandAt(point, explicitType) {
   let type = explicitType || 'move';
   if (!explicitType) {
     if (hit && hit.team !== 0) type = 'attack';
-    else if (game.minerals[index] > 0 && game.explored[0][index] && units.some(e => e.type === 'harvester')) type = 'harvest';
+    else if ((game.visible[0][index] ? game.minerals[index] : renderer.knownOre[index]) > 0 && game.explored[0][index] && units.some(e => unitRole(e) === 'harvester')) type = 'harvest';
   }
   if (type === 'harvest') {
-    issueOrder(game, units.filter(e => e.type === 'harvester').map(e => e.id), { type, x, y });
-    issueOrder(game, units.filter(e => e.type !== 'harvester').map(e => e.id), { type: 'move', x, y });
+    issueOrder(game, units.filter(e => unitRole(e) === 'harvester').map(e => e.id), { type, x, y });
+    issueOrder(game, units.filter(e => unitRole(e) !== 'harvester').map(e => e.id), { type: 'move', x, y });
   } else issueOrder(game, units.map(e => e.id), { type, x, y, targetId: type === 'attack' ? hit.id : undefined });
   view.commandMarker = { x, y, time: performance.now() / 1000, type };
   orderMode = null; setOrderHint(); playSound('confirm'); updateHUD();
@@ -263,19 +379,34 @@ function placeAt(point) {
 function updateHUD() {
   $('credits').textContent = fmt(game.teams[0].credits);
   const power = powerStats(game, 0);
-  const low = power.supply < power.demand;
+  const low = power.ratio < 1;
   // Let a live warning (such as the reactor's destruction) finish before the low-power line replaces it.
-  if (low !== lowPower && !(low && performance.now() < toastUntil && $('notifications').classList.contains('warning'))) { lowPower = low; if (low && game.status === 'playing' && !paused) notify('Low power: defenses offline and production slowed. Build a Flux reactor.', true); }
-  $('power').textContent = `${power.supply} / ${power.demand}${low ? ' LOW' : ''}`;
+  if (low !== lowPower && !(low && performance.now() < toastUntil && $('notifications').classList.contains('warning'))) { lowPower = low; if (low && game.status === 'playing' && !paused) notify(`Low power: defenses offline and production slowed. Build ${BUILDINGS[raceBuilding(game, 0, 'reactor')].name}.`, true); }
+  $('power').textContent = `${Math.floor(power.supply)} / ${Math.ceil(power.demand)}`;
+  $('power-label').textContent = low ? 'BROWNOUT' : power.usingReserve ? 'RESERVE' : 'POWER';
   $('power-resource').classList.toggle('low-power', low);
-  $('power-resource').title = `Supply ${power.supply} / demand ${power.demand}${low ? '. Low power slows production and shuts down defenses.' : ''}`;
-  $('army').textContent = game.entities.filter(e => e.team === 0 && e.kind === 'unit' && e.hp > 0).length;
+  $('power-resource').classList.toggle('reserve-power', power.usingReserve);
+  const powerDetail = low ? `Brownout: ${Math.round(power.ratio * 100)}% power. Production, research, mineral processing and repairs slow; defenses are offline.` : power.usingReserve ? `Reserve power: ${Math.ceil(power.reserveSeconds)} seconds remaining. Build a reactor before storage runs out.` : `Grid stable. ${Math.round(power.supply - power.demand)} power available.`;
+  $('power-resource').title = powerDetail;
+  $('grid-summary').textContent = low ? 'BROWNOUT' : power.usingReserve ? 'RESERVE ACTIVE' : 'GRID STABLE';
+  $('grid-state').dataset.state = power.status;
+  $('grid-rate').textContent = `${Math.round(power.ratio * 100)}%`;
+  $('grid-output').style.width = `${power.ratio * 100}%`;
+  $('grid-detail').textContent = low ? 'Defenses offline · industry slowed' : power.usingReserve ? `${Math.ceil(power.reserveSeconds)}s of reserve · restore supply` : 'All systems operational';
+  $('reserve-meter').hidden = !power.reserveCapacity;
+  $('reserve-fill').style.width = `${power.reserveCapacity ? power.reserve / power.reserveCapacity * 100 : 0}%`;
+  $('reserve-label').textContent = `STORAGE ${Math.round(power.reserve || 0)} / ${power.reserveCapacity || 0}`;
+  $('grid-state').title = powerDetail;
+  const deployed = game.entities.filter(e => e.team === 0 && e.kind === 'unit' && e.hp > 0).length;
+  const reserved = game.entities.filter(e => e.team === 0 && e.kind === 'building' && e.hp > 0).reduce((n, e) => n + e.queue.length + (e.haulerPending ? 1 : 0), 0);
+  $('army').textContent = deployed;
+  $('army').closest('.resource').title = `${deployed} deployed · ${reserved} in production · ${UNIT_CAP} units per side`;
   $('mission-time').textContent = minutes(game.time);
   for (const id of view.selected) if (!getEntity(game, id) || getEntity(game, id).hp <= 0) view.selected.delete(id);
   let selection = selectedEntities();
   if (selection.some(e => e.kind === 'unit' && UNITS[e.type].damage > 0)) {
-    for (const e of selection) if (e.type === 'harvester') view.selected.delete(e.id);
-    selection = selection.filter(e => e.type !== 'harvester');
+    for (const e of selection) if (unitRole(e) === 'harvester') view.selected.delete(e.id);
+    selection = selection.filter(e => unitRole(e) !== 'harvester');
   }
   const units = selection.filter(e => e.kind === 'unit');
   const first = selection[0];
@@ -294,20 +425,24 @@ function updateHUD() {
       const exploring = units.filter(e => e.order?.type === 'explore').length;
       detail = `${exploring ? `${exploring} auto-exploring · ` : ''}${[...counts].map(([type, n]) => `${n} ${(UNITS[type] || BUILDINGS[type]).name}`).join(' · ')}`;
     } else if (first.kind === 'building') {
-      const job = first.queue?.[0], producer = ['barracks', 'factory', 'refinery'].includes(first.type);
-      const activity = [job ? `${UNITS[job.type].name} ${Math.floor(job.progress * 100)}%` : first.processingAmount > 0 ? 'Processing minerals' : producer ? 'Idle · bay empty' : 'Operational'];
+      const job = first.queue?.[0], producer = ['barracks', 'factory', 'refinery'].includes(buildingRole(first));
+      const activity = [first.research ? `${RESEARCH[first.research.id].name} ${Math.floor(first.research.progress * 100)}%` : job ? `${UNITS[job.type].name} ${Math.floor(job.progress * 100)}%` : first.processingAmount > 0 ? 'Processing minerals' : producer ? 'Idle · bay empty' : buildingRole(first) === 'lab' ? 'Idle · choose a research project' : 'Operational'];
+      if (buildingRole(first) === 'capacitor') activity.splice(0, 1, `${Math.round(first.reserve || 0)} stored · ${power.usingReserve && first.reserve > 0 ? 'Reserve available' : first.reserve >= BUILDINGS[first.type].reserveCapacity ? 'Fully charged' : power.supply > power.demand ? 'Charging from surplus' : 'Waiting for spare power'}`);
+      if (first.upgrade) activity.push(`${BUILDING_UPGRADES[first.upgrade.id].name} ${Math.floor(first.upgrade.progress * 100)}%`);
+      if (low && BUILDINGS[first.type].power < 0) activity.unshift('BROWNOUT');
       if (first.processingAmount > 0) activity.push(`${Math.ceil(first.processingAmount)} shards remaining`);
       if (first.haulerPending) activity.push('Included hauler awaiting deployment');
       if (first.repairing) activity.unshift(game.teams[0].credits > 0 ? 'Repairing' : 'Repair waiting for credits');
       detail = first.progress < 1 ? `Under construction · ${Math.floor(first.progress * 100)}%` : `${Math.ceil(first.hp)} / ${first.maxHp} integrity · ${activity.join(' · ')}`;
       if (selectedProducers().length) detail += first.rally ? ` · Rally ${Math.floor(first.rally.x)}:${Math.floor(first.rally.y)}` : ' · Set rally with R or right click';
     }
-    else if (first.type === 'harvester') {
+    else if (unitRole(first) === 'harvester') {
       const cargo = (first.cargo || 0) * (first.unloadDepotId ? Math.max(0, 1 - (first.unload || 0) / 1.2) : 1);
-      detail = `${cargo < 1 ? 'Empty' : cargo >= UNITS.harvester.capacity ? 'Full' : `Cargo ${Math.ceil(cargo)} / ${UNITS.harvester.capacity}`} · ${first.unloadDepotId ? 'Unloading minerals' : first.order?.type === 'explore' ? 'Auto-exploring' : first.order?.type === 'move' ? 'Relocating · auto-harvest next' : first.harvestPhase === 'return' ? 'Returning cargo' : 'Auto-harvesting'}`;
+      detail = `${cargo < 1 ? 'Empty' : cargo >= UNITS[first.type].capacity ? 'Full' : `Cargo ${Math.ceil(cargo)} / ${UNITS[first.type].capacity}`} · ${first.unloadDepotId ? 'Unloading minerals' : first.order?.type === 'explore' ? 'Auto-exploring' : first.order?.type === 'move' ? 'Relocating · auto-harvest next' : first.harvestPhase === 'return' ? 'Returning cargo' : 'Auto-harvesting'}`;
     }
-    else detail = `${Math.ceil(first.hp)} / ${first.maxHp} integrity · ${first.order?.type === 'explore' ? `Auto-exploring${first.targetId ? ' · Engaging' : ''}` : first.order?.type === 'move' ? 'Moving' : first.targetId || first.order?.type === 'attack' ? 'Engaging' : first.order?.type === 'attackMove' ? 'Advancing' : 'Guarding'}`;
+    else detail = `${Math.ceil(first.hp)} / ${first.maxHp} integrity · ${first.order?.type === 'explore' ? `Auto-exploring${first.targetId ? ' · Engaging' : ''}` : first.order?.type === 'move' ? 'Moving' : unitRole(first) === 'engineer' ? first.repairTargetId ? 'Repairing nearby machinery' : 'Auto-repair within 4 tiles' : first.targetId || first.order?.type === 'attack' ? 'Engaging' : first.order?.type === 'attackMove' ? 'Advancing' : 'Guarding'}`;
   }
+  if (selection.length === 1 && first.kind === 'unit' && terrainCover(game, first) > 0) detail += ' · 15% crater cover';
   $('selection-detail').textContent = detail;
   const rankedUnit = selection.length === 1 && first.kind === 'unit' ? first : null;
   const rankInfo = $('selection-rank'); rankInfo.hidden = !rankedUnit;
@@ -325,8 +460,8 @@ function updateHUD() {
   $('selected-count').textContent = first ? `${selection.length}`.padStart(2, '0') : '07';
   $('selection-health').hidden = selection.length !== 1;
   if (first) $('selection-health').firstElementChild.style.width = `${Math.max(0, first.hp / first.maxHp * 100)}%`;
-  const portraitKey = first ? `${first.type}:${Math.floor(first.progress * 10)}:${first.queue?.[0]?.type}:${Math.floor((first.queue?.[0]?.progress || 0) * 10)}:${Math.ceil((first.processingAmount || 0) / 50)}:${Math.ceil((first.cargo || 0) * (first.unloadDepotId ? Math.max(0, 1 - (first.unload || 0) / 1.2) : 1) / 50)}` : 'core';
-  if (portraitKey !== lastPortrait) { drawIcon($('portrait'), first?.type || 'core', 0, first); lastPortrait = portraitKey; }
+  const portraitKey = first ? `${first.id}:${first.type}:${Math.floor(first.progress * 10)}:${first.queue?.[0]?.type}:${Math.floor((first.queue?.[0]?.progress || 0) * 10)}:${Math.ceil((first.processingAmount || 0) / 50)}:${first.processingType}:${first.cargoType}:${Math.ceil((first.cargo || 0) * (first.unloadDepotId ? Math.max(0, 1 - (first.unload || 0) / 1.2) : 1) / 50)}:${Math.round(power.ratio * 20)}:${power.status}:${Math.round((first.research?.progress || 0) * 10)}:${Math.round((first.reserve || 0) / 100)}:${Math.round((first.upgrade?.progress || 0) * 10)}` : 'core';
+  if (portraitKey !== lastPortrait) { drawIcon($('portrait'), first?.type || raceBuilding(game, 0, 'core'), 0, { ...first, powerRatio: power.ratio, powerStatus: power.status }); lastPortrait = portraitKey; }
   for (const id of ['move-order', 'attack-order', 'explore-order', 'stop-order']) { $(id).disabled = busy() || !units.length; $(id).hidden = !units.length; }
   $('rally-order').hidden = !selectedProducers().length;
   $('rally-order').disabled = busy() || !selectedProducers().length;
@@ -338,14 +473,16 @@ function updateHUD() {
     repair.setAttribute('aria-pressed', String(Boolean(building.repairing)));
     repair.classList.toggle('active', Boolean(building.repairing));
     $('repair-label').textContent = building.repairing ? 'STOP REPAIR' : 'REPAIR';
-    repair.title = 'Restore 2% integrity per second. A full health bar costs half the structure price; waits if credits run out.';
-    sell.disabled = busy() || building.type === 'core';
+    const repairRate = power.ratio * 2, repairCost = BUILDINGS[building.type].cost / 100 * power.ratio;
+    repair.title = `Restore ${Number(repairRate.toFixed(1))}% integrity per second at current power. A full health bar costs half the structure price; waits if credits run out.`;
+    sell.disabled = busy() || buildingRole(building) === 'core';
     $('sell-label').textContent = `SELL +${fmt(refund)}`;
-    sell.title = building.type === 'core' ? 'The command nexus cannot be sold' : `Sell immediately for ${refund} credits, including all paid unit queues. Haulers keep their cargo.`;
-    const notes = [building.progress < 1 ? 'Finish construction to repair.' : building.repairing && game.teams[0].credits <= 0 ? 'Waiting for credits; repair resumes automatically.' : `Repair: 2% HP/s · ${BUILDINGS[building.type].cost / 100} credits/s.`];
-    if (building.type === 'core') notes.push('Nexus cannot be sold.');
-    if (building.type === 'refinery' && !building.haulerPending) notes.push('Hauler value excluded from sale.');
-    if (building.queue.length) notes.push(`Sale includes ${fmt(building.queue.reduce((sum, q) => sum + UNITS[q.type].cost, 0))} queued credits.`);
+    sell.title = buildingRole(building) === 'core' ? 'The command nexus cannot be sold' : `Sell immediately for ${refund} credits, including paid unit queues, research and pending upgrades. Haulers keep their cargo.`;
+    const notes = [building.progress < 1 ? 'Finish construction to repair.' : building.repairing && game.teams[0].credits <= 0 ? 'Waiting for credits; repair resumes automatically.' : `Repair: ${Number(repairRate.toFixed(1))}% HP/s · ${Number(repairCost.toFixed(1))} credits/s${low ? ' at current power' : ''}.`];
+    if (buildingRole(building) === 'core') notes.push('Nexus cannot be sold.');
+    if (buildingRole(building) === 'refinery' && !building.haulerPending) notes.push('Hauler value excluded from sale.');
+    const paidJobs = building.queue.reduce((sum, q) => sum + UNITS[q.type].cost, 0) + (RESEARCH[building.research?.id]?.cost || 0) + (BUILDING_UPGRADES[building.upgrade?.id]?.cost || 0);
+    if (paidJobs) notes.push(`Sale includes ${fmt(paidJobs)} pending credits.`);
     $('building-actions-note').textContent = notes.join(' ');
   }
   const exploring = units.filter(e => e.order?.type === 'explore').length;
@@ -359,6 +496,8 @@ function updateHUD() {
       queueCount += e.queue.length;
       queue.push({ id: e.id, name: UNITS[e.queue[0].type].name, progress: e.queue[0].progress || 0, label: `${BUILDINGS[e.type].name} #${e.id}${e.queue.length > 1 ? ` · +${e.queue.length - 1} waiting` : ''}` });
     }
+    if (e.research) { queueCount++; queue.push({ id: `r${e.id}`, name: RESEARCH[e.research.id].name, progress: e.research.progress, label: `RESEARCH · LAB #${e.id}` }); }
+    if (e.upgrade) { queueCount++; queue.push({ id: `u${e.id}`, name: BUILDING_UPGRADES[e.upgrade.id].name, progress: e.upgrade.progress, label: `UPGRADE · ${BUILDINGS[e.type].name}` }); }
   }
   $('queue-count').textContent = String(queueCount).padStart(2, '0');
   $('pending-count').hidden = !queueCount;
@@ -378,14 +517,26 @@ function updateHUD() {
     }
     lastQueue = queueKey;
   }
-  updateCatalog();
+  updateBuildingUpgrades(); updateCatalog();
+  const hover = view.hover, at = hover ? Math.floor(hover.y) * game.width + Math.floor(hover.x) : -1;
+  const known = hover && hover.x >= 0 && hover.y >= 0 && hover.x < game.width && hover.y < game.height && game.explored[0][at];
+  let groundHint = '';
+  if (known) {
+    const ore = game.visible[0][at] ? game.minerals[at] : renderer.knownOre?.[at];
+    if (ore > 0) { const type = renderer.knownMineralTypes?.[at] || game.mineralTypes[at] || 1; groundHint = `${['', 'MINT SHARDS', 'BLUE SHARDS', 'RED SHARDS · 2× DENSITY'][type]} · ${fmt(ore)} CREDITS`; }
+    else groundHint = ({1:'RAISED RIDGE · IMPASSABLE', 3:'MOLTEN LAVA · IMPASSABLE', 4:'TWISTED ROOTS · OBSTRUCTED', 5:'CRATER · 15% DIRECT-FIRE COVER · NO CONSTRUCTION'})[game.terrain[at]] || '';
+  }
+  $('terrain-readout').textContent = groundHint; $('terrain-readout').hidden = !groundHint || Boolean(view.placement);
+  document.body.style.setProperty('--selection-height', panel.hidden ? '0px' : `${panel.getBoundingClientRect().height}px`);
+  const hint = $('order-hint');
+  document.body.style.setProperty('--order-hint-height', hint.hidden ? '0px' : `${hint.getBoundingClientRect().height}px`);
 }
 
 function showMenu(finished = false, guide = false) {
   paused = true; keys.clear(); pointer = null; view.drag = null;
   audio.setPaused(true);
   $('menu-title').textContent = finished ? game.status === 'victory' ? 'The frontier is yours.' : 'The line has fallen.' : 'Hold the line.';
-  $('menu-description').textContent = finished ? game.status === 'victory' ? 'The Red Foundry command core is down. Your expedition holds the sector.' : 'Your command core was destroyed. Regroup and take another sector.' : 'The battlefield is paused.';
+  $('menu-description').textContent = finished ? game.status === 'victory' ? `${RACES[teamRace(game, 1)].name} command is down. Your forces hold the sector.` : 'Your command core was destroyed. Regroup and take another sector.' : 'The battlefield is paused.';
   $('resume').hidden = finished;
   $('match-summary').hidden = !finished;
   if (finished) $('match-summary').textContent = `${minutes(game.time)} IN FIELD  ·  ${game.teams[0].kills || 0} ENEMIES DESTROYED`;
@@ -433,6 +584,9 @@ function loadOperation() {
   if (!result.ok) { refreshSaveControls(result.reason); return; }
   paused = true; launched = true;
   $('seed').value = result.game.seed; $('difficulty').value = result.game.difficulty;
+  const size = Object.keys(MAP_SIZES).find(id => MAP_SIZES[id].width === result.game.width && MAP_SIZES[id].height === result.game.height);
+  if (size) $('map-size').value = size;
+  $('map-profile').value = result.game.mapProfile || 'rift'; $('player-race').value = teamRace(result.game, 0); $('enemy-race').value = teamRace(result.game, 1); updateMapDescription();
   reset(result.game.seed, result.game.difficulty, result);
   $('briefing').close(); audio.unlock(); showMenu(game.status !== 'playing');
   $('menu-description').textContent = 'Operation restored. Resume when ready.';
@@ -441,7 +595,7 @@ function loadOperation() {
 
 function selectArmy() {
   if (busy()) return;
-  view.selected = new Set(game.entities.filter(e => e.team === 0 && e.kind === 'unit' && e.type !== 'harvester' && e.hp > 0).map(e => e.id));
+  view.selected = new Set(game.entities.filter(e => e.team === 0 && e.kind === 'unit' && unitRole(e) !== 'harvester' && e.hp > 0).map(e => e.id));
   updateHUD(); playSound('select');
 }
 
@@ -462,9 +616,17 @@ function toggleExplore() {
 
 function zoom(amount, point) {
   const before = point ? renderer.screenToWorld(point.x, point.y, view) : null;
-  view.zoom = Math.max(16, Math.min(58, view.zoom * amount));
+  view.zoom = steppedZoom(view.zoom, amount > 1 ? 1 : -1, cameraLevels());
   if (before) { const after = renderer.screenToWorld(point.x, point.y, view); view.x += before.x - after.x; view.y += before.y - after.y; }
-  clampCamera();
+  clampCamera(); updateZoomLabel();
+}
+
+function updateZoomLabel() {
+  const levels = cameraLevels(), index = levels.indexOf(nearestZoom(view.zoom, levels));
+  preferredZoomIndex = index;
+  $('zoom-level').textContent = `${index + 1}/5`;
+  $('zoom-level').title = `${Math.round(view.zoom / levels[4] * 100)}% native resolution${index === 4 ? ' · 1:1 maximum' : ''}`;
+  $('zoom-out').disabled = index === 0; $('zoom-in').disabled = index === 4;
 }
 
 function localPoint(event) {
@@ -473,12 +635,18 @@ function localPoint(event) {
 
 canvas.addEventListener('contextmenu', event => event.preventDefault());
 canvas.addEventListener('pointerdown', event => {
-  if (event.pointerType === 'touch') { canvas.setPointerCapture(event.pointerId); touches.set(event.pointerId, localPoint(event)); pinchDistance = 0; }
+  if (event.pointerType === 'touch') {
+    canvas.setPointerCapture(event.pointerId); touches.set(event.pointerId, localPoint(event)); pinchDistance = 0;
+    if (touches.size > 1 && pointer) { pointer.wall = false; pointer.pan = true; pointer.dragged = true; view.wallStart = null; view.wallPlan = null; }
+  }
   if (busy() || pointer) return;
   event.preventDefault(); canvas.focus({ preventScroll: true });
   const point = localPoint(event), world = renderer.screenToWorld(point.x, point.y, view);
   canvas.setPointerCapture(event.pointerId);
   pointer = { id: event.pointerId, button: event.button, touch: event.pointerType === 'touch', start: point, last: point, startWorld: world, shift: event.shiftKey, dragged: false, pan: event.button === 1 || event.pointerType === 'touch' };
+  if (view.placement === 'wall' && event.button === 0) {
+    pointer.wall = true; pointer.pan = false; view.wallStart = { x: Math.floor(world.x), y: Math.floor(world.y) };
+  }
   pointerPosition = point;
 });
 canvas.addEventListener('pointermove', event => {
@@ -490,8 +658,9 @@ canvas.addEventListener('pointermove', event => {
     if (touches.size === 2 && pointer) {
       // Pinch: zoom around the midpoint; the primary pointer keeps panning (pan stays true) so no tap or box select fires on release.
       const [a, b] = [...touches.values()], distance = Math.hypot(a.x - b.x, a.y - b.y), mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
-      if (pinchDistance && !busy()) zoom(distance / pinchDistance, mid);
-      pinchDistance = distance; pointer.dragged = true; view.drag = null;
+      if (!pinchDistance) pinchDistance = distance;
+      if (!busy() && (distance / pinchDistance > 1.14 || distance / pinchDistance < 1 / 1.14)) { zoom(distance / pinchDistance, mid); pinchDistance = distance; }
+      pointer.dragged = true; view.drag = null;
       if (event.pointerId === pointer.id) pointer.last = point;
       return;
     }
@@ -511,6 +680,12 @@ canvas.addEventListener('pointerup', event => {
   if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
   if (busy()) return;
   const point = localPoint(event), world = renderer.screenToWorld(point.x, point.y, view);
+  if (active.wall && view.wallStart && view.placement === 'wall') {
+    const result = buildWallLine(game, 0, view.wallStart.x, view.wallStart.y, Math.floor(world.x), Math.floor(world.y));
+    view.wallStart = null; view.wallPlan = null; view.drag = null;
+    notify(result.count ? `${result.count} wall segments ordered · ${result.cost} credits${result.reason ? ` · ${result.reason}` : ''}` : result.reason || 'Wall line could not be placed.', !result.count);
+    if (result.count) playSound('build'); updateHUD(); setOrderHint(); return;
+  }
   if (active.dragged) {
     if (view.drag && !active.pan) {
       if (!active.shift) view.selected.clear();
@@ -527,7 +702,7 @@ canvas.addEventListener('pointerup', event => {
     else selectAt(world, active.shift, active.touch);
   }
 });
-canvas.addEventListener('pointercancel', event => { touches.delete(event.pointerId); pinchDistance = 0; pointer = null; view.drag = null; });
+canvas.addEventListener('pointercancel', event => { touches.delete(event.pointerId); pinchDistance = 0; pointer = null; view.drag = null; view.wallStart = null; view.wallPlan = null; });
 canvas.addEventListener('pointerleave', () => { if (!pointer) { pointerPosition = null; view.hover = null; } });
 canvas.addEventListener('dblclick', event => {
   if (busy()) return;
@@ -539,7 +714,18 @@ canvas.addEventListener('dblclick', event => {
     updateHUD();
   }
 });
-canvas.addEventListener('wheel', event => { event.preventDefault(); if (!busy()) zoom(Math.exp(-event.deltaY * .001), localPoint(event)); }, { passive: false });
+canvas.addEventListener('wheel', event => {
+  event.preventDefault(); if (busy()) return;
+  if (Math.sign(wheelTravel) !== Math.sign(event.deltaY)) wheelTravel = 0;
+  wheelTravel += event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? renderer.height : 1);
+  if (Math.abs(wheelTravel) >= 32 && performance.now() - lastZoomAt > 140) {
+    zoom(wheelTravel < 0 ? 2 : .5, localPoint(event)); wheelTravel = 0; lastZoomAt = performance.now();
+  }
+}, { passive: false });
+document.addEventListener('pointermove', event => {
+  edgePointer = event.pointerType === 'mouse' && !event.target.closest('button, input, select, dialog, .sidebar, .tactical-map, .commandbar') ? localPoint(event) : null;
+});
+document.documentElement.addEventListener('pointerleave', () => { edgePointer = null; });
 
 const minimap = $('minimap');
 function navigateMinimap(event) {
@@ -563,15 +749,15 @@ document.addEventListener('keydown', event => {
   if ($('menu').open) { if (event.key.toLowerCase() === 'p') { event.preventDefault(); resume(); } return; }
   if (game.status !== 'playing') return;
   const key = event.key.toLowerCase();
-  if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(key)) event.preventDefault();
+  if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(key)) event.preventDefault();
   keys.add(key);
   if (event.repeat) return;
   if (key === 'escape') { if (view.placement || orderMode || view.selected.size) { cancelOrder(); view.selected.clear(); updateHUD(); } else if (!$('command-console').hidden) setConsole(false); else showMenu(); }
   else if (key === 'b') { event.preventDefault(); setConsole($('command-console').hidden); }
   else if (key === 'p') showMenu();
-  else if (key === 'a') setOrder('attackMove');
+  else if (key === 'q') setOrder('attackMove');
   else if (key === 'r') setOrder('rally');
-  else if (key === 's') stopSelection();
+  else if (key === 'h') stopSelection();
   else if (key === 'x') toggleExplore();
   else if (key === 'e') selectArmy();
   else if (key === ' ') centerBase();
@@ -585,9 +771,9 @@ document.addEventListener('keydown', event => {
   else if (key === '-') zoom(1 / 1.15);
 });
 document.addEventListener('keyup', event => keys.delete(event.key.toLowerCase()));
-window.addEventListener('blur', () => { keys.clear(); touches.clear(); pointer = null; pointerPosition = null; view.drag = null; if (launched && !paused && game.status === 'playing') showMenu(); });
+window.addEventListener('blur', () => { keys.clear(); touches.clear(); pointer = null; pointerPosition = null; edgePointer = null; view.drag = null; if (launched && !paused && game.status === 'playing') showMenu(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden && launched && !paused && game.status === 'playing') showMenu(); });
-window.addEventListener('resize', () => { renderer.resize(); if (game) clampCamera(); });
+window.addEventListener('resize', () => { renderer.resize(); if (game) { view.zoom = nearestZoom(view.zoom, cameraLevels()); clampCamera(); updateZoomLabel(); } });
 
 compactScreen.addEventListener('change', event => { if (event.matches) setConsole(false); });
 $('command-toggle').addEventListener('click', () => setConsole($('command-console').hidden));
@@ -595,11 +781,14 @@ $('command-close').addEventListener('click', () => setConsole(false));
 document.querySelector('.console-tabs').addEventListener('keydown', event => {
   if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
   event.preventDefault(); event.stopPropagation();
-  const tab = event.key === 'Home' ? 'build' : event.key === 'End' ? 'train' : activeTab === 'build' ? 'train' : 'build';
+  const tabs = ['build', 'train', 'research'];
+  const tab = event.key === 'Home' ? tabs[0] : event.key === 'End' ? tabs.at(-1) : tabs[(tabs.indexOf(activeTab) + (event.key === 'ArrowRight' ? 1 : 2)) % tabs.length];
   setTab(tab); $(`${tab}-tab`).focus();
 });
 $('build-tab').addEventListener('click', () => setTab('build'));
 $('train-tab').addEventListener('click', () => setTab('train'));
+$('research-tab').addEventListener('click', () => setTab('research'));
+$('upgrade-building').addEventListener('click', () => { setConsole(true); setTab('research'); $('command-console').scrollTop = 0; });
 $('attack-order').addEventListener('click', () => setOrder('attackMove'));
 $('move-order').addEventListener('click', () => setOrder('move'));
 $('rally-order').addEventListener('click', () => setOrder('rally'));
@@ -644,6 +833,12 @@ $('new-game').addEventListener('click', () => {
   refreshSaveControls(); $('briefing').showModal(); $('deploy').focus();
 });
 $('random-seed').addEventListener('click', () => { $('seed').value = randomSeed(); reset($('seed').value, $('difficulty').value); });
+function updateMapDescription() {
+  const size = MAP_SIZES[$('map-size').value];
+  $('race-description').textContent = RACES[$('player-race').value].description;
+  $('map-description').textContent = `${MAP_PROFILES[$('map-profile').value].description} ${fmt(size.width * size.height)} tiles to explore.`;
+}
+for (const id of ['map-profile', 'map-size', 'player-race', 'enemy-race']) $(id).addEventListener('change', () => { updateMapDescription(); reset($('seed').value, $('difficulty').value); });
 $('launch-form').addEventListener('submit', event => {
   event.preventDefault();
   if (!assetStatus.ready) return;
@@ -652,7 +847,7 @@ $('launch-form').addEventListener('submit', event => {
   audio.unlock(); audio.setPaused(false);
   $('briefing').close(); $('pause').textContent = 'Ⅱ'; $('pause').setAttribute('aria-label', 'Pause game');
   canvas.focus({ preventScroll: true }); updateHUD(); playSound('confirm');
-  notify('Expedition deployed. Build a barracks and recruit your first squad.');
+  notify(`${RACES[teamRace(game, 0)].name} deployed. Build ${BUILDINGS[raceBuilding(game, 0, 'barracks')].name} and recruit your first squad.`);
 });
 
 function frame(now) {
@@ -663,18 +858,9 @@ function frame(now) {
       updateGame(game, .05); accumulator -= .05;
       if (game.status !== 'playing') { showMenu(true); playSound(game.status); accumulator = 0; break; }
     }
-    const panSpeed = 400 / view.zoom * elapsed; // WASD intentionally unbound: A (attack move) and S (stop) are order hotkeys.
-    if (keys.has('arrowleft')) view.x -= panSpeed;
-    if (keys.has('arrowright')) view.x += panSpeed;
-    if (keys.has('arrowup')) view.y -= panSpeed;
-    if (keys.has('arrowdown')) view.y += panSpeed;
-    // Edge pan only during a drag selection; normal pointer movement keeps the view still.
-    if (pointer && !pointer.pan && pointer.dragged && pointerPosition) {
-      if (pointerPosition.x < 18) view.x -= panSpeed;
-      if (pointerPosition.x > renderer.width - 18) view.x += panSpeed;
-      if (pointerPosition.y < 18) view.y -= panSpeed;
-      if (pointerPosition.y > renderer.height - 18) view.y += panSpeed;
-    }
+    const panSpeed = 400 / view.zoom * elapsed;
+    const direction = cameraDirection(keys, !pointer?.pan && !touches.size ? edgePointer : null, renderer.width, renderer.height);
+    view.x += direction.x * panSpeed; view.y += direction.y * panSpeed;
     clampCamera();
     if (game.events.length < lastEvent) lastEvent = 0;
     for (let i = lastEvent; i < game.events.length; i++) {
@@ -692,11 +878,18 @@ function frame(now) {
       heardEffects.add(effect);
       const v = game.visible[0], W = game.width, at = (x, y) => v[Math.floor(y) * W + Math.floor(x)];
       if (!at(effect.x, effect.y) && !((effect.type === 'shot' || effect.type === 'shell' || effect.type === 'rocket') && Number.isFinite(effect.tx) && at(effect.tx, effect.ty))) continue;
-      if (effect.type === 'shot' || effect.type === 'shell' || effect.type === 'rocket') playSound(effect.weapon || 'rifle');
+      if (effect.type === 'shot' || effect.type === 'shell' || effect.type === 'rocket') playSound(UNITS[effect.weapon] ? unitRole(effect.weapon) : BUILDINGS[effect.weapon] ? buildingRole(effect.weapon) : 'rifle');
       else if (effect.type === 'explosion') playSound('explosion');
     }
   }
   if (pointerPosition && !busy()) view.hover = renderer.screenToWorld(pointerPosition.x, pointerPosition.y, view);
+  if (view.placement === 'wall' && view.hover && !busy()) {
+    const to = { x: Math.floor(view.hover.x), y: Math.floor(view.hover.y) }, from = view.wallStart || to;
+    const key = `${from.x}:${from.y}:${to.x}:${to.y}:${game.navVersion}`;
+    if (key !== wallPreviewKey || now - wallPreviewAt > 150 || !view.wallPlan) {
+      view.wallPlan = planWallLine(game, 0, from.x, from.y, to.x, to.y); wallPreviewKey = key; wallPreviewAt = now; setOrderHint();
+    }
+  } else view.wallPlan = null;
   const check = view.placement && view.hover ? canPlace(game, 0, view.placement, Math.floor(view.hover.x), Math.floor(view.hover.y)) : null;
   view.placementValid = Boolean(check?.ok);
   if ((check?.reason || '') !== view.placementReason) { view.placementReason = check?.reason || ''; setOrderHint(); }
@@ -713,6 +906,7 @@ function frame(now) {
 }
 
 $('seed').value = randomSeed();
+updateMapDescription();
 renderer.resize();
 reset($('seed').value, 'normal');
 updateSoundButton(); refreshSaveControls();
@@ -726,6 +920,7 @@ assetsReady.then(() => {
   $('deploy').disabled = false;
   refreshSaveControls();
   renderer.terrainSource = null;
+  view.zoom = cameraLevels()[preferredZoomIndex]; updateZoomLabel();
   setTab(activeTab); lastPortrait = ''; updateHUD();
   $('deploy').focus();
 });

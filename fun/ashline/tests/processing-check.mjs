@@ -77,6 +77,6 @@ for (let i = 0; i < 400; i++) {
   for (const e of untracked.entities) if (e.processingAmount !== undefined) e.processingAmount = e.processingTotal = 0;
 }
 assert.deepEqual(tracked.teams, untracked.teams); assert.deepEqual(tracked.minerals, untracked.minerals); assert.equal(tracked.rng, untracked.rng);
-const gameplay = s => s.entities.map(({ processingAmount, processingTotal, ...e }) => e);
+const gameplay = s => s.entities.map(({ processingAmount, processingTotal, processingType, ...e }) => e);
 assert.deepEqual(gameplay(tracked), gameplay(untracked));
 console.log('Processing checks passed: actual deliveries, both factions and depot types, finite mining, concurrent batches, empty/idle state, docking visibility, deterministic timing, and unchanged economy.');

@@ -87,7 +87,7 @@ try {
     await page.locator('#train-tab').click(); await page.locator('.build-card[data-type="harvester"]').click(); await page.locator('.build-card[data-type="harvester"]').click();
     if (await page.locator('#command-console').isVisible()) await page.locator('#command-toggle').click();
     await advance(page, 1); await select(page, ids.refinery, mobile);
-    assert.match(await page.locator('#building-actions-note').textContent(), /Sale includes 600 queued credits/);
+    assert.match(await page.locator('#building-actions-note').textContent(), /Sale includes 600 pending credits/);
     await layout(page); await page.screenshot({path: `${output}/${name}-sale-preview.png`});
     const sale = await page.evaluate(async id => {
       const {salvageValue} = await import('./sim.js'), s = ashline.state;

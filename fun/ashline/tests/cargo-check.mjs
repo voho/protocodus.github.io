@@ -12,13 +12,14 @@ try {
   await page.goto(new URL('cargo-check.html', base).href);
   const report = await page.evaluate(async () => {
     const { assetsReady, assetStatus, drawSprite, drawSpriteShadow } = await import('./assets.js');
+    const { unitRole } = await import('./sim.js');
     await assetsReady;
     if (!assetStatus.ready) throw new Error(assetStatus.errors.join('; '));
     const canvas = document.createElement('canvas'); canvas.width = canvas.height = 192;
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     const sample = (entity, shadow = false) => {
       ctx.clearRect(0, 0, 192, 192); ctx.save(); ctx.translate(96, 104);
-      if (entity.type === 'harvester') ctx.scale(2.5, 2.5);
+      if (unitRole(entity) === 'harvester') ctx.scale(2.5, 2.5);
       (shadow ? drawSpriteShadow : drawSprite)(ctx, { ...entity, hp: 100, progress: 1 }, 0);
       ctx.restore(); return ctx.getImageData(0, 0, 192, 192).data;
     };
@@ -29,9 +30,9 @@ try {
     };
     let cases = 0, alphaChanged = 0, shadowChanged = 0, otherUnitChanged = 0;
     const fillCounts = [];
-    for (const type of ['harvester', 'refinery']) for (const team of [0, 1]) {
+    for (const type of ['harvester', 'refinery', 'unityHarvester', 'unityRefinery']) for (const team of [0, 1]) {
       const unit = { type, team, cargo: 0, processingAmount: 0, queue: [{ type: 'harvester', progress: .2 }] };
-      for (let direction = 0; direction < (type === 'harvester' ? 32 : 1); direction++) {
+      for (let direction = 0; direction < (unitRole(type) === 'harvester' ? 32 : 1); direction++) {
         unit.angle = direction * Math.PI / 16;
         const empty = sample(unit), shadow = sample(unit, true), counts = [];
         for (const amount of [0, 50, 100, 150, 200]) {
@@ -62,8 +63,9 @@ try {
     drawSprite({save() {}, restore() {}, translate() {}, drawImage(source) {refinerySource = source;}}, {type: 'refinery', processingAmount: 200});
     const refineryPixels = refinerySource.getContext('2d').getImageData(0, 0, refinerySource.width, refinerySource.height).data;
     let bakedPlumeAlpha = 0;
-    // The high-resolution smokeless refinery's stack rim starts at y18 in its208px frame.
-    for (let y = 0; y < 16; y++) for (let x = 155; x < refinerySource.width; x++) bakedPlumeAlpha += refineryPixels[(y * refinerySource.width + x) * 4 + 3];
+    // The rounded refinery's exposed chimney rim starts at y9 in its208px frame.
+    // This empty area above it catches a baked plume extending beyond the metal.
+    for (let y = 0; y < 8; y++) for (let x = 155; x < refinerySource.width; x++) bakedPlumeAlpha += refineryPixels[(y * refinerySource.width + x) * 4 + 3];
     const stackAlpha = refineryPixels[(30 * refinerySource.width + 180) * 4 + 3];
     const sheet = document.createElement('canvas'); sheet.width = 1100; sheet.height = 1580;
     const c = sheet.getContext('2d'); c.fillStyle = '#172126'; c.fillRect(0, 0, sheet.width, sheet.height);
@@ -76,7 +78,7 @@ try {
     ];
     for (const [row, entity] of rows.entries()) for (let level = 0; level < 5; level++) {
       const x = level * 220 + 110, y = row * 205 + 143;
-      c.save(); c.translate(x, y); c.scale(entity.type === 'harvester' ? 3.5 : 1.7, entity.type === 'harvester' ? 3.5 : 1.7);
+      c.save(); c.translate(x, y); c.scale(unitRole(entity) === 'harvester' ? 3.5 : 1.7, unitRole(entity) === 'harvester' ? 3.5 : 1.7);
       drawSprite(c, { ...entity, cargo: level * 50, processingAmount: level * 50, queue: [{type: 'harvester', progress: .3}] }, 0); c.restore();
       c.fillText(`${entity.type} · team ${entity.team}`, x, y + 82);
     }

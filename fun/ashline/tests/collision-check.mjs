@@ -7,12 +7,13 @@ function scene(seed='collision-check'){
   const template=structuredClone(s.entities.find(e=>e.type==='rifle'));
   const hauler=structuredClone(s.entities.find(e=>e.type==='harvester'));
   const depot=structuredClone(s.entities.find(e=>e.type==='refinery'&&e.team===0));
+  const reactor=structuredClone(s.entities.find(e=>e.type==='reactor'&&e.team===0));
   s.entities=[];s.navVersion++;
   const add=(type,x,y)=>{
     const d=UNITS[type],u={...structuredClone(type==='harvester'?hauler:template),id:s.nextId++,type,x,y,size:d.size,hp:d.hp,maxHp:d.hp,path:[]};
     s.entities.push(u);return u;
   };
-  return{s,add,depot};
+  return{s,add,depot,reactor};
 }
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 const move=(s,u,x,y)=>{const goal={x,y};issueOrder(s,[u.id],{type:'move',...goal});return goal;};
@@ -127,7 +128,7 @@ assert.equal(first.rng,second.rng);
 
 // Crowded automatic haulers must each complete a real paid delivery beside a solid refinery.
 {
-  const {s,add,depot}=scene('hauler-traffic');depot.x=15;depot.y=38;s.entities.push(depot);
+  const {s,add,depot,reactor}=scene('hauler-traffic');depot.x=15;depot.y=38;reactor.x=10;reactor.y=43;s.entities.push(depot,reactor);
   for(let x=18;x<=27;x++)for(const y of [38,40])s.terrain[y*s.width+x]=1;
   s.navVersion++;s.minerals[39*s.width+25]=6000;
   const haulers=Array.from({length:6},(_,i)=>add('harvester',18.5+i,39.5)),delivered=new Set();

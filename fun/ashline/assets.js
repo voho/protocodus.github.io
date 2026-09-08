@@ -1,15 +1,15 @@
 // Generated art is decoded once; the battlefield only draws small, prepared frames.
-import { UNITS } from './sim.js';
-export const assetStatus = { loaded: 0, total: 7, ready: false, errors: [] };
+import { UNITS, BUILDINGS as BUILDING_DEFS, buildingRole, unitRole } from './sim.js';
+export const assetStatus = { loaded: 0, total: 10, ready: false, errors: [] };
 export const terrainImages = { ground: null, detail: null };
 
-const BUILDINGS = { core: 3, reactor: 2, refinery: 3, barracks: 2, factory: 3, turret: 1, rocketTower: 2 };
-const UNIT_SIZES = { tank: 44, scout: 36, artillery: 56, harvester: 45, rifle: 26, rocket: 32 };
-const UNIT_PIXELS = { rifle: 64, rocket: 80, scout: 96, tank: 112, artillery: 128, harvester: 112 };
-const UNIT_DEPTH = { tank: 3, scout: 2, artillery: 3, harvester: 4, rifle: 1.5, rocket: 1.5 };
+const BUILDINGS = Object.fromEntries(Object.entries(BUILDING_DEFS).map(([type, d]) => [type, d.size]));
+const UNIT_SIZES = { tank: 44, scout: 36, artillery: 56, harvester: 45, rifle: 26, rocket: 32, engineer: 46, striker: 48 };
+const UNIT_PIXELS = { rifle: 64, rocket: 80, scout: 96, tank: 112, artillery: 128, harvester: 112, engineer: 112, striker: 128 };
+const UNIT_DEPTH = { tank: 3, scout: 2, artillery: 3, harvester: 4, rifle: 1.5, rocket: 1.5, engineer: 3, striker: 2 };
 const sprites = {}, props = {};
 // Every unit faces east in the atlas; rotation never changes its overhead projection.
-const UNIT_CELLS = { rifle: [0, 1], scout: [2], tank: [3], artillery: [4], harvester: [5] };
+const UNIT_CELLS = { rifle: [0, 1] };
 
 function canvas(width, height = width) {
   const result = document.createElement('canvas');
@@ -89,10 +89,11 @@ function factionFrame(source, team) {
     const blue = b > r * 1.15 && g > r * 1.08 && b - g > (b - r) * .24 && b - r > 14;
     const neutral = Math.max(r, g, b) - Math.min(r, g, b) < luminance * .6;
     const mineral = g - r > 18 && g >= b * .98;
+    const biological = b > g * 1.07 && r > g * 1.015 && b > r * 1.01 && b - r < 45;
     // Broad crimson armor separates enemies at gameplay scale. Leave dark mechanisms,
     // amber lamps and mint cargo intact; friendly ivory keeps a lighter value in grayscale.
     const amount = blue ? Math.min(1, (b - r - 8) / 25)
-      : team && neutral && !mineral ? Math.max(0, Math.min(1, (luminance - 75) / 65)) : 0;
+      : team && neutral && !mineral && !biological ? Math.max(0, Math.min(1, (luminance - 75) / 65)) : 0;
     if (!amount) continue;
     const paint = team ? [Math.min(255, luminance * 1.05 + 38), luminance * .44 + 18, luminance * .43 + 20]
       : [luminance * .3, luminance * .72 + 20, Math.min(255, luminance * 1.18 + 40)];
@@ -119,6 +120,34 @@ function idleFrame(source) {
   for (let i = 0; i < data.length; i += 4) {
     const grey = .2126 * data[i] + .7152 * data[i + 1] + .0722 * data[i + 2];
     for (let channel = 0; channel < 3; channel++) data[i + channel] = (.72 * data[i + channel] + .28 * grey) * .9;
+  }
+  ctx.putImageData(pixels, 0, 0); return result;
+}
+
+function mineralFrame(source, type) {
+  const result = canvas(source.width, source.height), ctx = result.getContext('2d');
+  ctx.drawImage(source, 0, 0);
+  const pixels = ctx.getImageData(0, 0, result.width, result.height), data = pixels.data;
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i], g = data[i + 1], b = data[i + 2];
+    if (!data[i + 3] || g - r < 13 || g < b * .94) continue;
+    const light = .2126 * r + .7152 * g + .0722 * b;
+    const paint = type === 3 ? [Math.min(255, light * 1.22 + 28), light * .46 + 19, light * .55 + 27]
+      : [light * .46 + 20, light * .80 + 20, Math.min(255, light * 1.12 + 35)];
+    data[i] = paint[0]; data[i + 1] = paint[1]; data[i + 2] = paint[2];
+  }
+  ctx.putImageData(pixels, 0, 0); return result;
+}
+
+function powerDownFrame(source) {
+  const result = canvas(source.width, source.height), ctx = result.getContext('2d');
+  ctx.drawImage(source, 0, 0);
+  const pixels = ctx.getImageData(0, 0, result.width, result.height), data = pixels.data;
+  for (let i = 0; i < data.length; i += 4) {
+    // Remove baked amber work-light emission while broad faction armor stays readable.
+    if (data[i] > data[i + 1] * 1.13 && data[i + 1] > data[i + 2] * 1.28) {
+      data[i] *= .48; data[i + 1] *= .45; data[i + 2] *= .5;
+    }
   }
   ctx.putImageData(pixels, 0, 0); return result;
 }
@@ -198,8 +227,8 @@ function prepareHopper(frame, sector) {
 }
 
 function hopperLevel(entity) {
-  let fill = Math.max(0, Number(entity.type === 'refinery' ? entity.processingAmount : entity.cargo) || 0) / UNITS.harvester.capacity;
-  if (entity.type === 'harvester' && entity.unloadDepotId != null) fill *= Math.max(0, 1 - (entity.unload || 0) / 1.2);
+  let fill = Math.max(0, Number(buildingRole(entity) === 'refinery' ? entity.processingAmount : entity.cargo) || 0) / (UNITS[entity.type]?.capacity || UNITS.harvester.capacity);
+  if (unitRole(entity) === 'harvester' && entity.unloadDepotId != null) fill *= Math.max(0, 1 - (entity.unload || 0) / 1.2);
   // Only an actually full load gets the full image; the first shards are already visible.
   return fill <= 0 ? 0 : fill >= .999 ? 4 : Math.max(1, Math.min(3, Math.round(fill * 4)));
 }
@@ -233,7 +262,8 @@ function splitSheet(image, columns, rows, size, keyed, anchored = false, recolor
     const friendly = recolor ? factionFrame(prepared, 0) : prepared;
     return { teams: recolor ? [friendly, factionFrame(friendly, 1)] : [prepared],
       side: anchored ? silhouette(prepared, '#344147') : null,
-      shadow: recolor ? silhouette(prepared, '#0b1117', size * .015) : null,
+      shadow: silhouette(prepared, '#0b1117', size * .021),
+      contact: silhouette(prepared, '#080f14', size * .008),
       drawScale: size / (dimension * scale), coverage: box.width * box.height / (source.width * source.height) };
   });
 }
@@ -250,11 +280,38 @@ async function load(name, prepare) {
   }
 }
 
+function wallFrames() {
+  // Code-native interlocks join exactly at tile boundaries; the armor palette matches the atlases.
+  return Array.from({ length: 16 }, (_, links) => {
+    const source = canvas(80), ctx = source.getContext('2d');
+    ctx.scale(2, 2); ctx.translate(20, 20);
+    const sections = [[-7, -8, 14, 16]];
+    if (links & 1) sections.push([-5, -16, 10, 16]);
+    if (links & 2) sections.push([0, -5, 16, 10]);
+    if (links & 4) sections.push([-5, 0, 10, 16]);
+    if (links & 8) sections.push([-16, -5, 16, 10]);
+    for (const [x, y, w, h] of sections) {
+      ctx.fillStyle = '#334047'; ctx.fillRect(x, y + 3, w, h);
+      const roof = ctx.createLinearGradient(x, y - 3, x + w, y + h - 3);
+      roof.addColorStop(0, '#e0e1d7'); roof.addColorStop(.5, '#b8bfb9'); roof.addColorStop(1, '#929f9d');
+      ctx.fillStyle = roof; ctx.fillRect(x, y - 2, w, h);
+      ctx.strokeStyle = '#e4ede8'; ctx.lineWidth = .6; ctx.beginPath(); ctx.moveTo(x, y + h - 2); ctx.lineTo(x, y - 2); ctx.lineTo(x + w, y - 2); ctx.stroke();
+      ctx.fillStyle = '#263943'; ctx.fillRect(x + w - 1, y - 1, 1, h);
+    }
+    ctx.fillStyle = '#5c8ba9'; ctx.fillRect(-6, -6, 12, 5);
+    ctx.fillStyle = '#263940'; ctx.fillRect(-4.5, 2, 9, 2);
+    ctx.fillStyle = '#a7b9b8'; ctx.fillRect(-3.5, 2.5, 7, .6);
+    const friendly = factionFrame(source, 0);
+    return { teams: [friendly, factionFrame(friendly, 1)], shadow: silhouette(source, '#0b1117', 1.8),
+      contact: silhouette(source, '#080f14', .6), drawScale: 1.25, coverage: .65 };
+  });
+}
+
 export const assetsReady = Promise.all([
-  load('buildings-hires', image => {
-    ['core', 'reactor', 'refinery', 'barracks', 'factory', 'turret'].forEach((type, i) => {
-      const [frame] = splitSheet(image, 3, 2, BUILDINGS[type] * 64 + 16, true, false, true, [i]);
-      if (type === 'refinery') prepareHopper(frame, [.12, .12, .49, .46]);
+  load('organics-buildings', image => {
+    ['core', 'reactor', 'refinery', 'barracks', 'factory', 'lab', 'capacitor', 'turret', 'rocketTower'].forEach((type, i) => {
+      const [frame] = splitSheet(image, 3, 3, BUILDINGS[type] * 64 + 16, true, false, true, [i]);
+      if (type === 'refinery') prepareHopper(frame, [.08, .04, .53, .51]);
       if (['barracks', 'factory', 'refinery'].includes(type)) frame.idleTeams = (frame.hopperTeams?.[0] || frame.teams).map(idleFrame);
       sprites[type] = [frame];
     });
@@ -263,14 +320,38 @@ export const assetsReady = Promise.all([
     for (const [type, indices] of Object.entries(UNIT_CELLS)) {
       // Normalize each class independently; the long siege gun must not shrink infantry.
       sprites[type] = splitSheet(image, 3, 2, UNIT_PIXELS[type], true, true, true, indices);
-      if (type === 'harvester') for (const frame of sprites[type]) prepareHopper(frame, [0, .2, .55, .8]);
     }
   }),
-  load('rocket-infantry-hires', image => { sprites.rocket = splitSheet(image, 2, 1, UNIT_PIXELS.rocket, true, true); }),
-  load('rocket-tower-hires', image => { sprites.rocketTower = splitSheet(image, 1, 1, BUILDINGS.rocketTower * 64 + 16, true); }),
+  load('organics-alien-rocket', image => { sprites.rocket = splitSheet(image, 2, 1, UNIT_PIXELS.rocket, true, true); }),
+  load('organics-vehicles', image => {
+    for (const [index, type] of ['scout', 'tank', 'artillery', 'harvester', 'engineer', 'striker'].entries()) {
+      sprites[type] = splitSheet(image, 3, 2, UNIT_PIXELS[type], true, true, true, [index]);
+      if (type === 'harvester') prepareHopper(sprites[type][0], [0, .18, .54, .85]);
+    }
+  }),
+  load('unity-light', image => {
+    for (const [type, indices] of Object.entries({ unityRifle: [0, 1], unityScout: [2], unityRocket: [3, 4], unityStriker: [5] })) {
+      sprites[type] = splitSheet(image, 3, 2, UNIT_PIXELS[unitRole(type)], true, true, true, indices);
+    }
+  }),
+  load('unity-heavy', image => {
+    for (const [index, type] of ['unityTank', 'unityArtillery', 'unityHarvester', 'unityEngineer'].entries()) {
+      sprites[type] = splitSheet(image, 2, 2, UNIT_PIXELS[unitRole(type)], true, true, true, [index]);
+      if (unitRole(type) === 'harvester') prepareHopper(sprites[type][0], [0, .18, .56, .85]);
+    }
+  }),
+  load('unity-buildings', image => {
+    for (const [index, type] of ['unityCore', 'unityReactor', 'unityRefinery', 'unityBarracks', 'unityFactory', 'unityLab', 'unityCapacitor', 'unityTurret', 'unityRocketTower'].entries()) {
+      const [frame] = splitSheet(image, 3, 3, BUILDINGS[type] * 64 + 16, true, false, true, [index]);
+      if (buildingRole(type) === 'refinery') prepareHopper(frame, [.10, .10, .50, .48]);
+      if (['barracks', 'factory', 'refinery'].includes(buildingRole(type))) frame.idleTeams = (frame.hopperTeams?.[0] || frame.teams).map(idleFrame);
+      sprites[type] = [frame];
+    }
+  }),
   load('props', image => {
     const frames = splitSheet(image, 3, 2, 160, false, false, false);
     props.rock = frames.slice(0, 3); props.ore = frames.slice(3);
+    for (const frame of props.ore) frame.mineralTypes = [null, frame.teams[0], mineralFrame(frame.teams[0], 2), mineralFrame(frame.teams[0], 3)];
   }),
   load('desolate-trees', image => {
     props.tree = splitSheet(image, 3, 2, 160, false, false, false);
@@ -285,7 +366,20 @@ export const assetsReady = Promise.all([
     });
   }),
   load('ground', image => { terrainImages.ground = image; }),
-]).then(() => { assetStatus.ready = assetStatus.errors.length === 0; return assetStatus; });
+]).then(() => {
+  sprites.wall = wallFrames();
+  for (const type of Object.keys(BUILDINGS)) for (const frame of sprites[type] || []) {
+    frame.powerDownTeams = frame.teams.map(powerDownFrame);
+    if (frame.hopperTeams) frame.powerDownHoppers = frame.hopperTeams.map(teams => teams.map(powerDownFrame));
+  }
+  for (const type of ['harvester', 'refinery', 'unityHarvester', 'unityRefinery']) for (const frame of sprites[type] || []) {
+    frame.mineralHoppers = { 2: frame.hopperTeams.map(teams => teams.map(source => mineralFrame(source, 2))),
+      3: frame.hopperTeams.map(teams => teams.map(source => mineralFrame(source, 3))) };
+    if (buildingRole(type) === 'refinery') frame.powerDownMineralHoppers = Object.fromEntries(Object.entries(frame.mineralHoppers)
+      .map(([type, levels]) => [type, levels.map(teams => teams.map(powerDownFrame))]));
+  }
+  assetStatus.ready = assetStatus.errors.length === 0; return assetStatus;
+});
 
 function drawUnitPlane(ctx, source, size, angle, x = 0, y = 0) {
   ctx.save(); ctx.translate(x, y);
@@ -299,10 +393,10 @@ function spriteFrame(entity, time) {
   const frames = sprites[entity.type];
   if (!frames) return null;
   const building = BUILDINGS[entity.type];
-  const index = frames.length > 1 && (entity.moving || entity.path?.length)
+  const index = buildingRole(entity) === 'wall' ? (entity.wallConnections || 0) & 15 : frames.length > 1 && (entity.moving ?? !!entity.path?.length)
     ? Math.floor(time * 6 + (entity.id || 0)) % frames.length : 0;
   const frame = frames[index] || frames[0];
-  const size = (building ? (entity.size || building) * 32 * 1.1 : UNIT_SIZES[entity.type]) * frame.drawScale;
+  const size = (building ? (entity.size || building) * 32 * (buildingRole(entity) === 'wall' ? 1 : 1.1) : UNIT_SIZES[unitRole(entity)]) * frame.drawScale;
   return { frame, size, building };
 }
 
@@ -312,12 +406,19 @@ export function drawSpriteShadow(ctx, entity, time = 0) {
   if (!sprite || entity.hp <= 0) return false;
   const { frame, size, building } = sprite;
   const progress = building ? Math.max(0, Math.min(1, entity.progress ?? 1)) : 1;
-  ctx.save(); ctx.globalAlpha *= .48 * progress;
+  ctx.save(); ctx.globalAlpha *= progress;
   if (building) {
-    const height = (entity.size || building) * progress;
-    ctx.drawImage(frame.shadow, -size / 2 + height * 4, -size / 2 - 8 + height * 6, size, size);
+    const wall = buildingRole(entity) === 'wall', height = (entity.size || building) * progress * (wall ? .5 : 1);
+    const roofY = -size / 2 + (wall ? 0 : -8);
+    ctx.save(); ctx.globalAlpha *= .20;
+    ctx.drawImage(frame.contact, -size / 2 + 1, roofY + 3, size, size); ctx.restore();
+    ctx.globalAlpha *= .33;
+    ctx.drawImage(frame.shadow, -size / 2 + height * 4, roofY + height * 6, size, size);
   } else {
-    const offset = 3 + UNIT_DEPTH[entity.type];
+    const offset = 3 + UNIT_DEPTH[unitRole(entity)];
+    ctx.save(); ctx.globalAlpha *= .22;
+    drawUnitPlane(ctx, frame.contact, size, entity.angle || 0, 1, 2); ctx.restore();
+    ctx.globalAlpha *= .32;
     drawUnitPlane(ctx, frame.shadow, size, entity.angle || 0, offset, offset * 1.5);
   }
   ctx.restore();
@@ -328,16 +429,25 @@ export function drawSprite(ctx, entity, time = 0) {
   const sprite = spriteFrame(entity, time);
   if (!sprite) return false;
   const { frame, size, building } = sprite;
-  const teams = frame.idleTeams && !entity.queue?.length && !(entity.processingAmount > 0)
-    ? frame.idleTeams : frame.hopperTeams?.[hopperLevel(entity)] || frame.teams;
+  const unpowered = building && entity.powerRatio < 1 && BUILDING_DEFS[entity.type]?.power < 0;
+  const mineralType = buildingRole(entity) === 'refinery' ? entity.processingType : entity.cargoType;
+  const coloredHoppers = frame.mineralHoppers?.[mineralType];
+  const teams = unpowered ? (frame.powerDownMineralHoppers?.[mineralType] || frame.powerDownHoppers)?.[hopperLevel(entity)] || frame.powerDownTeams || frame.teams
+    : frame.idleTeams && !entity.queue?.length && !(entity.processingAmount > 0)
+    ? frame.idleTeams : (coloredHoppers || frame.hopperTeams)?.[hopperLevel(entity)] || frame.teams;
   const source = teams[entity.team === 1 ? 1 : 0];
   // Applies equally to the battlefield, portraits and units inside production bays.
   ctx.save(); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
   if (building) {
-    ctx.translate(0, -8);
+    ctx.translate(0, buildingRole(entity) === 'wall' ? 0 : -8);
     ctx.drawImage(source, -size / 2, -size / 2, size, size);
   } else {
-    const angle = entity.angle || 0, depth = UNIT_DEPTH[entity.type];
+    const angle = entity.angle || 0, depth = UNIT_DEPTH[unitRole(entity)];
+    // A tiny fixed-screen step pulse distinguishes grounded walkers from wheeled hulls.
+    // Shadows remain at the ground anchor, and idle/queued robots never walk in place.
+    if (UNITS[entity.type]?.race === 'aiUnity' && !['rifle', 'rocket', 'scout'].includes(unitRole(entity)) && (entity.moving ?? !!entity.path?.length)) {
+      ctx.translate(0, -Math.abs(Math.sin(time * 8 + (entity.id || 0))) * .55);
+    }
     // Side walls stay down-screen, independent of heading; shadows use the ground pass.
     for (let y = depth; y > 0; y--) drawUnitPlane(ctx, frame.side, size, angle, 0, y);
     drawUnitPlane(ctx, source, size, angle);
@@ -346,12 +456,12 @@ export function drawSprite(ctx, entity, time = 0) {
   return true;
 }
 
-export function drawProp(ctx, type, x, y, size, variant = 0) {
+export function drawProp(ctx, type, x, y, size, variant = 0, mineralType = 1) {
   const frames = props[type];
   if (!frames) return false;
   const frame = frames[((Math.floor(variant) % frames.length) + frames.length) % frames.length];
   const extent = size * frame.drawScale;
-  ctx.drawImage(frame.teams[0], x - extent / 2, y - extent / 2, extent, extent);
+  ctx.drawImage(frame.mineralTypes?.[mineralType] || frame.teams[0], x - extent / 2, y - extent / 2, extent, extent);
   return true;
 }
 
@@ -370,4 +480,14 @@ export function spriteStats() {
   return { ...assetStatus, errors: [...assetStatus.errors],
     frames: Object.fromEntries(Object.entries(sprites).map(([type, frames]) => [type, frames.length])),
     props: Object.fromEntries(Object.entries(props).map(([type, frames]) => [type, frames.length])) };
+}
+
+// A physical-pixel ceiling: no prepared roof texture is enlarged at this zoom.
+export function spriteNativeZoom(dpr = 1) {
+  let zoom = Infinity;
+  for (const type of Object.keys(sprites)) {
+    const sprite = spriteFrame({ type }, 0);
+    if (sprite) zoom = Math.min(zoom, 32 * sprite.frame.teams[0].width / sprite.size / Math.max(1, dpr));
+  }
+  return Number.isFinite(zoom) ? zoom : 32;
 }

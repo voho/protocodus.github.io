@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {UNITS,createGame,issueOrder,updateGame} from '../sim.js';
+import {UNITS,unitRole,createGame,issueOrder,updateGame} from '../sim.js';
 
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 function scene(seed='formation'){
@@ -7,7 +7,7 @@ function scene(seed='formation'){
   s.terrain.fill(0);s.minerals.fill(0);s.visible.forEach(v=>v.fill(1));s.explored.forEach(v=>v.fill(1));
   const templates=Object.fromEntries(['rifle','harvester','refinery'].map(type=>[type,structuredClone(s.entities.find(e=>e.type===type))]));
   s.entities=[];s.navVersion++;
-  const add=(type,x,y)=>{const d=UNITS[type],e={...structuredClone(templates[type==='harvester'?type:'rifle']),id:s.nextId++,type,size:d.size,hp:d.hp,maxHp:d.hp,x,y,order:{type:'idle'},path:[]};s.entities.push(e);return e;};
+  const add=(type,x,y)=>{const d=UNITS[type],e={...structuredClone(templates[unitRole(type)==='harvester'?'harvester':'rifle']),id:s.nextId++,type,size:d.size,hp:d.hp,maxHp:d.hp,x,y,order:{type:'idle'},path:[]};s.entities.push(e);return e;};
   return{s,add,refinery:templates.refinery};
 }
 const orders=units=>new Map(units.map(u=>[u.id,{x:u.order.x,y:u.order.y}]));
@@ -21,14 +21,14 @@ function checkGoals(s,units,goals){
 }
 function run(s,seconds,each=()=>{}){for(let i=0;i<Math.ceil(seconds*20);i++){updateGame(s,.05);each(i);}}
 function arrived(units,goals){
-  for(const u of units){assert(distance(u,goals.get(u.id))<=.081,`${u.type}#${u.id} must reach its own slot (${distance(u,goals.get(u.id)).toFixed(3)} remaining)`);assert.equal(u.order.type,u.type==='harvester'?'harvest':'idle');}
+  for(const u of units){assert(distance(u,goals.get(u.id))<=.081,`${u.type}#${u.id} must reach its own slot (${distance(u,goals.get(u.id)).toFixed(3)} remaining)`);assert.equal(u.order.type,unitRole(u)==='harvester'?'harvest':'idle');}
   for(let i=0;i<units.length;i++)for(let j=i+1;j<units.length;j++)assert(distance(units[i],units[j])>=(units[i].size+units[j].size)*.43-.002,'Settled units retain full body separation');
 }
 function command(s,units,point,type='move'){
   issueOrder(s,units.map(u=>u.id),{type,...point});const goals=orders(units);checkGoals(s,units,goals);return goals;
 }
 
-// The full military/hauler cap settles, and refreshed/reordered selection cannot reshuffle slots.
+// A mixed military/hauler formation settles, and refreshed/reordered selection cannot reshuffle slots.
 function army(){
   const{s,add}=scene(),types=Object.keys(UNITS),units=Array.from({length:60},(_,i)=>add(types[i%types.length],20.5+i%6*1.1,20.5+Math.floor(i/6)*1.1));
   const point={x:45.23,y:38.71},goals=command(s,units,point);

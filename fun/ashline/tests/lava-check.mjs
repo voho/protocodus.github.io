@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {UNITS,createGame,mapLayout,canPlace,placeBuilding,issueOrder,updateGame} from '../sim.js';
+import {UNITS,MAP_SIZES,MAP_PROFILES,createGame,mapLayout,canPlace,placeBuilding,issueOrder,updateGame} from '../sim.js';
 
 function pools(s){
   const seen=new Uint8Array(s.terrain.length),groups=[];
@@ -15,23 +15,18 @@ function pools(s){
   return groups;
 }
 
-// Distribution intentionally changes topology/resources; its separate draws still preserve gameplay RNG.
-const legacyRng={
-  'ASH-001':3624334427,
-  smoke:1570679058,
-  'player-victory':721227172,
-};
-for(const [seed,expected] of Object.entries(legacyRng)){
-  const s=createGame(seed,'normal',{width:72,height:56});
-  assert.equal(s.rng,expected,`${seed}: terrain distribution keeps its draws separate from gameplay RNG`);
+// Terrain generation uses its own streams: neither map size nor profile changes initial combat RNG.
+for(const seed of ['ASH-001','smoke','player-victory']){
+  const reference=createGame(seed,'normal',{width:72,height:56}).rng;
+  for(const size of Object.values(MAP_SIZES))for(const profile of Object.keys(MAP_PROFILES))assert.equal(createGame(seed,'normal',{...size,profile}).rng,reference,`${seed}: topology never consumes gameplay RNG`);
 }
 
 const layouts=new Set();
 for(let seed=0;seed<48;seed++){
   const s=createGame(`lava-${seed}`),again=createGame(`lava-${seed}`),groups=pools(s),area=s.width*s.height/(72*56),{start,end}=mapLayout(s);
   assert.deepEqual(s.terrain,again.terrain,'The same seed reproduces each pool');
-  assert.equal(s.rng,again.rng);assert(groups.length>=5*area&&groups.length<=7*area,'Pool count grows with map area');
-  assert(groups.every(g=>g.length>=6&&g.length<=65),'Pools are substantial connected formations, without isolated lava specks');
+  assert.equal(s.rng,again.rng);assert(groups.length>=4&&groups.length<=16*Math.sqrt(area),'Lava uses bounded mirrored formations on the enlarged sector');
+  assert(groups.every(g=>g.length>=12&&g.length<=220),'Pools are broad connected formations, without isolated lava specks or enormous blocked seas');
   layouts.add(groups.map(g=>g.join(',')).join(';'));
   for(const at of groups.flat()){
     const x=at%s.width,y=Math.floor(at/s.width);
