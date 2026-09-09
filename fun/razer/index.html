@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Razer — Rally racing</title>
+  <meta name="description" content="A 3D arcade rally racer. Generate a circuit, find your line, and race five rivals across deserts, jungles, beaches, and mountains.">
+  <meta name="theme-color" content="#131918">
+  <link rel="icon" type="image/svg+xml" href="/assets/images/logo.svg">
+  <link rel="stylesheet" href="./razer.css">
+  <script type="importmap">{"imports":{"three":"/assets/vendor/three/three.module.min.js"}}</script>
+</head>
+<body data-mode="loading">
+  <canvas id="stage" aria-label="Three-dimensional racing circuit"></canvas>
+  <div class="vignette" aria-hidden="true"></div>
+  <header class="menu-brand"><a href="/fun/" aria-label="Back to games">← Games</a></header>
+  <main id="menu" class="menu">
+    <h1>RAZER</h1>
+    <p class="race-format">RALLY RACING <span>6 CARS / 3 LAPS</span></p>
+    <form id="track-form" autocomplete="off">
+      <div class="field-heading"><label for="seed">Circuit seed</label><button id="share" class="text-button" type="button">Copy link</button></div>
+      <div class="seed-row"><span class="hash-mark">#</span><input id="seed" name="seed" maxlength="64" value="RAZER" spellcheck="false" aria-label="Circuit seed"><button class="shuffle" id="shuffle" type="button" aria-label="Generate a random circuit" title="Random circuit">Random</button><button class="seed-submit" type="submit" aria-label="Generate this seed" title="Generate circuit">↵</button></div>
+      <div class="field-heading biome-heading"><span>Environment</span><button id="auto-environment" type="button" class="text-button" aria-pressed="true">Auto</button></div>
+      <div class="biomes" role="group" aria-label="Environment">
+        <button type="button" data-environment="desert" aria-pressed="false">Desert</button>
+        <button type="button" data-environment="jungle" aria-pressed="false">Jungle</button>
+        <button type="button" data-environment="beach" aria-pressed="false">Coast</button>
+        <button type="button" data-environment="mountains" aria-pressed="false">Alpine</button>
+      </div>
+    </form>
+    <div class="track-stats"><div><strong id="track-length">—</strong><span>CIRCUIT</span></div><div><strong id="track-routes">2</strong><span>ALTERNATE ROUTES</span></div><div><strong id="track-climb">—</strong><span>CLIMBING</span></div></div>
+    <div id="loading" class="loading"><div class="loading-line"><span id="loading-label">Preparing circuit</span><span id="loading-percent">0%</span></div><div id="loading-bar" class="loading-bar" role="progressbar" aria-label="Generating circuit" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div></div>
+    <button id="start" class="primary-button" disabled><span id="start-label">Preparing circuit</span><span aria-hidden="true">→</span></button>
+    <div class="essentials"><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> DRIVE</span><span><kbd>SPACE</kbd> DRIFT</span></div>
+    <details class="guide"><summary>Controls &amp; race rules <span>+</span></summary><div><p><b>W / ↑</b> accelerate · <b>S / ↓</b> brake, then reverse.<br><b>A D / ← →</b> steer · <b>Space</b> hold to drift.<br><b>R</b> recover · <b>Esc / P</b> pause · <b>C</b> camera · <b>M</b> sound.</p><p>Drive over glowing orange pads for a <b>5-second boost</b>. Alternate roads are the same length, with a different rhythm of corners. Gravel, dirt and sand offer less grip. Keep to the roads and pass the circuit checkpoints to complete each lap. Cars reset automatically beyond 30 metres from the nearest road edge.</p><p>Touch controls and gamepads supported. Your best time is saved on this device for each seed and environment.</p></div></details>
+  </main>
+  <aside id="scene-caption" class="scene-caption"><span class="live-dot"></span><span id="biome-label">PREPARING CIRCUIT</span><h2 id="track-name">Razer</h2><p>CIRCUIT <span id="track-hash">—</span></p></aside>
+  <div id="hud" class="hud" hidden>
+    <div class="race-status"><div class="position"><strong id="position">6</strong><span>/ 6<small>POSITION</small></span></div><div class="lap"><span>LAP</span><strong id="lap">1 <small>/ 3</small></strong></div><div class="timing"><span id="race-time">00:00.000</span><small id="best-lap">BEST —</small></div></div>
+    <div class="race-tools"><button id="recover" aria-label="Recover car" title="Recover (R)">Reset</button><button id="camera" aria-label="Switch camera" title="Camera (C)">View</button><button id="sound" aria-label="Mute sound" title="Sound (M)" aria-pressed="false">Audio</button><button id="pause" aria-label="Pause race" title="Pause (Esc)">Pause</button></div>
+    <div class="speedometer"><div id="surface-label" class="surface-label">ASPHALT</div><div class="speed-reading"><strong id="speed">0</strong><span>KM/H</span><small id="gear">N</small></div><div class="rev-line"><i id="rev-fill"></i></div><div id="boost-status" class="boost-status"><span>BOOST</span><div><i id="boost-fill"></i></div><b id="boost-time">—</b></div></div><p id="driving-hint" class="driving-hint">W / ↑ accelerate · Space handbrake</p>
+    <div class="minimap"><canvas id="map" width="360" height="300" aria-label="Circuit map and driver positions"></canvas><span id="map-label">CIRCUIT 01</span></div>
+    <div id="touch-controls" class="touch-controls" role="group" aria-label="Driving controls"><div><button data-action="left" aria-label="Steer left">◀</button><button data-action="right" aria-label="Steer right">▶</button></div><div><button data-action="drift" class="touch-small">DRIFT</button><button data-action="brake" class="touch-small">BRAKE</button><button data-action="throttle" class="touch-gas" aria-label="Accelerate">GAS</button></div></div>
+  </div>
+  <div id="countdown" class="countdown" aria-live="assertive" hidden></div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <div id="pause-screen" class="overlay" role="dialog" aria-modal="true" aria-labelledby="pause-title" hidden><div class="dialog"><p class="eyebrow">RACE PAUSED</p><h2 id="pause-title">Paused</h2><button id="resume" class="primary-button">Resume race <span>→</span></button><button id="restart" class="secondary-button">Restart race</button><button id="back-to-menu" class="text-button">Circuit selection</button><p class="dialog-controls">WASD / arrows · Space drift · R recover<br>C camera distance · M sound · Esc resume</p></div></div>
+  <div id="results" class="overlay" role="dialog" aria-modal="true" aria-labelledby="result-title" hidden><div class="dialog results-dialog"><p class="eyebrow">RESULTS</p><h2 id="result-title">Race complete</h2><p id="result-subtitle"></p><div class="result-stats"><div><span>RACE TIME</span><strong id="result-time">—</strong></div><div><span>BEST LAP</span><strong id="result-lap">—</strong></div></div><ol id="leaderboard" class="leaderboard"></ol><p id="personal-best" class="personal-best"></p><button id="race-again" class="primary-button">Race again <span>→</span></button><button id="new-circuit" class="secondary-button">Circuit selection</button></div></div>
+  <div id="error-screen" class="overlay" role="alert" hidden><div class="dialog"><p class="eyebrow">LOAD ERROR</p><h2>Unable to load</h2><p id="error-message">The circuit could not be loaded.</p><button id="retry" class="primary-button">Reload <span>→</span></button><a class="secondary-button" href="/fun/">Back to games</a></div></div>
+  <noscript><div class="noscript">Razer needs JavaScript and WebGL to race. Enable JavaScript and reload.</div></noscript>
+  <script type="module" src="./js/main.js"></script>
+</body>
+</html>
