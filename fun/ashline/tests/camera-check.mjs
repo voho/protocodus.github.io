@@ -12,7 +12,7 @@ const errors = [];
 try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   page.on('pageerror', error => errors.push(error.message));
-  await page.goto(url); await page.waitForFunction(() => window.ashline?.assets.ready);
+  await page.goto(url); await page.waitForFunction(() => window.ashline?.booted); await page.evaluate(async () => (await import('./assets.js')).startAssets());
   // Cropping can conceal a barrel crossing into the next atlas cell. Check the source too.
   const clearCellBorders = await page.evaluate(async () => {
     const { removeMatte } = await import('./assets.js');
@@ -131,7 +131,7 @@ try {
     await writeFile(`${output}/headings-team${team}-zoom${zoom}.png`, Buffer.from(data.color, 'base64'));
     await writeFile(`${output}/headings-team${team}-zoom${zoom}-grayscale.png`, Buffer.from(data.grayscale, 'base64'));
   }
-  await page.locator('#deploy').click();
+  await page.locator('#deploy').click(); await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});
   await page.evaluate(async () => {
     const { UNITS } = await import('./sim.js'), s = ashline.state;
     s.entities = s.entities.filter(e => e.kind === 'building');

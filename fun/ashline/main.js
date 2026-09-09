@@ -1,16 +1,18 @@
-import { BUILDINGS, UNITS, UNIT_CAP, RESEARCH, BUILDING_UPGRADES, MAP_SIZES, MAP_PROFILES, RACES, buildingRole, unitRole, teamRace, raceBuilding, raceUnit, planWallLine, buildWallLine, terrainCover, researchStatus, startResearch, buildingUpgradeStatus, startBuildingUpgrade, createGame, updateGame, placeBuilding, canPlace, trainUnit, setRallyPoint, issueOrder, stopUnits, powerStats, getEntity, unitRank, unitStats, toggleRepair, sellBuilding, salvageValue } from './sim.js';
+import { BUILDINGS, UNITS, UNIT_CAP, RESEARCH, BUILDING_UPGRADES, MAP_SIZES, MAP_PROFILES, RACES, buildingRole, unitRole, teamRace, raceBuilding, raceUnit, planWallLine, buildWallLine, terrainCover, researchStatus, startResearch, buildingUpgradeStatus, startBuildingUpgrade, updateGame, placeBuilding, canPlace, trainUnit, setRallyPoint, issueOrder, stopUnits, powerStats, getEntity, unitRank, unitStats, toggleRepair, sellBuilding, salvageValue } from './sim.js';
 import { Renderer, drawIcon } from './render.js';
-import { assetsReady, assetStatus, spriteNativeZoom } from './assets.js';
+import { startAssets, assetStatus, spriteNativeZoom } from './assets.js';
 import { zoomLevels, nearestZoom, steppedZoom, cameraDirection } from './camera.js';
 import { createAudio } from './audio.js';
 import { saveGame, loadGame, getSaveInfo } from './save.js';
+import { nextPaint, generateOperation } from './loading.js';
 
 const $ = id => document.getElementById(id);
 const canvas = $('world');
 const compactScreen = matchMedia('(max-width: 680px)');
 const renderer = new Renderer(canvas, $('minimap'));
 const view = { x: 14, y: 37, zoom: innerWidth <= 680 ? 24 : 38, selected: new Set(), hover: null, placement: null, placementValid: false, placementReason: '', drag: null, commandMarker: null, showGrid: false };
-let game, launched = false, paused = true, activeTab = 'build', orderMode = null;
+let frameRequest = 0;
+let game = null, launched = false, paused = true, loading = false, activeTab = 'build', orderMode = null;
 let lastTime = performance.now(), accumulator = 0, hudTimer = 0, toastUntil = 0, lastEvent = 0;
 let pointer = null, pointerPosition = null, lastPortrait = '', lastQueue = '', lastNotice = '', lowPower = false, pinchDistance = 0;
 const touches = new Map();
@@ -25,9 +27,9 @@ const keys = new Set(), groups = new Map();
 const buildTypes = ['reactor', 'refinery', 'barracks', 'factory', 'lab', 'capacitor', 'turret', 'rocketTower', 'wall'];
 const unitTypes = ['rifle', 'rocket', 'scout', 'tank', 'artillery', 'striker', 'engineer', 'harvester'];
 const researchBranches = [
-  { name: 'INFANTRY DOCTRINE', ids: ['infantryWeapons', 'infantryArmor'] },
-  { name: 'ARMORED WARFARE', ids: ['vehicleWeapons', 'mobility'] },
-  { name: 'GRID & SYSTEMS', ids: ['gridEfficiency', 'advancedBallistics'] },
+  { name: 'Infantry doctrine', ids: ['infantryWeapons', 'infantryArmor'] },
+  { name: 'Armored warfare', ids: ['vehicleWeapons', 'mobility'] },
+  { name: 'Grid & systems', ids: ['gridEfficiency', 'advancedBallistics'] },
 ];
 const fmt = value => Math.floor(value).toLocaleString('en-US');
 const minutes = time => `${Math.floor(time / 60).toString().padStart(2, '0')}:${Math.floor(time % 60).toString().padStart(2, '0')}`;
@@ -57,8 +59,8 @@ function notify(text, warning = false, soft = false) {
   if (warning) playSound('error');
 }
 
-function reset(seed, difficulty, restored) {
-  game = restored?.game || createGame(seed, difficulty, { ...MAP_SIZES[$('map-size').value], profile: $('map-profile').value, races: [$('player-race').value, $('enemy-race').value] });
+async function reset(prepared, restored) {
+  game = prepared;
   view.selected.clear(); groups.clear(); keys.clear();
   view.placement = null; view.drag = null; view.hover = null; view.commandMarker = null;
   view.wallStart = null; view.wallPlan = null;
@@ -67,15 +69,15 @@ function reset(seed, difficulty, restored) {
   delete $('building-upgrades').dataset.entity;
   heardEffects = new WeakSet(game.effects);
   renderer.terrainSource = null;
+  await renderer.prepareTerrain(game, ({ value, label }) => updateLoading(40 + value * 58, label));
   if (restored) {
-    renderer.createTerrain(game);
     renderer.rememberedBuildings = new Map(restored.rememberedBuildings.map(e => [e.id, e]));
     renderer.knownOre = restored.knownOre;
     // Mineral material is immutable; only previously explored deposits have known colors.
     renderer.knownMineralTypes = Uint8Array.from(game.mineralTypes, (type, i) => game.explored[0][i] ? type : 0);
   }
-  $('seed-label').textContent = `${seed} · ${game.width}×${game.height}`;
-  $('sector-label').textContent = `${MAP_PROFILES[game.mapProfile]?.name || 'Ash frontier'} / ${seed}`;
+  $('seed-label').textContent = `${game.seed} · ${game.width}×${game.height}`;
+  $('sector-label').textContent = `${MAP_PROFILES[game.mapProfile]?.name || 'Ash frontier'} / ${game.seed}`;
   setConsole(!compactScreen.matches && !matchMedia('(pointer: coarse)').matches);
   centerBase();
   if (restored?.view) Object.assign(view, restored.view);
@@ -143,7 +145,7 @@ function updateCatalog() {
   const own = buildings.filter(e => e.progress >= 1);
   const population = game.entities.filter(e => e.team === 0 && e.kind === 'unit' && e.hp > 0).length + buildings.reduce((n, e) => n + e.queue.length + (e.haulerPending ? 1 : 0), 0);
   const selected = selectedProducers();
-  $('production-target').textContent = activeTab === 'build' ? 'BUILD WITHIN 7 TILES OF A FINISHED STRUCTURE' : selected.length === 1 ? `COMPATIBLE UNITS → ${BUILDINGS[selected[0].type].name.toUpperCase()} #${selected[0].id} · OTHERS AUTO-ASSIGN` : 'AUTOMATIC FACTORY ASSIGNMENT';
+  $('production-target').textContent = activeTab === 'build' ? 'Build within 7 tiles of a finished structure' : selected.length === 1 ? `Compatible units → ${BUILDINGS[selected[0].type].name} #${selected[0].id} · others auto-assign` : 'Automatic factory assignment';
   for (const button of $('catalog').children) {
     const type = button.dataset.type, def = (activeTab === 'build' ? BUILDINGS : UNITS)[type];
     const missing = (def.requires || []).filter(type => !own.some(e => buildingRole(e) === buildingRole(type)));
@@ -220,14 +222,14 @@ function createResearchCatalog() {
 function updateResearchCatalog() {
   const labs = game.entities.filter(e => e.team === 0 && buildingRole(e) === 'lab' && e.hp > 0 && e.progress >= 1);
   const complete = Object.keys(RESEARCH).filter(id => game.teams[0].research?.[id]).length;
-  $('production-target').textContent = `${complete} / ${Object.keys(RESEARCH).length} UPGRADES · ${labs.length ? `${labs.length} LAB${labs.length === 1 ? '' : 'S'} ONLINE` : `BUILD ${BUILDINGS[raceBuilding(game, 0, 'lab')].name.toUpperCase()}`}`;
+  $('production-target').textContent = `${complete} / ${Object.keys(RESEARCH).length} upgrades · ${labs.length ? `${labs.length} lab${labs.length === 1 ? '' : 's'} online` : `Build ${BUILDINGS[raceBuilding(game, 0, 'lab')].name}`}`;
   for (const button of $('catalog').querySelectorAll('[data-research]')) {
     const id = button.dataset.research, def = RESEARCH[id], status = researchStatus(game, 0, id);
     const lab = labs.find(e => e.research?.id === id), progress = lab?.research?.progress || 0;
     const state = status.completed ? 'complete' : status.queued ? 'active' : status.ok ? 'available' : 'locked';
     button.dataset.state = state;
     button.disabled = busy() || !status.ok;
-    const label = status.completed ? '✓ RESEARCHED' : status.queued ? `RESEARCHING · ${Math.floor(progress * 100)}%` : status.ok ? `◈ ${def.cost} · ${def.time}s` : `${status.reason} · ◈ ${def.cost}`;
+    const label = status.completed ? '✓ Researched' : status.queued ? `Researching · ${Math.floor(progress * 100)}%` : status.ok ? `◈ ${def.cost} · ${def.time}s` : `${status.reason} · ◈ ${def.cost}`;
     button.querySelector('.research-state').textContent = label;
     button.querySelector('.research-tier').textContent = status.completed ? '✓' : status.queued ? '…' : (researchBranches.find(b => b.ids.includes(id)).ids.indexOf(id) + 1).toString().padStart(2, '0');
     button.title = `${def.name} · ${def.cost} credits · ${def.time}s. ${researchText(def)}${status.reason ? ` ${status.reason}` : ''}`;
@@ -297,10 +299,10 @@ function setOrderHint() {
   $('rally-order').classList.toggle('active', orderMode === 'rally');
   if (view.placement === 'wall') {
     const plan = view.wallPlan;
-    $('order-hint-text').textContent = `WALL LINE · ${plan?.count ?? 1} SEGMENTS · ◈ ${plan?.cost ?? BUILDINGS.wall.cost}${plan?.reason ? ` · ${plan.reason}` : ' · DRAG TO BUILD'}`;
+    $('order-hint-text').textContent = `Wall line · ${plan?.count ?? 1} segments · ◈ ${plan?.cost ?? BUILDINGS.wall.cost}${plan?.reason ? ` · ${plan.reason}` : ' · Drag to build'}`;
     return;
   }
-  $('order-hint-text').textContent = view.placement ? `PLACE ${BUILDINGS[view.placement].name.toUpperCase()} · ${(view.placementReason || 'Click to build').toUpperCase()}` : orderMode === 'rally' ? 'RALLY POINT · SELECT A DESTINATION' : orderMode === 'attackMove' ? 'ATTACK MOVE · SELECT A DESTINATION' : 'MOVE · SELECT A DESTINATION';
+  $('order-hint-text').textContent = view.placement ? `Place ${BUILDINGS[view.placement].name} · ${view.placementReason || 'Click to build'}` : orderMode === 'rally' ? 'Rally point · Select a destination' : orderMode === 'attackMove' ? 'Attack move · Select a destination' : 'Move · Select a destination';
 }
 
 function cancelOrder() { view.placement = null; view.placementReason = ''; view.showGrid = false; view.wallStart = null; view.wallPlan = null; orderMode = null; view.drag = null; setOrderHint(); updateCatalog(); }
@@ -383,19 +385,19 @@ function updateHUD() {
   // Let a live warning (such as the reactor's destruction) finish before the low-power line replaces it.
   if (low !== lowPower && !(low && performance.now() < toastUntil && $('notifications').classList.contains('warning'))) { lowPower = low; if (low && game.status === 'playing' && !paused) notify(`Low power: defenses offline and production slowed. Build ${BUILDINGS[raceBuilding(game, 0, 'reactor')].name}.`, true); }
   $('power').textContent = `${Math.floor(power.supply)} / ${Math.ceil(power.demand)}`;
-  $('power-label').textContent = low ? 'BROWNOUT' : power.usingReserve ? 'RESERVE' : 'POWER';
+  $('power-label').textContent = low ? 'Brownout' : power.usingReserve ? 'Reserve' : 'Power';
   $('power-resource').classList.toggle('low-power', low);
   $('power-resource').classList.toggle('reserve-power', power.usingReserve);
   const powerDetail = low ? `Brownout: ${Math.round(power.ratio * 100)}% power. Production, research, mineral processing and repairs slow; defenses are offline.` : power.usingReserve ? `Reserve power: ${Math.ceil(power.reserveSeconds)} seconds remaining. Build a reactor before storage runs out.` : `Grid stable. ${Math.round(power.supply - power.demand)} power available.`;
   $('power-resource').title = powerDetail;
-  $('grid-summary').textContent = low ? 'BROWNOUT' : power.usingReserve ? 'RESERVE ACTIVE' : 'GRID STABLE';
+  $('grid-summary').textContent = low ? 'Brownout' : power.usingReserve ? 'Reserve active' : 'Grid stable';
   $('grid-state').dataset.state = power.status;
   $('grid-rate').textContent = `${Math.round(power.ratio * 100)}%`;
   $('grid-output').style.width = `${power.ratio * 100}%`;
   $('grid-detail').textContent = low ? 'Defenses offline · industry slowed' : power.usingReserve ? `${Math.ceil(power.reserveSeconds)}s of reserve · restore supply` : 'All systems operational';
   $('reserve-meter').hidden = !power.reserveCapacity;
   $('reserve-fill').style.width = `${power.reserveCapacity ? power.reserve / power.reserveCapacity * 100 : 0}%`;
-  $('reserve-label').textContent = `STORAGE ${Math.round(power.reserve || 0)} / ${power.reserveCapacity || 0}`;
+  $('reserve-label').textContent = `Storage ${Math.round(power.reserve || 0)} / ${power.reserveCapacity || 0}`;
   $('grid-state').title = powerDetail;
   const deployed = game.entities.filter(e => e.team === 0 && e.kind === 'unit' && e.hp > 0).length;
   const reserved = game.entities.filter(e => e.team === 0 && e.kind === 'building' && e.hp > 0).reduce((n, e) => n + e.queue.length + (e.haulerPending ? 1 : 0), 0);
@@ -415,7 +417,7 @@ function updateHUD() {
   panel.hidden = !first;
   $('deselect').hidden = !view.selected.size;
   document.body.dataset.selection = String(Boolean(first));
-  $('selection-label').textContent = first ? selection.length > 1 ? 'BATTLE GROUP' : first.kind === 'building' ? 'STRUCTURE' : 'UNIT' : 'COMMAND NETWORK';
+  $('selection-label').textContent = first ? selection.length > 1 ? 'Battle group' : first.kind === 'building' ? 'Structure' : 'Unit' : 'Command network';
   $('selection-name').textContent = first ? selection.length > 1 ? `${selection.length} units selected` : (BUILDINGS[first.type] || UNITS[first.type]).name : 'Expedition standing by';
   let detail = 'Select a unit or structure to issue orders.';
   if (first) {
@@ -429,7 +431,7 @@ function updateHUD() {
       const activity = [first.research ? `${RESEARCH[first.research.id].name} ${Math.floor(first.research.progress * 100)}%` : job ? `${UNITS[job.type].name} ${Math.floor(job.progress * 100)}%` : first.processingAmount > 0 ? 'Processing minerals' : producer ? 'Idle · bay empty' : buildingRole(first) === 'lab' ? 'Idle · choose a research project' : 'Operational'];
       if (buildingRole(first) === 'capacitor') activity.splice(0, 1, `${Math.round(first.reserve || 0)} stored · ${power.usingReserve && first.reserve > 0 ? 'Reserve available' : first.reserve >= BUILDINGS[first.type].reserveCapacity ? 'Fully charged' : power.supply > power.demand ? 'Charging from surplus' : 'Waiting for spare power'}`);
       if (first.upgrade) activity.push(`${BUILDING_UPGRADES[first.upgrade.id].name} ${Math.floor(first.upgrade.progress * 100)}%`);
-      if (low && BUILDINGS[first.type].power < 0) activity.unshift('BROWNOUT');
+      if (low && BUILDINGS[first.type].power < 0) activity.unshift('Brownout');
       if (first.processingAmount > 0) activity.push(`${Math.ceil(first.processingAmount)} shards remaining`);
       if (first.haulerPending) activity.push('Included hauler awaiting deployment');
       if (first.repairing) activity.unshift(game.teams[0].credits > 0 ? 'Repairing' : 'Repair waiting for credits');
@@ -472,11 +474,11 @@ function updateHUD() {
     repair.disabled = busy() || building.progress < 1 || building.hp >= building.maxHp;
     repair.setAttribute('aria-pressed', String(Boolean(building.repairing)));
     repair.classList.toggle('active', Boolean(building.repairing));
-    $('repair-label').textContent = building.repairing ? 'STOP REPAIR' : 'REPAIR';
+    $('repair-label').textContent = building.repairing ? 'Stop repair' : 'Repair';
     const repairRate = power.ratio * 2, repairCost = BUILDINGS[building.type].cost / 100 * power.ratio;
     repair.title = `Restore ${Number(repairRate.toFixed(1))}% integrity per second at current power. A full health bar costs half the structure price; waits if credits run out.`;
     sell.disabled = busy() || buildingRole(building) === 'core';
-    $('sell-label').textContent = `SELL +${fmt(refund)}`;
+    $('sell-label').textContent = `Sell +${fmt(refund)}`;
     sell.title = buildingRole(building) === 'core' ? 'The command nexus cannot be sold' : `Sell immediately for ${refund} credits, including paid unit queues, research and pending upgrades. Haulers keep their cargo.`;
     const notes = [building.progress < 1 ? 'Finish construction to repair.' : building.repairing && game.teams[0].credits <= 0 ? 'Waiting for credits; repair resumes automatically.' : `Repair: ${Number(repairRate.toFixed(1))}% HP/s · ${Number(repairCost.toFixed(1))} credits/s${low ? ' at current power' : ''}.`];
     if (buildingRole(building) === 'core') notes.push('Nexus cannot be sold.');
@@ -491,13 +493,13 @@ function updateHUD() {
   $('select-army').disabled = busy();
   const queue = []; let queueCount = 0;
   for (const e of game.entities) if (e.team === 0 && e.kind === 'building' && e.hp > 0) {
-    if (e.progress < 1) { queue.push({ id: e.id, name: BUILDINGS[e.type].name, progress: e.progress, label: 'CONSTRUCTION' }); queueCount++; }
+    if (e.progress < 1) { queue.push({ id: e.id, name: BUILDINGS[e.type].name, progress: e.progress, label: 'Construction' }); queueCount++; }
     if (e.queue?.length) {
       queueCount += e.queue.length;
       queue.push({ id: e.id, name: UNITS[e.queue[0].type].name, progress: e.queue[0].progress || 0, label: `${BUILDINGS[e.type].name} #${e.id}${e.queue.length > 1 ? ` · +${e.queue.length - 1} waiting` : ''}` });
     }
-    if (e.research) { queueCount++; queue.push({ id: `r${e.id}`, name: RESEARCH[e.research.id].name, progress: e.research.progress, label: `RESEARCH · LAB #${e.id}` }); }
-    if (e.upgrade) { queueCount++; queue.push({ id: `u${e.id}`, name: BUILDING_UPGRADES[e.upgrade.id].name, progress: e.upgrade.progress, label: `UPGRADE · ${BUILDINGS[e.type].name}` }); }
+    if (e.research) { queueCount++; queue.push({ id: `r${e.id}`, name: RESEARCH[e.research.id].name, progress: e.research.progress, label: `Research · lab #${e.id}` }); }
+    if (e.upgrade) { queueCount++; queue.push({ id: `u${e.id}`, name: BUILDING_UPGRADES[e.upgrade.id].name, progress: e.upgrade.progress, label: `Upgrade · ${BUILDINGS[e.type].name}` }); }
   }
   $('queue-count').textContent = String(queueCount).padStart(2, '0');
   $('pending-count').hidden = !queueCount;
@@ -523,8 +525,8 @@ function updateHUD() {
   let groundHint = '';
   if (known) {
     const ore = game.visible[0][at] ? game.minerals[at] : renderer.knownOre?.[at];
-    if (ore > 0) { const type = renderer.knownMineralTypes?.[at] || game.mineralTypes[at] || 1; groundHint = `${['', 'MINT SHARDS', 'BLUE SHARDS', 'RED SHARDS · 2× DENSITY'][type]} · ${fmt(ore)} CREDITS`; }
-    else groundHint = ({1:'RAISED RIDGE · IMPASSABLE', 3:'MOLTEN LAVA · IMPASSABLE', 4:'TWISTED ROOTS · OBSTRUCTED', 5:'CRATER · 15% DIRECT-FIRE COVER · NO CONSTRUCTION'})[game.terrain[at]] || '';
+    if (ore > 0) { const type = renderer.knownMineralTypes?.[at] || game.mineralTypes[at] || 1; groundHint = `${['', 'Mint shards', 'Blue shards', 'Red shards · 2× density'][type]} · ${fmt(ore)} credits`; }
+    else groundHint = ({1:'Raised ridge · impassable', 3:'Molten lava · impassable', 4:'Twisted roots · obstructed', 5:'Crater · 15% direct-fire cover · no construction'})[game.terrain[at]] || '';
   }
   $('terrain-readout').textContent = groundHint; $('terrain-readout').hidden = !groundHint || Boolean(view.placement);
   document.body.style.setProperty('--selection-height', panel.hidden ? '0px' : `${panel.getBoundingClientRect().height}px`);
@@ -533,13 +535,14 @@ function updateHUD() {
 }
 
 function showMenu(finished = false, guide = false) {
+  stopFrames();
   paused = true; keys.clear(); pointer = null; view.drag = null;
   audio.setPaused(true);
   $('menu-title').textContent = finished ? game.status === 'victory' ? 'The frontier is yours.' : 'The line has fallen.' : 'Hold the line.';
   $('menu-description').textContent = finished ? game.status === 'victory' ? `${RACES[teamRace(game, 1)].name} command is down. Your forces hold the sector.` : 'Your command core was destroyed. Regroup and take another sector.' : 'The battlefield is paused.';
   $('resume').hidden = finished;
   $('match-summary').hidden = !finished;
-  if (finished) $('match-summary').textContent = `${minutes(game.time)} IN FIELD  ·  ${game.teams[0].kills || 0} ENEMIES DESTROYED`;
+  if (finished) $('match-summary').textContent = `${minutes(game.time)} in field  ·  ${game.teams[0].kills || 0} enemies destroyed`;
   $('full-guide').open = guide;
   if (!$('menu').open) $('menu').showModal();
   $('pause').textContent = '▶'; $('pause').setAttribute('aria-label', 'Resume game');
@@ -552,6 +555,7 @@ function resume() {
   audio.unlock(); audio.setPaused(false);
   $('pause').textContent = 'Ⅱ'; $('pause').setAttribute('aria-label', 'Pause game');
   updateHUD(); canvas.focus({ preventScroll: true });
+  lastTime = performance.now(); requestFrame();
 }
 
 function updateSoundButton() {
@@ -559,17 +563,18 @@ function updateSoundButton() {
   $('sound').setAttribute('aria-pressed', String(sfxEnabled));
   $('sound').setAttribute('aria-label', sfxEnabled ? 'Mute sound effects' : 'Enable sound effects');
   $('sfx-toggle').setAttribute('aria-pressed', String(sfxEnabled));
-  $('sfx-toggle').textContent = `EFFECTS ${sfxEnabled ? 'ON' : 'OFF'}`;
+  $('sfx-toggle').textContent = `Effects ${sfxEnabled ? 'on' : 'off'}`;
   $('music-toggle').setAttribute('aria-pressed', String(musicEnabled));
-  $('music-toggle').textContent = `MUSIC ${musicEnabled ? 'ON' : 'OFF'}`;
+  $('music-toggle').textContent = `Music ${musicEnabled ? 'on' : 'off'}`;
 }
 
 function refreshSaveControls(message) {
   const info = getSaveInfo();
   const description = info.ok ? `${info.seed} · ${minutes(info.time)} · ${new Date(info.savedAt).toLocaleString()}` : info.reason;
   $('save-status').textContent = message || description;
-  $('saved-operation').textContent = description;
-  $('load-game').disabled = $('load-saved').disabled = !assetStatus.ready || !info.ok;
+  $('saved-operation').textContent = message || description;
+  $('saved-operation').parentElement.hidden = !info.ok && !message;
+  $('load-game').disabled = $('load-saved').disabled = loading || !info.ok;
   $('save-game').disabled = !launched || game.status !== 'playing';
 }
 
@@ -578,19 +583,110 @@ function saveOperation() {
   refreshSaveControls(result.ok ? 'Operation saved in this browser.' : result.reason);
 }
 
-function loadOperation() {
-  if (!assetStatus.ready) return;
-  const result = loadGame();
-  if (!result.ok) { refreshSaveControls(result.reason); return; }
-  paused = true; launched = true;
-  $('seed').value = result.game.seed; $('difficulty').value = result.game.difficulty;
-  const size = Object.keys(MAP_SIZES).find(id => MAP_SIZES[id].width === result.game.width && MAP_SIZES[id].height === result.game.height);
-  if (size) $('map-size').value = size;
-  $('map-profile').value = result.game.mapProfile || 'rift'; $('player-race').value = teamRace(result.game, 0); $('enemy-race').value = teamRace(result.game, 1); updateMapDescription();
-  reset(result.game.seed, result.game.difficulty, result);
-  $('briefing').close(); audio.unlock(); showMenu(game.status !== 'playing');
-  $('menu-description').textContent = 'Operation restored. Resume when ready.';
-  refreshSaveControls('Loaded the saved operation.');
+function updateLoading(value, label) {
+  const progress = $('loading-progress');
+  progress.value = Math.max(progress.value, Math.min(100, value));
+  $('loading-percent').textContent = `${Math.floor(progress.value)}%`;
+  $('loading-stage').textContent = label;
+}
+
+async function prepareOperation(restore = false) {
+  if (loading) return;
+  stopFrames();
+  const previousGame = game, previousLaunched = launched;
+  loading = true; paused = true; launched = false;
+  audio.unlock(); audio.setPaused(true);
+  $('loading-title').textContent = restore ? 'Returning to the frontier' : 'Preparing the frontier';
+  $('loading-progress').value = 0;
+  $('loading-back').hidden = true; $('loading-back').textContent = 'Back to setup';
+  delete $('loading-back').dataset.reload;
+  $('loading').removeAttribute('data-error');
+  $('loading').setAttribute('aria-busy', 'true');
+  updateLoading(0, restore ? 'Reading your saved operation' : 'Preparing your expedition');
+  $('briefing').close(); $('menu').close();
+  document.body.dataset.screen = 'loading';
+  $('loading').showModal();
+  let assetTimer;
+  try {
+    // Paint the loading screen before decoding saves, preparing sprites, or seeding terrain.
+    await nextPaint();
+    const restored = restore ? loadGame() : null;
+    if (restored && !restored.ok) {
+      loading = false; game = previousGame; launched = previousLaunched;
+      $('loading').setAttribute('aria-busy', 'false'); $('loading').close();
+      if (previousLaunched) {
+        document.body.dataset.screen = 'game'; showMenu(game.status !== 'playing');
+      } else showBriefing();
+      refreshSaveControls(restored.reason);
+      return;
+    }
+    const seed = restored?.game.seed || $('seed').value.trim() || randomSeed();
+    $('seed').value = seed;
+    if (restored) {
+      $('difficulty').value = restored.game.difficulty;
+      const size = Object.keys(MAP_SIZES).find(id => MAP_SIZES[id].width === restored.game.width && MAP_SIZES[id].height === restored.game.height);
+      if (size) $('map-size').value = size;
+      $('map-profile').value = restored.game.mapProfile || 'rift';
+      $('player-race').value = teamRace(restored.game, 0); $('enemy-race').value = teamRace(restored.game, 1);
+      updateMapDescription();
+    }
+    updateLoading(2, 'Loading units and structures');
+    assetTimer = setInterval(() => updateLoading(2 + assetStatus.loaded / assetStatus.total * 32,
+      assetStatus.loaded === assetStatus.total ? 'Preparing faction colors' : `Loading units and structures · ${assetStatus.loaded} / ${assetStatus.total}`), 60);
+    await startAssets();
+    clearInterval(assetTimer);
+    if (!assetStatus.ready) { $('loading-back').dataset.reload = 'true'; $('loading-back').textContent = 'Reload and retry'; throw new Error('Some battlefield art could not load. Reload the page to retry.'); }
+    updateLoading(35, restore ? 'Restoring the sector' : 'Generating the sector');
+    await nextPaint();
+    const prepared = restored?.game || await generateOperation(seed, $('difficulty').value, {
+      ...MAP_SIZES[$('map-size').value], profile: $('map-profile').value, races: [$('player-race').value, $('enemy-race').value],
+    });
+    updateLoading(40, 'Laying the ashlands');
+    await nextPaint();
+    await reset(prepared, restored);
+    updateLoading(99, 'Establishing command');
+    await nextPaint();
+    renderer.draw(game, view);
+    updateLoading(100, 'Your expedition is ready');
+    await nextPaint();
+    loading = false; launched = true;
+    document.body.dataset.screen = 'game';
+    $('loading').setAttribute('aria-busy', 'false'); $('loading').close();
+    lastTime = performance.now(); accumulator = 0;
+    if (restored) {
+      showMenu(game.status !== 'playing');
+      $('menu-description').textContent = 'Operation restored. Resume when ready.';
+      refreshSaveControls('Loaded the saved operation.');
+    } else {
+      paused = false; audio.setPaused(false);
+      $('pause').textContent = 'Ⅱ'; $('pause').setAttribute('aria-label', 'Pause game');
+      canvas.focus({ preventScroll: true }); updateHUD(); playSound('confirm');
+      notify(`${RACES[teamRace(game, 0)].name} deployed. Build ${BUILDINGS[raceBuilding(game, 0, 'barracks')].name} and recruit your first squad.`);
+    }
+    requestFrame();
+  } catch (error) {
+    clearInterval(assetTimer);
+    loading = false; game = null;
+    $('loading').dataset.error = 'true'; $('loading').setAttribute('aria-busy', 'false');
+    $('loading-title').textContent = 'The expedition could not start';
+    $('loading-stage').textContent = error.message || 'Please return to setup and try again.';
+    $('loading-back').hidden = false; $('loading-back').focus();
+  }
+}
+
+function loadOperation() { return prepareOperation(true); }
+
+function showBriefing() {
+  stopFrames();
+  launched = false; paused = true; game = null;
+  $('queue-list').replaceChildren();
+  keys.clear(); groups.clear(); view.selected.clear();
+  audio.setPaused(true);
+  document.body.dataset.screen = 'briefing';
+  $('loading').close(); $('menu').close();
+  refreshSaveControls();
+  if (!$('briefing').matches(':modal')) { $('briefing').close(); $('briefing').showModal(); }
+  $('deploy').focus({ preventScroll: true });
 }
 
 function selectArmy() {
@@ -773,7 +869,7 @@ document.addEventListener('keydown', event => {
 document.addEventListener('keyup', event => keys.delete(event.key.toLowerCase()));
 window.addEventListener('blur', () => { keys.clear(); touches.clear(); pointer = null; pointerPosition = null; edgePointer = null; view.drag = null; if (launched && !paused && game.status === 'playing') showMenu(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden && launched && !paused && game.status === 'playing') showMenu(); });
-window.addEventListener('resize', () => { renderer.resize(); if (game) { view.zoom = nearestZoom(view.zoom, cameraLevels()); clampCamera(); updateZoomLabel(); } });
+window.addEventListener('resize', () => { renderer.resize(); if (game) { view.zoom = nearestZoom(view.zoom, cameraLevels()); clampCamera(); updateZoomLabel(); if (paused && !loading && renderer.terrainSource === game.terrain) renderer.draw(game, view); } });
 
 compactScreen.addEventListener('change', event => { if (event.matches) setConsole(false); });
 $('command-toggle').addEventListener('click', () => setConsole($('command-console').hidden));
@@ -827,30 +923,28 @@ $('resume').addEventListener('click', resume);
 $('menu').addEventListener('cancel', event => { event.preventDefault(); if (game.status === 'playing') resume(); });
 $('briefing').addEventListener('cancel', event => event.preventDefault());
 $('new-game').addEventListener('click', () => {
-  $('menu').close(); launched = false; paused = true; cancelOrder();
-  audio.setPaused(true);
-  $('seed').value = randomSeed(); reset($('seed').value, $('difficulty').value);
-  refreshSaveControls(); $('briefing').showModal(); $('deploy').focus();
+  cancelOrder(); $('seed').value = randomSeed(); showBriefing();
 });
-$('random-seed').addEventListener('click', () => { $('seed').value = randomSeed(); reset($('seed').value, $('difficulty').value); });
+$('loading').addEventListener('cancel', event => event.preventDefault());
+$('loading-back').addEventListener('click', () => { if ($('loading-back').dataset.reload) location.reload(); else showBriefing(); });
+$('random-seed').addEventListener('click', () => { $('seed').value = randomSeed(); });
 function updateMapDescription() {
   const size = MAP_SIZES[$('map-size').value];
   $('race-description').textContent = RACES[$('player-race').value].description;
   $('map-description').textContent = `${MAP_PROFILES[$('map-profile').value].description} ${fmt(size.width * size.height)} tiles to explore.`;
 }
-for (const id of ['map-profile', 'map-size', 'player-race', 'enemy-race']) $(id).addEventListener('change', () => { updateMapDescription(); reset($('seed').value, $('difficulty').value); });
-$('launch-form').addEventListener('submit', event => {
-  event.preventDefault();
-  if (!assetStatus.ready) return;
-  const seed = $('seed').value.trim() || randomSeed(); $('seed').value = seed;
-  reset(seed, $('difficulty').value); launched = true; paused = false;
-  audio.unlock(); audio.setPaused(false);
-  $('briefing').close(); $('pause').textContent = 'Ⅱ'; $('pause').setAttribute('aria-label', 'Pause game');
-  canvas.focus({ preventScroll: true }); updateHUD(); playSound('confirm');
-  notify(`${RACES[teamRace(game, 0)].name} deployed. Build ${BUILDINGS[raceBuilding(game, 0, 'barracks')].name} and recruit your first squad.`);
-});
+for (const id of ['map-profile', 'map-size', 'player-race', 'enemy-race']) $(id).addEventListener('change', updateMapDescription);
+$('launch-form').addEventListener('submit', event => { event.preventDefault(); prepareOperation(); });
+
+function requestFrame() {
+  if (!frameRequest && launched && !paused && !loading) frameRequest = requestAnimationFrame(frame);
+}
+function stopFrames() { if (frameRequest) cancelAnimationFrame(frameRequest); frameRequest = 0; }
 
 function frame(now) {
+  frameRequest = 0;
+  if (!launched || loading || !game) return;
+  if (paused) { updateHUD(); return; }
   const elapsed = Math.min((now - lastTime) / 1000, .2); lastTime = now;
   if (!busy()) {
     accumulator += elapsed;
@@ -895,36 +989,18 @@ function frame(now) {
   if ((check?.reason || '') !== view.placementReason) { view.placementReason = check?.reason || ''; setOrderHint(); }
   if (view.commandMarker && now / 1000 - view.commandMarker.time > .85) view.commandMarker = null;
   renderer.draw(game, view);
-  // Boot counts once the textured battlefield has drawn; until then a thrown frame still shows the boot error.
-  if (assetStatus.ready) window.ashline.booted = true;
   if (now - hudTimer > 150) {
     updateHUD(); hudTimer = now;
-    if (!assetStatus.ready && !assetStatus.errors.length) $('asset-status').textContent = `Loading battlefield ${assetStatus.loaded}/${assetStatus.total}`;
   }
   if (toastUntil && now > toastUntil) { $('notifications').className = ''; toastUntil = 0; lastNotice = ''; }
-  requestAnimationFrame(frame);
+  requestFrame();
 }
 
 $('seed').value = randomSeed();
-updateMapDescription();
-renderer.resize();
-reset($('seed').value, 'normal');
-updateSoundButton(); refreshSaveControls();
-$('briefing').showModal();
-assetsReady.then(() => {
-  if (!assetStatus.ready) {
-    $('asset-status').textContent = 'Battlefield assets could not load. Reload to retry.';
-    return;
-  }
-  $('asset-status').textContent = 'UPLINK READY';
-  $('deploy').disabled = false;
-  refreshSaveControls();
-  renderer.terrainSource = null;
-  view.zoom = cameraLevels()[preferredZoomIndex]; updateZoomLabel();
-  setTab(activeTab); lastPortrait = ''; updateHUD();
-  $('deploy').focus();
-});
-requestAnimationFrame(frame);
+updateMapDescription(); updateSoundButton();
+$('deploy').disabled = false;
+showBriefing();
 
-// Live state handles for reproducible browser playtests and performance inspection.
-window.ashline = { get state() { return game; }, view, renderer, assets: assetStatus, get paused() { return paused; }, get audio() { return audio.status; } };
+// Menu readiness is separate from battlefield readiness: no world exists before deployment.
+window.ashline = { booted: true, get state() { return game; }, view, renderer, assets: assetStatus,
+  get loading() { return loading; }, get paused() { return paused; }, get audio() { return audio.status; } };

@@ -11,7 +11,7 @@ try {
     const mobile=viewport.width<680,page=await browser.newPage({viewport,deviceScaleFactor:dpr,isMobile:mobile,hasTouch:mobile});page.on('pageerror',e=>errors.push(e.message));
     await page.goto(url);await page.waitForFunction(()=>window.ashline?.booted);
     await page.locator('#player-race').selectOption(race);await page.locator('#enemy-race').selectOption(race==='aiUnity'?'organics':'aiUnity');
-    await page.locator('#deploy').click();
+    await page.locator('#deploy').click(); await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});
     const roles=await page.evaluate(async()=>{const m=await import('./sim.js'),s=ashline.state;s.ai.nextThink=1e9;s.teams[0].credits=20000;return {name:m.RACES[m.teamRace(s,0)].name,core:m.raceBuilding(s,0,'core'),barracks:m.raceBuilding(s,0,'barracks'),rifle:m.raceUnit(s,0,'rifle'),factory:m.raceBuilding(s,0,'factory'),lab:m.raceBuilding(s,0,'lab'),labName:m.BUILDINGS[m.raceBuilding(s,0,'lab')].name,engineer:m.raceUnit(s,0,'engineer')};});
     assert.equal(await page.evaluate(()=>ashline.state.teams[0].race),race);
     if(await page.locator('#command-console').isHidden())await page.locator('#command-toggle').click();
@@ -53,7 +53,7 @@ try {
         await page.evaluate(value=>{ashline.state.teams[0].credits=value;},credits);
       }else await page.keyboard.press('Escape');
     }else assert.fail('Desktop and touch fixtures should have a visible wall line');
-    await page.evaluate(()=>{ashline.state.fogClock=0;});await page.locator('#pause').click();await page.locator('#save-game').click();assert.match(await page.locator('#save-status').innerText(),/^Operation saved/);await page.locator('#load-game').click();assert.equal(await page.evaluate(()=>ashline.state.teams[0].race),race);await page.locator('#resume').click();
+    await page.evaluate(()=>{ashline.state.fogClock=0;});await page.locator('#pause').click();await page.locator('#save-game').click();assert.match(await page.locator('#save-status').innerText(),/^Operation saved/);await page.locator('#load-game').click(); await page.waitForFunction(() => !ashline.loading, null, {timeout: 120000});assert.equal(await page.evaluate(()=>ashline.state.teams[0].race),race);await page.locator('#resume').click();
     if(await page.locator('#command-console').isVisible())await page.locator('#command-close').click();await page.keyboard.press('Space');
     await page.screenshot({path:`${output}/${race}-${viewport.width}.png`});await page.close();
   }

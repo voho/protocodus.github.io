@@ -18,8 +18,8 @@ try {
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
   await page.goto(process.env.ASHLINE_URL || 'http://127.0.0.1:8131/fun/ashline/');
-  await page.waitForFunction(() => window.ashline?.assets.ready);
-  await page.locator('#seed').fill('RANK-BROWSER'); await page.locator('#deploy').click();
+  await page.waitForFunction(() => window.ashline?.booted); await page.evaluate(async () => (await import('./assets.js')).startAssets());
+  await page.locator('#seed').fill('RANK-BROWSER'); await page.locator('#deploy').click(); await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});
   await page.waitForFunction(() => !ashline.paused);
   if (await page.locator('#command-console').isVisible()) await page.locator('#command-toggle').click();
   await page.evaluate(() => { window.rankFixture = {raf: requestAnimationFrame}; requestAnimationFrame = frame => { rankFixture.frame = frame; return 0; }; });
@@ -66,7 +66,7 @@ try {
   const saved = await page.evaluate(async () => { const {SAVE_KEY} = await import('./save.js'); return JSON.parse(localStorage.getItem(SAVE_KEY)); });
   assert(saved.game.entities.some(e => e.id === setup.id && e.kills === 15 && e.maxHp === 168));
   await page.evaluate(id => { const e = ashline.state.entities.find(e => e.id === id); e.kills = 0; e.maxHp = e.hp = 105; }, setup.id);
-  await page.locator('#load-game').click();
+  await page.locator('#load-game').click(); await page.waitForFunction(() => !ashline.loading, null, {timeout: 120000});
   assert(await page.evaluate(id => { const e = ashline.state.entities.find(e => e.id === id); return ashline.paused && e.kills === 15 && e.maxHp === 168 && e.hp === 138; }, setup.id));
   await page.locator('#resume').click(); await clickUnit(page, setup.id);
   hud = await rankHUD(page); assert.equal(hud.rank, 3); assert.equal(hud.kills, 15); assert(hud.description.includes('Maximum rank.'));

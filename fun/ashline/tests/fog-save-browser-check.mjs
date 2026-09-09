@@ -4,7 +4,7 @@ const browser=await chromium.launch({channel:process.env.ASHLINE_BROWSER||'chrom
 try{
   const page=await browser.newPage();
   await page.goto(process.env.ASHLINE_URL||'http://127.0.0.1:8000/fun/ashline/');
-  await page.waitForFunction(()=>window.ashline?.booted);await page.locator('#deploy').click();
+  await page.waitForFunction(()=>window.ashline?.booted);await page.locator('#deploy').click(); await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});
   const report=await page.evaluate(async()=>{
     const {BUILDINGS,raceBuilding}=await import('./sim.js'),{encodeGame,decodeGame}=await import('./save.js'),s=ashline.state;
     s.ai.nextThink=1e12;s.fogClock=1;s.visible[0].fill(1);s.explored[0].fill(1);

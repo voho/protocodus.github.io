@@ -1,5 +1,5 @@
 @font-face{font-family:Space;src:url('/assets/fonts/space-grotesk-latin.woff2') format('woff2');font-weight:300 700;font-display:swap}
-:root{color-scheme:dark;--bg:#111b20;--panel:#142027ed;--line:#8bb0b32e;--text:#dbe4de;--muted:#97acb1;--accent:#8dccca;--amber:#d9a764;--orange:#e29677;--mono:ui-monospace,SFMono-Regular,Consolas,monospace;--font:Space,Arial,sans-serif;--top:48px;--edge:12px}
+:root{color-scheme:dark;--bg:#111b20;--panel:#142027ed;--line:#8bb0b32e;--text:#dbe4de;--muted:#97acb1;--accent:#8dccca;--amber:#d9a764;--orange:#e29677;--mono:ui-monospace,SFMono-Regular,Consolas,monospace;--font:Space,Arial,sans-serif;--display:Oxanium,Space,Arial,sans-serif;--top:48px;--edge:12px}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font);overflow:hidden}button,input,select{font:inherit}button,a,input,select,summary{-webkit-tap-highlight-color:transparent}button{color:inherit;cursor:pointer;transition:background .15s,border-color .15s,color .15s}button:disabled{cursor:not-allowed}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible,canvas:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}a{color:inherit}[hidden]{display:none!important}button:hover:not(:disabled){background-color:#30464e}kbd{font:10px var(--mono);color:var(--muted);margin-left:5px}
 #game-shell{height:100dvh;position:relative;overflow:hidden;isolation:isolate}.battlefield{position:absolute;inset:0;background:#333a36;overflow:hidden}#world{display:block;width:100%;height:100%;touch-action:none;outline:none;cursor:default}#world.ordering{cursor:crosshair}
 .topbar{position:absolute;inset:0 0 auto;z-index:4;height:var(--top);display:flex;align-items:center;gap:22px;padding:0 max(14px,env(safe-area-inset-right)) 0 max(14px,env(safe-area-inset-left));border-bottom:1px solid var(--line);background:#101b22f2;box-shadow:0 3px 16px #0003}.game-brand{display:flex;align-items:center;gap:9px;text-decoration:none;flex-shrink:0}.game-brand svg{width:24px;height:25px;color:var(--text)}.game-brand>span{font-size:17px;letter-spacing:2px;font-weight:700;line-height:1.1}.game-brand small{display:none}.resources{display:flex;align-items:center;gap:28px;margin:auto}.resource{display:flex;gap:8px;align-items:center}.resource>span:last-child{display:flex;align-items:baseline;gap:8px}.resource-symbol{font-size:24px;color:var(--muted)}.resource strong{font-size:15px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}.resource small{font:10px var(--mono);letter-spacing:.3px;color:var(--muted);white-space:nowrap}.mineral .resource-symbol,.mineral strong{color:var(--amber)}.low-power strong,.low-power .resource-symbol{color:var(--orange)}.top-actions{display:flex;align-items:center;gap:5px;flex-shrink:0}#mission-time{font:11px var(--mono);color:var(--muted);margin-right:10px;font-variant-numeric:tabular-nums}.icon-button,.text-button{height:32px;border:1px solid transparent;background:transparent}.icon-button{width:31px;font-size:15px}.text-button{display:flex;align-items:center;gap:6px;padding:0 10px;font-size:12px;white-space:nowrap}.text-button>span:first-child{font-size:19px;line-height:1}.text-button kbd{font-size:10px;margin-left:1px}.icon-button[aria-pressed=true],#command-toggle[aria-expanded=true]{color:var(--accent);border-color:var(--line);background:#8dccca0b}#pending-count{display:grid;place-items:center;min-width:17px;height:17px;font:10px var(--mono);border-radius:3px;background:var(--accent);color:var(--bg)}
@@ -46,7 +46,7 @@ dialog{color:var(--text);background:#142027;border:1px solid #8bb0b350;padding:0
 .research-description{grid-column:2;font:10px/1.45 var(--font);color:var(--muted)}.research-state{grid-column:2;font:9px/1.5 var(--mono);color:var(--amber)}
 .research-card[data-state=locked]{background:#0c161b40}.research-card[data-state=locked] b{color:var(--muted)}.research-card[data-state=complete]{border-color:#8dccca45;background:#8dccca08}.research-card[data-state=complete] .research-state{color:var(--accent)}
 .research-card[data-state=active]{border-color:#d9a76475}.research-progress{grid-column:1/3;display:block;height:3px;background:#3b555c}.research-progress i{display:block;height:100%;background:var(--amber)}
-#building-upgrades{padding:12px 10px 3px;border-bottom:1px solid var(--line)}#upgrade-target{color:var(--accent);text-transform:uppercase;line-height:1.6}.upgrade-card{display:flex;flex-direction:column;gap:4px;width:100%;min-height:49px;margin-bottom:6px;text-align:left;padding:8px;border:1px solid var(--line);background:#8dccca08}.upgrade-card b{font:11px var(--font)}.upgrade-card span{font:9px/1.5 var(--mono);color:var(--amber)}.upgrade-card:disabled{background:#0c161b50}.upgrade-card[data-state=complete] span{color:var(--accent)}
+#building-upgrades{padding:12px 10px 3px;border-bottom:1px solid var(--line)}#upgrade-target{color:var(--accent);text-transform:none;line-height:1.6}.upgrade-card{display:flex;flex-direction:column;gap:4px;width:100%;min-height:49px;margin-bottom:6px;text-align:left;padding:8px;border:1px solid var(--line);background:#8dccca08}.upgrade-card b{font:11px var(--font)}.upgrade-card span{font:9px/1.5 var(--mono);color:var(--amber)}.upgrade-card:disabled{background:#0c161b50}.upgrade-card[data-state=complete] span{color:var(--accent)}
 #map-description{font:11px/1.65 var(--font);color:var(--muted);margin:-3px 0 17px;min-height:36px}.mission-options{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr)}
 #zoom-level{font:9px var(--mono);color:var(--muted);min-width:25px;text-align:center}.map-tools button:disabled{opacity:.35}.resource>span:last-child{gap:6px}
 @media(min-width:901px){.sidebar{width:246px}.build-card .card-name{font-size:11px}.commandbar{max-width:calc(100% - 480px)}}
@@ -66,3 +66,72 @@ dialog{color:var(--text);background:#142027;border:1px solid #8bb0b350;padding:0
 }
 #race-description{font:11px/1.65 var(--font);color:var(--accent);margin:-2px 0 12px}#terrain-readout{position:absolute;left:20px;top:114px;max-width:400px;padding:5px 8px;background:#142027de;border-left:2px solid var(--accent);font:9px/1.6 var(--mono);color:var(--text);pointer-events:none}
 @media(max-width:680px){#terrain-readout{display:none}}
+
+/* A quiet, static front door. World rendering begins only after deployment. */
+@font-face{font-family:Oxanium;src:url('./assets/fonts/oxanium-latin.woff2') format('woff2');font-weight:400 700;font-display:swap}
+body[data-screen=briefing],body[data-screen=loading]{background:#0f191e}
+body[data-screen=briefing] #game-shell,body[data-screen=loading] #game-shell{visibility:hidden;pointer-events:none}
+#briefing{position:fixed;inset:0;width:min(1080px,calc(100vw - 72px));max-width:none;max-height:calc(100dvh - 64px);border:0;background:#101b20;box-shadow:none;overflow:auto}
+#briefing::backdrop,#loading::backdrop{background:#0f191e;backdrop-filter:none}
+#briefing[open]{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.briefing-art{position:relative;display:flex;flex-direction:column;min-height:670px;padding:28px 48px 28px 20px;border-right:1px solid #b1c8c123;background:none;overflow:hidden}
+.briefing-home{position:relative;z-index:1;align-self:flex-start;text-decoration:none;font-size:13px;color:var(--muted)}
+.briefing-home:hover{color:var(--text)}
+.briefing-heading{position:relative;z-index:1;margin:auto 0;padding-top:70px}
+.briefing-heading .eyebrow{font:12px var(--font);letter-spacing:0;margin-bottom:20px;color:#8da29f}
+#briefing h1{font:500 clamp(60px,7vw,88px)/1 var(--display);letter-spacing:-3px;margin:0 0 22px;color:#e1e8dd}
+.briefing-tagline{font:400 27px/1.3 var(--display);letter-spacing:-.5px;margin:0 0 24px;color:#b3c7be}
+.briefing-copy{font:13px/1.8 var(--font);color:var(--muted);margin:0;max-width:none}
+.frontier-caption{position:relative;z-index:1;display:flex;justify-content:space-between;gap:16px;margin:65px 0 0;font:10px var(--mono);color:#6e898b}
+.frontier-orbit{position:absolute;left:22%;top:28px;width:430px;height:430px;border:1px solid #92b9ac1f;border-radius:50%;transform:rotate(-28deg);pointer-events:none}
+.frontier-orbit:before{content:'';position:absolute;inset:35px;border-radius:50%;border:1px solid #92b9ac12}
+.frontier-orbit span{position:absolute;inset:70px;border-radius:50%;background:radial-gradient(circle at 31% 23%,#4b6257 0,#233c37 27%,#122628 52%,#101b20 73%);box-shadow:inset 2px 2px 4px #acc3a51a;opacity:.62}
+.frontier-orbit i{position:absolute;left:44px;top:70px;width:4px;height:4px;border-radius:50%;background:#a1c8b5;box-shadow:0 0 9px #a1c8b544}
+.briefing-content{padding:36px 0 24px 48px;align-self:center}
+.briefing-content h2{font:500 25px/1.2 var(--display);letter-spacing:-.5px;margin:0 0 9px}
+.setup-intro{font:12px/1.6 var(--font);color:var(--muted);margin:0 0 26px}
+.mission-options{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 18px;margin-bottom:16px}
+.mission-options label{font:12px/1.4 var(--font);letter-spacing:0;color:#a8bab8}
+.mission-options select,.mission-options input{height:44px;margin-top:7px;font:13px var(--font);background:#142329;border-color:#87ada42e;padding-inline:11px;border-radius:3px}
+.seed-input input{border-radius:3px 0 0 3px;font:12px var(--mono)}
+.seed-input button{height:44px;margin-top:7px;border-color:#87ada42e;border-radius:0 3px 3px 0;background:#142329;font-size:22px;width:40px}
+#race-description,#map-description{font:11px/1.65 var(--font);min-height:0;margin:0 0 10px;color:var(--muted)}
+#race-description{color:#9cbab0}#map-description{margin-bottom:20px}
+.primary-button{font:500 14px/1.3 var(--display);letter-spacing:0;min-height:50px;border-radius:3px;background:#b0cdbb;border-color:#b0cdbb;color:#10241f;padding:14px 17px}
+.primary-button:hover:not(:disabled){background:#cae0ce}
+.secondary-button{font:12px/1.4 var(--font);letter-spacing:0;border-radius:3px}
+.briefing-foot{font:11px/1.6 var(--font);margin:10px 0 22px;color:#789393}
+.saved-operation{margin:0 0 18px;gap:7px}.saved-operation .secondary-button{text-align:left;padding:12px 15px}.saved-operation small{font:10px/1.5 var(--mono)}
+.quick-guide{padding-top:16px}.quick-guide summary{font-size:12px}.quick-guide p{font-size:12px}
+.game-brand>span{font-family:var(--display);font-weight:500;letter-spacing:-.2px}.game-brand small{letter-spacing:0}
+.eyebrow,.console-label,.section-label,.field-label,.map-heading,.sector-info,.grid-heading,.research-branch h3,#upgrade-target{letter-spacing:0}
+.menu-inner h2{font:500 32px/1.2 var(--display);letter-spacing:-.6px}.menu-inner .eyebrow{font:12px var(--font);letter-spacing:0}
+#loading{width:min(480px,calc(100vw - 40px));border:0;background:#0f191e;box-shadow:none;padding:32px 12px;overflow:visible}
+.loading-mark{display:flex;align-items:center;gap:13px;font:500 28px var(--display);color:#a4c5b5;margin-bottom:36px}.loading-mark span{font:12px var(--display);color:#698783}
+#loading h2{font:500 28px/1.3 var(--display);letter-spacing:-.5px;margin:0 0 13px}
+#loading-stage{min-height:36px;color:var(--muted);font:12px/1.7 var(--font);margin:0 0 23px}
+.loading-meter{display:flex;align-items:center;gap:18px}
+#loading-progress{appearance:none;width:100%;height:3px;display:block;flex:1;border:0;background:#2b3e40;color:#b0cdbb}
+#loading-progress::-webkit-progress-bar{background:#2b3e40}#loading-progress::-webkit-progress-value{background:#b0cdbb}#loading-progress::-moz-progress-bar{background:#b0cdbb}
+#loading-percent{font:11px var(--mono);color:#a4beb7;min-width:34px;text-align:right}
+#loading-back{margin-top:28px;width:100%}#loading[data-error=true] .loading-meter{display:none}
+@media(max-width:900px){#briefing{width:calc(100vw - 48px);max-height:calc(100dvh - 40px)}.briefing-art{padding-right:28px;padding-left:0;min-height:640px}.briefing-content{padding-left:28px;padding-top:25px}.frontier-orbit{left:7%;width:360px;height:360px}.briefing-tagline{font-size:23px}.frontier-caption{font-size:9px;gap:8px}.mission-options{gap:15px 12px}.mission-options select{font-size:12px}.setup-intro{max-width:250px}}
+@media(max-width:680px){#briefing{width:calc(100vw - 36px);max-height:calc(100dvh - 24px);padding:0 5px}#briefing[open]{display:block}.briefing-art{display:block;min-height:0;padding:12px 0 25px;border:0;overflow:visible}.briefing-home{font-size:12px}.briefing-heading{margin:24px 0 0;padding:0}.briefing-heading .eyebrow{font-size:10px;margin-bottom:9px}#briefing h1{font-size:58px;letter-spacing:-2px;margin-bottom:11px}.briefing-tagline{font:400 15px/1.4 var(--display);margin:0;max-width:80%;letter-spacing:0}.briefing-tagline br{display:none}.briefing-copy,.frontier-caption{display:none}.frontier-orbit{width:220px;height:220px;top:-20px;right:-50px;left:auto;opacity:.7}.frontier-orbit span{inset:37px}.frontier-orbit:before{inset:19px}.frontier-orbit i{left:15px;top:50px}.briefing-content{padding:23px 0 15px;border-top:1px solid var(--line)}.briefing-content h2{font-size:21px;margin-bottom:7px}.setup-intro{font-size:11px;max-width:none;margin-bottom:20px}.mission-options{gap:14px 12px;margin-bottom:15px}.mission-options label{font-size:11px;letter-spacing:0}.mission-options select,.mission-options input{font-size:12px;height:43px;padding-inline:8px}.seed-input button{height:43px;width:32px}#race-description,#map-description{font-size:11px}.briefing-foot{font-size:10px;margin-bottom:20px}.primary-button{font-size:13px}.quick-guide{padding-top:16px}#loading{padding:24px 5px}#loading h2{font-size:24px}}
+@media(max-width:370px){#briefing{width:calc(100vw - 28px)}.mission-options{grid-template-columns:repeat(2,minmax(0,1fr));gap:13px 10px}.mission-options select,.mission-options input{font-size:11px}.frontier-orbit{right:-40px;width:185px;height:185px}#briefing h1{font-size:52px}}
+/* Setup remains readable on touch screens; long briefings scroll vertically. */
+.briefing-copy,.setup-intro{font-size:14px}
+.mission-options label{font-size:14px}
+.mission-options select,.mission-options input{font-size:14px;min-height:44px}
+#race-description,#map-description{font-size:14px;line-height:1.6}
+.quick-guide summary,.quick-guide p,.saved-operation .secondary-button{font-size:14px}
+@media(max-width:900px){.mission-options select,.mission-options input{font-size:14px}.setup-intro{max-width:none}}
+@media(max-width:680px){.briefing-art{overflow:hidden}.setup-intro,.mission-options label,.mission-options select,.mission-options input,#race-description,#map-description,.quick-guide summary,.quick-guide p{font-size:14px}.mission-options select,.mission-options input,.seed-input button{height:44px}.frontier-orbit{right:-25px}.briefing-content{padding-bottom:20px}.primary-button{font-size:15px;min-height:48px}.briefing-foot{font-size:12px}}
+@media(max-width:370px){.mission-options{grid-template-columns:1fr}.mission-options select,.mission-options input{font-size:14px}}
+
+/* Loading status remains readable while the battlefield is prepared. */
+#loading-stage{font-size:14px}#loading-percent{font-size:14px}
+
+@media(max-width:680px){
+  /* A selected unit places Army above its action panel; keep toasts above both. */
+  body[data-selection=true] #notifications{bottom:calc(max(116px,var(--selection-height,0px)) + 60px)}
+}

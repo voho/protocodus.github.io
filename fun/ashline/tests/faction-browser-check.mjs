@@ -10,7 +10,7 @@ try {
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
   await page.goto(process.env.ASHLINE_URL || 'http://127.0.0.1:8131/fun/ashline/');
-  await page.waitForFunction(() => window.ashline?.assets.ready);
+  await page.waitForFunction(() => window.ashline?.booted); await page.evaluate(async () => (await import('./assets.js')).startAssets());
   const sprites = await page.evaluate(async () => {
     const {UNITS, BUILDINGS} = await import('./sim.js'), {drawSprite, drawSpriteShadow} = await import('./assets.js');
     const profiles = {
@@ -62,7 +62,7 @@ try {
     assert.equal(row.mint, 0, 'Minerals retain their shared mint color');
   }
 
-  await page.locator('#seed').fill('FACTIONS-BROWSER'); await page.locator('#deploy').click();
+  await page.locator('#seed').fill('FACTIONS-BROWSER'); await page.locator('#deploy').click(); await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});
   if (await page.locator('#command-console').isVisible()) await page.locator('#command-toggle').click();
   await page.evaluate(() => { window.factionFixture = {raf: requestAnimationFrame}; requestAnimationFrame = frame => { factionFixture.frame = frame; return 0; }; });
   await page.waitForFunction(() => Boolean(factionFixture.frame));

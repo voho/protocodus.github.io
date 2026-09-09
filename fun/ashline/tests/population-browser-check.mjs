@@ -6,7 +6,7 @@ const output=process.env.ASHLINE_SCREENSHOTS||'/tmp/ashline-population-qa';await
 const errors=[];
 try {
   const page=await browser.newPage({viewport:{width:1440,height:900}});page.on('pageerror',e=>errors.push(e.message));
-  await page.goto(process.env.ASHLINE_URL||'http://127.0.0.1:4173/fun/ashline/');await page.waitForFunction(()=>window.ashline?.booted);await page.locator('#deploy').click();
+  await page.goto(process.env.ASHLINE_URL||'http://127.0.0.1:4173/fun/ashline/');await page.waitForFunction(()=>window.ashline?.booted);await page.locator('#deploy').click(); await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});
   await page.locator('#zoom-out').click();await page.locator('#zoom-out').click();
   const result=await page.evaluate(async()=>{
     const {UNIT_CAP,UNITS,raceUnit,updateGame,issueOrder}=await import('./sim.js'),{spriteNativeZoom}=await import('./assets.js'),{encodeGame,decodeGame}=await import('./save.js');

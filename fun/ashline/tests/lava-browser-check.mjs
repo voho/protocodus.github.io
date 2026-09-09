@@ -10,7 +10,7 @@ try {
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
   await page.goto(process.env.ASHLINE_URL || 'http://127.0.0.1:8000/fun/ashline/');
-  await page.waitForFunction(() => window.ashline?.assets.ready);
+  await page.waitForFunction(() => window.ashline?.booted); await page.evaluate(async () => (await import('./assets.js')).startAssets());
   const checks = await page.evaluate(async () => {
     const {UNITS, createGame, issueOrder, updateGame} = await import('./sim.js');
     const {Renderer} = await import('./render.js');

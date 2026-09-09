@@ -1,6 +1,11 @@
 // Generated art is decoded once; the battlefield only draws small, prepared frames.
 import { UNITS, BUILDINGS as BUILDING_DEFS, buildingRole, unitRole } from './sim.js';
-export const assetStatus = { loaded: 0, total: 10, ready: false, errors: [] };
+export const assetStatus = { loaded: 0, total: 10, ready: false, started: false, errors: [] };
+import { nextPaint } from './loading.js';
+let startLoading;
+const loadingRequested = new Promise(resolve => { startLoading = resolve; });
+export function startAssets() { assetStatus.started = true; startLoading(); return assetsReady; }
+let preparation = Promise.resolve();
 export const terrainImages = { ground: null, detail: null };
 
 const BUILDINGS = Object.fromEntries(Object.entries(BUILDING_DEFS).map(([type, d]) => [type, d.size]));
@@ -273,8 +278,10 @@ async function load(name, prepare) {
     const image = new Image();
     image.src = new URL(`./assets/generated/${name}.webp`, import.meta.url).href;
     await image.decode();
-    prepare(image);
-    assetStatus.loaded++;
+    // Image decoding can finish together. Serialize CPU work with a paint between atlases.
+    const prepared = preparation.then(async () => { await nextPaint(); await prepare(image); assetStatus.loaded++; });
+    preparation = prepared.catch(() => {});
+    await prepared;
   } catch (error) {
     assetStatus.errors.push(`${name}: ${error.message}`);
   }
@@ -307,7 +314,7 @@ function wallFrames() {
   });
 }
 
-export const assetsReady = Promise.all([
+export const assetsReady = loadingRequested.then(() => Promise.all([
   load('organics-buildings', image => {
     ['core', 'reactor', 'refinery', 'barracks', 'factory', 'lab', 'capacitor', 'turret', 'rocketTower'].forEach((type, i) => {
       const [frame] = splitSheet(image, 3, 3, BUILDINGS[type] * 64 + 16, true, false, true, [i]);
@@ -366,13 +373,16 @@ export const assetsReady = Promise.all([
     });
   }),
   load('ground', image => { terrainImages.ground = image; }),
-]).then(() => {
+])).then(async () => {
+  await nextPaint();
   sprites.wall = wallFrames();
   for (const type of Object.keys(BUILDINGS)) for (const frame of sprites[type] || []) {
+    await nextPaint();
     frame.powerDownTeams = frame.teams.map(powerDownFrame);
     if (frame.hopperTeams) frame.powerDownHoppers = frame.hopperTeams.map(teams => teams.map(powerDownFrame));
   }
   for (const type of ['harvester', 'refinery', 'unityHarvester', 'unityRefinery']) for (const frame of sprites[type] || []) {
+    await nextPaint();
     frame.mineralHoppers = { 2: frame.hopperTeams.map(teams => teams.map(source => mineralFrame(source, 2))),
       3: frame.hopperTeams.map(teams => teams.map(source => mineralFrame(source, 3))) };
     if (buildingRole(type) === 'refinery') frame.powerDownMineralHoppers = Object.fromEntries(Object.entries(frame.mineralHoppers)

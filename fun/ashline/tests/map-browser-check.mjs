@@ -23,9 +23,9 @@ try {
     const page = await browser.newPage({viewport: touch ? {width: 390, height: 844} : {width: 1440, height: 900}, isMobile: touch, hasTouch: touch, deviceScaleFactor: touch ? 2 : 1});
     page.on('pageerror', error => errors.push(`${name}: ${error.message}`));
     page.on('console', message => { if (message.type() === 'error') errors.push(`${name}: ${message.text()}`); });
-    await page.goto(url); await page.waitForFunction(() => window.ashline?.assets.ready);
+    await page.goto(url); await page.waitForFunction(() => window.ashline?.booted); await page.evaluate(async () => (await import('./assets.js')).startAssets());
     await page.locator('#seed').fill('LARGE-MAP-BROWSER');
-    await page.locator('#deploy')[touch ? 'tap' : 'click']();
+    await page.locator('#deploy')[touch ? 'tap' : 'click'](); await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});
     await page.waitForFunction(() => !ashline.paused);
     assert.deepEqual(await page.evaluate(() => [ashline.state.width, ashline.state.height, ashline.state.terrain.length]), [MAP_SIZES.frontier.width, MAP_SIZES.frontier.height, MAP_SIZES.frontier.width*MAP_SIZES.frontier.height]);
     assert(await page.evaluate(() => {
@@ -107,7 +107,7 @@ try {
     const saved = await page.evaluate(async () => { const {SAVE_KEY} = await import('./save.js'); return {key: SAVE_KEY, raw: localStorage.getItem(SAVE_KEY)}; });
     const record = JSON.parse(saved.raw); assert.deepEqual([record.game.width, record.game.height], [MAP_SIZES.frontier.width, MAP_SIZES.frontier.height]); assert(record.view.x > 72 && record.view.y > 56);
     await page.evaluate(() => { ashline.view.x = 20; ashline.view.y = 20; });
-    await page.locator('#load-game')[touch ? 'tap' : 'click']();
+    await page.locator('#load-game')[touch ? 'tap' : 'click'](); await page.waitForFunction(() => !ashline.loading, null, {timeout: 120000});
     assert.deepEqual(await page.evaluate(() => ({x: ashline.view.x, y: ashline.view.y, zoom: ashline.view.zoom})), record.view);
     assert(await page.evaluate(({id, farTile}) => ashline.paused && ashline.state.explored[0][farTile] && ashline.state.entities.find(e => e.id === id).x > 72, far));
 
@@ -117,10 +117,10 @@ try {
       const legacy = createGame('LEGACY-BROWSER', 'normal', {width: 72, height: 56});
       const result = saveGame(legacy, {x: 36, y: 28, zoom: 30}); if (!result.ok) throw new Error(result.reason);
     });
-    await page.locator('#load-game')[touch ? 'tap' : 'click']();
+    await page.locator('#load-game')[touch ? 'tap' : 'click'](); await page.waitForFunction(() => !ashline.loading, null, {timeout: 120000});
     assert.deepEqual(await page.evaluate(() => [ashline.state.width, ashline.state.height, ashline.view.x, ashline.view.y]), [72, 56, 36, 28]);
     await page.evaluate(({key, raw}) => localStorage.setItem(key, raw), saved);
-    await page.locator('#load-game')[touch ? 'tap' : 'click']();
+    await page.locator('#load-game')[touch ? 'tap' : 'click'](); await page.waitForFunction(() => !ashline.loading, null, {timeout: 120000});
     assert.deepEqual(await page.evaluate(() => [ashline.state.width, ashline.state.height]), [MAP_SIZES.frontier.width, MAP_SIZES.frontier.height]);
     assert.deepEqual(await page.evaluate(() => ({x: ashline.view.x, y: ashline.view.y, zoom: ashline.view.zoom})), record.view);
     await page.locator('#resume')[touch ? 'tap' : 'click']();

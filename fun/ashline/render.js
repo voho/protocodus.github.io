@@ -1,3 +1,4 @@
+import { nextPaint } from './loading.js';
 import { drawSprite, drawSpriteShadow, drawProp, drawPropShadow, terrainImages, assetsReady } from './assets.js';
 import { powerStats, UNITS, BUILDINGS as BUILDING_DEFS, mapLayout, unitRank, buildingRole, unitRole } from './sim.js';
 
@@ -586,6 +587,20 @@ export class Renderer {
   drawIcon(canvas, type, team = 0) { drawIcon(canvas, type, team); }
 
   createTerrain(state) {
+    for (const _ of this.terrainSteps(state)) { /* Synchronous rebuild for renderer fixtures. */ }
+  }
+
+  async prepareTerrain(state, onProgress = () => {}) {
+    const steps = this.terrainSteps(state);
+    let deadline = performance.now() + 12;
+    for (const progress of steps) {
+      if (progress) onProgress(progress);
+      if (performance.now() >= deadline) { await nextPaint(); deadline = performance.now() + 12; }
+    }
+  }
+
+  *terrainSteps(state) {
+    yield { value: 0, label: 'Laying the ashlands' };
     const width = state.width * TILE, height = state.height * TILE;
     // Bound both full-map surfaces together to 64 MiB, even on the largest battlefield.
     // Fine object art stays in native sprite caches; broad terrain tolerates this filtered bake.
@@ -618,7 +633,9 @@ export class Renderer {
     const base = document.createElement('canvas'); base.width = state.width * 4; base.height = state.height * 4;
     this.fogNoise = new Uint8Array(base.width * base.height);
     const baseCtx = base.getContext('2d'), colors = baseCtx.createImageData(base.width, base.height);
-    for (let y = 0; y < base.height; y++) for (let x = 0; x < base.width; x++) {
+    for (let y = 0; y < base.height; y++) {
+      if (y % 8 === 0) yield { value: .15 * y / base.height, label: 'Laying the ashlands' };
+      for (let x = 0; x < base.width; x++) {
       const broad = smoothNoise(x / 43, y / 43, seed);
       const detail = smoothNoise(x / 13, y / 13, seed + 9);
       const rusty = Math.max(0, smoothNoise(x / 31 + 4, y / 31, seed + 4) - .47) * 1.7;
@@ -629,6 +646,7 @@ export class Renderer {
       colors.data[i + 2] = 45 + c - rusty * 13 - warm * .6;
       colors.data[i + 3] = terrainImages.ground ? 97 : 255;
       this.fogNoise[y * base.width + x] = broad * 6 + detail * 5;
+    }
     }
     baseCtx.putImageData(colors, 0, 0); ctx.imageSmoothingEnabled = true;
     ctx.drawImage(base, 0, 0, width, height);
@@ -659,9 +677,13 @@ export class Renderer {
       }
     }
     ctx.restore();
-    this.paintMaterials(state, ctx, seed);
+    yield { value: .16, label: 'Shaping basalt and ridgelines' };
+    yield* this.materialSteps(state, ctx, seed);
+    yield { value: .5, label: 'Scattering mineral fields and deadwood' };
     const scatteredTrees = state.terrain.includes(4);
-    for (let y = 0; y < state.height; y++) for (let x = 0; x < state.width; x++) {
+    for (let y = 0; y < state.height; y++) {
+      yield { value: .5 + .18 * y / state.height, label: 'Scattering mineral fields and deadwood' };
+      for (let x = 0; x < state.width; x++) {
       const i = y * state.width + x, px = x * TILE, py = y * TILE;
       const n = noise(x, y, seed), type = state.terrain[i];
       if (type === 3 || type === 5) continue;
@@ -722,11 +744,14 @@ export class Renderer {
         }
       }
     }
-    this.createLava(state);
+    }
+    yield { value: .68, label: 'Filling the lava basins' };
+    yield* this.lavaSteps(state);
+    yield { value: 1, label: 'Battlefield ready' };
   }
 
   // Terrain materials bake once at 8 px/tile: basalt sinks below the ash, rock rises above it with a lit rim and a shaded foot.
-  paintMaterials(state, ctx, seed) {
+  *materialSteps(state, ctx, seed) {
     const width = state.width * TILE, height = state.height * TILE, mw = state.width * 8, mh = state.height * 8;
     const scratch = () => { const c = document.createElement('canvas'); c.width = mw; c.height = mh; return c; };
     // Tile test -> soft, organic alpha mask (blur, then threshold).
@@ -748,10 +773,13 @@ export class Renderer {
       ctx.save(); ctx.globalAlpha = alpha; ctx.imageSmoothingEnabled = true; ctx.drawImage(c, dx, dy, width, height); ctx.restore();
     };
     // Per-pixel material at 4 px/tile, upsampled and clipped by the mask.
-    const plate = (mask, paint) => {
+    const plate = function* (mask, paint) {
       const lw = state.width * 4, lh = state.height * 4, low = document.createElement('canvas'); low.width = lw; low.height = lh;
       const l = low.getContext('2d'), img = l.createImageData(lw, lh);
-      for (let y = 0; y < lh; y++) for (let x = 0; x < lw; x++) paint(x, y, img.data, (y * lw + x) * 4);
+      for (let y = 0; y < lh; y++) {
+        if (y % 8 === 0) yield;
+        for (let x = 0; x < lw; x++) paint(x, y, img.data, (y * lw + x) * 4);
+      }
       l.putImageData(img, 0, 0);
       const c = scratch(), t = c.getContext('2d');
       t.imageSmoothingEnabled = true; t.drawImage(low, 0, 0, mw, mh);
@@ -764,17 +792,18 @@ export class Renderer {
     // One blurred scorch stain around every lava pool; the basalt banks later cover its inner part.
     if (state.terrain.includes(3)) stamp(tileMask(i => state.terrain[i] === 3, 2), '#1d100b', 0, 0, .6, 14);
     stamp(basaltMask, '#7a7d76', 0, -1, .18);
-    plate(basaltMask, (x, y, data, at) => {
+    yield* plate(basaltMask, (x, y, data, at) => {
       const fleck = smoothNoise(x / 36, y / 36, seed + 61), seam = smoothNoise(x / 92, y / 92, seed + 67);
       let r = 47, g = 53, b = 55;
       if (fleck > .62) { r += (106 - r) * .16; g += (111 - g) * .16; b += (106 - b) * .16; }
       if (Math.abs(seam - .5) < .008) { r += (29 - r) * .35; g += (34 - g) * .35; b += (36 - b) * .35; }
       data[at] = r; data[at + 1] = g; data[at + 2] = b; data[at + 3] = 158;
     });
+    yield { value: .28, label: 'Carving crater floors' };
     if (state.terrain.includes(5)) {
       const craterMask = tileMask(i => state.terrain[i] === 5, 5);
       stamp(craterMask, '#928574', 0, 0, .24, 10);
-      plate(craterMask, (x, y, data, at) => {
+      yield* plate(craterMask, (x, y, data, at) => {
         const n = smoothNoise(x / 21, y / 21, seed + 95), fold = smoothNoise(x / 8, y / 8, seed + 97);
         // Keep the original granular ash visible through the bowl floor so it reads as
         // shallow traversable ground instead of a dark liquid pool or bottomless hole.
@@ -789,12 +818,13 @@ export class Renderer {
       stamp(innerEdge(-6, -8), '#a3957d', 0, 0, .38, 2);
       stamp(innerEdge(-2, -3), '#b6aa91', 0, 0, .26);
     }
+    yield { value: .39, label: 'Raising the rock plateaus' };
     // Two soft shadow lobes and short exposed strata make cliffs read above the ash at minimum zoom.
     stamp(rockMask, '#111920', 6, 10, .32, 16);
     stamp(rockMask, '#13191d', 3, 6, .30, 5);
     stamp(rockMask, '#2b2c2b', 0, 6); stamp(rockMask, '#403d37', 0, 3);
     stamp(rockMask, '#a29a87', -2, -2.5, .48);
-    plate(rockMask, (x, y, data, at) => {
+    yield* plate(rockMask, (x, y, data, at) => {
       const n = smoothNoise(x / 28, y / 28, seed + 71), grit = (noise(x, y, seed + 72) - .5) * 8;
       const light = Math.max(0, Math.min(1, (n - .58) * 6)) * .55, dark = Math.max(0, Math.min(1, (.40 - n) * 6)) * .55;
       let r = 92, g = 89, b = 82;
@@ -803,12 +833,13 @@ export class Renderer {
     });
   }
 
-  createLava(state) {
+  *lavaSteps(state) {
     this.lavaPools = [];
     const visited = new Uint8Array(state.terrain.length), ctx = this.terrain.getContext('2d');
     const palette = [[96, 28, 15], [191, 38, 8], [244, 85, 9], [255, 159, 20], [255, 220, 80]];
     for (let start = 0; start < visited.length; start++) {
       if (visited[start] || state.terrain[start] !== 3) continue;
+      yield { value: .68 + .3 * start / visited.length, label: 'Filling the lava basins' };
       const cells = [start]; visited[start] = 1;
       for (let at = 0; at < cells.length; at++) {
         const i = cells[at], x = i % state.width, y = Math.floor(i / state.width);
@@ -826,7 +857,9 @@ export class Renderer {
       const layers = Array.from({ length: 3 }, () => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; });
       const bank = layers[0].getContext('2d'); bank.filter = 'blur(9px)'; bank.drawImage(mask, 0, 0); bank.filter = 'none';
       const pixels = bank.getImageData(0, 0, w, h), shore = m.createImageData(w, h);
-      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      for (let y = 0; y < h; y++) {
+        if (y % 8 === 0) yield;
+        for (let x = 0; x < w; x++) {
         const i = (y * w + x) * 4, raw = pixels.data[i + 3];
         if (!raw) continue;
         const wx = x0 * TILE + x - 16, wy = y0 * TILE + y - 16;
@@ -839,13 +872,16 @@ export class Renderer {
         pixels.data.set([rock + heatTint * 26, rock * .94 + heatTint * 6, rock * .86, Math.max(0, Math.min(255, (edge - 84) * 5))], i);
         shore.data.set([29, 16, 11, alpha], i);
       }
+      }
       bank.putImageData(pixels, 0, 0);
       m.putImageData(shore, 0, 0);
       // The molten texture is computed at half resolution (its folds are far wider than 2 px) and upsampled.
       const flow = layers[2]; flow.width = w + 48; flow.height = h + 48;
       const half = document.createElement('canvas'); half.width = Math.ceil(flow.width / 2); half.height = Math.ceil(flow.height / 2);
       const hc = half.getContext('2d'), heat = hc.createImageData(half.width, half.height);
-      for (let y = 0; y < half.height; y++) for (let x = 0; x < half.width; x++) {
+      for (let y = 0; y < half.height; y++) {
+        if (y % 8 === 0) yield;
+        for (let x = 0; x < half.width; x++) {
         const i = (y * half.width + x) * 4, wx = x0 * TILE + x * 2 - 40, wy = y0 * TILE + y * 2 - 40;
         // Swirled fractal folds: broad red/orange body, amber folds, yellow only on the hottest crests, sparse dark crust.
         const warp = smoothNoise(wx / 64, wy / 56, this.seed + 37);
@@ -856,6 +892,7 @@ export class Renderer {
         const index = Math.min(3, Math.floor(value)), blend = value - index;
         for (let c = 0; c < 3; c++) heat.data[i + c] = palette[index][c] * (1 - blend) + palette[index + 1][c] * blend;
         heat.data[i + 3] = 255;
+      }
       }
       hc.putImageData(heat, 0, 0);
       const f = flow.getContext('2d'); f.imageSmoothingEnabled = true; f.imageSmoothingQuality = 'high'; f.drawImage(half, 0, 0, flow.width, flow.height);

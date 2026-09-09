@@ -13,10 +13,10 @@ async function launch(viewport,deviceScaleFactor=1){
   await page.goto(url);await page.waitForFunction(()=>window.ashline?.booted);
   assert.equal(await page.locator('#map-size').inputValue(),'frontier');
   await page.locator('#map-profile').selectOption('highlands');await page.locator('#map-size').selectOption('vast');
-  assert.deepEqual(await page.evaluate(()=>[ashline.state.width,ashline.state.height,ashline.state.mapProfile]),[224,168,'highlands']);
+  assert.equal(await page.evaluate(()=>ashline.state),null,'Changing setup does not generate a preview world');
   await page.locator('#map-profile').selectOption('rift');await page.locator('#map-size').selectOption('frontier');
   await page.screenshot({path:`${output}/briefing-${viewport.width}.png`});
-  await page.locator('#deploy').click();await page.evaluate(()=>{ashline.state.ai.nextThink=1e9;ashline.state.teams[0].credits=30000;});
+  await page.locator('#deploy').click(); await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});await page.evaluate(()=>{ashline.state.ai.nextThink=1e9;ashline.state.teams[0].credits=30000;});
   return page;
 }
 async function fixtures(page){return page.evaluate(async()=>{
@@ -67,9 +67,9 @@ try{
   assert.equal(await page.locator('#grid-state').getAttribute('data-state'),'reserve');await advance(page,5);await ui(page);
   assert.equal(await page.locator('#grid-state').getAttribute('data-state'),'brownout');await page.screenshot({path:`${output}/brownout-desktop.png`});
   await page.locator('#pause').click();await page.evaluate(()=>{ashline.state.fogClock=0;});await page.locator('#save-game').click();assert.match(await page.locator('#save-status').innerText(),/^Operation saved/);
-  await page.locator('#load-game').click();assert.match(await page.locator('#save-status').innerText(),/loaded/i);await page.locator('#resume').click();
+  await page.locator('#load-game').click(); await page.waitForFunction(() => !ashline.loading, null, {timeout: 120000});assert.match(await page.locator('#save-status').innerText(),/loaded/i);await page.locator('#resume').click();
   await page.evaluate(id=>{ashline.view.selected=new Set([id]);},ids.factory);await ui(page);
-  const refundLabel=await page.locator('#sell-building').innerText();assert.match(refundLabel,/SELL \+/);await page.locator('#sell-building').click();
+  const refundLabel=await page.locator('#sell-building').innerText();assert.match(refundLabel,/Sell \+/);await page.locator('#sell-building').click();
   assert.equal(await page.evaluate(id=>ashline.state.entities.some(e=>e.id===id&&e.hp>0),ids.factory),false);
   await page.close();
   for(const viewport of [{width:390,height:844},{width:844,height:390}]){

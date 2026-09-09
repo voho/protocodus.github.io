@@ -44,7 +44,7 @@ async function construct(page, type) {
 }
 try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } }); watch(page);
-  await page.goto(url); await page.waitForFunction(() => window.ashline?.assets.ready);
+  await page.goto(url); await page.waitForFunction(() => window.ashline?.booted); await page.evaluate(async () => (await import('./assets.js')).startAssets());
   assert.deepEqual(await state(page, () => ashline.assets.errors), []);
   assert.equal(await state(page, () => ashline.assets.loaded), await state(page, () => ashline.assets.total), 'Every registered sprite and terrain asset loads');
   const graphics = await page.evaluate(async () => {
@@ -71,9 +71,9 @@ try {
   assert.equal(graphics.props.rock, 3); assert.equal(graphics.props.ore, 3);
   assert.equal(graphics.cases, graphics.unitTypes * 32); assert.equal(graphics.empty, 0); assert.equal(graphics.matte, 0, 'Generated sprites have clean transparent silhouettes');
   assert(await page.locator('#briefing').evaluate(e => e.open));
-  assert(await state(page, () => ashline.paused && ashline.state.time === 0));
+  assert(await state(page, () => ashline.paused && ashline.state === null));
   await page.screenshot({ path: `${output}/briefing.png` });
-  await page.locator('#seed').fill('BROWSER-CHECK'); await page.locator('#deploy').click();
+  await page.locator('#seed').fill('BROWSER-CHECK'); await page.locator('#deploy').click(); await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});
   await page.waitForFunction(() => !ashline.paused && ashline.state.time > 0);
   assert(await state(page, () => ashline.renderer.width === innerWidth && ashline.renderer.height === innerHeight), 'Battlefield fills the viewport');
   assert(await page.locator('#selection-panel').isHidden(), 'No empty selection panel obscures the battlefield');
@@ -235,11 +235,11 @@ try {
   await page.locator('#pause').click(); await page.locator('#new-game').click();
   assert.equal(await page.locator('.queue-item').count(), 0);
   assert.equal(await state(page, () => ashline.view.selected.size), 0);
-  assert.equal(await state(page, () => ashline.state.time), 0);
+  assert.equal(await state(page, () => ashline.state), null);
 
   // Stage the last combat exchange; the real animation loop must open either end screen.
   for (const outcome of ['victory', 'defeat']) {
-    await page.locator('#deploy').click();
+    await page.locator('#deploy').click(); await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});
     await page.evaluate(async outcome => {
       const { issueOrder, buildingRole, unitRole } = await import('./sim.js'), s = ashline.state;
       const loser = outcome === 'victory' ? 1 : 0;
@@ -258,8 +258,8 @@ try {
   await page.close();
 
   const mobile = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 }); watch(mobile);
-  await mobile.goto(url); await mobile.waitForFunction(() => window.ashline?.assets.ready);
-  await mobile.locator('#deploy').tap();
+  await mobile.goto(url); await mobile.waitForFunction(() => window.ashline?.booted); await mobile.evaluate(async () => (await import('./assets.js')).startAssets());
+  await mobile.locator('#deploy').tap(); await mobile.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});
   assert(await state(mobile, () => document.documentElement.scrollWidth <= innerWidth), 'Mobile has no horizontal overflow');
   assert(await pageIsCompact(mobile), 'Mobile starts with a compact, collapsed console');
   assert(await mobile.evaluate(async () => { const {spriteNativeZoom}=await import('./assets.js');return Math.abs(ashline.view.zoom-spriteNativeZoom(ashline.renderer.dpr)*.625)<1e-6; }), 'Mobile starts at the second of five native-resolution zoom levels');

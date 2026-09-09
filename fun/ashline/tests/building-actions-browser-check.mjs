@@ -36,8 +36,8 @@ try {
     const name = mobile ? 'mobile' : 'desktop';
     const page = await browser.newPage({viewport: mobile ? {width: 390, height: 844} : {width: 1440, height: 900}, hasTouch: mobile, deviceScaleFactor: mobile ? 2 : 1});
     page.on('pageerror', e => errors.push(e.message)); page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
-    await page.goto(url); await page.waitForFunction(() => ashline.assets.ready);
-    await page.locator('#seed').fill('BUILDING-ACTIONS'); await page.locator('#deploy').click();
+    await page.goto(url); await page.waitForFunction(() => window.ashline?.booted); await page.evaluate(async () => (await import('./assets.js')).startAssets());
+    await page.locator('#seed').fill('BUILDING-ACTIONS'); await page.locator('#deploy').click(); await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});
     await page.waitForFunction(() => !ashline.paused && ashline.state.time > 0);
     if (await page.locator('#command-console').isVisible()) await page.locator('#command-toggle').click();
     await freeze(page);
@@ -52,7 +52,7 @@ try {
     assert.match(await page.locator('#building-actions-note').textContent(), /Nexus cannot be sold/);
     await layout(page); await page.screenshot({path: `${output}/${name}-nexus.png`});
     await select(page, ids.refinery, mobile);
-    assert.match(await page.locator('#sell-label').textContent(), /SELL \+50/);
+    assert.match(await page.locator('#sell-label').textContent(), /Sell \+50/);
     assert.match(await page.locator('#building-actions-note').textContent(), /Hauler value excluded/);
     const before = await page.evaluate(id => ({hp: ashline.state.entities.find(e => e.id === id).hp, credits: ashline.state.teams[0].credits}), ids.refinery);
     await page.locator('#repair-building').click(); assert.equal(await page.locator('#repair-building').getAttribute('aria-pressed'), 'true');
@@ -75,8 +75,8 @@ try {
     assert.deepEqual(await page.evaluate(id => ({hp: ashline.state.entities.find(e => e.id === id).hp, credits: ashline.state.teams[0].credits, time: ashline.state.time}), ids.refinery), paused, 'Actual pause freezes repair HP, spending and simulation time');
     assert(await page.locator('#repair-building').isDisabled()); assert(await page.locator('#sell-building').isDisabled());
     await page.locator('#save-game').click(); assert.match(await page.locator('#save-status').textContent(), /saved/i);
-    await page.reload(); await page.waitForFunction(() => ashline.assets.ready);
-    await page.locator('#load-saved').click(); assert(await page.locator('#menu').evaluate(e => e.open));
+    await page.reload(); await page.waitForFunction(() => window.ashline?.booted); await page.evaluate(async () => (await import('./assets.js')).startAssets());
+    await page.locator('#load-saved').click(); await page.waitForFunction(() => !ashline.loading, null, {timeout: 120000}); assert(await page.locator('#menu').evaluate(e => e.open));
     assert(await page.evaluate(id => ashline.paused && ashline.state.entities.find(e => e.id === id).repairing, ids.refinery));
     assert.deepEqual(await page.evaluate(id => ({hp: ashline.state.entities.find(e => e.id === id).hp, credits: ashline.state.teams[0].credits, time: ashline.state.time}), ids.refinery), paused, 'Briefing load restores the active repair exactly and remains paused');
     await page.locator('#resume').click(); await freeze(page);
@@ -93,7 +93,7 @@ try {
       const {salvageValue} = await import('./sim.js'), s = ashline.state;
       return {refund: salvageValue(s.entities.find(e => e.id === id)), credits: s.teams[0].credits, haulers: s.entities.filter(e => e.team === 0 && e.type === 'harvester').map(e => ({id: e.id, cargo: e.cargo}))};
     }, ids.refinery);
-    assert.equal(await page.locator('#sell-label').textContent(), `SELL +${sale.refund}`);
+    assert.equal(await page.locator('#sell-label').textContent(), `Sell +${sale.refund}`);
     await page.locator('#sell-building').click();
     assert(await page.evaluate(id => !ashline.state.entities.some(e => e.id === id), ids.refinery));
     assert.equal(await page.evaluate(() => ashline.state.teams[0].credits), sale.credits + sale.refund);

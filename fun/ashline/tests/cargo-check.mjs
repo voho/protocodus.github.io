@@ -11,9 +11,9 @@ try {
   await page.route('**/cargo-check.html', route => route.fulfill({ contentType: 'text/html', body: '<canvas></canvas>' }));
   await page.goto(new URL('cargo-check.html', base).href);
   const report = await page.evaluate(async () => {
-    const { assetsReady, assetStatus, drawSprite, drawSpriteShadow } = await import('./assets.js');
+    const { startAssets, assetStatus, drawSprite, drawSpriteShadow } = await import('./assets.js');
     const { unitRole } = await import('./sim.js');
-    await assetsReady;
+    await startAssets();
     if (!assetStatus.ready) throw new Error(assetStatus.errors.join('; '));
     const canvas = document.createElement('canvas'); canvas.width = canvas.height = 192;
     const ctx = canvas.getContext('2d', { willReadFrequently: true });

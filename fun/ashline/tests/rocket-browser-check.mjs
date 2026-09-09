@@ -15,7 +15,7 @@ try {
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
   await page.goto(process.env.ASHLINE_URL || 'http://127.0.0.1:8000/fun/ashline/');
-  await page.waitForFunction(() => window.ashline?.assets.ready);
+  await page.waitForFunction(() => window.ashline?.booted); await page.evaluate(async () => (await import('./assets.js')).startAssets());
   assert.equal(await page.evaluate(() => ashline.assets.loaded), 7);
   const graphics = await page.evaluate(async () => {
     const {drawSprite, drawSpriteShadow, spriteStats} = await import('./assets.js');
@@ -86,7 +86,7 @@ try {
   assert.equal(graphics.hiddenHeadDifference, 0); assert(graphics.visibleHeadDifference > 20);
   assert.equal(graphics.puffs.length, 3); assert(graphics.puffs.every(x => Math.floor(x) === 32), 'Smoke cannot cross concealed trail cells');
 
-  await page.locator('#seed').fill('ROCKET-BROWSER'); await page.locator('#deploy').click();
+  await page.locator('#seed').fill('ROCKET-BROWSER'); await page.locator('#deploy').click(); await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});
   await page.waitForFunction(() => !ashline.paused);
   if (await page.locator('#command-console').isHidden()) await page.locator('#command-toggle').click();
   assert(await page.locator('.build-card[data-type="rocketTower"]').isDisabled(), 'Tower requires barracks technology');
@@ -125,7 +125,7 @@ try {
   assert(await page.evaluate(() => ashline.state.entities.some(e => e.team === 0 && e.type === 'rocketTower' && e.progress < 1)));
   await advance(page, setup.buildTime + .2);
   assert(await page.evaluate(() => ashline.state.entities.some(e => e.team === 0 && e.type === 'rocketTower' && e.progress === 1)));
-  await page.locator('#pause').click(); await page.locator('#save-game').click(); await page.locator('#load-game').click();
+  await page.locator('#pause').click(); await page.locator('#save-game').click(); await page.locator('#load-game').click(); await page.waitForFunction(() => !ashline.loading, null, {timeout: 120000});
   assert(await page.evaluate(() => ashline.paused && ['rocket', 'rocketTower'].every(type => ashline.state.entities.some(e => e.team === 0 && e.type === type))));
 
   // Keep the actual HUD while staging both factions beside existing terrain and minerals.

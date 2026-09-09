@@ -44,9 +44,9 @@ const stateJSON = page => page.evaluate(async () => {
 
 try {
   const page = await browser.newPage({viewport: {width: 1440, height: 900}}); watch(page);
-  await page.goto(url); await page.waitForFunction(() => window.ashline?.assets.ready);
+  await page.goto(url); await page.waitForFunction(() => window.ashline?.booted); await page.evaluate(async () => (await import('./assets.js')).startAssets());
   await page.locator('#seed').fill('FEATURES-BROWSER');
-  await page.locator('#deploy').click();
+  await page.locator('#deploy').click(); await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});
   await page.waitForFunction(() => !ashline.paused && ashline.state.time > 0);
   await page.locator('#pause').click();
 
@@ -127,9 +127,10 @@ try {
   await page.locator('#sfx-toggle').click(); await page.locator('#music-toggle').click();
 
   // Saving through the menu and loading over changed state restores the complete operation.
-  const fogMemory = await page.evaluate(() => {
-    ashline.view.x = 32; ashline.view.y = 28; ashline.view.zoom = 30;
-    const s = ashline.state, enemy = s.entities.find(e => e.team === 1 && e.type === 'core');
+  const fogMemory = await page.evaluate(async () => {
+    const { buildingRole } = await import('./sim.js');
+    ashline.view.x = 32; ashline.view.y = 28; // Keep the current supported zoom level.
+    const s = ashline.state, enemy = s.entities.find(e => e.team === 1 && buildingRole(e) === 'core');
     for (let y = enemy.y; y < enemy.y + enemy.size; y++) for (let x = enemy.x; x < enemy.x + enemy.size; x++) s.explored[0][y * s.width + x] = 1;
     ashline.renderer.rememberedBuildings.set(enemy.id, {...enemy, queue: [], rememberedAt: s.time});
     const tile = s.minerals.findIndex((amount, index) => amount > 0 && !s.visible[0][index]);
@@ -146,7 +147,7 @@ try {
   const record = JSON.parse(saved.raw);
   assert((await page.locator('#save-status').textContent()).trim().length > 0);
   await page.evaluate(() => { ashline.state.teams[0].credits += 123; ashline.view.x = 45; ashline.view.zoom = 40; });
-  await page.locator('#load-game').click();
+  await page.locator('#load-game').click(); await page.waitForFunction(() => !ashline.loading, null, {timeout: 120000});
   assert(await page.evaluate(() => ashline.paused && document.querySelector('#menu').open));
   assert.deepEqual(await stateJSON(page), record.game);
   assert.deepEqual(await page.evaluate(() => ({x: ashline.view.x, y: ashline.view.y, zoom: ashline.view.zoom})), record.view);
@@ -166,17 +167,17 @@ try {
   // A corrupt save is reported without replacing the currently running operation.
   const current = await stateJSON(page);
   await page.evaluate(key => localStorage.setItem(key, '{broken save'), saved.key);
-  await page.locator('#load-game').click();
+  await page.locator('#load-game').click(); await page.waitForFunction(() => !ashline.loading, null, {timeout: 120000});
   assert.deepEqual(await stateJSON(page), current);
   assert(await page.evaluate(() => ashline.paused && document.querySelector('#menu').open));
   await page.waitForFunction(() => /damaged|corrupt|could not|incompatible/i.test(document.querySelector('#save-status').textContent));
 
   // The saved operation survives a full reload and can be resumed from the briefing.
   await page.evaluate(({key, raw}) => localStorage.setItem(key, raw), saved);
-  await page.reload(); await page.waitForFunction(() => window.ashline?.assets.ready);
+  await page.reload(); await page.waitForFunction(() => window.ashline?.booted); await page.evaluate(async () => (await import('./assets.js')).startAssets());
   assert(await page.locator('#briefing').evaluate(dialog => dialog.open));
   assert(await page.locator('#load-saved').isEnabled());
-  await page.locator('#load-saved').click();
+  await page.locator('#load-saved').click(); await page.waitForFunction(() => !ashline.loading, null, {timeout: 120000});
   assert(await page.evaluate(() => ashline.paused && !document.querySelector('#briefing').open && document.querySelector('#menu').open));
   assert.deepEqual(await stateJSON(page), record.game);
   assert.deepEqual(await page.evaluate(() => ({x: ashline.view.x, y: ashline.view.y, zoom: ashline.view.zoom})), record.view);
@@ -185,8 +186,8 @@ try {
 
   // Touch users can place refinery rallies and reach save/load/audio controls without overflow.
   const mobile = await browser.newPage({viewport: {width: 390, height: 844}, isMobile: true, hasTouch: true, deviceScaleFactor: 2}); watch(mobile);
-  await mobile.goto(url); await mobile.waitForFunction(() => window.ashline?.assets.ready);
-  await mobile.locator('#deploy').tap();
+  await mobile.goto(url); await mobile.waitForFunction(() => window.ashline?.booted); await mobile.evaluate(async () => (await import('./assets.js')).startAssets());
+  await mobile.locator('#deploy').tap(); await mobile.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});
   const refineryId = await mobile.evaluate(() => ashline.state.entities.find(e => e.team === 0 && e.type === 'refinery').id);
   const refineryCenter = await selectProducer(mobile, refineryId, true);
   await mobile.locator('#rally-order').tap();
@@ -196,7 +197,7 @@ try {
   await mobile.locator('#save-game').tap();
   assert(await mobile.locator('#load-game').isEnabled());
   await mobile.locator('#sfx-toggle').tap(); await mobile.locator('#music-toggle').tap();
-  await mobile.locator('#load-game').tap();
+  await mobile.locator('#load-game').tap(); await mobile.waitForFunction(() => !ashline.loading, null, {timeout: 120000});
   assert(await mobile.evaluate(() => ashline.paused && document.querySelector('#menu').open));
   assert(await mobile.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'No horizontal mobile overflow');
   await mobile.screenshot({path: `${output}/save-menu-mobile.png`});

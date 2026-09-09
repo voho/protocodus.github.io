@@ -10,7 +10,7 @@ try {
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
   await page.goto(process.env.ASHLINE_URL || 'http://127.0.0.1:8131/fun/ashline/');
-  await page.waitForFunction(() => window.ashline?.assets.ready);
+  await page.waitForFunction(() => window.ashline?.booted); await page.evaluate(async () => (await import('./assets.js')).startAssets());
   const graphics = await page.evaluate(async () => {
     const {drawProp, drawPropShadow, spriteStats} = await import('./assets.js');
     document.querySelector('#briefing').close();
@@ -31,7 +31,7 @@ try {
   assert.equal(graphics.stats.loaded, 7); assert.equal(graphics.stats.props.tree, 6); assert.equal(graphics.unique, 6, 'Six visually distinct tree sprites');
   await page.locator('#tree-atlas-preview').screenshot({path: `${output}/tree-varieties.png`});
   await page.evaluate(() => { document.querySelector('#tree-atlas-preview').remove(); document.querySelector('#briefing').showModal(); });
-  await page.locator('#seed').fill('TREES-BROWSER'); await page.locator('#deploy').click();
+  await page.locator('#seed').fill('TREES-BROWSER'); await page.locator('#deploy').click(); await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});
   await page.waitForFunction(() => !ashline.paused);
   if (await page.locator('#command-console').isVisible()) await page.locator('#command-toggle').click();
   await page.evaluate(() => { window.treesFixture = {raf: requestAnimationFrame}; requestAnimationFrame = frame => { treesFixture.frame = frame; return 0; }; });

@@ -6,7 +6,7 @@ try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   const errors = []; page.on('pageerror', error => errors.push(error.message));
   await page.goto(process.env.ASHLINE_URL || 'http://127.0.0.1:8000/fun/ashline/');
-  await page.waitForFunction(() => window.ashline?.assets.ready);
+  await page.waitForFunction(() => window.ashline?.booted); await page.evaluate(async () => (await import('./assets.js')).startAssets());
   const result = await page.evaluate(async () => {
     const { drawSprite, drawSpriteShadow } = await import('./assets.js');
     const { BUILDINGS, UNITS, createGame } = await import('./sim.js');

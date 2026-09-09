@@ -118,6 +118,7 @@ The checks exercise seeded maps, route connectivity, fog, finite harvesting and 
 For browser interaction checks, use an existing Playwright installation and Chrome while the local server is running:
 
 ```sh
+ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs node tests/startup-browser-check.mjs
 ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs node tests/browser-check.mjs
 ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs node tests/camera-check.mjs
 ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs node tests/faction-browser-check.mjs
@@ -145,7 +146,11 @@ ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs node tests/audio-check.mjs
 
 `ASHLINE_URL` overrides the default local URL. Screenshots are written to `/tmp/ashline-qa` (override with `ASHLINE_SCREENSHOTS`). Browser checks cover deployment, selection, orders, production, camera controls, pause/restart, and mobile touch input.
 
+The startup check separately verifies that setup creates no game state, requests no battlefield art, and starts no game animation frames. It checks desktop/tablet/phone overflow, visible progress through terrain preparation, saved-game loading, and worker failure/retry. Gameplay fixtures wait for `ashline.booted` to interact with setup and for `!ashline.loading && ashline.state && !ashline.paused` after deployment. Art-only fixtures explicitly call `startAssets()` before inspecting sprites.
+
 ## Implementation
+
+The setup menu is a static DOM screen. Changing seed, faction, size, or terrain updates the form without creating a world. Deploy and Load open a progress screen before art preparation; `world-worker.js` generates new simulation state away from the UI thread, and the renderer bakes terrain in chunks that yield for painting through `loading.js`. Progress follows completed assets and terrain stages. The game loop starts only after preparation and stops in the pause and setup menus. Oxanium supplies the space-inspired heading face; its self-hosted font and license are in [assets/fonts/CREDITS.md](assets/fonts/CREDITS.md).
 
 The game runs directly from static files. `sim.js` owns the deterministic simulation and opponent, `render.js` draws the battlefield with Canvas 2D, and `main.js` connects pointer/keyboard/touch input to the compact DOM command console. `save.js` validates and restores the versioned local save, and `audio.js` generates sound effects with native Web Audio and plays the local soundtrack. No runtime packages or network services are required.
 
