@@ -7,3 +7,7 @@
 !.dev.vars.example
 .env*
 !.env.example
+
+# Local browser QA artifacts
+.playwright-mcp/
+test-results/

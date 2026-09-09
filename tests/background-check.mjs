@@ -5,7 +5,7 @@ import { runInNewContext } from 'node:vm';
 
 const source = readFileSync(new URL('../assets/js/main.js', import.meta.url), 'utf8');
 
-function page(reduced = false) {
+function page(reduced = false, studio = true) {
   const frames = [], idle = [], observers = [], canvases = [];
   let paints = 0;
   class ResizeObserver {
@@ -20,7 +20,7 @@ function page(reduced = false) {
   const document = Object.assign(new EventTarget(), {
     hidden: false,
     documentElement: { classList: { add() {} } },
-    body: { clientWidth: 1440, clientHeight: 20000, prepend: (canvas) => canvases.unshift(canvas) },
+    body: { classList: { contains: (name) => studio && name === 'studio-page' }, clientWidth: 1440, clientHeight: 20000, prepend: (canvas) => canvases.unshift(canvas) },
     getElementById: () => null,
     querySelector: () => null,
     querySelectorAll: () => [],
@@ -60,10 +60,10 @@ function page(reduced = false) {
 
 const normal = page();
 assert.equal(normal.canvases.length, 0, 'Background waits until idle');
-normal.tick(0); // Entrance transition has its own one-off frame.
+normal.tick(0);
 assert.equal(normal.idle.length, 1);
 normal.idle.shift()();
-assert.equal(normal.canvases.length, 1, 'One shared canvas, even without a hero');
+assert.equal(normal.canvases.length, 1, 'One background canvas on the studio page');
 const canvas = normal.canvases[0];
 assert.equal(canvas.className, 'life');
 assert.equal(canvas.getAttribute('aria-hidden'), 'true');
@@ -92,6 +92,10 @@ assert.deepEqual([canvas.width, canvas.height], [780, 1688], 'Resize follows vie
 normal.tick(1800);
 assert.equal(normal.frames.length, 1);
 assert.equal(normal.canvases.length, 1, 'Resize reuses the shared canvas');
+
+const product = page(false, false);
+assert.equal(product.idle.length, 0, 'Product pages do not schedule the studio background');
+assert.equal(product.canvases.length, 0);
 
 const reduced = page(true);
 reduced.tick(0);

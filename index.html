@@ -28,11 +28,10 @@
   <!-- Fonts (self-hosted) -->
   <link rel="preload" href="assets/fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="assets/fonts/space-grotesk-latin-ext.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="assets/css/style.css">
-  <script>document.documentElement.classList.add('js');</script>
+  <link rel="stylesheet" href="assets/css/style.css?v=519a4f6395">
 </head>
 
-<body>
+<body class="studio-page">
   <a class="skip-link" href="#main">Skip to content</a>
 
   <header class="site-header">
@@ -45,7 +44,7 @@
       <nav class="nav" aria-label="Main navigation">
         <a href="#top" class="nav-link">Studio</a>
         <a href="#products" class="nav-link">Products</a>
-        <a href="#fun" class="nav-link">Fun</a>
+        <a href="#fun" class="nav-link">Games</a>
         <a href="#company" class="nav-link">Company</a>
         <a href="#contact" class="nav-link">Contact</a>
       </nav>
@@ -62,7 +61,7 @@
     <nav class="mobile-nav" aria-label="Mobile navigation">
       <a href="#top" class="mobile-link">Studio</a>
       <a href="#products" class="mobile-link">Products</a>
-      <a href="#fun" class="mobile-link">Fun</a>
+      <a href="#fun" class="mobile-link">Games</a>
       <a href="#company" class="mobile-link">Company</a>
       <a href="#contact" class="mobile-link">Contact</a>
     </nav>
@@ -78,20 +77,21 @@
         <div class="statement">
           <div class="tag-pill enter">
             <span class="tag-dot"></span>
-            <span>Prague, Czech Republic</span>
+            <span>Protocodus · Prague</span>
           </div>
 
           <h1 class="hero-title">
-            <span class="rise"><span>Creative software</span></span>
-            <span class="rise"><span>studio.</span></span>
+            <span class="rise"><span>Software for work.</span></span>
+            <span class="rise"><span>Instruments for play.</span></span>
           </h1>
 
           <p class="hero-sub enter">
-            Engineering for startups. Software instruments for musicians.
+            An independent software studio in Prague. Engineering for startups,
+            instruments for musicians, and a few games for the browser.
           </p>
 
           <div class="hero-actions enter">
-            <a href="#products" class="btn btn-primary">See the instruments</a>
+            <a href="#products" class="btn btn-primary">Explore the products</a>
             <a href="#contact" class="btn btn-secondary">Contact us</a>
           </div>
         </div>
@@ -114,49 +114,77 @@
       <div class="wrap">
         <div class="head reveal">
           <span class="tag">Products</span>
-          <h2 class="title">Software instruments.</h2>
+          <h2 class="title">Instruments &amp; audio tools.</h2>
+          <p class="lede">Modelled instruments for making music, and a tool for preparing podcasts.</p>
         </div>
 
-        <div class="product-grid stagger">
-          <a class="product-card p-electry reveal" href="/product/electry/">
+        <div class="product-grid">
+          <a class="product-card p-electry" href="/product/electry/">
             <div class="product-shot">
-              <img src="product/electry/electry-card.webp" width="880" height="701" loading="lazy"
-                alt="Editor panel of the Electry guitar">
+              <img src="product/electry/electry-card.webp?v=20260909"
+                srcset="product/electry/electry-card.webp?v=20260909 880w, product/electry/electry-panel.webp?v=20260909 1180w"
+                sizes="(max-width: 760px) calc(100vw - 64px), (max-width: 1280px) 53vw, 640px"
+                width="880" height="679" loading="lazy" decoding="async"
+                alt="Electry instrument interface">
             </div>
             <div class="product-body">
-              <span class="product-kicker">Modelled guitar</span>
+              <span class="product-kicker">Physically modelled guitar</span>
               <h3>Electry</h3>
-              <p>An eight-string Drop-E guitar for palm-muted riffs, chords and leads. Includes three amp voices,
-                effects and MIDI-controlled playing techniques.</p>
-              <span class="product-more">View instrument <span aria-hidden="true">→</span></span>
+              <p>An eight-string Drop-E guitar for riffs, chords and leads. Shape the picking and palm muting, then play it dry or through the built-in amps.</p>
+              <p class="product-facts">Eight strings · Seven playing styles</p>
+              <span class="product-more">Explore Electry <span aria-hidden="true">→</span></span>
             </div>
           </a>
 
-          <a class="product-card p-youknow reveal" href="/product/youknow/">
+          <a class="product-card p-youknow" href="/product/youknow/">
             <div class="product-shot">
-              <img src="product/youknow/youknow-card.webp" width="880" height="644" loading="lazy"
-                alt="Front panel of the YouKnow Rack Extension">
+              <img src="product/youknow/youknow-card.webp?v=20260909"
+                srcset="product/youknow/youknow-card.webp?v=20260909 880w, product/youknow/youknow-plugin-panel.webp?v=20260909 1360w"
+                sizes="(max-width: 760px) calc(100vw - 64px), (max-width: 1280px) 53vw, 640px"
+                width="880" height="465" loading="lazy" decoding="async"
+                alt="YouKnow instrument interface">
             </div>
             <div class="product-body">
-              <span class="product-kicker">Modelled polysynth</span>
+              <span class="product-kicker">Circuit-modelled polysynth</span>
               <h3>YouKnow</h3>
-              <p>A six-voice synth inspired by the Juno-106, with stereo chorus, factory patches and adjustable
-                voice character.</p>
-              <span class="product-more">View instrument <span aria-hidden="true">→</span></span>
+              <p>A Juno-106-inspired synth for pads, bass and leads. Saw and pulse waves, a resonant filter and stereo chorus, with room to shape each voice.</p>
+              <p class="product-facts">1–16 voices · Stereo chorus</p>
+              <span class="product-more">Explore YouKnow <span aria-hidden="true">→</span></span>
             </div>
           </a>
 
-          <a class="product-card p-taikor reveal" href="/product/taikor/">
+          <a class="product-card p-taikor" href="/product/taikor/">
             <div class="product-shot">
-              <img src="product/taikor/taikor-card.webp" width="880" height="605" loading="lazy"
-                alt="Editor panel of the Taikor plug-in">
+              <img src="product/taikor/taikor-card.webp?v=20260909"
+                srcset="product/taikor/taikor-card.webp?v=20260909 880w, product/taikor/taikor-panel.webp?v=20260909 1280w"
+                sizes="(max-width: 760px) calc(100vw - 64px), (max-width: 1280px) 53vw, 640px"
+                width="880" height="605" loading="lazy" decoding="async"
+                alt="Taikor instrument interface">
             </div>
             <div class="product-body">
-              <span class="product-kicker">Modelled taiko</span>
+              <span class="product-kicker">Physically modelled taiko</span>
               <h3>Taikor</h3>
-              <p>Four taiko drums and four strokes on a 4 by 4 keyboard grid. Every stroke is solved from a struck
-                circular membrane rather than replayed.</p>
-              <span class="product-more">View instrument <span aria-hidden="true">→</span></span>
+              <p>Four drums, four strokes and up to eight players per note. Play a single drum or build an ensemble, with each hit synthesised in real time.</p>
+              <p class="product-facts">Four drums · Up to eight players</p>
+              <span class="product-more">Explore Taikor <span aria-hidden="true">→</span></span>
+            </div>
+          </a>
+
+          <a class="product-card p-podcare" href="https://github.com/voho/podcare">
+            <div class="product-shot">
+              <img src="product/podcare/podcare-card.webp?v=20260909"
+                srcset="product/podcare/podcare-card.webp?v=20260909 880w, product/podcare/podcare-panel.webp?v=20260909 1080w"
+                sizes="(max-width: 760px) calc(100vw - 64px), (max-width: 1280px) 53vw, 640px"
+                width="880" height="502" loading="lazy" decoding="async"
+                alt="Podcare illustration: separate microphones feeding into a cleaned audio waveform">
+            </div>
+            <div class="product-body">
+              <span class="product-kicker">Podcast production tool</span>
+              <h3>Podcare</h3>
+              <p>Turn separate microphone recordings into a cleaner, balanced podcast episode. Align tracks,
+                reduce noise, and control crosstalk and pauses from the command line.</p>
+              <p class="product-facts">Python · Command line · Install from source</p>
+              <span class="product-more">View Podcare on GitHub <span aria-hidden="true">↗</span></span>
             </div>
           </a>
         </div>
@@ -166,7 +194,7 @@
     <section class="band band-well" id="fun">
       <div class="wrap">
         <div class="head reveal">
-          <span class="tag">Fun</span>
+          <span class="tag">Side projects</span>
           <h2 class="title">Play in your browser.</h2>
         </div>
 
@@ -234,7 +262,8 @@
     <section class="band band-contact" id="contact">
       <div class="wrap">
         <div class="contact-box reveal">
-          <h2 class="title">Contact us.</h2>
+          <span class="tag">Contact</span>
+          <h2 class="title">Get in touch.</h2>
           <p class="lede">For engineering projects, instrument support or licensing enquiries.</p>
           <a href="mailto:protocodus@proton.me" class="mail">protocodus@proton.me</a>
         </div>
@@ -257,7 +286,7 @@
       </div>
     </div>
   </footer>
-  <script src="assets/js/main.js"></script>
+  <script src="assets/js/main.js?v=e861bf36d0"></script>
 </body>
 
 </html>

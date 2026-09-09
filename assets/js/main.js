@@ -1,6 +1,5 @@
 /* Protocodus — just enough JavaScript.
-   Entrance sequence, scroll reveals, the mobile menu, active section links,
-   and one Conway's Life background shared by every section. */
+   Mobile navigation, active section links and a quiet studio background. */
 
 (() => {
   'use strict';
@@ -8,8 +7,8 @@
   const root = document.documentElement;
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  // Arms the entrance transitions; see the .ready rules in the stylesheet
-  requestAnimationFrame(() => root.classList.add('ready'));
+  // Enable the mobile drawer only after its script is available.
+  root.classList.add('js');
 
   const year = document.getElementById('year');
   if (year) year.textContent = new Date().getFullYear();
@@ -64,25 +63,6 @@
       setMenu(false);
       if (hadFocus) document.querySelector('.nav-link')?.focus();
     });
-  }
-
-  // ===========================================================================
-  // Scroll reveals
-  // ===========================================================================
-  const revealed = document.querySelectorAll('.reveal');
-
-  if (reduced || !('IntersectionObserver' in window)) {
-    revealed.forEach((el) => el.classList.add('visible'));
-  } else {
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (!entry.isIntersecting) return;
-        entry.target.classList.add('visible');
-        observer.unobserve(entry.target);
-      });
-    }, { rootMargin: '0px 0px -10% 0px', threshold: 0.1 });
-
-    revealed.forEach((el) => observer.observe(el));
   }
 
   // ===========================================================================
@@ -530,7 +510,7 @@
     }
   }
 
-  if (!reduced && 'ResizeObserver' in window) {
+  if (document.body.classList.contains('studio-page') && !reduced && 'ResizeObserver' in window) {
     // A background decoration has no business on the path to first paint —
     // it allocates a viewport-sized canvas and forces layout to measure it
     const begin = () => new Life();

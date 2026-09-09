@@ -33,7 +33,7 @@ const menu = Object.assign(element(), {
 });
 const document = Object.assign(new EventTarget(), {
   documentElement: element(),
-  body: { style: {} },
+  body: Object.assign(element(), { style: {} }),
   activeElement: null,
   getElementById: (id) => id === 'mobile-menu' ? menu : sections.get(id) ?? null,
   querySelector: (selector) => selector === '.menu-toggle' ? toggle

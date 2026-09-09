@@ -12,3 +12,16 @@ fun/ashline/assets/generated/harvester.webp
 fun/ashline/assets/generated/rifle.webp
 fun/ashline/assets/generated/scout.webp
 fun/ashline/assets/generated/tank.webp
+
+# Development and QA files are not public website assets
+**/.claude/**
+**/.entire/**
+**/.playwright-mcp/**
+**/.wrangler/**
+**/.github/**
+**/tests/**
+**/test-results/**
+**/AGENTS.md
+**/README.md
+product/SCREENSHOTS.md
+wrangler.jsonc
