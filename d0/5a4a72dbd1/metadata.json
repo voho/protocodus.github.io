@@ -1,0 +1,50 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "d05a4a72dbd1",
+  "strategy": "manual-commit",
+  "branch": "polish/instrument-pages",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".assetsignore",
+    ".gitignore",
+    "assets/css/style.css",
+    "assets/js/main.js",
+    "fun/index.html",
+    "index.html",
+    "product/SCREENSHOTS.md",
+    "product/electry/electry-card.webp",
+    "product/electry/electry-panel.webp",
+    "product/electry/index.html",
+    "product/podcare/podcare-card.webp",
+    "product/podcare/podcare-panel.webp",
+    "product/taikor/index.html",
+    "product/taikor/taikor-card.webp",
+    "product/taikor/taikor-panel.webp",
+    "product/youknow/YouKnow_Back.png",
+    "product/youknow/YouKnow_Front.png",
+    "product/youknow/YouKnow_Thumbnail_800.png",
+    "product/youknow/YouKnow_User_Manual.pdf",
+    "product/youknow/index.html",
+    "product/youknow/youknow-card.webp",
+    "product/youknow/youknow-panel.webp",
+    "product/youknow/youknow-plugin-panel.webp",
+    "tests/background-check.mjs",
+    "tests/navigation-check.mjs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/d0/5a4a72dbd1/0/metadata.json",
+      "transcript": "/d0/5a4a72dbd1/0/full.jsonl",
+      "context": "/d0/5a4a72dbd1/0/context.md",
+      "content_hash": "/d0/5a4a72dbd1/0/content_hash.txt",
+      "prompt": "/d0/5a4a72dbd1/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 408,
+    "cache_creation_tokens": 1294070,
+    "cache_read_tokens": 69069870,
+    "output_tokens": 315211,
+    "api_call_count": 217
+  }
+}
