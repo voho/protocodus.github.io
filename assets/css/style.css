@@ -106,14 +106,12 @@ p { text-wrap: pretty; }
 .hero { position: relative; padding-block: clamp(3rem, 4.5vw, 4rem); }
 .hero-inner { position: relative; z-index: 2; }
 .statement { min-width: 0; }
-.tag-pill { display: inline-flex; align-items: center; gap: 0.65rem; color: var(--fg-muted); font-size: 0.875rem; }
-.tag-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
 .hero-title { margin-top: 1.25rem; font-size: clamp(2.5rem, 1.1rem + 4.6vw, 5.25rem); font-weight: 500; line-height: 1.07; letter-spacing: -0.055em; text-wrap: balance; overflow-wrap: anywhere; }
 .rise, .rise > span { display: block; }
 .studio-page .rise:last-child { color: var(--accent); }
 .hero-sub { max-width: 53ch; margin-top: 1.5rem; color: var(--fg-muted); font-size: clamp(1.0625rem, 1rem + 0.25vw, 1.1875rem); line-height: 1.7; }
 .hero-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 1rem 1.4rem; margin-top: 1.8rem; }
-.life { position: absolute; inset: var(--header-height) 0 auto; width: 100%; height: 540px; z-index: 0; opacity: 0.18; pointer-events: none; mask-image: linear-gradient(90deg, transparent 20%, #000); }
+.life { position: absolute; inset: var(--header-height) 0 auto; width: 100%; height: 540px; z-index: 0; opacity: 0.24; pointer-events: none; mask-image: linear-gradient(90deg, transparent 20%, #000); }
 .experience-strip { position: relative; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding-block: 1.4rem; background: var(--bg); }
 .experience-inner, .experience-logos { display: flex; align-items: center; flex-wrap: wrap; gap: 1rem 2.1rem; }
 .experience-inner { justify-content: space-between; }
@@ -130,7 +128,7 @@ p { text-wrap: pretty; }
 .p-podcare { --signal: #bdaeea; }
 .product-grid { display: grid; gap: 1.5rem; }
 .product-card { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); align-items: center; gap: clamp(1.5rem, 3vw, 3rem); padding: clamp(1rem, 2.4vw, 1.8rem); background: var(--bg-well); border: 1px solid var(--line); border-radius: var(--radius-lg); transition: background var(--interaction), border-color var(--interaction); }
-.product-card:hover { background: #14171d; border-color: color-mix(in srgb, var(--signal) 45%, transparent); }
+a.product-card:hover { background: #14171d; border-color: color-mix(in srgb, var(--signal) 45%, transparent); }
 .product-shot { min-width: 0; }
 .product-shot img { width: 100%; height: auto; border: 1px solid var(--line-lift); border-radius: var(--radius-sm); box-shadow: 0 12px 30px rgba(0,0,0,0.2); }
 .product-body { padding-block: 0.5rem; min-width: 0; }
