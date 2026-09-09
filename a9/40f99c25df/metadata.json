@@ -1,0 +1,34 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "a940f99c25df",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "assets/css/style.css",
+    "fun/index.html",
+    "index.html",
+    "product/SCREENSHOTS.md",
+    "product/electry/index.html",
+    "product/taikor/index.html",
+    "product/taikor/taikor-card.webp",
+    "product/taikor/taikor-panel.webp",
+    "product/youknow/index.html"
+  ],
+  "sessions": [
+    {
+      "metadata": "/a9/40f99c25df/0/metadata.json",
+      "transcript": "/a9/40f99c25df/0/full.jsonl",
+      "context": "/a9/40f99c25df/0/context.md",
+      "content_hash": "/a9/40f99c25df/0/content_hash.txt",
+      "prompt": "/a9/40f99c25df/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 408,
+    "cache_creation_tokens": 1294070,
+    "cache_read_tokens": 69069870,
+    "output_tokens": 315211,
+    "api_call_count": 217
+  }
+}
