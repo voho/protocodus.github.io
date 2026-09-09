@@ -3,7 +3,7 @@
   "checkpoint_id": "d05a4a72dbd1",
   "session_id": "8ec6a8e4-93e4-4f7c-bb19-ae72d352661c",
   "strategy": "manual-commit",
-  "created_at": "2026-09-09T09:35:05.861491Z",
+  "created_at": "2026-09-09T09:35:47.571034Z",
   "branch": "polish/instrument-pages",
   "checkpoints_count": 0,
   "files_touched": [
@@ -13,22 +13,22 @@
   "agent": "Claude Code",
   "turn_id": "1b6e673ae96e",
   "transcript_identifier_at_start": "210df5bf-a8f8-4e3a-83ec-3bf4598a3a1f",
-  "checkpoint_transcript_start": 638,
-  "transcript_lines_at_start": 638,
+  "checkpoint_transcript_start": 647,
+  "transcript_lines_at_start": 647,
   "token_usage": {
-    "input_tokens": 4,
-    "cache_creation_tokens": 681,
-    "cache_read_tokens": 463382,
-    "output_tokens": 221,
-    "api_call_count": 2
+    "input_tokens": 274,
+    "cache_creation_tokens": 333470,
+    "cache_read_tokens": 21208170,
+    "output_tokens": 80935,
+    "api_call_count": 137
   },
   "initial_attribution": {
-    "calculated_at": "2026-09-09T09:35:05.045626Z",
+    "calculated_at": "2026-09-09T09:35:46.781469Z",
     "agent_lines": 0,
-    "human_added": 15463,
-    "human_modified": 132,
+    "human_added": 0,
+    "human_modified": 0,
     "human_removed": 0,
-    "total_committed": 15463,
+    "total_committed": 0,
     "agent_percentage": 0
   },
   "transcript_path": ".claude/projects/-Users-vojta-Dev-protocodus-github-io/8ec6a8e4-93e4-4f7c-bb19-ae72d352661c.jsonl"
