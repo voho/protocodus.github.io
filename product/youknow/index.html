@@ -5,10 +5,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>YouKnow — Circuit-Modelled Polysynth | Protocodus</title>
-  <meta name="description" content="A Juno-106-inspired circuit-modelled polysynth with 144 plug-in presets, adjustable polyphony, stereo chorus and a Reason Rack Extension version.">
+  <meta name="description" content="YouKnow is a carefully researched Juno-106 recreation. Discover its circuit-modelled voices, nonlinear filter and bucket-brigade chorus, and hear the demos.">
   <meta name="theme-color" content="#0d0e12">
   <meta property="og:title" content="YouKnow — Circuit-modelled polysynth">
-  <meta property="og:description" content="A Juno-106-inspired circuit-modelled polysynth with 144 plug-in presets, adjustable polyphony, stereo chorus and a Reason Rack Extension version.">
+  <meta property="og:description" content="A carefully researched Juno-106 recreation, from the oscillator timing to the bucket-brigade chorus. Explore the model and hear YouKnow.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://protocodus.cz/product/youknow/">
   <meta property="og:image" content="https://protocodus.cz/product/youknow/youknow-plugin-panel.webp">
@@ -16,6 +16,7 @@
   <link rel="icon" type="image/svg+xml" href="/assets/images/logo.svg">
   <link rel="preload" href="/assets/fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/assets/css/style.css?v=292879d584">
+  <link rel="stylesheet" href="youknow.css?v=20260910">
 </head>
 
 <body class="product-page p-youknow">
@@ -66,17 +67,18 @@
       <div class="wrap instrument-layout">
         <div class="statement">
           <div class="instrument-intro">
-          <span class="product-kicker">Circuit-modelled polysynth</span>
-          <h1 class="hero-title">YouKnow</h1>
-          <p class="hero-sub">Pads, bass, strings and leads from a synth inspired by the Juno-106. Shape the oscillators, filter and stereo chorus on one panel, with adjustable polyphony and voice character.</p>
+            <span class="product-kicker">Circuit-modelled polysynth</span>
+            <h1 class="hero-title">YouKnow</h1>
+            <p class="instrument-deck">A familiar sound, carefully recreated.</p>
+            <p class="hero-sub">Warm pads, rounded bass, moving strings and a chorus that opens a chord into stereo. YouKnow is our recreation of the Juno-106: a close study of its circuits and behaviour, with the direct, hands-on sound design that makes this instrument such a pleasure to play.</p>
           </div>
           <div class="instrument-actions">
-          <ul class="instrument-facts" aria-label="Instrument highlights"><li>1–16 voices</li><li>Stereo chorus</li><li>144 plug-in presets</li></ul>
-          <div class="hero-actions">
-            <a href="https://protocodus.gumroad.com/l/youknow" class="btn btn-primary">Buy at Gumroad <span aria-hidden="true">↗</span></a>
-            <a href="#details" class="detail-link">Explore the features <span aria-hidden="true">↓</span></a>
-          </div>
-          <p class="availability-note">For macOS, Windows and Linux. VST3 and standalone everywhere, with Audio Unit and CLAP on macOS and Windows.</p>
+            <ul class="instrument-facts" aria-label="Instrument highlights"><li>1–16 voices</li><li>BBD stereo chorus</li><li>144 presets + INIT</li></ul>
+            <div class="hero-actions">
+              <a href="https://protocodus.gumroad.com/l/youknow" class="btn btn-primary">Buy at Gumroad <span aria-hidden="true">↗</span></a>
+              <a href="#listen" class="detail-link">Listen to YouKnow <span aria-hidden="true">↓</span></a>
+            </div>
+            <p class="availability-note">Plug-in and standalone for macOS, Windows and Linux. <a href="#workflow" class="text-link">See supported formats</a>.</p>
           </div>
         </div>
         <figure class="shot hero-shot">
@@ -88,20 +90,68 @@
       </div>
     </section>
 
-    <section class="band" id="details">
+    <section class="band band-well" id="approach">
+      <div class="wrap research-layout">
+        <div>
+          <span class="tag">The work behind the sound</span>
+          <h2 class="title">Built from schematics.<br>Refined by listening.</h2>
+        </div>
+        <div class="research-copy">
+          <p class="lede">We have spent significant time studying schematics, service notes and component datasheets, reading technical discussions in synth forums, and running comparison tests against reference audio.</p>
+          <p class="lede">Our goal was to create the most faithful Juno-106 recreation on the market. That goal means paying attention to the small things: how an envelope opens a voice, how the filter responds to signal level, and what happens inside the chorus.</p>
+          <p class="lede">The model brings together documented circuit behaviour, firmware analysis and listening tests. We keep track of the assumptions where measurements are incomplete, and refine the model as the evidence improves.</p>
+          <a href="#details" class="text-link resource-link">Explore what we model <span aria-hidden="true">↓</span></a>
+        </div>
+      </div>
+    </section>
+
+    <section class="band" id="listen">
+      <div class="wrap">
+        <div class="head">
+          <span class="tag">Listen</span>
+          <h2 class="title">Spend a little time with the sound.</h2>
+          <p class="lede">Play through our YouKnow V1 VST demos on SoundCloud.</p>
+        </div>
+        <iframe class="soundcloud-player" title="YouKnow V1 VST audio demos on SoundCloud" width="100%" height="400" loading="lazy" allow="autoplay; encrypted-media" src="https://w.soundcloud.com/player/?url=https%3A%2F%2Fapi.soundcloud.com%2Fplaylists%2F2296604895&amp;color=%2388cbdc&amp;auto_play=false&amp;hide_related=true&amp;show_comments=false&amp;show_user=true&amp;show_reposts=false&amp;show_teaser=false&amp;visual=false"></iframe>
+        <a class="text-link resource-link" href="https://soundcloud.com/protocodus/sets/protocodus-youknow-v1-vst">Open the playlist on SoundCloud <span aria-hidden="true">↗</span></a>
+      </div>
+    </section>
+
+    <section class="band band-well" id="details">
+      <div class="wrap">
+        <div class="head">
+          <span class="tag">What we model</span>
+          <h2 class="title">Inside the instrument.</h2>
+          <p class="lede">The plug-in follows the original voice architecture from its digital note timers to its analogue output stage. These are some of the details that shape its response.</p>
+        </div>
+        <ul class="features model-features">
+          <li><h3>DCO timing and waveforms</h3><p>Pitch comes from integer division of a shared clock. We model the charging sawtooth ramp, comparator-based pulse wave, pulse-width control circuit and divide-by-two sub oscillator.</p></li>
+          <li><h3>Six persistent voices</h3><p>The six core voice models keep their oscillators running between notes, preserving phase and sub-oscillator state. Voice assignment follows the original POLY and Solo Unison behaviour, including its handling of a full set of held notes.</p></li>
+          <li><h3>Scanned control electronics</h3><p>A shared 12-bit converter visits 23 control destinations in sequence. Individual sample-and-hold and smoothing circuits shape how those changes reach the sound.</p></li>
+          <li><h3>Envelopes, modulation and glide</h3><p>Firmware-derived envelope curves, sustain mapping, LFO onset and portamento reproduce the digital control logic behind the instrument’s attack, movement and phrasing.</p></li>
+          <li><h3>The nonlinear four-pole filter</h3><p>Four transconductor stages, the resonance feedback loop and input-side compensation are modelled together. Service calibration anchors the filter’s tuning, including the self-oscillation you can play at full resonance.</p></li>
+          <li><h3>The voice amplifier</h3><p>The BA662 amplifier model includes its current-control circuit and signal saturation. The envelope and amplifier work together to shape the level and harmonic character of each note.</p></li>
+          <li><h3>Mixer and high-pass circuit</h3><p>The diode-gated sub oscillator and coupling capacitors retain the circuit’s response to level changes. The four-position high-pass includes the bass-boost setting and preserves capacitor charge when switching.</p></li>
+          <li><h3>Bucket-brigade stereo chorus</h3><p>Two 256-stage MN3009 delay-line models include opposite-phase modulation, saturation, charge-transfer loss, filtering and clocked noise. These details give the chorus its motion, texture and softened upper harmonics.</p></li>
+          <li><h3>Output and switching behaviour</h3><p>The model includes the loaded output mixer, AC coupling and the control circuit that delays chorus muting. Signal history carries through these stages as you change the controls.</p></li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="band" id="playing">
       <div class="wrap">
         <div class="head">
           <span class="tag">The instrument</span>
-          <h2 class="title">A familiar panel. Space to explore.</h2>
-          <p class="lede">Build a sound from the oscillators up, or start with a preset and make it your own.</p>
+          <h2 class="title">Made for sitting down and playing.</h2>
+          <p class="lede">A clear panel keeps the sound within reach. Start with a familiar patch, move a few controls, and follow what you hear.</p>
         </div>
         <ul class="features">
-          <li><h3>Oscillators and noise</h3><p>Combine saw and pulse waves, add a sub oscillator and blend in noise. Use pulse-width modulation to add movement to held notes.</p></li>
-          <li><h3>Filter and envelope</h3><p>Shape swells, stabs and sweeps with a resonant low-pass filter and ADSR envelope. At full resonance, the filter can become a playable tone.</p></li>
-          <li><h3>Stereo chorus</h3><p>Choose chorus I, II or I+II for different rates and textures. Set the chorus hiss separately from the effect.</p></li>
-          <li><h3>Voice character</h3><p>Unit Character varies the modelled components between voices. Aging adds filter drift and noise.</p></li>
-          <li><h3>Polyphony and unison</h3><p>Choose from one to sixteen voices for chords or stack voices on a single note. Add portamento to glide between notes.</p></li>
-          <li><h3>Presets and SysEx</h3><p>The plug-in includes 144 presets plus INIT, with patch navigation and hardware-format SysEx import and export.</p></li>
+          <li><h3>144 sounds, plus a blank canvas</h3><p>Explore 128 archival factory tones and 16 original YouKnow basses and pads. Brass, strings, keys, plucks and effects are ready to play; INIT gives you a simple starting point for your own patches.</p></li>
+          <li><h3>The character of an individual synth</h3><p>Unit Character adjusts modelled component differences between voices, from calibrated nominal settings to a more varied instrument. Aging adds filter-trim drift and noise, following a documented hardware recalibration.</p></li>
+          <li><h3>Room beyond six voices</h3><p>Modern additions include one to sixteen voices and adjustable velocity response. Play full chords, stack voices in unison, or use portamento for a sliding lead.</p></li>
+          <li><h3>Chorus to suit the patch</h3><p>Choose I, II or I+II to find the right movement and width. A separate Chorus Noise control lets you set how much hiss accompanies the effect.</p></li>
+          <li><h3>A place for your own sounds</h3><p>Import and export hardware-format SysEx tone data. Save a host preset or DAW project to keep the complete YouKnow setup, including its additional performance controls.</p></li>
+          <li><h3>A panel you can settle into</h3><p>Scale the interface to your screen and hover a control for contextual help. Oscillators, filter, envelope and chorus stay together on one panel as you work.</p></li>
         </ul>
       </div>
     </section>
@@ -111,7 +161,7 @@
         <div class="edition-copy">
           <span class="tag">Reason Rack Extension</span>
           <h2 class="title">YouKnow, in the rack.</h2>
-          <p class="lede">A dedicated panel for Reason, with its patch browser and a separate bank of 100 original Protocodus patches, including Init.</p>
+          <p class="lede">A dedicated edition for the Reason rack, with up to sixteen voices, eight CV inputs and a separate bank of 100 original Protocodus patches, including Init.</p>
           <p class="lede">The Rack Extension has its own layout and release cycle. It requires Reason 14 or later and is currently in development.</p>
           <a class="text-link resource-link" href="YouKnow_User_Manual.pdf">Read the Rack Extension guide (PDF) <span aria-hidden="true">↗</span></a>
         </div>
@@ -124,12 +174,15 @@
       </div>
     </section>
 
-    <section class="band band-well" id="workflow">
+    <section class="band" id="workflow">
       <div class="wrap workflow-layout">
         <div>
           <span class="tag">In your setup</span>
-          <h2 class="title">From a first patch to a saved session.</h2>
-          <p class="lede">Start with a preset or INIT, then hover a control for help. Save your DAW project or a host preset to keep the setup. Quality settings let you balance oversampling against CPU use.</p>
+          <h2 class="title">At home in your setup.</h2>
+          <p class="lede">Play YouKnow in your DAW or open the standalone instrument when you just want to play. Adjustable processing quality lets you balance detail and CPU use for the session.</p>
+          <div class="hero-actions">
+            <a href="https://protocodus.gumroad.com/l/youknow" class="btn btn-primary">Get YouKnow at Gumroad <span aria-hidden="true">↗</span></a>
+          </div>
         </div>
         <aside class="compatibility" aria-label="Platforms and availability">
           <h3>Formats &amp; availability</h3>
