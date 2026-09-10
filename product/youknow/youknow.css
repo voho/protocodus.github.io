@@ -3,8 +3,14 @@
 .research-layout { display: grid; grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.25fr); gap: clamp(2rem, 4vw, 3.5rem); align-items: start; }
 .research-copy .lede:first-child { margin-top: 0; }
 .research-copy .resource-link { margin-top: 1rem; }
-.soundcloud-player { display: block; border: 1px solid var(--line-lift); border-radius: var(--radius-sm); background: var(--panel); }
-.soundcloud-player + .resource-link { margin-top: 1rem; }
+.soundcloud-shell { padding: clamp(0.5rem, 1vw, 0.875rem); border: 1px solid var(--line-lift); border-radius: var(--radius-md); background: var(--panel); }
+/* The cross-origin player has no dark palette. Hide optional artwork and pair
+   this filter with its source accent #00495c to render close to --signal. */
+.soundcloud-player { display: block; border: 0; border-radius: var(--radius-sm); background: #fff; color-scheme: light; filter: invert(0.95) hue-rotate(180deg); }
+.soundcloud-shell + .resource-link { margin-top: 1rem; }
+@media (forced-colors: active) {
+  .soundcloud-player { filter: none; }
+}
 .model-features li { border-color: color-mix(in srgb, var(--signal) 35%, transparent); }
 @media (max-width: 880px) {
   .research-layout { grid-template-columns: 1fr; gap: 1.75rem; }
