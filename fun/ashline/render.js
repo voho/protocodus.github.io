@@ -7,7 +7,7 @@ const TEAM = [
   { light: '#dcf1ff', paint: '#2d7cf2', dark: '#163b75', glow: '#79bcff' },
   { light: '#ffd8d5', paint: '#d8344c', dark: '#6d142b', glow: '#ff7582' },
 ];
-const SIZES = Object.fromEntries(Object.entries(BUILDING_DEFS).map(([type, d]) => [type, d.size]));
+const SIZES = Object.assign(Object.create(null), Object.fromEntries(Object.entries(BUILDING_DEFS).map(([type, d]) => [type, d.size])));
 const entityRole = e => buildingRole(unitRole(e));
 const wallKey = e => `${e.team}:${e.x}:${e.y}`;
 function wallConnections(e, walls) {
@@ -1334,6 +1334,15 @@ export class Renderer {
       polygon(ctx, [[point.x + 1, point.y - 15], [point.x + 10, point.y - 12], [point.x + 1, point.y - 8]], '#8dccca');
       ctx.restore();
     }
+    if (view.deployUnitId) {
+      const vehicle = state.entities.find(e => e.id === view.deployUnitId && e.hp > 0);
+      if (vehicle) {
+        const p = this.worldToScreen(vehicle.x, vehicle.y, view);
+        ctx.save(); ctx.setLineDash([5, 5]);
+        ellipse(ctx, p.x, p.y, 4 * zoom, 4 * zoom, '#8dccca08', '#8dccca80', 1);
+        ctx.restore();
+      }
+    }
     if (view.showGrid || view.placement) {
       ctx.save(); ctx.strokeStyle = '#aac7dc14'; ctx.lineWidth = 1;
       for (let x = x0; x <= x1; x++) line(ctx, left + x * zoom, top + y0 * zoom, left + x * zoom, top + y1 * zoom, '#aac7dc14');
@@ -1463,6 +1472,14 @@ export class Renderer {
     for (let slot = 0; slot < 3; slot++) {
       const left = x - 3 + slot * 5;
       polygon(ctx, [[left, y + 2], [left + 2, y], [left + 4, y + 2], [left + 4, y + 4], [left + 2, y + 2], [left, y + 4]], slot < rank ? '#e4b975' : '#506167');
+    }
+    if (entity.team === 0 && entity.controlGroup) {
+      rect(ctx, x + 16, y - 4, 15, 15, '#0a151df2');
+      ctx.strokeStyle = '#8dccca'; ctx.lineWidth = 1;
+      ctx.strokeRect(x + 16.5, y - 3.5, 14, 14);
+      ctx.fillStyle = '#dbe4de'; ctx.font = 'bold 12px monospace';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(String(entity.controlGroup), x + 23.5, y + 3.5);
     }
     ctx.restore();
   }

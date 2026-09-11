@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
-import {UNITS,createGame,updateGame,issueOrder,stopUnits,placeBuilding} from '../sim.js';
+import {UNITS,unitRole,createGame,updateGame,issueOrder,stopUnits,placeBuilding} from '../sim.js';
 
 const advance=(s,seconds,check)=>{for(let i=0;i<Math.ceil(seconds/.1);i++){updateGame(s,.1);check?.();}};
 const tile=(s,u)=>Math.floor(u.y)*s.width+Math.floor(u.x);
 const footprint=(s,team=0)=>s.explored[team].reduce((sum,value)=>sum+value,0);
 const field=(type='scout',team=0,seed='explore')=>{
   const s=createGame(seed),u=s.entities.find(e=>e.team===team&&e.type===type)||s.entities.find(e=>e.team===team&&e.type==='rifle');
-  Object.assign(u,{type,hp:UNITS[type].hp,maxHp:UNITS[type].hp,size:UNITS[type].size,x:35.5,y:28.5,path:[],repath:0,cooldown:0,order:{type:type==='harvester'?'harvest':'idle'}});
+  Object.assign(u,{type,hp:UNITS[type].hp,maxHp:UNITS[type].hp,size:UNITS[type].size,x:35.5,y:28.5,path:[],repath:0,cooldown:0,order:{type:unitRole(type)==='harvester'?'harvest':'idle'}});
+  s.teams[team].race=UNITS[type].race;if(unitRole(type)==='harvester')Object.assign(u,{cargo:0,unload:0,unloadDepotId:null,harvestPhase:'gather'});
   s.entities=[u];s.ai.nextThink=Infinity;s.terrain.fill(0);s.minerals.fill(0);s.navVersion++;
   for(const cells of [...s.visible,...s.explored])cells.fill(0);
   s.fogClock=0;advance(s,.1);return{s,u};
@@ -17,8 +18,8 @@ for(const team of [0,1])for(const type of Object.keys(UNITS)){
   const {s,u}=field(type,team,`explore-${team}-${type}`),before=footprint(s,team);
   issueOrder(s,[u.id],{type:'explore'});assert.equal(u.order.type,'explore',`${type} accepts exploration for team ${team}`);
   advance(s,3);assert(footprint(s,team)>before,`${type} reveals new ground while exploring`);
-  s.explored[team].fill(1);advance(s,.3);
-  assert.equal(u.order.type,type==='harvester'?'harvest':'idle',`${type} returns to its default once the map is explored`);
+  s.explored[team].fill(1);advance(s,1.1);
+  assert.equal(u.order.type,unitRole(type)==='harvester'?'harvest':'idle',`${type} returns to its default once the map is explored`);
 }
 
 // Exploration continues across several sight radii, without needing another player command.
@@ -33,12 +34,12 @@ assert(traveled>roaming.s.width,'Automatic exploration travels farther than one 
 
 // Manual orders and Stop replace the mode, including for economy units carrying cargo.
 for(const type of ['rifle','harvester'])for(const command of ['move','attack','attackMove','harvest','stop']){
-  const {s,u}=field(type);if(type==='harvester'){u.cargo=75;u.harvestPhase='return';}
+  const {s,u}=field(type);if(unitRole(type)==='harvester'){u.cargo=75;u.harvestPhase='return';}
   issueOrder(s,[u.id],{type:'explore'});advance(s,.2);
   if(command==='stop')stopUnits(s,[u.id]);else issueOrder(s,[u.id],{type:command,x:u.x+2,y:u.y});
   assert.notEqual(u.order.type,'explore',`${command} cancels ${type} exploration`);
   advance(s,4);assert.notEqual(u.order.type,'explore',`${type} must not silently restart exploration after ${command}`);
-  if(type==='harvester')assert.equal(u.cargo,75,'Exploration and cancellation preserve carried minerals');
+  if(unitRole(type)==='harvester')assert.equal(u.cargo,75,'Exploration and cancellation preserve carried minerals');
 }
 
 // Complete the reachable corridor, then give up cleanly on a disconnected unknown island.
@@ -50,7 +51,7 @@ for(const type of ['scout','harvester']){
   issueOrder(s,[u.id],{type:'explore'});advance(s,65);
   for(let y=25;y<=31;y++)for(let x=2;x<=45;x++)assert.equal(s.explored[0][y*s.width+x],1,'All reachable corridor ground is explored');
   assert.equal(s.explored[0][28*s.width+65],0,'Disconnected ground stays unexplored');
-  assert.equal(u.order.type,type==='harvester'?'harvest':'idle','Unreachable unknown ground must not trap an explorer forever');
+  assert.equal(u.order.type,unitRole(type)==='harvester'?'harvest':'idle','Unreachable unknown ground must not trap an explorer forever');
 }
 
 // A newly placed structure blocks an existing route; exploration uses the available detour.

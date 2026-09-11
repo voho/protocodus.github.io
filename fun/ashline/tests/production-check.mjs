@@ -30,8 +30,9 @@ const before = Object.fromEntries(Object.keys(UNITS).map(type => [type, own(s, t
 const credits = s.teams[0].credits;
 for (const [producer, type] of jobs) assert(trainUnit(s, 0, type, producer.id).ok);
 assert.equal(s.teams[0].credits, credits - jobs.reduce((n, [, type]) => n + UNITS[type].cost, 0));
+const parallelRate = productionRate(s, 0);
 advance(s, 2);
-for (const [producer, type] of jobs) assert(Math.abs(producer.queue[0].progress - 2 / UNITS[type].trainTime) < 1e-6, `${type} progresses at its own producer`);
+for (const [producer, type] of jobs) assert(Math.abs(producer.queue[0].progress - 2 * parallelRate / UNITS[type].trainTime) < 1e-6, `${type} progresses at its own producer`);
 advance(s, 3.2);
 assert.equal(own(s, 'rifle').length, before.rifle + 2, 'Both barracks complete infantry concurrently');
 assert(f.queue[0].progress > .35 && g.queue[0].progress > .25 && r.queue[0].progress > .35);

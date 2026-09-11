@@ -2,13 +2,19 @@
 
 An original 2D real-time strategy game for the browser. Lead an expedition into the ashlands, harvest minerals, build and defend a base, and defeat the opposing command center.
 
-Choose **Organics** or **AI Unity** independently for your force and its rival. Organics combines human infantry and alien launcher teams with rounded, clunky industrial machinery: bulbous cast turrets, old truck cabins, cylindrical tanks and arched factory roofs. AI Unity fields autonomous combat robots, mobile walkers, skimmers, and intricate assembly facilities. Each race has its own complete eight-unit roster and nine functional buildings; ownership colors remain ivory/cobalt for your force and crimson for the opponent. Their economies and technology paths are comparable, with differences in durability, firepower, mobility, and infrastructure. Older operations load as Organics. See [the recorded AI-versus-AI balance trials](docs/BALANCE.md) for matchup results and reproduction commands.
+Choose **Organics** or **AI Unity** independently for your force and its rival. Organics combines human infantry and alien launcher teams with rounded, clunky industrial machinery: bulbous cast turrets, old truck cabins, cylindrical tanks and arched factory roofs. AI Unity fields autonomous combat robots, mobile walkers, skimmers, and intricate assembly facilities. Each race has its own complete nine-unit roster and nine functional buildings; ownership colors remain ivory/cobalt for your force and crimson for the opponent. Their economies and technology paths are comparable, with differences in durability, firepower, mobility, and infrastructure. Older operations load as Organics. See [the recorded AI-versus-AI balance trials](docs/BALANCE.md) for matchup results and reproduction commands.
+
+**Nexus construction vehicles** (Organics) and **Mainframe constructors** (AI Unity) cost 1,800 credits and train at a foundry. Move one to an explored area, select **Deploy nexus**, and choose a clear 3 × 3 footprint within four tiles. Deployment consumes the vehicle with no extra charge, transferring its damage to a new nexus that takes 40 base seconds to complete. Once complete, it grants population capacity and a new construction area for refineries, defenses, and production. AI commanders scout deposits, transport constructors, and establish new mining bases. Losing every nexus and construction vehicle ends the operation.
+
+Control groups are exclusive: Shift/Ctrl + 1–5 assigns the selected entities to that group, replacing its old members and removing the selected units from prior groups. Press 1–5 to recall. A numbered badge beside each assigned friendly unit shows its group; assignments persist in saves.
 
 Both races construct **walls**. Choose the wall card, then drag across the ground to preview a continuous line and its credit cost; release to build. Diagonal drags make connected stair steps, up to 48 segments per order. Placement stops at the first obstruction or unaffordable segment and reports what was actually built. Walls block paths, extend from an existing base or adjacent wall segments, and can be attacked, repaired, or sold. Leave a gate for haulers and deployment bays. Armed attackers can break an enemy wall that obstructs pursuit; siege fire can reach targets beyond it. Escape or the visible Cancel button exits the wall tool.
 
 Build a **Signal laboratory** to research three two-stage branches. Pulse accelerators → Composite field armor improve infantry damage and health; Stabilized armaments → Adaptive drivetrains improve vehicle damage and speed; Efficient power routing → Advanced ballistics reduce electricity demand and unlock advanced weapons. Research applies to deployed and future units, persists in saves, costs credits, and occupies one laboratory per project. Multiple laboratories can work on different projects at once.
 
 Select a structure and choose **Upgrade** to install local improvements: Accelerated operations makes production, research, and refinery work 25% faster; Efficient converters cuts that building’s power consumption by 25%; a foundry’s Advanced assembly bay unlocks **Pike strikers** once Advanced ballistics is researched. These fast six-wheel vehicles carry twin autocannons that counter infantry. Foundries also build **Field engineers**, unarmed tracked support vehicles that automatically repair nearby vehicles and buildings within four tiles, consuming credits and requiring power.
+
+Surplus generation gives construction, training, research, upgrades, and mineral processing a modest speed boost with diminishing returns: `1 + 0.25 × surplus / (demand + 100 + surplus)`, approaching +25%. Repairs, weapons, and unloading retain their normal full-power rates.
 
 **Grid capacitors** store 1,200 power-seconds each, charging from surplus generation at up to 30 per second. During a shortage, reserve power keeps defenses and industry online until storage runs out. Brownouts then disable defenses and scale training, research, upgrades, unloading, processing, and repairs with available power; emergency construction retains a 20% minimum so reactors can recover the grid. The HUD shows current supply/demand, operating percentage, remaining reserve time, and storage. Building lights dim and show restrained amber outage indicators. The AI scouts, chooses counters from observed forces, develops technology, expands toward seen deposits, rebuilds power, escorts armor with engineers, and regroups damaged or outmatched formations.
 
@@ -26,9 +32,9 @@ Every completed refinery includes one free hauler. Haulers automatically collect
 
 Damage to your forces raises a throttled **under attack** warning with an orange ping on the tactical map, destroyed units are reported, losing the last hauler prompts a replacement, and low power warns once and marks the power readout while defenses stay offline. Shells and tracers fired from concealed positions are drawn and heard where they land, never where they came from.
 
-Units steer around nearby traffic and leave parked allies in place. If friendly units jam in a tight passage, their spacing briefly softens so they can pass and continue their orders. Rocks, lava, buildings, and enemy collision boundaries remain solid. This also keeps haulers moving through shared refinery approaches.
+Units wait and turn in place around traffic, leaving parked allies in place. If friendly units jam in a tight passage, their spacing briefly softens so they can pass and continue their orders. Rocks, lava, buildings, and enemy collision boundaries remain solid. This also keeps haulers moving through shared refinery approaches.
 
-Clear routes follow direct lines at any angle. Obstacle routes discard unnecessary grid waypoints and look ahead around bends for smoother movement. Vehicles accelerate from rest, slow through sharp turns, and ease their heading with bounded angular speed and acceleration. Traffic keeps a passing side briefly; collision sidesteps do not whip the hull around. Stationary units stop their walking and track animations. Every shortcut and rounded corner still checks the swept path against solid ground. The same routing serves manual orders, rallies, harvesting, scouting, and combat pursuit.
+Clear routes follow direct lines at any angle. Obstacle routes discard unnecessary grid waypoints. Units rotate in place to face each straight path segment, then accelerate forward with a fixed heading. Turning and translation never happen in the same simulation tick. Stationary units stop their walking and track animations. Every shortcut checks the swept path against solid ground. The same routing serves manual orders, rallies, harvesting, scouting, and combat pursuit.
 
 Group move and attack-move orders assign each unit its own reachable destination near the click, with room for its size. Positions avoid obstacles, parked units, and other ordered destinations; nearby units take nearby positions. Selected units show their own destination brackets and subtle route segments through visible ground. Each unit finishes at its assigned spot. Repeating an order preserves those positions, and blocked or unreachable clicks resolve to available ground on each unit’s side of the obstacle.
 
@@ -44,7 +50,7 @@ The pause menu saves one operation to this browser’s local storage and loads i
 
 Original synthesized sound effects cover orders, production, weapons, explosions, and deliveries. Sound begins after a user gesture; effects and music have independent toggles in the pause menu. The locally hosted synthwave loop **Space Adventure** by **MintoDog** is CC0; its creator’s license and source are recorded in [audio credits](assets/audio/CREDITS.md).
 
-Each side can field **200 units**, including haulers and engineers. Paid production queues reserve population slots so parallel factories cannot exceed the limit. Buildings and walls do not consume unit capacity.
+Each completed nexus adds **200 unit slots**, up to **2,000 units per side**, including haulers, engineers, and construction vehicles. Losing a nexus lowers capacity without removing existing units; recruitment waits until there is room again. Paid production queues reserve population slots so parallel factories cannot exceed the limit. Buildings and walls do not consume unit capacity.
 
 ## Run locally
 
@@ -106,6 +112,9 @@ node tests/building-actions-check.mjs
 node tests/gameplay-expansion-check.mjs
 node tests/races-check.mjs
 node tests/capacity-check.mjs
+node tests/nexus-check.mjs
+node tests/ai-nexus-check.mjs
+node --test tests/control-groups.test.mjs
 node --test tests/camera.test.mjs tests/movement.test.mjs
 node tests/lava-check.mjs
 node tests/distribution-check.mjs

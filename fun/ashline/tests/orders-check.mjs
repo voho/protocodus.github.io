@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {BUILDINGS,UNITS,UNIT_CAP,createGame,updateGame,canPlace,placeBuilding,trainUnit,issueOrder,stopUnits,getEntity,productionRate} from '../sim.js';
+import {BUILDINGS,UNITS,unitCapacity,createGame,updateGame,canPlace,placeBuilding,trainUnit,issueOrder,stopUnits,getEntity,productionRate} from '../sim.js';
 
 const advance=(s,seconds)=>{for(let i=0;i<Math.ceil(seconds/.1);i++)updateGame(s,.1);};
 const entities=(s,team,type)=>s.entities.filter(e=>e.hp>0&&e.team===team&&(!type||e.type===type));
@@ -46,17 +46,17 @@ advance(blocked,2);assert.equal(entities(blocked,0,'harvester').length,2,'Retrie
 
 // The included unit waits at the army cap instead of exceeding it or being lost.
 const capped=quiet('refinery-cap'),cappedRefinery=construct(capped,0,'refinery');
-const template=entities(capped,0,'rifle')[0];
-while(entities(capped,0).filter(e=>e.kind==='unit').length<UNIT_CAP){
+const template=entities(capped,0,'rifle')[0],capacity=unitCapacity(capped,0);
+while(entities(capped,0).filter(e=>e.kind==='unit').length<capacity){
   const i=entities(capped,0).filter(e=>e.kind==='unit').length;
   capped.entities.push({...structuredClone(template),id:capped.nextId++,x:1.5+i%10,y:47.5+Math.floor(i/10),path:[]});
 }
 advance(capped,BUILDINGS.refinery.buildTime+1);
 assert.equal(cappedRefinery.progress,1);assert.equal(entities(capped,0,'harvester').length,1);
-assert.equal(entities(capped,0).filter(e=>e.kind==='unit').length,UNIT_CAP,'Refinery delivery respects the unit cap');
+assert.equal(entities(capped,0).filter(e=>e.kind==='unit').length,capacity,'Refinery delivery respects the unit cap');
 entities(capped,0,'rifle').at(-1).hp=0;advance(capped,1);
 assert.equal(entities(capped,0,'harvester').length,2,'The included hauler arrives when a slot becomes free');
-assert.equal(entities(capped,0).filter(e=>e.kind==='unit').length,UNIT_CAP);
+assert.equal(entities(capped,0).filter(e=>e.kind==='unit').length,capacity);
 
 // Explicit movement can reposition haulers, then automatic harvesting resumes.
 const haulerField=seed=>{

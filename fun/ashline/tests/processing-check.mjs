@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createGame, updateGame, issueOrder, stopUnits } from '../sim.js';
+import { createGame, updateGame, issueOrder, stopUnits, powerStats } from '../sim.js';
 
 const advance = (s, seconds) => { for (let i = 0; i < Math.round(seconds * 20); i++) updateGame(s, .05); };
 const own = (s, type, team = 0) => s.entities.filter(e => e.hp > 0 && e.team === team && e.type === type);
@@ -32,7 +32,7 @@ for (const team of [0, 1]) for (const type of ['refinery', 'core']) {
   assert.equal(depot.processingTotal, 200, 'Processing measures raw shards even at the emergency core depot');
   assert(depot.processingAmount > 195 && depot.processingAmount <= 200);
   const remaining = depot.processingAmount;
-  advance(s, 3); assert(Math.abs(depot.processingAmount - (remaining - 100)) < 1e-7, 'A full load is processed over six simulation seconds');
+  advance(s, 3); assert(Math.abs(depot.processingAmount - (remaining - 100 * powerStats(s, team).productionMultiplier)) < 1e-7, 'Surplus power speeds the six-second base processing cycle');
   advance(s, 3.2); assert.equal(depot.processingAmount, 0); assert.equal(depot.processingTotal, 0);
   assert.equal(s.teams[team].credits, credits + (type === 'core' ? 120 : 200), 'Processing does not grant credits twice');
 }
@@ -40,7 +40,7 @@ for (const team of [0, 1]) for (const type of ['refinery', 'core']) {
 // One finite field is really gathered, hauled, and deposited before the processor activates.
 const field = quiet('real-shard-processing'), refinery = own(field,'refinery')[0],tile = refinery.y * field.width + refinery.x+5, collector = own(field, 'harvester')[0];
 field.minerals[tile] = 200; collector.x = refinery.x+5.5; collector.y = refinery.y+.5;
-advance(field, 12);
+for(let tick=0;tick<600&&(field.minerals[tile]>0||collector.cargo>0);tick++)updateGame(field,.05);
 assert.equal(field.minerals[tile], 0); assert.equal(collector.cargo, 0); assert(Math.abs(field.teams[0].credits - 2000) < .001, 'Finite Float32 mineral storage retains the existing delivery value');
 assert(own(field, 'refinery')[0].processingAmount > 0, 'Real mined cargo starts refinery machinery');
 
@@ -52,7 +52,7 @@ assert.equal(depot.processingTotal, 200); assert.equal(shared.teams[0].credits, 
 advance(shared, 2); const remaining = depot.processingAmount;
 hauler.cargo = 50; hauler.harvestPhase = 'return'; advance(shared, 1.3);
 assert.equal(depot.processingTotal, 250);
-assert(Math.abs(depot.processingAmount - (remaining - 1.3 * 200 / 6 + 50)) < 1e-6, 'A later delivery adds to unfinished processing');
+assert(Math.abs(depot.processingAmount - (remaining - 1.3 * 200 / 6 * powerStats(shared, 0).productionMultiplier + 50)) < 1e-6, 'A later delivery adds to unfinished processing');
 assert.equal(shared.teams[0].credits, 2050);
 const frozen = structuredClone(shared); updateGame(shared, 0); assert.deepEqual(shared, frozen, 'No simulation time means no processing');
 advance(shared, 10); assert.equal(depot.processingAmount + depot.processingTotal, 0); assert.equal(shared.teams[0].credits, 2050);

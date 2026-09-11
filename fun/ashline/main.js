@@ -1,10 +1,11 @@
-import { BUILDINGS, UNITS, UNIT_CAP, RESEARCH, BUILDING_UPGRADES, MAP_SIZES, MAP_PROFILES, RACES, buildingRole, unitRole, teamRace, raceBuilding, raceUnit, planWallLine, buildWallLine, terrainCover, researchStatus, startResearch, buildingUpgradeStatus, startBuildingUpgrade, updateGame, placeBuilding, canPlace, trainUnit, setRallyPoint, issueOrder, stopUnits, powerStats, getEntity, unitRank, unitStats, toggleRepair, sellBuilding, salvageValue } from './sim.js';
+import { BUILDINGS, UNITS, UNIT_CAP, UNIT_CAP_PER_NEXUS, unitCapacity, deploymentStatus, deployNexus, RESEARCH, BUILDING_UPGRADES, MAP_SIZES, MAP_PROFILES, RACES, buildingRole, unitRole, teamRace, raceBuilding, raceUnit, planWallLine, buildWallLine, terrainCover, researchStatus, startResearch, buildingUpgradeStatus, startBuildingUpgrade, updateGame, placeBuilding, canPlace, trainUnit, setRallyPoint, issueOrder, stopUnits, powerStats, getEntity, unitRank, unitStats, toggleRepair, sellBuilding, salvageValue } from './sim.js';
 import { Renderer, drawIcon } from './render.js';
 import { startAssets, assetStatus, spriteNativeZoom } from './assets.js';
 import { zoomLevels, nearestZoom, steppedZoom, cameraDirection } from './camera.js';
 import { createAudio } from './audio.js';
 import { saveGame, loadGame, getSaveInfo } from './save.js';
 import { nextPaint, generateOperation } from './loading.js';
+import { assignControlGroup, controlGroupMembers } from './control-groups.js';
 
 const $ = id => document.getElementById(id);
 const canvas = $('world');
@@ -23,9 +24,9 @@ const cameraLevels = () => zoomLevels(spriteNativeZoom(renderer.dpr));
 const audio = createAudio();
 audio.setPaused(true);
 let heardEffects = new WeakSet();
-const keys = new Set(), groups = new Map();
+const keys = new Set();
 const buildTypes = ['reactor', 'refinery', 'barracks', 'factory', 'lab', 'capacitor', 'turret', 'rocketTower', 'wall'];
-const unitTypes = ['rifle', 'rocket', 'scout', 'tank', 'artillery', 'striker', 'engineer', 'harvester'];
+const unitTypes = ['rifle', 'rocket', 'scout', 'tank', 'artillery', 'striker', 'engineer', 'harvester', 'constructor'];
 const researchBranches = [
   { name: 'Infantry doctrine', ids: ['infantryWeapons', 'infantryArmor'] },
   { name: 'Armored warfare', ids: ['vehicleWeapons', 'mobility'] },
@@ -61,8 +62,8 @@ function notify(text, warning = false, soft = false) {
 
 async function reset(prepared, restored) {
   game = prepared;
-  view.selected.clear(); groups.clear(); keys.clear();
-  view.placement = null; view.drag = null; view.hover = null; view.commandMarker = null;
+  view.selected.clear(); keys.clear();
+  view.placement = null; view.deployUnitId = null; view.drag = null; view.hover = null; view.commandMarker = null;
   view.wallStart = null; view.wallPlan = null;
   orderMode = null; pointer = null; pointerPosition = null; accumulator = 0; lastEvent = game.events.length;
   lastPortrait = ''; lastQueue = null; lastNotice = ''; view.showGrid = false; lowPower = false; touches.clear();
@@ -86,7 +87,7 @@ async function reset(prepared, restored) {
 }
 
 function centerBase() {
-  const core = game.entities.find(e => e.team === 0 && buildingRole(e) === 'core' && e.hp > 0);
+  const core = game.entities.find(e => e.team === 0 && buildingRole(e) === 'core' && e.hp > 0) || game.entities.find(e => e.team === 0 && e.kind === 'unit' && unitRole(e) === 'constructor' && e.hp > 0);
   if (core) { const c = entityCenter(core); view.x = c.x + 3; view.y = c.y - 1; }
   clampCamera();
 }
@@ -106,7 +107,7 @@ function setConsole(open) {
 }
 
 function setTab(tab) {
-  if (tab !== activeTab && view.placement) { view.placement = null; view.showGrid = false; setOrderHint(); }
+  if (tab !== activeTab && view.placement) { view.placement = null; view.deployUnitId = null; view.showGrid = false; setOrderHint(); }
   activeTab = tab;
   for (const button of document.querySelectorAll('[data-tab]')) {
     button.setAttribute('aria-selected', String(button.dataset.tab === tab));
@@ -157,7 +158,7 @@ function updateCatalog() {
     const eligibleProducers = activeTab === 'train' ? own.filter(e => e.type === def.producer && (unitRole(type) !== 'striker' || e.upgrades?.advancedProduction)) : [];
     if (producer?.progress < 1) reason ||= 'Selected producer is under construction';
     if (activeTab === 'train' && (producer ? (producer.queue || []).length >= 6 : eligibleProducers.every(e => (e.queue || []).length >= 6))) reason ||= 'Production queues full';
-    if (activeTab === 'train' && population >= UNIT_CAP) reason ||= `Unit limit reached (${UNIT_CAP})`;
+    if ((activeTab === 'train' || buildingRole(type) === 'refinery') && population >= unitCapacity(game, 0)) reason ||= `Unit limit reached (${unitCapacity(game, 0)}) · deploy another nexus`;
     if (game.teams[0].credits < def.cost) reason ||= 'Insufficient credits';
     button.dataset.reason = reason;
     button.querySelector('.card-meta').textContent = reason || cardMeta(def);
@@ -276,6 +277,7 @@ function updateBuildingUpgrades() {
 function chooseProduction(type, touch = false) {
   if (busy()) return;
   if (activeTab === 'build') {
+    view.deployUnitId = null;
     view.placement = view.placement === type ? null : type;
     view.showGrid = Boolean(view.placement); orderMode = null;
     setOrderHint(); updateCatalog(); playSound('select');
@@ -302,15 +304,15 @@ function setOrderHint() {
     $('order-hint-text').textContent = `Wall line · ${plan?.count ?? 1} segments · ◈ ${plan?.cost ?? BUILDINGS.wall.cost}${plan?.reason ? ` · ${plan.reason}` : ' · Drag to build'}`;
     return;
   }
-  $('order-hint-text').textContent = view.placement ? `Place ${BUILDINGS[view.placement].name} · ${view.placementReason || 'Click to build'}` : orderMode === 'rally' ? 'Rally point · Select a destination' : orderMode === 'attackMove' ? 'Attack move · Select a destination' : 'Move · Select a destination';
+  $('order-hint-text').textContent = view.placement ? `${view.deployUnitId ? 'Deploy' : 'Place'} ${BUILDINGS[view.placement].name} · ${view.placementReason || (view.deployUnitId ? 'Within 4 tiles of the vehicle · consumes vehicle' : 'Click to build')}` : orderMode === 'rally' ? 'Rally point · Select a destination' : orderMode === 'attackMove' ? 'Attack move · Select a destination' : 'Move · Select a destination';
 }
 
-function cancelOrder() { view.placement = null; view.placementReason = ''; view.showGrid = false; view.wallStart = null; view.wallPlan = null; orderMode = null; view.drag = null; setOrderHint(); updateCatalog(); }
+function cancelOrder() { view.deployUnitId = null; view.placement = null; view.placementReason = ''; view.showGrid = false; view.wallStart = null; view.wallPlan = null; orderMode = null; view.drag = null; setOrderHint(); updateCatalog(); }
 $('cancel-order').addEventListener('click', () => { cancelOrder(); canvas.focus({preventScroll:true}); });
 
 function setOrder(type) {
   if (busy() || !(type === 'rally' ? selectedProducers() : selectedUnits()).length) return;
-  view.placement = null; view.showGrid = false;
+  view.placement = null; view.deployUnitId = null; view.showGrid = false;
   orderMode = orderMode === type ? null : type;
   setOrderHint(); updateCatalog();
 }
@@ -373,7 +375,8 @@ function commandAt(point, explicitType) {
 function placeAt(point) {
   if (!view.placement) return;
   const type = view.placement;
-  const result = placeBuilding(game, 0, type, Math.floor(point.x), Math.floor(point.y));
+  const result = view.deployUnitId ? deployNexus(game, 0, view.deployUnitId, Math.floor(point.x), Math.floor(point.y)) : placeBuilding(game, 0, type, Math.floor(point.x), Math.floor(point.y));
+  if (result.ok && view.deployUnitId) view.selected = new Set([result.id]);
   if (!result.ok) { notify(result.reason, true); return; }
   cancelOrder(); notify(`${BUILDINGS[type].name} construction started.`); playSound('build'); updateHUD();
 }
@@ -388,21 +391,22 @@ function updateHUD() {
   $('power-label').textContent = low ? 'Brownout' : power.usingReserve ? 'Reserve' : 'Power';
   $('power-resource').classList.toggle('low-power', low);
   $('power-resource').classList.toggle('reserve-power', power.usingReserve);
-  const powerDetail = low ? `Brownout: ${Math.round(power.ratio * 100)}% power. Production, research, mineral processing and repairs slow; defenses are offline.` : power.usingReserve ? `Reserve power: ${Math.ceil(power.reserveSeconds)} seconds remaining. Build a reactor before storage runs out.` : `Grid stable. ${Math.round(power.supply - power.demand)} power available.`;
+  const powerDetail = low ? `Brownout: ${Math.round(power.ratio * 100)}% power. Production, research, mineral processing and repairs slow; defenses are offline.` : power.usingReserve ? `Reserve power: ${Math.ceil(power.reserveSeconds)} seconds remaining. Build a reactor before storage runs out.` : `Grid stable. ${Math.round(power.supply - power.demand)} spare power · +${Math.round((power.productionMultiplier - 1) * 100)}% construction and production speed. Diminishing returns, up to +25%.`;
   $('power-resource').title = powerDetail;
   $('grid-summary').textContent = low ? 'Brownout' : power.usingReserve ? 'Reserve active' : 'Grid stable';
   $('grid-state').dataset.state = power.status;
-  $('grid-rate').textContent = `${Math.round(power.ratio * 100)}%`;
+  $('grid-rate').textContent = `${Math.round(power.ratio * power.productionMultiplier * 100)}%`;
   $('grid-output').style.width = `${power.ratio * 100}%`;
-  $('grid-detail').textContent = low ? 'Defenses offline · industry slowed' : power.usingReserve ? `${Math.ceil(power.reserveSeconds)}s of reserve · restore supply` : 'All systems operational';
+  $('grid-detail').textContent = low ? 'Defenses offline · industry slowed' : power.usingReserve ? `${Math.ceil(power.reserveSeconds)}s of reserve · restore supply` : `Industry +${Math.round((power.productionMultiplier - 1) * 100)}% · diminishing returns`;
   $('reserve-meter').hidden = !power.reserveCapacity;
   $('reserve-fill').style.width = `${power.reserveCapacity ? power.reserve / power.reserveCapacity * 100 : 0}%`;
   $('reserve-label').textContent = `Storage ${Math.round(power.reserve || 0)} / ${power.reserveCapacity || 0}`;
   $('grid-state').title = powerDetail;
   const deployed = game.entities.filter(e => e.team === 0 && e.kind === 'unit' && e.hp > 0).length;
   const reserved = game.entities.filter(e => e.team === 0 && e.kind === 'building' && e.hp > 0).reduce((n, e) => n + e.queue.length + (e.haulerPending ? 1 : 0), 0);
-  $('army').textContent = deployed;
-  $('army').closest('.resource').title = `${deployed} deployed · ${reserved} in production · ${UNIT_CAP} units per side`;
+  const capacity = unitCapacity(game, 0), nexuses = game.entities.filter(e => e.team === 0 && e.hp > 0 && e.kind === 'building' && buildingRole(e) === 'core' && e.progress >= 1).length;
+  $('army').textContent = `${deployed} / ${capacity}`;
+  $('army').closest('.resource').title = `${deployed} deployed · ${reserved} reserved · ${nexuses} completed nexuses × ${UNIT_CAP_PER_NEXUS} slots · maximum ${UNIT_CAP}. Deploy another nexus to expand capacity.`;
   $('mission-time').textContent = minutes(game.time);
   for (const id of view.selected) if (!getEntity(game, id) || getEntity(game, id).hp <= 0) view.selected.delete(id);
   let selection = selectedEntities();
@@ -442,9 +446,10 @@ function updateHUD() {
       const cargo = (first.cargo || 0) * (first.unloadDepotId ? Math.max(0, 1 - (first.unload || 0) / 1.2) : 1);
       detail = `${cargo < 1 ? 'Empty' : cargo >= UNITS[first.type].capacity ? 'Full' : `Cargo ${Math.ceil(cargo)} / ${UNITS[first.type].capacity}`} · ${first.unloadDepotId ? 'Unloading minerals' : first.order?.type === 'explore' ? 'Auto-exploring' : first.order?.type === 'move' ? 'Relocating · auto-harvest next' : first.harvestPhase === 'return' ? 'Returning cargo' : 'Auto-harvesting'}`;
     }
-    else detail = `${Math.ceil(first.hp)} / ${first.maxHp} integrity · ${first.order?.type === 'explore' ? `Auto-exploring${first.targetId ? ' · Engaging' : ''}` : first.order?.type === 'move' ? 'Moving' : unitRole(first) === 'engineer' ? first.repairTargetId ? 'Repairing nearby machinery' : 'Auto-repair within 4 tiles' : first.targetId || first.order?.type === 'attack' ? 'Engaging' : first.order?.type === 'attackMove' ? 'Advancing' : 'Guarding'}`;
+    else detail = `${Math.ceil(first.hp)} / ${first.maxHp} integrity · ${first.order?.type === 'explore' ? `Auto-exploring${first.targetId ? ' · Engaging' : ''}` : first.order?.type === 'move' ? 'Moving' : unitRole(first) === 'constructor' ? `Ready to deploy · +${UNIT_CAP_PER_NEXUS} slots` : unitRole(first) === 'engineer' ? first.repairTargetId ? 'Repairing nearby machinery' : 'Auto-repair within 4 tiles' : first.targetId || first.order?.type === 'attack' ? 'Engaging' : first.order?.type === 'attackMove' ? 'Advancing' : 'Guarding'}`;
   }
   if (selection.length === 1 && first.kind === 'unit' && terrainCover(game, first) > 0) detail += ' · 15% crater cover';
+  if (selection.length === 1 && first.controlGroup) detail += ` · Group ${first.controlGroup}`;
   $('selection-detail').textContent = detail;
   const rankedUnit = selection.length === 1 && first.kind === 'unit' ? first : null;
   const rankInfo = $('selection-rank'); rankInfo.hidden = !rankedUnit;
@@ -465,6 +470,10 @@ function updateHUD() {
   const portraitKey = first ? `${first.id}:${first.type}:${Math.floor(first.progress * 10)}:${first.queue?.[0]?.type}:${Math.floor((first.queue?.[0]?.progress || 0) * 10)}:${Math.ceil((first.processingAmount || 0) / 50)}:${first.processingType}:${first.cargoType}:${Math.ceil((first.cargo || 0) * (first.unloadDepotId ? Math.max(0, 1 - (first.unload || 0) / 1.2) : 1) / 50)}:${Math.round(power.ratio * 20)}:${power.status}:${Math.round((first.research?.progress || 0) * 10)}:${Math.round((first.reserve || 0) / 100)}:${Math.round((first.upgrade?.progress || 0) * 10)}` : 'core';
   if (portraitKey !== lastPortrait) { drawIcon($('portrait'), first?.type || raceBuilding(game, 0, 'core'), 0, { ...first, powerRatio: power.ratio, powerStatus: power.status }); lastPortrait = portraitKey; }
   for (const id of ['move-order', 'attack-order', 'explore-order', 'stop-order']) { $(id).disabled = busy() || !units.length; $(id).hidden = !units.length; }
+  const constructor = selection.length === 1 && first?.kind === 'unit' && unitRole(first) === 'constructor' ? first : null;
+  $('deploy-nexus').hidden = !constructor;
+  $('deploy-nexus').disabled = busy() || !constructor;
+  if (constructor) $('deploy-nexus').title = `Deploy ${BUILDINGS[raceBuilding(game, 0, 'core')].name} within 4 tiles · consumes this vehicle · 40s construction · +${UNIT_CAP_PER_NEXUS} unit slots`;
   $('rally-order').hidden = !selectedProducers().length;
   $('rally-order').disabled = busy() || !selectedProducers().length;
   const building = selection.length === 1 && first.kind === 'building' ? first : null;
@@ -539,7 +548,7 @@ function showMenu(finished = false, guide = false) {
   paused = true; keys.clear(); pointer = null; view.drag = null;
   audio.setPaused(true);
   $('menu-title').textContent = finished ? game.status === 'victory' ? 'The frontier is yours.' : 'The line has fallen.' : 'Hold the line.';
-  $('menu-description').textContent = finished ? game.status === 'victory' ? `${RACES[teamRace(game, 1)].name} command is down. Your forces hold the sector.` : 'Your command core was destroyed. Regroup and take another sector.' : 'The battlefield is paused.';
+  $('menu-description').textContent = finished ? game.status === 'victory' ? `${RACES[teamRace(game, 1)].name} command is down. Your forces hold the sector.` : 'Your last nexus and construction vehicle were lost. Regroup and take another sector.' : 'The battlefield is paused.';
   $('resume').hidden = finished;
   $('match-summary').hidden = !finished;
   if (finished) $('match-summary').textContent = `${minutes(game.time)} in field  ·  ${game.teams[0].kills || 0} enemies destroyed`;
@@ -680,7 +689,7 @@ function showBriefing() {
   stopFrames();
   launched = false; paused = true; game = null;
   $('queue-list').replaceChildren();
-  keys.clear(); groups.clear(); view.selected.clear();
+  keys.clear(); view.selected.clear();
   audio.setPaused(true);
   document.body.dataset.screen = 'briefing';
   $('loading').close(); $('menu').close();
@@ -860,8 +869,11 @@ document.addEventListener('keydown', event => {
   else if (/^Digit[1-5]$/.test(event.code)) {
     const digit = event.code.slice(-1);
     event.preventDefault();
-    if (event.ctrlKey || event.metaKey || event.shiftKey) { groups.set(digit, [...view.selected]); notify(`Control group ${digit} assigned.`); }
-    else if (groups.has(digit)) { view.selected = new Set(groups.get(digit).filter(id => getEntity(game, id)?.hp > 0)); updateHUD(); }
+    if (event.ctrlKey || event.metaKey || event.shiftKey) {
+      const assigned = assignControlGroup(game, view.selected, Number(digit));
+      notify(assigned.length ? `Control group ${digit}: ${assigned.length} assigned. Previous group membership removed.` : `Control group ${digit} cleared.`);
+      updateHUD();
+    } else { view.selected = new Set(controlGroupMembers(game, Number(digit))); updateHUD(); }
   }
   else if (key === '+' || key === '=') zoom(1.15);
   else if (key === '-') zoom(1 / 1.15);
@@ -885,6 +897,16 @@ $('build-tab').addEventListener('click', () => setTab('build'));
 $('train-tab').addEventListener('click', () => setTab('train'));
 $('research-tab').addEventListener('click', () => setTab('research'));
 $('upgrade-building').addEventListener('click', () => { setConsole(true); setTab('research'); $('command-console').scrollTop = 0; });
+$('deploy-nexus').addEventListener('click', () => {
+  const units = selectedUnits();
+  if (busy() || units.length !== 1 || unitRole(units[0]) !== 'constructor') return;
+  cancelOrder();
+  view.deployUnitId = units[0].id; view.placement = raceBuilding(game, 0, 'core'); view.showGrid = true;
+  stopUnits(game, [units[0].id]);
+  setOrderHint();
+  if (compactScreen.matches) setConsole(false);
+  canvas.focus({ preventScroll: true });
+});
 $('attack-order').addEventListener('click', () => setOrder('attackMove'));
 $('move-order').addEventListener('click', () => setOrder('move'));
 $('rally-order').addEventListener('click', () => setOrder('rally'));
@@ -984,7 +1006,8 @@ function frame(now) {
       view.wallPlan = planWallLine(game, 0, from.x, from.y, to.x, to.y); wallPreviewKey = key; wallPreviewAt = now; setOrderHint();
     }
   } else view.wallPlan = null;
-  const check = view.placement && view.hover ? canPlace(game, 0, view.placement, Math.floor(view.hover.x), Math.floor(view.hover.y)) : null;
+  if (view.deployUnitId && !getEntity(game, view.deployUnitId)) cancelOrder();
+  const check = view.placement && view.hover ? view.deployUnitId ? deploymentStatus(game, 0, view.deployUnitId, Math.floor(view.hover.x), Math.floor(view.hover.y)) : canPlace(game, 0, view.placement, Math.floor(view.hover.x), Math.floor(view.hover.y)) : null;
   view.placementValid = Boolean(check?.ok);
   if ((check?.reason || '') !== view.placementReason) { view.placementReason = check?.reason || ''; setOrderHint(); }
   if (view.commandMarker && now / 1000 - view.commandMarker.time > .85) view.commandMarker = null;

@@ -1,6 +1,6 @@
 // Generated art is decoded once; the battlefield only draws small, prepared frames.
 import { UNITS, BUILDINGS as BUILDING_DEFS, buildingRole, unitRole } from './sim.js';
-export const assetStatus = { loaded: 0, total: 10, ready: false, started: false, errors: [] };
+export const assetStatus = { loaded: 0, total: 11, ready: false, started: false, errors: [] };
 import { nextPaint } from './loading.js';
 let startLoading;
 const loadingRequested = new Promise(resolve => { startLoading = resolve; });
@@ -8,11 +8,11 @@ export function startAssets() { assetStatus.started = true; startLoading(); retu
 let preparation = Promise.resolve();
 export const terrainImages = { ground: null, detail: null };
 
-const BUILDINGS = Object.fromEntries(Object.entries(BUILDING_DEFS).map(([type, d]) => [type, d.size]));
-const UNIT_SIZES = { tank: 44, scout: 36, artillery: 56, harvester: 45, rifle: 26, rocket: 32, engineer: 46, striker: 48 };
-const UNIT_PIXELS = { rifle: 64, rocket: 80, scout: 96, tank: 112, artillery: 128, harvester: 112, engineer: 112, striker: 128 };
-const UNIT_DEPTH = { tank: 3, scout: 2, artillery: 3, harvester: 4, rifle: 1.5, rocket: 1.5, engineer: 3, striker: 2 };
-const sprites = {}, props = {};
+const BUILDINGS = Object.assign(Object.create(null), Object.fromEntries(Object.entries(BUILDING_DEFS).map(([type, d]) => [type, d.size])));
+const UNIT_SIZES = { tank: 44, scout: 36, artillery: 56, harvester: 45, rifle: 26, rocket: 32, engineer: 46, striker: 48, constructor: 56 };
+const UNIT_PIXELS = { rifle: 64, rocket: 80, scout: 96, tank: 112, artillery: 128, harvester: 112, engineer: 112, striker: 128, constructor: 128 };
+const UNIT_DEPTH = { tank: 3, scout: 2, artillery: 3, harvester: 4, rifle: 1.5, rocket: 1.5, engineer: 3, striker: 2, constructor: 4 };
+const sprites = Object.create(null), props = {};
 // Every unit faces east in the atlas; rotation never changes its overhead projection.
 const UNIT_CELLS = { rifle: [0, 1] };
 
@@ -334,6 +334,11 @@ export const assetsReady = loadingRequested.then(() => Promise.all([
     for (const [index, type] of ['scout', 'tank', 'artillery', 'harvester', 'engineer', 'striker'].entries()) {
       sprites[type] = splitSheet(image, 3, 2, UNIT_PIXELS[type], true, true, true, [index]);
       if (type === 'harvester') prepareHopper(sprites[type][0], [0, .18, .54, .85]);
+    }
+  }),
+  load('constructors', image => {
+    for (const [index, type] of ['constructor', 'unityConstructor'].entries()) {
+      sprites[type] = splitSheet(image, 2, 1, UNIT_PIXELS.constructor, true, true, true, [index]);
     }
   }),
   load('unity-light', image => {

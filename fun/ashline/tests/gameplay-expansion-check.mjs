@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {BUILDINGS,UNITS,RESEARCH,BUILDING_UPGRADES,createGame,updateGame,canPlace,placeBuilding,getEntity,trainUnit,unitStats,researchStatus,startResearch,cancelResearch,powerStats,salvageValue,sellBuilding,buildingUpgradeStatus,startBuildingUpgrade,issueOrder} from '../sim.js';
+import {BUILDINGS,UNITS,RESEARCH,BUILDING_UPGRADES,createGame,updateGame,canPlace,placeBuilding,getEntity,trainUnit,unitStats,researchStatus,startResearch,cancelResearch,powerStats,productionRate,salvageValue,sellBuilding,buildingUpgradeStatus,startBuildingUpgrade,issueOrder} from '../sim.js';
 import {encodeGame,decodeGame} from '../save.js';
 
 const near=(a,b,message)=>assert(Math.abs(a-b)<1e-6,`${message}: ${a} ≠ ${b}`);
@@ -32,7 +32,7 @@ const foundry=own(research,'factory')[0];assert(startBuildingUpgrade(research,0,
 assert(trainUnit(research,0,'striker',foundry.id).ok);foundry.queue[0].progress=.99999;updateGame(research,.05);const striker=own(research,'striker')[0];assert(striker);near(unitStats(striker).damage,UNITS.striker.damage*1.18,'New vehicles inherit researched armaments');
 assert(striker.tech.includes('mobility'));assert(!buildingUpgradeStatus(research,0,lab.id,'advancedProduction').ok);
 const oldDemand=powerStats(research,0).demand;assert(startBuildingUpgrade(research,0,foundry.id,'efficiency').ok);foundry.upgrade.progress=.99999;updateGame(research,.05);near(powerStats(research,0).demand,oldDemand-BUILDINGS.factory.power*-.25*.8,'Local and global efficiency combine');
-assert(startBuildingUpgrade(research,0,foundry.id,'speed').ok);foundry.upgrade.progress=.99999;updateGame(research,.05);assert(trainUnit(research,0,'tank',foundry.id).ok);advance(research,1);near(foundry.queue[0].progress,1.25/UNITS.tank.trainTime,'Local speed scales assembly progress');
+assert(startBuildingUpgrade(research,0,foundry.id,'speed').ok);foundry.upgrade.progress=.99999;updateGame(research,.05);assert(trainUnit(research,0,'tank',foundry.id).ok);const assemblyRate=productionRate(research,0);advance(research,1);near(foundry.queue[0].progress,1.25*assemblyRate/UNITS.tank.trainTime,'Local speed scales assembly progress');
 
 const refunds=quiet('research-refunds'),refundLab=develop(refunds),before=refunds.teams[0].credits;
 assert(startResearch(refunds,0,'gridEfficiency').ok);assert(cancelResearch(refunds,refundLab.id).ok);near(refunds.teams[0].credits,before,'Cancellation fully refunds paid research');

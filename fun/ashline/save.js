@@ -1,7 +1,7 @@
 import {BUILDINGS, UNITS, UNIT_CAP, RESEARCH, BUILDING_UPGRADES, RACES, buildingRole, unitRole, teamRace, raceBuilding, raceUnit, unitStats} from './sim.js';
 
 export const SAVE_KEY = 'ashline.save.v1';
-const VERSION = 1, MAX_BYTES = 4_000_000;
+const VERSION = 1, MAX_BYTES = 16_000_000, MAX_EFFECTS = Math.max(4096, UNIT_CAP * 8);
 const FIELDS = ['width', 'height', 'seed', 'mapProfile', 'difficulty', 'rng', 'nextId', 'time', 'status', 'entities', 'teams', 'effects', 'events', 'navVersion', 'navBuilt', 'fogClock', 'ai', 'aiTeams', 'aiByTeam', 'alertAt'];
 const GRIDS = {terrain: Uint8Array, minerals: Float32Array, mineralTypes: Uint8Array, blocked: Uint8Array, regions: Uint16Array};
 const fail = reason => { throw new Error(reason); };
@@ -66,6 +66,7 @@ function validateGame(s) {
     if (e.pathGoal !== undefined) valid(point(e.pathGoal));
     if (e.rally !== undefined) valid(point(e.rally));
     if (e.trafficWait !== undefined) valid(e.kind === 'unit' && number(e.trafficWait, 0, .8));
+    if(e.controlGroup!==undefined)valid(integer(e.controlGroup,1,5));
     if(e.turnVelocity!==undefined)valid(e.kind==='unit'&&number(e.turnVelocity));
     if(e.moveSpeed!==undefined)valid(e.kind==='unit'&&number(e.moveSpeed,0,30));
     if(e.moving!==undefined)valid(e.kind==='unit'&&typeof e.moving==='boolean');
@@ -116,10 +117,17 @@ function validateGame(s) {
   for(const ai of [s.ai,...Object.values(s.aiByTeam||{})]){
     valid(object(ai)&&object(ai.known)&&number(ai.nextThink,0)&&number(ai.nextRaid,0)&&typeof ai.mode==='string');
     for(const key of ['scoutIndex','buildIndex','raid'])valid(integer(ai[key]));
-    for(const key of ['nextExpand','regroupUntil'])if(ai[key]!==undefined)valid(number(ai[key],0));
+    for(const key of ['nextExpand','regroupUntil','nextMineralScan'])if(ai[key]!==undefined)valid(number(ai[key],0));
+    if(ai.miningSites!==undefined)valid(Array.isArray(ai.miningSites)&&ai.miningSites.length<=64&&ai.miningSites.every(site=>point(site)&&number(site.amount,0,1e6)&&number(site.seenAt,0,s.time)));
+    if(ai.outpostId!==undefined)valid(integer(ai.outpostId,1,s.nextId-1));
+    if(ai.outpostOre!==undefined)valid(point(ai.outpostOre));
+    if(ai.expansion!==undefined){
+      const plan=ai.expansion;valid(point(plan)&&integer(plan.x,0,width-3)&&integer(plan.y,0,height-3)&&point({x:plan.oreX,y:plan.oreY})&&point({x:plan.lastX,y:plan.lastY})&&number(plan.startedAt,0,s.time)&&number(plan.lastProgressAt,0,s.time));
+      if(plan.unitId!==undefined)valid(integer(plan.unitId,1,s.nextId-1));
+    }
     for(const [key,memory] of Object.entries(ai.known))valid(object(memory)&&String(memory.id)===key&&integer(memory.id,1,s.nextId-1)&&['unit','building'].includes(memory.kind)&&Object.hasOwn(memory.kind==='building'?BUILDINGS:UNITS,memory.type)&&point(memory)&&number(memory.hp,0)&&number(memory.seenAt,0));
   }
-  valid(Array.isArray(s.effects) && s.effects.length <= 4096 && s.effects.every(e => object(e) && ['explosion', 'shot', 'shell', 'rocket'].includes(e.type) && point(e) && number(e.life, 0, 10) && number(e.maxLife, .001, 10) && [0, 1].includes(e.team) && (e.type === 'explosion' ? number(e.size, 0, 10) : point({x: e.tx, y: e.ty}))));
+  valid(Array.isArray(s.effects) && s.effects.length <= MAX_EFFECTS && s.effects.every(e => object(e) && ['explosion', 'shot', 'shell', 'rocket'].includes(e.type) && point(e) && number(e.life, 0, 10) && number(e.maxLife, .001, 10) && [0, 1].includes(e.team) && (e.type === 'explosion' ? number(e.size, 0, 10) : point({x: e.tx, y: e.ty}))));
   for (const effect of s.effects) if (effect.type === 'rocket') {
     valid(['rocket', 'rocketTower'].includes(effect.weapon) && integer(effect.attackerId, 1, s.nextId - 1) && integer(effect.targetId, 1, s.nextId - 1) && number(effect.maxLife, .2, .65) && effect.life > 0 && effect.life <= effect.maxLife);
     if (effect.damage !== undefined) valid(effect.weapon === 'rocketTower' ? effect.damage === BUILDINGS[raceBuilding(s,effect.team,'rocketTower')].damage : [0, 1, 2, 3].some(rank => [1,1.18].some(weapons=>[1,1.1].some(ballistics=>effect.damage === UNITS[raceUnit(s,effect.team,'rocket')].damage * (1 + .2 * rank)*weapons*ballistics))));

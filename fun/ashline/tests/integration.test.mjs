@@ -65,6 +65,8 @@ for(const difficulty of ['easy','normal','hard']){
     if(difficulty!=='easy'){
       assert.ok(Object.keys(s.teams[1].research||{}).length>=3,'AI invests in research');
       assert.ok(s.entities.filter(e=>e.team===1&&e.type==='refinery').length>=2,'AI expands its economy');
+      const nexuses=s.entities.filter(e=>e.team===1&&e.type==='core'&&e.progress===1);
+      assert.ok(nexuses.length>=2&&nexuses.some(e=>Math.hypot(e.x-nexuses[0].x,e.y-nexuses[0].y)>20),'The starting economy funds completed remote nexuses without injected credits');
     }
     assert.equal(powerStats(s,1).status,'stable','AI sustains its power grid');
     const saved=encodeGame(s),loaded=decodeGame(saved).game;

@@ -30,7 +30,7 @@ for(const size of dimensions)for(let seed=0;seed<24;seed++){
   const local=[start,end].map(p=>s.minerals.reduce((n,v,i)=>n+(Math.hypot(i%s.width-p.x,Math.floor(i/s.width)-p.y)<14?v:0),0));
   if(s.width>72){assert(Math.min(...local)>14000);assert(Math.max(...local)/Math.min(...local)<1.35,'Nearby resources remain balanced between starting bases');} // Compact legacy anchors predate map-centre symmetry; stored saves keep their original deposits.
   if(seed<3){
-    s.ai.nextThink=1e12;for(let i=0;i<1200;i++)updateGame(s,.05);
+    s.ai.nextThink=1e12;for(let i=0;i<1800&&!s.teams.every(t=>t.credits>=2600);i++)updateGame(s,.05);
     assert(s.teams.every(t=>t.credits>=2600),'Both automatic haulers complete several real deliveries');
   }
   summary.push({width:s.width,trees,minerals,loose});

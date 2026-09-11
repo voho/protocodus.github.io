@@ -9,7 +9,7 @@ function quiet(){
   return s;
 }
 function add(s,type,team=0,x=30.5,y=30.5,kills=0){
-  const kind=BUILDINGS[type]?'building':'unit',d=BUILDINGS[type]||UNITS[type];
+  const kind=Object.hasOwn(BUILDINGS,type)?'building':'unit',d=kind==='building'?BUILDINGS[type]:UNITS[type];
   const e={id:s.nextId++,kind,type,team,x,y,size:d.size,hp:d.hp,maxHp:d.hp,progress:1,angle:0,cooldown:0,order:{type:'idle'},path:[],repath:0};
   if(kind==='unit'){e.kills=kills;e.hp=e.maxHp=unitStats(e).hp;}
   else{e.queue=[];s.navVersion++;}
@@ -21,7 +21,7 @@ const attack=(s,u,target)=>issueOrder(s,[u.id],{type:'attack',targetId:target.id
 // Every new unit, including the free hauler and paid production, starts without veterancy.
 assert(createGame('rookies').entities.filter(e=>e.kind==='unit').every(e=>e.kills===0&&unitRank(e)===0));
 {
-  const s=quiet(),barracks=add(s,'barracks',0,30,30);add(s,'reactor',0,25,30);
+  const s=quiet(),barracks=add(s,'barracks',0,30,30);add(s,'reactor',0,25,30);add(s,'core',0,21,30);
   assert(trainUnit(s,0,'rifle',barracks.id).ok);advance(s,5.1);
   const trained=s.entities.find(e=>e.type==='rifle');assert(trained);assert.equal(trained.kills,0);
   delete trained.kills;assert.equal(unitRank(trained),0,'Old units without personal kills remain recruits');

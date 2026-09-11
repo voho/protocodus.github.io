@@ -1,8 +1,0 @@
-{
-  "name": "razer",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "test": "node tests/track-check.mjs && node tests/simulation-check.mjs && node tests/handling-check.mjs && node tests/input-check.mjs && node tests/camera-check.mjs && node tests/audio-check.mjs"
-  }
-}

@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createGame, UNITS, issueOrder, updateGame } from '../sim.js';
+import { createGame, UNITS, issueOrder, updateGame, raceUnit } from '../sim.js';
 import { encodeGame, decodeGame } from '../save.js';
 const turn = (a,b) => Math.abs(Math.atan2(Math.sin(a-b),Math.cos(a-b)));
 function scene() {
   const s=createGame('steering-regression'); s.ai.nextThink=1e9; s.terrain.fill(0); s.minerals.fill(0);
   const template=structuredClone(s.entities.find(e=>e.type==='rifle')); s.entities=[]; s.navVersion++;
-  const add=(type,x,y,angle=0)=>{const d=UNITS[type],u={...structuredClone(template),id:s.nextId++,type,x,y,angle,size:d.size,hp:d.hp,maxHp:d.hp};s.entities.push(u);return u;};
+  const add=(type,x,y,angle=0)=>{const d=UNITS[type],u={...structuredClone(template),id:s.nextId++,type,x,y,angle,size:d.size,hp:d.hp,maxHp:d.hp};if(d.role==='harvester')Object.assign(u,{cargo:0,unload:0,unloadDepotId:null,harvestPhase:'gather'});s.entities.push(u);return u;};
   return {s,add};
 }
 test('head-on armor passes without rapid heading changes and settles motionless', () => {
@@ -31,3 +31,21 @@ test('combat remains responsive while armor rotates through a bounded shortest t
   s.visible.forEach(v=>v.fill(1));s.fogClock=.2;a.cooldown=0;
   const before=a.angle;updateGame(s,.05);assert(b.hp<520,'Armed guards react immediately');assert(turn(a.angle,before)<=3.2*.05+1e-8);
 });
+
+for(const race of ['organics','aiUnity'])for(const role of ['rifle','rocket','scout','tank','artillery','harvester','engineer','striker','constructor']){
+  test(`${race} ${role} rotates in place before moving and separates turning from travel`,()=>{
+    const {s,add}=scene();s.teams[0].race=race;
+    const unit=add(raceUnit(s,0,role),30.5,40.5,Math.PI),goal={x:44.5,y:45.5};
+    issueOrder(s,[unit.id],{type:'move',...goal});
+    let turning=0,traveling=0;
+    for(let tick=0;tick<800;tick++){
+      const before={x:unit.x,y:unit.y,angle:unit.angle};updateGame(s,.05);
+      const angle=turn(unit.angle,before.angle),distance=Math.hypot(unit.x-before.x,unit.y-before.y);
+      assert(!(angle>1e-8&&distance>1e-8),`Frame ${tick}: body turn ${angle} and movement ${distance} may not occur together`);
+      if(angle>1e-8){turning++;assert.equal(unit.moving,false,'Turning in place does not animate translation');}
+      if(distance>1e-8)traveling++;
+    }
+    assert(turning>0&&traveling>0,'The test exercises both phases instead of accepting a stationary unit');
+    assert(Math.hypot(unit.x-goal.x,unit.y-goal.y)<.081,'Turning restrictions must still allow exact destination arrival');
+  });
+}
