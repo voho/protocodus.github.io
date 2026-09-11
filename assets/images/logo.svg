@@ -1,70 +1,198 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:xlink="http://www.w3.org/1999/xlink"
+     width="1254" height="1254" viewBox="0 0 1254 1254"
+     role="img" aria-labelledby="logo-title logo-desc">
+  <title id="logo-title">Protocodus</title>
+  <desc id="logo-desc">A golden four-point spark above folded mint-green wings. Reconstructed as editable Bézier paths and native SVG gradients, with a transparent background.</desc>
   <defs>
-    <!-- "Plastic" aqua gradient for brackets -->
-    <linearGradient id="aquaPlastic" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#00FFC3"/>
-      <stop offset="0.55" stop-color="#00D9AA"/>
-      <stop offset="1" stop-color="#00B894"/>
-    </linearGradient>
+    <style>
+      .spark-core { fill: url(#spark-core); }
+      .gold-nw { fill: url(#gold-nw); }
+      .gold-ne { fill: url(#gold-ne); }
+      .gold-sw { fill: url(#gold-sw); }
+      .gold-se { fill: url(#gold-se); }
+      .mint-left { fill: url(#mint-left); }
+      .mint-right { fill: url(#mint-right); }
+      .teal-left { fill: url(#teal-left); }
+      .teal-right { fill: url(#teal-right); }
+    </style>
 
-    <!-- Subtle highlight facet for aqua -->
-    <linearGradient id="aquaHighlight" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#BFFFF0" stop-opacity="0.85"/>
-      <stop offset="1" stop-color="#BFFFF0" stop-opacity="0"/>
-    </linearGradient>
-
-    <!-- Gold "plastic" gradient for spark -->
-    <linearGradient id="goldPlastic" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#FFE07A"/>
-      <stop offset="0.55" stop-color="#FFC400"/>
-      <stop offset="1" stop-color="#FF9F00"/>
-    </linearGradient>
-
-    <!-- Spark gloss band -->
-    <linearGradient id="sparkGloss" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#FFF6C7" stop-opacity="0.75"/>
-      <stop offset="0.55" stop-color="#FFF6C7" stop-opacity="0.18"/>
-      <stop offset="1" stop-color="#FFF6C7" stop-opacity="0"/>
-    </linearGradient>
-
-    <!-- Facet gloss -->
-    <linearGradient id="sparkFacet" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.55"/>
-      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
-    </linearGradient>
-
-    <!-- Clip so gloss stays inside the star -->
-    <clipPath id="starClip">
-      <path d="M256 162L280 234L356 256L280 278L256 350L232 278L156 256L232 234Z"/>
-    </clipPath>
+    <radialGradient id="spark-core" gradientUnits="userSpaceOnUse" cx="0" cy="0" r="1"
+      gradientTransform="matrix(222.2 16.82 -14.23 187.98 631.39 446.18)">
+      <stop offset="0.00000" stop-color="#FDF8C3"/>
+      <stop offset="0.00053" stop-color="#FDF8C3"/>
+      <stop offset="0.06299" stop-color="#FDF8C2"/>
+      <stop offset="0.12546" stop-color="#FDF7BF"/>
+      <stop offset="0.18793" stop-color="#FDF6BA"/>
+      <stop offset="0.25039" stop-color="#FDF4B2"/>
+      <stop offset="0.37533" stop-color="#FDF09F"/>
+      <stop offset="0.50026" stop-color="#FDEA88"/>
+      <stop offset="0.75013" stop-color="#FDDE54"/>
+      <stop offset="0.87507" stop-color="#FDD83D"/>
+      <stop offset="1.00000" stop-color="#FDD328"/>
+    </radialGradient>
+    <radialGradient id="gold-nw" gradientUnits="userSpaceOnUse" cx="0" cy="0" r="1"
+      gradientTransform="matrix(358.57 73.05 -146.11 717.13 667.05 680)">
+      <stop offset="0.00000" stop-color="#FDED9D"/>
+      <stop offset="0.46796" stop-color="#FDED9D"/>
+      <stop offset="0.50122" stop-color="#FDEA90"/>
+      <stop offset="0.53447" stop-color="#FDE57F"/>
+      <stop offset="0.60097" stop-color="#FDDB5E"/>
+      <stop offset="0.63422" stop-color="#FDD652"/>
+      <stop offset="0.66748" stop-color="#FDD348"/>
+      <stop offset="0.70073" stop-color="#FDD243"/>
+      <stop offset="0.73398" stop-color="#FDD141"/>
+      <stop offset="0.80049" stop-color="#FDD342"/>
+      <stop offset="0.83374" stop-color="#FDD442"/>
+      <stop offset="0.86699" stop-color="#FDD43E"/>
+      <stop offset="0.88362" stop-color="#FDD33A"/>
+      <stop offset="0.90024" stop-color="#FDD234"/>
+      <stop offset="0.91687" stop-color="#FDD02A"/>
+      <stop offset="0.93350" stop-color="#FCCD1E"/>
+      <stop offset="0.95012" stop-color="#FCC90E"/>
+      <stop offset="0.95843" stop-color="#FCC604"/>
+      <stop offset="0.96051" stop-color="#FCC501"/>
+      <stop offset="0.96259" stop-color="#FCC500"/>
+      <stop offset="0.96675" stop-color="#FBC300"/>
+      <stop offset="0.98337" stop-color="#FBBC00"/>
+      <stop offset="1.00000" stop-color="#FAB300"/>
+    </radialGradient>
+    <radialGradient id="gold-ne" gradientUnits="userSpaceOnUse" cx="0" cy="0" r="1"
+      gradientTransform="matrix(644.01 71.37 -35.69 322 464.94 450.67)">
+      <stop offset="0.00000" stop-color="#FDF3A5"/>
+      <stop offset="0.33210" stop-color="#FDF3A5"/>
+      <stop offset="0.35297" stop-color="#FDEE93"/>
+      <stop offset="0.37384" stop-color="#FDEA83"/>
+      <stop offset="0.39471" stop-color="#FDE676"/>
+      <stop offset="0.41559" stop-color="#FDE36B"/>
+      <stop offset="0.45733" stop-color="#FDDC59"/>
+      <stop offset="0.49907" stop-color="#FDD64B"/>
+      <stop offset="0.58256" stop-color="#FCC935"/>
+      <stop offset="0.66605" stop-color="#FBBD23"/>
+      <stop offset="0.70779" stop-color="#FAB81C"/>
+      <stop offset="0.74954" stop-color="#F9B417"/>
+      <stop offset="0.79128" stop-color="#F8B316"/>
+      <stop offset="0.81215" stop-color="#F7B318"/>
+      <stop offset="0.83302" stop-color="#F7B51B"/>
+      <stop offset="0.85390" stop-color="#F6B821"/>
+      <stop offset="0.87477" stop-color="#F6BC2A"/>
+      <stop offset="0.89564" stop-color="#F6C236"/>
+      <stop offset="0.91651" stop-color="#F6CA45"/>
+      <stop offset="0.93738" stop-color="#F7D458"/>
+      <stop offset="0.95826" stop-color="#F7E071"/>
+      <stop offset="0.97913" stop-color="#F9EF8E"/>
+      <stop offset="0.98956" stop-color="#F9F79F"/>
+      <stop offset="0.99478" stop-color="#FAFCA8"/>
+      <stop offset="1.00000" stop-color="#FAFFB1"/>
+    </radialGradient>
+    <radialGradient id="gold-sw" gradientUnits="userSpaceOnUse" cx="0" cy="0" r="1"
+      gradientTransform="matrix(-802.46 131.43 -61.49 -375.46 1000 395.82)">
+      <stop offset="0.00000" stop-color="#FDEC78"/>
+      <stop offset="0.53317" stop-color="#FDEC78"/>
+      <stop offset="0.56234" stop-color="#FDDB5C"/>
+      <stop offset="0.57693" stop-color="#FDD450"/>
+      <stop offset="0.59152" stop-color="#FDCE45"/>
+      <stop offset="0.60611" stop-color="#FCC93D"/>
+      <stop offset="0.62070" stop-color="#FCC636"/>
+      <stop offset="0.63529" stop-color="#FCC331"/>
+      <stop offset="0.64987" stop-color="#FBC12E"/>
+      <stop offset="0.67905" stop-color="#FBC02D"/>
+      <stop offset="0.70823" stop-color="#FBC331"/>
+      <stop offset="0.76658" stop-color="#FDCE43"/>
+      <stop offset="0.79576" stop-color="#FDD34B"/>
+      <stop offset="0.81035" stop-color="#FDD54D"/>
+      <stop offset="0.82494" stop-color="#FDD54E"/>
+      <stop offset="0.83953" stop-color="#FDD44C"/>
+      <stop offset="0.85411" stop-color="#FCD048"/>
+      <stop offset="0.86870" stop-color="#FBCB40"/>
+      <stop offset="0.88329" stop-color="#F9C333"/>
+      <stop offset="0.89788" stop-color="#F7B822"/>
+      <stop offset="0.91247" stop-color="#F4A90B"/>
+      <stop offset="0.91612" stop-color="#F4A504"/>
+      <stop offset="0.91794" stop-color="#F3A201"/>
+      <stop offset="0.91976" stop-color="#F3A000"/>
+      <stop offset="0.92706" stop-color="#F19600"/>
+      <stop offset="0.94165" stop-color="#EC7F00"/>
+      <stop offset="0.95623" stop-color="#E66200"/>
+      <stop offset="0.97082" stop-color="#E04000"/>
+      <stop offset="0.97812" stop-color="#DC2C00"/>
+      <stop offset="0.98541" stop-color="#D71700"/>
+      <stop offset="0.99271" stop-color="#D30000"/>
+      <stop offset="1.00000" stop-color="#CE0000"/>
+    </radialGradient>
+    <radialGradient id="gold-se" gradientUnits="userSpaceOnUse" cx="0" cy="0" r="1"
+      gradientTransform="matrix(-283.1 27.13 -54.26 -566.2 621.02 306.72)">
+      <stop offset="0.00000" stop-color="#FDEE76"/>
+      <stop offset="0.36491" stop-color="#FDEE76"/>
+      <stop offset="0.40460" stop-color="#FDE563"/>
+      <stop offset="0.44430" stop-color="#FDDB54"/>
+      <stop offset="0.48399" stop-color="#FDD246"/>
+      <stop offset="0.52368" stop-color="#FCCA3B"/>
+      <stop offset="0.56338" stop-color="#FCC432"/>
+      <stop offset="0.60307" stop-color="#FBBF2B"/>
+      <stop offset="0.64276" stop-color="#FBBD26"/>
+      <stop offset="0.68246" stop-color="#FABB22"/>
+      <stop offset="0.76184" stop-color="#FABB1F"/>
+      <stop offset="0.80153" stop-color="#FBBB1E"/>
+      <stop offset="0.84123" stop-color="#FCB91D"/>
+      <stop offset="0.88092" stop-color="#FEB31C"/>
+      <stop offset="0.92061" stop-color="#FFA91A"/>
+      <stop offset="0.94046" stop-color="#FFA118"/>
+      <stop offset="0.96031" stop-color="#FF9815"/>
+      <stop offset="0.98015" stop-color="#FF8C12"/>
+      <stop offset="1.00000" stop-color="#FF7E0F"/>
+    </radialGradient>
+    <radialGradient id="mint-left" gradientUnits="userSpaceOnUse" cx="0" cy="0" r="1"
+      gradientTransform="matrix(528.56 307.49 -190.13 326.81 404.4 583.18)">
+      <stop offset="0.00000" stop-color="#CDF6DC"/>
+      <stop offset="0.40870" stop-color="#CDF6DC"/>
+      <stop offset="0.55653" stop-color="#A0ECD1"/>
+      <stop offset="0.63044" stop-color="#8BE6CC"/>
+      <stop offset="0.70435" stop-color="#79E2C7"/>
+      <stop offset="0.77826" stop-color="#69DEC3"/>
+      <stop offset="0.85218" stop-color="#5CDBC0"/>
+      <stop offset="0.92609" stop-color="#51D8BD"/>
+      <stop offset="1.00000" stop-color="#49D6BB"/>
+    </radialGradient>
+    <radialGradient id="mint-right" href="#mint-left" xlink:href="#mint-left"
+      gradientTransform="matrix(-528.56 307.49 190.13 326.81 848.6 583.18)"/>
+    <radialGradient id="teal-left" gradientUnits="userSpaceOnUse" cx="0" cy="0" r="1"
+      gradientTransform="matrix(1371.79 1763.04 -480.63 373.97 1089.48 2299.99)">
+      <stop offset="0.00000" stop-color="#68D9C2"/>
+      <stop offset="0.80304" stop-color="#68D9C2"/>
+      <stop offset="0.82766" stop-color="#58C9B3"/>
+      <stop offset="0.85228" stop-color="#4CBBA7"/>
+      <stop offset="0.87690" stop-color="#41AF9E"/>
+      <stop offset="0.90152" stop-color="#39A695"/>
+      <stop offset="0.95076" stop-color="#2C998A"/>
+      <stop offset="1.00000" stop-color="#249082"/>
+    </radialGradient>
+    <radialGradient id="teal-right" gradientUnits="userSpaceOnUse" cx="0" cy="0" r="1"
+      gradientTransform="matrix(1757.36 -1888.6 416.88 387.91 -13.24 2299.99)">
+      <stop offset="0.00000" stop-color="#68DAC1"/>
+      <stop offset="0.76990" stop-color="#68DAC1"/>
+      <stop offset="0.79866" stop-color="#58C9B3"/>
+      <stop offset="0.82743" stop-color="#4CBCA8"/>
+      <stop offset="0.85619" stop-color="#42B19E"/>
+      <stop offset="0.88495" stop-color="#3AA897"/>
+      <stop offset="0.94248" stop-color="#2E9B8C"/>
+      <stop offset="1.00000" stop-color="#279486"/>
+    </radialGradient>
   </defs>
-
-  <!-- LEFT BRACKET ( < ) -->
-  <path fill="url(#aquaPlastic)"
-        d="M120 124L40 256L120 388L172 336L120 256L172 176Z"/>
-  <path fill="url(#aquaHighlight)"
-        d="M120 124L76 206L106 224L144 158Z"/>
-
-  <!-- RIGHT BRACKET ( > ) -->
-  <path fill="url(#aquaPlastic)"
-        d="M392 124L472 256L392 388L340 336L392 256L340 176Z"/>
-  <path fill="url(#aquaHighlight)"
-        d="M392 124L436 206L406 224L368 158Z"/>
-
-  <!-- STAR SPARK (base) -->
-  <path fill="url(#goldPlastic)"
-        d="M256 162L280 234L356 256L280 278L256 350L232 278L156 256L232 234Z"/>
-
-  <!-- SPARK GLOSS (symmetrical + clipped) -->
-  <g clip-path="url(#starClip)">
-    <!-- top gloss band -->
-    <path fill="url(#sparkGloss)"
-          d="M118 188C168 140 230 132 256 132C282 132 344 140 394 188C348 214 300 224 256 224C212 224 164 214 118 188Z"/>
-
-    <!-- mirrored facet highlights -->
-    <path fill="url(#sparkFacet)"
-          d="M256 170L238 224L210 244L232 234L256 170Z"/>
-    <path fill="url(#sparkFacet)"
-          d="M256 170L274 224L302 244L280 234L256 170Z"/>
+  <!-- Spark: outer silhouette, four folded faces, and a soft central highlight. -->
+  <g id="spark">
+    <path class="spark-core" d="M 626.7 149 C 636.26 176.45 631.32 444.92 905 467.5 C 635.6 501.9 640.3 711.47 626.1 783 C 615.5 671.83 585.61 490.51 344 467.5 C 480.23 455.15 607.11 388.8 626.7 149 Z"/>
+    <path class="gold-nw" d="M 626.7 149 C 607.11 388.8 480.23 455.15 344 467.5 L 464 467.5 C 576.25 460.61 621.44 425.58 626.5 304 L 626.7 149 Z"/>
+    <path class="gold-ne" d="M 626.7 149 C 636.26 176.45 631.32 444.92 905 467.5 L 789 467.5 C 674.95 462.03 633.46 426.03 626.5 304 L 626.7 149 Z"/>
+    <path class="gold-sw" d="M 344 467.5 C 585.61 490.51 615.5 671.83 626.1 783 L 626.5 634 C 622.57 543.42 605.46 473.44 464 467.5 L 344 467.5 Z"/>
+    <path class="gold-se" d="M 905 467.5 C 635.6 501.9 640.3 711.47 626.1 783 L 626.5 634 C 630.58 512.5 673.06 470.83 789 467.5 L 905 467.5 Z"/>
+  </g>
+  <!-- Wings: deep-teal undersides and pale-mint folded upper faces. -->
+  <g id="wings">
+    <path class="teal-left" d="M 95.5 567 C 159.57 658.16 110 702.12 160 799 C 221.43 911.17 333.1 913.16 418 912 C 477.45 916.07 567.23 898.89 625.5 1031 L 626.5 882 C 573.9 754.24 406.29 762.02 345 746.5 C 277.26 730.91 248.7 700.54 222 653 C 218.18 651.01 179.36 562.61 95.5 567 Z"/>
+    <path class="teal-right" d="M 1158 567 C 1093.34 664.78 1145.22 703.22 1093 801 C 1027.67 920.23 901.36 910.83 835 913 C 667.45 902.91 649.37 995.52 625.5 1031 L 626.5 882 C 681.5 753.97 845.86 762.65 905 747 C 976.22 734.05 1008.06 696.39 1031 655 C 1040.45 641.92 1080.06 562.79 1158 567 Z"/>
+    <path class="mint-left" d="M 95.5 567 C 179.36 562.61 218.18 651.01 222 653 C 248.7 700.54 277.26 730.91 345 746.5 C 406.29 762.02 573.9 754.24 626.5 882 Q 628 950 625.5 1031 C 620.14 923.27 569.84 853.7 480 821.5 C 388.02 790.09 299.14 802.31 230 769 C 127.42 715.31 156.23 631 95.5 567 Z"/>
+    <path class="mint-right" d="M 1158 567 C 1080.06 562.79 1040.45 641.92 1031 655 C 1008.06 696.39 976.22 734.05 905 747 C 845.86 762.65 681.5 753.97 626.5 882 L 625.5 1031 C 631.94 928.3 677.27 855.52 773 822 C 855.69 791.42 958.32 801.47 1022 770 C 1124.99 718.74 1099.81 630.23 1158 567 Z"/>
   </g>
 </svg>

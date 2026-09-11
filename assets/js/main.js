@@ -170,7 +170,7 @@
       if (!this.ctx) return;
       document.body.prepend(this.canvas);
 
-      this.mint = readToken('--mint') || readToken('--teal') || [0, 255, 195];
+      this.mint = readToken('--mint') || readToken('--teal') || [135, 215, 190];
 
       this.sprites = [];
       this.gen = 0;
