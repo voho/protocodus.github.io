@@ -28,7 +28,7 @@
   <!-- Fonts (self-hosted) -->
   <link rel="preload" href="assets/fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="assets/fonts/space-grotesk-latin-ext.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="assets/css/style.css?v=20260911-brand">
+  <link rel="stylesheet" href="assets/css/style.css?v=20260911-studio-7">
 </head>
 
 <body class="studio-page">
@@ -98,10 +98,11 @@
       <div class="wrap experience-inner">
         <a class="experience-label text-link" href="https://cz.linkedin.com/in/vohocz">Founder’s engineering experience</a>
         <div class="experience-logos">
-          <span class="experience-item">Česká spořitelna</span>
-          <span class="experience-item">GoodData</span>
-          <span class="experience-item">Amazon</span>
-          <span class="experience-item">Binance</span>
+          <a class="experience-item" href="https://www.csas.cz/">Česká spořitelna</a>
+          <a class="experience-item" href="https://www.gooddata.com/">GoodData</a>
+          <a class="experience-item" href="https://www.amazon.com/">Amazon</a>
+          <a class="experience-item" href="https://www.binance.com/">Binance</a>
+          <a class="experience-item" href="https://evangelist.so/">Evangelist</a>
         </div>
       </div>
     </section>
@@ -223,10 +224,6 @@
 
         <dl class="details reveal">
           <div class="detail">
-            <dt>Registered name</dt>
-            <dd>Protocodus s.r.o.</dd>
-          </div>
-          <div class="detail">
             <dt>Registered office</dt>
             <dd>Příčná 1892/4, Nové Město<br>110 00 Praha 1, Czech Republic</dd>
           </div>
@@ -254,29 +251,20 @@
       </div>
     </section>
 
-    <section class="band band-contact" id="contact">
-      <div class="wrap">
-        <div class="contact-box reveal">
-          <span class="tag">Contact</span>
-          <h2 class="title">Get in touch.</h2>
-          <p class="lede">For engineering projects, instrument support or licensing enquiries.</p>
-          <a href="mailto:protocodus@proton.me" class="mail">protocodus@proton.me</a>
-        </div>
-      </div>
-    </section>
-
   </main>
 
-  <footer class="footer">
-    <div class="wrap">
-      <div class="footer-top">
-        <a href="#top" class="brand" aria-label="Protocodus home">
-          <img src="assets/images/logo.svg?v=20260911" alt="" class="brand-mark">
-          <span class="brand-name">Protocodus</span>
-        </a>
+  <footer class="band band-contact" id="contact" aria-labelledby="contact-title">
+    <div class="wrap contact-layout">
+      <div class="contact-box reveal">
+        <span class="tag">Contact</span>
+        <h2 class="title" id="contact-title">Get in touch.</h2>
+        <p class="lede">For engineering projects, instrument support or licensing enquiries.</p>
+        <a href="mailto:protocodus@proton.me" class="mail">protocodus@proton.me</a>
       </div>
-
-      <div class="footer-bottom">
+      <div class="contact-identity">
+        <a href="#top" class="contact-logo" aria-label="Protocodus home">
+          <img src="assets/images/logo.svg?v=20260911" alt="" width="1254" height="1254">
+        </a>
         <p class="footer-meta">© <span id="year">2026</span> Protocodus s.r.o.</p>
       </div>
     </div>
