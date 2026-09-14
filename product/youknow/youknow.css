@@ -3,6 +3,10 @@
 .research-layout { display: grid; grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.25fr); gap: clamp(2rem, 4vw, 3.5rem); align-items: start; }
 .research-copy .lede:first-child { margin-top: 0; }
 .research-copy .resource-link { margin-top: 1rem; }
+.fidelity-highlights { margin-top: clamp(2.25rem, 4vw, 3.5rem); margin-bottom: 1.25rem; }
+.fidelity-highlights li { border-color: color-mix(in srgb, var(--signal) 40%, transparent); }
+.circuit-fact { display: block; margin-bottom: 0.9rem; color: var(--signal); font-size: 0.875rem; font-weight: 500; }
+.fidelity-highlights h3 { font-size: 1.25rem; }
 .soundcloud-shell { padding: clamp(0.5rem, 1vw, 0.875rem); border: 1px solid var(--line-lift); border-radius: var(--radius-md); background: var(--panel); }
 /* The cross-origin player has no dark palette. Hide optional artwork and pair
    this filter with its source accent #03422e to render as Cabbage (#87D7BE). */
@@ -11,7 +15,27 @@
 @media (forced-colors: active) {
   .soundcloud-player { filter: none; }
 }
-.model-features li { border-color: color-mix(in srgb, var(--signal) 35%, transparent); }
+.circuit-details { border-bottom: 1px solid var(--line-lift); }
+.circuit-group { border-top: 1px solid var(--line-lift); }
+.circuit-group summary { display: flex; align-items: center; gap: clamp(1rem, 2.5vw, 2rem); padding-block: 1.5rem; cursor: pointer; list-style: none; }
+.circuit-group summary::-webkit-details-marker { display: none; }
+.circuit-number { align-self: flex-start; padding-top: 0.25rem; color: var(--signal); font-size: 0.875rem; }
+.circuit-heading { flex: 1; min-width: 0; font-size: clamp(1.125rem, 1rem + 0.5vw, 1.375rem); font-weight: 500; letter-spacing: -0.02em; line-height: 1.4; }
+.circuit-summary { display: block; margin-top: 0.4rem; color: var(--fg-muted); font-size: 0.9375rem; font-weight: 400; letter-spacing: 0; line-height: 1.6; }
+.circuit-toggle { position: relative; flex: 0 0 1.25rem; height: 1.25rem; color: var(--signal); }
+.circuit-toggle::before, .circuit-toggle::after { content: ''; position: absolute; top: calc(50% - 1px); left: 0; width: 100%; height: 2px; background: currentColor; }
+.circuit-toggle::after { transform: rotate(90deg); }
+.circuit-group[open] .circuit-toggle::after { display: none; }
+.circuit-group summary:hover .circuit-heading { color: var(--signal); }
+.model-features { padding-bottom: 2rem; }
+.model-features li { border: 0; padding-top: 0.5rem; }
+.research-evidence { margin-top: 2rem; max-width: 78ch; }
+.research-evidence h3 { font-size: 1.125rem; font-weight: 500; }
+.research-evidence p { margin-top: 0.75rem; color: var(--fg-muted); }
+.research-evidence .resource-links { margin-top: 0.75rem; }
+@media (forced-colors: active) {
+  .circuit-toggle { forced-color-adjust: none; color: ButtonText; }
+}
 @media (max-width: 880px) {
   .research-layout { grid-template-columns: 1fr; gap: 1.75rem; }
 }
