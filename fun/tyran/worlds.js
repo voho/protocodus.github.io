@@ -237,7 +237,7 @@ export class WorldRenderer {
       for(let depth=0;depth<3;depth++)if(!this.sceneryLayers[depth].has(row))this.queueWarm(`scenery:${row}:${depth}`,()=>this.getSceneryLayer(row,this.getBand(row),depth));
     }
   }
-  draw(ctx,W,H,scroll,time,quality='high',focusX=WIDTH*.5) {
+  draw(ctx,W,H,scroll,time,quality='high',focusX=W*.5) {
     const s=W/WIDTH,h=H/s,focus=Number(focusX);
     const normalized=clamp(Number.isFinite(focus)?focus/Math.max(1,W):.5,0,1),bleed=WIDTH*.01;
     // Let the terrain breathe beneath the ship: the complete tile strip is
@@ -276,7 +276,7 @@ export class WorldRenderer {
     if(this.sections.has(section))return this.sections.get(section);
     const rng=random((section*87317)^(this.index*19433+1927));
     const district=((section%4)+4)%4;
-    const out={index:section,district,pan:rng(),offset:rng()*1350,flip:rng()>.5,center:230+rng()*740,phase:rng()*TAU};
+    const out={index:section,district,center:230+rng()*740,phase:rng()*TAU};
     this.sections.set(section,out);return out;
   }
   getArtTile(row) {
@@ -532,8 +532,8 @@ export class WorldRenderer {
     const add=(type,x,y,size,variant) => {
       const structure=STRUCTURES.has(type),maxHp=structure?45+size*.45:12+size*.22;
       const prop={id:`${this.index}:${row}:${props.length}`,row,x,y,type,size,variant,hp:maxHp,maxHp,value:structure?12:4,color:this.world.color,emissive:EMISSIVE.has(type)};
-      // Kept for existing callers; draw() reuses the same object instead of copying it each frame.
-      Object.defineProperty(prop,'ref',{value:prop});props.push(prop);
+      // draw() reuses the same object instead of copying it each frame.
+      props.push(prop);
       const key=Math.floor(y/HIT_CELL)*8+Math.max(0,Math.min(7,Math.floor(x/HIT_CELL)));
       let bucket=this.hitBuckets.get(key);if(!bucket){bucket=[];this.hitBuckets.set(key,bucket);}bucket.push(prop);
     };
