@@ -11,6 +11,8 @@
 /* The cross-origin player has no dark palette. Hide optional artwork and pair
    this filter with its source accent #03422e to render as Cabbage (#87D7BE). */
 .soundcloud-player { display: block; border: 0; border-radius: var(--radius-sm); background: #fff; color-scheme: light; filter: invert(0.95) hue-rotate(180deg) saturate(1.4); }
+.soundcloud-attribution { margin: 0.75rem 0.25rem 0.25rem; color: var(--fg-faint); font-size: 0.8125rem; line-height: 1.6; }
+.soundcloud-attribution a:hover { color: var(--signal); }
 .soundcloud-shell + .resource-link { margin-top: 1rem; }
 @media (forced-colors: active) {
   .soundcloud-player { filter: none; }
