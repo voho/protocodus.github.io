@@ -11,7 +11,7 @@ try {
   await page.goto(new URL('worlds.js',process.env.TYRAN_URL||'http://127.0.0.1:8773/fun/tyran/').href);
   await page.setContent('<body style="margin:0;background:#09131c"><canvas id="world"></canvas></body>');
   const results=await page.evaluate(async()=>{
-    const {WorldRenderer,WORLDS}=await import('./worlds.js');
+    const {WorldRenderer,WORLDS,PARALLAX_LAYERS}=await import('./worlds.js');
     const canvas=document.querySelector('canvas'),c=canvas.getContext('2d');canvas.width=1200;canvas.height=960;
     const result=[];
     for(let worldIndex=0;worldIndex<10;worldIndex++) {
@@ -26,13 +26,13 @@ try {
       }
       canvas.width=1200;canvas.height=960;w.draw(c,1200,960,440,2,'high');
       const p=w.visibleProps.find(p=>p.screenY>40&&p.screenY<900),identity=p.id,original={x:p.x,y:p.y};
-      const partial=w.hit(p.x,p.y+440,0,1,440);const hp=p.hp;
+      const partial=w.hit((p.screenX??p.x),p.y+440,0,1,440);const hp=p.hp;
       w.draw(c,430,960,100000,2,'low');w.draw(c,1900,960,440,2,'high');
       const retained=w.getBand(p.row).find(p=>p.id===identity);
       const damagePersistent=retained===p&&retained.hp===hp&&retained.x===original.x&&retained.y===original.y;
-      const destroyed=w.hit(p.x*w.scale,(p.y+440)*w.scale,0,100000,440);
+      const destroyed=w.hit((p.screenX??p.x)*w.scale,(p.y+440)*w.scale,0,100000,440);
       w.draw(c,1200,960,150000,2,'low');w.draw(c,1200,960,440,2,'high');
-      const paidTwice=w.hit(p.x,p.y+440,0,100000,440).some(e=>e.x===p.x&&e.y===p.y+440);
+      const paidTwice=w.hit((p.screenX??p.x),p.y+440,0,100000,440).some(e=>e.x===(p.screenX??p.x)&&e.y===p.y+440);
       // Tile edges must be as continuous as neighboring source pixels, not a new picture seam.
       let seamRatio=0;
       for(let row=-2;row<=1;row++) {
@@ -58,7 +58,7 @@ try {
       delayed.art=art;delayed.draw(c,1200,960,400,0,'low');
       const loadStable=delayed.getBand(before.row).includes(before)&&before.hp===beforeHp;
       warm.sort((a,b)=>a-b);
-      result.push({world:WORLDS[worldIndex].id,coldMaxMs:Math.max(...cold),seamRatio,medianMs:warm[Math.floor(warm.length*.5)],p95Ms:warm[Math.floor(warm.length*.95)],damagePersistent,destroyed:destroyed.length,paidTwice,loadStable,gradients,props:w.visibleProps.length,tiles:w.tiles.size,layers:w.sceneryLayers.size});
+      result.push({world:WORLDS[worldIndex].id,coldMaxMs:Math.max(...cold),seamRatio,medianMs:warm[Math.floor(warm.length*.5)],p95Ms:warm[Math.floor(warm.length*.95)],damagePersistent,destroyed:destroyed.length,paidTwice,loadStable,gradients,props:w.visibleProps.length,tiles:w.tiles.size,cachePlanes:w.sceneryLayers.length,parallax:PARALLAX_LAYERS.map(layer=>layer.id)});
       if(worldIndex===0||worldIndex===3||worldIndex===5||worldIndex===7) {
         const montage=document.createElement('canvas');montage.width=1600;montage.height=850;const mc=montage.getContext('2d');
         const surface=document.createElement('canvas');surface.width=1200;surface.height=2400;const sc=surface.getContext('2d');
@@ -70,7 +70,7 @@ try {
     }
     return result;
   });
-  for(const r of results){assert(r.seamRatio<2.5,`${r.world}: no discontinuous artwork chunk edges`);assert(r.damagePersistent,`${r.world}: partial damage survives viewport changes/cache eviction`);assert(r.destroyed>0,`${r.world}: destructible scenery`);assert.equal(r.paidTwice,false,`${r.world}: no duplicate salvage`);assert(r.loadStable,`${r.world}: late image load keeps scenery identity/damage`);assert.equal(r.gradients,0,`${r.world}: cached warm rendering has no gradients`);}
+  for(const r of results){assert(r.seamRatio<2.5,`${r.world}: no discontinuous artwork chunk edges`);assert(r.damagePersistent,`${r.world}: partial damage survives viewport changes/cache eviction`);assert(r.destroyed>0,`${r.world}: destructible scenery`);assert.equal(r.paidTwice,false,`${r.world}: no duplicate salvage`);assert(r.loadStable,`${r.world}: late image load keeps scenery identity/damage`);assert.equal(r.gradients,0,`${r.world}: cached warm rendering has no gradients`);assert.equal(r.cachePlanes,3,`${r.world}: three cached foreground planes back the five-plane stack`);assert.deepEqual(r.parallax,['substrate','ground','ridge','canopy','foreground'],`${r.world}: five parallax planes stay registered`);}
   assert.deepEqual(errors,[]);
   for(const index of [0,3,5,7]){const data=await page.evaluate(i=>window[`montage${i}`],index);await writeFile(`${output}/world-${index}-districts.png`,Buffer.from(data.split(',')[1],'base64'));}
   await writeFile(`${output}/results.json`,JSON.stringify(results,null,2));

@@ -10,7 +10,7 @@ Use case: stylized-concept. Asset type: original cinematic title-screen artwork 
 
 ## Terrain paintings
 
-Ten original 1024 × 1536 orthographic terrain paintings were generated with the built-in ImageGen tool on 2026-09-15 and exported as WebP at quality 88. Exact prompts, generation method, and original source paths are recorded in [world-prompts.json](./world-prompts.json). Original PNG files remain preserved in the generation directory. The renderer adds destructible scenery, layered clouds, particles, and moving light over these backgrounds; procedural terrain remains available while artwork loads.
+Ten original 1024 × 1536 orthographic terrain paintings were generated with the built-in ImageGen tool on 2026-09-15 and exported as WebP at quality 88. Exact prompts, generation method, and original source paths are recorded in [world-prompts.json](./world-prompts.json). Original PNG files remain preserved in the generation directory. The source paintings stay in the repository for provenance; the runtime loads the tiled library below instead of one tall background image. The renderer adds destructible scenery, layered clouds, particles, and moving light over these backgrounds; procedural terrain remains available while artwork loads.
 
 - `world-jungle.webp` — Emerald Frontier
 - `world-snow.webp` — Polar Silence
@@ -22,6 +22,16 @@ Ten original 1024 × 1536 orthographic terrain paintings were generated with the
 - `world-neon.webp` — Neon Afterlife
 - `world-alien.webp` — Luminous Garden
 - `world-void.webp` — Obsidian Citadel
+
+## Terrain tile library
+
+`terrain-tiles/<world>/tile-00.webp` through `tile-05.webp` are the production runtime assets. Each world has six sharpened 600 × 512 tiles (two columns by three rows) cut from its orthographic painting. The renderer assembles two rows of tiles into 1200 × 1024 chunks, caches those chunks independently, and shifts the complete strip by a 1% X-axis bleed as the pilot moves. This keeps the flight surface crisp, streamable, and free of a single-image draw path.
+
+The three higher scenery caches sit above the tile ground: rocks and shrubs, trees and tall vegetation, then structures and high silhouettes. Clouds are rendered as the fifth foreground plane.
+
+## Ship sprite variants
+
+Ship hulls remain procedural so every palette can share one crisp renderer. Each hull is prewarmed into three cached Canvas sprites (`tilt -1`, `level`, `tilt +1`); flight only swaps those variants while the nose heading stays fixed. Exhaust, shadow and bloom are drawn in the same pass for a readable silhouette at speed.
 
 ## Fonts
 

@@ -11,21 +11,28 @@ export const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 const rand = (a, b) => a + Math.random() * (b - a);
 const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const TAU = Math.PI * 2;
+// Hostile fire uses a spectrum keyed to hull class. Smaller craft throw
+// compact, low-damage rounds; capital ships earn the larger, brighter shapes.
+export const BULLET_SPECTRUM = Object.freeze([
+  '#75f5ff', '#71ffae', '#d7ff62', '#ffe16a', '#ffad62',
+  '#ff718f', '#ff66dc', '#b07dff', '#6d9dff', '#ff5d78',
+]);
+const MAX_HOSTILE_BULLETS = 78;
 
 // Every profile occupies a different niche. Direct DPS is intentionally
 // close across the roster; range, spread, piercing, splash and homing decide
 // when a profile is strongest instead of one option dominating every sector.
 export const WEAPONS = [
-  { id: 'pulse', name: 'Pulse Array', tag: 'BALANCED', description: 'Twin bolts with clean reach and reliable tracking.', hotkey: '1', kind: 'pulse', color: '#9cfff0', interval: .17, damage: 9.8, count: 2, spread: .018, speed: 900, life: 1.35, radius: 3.8 },
-  { id: 'scatter', name: 'Scatter Bloom', tag: 'CLOSE RANGE', description: 'Six heavy pellets. Devastating when you fly into the lane.', hotkey: '2', kind: 'scatter', color: '#ffd18e', interval: .43, damage: 5.45, count: 6, spread: .24, speed: 790, life: 1.05, radius: 3.5 },
-  { id: 'lance', name: 'Solar Lance', tag: 'PIERCING', description: 'A slow, surgical beam that passes through armored targets.', hotkey: '3', kind: 'lance', color: '#c5b4ff', interval: .64, damage: 40, count: 1, spread: 0, speed: 1_280, life: 1.05, radius: 5.2, pierce: 2 },
-  { id: 'seeker', name: 'Seeker Swarm', tag: 'HOMING', description: 'Patient micro-missiles curve toward evasive ships.', hotkey: '4', kind: 'seeker', color: '#9ee8ff', interval: .36, damage: 12.3, count: 2, spread: .10, speed: 445, life: 3.6, radius: 5.8, homing: 4.7 },
-  { id: 'plasma', name: 'Plasma Mortar', tag: 'BLAST', description: 'One volatile orb. Impact blooms into a controlled shockwave.', hotkey: '5', kind: 'plasma', color: '#ff9e7d', interval: .41, damage: 24, count: 1, spread: .012, speed: 640, life: 2.45, radius: 8, splash: 50, splashFactor: .46 },
-  { id: 'arc', name: 'Arc Driver', tag: 'CHAIN', description: 'A crackling dart jumps to nearby ships after each hit.', hotkey: '6', kind: 'arc', color: '#ffe88d', interval: .24, damage: 11.3, count: 1, spread: .015, speed: 930, life: 1.25, radius: 4.4, chain: 2, chainRange: 155, chainFactor: .63 },
+  { id: 'pulse', name: 'Pulse Array', tag: 'Balanced', description: 'Twin bolts with clean reach and reliable tracking.', hotkey: '1', kind: 'pulse', color: '#9cfff0', interval: .17, damage: 9.8, count: 2, spread: .018, speed: 900, life: 1.35, radius: 3.8 },
+  { id: 'scatter', name: 'Scatter Bloom', tag: 'Close range', description: 'Six heavy pellets. Devastating when you fly into the lane.', hotkey: '2', kind: 'scatter', color: '#ffd18e', interval: .43, damage: 5.45, count: 6, spread: .24, speed: 790, life: 1.05, radius: 3.5 },
+  { id: 'lance', name: 'Solar Lance', tag: 'Piercing', description: 'A slow, surgical beam that passes through armored targets.', hotkey: '3', kind: 'lance', color: '#c5b4ff', interval: .64, damage: 40, count: 1, spread: 0, speed: 1_280, life: 1.05, radius: 5.2, pierce: 2 },
+  { id: 'seeker', name: 'Seeker Swarm', tag: 'Homing', description: 'Patient micro-missiles curve toward evasive ships.', hotkey: '4', kind: 'seeker', color: '#9ee8ff', interval: .36, damage: 12.3, count: 2, spread: .10, speed: 445, life: 3.6, radius: 5.8, homing: 4.7 },
+  { id: 'plasma', name: 'Plasma Mortar', tag: 'Blast', description: 'One volatile orb. Impact blooms into a controlled shockwave.', hotkey: '5', kind: 'plasma', color: '#ff9e7d', interval: .41, damage: 24, count: 1, spread: .012, speed: 640, life: 2.45, radius: 8, splash: 50, splashFactor: .46 },
+  { id: 'arc', name: 'Arc Driver', tag: 'Chain', description: 'A crackling dart jumps to nearby ships after each hit.', hotkey: '6', kind: 'arc', color: '#ffe88d', interval: .24, damage: 11.3, count: 1, spread: .015, speed: 930, life: 1.25, radius: 4.4, chain: 2, chainRange: 155, chainFactor: .63 },
 ];
 const weaponById = new Map(WEAPONS.map(weapon => [weapon.id, weapon]));
 export const weaponInfo = id => weaponById.get(id) || WEAPONS[0];
-export const comboLabel = combo => combo >= 5 ? 'RAMPAGE' : combo >= 3 ? 'MULTI KILL' : combo >= 2 ? 'DOUBLE KILL' : '';
+export const comboLabel = combo => combo >= 5 ? 'Rampage' : combo >= 3 ? 'Multi kill' : combo >= 2 ? 'Double kill' : '';
 const comboTier = combo => combo >= 5 ? 3 : combo >= 3 ? 2 : combo >= 2 ? 1 : 0;
 const comboDamageFor = combo => [1, 1.1, 1.18, 1.27][comboTier(combo)];
 const comboBlastFor = combo => [1, 1.12, 1.24, 1.38][comboTier(combo)];
@@ -137,7 +144,7 @@ export function beginLevel(s, level) {
   s.duration = 90 + s.level * 3;
   const stats = shipStats(s.upgrades);
   s.players = Array.from({ length: s.mode }, (_, i) => {
-    const x = s.width * (s.mode === 1 ? .5 : i ? .62 : .38), y = s.height * .78;
+    const x = s.width * (s.mode === 1 ? .5 : i ? .62 : .38), y = s.height * .68;
     return { id: i, x, y, px: x, py: y, vx: 0, vy: 0, mass: stats.mass, thrust: .9, radius: 17, hull: stats.hull, shield: stats.shield, maxHull: stats.hull, maxShield: stats.shield, fire: 0, hurt: 0, lastHit: -10, bank: 0, alive: true };
   });
   return s;
@@ -211,7 +218,15 @@ function shoot(s, p) {
 }
 
 function hostileShot(s, e, angle, speed = 220, radius = 5) {
-  s.bullets.push({ x: e.x, y: e.y + e.radius * .65, px: e.x, py: e.y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, damage: e.boss ? 17 : 10 + e.type * 1.6, radius, team: -1, life: 7, color: e.boss ? '#ff7b9b' : '#ffaf65', kind: 'hostile', age: 0 });
+  if (s.bullets.reduce((count, bullet) => count + (bullet.team < 0 ? 1 : 0), 0) >= MAX_HOSTILE_BULLETS) return;
+  const sizeRatio = clamp(e.radius / 110, .08, 1);
+  const bulletRadius = clamp((Number(radius) || 5) * (.42 + sizeRatio * .72), 2.2, e.boss ? 8.4 : 6.4);
+  const damage = e.boss
+    ? clamp(13 + e.radius * .12 + e.type * .4, 13, 28)
+    : clamp(3.8 + e.radius * .16 + e.type * .42, 4.5, 17.5);
+  const variant = e.boss ? 5 : e.type % 5;
+  s.bullets.push({ x: e.x, y: e.y + e.radius * .65, px: e.x, py: e.y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+    damage, radius: bulletRadius, team: -1, life: 7, color: e.boss ? '#ff5d78' : BULLET_SPECTRUM[e.type % BULLET_SPECTRUM.length], kind: 'hostile', variant, sourceRadius: e.radius, age: 0 });
 }
 
 function resetCombo(s, emit = false) {
@@ -331,7 +346,7 @@ function enemyFire(s, e) {
   if (e.boss) {
     const phase = e.hp / e.maxHp < .3 ? 2 : e.hp / e.maxHp < .65 ? 1 : 0;
     if (phase > e.phase) { e.phase = phase; s.events.push({ type: 'phase', x: e.x, y: e.y }); }
-    const n = phase === 2 ? 16 : phase === 1 ? 12 : 9;
+    const n = phase === 2 ? 10 : phase === 1 ? 8 : 6;
     for (let i = 0; i < n; i++) hostileShot(s, e, i * Math.PI * 2 / n + e.age * .21 + s.level * .25, speed * .88, 6);
     for (let i = -1 - phase; i <= 1 + phase; i++) hostileShot(s, e, aimed + i * .14, speed * 1.23, 5);
     e.fire = [1.35, 1.07, .82][phase];
@@ -339,9 +354,9 @@ function enemyFire(s, e) {
   } else {
     const pattern = e.type % 4;
     if (pattern === 0) hostileShot(s, e, aimed, speed);
-    if (pattern === 1) for (let i = -1; i <= 1; i++) hostileShot(s, e, Math.PI / 2 + i * .23, speed);
+    if (pattern === 1) for (const i of [-1, 1]) hostileShot(s, e, Math.PI / 2 + i * .23, speed);
     if (pattern === 2) for (let i = -1; i <= 1; i++) hostileShot(s, e, aimed + i * .16, speed * .95);
-    if (pattern === 3) for (let i = 0; i < 6; i++) hostileShot(s, e, i * Math.PI / 3 + e.age * .12, speed * .85);
+    if (pattern === 3) for (let i = 0; i < 4; i++) hostileShot(s, e, i * Math.PI / 2 + e.age * .12, speed * .85);
     const formationSpacing = e.formation ? 1.32 : 1;
     e.fire = Math.max(.85, Number(ENEMY_TYPES[e.type].fireRate) || 2.2) * formationSpacing / (1 + s.level * .035);
   }
@@ -457,7 +472,9 @@ export function update(s, dt, input = [], environmentHit = null) {
       }
     }
     accelerate(e, targetX, targetY, response, dt);
-    constrain(e, e.radius, s.width - e.radius);
+    // Keep the combat lane readable: enemy craft enter from the top, then
+    // patrol the upper two-thirds instead of drifting into the pilots' HUD.
+    constrain(e, e.radius, s.width - e.radius, -Infinity, s.height * (e.boss ? .56 : .62));
     const attitude = 1 - Math.exp(-dt / response);
     // Enemy hulls face downscreen, so their bank sign is the reverse of pilots.
     e.bank += (clamp(-e.vx / (230 * Math.sqrt(e.mass)), -.24, .24) - e.bank) * attitude;

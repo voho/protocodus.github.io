@@ -35,6 +35,7 @@ export function shipPalette(world = 0, fallback = '#ff7866') {
 }
 
 const hulls = new Map();
+const tiltHulls = new Map();
 const flames = new Map();
 const glows = new Map();
 const silhouettes = new Map();
@@ -42,7 +43,7 @@ const lights = new Map();
 const styles = new Map();
 const TAU = Math.PI * 2;
 
-// Every design is drawn nose-up; enemy ships are turned toward the player.
+// Every design is drawn nose-up; each side keeps one fixed heading in flight.
 const SHAPES = [
   { outline: [[0,-100],[17,-58],[18,-15],[45,36],[41,68],[15,43],[10,79],[-10,79],[-15,43],[-41,68],[-45,36],[-18,-15],[-17,-58]], engines: [[0,74,11]], core: [0,-19,9] },
   { outline: [[0,-81],[17,-42],[28,-30],[55,-74],[62,-67],[55,21],[42,73],[25,62],[25,9],[14,30],[10,66],[-10,66],[-14,30],[-25,9],[-25,62],[-42,73],[-55,21],[-62,-67],[-55,-74],[-28,-30],[-17,-42]], engines: [[-38,63,10],[38,63,10]], core: [0,-18,11] },
@@ -335,7 +336,7 @@ function shipDetails(ctx,kind,color,world,player) {
   insignia(ctx,0,kind===0?8:kind===5?34:25,color,world);
 }
 
-function hullSprite(kind,color,world,player,palette=shipPalette(world,color)) {
+function baseHullSprite(kind,color,world,player,palette=shipPalette(world,color)) {
   const key=`${player?'p':kind}:${color}:${world}:${palette.id||palette.primary}`;
   if(hulls.has(key))return hulls.get(key);
   const shape=player?PLAYER:SHAPES[kind];
@@ -380,6 +381,20 @@ function hullSprite(kind,color,world,player,palette=shipPalette(world,color)) {
   hulls.set(key,canvas);
   if(hulls.size>56)hulls.delete(hulls.keys().next().value);
   return canvas;
+}
+
+// A bank is a discrete livery variant rather than a per-frame canvas rotation.
+// Three cached sprites (left, level, right) preserve a stable nose direction,
+// keep silhouettes crisp, and avoid spending CPU on transforms during combat.
+function hullSprite(kind,color,world,player,palette=shipPalette(world,color),tilt=0) {
+  const step=tilt<0?-1:tilt>0?1:0,base=baseHullSprite(kind,color,world,player,palette);
+  if(!step)return base;
+  const key=`${player?'p':kind}:${color}:${world}:${palette.id||palette.primary}:tilt${step}`;
+  if(tiltHulls.has(key))return tiltHulls.get(key);
+  const out=surface(base.width),ctx=out.getContext('2d');
+  ctx.translate(out.width/2,out.height/2);ctx.rotate(step*.115);ctx.drawImage(base,-base.width/2,-base.height/2);
+  tiltHulls.set(key,out);if(tiltHulls.size>84)tiltHulls.delete(tiltHulls.keys().next().value);
+  return out;
 }
 
 function silhouetteSprites(kind,player) {
@@ -464,6 +479,8 @@ export function warmShipSprites(color,world=0,player=false) {
   for(let kind=0;kind<(player?1:SHAPES.length);kind++) {
     silhouetteSprites(kind,player);
     hullSprite(kind,color,world,player,palette);
+    hullSprite(kind,color,world,player,palette,-1);
+    hullSprite(kind,color,world,player,palette,1);
     lightsSprite(kind,palette.glow||color,player,palette);
   }
 }
@@ -472,7 +489,7 @@ export function warmShipSprites(color,world=0,player=false) {
  * Draw an original spacecraft with animated exhaust, core light and optional shield.
  * size: collision radius; kind: 0–9, -1, or 'player'; time: elapsed seconds.
  * options: { bank, hit, shield, player, phase, world, thrust, opacity, quality }.
- * bank is a gentle banking angle in radians; hit is a white flash from 0 to 1;
+ * bank selects one of three cached side-tilt sprites; the heading remains fixed.
  * shield is opacity/strength from 0 to 1; world is the zero-based sector number.
  */
 export function drawShip(ctx,x,y,size,kind,color,time=0,options={}) {
@@ -486,19 +503,20 @@ export function drawShip(ctx,x,y,size,kind,color,time=0,options={}) {
   const phase=Number(options.phase)||0;
   const pulse=.8+Math.sin(time*5+phase)*.2;
   const bank=Math.max(-.45,Math.min(.45,Number(options.bank)||0));
+  const tilt=bank<-.12?-1:bank>.12?1:0,heading=player?0:Math.PI;
   const thrust=Math.max(0,Math.min(2,Number(options.thrust??1)||0));
   const detailed=options.quality!=='low';
-  const scale=size/82,bankScale=1-Math.abs(bank)*.22;
+  const scale=size/82;
   const silhouettes=silhouetteSprites(kind,player);
-  // Keep the sun direction in world space when enemies face down or fighters bank.
+  // Keep the sun direction in world space while the craft holds its fixed heading.
   ctx.save();
   ctx.translate(x+5+size*.17,y+9+size*.24);
-  ctx.rotate((player?0:Math.PI)+bank);ctx.scale(scale*bankScale*.97,scale*.97);
+  ctx.rotate(heading);ctx.scale(scale*.97,scale*.97);
   ctx.globalAlpha*=(options.opacity??1)*.74;
   ctx.drawImage(silhouettes.shadow,-160,-160,320,320);ctx.restore();
 
-  ctx.save();ctx.translate(x,y);ctx.rotate((player?0:Math.PI)+bank);
-  ctx.scale(scale*bankScale,scale);
+  ctx.save();ctx.translate(x,y);ctx.rotate(heading);
+  ctx.scale(scale,scale);
   if(options.opacity!=null)ctx.globalAlpha*=options.opacity;
 
   const flame=flameSprite(palette.engine||flightColor);
@@ -514,7 +532,7 @@ export function drawShip(ctx,x,y,size,kind,color,time=0,options={}) {
   }
   ctx.restore();
 
-  const sprite=hullSprite(kind,flightColor,world,player,palette);
+  const sprite=hullSprite(kind,flightColor,world,player,palette,tilt);
   ctx.drawImage(sprite,-140,-140,280,280);
 
   ctx.save();ctx.globalCompositeOperation='screen';

@@ -59,16 +59,29 @@ check('weapon profiles trade power for speed, range and utility', () => {
   }
 });
 
+check('hostile rounds scale with ship class and use spectrum colors', () => {
+  const smallState = isolated(), small = spawnEnemy(smallState, 0, 300, 200); small.fire = 0;
+  update(smallState, .016, [{}]);
+  const smallBullet = smallState.bullets.find(b => b.team < 0);
+  const largeState = isolated(), large = spawnEnemy(largeState, 8, 300, 200); large.fire = 0;
+  update(largeState, .016, [{}]);
+  const largeBullet = largeState.bullets.find(b => b.team < 0);
+  assert.ok(smallBullet && largeBullet);
+  assert.ok(largeBullet.radius > smallBullet.radius);
+  assert.ok(largeBullet.damage > smallBullet.damage);
+  assert.notEqual(largeBullet.color, smallBullet.color);
+});
+
 check('double and multi kill overcharge damage and blast radius, then expire', () => {
   const state = isolated();
   killEnemy(state, spawnEnemy(state, 0, 300, 200));
   assert.equal(state.combo, 1);
   killEnemy(state, spawnEnemy(state, 0, 420, 200));
   assert.equal(state.combo, 2);
-  assert.equal(state.comboLabel, 'DOUBLE KILL');
+  assert.equal(state.comboLabel, 'Double kill');
   assert.ok(state.comboDamage > 1 && state.comboBlast > 1);
   killEnemy(state, spawnEnemy(state, 0, 540, 200));
-  assert.equal(state.comboLabel, 'MULTI KILL');
+  assert.equal(state.comboLabel, 'Multi kill');
   assert.ok(state.comboDamage >= 1.18 && state.comboBlast >= 1.24);
   advance(state, 6);
   assert.equal(state.combo, 0);
@@ -271,7 +284,7 @@ check('co-op survives one loss and restores both pilots with shared upgrades nex
 });
 
 check('boss attacks change at damage thresholds and co-op enemy HP scales', () => {
-  for (const [fraction, phase, bullets] of [[1,0,12],[.6,1,17],[.25,2,23]]) {
+  for (const [fraction, phase, bullets] of [[1,0,9],[.6,1,13],[.25,2,17]]) {
     const state = isolated(), boss = spawnEnemy(state, 9, 600, 155);
     boss.hp = boss.maxHp * fraction; boss.fire = 0;
     update(state, .016);

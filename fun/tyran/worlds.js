@@ -1,44 +1,58 @@
 /** TYRAN — original terrain paintings, destructible scenery and procedural fallback. */
 export const WORLDS = [
-  { id: 'jungle', name: 'EMERALD FRONTIER', subtitle: '01 / THE LIVING CANOPY', description: 'Ancient temples disappear beneath a vast emerald rainforest.', color: '#67f0b1', accent: '#b7ffcc', enemyColor: '#f05245', bossName: 'CANOPY DEVOURER' },
-  { id: 'snow', name: 'POLAR SILENCE', subtitle: '02 / FROZEN SIGNAL', description: 'Glacial rivers cut through snowbound forests and abandoned outposts.', color: '#8bddff', accent: '#e3f8ff', enemyColor: '#ff3f9e', bossName: 'FROST COLOSSUS' },
-  { id: 'desert', name: 'SUNKEN EMPIRE', subtitle: '03 / SANDS OF THE ANCIENTS', description: 'Cross golden dunes, ruined monuments and a forgotten empire.', color: '#ffc578', accent: '#ffe0a4', enemyColor: '#39e8ff', bossName: 'DUNE LEVIATHAN' },
-  { id: 'paradise', name: 'AZURE ARCHIPELAGO', subtitle: '04 / TROUBLE IN PARADISE', description: 'Turquoise shallows, coral gardens and islands beneath drifting clouds.', color: '#51e5ed', accent: '#c1fff2', enemyColor: '#ff6338', bossName: 'CORAL DREADNOUGHT' },
-  { id: 'asteroid', name: 'SHATTERED ORBIT', subtitle: '05 / THE MINING BELT', description: 'Navigate glittering debris fields and the wreckage of orbital industry.', color: '#b1a5ff', accent: '#e5ddff', enemyColor: '#74ed63', bossName: 'ORBITAL CRUSHER' },
-  { id: 'mars', name: 'RED HORIZON', subtitle: '06 / THE LOST COLONY', description: 'Dust storms sweep ochre canyons and silent colony domes.', color: '#ff957a', accent: '#ffd0a1', enemyColor: '#45f0cf', bossName: 'MARTIAN SIEGEBREAKER' },
-  { id: 'volcanic', name: 'INFERNO FOUNDRY', subtitle: '07 / INTO THE CALDERA', description: 'Rivers of molten rock feed a war machine buried in black basalt.', color: '#ff8055', accent: '#ffd28a', enemyColor: '#69cfff', bossName: 'MAGMA TITAN' },
-  { id: 'neon', name: 'NEON AFTERLIFE', subtitle: '08 / CITY OF MACHINES', description: 'Rain-slick avenues and holographic towers pulse beneath your wings.', color: '#f080ff', accent: '#8ff4ff', enemyColor: '#f4ff52', bossName: 'METROPOLIS PRIME' },
-  { id: 'alien', name: 'LUMINOUS GARDEN', subtitle: '09 / A WORLD THAT DREAMS', description: 'Bioluminescent forests grow around crystals and impossible ruins.', color: '#c895ff', accent: '#6fffe0', enemyColor: '#c7ff57', bossName: 'THE BLOOM SOVEREIGN' },
-  { id: 'void', name: 'OBSIDIAN CITADEL', subtitle: '10 / THE LAST LIGHT', description: 'The final fortress hangs over an abyss of shattered stars.', color: '#ffa6c8', accent: '#ffe0ee', enemyColor: '#ffc94f', bossName: 'TYRAN, WORLD ENDER' },
+  { id: 'jungle', name: 'Emerald Frontier', subtitle: '01 / The Living Canopy', description: 'Ancient temples disappear beneath a vast emerald rainforest.', color: '#67f0b1', accent: '#b7ffcc', enemyColor: '#f05245', bossName: 'Canopy Devourer' },
+  { id: 'snow', name: 'Polar Silence', subtitle: '02 / Frozen Signal', description: 'Glacial rivers cut through snowbound forests and abandoned outposts.', color: '#8bddff', accent: '#e3f8ff', enemyColor: '#ff3f9e', bossName: 'Frost Colossus' },
+  { id: 'desert', name: 'Sunken Empire', subtitle: '03 / Sands of the Ancients', description: 'Cross golden dunes, ruined monuments and a forgotten empire.', color: '#ffc578', accent: '#ffe0a4', enemyColor: '#39e8ff', bossName: 'Dune Leviathan' },
+  { id: 'paradise', name: 'Azure Archipelago', subtitle: '04 / Trouble in Paradise', description: 'Turquoise shallows, coral gardens and islands beneath drifting clouds.', color: '#51e5ed', accent: '#c1fff2', enemyColor: '#ff6338', bossName: 'Coral Dreadnought' },
+  { id: 'asteroid', name: 'Shattered Orbit', subtitle: '05 / The Mining Belt', description: 'Navigate glittering debris fields and the wreckage of orbital industry.', color: '#b1a5ff', accent: '#e5ddff', enemyColor: '#74ed63', bossName: 'Orbital Crusher' },
+  { id: 'mars', name: 'Red Horizon', subtitle: '06 / The Lost Colony', description: 'Dust storms sweep ochre canyons and silent colony domes.', color: '#ff957a', accent: '#ffd0a1', enemyColor: '#45f0cf', bossName: 'Martian Siegebreaker' },
+  { id: 'volcanic', name: 'Inferno Foundry', subtitle: '07 / Into the Caldera', description: 'Rivers of molten rock feed a war machine buried in black basalt.', color: '#ff8055', accent: '#ffd28a', enemyColor: '#69cfff', bossName: 'Magma Titan' },
+  { id: 'neon', name: 'Neon Afterlife', subtitle: '08 / City of Machines', description: 'Rain-slick avenues and holographic towers pulse beneath your wings.', color: '#f080ff', accent: '#8ff4ff', enemyColor: '#f4ff52', bossName: 'Metropolis Prime' },
+  { id: 'alien', name: 'Luminous Garden', subtitle: '09 / A World That Dreams', description: 'Bioluminescent forests grow around crystals and impossible ruins.', color: '#c895ff', accent: '#6fffe0', enemyColor: '#c7ff57', bossName: 'The Bloom Sovereign' },
+  { id: 'void', name: 'Obsidian Citadel', subtitle: '10 / The Last Light', description: 'The final fortress hangs over an abyss of shattered stars.', color: '#ffa6c8', accent: '#ffe0ee', enemyColor: '#ffc94f', bossName: 'Tyran, World Ender' },
 ];
 
 const TILE = 1024;
 const WIDTH = 1200;
+const ART_TILE_WIDTH = 600;
+const ART_TILE_HEIGHT = 512;
+const ART_TILE_COLUMNS = 2;
+const ART_TILE_ROWS = 3;
+const ART_TILE_COUNT = ART_TILE_COLUMNS * ART_TILE_ROWS;
 const SECTION = 1792;
-const BLEND = 128;
 const PAD = 180;
 const HIT_CELL = 160;
 const TAU = Math.PI * 2;
+// Five depth planes keep the flight lane dimensional without adding a second
+// scene graph: deep substrate, painted ground, low vegetation, canopy and
+// foreground silhouettes/structures. Speeds are intentionally close near the
+// player so scenery remains aligned with collision while depth still reads.
+export const PARALLAX_LAYERS = Object.freeze([
+  { id: 'substrate', label: 'Underground / water backdrop', speed: .18 },
+  { id: 'ground', label: 'Basic ground', speed: 1 },
+  { id: 'ridge', label: 'Rocks and shrubs', speed: 1.01 },
+  { id: 'canopy', label: 'Trees and tall vegetation', speed: 1.045 },
+  { id: 'foreground', label: 'Clouds, high trees and structures', speed: 1.09 },
+]);
 const TERRAIN_ART = new Map();
 // Art is loaded once, lazily; cached pixels also keep scenery off water/lava.
 function loadTerrain(index) {
   if (TERRAIN_ART.has(index)) return TERRAIN_ART.get(index);
-  const art = { ready:false, image:null, pixels:null, height:1800 };
+  const art = { ready:false, tiles:[], samples:[], width:ART_TILE_WIDTH, height:ART_TILE_HEIGHT };
   TERRAIN_ART.set(index,art);
   if (typeof Image === 'undefined') return art;
-  const img = new Image();
-  art.image=img;
-  art.promise=new Promise(resolve=>{
+  art.promise=Promise.all(Array.from({length:ART_TILE_COUNT},(_,tileIndex)=>new Promise(resolve=>{
+    const img=new Image();img.decoding='async';
     img.onload=()=>{
-      art.height=WIDTH*img.naturalHeight/img.naturalWidth;
-      const sample=canvas(128,192),ctx=sample.getContext('2d',{willReadFrequently:true});
-      ctx.drawImage(img,0,0,128,192);
-      try { art.pixels=ctx.getImageData(0,0,128,192).data; } catch { /* Art still draws if a host changes CORS. */ }
-      art.ready=true;resolve(true);
+      art.tiles[tileIndex]=img;
+      const sample=canvas(64,64),ctx=sample.getContext('2d',{willReadFrequently:true});
+      ctx.drawImage(img,0,0,64,64);
+      try { art.samples[tileIndex]=ctx.getImageData(0,0,64,64).data; } catch { art.samples[tileIndex]=null; }
+      resolve(true);
     };
     img.onerror=()=>resolve(false);
-    img.src=new URL(`./assets/world-${WORLDS[index].id}.webp`,import.meta.url).href;
-  });
+    img.src=new URL(`./assets/terrain-tiles/${WORLDS[index].id}/tile-${String(tileIndex).padStart(2,'0')}.webp`,import.meta.url).href;
+  }))).then(results=>{ art.ready=results.every(Boolean); if(!art.ready){art.tiles=[];art.samples=[];} return art.ready; });
   return art;
 }
 const PALETTES = [
@@ -58,6 +72,7 @@ function random(seed) {
   let a = seed >>> 0;
   return () => { a += 0x6D2B79F5; let t = a; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; };
 }
+const clamp = (n,a,b) => Math.max(a,Math.min(b,n));
 function canvas(w,h) { const c = typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(w,h) : document.createElement('canvas'); c.width=w; c.height=h; return c; }
 function circle(c,x,y,r,color) { c.fillStyle=color; c.beginPath(); c.arc(x,y,r,0,TAU); c.fill(); }
 function ellipse(c,x,y,rx,ry,color) { c.fillStyle=color; c.beginPath(); c.ellipse(x,y,rx,ry,0,0,TAU); c.fill(); }
@@ -82,11 +97,11 @@ const DISTRICTS = [
   [['pylon','fortress','pylon'],['ruin','crystal','station'],['fortress','pylon'],['crystal','pylon','ruin']],
 ];
 
-/** Procedural tile cache, destructible scenery and three atmospheric depth planes. */
+/** Procedural tile cache, destructible scenery and five parallax depth planes. */
 export class WorldRenderer {
   constructor() {
     this.tiles=new Map();this.bands=new Map();this.sprites=new Map();this.sections=new Map();
-    this.sceneryLayers=new Map();this.hitBuckets=new Map();this.visibleProps=[];this.destroyed=new Set();
+    this.sceneryLayers=Array.from({length:3},()=>new Map());this.hitBuckets=new Map();this.visibleProps=[];this.destroyed=new Set();this.substrateGradients=new WeakMap();this.parallaxX=0;
     this.setWorld(0);
   }
   setWorld(index) {
@@ -95,10 +110,12 @@ export class WorldRenderer {
     this.world=WORLDS[this.index];this.palette=PALETTES[this.index];
     this.art=loadTerrain(this.index);this.artActive=false;
     if(this.index+1<WORLDS.length)loadTerrain(this.index+1);
-    this.tiles.clear();this.bands.clear();this.sprites.clear();this.sections.clear();this.sceneryLayers.clear();this.hitBuckets.clear();this.destroyed.clear();this.visibleProps.length=0;
+    this.tiles.clear();this.bands.clear();this.sprites.clear();this.sections.clear();for(const layers of this.sceneryLayers)layers.clear();this.hitBuckets.clear();this.destroyed.clear();this.visibleProps.length=0;this.substrateGradients=new WeakMap();
     this.scale=1;this.scroll=0;this.clouds=[];this.lastPrune=null;
     const rng=random(this.index*19081+708);
-    for(let i=0;i<7;i++)this.clouds.push({x:rng()*WIDTH,y:rng()*1500,r:180+rng()*180,speed:.12+rng()*.16,phase:rng()*TAU});
+    // Clouds sit on the highest plane: they drift slightly faster than the
+    // painted ground so the depth stack remains legible during scrolling.
+    for(let i=0;i<7;i++)this.clouds.push({x:rng()*WIDTH,y:rng()*1500,r:180+rng()*180,speed:.98+rng()*.16,phase:rng()*TAU});
     this.cloudSprite=this.makeCloud();this.lightSprite=this.makeLight();this.scorchSprite=this.makeScorch();
     this.shaftSprite=this.makeShaft();this.vignetteSprite=this.makeVignette();
     const epoch=this.warmEpoch;
@@ -127,44 +144,131 @@ export class WorldRenderer {
       this.runWarmQueue();
     });
   }
+  sceneryDepth(type) {
+    if (STRUCTURES.has(type)) return 2;
+    if (['tree','palm','pine','alienTree','mushroom','pod'].includes(type)) return 1;
+    return 0;
+  }
+  drawSubstrate(c,h,scroll,time,bleed=0) {
+    // Plane 0: a slow, deep substrate. It doubles as a readable fallback while
+    // a photographic world texture is decoding and as water/underground depth
+    // beneath the painted ground.
+    const p=this.palette,period=h+360,shift=scroll*PARALLAX_LAYERS[0].speed;
+    let gradients=this.substrateGradients.get(c);
+    if(!gradients){gradients=new Map();this.substrateGradients.set(c,gradients);}
+    const key=Math.round(h*10);
+    let gradient=gradients.get(key);
+    if(!gradient){gradient=c.createLinearGradient(0,0,0,h);gradient.addColorStop(0,p.low);gradient.addColorStop(.55,p.base);gradient.addColorStop(1,'#050b13');gradients.set(key,gradient);}
+    c.fillStyle=gradient;c.globalAlpha=.96;c.fillRect(-bleed,0,WIDTH+bleed*2,h);
+    c.save();c.globalCompositeOperation='screen';c.globalAlpha=.16;
+    for(let i=0;i<7;i++) {
+      const y=((i*211+shift+time*6)%period+period)%period-180;
+      const x=WIDTH*.5+Math.sin(i*2.3+time*.08)*WIDTH*.36;
+      c.strokeStyle=i%2?p.water:p.shore;c.lineWidth=18+i%3*9;
+      c.beginPath();c.moveTo(-60,y);c.bezierCurveTo(x*.35,y-70,x*.85,y+70,WIDTH+60,y-15);c.stroke();
+    }
+    c.restore();
+  }
+  drawGroundParallax(c,h,scroll,time) {
+    // Plane 1: broad ground contours move with the camera, while the artwork
+    // above supplies the high-frequency material detail.
+    const p=this.palette,period=h+280,shift=scroll*PARALLAX_LAYERS[1].speed;
+    c.save();c.globalAlpha=.16;
+    for(let i=0;i<9;i++) {
+      const y=((i*163+shift+time*3)%period+period)%period-140;
+      const wave=Math.sin(time*.12+i)*32;
+      c.strokeStyle=i%3===0?p.shore:p.mid;c.lineWidth=2+i%3;
+      c.beginPath();c.moveTo(-30,y);c.bezierCurveTo(WIDTH*.28,y+wave,WIDTH*.68,y-wave,WIDTH+30,y+wave*.4);c.stroke();
+    }
+    c.restore();
+  }
+  drawDepthMist(c,h,scroll,time,depth) {
+    // A restrained silhouette pass gives each foreground plane a distinct
+    // speed even when a biome has no matching prop type.
+    const p=this.palette,layer=PARALLAX_LAYERS[depth+2],period=h+340,shift=scroll*layer.speed;
+    const rng=random(this.index*8191+depth*977);
+    c.save();c.globalCompositeOperation=depth===2?'screen':'source-over';
+    if(depth===0) {
+      c.globalAlpha=.14;
+      for(let i=0;i<18;i++) {
+        const x=35+rng()*(WIDTH-70),y=((i*197+shift+time*2)%period+period)%period-150,r=13+rng()*34;
+        ellipse(c,x+5,y+7,r*1.18,r*.54,'#050b12');ellipse(c,x,y,r,r*.5,i%3?p.high:p.low);
+      }
+    } else if(depth===1) {
+      c.globalAlpha=.13;
+      for(let i=0;i<12;i++) {
+        const x=40+rng()*(WIDTH-80),y=((i*281+shift+time*2.8)%period+period)%period-160,hgt=55+rng()*100;
+        c.strokeStyle=i%2?p.high:p.mid;c.lineWidth=4+rng()*5;c.beginPath();c.moveTo(x,y+hgt);c.lineTo(x+(rng()-.5)*24,y);c.stroke();
+        ellipse(c,x,y,26+rng()*28,16+rng()*17,i%3?p.mid:p.high);
+      }
+    } else {
+      c.globalAlpha=.1;
+      for(let i=0;i<8;i++) {
+        const x=60+rng()*(WIDTH-120),y=((i*353+shift+time*3.6)%period+period)%period-170,w=32+rng()*46,hgt=70+rng()*135;
+        c.fillStyle=p.low;c.fillRect(x-w*.5,y,w,hgt);c.fillStyle=p.shore;c.fillRect(x-w*.34,y+8,w*.68,2);
+        c.globalAlpha=.22;c.fillStyle=p.accent||p.high;c.fillRect(x-w*.3,y+18,w*.6,2);c.globalAlpha=.1;
+      }
+    }
+    c.restore();
+  }
+  drawSceneryDepth(c,h,scroll,time,depth,quality,bleed=0) {
+    const layer=PARALLAX_LAYERS[depth+2],layerScroll=scroll*layer.speed;
+    const first=Math.floor(-layerScroll/TILE),last=Math.floor((h-layerScroll)/TILE);
+    for(let row=first-1;row<=last+1;row++) {
+      const band=this.getBand(row),y=row*TILE+layerScroll;
+      if(y+TILE+PAD<0||y-PAD>h)continue;
+      c.drawImage(this.getSceneryLayer(row,band,depth),-bleed,y-PAD,WIDTH+bleed*2,TILE+PAD*2);
+      for(const prop of band) {
+        if(this.sceneryDepth(prop.type)!==depth)continue;
+        const py=prop.y+layerScroll;
+        if(py < -PAD || py>h+PAD || this.destroyed.has(prop.id))continue;
+        prop.screenX=prop.x+this.parallaxX;prop.screenY=prop.y+scroll;this.visibleProps.push(prop);
+        if(prop.emissive&&quality!=='low') {
+          const radius=prop.size*.8;c.globalAlpha=.1+Math.sin(time*1.7+prop.variant*2)*.03;
+          c.drawImage(this.lightSprite,prop.x-radius,py-radius,radius*2,radius*2);
+        }
+      }
+    }
+  }
   warmNearby(first,last) {
     if(!this.art.ready)return;
     for(let row=first-1;row<=last+1;row++) {
       if(!this.tiles.has(row))this.queueWarm(`tile:${row}`,()=>{if(!this.artActive){this.tiles.clear();this.artActive=true;}this.getArtTile(row);});
-      if(!this.sceneryLayers.has(row))this.queueWarm(`scenery:${row}`,()=>this.getSceneryLayer(row,this.getBand(row)));
+      for(let depth=0;depth<3;depth++)if(!this.sceneryLayers[depth].has(row))this.queueWarm(`scenery:${row}:${depth}`,()=>this.getSceneryLayer(row,this.getBand(row),depth));
     }
   }
-  draw(ctx,W,H,scroll,time,quality='high') {
-    const s=W/WIDTH,h=H/s;this.scale=s;this.scroll=scroll;this.visibleProps.length=0;
-    ctx.save();ctx.scale(s,s);
+  draw(ctx,W,H,scroll,time,quality='high',focusX=WIDTH*.5) {
+    const s=W/WIDTH,h=H/s,focus=Number(focusX);
+    const normalized=clamp(Number.isFinite(focus)?focus/Math.max(1,W):.5,0,1),bleed=WIDTH*.01;
+    // Let the terrain breathe beneath the ship: the complete tile strip is
+    // rendered 1% wider than the viewport and shifts only a few pixels with
+    // the pilot's X position, so no edge exposes the canvas clear color.
+    this.parallaxX=(normalized-.5)*bleed*2;this.scale=s;this.scroll=scroll;this.visibleProps.length=0;
+    ctx.save();ctx.scale(s,s);ctx.translate(this.parallaxX,0);
+    this.drawSubstrate(ctx,h,scroll,time,bleed);
+    this.drawGroundParallax(ctx,h,scroll,time);
     const first=Math.floor(-scroll/TILE),last=Math.floor((h-scroll)/TILE);
     if(this.art.ready&&!this.artActive) {
       // Keep band identities and damage: the first decoded painting must never move scenery.
       this.tiles.clear();this.artActive=true;
     }
-    for(let row=first;row<=last;row++)ctx.drawImage(this.artActive?this.getArtTile(row):this.getTile(row),0,row*TILE+scroll,WIDTH,TILE+.5);
+    ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
+    ctx.globalAlpha=this.artActive?.94:1;
+    for(let row=first;row<=last;row++)ctx.drawImage(this.artActive?this.getArtTile(row):this.getTile(row),-bleed,row*TILE+scroll,WIDTH+bleed*2,TILE+.5);
+    ctx.globalAlpha=1;
     this.drawSurfaceMotion(ctx,h,scroll,time,quality);
-    // The bulk of the scenery (including persistent scorch marks) is one cached draw per band.
-    for(let row=first-1;row<=last+1;row++) {
-      const band=this.getBand(row),y=row*TILE+scroll;
-      if(y+TILE+PAD<0||y-PAD>h)continue;
-      ctx.drawImage(this.getSceneryLayer(row,band),0,y-PAD);
-      for(let i=0;i<band.length;i++) {
-        const prop=band[i],py=prop.y+scroll;
-        if(py < -PAD || py>h+PAD || this.destroyed.has(prop.id))continue;
-        prop.screenY=py;this.visibleProps.push(prop);
-        if(prop.emissive&&quality!=='low') {
-          const radius=prop.size*.8;ctx.globalAlpha=.12+Math.sin(time*1.7+prop.variant*2)*.035;
-          ctx.drawImage(this.lightSprite,prop.x-radius,py-radius,radius*2,radius*2);
-        }
-      }
+    // Planes 2–4: rocks/shrubs, trees and the highest structures each get a
+    // shallow independent offset so their silhouettes separate from the ground.
+    for(let depth=0;depth<3;depth++) {
+      this.drawDepthMist(ctx,h,scroll,time,depth);
+      this.drawSceneryDepth(ctx,h,scroll,time,depth,quality,bleed);
     }
     ctx.globalAlpha=1;this.drawAtmosphere(ctx,h,scroll,time,quality);
     ctx.drawImage(this.vignetteSprite,0,0,WIDTH,h);ctx.restore();
     if(this.lastPrune!==first) {
       this.lastPrune=first;
       for(const key of this.tiles.keys())if(key<first-2||key>last+2)this.tiles.delete(key);
-      for(const key of this.sceneryLayers.keys())if(key<first-2||key>last+2)this.sceneryLayers.delete(key);
+      for(const layers of this.sceneryLayers)for(const key of layers.keys())if(key<first-3||key>last+3)layers.delete(key);
       this.warmNearby(first,last);
     }
   }
@@ -172,34 +276,23 @@ export class WorldRenderer {
     if(this.sections.has(section))return this.sections.get(section);
     const rng=random((section*87317)^(this.index*19433+1927));
     const district=((section%4)+4)%4;
-    const zoom=[1.06,1.4,1.2,1.58][(district+this.index)%4];
-    const out={index:section,district,zoom,pan:rng(),offset:rng()*1350,flip:rng()>.5,center:230+rng()*740,phase:rng()*TAU};
+    const out={index:section,district,pan:rng(),offset:rng()*1350,flip:rng()>.5,center:230+rng()*740,phase:rng()*TAU};
     this.sections.set(section,out);return out;
-  }
-  paintSection(c,section,top) {
-    const art=this.art,d=this.getSection(section),w=WIDTH*d.zoom,th=art.height*d.zoom;
-    const offset=d.offset-section*SECTION,first=Math.floor((top+offset)/th),last=Math.floor((top+TILE+offset)/th);
-    const x=-(w-WIDTH)*d.pan;
-    for(let tile=first;tile<=last;tile++) {
-      const mirror=(tile&1)!==0,y=tile*th-offset-top;
-      c.save();c.translate(d.flip?WIDTH-x:x,mirror?y+th:y);c.scale(d.flip?-1:1,mirror?-1:1);
-      c.drawImage(art.image,0,0,w,th+.7);c.restore();
-    }
   }
   getArtTile(row) {
     if(this.tiles.has(row))return this.tiles.get(row);
-    const out=canvas(WIDTH,TILE),c=out.getContext('2d'),top=row*TILE;
-    const first=Math.floor((top-BLEND)/SECTION),last=Math.floor((top+TILE+BLEND)/SECTION);
-    this.paintSection(c,first,top);
-    if(first!==last) {
-      this.artScratch??=canvas(WIDTH,TILE);
-      const layer=this.artScratch,lc=layer.getContext('2d');
-      for(let section=first+1;section<=last;section++) {
-        lc.clearRect(0,0,WIDTH,TILE);this.paintSection(lc,section,top);
-        const boundary=section*SECTION-top,g=lc.createLinearGradient(0,boundary-BLEND,0,boundary+BLEND);
-        g.addColorStop(0,'transparent');g.addColorStop(1,'#000');
-        lc.globalCompositeOperation='destination-in';lc.fillStyle=g;lc.fillRect(0,0,WIDTH,TILE);lc.globalCompositeOperation='source-over';
-        c.drawImage(layer,0,0);
+    const out=canvas(WIDTH,TILE),c=out.getContext('2d');
+    if(this.art.ready&&this.art.tiles.length>=ART_TILE_COUNT) {
+      // Six independent 600x512 tiles form a 1200x1024 terrain chunk. The
+      // source row order advances each chunk, so the camera never stretches a
+      // single tall painting and can discard chunks independently.
+      const startRow=((row*2)%ART_TILE_ROWS+ART_TILE_ROWS)%ART_TILE_ROWS;
+      for(let part=0;part<2;part++) {
+        const tileRow=(startRow+part)%ART_TILE_ROWS;
+        for(let col=0;col<ART_TILE_COLUMNS;col++) {
+          const tile=this.art.tiles[tileRow*ART_TILE_COLUMNS+col];
+          if(tile)c.drawImage(tile,col*ART_TILE_WIDTH,part*ART_TILE_HEIGHT,ART_TILE_WIDTH,ART_TILE_HEIGHT);
+        }
       }
     }
     c.fillStyle=this.index===1?'rgba(9,24,44,.20)':this.index===3?'rgba(3,29,42,.12)':this.index===2?'rgba(30,18,29,.13)':'rgba(5,13,26,.13)';
@@ -208,13 +301,15 @@ export class WorldRenderer {
     this.tiles.set(row,out);return out;
   }
   terrainColor(x,y) {
-    if(!this.art.ready||!this.art.pixels)return null;
-    const d=this.getSection(Math.floor(y/SECTION)),w=WIDTH*d.zoom,height=this.art.height*d.zoom;
-    const offset=d.offset-d.index*SECTION,gy=y+offset,row=Math.floor(gy/height);
-    let v=gy/height-row;if(row&1)v=1-v;
-    let u=(x+(w-WIDTH)*d.pan)/w;if(d.flip)u=(WIDTH-x+(w-WIDTH)*d.pan)/w;
-    const sx=Math.max(0,Math.min(127,Math.floor(u*128))),sy=Math.max(0,Math.min(191,Math.floor(v*192)));
-    const i=(sy*128+sx)*4,p=this.art.pixels;return [p[i],p[i+1],p[i+2]];
+    if(!this.art.ready||!this.art.samples.length)return null;
+    const normalizedX=((x% (ART_TILE_WIDTH*ART_TILE_COLUMNS))+(ART_TILE_WIDTH*ART_TILE_COLUMNS))%(ART_TILE_WIDTH*ART_TILE_COLUMNS);
+    const normalizedY=((y% (ART_TILE_HEIGHT*ART_TILE_ROWS))+(ART_TILE_HEIGHT*ART_TILE_ROWS))%(ART_TILE_HEIGHT*ART_TILE_ROWS);
+    const tileX=Math.min(ART_TILE_COLUMNS-1,Math.floor(normalizedX/ART_TILE_WIDTH));
+    const tileY=Math.min(ART_TILE_ROWS-1,Math.floor(normalizedY/ART_TILE_HEIGHT));
+    const sample=this.art.samples[tileY*ART_TILE_COLUMNS+tileX];if(!sample)return null;
+    const sx=Math.min(63,Math.floor((normalizedX%ART_TILE_WIDTH)/ART_TILE_WIDTH*64));
+    const sy=Math.min(63,Math.floor((normalizedY%ART_TILE_HEIGHT)/ART_TILE_HEIGHT*64));
+    const i=(sy*64+sx)*4;return [sample[i],sample[i+1],sample[i+2]];
   }
   suitableSite(type,x,y) {
     const color=this.terrainColor(x,y);if(!color)return true;
@@ -227,7 +322,7 @@ export class WorldRenderer {
   }
   /** Inputs and returned effects are in the same screen coordinates as draw(). */
   hit(x,y,radius,damage,scroll=this.scroll) {
-    const s=this.scale||1;x/=s;y=y/s-scroll;radius/=s;const result=[],reach=radius+64;
+    const s=this.scale||1;x=x/s-(this.parallaxX||0);y=y/s-scroll;radius/=s;const result=[],reach=radius+64;
     const x0=Math.max(0,Math.floor((x-reach)/HIT_CELL)),x1=Math.min(7,Math.floor((x+reach)/HIT_CELL));
     const y0=Math.floor((y-reach)/HIT_CELL),y1=Math.floor((y+reach)/HIT_CELL);
     for(let by=y0;by<=y1;by++)for(let bx=x0;bx<=x1;bx++) {
@@ -237,23 +332,25 @@ export class WorldRenderer {
         if((x-prop.x)**2+(y-prop.y)**2>(radius+prop.size*.32)**2)continue;
         const wasDamaged=prop.hp<prop.maxHp;prop.hp-=damage;
         if(prop.hp<=0) {
-          this.destroyed.add(prop.id);this.sceneryLayers.delete(prop.row);
-          result.push({x:prop.x*s,y:(prop.y+scroll)*s,size:prop.size*s,color:prop.color,value:prop.value});
-        } else if(!wasDamaged)this.sceneryLayers.delete(prop.row);
+          this.destroyed.add(prop.id);for(const layers of this.sceneryLayers)layers.delete(prop.row);
+          result.push({x:(prop.x+(this.parallaxX||0))*s,y:(prop.y+scroll)*s,size:prop.size*s,color:prop.color,value:prop.value});
+        } else if(!wasDamaged)for(const layers of this.sceneryLayers)layers.delete(prop.row);
       }
     }
     return result;
   }
-  getSceneryLayer(row,band) {
-    if(this.sceneryLayers.has(row))return this.sceneryLayers.get(row);
+  getSceneryLayer(row,band,depth=0) {
+    const cache=this.sceneryLayers[depth]||this.sceneryLayers[0];
+    if(cache.has(row))return cache.get(row);
     const out=canvas(WIDTH,TILE+PAD*2),c=out.getContext('2d');
     for(const prop of band) {
+      if(this.sceneryDepth(prop.type)!==depth)continue;
       const y=prop.y-row*TILE+PAD,scale=prop.size/100;
       if(this.destroyed.has(prop.id)) {this.drawScorch(c,prop.x,y,prop.size);continue;}
       c.drawImage(this.getSprite(prop.type,prop.variant),prop.x-130*scale,y-130*scale,260*scale,260*scale);
       if(prop.hp<prop.maxHp)ellipse(c,prop.x+4,y+5,prop.size*.22,prop.size*.16,'rgba(36,28,37,.36)');
     }
-    this.sceneryLayers.set(row,out);return out;
+    cache.set(row,out);return out;
   }
   getTile(row) {
     if(this.tiles.has(row))return this.tiles.get(row);

@@ -1,6 +1,6 @@
-import { WORLDS, WorldRenderer } from './worlds.js';
+import { WORLDS, PARALLAX_LAYERS, WorldRenderer } from './worlds.js';
 import { ENEMY_TYPES, SHIP_PALETTES, drawShip, warmShipSprites } from './ships.js';
-import { createCampaign, beginLevel, update, buyUpgrade, upgradeCost, UPGRADES, WEAPONS, MAX_UPGRADE, clamp, selectWeapon, weaponStats, bossWeakPointPosition, comboLabel } from './sim.js';
+import { createCampaign, beginLevel, update, buyUpgrade, upgradeCost, UPGRADES, WEAPONS, BULLET_SPECTRUM, MAX_UPGRADE, clamp, selectWeapon, weaponStats, bossWeakPointPosition, comboLabel } from './sim.js';
 import { Effects } from './effects.js';
 import { AudioEngine } from './audio.js';
 
@@ -104,13 +104,15 @@ function announce(kicker, title, description = '', seconds = 3) {
 
 function launch(level = 0, checkpoint = null) {
   audio.start();
+  level = clamp(Number(level) || 0, 0, WORLDS.length - 1);
+  selected = level;
   state = createCampaign(checkpoint?.mode || mode, level, checkpoint);
   state.width = W; state.height = H; beginLevel(state, level);
   world.setWorld(level); warmFleet(level); fx.reset(); keys.clear(); previousScroll = 0; $('boss-hud').hidden = true;
   setScreen('playing');
-  announce(`SECTOR ${String(level + 1).padStart(2, '0')} / 10`, WORLDS[level].name, WORLDS[level].subtitle || 'Clear the skies. Bring everyone home.', 3.2);
+  announce(`Sector ${String(level + 1).padStart(2, '0')} / 10`, WORLDS[level].name, WORLDS[level].subtitle || 'Clear the skies. Bring everyone home.', 3.2);
   $('p2-panel').hidden = state.mode !== 2;
-  document.querySelector('.flight-hint').textContent = state.mode === 2 ? 'P1: WASD + L CTRL  ·  P2: ARROWS + ENTER / R CTRL  ·  1–6 PROFILE' : 'WASD / ARROWS  ·  SPACE / CTRL FIRE  ·  1–6 PROFILE';
+  document.querySelector('.flight-hint').textContent = state.mode === 2 ? 'P1: WASD + L Ctrl  ·  P2: Arrows + Enter / R Ctrl  ·  1–6 profile' : 'WASD / Arrows  ·  Space / Ctrl fire  ·  1–6 profile';
   canvas.focus({ preventScroll: true });
   refreshHUD();
 }
@@ -147,7 +149,7 @@ function refreshHUD() {
   $('boss-hud').hidden = !boss;
   if (boss) {
     setText($('boss-name'), WORLDS[state.level].bossName || 'Sector guardian'); setWidth($('boss-fill'), boss.hp / boss.maxHp);
-    setText($('boss-status'), boss.vulnerable ? `CORE EXPOSED · ${boss.windowClock.toFixed(1)}s` : `ARMOR SEALED · ${boss.windowClock.toFixed(1)}s`);
+    setText($('boss-status'), boss.vulnerable ? `Core exposed · ${boss.windowClock.toFixed(1)}s` : `Armor sealed · ${boss.windowClock.toFixed(1)}s`);
     $('boss-hud').classList.toggle('exposed', !!boss.vulnerable);
   }
 }
@@ -199,13 +201,13 @@ function refreshContinue() {
 }
 
 function selectWorld(index) {
-  selected = index; world.setWorld(index); previewScroll = 0;
-  document.documentElement.style.setProperty('--sector-accent', WORLDS[index].accent || WORLDS[index].color);
-  $('world-list').querySelectorAll('[data-world]').forEach((button, i) => { button.classList.toggle('active', i === index); button.setAttribute('aria-pressed', String(i === index)); });
-  for (const id of ['selected-world-name', 'preview-world-name']) if ($(id)) $(id).textContent = WORLDS[index].name;
-  if ($('selected-world-description')) $('selected-world-description').textContent = WORLDS[index].description || WORLDS[index].subtitle;
-  if ($('preview-world-number')) $('preview-world-number').textContent = `SECTOR ${String(index + 1).padStart(2, '0')}`;
-  document.body.dataset.world = index;
+  selected = clamp(Math.floor(Number(index) || 0), 0, WORLDS.length - 1); world.setWorld(selected); previewScroll = 0;
+  document.documentElement.style.setProperty('--sector-accent', WORLDS[selected].accent || WORLDS[selected].color);
+  $('world-list').querySelectorAll('[data-world]').forEach((button, i) => { button.classList.toggle('active', i === selected); button.setAttribute('aria-pressed', String(i === selected)); });
+  for (const id of ['selected-world-name', 'preview-world-name']) if ($(id)) $(id).textContent = WORLDS[selected].name;
+  if ($('selected-world-description')) $('selected-world-description').textContent = WORLDS[selected].description || WORLDS[selected].subtitle;
+  if ($('preview-world-number')) $('preview-world-number').textContent = `Sector ${String(selected + 1).padStart(2, '0')}`;
+  document.body.dataset.world = selected;
   renderDirty = true; requestFrame();
 }
 
@@ -229,12 +231,12 @@ function processEvents() {
         state.destroyed++; state.credits += prop.value || 4; state.score += 25;
         fx.emit({ type: 'explosion', ...prop, size: Math.min(48, prop.size), ground: true }, state.scroll * W / 1200);
       }
-      if (e.player && state.mode === 2 && state.players.some(p => p.alive)) announce('WINGMATE DOWN', 'Bring them home.', 'Finish the sector to restore both ships.', 2.5);
+      if (e.player && state.mode === 2 && state.players.some(p => p.alive)) announce('Wingmate down', 'Bring them home.', 'Finish the sector to restore both ships.', 2.5);
     }
-    if (e.type === 'boss') announce('WARNING · HEAVY SIGNATURE', WORLDS[state.level].bossName, 'Break through its armor. Watch for changing attack patterns.', 3);
-    if (e.type === 'phase') announce('REACTOR SURGE', 'Guardian enraged', 'New attack pattern detected.', 1.6);
-    if (e.type === 'boss-open' && e.openCount === 1) announce('WINDOW OPEN', 'Core exposed', 'Aim for the glowing weak points before the armor seals.', 1.5);
-    if (e.type === 'formation') announce('TACTICAL FORMATION', e.label, `${e.count} contacts moving as one.`, 1.15);
+    if (e.type === 'boss') announce('Warning · heavy signature', WORLDS[state.level].bossName, 'Break through its armor. Watch for changing attack patterns.', 3);
+    if (e.type === 'phase') announce('Reactor surge', 'Guardian enraged', 'New attack pattern detected.', 1.6);
+    if (e.type === 'boss-open' && e.openCount === 1) announce('Window open', 'Core exposed', 'Aim for the glowing weak points before the armor seals.', 1.5);
+    if (e.type === 'formation') announce('Tactical formation', e.label, `${e.count} contacts moving as one.`, 1.15);
     if (e.type === 'weapon') { refreshHUD(); renderWeapons(); }
     if (e.type === 'hangar') showHangar(e.bonus);
     if (e.type === 'defeat') showEnd(false);
@@ -266,7 +268,32 @@ function boltTexture(b) {
 }
 function drawBullet(b) {
   const x = lerp(b.px, b.x), y = lerp(b.py, b.y), color = b.weaponColor || b.color || '#ffffff';
-  if (b.team < 0) { const sprite = boltTexture(b); ctx.drawImage(sprite, x - b.radius * 3, y - b.radius * 3, b.radius * 6, b.radius * 6); return; }
+  if (b.team < 0) {
+    // Hostile rounds inherit their hull class: small ships produce tiny dots,
+    // while heavier ships telegraph stronger diamonds, rings and streaks.
+    const radius = b.radius || 3, variant = b.variant || 0, angle = Math.atan2(b.vy, b.vx);
+    ctx.save(); ctx.translate(x, y); ctx.rotate(angle); ctx.globalCompositeOperation = 'screen';
+    ctx.fillStyle = color; ctx.strokeStyle = color; ctx.globalAlpha = .18;
+    ctx.beginPath(); ctx.arc(0, 0, radius * 2.8, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = .92;
+    if (variant === 1) {
+      ctx.rotate(Math.PI / 4); ctx.fillRect(-radius * .72, -radius * .72, radius * 1.44, radius * 1.44);
+    } else if (variant === 2) {
+      ctx.lineWidth = Math.max(1, radius * .38); ctx.beginPath(); ctx.arc(0, 0, radius * .92, 0, Math.PI * 2); ctx.stroke();
+      ctx.globalAlpha = .75; ctx.beginPath(); ctx.arc(0, 0, radius * .34, 0, Math.PI * 2); ctx.fill();
+    } else if (variant === 3) {
+      ctx.beginPath(); ctx.moveTo(0, radius * 1.65); ctx.lineTo(radius * .82, -radius); ctx.lineTo(-radius * .82, -radius); ctx.closePath(); ctx.fill();
+    } else if (variant === 4) {
+      ctx.fillRect(-radius * .45, -radius * 2.5, radius * .9, radius * 5);
+      ctx.globalAlpha = .35; ctx.fillRect(-radius * .8, radius * 1.4, radius * 1.6, radius * 3.5);
+    } else if (variant === 5) {
+      ctx.lineWidth = Math.max(1.2, radius * .34); ctx.beginPath(); ctx.arc(0, 0, radius * .8, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-radius * 1.8, 0); ctx.lineTo(radius * 1.8, 0); ctx.moveTo(0, -radius * 1.8); ctx.lineTo(0, radius * 1.8); ctx.stroke();
+    } else {
+      ctx.beginPath(); ctx.arc(0, 0, radius, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore(); return;
+  }
   const kind = b.kind || 'pulse';
   if (kind === 'lance') {
     ctx.save(); ctx.strokeStyle = color; ctx.globalAlpha = .9; ctx.lineWidth = Math.max(2, b.radius * 1.15);
@@ -316,8 +343,9 @@ function draw() {
   const impactMotion = scene === 'playing' || scene === 'end';
   const shake = fx.reduced || !impactMotion ? 0 : fx.shake;
   if (shake > .3) ctx.translate((Math.random() - .5) * shake, (Math.random() - .5) * shake);
-  world.draw(ctx, W, H, scroll, clock, quality);
-  fx.drawGround(ctx, scroll * W / 1200, H);
+  const focusX = state?.players?.[0]?.x ?? W * .66;
+  world.draw(ctx, W, H, scroll, clock, quality, focusX);
+  fx.drawGround(ctx, scroll * W / 1200, H, (world.parallaxX || 0) * W / 1200);
   if (state) {
     if (state.formations?.length) {
       ctx.save(); ctx.globalAlpha = .16; ctx.strokeStyle = SHIP_PALETTES[index]?.rim || '#e7f79a'; ctx.lineWidth = 1; ctx.setLineDash([4, 9]);
@@ -456,14 +484,14 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('resize', resize);
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 function on(id, fn) { $(id)?.addEventListener('click', fn); }
-on('launch-button', () => launch(0));
+on('launch-button', () => launch(selected));
 on('pause-button', pause); on('resume-button', pause); on('menu-button', returnToMenu); on('end-menu-button', returnToMenu);
 on('restart-button', () => launch(state.level, state));
 on('retry-button', () => state.status === 'victory' ? launch(0) : launch(state.level, state));
 on('next-button', () => {
   if (state?.status !== 'hangar') return;
   beginLevel(state, state.level + 1); world.setWorld(state.level); warmFleet(state.level); previousScroll = 0; fx.reset(); setScreen('playing'); audio.start(); $('boss-hud').hidden = true;
-  announce(`SECTOR ${String(state.level + 1).padStart(2, '0')} / 10`, WORLDS[state.level].name, WORLDS[state.level].subtitle, 3); refreshHUD(); canvas.focus({ preventScroll: true });
+  announce(`Sector ${String(state.level + 1).padStart(2, '0')} / 10`, WORLDS[state.level].name, WORLDS[state.level].subtitle, 3); refreshHUD(); canvas.focus({ preventScroll: true });
 });
 $('upgrade-list').addEventListener('click', event => {
   const button = event.target.closest('[data-upgrade]'); if (!button || !state) return;
@@ -520,7 +548,7 @@ document.querySelectorAll('.modal-screen').forEach(el => { el.setAttribute('role
 syncSettings(); refreshContinue(); selectWorld(0); setScreen('menu'); resize();
 // Readable state and deterministic stepping for browser QA and tuning.
 window.tyran = {
-  get state() { return state; }, get scene() { return scene; }, get world() { return world; }, worlds: WORLDS, enemyTypes: ENEMY_TYPES, weapons: WEAPONS, shipPalettes: SHIP_PALETTES,
+  get state() { return state; }, get scene() { return scene; }, get world() { return world; }, worlds: WORLDS, enemyTypes: ENEMY_TYPES, weapons: WEAPONS, bulletSpectrum: BULLET_SPECTRUM, parallaxLayers: PARALLAX_LAYERS, shipPalettes: SHIP_PALETTES,
   get performance() { return { ...perf, interpolation: renderAlpha, fixedStep: STEP }; },
   launch, selectWorld, selectWeapon, pause,
   step(seconds, controls = []) { for (let i = 0; i < Math.ceil(seconds * 60); i++) { if (state && scene === 'playing') { previousScroll = state.scroll; update(state, STEP, controls, environmentHit); processEvents(); } } accumulator = 0; renderAlpha = 1; renderDirty = true; refreshHUD(); requestFrame(); },

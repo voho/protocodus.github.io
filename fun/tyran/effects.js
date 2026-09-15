@@ -95,7 +95,7 @@ export class Effects {
     this.particles.length = length;
     ageAndCompact(this.rings, dt); ageAndCompact(this.lights, dt); ageAndCompact(this.texts, dt);
   }
-  drawGround(ctx, scroll, H) {
+  drawGround(ctx, scroll, H, offset = 0) {
     let length = 0;
     const sprite = this.wrecks.length ? wreckTexture() : null;
     for (const w of this.wrecks) {
@@ -103,7 +103,7 @@ export class Effects {
       if (y > H + w.size * 3) continue;
       this.wrecks[length++] = w;
       if (y < -w.size * 2) continue;
-      ctx.save(); ctx.translate(w.x, y); ctx.rotate(w.angle);
+      ctx.save(); ctx.translate(w.x + offset, y); ctx.rotate(w.angle);
       ctx.drawImage(sprite, -w.size * 1.8, -w.size * 1.8, w.size * 3.6, w.size * 3.6);
       ctx.restore();
     }

@@ -38,10 +38,18 @@ try {
   assert(await page.locator('#help-screen').isHidden());
   assert.equal(await page.evaluate(() => document.activeElement.id), 'help-button', 'Closing the manual restores its trigger focus');
   assert.equal(await page.evaluate(() => tyran.scene), 'menu');
+  // Launch uses the sector selected in the campaign strip, then the prominent
+  // return control brings the pilot back to the command menu.
+  await page.locator('#launch-button').click();
+  assert.equal(await page.evaluate(() => tyran.state.level), 9, 'Launching a preview starts the selected sector');
+  await page.keyboard.press('Escape');
+  await page.locator('#menu-button').click();
+  assert.equal(await page.evaluate(() => tyran.scene), 'menu');
+  await page.locator('button[data-world="0"]').click();
   await page.locator('[data-mode="2"]').click();
   await page.locator('#launch-button').click();
   assert.equal(await page.evaluate(() => tyran.state.mode), 2);
-  assert.equal(await page.evaluate(() => tyran.state.level), 0, 'Previewing a world does not skip campaign progression');
+  assert.equal(await page.evaluate(() => tyran.state.level), 0, 'Selecting the first sector starts the first sector');
   assert(await page.locator('#p2-panel').isVisible());
   const before = await page.evaluate(() => tyran.state.players.map(p => ({ x:p.x,y:p.y })));
   await page.keyboard.down('KeyD'); await page.keyboard.down('ArrowLeft');
@@ -78,8 +86,8 @@ try {
   // Destruction is real, persistent, and rewards salvage.
   const destruction = await page.evaluate(() => {
     const w = tyran.world, p = w.visibleProps[0], scale = w.scale;
-    const destroyed = w.hit(p.x * scale, (p.y + tyran.state.scroll) * scale, 3, 100000, tyran.state.scroll);
-    const twice = w.hit(p.x * scale, (p.y + tyran.state.scroll) * scale, 3, 100000, tyran.state.scroll);
+    const destroyed = w.hit((p.screenX ?? p.x) * scale, (p.y + tyran.state.scroll) * scale, 3, 100000, tyran.state.scroll);
+    const twice = w.hit((p.screenX ?? p.x) * scale, (p.y + tyran.state.scroll) * scale, 3, 100000, tyran.state.scroll);
     return { count:destroyed.length, twice:twice.length, size:destroyed[0]?.size };
   });
   assert(destruction.count > 0 && destruction.size > 0); assert.equal(destruction.twice, 0, 'Destroyed props cannot pay out twice');
