@@ -30,14 +30,23 @@ export class AudioEngine {
     gain.gain.setValueAtTime(volume, t); gain.gain.exponentialRampToValueAtTime(.001, t + duration);
     noise.connect(filter); filter.connect(gain); gain.connect(this.master); noise.start(t); noise.stop(t + duration);
   }
-  effect(type, size = 20) {
+  effect(type, size = 20, variant = '') {
     if (!this.context || this.muted) return;
     const t = this.context.currentTime;
-    if (type === 'shot') { if (t - this.lastShot < .065) return; this.lastShot = t; this.tone(1150, 220, .085, .065, 'triangle'); }
+    if (type === 'shot') {
+      if (t - this.lastShot < .045) return;
+      this.lastShot = t;
+      const pitch = { pulse: 1150, scatter: 760, lance: 410, seeker: 930, plasma: 260, arc: 1380 }[variant] || 1150;
+      this.tone(pitch, Math.max(80, pitch * .2), variant === 'lance' ? .17 : .085, variant === 'plasma' ? .1 : .065, variant === 'arc' ? 'square' : 'triangle');
+    }
     if (type === 'explosion') { this.burst(Math.min(1.3, .18 + size / 130), Math.min(.5, .09 + size / 220), 1400); this.tone(90, 22, .25 + size / 220, .2); }
     if (type === 'hit') { this.burst(.13, .18, 3200); this.tone(420, 100, .2, .14, 'sawtooth'); }
     if (type === 'pickup' || type === 'upgrade') { [440, 660, 880].forEach((f, i) => this.tone(f, f * 1.002, .18, .12, 'sine', t + i * .07)); }
     if (type === 'boss') { [0, .3, .6].forEach(offset => this.tone(180, 140, .25, .18, 'sawtooth', t + offset)); }
+    if (type === 'weapon') { this.tone(520, 860, .12, .07, 'triangle'); }
+    if (type === 'combo') { const notes = variant === 'RAMPAGE' ? [220, 330, 495, 660] : variant === 'MULTI KILL' ? [330, 495, 660] : [440, 660]; notes.forEach((f, i) => this.tone(f, f * 1.04, .15, .13, 'square', t + i * .055)); }
+    if (type === 'boss-open') { this.tone(880, 1320, .28, .12, 'sine'); }
+    if (type === 'weak-break') { this.burst(.16, .12, 4200); this.tone(260, 920, .3, .16, 'sawtooth'); }
   }
   update(playing, level = 0) {
     if (!this.context || this.muted || !playing || this.context.state !== 'running') return;

@@ -16,11 +16,12 @@ Open `http://127.0.0.1:8773/fun/tyran/`.
 - **Co-op pilot 1:** WASD to move; left Control or Space to fire.
 - **Pilot 2:** arrows to move; right Control or Enter to fire. Choose co-op before launching.
 - **Pause:** Escape or P. **Sound:** M. Sound and effects quality are also available in the pause menu.
+- **Weapons:** number keys **1–6** swap the active fire profile. Choose the same profiles in the service bay; the six-tier Ion armament upgrade improves every profile without removing its tradeoff.
 - **Touch:** drag the left control to steer and hold the right control to fire.
 
 Fly through ten sectors: jungle, snow, desert, tropical islands, asteroid belt, Mars, volcanic foundry, neon city, alien garden, and void citadel. Each introduces nine enemy classes, followed by a sector guardian with three attack phases. Ten sector liveries and fittings create 100 enemy variants from ten underlying silhouettes. World cards preview the environments; a new campaign always begins in sector one.
 
-Destroy ships and scenery for credits, collect repair and salvage pickups, and purchase six tiers each of weapons, shields, hull, and recharge between sectors. Co-op shares the upgrade budget and equipment; one surviving pilot can complete a sector, and both ships return with full hull and shields at the next launch. Progress and purchases save at the service bay in local storage. Continue resumes the last saved service-bay loadout; mid-flight positions are not saved. Retry keeps current equipment and accumulated credits/score.
+Destroy ships and scenery for credits, collect repair and salvage pickups, and purchase six tiers each of weapons, shields, hull, and recharge between sectors. Pulse, scatter, lance, seeker, plasma and arc profiles trade fire rate for reach, piercing, homing, splash or chain jumps. Enemy formations fly coordinated vee, wall, orbit, escort and pincer patterns. Guardians seal their armor between attack cycles; glowing weak points open during safe firing windows and can be broken for bonus damage. Chaining a double kill, multi kill or rampage overcharges damage and blast radius for a few seconds, then resets if the timer expires or the pilot is hit. Co-op shares the upgrade budget and equipment; one surviving pilot can complete a sector, and both ships return with full hull and shields at the next launch. Progress and purchases save at the service bay in local storage. Continue resumes the last saved service-bay loadout; mid-flight positions are not saved. Retry keeps current equipment and accumulated credits/score.
 
 ## Visuals and audio
 
@@ -28,7 +29,7 @@ Original generated title artwork and environment terrain assets are stored in `a
 
 Effects have high/low settings. Reduced-motion preference disables screen shake, impact blur and bright screen flashes. Losing window focus automatically pauses. Failure or denial of local storage and audio does not prevent play.
 
-Ships now cast separate ground shadows, with silver armor rims, white-hot engine fire and warm nozzle bloom. Thrust responds to acceleration. Hull and equipment add mass: heavier ships accelerate, coast, reverse and bank more gradually while retaining their cruise speed. Both keyboard layouts use the same motion model.
+Ships now cast separate ground shadows, with silver armor rims, white-hot engine fire and warm nozzle bloom. Every sector has a reserved high-contrast fleet palette (for example red/yellow over jungle and acid green/yellow over the black asteroid belt), separate from the terrain and scenery materials. Six cached projectile textures make each profile readable in motion. Thrust responds to acceleration. Hull and equipment add mass: heavier ships accelerate, coast, reverse and bank more gradually while retaining their cruise speed. Both keyboard layouts use the same motion model.
 
 Each world has changing terrain sections with blended crop/zoom composition, clustered vegetation, outposts and landmarks. Terrain, scenery, shadows, glow, wreckage and projectile sprites are cached; nearby terrain chunks and spacecraft are prepared before they are needed. Collision checks reject distant targets cheaply and scenery uses spatial buckets. Damaged scenery retains its state when scrolling out of the image cache.
 
@@ -41,7 +42,7 @@ Physics runs at a fixed 60 updates per second. Rendering interpolates between up
 | `game.js` | Rendering loop, input, screens, persistence and integration |
 | `sim.js` | Combat, collision, campaign progression and upgrade economy |
 | `worlds.js` | Ten scrolling environments and destructible scenery |
-| `ships.js` | Ten enemy classes and cached spacecraft artwork |
+| `ships.js` | Ten enemy classes, reserved fleet palettes and cached spacecraft artwork |
 | `effects.js` | Explosions, debris, lighting, wreckage and motion |
 | `audio.js` | Original synthesized music and sound effects |
 | `index.html`, `style.css` | Responsive menu, HUD, hangar and controls |

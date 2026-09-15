@@ -1,6 +1,6 @@
 import { WORLDS, WorldRenderer } from './worlds.js';
-import { ENEMY_TYPES, drawShip, warmShipSprites } from './ships.js';
-import { createCampaign, beginLevel, update, buyUpgrade, upgradeCost, UPGRADES, MAX_UPGRADE, clamp } from './sim.js';
+import { ENEMY_TYPES, SHIP_PALETTES, drawShip, warmShipSprites } from './ships.js';
+import { createCampaign, beginLevel, update, buyUpgrade, upgradeCost, UPGRADES, WEAPONS, MAX_UPGRADE, clamp, selectWeapon, weaponStats, bossWeakPointPosition, comboLabel } from './sim.js';
 import { Effects } from './effects.js';
 import { AudioEngine } from './audio.js';
 
@@ -36,7 +36,7 @@ try {
 } catch { /* Local saves are optional in private/restricted browsing. */ }
 
 function saveCheckpoint(nextLevel = state?.level + 1) {
-  if (state && nextLevel < 10) saved = { level: nextLevel, mode: state.mode, upgrades: { ...state.upgrades }, credits: state.credits, score: state.score, totalKills: state.totalKills };
+  if (state && nextLevel < 10) saved = { level: nextLevel, mode: state.mode, weapon: state.weapon, upgrades: { ...state.upgrades }, credits: state.credits, score: state.score, totalKills: state.totalKills };
   else saved = null;
   try { localStorage.setItem(SAVE_KEY, JSON.stringify({ version: 1, unlocked, checkpoint: saved })); } catch { /* Keep playing without storage. */ }
   refreshContinue();
@@ -90,7 +90,7 @@ function resize() {
 }
 
 function warmFleet(index) {
-  warmShipSprites(WORLDS[index].enemyColor, index);
+  warmShipSprites(SHIP_PALETTES[index], index);
   warmShipSprites('#a4ffee', index, true); warmShipSprites('#ffc18b', index, true);
 }
 
@@ -110,7 +110,7 @@ function launch(level = 0, checkpoint = null) {
   setScreen('playing');
   announce(`SECTOR ${String(level + 1).padStart(2, '0')} / 10`, WORLDS[level].name, WORLDS[level].subtitle || 'Clear the skies. Bring everyone home.', 3.2);
   $('p2-panel').hidden = state.mode !== 2;
-  document.querySelector('.flight-hint').textContent = state.mode === 2 ? 'P1: WASD + L CTRL  ·  P2: ARROWS + ENTER / R CTRL' : 'WASD / ARROWS  ·  SPACE / CTRL TO FIRE';
+  document.querySelector('.flight-hint').textContent = state.mode === 2 ? 'P1: WASD + L CTRL  ·  P2: ARROWS + ENTER / R CTRL  ·  1–6 PROFILE' : 'WASD / ARROWS  ·  SPACE / CTRL FIRE  ·  1–6 PROFILE';
   canvas.focus({ preventScroll: true });
   refreshHUD();
 }
@@ -130,6 +130,12 @@ function refreshHUD() {
   setText($('level-name'), WORLDS[state.level].name);
   setText($('level-number'), `${String(state.level + 1).padStart(2, '0')} / 10`);
   setText($('score-value'), number(state.score)); setText($('credits-value'), number(state.credits));
+  const profile = weaponStats(state);
+  setText($('weapon-value'), profile.name); setText($('weapon-level'), `MK ${String(profile.level + 1).padStart(2, '0')}`);
+  const activeCombo = state.combo >= 2 && state.comboTime > 0;
+  setText($('combo-value'), activeCombo ? `${state.combo} · ${comboLabel(state.combo)}` : 'READY');
+  setWidth($('combo-fill'), activeCombo ? state.comboTime / 5.2 : 0);
+  $('combo-instrument').classList.toggle('active', activeCombo);
   setWidth($('progress-fill'), state.time / state.duration);
   for (const p of state.players) {
     const prefix = `p${p.id + 1}`;
@@ -139,7 +145,11 @@ function refreshHUD() {
   }
   const boss = state.enemies.find(e => e.boss && !e.dead);
   $('boss-hud').hidden = !boss;
-  if (boss) { setText($('boss-name'), WORLDS[state.level].bossName || 'Sector guardian'); setWidth($('boss-fill'), boss.hp / boss.maxHp); }
+  if (boss) {
+    setText($('boss-name'), WORLDS[state.level].bossName || 'Sector guardian'); setWidth($('boss-fill'), boss.hp / boss.maxHp);
+    setText($('boss-status'), boss.vulnerable ? `CORE EXPOSED · ${boss.windowClock.toFixed(1)}s` : `ARMOR SEALED · ${boss.windowClock.toFixed(1)}s`);
+    $('boss-hud').classList.toggle('exposed', !!boss.vulnerable);
+  }
 }
 
 function showHangar(bonus) {
@@ -156,6 +166,18 @@ function renderUpgrades() {
   $('upgrade-list').innerHTML = UPGRADES.map(u => {
     const level = state.upgrades[u.id], maxed = level >= MAX_UPGRADE, cost = upgradeCost(state, u.id);
     return `<button class="upgrade-card" data-upgrade="${u.id}" ${maxed || state.credits < cost ? 'disabled' : ''}><span class="upgrade-icon" aria-hidden="true">${u.icon}</span><span class="upgrade-level">MK ${String(level + 1).padStart(2, '0')} / 07</span><span class="upgrade-name">${u.name}</span><span class="upgrade-description">${u.subtitle}${state.mode === 2 ? ' Upgrades both pilots.' : ''}</span><span class="upgrade-pips" aria-hidden="true">${Array.from({ length: 6 }, (_, i) => `<i class="${i < level ? 'filled' : ''}"></i>`).join('')}</span><span class="upgrade-cost">${maxed ? 'FULLY UPGRADED' : `${number(cost)} CR <span aria-hidden="true">+</span>`}</span></button>`;
+  }).join('');
+  renderWeapons();
+}
+
+function renderWeapons() {
+  const selectedWeapon = state?.weapon || 'pulse';
+  $('weapon-list').innerHTML = WEAPONS.map((weapon, index) => {
+    const stats = weaponStats(state, weapon.id), active = weapon.id === selectedWeapon;
+    const power = Math.round(Math.min(100, stats.damage * stats.count * 1.18));
+    const speed = Math.round(Math.min(100, 100 / stats.interval * .42));
+    const range = Math.round(Math.min(100, stats.speed / 12 + (stats.homing ? 18 : 0) + (stats.pierce ? 12 : 0)));
+    return `<button class="weapon-card${active ? ' active' : ''}" data-weapon="${weapon.id}" aria-pressed="${active}" aria-label="Select ${weapon.name}" style="--weapon-color:${weapon.color}"><span class="weapon-hotkey">${index + 1}</span><span class="weapon-swatch"></span><span class="weapon-copy"><strong>${weapon.name}</strong><small>${weapon.tag}</small></span><span class="weapon-description">${weapon.description}</span><span class="weapon-bars" aria-label="Power ${power}, fire rate ${speed}, reach ${range}"><i style="--bar:${power}%"></i><i style="--bar:${speed}%"></i><i style="--bar:${range}%"></i></span><span class="weapon-readout"><b>${stats.damage.toFixed(1)} DMG</b><b>${(1 / stats.interval).toFixed(1)} / SEC</b></span></button>`;
   }).join('');
 }
 
@@ -200,9 +222,10 @@ function input() {
 
 function processEvents() {
   for (const e of state.events.splice(0)) {
-    fx.emit(e, state.scroll * W / 1200); audio.effect(e.type, e.size);
+    fx.emit(e, state.scroll * W / 1200); audio.effect(e.type, e.size, e.weapon || e.label);
     if (e.type === 'explosion' && !e.ground) {
-      for (const prop of world.hit(e.x, e.y, Math.min(220, e.size * 1.5), e.size * 2, state.scroll)) {
+      const blast = e.blast || 1;
+      for (const prop of world.hit(e.x, e.y, Math.min(250, e.size * 1.5 * blast), e.size * 2 * blast, state.scroll)) {
         state.destroyed++; state.credits += prop.value || 4; state.score += 25;
         fx.emit({ type: 'explosion', ...prop, size: Math.min(48, prop.size), ground: true }, state.scroll * W / 1200);
       }
@@ -210,6 +233,9 @@ function processEvents() {
     }
     if (e.type === 'boss') announce('WARNING · HEAVY SIGNATURE', WORLDS[state.level].bossName, 'Break through its armor. Watch for changing attack patterns.', 3);
     if (e.type === 'phase') announce('REACTOR SURGE', 'Guardian enraged', 'New attack pattern detected.', 1.6);
+    if (e.type === 'boss-open' && e.openCount === 1) announce('WINDOW OPEN', 'Core exposed', 'Aim for the glowing weak points before the armor seals.', 1.5);
+    if (e.type === 'formation') announce('TACTICAL FORMATION', e.label, `${e.count} contacts moving as one.`, 1.15);
+    if (e.type === 'weapon') { refreshHUD(); renderWeapons(); }
     if (e.type === 'hangar') showHangar(e.bonus);
     if (e.type === 'defeat') showEnd(false);
     if (e.type === 'victory') showEnd(true);
@@ -218,30 +244,69 @@ function processEvents() {
 
 const boltTextures = new Map();
 function boltTexture(b) {
-  const friendly = b.team >= 0, key = `${friendly}:${b.color}`;
+  const friendly = b.team >= 0, color = b.weaponColor || b.color, key = `${friendly}:${color}`;
   if (boltTextures.has(key)) return boltTextures.get(key);
   const c = typeof OffscreenCanvas === 'undefined' ? document.createElement('canvas') : new OffscreenCanvas(64, 64);
   c.width = c.height = 64;
   const paint = c.getContext('2d');
   if (friendly) {
     const g = paint.createLinearGradient(14, 0, 50, 0);
-    g.addColorStop(0, `${b.color}00`); g.addColorStop(.5, `${b.color}70`); g.addColorStop(1, `${b.color}00`);
+    g.addColorStop(0, `${color}00`); g.addColorStop(.5, `${color}70`); g.addColorStop(1, `${color}00`);
     paint.fillStyle = g; paint.fillRect(14, 4, 36, 50);
-    paint.fillStyle = b.color; paint.fillRect(29, 3, 6, 46);
+    paint.fillStyle = color; paint.fillRect(29, 3, 6, 46);
     paint.fillStyle = '#f4fff9'; paint.fillRect(31, 3, 2, 43);
   } else {
     const g = paint.createRadialGradient(32, 32, 1, 32, 32, 31);
-    g.addColorStop(0, `${b.color}aa`); g.addColorStop(.4, `${b.color}45`); g.addColorStop(1, `${b.color}00`);
+    g.addColorStop(0, `${color}aa`); g.addColorStop(.4, `${color}45`); g.addColorStop(1, `${color}00`);
     paint.fillStyle = g; paint.fillRect(0, 0, 64, 64);
-    paint.fillStyle = b.color; paint.beginPath(); paint.arc(32, 32, 10.66, 0, Math.PI * 2); paint.fill();
+    paint.fillStyle = color; paint.beginPath(); paint.arc(32, 32, 10.66, 0, Math.PI * 2); paint.fill();
     paint.fillStyle = '#fff4d7'; paint.beginPath(); paint.arc(30, 30, 4.5, 0, Math.PI * 2); paint.fill();
   }
   boltTextures.set(key, c); return c;
 }
 function drawBullet(b) {
-  const x = lerp(b.px, b.x), y = lerp(b.py, b.y), sprite = boltTexture(b);
-  if (b.team >= 0) ctx.drawImage(sprite, x - b.radius * 4, y - 10, b.radius * 8, 44);
-  else ctx.drawImage(sprite, x - b.radius * 3, y - b.radius * 3, b.radius * 6, b.radius * 6);
+  const x = lerp(b.px, b.x), y = lerp(b.py, b.y), color = b.weaponColor || b.color || '#ffffff';
+  if (b.team < 0) { const sprite = boltTexture(b); ctx.drawImage(sprite, x - b.radius * 3, y - b.radius * 3, b.radius * 6, b.radius * 6); return; }
+  const kind = b.kind || 'pulse';
+  if (kind === 'lance') {
+    ctx.save(); ctx.strokeStyle = color; ctx.globalAlpha = .9; ctx.lineWidth = Math.max(2, b.radius * 1.15);
+    ctx.beginPath(); ctx.moveTo(lerp(b.px, b.x), lerp(b.py, b.y)); ctx.lineTo(lerp(b.px, b.x) - b.vx * .045, lerp(b.py, b.y) - b.vy * .045); ctx.stroke();
+    ctx.strokeStyle = '#fff'; ctx.globalAlpha = .8; ctx.lineWidth = .9; ctx.stroke(); ctx.restore(); return;
+  }
+  if (kind === 'plasma') {
+    ctx.save(); const radius = b.radius * (1 + Math.sin((b.age || 0) * 18) * .08); ctx.fillStyle = color; ctx.globalAlpha = .82;
+    ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = .3; ctx.beginPath(); ctx.arc(x, y, radius * 2.8, 0, Math.PI * 2); ctx.fill();
+    ctx.restore(); return;
+  }
+  if (kind === 'seeker') {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(Math.atan2(b.vy, b.vx) + Math.PI / 2); ctx.fillStyle = color; ctx.globalAlpha = .95;
+    ctx.beginPath(); ctx.moveTo(0, -b.radius * 1.8); ctx.lineTo(b.radius * 1.05, b.radius); ctx.lineTo(0, b.radius * .55); ctx.lineTo(-b.radius * 1.05, b.radius); ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = .35; ctx.fillRect(-b.radius * .5, b.radius, b.radius, b.radius * 3.2); ctx.restore(); return;
+  }
+  if (kind === 'arc') {
+    ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = Math.max(1.5, b.radius * .8); ctx.globalAlpha = .9;
+    ctx.beginPath(); ctx.moveTo(b.px, b.py); ctx.lineTo((b.px + x) / 2 + Math.sin((b.age || 0) * 40) * 3, (b.py + y) / 2); ctx.lineTo(x, y); ctx.stroke(); ctx.restore(); return;
+  }
+  if (kind === 'scatter') {
+    ctx.save(); ctx.fillStyle = color; ctx.globalAlpha = .9; ctx.beginPath(); ctx.arc(x, y, b.radius, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = .32; ctx.beginPath(); ctx.arc(x, y, b.radius * 2.4, 0, Math.PI * 2); ctx.fill(); ctx.restore(); return;
+  }
+  const sprite = boltTexture(b); ctx.drawImage(sprite, x - b.radius * 4, y - 10, b.radius * 8, 44);
+}
+
+function drawBossWeakPoints(enemy, clock) {
+  if (!enemy.boss || !enemy.vulnerable) return;
+  ctx.save(); ctx.globalCompositeOperation = 'screen';
+  for (const point of enemy.weakPoints || []) {
+    if (!point.alive) continue;
+    const position = bossWeakPointPosition(enemy, point), pulse = .82 + Math.sin(clock * 8 + point.index) * .18;
+    ctx.save(); ctx.translate(position.x, position.y); ctx.rotate(clock * .8 + point.index);
+    ctx.globalAlpha = .22 * pulse; ctx.fillStyle = '#ffd66e'; ctx.beginPath(); ctx.arc(0, 0, point.radius * 2.4, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = .92; ctx.strokeStyle = '#fff1a6'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(0, 0, point.radius, 0, Math.PI * 2); ctx.stroke();
+    ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(-point.radius * 1.5, 0); ctx.lineTo(point.radius * 1.5, 0); ctx.moveTo(0, -point.radius * 1.5); ctx.lineTo(0, point.radius * 1.5); ctx.stroke();
+    ctx.restore();
+  }
+  ctx.restore();
 }
 
 function draw() {
@@ -254,10 +319,21 @@ function draw() {
   world.draw(ctx, W, H, scroll, clock, quality);
   fx.drawGround(ctx, scroll * W / 1200, H);
   if (state) {
+    if (state.formations?.length) {
+      ctx.save(); ctx.globalAlpha = .16; ctx.strokeStyle = SHIP_PALETTES[index]?.rim || '#e7f79a'; ctx.lineWidth = 1; ctx.setLineDash([4, 9]);
+      for (const formation of state.formations) {
+        const members = state.enemies.filter(enemy => enemy.formation === formation && !enemy.dead);
+        if (members.length < 2) continue;
+        ctx.beginPath(); members.forEach((enemy, i) => { const x = lerp(enemy.px, enemy.x), y = lerp(enemy.py, enemy.y); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.stroke();
+      }
+      ctx.restore();
+    }
     for (const e of state.enemies) {
       const x = lerp(e.px, e.x), y = lerp(e.py, e.y);
       if (y < -e.radius * 2 || y > H + e.radius * 2) continue;
-      drawShip(ctx, x, y, e.radius * (e.type < 2 ? 1.35 : 1), e.type, WORLDS[index].enemyColor || '#b07355', clock, { hit: e.hurt / .07 * .3, phase: e.phase, world: index, quality, bank: e.bank, thrust: e.thrust });
+      const palette = SHIP_PALETTES[index];
+      drawShip(ctx, x, y, e.radius * (e.type < 2 ? 1.35 : 1), e.type, palette?.primary || WORLDS[index].enemyColor || '#b07355', clock, { hit: e.hurt / .07 * .3, phase: e.phase, world: index, quality, bank: e.bank, thrust: e.thrust, palette });
+      drawBossWeakPoints(e, clock);
       if (!e.boss && e.hp < e.maxHp && e.radius >= 24) {
         ctx.fillStyle = '#09171aca'; ctx.fillRect(x - e.radius, y - e.radius * 1.6 - 8, e.radius * 2, 3);
         ctx.fillStyle = '#fb9f7c'; ctx.fillRect(x - e.radius, y - e.radius * 1.6 - 8, e.radius * 2 * Math.max(0, e.hp / e.maxHp), 3);
@@ -281,7 +357,11 @@ function draw() {
       }
       ctx.fillStyle = color; ctx.globalAlpha = .65; ctx.textAlign = 'center'; ctx.font = '10px "Space Grotesk", sans-serif'; ctx.fillText(`P${p.id + 1}`, x, y + 70); ctx.globalAlpha = 1;
     }
-    if (state.combo >= 10) { ctx.textAlign = 'right'; ctx.font = 'bold 17px "Space Grotesk", sans-serif'; ctx.fillStyle = '#d8fce7'; ctx.fillText(`×${Math.min(4, 1 + Math.floor(state.combo / 10))}  ${state.combo} CHAIN`, W - 30, H - 28); }
+    if (state.combo >= 2 && state.comboTime > 0) {
+      ctx.textAlign = 'right'; ctx.font = 'bold 17px "Space Grotesk", sans-serif'; ctx.fillStyle = state.combo >= 5 ? '#ffe36d' : '#d8fce7';
+      ctx.fillText(`${state.combo}  ${comboLabel(state.combo)}`, W - 30, H - 32);
+      ctx.fillStyle = '#d8fce766'; ctx.fillRect(W - 180, H - 20, 150, 2); ctx.fillStyle = '#ffe18c'; ctx.fillRect(W - 180, H - 20, 150 * clamp(state.comboTime / 5.2, 0, 1), 2);
+    }
   } else {
     const px = W * .66 + Math.sin(clock * .5) * 45, py = H * .57 + Math.cos(clock * .8) * 15;
     drawShip(ctx, px, py, 45, 'player', '#9bfff0', clock, { bank: Math.sin(clock * .5) * .07, world: index, quality });
@@ -354,6 +434,13 @@ window.addEventListener('keydown', event => {
     }
     return;
   }
+  const weaponIndex = /^Digit([1-6])$/.exec(event.code);
+  if (weaponIndex && state && (scene === 'playing' || scene === 'hangar') && !event.repeat) {
+    event.preventDefault();
+    const weapon = WEAPONS[Number(weaponIndex[1]) - 1];
+    if (weapon && selectWeapon(state, weapon.id)) { audio.start(); audio.effect('weapon'); renderWeapons(); refreshHUD(); }
+    return;
+  }
   if (scene === 'playing' && controlledKeys.has(event.code)) { event.preventDefault(); keys.add(event.code); }
   if ((event.code === 'Escape' || event.code === 'KeyP') && !event.repeat) {
     if ($('help-screen') && !$('help-screen').hidden) closeHelp(); else pause();
@@ -381,6 +468,10 @@ on('next-button', () => {
 $('upgrade-list').addEventListener('click', event => {
   const button = event.target.closest('[data-upgrade]'); if (!button || !state) return;
   if (buyUpgrade(state, button.dataset.upgrade)) { audio.effect('upgrade'); saveCheckpoint(); renderUpgrades(); const next = document.querySelector(`[data-upgrade="${button.dataset.upgrade}"]`); if (!next.disabled) next.focus(); else $('next-button').focus(); }
+});
+$('weapon-list').addEventListener('click', event => {
+  const button = event.target.closest('[data-weapon]'); if (!button || !state) return;
+  if (selectWeapon(state, button.dataset.weapon)) { audio.start(); audio.effect('weapon'); renderWeapons(); refreshHUD(); button.focus({ preventScroll: true }); }
 });
 document.querySelectorAll('[data-mode]').forEach(button => button.addEventListener('click', () => {
   mode = Number(button.dataset.mode);
@@ -429,9 +520,9 @@ document.querySelectorAll('.modal-screen').forEach(el => { el.setAttribute('role
 syncSettings(); refreshContinue(); selectWorld(0); setScreen('menu'); resize();
 // Readable state and deterministic stepping for browser QA and tuning.
 window.tyran = {
-  get state() { return state; }, get scene() { return scene; }, get world() { return world; }, worlds: WORLDS, enemyTypes: ENEMY_TYPES,
+  get state() { return state; }, get scene() { return scene; }, get world() { return world; }, worlds: WORLDS, enemyTypes: ENEMY_TYPES, weapons: WEAPONS, shipPalettes: SHIP_PALETTES,
   get performance() { return { ...perf, interpolation: renderAlpha, fixedStep: STEP }; },
-  launch, selectWorld, pause,
+  launch, selectWorld, selectWeapon, pause,
   step(seconds, controls = []) { for (let i = 0; i < Math.ceil(seconds * 60); i++) { if (state && scene === 'playing') { previousScroll = state.scroll; update(state, STEP, controls, environmentHit); processEvents(); } } accumulator = 0; renderAlpha = 1; renderDirty = true; refreshHUD(); requestFrame(); },
 };
 document.body.dataset.ready = 'true';

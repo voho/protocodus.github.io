@@ -1,15 +1,15 @@
 /** TYRAN — original terrain paintings, destructible scenery and procedural fallback. */
 export const WORLDS = [
-  { id: 'jungle', name: 'EMERALD FRONTIER', subtitle: '01 / THE LIVING CANOPY', description: 'Ancient temples disappear beneath a vast emerald rainforest.', color: '#67f0b1', accent: '#b7ffcc', enemyColor: '#ff8f64', bossName: 'CANOPY DEVOURER' },
-  { id: 'snow', name: 'POLAR SILENCE', subtitle: '02 / FROZEN SIGNAL', description: 'Glacial rivers cut through snowbound forests and abandoned outposts.', color: '#8bddff', accent: '#e3f8ff', enemyColor: '#ff6e98', bossName: 'FROST COLOSSUS' },
-  { id: 'desert', name: 'SUNKEN EMPIRE', subtitle: '03 / SANDS OF THE ANCIENTS', description: 'Cross golden dunes, ruined monuments and a forgotten empire.', color: '#ffc578', accent: '#ffe0a4', enemyColor: '#62e3ed', bossName: 'DUNE LEVIATHAN' },
-  { id: 'paradise', name: 'AZURE ARCHIPELAGO', subtitle: '04 / TROUBLE IN PARADISE', description: 'Turquoise shallows, coral gardens and islands beneath drifting clouds.', color: '#51e5ed', accent: '#c1fff2', enemyColor: '#ffb266', bossName: 'CORAL DREADNOUGHT' },
-  { id: 'asteroid', name: 'SHATTERED ORBIT', subtitle: '05 / THE MINING BELT', description: 'Navigate glittering debris fields and the wreckage of orbital industry.', color: '#b1a5ff', accent: '#e5ddff', enemyColor: '#ffaa65', bossName: 'ORBITAL CRUSHER' },
-  { id: 'mars', name: 'RED HORIZON', subtitle: '06 / THE LOST COLONY', description: 'Dust storms sweep ochre canyons and silent colony domes.', color: '#ff957a', accent: '#ffd0a1', enemyColor: '#79e8db', bossName: 'MARTIAN SIEGEBREAKER' },
-  { id: 'volcanic', name: 'INFERNO FOUNDRY', subtitle: '07 / INTO THE CALDERA', description: 'Rivers of molten rock feed a war machine buried in black basalt.', color: '#ff8055', accent: '#ffd28a', enemyColor: '#bca8ff', bossName: 'MAGMA TITAN' },
-  { id: 'neon', name: 'NEON AFTERLIFE', subtitle: '08 / CITY OF MACHINES', description: 'Rain-slick avenues and holographic towers pulse beneath your wings.', color: '#f080ff', accent: '#8ff4ff', enemyColor: '#ffcf63', bossName: 'METROPOLIS PRIME' },
-  { id: 'alien', name: 'LUMINOUS GARDEN', subtitle: '09 / A WORLD THAT DREAMS', description: 'Bioluminescent forests grow around crystals and impossible ruins.', color: '#c895ff', accent: '#6fffe0', enemyColor: '#ffb577', bossName: 'THE BLOOM SOVEREIGN' },
-  { id: 'void', name: 'OBSIDIAN CITADEL', subtitle: '10 / THE LAST LIGHT', description: 'The final fortress hangs over an abyss of shattered stars.', color: '#ffa6c8', accent: '#ffe0ee', enemyColor: '#ffa884', bossName: 'TYRAN, WORLD ENDER' },
+  { id: 'jungle', name: 'EMERALD FRONTIER', subtitle: '01 / THE LIVING CANOPY', description: 'Ancient temples disappear beneath a vast emerald rainforest.', color: '#67f0b1', accent: '#b7ffcc', enemyColor: '#f05245', bossName: 'CANOPY DEVOURER' },
+  { id: 'snow', name: 'POLAR SILENCE', subtitle: '02 / FROZEN SIGNAL', description: 'Glacial rivers cut through snowbound forests and abandoned outposts.', color: '#8bddff', accent: '#e3f8ff', enemyColor: '#ff3f9e', bossName: 'FROST COLOSSUS' },
+  { id: 'desert', name: 'SUNKEN EMPIRE', subtitle: '03 / SANDS OF THE ANCIENTS', description: 'Cross golden dunes, ruined monuments and a forgotten empire.', color: '#ffc578', accent: '#ffe0a4', enemyColor: '#39e8ff', bossName: 'DUNE LEVIATHAN' },
+  { id: 'paradise', name: 'AZURE ARCHIPELAGO', subtitle: '04 / TROUBLE IN PARADISE', description: 'Turquoise shallows, coral gardens and islands beneath drifting clouds.', color: '#51e5ed', accent: '#c1fff2', enemyColor: '#ff6338', bossName: 'CORAL DREADNOUGHT' },
+  { id: 'asteroid', name: 'SHATTERED ORBIT', subtitle: '05 / THE MINING BELT', description: 'Navigate glittering debris fields and the wreckage of orbital industry.', color: '#b1a5ff', accent: '#e5ddff', enemyColor: '#74ed63', bossName: 'ORBITAL CRUSHER' },
+  { id: 'mars', name: 'RED HORIZON', subtitle: '06 / THE LOST COLONY', description: 'Dust storms sweep ochre canyons and silent colony domes.', color: '#ff957a', accent: '#ffd0a1', enemyColor: '#45f0cf', bossName: 'MARTIAN SIEGEBREAKER' },
+  { id: 'volcanic', name: 'INFERNO FOUNDRY', subtitle: '07 / INTO THE CALDERA', description: 'Rivers of molten rock feed a war machine buried in black basalt.', color: '#ff8055', accent: '#ffd28a', enemyColor: '#69cfff', bossName: 'MAGMA TITAN' },
+  { id: 'neon', name: 'NEON AFTERLIFE', subtitle: '08 / CITY OF MACHINES', description: 'Rain-slick avenues and holographic towers pulse beneath your wings.', color: '#f080ff', accent: '#8ff4ff', enemyColor: '#f4ff52', bossName: 'METROPOLIS PRIME' },
+  { id: 'alien', name: 'LUMINOUS GARDEN', subtitle: '09 / A WORLD THAT DREAMS', description: 'Bioluminescent forests grow around crystals and impossible ruins.', color: '#c895ff', accent: '#6fffe0', enemyColor: '#c7ff57', bossName: 'THE BLOOM SOVEREIGN' },
+  { id: 'void', name: 'OBSIDIAN CITADEL', subtitle: '10 / THE LAST LIGHT', description: 'The final fortress hangs over an abyss of shattered stars.', color: '#ffa6c8', accent: '#ffe0ee', enemyColor: '#ffc94f', bossName: 'TYRAN, WORLD ENDER' },
 ];
 
 const TILE = 1024;

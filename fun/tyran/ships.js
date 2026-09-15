@@ -13,6 +13,27 @@ export const ENEMY_TYPES = Object.freeze([
   { name: 'Sovereign', hp: 2600, radius: 110, speed: 21, score: 6200, fireRate: 0.8, pattern: 'boss' },
 ].map(Object.freeze));
 
+// These ten neon flight palettes belong to the fleet layer only. Terrain and
+// scenery use their own illustrated material palettes, so a ship always reads
+// as a luminous, high-contrast silhouette even over a similarly colored world.
+export const SHIP_PALETTES = Object.freeze([
+  { id: 'canopy-sunfire', primary: '#f05245', rim: '#ffe35f', core: '#fff6c8', engine: '#ff9a4b', glow: '#ff6f58' },
+  { id: 'polar-magenta', primary: '#ff3f9e', rim: '#ffd5ef', core: '#fffaff', engine: '#ff96d7', glow: '#ff69c8' },
+  { id: 'dune-electric', primary: '#39e8ff', rim: '#d7ffff', core: '#efffff', engine: '#5ccfff', glow: '#4de5ff' },
+  { id: 'reef-tangerine', primary: '#ff6338', rim: '#ffe98a', core: '#fff8d6', engine: '#ffc05a', glow: '#ff8e58' },
+  { id: 'asteroid-acid', primary: '#74ed63', rim: '#f6ef55', core: '#f4ffd0', engine: '#b8e94c', glow: '#8cff62' },
+  { id: 'mars-mint', primary: '#45f0cf', rim: '#e7ff9c', core: '#edfff8', engine: '#56e6c8', glow: '#4de5d4' },
+  { id: 'forge-ice', primary: '#69cfff', rim: '#e7fff8', core: '#e7ffff', engine: '#9b8dff', glow: '#71d9ff' },
+  { id: 'metro-lime', primary: '#f4ff52', rim: '#8affdf', core: '#fffed6', engine: '#ff9be9', glow: '#d8ff5c' },
+  { id: 'mycelium-chartreuse', primary: '#c7ff57', rim: '#ffb4eb', core: '#f8ffd9', engine: '#c785ff', glow: '#cfff65' },
+  { id: 'void-gold', primary: '#ffc94f', rim: '#ffefff', core: '#fff4c0', engine: '#7d8dff', glow: '#ffc75e' },
+].map(Object.freeze));
+
+export function shipPalette(world = 0, fallback = '#ff7866') {
+  const palette = SHIP_PALETTES[Math.abs(Math.floor(world || 0)) % SHIP_PALETTES.length];
+  return palette || { id: 'custom', primary: fallback, rim: '#d9f5ff', core: '#ffffff', engine: '#ff9a4b', glow: fallback };
+}
+
 const hulls = new Map();
 const flames = new Map();
 const glows = new Map();
@@ -314,8 +335,8 @@ function shipDetails(ctx,kind,color,world,player) {
   insignia(ctx,0,kind===0?8:kind===5?34:25,color,world);
 }
 
-function hullSprite(kind,color,world,player) {
-  const key=`${player?'p':kind}:${color}:${world}`;
+function hullSprite(kind,color,world,player,palette=shipPalette(world,color)) {
+  const key=`${player?'p':kind}:${color}:${world}:${palette.id||palette.primary}`;
   if(hulls.has(key))return hulls.get(key);
   const shape=player?PLAYER:SHAPES[kind];
   const canvas=surface(kind===9?640:384);
@@ -323,26 +344,38 @@ function hullSprite(kind,color,world,player) {
   const scale=canvas.width/280;
   ctx.translate(canvas.width/2,canvas.height/2);ctx.scale(scale,scale);
   ctx.lineJoin='round';ctx.lineCap='round';
+  const flightColor=palette.primary||color;
   // A dark undercarriage plus a silver rim preserves shape over both snow and foliage.
   // The cast shadow is a separate cached sprite so its sunlight direction stays fixed.
   ctx.save();ctx.translate(0,3);polygon(ctx,shape.outline,'#050910','#02070d',7);ctx.restore();
   polygon(ctx,shape.outline,player?ivoryArmor(ctx):alloyArmor(ctx),'#04101b',4.6);
-  path(ctx,shape.outline);ctx.strokeStyle=player?'#eaf4ec':'#b8d8e8';ctx.lineWidth=1.75;ctx.stroke();
+  if(!player) { ctx.save();ctx.globalAlpha=.2;polygon(ctx,shape.outline,flightColor);ctx.restore(); }
+  path(ctx,shape.outline);ctx.strokeStyle=player?'#eaf4ec':(palette.rim||'#b8d8e8');ctx.lineWidth=1.75;ctx.stroke();
   // Fine inset armor edge, a little wider on larger capital ships.
   ctx.save();ctx.scale(.946,.955);path(ctx,shape.outline);ctx.strokeStyle='rgba(4,12,23,.58)';ctx.lineWidth=1.4;ctx.stroke();ctx.restore();
-  shipDetails(ctx,kind,color,world,player);
+  shipDetails(ctx,kind,flightColor,world,player);
+  // Cached sector livery marks make otherwise similar silhouettes instantly
+  // distinguishable: chevrons, lane stripes, signal rings and hazard bars.
+  if(!player) {
+    ctx.save();ctx.globalCompositeOperation='screen';ctx.globalAlpha=.62;ctx.strokeStyle=palette.rim||flightColor;ctx.fillStyle=palette.rim||flightColor;ctx.lineWidth=2;
+    if(world%4===0) { ctx.beginPath();ctx.moveTo(-18,-52);ctx.lineTo(0,-39);ctx.lineTo(18,-52);ctx.stroke(); }
+    else if(world%4===1) { for(let i=-1;i<=1;i++){ctx.beginPath();ctx.moveTo(-13+i*8,-33);ctx.lineTo(13+i*8,18);ctx.stroke();} }
+    else if(world%4===2) { ctx.beginPath();ctx.arc(0,-13,18,Math.PI*.15,Math.PI*.85);ctx.stroke();ctx.beginPath();ctx.arc(0,-13,13,Math.PI*1.15,Math.PI*1.85);ctx.stroke(); }
+    else { for(let i=-1;i<=1;i++)ctx.fillRect(-21+i*14,25,7,3); }
+    ctx.restore();
+  }
   for(const [x,y,r] of shape.engines) {
     plate(ctx,[[x-r*.8,y-10],[x+r*.8,y-10],[x+r,y+2],[x-r,y+2]],'#334354');
     ctx.fillStyle='#030b14';ctx.fillRect(x-r*.8,y-2,r*1.6,4);
-    ctx.fillStyle=tint(color,.6);ctx.fillRect(x-r*.65,y,r*1.3,2.3);
-    line(ctx,[[x-r*.8,y-7],[x+r*.8,y-7]],'#a6bac6',1.2);
+    ctx.fillStyle=tint(palette.engine||flightColor,.6);ctx.fillRect(x-r*.65,y,r*1.3,2.3);
+    line(ctx,[[x-r*.8,y-7],[x+r*.8,y-7]],palette.rim||'#a6bac6',1.2);
   }
-  core(ctx,...shape.core,color,player);
+  core(ctx,...shape.core,flightColor,player);
   // Discrete running lights retain the silhouettes in dark asteroid fields.
   const outline=shape.outline;
   for(let i=2;i<outline.length;i+=Math.max(3,Math.floor(outline.length/5))) {
     const [x,y]=outline[i];
-    ctx.fillStyle=tint(color,.7);ctx.beginPath();ctx.arc(x*.9,y*.9,player?1.4:1.25,0,TAU);ctx.fill();
+    ctx.fillStyle=tint(palette.rim||flightColor,.7);ctx.beginPath();ctx.arc(x*.9,y*.9,player?1.4:1.25,0,TAU);ctx.fill();
   }
   hulls.set(key,canvas);
   if(hulls.size>56)hulls.delete(hulls.keys().next().value);
@@ -396,18 +429,18 @@ function flameSprite(color) {
   flames.set(color,canvas);return canvas;
 }
 
-function lightsSprite(kind,color,player) {
-  const key=`${player?'p':kind}:${color}`;
+function lightsSprite(kind,color,player,palette=shipPalette(0,color)) {
+  const key=`${player?'p':kind}:${color}:${palette.id||palette.primary}`;
   if(lights.has(key))return lights.get(key);
   const canvas=surface(320),ctx=canvas.getContext('2d'),shape=player?PLAYER:SHAPES[kind];
   ctx.translate(160,160);
-  const warm=glowSprite('#ff9a4b');
+  const warm=glowSprite(palette.engine||'#ff9a4b');
   for(const [x,y,r] of shape.engines) {
     const diameter=r*6.4;
     ctx.globalAlpha=.72;ctx.drawImage(warm,x-diameter/2,y+4-diameter/2,diameter,diameter);
     // A cool nozzle rim anchors the hot orange exhaust to the engine hardware.
     const diameterCool=r*2.9;
-    ctx.globalAlpha=.7;ctx.drawImage(glowSprite(color),x-diameterCool/2,y-diameterCool/2,diameterCool,diameterCool);
+    ctx.globalAlpha=.7;ctx.drawImage(glowSprite(palette.glow||color),x-diameterCool/2,y-diameterCool/2,diameterCool,diameterCool);
   }
   const [x,y,r]=shape.core,diameter=r*(player?3.8:4.7);
   ctx.globalAlpha=.48;ctx.drawImage(glowSprite(color),x-diameter/2,y-diameter/2,diameter,diameter);
@@ -424,13 +457,14 @@ function lightStyles(color) {
 
 /** Prepare cached artwork between stages, keeping vector rasterization out of combat. */
 export function warmShipSprites(color,world=0,player=false) {
-  color=color||(player?'#71ecff':'#ff7866');
+  const palette=typeof color==='object'&&color ? color : player ? {id:`player-${color||'default'}`,primary:color||'#71ecff',rim:'#f2ffff',core:'#ffffff',engine:'#ff9a4b',glow:color||'#71ecff'} : shipPalette(world,color||'#ff7866');
+  color=palette.primary;
   world=Math.abs(Math.floor(world||0))%10;
-  flameSprite(color);lightStyles(color);
+  flameSprite(palette.engine||color);lightStyles(palette.glow||color);
   for(let kind=0;kind<(player?1:SHAPES.length);kind++) {
     silhouetteSprites(kind,player);
-    hullSprite(kind,color,world,player);
-    lightsSprite(kind,color,player);
+    hullSprite(kind,color,world,player,palette);
+    lightsSprite(kind,palette.glow||color,player,palette);
   }
 }
 
@@ -446,6 +480,8 @@ export function drawShip(ctx,x,y,size,kind,color,time=0,options={}) {
   kind=player?0:Math.max(0,Math.min(9,Math.floor(Number(kind)||0)));
   color=color||(player?'#71ecff':'#ff7866');
   const world=Math.abs(Math.floor(options.world||0))%10;
+  const palette=options.palette || (player ? {id:`player-${color}`,primary:color,rim:'#f2ffff',core:'#ffffff',engine:'#ff9a4b',glow:color} : shipPalette(world,color));
+  const flightColor=palette.primary||color;
   const shape=player?PLAYER:SHAPES[kind];
   const phase=Number(options.phase)||0;
   const pulse=.8+Math.sin(time*5+phase)*.2;
@@ -465,7 +501,7 @@ export function drawShip(ctx,x,y,size,kind,color,time=0,options={}) {
   ctx.scale(scale*bankScale,scale);
   if(options.opacity!=null)ctx.globalAlpha*=options.opacity;
 
-  const flame=flameSprite(color);
+  const flame=flameSprite(palette.engine||flightColor);
   ctx.save();ctx.globalCompositeOperation='screen';
   const exhaustAlpha=ctx.globalAlpha;
   for(let i=0;i<shape.engines.length;i++) {
@@ -478,18 +514,18 @@ export function drawShip(ctx,x,y,size,kind,color,time=0,options={}) {
   }
   ctx.restore();
 
-  const sprite=hullSprite(kind,color,world,player);
+  const sprite=hullSprite(kind,flightColor,world,player,palette);
   ctx.drawImage(sprite,-140,-140,280,280);
 
   ctx.save();ctx.globalCompositeOperation='screen';
   const [cx,cy,cr]=shape.core;
   if(detailed) {
     ctx.globalAlpha*=(.7+thrust*.14)*pulse;
-    ctx.drawImage(lightsSprite(kind,color,player),-160,-160,320,320);
+    ctx.drawImage(lightsSprite(kind,palette.glow||flightColor,player,palette),-160,-160,320,320);
   }
   if(detailed&&kind>=6&&!player) {
     const rotation=time*.65+phase;
-    ctx.strokeStyle=lightStyles(color).capital;ctx.lineWidth=1.2;
+    ctx.strokeStyle=lightStyles(palette.glow||flightColor).capital;ctx.lineWidth=1.2;
     for(let i=0;i<3;i++) {
       ctx.beginPath();ctx.arc(cx,cy,cr+7,rotation+i*TAU/3,rotation+i*TAU/3+.9);ctx.stroke();
     }
@@ -504,7 +540,7 @@ export function drawShip(ctx,x,y,size,kind,color,time=0,options={}) {
   const shield=Math.max(0,Math.min(1,options.shield||0));
   if(shield>0) {
     ctx.save();ctx.globalCompositeOperation='screen';
-    const lightStyle=lightStyles(color),shieldAlpha=ctx.globalAlpha;
+    const lightStyle=lightStyles(palette.glow||flightColor),shieldAlpha=ctx.globalAlpha;
     ctx.globalAlpha=shieldAlpha*shield*(.18+pulse*.12);
     ctx.strokeStyle=lightStyle.shield;ctx.lineWidth=1.4;
     ctx.beginPath();ctx.ellipse(0,-3,112,127,0,0,TAU);ctx.stroke();

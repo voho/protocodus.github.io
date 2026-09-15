@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { ENEMY_TYPES } from '../ships.js';
 import { createCampaign, beginLevel, update, spawnEnemy, killEnemy, hurtPlayer,
-  buyUpgrade, upgradeCost, shipStats, UPGRADES, MAX_UPGRADE } from '../sim.js';
+  spawnFormation, selectWeapon, weaponStats, WEAPONS, buyUpgrade, upgradeCost, shipStats, UPGRADES, MAX_UPGRADE } from '../sim.js';
 
 // Run with: node fun/tyran/tests/sim-check.mjs
 // Add --balance for reproducible keyboard-style autopilot campaign trials.
@@ -34,6 +34,69 @@ check('ten progressively stronger enemy classes with distinct names', () => {
     assert.ok(ENEMY_TYPES[i].hp > ENEMY_TYPES[i - 1].hp);
     assert.ok(ENEMY_TYPES[i].radius > ENEMY_TYPES[i - 1].radius);
   }
+});
+
+check('weapon profiles trade power for speed, range and utility', () => {
+  assert.equal(WEAPONS.length, 6);
+  assert.equal(new Set(WEAPONS.map(weapon => weapon.id)).size, WEAPONS.length);
+  const state = isolated();
+  const dps = WEAPONS.map(weapon => {
+    const stats = weaponStats(state, weapon.id);
+    assert.ok(stats.damage > 0 && stats.interval > 0 && stats.count > 0);
+    return stats.damage * stats.count / stats.interval;
+  });
+  assert.ok(Math.max(...dps) / Math.min(...dps) < 2.6, 'no profile is an automatic best pick');
+  assert.ok(weaponStats(state, 'lance').pierce > 0);
+  assert.ok(weaponStats(state, 'seeker').homing > 0);
+  assert.ok(weaponStats(state, 'plasma').splash > 0);
+  assert.ok(weaponStats(state, 'arc').chain > 0);
+  for (const weapon of WEAPONS) {
+    selectWeapon(state, weapon.id);
+    state.players[0].fire = 0;
+    update(state, .01, [{ fire: true }]);
+    assert.ok(state.bullets.some(b => b.kind === weapon.kind), `${weapon.id} emits its projectile type`);
+    state.bullets.length = 0;
+  }
+});
+
+check('double and multi kill overcharge damage and blast radius, then expire', () => {
+  const state = isolated();
+  killEnemy(state, spawnEnemy(state, 0, 300, 200));
+  assert.equal(state.combo, 1);
+  killEnemy(state, spawnEnemy(state, 0, 420, 200));
+  assert.equal(state.combo, 2);
+  assert.equal(state.comboLabel, 'DOUBLE KILL');
+  assert.ok(state.comboDamage > 1 && state.comboBlast > 1);
+  killEnemy(state, spawnEnemy(state, 0, 540, 200));
+  assert.equal(state.comboLabel, 'MULTI KILL');
+  assert.ok(state.comboDamage >= 1.18 && state.comboBlast >= 1.24);
+  advance(state, 6);
+  assert.equal(state.combo, 0);
+  assert.equal(state.comboDamage, 1);
+  assert.equal(state.comboBlast, 1);
+});
+
+check('enemy formations keep a coordinated anchor and readable membership', () => {
+  const state = createCampaign();
+  const formation = spawnFormation(state, 'vee');
+  assert.ok(formation && formation.members === 5);
+  assert.equal(state.enemies.filter(enemy => enemy.formation === formation).length, 5);
+  const before = state.enemies.map(enemy => enemy.x);
+  advance(state, .4);
+  assert.ok(formation.age > 0 && formation.y > -150);
+  assert.ok(state.enemies.some((enemy, index) => Math.abs(enemy.x - before[index]) > .01));
+});
+
+check('boss armor blocks real shots between windows and weak points open fire lanes', () => {
+  const state = isolated(), boss = spawnEnemy(state, 9, 600, 155);
+  boss.fire = 100; boss.windowClock = 5; state.players[0].x = 600; state.players[0].y = 700;
+  const shot = () => ({ x: 600, y: 300, px: 600, py: 300, vx: 0, vy: -2500, damage: 1000, radius: 4, team: 0, life: 1, kind: 'pulse', weaponColor: '#fff', hitIds: [] });
+  const sealed = boss.hp;
+  state.bullets.push(shot()); update(state, .1, [{}]);
+  assert.equal(boss.hp, sealed);
+  boss.vulnerable = true; boss.windowClock = 3;
+  state.bullets.push(shot()); update(state, .1, [{}]);
+  assert.ok(boss.hp < sealed, 'an exposed core can be damaged');
 });
 
 check('all ten sectors introduce all nine normal classes and one boss', () => seeded(7261, () => {

@@ -61,6 +61,25 @@ export class Effects {
       this.rings.push({ x, y, age: 0, life: .27, radius: 52, color: event.shield ? '#91ffee' : '#ff6c5e' });
     } else if (event.type === 'pickup') {
       this.texts.push({ x, y, text: `${event.value}`, life: 1.3, age: 0, color: '#8affd7' });
+    } else if (event.type === 'combo') {
+      const color = event.label === 'RAMPAGE' ? '#ffe36d' : '#b8ffe2';
+      this.texts.push({ x, y: y - 16, text: `${event.combo}  ${event.label}`, life: 1.65, age: 0, color, size: event.label === 'RAMPAGE' ? 18 : 15 });
+      this.rings.push({ x, y, age: 0, life: .55, radius: 42 + event.combo * 5, color });
+      this.shake = Math.min(18, this.shake + 2 + event.combo * .35);
+    } else if (event.type === 'blast') {
+      this.rings.push({ x, y, age: 0, life: .45, radius: size * 1.9, color: event.color || '#ff9e7d' });
+      this.lights.push({ x, y, age: 0, life: .24, radius: size * 2.8, color: event.color || '#ff9e7d' });
+      this.shake = Math.min(18, this.shake + size * .035);
+    } else if (event.type === 'arc') {
+      const segments = 5;
+      for (let i = 0; i < segments; i++) {
+        const t = (i + .5) / segments;
+        this.particles.push({ x: x + (event.toX - x) * t, y: y + (event.toY - y) * t, vx: random(-32, 32), vy: random(-32, 32), age: 0, life: .16, radius: random(1.5, 3.5), color: event.color || '#ffe88d' });
+      }
+    } else if (event.type === 'weak-hit' || event.type === 'blocked') {
+      this.rings.push({ x, y, age: 0, life: .2, radius: event.type === 'blocked' ? 15 : 25, color: event.type === 'blocked' ? '#ff8b78' : '#fff1a6' });
+    } else if (event.type === 'weak-break') {
+      this.emit({ type: 'explosion', x, y, size: size * 1.35, color: '#ffe36d' }, scroll);
     }
     if (this.particles.length > 700) this.particles.splice(0, this.particles.length - 700);
     if (this.wrecks.length > 60) this.wrecks.shift();
@@ -114,8 +133,8 @@ export class Effects {
       if (this.quality === 'high' && !this.reduced) { ctx.lineWidth = 16 * (1 - t); ctx.globalAlpha *= .14; ctx.stroke(); }
     }
     ctx.restore();
-    ctx.save(); ctx.textAlign = 'center'; ctx.font = 'bold 13px "Space Grotesk", sans-serif';
-    for (const t of this.texts) { ctx.globalAlpha = Math.min(1, (t.life - t.age) * 3); ctx.fillStyle = t.color; ctx.fillText(t.text, t.x, t.y - t.age * 38); }
+    ctx.save(); ctx.textAlign = 'center';
+    for (const t of this.texts) { ctx.globalAlpha = Math.min(1, (t.life - t.age) * 3); ctx.fillStyle = t.color; ctx.font = `bold ${t.size || 13}px "Space Grotesk", sans-serif`; ctx.fillText(t.text, t.x, t.y - t.age * 38); }
     ctx.restore();
     if (this.flash > .01 && !this.reduced) { ctx.fillStyle = `rgba(255,236,210,${this.flash * .5})`; ctx.fillRect(0, 0, W, H); }
   }
