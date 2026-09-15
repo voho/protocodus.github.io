@@ -180,7 +180,7 @@ a.product-card:hover { background: #14171d; border-color: color-mix(in srgb, var
 .edition-copy .resource-link { margin-top: 1.25rem; }
 
 /* Games, company and contact */
-.games { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 1.5rem; }
+.games { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 1.5rem; }
 .game { display: flex; flex-direction: column; padding: clamp(1.5rem, 3vw, 2rem); background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-md); }
 .game:hover { background: var(--panel-lift); border-color: var(--line-lift); }
 .game :is(h2,h3) { font-size: 1.5rem; font-weight: 500; letter-spacing: -0.025em; }
