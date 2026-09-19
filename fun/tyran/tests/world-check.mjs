@@ -17,7 +17,7 @@ try {
     canvas.width=1200;canvas.height=960;
     const result=[];
     for(let worldIndex=0;worldIndex<10;worldIndex++) {
-      const w=new WorldRenderer();w.setWorld(worldIndex);
+      const w=new WorldRenderer();w.setWorld(worldIndex);await w.ready;
       // Cancel idle jobs so every measurement belongs to the operation under test.
       w.warmEpoch++;w.warmJobs=[];w.queueWarm=()=>{};
       const cold=[],warm=[],hits=[];

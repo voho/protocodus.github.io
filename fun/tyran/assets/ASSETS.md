@@ -23,15 +23,31 @@ Ten original 1024 × 1536 orthographic terrain paintings were generated with the
 - `world-alien.webp` — Luminous Garden
 - `world-void.webp` — Obsidian Citadel
 
+## Realistic sprite atlases
+
+Seven original PNG atlases were generated with the built-in ImageGen tool on 2026-09-19. The 113 usable cells replace the previous procedural artwork. The original generated PNGs are copied unchanged into `sprites/`; exact prompts, source paths, cell names and layouts are recorded in [sprites/prompts.json](./sprites/prompts.json).
+
+| Atlas | Layout | Contents |
+| --- | --- | --- |
+| `sprites/fleet.png` | 4 × 3 | Ivory player, ten enemy hulls, one empty cell |
+| `sprites/nature.png` | 4 × 4 | Plants, rocks, ice, crystals, coral, cloud |
+| `sprites/structures.png` | 4 × 4 | Buildings, ruins, facilities, satellite, crawler, hauler |
+| `sprites/materials.png` | 8 × 5 | Four tile materials for each of ten environments |
+| `sprites/effects.png` | 4 × 4 | Eight explosion frames, smoke, fragments, scorches, two thrusters |
+| `sprites/projectiles.png` | 4 × 3 | Six weapon profiles and six enemy projectile silhouettes |
+| `sprites/pickups.png` | 2 × 1 | Repair capsule and salvage credits |
+
+`sprite-assets.js` decodes the library before flight preparation and retains reusable alpha-trimmed cells. Connected hull/structure components keep wings and antennas intact where generated objects cross nominal grid boundaries. Color grading, shadows and sprite variants are baked into caches; combat drawing does not recolor pixels. Procedural art remains a fallback if an atlas cannot load.
+
 ## Terrain tile library
 
-`terrain-sprites.js` generates 100 × 100 logical-pixel material sprites at double resolution. Each biome has four materials with six variants each, plus matching corner masks for banks and cliffs. `tile-map.js` generates connected terrain cells from the level hash. `worlds.js` assembles those cells into cached 800-pixel strips and places reusable scenery sprites from the same hash. The previous six-slice painting tiles have been removed.
+`terrain-sprites.js` bakes the generated material cells into 100 × 100 logical-pixel tiles at double resolution. Each biome has four materials with six orientations each, plus matching corner masks for banks and cliffs. Material luminosity preserves the generated surface detail; the original terrain palette supplies its hue. Common edge tones join adjacent tiles. `tile-map.js` generates connected terrain cells from the level hash. `worlds.js` assembles those cells into cached 800-pixel strips and places reusable scenery sprites from the same hash.
 
 Five planes provide depth: water or space, tile ground, rocks and ground vehicles, trees and tall vegetation, then high structures and clouds. One extra cell beyond each horizontal edge covers the camera's 1% lateral drift. Terrain and ground vehicles use subdued biome materials; saturated complementary colors are reserved for airborne fleets.
 
 ## Ship sprite variants
 
-Ship hulls are code-native artwork rasterized into reusable sprites. Each hull is prewarmed into three cached roll frames (`tilt -1`, `level`, `tilt +1`); the wings narrow and shift in height while the nose heading stays fixed. Exhaust, shadow, damage flashes and bloom share the same roll projection. Industrial crawlers and haulers have tracked ground silhouettes, muted armor and no flight exhaust.
+Ship hulls use the generated fleet atlas, with weathered armor, recessed machinery and metallic lighting. Red armor and gold trim are mapped to each existing complementary fleet palette, while neutral metal and ivory player armor retain their shading. Each hull is prewarmed into three cached roll frames (`tilt -1`, `level`, `tilt +1`); the wings narrow and shift in height while the nose heading stays fixed. Exhaust, alpha-derived shadows, damage flashes and bloom share the same roll projection. Industrial crawlers and haulers have tracked/wheeled ground silhouettes, muted armor and no flight exhaust.
 
 ## Fonts
 

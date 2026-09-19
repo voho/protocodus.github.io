@@ -1,5 +1,6 @@
 /** Small reusable material sprites and matching shoreline/cliff masks. No landscape images. */
 import { MAP_TILE_SIZE } from './tile-map.js';
+import { spriteCell } from './sprite-assets.js';
 
 const RESOLUTION = 2;
 const SIZE = MAP_TILE_SIZE;
@@ -71,6 +72,28 @@ export class TerrainSprites {
     if(this.materials.has(key))return this.materials.get(key);
     const out=surface(),c=out.getContext('2d'),p=this.palette,index=this.index;
     const random=rng(9037+index*11771+material*813+variant*3307);
+    const texture=spriteCell('materials',index*4+material);
+    if(texture) {
+      // Bake six orientations of each material into the existing tile atlas.
+      c.save();c.translate(SURFACE_SIZE/2,SURFACE_SIZE/2);
+      c.rotate((variant%4)*Math.PI/2);c.scale(variant>=4?-1:1,1);
+      c.drawImage(texture,-SURFACE_SIZE/2,-SURFACE_SIZE/2,SURFACE_SIZE,SURFACE_SIZE);c.restore();
+      const pixels=c.getImageData(0,0,SURFACE_SIZE,SURFACE_SIZE),data=pixels.data,base=rgb(this.colors[material]);
+      let mean=0;
+      for(let i=0;i<data.length;i+=4)mean+=data[i]*.2126+data[i+1]*.7152+data[i+2]*.0722;
+      mean/=SURFACE_SIZE*SURFACE_SIZE;
+      for(let y=0;y<SURFACE_SIZE;y++)for(let x=0;x<SURFACE_SIZE;x++) {
+        const i=(y*SURFACE_SIZE+x)*4,luma=data[i]*.2126+data[i+1]*.7152+data[i+2]*.0722;
+        const edge=Math.min(1,x/10,y/10,(SURFACE_SIZE-1-x)/10,(SURFACE_SIZE-1-y)/10);
+        // Common edge tones join independently chosen cells without a hard seam.
+        // Luminosity retains the generated relief; hue belongs to the biome.
+        const contrast=material===0&&(index===4||index===9)?.3:.85;
+        const shade=1+Math.max(-.48,Math.min(.58,(luma-mean)/128))*edge*contrast;
+        for(let k=0;k<3;k++)data[i+k]=Math.min(255,base[k]*shade);
+        data[i+3]=255;
+      }
+      c.putImageData(pixels,0,0);this.materials.set(key,out);return out;
+    }
     const base=rgb(this.colors[material]),pixels=c.createImageData(SURFACE_SIZE,SURFACE_SIZE),data=pixels.data;
     const coarse=grain(random,5),fine=grain(random,17),space=index===4||index===9;
     // Soft mineral/moss patches and fine grain, baked once. Edges share a base tone.

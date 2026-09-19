@@ -12,6 +12,8 @@ try {
   await page.goto(process.env.TYRAN_URL || 'http://127.0.0.1:8773/fun/tyran/');
   await page.waitForFunction(() => window.tyran);
   const result = await page.evaluate(async () => {
+    const { spritesReady } = await import('./sprite-assets.js');
+    await spritesReady;
     const { drawShip, ENEMY_TYPES } = await import('./ships.js');
     const { WorldRenderer, WORLDS } = await import('./worlds.js');
     const test = document.createElement('canvas'); test.width = test.height = 192;

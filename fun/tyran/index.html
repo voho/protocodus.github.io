@@ -18,10 +18,11 @@
   <link rel="preload" href="./assets/hero.jpg" as="image">
   <link rel="stylesheet" href="./style.css">
 </head>
-<body>
+<body data-ready="false">
+  <div id="startup-status" class="startup-status" role="status">Preparing flight…</div>
   <canvas id="game-canvas" tabindex="-1" aria-label="Tyran flight arena. Solo: WASD or arrows to move, Control or Space to fire. Co-op: player one uses WASD and left Control or Space; player two uses arrows and right Control or Enter. Number keys one through six switch weapons. Escape pauses the game."></canvas>
 
-  <main id="menu-screen" class="menu-screen" aria-label="Flight command">
+  <main id="menu-screen" class="menu-screen" aria-label="Flight command" inert>
     <div class="hero-art" aria-hidden="true"></div>
     <div class="hero-shade" aria-hidden="true"></div>
     <header class="topbar">

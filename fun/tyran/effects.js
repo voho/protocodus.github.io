@@ -1,7 +1,11 @@
+import { spriteCell, spriteRevision, spritesReady } from './sprite-assets.js';
+
 const random = (a, b) => a + Math.random() * (b - a);
 const TAU = Math.PI * 2;
 const textures = new Map();
+let textureRevision = -1;
 function texture(key, paint, size = 128) {
+  if (textureRevision !== spriteRevision) { textures.clear(); textureRevision = spriteRevision; }
   if (textures.has(key)) return textures.get(key);
   const c = typeof OffscreenCanvas === 'undefined' ? document.createElement('canvas') : new OffscreenCanvas(size, size);
   c.width = c.height = size;
@@ -16,8 +20,14 @@ function lightTexture(color) {
     c.fillStyle = g; c.fillRect(0, 0, size, size);
   });
 }
-function wreckTexture() {
-  return texture('wreck', (c, size) => {
+function wreckTexture(elongated = false) {
+  return texture(`wreck:${elongated}`, (c, size) => {
+    const scorch = spriteCell('effects', elongated ? 13 : 12), metal = spriteCell('effects', 10);
+    if (scorch) {
+      c.globalAlpha = .83; fitSprite(c, scorch, size / 2, size / 2, size); c.globalAlpha = 1;
+      if (metal) { const width = size * .48, height = width * metal.height / metal.width; c.drawImage(metal, (size - width) / 2, (size - height) / 2, width, height); }
+      return;
+    }
     c.translate(size / 2, size / 2);
     const unit = size / 3.6, g = c.createRadialGradient(0, 0, 0, 0, 0, unit * 1.7);
     g.addColorStop(0, '#0b0d0dda'); g.addColorStop(.45, '#13130f8a'); g.addColorStop(1, '#12161300');
@@ -30,6 +40,29 @@ function wreckTexture() {
     }
   }, 256);
 }
+function smokeTexture(light = false) {
+  const source = spriteCell('effects', light ? 8 : 9);
+  if (source) return source;
+  return texture(`smoke:${light}`, (c, size) => {
+    const mid = size / 2;
+    for (let i = 0; i < 7; i++) {
+      const angle = i * 2.4, x = mid + Math.cos(angle) * size * .13, y = mid + Math.sin(angle) * size * .13;
+      const gradient = c.createRadialGradient(x, y, 0, x, y, size * .31);
+      gradient.addColorStop(0, light ? '#adaca373' : '#22282cad'); gradient.addColorStop(.45, light ? '#8c92916b' : '#29333869'); gradient.addColorStop(1, '#1a202600');
+      c.fillStyle = gradient; c.fillRect(0, 0, size, size);
+    }
+  });
+}
+function fitSprite(ctx, sprite, x, y, diameter) {
+  const scale = diameter / Math.max(sprite.width, sprite.height), width = sprite.width * scale, height = sprite.height * scale;
+  ctx.drawImage(sprite, x - width / 2, y - height / 2, width, height);
+}
+function warmEffectsTextures() {
+  for (let i = 0; i < 14; i++) spriteCell('effects', i);
+  wreckTexture(); wreckTexture(true); smokeTexture(); smokeTexture(true);
+  for (const color of ['#ffbb6b', '#ffc985', '#ff9e7d', '#ffe36d']) lightTexture(color);
+}
+spritesReady.then(warmEffectsTextures);
 function ageAndCompact(list, dt) {
   let length = 0;
   for (const p of list) { p.age += dt; if (p.age < p.life) list[length++] = p; }
@@ -46,9 +79,9 @@ export class Effects {
       const color = event.ground ? (event.color || '#ffc985') : '#ffbb6b';
       for (let i = 0; i < count; i++) {
         const angle = random(0, TAU), speed = random(25, boss ? 420 : size * 5 + 50);
-        this.particles.push({ x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, age: 0, life: random(.3, boss ? 2.3 : 1.2), radius: random(1.2, size * .12 + 2), color, smoke: i % 4 === 0, debris: i % 5 === 0 });
+        this.particles.push({ x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, age: 0, life: random(.3, boss ? 2.3 : 1.2), radius: random(1.2, size * .12 + 2), color, smoke: i % 4 === 0, debris: i % 5 === 0, ground: !!event.ground, angle });
       }
-      this.rings.push({ x, y, age: 0, life: boss ? 1.2 : .5, radius: size * (boss ? 6 : 3), color });
+      this.rings.push({ x, y, age: 0, life: boss ? 1.2 : .5, radius: size * (boss ? 6 : 3), color, explosion: true, diameter: size * 4 });
       this.lights.push({ x, y, age: 0, life: boss ? .9 : .3, radius: size * 5, color });
       if (event.type !== 'phase' && !event.ground && !event.secondary) this.wrecks.push({ x: x - groundOffset, y: y - scroll, size, angle: random(0, TAU), age: 0 });
       this.shake = Math.min(23, this.shake + size * (event.ground ? .028 : .09));
@@ -67,7 +100,7 @@ export class Effects {
       this.rings.push({ x, y, age: 0, life: .55, radius: 42 + event.combo * 5, color });
       this.shake = Math.min(18, this.shake + 2 + event.combo * .35);
     } else if (event.type === 'blast') {
-      this.rings.push({ x, y, age: 0, life: .45, radius: size * 1.9, color: event.color || '#ff9e7d' });
+      this.rings.push({ x, y, age: 0, life: .45, radius: size * 1.9, color: event.color || '#ff9e7d', explosion: true, diameter: size * 2.3 });
       this.lights.push({ x, y, age: 0, life: .24, radius: size * 2.8, color: event.color || '#ff9e7d' });
       this.shake = Math.min(18, this.shake + size * .035);
     } else if (event.type === 'arc') {
@@ -97,34 +130,48 @@ export class Effects {
   }
   drawGround(ctx, scroll, H, offset = 0) {
     let length = 0;
-    const sprite = this.wrecks.length ? wreckTexture() : null;
     for (const w of this.wrecks) {
       const y = w.y + scroll;
       if (y > H + w.size * 3) continue;
       this.wrecks[length++] = w;
       if (y < -w.size * 2) continue;
       ctx.save(); ctx.translate(w.x + offset, y); ctx.rotate(w.angle);
-      ctx.drawImage(sprite, -w.size * 1.8, -w.size * 1.8, w.size * 3.6, w.size * 3.6);
+      ctx.drawImage(wreckTexture(w.size < 38), -w.size * 1.8, -w.size * 1.8, w.size * 3.6, w.size * 3.6);
       ctx.restore();
     }
     this.wrecks.length = length;
   }
   draw(ctx, W, H) {
+    ctx.save();
     for (const p of this.particles) if (p.smoke) {
       const a = 1 - p.age / p.life;
-      ctx.fillStyle = `rgba(24,31,34,${a * .5})`;
-      ctx.beginPath(); ctx.arc(p.x, p.y, p.radius * (1 + p.age * 3), 0, TAU); ctx.fill();
+      ctx.globalAlpha = a * (p.ground ? .6 : .48);
+      fitSprite(ctx, smokeTexture(p.ground), p.x, p.y, p.radius * 3.5 * (1 + p.age * 3));
     }
+    for (const p of this.particles) if (p.debris && !p.smoke) {
+      ctx.globalAlpha = 1 - p.age / p.life;
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.angle + p.age * 8);
+      const fragment = spriteCell('effects', p.ground ? 11 : 10);
+      if (fragment) fitSprite(ctx, fragment, 0, 0, p.radius * 4.2);
+      else { ctx.fillStyle = '#75695c'; ctx.fillRect(-p.radius, -p.radius / 3, p.radius * 2, p.radius * .7); }
+      ctx.restore();
+    }
+    for (const burst of this.rings) if (burst.explosion) {
+      const t = burst.age / burst.life, stage = Math.min(7, Math.floor(t * 8)), sprite = spriteCell('effects', stage);
+      if (!sprite) continue;
+      ctx.globalAlpha = Math.min(1, (1 - t) * 3);
+      fitSprite(ctx, sprite, burst.x, burst.y, burst.diameter * (.4 + t * .9));
+    }
+    ctx.restore();
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
     for (const l of this.lights) {
       const a = 1 - l.age / l.life, r = l.radius * (.5 + l.age / l.life);
       ctx.globalAlpha = a; ctx.drawImage(lightTexture(l.color), l.x - r, l.y - r, r * 2, r * 2);
     }
-    for (const p of this.particles) if (!p.smoke) {
+    for (const p of this.particles) if (!p.smoke && !p.debris) {
       ctx.globalAlpha = 1 - p.age / p.life;
       ctx.fillStyle = p.age < .08 ? '#fffbea' : p.color;
-      if (p.debris) { ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.age * 8); ctx.fillRect(-p.radius, -p.radius / 3, p.radius * 2, p.radius * .7); ctx.restore(); }
-      else { ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(.3, p.radius * (1 - p.age / p.life)), 0, TAU); ctx.fill(); }
+      ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(.3, p.radius * (1 - p.age / p.life)), 0, TAU); ctx.fill();
     }
     for (const ring of this.rings) {
       const t = ring.age / ring.life;

@@ -1,4 +1,5 @@
 /* Original Tyran spacecraft. Coordinates and effects use logical canvas pixels. */
+import { spriteCell, spriteRevision } from './sprite-assets.js';
 
 export const ENEMY_TYPES = Object.freeze([
   { name: 'Needle', hp: 15, radius: 12, speed: 115, score: 45, fireRate: 2.5, pattern: 'aim' },
@@ -42,6 +43,9 @@ const silhouettes = new Map();
 const lights = new Map();
 const styles = new Map();
 const playerPalettes = new Map();
+const rasterHulls = new Map();
+const rasterShapes = new Map();
+let assetRevision = -1;
 const TAU = Math.PI * 2;
 
 // Roll around the nose-to-tail axis. The centerline never changes heading;
@@ -70,6 +74,82 @@ const PLAYER = {
   outline: [[0,-105],[12,-74],[18,-28],[27,-8],[59,5],[65,-24],[75,-29],[84,45],[71,66],[37,42],[23,48],[17,79],[6,68],[0,78],[-6,68],[-17,79],[-23,48],[-37,42],[-71,66],[-84,45],[-75,-29],[-65,-24],[-59,5],[-27,-8],[-18,-28],[-12,-74]],
   engines: [[-14,65,10],[14,65,10]], core: [0,-32,10],
 };
+
+// Nozzle and cockpit locations in the generated cells, after the Lancer's
+// forward cannon is normalized to point up. These share the hull's exact fit.
+const RASTER_ANCHORS = [
+  { engines: [[.41,.76,.055],[.59,.76,.055]], core: [.5,.36,.045] },
+  { engines: [[.5,.9,.06]], core: [.5,.33,.047] },
+  { engines: [[.16,.85,.052],[.84,.85,.052]], core: [.5,.32,.05] },
+  { engines: [[.39,.84,.055],[.61,.84,.055]], core: [.5,.35,.05] },
+  { engines: [[.28,.81,.065],[.72,.81,.065]], core: [.5,.56,.075] },
+  { engines: [[.15,.92,.06],[.85,.92,.06],[.5,.93,.07]], core: [.5,.62,.071] },
+  { engines: [[.2,.8,.065],[.8,.8,.065]], core: [.5,.7,.05] },
+  { engines: [[.18,.91,.06],[.82,.91,.06],[.5,.95,.07]], core: [.5,.48,.075] },
+  { engines: [[.3,.81,.06],[.7,.81,.06]], core: [.5,.52,.069] },
+  { engines: [[.17,.9,.065],[.83,.9,.065],[.5,.95,.06]], core: [.5,.47,.075] },
+  { engines: [[.23,.95,.07],[.77,.95,.07]], core: [.5,.63,.083] },
+];
+
+function syncRasterAssets() {
+  if (assetRevision === spriteRevision) return;
+  assetRevision = spriteRevision;
+  hulls.clear(); tiltHulls.clear(); silhouettes.clear(); lights.clear(); flames.clear();
+  rasterHulls.clear(); rasterShapes.clear();
+}
+
+function rasterHull(kind, player) {
+  const index = player ? 0 : kind + 1;
+  if (rasterHulls.has(index)) return rasterHulls.get(index);
+  const cell = spriteCell('fleet', index);
+  if (!cell) return null;
+  const shape = player ? PLAYER : SHAPES[kind];
+  const xs = shape.outline.map(point => point[0]), ys = shape.outline.map(point => point[1]);
+  const left = Math.min(...xs), top = Math.min(...ys);
+  const width = Math.max(...xs) - left, height = Math.max(...ys) - top;
+  const out = surface(kind === 9 && !player ? 640 : 384), c = out.getContext('2d');
+  c.translate(out.width / 2, out.height / 2); c.scale(out.width / 280, out.height / 280);
+  c.imageSmoothingQuality = 'high';
+  if (!player && kind === 5) {
+    c.save(); c.translate(left + width / 2, top + height / 2); c.rotate(Math.PI);
+    c.drawImage(cell, -width / 2, -height / 2, width, height); c.restore();
+  } else c.drawImage(cell, left, top, width, height);
+  const anchors = RASTER_ANCHORS[index];
+  const point = ([x,y,r]) => [left + x * width, top + y * height, r * height];
+  rasterShapes.set(index, { ...shape, engines: anchors.engines.map(point), core: point(anchors.core) });
+  rasterHulls.set(index, out);
+  return out;
+}
+
+function flightShape(kind, player) {
+  const index = player ? 0 : kind + 1;
+  if (!rasterShapes.has(index)) rasterHull(kind, player);
+  return rasterShapes.get(index) || (player ? PLAYER : SHAPES[kind]);
+}
+
+function paintedRaster(base, palette, player) {
+  const out = surface(base.width), c = out.getContext('2d', { willReadFrequently: true });
+  c.drawImage(base, 0, 0);
+  const pixels = c.getImageData(0, 0, out.width, out.height), data = pixels.data;
+  const primary = rgb(palette.primary), rim = rgb(palette.rim || palette.primary);
+  for (let i = 0; i < data.length; i += 4) {
+    if (!data[i + 3]) continue;
+    const r = data[i], g = data[i + 1], b = data[i + 2], max = Math.max(r,g,b), min = Math.min(r,g,b);
+    let target;
+    if (player) {
+      // Preserve ivory armor and metal; each pilot owns the cockpit/blue fittings.
+      if (b > r * 1.1 && g > r * 1.12 && max - min > 18) target = primary;
+    } else if (r > g * 1.14 && r > b * 1.22 && max - min > 20) target = primary;
+    else if (r > b * 1.32 && g > b * 1.22 && g > r * .53 && max - min > 24) target = rim;
+    if (!target) continue;
+    // Keep the original specular highlights, scratches and dark recesses while
+    // moving the broad armor blocks into the level's reserved flight colors.
+    const light = max / 255, highlight = (min / Math.max(1,max)) ** 2 * .55;
+    for (let channel = 0; channel < 3; channel++) data[i + channel] = Math.round((target[channel] * (1 - highlight) + 255 * highlight) * light);
+  }
+  c.putImageData(pixels, 0, 0);
+  return out;
+}
 
 function surface(size) {
   if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(size, size);
@@ -349,6 +429,12 @@ function shipDetails(ctx,kind,color,world,player,palette) {
 function baseHullSprite(kind,color,world,player,palette=shipPalette(world,color)) {
   const key=`${player?'p':kind}:${color}:${world}:${palette.id||palette.primary}`;
   if(hulls.has(key))return hulls.get(key);
+  const raster = rasterHull(kind, player);
+  if (raster) {
+    const out = paintedRaster(raster, palette, player);
+    hulls.set(key, out); if (hulls.size > 56) hulls.delete(hulls.keys().next().value);
+    return out;
+  }
   const shape=player?PLAYER:SHAPES[kind];
   const canvas=surface(kind===9?640:384);
   const ctx=canvas.getContext('2d');
@@ -438,10 +524,23 @@ function silhouetteSprites(kind,player,tilt=0) {
   }
   const shape=player?PLAYER:SHAPES[kind];
   const shadow=surface(320),flash=surface(320);
+  const raster = rasterHull(kind, player);
   for(const [canvas,isShadow] of [[shadow,true],[flash,false]]) {
     const ctx=canvas.getContext('2d');
     ctx.translate(160,160);
     ctx.lineJoin='round';
+    if (raster) {
+      // Use the actual alpha silhouette, including gaps between wings and guns.
+      ctx.drawImage(raster, -140, -140, 280, 280);
+      ctx.globalCompositeOperation = 'source-in';
+      ctx.fillStyle = isShadow ? 'rgba(0,4,13,.79)' : '#efffff';
+      ctx.fillRect(-160, -160, 320, 320);
+      if (isShadow) {
+        ctx.globalCompositeOperation = 'destination-over'; ctx.globalAlpha = .45;
+        ctx.filter = 'blur(5px)'; ctx.drawImage(canvas, -160, -160); ctx.filter = 'none';
+      }
+      continue;
+    }
     if(isShadow) {
       // Blur only happens once per silhouette, never during a gameplay frame.
       ctx.shadowColor='rgba(0,4,13,.8)';ctx.shadowBlur=13;
@@ -460,9 +559,15 @@ function glowSprite(color) {
   return canvas;
 }
 
-function flameSprite(color) {
-  if(flames.has(color))return flames.get(color);
+function flameSprite(color, large = false) {
+  const key = `${color}:${large}`;
+  if(flames.has(key))return flames.get(key);
   const canvas=surface(192),ctx=canvas.getContext('2d');
+  const flame = spriteCell('effects', large ? 15 : 14);
+  if (flame) {
+    ctx.drawImage(flame, 58, 12, 76, 174);
+    flames.set(key, canvas); return canvas;
+  }
   const glow=ctx.createRadialGradient(96,28,0,96,58,87);
   glow.addColorStop(0,'rgba(255,231,170,.8)');glow.addColorStop(.21,'rgba(255,170,70,.48)');
   glow.addColorStop(.55,'rgba(255,104,31,.12)');glow.addColorStop(1,'rgba(255,76,20,0)');
@@ -477,7 +582,7 @@ function flameSprite(color) {
   ctx.fillStyle=inner;ctx.beginPath();ctx.moveTo(81,18);ctx.bezierCurveTo(78,49,91,87,96,140);ctx.bezierCurveTo(101,87,114,49,111,18);ctx.closePath();ctx.fill();
   // Shock diamonds make the tiny white-hot core read as moving thrust, not a soft blob.
   for(let i=0;i<3;i++)polygon(ctx,[[96,35+i*24],[102-i,42+i*24],[96,51+i*24],[90+i,42+i*24]],`rgba(255,255,245,${.64-i*.15})`);
-  flames.set(color,canvas);return canvas;
+  flames.set(key,canvas);return canvas;
 }
 
 function lightsSprite(kind,color,player,palette=shipPalette(0,color),tilt=0) {
@@ -488,7 +593,7 @@ function lightsSprite(kind,color,player,palette=shipPalette(0,color),tilt=0) {
     lights.set(key,canvas);if(lights.size>168)lights.delete(lights.keys().next().value);
     return canvas;
   }
-  const canvas=surface(320),ctx=canvas.getContext('2d'),shape=player?PLAYER:SHAPES[kind];
+  const canvas=surface(320),ctx=canvas.getContext('2d'),shape=flightShape(kind,player);
   ctx.translate(160,160);
   const warm=glowSprite(palette.engine||'#ff9a4b');
   for(const [x,y,r] of shape.engines) {
@@ -519,10 +624,12 @@ function playerPalette(color='#71ecff') {
 
 /** Prepare cached artwork between stages, keeping vector rasterization out of combat. */
 export function warmShipSprites(color,world=0,player=false) {
+  syncRasterAssets();
   const palette=typeof color==='object'&&color ? color : player ? playerPalette(color||'#71ecff') : shipPalette(world,color||'#ff7866');
   color=palette.primary;
   world=Math.abs(Math.floor(world||0))%10;
   flameSprite(palette.engine||color);lightStyles(palette.glow||color);
+  if (!player) flameSprite(palette.engine||color, true);
   for(let kind=0;kind<(player?1:SHAPES.length);kind++) {
     for(let tilt=-1;tilt<=1;tilt++) {
       silhouetteSprites(kind,player,tilt);
@@ -540,13 +647,14 @@ export function warmShipSprites(color,world=0,player=false) {
  * shield is opacity/strength from 0 to 1; world is the zero-based sector number.
  */
 export function drawShip(ctx,x,y,size,kind,color,time=0,options={}) {
+  syncRasterAssets();
   const player=kind===-1||kind==='player'||options.player===true;
   kind=player?0:Math.max(0,Math.min(9,Math.floor(Number(kind)||0)));
   color=color||(player?'#71ecff':'#ff7866');
   const world=Math.abs(Math.floor(options.world||0))%10;
   const palette=options.palette || (player ? playerPalette(color) : shipPalette(world,color));
   const flightColor=palette.primary||color;
-  const shape=player?PLAYER:SHAPES[kind];
+  const shape=flightShape(kind,player);
   const phase=Number(options.phase)||0;
   const pulse=.8+Math.sin(time*5+phase)*.2;
   const bank=Math.max(-.45,Math.min(.45,Number(options.bank)||0));
@@ -566,7 +674,7 @@ export function drawShip(ctx,x,y,size,kind,color,time=0,options={}) {
   ctx.scale(scale,scale);
   if(options.opacity!=null)ctx.globalAlpha*=options.opacity;
 
-  const flame=flameSprite(palette.engine||flightColor);
+  const flame=flameSprite(palette.engine||flightColor,!player&&kind>=8);
   ctx.save();ctx.globalCompositeOperation='screen';
   const exhaustAlpha=ctx.globalAlpha;
   for(let i=0;i<shape.engines.length;i++) {

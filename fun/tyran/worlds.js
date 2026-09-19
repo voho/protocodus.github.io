@@ -1,6 +1,7 @@
 /** Tyran: deterministic tile maps and reusable terrain/scenery sprites. */
 import { MAP_TILE_SIZE, hashLevel, tileAt } from './tile-map.js';
 import { TerrainSprites } from './terrain-sprites.js';
+import { spritesReady, spriteRevision, spriteCell } from './sprite-assets.js';
 
 export const WORLDS = [
   { id: 'jungle', name: 'Emerald Frontier', subtitle: '01 / The Living Canopy', description: 'Ancient temples disappear beneath a vast emerald rainforest.', color: '#67f0b1', accent: '#b7ffcc', enemyColor: '#f05245', bossName: 'Canopy Devourer' },
@@ -56,6 +57,11 @@ function glow(c,x,y,r,color,alpha=0.3) { const g=c.createRadialGradient(x,y,0,x,
 function blob(c,x,y,rx,ry,fill,rng,detail=16) { const p=[]; for(let i=0;i<detail;i++){const a=i/detail*TAU;const d=.77+rng()*.23;p.push([x+Math.cos(a)*rx*d,y+Math.sin(a)*ry*d]);} polygon(c,p,fill);return p; }
 const STRUCTURES = new Set(['temple','bunker','station','radar','dome','solar','refinery','building','tower','pylon','fortress','hut','satellite']);
 const EMISSIVE = new Set(['crystal','pylon','mushroom','radar','tower','vent']);
+const NATURE_SPRITES = Object.freeze(['tree','alienTree','palm','pine','fern','cactus','mushroom','pod','ice','crystal','rock','asteroid','basalt','vent','coral','cloud']);
+const STRUCTURE_SPRITES = Object.freeze(['temple','ruin','bunker','station','radar','dome','solar','refinery','building','tower','pylon','fortress','hut','satellite','crawler','hauler']);
+const FOLIAGE = new Set(['tree','alienTree','palm','pine','fern','cactus','mushroom','pod','coral']);
+const rgb = hex => [1,3,5].map(offset=>parseInt(hex.slice(offset,offset+2),16));
+const mixColor = (a,b,t) => a.map((channel,i)=>channel+(b[i]-channel)*t);
 // Each biome alternates between open country, natural formations and inhabited sites.
 const DISTRICTS = [
   [['tree','fern','tree','palm'],['temple','ruin','fern','tree'],['bunker','radar','tree','fern'],['palm','fern','rock']],
@@ -99,10 +105,23 @@ export class WorldRenderer {
     for(let i=0;i<7;i++)this.clouds.push({x:rng()*WIDTH,y:rng()*1500,r:150+rng()*160,speed:1.14+rng()*.08,phase:rng()*TAU});
     this.cloudSprite=this.makeCloud();this.lightSprite=this.makeLight();this.scorchSprite=this.makeScorch();
     this.shaftSprite=this.makeShaft();this.vignetteSprite=this.makeVignette();this.substrateSprite=this.makeSubstrate();
-    this.ready=Promise.resolve();
+    this.assetRevision=spriteRevision;
+    this.ready=spritesReady.then(()=>{
+      if(this.index===nextIndex&&this.levelHash===nextHash)this.refreshSpriteAssets();
+    });
     for(let material=0;material<4;material++)for(let variant=0;variant<6;variant++)this.queueWarm(`material:${material}:${variant}`,()=>this.terrain.getMaterial(material,variant));
+    this.warmScenery();
+  }
+  warmScenery() {
     const types=new Set([...this.palette.props,...DISTRICTS[this.index].flat(),'crawler','hauler']);
     for(const type of types)for(let variant=0;variant<5;variant++)this.queueWarm(`sprite:${type}:${variant}`,()=>this.getSprite(type,variant));
+  }
+  refreshSpriteAssets() {
+    if(this.assetRevision===spriteRevision)return;
+    this.assetRevision=spriteRevision;this.sprites.clear();
+    this.tiles.clear();this.terrain.materials.clear();this.terrain.edges.clear();
+    for(const layer of this.sceneryLayers)layer.clear();
+    this.cloudSprite=this.makeCloud();this.warmScenery();
   }
   queueWarm(key,work) {
     if(typeof requestIdleCallback!=='function'||this.warmKeys.has(key))return;
@@ -234,6 +253,7 @@ export class WorldRenderer {
     for(const row of cache.keys())if(row<first-1||row>last+1)cache.delete(row);
   }
   draw(ctx,W,H,scroll,time,quality='high',focusX=W*.5) {
+    this.refreshSpriteAssets();
     const s=W/WIDTH,h=H/s;
     this.scale=s;this.scroll=scroll;this.parallaxX=(.5-clamp(focusX/W,0,1))*WIDTH*.02;this.visibleProps.length=0;
     ctx.save();ctx.scale(s,s);
@@ -283,6 +303,8 @@ export class WorldRenderer {
   }
   getSprite(type,variant) {
     const key=type+variant;if(this.sprites.has(key))return this.sprites.get(key);
+    const realistic=this.makeAtlasSprite(type,variant);
+    if(realistic){this.sprites.set(key,realistic);return realistic;}
     const out=canvas(260,260),c=out.getContext('2d'),rng=random(variant*5811+this.index*741+1636);
     c.translate(130,130);c.lineJoin='round';c.lineCap='round';
     // Consistent sunlight from the upper left grounds all scenery.
@@ -304,6 +326,62 @@ export class WorldRenderer {
     for(let i=0;i<1100;i++){const x=(rng()-.5)*180,y=(rng()-.5)*190;c.fillStyle=i%3?'rgba(10,19,27,.18)':'rgba(224,230,205,.18)';const size=.4+rng()*1.5;c.fillRect(x,y,size,size);}
     c.globalCompositeOperation='source-over';
     this.sprites.set(key,out);return out;
+  }
+  sceneryRamp(type) {
+    const p=this.palette;
+    // Ground materials keep their biome hues; the fleet owns the complementary colors.
+    if(['tree','palm','fern'].includes(type))return ['#162c25','#29533a','#527a4a','#91a575'].map(rgb);
+    if(type==='pine')return ['#2d4b50','#56797d','#a7c2c3','#e0eae0'].map(rgb);
+    if(type==='cactus')return ['#39463a','#607253','#91956b','#b8b18a'].map(rgb);
+    if(type==='alienTree'||type==='pod')return ['#25343d','#40575b','#698279','#a1b49c'].map(rgb);
+    if(type==='mushroom')return ['#282d44','#52485f','#80708b','#b2a4b7'].map(rgb);
+    if(type==='coral')return ['#28535b','#537d7d','#93aaa0','#bfd1bb'].map(rgb);
+    if(type==='ice')return ['#436575','#739ba9','#b3ced2','#e0eae4'].map(rgb);
+    if(type==='crystal'&&this.index!==6)return [rgb(p.low),mixColor(rgb(p.mid),rgb('#738097'),.3),mixColor(rgb(p.high),rgb('#99a5b6'),.3),mixColor(rgb(p.high),rgb('#d1d7dc'),.5)];
+    const structure=STRUCTURE_SPRITES.includes(type),neutral=structure?.3:0;
+    return [
+      mixColor(rgb(p.low),rgb('#101922'),.2),
+      mixColor(rgb(p.mid),rgb('#616968'),neutral),
+      mixColor(rgb(p.high),rgb('#a3aaa4'),neutral),
+      mixColor(rgb(p.high),rgb(p.fog),structure?.5:.38),
+    ];
+  }
+  makeAtlasSprite(type,variant) {
+    const naturalIndex=NATURE_SPRITES.indexOf(type),structureIndex=STRUCTURE_SPRITES.indexOf(type);
+    const source=naturalIndex>=0?spriteCell('nature',naturalIndex):structureIndex>=0?spriteCell('structures',structureIndex):null;
+    if(!source)return null;
+    const out=canvas(260,260),body=canvas(260,260),c=out.getContext('2d'),b=body.getContext('2d');
+    const rng=random(variant*5811+this.index*741+1636),foliage=FOLIAGE.has(type),vehicle=type==='crawler'||type==='hauler';
+    const extent=(vehicle?126:foliage?164:STRUCTURE_SPRITES.includes(type)?176:145)*(.96+variant*.02);
+    const scale=extent/Math.max(source.width,source.height),w=source.width*scale,h=source.height*scale;
+    b.save();b.translate(130,130);
+    if(foliage&&variant%2)b.scale(-1,1);
+    b.drawImage(source,-w*.5,-h*.5,w,h);b.restore();
+    const pixels=b.getImageData(0,0,260,260),data=pixels.data,ramp=this.sceneryRamp(type);
+    const exposure=.96+variant*.018,ember=type==='vent'&&this.index===6?rgb(this.palette.shore):null;
+    for(let i=0;i<data.length;i+=4){
+      if(!data[i+3])continue;
+      // Preserve photographed surface detail while mapping all colors to the material ramp.
+      const x=(i/4)%260,y=Math.floor(i/4/260),light=1+(260-x-y)/260*.08;
+      const luminance=clamp((data[i]*.2126+data[i+1]*.7152+data[i+2]*.0722)/255*exposure*light,0,.9999);
+      const position=luminance*3,step=Math.floor(position),fraction=position-step;
+      const incandescent=ember&&data[i]>100&&data[i]>data[i+1]*1.45;
+      for(let channel=0;channel<3;channel++)data[i+channel]=incandescent?ember[channel]*(.64+luminance*.36):ramp[step][channel]+(ramp[step+1][channel]-ramp[step][channel])*fraction;
+    }
+    b.putImageData(pixels,0,0);
+    // Shadows use the actual silhouette, including fronds, antennae and tracks.
+    c.drawImage(body,0,0);c.globalCompositeOperation='source-in';c.fillStyle=foliage?'rgba(3,12,15,.42)':'rgba(3,10,16,.48)';c.fillRect(0,0,260,260);
+    c.globalCompositeOperation='source-over';
+    const shadow=canvas(260,260),shadowContext=shadow.getContext('2d');shadowContext.drawImage(out,0,0);c.clearRect(0,0,260,260);
+    c.filter=foliage?'blur(3px)':'blur(2px)';c.drawImage(shadow,10,foliage?19:13);c.filter='none';
+    c.drawImage(body,0,0);
+    // Small, stable weathering variations avoid five identical silhouettes at flight speed.
+    if(structureIndex>=0){
+      c.globalCompositeOperation='source-atop';c.globalAlpha=.055;
+      for(let i=0;i<32;i++){c.fillStyle=i%2?this.palette.high:this.palette.low;c.fillRect(70+rng()*120,70+rng()*120,1+rng()*5,1+rng()*3);}
+      c.globalAlpha=1;c.globalCompositeOperation='source-over';
+    }
+    return out;
   }
   spriteTree(c,rng,alien=false) {
     const dark=alien?'#203947':'#143d30',mid=alien?'#416b69':'#2e6342',light=alien?'#709885':'#65945a';
@@ -468,6 +546,19 @@ export class WorldRenderer {
   }
   makeCloud() {
     const out=canvas(480,320),c=out.getContext('2d'),rng=random(777+this.index);
+    const source=spriteCell('nature',15);
+    if(source){
+      const scale=Math.min(450/source.width,290/source.height),w=source.width*scale,h=source.height*scale;
+      c.drawImage(source,(480-w)*.5,(320-h)*.5,w,h);
+      const pixels=c.getImageData(0,0,480,320),data=pixels.data,fog=rgb(this.palette.fog);
+      for(let i=0;i<data.length;i+=4){
+        if(!data[i+3])continue;
+        const light=.38+(data[i]*.2126+data[i+1]*.7152+data[i+2]*.0722)/255*.62;
+        for(let channel=0;channel<3;channel++)data[i+channel]=fog[channel]*light;
+      }
+      c.putImageData(pixels,0,0);
+      return out;
+    }
     for(let i=0;i<16;i++){const x=100+rng()*280,y=95+rng()*130,r=55+rng()*65;const g=c.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,this.palette.fog);g.addColorStop(.45,this.palette.fog+'88');g.addColorStop(1,'transparent');c.globalAlpha=.2;circle(c,x,y,r,g);}return out;
   }
   drawAtmosphere(c,h,scroll,time,quality) {

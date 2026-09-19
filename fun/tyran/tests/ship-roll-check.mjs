@@ -11,6 +11,8 @@ try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   await page.goto(process.env.TYRAN_URL || 'http://127.0.0.1:8773/fun/tyran/');
   const result = await page.evaluate(async () => {
+    const { spritesReady } = await import('./sprite-assets.js');
+    await spritesReady;
     const { drawShip, warmShipSprites, SHIP_PALETTES } = await import('./ships.js');
     const canvas = document.createElement('canvas'); canvas.width = canvas.height = 384;
     const ctx = canvas.getContext('2d');

@@ -4,6 +4,11 @@ import { createCampaign, beginLevel, update, buyUpgrade, upgradeCost, UPGRADES, 
 import { Effects } from './effects.js';
 import { AudioEngine } from './audio.js';
 import { readSave, writeSave } from './save-game.js';
+import { spritesReady, spriteStatus, spriteCell } from './sprite-assets.js';
+import { projectileTexture, projectileLayout, warmProjectileTextures } from './projectile-sprites.js';
+
+// Decode the atlas library before warming render caches or accepting flight input.
+await spritesReady;
 
 const elements = new Map();
 const $ = id => { if (!elements.has(id)) { const el = document.getElementById(id); if (el) elements.set(id, el); } return elements.get(id); };
@@ -140,7 +145,8 @@ function resize() {
 function warmFleet(index) {
   warmShipSprites(SHIP_PALETTES[index], index);
   warmShipSprites('#a4ffee', index, true); warmShipSprites('#ffc18b', index, true);
-  BULLET_SPECTRUM.forEach((color, type) => boltTexture({ team: -1, color, variant: type === 9 ? 5 : type % 5 }));
+  warmProjectileTextures(WEAPONS, BULLET_SPECTRUM);
+  pickupTexture('repair'); pickupTexture('credits');
 }
 
 function announce(kicker, title, description = '', seconds = 3) {
@@ -283,7 +289,7 @@ function saveDescription(run) {
 
 function selectWorld(index) {
   selected = clamp(Math.floor(Number(index) || 0), 0, WORLDS.length - 1); world.setWorld(selected); previewScroll = 0;
-  world.prepare(W, H);
+  world.prepare(W, H); warmFleet(selected);
   document.documentElement.style.setProperty('--sector-accent', WORLDS[selected].accent || WORLDS[selected].color);
   $('world-list').querySelectorAll('[data-world]').forEach((button, i) => { button.classList.toggle('active', i === selected); button.setAttribute('aria-pressed', String(i === selected)); });
   for (const id of ['selected-world-name', 'preview-world-name']) if ($(id)) $(id).textContent = WORLDS[selected].name;
@@ -328,79 +334,36 @@ function processEvents() {
   }
 }
 
-const boltTextures = new Map();
-function boltTexture(b) {
-  const friendly = b.team >= 0, color = b.weaponColor || b.color || '#ffffff', variant = b.variant || 0, key = `${friendly}:${color}:${variant}`;
-  if (boltTextures.has(key)) return boltTextures.get(key);
-  const c = typeof OffscreenCanvas === 'undefined' ? document.createElement('canvas') : new OffscreenCanvas(64, 64);
-  c.width = c.height = 64;
-  const paint = c.getContext('2d');
-  if (friendly) {
-    const g = paint.createLinearGradient(14, 0, 50, 0);
-    g.addColorStop(0, `${color}00`); g.addColorStop(.5, `${color}70`); g.addColorStop(1, `${color}00`);
-    paint.fillStyle = g; paint.fillRect(14, 4, 36, 50);
-    paint.fillStyle = color; paint.fillRect(29, 3, 6, 46);
-    paint.fillStyle = '#f4fff9'; paint.fillRect(31, 3, 2, 43);
+const pickupTextures = new Map();
+function pickupTexture(kind) {
+  const repair = kind === 'repair', key = repair ? 0 : 1;
+  if (pickupTextures.has(key)) return pickupTextures.get(key);
+  const out = document.createElement('canvas'); out.width = out.height = 96;
+  const paint = out.getContext('2d'), color = repair ? '#aaffd0' : '#ffdc90';
+  const glow = paint.createRadialGradient(48, 48, 8, 48, 48, 45);
+  glow.addColorStop(0, `${color}55`); glow.addColorStop(1, `${color}00`);
+  paint.fillStyle = glow; paint.fillRect(0, 0, 96, 96);
+  const source = spriteCell('pickups', key);
+  if (source) {
+    const scale = 58 / Math.max(source.width, source.height), width = source.width * scale, height = source.height * scale;
+    paint.shadowColor = '#02080dcc'; paint.shadowBlur = 5; paint.shadowOffsetY = 4;
+    paint.drawImage(source, 48 - width / 2, 48 - height / 2, width, height);
   } else {
-    const g = paint.createRadialGradient(32, 32, 2, 32, 32, 28);
-    g.addColorStop(0, `${color}80`); g.addColorStop(.35, `${color}38`); g.addColorStop(1, `${color}00`);
-    paint.fillStyle = g; paint.fillRect(0, 0, 64, 64);
-    paint.translate(32, 32); paint.fillStyle = color; paint.strokeStyle = '#06131b'; paint.lineWidth = 2;
-    paint.beginPath();
-    if (variant === 1) {
-      paint.moveTo(0, -10); paint.lineTo(8, 0); paint.lineTo(0, 10); paint.lineTo(-8, 0); paint.closePath();
-    } else if (variant === 3) {
-      paint.moveTo(0, -13); paint.lineTo(7, 8); paint.lineTo(-7, 8); paint.closePath();
-    } else if (variant === 4) {
-      paint.rect(-3.5, -17, 7, 28);
-    } else paint.arc(0, 0, 8, 0, Math.PI * 2);
-    paint.stroke(); paint.fill();
-    if (variant === 2 || variant === 5) {
-      paint.fillStyle = '#10232a'; paint.beginPath(); paint.arc(0, 0, 4.6, 0, Math.PI * 2); paint.fill();
-      if (variant === 5) {
-        paint.strokeStyle = color; paint.lineWidth = 2.6; paint.beginPath();
-        paint.moveTo(-14, 0); paint.lineTo(14, 0); paint.moveTo(0, -14); paint.lineTo(0, 14); paint.stroke();
-      }
-    }
-    paint.fillStyle = '#fffceb'; paint.fillRect(-1.4, variant === 4 ? -14 : -3.2, 2.8, variant === 4 ? 18 : 4.4);
+    paint.fillStyle = color; paint.font = 'bold 42px sans-serif'; paint.textAlign = 'center'; paint.textBaseline = 'middle';
+    paint.fillText(repair ? '+' : '•', 48, 48);
   }
-  boltTextures.set(key, c); return c;
+  pickupTextures.set(key, out); return out;
 }
+
 function drawBullet(b) {
-  const x = lerp(b.px, b.x), y = lerp(b.py, b.y), color = b.weaponColor || b.color || '#ffffff';
-  if (b.team < 0) {
-    const radius = b.radius || 3, sprite = boltTexture(b);
-    ctx.save(); ctx.translate(x, y); ctx.rotate(Math.atan2(b.vy, b.vx) + Math.PI / 2);
-    // An opaque outline stays readable over bright ground; the sprite already
-    // contains its bloom, so drawing a shot is a single cached image operation.
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.drawImage(sprite, -radius * 4, -radius * 4, radius * 8, radius * 8);
-    ctx.restore(); return;
-  }
-  const kind = b.kind || 'pulse';
-  if (kind === 'lance') {
-    ctx.save(); ctx.strokeStyle = color; ctx.globalAlpha = .9; ctx.lineWidth = Math.max(2, b.radius * 1.15);
-    ctx.beginPath(); ctx.moveTo(lerp(b.px, b.x), lerp(b.py, b.y)); ctx.lineTo(lerp(b.px, b.x) - b.vx * .045, lerp(b.py, b.y) - b.vy * .045); ctx.stroke();
-    ctx.strokeStyle = '#fff'; ctx.globalAlpha = .8; ctx.lineWidth = .9; ctx.stroke(); ctx.restore(); return;
-  }
-  if (kind === 'plasma') {
-    ctx.save(); const radius = b.radius * (1 + Math.sin((b.age || 0) * 18) * .08); ctx.fillStyle = color; ctx.globalAlpha = .82;
-    ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = .3; ctx.beginPath(); ctx.arc(x, y, radius * 2.8, 0, Math.PI * 2); ctx.fill();
-    ctx.restore(); return;
-  }
-  if (kind === 'seeker') {
-    ctx.save(); ctx.translate(x, y); ctx.rotate(Math.atan2(b.vy, b.vx) + Math.PI / 2); ctx.fillStyle = color; ctx.globalAlpha = .95;
-    ctx.beginPath(); ctx.moveTo(0, -b.radius * 1.8); ctx.lineTo(b.radius * 1.05, b.radius); ctx.lineTo(0, b.radius * .55); ctx.lineTo(-b.radius * 1.05, b.radius); ctx.closePath(); ctx.fill();
-    ctx.globalAlpha = .35; ctx.fillRect(-b.radius * .5, b.radius, b.radius, b.radius * 3.2); ctx.restore(); return;
-  }
-  if (kind === 'arc') {
-    ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = Math.max(1.5, b.radius * .8); ctx.globalAlpha = .9;
-    ctx.beginPath(); ctx.moveTo(b.px, b.py); ctx.lineTo((b.px + x) / 2 + Math.sin((b.age || 0) * 40) * 3, (b.py + y) / 2); ctx.lineTo(x, y); ctx.stroke(); ctx.restore(); return;
-  }
-  if (kind === 'scatter') {
-    ctx.save(); ctx.fillStyle = color; ctx.globalAlpha = .9; ctx.beginPath(); ctx.arc(x, y, b.radius, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = .32; ctx.beginPath(); ctx.arc(x, y, b.radius * 2.4, 0, Math.PI * 2); ctx.fill(); ctx.restore(); return;
-  }
-  const sprite = boltTexture(b); ctx.drawImage(sprite, x - b.radius * 4, y - 10, b.radius * 8, 44);
+  const sprite = projectileTexture(b), layout = projectileLayout(b);
+  ctx.save();
+  ctx.translate(lerp(b.px, b.x), lerp(b.py, b.y));
+  ctx.rotate(Math.atan2(b.vy, b.vx) + Math.PI / 2);
+  // Hull-sized ammunition stays readable over bright terrain. Bloom is baked.
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.drawImage(sprite, -layout.width / 2, -layout.height / 2 + layout.offsetY, layout.width, layout.height);
+  ctx.restore();
 }
 
 function drawBossWeakPoints(enemy, clock) {
@@ -453,9 +416,7 @@ function draw() {
       }
     }
     for (const pickup of state.pickups) {
-      ctx.save(); ctx.translate(pickup.x, pickup.y); ctx.rotate(clock * .8); ctx.strokeStyle = pickup.kind === 'repair' ? '#aaffd0' : '#ffdc90'; ctx.fillStyle = '#153634bb'; ctx.lineWidth = 2;
-      ctx.shadowColor = ctx.strokeStyle; ctx.shadowBlur = quality === 'high' ? 15 : 0;
-      ctx.strokeRect(-10, -10, 20, 20); ctx.fillRect(-10, -10, 20, 20); ctx.rotate(-clock * .8); ctx.fillStyle = ctx.strokeStyle; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(pickup.kind === 'repair' ? '+' : '•', 0, 0); ctx.restore();
+      ctx.drawImage(pickupTexture(pickup.kind), pickup.x - 32, pickup.y - 32, 64, 64);
     }
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
     for (const b of state.bullets) drawBullet(b);
@@ -650,8 +611,10 @@ syncSettings(); refreshContinue(); selectWorld(0); setScreen('menu'); resize();
 window.tyran = {
   get state() { return state; }, get scene() { return scene; }, get world() { return world; }, worlds: WORLDS, enemyTypes: ENEMY_TYPES, weapons: WEAPONS, bulletSpectrum: BULLET_SPECTRUM, parallaxLayers: PARALLAX_LAYERS, shipPalettes: SHIP_PALETTES,
   get performance() { return { ...perf, interpolation: renderAlpha, fixedStep: STEP }; },
-  launch, selectWorld, selectWeapon, pause,
+  launch, selectWorld, selectWeapon, pause, spriteStatus,
   step(seconds, controls = []) { for (let i = 0; i < Math.ceil(seconds * 60); i++) { if (state && scene === 'playing') { previousScroll = state.scroll; update(state, STEP, controls, environmentHit); processEvents(); } } accumulator = 0; renderAlpha = 1; renderDirty = true; refreshHUD(); requestFrame(); },
 };
 document.body.dataset.ready = 'true';
+$('menu-screen').inert = false;
+$('startup-status').hidden = true;
 requestFrame();

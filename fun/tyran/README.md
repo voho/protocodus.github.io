@@ -34,7 +34,7 @@ The versioned storage keys are `tyran-save-v2:auto` and `tyran-save-v2:manual`. 
 
 ## Visuals and audio
 
-Runtime artwork is a library of cached Canvas sprites: terrain materials, shoreline and cliff edges, vegetation, structures, ground vehicles, ships, projectiles and effects. Original generated title artwork and archived environment concepts are stored in `assets/`, with their prompts and provenance. The map does not load landscape images. Audio effects and an adaptive electronic sequence are synthesized with Web Audio after a user gesture.
+Runtime artwork comes from seven generated PNG sprite atlases: 113 cells for terrain materials, vegetation, structures, ground vehicles, ships, projectiles, pickups and effects. Weathered metal, fine foliage, mineral relief and textured fire retain the existing biome palettes. The renderer decodes the atlases before preparing flight and caches palette grading, silhouette shadows and banking frames. Original assets and exact prompts are in `assets/sprites/`; procedural artwork remains available if an atlas fails to load. The map uses generated material tiles and connected shoreline/cliff masks. Audio effects and an adaptive electronic sequence are synthesized with Web Audio after a user gesture.
 
 Effects have high/low settings. Reduced-motion preference disables screen shake, impact blur and bright screen flashes. Losing window focus automatically pauses. Failure or denial of local storage and audio does not prevent play.
 
@@ -56,7 +56,9 @@ Physics runs at a fixed 60 updates per second. Rendering interpolates between up
 | `worlds.js` | Ten scrolling environments and destructible scenery |
 | `tile-map.js` | Pure seeded terrain generation and shared corner masks |
 | `terrain-sprites.js` | Reusable material and shoreline/cliff sprites |
+| `sprite-assets.js` | Atlas loading, alpha extraction and shared decoded cells |
 | `ships.js` | Ten enemy classes, reserved fleet palettes and cached spacecraft artwork |
+| `projectile-sprites.js` | Palette-matched ammunition textures and visual sizing |
 | `effects.js` | Explosions, debris, lighting, wreckage and motion |
 | `audio.js` | Original synthesized music and sound effects |
 | `index.html`, `style.css` | Responsive menu, HUD, hangar and controls |
@@ -74,6 +76,8 @@ TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/tim
 TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/world-check.mjs
 TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/ship-visual-check.mjs
 TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/ship-roll-check.mjs
+TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/raster-fleet-check.mjs
+TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/projectile-effects-check.mjs
 TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/render-lifecycle-check.mjs
 TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/performance-check.mjs
 ```
