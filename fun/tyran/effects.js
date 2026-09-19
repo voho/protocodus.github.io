@@ -38,11 +38,11 @@ function ageAndCompact(list, dt) {
 export class Effects {
   constructor() { this.particles = []; this.rings = []; this.lights = []; this.texts = []; this.wrecks = []; this.delayed = []; this.shake = 0; this.flash = 0; this.reduced = matchMedia('(prefers-reduced-motion: reduce)').matches; this.quality = 'high'; }
   reset() { this.particles = []; this.rings = []; this.lights = []; this.texts = []; this.wrecks = []; this.delayed = []; this.shake = 0; this.flash = 0; }
-  emit(event, scroll = 0) {
+  emit(event, scroll = 0, groundOffset = 0) {
     const { x = 0, y = 0, size = 20 } = event;
     if (event.type === 'explosion' || event.type === 'phase') {
       const boss = event.boss, count = Math.min(boss ? 130 : 55, Math.round(size * 1.1)) * (this.quality === 'high' ? 1 : .55);
-      if (boss) for (let i = 0; i < 18; i++) this.delayed.push({ delay: .1 + i * .085, scroll, event: { type: 'explosion', x: x + random(-size, size), y: y + random(-size * .7, size * .7), size: random(19, 48), secondary: true } });
+      if (boss) for (let i = 0; i < 18; i++) this.delayed.push({ delay: .1 + i * .085, scroll, groundOffset, event: { type: 'explosion', x: x + random(-size, size), y: y + random(-size * .7, size * .7), size: random(19, 48), secondary: true } });
       const color = event.ground ? (event.color || '#ffc985') : '#ffbb6b';
       for (let i = 0; i < count; i++) {
         const angle = random(0, TAU), speed = random(25, boss ? 420 : size * 5 + 50);
@@ -50,7 +50,7 @@ export class Effects {
       }
       this.rings.push({ x, y, age: 0, life: boss ? 1.2 : .5, radius: size * (boss ? 6 : 3), color });
       this.lights.push({ x, y, age: 0, life: boss ? .9 : .3, radius: size * 5, color });
-      if (event.type !== 'phase' && !event.ground && !event.secondary) this.wrecks.push({ x, y: y - scroll, size, angle: random(0, TAU), age: 0 });
+      if (event.type !== 'phase' && !event.ground && !event.secondary) this.wrecks.push({ x: x - groundOffset, y: y - scroll, size, angle: random(0, TAU), age: 0 });
       this.shake = Math.min(23, this.shake + size * (event.ground ? .028 : .09));
       this.flash = Math.max(this.flash, boss ? .5 : event.player ? .24 : .03);
       if (event.value) this.texts.push({ x, y, text: `+${event.value}`, life: 1.15, age: 0, color: '#f3debe' });
@@ -62,8 +62,8 @@ export class Effects {
     } else if (event.type === 'pickup') {
       this.texts.push({ x, y, text: `${event.value}`, life: 1.3, age: 0, color: '#8affd7' });
     } else if (event.type === 'combo') {
-      const color = event.label === 'RAMPAGE' ? '#ffe36d' : '#b8ffe2';
-      this.texts.push({ x, y: y - 16, text: `${event.combo}  ${event.label}`, life: 1.65, age: 0, color, size: event.label === 'RAMPAGE' ? 18 : 15 });
+      const color = event.combo >= 5 ? '#ffe36d' : '#b8ffe2';
+      this.texts.push({ x, y: y - 16, text: `${event.combo}  ${event.label}`, life: 1.65, age: 0, color, size: event.combo >= 5 ? 18 : 15 });
       this.rings.push({ x, y, age: 0, life: .55, radius: 42 + event.combo * 5, color });
       this.shake = Math.min(18, this.shake + 2 + event.combo * .35);
     } else if (event.type === 'blast') {
@@ -79,14 +79,14 @@ export class Effects {
     } else if (event.type === 'weak-hit' || event.type === 'blocked') {
       this.rings.push({ x, y, age: 0, life: .2, radius: event.type === 'blocked' ? 15 : 25, color: event.type === 'blocked' ? '#ff8b78' : '#fff1a6' });
     } else if (event.type === 'weak-break') {
-      this.emit({ type: 'explosion', x, y, size: size * 1.35, color: '#ffe36d' }, scroll);
+      this.emit({ type: 'explosion', x, y, size: size * 1.35, color: '#ffe36d' }, scroll, groundOffset);
     }
     if (this.particles.length > 700) this.particles.splice(0, this.particles.length - 700);
     if (this.wrecks.length > 60) this.wrecks.shift();
   }
   update(dt) {
     let length = 0;
-    for (const charge of this.delayed) { charge.delay -= dt; if (charge.delay <= 0) this.emit(charge.event, charge.scroll); else this.delayed[length++] = charge; }
+    for (const charge of this.delayed) { charge.delay -= dt; if (charge.delay <= 0) this.emit(charge.event, charge.scroll, charge.groundOffset); else this.delayed[length++] = charge; }
     this.delayed.length = length;
     this.shake *= Math.exp(-dt * 8); this.flash *= Math.exp(-dt * 7);
     const drag = Math.exp(-dt * 2.5);

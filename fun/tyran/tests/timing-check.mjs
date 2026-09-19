@@ -46,7 +46,7 @@ async function flight(mode = 1) {
   // Poll with a timer because Playwright's default wait uses our paused RAF.
   await page.waitForFunction(() => window.tyran && document.body.dataset.ready === 'true', null, { polling: 20 });
   await page.evaluate(async mode => {
-    await tyran.world.art?.promise;
+    await tyran.world.ready;
     document.querySelector(`[data-mode="${mode}"]`).click();
     document.querySelector('#launch-button').click();
     __pumpFrame(__frameTime);

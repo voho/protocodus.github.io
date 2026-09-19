@@ -22,7 +22,7 @@ async function flight() {
   await page.goto(process.env.TYRAN_URL || 'http://127.0.0.1:8773/fun/tyran/');
   await page.waitForFunction(() => window.tyran, null, { polling: 20 });
   await page.evaluate(async () => {
-    await tyran.world.art.promise;
+    await tyran.world.ready;
     tyran.launch(); __pumpFrame(1000);
   });
   return page;

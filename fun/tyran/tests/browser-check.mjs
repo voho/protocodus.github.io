@@ -86,8 +86,8 @@ try {
   // Destruction is real, persistent, and rewards salvage.
   const destruction = await page.evaluate(() => {
     const w = tyran.world, p = w.visibleProps[0], scale = w.scale;
-    const destroyed = w.hit((p.screenX ?? p.x) * scale, (p.y + tyran.state.scroll) * scale, 3, 100000, tyran.state.scroll);
-    const twice = w.hit((p.screenX ?? p.x) * scale, (p.y + tyran.state.scroll) * scale, 3, 100000, tyran.state.scroll);
+    const destroyed = w.hit((p.screenX ?? p.x) * scale, p.screenY * scale, 3, 100000, tyran.state.scroll);
+    const twice = w.hit((p.screenX ?? p.x) * scale, p.screenY * scale, 3, 100000, tyran.state.scroll);
     return { count:destroyed.length, twice:twice.length, size:destroyed[0]?.size };
   });
   assert(destruction.count > 0 && destruction.size > 0); assert.equal(destruction.twice, 0, 'Destroyed props cannot pay out twice');

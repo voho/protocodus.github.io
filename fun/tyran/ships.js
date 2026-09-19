@@ -41,7 +41,16 @@ const glows = new Map();
 const silhouettes = new Map();
 const lights = new Map();
 const styles = new Map();
+const playerPalettes = new Map();
 const TAU = Math.PI * 2;
+
+// Roll around the nose-to-tail axis. The centerline never changes heading;
+// wings foreshorten and rise/fall, with the same projection on every effect.
+const ROLLS = Object.freeze([
+  Object.freeze({ left: .94, right: .72, shear: -.1 }),
+  Object.freeze({ left: 1, right: 1, shear: 0 }),
+  Object.freeze({ left: .72, right: .94, shear: .1 }),
+]);
 
 // Every design is drawn nose-up; each side keeps one fixed heading in flight.
 const SHAPES = [
@@ -123,10 +132,11 @@ function ivoryArmor(ctx) {
   return gradient;
 }
 
-function alloyArmor(ctx) {
+function paintedArmor(ctx, color) {
   const gradient = ctx.createLinearGradient(-85, -115, 85, 100);
-  gradient.addColorStop(0, '#e0e9ed'); gradient.addColorStop(.24, '#a8bcc7');
-  gradient.addColorStop(.47, '#526b80'); gradient.addColorStop(.66, '#a1b9c5'); gradient.addColorStop(1, '#304253');
+  gradient.addColorStop(0, tint(color, .52)); gradient.addColorStop(.24, tint(color, .12));
+  gradient.addColorStop(.47, tint(color, -.32)); gradient.addColorStop(.66, tint(color, .24));
+  gradient.addColorStop(1, tint(color, -.53));
   return gradient;
 }
 
@@ -194,9 +204,9 @@ function insignia(ctx,x,y,color,world) {
   ctx.restore();
 }
 
-function shipDetails(ctx,kind,color,world,player) {
-  const armor=player?ivoryArmor(ctx):alloyArmor(ctx);
-  const accent=metal(ctx,tint(color,.42),tint(color,-.52));
+function shipDetails(ctx,kind,color,world,player,palette) {
+  const armor=player?ivoryArmor(ctx):paintedArmor(ctx,color);
+  const accent=player?metal(ctx,tint(color,.42),tint(color,-.52)):paintedArmor(ctx,palette.rim||color);
   if(player) {
     mirrored(ctx,()=>{
       plate(ctx,[[17,-25],[28,6],[65,23],[74,48],[39,33],[24,39]],armor);
@@ -346,15 +356,15 @@ function baseHullSprite(kind,color,world,player,palette=shipPalette(world,color)
   ctx.translate(canvas.width/2,canvas.height/2);ctx.scale(scale,scale);
   ctx.lineJoin='round';ctx.lineCap='round';
   const flightColor=palette.primary||color;
-  // A dark undercarriage plus a silver rim preserves shape over both snow and foliage.
+  // Saturated armor occupies the broad plates, with dark seams and a pale rim.
+  // Ship colors stay readable at gameplay scale over both snow and foliage.
   // The cast shadow is a separate cached sprite so its sunlight direction stays fixed.
   ctx.save();ctx.translate(0,3);polygon(ctx,shape.outline,'#050910','#02070d',7);ctx.restore();
-  polygon(ctx,shape.outline,player?ivoryArmor(ctx):alloyArmor(ctx),'#04101b',4.6);
-  if(!player) { ctx.save();ctx.globalAlpha=.2;polygon(ctx,shape.outline,flightColor);ctx.restore(); }
+  polygon(ctx,shape.outline,player?ivoryArmor(ctx):paintedArmor(ctx,flightColor),'#04101b',4.6);
   path(ctx,shape.outline);ctx.strokeStyle=player?'#eaf4ec':(palette.rim||'#b8d8e8');ctx.lineWidth=1.75;ctx.stroke();
   // Fine inset armor edge, a little wider on larger capital ships.
   ctx.save();ctx.scale(.946,.955);path(ctx,shape.outline);ctx.strokeStyle='rgba(4,12,23,.58)';ctx.lineWidth=1.4;ctx.stroke();ctx.restore();
-  shipDetails(ctx,kind,flightColor,world,player);
+  shipDetails(ctx,kind,flightColor,world,player,palette);
   // Cached sector livery marks make otherwise similar silhouettes instantly
   // distinguishable: chevrons, lane stripes, signal rings and hazard bars.
   if(!player) {
@@ -383,23 +393,49 @@ function baseHullSprite(kind,color,world,player,palette=shipPalette(world,color)
   return canvas;
 }
 
-// A bank is a discrete livery variant rather than a per-frame canvas rotation.
-// Three cached sprites (left, level, right) preserve a stable nose direction,
-// keep silhouettes crisp, and avoid spending CPU on transforms during combat.
+// Project each wing independently, keeping x=0 fixed from nose through tail.
+// These are rasterized once for hulls, lights and silhouettes during warm-up.
+function rollSprite(base, tilt, shade = false) {
+  if(!tilt)return base;
+  const out=surface(base.width),ctx=out.getContext('2d');
+  const mid=base.width/2,roll=ROLLS[tilt+1];
+  ctx.translate(mid,mid);
+  for(let side=-1;side<=1;side+=2) {
+    const start=side<0?0:mid;
+    ctx.save();
+    ctx.transform(side<0?roll.left:roll.right,roll.shear,0,1,0,0);
+    ctx.drawImage(base,start,0,mid,base.height,side<0?-mid:0,-mid,mid,base.height);
+    ctx.restore();
+  }
+  if(shade) {
+    ctx.globalCompositeOperation='source-atop';
+    const light=ctx.createLinearGradient(-mid,0,mid,0);
+    light.addColorStop(0,tilt<0?'rgba(245,251,255,.18)':'rgba(2,8,22,.32)');
+    light.addColorStop(.5,'rgba(0,0,0,0)');
+    light.addColorStop(1,tilt>0?'rgba(245,251,255,.18)':'rgba(2,8,22,.32)');
+    ctx.fillStyle=light;ctx.fillRect(-mid,-mid,base.width,base.height);
+  }
+  return out;
+}
+
 function hullSprite(kind,color,world,player,palette=shipPalette(world,color),tilt=0) {
   const step=tilt<0?-1:tilt>0?1:0,base=baseHullSprite(kind,color,world,player,palette);
   if(!step)return base;
   const key=`${player?'p':kind}:${color}:${world}:${palette.id||palette.primary}:tilt${step}`;
   if(tiltHulls.has(key))return tiltHulls.get(key);
-  const out=surface(base.width),ctx=out.getContext('2d');
-  ctx.translate(out.width/2,out.height/2);ctx.rotate(step*.115);ctx.drawImage(base,-base.width/2,-base.height/2);
-  tiltHulls.set(key,out);if(tiltHulls.size>84)tiltHulls.delete(tiltHulls.keys().next().value);
+  const out=rollSprite(base,step,true);
+  tiltHulls.set(key,out);if(tiltHulls.size>112)tiltHulls.delete(tiltHulls.keys().next().value);
   return out;
 }
 
-function silhouetteSprites(kind,player) {
-  const key=player?'player':kind;
+function silhouetteSprites(kind,player,tilt=0) {
+  const key=`${player?'player':kind}:${tilt}`;
   if(silhouettes.has(key))return silhouettes.get(key);
+  if(tilt) {
+    const base=silhouetteSprites(kind,player);
+    const result={shadow:rollSprite(base.shadow,tilt),flash:rollSprite(base.flash,tilt)};
+    silhouettes.set(key,result);return result;
+  }
   const shape=player?PLAYER:SHAPES[kind];
   const shadow=surface(320),flash=surface(320);
   for(const [canvas,isShadow] of [[shadow,true],[flash,false]]) {
@@ -444,9 +480,14 @@ function flameSprite(color) {
   flames.set(color,canvas);return canvas;
 }
 
-function lightsSprite(kind,color,player,palette=shipPalette(0,color)) {
-  const key=`${player?'p':kind}:${color}:${palette.id||palette.primary}`;
+function lightsSprite(kind,color,player,palette=shipPalette(0,color),tilt=0) {
+  const key=`${player?'p':kind}:${color}:${palette.id||palette.primary}:${tilt}`;
   if(lights.has(key))return lights.get(key);
+  if(tilt) {
+    const canvas=rollSprite(lightsSprite(kind,color,player,palette),tilt);
+    lights.set(key,canvas);if(lights.size>168)lights.delete(lights.keys().next().value);
+    return canvas;
+  }
   const canvas=surface(320),ctx=canvas.getContext('2d'),shape=player?PLAYER:SHAPES[kind];
   ctx.translate(160,160);
   const warm=glowSprite(palette.engine||'#ff9a4b');
@@ -460,7 +501,7 @@ function lightsSprite(kind,color,player,palette=shipPalette(0,color)) {
   const [x,y,r]=shape.core,diameter=r*(player?3.8:4.7);
   ctx.globalAlpha=.48;ctx.drawImage(glowSprite(color),x-diameter/2,y-diameter/2,diameter,diameter);
   lights.set(key,canvas);
-  if(lights.size>56)lights.delete(lights.keys().next().value);
+  if(lights.size>168)lights.delete(lights.keys().next().value);
   return canvas;
 }
 
@@ -470,18 +511,24 @@ function lightStyles(color) {
   styles.set(color,result);return result;
 }
 
+function playerPalette(color='#71ecff') {
+  if(playerPalettes.has(color))return playerPalettes.get(color);
+  const palette={id:`player-${color}`,primary:color,rim:'#f2ffff',core:'#ffffff',engine:'#ff9a4b',glow:color};
+  playerPalettes.set(color,palette);return palette;
+}
+
 /** Prepare cached artwork between stages, keeping vector rasterization out of combat. */
 export function warmShipSprites(color,world=0,player=false) {
-  const palette=typeof color==='object'&&color ? color : player ? {id:`player-${color||'default'}`,primary:color||'#71ecff',rim:'#f2ffff',core:'#ffffff',engine:'#ff9a4b',glow:color||'#71ecff'} : shipPalette(world,color||'#ff7866');
+  const palette=typeof color==='object'&&color ? color : player ? playerPalette(color||'#71ecff') : shipPalette(world,color||'#ff7866');
   color=palette.primary;
   world=Math.abs(Math.floor(world||0))%10;
   flameSprite(palette.engine||color);lightStyles(palette.glow||color);
   for(let kind=0;kind<(player?1:SHAPES.length);kind++) {
-    silhouetteSprites(kind,player);
-    hullSprite(kind,color,world,player,palette);
-    hullSprite(kind,color,world,player,palette,-1);
-    hullSprite(kind,color,world,player,palette,1);
-    lightsSprite(kind,palette.glow||color,player,palette);
+    for(let tilt=-1;tilt<=1;tilt++) {
+      silhouetteSprites(kind,player,tilt);
+      hullSprite(kind,color,world,player,palette,tilt);
+      lightsSprite(kind,palette.glow||color,player,palette,tilt);
+    }
   }
 }
 
@@ -497,17 +544,17 @@ export function drawShip(ctx,x,y,size,kind,color,time=0,options={}) {
   kind=player?0:Math.max(0,Math.min(9,Math.floor(Number(kind)||0)));
   color=color||(player?'#71ecff':'#ff7866');
   const world=Math.abs(Math.floor(options.world||0))%10;
-  const palette=options.palette || (player ? {id:`player-${color}`,primary:color,rim:'#f2ffff',core:'#ffffff',engine:'#ff9a4b',glow:color} : shipPalette(world,color));
+  const palette=options.palette || (player ? playerPalette(color) : shipPalette(world,color));
   const flightColor=palette.primary||color;
   const shape=player?PLAYER:SHAPES[kind];
   const phase=Number(options.phase)||0;
   const pulse=.8+Math.sin(time*5+phase)*.2;
   const bank=Math.max(-.45,Math.min(.45,Number(options.bank)||0));
-  const tilt=bank<-.12?-1:bank>.12?1:0,heading=player?0:Math.PI;
+  const tilt=bank<-.12?-1:bank>.12?1:0,heading=player?0:Math.PI,roll=ROLLS[tilt+1];
   const thrust=Math.max(0,Math.min(2,Number(options.thrust??1)||0));
   const detailed=options.quality!=='low';
   const scale=size/82;
-  const silhouettes=silhouetteSprites(kind,player);
+  const silhouettes=silhouetteSprites(kind,player,tilt);
   // Keep the sun direction in world space while the craft holds its fixed heading.
   ctx.save();
   ctx.translate(x+5+size*.17,y+9+size*.24);
@@ -526,9 +573,10 @@ export function drawShip(ctx,x,y,size,kind,color,time=0,options={}) {
     const [ex,ey,er]=shape.engines[i];
     const shimmer=1+Math.sin(time*31+i*2.7+phase)*.1;
     const length=(player?70:51)*(.48+thrust*.55)*shimmer;
-    const width=er*(4.6+thrust*.2);
+    const width=er*(4.6+thrust*.2)*(ex<0?roll.left:ex>0?roll.right:(roll.left+roll.right)/2);
+    const engineX=ex*(ex<0?roll.left:roll.right),engineY=ey+ex*roll.shear;
     ctx.globalAlpha=exhaustAlpha*(.79+thrust*.08);
-    ctx.drawImage(flame,ex-width/2,ey-8,width,length+14);
+    ctx.drawImage(flame,engineX-width/2,engineY-8,width,length+14);
   }
   ctx.restore();
 
@@ -539,14 +587,16 @@ export function drawShip(ctx,x,y,size,kind,color,time=0,options={}) {
   const [cx,cy,cr]=shape.core;
   if(detailed) {
     ctx.globalAlpha*=(.7+thrust*.14)*pulse;
-    ctx.drawImage(lightsSprite(kind,palette.glow||flightColor,player,palette),-160,-160,320,320);
+    ctx.drawImage(lightsSprite(kind,palette.glow||flightColor,player,palette,tilt),-160,-160,320,320);
   }
   if(detailed&&kind>=6&&!player) {
     const rotation=time*.65+phase;
     ctx.strokeStyle=lightStyles(palette.glow||flightColor).capital;ctx.lineWidth=1.2;
+    ctx.save();ctx.transform((roll.left+roll.right)/2,roll.shear,0,1,0,0);
     for(let i=0;i<3;i++) {
       ctx.beginPath();ctx.arc(cx,cy,cr+7,rotation+i*TAU/3,rotation+i*TAU/3+.9);ctx.stroke();
     }
+    ctx.restore();
   }
   ctx.restore();
 

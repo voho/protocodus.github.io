@@ -1,4 +1,7 @@
-/** TYRAN — original terrain paintings, destructible scenery and procedural fallback. */
+/** Tyran: deterministic tile maps and reusable terrain/scenery sprites. */
+import { MAP_TILE_SIZE, hashLevel, tileAt } from './tile-map.js';
+import { TerrainSprites } from './terrain-sprites.js';
+
 export const WORLDS = [
   { id: 'jungle', name: 'Emerald Frontier', subtitle: '01 / The Living Canopy', description: 'Ancient temples disappear beneath a vast emerald rainforest.', color: '#67f0b1', accent: '#b7ffcc', enemyColor: '#f05245', bossName: 'Canopy Devourer' },
   { id: 'snow', name: 'Polar Silence', subtitle: '02 / Frozen Signal', description: 'Glacial rivers cut through snowbound forests and abandoned outposts.', color: '#8bddff', accent: '#e3f8ff', enemyColor: '#ff3f9e', bossName: 'Frost Colossus' },
@@ -12,49 +15,20 @@ export const WORLDS = [
   { id: 'void', name: 'Obsidian Citadel', subtitle: '10 / The Last Light', description: 'The final fortress hangs over an abyss of shattered stars.', color: '#ffa6c8', accent: '#ffe0ee', enemyColor: '#ffc94f', bossName: 'Tyran, World Ender' },
 ];
 
-const TILE = 1024;
+
+const TILE = 800; // Eight rows of 100px map cells per cached strip.
 const WIDTH = 1200;
-const ART_TILE_WIDTH = 600;
-const ART_TILE_HEIGHT = 512;
-const ART_TILE_COLUMNS = 2;
-const ART_TILE_ROWS = 3;
-const ART_TILE_COUNT = ART_TILE_COLUMNS * ART_TILE_ROWS;
-const SECTION = 1792;
-const PAD = 180;
+const MARGIN = MAP_TILE_SIZE; // Actual offscreen cells cover lateral drift.
+const PAD = 140;
 const HIT_CELL = 160;
 const TAU = Math.PI * 2;
-// Five depth planes keep the flight lane dimensional without adding a second
-// scene graph: deep substrate, painted ground, low vegetation, canopy and
-// foreground silhouettes/structures. Speeds are intentionally close near the
-// player so scenery remains aligned with collision while depth still reads.
 export const PARALLAX_LAYERS = Object.freeze([
-  { id: 'substrate', label: 'Underground / water backdrop', speed: .18 },
-  { id: 'ground', label: 'Basic ground', speed: 1 },
-  { id: 'ridge', label: 'Rocks and shrubs', speed: 1.01 },
-  { id: 'canopy', label: 'Trees and tall vegetation', speed: 1.045 },
-  { id: 'foreground', label: 'Clouds, high trees and structures', speed: 1.09 },
-]);
-const TERRAIN_ART = new Map();
-// Art is loaded once, lazily; cached pixels also keep scenery off water/lava.
-function loadTerrain(index) {
-  if (TERRAIN_ART.has(index)) return TERRAIN_ART.get(index);
-  const art = { ready:false, tiles:[], samples:[], width:ART_TILE_WIDTH, height:ART_TILE_HEIGHT };
-  TERRAIN_ART.set(index,art);
-  if (typeof Image === 'undefined') return art;
-  art.promise=Promise.all(Array.from({length:ART_TILE_COUNT},(_,tileIndex)=>new Promise(resolve=>{
-    const img=new Image();img.decoding='async';
-    img.onload=()=>{
-      art.tiles[tileIndex]=img;
-      const sample=canvas(64,64),ctx=sample.getContext('2d',{willReadFrequently:true});
-      ctx.drawImage(img,0,0,64,64);
-      try { art.samples[tileIndex]=ctx.getImageData(0,0,64,64).data; } catch { art.samples[tileIndex]=null; }
-      resolve(true);
-    };
-    img.onerror=()=>resolve(false);
-    img.src=new URL(`./assets/terrain-tiles/${WORLDS[index].id}/tile-${String(tileIndex).padStart(2,'0')}.webp`,import.meta.url).href;
-  }))).then(results=>{ art.ready=results.every(Boolean); if(!art.ready){art.tiles=[];art.samples=[];} return art.ready; });
-  return art;
-}
+  { id:'substrate', label:'Deep water / space', speed:.24, x:.25 },
+  { id:'ground', label:'Tile ground', speed:1, x:1 },
+  { id:'ridge', label:'Rocks and ground vehicles', speed:1.025, x:1.06 },
+  { id:'canopy', label:'Trees and tall vegetation', speed:1.065, x:1.18 },
+  { id:'foreground', label:'Tall structures and clouds', speed:1.11, x:1.3 },
+].map(Object.freeze));
 const PALETTES = [
   { base:'#102e2c', low:'#09201f', mid:'#214c3d', high:'#406e44', water:'#0b4b53', shore:'#387f6e', fog:'#aecdc5', props:['tree','palm','temple','fern','bunker','tree'] },
   { base:'#7899a6', low:'#536e82', mid:'#a7c3ca', high:'#dce9e6', water:'#366b86', shore:'#b4e4e5', fog:'#d8f3ff', props:['pine','pine','ice','station','rock','radar'] },
@@ -80,7 +54,6 @@ function polygon(c,points,fill,stroke=null,width=1) { c.beginPath(); points.forE
 function line(c,pts,color,width=1) { c.beginPath();pts.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));c.strokeStyle=color;c.lineWidth=width;c.stroke(); }
 function glow(c,x,y,r,color,alpha=0.3) { const g=c.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,color);g.addColorStop(1,'transparent');c.globalAlpha=alpha;circle(c,x,y,r,g);c.globalAlpha=1; }
 function blob(c,x,y,rx,ry,fill,rng,detail=16) { const p=[]; for(let i=0;i<detail;i++){const a=i/detail*TAU;const d=.77+rng()*.23;p.push([x+Math.cos(a)*rx*d,y+Math.sin(a)*ry*d]);} polygon(c,p,fill);return p; }
-function laneX(y,index) { return 600 + Math.sin(y/510+index*1.7)*175+Math.sin(y/1180+index)*130; }
 const STRUCTURES = new Set(['temple','bunker','station','radar','dome','solar','refinery','building','tower','pylon','fortress','hut','satellite']);
 const EMISSIVE = new Set(['crystal','pylon','mushroom','radar','tower','vent']);
 // Each biome alternates between open country, natural formations and inhabited sites.
@@ -97,537 +70,211 @@ const DISTRICTS = [
   [['pylon','fortress','pylon'],['ruin','crystal','station'],['fortress','pylon'],['crystal','pylon','ruin']],
 ];
 
-/** Procedural tile cache, destructible scenery and five parallax depth planes. */
+/** Seeded tile terrain, cached scenery sprites and five parallax planes. */
 export class WorldRenderer {
   constructor() {
-    this.tiles=new Map();this.bands=new Map();this.sprites=new Map();this.sections=new Map();
-    this.sceneryLayers=Array.from({length:3},()=>new Map());this.hitBuckets=new Map();this.visibleProps=[];this.destroyed=new Set();this.substrateGradients=new WeakMap();this.parallaxX=0;
+    this.tiles=new Map();this.bands=new Map();this.sprites=new Map();
+    this.sceneryLayers=Array.from({length:3},()=>new Map());
+    this.layerViews=Array.from({length:3},()=>({zoom:1,x:0,y:0,first:0,last:0}));
+    this.hitBuckets=new Map();this.visibleProps=[];this.damage=new Map();this.destroyed=new Set();
     this.setWorld(0);
   }
-  setWorld(index) {
-    this.warmEpoch=(this.warmEpoch||0)+1;this.warmJobs=[];this.warmKeys=new Set();this.warmPending=false;
-    this.index=((index%WORLDS.length)+WORLDS.length)%WORLDS.length;
+  setWorld(index, seed='tyran-v2') {
+    const nextIndex=((Math.floor(Number(index)||0)%WORLDS.length)+WORLDS.length)%WORLDS.length;
+    const nextHash=hashLevel(WORLDS[nextIndex].id,seed),reuse=this.index===nextIndex&&this.levelHash===nextHash;
+    this.index=nextIndex;
     this.world=WORLDS[this.index];this.palette=PALETTES[this.index];
-    this.art=loadTerrain(this.index);this.artActive=false;
-    if(this.index+1<WORLDS.length)loadTerrain(this.index+1);
-    this.tiles.clear();this.bands.clear();this.sprites.clear();this.sections.clear();for(const layers of this.sceneryLayers)layers.clear();this.hitBuckets.clear();this.destroyed.clear();this.visibleProps.length=0;this.substrateGradients=new WeakMap();
-    this.scale=1;this.scroll=0;this.clouds=[];this.lastPrune=null;
-    const rng=random(this.index*19081+708);
-    // Clouds sit on the highest plane: they drift slightly faster than the
-    // painted ground so the depth stack remains legible during scrolling.
-    for(let i=0;i<7;i++)this.clouds.push({x:rng()*WIDTH,y:rng()*1500,r:180+rng()*180,speed:.98+rng()*.16,phase:rng()*TAU});
+    this.seed=seed;this.levelHash=nextHash;
+    if(!reuse||this.damage.size){
+      this.bands.clear();this.hitBuckets.clear();
+      for(const layers of this.sceneryLayers)layers.clear();
+    }
+    this.damage.clear();this.destroyed.clear();this.visibleProps.length=0;
+    this.scale=1;this.scroll=0;this.parallaxX=0;
+    // A preview or retry reuses immutable artwork while resetting destruction.
+    if(reuse)return;
+    this.warmEpoch=(this.warmEpoch||0)+1;this.warmJobs=[];this.warmKeys=new Set();this.warmPending=false;
+    this.terrain=new TerrainSprites(this.index,this.palette);this.tiles.clear();this.sprites.clear();this.clouds=[];
+    const rng=random(this.levelHash);
+    for(let i=0;i<7;i++)this.clouds.push({x:rng()*WIDTH,y:rng()*1500,r:150+rng()*160,speed:1.14+rng()*.08,phase:rng()*TAU});
     this.cloudSprite=this.makeCloud();this.lightSprite=this.makeLight();this.scorchSprite=this.makeScorch();
-    this.shaftSprite=this.makeShaft();this.vignetteSprite=this.makeVignette();
-    const epoch=this.warmEpoch;
-    this.art.promise?.then(()=>{
-      if(epoch!==this.warmEpoch||!this.art.ready)return;
-      const types=new Set([...this.palette.props,...DISTRICTS[this.index].flat()]);
-      for(const type of types)for(let variant=0;variant<5;variant++)this.queueWarm(`sprite:${type}:${variant}`,()=>this.getSprite(type,variant));
-      this.warmNearby(-1,2);
-    });
+    this.shaftSprite=this.makeShaft();this.vignetteSprite=this.makeVignette();this.substrateSprite=this.makeSubstrate();
+    this.ready=Promise.resolve();
+    for(let material=0;material<4;material++)for(let variant=0;variant<6;variant++)this.queueWarm(`material:${material}:${variant}`,()=>this.terrain.getMaterial(material,variant));
+    const types=new Set([...this.palette.props,...DISTRICTS[this.index].flat(),'crawler','hauler']);
+    for(const type of types)for(let variant=0;variant<5;variant++)this.queueWarm(`sprite:${type}:${variant}`,()=>this.getSprite(type,variant));
   }
   queueWarm(key,work) {
     if(typeof requestIdleCallback!=='function'||this.warmKeys.has(key))return;
     this.warmKeys.add(key);this.warmJobs.push({key,work});this.runWarmQueue();
+  }
+  prepare(width,height) {
+    const last=Math.floor(height/(width/WIDTH)/TILE);
+    for(let row=-1;row<=last;row++){
+      if(!this.tiles.has(row))this.queueWarm(`terrain:${row}`,()=>this.getTile(row));
+      for(let depth=0;depth<3;depth++)if(!this.sceneryLayers[depth].has(row)){
+        this.queueWarm(`scenery:${depth}:${row}`,()=>this.getSceneryLayer(row,this.getBand(row),depth));
+      }
+    }
   }
   runWarmQueue() {
     if(this.warmPending||!this.warmJobs.length||typeof requestIdleCallback!=='function')return;
     this.warmPending=true;const epoch=this.warmEpoch;
     requestIdleCallback(deadline=>{
       if(epoch!==this.warmEpoch)return;
-      this.warmPending=false;
-      // Never force background work into an already busy animation frame.
-      const start=performance.now();
-      while(this.warmJobs.length&&deadline.timeRemaining()>3&&performance.now()-start<4) {
+      this.warmPending=false;const start=performance.now();
+      while(this.warmJobs.length&&deadline.timeRemaining()>3&&performance.now()-start<3) {
         const job=this.warmJobs.shift();this.warmKeys.delete(job.key);job.work();
       }
       this.runWarmQueue();
     });
   }
+  tileAt(col,row) {return tileAt(this.levelHash,this.index,col,row);}
   sceneryDepth(type) {
-    if (STRUCTURES.has(type)) return 2;
-    if (['tree','palm','pine','alienTree','mushroom','pod'].includes(type)) return 1;
+    if(STRUCTURES.has(type))return 2;
+    if(['tree','palm','pine','alienTree','mushroom','pod'].includes(type))return 1;
     return 0;
   }
-  drawSubstrate(c,h,scroll,time,bleed=0) {
-    // Plane 0: a slow, deep substrate. It doubles as a readable fallback while
-    // a photographic world texture is decoding and as water/underground depth
-    // beneath the painted ground.
-    const p=this.palette,period=h+360,shift=scroll*PARALLAX_LAYERS[0].speed;
-    let gradients=this.substrateGradients.get(c);
-    if(!gradients){gradients=new Map();this.substrateGradients.set(c,gradients);}
-    const key=Math.round(h*10);
-    let gradient=gradients.get(key);
-    if(!gradient){gradient=c.createLinearGradient(0,0,0,h);gradient.addColorStop(0,p.low);gradient.addColorStop(.55,p.base);gradient.addColorStop(1,'#050b13');gradients.set(key,gradient);}
-    c.fillStyle=gradient;c.globalAlpha=.96;c.fillRect(-bleed,0,WIDTH+bleed*2,h);
-    c.save();c.globalCompositeOperation='screen';c.globalAlpha=.16;
-    for(let i=0;i<7;i++) {
-      const y=((i*211+shift+time*6)%period+period)%period-180;
-      const x=WIDTH*.5+Math.sin(i*2.3+time*.08)*WIDTH*.36;
-      c.strokeStyle=i%2?p.water:p.shore;c.lineWidth=18+i%3*9;
-      c.beginPath();c.moveTo(-60,y);c.bezierCurveTo(x*.35,y-70,x*.85,y+70,WIDTH+60,y-15);c.stroke();
+  makeSubstrate() {
+    const out=canvas(600,600),c=out.getContext('2d'),p=this.palette,rng=random(this.levelHash^5371);
+    c.fillStyle=p.low;c.fillRect(0,0,600,600);
+    const space=this.index===4||this.index===9;
+    for(let i=0;i<(space?180:40);i++) {
+      const x=rng()*600,y=rng()*600;c.globalAlpha=space?.15+rng()*.3:.04+rng()*.05;
+      if(space){c.fillStyle='#9aa6bd';c.fillRect(x,y,.5+rng(),.5+rng());}
+      else ellipse(c,x,y,8+rng()*65,2+rng()*9,p.shore);
     }
-    c.restore();
+    return out;
   }
-  drawGroundParallax(c,h,scroll,time) {
-    // Plane 1: broad ground contours move with the camera, while the artwork
-    // above supplies the high-frequency material detail.
-    const p=this.palette,period=h+280,shift=scroll*PARALLAX_LAYERS[1].speed;
-    c.save();c.globalAlpha=.16;
-    for(let i=0;i<9;i++) {
-      const y=((i*163+shift+time*3)%period+period)%period-140;
-      const wave=Math.sin(time*.12+i)*32;
-      c.strokeStyle=i%3===0?p.shore:p.mid;c.lineWidth=2+i%3;
-      c.beginPath();c.moveTo(-30,y);c.bezierCurveTo(WIDTH*.28,y+wave,WIDTH*.68,y-wave,WIDTH+30,y+wave*.4);c.stroke();
-    }
-    c.restore();
+  drawSubstrate(c,h,scroll) {
+    c.fillStyle=this.palette.low;c.fillRect(-MARGIN,0,WIDTH+MARGIN*2,h);
+    const shift=scroll*PARALLAX_LAYERS[0].speed,first=Math.floor(-shift/600);
+    for(let row=first;row*600+shift<h;row++)for(let col=-1;col<3;col++)c.drawImage(this.substrateSprite,col*600,row*600+shift);
   }
-  drawDepthMist(c,h,scroll,time,depth) {
-    // A restrained silhouette pass gives each foreground plane a distinct
-    // speed even when a biome has no matching prop type.
-    const p=this.palette,layer=PARALLAX_LAYERS[depth+2],period=h+340,shift=scroll*layer.speed;
-    const rng=random(this.index*8191+depth*977);
-    c.save();c.globalCompositeOperation=depth===2?'screen':'source-over';
-    if(depth===0) {
-      c.globalAlpha=.14;
-      for(let i=0;i<18;i++) {
-        const x=35+rng()*(WIDTH-70),y=((i*197+shift+time*2)%period+period)%period-150,r=13+rng()*34;
-        ellipse(c,x+5,y+7,r*1.18,r*.54,'#050b12');ellipse(c,x,y,r,r*.5,i%3?p.high:p.low);
-      }
-    } else if(depth===1) {
-      c.globalAlpha=.13;
-      for(let i=0;i<12;i++) {
-        const x=40+rng()*(WIDTH-80),y=((i*281+shift+time*2.8)%period+period)%period-160,hgt=55+rng()*100;
-        c.strokeStyle=i%2?p.high:p.mid;c.lineWidth=4+rng()*5;c.beginPath();c.moveTo(x,y+hgt);c.lineTo(x+(rng()-.5)*24,y);c.stroke();
-        ellipse(c,x,y,26+rng()*28,16+rng()*17,i%3?p.mid:p.high);
-      }
-    } else {
-      c.globalAlpha=.1;
-      for(let i=0;i<8;i++) {
-        const x=60+rng()*(WIDTH-120),y=((i*353+shift+time*3.6)%period+period)%period-170,w=32+rng()*46,hgt=70+rng()*135;
-        c.fillStyle=p.low;c.fillRect(x-w*.5,y,w,hgt);c.fillStyle=p.shore;c.fillRect(x-w*.34,y+8,w*.68,2);
-        c.globalAlpha=.22;c.fillStyle=p.accent||p.high;c.fillRect(x-w*.3,y+18,w*.6,2);c.globalAlpha=.1;
-      }
-    }
-    c.restore();
-  }
-  drawSceneryDepth(c,h,scroll,time,depth,quality,bleed=0) {
-    const layer=PARALLAX_LAYERS[depth+2],layerScroll=scroll*layer.speed;
-    const first=Math.floor(-layerScroll/TILE),last=Math.floor((h-layerScroll)/TILE);
-    for(let row=first-1;row<=last+1;row++) {
-      const band=this.getBand(row),y=row*TILE+layerScroll;
-      if(y+TILE+PAD<0||y-PAD>h)continue;
-      c.drawImage(this.getSceneryLayer(row,band,depth),-bleed,y-PAD,WIDTH+bleed*2,TILE+PAD*2);
-      for(const prop of band) {
-        if(this.sceneryDepth(prop.type)!==depth)continue;
-        const py=prop.y+layerScroll;
-        if(py < -PAD || py>h+PAD || this.destroyed.has(prop.id))continue;
-        prop.screenX=prop.x+this.parallaxX;prop.screenY=prop.y+scroll;this.visibleProps.push(prop);
-        if(prop.emissive&&quality!=='low') {
-          const radius=prop.size*.8;c.globalAlpha=.1+Math.sin(time*1.7+prop.variant*2)*.03;
-          c.drawImage(this.lightSprite,prop.x-radius,py-radius,radius*2,radius*2);
-        }
-      }
-    }
-  }
-  warmNearby(first,last) {
-    if(!this.art.ready)return;
-    for(let row=first-1;row<=last+1;row++) {
-      if(!this.tiles.has(row))this.queueWarm(`tile:${row}`,()=>{if(!this.artActive){this.tiles.clear();this.artActive=true;}this.getArtTile(row);});
-      for(let depth=0;depth<3;depth++)if(!this.sceneryLayers[depth].has(row))this.queueWarm(`scenery:${row}:${depth}`,()=>this.getSceneryLayer(row,this.getBand(row),depth));
-    }
-  }
-  draw(ctx,W,H,scroll,time,quality='high',focusX=W*.5) {
-    const s=W/WIDTH,h=H/s,focus=Number(focusX);
-    const normalized=clamp(Number.isFinite(focus)?focus/Math.max(1,W):.5,0,1),bleed=WIDTH*.01;
-    // Let the terrain breathe beneath the ship: the complete tile strip is
-    // rendered 1% wider than the viewport and shifts only a few pixels with
-    // the pilot's X position, so no edge exposes the canvas clear color.
-    this.parallaxX=(normalized-.5)*bleed*2;this.scale=s;this.scroll=scroll;this.visibleProps.length=0;
-    ctx.save();ctx.scale(s,s);ctx.translate(this.parallaxX,0);
-    this.drawSubstrate(ctx,h,scroll,time,bleed);
-    this.drawGroundParallax(ctx,h,scroll,time);
-    const first=Math.floor(-scroll/TILE),last=Math.floor((h-scroll)/TILE);
-    if(this.art.ready&&!this.artActive) {
-      // Keep band identities and damage: the first decoded painting must never move scenery.
-      this.tiles.clear();this.artActive=true;
-    }
-    ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
-    ctx.globalAlpha=this.artActive?.94:1;
-    for(let row=first;row<=last;row++)ctx.drawImage(this.artActive?this.getArtTile(row):this.getTile(row),-bleed,row*TILE+scroll,WIDTH+bleed*2,TILE+.5);
-    ctx.globalAlpha=1;
-    this.drawSurfaceMotion(ctx,h,scroll,time,quality);
-    // Planes 2–4: rocks/shrubs, trees and the highest structures each get a
-    // shallow independent offset so their silhouettes separate from the ground.
-    for(let depth=0;depth<3;depth++) {
-      this.drawDepthMist(ctx,h,scroll,time,depth);
-      this.drawSceneryDepth(ctx,h,scroll,time,depth,quality,bleed);
-    }
-    ctx.globalAlpha=1;this.drawAtmosphere(ctx,h,scroll,time,quality);
-    ctx.drawImage(this.vignetteSprite,0,0,WIDTH,h);ctx.restore();
-    if(this.lastPrune!==first) {
-      this.lastPrune=first;
-      for(const key of this.tiles.keys())if(key<first-2||key>last+2)this.tiles.delete(key);
-      for(const layers of this.sceneryLayers)for(const key of layers.keys())if(key<first-3||key>last+3)layers.delete(key);
-      this.warmNearby(first,last);
-    }
-  }
-  getSection(section) {
-    if(this.sections.has(section))return this.sections.get(section);
-    const rng=random((section*87317)^(this.index*19433+1927));
-    const district=((section%4)+4)%4;
-    const out={index:section,district,center:230+rng()*740,phase:rng()*TAU};
-    this.sections.set(section,out);return out;
-  }
-  getArtTile(row) {
+  getTile(row) {
     if(this.tiles.has(row))return this.tiles.get(row);
-    const out=canvas(WIDTH,TILE),c=out.getContext('2d');
-    if(this.art.ready&&this.art.tiles.length>=ART_TILE_COUNT) {
-      // Six independent 600x512 tiles form a 1200x1024 terrain chunk. The
-      // source row order advances each chunk, so the camera never stretches a
-      // single tall painting and can discard chunks independently.
-      const startRow=((row*2)%ART_TILE_ROWS+ART_TILE_ROWS)%ART_TILE_ROWS;
-      for(let part=0;part<2;part++) {
-        const tileRow=(startRow+part)%ART_TILE_ROWS;
-        for(let col=0;col<ART_TILE_COLUMNS;col++) {
-          const tile=this.art.tiles[tileRow*ART_TILE_COLUMNS+col];
-          if(tile)c.drawImage(tile,col*ART_TILE_WIDTH,part*ART_TILE_HEIGHT,ART_TILE_WIDTH,ART_TILE_HEIGHT);
-        }
-      }
+    const out=canvas(WIDTH+MARGIN*2,TILE),c=out.getContext('2d');
+    for(let y=0;y<TILE/MAP_TILE_SIZE;y++)for(let col=-1;col<=WIDTH/MAP_TILE_SIZE;col++) {
+      const tile=this.tileAt(col,row*(TILE/MAP_TILE_SIZE)+y),x=col*MAP_TILE_SIZE+MARGIN,py=y*MAP_TILE_SIZE;
+      c.globalAlpha=.86;c.drawImage(this.terrain.getMaterial(0,tile.variant),x,py,MAP_TILE_SIZE,MAP_TILE_SIZE);c.globalAlpha=1;
+      for(let material=1;material<4;material++)if(tile.cornerMasks[material])c.drawImage(this.terrain.get(material,tile.variant,tile.cornerMasks[material]),x,py,MAP_TILE_SIZE,MAP_TILE_SIZE);
     }
-    c.fillStyle=this.index===1?'rgba(9,24,44,.20)':this.index===3?'rgba(3,29,42,.12)':this.index===2?'rgba(30,18,29,.13)':'rgba(5,13,26,.13)';
-    c.fillRect(0,0,WIDTH,TILE);
-    this.drawDistrictGround(c,row);
     this.tiles.set(row,out);return out;
   }
-  terrainColor(x,y) {
-    if(!this.art.ready||!this.art.samples.length)return null;
-    const normalizedX=((x% (ART_TILE_WIDTH*ART_TILE_COLUMNS))+(ART_TILE_WIDTH*ART_TILE_COLUMNS))%(ART_TILE_WIDTH*ART_TILE_COLUMNS);
-    const normalizedY=((y% (ART_TILE_HEIGHT*ART_TILE_ROWS))+(ART_TILE_HEIGHT*ART_TILE_ROWS))%(ART_TILE_HEIGHT*ART_TILE_ROWS);
-    const tileX=Math.min(ART_TILE_COLUMNS-1,Math.floor(normalizedX/ART_TILE_WIDTH));
-    const tileY=Math.min(ART_TILE_ROWS-1,Math.floor(normalizedY/ART_TILE_HEIGHT));
-    const sample=this.art.samples[tileY*ART_TILE_COLUMNS+tileX];if(!sample)return null;
-    const sx=Math.min(63,Math.floor((normalizedX%ART_TILE_WIDTH)/ART_TILE_WIDTH*64));
-    const sy=Math.min(63,Math.floor((normalizedY%ART_TILE_HEIGHT)/ART_TILE_HEIGHT*64));
-    const i=(sy*64+sx)*4;return [sample[i],sample[i+1],sample[i+2]];
+  getBand(row) {
+    if(this.bands.has(row))return this.bands.get(row);
+    const props=[],rng=random(this.levelHash^Math.imul(row,33479));
+    const district=Math.floor(rng()*DISTRICTS[this.index].length),types=DISTRICTS[this.index][district];
+    for(let y=0;y<TILE/MAP_TILE_SIZE;y++)for(let col=-1;col<=WIDTH/MAP_TILE_SIZE;col++) {
+      const tileRow=row*(TILE/MAP_TILE_SIZE)+y,tile=this.tileAt(col,tileRow);
+      const r=random(this.levelHash^Math.imul(tileRow,90149)^Math.imul(col,19433));
+      const space=this.index===4||this.index===9;
+      if(tile.material===0&&!(this.index===3&&r()<.09))continue;
+      const vegetation=[0,1,3,8].includes(this.index);
+      const density=vegetation?(tile.material>=2?.7:.18):space?.4:.27;
+      if(r()>density)continue;
+      let type=types[Math.floor(r()*types.length)];
+      if(this.index===3&&tile.material<=1)type='coral';
+      if(STRUCTURES.has(type)&&tile.material<2)type=this.palette.props[0];
+      if(!vegetation&&tile.material>=2&&r()<.18)type=r()<.55?'crawler':'hauler';
+      const cluster=vegetation&&['tree','pine','palm','fern','alienTree','mushroom','pod'].includes(type)?2+Math.floor(r()*3):1;
+      for(let n=0;n<cluster;n++){
+        const x=(col+.18+r()*.64)*MAP_TILE_SIZE,py=(tileRow+.16+r()*.68)*MAP_TILE_SIZE;
+        const structure=STRUCTURES.has(type),vehicle=type==='crawler'||type==='hauler';
+        const size=vehicle?34+r()*12:structure?52+r()*35:30+r()*33;
+        const maxHp=structure?45+size*.45:12+size*.22,id=`${this.levelHash}:${row}:${col}:${y}:${n}`;
+        const depth=this.sceneryDepth(type),prop={id,row,x,y:py,type,size,variant:Math.floor(r()*5),hp:this.damage.get(id)??maxHp,maxHp,value:structure?12:4,color:this.world.color,emissive:EMISSIVE.has(type),depth};
+        props.push(prop);
+        const key=`${depth}:${Math.floor(py/HIT_CELL)}:${Math.floor(x/HIT_CELL)}`;
+        let bucket=this.hitBuckets.get(key);if(!bucket){bucket=[];this.hitBuckets.set(key,bucket);}bucket.push(prop);
+      }
+    }
+    props.sort((a,b)=>a.y-b.y);this.bands.set(row,props);return props;
   }
-  suitableSite(type,x,y) {
-    const color=this.terrainColor(x,y);if(!color)return true;
-    const [r,g,b]=color;
-    if(this.index===0)return g>b*.93;
-    if(this.index===3)return type==='coral'?b>r*1.12:(g>b*1.1||r>b*1.1);
-    if(this.index===6)return r<g*1.7;
-    if(this.index===8)return type==='crystal'||type==='mushroom'||g<b*1.15;
-    return true;
+  getSceneryLayer(row,band,depth=0) {
+    const cache=this.sceneryLayers[depth];if(cache.has(row))return cache.get(row);
+    const out=canvas(WIDTH+MARGIN*2,TILE+PAD*2),c=out.getContext('2d');
+    for(const prop of band) {
+      if(prop.depth!==depth)continue;
+      const y=prop.y-row*TILE+PAD,x=prop.x+MARGIN,scale=prop.size/100;
+      if(this.destroyed.has(prop.id)){this.drawScorch(c,x,y,prop.size);continue;}
+      c.drawImage(this.getSprite(prop.type,prop.variant),x-130*scale,y-130*scale,260*scale,260*scale);
+      if(prop.hp<prop.maxHp)ellipse(c,x+4,y+5,prop.size*.22,prop.size*.16,'rgba(36,28,37,.36)');
+    }
+    cache.set(row,out);return out;
   }
-  /** Inputs and returned effects are in the same screen coordinates as draw(). */
+  drawSceneryDepth(c,h,scroll,time,depth,quality) {
+    const layer=PARALLAX_LAYERS[depth+2],view=this.layerViews[depth],zoom=layer.speed;
+    // Project height around the viewport center. Scaling both position and scroll
+    // keeps scenery above its terrain instead of accumulating drift down the level.
+    view.zoom=zoom;view.x=WIDTH*.5*(1-zoom)+this.parallaxX*layer.x;
+    view.y=h*.5*(1-zoom)+scroll*zoom;
+    const first=view.first=Math.floor((-view.y/zoom-PAD)/TILE);
+    const last=view.last=Math.floor(((h-view.y)/zoom+PAD)/TILE),cache=this.sceneryLayers[depth];
+    c.save();c.translate(view.x,view.y);c.scale(zoom,zoom);
+    for(let row=first;row<=last;row++) {
+      const band=this.getBand(row);c.globalAlpha=1;
+      c.drawImage(this.getSceneryLayer(row,band,depth),-MARGIN,row*TILE-PAD);
+      for(const prop of band){
+        if(prop.depth!==depth||this.destroyed.has(prop.id))continue;
+        const y=prop.y*zoom+view.y;if(y<-PAD||y>h+PAD)continue;
+        prop.screenX=prop.x*zoom+view.x;prop.screenY=y;this.visibleProps.push(prop);
+        if(prop.emissive&&quality!=='low'){
+          const radius=prop.size*.65;c.globalAlpha=.1+Math.sin(time*1.7+prop.variant*2)*.03;
+          c.drawImage(this.lightSprite,prop.x-radius,prop.y-radius,radius*2,radius*2);
+        }
+      }
+    }
+    c.restore();
+    for(const row of cache.keys())if(row<first-1||row>last+1)cache.delete(row);
+  }
+  draw(ctx,W,H,scroll,time,quality='high',focusX=W*.5) {
+    const s=W/WIDTH,h=H/s;
+    this.scale=s;this.scroll=scroll;this.parallaxX=(.5-clamp(focusX/W,0,1))*WIDTH*.02;this.visibleProps.length=0;
+    ctx.save();ctx.scale(s,s);
+    ctx.save();ctx.translate(this.parallaxX*.25,0);this.drawSubstrate(ctx,h,scroll);ctx.restore();
+    ctx.save();ctx.translate(this.parallaxX,0);
+    const first=Math.floor(-scroll/TILE),last=Math.floor((h-scroll)/TILE);
+    for(let row=first;row<=last;row++)ctx.drawImage(this.getTile(row),-MARGIN,row*TILE+scroll,WIDTH+MARGIN*2,TILE+.5);
+    ctx.restore();
+    for(let depth=0;depth<3;depth++)this.drawSceneryDepth(ctx,h,scroll,time,depth,quality);
+    ctx.globalAlpha=1;ctx.save();ctx.translate(this.parallaxX*1.35,0);this.drawAtmosphere(ctx,h,scroll,time,quality);ctx.restore();
+    ctx.drawImage(this.vignetteSprite,0,0,WIDTH,h);ctx.restore();
+    for(const row of this.tiles.keys())if(row<first-1||row>last+1)this.tiles.delete(row);
+    // Keep only nearby pixel caches and regenerated bands. Damage is a compact ledger.
+    for(const [row,band] of this.bands)if(!this.layerViews.some(view=>row>=view.first-1&&row<=view.last+1)){
+      for(const prop of band){const key=`${prop.depth}:${Math.floor(prop.y/HIT_CELL)}:${Math.floor(prop.x/HIT_CELL)}`,bucket=this.hitBuckets.get(key);if(bucket){const i=bucket.indexOf(prop);if(i>=0)bucket.splice(i,1);if(!bucket.length)this.hitBuckets.delete(key);}}
+      this.bands.delete(row);
+    }
+    const epoch=this.warmEpoch;
+    if(!this.tiles.has(first-1))this.queueWarm(`terrain:${first-1}`,()=>{if(epoch===this.warmEpoch)this.getTile(first-1);});
+  }
+  /** Draw and hit share the same parallax transform for each scenery plane. */
   hit(x,y,radius,damage,scroll=this.scroll) {
-    const s=this.scale||1;x=x/s-(this.parallaxX||0);y=y/s-scroll;radius/=s;const result=[],reach=radius+64;
-    const x0=Math.max(0,Math.floor((x-reach)/HIT_CELL)),x1=Math.min(7,Math.floor((x+reach)/HIT_CELL));
-    const y0=Math.floor((y-reach)/HIT_CELL),y1=Math.floor((y+reach)/HIT_CELL);
-    for(let by=y0;by<=y1;by++)for(let bx=x0;bx<=x1;bx++) {
-      const bucket=this.hitBuckets.get(by*8+bx);if(!bucket)continue;
-      for(let i=0;i<bucket.length;i++) {
-        const prop=bucket[i];if(this.destroyed.has(prop.id))continue;
-        if((x-prop.x)**2+(y-prop.y)**2>(radius+prop.size*.32)**2)continue;
-        const wasDamaged=prop.hp<prop.maxHp;prop.hp-=damage;
-        if(prop.hp<=0) {
-          this.destroyed.add(prop.id);for(const layers of this.sceneryLayers)layers.delete(prop.row);
-          result.push({x:(prop.x+(this.parallaxX||0))*s,y:(prop.y+scroll)*s,size:prop.size*s,color:prop.color,value:prop.value});
-        } else if(!wasDamaged)for(const layers of this.sceneryLayers)layers.delete(prop.row);
+    const s=this.scale||1,screenX=x/s,screenY=y/s,result=[];
+    for(let depth=0;depth<3;depth++){
+      const view=this.layerViews[depth],zoom=view.zoom,offsetY=view.y+(scroll-this.scroll)*zoom;
+      const px=(screenX-view.x)/zoom,py=(screenY-offsetY)/zoom,r=radius/s/zoom,reach=r+40;
+      for(let by=Math.floor((py-reach)/HIT_CELL);by<=Math.floor((py+reach)/HIT_CELL);by++)for(let bx=Math.floor((px-reach)/HIT_CELL);bx<=Math.floor((px+reach)/HIT_CELL);bx++){
+        const bucket=this.hitBuckets.get(`${depth}:${by}:${bx}`);if(!bucket)continue;
+        for(const prop of bucket){
+          if(this.destroyed.has(prop.id)||(px-prop.x)**2+(py-prop.y)**2>(r+prop.size*.32)**2)continue;
+          const wasDamaged=prop.hp<prop.maxHp;prop.hp-=damage;this.damage.set(prop.id,prop.hp);
+          if(prop.hp<=0){this.destroyed.add(prop.id);this.sceneryLayers[depth].delete(prop.row);result.push({id:prop.id,x:(prop.x*zoom+view.x)*s,y:(prop.y*zoom+offsetY)*s,size:prop.size*s*zoom,color:prop.color,value:prop.value});}
+          else if(!wasDamaged)this.sceneryLayers[depth].delete(prop.row);
+        }
       }
     }
     return result;
   }
-  getSceneryLayer(row,band,depth=0) {
-    const cache=this.sceneryLayers[depth]||this.sceneryLayers[0];
-    if(cache.has(row))return cache.get(row);
-    const out=canvas(WIDTH,TILE+PAD*2),c=out.getContext('2d');
-    for(const prop of band) {
-      if(this.sceneryDepth(prop.type)!==depth)continue;
-      const y=prop.y-row*TILE+PAD,scale=prop.size/100;
-      if(this.destroyed.has(prop.id)) {this.drawScorch(c,prop.x,y,prop.size);continue;}
-      c.drawImage(this.getSprite(prop.type,prop.variant),prop.x-130*scale,y-130*scale,260*scale,260*scale);
-      if(prop.hp<prop.maxHp)ellipse(c,prop.x+4,y+5,prop.size*.22,prop.size*.16,'rgba(36,28,37,.36)');
-    }
-    cache.set(row,out);return out;
-  }
-  getTile(row) {
-    if(this.tiles.has(row))return this.tiles.get(row);
-    const out=canvas(WIDTH,TILE),c=out.getContext('2d');const rng=random((row*98713)^(this.index*45893+5234));const p=this.palette;
-    c.fillStyle=p.base;c.fillRect(0,0,WIDTH,TILE);
-    if(this.index===4||this.index===9)this.drawSpace(c,row,rng);
-    else if(this.index===7)this.drawCity(c,row,rng);
-    else {
-      for(let i=0;i<55;i++) {
-        const x=rng()*WIDTH,y=rng()*TILE,r=50+rng()*210;
-        c.globalAlpha=.08+rng()*.12;
-        blob(c,x,y,r,r*(.3+rng()),i%3===0?p.low:i%3===1?p.mid:p.high,rng,19);
-      }
-      c.globalAlpha=1;
-      if(this.index===3)this.drawIslands(c,row,rng);
-      else if(this.index===2)this.drawDunes(c,row,rng);
-      else if(this.index===5)this.drawCanyons(c,row,rng);
-      else this.drawRiver(c,row,rng);
-      if(this.index===0||this.index===8)this.drawGroundCover(c,rng);
-      if(this.index===1)this.drawSnowbanks(c,row,rng);
-      if(this.index===6)this.drawFissures(c,row,rng);
-    }
-    // Fine, deterministic dither gives the terrain an illustrated, tactile finish.
-    for(let i=0;i<9500;i++) {
-      const x=rng()*WIDTH,y=rng()*TILE,size=.6+rng()*2.4;
-      c.fillStyle=i%3===0?'rgba(231,244,227,.048)':'rgba(0,3,10,.072)';c.fillRect(x,y,size,size*.7);
-    }
-    this.tiles.set(row,out);return out;
-  }
-  drawRiver(c,row,rng) {
-    const p=this.palette,index=this.index;const points=[];
-    for(let y=-45;y<=TILE+45;y+=22)points.push([laneX(y+row*TILE,index),y]);
-    c.lineJoin='round';c.lineCap='round';
-    const width=index===6?108:index===8?145:170;
-    line(c,points,p.low,width+43);line(c,points,p.shore,width+15);line(c,points,p.water,width);
-    c.globalAlpha=.26;line(c,points,index===6?'#ffad52':p.low,width*.53);c.globalAlpha=1;
-    if(index===6){c.globalAlpha=.36;line(c,points,'#ffb957',width*.14);c.globalAlpha=1;}
-    for(let i=0;i<150;i++) {
-      const y=rng()*TILE,gy=y+row*TILE,x=laneX(gy,index)+(rng()-.5)*width*.8;
-      c.globalAlpha=index===6?.3:.1;
-      line(c,[[x,y],[x+8+rng()*30,y+1]],index===6?'#ffe291':'#b4f3ec',.5+rng()*1.3);
-    }
-    c.globalAlpha=1;
-    for(let i=0;i<30;i++) {
-      const y=rng()*TILE,x=laneX(y+row*TILE,index)+(rng()>.5?1:-1)*(width*.6+rng()*70);
-      c.globalAlpha=.3;blob(c,x,y,20+rng()*42,12+rng()*15,p.high,rng,10);c.globalAlpha=1;
-    }
-  }
-  drawGroundCover(c,rng) {
-    const alien=this.index===8,p=this.palette;
-    for(let i=0;i<750;i++) {
-      const x=rng()*WIDTH,y=rng()*TILE,r=3+rng()*15;
-      c.globalAlpha=.13+rng()*.18;
-      ellipse(c,x+2,y+3,r,r*.55,p.low);
-      ellipse(c,x,y,r,r*.5,alien?(i%5===0?'#7e6091':'#446466'):(i%4===0?'#659052':'#386c46'));
-      if(i%5===0)line(c,[[x-r*.5,y],[x,y-r*.25],[x+r*.6,y]],p.high,1);
-    }
-    c.globalAlpha=1;
-    // Old causeways crossing the living landscape.
-    for(let n=0;n<2;n++){
-      const x=rng()*WIDTH,y=rng()*TILE;c.save();c.translate(x,y);c.rotate((rng()-.5)*1.4);
-      c.fillStyle=alien?'#514c6b':'#456251';c.fillRect(-35,-100,70,200);
-      for(let i=0;i<10;i++){c.fillStyle=i%2?'rgba(0,0,0,.14)':'rgba(210,239,205,.08)';c.fillRect(-33,-98+i*20,66,17);}
-      c.restore();
-    }
-  }
-  drawSnowbanks(c,row,rng) {
-    const p=this.palette;
-    for(let i=0;i<85;i++) {
-      const x=rng()*WIDTH,y=rng()*TILE,r=18+rng()*90;
-      c.globalAlpha=.36;blob(c,x+8,y+8,r,r*.54,'#416c86',rng,14);
-      c.globalAlpha=.72;blob(c,x,y,r,r*.51,p.high,rng,14);
-    }
-    c.globalAlpha=1;
-    for(let i=0;i<12;i++) {
-      const x=rng()*WIDTH,y=rng()*TILE;const pts=[[x,y]];for(let k=1;k<6;k++)pts.push([x+k*9+(rng()-.5)*12,y+k*10]);
-      line(c,pts,'rgba(57,102,128,.28)',1);
-    }
-    // Snow vehicle tracks.
-    const pts=[];for(let y=-40;y<TILE+40;y+=18)pts.push([laneX(y+row*TILE,3)*.6+130,y]);
-    c.setLineDash([5,5]);line(c,pts,'rgba(56,94,112,.18)',3);line(c,pts.map(([x,y])=>[x+15,y]),'rgba(56,94,112,.18)',3);c.setLineDash([]);
-  }
-  drawDunes(c,row,rng) {
-    for(let n=-2;n<12;n++) {
-      const baseY=n*130;const pts=[];
-      for(let x=-50;x<=WIDTH+50;x+=25){const gy=baseY+Math.sin(x/330+n*.91)*100;pts.push([x,gy]);}
-      const g=c.createLinearGradient(0,baseY-10,0,baseY+125);g.addColorStop(0,'rgba(255,220,157,.29)');g.addColorStop(.27,'rgba(228,177,108,.10)');g.addColorStop(1,'rgba(70,43,34,.28)');
-      polygon(c,[...pts,[WIDTH+50,baseY+185],[-50,baseY+185]],g);
-      line(c,pts,'rgba(255,222,160,.23)',2);
-      for(let k=1;k<6;k++)line(c,pts.map(([x,y])=>[x,y+k*6]),'rgba(239,195,130,.045)',1);
-    }
-    for(let i=0;i<60;i++){const x=rng()*WIDTH,y=rng()*TILE;c.globalAlpha=.2;blob(c,x,y,7+rng()*30,4+rng()*15,'#4a3f34',rng,7);c.globalAlpha=1;}
-    // Half-buried floor plans, carved into the dunes.
-    for(let i=0;i<4;i++){const x=rng()*WIDTH,y=rng()*TILE;c.save();c.translate(x,y);c.rotate(-.24);c.strokeStyle='rgba(77,61,44,.35)';c.lineWidth=8;c.strokeRect(-65,-60,130,120);c.strokeRect(-41,-38,82,76);c.fillStyle='rgba(227,186,120,.3)';c.fillRect(-73,-70,150,8);c.restore();}
-  }
-  drawIslands(c,row,rng) {
-    for(let i=0;i<18;i++) {
-      const x=rng()*WIDTH,y=rng()*TILE,r=42+rng()*150,ry=r*(.4+rng()*.45);
-      c.globalAlpha=.23;blob(c,x,y,r*1.55,ry*1.55,'#62dbca',rng,22);c.globalAlpha=1;
-      blob(c,x,y,r*1.17,ry*1.16,'#45b6aa',rng,22);
-      blob(c,x,y,r,ry,'#d6cba0',rng,22);
-      blob(c,x-2,y-3,r*.76,ry*.72,'#54794e',rng,22);
-      blob(c,x-6,y-7,r*.63,ry*.58,'#356546',rng,22);
-      for(let k=0;k<12;k++){const px=x+(rng()-.5)*r,py=y+(rng()-.5)*ry;ellipse(c,px,py,5+rng()*15,3+rng()*8,'rgba(116,146,78,.45)');}
-    }
-    for(let i=0;i<170;i++){const x=rng()*WIDTH,y=rng()*TILE;line(c,[[x,y],[x+15+rng()*60,y-1]],'rgba(180,255,246,.075)',1+rng());}
-    for(let i=0;i<38;i++) {const x=rng()*WIDTH,y=rng()*TILE;c.globalAlpha=.18;blob(c,x,y,10+rng()*45,8+rng()*30,i%3?'#72d2b3':'#cc97b8',rng,13);c.globalAlpha=1;}
-  }
-  drawCanyons(c,row,rng) {
-    for(let ridge=0;ridge<3;ridge++) {
-      const pts=[];for(let y=-40;y<=TILE+40;y+=18){const gy=y+row*TILE;pts.push([laneX(gy,5)*.85+(ridge-1)*450,y]);}
-      c.lineJoin='round';line(c,pts,'#54342f',160);line(c,pts.map(([x,y])=>[x-15,y]),'#9d5b42',125);line(c,pts.map(([x,y])=>[x-25,y]),'#bf7750',82);line(c,pts.map(([x,y])=>[x-30,y]),'#d48d5c',7);
-    }
-    for(let i=0;i<25;i++){const x=rng()*WIDTH,y=rng()*TILE,r=12+rng()*55;ellipse(c,x+3,y+4,r,r*.65,'rgba(60,32,30,.26)');ellipse(c,x,y,r,r*.65,'#ae6949');ellipse(c,x+2,y+2,r*.8,r*.48,'#7d4838');line(c,[[x-r*.6,y+r*.2],[x,y+r*.4],[x+r*.6,y+r*.2]],'rgba(228,152,99,.3)',2);}
-  }
-  drawFissures(c,row,rng) {
-    c.lineJoin='round';
-    for(let n=0;n<7;n++) {
-      const x=rng()*WIDTH,y=rng()*TILE,points=[[x,y]];let px=x,py=y;
-      for(let j=0;j<9;j++){px+=(rng()-.5)*65;py+=15+rng()*35;points.push([px,py]);}
-      line(c,points,'#12181d',22);line(c,points,'#883e29',11);line(c,points,'#d7642f',4);line(c,points,'rgba(255,192,89,.6)',1);
-    }
-    for(let i=0;i<85;i++){const x=rng()*WIDTH,y=rng()*TILE,r=10+rng()*36;blob(c,x+4,y+6,r,r*.8,'#151a20',rng,8);blob(c,x,y,r,r*.8,'#40363a',rng,7);}
-  }
-  drawSpace(c,row,rng) {
-    const voidWorld=this.index===9;
-    for(let i=0;i<9;i++){const x=rng()*WIDTH,y=rng()*TILE;glow(c,x,y,170+rng()*300,voidWorld?'#693956':'#403862',.065);}
-    for(let i=0;i<390;i++) {
-      const x=rng()*WIDTH,y=rng()*TILE,r=.4+rng()*1.1;
-      circle(c,x,y,r,['#8eabbf','#a8a0b9','#698593'][i%3]);
-      if(i%50===0){line(c,[[x-5,y],[x+5,y]],'rgba(205,219,244,.3)',.6);line(c,[[x,y-5],[x,y+5]],'rgba(205,219,244,.3)',.6);}
-    }
-    if(voidWorld) {
-      for(let side=0;side<2;side++) {
-        const x=side?WIDTH-280:-100;
-        polygon(c,[[x,0],[x+300,0],[x+350,TILE*.5],[x+280,TILE],[x,TILE]],'#252532','#4f4053',3);
-        for(let i=0;i<13;i++){const y=i*84;c.fillStyle='#151b27';c.fillRect(x+30,y+8,220,67);c.fillStyle='#41404a';c.fillRect(x+31,y+9,218,3);line(c,[[x+42,y+66],[x+64,y+43],[x+200,y+43],[x+226,y+20]],'#574152',2);circle(c,x+250,y+32,2,'#df7c9d');}
-      }
-      for(let i=0;i<4;i++){const y=rng()*TILE;c.save();c.translate(600,y);c.scale(1,.5);c.strokeStyle='rgba(129,84,127,.12)';c.lineWidth=10;c.beginPath();c.arc(0,0,340,0,TAU);c.stroke();c.lineWidth=1;c.strokeStyle='rgba(229,151,200,.2)';c.beginPath();c.arc(0,0,364,0,TAU);c.stroke();c.restore();}
-    } else {
-      for(let i=0;i<42;i++) {
-        const x=rng()*WIDTH,y=rng()*TILE,r=3+rng()*24;
-        const pts=blob(c,x+4,y+4,r,r*.8,'#090e1d',rng,7);blob(c,x,y,r,r*.8,'#3b394a',rng,7);
-        if(r>15){c.globalAlpha=.45;line(c,pts.slice(0,4).map(([px,py])=>[px-4,py-7]),'#70636a',2);c.globalAlpha=1;ellipse(c,x,y,r*.35,r*.25,'#222535');}
-      }
-      // Derelict orbital track, partially obscured by debris.
-      const x=220+Math.sin(row*.9)*130;c.save();c.translate(x,0);c.rotate(.16);c.fillStyle='#272c3d';c.fillRect(0,-60,54,TILE+160);c.fillStyle='#151d2c';c.fillRect(8,-60,38,TILE+160);for(let y=-60;y<TILE+160;y+=52){line(c,[[4,y],[50,y+35]],'#4a4556',3);line(c,[[50,y],[4,y+35]],'#3c3d4f',3);}c.restore();
-    }
-  }
-  drawCity(c,row,rng) {
-    c.fillStyle='#172033';c.fillRect(0,0,WIDTH,TILE);
-    for(let col=0;col<6;col++) {
-      for(let n=-1;n<6;n++) {
-        const x=col*220-70,y=n*224-(row*TILE%224);
-        c.fillStyle='#101a2a';c.fillRect(x+170,y,45,224);c.fillRect(x,y+176,220,40);
-        line(c,[[x+190,y],[x+190,y+175]],'rgba(164,137,226,.17)',1);
-        c.setLineDash([10,12]);line(c,[[x+185,y],[x+185,y+176]],'rgba(234,184,133,.25)',1);c.setLineDash([]);
-        c.fillStyle='#2b3048';c.fillRect(x+7,y+7,155,158);
-        c.fillStyle='#3b3b53';c.fillRect(x+7,y+7,155,3);
-        c.strokeStyle='#434159';c.lineWidth=1;c.strokeRect(x+15,y+15,139,143);
-        for(let k=0;k<3;k++){const bx=x+24+k*43;const by=y+30+rng()*20;c.fillStyle='#111e30';c.fillRect(bx+5,by+10,33,87);c.fillStyle=k%2?'#354057':'#41405a';c.fillRect(bx,by,33,78);c.fillStyle='#535167';c.fillRect(bx,by,33,3);for(let j=0;j<5;j++){c.fillStyle=(j+k)%3===0?'#ab669f':'#487186';c.fillRect(bx+4,by+10+j*13,4,5);c.fillRect(bx+24,by+10+j*13,4,5);}}
-        for(let k=0;k<7;k++){c.fillStyle='#626578';c.fillRect(x+170+k*5,y+179,2,10);}
-        if((col+n)%3===0){c.fillStyle='#733f80';c.fillRect(x+23,y+145,64,4);glow(c,x+55,y+148,48,'#a354bd',.13);}
-      }
-    }
-    const x=laneX(row*TILE,7);line(c,[[x,-100],[x+80,TILE+100]],'#0c1829',86);line(c,[[x-42,-100],[x+38,TILE+100]],'#63758e',2);line(c,[[x+42,-100],[x+122,TILE+100]],'#866397',2);
-    c.globalAlpha=.04;for(let i=0;i<100;i++){const x=rng()*WIDTH,y=rng()*TILE;ellipse(c,x,y,20+rng()*40,2,'#c4e8ff');}c.globalAlpha=1;
-  }
-  getBand(row) {
-    if(this.bands.has(row))return this.bands.get(row);
-    const rng=random((row*33479)^(this.index*91021+31817)),props=[];
-    const section=this.getSection(Math.floor((row+.5)*TILE/SECTION)),district=section.district;
-    const types=DISTRICTS[this.index][district],formations=[];
-    const natural=!types.some(type=>STRUCTURES.has(type)),count=natural?3:2;
-    for(let f=0;f<count;f++) {
-      const x=f===0?section.center:160+rng()*880,y=row*TILE+170+f*(TILE-340)/Math.max(1,count-1)+(rng()-.5)*120;
-      formations.push({x,y,district,radius:natural?120+rng()*125:110+rng()*80,seed:Math.floor(rng()*2147483647)});
-    }
-    const add=(type,x,y,size,variant) => {
-      const structure=STRUCTURES.has(type),maxHp=structure?45+size*.45:12+size*.22;
-      const prop={id:`${this.index}:${row}:${props.length}`,row,x,y,type,size,variant,hp:maxHp,maxHp,value:structure?12:4,color:this.world.color,emissive:EMISSIVE.has(type)};
-      // draw() reuses the same object instead of copying it each frame.
-      props.push(prop);
-      const key=Math.floor(y/HIT_CELL)*8+Math.max(0,Math.min(7,Math.floor(x/HIT_CELL)));
-      let bucket=this.hitBuckets.get(key);if(!bucket){bucket=[];this.hitBuckets.set(key,bucket);}bucket.push(prop);
-    };
-    for(let f=0;f<formations.length;f++) {
-      const formation=formations[f],n=natural?11+Math.floor(rng()*9):11+Math.floor(rng()*5);
-      for(let i=0;i<n;i++) {
-        const type=types[i%types.length],structure=STRUCTURES.has(type);
-        let x,y,attempt=0;
-        do {
-          if(structure) {
-            x=formation.x+((i%3)-1)*formation.radius*.6+(rng()-.5)*14;
-            y=formation.y+(Math.floor(i/3)-1.5)*formation.radius*.47+(rng()-.5)*12;
-          } else {
-            const angle=rng()*TAU,r=Math.sqrt(rng())*formation.radius;
-            x=formation.x+Math.cos(angle)*r;y=formation.y+Math.sin(angle)*r*.84;
-          }
-          x=Math.max(40,Math.min(WIDTH-40,x));y=Math.max(row*TILE+20,Math.min((row+1)*TILE-20,y));
-        } while(!this.suitableSite(type,x,y)&&++attempt<10);
-        if(!this.suitableSite(type,x,y))continue;
-        if(props.some(p=>(p.x-x)**2+(p.y-y)**2<(structure?43:24)**2))continue;
-        const landmark=i===0&&structure,size=landmark?96+rng()*24:structure?49+rng()*35:27+rng()*58;
-        add(type,x,y,size,Math.floor(rng()*5));
-      }
-    }
-    // Sparse connecting scenery creates open stretches between denser formations.
-    for(let i=0;i<7;i++) {
-      const type=this.palette.props[Math.floor(rng()*this.palette.props.length)],x=45+rng()*(WIDTH-90),y=row*TILE+30+rng()*(TILE-60);
-      if(this.suitableSite(type,x,y))add(type,x,y,30+rng()*32,Math.floor(rng()*5));
-    }
-    props.sort((a,b)=>a.y-b.y);props.formations=formations;this.bands.set(row,props);return props;
-  }
-  drawDistrictGround(c,row) {
-    const p=this.palette;
-    for(let band=row-1;band<=row+1;band++)for(const f of this.getBand(band).formations) {
-      const y=f.y-row*TILE;if(y<-300||y>TILE+300)continue;
-      const rng=random(f.seed),r=f.radius,d=f.district;
-      c.save();c.translate(f.x,y);
-      if(this.index===0||this.index===8) {
-        // Ruined plazas and translucent fern/spore beds, nestled into the painted canopy.
-        if(d===1&&this.index===0||d===2&&this.index===8) {
-          c.rotate(-.16);c.globalAlpha=.22;
-          c.fillStyle=p.low;c.fillRect(-r,-r*.65,r*2,r*1.3);
-          for(let x=-r;x<r;x+=27)for(let y=-r*.65;y<r*.65;y+=25){c.fillStyle=rng()>.5?p.high:p.mid;c.fillRect(x+2,y+2,23,21);}
-          c.strokeStyle=p.shore;c.lineWidth=3;c.strokeRect(-r+10,-r*.65+10,r*2-20,r*1.3-20);
-        } else {
-          for(let i=0;i<40;i++){const a=rng()*TAU,dist=Math.sqrt(rng())*r,x=Math.cos(a)*dist,y=Math.sin(a)*dist*.7;c.globalAlpha=.08+rng()*.13;ellipse(c,x,y,6+rng()*19,2+rng()*7,this.index===8?(i%3?'#539b83':'#c497c6'):'#85a773');}
-        }
-      } else if(this.index===1) {
-        c.rotate(-.2);c.globalAlpha=.22;
-        for(let i=0;i<(d===1?8:3);i++) {
-          const x=(rng()-.5)*r*1.7,y=(rng()-.5)*r;const pts=[[x-r*.6,y]];
-          for(let k=0;k<6;k++)pts.push([x-r*.6+k*r*.23,y+(rng()-.5)*26+k*14]);
-          line(c,pts,'#d7f3ef',10);line(c,pts.map(([x,y])=>[x+3,y+5]),'#244761',d===1?7:3);line(c,pts,'#75bbc9',1.3);
-        }
-      } else if(this.index===2) {
-        c.rotate(-.24);c.globalAlpha=d===1?.26:.1;
-        if(d===1) {
-          for(let i=0;i<3;i++){c.strokeStyle=i%2?p.low:p.high;c.lineWidth=7;c.strokeRect(-r+i*20,-r*.65+i*15,r*2-i*40,r*1.3-i*30);}
-          for(let i=0;i<12;i++){c.fillStyle=p.mid;c.fillRect((rng()-.5)*r*2,(rng()-.5)*r*1.3,8+rng()*19,5+rng()*13);}
-        } else for(let i=0;i<7;i++){c.beginPath();c.moveTo(-r,-r*.5+i*17);c.bezierCurveTo(-r*.3,-r+i*18,r*.3,r*.6+i*9,r,r*.4+i*13);c.strokeStyle=i%2?p.high:p.low;c.lineWidth=i%2?2:8;c.stroke();}
-      } else if(this.index===3) {
-        // Dappled coral shoals vary independently of the islands in the source painting.
-        for(let i=0;i<70;i++){const a=rng()*TAU,dist=Math.sqrt(rng())*r,x=Math.cos(a)*dist,y=Math.sin(a)*dist*.65;const color=this.terrainColor(f.x+x,f.y+y);if(color&&color[2]<color[0]*1.08)continue;c.globalAlpha=.10+rng()*.16;ellipse(c,x,y,3+rng()*13,2+rng()*7,i%3?'#87e6ce':'#c4a1bc');}
-      } else if(this.index===4) {
-        c.rotate(.3+f.seed%7*.1);
-        for(let i=0;i<85;i++){const x=(rng()-.5)*r*3,y=(rng()-.5)*r*.48,size=1+rng()*6;c.globalAlpha=.22+rng()*.3;ellipse(c,x+2,y+2,size,size*.65,'#050b19');ellipse(c,x,y,size,size*.65,i%4?p.mid:p.high);}
-        if(d===1){c.globalAlpha=.45;line(c,[[-r,12],[-r*.3,-12],[r*.4,-12],[r,16]],'#6b6e86',7);line(c,[[-r,12],[-r*.3,-12],[r*.4,-12],[r,16]],'#182232',4);for(let i=-4;i<=4;i++)line(c,[[i*r/5,-22],[i*r/5+20,12]],'#4a526b',3);}
-      } else if(this.index===5) {
-        if(d===1||d===3) {
-          c.globalAlpha=.2;c.fillStyle='#423d3f';c.fillRect(-r,-r*.7,r*2,r*1.4);
-          for(let i=-1;i<=1;i++){line(c,[[-r,i*r*.47],[r,i*r*.47]],'#d3aa81',9);line(c,[[i*r*.6,-r*.7],[i*r*.6,r*.7]],'#d3aa81',7);}
-        } else for(let i=0;i<65;i++) {
-          const a=rng()*TAU,dist=(.65+rng()*.35)*r,x=Math.cos(a)*dist,y=Math.sin(a)*dist*.62;
-          c.globalAlpha=.10+rng()*.16;ellipse(c,x+2,y+3,2+rng()*6,1+rng()*4,'#402d2b');
-          ellipse(c,x,y,2+rng()*5,1+rng()*3,i%3?'#c9946d':'#dfb18a');
-        }
-      } else if(this.index===6) {
-        c.globalAlpha=.34;
-        const pts=[];for(let i=0;i<10;i++)pts.push([(rng()-.5)*r*.6,-r+i*r*.22]);
-        line(c,pts,'#121923',12);line(c,pts,'#6f352c',6);line(c,pts,'#ff9a54',1.5);
-        for(let i=0;i<35;i++){c.globalAlpha=.05+rng()*.08;ellipse(c,(rng()-.5)*r*2,(rng()-.5)*r*1.6,4+rng()*14,3+rng()*7,'#e1a47a');}
-      } else if(this.index===7) {
-        c.globalAlpha=.3;c.fillStyle='#101b2b';c.fillRect(-r,-r*.7,r*2,r*1.4);
-        for(let i=-1;i<=1;i++){line(c,[[-r,i*r*.46],[r,i*r*.46]],'#697689',3);line(c,[[i*r*.62,-r*.7],[i*r*.62,r*.7]],i%2?'#397a92':'#ad4fa9',2);}
-        c.globalAlpha=.2;c.strokeStyle=d===2?'#7bd1df':'#c178d2';c.lineWidth=2;
-        c.strokeRect(-r+8,-r*.7+8,r*2-16,r*1.4-16);
-        for(let i=0;i<10;i++){c.fillStyle='#c1b7c5';c.fillRect(r-18,-r*.6+i*r*.12,9,3);}
-      } else {
-        c.globalAlpha=.3;c.strokeStyle='#69516d';c.lineWidth=12;c.beginPath();c.ellipse(0,0,r,r*.65,0,0,TAU);c.stroke();
-        c.lineWidth=2;c.strokeStyle='#c77b9d';c.beginPath();c.ellipse(0,0,r+8,r*.65+6,0,0,TAU);c.stroke();
-        for(let i=0;i<10;i++){const a=i/10*TAU,x=Math.cos(a)*r,y=Math.sin(a)*r*.65;line(c,[[x*.84,y*.84],[x*1.16,y*1.16]],'#8c7791',5);}
-      }
-      c.restore();
-    }
+  spriteVehicle(c,rng,type) {
+    const p=this.palette,hauler=type==='hauler',w=hauler?25:30,h=hauler?47:34;
+    c.fillStyle=p.low;c.fillRect(-w-7,-h,w*2+14,h*2);
+    for(const x of [-w-7,w]){c.fillStyle='#252e30';c.fillRect(x,-h,7,h*2);for(let y=-h+2;y<h;y+=6){c.fillStyle='#61706a';c.fillRect(x+1,y,5,2);}}
+    c.fillStyle=p.mid;c.fillRect(-w,-h+2,w*2,h*2-4);c.strokeStyle=p.high;c.lineWidth=2;c.strokeRect(-w+2,-h+4,w*2-4,h*2-8);
+    if(hauler){c.fillStyle=p.low;c.fillRect(-w+4,-h+7,w*2-8,20);for(let y=-8;y<h-5;y+=9){c.fillStyle=p.high;c.fillRect(-w+4,y,w*2-8,2);}}
+    else{ellipse(c,0,0,18,21,p.low);ellipse(c,-2,-3,16,18,p.high);line(c,[[0,-10],[0,-57]],'#667875',7);line(c,[[-2,-12],[-2,-56]],'#9aab95',2);}
+    c.fillStyle='#bdc4a2';c.fillRect(-w+4,-h+3,5,2);c.fillRect(w-9,-h+3,5,2);
   }
   getSprite(type,variant) {
     const key=type+variant;if(this.sprites.has(key))return this.sprites.get(key);
@@ -644,8 +291,9 @@ export class WorldRenderer {
     else if(type==='ice'||type==='crystal')this.spriteCrystal(c,rng,type==='ice');
     else if(type==='rock'||type==='asteroid'||type==='basalt'||type==='vent')this.spriteRock(c,rng,type);
     else if(type==='coral')this.spriteCoral(c,rng);
+    else if(type==='crawler'||type==='hauler')this.spriteVehicle(c,rng,type);
     else this.spriteStructure(c,rng,type,variant);
-    // Cached weathering and directional light tie vector scenery to the painted ground.
+    // Cached weathering and directional light tie scenery to the terrain palette.
     c.globalCompositeOperation='source-atop';
     const light=c.createLinearGradient(-80,-80,65,90);light.addColorStop(0,'rgba(236,237,212,.22)');light.addColorStop(.44,'transparent');light.addColorStop(1,'rgba(4,12,25,.32)');c.fillStyle=light;c.fillRect(-130,-130,260,260);
     for(let i=0;i<1100;i++){const x=(rng()-.5)*180,y=(rng()-.5)*190;c.fillStyle=i%3?'rgba(10,19,27,.18)':'rgba(224,230,205,.18)';const size=.4+rng()*1.5;c.fillRect(x,y,size,size);}
@@ -737,7 +385,7 @@ export class WorldRenderer {
     const p=this.palette,neon=this.index===7,alien=this.index===8,voidWorld=this.index===9;
     const panel=neon?'#42445f':this.index===1?'#b2c5c9':this.index===2?'#a99068':this.index===5?'#ab9790':voidWorld?'#514554':alien?'#737183':'#74817d';
     const dark=neon?'#20283c':voidWorld?'#292431':'#384c53';
-    const accent=this.world.accent;
+    const accent=this.palette.shore;
     if(type==='temple'||type==='ruin') {
       const sand=this.index===2;
       for(let i=0;i<4;i++){const r=59-i*10,y=16-i*5;polygon(c,[[-r,-r*.55+y],[r,-r*.55+y],[r,r*.55+y],[-r,r*.55+y]],sand?['#79654c','#ad956c','#c8ac7d','#dbbf8b'][i]:['#34494a','#506966','#77867a','#94a08b'][i],sand?'#564b3c':'#263e3e',2);for(let j=0;j<4;j++)line(c,[[-r+j*r*.5,y+r*.55],[-r+j*r*.5,y-r*.55]],'rgba(25,42,42,.3)',1);}
@@ -816,22 +464,6 @@ export class WorldRenderer {
   makeCloud() {
     const out=canvas(480,320),c=out.getContext('2d'),rng=random(777+this.index);
     for(let i=0;i<16;i++){const x=100+rng()*280,y=95+rng()*130,r=55+rng()*65;const g=c.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,this.palette.fog);g.addColorStop(.45,this.palette.fog+'88');g.addColorStop(1,'transparent');c.globalAlpha=.2;circle(c,x,y,r,g);}return out;
-  }
-  drawSurfaceMotion(c,h,scroll,time,quality) {
-    if(quality==='low')return;
-    if(this.art.ready) {
-      if(this.index===3||this.index===0){for(let i=0;i<16;i++){const x=(i*287.37)%WIDTH,y=(i*143+scroll*.98)%(h+30)-15;const color=this.terrainColor(x,y-scroll);if(color&&color[2]>color[0]*1.2){c.globalAlpha=.055+Math.sin(time*1.4+i)*.04;line(c,[[x-9,y],[x+9,y]],'#cafff7',1);}}c.globalAlpha=1;}
-      return;
-    }
-    if([0,1,3,8].includes(this.index)) {
-      c.save();c.globalCompositeOperation='screen';c.globalAlpha=.04;
-      for(let i=0;i<20;i++) {const gy=i*91-scroll*.65,y=((gy%(h+100))+(h+100))%(h+100)-50;const x=this.index===3?((i*317+time*12)%WIDTH):laneX(y-scroll,this.index);line(c,[[x-35+Math.sin(time+i)*13,y],[x+30,y+2],[x+46,y-1]],'#c5fff4',1);}
-      c.restore();
-    }
-    if(this.index===6){c.save();c.globalCompositeOperation='screen';c.globalAlpha=.055+Math.sin(time*1.9)*.015;const points=[];for(let y=-30;y<h+30;y+=30)points.push([laneX(y-scroll,this.index),y]);line(c,points,'#ffa85d',90);c.restore();}
-    if(this.index===7) {
-      for(let i=0;i<10;i++){const x=120+((i*220)%WIDTH),y=((i*137+time*(i%2?70:-90)+scroll*.9)%(h+160)+h+160)%(h+160)-80;c.fillStyle=i%2?'#ce8cae':'#96d8e7';c.fillRect(x,y,2,6);glow(c,x,y,13,i%2?'#e77fa7':'#9cdded',.24);}
-    }
   }
   drawAtmosphere(c,h,scroll,time,quality) {
     const space=this.index===4||this.index===9;

@@ -86,12 +86,14 @@ function resize() {
     for (const p of state.pickups) p.x *= W / oldW;
     for (const list of [fx.particles, fx.rings, fx.lights, fx.texts, fx.wrecks]) for (const effect of list) effect.x *= W / oldW;
   }
+  if (scene === 'menu') world.prepare(W, H);
   requestFrame();
 }
 
 function warmFleet(index) {
   warmShipSprites(SHIP_PALETTES[index], index);
   warmShipSprites('#a4ffee', index, true); warmShipSprites('#ffc18b', index, true);
+  BULLET_SPECTRUM.forEach((color, type) => boltTexture({ team: -1, color, variant: type === 9 ? 5 : type % 5 }));
 }
 
 function announce(kicker, title, description = '', seconds = 3) {
@@ -202,6 +204,7 @@ function refreshContinue() {
 
 function selectWorld(index) {
   selected = clamp(Math.floor(Number(index) || 0), 0, WORLDS.length - 1); world.setWorld(selected); previewScroll = 0;
+  world.prepare(W, H);
   document.documentElement.style.setProperty('--sector-accent', WORLDS[selected].accent || WORLDS[selected].color);
   $('world-list').querySelectorAll('[data-world]').forEach((button, i) => { button.classList.toggle('active', i === selected); button.setAttribute('aria-pressed', String(i === selected)); });
   for (const id of ['selected-world-name', 'preview-world-name']) if ($(id)) $(id).textContent = WORLDS[selected].name;
@@ -223,13 +226,14 @@ function input() {
 }
 
 function processEvents() {
+  const groundOffset = (world.parallaxX || 0) * W / 1200;
   for (const e of state.events.splice(0)) {
-    fx.emit(e, state.scroll * W / 1200); audio.effect(e.type, e.size, e.weapon || e.label);
+    fx.emit(e, state.scroll * W / 1200, groundOffset); audio.effect(e.type, e.size, e.weapon || e.label);
     if (e.type === 'explosion' && !e.ground) {
       const blast = e.blast || 1;
       for (const prop of world.hit(e.x, e.y, Math.min(250, e.size * 1.5 * blast), e.size * 2 * blast, state.scroll)) {
         state.destroyed++; state.credits += prop.value || 4; state.score += 25;
-        fx.emit({ type: 'explosion', ...prop, size: Math.min(48, prop.size), ground: true }, state.scroll * W / 1200);
+        fx.emit({ type: 'explosion', ...prop, size: Math.min(48, prop.size), ground: true }, state.scroll * W / 1200, groundOffset);
       }
       if (e.player && state.mode === 2 && state.players.some(p => p.alive)) announce('Wingmate down', 'Bring them home.', 'Finish the sector to restore both ships.', 2.5);
     }
@@ -246,7 +250,7 @@ function processEvents() {
 
 const boltTextures = new Map();
 function boltTexture(b) {
-  const friendly = b.team >= 0, color = b.weaponColor || b.color, key = `${friendly}:${color}`;
+  const friendly = b.team >= 0, color = b.weaponColor || b.color || '#ffffff', variant = b.variant || 0, key = `${friendly}:${color}:${variant}`;
   if (boltTextures.has(key)) return boltTextures.get(key);
   const c = typeof OffscreenCanvas === 'undefined' ? document.createElement('canvas') : new OffscreenCanvas(64, 64);
   c.width = c.height = 64;
@@ -258,40 +262,39 @@ function boltTexture(b) {
     paint.fillStyle = color; paint.fillRect(29, 3, 6, 46);
     paint.fillStyle = '#f4fff9'; paint.fillRect(31, 3, 2, 43);
   } else {
-    const g = paint.createRadialGradient(32, 32, 1, 32, 32, 31);
-    g.addColorStop(0, `${color}aa`); g.addColorStop(.4, `${color}45`); g.addColorStop(1, `${color}00`);
+    const g = paint.createRadialGradient(32, 32, 2, 32, 32, 28);
+    g.addColorStop(0, `${color}80`); g.addColorStop(.35, `${color}38`); g.addColorStop(1, `${color}00`);
     paint.fillStyle = g; paint.fillRect(0, 0, 64, 64);
-    paint.fillStyle = color; paint.beginPath(); paint.arc(32, 32, 10.66, 0, Math.PI * 2); paint.fill();
-    paint.fillStyle = '#fff4d7'; paint.beginPath(); paint.arc(30, 30, 4.5, 0, Math.PI * 2); paint.fill();
+    paint.translate(32, 32); paint.fillStyle = color; paint.strokeStyle = '#06131b'; paint.lineWidth = 2;
+    paint.beginPath();
+    if (variant === 1) {
+      paint.moveTo(0, -10); paint.lineTo(8, 0); paint.lineTo(0, 10); paint.lineTo(-8, 0); paint.closePath();
+    } else if (variant === 3) {
+      paint.moveTo(0, -13); paint.lineTo(7, 8); paint.lineTo(-7, 8); paint.closePath();
+    } else if (variant === 4) {
+      paint.rect(-3.5, -17, 7, 28);
+    } else paint.arc(0, 0, 8, 0, Math.PI * 2);
+    paint.stroke(); paint.fill();
+    if (variant === 2 || variant === 5) {
+      paint.fillStyle = '#10232a'; paint.beginPath(); paint.arc(0, 0, 4.6, 0, Math.PI * 2); paint.fill();
+      if (variant === 5) {
+        paint.strokeStyle = color; paint.lineWidth = 2.6; paint.beginPath();
+        paint.moveTo(-14, 0); paint.lineTo(14, 0); paint.moveTo(0, -14); paint.lineTo(0, 14); paint.stroke();
+      }
+    }
+    paint.fillStyle = '#fffceb'; paint.fillRect(-1.4, variant === 4 ? -14 : -3.2, 2.8, variant === 4 ? 18 : 4.4);
   }
   boltTextures.set(key, c); return c;
 }
 function drawBullet(b) {
   const x = lerp(b.px, b.x), y = lerp(b.py, b.y), color = b.weaponColor || b.color || '#ffffff';
   if (b.team < 0) {
-    // Hostile rounds inherit their hull class: small ships produce tiny dots,
-    // while heavier ships telegraph stronger diamonds, rings and streaks.
-    const radius = b.radius || 3, variant = b.variant || 0, angle = Math.atan2(b.vy, b.vx);
-    ctx.save(); ctx.translate(x, y); ctx.rotate(angle); ctx.globalCompositeOperation = 'screen';
-    ctx.fillStyle = color; ctx.strokeStyle = color; ctx.globalAlpha = .18;
-    ctx.beginPath(); ctx.arc(0, 0, radius * 2.8, 0, Math.PI * 2); ctx.fill();
-    ctx.globalAlpha = .92;
-    if (variant === 1) {
-      ctx.rotate(Math.PI / 4); ctx.fillRect(-radius * .72, -radius * .72, radius * 1.44, radius * 1.44);
-    } else if (variant === 2) {
-      ctx.lineWidth = Math.max(1, radius * .38); ctx.beginPath(); ctx.arc(0, 0, radius * .92, 0, Math.PI * 2); ctx.stroke();
-      ctx.globalAlpha = .75; ctx.beginPath(); ctx.arc(0, 0, radius * .34, 0, Math.PI * 2); ctx.fill();
-    } else if (variant === 3) {
-      ctx.beginPath(); ctx.moveTo(0, radius * 1.65); ctx.lineTo(radius * .82, -radius); ctx.lineTo(-radius * .82, -radius); ctx.closePath(); ctx.fill();
-    } else if (variant === 4) {
-      ctx.fillRect(-radius * .45, -radius * 2.5, radius * .9, radius * 5);
-      ctx.globalAlpha = .35; ctx.fillRect(-radius * .8, radius * 1.4, radius * 1.6, radius * 3.5);
-    } else if (variant === 5) {
-      ctx.lineWidth = Math.max(1.2, radius * .34); ctx.beginPath(); ctx.arc(0, 0, radius * .8, 0, Math.PI * 2); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(-radius * 1.8, 0); ctx.lineTo(radius * 1.8, 0); ctx.moveTo(0, -radius * 1.8); ctx.lineTo(0, radius * 1.8); ctx.stroke();
-    } else {
-      ctx.beginPath(); ctx.arc(0, 0, radius, 0, Math.PI * 2); ctx.fill();
-    }
+    const radius = b.radius || 3, sprite = boltTexture(b);
+    ctx.save(); ctx.translate(x, y); ctx.rotate(Math.atan2(b.vy, b.vx) + Math.PI / 2);
+    // An opaque outline stays readable over bright ground; the sprite already
+    // contains its bloom, so drawing a shot is a single cached image operation.
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.drawImage(sprite, -radius * 4, -radius * 4, radius * 8, radius * 8);
     ctx.restore(); return;
   }
   const kind = b.kind || 'pulse';
@@ -343,7 +346,9 @@ function draw() {
   const impactMotion = scene === 'playing' || scene === 'end';
   const shake = fx.reduced || !impactMotion ? 0 : fx.shake;
   if (shake > .3) ctx.translate((Math.random() - .5) * shake, (Math.random() - .5) * shake);
-  const focusX = state?.players?.[0]?.x ?? W * .66;
+  let focusX = 0, focusPilots = 0;
+  for (const pilot of state?.players || []) if (pilot.alive) { focusX += lerp(pilot.px, pilot.x); focusPilots++; }
+  focusX = focusPilots ? focusX / focusPilots : W * .66;
   world.draw(ctx, W, H, scroll, clock, quality, focusX);
   fx.drawGround(ctx, scroll * W / 1200, H, (world.parallaxX || 0) * W / 1200);
   if (state) {
@@ -507,7 +512,7 @@ document.querySelectorAll('[data-mode]').forEach(button => button.addEventListen
 }));
 
 function toggleSound() {
-  audio.start(); audio.mute(!audio.muted); syncSettings();
+  audio.mute(!audio.muted); audio.start(); syncSettings();
   try { localStorage.setItem('tyran-muted', String(audio.muted)); } catch { /* optional */ }
 }
 function syncSettings() {

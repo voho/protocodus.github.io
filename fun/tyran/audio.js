@@ -2,6 +2,7 @@
 export class AudioEngine {
   constructor() { this.context = null; this.muted = false; this.active = false; this.beat = 0; this.nextBeat = 0; this.lastShot = 0; }
   start() {
+    if (this.muted) return;
     try {
       if (!this.context) {
         this.context = new (window.AudioContext || window.webkitAudioContext)();
@@ -44,7 +45,7 @@ export class AudioEngine {
     if (type === 'pickup' || type === 'upgrade') { [440, 660, 880].forEach((f, i) => this.tone(f, f * 1.002, .18, .12, 'sine', t + i * .07)); }
     if (type === 'boss') { [0, .3, .6].forEach(offset => this.tone(180, 140, .25, .18, 'sawtooth', t + offset)); }
     if (type === 'weapon') { this.tone(520, 860, .12, .07, 'triangle'); }
-    if (type === 'combo') { const notes = variant === 'RAMPAGE' ? [220, 330, 495, 660] : variant === 'MULTI KILL' ? [330, 495, 660] : [440, 660]; notes.forEach((f, i) => this.tone(f, f * 1.04, .15, .13, 'square', t + i * .055)); }
+    if (type === 'combo') { const notes = variant === 'Rampage' ? [220, 330, 495, 660] : variant === 'Multi kill' ? [330, 495, 660] : [440, 660]; notes.forEach((f, i) => this.tone(f, f * 1.04, .15, .13, 'square', t + i * .055)); }
     if (type === 'boss-open') { this.tone(880, 1320, .28, .12, 'sine'); }
     if (type === 'weak-break') { this.burst(.16, .12, 4200); this.tone(260, 920, .3, .16, 'sawtooth'); }
   }

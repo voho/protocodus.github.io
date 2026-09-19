@@ -218,7 +218,7 @@ function shoot(s, p) {
 }
 
 function hostileShot(s, e, angle, speed = 220, radius = 5) {
-  if (s.bullets.reduce((count, bullet) => count + (bullet.team < 0 ? 1 : 0), 0) >= MAX_HOSTILE_BULLETS) return;
+  if (s.hostileCount >= MAX_HOSTILE_BULLETS) return;
   const sizeRatio = clamp(e.radius / 110, .08, 1);
   const bulletRadius = clamp((Number(radius) || 5) * (.42 + sizeRatio * .72), 2.2, e.boss ? 8.4 : 6.4);
   const damage = e.boss
@@ -227,6 +227,7 @@ function hostileShot(s, e, angle, speed = 220, radius = 5) {
   const variant = e.boss ? 5 : e.type % 5;
   s.bullets.push({ x: e.x, y: e.y + e.radius * .65, px: e.x, py: e.y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
     damage, radius: bulletRadius, team: -1, life: 7, color: e.boss ? '#ff5d78' : BULLET_SPECTRUM[e.type % BULLET_SPECTRUM.length], kind: 'hostile', variant, sourceRadius: e.radius, age: 0 });
+  s.hostileCount++;
 }
 
 function resetCombo(s, emit = false) {
@@ -315,11 +316,16 @@ function updateFormationAnchors(s, dt) {
     formation.age += dt;
     const sway = Math.sin(formation.age * (formation.kind === 'orbit' ? .7 : .48) + formation.id) * (formation.kind === 'pincer' ? 26 : 42);
     formation.x = clamp(formation.baseX + sway, 180, s.width - 180);
-    formation.y = Math.min(330, -150 + formation.age * 84);
+    // Enter together, sweep the combat lane, then fly through. A stationary
+    // anchor leaves surviving ships behind and eventually blocks new waves.
+    const entry = 480 / 84, departure = 11;
+    formation.y = formation.age < entry ? -150 + formation.age * 84
+      : formation.age < departure ? 330 + Math.sin((formation.age - entry) * Math.PI / (departure - entry)) * 32
+      : 330 + (formation.age - departure) * 105;
   }
 }
 
-function formationVelocity(enemy, dt) {
+function formationVelocity(enemy) {
   const formation = enemy.formation;
   if (!formation) return null;
   const offset = enemy.formationOffset || { x: 0, y: 0 };
@@ -341,6 +347,9 @@ function enemyFire(s, e) {
   const live = s.players.filter(p => p.alive);
   if (!live.length) return;
   const target = live.reduce((a, b) => distance(a, e) < distance(b, e) ? a : b);
+  // Passing craft cease fire once they reach the pilot's row. This leaves a
+  // readable escape route instead of spawning unavoidable shots from behind.
+  if (!e.boss && e.y > target.y - e.radius - 55) { e.fire = .25; return; }
   const aimed = Math.atan2(target.y - e.y, target.x - e.x);
   const speed = 175 + s.level * 7 + e.type * 4;
   if (e.boss) {
@@ -443,6 +452,10 @@ export function update(s, dt, input = [], environmentHit = null) {
     if (s.time >= s.duration) spawnEnemy(s, 9, s.width / 2, -160);
   }
   updateFormationAnchors(s, dt);
+  // Count once per step, then reserve each shot as it is emitted. Dense boss
+  // volleys no longer rescan the entire projectile array for every round.
+  s.hostileCount = 0;
+  for (const bullet of s.bullets) if (bullet.team < 0 && bullet.life > 0) s.hostileCount++;
   for (const e of s.enemies) {
     if (e.dead) continue;
     e.px = e.x; e.py = e.y;
@@ -461,7 +474,7 @@ export function update(s, dt, input = [], environmentHit = null) {
       targetX = Math.cos(midpoint * .48) * Math.min(235, s.width * .24) * .48;
       targetY = (155 - e.y) * .7;
     } else {
-      const formationTarget = formationVelocity(e, dt);
+      const formationTarget = formationVelocity(e);
       if (formationTarget) { targetX = formationTarget.x; targetY = formationTarget.y; }
       else {
         const pattern = e.type % 3;
@@ -472,9 +485,7 @@ export function update(s, dt, input = [], environmentHit = null) {
       }
     }
     accelerate(e, targetX, targetY, response, dt);
-    // Keep the combat lane readable: enemy craft enter from the top, then
-    // patrol the upper two-thirds instead of drifting into the pilots' HUD.
-    constrain(e, e.radius, s.width - e.radius, -Infinity, s.height * (e.boss ? .56 : .62));
+    constrain(e, e.radius, s.width - e.radius, -Infinity, e.boss ? s.height * .56 : Infinity);
     const attitude = 1 - Math.exp(-dt / response);
     // Enemy hulls face downscreen, so their bank sign is the reverse of pilots.
     e.bank += (clamp(-e.vx / (230 * Math.sqrt(e.mass)), -.24, .24) - e.bank) * attitude;
@@ -546,7 +557,7 @@ export function update(s, dt, input = [], environmentHit = null) {
   s.enemies.length = retained;
   retained = 0;
   for (const formation of s.formations) {
-    if (formation.age > 24 || !s.enemies.some(enemy => enemy.formation === formation && !enemy.dead)) continue;
+    if (!s.enemies.some(enemy => enemy.formation === formation && !enemy.dead)) continue;
     s.formations[retained++] = formation;
   }
   s.formations.length = retained;

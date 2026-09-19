@@ -72,6 +72,13 @@ check('hostile rounds scale with ship class and use spectrum colors', () => {
   assert.notEqual(largeBullet.color, smallBullet.color);
 });
 
+check('boss volleys respect the hostile projectile limit', () => {
+  const state = isolated(), boss = spawnEnemy(state, 9, 600, 155);
+  for (let i = 0; i < 77; i++) state.bullets.push({ ...bolt(100, 100, -1, 1), life: 10 });
+  for (let tick = 0; tick < 4; tick++) { boss.fire = 0; update(state, .016); }
+  assert.equal(state.bullets.filter(bullet => bullet.team < 0).length, 78);
+});
+
 check('double and multi kill overcharge damage and blast radius, then expire', () => {
   const state = isolated();
   killEnemy(state, spawnEnemy(state, 0, 300, 200));
@@ -98,6 +105,32 @@ check('enemy formations keep a coordinated anchor and readable membership', () =
   advance(state, .4);
   assert.ok(formation.age > 0 && formation.y > -150);
   assert.ok(state.enemies.some((enemy, index) => Math.abs(enemy.x - before[index]) > .01));
+});
+
+check('ordinary craft pass through the pilot lane and leave without a bottom-row pileup', () => {
+  const state = isolated();
+  state.players[0].hurt = Infinity;
+  for (const type of [0, 4, 8]) { const enemy = spawnEnemy(state, type, 300, state.height * .62); enemy.fire = Infinity; }
+  advance(state, .5);
+  assert.ok(state.enemies.every(enemy => enemy.y > state.height * .62 && enemy.vy > 0));
+  advance(state, 18);
+  assert.equal(state.enemies.length, 0);
+});
+
+check('formation survivors depart and keep moving until the last heavy hull exits', () => {
+  for (const kind of ['vee', 'wall', 'orbit', 'escort', 'pincer']) {
+    const state = createCampaign(1, 9);
+    state.time = 80;
+    const formation = spawnFormation(state, kind);
+    state.bossSpawned = true; state.players[0].hurt = Infinity;
+    state.enemies.forEach(enemy => { enemy.fire = Infinity; });
+    advance(state, 25);
+    assert.ok(formation.y > state.height, `${kind} anchor must depart`);
+    assert.ok(state.enemies.every(enemy => enemy.vy > 0), `${kind} survivors keep flying`);
+    advance(state, 20);
+    assert.equal(state.enemies.length, 0, `${kind} hulls leave the viewport`);
+    assert.equal(state.formations.length, 0, `${kind} releases its formation slot`);
+  }
 });
 
 check('boss armor blocks real shots between windows and weak points open fire lanes', () => {

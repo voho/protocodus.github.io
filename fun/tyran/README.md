@@ -19,19 +19,21 @@ Open `http://127.0.0.1:8773/fun/tyran/`.
 - **Weapons:** number keys **1–6** swap the active fire profile. Choose the same profiles in the service bay; the six-tier Ion armament upgrade improves every profile without removing its tradeoff.
 - **Touch:** drag the left control to steer and hold the right control to fire.
 
-Fly through ten sectors: jungle, snow, desert, tropical islands, asteroid belt, Mars, volcanic foundry, neon city, alien garden, and void citadel. Each introduces nine enemy classes, followed by a sector guardian with three attack phases. Ten sector liveries and fittings create 100 enemy variants from ten underlying silhouettes. World cards preview the environments; a new campaign always begins in sector one.
+Fly through ten sectors: jungle, snow, desert, tropical islands, asteroid belt, Mars, volcanic foundry, neon city, alien garden, and void citadel. Each introduces nine enemy classes, followed by a sector guardian with three attack phases. Ten sector liveries and fittings create 100 enemy variants from ten underlying silhouettes. Choose a world card to preview and launch from that sector.
 
 Destroy ships and scenery for credits, collect repair and salvage pickups, and purchase six tiers each of weapons, shields, hull, and recharge between sectors. Pulse, scatter, lance, seeker, plasma and arc profiles trade fire rate for reach, piercing, homing, splash or chain jumps. Enemy formations fly coordinated vee, wall, orbit, escort and pincer patterns. Guardians seal their armor between attack cycles; glowing weak points open during safe firing windows and can be broken for bonus damage. Chaining a double kill, multi kill or rampage overcharges damage and blast radius for a few seconds, then resets if the timer expires or the pilot is hit. Co-op shares the upgrade budget and equipment; one surviving pilot can complete a sector, and both ships return with full hull and shields at the next launch. Progress and purchases save at the service bay in local storage. Continue resumes the last saved service-bay loadout; mid-flight positions are not saved. Retry keeps current equipment and accumulated credits/score.
 
 ## Visuals and audio
 
-Original generated title artwork and environment terrain assets are stored in `assets/`; their generation prompts and provenance accompany them. Runtime terrain has a procedural fallback. Cached detailed ship sprites, independently scrolling atmosphere, destructible props, salvage, scorch marks, debris, bloom, impact shake, short impact blur, shockwaves, and chained boss explosions are drawn in Canvas 2D. Ships, props, and effects are code-native artwork. Audio effects and an adaptive electronic sequence are synthesized with Web Audio after a user gesture.
+Runtime artwork is a library of cached Canvas sprites: terrain materials, shoreline and cliff edges, vegetation, structures, ground vehicles, ships, projectiles and effects. Original generated title artwork and archived environment concepts are stored in `assets/`, with their prompts and provenance. The map does not load landscape images. Audio effects and an adaptive electronic sequence are synthesized with Web Audio after a user gesture.
 
 Effects have high/low settings. Reduced-motion preference disables screen shake, impact blur and bright screen flashes. Losing window focus automatically pauses. Failure or denial of local storage and audio does not prevent play.
 
-Ships now cast separate ground shadows, with silver armor rims, white-hot engine fire and warm nozzle bloom. Every sector has a reserved high-contrast fleet palette (for example red/yellow over jungle and acid green/yellow over the black asteroid belt), separate from the terrain and scenery materials. Six cached projectile textures make each profile readable in motion. Thrust responds to acceleration. Hull and equipment add mass: heavier ships accelerate, coast, reverse and bank more gradually while retaining their cruise speed. Both keyboard layouts use the same motion model.
+Ships cast separate ground shadows, with silver armor rims, white-hot engine fire and warm nozzle bloom. Every sector has a reserved high-contrast fleet palette (for example red/yellow over jungle and acid green/yellow over the black asteroid belt), separate from terrain and scenery materials. Three roll sprites narrow and shade the wings while keeping the nose heading fixed. Six cached player projectile textures make each profile readable in motion; hostile projectiles also use cached sprites with size and color tied to the firing ship. Thrust responds to acceleration. Hull and equipment add mass: heavier ships accelerate, coast, reverse and bank more gradually while retaining their cruise speed. Both keyboard layouts use the same motion model.
 
-Each world has changing terrain sections with blended crop/zoom composition, clustered vegetation, outposts and landmarks. Terrain, scenery, shadows, glow, wreckage and projectile sprites are cached; nearby terrain chunks and spacecraft are prepared before they are needed. Collision checks reject distant targets cheaply and scenery uses spatial buckets. Damaged scenery retains its state when scrolling out of the image cache.
+Each level is generated from a stable hash of its world ID and seed. `WorldRenderer.setWorld(index, seed)` reproduces the same terrain and scenery; changing the seed changes the layout. The campaign uses the default `tyran-v2` seed. The map consists of 100-pixel cells with four elevation materials and shared corner masks that connect water, banks, ground and ridges. Six material variants per elevation add surface detail. Cells are assembled into nearby 800-pixel strips for fast drawing, rather than painted as one landscape.
+
+Five planes provide parallax: deep water or space, tile ground, rocks and ground vehicles, trees and tall vegetation, then high structures and clouds. Scenery is projected around the viewport center so its height offset remains bounded throughout a flight. Extra offscreen cells cover the subtle lateral camera movement. Destructible scenery uses the same layer transform for rendering and collision. Terrain, scenery, shadows, glow, wreckage and projectile sprites are cached; the menu prepares opening terrain and nearby chunks are prepared during flight. Pixel caches stay bounded as the level scrolls, while a compact damage ledger preserves destroyed objects. Enemy formations enter, attack and depart instead of accumulating at the bottom of the arena.
 
 Physics runs at a fixed 60 updates per second. Rendering interpolates between updates for smooth motion on faster displays and catches up through brief slow frames with a bounded budget. Paused and covered title screens stop repainting the arena. High-DPI rendering has a pixel budget and reduces backing resolution under sustained load; this never changes the flight area or simulation speed.
 
@@ -42,6 +44,8 @@ Physics runs at a fixed 60 updates per second. Rendering interpolates between up
 | `game.js` | Rendering loop, input, screens, persistence and integration |
 | `sim.js` | Combat, collision, campaign progression and upgrade economy |
 | `worlds.js` | Ten scrolling environments and destructible scenery |
+| `tile-map.js` | Pure seeded terrain generation and shared corner masks |
+| `terrain-sprites.js` | Reusable material and shoreline/cliff sprites |
 | `ships.js` | Ten enemy classes, reserved fleet palettes and cached spacecraft artwork |
 | `effects.js` | Explosions, debris, lighting, wreckage and motion |
 | `audio.js` | Original synthesized music and sound effects |
@@ -51,11 +55,14 @@ Physics runs at a fixed 60 updates per second. Rendering interpolates between up
 
 ```sh
 node fun/tyran/tests/sim-check.mjs --balance
+node fun/tyran/tests/tile-map-check.mjs
 node tests/navigation-check.mjs
 TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/browser-check.mjs
 TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/timing-check.mjs
 TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/world-check.mjs
 TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/ship-visual-check.mjs
+TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/ship-roll-check.mjs
+TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/render-lifecycle-check.mjs
 TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/performance-check.mjs
 ```
 
@@ -63,4 +70,4 @@ Browser QA expects the root server at port 8773 and installed Chrome. `TYRAN_URL
 
 The simulation suite verifies collision, shields, all spawn schedules, upgrades, persistence input validation, co-op deaths/revival, and the full campaign. Optional deterministic autopilot trials complete both solo and co-op using ordinary movement and firing plus earned purchases. These trials prove reachability; they do not substitute for human difficulty tuning. Browser QA covers both physical Control keys, pause, world previews, scenery destruction, shop, continuation, victory, storage denial and real touch input.
 
-Timing QA drives real keyboard events at simulated 30/60/120 Hz, checking movement parity, visible interpolation, pause, slow-frame recovery and adaptive resolution. World checks cover all ten biomes at three viewport widths, image seams, persistent damage and loading transitions. The performance harness records Chrome frame intervals and CPU profiles for a repeatable co-op battle with 19 enemies and sustained fire; it reports measurements without assuming other computers have the same frame rate.
+Timing QA drives real keyboard events at simulated 30/60/120 Hz, checking movement parity, visible interpolation, pause, slow-frame recovery and adaptive resolution. Map tests check seed reproducibility, material variety and adjacent corner continuity. World checks cover all ten biomes at three viewport widths, edge coverage, depth-correct hits, persistent destruction and bounded caches, and verify no landscape images are requested. The performance harness records Chrome frame intervals and CPU profiles during a repeatable co-op battle across multiple terrain chunks; it reports measurements without assuming other computers have the same frame rate.

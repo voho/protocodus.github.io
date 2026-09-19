@@ -13,6 +13,7 @@ try {
   await page.waitForFunction(() => window.tyran);
   const result = await page.evaluate(async () => {
     const { drawShip, ENEMY_TYPES } = await import('./ships.js');
+    const { WorldRenderer, WORLDS } = await import('./worlds.js');
     const test = document.createElement('canvas'); test.width = test.height = 192;
     const ctx = test.getContext('2d', { willReadFrequently: true });
     const state = () => {
@@ -37,22 +38,25 @@ try {
     // Static contact sheets make tiny fighters and capitals reviewable over bright/busy ground.
     document.body.innerHTML = '<canvas id="ship-qa" width="1560" height="1040" style="position:fixed;inset:0;width:1560px;height:1040px"></canvas>';
     const canvas = document.querySelector('#ship-qa'), board = canvas.getContext('2d');
-    const names = ['jungle', 'snow', 'volcanic', 'asteroid'];
-    const images = await Promise.all(names.map(async name => {
-      const img = new Image(); img.src = `./assets/world-${name}.webp`; await img.decode(); return img;
-    }));
+    const worlds = [0,1,6,4].map(index => {
+      const renderer = new WorldRenderer(); renderer.setWorld(index);
+      const ground = document.createElement('canvas'); ground.width = 1560; ground.height = 520;
+      renderer.draw(ground.getContext('2d'), 1560, 520, 300, 2, 'high');
+      renderer.warmEpoch++; renderer.warmJobs.length = 0;
+      return { index, ground };
+    });
     window.drawShipQA = quality => {
-      for (let row = 0; row < images.length; row++) {
-        const img = images[row];
-        board.drawImage(img, 0, 100, img.width, img.height * .48, 0, row * 260, 1560, 260);
+      for (let row = 0; row < worlds.length; row++) {
+        const { index, ground } = worlds[row];
+        board.drawImage(ground, 0, 130, 1560, 260, 0, row * 260, 1560, 260);
         board.fillStyle = 'rgba(3,10,18,.8)'; board.fillRect(0, row * 260, 1560, 40);
         board.font = '16px monospace'; board.fillStyle = '#dffaff';
-        board.fillText(`${quality.toUpperCase()} / ${names[row].toUpperCase()} / PLAYER + 10 ENEMY CLASSES`, 20, row * 260 + 26);
+        board.fillText(`${quality} / ${WORLDS[index].name} / Player + 10 enemy classes`, 20, row * 260 + 26);
         for (let type = -1; type < 10; type++) {
           const x = 74 + (type + 1) * 132, y = row * 260 + 148;
           const size = type < 0 ? 30 : type === 9 ? 69 : ENEMY_TYPES[type].radius * (type < 2 ? 1.35 : 1);
           drawShip(board, x, y, size, type, type < 0 ? '#7cecfa' : '#b98263', 12,
-            { quality, bank: type < 0 ? .18 : 0, thrust: type < 0 ? 1.55 : 1, world: row });
+            { quality, bank: type < 0 ? .18 : 0, thrust: type < 0 ? 1.55 : 1, world: index });
         }
       }
     };
