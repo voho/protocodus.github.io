@@ -108,6 +108,11 @@ export class WorldRenderer {
     if(typeof requestIdleCallback!=='function'||this.warmKeys.has(key))return;
     this.warmKeys.add(key);this.warmJobs.push({key,work});this.runWarmQueue();
   }
+  restoreDamage(damage, destroyed) {
+    this.damage=new Map(damage);this.destroyed=new Set(destroyed);
+    this.bands.clear();this.hitBuckets.clear();this.visibleProps.length=0;
+    for(const layer of this.sceneryLayers)layer.clear();
+  }
   prepare(width,height) {
     const last=Math.floor(height/(width/WIDTH)/TILE);
     for(let row=-1;row<=last;row++){

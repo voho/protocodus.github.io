@@ -24,7 +24,7 @@
 
 /* Fleet readability and the service-bay arsenal. These colors are reserved for
    flight hardware; terrain art keeps its own material palette. */
-.weapon-instrument,.combo-instrument{min-width:112px}.weapon-instrument>strong,.combo-instrument>strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:500 14px var(--display);color:#e7f2df;letter-spacing:-.2px}.weapon-instrument .hud-kicker b{color:var(--orange);padding-left:5px}.combo-instrument{opacity:.58;transition:opacity .2s}.combo-instrument.active{opacity:1}.combo-instrument>strong{color:var(--orange);font-size:13px}.combo-progress{height:3px;margin-top:7px;background:#d4e9d51c}.combo-progress i{display:block;width:0;height:100%;background:var(--orange);box-shadow:0 0 10px #ff9a6a88;transition:width .12s}.boss-hud.exposed .boss-alert,.boss-hud.exposed .boss-status{color:#ffe277}.boss-status{font-size:7px;letter-spacing:1px;color:#ff987b;white-space:nowrap}.weapon-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.weapon-card{position:relative;display:grid;grid-template-columns:25px 1fr;grid-template-rows:auto auto auto 1fr;column-gap:8px;min-height:153px;padding:13px 13px 11px;text-align:left;color:var(--paper);background:#b4d7b206;border:1px solid #b2d7b224;transition:background .18s,border-color .18s,transform .18s}.weapon-card:hover{background:#b4d7b211;border-color:#c7efb675;transform:translateY(-1px)}.weapon-card.active{background:#d7f5df12;border-color:var(--weapon-color,#9cfff0);box-shadow:inset 0 0 22px #b4eddb08,0 0 18px color-mix(in srgb,var(--weapon-color,#9cfff0) 18%,transparent)}.weapon-hotkey{display:grid;place-items:center;width:22px;height:22px;border:1px solid #d8ebd645;color:#d8ebd6;font:500 11px var(--display)}.weapon-swatch{display:block;grid-column:2;width:20px;height:3px;margin-top:9px;background:var(--weapon-color);box-shadow:0 0 12px var(--weapon-color)}.weapon-copy{grid-column:2;display:grid;gap:3px;margin-top:-22px;padding-left:28px}.weapon-copy strong{font:500 14px var(--display);letter-spacing:-.2px}.weapon-copy small{font-size:7px;letter-spacing:1.1px;color:var(--weapon-color,#9cfff0)}.weapon-description{grid-column:1/-1;margin-top:11px;min-height:35px;font-size:9px;line-height:1.5;color:#8fa78e}.weapon-bars{grid-column:1/-1;display:grid;gap:4px;margin-top:9px}.weapon-bars i{display:block;width:var(--bar);height:3px;background:var(--weapon-color,#9cfff0);box-shadow:0 0 7px color-mix(in srgb,var(--weapon-color,#9cfff0) 48%,transparent)}.weapon-bars i::before{content:'';display:block;width:100%;height:100%;background:#d4e7d418;transform:translateX(calc(100% + 4px))}.weapon-readout{grid-column:1/-1;display:flex;justify-content:space-between;gap:8px;margin-top:8px;color:#bdcdb9;font-size:7px;letter-spacing:.5px}.weapon-readout b{font-weight:500}.hangar-panel{max-height:calc(100vh - 40px);overflow:auto}.hangar-panel::-webkit-scrollbar{width:4px}.hangar-panel::-webkit-scrollbar-thumb{background:#c7ddba33}
+.weapon-instrument,.combo-instrument{min-width:112px}.weapon-instrument>strong,.combo-instrument>strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:500 14px var(--display);color:#e7f2df;letter-spacing:-.2px}.weapon-instrument .hud-kicker b{color:var(--orange);padding-left:5px}.combo-instrument{opacity:.58;transition:opacity .2s}.combo-instrument.active{opacity:1}.combo-instrument>strong{color:var(--orange);font-size:13px}.combo-progress{height:3px;margin-top:7px;background:#d4e9d51c}.combo-progress i{display:block;width:0;height:100%;background:var(--orange);box-shadow:0 0 10px #ff9a6a88;transition:width .12s}.boss-hud.exposed .boss-alert,.boss-hud.exposed .boss-status{color:#ffe277}.boss-status{font-size:7px;letter-spacing:1px;color:#ff987b;white-space:nowrap}.weapon-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.weapon-card{position:relative;display:grid;grid-template-columns:25px 1fr;grid-template-rows:auto auto auto 1fr;column-gap:8px;min-height:153px;padding:13px 13px 11px;text-align:left;color:var(--paper);background:#b4d7b206;border:1px solid #b2d7b224;transition:background .18s,border-color .18s,transform .18s}.weapon-card:hover{background:#b4d7b211;border-color:#c7efb675;transform:translateY(-1px)}.weapon-card.active{background:#d7f5df12;border-color:var(--weapon-color,#9cfff0);box-shadow:inset 0 0 22px #b4eddb08,0 0 18px color-mix(in srgb,var(--weapon-color,#9cfff0) 18%,transparent)}.weapon-hotkey{display:grid;place-items:center;width:22px;height:22px;border:1px solid #d8ebd645;color:#d8ebd6;font:500 11px var(--display)}.weapon-swatch{display:block;grid-column:2;width:20px;height:3px;margin-top:9px;background:var(--weapon-color);box-shadow:0 0 12px var(--weapon-color)}.weapon-copy{grid-column:2;display:grid;gap:3px;margin-top:-22px;padding-left:28px}.weapon-copy strong{font:500 14px var(--display);letter-spacing:-.2px}.weapon-copy small{font-size:7px;letter-spacing:1.1px;color:var(--weapon-color,#9cfff0)}.weapon-description{grid-column:1/-1;margin-top:11px;min-height:35px;font-size:9px;line-height:1.5;color:#8fa78e}.weapon-bars{grid-column:1/-1;display:grid;gap:4px;margin-top:9px}.weapon-bars i{display:block;width:100%;height:3px;background:#d4e7d418}.weapon-bars i::after{content:'';display:block;width:var(--bar);height:100%;background:var(--weapon-color,#9cfff0);box-shadow:0 0 7px color-mix(in srgb,var(--weapon-color,#9cfff0) 48%,transparent)}.weapon-readout{grid-column:1/-1;display:flex;justify-content:space-between;gap:8px;margin-top:8px;color:#bdcdb9;font-size:7px;letter-spacing:.5px}.weapon-readout b{font-weight:500}.hangar-panel{max-height:calc(100vh - 40px);overflow:auto}.hangar-panel::-webkit-scrollbar{width:4px}.hangar-panel::-webkit-scrollbar-thumb{background:#c7ddba33}
 @media(max-width:760px){.weapon-instrument{display:none}.combo-instrument{min-width:90px}.weapon-list{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.weapon-card{min-height:161px;padding:12px 10px}.weapon-copy strong{font-size:13px}.weapon-description{font-size:8px}.weapon-readout{font-size:6px}.boss-status{font-size:6px;letter-spacing:.5px}.hangar-panel{max-height:calc(100vh - 26px)}}
 @media(max-width:480px){.combo-instrument{display:none}.weapon-list{grid-template-columns:1fr 1fr}.weapon-card{min-height:173px}.weapon-copy{padding-left:26px}.weapon-copy strong{font-size:12px}.weapon-description{min-height:43px;font-size:8px}.weapon-readout{display:grid;gap:3px}.boss-status{display:none}}
 
@@ -33,3 +33,81 @@
 .brand-copy strong,.launch-button,.mode-button,.primary-button,.secondary-button,.text-button,.utility-button,.back-link,.world-card,.continue-button,.upgrade-card,.weapon-card,.campaign-heading h2,.campaign-hint,.hero-stats,.hud-kicker,.player-label,.boss-alert,.boss-status,.hangar-rule,.modal-emblem,.modal-panel h2,.hangar-top h2,.end-score>span,.touch-fire,.menu-return-button{font-family:var(--display)}
 .world-type,.world-card>small:last-child,.boss-hud strong{ text-transform:none }
 .brand-copy strong{letter-spacing:1.8px;font-weight:600}.brand-copy>span{letter-spacing:1.1px}.mode-button,.utility-button,.back-link,.campaign-hint,.control-summary,.footer-links{letter-spacing:.15px}.hero-stats{letter-spacing:.25px}.hud-kicker,.hangar-rule{letter-spacing:1px}.menu-return-button{width:100%;justify-content:space-between;min-height:48px;border-color:#ff79545c;background:#ff795411;color:#ffc0a9;font-size:12px;transition:background .2s,border-color .2s,transform .2s}.menu-return-button:hover{background:#ff795426;border-color:#ff9577aa;transform:translateY(-1px)}.menu-return-button>span{font-size:19px;line-height:16px;color:var(--orange)}
+
+/* Campaign navigation and browser-local saves. */
+.saved-flight-actions{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:10px}
+.saved-flight-actions .continue-button{margin:0;min-height:44px;padding:11px 13px;line-height:1.5}
+.saved-flight-actions .secondary-button{min-height:44px;padding:10px 16px;font-size:11px}
+.saved-flight-actions .continue-button[hidden]+.secondary-button{grid-column:1/-1}
+.save-summary,.save-status{color:#9db09b;font-size:10px;line-height:1.6}
+.save-summary{margin-top:9px;max-width:390px;min-height:16px}
+.secondary-button:disabled{opacity:.4}
+.secondary-button:disabled:hover{background:#c8dcc408}
+.sector-flight{display:flex;justify-content:flex-end;align-items:center;gap:16px;margin-top:12px}
+.sector-flight p{font-size:10px;color:#8fa38e}
+.sector-flight .secondary-button{min-height:39px;padding:8px 15px;font-size:11px;gap:15px}
+.sector-flight .secondary-button>span{color:var(--orange);font-size:16px}
+.save-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.save-actions .secondary-button{min-height:44px;padding:10px 12px}
+.pause-panel .modal-emblem{margin-bottom:20px}
+.pause-panel .modal-actions{margin-top:23px}
+.pause-panel .save-status{margin-top:-3px;text-align:left}
+.pause-panel .modal-footnote{line-height:1.7}
+.campaign-route{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:6px;padding:0;margin:24px 0 20px;list-style:none}
+.campaign-route li{min-width:0;padding-top:10px;border-top:2px solid #b8d4b523;color:#788d78}
+.campaign-route li>span{display:block;font:500 13px var(--display);font-variant-numeric:tabular-nums}
+.campaign-route li>strong{display:block;margin-top:4px;font:400 8px/1.45 var(--body);overflow-wrap:anywhere}
+.campaign-route li.complete{color:#a8c8a2;border-color:#8cebd76b}
+.campaign-route li.current,.campaign-route li[aria-current=step]{color:#ffd0b4;border-color:var(--orange)}
+.campaign-route li.current>span,.campaign-route li[aria-current=step]>span{color:var(--orange)}
+.hangar-loadout{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;margin:0;background:var(--line);border:1px solid var(--line)}
+.hangar-loadout>div{padding:12px 14px;background:#112219}
+.hangar-loadout dt{color:#9db49b;font:400 9px var(--display)}
+.hangar-loadout dd{margin:6px 0 0;color:#e1efda;font:500 19px var(--display);font-variant-numeric:tabular-nums}
+.hangar-loadout dd small{display:block;margin-top:3px;color:#8fab8f;font:400 9px/1.5 var(--body)}
+.hangar-save-bar{display:grid;grid-template-columns:1fr 1fr;column-gap:20px;row-gap:10px;margin-top:23px;padding-top:20px;border-top:1px solid var(--line)}
+.hangar-save-bar .menu-return-button{min-height:44px;padding:10px 14px;font-size:11px}
+.hangar-save-bar .save-status{grid-column:1/-1;font-size:10px}
+.hangar-bottom>p{max-width:390px}
+.hangar-rule{gap:15px;line-height:1.5}
+.hangar-rule>span:last-child{text-align:right}
+@media(max-width:760px){
+  .campaign-route{gap:5px;grid-template-columns:repeat(5,minmax(0,1fr));row-gap:13px;margin-top:20px}
+  .campaign-route li{padding-top:7px}
+  .campaign-route li>strong{font-size:9px}
+  .hangar-loadout>div{padding:11px 10px}
+  .hangar-loadout dd{font-size:17px}
+  .hangar-save-bar{column-gap:12px}
+  .hangar-save-bar .save-actions{gap:7px}
+  .hangar-save-bar .secondary-button{font-size:10px}
+}
+@media(max-width:480px){
+  .saved-flight-actions{grid-template-columns:1fr}
+  .saved-flight-actions .secondary-button{min-height:40px}
+  .saved-flight-actions .continue-button{font-size:10px}
+  .save-summary{font-size:9px}
+  .sector-flight{justify-content:space-between;gap:12px;margin-top:5px}
+  .sector-flight p{font-size:9px;max-width:115px;line-height:1.5}
+  .sector-flight .secondary-button{font-size:10px;gap:8px;padding:9px 11px}
+  .hangar-loadout{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .hangar-loadout>div{padding:12px}
+  .hangar-loadout dt{font-size:10px}
+  .hangar-save-bar{grid-template-columns:1fr;gap:10px;margin-top:20px;padding-top:17px}
+  .hangar-save-bar .secondary-button{font-size:11px}
+  .hangar-save-bar .save-status{font-size:9px}
+  .hangar-rule{letter-spacing:.4px}
+}
+.upgrade-preview{display:block;margin:-3px 0 13px;padding:8px 10px;border-left:2px solid #8cebd76b;background:#8cebd709;color:#bfd8b7;font:400 10px/1.6 var(--display);font-variant-numeric:tabular-nums}
+.upgrade-preview strong{color:#ddf4d7;font-weight:500}
+@media(max-width:480px){.upgrade-preview{padding:7px 8px;font-size:9px;margin-bottom:11px}}
+.upgrade-card{display:grid;grid-template-columns:34px minmax(0,1fr);align-content:start;column-gap:10px}
+.upgrade-icon{grid-column:1;grid-row:1/span 2;float:none;width:auto;min-height:0;margin:0;padding-top:2px}
+.upgrade-level,.upgrade-name{grid-column:2}
+.upgrade-description,.upgrade-preview,.upgrade-pips,.upgrade-cost{grid-column:1/-1}
+@media(max-width:480px){
+  .upgrade-card{grid-template-columns:1fr;column-gap:0}
+  .upgrade-icon{grid-column:1;grid-row:auto;margin-bottom:9px}
+  .upgrade-level,.upgrade-name{grid-column:1}
+  .upgrade-description{min-height:43px}
+  .upgrade-preview{min-height:43px}
+}

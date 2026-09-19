@@ -40,7 +40,7 @@ try {
   assert.equal(await page.evaluate(() => tyran.scene), 'menu');
   // Launch uses the sector selected in the campaign strip, then the prominent
   // return control brings the pilot back to the command menu.
-  await page.locator('#launch-button').click();
+  await page.locator('#sector-flight-button').click();
   assert.equal(await page.evaluate(() => tyran.state.level), 9, 'Launching a preview starts the selected sector');
   await page.keyboard.press('Escape');
   await page.locator('#menu-button').click();
@@ -104,8 +104,8 @@ try {
   await page.locator('[data-upgrade="weapon"]').click();
   assert.equal(await page.evaluate(() => tyran.state.upgrades.weapon), 1);
   assert((await page.evaluate(() => tyran.state.credits)) < oldCredits);
-  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('tyran-campaign-v1')));
-  assert.equal(saved.checkpoint.upgrades.weapon, 1); assert.equal(saved.checkpoint.level, 1);
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('tyran-save-v2:auto')));
+  assert.equal(saved.state.upgrades.weapon, 1); assert.equal(saved.state.level, 0); assert.equal(saved.scene, 'hangar');
   await page.locator('#next-button').click();
   assert.equal(await page.evaluate(() => tyran.state.level), 1);
   assert(await page.evaluate(() => tyran.state.players.every(p=>p.alive && p.hull === p.maxHull && p.shield === p.maxShield)));

@@ -19,9 +19,18 @@ Open `http://127.0.0.1:8773/fun/tyran/`.
 - **Weapons:** number keys **1–6** swap the active fire profile. Choose the same profiles in the service bay; the six-tier Ion armament upgrade improves every profile without removing its tradeoff.
 - **Touch:** drag the left control to steer and hold the right control to fire.
 
-Fly through ten sectors: jungle, snow, desert, tropical islands, asteroid belt, Mars, volcanic foundry, neon city, alien garden, and void citadel. Each introduces nine enemy classes, followed by a sector guardian with three attack phases. Ten sector liveries and fittings create 100 enemy variants from ten underlying silhouettes. Choose a world card to preview and launch from that sector.
+Choose **New campaign** to start in sector one and fight through ten worlds: jungle, snow, desert, tropical islands, asteroid belt, Mars, volcanic foundry, neon city, alien garden, and void citadel. Each introduces nine enemy classes, followed by a sector guardian with three attack phases. Ten sector liveries and fittings create 100 enemy variants from ten underlying silhouettes. World cards preview each environment; **Fly selected sector** starts from that world with a fresh ship.
 
-Destroy ships and scenery for credits, collect repair and salvage pickups, and purchase six tiers each of weapons, shields, hull, and recharge between sectors. Pulse, scatter, lance, seeker, plasma and arc profiles trade fire rate for reach, piercing, homing, splash or chain jumps. Enemy formations fly coordinated vee, wall, orbit, escort and pincer patterns. Guardians seal their armor between attack cycles; glowing weak points open during safe firing windows and can be broken for bonus damage. Chaining a double kill, multi kill or rampage overcharges damage and blast radius for a few seconds, then resets if the timer expires or the pilot is hit. Co-op shares the upgrade budget and equipment; one surviving pilot can complete a sector, and both ships return with full hull and shields at the next launch. Progress and purchases save at the service bay in local storage. Continue resumes the last saved service-bay loadout; mid-flight positions are not saved. Retry keeps current equipment and accumulated credits/score.
+Destroy ships and scenery for credits, collect repair and salvage pickups, and purchase six tiers each of weapons, shields, hull, and recharge between sectors. The shop shows campaign progress, your ship's capacities, and each upgrade's current and next values before purchase. Pulse, scatter, lance, seeker, plasma and arc profiles trade fire rate for reach, piercing, homing, splash or chain jumps. Enemy formations fly coordinated vee, wall, orbit, escort and pincer patterns. Guardians seal their armor between attack cycles; glowing weak points open during safe firing windows and can be broken for bonus damage. Chaining a double kill, multi kill or rampage overcharges damage and blast radius for a few seconds, then resets if the timer expires or the pilot is hit. Co-op shares the upgrade budget and equipment; one surviving pilot can complete a sector, and both ships return with full hull and shields at the next launch. Retry keeps current equipment and accumulated credits/score.
+
+## Save and load
+
+- **Continue** loads the automatic slot, updated at launch, after a sector clear, after shop purchases/profile selections, and at campaign completion.
+- **Save game** in the pause menu or shop writes a separate manual slot. **Load game** restores that slot from the menu, pause screen, shop or debrief. Starting another campaign preserves the manual slot.
+- A saved flight restores its ships, health, credits, equipment, enemies, formations, projectiles, boss state, level hash and scenery destruction. It opens paused; press **Resume flight** to continue. A shop save reopens the shop before the next launch.
+- Saves use this browser's local storage. The game reports unavailable storage or unreadable saves and keeps the current flight playable. Earlier version-one checkpoints migrate into the shop before their next sector.
+
+The versioned storage keys are `tyran-save-v2:auto` and `tyran-save-v2:manual`. Stored input is validated and bounded before loading; formation references are rebuilt without replaying reward or transition events.
 
 ## Visuals and audio
 
@@ -43,6 +52,7 @@ Physics runs at a fixed 60 updates per second. Rendering interpolates between up
 | --- | --- |
 | `game.js` | Rendering loop, input, screens, persistence and integration |
 | `sim.js` | Combat, collision, campaign progression and upgrade economy |
+| `save-game.js` | Validated run snapshots, local save slots and legacy migration |
 | `worlds.js` | Ten scrolling environments and destructible scenery |
 | `tile-map.js` | Pure seeded terrain generation and shared corner masks |
 | `terrain-sprites.js` | Reusable material and shoreline/cliff sprites |
@@ -56,8 +66,10 @@ Physics runs at a fixed 60 updates per second. Rendering interpolates between up
 ```sh
 node fun/tyran/tests/sim-check.mjs --balance
 node fun/tyran/tests/tile-map-check.mjs
+node fun/tyran/tests/save-game-check.mjs
 node tests/navigation-check.mjs
 TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/browser-check.mjs
+TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/campaign-save-browser-check.mjs
 TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/timing-check.mjs
 TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/world-check.mjs
 TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/ship-visual-check.mjs
@@ -68,6 +80,6 @@ TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/per
 
 Browser QA expects the root server at port 8773 and installed Chrome. `TYRAN_URL`, `TYRAN_BROWSER` and `TYRAN_SCREENSHOTS` override the defaults. Screenshots are written outside the repository to `/tmp/tyran-qa`.
 
-The simulation suite verifies collision, shields, all spawn schedules, upgrades, persistence input validation, co-op deaths/revival, and the full campaign. Optional deterministic autopilot trials complete both solo and co-op using ordinary movement and firing plus earned purchases. These trials prove reachability; they do not substitute for human difficulty tuning. Browser QA covers both physical Control keys, pause, world previews, scenery destruction, shop, continuation, victory, storage denial and real touch input.
+The simulation suite verifies collision, shields, all spawn schedules, upgrades, co-op deaths/revival, and the full campaign. Optional deterministic autopilot trials complete both solo and co-op using ordinary movement and firing plus earned purchases. These trials prove reachability; they do not substitute for human difficulty tuning. Save tests verify next-step equivalence, formation identity, boss windows, independent slots, shop/victory restoration, corruption, denied storage and legacy migration. Browser QA covers manual mid-flight saves and reloads, shop purchases, campaign continuation, both physical Control keys, pause, world previews, scenery destruction, victory and real touch input.
 
 Timing QA drives real keyboard events at simulated 30/60/120 Hz, checking movement parity, visible interpolation, pause, slow-frame recovery and adaptive resolution. Map tests check seed reproducibility, material variety and adjacent corner continuity. World checks cover all ten biomes at three viewport widths, edge coverage, depth-correct hits, persistent destruction and bounded caches, and verify no landscape images are requested. The performance harness records Chrome frame intervals and CPU profiles during a repeatable co-op battle across multiple terrain chunks; it reports measurements without assuming other computers have the same frame rate.

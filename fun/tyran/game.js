@@ -1,8 +1,9 @@
 import { WORLDS, PARALLAX_LAYERS, WorldRenderer } from './worlds.js';
 import { ENEMY_TYPES, SHIP_PALETTES, drawShip, warmShipSprites } from './ships.js';
-import { createCampaign, beginLevel, update, buyUpgrade, upgradeCost, UPGRADES, WEAPONS, BULLET_SPECTRUM, MAX_UPGRADE, clamp, selectWeapon, weaponStats, bossWeakPointPosition, comboLabel } from './sim.js';
+import { createCampaign, beginLevel, update, buyUpgrade, upgradeCost, UPGRADES, WEAPONS, BULLET_SPECTRUM, MAX_UPGRADE, clamp, selectWeapon, shipStats, weaponStats, bossWeakPointPosition, comboLabel } from './sim.js';
 import { Effects } from './effects.js';
 import { AudioEngine } from './audio.js';
+import { readSave, writeSave } from './save-game.js';
 
 const elements = new Map();
 const $ = id => { if (!elements.has(id)) { const el = document.getElementById(id); if (el) elements.set(id, el); } return elements.get(id); };
@@ -12,8 +13,8 @@ const canvas = $('game-canvas'), ctx = canvas.getContext('2d', { alpha: false })
 const world = new WorldRenderer(), fx = new Effects(), audio = new AudioEngine();
 const keys = new Set(), numberFormat = new Intl.NumberFormat('en-US'), number = n => numberFormat.format(Math.floor(n || 0));
 const screens = ['menu-screen', 'pause-screen', 'hangar-screen', 'end-screen'];
-const SAVE_KEY = 'tyran-campaign-v1';
-let state = null, mode = 1, selected = 0, scene = 'menu', unlocked = 0, saved = null;
+const saves = { auto: readSave('auto'), manual: readSave('manual') };
+let state = null, mode = 1, selected = 0, scene = 'menu', unlocked = Math.max(0, saves.auto.run?.unlocked || 0, saves.manual.run?.unlocked || 0);
 let W = 1200, H = 900, dpr = 1, previewScroll = 0, clock = 0, lastTime = 0, hudClock = 0;
 let announcementUntil = 0, quality = 'high', helpPaused = false, helpFocus = null;
 const STEP = 1 / 60;
@@ -26,20 +27,62 @@ const controls = [{ x: 0, y: 0, fire: false }, { x: 0, y: 0, fire: false }];
 const touch = { x: 0, y: 0, fire: false, pointer: null, originX: 0, originY: 0 };
 
 try {
-  const stored = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
-  if (stored?.version === 1) {
-    unlocked = clamp(Math.floor(Number(stored.unlocked) || 0), 0, 9);
-    if (stored.checkpoint && Number.isInteger(stored.checkpoint.level) && stored.checkpoint.level >= 1 && stored.checkpoint.level <= 9) saved = stored.checkpoint;
-  }
   audio.mute(localStorage.getItem('tyran-muted') === 'true');
   quality = localStorage.getItem('tyran-quality') === 'low' ? 'low' : 'high';
 } catch { /* Local saves are optional in private/restricted browsing. */ }
 
-function saveCheckpoint(nextLevel = state?.level + 1) {
-  if (state && nextLevel < 10) saved = { level: nextLevel, mode: state.mode, weapon: state.weapon, upgrades: { ...state.upgrades }, credits: state.credits, score: state.score, totalKills: state.totalKills };
-  else saved = null;
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ version: 1, unlocked, checkpoint: saved })); } catch { /* Keep playing without storage. */ }
+function saveStatus(message) {
+  for (const id of ['save-summary', 'pause-save-status', 'hangar-save-status']) setText($(id), message);
+}
+
+function saveGame(slot = 'manual') {
+  if (!state || !['playing', 'hangar', 'victory'].includes(state.status)) return false;
+  const result = writeSave(slot, state, {
+    seed: world.seed, damage: world.damage, destroyed: world.destroyed, unlocked,
+  });
+  if (result.ok) saves[slot] = result;
   refreshContinue();
+  saveStatus(result.ok ? `${slot === 'auto' ? 'Autosaved' : 'Game saved'} · ${saveDescription(result.run)}. Stored in this browser.`
+    : 'Could not save in this browser. Your previous save is unchanged; you can keep playing.');
+  return result.ok;
+}
+
+function loadGame(slot = 'manual') {
+  const result = readSave(slot);
+  saves[slot] = result; refreshContinue();
+  if (!result.ok || !result.run) {
+    saveStatus(result.error === 'corrupt' ? 'This save could not be read. Your current flight is unchanged.'
+      : result.error === 'unavailable' ? 'Browser storage is unavailable. Your current flight is unchanged.' : 'There is no saved game in this slot yet.');
+    return;
+  }
+  const run = result.run;
+  state = structuredClone(run.state); mode = state.mode; unlocked = Math.max(unlocked, run.unlocked);
+  // Fit the saved arena to the current screen while retaining health, velocity,
+  // timers and formation relationships. Loaded flight never advances until Resume.
+  const sx = W / state.width, sy = H / state.height;
+  for (const list of [state.players, state.enemies, state.bullets, state.pickups]) for (const actor of list) {
+    actor.x *= sx; actor.y *= sy; actor.px = actor.x; actor.py = actor.y;
+    if (Number.isFinite(actor.originX)) actor.originX *= sx;
+  }
+  for (const pilot of state.players) { pilot.x = clamp(pilot.x, 30, W - 30); pilot.y = clamp(pilot.y, 105, H - 42); pilot.px = pilot.x; pilot.py = pilot.y; }
+  for (const formation of state.formations) {
+    formation.x *= sx; formation.baseX *= sx; formation.y *= sy;
+    for (const offset of formation.offsets) { offset.x *= sx; offset.y *= sy; }
+  }
+  state.width = W; state.height = H; selected = state.level;
+  world.setWorld(state.level, run.seed); world.restoreDamage(run.damage, run.destroyed);
+  warmFleet(state.level); fx.reset(); keys.clear(); clock = state.time;
+  $('announcement').hidden = true; $('boss-hud').hidden = true;
+  document.querySelectorAll('[data-mode]').forEach(button => {
+    const active = Number(button.dataset.mode) === mode;
+    button.classList.toggle('active', active); button.setAttribute('aria-pressed', String(active));
+  });
+  syncPilotHUD();
+  if (run.scene === 'hangar') showHangar(0, true);
+  else if (run.scene === 'end') showEnd(true, true);
+  else { setScreen('pause'); $('resume-button').focus({ preventScroll: true }); }
+  refreshHUD();
+  saveStatus(`Loaded ${saveDescription(run)}${run.scene === 'pause' ? ' · Press Resume flight when ready.' : '.'}`);
 }
 
 function setScreen(next) {
@@ -82,6 +125,10 @@ function resize() {
     state.width = W; state.height = H;
     for (const p of state.players) { p.x = clamp(p.x / oldW * W, 30, W - 30); p.y = p.y / oldH * H; p.px = p.x; p.py = p.y; }
     for (const e of state.enemies) { e.x = e.x / oldW * W; e.originX = e.originX / oldW * W; e.px = e.x; e.py = e.y; }
+    for (const formation of state.formations) {
+      formation.x *= W / oldW; formation.baseX *= W / oldW; formation.y *= H / oldH;
+      for (const offset of formation.offsets) { offset.x *= W / oldW; offset.y *= H / oldH; }
+    }
     for (const b of state.bullets) { b.x *= W / oldW; b.px = b.x; b.py = b.y; }
     for (const p of state.pickups) p.x *= W / oldW;
     for (const list of [fx.particles, fx.rings, fx.lights, fx.texts, fx.wrecks]) for (const effect of list) effect.x *= W / oldW;
@@ -106,21 +153,26 @@ function announce(kicker, title, description = '', seconds = 3) {
 
 function launch(level = 0, checkpoint = null) {
   audio.start();
-  level = clamp(Number(level) || 0, 0, WORLDS.length - 1);
+  level = clamp(Math.floor(Number(level) || 0), 0, WORLDS.length - 1);
   selected = level;
   state = createCampaign(checkpoint?.mode || mode, level, checkpoint);
+  state.startLevel = checkpoint?.startLevel ?? level;
   state.width = W; state.height = H; beginLevel(state, level);
   world.setWorld(level); warmFleet(level); fx.reset(); keys.clear(); previousScroll = 0; $('boss-hud').hidden = true;
   setScreen('playing');
   announce(`Sector ${String(level + 1).padStart(2, '0')} / 10`, WORLDS[level].name, WORLDS[level].subtitle || 'Clear the skies. Bring everyone home.', 3.2);
-  $('p2-panel').hidden = state.mode !== 2;
-  document.querySelector('.flight-hint').textContent = state.mode === 2 ? 'P1: WASD + L Ctrl  ·  P2: Arrows + Enter / R Ctrl  ·  1–6 profile' : 'WASD / Arrows  ·  Space / Ctrl fire  ·  1–6 profile';
+  syncPilotHUD(); saveGame('auto');
   canvas.focus({ preventScroll: true });
   refreshHUD();
 }
 
+function syncPilotHUD() {
+  $('p2-panel').hidden = state.mode !== 2;
+  document.querySelector('.flight-hint').textContent = state.mode === 2 ? 'P1: WASD + L Ctrl  ·  P2: Arrows + Enter / R Ctrl  ·  1–6 profile' : 'WASD / Arrows  ·  Space / Ctrl fire  ·  1–6 profile';
+}
+
 function returnToMenu() {
-  state = null; fx.reset(); world.setWorld(selected); setScreen('menu');
+  state = null; fx.reset(); selectWorld(selected); setScreen('menu');
   $('announcement').hidden = true; $('boss-hud').hidden = true; refreshContinue(); $('launch-button').focus({ preventScroll: true });
 }
 
@@ -156,20 +208,31 @@ function refreshHUD() {
   }
 }
 
-function showHangar(bonus) {
+function showHangar(bonus, loading = false) {
   unlocked = Math.max(unlocked, state.level + 1);
-  saveCheckpoint(); setScreen('hangar'); $('announcement').hidden = true;
-  $('hangar-title').textContent = 'A little more firepower.';
-  $('hangar-subtitle').textContent = `${WORLDS[state.level].name} cleared · ${state.kills} ships down · ${state.destroyed} structures destroyed · ${number(bonus)} CR sector bonus. Both hull and shields restored at launch.`;
+  setScreen('hangar'); $('announcement').hidden = true;
+  $('hangar-title').textContent = 'Refit your ship.';
+  $('hangar-subtitle').textContent = `${WORLDS[state.level].name} cleared · ${state.kills} ship${state.kills === 1 ? '' : 's'} down · ${state.destroyed} ground targets destroyed.${bonus ? ` ${number(bonus)} credits awarded.` : ''} Spend your salvage before the next launch; hull and shields will be restored.`;
   $('next-button').textContent = `Launch sector ${String(state.level + 2).padStart(2, '0')} — ${WORLDS[state.level + 1].name}  ↗`;
+  $('campaign-route').innerHTML = WORLDS.map((world, index) => {
+    const complete = index >= (state.startLevel || 0) && index <= state.level, current = index === state.level + 1;
+    return `<li class="${complete ? 'complete' : current ? 'current' : ''}" ${current ? 'aria-current="step"' : ''}><span>${String(index + 1).padStart(2, '0')}${complete ? ' ✓' : ''}</span><strong>${world.name}</strong></li>`;
+  }).join('');
   renderUpgrades(); $('next-button').focus({ preventScroll: true });
+  if (!loading) saveGame('auto');
 }
 
 function renderUpgrades() {
   $('hangar-credits').textContent = number(state.credits);
+  const stats = shipStats(state.upgrades), weapon = weaponStats(state);
+  $('hangar-loadout').innerHTML = `<div><dt>Hull capacity</dt><dd>${stats.hull}</dd></div><div><dt>Shield capacity</dt><dd>${stats.shield}</dd></div><div><dt>Shield recharge</dt><dd>${stats.recharge}<small>/s · ${stats.delay.toFixed(1)}s delay</small></dd></div><div><dt>Armament</dt><dd>Mk ${weapon.level + 1}<small>${weapon.name}</small></dd></div>`;
   $('upgrade-list').innerHTML = UPGRADES.map(u => {
     const level = state.upgrades[u.id], maxed = level >= MAX_UPGRADE, cost = upgradeCost(state, u.id);
-    return `<button class="upgrade-card" data-upgrade="${u.id}" ${maxed || state.credits < cost ? 'disabled' : ''}><span class="upgrade-icon" aria-hidden="true">${u.icon}</span><span class="upgrade-level">MK ${String(level + 1).padStart(2, '0')} / 07</span><span class="upgrade-name">${u.name}</span><span class="upgrade-description">${u.subtitle}${state.mode === 2 ? ' Upgrades both pilots.' : ''}</span><span class="upgrade-pips" aria-hidden="true">${Array.from({ length: 6 }, (_, i) => `<i class="${i < level ? 'filled' : ''}"></i>`).join('')}</span><span class="upgrade-cost">${maxed ? 'FULLY UPGRADED' : `${number(cost)} CR <span aria-hidden="true">+</span>`}</span></button>`;
+    const next = { ...state, upgrades: { ...state.upgrades, [u.id]: Math.min(MAX_UPGRADE, level + 1) } }, upgraded = shipStats(next.upgrades), nextWeapon = weaponStats(next);
+    const preview = u.id === 'weapon' ? `${weapon.damage.toFixed(1)} → ${nextWeapon.damage.toFixed(1)} power · ${(1 / nextWeapon.interval).toFixed(1)} shots/s`
+      : u.id === 'recharge' ? `${stats.recharge} → ${upgraded.recharge} shield/s · ${upgraded.delay.toFixed(1)}s delay`
+      : `${stats[u.id]} → ${upgraded[u.id]} ${u.id}`;
+    return `<button class="upgrade-card" data-upgrade="${u.id}" ${maxed || state.credits < cost ? 'disabled' : ''}><span class="upgrade-icon" aria-hidden="true">${u.icon}</span><span class="upgrade-level">Mk ${String(level + 1).padStart(2, '0')} / 07</span><span class="upgrade-name">${u.name}</span><span class="upgrade-description">${u.subtitle}${state.mode === 2 ? ' Upgrades both pilots.' : ''}</span><span class="upgrade-preview">${maxed ? 'Maximum performance reached' : preview}</span><span class="upgrade-pips" aria-hidden="true">${Array.from({ length: 6 }, (_, i) => `<i class="${i < level ? 'filled' : ''}"></i>`).join('')}</span><span class="upgrade-cost">${maxed ? 'Fully upgraded' : `${number(cost)} credits <span aria-hidden="true">+</span>`}</span></button>`;
   }).join('');
   renderWeapons();
 }
@@ -185,21 +248,37 @@ function renderWeapons() {
   }).join('');
 }
 
-function showEnd(won) {
+function showEnd(won, loading = false) {
   setScreen('end'); $('announcement').hidden = true;
   $('end-title').textContent = won ? 'The skies are yours.' : 'Signal lost.';
-  $('end-description').textContent = won ? 'Ten worlds liberated. One very well-used ship. Your flight will be remembered.' : `Your flight ended over ${WORLDS[state.level].name}. Retry this sector with your current equipment. Your last hangar checkpoint is safe.`;
+  $('end-description').textContent = won ? 'The citadel has fallen. Your campaign is complete. Start a fresh flight or return to flight command.' : `Your flight ended over ${WORLDS[state.level].name}. Retry with your current equipment or load a saved flight. Your last save is safe.`;
   $('end-score').textContent = number(state.score);
   $('retry-button').textContent = won ? 'Fly a new campaign ↗' : 'Retry sector ↗';
-  if (won) { unlocked = 9; saveCheckpoint(10); }
+  if (won && !loading) { unlocked = 9; saveGame('auto'); }
+  refreshContinue();
   $('retry-button').focus({ preventScroll: true });
 }
 
 function refreshContinue() {
-  let button = $('continue-button');
-  if (!button) { button = document.createElement('button'); button.id = 'continue-button'; button.className = 'continue-button'; $('launch-button').after(button); button.addEventListener('click', () => { if (saved) launch(saved.level, saved); }); }
-  button.hidden = !saved;
-  if (saved) button.textContent = `Continue campaign · Sector ${String(saved.level + 1).padStart(2, '0')} ↗`;
+  const auto = saves.auto.run, manual = saves.manual.run;
+  $('continue-button').hidden = !auto; $('continue-button').disabled = !auto; $('load-game-button').disabled = !manual;
+  $('continue-button').textContent = auto ? `Continue · ${saveDescription(auto)}` : 'Continue campaign';
+  $('load-game-button').textContent = manual ? `Load game · ${saveDescription(manual)}` : 'Load game';
+  for (const id of ['pause-load-button', 'hangar-load-button', 'end-load-button']) {
+    $(id).disabled = !manual && (!auto || auto.scene === 'end');
+    $(id).textContent = manual ? 'Load game' : 'Load autosave';
+  }
+  if (auto || manual) {
+    const latest = !auto || (manual && manual.savedAt > auto.savedAt) ? manual : auto;
+    const when = latest.savedAt ? new Date(latest.savedAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Previous campaign';
+    setText($('save-summary'), `${when} · ${latest.state.mode === 2 ? 'Co-op' : 'Solo'} · ${number(latest.state.credits)} credits. Manual save is kept separately from autosave.`);
+  } else setText($('save-summary'), Object.values(saves).some(save => save.error === 'unavailable')
+    ? 'Browser storage is unavailable. You can still play.'
+    : Object.values(saves).some(save => save.error === 'corrupt') ? 'A saved game could not be read. You can start a new campaign.' : 'No saved flights yet. Progress saves automatically; Save game keeps a separate manual slot.');
+}
+
+function saveDescription(run) {
+  return run.scene === 'end' ? 'Campaign complete' : `Sector ${String(run.state.level + 1).padStart(2, '0')} · ${run.scene === 'hangar' ? 'Shop' : 'Flight'}`;
 }
 
 function selectWorld(index) {
@@ -211,6 +290,7 @@ function selectWorld(index) {
   if ($('selected-world-description')) $('selected-world-description').textContent = WORLDS[selected].description || WORLDS[selected].subtitle;
   if ($('preview-world-number')) $('preview-world-number').textContent = `Sector ${String(selected + 1).padStart(2, '0')}`;
   document.body.dataset.world = selected;
+  $('sector-flight-button').textContent = `Fly selected sector · ${String(selected + 1).padStart(2, '0')} ↗`;
   renderDirty = true; requestFrame();
 }
 
@@ -471,7 +551,11 @@ window.addEventListener('keydown', event => {
   if (weaponIndex && state && (scene === 'playing' || scene === 'hangar') && !event.repeat) {
     event.preventDefault();
     const weapon = WEAPONS[Number(weaponIndex[1]) - 1];
-    if (weapon && selectWeapon(state, weapon.id)) { audio.start(); audio.effect('weapon'); renderWeapons(); refreshHUD(); }
+    if (weapon && selectWeapon(state, weapon.id)) {
+      audio.start(); audio.effect('weapon'); refreshHUD();
+      if (scene === 'hangar') { renderUpgrades(); saveGame('auto'); }
+      else renderWeapons();
+    }
     return;
   }
   if (scene === 'playing' && controlledKeys.has(event.code)) { event.preventDefault(); keys.add(event.code); }
@@ -489,7 +573,13 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('resize', resize);
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 function on(id, fn) { $(id)?.addEventListener('click', fn); }
-on('launch-button', () => launch(selected));
+on('launch-button', () => launch(0));
+on('sector-flight-button', () => launch(selected));
+on('continue-button', () => loadGame('auto'));
+on('load-game-button', () => loadGame('manual'));
+for (const id of ['pause-save-button', 'hangar-save-button']) on(id, () => saveGame('manual'));
+for (const id of ['pause-load-button', 'hangar-load-button', 'end-load-button']) on(id, () => loadGame(saves.manual.run ? 'manual' : 'auto'));
+on('hangar-menu-button', returnToMenu);
 on('pause-button', pause); on('resume-button', pause); on('menu-button', returnToMenu); on('end-menu-button', returnToMenu);
 on('restart-button', () => launch(state.level, state));
 on('retry-button', () => state.status === 'victory' ? launch(0) : launch(state.level, state));
@@ -497,14 +587,19 @@ on('next-button', () => {
   if (state?.status !== 'hangar') return;
   beginLevel(state, state.level + 1); world.setWorld(state.level); warmFleet(state.level); previousScroll = 0; fx.reset(); setScreen('playing'); audio.start(); $('boss-hud').hidden = true;
   announce(`Sector ${String(state.level + 1).padStart(2, '0')} / 10`, WORLDS[state.level].name, WORLDS[state.level].subtitle, 3); refreshHUD(); canvas.focus({ preventScroll: true });
+  saveGame('auto');
 });
 $('upgrade-list').addEventListener('click', event => {
   const button = event.target.closest('[data-upgrade]'); if (!button || !state) return;
-  if (buyUpgrade(state, button.dataset.upgrade)) { audio.effect('upgrade'); saveCheckpoint(); renderUpgrades(); const next = document.querySelector(`[data-upgrade="${button.dataset.upgrade}"]`); if (!next.disabled) next.focus(); else $('next-button').focus(); }
+  if (buyUpgrade(state, button.dataset.upgrade)) { audio.effect('upgrade'); renderUpgrades(); saveGame('auto'); const next = document.querySelector(`[data-upgrade="${button.dataset.upgrade}"]`); if (!next.disabled) next.focus(); else $('next-button').focus(); }
 });
 $('weapon-list').addEventListener('click', event => {
   const button = event.target.closest('[data-weapon]'); if (!button || !state) return;
-  if (selectWeapon(state, button.dataset.weapon)) { audio.start(); audio.effect('weapon'); renderWeapons(); refreshHUD(); button.focus({ preventScroll: true }); }
+  if (selectWeapon(state, button.dataset.weapon)) {
+    audio.start(); audio.effect('weapon'); renderUpgrades(); refreshHUD();
+    if (scene === 'hangar') saveGame('auto');
+    document.querySelector(`[data-weapon="${button.dataset.weapon}"]`).focus({ preventScroll: true });
+  }
 });
 document.querySelectorAll('[data-mode]').forEach(button => button.addEventListener('click', () => {
   mode = Number(button.dataset.mode);
