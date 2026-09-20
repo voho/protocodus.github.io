@@ -66,7 +66,7 @@ try {
     for (const [fraction, crossesStage] of [[.01, false], [.30, true], [.01, false], [.34, true], [.01, false], [.35, true]]) {
       const cache = cachedWorld.sceneryLayers[cachedTarget.depth], before = cache.get(cachedTarget.row);
       cachedWorld.hit(cachedTarget.screenX, cachedTarget.screenY, 0, cachedTarget.maxHp * fraction, cachedScroll);
-      const invalidated = !cache.has(cachedTarget.row);
+      const invalidated = cachedWorld.sceneryDirty.has(cachedTarget.row);
       cachedWorld.draw(context, 1200, 900, cachedScroll, 0, 'high');
       cacheTransitions.push({ crossesStage, invalidated, reused: before === cache.get(cachedTarget.row) });
     }
@@ -113,8 +113,8 @@ try {
   }
   assert.equal(new Set(result.stages.map(stage => stage.hash)).size, 4, 'fresh, light, heavy and crater stages visibly differ');
   for (const transition of result.cacheTransitions) {
-    assert.equal(transition.invalidated, transition.crossesStage, 'a structural hit invalidates the raster strip only when its stage changes');
-    assert.equal(transition.reused, !transition.crossesStage, 'hits within one damage stage reuse the cached raster strip');
+    assert.equal(transition.invalidated, transition.crossesStage, 'a structural hit marks a dirty region only when its stage changes');
+    assert.equal(transition.reused, true, 'damage refreshes the existing raster strip in place');
   }
   for (const migration of result.migrations) {
     assert.ok(Math.abs(migration.fraction - migration.expected) < 1e-9, `${migration.type}: legacy remaining-health percentage survives stronger armor`);

@@ -100,6 +100,10 @@ function smokeTexture(light = false) {
     }
   });
 }
+// Leave room for the camera shake and antialiasing at the viewport edge.
+function intersectsView(x, y, rx, ry, W, H) {
+  return x + rx >= -32 && x - rx <= W + 32 && y + ry >= -32 && y - ry <= H + 32;
+}
 function fitSprite(ctx, sprite, x, y, diameter) {
   const scale = diameter / Math.max(sprite.width, sprite.height), width = sprite.width * scale, height = sprite.height * scale;
   ctx.drawImage(sprite, x - width / 2, y - height / 2, width, height);
@@ -223,30 +227,37 @@ export class Effects {
     this.wrecks.length = length;
   }
   draw(ctx, W, H) {
+    let airSmoke, groundSmoke, airFragment, groundFragment;
     ctx.save();
     for (const p of this.particles) if (p.smoke) {
-      const a = 1 - p.age / p.life;
+      const a = 1 - p.age / p.life, diameter = p.radius * 3.5 * (1 + p.age * 3);
+      if (a <= 0 || !intersectsView(p.x, p.y, diameter / 2, diameter / 2, W, H)) continue;
+      const sprite = p.ground ? groundSmoke ||= smokeTexture(true) : airSmoke ||= smokeTexture();
       ctx.globalAlpha = a * (p.ground ? .6 : .48);
-      fitSprite(ctx, smokeTexture(p.ground), p.x, p.y, p.radius * 3.5 * (1 + p.age * 3));
+      fitSprite(ctx, sprite, p.x, p.y, diameter);
     }
     for (const p of this.particles) if (p.debris && !p.smoke) {
+      if (p.age >= p.life || !intersectsView(p.x, p.y, p.radius * 3, p.radius * 3, W, H)) continue;
       ctx.globalAlpha = 1 - p.age / p.life;
       ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.angle + p.age * 8);
-      const fragment = spriteCell('effects', p.ground ? 11 : 10);
+      const fragment = p.ground ? groundFragment ||= spriteCell('effects', 11) : airFragment ||= spriteCell('effects', 10);
       if (fragment) fitSprite(ctx, fragment, 0, 0, p.radius * 4.2);
       else { ctx.fillStyle = '#75695c'; ctx.fillRect(-p.radius, -p.radius / 3, p.radius * 2, p.radius * .7); }
       ctx.restore();
     }
     for (const burst of this.rings) if (burst.explosion) {
-      const t = burst.age / burst.life, stage = Math.min(7, Math.floor(t * 8)), sprite = spriteCell('effects', stage);
+      const t = burst.age / burst.life, diameter = burst.diameter * (.4 + t * .9);
+      if (t >= 1 || !intersectsView(burst.x, burst.y, diameter / 2, diameter / 2, W, H)) continue;
+      const sprite = spriteCell('effects', Math.min(7, Math.floor(t * 8)));
       if (!sprite) continue;
       ctx.globalAlpha = Math.min(1, (1 - t) * 3);
-      fitSprite(ctx, sprite, burst.x, burst.y, burst.diameter * (.4 + t * .9));
+      fitSprite(ctx, sprite, burst.x, burst.y, diameter);
     }
     ctx.restore();
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
     for (const l of this.lights) {
       const a = 1 - l.age / l.life, r = l.radius * (.5 + l.age / l.life);
+      if (a <= 0 || !intersectsView(l.x, l.y, r, r, W, H)) continue;
       ctx.globalAlpha = a; ctx.drawImage(lightTexture(l.color), l.x - r, l.y - r, r * 2, r * 2);
       if (l.fire) {
         const core = r * .62;
@@ -255,27 +266,36 @@ export class Effects {
       }
     }
     for (const p of this.particles) if (!p.smoke && !p.debris) {
+      const radius = Math.max(.3, p.radius * (1 - p.age / p.life));
+      if (p.age >= p.life || !intersectsView(p.x, p.y, radius, radius, W, H)) continue;
       ctx.globalAlpha = 1 - p.age / p.life;
       ctx.fillStyle = p.age < .08 ? '#fffbea' : p.color;
-      ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(.3, p.radius * (1 - p.age / p.life)), 0, TAU); ctx.fill();
+      ctx.beginPath(); ctx.arc(p.x, p.y, radius, 0, TAU); ctx.fill();
     }
     for (const ring of this.rings) {
       const t = ring.age / ring.life;
+      if (t >= 1 || !intersectsView(ring.x, ring.y, ring.radius * t + 8, ring.radius * t * .77 + 8, W, H)) continue;
       ctx.globalAlpha = (1 - t) ** 2; ctx.strokeStyle = ring.color; ctx.lineWidth = (1 - t) * 5 + 1;
       ctx.beginPath(); ctx.ellipse(ring.x, ring.y, Math.max(1, ring.radius * t), Math.max(1, ring.radius * t * .77), 0, 0, TAU); ctx.stroke();
       if (this.quality === 'high' && !this.reduced) { ctx.lineWidth = 16 * (1 - t); ctx.globalAlpha *= .14; ctx.stroke(); }
     }
     if (!this.reduced) for (const flare of this.flares) {
       const t = flare.age / flare.life, intensity = (1 - t) ** 2 * flare.strength;
+      if (t >= 1 || intensity <= 0) continue;
       const r = Math.min(W * .45, flare.radius * (1 - t * .25));
-      ctx.globalAlpha = intensity * (this.quality === 'high' ? .7 : .4);
-      ctx.drawImage(lensStreakTexture(), flare.x - r, flare.y - r, r * 2, r * 2);
+      if (intersectsView(flare.x, flare.y, r, r / 16, W, H)) {
+        ctx.globalAlpha = intensity * (this.quality === 'high' ? .7 : .4);
+        // The streak occupies ten source rows. Keep three transparent rows on
+        // either side for filtering, without blending an almost-empty square.
+        ctx.drawImage(lensStreakTexture(), 0, 120, 256, 16, flare.x - r, flare.y - r / 16, r * 2, r / 8);
+      }
       if (this.quality !== 'high') continue;
       const dx = W * .5 - flare.x, dy = H * .5 - flare.y;
       if (dx * dx + dy * dy < 1600) continue;
       for (let i = 0; i < 2; i++) {
         const distance = 1.25 + i * .48, radius = Math.min(30, flare.radius * (i ? .035 : .065));
         const x = flare.x + dx * distance, y = flare.y + dy * distance;
+        if (!intersectsView(x, y, radius, radius, W, H)) continue;
         ctx.globalAlpha = intensity * (i ? .2 : .34);
         ctx.drawImage(lensGhostTexture(), x - radius, y - radius, radius * 2, radius * 2);
       }

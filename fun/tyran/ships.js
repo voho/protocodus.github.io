@@ -684,7 +684,7 @@ export function drawShip(ctx,x,y,size,kind,color,time=0,options={}) {
   const phase=Number(options.phase)||0;
   const animatedTime=options.motion===false?0:time;
   const pulse=.86+Math.sin(animatedTime*3.2+phase)*.1;
-  const heading=player?0:Math.PI;
+  const direction=player?1:-1;
   const shape=flightShape(kind,player,world);
   const thrust=Math.max(0,Math.min(2,Number(options.thrust??1)||0));
   const detailed=options.quality!=='low';
@@ -692,35 +692,37 @@ export function drawShip(ctx,x,y,size,kind,color,time=0,options={}) {
   const silhouettes=silhouetteSprites(kind,player,world);
   // Keep the sun direction in world space while the craft holds its fixed heading.
   ctx.save();
-  ctx.translate(x+5+size*.17,y+9+size*.24);
-  ctx.rotate(heading);ctx.scale(scale*.97,scale*.97);
+  const shadowScale=direction*scale*.97;
+  ctx.transform(shadowScale,0,0,shadowScale,x+5+size*.17,y+9+size*.24);
   ctx.globalAlpha*=(options.opacity??1)*.74;
   ctx.drawImage(silhouettes.shadow,-160,-160,320,320);ctx.restore();
 
-  ctx.save();ctx.translate(x,y);ctx.rotate(heading);
-  ctx.scale(scale,scale);
+  ctx.save();ctx.transform(direction*scale,0,0,direction*scale,x,y);
   if(options.opacity!=null)ctx.globalAlpha*=options.opacity;
+  const shipAlpha=ctx.globalAlpha,composite=ctx.globalCompositeOperation;
 
   const flame=flameSprite(palette.engine||flightColor,!player&&kind>=8);
-  ctx.save();ctx.globalCompositeOperation='screen';
-  const exhaustAlpha=ctx.globalAlpha;
+  ctx.globalCompositeOperation='screen';
   for(let i=0;i<shape.engines.length;i++) {
     const [ex,ey,er]=shape.engines[i];
     const shimmer=1+Math.sin(animatedTime*31+i*2.7+phase)*.055;
     const length=(player?70:51)*(.48+thrust*.55)*shimmer;
     const width=er*(4.6+thrust*.2),engineX=ex,engineY=ey;
-    ctx.globalAlpha=exhaustAlpha*(.79+thrust*.08);
+    ctx.globalAlpha=shipAlpha*(.79+thrust*.08);
     ctx.drawImage(flame,engineX-width/2,engineY-8,width,length+14);
   }
-  ctx.restore();
+  ctx.globalAlpha=shipAlpha;ctx.globalCompositeOperation=composite;
 
   const sprite=hullSprite(kind,flightColor,world,player,palette);
   ctx.drawImage(sprite,-140,-140,280,280);
 
-  ctx.save();ctx.globalCompositeOperation='screen';
+  // Restore only the two values changed by additive layers. The outer save
+  // retains every caller style and transform without a state stack per effect.
+  const hit=Math.max(0,Math.min(1,options.hit||0)),shield=Math.max(0,Math.min(1,options.shield||0));
+  if(detailed||hit>0||shield>0)ctx.globalCompositeOperation='screen';
   const [cx,cy,cr]=shape.core;
   if(detailed) {
-    ctx.globalAlpha*=(.7+thrust*.14)*pulse;
+    ctx.globalAlpha=shipAlpha*(.7+thrust*.14)*pulse;
     ctx.drawImage(lightsSprite(kind,palette.glow||flightColor,player,palette,world),-160,-160,320,320);
   }
   if(detailed) {
@@ -729,25 +731,19 @@ export function drawShip(ctx,x,y,size,kind,color,time=0,options={}) {
     const diameter=cr*(player?3.1:4.2);
     ctx.drawImage(glowSprite(palette.glow||flightColor),cx-diameter/2,cy-diameter/2,diameter,diameter);
   }
-  ctx.restore();
-
-  const hit=Math.max(0,Math.min(1,options.hit||0));
   if(hit>0) {
-    ctx.save();ctx.globalCompositeOperation='screen';ctx.globalAlpha*=hit*.76;
-    ctx.drawImage(silhouettes.flash,-160,-160,320,320);ctx.restore();
+    ctx.globalAlpha=shipAlpha*hit*.76;
+    ctx.drawImage(silhouettes.flash,-160,-160,320,320);
   }
-  const shield=Math.max(0,Math.min(1,options.shield||0));
   if(shield>0) {
-    ctx.save();ctx.globalCompositeOperation='screen';
-    const lightStyle=lightStyles(palette.glow||flightColor),shieldAlpha=ctx.globalAlpha;
-    ctx.globalAlpha=shieldAlpha*shield*(.18+pulse*.12);
+    const lightStyle=lightStyles(palette.glow||flightColor);
+    ctx.globalAlpha=shipAlpha*shield*(.18+pulse*.12);
     ctx.strokeStyle=lightStyle.shield;ctx.lineWidth=1.4;
     ctx.beginPath();ctx.ellipse(0,-3,112,127,0,0,TAU);ctx.stroke();
-    ctx.globalAlpha=shieldAlpha*shield*.32;
+    ctx.globalAlpha=shipAlpha*shield*.32;
     ctx.strokeStyle=lightStyle.shieldGlint;ctx.lineWidth=3;
     const angle=-Math.PI/2+Math.sin(animatedTime*.8)*.1;
     ctx.beginPath();ctx.ellipse(0,-3,112,127,0,angle-.48,angle+.48);ctx.stroke();
-    ctx.restore();
   }
   ctx.restore();
 }

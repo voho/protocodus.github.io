@@ -8,10 +8,14 @@ const out = process.env.TYRAN_PERF_OUTPUT || '/tmp/tyran-performance';
 const seconds = Math.max(25, Number(process.env.TYRAN_PERF_SECONDS) || 25);
 const dpr = Number(process.env.TYRAN_DPR || 1);
 const coldLaunch = process.env.TYRAN_PERF_COLD === '1';
+const stress = process.env.TYRAN_PERF_STRESS === '1';
+const cpuRate = Math.max(1, Number(process.env.TYRAN_CPU_RATE) || 1);
 await mkdir(out, { recursive: true });
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
 const page = await browser.newPage({ viewport: { width: 1440, height: 960 }, deviceScaleFactor: dpr });
 const errors = [];
+const system = await (await browser.newBrowserCDPSession()).send('SystemInfo.getInfo');
+const gpu = { devices: system.gpu.devices.map(({ vendorString, deviceString }) => ({ vendorString, deviceString })), features: system.gpu.featureStatus };
 page.on('pageerror', error => errors.push(error.message));
 await page.addInitScript(() => {
   let seed = 7481;
@@ -33,12 +37,13 @@ try {
     await page.locator('[data-world="6"]').click();
     await page.waitForTimeout(1200);
   }
+  await cdp.send('Emulation.setCPUThrottlingRate', { rate: cpuRate });
   await cdp.send('Profiler.enable');
   await cdp.send('Profiler.setSamplingInterval', { interval: 1000 });
   await cdp.send('Profiler.start');
   const before = await metrics();
-  const flight = await page.evaluate(async seconds => {
-    const { spawnEnemy } = await import('./sim.js'), world = tyran.world;
+  const flight = await page.evaluate(async ({ seconds, stress }) => {
+    const { spawnEnemy, hurtPlayer } = await import('./sim.js'), world = tyran.world;
     const started = performance.now(), trace = { draws: [], terrainBuilds: [], sceneryBuilds: [], longTasks: [], frames: [] };
     let chunkHeight = 0;
     const draw = world.draw, getTile = world.getTile, getSceneryLayer = world.getSceneryLayer;
@@ -56,9 +61,10 @@ try {
       return result;
     };
     world.getSceneryLayer = function (row, band, depth = 0) {
-      if (this.sceneryLayers[depth].has(row)) return getSceneryLayer.call(this, row, band, depth);
+      const partial = this.sceneryLayers[depth].has(row);
+      if (partial && !this.sceneryDirty?.has(row)) return getSceneryLayer.call(this, row, band, depth);
       const time = performance.now(), result = getSceneryLayer.call(this, row, band, depth);
-      trace.sceneryBuilds.push({ row, depth, at: time - started, ms: performance.now() - time });
+      trace.sceneryBuilds.push({ row, depth, partial, at: time - started, ms: performance.now() - time });
       return result;
     };
     const observer = new PerformanceObserver(list => {
@@ -72,16 +78,24 @@ try {
     const state = tyran.state;
     // Keep normal scrolling and moving opponents: a guardian would slow the
     // ground to 42px/s and hide chunk-streaming work from a short benchmark.
-    state.time = 25; state.scroll = 440; state.showcase = 3;
-    for (const pilot of state.players) pilot.hurt = 1e8;
+    state.time = stress ? state.duration * .7 : 25; state.scroll = 440; state.showcase = 3;
+    for (const pilot of state.players) { pilot.hurt = 1e8; if (stress) pilot.rapidFireTime = 10; }
     for (let i = 0; i < 18; i++) spawnEnemy(state, i % 9, 80 + (i % 9) * (state.width - 160) / 8, 80 + Math.floor(i / 9) * 200);
     const key = (code, down) => window.dispatchEvent(new KeyboardEvent(down ? 'keydown' : 'keyup', { code, bubbles: true, cancelable: true }));
     key('ControlLeft', true); key('ControlRight', true);
     const startScroll = state.scroll, startTime = state.time, flightStarted = performance.now();
-    let previous = null, steering = -1;
+    let previous = null, steering = -1, lastImpact = -1;
     await new Promise(resolve => {
       function sample(timestamp) {
         const at = performance.now() - started;
+        const impact = Math.floor((state.time - startTime) / 2);
+        if (stress && impact !== lastImpact) {
+          lastImpact = impact;
+          const pilot = state.players[0]; pilot.hurt = 0;
+          hurtPlayer(state, pilot, 1); pilot.hurt = 1e8;
+          for (let i = 0; i < 6; i++) state.events.push({ type: 'explosion', ground: true,
+            x: state.width * (.18 + i * .13), y: 200 + i % 3 * 145, size: 60 });
+        }
         if (previous !== null) trace.frames.push({ at, ms: timestamp - previous, scroll: state.scroll, enemies: state.enemies.length, bullets: state.bullets.length, renderAverageMs: tyran.performance.renderMs });
         previous = timestamp;
         // Brief alternating strafes exercise interpolation/parallax and keep
@@ -101,7 +115,7 @@ try {
     observer.disconnect(); world.draw = draw; world.getTile = getTile; world.getSceneryLayer = getSceneryLayer;
     return { ...trace, launchMs, startScroll, endScroll: state.scroll, simulationSeconds: state.time - startTime, elapsedMs: performance.now() - started, flightMs: performance.now() - flightStarted,
       chunkHeight, chunkBoundaries: Math.floor(state.scroll / chunkHeight) - Math.floor(startScroll / chunkHeight), performance: tyran.performance };
-  }, seconds);
+  }, { seconds, stress });
   const after = await metrics(), { profile } = await cdp.send('Profiler.stop');
   const counts = new Map();
   for (const id of profile.samples || []) counts.set(id, (counts.get(id) || 0) + 1);
@@ -110,10 +124,10 @@ try {
   const builds = [...flight.terrainBuilds.map(build => ({ ...build, kind: 'terrain' })), ...flight.sceneryBuilds.map(build => ({ ...build, kind: 'scenery' }))];
   const frameCount = flight.frames.length, warmDraws = flight.draws.filter(draw => draw.at >= 1500);
   const result = {
-    url, dpr, launchMode: coldLaunch ? 'cold' : 'after-preview', launchMs: flight.launchMs,
+    url, dpr, stress, cpuRate, gpu, launchMode: coldLaunch ? 'cold' : 'after-preview', launchMs: flight.launchMs,
     requestedSeconds: seconds, elapsedSeconds: flight.elapsedMs / 1000, flightSeconds: flight.flightMs / 1000, simulationSeconds: flight.simulationSeconds,
     streaming: { startScroll: flight.startScroll, endScroll: flight.endScroll, chunkHeight: flight.chunkHeight, chunkBoundaries: flight.chunkBoundaries,
-      terrainBuilds: flight.terrainBuilds.length, sceneryBuilds: flight.sceneryBuilds.length },
+      terrainBuilds: flight.terrainBuilds.length, sceneryBuilds: flight.sceneryBuilds.length, partialSceneryBuilds: flight.sceneryBuilds.filter(build => build.partial).length },
     frames: distribution(flight.frames.map(frame => frame.ms)), over25ms: flight.frames.filter(frame => frame.ms > 25).length,
     over50ms: flight.frames.filter(frame => frame.ms > 50).length, terrainDraw: distribution(flight.draws.map(draw => draw.ms)), warmTerrainDraw: distribution(warmDraws.map(draw => draw.ms)),
     gameRenderMovingAverage: distribution(flight.frames.map(frame => frame.renderAverageMs)),

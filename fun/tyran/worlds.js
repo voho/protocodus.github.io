@@ -102,7 +102,7 @@ function siteHash(id) {
 export class WorldRenderer {
   constructor() {
     this.tiles=new Map();this.bands=new Map();this.sprites=new Map();this.damageSpriteKeys=new Set();
-    this.sceneryLayers=[new Map()];
+    this.sceneryLayers=[new Map()];this.sceneryDirty=new Map();
     this.layerViews=[{zoom:1,x:0,y:0,first:0,last:0}];
     this.hitBuckets=new Map();this.visibleProps=[];this.damage=new Map();this.destroyed=new Set();this.turretActivity=new Map();
     this.setWorld(0);
@@ -117,7 +117,7 @@ export class WorldRenderer {
       this.bands.clear();this.hitBuckets.clear();
       for(const layers of this.sceneryLayers)layers.clear();
     }
-    this.damage.clear();this.destroyed.clear();this.visibleProps.length=0;this.turretActivity.clear();
+    this.damage.clear();this.destroyed.clear();this.visibleProps.length=0;this.turretActivity.clear();this.sceneryDirty.clear();
     this.scale=1;this.scroll=0;this.parallaxX=0;
     // A preview or retry reuses immutable artwork while resetting destruction.
     if(reuse)return;
@@ -146,6 +146,7 @@ export class WorldRenderer {
     this.assetRevision=spriteRevision;this.sprites.clear();this.damageSpriteKeys.clear();
     this.tiles.clear();this.terrain.materials.clear();this.terrain.edges.clear();
     for(const layer of this.sceneryLayers)layer.clear();
+    this.sceneryDirty.clear();
     this.cloudSprite=this.makeCloud();this.warmScenery();
   }
   queueWarm(key,work) {
@@ -163,6 +164,7 @@ export class WorldRenderer {
     this.turretActivity.clear();
     this.bands.clear();this.hitBuckets.clear();this.visibleProps.length=0;
     for(const layer of this.sceneryLayers)layer.clear();
+    this.sceneryDirty.clear();
     if(sceneryVersion<2){
       // Old saves stored absolute HP against the previous, smaller health totals.
       // Visit only damaged rows, then discard their transient geometry immediately.
@@ -265,15 +267,18 @@ export class WorldRenderer {
         if(prop.groundRole==='cache')prop.bonus=SITE_BONUSES[(hash>>>8)%SITE_BONUSES.length];
       }
     }
-    props.sort((a,b)=>a.y-b.y);this.bands.set(row,props);return props;
+    props.sort((a,b)=>a.y-b.y);
+    // Simulation only needs the few mounted guns, not every tree and rock.
+    props.turrets=props.filter(prop=>prop.groundRole==='turret');
+    this.bands.set(row,props);return props;
   }
   /** Refresh simulation coordinates independently of the last rendered frame. */
   getGroundTargets(width,height,scroll,focusX=width*.5) {
     const scale=width/WIDTH,offset=(.5-clamp(focusX/width,0,1))*WIDTH*.02;
     this.scale=scale;this.scroll=scroll;this.parallaxX=offset;
     const h=height/scale,first=Math.floor((-scroll-PAD)/TILE),last=Math.floor((h-scroll+PAD)/TILE),targets=[];
-    for(let row=first;row<=last;row++)for(const prop of this.getBand(row)){
-      if(prop.groundRole!=='turret'||prop.hp<=0||this.destroyed.has(prop.id))continue;
+    for(let row=first;row<=last;row++)for(const prop of this.getBand(row).turrets){
+      if(prop.hp<=0||this.destroyed.has(prop.id))continue;
       const x=(prop.x+offset)*scale,y=(prop.y+scroll)*scale,radius=prop.size*.32*scale;
       if(x<-radius||x>width+radius||y<-PAD*scale||y>height+PAD*scale)continue;
       targets.push({id:prop.id,x,y,radius,phase:prop.phase});
@@ -285,10 +290,21 @@ export class WorldRenderer {
     for(const turret of turrets)this.turretActivity.set(turret.id,turret);
   }
   getSceneryLayer(row,band,depth=0) {
-    const cache=this.sceneryLayers[depth];if(cache.has(row))return cache.get(row);
-    const out=canvas(WIDTH+MARGIN*2,TILE+PAD*2),c=out.getContext('2d');
-    this.drawGroundDetails(c,row);
+    const cache=this.sceneryLayers[depth],existing=cache.get(row),dirty=this.sceneryDirty.get(row);
+    if(existing&&!dirty)return existing;
+    const out=existing||canvas(WIDTH+MARGIN*2,TILE+PAD*2),bounds=existing?dirty:null;
+    const target=bounds?(this.sceneryScratch||(this.sceneryScratch=canvas(out.width,out.height))):out;
+    const c=target.getContext('2d');
+    if(bounds){
+      const x=bounds.left+MARGIN,y=bounds.top-row*TILE+PAD,w=bounds.right-bounds.left,h=bounds.bottom-bounds.top;
+      c.clearRect(x,y,w,h);
+    }
+    this.drawGroundDetails(c,row,bounds);
     for(const prop of band) {
+      // Repaint every overlapping object in its original order so transparent
+      // wings, foliage and shadows remain identical to a complete strip rebuild.
+      const reach=prop.size*1.3+2;
+      if(bounds&&(prop.x+reach<bounds.left||prop.x-reach>bounds.right||prop.y+reach<bounds.top||prop.y-reach>bounds.bottom))continue;
       const y=prop.y-row*TILE+PAD,x=prop.x+MARGIN,scale=prop.size/100;
       const structural=STRUCTURE_SPRITES.includes(prop.type),destroyed=this.destroyed.has(prop.id);
       if(destroyed&&!structural){this.drawScorch(c,x,y,prop.size);continue;}
@@ -296,9 +312,28 @@ export class WorldRenderer {
       c.drawImage(this.getSprite(prop.type,prop.variant,stage),x-130*scale,y-130*scale,260*scale,260*scale);
       if(!structural&&prop.hp<prop.maxHp)ellipse(c,x+4,y+5,prop.size*.22,prop.size*.16,'rgba(36,28,37,.36)');
     }
+    if(bounds){
+      // Clipping scaled transparent sprites can change edge sampling. Paint the
+      // neighbors normally on one shared scratch strip, then copy whole pixels.
+      const x=Math.max(0,bounds.left+MARGIN),y=Math.max(0,bounds.top-row*TILE+PAD);
+      const w=Math.min(out.width,bounds.right+MARGIN)-x,h=Math.min(out.height,bounds.bottom-row*TILE+PAD)-y;
+      const destination=out.getContext('2d');
+      destination.clearRect(x,y,w,h);destination.drawImage(target,x,y,w,h,x,y,w,h);
+    }
+    this.sceneryDirty.delete(row);
     cache.set(row,out);return out;
   }
+  dirtyScenery(prop) {
+    if(!this.sceneryLayers[0].has(prop.row))return;
+    const reach=prop.size*1.3+2,old=this.sceneryDirty.get(prop.row);
+    const bounds={left:Math.floor(prop.x-reach),right:Math.ceil(prop.x+reach),top:Math.floor(prop.y-reach),bottom:Math.ceil(prop.y+reach)};
+    if(old){
+      old.left=Math.min(old.left,bounds.left);old.right=Math.max(old.right,bounds.right);
+      old.top=Math.min(old.top,bounds.top);old.bottom=Math.max(old.bottom,bounds.bottom);
+    }else this.sceneryDirty.set(prop.row,bounds);
+  }
   getGroundDetails(row) {
+    const band=this.getBand(row);if(band.details)return band.details;
     const rng=random(this.levelHash^Math.imul(row,71867)^0x57a3c12d),details=[];
     const types=GROUND_DETAILS[this.index];
     for(let cluster=0;cluster<34;cluster++){
@@ -312,13 +347,21 @@ export class WorldRenderer {
         const type=this.index===3&&tile.material<2?'coral':types[Math.floor(rng()*types.length)];
         items.push({type,x:x+Math.cos(a)*d,y:y+Math.sin(a)*d*.62,size:9+rng()*(n===0?27:15),variant:Math.floor(rng()*5),flip:rng()<.5?-1:1});
       }
-      details.push({x,y,radius,seed:Math.floor(rng()*0xffffffff),items});
+      const bounds={left:x-radius*1.3-8,right:x+radius*1.3+8,top:y-radius*1.3-8,bottom:y+radius*1.3+8};
+      for(const item of items){
+        const reach=item.size*1.3+2;
+        bounds.left=Math.min(bounds.left,item.x-reach);bounds.right=Math.max(bounds.right,item.x+reach);
+        bounds.top=Math.min(bounds.top,item.y-reach);bounds.bottom=Math.max(bounds.bottom,item.y+reach);
+      }
+      details.push({x,y,radius,seed:Math.floor(rng()*0xffffffff),items,bounds});
     }
-    return details;
+    band.details=details;return details;
   }
-  drawGroundDetails(c,row) {
+  drawGroundDetails(c,row,bounds=null) {
     const p=this.palette;
     for(const cluster of this.getGroundDetails(row)){
+      const b=cluster.bounds;
+      if(bounds&&(b.right<bounds.left||b.left>bounds.right||b.bottom<bounds.top||b.top>bounds.bottom))continue;
       const x=cluster.x+MARGIN,y=cluster.y-row*TILE+PAD,rng=random(cluster.seed);
       // Uneven silt, leaf litter and rubble beds ground the scattered objects.
       c.globalAlpha=.19;blob(c,x+3,y+5,cluster.radius*1.22,cluster.radius*.64,p.low,rng,13);
@@ -450,7 +493,7 @@ export class WorldRenderer {
       }
     }
     c.restore();
-    for(const row of cache.keys())if(row<first-1||row>last+1)cache.delete(row);
+    for(const row of cache.keys())if(row<first-1||row>last+1){cache.delete(row);this.sceneryDirty.delete(row);}
   }
   draw(ctx,W,H,scroll,time,quality='high',focusX=W*.5,motion=true) {
     this.refreshSpriteAssets();
@@ -491,7 +534,7 @@ export class WorldRenderer {
           const next=after+1,key=`${prop.type}:${prop.variant}:${next}`;
           if(!this.sprites.has(key))this.queueWarm(`sprite:${key}`,()=>this.getSprite(prop.type,prop.variant,next));
         }
-        if(after!==before)this.sceneryLayers[0].delete(prop.row);
+        if(after!==before)this.dirtyScenery(prop);
         if(prop.hp<=0){
           this.destroyed.add(prop.id);
           this.turretActivity.delete(prop.id);
@@ -557,6 +600,7 @@ export class WorldRenderer {
     return {spriteCount:this.sprites.size,spriteBytes:bytes(this.sprites.values()),
       damageSpriteCount:this.damageSpriteKeys.size,damageSpriteLimit:MAX_DAMAGE_SPRITES,
       stripBytes:bytes(this.tiles.values())+bytes(this.sceneryLayers[0].values()),
+      scratchBytes:bytes([this.spriteScratch,this.shadowScratch,this.sceneryScratch].filter(Boolean)),
       damagedProps:this.damage.size,craters:this.destroyed.size};
   }
   makeDamagedFallback(type,variant,stage) {
@@ -601,7 +645,9 @@ export class WorldRenderer {
     const source=naturalIndex>=0?spriteCell('nature',naturalIndex):structureIndex>=0?spriteCell(STRUCTURE_ATLASES[stage],structureIndex):null;
     if(!source)return null;
     const out=canvas(260,260),body=this.spriteScratch||(this.spriteScratch=canvas(260,260));
-    const c=out.getContext('2d'),b=body.getContext('2d');b.clearRect(0,0,260,260);
+    // This shared scratch surface is read and tinted for every new appearance.
+    // Keep its pixels on the CPU; only the finished sprite is uploaded to draw.
+    const c=out.getContext('2d'),b=body.getContext('2d',{willReadFrequently:true});b.clearRect(0,0,260,260);
     const rng=random(variant*5811+this.index*741+1636),foliage=FOLIAGE.has(type),vehicle=type==='crawler'||type==='hauler';
     const extent=(vehicle?126:foliage?164:STRUCTURE_SPRITES.includes(type)?176:145)*(.96+variant*.02);
     const scale=extent/Math.max(source.width,source.height),w=source.width*scale,h=source.height*scale;

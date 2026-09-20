@@ -5,7 +5,7 @@ import { Effects } from './effects.js';
 import { AudioEngine } from './audio.js';
 import { readCampaign, writeCampaign } from './save-game.js';
 import { spritesReady, spriteStatus, spriteCell } from './sprite-assets.js';
-import { projectileTexture, projectileLayout, warmProjectileTextures } from './projectile-sprites.js';
+import { drawProjectiles, warmProjectileTextures } from './projectile-sprites.js';
 
 // Decode the atlas library before warming render caches or accepting flight input.
 await spritesReady;
@@ -13,7 +13,9 @@ await spritesReady;
 const elements = new Map();
 const $ = id => { if (!elements.has(id)) { const el = document.getElementById(id); if (el) elements.set(id, el); } return elements.get(id); };
 const setText = (el, text) => { if (el.textContent !== text) el.textContent = text; };
-const setWidth = (el, fraction) => { const width = `${(clamp(fraction, 0, 1) * 100).toFixed(1)}%`; if (el.style.width !== width) el.style.width = width; };
+const setFill = (el, fraction) => { const transform = `scaleX(${Number(clamp(fraction, 0, 1).toFixed(3))})`; if (el.style.transform !== transform) el.style.transform = transform; };
+const setHidden = (el, hidden) => { if (el.hidden !== hidden) el.hidden = hidden; };
+const setAttribute = (el, name, value) => { if (el.getAttribute(name) !== value) el.setAttribute(name, value); };
 const canvas = $('game-canvas'), ctx = canvas.getContext('2d', { alpha: false });
 const world = new WorldRenderer(), fx = new Effects(), audio = new AudioEngine();
 const keys = new Set(), numberFormat = new Intl.NumberFormat('en-US'), number = n => numberFormat.format(Math.floor(n || 0));
@@ -221,25 +223,25 @@ function refreshHUD() {
   setText($('weapon-value'), profile.name); setText($('weapon-level'), `MK ${String(profile.level + 1).padStart(2, '0')}`);
   const activeCombo = state.combo >= 2 && state.comboTime > 0;
   setText($('combo-value'), activeCombo ? `${state.combo} · ${comboLabel(state.combo)}` : 'READY');
-  setWidth($('combo-fill'), activeCombo ? state.comboTime / 5.2 : 0);
+  setFill($('combo-fill'), activeCombo ? state.comboTime / 5.2 : 0);
   $('combo-instrument').classList.toggle('active', activeCombo);
-  setWidth($('progress-fill'), state.time / state.duration);
+  setFill($('progress-fill'), state.time / state.duration);
   for (const p of state.players) {
     const prefix = `p${p.id + 1}`;
-    setWidth($(prefix + '-hull'), p.hull / p.maxHull); setWidth($(prefix + '-shield'), p.shield / p.maxShield);
-    $(prefix + '-hull').parentElement.setAttribute('aria-label', `Pilot ${p.id + 1} hull ${Math.ceil(p.hull)} of ${p.maxHull}`);
-    $(prefix + '-shield').parentElement.setAttribute('aria-label', `Pilot ${p.id + 1} shield ${Math.ceil(p.shield)} of ${p.maxShield}`);
+    setFill($(prefix + '-hull'), p.hull / p.maxHull); setFill($(prefix + '-shield'), p.shield / p.maxShield);
+    setAttribute($(prefix + '-hull').parentElement, 'aria-label', `Pilot ${p.id + 1} hull ${Math.ceil(p.hull)} of ${p.maxHull}`);
+    setAttribute($(prefix + '-shield').parentElement, 'aria-label', `Pilot ${p.id + 1} shield ${Math.ceil(p.shield)} of ${p.maxShield}`);
     const rapid = p.alive ? p.rapidFireTime || 0 : 0, invulnerable = p.alive ? p.invulnerableTime || 0 : 0;
-    $(prefix + '-bonuses').hidden = rapid <= 0 && invulnerable <= 0;
+    setHidden($(prefix + '-bonuses'), rapid <= 0 && invulnerable <= 0);
     for (const [kind, remaining] of [['rapid', rapid], ['invulnerable', invulnerable]]) {
-      $(prefix + '-' + kind).hidden = remaining <= 0;
+      setHidden($(prefix + '-' + kind), remaining <= 0);
       setText($(prefix + '-' + kind + '-time'), `${Math.ceil(remaining)}s`);
     }
   }
   const boss = state.enemies.find(e => e.boss && !e.dead);
-  $('boss-hud').hidden = !boss;
+  setHidden($('boss-hud'), !boss);
   if (boss) {
-    setText($('boss-name'), WORLDS[state.level].bossName || 'Sector guardian'); setWidth($('boss-fill'), boss.hp / boss.maxHp);
+    setText($('boss-name'), WORLDS[state.level].bossName || 'Sector guardian'); setFill($('boss-fill'), boss.hp / boss.maxHp);
     setText($('boss-status'), boss.vulnerable ? `Core exposed · ${boss.windowClock.toFixed(1)}s` : `Armor sealed · ${boss.windowClock.toFixed(1)}s`);
     $('boss-hud').classList.toggle('exposed', !!boss.vulnerable);
   }
@@ -352,7 +354,7 @@ function input() {
 
 function processEvents() {
   const groundOffset = (world.parallaxX || 0) * W / 1200;
-  const events = state.events.splice(0);
+  const events = state.events.length ? state.events.splice(0) : state.events;
   for (const e of events) {
     fx.emit(e, state.scroll * W / 1200, groundOffset); audio.effect(e.type, e.size, e.weapon || e.label);
     if (e.type === 'explosion' && !e.ground) {
@@ -463,17 +465,6 @@ function drawPilotBonuses(p, x, y) {
   ctx.restore();
 }
 
-function drawBullet(b) {
-  const sprite = projectileTexture(b), layout = projectileLayout(b);
-  ctx.save();
-  ctx.translate(lerp(b.px, b.x), lerp(b.py, b.y));
-  ctx.rotate(Math.atan2(b.vy, b.vx) + Math.PI / 2);
-  // Hull-sized ammunition stays readable over bright terrain. Bloom is baked.
-  ctx.globalCompositeOperation = 'source-over';
-  ctx.drawImage(sprite, -layout.width / 2, -layout.height / 2 + layout.offsetY, layout.width, layout.height);
-  ctx.restore();
-}
-
 function drawBossWeakPoints(enemy, clock) {
   if (!enemy.boss || !enemy.vulnerable) return;
   ctx.save(); ctx.globalCompositeOperation = 'screen';
@@ -506,9 +497,12 @@ function draw() {
     if (state.formations?.length) {
       ctx.save(); ctx.globalAlpha = .16; ctx.strokeStyle = SHIP_PALETTES[index]?.rim || '#e7f79a'; ctx.lineWidth = 1; ctx.setLineDash([4, 9]);
       for (const formation of state.formations) {
-        const members = state.enemies.filter(enemy => enemy.formation === formation && !enemy.dead);
-        if (members.length < 2) continue;
-        ctx.beginPath(); members.forEach((enemy, i) => { const x = lerp(enemy.px, enemy.x), y = lerp(enemy.py, enemy.y); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.stroke();
+        let members = 0; ctx.beginPath();
+        for (const enemy of state.enemies) if (enemy.formation === formation && !enemy.dead) {
+          const x = lerp(enemy.px, enemy.x), y = lerp(enemy.py, enemy.y);
+          if (members++) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+        }
+        if (members > 1) ctx.stroke();
       }
       ctx.restore();
     }
@@ -528,9 +522,7 @@ function draw() {
       const size = timed ? 76 + (fx.reduced ? 0 : Math.sin(clock * 3 + pickup.age) * 2) : 64;
       ctx.drawImage(pickupTexture(pickup.kind), pickup.x - size / 2, pickup.y - size / 2, size, size);
     }
-    ctx.save(); ctx.globalCompositeOperation = 'lighter';
-    for (const b of state.bullets) drawBullet(b);
-    ctx.restore();
+    drawProjectiles(ctx, state.bullets, renderAlpha, W, H);
     for (const p of state.players) if (p.alive) {
       const color = p.id ? '#ffc18b' : '#a4ffee', x = lerp(p.px, p.x), y = lerp(p.py, p.y);
       drawShip(ctx, x, y, 30, 'player', color, clock, { hit: p.hurt > .2 ? 1 : 0, player: p.id, world: index, thrust: p.thrust, quality, motion: !fx.reduced });

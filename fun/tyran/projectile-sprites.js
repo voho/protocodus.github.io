@@ -108,6 +108,27 @@ export function projectileLayout(bullet) {
   return layouts.get(key);
 }
 
+/** Submit a volley in painter order, retaining the camera transform only once. */
+export function drawProjectiles(ctx, bullets, alpha = 1, width = Infinity, height = Infinity) {
+  if (!bullets.length) return;
+  const { a, b, c, d, e, f } = ctx.getTransform();
+  ctx.save(); ctx.globalCompositeOperation = 'source-over';
+  for (const bullet of bullets) {
+    const layout = projectileLayout(bullet);
+    const x = (bullet.px ?? bullet.x) + (bullet.x - (bullet.px ?? bullet.x)) * alpha;
+    const y = (bullet.py ?? bullet.y) + (bullet.y - (bullet.py ?? bullet.y)) * alpha;
+    // Account for the entire rotated glow and the flight camera's shake margin.
+    const pad = (layout.width + layout.height) * .5 + Math.abs(layout.offsetY) + 32;
+    if (!b && !c && (x < -pad || x > width + pad || y < -pad || y > height + pad)) continue;
+    const angle = Math.atan2(bullet.vy, bullet.vx) + Math.PI / 2;
+    const cos = Math.cos(angle), sin = Math.sin(angle);
+    ctx.setTransform(a * cos + c * sin, b * cos + d * sin, c * cos - a * sin, d * cos - b * sin,
+      a * x + c * y + e, b * x + d * y + f);
+    ctx.drawImage(projectileTexture(bullet), -layout.width / 2, -layout.height / 2 + layout.offsetY, layout.width, layout.height);
+  }
+  ctx.restore();
+}
+
 export function warmProjectileTextures(weapons = [], spectrum = []) {
   for (const weapon of weapons) projectileTexture({ team: 0, kind: weapon.kind || weapon.id, weaponColor: weapon.color });
   spectrum.forEach((color, type) => projectileTexture({ team: -1, color, variant: type === 9 ? 5 : type % 5 }));
