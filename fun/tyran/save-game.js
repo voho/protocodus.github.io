@@ -1,12 +1,12 @@
 import { createCampaign, MAX_UPGRADE, shipStats, WEAPONS, FORMATIONS } from './sim.js';
 
-export const SAVE_KEYS = Object.freeze({ auto: 'tyran-save-v2:auto', manual: 'tyran-save-v2:manual' });
+export const SAVE_KEY = 'tyran-campaign';
 export const LEGACY_SAVE_KEY = 'tyran-campaign-v1';
+const LEGACY_SLOT_KEYS = ['tyran-save-v2:auto', 'tyran-save-v2:manual'];
 const VERSION = 2, SCENERY_VERSION = 2, MAX_BYTES = 4_000_000, MAX_SCENERY = 24_000;
 const POSITIVE_INFINITY = '@infinity', NEGATIVE_INFINITY = '@-infinity';
 const weaponIds = new Set(WEAPONS.map(weapon => weapon.id));
 const projectileKinds = new Set([...weaponIds, 'hostile']);
-const validSlot = slot => Object.hasOwn(SAVE_KEYS, slot);
 const object = value => value && typeof value === 'object' && !Array.isArray(value);
 const invalid = () => { throw new Error('Invalid campaign save'); };
 
@@ -249,39 +249,53 @@ function storageOrThrow(storage) {
   return result;
 }
 
-export function readSave(slot = 'auto', storage) {
-  if (!validSlot(slot)) return { ok: false, run: null, error: 'invalid-slot' };
+export function readCampaign(storage) {
   try {
-    const target = storageOrThrow(storage), raw = target.getItem(SAVE_KEYS[slot]);
+    const target = storageOrThrow(storage), raw = target.getItem(SAVE_KEY);
     if (raw !== null) {
+      // Once promoted, historical saves must never replace this campaign.
       const run = restoreRun(raw);
       return { ok: !!run, run, error: run ? null : 'corrupt' };
     }
-    if (slot === 'auto') {
-      const legacy = target.getItem(LEGACY_SAVE_KEY);
-      if (legacy !== null) {
-        const run = migrateLegacy(legacy);
-        // A completed legacy campaign has no resumable checkpoint.
-        try { const value = parse(legacy); if (value.version === 1 && value.checkpoint === null) return { ok: true, run: null, error: null }; } catch { /* reported below */ }
-        return { ok: !!run, run, error: run ? null : 'corrupt' };
-      }
+    let newest = null, hadLegacySave = false;
+    for (const key of LEGACY_SLOT_KEYS) {
+      const legacy = target.getItem(key);
+      if (legacy === null) continue;
+      hadLegacySave = true;
+      const run = restoreRun(legacy);
+      // Automatic saves win ties because they reflect campaign transitions.
+      if (run && (!newest || run.savedAt > newest.savedAt)) newest = run;
     }
-    return { ok: true, run: null, error: null };
+    if (newest) {
+      newest.migrated = true;
+      return { ok: true, run: newest, error: null };
+    }
+    const legacy = target.getItem(LEGACY_SAVE_KEY);
+    if (legacy !== null) {
+      const run = migrateLegacy(legacy);
+      // A completed legacy campaign has no resumable checkpoint.
+      try { const value = parse(legacy); if (value.version === 1 && value.checkpoint === null) return { ok: true, run: null, error: null }; } catch { /* reported below */ }
+      return { ok: !!run, run, error: run ? null : 'corrupt' };
+    }
+    return { ok: !hadLegacySave, run: null, error: hadLegacySave ? 'corrupt' : null };
   } catch { return { ok: false, run: null, error: 'unavailable' }; }
 }
 
-export function writeSave(slot, state, context = {}, storage) {
-  if (!validSlot(slot)) return { ok: false, run: null, error: 'invalid-slot' };
+export function writeCampaign(state, context = {}, storage) {
   let raw;
   try { raw = serializeRun(state, context); } catch { return { ok: false, run: null, error: 'invalid-run' }; }
   try {
-    storageOrThrow(storage).setItem(SAVE_KEYS[slot], raw);
+    storageOrThrow(storage).setItem(SAVE_KEY, raw);
     return { ok: true, run: restoreRun(raw), error: null };
   } catch { return { ok: false, run: null, error: 'unavailable' }; }
 }
 
-export function clearSave(slot = 'auto', storage) {
-  if (!validSlot(slot)) return { ok: false, error: 'invalid-slot' };
-  try { storageOrThrow(storage).removeItem(SAVE_KEYS[slot]); return { ok: true, error: null }; }
+export function clearCampaign(storage) {
+  try {
+    const target = storageOrThrow(storage);
+    // Remove migration sources first so clearing cannot revive older progress.
+    for (const key of [...LEGACY_SLOT_KEYS, LEGACY_SAVE_KEY, SAVE_KEY]) target.removeItem(key);
+    return { ok: true, error: null };
+  }
   catch { return { ok: false, error: 'unavailable' }; }
 }

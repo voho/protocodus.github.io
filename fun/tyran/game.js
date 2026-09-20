@@ -3,7 +3,7 @@ import { ENEMY_TYPES, SHIP_PALETTES, drawShip, warmShipSprites } from './ships.j
 import { createCampaign, beginLevel, update, buyUpgrade, upgradeCost, UPGRADES, WEAPONS, BULLET_SPECTRUM, MAX_UPGRADE, PLAYER_SPEED, clamp, selectWeapon, shipStats, weaponStats, bossWeakPointPosition, comboLabel, applyStructureBlast } from './sim.js';
 import { Effects } from './effects.js';
 import { AudioEngine } from './audio.js';
-import { readSave, writeSave } from './save-game.js';
+import { readCampaign, writeCampaign } from './save-game.js';
 import { spritesReady, spriteStatus, spriteCell } from './sprite-assets.js';
 import { projectileTexture, projectileLayout, warmProjectileTextures } from './projectile-sprites.js';
 
@@ -18,8 +18,8 @@ const canvas = $('game-canvas'), ctx = canvas.getContext('2d', { alpha: false })
 const world = new WorldRenderer(), fx = new Effects(), audio = new AudioEngine();
 const keys = new Set(), numberFormat = new Intl.NumberFormat('en-US'), number = n => numberFormat.format(Math.floor(n || 0));
 const screens = ['menu-screen', 'pause-screen', 'hangar-screen', 'end-screen'];
-const saves = { auto: readSave('auto'), manual: readSave('manual') };
-let state = null, mode = 1, selected = 0, scene = 'menu', unlocked = Math.max(0, saves.auto.run?.unlocked || 0, saves.manual.run?.unlocked || 0);
+let campaign = readCampaign(), campaignError = null, activeCampaign = false, lastAutosaveTime = 0;
+let state = null, mode = 1, selected = 0, scene = 'menu', unlocked = campaign.run?.unlocked || 0;
 let W = 1200, H = 900, dpr = 1, previewScroll = 0, clock = 0, lastTime = 0, hudClock = 0;
 let announcementUntil = 0, quality = 'high', helpPaused = false, helpFocus = null;
 const STEP = 1 / 60;
@@ -41,27 +41,25 @@ function saveStatus(message) {
   for (const id of ['save-summary', 'pause-save-status', 'hangar-save-status']) setText($(id), message);
 }
 
-function saveGame(slot = 'manual') {
-  if (!state || !['playing', 'hangar', 'victory'].includes(state.status)) return false;
-  const result = writeSave(slot, state, {
+function autosave() {
+  if (!activeCampaign || !state || !['playing', 'hangar', 'victory'].includes(state.status)) return false;
+  const result = writeCampaign(state, {
     seed: world.seed, damage: world.damage, destroyed: world.destroyed, unlocked,
   });
-  if (result.ok) saves[slot] = result;
+  // A failed write keeps the last resumable run and waits before trying again.
+  lastAutosaveTime = state.time;
+  campaignError = result.error;
+  if (result.ok) campaign = result;
   refreshContinue();
-  saveStatus(result.ok ? `${slot === 'auto' ? 'Autosaved' : 'Game saved'} · ${saveDescription(result.run)}. Stored in this browser.`
-    : 'Could not save in this browser. Your previous save is unchanged; you can keep playing.');
   return result.ok;
 }
 
-function loadGame(slot = 'manual') {
-  const result = readSave(slot);
-  saves[slot] = result; refreshContinue();
-  if (!result.ok || !result.run) {
-    saveStatus(result.error === 'corrupt' ? 'This save could not be read. Your current flight is unchanged.'
-      : result.error === 'unavailable' ? 'Browser storage is unavailable. Your current flight is unchanged.' : 'There is no saved game in this slot yet.');
-    return;
-  }
+function resumeCampaign() {
+  const result = readCampaign();
+  campaign = result; campaignError = null; refreshContinue();
+  if (!result.ok || !result.run) return;
   const run = result.run;
+  activeCampaign = true; lastAutosaveTime = run.state.time;
   state = structuredClone(run.state); mode = state.mode; unlocked = Math.max(unlocked, run.unlocked);
   // Fit the saved arena to the current screen while retaining health, velocity,
   // timers and formation relationships. Loaded flight never advances until Resume.
@@ -88,7 +86,8 @@ function loadGame(slot = 'manual') {
   else if (run.scene === 'end') showEnd(true, true);
   else { setScreen('pause'); $('resume-button').focus({ preventScroll: true }); }
   refreshHUD();
-  saveStatus(`Loaded ${saveDescription(run)}${run.scene === 'pause' ? ' · Press Resume flight when ready.' : '.'}`);
+  if (run.migrated) autosave();
+  else refreshContinue();
 }
 
 function setScreen(next) {
@@ -160,8 +159,9 @@ function announce(kicker, title, description = '', seconds = 3) {
   announcementUntil = clock + seconds;
 }
 
-function launch(level = 0, checkpoint = null) {
+function launch(level = 0, checkpoint = null, persist = true) {
   audio.start();
+  activeCampaign = persist; lastAutosaveTime = 0;
   level = clamp(Math.floor(Number(level) || 0), 0, WORLDS.length - 1);
   selected = level;
   state = createCampaign(checkpoint?.mode || mode, level, checkpoint);
@@ -170,7 +170,7 @@ function launch(level = 0, checkpoint = null) {
   world.setWorld(level); warmFleet(level); fx.reset(); keys.clear(); previousScroll = 0; $('boss-hud').hidden = true;
   setScreen('playing');
   announce(`Sector ${String(level + 1).padStart(2, '0')} / 10`, WORLDS[level].name, WORLDS[level].subtitle || 'Clear the skies. Bring everyone home.', 3.2);
-  syncPilotHUD(); saveGame('auto');
+  syncPilotHUD(); autosave(); refreshContinue();
   canvas.focus({ preventScroll: true });
   refreshHUD();
 }
@@ -181,12 +181,14 @@ function syncPilotHUD() {
 }
 
 function returnToMenu() {
-  state = null; fx.reset(); selectWorld(selected); setScreen('menu');
-  $('announcement').hidden = true; $('boss-hud').hidden = true; refreshContinue(); $('launch-button').focus({ preventScroll: true });
+  autosave();
+  state = null; activeCampaign = false; fx.reset(); selectWorld(selected); setScreen('menu');
+  $('announcement').hidden = true; $('boss-hud').hidden = true; refreshContinue();
+  $(campaign.run ? 'continue-button' : 'launch-button').focus({ preventScroll: true });
 }
 
 function pause() {
-  if (scene === 'playing') { setScreen('pause'); $('resume-button').focus({ preventScroll: true }); }
+  if (scene === 'playing') { setScreen('pause'); autosave(); $('resume-button').focus({ preventScroll: true }); }
   else if (scene === 'pause') { audio.start(); setScreen('playing'); canvas.focus({ preventScroll: true }); }
 }
 
@@ -218,7 +220,7 @@ function refreshHUD() {
 }
 
 function showHangar(bonus, loading = false) {
-  unlocked = Math.max(unlocked, state.level + 1);
+  if (activeCampaign) unlocked = Math.max(unlocked, state.level + 1);
   setScreen('hangar'); $('announcement').hidden = true;
   $('hangar-title').textContent = 'Refit your ship.';
   $('hangar-subtitle').textContent = `${WORLDS[state.level].name} cleared · ${state.kills} ship${state.kills === 1 ? '' : 's'} down · ${state.destroyed} ground targets destroyed.${bonus ? ` ${number(bonus)} credits awarded.` : ''} Spend your salvage before the next launch; hull and shields will be restored.`;
@@ -228,7 +230,7 @@ function showHangar(bonus, loading = false) {
     return `<li class="${complete ? 'complete' : current ? 'current' : ''}" ${current ? 'aria-current="step"' : ''}><span>${String(index + 1).padStart(2, '0')}${complete ? ' ✓' : ''}</span><strong>${world.name}</strong></li>`;
   }).join('');
   renderUpgrades(); $('next-button').focus({ preventScroll: true });
-  if (!loading) saveGame('auto');
+  if (!loading) autosave();
 }
 
 function renderUpgrades() {
@@ -260,30 +262,27 @@ function renderWeapons() {
 function showEnd(won, loading = false) {
   setScreen('end'); $('announcement').hidden = true;
   $('end-title').textContent = won ? 'The skies are yours.' : 'Signal lost.';
-  $('end-description').textContent = won ? 'The citadel has fallen. Your campaign is complete. Start a fresh flight or return to flight command.' : `Your flight ended over ${WORLDS[state.level].name}. Retry with your current equipment or load a saved flight. Your last save is safe.`;
+  $('end-description').textContent = won ? 'The citadel has fallen. Your campaign is complete. Start a fresh flight or return to flight command.' : `Your flight ended over ${WORLDS[state.level].name}. Retry with your current equipment or return to the main menu.${activeCampaign && campaign.run ? ' Your last autosave is ready to resume.' : ''}`;
   $('end-score').textContent = number(state.score);
   $('retry-button').textContent = won ? 'Fly a new campaign ↗' : 'Retry sector ↗';
-  if (won && !loading) { unlocked = 9; saveGame('auto'); }
+  if (won && !loading && activeCampaign) { unlocked = 9; autosave(); }
   refreshContinue();
   $('retry-button').focus({ preventScroll: true });
 }
 
 function refreshContinue() {
-  const auto = saves.auto.run, manual = saves.manual.run;
-  $('continue-button').hidden = !auto; $('continue-button').disabled = !auto; $('load-game-button').disabled = !manual;
-  $('continue-button').textContent = auto ? `Continue · ${saveDescription(auto)}` : 'Continue campaign';
-  $('load-game-button').textContent = manual ? `Load game · ${saveDescription(manual)}` : 'Load game';
-  for (const id of ['pause-load-button', 'hangar-load-button', 'end-load-button']) {
-    $(id).disabled = !manual && (!auto || auto.scene === 'end');
-    $(id).textContent = manual ? 'Load game' : 'Load autosave';
+  const run = campaign.run, error = campaignError || campaign.error;
+  $('continue-button').hidden = false; $('continue-button').disabled = !run;
+  setText($('continue-label'), 'Resume campaign');
+  const status = campaignError ? 'Could not autosave in this browser. Your previous save is unchanged; you can keep playing.'
+    : error === 'unavailable' ? 'Browser storage is unavailable. You can still play.'
+    : error === 'corrupt' ? 'The saved campaign could not be read. You can start a new campaign.'
+    : run ? `${saveDescription(run)} · ${run.state.mode === 2 ? 'Co-op' : 'Solo'} · ${number(run.state.credits)} credits · ${number(run.state.score)} score. Progress saves automatically.`
+    : 'Progress saves automatically in this browser. Start a new campaign to begin.';
+  saveStatus(status);
+  if (state && !activeCampaign) {
+    for (const id of ['pause-save-status', 'hangar-save-status']) setText($(id), 'Practice flight · Your campaign stays saved.');
   }
-  if (auto || manual) {
-    const latest = !auto || (manual && manual.savedAt > auto.savedAt) ? manual : auto;
-    const when = latest.savedAt ? new Date(latest.savedAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Previous campaign';
-    setText($('save-summary'), `${when} · ${latest.state.mode === 2 ? 'Co-op' : 'Solo'} · ${number(latest.state.credits)} credits. Manual save is kept separately from autosave.`);
-  } else setText($('save-summary'), Object.values(saves).some(save => save.error === 'unavailable')
-    ? 'Browser storage is unavailable. You can still play.'
-    : Object.values(saves).some(save => save.error === 'corrupt') ? 'A saved game could not be read. You can start a new campaign.' : 'No saved flights yet. Progress saves automatically; Save game keeps a separate manual slot.');
 }
 
 function saveDescription(run) {
@@ -299,7 +298,7 @@ function selectWorld(index) {
   if ($('selected-world-description')) $('selected-world-description').textContent = WORLDS[selected].description || WORLDS[selected].subtitle;
   if ($('preview-world-number')) $('preview-world-number').textContent = `Sector ${String(selected + 1).padStart(2, '0')}`;
   document.body.dataset.world = selected;
-  $('sector-flight-button').textContent = `Fly selected sector · ${String(selected + 1).padStart(2, '0')} ↗`;
+  $('sector-flight-button').textContent = `Practice sector ${String(selected + 1).padStart(2, '0')} ↗`;
   renderDirty = true; requestFrame();
 }
 
@@ -347,6 +346,8 @@ function processEvents() {
     if (e.type === 'defeat') showEnd(false);
     if (e.type === 'victory') showEnd(true);
   }
+  // Save at a bounded cadence, after combat and reward events have settled.
+  if (scene === 'playing' && activeCampaign && state.time - lastAutosaveTime >= 5) autosave();
 }
 
 const pickupTextures = new Map();
@@ -531,8 +532,9 @@ window.addEventListener('keydown', event => {
     const weapon = WEAPONS[Number(weaponIndex[1]) - 1];
     if (weapon && selectWeapon(state, weapon.id)) {
       audio.start(); audio.effect('weapon'); refreshHUD();
-      if (scene === 'hangar') { renderUpgrades(); saveGame('auto'); }
+      if (scene === 'hangar') renderUpgrades();
       else renderWeapons();
+      autosave();
     }
     return;
   }
@@ -551,6 +553,7 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden && scene === 'playing') pause();
   if (!document.hidden) { lastTime = 0; renderDirty = true; requestFrame(); }
 });
+window.addEventListener('pagehide', autosave);
 window.addEventListener('resize', resize);
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 function clearMouseControl() {
@@ -587,30 +590,27 @@ window.addEventListener('pointercancel', releaseMouseFire, { capture: true });
 canvas.addEventListener('lostpointercapture', releaseMouseFire);
 function on(id, fn) { $(id)?.addEventListener('click', fn); }
 on('launch-button', () => launch(0));
-on('sector-flight-button', () => launch(selected));
-on('continue-button', () => loadGame('auto'));
-on('load-game-button', () => loadGame('manual'));
-for (const id of ['pause-save-button', 'hangar-save-button']) on(id, () => saveGame('manual'));
-for (const id of ['pause-load-button', 'hangar-load-button', 'end-load-button']) on(id, () => loadGame(saves.manual.run ? 'manual' : 'auto'));
+on('sector-flight-button', () => launch(selected, null, false));
+on('continue-button', resumeCampaign);
 on('hangar-menu-button', returnToMenu);
 on('pause-button', pause); on('resume-button', pause); on('menu-button', returnToMenu); on('end-menu-button', returnToMenu);
-on('restart-button', () => launch(state.level, state));
-on('retry-button', () => state.status === 'victory' ? launch(0) : launch(state.level, state));
+on('restart-button', () => launch(state.level, state, activeCampaign));
+on('retry-button', () => state.status === 'victory' ? launch(0) : launch(state.level, state, activeCampaign));
 on('next-button', () => {
   if (state?.status !== 'hangar') return;
   beginLevel(state, state.level + 1); world.setWorld(state.level); warmFleet(state.level); previousScroll = 0; fx.reset(); setScreen('playing'); audio.start(); $('boss-hud').hidden = true;
   announce(`Sector ${String(state.level + 1).padStart(2, '0')} / 10`, WORLDS[state.level].name, WORLDS[state.level].subtitle, 3); refreshHUD(); canvas.focus({ preventScroll: true });
-  saveGame('auto');
+  autosave();
 });
 $('upgrade-list').addEventListener('click', event => {
   const button = event.target.closest('[data-upgrade]'); if (!button || !state) return;
-  if (buyUpgrade(state, button.dataset.upgrade)) { audio.effect('upgrade'); renderUpgrades(); saveGame('auto'); const next = document.querySelector(`[data-upgrade="${button.dataset.upgrade}"]`); if (!next.disabled) next.focus(); else $('next-button').focus(); }
+  if (buyUpgrade(state, button.dataset.upgrade)) { audio.effect('upgrade'); renderUpgrades(); autosave(); const next = document.querySelector(`[data-upgrade="${button.dataset.upgrade}"]`); if (!next.disabled) next.focus(); else $('next-button').focus(); }
 });
 $('weapon-list').addEventListener('click', event => {
   const button = event.target.closest('[data-weapon]'); if (!button || !state) return;
   if (selectWeapon(state, button.dataset.weapon)) {
     audio.start(); audio.effect('weapon'); renderUpgrades(); refreshHUD();
-    if (scene === 'hangar') saveGame('auto');
+    autosave();
     document.querySelector(`[data-weapon="${button.dataset.weapon}"]`).focus({ preventScroll: true });
   }
 });

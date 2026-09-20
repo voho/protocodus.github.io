@@ -104,7 +104,7 @@ try {
   await page.locator('[data-upgrade="weapon"]').click();
   assert.equal(await page.evaluate(() => tyran.state.upgrades.weapon), 1);
   assert((await page.evaluate(() => tyran.state.credits)) < oldCredits);
-  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('tyran-save-v2:auto')));
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('tyran-campaign')));
   assert.equal(saved.state.upgrades.weapon, 1); assert.equal(saved.state.level, 0); assert.equal(saved.scene, 'hangar');
   await page.locator('#next-button').click();
   assert.equal(await page.evaluate(() => tyran.state.level), 1);

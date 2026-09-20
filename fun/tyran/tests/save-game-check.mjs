@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createCampaign, beginLevel, spawnEnemy, spawnFormation, update, buyUpgrade, shipStats } from '../sim.js';
-import { serializeRun, restoreRun, readSave, writeSave, clearSave, SAVE_KEYS, LEGACY_SAVE_KEY } from '../save-game.js';
+import { serializeRun, restoreRun, readCampaign, writeCampaign, clearCampaign, SAVE_KEY, LEGACY_SAVE_KEY } from '../save-game.js';
 
 let failures = 0;
 function check(name, fn) {
@@ -116,24 +116,57 @@ check('victory reloads as a finished campaign without replaying rewards', () => 
   assert.equal(run.state.score, 45600); assert.deepEqual(run.state.events, []);
 });
 
-check('manual and automatic slots stay independent and report missing saves', () => {
+check('one campaign autosave replaces progress and reports missing saves', () => {
   const storage = memoryStorage(), state = createCampaign();
-  assert.deepEqual(readSave('auto', storage), { ok: true, run: null, error: null });
-  assert.equal(writeSave('manual', state, { seed: 'manual-seed' }, storage).ok, true);
-  state.credits = 300;
-  assert.equal(writeSave('auto', state, { seed: 'auto-seed' }, storage).ok, true);
-  assert.equal(readSave('manual', storage).run.state.credits, 0);
-  assert.equal(readSave('auto', storage).run.state.credits, 300);
-  assert.equal(readSave('manual', storage).run.seed, 'manual-seed');
-  assert.equal(clearSave('auto', storage).ok, true);
-  assert.equal(readSave('auto', storage).run, null);
-  assert.ok(readSave('manual', storage).run);
+  assert.deepEqual(readCampaign(storage), { ok: true, run: null, error: null });
+  assert.equal(writeCampaign(state, { seed: 'campaign-seed' }, storage).ok, true);
+  state.credits = 300; state.score = 800; state.totalKills = 12;
+  assert.equal(writeCampaign(state, { seed: 'campaign-seed' }, storage).ok, true);
+  const run = readCampaign(storage).run;
+  assert.equal(run.state.credits, 300); assert.equal(run.state.score, 800); assert.equal(run.state.totalKills, 12);
+  assert.equal(run.seed, 'campaign-seed'); assert.equal(run.migrated, false);
+  assert.deepEqual([...storage.data.keys()], [SAVE_KEY]);
+  assert.equal(clearCampaign(storage).ok, true);
+  assert.equal(readCampaign(storage).run, null);
+});
+
+check('the newest valid historical slot migrates, with automatic saves winning ties', () => {
+  const storage = memoryStorage(), state = createCampaign();
+  const oldSave = (savedAt, credits) => {
+    state.credits = credits;
+    return JSON.stringify({ ...JSON.parse(serializeRun(state)), savedAt });
+  };
+  storage.setItem('tyran-save-v2:auto', oldSave(100, 100));
+  storage.setItem('tyran-save-v2:manual', oldSave(200, 200));
+  const newest = readCampaign(storage).run;
+  assert.equal(newest.state.credits, 200); assert.equal(newest.migrated, true);
+  assert.equal(storage.getItem(SAVE_KEY), null, 'reading never overwrites progress');
+  storage.setItem('tyran-save-v2:auto', oldSave(200, 300));
+  assert.equal(readCampaign(storage).run.state.credits, 300);
+  storage.setItem('tyran-save-v2:manual', '{broken');
+  assert.equal(readCampaign(storage).run.state.credits, 300);
+  storage.setItem('tyran-save-v2:auto', '{broken');
+  assert.deepEqual(readCampaign(storage), { ok: false, run: null, error: 'corrupt' });
+});
+
+check('canonical progress wins over historical slots, even if corrupted', () => {
+  const storage = memoryStorage(), state = createCampaign();
+  storage.setItem('tyran-save-v2:manual', serializeRun(state));
+  state.credits = 200;
+  assert.equal(writeCampaign(state, {}, storage).ok, true);
+  assert.equal(readCampaign(storage).run.state.credits, 200);
+  storage.setItem(SAVE_KEY, '{broken');
+  assert.deepEqual(readCampaign(storage), { ok: false, run: null, error: 'corrupt' });
+  assert.equal(clearCampaign(storage).ok, true);
+  assert.deepEqual([...storage.data.keys()], []);
+  assert.equal(readCampaign(storage).run, null, 'clearing does not revive an old slot');
 });
 
 check('legacy checkpoints resume at the preceding shop with campaign progress intact', () => {
   const storage = memoryStorage();
+  storage.setItem('tyran-save-v2:auto', '{broken');
   storage.setItem(LEGACY_SAVE_KEY, JSON.stringify({ version: 1, unlocked: 6, checkpoint: { mode: 2, level: 5, upgrades: { weapon: 3, hull: 2, shield: 1, recharge: 4 }, credits: 2340, score: 56780, totalKills: 348, weapon: 'plasma' } }));
-  const result = readSave('auto', storage), run = result.run;
+  const result = readCampaign(storage), run = result.run;
   assert.equal(result.ok, true); assert.equal(run.migrated, true); assert.equal(run.savedAt, 0);
   assert.equal(run.scene, 'hangar'); assert.equal(run.state.level, 4); assert.equal(run.state.mode, 2);
   assert.equal(run.state.upgrades.weapon, 3); assert.equal(run.state.weapon, 'plasma');
@@ -141,27 +174,44 @@ check('legacy checkpoints resume at the preceding shop with campaign progress in
   assert.equal(run.state.events.length, 0);
   assert.equal(buyUpgrade(run.state, 'shield'), true);
   beginLevel(run.state, run.state.level + 1); assert.equal(run.state.level, 5);
-  assert.equal(writeSave('auto', run.state, run, storage).ok, true);
-  assert.equal(readSave('auto', storage).run.migrated, false);
-  storage.data.delete(SAVE_KEYS.auto);
+  const oldCheckpoint = storage.getItem(LEGACY_SAVE_KEY);
+  assert.equal(writeCampaign(run.state, run, storage).ok, true);
+  assert.equal(readCampaign(storage).run.migrated, false);
+  assert.equal(storage.getItem(LEGACY_SAVE_KEY), oldCheckpoint, 'promotion leaves historical data intact');
+  clearCampaign(storage);
   storage.setItem(LEGACY_SAVE_KEY, '{"version":1,"unlocked":9,"checkpoint":null}');
-  assert.deepEqual(readSave('auto', storage), { ok: true, run: null, error: null });
+  assert.deepEqual(readCampaign(storage), { ok: true, run: null, error: null });
 });
 
-check('storage rejection and corrupt saves report failures without damaging another slot', () => {
+check('storage rejection and invalid saves preserve the last valid campaign', () => {
   const storage = memoryStorage(), state = createCampaign();
-  writeSave('manual', state, {}, storage);
-  const before = storage.getItem(SAVE_KEYS.manual);
+  writeCampaign(state, {}, storage);
+  const before = storage.getItem(SAVE_KEY);
   const denied = { getItem() { throw new Error('SecurityError'); }, setItem() { throw new Error('QuotaExceededError'); }, removeItem() { throw new Error('SecurityError'); } };
-  assert.equal(readSave('auto', denied).error, 'unavailable');
-  assert.equal(writeSave('auto', state, {}, denied).error, 'unavailable');
-  assert.equal(clearSave('auto', denied).error, 'unavailable');
-  assert.equal(writeSave('manual', { ...state, status: 'defeat' }, {}, storage).error, 'invalid-run');
-  assert.equal(storage.getItem(SAVE_KEYS.manual), before);
-  storage.setItem(SAVE_KEYS.auto, '{broken');
-  assert.equal(readSave('auto', storage).error, 'corrupt');
-  assert.equal(readSave('__proto__', storage).error, 'invalid-slot');
-  assert.equal(writeSave('other', state, {}, storage).error, 'invalid-slot');
+  assert.equal(readCampaign(denied).error, 'unavailable');
+  assert.equal(writeCampaign(state, {}, denied).error, 'unavailable');
+  assert.equal(clearCampaign(denied).error, 'unavailable');
+  assert.equal(writeCampaign({ ...state, status: 'defeat' }, {}, storage).error, 'invalid-run');
+  assert.equal(storage.getItem(SAVE_KEY), before);
+  const full = { ...storage, setItem() { throw new Error('QuotaExceededError'); } };
+  state.credits = 400;
+  assert.equal(writeCampaign(state, {}, full).error, 'unavailable');
+  assert.equal(storage.getItem(SAVE_KEY), before);
+  assert.equal(readCampaign(storage).run.state.credits, 0);
+});
+
+check('failed migration or clearing keeps the resumable campaign available', () => {
+  const storage = memoryStorage(), state = createCampaign();
+  storage.setItem('tyran-save-v2:auto', serializeRun(state));
+  const before = storage.getItem('tyran-save-v2:auto');
+  const full = { ...storage, setItem() { throw new Error('QuotaExceededError'); } };
+  assert.equal(writeCampaign(readCampaign(storage).run.state, {}, full).error, 'unavailable');
+  assert.equal(storage.getItem('tyran-save-v2:auto'), before);
+  assert.equal(readCampaign(storage).run.migrated, true);
+  writeCampaign(state, {}, storage);
+  const denied = { ...storage, removeItem() { throw new Error('SecurityError'); } };
+  assert.equal(clearCampaign(denied).error, 'unavailable');
+  assert.equal(readCampaign(storage).run.migrated, false);
 });
 
 check('untrusted save data is bounded and unknown properties never enter live state', () => {

@@ -13,7 +13,14 @@ const watch = page => {
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
 };
 const ready = page => page.waitForFunction(() => window.tyran && document.body.dataset.ready === 'true');
-const slot = (page, name) => page.evaluate(name => localStorage.getItem(`tyran-save-v2:${name}`), name);
+const campaign = page => page.evaluate(() => localStorage.getItem('tyran-campaign'));
+const record = async page => JSON.parse(await campaign(page));
+const newPage = async (options = {}) => {
+  const page = await browser.newPage({ viewport: { width: 1440, height: 960 }, ...options });
+  watch(page);
+  await page.addInitScript(() => { try { localStorage.setItem('tyran-muted', 'true'); } catch { /* storage denial is covered below */ } });
+  return page;
+};
 
 // Capture observable flight state, including relationships needed to keep a
 // formation flying together. Drawing interpolation and transient effects may reset.
@@ -35,21 +42,53 @@ const flight = page => page.evaluate(() => {
 });
 
 try {
-  const page = await browser.newPage({ viewport: { width: 1440, height: 960 } });
-  watch(page);
+  const page = await newPage();
   await page.goto(url); await ready(page);
+  assert.match(await page.locator('#launch-button').textContent(), /New campaign/);
+  assert(await page.locator('#continue-button').isDisabled(), 'Resume is unavailable without a campaign');
+  assert.equal(await page.locator('#load-game-button, #pause-save-button, #pause-load-button, #hangar-save-button, #hangar-load-button, #end-load-button').count(), 0, 'There are no manual save/load controls');
   await page.locator('[data-world="5"]').click();
   await page.locator('#launch-button').click();
   assert.equal(await page.evaluate(() => tyran.state.level), 0, 'New campaign always begins with sector one');
-  assert.equal(JSON.parse(await slot(page, 'auto')).state.level, 0, 'Launch creates an autosave');
-  await page.keyboard.press('Escape'); await page.locator('#menu-button').click();
+  assert.equal((await record(page)).state.level, 0, 'A new campaign saves immediately');
+
+  // Five seconds of simulated combat save progress without any button press.
+  await page.evaluate(() => {
+    const s = tyran.state; s.credits = 432; s.score = 1234;
+    s.spawnTimer = 100; s.formationTimer = 100; s.showcase = 9;
+    tyran.step(5.2);
+  });
+  let saved = await record(page);
+  assert(saved.state.time >= 5 && saved.state.time < 6, 'The periodic autosave captures an active flight');
+  assert.equal(saved.state.credits, 432); assert.equal(saved.state.score, 1234);
+  await page.keyboard.press('Escape');
+  assert.equal((await record(page)).state.time, await page.evaluate(() => tyran.state.time), 'Pausing saves the latest flight');
+  await page.locator('#menu-button').click();
+  assert.match(await page.locator('#continue-label').textContent(), /Resume campaign/);
+  const beforePractice = await campaign(page);
   await page.locator('[data-world="5"]').click();
   await page.locator('#sector-flight-button').click();
   assert.equal(await page.evaluate(() => tyran.state.level), 5, 'Sector exploration uses the selected world');
+  await page.evaluate(async () => {
+    const { spawnEnemy, killEnemy } = await import('./sim.js');
+    tyran.state.credits = 98765; tyran.step(5.2);
+    killEnemy(tyran.state, spawnEnemy(tyran.state, 9, tyran.state.width / 2, 180)); tyran.step(3.4);
+  });
+  await page.locator('[data-upgrade="hull"]').click();
+  await page.locator('#next-button').click();
   await page.keyboard.press('Escape'); await page.locator('#menu-button').click();
+  assert.equal(await campaign(page), beforePractice, 'Practice never replaces campaign progress, including periodic/pause/menu saves');
+  await page.locator('#continue-button').click();
+  assert.equal(await page.evaluate(() => tyran.state.credits), 432, 'Resume still opens the campaign after practice');
+  await page.locator('#menu-button').click();
+  assert.equal((await record(page)).unlocked, 0, 'Practice clears do not unlock stages in the campaign');
   await page.locator('[data-mode="2"]').click(); await page.locator('#launch-button').click();
+  saved = await record(page);
+  assert.equal(saved.state.level, 0); assert.equal(saved.state.mode, 2);
+  assert.equal(saved.state.score, 0); assert.equal(saved.state.credits, 0, 'New campaign replaces prior progress');
 
-  // Reach a busy flight using the real simulation, then freeze before saving.
+  // Reach a busy co-op flight through the real simulation, then leave to the
+  // menu. The automatic checkpoint must include scenery and shared formations.
   await page.evaluate(async () => {
     const { spawnFormation, spawnEnemy } = await import('./sim.js');
     const s = tyran.state;
@@ -75,68 +114,60 @@ try {
   assert(savedFlight.bullets.some(b => b.team === -1) && savedFlight.bullets.some(b => b.team === 0) && savedFlight.bullets.some(b => b.team === 1), 'Fixture contains both pilots’ projectiles and hostile fire');
   assert(savedFlight.formations.length && savedFlight.attached, 'Fixture contains an active formation');
   assert(savedFlight.damage.length && savedFlight.destroyedScenery.length, 'Fixture contains damaged and destroyed scenery');
-  await page.locator('#pause-save-button').click();
-  assert.match(await page.locator('#pause-save-status').textContent(), /Game saved/);
-  const manualFlight = await slot(page, 'manual'); assert(manualFlight);
-
-  await page.reload(); await ready(page); await page.locator('#load-game-button').click();
-  assert(await page.locator('#pause-screen').isVisible(), 'A saved flight loads paused');
+  await page.locator('#menu-button').click();
+  const busyCampaign = await campaign(page);
+  await page.reload(); await ready(page); await page.locator('#continue-button').click();
+  assert(await page.locator('#pause-screen').isVisible(), 'Resume opens a saved flight paused');
   assert.deepEqual(await flight(page), savedFlight, 'Reload preserves the flight, economy, formation links and scenery damage');
   await page.waitForTimeout(180);
-  assert.equal(await page.evaluate(() => tyran.state.time), savedFlight.time, 'Loading never advances the clock before Resume');
+  assert.equal(await page.evaluate(() => tyran.state.time), savedFlight.time, 'The saved flight waits for the pilot to resume');
 
-  // A flight saved on desktop must remain playable on a narrow screen. Resizing
-  // a live formation and loading it at that width must preserve its layout.
-  const checkNarrow = (actual, label) => {
-    const near = (a, b, description) => assert(Math.abs(a - b) < 1e-7, `${label}: ${description}`);
-    assert(actual.width < savedFlight.width);
-    assert.equal(actual.time, savedFlight.time, `${label}: the paused clock stays fixed`);
-    assert.equal(actual.players[0].x, 30, `${label}: a pilot at the edge stays within flight bounds`);
-    near(actual.players[1].x / actual.width, savedFlight.players[1].x / savedFlight.width, 'pilot position scales with the arena');
-    for (const collection of ['enemies', 'bullets', 'pickups']) actual[collection].forEach((actor, index) => {
-      near(actor.x / actual.width, savedFlight[collection][index].x / savedFlight.width, `${collection} preserve horizontal positions`);
-      near(actor.y, savedFlight[collection][index].y, `${collection} preserve vertical positions`);
-    });
-    actual.formations.forEach((formation, index) => {
-      const original = savedFlight.formations[index];
-      for (const key of ['x', 'baseX']) near(formation[key] / actual.width, original[key] / savedFlight.width, 'formation anchors scale with their ships');
-      formation.offsets.forEach((offset, i) => near(offset.x / actual.width, original.offsets[i].x / savedFlight.width, 'formation spacing scales with the arena'));
-    });
-    assert(actual.attached, `${label}: formation members retain shared anchor and offset references`);
-    assert.deepEqual(actual.damage, savedFlight.damage, `${label}: terrain damage remains attached to the same map cells`);
-  };
+  // Automatic saves remain playable when resumed on a different screen size.
   await page.setViewportSize({ width: 390, height: 844 });
   await page.waitForFunction(width => tyran.state.width < width, savedFlight.width);
-  checkNarrow(await flight(page), 'Resize');
-  await page.reload(); await ready(page); await page.locator('#load-game-button').click();
-  checkNarrow(await flight(page), 'Load at a different width');
+  const narrowFlight = await flight(page);
+  const near = (a, b, label) => assert(Math.abs(a - b) < 1e-7, label);
+  assert.equal(narrowFlight.time, savedFlight.time);
+  assert.equal(narrowFlight.players[0].x, 30, 'A pilot at the edge stays within flight bounds');
+  near(narrowFlight.players[1].x / narrowFlight.width, savedFlight.players[1].x / savedFlight.width, 'Pilot position scales with the arena');
+  for (const collection of ['enemies', 'bullets', 'pickups']) narrowFlight[collection].forEach((actor, index) => {
+    near(actor.x / narrowFlight.width, savedFlight[collection][index].x / savedFlight.width, `${collection} preserve horizontal positions`);
+    near(actor.y, savedFlight[collection][index].y, `${collection} preserve vertical positions`);
+  });
+  narrowFlight.formations.forEach((formation, index) => {
+    const original = savedFlight.formations[index];
+    for (const key of ['x', 'baseX']) near(formation[key] / narrowFlight.width, original[key] / savedFlight.width, 'Formation anchors scale with their ships');
+    formation.offsets.forEach((offset, i) => near(offset.x / narrowFlight.width, original.offsets[i].x / savedFlight.width, 'Formation spacing scales with the arena'));
+  });
+  assert(narrowFlight.attached); assert.deepEqual(narrowFlight.damage, savedFlight.damage);
+  await page.reload(); await ready(page); await page.locator('#continue-button').click();
+  assert.deepEqual(await flight(page), narrowFlight, 'Reloading a resized flight keeps its layout and scenery');
   await page.setViewportSize({ width: 1440, height: 960 });
   await page.waitForFunction(width => tyran.state.width === width, savedFlight.width);
-  await page.locator('#pause-load-button').click();
-  assert.deepEqual(await flight(page), savedFlight, 'The original manual save survives viewport changes');
   await page.locator('#resume-button').click();
   await page.waitForFunction(time => tyran.state.time > time, savedFlight.time);
-  await page.keyboard.press('Escape');
 
-  // Corruption and storage failures must not destroy a playable in-memory run.
-  const beforeCorrupt = await flight(page);
-  await page.evaluate(() => localStorage.setItem('tyran-save-v2:manual', '{broken'));
-  await page.locator('#pause-load-button').click();
-  assert.match(await page.locator('#pause-save-status').textContent(), /could not be read.*unchanged/i);
-  assert.deepEqual(await flight(page), beforeCorrupt);
-  await page.evaluate(raw => localStorage.setItem('tyran-save-v2:manual', raw), manualFlight);
+  // Quota failure cannot damage the last checkpoint or interrupt the run.
+  const beforeQuota = await campaign(page);
   await page.evaluate(() => {
     window.qaSetItem = Storage.prototype.setItem;
-    Storage.prototype.setItem = function (key, value) { if (key === 'tyran-save-v2:manual') throw new DOMException('Quota exceeded', 'QuotaExceededError'); return window.qaSetItem.call(this, key, value); };
+    Storage.prototype.setItem = function (key, value) {
+      if (key === 'tyran-campaign') throw new DOMException('Quota exceeded', 'QuotaExceededError');
+      return window.qaSetItem.call(this, key, value);
+    };
+    tyran.state.credits = 3456; tyran.pause();
   });
-  await page.locator('#pause-save-button').click();
-  assert.match(await page.locator('#pause-save-status').textContent(), /Could not save.*previous save is unchanged/i);
-  assert.equal(await slot(page, 'manual'), manualFlight);
+  assert.match(await page.locator('#pause-save-status').textContent(), /could not (?:auto)?save|cannot save|unavailable/i);
+  assert.equal(await campaign(page), beforeQuota, 'A failed automatic write preserves the previous campaign');
+  assert.equal(await page.evaluate(() => tyran.state.credits), 3456, 'Storage failure preserves the live run');
   await page.evaluate(() => { Storage.prototype.setItem = window.qaSetItem; delete window.qaSetItem; });
-  await page.locator('#menu-button').click(); await page.locator('#launch-button').click();
-  assert.equal(await slot(page, 'manual'), manualFlight, 'A new campaign preserves the separate manual save');
+  await page.locator('#menu-button').click();
+  assert.equal((await record(page)).state.credits, 3456, 'The next checkpoint recovers when storage is available');
+  await page.locator('#launch-button').click();
+  assert.equal((await record(page)).state.credits, 0, 'Starting fresh replaces the single saved campaign');
 
-  // Use the genuine boss-death event to enter the after-level shop.
+  // Use the genuine boss-death event to enter the shop; purchases and loadout
+  // selection persist immediately, without any explicit save action.
   await page.evaluate(async () => {
     const { spawnEnemy, killEnemy } = await import('./sim.js');
     const s = tyran.state; s.credits = 5000;
@@ -145,55 +176,96 @@ try {
     killEnemy(s, spawnEnemy(s, 9, s.width / 2, 180)); tyran.step(3.4);
   });
   assert(await page.locator('#hangar-screen').isVisible());
-  assert.equal(JSON.parse(await slot(page, 'auto')).scene, 'hangar', 'Sector completion autosaves the shop');
+  assert.equal((await record(page)).scene, 'hangar', 'Sector completion autosaves the shop');
   const startingCredits = await page.evaluate(() => tyran.state.credits);
   for (const id of ['weapon', 'hull', 'shield', 'recharge']) {
     await page.locator(`[data-upgrade="${id}"]`).click();
     assert.equal(await page.evaluate(id => tyran.state.upgrades[id], id), 1);
-    assert.equal(JSON.parse(await slot(page, 'auto')).state.upgrades[id], 1, `${id} purchase autosaves`);
+    assert.equal((await record(page)).state.upgrades[id], 1, `${id} purchase autosaves`);
   }
   await page.locator('[data-weapon="plasma"]').click();
-  assert.equal(JSON.parse(await slot(page, 'auto')).state.weapon, 'plasma', 'Choosing a shop weapon profile autosaves');
+  assert.equal((await record(page)).state.weapon, 'plasma', 'Choosing a shop weapon profile autosaves');
   assert(await page.evaluate(credits => tyran.state.credits < credits, startingCredits), 'Upgrades spend earned credits');
   const shopFlight = await flight(page);
-  await page.locator('#hangar-save-button').click();
-  assert.match(await page.locator('#hangar-save-status').textContent(), /Game saved/);
-  await page.screenshot({ path: `${output}/saved-shop.png` });
+  await page.screenshot({ path: `${output}/autosaved-shop.png` });
   await page.locator('#hangar-menu-button').click();
-  assert(await page.locator('#menu-screen').isVisible(), 'The shop has a working return to menu');
-  await page.reload(); await ready(page); await page.locator('#load-game-button').click();
-  assert(await page.locator('#hangar-screen').isVisible(), 'A shop save returns to the same shop');
-  assert.deepEqual(await flight(page), shopFlight, 'Loading a shop preserves purchases, credits and the cleared level');
+  await page.reload(); await ready(page); await page.locator('#continue-button').click();
+  assert(await page.locator('#hangar-screen').isVisible(), 'Resume returns to the same shop');
+  assert.deepEqual(await flight(page), shopFlight, 'The shop retains purchases, credits and the cleared level');
   await page.locator('#next-button').click();
   assert.equal(await page.evaluate(() => tyran.state.level), 1, 'Next sector launches the following world');
   assert(await page.evaluate(() => tyran.state.players.length === 2 && tyran.state.players.every(p => p.alive && p.hull === p.maxHull && p.shield === p.maxShield)), 'Launch repairs and revives both upgraded ships');
-  assert.equal(JSON.parse(await slot(page, 'auto')).state.level, 1);
+  assert.equal((await record(page)).state.level, 1);
+  await page.keyboard.press('Digit3');
+  assert.equal((await record(page)).state.weapon, await page.evaluate(() => tyran.state.weapon), 'Flight loadout changes autosave');
+  await page.evaluate(() => { tyran.state.credits = 777; window.dispatchEvent(new Event('pagehide')); });
+  assert.equal((await record(page)).state.credits, 777, 'Leaving the page saves the latest campaign');
   await page.reload(); await ready(page); await page.locator('#continue-button').click();
-  assert.equal(await page.evaluate(() => tyran.state.level), 1, 'Continue uses the latest autosave');
+  assert.equal(await page.evaluate(() => tyran.state.level), 1);
   assert.equal(await page.evaluate(() => tyran.scene), 'pause');
+  assert.equal(await page.evaluate(() => tyran.state.credits), 777);
 
-  const legacy = await browser.newPage({ viewport: { width: 1440, height: 960 } }); watch(legacy);
+  // Victory is a resumable final campaign state, with no repeated award.
+  await page.evaluate(async () => {
+    const { spawnEnemy, killEnemy } = await import('./sim.js');
+    tyran.launch(9, { mode: 1, credits: 5000, score: 1000, upgrades: { weapon: 6, shield: 6, hull: 6, recharge: 6 } });
+    killEnemy(tyran.state, spawnEnemy(tyran.state, 9, tyran.state.width / 2, 180)); tyran.step(3.4);
+  });
+  assert.equal((await record(page)).state.status, 'victory');
+  const finalCampaign = await flight(page);
+  await page.locator('#end-menu-button').click();
+  await page.reload(); await ready(page); await page.locator('#continue-button').click();
+  assert(await page.locator('#end-screen').isVisible());
+  assert.deepEqual(await flight(page), finalCampaign, 'Victory survives reload without awarding the final bonus twice');
+
+  // Old saves are migrated by recency, while an existing canonical campaign
+  // remains authoritative even when damaged (no silent fallback to old progress).
+  const migrated = await newPage();
+  await migrated.addInitScript(raw => {
+    const older = JSON.parse(raw), newer = JSON.parse(raw);
+    older.savedAt = 1000; older.state.credits = 10;
+    newer.savedAt = 2000; newer.state.credits = 2468;
+    localStorage.setItem('tyran-save-v2:auto', JSON.stringify(older));
+    localStorage.setItem('tyran-save-v2:manual', JSON.stringify(newer));
+  }, busyCampaign);
+  await migrated.goto(url); await ready(migrated); await migrated.locator('#continue-button').click();
+  assert.equal(await migrated.evaluate(() => tyran.state.credits), 2468, 'Resume migrates the newest valid legacy slot');
+  await migrated.locator('#menu-button').click();
+  assert.equal((await record(migrated)).state.credits, 2468, 'Migrated progress becomes the single automatic campaign');
+
+  const legacy = await newPage();
   await legacy.addInitScript(() => localStorage.setItem('tyran-campaign-v1', JSON.stringify({ version: 1, unlocked: 3, checkpoint: { mode: 2, level: 3, credits: 2345, score: 12000, totalKills: 39, weapon: 'lance', upgrades: { weapon: 2, shield: 1, hull: 1, recharge: 2 } } })));
   await legacy.goto(url); await ready(legacy); await legacy.locator('#continue-button').click();
   assert.equal(await legacy.evaluate(() => tyran.state.level), 2, 'Legacy next-level checkpoints open the preceding shop');
   assert(await legacy.locator('#hangar-screen').isVisible());
   assert.equal(await legacy.evaluate(() => tyran.state.credits), 2345);
   await legacy.locator('#next-button').click();
-  assert.equal(await legacy.evaluate(() => tyran.state.level), 3, 'Legacy continuation launches the original next level');
+  assert.equal(await legacy.evaluate(() => tyran.state.level), 3);
   assert.equal(await legacy.evaluate(() => tyran.state.weapon), 'lance');
   assert.equal(await legacy.evaluate(() => tyran.state.mode), 2);
 
-  const restricted = await browser.newPage(); watch(restricted);
+  const corrupt = await newPage();
+  await corrupt.addInitScript(raw => {
+    localStorage.setItem('tyran-campaign', '{broken');
+    localStorage.setItem('tyran-save-v2:manual', raw);
+  }, busyCampaign);
+  await corrupt.goto(url); await ready(corrupt);
+  assert(await corrupt.locator('#continue-button').isDisabled(), 'Corrupt campaign cannot resume an unrelated stale legacy save');
+  assert.match(await corrupt.locator('#save-summary').textContent(), /could not be read|unreadable|invalid|damaged/i);
+  await corrupt.locator('#launch-button').click();
+  assert.equal((await record(corrupt)).state.level, 0, 'New campaign recovers from unreadable storage');
+
+  const restricted = await newPage();
   await restricted.addInitScript(() => { Object.defineProperty(window, 'localStorage', { get() { throw new DOMException('Storage disabled', 'SecurityError'); } }); });
   await restricted.goto(url); await ready(restricted);
   assert.match(await restricted.locator('#save-summary').textContent(), /storage.*unavailable|cannot save/i);
   await restricted.locator('#launch-button').click();
   assert.equal(await restricted.evaluate(() => tyran.scene), 'playing', 'Blocked storage never prevents playing');
-  await restricted.keyboard.press('Escape'); await restricted.locator('#pause-save-button').click();
-  assert.match(await restricted.locator('#pause-save-status').textContent(), /Could not save.*keep playing/i);
+  await restricted.keyboard.press('Escape');
+  assert.match(await restricted.locator('#pause-save-status').textContent(), /could not (?:auto)?save|cannot save|unavailable/i);
   await restricted.locator('#resume-button').click();
   const restrictedTime = await restricted.evaluate(() => tyran.state.time);
   await restricted.waitForFunction(time => tyran.state.time > time, restrictedTime);
-  assert.deepEqual(errors, [], 'No browser errors throughout campaign save/load flows');
-  console.log('Campaign browser checks passed: new campaign and exploration, exact paused co-op saves, viewport changes with active formations, scenery damage, manual-slot protection, shop purchases and healing, legacy continuation, corrupt saves, denied storage and quota failures.');
+  assert.deepEqual(errors, [], 'No browser errors throughout automatic campaign flows');
+  console.log('Campaign browser checks passed: new/resume UI, periodic/pause/menu/pagehide autosaves, exact co-op flight and scenery restoration, responsive formations, practice isolation, shop upgrades, stage progression, victory, legacy migration, corruption and storage failures.');
 } finally { await browser.close(); }

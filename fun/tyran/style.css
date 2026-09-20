@@ -36,21 +36,18 @@ body[data-ready=false] #menu-screen{opacity:.6}
 .world-type,.world-card>small:last-child,.boss-hud strong{ text-transform:none }
 .brand-copy strong{letter-spacing:1.8px;font-weight:600}.brand-copy>span{letter-spacing:1.1px}.mode-button,.utility-button,.back-link,.campaign-hint,.control-summary,.footer-links{letter-spacing:.15px}.hero-stats{letter-spacing:.25px}.hud-kicker,.hangar-rule{letter-spacing:1px}.menu-return-button{width:100%;justify-content:space-between;min-height:48px;border-color:#ff79545c;background:#ff795411;color:#ffc0a9;font-size:12px;transition:background .2s,border-color .2s,transform .2s}.menu-return-button:hover{background:#ff795426;border-color:#ff9577aa;transform:translateY(-1px)}.menu-return-button>span{font-size:19px;line-height:16px;color:var(--orange)}
 
-/* Campaign navigation and browser-local saves. */
-.saved-flight-actions{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:10px}
-.saved-flight-actions .continue-button{margin:0;min-height:44px;padding:11px 13px;line-height:1.5}
-.saved-flight-actions .secondary-button{min-height:44px;padding:10px 16px;font-size:11px}
-.saved-flight-actions .continue-button[hidden]+.secondary-button{grid-column:1/-1}
+/* Campaign navigation and automatic browser-local progress. */
+.continue-button{display:flex;justify-content:space-between;align-items:center;gap:15px;min-height:44px;padding:11px 15px;line-height:1.5}
+.continue-button>span:last-child{font-size:18px;color:var(--cyan)}
+.continue-button:disabled{opacity:.4;pointer-events:none}
 .save-summary,.save-status{color:#9db09b;font-size:10px;line-height:1.6}
 .save-summary{margin-top:9px;max-width:390px;min-height:16px}
 .secondary-button:disabled{opacity:.4}
 .secondary-button:disabled:hover{background:#c8dcc408}
 .sector-flight{display:flex;justify-content:flex-end;align-items:center;gap:16px;margin-top:12px}
-.sector-flight p{font-size:10px;color:#8fa38e}
+.sector-flight p{font-size:10px;color:#8fa38e;line-height:1.5}
 .sector-flight .secondary-button{min-height:39px;padding:8px 15px;font-size:11px;gap:15px}
 .sector-flight .secondary-button>span{color:var(--orange);font-size:16px}
-.save-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-.save-actions .secondary-button{min-height:44px;padding:10px 12px}
 .pause-panel .modal-emblem{margin-bottom:20px}
 .pause-panel .modal-actions{margin-top:23px}
 .pause-panel .save-status{margin-top:-3px;text-align:left}
@@ -67,9 +64,9 @@ body[data-ready=false] #menu-screen{opacity:.6}
 .hangar-loadout dt{color:#9db49b;font:400 9px var(--display)}
 .hangar-loadout dd{margin:6px 0 0;color:#e1efda;font:500 19px var(--display);font-variant-numeric:tabular-nums}
 .hangar-loadout dd small{display:block;margin-top:3px;color:#8fab8f;font:400 9px/1.5 var(--body)}
-.hangar-save-bar{display:grid;grid-template-columns:1fr 1fr;column-gap:20px;row-gap:10px;margin-top:23px;padding-top:20px;border-top:1px solid var(--line)}
+.hangar-save-bar{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;column-gap:20px;row-gap:10px;margin-top:23px;padding-top:20px;border-top:1px solid var(--line)}
 .hangar-save-bar .menu-return-button{min-height:44px;padding:10px 14px;font-size:11px}
-.hangar-save-bar .save-status{grid-column:1/-1;font-size:10px}
+.hangar-save-bar .save-status{font-size:10px}
 .hangar-bottom>p{max-width:390px}
 .hangar-rule{gap:15px;line-height:1.5}
 .hangar-rule>span:last-child{text-align:right}
@@ -80,13 +77,10 @@ body[data-ready=false] #menu-screen{opacity:.6}
   .hangar-loadout>div{padding:11px 10px}
   .hangar-loadout dd{font-size:17px}
   .hangar-save-bar{column-gap:12px}
-  .hangar-save-bar .save-actions{gap:7px}
   .hangar-save-bar .secondary-button{font-size:10px}
 }
 @media(max-width:480px){
-  .saved-flight-actions{grid-template-columns:1fr}
-  .saved-flight-actions .secondary-button{min-height:40px}
-  .saved-flight-actions .continue-button{font-size:10px}
+  .continue-button{font-size:10px}
   .save-summary{font-size:9px}
   .sector-flight{justify-content:space-between;gap:12px;margin-top:5px}
   .sector-flight p{font-size:9px;max-width:115px;line-height:1.5}
