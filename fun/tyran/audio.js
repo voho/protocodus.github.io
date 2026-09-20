@@ -42,6 +42,7 @@ export class AudioEngine {
     }
     if (type === 'explosion') { this.burst(Math.min(1.3, .18 + size / 130), Math.min(.5, .09 + size / 220), 1400); this.tone(90, 22, .25 + size / 220, .2); }
     if (type === 'hit') { this.burst(.13, .18, 3200); this.tone(420, 100, .2, .14, 'sawtooth'); }
+    if (type === 'turret-shot') { this.tone(340, 85, .09, .075, 'triangle'); this.burst(.045, .045, 1800); }
     if (type === 'pickup' || type === 'upgrade') { [440, 660, 880].forEach((f, i) => this.tone(f, f * 1.002, .18, .12, 'sine', t + i * .07)); }
     if (type === 'boss') { [0, .3, .6].forEach(offset => this.tone(180, 140, .25, .18, 'sawtooth', t + offset)); }
     if (type === 'weapon') { this.tone(520, 860, .12, .07, 'triangle'); }

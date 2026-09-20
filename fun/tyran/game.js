@@ -1,6 +1,6 @@
 import { WORLDS, PARALLAX_LAYERS, WorldRenderer } from './worlds.js';
 import { ENEMY_TYPES, SHIP_PALETTES, drawShip, warmShipSprites } from './ships.js';
-import { createCampaign, beginLevel, update, buyUpgrade, upgradeCost, UPGRADES, WEAPONS, BULLET_SPECTRUM, MAX_UPGRADE, PLAYER_SPEED, clamp, selectWeapon, shipStats, weaponStats, bossWeakPointPosition, comboLabel, applyStructureBlast } from './sim.js';
+import { createCampaign, beginLevel, update, buyUpgrade, upgradeCost, UPGRADES, WEAPONS, BULLET_SPECTRUM, MAX_UPGRADE, PLAYER_SPEED, clamp, selectWeapon, shipStats, weaponStats, bossWeakPointPosition, comboLabel, applyGroundReward } from './sim.js';
 import { Effects } from './effects.js';
 import { AudioEngine } from './audio.js';
 import { readCampaign, writeCampaign } from './save-game.js';
@@ -27,6 +27,11 @@ let accumulator = 0, previousScroll = 0, renderAlpha = 1, renderDirty = true, fr
 let resolutionScale = 1, frameAverage = 16.7, fastestFrame = 100, lastAdapt = 0, vignette = null;
 const perf = { fps: 60, frameMs: 16.7, renderMs: 0, updateMs: 0, renderScale: 1, frames: 0, steps: 0 };
 const environmentHit = (...args) => world.hit(...args);
+const groundTargets = s => {
+  let focus = 0, pilots = 0;
+  for (const player of s.players) if (player.alive) { focus += player.x; pilots++; }
+  return world.getGroundTargets(s.width, s.height, s.scroll, pilots ? focus / pilots : s.width * .5);
+};
 const lerp = (before, after) => (before ?? after) + (after - (before ?? after)) * renderAlpha;
 const controls = [{ x: 0, y: 0, fire: false }, { x: 0, y: 0, fire: false }];
 const touch = { x: 0, y: 0, fire: false, pointer: null, originX: 0, originY: 0 };
@@ -73,8 +78,10 @@ function resumeCampaign() {
     formation.x *= sx; formation.baseX *= sx; formation.y *= sy;
     for (const offset of formation.offsets) { offset.x *= sx; offset.y *= sy; }
   }
+  for (const turret of state.turrets || []) { turret.x *= sx; turret.y *= sy; turret.radius *= sx; }
   state.width = W; state.height = H; selected = state.level;
   world.setWorld(state.level, run.seed); world.restoreDamage(run.damage, run.destroyed, run.sceneryVersion);
+  world.setTurretActivity(state.turrets || []);
   warmFleet(state.level); fx.reset(); keys.clear(); clock = state.time;
   $('announcement').hidden = true; $('boss-hud').hidden = true;
   document.querySelectorAll('[data-mode]').forEach(button => {
@@ -138,6 +145,7 @@ function resize() {
     }
     for (const b of state.bullets) { b.x *= W / oldW; b.px = b.x; b.py = b.y; }
     for (const p of state.pickups) p.x *= W / oldW;
+    for (const turret of state.turrets || []) { turret.x *= W / oldW; turret.y *= H / oldH; turret.radius *= W / oldW; }
     for (const list of [fx.particles, fx.rings, fx.lights, fx.texts, fx.wrecks]) for (const effect of list) effect.x *= W / oldW;
   }
   if (scene === 'menu') world.prepare(W, H);
@@ -148,7 +156,8 @@ function warmFleet(index) {
   warmShipSprites(SHIP_PALETTES[index], index);
   warmShipSprites('#a4ffee', index, true); warmShipSprites('#ffc18b', index, true);
   warmProjectileTextures(WEAPONS, BULLET_SPECTRUM);
-  pickupTexture('repair'); pickupTexture('credits');
+  for (const kind of ['repair', 'credit', 'rapid', 'invulnerable']) pickupTexture(kind);
+  pilotBarrierTexture();
 }
 
 function announce(kicker, title, description = '', seconds = 3) {
@@ -194,6 +203,8 @@ function pause() {
 
 function refreshHUD() {
   if (!state) return;
+  const bonuses = String(state.players.some(p => p.alive && (p.rapidFireTime > 0 || p.invulnerableTime > 0)));
+  if (document.body.dataset.bonuses !== bonuses) document.body.dataset.bonuses = bonuses;
   setText($('level-name'), WORLDS[state.level].name);
   setText($('level-number'), `${String(state.level + 1).padStart(2, '0')} / 10`);
   setText($('score-value'), number(state.score)); setText($('credits-value'), number(state.credits));
@@ -209,6 +220,12 @@ function refreshHUD() {
     setWidth($(prefix + '-hull'), p.hull / p.maxHull); setWidth($(prefix + '-shield'), p.shield / p.maxShield);
     $(prefix + '-hull').parentElement.setAttribute('aria-label', `Pilot ${p.id + 1} hull ${Math.ceil(p.hull)} of ${p.maxHull}`);
     $(prefix + '-shield').parentElement.setAttribute('aria-label', `Pilot ${p.id + 1} shield ${Math.ceil(p.shield)} of ${p.maxShield}`);
+    const rapid = p.alive ? p.rapidFireTime || 0 : 0, invulnerable = p.alive ? p.invulnerableTime || 0 : 0;
+    $(prefix + '-bonuses').hidden = rapid <= 0 && invulnerable <= 0;
+    for (const [kind, remaining] of [['rapid', rapid], ['invulnerable', invulnerable]]) {
+      $(prefix + '-' + kind).hidden = remaining <= 0;
+      setText($(prefix + '-' + kind + '-time'), `${Math.ceil(remaining)}s`);
+    }
   }
   const boss = state.enemies.find(e => e.boss && !e.dead);
   $('boss-hud').hidden = !boss;
@@ -326,14 +343,13 @@ function input() {
 
 function processEvents() {
   const groundOffset = (world.parallaxX || 0) * W / 1200;
-  for (const e of state.events.splice(0)) {
+  const events = state.events.splice(0);
+  for (const e of events) {
     fx.emit(e, state.scroll * W / 1200, groundOffset); audio.effect(e.type, e.size, e.weapon || e.label);
     if (e.type === 'explosion' && !e.ground) {
       const blast = e.blast || 1;
       for (const prop of world.hit(e.x, e.y, Math.min(250, e.size * 1.5 * blast), e.size * 2 * blast, state.scroll)) {
-        state.destroyed++; state.credits += prop.value || 4; state.score += 25;
-        applyStructureBlast(state, prop);
-        fx.emit({ type: 'explosion', ...prop, size: Math.min(48, prop.size), ground: true }, state.scroll * W / 1200, groundOffset);
+        applyGroundReward(state, prop, blast);
       }
       if (e.player && state.mode === 2 && state.players.some(p => p.alive)) announce('Wingmate down', 'Bring them home.', 'Finish the sector to restore both ships.', 2.5);
     }
@@ -342,26 +358,31 @@ function processEvents() {
     if (e.type === 'boss-open' && e.openCount === 1) announce('Window open', 'Core exposed', 'Aim for the glowing weak points before the armor seals.', 1.5);
     if (e.type === 'formation') announce('Tactical formation', e.label, `${e.count} contacts moving as one.`, 1.15);
     if (e.type === 'weapon') { refreshHUD(); renderWeapons(); }
+    if (e.type === 'pickup' && e.bonus) refreshHUD();
     if (e.type === 'hangar') showHangar(e.bonus);
     if (e.type === 'defeat') showEnd(false);
     if (e.type === 'victory') showEnd(true);
+    // Collateral destruction can add ground effects even on the final tick.
+    if (state.events.length) events.push(...state.events.splice(0));
   }
+  world.setTurretActivity(state.turrets || []);
   // Save at a bounded cadence, after combat and reward events have settled.
   if (scene === 'playing' && activeCampaign && state.time - lastAutosaveTime >= 5) autosave();
 }
 
 const pickupTextures = new Map();
 function pickupTexture(kind) {
-  const repair = kind === 'repair', key = repair ? 0 : 1;
+  const repair = kind === 'repair', timed = kind === 'rapid' || kind === 'invulnerable';
+  const key = timed ? kind : repair ? 'repair' : 'credit';
   if (pickupTextures.has(key)) return pickupTextures.get(key);
   const out = document.createElement('canvas'); out.width = out.height = 96;
-  const paint = out.getContext('2d'), color = repair ? '#aaffd0' : '#ffdc90';
+  const paint = out.getContext('2d'), color = key === 'rapid' ? '#ffe2a0' : repair || key === 'invulnerable' ? '#aaffd0' : '#ffdc90';
   // The same restrained green halo marks every collectible as beneficial;
   // the repair capsule and gold credit chips keep their distinct body colors.
   const glow = paint.createRadialGradient(48, 48, 10, 48, 48, 45);
   glow.addColorStop(0, '#6bf3a04d'); glow.addColorStop(.4, '#62e99526'); glow.addColorStop(1, '#62e99500');
   paint.fillStyle = glow; paint.fillRect(0, 0, 96, 96);
-  const source = spriteCell('pickups', key);
+  const source = spriteCell('pickups', repair || key === 'invulnerable' ? 0 : 1);
   if (source) {
     const scale = 58 / Math.max(source.width, source.height), width = source.width * scale, height = source.height * scale;
     paint.shadowColor = '#02080dcc'; paint.shadowBlur = 5; paint.shadowOffsetY = 4;
@@ -370,7 +391,67 @@ function pickupTexture(kind) {
     paint.fillStyle = color; paint.font = 'bold 42px sans-serif'; paint.textAlign = 'center'; paint.textBaseline = 'middle';
     paint.fillText(repair ? '+' : '•', 48, 48);
   }
+  if (timed) {
+    // Reuse the detailed equipment body, with distinct high-contrast emblems.
+    paint.shadowBlur = 0; paint.shadowOffsetY = 0;
+    paint.fillStyle = '#09201eee'; paint.strokeStyle = color; paint.lineWidth = 1.8;
+    paint.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = i * Math.PI / 3 - Math.PI / 2;
+      const x = 48 + Math.cos(a) * 23, y = 46 + Math.sin(a) * 23;
+      i ? paint.lineTo(x, y) : paint.moveTo(x, y);
+    }
+    paint.closePath(); paint.fill(); paint.stroke();
+    paint.fillStyle = color; paint.lineWidth = 2.8; paint.lineJoin = 'round';
+    paint.beginPath();
+    if (key === 'rapid') {
+      paint.moveTo(50, 28); paint.lineTo(37, 48); paint.lineTo(46, 48);
+      paint.lineTo(43, 63); paint.lineTo(59, 41); paint.lineTo(49, 41);
+      paint.closePath(); paint.fill();
+    } else {
+      paint.moveTo(48, 31); paint.lineTo(60, 36); paint.lineTo(58, 49);
+      paint.quadraticCurveTo(55, 56, 48, 61); paint.quadraticCurveTo(41, 56, 38, 49);
+      paint.lineTo(36, 36); paint.closePath(); paint.stroke();
+      paint.fillRect(46, 40, 4, 11); paint.fillRect(42, 44, 12, 3);
+    }
+    paint.font = 'bold 10px "Oxanium", sans-serif'; paint.textAlign = 'center'; paint.fillText('10s', 48, 81);
+  }
   pickupTextures.set(key, out); return out;
+}
+
+let pilotBarrier = null;
+function pilotBarrierTexture() {
+  if (pilotBarrier) return pilotBarrier;
+  const out = document.createElement('canvas'); out.width = 128; out.height = 160;
+  const paint = out.getContext('2d');
+  paint.translate(64, 80); paint.strokeStyle = '#baffdb'; paint.lineWidth = 2;
+  paint.shadowColor = '#6affc5'; paint.shadowBlur = 10; paint.fillStyle = '#82ffcb0a';
+  paint.beginPath(); paint.moveTo(0, -58); paint.lineTo(44, -30); paint.lineTo(44, 30);
+  paint.lineTo(0, 58); paint.lineTo(-44, 30); paint.lineTo(-44, -30); paint.closePath(); paint.fill(); paint.stroke();
+  paint.shadowBlur = 0; paint.globalAlpha = .38; paint.lineWidth = 1;
+  paint.beginPath(); paint.ellipse(0, 0, 37, 48, 0, 0, Math.PI * 2); paint.stroke();
+  pilotBarrier = out; return out;
+}
+
+function drawPilotBonuses(p, x, y) {
+  const invulnerable = p.invulnerableTime || 0, rapid = p.rapidFireTime || 0;
+  if (!invulnerable && !rapid) return;
+  ctx.save();
+  if (invulnerable > 0) {
+    ctx.globalAlpha = fx.reduced ? .8 : invulnerable < 2 ? .5 + Math.sin(clock * 10) * .22 : .78 + Math.sin(clock * 3) * .1;
+    ctx.drawImage(pilotBarrierTexture(), x - 64, y - 80);
+  }
+  if (rapid > 0) {
+    ctx.globalAlpha = fx.reduced ? .8 : .72 + Math.sin(clock * 6) * .16;
+    ctx.strokeStyle = '#ffe2a0'; ctx.lineWidth = 2; ctx.lineJoin = 'round';
+    for (const side of [-1, 1]) {
+      ctx.beginPath(); ctx.moveTo(x + side * 26, y + 14);
+      ctx.lineTo(x + side * 32, y + 6); ctx.lineTo(x + side * 38, y + 14); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x + side * 26, y + 23);
+      ctx.lineTo(x + side * 32, y + 15); ctx.lineTo(x + side * 38, y + 23); ctx.stroke();
+    }
+  }
+  ctx.restore();
 }
 
 function drawBullet(b) {
@@ -434,7 +515,9 @@ function draw() {
       }
     }
     for (const pickup of state.pickups) {
-      ctx.drawImage(pickupTexture(pickup.kind), pickup.x - 32, pickup.y - 32, 64, 64);
+      const timed = pickup.kind === 'rapid' || pickup.kind === 'invulnerable';
+      const size = timed ? 76 + (fx.reduced ? 0 : Math.sin(clock * 3 + pickup.age) * 2) : 64;
+      ctx.drawImage(pickupTexture(pickup.kind), pickup.x - size / 2, pickup.y - size / 2, size, size);
     }
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
     for (const b of state.bullets) drawBullet(b);
@@ -447,6 +530,7 @@ function draw() {
         ctx.beginPath(); ctx.ellipse(0, 0, 37, 46, 0, 0, Math.PI * 2); ctx.stroke();
         ctx.globalAlpha *= .36; ctx.fillStyle = color; ctx.fill(); ctx.restore();
       }
+      drawPilotBonuses(p, x, y);
       ctx.fillStyle = color; ctx.globalAlpha = .65; ctx.textAlign = 'center'; ctx.font = '10px "Space Grotesk", sans-serif'; ctx.fillText(`P${p.id + 1}`, x, y + 70); ctx.globalAlpha = 1;
     }
     if (state.combo >= 2 && state.comboTime > 0) {
@@ -481,7 +565,7 @@ function frame(time) {
     accumulator = Math.min(.1, accumulator + dt);
     while (accumulator + 1e-9 >= STEP && scene === 'playing') {
       previousScroll = state.scroll;
-      update(state, STEP, input(), environmentHit);
+      update(state, STEP, input(), environmentHit, groundTargets);
       accumulator -= STEP; perf.steps++;
       processEvents();
     }
@@ -664,7 +748,7 @@ window.tyran = {
   get state() { return state; }, get scene() { return scene; }, get world() { return world; }, worlds: WORLDS, enemyTypes: ENEMY_TYPES, weapons: WEAPONS, bulletSpectrum: BULLET_SPECTRUM, parallaxLayers: PARALLAX_LAYERS, shipPalettes: SHIP_PALETTES,
   get performance() { return { ...perf, interpolation: renderAlpha, fixedStep: STEP }; },
   launch, selectWorld, selectWeapon, pause, spriteStatus,
-  step(seconds, controls = []) { for (let i = 0; i < Math.ceil(seconds * 60); i++) { if (state && scene === 'playing') { previousScroll = state.scroll; update(state, STEP, controls, environmentHit); processEvents(); } } accumulator = 0; renderAlpha = 1; renderDirty = true; refreshHUD(); requestFrame(); },
+  step(seconds, controls = []) { for (let i = 0; i < Math.ceil(seconds * 60); i++) { if (state && scene === 'playing') { previousScroll = state.scroll; update(state, STEP, controls, environmentHit, groundTargets); processEvents(); } } accumulator = 0; renderAlpha = 1; renderDirty = true; refreshHUD(); requestFrame(); },
 };
 document.body.dataset.ready = 'true';
 $('menu-screen').inert = false;

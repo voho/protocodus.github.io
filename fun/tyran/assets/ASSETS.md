@@ -71,9 +71,13 @@ Structure durability scales with footprint area (`size²`) and a type-specific a
 
 Service lights, small radar sweeps and rooftop exhaust animate over the cached structure bodies. Their intensity follows the damage stage and stops at destruction. The overlays use cached light/cloud textures, with no per-frame pixel processing.
 
+Seeded ground sites reuse these same structure bodies and destruction stages. Turrets add a cached armored gun mount with an aiming barrel, amber charge arc and brief muzzle flash. Supply structures add green beacons marked with the bonus they release. Roles and contents use a separate hash so existing scenery positions and damage IDs stay stable.
+
 The crater is painted by the scenery renderer. Ground explosion effects add transient fire, smoke and fragments without adding a second persistent wreck. A large structure's final blast gently displaces nearby small ships; its decaying, mass-sensitive impulse causes no damage and leaves large craft and bosses unaffected.
 
 Repair and salvage pickups keep their original capsule/chip artwork, surrounded by a shared green halo baked into their cached textures.
+
+Temporary rapid-fire and invulnerability pickups reuse those equipment sprites with distinct lightning/shield emblems. Their ten-second duration appears on the pickup and pilot HUD. Cached mint barrier art and small amber wing markers show the active bonuses without replacing or tilting the ship hull.
 
 ## Fonts
 

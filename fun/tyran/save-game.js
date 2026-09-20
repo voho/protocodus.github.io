@@ -90,12 +90,28 @@ function restoreState(raw) {
     result.hull = number(player.hull, result.maxHull, 0, result.maxHull);
     result.shield = number(player.shield, result.maxShield, 0, result.maxShield);
     result.alive = bool(player.alive, result.hull > 0) && result.hull > 0;
+    result.rapidFireTime = number(player.rapidFireTime, 0, 0, 10);
+    result.invulnerableTime = number(player.invulnerableTime, 0, 0, 10);
+    if (!result.alive) result.rapidFireTime = result.invulnerableTime = 0;
     result.mass = number(player.mass, stats.mass, .1, 10);
     result.radius = number(player.radius, 17, 1, 64);
     result.blastVx = number(player.blastVx, 0, -110, 110); result.blastVy = number(player.blastVy, 0, -110, 110);
     return result;
   });
   if (state.status === 'playing' && !state.players.some(player => player.alive)) invalid();
+  const turretIds = new Set();
+  state.turrets = list(raw.turrets, 3).map(turret => {
+    if (!object(turret)) invalid();
+    const id = string(turret.id);
+    if (!id || turretIds.has(id)) invalid();
+    turretIds.add(id);
+    return {
+      id, x: number(turret.x), y: number(turret.y), radius: number(turret.radius, 22, 1, 128),
+      phase: number(turret.phase, 0, 0, 1), angle: number(turret.angle, Math.PI / 2, -Math.PI, Math.PI),
+      charge: number(turret.charge, 0, 0, 1), flash: number(turret.flash, 0, 0, .16),
+      cooldown: number(turret.cooldown, 1.25, 0, 5), targetId: integer(turret.targetId, -1, -1, state.mode - 1),
+    };
+  });
   const formationsById = new Map();
   state.formations = list(raw.formations, 64).map(formation => {
     if (!object(formation) || !FORMATIONS.includes(formation.kind)) invalid();
@@ -166,7 +182,7 @@ function restoreState(raw) {
     return result;
   });
   state.pickups = list(raw.pickups, 256).map(pickup => {
-    if (!object(pickup) || !['repair', 'credit'].includes(pickup.kind)) invalid();
+    if (!object(pickup) || !['repair', 'credit', 'rapid', 'invulnerable'].includes(pickup.kind)) invalid();
     return { x: number(pickup.x), y: number(pickup.y), age: number(pickup.age, 0, 0), kind: pickup.kind, value: integer(pickup.value, 40, 0, 100_000) };
   });
   state.hostileCount = state.bullets.filter(bullet => bullet.team < 0 && bullet.life > 0).length;

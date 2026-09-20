@@ -18,6 +18,9 @@ export const BULLET_SPECTRUM = Object.freeze([
   '#ff718f', '#ff66dc', '#b07dff', '#6d9dff', '#ff5d78',
 ]);
 const MAX_HOSTILE_BULLETS = 78;
+export const BONUS_DURATION = 10;
+export const RAPID_FIRE_MULTIPLIER = 1.65;
+const TURRET_WARNING = .75;
 
 // Every profile occupies a different niche. Direct DPS is intentionally
 // close across the roster; range, spread, piercing, splash and homing decide
@@ -134,6 +137,17 @@ export function applyStructureBlast(s, prop) {
   }
 }
 
+// Only call for newly destroyed scenery returned by WorldRenderer.hit. Its
+// persistent crater set is also the authority that prevents duplicate rewards.
+export function applyGroundReward(s, prop, blast = 1) {
+  s.destroyed++; s.credits += prop.value || 8; s.score += 25;
+  applyStructureBlast(s, prop);
+  if (['repair', 'credit', 'rapid', 'invulnerable'].includes(prop.bonus)) {
+    s.pickups.push({ x: prop.x, y: prop.y, age: 0, kind: prop.bonus, value: prop.bonus === 'credit' ? 90 : 0 });
+  }
+  s.events.push({ type: 'explosion', ...prop, size: Math.min(48, prop.size || 22), ground: true, blast });
+}
+
 // Most bolts are nowhere near a hull. Reject against the swept rectangle first;
 // only nearby candidates need a projection. Squared distances avoid a square
 // root, and strict comparison preserves the original non-hit at exact tangency.
@@ -150,7 +164,7 @@ export function createCampaign(mode = 1, level = 0, checkpoint = null) {
   const state = {
     mode: mode === 2 ? 2 : 1, level: clamp(level, 0, 9), status: 'playing',
     upgrades: { weapon: 0, shield: 0, hull: 0, recharge: 0 }, credits: 0, score: 0,
-    width: 1200, height: 900, time: 0, scroll: 0, enemies: [], bullets: [], pickups: [], players: [],
+    width: 1200, height: 900, time: 0, scroll: 0, enemies: [], bullets: [], pickups: [], players: [], turrets: [],
     events: [], kills: 0, destroyed: 0, totalKills: 0, combo: 0, comboTime: 0, comboDamage: 1, comboBlast: 1, comboLabel: '',
     weapon: 'pulse', formations: [], nextEnemyId: 1, nextFormationId: 1, formationTimer: 11,
     bossSpawned: false, bossDefeated: false, bossDeathTime: 0, spawnTimer: 1, showcase: 0,
@@ -167,12 +181,12 @@ export function createCampaign(mode = 1, level = 0, checkpoint = null) {
 }
 
 export function beginLevel(s, level) {
-  Object.assign(s, { level: clamp(level, 0, 9), time: 0, scroll: 0, status: 'playing', enemies: [], bullets: [], pickups: [], events: [], formations: [], kills: 0, destroyed: 0, combo: 0, comboTime: 0, comboDamage: 1, comboBlast: 1, comboLabel: '', bossSpawned: false, bossDefeated: false, bossDeathTime: 0, spawnTimer: 1.5, showcase: 0, formationTimer: 10.5 });
+  Object.assign(s, { level: clamp(level, 0, 9), time: 0, scroll: 0, status: 'playing', enemies: [], bullets: [], pickups: [], turrets: [], events: [], formations: [], kills: 0, destroyed: 0, combo: 0, comboTime: 0, comboDamage: 1, comboBlast: 1, comboLabel: '', bossSpawned: false, bossDefeated: false, bossDeathTime: 0, spawnTimer: 1.5, showcase: 0, formationTimer: 10.5 });
   s.duration = 90 + s.level * 3;
   const stats = shipStats(s.upgrades);
   s.players = Array.from({ length: s.mode }, (_, i) => {
     const x = s.width * (s.mode === 1 ? .5 : i ? .62 : .38), y = s.height * .68;
-    return { id: i, x, y, px: x, py: y, vx: 0, vy: 0, blastVx: 0, blastVy: 0, mass: stats.mass, thrust: .9, radius: 17, hull: stats.hull, shield: stats.shield, maxHull: stats.hull, maxShield: stats.shield, fire: 0, hurt: 0, lastHit: -10, alive: true };
+    return { id: i, x, y, px: x, py: y, vx: 0, vy: 0, blastVx: 0, blastVy: 0, mass: stats.mass, thrust: .9, radius: 17, hull: stats.hull, shield: stats.shield, maxHull: stats.hull, maxShield: stats.shield, fire: 0, hurt: 0, lastHit: -10, alive: true, rapidFireTime: 0, invulnerableTime: 0 };
   });
   return s;
 }
@@ -240,7 +254,7 @@ function shoot(s, p) {
       splash: profile.splash || 0, splashFactor: profile.splashFactor || 0, chain: profile.chain || 0, chainRange: profile.chainRange || 0,
       chainFactor: profile.chainFactor || .6, hitIds: [], age: 0, comboBlast: s.comboBlast || 1 });
   }
-  p.fire = profile.interval;
+  p.fire = profile.interval / (p.rapidFireTime > 0 ? RAPID_FIRE_MULTIPLIER : 1);
   s.events.push({ type: 'shot', player: p.id, weapon: profile.id });
 }
 
@@ -255,6 +269,55 @@ function hostileShot(s, e, angle, speed = 220, radius = 5) {
   s.bullets.push({ x: e.x, y: e.y + e.radius * .65, px: e.x, py: e.y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
     damage, radius: bulletRadius, team: -1, life: 7, color: e.boss ? '#ff5d78' : BULLET_SPECTRUM[e.type % BULLET_SPECTRUM.length], kind: 'hostile', variant, sourceRadius: e.radius, age: 0 });
   s.hostileCount++;
+}
+
+function safeTurretTarget(s, turret, player) {
+  return player?.alive && turret.x > turret.radius + 12 && turret.x < s.width - turret.radius - 12 &&
+    turret.y > turret.radius + 28 && turret.y < s.height * .72 &&
+    turret.y < player.y - turret.radius - 90 && distance(turret, player) > turret.radius + 140;
+}
+
+function updateTurrets(s, dt, targets) {
+  const previous = s.turrets || [];
+  s.turrets = [];
+  if (s.bossSpawned || s.bossDefeated) return;
+  for (const target of targets) {
+    if (s.turrets.length >= 3) break;
+    if (s.turrets.some(turret => turret.id === target.id)) continue;
+    const phase = Math.abs(target.phase || 0) % 1;
+    const turret = previous.find(item => item.id === target.id) || {
+      id: target.id, angle: Math.PI / 2, charge: 0, flash: 0,
+      cooldown: 1.25 + phase * .9, targetId: -1,
+    };
+    Object.assign(turret, { x: target.x, y: target.y, radius: target.radius, phase });
+    turret.flash = Math.max(0, turret.flash - dt);
+    let pilot = turret.charge > 0 ? s.players[turret.targetId] : null;
+    if (!pilot) for (const candidate of s.players) {
+      if (safeTurretTarget(s, turret, candidate) && (!pilot || distance(candidate, turret) < distance(pilot, turret))) pilot = candidate;
+    }
+    s.turrets.push(turret);
+    if (!safeTurretTarget(s, turret, pilot)) {
+      turret.charge = 0; turret.targetId = -1; turret.cooldown = Math.max(1.25, turret.cooldown);
+      continue;
+    }
+    turret.cooldown -= dt;
+    if (turret.charge === 0) {
+      turret.angle = Math.atan2(pilot.y - turret.y, pilot.x - turret.x);
+      turret.targetId = pilot.id;
+    }
+    turret.charge = clamp(1 - turret.cooldown / TURRET_WARNING, 0, 1);
+    if (turret.cooldown > 0) continue;
+    if (s.hostileCount < MAX_HOSTILE_BULLETS) {
+      const dx = Math.cos(turret.angle), dy = Math.sin(turret.angle), speed = 185 + s.level * 4;
+      const x = turret.x + dx * turret.radius, y = turret.y + dy * turret.radius;
+      s.bullets.push({ x, y, px: x, py: y, vx: dx * speed, vy: dy * speed,
+        damage: 10 + s.level * .35, radius: 3.5, team: -1, life: 6,
+        color: '#ffc76c', kind: 'hostile', variant: 3, sourceRadius: turret.radius, age: 0 });
+      s.hostileCount++; turret.flash = .16;
+      s.events.push({ type: 'turret-shot', x, y });
+    }
+    turret.charge = 0; turret.targetId = -1; turret.cooldown = 3.1 + phase * 1.25;
+  }
 }
 
 function resetCombo(s, emit = false) {
@@ -399,7 +462,7 @@ function enemyFire(s, e) {
 }
 
 export function hurtPlayer(s, p, damage) {
-  if (!p.alive || p.hurt > 0) return;
+  if (!p.alive || p.hurt > 0 || p.invulnerableTime > 0) return;
   const absorbed = Math.min(p.shield, damage);
   p.shield -= absorbed;
   p.hull = Math.max(0, p.hull - (damage - absorbed));
@@ -407,7 +470,7 @@ export function hurtPlayer(s, p, damage) {
   p.lastHit = s.time;
   resetCombo(s, true);
   s.events.push({ type: 'hit', x: p.x, y: p.y, shield: absorbed > 0 });
-  if (p.hull <= 0) { p.alive = false; s.events.push({ type: 'explosion', x: p.x, y: p.y, size: 50, player: true }); }
+  if (p.hull <= 0) { p.alive = false; p.rapidFireTime = 0; p.invulnerableTime = 0; s.events.push({ type: 'explosion', x: p.x, y: p.y, size: 50, player: true }); }
 }
 
 export function killEnemy(s, e) {
@@ -431,7 +494,7 @@ export function killEnemy(s, e) {
   }
 }
 
-export function update(s, dt, input = [], environmentHit = null) {
+export function update(s, dt, input = [], environmentHit = null, groundTargets = []) {
   if (s.status !== 'playing') return;
   dt = clamp(dt, 0, .05);
   s.time += dt; s.scroll += dt * (s.bossSpawned ? 42 : 92 + s.level * 3);
@@ -443,6 +506,8 @@ export function update(s, dt, input = [], environmentHit = null) {
   for (const p of s.players) {
     p.px = p.x; p.py = p.y;
     p.hurt = Math.max(0, p.hurt - dt);
+    p.rapidFireTime = Math.max(0, (p.rapidFireTime || 0) - dt);
+    p.invulnerableTime = Math.max(0, (p.invulnerableTime || 0) - dt);
     if (!p.alive) continue;
     const controls = input[p.id] || {}, x = controls.x || 0, y = controls.y || 0;
     const norm = Math.max(1, Math.hypot(x, y));
@@ -482,6 +547,7 @@ export function update(s, dt, input = [], environmentHit = null) {
   // volleys no longer rescan the entire projectile array for every round.
   s.hostileCount = 0;
   for (const bullet of s.bullets) if (bullet.team < 0 && bullet.life > 0) s.hostileCount++;
+  updateTurrets(s, dt, (typeof groundTargets === 'function' ? groundTargets(s) : groundTargets) || []);
   for (const e of s.enemies) {
     if (e.dead) continue;
     e.px = e.x; e.py = e.y;
@@ -561,11 +627,7 @@ export function update(s, dt, input = [], environmentHit = null) {
       if (b.life > 0 && environmentHit) {
         const radius = Math.max(9, b.splash || 0) * (b.comboBlast || 1);
         const props = environmentHit(b.x, b.y, radius, b.damage * (b.splash ? 1.15 : 1), s.scroll) || [];
-        for (const prop of props) {
-          s.destroyed++; s.credits += prop.value || 8; s.score += 25;
-          applyStructureBlast(s, prop);
-          s.events.push({ type: 'explosion', ...prop, size: Math.min(48, prop.size || 22), ground: true, blast: b.comboBlast || 1 });
-        }
+        for (const prop of props) applyGroundReward(s, prop, b.comboBlast || 1);
       }
     } else if (!s.bossDefeated) {
       for (const p of s.players) if (p.alive && segmentHits(b, p, p.radius * .72 + b.radius)) { hurtPlayer(s, p, b.damage); b.life = 0; break; }
@@ -594,8 +656,14 @@ export function update(s, dt, input = [], environmentHit = null) {
       if (d < 28) {
         p.age = 100;
         if (p.kind === 'repair') { player.hull = Math.min(stats.hull, player.hull + 32); player.shield = Math.min(stats.shield, player.shield + 25); }
+        else if (p.kind === 'rapid') {
+          if (!player.rapidFireTime) player.fire /= RAPID_FIRE_MULTIPLIER;
+          player.rapidFireTime = BONUS_DURATION;
+        }
+        else if (p.kind === 'invulnerable') player.invulnerableTime = BONUS_DURATION;
         else s.credits += p.value;
-        s.events.push({ type: 'pickup', x: p.x, y: p.y, value: p.kind === 'repair' ? 'REPAIR' : `+${p.value} CR` });
+        const value = p.kind === 'rapid' ? 'Rapid fire · 10s' : p.kind === 'invulnerable' ? 'Invulnerable · 10s' : p.kind === 'repair' ? 'Repair' : `+${p.value} CR`;
+        s.events.push({ type: 'pickup', x: p.x, y: p.y, value, bonus: p.kind, player: player.id });
         break;
       }
     }

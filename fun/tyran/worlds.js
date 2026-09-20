@@ -90,6 +90,12 @@ const GROUND_DETAILS = [
 ];
 const ACTIVE_STRUCTURES = new Set(['bunker','station','radar','dome','solar','refinery','building','tower','pylon','fortress','satellite','crawler','hauler']);
 const VENTED_STRUCTURES = new Set(['station','refinery','building','fortress']);
+const SITE_BONUSES = Object.freeze(['rapid','invulnerable','repair','credit']);
+function siteHash(id) {
+  let hash=2166136261;
+  for(let i=0;i<id.length;i++)hash=Math.imul(hash^id.charCodeAt(i),16777619);
+  return hash>>>0;
+}
 
 /** Seeded terrain and scenery share one ground plane; only atmosphere drifts. */
 export class WorldRenderer {
@@ -97,7 +103,7 @@ export class WorldRenderer {
     this.tiles=new Map();this.bands=new Map();this.sprites=new Map();
     this.sceneryLayers=[new Map()];
     this.layerViews=[{zoom:1,x:0,y:0,first:0,last:0}];
-    this.hitBuckets=new Map();this.visibleProps=[];this.damage=new Map();this.destroyed=new Set();
+    this.hitBuckets=new Map();this.visibleProps=[];this.damage=new Map();this.destroyed=new Set();this.turretActivity=new Map();
     this.setWorld(0);
   }
   setWorld(index, seed='tyran-v2') {
@@ -110,7 +116,7 @@ export class WorldRenderer {
       this.bands.clear();this.hitBuckets.clear();
       for(const layers of this.sceneryLayers)layers.clear();
     }
-    this.damage.clear();this.destroyed.clear();this.visibleProps.length=0;
+    this.damage.clear();this.destroyed.clear();this.visibleProps.length=0;this.turretActivity.clear();
     this.scale=1;this.scroll=0;this.parallaxX=0;
     // A preview or retry reuses immutable artwork while resetting destruction.
     if(reuse)return;
@@ -119,6 +125,7 @@ export class WorldRenderer {
     const rng=random(this.levelHash);
     for(let i=0;i<7;i++)this.clouds.push({x:rng()*WIDTH,y:rng()*1500,r:150+rng()*160,phase:rng()*TAU});
     this.cloudSprite=this.makeCloud();this.lightSprite=this.makeLight();this.radarSweepSprite=this.makeRadarSweep();this.scorchSprite=this.makeScorch();
+    this.siteSprites=this.makeGroundSiteSprites();
     this.shaftSprite=this.makeShaft();this.vignetteSprite=this.makeVignette();this.substrateSprite=this.makeSubstrate();
     this.assetRevision=spriteRevision;
     this.ready=spritesReady.then(()=>{
@@ -147,6 +154,7 @@ export class WorldRenderer {
   }
   restoreDamage(damage, destroyed, sceneryVersion=2) {
     this.damage=new Map(damage);this.destroyed=new Set(destroyed);
+    this.turretActivity.clear();
     this.bands.clear();this.hitBuckets.clear();this.visibleProps.length=0;
     for(const layer of this.sceneryLayers)layer.clear();
     if(sceneryVersion<2){
@@ -239,7 +247,36 @@ export class WorldRenderer {
         let bucket=this.hitBuckets.get(key);if(!bucket){bucket=[];this.hitBuckets.set(key,bucket);}bucket.push(prop);
       }
     }
+    // Assign a few active sites after geometry generation. An independent hash
+    // keeps existing props, damage IDs and durability stable in saved campaigns.
+    const sites=props.filter(prop=>STRUCTURE_SPRITES.includes(prop.type)&&prop.x>130&&prop.x<WIDTH-130)
+      .sort((a,b)=>siteHash(a.id)-siteHash(b.id));
+    if(sites.length){
+      const firstRole=sites.length>1||((this.levelHash^row)&1)?'turret':'cache';
+      for(let i=0;i<Math.min(2,sites.length);i++){
+        const prop=sites[i],hash=siteHash(`${prop.id}:site`);
+        prop.groundRole=i?'cache':firstRole;prop.phase=hash/4294967296*TAU;
+        if(prop.groundRole==='cache')prop.bonus=SITE_BONUSES[(hash>>>8)%SITE_BONUSES.length];
+      }
+    }
     props.sort((a,b)=>a.y-b.y);this.bands.set(row,props);return props;
+  }
+  /** Refresh simulation coordinates independently of the last rendered frame. */
+  getGroundTargets(width,height,scroll,focusX=width*.5) {
+    const scale=width/WIDTH,offset=(.5-clamp(focusX/width,0,1))*WIDTH*.02;
+    this.scale=scale;this.scroll=scroll;this.parallaxX=offset;
+    const h=height/scale,first=Math.floor((-scroll-PAD)/TILE),last=Math.floor((h-scroll+PAD)/TILE),targets=[];
+    for(let row=first;row<=last;row++)for(const prop of this.getBand(row)){
+      if(prop.groundRole!=='turret'||prop.hp<=0||this.destroyed.has(prop.id))continue;
+      const x=(prop.x+offset)*scale,y=(prop.y+scroll)*scale,radius=prop.size*.32*scale;
+      if(x<-radius||x>width+radius||y<-PAD*scale||y>height+PAD*scale)continue;
+      targets.push({id:prop.id,x,y,radius,phase:prop.phase});
+    }
+    return targets;
+  }
+  setTurretActivity(turrets=[]) {
+    this.turretActivity.clear();
+    for(const turret of turrets)this.turretActivity.set(turret.id,turret);
   }
   getSceneryLayer(row,band,depth=0) {
     const cache=this.sceneryLayers[depth];if(cache.has(row))return cache.get(row);
@@ -323,6 +360,68 @@ export class WorldRenderer {
     }
     c.restore();
   }
+  makeGroundSiteSprites() {
+    const halo=color=>{
+      const out=canvas(96,96),c=out.getContext('2d');glow(c,48,48,48,color,1);return out;
+    };
+    const turret=canvas(128,128),c=turret.getContext('2d');
+    c.translate(64,64);c.lineJoin='round';
+    ellipse(c,4,7,29,22,'rgba(0,5,12,.6)');
+    polygon(c,[[-26,-14],[-16,-25],[16,-25],[26,-14],[26,16],[14,25],[-14,25],[-26,16]],'#25303a','#78858a',2);
+    polygon(c,[[-20,-12],[-12,-20],[12,-20],[20,-12],[20,12],[12,19],[-12,19],[-20,12]],'#48515a','#99a09b',1);
+    c.fillStyle='#141e28';c.fillRect(-9,-42,18,38);c.fillStyle='#6e787a';c.fillRect(-6,-42,12,35);
+    c.fillStyle='#b2b7aa';c.fillRect(-5,-41,3,31);c.fillStyle='#111a23';c.fillRect(-8,-46,16,8);
+    c.fillStyle='#efb05a';c.fillRect(-8,-38,16,3);ellipse(c,-2,0,12,10,'#727b7a');
+    line(c,[[-17,12],[-10,17],[10,17],[17,12]],'#e89d55',3);
+    for(const x of [-17,17])circle(c,x,-11,2,'#19242c');
+    const badges={};
+    for(const bonus of SITE_BONUSES){
+      const out=canvas(64,64),b=out.getContext('2d');b.translate(32,32);b.lineJoin='round';b.lineCap='round';
+      polygon(b,[[-16,-20],[16,-20],[22,-14],[22,14],[16,20],[-16,20],[-22,14],[-22,-14]],'#102b28','#86edb0',2);
+      line(b,[[-17,-13],[-17,-8]],'#c0f7d3',2);line(b,[[17,8],[17,13]],'#c0f7d3',2);
+      if(bonus==='rapid')polygon(b,[[2,-14],[-10,3],[-1,3],[-4,15],[10,-4],[2,-4]],'#b8fbd3');
+      else if(bonus==='invulnerable'){
+        polygon(b,[[0,-13],[-11,-8],[-9,6],[0,14],[9,6],[11,-8]],null,'#b8fbd3',2.6);
+        line(b,[[0,-6],[0,7]],'#b8fbd3',2);
+      } else if(bonus==='repair'){
+        b.fillStyle='#b8fbd3';b.fillRect(-3,-12,6,24);b.fillRect(-12,-3,24,6);
+      } else {
+        polygon(b,[[0,-13],[11,0],[0,13],[-11,0]],null,'#b8fbd3',2.5);
+        line(b,[[0,-7],[0,7]],'#b8fbd3',2);
+      }
+      badges[bonus]=out;
+    }
+    return {turret,badges,supplyHalo:halo('#71eba4'),warningHalo:halo('#ffae51')};
+  }
+  drawGroundSite(c,prop,time,motion=true) {
+    if(!prop.groundRole||prop.hp<=0||this.destroyed.has(prop.id))return;
+    const stage=structureStage(prop),power=[1,.8,.6,0][stage],s=prop.size;
+    c.save();c.translate(prop.x,prop.y);
+    if(prop.groundRole==='cache'){
+      const pulse=.88+Math.sin((motion?time:0)*2+prop.phase)*.12,r=s*.59;
+      c.globalAlpha=.35*power*pulse;c.drawImage(this.siteSprites.supplyHalo,-r,-r,r*2,r*2);
+      const size=clamp(s*.56,27,44);
+      c.globalAlpha=power;c.drawImage(this.siteSprites.badges[prop.bonus],-size*.5,-size*.5,size,size);
+    } else {
+      const active=this.turretActivity.get(prop.id),charge=clamp(active?.charge||0,0,1);
+      const angle=Number.isFinite(active?.angle)?active.angle:Math.PI*.5;
+      const size=clamp(s*1.05,48,86),radius=size*.29;
+      if(charge>0){
+        const glowSize=size*(.5+charge*.3);
+        c.globalAlpha=.1+charge*.38;c.drawImage(this.siteSprites.warningHalo,-glowSize,-glowSize,glowSize*2,glowSize*2);
+        c.globalAlpha=.42+charge*.5;c.strokeStyle='#ffc078';c.lineWidth=1.5;
+        c.beginPath();c.arc(0,0,radius+4,-Math.PI*.5,-Math.PI*.5+TAU*charge);c.stroke();
+      }
+      c.rotate(angle+Math.PI*.5);c.globalAlpha=power;
+      c.drawImage(this.siteSprites.turret,-size*.5,-size*.5,size,size);
+      if(active?.flash>0){
+        c.globalAlpha=clamp(active.flash*9,0,1);const muzzleY=-size*.35;
+        c.drawImage(this.siteSprites.warningHalo,-size*.3,muzzleY-size*.3,size*.6,size*.6);
+        polygon(c,[[-2,muzzleY],[0,muzzleY-size*.2],[3,muzzleY]],'#fff1bf');
+      }
+    }
+    c.restore();
+  }
   drawGroundScenery(c,h,scroll,time,quality,motion=true) {
     const view=this.layerViews[0];view.x=this.parallaxX;view.y=scroll;
     const first=view.first=Math.floor((-scroll-PAD)/TILE);
@@ -341,6 +440,7 @@ export class WorldRenderer {
           const radius=prop.size*.65;c.globalAlpha=(.1+Math.sin((motion?time:0)*1.7+prop.variant*2)*.03)*power;
           c.drawImage(this.lightSprite,prop.x-radius,prop.y-radius,radius*2,radius*2);
         }
+        this.drawGroundSite(c,prop,time,motion);
       }
     }
     c.restore();
@@ -381,7 +481,8 @@ export class WorldRenderer {
         if(after!==before)this.sceneryLayers[0].delete(prop.row);
         if(prop.hp<=0){
           this.destroyed.add(prop.id);
-          result.push({id:prop.id,x:(prop.x+this.parallaxX)*s,y:(prop.y+scroll)*s,size:prop.size*s,footprint:prop.size,structural,blastRadius:clamp(prop.size*2.8,120,250)*s,color:prop.color,value:prop.value});
+          this.turretActivity.delete(prop.id);
+          result.push({id:prop.id,x:(prop.x+this.parallaxX)*s,y:(prop.y+scroll)*s,size:prop.size*s,footprint:prop.size,structural,blastRadius:clamp(prop.size*2.8,120,250)*s,color:prop.color,value:prop.value,groundRole:prop.groundRole,bonus:prop.bonus});
         }
       }
     }

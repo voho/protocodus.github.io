@@ -23,11 +23,18 @@ Choose **New campaign** to start in sector one and fight through ten worlds: jun
 
 Destroy ships and scenery for credits, collect repair and salvage pickups, and purchase six tiers each of weapons, shields, hull, and recharge between sectors. The shop shows campaign progress, your ship's capacities, and each upgrade's current and next values before purchase. Pulse, scatter, lance, seeker, plasma and arc profiles trade fire rate for reach, piercing, homing, splash or chain jumps. Enemy formations fly coordinated vee, wall, orbit, escort and pincer patterns. Guardians seal their armor between attack cycles; glowing weak points open during safe firing windows and can be broken for bonus damage. Chaining a double kill, multi kill or rampage overcharges damage and blast radius for a few seconds, then resets if the timer expires or the pilot is hit. Co-op shares the upgrade budget and equipment; one surviving pilot can complete a sector, and both ships return with full hull and shields at the next launch. Retry keeps current equipment and accumulated credits/score.
 
+Ground structures now offer targets and rewards. Turrets telegraph their aim before firing at passing ships; destroy the emplacement to stop its fire. Marked supply structures release one pickup when destroyed, including through a nearby explosion. Their locations and contents follow the level seed. Repair and credit supplies join two temporary bonuses:
+
+- **Rapid fire:** fire 65% faster for ten seconds, with the current weapon's projectile damage unchanged.
+- **Immortality:** take no hull or shield damage for ten seconds.
+
+Each bonus belongs to the pilot who collects it. Picking up the same bonus refreshes its ten-second duration; different bonuses can run together. Ship effects and each pilot's countdown show what is active. Pausing freezes both timers, campaign autosaves preserve them, and a new sector starts without temporary bonuses.
+
 ## Automatic campaign progress
 
 - **New campaign** begins at sector one and replaces the previous campaign. **Resume campaign** returns to your saved flight or shop; there are no manual save/load controls.
 - Progress saves automatically every five seconds of flight, when pausing or leaving, at each sector launch/clear, after shop purchases and weapon selections, and at campaign completion. Stage, credits, score, equipment and solo/co-op mode are included.
-- A saved flight also restores ships, health, enemies, formations, projectiles, boss state, level hash, scenery damage stages and remaining blast momentum. It opens paused; press **Resume flight** when ready. A shop save reopens the shop before the next launch.
+- A saved flight also restores ships, health, enemies, formations, projectiles, boss state, level hash, scenery damage stages, ground turret firing state, temporary bonuses and remaining blast momentum. It opens paused; press **Resume flight** when ready. A shop save reopens the shop before the next launch.
 - Progress stays in this browser's local storage. The game reports unavailable storage or unreadable saves and keeps the current flight playable. If the browser closes unexpectedly, at most the last five seconds of flight since a successful autosave may be lost. Practice flights never overwrite campaign progress.
 
 The single storage key is `tyran-campaign`. Existing `tyran-save-v2:auto` and `tyran-save-v2:manual` saves remain compatible: the newest valid one is adopted when resuming, unless a campaign already exists. Earlier version-one checkpoints migrate into the shop before their next sector. Stored input is validated and bounded before restoring; formation references are rebuilt without replaying reward or transition events. The `sceneryVersion` marker distinguishes current structure health from earlier saves. Restoring older damage preserves the percentage of health remaining against the new armor totals, so a lightly damaged old building remains lightly damaged.
@@ -73,11 +80,14 @@ Physics runs at a fixed 60 updates per second. Rendering interpolates between up
 node fun/tyran/tests/sim-check.mjs --balance
 node fun/tyran/tests/tile-map-check.mjs
 node fun/tyran/tests/save-game-check.mjs
+node fun/tyran/tests/ground-combat-check.mjs
 node tests/navigation-check.mjs
 TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/browser-check.mjs
 TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/campaign-save-browser-check.mjs
 TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/destruction-save-check.mjs
 TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/blast-integration-check.mjs
+TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/ground-sites-check.mjs
+TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/ground-combat-browser-check.mjs
 TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/mouse-controls-check.mjs
 TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/timing-check.mjs
 TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/world-check.mjs
@@ -94,6 +104,6 @@ TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/per
 
 Browser QA expects the root server at port 8773 and installed Chrome. `TYRAN_URL`, `TYRAN_BROWSER` and `TYRAN_SCREENSHOTS` override the defaults. Screenshots are written outside the repository to `/tmp/tyran-qa`.
 
-The simulation suite verifies collision, shields, all spawn schedules, upgrades, co-op deaths/revival, blast shove limits and the full campaign. Optional deterministic autopilot trials complete both solo and co-op using ordinary movement and firing plus earned purchases. These trials prove reachability; they do not substitute for human difficulty tuning. Save tests verify next-step equivalence, formation identity, boss windows, shop/victory restoration, corruption, denied storage and legacy migration. Destruction QA checks all four raster stages through restoration and cache eviction, one-time armor migration, cache reuse between stage transitions and reward deduplication. Browser QA covers automatic mid-flight saves, pause/menu/reload persistence, practice isolation, shop purchases, campaign continuation, both physical Control keys, world previews, scenery destruction, victory and real touch input.
+The simulation suite verifies collision, shields, all spawn schedules, upgrades, co-op deaths/revival, blast shove limits and the full campaign. Optional deterministic autopilot trials complete both solo and co-op using ordinary movement and firing plus earned purchases. These trials prove reachability; they do not substitute for human difficulty tuning. Save tests verify next-step equivalence, formation identity, boss windows, shop/victory restoration, corruption, denied storage and legacy migration. Destruction QA checks all four raster stages through restoration and cache eviction, one-time armor migration, cache reuse between stage transitions and reward deduplication. Ground combat QA checks seeded supply and turret sites, aiming warnings, sparse hostile fire, one-time direct/collateral rewards, all six weapons with rapid fire, invulnerability, co-op ownership and exact bonus/turret autosave restoration. Browser QA covers automatic mid-flight saves, pause/menu/reload persistence, practice isolation, shop purchases, campaign continuation, both physical Control keys, world previews, scenery destruction, victory and real touch input.
 
 Timing QA drives real keyboard events at simulated 30/60/120 Hz, checking movement parity, visible interpolation, pause, slow-frame recovery and adaptive resolution. Mouse QA checks smooth cursor settling, mass response, keyboard takeover, co-op separation, firing cleanup and narrow-screen coordinate mapping at the same frame rates. Fleet QA checks all 100 family hulls, source proportions, fixed hull geometry, reduced motion and absence of retired banking downloads. Map tests check seed reproducibility, material variety and adjacent corner continuity. World checks cover all ten biomes at three viewport widths, exactly two planes, ground alignment, persistent destruction and bounded caches, and verify no landscape images are requested. The performance harness records Chrome frame intervals and CPU profiles during a repeatable co-op battle across multiple terrain chunks; it reports measurements without assuming other computers have the same frame rate.

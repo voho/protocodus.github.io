@@ -93,7 +93,11 @@ export class Effects {
       this.shake = Math.max(this.shake, 5);
       this.rings.push({ x, y, age: 0, life: .27, radius: 52, color: event.shield ? '#91ffee' : '#ff6c5e' });
     } else if (event.type === 'pickup') {
-      this.texts.push({ x, y, text: `${event.value}`, life: 1.3, age: 0, color: '#8affd7' });
+      const timed = event.bonus === 'rapid' || event.bonus === 'invulnerable';
+      const color = event.bonus === 'rapid' ? '#ffe2a0' : '#8affd7';
+      const offset = event.bonus === 'rapid' ? 44 : event.bonus === 'invulnerable' ? 24 : 0;
+      this.texts.push({ x, y: y - offset, text: `${event.value}`, life: timed ? 1.8 : 1.3, age: 0, color });
+      if (timed) this.rings.push({ x, y, age: 0, life: .45, radius: 65, color });
     } else if (event.type === 'combo') {
       const color = event.combo >= 5 ? '#ffe36d' : '#b8ffe2';
       this.texts.push({ x, y: y - 16, text: `${event.combo}  ${event.label}`, life: 1.65, age: 0, color, size: event.combo >= 5 ? 18 : 15 });
