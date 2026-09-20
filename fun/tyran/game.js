@@ -1,6 +1,6 @@
 import { WORLDS, PARALLAX_LAYERS, WorldRenderer } from './worlds.js';
 import { ENEMY_TYPES, SHIP_PALETTES, drawShip, warmShipSprites } from './ships.js';
-import { createCampaign, beginLevel, update, buyUpgrade, upgradeCost, UPGRADES, WEAPONS, BULLET_SPECTRUM, MAX_UPGRADE, PLAYER_SPEED, clamp, selectWeapon, shipStats, weaponStats, bossWeakPointPosition, comboLabel, applyGroundReward } from './sim.js';
+import { createCampaign, beginLevel, update, buyUpgrade, upgradeCost, UPGRADES, WEAPONS, BULLET_SPECTRUM, MAX_UPGRADE, clamp, selectWeapon, shipStats, weaponStats, bossWeakPointPosition, comboLabel, applyGroundReward } from './sim.js';
 import { Effects } from './effects.js';
 import { AudioEngine } from './audio.js';
 import { readCampaign, writeCampaign } from './save-game.js';
@@ -38,7 +38,6 @@ const groundTargets = s => {
 const lerp = (before, after) => (before ?? after) + (after - (before ?? after)) * renderAlpha;
 const controls = [{ x: 0, y: 0, fire: false }, { x: 0, y: 0, fire: false }];
 const touch = { x: 0, y: 0, fire: false, pointer: null, originX: 0, originY: 0 };
-const mouse = { active: false, x: 0, y: 0, fire: false, pointer: null };
 
 try {
   audio.mute(localStorage.getItem('tyran-muted') === 'true');
@@ -109,7 +108,6 @@ function resumeCampaign() {
 }
 
 function setScreen(next) {
-  clearMouseControl();
   scene = next;
   for (const id of screens) if ($(id)) $(id).hidden = id !== `${next}-screen`;
   $('hud').hidden = next === 'menu';
@@ -146,7 +144,6 @@ function resize() {
   const rect = canvas.getBoundingClientRect();
   const oldW = W, oldH = H;
   H = 900; W = Math.round(clamp(H * rect.width / Math.max(1, rect.height), 430, 1900));
-  mouse.x = clamp(mouse.x / oldW * W, 30, W - 30); mouse.y = clamp(mouse.y / oldH * H, 105, H - 42);
   sizeSurface(rect);
   if (state) {
     state.width = W; state.height = H;
@@ -199,7 +196,7 @@ function launch(level = 0, checkpoint = null, persist = true) {
 
 function syncPilotHUD() {
   $('p2-panel').hidden = state.mode !== 2;
-  document.querySelector('.flight-hint').textContent = state.mode === 2 ? 'P1: L Alt / Option switch · P2: R Alt / Option switch' : 'Mouse / WASD / Arrows · Click / Space / Ctrl fire · L Alt / Option switch';
+  document.querySelector('.flight-hint').textContent = state.mode === 2 ? 'P1: L Alt / Option switch · P2: R Alt / Option switch' : 'WASD / Arrows · Space / Ctrl fire · L Alt / Option switch';
 }
 
 function returnToMenu() {
@@ -356,18 +353,7 @@ function input() {
   const solo = state?.mode !== 2;
   controls[0].x = Number(keys.has('KeyD') || solo && keys.has('ArrowRight')) - Number(keys.has('KeyA') || solo && keys.has('ArrowLeft')) + touch.x;
   controls[0].y = Number(keys.has('KeyS') || solo && keys.has('ArrowDown')) - Number(keys.has('KeyW') || solo && keys.has('ArrowUp')) + touch.y;
-  const keyboardMovement = keys.has('KeyW') || keys.has('KeyA') || keys.has('KeyS') || keys.has('KeyD') || solo && (keys.has('ArrowUp') || keys.has('ArrowLeft') || keys.has('ArrowDown') || keys.has('ArrowRight'));
-  const pilot = state?.players[0];
-  if (mouse.active && pilot?.alive && !keyboardMovement && touch.pointer === null) {
-    // Ask the existing momentum model for velocity instead of moving the ship
-    // directly. Braking against current velocity prevents cursor overshoot, and
-    // heavier equipment keeps its slower acceleration and settling response.
-    const response = .095 * pilot.mass, frequency = 10 / Math.sqrt(pilot.mass);
-    const gain = response * frequency * frequency, braking = 2 * response * frequency - 1;
-    controls[0].x = (gain * (mouse.x - pilot.x) - braking * pilot.vx) / PLAYER_SPEED;
-    controls[0].y = (gain * (mouse.y - pilot.y) - braking * pilot.vy) / PLAYER_SPEED;
-  }
-  controls[0].fire = mouse.fire || keys.has('ControlLeft') || keys.has('Space') || touch.fire || solo && (keys.has('ControlRight') || keys.has('Enter'));
+  controls[0].fire = keys.has('ControlLeft') || keys.has('Space') || touch.fire || solo && (keys.has('ControlRight') || keys.has('Enter'));
   controls[1].x = solo ? 0 : Number(keys.has('ArrowRight')) - Number(keys.has('ArrowLeft'));
   controls[1].y = solo ? 0 : Number(keys.has('ArrowDown')) - Number(keys.has('ArrowUp'));
   controls[1].fire = !solo && (keys.has('ControlRight') || keys.has('Enter'));
@@ -656,7 +642,6 @@ window.addEventListener('keydown', event => {
       if (pressed) switchPilotWeapon(event.code === 'AltRight' ? 1 : 0);
     } else if (controlledKeys.has(event.code)) {
       keys.add(event.code);
-      if (pressed && (/^Key[WASD]$/.test(event.code) || state?.mode !== 2 && event.code.startsWith('Arrow'))) mouse.active = false;
     } else if (pressed && (event.code === 'Escape' || event.code === 'KeyP')) pause();
     else if (pressed && event.code === 'KeyM') toggleSound();
     return;
@@ -694,7 +679,7 @@ window.addEventListener('keyup', event => {
 window.addEventListener('keypress', event => {
   if (scene === 'playing' || capturedKeys.has(event.code)) consumeInput(event);
 }, { capture: true, passive: false });
-window.addEventListener('blur', () => { keys.clear(); capturedKeys.clear(); clearMouseControl(); if (scene === 'playing') pause(); });
+window.addEventListener('blur', () => { keys.clear(); capturedKeys.clear(); if (scene === 'playing') pause(); });
 document.addEventListener('fullscreenchange', syncKeyboardLock);
 document.addEventListener('visibilitychange', () => {
   if (document.hidden && scene === 'playing') pause();
@@ -704,40 +689,11 @@ window.addEventListener('pagehide', autosave);
 window.addEventListener('resize', resize);
 for (const type of ['contextmenu', 'dragstart']) canvas.addEventListener(type, consumeInput);
 canvas.addEventListener('wheel', event => { if (scene === 'playing') consumeInput(event); }, { passive: false });
-function clearMouseControl() {
-  mouse.active = false; mouse.fire = false;
-  const pointer = mouse.pointer; mouse.pointer = null;
-  if (pointer !== null && canvas.hasPointerCapture(pointer)) canvas.releasePointerCapture(pointer);
-}
-function mouseTarget(event, activate = true) {
-  const rect = canvas.getBoundingClientRect();
-  if (!rect.width || !rect.height) return;
-  mouse.x = clamp((event.clientX - rect.left) / rect.width * W, 30, W - 30);
-  mouse.y = clamp((event.clientY - rect.top) / rect.height * H, 105, H - 42);
-  if (activate) mouse.active = true;
-}
-canvas.addEventListener('pointermove', event => {
-  if (event.pointerType !== 'mouse' || scene !== 'playing') return;
-  event.stopPropagation();
-  mouseTarget(event);
-  if (!(event.buttons & 1)) mouse.fire = false;
-});
+// Clicking the arena only restores keyboard focus; flight uses keys or touch.
 canvas.addEventListener('pointerdown', event => {
   if (event.pointerType !== 'mouse' || event.button !== 0 || scene !== 'playing') return;
-  mouseTarget(event, false); mouse.fire = true; mouse.pointer = event.pointerId;
-  canvas.setPointerCapture(event.pointerId); canvas.focus({ preventScroll: true }); audio.start(); consumeInput(event);
+  canvas.focus({ preventScroll: true }); consumeInput(event);
 });
-function releaseMouseFire(event) {
-  if (event.pointerType !== 'mouse' || event.pointerId !== mouse.pointer || event.type === 'pointerup' && event.button !== 0) return;
-  consumeInput(event);
-  mouse.fire = false;
-  if (event.type !== 'pointerup') mouse.active = false;
-  const pointer = mouse.pointer; mouse.pointer = null;
-  if (canvas.hasPointerCapture(pointer)) canvas.releasePointerCapture(pointer);
-}
-window.addEventListener('pointerup', releaseMouseFire, { capture: true });
-window.addEventListener('pointercancel', releaseMouseFire, { capture: true });
-canvas.addEventListener('lostpointercapture', releaseMouseFire);
 function on(id, fn) { $(id)?.addEventListener('click', fn); }
 on('launch-button', () => launch(0));
 on('sector-flight-button', () => launch(selected, null, false));
@@ -799,14 +755,14 @@ on('help-button', () => { helpFocus = document.activeElement; helpPaused = scene
 
 const stick = $('touch-stick'), fire = $('touch-fire');
 if (stick) {
-  stick.addEventListener('pointerdown', e => { mouse.active = false; touch.pointer = e.pointerId; touch.originX = e.clientX; touch.originY = e.clientY; stick.setPointerCapture(e.pointerId); consumeInput(e); });
+  stick.addEventListener('pointerdown', e => { if (e.pointerType === 'mouse') return; touch.pointer = e.pointerId; touch.originX = e.clientX; touch.originY = e.clientY; stick.setPointerCapture(e.pointerId); consumeInput(e); });
   stick.addEventListener('pointermove', e => { if (e.pointerId !== touch.pointer) return; consumeInput(e); touch.x = clamp((e.clientX - touch.originX) / 42, -1, 1); touch.y = clamp((e.clientY - touch.originY) / 42, -1, 1); stick.style.setProperty('--stick-x', `${touch.x * 24}px`); stick.style.setProperty('--stick-y', `${touch.y * 24}px`); });
-  const release = e => { consumeInput(e); touch.pointer = null; touch.x = touch.y = 0; stick.style.setProperty('--stick-x', '0px'); stick.style.setProperty('--stick-y', '0px'); };
+  const release = e => { if (e.pointerType === 'mouse') return; consumeInput(e); touch.pointer = null; touch.x = touch.y = 0; stick.style.setProperty('--stick-x', '0px'); stick.style.setProperty('--stick-y', '0px'); };
   stick.addEventListener('pointerup', release); stick.addEventListener('pointercancel', release); stick.addEventListener('lostpointercapture', release);
 }
 if (fire) {
-  fire.addEventListener('pointerdown', e => { touch.fire = true; fire.setPointerCapture(e.pointerId); audio.start(); consumeInput(e); });
-  for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) fire.addEventListener(name, e => { consumeInput(e); touch.fire = false; });
+  fire.addEventListener('pointerdown', e => { if (e.pointerType === 'mouse') return; touch.fire = true; fire.setPointerCapture(e.pointerId); audio.start(); consumeInput(e); });
+  for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) fire.addEventListener(name, e => { if (e.pointerType === 'mouse') return; consumeInput(e); touch.fire = false; });
 }
 
 $('world-list').innerHTML = WORLDS.map((w, i) => `<button class="world-card ${i === 0 ? 'active' : ''}" data-world="${i}" aria-pressed="${i === 0}" aria-label="Preview sector ${i + 1}: ${w.name}" style="--world-color:${w.color || w.accent}"><span class="world-number">${String(i + 1).padStart(2, '0')}</span><span class="world-name">${w.name}</span><span class="world-type">${w.subtitle || w.id}</span><span class="world-orbit" aria-hidden="true"></span></button>`).join('');

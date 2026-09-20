@@ -1,5 +1,5 @@
-// Serve the repo root; run with TYRAN_PLAYWRIGHT=/path/to/playwright/index.mjs.
-// Drive real pointer/keyboard events and fixed RAF times to inspect steering.
+// Serve repo root; run with TYRAN_PLAYWRIGHT=/path/to/playwright/index.mjs.
+// Real mouse events must leave flight controls to the keyboard and touch controls.
 import assert from 'node:assert/strict';
 
 const { chromium } = await import(process.env.TYRAN_PLAYWRIGHT || 'playwright');
@@ -11,110 +11,102 @@ await page.addInitScript(() => {
   const queued = new Map(); let id = 0, time = 1000;
   window.requestAnimationFrame = callback => { queued.set(++id, callback); return id; };
   window.cancelAnimationFrame = id => queued.delete(id);
-  window.__advance = (frames, hz = 60) => {
+  window.__advance = frames => {
     for (let i = 0; i < frames; i++) {
-      time += 1000 / hz;
+      time += 1000 / 60;
       const callbacks = [...queued.values()]; queued.clear();
-      callbacks.forEach(callback => callback(time));
+      for (const callback of callbacks) callback(time);
     }
-    return tyran.state.players.map(({ x, y, vx, vy, fire }) => ({ x, y, vx, vy, fire }));
   };
-  window.addEventListener('pointerdown', event => { if (event.pointerType === 'mouse') window.__mouseId = event.pointerId; }, true);
   localStorage.clear(); localStorage.setItem('tyran-muted', 'true');
 });
-const advance = (frames, hz = 60) => page.evaluate(([frames, hz]) => __advance(frames, hz), [frames, hz]);
-async function fixture(mode = 1, heavy = false) {
-  await page.evaluate(({ mode, heavy }) => {
+const advance = frames => page.evaluate(frames => __advance(frames), frames);
+const snapshot = () => page.evaluate(() => ({
+  pilots: tyran.state.players.map(({ x, y, vx, vy }) => ({ x, y, vx, vy })),
+  shots: tyran.state.players.map(p => tyran.state.bullets.filter(b => b.team === p.id).length),
+}));
+async function fixture(mode) {
+  await page.evaluate(mode => {
     document.querySelector(`[data-mode="${mode}"]`).click(); tyran.launch();
-    const state = tyran.state;
-    Object.assign(state, { spawnTimer: Infinity, formationTimer: Infinity, showcase: 9, duration: 1e6 });
-    for (const key of Object.keys(state.upgrades)) state.upgrades[key] = heavy ? 6 : 0;
-    state.players.forEach((pilot, index) => Object.assign(pilot, { x: state.width * (index ? .7 : 1 / 3), y: 650,
-      px: state.width * (index ? .7 : 1 / 3), py: 650, vx: 0, vy: 0, hurt: Infinity }));
-    tyran.world.hit = () => [];
-    __advance(2);
-  }, { mode, heavy });
+    const s = tyran.state;
+    Object.assign(s, { spawnTimer: Infinity, formationTimer: Infinity, showcase: 9, duration: 1e6 });
+    s.players.forEach((p, i) => Object.assign(p, { x: s.width * (i ? .7 : 1 / 3), px: s.width * (i ? .7 : 1 / 3), y: 650, py: 650, vx: 0, vy: 0, hurt: Infinity }));
+    tyran.world.hit = () => []; __advance(2);
+  }, mode);
 }
-async function aim(x, y) {
-  const point = await page.evaluate(({ x, y }) => {
+async function point(fractionX, y) {
+  const target = await page.evaluate(({ fractionX, y }) => {
     const rect = document.querySelector('#game-canvas').getBoundingClientRect();
-    return { x: rect.left + x / tyran.state.width * rect.width, y: rect.top + y / tyran.state.height * rect.height };
-  }, { x, y });
-  await page.mouse.move(point.x + .1, point.y + .1); await page.mouse.move(point.x, point.y);
+    return { x: rect.left + rect.width * fractionX, y: rect.top + rect.height * y / tyran.state.height };
+  }, { fractionX, y });
+  await page.mouse.move(target.x, target.y, { steps: 3 });
 }
+async function click(id) {
+  const box = await page.locator(`#${id}`).boundingBox();
+  assert.ok(box, `${id} is visible`);
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+}
+async function keyboardFlight(mode, withMouse) {
+  await fixture(mode);
+  const keys = ['KeyD', 'KeyW', 'ControlLeft', ...(mode === 2 ? ['ArrowLeft', 'ArrowUp', 'ControlRight'] : [])];
+  for (const key of keys) await page.keyboard.down(key);
+  if (withMouse) { await point(.15, 730); await page.mouse.down(); }
+  await advance(18);
+  if (withMouse) await point(.85, 220);
+  await advance(12);
+  for (const key of keys) await page.keyboard.up(key);
+  if (withMouse) { await page.mouse.up(); await point(.15, 730); }
+  await advance(12);
+  return snapshot();
+}
+
 try {
   await page.goto(process.env.TYRAN_URL || 'http://127.0.0.1:8773/fun/tyran/');
   await page.waitForFunction(() => window.tyran && document.body.dataset.ready === 'true', null, { polling: 20 });
-  const flights = [];
-  for (const heavy of [false, true]) for (const hz of [30, 60, 120]) {
-    await fixture(1, heavy); await aim(850, 450);
-    const early = (await advance(hz / 10, hz))[0];
-    const trajectory = await page.evaluate(hz => {
-      const positions = [];
-      for (let i = 0; i < hz * 2; i++) positions.push(__advance(1, hz)[0]);
-      return { end: positions.at(-1), maxX: Math.max(...positions.map(p => p.x)), minY: Math.min(...positions.map(p => p.y)) };
-    }, hz);
-    assert.ok(Math.hypot(trajectory.end.x - 850, trajectory.end.y - 450) < 1, 'the ship settles at the cursor');
-    assert.ok(trajectory.maxX <= 850.5 && trajectory.minY >= 449.5, 'the approach has no visible overshoot');
-    flights.push({ heavy, hz, early, ...trajectory });
+  for (const mode of [1, 2]) {
+    await fixture(mode);
+    const start = await snapshot();
+    await point(.85, 300); await advance(18);
+    assert.deepEqual(await snapshot(), start, `${mode}-pilot flight ignores mouse movement`);
+    await page.evaluate(() => document.querySelector('#pause-button').focus());
+    await page.mouse.down(); await advance(18);
+    assert.equal(await page.evaluate(() => document.activeElement.id), 'game-canvas', 'a canvas click focuses the keyboard arena');
+    assert.deepEqual(await snapshot(), start, `${mode}-pilot flight ignores held mouse fire`);
+    await point(.15, 730); await advance(18);
+    assert.deepEqual(await snapshot(), start, `${mode}-pilot flight ignores mouse dragging`);
+    await page.mouse.move(-20, 950); await page.mouse.up(); await point(.65, 200); await advance(18);
+    assert.deepEqual(await snapshot(), start, `${mode}-pilot flight stays stationary and silent after outside release`);
+
+    const keyboard = await keyboardFlight(mode, false), mixed = await keyboardFlight(mode, true);
+    assert.deepEqual(mixed, keyboard, `${mode}-pilot keyboard movement and shot counts are unchanged by mouse activity`);
+    assert.ok(keyboard.pilots[0].x > start.pilots[0].x && keyboard.pilots[0].y < start.pilots[0].y, 'WASD still steers pilot one');
+    if (mode === 2) assert.ok(keyboard.pilots[1].x < start.pilots[1].x && keyboard.pilots[1].y < start.pilots[1].y, 'arrows still steer pilot two independently');
+    assert.ok(keyboard.shots.every(count => count > 0), 'held Ctrl still fires for every active pilot');
   }
-  assert.ok(flights.find(f => !f.heavy && f.hz === 60).early.x > flights.find(f => f.heavy && f.hz === 60).early.x + 1, 'armor mass still slows initial acceleration');
-  for (const heavy of [false, true]) {
-    const variants = flights.filter(f => f.heavy === heavy);
-    assert.ok(Math.max(...variants.map(f => f.end.x)) - Math.min(...variants.map(f => f.end.x)) < .05, 'steering remains consistent at 30/60/120 Hz');
-  }
+  console.log('PASS real mouse move/hold/drag/release cannot steer, fire or override solo/co-op keyboard controls');
 
-  await fixture(); await aim(850, 450); await advance(15);
-  const beforeKeyboard = (await advance(1))[0];
-  await page.keyboard.down('a'); const keyboard = (await advance(30))[0]; await page.keyboard.up('a');
-  assert.ok(keyboard.x < beforeKeyboard.x - 40, 'WASD takes over from the mouse');
-  const settledKeyboard = (await advance(60))[0], noMouseMove = (await advance(30))[0];
-  assert.ok(Math.abs(settledKeyboard.x - noMouseMove.x) < 1, 'releasing keys does not pull the ship back to an old cursor target');
-  await aim(851, 451); const restoredMouse = (await advance(150))[0];
-  assert.ok(Math.hypot(restoredMouse.x - 851, restoredMouse.y - 451) < 1, 'a new mouse move restores pointer steering');
-  await page.keyboard.down('ArrowLeft'); const soloArrow = (await advance(30))[0]; await page.keyboard.up('ArrowLeft');
-  assert.ok(soloArrow.x < restoredMouse.x - 90, 'solo arrow controls remain equivalent to WASD');
+  await fixture(1);
+  // Expose the touch overlay to model a hybrid device with both input methods.
+  await page.evaluate(() => { document.querySelector('#touch-controls').style.display = 'flex'; });
+  const touchStart = await snapshot(), stick = await page.locator('#touch-stick').boundingBox(), fire = await page.locator('#touch-fire').boundingBox();
+  assert.ok(stick && fire, 'touch controls are visible for the hybrid-input fixture');
+  await page.mouse.move(stick.x + stick.width / 2, stick.y + stick.height / 2); await page.mouse.down();
+  await page.mouse.move(stick.x + stick.width / 2 + 35, stick.y + stick.height / 2 - 30); await advance(18); await page.mouse.up();
+  await page.mouse.move(fire.x + fire.width / 2, fire.y + fire.height / 2); await page.mouse.down(); await advance(18); await page.mouse.up();
+  assert.deepEqual(await snapshot(), touchStart, 'mouse input on visible touch controls cannot steer or fire');
+  await page.evaluate(() => document.querySelector('#touch-controls').style.removeProperty('display'));
+  console.log('PASS visible touch controls also reject mouse input on hybrid devices');
 
-  await fixture(2); await aim(650, 420);
-  await page.keyboard.down('ArrowLeft'); const coop = await advance(30); await page.keyboard.up('ArrowLeft');
-  assert.ok(coop[0].x > 480 && coop[1].x < 750, 'mouse steers P1 while arrows independently steer P2');
-  await page.mouse.down(); const firing = await advance(15); await page.mouse.up();
-  assert.ok(firing[0].fire > 0 && firing[1].fire < 0, 'left mouse fires only player one');
-  await page.keyboard.down('ControlRight'); const wingmateFire = await advance(30); await page.keyboard.up('ControlRight');
-  assert.ok(wingmateFire[0].fire < 0 && wingmateFire[1].fire > 0, 'right Control still fires only the wingmate');
-
-  for (const end of ['release', 'cancel', 'pause', 'blur']) {
-    await fixture(); await aim(650, 450); await page.mouse.down();
-    assert.ok((await advance(15))[0].fire > 0, `${end}: holding left mouse fires`);
-    if (end === 'cancel') await page.evaluate(() => document.querySelector('#game-canvas').dispatchEvent(new PointerEvent('pointercancel', { pointerType: 'mouse', pointerId: __mouseId, bubbles: true })));
-    if (end === 'pause') await page.evaluate(() => tyran.pause());
-    if (end === 'blur') await page.evaluate(() => window.dispatchEvent(new Event('blur')));
-    // Release outside the arena exercises window-level cleanup and capture.
-    await page.mouse.move(-20, 950); await page.mouse.up();
-    if (end === 'pause' || end === 'blur') {
-      assert.equal(await page.evaluate(() => tyran.scene), 'pause');
-      await page.evaluate(() => tyran.pause());
-    }
-    assert.ok((await advance(35))[0].fire < 0, `${end} clears firing before the next flight frames`);
-  }
-
-  await fixture();
-  const ignored = await page.evaluate(() => {
-    const canvas = document.querySelector('#game-canvas');
-    for (const pointerType of ['touch', 'pen']) for (const type of ['pointermove', 'pointerdown']) {
-      canvas.dispatchEvent(new PointerEvent(type, { pointerType, clientX: 850, clientY: 350, button: 0, buttons: 1, bubbles: true }));
-    }
-    return __advance(30)[0];
-  });
-  assert.ok(Math.abs(ignored.x - 400) < .01 && ignored.fire < 0, 'touch and pen events on the canvas never enter mouse control');
-
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.waitForFunction(() => tyran.state.width === 430, null, { polling: 20 });
-  await fixture(); await aim(350, 400);
-  const narrow = (await advance(120))[0];
-  assert.ok(Math.hypot(narrow.x - 350, narrow.y - 400) < 1, 'CSS pointer positions map to the narrow logical arena');
-  await page.mouse.down(); await page.mouse.move(-100, 1000); const edge = (await advance(150))[0]; await page.mouse.up();
-  assert.ok(Math.abs(edge.x - 30) < 1 && Math.abs(edge.y - 858) < 1, 'captured pointers outside the viewport clamp to playable bounds');
+  const weapon = await page.evaluate(() => tyran.state.players[0].weapon);
+  await click('p1-weapon');
+  assert.notEqual(await page.evaluate(() => tyran.state.players[0].weapon), weapon, 'HUD weapon buttons remain clickable');
+  await click('pause-button'); assert.equal(await page.evaluate(() => tyran.scene), 'pause');
+  await click('resume-button'); assert.equal(await page.evaluate(() => tyran.scene), 'playing');
+  await click('pause-button'); await click('menu-button');
+  assert.equal(await page.evaluate(() => tyran.scene), 'menu', 'pause/menu buttons remain clickable');
+  const quality = await page.locator('#quality-toggle').getAttribute('aria-pressed');
+  await click('quality-toggle');
+  assert.notEqual(await page.locator('#quality-toggle').getAttribute('aria-pressed'), quality, 'menu settings still accept mouse clicks');
   assert.deepEqual(errors, [], 'no runtime errors');
-  console.log('PASS mouse momentum and mass, 30/60/120 Hz steering, keyboard takeover, co-op, firing cleanup and narrow-screen bounds');
+  console.log('PASS arena click focus and native HUD, pause, resume and menu buttons');
 } finally { await browser.close(); }
