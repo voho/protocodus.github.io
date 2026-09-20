@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { ENEMY_TYPES } from '../ships.js';
 import { createCampaign, beginLevel, update, spawnEnemy, killEnemy, hurtPlayer,
-  spawnFormation, selectWeapon, weaponStats, WEAPONS, buyUpgrade, upgradeCost, shipStats, UPGRADES, MAX_UPGRADE, applyStructureBlast } from '../sim.js';
+  spawnFormation, selectWeapon, weaponStats, WEAPONS, buyUpgrade, upgradeCost, shipStats, UPGRADES, MAX_UPGRADE, applyStructureBlast, missionScrollSpeed } from '../sim.js';
+import { serializeRun, restoreRun } from '../save-game.js';
 
 // Run with: node fun/tyran/tests/sim-check.mjs
 // Add --balance for reproducible keyboard-style autopilot campaign trials.
@@ -34,6 +35,53 @@ check('ten progressively stronger enemy classes with distinct names', () => {
     assert.ok(ENEMY_TYPES[i].hp > ENEMY_TYPES[i - 1].hp);
     assert.ok(ENEMY_TYPES[i].radius > ENEMY_TYPES[i - 1].radius);
   }
+});
+
+check('mission scrolling accelerates within each sector, stays bounded, and resets for the next mission', () => {
+  for (let level = 0; level < 10; level++) {
+    const state = createCampaign(1, level), opening = missionScrollSpeed(state);
+    const speeds = [0, .25, .5, .75, 1].map(progress => missionScrollSpeed(state, state.duration * progress));
+    assert.equal(opening, 92 + level * 3);
+    for (let index = 1; index < speeds.length; index++) assert(speeds[index] > speeds[index - 1]);
+    assert.equal(speeds.at(-1), opening * 1.75);
+    assert.equal(missionScrollSpeed(state, state.duration * 10), opening * 1.75, 'acceleration has a finite ceiling');
+    state.time = state.duration * .9; state.scroll = 1000; state.bossSpawned = true;
+    assert.equal(missionScrollSpeed(state), 42, 'guardians keep their readable battle pacing');
+    const before = state.scroll; update(state, .025);
+    assert(Math.abs(state.scroll - before - 42 * .025) < 1e-9);
+    beginLevel(state, level);
+    assert.equal(state.time, 0); assert.equal(state.scroll, 0); assert.equal(missionScrollSpeed(state), opening);
+  }
+});
+
+check('accelerating terrain travels consistently at 30, 60 and 120 Hz', () => {
+  const distances = [30, 60, 120].map(hz => {
+    const state = createCampaign();
+    state.showcase = 9; state.spawnTimer = state.formationTimer = Infinity;
+    let firstSecond = 0, lastSecondStart = 0;
+    for (let tick = 0; tick < 72 * hz; tick++) {
+      update(state, 1 / hz);
+      if (tick === hz - 1) firstSecond = state.scroll;
+      if (tick === 71 * hz - 1) lastSecondStart = state.scroll;
+    }
+    assert(state.scroll - lastSecondStart > firstSecond * 1.5, 'actual late-flight displacement increases');
+    assert.equal(state.bossSpawned, false);
+    return state.scroll;
+  });
+  assert(Math.max(...distances) - Math.min(...distances) < .001, 'refresh rate cannot change the traveled map');
+});
+
+check('resuming preserves the speed ramp and ground targets receive the current scroll position', () => {
+  const state = createCampaign(2, 6);
+  state.time = 63.25; state.scroll = 7432.5;
+  state.showcase = 9; state.spawnTimer = state.formationTimer = Infinity;
+  const restored = restoreRun(serializeRun(state)).state;
+  assert.equal(missionScrollSpeed(restored), missionScrollSpeed(state));
+  let targetScroll;
+  update(state, 1 / 60, [], null, current => { targetScroll = current.scroll; return []; });
+  update(restored, 1 / 60);
+  assert.equal(restored.scroll, state.scroll); assert.equal(restored.time, state.time);
+  assert.equal(targetScroll, state.scroll, 'turret aiming and scenery hits use the newly advanced terrain');
 });
 
 check('weapon profiles trade power for speed, range and utility', () => {

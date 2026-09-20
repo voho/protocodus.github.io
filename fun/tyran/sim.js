@@ -494,10 +494,20 @@ export function killEnemy(s, e) {
   }
 }
 
+// Build forward momentum over the mission without storing another timer in saves.
+// Ease in and out so the terrain accelerates smoothly toward the final approach.
+export function missionScrollSpeed(s, time = s.time) {
+  if (s.bossSpawned) return 42;
+  const progress = clamp(time / Math.max(1, s.duration), 0, 1);
+  const ramp = progress * progress * (3 - 2 * progress);
+  return (92 + s.level * 3) * (1 + .75 * ramp);
+}
+
 export function update(s, dt, input = [], environmentHit = null, groundTargets = []) {
   if (s.status !== 'playing') return;
   dt = clamp(dt, 0, .05);
-  s.time += dt; s.scroll += dt * (s.bossSpawned ? 42 : 92 + s.level * 3);
+  s.scroll += dt * missionScrollSpeed(s, s.time + dt * .5);
+  s.time += dt;
   if (s.comboTime > 0) {
     s.comboTime -= dt;
     if (s.comboTime <= 0) resetCombo(s, true);

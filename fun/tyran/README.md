@@ -57,6 +57,8 @@ Seeded clusters of small rocks, scrub, coral and rubble add ground cover around 
 
 Structures and ground vehicles have four persistent appearances: fresh, lightly damaged, heavily damaged and crater. Damage changes their sprite at 70%, 35% and depleted health; intermediate hits reuse the cached scenery strip. Durability scales with footprint area and the structure's armor: doubling the width of the same type gives roughly four times the health. Destroying a large structure gives nearby light ships a gentle outward shove without damage. The impulse fades quickly, is weaker on heavier craft, excludes bosses and large ships, and never replaces the player's steering input.
 
+Mission terrain accelerates smoothly from its opening pace to 1.75× speed by the final approach, then uses the slower boss-battle pace. The ramp follows elapsed mission time, so pausing freezes it, resuming a saved flight preserves the pace, and each new sector starts its own build-up.
+
 Physics runs at a fixed 60 updates per second. Rendering interpolates between updates for smooth motion on faster displays and catches up through brief slow frames with a bounded budget. Paused and covered title screens stop repainting the arena. High-DPI rendering has a pixel budget and reduces backing resolution under sustained load; this never changes the flight area or simulation speed.
 
 ## Structure
