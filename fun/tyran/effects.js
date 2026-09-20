@@ -2,14 +2,35 @@ import { spriteCell, spriteRevision, spritesReady } from './sprite-assets.js';
 
 const random = (a, b) => a + Math.random() * (b - a);
 const TAU = Math.PI * 2;
+// Effects retain shared artwork and current playback state only. Repeated bursts
+// reuse particle records instead of leaving hundreds of short-lived objects for GC.
+export const EFFECT_LIMITS = Object.freeze({ particles: 700, rings: 96, lights: 48, texts: 48, wrecks: 60, delayed: 72, textures: 24 });
+const CAPPED_STATES = ['rings', 'lights', 'texts', 'wrecks', 'delayed'];
+const EFFECT_STATES = ['particles', ...CAPPED_STATES];
 const textures = new Map();
+function releaseTexture(canvas) { canvas.width = canvas.height = 1; }
+export function effectTextureStats() {
+  let bytes = 0;
+  for (const canvas of textures.values()) bytes += canvas.width * canvas.height * 4;
+  return { count: textures.size, bytes };
+}
 let textureRevision = -1;
 function texture(key, paint, size = 128) {
-  if (textureRevision !== spriteRevision) { textures.clear(); textureRevision = spriteRevision; }
-  if (textures.has(key)) return textures.get(key);
+  if (textureRevision !== spriteRevision) {
+    for (const canvas of textures.values()) releaseTexture(canvas);
+    textures.clear(); textureRevision = spriteRevision;
+  }
+  if (textures.has(key)) {
+    const canvas = textures.get(key); textures.delete(key); textures.set(key, canvas);
+    return canvas;
+  }
   const c = typeof OffscreenCanvas === 'undefined' ? document.createElement('canvas') : new OffscreenCanvas(size, size);
   c.width = c.height = size;
   paint(c.getContext('2d'), size);
+  if (textures.size >= EFFECT_LIMITS.textures) {
+    const oldest = textures.keys().next().value;
+    releaseTexture(textures.get(oldest)); textures.delete(oldest);
+  }
   textures.set(key, c);
   return c;
 }
@@ -68,18 +89,42 @@ function ageAndCompact(list, dt) {
   for (const p of list) { p.age += dt; if (p.age < p.life) list[length++] = p; }
   list.length = length;
 }
+function keepNewest(list, limit) {
+  if (list.length > limit) { list.copyWithin(0, list.length - limit); list.length = limit; }
+}
 export class Effects {
-  constructor() { this.particles = []; this.rings = []; this.lights = []; this.texts = []; this.wrecks = []; this.delayed = []; this.shake = 0; this.flash = 0; this.reduced = matchMedia('(prefers-reduced-motion: reduce)').matches; this.quality = 'high'; }
-  reset() { this.particles = []; this.rings = []; this.lights = []; this.texts = []; this.wrecks = []; this.delayed = []; this.shake = 0; this.flash = 0; }
+  constructor() { this.particles = []; this.particlePool = []; this.rings = []; this.lights = []; this.texts = []; this.wrecks = []; this.delayed = []; this.shake = 0; this.flash = 0; this.reduced = matchMedia('(prefers-reduced-motion: reduce)').matches; this.quality = 'high'; }
+  reset() {
+    for (const key of EFFECT_STATES) this[key].length = 0;
+    this.particlePool.length = 0;
+    this.shake = 0; this.flash = 0;
+  }
+  get memory() {
+    return { particleRecords: this.particles.length + this.particlePool.length,
+      active: Object.fromEntries(EFFECT_STATES.map(key => [key, this[key].length])),
+      textures: effectTextureStats() };
+  }
+  reserveParticles(count) {
+    const remove = Math.max(0, this.particles.length + Math.ceil(count) - EFFECT_LIMITS.particles);
+    for (let i = 0; i < remove; i++) this.particlePool.push(this.particles[i]);
+    if (remove) { this.particles.copyWithin(0, remove); this.particles.length -= remove; }
+  }
+  particle(x, y, vx, vy, life, radius, color, smoke = false, debris = false, ground = false, angle = 0) {
+    const p = this.particlePool.pop() || {};
+    p.x = x; p.y = y; p.vx = vx; p.vy = vy; p.age = 0; p.life = life; p.radius = radius; p.color = color;
+    p.smoke = smoke; p.debris = debris; p.ground = ground; p.angle = angle;
+    this.particles.push(p);
+  }
   emit(event, scroll = 0, groundOffset = 0) {
     const { x = 0, y = 0, size = 20 } = event;
     if (event.type === 'explosion' || event.type === 'phase') {
       const boss = event.boss, count = Math.min(boss ? 130 : 55, Math.round(size * 1.1)) * (this.quality === 'high' ? 1 : .55);
       if (boss) for (let i = 0; i < 18; i++) this.delayed.push({ delay: .1 + i * .085, scroll, groundOffset, event: { type: 'explosion', x: x + random(-size, size), y: y + random(-size * .7, size * .7), size: random(19, 48), secondary: true } });
       const color = event.ground ? (event.color || '#ffc985') : '#ffbb6b';
+      this.reserveParticles(count);
       for (let i = 0; i < count; i++) {
         const angle = random(0, TAU), speed = random(25, boss ? 420 : size * 5 + 50);
-        this.particles.push({ x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, age: 0, life: random(.3, boss ? 2.3 : 1.2), radius: random(1.2, size * .12 + 2), color, smoke: i % 4 === 0, debris: i % 5 === 0, ground: !!event.ground, angle });
+        this.particle(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed, random(.3, boss ? 2.3 : 1.2), random(1.2, size * .12 + 2), color, i % 4 === 0, i % 5 === 0, !!event.ground, angle);
       }
       this.rings.push({ x, y, age: 0, life: boss ? 1.2 : .5, radius: size * (boss ? 6 : 3), color, explosion: true, diameter: size * 4 });
       this.lights.push({ x, y, age: 0, life: boss ? .9 : .3, radius: size * 5, color });
@@ -88,7 +133,8 @@ export class Effects {
       this.flash = Math.max(this.flash, boss ? .5 : event.player ? .24 : .03);
       if (event.value) this.texts.push({ x, y, text: `+${event.value}`, life: 1.15, age: 0, color: '#f3debe' });
     } else if (event.type === 'spark') {
-      for (let i = 0; i < 4; i++) this.particles.push({ x, y, vx: random(-100, 100), vy: random(10, 150), age: 0, life: random(.1, .22), radius: random(1, 3), color: '#ddffed' });
+      this.reserveParticles(4);
+      for (let i = 0; i < 4; i++) this.particle(x, y, random(-100, 100), random(10, 150), random(.1, .22), random(1, 3), '#ddffed');
     } else if (event.type === 'hit') {
       this.shake = Math.max(this.shake, 5);
       this.rings.push({ x, y, age: 0, life: .27, radius: 52, color: event.shield ? '#91ffee' : '#ff6c5e' });
@@ -109,17 +155,17 @@ export class Effects {
       this.shake = Math.min(18, this.shake + size * .035);
     } else if (event.type === 'arc') {
       const segments = 5;
+      this.reserveParticles(segments);
       for (let i = 0; i < segments; i++) {
         const t = (i + .5) / segments;
-        this.particles.push({ x: x + (event.toX - x) * t, y: y + (event.toY - y) * t, vx: random(-32, 32), vy: random(-32, 32), age: 0, life: .16, radius: random(1.5, 3.5), color: event.color || '#ffe88d' });
+        this.particle(x + (event.toX - x) * t, y + (event.toY - y) * t, random(-32, 32), random(-32, 32), .16, random(1.5, 3.5), event.color || '#ffe88d');
       }
     } else if (event.type === 'weak-hit' || event.type === 'blocked') {
       this.rings.push({ x, y, age: 0, life: .2, radius: event.type === 'blocked' ? 15 : 25, color: event.type === 'blocked' ? '#ff8b78' : '#fff1a6' });
     } else if (event.type === 'weak-break') {
       this.emit({ type: 'explosion', x, y, size: size * 1.35, color: '#ffe36d' }, scroll, groundOffset);
     }
-    if (this.particles.length > 700) this.particles.splice(0, this.particles.length - 700);
-    if (this.wrecks.length > 60) this.wrecks.shift();
+    for (const key of CAPPED_STATES) keepNewest(this[key], EFFECT_LIMITS[key]);
   }
   update(dt) {
     let length = 0;
@@ -128,7 +174,7 @@ export class Effects {
     this.shake *= Math.exp(-dt * 8); this.flash *= Math.exp(-dt * 7);
     const drag = Math.exp(-dt * 2.5);
     length = 0;
-    for (const p of this.particles) { p.age += dt; if (p.age >= p.life) continue; p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= drag; p.vy *= drag; this.particles[length++] = p; }
+    for (const p of this.particles) { p.age += dt; if (p.age >= p.life) { this.particlePool.push(p); continue; } p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= drag; p.vy *= drag; this.particles[length++] = p; }
     this.particles.length = length;
     ageAndCompact(this.rings, dt); ageAndCompact(this.lights, dt); ageAndCompact(this.texts, dt);
   }

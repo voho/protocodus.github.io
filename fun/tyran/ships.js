@@ -35,14 +35,39 @@ export function shipPalette(world = 0, fallback = '#ff7866') {
   return palette || { id: 'custom', primary: fallback, rim: '#d9f5ff', core: '#ffffff', engine: '#ff9a4b', glow: fallback };
 }
 
-const hulls = new Map();
-const flames = new Map();
-const glows = new Map();
-const silhouettes = new Map();
-const lights = new Map();
+function releaseSprite(sprite) {
+  if (sprite.shadow) { releaseSprite(sprite.shadow); releaseSprite(sprite.flash); }
+  else sprite.width = sprite.height = 1;
+}
+
+// One fleet and the pilot liveries fit together. Visiting all ten sectors must
+// not retain ten fleets of derived hulls, shadows and lighting masks.
+class SpriteCache extends Map {
+  constructor(limit) { super(); this.limit = limit; }
+  get(key) {
+    const value = super.get(key);
+    if (value) { super.delete(key); super.set(key, value); }
+    return value;
+  }
+  set(key, value) {
+    super.set(key, value);
+    while (this.size > this.limit) {
+      const oldest = this.keys().next().value;
+      releaseSprite(super.get(oldest)); super.delete(oldest);
+    }
+    return this;
+  }
+  clear() { for (const value of this.values()) releaseSprite(value); super.clear(); }
+}
+
+const hulls = new SpriteCache(16);
+const flames = new SpriteCache(24);
+const glows = new SpriteCache(48);
+const silhouettes = new SpriteCache(12);
+const lights = new SpriteCache(16);
 const styles = new Map();
 const playerPalettes = new Map();
-const rasterHulls = new Map();
+const rasterHulls = new SpriteCache(12);
 const rasterShapes = new Map();
 let assetRevision = -1;
 const TAU = Math.PI * 2;
@@ -159,7 +184,6 @@ function rasterHull(kind, player, world = 0) {
   const engines = family ? anchors.engines.map(([x, y, r]) => [x, rearNozzle(cell, x, reversed), r]) : anchors.engines;
   rasterShapes.set(key, { ...shape, engines: engines.map(point), core: point(anchors.core) });
   rasterHulls.set(key, out);
-  if (rasterHulls.size > 48) rasterHulls.delete(rasterHulls.keys().next().value);
   return out;
 }
 
@@ -469,12 +493,13 @@ function shipDetails(ctx,kind,color,world,player,palette) {
 }
 
 function hullSprite(kind,color,world,player,palette=shipPalette(world,color)) {
-  const key=`${player?'p':kind}:${color}:${world}:${palette.id||palette.primary}`;
+  const sector=player&&spriteCell('fleet',0)?'shared':world;
+  const key=`${player?'p':kind}:${color}:${sector}:${palette.id||palette.primary}`;
   if(hulls.has(key))return hulls.get(key);
   const raster = rasterHull(kind, player,world);
   if (raster) {
     const out = paintedRaster(raster, palette, player);
-    hulls.set(key, out); if (hulls.size > 56) hulls.delete(hulls.keys().next().value);
+    hulls.set(key, out);
     return out;
   }
   const shape=player?PLAYER:SHAPES[kind];
@@ -517,7 +542,6 @@ function hullSprite(kind,color,world,player,palette=shipPalette(world,color)) {
     ctx.fillStyle=tint(palette.rim||flightColor,.7);ctx.beginPath();ctx.arc(x*.9,y*.9,player?1.4:1.25,0,TAU);ctx.fill();
   }
   hulls.set(key,canvas);
-  if(hulls.size>56)hulls.delete(hulls.keys().next().value);
   return canvas;
 }
 
@@ -549,7 +573,7 @@ function silhouetteSprites(kind,player,world=0) {
       polygon(ctx,shape.outline,'rgba(0,4,13,.79)','rgba(0,4,13,.17)',8);
     } else polygon(ctx,shape.outline,'#efffff');
   }
-  const result={shadow,flash};silhouettes.set(key,result);if(silhouettes.size>72)silhouettes.delete(silhouettes.keys().next().value);return result;
+  const result={shadow,flash};silhouettes.set(key,result);return result;
 }
 
 function glowSprite(color) {
@@ -562,10 +586,11 @@ function glowSprite(color) {
 }
 
 function flameSprite(color, large = false) {
-  const key = `${color}:${large}`;
+  const flame = spriteCell('effects', large ? 15 : 14);
+  // Generated exhaust has no palette tint: every fleet shares these two frames.
+  const key = flame ? `atlas:${large}` : `${color}:${large}`;
   if(flames.has(key))return flames.get(key);
   const canvas=surface(192),ctx=canvas.getContext('2d');
-  const flame = spriteCell('effects', large ? 15 : 14);
   if (flame) {
     ctx.drawImage(flame, 58, 12, 76, 174);
     flames.set(key, canvas); return canvas;
@@ -588,7 +613,7 @@ function flameSprite(color, large = false) {
 }
 
 function lightsSprite(kind,color,player,palette=shipPalette(0,color),world=0) {
-  const key=`${player?'p':kind}:${world}:${color}:${palette.id||palette.primary}`;
+  const key=`${player?'p':kind}:${player?'shared':world}:${color}:${palette.id||palette.primary}`;
   if(lights.has(key))return lights.get(key);
   const canvas=surface(320),ctx=canvas.getContext('2d'),shape=flightShape(kind,player,world);
   ctx.translate(160,160);
@@ -603,7 +628,6 @@ function lightsSprite(kind,color,player,palette=shipPalette(0,color),world=0) {
   const [x,y,r]=shape.core,diameter=r*(player?3.8:4.7);
   ctx.globalAlpha=.48;ctx.drawImage(glowSprite(color),x-diameter/2,y-diameter/2,diameter,diameter);
   lights.set(key,canvas);
-  if(lights.size>56)lights.delete(lights.keys().next().value);
   return canvas;
 }
 
@@ -617,6 +641,14 @@ function playerPalette(color='#71ecff') {
   if(playerPalettes.has(color))return playerPalettes.get(color);
   const palette={id:`player-${color}`,primary:color,rim:'#f2ffff',core:'#ffffff',engine:'#ff9a4b',glow:color};
   playerPalettes.set(color,palette);return palette;
+}
+
+/** Estimated retained RGBA bytes for private, bounded ship raster caches. */
+export function shipSpriteMemory() {
+  const bytes = sprite => sprite.shadow ? bytes(sprite.shadow) + bytes(sprite.flash) : sprite.width * sprite.height * 4;
+  const caches = Object.fromEntries(Object.entries({ hulls, flames, glows, silhouettes, lights, rasterHulls })
+    .map(([name, cache]) => [name, { count: cache.size, limit: cache.limit, bytes: [...cache.values()].reduce((sum, sprite) => sum + bytes(sprite), 0) }]));
+  return { caches, estimatedBytes: Object.values(caches).reduce((sum, cache) => sum + cache.bytes, 0) };
 }
 
 /** Prepare cached artwork between stages, keeping vector rasterization out of combat. */

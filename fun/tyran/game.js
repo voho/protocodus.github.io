@@ -18,7 +18,7 @@ const canvas = $('game-canvas'), ctx = canvas.getContext('2d', { alpha: false })
 const world = new WorldRenderer(), fx = new Effects(), audio = new AudioEngine();
 const keys = new Set(), numberFormat = new Intl.NumberFormat('en-US'), number = n => numberFormat.format(Math.floor(n || 0));
 const screens = ['menu-screen', 'pause-screen', 'hangar-screen', 'end-screen'];
-let campaign = readCampaign(), campaignError = null, activeCampaign = false, lastAutosaveTime = 0;
+let campaign = campaignSummary(readCampaign()), campaignError = null, activeCampaign = false, lastAutosaveTime = 0;
 let state = null, mode = 1, selected = 0, scene = 'menu', unlocked = campaign.run?.unlocked || 0;
 let W = 1200, H = 900, dpr = 1, previewScroll = 0, clock = 0, lastTime = 0, hudClock = 0;
 let announcementUntil = 0, quality = 'high', helpPaused = false, helpFocus = null;
@@ -42,6 +42,14 @@ try {
   quality = localStorage.getItem('tyran-quality') === 'low' ? 'low' : 'high';
 } catch { /* Local saves are optional in private/restricted browsing. */ }
 
+// Resume reads the authoritative local save on demand. Keep only menu metadata
+// here, rather than a second entire flight and destruction ledger after each save.
+function campaignSummary(result) {
+  if (!result.run) return result;
+  const { scene, unlocked, state: { level, mode, credits, score } } = result.run;
+  return { ok: result.ok, error: result.error, run: { scene, unlocked, state: { level, mode, credits, score } } };
+}
+
 function saveStatus(message) {
   for (const id of ['save-summary', 'pause-save-status', 'hangar-save-status']) setText($(id), message);
 }
@@ -54,18 +62,18 @@ function autosave() {
   // A failed write keeps the last resumable run and waits before trying again.
   lastAutosaveTime = state.time;
   campaignError = result.error;
-  if (result.ok) campaign = result;
+  if (result.ok) campaign = campaignSummary(result);
   refreshContinue();
   return result.ok;
 }
 
 function resumeCampaign() {
   const result = readCampaign();
-  campaign = result; campaignError = null; refreshContinue();
+  campaign = campaignSummary(result); campaignError = null; refreshContinue();
   if (!result.ok || !result.run) return;
   const run = result.run;
   activeCampaign = true; lastAutosaveTime = run.state.time;
-  state = structuredClone(run.state); mode = state.mode; unlocked = Math.max(unlocked, run.unlocked);
+  state = run.state; mode = state.mode; unlocked = Math.max(unlocked, run.unlocked);
   // Fit the saved arena to the current screen while retaining health, velocity,
   // timers and formation relationships. Loaded flight never advances until Resume.
   const sx = W / state.width, sy = H / state.height;

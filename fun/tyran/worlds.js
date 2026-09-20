@@ -22,6 +22,7 @@ const WIDTH = 1200;
 const MARGIN = MAP_TILE_SIZE; // Actual offscreen cells cover lateral drift.
 const PAD = 140;
 const HIT_CELL = 160;
+const MAX_DAMAGE_SPRITES = 32; // 8.25 MiB; fresh sprites stay warm for terrain streaming.
 const TAU = Math.PI * 2;
 export const PARALLAX_LAYERS = Object.freeze([
   { id:'ground', label:'Terrain and scenery', speed:1, x:1 },
@@ -100,7 +101,7 @@ function siteHash(id) {
 /** Seeded terrain and scenery share one ground plane; only atmosphere drifts. */
 export class WorldRenderer {
   constructor() {
-    this.tiles=new Map();this.bands=new Map();this.sprites=new Map();
+    this.tiles=new Map();this.bands=new Map();this.sprites=new Map();this.damageSpriteKeys=new Set();
     this.sceneryLayers=[new Map()];
     this.layerViews=[{zoom:1,x:0,y:0,first:0,last:0}];
     this.hitBuckets=new Map();this.visibleProps=[];this.damage=new Map();this.destroyed=new Set();this.turretActivity=new Map();
@@ -121,7 +122,7 @@ export class WorldRenderer {
     // A preview or retry reuses immutable artwork while resetting destruction.
     if(reuse)return;
     this.warmEpoch=(this.warmEpoch||0)+1;this.warmJobs=[];this.warmKeys=new Set();this.warmPending=false;
-    this.terrain=new TerrainSprites(this.index,this.palette);this.tiles.clear();this.sprites.clear();this.clouds=[];
+    this.terrain=new TerrainSprites(this.index,this.palette);this.tiles.clear();this.sprites.clear();this.damageSpriteKeys.clear();this.clouds=[];
     const rng=random(this.levelHash);
     for(let i=0;i<7;i++)this.clouds.push({x:rng()*WIDTH,y:rng()*1500,r:150+rng()*160,phase:rng()*TAU});
     this.cloudSprite=this.makeCloud();this.lightSprite=this.makeLight();this.radarSweepSprite=this.makeRadarSweep();this.scorchSprite=this.makeScorch();
@@ -137,13 +138,12 @@ export class WorldRenderer {
   warmScenery() {
     const types=new Set([...this.palette.props,...DISTRICTS[this.index].flat(),...GROUND_DETAILS[this.index],'crawler','hauler']);
     for(const type of types)for(let variant=0;variant<5;variant++){
-      const stages=STRUCTURE_SPRITES.includes(type)?4:1;
-      for(let stage=0;stage<stages;stage++)this.queueWarm(`sprite:${type}:${variant}:${stage}`,()=>this.getSprite(type,variant,stage));
+      this.queueWarm(`sprite:${type}:${variant}:0`,()=>this.getSprite(type,variant));
     }
   }
   refreshSpriteAssets() {
     if(this.assetRevision===spriteRevision)return;
-    this.assetRevision=spriteRevision;this.sprites.clear();
+    this.assetRevision=spriteRevision;this.sprites.clear();this.damageSpriteKeys.clear();
     this.tiles.clear();this.terrain.materials.clear();this.terrain.edges.clear();
     for(const layer of this.sceneryLayers)layer.clear();
     this.cloudSprite=this.makeCloud();this.warmScenery();
@@ -152,8 +152,14 @@ export class WorldRenderer {
     if(typeof requestIdleCallback!=='function'||this.warmKeys.has(key))return;
     this.warmKeys.add(key);this.warmJobs.push({key,work});this.runWarmQueue();
   }
-  restoreDamage(damage, destroyed, sceneryVersion=2) {
-    this.damage=new Map(damage);this.destroyed=new Set(destroyed);
+  restoreDamage(damage=[], destroyed=[], sceneryVersion=2) {
+    // A prop owns either remaining HP or a crater marker, never both. Normalize
+    // older saves that wrote destroyed IDs to both collections (including zero HP).
+    this.damage=new Map();this.destroyed=new Set(destroyed);
+    for(const [id,hp] of damage){
+      if(hp<=0)this.destroyed.add(id);
+      else if(!this.destroyed.has(id))this.damage.set(id,hp);
+    }
     this.turretActivity.clear();
     this.bands.clear();this.hitBuckets.clear();this.visibleProps.length=0;
     for(const layer of this.sceneryLayers)layer.clear();
@@ -241,7 +247,7 @@ export class WorldRenderer {
         const structure=STRUCTURES.has(type),vehicle=type==='crawler'||type==='hauler';
         const size=vehicle?34+r()*12:structure?52+r()*35:30+r()*33;
         const maxHp=STRUCTURE_SPRITES.includes(type)?structureDurability(type,size):12+size*.22,id=`${this.levelHash}:${row}:${col}:${y}:${n}`;
-        const prop={id,row,x,y:py,type,size,variant:Math.floor(r()*5),hp:this.damage.get(id)??maxHp,maxHp,value:structure?12:4,color:this.world.color,emissive:EMISSIVE.has(type),depth:0};
+        const prop={id,row,x,y:py,type,size,variant:Math.floor(r()*5),hp:this.destroyed.has(id)?0:this.damage.get(id)??maxHp,maxHp,value:structure?12:4,color:this.world.color,emissive:EMISSIVE.has(type),depth:0};
         props.push(prop);
         const key=`${Math.floor(py/HIT_CELL)}:${Math.floor(x/HIT_CELL)}`;
         let bucket=this.hitBuckets.get(key);if(!bucket){bucket=[];this.hitBuckets.set(key,bucket);}bucket.push(prop);
@@ -476,8 +482,15 @@ export class WorldRenderer {
       for(const prop of bucket){
         if(this.destroyed.has(prop.id)||(px-prop.x)**2+(py-prop.y)**2>(r+prop.size*.32)**2)continue;
         const structural=STRUCTURE_SPRITES.includes(prop.type),before=structural?structureStage(prop):prop.hp<prop.maxHp?1:0;
-        prop.hp=Math.max(0,prop.hp-damage);this.damage.set(prop.id,prop.hp);
+        prop.hp=Math.max(0,prop.hp-damage);
+        if(prop.hp>0)this.damage.set(prop.id,prop.hp);else this.damage.delete(prop.id);
         const after=structural?structureStage(prop):prop.hp<=0?3:prop.hp<prop.maxHp?1:0;
+        // Prepare just the next appearance while a damaged structure is still
+        // standing; untouched scenery never allocates three unused damage images.
+        if(structural&&after<3){
+          const next=after+1,key=`${prop.type}:${prop.variant}:${next}`;
+          if(!this.sprites.has(key))this.queueWarm(`sprite:${key}`,()=>this.getSprite(prop.type,prop.variant,next));
+        }
         if(after!==before)this.sceneryLayers[0].delete(prop.row);
         if(prop.hp<=0){
           this.destroyed.add(prop.id);
@@ -498,10 +511,14 @@ export class WorldRenderer {
     c.fillStyle='#bdc4a2';c.fillRect(-w+4,-h+3,5,2);c.fillRect(w-9,-h+3,5,2);
   }
   getSprite(type,variant,stage=0) {
-    const key=`${type}:${variant}:${stage}`;if(this.sprites.has(key))return this.sprites.get(key);
+    const key=`${type}:${variant}:${stage}`;
+    if(this.sprites.has(key)){
+      if(stage){this.damageSpriteKeys.delete(key);this.damageSpriteKeys.add(key);}
+      return this.sprites.get(key);
+    }
     const realistic=this.makeAtlasSprite(type,variant,stage);
-    if(realistic){this.sprites.set(key,realistic);return realistic;}
-    if(stage>0){const damaged=this.makeDamagedFallback(type,variant,stage);this.sprites.set(key,damaged);return damaged;}
+    if(realistic){return this.cacheSprite(key,realistic,stage);}
+    if(stage>0){const damaged=this.makeDamagedFallback(type,variant,stage);return this.cacheSprite(key,damaged,stage);}
     const out=canvas(260,260),c=out.getContext('2d'),rng=random(variant*5811+this.index*741+1636);
     c.translate(130,130);c.lineJoin='round';c.lineCap='round';
     // Consistent sunlight from the upper left grounds all scenery.
@@ -522,7 +539,25 @@ export class WorldRenderer {
     const light=c.createLinearGradient(-80,-80,65,90);light.addColorStop(0,'rgba(236,237,212,.22)');light.addColorStop(.44,'transparent');light.addColorStop(1,'rgba(4,12,25,.32)');c.fillStyle=light;c.fillRect(-130,-130,260,260);
     for(let i=0;i<1100;i++){const x=(rng()-.5)*180,y=(rng()-.5)*190;c.fillStyle=i%3?'rgba(10,19,27,.18)':'rgba(224,230,205,.18)';const size=.4+rng()*1.5;c.fillRect(x,y,size,size);}
     c.globalCompositeOperation='source-over';
-    this.sprites.set(key,out);return out;
+    return this.cacheSprite(key,out,stage);
+  }
+  cacheSprite(key,sprite,stage) {
+    this.sprites.set(key,sprite);
+    if(stage){
+      this.damageSpriteKeys.add(key);
+      if(this.damageSpriteKeys.size>MAX_DAMAGE_SPRITES){
+        const oldest=this.damageSpriteKeys.values().next().value;
+        this.damageSpriteKeys.delete(oldest);this.sprites.delete(oldest);
+      }
+    }
+    return sprite;
+  }
+  memoryStats() {
+    const bytes=values=>Array.from(values).reduce((sum,sprite)=>sum+sprite.width*sprite.height*4,0);
+    return {spriteCount:this.sprites.size,spriteBytes:bytes(this.sprites.values()),
+      damageSpriteCount:this.damageSpriteKeys.size,damageSpriteLimit:MAX_DAMAGE_SPRITES,
+      stripBytes:bytes(this.tiles.values())+bytes(this.sceneryLayers[0].values()),
+      damagedProps:this.damage.size,craters:this.destroyed.size};
   }
   makeDamagedFallback(type,variant,stage) {
     const out=canvas(260,260),c=out.getContext('2d'),rng=random(variant*531+STRUCTURE_SPRITES.indexOf(type)*731);
@@ -565,7 +600,8 @@ export class WorldRenderer {
     const naturalIndex=NATURE_SPRITES.indexOf(type),structureIndex=STRUCTURE_SPRITES.indexOf(type);
     const source=naturalIndex>=0?spriteCell('nature',naturalIndex):structureIndex>=0?spriteCell(STRUCTURE_ATLASES[stage],structureIndex):null;
     if(!source)return null;
-    const out=canvas(260,260),body=canvas(260,260),c=out.getContext('2d'),b=body.getContext('2d');
+    const out=canvas(260,260),body=this.spriteScratch||(this.spriteScratch=canvas(260,260));
+    const c=out.getContext('2d'),b=body.getContext('2d');b.clearRect(0,0,260,260);
     const rng=random(variant*5811+this.index*741+1636),foliage=FOLIAGE.has(type),vehicle=type==='crawler'||type==='hauler';
     const extent=(vehicle?126:foliage?164:STRUCTURE_SPRITES.includes(type)?176:145)*(.96+variant*.02);
     const scale=extent/Math.max(source.width,source.height),w=source.width*scale,h=source.height*scale;
@@ -588,7 +624,8 @@ export class WorldRenderer {
     // Shadows use the actual silhouette, including fronds, antennae and tracks.
     c.drawImage(body,0,0);c.globalCompositeOperation='source-in';c.fillStyle=foliage?'rgba(3,12,15,.42)':'rgba(3,10,16,.48)';c.fillRect(0,0,260,260);
     c.globalCompositeOperation='source-over';
-    const shadow=canvas(260,260),shadowContext=shadow.getContext('2d');shadowContext.drawImage(out,0,0);c.clearRect(0,0,260,260);
+    const shadow=this.shadowScratch||(this.shadowScratch=canvas(260,260)),shadowContext=shadow.getContext('2d');
+    shadowContext.clearRect(0,0,260,260);shadowContext.drawImage(out,0,0);c.clearRect(0,0,260,260);
     c.filter=foliage?'blur(3px)':'blur(2px)';c.drawImage(shadow,10,foliage?19:13);c.filter='none';
     c.drawImage(body,0,0);
     // Small, stable weathering variations avoid five identical silhouettes at flight speed.

@@ -42,7 +42,7 @@ Each sector fleet sheet uses a 4 × 3 layout. Cell 0 is an unused player referen
 | Alien | Spore Covenant | `sprites/fleet-alien.webp` |
 | Void | Aurum Cathedral | `sprites/fleet-void.webp` |
 
-`sprite-assets.js` decodes the library before flight preparation and retains reusable alpha-trimmed cells. Connected hull/structure components keep wings and antennas intact where generated objects cross nominal grid boundaries. Color grading, shadows and sprite variants are baked into caches; combat drawing does not recolor pixels. Procedural art remains a fallback if an atlas cannot load.
+`sprite-assets.js` decodes the library before flight preparation and retains one reusable alpha-trimmed canvas per cell, releasing each full decoded sheet after extraction. Connected hull/structure components keep wings and antennas intact where generated objects cross nominal grid boundaries. Color grading, shadows and sprite variants are cached by appearance. Ship caches are bounded to roughly one fleet and both pilots; exhaust frames are shared across palettes. Fresh scenery is warmed in advance, while damage art uses a 32-entry cache and prepares the next stage when a structure takes damage. Procedural art remains a fallback if an atlas cannot load.
 
 ## Terrain tile library
 
@@ -67,7 +67,7 @@ Every player and enemy uses one fixed hull and alpha-derived shadow. Players fac
 | Heavy damage | Above zero, up to 35% | `structure-heavy.webp` |
 | Crater | Zero | `structure-crater.webp` |
 
-Structure durability scales with footprint area (`size²`) and a type-specific armor factor. Cached scenery strips rebuild only when an object changes visual state. The damage ledger preserves health and craters after scrolling, cache eviction and save/load. Earlier saves used lower linear health totals; migration keeps the original percentage remaining when applying the new area-based totals.
+Structure durability scales with footprint area (`size²`) and a type-specific armor factor. Cached scenery strips rebuild only when an object changes visual state. The damage ledger stores either injured health or a crater marker per object, preserving both after scrolling, cache eviction and save/load without duplicating terminal states. Earlier saves used lower linear health totals; migration keeps the original percentage remaining when applying the new area-based totals.
 
 Service lights, small radar sweeps and rooftop exhaust animate over the cached structure bodies. Their intensity follows the damage stage and stops at destruction. The overlays use cached light/cloud textures, with no per-frame pixel processing.
 

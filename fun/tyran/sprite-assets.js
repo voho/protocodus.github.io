@@ -1,4 +1,4 @@
-/** Decoded, reusable raster atlas cells. Pixel work happens once during warm-up. */
+/** Shared, alpha-trimmed atlas cells. Full decoded sheets are released after preparation. */
 const LAYOUTS = Object.freeze({
   fleet: [4, 3], nature: [4, 4], structures: [4, 4],
   materials: [8, 5], effects: [4, 4], projectiles: [4, 3], pickups: [2, 1],
@@ -24,8 +24,9 @@ async function loadAtlas(name) {
     return false;
   }
   status.set(name, { state: 'loading' });
+  let image;
   try {
-    const image = new Image();
+    image = new Image();
     const loaded = new Promise((resolve, reject) => {
       image.onload = resolve;
       image.onerror = () => reject(new Error(`Unable to load ${name} sprite atlas`));
@@ -35,12 +36,21 @@ async function loadAtlas(name) {
     await loaded;
     if (image.decode) await image.decode();
     atlases.set(name, image);
+    // Each frame/state owns exactly one cropped source. Keeping the full sheet
+    // as well would retain another ~6 MiB per atlas, including empty padding.
+    const [columns, rows] = LAYOUTS[name];
+    for (let index = 0; index < columns * rows; index++) spriteCell(name, index);
     status.set(name, { state: 'ready', width: image.naturalWidth, height: image.naturalHeight });
     spriteRevision++;
     return true;
   } catch (error) {
+    for (const key of cells.keys()) if (key.startsWith(`${name}:`)) cells.delete(key);
     status.set(name, { state: 'error', message: error.message });
     return false;
+  } finally {
+    atlases.delete(name);
+    connectedAtlases.delete(name);
+    if (image) { image.onload = image.onerror = null; image.src = ''; }
   }
 }
 
@@ -48,6 +58,13 @@ export const spritesReady = Promise.all(Object.keys(LAYOUTS).map(async name => (
   .then(results => ({ loaded: results.filter(result => result.ok).map(result => result.name), failed: results.filter(result => !result.ok).map(result => result.name) }));
 
 export function spriteStatus() { return Object.fromEntries(status); }
+
+/** Retained RGBA surface estimates; excludes browser-managed compressed file caches. */
+export function spriteMemory() {
+  const atlasBytes = [...atlases.values()].reduce((bytes, image) => bytes + image.naturalWidth * image.naturalHeight * 4, 0);
+  const cellBytes = [...cells.values()].reduce((bytes, cell) => bytes + (cell ? cell.width * cell.height * 4 : 0), 0);
+  return { atlasCount: atlases.size, cellCount: cells.size, atlasBytes, cellBytes, estimatedBytes: atlasBytes + cellBytes };
+}
 
 // A few generated hulls and antennas cross their nominal cell boundary. Assign
 // connected pieces by their center before cropping, preserving those tips while
@@ -99,14 +116,18 @@ function connectedCells(name, image, [columns, rows]) {
     }
     context.putImageData(crop,0,0); cells.set(key,out);
   }
+  source.width = source.height = 1;
   connectedAtlases.add(name);
 }
 
 /** Return an alpha-trimmed cell with two pixels of safe transparent padding. */
 export function spriteCell(name, index) {
-  const image = atlases.get(name), layout = LAYOUTS[name];
-  if (!image || !layout || !Number.isInteger(index) || index < 0 || index >= layout[0] * layout[1]) return null;
+  const layout = LAYOUTS[name];
+  if (!layout || !Number.isInteger(index) || index < 0 || index >= layout[0] * layout[1]) return null;
   const key = `${name}:${index}`;
+  if (cells.has(key)) return cells.get(key);
+  const image = atlases.get(name);
+  if (!image) return null;
   if ((name.startsWith('fleet') || name === 'structures') && !connectedAtlases.has(name)) connectedCells(name,image,layout);
   if (cells.has(key)) return cells.get(key);
   const [columns, rows] = layout, col = index % columns, row = Math.floor(index / columns);
@@ -122,11 +143,12 @@ export function spriteCell(name, index) {
     left = Math.min(left, x); right = Math.max(right, x);
     top = Math.min(top, y); bottom = Math.max(bottom, y);
   }
-  if (right < left) { cells.set(key, null); return null; }
+  if (right < left) { cells.set(key, null); cell.width = cell.height = 1; return null; }
   left = Math.max(0, left - 2); top = Math.max(0, top - 2);
   right = Math.min(width - 1, right + 2); bottom = Math.min(height - 1, bottom + 2);
   const out = surface(right - left + 1, bottom - top + 1);
   out.getContext('2d').drawImage(cell, left, top, out.width, out.height, 0, 0, out.width, out.height);
+  cell.width = cell.height = 1;
   cells.set(key, out);
   return out;
 }
