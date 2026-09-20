@@ -91,7 +91,7 @@ try {
   }
   assert.equal(result.reused, true, 'warm projectile textures retain identity');
   assert.deepEqual(result.warmWork, { gradients: 0, pixelReads: 0 }, 'drawing warmed sprites does no gradient or pixel work');
-  assert.equal(new Set(result.hues.map(item => item.hash)).size, 16, 'every weapon/class renders a distinct sprite');
+  assert.equal(new Set(result.hues.map(item => item.hash)).size, 12, 'both player weapons and all ten hostile classes render distinct sprites');
   for (const hue of result.hues) {
     assert.ok(hue.weight > 2, `${hue.color} has a visible saturated body`);
     assert.ok(hue.degrees < 6, `${hue.color} remains within 6 degrees of its established palette`);
@@ -101,5 +101,5 @@ try {
   assert.deepEqual(errors, [], 'no browser runtime errors');
   const output = process.env.TYRAN_QA_DIR || '/tmp/tyran-projectile-effects-qa';
   await mkdir(output, { recursive: true }); await page.screenshot({ path: `${output}/sprites.png` });
-  console.log('PASS real atlas alpha, 16 distinct palette-matched projectiles, warm caches and complete effect lifetimes');
+  console.log('PASS real atlas alpha, 12 distinct palette-matched projectiles, warm caches and complete effect lifetimes');
 } finally { await browser.close(); }

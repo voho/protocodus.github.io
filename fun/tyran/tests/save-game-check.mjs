@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createCampaign, beginLevel, spawnEnemy, spawnFormation, update, buyUpgrade, shipStats } from '../sim.js';
+import { createCampaign, beginLevel, spawnEnemy, spawnFormation, update, buyUpgrade, shipStats, selectWeapon } from '../sim.js';
 import { serializeRun, restoreRun, readCampaign, writeCampaign, clearCampaign, SAVE_KEY, LEGACY_SAVE_KEY } from '../save-game.js';
 
 let failures = 0;
@@ -20,6 +20,7 @@ function flight() {
   const state = createCampaign(2, 4);
   state.startLevel = 1; state.upgrades = { weapon: 2, shield: 3, hull: 1, recharge: 4 };
   beginLevel(state, 4);
+  selectWeapon(state, 'plasma', 1);
   state.time = 22.3; state.scroll = 2452.75; state.spawnTimer = 1.3; state.formationTimer = 5.4;
   state.credits = 2421; state.score = 39200; state.totalKills = 289;
   state.combo = 3; state.comboTime = 2.8; state.comboDamage = 1.18; state.comboBlast = 1.24; state.comboLabel = 'Multi kill';
@@ -71,6 +72,40 @@ check('a restored flight produces the same next combat step', () => {
   originalRecord.savedAt = restoredRecord.savedAt = 0;
   assert.deepEqual(restoredRecord, originalRecord);
   assert.deepEqual(restored.events, state.events);
+});
+
+check('autosaves preserve each pilot weapon and shared legacy selections migrate without discarding live projectiles', () => {
+  const state = createCampaign(2), storage = memoryStorage();
+  selectWeapon(state, 'plasma', 0); selectWeapon(state, 'pulse', 1);
+  state.players[0].fire = .31; state.players[1].fire = .11;
+  assert.equal(writeCampaign(state, {}, storage).ok, true);
+  const resumed = readCampaign(storage).run.state;
+  assert.deepEqual(resumed.players.map(player => player.weapon), ['plasma', 'pulse']);
+  assert.deepEqual(resumed.players.map(player => player.fire), [.31, .11]);
+  assert.equal(resumed.weapon, 'plasma');
+  state.bossSpawned = resumed.bossSpawned = true;
+  for (let tick = 0; tick < 8; tick++) {
+    update(state, .05, [{ fire: true }, { fire: true }]);
+    update(resumed, .05, [{ fire: true }, { fire: true }]);
+  }
+  assert.deepEqual(resumed.bullets, state.bullets, 'resuming keeps both firing cadences and projectile types');
+  for (const [legacy, expected] of Object.entries({ pulse: 'pulse', plasma: 'plasma', scatter: 'plasma', lance: 'pulse', seeker: 'plasma', arc: 'plasma' })) {
+    const record = JSON.parse(serializeRun(flight()));
+    record.state.weapon = legacy;
+    for (const player of record.state.players) delete player.weapon;
+    const reference = record.state.bullets[0];
+    record.state.bullets = ['pulse', 'plasma', 'scatter', 'lance', 'seeker', 'arc'].map(kind => ({ ...reference, kind }));
+    const restored = restoreRun(record).state;
+    assert.deepEqual(restored.players.map(player => player.weapon), [expected, expected], `${legacy} shared selection migrates for both pilots`);
+    assert.equal(restored.weapon, expected);
+    assert.deepEqual(restored.bullets.map(bullet => bullet.kind), record.state.bullets.map(bullet => bullet.kind));
+    assert.equal(restored.bullets[4].homing, reference.homing);
+  }
+  const inconsistent = JSON.parse(serializeRun(state)); inconsistent.state.weapon = 'pulse';
+  assert.equal(restoreRun(inconsistent).state.weapon, 'plasma', 'pilot one is authoritative if a compatibility mirror is stale');
+  const legacyStorage = memoryStorage();
+  legacyStorage.setItem(LEGACY_SAVE_KEY, JSON.stringify({ version: 1, checkpoint: { mode: 2, level: 2, weapon: 'arc' } }));
+  assert.deepEqual(readCampaign(legacyStorage).run.state.players.map(player => player.weapon), ['plasma', 'plasma']);
 });
 
 check('older banking saves restore movement without obsolete sprite state', () => {

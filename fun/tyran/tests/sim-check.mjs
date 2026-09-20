@@ -84,9 +84,8 @@ check('resuming preserves the speed ramp and ground targets receive the current 
   assert.equal(targetScroll, state.scroll, 'turret aiming and scenery hits use the newly advanced terrain');
 });
 
-check('weapon profiles trade power for speed, range and utility', () => {
-  assert.equal(WEAPONS.length, 6);
-  assert.equal(new Set(WEAPONS.map(weapon => weapon.id)).size, WEAPONS.length);
+check('exactly two weapons trade rapid precision for heavy area damage', () => {
+  assert.deepEqual(WEAPONS.map(weapon => weapon.id), ['pulse', 'plasma']);
   const state = isolated();
   const dps = WEAPONS.map(weapon => {
     const stats = weaponStats(state, weapon.id);
@@ -94,10 +93,10 @@ check('weapon profiles trade power for speed, range and utility', () => {
     return stats.damage * stats.count / stats.interval;
   });
   assert.ok(Math.max(...dps) / Math.min(...dps) < 2.6, 'no profile is an automatic best pick');
-  assert.ok(weaponStats(state, 'lance').pierce > 0);
-  assert.ok(weaponStats(state, 'seeker').homing > 0);
-  assert.ok(weaponStats(state, 'plasma').splash > 0);
-  assert.ok(weaponStats(state, 'arc').chain > 0);
+  const pulse = weaponStats(state, 'pulse'), plasma = weaponStats(state, 'plasma');
+  assert.equal(pulse.count, 2); assert.equal(pulse.splash, 0);
+  assert.equal(plasma.count, 1); assert(plasma.splash > 0);
+  assert(pulse.interval < plasma.interval && pulse.speed > plasma.speed && plasma.damage > pulse.damage * 2);
   for (const weapon of WEAPONS) {
     selectWeapon(state, weapon.id);
     state.players[0].fire = 0;
@@ -105,6 +104,40 @@ check('weapon profiles trade power for speed, range and utility', () => {
     assert.ok(state.bullets.some(b => b.kind === weapon.kind), `${weapon.id} emits its projectile type`);
     state.bullets.length = 0;
   }
+});
+
+check('co-op pilots select and fire independently without resetting shot cooldowns', () => {
+  const state = isolated(2), [first, second] = state.players;
+  assert.equal(selectWeapon(state, 'plasma', 1), true);
+  assert.equal(first.weapon, 'pulse'); assert.equal(second.weapon, 'plasma'); assert.equal(state.weapon, 'pulse');
+  assert.deepEqual(state.events.at(-1), { type: 'weapon', weapon: 'plasma', player: 1 });
+  update(state, .01, [{ fire: true }, { fire: true }]);
+  assert.equal(state.bullets.filter(bullet => bullet.team === 0 && bullet.kind === 'pulse').length, 2);
+  assert.equal(state.bullets.filter(bullet => bullet.team === 1 && bullet.kind === 'plasma').length, 1);
+  const cooldowns = state.players.map(player => player.fire);
+  for (let i = 0; i < 20; i++) for (const id of ['plasma', 'pulse']) selectWeapon(state, id, i % 2);
+  selectWeapon(state, 'plasma', 0); selectWeapon(state, 'pulse', 1);
+  assert.deepEqual(state.players.map(player => player.fire), cooldowns);
+  assert.equal(state.weapon, 'plasma', 'the compatibility field mirrors only pilot one');
+  advance(state, .15, [{ fire: true }, { fire: true }]);
+  assert.equal(state.bullets.length, 3, 'switch spam cannot emit an early extra volley');
+  for (const id of ['scatter', 'lance', 'seeker', 'arc', 'unknown']) assert.equal(selectWeapon(state, id), false);
+  for (const playerId of [-1, 2, .5]) assert.equal(selectWeapon(state, 'pulse', playerId), false);
+  state.status = 'defeat'; assert.equal(selectWeapon(state, 'pulse'), false);
+});
+
+check('shared upgrades improve both weapons and stage transitions preserve individual selections', () => {
+  const state = isolated(2);
+  selectWeapon(state, 'plasma', 0);
+  const before = state.players.map(player => weaponStats(state, player.weapon).damage);
+  state.status = 'hangar'; state.credits = 1000;
+  assert.equal(buyUpgrade(state, 'weapon'), true);
+  beginLevel(state, 1);
+  assert.deepEqual(state.players.map(player => player.weapon), ['plasma', 'pulse']);
+  state.players.forEach((player, index) => assert(weaponStats(state, player.weapon).damage > before[index]));
+  const retry = createCampaign(2, state.level, state);
+  assert.deepEqual(retry.players.map(player => player.weapon), ['plasma', 'pulse']);
+  assert.equal(retry.weapon, 'plasma');
 });
 
 check('hostile rounds scale with ship class and use spectrum colors', () => {

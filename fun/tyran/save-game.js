@@ -1,12 +1,13 @@
-import { createCampaign, MAX_UPGRADE, shipStats, WEAPONS, FORMATIONS } from './sim.js';
+import { createCampaign, MAX_UPGRADE, shipStats, normalizeWeapon, FORMATIONS } from './sim.js';
 
 export const SAVE_KEY = 'tyran-campaign';
 export const LEGACY_SAVE_KEY = 'tyran-campaign-v1';
 const LEGACY_SLOT_KEYS = ['tyran-save-v2:auto', 'tyran-save-v2:manual'];
 const VERSION = 2, SCENERY_VERSION = 2, MAX_BYTES = 4_000_000, MAX_SCENERY = 24_000;
 const POSITIVE_INFINITY = '@infinity', NEGATIVE_INFINITY = '@-infinity';
-const weaponIds = new Set(WEAPONS.map(weapon => weapon.id));
-const projectileKinds = new Set([...weaponIds, 'hostile']);
+// Retired projectiles already in flight keep their original appearance and
+// mechanics when resuming an older campaign; only future selections migrate.
+const projectileKinds = new Set(['pulse', 'plasma', 'scatter', 'lance', 'seeker', 'arc', 'hostile']);
 const object = value => value && typeof value === 'object' && !Array.isArray(value);
 const invalid = () => { throw new Error('Invalid campaign save'); };
 
@@ -66,7 +67,7 @@ function restoreState(raw) {
   for (const id of Object.keys(state.upgrades)) state.upgrades[id] = integer(raw.upgrades[id], 0, 0, MAX_UPGRADE);
   state.status = raw.status;
   state.startLevel = integer(raw.startLevel, 0, 0, state.level);
-  state.weapon = weaponIds.has(raw.weapon) ? raw.weapon : 'pulse';
+  state.weapon = normalizeWeapon(raw.weapon);
   Object.assign(state, fields(raw, {
     width: 1200, height: 900, time: 0, scroll: 0, duration: 90 + raw.level * 3,
     credits: 0, score: 0, kills: 0, destroyed: 0, totalKills: 0,
@@ -85,6 +86,7 @@ function restoreState(raw) {
   state.players = raw.players.map((player, index) => {
     const result = { ...coordinates(player), ...fields(player, { mass: stats.mass, thrust: .9, radius: 17, fire: 0, hurt: 0, lastHit: -10 }, ['fire', 'hurt', 'lastHit']) };
     result.id = index;
+    result.weapon = normalizeWeapon(player.weapon ?? raw.weapon);
     result.maxHull = number(player.maxHull, stats.hull, 1, stats.hull);
     result.maxShield = number(player.maxShield, stats.shield, 1, stats.shield);
     result.hull = number(player.hull, result.maxHull, 0, result.maxHull);
@@ -98,6 +100,7 @@ function restoreState(raw) {
     result.blastVx = number(player.blastVx, 0, -110, 110); result.blastVy = number(player.blastVy, 0, -110, 110);
     return result;
   });
+  state.weapon = state.players[0].weapon;
   if (state.status === 'playing' && !state.players.some(player => player.alive)) invalid();
   const turretIds = new Set();
   state.turrets = list(raw.turrets, 3).map(turret => {

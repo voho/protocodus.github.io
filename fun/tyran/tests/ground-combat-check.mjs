@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createCampaign, beginLevel, update, hurtPlayer, spawnEnemy, applyGroundReward, WEAPONS, weaponStats } from '../sim.js';
+import { createCampaign, beginLevel, update, hurtPlayer, spawnEnemy, applyGroundReward, WEAPONS, weaponStats, selectWeapon } from '../sim.js';
 import { serializeRun, restoreRun } from '../save-game.js';
 
 let failures = 0;
@@ -62,7 +62,7 @@ check('ten-second bonuses are per pilot, refresh without stacking, and pause wit
 check('rapid fire increases every weapon cadence while preserving shot damage and co-op isolation', () => {
   for (const weapon of WEAPONS) {
     const baseline = quiet(2), boosted = quiet(2);
-    baseline.weapon = boosted.weapon = weapon.id;
+    for (const state of [baseline, boosted]) for (const player of state.players) selectWeapon(state, weapon.id, player.id);
     boosted.players[0].rapidFireTime = 10;
     advance(baseline, 5, [{ fire: true }, { fire: true }]);
     advance(boosted, 5, [{ fire: true }, { fire: true }]);

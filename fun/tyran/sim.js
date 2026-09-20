@@ -1,7 +1,7 @@
 import { ENEMY_TYPES } from './ships.js';
 
 export const UPGRADES = [
-  { id: 'weapon', name: 'Ion armament', subtitle: 'Six fire profiles. More output at every mark.', base: 420, icon: '⌁' },
+  { id: 'weapon', name: 'Ion armament', subtitle: 'More firepower for both weapon systems.', base: 420, icon: '⌁' },
   { id: 'shield', name: 'Flux shield', subtitle: 'A larger energy barrier.', base: 340, icon: '◇' },
   { id: 'hull', name: 'Titanium hull', subtitle: 'Stronger armor. More inertia.', base: 300, icon: '⬡' },
   { id: 'recharge', name: 'Fusion capacitor', subtitle: 'Recover shields faster, sooner.', base: 280, icon: 'ϟ' },
@@ -22,19 +22,16 @@ export const BONUS_DURATION = 10;
 export const RAPID_FIRE_MULTIPLIER = 1.65;
 const TURRET_WARNING = .75;
 
-// Every profile occupies a different niche. Direct DPS is intentionally
-// close across the roster; range, spread, piercing, splash and homing decide
-// when a profile is strongest instead of one option dominating every sector.
+// Pulse rewards accurate sustained fire; plasma trades direct damage per second
+// for a heavier impact and area damage against clustered ships and ground sites.
 export const WEAPONS = [
-  { id: 'pulse', name: 'Pulse Array', tag: 'Balanced', description: 'Twin bolts with clean reach and reliable tracking.', hotkey: '1', kind: 'pulse', color: '#9cfff0', interval: .17, damage: 9.8, count: 2, spread: .018, speed: 900, life: 1.35, radius: 3.8 },
-  { id: 'scatter', name: 'Scatter Bloom', tag: 'Close range', description: 'Six heavy pellets. Devastating when you fly into the lane.', hotkey: '2', kind: 'scatter', color: '#ffd18e', interval: .43, damage: 5.45, count: 6, spread: .24, speed: 790, life: 1.05, radius: 3.5 },
-  { id: 'lance', name: 'Solar Lance', tag: 'Piercing', description: 'A slow, surgical beam that passes through armored targets.', hotkey: '3', kind: 'lance', color: '#c5b4ff', interval: .64, damage: 40, count: 1, spread: 0, speed: 1_280, life: 1.05, radius: 5.2, pierce: 2 },
-  { id: 'seeker', name: 'Seeker Swarm', tag: 'Homing', description: 'Patient micro-missiles curve toward evasive ships.', hotkey: '4', kind: 'seeker', color: '#9ee8ff', interval: .36, damage: 12.3, count: 2, spread: .10, speed: 445, life: 3.6, radius: 5.8, homing: 4.7 },
-  { id: 'plasma', name: 'Plasma Mortar', tag: 'Blast', description: 'One volatile orb. Impact blooms into a controlled shockwave.', hotkey: '5', kind: 'plasma', color: '#ff9e7d', interval: .41, damage: 24, count: 1, spread: .012, speed: 640, life: 2.45, radius: 8, splash: 50, splashFactor: .46 },
-  { id: 'arc', name: 'Arc Driver', tag: 'Chain', description: 'A crackling dart jumps to nearby ships after each hit.', hotkey: '6', kind: 'arc', color: '#ffe88d', interval: .24, damage: 11.3, count: 1, spread: .015, speed: 930, life: 1.25, radius: 4.4, chain: 2, chainRange: 155, chainFactor: .63 },
+  { id: 'pulse', name: 'Pulse Array', tag: 'Rapid precision', description: 'Fast, precise twin bolts with reliable reach.', kind: 'pulse', color: '#9cfff0', interval: .17, damage: 9.8, count: 2, spread: .018, speed: 900, life: 1.35, radius: 3.8 },
+  { id: 'plasma', name: 'Plasma Mortar', tag: 'Heavy blast', description: 'Slower heavy orbs burst into a wide shockwave.', kind: 'plasma', color: '#ff9e7d', interval: .41, damage: 24, count: 1, spread: .012, speed: 640, life: 2.45, radius: 8, splash: 50, splashFactor: .46 },
 ];
 const weaponById = new Map(WEAPONS.map(weapon => [weapon.id, weapon]));
-export const weaponInfo = id => weaponById.get(id) || WEAPONS[0];
+const legacyHeavyWeapons = new Set(['scatter', 'seeker', 'arc']);
+export const normalizeWeapon = id => id === 'plasma' || legacyHeavyWeapons.has(id) ? 'plasma' : 'pulse';
+export const weaponInfo = id => weaponById.get(normalizeWeapon(id));
 export const comboLabel = combo => combo >= 5 ? 'Rampage' : combo >= 3 ? 'Multi kill' : combo >= 2 ? 'Double kill' : '';
 const comboTier = combo => combo >= 5 ? 3 : combo >= 3 ? 2 : combo >= 2 ? 1 : 0;
 const comboDamageFor = combo => [1, 1.1, 1.18, 1.27][comboTier(combo)];
@@ -43,27 +40,27 @@ export const upgradeCost = (s, id) => Math.round(UPGRADES.find(u => u.id === id)
 export const shipStats = u => ({ hull: 120 + u.hull * 45, shield: 85 + u.shield * 38, recharge: 10 + u.recharge * 5, delay: Math.max(.8, 3.2 - u.recharge * .35), damage: 13 + u.weapon * 6,
   mass: 1 + u.hull * .055 + u.weapon * .018 + u.shield * .014 + u.recharge * .008 });
 
-export function weaponStats(s, id = s.weapon) {
+export function weaponStats(s, id = s.players?.[0]?.weapon ?? s.weapon) {
   const profile = weaponInfo(id), level = clamp(Number(s.upgrades?.weapon) || 0, 0, MAX_UPGRADE);
-  const count = profile.count + (profile.id === 'scatter' && level >= 5 ? 1 : profile.id === 'seeker' && level >= 6 ? 1 : 0);
   return {
     ...profile,
     level,
-    count,
     damage: profile.damage * (1 + level * .105),
     interval: profile.interval / (1 + level * .022),
     spread: profile.spread * (1 - level * .018),
-    pierce: (profile.pierce || 0) + (profile.id === 'lance' ? Math.floor(level / 3) : 0),
     splash: (profile.splash || 0) + (profile.id === 'plasma' ? level * 4 : 0),
-    chain: (profile.chain || 0) + (profile.id === 'arc' ? Math.floor(level / 3) : 0),
   };
 }
 
-export function selectWeapon(s, id) {
+export function selectWeapon(s, id, playerId = 0) {
   if (!s || !weaponById.has(id) || !['playing', 'hangar'].includes(s.status)) return false;
-  if (s.weapon === id) return true;
-  s.weapon = id;
-  s.events.push({ type: 'weapon', weapon: id });
+  if (!Number.isInteger(playerId) || !s.players[playerId]) return false;
+  const player = s.players[playerId];
+  if (playerId === 0) s.weapon = id;
+  if (player.weapon === id) return true;
+  player.weapon = id;
+  // Retain the outgoing shot's cooldown, so switching cannot bypass fire rate.
+  s.events.push({ type: 'weapon', weapon: id, player: playerId });
   return true;
 }
 
@@ -174,20 +171,26 @@ export function createCampaign(mode = 1, level = 0, checkpoint = null) {
     state.credits = clamp(Number(checkpoint.credits) || 0, 0, 9999999);
     state.score = clamp(Number(checkpoint.score) || 0, 0, 999999999);
     state.totalKills = clamp(Number(checkpoint.totalKills) || 0, 0, 9999999);
-    if (weaponById.has(checkpoint.weapon)) state.weapon = checkpoint.weapon;
+    state.weapon = normalizeWeapon(checkpoint.weapon);
   }
   beginLevel(state, state.level);
+  if (checkpoint) {
+    for (const player of state.players) player.weapon = normalizeWeapon(checkpoint.players?.[player.id]?.weapon ?? checkpoint.weapon);
+    state.weapon = state.players[0].weapon;
+  }
   return state;
 }
 
 export function beginLevel(s, level) {
+  const playerWeapons = s.players.map(player => normalizeWeapon(player.weapon ?? s.weapon));
   Object.assign(s, { level: clamp(level, 0, 9), time: 0, scroll: 0, status: 'playing', enemies: [], bullets: [], pickups: [], turrets: [], events: [], formations: [], kills: 0, destroyed: 0, combo: 0, comboTime: 0, comboDamage: 1, comboBlast: 1, comboLabel: '', bossSpawned: false, bossDefeated: false, bossDeathTime: 0, spawnTimer: 1.5, showcase: 0, formationTimer: 10.5 });
   s.duration = 90 + s.level * 3;
   const stats = shipStats(s.upgrades);
   s.players = Array.from({ length: s.mode }, (_, i) => {
     const x = s.width * (s.mode === 1 ? .5 : i ? .62 : .38), y = s.height * .68;
-    return { id: i, x, y, px: x, py: y, vx: 0, vy: 0, blastVx: 0, blastVy: 0, mass: stats.mass, thrust: .9, radius: 17, hull: stats.hull, shield: stats.shield, maxHull: stats.hull, maxShield: stats.shield, fire: 0, hurt: 0, lastHit: -10, alive: true, rapidFireTime: 0, invulnerableTime: 0 };
+    return { id: i, weapon: playerWeapons[i] ?? normalizeWeapon(s.weapon), x, y, px: x, py: y, vx: 0, vy: 0, blastVx: 0, blastVy: 0, mass: stats.mass, thrust: .9, radius: 17, hull: stats.hull, shield: stats.shield, maxHull: stats.hull, maxShield: stats.shield, fire: 0, hurt: 0, lastHit: -10, alive: true, rapidFireTime: 0, invulnerableTime: 0 };
   });
+  s.weapon = s.players[0].weapon;
   return s;
 }
 
@@ -240,7 +243,7 @@ export function spawnFormation(s, kind = FORMATIONS[Math.floor((s.nextFormationI
 }
 
 function shoot(s, p) {
-  const profile = weaponStats(s), count = profile.count, comboDamage = s.comboDamage || 1;
+  const profile = weaponStats(s, p.weapon), count = profile.count, comboDamage = s.comboDamage || 1;
   // A solo pilot gets a small fire-control assist so every profile remains
   // campaign-viable without making co-op’s shared target balance trivial.
   const modeAssist = s.mode === 1 ? 1.35 : 1;
