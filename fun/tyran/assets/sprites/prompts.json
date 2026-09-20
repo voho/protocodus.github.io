@@ -2,10 +2,10 @@
   "generated": "2026-09-19",
   "method": "Built-in ImageGen",
   "useCase": "stylized-concept",
-  "notes": "Original PNG outputs copied unchanged. Runtime loads lossless WebP exports with identical decoded RGBA pixels and dimensions, extracts reusable cells, and bakes biome palettes into cached sprites. Materials feed seeded tile masks; no landscape paintings are used. Ground and atmosphere are the two scrolling planes.",
+  "notes": "Lossless WebP atlases preserve the original decoded RGBA pixels and dimensions. Duplicate PNG copies and retired landscape paintings have been removed. Source and reference paths record historical generation inputs, not required repository files. Runtime extracts reusable cells and bakes biome palettes into cached sprites. Materials feed seeded tile masks; ground and atmosphere are the two scrolling planes.",
   "atlases": [
     {
-      "file": "fleet.png",
+      "file": "fleet.webp",
       "grid": [
         4,
         3
@@ -25,11 +25,10 @@
         null
       ],
       "source": "/Users/vojta/.codex/generated_images/01a0a612-bd79-7783-a590-9b7f75f28e0b/exec-ef5c4d9c-43eb-4c12-a4da-a69261bb3cc8.png",
-      "prompt": "Use case: stylized-concept. Asset type: production spacecraft sprite atlas for a top-down scrolling shooter, genuinely transparent background. Create a NEW atlas of realistic high-detail pre-rendered 3D spacecraft, using ONLY the first (red/yellow jungle) row of the supplied contact sheet as silhouette and color reference. The current reference is flat illustration; the new sprites must look like physically manufactured aerospace vehicles: painted metal plating, recessed mechanical parts, bevelled steel, fine panel seams, subtle wear, ceramic armor, smoked glass, ambient occlusion and small controlled specular highlights. No thick cartoon outlines. Keep strong silhouettes and large readable color regions.\nEXACT ATLAS LAYOUT: 4 equal columns by 3 equal rows, 12 square cells with invisible grid. Eleven ships, one ship centered entirely inside each cell, same logical object scale within its cell, 14 percent transparent safety margin. Last cell bottom right completely empty transparent. Row-major order: (1) ivory player interceptor, (2) red narrow needle scout, (3) red forked twin-boom mantis, (4) red swept-wing corsair; (5) red diamond manta stingray, (6) red broad twin-pod bulwark, (7) red long central cannon lancer, (8) red broad triple-engine harbinger; (9) red crescent-wing reaper, (10) red armored blocky dreadnought, (11) huge-looking red symmetric twin-outrigger final boss sovereign with central circular reactor, (12) empty. All ships viewed exactly orthographic from straight overhead with nose UP, tail DOWN. Zero perspective tilt, zero yaw, bilateral symmetry, full hull visible, no shadows cast onto backdrop and NO exhaust flames or bloom outside hull (engine effects rendered by the game). A consistent soft upper-left key light models raised surfaces.\nPALETTE INVARIANTS: player ivory #eaf4ec, gunmetal seams #04101b, small cyan canopy; enemies predominantly warm vermilion #f05245 painted armor, yellow-gold #ffe35f narrow trim, gunmetal #04101b recesses, very small warm-white #fff6c8 cockpit/reactor. Retain those hue families from the reference. White specular points are tiny. Exposed neutral metal occupies at most20percent of each enemy. No greens or turquoise on enemy hulls. Entire background genuine alpha transparency, no checkerboard pixels, no labels, no words, no border, no ground, no scenery. Highly realistic, crisp, premium sci-fi game sprite sheet, not concept-art scene.",
-      "runtimeFile": "fleet.webp"
+      "prompt": "Use case: stylized-concept. Asset type: production spacecraft sprite atlas for a top-down scrolling shooter, genuinely transparent background. Create a NEW atlas of realistic high-detail pre-rendered 3D spacecraft, using ONLY the first (red/yellow jungle) row of the supplied contact sheet as silhouette and color reference. The current reference is flat illustration; the new sprites must look like physically manufactured aerospace vehicles: painted metal plating, recessed mechanical parts, bevelled steel, fine panel seams, subtle wear, ceramic armor, smoked glass, ambient occlusion and small controlled specular highlights. No thick cartoon outlines. Keep strong silhouettes and large readable color regions.\nEXACT ATLAS LAYOUT: 4 equal columns by 3 equal rows, 12 square cells with invisible grid. Eleven ships, one ship centered entirely inside each cell, same logical object scale within its cell, 14 percent transparent safety margin. Last cell bottom right completely empty transparent. Row-major order: (1) ivory player interceptor, (2) red narrow needle scout, (3) red forked twin-boom mantis, (4) red swept-wing corsair; (5) red diamond manta stingray, (6) red broad twin-pod bulwark, (7) red long central cannon lancer, (8) red broad triple-engine harbinger; (9) red crescent-wing reaper, (10) red armored blocky dreadnought, (11) huge-looking red symmetric twin-outrigger final boss sovereign with central circular reactor, (12) empty. All ships viewed exactly orthographic from straight overhead with nose UP, tail DOWN. Zero perspective tilt, zero yaw, bilateral symmetry, full hull visible, no shadows cast onto backdrop and NO exhaust flames or bloom outside hull (engine effects rendered by the game). A consistent soft upper-left key light models raised surfaces.\nPALETTE INVARIANTS: player ivory #eaf4ec, gunmetal seams #04101b, small cyan canopy; enemies predominantly warm vermilion #f05245 painted armor, yellow-gold #ffe35f narrow trim, gunmetal #04101b recesses, very small warm-white #fff6c8 cockpit/reactor. Retain those hue families from the reference. White specular points are tiny. Exposed neutral metal occupies at most20percent of each enemy. No greens or turquoise on enemy hulls. Entire background genuine alpha transparency, no checkerboard pixels, no labels, no words, no border, no ground, no scenery. Highly realistic, crisp, premium sci-fi game sprite sheet, not concept-art scene."
     },
     {
-      "file": "nature.png",
+      "file": "nature.webp",
       "grid": [
         4,
         4
@@ -53,11 +52,10 @@
         "cloud"
       ],
       "source": "/Users/vojta/.codex/generated_images/01a0a612-bd79-7783-a590-9b7f75f28e0b/exec-d3d2589f-6ac2-4c20-b379-52f5e0e95b21.png",
-      "prompt": "Production sprite atlas for a premium realistic top-down sci-fi shooter. Generate EXACTLY a 4-column by 4-row grid, 16 equal square invisible cells, one isolated object centered per cell with at least 12 percent genuine transparent padding. Physically believable pre-rendered 3D materials, crisp botanical detail, rough mineral surfaces, fine surface texture, subtle ambient occlusion, consistent gentle upper-left light. Straight overhead orthographic view with zero perspective, no horizon, no terrain underneath, no external cast shadows, no cartoon outlines, no text, no numbers, no frame. Background MUST be genuine alpha transparency, never a painted checkerboard or black square.\nExact row-major objects: row1: 1 broad jungle tree crown with layered realistic olive green leaves and brown branches; 2 alien tree crown with subdued plum-purple leaves and gray woody tendrils; 3 tropical palm crown with recognizable long feathered fronds; 4 blue-green conifer pine crown. Row2: 5 fern clump with fine segmented olive fronds; 6 branching cactus seen straight from overhead, muted sage green; 7 group of fleshy muted purple mushrooms; 8 alien organic egg pod, muted mauve, ribbed fibrous shell. Row3: 9 irregular ice outcrop, frosted blue-gray translucent mineral; 10 tall-looking faceted mineral crystal cluster seen from above, subdued violet-gray; 11 realistic gray-brown rock outcrop with strata; 12 heavily cratered irregular dark gray asteroid. Row4: 13 charcoal basalt rock cluster; 14 volcanic rock vent with a tiny warm fissure; 15 branching muted teal coral; 16 irregular wispy soft ivory cloud cutout, no rectangular halo.\nKeep vegetation restrained olive, brown, gray-green; rocks gray/brown/charcoal; alien materials muted plum. Absolutely no vivid red, yellow or saturated neon paint on scenery. Each cell is independently usable as a gameplay sprite, complete outline inside cell, transparent gaps between branches where appropriate. Beautiful physically modeled ground objects suitable for a vertically scrolling shooter, realistic satellite/miniature photography feel. Canvas landscape square 1:1 aspect, four by four cells.",
-      "runtimeFile": "nature.webp"
+      "prompt": "Production sprite atlas for a premium realistic top-down sci-fi shooter. Generate EXACTLY a 4-column by 4-row grid, 16 equal square invisible cells, one isolated object centered per cell with at least 12 percent genuine transparent padding. Physically believable pre-rendered 3D materials, crisp botanical detail, rough mineral surfaces, fine surface texture, subtle ambient occlusion, consistent gentle upper-left light. Straight overhead orthographic view with zero perspective, no horizon, no terrain underneath, no external cast shadows, no cartoon outlines, no text, no numbers, no frame. Background MUST be genuine alpha transparency, never a painted checkerboard or black square.\nExact row-major objects: row1: 1 broad jungle tree crown with layered realistic olive green leaves and brown branches; 2 alien tree crown with subdued plum-purple leaves and gray woody tendrils; 3 tropical palm crown with recognizable long feathered fronds; 4 blue-green conifer pine crown. Row2: 5 fern clump with fine segmented olive fronds; 6 branching cactus seen straight from overhead, muted sage green; 7 group of fleshy muted purple mushrooms; 8 alien organic egg pod, muted mauve, ribbed fibrous shell. Row3: 9 irregular ice outcrop, frosted blue-gray translucent mineral; 10 tall-looking faceted mineral crystal cluster seen from above, subdued violet-gray; 11 realistic gray-brown rock outcrop with strata; 12 heavily cratered irregular dark gray asteroid. Row4: 13 charcoal basalt rock cluster; 14 volcanic rock vent with a tiny warm fissure; 15 branching muted teal coral; 16 irregular wispy soft ivory cloud cutout, no rectangular halo.\nKeep vegetation restrained olive, brown, gray-green; rocks gray/brown/charcoal; alien materials muted plum. Absolutely no vivid red, yellow or saturated neon paint on scenery. Each cell is independently usable as a gameplay sprite, complete outline inside cell, transparent gaps between branches where appropriate. Beautiful physically modeled ground objects suitable for a vertically scrolling shooter, realistic satellite/miniature photography feel. Canvas landscape square 1:1 aspect, four by four cells."
     },
     {
-      "file": "structures.png",
+      "file": "structures.webp",
       "grid": [
         4,
         4
@@ -81,11 +79,10 @@
         "hauler"
       ],
       "source": "/Users/vojta/.codex/generated_images/01a0a612-bd79-7783-a590-9b7f75f28e0b/exec-e42cf310-6e81-4453-85fa-994f9a42133c.png",
-      "prompt": "Production cutout sprite atlas for a realistic overhead sci-fi shooter. EXACT 4 columns by 4 rows, invisible equal square grid, 16 isolated complete objects each centered in its cell with 14 percent transparent padding. Genuine alpha transparency throughout the background, no floor planes or checkerboard. Photorealistic pre-rendered physical model quality: weathered metal, rough concrete, chipped stone blocks, steel vent grilles, tiny panel seams and convincing ambient occlusion. Muted neutral gray, brown, dark olive and charcoal materials, extremely restrained tiny lights. Avoid vivid paint and neon so the ground scenery cannot be confused with colorful flying ships. Consistent upper-left light. CAMERA STRICTLY VERTICAL, exactly orthographic top view of ROOFS, no visible front facades and no isometric angle. No cast shadow beyond each object, we add it in-game.\nExact row-major cells: Row1: 1 ancient stepped stone temple viewed from above with square sanctuary roof; 2 broken ancient stone ruins with roofless chambers; 3 low circular armored military bunker with roof hatch; 4 compact modular space station platform with four docking arms. Row2: 5 radar facility with round dish viewed vertically from above; 6 cluster of three connected glass geodesic domes; 7 rectangular solar panel array and small service box; 8 refinery with cylindrical tanks and intricate metal pipes seen from above. Row3: 9 futuristic rectangular industrial building roof with vents; 10 square tall communications tower rooftop; 11 thin four-footed electricity pylon top view; 12 heavy symmetrical fortress with corner turrets and central roof. Row4: 13 thatched jungle hut roof and small attached platform; 14 scientific satellite with rectangular solar wings and cylindrical body; 15 small tracked military supply crawler with visibly rugged tracks, no wings; 16 large six-wheel cargo hauler truck with rectangular container cargo and separate cab facing UP, no wings.\nRealistic fine detail but strong compact readable silhouettes. Objects must remain entirely within cell bounds. No text, labels, letters, emblems, weapons firing, smoke, terrain, horizon, background. Square atlas aspect ratio, all sixteen cells equal. Beautiful high-end pre-rendered game assets.",
-      "runtimeFile": "structures.webp"
+      "prompt": "Production cutout sprite atlas for a realistic overhead sci-fi shooter. EXACT 4 columns by 4 rows, invisible equal square grid, 16 isolated complete objects each centered in its cell with 14 percent transparent padding. Genuine alpha transparency throughout the background, no floor planes or checkerboard. Photorealistic pre-rendered physical model quality: weathered metal, rough concrete, chipped stone blocks, steel vent grilles, tiny panel seams and convincing ambient occlusion. Muted neutral gray, brown, dark olive and charcoal materials, extremely restrained tiny lights. Avoid vivid paint and neon so the ground scenery cannot be confused with colorful flying ships. Consistent upper-left light. CAMERA STRICTLY VERTICAL, exactly orthographic top view of ROOFS, no visible front facades and no isometric angle. No cast shadow beyond each object, we add it in-game.\nExact row-major cells: Row1: 1 ancient stepped stone temple viewed from above with square sanctuary roof; 2 broken ancient stone ruins with roofless chambers; 3 low circular armored military bunker with roof hatch; 4 compact modular space station platform with four docking arms. Row2: 5 radar facility with round dish viewed vertically from above; 6 cluster of three connected glass geodesic domes; 7 rectangular solar panel array and small service box; 8 refinery with cylindrical tanks and intricate metal pipes seen from above. Row3: 9 futuristic rectangular industrial building roof with vents; 10 square tall communications tower rooftop; 11 thin four-footed electricity pylon top view; 12 heavy symmetrical fortress with corner turrets and central roof. Row4: 13 thatched jungle hut roof and small attached platform; 14 scientific satellite with rectangular solar wings and cylindrical body; 15 small tracked military supply crawler with visibly rugged tracks, no wings; 16 large six-wheel cargo hauler truck with rectangular container cargo and separate cab facing UP, no wings.\nRealistic fine detail but strong compact readable silhouettes. Objects must remain entirely within cell bounds. No text, labels, letters, emblems, weapons firing, smoke, terrain, horizon, background. Square atlas aspect ratio, all sixteen cells equal. Beautiful high-end pre-rendered game assets."
     },
     {
-      "file": "materials.png",
+      "file": "materials.webp",
       "grid": [
         8,
         5
@@ -133,11 +130,10 @@
         "void-raised"
       ],
       "source": "/Users/vojta/.codex/generated_images/01a0a612-bd79-7783-a590-9b7f75f28e0b/exec-93c4bca0-5263-40e2-a263-6cad86ec4f4c.png",
-      "prompt": "Create a production material texture atlas for a realistic top-down tile-based shooter. EXACTLY 8 columns by 5 rows: FORTY equal square texture cells. Canvas aspect 8:5 landscape. Each cell is a DIFFERENT seamless top-down surface material swatch, edge-to-edge opaque texture, no gaps or borders between cells. No terrain scene, no landscape, no islands, no shoreline, no map, no objects, trees, buildings or vehicles. Think physically based game texture albedo with subtle baked microrelief: sharp detail at satellite scale, natural fine grain, worn seams, restrained realistic contrast; uniformly lit with no large directional shadows. Separate cells independent and visually clear through material changes.\nExact grid row order LEFT TO RIGHT:\nROW1 cells1–4 JUNGLE materials: deep dark teal water #0b4b53 with subtle ripples; damp brown olive mud #4e5740 with fine roots; dark mossy soil #214c3d; muted green rocky moss #406e44. Cells5–8 SNOW: dark blue icy water #366b86; slate blue permafrost #536e82; blue gray packed snow #7899a6; pale white frost and ice #dce9e6.\nROW2 cells1–4 DESERT: weathered gray dry salt basin #565c59; dark brown gravel #694c38; ochre fine sand #987047; pale tan sandstone #dfb879. Cells5–8 PARADISE: turquoise lagoon water #128ca2; muted beige sand #9b9a72; shaded green tropical moss ground #346d52; olive pale green coral limestone #537a54.\nROW3 cells1–4 ASTEROID: nearly black cold dust #080d1b; black blue fine regolith #111626; dark gray violet shattered rock #27283e; gray brown cratered mineral #696175. Cells5–8 MARS: dry dark red-brown mineral #603e37; shadowed brown dust #52332f; rusty terracotta regolith #854d3c; pale orange brown stratified rock #c78559.\nROW4 cells1–4 VOLCANIC: dark orange lava crust with thin molten cracks #d54723; burnt red brown basalt #603429; charcoal ash #29252b; weathered dark volcanic rock #3d3035. Cells5–8 NEON CITY GROUND: dark blue wet concrete #111a2e; navy worn industrial floor #101a2c; blue gray steel plates #192138; slate gray rooftop plates #46526a. No neon colored lights.\nROW5 cells1–4 ALIEN: muted green teal organic sediment #24545b; shadowed blue-purple dirt #141c32; dark violet living soil #252243; dusty muted purple fibrous fungal ground #69516c. Cells5–8 VOID STATION: almost black navy dust #090f1a; near-black blue worn hull plating #171823; dark muted plum metal #292633; gray violet ancient alloy #4b4656.\nKeep specified subdued color family exactly. The game overlays geometry masks, so DO NOT paint cliffs, shorelines or landscape boundaries in any cell. All detail small scale, no oversized isolated rocks. No text, labels, numbers or outer border. Crisp realistic materials, high resolution sheet, forty square cells, 8 by 5.",
-      "runtimeFile": "materials.webp"
+      "prompt": "Create a production material texture atlas for a realistic top-down tile-based shooter. EXACTLY 8 columns by 5 rows: FORTY equal square texture cells. Canvas aspect 8:5 landscape. Each cell is a DIFFERENT seamless top-down surface material swatch, edge-to-edge opaque texture, no gaps or borders between cells. No terrain scene, no landscape, no islands, no shoreline, no map, no objects, trees, buildings or vehicles. Think physically based game texture albedo with subtle baked microrelief: sharp detail at satellite scale, natural fine grain, worn seams, restrained realistic contrast; uniformly lit with no large directional shadows. Separate cells independent and visually clear through material changes.\nExact grid row order LEFT TO RIGHT:\nROW1 cells1–4 JUNGLE materials: deep dark teal water #0b4b53 with subtle ripples; damp brown olive mud #4e5740 with fine roots; dark mossy soil #214c3d; muted green rocky moss #406e44. Cells5–8 SNOW: dark blue icy water #366b86; slate blue permafrost #536e82; blue gray packed snow #7899a6; pale white frost and ice #dce9e6.\nROW2 cells1–4 DESERT: weathered gray dry salt basin #565c59; dark brown gravel #694c38; ochre fine sand #987047; pale tan sandstone #dfb879. Cells5–8 PARADISE: turquoise lagoon water #128ca2; muted beige sand #9b9a72; shaded green tropical moss ground #346d52; olive pale green coral limestone #537a54.\nROW3 cells1–4 ASTEROID: nearly black cold dust #080d1b; black blue fine regolith #111626; dark gray violet shattered rock #27283e; gray brown cratered mineral #696175. Cells5–8 MARS: dry dark red-brown mineral #603e37; shadowed brown dust #52332f; rusty terracotta regolith #854d3c; pale orange brown stratified rock #c78559.\nROW4 cells1–4 VOLCANIC: dark orange lava crust with thin molten cracks #d54723; burnt red brown basalt #603429; charcoal ash #29252b; weathered dark volcanic rock #3d3035. Cells5–8 NEON CITY GROUND: dark blue wet concrete #111a2e; navy worn industrial floor #101a2c; blue gray steel plates #192138; slate gray rooftop plates #46526a. No neon colored lights.\nROW5 cells1–4 ALIEN: muted green teal organic sediment #24545b; shadowed blue-purple dirt #141c32; dark violet living soil #252243; dusty muted purple fibrous fungal ground #69516c. Cells5–8 VOID STATION: almost black navy dust #090f1a; near-black blue worn hull plating #171823; dark muted plum metal #292633; gray violet ancient alloy #4b4656.\nKeep specified subdued color family exactly. The game overlays geometry masks, so DO NOT paint cliffs, shorelines or landscape boundaries in any cell. All detail small scale, no oversized isolated rocks. No text, labels, numbers or outer border. Crisp realistic materials, high resolution sheet, forty square cells, 8 by 5."
     },
     {
-      "file": "effects.png",
+      "file": "effects.webp",
       "grid": [
         4,
         4
@@ -161,11 +157,10 @@
         "large-thruster"
       ],
       "source": "/Users/vojta/.codex/generated_images/01a0a612-bd79-7783-a590-9b7f75f28e0b/exec-53df98ee-7c2f-42dc-b689-0dd443762398.png",
-      "prompt": "Generate production VFX sprite atlas, EXACT 4 columns × 4 rows of 16 equal square cells. Genuine transparent alpha background, no opaque black squares, no painted checkerboard, no labels or borders. Premium physically realistic sci-fi explosions and thrusters, volumetric fire with detailed turbulent smoke and incandescent fragments, realistic photographic high-speed pyro simulation. Each frame entirely within its cell, centered with 15 percent transparent padding. Clean isolated cutouts, consistent scale. No comic-style shapes.\nCells1–8 (first TWO rows, left to right): eight consecutive frames of ONE ROUND explosion seen from straight above. Frame1 small compact white-gold ignition and a few sparks; frame2 growing orange-gold fire puff; frame3 expanding bright turbulent fiery sphere; frame4 full large orange fireball with dark smoke rim; frame5 orange fire mixed with billowing charcoal smoke; frame6 mostly gray-brown smoke with glowing embers; frame7 dissipating darker smoke wisps and sparse embers; frame8 faint diffuse smoke remains with just tiny embers. The core center is in exactly the same place in each equal cell. Fire colors warm white, yellow, amber, orange; smoke neutral gray-brown; no vivid pink, blue or green.\nThird row cells9–12: 9 isolated light gray smoke puff with wispy transparent edges; 10 isolated dark gray smoke puff with transparent edges; 11 tight group of three tiny sharp jagged scorched steel fragments with a hot edge; 12 tight group of three rough brown-gray shattered stone fragments.\nFourth row cells13–16: 13 round charred soot/scorch mark with irregular fragmented fading transparent edge, surface mark viewed overhead; 14 slender elongated dark scorch mark oriented vertical; 15 small thin rocket thruster flame with bright white core at TOP and turbulent orange tail tapering DOWN; 16 powerful longer wider spacecraft exhaust flame, white-hot core at TOP and wispy orange fire flowing DOWN. Both flames detached from any engine, no ship included. Leave all glow gently tapering to true alpha.\nAll sixteen cells must be independently usable, consistent dimensions, no overlap between cells, effects should occupy at most 70 percent cell width or height. Square atlas 1:1. Beautiful realistic fire/smoke/particle cutouts, controlled luminosity, sharp texture.",
-      "runtimeFile": "effects.webp"
+      "prompt": "Generate production VFX sprite atlas, EXACT 4 columns × 4 rows of 16 equal square cells. Genuine transparent alpha background, no opaque black squares, no painted checkerboard, no labels or borders. Premium physically realistic sci-fi explosions and thrusters, volumetric fire with detailed turbulent smoke and incandescent fragments, realistic photographic high-speed pyro simulation. Each frame entirely within its cell, centered with 15 percent transparent padding. Clean isolated cutouts, consistent scale. No comic-style shapes.\nCells1–8 (first TWO rows, left to right): eight consecutive frames of ONE ROUND explosion seen from straight above. Frame1 small compact white-gold ignition and a few sparks; frame2 growing orange-gold fire puff; frame3 expanding bright turbulent fiery sphere; frame4 full large orange fireball with dark smoke rim; frame5 orange fire mixed with billowing charcoal smoke; frame6 mostly gray-brown smoke with glowing embers; frame7 dissipating darker smoke wisps and sparse embers; frame8 faint diffuse smoke remains with just tiny embers. The core center is in exactly the same place in each equal cell. Fire colors warm white, yellow, amber, orange; smoke neutral gray-brown; no vivid pink, blue or green.\nThird row cells9–12: 9 isolated light gray smoke puff with wispy transparent edges; 10 isolated dark gray smoke puff with transparent edges; 11 tight group of three tiny sharp jagged scorched steel fragments with a hot edge; 12 tight group of three rough brown-gray shattered stone fragments.\nFourth row cells13–16: 13 round charred soot/scorch mark with irregular fragmented fading transparent edge, surface mark viewed overhead; 14 slender elongated dark scorch mark oriented vertical; 15 small thin rocket thruster flame with bright white core at TOP and turbulent orange tail tapering DOWN; 16 powerful longer wider spacecraft exhaust flame, white-hot core at TOP and wispy orange fire flowing DOWN. Both flames detached from any engine, no ship included. Leave all glow gently tapering to true alpha.\nAll sixteen cells must be independently usable, consistent dimensions, no overlap between cells, effects should occupy at most 70 percent cell width or height. Square atlas 1:1. Beautiful realistic fire/smoke/particle cutouts, controlled luminosity, sharp texture."
     },
     {
-      "file": "projectiles.png",
+      "file": "projectiles.webp",
       "grid": [
         4,
         3
@@ -185,11 +180,10 @@
         "boss-ring"
       ],
       "source": "/Users/vojta/.codex/generated_images/01a0a612-bd79-7783-a590-9b7f75f28e0b/exec-cde40073-fe32-469e-af97-77ab3eafbf15.png",
-      "prompt": "Production projectile sprite atlas for a premium realistic top-down space shooter. EXACT 4 columns by 3 rows, twelve equal square invisible cells, one isolated small projectile per cell. Genuine alpha transparent background, no opaque black rectangles or checkerboard. No text, symbols, labels, borders, ships or scenery. Straight overhead orthographic view, every directional projectile points UP and trails DOWN. Center each bright solid body exactly at cell center, leave room for faint glow and wake and at least 15 percent transparent outer padding. Realistic pre-rendered sci-fi effects with controlled luminous plasma, subtle shock cones, metallic ordnance and fine electric detail, no flat cartoon outlines. Use monochrome icy white/luminous cyan only, so game can hue-remap consistently; brightest compact white core, gray metal for missile, cyan halo with smooth genuine alpha falloff. Distinct silhouettes even at small sizes.\nRow-major objects:\nRow1 cell1 narrow capsule pulse bolt with short soft tail; cell2 compact round scatter pellet with small hot core and tiny tail; cell3 long thin focused lance beam with needle point; cell4 miniature physical seeker missile, metal body, small swept stabilizer fins and faint cyan exhaust.\nRow2 cell5 dense round layered plasma orb with bright central energy and turbulent edge; cell6 jagged slender electric arc projectile with branching tendrils but compact bounds; cell7 tiny round enemy energy bullet with minimal glow; cell8 sharp diamond enemy bullet with luminous beveled center.\nRow3 cell9 hollow circular torus energy projectile with dark truly transparent center; cell10 narrow triangular dart projectile; cell11 long slender streak projectile tapering downward; cell12 large boss projectile, bright hollow ring with four outward cardinal spikes, transparent ring center.\nKeep the six weapon profiles distinct from each other and six hostile shapes distinct. All glow faint and tightly controlled, body is crisp and clearly readable against terrain. Small ammunition, no large explosions or long trails. Full sprites never touch cell boundaries. Landscape atlas aspect4:3, cells square, 4 columns by3rows.",
-      "runtimeFile": "projectiles.webp"
+      "prompt": "Production projectile sprite atlas for a premium realistic top-down space shooter. EXACT 4 columns by 3 rows, twelve equal square invisible cells, one isolated small projectile per cell. Genuine alpha transparent background, no opaque black rectangles or checkerboard. No text, symbols, labels, borders, ships or scenery. Straight overhead orthographic view, every directional projectile points UP and trails DOWN. Center each bright solid body exactly at cell center, leave room for faint glow and wake and at least 15 percent transparent outer padding. Realistic pre-rendered sci-fi effects with controlled luminous plasma, subtle shock cones, metallic ordnance and fine electric detail, no flat cartoon outlines. Use monochrome icy white/luminous cyan only, so game can hue-remap consistently; brightest compact white core, gray metal for missile, cyan halo with smooth genuine alpha falloff. Distinct silhouettes even at small sizes.\nRow-major objects:\nRow1 cell1 narrow capsule pulse bolt with short soft tail; cell2 compact round scatter pellet with small hot core and tiny tail; cell3 long thin focused lance beam with needle point; cell4 miniature physical seeker missile, metal body, small swept stabilizer fins and faint cyan exhaust.\nRow2 cell5 dense round layered plasma orb with bright central energy and turbulent edge; cell6 jagged slender electric arc projectile with branching tendrils but compact bounds; cell7 tiny round enemy energy bullet with minimal glow; cell8 sharp diamond enemy bullet with luminous beveled center.\nRow3 cell9 hollow circular torus energy projectile with dark truly transparent center; cell10 narrow triangular dart projectile; cell11 long slender streak projectile tapering downward; cell12 large boss projectile, bright hollow ring with four outward cardinal spikes, transparent ring center.\nKeep the six weapon profiles distinct from each other and six hostile shapes distinct. All glow faint and tightly controlled, body is crisp and clearly readable against terrain. Small ammunition, no large explosions or long trails. Full sprites never touch cell boundaries. Landscape atlas aspect4:3, cells square, 4 columns by3rows."
     },
     {
-      "file": "pickups.png",
+      "file": "pickups.webp",
       "grid": [
         2,
         1
@@ -199,12 +193,10 @@
         "credits"
       ],
       "source": "/Users/vojta/.codex/generated_images/01a0a612-bd79-7783-a590-9b7f75f28e0b/exec-7ae42ea0-ccc4-4c63-a00f-309420ae9d1a.png",
-      "prompt": "Production top-down sci-fi game pickup sprites, one atlas with EXACTLY TWO equal square cells side by side, landscape 2:1. Both isolated objects centered with 20percent genuine transparent padding, full objects and outline inside cells. Straight overhead orthographic camera, no perspective, no cast ground shadow. Physically realistic small manufactured collectible equipment, fine bevelled metal, recessed seams, ceramic panels, subtle upper-left lighting, premium game detail and readable compact silhouettes. LEFT CELL: compact octagonal medical repair capsule, ivory metal housing, dark gunmetal frame, mint-green inset panels and a clearly visible simple plus-shaped mint indicator on top. RIGHT CELL: three small stacked gold credit chips, each hexagonal with fine gold metal bevels, dark inset central chip and one small luminous amber line; no currency lettering, no readable numbers. Object shapes easily distinguish repair from salvage, color families mint/ivory and amber/gold remain clear. Modest physically realistic emission, no large exterior bloom. Background truly alpha transparent, no checkerboard, no black rectangle, no scene, no words, no typography, no labels, no border. Both cells square and same size.",
-      "runtimeFile": "pickups.webp"
+      "prompt": "Production top-down sci-fi game pickup sprites, one atlas with EXACTLY TWO equal square cells side by side, landscape 2:1. Both isolated objects centered with 20percent genuine transparent padding, full objects and outline inside cells. Straight overhead orthographic camera, no perspective, no cast ground shadow. Physically realistic small manufactured collectible equipment, fine bevelled metal, recessed seams, ceramic panels, subtle upper-left lighting, premium game detail and readable compact silhouettes. LEFT CELL: compact octagonal medical repair capsule, ivory metal housing, dark gunmetal frame, mint-green inset panels and a clearly visible simple plus-shaped mint indicator on top. RIGHT CELL: three small stacked gold credit chips, each hexagonal with fine gold metal bevels, dark inset central chip and one small luminous amber line; no currency lettering, no readable numbers. Object shapes easily distinguish repair from salvage, color families mint/ivory and amber/gold remain clear. Modest physically realistic emission, no large exterior bloom. Background truly alpha transparent, no checkerboard, no black rectangle, no scene, no words, no typography, no labels, no border. Both cells square and same size."
     },
     {
-      "file": "structure-light.png",
-      "runtimeFile": "structure-light.webp",
+      "file": "structure-light.webp",
       "grid": [
         4,
         4
@@ -235,8 +227,7 @@
       "notes": "Lightly damaged, 35–70% health; fixed grid extraction."
     },
     {
-      "file": "structure-heavy.png",
-      "runtimeFile": "structure-heavy.webp",
+      "file": "structure-heavy.webp",
       "grid": [
         4,
         4
@@ -267,8 +258,7 @@
       "notes": "Heavily damaged, below 35% positive health; fixed grid extraction."
     },
     {
-      "file": "structure-crater.png",
-      "runtimeFile": "structure-crater.webp",
+      "file": "structure-crater.webp",
       "grid": [
         4,
         4
@@ -299,8 +289,7 @@
       "notes": "Destroyed crater and rubble, zero health; fixed grid extraction."
     },
     {
-      "file": "fleet-jungle.png",
-      "runtimeFile": "fleet-jungle.webp",
+      "file": "fleet-jungle.webp",
       "grid": [
         4,
         3
@@ -345,8 +334,7 @@
       }
     },
     {
-      "file": "fleet-snow.png",
-      "runtimeFile": "fleet-snow.webp",
+      "file": "fleet-snow.webp",
       "grid": [
         4,
         3
@@ -376,8 +364,7 @@
       "notes": "Source Lancer/index6 barrel points down. Runtime corrects its canonical heading by 180 degrees during one-time sprite baking."
     },
     {
-      "file": "fleet-desert.png",
-      "runtimeFile": "fleet-desert.webp",
+      "file": "fleet-desert.webp",
       "grid": [
         4,
         3
@@ -406,8 +393,7 @@
       ]
     },
     {
-      "file": "fleet-paradise.png",
-      "runtimeFile": "fleet-paradise.webp",
+      "file": "fleet-paradise.webp",
       "grid": [
         4,
         3
@@ -436,8 +422,7 @@
       ]
     },
     {
-      "file": "fleet-asteroid.png",
-      "runtimeFile": "fleet-asteroid.webp",
+      "file": "fleet-asteroid.webp",
       "grid": [
         4,
         3
@@ -466,8 +451,7 @@
       ]
     },
     {
-      "file": "fleet-mars.png",
-      "runtimeFile": "fleet-mars.webp",
+      "file": "fleet-mars.webp",
       "grid": [
         4,
         3
@@ -496,8 +480,7 @@
       ]
     },
     {
-      "file": "fleet-volcanic.png",
-      "runtimeFile": "fleet-volcanic.webp",
+      "file": "fleet-volcanic.webp",
       "grid": [
         4,
         3
@@ -526,8 +509,7 @@
       ]
     },
     {
-      "file": "fleet-neon.png",
-      "runtimeFile": "fleet-neon.webp",
+      "file": "fleet-neon.webp",
       "grid": [
         4,
         3
@@ -556,8 +538,7 @@
       ]
     },
     {
-      "file": "fleet-alien.png",
-      "runtimeFile": "fleet-alien.webp",
+      "file": "fleet-alien.webp",
       "grid": [
         4,
         3
@@ -587,8 +568,7 @@
       "notes": "Source Lancer/index6 barrel points down. Runtime corrects its canonical heading by 180 degrees during one-time sprite baking."
     },
     {
-      "file": "fleet-void.png",
-      "runtimeFile": "fleet-void.webp",
+      "file": "fleet-void.webp",
       "grid": [
         4,
         3
@@ -621,7 +601,7 @@
   "runtimeExport": {
     "format": "lossless WebP",
     "command": "cwebp -lossless -exact -m 6 INPUT.png -o OUTPUT.webp",
-    "verification": "All 20 active exports verified for exact decoded RGBA and dimensions; original PNG SHA-256 hashes unchanged. Retired bank views removed from the runtime and source inventory.",
+    "verification": "All 20 lossless WebP atlases verified for exact decoded RGBA pixels and dimensions against their PNGs before the duplicate PNG files were removed. Retired bank views are absent from the runtime and asset inventory.",
     "sourcePngBytes": 35343239,
     "runtimeWebpBytes": 25794458
   }
