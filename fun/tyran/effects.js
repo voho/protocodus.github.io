@@ -4,8 +4,8 @@ const random = (a, b) => a + Math.random() * (b - a);
 const TAU = Math.PI * 2;
 // Effects retain shared artwork and current playback state only. Repeated bursts
 // reuse particle records instead of leaving hundreds of short-lived objects for GC.
-export const EFFECT_LIMITS = Object.freeze({ particles: 700, rings: 96, lights: 48, texts: 48, wrecks: 60, delayed: 72, textures: 24 });
-const CAPPED_STATES = ['rings', 'lights', 'texts', 'wrecks', 'delayed'];
+export const EFFECT_LIMITS = Object.freeze({ particles: 700, rings: 96, lights: 48, texts: 48, wrecks: 60, delayed: 72, flares: 6, textures: 24 });
+const CAPPED_STATES = ['rings', 'lights', 'texts', 'wrecks', 'delayed', 'flares'];
 const EFFECT_STATES = ['particles', ...CAPPED_STATES];
 const textures = new Map();
 function releaseTexture(canvas) { canvas.width = canvas.height = 1; }
@@ -38,6 +38,32 @@ function lightTexture(color) {
   return texture(`light:${color}`, (c, size) => {
     const r = size / 2, g = c.createRadialGradient(r, r, 0, r, r, r);
     g.addColorStop(0, color); g.addColorStop(.12, '#ff944766'); g.addColorStop(.55, '#e56f2818'); g.addColorStop(1, '#cc682000');
+    c.fillStyle = g; c.fillRect(0, 0, size, size);
+  });
+}
+function fireBloomTexture() {
+  return texture('fire-bloom', (c, size) => {
+    const r = size / 2, g = c.createRadialGradient(r, r, 0, r, r, r);
+    g.addColorStop(0, '#fff7c9d9'); g.addColorStop(.09, '#ffe18fab');
+    g.addColorStop(.28, '#ffb54e5e'); g.addColorStop(.62, '#ff68211c'); g.addColorStop(1, '#ed450000');
+    c.fillStyle = g; c.fillRect(0, 0, size, size);
+  });
+}
+function lensStreakTexture() {
+  return texture('lens-streak', (c, size) => {
+    const r = size / 2;
+    c.translate(r, r); c.scale(1, .035);
+    const g = c.createRadialGradient(0, 0, 0, 0, 0, r);
+    g.addColorStop(0, '#fff8d9'); g.addColorStop(.08, '#ffefbce6');
+    g.addColorStop(.28, '#ffbd7985'); g.addColorStop(.65, '#ffe7b82e'); g.addColorStop(1, '#ffc57900');
+    c.fillStyle = g; c.fillRect(-r, -r, size, size);
+  }, 256);
+}
+function lensGhostTexture() {
+  return texture('lens-ghost', (c, size) => {
+    const r = size / 2, g = c.createRadialGradient(r, r, 0, r, r, r);
+    g.addColorStop(0, '#93cfca00'); g.addColorStop(.4, '#8ac4c20a');
+    g.addColorStop(.72, '#b5e4dc66'); g.addColorStop(.86, '#72bcc32e'); g.addColorStop(1, '#639ba700');
     c.fillStyle = g; c.fillRect(0, 0, size, size);
   });
 }
@@ -81,6 +107,7 @@ function fitSprite(ctx, sprite, x, y, diameter) {
 function warmEffectsTextures() {
   for (let i = 0; i < 14; i++) spriteCell('effects', i);
   wreckTexture(); wreckTexture(true); smokeTexture(); smokeTexture(true);
+  fireBloomTexture(); lensStreakTexture(); lensGhostTexture();
   for (const color of ['#ffbb6b', '#ffc985', '#ff9e7d', '#ffe36d']) lightTexture(color);
 }
 spritesReady.then(warmEffectsTextures);
@@ -93,11 +120,11 @@ function keepNewest(list, limit) {
   if (list.length > limit) { list.copyWithin(0, list.length - limit); list.length = limit; }
 }
 export class Effects {
-  constructor() { this.particles = []; this.particlePool = []; this.rings = []; this.lights = []; this.texts = []; this.wrecks = []; this.delayed = []; this.shake = 0; this.flash = 0; this.reduced = matchMedia('(prefers-reduced-motion: reduce)').matches; this.quality = 'high'; }
+  constructor() { this.particles = []; this.particlePool = []; this.rings = []; this.lights = []; this.texts = []; this.wrecks = []; this.delayed = []; this.flares = []; this.shake = 0; this.flash = 0; this.damagePulse = 0; this.reduced = matchMedia('(prefers-reduced-motion: reduce)').matches; this.quality = 'high'; }
   reset() {
     for (const key of EFFECT_STATES) this[key].length = 0;
     this.particlePool.length = 0;
-    this.shake = 0; this.flash = 0;
+    this.shake = 0; this.flash = 0; this.damagePulse = 0;
   }
   get memory() {
     return { particleRecords: this.particles.length + this.particlePool.length,
@@ -127,7 +154,10 @@ export class Effects {
         this.particle(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed, random(.3, boss ? 2.3 : 1.2), random(1.2, size * .12 + 2), color, i % 4 === 0, i % 5 === 0, !!event.ground, angle);
       }
       this.rings.push({ x, y, age: 0, life: boss ? 1.2 : .5, radius: size * (boss ? 6 : 3), color, explosion: true, diameter: size * 4 });
-      this.lights.push({ x, y, age: 0, life: boss ? .9 : .3, radius: size * 5, color });
+      this.lights.push({ x, y, age: 0, life: boss ? .9 : .3, radius: size * 5, color, fire: true });
+      if (!this.reduced && !event.secondary && (boss || size >= 45)) {
+        this.flares.push({ x, y, age: 0, life: boss ? .7 : .48, radius: size * (boss ? 5 : 4), strength: boss ? 1 : .75 });
+      }
       if (event.type !== 'phase' && !event.ground && !event.secondary) this.wrecks.push({ x: x - groundOffset, y: y - scroll, size, angle: random(0, TAU), age: 0 });
       this.shake = Math.min(23, this.shake + size * (event.ground ? .028 : .09));
       this.flash = Math.max(this.flash, boss ? .5 : event.player ? .24 : .03);
@@ -137,6 +167,7 @@ export class Effects {
       for (let i = 0; i < 4; i++) this.particle(x, y, random(-100, 100), random(10, 150), random(.1, .22), random(1, 3), '#ddffed');
     } else if (event.type === 'hit') {
       this.shake = Math.max(this.shake, 5);
+      this.damagePulse = Math.max(this.damagePulse, event.shield ? .65 : 1);
       this.rings.push({ x, y, age: 0, life: .27, radius: 52, color: event.shield ? '#91ffee' : '#ff6c5e' });
     } else if (event.type === 'pickup') {
       const timed = event.bonus === 'rapid' || event.bonus === 'invulnerable';
@@ -151,7 +182,7 @@ export class Effects {
       this.shake = Math.min(18, this.shake + 2 + event.combo * .35);
     } else if (event.type === 'blast') {
       this.rings.push({ x, y, age: 0, life: .45, radius: size * 1.9, color: event.color || '#ff9e7d', explosion: true, diameter: size * 2.3 });
-      this.lights.push({ x, y, age: 0, life: .24, radius: size * 2.8, color: event.color || '#ff9e7d' });
+      this.lights.push({ x, y, age: 0, life: .24, radius: size * 2.8, color: event.color || '#ff9e7d', fire: true });
       this.shake = Math.min(18, this.shake + size * .035);
     } else if (event.type === 'arc') {
       const segments = 5;
@@ -171,12 +202,12 @@ export class Effects {
     let length = 0;
     for (const charge of this.delayed) { charge.delay -= dt; if (charge.delay <= 0) this.emit(charge.event, charge.scroll, charge.groundOffset); else this.delayed[length++] = charge; }
     this.delayed.length = length;
-    this.shake *= Math.exp(-dt * 8); this.flash *= Math.exp(-dt * 7);
+    this.shake *= Math.exp(-dt * 8); this.flash *= Math.exp(-dt * 7); this.damagePulse *= Math.exp(-dt * 12);
     const drag = Math.exp(-dt * 2.5);
     length = 0;
     for (const p of this.particles) { p.age += dt; if (p.age >= p.life) { this.particlePool.push(p); continue; } p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= drag; p.vy *= drag; this.particles[length++] = p; }
     this.particles.length = length;
-    ageAndCompact(this.rings, dt); ageAndCompact(this.lights, dt); ageAndCompact(this.texts, dt);
+    ageAndCompact(this.rings, dt); ageAndCompact(this.lights, dt); ageAndCompact(this.texts, dt); ageAndCompact(this.flares, dt);
   }
   drawGround(ctx, scroll, H, offset = 0) {
     let length = 0;
@@ -217,6 +248,11 @@ export class Effects {
     for (const l of this.lights) {
       const a = 1 - l.age / l.life, r = l.radius * (.5 + l.age / l.life);
       ctx.globalAlpha = a; ctx.drawImage(lightTexture(l.color), l.x - r, l.y - r, r * 2, r * 2);
+      if (l.fire) {
+        const core = r * .62;
+        ctx.globalAlpha = a * a * (this.reduced ? .28 : this.quality === 'high' ? .6 : .38);
+        ctx.drawImage(fireBloomTexture(), l.x - core, l.y - core, core * 2, core * 2);
+      }
     }
     for (const p of this.particles) if (!p.smoke && !p.debris) {
       ctx.globalAlpha = 1 - p.age / p.life;
@@ -228,6 +264,21 @@ export class Effects {
       ctx.globalAlpha = (1 - t) ** 2; ctx.strokeStyle = ring.color; ctx.lineWidth = (1 - t) * 5 + 1;
       ctx.beginPath(); ctx.ellipse(ring.x, ring.y, Math.max(1, ring.radius * t), Math.max(1, ring.radius * t * .77), 0, 0, TAU); ctx.stroke();
       if (this.quality === 'high' && !this.reduced) { ctx.lineWidth = 16 * (1 - t); ctx.globalAlpha *= .14; ctx.stroke(); }
+    }
+    if (!this.reduced) for (const flare of this.flares) {
+      const t = flare.age / flare.life, intensity = (1 - t) ** 2 * flare.strength;
+      const r = Math.min(W * .45, flare.radius * (1 - t * .25));
+      ctx.globalAlpha = intensity * (this.quality === 'high' ? .7 : .4);
+      ctx.drawImage(lensStreakTexture(), flare.x - r, flare.y - r, r * 2, r * 2);
+      if (this.quality !== 'high') continue;
+      const dx = W * .5 - flare.x, dy = H * .5 - flare.y;
+      if (dx * dx + dy * dy < 1600) continue;
+      for (let i = 0; i < 2; i++) {
+        const distance = 1.25 + i * .48, radius = Math.min(30, flare.radius * (i ? .035 : .065));
+        const x = flare.x + dx * distance, y = flare.y + dy * distance;
+        ctx.globalAlpha = intensity * (i ? .2 : .34);
+        ctx.drawImage(lensGhostTexture(), x - radius, y - radius, radius * 2, radius * 2);
+      }
     }
     ctx.restore();
     ctx.save(); ctx.textAlign = 'center';

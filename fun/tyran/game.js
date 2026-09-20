@@ -113,6 +113,7 @@ function setScreen(next) {
   document.body.dataset.scene = next;
   if ($('touch-controls')) $('touch-controls').hidden = next !== 'playing';
   if (next !== 'playing') { keys.clear(); touch.x = touch.y = 0; touch.fire = false; }
+  if (next !== 'playing' && next !== 'end') canvas.style.filter = '';
   if (state) {
     previousScroll = state.scroll;
     for (const list of [state.players, state.enemies, state.bullets]) for (const actor of list) { actor.px = actor.x; actor.py = actor.y; }
@@ -154,7 +155,7 @@ function resize() {
     for (const b of state.bullets) { b.x *= W / oldW; b.px = b.x; b.py = b.y; }
     for (const p of state.pickups) p.x *= W / oldW;
     for (const turret of state.turrets || []) { turret.x *= W / oldW; turret.y *= H / oldH; turret.radius *= W / oldW; }
-    for (const list of [fx.particles, fx.rings, fx.lights, fx.texts, fx.wrecks]) for (const effect of list) effect.x *= W / oldW;
+    for (const list of [fx.particles, fx.rings, fx.lights, fx.texts, fx.wrecks, fx.flares]) for (const effect of list) effect.x *= W / oldW;
   }
   if (scene === 'menu') world.prepare(W, H);
   requestFrame();
@@ -554,8 +555,11 @@ function draw() {
   fx.draw(ctx, W, H);
   ctx.restore();
   ctx.fillStyle = vignette; ctx.fillRect(0, 0, W, H);
-  const blur = quality === 'high' && !fx.reduced && impactMotion && fx.shake > 8 ? Math.min(.85, fx.shake * .045) : 0;
-  const filter = blur ? `blur(${(Math.round(blur * 10) / 10).toFixed(1)}px)` : '';
+  // Brief defocus belongs to the flight canvas, keeping menus and HUD text sharp.
+  const blur = quality === 'high' && !fx.reduced && impactMotion
+    ? Math.max(fx.damagePulse * 1.65, fx.shake > 8 ? Math.min(.85, fx.shake * .045) : 0) : 0;
+  const blurTenths = Math.round(blur * 10);
+  const filter = blurTenths ? `blur(${(blurTenths / 10).toFixed(1)}px)` : '';
   if (canvas.style.filter !== filter) canvas.style.filter = filter;
 }
 
@@ -565,7 +569,7 @@ function frame(time) {
   const elapsed = lastTime ? Math.max(0, (time - lastTime) / 1000) : 0;
   const dt = Math.min(.1, elapsed); lastTime = time;
   const preview = scene === 'menu' && document.body.dataset.preview === 'true';
-  const fading = scene === 'end' && (fx.particles.length || fx.rings.length || fx.delayed.length || fx.texts.length || fx.lights.length || fx.flash > .01 || fx.shake > .3);
+  const fading = scene === 'end' && (fx.particles.length || fx.rings.length || fx.delayed.length || fx.texts.length || fx.lights.length || fx.flares.length || fx.damagePulse > .02 || fx.flash > .01 || fx.shake > .3);
   const active = scene === 'playing' || preview || fading;
   if (active) clock += dt;
   if (scene === 'playing' && state) {
