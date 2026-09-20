@@ -1,4 +1,4 @@
-// Biome fleets must keep their own silhouettes in every attitude and preserve
+// Biome fleets must keep their own fixed silhouettes and preserve
 // the generated aspect ratios instead of being stretched into the old hulls.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
@@ -14,12 +14,10 @@ try{
     const {spritesReady,spriteStatus,spriteCell}=await import('./sprite-assets.js');await spritesReady;
     const {drawShip,warmShipSprites,SHIP_PALETTES}=await import('./ships.js?family-qa');
     const names=['Jungle','Snow','Desert','Paradise','Asteroid','Mars','Volcanic','Neon','Alien','Void'];
-    const sources=new Map(),used=new Set(),foreign=new Set();
+    const sources=new Map(),used=new Set();
     for(const name of names)for(let index=1;index<=10;index++){const cell=spriteCell(`fleet${name}`,index);if(cell)sources.set(cell,`${name}:${index}`);}
-    for(const atlas of ['fleetLeft','fleetRight'])for(let index=1;index<=10;index++){const cell=spriteCell(atlas,index);if(cell)foreign.add(cell);}
     const prototype=OffscreenCanvasRenderingContext2D.prototype,original=prototype.drawImage;
-    let wrongBank=0;
-    prototype.drawImage=function(...args){if(sources.has(args[0]))used.add(sources.get(args[0]));if(foreign.has(args[0]))wrongBank++;return original.apply(this,args);};
+    prototype.drawImage=function(...args){if(sources.has(args[0]))used.add(sources.get(args[0]));return original.apply(this,args);};
     const canvas=document.createElement('canvas');canvas.width=canvas.height=384;
     const c=canvas.getContext('2d'),draw=c.drawImage.bind(c);let hull;
     c.drawImage=(...args)=>{if(args.length===5&&args[1]===-140&&args[3]===280)hull=args[0];return draw(...args);};
@@ -36,12 +34,11 @@ try{
       for(let kind=0;kind<10;kind++){
         const source=spriteCell(`fleet${names[world]}`,kind+1);if(!source)continue;
         const expected=bounds(source);
-        drawShip(c,192,192,45,kind,null,0,{world,bank:0,quality:'low'});
+        drawShip(c,192,192,45,kind,null,0,{world,quality:'low'});
         const level=bounds(hull);
         if((world===1||world===8)&&kind===5&&level.front>=level.rear*.5)throw new Error(`${names[world]} artillery cannon must point forward in its canonical sprite`);
         proportions.push(Math.abs(level.width/level.height-expected.width/expected.height));
         if(kind===4)identities.push(level.hash);
-        for(const bank of [-.3,.3]){drawShip(c,192,192,45,kind,null,0,{world,bank,quality:'low'});const rolled=bounds(hull);if(rolled.width>=level.width)throw new Error(`${names[world]} ${kind}: bank did not foreshorten its own hull`);}
       }
     }
     prototype.drawImage=original;
@@ -51,15 +48,14 @@ try{
     for(let world=0;world<10;world++){
       board.fillStyle=ground[world];board.fillRect(0,world*170,1440,170);
       board.fillStyle='#091016';board.fillRect(0,world*170,1440,24);board.fillStyle='#fff';board.font='14px monospace';board.fillText(names[world],12,world*170+17);
-      for(let kind=-1;kind<10;kind++)drawShip(board,64+(kind+1)*130,world*170+102,kind===9?41:34,kind<0?'player':kind,null,0,{world,bank:kind%3===0?.3:0,thrust:.2});
+      for(let kind=-1;kind<10;kind++)drawShip(board,64+(kind+1)*130,world*170+102,kind===9?41:34,kind<0?'player':kind,null,0,{world,thrust:.2});
     }
-    return{status:spriteStatus(),used:used.size,wrongBank,proportions,identities:new Set(identities).size};
+    return{status:spriteStatus(),used:used.size,proportions,identities:new Set(identities).size};
   });
   for(const name of ['Jungle','Snow','Desert','Paradise','Asteroid','Mars','Volcanic','Neon','Alien','Void'])assert.equal(result.status[`fleet${name}`]?.state,'ready',`${name} fleet is available`);
   assert.equal(result.used,100,'All ten classes use each of the ten biome fleets');
-  assert.equal(result.wrongBank,0,'Banking never replaces a family ship with generic art');
   assert.ok(result.proportions.every(error=>error<.06),'Fleet silhouettes retain source aspect ratios');
   assert.equal(result.identities,10,'Each environment has a distinct heavy-fighter silhouette');
   await page.screenshot({path:`${output}/fleet-families.png`});
-  console.log('Family QA passed: 100 family hulls, stable identities through banking, preserved aspect ratios and ten distinct fleets.');
+  console.log('Family QA passed: 100 fixed family hulls, preserved aspect ratios and ten distinct fleets.');
 }finally{await browser.close();}

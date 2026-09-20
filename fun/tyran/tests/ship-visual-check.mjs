@@ -26,7 +26,7 @@ try {
     ctx.setTransform(.9, .1, -.1, .9, 7, 13); ctx.globalAlpha = .43;
     ctx.globalCompositeOperation = 'multiply'; ctx.lineWidth = 4; ctx.filter = 'contrast(1.1)';
     const before = state();
-    drawShip(ctx, 96, 96, 30, 'player', '#79ecff', 2, { bank: .3, hit: .4, shield: .5, opacity: .6 });
+    drawShip(ctx, 96, 96, 30, 'player', '#79ecff', 2, { hit: .4, shield: .5, opacity: .6 });
     const after = state();
     ctx.resetTransform(); ctx.filter = 'none'; ctx.globalCompositeOperation = 'source-over';
     let transparent = true;
@@ -58,7 +58,7 @@ try {
           const x = 74 + (type + 1) * 132, y = row * 260 + 148;
           const size = type < 0 ? 30 : type === 9 ? 69 : ENEMY_TYPES[type].radius * (type < 2 ? 1.35 : 1);
           drawShip(board, x, y, size, type, type < 0 ? '#7cecfa' : '#b98263', 12,
-            { quality, bank: type < 0 ? .18 : 0, thrust: type < 0 ? 1.55 : 1, world: index });
+            { quality, thrust: type < 0 ? 1.55 : 1, world: index });
         }
       }
     };

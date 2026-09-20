@@ -172,7 +172,7 @@ export function beginLevel(s, level) {
   const stats = shipStats(s.upgrades);
   s.players = Array.from({ length: s.mode }, (_, i) => {
     const x = s.width * (s.mode === 1 ? .5 : i ? .62 : .38), y = s.height * .68;
-    return { id: i, x, y, px: x, py: y, vx: 0, vy: 0, blastVx: 0, blastVy: 0, mass: stats.mass, thrust: .9, radius: 17, hull: stats.hull, shield: stats.shield, maxHull: stats.hull, maxShield: stats.shield, fire: 0, hurt: 0, lastHit: -10, bank: 0, alive: true };
+    return { id: i, x, y, px: x, py: y, vx: 0, vy: 0, blastVx: 0, blastVy: 0, mass: stats.mass, thrust: .9, radius: 17, hull: stats.hull, shield: stats.shield, maxHull: stats.hull, maxShield: stats.shield, fire: 0, hurt: 0, lastHit: -10, alive: true };
   });
   return s;
 }
@@ -194,7 +194,7 @@ export function spawnEnemy(s, type, x, y = -100) {
   // damage sponge; the open-core rhythm supplies the challenge instead.
   const hp = spec.hp * (1 + s.level * (boss ? .08 : .24)) * (s.mode === 2 ? 1.65 : 1);
   const e = { id: s.nextEnemyId++, type, x: x ?? rand(100, s.width - 100), y, originX: x ?? s.width / 2, vx: 0, vy: boss ? 0 : spec.speed,
-    blastVx: 0, blastVy: 0, mass: .55 + (spec.radius / 18) ** 1.4 * .5, bank: 0, thrust: boss ? 1.05 : .85,
+    blastVx: 0, blastVy: 0, mass: .55 + (spec.radius / 18) ** 1.4 * .5, thrust: boss ? 1.05 : .85,
     hp, maxHp: hp, radius: spec.radius, speed: spec.speed, age: 0, fire: boss ? 2 : rand(.8, 2.4), phase: 0, hurt: 0, seed: rand(0, 10), dead: false, boss, warning: 0,
     formation: null, formationOffset: null };
   e.originX = e.x;
@@ -449,9 +449,8 @@ export function update(s, dt, input = [], environmentHit = null) {
     p.mass = stats.mass;
     accelerate(p, x / norm * PLAYER_SPEED, y / norm * PLAYER_SPEED, (x || y ? .095 : .13) * p.mass, dt);
     constrain(p, 30, s.width - 30, 105, s.height - 42);
-    const attitude = 1 - Math.exp(-dt / (.085 * Math.sqrt(p.mass)));
-    p.bank += (p.vx / PLAYER_SPEED * .22 - p.bank) * attitude;
-    p.thrust += (.9 + Math.hypot(x, y) / norm * .28 + Math.max(0, -y / norm) * .43 - p.thrust) * attitude;
+    const thrustResponse = 1 - Math.exp(-dt / (.085 * Math.sqrt(p.mass)));
+    p.thrust += (.9 + Math.hypot(x, y) / norm * .28 + Math.max(0, -y / norm) * .43 - p.thrust) * thrustResponse;
     if (s.time - p.lastHit > stats.delay) p.shield = Math.min(stats.shield, p.shield + stats.recharge * dt);
     p.fire -= dt;
     if (controls.fire && p.fire <= 0) shoot(s, p);
@@ -513,10 +512,8 @@ export function update(s, dt, input = [], environmentHit = null) {
     }
     accelerate(e, targetX, targetY, response, dt);
     constrain(e, e.radius, s.width - e.radius, -Infinity, e.boss ? s.height * .56 : Infinity);
-    const attitude = 1 - Math.exp(-dt / response);
-    // Enemy hulls face downscreen, so their bank sign is the reverse of pilots.
-    e.bank += (clamp(-e.vx / (230 * Math.sqrt(e.mass)), -.24, .24) - e.bank) * attitude;
-    e.thrust += (.82 + Math.abs(e.vx) / 180 + Math.max(0, e.vy - e.speed) / 190 - e.thrust) * attitude;
+    const thrustResponse = 1 - Math.exp(-dt / response);
+    e.thrust += (.82 + Math.abs(e.vx) / 180 + Math.max(0, e.vy - e.speed) / 190 - e.thrust) * thrustResponse;
     e.fire -= dt;
     if (e.fire <= 0 && e.y > 30 && e.y < s.height * .73 && !s.bossDefeated) enemyFire(s, e);
     for (const p of s.players) if (p.alive && distance(p, e) < p.radius + e.radius * .75) hurtPlayer(s, p, e.boss ? 55 : 22);

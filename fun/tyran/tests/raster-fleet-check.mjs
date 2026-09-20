@@ -72,7 +72,8 @@ try {
   });
   assert.equal(result.status.fleet.state,'ready');
   assert.notEqual(result.after,before.level,'Late asset arrival must replace already-cached procedural hulls');
-  assert.notEqual(result.afterBank,before.bank,'Late asset arrival must replace already-cached banking views');
+  assert.equal(before.bank,before.level,'Fallback art uses one fixed hull while steering');
+  assert.equal(result.afterBank,result.after,'Generated art uses one fixed hull while steering');
   assert.equal(result.cacheReused,true,'Decoded atlas cells must be reused');
   for(const cell of result.cells){assert.ok(cell,'Every hull cell exists');assert.ok(cell.width>50&&cell.height>50);assert.ok(cell.occupied>500,'Hull has opaque material');assert.ok(cell.empty>100,'Hull retains a transparent silhouette');assert.equal(cell.edge,0,'Hulls crossing source grid boundaries remain whole and padded');}
   assert.equal(result.paletteCount,10,'All ten fleet palettes must remain distinct');

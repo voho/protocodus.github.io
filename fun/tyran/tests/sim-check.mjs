@@ -447,10 +447,10 @@ check('arena edges discard outward velocity and level entry resets movement hist
   beginLevel(state, 1);
   const next = state.players[0];
   assert.equal(next.x, next.px); assert.equal(next.y, next.py);
-  assert.equal(next.vx, 0); assert.equal(next.vy, 0); assert.equal(next.bank, 0);
+  assert.equal(next.vx, 0); assert.equal(next.vy, 0);
 });
 
-check('enemies enter without phase teleports and larger hulls turn and bank more slowly', () => {
+check('enemies enter without phase teleports and larger hulls turn more slowly', () => {
   const state = isolated(), small = spawnEnemy(state, 0, 600), heavy = spawnEnemy(state, 6, 600), boss = spawnEnemy(state, 9, 600, -160);
   small.seed = heavy.seed = Math.PI / 2;
   update(state, 1 / 120);
@@ -462,7 +462,7 @@ check('enemies enter without phase teleports and larger hulls turn and bank more
   small.seed = heavy.seed = 0;
   advance(state, .2);
   assert.ok(heavy.mass > small.mass);
-  assert.ok(heavy.vx < small.vx && Math.abs(heavy.bank) < Math.abs(small.bank));
+  assert.ok(heavy.vx < small.vx);
 });
 
 check('pickups repair without exceeding stats', () => {

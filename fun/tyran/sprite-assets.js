@@ -2,7 +2,6 @@
 const LAYOUTS = Object.freeze({
   fleet: [4, 3], nature: [4, 4], structures: [4, 4],
   materials: [8, 5], effects: [4, 4], projectiles: [4, 3], pickups: [2, 1],
-  fleetLeft: [4, 3], fleetRight: [4, 3],
   structureLight: [4, 4], structureHeavy: [4, 4], structureCrater: [4, 4],
   fleetJungle: [4, 3], fleetSnow: [4, 3], fleetDesert: [4, 3], fleetParadise: [4, 3], fleetAsteroid: [4, 3],
   fleetMars: [4, 3], fleetVolcanic: [4, 3], fleetNeon: [4, 3], fleetAlien: [4, 3], fleetVoid: [4, 3],

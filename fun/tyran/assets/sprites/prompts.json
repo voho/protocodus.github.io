@@ -203,62 +203,6 @@
       "runtimeFile": "pickups.webp"
     },
     {
-      "file": "fleet-left.png",
-      "runtimeFile": "fleet-left.webp",
-      "grid": [
-        4,
-        3
-      ],
-      "cells": [
-        "player",
-        "needle",
-        "mantis",
-        "corsair",
-        "stingray",
-        "bulwark",
-        "lancer",
-        "harbinger",
-        "reaper",
-        "dreadnought",
-        "sovereign",
-        null
-      ],
-      "source": "/Users/vojta/.codex/generated_images/01a0a612-bd79-7783-a590-9b7f75f28e0b/exec-dc6d10d8-f385-4d08-bf9e-46fa53bcd89d.png",
-      "prompt": "Use case: precise-object-edit. Create the LEFT BANK animation frame of this exact spacecraft sprite atlas. The source is the identity reference: preserve all eleven hull designs, exact ivory player and red/gold enemy palettes, realistic worn metal, panel seams, silhouettes, cell order, relative size, lighting style, and transparent background. Output EXACT4columns×3rows, bottom-rightcell empty, each ship complete with generous transparent margins.\nCHANGE ONLY the 3D attitude of every ship: roll the rigid spacecraft about its longitudinal NOSE-TO-TAIL AXIS approximately25degrees, so its leftwing lowers and rightwing rises. This is an actual rendered3D bank: expose a narrow band of side armor, naturally foreshorten wing surfaces, adjust highlights and occlusion across a continuous rigid hull. Preserve the entire fuselage as ONE continuous object. Never shear/split the ship into two halves. No centerline crease. The projected nose-to-tail axis stays VERTICAL in its cell: ZERO yaw and ZERO clockwise/counterclockwise image-plane rotation. The point of the nose remains at the same X center and same Y as source. Keep the original nose direction of EACH source cell (the long-cannon Lancer in row2column3 points down; preserve that). All other spacecraft preserve their source heading too. Longitudinal length stays the same; banked wings naturally get a little narrower.\nNo added thruster flames, no external glow, no shadows cast on background, no new ornaments, no texts, no gridlines, no backdrop. Genuine alpha transparency. Preserve original original cell identityandpositions exactly. High-quality physically believable rendered banking sprites that animate cleanly to and from the supplied neutral sprites.",
-      "references": [
-        "/Users/vojta/.codex/worktrees/234b/protocodus.github.io/fun/tyran/assets/sprites/fleet.png"
-      ],
-      "notes": "Authored port bank; canonical nose correction baked once. Runtime uses its player cell; biome enemies bank their own family hull."
-    },
-    {
-      "file": "fleet-right.png",
-      "runtimeFile": "fleet-right.webp",
-      "grid": [
-        4,
-        3
-      ],
-      "cells": [
-        "player",
-        "needle",
-        "mantis",
-        "corsair",
-        "stingray",
-        "bulwark",
-        "lancer",
-        "harbinger",
-        "reaper",
-        "dreadnought",
-        "sovereign",
-        null
-      ],
-      "source": "/Users/vojta/.codex/generated_images/01a0a612-bd79-7783-a590-9b7f75f28e0b/exec-2d2933d7-1fb2-4876-912d-0676856d7bb7.png",
-      "prompt": "Use case: precise-object-edit. Create the RIGHT BANK animation frame of the provided exact spacecraft atlas. Preserve eleven spacecraft identities, red/gold enemy armor, ivory player, wornmetal/detail, source cellorder and transparentbackground. Output EXACT4column×3row, elevencompletehulls, bottomrightempty.\nChange only a TRUE THREE-DIMENSIONAL ROLL around each ship's longitudinal NOSE-TO-TAIL axis: rightwing lower, leftwing raised, banking RIGHT by30degrees. Show asymmetric foreshortening, a narrow visible sidewall of the fuselage, near/far wing lighting, but preserve the rigid aircraft as onepiece. The camera remains exactly overhead, no isometric angle. CRITICAL: each nose and tail have IDENTICAL X COORDINATE, a ruler drawn between them must be VERTICAL. Do not yaw or diagonally rotate any ship in the picture. Each cell's hull central axis is straight up/down. No bending, split halves or center crease. Keep vertical length and noseposition from source, projected width canreduce10percent. Row2column3 Lancer keeps longcannon down fromsource, centeredunderbody. All other headingspreserved.\nSpecific visual test: player cockpit tip at top and engine at bottom must be directly in one vertical line. The main hullside edge should show authentic banked thickness, not a slantednose. Wing surfaces different lighting/widths due genuine roll.\nNo enginefire, exteriorbloom, shadowcastonbackdrop, captions, extraobjects, gridlines. Genuine alphatransparency. Keep hulls centered insidecells with margins, realistic crisp physicallymanufactured spacecraft renders.",
-      "references": [
-        "/Users/vojta/.codex/worktrees/234b/protocodus.github.io/fun/tyran/assets/sprites/fleet.png"
-      ],
-      "notes": "Authored starboard bank; canonical nose correction baked once. Runtime uses its player cell; biome enemies bank their own family hull."
-    },
-    {
       "file": "structure-light.png",
       "runtimeFile": "structure-light.webp",
       "grid": [
@@ -677,8 +621,8 @@
   "runtimeExport": {
     "format": "lossless WebP",
     "command": "cwebp -lossless -exact -m 6 INPUT.png -o OUTPUT.webp",
-    "verification": "All 22 exports verified for exact decoded RGBA and dimensions; original PNG SHA-256 hashes unchanged.",
-    "sourcePngBytes": 38109396,
-    "runtimeWebpBytes": 27863964
+    "verification": "All 20 active exports verified for exact decoded RGBA and dimensions; original PNG SHA-256 hashes unchanged. Retired bank views removed from the runtime and source inventory.",
+    "sourcePngBytes": 35343239,
+    "runtimeWebpBytes": 25794458
   }
 }

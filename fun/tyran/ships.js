@@ -36,7 +36,6 @@ export function shipPalette(world = 0, fallback = '#ff7866') {
 }
 
 const hulls = new Map();
-const tiltHulls = new Map();
 const flames = new Map();
 const glows = new Map();
 const silhouettes = new Map();
@@ -45,17 +44,8 @@ const styles = new Map();
 const playerPalettes = new Map();
 const rasterHulls = new Map();
 const rasterShapes = new Map();
-const alignedCells = new Map();
 let assetRevision = -1;
 const TAU = Math.PI * 2;
-
-// Player banks use authored side views. Enemy families retain their own hulls
-// through one continuous, cached projection, with no seam along the centerline.
-const ROLLS = Object.freeze([
-  Object.freeze({ width: .86, shear: -.08 }),
-  Object.freeze({ width: 1, shear: 0 }),
-  Object.freeze({ width: .86, shear: .08 }),
-]);
 
 // Every design is drawn nose-up; each side keeps one fixed heading in flight.
 const SHAPES = [
@@ -91,12 +81,6 @@ const RASTER_ANCHORS = [
   { engines: [[.17,.9,.065],[.83,.9,.065],[.5,.95,.06]], core: [.5,.47,.075] },
   { engines: [[.23,.95,.07],[.77,.95,.07]], core: [.5,.63,.083] },
 ];
-// Source sheets contain genuine side surfaces but slightly different camera
-// headings. Normalize that fixed camera angle once, before caching each view.
-const BANK_ALIGNMENT = [
-  [-18.7, -15, -13, -22.4, -13.8, -13.2, -11.8, -13.9, -14.4, -10.5, -10.3],
-  [1, 2.7, 2.6, 3.1, 1, 3.1, 1, 1.3, 4.6, 2.3, 5],
-];
 const FAMILY_ATLASES = [
   'fleetJungle', 'fleetSnow', 'fleetDesert', 'fleetParadise', 'fleetAsteroid',
   'fleetMars', 'fleetVolcanic', 'fleetNeon', 'fleetAlien', 'fleetVoid',
@@ -106,32 +90,8 @@ const REVERSED_ARTILLERY = new Set(['fleet', 'fleetSnow', 'fleetAlien']);
 function syncRasterAssets() {
   if (assetRevision === spriteRevision) return;
   assetRevision = spriteRevision;
-  hulls.clear(); tiltHulls.clear(); silhouettes.clear(); lights.clear(); flames.clear();
+  hulls.clear(); silhouettes.clear(); lights.clear(); flames.clear();
   rasterHulls.clear(); rasterShapes.clear();
-  alignedCells.clear();
-}
-
-function alignedCell(cell, index, tilt) {
-  if (!tilt) return cell;
-  const key = `${index}:${tilt}`;
-  if (alignedCells.has(key)) return alignedCells.get(key);
-  const size = Math.ceil(Math.hypot(cell.width, cell.height)) + 6;
-  const out = surface(size), c = out.getContext('2d');
-  c.translate(size / 2, size / 2);
-  c.rotate(BANK_ALIGNMENT[tilt < 0 ? 0 : 1][index] * Math.PI / 180);
-  c.imageSmoothingQuality = 'high';
-  c.drawImage(cell, -cell.width / 2, -cell.height / 2);
-  const pixels = c.getImageData(0, 0, size, size).data;
-  let left = size, top = size, right = 0, bottom = 0;
-  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
-    if (pixels[(y * size + x) * 4 + 3] < 8) continue;
-    left = Math.min(left, x); right = Math.max(right, x);
-    top = Math.min(top, y); bottom = Math.max(bottom, y);
-  }
-  const cropped = surface(right - left + 5, bottom - top + 5);
-  cropped.getContext('2d').drawImage(out, left - 2, top - 2, cropped.width, cropped.height, 0, 0, cropped.width, cropped.height);
-  alignedCells.set(key, cropped);
-  return cropped;
 }
 
 function fleetSource(kind, player, world) {
@@ -162,17 +122,12 @@ function nosePosition(cell, reversed) {
   return { x: .5, y: 0 };
 }
 
-function rasterHull(kind, player, tilt = 0, world = 0) {
+function rasterHull(kind, player, world = 0) {
   const source = fleetSource(kind, player, world), family = source !== 'fleet';
-  const index = player ? 0 : kind + 1, key = `${source}:${index}:${tilt}`;
+  const index = player ? 0 : kind + 1, key = `${source}:${index}`;
   if (rasterHulls.has(key)) return rasterHulls.get(key);
-  // Family enemies must keep their own silhouette through a bank. Their roll
-  // frames are baked from this family's hull, never a generic atlas replacement.
-  if (family && tilt) return null;
-  const raw = spriteCell(tilt < 0 ? 'fleetLeft' : tilt > 0 ? 'fleetRight' : source, index);
-  if (!raw) return null;
-  const cell = alignedCell(raw, index, tilt), level = tilt ? spriteCell(source, index) : cell;
-  if (!level) return null;
+  const cell = spriteCell(source, index);
+  if (!cell) return null;
   const shape = player ? PLAYER : SHAPES[kind];
   const xs = shape.outline.map(point => point[0]), ys = shape.outline.map(point => point[1]);
   let height = Math.max(...ys) - Math.min(...ys), levelWidth = Math.max(...xs) - Math.min(...xs);
@@ -180,17 +135,15 @@ function rasterHull(kind, player, tilt = 0, world = 0) {
     const extent = Math.max(height, levelWidth), scale = extent / Math.max(cell.width, cell.height);
     height = cell.height * scale; levelWidth = cell.width * scale;
   }
-  const foreshortening = tilt ? Math.max(.68, Math.min(.96, (cell.width / cell.height) / (level.width / level.height))) : 1;
-  const width = levelWidth * foreshortening;
+  const width = levelWidth;
   // These source artillery hulls have their long forward cannon down.
   const reversed = !player && kind === 5 && REVERSED_ARTILLERY.has(source);
-  // Anchor the same nose point in all three images; a bank cannot yaw or pitch
-  // the fighter just because ImageGen left different transparent margins.
+  // Keep the canonical nose centered without changing the source hull's heading.
   let left = -width / 2, top = (Math.max(...ys) + Math.min(...ys) - height) / 2;
   if (!family) {
-    const nose = nosePosition(cell, reversed), levelNose = tilt ? nosePosition(level, reversed) : nose;
+    const nose = nosePosition(cell, reversed);
     left = -nose.x * width;
-    top = Math.min(...ys) + (levelNose.y - nose.y) * height;
+    top = Math.min(...ys);
   }
   const out = surface(kind === 9 && !player ? 640 : 384), c = out.getContext('2d');
   c.translate(out.width / 2, out.height / 2); c.scale(out.width / 280, out.height / 280);
@@ -210,16 +163,10 @@ function rasterHull(kind, player, tilt = 0, world = 0) {
   return out;
 }
 
-function flightShape(kind, player, tilt = 0, world = 0) {
-  const source = fleetSource(kind, player, world), index = player ? 0 : kind + 1, key = `${source}:${index}:${tilt}`;
-  if (!rasterShapes.has(key)) rasterHull(kind, player, tilt, world);
-  if (rasterShapes.has(key)) return rasterShapes.get(key);
-  const base = tilt ? flightShape(kind, player, 0, world) : player ? PLAYER : SHAPES[kind];
-  if (!tilt) return base;
-  const roll = ROLLS[tilt + 1], project = ([x, y, r]) => [x * roll.width, y + x * roll.shear, r];
-  const banked = { ...base, engines: base.engines.map(project), core: project(base.core) };
-  rasterShapes.set(key, banked);
-  return banked;
+function flightShape(kind, player, world = 0) {
+  const source = fleetSource(kind, player, world), index = player ? 0 : kind + 1, key = `${source}:${index}`;
+  if (!rasterShapes.has(key)) rasterHull(kind, player, world);
+  return rasterShapes.get(key) || (player ? PLAYER : SHAPES[kind]);
 }
 
 function paintedRaster(base, palette, player) {
@@ -521,10 +468,10 @@ function shipDetails(ctx,kind,color,world,player,palette) {
   insignia(ctx,0,kind===0?8:kind===5?34:25,color,world);
 }
 
-function baseHullSprite(kind,color,world,player,palette=shipPalette(world,color)) {
+function hullSprite(kind,color,world,player,palette=shipPalette(world,color)) {
   const key=`${player?'p':kind}:${color}:${world}:${palette.id||palette.primary}`;
   if(hulls.has(key))return hulls.get(key);
-  const raster = rasterHull(kind, player,0,world);
+  const raster = rasterHull(kind, player,world);
   if (raster) {
     const out = paintedRaster(raster, palette, player);
     hulls.set(key, out); if (hulls.size > 56) hulls.delete(hulls.keys().next().value);
@@ -574,45 +521,10 @@ function baseHullSprite(kind,color,world,player,palette=shipPalette(world,color)
   return canvas;
 }
 
-// Cache one continuous projection of the family's own hull for each bank.
-function rollSprite(base, tilt, shade = false) {
-  if(!tilt)return base;
-  const out=surface(base.width),ctx=out.getContext('2d');
-  const mid=base.width/2,roll=ROLLS[tilt+1];
-  ctx.translate(mid,mid);
-  ctx.save();ctx.transform(roll.width,roll.shear,0,1,0,0);
-  ctx.drawImage(base,-mid,-mid);ctx.restore();
-  if(shade) {
-    ctx.globalCompositeOperation='source-atop';
-    const light=ctx.createLinearGradient(-mid,0,mid,0);
-    light.addColorStop(0,tilt<0?'rgba(245,251,255,.18)':'rgba(2,8,22,.32)');
-    light.addColorStop(.5,'rgba(0,0,0,0)');
-    light.addColorStop(1,tilt>0?'rgba(245,251,255,.18)':'rgba(2,8,22,.32)');
-    ctx.fillStyle=light;ctx.fillRect(-mid,-mid,base.width,base.height);
-  }
-  return out;
-}
-
-function hullSprite(kind,color,world,player,palette=shipPalette(world,color),tilt=0) {
-  const step=tilt<0?-1:tilt>0?1:0,base=baseHullSprite(kind,color,world,player,palette);
-  if(!step)return base;
-  const key=`${player?'p':kind}:${color}:${world}:${palette.id||palette.primary}:tilt${step}`;
-  if(tiltHulls.has(key))return tiltHulls.get(key);
-  const authored = rasterHull(kind,player,step,world);
-  const out=authored ? paintedRaster(authored,palette,player) : rollSprite(base,step,true);
-  tiltHulls.set(key,out);if(tiltHulls.size>112)tiltHulls.delete(tiltHulls.keys().next().value);
-  return out;
-}
-
-function silhouetteSprites(kind,player,tilt=0,world=0) {
-  const source=fleetSource(kind,player,world),key=`${source}:${player?'player':kind}:${tilt}`;
+function silhouetteSprites(kind,player,world=0) {
+  const source=fleetSource(kind,player,world),key=`${source}:${player?'player':kind}`;
   if(silhouettes.has(key))return silhouettes.get(key);
-  const raster = rasterHull(kind, player, tilt,world);
-  if(tilt && !raster) {
-    const base=silhouetteSprites(kind,player,0,world);
-    const result={shadow:rollSprite(base.shadow,tilt),flash:rollSprite(base.flash,tilt)};
-    silhouettes.set(key,result);if(silhouettes.size>72)silhouettes.delete(silhouettes.keys().next().value);return result;
-  }
+  const raster = rasterHull(kind, player, world);
   const shape=player?PLAYER:SHAPES[kind];
   const shadow=surface(320),flash=surface(320);
   for(const [canvas,isShadow] of [[shadow,true],[flash,false]]) {
@@ -675,10 +587,10 @@ function flameSprite(color, large = false) {
   flames.set(key,canvas);return canvas;
 }
 
-function lightsSprite(kind,color,player,palette=shipPalette(0,color),tilt=0,world=0) {
-  const key=`${player?'p':kind}:${world}:${color}:${palette.id||palette.primary}:${tilt}`;
+function lightsSprite(kind,color,player,palette=shipPalette(0,color),world=0) {
+  const key=`${player?'p':kind}:${world}:${color}:${palette.id||palette.primary}`;
   if(lights.has(key))return lights.get(key);
-  const canvas=surface(320),ctx=canvas.getContext('2d'),shape=flightShape(kind,player,tilt,world);
+  const canvas=surface(320),ctx=canvas.getContext('2d'),shape=flightShape(kind,player,world);
   ctx.translate(160,160);
   const warm=glowSprite(palette.engine||'#ff9a4b');
   for(const [x,y,r] of shape.engines) {
@@ -691,13 +603,13 @@ function lightsSprite(kind,color,player,palette=shipPalette(0,color),tilt=0,worl
   const [x,y,r]=shape.core,diameter=r*(player?3.8:4.7);
   ctx.globalAlpha=.48;ctx.drawImage(glowSprite(color),x-diameter/2,y-diameter/2,diameter,diameter);
   lights.set(key,canvas);
-  if(lights.size>168)lights.delete(lights.keys().next().value);
+  if(lights.size>56)lights.delete(lights.keys().next().value);
   return canvas;
 }
 
 function lightStyles(color) {
   if(styles.has(color))return styles.get(color);
-  const result={capital:tint(color,.35,.6),shield:tint(color,.45),shieldGlint:tint(color,.75)};
+  const result={shield:tint(color,.45),shieldGlint:tint(color,.75)};
   styles.set(color,result);return result;
 }
 
@@ -716,19 +628,17 @@ export function warmShipSprites(color,world=0,player=false) {
   flameSprite(palette.engine||color);lightStyles(palette.glow||color);
   if (!player) flameSprite(palette.engine||color, true);
   for(let kind=0;kind<(player?1:SHAPES.length);kind++) {
-    for(let tilt=-1;tilt<=1;tilt++) {
-      silhouetteSprites(kind,player,tilt,world);
-      hullSprite(kind,color,world,player,palette,tilt);
-      lightsSprite(kind,palette.glow||color,player,palette,tilt,world);
-    }
+    silhouetteSprites(kind,player,world);
+    hullSprite(kind,color,world,player,palette);
+    lightsSprite(kind,palette.glow||color,player,palette,world);
   }
 }
 
 /**
  * Draw an original spacecraft with animated exhaust, core light and optional shield.
  * size: collision radius; kind: 0–9, -1, or 'player'; time: elapsed seconds.
- * options: { bank, hit, shield, player, phase, world, thrust, opacity, quality }.
- * bank selects one of three cached side-tilt sprites; the heading remains fixed.
+ * options: { hit, shield, player, phase, world, thrust, opacity, quality, motion }.
+ * One fixed hull sprite per ship; motion:false freezes decorative animation.
  * shield is opacity/strength from 0 to 1; world is the zero-based sector number.
  */
 export function drawShip(ctx,x,y,size,kind,color,time=0,options={}) {
@@ -740,14 +650,14 @@ export function drawShip(ctx,x,y,size,kind,color,time=0,options={}) {
   const palette=options.palette || (player ? playerPalette(color) : shipPalette(world,color));
   const flightColor=palette.primary||color;
   const phase=Number(options.phase)||0;
-  const pulse=.8+Math.sin(time*5+phase)*.2;
-  const bank=Math.max(-.45,Math.min(.45,Number(options.bank)||0));
-  const tilt=bank<-.12?-1:bank>.12?1:0,heading=player?0:Math.PI;
-  const shape=flightShape(kind,player,tilt,world);
+  const animatedTime=options.motion===false?0:time;
+  const pulse=.86+Math.sin(animatedTime*3.2+phase)*.1;
+  const heading=player?0:Math.PI;
+  const shape=flightShape(kind,player,world);
   const thrust=Math.max(0,Math.min(2,Number(options.thrust??1)||0));
   const detailed=options.quality!=='low';
   const scale=size/82;
-  const silhouettes=silhouetteSprites(kind,player,tilt,world);
+  const silhouettes=silhouetteSprites(kind,player,world);
   // Keep the sun direction in world space while the craft holds its fixed heading.
   ctx.save();
   ctx.translate(x+5+size*.17,y+9+size*.24);
@@ -764,7 +674,7 @@ export function drawShip(ctx,x,y,size,kind,color,time=0,options={}) {
   const exhaustAlpha=ctx.globalAlpha;
   for(let i=0;i<shape.engines.length;i++) {
     const [ex,ey,er]=shape.engines[i];
-    const shimmer=1+Math.sin(time*31+i*2.7+phase)*.1;
+    const shimmer=1+Math.sin(animatedTime*31+i*2.7+phase)*.055;
     const length=(player?70:51)*(.48+thrust*.55)*shimmer;
     const width=er*(4.6+thrust*.2),engineX=ex,engineY=ey;
     ctx.globalAlpha=exhaustAlpha*(.79+thrust*.08);
@@ -772,23 +682,20 @@ export function drawShip(ctx,x,y,size,kind,color,time=0,options={}) {
   }
   ctx.restore();
 
-  const sprite=hullSprite(kind,flightColor,world,player,palette,tilt);
+  const sprite=hullSprite(kind,flightColor,world,player,palette);
   ctx.drawImage(sprite,-140,-140,280,280);
 
   ctx.save();ctx.globalCompositeOperation='screen';
   const [cx,cy,cr]=shape.core;
   if(detailed) {
     ctx.globalAlpha*=(.7+thrust*.14)*pulse;
-    ctx.drawImage(lightsSprite(kind,palette.glow||flightColor,player,palette,tilt,world),-160,-160,320,320);
+    ctx.drawImage(lightsSprite(kind,palette.glow||flightColor,player,palette,world),-160,-160,320,320);
   }
-  if(detailed&&kind>=6&&!player) {
-    const rotation=time*.65+phase;
-    ctx.strokeStyle=lightStyles(palette.glow||flightColor).capital;ctx.lineWidth=1.2;
-    ctx.save();
-    for(let i=0;i<3;i++) {
-      ctx.beginPath();ctx.arc(cx,cy,cr+7,rotation+i*TAU/3,rotation+i*TAU/3+.9);ctx.stroke();
-    }
-    ctx.restore();
+  if(detailed) {
+    // The reactor breathes independently of the exhaust; its hull and hitbox stay still.
+    ctx.globalAlpha*=(.12+Math.sin(animatedTime*2.1+phase)*.035);
+    const diameter=cr*(player?3.1:4.2);
+    ctx.drawImage(glowSprite(palette.glow||flightColor),cx-diameter/2,cy-diameter/2,diameter,diameter);
   }
   ctx.restore();
 
@@ -806,7 +713,7 @@ export function drawShip(ctx,x,y,size,kind,color,time=0,options={}) {
     ctx.beginPath();ctx.ellipse(0,-3,112,127,0,0,TAU);ctx.stroke();
     ctx.globalAlpha=shieldAlpha*shield*.32;
     ctx.strokeStyle=lightStyle.shieldGlint;ctx.lineWidth=3;
-    const angle=-Math.PI/2+Math.sin(time*.8)*.1;
+    const angle=-Math.PI/2+Math.sin(animatedTime*.8)*.1;
     ctx.beginPath();ctx.ellipse(0,-3,112,127,0,angle-.48,angle+.48);ctx.stroke();
     ctx.restore();
   }

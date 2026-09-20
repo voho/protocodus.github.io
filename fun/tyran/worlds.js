@@ -81,6 +81,15 @@ const DISTRICTS = [
   [['mushroom','alienTree','pod'],['crystal','crystal','mushroom'],['temple','pod','alienTree'],['alienTree','mushroom']],
   [['pylon','fortress','pylon'],['ruin','crystal','station'],['fortress','pylon'],['crystal','pylon','ruin']],
 ];
+// Low ground cover uses its own random stream. It never enters the damage ledger.
+const GROUND_DETAILS = [
+  ['fern','fern','rock','tree'], ['rock','ice','pine'], ['rock','rock','cactus'],
+  ['coral','rock','palm'], ['asteroid','rock','crystal'], ['rock','rock','crystal'],
+  ['basalt','basalt','vent'], ['rock','basalt','rock'], ['pod','mushroom','crystal','fern'],
+  ['basalt','rock','crystal'],
+];
+const ACTIVE_STRUCTURES = new Set(['bunker','station','radar','dome','solar','refinery','building','tower','pylon','fortress','satellite','crawler','hauler']);
+const VENTED_STRUCTURES = new Set(['station','refinery','building','fortress']);
 
 /** Seeded terrain and scenery share one ground plane; only atmosphere drifts. */
 export class WorldRenderer {
@@ -109,7 +118,7 @@ export class WorldRenderer {
     this.terrain=new TerrainSprites(this.index,this.palette);this.tiles.clear();this.sprites.clear();this.clouds=[];
     const rng=random(this.levelHash);
     for(let i=0;i<7;i++)this.clouds.push({x:rng()*WIDTH,y:rng()*1500,r:150+rng()*160,phase:rng()*TAU});
-    this.cloudSprite=this.makeCloud();this.lightSprite=this.makeLight();this.scorchSprite=this.makeScorch();
+    this.cloudSprite=this.makeCloud();this.lightSprite=this.makeLight();this.radarSweepSprite=this.makeRadarSweep();this.scorchSprite=this.makeScorch();
     this.shaftSprite=this.makeShaft();this.vignetteSprite=this.makeVignette();this.substrateSprite=this.makeSubstrate();
     this.assetRevision=spriteRevision;
     this.ready=spritesReady.then(()=>{
@@ -119,7 +128,7 @@ export class WorldRenderer {
     this.warmScenery();
   }
   warmScenery() {
-    const types=new Set([...this.palette.props,...DISTRICTS[this.index].flat(),'crawler','hauler']);
+    const types=new Set([...this.palette.props,...DISTRICTS[this.index].flat(),...GROUND_DETAILS[this.index],'crawler','hauler']);
     for(const type of types)for(let variant=0;variant<5;variant++){
       const stages=STRUCTURE_SPRITES.includes(type)?4:1;
       for(let stage=0;stage<stages;stage++)this.queueWarm(`sprite:${type}:${variant}:${stage}`,()=>this.getSprite(type,variant,stage));
@@ -235,6 +244,7 @@ export class WorldRenderer {
   getSceneryLayer(row,band,depth=0) {
     const cache=this.sceneryLayers[depth];if(cache.has(row))return cache.get(row);
     const out=canvas(WIDTH+MARGIN*2,TILE+PAD*2),c=out.getContext('2d');
+    this.drawGroundDetails(c,row);
     for(const prop of band) {
       const y=prop.y-row*TILE+PAD,x=prop.x+MARGIN,scale=prop.size/100;
       const structural=STRUCTURE_SPRITES.includes(prop.type),destroyed=this.destroyed.has(prop.id);
@@ -245,7 +255,75 @@ export class WorldRenderer {
     }
     cache.set(row,out);return out;
   }
-  drawGroundScenery(c,h,scroll,time,quality) {
+  getGroundDetails(row) {
+    const rng=random(this.levelHash^Math.imul(row,71867)^0x57a3c12d),details=[];
+    const types=GROUND_DETAILS[this.index];
+    for(let cluster=0;cluster<34;cluster++){
+      const x=-MARGIN+rng()*(WIDTH+MARGIN*2),y=(row+rng())*TILE;
+      const tile=this.tileAt(Math.floor(x/MAP_TILE_SIZE),Math.floor(y/MAP_TILE_SIZE));
+      // Shallows grow coral; empty water and orbital gaps remain open.
+      if(tile.material===0&&(this.index!==3||rng()>.16))continue;
+      const radius=20+rng()*43,count=3+Math.floor(rng()*5),items=[];
+      for(let n=0;n<count;n++){
+        const a=rng()*TAU,d=Math.sqrt(rng())*radius;
+        const type=this.index===3&&tile.material<2?'coral':types[Math.floor(rng()*types.length)];
+        items.push({type,x:x+Math.cos(a)*d,y:y+Math.sin(a)*d*.62,size:9+rng()*(n===0?27:15),variant:Math.floor(rng()*5),flip:rng()<.5?-1:1});
+      }
+      details.push({x,y,radius,seed:Math.floor(rng()*0xffffffff),items});
+    }
+    return details;
+  }
+  drawGroundDetails(c,row) {
+    const p=this.palette;
+    for(const cluster of this.getGroundDetails(row)){
+      const x=cluster.x+MARGIN,y=cluster.y-row*TILE+PAD,rng=random(cluster.seed);
+      // Uneven silt, leaf litter and rubble beds ground the scattered objects.
+      c.globalAlpha=.19;blob(c,x+3,y+5,cluster.radius*1.22,cluster.radius*.64,p.low,rng,13);
+      c.globalAlpha=.1;blob(c,x-1,y-2,cluster.radius,cluster.radius*.48,p.high,rng,13);
+      for(let n=0;n<14;n++){
+        const a=rng()*TAU,d=Math.sqrt(rng())*cluster.radius*1.15;
+        const px=x+Math.cos(a)*d,py=y+Math.sin(a)*d*.6;
+        c.globalAlpha=.24;c.fillStyle=n%3?p.low:p.high;c.fillRect(px,py,1+rng()*3,.6+rng()*1.4);
+      }
+      c.globalAlpha=.74;
+      for(const item of cluster.items){
+        const size=item.size*2.6;c.save();c.translate(item.x+MARGIN,item.y-row*TILE+PAD);c.scale(item.flip,1);
+        c.drawImage(this.getSprite(item.type,item.variant),-size*.5,-size*.5,size,size);c.restore();
+      }
+    }
+    c.globalAlpha=1;
+  }
+  drawStructureActivity(c,prop,time,quality,motion=true) {
+    if(!ACTIVE_STRUCTURES.has(prop.type)||prop.hp<=0||this.destroyed.has(prop.id))return;
+    const stage=structureStage(prop),power=stage===0?1:stage===1?.52:.19;
+    const phase=prop.variant*1.79+prop.x*.009,clock=motion?time:0;
+    const pulse=.76+Math.sin(clock*1.6+phase)*.24,s=prop.size,x=prop.x,y=prop.y;
+    c.save();
+    // A small service light has a cached halo, with no per-frame raster work.
+    const lx=x+s*.22,ly=y-s*.16,r=Math.round(s*.13);
+    c.globalAlpha=power*pulse*.2;c.drawImage(this.lightSprite,Math.round(lx-r),Math.round(ly-r),r*2,r*2);
+    c.globalAlpha=power*pulse*.65;c.fillStyle=this.palette.fog;
+    c.fillRect(Math.round(lx),Math.round(ly),Math.max(1,Math.round(s*.022)),1);
+    if(quality!=='low'){
+      if(prop.type==='radar'||prop.type==='satellite'){
+        const angle=clock*.72+phase,reach=s*.19;
+        c.save();c.translate(x,y-s*.07);c.rotate(angle);c.globalAlpha=power*.24;
+        c.drawImage(this.radarSweepSprite,-reach,-reach,reach*2,reach*2);c.restore();
+      } else if(prop.type==='pylon'||prop.type==='tower'||prop.type==='dome'){
+        c.globalAlpha=power*pulse*.13;c.drawImage(this.lightSprite,x-s*.23,y-s*.29,s*.46,s*.46);
+      }
+      if(motion&&VENTED_STRUCTURES.has(prop.type)){
+        // Puffs stay attached to rooftop exhausts and fade before obscuring combat.
+        for(let n=0;n<2;n++){
+          const age=((clock*.22+phase+n*.5)%1+1)%1,radius=s*(.12+age*.17);
+          c.globalAlpha=power*Math.sin(age*Math.PI)*.095;
+          c.drawImage(this.cloudSprite,x-s*.22+age*s*.17-radius,y-s*.22-age*s*.3-radius*.66,radius*2,radius*1.32);
+        }
+      }
+    }
+    c.restore();
+  }
+  drawGroundScenery(c,h,scroll,time,quality,motion=true) {
     const view=this.layerViews[0];view.x=this.parallaxX;view.y=scroll;
     const first=view.first=Math.floor((-scroll-PAD)/TILE);
     const last=view.last=Math.floor((h-scroll+PAD)/TILE),cache=this.sceneryLayers[0];
@@ -257,8 +335,10 @@ export class WorldRenderer {
         if(this.destroyed.has(prop.id))continue;
         const y=prop.y+scroll;if(y<-PAD||y>h+PAD)continue;
         prop.screenX=prop.x+view.x;prop.screenY=y;this.visibleProps.push(prop);
+        this.drawStructureActivity(c,prop,time,quality,motion);
         if(prop.emissive&&quality!=='low'){
-          const radius=prop.size*.65;c.globalAlpha=.1+Math.sin(time*1.7+prop.variant*2)*.03;
+          const power=STRUCTURE_SPRITES.includes(prop.type)?[1,.52,.19,0][structureStage(prop)]:1;
+          const radius=prop.size*.65;c.globalAlpha=(.1+Math.sin((motion?time:0)*1.7+prop.variant*2)*.03)*power;
           c.drawImage(this.lightSprite,prop.x-radius,prop.y-radius,radius*2,radius*2);
         }
       }
@@ -266,7 +346,7 @@ export class WorldRenderer {
     c.restore();
     for(const row of cache.keys())if(row<first-1||row>last+1)cache.delete(row);
   }
-  draw(ctx,W,H,scroll,time,quality='high',focusX=W*.5) {
+  draw(ctx,W,H,scroll,time,quality='high',focusX=W*.5,motion=true) {
     this.refreshSpriteAssets();
     const s=W/WIDTH,h=H/s;
     this.scale=s;this.scroll=scroll;this.parallaxX=(.5-clamp(focusX/W,0,1))*WIDTH*.02;this.visibleProps.length=0;
@@ -276,8 +356,8 @@ export class WorldRenderer {
     const first=Math.floor(-scroll/TILE),last=Math.floor((h-scroll)/TILE);
     for(let row=first;row<=last;row++)ctx.drawImage(this.getTile(row),-MARGIN,row*TILE+scroll,WIDTH+MARGIN*2,TILE+.5);
     ctx.restore();
-    this.drawGroundScenery(ctx,h,scroll,time,quality);
-    ctx.globalAlpha=1;ctx.save();ctx.translate(this.parallaxX*PARALLAX_LAYERS[1].x,0);this.drawAtmosphere(ctx,h,scroll,time,quality);ctx.restore();
+    this.drawGroundScenery(ctx,h,scroll,time,quality,motion);
+    ctx.globalAlpha=1;ctx.save();ctx.translate(this.parallaxX*PARALLAX_LAYERS[1].x,0);this.drawAtmosphere(ctx,h,scroll,motion?time:0,quality);ctx.restore();
     ctx.drawImage(this.vignetteSprite,0,0,WIDTH,h);ctx.restore();
     for(const row of this.tiles.keys())if(row<first-1||row>last+1)this.tiles.delete(row);
     // Keep only nearby pixel caches and regenerated bands. Damage is a compact ledger.
@@ -565,6 +645,11 @@ export class WorldRenderer {
   }
   makeLight() {
     const out=canvas(128,128),c=out.getContext('2d');glow(c,64,64,64,this.world.accent,1);return out;
+  }
+  makeRadarSweep() {
+    const out=canvas(96,96),c=out.getContext('2d');
+    c.strokeStyle=this.palette.fog;c.lineWidth=2.5;c.beginPath();c.arc(48,48,43,-.5,0);c.stroke();
+    line(c,[[48,48],[91,48]],this.palette.fog,2.5);return out;
   }
   makeScorch() {
     const out=canvas(160,160),c=out.getContext('2d'),rng=random(61821+this.index);

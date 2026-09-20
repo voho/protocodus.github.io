@@ -83,7 +83,7 @@ function restoreState(raw) {
   const stats = shipStats(state.upgrades);
   if (raw.players.length !== state.mode) invalid();
   state.players = raw.players.map((player, index) => {
-    const result = { ...coordinates(player), ...fields(player, { mass: stats.mass, thrust: .9, radius: 17, fire: 0, hurt: 0, lastHit: -10, bank: 0 }, ['fire', 'hurt', 'lastHit']) };
+    const result = { ...coordinates(player), ...fields(player, { mass: stats.mass, thrust: .9, radius: 17, fire: 0, hurt: 0, lastHit: -10 }, ['fire', 'hurt', 'lastHit']) };
     result.id = index;
     result.maxHull = number(player.maxHull, stats.hull, 1, stats.hull);
     result.maxShield = number(player.maxShield, stats.shield, 1, stats.shield);
@@ -114,7 +114,7 @@ function restoreState(raw) {
   });
   const enemyIds = new Set();
   state.enemies = list(raw.enemies, 128).map(enemy => {
-    const result = { ...coordinates(enemy), ...fields(enemy, { originX: enemy.x, mass: 1, bank: 0, thrust: .85, speed: 70, age: 0, fire: 1, phase: 0, hurt: 0, seed: 0, warning: 0 }, ['fire', 'hurt', 'warning']) };
+    const result = { ...coordinates(enemy), ...fields(enemy, { originX: enemy.x, mass: 1, thrust: .85, speed: 70, age: 0, fire: 1, phase: 0, hurt: 0, seed: 0, warning: 0 }, ['fire', 'hurt', 'warning']) };
     result.id = integer(enemy.id, 0, 1);
     if (enemyIds.has(result.id)) invalid();
     enemyIds.add(result.id);

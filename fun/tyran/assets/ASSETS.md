@@ -25,9 +25,9 @@ Ten original 1024 × 1536 orthographic terrain paintings were generated with the
 
 ## Realistic sprite atlases
 
-The seven base PNG atlases were generated with the built-in ImageGen tool on 2026-09-19. On 2026-09-20, two bank views, three destruction sheets and ten sector fleet sheets bring the library to 22 atlases. The original generated PNGs are copied unchanged into `sprites/`; [sprites/prompts.json](./sprites/prompts.json) records the exact prompts, sources, cell names and layouts. A failed specialized sheet uses the common fleet or procedural fallback.
+The seven base PNG atlases were generated with the built-in ImageGen tool on 2026-09-19. Three destruction sheets and ten sector fleet sheets bring the active library to 20 atlases. The retired left/right banking sheets have been removed; every ship uses one fixed hull. The original generated PNGs are copied unchanged into `sprites/`; [sprites/prompts.json](./sprites/prompts.json) records the exact prompts, sources, cell names and layouts. A failed specialized sheet uses the common fleet or procedural fallback.
 
-The runtime loads matching `.webp` files exported with `cwebp -lossless -exact -m 6`. Every export was verified against its original PNG for identical decoded RGBA pixels and dimensions. This reduces the complete library from 38.1 MB to 27.9 MB (26.9%) without changing its artwork. PNGs remain the editable source inventory listed below.
+The runtime loads matching `.webp` files exported with `cwebp -lossless -exact -m 6`. Every export was verified against its original PNG for identical decoded RGBA pixels and dimensions. This reduces the complete library from 35.3 MB to 25.8 MB (27.0%) without changing its artwork. PNGs remain the editable source inventory listed below.
 
 | Atlas | Layout | Contents |
 | --- | --- | --- |
@@ -38,8 +38,6 @@ The runtime loads matching `.webp` files exported with `cwebp -lossless -exact -
 | `sprites/effects.png` | 4 × 4 | Eight explosion frames, smoke, fragments, scorches, two thrusters |
 | `sprites/projectiles.png` | 4 × 3 | Six weapon profiles and six enemy projectile silhouettes |
 | `sprites/pickups.png` | 2 × 1 | Repair capsule and salvage credits |
-| `sprites/fleet-left.png` | 4 × 3 | Authored left bank: player and ten common enemy hulls, one empty cell |
-| `sprites/fleet-right.png` | 4 × 3 | Authored right bank: player and ten common enemy hulls, one empty cell |
 | `sprites/structure-light.png` | 4 × 4 | Light damage matching all 16 structure/vehicle cells |
 | `sprites/structure-heavy.png` | 4 × 4 | Heavy damage matching all 16 structure/vehicle cells |
 | `sprites/structure-crater.png` | 4 × 4 | Craters and wreckage matching all 16 structure/vehicle cells |
@@ -63,15 +61,15 @@ Each sector fleet sheet uses a 4 × 3 layout. Cell 0 is an unused player referen
 
 ## Terrain tile library
 
-`terrain-sprites.js` bakes the generated material cells into 100 × 100 logical-pixel tiles at double resolution. Each biome has four materials with six orientations each, plus matching corner masks for banks and cliffs. Material luminosity preserves the generated surface detail; the original terrain palette supplies its hue. Common edge tones join adjacent tiles. `tile-map.js` generates connected terrain cells from the level hash. `worlds.js` assembles those cells into cached 800-pixel strips and places reusable scenery sprites from the same hash.
+`terrain-sprites.js` bakes the generated material cells into 100 × 100 logical-pixel tiles at double resolution. Each biome has four materials with six orientations each, plus matching irregular corner masks for banks and cliffs. Shared crossings and tangents keep all six contour variants connected. Broken rims, layered ledge shadows, fissures and low mounds add visual depth; material crops vary to soften repetition. Material luminosity preserves the generated surface detail; the original terrain palette supplies its hue. Common edge tones join adjacent tiles. `tile-map.js` generates connected terrain cells from the level hash. `worlds.js` assembles those cells into cached 800-pixel strips and places reusable scenery sprites from the same hash. A separate seeded stream adds clustered pebbles, brush, coral and rubble to cached ground strips while preserving all destructible IDs and positions.
 
 Exactly two scrolling planes provide depth. The **ground** plane contains water or space, terrain, rocks, plants, vehicles, buildings and destruction remains under one shared translation. Nothing standing on the map drifts away from its terrain cell. The **atmosphere** plane contains faster clouds and drifting particles. One extra cell beyond each horizontal edge covers the camera's 1% lateral drift. Terrain and ground vehicles use subdued biome materials; saturated complementary colors are reserved for airborne fleets.
 
-## Ship sprite variants
+## Fixed ship sprites
 
 Ship hulls use weathered armor, recessed machinery and metallic lighting. All family sources share a red-armor/gold-trim color convention. The renderer maps those materials to each existing complementary fleet palette, while neutral metal and ivory player armor retain their shading. This common source convention allows different hull designs to keep the same strong contrast with their sector's terrain.
 
-Player ships use authored left, level and right views, including visible side surfaces. The renderer aligns each source's fixed camera heading and nose anchor once when baking the cache. Family enemies derive their three roll frames from their own level hull, preserving their silhouette and aspect ratio instead of switching to a common enemy during a bank. Wings narrow and shift in height while nose headings stay fixed. Exhaust, alpha-derived shadows, damage flashes and bloom follow the same attitude. Industrial crawlers and haulers have tracked/wheeled ground silhouettes, muted armor and no flight exhaust.
+Every player and enemy uses one fixed hull and alpha-derived shadow. Players face up and enemies face down; steering never rotates, skews or replaces the hull. Source artillery orientation is normalized once during caching. Engine flicker and a subtle reactor pulse use cached overlays, while the hull and hitbox stay still. Reduced-motion mode freezes these decorative effects. Industrial crawlers and haulers have tracked/wheeled ground silhouettes, muted armor and no flight exhaust.
 
 ## Structure destruction
 
@@ -86,7 +84,11 @@ Player ships use authored left, level and right views, including visible side su
 
 Structure durability scales with footprint area (`size²`) and a type-specific armor factor. Cached scenery strips rebuild only when an object changes visual state. The damage ledger preserves health and craters after scrolling, cache eviction and save/load. Earlier saves used lower linear health totals; migration keeps the original percentage remaining when applying the new area-based totals.
 
+Service lights, small radar sweeps and rooftop exhaust animate over the cached structure bodies. Their intensity follows the damage stage and stops at destruction. The overlays use cached light/cloud textures, with no per-frame pixel processing.
+
 The crater is painted by the scenery renderer. Ground explosion effects add transient fire, smoke and fragments without adding a second persistent wreck. A large structure's final blast gently displaces nearby small ships; its decaying, mass-sensitive impulse causes no damage and leaves large craft and bosses unaffected.
+
+Repair and salvage pickups keep their original capsule/chip artwork, surrounded by a shared green halo baked into their cached textures.
 
 ## Fonts
 

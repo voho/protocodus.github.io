@@ -39,7 +39,38 @@ function grain(random, divisions) {
     return (a+(b-a)*sx)*(1-sy)+(c+(d-c)*sx)*sy;
   };
 }
-function shape(c,mask) {
+function edgeNormal([x,y]) {
+  return x===0?[1,0]:x===1?[-1,0]:y===0?[0,1]:[0,-1];
+}
+function samePoint(a,b) {return a[0]===b[0]&&a[1]===b[1];}
+// Every bank meets its neighbor at the same crossing and at a perpendicular
+// tangent. Only the interior wanders, so all six variants fit every tile edge.
+function contourParts(mask,variant,index) {
+  const parts=[],points=CONTOURS[mask];
+  const jagged=index===4||index===5||index===6||index===9;
+  const angular=index===7||index===9;
+  const random=rng(9817+mask*7187+variant*3307+index*1777);
+  for(let i=0;i<points.length;i+=2) {
+    const a=points[i],b=points[i+1],na=edgeNormal(a),nb=edgeNormal(b);
+    const reach=angular?.34:.27+random()*.18;
+    const ca=[a[0]+na[0]*reach,a[1]+na[1]*reach],cb=[b[0]+nb[0]*reach,b[1]+nb[1]*reach];
+    const insideA=[a[0]+na[0]*.15,a[1]+na[1]*.15],insideB=[b[0]+nb[0]*.15,b[1]+nb[1]*.15];
+    const dx=b[0]-a[0],dy=b[1]-a[1],length=Math.hypot(dx,dy),nx=-dy/length,ny=dx/length;
+    const phase=random()*TAU,bend=(random()-.5)*.27,roughness=angular?.037:jagged?.075:index===1?.043:.059;
+    const result=[[a[0]*SIZE,a[1]*SIZE]];
+    for(let step=0;step<=20;step++) {
+      const t=step/20,q=1-t,envelope=Math.sin(Math.PI*t)**2;
+      const rough=(Math.sin(t*TAU*3+phase)*.56+Math.sin(t*TAU*7+phase*1.7)*.30+Math.sin(t*TAU*11+phase*.6)*.14)*roughness;
+      const drift=envelope*(bend+rough);
+      result.push([(q*q*q*insideA[0]+3*q*q*t*ca[0]+3*q*t*t*cb[0]+t*t*t*insideB[0]+nx*drift)*SIZE,
+        (q*q*q*insideA[1]+3*q*q*t*ca[1]+3*q*t*t*cb[1]+t*t*t*insideB[1]+ny*drift)*SIZE]);
+    }
+    result.push([b[0]*SIZE,b[1]*SIZE]);
+    parts.push({a,b,points:result});
+  }
+  return parts;
+}
+function shape(c,mask,contours) {
   c.beginPath();
   const parts=mask===5?[POLYGONS[1],POLYGONS[4]]:mask===10?[POLYGONS[2],POLYGONS[8]]:[POLYGONS[mask]];
   for(const points of parts) {
@@ -47,15 +78,25 @@ function shape(c,mask) {
     c.moveTo(points[0][0]*SIZE,points[0][1]*SIZE);
     for(let i=1;i<=points.length;i++) {
       const a=points[i-1],b=points[i%points.length];
-      if((a[0]===.5||a[1]===.5)&&(b[0]===.5||b[1]===.5))c.quadraticCurveTo(SIZE*.5,SIZE*.5,b[0]*SIZE,b[1]*SIZE);
-      else c.lineTo(b[0]*SIZE,b[1]*SIZE);
+      const boundary=contours.find(part=>(samePoint(part.a,a)&&samePoint(part.b,b))||(samePoint(part.a,b)&&samePoint(part.b,a)));
+      if(boundary) {
+        const points=samePoint(boundary.a,a)?boundary.points:[...boundary.points].reverse();
+        for(const [x,y]of points)c.lineTo(x,y);
+      } else c.lineTo(b[0]*SIZE,b[1]*SIZE);
     }
     c.closePath();
   }
 }
-function contour(c,mask,offset=0) {
-  const points=CONTOURS[mask];c.beginPath();
-  for(let i=0;i<points.length;i+=2){const a=points[i],b=points[i+1];c.moveTo(a[0]*SIZE,a[1]*SIZE+offset);c.quadraticCurveTo(SIZE*.5,SIZE*.5+offset,b[0]*SIZE,b[1]*SIZE+offset);}
+function contour(c,parts,offset=0) {
+  c.beginPath();
+  for(const part of parts){
+    const na=edgeNormal(part.a),nb=edgeNormal(part.b),first=part.points[0],last=part.points.at(-1);
+    // Extend cast shadows beyond a tile before clipping; round caps at the
+    // exact boundary would otherwise leave a small notch at every tile join.
+    c.moveTo(first[0]-na[0]*20+offset*.42,first[1]-na[1]*20+offset);
+    for(const [x,y]of part.points)c.lineTo(x+offset*.42,y+offset);
+    c.lineTo(last[0]-nb[0]*20+offset*.42,last[1]-nb[1]*20+offset);
+  }
 }
 
 export class TerrainSprites {
@@ -74,25 +115,29 @@ export class TerrainSprites {
     const random=rng(9037+index*11771+material*813+variant*3307);
     const texture=spriteCell('materials',index*4+material);
     if(texture) {
-      // Bake six orientations of each material into the existing tile atlas.
+      // Cropping at varied scales keeps recognizable source features from
+      // repeating as a row of identical stamps, while retaining fine detail.
+      const zoom=1.22+(variant%3)*.15,span=SURFACE_SIZE*zoom;
+      const dx=(random()-.5)*(span-SURFACE_SIZE)*.8,dy=(random()-.5)*(span-SURFACE_SIZE)*.8;
       c.save();c.translate(SURFACE_SIZE/2,SURFACE_SIZE/2);
       c.rotate((variant%4)*Math.PI/2);c.scale(variant>=4?-1:1,1);
-      c.drawImage(texture,-SURFACE_SIZE/2,-SURFACE_SIZE/2,SURFACE_SIZE,SURFACE_SIZE);c.restore();
+      c.drawImage(texture,-span/2+dx,-span/2+dy,span,span);c.restore();
       const pixels=c.getImageData(0,0,SURFACE_SIZE,SURFACE_SIZE),data=pixels.data,base=rgb(this.colors[material]);
+      const seam=grain(rng(4919+index*7717+material*811),7);
       let mean=0;
       for(let i=0;i<data.length;i+=4)mean+=data[i]*.2126+data[i+1]*.7152+data[i+2]*.0722;
       mean/=SURFACE_SIZE*SURFACE_SIZE;
       for(let y=0;y<SURFACE_SIZE;y++)for(let x=0;x<SURFACE_SIZE;x++) {
         const i=(y*SURFACE_SIZE+x)*4,luma=data[i]*.2126+data[i+1]*.7152+data[i+2]*.0722;
-        const edge=Math.min(1,x/10,y/10,(SURFACE_SIZE-1-x)/10,(SURFACE_SIZE-1-y)/10);
+        const edge=Math.min(1,x/7,y/7,(SURFACE_SIZE-1-x)/7,(SURFACE_SIZE-1-y)/7);
         // Common edge tones join independently chosen cells without a hard seam.
         // Luminosity retains the generated relief; hue belongs to the biome.
         const contrast=material===0&&(index===4||index===9)?.3:.85;
-        const shade=1+Math.max(-.48,Math.min(.58,(luma-mean)/128))*edge*contrast;
+        const shade=1+Math.max(-.48,Math.min(.58,(luma-mean)/128))*edge*contrast+seam(x,y)*.13;
         for(let k=0;k<3;k++)data[i+k]=Math.min(255,base[k]*shade);
         data[i+3]=255;
       }
-      c.putImageData(pixels,0,0);this.materials.set(key,out);return out;
+      c.putImageData(pixels,0,0);this.addRelief(c,material,variant);this.materials.set(key,out);return out;
     }
     const base=rgb(this.colors[material]),pixels=c.createImageData(SURFACE_SIZE,SURFACE_SIZE),data=pixels.data;
     const coarse=grain(random,5),fine=grain(random,17),space=index===4||index===9;
@@ -147,7 +192,58 @@ export class TerrainSprites {
         }
       }
     }
-    c.globalAlpha=1;this.materials.set(key,out);return out;
+    c.globalAlpha=1;c.resetTransform();this.addRelief(c,material,variant);this.materials.set(key,out);return out;
+  }
+  addRelief(c,material,variant) {
+    const index=this.index,p=this.palette,random=rng(7121+index*5519+material*1319+variant*3323);
+    const space=index===4||index===9,desert=index===2||index===5,organic=index===0||index===3||index===8;
+    c.save();c.scale(RESOLUTION,RESOLUTION);c.lineCap='round';c.lineJoin='round';
+    // All relief is baked into reusable material cells. Nothing below runs in
+    // a warm frame, and insets keep local features away from stitching edges.
+    if(material===0) {
+      if(!space)for(let i=0;i<7;i++) {
+        const x=10+random()*56,y=10+random()*75,length=9+random()*19;
+        c.strokeStyle=index===6?p.shore:mix(this.colors[0],p.shore,.55);c.globalAlpha=.06+random()*.05;c.lineWidth=.45;
+        c.beginPath();c.moveTo(x,y);c.bezierCurveTo(x+length*.3,y-3,x+length*.7,y+3,x+length,y);c.stroke();
+      }
+      c.restore();return;
+    }
+    const count=material===3?7:4;
+    for(let i=0;i<count;i++) {
+      const rx=5+random()*11,ry=rx*(desert?.43:.52+random()*.28),x=12+rx+random()*(76-rx*2),y=12+ry+random()*(72-ry*2),points=[];
+      for(let j=0;j<12;j++) {
+        const a=j/12*TAU,r=.65+random()*.35;
+        points.push([x+Math.cos(a)*rx*r,y+Math.sin(a)*ry*r]);
+      }
+      const path=(dy=0)=>{c.beginPath();points.forEach(([px,py],j)=>j?c.lineTo(px,py+dy):c.moveTo(px,py+dy));c.closePath();};
+      path(2.5);c.fillStyle=p.low;c.globalAlpha=material===3?.22:.12;c.fill();
+      path();const shade=c.createLinearGradient(x,y-ry,x,y+ry);
+      shade.addColorStop(0,mix(this.colors[material],p.high,.44));shade.addColorStop(.44,this.colors[material]);shade.addColorStop(1,mix(this.colors[material],p.low,.65));
+      c.fillStyle=shade;c.globalAlpha=material===3?.36:.24;c.fill();
+      // A broken sunward lip makes each mound read as relief instead of a dot.
+      c.beginPath();for(let j=6;j<12;j++){const [px,py]=points[j];j===6?c.moveTo(px,py):c.lineTo(px,py);}
+      c.strokeStyle=p.high;c.globalAlpha=.17;c.lineWidth=.65;c.stroke();
+      if(organic) {
+        c.fillStyle=i%2?p.high:p.low;c.globalAlpha=.12;
+        for(let j=0;j<5;j++){const px=x+(random()-.5)*rx,py=y+(random()-.5)*ry;c.beginPath();c.ellipse(px,py,1+random()*2,.6+random(),random()*TAU,0,TAU);c.fill();}
+      }
+    }
+    // Erosion channels, glacial fissures and cracked stone use different widths
+    // and branching, but never add a competing bright color to the terrain.
+    const fractured=material===3||index===1||index===4||index===5||index===6;
+    for(let i=0;i<(fractured?4:2);i++) {
+      const length=13+random()*22,x=12+random()*(76-length),y=14+random()*61,points=[];
+      for(let j=0;j<6;j++)points.push([x+j*length/5,y+(j-2)*1.4+(random()-.5)*(desert?3:7)]);
+      const stroke=(dy,color,width,alpha)=>{c.beginPath();points.forEach(([px,py],j)=>j?c.lineTo(px,py+dy):c.moveTo(px,py+dy));c.strokeStyle=color;c.lineWidth=width;c.globalAlpha=alpha;c.stroke();};
+      stroke(1,p.high,1.2,fractured?.15:.08);stroke(0,p.low,fractured?1.5:.7,fractured?.32:.16);
+      if(fractured&&i%2===0){const [px,py]=points[3];c.beginPath();c.moveTo(px,py);c.lineTo(px-1,py+4);c.lineTo(px+3,py+8);c.lineWidth=.8;c.globalAlpha=.23;c.stroke();}
+    }
+    if(desert||index===1)for(let i=0;i<5;i++) {
+      const x=12+random()*45,y=12+random()*74,length=16+random()*22;
+      c.strokeStyle=p.high;c.globalAlpha=.09;c.lineWidth=.7;
+      c.beginPath();c.moveTo(x,y);c.bezierCurveTo(x+length*.3,y-4,x+length*.7,y+1,x+length,y-2);c.stroke();
+    }
+    c.restore();
   }
   get(material,variant,mask=15) {
     if(mask===15)return this.getMaterial(material,variant);
@@ -155,15 +251,24 @@ export class TerrainSprites {
     if(this.edges.has(key))return this.edges.get(key);
     const out=surface(),c=out.getContext('2d');c.scale(RESOLUTION,RESOLUTION);
     if(mask) {
-      const p=this.palette;
+      const p=this.palette,parts=contourParts(mask,variant,this.index),cliff=material===3;
       // Recessed banks and stratified cliff faces under each raised surface.
       c.lineCap='round';c.lineJoin='round';
-      for(const [offset,width,alpha] of [[4,8,.28],[2,5,.45],[0,2,.65]]){
-        contour(c,mask,offset);c.strokeStyle=p.low;c.globalAlpha=alpha;c.lineWidth=material===3?width:width*.6;c.stroke();
+      for(const [offset,width,alpha] of [[8,9,.17],[5,7,.25],[3,5,.38],[0,2,.58]]){
+        contour(c,parts,cliff?offset:offset*.4);c.strokeStyle=p.low;c.globalAlpha=alpha;c.lineWidth=cliff?width:width*.55;c.stroke();
       }
-      c.globalAlpha=1;c.save();shape(c,mask);c.clip();c.drawImage(this.getMaterial(material,variant),0,0,SIZE,SIZE);c.restore();
-      contour(c,mask);c.strokeStyle=material===1?mix(this.colors[1],p.shore,.45):mix(this.colors[material],p.high,.35);c.globalAlpha=.8;c.lineWidth=material===1?2.4:1.5;c.stroke();
-      if(material===3){contour(c,mask,2);c.strokeStyle=p.low;c.globalAlpha=.35;c.lineWidth=.8;c.stroke();}
+      // Broken sediment shelves sit within the deeper cast shadow.
+      if(cliff)for(const offset of [2.7,5.3]) {
+        contour(c,parts,offset);c.strokeStyle=mix(this.colors[material],p.low,.4);c.globalAlpha=.5;c.lineWidth=.8;c.stroke();
+      }
+      c.globalAlpha=1;c.save();shape(c,mask,parts);c.clip();c.drawImage(this.getMaterial(material,variant),0,0,SIZE,SIZE);c.restore();
+      contour(c,parts);c.strokeStyle=material===1?mix(this.colors[1],p.shore,.32):mix(this.colors[material],p.high,.4);c.globalAlpha=material===1?.55:.65;c.lineWidth=material===1?1.6:1.15;c.stroke();
+      // Sparse bank chips soften the continuous contour without a repeated rim.
+      const random=rng(3911+this.index*1193+mask*117+variant*911+material*551);
+      for(const {points}of parts)for(let i=3;i<points.length-3;i+=3) {
+        const [x,y]=points[i],r=.45+random()*.85;
+        c.fillStyle=i%2?p.low:p.high;c.globalAlpha=.16+random()*.1;c.beginPath();c.ellipse(x+(random()-.5)*4,y+(random()-.5)*4,r*1.8,r,random()*TAU,0,TAU);c.fill();
+      }
     }
     this.edges.set(key,out);return out;
   }

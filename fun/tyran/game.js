@@ -355,8 +355,10 @@ function pickupTexture(kind) {
   if (pickupTextures.has(key)) return pickupTextures.get(key);
   const out = document.createElement('canvas'); out.width = out.height = 96;
   const paint = out.getContext('2d'), color = repair ? '#aaffd0' : '#ffdc90';
-  const glow = paint.createRadialGradient(48, 48, 8, 48, 48, 45);
-  glow.addColorStop(0, `${color}55`); glow.addColorStop(1, `${color}00`);
+  // The same restrained green halo marks every collectible as beneficial;
+  // the repair capsule and gold credit chips keep their distinct body colors.
+  const glow = paint.createRadialGradient(48, 48, 10, 48, 48, 45);
+  glow.addColorStop(0, '#6bf3a04d'); glow.addColorStop(.4, '#62e99526'); glow.addColorStop(1, '#62e99500');
   paint.fillStyle = glow; paint.fillRect(0, 0, 96, 96);
   const source = spriteCell('pickups', key);
   if (source) {
@@ -407,7 +409,7 @@ function draw() {
   let focusX = 0, focusPilots = 0;
   for (const pilot of state?.players || []) if (pilot.alive) { focusX += lerp(pilot.px, pilot.x); focusPilots++; }
   focusX = focusPilots ? focusX / focusPilots : W * .66;
-  world.draw(ctx, W, H, scroll, clock, quality, focusX);
+  world.draw(ctx, W, H, scroll, clock, quality, focusX, !fx.reduced);
   fx.drawGround(ctx, scroll * W / 1200, H, (world.parallaxX || 0) * W / 1200);
   if (state) {
     if (state.formations?.length) {
@@ -423,7 +425,7 @@ function draw() {
       const x = lerp(e.px, e.x), y = lerp(e.py, e.y);
       if (y < -e.radius * 2 || y > H + e.radius * 2) continue;
       const palette = SHIP_PALETTES[index];
-      drawShip(ctx, x, y, e.radius * (e.type < 2 ? 1.35 : 1), e.type, palette?.primary || WORLDS[index].enemyColor || '#b07355', clock, { hit: e.hurt / .07 * .3, phase: e.phase, world: index, quality, bank: e.bank, thrust: e.thrust, palette });
+      drawShip(ctx, x, y, e.radius * (e.type < 2 ? 1.35 : 1), e.type, palette?.primary || WORLDS[index].enemyColor || '#b07355', clock, { hit: e.hurt / .07 * .3, phase: e.phase, world: index, quality, thrust: e.thrust, palette, motion: !fx.reduced });
       drawBossWeakPoints(e, clock);
       if (!e.boss && e.hp < e.maxHp && e.radius >= 24) {
         ctx.fillStyle = '#09171aca'; ctx.fillRect(x - e.radius, y - e.radius * 1.6 - 8, e.radius * 2, 3);
@@ -438,7 +440,7 @@ function draw() {
     ctx.restore();
     for (const p of state.players) if (p.alive) {
       const color = p.id ? '#ffc18b' : '#a4ffee', x = lerp(p.px, p.x), y = lerp(p.py, p.y);
-      drawShip(ctx, x, y, 30, 'player', color, clock, { bank: p.bank, hit: p.hurt > .2 ? 1 : 0, player: p.id, world: index, thrust: p.thrust, quality });
+      drawShip(ctx, x, y, 30, 'player', color, clock, { hit: p.hurt > .2 ? 1 : 0, player: p.id, world: index, thrust: p.thrust, quality, motion: !fx.reduced });
       if (p.shield > 1) {
         ctx.save(); ctx.translate(x, y); ctx.strokeStyle = color; ctx.lineWidth = 1; ctx.globalAlpha = .08 + p.shield / p.maxShield * .13 + (p.hurt > 0 ? .45 : 0);
         ctx.beginPath(); ctx.ellipse(0, 0, 37, 46, 0, 0, Math.PI * 2); ctx.stroke();
@@ -452,9 +454,9 @@ function draw() {
       ctx.fillStyle = '#d8fce766'; ctx.fillRect(W - 180, H - 20, 150, 2); ctx.fillStyle = '#ffe18c'; ctx.fillRect(W - 180, H - 20, 150 * clamp(state.comboTime / 5.2, 0, 1), 2);
     }
   } else {
-    const px = W * .66 + Math.sin(clock * .5) * 45, py = H * .57 + Math.cos(clock * .8) * 15;
-    drawShip(ctx, px, py, 45, 'player', '#9bfff0', clock, { bank: Math.sin(clock * .5) * .07, world: index, quality });
-    drawShip(ctx, px + 145, py + 115, 25, 'player', '#ffd0a0', clock, { world: index, quality });
+    const px = W * .66 + (fx.reduced ? 0 : Math.sin(clock * .5) * 45), py = H * .57 + (fx.reduced ? 0 : Math.cos(clock * .8) * 15);
+    drawShip(ctx, px, py, 45, 'player', '#9bfff0', clock, { world: index, quality, motion: !fx.reduced });
+    drawShip(ctx, px + 145, py + 115, 25, 'player', '#ffd0a0', clock, { world: index, quality, motion: !fx.reduced });
   }
   fx.draw(ctx, W, H);
   ctx.restore();

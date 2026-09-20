@@ -24,7 +24,7 @@ function flight() {
   state.credits = 2421; state.score = 39200; state.totalKills = 289;
   state.combo = 3; state.comboTime = 2.8; state.comboDamage = 1.18; state.comboBlast = 1.24; state.comboLabel = 'Multi kill';
   state.players[0].hull -= 23; state.players[0].shield -= 32;
-  state.players[0].vx = 120; state.players[0].bank = .12;
+  state.players[0].vx = 120;
   state.players[1].hull = 0; state.players[1].alive = false;
   const formation = spawnFormation(state, 'orbit');
   formation.age = 3.6; formation.y = 220;
@@ -71,6 +71,17 @@ check('a restored flight produces the same next combat step', () => {
   originalRecord.savedAt = restoredRecord.savedAt = 0;
   assert.deepEqual(restoredRecord, originalRecord);
   assert.deepEqual(restored.events, state.events);
+});
+
+check('older banking saves restore movement without obsolete sprite state', () => {
+  const record = JSON.parse(serializeRun(flight()));
+  record.state.players[0].bank = .18;
+  record.state.enemies[0].bank = -.2;
+  const run = restoreRun(JSON.stringify(record));
+  assert.ok(run);
+  assert.equal(run.state.players[0].vx, 120);
+  assert.equal('bank' in run.state.players[0], false);
+  assert.equal('bank' in run.state.enemies[0], false);
 });
 
 check('hangar purchases persist and next sector restores both upgraded ships', () => {
