@@ -1,4 +1,4 @@
-// Real browser checks for seeded tile rendering, depth-correct hits and bounded caches.
+// Seeded tile rendering, a unified ground plane, durable scenery and bounded caches.
 import assert from 'node:assert/strict';
 import {mkdir,writeFile} from 'node:fs/promises';
 const {chromium}=await import(process.env.TYRAN_PLAYWRIGHT||'playwright');
@@ -12,7 +12,7 @@ try {
   await page.goto(new URL('worlds.js',process.env.TYRAN_URL||'http://127.0.0.1:8773/fun/tyran/').href);
   await page.setContent('<body style="margin:0;background:#09131c"><canvas id="world"></canvas></body>');
   const results=await page.evaluate(async()=>{
-    const {WorldRenderer,WORLDS,PARALLAX_LAYERS}=await import('./worlds.js');
+    const {WorldRenderer,WORLDS,PARALLAX_LAYERS,structureDurability,structureStage}=await import('./worlds.js');
     const canvas=document.querySelector('canvas'),c=canvas.getContext('2d');
     canvas.width=1200;canvas.height=960;
     const result=[];
@@ -25,8 +25,8 @@ try {
         canvas.width=width;canvas.height=960;
         const start=performance.now();w.draw(c,width,960,6400,2,'high',focus);cold.push(performance.now()-start);
         for(let i=0;i<12;i++){const start=performance.now();w.draw(c,width,960,6400+i*.6,2+i/60,'high',focus);warm.push(performance.now()-start);}
-        for(let depth=0;depth<3;depth++) {
-          const p=w.visibleProps.find(p=>p.depth===depth&&p.screenY>50&&p.screenY<960/w.scale-50&&p.screenX>30&&p.screenX<1170);
+        for(const type of new Set(w.visibleProps.map(prop=>prop.type))) {
+          const p=w.visibleProps.find(p=>p.type===type&&p.screenY>50&&p.screenY<960/w.scale-50&&p.screenX>30&&p.screenX<1170);
           if(!p)continue;
           const before=p.hp;
           w.hit(p.screenX*w.scale,p.screenY*w.scale,0,.5,w.scroll);
@@ -45,6 +45,11 @@ try {
       const destroyed=w.hit(retained.screenX,retained.screenY,0,100000,440);
       w.draw(c,1200,960,150000,2,'low');w.draw(c,1200,960,440,2,'high');
       const paidTwice=w.hit(retained.screenX,retained.screenY,0,100000,440).some(e=>e.id===id);
+      // Destroyed IDs can be restored independently of the remaining-HP ledger.
+      // Retrying the same seed must invalidate those cached craters as well.
+      w.restoreDamage([],[id]);w.draw(c,1200,960,440,2,'high');
+      w.setWorld(worldIndex);
+      const resetClean=w.sceneryLayers[0].size===0&&w.destroyed.size===0;
       // Warm rendering cannot rasterize new sprites or build gradients.
       w.draw(c,1200,960,440,2,'high');let gradients=0;
       const proto=CanvasRenderingContext2D.prototype,radial=proto.createRadialGradient,linear=proto.createLinearGradient;
@@ -59,25 +64,32 @@ try {
         w.draw(c,1200,960,i*80000,2,'low');
         maxTiles=Math.max(maxTiles,w.tiles.size);maxScenery=Math.max(maxScenery,...w.sceneryLayers.map(cache=>cache.size));maxBands=Math.max(maxBands,w.bands.size);
         for(const p of w.visibleProps)if(p.screenY>=0&&p.screenY<=960){
-          driftBounded&&=Math.abs(p.screenY-(p.y+w.scroll))<=960*.11/2;
+          driftBounded&&=p.screenY===p.y+w.scroll&&p.screenX===p.x+w.parallaxX;
         }
       }
       warm.sort((a,b)=>a-b);
-      result.push({world:WORLDS[worldIndex].id,hash:w.levelHash,hitsAligned:hits.every(Boolean),damagePersistent,destroyed:destroyed.some(e=>e.id===id),paidTwice,gradients,deterministic:first===same,seedChanges:first!==other,driftBounded,maxTiles,maxScenery,maxBands,coldMaxMs:Math.max(...cold),medianMs:warm[Math.floor(warm.length*.5)],p95Ms:warm[Math.floor(warm.length*.95)]});
+      result.push({world:WORLDS[worldIndex].id,hash:w.levelHash,hitsAligned:hits.every(Boolean),damagePersistent,destroyed:destroyed.some(e=>e.id===id),paidTwice,resetClean,gradients,deterministic:first===same,seedChanges:first!==other,driftBounded,groundPlanes:w.sceneryLayers.length,maxTiles,maxScenery,maxBands,coldMaxMs:Math.max(...cold),medianMs:warm[Math.floor(warm.length*.5)],p95Ms:warm[Math.floor(warm.length*.95)]});
       w.warmEpoch++;w.warmJobs=[];
     }
-    return {worlds:result,layers:PARALLAX_LAYERS.map(l=>l.id)};
+    const structureTypes=['temple','ruin','bunker','station','radar','dome','solar','refinery','building','tower','pylon','fortress','hut','satellite','crawler','hauler'];
+    return {worlds:result,layers:PARALLAX_LAYERS.map(l=>l.id),durability:structureTypes.map(type=>({type,small:structureDurability(type,40),large:structureDurability(type,80)})),stages:[1,.71,.7,.36,.35,.01,0].map(health=>structureStage({hp:health*100,maxHp:100}))};
   });
   for(const r of results.worlds){
-    assert(r.hitsAligned,`${r.world}: visual positions and hitboxes agree across depths/widths/focus`);
+    assert(r.hitsAligned,`${r.world}: visual positions and hitboxes agree across object types/widths/focus`);
     assert(r.damagePersistent&&r.destroyed&&!r.paidTwice,`${r.world}: damage survives eviction without duplicate rewards`);
+    assert(r.resetClean,`${r.world}: retry resets cached craters even without a remaining-HP entry`);
     assert(r.deterministic&&r.seedChanges,`${r.world}: level hash drives rendered terrain`);
     assert.equal(r.gradients,0,`${r.world}: no gradients during warm rendering`);
-    assert(r.driftBounded,`${r.world}: scenery stays above its original terrain over long flights`);
+    assert(r.driftBounded&&r.groundPlanes===1,`${r.world}: every ground object uses exactly the terrain translation`);
     assert(r.maxTiles<=5&&r.maxScenery<=6&&r.maxBands<=6,`${r.world}: terrain caches stay bounded: ${JSON.stringify(r)}`);
   }
-  assert.deepEqual(results.layers,['substrate','ground','ridge','canopy','foreground']);
+  assert.deepEqual(results.layers,['ground','atmosphere']);
+  assert.deepEqual(results.stages,[0,0,1,1,2,2,3]);
+  for(const {type,small,large} of results.durability){
+    assert(Math.abs(large-small*4)<=2,`${type}: durability grows with footprint area`);
+    assert(small>(12+40*.22)*4,`${type}: even small ground assets withstand substantially more damage`);
+  }
   assert.deepEqual(landscapes,[],'No sliced landscape image requests');assert.deepEqual(errors,[]);
   await writeFile(`${output}/results.json`,JSON.stringify(results,null,2));console.log(JSON.stringify(results,null,2));
-  console.log('World QA passed: seeded tiles, all ten biomes, depth-correct hits, coverage, persistent damage and bounded caches.');
+  console.log('World QA passed: seeded tiles, one ground plane, atmospheric parallax, area-based durability, persistent damage and bounded caches.');
 } finally {await browser.close();}

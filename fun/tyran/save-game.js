@@ -2,7 +2,7 @@ import { createCampaign, MAX_UPGRADE, shipStats, WEAPONS, FORMATIONS } from './s
 
 export const SAVE_KEYS = Object.freeze({ auto: 'tyran-save-v2:auto', manual: 'tyran-save-v2:manual' });
 export const LEGACY_SAVE_KEY = 'tyran-campaign-v1';
-const VERSION = 2, MAX_BYTES = 4_000_000, MAX_SCENERY = 24_000;
+const VERSION = 2, SCENERY_VERSION = 2, MAX_BYTES = 4_000_000, MAX_SCENERY = 24_000;
 const POSITIVE_INFINITY = '@infinity', NEGATIVE_INFINITY = '@-infinity';
 const weaponIds = new Set(WEAPONS.map(weapon => weapon.id));
 const projectileKinds = new Set([...weaponIds, 'hostile']);
@@ -92,6 +92,7 @@ function restoreState(raw) {
     result.alive = bool(player.alive, result.hull > 0) && result.hull > 0;
     result.mass = number(player.mass, stats.mass, .1, 10);
     result.radius = number(player.radius, 17, 1, 64);
+    result.blastVx = number(player.blastVx, 0, -110, 110); result.blastVy = number(player.blastVy, 0, -110, 110);
     return result;
   });
   if (state.status === 'playing' && !state.players.some(player => player.alive)) invalid();
@@ -120,6 +121,7 @@ function restoreState(raw) {
     result.type = integer(enemy.type, 0, 0, 9); result.boss = result.type === 9;
     result.maxHp = number(enemy.maxHp, 100, 1, 10_000_000); result.hp = number(enemy.hp, result.maxHp, -10_000_000, result.maxHp);
     result.radius = number(enemy.radius, 20, 1, 256); result.mass = number(enemy.mass, 1, .1, 100);
+    result.blastVx = number(enemy.blastVx, 0, -110, 110); result.blastVy = number(enemy.blastVy, 0, -110, 110);
     result.dead = bool(enemy.dead, result.hp <= 0);
     const formationId = enemy.formationId;
     result.formation = formationId == null ? null : formationsById.get(formationId);
@@ -174,6 +176,10 @@ function restoreState(raw) {
 }
 
 function scenery(raw) {
+  // Older v2 saves used linear structure health. The renderer needs this marker
+  // to preserve remaining-health percentages when applying the stronger hulls.
+  const sceneryVersion = raw.sceneryVersion ?? 1;
+  if (![1, SCENERY_VERSION].includes(sceneryVersion)) invalid();
   const damage = new Map(), destroyed = new Set();
   for (const entry of list(raw.damage, MAX_SCENERY)) {
     if (!Array.isArray(entry) || entry.length !== 2) invalid();
@@ -186,12 +192,12 @@ function scenery(raw) {
     if (!id) invalid();
     destroyed.add(id);
   }
-  return { damage, destroyed };
+  return { damage, destroyed, sceneryVersion };
 }
 
 // The simulation status determines the restored screen; a flying save always
 // opens paused so the pilot can orient themselves before combat resumes.
-export function serializeRun(state, { seed = 'tyran-v2', damage = new Map(), destroyed = new Set(), unlocked = state?.level || 0 } = {}) {
+export function serializeRun(state, { seed = 'tyran-v2', damage = new Map(), destroyed = new Set(), sceneryVersion = SCENERY_VERSION, unlocked = state?.level || 0 } = {}) {
   if (!state || !['playing', 'hangar', 'victory'].includes(state.status)) invalid();
   const rawState = { ...state, events: [], enemies: state.enemies.map(enemy => {
     const { formation, formationOffset, ...rest } = enemy;
@@ -206,7 +212,7 @@ export function serializeRun(state, { seed = 'tyran-v2', damage = new Map(), des
       const { formation, formationOffset, ...rest } = enemy;
       return { ...rest, formationId: formation?.id ?? null };
     }) },
-    damage: [...damage], destroyed: [...destroyed],
+    damage: [...damage], destroyed: [...destroyed], sceneryVersion,
   };
   scenery(record);
   const encoded = JSON.stringify(record, (_, value) => value === Infinity ? POSITIVE_INFINITY : value === -Infinity ? NEGATIVE_INFINITY : value);

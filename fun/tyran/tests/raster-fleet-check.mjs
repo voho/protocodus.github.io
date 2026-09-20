@@ -12,9 +12,11 @@ try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 1200 } });
   let release;
   const held = new Promise(resolve => { release = resolve; });
-  await page.route('**/assets/sprites/fleet.png', async route => {
+  await page.route(/\/assets\/sprites\/fleet(?:-[a-z]+)?\.(?:png|webp)$/, async route => {
     await held;
-    if (process.env.TYRAN_FLEET_SOURCE) await route.fulfill({ path: process.env.TYRAN_FLEET_SOURCE, contentType: 'image/png' });
+    if (process.env.TYRAN_FLEET_SOURCE && /\/fleet\.(?:png|webp)$/.test(route.request().url())) {
+      await route.fulfill({ path: process.env.TYRAN_FLEET_SOURCE, contentType: 'image/png' });
+    }
     else await route.continue();
   });
   await page.goto(process.env.TYRAN_URL || 'http://127.0.0.1:8773/fun/tyran/', { waitUntil: 'domcontentloaded' });
@@ -24,8 +26,11 @@ try {
     const { drawShip } = await import('./ships.js');
     const canvas = document.createElement('canvas'); canvas.width = canvas.height = 320;
     window.rasterFleetProbe = canvas;
-    drawShip(canvas.getContext('2d'), 160, 160, 70, 4, null, 0, { world: 0, thrust: 0, quality: 'low' });
-    return canvas.toDataURL();
+    const c=canvas.getContext('2d');
+    drawShip(c, 160, 160, 70, 4, null, 0, { world: 0, thrust: 0, quality: 'low' });
+    const level=canvas.toDataURL();
+    c.clearRect(0,0,320,320);drawShip(c,160,160,70,4,null,0,{world:0,bank:-.3,thrust:0,quality:'low'});
+    return {level,bank:canvas.toDataURL()};
   });
   release();
   await page.waitForFunction(()=>window.tyran);
@@ -39,6 +44,8 @@ try {
     c.clearRect(0,0,320,320);
     drawShip(c,160,160,70,4,null,0,{world:0,thrust:0,quality:'low'});
     const after = probe.toDataURL();
+    c.clearRect(0,0,320,320);drawShip(c,160,160,70,4,null,0,{world:0,bank:-.3,thrust:0,quality:'low'});
+    const afterBank=probe.toDataURL();
     const fleet = Array.from({length:11},(_,index) => spriteCell('fleet',index));
     const cells = fleet.map(cell => {
       if (!cell) return null;
@@ -61,10 +68,11 @@ try {
       c.clearRect(0,0,320,320);drawShip(c,160,160,70,4,null,0,{world,thrust:0,quality:'low'});
       paletteSignatures.push(probe.toDataURL());
     }
-    return {after,cells,cacheReused:spriteCell('fleet',0)===fleet[0],paletteCount:new Set(paletteSignatures).size,status:spriteStatus()};
+    return {after,afterBank,cells,cacheReused:spriteCell('fleet',0)===fleet[0],paletteCount:new Set(paletteSignatures).size,status:spriteStatus()};
   });
   assert.equal(result.status.fleet.state,'ready');
-  assert.notEqual(result.after,before,'Late asset arrival must replace already-cached procedural hulls');
+  assert.notEqual(result.after,before.level,'Late asset arrival must replace already-cached procedural hulls');
+  assert.notEqual(result.afterBank,before.bank,'Late asset arrival must replace already-cached banking views');
   assert.equal(result.cacheReused,true,'Decoded atlas cells must be reused');
   for(const cell of result.cells){assert.ok(cell,'Every hull cell exists');assert.ok(cell.width>50&&cell.height>50);assert.ok(cell.occupied>500,'Hull has opaque material');assert.ok(cell.empty>100,'Hull retains a transparent silhouette');assert.equal(cell.edge,0,'Hulls crossing source grid boundaries remain whole and padded');}
   assert.equal(result.paletteCount,10,'All ten fleet palettes must remain distinct');

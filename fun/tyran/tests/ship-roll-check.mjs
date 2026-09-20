@@ -11,9 +11,19 @@ try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   await page.goto(process.env.TYRAN_URL || 'http://127.0.0.1:8773/fun/tyran/');
   const result = await page.evaluate(async () => {
-    const { spritesReady } = await import('./sprite-assets.js');
+    const { spritesReady, spriteCell, spriteStatus } = await import('./sprite-assets.js');
     await spritesReady;
-    const { drawShip, warmShipSprites, SHIP_PALETTES } = await import('./ships.js');
+    const { drawShip, warmShipSprites, SHIP_PALETTES } = await import('./ships.js?roll-qa');
+    const authored = new Set();
+    for (const atlas of ['fleetLeft','fleetRight']) for (let index=0;index<11;index++) {
+      const cell=spriteCell(atlas,index);if(cell)authored.add(cell);
+    }
+    const authoredUsed = new Set(), prototype = OffscreenCanvasRenderingContext2D.prototype;
+    const originalDraw = prototype.drawImage;
+    prototype.drawImage = function(...args) {
+      if(authored.has(args[0]))authoredUsed.add(args[0]);
+      return originalDraw.apply(this,args);
+    };
     const canvas = document.createElement('canvas'); canvas.width = canvas.height = 384;
     const ctx = canvas.getContext('2d');
     let captured;
@@ -43,6 +53,7 @@ try {
       warmMisses.push(allocations - before);
     }
     window.OffscreenCanvas = NativeCanvas;
+    prototype.drawImage = originalDraw;
 
     const frames = [-.3, 0, .3].map(bank => {
       drawShip(ctx, 192, 192, 45, 'player', '#71ecff', 0, { world: 9, bank });
@@ -77,13 +88,17 @@ try {
         drawShip(board, x + 52 + i * 92, y + 355, 37, 9, null, 0, { world, bank });
       }
     }
-    return { warmMisses, bounds, distinct: new Set(frames).size };
+    const assets=spriteStatus(),families=['Jungle','Snow','Desert','Paradise','Asteroid','Mars','Volcanic','Neon','Alien','Void'];
+    return { warmMisses, bounds, distinct: new Set(frames).size, authored:authoredUsed.size, assets, fullFamilies:families.every(name=>assets[`fleet${name}`]?.state==='ready') };
   });
+  assert.equal(result.assets.fleetLeft?.state,'ready','Left bank sprite atlas decoded');
+  assert.equal(result.assets.fleetRight?.state,'ready','Right bank sprite atlas decoded');
+  assert.equal(result.authored,result.fullFamilies?2:22,'Player uses authored banks; family enemies retain their own hulls');
   assert.deepEqual(result.warmMisses, Array(10).fill(0), 'Every warmed fleet renders without new sprite canvases');
   assert.equal(result.distinct, 3, 'Left, level and right use distinct cached frames');
   const [left, level, right] = result.bounds;
   for (const frame of [left, right]) {
-    assert.ok(frame.width < level.width * .9, 'Rolling foreshortens the wings');
+    assert.ok(frame.width < level.width * .985, 'Rolling foreshortens the wings');
     assert.ok(Math.abs(frame.nose - level.nose) <= 2, 'The nose stays on its centerline');
     assert.ok(Math.abs(frame.top - level.top) <= 2, 'The nose does not pitch when rolling');
   }

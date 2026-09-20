@@ -45,15 +45,16 @@ const styles = new Map();
 const playerPalettes = new Map();
 const rasterHulls = new Map();
 const rasterShapes = new Map();
+const alignedCells = new Map();
 let assetRevision = -1;
 const TAU = Math.PI * 2;
 
-// Roll around the nose-to-tail axis. The centerline never changes heading;
-// wings foreshorten and rise/fall, with the same projection on every effect.
+// Player banks use authored side views. Enemy families retain their own hulls
+// through one continuous, cached projection, with no seam along the centerline.
 const ROLLS = Object.freeze([
-  Object.freeze({ left: .94, right: .72, shear: -.1 }),
-  Object.freeze({ left: 1, right: 1, shear: 0 }),
-  Object.freeze({ left: .72, right: .94, shear: .1 }),
+  Object.freeze({ width: .86, shear: -.08 }),
+  Object.freeze({ width: 1, shear: 0 }),
+  Object.freeze({ width: .86, shear: .08 }),
 ]);
 
 // Every design is drawn nose-up; each side keeps one fixed heading in flight.
@@ -90,41 +91,135 @@ const RASTER_ANCHORS = [
   { engines: [[.17,.9,.065],[.83,.9,.065],[.5,.95,.06]], core: [.5,.47,.075] },
   { engines: [[.23,.95,.07],[.77,.95,.07]], core: [.5,.63,.083] },
 ];
+// Source sheets contain genuine side surfaces but slightly different camera
+// headings. Normalize that fixed camera angle once, before caching each view.
+const BANK_ALIGNMENT = [
+  [-18.7, -15, -13, -22.4, -13.8, -13.2, -11.8, -13.9, -14.4, -10.5, -10.3],
+  [1, 2.7, 2.6, 3.1, 1, 3.1, 1, 1.3, 4.6, 2.3, 5],
+];
+const FAMILY_ATLASES = [
+  'fleetJungle', 'fleetSnow', 'fleetDesert', 'fleetParadise', 'fleetAsteroid',
+  'fleetMars', 'fleetVolcanic', 'fleetNeon', 'fleetAlien', 'fleetVoid',
+];
+const REVERSED_ARTILLERY = new Set(['fleet', 'fleetSnow', 'fleetAlien']);
 
 function syncRasterAssets() {
   if (assetRevision === spriteRevision) return;
   assetRevision = spriteRevision;
   hulls.clear(); tiltHulls.clear(); silhouettes.clear(); lights.clear(); flames.clear();
   rasterHulls.clear(); rasterShapes.clear();
+  alignedCells.clear();
 }
 
-function rasterHull(kind, player) {
-  const index = player ? 0 : kind + 1;
-  if (rasterHulls.has(index)) return rasterHulls.get(index);
-  const cell = spriteCell('fleet', index);
-  if (!cell) return null;
+function alignedCell(cell, index, tilt) {
+  if (!tilt) return cell;
+  const key = `${index}:${tilt}`;
+  if (alignedCells.has(key)) return alignedCells.get(key);
+  const size = Math.ceil(Math.hypot(cell.width, cell.height)) + 6;
+  const out = surface(size), c = out.getContext('2d');
+  c.translate(size / 2, size / 2);
+  c.rotate(BANK_ALIGNMENT[tilt < 0 ? 0 : 1][index] * Math.PI / 180);
+  c.imageSmoothingQuality = 'high';
+  c.drawImage(cell, -cell.width / 2, -cell.height / 2);
+  const pixels = c.getImageData(0, 0, size, size).data;
+  let left = size, top = size, right = 0, bottom = 0;
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    if (pixels[(y * size + x) * 4 + 3] < 8) continue;
+    left = Math.min(left, x); right = Math.max(right, x);
+    top = Math.min(top, y); bottom = Math.max(bottom, y);
+  }
+  const cropped = surface(right - left + 5, bottom - top + 5);
+  cropped.getContext('2d').drawImage(out, left - 2, top - 2, cropped.width, cropped.height, 0, 0, cropped.width, cropped.height);
+  alignedCells.set(key, cropped);
+  return cropped;
+}
+
+function fleetSource(kind, player, world) {
+  const index = player ? 0 : kind + 1, family = FAMILY_ATLASES[world];
+  return !player && spriteCell(family, index) ? family : 'fleet';
+}
+
+function rearNozzle(cell, x, reversed = false) {
+  const { width, height } = cell;
+  const column = Math.max(0, Math.min(width - 1, Math.round((reversed ? 1 - x : x) * width)));
+  const pixels = cell.getContext('2d').getImageData(column, 0, 1, height).data;
+  for (let rear = height - 1; rear >= 0; rear--) {
+    const y = reversed ? height - 1 - rear : rear;
+    if (pixels[y * 4 + 3] >= 180) return Math.max(.5, (rear - 3) / height);
+  }
+  return .82;
+}
+
+function nosePosition(cell, reversed) {
+  const { width, height } = cell, pixels = cell.getContext('2d').getImageData(0, 0, width, height).data;
+  const from = Math.floor(width * .38), to = Math.ceil(width * .62);
+  for (let row = 0; row < height; row++) {
+    const y = reversed ? height - 1 - row : row;
+    let sum = 0, count = 0;
+    for (let x = from; x <= to; x++) if (pixels[(y * width + x) * 4 + 3] >= 180) { sum += x; count++; }
+    if (count) return { x: (reversed ? width - 1 - sum / count : sum / count) / width, y: row / height };
+  }
+  return { x: .5, y: 0 };
+}
+
+function rasterHull(kind, player, tilt = 0, world = 0) {
+  const source = fleetSource(kind, player, world), family = source !== 'fleet';
+  const index = player ? 0 : kind + 1, key = `${source}:${index}:${tilt}`;
+  if (rasterHulls.has(key)) return rasterHulls.get(key);
+  // Family enemies must keep their own silhouette through a bank. Their roll
+  // frames are baked from this family's hull, never a generic atlas replacement.
+  if (family && tilt) return null;
+  const raw = spriteCell(tilt < 0 ? 'fleetLeft' : tilt > 0 ? 'fleetRight' : source, index);
+  if (!raw) return null;
+  const cell = alignedCell(raw, index, tilt), level = tilt ? spriteCell(source, index) : cell;
+  if (!level) return null;
   const shape = player ? PLAYER : SHAPES[kind];
   const xs = shape.outline.map(point => point[0]), ys = shape.outline.map(point => point[1]);
-  const left = Math.min(...xs), top = Math.min(...ys);
-  const width = Math.max(...xs) - left, height = Math.max(...ys) - top;
+  let height = Math.max(...ys) - Math.min(...ys), levelWidth = Math.max(...xs) - Math.min(...xs);
+  if (family) {
+    const extent = Math.max(height, levelWidth), scale = extent / Math.max(cell.width, cell.height);
+    height = cell.height * scale; levelWidth = cell.width * scale;
+  }
+  const foreshortening = tilt ? Math.max(.68, Math.min(.96, (cell.width / cell.height) / (level.width / level.height))) : 1;
+  const width = levelWidth * foreshortening;
+  // These source artillery hulls have their long forward cannon down.
+  const reversed = !player && kind === 5 && REVERSED_ARTILLERY.has(source);
+  // Anchor the same nose point in all three images; a bank cannot yaw or pitch
+  // the fighter just because ImageGen left different transparent margins.
+  let left = -width / 2, top = (Math.max(...ys) + Math.min(...ys) - height) / 2;
+  if (!family) {
+    const nose = nosePosition(cell, reversed), levelNose = tilt ? nosePosition(level, reversed) : nose;
+    left = -nose.x * width;
+    top = Math.min(...ys) + (levelNose.y - nose.y) * height;
+  }
   const out = surface(kind === 9 && !player ? 640 : 384), c = out.getContext('2d');
   c.translate(out.width / 2, out.height / 2); c.scale(out.width / 280, out.height / 280);
   c.imageSmoothingQuality = 'high';
-  if (!player && kind === 5) {
+  if (reversed) {
     c.save(); c.translate(left + width / 2, top + height / 2); c.rotate(Math.PI);
     c.drawImage(cell, -width / 2, -height / 2, width, height); c.restore();
   } else c.drawImage(cell, left, top, width, height);
-  const anchors = RASTER_ANCHORS[index];
-  const point = ([x,y,r]) => [left + x * width, top + y * height, r * height];
-  rasterShapes.set(index, { ...shape, engines: anchors.engines.map(point), core: point(anchors.core) });
-  rasterHulls.set(index, out);
+  const anchors = source === 'fleetSnow' && kind === 5
+    ? { engines: RASTER_ANCHORS[index].engines, core: [.5, .57, .065] }
+    : RASTER_ANCHORS[index];
+  const point = ([x, y, r]) => [left + x * width, top + y * height, r * height];
+  const engines = family ? anchors.engines.map(([x, y, r]) => [x, rearNozzle(cell, x, reversed), r]) : anchors.engines;
+  rasterShapes.set(key, { ...shape, engines: engines.map(point), core: point(anchors.core) });
+  rasterHulls.set(key, out);
+  if (rasterHulls.size > 48) rasterHulls.delete(rasterHulls.keys().next().value);
   return out;
 }
 
-function flightShape(kind, player) {
-  const index = player ? 0 : kind + 1;
-  if (!rasterShapes.has(index)) rasterHull(kind, player);
-  return rasterShapes.get(index) || (player ? PLAYER : SHAPES[kind]);
+function flightShape(kind, player, tilt = 0, world = 0) {
+  const source = fleetSource(kind, player, world), index = player ? 0 : kind + 1, key = `${source}:${index}:${tilt}`;
+  if (!rasterShapes.has(key)) rasterHull(kind, player, tilt, world);
+  if (rasterShapes.has(key)) return rasterShapes.get(key);
+  const base = tilt ? flightShape(kind, player, 0, world) : player ? PLAYER : SHAPES[kind];
+  if (!tilt) return base;
+  const roll = ROLLS[tilt + 1], project = ([x, y, r]) => [x * roll.width, y + x * roll.shear, r];
+  const banked = { ...base, engines: base.engines.map(project), core: project(base.core) };
+  rasterShapes.set(key, banked);
+  return banked;
 }
 
 function paintedRaster(base, palette, player) {
@@ -151,10 +246,10 @@ function paintedRaster(base, palette, player) {
   return out;
 }
 
-function surface(size) {
-  if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(size, size);
+function surface(width, height = width) {
+  if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(width, height);
   const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = size;
+  canvas.width = width; canvas.height = height;
   return canvas;
 }
 
@@ -429,7 +524,7 @@ function shipDetails(ctx,kind,color,world,player,palette) {
 function baseHullSprite(kind,color,world,player,palette=shipPalette(world,color)) {
   const key=`${player?'p':kind}:${color}:${world}:${palette.id||palette.primary}`;
   if(hulls.has(key))return hulls.get(key);
-  const raster = rasterHull(kind, player);
+  const raster = rasterHull(kind, player,0,world);
   if (raster) {
     const out = paintedRaster(raster, palette, player);
     hulls.set(key, out); if (hulls.size > 56) hulls.delete(hulls.keys().next().value);
@@ -479,20 +574,14 @@ function baseHullSprite(kind,color,world,player,palette=shipPalette(world,color)
   return canvas;
 }
 
-// Project each wing independently, keeping x=0 fixed from nose through tail.
-// These are rasterized once for hulls, lights and silhouettes during warm-up.
+// Cache one continuous projection of the family's own hull for each bank.
 function rollSprite(base, tilt, shade = false) {
   if(!tilt)return base;
   const out=surface(base.width),ctx=out.getContext('2d');
   const mid=base.width/2,roll=ROLLS[tilt+1];
   ctx.translate(mid,mid);
-  for(let side=-1;side<=1;side+=2) {
-    const start=side<0?0:mid;
-    ctx.save();
-    ctx.transform(side<0?roll.left:roll.right,roll.shear,0,1,0,0);
-    ctx.drawImage(base,start,0,mid,base.height,side<0?-mid:0,-mid,mid,base.height);
-    ctx.restore();
-  }
+  ctx.save();ctx.transform(roll.width,roll.shear,0,1,0,0);
+  ctx.drawImage(base,-mid,-mid);ctx.restore();
   if(shade) {
     ctx.globalCompositeOperation='source-atop';
     const light=ctx.createLinearGradient(-mid,0,mid,0);
@@ -509,22 +598,23 @@ function hullSprite(kind,color,world,player,palette=shipPalette(world,color),til
   if(!step)return base;
   const key=`${player?'p':kind}:${color}:${world}:${palette.id||palette.primary}:tilt${step}`;
   if(tiltHulls.has(key))return tiltHulls.get(key);
-  const out=rollSprite(base,step,true);
+  const authored = rasterHull(kind,player,step,world);
+  const out=authored ? paintedRaster(authored,palette,player) : rollSprite(base,step,true);
   tiltHulls.set(key,out);if(tiltHulls.size>112)tiltHulls.delete(tiltHulls.keys().next().value);
   return out;
 }
 
-function silhouetteSprites(kind,player,tilt=0) {
-  const key=`${player?'player':kind}:${tilt}`;
+function silhouetteSprites(kind,player,tilt=0,world=0) {
+  const source=fleetSource(kind,player,world),key=`${source}:${player?'player':kind}:${tilt}`;
   if(silhouettes.has(key))return silhouettes.get(key);
-  if(tilt) {
-    const base=silhouetteSprites(kind,player);
+  const raster = rasterHull(kind, player, tilt,world);
+  if(tilt && !raster) {
+    const base=silhouetteSprites(kind,player,0,world);
     const result={shadow:rollSprite(base.shadow,tilt),flash:rollSprite(base.flash,tilt)};
-    silhouettes.set(key,result);return result;
+    silhouettes.set(key,result);if(silhouettes.size>72)silhouettes.delete(silhouettes.keys().next().value);return result;
   }
   const shape=player?PLAYER:SHAPES[kind];
   const shadow=surface(320),flash=surface(320);
-  const raster = rasterHull(kind, player);
   for(const [canvas,isShadow] of [[shadow,true],[flash,false]]) {
     const ctx=canvas.getContext('2d');
     ctx.translate(160,160);
@@ -547,7 +637,7 @@ function silhouetteSprites(kind,player,tilt=0) {
       polygon(ctx,shape.outline,'rgba(0,4,13,.79)','rgba(0,4,13,.17)',8);
     } else polygon(ctx,shape.outline,'#efffff');
   }
-  const result={shadow,flash};silhouettes.set(key,result);return result;
+  const result={shadow,flash};silhouettes.set(key,result);if(silhouettes.size>72)silhouettes.delete(silhouettes.keys().next().value);return result;
 }
 
 function glowSprite(color) {
@@ -585,15 +675,10 @@ function flameSprite(color, large = false) {
   flames.set(key,canvas);return canvas;
 }
 
-function lightsSprite(kind,color,player,palette=shipPalette(0,color),tilt=0) {
-  const key=`${player?'p':kind}:${color}:${palette.id||palette.primary}:${tilt}`;
+function lightsSprite(kind,color,player,palette=shipPalette(0,color),tilt=0,world=0) {
+  const key=`${player?'p':kind}:${world}:${color}:${palette.id||palette.primary}:${tilt}`;
   if(lights.has(key))return lights.get(key);
-  if(tilt) {
-    const canvas=rollSprite(lightsSprite(kind,color,player,palette),tilt);
-    lights.set(key,canvas);if(lights.size>168)lights.delete(lights.keys().next().value);
-    return canvas;
-  }
-  const canvas=surface(320),ctx=canvas.getContext('2d'),shape=flightShape(kind,player);
+  const canvas=surface(320),ctx=canvas.getContext('2d'),shape=flightShape(kind,player,tilt,world);
   ctx.translate(160,160);
   const warm=glowSprite(palette.engine||'#ff9a4b');
   for(const [x,y,r] of shape.engines) {
@@ -632,9 +717,9 @@ export function warmShipSprites(color,world=0,player=false) {
   if (!player) flameSprite(palette.engine||color, true);
   for(let kind=0;kind<(player?1:SHAPES.length);kind++) {
     for(let tilt=-1;tilt<=1;tilt++) {
-      silhouetteSprites(kind,player,tilt);
+      silhouetteSprites(kind,player,tilt,world);
       hullSprite(kind,color,world,player,palette,tilt);
-      lightsSprite(kind,palette.glow||color,player,palette,tilt);
+      lightsSprite(kind,palette.glow||color,player,palette,tilt,world);
     }
   }
 }
@@ -654,15 +739,15 @@ export function drawShip(ctx,x,y,size,kind,color,time=0,options={}) {
   const world=Math.abs(Math.floor(options.world||0))%10;
   const palette=options.palette || (player ? playerPalette(color) : shipPalette(world,color));
   const flightColor=palette.primary||color;
-  const shape=flightShape(kind,player);
   const phase=Number(options.phase)||0;
   const pulse=.8+Math.sin(time*5+phase)*.2;
   const bank=Math.max(-.45,Math.min(.45,Number(options.bank)||0));
-  const tilt=bank<-.12?-1:bank>.12?1:0,heading=player?0:Math.PI,roll=ROLLS[tilt+1];
+  const tilt=bank<-.12?-1:bank>.12?1:0,heading=player?0:Math.PI;
+  const shape=flightShape(kind,player,tilt,world);
   const thrust=Math.max(0,Math.min(2,Number(options.thrust??1)||0));
   const detailed=options.quality!=='low';
   const scale=size/82;
-  const silhouettes=silhouetteSprites(kind,player,tilt);
+  const silhouettes=silhouetteSprites(kind,player,tilt,world);
   // Keep the sun direction in world space while the craft holds its fixed heading.
   ctx.save();
   ctx.translate(x+5+size*.17,y+9+size*.24);
@@ -681,8 +766,7 @@ export function drawShip(ctx,x,y,size,kind,color,time=0,options={}) {
     const [ex,ey,er]=shape.engines[i];
     const shimmer=1+Math.sin(time*31+i*2.7+phase)*.1;
     const length=(player?70:51)*(.48+thrust*.55)*shimmer;
-    const width=er*(4.6+thrust*.2)*(ex<0?roll.left:ex>0?roll.right:(roll.left+roll.right)/2);
-    const engineX=ex*(ex<0?roll.left:roll.right),engineY=ey+ex*roll.shear;
+    const width=er*(4.6+thrust*.2),engineX=ex,engineY=ey;
     ctx.globalAlpha=exhaustAlpha*(.79+thrust*.08);
     ctx.drawImage(flame,engineX-width/2,engineY-8,width,length+14);
   }
@@ -695,12 +779,12 @@ export function drawShip(ctx,x,y,size,kind,color,time=0,options={}) {
   const [cx,cy,cr]=shape.core;
   if(detailed) {
     ctx.globalAlpha*=(.7+thrust*.14)*pulse;
-    ctx.drawImage(lightsSprite(kind,palette.glow||flightColor,player,palette,tilt),-160,-160,320,320);
+    ctx.drawImage(lightsSprite(kind,palette.glow||flightColor,player,palette,tilt,world),-160,-160,320,320);
   }
   if(detailed&&kind>=6&&!player) {
     const rotation=time*.65+phase;
     ctx.strokeStyle=lightStyles(palette.glow||flightColor).capital;ctx.lineWidth=1.2;
-    ctx.save();ctx.transform((roll.left+roll.right)/2,roll.shear,0,1,0,0);
+    ctx.save();
     for(let i=0;i<3;i++) {
       ctx.beginPath();ctx.arc(cx,cy,cr+7,rotation+i*TAU/3,rotation+i*TAU/3+.9);ctx.stroke();
     }

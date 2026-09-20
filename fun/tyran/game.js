@@ -1,6 +1,6 @@
 import { WORLDS, PARALLAX_LAYERS, WorldRenderer } from './worlds.js';
 import { ENEMY_TYPES, SHIP_PALETTES, drawShip, warmShipSprites } from './ships.js';
-import { createCampaign, beginLevel, update, buyUpgrade, upgradeCost, UPGRADES, WEAPONS, BULLET_SPECTRUM, MAX_UPGRADE, clamp, selectWeapon, shipStats, weaponStats, bossWeakPointPosition, comboLabel } from './sim.js';
+import { createCampaign, beginLevel, update, buyUpgrade, upgradeCost, UPGRADES, WEAPONS, BULLET_SPECTRUM, MAX_UPGRADE, PLAYER_SPEED, clamp, selectWeapon, shipStats, weaponStats, bossWeakPointPosition, comboLabel, applyStructureBlast } from './sim.js';
 import { Effects } from './effects.js';
 import { AudioEngine } from './audio.js';
 import { readSave, writeSave } from './save-game.js';
@@ -30,6 +30,7 @@ const environmentHit = (...args) => world.hit(...args);
 const lerp = (before, after) => (before ?? after) + (after - (before ?? after)) * renderAlpha;
 const controls = [{ x: 0, y: 0, fire: false }, { x: 0, y: 0, fire: false }];
 const touch = { x: 0, y: 0, fire: false, pointer: null, originX: 0, originY: 0 };
+const mouse = { active: false, x: 0, y: 0, fire: false, pointer: null };
 
 try {
   audio.mute(localStorage.getItem('tyran-muted') === 'true');
@@ -75,7 +76,7 @@ function loadGame(slot = 'manual') {
     for (const offset of formation.offsets) { offset.x *= sx; offset.y *= sy; }
   }
   state.width = W; state.height = H; selected = state.level;
-  world.setWorld(state.level, run.seed); world.restoreDamage(run.damage, run.destroyed);
+  world.setWorld(state.level, run.seed); world.restoreDamage(run.damage, run.destroyed, run.sceneryVersion);
   warmFleet(state.level); fx.reset(); keys.clear(); clock = state.time;
   $('announcement').hidden = true; $('boss-hud').hidden = true;
   document.querySelectorAll('[data-mode]').forEach(button => {
@@ -91,6 +92,7 @@ function loadGame(slot = 'manual') {
 }
 
 function setScreen(next) {
+  clearMouseControl();
   scene = next;
   for (const id of screens) if ($(id)) $(id).hidden = id !== `${next}-screen`;
   $('hud').hidden = next === 'menu';
@@ -125,6 +127,7 @@ function resize() {
   const rect = canvas.getBoundingClientRect();
   const oldW = W, oldH = H;
   H = 900; W = Math.round(clamp(H * rect.width / Math.max(1, rect.height), 430, 1900));
+  mouse.x = clamp(mouse.x / oldW * W, 30, W - 30); mouse.y = clamp(mouse.y / oldH * H, 105, H - 42);
   sizeSurface(rect);
   if (state) {
     state.width = W; state.height = H;
@@ -174,7 +177,7 @@ function launch(level = 0, checkpoint = null) {
 
 function syncPilotHUD() {
   $('p2-panel').hidden = state.mode !== 2;
-  document.querySelector('.flight-hint').textContent = state.mode === 2 ? 'P1: WASD + L Ctrl  ·  P2: Arrows + Enter / R Ctrl  ·  1–6 profile' : 'WASD / Arrows  ·  Space / Ctrl fire  ·  1–6 profile';
+  document.querySelector('.flight-hint').textContent = state.mode === 2 ? 'P1: Mouse / WASD · Click / L Ctrl fire  ·  P2: Arrows + R Ctrl / Enter' : 'Mouse / WASD / Arrows · Click / Space / Ctrl fire · 1–6 profile';
 }
 
 function returnToMenu() {
@@ -304,7 +307,18 @@ function input() {
   const solo = state?.mode !== 2;
   controls[0].x = Number(keys.has('KeyD') || solo && keys.has('ArrowRight')) - Number(keys.has('KeyA') || solo && keys.has('ArrowLeft')) + touch.x;
   controls[0].y = Number(keys.has('KeyS') || solo && keys.has('ArrowDown')) - Number(keys.has('KeyW') || solo && keys.has('ArrowUp')) + touch.y;
-  controls[0].fire = keys.has('ControlLeft') || keys.has('Space') || touch.fire || solo && (keys.has('ControlRight') || keys.has('Enter'));
+  const keyboardMovement = keys.has('KeyW') || keys.has('KeyA') || keys.has('KeyS') || keys.has('KeyD') || solo && (keys.has('ArrowUp') || keys.has('ArrowLeft') || keys.has('ArrowDown') || keys.has('ArrowRight'));
+  const pilot = state?.players[0];
+  if (mouse.active && pilot?.alive && !keyboardMovement && touch.pointer === null) {
+    // Ask the existing momentum model for velocity instead of moving the ship
+    // directly. Braking against current velocity prevents cursor overshoot, and
+    // heavier equipment keeps its slower acceleration and settling response.
+    const response = .095 * pilot.mass, frequency = 10 / Math.sqrt(pilot.mass);
+    const gain = response * frequency * frequency, braking = 2 * response * frequency - 1;
+    controls[0].x = (gain * (mouse.x - pilot.x) - braking * pilot.vx) / PLAYER_SPEED;
+    controls[0].y = (gain * (mouse.y - pilot.y) - braking * pilot.vy) / PLAYER_SPEED;
+  }
+  controls[0].fire = mouse.fire || keys.has('ControlLeft') || keys.has('Space') || touch.fire || solo && (keys.has('ControlRight') || keys.has('Enter'));
   controls[1].x = solo ? 0 : Number(keys.has('ArrowRight')) - Number(keys.has('ArrowLeft'));
   controls[1].y = solo ? 0 : Number(keys.has('ArrowDown')) - Number(keys.has('ArrowUp'));
   controls[1].fire = !solo && (keys.has('ControlRight') || keys.has('Enter'));
@@ -319,6 +333,7 @@ function processEvents() {
       const blast = e.blast || 1;
       for (const prop of world.hit(e.x, e.y, Math.min(250, e.size * 1.5 * blast), e.size * 2 * blast, state.scroll)) {
         state.destroyed++; state.credits += prop.value || 4; state.score += 25;
+        applyStructureBlast(state, prop);
         fx.emit({ type: 'explosion', ...prop, size: Math.min(48, prop.size), ground: true }, state.scroll * W / 1200, groundOffset);
       }
       if (e.player && state.mode === 2 && state.players.some(p => p.alive)) announce('Wingmate down', 'Bring them home.', 'Finish the sector to restore both ships.', 2.5);
@@ -459,11 +474,11 @@ function frame(time) {
   const active = scene === 'playing' || preview || fading;
   if (active) clock += dt;
   if (scene === 'playing' && state) {
-    const started = performance.now(), flightInput = input();
+    const started = performance.now();
     accumulator = Math.min(.1, accumulator + dt);
     while (accumulator + 1e-9 >= STEP && scene === 'playing') {
       previousScroll = state.scroll;
-      update(state, STEP, flightInput, environmentHit);
+      update(state, STEP, input(), environmentHit);
       accumulator -= STEP; perf.steps++;
       processEvents();
     }
@@ -519,20 +534,55 @@ window.addEventListener('keydown', event => {
     }
     return;
   }
-  if (scene === 'playing' && controlledKeys.has(event.code)) { event.preventDefault(); keys.add(event.code); }
+  if (scene === 'playing' && controlledKeys.has(event.code)) {
+    event.preventDefault(); keys.add(event.code);
+    if (!event.repeat && (/^Key[WASD]$/.test(event.code) || state?.mode !== 2 && event.code.startsWith('Arrow'))) mouse.active = false;
+  }
   if ((event.code === 'Escape' || event.code === 'KeyP') && !event.repeat) {
     if ($('help-screen') && !$('help-screen').hidden) closeHelp(); else pause();
   }
   if (event.code === 'KeyM' && !event.repeat) toggleSound();
 }, { capture: true });
 window.addEventListener('keyup', event => { keys.delete(event.code); if (scene === 'playing' && controlledKeys.has(event.code)) event.preventDefault(); }, { capture: true });
-window.addEventListener('blur', () => { keys.clear(); if (scene === 'playing') pause(); });
+window.addEventListener('blur', () => { keys.clear(); clearMouseControl(); if (scene === 'playing') pause(); });
 document.addEventListener('visibilitychange', () => {
   if (document.hidden && scene === 'playing') pause();
   if (!document.hidden) { lastTime = 0; renderDirty = true; requestFrame(); }
 });
 window.addEventListener('resize', resize);
 canvas.addEventListener('contextmenu', e => e.preventDefault());
+function clearMouseControl() {
+  mouse.active = false; mouse.fire = false;
+  const pointer = mouse.pointer; mouse.pointer = null;
+  if (pointer !== null && canvas.hasPointerCapture(pointer)) canvas.releasePointerCapture(pointer);
+}
+function mouseTarget(event, activate = true) {
+  const rect = canvas.getBoundingClientRect();
+  if (!rect.width || !rect.height) return;
+  mouse.x = clamp((event.clientX - rect.left) / rect.width * W, 30, W - 30);
+  mouse.y = clamp((event.clientY - rect.top) / rect.height * H, 105, H - 42);
+  if (activate) mouse.active = true;
+}
+canvas.addEventListener('pointermove', event => {
+  if (event.pointerType !== 'mouse' || scene !== 'playing') return;
+  mouseTarget(event);
+  if (!(event.buttons & 1)) mouse.fire = false;
+});
+canvas.addEventListener('pointerdown', event => {
+  if (event.pointerType !== 'mouse' || event.button !== 0 || scene !== 'playing') return;
+  mouseTarget(event, false); mouse.fire = true; mouse.pointer = event.pointerId;
+  canvas.setPointerCapture(event.pointerId); canvas.focus({ preventScroll: true }); audio.start(); event.preventDefault();
+});
+function releaseMouseFire(event) {
+  if (event.pointerType !== 'mouse' || event.pointerId !== mouse.pointer || event.type === 'pointerup' && event.button !== 0) return;
+  mouse.fire = false;
+  if (event.type !== 'pointerup') mouse.active = false;
+  const pointer = mouse.pointer; mouse.pointer = null;
+  if (canvas.hasPointerCapture(pointer)) canvas.releasePointerCapture(pointer);
+}
+window.addEventListener('pointerup', releaseMouseFire, { capture: true });
+window.addEventListener('pointercancel', releaseMouseFire, { capture: true });
+canvas.addEventListener('lostpointercapture', releaseMouseFire);
 function on(id, fn) { $(id)?.addEventListener('click', fn); }
 on('launch-button', () => launch(0));
 on('sector-flight-button', () => launch(selected));
@@ -592,7 +642,7 @@ on('help-button', () => { helpFocus = document.activeElement; helpPaused = scene
 
 const stick = $('touch-stick'), fire = $('touch-fire');
 if (stick) {
-  stick.addEventListener('pointerdown', e => { touch.pointer = e.pointerId; touch.originX = e.clientX; touch.originY = e.clientY; stick.setPointerCapture(e.pointerId); e.preventDefault(); });
+  stick.addEventListener('pointerdown', e => { mouse.active = false; touch.pointer = e.pointerId; touch.originX = e.clientX; touch.originY = e.clientY; stick.setPointerCapture(e.pointerId); e.preventDefault(); });
   stick.addEventListener('pointermove', e => { if (e.pointerId !== touch.pointer) return; touch.x = clamp((e.clientX - touch.originX) / 42, -1, 1); touch.y = clamp((e.clientY - touch.originY) / 42, -1, 1); stick.style.setProperty('--stick-x', `${touch.x * 24}px`); stick.style.setProperty('--stick-y', `${touch.y * 24}px`); });
   const release = () => { touch.pointer = null; touch.x = touch.y = 0; stick.style.setProperty('--stick-x', '0px'); stick.style.setProperty('--stick-y', '0px'); };
   stick.addEventListener('pointerup', release); stick.addEventListener('pointercancel', release); stick.addEventListener('lostpointercapture', release);

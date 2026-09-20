@@ -2,7 +2,7 @@
   "generated": "2026-09-19",
   "method": "Built-in ImageGen",
   "useCase": "stylized-concept",
-  "notes": "Original PNG outputs copied unchanged. Runtime extracts reusable cells, retains alpha, and bakes existing biome palettes into cached sprites. Materials feed seeded tile masks; no landscape paintings are used.",
+  "notes": "Original PNG outputs copied unchanged. Runtime loads lossless WebP exports with identical decoded RGBA pixels and dimensions, extracts reusable cells, and bakes biome palettes into cached sprites. Materials feed seeded tile masks; no landscape paintings are used. Ground and atmosphere are the two scrolling planes.",
   "atlases": [
     {
       "file": "fleet.png",
@@ -25,7 +25,8 @@
         null
       ],
       "source": "/Users/vojta/.codex/generated_images/01a0a612-bd79-7783-a590-9b7f75f28e0b/exec-ef5c4d9c-43eb-4c12-a4da-a69261bb3cc8.png",
-      "prompt": "Use case: stylized-concept. Asset type: production spacecraft sprite atlas for a top-down scrolling shooter, genuinely transparent background. Create a NEW atlas of realistic high-detail pre-rendered 3D spacecraft, using ONLY the first (red/yellow jungle) row of the supplied contact sheet as silhouette and color reference. The current reference is flat illustration; the new sprites must look like physically manufactured aerospace vehicles: painted metal plating, recessed mechanical parts, bevelled steel, fine panel seams, subtle wear, ceramic armor, smoked glass, ambient occlusion and small controlled specular highlights. No thick cartoon outlines. Keep strong silhouettes and large readable color regions.\nEXACT ATLAS LAYOUT: 4 equal columns by 3 equal rows, 12 square cells with invisible grid. Eleven ships, one ship centered entirely inside each cell, same logical object scale within its cell, 14 percent transparent safety margin. Last cell bottom right completely empty transparent. Row-major order: (1) ivory player interceptor, (2) red narrow needle scout, (3) red forked twin-boom mantis, (4) red swept-wing corsair; (5) red diamond manta stingray, (6) red broad twin-pod bulwark, (7) red long central cannon lancer, (8) red broad triple-engine harbinger; (9) red crescent-wing reaper, (10) red armored blocky dreadnought, (11) huge-looking red symmetric twin-outrigger final boss sovereign with central circular reactor, (12) empty. All ships viewed exactly orthographic from straight overhead with nose UP, tail DOWN. Zero perspective tilt, zero yaw, bilateral symmetry, full hull visible, no shadows cast onto backdrop and NO exhaust flames or bloom outside hull (engine effects rendered by the game). A consistent soft upper-left key light models raised surfaces.\nPALETTE INVARIANTS: player ivory #eaf4ec, gunmetal seams #04101b, small cyan canopy; enemies predominantly warm vermilion #f05245 painted armor, yellow-gold #ffe35f narrow trim, gunmetal #04101b recesses, very small warm-white #fff6c8 cockpit/reactor. Retain those hue families from the reference. White specular points are tiny. Exposed neutral metal occupies at most20percent of each enemy. No greens or turquoise on enemy hulls. Entire background genuine alpha transparency, no checkerboard pixels, no labels, no words, no border, no ground, no scenery. Highly realistic, crisp, premium sci-fi game sprite sheet, not concept-art scene."
+      "prompt": "Use case: stylized-concept. Asset type: production spacecraft sprite atlas for a top-down scrolling shooter, genuinely transparent background. Create a NEW atlas of realistic high-detail pre-rendered 3D spacecraft, using ONLY the first (red/yellow jungle) row of the supplied contact sheet as silhouette and color reference. The current reference is flat illustration; the new sprites must look like physically manufactured aerospace vehicles: painted metal plating, recessed mechanical parts, bevelled steel, fine panel seams, subtle wear, ceramic armor, smoked glass, ambient occlusion and small controlled specular highlights. No thick cartoon outlines. Keep strong silhouettes and large readable color regions.\nEXACT ATLAS LAYOUT: 4 equal columns by 3 equal rows, 12 square cells with invisible grid. Eleven ships, one ship centered entirely inside each cell, same logical object scale within its cell, 14 percent transparent safety margin. Last cell bottom right completely empty transparent. Row-major order: (1) ivory player interceptor, (2) red narrow needle scout, (3) red forked twin-boom mantis, (4) red swept-wing corsair; (5) red diamond manta stingray, (6) red broad twin-pod bulwark, (7) red long central cannon lancer, (8) red broad triple-engine harbinger; (9) red crescent-wing reaper, (10) red armored blocky dreadnought, (11) huge-looking red symmetric twin-outrigger final boss sovereign with central circular reactor, (12) empty. All ships viewed exactly orthographic from straight overhead with nose UP, tail DOWN. Zero perspective tilt, zero yaw, bilateral symmetry, full hull visible, no shadows cast onto backdrop and NO exhaust flames or bloom outside hull (engine effects rendered by the game). A consistent soft upper-left key light models raised surfaces.\nPALETTE INVARIANTS: player ivory #eaf4ec, gunmetal seams #04101b, small cyan canopy; enemies predominantly warm vermilion #f05245 painted armor, yellow-gold #ffe35f narrow trim, gunmetal #04101b recesses, very small warm-white #fff6c8 cockpit/reactor. Retain those hue families from the reference. White specular points are tiny. Exposed neutral metal occupies at most20percent of each enemy. No greens or turquoise on enemy hulls. Entire background genuine alpha transparency, no checkerboard pixels, no labels, no words, no border, no ground, no scenery. Highly realistic, crisp, premium sci-fi game sprite sheet, not concept-art scene.",
+      "runtimeFile": "fleet.webp"
     },
     {
       "file": "nature.png",
@@ -52,7 +53,8 @@
         "cloud"
       ],
       "source": "/Users/vojta/.codex/generated_images/01a0a612-bd79-7783-a590-9b7f75f28e0b/exec-d3d2589f-6ac2-4c20-b379-52f5e0e95b21.png",
-      "prompt": "Production sprite atlas for a premium realistic top-down sci-fi shooter. Generate EXACTLY a 4-column by 4-row grid, 16 equal square invisible cells, one isolated object centered per cell with at least 12 percent genuine transparent padding. Physically believable pre-rendered 3D materials, crisp botanical detail, rough mineral surfaces, fine surface texture, subtle ambient occlusion, consistent gentle upper-left light. Straight overhead orthographic view with zero perspective, no horizon, no terrain underneath, no external cast shadows, no cartoon outlines, no text, no numbers, no frame. Background MUST be genuine alpha transparency, never a painted checkerboard or black square.\nExact row-major objects: row1: 1 broad jungle tree crown with layered realistic olive green leaves and brown branches; 2 alien tree crown with subdued plum-purple leaves and gray woody tendrils; 3 tropical palm crown with recognizable long feathered fronds; 4 blue-green conifer pine crown. Row2: 5 fern clump with fine segmented olive fronds; 6 branching cactus seen straight from overhead, muted sage green; 7 group of fleshy muted purple mushrooms; 8 alien organic egg pod, muted mauve, ribbed fibrous shell. Row3: 9 irregular ice outcrop, frosted blue-gray translucent mineral; 10 tall-looking faceted mineral crystal cluster seen from above, subdued violet-gray; 11 realistic gray-brown rock outcrop with strata; 12 heavily cratered irregular dark gray asteroid. Row4: 13 charcoal basalt rock cluster; 14 volcanic rock vent with a tiny warm fissure; 15 branching muted teal coral; 16 irregular wispy soft ivory cloud cutout, no rectangular halo.\nKeep vegetation restrained olive, brown, gray-green; rocks gray/brown/charcoal; alien materials muted plum. Absolutely no vivid red, yellow or saturated neon paint on scenery. Each cell is independently usable as a gameplay sprite, complete outline inside cell, transparent gaps between branches where appropriate. Beautiful physically modeled ground objects suitable for a vertically scrolling shooter, realistic satellite/miniature photography feel. Canvas landscape square 1:1 aspect, four by four cells."
+      "prompt": "Production sprite atlas for a premium realistic top-down sci-fi shooter. Generate EXACTLY a 4-column by 4-row grid, 16 equal square invisible cells, one isolated object centered per cell with at least 12 percent genuine transparent padding. Physically believable pre-rendered 3D materials, crisp botanical detail, rough mineral surfaces, fine surface texture, subtle ambient occlusion, consistent gentle upper-left light. Straight overhead orthographic view with zero perspective, no horizon, no terrain underneath, no external cast shadows, no cartoon outlines, no text, no numbers, no frame. Background MUST be genuine alpha transparency, never a painted checkerboard or black square.\nExact row-major objects: row1: 1 broad jungle tree crown with layered realistic olive green leaves and brown branches; 2 alien tree crown with subdued plum-purple leaves and gray woody tendrils; 3 tropical palm crown with recognizable long feathered fronds; 4 blue-green conifer pine crown. Row2: 5 fern clump with fine segmented olive fronds; 6 branching cactus seen straight from overhead, muted sage green; 7 group of fleshy muted purple mushrooms; 8 alien organic egg pod, muted mauve, ribbed fibrous shell. Row3: 9 irregular ice outcrop, frosted blue-gray translucent mineral; 10 tall-looking faceted mineral crystal cluster seen from above, subdued violet-gray; 11 realistic gray-brown rock outcrop with strata; 12 heavily cratered irregular dark gray asteroid. Row4: 13 charcoal basalt rock cluster; 14 volcanic rock vent with a tiny warm fissure; 15 branching muted teal coral; 16 irregular wispy soft ivory cloud cutout, no rectangular halo.\nKeep vegetation restrained olive, brown, gray-green; rocks gray/brown/charcoal; alien materials muted plum. Absolutely no vivid red, yellow or saturated neon paint on scenery. Each cell is independently usable as a gameplay sprite, complete outline inside cell, transparent gaps between branches where appropriate. Beautiful physically modeled ground objects suitable for a vertically scrolling shooter, realistic satellite/miniature photography feel. Canvas landscape square 1:1 aspect, four by four cells.",
+      "runtimeFile": "nature.webp"
     },
     {
       "file": "structures.png",
@@ -79,7 +81,8 @@
         "hauler"
       ],
       "source": "/Users/vojta/.codex/generated_images/01a0a612-bd79-7783-a590-9b7f75f28e0b/exec-e42cf310-6e81-4453-85fa-994f9a42133c.png",
-      "prompt": "Production cutout sprite atlas for a realistic overhead sci-fi shooter. EXACT 4 columns by 4 rows, invisible equal square grid, 16 isolated complete objects each centered in its cell with 14 percent transparent padding. Genuine alpha transparency throughout the background, no floor planes or checkerboard. Photorealistic pre-rendered physical model quality: weathered metal, rough concrete, chipped stone blocks, steel vent grilles, tiny panel seams and convincing ambient occlusion. Muted neutral gray, brown, dark olive and charcoal materials, extremely restrained tiny lights. Avoid vivid paint and neon so the ground scenery cannot be confused with colorful flying ships. Consistent upper-left light. CAMERA STRICTLY VERTICAL, exactly orthographic top view of ROOFS, no visible front facades and no isometric angle. No cast shadow beyond each object, we add it in-game.\nExact row-major cells: Row1: 1 ancient stepped stone temple viewed from above with square sanctuary roof; 2 broken ancient stone ruins with roofless chambers; 3 low circular armored military bunker with roof hatch; 4 compact modular space station platform with four docking arms. Row2: 5 radar facility with round dish viewed vertically from above; 6 cluster of three connected glass geodesic domes; 7 rectangular solar panel array and small service box; 8 refinery with cylindrical tanks and intricate metal pipes seen from above. Row3: 9 futuristic rectangular industrial building roof with vents; 10 square tall communications tower rooftop; 11 thin four-footed electricity pylon top view; 12 heavy symmetrical fortress with corner turrets and central roof. Row4: 13 thatched jungle hut roof and small attached platform; 14 scientific satellite with rectangular solar wings and cylindrical body; 15 small tracked military supply crawler with visibly rugged tracks, no wings; 16 large six-wheel cargo hauler truck with rectangular container cargo and separate cab facing UP, no wings.\nRealistic fine detail but strong compact readable silhouettes. Objects must remain entirely within cell bounds. No text, labels, letters, emblems, weapons firing, smoke, terrain, horizon, background. Square atlas aspect ratio, all sixteen cells equal. Beautiful high-end pre-rendered game assets."
+      "prompt": "Production cutout sprite atlas for a realistic overhead sci-fi shooter. EXACT 4 columns by 4 rows, invisible equal square grid, 16 isolated complete objects each centered in its cell with 14 percent transparent padding. Genuine alpha transparency throughout the background, no floor planes or checkerboard. Photorealistic pre-rendered physical model quality: weathered metal, rough concrete, chipped stone blocks, steel vent grilles, tiny panel seams and convincing ambient occlusion. Muted neutral gray, brown, dark olive and charcoal materials, extremely restrained tiny lights. Avoid vivid paint and neon so the ground scenery cannot be confused with colorful flying ships. Consistent upper-left light. CAMERA STRICTLY VERTICAL, exactly orthographic top view of ROOFS, no visible front facades and no isometric angle. No cast shadow beyond each object, we add it in-game.\nExact row-major cells: Row1: 1 ancient stepped stone temple viewed from above with square sanctuary roof; 2 broken ancient stone ruins with roofless chambers; 3 low circular armored military bunker with roof hatch; 4 compact modular space station platform with four docking arms. Row2: 5 radar facility with round dish viewed vertically from above; 6 cluster of three connected glass geodesic domes; 7 rectangular solar panel array and small service box; 8 refinery with cylindrical tanks and intricate metal pipes seen from above. Row3: 9 futuristic rectangular industrial building roof with vents; 10 square tall communications tower rooftop; 11 thin four-footed electricity pylon top view; 12 heavy symmetrical fortress with corner turrets and central roof. Row4: 13 thatched jungle hut roof and small attached platform; 14 scientific satellite with rectangular solar wings and cylindrical body; 15 small tracked military supply crawler with visibly rugged tracks, no wings; 16 large six-wheel cargo hauler truck with rectangular container cargo and separate cab facing UP, no wings.\nRealistic fine detail but strong compact readable silhouettes. Objects must remain entirely within cell bounds. No text, labels, letters, emblems, weapons firing, smoke, terrain, horizon, background. Square atlas aspect ratio, all sixteen cells equal. Beautiful high-end pre-rendered game assets.",
+      "runtimeFile": "structures.webp"
     },
     {
       "file": "materials.png",
@@ -130,7 +133,8 @@
         "void-raised"
       ],
       "source": "/Users/vojta/.codex/generated_images/01a0a612-bd79-7783-a590-9b7f75f28e0b/exec-93c4bca0-5263-40e2-a263-6cad86ec4f4c.png",
-      "prompt": "Create a production material texture atlas for a realistic top-down tile-based shooter. EXACTLY 8 columns by 5 rows: FORTY equal square texture cells. Canvas aspect 8:5 landscape. Each cell is a DIFFERENT seamless top-down surface material swatch, edge-to-edge opaque texture, no gaps or borders between cells. No terrain scene, no landscape, no islands, no shoreline, no map, no objects, trees, buildings or vehicles. Think physically based game texture albedo with subtle baked microrelief: sharp detail at satellite scale, natural fine grain, worn seams, restrained realistic contrast; uniformly lit with no large directional shadows. Separate cells independent and visually clear through material changes.\nExact grid row order LEFT TO RIGHT:\nROW1 cells1–4 JUNGLE materials: deep dark teal water #0b4b53 with subtle ripples; damp brown olive mud #4e5740 with fine roots; dark mossy soil #214c3d; muted green rocky moss #406e44. Cells5–8 SNOW: dark blue icy water #366b86; slate blue permafrost #536e82; blue gray packed snow #7899a6; pale white frost and ice #dce9e6.\nROW2 cells1–4 DESERT: weathered gray dry salt basin #565c59; dark brown gravel #694c38; ochre fine sand #987047; pale tan sandstone #dfb879. Cells5–8 PARADISE: turquoise lagoon water #128ca2; muted beige sand #9b9a72; shaded green tropical moss ground #346d52; olive pale green coral limestone #537a54.\nROW3 cells1–4 ASTEROID: nearly black cold dust #080d1b; black blue fine regolith #111626; dark gray violet shattered rock #27283e; gray brown cratered mineral #696175. Cells5–8 MARS: dry dark red-brown mineral #603e37; shadowed brown dust #52332f; rusty terracotta regolith #854d3c; pale orange brown stratified rock #c78559.\nROW4 cells1–4 VOLCANIC: dark orange lava crust with thin molten cracks #d54723; burnt red brown basalt #603429; charcoal ash #29252b; weathered dark volcanic rock #3d3035. Cells5–8 NEON CITY GROUND: dark blue wet concrete #111a2e; navy worn industrial floor #101a2c; blue gray steel plates #192138; slate gray rooftop plates #46526a. No neon colored lights.\nROW5 cells1–4 ALIEN: muted green teal organic sediment #24545b; shadowed blue-purple dirt #141c32; dark violet living soil #252243; dusty muted purple fibrous fungal ground #69516c. Cells5–8 VOID STATION: almost black navy dust #090f1a; near-black blue worn hull plating #171823; dark muted plum metal #292633; gray violet ancient alloy #4b4656.\nKeep specified subdued color family exactly. The game overlays geometry masks, so DO NOT paint cliffs, shorelines or landscape boundaries in any cell. All detail small scale, no oversized isolated rocks. No text, labels, numbers or outer border. Crisp realistic materials, high resolution sheet, forty square cells, 8 by 5."
+      "prompt": "Create a production material texture atlas for a realistic top-down tile-based shooter. EXACTLY 8 columns by 5 rows: FORTY equal square texture cells. Canvas aspect 8:5 landscape. Each cell is a DIFFERENT seamless top-down surface material swatch, edge-to-edge opaque texture, no gaps or borders between cells. No terrain scene, no landscape, no islands, no shoreline, no map, no objects, trees, buildings or vehicles. Think physically based game texture albedo with subtle baked microrelief: sharp detail at satellite scale, natural fine grain, worn seams, restrained realistic contrast; uniformly lit with no large directional shadows. Separate cells independent and visually clear through material changes.\nExact grid row order LEFT TO RIGHT:\nROW1 cells1–4 JUNGLE materials: deep dark teal water #0b4b53 with subtle ripples; damp brown olive mud #4e5740 with fine roots; dark mossy soil #214c3d; muted green rocky moss #406e44. Cells5–8 SNOW: dark blue icy water #366b86; slate blue permafrost #536e82; blue gray packed snow #7899a6; pale white frost and ice #dce9e6.\nROW2 cells1–4 DESERT: weathered gray dry salt basin #565c59; dark brown gravel #694c38; ochre fine sand #987047; pale tan sandstone #dfb879. Cells5–8 PARADISE: turquoise lagoon water #128ca2; muted beige sand #9b9a72; shaded green tropical moss ground #346d52; olive pale green coral limestone #537a54.\nROW3 cells1–4 ASTEROID: nearly black cold dust #080d1b; black blue fine regolith #111626; dark gray violet shattered rock #27283e; gray brown cratered mineral #696175. Cells5–8 MARS: dry dark red-brown mineral #603e37; shadowed brown dust #52332f; rusty terracotta regolith #854d3c; pale orange brown stratified rock #c78559.\nROW4 cells1–4 VOLCANIC: dark orange lava crust with thin molten cracks #d54723; burnt red brown basalt #603429; charcoal ash #29252b; weathered dark volcanic rock #3d3035. Cells5–8 NEON CITY GROUND: dark blue wet concrete #111a2e; navy worn industrial floor #101a2c; blue gray steel plates #192138; slate gray rooftop plates #46526a. No neon colored lights.\nROW5 cells1–4 ALIEN: muted green teal organic sediment #24545b; shadowed blue-purple dirt #141c32; dark violet living soil #252243; dusty muted purple fibrous fungal ground #69516c. Cells5–8 VOID STATION: almost black navy dust #090f1a; near-black blue worn hull plating #171823; dark muted plum metal #292633; gray violet ancient alloy #4b4656.\nKeep specified subdued color family exactly. The game overlays geometry masks, so DO NOT paint cliffs, shorelines or landscape boundaries in any cell. All detail small scale, no oversized isolated rocks. No text, labels, numbers or outer border. Crisp realistic materials, high resolution sheet, forty square cells, 8 by 5.",
+      "runtimeFile": "materials.webp"
     },
     {
       "file": "effects.png",
@@ -157,7 +161,8 @@
         "large-thruster"
       ],
       "source": "/Users/vojta/.codex/generated_images/01a0a612-bd79-7783-a590-9b7f75f28e0b/exec-53df98ee-7c2f-42dc-b689-0dd443762398.png",
-      "prompt": "Generate production VFX sprite atlas, EXACT 4 columns × 4 rows of 16 equal square cells. Genuine transparent alpha background, no opaque black squares, no painted checkerboard, no labels or borders. Premium physically realistic sci-fi explosions and thrusters, volumetric fire with detailed turbulent smoke and incandescent fragments, realistic photographic high-speed pyro simulation. Each frame entirely within its cell, centered with 15 percent transparent padding. Clean isolated cutouts, consistent scale. No comic-style shapes.\nCells1–8 (first TWO rows, left to right): eight consecutive frames of ONE ROUND explosion seen from straight above. Frame1 small compact white-gold ignition and a few sparks; frame2 growing orange-gold fire puff; frame3 expanding bright turbulent fiery sphere; frame4 full large orange fireball with dark smoke rim; frame5 orange fire mixed with billowing charcoal smoke; frame6 mostly gray-brown smoke with glowing embers; frame7 dissipating darker smoke wisps and sparse embers; frame8 faint diffuse smoke remains with just tiny embers. The core center is in exactly the same place in each equal cell. Fire colors warm white, yellow, amber, orange; smoke neutral gray-brown; no vivid pink, blue or green.\nThird row cells9–12: 9 isolated light gray smoke puff with wispy transparent edges; 10 isolated dark gray smoke puff with transparent edges; 11 tight group of three tiny sharp jagged scorched steel fragments with a hot edge; 12 tight group of three rough brown-gray shattered stone fragments.\nFourth row cells13–16: 13 round charred soot/scorch mark with irregular fragmented fading transparent edge, surface mark viewed overhead; 14 slender elongated dark scorch mark oriented vertical; 15 small thin rocket thruster flame with bright white core at TOP and turbulent orange tail tapering DOWN; 16 powerful longer wider spacecraft exhaust flame, white-hot core at TOP and wispy orange fire flowing DOWN. Both flames detached from any engine, no ship included. Leave all glow gently tapering to true alpha.\nAll sixteen cells must be independently usable, consistent dimensions, no overlap between cells, effects should occupy at most 70 percent cell width or height. Square atlas 1:1. Beautiful realistic fire/smoke/particle cutouts, controlled luminosity, sharp texture."
+      "prompt": "Generate production VFX sprite atlas, EXACT 4 columns × 4 rows of 16 equal square cells. Genuine transparent alpha background, no opaque black squares, no painted checkerboard, no labels or borders. Premium physically realistic sci-fi explosions and thrusters, volumetric fire with detailed turbulent smoke and incandescent fragments, realistic photographic high-speed pyro simulation. Each frame entirely within its cell, centered with 15 percent transparent padding. Clean isolated cutouts, consistent scale. No comic-style shapes.\nCells1–8 (first TWO rows, left to right): eight consecutive frames of ONE ROUND explosion seen from straight above. Frame1 small compact white-gold ignition and a few sparks; frame2 growing orange-gold fire puff; frame3 expanding bright turbulent fiery sphere; frame4 full large orange fireball with dark smoke rim; frame5 orange fire mixed with billowing charcoal smoke; frame6 mostly gray-brown smoke with glowing embers; frame7 dissipating darker smoke wisps and sparse embers; frame8 faint diffuse smoke remains with just tiny embers. The core center is in exactly the same place in each equal cell. Fire colors warm white, yellow, amber, orange; smoke neutral gray-brown; no vivid pink, blue or green.\nThird row cells9–12: 9 isolated light gray smoke puff with wispy transparent edges; 10 isolated dark gray smoke puff with transparent edges; 11 tight group of three tiny sharp jagged scorched steel fragments with a hot edge; 12 tight group of three rough brown-gray shattered stone fragments.\nFourth row cells13–16: 13 round charred soot/scorch mark with irregular fragmented fading transparent edge, surface mark viewed overhead; 14 slender elongated dark scorch mark oriented vertical; 15 small thin rocket thruster flame with bright white core at TOP and turbulent orange tail tapering DOWN; 16 powerful longer wider spacecraft exhaust flame, white-hot core at TOP and wispy orange fire flowing DOWN. Both flames detached from any engine, no ship included. Leave all glow gently tapering to true alpha.\nAll sixteen cells must be independently usable, consistent dimensions, no overlap between cells, effects should occupy at most 70 percent cell width or height. Square atlas 1:1. Beautiful realistic fire/smoke/particle cutouts, controlled luminosity, sharp texture.",
+      "runtimeFile": "effects.webp"
     },
     {
       "file": "projectiles.png",
@@ -180,7 +185,8 @@
         "boss-ring"
       ],
       "source": "/Users/vojta/.codex/generated_images/01a0a612-bd79-7783-a590-9b7f75f28e0b/exec-cde40073-fe32-469e-af97-77ab3eafbf15.png",
-      "prompt": "Production projectile sprite atlas for a premium realistic top-down space shooter. EXACT 4 columns by 3 rows, twelve equal square invisible cells, one isolated small projectile per cell. Genuine alpha transparent background, no opaque black rectangles or checkerboard. No text, symbols, labels, borders, ships or scenery. Straight overhead orthographic view, every directional projectile points UP and trails DOWN. Center each bright solid body exactly at cell center, leave room for faint glow and wake and at least 15 percent transparent outer padding. Realistic pre-rendered sci-fi effects with controlled luminous plasma, subtle shock cones, metallic ordnance and fine electric detail, no flat cartoon outlines. Use monochrome icy white/luminous cyan only, so game can hue-remap consistently; brightest compact white core, gray metal for missile, cyan halo with smooth genuine alpha falloff. Distinct silhouettes even at small sizes.\nRow-major objects:\nRow1 cell1 narrow capsule pulse bolt with short soft tail; cell2 compact round scatter pellet with small hot core and tiny tail; cell3 long thin focused lance beam with needle point; cell4 miniature physical seeker missile, metal body, small swept stabilizer fins and faint cyan exhaust.\nRow2 cell5 dense round layered plasma orb with bright central energy and turbulent edge; cell6 jagged slender electric arc projectile with branching tendrils but compact bounds; cell7 tiny round enemy energy bullet with minimal glow; cell8 sharp diamond enemy bullet with luminous beveled center.\nRow3 cell9 hollow circular torus energy projectile with dark truly transparent center; cell10 narrow triangular dart projectile; cell11 long slender streak projectile tapering downward; cell12 large boss projectile, bright hollow ring with four outward cardinal spikes, transparent ring center.\nKeep the six weapon profiles distinct from each other and six hostile shapes distinct. All glow faint and tightly controlled, body is crisp and clearly readable against terrain. Small ammunition, no large explosions or long trails. Full sprites never touch cell boundaries. Landscape atlas aspect4:3, cells square, 4 columns by3rows."
+      "prompt": "Production projectile sprite atlas for a premium realistic top-down space shooter. EXACT 4 columns by 3 rows, twelve equal square invisible cells, one isolated small projectile per cell. Genuine alpha transparent background, no opaque black rectangles or checkerboard. No text, symbols, labels, borders, ships or scenery. Straight overhead orthographic view, every directional projectile points UP and trails DOWN. Center each bright solid body exactly at cell center, leave room for faint glow and wake and at least 15 percent transparent outer padding. Realistic pre-rendered sci-fi effects with controlled luminous plasma, subtle shock cones, metallic ordnance and fine electric detail, no flat cartoon outlines. Use monochrome icy white/luminous cyan only, so game can hue-remap consistently; brightest compact white core, gray metal for missile, cyan halo with smooth genuine alpha falloff. Distinct silhouettes even at small sizes.\nRow-major objects:\nRow1 cell1 narrow capsule pulse bolt with short soft tail; cell2 compact round scatter pellet with small hot core and tiny tail; cell3 long thin focused lance beam with needle point; cell4 miniature physical seeker missile, metal body, small swept stabilizer fins and faint cyan exhaust.\nRow2 cell5 dense round layered plasma orb with bright central energy and turbulent edge; cell6 jagged slender electric arc projectile with branching tendrils but compact bounds; cell7 tiny round enemy energy bullet with minimal glow; cell8 sharp diamond enemy bullet with luminous beveled center.\nRow3 cell9 hollow circular torus energy projectile with dark truly transparent center; cell10 narrow triangular dart projectile; cell11 long slender streak projectile tapering downward; cell12 large boss projectile, bright hollow ring with four outward cardinal spikes, transparent ring center.\nKeep the six weapon profiles distinct from each other and six hostile shapes distinct. All glow faint and tightly controlled, body is crisp and clearly readable against terrain. Small ammunition, no large explosions or long trails. Full sprites never touch cell boundaries. Landscape atlas aspect4:3, cells square, 4 columns by3rows.",
+      "runtimeFile": "projectiles.webp"
     },
     {
       "file": "pickups.png",
@@ -193,7 +199,486 @@
         "credits"
       ],
       "source": "/Users/vojta/.codex/generated_images/01a0a612-bd79-7783-a590-9b7f75f28e0b/exec-7ae42ea0-ccc4-4c63-a00f-309420ae9d1a.png",
-      "prompt": "Production top-down sci-fi game pickup sprites, one atlas with EXACTLY TWO equal square cells side by side, landscape 2:1. Both isolated objects centered with 20percent genuine transparent padding, full objects and outline inside cells. Straight overhead orthographic camera, no perspective, no cast ground shadow. Physically realistic small manufactured collectible equipment, fine bevelled metal, recessed seams, ceramic panels, subtle upper-left lighting, premium game detail and readable compact silhouettes. LEFT CELL: compact octagonal medical repair capsule, ivory metal housing, dark gunmetal frame, mint-green inset panels and a clearly visible simple plus-shaped mint indicator on top. RIGHT CELL: three small stacked gold credit chips, each hexagonal with fine gold metal bevels, dark inset central chip and one small luminous amber line; no currency lettering, no readable numbers. Object shapes easily distinguish repair from salvage, color families mint/ivory and amber/gold remain clear. Modest physically realistic emission, no large exterior bloom. Background truly alpha transparent, no checkerboard, no black rectangle, no scene, no words, no typography, no labels, no border. Both cells square and same size."
+      "prompt": "Production top-down sci-fi game pickup sprites, one atlas with EXACTLY TWO equal square cells side by side, landscape 2:1. Both isolated objects centered with 20percent genuine transparent padding, full objects and outline inside cells. Straight overhead orthographic camera, no perspective, no cast ground shadow. Physically realistic small manufactured collectible equipment, fine bevelled metal, recessed seams, ceramic panels, subtle upper-left lighting, premium game detail and readable compact silhouettes. LEFT CELL: compact octagonal medical repair capsule, ivory metal housing, dark gunmetal frame, mint-green inset panels and a clearly visible simple plus-shaped mint indicator on top. RIGHT CELL: three small stacked gold credit chips, each hexagonal with fine gold metal bevels, dark inset central chip and one small luminous amber line; no currency lettering, no readable numbers. Object shapes easily distinguish repair from salvage, color families mint/ivory and amber/gold remain clear. Modest physically realistic emission, no large exterior bloom. Background truly alpha transparent, no checkerboard, no black rectangle, no scene, no words, no typography, no labels, no border. Both cells square and same size.",
+      "runtimeFile": "pickups.webp"
+    },
+    {
+      "file": "fleet-left.png",
+      "runtimeFile": "fleet-left.webp",
+      "grid": [
+        4,
+        3
+      ],
+      "cells": [
+        "player",
+        "needle",
+        "mantis",
+        "corsair",
+        "stingray",
+        "bulwark",
+        "lancer",
+        "harbinger",
+        "reaper",
+        "dreadnought",
+        "sovereign",
+        null
+      ],
+      "source": "/Users/vojta/.codex/generated_images/01a0a612-bd79-7783-a590-9b7f75f28e0b/exec-dc6d10d8-f385-4d08-bf9e-46fa53bcd89d.png",
+      "prompt": "Use case: precise-object-edit. Create the LEFT BANK animation frame of this exact spacecraft sprite atlas. The source is the identity reference: preserve all eleven hull designs, exact ivory player and red/gold enemy palettes, realistic worn metal, panel seams, silhouettes, cell order, relative size, lighting style, and transparent background. Output EXACT4columns×3rows, bottom-rightcell empty, each ship complete with generous transparent margins.\nCHANGE ONLY the 3D attitude of every ship: roll the rigid spacecraft about its longitudinal NOSE-TO-TAIL AXIS approximately25degrees, so its leftwing lowers and rightwing rises. This is an actual rendered3D bank: expose a narrow band of side armor, naturally foreshorten wing surfaces, adjust highlights and occlusion across a continuous rigid hull. Preserve the entire fuselage as ONE continuous object. Never shear/split the ship into two halves. No centerline crease. The projected nose-to-tail axis stays VERTICAL in its cell: ZERO yaw and ZERO clockwise/counterclockwise image-plane rotation. The point of the nose remains at the same X center and same Y as source. Keep the original nose direction of EACH source cell (the long-cannon Lancer in row2column3 points down; preserve that). All other spacecraft preserve their source heading too. Longitudinal length stays the same; banked wings naturally get a little narrower.\nNo added thruster flames, no external glow, no shadows cast on background, no new ornaments, no texts, no gridlines, no backdrop. Genuine alpha transparency. Preserve original original cell identityandpositions exactly. High-quality physically believable rendered banking sprites that animate cleanly to and from the supplied neutral sprites.",
+      "references": [
+        "/Users/vojta/.codex/worktrees/234b/protocodus.github.io/fun/tyran/assets/sprites/fleet.png"
+      ],
+      "notes": "Authored port bank; canonical nose correction baked once. Runtime uses its player cell; biome enemies bank their own family hull."
+    },
+    {
+      "file": "fleet-right.png",
+      "runtimeFile": "fleet-right.webp",
+      "grid": [
+        4,
+        3
+      ],
+      "cells": [
+        "player",
+        "needle",
+        "mantis",
+        "corsair",
+        "stingray",
+        "bulwark",
+        "lancer",
+        "harbinger",
+        "reaper",
+        "dreadnought",
+        "sovereign",
+        null
+      ],
+      "source": "/Users/vojta/.codex/generated_images/01a0a612-bd79-7783-a590-9b7f75f28e0b/exec-2d2933d7-1fb2-4876-912d-0676856d7bb7.png",
+      "prompt": "Use case: precise-object-edit. Create the RIGHT BANK animation frame of the provided exact spacecraft atlas. Preserve eleven spacecraft identities, red/gold enemy armor, ivory player, wornmetal/detail, source cellorder and transparentbackground. Output EXACT4column×3row, elevencompletehulls, bottomrightempty.\nChange only a TRUE THREE-DIMENSIONAL ROLL around each ship's longitudinal NOSE-TO-TAIL axis: rightwing lower, leftwing raised, banking RIGHT by30degrees. Show asymmetric foreshortening, a narrow visible sidewall of the fuselage, near/far wing lighting, but preserve the rigid aircraft as onepiece. The camera remains exactly overhead, no isometric angle. CRITICAL: each nose and tail have IDENTICAL X COORDINATE, a ruler drawn between them must be VERTICAL. Do not yaw or diagonally rotate any ship in the picture. Each cell's hull central axis is straight up/down. No bending, split halves or center crease. Keep vertical length and noseposition from source, projected width canreduce10percent. Row2column3 Lancer keeps longcannon down fromsource, centeredunderbody. All other headingspreserved.\nSpecific visual test: player cockpit tip at top and engine at bottom must be directly in one vertical line. The main hullside edge should show authentic banked thickness, not a slantednose. Wing surfaces different lighting/widths due genuine roll.\nNo enginefire, exteriorbloom, shadowcastonbackdrop, captions, extraobjects, gridlines. Genuine alphatransparency. Keep hulls centered insidecells with margins, realistic crisp physicallymanufactured spacecraft renders.",
+      "references": [
+        "/Users/vojta/.codex/worktrees/234b/protocodus.github.io/fun/tyran/assets/sprites/fleet.png"
+      ],
+      "notes": "Authored starboard bank; canonical nose correction baked once. Runtime uses its player cell; biome enemies bank their own family hull."
+    },
+    {
+      "file": "structure-light.png",
+      "runtimeFile": "structure-light.webp",
+      "grid": [
+        4,
+        4
+      ],
+      "cells": [
+        "temple",
+        "ruin",
+        "bunker",
+        "station",
+        "radar",
+        "dome",
+        "solar",
+        "refinery",
+        "building",
+        "tower",
+        "pylon",
+        "fortress",
+        "hut",
+        "satellite",
+        "crawler",
+        "hauler"
+      ],
+      "source": "/Users/vojta/.codex/generated_images/01a0a612-bd79-7783-a590-9b7f75f28e0b/exec-7b58bba1-ba5a-4b26-bbf5-0e2febd81adf.png",
+      "prompt": "Use case: precise-object-edit. This is the intact structure atlas for a top-down game. Create its LIGHTLY DAMAGED state, keeping EXACTLY the same sixteen structures in the same 4column×4row cells, same top-down camera, same object footprint/center/size, same roof orientation and recognizable materials. Keep at least75percent of each object intact and readable. Add localized bullet pitting, a few cracked panels, small scorched impact patches, a bent antenna, hairline stone fractures, chipped roof edges, one or two broken glass dome segments. Light visible battle damage ONLY, not destroyed. Each object should be visually distinguishable from fresh while still structurally whole. No flames or smoke, no huge holes, no large scattered rubble, no new buildings. Keep neutral gray/brown/desaturated olive colors. Realistic physical wear, crisp material detail.\nCell order preserved: temple, ruin, bunker, station; radar, domecluster, solararray, refinery; building, communicationtower, pylon, fortress; hut, satellite, trackedcrawler, cargohauler. The existing ruin gets a few fresh chips, vehicles get dented armor but keepbody/tracks/wheels. No captions, labels, gridlines, frames, land or background. Genuine alpha transparency. Complete isolated objects within respective cells with transparent margins. This must function as an aligned damage frame of each source object without popping in size or shifting its center.",
+      "references": [
+        "/Users/vojta/.codex/worktrees/234b/protocodus.github.io/fun/tyran/assets/sprites/structures.png"
+      ],
+      "notes": "Lightly damaged, 35–70% health; fixed grid extraction."
+    },
+    {
+      "file": "structure-heavy.png",
+      "runtimeFile": "structure-heavy.webp",
+      "grid": [
+        4,
+        4
+      ],
+      "cells": [
+        "temple",
+        "ruin",
+        "bunker",
+        "station",
+        "radar",
+        "dome",
+        "solar",
+        "refinery",
+        "building",
+        "tower",
+        "pylon",
+        "fortress",
+        "hut",
+        "satellite",
+        "crawler",
+        "hauler"
+      ],
+      "source": "/Users/vojta/.codex/generated_images/01a0a612-bd79-7783-a590-9b7f75f28e0b/exec-93fdd3cc-aad4-49fd-81f6-116c4b277079.png",
+      "prompt": "Use case: precise-object-edit. Create the VERY HEAVILY DAMAGED state of all sixteen structures in the supplied top-down sprite atlas. Keep EXACT4columns×4rows, every object in originalcell and originalsize/center/roofheading. All are still barely standing and recognizable, but near destruction: about40percent collapsed roofs, jagged wide breaches exposing dark internals, crushed panels, shattered glass, snapped support beams, collapsed antenna sections, scorched blackened walls and heavy localized rubble. A clear dramatic step beyond bullet holes: large missing roof sections, twisted metal, broken plates. Temple retains its stepped outline with collapsed sanctuary; radar dish brokeninto attachedsegments; domes brokenframeandglass; solararray panels cracked and missing; tanks ruptured; tower leaning/collapsedpart; fortressbastionscracked; hutroofpartlycaved; crawlertracksbroken; cargocontainertornopen. No flames, smoke, glow or airborne debris. Ground-aligned staticdamage sprites.\nRetain original gray/brown/olive muted palettes, realistic detailed materials, exact overheadcamera, original sixteen identities and footprints. Cellorder: temple,ruin,bunker,station; radar,domes,solar,refinery; building,tower,pylon,fortress; hut,satellite,crawler,hauler. Genuinealpha transparency aroundeachcutout; no backdrop, text, gridlines orlabels. All objectscontainedincells, sameframealignmentasintactreference.",
+      "references": [
+        "/Users/vojta/.codex/worktrees/234b/protocodus.github.io/fun/tyran/assets/sprites/structures.png"
+      ],
+      "notes": "Heavily damaged, below 35% positive health; fixed grid extraction."
+    },
+    {
+      "file": "structure-crater.png",
+      "runtimeFile": "structure-crater.webp",
+      "grid": [
+        4,
+        4
+      ],
+      "cells": [
+        "temple",
+        "ruin",
+        "bunker",
+        "station",
+        "radar",
+        "dome",
+        "solar",
+        "refinery",
+        "building",
+        "tower",
+        "pylon",
+        "fortress",
+        "hut",
+        "satellite",
+        "crawler",
+        "hauler"
+      ],
+      "source": "/Users/vojta/.codex/generated_images/01a0a612-bd79-7783-a590-9b7f75f28e0b/exec-f8c733f0-70dd-4284-bc16-ae0316246c58.png",
+      "prompt": "Use case: precise-object-edit. This reference is a4×4atlas of16structures for a top-down game. Generate its FINAL DESTROYED state. Every source structure is now completely reduced to a LOW FLAT CRATER WITH CHARRED RUBBLE, at the same location,size andshapefootprint in its original cell. No standing roofs, no intact buildings, no upright towers or whole vehicles. A dark concave blastcrater, fractured concrete foundations, scattered angular wreckage, broken floorwalls no higher than the rim, and sooty earth fading gently into genuinealpha transparency. Subtle recognizable remnants match eachsource: steppedstonefoundations, circularbunkerbase, brokenstationarms, shatteredradardishsegments, circularbroken domebases, solarshards, crushedtankrings, industrialfloorplates, collapsedtowersteel, brokenpylonfeet, fortressbasement, strawandtimberhutremains, brokenpanelsatellite, crushedcrawlertracks, charredhaulerchassis. All remnants flatagainstground.\nEXACT4equalcolumns×4equalrows andsourcecellorder, camera exactlyoverhead. Keep existing mutedgraybrown colors, slightlydarkerscorch. Each crater occupies the samefootprint asitsstructure withsoftalphaedge and modestsmallrubblehalo butnooverlapbetweencells. The destroyedstate should readimmediately as a persistent craterleftafteranexplosion. No fire,no smoke,no lights,no text, no labels, no borders, no intactstructures. Genuinealpha background, not blackorcheckerboard. Realistic physical debrisandcraterrims, detailed overheadrenders.",
+      "references": [
+        "/Users/vojta/.codex/worktrees/234b/protocodus.github.io/fun/tyran/assets/sprites/structures.png"
+      ],
+      "notes": "Destroyed crater and rubble, zero health; fixed grid extraction."
+    },
+    {
+      "file": "fleet-jungle.png",
+      "runtimeFile": "fleet-jungle.webp",
+      "grid": [
+        4,
+        3
+      ],
+      "cells": [
+        "player",
+        "needle",
+        "mantis",
+        "corsair",
+        "stingray",
+        "bulwark",
+        "lancer",
+        "harbinger",
+        "reaper",
+        "dreadnought",
+        "sovereign",
+        null
+      ],
+      "biome": "jungle",
+      "family": "Scarlet Talons",
+      "shapeLanguage": "Angular insect-inspired precision fighters: long pointed carapace cockpits, dragonfly-like double wing pairs, mantis fork outriggers, sharply swept armored legs that are clearly fixed wings. Manufactured aerospace metal, mechanicalinsect silhouettes, no actual insects.",
+      "source": "/Users/vojta/.codex/generated_images/01a0a612-bd79-7783-a590-9b7f75f28e0b/exec-06f03350-bd67-438a-851c-d0888e458b8f.png",
+      "prompt": "Use case: precise-object-edit. Correct ONLY spacing in this spacecraft sprite atlas. Preserve every one of the eleven existing hull designs, orientation, painted red/gold realistic materials, shape proportions and original transparent background. The current middle-row artillery's rear tip TOUCHES the boss's top nose in row3. THESE MUST BE CLEARLY SEPARATED WITH A LARGE TRANSPARENT GAP. Some other ships too close to cell edges.\nOutput EXACTLY FOUR equal columns and THREE equal rows. Each ship centered in its own cell. Scale every ship down to occupy AT MOST 65 PERCENT of its cell width and height (17.5 percent transparent padding on all four sides). This margin is CRITICAL. The artillery and boss must have at least 80 pixels entirely transparent space between their closest tips. Same4×3arrangement as reference: Row1 ivoryplayer,scout,twinpod,interceptor; Row2 skirmisher,defender,artillery,heavyfighter; Row3 reaper,dreadnought,boss,EMPTY. All ships separate, only one complete ship per cell. Preserve high-quality detailed physically modeled metallic hulls. Camera straight overhead, nosesUP. No shadows, no glow, no smoke, no text, no grid or guides. Genuine alpha transparency; never opaque black or a checkerboard pattern. DO NOT ADD OR REMOVE ANY SHIP. Keep the bottom right cell empty. Reduce ships' rendered size in their cells to create safe transparent margins.",
+      "references": [
+        "/Users/vojta/.codex/generated_images/01a0a612-bd79-7783-a590-9b7f75f28e0b/exec-1bd5b8fe-25f7-45e9-b7e2-dd68c44b534b.png"
+      ],
+      "origin": {
+        "source": "/Users/vojta/.codex/generated_images/01a0a612-bd79-7783-a590-9b7f75f28e0b/exec-869c5873-169d-452f-96af-b4a8e18b9e87.png",
+        "prompt": "Use case: stylized-concept. Production realistic top-down spacecraft atlas for Tyran. Create a NEW coherent enemy family with ten increasingly imposing spacecraft, from scout to finalboss. Exact4equalcolumns×3equalrows, invisiblegrid, 12squarecells. Cell0 (row1col1): small ivory playerinterceptor, noseUP; cells1through10 are the ten enemyships; cell11bottomrightcompletelyemptytransparent. Enemyclassesinorder: tiny weak scout, small twinpodfighter, light interceptor, medium skirmisher, armored defender, longgun artillery, broad heavy fighter, elite reaper, large dreadnought, massive finalboss with3reactorcores. Everyclass must have clearlydifferent silhouette while sharing familydesignlanguage. The large classes look more massive andcomplex; keepallhullsfullyvisible eachcenteredincell with12percenttransparentmargin.\nEvery object viewed precisely orthographic straight OVERHEAD, noseUP tailDOWN includingthelonggun artillery, zeroisometricperspective and zero yaw, bilaterally balancedhulls. Premium realistic pre-rendered3D game sprites with physicallymanufacturedmaterials, fine seams, bevels, recesses, subtlewear, controlledspecularpoints; no cartoonblackoutlines. Softupperleftlighting. CANONICAL SOURCE PALETTE FOR RUNTIME RECOLOR: enemy painted armor vermilionred#f05245, narrow goldyellowtrim#ffe35f, darkgunmetal recesses#04101b, tiny warmwhitecore. Large readable redpainted areasatleast65percent, neutralmetalatmost20percent. No greenorcyan on enemies. Playerivory#eaf4ec withcyan canopy. No exterior glow, no exhaust flames, no backgroundcastshadows, no labels, no text, no grids, no scenery. Genuine alphatransparency, no paintedblackrectangleorcheckerboard. The hue is canonical and willbe recoloredbygame, focus on distinct3Dsilhouettes. 4×3layout exact.\nFAMILY: Scarlet Talons. Shape language: Angular insect-inspired precision fighters: long pointed carapace cockpits, dragonfly-like double wing pairs, mantis fork outriggers, sharply swept armored legs that are clearly fixed wings. Manufactured aerospace metal, mechanicalinsect silhouettes, no actual insects.",
+        "references": [
+          "/Users/vojta/.codex/worktrees/234b/protocodus.github.io/fun/tyran/assets/sprites/fleet.png"
+        ],
+        "note": "Initial five-column artwork rearranged through ImageGen into final four-by-three grid.",
+        "layoutEdit": {
+          "source": "/Users/vojta/.codex/generated_images/01a0a612-bd79-7783-a590-9b7f75f28e0b/exec-1bd5b8fe-25f7-45e9-b7e2-dd68c44b534b.png",
+          "prompt": "Use case: stylized-concept. Rearrange the eleven existing spacecraft from image1 into the EXACT FOUR COLUMNS by THREE ROWS atlas layout of image2. Image1 is the hull artwork to preserve. Image2 is ONLY a positions template; do not use image2's ship geometry. Both references already have real alpha transparency; preserve genuine alpha.\nCRITICAL: Output has 12 equal square slots: 4 columns, 3 rows. No five-column arrangement. All eleven individual ships same overall maximum footprint, centered with safe padding in their own slot. Shrink the boss to fit one cell. Row1: ivory player, tiny narrow scout, twinpod fighter, forked interceptor. Row2: pointed outrigged skirmisher, broad defender, long artillery cannon, broad heavy fighter. Row3: slender crescent reaper, armored dreadnought, three-reactor boss, EMPTY transparent cell.\nPreserve the red/gold mechanical mantis/dragonfly family shape language from image1, physically realistic metal plates, dark cockpits, gold narrow trim. All ships nose UP, tail DOWN; turn any reversed artillery so long cannon barrel points UP. Orthographic overhead, bilateral balance, no added perspective or yaw. Uniform upper-left lighting. No additional objects. Do not add glow/exhaust/cast shadows/labels/text/grid lines/opaque background. Entire image genuine transparent alpha. Clear gap between all ships; all cells complete. FOUR ships across top, FOUR middle, THREE bottom with bottom right empty.",
+          "references": [
+            "/Users/vojta/.codex/generated_images/01a0a612-bd79-7783-a590-9b7f75f28e0b/exec-869c5873-169d-452f-96af-b4a8e18b9e87.png",
+            "/Users/vojta/.codex/worktrees/234b/protocodus.github.io/fun/tyran/assets/sprites/fleet.png"
+          ]
+        }
+      }
+    },
+    {
+      "file": "fleet-snow.png",
+      "runtimeFile": "fleet-snow.webp",
+      "grid": [
+        4,
+        3
+      ],
+      "cells": [
+        "player",
+        "needle",
+        "mantis",
+        "corsair",
+        "stingray",
+        "bulwark",
+        "lancer",
+        "harbinger",
+        "reaper",
+        "dreadnought",
+        "sovereign",
+        null
+      ],
+      "biome": "snow",
+      "family": "Halo Syndicate",
+      "shapeLanguage": "ROUND DISC and RING spacecraft: circular flying saucers, oval ceramic pods, concentric armored discs, open torus hulls, linked circular outrigger pods. No pointed fighter wings. Radially curved smooth manufactured surfaces with recessedmechanical rings. Every ship clearlyround with forwardcockpit marking top.",
+      "source": "/Users/vojta/.codex/generated_images/01a0a612-bd79-7783-a590-9b7f75f28e0b/exec-550f9236-3a46-4822-a18e-dae01477f54e.png",
+      "prompt": "Use case: stylized-concept. Production realistic top-down spacecraft atlas for Tyran. Create a NEW coherent enemy family with ten spacecraft classes, from scout to finalboss; identical pixel footprint per sprite. Exact4equalcolumns×3equalrows, invisiblegrid, 12squarecells. Cell0 (row1col1): small ivory playerinterceptor, noseUP; cells1through10 are the ten enemyships; cell11bottomrightcompletelyemptytransparent. Enemyclassesinorder: scout, small twinpodfighter, light interceptor, medium skirmisher, armored defender, longgun artillery, broad heavy fighter, elite reaper, large dreadnought, finalboss with3reactorcores. Everyclass must have clearlydifferent silhouette while sharing familydesignlanguage. The boss has more complex armor and reactors but MUST FIT THE SAME CELL AND SAME PIXEL FOOTPRINT as every fighter. Keep all hulls fully visible, each centered in its own square with at least 15 percent transparent margin. EXACT ROWS: Row1: ivoryplayer, scout, twinpodfighter, interceptor. Row2: skirmisher, defender, artillery, heavyfighter. Row3: reaper, dreadnought, boss, EMPTY. Four and only four positions per row. Do not use five columns. Do not place boss across multiple cells.\nEvery object viewed precisely orthographic straight OVERHEAD, noseUP tailDOWN includingthelonggun artillery, zeroisometricperspective and zero yaw, bilaterally balancedhulls. Premium realistic pre-rendered3D game sprites with physicallymanufacturedmaterials, fine seams, bevels, recesses, subtlewear, controlledspecularpoints; no cartoonblackoutlines. Softupperleftlighting. CANONICAL SOURCE PALETTE FOR RUNTIME RECOLOR: enemy painted armor vermilionred#f05245, narrow goldyellowtrim#ffe35f, darkgunmetal recesses#04101b, tiny warmwhitecore. Large readable redpainted areasatleast65percent, neutralmetalatmost20percent. No greenorcyan on enemies. Playerivory#eaf4ec withcyan canopy. No exterior glow, no exhaust flames, no backgroundcastshadows, no labels, no text, no grids, no scenery. Genuine alphatransparency, no paintedblackrectangleorcheckerboard. The hue is canonical and willbe recoloredbygame, focus on distinct3Dsilhouettes. 4×3layout exact.\nFAMILY: Halo Syndicate. Shape language: ROUND DISC and RING spacecraft: circular flying saucers, oval ceramic pods, concentric armored discs, open torus hulls, linked circular outrigger pods. No pointed fighter wings. Radially curved smooth manufactured surfaces with recessedmechanical rings. Every ship clearlyround with forwardcockpit marking top.\nReference image is ONLY for exact4×3 atlas placement, pixel footprints and materials/colors. Replace enemy designs completely with the round disc/ring family. Keep player ivory.",
+      "references": [
+        "/Users/vojta/.codex/worktrees/234b/protocodus.github.io/fun/tyran/assets/sprites/fleet.png"
+      ],
+      "notes": "Source Lancer/index6 barrel points down. Runtime corrects its canonical heading by 180 degrees during one-time sprite baking."
+    },
+    {
+      "file": "fleet-desert.png",
+      "runtimeFile": "fleet-desert.webp",
+      "grid": [
+        4,
+        3
+      ],
+      "cells": [
+        "player",
+        "needle",
+        "mantis",
+        "corsair",
+        "stingray",
+        "bulwark",
+        "lancer",
+        "harbinger",
+        "reaper",
+        "dreadnought",
+        "sovereign",
+        null
+      ],
+      "biome": "desert",
+      "family": "Relic Array",
+      "shapeLanguage": "TECHNICAL geometric spacecraft: rectilinear open trusses, stepped diamonds, cross-shaped circuit chassis, angular modular plate bridges, exposed boxy precisionmachinery. Architectural geometric topologies, clean ninetydegree brackets and diamond shapes, no rounded flying saucers and no airplane wings.",
+      "source": "/Users/vojta/.codex/generated_images/01a0a612-bd79-7783-a590-9b7f75f28e0b/exec-3b11697b-3008-4173-bd20-6cd55f3d706c.png",
+      "prompt": "Use case: stylized-concept. Production realistic top-down spacecraft atlas for Tyran. Create a NEW coherent enemy family with ten spacecraft classes, from scout to finalboss; identical pixel footprint per sprite. Exact4equalcolumns×3equalrows, invisiblegrid, 12squarecells. Cell0 (row1col1): small ivory playerinterceptor, noseUP; cells1through10 are the ten enemyships; cell11bottomrightcompletelyemptytransparent. Enemyclassesinorder: scout, small twinpodfighter, light interceptor, medium skirmisher, armored defender, longgun artillery, broad heavy fighter, elite reaper, large dreadnought, finalboss with3reactorcores. Everyclass must have clearlydifferent silhouette while sharing familydesignlanguage. The boss has more complex armor and reactors but MUST FIT THE SAME CELL AND SAME PIXEL FOOTPRINT as every fighter. Keep all hulls fully visible, each centered in its own square with at least 15 percent transparent margin. EXACT ROWS: Row1: ivoryplayer, scout, twinpodfighter, interceptor. Row2: skirmisher, defender, artillery, heavyfighter. Row3: reaper, dreadnought, boss, EMPTY. Four and only four positions per row. Do not use five columns. Do not place boss across multiple cells.\nEvery object viewed precisely orthographic straight OVERHEAD, noseUP tailDOWN includingthelonggun artillery, zeroisometricperspective and zero yaw, bilaterally balancedhulls. Premium realistic pre-rendered3D game sprites with physicallymanufacturedmaterials, fine seams, bevels, recesses, subtlewear, controlledspecularpoints; no cartoonblackoutlines. Softupperleftlighting. CANONICAL SOURCE PALETTE FOR RUNTIME RECOLOR: enemy painted armor vermilionred#f05245, narrow goldyellowtrim#ffe35f, darkgunmetal recesses#04101b, tiny warmwhitecore. Large readable redpainted areasatleast65percent, neutralmetalatmost20percent. No greenorcyan on enemies. Playerivory#eaf4ec withcyan canopy. No exterior glow, no exhaust flames, no backgroundcastshadows, no labels, no text, no grids, no scenery. Genuine alphatransparency, no paintedblackrectangleorcheckerboard. The hue is canonical and willbe recoloredbygame, focus on distinct3Dsilhouettes. 4×3layout exact.\nFAMILY: Relic Array. Shape language: TECHNICAL geometric spacecraft: rectilinear open trusses, stepped diamonds, cross-shaped circuit chassis, angular modular plate bridges, exposed boxy precisionmachinery. Architectural geometric topologies, clean ninetydegree brackets and diamond shapes, no rounded flying saucers and no airplane wings.\nReference is for4×3 placement/materials only, replace ALLenemyshapes with solid steppeddiamonds, technical rectilinear architecture and exposedmachinery. Row2col3artillery'sbarrel MUST extend UP abovethefrontnose, neverdown.",
+      "references": [
+        "/Users/vojta/.codex/worktrees/234b/protocodus.github.io/fun/tyran/assets/sprites/fleet.png"
+      ]
+    },
+    {
+      "file": "fleet-paradise.png",
+      "runtimeFile": "fleet-paradise.webp",
+      "grid": [
+        4,
+        3
+      ],
+      "cells": [
+        "player",
+        "needle",
+        "mantis",
+        "corsair",
+        "stingray",
+        "bulwark",
+        "lancer",
+        "harbinger",
+        "reaper",
+        "dreadnought",
+        "sovereign",
+        null
+      ],
+      "biome": "paradise",
+      "family": "Sunwake Raiders",
+      "shapeLanguage": "Graceful STREAMLINED HYDROFOIL aerospace hulls: flowing crescent manta wings, smooth layered curved tapered fins, teardrop cockpits, elegant gullwing arcs, long fluid jet body. Sleek rigid manufacturedmetal, aerodynamicnautical designlanguage, no blocky crates or circular discs.",
+      "source": "/Users/vojta/.codex/generated_images/01a0a612-bd79-7783-a590-9b7f75f28e0b/exec-0e836981-c951-41a5-b5e3-ca8db7c35745.png",
+      "prompt": "Use case: stylized-concept. Production realistic top-down spacecraft atlas for Tyran. Create a NEW coherent enemy family with ten spacecraft classes, from scout to finalboss; identical pixel footprint per sprite. Exact4equalcolumns×3equalrows, invisiblegrid, 12squarecells. Cell0 (row1col1): small ivory playerinterceptor, noseUP; cells1through10 are the ten enemyships; cell11bottomrightcompletelyemptytransparent. Enemyclassesinorder: scout, small twinpodfighter, light interceptor, medium skirmisher, armored defender, longgun artillery, broad heavy fighter, elite reaper, large dreadnought, finalboss with3reactorcores. Everyclass must have clearlydifferent silhouette while sharing familydesignlanguage. The boss has more complex armor and reactors but MUST FIT THE SAME CELL AND SAME PIXEL FOOTPRINT as every fighter. Keep all hulls fully visible, each centered in its own square with at least 15 percent transparent margin. EXACT ROWS: Row1: ivoryplayer, scout, twinpodfighter, interceptor. Row2: skirmisher, defender, artillery, heavyfighter. Row3: reaper, dreadnought, boss, EMPTY. Four and only four positions per row. Do not use five columns. Do not place boss across multiple cells.\nEvery object viewed precisely orthographic straight OVERHEAD, noseUP tailDOWN includingthelonggun artillery, zeroisometricperspective and zero yaw, bilaterally balancedhulls. Premium realistic pre-rendered3D game sprites with physicallymanufacturedmaterials, fine seams, bevels, recesses, subtlewear, controlledspecularpoints; no cartoonblackoutlines. Softupperleftlighting. CANONICAL SOURCE PALETTE FOR RUNTIME RECOLOR: enemy painted armor vermilionred#f05245, narrow goldyellowtrim#ffe35f, darkgunmetal recesses#04101b, tiny warmwhitecore. Large readable redpainted areasatleast65percent, neutralmetalatmost20percent. No greenorcyan on enemies. Playerivory#eaf4ec withcyan canopy. No exterior glow, no exhaust flames, no backgroundcastshadows, no labels, no text, no grids, no scenery. Genuine alphatransparency, no paintedblackrectangleorcheckerboard. The hue is canonical and willbe recoloredbygame, focus on distinct3Dsilhouettes. 4×3layout exact.\nFAMILY: Sunwake Raiders. Shape language: Graceful STREAMLINED HYDROFOIL aerospace hulls: flowing crescent manta wings, smooth layered curved tapered fins, teardrop cockpits, elegant gullwing arcs, long fluid jet body. Sleek rigid manufacturedmetal, aerodynamicnautical designlanguage, no blocky crates or circular discs.\nReference is ONLY for4×3 placement and material/palette, replace enemyshapescompletelywith smoothlycurvedhydrofoil/mantarayshapes. No angularairplanes. Everyartillerybarrel pointsUP. Avoid largeglow.",
+      "references": [
+        "/Users/vojta/.codex/worktrees/234b/protocodus.github.io/fun/tyran/assets/sprites/fleet.png"
+      ]
+    },
+    {
+      "file": "fleet-asteroid.png",
+      "runtimeFile": "fleet-asteroid.webp",
+      "grid": [
+        4,
+        3
+      ],
+      "cells": [
+        "player",
+        "needle",
+        "mantis",
+        "corsair",
+        "stingray",
+        "bulwark",
+        "lancer",
+        "harbinger",
+        "reaper",
+        "dreadnought",
+        "sovereign",
+        null
+      ],
+      "biome": "asteroid",
+      "family": "Scrap Convoy",
+      "shapeLanguage": "Very CLUNKY HEAVY INDUSTRIAL ships: squat rectangular welded slab hulls, massive squared armored boxes, bluntforklift-like outriggers, layered cargo-container bodies, rugged bolted pylons, exposeddark hydraulicpipes. Broad boxysilhouettes, utilitarian salvage tug fleet, no conventional sleek fighterwings.",
+      "source": "/Users/vojta/.codex/generated_images/01a0a612-bd79-7783-a590-9b7f75f28e0b/exec-15b68810-56f0-41d6-b9d9-b319362856c5.png",
+      "prompt": "Use case: stylized-concept. Production realistic top-down spacecraft atlas for Tyran. Create a NEW coherent enemy family with ten spacecraft classes, from scout to finalboss; identical pixel footprint per sprite. Exact4equalcolumns×3equalrows, invisiblegrid, 12squarecells. Cell0 (row1col1): small ivory playerinterceptor, noseUP; cells1through10 are the ten enemyships; cell11bottomrightcompletelyemptytransparent. Enemyclassesinorder: scout, small twinpodfighter, light interceptor, medium skirmisher, armored defender, longgun artillery, broad heavy fighter, elite reaper, large dreadnought, finalboss with3reactorcores. Everyclass must have clearlydifferent silhouette while sharing familydesignlanguage. The boss has more complex armor and reactors but MUST FIT THE SAME CELL AND SAME PIXEL FOOTPRINT as every fighter. Keep all hulls fully visible, each centered in its own square with at least 15 percent transparent margin. EXACT ROWS: Row1: ivoryplayer, scout, twinpodfighter, interceptor. Row2: skirmisher, defender, artillery, heavyfighter. Row3: reaper, dreadnought, boss, EMPTY. Four and only four positions per row. Do not use five columns. Do not place boss across multiple cells.\nEvery object viewed precisely orthographic straight OVERHEAD, noseUP tailDOWN includingthelonggun artillery, zeroisometricperspective and zero yaw, bilaterally balancedhulls. Premium realistic pre-rendered3D game sprites with physicallymanufacturedmaterials, fine seams, bevels, recesses, subtlewear, controlledspecularpoints; no cartoonblackoutlines. Softupperleftlighting. CANONICAL SOURCE PALETTE FOR RUNTIME RECOLOR: enemy painted armor vermilionred#f05245, narrow goldyellowtrim#ffe35f, darkgunmetal recesses#04101b, tiny warmwhitecore. Large readable redpainted areasatleast65percent, neutralmetalatmost20percent. No greenorcyan on enemies. Playerivory#eaf4ec withcyan canopy. No exterior glow, no exhaust flames, no backgroundcastshadows, no labels, no text, no grids, no scenery. Genuine alphatransparency, no paintedblackrectangleorcheckerboard. The hue is canonical and willbe recoloredbygame, focus on distinct3Dsilhouettes. 4×3layout exact.\nFAMILY: Scrap Convoy. Shape language: Very CLUNKY HEAVY INDUSTRIAL ships: squat rectangular welded slab hulls, massive squared armored boxes, bluntforklift-like outriggers, layered cargo-container bodies, rugged bolted pylons, exposeddark hydraulicpipes. Broad boxysilhouettes, utilitarian salvage tug fleet, no conventional sleek fighterwings.\nReference is ONLY for4×3 placement/materials and sourcecolors. Redesign ALLenemies as blockyindustrialrectangle ships, no triangularnose, no fighterwings. Squared cargoarmor, rectangularblockpods, welded slabs, frontcockpitatUP/rearenginesDOWN. Artillerybarrel extendsUP. Preserveemptylastcellandidenticalcellfootprints.",
+      "references": [
+        "/Users/vojta/.codex/worktrees/234b/protocodus.github.io/fun/tyran/assets/sprites/fleet.png"
+      ]
+    },
+    {
+      "file": "fleet-mars.png",
+      "runtimeFile": "fleet-mars.webp",
+      "grid": [
+        4,
+        3
+      ],
+      "cells": [
+        "player",
+        "needle",
+        "mantis",
+        "corsair",
+        "stingray",
+        "bulwark",
+        "lancer",
+        "harbinger",
+        "reaper",
+        "dreadnought",
+        "sovereign",
+        null
+      ],
+      "biome": "mars",
+      "family": "Redline Foundry",
+      "shapeLanguage": "MODULAR ROCKET AND POD fleet: parallel cylindrical rocketbooms, barrel-shaped reactorpods, slender open lattice bridges connecting round-ended enginecanisters, blunt central command capsules. Retro spaceprobe engineering, visible round nozzlesattail, long tubular orbundle silhouettes, distinctfromplanes/discs/boxytrucks.",
+      "source": "/Users/vojta/.codex/generated_images/01a0a612-bd79-7783-a590-9b7f75f28e0b/exec-d0261f62-1a6c-4356-8244-3bda4139f2b2.png",
+      "prompt": "Use case: stylized-concept. Production realistic top-down spacecraft atlas for Tyran. Create a NEW coherent enemy family with ten spacecraft classes, from scout to finalboss; identical pixel footprint per sprite. Exact4equalcolumns×3equalrows, invisiblegrid, 12squarecells. Cell0 (row1col1): small ivory playerinterceptor, noseUP; cells1through10 are the ten enemyships; cell11bottomrightcompletelyemptytransparent. Enemyclassesinorder: scout, small twinpodfighter, light interceptor, medium skirmisher, armored defender, longgun artillery, broad heavy fighter, elite reaper, large dreadnought, finalboss with3reactorcores. Everyclass must have clearlydifferent silhouette while sharing familydesignlanguage. The boss has more complex armor and reactors but MUST FIT THE SAME CELL AND SAME PIXEL FOOTPRINT as every fighter. Keep all hulls fully visible, each centered in its own square with at least 15 percent transparent margin. EXACT ROWS: Row1: ivoryplayer, scout, twinpodfighter, interceptor. Row2: skirmisher, defender, artillery, heavyfighter. Row3: reaper, dreadnought, boss, EMPTY. Four and only four positions per row. Do not use five columns. Do not place boss across multiple cells.\nEvery object viewed precisely orthographic straight OVERHEAD, noseUP tailDOWN includingthelonggun artillery, zeroisometricperspective and zero yaw, bilaterally balancedhulls. Premium realistic pre-rendered3D game sprites with physicallymanufacturedmaterials, fine seams, bevels, recesses, subtlewear, controlledspecularpoints; no cartoonblackoutlines. Softupperleftlighting. CANONICAL SOURCE PALETTE FOR RUNTIME RECOLOR: enemy painted armor vermilionred#f05245, narrow goldyellowtrim#ffe35f, darkgunmetal recesses#04101b, tiny warmwhitecore. Large readable redpainted areasatleast65percent, neutralmetalatmost20percent. No greenorcyan on enemies. Playerivory#eaf4ec withcyan canopy. No exterior glow, no exhaust flames, no backgroundcastshadows, no labels, no text, no grids, no scenery. Genuine alphatransparency, no paintedblackrectangleorcheckerboard. The hue is canonical and willbe recoloredbygame, focus on distinct3Dsilhouettes. 4×3layout exact.\nFAMILY: Redline Foundry. Shape language: MODULAR ROCKET AND POD fleet: parallel cylindrical rocketbooms, barrel-shaped reactorpods, slender open lattice bridges connecting round-ended enginecanisters, blunt central command capsules. Retro spaceprobe engineering, visible round nozzlesattail, long tubular orbundle silhouettes, distinctfromplanes/discs/boxytrucks.\nReference isONLY for exact4×3 gridand sourcepalette. Redesignallships with clustered rounded tubular rocketpods and thinvisibletrussbridges, cylindricalcapsules viewedfromabove. AllenginesattailDOWN, cockpit/cannonUP. No triangularfighterwings, no boxyflatcargoarmor, no saucer discs. Samecellsize foreachincludingboss.",
+      "references": [
+        "/Users/vojta/.codex/worktrees/234b/protocodus.github.io/fun/tyran/assets/sprites/fleet.png"
+      ]
+    },
+    {
+      "file": "fleet-volcanic.png",
+      "runtimeFile": "fleet-volcanic.webp",
+      "grid": [
+        4,
+        3
+      ],
+      "cells": [
+        "player",
+        "needle",
+        "mantis",
+        "corsair",
+        "stingray",
+        "bulwark",
+        "lancer",
+        "harbinger",
+        "reaper",
+        "dreadnought",
+        "sovereign",
+        null
+      ],
+      "biome": "volcanic",
+      "family": "Cryo Lances",
+      "shapeLanguage": "Severe CRYSTALLINE ARROWHEAD aerospace hulls: triangular prism wedges, sharp spear noses, faceted blade wings, sawtooth angular outeredges, splitdelta fighterbodies. Manufactured plated alloy with faceted reflectivepanels and darkcuts, no actualrocks. Almost allsilhouettes triangular orspikyforked.",
+      "source": "/Users/vojta/.codex/generated_images/01a0a612-bd79-7783-a590-9b7f75f28e0b/exec-c1bd7080-e8b5-4063-a70f-faf4429a3158.png",
+      "prompt": "Use case: stylized-concept. Production realistic top-down spacecraft atlas for Tyran. Create a NEW coherent enemy family with ten spacecraft classes, from scout to finalboss; identical pixel footprint per sprite. Exact4equalcolumns×3equalrows, invisiblegrid, 12squarecells. Cell0 (row1col1): small ivory playerinterceptor, noseUP; cells1through10 are the ten enemyships; cell11bottomrightcompletelyemptytransparent. Enemyclassesinorder: scout, small twinpodfighter, light interceptor, medium skirmisher, armored defender, longgun artillery, broad heavy fighter, elite reaper, large dreadnought, finalboss with3reactorcores. Everyclass must have clearlydifferent silhouette while sharing familydesignlanguage. The boss has more complex armor and reactors but MUST FIT THE SAME CELL AND SAME PIXEL FOOTPRINT as every fighter. Keep all hulls fully visible, each centered in its own square with at least 15 percent transparent margin. EXACT ROWS: Row1: ivoryplayer, scout, twinpodfighter, interceptor. Row2: skirmisher, defender, artillery, heavyfighter. Row3: reaper, dreadnought, boss, EMPTY. Four and only four positions per row. Do not use five columns. Do not place boss across multiple cells.\nEvery object viewed precisely orthographic straight OVERHEAD, noseUP tailDOWN includingthelonggun artillery, zeroisometricperspective and zero yaw, bilaterally balancedhulls. Premium realistic pre-rendered3D game sprites with physicallymanufacturedmaterials, fine seams, bevels, recesses, subtlewear, controlledspecularpoints; no cartoonblackoutlines. Softupperleftlighting. CANONICAL SOURCE PALETTE FOR RUNTIME RECOLOR: enemy painted armor vermilionred#f05245, narrow goldyellowtrim#ffe35f, darkgunmetal recesses#04101b, tiny warmwhitecore. Large readable redpainted areasatleast65percent, neutralmetalatmost20percent. No greenorcyan on enemies. Playerivory#eaf4ec withcyan canopy. No exterior glow, no exhaust flames, no backgroundcastshadows, no labels, no text, no grids, no scenery. Genuine alphatransparency, no paintedblackrectangleorcheckerboard. The hue is canonical and willbe recoloredbygame, focus on distinct3Dsilhouettes. 4×3layout exact.\nFAMILY: Cryo Lances. Shape language: Severe CRYSTALLINE ARROWHEAD aerospace hulls: triangular prism wedges, sharp spear noses, faceted blade wings, sawtooth angular outeredges, splitdelta fighterbodies. Manufactured plated alloy with faceted reflectivepanels and darkcuts, no actualrocks. Almost allsilhouettes triangular orspikyforked.\nReference isONLYfor4×3 placementandredgoldmaterialpalette. Replace eachenemy with bold facetedtriangularprism aircraft, hardstraightedgeddelta slabs, extremelypointedspears and triangularnotches. No roundpods, curvedwingsorblockycratebodies. Artillerybarrel pointUP. Everycell hasonecompletehullsamefootprint.",
+      "references": [
+        "/Users/vojta/.codex/worktrees/234b/protocodus.github.io/fun/tyran/assets/sprites/fleet.png"
+      ]
+    },
+    {
+      "file": "fleet-neon.png",
+      "runtimeFile": "fleet-neon.webp",
+      "grid": [
+        4,
+        3
+      ],
+      "cells": [
+        "player",
+        "needle",
+        "mantis",
+        "corsair",
+        "stingray",
+        "bulwark",
+        "lancer",
+        "harbinger",
+        "reaper",
+        "dreadnought",
+        "sovereign",
+        null
+      ],
+      "biome": "neon",
+      "family": "Circuit Runners",
+      "shapeLanguage": "CYBERNETIC TECHNICAL H-FRAME fleet: thin rectangular ring frames, orthogonal rail wings, compact center modules floatingbetweenparallelgriddedbooms, square hollow cutouts, intricate panelcircuit paths. Highprecision futuristic mechanicaldrones with clearopennegative spaces, minimal broadwings. Clean squared frames distinguishfromdesertsteppedsoliddiamonds.",
+      "source": "/Users/vojta/.codex/generated_images/01a0a612-bd79-7783-a590-9b7f75f28e0b/exec-d40f9540-9251-4df5-831a-a72c72aa83cb.png",
+      "prompt": "Use case: stylized-concept. Production realistic top-down spacecraft atlas for Tyran. Create a NEW coherent enemy family with ten spacecraft classes, from scout to finalboss; identical pixel footprint per sprite. Exact4equalcolumns×3equalrows, invisiblegrid, 12squarecells. Cell0 (row1col1): small ivory playerinterceptor, noseUP; cells1through10 are the ten enemyships; cell11bottomrightcompletelyemptytransparent. Enemyclassesinorder: scout, small twinpodfighter, light interceptor, medium skirmisher, armored defender, longgun artillery, broad heavy fighter, elite reaper, large dreadnought, finalboss with3reactorcores. Everyclass must have clearlydifferent silhouette while sharing familydesignlanguage. The boss has more complex armor and reactors but MUST FIT THE SAME CELL AND SAME PIXEL FOOTPRINT as every fighter. Keep all hulls fully visible, each centered in its own square with at least 15 percent transparent margin. EXACT ROWS: Row1: ivoryplayer, scout, twinpodfighter, interceptor. Row2: skirmisher, defender, artillery, heavyfighter. Row3: reaper, dreadnought, boss, EMPTY. Four and only four positions per row. Do not use five columns. Do not place boss across multiple cells.\nEvery object viewed precisely orthographic straight OVERHEAD, noseUP tailDOWN includingthelonggun artillery, zeroisometricperspective and zero yaw, bilaterally balancedhulls. Premium realistic pre-rendered3D game sprites with physicallymanufacturedmaterials, fine seams, bevels, recesses, subtlewear, controlledspecularpoints; no cartoonblackoutlines. Softupperleftlighting. CANONICAL SOURCE PALETTE FOR RUNTIME RECOLOR: enemy painted armor vermilionred#f05245, narrow goldyellowtrim#ffe35f, darkgunmetal recesses#04101b, tiny warmwhitecore. Large readable redpainted areasatleast65percent, neutralmetalatmost20percent. No greenorcyan on enemies. Playerivory#eaf4ec withcyan canopy. No exterior glow, no exhaust flames, no backgroundcastshadows, no labels, no text, no grids, no scenery. Genuine alphatransparency, no paintedblackrectangleorcheckerboard. The hue is canonical and willbe recoloredbygame, focus on distinct3Dsilhouettes. 4×3layout exact.\nFAMILY: Circuit Runners. Shape language: CYBERNETIC TECHNICAL H-FRAME fleet: thin rectangular ring frames, orthogonal rail wings, compact center modules floatingbetweenparallelgriddedbooms, square hollow cutouts, intricate panelcircuit paths. Highprecision futuristic mechanicaldrones with clearopennegative spaces, minimal broadwings. Clean squared frames distinguishfromdesertsteppedsoliddiamonds.\nReference is ONLY for four-by-three placement and physically realistic materials. Redraw every enemy with new visibly open H-frame silhouettes: strong negative-space rectangular frames, detached-looking armored rail booms joined by bridges, square core modules. Do not merely reskin the reference fighter outlines. Clear four columns and three rows. All barrels face UP.",
+      "references": [
+        "/Users/vojta/.codex/worktrees/234b/protocodus.github.io/fun/tyran/assets/sprites/fleet.png"
+      ]
+    },
+    {
+      "file": "fleet-alien.png",
+      "runtimeFile": "fleet-alien.webp",
+      "grid": [
+        4,
+        3
+      ],
+      "cells": [
+        "player",
+        "needle",
+        "mantis",
+        "corsair",
+        "stingray",
+        "bulwark",
+        "lancer",
+        "harbinger",
+        "reaper",
+        "dreadnought",
+        "sovereign",
+        null
+      ],
+      "biome": "alien",
+      "family": "Spore Covenant",
+      "shapeLanguage": "ORGANIC BIO-MECHANICAL spacecraft: bulbous seedpod hulls, ribbed beetle carapaces, curled petal fins, sinuous coral-like structural arches, asymmetrical lobedouteredges butbalancedoverall. Chitin/ceramic surfaces integratedwith tiny metal engines and cockpits. No gore, no flesh wounds, nopersons. Readable alien manufacturedliving ships, visiblyorganicnotconventionalplanes.",
+      "source": "/Users/vojta/.codex/generated_images/01a0a612-bd79-7783-a590-9b7f75f28e0b/exec-ef13f808-35c8-4811-9d15-4b5898779bb7.png",
+      "prompt": "Use case: stylized-concept. Production realistic top-down spacecraft atlas for Tyran. Create a NEW coherent enemy family with ten spacecraft classes, from scout to finalboss; identical pixel footprint per sprite. Exact4equalcolumns×3equalrows, invisiblegrid, 12squarecells. Cell0 (row1col1): small ivory playerinterceptor, noseUP; cells1through10 are the ten enemyships; cell11bottomrightcompletelyemptytransparent. Enemyclassesinorder: scout, small twinpodfighter, light interceptor, medium skirmisher, armored defender, longgun artillery, broad heavy fighter, elite reaper, large dreadnought, finalboss with3reactorcores. Everyclass must have clearlydifferent silhouette while sharing familydesignlanguage. The boss has more complex armor and reactors but MUST FIT THE SAME CELL AND SAME PIXEL FOOTPRINT as every fighter. Keep all hulls fully visible, each centered in its own square with at least 15 percent transparent margin. EXACT ROWS: Row1: ivoryplayer, scout, twinpodfighter, interceptor. Row2: skirmisher, defender, artillery, heavyfighter. Row3: reaper, dreadnought, boss, EMPTY. Four and only four positions per row. Do not use five columns. Do not place boss across multiple cells.\nEvery object viewed precisely orthographic straight OVERHEAD, noseUP tailDOWN includingthelonggun artillery, zeroisometricperspective and zero yaw, bilaterally balancedhulls. Premium realistic pre-rendered3D game sprites with physicallymanufacturedmaterials, fine seams, bevels, recesses, subtlewear, controlledspecularpoints; no cartoonblackoutlines. Softupperleftlighting. CANONICAL SOURCE PALETTE FOR RUNTIME RECOLOR: enemy painted armor vermilionred#f05245, narrow goldyellowtrim#ffe35f, darkgunmetal recesses#04101b, tiny warmwhitecore. Large readable redpainted areasatleast65percent, neutralmetalatmost20percent. No greenorcyan on enemies. Playerivory#eaf4ec withcyan canopy. No exterior glow, no exhaust flames, no backgroundcastshadows, no labels, no text, no grids, no scenery. Genuine alphatransparency, no paintedblackrectangleorcheckerboard. The hue is canonical and willbe recoloredbygame, focus on distinct3Dsilhouettes. 4×3layout exact.\nFAMILY: Spore Covenant. Shape language: ORGANIC BIO-MECHANICAL spacecraft: bulbous seedpod hulls, ribbed beetle carapaces, curled petal fins, sinuous coral-like structural arches, asymmetrical lobedouteredges butbalancedoverall. Chitin/ceramic surfaces integratedwith tiny metal engines and cockpits. No gore, no flesh wounds, nopersons. Readable alien manufacturedliving ships, visiblyorganicnotconventionalplanes.\nReference is ONLY for four-by-three placement, red/gold color zones, and realistic surface shading. Entirely redraw every enemy into organic ribbed seed pods, lobed flower petals and curled chitin carapaces. Extremely different silhouettes from the reference's airplane-like ships. Even smallest ship looks bulbous organic. Large boss is a ribbed symmetric petal cluster with three warm reactor organs. No animals/people. Keep exact four columns, three rows, eleven hulls and final empty cell. All noses and artillery pointed UP.",
+      "references": [
+        "/Users/vojta/.codex/worktrees/234b/protocodus.github.io/fun/tyran/assets/sprites/fleet.png"
+      ],
+      "notes": "Source Lancer/index6 barrel points down. Runtime corrects its canonical heading by 180 degrees during one-time sprite baking."
+    },
+    {
+      "file": "fleet-void.png",
+      "runtimeFile": "fleet-void.webp",
+      "grid": [
+        4,
+        3
+      ],
+      "cells": [
+        "player",
+        "needle",
+        "mantis",
+        "corsair",
+        "stingray",
+        "bulwark",
+        "lancer",
+        "harbinger",
+        "reaper",
+        "dreadnought",
+        "sovereign",
+        null
+      ],
+      "biome": "void",
+      "family": "Aurum Cathedral",
+      "shapeLanguage": "ORNATE GOTHIC aerospace dreadnoughts: long cathedral-spire noses, pointed arch cutouts, scalloped buttress outriggers, elongated diamond reliquary hulls, ceremonial cross wings and recessed darkchapels/reactors. Precise mechanical spacewarships with engravedmetal, no realbuildings orterrain. Stately angularsymmetry, distinctfromallround/clunky/organicfamilies.",
+      "source": "/Users/vojta/.codex/generated_images/01a0a612-bd79-7783-a590-9b7f75f28e0b/exec-c1129e0c-515e-429f-8799-4b30403fd234.png",
+      "prompt": "Use case: stylized-concept. Production realistic top-down spacecraft atlas for Tyran. Create a NEW coherent enemy family with ten spacecraft classes, from scout to finalboss; identical pixel footprint per sprite. Exact4equalcolumns×3equalrows, invisiblegrid, 12squarecells. Cell0 (row1col1): small ivory playerinterceptor, noseUP; cells1through10 are the ten enemyships; cell11bottomrightcompletelyemptytransparent. Enemyclassesinorder: scout, small twinpodfighter, light interceptor, medium skirmisher, armored defender, longgun artillery, broad heavy fighter, elite reaper, large dreadnought, finalboss with3reactorcores. Everyclass must have clearlydifferent silhouette while sharing familydesignlanguage. The boss has more complex armor and reactors but MUST FIT THE SAME CELL AND SAME PIXEL FOOTPRINT as every fighter. Keep all hulls fully visible, each centered in its own square with at least 15 percent transparent margin. EXACT ROWS: Row1: ivoryplayer, scout, twinpodfighter, interceptor. Row2: skirmisher, defender, artillery, heavyfighter. Row3: reaper, dreadnought, boss, EMPTY. Four and only four positions per row. Do not use five columns. Do not place boss across multiple cells.\nEvery object viewed precisely orthographic straight OVERHEAD, noseUP tailDOWN includingthelonggun artillery, zeroisometricperspective and zero yaw, bilaterally balancedhulls. Premium realistic pre-rendered3D game sprites with physicallymanufacturedmaterials, fine seams, bevels, recesses, subtlewear, controlledspecularpoints; no cartoonblackoutlines. Softupperleftlighting. CANONICAL SOURCE PALETTE FOR RUNTIME RECOLOR: enemy painted armor vermilionred#f05245, narrow goldyellowtrim#ffe35f, darkgunmetal recesses#04101b, tiny warmwhitecore. Large readable redpainted areasatleast65percent, neutralmetalatmost20percent. No greenorcyan on enemies. Playerivory#eaf4ec withcyan canopy. No exterior glow, no exhaust flames, no backgroundcastshadows, no labels, no text, no grids, no scenery. Genuine alphatransparency, no paintedblackrectangleorcheckerboard. The hue is canonical and willbe recoloredbygame, focus on distinct3Dsilhouettes. 4×3layout exact.\nFAMILY: Aurum Cathedral. Shape language: ORNATE GOTHIC aerospace dreadnoughts: long cathedral-spire noses, pointed arch cutouts, scalloped buttress outriggers, elongated diamond reliquary hulls, ceremonial cross wings and recessed darkchapels/reactors. Precise mechanical spacewarships with engravedmetal, no realbuildings orterrain. Stately angularsymmetry, distinctfromallround/clunky/organicfamilies.\nReference is ONLY for exact four-column three-row layout, source color, and realistic materials. Entirely redraw all silhouettes as long gothic spires, pointed cathedral arches, paired slender buttresses and ceremonial diamond hulls. Strong ornamental arch negative spaces and engraved gold rims. Clearly spacecraft, not actual buildings. Artillery cannon muzzle at TOP end, NO barrel pointing down. Keep every cell separate and same size. Eleven ships, bottom-right empty.",
+      "references": [
+        "/Users/vojta/.codex/worktrees/234b/protocodus.github.io/fun/tyran/assets/sprites/fleet.png"
+      ]
     }
-  ]
+  ],
+  "updated": "2026-09-20",
+  "runtimeExport": {
+    "format": "lossless WebP",
+    "command": "cwebp -lossless -exact -m 6 INPUT.png -o OUTPUT.webp",
+    "verification": "All 22 exports verified for exact decoded RGBA and dimensions; original PNG SHA-256 hashes unchanged.",
+    "sourcePngBytes": 38109396,
+    "runtimeWebpBytes": 27863964
+  }
 }

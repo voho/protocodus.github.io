@@ -2,6 +2,10 @@
 const LAYOUTS = Object.freeze({
   fleet: [4, 3], nature: [4, 4], structures: [4, 4],
   materials: [8, 5], effects: [4, 4], projectiles: [4, 3], pickups: [2, 1],
+  fleetLeft: [4, 3], fleetRight: [4, 3],
+  structureLight: [4, 4], structureHeavy: [4, 4], structureCrater: [4, 4],
+  fleetJungle: [4, 3], fleetSnow: [4, 3], fleetDesert: [4, 3], fleetParadise: [4, 3], fleetAsteroid: [4, 3],
+  fleetMars: [4, 3], fleetVolcanic: [4, 3], fleetNeon: [4, 3], fleetAlien: [4, 3], fleetVoid: [4, 3],
 });
 const atlases = new Map();
 const cells = new Map();
@@ -27,7 +31,8 @@ async function loadAtlas(name) {
       image.onload = resolve;
       image.onerror = () => reject(new Error(`Unable to load ${name} sprite atlas`));
     });
-    image.src = new URL(`./assets/sprites/${name}.png`, import.meta.url).href;
+    const file = name.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`);
+    image.src = new URL(`./assets/sprites/${file}.webp`, import.meta.url).href;
     await loaded;
     if (image.decode) await image.decode();
     atlases.set(name, image);
@@ -103,7 +108,7 @@ export function spriteCell(name, index) {
   const image = atlases.get(name), layout = LAYOUTS[name];
   if (!image || !layout || !Number.isInteger(index) || index < 0 || index >= layout[0] * layout[1]) return null;
   const key = `${name}:${index}`;
-  if ((name === 'fleet' || name === 'structures') && !connectedAtlases.has(name)) connectedCells(name,image,layout);
+  if ((name.startsWith('fleet') || name === 'structures') && !connectedAtlases.has(name)) connectedCells(name,image,layout);
   if (cells.has(key)) return cells.get(key);
   const [columns, rows] = layout, col = index % columns, row = Math.floor(index / columns);
   const x = Math.round(col * image.naturalWidth / columns), y = Math.round(row * image.naturalHeight / rows);

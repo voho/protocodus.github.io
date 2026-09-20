@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { ENEMY_TYPES } from '../ships.js';
 import { createCampaign, beginLevel, update, spawnEnemy, killEnemy, hurtPlayer,
-  spawnFormation, selectWeapon, weaponStats, WEAPONS, buyUpgrade, upgradeCost, shipStats, UPGRADES, MAX_UPGRADE } from '../sim.js';
+  spawnFormation, selectWeapon, weaponStats, WEAPONS, buyUpgrade, upgradeCost, shipStats, UPGRADES, MAX_UPGRADE, applyStructureBlast } from '../sim.js';
 
 // Run with: node fun/tyran/tests/sim-check.mjs
 // Add --balance for reproducible keyboard-style autopilot campaign trials.
@@ -70,6 +70,59 @@ check('hostile rounds scale with ship class and use spectrum colors', () => {
   assert.ok(largeBullet.radius > smallBullet.radius);
   assert.ok(largeBullet.damage > smallBullet.damage);
   assert.notEqual(largeBullet.color, smallBullet.color);
+});
+
+check('large structure blasts push both teams outward with mass and distance falloff',()=>{
+  const state=isolated(2),left=state.players[0],right=state.players[1];
+  Object.assign(left,{x:550,y:600,mass:1});Object.assign(right,{x:650,y:600,mass:2});
+  const nearby=spawnEnemy(state,0,600,545),far=spawnEnemy(state,0,950,600),heavy=spawnEnemy(state,8,630,600),boss=spawnEnemy(state,9,590,600),dead=spawnEnemy(state,0,590,600);
+  dead.dead=true;
+  const ships=[left,right,nearby,far,heavy,boss,dead],positions=ships.map(p=>[p.x,p.y]),health=ships.map(p=>[p.hp,p.hull,p.shield]);
+  applyStructureBlast(state,{x:600,y:600,size:80,footprint:80,blastRadius:224,structural:true});
+  assert(left.blastVx<0&&right.blastVx>0&&nearby.blastVy<0,'all nearby light craft move away from the center');
+  assert(Math.abs(left.blastVx/right.blastVx+2)<1e-9,'double mass receives half the initial shove');
+  for(const p of [far,heavy,boss,dead])assert.equal(Math.hypot(p.blastVx,p.blastVy),0,'distant, heavy, boss and dead hulls are unaffected');
+  assert.deepEqual(ships.map(p=>[p.x,p.y]),positions,'an impulse never teleports ships');
+  assert.deepEqual(ships.map(p=>[p.hp,p.hull,p.shield]),health,'shoves cause no damage');
+  const edge=spawnEnemy(state,0,810,600);applyStructureBlast(state,{x:600,y:600,size:80,blastRadius:224,structural:true});
+  assert(Math.abs(edge.blastVx)<Math.abs(nearby.blastVy)*.1,'the impulse fades smoothly near its boundary');
+});
+
+check('structure blast drift survives steering, decays smoothly and stays frame-rate independent',()=>{
+  const initial=isolated(),pilot=initial.players[0];Object.assign(pilot,{x:650,y:600,px:650,py:600});
+  const explosion={x:600,y:600,size:80,structural:true};
+  applyStructureBlast(initial,explosion);const speed=pilot.blastVx,positions=[];
+  for(const hz of [30,60,120]){
+    const state=structuredClone(initial);
+    for(let step=0;step<hz;step++)update(state,1/hz,[{}]);
+    positions.push(state.players[0].x);
+    assert(state.players[0].blastVx>0&&state.players[0].blastVx<speed*.03);
+    assert(Math.abs(state.players[0].x-(650+speed*.28*(1-Math.exp(-1/.28))))<1e-8);
+  }
+  assert(Math.max(...positions)-Math.min(...positions)<1e-8);
+  const enemy=spawnEnemy(initial,0,550,300);enemy.fire=100;
+  const baseline=structuredClone(initial);applyStructureBlast(initial,{x:600,y:300,size:80,structural:true});
+  update(initial,.025);update(baseline,.025);
+  assert(initial.enemies[0].x<baseline.enemies[0].x,'flight pattern steering does not erase the external shove');
+});
+
+check('only large structural destruction emits a finite bounded one-time shove',()=>{
+  const state=isolated(),pilot=state.players[0];Object.assign(pilot,{x:600,y:600});
+  for(const prop of [{size:80,structural:false},{size:40,footprint:40,structural:true}])applyStructureBlast(state,{x:600,y:600,...prop});
+  assert.equal(pilot.blastVx,0);assert.equal(pilot.blastVy,0);
+  const prop={x:600,y:600,size:80,structural:true,value:12};
+  applyStructureBlast(state,prop);const first=[pilot.blastVx,pilot.blastVy];
+  pilot.blastVx=pilot.blastVy=0;applyStructureBlast(state,prop);
+  assert.deepEqual([pilot.blastVx,pilot.blastVy],first,'coincident centers use a stable finite direction');
+  for(let i=0;i<100;i++)applyStructureBlast(state,prop);
+  assert(Math.hypot(pilot.blastVx,pilot.blastVy)<=110.00000001,'chain detonations cannot build excessive drift');
+  const eventState=isolated();Object.assign(eventState.players[0],{x:650,y:600});eventState.bullets.push(bolt(400,400,0,1));
+  let destroyed=false;
+  const hit=()=>{if(destroyed)return[];destroyed=true;return[prop];};
+  update(eventState,.01,[],hit);
+  assert(eventState.players[0].blastVx>0&&eventState.destroyed===1,'actual scenery destruction invokes the shove');
+  const impulse=eventState.players[0].blastVx;update(eventState,.01,[],hit);
+  assert(eventState.players[0].blastVx<impulse&&eventState.destroyed===1,'a persistent crater never repeats its impulse');
 });
 
 check('boss volleys respect the hostile projectile limit', () => {

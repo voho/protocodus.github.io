@@ -89,6 +89,7 @@ function makeWeakPoints(hp, radius) {
 }
 
 export const PLAYER_SPEED = 365;
+const BLAST_DECAY = .28, MAX_BLAST_SPEED = 110;
 // Time constants in seconds: upgrades add a little weight, but retain full top
 // speed. Integrating both velocity and distance analytically keeps steering the
 // same at 30, 60 and 120 Hz and preserves a short, controlled coast on release.
@@ -98,13 +99,39 @@ function accelerate(body, targetX, targetY, response, dt) {
   body.y += targetY * dt + (body.vy - targetY) * travel;
   body.vx = targetX + (body.vx - targetX) * decay;
   body.vy = targetY + (body.vy - targetY) * decay;
+  // A blast is an external impulse. Steering must not erase it in the next tick.
+  const blastX = body.blastVx || 0, blastY = body.blastVy || 0;
+  if (blastX || blastY) {
+    const blastDecay = Math.exp(-dt / BLAST_DECAY), blastTravel = BLAST_DECAY * (1 - blastDecay);
+    body.x += blastX * blastTravel; body.y += blastY * blastTravel;
+    body.blastVx = Math.abs(blastX * blastDecay) < .01 ? 0 : blastX * blastDecay;
+    body.blastVy = Math.abs(blastY * blastDecay) < .01 ? 0 : blastY * blastDecay;
+  }
 }
 
 function constrain(body, left, right, top = -Infinity, bottom = Infinity) {
-  if (body.x <= left) { body.x = left; body.vx = Math.max(0, body.vx); }
-  if (body.x >= right) { body.x = right; body.vx = Math.min(0, body.vx); }
-  if (body.y <= top) { body.y = top; body.vy = Math.max(0, body.vy); }
-  if (body.y >= bottom) { body.y = bottom; body.vy = Math.min(0, body.vy); }
+  if (body.x <= left) { body.x = left; body.vx = Math.max(0, body.vx); body.blastVx = Math.max(0, body.blastVx || 0); }
+  if (body.x >= right) { body.x = right; body.vx = Math.min(0, body.vx); body.blastVx = Math.min(0, body.blastVx || 0); }
+  if (body.y <= top) { body.y = top; body.vy = Math.max(0, body.vy); body.blastVy = Math.max(0, body.blastVy || 0); }
+  if (body.y >= bottom) { body.y = bottom; body.vy = Math.min(0, body.vy); body.blastVy = Math.min(0, body.blastVy || 0); }
+}
+
+/** Large ground explosions gently displace nearby light craft without damage. */
+export function applyStructureBlast(s, prop) {
+  if (!prop.structural || (prop.footprint ?? prop.size ?? 0) < 55) return;
+  const radius = prop.blastRadius || clamp((prop.size || 0) * 2.8, 120, 250);
+  for (const fleet of [s.players, s.enemies]) for (const ship of fleet) {
+    if (ship.alive === false || ship.dead || ship.boss || ship.radius > 36) continue;
+    const dx = ship.x - prop.x, dy = ship.y - prop.y, distance = Math.hypot(dx, dy);
+    if (distance >= radius) continue;
+    // Coincident centers get a stable direction without consuming the game RNG.
+    const angle = (ship.id || 0) * 2.399963229728653 + (fleet === s.players ? Math.PI : 0);
+    const nx = distance > 1e-6 ? dx / distance : Math.cos(angle), ny = distance > 1e-6 ? dy / distance : Math.sin(angle);
+    const impulse = MAX_BLAST_SPEED * (1 - distance / radius) ** 2 / Math.max(.6, ship.mass || 1);
+    const vx = (ship.blastVx || 0) + nx * impulse, vy = (ship.blastVy || 0) + ny * impulse;
+    const limit = Math.max(1, Math.hypot(vx, vy) / MAX_BLAST_SPEED);
+    ship.blastVx = vx / limit; ship.blastVy = vy / limit;
+  }
 }
 
 // Most bolts are nowhere near a hull. Reject against the swept rectangle first;
@@ -145,7 +172,7 @@ export function beginLevel(s, level) {
   const stats = shipStats(s.upgrades);
   s.players = Array.from({ length: s.mode }, (_, i) => {
     const x = s.width * (s.mode === 1 ? .5 : i ? .62 : .38), y = s.height * .68;
-    return { id: i, x, y, px: x, py: y, vx: 0, vy: 0, mass: stats.mass, thrust: .9, radius: 17, hull: stats.hull, shield: stats.shield, maxHull: stats.hull, maxShield: stats.shield, fire: 0, hurt: 0, lastHit: -10, bank: 0, alive: true };
+    return { id: i, x, y, px: x, py: y, vx: 0, vy: 0, blastVx: 0, blastVy: 0, mass: stats.mass, thrust: .9, radius: 17, hull: stats.hull, shield: stats.shield, maxHull: stats.hull, maxShield: stats.shield, fire: 0, hurt: 0, lastHit: -10, bank: 0, alive: true };
   });
   return s;
 }
@@ -167,7 +194,7 @@ export function spawnEnemy(s, type, x, y = -100) {
   // damage sponge; the open-core rhythm supplies the challenge instead.
   const hp = spec.hp * (1 + s.level * (boss ? .08 : .24)) * (s.mode === 2 ? 1.65 : 1);
   const e = { id: s.nextEnemyId++, type, x: x ?? rand(100, s.width - 100), y, originX: x ?? s.width / 2, vx: 0, vy: boss ? 0 : spec.speed,
-    mass: .55 + (spec.radius / 18) ** 1.4 * .5, bank: 0, thrust: boss ? 1.05 : .85,
+    blastVx: 0, blastVy: 0, mass: .55 + (spec.radius / 18) ** 1.4 * .5, bank: 0, thrust: boss ? 1.05 : .85,
     hp, maxHp: hp, radius: spec.radius, speed: spec.speed, age: 0, fire: boss ? 2 : rand(.8, 2.4), phase: 0, hurt: 0, seed: rand(0, 10), dead: false, boss, warning: 0,
     formation: null, formationOffset: null };
   e.originX = e.x;
@@ -539,6 +566,7 @@ export function update(s, dt, input = [], environmentHit = null) {
         const props = environmentHit(b.x, b.y, radius, b.damage * (b.splash ? 1.15 : 1), s.scroll) || [];
         for (const prop of props) {
           s.destroyed++; s.credits += prop.value || 8; s.score += 25;
+          applyStructureBlast(s, prop);
           s.events.push({ type: 'explosion', ...prop, size: Math.min(48, prop.size || 22), ground: true, blast: b.comboBlast || 1 });
         }
       }

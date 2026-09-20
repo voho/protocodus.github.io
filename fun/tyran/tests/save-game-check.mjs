@@ -167,6 +167,35 @@ check('untrusted save data is bounded and unknown properties never enter live st
   record.state.players[0].x = '@infinity'; assert.equal(restoreRun(record), null);
 });
 
+check('scenery health versions distinguish older absolute-HP saves without losing damage', () => {
+  const state = flight(), damage = new Map([['1894:1:2:3:0', 18.5]]);
+  const current = JSON.parse(serializeRun(state, { damage }));
+  assert.equal(current.sceneryVersion, 2);
+  assert.equal(restoreRun(current).sceneryVersion, 2);
+  delete current.sceneryVersion;
+  const legacy = restoreRun(current);
+  assert.equal(legacy.sceneryVersion, 1);
+  assert.deepEqual(legacy.damage, damage);
+  // Re-encoding a save without visiting its map must keep the pending migration.
+  assert.equal(restoreRun(serializeRun(legacy.state, legacy)).sceneryVersion, 1);
+  current.sceneryVersion = 999;
+  assert.equal(restoreRun(current), null);
+});
+
+check('blast momentum survives saves and older actors default to zero impulse', () => {
+  const state = flight();
+  state.players[0].blastVx = 35; state.players[0].blastVy = -48;
+  state.enemies[0].blastVx = -27; state.enemies[0].blastVy = 61;
+  const record = JSON.parse(serializeRun(state)), restored = restoreRun(record).state;
+  assert.equal(restored.players[0].blastVx, 35); assert.equal(restored.players[0].blastVy, -48);
+  assert.equal(restored.enemies[0].blastVx, -27); assert.equal(restored.enemies[0].blastVy, 61);
+  delete record.state.players[0].blastVx; delete record.state.players[0].blastVy;
+  record.state.enemies[0].blastVx = 1000; record.state.enemies[0].blastVy = -1000;
+  const legacy = restoreRun(record).state;
+  assert.equal(legacy.players[0].blastVx, 0); assert.equal(legacy.players[0].blastVy, 0);
+  assert.equal(legacy.enemies[0].blastVx, 110); assert.equal(legacy.enemies[0].blastVy, -110);
+});
+
 check('invalid relationships, versions, statuses and oversized collections are rejected', () => {
   const source = serializeRun(flight());
   const corrupt = edit => { const record = JSON.parse(source); edit(record); assert.equal(restoreRun(record), null); };
