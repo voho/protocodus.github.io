@@ -81,4 +81,4 @@ Temporary rapid-fire and invulnerability pickups reuse those equipment sprites w
 
 ## Fonts
 
-The interface uses the repository's existing self-hosted Space Grotesk and Oxanium fonts. No third-party font request is made.
+Menus, HUD and canvas text use locally served Chakra Petch in four Latin WOFF2 weights (about 39 KB total). See [font provenance and license](fonts/README.md). No third-party font request is made.

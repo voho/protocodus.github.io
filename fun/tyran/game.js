@@ -7,8 +7,11 @@ import { readCampaign, writeCampaign } from './save-game.js';
 import { spritesReady, spriteStatus, spriteCell } from './sprite-assets.js';
 import { drawProjectiles, warmProjectileTextures } from './projectile-sprites.js';
 
-// Decode the atlas library before warming render caches or accepting flight input.
-await spritesReady;
+// Load atlas art and the canvas typeface before warming cached artwork.
+await Promise.all([
+  spritesReady,
+  document.fonts.load('700 14px "Chakra Petch"').catch(() => []),
+]);
 
 const elements = new Map();
 const $ = id => { if (!elements.has(id)) { const el = document.getElementById(id); if (el) elements.set(id, el); } return elements.get(id); };
@@ -215,9 +218,9 @@ function refreshHUD() {
   setText($('score-value'), number(state.score)); setText($('credits-value'), number(state.credits));
   const profile = weaponStats(state, 'pulse');
   const stats = shipStats(state.upgrades);
-  setText($('weapon-value'), 'Pulse + plasma'); setText($('weapon-level'), `MK ${String(profile.level + 1).padStart(2, '0')}`);
+  setText($('weapon-value'), 'Pulse + plasma'); setText($('weapon-level'), `Mk ${String(profile.level + 1).padStart(2, '0')}`);
   const activeCombo = state.combo >= 2 && state.comboTime > 0;
-  setText($('combo-value'), activeCombo ? `${state.combo} · ${comboLabel(state.combo)}` : 'READY');
+  setText($('combo-value'), activeCombo ? `${state.combo} · ${comboLabel(state.combo)}` : 'Ready');
   setFill($('combo-fill'), activeCombo ? state.comboTime / 5.2 : 0);
   $('combo-instrument').classList.toggle('active', activeCombo);
   setFill($('progress-fill'), state.time / state.duration);
@@ -284,7 +287,7 @@ function renderWeapons() {
     const power = Math.round(Math.min(100, stats.damage * stats.count * 1.18));
     const speed = Math.round(100 * fastestInterval / stats.interval);
     const range = Math.round(Math.min(100, stats.speed / 12));
-    return `<article class="weapon-card" data-weapon="${weapon.id}" style="--weapon-color:${weapon.color}"><span class="weapon-icon" aria-hidden="true">${secondary ? '◉' : 'Ⅱ'}</span><span class="weapon-swatch"></span><span class="weapon-copy"><strong>${weapon.name}</strong><small>${secondary ? 'Secondary · Q' : 'Primary · Space'}</small></span><span class="weapon-description">${weapon.description} ${secondary ? `${SECONDARY_ENERGY_COST} energy per shot; resumes at ${SECONDARY_RESTART_ENERGY} after depletion.` : 'Unlimited fire; no energy cost.'}</span><span class="weapon-bars" aria-label="Power ${power}, fire rate ${speed}, reach ${range}"><i style="--bar:${power}%"></i><i style="--bar:${speed}%"></i><i style="--bar:${range}%"></i></span><span class="weapon-readout"><b>${stats.damage.toFixed(1)} DMG</b><b>${(1 / stats.interval).toFixed(1)} / SEC</b></span></article>`;
+    return `<article class="weapon-card" data-weapon="${weapon.id}" style="--weapon-color:${weapon.color}"><span class="weapon-icon" aria-hidden="true">${secondary ? '◉' : 'Ⅱ'}</span><span class="weapon-swatch"></span><span class="weapon-copy"><strong>${weapon.name}</strong><small>${secondary ? 'Secondary · q' : 'Primary · space'}</small></span><span class="weapon-description">${weapon.description} ${secondary ? `${SECONDARY_ENERGY_COST} energy per shot; resumes at ${SECONDARY_RESTART_ENERGY} after depletion.` : 'Unlimited fire; no energy cost.'}</span><span class="weapon-bars" aria-label="Power ${power}, fire rate ${speed}, reach ${range}"><i style="--bar:${power}%"></i><i style="--bar:${speed}%"></i><i style="--bar:${range}%"></i></span><span class="weapon-readout"><b>${stats.damage.toFixed(1)} damage</b><b>${(1 / stats.interval).toFixed(1)} / s</b></span></article>`;
   }).join('');
 }
 
@@ -411,7 +414,7 @@ function pickupTexture(kind) {
       paint.lineTo(36, 36); paint.closePath(); paint.stroke();
       paint.fillRect(46, 40, 4, 11); paint.fillRect(42, 44, 12, 3);
     }
-    paint.font = 'bold 14px "Oxanium", sans-serif'; paint.textAlign = 'center'; paint.fillText('10s', 48, 81);
+    paint.font = 'bold 14px "Chakra Petch", sans-serif'; paint.textAlign = 'center'; paint.fillText('10s', 48, 81);
   }
   pickupTextures.set(key, out); return out;
 }
@@ -520,7 +523,7 @@ function draw() {
       drawPilotBonuses(p, x, y);
     }
     if (state.combo >= 2 && state.comboTime > 0) {
-      ctx.textAlign = 'right'; ctx.font = 'bold 22px "Space Grotesk", sans-serif'; ctx.fillStyle = state.combo >= 5 ? '#ffe36d' : '#d8fce7';
+      ctx.textAlign = 'right'; ctx.font = 'bold 22px "Chakra Petch", sans-serif'; ctx.fillStyle = state.combo >= 5 ? '#ffe36d' : '#d8fce7';
       ctx.fillText(`${state.combo}  ${comboLabel(state.combo)}`, W - 30, H - 32);
       ctx.fillStyle = '#d8fce766'; ctx.fillRect(W - 180, H - 20, 150, 2); ctx.fillStyle = '#ffe18c'; ctx.fillRect(W - 180, H - 20, 150 * clamp(state.comboTime / 5.2, 0, 1), 2);
     }

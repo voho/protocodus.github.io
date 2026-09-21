@@ -13,4 +13,4 @@
 - Every fighter uses one fixed hull sprite, with separate shadows, engine light and restrained animation.
 - Single-player flight uses WASD to move, Space for primary fire and Q for secondary fire. Primary pulse is unlimited; stronger secondary plasma consumes regenerating energy. Formations, boss weak points and timed armor windows reward different tactics.
 - Campaign progress saves automatically in the browser, including fire energy; the shop offers shared equipment upgrades after each sector.
-- The interface uses sentence-case copy and an Oxanium display face for the flight-command feel; Space Grotesk remains the readable body face.
+- The interface uses normal-case labels and locally served Chakra Petch for a consistent space-console feel.
