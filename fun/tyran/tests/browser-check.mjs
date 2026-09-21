@@ -46,19 +46,18 @@ try {
   await page.locator('#menu-button').click();
   assert.equal(await page.evaluate(() => tyran.scene), 'menu');
   await page.locator('button[data-world="0"]').click();
-  await page.locator('[data-mode="2"]').click();
   await page.locator('#launch-button').click();
-  assert.equal(await page.evaluate(() => tyran.state.mode), 2);
+  assert.equal(await page.evaluate(() => tyran.state.mode), 1);
   assert.equal(await page.evaluate(() => tyran.state.level), 0, 'Selecting the first sector starts the first sector');
-  assert(await page.locator('#p2-panel').isVisible());
+  assert.equal(await page.locator('#p2-panel, [data-mode]').count(), 0);
   const before = await page.evaluate(() => tyran.state.players.map(p => ({ x:p.x,y:p.y })));
-  await page.keyboard.down('KeyD'); await page.keyboard.down('KeyJ');
-  await page.keyboard.down('KeyY'); await page.keyboard.down('KeyN');
+  await page.keyboard.down('KeyD');
+  await page.keyboard.down('Space');
   await page.waitForTimeout(400);
   const moved = await page.evaluate(() => ({ players:tyran.state.players.map(p=>({x:p.x,y:p.y})), teams:[...new Set(tyran.state.bullets.map(b=>b.team))] }));
-  assert(moved.players[0].x > before[0].x && moved.players[1].x < before[1].x, 'Both players move independently');
-  assert(moved.teams.includes(0) && moved.teams.includes(1), 'Y and N fire independently');
-  for (const key of ['KeyD','KeyJ','KeyY','KeyN']) await page.keyboard.up(key);
+  assert(moved.players.length === 1 && moved.players[0].x > before[0].x, 'WASD moves the single player');
+  assert(moved.teams.includes(0) && !moved.teams.includes(1), 'Space fires the only player');
+  for (const key of ['KeyD','Space']) await page.keyboard.up(key);
   await page.evaluate(() => {
     tyran.state.events.push({ type:'explosion', x:tyran.state.width / 2, y:250, size:250, boss:true });
     tyran.step(.02);
@@ -113,12 +112,12 @@ try {
   await page.locator('#continue-button').click();
   assert.equal(await page.evaluate(() => tyran.state.level), 1);
   assert.equal(await page.evaluate(() => tyran.state.upgrades.weapon), 1);
-  assert.equal(await page.evaluate(() => tyran.state.mode), 2);
+  assert.equal(await page.evaluate(() => tyran.state.mode), 1);
   await page.screenshot({ path:`${output}/flight.png` });
   // All ten guardians can lead through the genuine completion flow.
   await page.evaluate(async () => {
     const {spawnEnemy,killEnemy}=await import('./sim.js');
-    tyran.launch(9,{ mode:1, upgrades:{weapon:6,shield:6,hull:6,recharge:6} });
+    tyran.launch(9,{ upgrades:{weapon:6,shield:6,hull:6,recharge:6} });
     killEnemy(tyran.state,spawnEnemy(tyran.state,9,tyran.state.width/2,180)); tyran.step(3.4);
   });
   assert(await page.locator('#end-screen').isVisible());
@@ -152,5 +151,5 @@ try {
   await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
   await mobile.screenshot({path:`${output}/mobile-flight.png`});
   assert.deepEqual(errors,[],'No browser errors');
-  console.log('Tyran browser QA passed: ten worlds, independent co-op controls, pause, scenery destruction, upgrade economy, saved continuation, victory, blocked storage, and mobile touch.');
+  console.log('Tyran browser QA passed: ten worlds, single-player controls, pause, scenery destruction, upgrade economy, saved continuation, victory, blocked storage, and mobile touch.');
 } finally { await browser.close(); }

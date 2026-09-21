@@ -7,8 +7,8 @@ function check(name, fn) {
   try { fn(); console.log(`PASS ${name}`); }
   catch (error) { failures++; console.error(`FAIL ${name}: ${error.stack}`); }
 }
-function quiet(mode = 1) {
-  const state = createCampaign(mode);
+function quiet() {
+  const state = createCampaign();
   state.showcase = 9; state.spawnTimer = state.formationTimer = state.duration = Infinity;
   return state;
 }
@@ -38,43 +38,37 @@ check('cache destruction pays and drops its marked bonus once, including collate
   assert.equal(state.events.filter(event => event.type === 'explosion' && event.ground).length, 2);
 });
 
-check('ten-second bonuses are per pilot, refresh without stacking, and pause with simulation', () => {
-  const state = quiet(2), [first, second] = state.players;
-  collect(state, 'rapid', 1);
-  assert.equal(first.rapidFireTime, 0); assert.equal(second.rapidFireTime, 10);
-  collect(state, 'invulnerable');
-  assert.equal(first.invulnerableTime, 10); assert.equal(second.invulnerableTime, 0);
-  advance(state, 3);
-  assert(Math.abs(first.invulnerableTime - 7) < 1e-9);
-  collect(state, 'invulnerable');
-  assert.equal(first.invulnerableTime, 10);
-  collect(state, 'rapid', 1);
-  assert.equal(second.rapidFireTime, 10);
-  const remaining = [first.invulnerableTime, second.rapidFireTime];
+check('ten-second bonuses coexist, refresh without stacking, and pause with simulation', () => {
+  const state = quiet(), player = state.players[0];
+  collect(state, 'rapid'); collect(state, 'invulnerable');
+  assert(player.rapidFireTime > 9.9); assert.equal(player.invulnerableTime, 10);
+  advance(state, 3); assert(Math.abs(player.invulnerableTime - 7) < 1e-9);
+  collect(state, 'invulnerable'); assert.equal(player.invulnerableTime, 10);
+  collect(state, 'rapid'); assert.equal(player.rapidFireTime, 10);
+  const remaining = [player.invulnerableTime, player.rapidFireTime];
   state.status = 'hangar'; advance(state, 2);
-  assert.deepEqual([first.invulnerableTime, second.rapidFireTime], remaining);
+  assert.deepEqual([player.invulnerableTime, player.rapidFireTime], remaining);
   state.status = 'playing'; advance(state, 10.02);
-  assert.equal(first.invulnerableTime, 0); assert.equal(second.rapidFireTime, 0);
+  assert.equal(player.invulnerableTime, 0); assert.equal(player.rapidFireTime, 0);
   const event = state.events.find(item => item.type === 'pickup' && item.bonus === 'rapid');
-  assert.equal(event.player, 1); assert.equal(event.value, 'Rapid fire · 10s');
+  assert.equal(event.player, 0); assert.equal(event.value, 'Rapid fire · 10s');
 });
 
-check('rapid fire accelerates both channels without free plasma energy or affecting the other pilot', () => {
+check('rapid fire accelerates both channels without free plasma energy', () => {
   for (const weapon of WEAPONS) {
-    const baseline = quiet(2), boosted = quiet(2), seconds = weapon.id === 'plasma' ? .99 : 5;
+    const baseline = quiet(), boosted = quiet(), seconds = weapon.id === 'plasma' ? .99 : 5;
     const controls = weapon.id === 'plasma' ? { secondary: true } : { fire: true };
     boosted.players[0].rapidFireTime = 10;
-    advance(baseline, seconds, [controls, controls]);
-    advance(boosted, seconds, [controls, controls]);
+    advance(baseline, seconds, [controls]);
+    advance(boosted, seconds, [controls]);
     const shots = (state, player) => state.events.filter(event => event.type === 'shot' && event.player === player).length;
     const ratio = shots(boosted, 0) / shots(baseline, 0);
     assert(ratio >= 1.3 && ratio <= 1.75, `${weapon.id}: ${ratio}x burst cadence`);
-    assert.equal(shots(boosted, 1), shots(baseline, 1), `${weapon.id}: other pilot unchanged`);
-    for (const bullet of boosted.bullets) assert.equal(bullet.damage, weaponStats(boosted, weapon.id).damage);
+    for (const bullet of boosted.bullets) assert.equal(bullet.damage, weaponStats(boosted, weapon.id).damage * 1.35);
     if (weapon.id === 'plasma') {
       assert.equal(boosted.players[0].fireEnergy, 100 - shots(boosted, 0) * SECONDARY_ENERGY_COST);
       assert(boosted.players[0].fireEnergy < baseline.players[0].fireEnergy, 'rapid plasma uses its reserve sooner');
-      advance(boosted, .5, [controls, controls]);
+      advance(boosted, .5, [controls]);
       assert.equal(shots(boosted, 0), 5); assert.equal(boosted.players[0].fireEnergy, 0); assert(boosted.players[0].fireEnergyLocked);
     }
   }
@@ -143,12 +137,12 @@ check('turrets respect the shared bullet limit, maximum count, safe firing lane,
 });
 
 check('autosaves preserve timers, charging turret aim, and uncollected boosts with bounded older-save defaults', () => {
-  const state = quiet(2), targets = [turret()];
+  const state = quiet(), targets = [turret()];
   advance(state, 1, [], targets);
-  state.players[0].rapidFireTime = 4.125; state.players[1].invulnerableTime = 8.25;
+  state.players[0].rapidFireTime = 4.125; state.players[0].invulnerableTime = 8.25;
   state.pickups.push({ x: 100, y: 100, age: 1.5, kind: 'invulnerable', value: 0 }, { x: 900, y: 90, age: 2, kind: 'rapid', value: 0 });
   const encoded = serializeRun(state), restored = restoreRun(encoded).state;
-  assert.equal(restored.players[0].rapidFireTime, 4.125); assert.equal(restored.players[1].invulnerableTime, 8.25);
+  assert.equal(restored.players[0].rapidFireTime, 4.125); assert.equal(restored.players[0].invulnerableTime, 8.25);
   assert.deepEqual(restored.turrets, state.turrets); assert.deepEqual(restored.pickups, state.pickups);
   update(state, 1 / 60, [], null, targets); update(restored, 1 / 60, [], null, targets);
   assert.deepEqual(restored.turrets, state.turrets);

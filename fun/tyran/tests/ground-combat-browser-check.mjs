@@ -54,7 +54,7 @@ try {
       },
     };
   });
-  await click('[data-mode="2"]'); await click('#launch-button');
+  await click('#launch-button');
   const warning = await page.evaluate(() => {
     groundQA.quiet();
     const s = tyran.state, prop = groundQA.site('turret');
@@ -95,7 +95,7 @@ try {
   const rewards = await page.evaluate(() => {
     const results = [];
     for (const trigger of ['projectile', 'airborne explosion']) {
-      tyran.launch(0, { mode: 2 }); groundQA.quiet();
+      tyran.launch(0); groundQA.quiet();
       const s = tyran.state, w = tyran.world, prop = groundQA.site('cache', trigger === 'projectile' ? 'rapid' : 'invulnerable');
       const point = groundQA.focus(prop, 240);
       // The reward still travels through real world.hit and the game callback;
@@ -121,21 +121,19 @@ try {
   }
   console.log('PASS direct and collateral supply destruction each release one collectible');
 
-  // Collect through the collision loop, so timers, co-op ownership and HUD are
+  // Collect through the collision loop, so timers, pickup collection and HUD are
   // tested together instead of assigning active bonus fields directly.
   await page.evaluate(() => {
-    tyran.launch(0, { mode: 2 }); groundQA.quiet();
+    tyran.launch(0); groundQA.quiet();
     const s = tyran.state;
-    for (const [pilot, kinds] of [[s.players[0], ['rapid', 'invulnerable']], [s.players[1], ['rapid']]]) {
+    for (const [pilot, kinds] of [[s.players[0], ['rapid', 'invulnerable']]]) {
       for (const kind of kinds) s.pickups.push({ x: pilot.x, y: pilot.y, kind, age: 0, value: 0 });
     }
     tyran.step(1 / 60); __frame();
   });
   let bonuses = await page.evaluate(() => tyran.state.players.map(p => ({ rapid: p.rapidFireTime, invulnerable: p.invulnerableTime })));
   near(bonuses[0].rapid, 10, 'Rapid bonus begins at ten seconds'); near(bonuses[0].invulnerable, 10, 'Immortality begins at ten seconds');
-  near(bonuses[1].rapid, 10, 'The wingmate can collect an independent rapid bonus'); near(bonuses[1].invulnerable, 0, 'The first pilot’s immortality does not protect the wingmate');
   assert(await page.locator('#p1-rapid').isVisible()); assert(await page.locator('#p1-invulnerable').isVisible());
-  assert(await page.locator('#p2-rapid').isVisible()); assert(await page.locator('#p2-invulnerable').isHidden());
   assert.match(await page.locator('#p1-rapid-time').textContent(), /10\s*s/);
   await page.evaluate(() => { document.querySelector('#announcement').hidden = true; __frame(); });
   await page.screenshot({ path: `${output}/collected-ground-bonuses.png` });
@@ -156,11 +154,10 @@ try {
     return s.players.map(p => [p.rapidFireTime, p.invulnerableTime]);
   });
   near(refreshed[0][0], 10, 'Another rapid pickup refreshes to ten seconds without stacking');
-  assert(refreshed[1][0] < 8, 'Refreshing the first pilot leaves the wingmate timer unchanged');
   await page.evaluate(() => tyran.step(10.1));
   bonuses = await page.evaluate(() => tyran.state.players.map(p => [p.rapidFireTime, p.invulnerableTime]));
-  assert.deepEqual(bonuses, [[0, 0], [0, 0]], 'Both temporary bonuses expire during active flight');
-  for (const id of ['p1-rapid', 'p1-invulnerable', 'p2-rapid', 'p2-invulnerable']) assert(await page.locator(`#${id}`).isHidden(), 'Expired bonus badges disappear');
+  assert.deepEqual(bonuses, [[0, 0]], 'Both temporary bonuses expire during active flight');
+  for (const id of ['p1-rapid', 'p1-invulnerable']) assert(await page.locator(`#${id}`).isHidden(), 'Expired bonus badges disappear');
   console.log('PASS collectible ownership, HUD countdowns, refresh, expiry and exact paused autosave restoration');
   for (const [name, width, height] of [['portrait', 390, 844], ['landscape', 844, 390]]) {
     const mobile = await browser.newPage({ viewport: { width, height }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 });

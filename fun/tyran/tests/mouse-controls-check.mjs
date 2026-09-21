@@ -25,14 +25,14 @@ const snapshot = () => page.evaluate(() => ({
   pilots: tyran.state.players.map(({ x, y, vx, vy }) => ({ x, y, vx, vy })),
   shots: tyran.state.players.map(p => tyran.state.bullets.filter(b => b.team === p.id).length),
 }));
-async function fixture(mode) {
-  await page.evaluate(mode => {
-    document.querySelector(`[data-mode="${mode}"]`).click(); tyran.launch();
+async function fixture() {
+  await page.evaluate(() => {
+    tyran.launch();
     const s = tyran.state;
     Object.assign(s, { spawnTimer: Infinity, formationTimer: Infinity, showcase: 9, duration: 1e6 });
-    s.players.forEach((p, i) => Object.assign(p, { x: s.width * (i ? .7 : 1 / 3), px: s.width * (i ? .7 : 1 / 3), y: 650, py: 650, vx: 0, vy: 0, hurt: Infinity }));
+    s.players.forEach(p => Object.assign(p, { x: s.width / 3, px: s.width / 3, y: 650, py: 650, vx: 0, vy: 0, hurt: Infinity }));
     tyran.world.hit = () => []; __advance(2);
-  }, mode);
+  });
 }
 async function point(fractionX, y) {
   const target = await page.evaluate(({ fractionX, y }) => {
@@ -46,9 +46,9 @@ async function click(id) {
   assert.ok(box, `${id} is visible`);
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
 }
-async function keyboardFlight(mode, withMouse) {
-  await fixture(mode);
-  const keys = ['KeyD', 'KeyW', 'KeyY', ...(mode === 2 ? ['KeyJ', 'KeyI', 'KeyN'] : [])];
+async function keyboardFlight(withMouse) {
+  await fixture();
+  const keys = ['KeyD', 'KeyW', 'Space'];
   for (const key of keys) await page.keyboard.down(key);
   if (withMouse) { await point(.15, 730); await page.mouse.down(); }
   await advance(18);
@@ -63,29 +63,28 @@ async function keyboardFlight(mode, withMouse) {
 try {
   await page.goto(process.env.TYRAN_URL || 'http://127.0.0.1:8773/fun/tyran/');
   await page.waitForFunction(() => window.tyran && document.body.dataset.ready === 'true', null, { polling: 20 });
-  for (const mode of [1, 2]) {
-    await fixture(mode);
+  {
+    await fixture();
     const start = await snapshot();
     await point(.85, 300); await advance(18);
-    assert.deepEqual(await snapshot(), start, `${mode}-pilot flight ignores mouse movement`);
+    assert.deepEqual(await snapshot(), start, `Single-player flight ignores mouse movement`);
     await page.evaluate(() => document.querySelector('#pause-button').focus());
     await page.mouse.down(); await advance(18);
     assert.equal(await page.evaluate(() => document.activeElement.id), 'game-canvas', 'a canvas click focuses the keyboard arena');
-    assert.deepEqual(await snapshot(), start, `${mode}-pilot flight ignores held mouse fire`);
+    assert.deepEqual(await snapshot(), start, `Single-player flight ignores held mouse fire`);
     await point(.15, 730); await advance(18);
-    assert.deepEqual(await snapshot(), start, `${mode}-pilot flight ignores mouse dragging`);
+    assert.deepEqual(await snapshot(), start, `Single-player flight ignores mouse dragging`);
     await page.mouse.move(-20, 950); await page.mouse.up(); await point(.65, 200); await advance(18);
-    assert.deepEqual(await snapshot(), start, `${mode}-pilot flight stays stationary and silent after outside release`);
+    assert.deepEqual(await snapshot(), start, `Single-player flight stays stationary and silent after outside release`);
 
-    const keyboard = await keyboardFlight(mode, false), mixed = await keyboardFlight(mode, true);
-    assert.deepEqual(mixed, keyboard, `${mode}-pilot keyboard movement and shot counts are unchanged by mouse activity`);
+    const keyboard = await keyboardFlight(false), mixed = await keyboardFlight(true);
+    assert.deepEqual(mixed, keyboard, `Single-player keyboard movement and shot counts are unchanged by mouse activity`);
     assert.ok(keyboard.pilots[0].x > start.pilots[0].x && keyboard.pilots[0].y < start.pilots[0].y, 'WASD still steers pilot one');
-    if (mode === 2) assert.ok(keyboard.pilots[1].x < start.pilots[1].x && keyboard.pilots[1].y < start.pilots[1].y, 'IJKL still steers pilot two independently');
     assert.ok(keyboard.shots.every(count => count > 0), 'held primary keys still fire for every active pilot');
   }
-  console.log('PASS real mouse move/hold/drag/release cannot steer, fire or override solo/co-op keyboard controls');
+  console.log('PASS real mouse move/hold/drag/release cannot steer, fire or override keyboard controls');
 
-  await fixture(1);
+  await fixture();
   // Expose the touch overlay to model a hybrid device with both input methods.
   await page.evaluate(() => { document.querySelector('#touch-controls').style.display = 'flex'; });
   const touchStart = await snapshot(), stick = await page.locator('#touch-stick').boundingBox(), fire = await page.locator('#touch-fire').boundingBox();

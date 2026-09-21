@@ -63,7 +63,7 @@ function restoreState(raw) {
   if (!object(raw) || ![1, 2].includes(raw.mode) || !Number.isInteger(raw.level) || raw.level < 0 || raw.level > 9 || !['playing', 'hangar', 'victory'].includes(raw.status)) invalid();
   if ((raw.status === 'hangar' && raw.level === 9) || (raw.status === 'victory' && raw.level !== 9)) invalid();
   if (!object(raw.upgrades) || !Array.isArray(raw.players) || !Array.isArray(raw.enemies) || !Array.isArray(raw.bullets) || !Array.isArray(raw.formations)) invalid();
-  const state = createCampaign(raw.mode, raw.level);
+  const state = createCampaign(raw.level);
   for (const id of Object.keys(state.upgrades)) state.upgrades[id] = integer(raw.upgrades[id], 0, 0, MAX_UPGRADE);
   state.status = raw.status;
   state.startLevel = integer(raw.startLevel, 0, 0, state.level);
@@ -82,7 +82,7 @@ function restoreState(raw) {
   state.comboLabel = string(raw.comboLabel, '', 24);
   state.bossSpawned = bool(raw.bossSpawned); state.bossDefeated = bool(raw.bossDefeated);
   const stats = shipStats(state.upgrades);
-  if (raw.players.length !== state.mode) invalid();
+  if (raw.players.length !== raw.mode) invalid();
   state.players = raw.players.map((player, index) => {
     const result = { ...coordinates(player), ...fields(player, { mass: stats.mass, thrust: .9, radius: 17, fire: 0, hurt: 0, lastHit: -10 }, ['fire', 'hurt', 'lastHit']) };
     result.id = index;
@@ -103,7 +103,6 @@ function restoreState(raw) {
     result.blastVx = number(player.blastVx, 0, -110, 110); result.blastVy = number(player.blastVy, 0, -110, 110);
     return result;
   });
-  state.weapon = state.players[0].weapon;
   if (state.status === 'playing' && !state.players.some(player => player.alive)) invalid();
   const turretIds = new Set();
   state.turrets = list(raw.turrets, 3).map(turret => {
@@ -115,7 +114,7 @@ function restoreState(raw) {
       id, x: number(turret.x), y: number(turret.y), radius: number(turret.radius, 22, 1, 128),
       phase: number(turret.phase, 0, 0, 1), angle: number(turret.angle, Math.PI / 2, -Math.PI, Math.PI),
       charge: number(turret.charge, 0, 0, 1), flash: number(turret.flash, 0, 0, .16),
-      cooldown: number(turret.cooldown, 1.25, 0, 5), targetId: integer(turret.targetId, -1, -1, state.mode - 1),
+      cooldown: number(turret.cooldown, 1.25, 0, 5), targetId: integer(turret.targetId, -1, -1, raw.mode - 1),
     };
   });
   const formationsById = new Map();
@@ -170,7 +169,7 @@ function restoreState(raw) {
   state.bullets = list(raw.bullets, 1024).map(bullet => {
     const result = { ...coordinates(bullet), ...fields(bullet, { age: 0, damage: 0, radius: 4, life: 1 }, ['life']) };
     result.damage = number(bullet.damage, 0, 0, 1_000_000); result.radius = number(bullet.radius, 4, .1, 100);
-    result.team = integer(bullet.team, 0, -1, state.mode - 1);
+    result.team = integer(bullet.team, 0, -1, raw.mode - 1);
     result.color = color(bullet.color, result.team < 0 ? '#ff718f' : '#9cfff0');
     if (bullet.kind !== undefined) {
       if (!projectileKinds.has(bullet.kind)) invalid();
@@ -191,6 +190,19 @@ function restoreState(raw) {
     if (!object(pickup) || !['repair', 'credit', 'rapid', 'invulnerable'].includes(pickup.kind)) invalid();
     return { x: number(pickup.x), y: number(pickup.y), age: number(pickup.age, 0, 0), kind: pickup.kind, value: integer(pickup.value, 40, 0, 100_000) };
   });
+  if (raw.mode === 2) {
+    // Continue the first surviving ship, preserving its exact resources and
+    // position. Old co-op opponents retain their damage fraction at solo HP.
+    const pilot = state.players.find(player => player.alive) || state.players[0];
+    pilot.id = 0; state.players = [pilot];
+    for (const enemy of state.enemies) {
+      enemy.hp /= 1.65; enemy.maxHp /= 1.65;
+      for (const point of enemy.weakPoints || []) { point.hp /= 1.65; point.maxHp /= 1.65; }
+    }
+    for (const bullet of state.bullets) if (bullet.team >= 0) bullet.team = 0;
+    for (const turret of state.turrets) if (turret.targetId >= 0) turret.targetId = 0;
+  }
+  state.weapon = state.players[0].weapon;
   state.hostileCount = state.bullets.filter(bullet => bullet.team < 0 && bullet.life > 0).length;
   // Transient sound, particles, rewards, and transition events must not replay.
   state.events = [];
@@ -248,7 +260,7 @@ export function restoreRun(raw) {
     if (record.version !== VERSION || !['pause', 'hangar', 'end'].includes(record.scene)) return null;
     const state = restoreState(record.state);
     if (record.scene !== (state.status === 'victory' ? 'end' : state.status === 'hangar' ? 'hangar' : 'pause')) return null;
-    return { state, scene: record.scene, seed: string(record.seed, 'tyran-v2'), ...scenery(record), unlocked: integer(record.unlocked, state.level, 0, 9), savedAt: number(record.savedAt, 0, 0, 10_000_000_000_000), migrated: false };
+    return { state, scene: record.scene, seed: string(record.seed, 'tyran-v2'), ...scenery(record), unlocked: integer(record.unlocked, state.level, 0, 9), savedAt: number(record.savedAt, 0, 0, 10_000_000_000_000), migrated: record.state.mode === 2 };
   } catch { return null; }
 }
 
@@ -257,7 +269,7 @@ function migrateLegacy(raw) {
     const record = parse(raw), checkpoint = record.checkpoint;
     if (record.version !== 1 || !object(checkpoint) || !Number.isInteger(checkpoint.level) || checkpoint.level < 1 || checkpoint.level > 9) return null;
     // Version 1 stored the next sector number and skipped its preceding shop.
-    const state = createCampaign(checkpoint.mode, checkpoint.level - 1, checkpoint);
+    const state = createCampaign(checkpoint.level - 1, checkpoint);
     state.status = 'hangar'; state.bossSpawned = true; state.bossDefeated = true;
     const run = restoreRun(serializeRun(state, { unlocked: integer(record.unlocked, checkpoint.level, 0, 9) }));
     if (run) { run.savedAt = 0; run.migrated = true; }

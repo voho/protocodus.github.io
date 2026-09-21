@@ -21,7 +21,7 @@ const world = new WorldRenderer(), fx = new Effects(), audio = new AudioEngine()
 const keys = new Set(), numberFormat = new Intl.NumberFormat('en-US'), number = n => numberFormat.format(Math.floor(n || 0));
 const screens = ['menu-screen', 'pause-screen', 'hangar-screen', 'end-screen'];
 let campaign = campaignSummary(readCampaign()), campaignError = null, activeCampaign = false, lastAutosaveTime = 0;
-let state = null, mode = 1, selected = 0, scene = 'menu', unlocked = campaign.run?.unlocked || 0;
+let state = null, selected = 0, scene = 'menu', unlocked = campaign.run?.unlocked || 0;
 let W = 1200, H = 900, dpr = 1, previewScroll = 0, clock = 0, lastTime = 0, hudClock = 0;
 let announcementUntil = 0, quality = 'high', helpPaused = false, helpFocus = null;
 let keyboardLockEpoch = 0;
@@ -36,7 +36,7 @@ const groundTargets = s => {
   return world.getGroundTargets(s.width, s.height, s.scroll, pilots ? focus / pilots : s.width * .5);
 };
 const lerp = (before, after) => (before ?? after) + (after - (before ?? after)) * renderAlpha;
-const controls = [{ x: 0, y: 0, fire: false, secondary: false }, { x: 0, y: 0, fire: false, secondary: false }];
+const controls = [{ x: 0, y: 0, fire: false, secondary: false }];
 const touch = { x: 0, y: 0, fire: false, secondary: false, pointer: null, originX: 0, originY: 0 };
 
 try {
@@ -48,8 +48,8 @@ try {
 // here, rather than a second entire flight and destruction ledger after each save.
 function campaignSummary(result) {
   if (!result.run) return result;
-  const { scene, unlocked, state: { level, mode, credits, score } } = result.run;
-  return { ok: result.ok, error: result.error, run: { scene, unlocked, state: { level, mode, credits, score } } };
+  const { scene, unlocked, state: { level, credits, score } } = result.run;
+  return { ok: result.ok, error: result.error, run: { scene, unlocked, state: { level, credits, score } } };
 }
 
 function saveStatus(message) {
@@ -75,7 +75,7 @@ function resumeCampaign() {
   if (!result.ok || !result.run) return;
   const run = result.run;
   activeCampaign = true; lastAutosaveTime = run.state.time;
-  state = run.state; mode = state.mode; unlocked = Math.max(unlocked, run.unlocked);
+  state = run.state; unlocked = Math.max(unlocked, run.unlocked);
   // Fit the saved arena to the current screen while retaining health, velocity,
   // timers and formation relationships. Loaded flight never advances until Resume.
   const sx = W / state.width, sy = H / state.height;
@@ -94,11 +94,6 @@ function resumeCampaign() {
   world.setTurretActivity(state.turrets || []);
   warmFleet(state.level); fx.reset(); keys.clear(); clock = state.time;
   $('announcement').hidden = true; $('boss-hud').hidden = true;
-  document.querySelectorAll('[data-mode]').forEach(button => {
-    const active = Number(button.dataset.mode) === mode;
-    button.classList.toggle('active', active); button.setAttribute('aria-pressed', String(active));
-  });
-  syncPilotHUD();
   if (run.scene === 'hangar') showHangar(0, true);
   else if (run.scene === 'end') showEnd(true, true);
   else { setScreen('pause'); $('resume-button').focus({ preventScroll: true }); }
@@ -169,7 +164,7 @@ function resize() {
 
 function warmFleet(index) {
   warmShipSprites(SHIP_PALETTES[index], index);
-  warmShipSprites('#a4ffee', index, true); warmShipSprites('#ffc18b', index, true);
+  warmShipSprites('#a4ffee', index, true);
   warmProjectileTextures(WEAPONS, BULLET_SPECTRUM);
   for (const kind of ['repair', 'credit', 'rapid', 'invulnerable']) pickupTexture(kind);
   pilotBarrierTexture();
@@ -188,20 +183,15 @@ function launch(level = 0, checkpoint = null, persist = true) {
   activeCampaign = persist; lastAutosaveTime = 0;
   level = clamp(Math.floor(Number(level) || 0), 0, WORLDS.length - 1);
   selected = level;
-  state = createCampaign(checkpoint?.mode || mode, level, checkpoint);
+  state = createCampaign(level, checkpoint);
   state.startLevel = checkpoint?.startLevel ?? level;
   state.width = W; state.height = H; beginLevel(state, level);
   world.setWorld(level); warmFleet(level); fx.reset(); keys.clear(); previousScroll = 0; $('boss-hud').hidden = true;
   setScreen('playing');
   announce(`Sector ${String(level + 1).padStart(2, '0')} / 10`, WORLDS[level].name, WORLDS[level].subtitle || 'Clear the skies. Bring everyone home.', 3.2);
-  syncPilotHUD(); autosave(); refreshContinue();
+  autosave(); refreshContinue();
   canvas.focus({ preventScroll: true });
   refreshHUD();
-}
-
-function syncPilotHUD() {
-  $('p2-panel').hidden = state.mode !== 2;
-  document.querySelector('.flight-hint').textContent = state.mode === 2 ? 'P1: WASD · Y pulse / X plasma  ·  P2: IJKL · N pulse / M plasma' : 'WASD move · Y pulse / X plasma · V sound';
 }
 
 function returnToMenu() {
@@ -282,7 +272,7 @@ function renderUpgrades() {
     const preview = u.id === 'weapon' ? `${weapon.damage.toFixed(1)} → ${nextWeapon.damage.toFixed(1)} power · ${(1 / nextWeapon.interval).toFixed(1)} shots/s`
       : u.id === 'recharge' ? `${stats.recharge} → ${upgraded.recharge} shield/s · ${stats.energyRecharge} → ${upgraded.energyRecharge} energy/s`
       : `${stats[u.id]} → ${upgraded[u.id]} ${u.id}`;
-    return `<button class="upgrade-card" data-upgrade="${u.id}" ${maxed || state.credits < cost ? 'disabled' : ''}><span class="upgrade-icon" aria-hidden="true">${u.icon}</span><span class="upgrade-level">Mk ${String(level + 1).padStart(2, '0')} / 07</span><span class="upgrade-name">${u.name}</span><span class="upgrade-description">${u.subtitle}${state.mode === 2 ? ' Upgrades both pilots.' : ''}</span><span class="upgrade-preview">${maxed ? 'Maximum performance reached' : preview}</span><span class="upgrade-pips" aria-hidden="true">${Array.from({ length: 6 }, (_, i) => `<i class="${i < level ? 'filled' : ''}"></i>`).join('')}</span><span class="upgrade-cost">${maxed ? 'Fully upgraded' : `${number(cost)} credits <span aria-hidden="true">+</span>`}</span></button>`;
+    return `<button class="upgrade-card" data-upgrade="${u.id}" ${maxed || state.credits < cost ? 'disabled' : ''}><span class="upgrade-icon" aria-hidden="true">${u.icon}</span><span class="upgrade-level">Mk ${String(level + 1).padStart(2, '0')} / 07</span><span class="upgrade-name">${u.name}</span><span class="upgrade-description">${u.subtitle}</span><span class="upgrade-preview">${maxed ? 'Maximum performance reached' : preview}</span><span class="upgrade-pips" aria-hidden="true">${Array.from({ length: 6 }, (_, i) => `<i class="${i < level ? 'filled' : ''}"></i>`).join('')}</span><span class="upgrade-cost">${maxed ? 'Fully upgraded' : `${number(cost)} credits <span aria-hidden="true">+</span>`}</span></button>`;
   }).join('');
   renderWeapons();
 }
@@ -294,7 +284,7 @@ function renderWeapons() {
     const power = Math.round(Math.min(100, stats.damage * stats.count * 1.18));
     const speed = Math.round(100 * fastestInterval / stats.interval);
     const range = Math.round(Math.min(100, stats.speed / 12));
-    return `<article class="weapon-card" data-weapon="${weapon.id}" style="--weapon-color:${weapon.color}"><span class="weapon-icon" aria-hidden="true">${secondary ? '◉' : 'Ⅱ'}</span><span class="weapon-swatch"></span><span class="weapon-copy"><strong>${weapon.name}</strong><small>${secondary ? 'Secondary · X / P2 M' : 'Primary · Y / P2 N'}</small></span><span class="weapon-description">${weapon.description} ${secondary ? `${SECONDARY_ENERGY_COST} energy per shot; resumes at ${SECONDARY_RESTART_ENERGY} after depletion.` : 'Unlimited fire; no energy cost.'}</span><span class="weapon-bars" aria-label="Power ${power}, fire rate ${speed}, reach ${range}"><i style="--bar:${power}%"></i><i style="--bar:${speed}%"></i><i style="--bar:${range}%"></i></span><span class="weapon-readout"><b>${stats.damage.toFixed(1)} DMG</b><b>${(1 / stats.interval).toFixed(1)} / SEC</b></span></article>`;
+    return `<article class="weapon-card" data-weapon="${weapon.id}" style="--weapon-color:${weapon.color}"><span class="weapon-icon" aria-hidden="true">${secondary ? '◉' : 'Ⅱ'}</span><span class="weapon-swatch"></span><span class="weapon-copy"><strong>${weapon.name}</strong><small>${secondary ? 'Secondary · Q' : 'Primary · Space'}</small></span><span class="weapon-description">${weapon.description} ${secondary ? `${SECONDARY_ENERGY_COST} energy per shot; resumes at ${SECONDARY_RESTART_ENERGY} after depletion.` : 'Unlimited fire; no energy cost.'}</span><span class="weapon-bars" aria-label="Power ${power}, fire rate ${speed}, reach ${range}"><i style="--bar:${power}%"></i><i style="--bar:${speed}%"></i><i style="--bar:${range}%"></i></span><span class="weapon-readout"><b>${stats.damage.toFixed(1)} DMG</b><b>${(1 / stats.interval).toFixed(1)} / SEC</b></span></article>`;
   }).join('');
 }
 
@@ -316,7 +306,7 @@ function refreshContinue() {
   const status = campaignError ? 'Could not autosave in this browser. Your previous save is unchanged; you can keep playing.'
     : error === 'unavailable' ? 'Browser storage is unavailable. You can still play.'
     : error === 'corrupt' ? 'The saved campaign could not be read. You can start a new campaign.'
-    : run ? `${saveDescription(run)} · ${run.state.mode === 2 ? 'Co-op' : 'Solo'} · ${number(run.state.credits)} credits · ${number(run.state.score)} score. Progress saves automatically.`
+    : run ? `${saveDescription(run)} · ${number(run.state.credits)} credits · ${number(run.state.score)} score. Progress saves automatically.`
     : 'Progress saves automatically in this browser. Start a new campaign to begin.';
   saveStatus(status);
   if (state && !activeCampaign) {
@@ -342,15 +332,10 @@ function selectWorld(index) {
 }
 
 function input() {
-  const coop = state?.mode === 2;
   controls[0].x = Number(keys.has('KeyD')) - Number(keys.has('KeyA')) + touch.x;
   controls[0].y = Number(keys.has('KeyS')) - Number(keys.has('KeyW')) + touch.y;
-  controls[0].fire = keys.has('KeyY') || touch.fire;
-  controls[0].secondary = keys.has('KeyX') || touch.secondary;
-  controls[1].x = coop ? Number(keys.has('KeyL')) - Number(keys.has('KeyJ')) : 0;
-  controls[1].y = coop ? Number(keys.has('KeyK')) - Number(keys.has('KeyI')) : 0;
-  controls[1].fire = coop && keys.has('KeyN');
-  controls[1].secondary = coop && keys.has('KeyM');
+  controls[0].fire = keys.has('Space') || touch.fire;
+  controls[0].secondary = keys.has('KeyQ') || touch.secondary;
   return controls;
 }
 
@@ -364,7 +349,6 @@ function processEvents() {
       for (const prop of world.hit(e.x, e.y, Math.min(250, e.size * 1.5 * blast), e.size * 2 * blast, state.scroll)) {
         applyGroundReward(state, prop, blast);
       }
-      if (e.player && state.mode === 2 && state.players.some(p => p.alive)) announce('Wingmate down', 'Bring them home.', 'Finish the sector to restore both ships.', 2.5);
     }
     if (e.type === 'boss') announce('Warning · heavy signature', WORLDS[state.level].bossName, 'Break through its armor. Watch for changing attack patterns.', 3);
     if (e.type === 'phase') announce('Reactor surge', 'Guardian enraged', 'New attack pattern detected.', 1.6);
@@ -526,7 +510,7 @@ function draw() {
     }
     drawProjectiles(ctx, state.bullets, renderAlpha, W, H);
     for (const p of state.players) if (p.alive) {
-      const color = p.id ? '#ffc18b' : '#a4ffee', x = lerp(p.px, p.x), y = lerp(p.py, p.y);
+      const color = '#a4ffee', x = lerp(p.px, p.x), y = lerp(p.py, p.y);
       drawShip(ctx, x, y, 30, 'player', color, clock, { hit: p.hurt > .2 ? 1 : 0, player: p.id, world: index, thrust: p.thrust, quality, motion: !fx.reduced });
       if (p.shield > 1) {
         ctx.save(); ctx.translate(x, y); ctx.strokeStyle = color; ctx.lineWidth = 1; ctx.globalAlpha = .08 + p.shield / p.maxShield * .13 + (p.hurt > 0 ? .45 : 0);
@@ -534,7 +518,6 @@ function draw() {
         ctx.globalAlpha *= .36; ctx.fillStyle = color; ctx.fill(); ctx.restore();
       }
       drawPilotBonuses(p, x, y);
-      ctx.fillStyle = color; ctx.globalAlpha = .65; ctx.textAlign = 'center'; ctx.font = '10px "Space Grotesk", sans-serif'; ctx.fillText(`P${p.id + 1}`, x, y + 70); ctx.globalAlpha = 1;
     }
     if (state.combo >= 2 && state.comboTime > 0) {
       ctx.textAlign = 'right'; ctx.font = 'bold 17px "Space Grotesk", sans-serif'; ctx.fillStyle = state.combo >= 5 ? '#ffe36d' : '#d8fce7';
@@ -605,7 +588,7 @@ function frame(time) {
   else idleHandle = setTimeout(() => { idleHandle = 0; requestFrame(); }, 180);
 }
 
-const controlledKeys = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyY', 'KeyX', 'KeyI', 'KeyJ', 'KeyK', 'KeyL', 'KeyN', 'KeyM']);
+const controlledKeys = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'KeyQ']);
 const capturedKeys = new Set();
 const lockKeys = [...controlledKeys, 'Escape', 'KeyP', 'KeyV', 'KeyF', 'F11'];
 function consumeInput(event) {
@@ -698,10 +681,6 @@ $('upgrade-list').addEventListener('click', event => {
   const button = event.target.closest('[data-upgrade]'); if (!button || !state) return;
   if (buyUpgrade(state, button.dataset.upgrade)) { audio.effect('upgrade'); renderUpgrades(); autosave(); const next = document.querySelector(`[data-upgrade="${button.dataset.upgrade}"]`); if (!next.disabled) next.focus(); else $('next-button').focus(); }
 });
-document.querySelectorAll('[data-mode]').forEach(button => button.addEventListener('click', () => {
-  mode = Number(button.dataset.mode);
-  document.querySelectorAll('[data-mode]').forEach(b => { b.classList.toggle('active', b === button); b.setAttribute('aria-pressed', String(b === button)); });
-}));
 
 function toggleSound() {
   audio.mute(!audio.muted); audio.start(); syncSettings();

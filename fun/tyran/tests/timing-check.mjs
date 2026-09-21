@@ -18,7 +18,7 @@ function near(actual, expected, message, tolerance = 1e-7) {
   assert.ok(Math.abs(actual - expected) < tolerance, `${message}: ${actual} versus ${expected}`);
 }
 
-async function flight(mode = 1) {
+async function flight() {
   const page = await browser.newPage({ viewport: { width: 1440, height: 960 }, deviceScaleFactor: 1 });
   page.on('pageerror', error => errors.push(error.message));
   await page.addInitScript(() => {
@@ -33,24 +33,26 @@ async function flight(mode = 1) {
       for (const callback of callbacks) callback(timestamp);
       return callbacks.length;
     };
-    // The pilot's label shares the ship's rendered coordinates. Observe actual
-    // painting to distinguish interpolation from repeated simulation positions.
-    const fillText = CanvasRenderingContext2D.prototype.fillText;
-    CanvasRenderingContext2D.prototype.fillText = function (text, x, y, ...rest) {
-      if (this.canvas.id === 'game-canvas' && text === 'P1') window.__paintedPilot = { x, y };
-      return fillText.call(this, text, x, y, ...rest);
+    // Observe the shield drawn at the interpolated ship position, independently
+    // of simulation coordinates and without a multiplayer identity label.
+    const ellipse = CanvasRenderingContext2D.prototype.ellipse;
+    CanvasRenderingContext2D.prototype.ellipse = function (x, y, rx, ry, ...rest) {
+      if (this.canvas.id === 'game-canvas' && rx === 37 && ry === 46) {
+        const transform = this.getTransform();
+        window.__paintedPilot = { x: transform.e * tyran.state.width / this.canvas.width, y: transform.f * tyran.state.height / this.canvas.height };
+      }
+      return ellipse.call(this, x, y, rx, ry, ...rest);
     };
     localStorage.clear(); localStorage.setItem('tyran-muted', 'true');
   });
   await page.goto(url);
   // Poll with a timer because Playwright's default wait uses our paused RAF.
   await page.waitForFunction(() => window.tyran && document.body.dataset.ready === 'true', null, { polling: 20 });
-  await page.evaluate(async mode => {
+  await page.evaluate(async () => {
     await tyran.world.ready;
-    document.querySelector(`[data-mode="${mode}"]`).click();
     document.querySelector('#launch-button').click();
     __pumpFrame(__frameTime);
-  }, mode);
+  });
   return page;
 }
 
@@ -73,7 +75,7 @@ try {
     for (const hz of [30, 60, 120]) {
       const page = await flight();
       try {
-        await page.keyboard.down('KeyD'); await page.keyboard.down('KeyW'); await page.keyboard.down('KeyY');
+        await page.keyboard.down('KeyD'); await page.keyboard.down('KeyW'); await page.keyboard.down('Space');
         await advance(page, 1, hz);
         results.push(await snapshot(page));
       } finally { await page.close(); }
@@ -154,8 +156,8 @@ try {
     } finally { await page.close(); }
   });
 
-  async function steerSequence(mode, bindings) {
-    const page = await flight(mode);
+  async function steerSequence(bindings) {
+    const page = await flight();
     try {
       const initial = await snapshot(page), samples = [];
       for (const binding of bindings) await page.keyboard.down(binding.fire);
@@ -171,22 +173,13 @@ try {
       return samples;
     } finally { await page.close(); }
   }
-  const wasd = { forward: ['KeyD', 'KeyW'], reverse: ['KeyA', 'KeyS'], fire: 'KeyY' };
-  const ijkl = { forward: ['KeyL', 'KeyI'], reverse: ['KeyJ', 'KeyK'], fire: 'KeyN' };
+  const wasd = { forward: ['KeyD', 'KeyW'], reverse: ['KeyA', 'KeyS'], fire: 'Space' };
 
   await check('solo controls preserve acceleration, coast and reversal', async () => {
-    const samples = await steerSequence(1, [wasd]);
-    assert.ok(samples.every(sample => sample.teams.includes(0)), 'Y fires the solo pilot throughout steering');
+    const samples = await steerSequence([wasd]);
+    assert.ok(samples.every(sample => sample.teams.includes(0)), 'Space fires the pilot throughout steering');
     assert.ok(samples[1].players[0].x > samples[0].players[0].x, 'the pilot coasts after movement keys release');
     assert.ok(samples[2].players[0].vx < 0, 'reverse input changes direction');
-  });
-
-  await check('co-op pilots respond equally to their separate keyboard layouts', async () => {
-    const samples = await steerSequence(2, [wasd, ijkl]);
-    for (let i = 0; i < samples.length; i++) {
-      for (const field of ['x', 'y', 'vx', 'vy']) near(samples[i].players[0][field], samples[i].players[1][field], `co-op ${field}, steering phase ${i}`);
-      assert.ok(samples[i].teams.includes(0) && samples[i].teams.includes(1), 'Y and N each fire their own pilot');
-    }
   });
 
   await check('browser reports no runtime errors', () => assert.deepEqual(errors, []));

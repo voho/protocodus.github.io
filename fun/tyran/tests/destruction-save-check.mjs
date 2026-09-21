@@ -43,7 +43,7 @@ try {
       if (expected) world.hit(target.screenX, target.screenY, 0, target.maxHp * (expected === 3 ? .3 : .4), scroll);
       world.draw(context, 1200, 900, scroll, 0, 'high');
       const hash = pixelHash(world, target);
-      const run = restoreRun(serializeRun(createCampaign(1, 0), { seed: world.seed, damage: world.damage, destroyed: world.destroyed }));
+      const run = restoreRun(serializeRun(createCampaign(0), { seed: world.seed, damage: world.damage, destroyed: world.destroyed }));
       const loaded = await freshWorld(0); loaded.restoreDamage(run.damage, run.destroyed, run.sceneryVersion);
       loaded.draw(context, 1200, 900, scroll, 0, 'high');
       const first = loaded.getBand(target.row).find(prop => prop.id === target.id);
@@ -87,7 +87,7 @@ try {
       const oldMaxHp = version === 1 ? oldStructures.has(prop.type) ? 45 + prop.size * .45 : 12 + prop.size * .22
         : oldArmor[prop.type] ? Math.round(prop.size * prop.size * .085 * oldArmor[prop.type]) : prop.maxHp;
       const crater = original.getBand(prop.row).find(candidate => candidate.id !== prop.id);
-      const record = JSON.parse(serializeRun(createCampaign(1, fixture.index), { seed: original.seed, damage: new Map([[prop.id, oldMaxHp * fixture.fraction]]), destroyed: new Set([crater.id]) }));
+      const record = JSON.parse(serializeRun(createCampaign(fixture.index), { seed: original.seed, damage: new Map([[prop.id, oldMaxHp * fixture.fraction]]), destroyed: new Set([crater.id]) }));
       if (version === 1) delete record.sceneryVersion; else record.sceneryVersion = version;
       const run = restoreRun(record), loaded = await freshWorld(fixture.index);
       loaded.restoreDamage(run.damage, run.destroyed, run.sceneryVersion);

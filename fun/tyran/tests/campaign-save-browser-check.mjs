@@ -82,12 +82,12 @@ try {
   assert.equal(await page.evaluate(() => tyran.state.credits), 432, 'Resume still opens the campaign after practice');
   await page.locator('#menu-button').click();
   assert.equal((await record(page)).unlocked, 0, 'Practice clears do not unlock stages in the campaign');
-  await page.locator('[data-mode="2"]').click(); await page.locator('#launch-button').click();
+  await page.locator('#launch-button').click();
   saved = await record(page);
-  assert.equal(saved.state.level, 0); assert.equal(saved.state.mode, 2);
+  assert.equal(saved.state.level, 0); assert.equal(saved.state.mode, 1);
   assert.equal(saved.state.score, 0); assert.equal(saved.state.credits, 0, 'New campaign replaces prior progress');
 
-  // Reach a busy co-op flight through the real simulation, then leave to the
+  // Reach a busy single-player flight through the real simulation, then leave to the
   // menu. The automatic checkpoint must include scenery and shared formations.
   await page.evaluate(async () => {
     const { spawnFormation, spawnEnemy } = await import('./sim.js');
@@ -96,9 +96,8 @@ try {
     s.spawnTimer = 100; s.formationTimer = 100; s.showcase = 9;
     spawnFormation(s, 'vee');
     const enemy = spawnEnemy(s, 3, s.width * .2, 260); enemy.fire = 0;
-    tyran.step(.15, [{ x: 1, fire: true }, { x: -1, secondary: true }]);
+    tyran.step(.15, [{ x: 1, secondary: true }]);
     s.players[0].x = 30; s.players[0].hull = 73; s.players[0].shield = 19;
-    s.players[1].hull = 42; s.players[1].shield = 8;
     s.players.forEach(p => { p.lastHit = s.time; });
     s.pickups.push({ x: s.width * .8, y: 320, age: .3, kind: 'credit', value: 75 });
     tyran.pause();
@@ -111,8 +110,8 @@ try {
     w.hit((other.screenX ?? other.x) * w.scale, other.screenY * w.scale, 1, 10000, tyran.state.scroll);
   });
   const savedFlight = await flight(page);
-  assert(savedFlight.players[1].fireEnergy < savedFlight.players[0].fireEnergy, 'The co-op checkpoint captures independent secondary-energy reserves');
-  assert(savedFlight.bullets.some(b => b.team === -1) && savedFlight.bullets.some(b => b.team === 0) && savedFlight.bullets.some(b => b.team === 1), 'Fixture contains both pilots’ projectiles and hostile fire');
+  assert(savedFlight.players.length === 1 && savedFlight.players[0].fireEnergy < 100, 'The checkpoint captures spent secondary energy');
+  assert(savedFlight.bullets.some(b => b.team === -1) && savedFlight.bullets.some(b => b.team === 0), 'Fixture contains player projectiles and hostile fire');
   assert(savedFlight.formations.length && savedFlight.attached, 'Fixture contains an active formation');
   assert(savedFlight.damage.length && savedFlight.destroyedScenery.length, 'Fixture contains damaged and destroyed scenery');
   await page.locator('#menu-button').click();
@@ -130,7 +129,6 @@ try {
   const near = (a, b, label) => assert(Math.abs(a - b) < 1e-7, label);
   assert.equal(narrowFlight.time, savedFlight.time);
   assert.equal(narrowFlight.players[0].x, 30, 'A pilot at the edge stays within flight bounds');
-  near(narrowFlight.players[1].x / narrowFlight.width, savedFlight.players[1].x / savedFlight.width, 'Pilot position scales with the arena');
   for (const collection of ['enemies', 'bullets', 'pickups']) narrowFlight[collection].forEach((actor, index) => {
     near(actor.x / narrowFlight.width, savedFlight[collection][index].x / savedFlight.width, `${collection} preserve horizontal positions`);
     near(actor.y, savedFlight[collection][index].y, `${collection} preserve vertical positions`);
@@ -173,7 +171,6 @@ try {
     const { spawnEnemy, killEnemy } = await import('./sim.js');
     const s = tyran.state; s.credits = 5000;
     s.players[0].hull = 62; s.players[0].shield = 3;
-    s.players[1].hull = 0; s.players[1].shield = 0; s.players[1].alive = false;
     killEnemy(s, spawnEnemy(s, 9, s.width / 2, 180)); tyran.step(3.4);
   });
   assert(await page.locator('#hangar-screen').isVisible());
@@ -194,9 +191,9 @@ try {
   assert.deepEqual(await flight(page), shopFlight, 'The shop retains purchases, credits and the cleared level');
   await page.locator('#next-button').click();
   assert.equal(await page.evaluate(() => tyran.state.level), 1, 'Next sector launches the following world');
-  assert(await page.evaluate(() => tyran.state.players.length === 2 && tyran.state.players.every(p => p.alive && p.hull === p.maxHull && p.shield === p.maxShield)), 'Launch repairs and revives both upgraded ships');
+  assert(await page.evaluate(() => tyran.state.players.length === 1 && tyran.state.players.every(p => p.alive && p.hull === p.maxHull && p.shield === p.maxShield)), 'Launch repairs the upgraded ship');
   assert.equal((await record(page)).state.level, 1);
-  assert(await page.evaluate(() => tyran.state.players.every(p => p.fireEnergy === 100 && !p.fireEnergyLocked)), 'Next-sector launch restores both pilots’ secondary energy');
+  assert(await page.evaluate(() => tyran.state.players.every(p => p.fireEnergy === 100 && !p.fireEnergyLocked)), 'Next-sector launch restores secondary energy');
   await page.evaluate(() => { tyran.state.credits = 777; window.dispatchEvent(new Event('pagehide')); });
   assert.equal((await record(page)).state.credits, 777, 'Leaving the page saves the latest campaign');
   await page.reload(); await ready(page); await page.locator('#continue-button').click();
@@ -207,7 +204,7 @@ try {
   // Victory is a resumable final campaign state, with no repeated award.
   await page.evaluate(async () => {
     const { spawnEnemy, killEnemy } = await import('./sim.js');
-    tyran.launch(9, { mode: 1, credits: 5000, score: 1000, upgrades: { weapon: 6, shield: 6, hull: 6, recharge: 6 } });
+    tyran.launch(9, { credits: 5000, score: 1000, upgrades: { weapon: 6, shield: 6, hull: 6, recharge: 6 } });
     killEnemy(tyran.state, spawnEnemy(tyran.state, 9, tyran.state.width / 2, 180)); tyran.step(3.4);
   });
   assert.equal((await record(page)).state.status, 'victory');
@@ -241,8 +238,8 @@ try {
   await legacy.locator('#next-button').click();
   assert.equal(await legacy.evaluate(() => tyran.state.level), 3);
   assert.equal(await legacy.evaluate(() => tyran.state.weapon), 'pulse', 'Legacy lance equipment migrates to the precise pulse weapon');
-  assert.deepEqual(await legacy.evaluate(() => tyran.state.players.map(p => p.weapon)), ['pulse', 'pulse'], 'Both legacy pilots receive the migrated loadout');
-  assert.equal(await legacy.evaluate(() => tyran.state.mode), 2);
+  assert.deepEqual(await legacy.evaluate(() => tyran.state.players.map(p => p.weapon)), ['pulse'], 'The legacy campaign continues with one ship');
+  assert.equal(await legacy.evaluate(() => tyran.state.mode), 1);
 
   const corrupt = await newPage();
   await corrupt.addInitScript(raw => {
@@ -267,5 +264,5 @@ try {
   const restrictedTime = await restricted.evaluate(() => tyran.state.time);
   await restricted.waitForFunction(time => tyran.state.time > time, restrictedTime);
   assert.deepEqual(errors, [], 'No browser errors throughout automatic campaign flows');
-  console.log('Campaign browser checks passed: new/resume UI, periodic/pause/menu/pagehide autosaves, exact co-op flight and scenery restoration, responsive formations, practice isolation, shop upgrades, stage progression, victory, legacy migration, corruption and storage failures.');
+  console.log('Campaign browser checks passed: new/resume UI, periodic/pause/menu/pagehide autosaves, exact single-player flight and scenery restoration, responsive formations, practice isolation, shop upgrades, stage progression, victory, legacy migration, corruption and storage failures.');
 } finally { await browser.close(); }

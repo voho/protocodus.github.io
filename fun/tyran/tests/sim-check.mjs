@@ -19,8 +19,8 @@ function seeded(seed, fn) {
 function advance(state, seconds, controls = []) {
   for (let t = 0; t < seconds - 1e-8; t += .025) { update(state, Math.min(.025, seconds - t), controls); state.events.length = 0; }
 }
-function isolated(mode = 1, level = 0) {
-  const state = createCampaign(mode, level);
+function isolated(level = 0) {
+  const state = createCampaign(level);
   state.bossSpawned = true;
   return state;
 }
@@ -39,7 +39,7 @@ check('ten progressively stronger enemy classes with distinct names', () => {
 
 check('mission scrolling accelerates within each sector, stays bounded, and resets for the next mission', () => {
   for (let level = 0; level < 10; level++) {
-    const state = createCampaign(1, level), opening = missionScrollSpeed(state);
+    const state = createCampaign(level), opening = missionScrollSpeed(state);
     const speeds = [0, .25, .5, .75, 1].map(progress => missionScrollSpeed(state, state.duration * progress));
     assert.equal(opening, 92 + level * 3);
     for (let index = 1; index < speeds.length; index++) assert(speeds[index] > speeds[index - 1]);
@@ -72,7 +72,7 @@ check('accelerating terrain travels consistently at 30, 60 and 120 Hz', () => {
 });
 
 check('resuming preserves the speed ramp and ground targets receive the current scroll position', () => {
-  const state = createCampaign(2, 6);
+  const state = createCampaign(6);
   state.time = 63.25; state.scroll = 7432.5;
   state.showcase = 9; state.spawnTimer = state.formationTimer = Infinity;
   const restored = restoreRun(serializeRun(state)).state;
@@ -84,36 +84,28 @@ check('resuming preserves the speed ramp and ground targets receive the current 
   assert.equal(targetScroll, state.scroll, 'turret aiming and scenery hits use the newly advanced terrain');
 });
 
-check('dedicated primary and secondary channels fire independently for both pilots', () => {
+check('one pilot uses two dedicated fire channels with a shared cooldown', () => {
+  const state = isolated(), player = state.players[0];
+  assert.equal(state.mode, 1); assert.equal(state.players.length, 1);
   assert.deepEqual(WEAPONS.map(weapon => weapon.id), ['pulse', 'plasma']);
-  const state = isolated(2), [first, second] = state.players;
   const pulse = weaponStats(state, 'pulse'), plasma = weaponStats(state, 'plasma');
-  assert.equal(pulse.count, 2); assert.equal(pulse.splash, 0);
-  assert.equal(plasma.count, 1); assert(plasma.splash > 0);
-  assert(plasma.damage > pulse.damage * 5, 'the secondary makes a much heavier impact');
-  assert(plasma.damage / plasma.interval > pulse.damage * pulse.count / pulse.interval, 'energy buys higher burst damage');
-  // An old saved selection cannot change the new dedicated input channels.
-  selectWeapon(state, 'plasma', 0); selectWeapon(state, 'pulse', 1);
-  update(state, .01, [{ fire: true }, { secondary: true }]);
-  assert.equal(state.bullets.filter(bullet => bullet.team === 0 && bullet.kind === 'pulse').length, 2);
-  assert.equal(state.bullets.filter(bullet => bullet.team === 1 && bullet.kind === 'plasma').length, 1);
-  assert.equal(first.fireEnergy, 100); assert.equal(second.fireEnergy, 100 - SECONDARY_ENERGY_COST);
-  assert.equal(first.weapon, 'pulse'); assert.equal(second.weapon, 'plasma'); assert.equal(state.weapon, 'pulse');
-  const cooldowns = state.players.map(player => player.fire);
-  for (let i = 0; i < 20; i++) for (const id of ['plasma', 'pulse']) selectWeapon(state, id, i % 2);
-  assert.deepEqual(state.players.map(player => player.fire), cooldowns);
-  advance(state, .15, [{ secondary: true }, { fire: true }]);
-  assert.equal(state.bullets.length, 3, 'alternating channels or legacy selection cannot bypass the shared cooldown');
-  first.fire = second.fire = 0;
-  update(state, .01, [{ secondary: true }, { fire: true }]);
-  assert(state.bullets.some(bullet => bullet.team === 0 && bullet.kind === 'plasma'));
-  assert.equal(state.bullets.filter(bullet => bullet.team === 1 && bullet.kind === 'pulse').length, 2);
-  for (const id of ['scatter', 'lance', 'seeker', 'arc', 'unknown']) assert.equal(selectWeapon(state, id), false);
-  for (const playerId of [-1, 2, .5]) assert.equal(selectWeapon(state, 'pulse', playerId), false);
+  assert(plasma.damage > pulse.damage * 5); assert(plasma.splash > 0);
+  assert(plasma.damage / plasma.interval > pulse.damage * pulse.count / pulse.interval);
+  selectWeapon(state, 'plasma'); update(state, .01, [{ fire: true }, { secondary: true }]);
+  assert.deepEqual(state.bullets.map(b => b.kind), ['pulse', 'pulse']);
+  assert.equal(player.fireEnergy, 100);
+  const cooldown = player.fire;
+  for (let i = 0; i < 20; i++) for (const id of ['plasma', 'pulse']) selectWeapon(state, id);
+  assert.equal(player.fire, cooldown);
+  advance(state, .15, [{ secondary: true }]);
+  assert.equal(state.bullets.length, 2, 'alternating inputs cannot bypass the shot cooldown');
+  player.fire = 0; update(state, .01, [{ secondary: true }]);
+  assert.equal(state.bullets.at(-1).kind, 'plasma'); assert.equal(player.fireEnergy, 80);
+  for (const playerId of [-1, 1, 2, .5]) assert.equal(selectWeapon(state, 'pulse', playerId), false);
 });
 
 check('secondary bursts consume energy and holding an empty weapon waits for a useful recharge', () => {
-  const state = isolated(2), player = state.players[0];
+  const state = isolated(), player = state.players[0];
   let shots = 0;
   for (let tick = 0; tick < 110; tick++) {
     update(state, .025, [{ secondary: true }]);
@@ -122,7 +114,6 @@ check('secondary bursts consume energy and holding an empty weapon waits for a u
   }
   assert.equal(shots, 5, 'a full reserve buys exactly five shots before recharging');
   assert(player.fireEnergyLocked); assert(player.fireEnergy < SECONDARY_ENERGY_COST);
-  assert.equal(state.players[1].fireEnergy, 100, 'the other pilot has an independent reserve');
   update(state, .025, [{ fire: true, secondary: true }]);
   assert.equal(state.events.at(-1).weapon, 'pulse', 'primary remains usable while secondary recharges');
   advance(state, .3); advance(state, .3, [{ secondary: true }]);
@@ -162,12 +153,12 @@ check('fire energy recharge is frame-rate independent, upgraded, bounded, and pa
 });
 
 check('shared upgrades improve both channels and new stages and retries refill fire energy', () => {
-  const state = isolated(2), before = WEAPONS.map(weapon => weaponStats(state, weapon.id).damage);
+  const state = isolated(), before = WEAPONS.map(weapon => weaponStats(state, weapon.id).damage);
   for (const player of state.players) { player.fireEnergy = 3; player.fireEnergyDelay = .8; player.fireEnergyLocked = true; }
   state.status = 'hangar'; state.credits = 1000;
   assert.equal(buyUpgrade(state, 'weapon'), true);
   WEAPONS.forEach((weapon, index) => assert(weaponStats(state, weapon.id).damage > before[index]));
-  const retry = createCampaign(2, state.level, state);
+  const retry = createCampaign(state.level, state);
   beginLevel(state, 1);
   for (const run of [state, retry]) for (const player of run.players) {
     assert.equal(player.fireEnergy, 100); assert.equal(player.fireEnergyDelay, 0); assert.equal(player.fireEnergyLocked, false);
@@ -188,7 +179,7 @@ check('hostile rounds scale with ship class and use spectrum colors', () => {
 });
 
 check('large structure blasts push both teams outward with mass and distance falloff',()=>{
-  const state=isolated(2),left=state.players[0],right=state.players[1];
+  const state=isolated(),left=state.players[0],right=spawnEnemy(state,0,650,600);
   Object.assign(left,{x:550,y:600,mass:1});Object.assign(right,{x:650,y:600,mass:2});
   const nearby=spawnEnemy(state,0,600,545),far=spawnEnemy(state,0,950,600),heavy=spawnEnemy(state,8,630,600),boss=spawnEnemy(state,9,590,600),dead=spawnEnemy(state,0,590,600);
   dead.dead=true;
@@ -287,7 +278,7 @@ check('ordinary craft pass through the pilot lane and leave without a bottom-row
 
 check('formation survivors depart and keep moving until the last heavy hull exits', () => {
   for (const kind of ['vee', 'wall', 'orbit', 'escort', 'pincer']) {
-    const state = createCampaign(1, 9);
+    const state = createCampaign(9);
     state.time = 80;
     const formation = spawnFormation(state, kind);
     state.bossSpawned = true; state.players[0].hurt = Infinity;
@@ -315,7 +306,7 @@ check('boss armor blocks real shots between windows and weak points open fire la
 
 check('all ten sectors introduce all nine normal classes and one boss', () => seeded(7261, () => {
   for (let level = 0; level < 10; level++) {
-    const state = createCampaign(1, level), seen = new Set();
+    const state = createCampaign(level), seen = new Set();
     // Ignore damage only for this spawn-schedule check; balance trials use real HP.
     state.players[0].hurt = Infinity;
     let bossEvents = 0;
@@ -391,7 +382,7 @@ check('boss destruction cancels hostile collisions later in the same frame', () 
 
 check('every sector completes, pays its bonus once, and final sector wins', () => {
   for (let level = 0; level < 10; level++) {
-    const state = isolated(1, level), boss = spawnEnemy(state, 9, 600, 155);
+    const state = isolated(level), boss = spawnEnemy(state, 9, 600, 155);
     killEnemy(state, boss);
     const priorCredits = state.credits, priorScore = state.score;
     advance(state, 3);
@@ -422,7 +413,7 @@ check('shields absorb first, damage immunity expires, and hull can be destroyed'
 
 check('shield recharge waits after damage, respects capacity, and improves with capacitor', () => {
   for (const recharge of [0, 6]) {
-    const state = createCampaign(1, 0, { upgrades: { recharge } }), player = state.players[0];
+    const state = createCampaign(0, { upgrades: { recharge } }), player = state.players[0];
     state.bossSpawned = true;
     const stats = shipStats(state.upgrades);
     hurtPlayer(state, player, 50);
@@ -458,33 +449,21 @@ check('shop rejects unavailable purchases and charges exactly through maximum ti
   }
 });
 
-check('co-op survives one loss and restores both pilots with shared upgrades next sector', () => {
-  const state = isolated(2), first = state.players[0];
-  hurtPlayer(state, first, 10000);
-  update(state, .016);
-  assert.equal(state.status, 'playing');
-  assert.equal(first.alive, false);
-  killEnemy(state, spawnEnemy(state, 9, 600, 155));
-  advance(state, 3.3);
+check('one pilot is restored with purchased upgrades next sector and defeat ends the flight', () => {
+  const state = isolated();
+  killEnemy(state, spawnEnemy(state, 9, 600, 155)); advance(state, 3.3);
   assert.equal(state.status, 'hangar');
-  assert.ok(buyUpgrade(state, 'hull'));
-  assert.ok(buyUpgrade(state, 'shield'));
+  assert(buyUpgrade(state, 'hull')); assert(buyUpgrade(state, 'shield'));
   const credits = state.credits, score = state.score;
   beginLevel(state, 1);
-  assert.equal(state.credits, credits);
-  assert.equal(state.score, score);
-  assert.equal(state.enemies.length, 0);
-  for (const pilot of state.players) {
-    assert.ok(pilot.alive);
-    assert.equal(pilot.hull, 165);
-    assert.equal(pilot.shield, 123);
-  }
-  for (const pilot of state.players) hurtPlayer(state, pilot, 10000);
-  update(state, .016);
+  assert.equal(state.players.length, 1); assert.equal(state.players[0].id, 0);
+  assert.equal(state.credits, credits); assert.equal(state.score, score);
+  assert.equal(state.players[0].hull, 165); assert.equal(state.players[0].shield, 123);
+  hurtPlayer(state, state.players[0], 10000); update(state, .016);
   assert.equal(state.status, 'defeat');
 });
 
-check('boss attacks change at damage thresholds and co-op enemy HP scales', () => {
+check('boss attacks change at damage thresholds', () => {
   for (const [fraction, phase, bullets] of [[1,0,9],[.6,1,13],[.25,2,17]]) {
     const state = isolated(), boss = spawnEnemy(state, 9, 600, 155);
     boss.hp = boss.maxHp * fraction; boss.fire = 0;
@@ -492,9 +471,6 @@ check('boss attacks change at damage thresholds and co-op enemy HP scales', () =
     assert.equal(boss.phase, phase);
     assert.equal(state.bullets.filter(b => b.team < 0).length, bullets);
   }
-  const solo = spawnEnemy(isolated(1, 9), 9, 600, 155);
-  const duo = spawnEnemy(isolated(2, 9), 9, 600, 155);
-  assert.ok(Math.abs(duo.maxHp / solo.maxHp - 1.65) < .0001);
 });
 
 check('diagonal acceleration and top speed are normalized', () => {
@@ -524,7 +500,7 @@ check('pilots coast on release and reverse through their existing momentum', () 
 });
 
 check('heavy equipment increases inertia while preserving attainable cruise speed', () => {
-  const light = isolated(), heavy = createCampaign(1, 0, { upgrades: { hull: 6, weapon: 6, shield: 6, recharge: 6 } });
+  const light = isolated(), heavy = createCampaign(0, { upgrades: { hull: 6, weapon: 6, shield: 6, recharge: 6 } });
   heavy.bossSpawned = true;
   const a = light.players[0], b = heavy.players[0];
   assert.ok(b.mass > a.mass * 1.5);
@@ -591,9 +567,9 @@ check('pickups repair without exceeding stats', () => {
 });
 
 check('checkpoint restoration sanitizes upgrade tiers and preserves earned progress', () => {
-  const state = createCampaign(2, 7, { upgrades: { weapon: 100, hull: -2, shield: '3', recharge: 'bad' }, credits: 1234, score: 78901, totalKills: 72 });
+  const state = createCampaign(7, { upgrades: { weapon: 100, hull: -2, shield: '3', recharge: 'bad' }, credits: 1234, score: 78901, totalKills: 72 });
   assert.deepEqual(state.upgrades, { weapon: 6, hull: 0, shield: 3, recharge: 0 });
-  assert.equal(state.players.length, 2);
+  assert.equal(state.players.length, 1);
   assert.equal(state.level, 7);
   assert.equal(state.credits, 1234);
   assert.equal(state.score, 78901);
@@ -610,7 +586,7 @@ function pilotControls(state, pilot) {
     const score = enemy.boss ? 2000 : enemy.y - Math.abs(enemy.x - pilot.x) * .5 + enemy.radius * 2;
     if (score > priority) { target = enemy; priority = score; }
   }
-  let aimX = state.width * (.5 + (state.mode === 2 ? pilot.id ? .16 : -.16 : 0));
+  let aimX = state.width * .5;
   if (target) {
     const flight = Math.max(0, (pilot.y - target.y) / 850);
     aimX = target.boss ? state.width / 2 + Math.sin((target.age + flight) * .48) * Math.min(235, state.width * .24) : target.x;
@@ -650,9 +626,9 @@ function buyBalanced(state) {
   }
 }
 
-function runCampaign(mode, seed) {
+function runCampaign(seed) {
   return seeded(seed, () => {
-    const state = createCampaign(mode), results = [];
+    const state = createCampaign(), results = [];
     let controls = [], tick = 0;
     while (state.status !== 'victory' && state.status !== 'defeat') {
       const startingCredits = state.credits, startingUpgrades = { ...state.upgrades };
@@ -668,15 +644,15 @@ function runCampaign(mode, seed) {
       buyBalanced(state);
       beginLevel(state, state.level + 1);
     }
-    return { mode, seed, status: state.status, results };
+    return { seed, status: state.status, results };
   });
 }
 
 if (process.argv.includes('--balance')) {
-  for (const mode of [1,2]) {
-    const result = runCampaign(mode, 2907);
+  for (const seed of [2907]) {
+    const result = runCampaign(seed);
     console.log(`BALANCE ${JSON.stringify(result)}`);
-    check(`${mode === 1 ? 'solo' : 'co-op'} campaign is winnable using movement, shooting, and earned upgrades`, () => assert.equal(result.status, 'victory'));
+    check('campaign is winnable using movement, shooting, and earned upgrades', () => assert.equal(result.status, 'victory'));
   }
   const stationary = seeded(817, () => {
     const state = createCampaign();

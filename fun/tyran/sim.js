@@ -161,9 +161,9 @@ function segmentHits(b, body, radius) {
   return gapX * gapX + gapY * gapY < radius * radius;
 }
 
-export function createCampaign(mode = 1, level = 0, checkpoint = null) {
+export function createCampaign(level = 0, checkpoint = null) {
   const state = {
-    mode: mode === 2 ? 2 : 1, level: clamp(level, 0, 9), status: 'playing',
+    mode: 1, level: clamp(level, 0, 9), status: 'playing',
     upgrades: { weapon: 0, shield: 0, hull: 0, recharge: 0 }, credits: 0, score: 0,
     width: 1200, height: 900, time: 0, scroll: 0, enemies: [], bullets: [], pickups: [], players: [], turrets: [],
     events: [], kills: 0, destroyed: 0, totalKills: 0, combo: 0, comboTime: 0, comboDamage: 1, comboBlast: 1, comboLabel: '',
@@ -186,14 +186,12 @@ export function createCampaign(mode = 1, level = 0, checkpoint = null) {
 }
 
 export function beginLevel(s, level) {
-  const playerWeapons = s.players.map(player => normalizeWeapon(player.weapon ?? s.weapon));
-  Object.assign(s, { level: clamp(level, 0, 9), time: 0, scroll: 0, status: 'playing', enemies: [], bullets: [], pickups: [], turrets: [], events: [], formations: [], kills: 0, destroyed: 0, combo: 0, comboTime: 0, comboDamage: 1, comboBlast: 1, comboLabel: '', bossSpawned: false, bossDefeated: false, bossDeathTime: 0, spawnTimer: 1.5, showcase: 0, formationTimer: 10.5 });
+  const weapon = normalizeWeapon(s.players[0]?.weapon ?? s.weapon);
+  Object.assign(s, { mode: 1, level: clamp(level, 0, 9), time: 0, scroll: 0, status: 'playing', enemies: [], bullets: [], pickups: [], turrets: [], events: [], formations: [], kills: 0, destroyed: 0, combo: 0, comboTime: 0, comboDamage: 1, comboBlast: 1, comboLabel: '', bossSpawned: false, bossDefeated: false, bossDeathTime: 0, spawnTimer: 1.5, showcase: 0, formationTimer: 10.5 });
   s.duration = 90 + s.level * 3;
   const stats = shipStats(s.upgrades);
-  s.players = Array.from({ length: s.mode }, (_, i) => {
-    const x = s.width * (s.mode === 1 ? .5 : i ? .62 : .38), y = s.height * .68;
-    return { id: i, weapon: playerWeapons[i] ?? normalizeWeapon(s.weapon), x, y, px: x, py: y, vx: 0, vy: 0, blastVx: 0, blastVy: 0, mass: stats.mass, thrust: .9, radius: 17, hull: stats.hull, shield: stats.shield, maxHull: stats.hull, maxShield: stats.shield, fire: 0, fireEnergy: stats.energy, fireEnergyDelay: 0, fireEnergyLocked: false, hurt: 0, lastHit: -10, alive: true, rapidFireTime: 0, invulnerableTime: 0 };
-  });
+  const x = s.width * .5, y = s.height * .68;
+  s.players = [{ id: 0, weapon, x, y, px: x, py: y, vx: 0, vy: 0, blastVx: 0, blastVy: 0, mass: stats.mass, thrust: .9, radius: 17, hull: stats.hull, shield: stats.shield, maxHull: stats.hull, maxShield: stats.shield, fire: 0, fireEnergy: stats.energy, fireEnergyDelay: 0, fireEnergyLocked: false, hurt: 0, lastHit: -10, alive: true, rapidFireTime: 0, invulnerableTime: 0 }];
   s.weapon = s.players[0].weapon;
   return s;
 }
@@ -213,7 +211,7 @@ export function spawnEnemy(s, type, x, y = -100) {
   // Capital ships gain reinforced armor so late fights survive a fully upgraded volley.
   // Guardians grow each sector without turning the late campaign into a
   // damage sponge; the open-core rhythm supplies the challenge instead.
-  const hp = spec.hp * (1 + s.level * (boss ? .08 : .24)) * (s.mode === 2 ? 1.65 : 1);
+  const hp = spec.hp * (1 + s.level * (boss ? .08 : .24));
   const e = { id: s.nextEnemyId++, type, x: x ?? rand(100, s.width - 100), y, originX: x ?? s.width / 2, vx: 0, vy: boss ? 0 : spec.speed,
     blastVx: 0, blastVy: 0, mass: .55 + (spec.radius / 18) ** 1.4 * .5, thrust: boss ? 1.05 : .85,
     hp, maxHp: hp, radius: spec.radius, speed: spec.speed, age: 0, fire: boss ? 2 : rand(.8, 2.4), phase: 0, hurt: 0, seed: rand(0, 10), dead: false, boss, warning: 0,
@@ -248,15 +246,14 @@ export function spawnFormation(s, kind = FORMATIONS[Math.floor((s.nextFormationI
 
 function shoot(s, p, id) {
   const profile = weaponStats(s, id), count = profile.count, comboDamage = s.comboDamage || 1;
-  // A solo pilot gets a small fire-control assist so every profile remains
-  // campaign-viable without making co-op’s shared target balance trivial.
-  const modeAssist = s.mode === 1 ? 1.35 : 1;
-  const playerColor = p.id ? '#ffc18b' : '#9cfff0';
+  // Keep the existing single-player damage balance.
+  const damageAssist = 1.35;
+  const playerColor = '#9cfff0';
   for (let i = 0; i < count; i++) {
     const offset = i - (count - 1) / 2, angle = -Math.PI / 2 + offset * profile.spread;
     const x = p.x + Math.cos(angle) * offset * 5, y = p.y - 24;
     s.bullets.push({ x, y, px: x, py: y, vx: Math.cos(angle) * profile.speed, vy: Math.sin(angle) * profile.speed,
-      damage: profile.damage * comboDamage * modeAssist, baseDamage: profile.damage, radius: profile.radius, team: p.id, life: profile.life,
+      damage: profile.damage * comboDamage * damageAssist, baseDamage: profile.damage, radius: profile.radius, team: p.id, life: profile.life,
       color: playerColor, weaponColor: profile.color, kind: profile.kind, pierce: profile.pierce || 0, homing: profile.homing || 0,
       splash: profile.splash || 0, splashFactor: profile.splashFactor || 0, chain: profile.chain || 0, chainRange: profile.chainRange || 0,
       chainFactor: profile.chainFactor || .6, hitIds: [], age: 0, comboBlast: s.comboBlast || 1 });
@@ -564,7 +561,7 @@ export function update(s, dt, input = [], environmentHit = null, groundTargets =
     if (s.spawnTimer <= 0 && s.enemies.length < 18) {
       const maxType = Math.min(8, Math.floor(s.time / 10));
       const type = Math.floor(Math.random() * (maxType + 1));
-      const count = type < 3 ? 2 + (s.mode === 2 ? 1 : 0) : 1;
+      const count = type < 3 ? 2 : 1;
       const mid = rand(s.width * .2, s.width * .8);
       for (let i = 0; i < count; i++) spawnEnemy(s, type, clamp(mid + (i - (count - 1) / 2) * 76, 65, s.width - 65), -80 - i * 35);
       s.spawnTimer = Math.max(1.2, 2.4 - s.level * .065 - s.time * .003);

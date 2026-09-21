@@ -39,84 +39,79 @@ const isolateCombat = () => page.evaluate(() => {
   for (const p of s.players) { p.hurt = 100; p.fire = 0; }
   tyran.world.hit = () => []; tyran.world.getGroundTargets = () => [];
 });
-async function fixture(mode = 2) {
-  await page.evaluate(mode => {
-    document.querySelector(`[data-mode="${mode}"]`).click(); document.querySelector('#launch-button').click(); __pumpFrame(__frameTime);
-  }, mode);
+async function fixture() {
+  await page.evaluate(() => {
+    document.querySelector('#launch-button').click(); __pumpFrame(__frameTime);
+  });
   await isolateCombat();
 }
 
 try {
   await page.goto(url); await ready(); await fixture();
   assert.deepEqual(await page.evaluate(() => tyran.weapons.map(w => w.id)), ['pulse', 'plasma'], 'both direct fire channels are available');
-  assert.equal(await page.locator('#p1-weapon, #p2-weapon, #arsenal-pilots').count(), 0, 'old weapon toggles and shop pilot selectors are removed');
+  assert.equal(await page.locator('#p1-weapon, #p2-panel, #arsenal-pilots, [data-mode]').count(), 0, 'old weapon toggles and shop pilot selectors are removed');
+  assert.equal(await page.evaluate(() => tyran.state.players.length), 1);
   const before = await positions(), muted = await page.locator('#sound-toggle').getAttribute('aria-pressed');
-  for (const key of ['KeyD', 'KeyW', 'KeyY', 'KeyJ', 'KeyI', 'KeyM']) await page.keyboard.down(key);
+  for (const key of ['KeyD', 'KeyW', 'Space']) await page.keyboard.down(key);
   await advance(.25);
-  assert.deepEqual(await friendlyKinds(), [['pulse'], ['plasma']], 'Y fires P1 primary and M fires P2 secondary');
-  const moved = await positions(), spent = await energy();
-  assert.ok(moved[0].x > before[0].x && moved[0].y < before[0].y, 'WASD moves pilot one');
-  assert.ok(moved[1].x < before[1].x && moved[1].y < before[1].y, 'IJKL moves pilot two independently');
-  assert.equal(spent[0].fireEnergy, 100, 'primary fire spends no secondary energy');
-  assert.ok(spent[1].fireEnergy < 100, 'only the pilot firing secondary spends energy');
-  assert.equal(await page.locator('#sound-toggle').getAttribute('aria-pressed'), muted, 'M firing never toggles sound');
-  for (const key of ['KeyD', 'KeyW', 'KeyY', 'KeyJ', 'KeyI', 'KeyM']) await page.keyboard.up(key);
-  await isolateCombat();
-  for (const key of ['KeyX', 'KeyN']) await page.keyboard.down(key);
-  await advance(.12);
-  assert.deepEqual(await friendlyKinds(), [['plasma'], ['pulse']], 'X fires P1 secondary and N fires P2 primary without switching loadouts');
-  for (const key of ['KeyX', 'KeyN']) await page.keyboard.up(key);
-  console.log('PASS actual WASD/Y/X and IJKL/N/M independently move and fire both channels');
+  assert.deepEqual(await friendlyKinds(), [['pulse']], 'Space fires primary');
+  const moved = await positions();
+  assert(moved[0].x > before[0].x && moved[0].y < before[0].y, 'WASD moves the ship');
+  assert.equal((await energy())[0].fireEnergy, 100);
+  for (const key of ['KeyD', 'KeyW', 'Space']) await page.keyboard.up(key);
+  await isolateCombat(); await page.keyboard.down('KeyQ'); await advance(.12); await page.keyboard.up('KeyQ');
+  assert.deepEqual(await friendlyKinds(), [['plasma']], 'Q fires secondary');
+  assert((await energy())[0].fireEnergy < 100);
+  console.log('PASS actual WASD/Space/Q movement and both fire channels');
 
   await fixture();
   const legacyStart = await positions();
-  const retired = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ControlLeft', 'ControlRight', 'AltLeft', 'AltRight', 'Space', 'Enter'];
+  const retired = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ControlLeft', 'ControlRight', 'AltLeft', 'AltRight', 'KeyY', 'KeyX', 'KeyI', 'KeyJ', 'KeyK', 'KeyL', 'KeyN', 'KeyM', 'Enter'];
   for (const key of retired) {
     await page.keyboard.down(key); await advance(.08); await page.keyboard.up(key);
   }
   assert.deepEqual(await positions(), legacyStart, 'retired movement keys cannot steer either pilot');
-  assert.deepEqual(await friendlyKinds(), [[], []], 'retired fire/toggle keys cannot launch projectiles');
-  assert.deepEqual((await energy()).map(p => p.fireEnergy), [100, 100], 'retired controls spend no energy');
+  assert.deepEqual(await friendlyKinds(), [[]], 'retired fire/toggle keys cannot launch projectiles');
+  assert.deepEqual((await energy()).map(p => p.fireEnergy), [100], 'retired controls spend no energy');
   assert.equal(await page.locator('#sound-toggle').getAttribute('aria-pressed'), muted, 'retired controls leave sound unchanged');
   await page.keyboard.press('KeyV');
   assert.notEqual(await page.locator('#sound-toggle').getAttribute('aria-pressed'), muted, 'V toggles sound');
   await page.keyboard.press('KeyV');
-  console.log('PASS retired arrow/Ctrl/Alt/Space/Enter controls are inert and V owns sound');
+  console.log('PASS retired arrow/Ctrl/Alt and former co-op controls are inert and V owns sound');
 
-  await fixture(); await page.keyboard.down('KeyX');
+  await fixture(); await page.keyboard.down('KeyQ');
   for (let i = 0; i < 40 && !(await energy())[0].fireEnergyLocked; i++) await advance(.1);
   const depleted = (await energy())[0];
   assert.ok(depleted.fireEnergyLocked && depleted.fireEnergy < 20, 'holding plasma drains energy and locks at insufficient charge');
   const plasmaBefore = await page.evaluate(() => __shots[0].plasma);
   await advance(.35);
   assert.equal(await page.evaluate(() => __shots[0].plasma), plasmaBefore, 'held secondary cannot shoot while recharging');
-  await page.keyboard.up('KeyX'); await page.keyboard.down('KeyY'); await advance(.25);
+  await page.keyboard.up('KeyQ'); await page.keyboard.down('Space'); await advance(.25);
   assert.ok((await friendlyKinds())[0].includes('pulse'), 'primary remains available while secondary is depleted');
   assert.equal((await energy())[0].fireEnergyLocked, true, 'releasing secondary does not bypass its recharge lock');
-  await page.keyboard.up('KeyY'); await page.keyboard.down('KeyX');
+  await page.keyboard.up('Space'); await page.keyboard.down('KeyQ');
   let recharged = false;
   for (let i = 0; i < 70; i++) {
     await advance(.1);
     if (await page.evaluate(count => __shots[0].plasma > count, plasmaBefore)) { recharged = true; break; }
   }
-  await page.keyboard.up('KeyX');
+  await page.keyboard.up('KeyQ');
   assert.ok(recharged, 'held secondary resumes automatically after sufficient recharge');
-  assert.equal((await energy())[1].fireEnergy, 100, 'one pilot’s drain never touches the other reserve');
   await fixture();
-  for (const key of ['KeyY', 'KeyX']) await page.keyboard.down(key);
-  await advance(.12); assert.deepEqual(await friendlyKinds(), [['plasma'], []], 'secondary has priority when both fire buttons are held and charged');
+  for (const key of ['Space', 'KeyQ']) await page.keyboard.down(key);
+  await advance(.12); assert.deepEqual(await friendlyKinds(), [['plasma']], 'secondary has priority when both fire buttons are held and charged');
   for (let i = 0; i < 40 && !(await energy())[0].fireEnergyLocked; i++) await advance(.1);
   await page.evaluate(() => { tyran.state.bullets.length = 0; }); await advance(.5);
-  assert.deepEqual(await friendlyKinds(), [['pulse'], []], 'both held buttons fall back to primary while secondary recharges');
-  for (const key of ['KeyY', 'KeyX']) await page.keyboard.up(key);
-  console.log('PASS secondary drains, locks, recharges and resumes, with primary fallback and separate reserves');
+  assert.deepEqual(await friendlyKinds(), [['pulse']], 'both held buttons fall back to primary while secondary recharges');
+  for (const key of ['Space', 'KeyQ']) await page.keyboard.up(key);
+  console.log('PASS secondary drains, locks, recharges and resumes, with primary fallback');
 
   const cancellation = await page.evaluate(() => {
     window.__downstreamKeys = [];
     for (const type of ['keydown', 'keyup', 'keypress']) for (const [target, capture] of [[window, true], [document, true], [document, false]]) {
       target.addEventListener(type, e => __downstreamKeys.push(e.code), { capture });
     }
-    const cases = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyY', 'KeyX', 'KeyI', 'KeyJ', 'KeyK', 'KeyL', 'KeyN', 'KeyM', 'KeyV', 'Escape', 'ControlLeft', 'AltRight', 'Space', 'Enter'].map(code => ({ code }));
+    const cases = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'KeyQ', 'KeyI', 'KeyJ', 'KeyK', 'KeyL', 'KeyN', 'KeyM', 'KeyV', 'Escape', 'ControlLeft', 'AltRight', 'Space', 'Enter'].map(code => ({ code }));
     cases.push({ code: 'KeyR', ctrlKey: true }, { code: 'KeyL', metaKey: true });
     return cases.flatMap(fields => ['keydown', 'keypress', 'keyup'].map(type => {
       const before = __downstreamKeys.length;
@@ -140,12 +135,11 @@ try {
   }
   await page.evaluate(() => {
     Object.assign(tyran.state.players[0], { fireEnergy: 17, fireEnergyDelay: .45, fireEnergyLocked: true });
-    Object.assign(tyran.state.players[1], { fireEnergy: 73, fireEnergyDelay: .8, fireEnergyLocked: false });
   });
   const savedEnergy = await energy(); await page.keyboard.press('Escape');
-  await advance(2); assert.deepEqual(await energy(), savedEnergy, 'pause freezes both energy reserves and delays');
+  await advance(2); assert.deepEqual(await energy(), savedEnergy, 'pause freezes fire energy and delays');
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('tyran-campaign')).state.players.map(({ fireEnergy, fireEnergyDelay, fireEnergyLocked }) => ({ fireEnergy, fireEnergyDelay, fireEnergyLocked })));
-  assert.deepEqual(saved, savedEnergy, 'autosave preserves per-pilot energy, delay and lock');
+  assert.deepEqual(saved, savedEnergy, 'autosave preserves energy, delay and lock');
   await focus('menu-button'); await page.keyboard.press('Enter');
   assert.equal(await page.evaluate(() => tyran.scene), 'menu');
   const qualityBefore = await page.locator('#quality-toggle').getAttribute('aria-pressed');
@@ -153,10 +147,10 @@ try {
   assert.notEqual(await page.locator('#quality-toggle').getAttribute('aria-pressed'), qualityBefore, 'Space activates native menu buttons');
   await page.reload(); await ready(); await focus('continue-button'); await page.keyboard.press('Enter');
   assert.equal(await page.evaluate(() => tyran.scene), 'pause');
-  assert.deepEqual(await energy(), savedEnergy, 'reload/resume restores exact independent energy states');
+  assert.deepEqual(await energy(), savedEnergy, 'reload/resume restores exact energy state');
   await focus('resume-button'); await page.keyboard.press('Enter'); await page.evaluate(() => __pumpFrame(__frameTime));
   await isolateCombat();
-  for (const key of ['KeyD', 'KeyL', 'KeyY', 'KeyX', 'KeyN', 'KeyM']) await page.keyboard.down(key);
+  for (const key of ['KeyD', 'KeyL', 'Space', 'KeyQ', 'KeyN', 'KeyM']) await page.keyboard.down(key);
   await advance(.12);
   await page.evaluate(() => window.dispatchEvent(new Event('blur')));
   assert.equal(await page.evaluate(() => tyran.scene), 'pause');
@@ -167,10 +161,10 @@ try {
   });
   const released = await positions(); await advance(.25);
   assert.deepEqual(await positions(), released, 'focus loss clears both held movement layouts');
-  assert.deepEqual(await friendlyKinds(), [[], []], 'focus loss clears both held fire channels');
-  for (const key of ['KeyD', 'KeyL', 'KeyY', 'KeyX', 'KeyN', 'KeyM']) await page.keyboard.up(key);
+  assert.deepEqual(await friendlyKinds(), [[]], 'focus loss clears both held fire channels');
+  for (const key of ['KeyD', 'KeyL', 'Space', 'KeyQ', 'KeyN', 'KeyM']) await page.keyboard.up(key);
   console.log('PASS event isolation, accessible pause/menu, exact energy autosave/resume and focus-loss cleanup');
-  await fixture(1);
+  await fixture();
   const solo = await positions();
   for (const key of ['KeyI', 'KeyJ', 'KeyN', 'KeyM']) await page.keyboard.down(key);
   await advance(.2);
@@ -200,7 +194,7 @@ try {
   await page.evaluate(() => document.querySelector('#resume-button').click());
   assert.equal((await lock()).requests, 1, 'fullscreen flight requests Keyboard Lock');
   const requestedKeys = await page.evaluate(() => __keyboardLock.requests[0]);
-  for (const code of ['KeyW', 'KeyI', 'KeyY', 'KeyX', 'KeyN', 'KeyM', 'KeyV', 'F11', 'KeyF']) assert.ok(requestedKeys.includes(code), `${code} is included in the scoped lock request`);
+  for (const code of ['KeyW', 'Space', 'KeyQ', 'KeyV', 'F11', 'KeyF']) assert.ok(requestedKeys.includes(code), `${code} is included in the scoped lock request`);
   assert.ok(!requestedKeys.includes('Tab') && requestedKeys.length < 30, 'the lock request is scoped and leaves Tab available');
   const locked = await lock(); await page.evaluate(() => tyran.pause());
   assert.ok((await lock()).unlocks > locked.unlocks, 'pausing releases Keyboard Lock');
@@ -211,7 +205,7 @@ try {
   assert.equal((await lock()).unlocks, pausedRequest.unlocks + 1, 'a lock resolving after pause is immediately released');
   await page.evaluate(async () => { __keyboardLock.mode = 'reject'; document.querySelector('#resume-button').click(); await new Promise(resolve => setTimeout(resolve, 0)); });
   assert.equal((await lock()).scene, 'playing', 'lock rejection leaves the flight playable');
-  await isolateCombat(); await page.keyboard.down('KeyY'); await advance(.12); await page.keyboard.up('KeyY');
+  await isolateCombat(); await page.keyboard.down('Space'); await advance(.12); await page.keyboard.up('Space');
   assert.deepEqual(await friendlyKinds(), [['pulse']], 'ordinary captured fire still works after lock rejection');
   const rejected = await lock();
   await page.evaluate(() => { __keyboardLock.fullscreen = false; document.dispatchEvent(new Event('fullscreenchange')); });

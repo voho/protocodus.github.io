@@ -1,4 +1,4 @@
-// Sustained co-op flight through new terrain. Frame timings are measurements,
+// Sustained single-player flight through new terrain. Frame timings are measurements,
 // not machine-dependent pass/fail thresholds; coverage and errors are asserted.
 import assert from 'node:assert/strict';
 import { writeFile, mkdir } from 'node:fs/promises';
@@ -72,7 +72,7 @@ try {
     });
     observer.observe({ type: 'longtask' });
     const launchStarted = performance.now();
-    tyran.launch(6, { mode: 2, upgrades: { weapon: 6, shield: 4, hull: 4, recharge: 4 } });
+    tyran.launch(6, { upgrades: { weapon: 6, shield: 4, hull: 4, recharge: 4 } });
     const launchMs = performance.now() - launchStarted;
     await world.ready;
     const state = tyran.state;
@@ -82,7 +82,7 @@ try {
     for (const pilot of state.players) { pilot.hurt = 1e8; if (stress) pilot.rapidFireTime = 10; }
     for (let i = 0; i < 18; i++) spawnEnemy(state, i % 9, 80 + (i % 9) * (state.width - 160) / 8, 80 + Math.floor(i / 9) * 200);
     const key = (code, down) => window.dispatchEvent(new KeyboardEvent(down ? 'keydown' : 'keyup', { code, bubbles: true, cancelable: true }));
-    key('KeyY', true); key('KeyN', true);
+    key('Space', true); key('KeyQ', true);
     const startScroll = state.scroll, startTime = state.time, flightStarted = performance.now();
     let previous = null, steering = -1, lastImpact = -1;
     await new Promise(resolve => {
@@ -102,16 +102,16 @@ try {
         // both firing lanes moving without an AI modifying simulation state.
         const phase = Math.floor((state.time - startTime) / 3) % 4;
         if (phase !== steering) {
-          for (const code of ['KeyA', 'KeyD', 'KeyJ', 'KeyL']) key(code, false);
-          if (phase === 0) { key('KeyD', true); key('KeyJ', true); }
-          if (phase === 2) { key('KeyA', true); key('KeyL', true); }
+          for (const code of ['KeyA', 'KeyD']) key(code, false);
+          if (phase === 0) { key('KeyD', true); }
+          if (phase === 2) { key('KeyA', true); }
           steering = phase;
         }
         if (performance.now() - flightStarted < seconds * 1000) requestAnimationFrame(sample); else resolve();
       }
       requestAnimationFrame(sample);
     });
-    for (const code of ['KeyY', 'KeyN', 'KeyA', 'KeyD', 'KeyJ', 'KeyL']) key(code, false);
+    for (const code of ['Space', 'KeyQ', 'KeyA', 'KeyD']) key(code, false);
     observer.disconnect(); world.draw = draw; world.getTile = getTile; world.getSceneryLayer = getSceneryLayer;
     return { ...trace, launchMs, startScroll, endScroll: state.scroll, simulationSeconds: state.time - startTime, elapsedMs: performance.now() - started, flightMs: performance.now() - flightStarted,
       chunkHeight, chunkBoundaries: Math.floor(state.scroll / chunkHeight) - Math.floor(startScroll / chunkHeight), performance: tyran.performance };
