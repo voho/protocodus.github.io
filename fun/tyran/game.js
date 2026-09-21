@@ -411,7 +411,7 @@ function pickupTexture(kind) {
       paint.lineTo(36, 36); paint.closePath(); paint.stroke();
       paint.fillRect(46, 40, 4, 11); paint.fillRect(42, 44, 12, 3);
     }
-    paint.font = 'bold 10px "Oxanium", sans-serif'; paint.textAlign = 'center'; paint.fillText('10s', 48, 81);
+    paint.font = 'bold 14px "Oxanium", sans-serif'; paint.textAlign = 'center'; paint.fillText('10s', 48, 81);
   }
   pickupTextures.set(key, out); return out;
 }
@@ -520,7 +520,7 @@ function draw() {
       drawPilotBonuses(p, x, y);
     }
     if (state.combo >= 2 && state.comboTime > 0) {
-      ctx.textAlign = 'right'; ctx.font = 'bold 17px "Space Grotesk", sans-serif'; ctx.fillStyle = state.combo >= 5 ? '#ffe36d' : '#d8fce7';
+      ctx.textAlign = 'right'; ctx.font = 'bold 22px "Space Grotesk", sans-serif'; ctx.fillStyle = state.combo >= 5 ? '#ffe36d' : '#d8fce7';
       ctx.fillText(`${state.combo}  ${comboLabel(state.combo)}`, W - 30, H - 32);
       ctx.fillStyle = '#d8fce766'; ctx.fillRect(W - 180, H - 20, 150, 2); ctx.fillStyle = '#ffe18c'; ctx.fillRect(W - 180, H - 20, 150 * clamp(state.comboTime / 5.2, 0, 1), 2);
     }

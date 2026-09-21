@@ -4,10 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Tyran — Beyond the last horizon</title>
-  <meta name="description" content="Ten extraordinary worlds. One impossible mission. Fly solo or with a friend in Tyran, a spectacular scrolling arcade shooter. Battle enemy fleets, destroy enormous bosses and build your perfect ship.">
+  <meta name="description" content="Ten extraordinary worlds. One impossible mission. Fly your ship in Tyran, a spectacular scrolling arcade shooter. Battle enemy fleets, destroy enormous bosses and build your perfect ship.">
   <meta name="theme-color" content="#08110f">
   <meta property="og:title" content="Tyran — Beyond the last horizon">
-  <meta property="og:description" content="A beautiful arcade shooter across ten extraordinary worlds. Fly solo or bring a wingmate.">
+  <meta property="og:description" content="A beautiful arcade shooter across ten extraordinary worlds. One pilot. Ten worlds to reclaim.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://protocodus.cz/fun/tyran/">
   <meta property="og:image" content="https://protocodus.cz/fun/tyran/assets/hero.jpg">
@@ -47,6 +47,7 @@
         <p class="hero-description">Fight across ten worlds. Earn credits. Build your ship.<br>One pilot. One ship. A whole sky to reclaim.</p>
 
         <div class="flight-options">
+          <div class="control-legend menu-controls" aria-label="Flight controls"><span><kbd>WASD</kbd> Move</span><span><kbd>Space</kbd> Primary</span><span><kbd>Q</kbd> Secondary</span></div>
           <button type="button" class="launch-button" id="launch-button"><span><small>Sector 01 · Ten-world campaign</small><strong>New campaign</strong></span><svg viewBox="0 0 28 28" fill="none" aria-hidden="true"><path d="M5 14h18m-8-8 8 8-8 8" stroke="currentColor" stroke-width="2" stroke-linecap="square"/></svg></button>
           <button type="button" class="continue-button" id="continue-button" disabled><span id="continue-label">Resume campaign</span><span aria-hidden="true">→</span></button>
           <p class="save-summary" id="save-summary" role="status">Campaign progress saves automatically in this browser.</p>
@@ -63,7 +64,6 @@
       <div class="sector-flight"><p>Practice with a fresh ship. Your campaign stays saved.</p><button type="button" class="secondary-button" id="sector-flight-button">Practice selected sector <span aria-hidden="true">→</span></button></div>
     </section>
     <footer class="menu-footer">
-<div class="control-summary"><span><kbd>W A S D</kbd> move <kbd>Space</kbd> pulse <kbd>Q</kbd> plasma</span></div>
       <div class="footer-links"><button type="button" id="help-button">Flight manual <span aria-hidden="true">↗</span></button><a href="/" class="studio-credit">By Protocodus</a></div>
     </footer>
   </main>
@@ -79,8 +79,8 @@
     </div>
     <div class="boss-hud" id="boss-hud" hidden><div><span class="boss-alert"><span class="live-dot"></span> Capital ship detected</span><strong id="boss-name">Leviathan</strong><span class="boss-status" id="boss-status">Armor sealed</span></div><div class="boss-meter"><i id="boss-fill"></i></div></div>
     <div class="hud-bottom">
-      <div class="player-panel" id="p1-panel"><div class="player-label"><span class="pilot-number">01</span><span><strong>Vanguard</strong><small>Your ship</small></span><svg viewBox="0 0 28 28" fill="none" aria-hidden="true"><path d="m14 3 9 22-9-4-9 4L14 3Z" stroke="currentColor" stroke-width="1.5"/></svg></div><div class="pilot-fire-keys"><span><b>Space</b> Pulse</span><span><b>Q</b> Plasma</span></div><div class="resource-line"><span>Hull</span><div class="resource-meter hull-meter"><i id="p1-hull"></i></div></div><div class="resource-line"><span>Shield</span><div class="resource-meter shield-meter"><i id="p1-shield"></i></div></div><div class="resource-line energy-line" id="p1-energy-line"><span>Energy</span><div class="resource-meter energy-meter"><i id="p1-energy"></i></div></div><span class="energy-status" id="p1-energy-status">100%</span><div class="pilot-bonuses" id="p1-bonuses" hidden><span class="pilot-bonus rapid-bonus" id="p1-rapid" hidden><svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="m11 1-8 11h6l-1 7 9-12h-6Z"/></svg>Rapid fire <b id="p1-rapid-time">10s</b></span><span class="pilot-bonus invulnerable-bonus" id="p1-invulnerable" hidden><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m10 2 7 3-1 7-6 6-6-6-1-7 7-3Z" stroke="currentColor" stroke-width="1.5"/></svg>Invulnerable <b id="p1-invulnerable-time">10s</b></span></div></div>
-      <span class="flight-hint">WASD move · Space pulse / Q plasma · V sound</span>
+      <div class="player-panel" id="p1-panel"><div class="player-label"><span class="pilot-number">01</span><span><strong>Vanguard</strong><small>Your ship</small></span><svg viewBox="0 0 28 28" fill="none" aria-hidden="true"><path d="m14 3 9 22-9-4-9 4L14 3Z" stroke="currentColor" stroke-width="1.5"/></svg></div><div class="resource-line"><span>Hull</span><div class="resource-meter hull-meter"><i id="p1-hull"></i></div></div><div class="resource-line"><span>Shield</span><div class="resource-meter shield-meter"><i id="p1-shield"></i></div></div><div class="resource-line energy-line" id="p1-energy-line"><span>Energy</span><div class="resource-meter energy-meter"><i id="p1-energy"></i></div></div><span class="energy-status" id="p1-energy-status">100%</span><div class="pilot-bonuses" id="p1-bonuses" hidden><span class="pilot-bonus rapid-bonus" id="p1-rapid" hidden><svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="m11 1-8 11h6l-1 7 9-12h-6Z"/></svg>Rapid fire <b id="p1-rapid-time">10s</b></span><span class="pilot-bonus invulnerable-bonus" id="p1-invulnerable" hidden><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m10 2 7 3-1 7-6 6-6-6-1-7 7-3Z" stroke="currentColor" stroke-width="1.5"/></svg>Invulnerable <b id="p1-invulnerable-time">10s</b></span></div></div>
+      <div class="control-legend flight-controls" aria-label="Flight controls"><span><kbd>WASD</kbd> Move</span><span><kbd>Space</kbd> Primary</span><span><kbd>Q</kbd> Secondary</span></div>
     </div>
   </section>
 

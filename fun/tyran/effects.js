@@ -302,7 +302,7 @@ export class Effects {
     }
     ctx.restore();
     ctx.save(); ctx.textAlign = 'center';
-    for (const t of this.texts) { ctx.globalAlpha = Math.min(1, (t.life - t.age) * 3); ctx.fillStyle = t.color; ctx.font = `bold ${t.size || 13}px "Space Grotesk", sans-serif`; ctx.fillText(t.text, t.x, t.y - t.age * 38); }
+    for (const t of this.texts) { ctx.globalAlpha = Math.min(1, (t.life - t.age) * 3); ctx.fillStyle = t.color; ctx.font = `bold ${Math.round((t.size || 13) * 1.25)}px "Space Grotesk", sans-serif`; ctx.fillText(t.text, t.x, t.y - t.age * 38); }
     ctx.restore();
     if (this.flash > .01 && !this.reduced) { ctx.fillStyle = `rgba(255,236,210,${this.flash * .5})`; ctx.fillRect(0, 0, W, H); }
   }
