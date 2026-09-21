@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { ENEMY_TYPES } from '../ships.js';
 import { createCampaign, beginLevel, update, spawnEnemy, killEnemy, hurtPlayer,
-  spawnFormation, selectWeapon, weaponStats, WEAPONS, buyUpgrade, upgradeCost, shipStats, UPGRADES, MAX_UPGRADE, applyStructureBlast, missionScrollSpeed } from '../sim.js';
+  spawnFormation, selectWeapon, weaponStats, WEAPONS, buyUpgrade, upgradeCost, shipStats, UPGRADES, MAX_UPGRADE, applyStructureBlast, missionScrollSpeed, SECONDARY_ENERGY_COST, SECONDARY_RESTART_ENERGY } from '../sim.js';
 import { serializeRun, restoreRun } from '../save-game.js';
 
 // Run with: node fun/tyran/tests/sim-check.mjs
@@ -84,60 +84,94 @@ check('resuming preserves the speed ramp and ground targets receive the current 
   assert.equal(targetScroll, state.scroll, 'turret aiming and scenery hits use the newly advanced terrain');
 });
 
-check('exactly two weapons trade rapid precision for heavy area damage', () => {
+check('dedicated primary and secondary channels fire independently for both pilots', () => {
   assert.deepEqual(WEAPONS.map(weapon => weapon.id), ['pulse', 'plasma']);
-  const state = isolated();
-  const dps = WEAPONS.map(weapon => {
-    const stats = weaponStats(state, weapon.id);
-    assert.ok(stats.damage > 0 && stats.interval > 0 && stats.count > 0);
-    return stats.damage * stats.count / stats.interval;
-  });
-  assert.ok(Math.max(...dps) / Math.min(...dps) < 2.6, 'no profile is an automatic best pick');
+  const state = isolated(2), [first, second] = state.players;
   const pulse = weaponStats(state, 'pulse'), plasma = weaponStats(state, 'plasma');
   assert.equal(pulse.count, 2); assert.equal(pulse.splash, 0);
   assert.equal(plasma.count, 1); assert(plasma.splash > 0);
-  assert(pulse.interval < plasma.interval && pulse.speed > plasma.speed && plasma.damage > pulse.damage * 2);
-  for (const weapon of WEAPONS) {
-    selectWeapon(state, weapon.id);
-    state.players[0].fire = 0;
-    update(state, .01, [{ fire: true }]);
-    assert.ok(state.bullets.some(b => b.kind === weapon.kind), `${weapon.id} emits its projectile type`);
-    state.bullets.length = 0;
+  assert(plasma.damage > pulse.damage * 5, 'the secondary makes a much heavier impact');
+  assert(plasma.damage / plasma.interval > pulse.damage * pulse.count / pulse.interval, 'energy buys higher burst damage');
+  // An old saved selection cannot change the new dedicated input channels.
+  selectWeapon(state, 'plasma', 0); selectWeapon(state, 'pulse', 1);
+  update(state, .01, [{ fire: true }, { secondary: true }]);
+  assert.equal(state.bullets.filter(bullet => bullet.team === 0 && bullet.kind === 'pulse').length, 2);
+  assert.equal(state.bullets.filter(bullet => bullet.team === 1 && bullet.kind === 'plasma').length, 1);
+  assert.equal(first.fireEnergy, 100); assert.equal(second.fireEnergy, 100 - SECONDARY_ENERGY_COST);
+  assert.equal(first.weapon, 'pulse'); assert.equal(second.weapon, 'plasma'); assert.equal(state.weapon, 'pulse');
+  const cooldowns = state.players.map(player => player.fire);
+  for (let i = 0; i < 20; i++) for (const id of ['plasma', 'pulse']) selectWeapon(state, id, i % 2);
+  assert.deepEqual(state.players.map(player => player.fire), cooldowns);
+  advance(state, .15, [{ secondary: true }, { fire: true }]);
+  assert.equal(state.bullets.length, 3, 'alternating channels or legacy selection cannot bypass the shared cooldown');
+  first.fire = second.fire = 0;
+  update(state, .01, [{ secondary: true }, { fire: true }]);
+  assert(state.bullets.some(bullet => bullet.team === 0 && bullet.kind === 'plasma'));
+  assert.equal(state.bullets.filter(bullet => bullet.team === 1 && bullet.kind === 'pulse').length, 2);
+  for (const id of ['scatter', 'lance', 'seeker', 'arc', 'unknown']) assert.equal(selectWeapon(state, id), false);
+  for (const playerId of [-1, 2, .5]) assert.equal(selectWeapon(state, 'pulse', playerId), false);
+});
+
+check('secondary bursts consume energy and holding an empty weapon waits for a useful recharge', () => {
+  const state = isolated(2), player = state.players[0];
+  let shots = 0;
+  for (let tick = 0; tick < 110; tick++) {
+    update(state, .025, [{ secondary: true }]);
+    shots += state.events.filter(event => event.type === 'shot').length;
+    state.events.length = 0;
+  }
+  assert.equal(shots, 5, 'a full reserve buys exactly five shots before recharging');
+  assert(player.fireEnergyLocked); assert(player.fireEnergy < SECONDARY_ENERGY_COST);
+  assert.equal(state.players[1].fireEnergy, 100, 'the other pilot has an independent reserve');
+  update(state, .025, [{ fire: true, secondary: true }]);
+  assert.equal(state.events.at(-1).weapon, 'pulse', 'primary remains usable while secondary recharges');
+  advance(state, .3); advance(state, .3, [{ secondary: true }]);
+  assert(player.fireEnergyLocked, 'releasing and pressing again cannot bypass the recharge threshold');
+  let restarted = false;
+  for (let tick = 0; tick < 300 && !restarted; tick++) {
+    state.events.length = 0;
+    update(state, .025, [{ secondary: true }]);
+    restarted = state.events.some(event => event.type === 'shot');
+    if (!restarted) assert(player.fireEnergyLocked);
+  }
+  assert(restarted, 'holding the secondary automatically resumes after recovery');
+  assert(player.fireEnergy >= SECONDARY_RESTART_ENERGY - SECONDARY_ENERGY_COST, 'an empty weapon cannot resume at just one shot of energy');
+  advance(state, .5);
+  update(state, .025, [{ fire: true, secondary: true }]);
+  assert.equal(state.events.at(-1).weapon, 'plasma', 'secondary has priority when both triggers are held');
+  assert(player.fireEnergy >= 0);
+});
+
+check('fire energy recharge is frame-rate independent, upgraded, bounded, and paused with simulation', () => {
+  for (const recharge of [0, 6]) {
+    const reserves = [30, 60, 120].map(hz => {
+      const state = isolated(), player = state.players[0]; state.upgrades.recharge = recharge;
+      const stats = shipStats(state.upgrades);
+      player.fireEnergy = 0; player.fireEnergyDelay = stats.energyDelay; player.fireEnergyLocked = true;
+      for (let tick = 0; tick < 1.5 * hz; tick++) update(state, 1 / hz, [{ fire: true }]);
+      assert(Math.abs(player.fireEnergy - (1.5 - stats.energyDelay) * stats.energyRecharge) < 1e-8, 'primary fire does not delay regeneration');
+      const snapshot = [player.fireEnergy, player.fireEnergyDelay, player.fireEnergyLocked, player.fire];
+      state.status = 'hangar'; advance(state, 1);
+      assert.deepEqual([player.fireEnergy, player.fireEnergyDelay, player.fireEnergyLocked, player.fire], snapshot);
+      state.status = 'playing'; advance(state, 10);
+      assert.equal(player.fireEnergy, stats.energy); assert.equal(player.fireEnergyLocked, false);
+      return snapshot[0];
+    });
+    assert(Math.max(...reserves) - Math.min(...reserves) < 1e-8);
   }
 });
 
-check('co-op pilots select and fire independently without resetting shot cooldowns', () => {
-  const state = isolated(2), [first, second] = state.players;
-  assert.equal(selectWeapon(state, 'plasma', 1), true);
-  assert.equal(first.weapon, 'pulse'); assert.equal(second.weapon, 'plasma'); assert.equal(state.weapon, 'pulse');
-  assert.deepEqual(state.events.at(-1), { type: 'weapon', weapon: 'plasma', player: 1 });
-  update(state, .01, [{ fire: true }, { fire: true }]);
-  assert.equal(state.bullets.filter(bullet => bullet.team === 0 && bullet.kind === 'pulse').length, 2);
-  assert.equal(state.bullets.filter(bullet => bullet.team === 1 && bullet.kind === 'plasma').length, 1);
-  const cooldowns = state.players.map(player => player.fire);
-  for (let i = 0; i < 20; i++) for (const id of ['plasma', 'pulse']) selectWeapon(state, id, i % 2);
-  selectWeapon(state, 'plasma', 0); selectWeapon(state, 'pulse', 1);
-  assert.deepEqual(state.players.map(player => player.fire), cooldowns);
-  assert.equal(state.weapon, 'plasma', 'the compatibility field mirrors only pilot one');
-  advance(state, .15, [{ fire: true }, { fire: true }]);
-  assert.equal(state.bullets.length, 3, 'switch spam cannot emit an early extra volley');
-  for (const id of ['scatter', 'lance', 'seeker', 'arc', 'unknown']) assert.equal(selectWeapon(state, id), false);
-  for (const playerId of [-1, 2, .5]) assert.equal(selectWeapon(state, 'pulse', playerId), false);
-  state.status = 'defeat'; assert.equal(selectWeapon(state, 'pulse'), false);
-});
-
-check('shared upgrades improve both weapons and stage transitions preserve individual selections', () => {
-  const state = isolated(2);
-  selectWeapon(state, 'plasma', 0);
-  const before = state.players.map(player => weaponStats(state, player.weapon).damage);
+check('shared upgrades improve both channels and new stages and retries refill fire energy', () => {
+  const state = isolated(2), before = WEAPONS.map(weapon => weaponStats(state, weapon.id).damage);
+  for (const player of state.players) { player.fireEnergy = 3; player.fireEnergyDelay = .8; player.fireEnergyLocked = true; }
   state.status = 'hangar'; state.credits = 1000;
   assert.equal(buyUpgrade(state, 'weapon'), true);
-  beginLevel(state, 1);
-  assert.deepEqual(state.players.map(player => player.weapon), ['plasma', 'pulse']);
-  state.players.forEach((player, index) => assert(weaponStats(state, player.weapon).damage > before[index]));
+  WEAPONS.forEach((weapon, index) => assert(weaponStats(state, weapon.id).damage > before[index]));
   const retry = createCampaign(2, state.level, state);
-  assert.deepEqual(retry.players.map(player => player.weapon), ['plasma', 'pulse']);
-  assert.equal(retry.weapon, 'plasma');
+  beginLevel(state, 1);
+  for (const run of [state, retry]) for (const player of run.players) {
+    assert.equal(player.fireEnergy, 100); assert.equal(player.fireEnergyDelay, 0); assert.equal(player.fireEnergyLocked, false);
+  }
 });
 
 check('hostile rounds scale with ship class and use spectrum colors', () => {

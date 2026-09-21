@@ -74,38 +74,54 @@ check('a restored flight produces the same next combat step', () => {
   assert.deepEqual(restored.events, state.events);
 });
 
-check('autosaves preserve each pilot weapon and shared legacy selections migrate without discarding live projectiles', () => {
+check('autosaves preserve both energy reserves, exhaustion and cadence through mixed primary and secondary fire', () => {
   const state = createCampaign(2), storage = memoryStorage();
   selectWeapon(state, 'plasma', 0); selectWeapon(state, 'pulse', 1);
   state.players[0].fire = .31; state.players[1].fire = .11;
+  Object.assign(state.players[0], { fireEnergy: 13.75, fireEnergyDelay: .37, fireEnergyLocked: true });
+  Object.assign(state.players[1], { fireEnergy: 62.25, fireEnergyDelay: .11, fireEnergyLocked: false });
   assert.equal(writeCampaign(state, {}, storage).ok, true);
   const resumed = readCampaign(storage).run.state;
   assert.deepEqual(resumed.players.map(player => player.weapon), ['plasma', 'pulse']);
   assert.deepEqual(resumed.players.map(player => player.fire), [.31, .11]);
+  assert.deepEqual(resumed.players, state.players);
   assert.equal(resumed.weapon, 'plasma');
   state.bossSpawned = resumed.bossSpawned = true;
-  for (let tick = 0; tick < 8; tick++) {
-    update(state, .05, [{ fire: true }, { fire: true }]);
-    update(resumed, .05, [{ fire: true }, { fire: true }]);
+  state.events.length = 0;
+  for (let tick = 0; tick < 120; tick++) {
+    update(state, .05, [{ secondary: true }, { fire: true, secondary: tick < 50 }]);
+    update(resumed, .05, [{ secondary: true }, { fire: true, secondary: tick < 50 }]);
+    assert.deepEqual(resumed.players, state.players, 'resuming must neither refill energy nor shorten exhaustion or cooldown');
+    assert.deepEqual(resumed.events, state.events);
   }
   assert.deepEqual(resumed.bullets, state.bullets, 'resuming keeps both firing cadences and projectile types');
+});
+
+check('legacy saves start with full fire energy while retaining old in-flight projectiles', () => {
   for (const [legacy, expected] of Object.entries({ pulse: 'pulse', plasma: 'plasma', scatter: 'plasma', lance: 'pulse', seeker: 'plasma', arc: 'plasma' })) {
     const record = JSON.parse(serializeRun(flight()));
     record.state.weapon = legacy;
-    for (const player of record.state.players) delete player.weapon;
+    for (const player of record.state.players) {
+      delete player.weapon; delete player.fireEnergy; delete player.fireEnergyDelay; delete player.fireEnergyLocked;
+    }
     const reference = record.state.bullets[0];
     record.state.bullets = ['pulse', 'plasma', 'scatter', 'lance', 'seeker', 'arc'].map(kind => ({ ...reference, kind }));
     const restored = restoreRun(record).state;
     assert.deepEqual(restored.players.map(player => player.weapon), [expected, expected], `${legacy} shared selection migrates for both pilots`);
     assert.equal(restored.weapon, expected);
+    for (const player of restored.players) {
+      assert.equal(player.fireEnergy, 100); assert.equal(player.fireEnergyDelay, 0); assert.equal(player.fireEnergyLocked, false);
+    }
     assert.deepEqual(restored.bullets.map(bullet => bullet.kind), record.state.bullets.map(bullet => bullet.kind));
     assert.equal(restored.bullets[4].homing, reference.homing);
   }
+  const state = createCampaign(); selectWeapon(state, 'plasma');
   const inconsistent = JSON.parse(serializeRun(state)); inconsistent.state.weapon = 'pulse';
   assert.equal(restoreRun(inconsistent).state.weapon, 'plasma', 'pilot one is authoritative if a compatibility mirror is stale');
   const legacyStorage = memoryStorage();
   legacyStorage.setItem(LEGACY_SAVE_KEY, JSON.stringify({ version: 1, checkpoint: { mode: 2, level: 2, weapon: 'arc' } }));
   assert.deepEqual(readCampaign(legacyStorage).run.state.players.map(player => player.weapon), ['plasma', 'plasma']);
+  assert(readCampaign(legacyStorage).run.state.players.every(player => player.fireEnergy === 100 && !player.fireEnergyDelay && !player.fireEnergyLocked));
 });
 
 check('older banking saves restore movement without obsolete sprite state', () => {
@@ -266,8 +282,12 @@ check('untrusted save data is bounded and unknown properties never enter live st
 check('scenery health versions distinguish older absolute-HP saves without losing damage', () => {
   const state = flight(), damage = new Map([['1894:1:2:3:0', 18.5]]);
   const current = JSON.parse(serializeRun(state, { damage }));
-  assert.equal(current.sceneryVersion, 2);
-  assert.equal(restoreRun(current).sceneryVersion, 2);
+  assert.equal(current.sceneryVersion, 3);
+  assert.equal(restoreRun(current).sceneryVersion, 3);
+  current.sceneryVersion = 2;
+  const areaBased = restoreRun(current);
+  assert.equal(areaBased.sceneryVersion, 2); assert.deepEqual(areaBased.damage, damage);
+  assert.equal(restoreRun(serializeRun(areaBased.state, areaBased)).sceneryVersion, 2);
   delete current.sceneryVersion;
   const legacy = restoreRun(current);
   assert.equal(legacy.sceneryVersion, 1);
@@ -308,6 +328,9 @@ check('invalid relationships, versions, statuses and oversized collections are r
   corrupt(record => { record.state.bullets[0].color = '#f00'; });
   corrupt(record => { record.state.bullets[0].weaponColor = '#ff000080'; });
   corrupt(record => { record.state.players[0].alive = 'true'; });
+  corrupt(record => { record.state.players[0].fireEnergy = 'full'; });
+  corrupt(record => { record.state.players[0].fireEnergyDelay = '@infinity'; });
+  corrupt(record => { record.state.players[0].fireEnergyLocked = 'false'; });
   corrupt(record => { record.state.bullets = Array(1025).fill(record.state.bullets[0]); });
   corrupt(record => { record.damage = Array(24001).fill(['prop', 1]); });
   assert.equal(restoreRun(' '.repeat(4_000_001)), null);

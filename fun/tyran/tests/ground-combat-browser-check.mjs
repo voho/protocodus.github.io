@@ -177,8 +177,9 @@ try {
     });
     assert(await mobile.locator('#p1-rapid').isVisible() && await mobile.locator('#p1-invulnerable').isVisible());
     const panel = await mobile.locator('#p1-panel').boundingBox();
-    const stick = await mobile.locator('#touch-stick').boundingBox(), fire = await mobile.locator('#touch-fire').boundingBox();
+    const stick = await mobile.locator('#touch-stick').boundingBox(), fire = await mobile.locator('#touch-fire').boundingBox(), secondary = await mobile.locator('#touch-secondary').boundingBox();
     assert(stick.y + stick.height + 8 <= panel.y, `${name}: touch steering clears the expanded pilot HUD`);
+    assert(secondary && secondary.y + secondary.height + 8 <= panel.y, `${name}: secondary touch fire clears the expanded pilot HUD`);
     const cdp = await mobile.context().newCDPSession(mobile);
     const steer = { x: stick.x + stick.width / 2, y: stick.y + stick.height / 2, id: 9 };
     const trigger = { x: fire.x + fire.width / 2, y: fire.y + fire.height / 2, id: 10 };
@@ -187,12 +188,50 @@ try {
     steer.x += 30; steer.y -= 20;
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [steer] });
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [steer, trigger] });
-    await mobile.waitForFunction(x => tyran.state.players[0].x > x + 5 && tyran.state.bullets.some(b => b.team === 0), startX);
+    await mobile.waitForFunction(x => tyran.state.players[0].x > x + 5 && tyran.state.bullets.some(b => b.team === 0 && b.kind === 'pulse'), startX);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    const plasma = { x: secondary.x + secondary.width / 2, y: secondary.y + secondary.height / 2, id: 11 };
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [plasma] });
+    await mobile.waitForFunction(() => tyran.state.bullets.some(b => b.team === 0 && b.kind === 'plasma') && tyran.state.players[0].fireEnergy < 100);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    // A captured finger from before pause must not steer again on resume.
+    await mobile.evaluate(() => {
+      const s = tyran.state, p = s.players[0]; s.bullets.length = 0;
+      Object.assign(p, { x: s.width * .45, px: s.width * .45, y: 650, py: 650, vx: 0, vy: 0, blastVx: 0, blastVy: 0, hurt: 100 });
+    });
+    const heldStick = { x: stick.x + stick.width / 2, y: stick.y + stick.height / 2, id: 12 };
+    const heldFire = { x: fire.x + fire.width / 2, y: fire.y + fire.height / 2, id: 13 };
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [heldStick, heldFire] });
+    heldStick.x += 25; heldStick.y -= 15;
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [heldStick, heldFire] });
+    await mobile.waitForFunction(() => tyran.state.players[0].vx > 5);
+    await mobile.evaluate(() => tyran.pause());
+    const pausedX = await mobile.evaluate(() => tyran.state.players[0].x);
+    heldStick.x += 8; heldStick.y -= 5;
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [heldStick, heldFire] });
+    await mobile.waitForTimeout(100);
+    assert.equal(await mobile.evaluate(() => tyran.state.players[0].x), pausedX, `${name}: dragging a previously captured finger cannot advance paused flight`);
+    const knob = () => mobile.evaluate(() => {
+      const style = document.querySelector('#touch-stick').style;
+      return [style.getPropertyValue('--stick-x'), style.getPropertyValue('--stick-y')];
+    });
+    assert.deepEqual(await knob(), ['0px', '0px'], `${name}: pausing resets the touch knob`);
+    const resumed = await mobile.evaluate(() => {
+      tyran.pause(); const p = tyran.state.players[0];
+      p.vx = p.vy = p.blastVx = p.blastVy = p.fire = 0; tyran.state.bullets.length = 0;
+      return { x: p.x, y: p.y };
+    });
+    heldStick.x += 3;
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [heldStick, heldFire] });
+    await mobile.waitForTimeout(250);
+    assert.deepEqual(await mobile.evaluate(() => ({ x: tyran.state.players[0].x, y: tyran.state.players[0].y })), resumed, `${name}: resume does not reapply the old finger’s steering`);
+    assert.deepEqual(await knob(), ['0px', '0px'], `${name}: the old finger cannot move the reset knob`);
+    assert.equal(await mobile.evaluate(() => tyran.state.bullets.some(b => b.team === 0)), false, `${name}: resume does not restore the held touch trigger`);
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
     await mobile.screenshot({ path: `${output}/mobile-bonuses-${name}.png` });
     await mobile.close();
   }
-  console.log('PASS portrait and landscape bonus HUD clears touch controls, with real steering and firing');
+  console.log('PASS portrait and landscape bonus HUD clears touch controls, with both fire channels and paused-touch capture cleanup');
   assert.deepEqual(errors, [], 'No browser runtime errors');
   console.log(`Ground combat screenshots: ${output}`);
 } finally { await browser.close(); }

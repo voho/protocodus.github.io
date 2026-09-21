@@ -59,8 +59,11 @@ const NATURE_SPRITES = Object.freeze(['tree','alienTree','palm','pine','fern','c
 const STRUCTURE_SPRITES = Object.freeze(['temple','ruin','bunker','station','radar','dome','solar','refinery','building','tower','pylon','fortress','hut','satellite','crawler','hauler']);
 const STRUCTURE_ATLASES = Object.freeze(['structures','structureLight','structureHeavy','structureCrater']);
 const STRUCTURE_STRENGTH = Object.freeze({temple:1.5,ruin:.7,bunker:1.8,station:1.35,radar:.9,dome:1.05,solar:.7,refinery:1.55,building:1.4,tower:1.15,pylon:.85,fortress:2.2,hut:.65,satellite:.9,crawler:1.55,hauler:1.15});
+export const BUILDING_DURABILITY_MULTIPLIER = 2.5;
+const BUILDINGS = new Set(STRUCTURE_SPRITES.filter(type=>type!=='crawler'&&type!=='hauler'));
 export function structureDurability(type,size) {
-  return Math.round(size*size*.085*(STRUCTURE_STRENGTH[type]||1));
+  const armor=size*size*.085*(STRUCTURE_STRENGTH[type]||1);
+  return Math.round(armor*(BUILDINGS.has(type)?BUILDING_DURABILITY_MULTIPLIER:1));
 }
 export function structureStage({hp,maxHp}) {
   const health=hp/maxHp;
@@ -153,7 +156,7 @@ export class WorldRenderer {
     if(typeof requestIdleCallback!=='function'||this.warmKeys.has(key))return;
     this.warmKeys.add(key);this.warmJobs.push({key,work});this.runWarmQueue();
   }
-  restoreDamage(damage=[], destroyed=[], sceneryVersion=2) {
+  restoreDamage(damage=[], destroyed=[], sceneryVersion=3) {
     // A prop owns either remaining HP or a crater marker, never both. Normalize
     // older saves that wrote destroyed IDs to both collections (including zero HP).
     this.damage=new Map();this.destroyed=new Set(destroyed);
@@ -165,15 +168,24 @@ export class WorldRenderer {
     this.bands.clear();this.hitBuckets.clear();this.visibleProps.length=0;
     for(const layer of this.sceneryLayers)layer.clear();
     this.sceneryDirty.clear();
-    if(sceneryVersion<2){
-      // Old saves stored absolute HP against the previous, smaller health totals.
+    if(sceneryVersion<3){
+      // Versions 1 and 2 used linear health and the previous size-based armor.
+      // Preserve remaining-health percentages when upgrading to tougher buildings.
       // Visit only damaged rows, then discard their transient geometry immediately.
       const rows=new Set([...this.damage.keys()].map(id=>Number(id.split(':')[1])).filter(Number.isFinite));
       for(const row of rows){
         for(const prop of this.getBand(row))if(this.damage.has(prop.id)&&STRUCTURE_SPRITES.includes(prop.type)){
-          const oldMaxHp=STRUCTURES.has(prop.type)?45+prop.size*.45:12+prop.size*.22;
+          if(sceneryVersion===2&&!BUILDINGS.has(prop.type))continue;
+          const oldMaxHp=sceneryVersion<2
+            ?STRUCTURES.has(prop.type)?45+prop.size*.45:12+prop.size*.22
+            :Math.round(prop.size*prop.size*.085*(STRUCTURE_STRENGTH[prop.type]||1));
           const health=clamp(this.damage.get(prop.id)/oldMaxHp,0,1);
-          this.damage.set(prop.id,this.destroyed.has(prop.id)?0:health*prop.maxHp);
+          let hp=health*prop.maxHp;
+          const before=structureStage({hp:health,maxHp:1}),after=structureStage({hp,maxHp:prop.maxHp});
+          // Multiplication can move an exact 35%/70% boundary by one floating
+          // point unit; preserve its original appearance through that rounding.
+          if(before!==after)hp+=(after>before?1:-1)*Number.EPSILON*prop.maxHp;
+          this.damage.set(prop.id,hp);
         }
         this.bands.clear();this.hitBuckets.clear();
       }

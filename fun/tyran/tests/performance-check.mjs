@@ -82,7 +82,7 @@ try {
     for (const pilot of state.players) { pilot.hurt = 1e8; if (stress) pilot.rapidFireTime = 10; }
     for (let i = 0; i < 18; i++) spawnEnemy(state, i % 9, 80 + (i % 9) * (state.width - 160) / 8, 80 + Math.floor(i / 9) * 200);
     const key = (code, down) => window.dispatchEvent(new KeyboardEvent(down ? 'keydown' : 'keyup', { code, bubbles: true, cancelable: true }));
-    key('ControlLeft', true); key('ControlRight', true);
+    key('KeyY', true); key('KeyN', true);
     const startScroll = state.scroll, startTime = state.time, flightStarted = performance.now();
     let previous = null, steering = -1, lastImpact = -1;
     await new Promise(resolve => {
@@ -102,16 +102,16 @@ try {
         // both firing lanes moving without an AI modifying simulation state.
         const phase = Math.floor((state.time - startTime) / 3) % 4;
         if (phase !== steering) {
-          for (const code of ['KeyA', 'KeyD', 'ArrowLeft', 'ArrowRight']) key(code, false);
-          if (phase === 0) { key('KeyD', true); key('ArrowLeft', true); }
-          if (phase === 2) { key('KeyA', true); key('ArrowRight', true); }
+          for (const code of ['KeyA', 'KeyD', 'KeyJ', 'KeyL']) key(code, false);
+          if (phase === 0) { key('KeyD', true); key('KeyJ', true); }
+          if (phase === 2) { key('KeyA', true); key('KeyL', true); }
           steering = phase;
         }
         if (performance.now() - flightStarted < seconds * 1000) requestAnimationFrame(sample); else resolve();
       }
       requestAnimationFrame(sample);
     });
-    for (const code of ['ControlLeft', 'ControlRight', 'KeyA', 'KeyD', 'ArrowLeft', 'ArrowRight']) key(code, false);
+    for (const code of ['KeyY', 'KeyN', 'KeyA', 'KeyD', 'KeyJ', 'KeyL']) key(code, false);
     observer.disconnect(); world.draw = draw; world.getTile = getTile; world.getSceneryLayer = getSceneryLayer;
     return { ...trace, launchMs, startScroll, endScroll: state.scroll, simulationSeconds: state.time - startTime, elapsedMs: performance.now() - started, flightMs: performance.now() - flightStarted,
       chunkHeight, chunkBoundaries: Math.floor(state.scroll / chunkHeight) - Math.floor(startScroll / chunkHeight), performance: tyran.performance };

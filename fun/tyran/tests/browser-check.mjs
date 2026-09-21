@@ -52,13 +52,13 @@ try {
   assert.equal(await page.evaluate(() => tyran.state.level), 0, 'Selecting the first sector starts the first sector');
   assert(await page.locator('#p2-panel').isVisible());
   const before = await page.evaluate(() => tyran.state.players.map(p => ({ x:p.x,y:p.y })));
-  await page.keyboard.down('KeyD'); await page.keyboard.down('ArrowLeft');
-  await page.keyboard.down('ControlLeft'); await page.keyboard.down('ControlRight');
+  await page.keyboard.down('KeyD'); await page.keyboard.down('KeyJ');
+  await page.keyboard.down('KeyY'); await page.keyboard.down('KeyN');
   await page.waitForTimeout(400);
   const moved = await page.evaluate(() => ({ players:tyran.state.players.map(p=>({x:p.x,y:p.y})), teams:[...new Set(tyran.state.bullets.map(b=>b.team))] }));
   assert(moved.players[0].x > before[0].x && moved.players[1].x < before[1].x, 'Both players move independently');
-  assert(moved.teams.includes(0) && moved.teams.includes(1), 'Left and right Control fire independently');
-  for (const key of ['KeyD','ArrowLeft','ControlLeft','ControlRight']) await page.keyboard.up(key);
+  assert(moved.teams.includes(0) && moved.teams.includes(1), 'Y and N fire independently');
+  for (const key of ['KeyD','KeyJ','KeyY','KeyN']) await page.keyboard.up(key);
   await page.evaluate(() => {
     tyran.state.events.push({ type:'explosion', x:tyran.state.width / 2, y:250, size:250, boss:true });
     tyran.step(.02);

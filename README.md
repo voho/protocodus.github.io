@@ -11,6 +11,6 @@
 - Seeded terrain tiles, rocks, vegetation and structures share one ground plane, with clouds or dust scrolling above them.
 - Enemy rounds scale with hull class: small ships fire compact, low-damage spectrum rounds while heavier craft use larger, brighter shapes. A cap keeps hostile fire from overwhelming the frame rate.
 - Every fighter uses one fixed hull sprite, with separate shadows, engine light and restrained animation.
-- Each pilot switches independently between Pulse Array and Plasma Mortar using left or right Alt/Option. Formations, boss weak points and timed armor windows reward different tactics.
-- Campaign progress saves automatically in the browser, including each pilot's weapon choice; the shop offers shared equipment upgrades after each sector.
+- Player one uses WASD with Y/X fire; player two uses IJKL with N/M fire. Primary pulse is unlimited; stronger secondary plasma consumes regenerating energy. Formations, boss weak points and timed armor windows reward different tactics.
+- Campaign progress saves automatically in the browser, including each pilot's fire energy; the shop offers shared equipment upgrades after each sector.
 - The interface uses sentence-case copy and an Oxanium display face for the flight-command feel; Space Grotesk remains the readable body face.

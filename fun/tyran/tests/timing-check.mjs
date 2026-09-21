@@ -73,7 +73,7 @@ try {
     for (const hz of [30, 60, 120]) {
       const page = await flight();
       try {
-        await page.keyboard.down('KeyD'); await page.keyboard.down('KeyW'); await page.keyboard.down('ControlLeft');
+        await page.keyboard.down('KeyD'); await page.keyboard.down('KeyW'); await page.keyboard.down('KeyY');
         await advance(page, 1, hz);
         results.push(await snapshot(page));
       } finally { await page.close(); }
@@ -171,24 +171,21 @@ try {
       return samples;
     } finally { await page.close(); }
   }
-  const wasd = { forward: ['KeyD', 'KeyW'], reverse: ['KeyA', 'KeyS'], fire: 'ControlLeft' };
-  const arrows = { forward: ['ArrowRight', 'ArrowUp'], reverse: ['ArrowLeft', 'ArrowDown'], fire: 'ControlRight' };
+  const wasd = { forward: ['KeyD', 'KeyW'], reverse: ['KeyA', 'KeyS'], fire: 'KeyY' };
+  const ijkl = { forward: ['KeyL', 'KeyI'], reverse: ['KeyJ', 'KeyK'], fire: 'KeyN' };
 
-  await check('solo arrow keys and WASD have identical acceleration, coast, reversal and firing', async () => {
-    const a = await steerSequence(1, [wasd]), b = await steerSequence(1, [arrows]);
-    for (let i = 0; i < a.length; i++) {
-      for (const field of ['x', 'y', 'vx', 'vy']) near(a[i].players[0][field], b[i].players[0][field], `solo ${field}, steering phase ${i}`);
-      assert.ok(a[i].teams.includes(0) && b[i].teams.includes(0), 'either Control key fires the solo pilot');
-    }
-    assert.ok(a[1].players[0].x > a[0].players[0].x, 'both layouts coast after release');
-    assert.ok(a[2].players[0].vx < 0, 'both layouts reverse direction');
+  await check('solo controls preserve acceleration, coast and reversal', async () => {
+    const samples = await steerSequence(1, [wasd]);
+    assert.ok(samples.every(sample => sample.teams.includes(0)), 'Y fires the solo pilot throughout steering');
+    assert.ok(samples[1].players[0].x > samples[0].players[0].x, 'the pilot coasts after movement keys release');
+    assert.ok(samples[2].players[0].vx < 0, 'reverse input changes direction');
   });
 
   await check('co-op pilots respond equally to their separate keyboard layouts', async () => {
-    const samples = await steerSequence(2, [wasd, arrows]);
+    const samples = await steerSequence(2, [wasd, ijkl]);
     for (let i = 0; i < samples.length; i++) {
       for (const field of ['x', 'y', 'vx', 'vy']) near(samples[i].players[0][field], samples[i].players[1][field], `co-op ${field}, steering phase ${i}`);
-      assert.ok(samples[i].teams.includes(0) && samples[i].teams.includes(1), 'each Control key fires its own pilot');
+      assert.ok(samples[i].teams.includes(0) && samples[i].teams.includes(1), 'Y and N each fire their own pilot');
     }
   });
 

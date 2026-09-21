@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createCampaign, beginLevel, update, hurtPlayer, spawnEnemy, applyGroundReward, WEAPONS, weaponStats, selectWeapon } from '../sim.js';
+import { createCampaign, beginLevel, update, hurtPlayer, spawnEnemy, applyGroundReward, WEAPONS, weaponStats, SECONDARY_ENERGY_COST } from '../sim.js';
 import { serializeRun, restoreRun } from '../save-game.js';
 
 let failures = 0;
@@ -59,18 +59,24 @@ check('ten-second bonuses are per pilot, refresh without stacking, and pause wit
   assert.equal(event.player, 1); assert.equal(event.value, 'Rapid fire · 10s');
 });
 
-check('rapid fire increases every weapon cadence while preserving shot damage and co-op isolation', () => {
+check('rapid fire accelerates both channels without free plasma energy or affecting the other pilot', () => {
   for (const weapon of WEAPONS) {
-    const baseline = quiet(2), boosted = quiet(2);
-    for (const state of [baseline, boosted]) for (const player of state.players) selectWeapon(state, weapon.id, player.id);
+    const baseline = quiet(2), boosted = quiet(2), seconds = weapon.id === 'plasma' ? .99 : 5;
+    const controls = weapon.id === 'plasma' ? { secondary: true } : { fire: true };
     boosted.players[0].rapidFireTime = 10;
-    advance(baseline, 5, [{ fire: true }, { fire: true }]);
-    advance(boosted, 5, [{ fire: true }, { fire: true }]);
+    advance(baseline, seconds, [controls, controls]);
+    advance(boosted, seconds, [controls, controls]);
     const shots = (state, player) => state.events.filter(event => event.type === 'shot' && event.player === player).length;
     const ratio = shots(boosted, 0) / shots(baseline, 0);
-    assert(ratio >= 1.5 && ratio <= 1.75, `${weapon.id}: ${ratio}x sustained cadence`);
+    assert(ratio >= 1.3 && ratio <= 1.75, `${weapon.id}: ${ratio}x burst cadence`);
     assert.equal(shots(boosted, 1), shots(baseline, 1), `${weapon.id}: other pilot unchanged`);
-    for (const bullet of boosted.bullets) assert.equal(bullet.damage, weaponStats(boosted).damage);
+    for (const bullet of boosted.bullets) assert.equal(bullet.damage, weaponStats(boosted, weapon.id).damage);
+    if (weapon.id === 'plasma') {
+      assert.equal(boosted.players[0].fireEnergy, 100 - shots(boosted, 0) * SECONDARY_ENERGY_COST);
+      assert(boosted.players[0].fireEnergy < baseline.players[0].fireEnergy, 'rapid plasma uses its reserve sooner');
+      advance(boosted, .5, [controls, controls]);
+      assert.equal(shots(boosted, 0), 5); assert.equal(boosted.players[0].fireEnergy, 0); assert(boosted.players[0].fireEnergyLocked);
+    }
   }
 });
 

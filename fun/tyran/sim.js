@@ -4,7 +4,7 @@ export const UPGRADES = [
   { id: 'weapon', name: 'Ion armament', subtitle: 'More firepower for both weapon systems.', base: 420, icon: '⌁' },
   { id: 'shield', name: 'Flux shield', subtitle: 'A larger energy barrier.', base: 340, icon: '◇' },
   { id: 'hull', name: 'Titanium hull', subtitle: 'Stronger armor. More inertia.', base: 300, icon: '⬡' },
-  { id: 'recharge', name: 'Fusion capacitor', subtitle: 'Recover shields faster, sooner.', base: 280, icon: 'ϟ' },
+  { id: 'recharge', name: 'Fusion capacitor', subtitle: 'Recover shields and fire energy faster, sooner.', base: 280, icon: 'ϟ' },
 ];
 export const MAX_UPGRADE = 6;
 export const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
@@ -20,13 +20,15 @@ export const BULLET_SPECTRUM = Object.freeze([
 const MAX_HOSTILE_BULLETS = 78;
 export const BONUS_DURATION = 10;
 export const RAPID_FIRE_MULTIPLIER = 1.65;
+export const SECONDARY_ENERGY_COST = 20;
+export const SECONDARY_RESTART_ENERGY = 40;
 const TURRET_WARNING = .75;
 
-// Pulse rewards accurate sustained fire; plasma trades direct damage per second
-// for a heavier impact and area damage against clustered ships and ground sites.
+// Pulse provides unlimited sustained fire. Plasma spends a regenerating reserve
+// for stronger bursts and area damage against clustered ships and ground sites.
 export const WEAPONS = [
   { id: 'pulse', name: 'Pulse Array', tag: 'Rapid precision', description: 'Fast, precise twin bolts with reliable reach.', kind: 'pulse', color: '#9cfff0', interval: .17, damage: 9.8, count: 2, spread: .018, speed: 900, life: 1.35, radius: 3.8 },
-  { id: 'plasma', name: 'Plasma Mortar', tag: 'Heavy blast', description: 'Slower heavy orbs burst into a wide shockwave.', kind: 'plasma', color: '#ff9e7d', interval: .41, damage: 24, count: 1, spread: .012, speed: 640, life: 2.45, radius: 8, splash: 50, splashFactor: .46 },
+  { id: 'plasma', name: 'Plasma Mortar', tag: 'Heavy blast', description: 'Powerful explosive orbs consume regenerating fire energy.', kind: 'plasma', color: '#ff9e7d', interval: .41, damage: 58, count: 1, spread: .012, speed: 640, life: 2.45, radius: 8, splash: 50, splashFactor: .46 },
 ];
 const weaponById = new Map(WEAPONS.map(weapon => [weapon.id, weapon]));
 const legacyHeavyWeapons = new Set(['scatter', 'seeker', 'arc']);
@@ -38,6 +40,7 @@ const comboDamageFor = combo => [1, 1.1, 1.18, 1.27][comboTier(combo)];
 const comboBlastFor = combo => [1, 1.12, 1.24, 1.38][comboTier(combo)];
 export const upgradeCost = (s, id) => Math.round(UPGRADES.find(u => u.id === id).base * 1.55 ** s.upgrades[id]);
 export const shipStats = u => ({ hull: 120 + u.hull * 45, shield: 85 + u.shield * 38, recharge: 10 + u.recharge * 5, delay: Math.max(.8, 3.2 - u.recharge * .35), damage: 13 + u.weapon * 6,
+  energy: 100, energyRecharge: 18 + u.recharge * 3, energyDelay: Math.max(.4, 1 - u.recharge * .1),
   mass: 1 + u.hull * .055 + u.weapon * .018 + u.shield * .014 + u.recharge * .008 });
 
 export function weaponStats(s, id = s.players?.[0]?.weapon ?? s.weapon) {
@@ -59,7 +62,8 @@ export function selectWeapon(s, id, playerId = 0) {
   if (playerId === 0) s.weapon = id;
   if (player.weapon === id) return true;
   player.weapon = id;
-  // Retain the outgoing shot's cooldown, so switching cannot bypass fire rate.
+  // Legacy selection metadata cannot change either dedicated firing channel
+  // or bypass the shared shot cooldown.
   s.events.push({ type: 'weapon', weapon: id, player: playerId });
   return true;
 }
@@ -188,7 +192,7 @@ export function beginLevel(s, level) {
   const stats = shipStats(s.upgrades);
   s.players = Array.from({ length: s.mode }, (_, i) => {
     const x = s.width * (s.mode === 1 ? .5 : i ? .62 : .38), y = s.height * .68;
-    return { id: i, weapon: playerWeapons[i] ?? normalizeWeapon(s.weapon), x, y, px: x, py: y, vx: 0, vy: 0, blastVx: 0, blastVy: 0, mass: stats.mass, thrust: .9, radius: 17, hull: stats.hull, shield: stats.shield, maxHull: stats.hull, maxShield: stats.shield, fire: 0, hurt: 0, lastHit: -10, alive: true, rapidFireTime: 0, invulnerableTime: 0 };
+    return { id: i, weapon: playerWeapons[i] ?? normalizeWeapon(s.weapon), x, y, px: x, py: y, vx: 0, vy: 0, blastVx: 0, blastVy: 0, mass: stats.mass, thrust: .9, radius: 17, hull: stats.hull, shield: stats.shield, maxHull: stats.hull, maxShield: stats.shield, fire: 0, fireEnergy: stats.energy, fireEnergyDelay: 0, fireEnergyLocked: false, hurt: 0, lastHit: -10, alive: true, rapidFireTime: 0, invulnerableTime: 0 };
   });
   s.weapon = s.players[0].weapon;
   return s;
@@ -242,8 +246,8 @@ export function spawnFormation(s, kind = FORMATIONS[Math.floor((s.nextFormationI
   return anchor;
 }
 
-function shoot(s, p) {
-  const profile = weaponStats(s, p.weapon), count = profile.count, comboDamage = s.comboDamage || 1;
+function shoot(s, p, id) {
+  const profile = weaponStats(s, id), count = profile.count, comboDamage = s.comboDamage || 1;
   // A solo pilot gets a small fire-control assist so every profile remains
   // campaign-viable without making co-op’s shared target balance trivial.
   const modeAssist = s.mode === 1 ? 1.35 : 1;
@@ -258,6 +262,8 @@ function shoot(s, p) {
       chainFactor: profile.chainFactor || .6, hitIds: [], age: 0, comboBlast: s.comboBlast || 1 });
   }
   p.fire = profile.interval / (p.rapidFireTime > 0 ? RAPID_FIRE_MULTIPLIER : 1);
+  p.weapon = profile.id;
+  if (p.id === 0) s.weapon = profile.id;
   s.events.push({ type: 'shot', player: p.id, weapon: profile.id });
 }
 
@@ -530,8 +536,23 @@ export function update(s, dt, input = [], environmentHit = null, groundTargets =
     const thrustResponse = 1 - Math.exp(-dt / (.085 * Math.sqrt(p.mass)));
     p.thrust += (.9 + Math.hypot(x, y) / norm * .28 + Math.max(0, -y / norm) * .43 - p.thrust) * thrustResponse;
     if (s.time - p.lastHit > stats.delay) p.shield = Math.min(stats.shield, p.shield + stats.recharge * dt);
+    // Integrate only the part of this tick after the recharge delay expires.
+    // Primary fire does not interrupt recovery of the secondary reserve.
+    const rechargeTime = Math.max(0, dt - p.fireEnergyDelay);
+    p.fireEnergyDelay = Math.max(0, p.fireEnergyDelay - dt);
+    p.fireEnergy = Math.min(stats.energy, p.fireEnergy + stats.energyRecharge * rechargeTime);
+    if (p.fireEnergyLocked && p.fireEnergy >= SECONDARY_RESTART_ENERGY) p.fireEnergyLocked = false;
     p.fire -= dt;
-    if (controls.fire && p.fire <= 0) shoot(s, p);
+    if (p.fire <= 0) {
+      if (controls.secondary && !p.fireEnergyLocked && p.fireEnergy >= SECONDARY_ENERGY_COST) {
+        p.fireEnergy -= SECONDARY_ENERGY_COST;
+        p.fireEnergyDelay = stats.energyDelay;
+        // Recharge enough for a useful burst instead of stuttering one shot
+        // every time the meter reaches its minimum cost.
+        if (p.fireEnergy < SECONDARY_ENERGY_COST) p.fireEnergyLocked = true;
+        shoot(s, p, 'plasma');
+      } else if (controls.fire) shoot(s, p, 'pulse');
+    }
   }
   if (!s.bossSpawned) {
     s.spawnTimer -= dt;

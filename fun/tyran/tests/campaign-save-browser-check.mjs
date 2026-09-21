@@ -29,7 +29,7 @@ const flight = page => page.evaluate(() => {
   const pick = (object, names) => Object.fromEntries(names.map(name => [name, object[name]]));
   return {
     ...pick(s, ['mode', 'level', 'status', 'width', 'height', 'time', 'scroll', 'credits', 'score', 'kills', 'destroyed', 'totalKills', 'weapon', 'upgrades', 'spawnTimer', 'formationTimer', 'bossSpawned', 'bossDefeated']),
-    players: s.players.map(p => pick(p, ['x', 'y', 'vx', 'vy', 'hull', 'shield', 'maxHull', 'maxShield', 'alive', 'fire', 'lastHit', 'weapon'])),
+    players: s.players.map(p => pick(p, ['x', 'y', 'vx', 'vy', 'hull', 'shield', 'maxHull', 'maxShield', 'alive', 'fire', 'lastHit', 'weapon', 'fireEnergy', 'fireEnergyDelay', 'fireEnergyLocked'])),
     enemies: s.enemies.map(e => ({ ...pick(e, ['id', 'type', 'x', 'y', 'vx', 'vy', 'hp', 'maxHp', 'age', 'fire', 'phase']), formationId: e.formation?.id ?? null })),
     bullets: s.bullets.map(b => pick(b, ['x', 'y', 'vx', 'vy', 'damage', 'radius', 'team', 'life', 'kind', 'age'])),
     formations: s.formations.map(f => pick(f, ['id', 'kind', 'age', 'baseX', 'x', 'y', 'offsets', 'members'])),
@@ -90,14 +90,13 @@ try {
   // Reach a busy co-op flight through the real simulation, then leave to the
   // menu. The automatic checkpoint must include scenery and shared formations.
   await page.evaluate(async () => {
-    const { spawnFormation, spawnEnemy, selectWeapon } = await import('./sim.js');
+    const { spawnFormation, spawnEnemy } = await import('./sim.js');
     const s = tyran.state;
     s.time = 22; s.scroll = 2300; s.credits = 2345; s.score = 8765;
     s.spawnTimer = 100; s.formationTimer = 100; s.showcase = 9;
-    selectWeapon(s, 'plasma', 1);
     spawnFormation(s, 'vee');
     const enemy = spawnEnemy(s, 3, s.width * .2, 260); enemy.fire = 0;
-    tyran.step(.15, [{ x: 1, fire: true }, { x: -1, fire: true }]);
+    tyran.step(.15, [{ x: 1, fire: true }, { x: -1, secondary: true }]);
     s.players[0].x = 30; s.players[0].hull = 73; s.players[0].shield = 19;
     s.players[1].hull = 42; s.players[1].shield = 8;
     s.players.forEach(p => { p.lastHit = s.time; });
@@ -112,7 +111,7 @@ try {
     w.hit((other.screenX ?? other.x) * w.scale, other.screenY * w.scale, 1, 10000, tyran.state.scroll);
   });
   const savedFlight = await flight(page);
-  assert.deepEqual(savedFlight.players.map(p => p.weapon), ['pulse', 'plasma'], 'The co-op checkpoint captures independent pilot weapons');
+  assert(savedFlight.players[1].fireEnergy < savedFlight.players[0].fireEnergy, 'The co-op checkpoint captures independent secondary-energy reserves');
   assert(savedFlight.bullets.some(b => b.team === -1) && savedFlight.bullets.some(b => b.team === 0) && savedFlight.bullets.some(b => b.team === 1), 'Fixture contains both pilots’ projectiles and hostile fire');
   assert(savedFlight.formations.length && savedFlight.attached, 'Fixture contains an active formation');
   assert(savedFlight.damage.length && savedFlight.destroyedScenery.length, 'Fixture contains damaged and destroyed scenery');
@@ -185,9 +184,7 @@ try {
     assert.equal(await page.evaluate(id => tyran.state.upgrades[id], id), 1);
     assert.equal((await record(page)).state.upgrades[id], 1, `${id} purchase autosaves`);
   }
-  await page.locator('[data-weapon="plasma"]').click();
-  assert.equal((await record(page)).state.weapon, 'plasma', 'Choosing a shop weapon profile autosaves');
-  assert.deepEqual((await record(page)).state.players.map(p => p.weapon), ['plasma', 'pulse'], 'A shop choice changes only its selected pilot');
+  assert.equal(await page.locator('#weapon-list article[data-weapon]').count(), 2, 'The shop explains both directly controlled fire channels');
   assert(await page.evaluate(credits => tyran.state.credits < credits, startingCredits), 'Upgrades spend earned credits');
   const shopFlight = await flight(page);
   await page.screenshot({ path: `${output}/autosaved-shop.png` });
@@ -199,10 +196,7 @@ try {
   assert.equal(await page.evaluate(() => tyran.state.level), 1, 'Next sector launches the following world');
   assert(await page.evaluate(() => tyran.state.players.length === 2 && tyran.state.players.every(p => p.alive && p.hull === p.maxHull && p.shield === p.maxShield)), 'Launch repairs and revives both upgraded ships');
   assert.equal((await record(page)).state.level, 1);
-  await page.keyboard.press('AltLeft');
-  assert.deepEqual(await page.evaluate(() => tyran.state.players.map(p => p.weapon)), ['pulse', 'pulse'], 'Left Alt switches the first pilot from plasma to pulse');
-  assert.deepEqual((await record(page)).state.players.map(p => p.weapon), ['pulse', 'pulse'], 'Flight weapon changes autosave each pilot’s selection');
-  assert.equal((await record(page)).state.weapon, 'pulse', 'The compatibility weapon field follows pilot one');
+  assert(await page.evaluate(() => tyran.state.players.every(p => p.fireEnergy === 100 && !p.fireEnergyLocked)), 'Next-sector launch restores both pilots’ secondary energy');
   await page.evaluate(() => { tyran.state.credits = 777; window.dispatchEvent(new Event('pagehide')); });
   assert.equal((await record(page)).state.credits, 777, 'Leaving the page saves the latest campaign');
   await page.reload(); await ready(page); await page.locator('#continue-button').click();

@@ -1,9 +1,9 @@
-import { createCampaign, MAX_UPGRADE, shipStats, normalizeWeapon, FORMATIONS } from './sim.js';
+import { createCampaign, MAX_UPGRADE, shipStats, normalizeWeapon, FORMATIONS, SECONDARY_ENERGY_COST } from './sim.js';
 
 export const SAVE_KEY = 'tyran-campaign';
 export const LEGACY_SAVE_KEY = 'tyran-campaign-v1';
 const LEGACY_SLOT_KEYS = ['tyran-save-v2:auto', 'tyran-save-v2:manual'];
-const VERSION = 2, SCENERY_VERSION = 2, MAX_BYTES = 4_000_000, MAX_SCENERY = 24_000;
+const VERSION = 2, SCENERY_VERSION = 3, MAX_BYTES = 4_000_000, MAX_SCENERY = 24_000;
 const POSITIVE_INFINITY = '@infinity', NEGATIVE_INFINITY = '@-infinity';
 // Retired projectiles already in flight keep their original appearance and
 // mechanics when resuming an older campaign; only future selections migrate.
@@ -94,6 +94,9 @@ function restoreState(raw) {
     result.alive = bool(player.alive, result.hull > 0) && result.hull > 0;
     result.rapidFireTime = number(player.rapidFireTime, 0, 0, 10);
     result.invulnerableTime = number(player.invulnerableTime, 0, 0, 10);
+    result.fireEnergy = number(player.fireEnergy, stats.energy, 0, stats.energy);
+    result.fireEnergyDelay = number(player.fireEnergyDelay, 0, 0, 1);
+    result.fireEnergyLocked = bool(player.fireEnergyLocked, result.fireEnergy < SECONDARY_ENERGY_COST);
     if (!result.alive) result.rapidFireTime = result.invulnerableTime = 0;
     result.mass = number(player.mass, stats.mass, .1, 10);
     result.radius = number(player.radius, 17, 1, 64);
@@ -195,10 +198,10 @@ function restoreState(raw) {
 }
 
 function scenery(raw) {
-  // Older v2 saves used linear structure health. The renderer needs this marker
-  // to preserve remaining-health percentages when applying the stronger hulls.
+  // The renderer uses this marker to preserve remaining-health percentages
+  // across the linear, area-based, and reinforced-building health models.
   const sceneryVersion = raw.sceneryVersion ?? 1;
-  if (![1, SCENERY_VERSION].includes(sceneryVersion)) invalid();
+  if (![1, 2, SCENERY_VERSION].includes(sceneryVersion)) invalid();
   const damage = new Map(), destroyed = new Set();
   for (const entry of list(raw.damage, MAX_SCENERY)) {
     if (!Array.isArray(entry) || entry.length !== 2) invalid();

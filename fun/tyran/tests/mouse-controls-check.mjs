@@ -48,7 +48,7 @@ async function click(id) {
 }
 async function keyboardFlight(mode, withMouse) {
   await fixture(mode);
-  const keys = ['KeyD', 'KeyW', 'ControlLeft', ...(mode === 2 ? ['ArrowLeft', 'ArrowUp', 'ControlRight'] : [])];
+  const keys = ['KeyD', 'KeyW', 'KeyY', ...(mode === 2 ? ['KeyJ', 'KeyI', 'KeyN'] : [])];
   for (const key of keys) await page.keyboard.down(key);
   if (withMouse) { await point(.15, 730); await page.mouse.down(); }
   await advance(18);
@@ -80,8 +80,8 @@ try {
     const keyboard = await keyboardFlight(mode, false), mixed = await keyboardFlight(mode, true);
     assert.deepEqual(mixed, keyboard, `${mode}-pilot keyboard movement and shot counts are unchanged by mouse activity`);
     assert.ok(keyboard.pilots[0].x > start.pilots[0].x && keyboard.pilots[0].y < start.pilots[0].y, 'WASD still steers pilot one');
-    if (mode === 2) assert.ok(keyboard.pilots[1].x < start.pilots[1].x && keyboard.pilots[1].y < start.pilots[1].y, 'arrows still steer pilot two independently');
-    assert.ok(keyboard.shots.every(count => count > 0), 'held Ctrl still fires for every active pilot');
+    if (mode === 2) assert.ok(keyboard.pilots[1].x < start.pilots[1].x && keyboard.pilots[1].y < start.pilots[1].y, 'IJKL still steers pilot two independently');
+    assert.ok(keyboard.shots.every(count => count > 0), 'held primary keys still fire for every active pilot');
   }
   console.log('PASS real mouse move/hold/drag/release cannot steer, fire or override solo/co-op keyboard controls');
 
@@ -93,13 +93,13 @@ try {
   await page.mouse.move(stick.x + stick.width / 2, stick.y + stick.height / 2); await page.mouse.down();
   await page.mouse.move(stick.x + stick.width / 2 + 35, stick.y + stick.height / 2 - 30); await advance(18); await page.mouse.up();
   await page.mouse.move(fire.x + fire.width / 2, fire.y + fire.height / 2); await page.mouse.down(); await advance(18); await page.mouse.up();
-  assert.deepEqual(await snapshot(), touchStart, 'mouse input on visible touch controls cannot steer or fire');
+  const secondary = await page.locator('#touch-secondary').boundingBox();
+  assert.ok(secondary, 'secondary touch fire is visible');
+  await page.mouse.move(secondary.x + secondary.width / 2, secondary.y + secondary.height / 2); await page.mouse.down(); await advance(18); await page.mouse.up();
+  assert.deepEqual(await snapshot(), touchStart, 'mouse input on visible touch controls cannot steer or fire either channel');
   await page.evaluate(() => document.querySelector('#touch-controls').style.removeProperty('display'));
   console.log('PASS visible touch controls also reject mouse input on hybrid devices');
 
-  const weapon = await page.evaluate(() => tyran.state.players[0].weapon);
-  await click('p1-weapon');
-  assert.notEqual(await page.evaluate(() => tyran.state.players[0].weapon), weapon, 'HUD weapon buttons remain clickable');
   await click('pause-button'); assert.equal(await page.evaluate(() => tyran.scene), 'pause');
   await click('resume-button'); assert.equal(await page.evaluate(() => tyran.scene), 'playing');
   await click('pause-button'); await click('menu-button');
@@ -108,5 +108,5 @@ try {
   await click('quality-toggle');
   assert.notEqual(await page.locator('#quality-toggle').getAttribute('aria-pressed'), quality, 'menu settings still accept mouse clicks');
   assert.deepEqual(errors, [], 'no runtime errors');
-  console.log('PASS arena click focus and native HUD, pause, resume and menu buttons');
+  console.log('PASS arena click focus and native pause, resume and menu buttons');
 } finally { await browser.close(); }

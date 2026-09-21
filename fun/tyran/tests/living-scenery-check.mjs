@@ -15,6 +15,9 @@ try {
     const world=new WorldRenderer();await world.ready;world.warmEpoch++;world.warmJobs=[];world.queueWarm=()=>{};
     const contact=document.createElement('canvas');contact.width=2400;contact.height=768;const cc=contact.getContext('2d');
     const signatures=[],decorations=[];
+    // Keep the original scenery identity snapshot while normalizing its one
+    // intentional change: version 3 increases stationary structure armor.
+    const previousArmor={temple:1.5,ruin:.7,bunker:1.8,station:1.35,radar:.9,dome:1.05,solar:.7,refinery:1.55,building:1.4,tower:1.15,pylon:.85,fortress:2.2,hut:.65,satellite:.9,crawler:1.55,hauler:1.15};
     for(let index=0;index<10;index++){
       world.setWorld(index,'scenery-compatibility');let hash=2166136261,count=0;
       for(let row=-4;row<3;row++){
@@ -24,7 +27,8 @@ try {
         count+=details.reduce((n,cluster)=>n+cluster.items.length,0);
         if(props.length!==before||world.damage.size!==damage)throw new Error('Decorations changed colliders or damage');
         for(const prop of props){
-          const text=JSON.stringify([prop.id,prop.x,prop.y,prop.type,prop.size,prop.variant,prop.maxHp]);
+          const previousHp=previousArmor[prop.type]?Math.round(prop.size*prop.size*.085*previousArmor[prop.type]):prop.maxHp;
+          const text=JSON.stringify([prop.id,prop.x,prop.y,prop.type,prop.size,prop.variant,previousHp]);
           for(let i=0;i<text.length;i++)hash=Math.imul(hash^text.charCodeAt(i),16777619)>>>0;
         }
       }
@@ -44,7 +48,7 @@ try {
     const stableCaches=caches.every(([row,cache])=>world.sceneryLayers[0].get(row)===cache)&&spriteCount===world.sprites.size;
     return {signatures,decorations,activity:{first,later,still,stillLater,light,heavy,crater},stableCaches,frozen:frozen===frozenLater,active:before!==frozen,contact:contact.toDataURL()};
   });
-  assert.deepEqual(result.signatures,compatibility,'saved scenery IDs, positions, classes, sizes and durability remain compatible');
+  assert.deepEqual(result.signatures,compatibility,'saved scenery IDs, positions, classes and sizes remain compatible through the armor upgrade');
   assert(result.decorations.every(count=>count>80&&count<1800),'all ten worlds have bounded clustered ground details');
   const a=result.activity;
   assert.notEqual(a.first.hash,a.later.hash,'working machinery has subtle animation');

@@ -1,6 +1,6 @@
 import { WORLDS, PARALLAX_LAYERS, WorldRenderer } from './worlds.js';
 import { ENEMY_TYPES, SHIP_PALETTES, drawShip, warmShipSprites } from './ships.js';
-import { createCampaign, beginLevel, update, buyUpgrade, upgradeCost, UPGRADES, WEAPONS, BULLET_SPECTRUM, MAX_UPGRADE, clamp, selectWeapon, shipStats, weaponStats, bossWeakPointPosition, comboLabel, applyGroundReward } from './sim.js';
+import { createCampaign, beginLevel, update, buyUpgrade, upgradeCost, UPGRADES, WEAPONS, BULLET_SPECTRUM, MAX_UPGRADE, clamp, selectWeapon, shipStats, weaponStats, SECONDARY_ENERGY_COST, SECONDARY_RESTART_ENERGY, bossWeakPointPosition, comboLabel, applyGroundReward } from './sim.js';
 import { Effects } from './effects.js';
 import { AudioEngine } from './audio.js';
 import { readCampaign, writeCampaign } from './save-game.js';
@@ -24,7 +24,7 @@ let campaign = campaignSummary(readCampaign()), campaignError = null, activeCamp
 let state = null, mode = 1, selected = 0, scene = 'menu', unlocked = campaign.run?.unlocked || 0;
 let W = 1200, H = 900, dpr = 1, previewScroll = 0, clock = 0, lastTime = 0, hudClock = 0;
 let announcementUntil = 0, quality = 'high', helpPaused = false, helpFocus = null;
-let arsenalPilot = 0, keyboardLockEpoch = 0;
+let keyboardLockEpoch = 0;
 const STEP = 1 / 60;
 let accumulator = 0, previousScroll = 0, renderAlpha = 1, renderDirty = true, frameHandle = 0, idleHandle = 0;
 let resolutionScale = 1, frameAverage = 16.7, fastestFrame = 100, lastAdapt = 0, vignette = null;
@@ -36,8 +36,8 @@ const groundTargets = s => {
   return world.getGroundTargets(s.width, s.height, s.scroll, pilots ? focus / pilots : s.width * .5);
 };
 const lerp = (before, after) => (before ?? after) + (after - (before ?? after)) * renderAlpha;
-const controls = [{ x: 0, y: 0, fire: false }, { x: 0, y: 0, fire: false }];
-const touch = { x: 0, y: 0, fire: false, pointer: null, originX: 0, originY: 0 };
+const controls = [{ x: 0, y: 0, fire: false, secondary: false }, { x: 0, y: 0, fire: false, secondary: false }];
+const touch = { x: 0, y: 0, fire: false, secondary: false, pointer: null, originX: 0, originY: 0 };
 
 try {
   audio.mute(localStorage.getItem('tyran-muted') === 'true');
@@ -113,7 +113,12 @@ function setScreen(next) {
   $('hud').hidden = next === 'menu';
   document.body.dataset.scene = next;
   if ($('touch-controls')) $('touch-controls').hidden = next !== 'playing';
-  if (next !== 'playing') { keys.clear(); touch.x = touch.y = 0; touch.fire = false; }
+  if (next !== 'playing') {
+    keys.clear(); touch.x = touch.y = 0; touch.fire = touch.secondary = false;
+    const pointer = touch.pointer; touch.pointer = null;
+    if (pointer != null && stick?.hasPointerCapture(pointer)) stick.releasePointerCapture(pointer);
+    stick?.style.setProperty('--stick-x', '0px'); stick?.style.setProperty('--stick-y', '0px');
+  }
   if (next !== 'playing' && next !== 'end') canvas.style.filter = '';
   syncKeyboardLock();
   if (state) {
@@ -196,7 +201,7 @@ function launch(level = 0, checkpoint = null, persist = true) {
 
 function syncPilotHUD() {
   $('p2-panel').hidden = state.mode !== 2;
-  document.querySelector('.flight-hint').textContent = state.mode === 2 ? 'P1: L Alt / Option switch · P2: R Alt / Option switch' : 'WASD / Arrows · Space / Ctrl fire · L Alt / Option switch';
+  document.querySelector('.flight-hint').textContent = state.mode === 2 ? 'P1: WASD · Y pulse / X plasma  ·  P2: IJKL · N pulse / M plasma' : 'WASD move · Y pulse / X plasma · V sound';
 }
 
 function returnToMenu() {
@@ -218,8 +223,9 @@ function refreshHUD() {
   setText($('level-name'), WORLDS[state.level].name);
   setText($('level-number'), `${String(state.level + 1).padStart(2, '0')} / 10`);
   setText($('score-value'), number(state.score)); setText($('credits-value'), number(state.credits));
-  const profile = weaponStats(state);
-  setText($('weapon-value'), profile.name); setText($('weapon-level'), `MK ${String(profile.level + 1).padStart(2, '0')}`);
+  const profile = weaponStats(state, 'pulse');
+  const stats = shipStats(state.upgrades);
+  setText($('weapon-value'), 'Pulse + plasma'); setText($('weapon-level'), `MK ${String(profile.level + 1).padStart(2, '0')}`);
   const activeCombo = state.combo >= 2 && state.comboTime > 0;
   setText($('combo-value'), activeCombo ? `${state.combo} · ${comboLabel(state.combo)}` : 'READY');
   setFill($('combo-fill'), activeCombo ? state.comboTime / 5.2 : 0);
@@ -227,9 +233,12 @@ function refreshHUD() {
   setFill($('progress-fill'), state.time / state.duration);
   for (const p of state.players) {
     const prefix = `p${p.id + 1}`;
-    const weapon = weaponStats(state, p.weapon);
-    setText($(prefix + '-weapon-name'), weapon.name);
-    setAttribute($(prefix + '-weapon'), 'aria-label', `Player ${p.id + 1}: ${weapon.name}. Switch weapon with ${p.id ? 'right' : 'left'} Alt or Option, or click.`);
+    setFill($(prefix + '-energy'), p.fireEnergy / stats.energy);
+    setAttribute($(prefix + '-energy').parentElement, 'aria-label', `Pilot ${p.id + 1} fire energy ${Math.floor(p.fireEnergy)} of ${stats.energy}${p.fireEnergyLocked ? ', recharging' : ''}`);
+    const energyPercent = Math.floor(p.fireEnergy / stats.energy * 100);
+    const energyStatus = !p.alive ? 'Offline' : p.fireEnergyLocked ? `Recharging · ${energyPercent}%` : `${energyPercent}%`;
+    setText($(prefix + '-energy-status'), energyStatus);
+    setAttribute($(prefix + '-energy-line'), 'data-depleted', String(p.fireEnergyLocked));
     setFill($(prefix + '-hull'), p.hull / p.maxHull); setFill($(prefix + '-shield'), p.shield / p.maxShield);
     setAttribute($(prefix + '-hull').parentElement, 'aria-label', `Pilot ${p.id + 1} hull ${Math.ceil(p.hull)} of ${p.maxHull}`);
     setAttribute($(prefix + '-shield').parentElement, 'aria-label', `Pilot ${p.id + 1} shield ${Math.ceil(p.shield)} of ${p.maxShield}`);
@@ -253,7 +262,7 @@ function showHangar(bonus, loading = false) {
   if (activeCampaign) unlocked = Math.max(unlocked, state.level + 1);
   setScreen('hangar'); $('announcement').hidden = true;
   $('hangar-title').textContent = 'Refit your ship.';
-  $('hangar-subtitle').textContent = `${WORLDS[state.level].name} cleared · ${state.kills} ship${state.kills === 1 ? '' : 's'} down · ${state.destroyed} ground targets destroyed.${bonus ? ` ${number(bonus)} credits awarded.` : ''} Spend your salvage before the next launch; hull and shields will be restored.`;
+  $('hangar-subtitle').textContent = `${WORLDS[state.level].name} cleared · ${state.kills} ship${state.kills === 1 ? '' : 's'} down · ${state.destroyed} ground targets destroyed.${bonus ? ` ${number(bonus)} credits awarded.` : ''} Spend your salvage before the next launch; hull, shields and fire energy will be restored.`;
   $('next-button').textContent = `Launch sector ${String(state.level + 2).padStart(2, '0')} — ${WORLDS[state.level + 1].name}  ↗`;
   $('campaign-route').innerHTML = WORLDS.map((world, index) => {
     const complete = index >= (state.startLevel || 0) && index <= state.level, current = index === state.level + 1;
@@ -264,15 +273,14 @@ function showHangar(bonus, loading = false) {
 }
 
 function renderUpgrades() {
-  arsenalPilot = Math.min(arsenalPilot, state.players.length - 1);
   $('hangar-credits').textContent = number(state.credits);
-  const stats = shipStats(state.upgrades), weapon = weaponStats(state, state.players[arsenalPilot].weapon);
-  $('hangar-loadout').innerHTML = `<div><dt>Hull capacity</dt><dd>${stats.hull}</dd></div><div><dt>Shield capacity</dt><dd>${stats.shield}</dd></div><div><dt>Shield recharge</dt><dd>${stats.recharge}<small>/s · ${stats.delay.toFixed(1)}s delay</small></dd></div><div><dt>Armament</dt><dd>Mk ${weapon.level + 1}<small>${weapon.name}</small></dd></div>`;
+  const stats = shipStats(state.upgrades), weapon = weaponStats(state, 'pulse');
+  $('hangar-loadout').innerHTML = `<div><dt>Hull capacity</dt><dd>${stats.hull}</dd></div><div><dt>Shield capacity</dt><dd>${stats.shield}</dd></div><div><dt>Fire energy</dt><dd>${stats.energy}<small>${stats.energyRecharge}/s · ${stats.energyDelay.toFixed(1)}s delay</small></dd></div><div><dt>Armament</dt><dd>Mk ${weapon.level + 1}<small>Pulse + plasma</small></dd></div>`;
   $('upgrade-list').innerHTML = UPGRADES.map(u => {
     const level = state.upgrades[u.id], maxed = level >= MAX_UPGRADE, cost = upgradeCost(state, u.id);
     const next = { ...state, upgrades: { ...state.upgrades, [u.id]: Math.min(MAX_UPGRADE, level + 1) } }, upgraded = shipStats(next.upgrades), nextWeapon = weaponStats(next, weapon.id);
     const preview = u.id === 'weapon' ? `${weapon.damage.toFixed(1)} → ${nextWeapon.damage.toFixed(1)} power · ${(1 / nextWeapon.interval).toFixed(1)} shots/s`
-      : u.id === 'recharge' ? `${stats.recharge} → ${upgraded.recharge} shield/s · ${upgraded.delay.toFixed(1)}s delay`
+      : u.id === 'recharge' ? `${stats.recharge} → ${upgraded.recharge} shield/s · ${stats.energyRecharge} → ${upgraded.energyRecharge} energy/s`
       : `${stats[u.id]} → ${upgraded[u.id]} ${u.id}`;
     return `<button class="upgrade-card" data-upgrade="${u.id}" ${maxed || state.credits < cost ? 'disabled' : ''}><span class="upgrade-icon" aria-hidden="true">${u.icon}</span><span class="upgrade-level">Mk ${String(level + 1).padStart(2, '0')} / 07</span><span class="upgrade-name">${u.name}</span><span class="upgrade-description">${u.subtitle}${state.mode === 2 ? ' Upgrades both pilots.' : ''}</span><span class="upgrade-preview">${maxed ? 'Maximum performance reached' : preview}</span><span class="upgrade-pips" aria-hidden="true">${Array.from({ length: 6 }, (_, i) => `<i class="${i < level ? 'filled' : ''}"></i>`).join('')}</span><span class="upgrade-cost">${maxed ? 'Fully upgraded' : `${number(cost)} credits <span aria-hidden="true">+</span>`}</span></button>`;
   }).join('');
@@ -280,30 +288,14 @@ function renderUpgrades() {
 }
 
 function renderWeapons() {
-  const selectedWeapon = state.players[arsenalPilot]?.weapon || 'pulse';
-  const fastestInterval = Math.min(...WEAPONS.map(weapon => weaponStats(state, weapon.id).interval));
-  $('arsenal-pilots').hidden = state.mode !== 2;
-  for (const button of document.querySelectorAll('[data-arsenal-pilot]')) {
-    button.setAttribute('aria-pressed', String(Number(button.dataset.arsenalPilot) === arsenalPilot));
-  }
-  $('weapon-list').setAttribute('aria-label', `Player ${arsenalPilot + 1} weapons`);
+  const fastestInterval = weaponStats(state, 'pulse').interval;
   $('weapon-list').innerHTML = WEAPONS.map(weapon => {
-    const stats = weaponStats(state, weapon.id), active = weapon.id === selectedWeapon;
+    const stats = weaponStats(state, weapon.id), secondary = weapon.id === 'plasma';
     const power = Math.round(Math.min(100, stats.damage * stats.count * 1.18));
     const speed = Math.round(100 * fastestInterval / stats.interval);
-    const range = Math.round(Math.min(100, stats.speed / 12 + (stats.homing ? 18 : 0) + (stats.pierce ? 12 : 0)));
-    return `<button class="weapon-card${active ? ' active' : ''}" data-weapon="${weapon.id}" aria-pressed="${active}" aria-label="Player ${arsenalPilot + 1}: select ${weapon.name}" style="--weapon-color:${weapon.color}"><span class="weapon-icon" aria-hidden="true">${weapon.id === 'pulse' ? 'Ⅱ' : '◉'}</span><span class="weapon-swatch"></span><span class="weapon-copy"><strong>${weapon.name}</strong><small>${weapon.tag}</small></span><span class="weapon-description">${weapon.description}</span><span class="weapon-bars" aria-label="Power ${power}, fire rate ${speed}, reach ${range}"><i style="--bar:${power}%"></i><i style="--bar:${speed}%"></i><i style="--bar:${range}%"></i></span><span class="weapon-readout"><b>${stats.damage.toFixed(1)} DMG</b><b>${(1 / stats.interval).toFixed(1)} / SEC</b></span></button>`;
+    const range = Math.round(Math.min(100, stats.speed / 12));
+    return `<article class="weapon-card" data-weapon="${weapon.id}" style="--weapon-color:${weapon.color}"><span class="weapon-icon" aria-hidden="true">${secondary ? '◉' : 'Ⅱ'}</span><span class="weapon-swatch"></span><span class="weapon-copy"><strong>${weapon.name}</strong><small>${secondary ? 'Secondary · X / P2 M' : 'Primary · Y / P2 N'}</small></span><span class="weapon-description">${weapon.description} ${secondary ? `${SECONDARY_ENERGY_COST} energy per shot; resumes at ${SECONDARY_RESTART_ENERGY} after depletion.` : 'Unlimited fire; no energy cost.'}</span><span class="weapon-bars" aria-label="Power ${power}, fire rate ${speed}, reach ${range}"><i style="--bar:${power}%"></i><i style="--bar:${speed}%"></i><i style="--bar:${range}%"></i></span><span class="weapon-readout"><b>${stats.damage.toFixed(1)} DMG</b><b>${(1 / stats.interval).toFixed(1)} / SEC</b></span></article>`;
   }).join('');
-}
-
-function switchPilotWeapon(playerId) {
-  const pilot = state?.players[playerId];
-  if (!pilot || !['playing', 'hangar'].includes(scene)) return;
-  const next = WEAPONS.find(weapon => weapon.id !== pilot.weapon);
-  if (!next || !selectWeapon(state, next.id, playerId)) return;
-  audio.start(); audio.effect('weapon'); refreshHUD();
-  if (scene === 'hangar') { arsenalPilot = playerId; renderUpgrades(); }
-  autosave();
 }
 
 function showEnd(won, loading = false) {
@@ -350,13 +342,15 @@ function selectWorld(index) {
 }
 
 function input() {
-  const solo = state?.mode !== 2;
-  controls[0].x = Number(keys.has('KeyD') || solo && keys.has('ArrowRight')) - Number(keys.has('KeyA') || solo && keys.has('ArrowLeft')) + touch.x;
-  controls[0].y = Number(keys.has('KeyS') || solo && keys.has('ArrowDown')) - Number(keys.has('KeyW') || solo && keys.has('ArrowUp')) + touch.y;
-  controls[0].fire = keys.has('ControlLeft') || keys.has('Space') || touch.fire || solo && (keys.has('ControlRight') || keys.has('Enter'));
-  controls[1].x = solo ? 0 : Number(keys.has('ArrowRight')) - Number(keys.has('ArrowLeft'));
-  controls[1].y = solo ? 0 : Number(keys.has('ArrowDown')) - Number(keys.has('ArrowUp'));
-  controls[1].fire = !solo && (keys.has('ControlRight') || keys.has('Enter'));
+  const coop = state?.mode === 2;
+  controls[0].x = Number(keys.has('KeyD')) - Number(keys.has('KeyA')) + touch.x;
+  controls[0].y = Number(keys.has('KeyS')) - Number(keys.has('KeyW')) + touch.y;
+  controls[0].fire = keys.has('KeyY') || touch.fire;
+  controls[0].secondary = keys.has('KeyX') || touch.secondary;
+  controls[1].x = coop ? Number(keys.has('KeyL')) - Number(keys.has('KeyJ')) : 0;
+  controls[1].y = coop ? Number(keys.has('KeyK')) - Number(keys.has('KeyI')) : 0;
+  controls[1].fire = coop && keys.has('KeyN');
+  controls[1].secondary = coop && keys.has('KeyM');
   return controls;
 }
 
@@ -611,9 +605,9 @@ function frame(time) {
   else idleHandle = setTimeout(() => { idleHandle = 0; requestFrame(); }, 180);
 }
 
-const controlledKeys = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ControlLeft', 'ControlRight', 'Space', 'Enter']);
+const controlledKeys = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyY', 'KeyX', 'KeyI', 'KeyJ', 'KeyK', 'KeyL', 'KeyN', 'KeyM']);
 const capturedKeys = new Set();
-const lockKeys = [...controlledKeys, 'AltLeft', 'AltRight', 'Escape', 'KeyP', 'KeyM', 'KeyF', 'F11'];
+const lockKeys = [...controlledKeys, 'Escape', 'KeyP', 'KeyV', 'KeyF', 'F11'];
 function consumeInput(event) {
   event.preventDefault();
   event.stopImmediatePropagation();
@@ -638,12 +632,10 @@ window.addEventListener('keydown', event => {
     }
     const pressed = !event.repeat && !capturedKeys.has(event.code);
     consumeInput(event); capturedKeys.add(event.code);
-    if (event.code === 'AltLeft' || event.code === 'AltRight') {
-      if (pressed) switchPilotWeapon(event.code === 'AltRight' ? 1 : 0);
-    } else if (controlledKeys.has(event.code)) {
+    if (controlledKeys.has(event.code)) {
       keys.add(event.code);
     } else if (pressed && (event.code === 'Escape' || event.code === 'KeyP')) pause();
-    else if (pressed && event.code === 'KeyM') toggleSound();
+    else if (pressed && event.code === 'KeyV') toggleSound();
     return;
   }
   const modal = [...document.querySelectorAll('.modal-screen')].reverse().find(el => !el.hidden);
@@ -655,12 +647,6 @@ window.addEventListener('keydown', event => {
     }
     return;
   }
-  if (scene === 'hangar' && (event.code === 'AltLeft' || event.code === 'AltRight')) {
-    const pressed = !event.repeat && !capturedKeys.has(event.code);
-    consumeInput(event); capturedKeys.add(event.code);
-    if (pressed) switchPilotWeapon(event.code === 'AltRight' ? 1 : 0);
-    return;
-  }
   if (event.ctrlKey || event.metaKey || event.altKey) return;
   if ((event.code === 'Escape' || event.code === 'KeyP') && !event.repeat) {
     if (!$('help-screen').hidden || scene === 'pause') {
@@ -668,7 +654,7 @@ window.addEventListener('keydown', event => {
       if (!$('help-screen').hidden) closeHelp(); else pause();
     }
   }
-  if (event.code === 'KeyM' && !event.repeat) {
+  if (event.code === 'KeyV' && !event.repeat) {
     consumeInput(event); capturedKeys.add(event.code); toggleSound();
   }
 }, { capture: true, passive: false });
@@ -712,19 +698,6 @@ $('upgrade-list').addEventListener('click', event => {
   const button = event.target.closest('[data-upgrade]'); if (!button || !state) return;
   if (buyUpgrade(state, button.dataset.upgrade)) { audio.effect('upgrade'); renderUpgrades(); autosave(); const next = document.querySelector(`[data-upgrade="${button.dataset.upgrade}"]`); if (!next.disabled) next.focus(); else $('next-button').focus(); }
 });
-$('weapon-list').addEventListener('click', event => {
-  const button = event.target.closest('[data-weapon]'); if (!button || !state) return;
-  if (selectWeapon(state, button.dataset.weapon, arsenalPilot)) {
-    audio.start(); audio.effect('weapon'); renderUpgrades(); refreshHUD();
-    autosave();
-    document.querySelector(`[data-weapon="${button.dataset.weapon}"]`).focus({ preventScroll: true });
-  }
-});
-for (let player = 0; player < 2; player++) on(`p${player + 1}-weapon`, () => switchPilotWeapon(player));
-$('arsenal-pilots').addEventListener('click', event => {
-  const button = event.target.closest('[data-arsenal-pilot]'); if (!button || !state) return;
-  arsenalPilot = Number(button.dataset.arsenalPilot); renderUpgrades();
-});
 document.querySelectorAll('[data-mode]').forEach(button => button.addEventListener('click', () => {
   mode = Number(button.dataset.mode);
   document.querySelectorAll('[data-mode]').forEach(b => { b.classList.toggle('active', b === button); b.setAttribute('aria-pressed', String(b === button)); });
@@ -736,12 +709,12 @@ function toggleSound() {
 }
 function syncSettings() {
   $('sound-toggle').setAttribute('aria-pressed', String(!audio.muted)); $('sound-toggle').setAttribute('aria-label', audio.muted ? 'Unmute sound' : 'Mute sound');
-  $('sound-toggle').dataset.muted = String(audio.muted); $('sound-toggle').title = audio.muted ? 'Sound off · M' : 'Sound on · M';
+  $('sound-toggle').dataset.muted = String(audio.muted); $('sound-toggle').title = audio.muted ? 'Sound off · V' : 'Sound on · V';
   if ($('sound-label')) $('sound-label').textContent = audio.muted ? 'Sound off' : 'Sound on';
   const qualityText = quality === 'high' ? 'Effects high' : 'Effects low';
   if ($('quality-label')) $('quality-label').textContent = qualityText; else $('quality-toggle').textContent = qualityText;
   $('quality-toggle').setAttribute('aria-label', `Effects ${quality}. Click to switch.`); $('quality-toggle').setAttribute('aria-pressed', String(quality === 'high'));
-  if ($('pause-sound-toggle')) { $('pause-sound-toggle').textContent = audio.muted ? 'Sound off · M' : 'Sound on · M'; $('pause-sound-toggle').setAttribute('aria-pressed', String(!audio.muted)); }
+  if ($('pause-sound-toggle')) { $('pause-sound-toggle').textContent = audio.muted ? 'Sound off · V' : 'Sound on · V'; $('pause-sound-toggle').setAttribute('aria-pressed', String(!audio.muted)); }
   if ($('pause-quality-toggle')) { $('pause-quality-toggle').textContent = qualityText; $('pause-quality-toggle').setAttribute('aria-pressed', String(quality === 'high')); }
   fx.quality = quality;
 }
@@ -753,16 +726,23 @@ on('fullscreen-toggle', async () => { try { if (document.fullscreenElement) awai
 function closeHelp() { $('help-screen').hidden = true; if (helpPaused && scene === 'pause') pause(); else helpFocus?.focus({ preventScroll: true }); helpPaused = false; }
 on('help-button', () => { helpFocus = document.activeElement; helpPaused = scene === 'playing'; if (helpPaused) pause(); $('help-screen').hidden = false; $('help-close').focus(); }); on('help-close', closeHelp);
 
-const stick = $('touch-stick'), fire = $('touch-fire');
+const stick = $('touch-stick');
 if (stick) {
-  stick.addEventListener('pointerdown', e => { if (e.pointerType === 'mouse') return; touch.pointer = e.pointerId; touch.originX = e.clientX; touch.originY = e.clientY; stick.setPointerCapture(e.pointerId); consumeInput(e); });
-  stick.addEventListener('pointermove', e => { if (e.pointerId !== touch.pointer) return; consumeInput(e); touch.x = clamp((e.clientX - touch.originX) / 42, -1, 1); touch.y = clamp((e.clientY - touch.originY) / 42, -1, 1); stick.style.setProperty('--stick-x', `${touch.x * 24}px`); stick.style.setProperty('--stick-y', `${touch.y * 24}px`); });
-  const release = e => { if (e.pointerType === 'mouse') return; consumeInput(e); touch.pointer = null; touch.x = touch.y = 0; stick.style.setProperty('--stick-x', '0px'); stick.style.setProperty('--stick-y', '0px'); };
+  stick.addEventListener('pointerdown', e => { if (e.pointerType === 'mouse' || scene !== 'playing' || touch.pointer != null) return; touch.pointer = e.pointerId; touch.originX = e.clientX; touch.originY = e.clientY; stick.setPointerCapture(e.pointerId); consumeInput(e); });
+  stick.addEventListener('pointermove', e => { if (scene !== 'playing' || e.pointerId !== touch.pointer) return; consumeInput(e); touch.x = clamp((e.clientX - touch.originX) / 42, -1, 1); touch.y = clamp((e.clientY - touch.originY) / 42, -1, 1); stick.style.setProperty('--stick-x', `${touch.x * 24}px`); stick.style.setProperty('--stick-y', `${touch.y * 24}px`); });
+  const release = e => { if (e.pointerId !== touch.pointer) return; consumeInput(e); touch.pointer = null; touch.x = touch.y = 0; stick.style.setProperty('--stick-x', '0px'); stick.style.setProperty('--stick-y', '0px'); };
   stick.addEventListener('pointerup', release); stick.addEventListener('pointercancel', release); stick.addEventListener('lostpointercapture', release);
 }
-if (fire) {
-  fire.addEventListener('pointerdown', e => { if (e.pointerType === 'mouse') return; touch.fire = true; fire.setPointerCapture(e.pointerId); audio.start(); consumeInput(e); });
-  for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) fire.addEventListener(name, e => { if (e.pointerType === 'mouse') return; consumeInput(e); touch.fire = false; });
+for (const [id, channel] of [['touch-fire', 'fire'], ['touch-secondary', 'secondary']]) {
+  const button = $(id);
+  button.addEventListener('pointerdown', event => {
+    if (event.pointerType === 'mouse' || scene !== 'playing') return;
+    touch[channel] = true; button.setPointerCapture(event.pointerId); audio.start(); consumeInput(event);
+  });
+  for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) button.addEventListener(name, event => {
+    if (event.pointerType === 'mouse') return;
+    consumeInput(event); touch[channel] = false;
+  });
 }
 
 $('world-list').innerHTML = WORLDS.map((w, i) => `<button class="world-card ${i === 0 ? 'active' : ''}" data-world="${i}" aria-pressed="${i === 0}" aria-label="Preview sector ${i + 1}: ${w.name}" style="--world-color:${w.color || w.accent}"><span class="world-number">${String(i + 1).padStart(2, '0')}</span><span class="world-name">${w.name}</span><span class="world-type">${w.subtitle || w.id}</span><span class="world-orbit" aria-hidden="true"></span></button>`).join('');
