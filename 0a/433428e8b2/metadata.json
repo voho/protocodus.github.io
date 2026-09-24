@@ -3,7 +3,7 @@
   "checkpoint_id": "0a433428e8b2",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "fun/alpen/js/sky.js",
     "fun/alpen/tests/README.md",
@@ -30,13 +30,20 @@
       "context": "/0a/433428e8b2/2/context.md",
       "content_hash": "/0a/433428e8b2/2/content_hash.txt",
       "prompt": "/0a/433428e8b2/2/prompt.txt"
+    },
+    {
+      "metadata": "/0a/433428e8b2/3/metadata.json",
+      "transcript": "/0a/433428e8b2/3/full.jsonl",
+      "context": "/0a/433428e8b2/3/context.md",
+      "content_hash": "/0a/433428e8b2/3/content_hash.txt",
+      "prompt": "/0a/433428e8b2/3/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 214,
-    "cache_creation_tokens": 141948,
-    "cache_read_tokens": 12664882,
-    "output_tokens": 40626,
-    "api_call_count": 107
+    "input_tokens": 624,
+    "cache_creation_tokens": 2161666,
+    "cache_read_tokens": 110570059,
+    "output_tokens": 351136,
+    "api_call_count": 312
   }
 }
