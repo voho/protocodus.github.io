@@ -3,7 +3,7 @@
   "checkpoint_id": "2ae68c945325",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 0,
+  "checkpoints_count": 1,
   "files_touched": [
     "fun/alpen/assets/models/MODELS.md",
     "fun/alpen/assets/models/nature/deadfall_branches.glb",
@@ -29,6 +29,13 @@
       "context": "/2a/e68c945325/0/context.md",
       "content_hash": "/2a/e68c945325/0/content_hash.txt",
       "prompt": "/2a/e68c945325/0/prompt.txt"
+    },
+    {
+      "metadata": "/2a/e68c945325/1/metadata.json",
+      "transcript": "/2a/e68c945325/1/full.jsonl",
+      "context": "",
+      "content_hash": "/2a/e68c945325/1/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
