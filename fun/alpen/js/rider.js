@@ -208,6 +208,11 @@ export class Rider {
     this._flowRight = new THREE.Vector3(1, 0, 0);
     this._contact = { edgeAhead: false, footprint: CONTACT_EPS * 2 };
     this.UP = new THREE.Vector3(0, 1, 0);
+    // The board's own up in the air, and the snow it is heading for. See
+    // `stepAttitude`.
+    this.airUp = new THREE.Vector3(0, 1, 0);
+    this._landN = new THREE.Vector3(0, 1, 0);
+    this._axis = new THREE.Vector3();
 
     this.events = {
       launch: [], land: [], fall: [], rise: [], impact: [],
@@ -260,6 +265,11 @@ export class Rider {
     this.heading.set(0, 0, -1)
       .addScaledVector(this.normal, this.normal.z).normalize();
     this.right.crossVectors(this.heading, this.normal).normalize();
+    this.airUp.copy(this.normal);
+    this._landN.copy(this.normal);
+    this.airPitchRate = 0;     // rad/s of nose-up the lip handed the board
+    this.touchdownIn = Infinity; // seconds until the predicted landing
+    this._landClock = 0;
 
     this.compression = 0;
     this.compressionVel = 0;
@@ -573,10 +583,11 @@ export class Rider {
     const finishPush = this.pushing && enteringSpeed >= RIDER.pushStop;
 
     // W is a powered tuck. This is a speed floor rather than a
-    // one-off force: snow friction, a traverse, or an extreme drag value can
-    // never quietly create another terminal velocity. Gravity and clean
-    // terrain can still add more than the floor, so the mountain remains part
-    // of the acceleration instead of being overwritten by it.
+    // one-off force: snow friction or an extreme drag value can never
+    // quietly create another terminal velocity on a descent. Gravity and
+    // clean terrain can still add more than the floor, so the mountain remains
+    // part of the acceleration instead of being overwritten by it — and the
+    // floor itself is the hill's to give; see `hillPull` below.
     /* …and how hard, which is what the flow meter is spent on. `flowDrive`
        is written once a step by `stepFlow` in main.js: a full meter is the
        whole powered tuck this has always been, an empty one is a third of
@@ -584,9 +595,6 @@ export class Rider {
        still a floor, and gravity and a clean line still beat it — but the
        speed it guarantees is now something the run has to have earned. */
     const drive = 0.34 + 0.66 * Math.min(1, Math.max(0, this.flowDrive));
-    const poweredSpeed = this.tucking
-      ? poweredEntrySpeed + RIDER.tuckAcceleration * drive * dt
-      : 0;
 
     // Gravity, resolved on the tangent. This is the whole engine: steep is
     // fast, banked is slow, and neither needed a special case.
@@ -605,6 +613,27 @@ export class Rider {
        hill's direction reads this rather than guessing from the heading. */
     const ny = Math.max(0.2, support.y);
     this.climbRate = (-support.x * vel.x - support.z * vel.z) / ny;
+
+    /* …and the tuck's floor is paid for by the hill.
+
+       It was a flat 7.5 m/s² whatever the ground was doing, which made W an
+       engine: held on the flat it gained 7.5 m/s in a second, and held up a
+       one-in-five bank it gained exactly the same — a rider accelerating up a
+       wall with nothing to push against. A tuck is a body folded out of the
+       wind over a flat, quiet base; the best it can ever do is keep all of
+       what the slope is pulling with and lose none of it to the air and the
+       snow. So the floor is the pull of gravity along the direction of
+       travel, capped where it always was and scaled by the meter as before,
+       and on the flat or going up it is nothing: there the tuck is still
+       out of the wind (the drag bypass below), but the hill is not paying,
+       so nothing does. */
+    const travelling = vel.length();
+    const hillPull = travelling > 0.5
+      ? RIDER.gravity * Math.max(0, -this.climbRate) / travelling
+      : 0;
+    const poweredSpeed = this.tucking && hillPull > 0
+      ? poweredEntrySpeed + Math.min(RIDER.tuckAcceleration, hillPull) * drive * dt
+      : 0;
 
     /* THE BEND — how hard the shape of the ground is pressing the board into
        the snow, over and above the one g gravity was already charging.
@@ -1640,7 +1669,7 @@ export class Rider {
      A deliberate ollie (or the legs unloading naturally) is the only extra
      impulse. It points between the board's outward normal and world-up so it
      clears both ordinary kickers and steep walls without rewriting the base
-     tangent launch. */
+     tangent launch — see `applyPop`. */
   takeOff(pop, n) {
     const launchSpeed = this.vel.length();
     const tangent = this._p.copy(this.vel).addScaledVector(n, -this.vel.dot(n));
@@ -1649,15 +1678,27 @@ export class Rider {
       this.vel.copy(tangent).multiplyScalar(launchSpeed / tangentSpeed);
     }
 
-    const p = this._p.copy(n).add(this.UP).normalize();
     this.grounded = false;
     this.state = 'air';
+    /* The board leaves the snow the way it was lying on it — parallel to
+       the ground it was drawn on — and turning the way that ground was
+       turning it. Following a surface curved by κ at speed v rotates the
+       board at v·κ, and `bend` is v²κ/g, so the carried rate is bend·g/v: a
+       crest sends it off nose-down, the last of a kicker's transition
+       nose-up. */
+    this.airUp.copy(this.normal);
+    this.airPitchRate = clamp(
+      this.bend * RIDER.gravity / Math.max(6, launchSpeed),
+      -RIDER.airPitchCarry, RIDER.airPitchCarry,
+    );
+    this.touchdownIn = Infinity;
+    this._landClock = 0;
     // The gradient the bend is differentiating is only meaningful across two
     // consecutive steps on the same surface. Every departure from the snow
     // breaks that chain, and a stale one comes back as a curvature spike the
     // width of a lip.
     this._bendReady = false;
-    if (pop > 0) this.vel.addScaledVector(p, pop);
+    if (pop > 0) this.applyPop(n, pop);
     // Scoring and telemetry read the momentum the ramp received, not the
     // optional leg impulse added afterwards.
     this.takeoffSpeed = launchSpeed;
@@ -1695,6 +1736,37 @@ export class Rider {
     this.releasePress();
   }
 
+  /* The legs' push, added to the velocity.
+
+     Between the board's normal and world up, as it always was — but on any
+     slope that bisector leans back up the hill, and so a full ollie down a
+     twenty-degree pitch used to brake the run by two and a half metres a
+     second along the snow, which is not something legs pushing *off* a
+     board can do. Whatever share of the push would run backwards along the
+     direction of travel is taken out; the rest, which is height and the
+     slight forward lean of a body extending over a descending board, stays.
+     Up a quarterpipe the same share points along the travel and is kept,
+     which is the whole reason for the world-up half. */
+  applyPop(n, pop) {
+    const { vel } = this;
+    const p = this._p.copy(n).add(this.UP).normalize().multiplyScalar(pop);
+    const into = vel.dot(n);
+    let tx = vel.x - n.x * into;
+    let ty = vel.y - n.y * into;
+    let tz = vel.z - n.z * into;
+    const tl = Math.hypot(tx, ty, tz);
+    if (tl > 0.5) {
+      tx /= tl; ty /= tl; tz /= tl;
+      const along = p.x * tx + p.y * ty + p.z * tz;
+      if (along < 0) {
+        p.x -= tx * along;
+        p.y -= ty * along;
+        p.z -= tz * along;
+      }
+    }
+    vel.add(p);
+  }
+
   /* The press, closed out. Called wherever the board can stop being on the
      snow under a rider's feet — a lip, a tree — so that a butter is always
      judged exactly once and nothing can carry its accumulated rotation into
@@ -1721,7 +1793,7 @@ export class Rider {
       if (this._latePopAllowed && this.airTime <= RIDER.lipWindow) {
         const pop = (RIDER.popMin + (RIDER.popMax - RIDER.popMin) * this.charge)
           * RIDER.lipBonus;
-        this.vel.addScaledVector(this._p.copy(this.normal).add(this.UP).normalize(), pop);
+        this.applyPop(this.normal, pop);
         this._latePopAllowed = false;
         this.lipPop = true;
         this.compressionVel = -14;
@@ -1754,8 +1826,14 @@ export class Rider {
     vel.y -= RIDER.gravity * dt;
     // A tuck reduces drag; it cannot propel the board without snow to push
     // against. Takeoff momentum now predicts the landing distance.
-    const airDrag = 1 / (1 + RIDER.drag * (this.tucking ? 0.16 : 0.45)
-      * vel.length() * dt);
+    /* …and it is the same air the rider was riding through a moment ago.
+       Upright, the flight used to pay under half the drag the snow charged
+       for the same body at the same speed, which is not a property air has:
+       the discount was quietly paying back the speed every pop took off the
+       run (see `applyPop`). With the pop fixed, the only thing the snow adds
+       is friction, and the only thing leaving it takes away is that. */
+    const airDrag = 1 / (1 + RIDER.drag
+      * (this.tucking ? RIDER.airTuckDrag : RIDER.airDrag) * vel.length() * dt);
     vel.x *= airDrag;
     vel.z *= airDrag;
 
@@ -1838,6 +1916,7 @@ export class Rider {
     pos.z += vel.z * dt;
 
     this.roll = approach(this.roll, turn * 0.22, 6, dt);
+    this.stepAttitude(dt);
 
     const gy = this.world.height(pos.x, pos.z);
 
@@ -1897,6 +1976,92 @@ export class Rider {
     } else {
       this.extension = pos.y - gy;
     }
+  }
+
+  /* THE BOARD'S ATTITUDE IN THE AIR, which the air used to throw away.
+
+     The drawn rider stood on the takeoff normal and was eased to world
+     vertical within the first half second of every flight, whatever the
+     ground was doing. So an ollie down a twenty-degree pitch flew with the
+     board dead level over a hill falling away beneath it, and the landing
+     then rotated the whole rider twenty degrees nose-down in one frame —
+     the snap a player sees on every touchdown and cannot name.
+
+     A board in the air has no reason to go level. It leaves parallel to the
+     snow it was riding, carrying whatever pitch the ground's curvature was
+     giving it (see `takeOff`), and a rider spends the flight working the
+     board round to meet the snow they are going to land on: the carried
+     rotation is soaked up by the legs over a few tenths of a second, and the
+     board is brought round to the landing slope on a clock set by how long
+     is left, slowly off the lip and quickly at the end. It arrives matched,
+     so there is nothing left for the touchdown to snap.
+
+     This is attitude only. It moves nothing — the arc is still gravity and
+     the takeoff tangent — and flips and spins are drawn on top of it. */
+  stepAttitude(dt) {
+    const { vel } = this;
+    this._landClock -= dt;
+    if (this._landClock <= 0) {
+      this.predictTouchdown();
+      this._landClock = RIDER.landPredictEvery;
+    } else if (Number.isFinite(this.touchdownIn)) {
+      this.touchdownIn = Math.max(0, this.touchdownIn - dt);
+    }
+
+    const up = this.airUp;
+    const flat = Math.hypot(vel.x, vel.z);
+    if (this.airPitchRate !== 0 && flat > 0.5) {
+      // Nose-up is a rotation about travel × up: the board's own lateral axis.
+      const fx = vel.x / flat;
+      const fz = vel.z / flat;
+      const axis = this._axis.set(-fz * up.y, fz * up.x - fx * up.z, fx * up.y);
+      const len = axis.length();
+      if (len > 1e-4) up.applyAxisAngle(axis.multiplyScalar(1 / len), this.airPitchRate * dt);
+      this.airPitchRate *= Math.exp(-RIDER.airPitchDamp * dt);
+      if (Math.abs(this.airPitchRate) < 1e-3) this.airPitchRate = 0;
+    }
+
+    const tau = clamp(this.touchdownIn * RIDER.airLevelShare,
+      RIDER.airLevelMin, RIDER.airLevelMax);
+    up.lerp(this._landN, 1 - Math.exp(-dt / tau)).normalize();
+  }
+
+  /* Where the arc meets the snow, and which way the snow faces there.
+
+     The ballistic path is walked forward in `landPredictStep` slices until it
+     first goes under the ground, then bisected. Drag is left out — it moves a
+     landing by centimetres over a second — so the prediction is a pure
+     function of position and velocity, and it is refreshed a few times a
+     second rather than every step because nothing it drives needs more. With
+     nothing inside the horizon (a long drop) the board is aimed at the slope
+     directly below, which is where a rider looking down would aim it. */
+  predictTouchdown() {
+    const { pos, vel } = this;
+    const height = this.world.height;
+    const g = RIDER.gravity;
+    const step = RIDER.landPredictStep;
+    const steps = Math.ceil(RIDER.landPredictHorizon / step);
+    let lo = 0;
+    let hi = -1;
+    for (let i = 1; i <= steps; i++) {
+      const t = i * step;
+      const y = pos.y + vel.y * t - 0.5 * g * t * t;
+      if (y <= height(pos.x + vel.x * t, pos.z + vel.z * t)) { hi = t; break; }
+      lo = t;
+    }
+    if (hi < 0) {
+      this.touchdownIn = Infinity;
+      normalFrom(height, pos.x, pos.z, this._landN);
+      return;
+    }
+    for (let i = 0; i < 4; i++) {
+      const t = (lo + hi) * 0.5;
+      const y = pos.y + vel.y * t - 0.5 * g * t * t;
+      if (y <= height(pos.x + vel.x * t, pos.z + vel.z * t)) hi = t;
+      else lo = t;
+    }
+    this.touchdownIn = hi;
+    normalFrom(height, pos.x + vel.x * hi, pos.z + vel.z * hi, this._landN);
   }
 
   /* --- the moment it matters ----------------------------------------- */
@@ -1979,11 +2144,18 @@ export class Rider {
       judged,
       lipPop: this.lipPop,
       takeoffSpeed: this.takeoffSpeed,
+      // How far the board came down from the travel it squares to, and from
+      // the slope under it: the two ways a landing can be off.
+      skid: spinErr,
+      tilt: this.airUp.angleTo(n),
     };
 
     this.grounded = true;
     this.state = 'ride';
     this.extension = 0;
+    this.airUp.copy(n);
+    this.airPitchRate = 0;
+    this.touchdownIn = Infinity;
     // The pitch the landing forgives, kept for the renderer. The yaw snap
     // below hands its residual to `yawGlide`; the flip's residual — up to
     // ~78° on the sketchiest landed flip — was zeroed in one write, and the
@@ -2026,11 +2198,26 @@ export class Rider {
         this.yaw = snapped;
         this.switchStance = isSwitch;
       }
-      // A sketchy landing wobbles and costs speed; a clean one costs nothing
       // The snow takes the normal component; the rider keeps the tangential
       // run whose direction was used to classify the landing above.
       vel.copy(landedVel);
-      if (verdict === SKETCHY) vel.multiplyScalar(0.86);
+      /* …less what it costs to square a board that came down across it.
+
+         The snap above is bookkeeping — the stance the next carve needs —
+         and it was free: a board landed fifty degrees off its travel kept
+         every metre a second of it, because the window called it clean, and
+         a sketchy one lost a flat seventh whether it was out by five degrees
+         or eighty. What actually happens is a skid. The base runs on along
+         the board and the edge has to turn the rest of the momentum round,
+         which it does by scrubbing it, so the price is the share of the run
+         that was not along the board: 1 − cos of the angle. A few degrees
+         cost nothing anyone can feel, a board fifty degrees off loses about
+         a seventh of the speed, and the wobble of a sketchy landing is a
+         smaller flat charge on top of that. Chatter over the rollers is
+         never snapped and skids through the ordinary edge physics instead,
+         so only a judged landing pays here. */
+      if (judged) vel.multiplyScalar(1 - RIDER.landSkid * (1 - Math.cos(spinErr)));
+      if (verdict === SKETCHY) vel.multiplyScalar(RIDER.sketchyKeep);
       // …but not all of it. A long drop converts a lot of height into speed
       // along the hill, and with nothing taken back a rider could ride one
       // kicker into 270 km/h and never slow down. Everything past the point

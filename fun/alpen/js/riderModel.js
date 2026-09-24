@@ -317,6 +317,8 @@ const POSE = {
   thumpDrop: 0.26,    // metres a landing folds him, on the thump's own clock
   popRise: 0.09,      // and how far the pop stands him up out of the stance
   airTuck: 0.29,      // metres the knees come up once he is off the snow
+  airReach: 0.30,     // seconds before touchdown the legs reach for it
+  popNose: 0.45,      // radians of extra nose lift an ollie takes once airborne
   chargeBack: 0.05,   // metres the weight sits back over the tail to coil
 
   /* The grab, which is the one pose that has to hit a mark rather than look
@@ -1375,6 +1377,13 @@ export function createRiderModel(THREE, shading) {
   const AX = new THREE.Vector3(1, 0, 0);
   const AZ = new THREE.Vector3(0, 0, 1);
   const up = new THREE.Vector3();
+  // The last attitude drawn in the air, and what is left of it once the board
+  // is down; see the note where `up` is chosen.
+  const airUpDrawn = new THREE.Vector3(0, 1, 0);
+  const upGlide = new THREE.Quaternion();
+  const NO_TURN = new THREE.Quaternion();
+  let flewLast = false;
+  let gliding = false;
 
   /* The blob shadow's frame, preassembled. `shadowFlat` is the constant
      -PI/2 about X that lays the disc into the ground plane; the spin and the
@@ -1443,7 +1452,7 @@ export function createRiderModel(THREE, shading) {
   // against dt, none of it is read back by anyone else.
   const s = {
     clock: 0, down: 0, air: 0, grab: 0, tuck: 0, push: 0, charge: 0,
-    twist: 0, lean: 0, comp: 0, pop: 0, thump: 0, tumbleLag: 0, wash: 0, press: 0,
+    twist: 0, lean: 0, comp: 0, pop: 0, thump: 0, tumbleLag: 0, wash: 0, press: 0, airTuck: 0,
     edge: 0, load: 0, steer: 0, switched: 0,
   };
   let seen = false;
@@ -1470,6 +1479,14 @@ export function createRiderModel(THREE, shading) {
         : 0;
     s.down = approach(s.down, fallen, 9, sdt);
     s.air = approach(s.air, rider.grounded ? 0 : 1, 13, sdt);
+    /* The knees come up off the lip and go back down to meet the snow. In
+       the last `airReach` seconds before the predicted touchdown the legs
+       reach for the landing, so the landing has a leg's length to fold them
+       through — held tucked all the way down, the thump had nothing to
+       absorb with and the rider arrived already folded. */
+    const reach = rider.state === 'air' && Number.isFinite(rider.touchdownIn)
+      ? clamp(1 - rider.touchdownIn / POSE.airReach, 0, 1) : 0;
+    s.airTuck = approach(s.airTuck, rider.state === 'air' ? 1 - reach : 0, 13, sdt);
     s.grab = approach(s.grab, rider.grab, 14, sdt);
     // At walking pace W keeps its physics, but visually a real rider skates
     // rather than folding into a tuck before the board is moving.
@@ -1618,9 +1635,34 @@ export function createRiderModel(THREE, shading) {
     /* --- the whole rider, on the hill ------------------------------------ */
 
     // Stand him on the surface, then turn, flip and roll him in his own
-    // frame. In the air the reference drifts back to true vertical.
-    up.copy(rider.normal);
-    if (!rider.grounded) up.lerp(UP, Math.min(1, rider.airTime * 2.5)).normalize();
+    // frame. A tumble drifts back to true vertical.
+    /* In flight the frame is the board's own attitude, which the physics
+       carries off the lip and works round to the landing slope (see
+       `stepAttitude` in rider.js). It used to drift to world vertical instead,
+       which flew every jump down a pitch with the board level and then
+       rotated the whole rider onto the slope in the frame he touched down.
+       The board now arrives matched; whatever small difference an early
+       touchdown leaves is handed to `upGlide` and drained over a few frames,
+       the same cure `yawGlide` is for the stance snap. */
+    const flying = rider.state === 'air' && !!rider.airUp;
+    if (flying) {
+      up.copy(rider.airUp);
+      airUpDrawn.copy(up);
+      gliding = false;
+    } else {
+      up.copy(rider.normal);
+      if (!rider.grounded) up.lerp(UP, Math.min(1, rider.airTime * 2.5)).normalize();
+      if (flewLast && rider.state === 'ride' && !snap) {
+        upGlide.setFromUnitVectors(up, airUpDrawn);
+        gliding = true;
+      }
+      if (gliding) {
+        upGlide.slerp(NO_TURN, 1 - Math.exp(-RIDER.glideRate * step));
+        if (Math.abs(upGlide.w) > 0.99995) gliding = false;
+        else up.applyQuaternion(upGlide);
+      }
+    }
+    flewLast = flying;
     q.setFromUnitVectors(UP, up);
     /* Body english for the two shaped grabs, continuous in `grab` — the old
        `grab > 0.05` gate added nothing but a one-frame snap at the crossing,
@@ -1668,8 +1710,12 @@ export function createRiderModel(THREE, shading) {
     const tweak = G.tweak * grab;
     // The nose lifts as he pops, whichever end it is — and a press stands the
     // whole deck up on one contact point.
+    /* An ollie is the tail snapping the board off the snow nose-first, so the
+       lift is mostly taken once he is off it: a few degrees while the legs
+       are still extending, the rest as the board leaves, levelled again by
+       the time the pop has decayed. */
     const pressPitch = POSE.pressPitch * press * pressEnd;
-    bt.pitch = s.pop * 0.12 * sw + pressPitch;
+    bt.pitch = s.pop * (0.12 + POSE.popNose * s.air) * sw + pressPitch;
     // The board is rolled further than the body: that difference *is*
     // angulation, and it is now the two signals subtracted rather than a
     // share of one of them guessed at.
@@ -1848,7 +1894,7 @@ export function createRiderModel(THREE, shading) {
       // the knees come up off the snow and the landing folds them; both are
       // events with their own decay, and neither is anything the leg spring's
       // own travel would ever have drawn
-      - POSE.airTuck * s.air + POSE.popRise * s.pop - POSE.thumpDrop * s.thump
+      - POSE.airTuck * s.airTuck + POSE.popRise * s.pop - POSE.thumpDrop * s.thump
       // and up with the deck when it is laid over, because the boots went up
       // with it and the leg between them has not changed length
       + bt.y;

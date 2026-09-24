@@ -52,6 +52,89 @@ for (const tuck of [false, true]) {
   assert.ok(Math.abs(r.vel.z) < 20, 'air input cannot add propulsion');
 }
 
+// Leaving the snow takes away its friction and nothing else: an upright body
+// meets the same air in flight as it did on the ground a moment ago.
+{
+  const r = rider({ height: () => -1000, canStall: () => false });
+  r.pos.y = 0; r.vel.set(0, 0, -37);
+  r.state = 'air'; r.grounded = false;
+  r.step(dt, neutral);
+  const speed = Math.hypot(37, RIDER.gravity * dt);
+  close(-r.vel.z, 37 / (1 + RIDER.drag * speed * dt), 'flight pays the ground aero drag');
+}
+
+// The tuck's floor is the hill's to give. Out of the wind everywhere, but
+// nothing pushes on the flat or up a climb; down a pitch it still pulls ahead.
+{
+  const run = (grade, tuck) => {
+    const r = rider({ height: (x, z) => z * grade, canStall: () => false });
+    r.vel.set(0, 0, -20); r.flowDrive = 1;
+    for (let i = 0; i < 120; i++) r.step(dt, { ...neutral, tuck });
+    return r.speed;
+  };
+  assert.ok(run(-0.2, true) < 15, `W cannot drive a rider up a climb (${run(-0.2, true)})`);
+  assert.ok(run(0, true) < 20, `W cannot drive a rider along the flat (${run(0, true)})`);
+  assert.ok(run(0.3, true) > run(0.3, false) + 2, 'W still pays on a descent');
+}
+
+// An ollie pushes off the board; it cannot shove the run back up the hill.
+{
+  const grade = 0.36;
+  const s = Math.atan(grade);
+  const r = rider({ height: (x, z) => z * grade, canStall: () => false });
+  r.vel.set(0, -25 * Math.sin(s), -25 * Math.cos(s));
+  for (let i = 0; i < 54; i++) r.step(dt, { ...neutral, jump: true });
+  const down = new THREE.Vector3(0, -Math.sin(s), -Math.cos(s));
+  const before = r.vel.dot(down);
+  r.step(dt, neutral);
+  assert.equal(r.state, 'air');
+  assert.ok(r.vel.dot(down) > before - 0.1,
+    `a pop keeps the run along the slope (${before.toFixed(2)} → ${r.vel.dot(down).toFixed(2)})`);
+}
+
+// The board flies at its own attitude: it leaves parallel to the snow it was
+// riding and comes down matched to the slope it lands on — not level, and not
+// still at the takeoff's angle — so the touchdown has nothing to snap.
+{
+  const h = (x, z) => (z > -8 ? z * 0.27 : -8 * 0.27 + (z + 8) * 0.7);
+  const r = rider({ height: h, canStall: () => false });
+  r.vel.set(0, -25 * 0.26, -25 * 0.965);
+  let leaving = null;
+  let landing = null;
+  let levelest = Infinity;
+  const takeoffUp = new THREE.Vector3();
+  r.on('launch', () => { leaving = r.airUp.angleTo(r.normal); takeoffUp.copy(r.airUp); });
+  r.on('land', (summary) => { landing = summary; });
+  for (let i = 0; i < 600 && !landing; i++) {
+    r.step(dt, neutral);
+    if (r.state === 'air') levelest = Math.min(levelest, r.airUp.angleTo(r.UP));
+  }
+  assert.ok(landing && landing.judged, 'the pitch break throws a real flight');
+  assert.ok(leaving < 0.02, 'the board leaves parallel to the snow');
+  assert.ok(takeoffUp.angleTo(r.normal) > 0.12, 'and lands on a steeper slope');
+  assert.ok(levelest > 0.35, `the board never flies level over a pitch (${levelest})`);
+  assert.ok(landing.tilt < 0.035, `the board meets the landing slope (${landing.tilt})`);
+}
+
+// Squaring a board that came down across its travel is a skid, and a skid
+// scrubs: the further off it lands, the more of the run it costs.
+{
+  const land = (off) => {
+    const r = rider();
+    r.pos.y = 0.05; r.vel.set(0, -3, -20);
+    r.state = 'air'; r.grounded = false; r.airTime = 0.8;
+    r.yaw = off; r.spinAccum = off;
+    for (let i = 0; i < 20 && r.state === 'air'; i++) r.step(dt, { ...neutral, turnIntent: 0.5 });
+    return { speed: r.speed, verdict: r.landing?.verdict };
+  };
+  const square = land(0.09);
+  const skewed = land(0.7);
+  assert.equal(square.verdict, CLEAN);
+  assert.equal(skewed.verdict, CLEAN);
+  assert.ok(square.speed > 19.8, `a square landing keeps its run (${square.speed})`);
+  assert.ok(skewed.speed < square.speed * 0.93, `a skewed one skids off speed (${skewed.speed})`);
+}
+
 const buffered = rider();
 buffered.pos.y = 0.05; buffered.vel.set(0, -5, -10);
 buffered.state = 'air'; buffered.grounded = false; buffered.airTime = 0.6;
@@ -224,4 +307,4 @@ flying.yaw = Math.PI / 2;
 for (let i = 0; i < 60; i++) chase.update(flying, 1 / 60, flat);
 assert.ok(camera.position.distanceTo(original) < 0.02, 'camera tracks flight instead of board rotation');
 assert.ok(camera.position.y >= flat.height(camera.position.x, camera.position.z) + 1.5);
-console.log('Riding checks passed: charged/late/buffered pops, ballistic air, landing assist, input taps/pads, release intent, controller menus and camera.');
+console.log('Riding checks passed: charged/late/buffered pops, ballistic air, air drag, hill-paid tuck, pop direction, flight attitude, landing skid, landing assist, input taps/pads, release intent, controller menus and camera.');

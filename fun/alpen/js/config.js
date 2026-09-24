@@ -1270,10 +1270,11 @@ export const RIDER = {
   fallLineSpeed: 1.6,
   stallCap: 9.0,
   stallTime: 0.32,
-  // The powered tuck. Holding it guarantees this much additional speed each
-  // second and bypasses aerodynamic drag until the flow-owned cap. The edge
-  // still goes soft and the board stops answering quickly.
-  tuckAcceleration: 7.5, // m/s², accumulated for as long as W is held
+  // The powered tuck. Holding it bypasses aerodynamic drag until the
+  // flow-owned cap and guarantees the hill's own pull along the direction of
+  // travel, up to this much, each second — on the flat or climbing, nothing.
+  // The edge still goes soft and the board stops answering quickly.
+  tuckAcceleration: 7.5, // m/s², the most the floor ever adds
   tuckTurn: 0.45,     // share of the turn rate left while folded down
   tuckGrip: 0.72,     // and of the grip
   tuckCompress: 0.34, // metres of squat, which the camera rides down with
@@ -1549,13 +1550,47 @@ export const RIDER = {
   spinRate: 7.5,
   spinRamp: 3.2,      // rad/s² — the spin winds up rather than snapping on
   flipRate: 6.2,
-  airSteer: 2.6,      // m/s² of drift, for picking a landing line
+  /* m/s² of drift, for picking a landing line. Nothing in the air can push
+     a rider sideways — this is body english, a shoulder dropped towards the
+     line — and at 2.6 it was a lateral engine: a 540 with D held slid more
+     than two metres right of its own arc. */
+  airSteer: 1.2,
   /* The storm leaning on an airborne rider. Multiplied by the weather's own
      surface wind (roughly ±1.5 m/s calm, ±17 m/s in a blizzard), so a calm
      day is imperceptible and a whiteout genuinely pushes a long air off its
      line — the one place the wind can grab a board with no edge in the
      snow. Grounded riding stays wind-free: grip owns the ground. */
   windAir: 0.055,
+  /* The air's drag, as shares of `drag` — the same coefficient the snow
+     charges an upright rider at the same speed. Upright is the whole of it:
+     leaving the ground takes away snow friction and nothing else. A tuck in
+     the air keeps the ground tuck's near-bypass. */
+  airDrag: 1.0,
+  airTuckDrag: 0.16,
+  /* The board's attitude through a flight; see `stepAttitude` in rider.js.
+
+     `airPitchCarry` bounds the pitch rate a curved takeoff hands the board
+     (rad/s), and `airPitchDamp` is how fast the legs soak it up. The board is
+     brought round to the predicted landing slope on a time constant of
+     `airLevelShare` of the time left in the air, held between the two
+     limits: unhurried off the lip, matched by touchdown. */
+  airPitchCarry: 1.2,
+  airPitchDamp: 3.0,
+  airLevelShare: 0.5,
+  airLevelMin: 0.05,
+  airLevelMax: 0.45,
+  /* The touchdown prediction behind it: a ballistic walk in slices of
+     `landPredictStep` seconds out to `landPredictHorizon`, refreshed every
+     `landPredictEvery` seconds of flight. */
+  landPredictStep: 0.05,
+  landPredictHorizon: 2.5,
+  landPredictEvery: 1 / 30,
+  /* What a landing costs when the board comes down across its travel: this
+     share of 1 − cos(angle) of the speed, so a few degrees are free and a
+     board landed fifty degrees off loses a seventh. A sketchy landing's
+     wobble keeps `sketchyKeep` of what is left. */
+  landSkid: 0.40,
+  sketchyKeep: 0.93,
   /* Two rates that keep yaw corrections from teleporting the board.
 
      `skidRecover` bounds how fast the skid and course clamps may pull

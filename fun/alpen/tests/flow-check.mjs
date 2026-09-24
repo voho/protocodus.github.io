@@ -150,8 +150,10 @@ for (const seed of seeds) {
   const trick = ride(seed, 60, true);
   assert.ok(trick.landed >= 8, `${seed}: the trick bot lands tricks (${trick.landed})`);
   // A modest spin-and-grab every four seconds, and the race gates missed
-  // whenever a landing puts the bot off the line: within a minute.
-  assert.ok(trick.fullAt !== null && trick.fullAt < 55,
+  // whenever a landing puts the bot off the line: within a minute. Where in
+  // the minute swings by a trick's interval with any change to the flight
+  // (41–59 s across seeds and tunings), so the minute is the claim.
+  assert.ok(trick.fullAt !== null && trick.fullAt < 60,
     `${seed}: steady tricks reach a full bar (${trick.fullAt})`);
 }
 

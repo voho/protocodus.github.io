@@ -14,6 +14,11 @@ node tests/hud-check.mjs
 These cover jump charge and timing, ballistic flight, trick landing assistance,
 input pulses, camera tracking, terrain continuity and determinism, shadow seams,
 model geometry budgets, shadow refresh timing, and adaptive rendering recovery.
+The riding check also pins the momentum rules: a flight pays the same air drag
+as the snow did, the tuck gains nothing on the flat or up a climb, an ollie
+never brakes the run along the slope, the board lands matched to the slope it
+lands on (never level over a pitch), and a landing skewed off its travel skids
+off speed while a square one keeps it.
 The flow check rides the real rider down three seeded mountains with the award
 rules from `main.js` and the race gates where `props.js` plants them (a panel
 either side of the racing line on every guide slot): steering the line alone
