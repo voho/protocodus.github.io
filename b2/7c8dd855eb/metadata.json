@@ -3,7 +3,7 @@
   "checkpoint_id": "b27c8dd855eb",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "fun/alpen/js/particles.js",
     "fun/alpen/js/spruce.js"
@@ -29,13 +29,20 @@
       "context": "/b2/7c8dd855eb/2/context.md",
       "content_hash": "/b2/7c8dd855eb/2/content_hash.txt",
       "prompt": "/b2/7c8dd855eb/2/prompt.txt"
+    },
+    {
+      "metadata": "/b2/7c8dd855eb/3/metadata.json",
+      "transcript": "/b2/7c8dd855eb/3/full.jsonl",
+      "context": "/b2/7c8dd855eb/3/context.md",
+      "content_hash": "/b2/7c8dd855eb/3/content_hash.txt",
+      "prompt": "/b2/7c8dd855eb/3/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 42,
-    "cache_creation_tokens": 108681,
-    "cache_read_tokens": 2173793,
-    "output_tokens": 7566,
-    "api_call_count": 21
+    "input_tokens": 452,
+    "cache_creation_tokens": 2128399,
+    "cache_read_tokens": 100078970,
+    "output_tokens": 318076,
+    "api_call_count": 226
   }
 }
