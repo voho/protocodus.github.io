@@ -3,7 +3,7 @@
   "checkpoint_id": "2760e8a743b4",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 0,
+  "checkpoints_count": 1,
   "files_touched": [
     "fun/alpen/index.html",
     "fun/alpen/js/config.js",
@@ -20,6 +20,13 @@
       "context": "/27/60e8a743b4/0/context.md",
       "content_hash": "/27/60e8a743b4/0/content_hash.txt",
       "prompt": "/27/60e8a743b4/0/prompt.txt"
+    },
+    {
+      "metadata": "/27/60e8a743b4/1/metadata.json",
+      "transcript": "/27/60e8a743b4/1/full.jsonl",
+      "context": "",
+      "content_hash": "/27/60e8a743b4/1/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
