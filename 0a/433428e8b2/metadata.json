@@ -3,7 +3,7 @@
   "checkpoint_id": "0a433428e8b2",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 0,
+  "checkpoints_count": 1,
   "files_touched": [
     "fun/alpen/js/sky.js",
     "fun/alpen/tests/README.md",
@@ -16,6 +16,13 @@
       "context": "/0a/433428e8b2/0/context.md",
       "content_hash": "/0a/433428e8b2/0/content_hash.txt",
       "prompt": "/0a/433428e8b2/0/prompt.txt"
+    },
+    {
+      "metadata": "/0a/433428e8b2/1/metadata.json",
+      "transcript": "/0a/433428e8b2/1/full.jsonl",
+      "context": "",
+      "content_hash": "/0a/433428e8b2/1/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
