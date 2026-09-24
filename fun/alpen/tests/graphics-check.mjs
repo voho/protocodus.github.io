@@ -212,7 +212,42 @@ for (const tod of [0, 0.09, 0.86, 0.95]) {
     .every(object => !object.visible), 'dim night photos must not revive fallback ribbons');
   assert.ok(sky.group.children.filter(object => object.name === 'far-range')
     .every(object => object.visible), 'missing photos retain the procedural skyline');
+  assert.equal(plateSky.group.getObjectByName('mid-distance massifs').visible, false,
+    'a revealed photograph retires the relief shell');
+  assert.equal(sky.group.getObjectByName('mid-distance massifs').visible, true,
+    'without photographs the relief shell stands');
 }
+
+/* A 16:9 landscape is laid across half the ring at its own aspect, mirrored,
+   with its median ridge stood at the panorama's ridge height — so a sun just
+   over that ridge down the run shows, and one under it is hidden. */
+document.createElement = () => {
+  const canvas = createCanvas();
+  const context = canvas.getContext('2d');
+  context.drawImage = () => {};
+  context.getImageData = (x, y, width, height) => ({ data: Uint8ClampedArray.from(
+    { length: width * height * 4 }, (_, i) => Math.floor(i / 4 / width) < 58 ? 20 : 220) });
+  canvas.getContext = () => context;
+  return canvas;
+};
+const landscapeSky = createSky({ ...THREE, TextureLoader: class {
+  load(url, ready) {
+    const texture = new THREE.Texture();
+    texture.image = url.endsWith('.jpg') ? { width: 1376, height: 768 } : { width: 1774, height: 887 };
+    ready?.(texture); return texture;
+  }
+} });
+document.createElement = createCanvas;
+const landscapeDisc = landscapeSky.group.children.find(object => object.material?.uniforms?.uMoon);
+const dusk = { ...daylight, tod: 0.7, azimuth: 0 };
+for (let i = 0; i < 60; i++) landscapeSky.update(skyPosition, { ...dusk, elevation: 0.10 }, 1 / 6);
+assert.equal(landscapeDisc.material.uniforms.uOpacity.value, 0, 'the landscape ridge hides a low sun');
+landscapeSky.update(skyPosition, { ...dusk, elevation: 0.26 }, 0);
+assert.ok(landscapeDisc.material.uniforms.uOpacity.value > 0.5, 'a sun over the landscape ridge shows');
+const landscapeDome = landscapeSky.group.getObjectByName('sky-dome');
+assert.equal(landscapeDome.material.uniforms.uLayoutClear.value.x, 1, 'the dusk plate is laid out as a landscape');
+close(landscapeDome.material.uniforms.uLayoutClear.value.y, Math.PI * 768 / 1376,
+  'a landscape keeps its own aspect ratio');
 
 // Count actual render submissions and reject texture/attachment feedback.
 let target = null, submissions = 0, lastComposite = null, canvasSizes = 0, clears = 0;

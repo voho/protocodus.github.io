@@ -4,6 +4,7 @@ Run from `fun/alpen` with Node.js; no test dependencies are needed:
 
 ```sh
 node tests/riding-check.mjs
+node tests/flow-check.mjs
 node tests/terrain-shadow-check.mjs
 node tests/models-check.mjs
 node tests/graphics-check.mjs
@@ -13,6 +14,13 @@ node tests/hud-check.mjs
 These cover jump charge and timing, ballistic flight, trick landing assistance,
 input pulses, camera tracking, terrain continuity and determinism, shadow seams,
 model geometry budgets, shadow refresh timing, and adaptive rendering recovery.
+The flow check rides the real rider down three seeded mountains with the award
+rules from `main.js`: steering the line alone must stay a low multiplier and
+never fill the bar, while a rider landing a trick every few seconds must still
+reach it. It also pins the hold, fade and tuck-spend rules in `flow.js`.
+The graphics check also places each sky plate: 2:1 panoramas wrap the ring,
+16:9 hour plates are laid out as mirrored landscapes at their own aspect, and
+a revealed photograph retires the relief shell.
 Input regressions include releasing a spin before touchdown, controller menu
 edges, and discarding stale jump gestures across pause and focus loss.
 HUD checks cover mode transitions, controls disclosure, focus and idle DOM writes.

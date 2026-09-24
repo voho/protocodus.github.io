@@ -612,7 +612,12 @@ export const HORIZON = {
    the same haze curtain as the procedural ranges and kept well inside the far
    plane. The panorama remains visible through its cols and through the lower
    down-run sector; everywhere else this shell supplies the facets, overlap and
-   real depth a 1774-pixel equirectangular plate cannot invent. */
+   real depth a 1774-pixel equirectangular plate cannot invent.
+
+   It is the photographs' fallback now rather than their foreground: once a
+   plate is revealed the shell sinks out of sight — see `uSink` in `update`
+   for why. Until then, and on a page where no plate ever arrives, it stands
+   exactly as described here. */
 const RELIEF = {
   inner: 750,
   crest: 1350,
@@ -673,24 +678,126 @@ const ramp = (v, a, b) => smooth01(clamp01((v - a) / (b - a)));
 // texture is not an approximation of anything — it is the same sample
 const frac = (v) => v - Math.floor(v);
 
+/* How the photographs sit on the ring.
+
+   Two kinds of plate arrive and they are different kinds of picture. The
+   clear and storm plates are true 2:1 equirectangular panoramas, and they
+   keep the full-ring mapping they were made for. The three hour plates are
+   not panoramas at all — they are ordinary 16:9 landscapes — and they were
+   being wrapped round the whole 360° as though they were. That spread 1376
+   pixels over a full turn, so every summit was drawn at twice the size the
+   photograph can resolve (nearly four screen pixels to each of its own on a
+   1440-pixel view), a tenth wider than tall, with a band of procedural sky
+   uphill to hide the place where the photograph's two edges met.
+
+   So a landscape plate is laid across `band` radians centred down the run,
+   at its own aspect ratio, and the rest of the ring is its mirror image —
+   the sampler's MirroredRepeatWrapping does the folding, so the ring closes
+   with no seam and nothing to hide. Half a turn rather than less, because
+   the fold is the one place a mirror shows, and ninety degrees off the fall
+   line is the very edge of anything the chase camera frames.
+
+   A landscape's horizon is wherever the photographer put it, so each one is
+   raised or lowered until its median ridge stands at `ridge` — the height
+   the clear panorama's own summits stand at — and the three hours share one
+   skyline height with the day instead of each bringing its own. `top` is
+   the elevation above which a plate's photographed sky gives way to the
+   procedural dome. The dawn and dusk skies are worth keeping; the night
+   plate has a moon and an aurora painted into it, and the dome already
+   draws both, somewhere else. It is one level, not a traced skyline: a
+   per-column cut followed whichever edge the detector found, and wherever
+   that was a cloud it kept a rectangle of photographed sky. */
+const PLATE = {
+  band: Math.PI,
+  ridge: 0.15,
+  top: { sunrise: 0.6, sunset: 0.6, night: 0.24 },
+};
+
+/* The texture the dome's clouds are made from: four tiling fields baked once
+   into one small plate, so a whole cloud layer costs three filtered fetches
+   instead of the hashed noise it replaces. R and G are fractal sums of
+   different grain — the body of a cloud and the detail that erodes its edge
+   — and B and A are a smooth vector field for warping the other two, which
+   is what turns stretched noise into strands. Every octave is periodic on the
+   plate, so it repeats without a seam; mipmapping does the far field's
+   filtering. */
+function createCloudTexture(THREE) {
+  const size = 256;
+  const fields = [new Float32Array(size * size), new Float32Array(size * size),
+    new Float32Array(size * size), new Float32Array(size * size)];
+  const fade = (t) => t * t * t * (t * (t * 6 - 15) + 10);
+  const octave = (out, cells, seed, weight) => {
+    const lattice = new Float32Array(cells * cells);
+    for (let j = 0; j < cells; j++) {
+      for (let i = 0; i < cells; i++) lattice[j * cells + i] = hash2(i, j, seed);
+    }
+    // The lattice columns and blend weights are the same on every row, so
+    // they are worked out once per octave rather than once per texel.
+    const step = size / cells;
+    const col0 = new Int32Array(size);
+    const col1 = new Int32Array(size);
+    const blend = new Float32Array(size);
+    for (let x = 0; x < size; x++) {
+      const ix = Math.floor(x / step);
+      col0[x] = ix % cells;
+      col1[x] = (ix + 1) % cells;
+      blend[x] = fade(x / step - ix);
+    }
+    for (let y = 0; y < size; y++) {
+      const iy = Math.floor(y / step);
+      const ty = fade(y / step - iy);
+      const r0 = (iy % cells) * cells;
+      const r1 = ((iy + 1) % cells) * cells;
+      const row = y * size;
+      for (let x = 0; x < size; x++) {
+        const a = lattice[r0 + col0[x]];
+        const b = lattice[r0 + col1[x]];
+        const c = lattice[r1 + col0[x]];
+        const top = a + (b - a) * blend[x];
+        const bot = c + (lattice[r1 + col1[x]] - c) * blend[x];
+        out[row + x] += (top + (bot - top) * ty) * weight;
+      }
+    }
+  };
+  // Body: five octaves from four cells a plate. Detail: four, from eight.
+  // The warp is two gentle octaves so strands bend without kinking.
+  [[4, 0.52], [8, 0.26], [16, 0.13], [32, 0.06], [64, 0.03]]
+    .forEach(([cells, w], k) => octave(fields[0], cells, 301 + k, w));
+  [[8, 0.55], [16, 0.25], [32, 0.13], [64, 0.07]]
+    .forEach(([cells, w], k) => octave(fields[1], cells, 331 + k, w));
+  [[4, 0.7], [8, 0.3]].forEach(([cells, w], k) => octave(fields[2], cells, 361 + k, w));
+  [[4, 0.7], [8, 0.3]].forEach(([cells, w], k) => octave(fields[3], cells, 371 + k, w));
+  const data = new Uint8Array(size * size * 4);
+  for (let i = 0; i < size * size; i++) {
+    for (let c = 0; c < 4; c++) {
+      data[i * 4 + c] = Math.max(0, Math.min(255, Math.round(fields[c][i] * 255)));
+    }
+  }
+  const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat, THREE.UnsignedByteType);
+  texture.colorSpace = THREE.NoColorSpace;
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.generateMipmaps = true;
+  texture.anisotropy = 4;
+  texture.needsUpdate = true;
+  return texture;
+}
+
 const DOME_VERT = `
-  uniform float uPanoYaw;
   varying highp vec3 vDir;
-  varying highp float vPanoU;
+  varying highp float vSphereU;
   void main() {
     vDir = normalize(position);
-    /* The panorama's horizontal coordinate, taken from the sphere's own uv
-       rather than re-derived from atan per fragment. The two are the same
-       number — the sphere's u *is* the azimuth over two pi — but the atan
-       has a jump at the back of the ring, and the fract on top of it another,
-       and at each jump the screen-space derivative the mip selector reads is
-       enormous: one column of fragments samples the smallest mip and draws a
-       blurred seam down the sky. The geometry already solved this — the
-       sphere duplicates its seam column with u at nought on one side and one
-       on the other — so the varying is continuous across every quad, the
-       wrap is left to the sampler's own RepeatWrapping, and no fract is
-       needed anywhere. */
-    vPanoU = 1.0 + uPanoYaw - uv.x;
+    /* The panorama's horizontal coordinate comes from the sphere's own uv
+       rather than from atan per fragment. The two are the same number — the
+       sphere's u *is* the azimuth over two pi — but the atan has a jump at
+       the back of the ring, and at the jump the screen-space derivative the
+       mip selector reads is enormous: one column of fragments samples the
+       smallest mip and draws a blurred seam down the sky. The sphere
+       duplicates its seam column, so this varying is continuous across every
+       triangle, and both plate layouts are affine in it — see plateUv. */
+    vSphereU = uv.x;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   }
 `;
@@ -702,13 +809,80 @@ const DOME_FRAG = `
   uniform float uCloud;
   uniform vec2 uCloudDrift;
   uniform sampler2D uPanoClear, uPanoPrev, uPanoStorm;
-  uniform float uPanoStrength, uPanoStormMix, uPanoFade;
+  // Per plate: x mirrored landscape (1) or full-ring panorama (0), y the
+  // image's vertical span in radians, z the elevation of its middle row,
+  // w the elevation its photographed sky is kept up to (large means all).
+  uniform vec4 uLayoutClear, uLayoutPrev;
+  // Texel counts and their reciprocals, for the bicubic reconstruction.
+  uniform vec4 uSizeClear, uSizePrev, uSizeStorm;
+  uniform float uPanoStrength, uPanoStormMix, uPanoFade, uPanoYaw;
   uniform vec2 uSunAz;
   uniform vec3 uSunlit;
+  uniform sampler2D uCloudTex;
+  uniform float uCirrus;
   varying highp vec3 vDir;
-  varying highp float vPanoU;
+  varying highp float vSphereU;
 
   ${SKY_GLSL}
+
+  /* Where a plate is sampled for this direction, with the gradients the
+     sampler needs taken from quantities that are continuous everywhere —
+     the sphere's u and the elevation — so no fetch below ever relies on an
+     implicit derivative inside a branch. A full-ring panorama runs once
+     round the sphere; a landscape runs half as far per radian, and the
+     sampler's mirrored wrap folds it back at the edges of its band. */
+  void plateUv(vec4 lay, float elev, vec2 eGrad, vec2 sGrad,
+      out vec2 uv, out vec2 gx, out vec2 gy) {
+    float du = lay.x > 0.5 ? -2.0 : -1.0;
+    float u0 = lay.x > 0.5 ? 2.0 : 1.0 + uPanoYaw;
+    uv = vec2(u0 + du * vSphereU,
+      clamp(0.5 + (elev - lay.z) / lay.y, 0.0, 1.0));
+    gx = vec2(du * sGrad.x, eGrad.x / lay.y);
+    gy = vec2(du * sGrad.y, eGrad.y / lay.y);
+  }
+
+  /* A photograph magnified past its own pixels, rebuilt with a Catmull-Rom
+     kernel instead of the sampler's bilinear tent: five bilinear fetches
+     placed so their weights sum to the sixteen-tap cubic minus its corners.
+     The plates are magnified two to four times on a desktop panel, and the
+     tent is what made every summit read as out of focus. Wherever the plate
+     is being minified — the ridge band at the horizon — the ordinary mipmapped
+     fetch is already right and is all that is used, and so it is wherever the
+     plate is too faint for its focus to matter (sharpen, from its
+     strength: the night keeps a sixth of a plate). Every fetch here carries
+     explicit gradients, so the per-pixel branches cannot upset the mip
+     selection. */
+  vec3 plateFetch(sampler2D tex, vec2 uv, vec4 size, vec2 gx, vec2 gy, float sharpen) {
+    float foot = max(length(gx * size.xy), length(gy * size.xy));
+    float cubic = (1.0 - smoothstep(0.55, 1.0, foot)) * sharpen;
+    if (cubic <= 0.0) return texture2DGradEXT(tex, uv, gx, gy).rgb;
+    vec2 p = uv * size.xy;
+    vec2 t1 = floor(p - 0.5) + 0.5;
+    vec2 f = p - t1;
+    vec2 w0 = f * (-0.5 + f * (1.0 - 0.5 * f));
+    vec2 w1 = 1.0 + f * f * (-2.5 + 1.5 * f);
+    vec2 w2 = f * (0.5 + f * (2.0 - 1.5 * f));
+    vec2 w3 = f * f * (-0.5 + 0.5 * f);
+    vec2 w12 = w1 + w2;
+    vec2 t0 = (t1 - 1.0) * size.zw;
+    vec2 t3 = (t1 + 2.0) * size.zw;
+    vec2 t12 = (t1 + w2 / w12) * size.zw;
+    vec3 sum = texture2DGradEXT(tex, vec2(t12.x, t0.y), gx, gy).rgb * (w12.x * w0.y)
+      + texture2DGradEXT(tex, vec2(t0.x, t12.y), gx, gy).rgb * (w0.x * w12.y)
+      + texture2DGradEXT(tex, t12, gx, gy).rgb * (w12.x * w12.y)
+      + texture2DGradEXT(tex, vec2(t3.x, t12.y), gx, gy).rgb * (w3.x * w12.y)
+      + texture2DGradEXT(tex, vec2(t12.x, t3.y), gx, gy).rgb * (w12.x * w3.y);
+    float total = w12.x * w0.y + w0.x * w12.y + w12.x * w12.y
+      + w3.x * w12.y + w12.x * w3.y;
+    vec3 sharp = max(sum / total, vec3(0.0));
+    if (cubic >= 1.0) return sharp;
+    return mix(texture2DGradEXT(tex, uv, gx, gy).rgb, sharp, cubic);
+  }
+
+  // How much of a plate survives at this elevation — see PLATE.top.
+  float plateKeep(vec4 lay, float elev) {
+    return 1.0 - smoothstep(lay.w - 0.06, lay.w, elev);
+  }
 
   void main() {
     // Re-normalised per fragment: the interpolation across a facet of the
@@ -730,6 +904,11 @@ const DOME_FRAG = `
       uZenith,
       smoothstep(0.10, 0.52, up)
     );
+    // Gradients of the two continuous coordinates every fetch below is
+    // placed by, taken once here in uniform control flow.
+    float elev = asin(clamp(dir.y, -1.0, 1.0));
+    vec2 eGrad = vec2(dFdx(elev), dFdy(elev));
+    vec2 sGrad = vec2(dFdx(vSphereU), dFdy(vSphereU));
     /* Generated Swiss ranges, relit rather than pasted in.
 
        The panorama contributes structure and a restrained amount of material
@@ -737,64 +916,102 @@ const DOME_FRAG = `
        is why a clear-morning source can survive dawn, dusk and moonlight
        without becoming a rectangular photograph behind the weather.
 
-       The whole block is behind a uniform branch — the same style the storm
-       plate already uses one level down — because at night and in a whiteout
-       the plate's strength falls to nothing and two texture fetches over the
-       most expensive shader should be skipped. */
-    if (uPanoStrength > 0.005) {
-      /* True equirectangular V now: elevation over pi, centred. The old
-         0.38/0.485 stretched the plate ~19% vertically and floated its
-         horizon — every peak stood at the wrong elevation. */
-      vec2 panoUv = vec2(
-        vPanoU,
-        clamp(asin(clamp(dir.y, -1.0, 1.0)) * 0.3183 + 0.5, 0.0, 1.0)
-      );
-      vec3 pano = texture2D(uPanoClear, panoUv).rgb;
+       The whole block is behind a branch, because at night and in a
+       whiteout the plate's strength falls to nothing, and over the upper
+       dome and above a landscape's kept sky it contributes nothing either:
+       the fetches over the most expensive shader should be skipped in all
+       of those. The per-pixel half of the test is safe because every fetch
+       inside carries its own gradients — see plateFetch. */
+    // How much of the sky the plates may own here, before any fetch: none
+    // of the upper dome, and for a landscape nothing above its kept sky.
+    float panoBand = 1.0 - smoothstep(0.28, 0.55, up);
+    float keep = plateKeep(uLayoutClear, elev);
+    if (uPanoFade < 0.999) keep = mix(plateKeep(uLayoutPrev, elev), keep, uPanoFade);
+    keep = mix(keep, 1.0, uPanoStormMix);
+    if (uPanoStrength > 0.005 && panoBand * keep > 0.001) {
+      float sharpen = smoothstep(0.25, 0.55, uPanoStrength);
+      vec2 uv; vec2 gx; vec2 gy;
+      plateUv(uLayoutClear, elev, eGrad, sGrad, uv, gx, gy);
+      vec3 pano = plateFetch(uPanoClear, uv, uSizeClear, gx, gy, sharpen);
       /* The hour plates crossfade through this second sampler instead of
          the old dip-to-zero-and-back, which dissolved the whole distant
-         range and brought it back as a different photograph. */
+         range and brought it back as a different photograph. Each side is
+         placed by its own layout, so a landscape and a panorama can hand
+         over to each other in place. */
       if (uPanoFade < 0.999) {
-        pano = mix(texture2D(uPanoPrev, panoUv).rgb, pano, uPanoFade);
+        vec2 uvP; vec2 gxP; vec2 gyP;
+        plateUv(uLayoutPrev, elev, eGrad, sGrad, uvP, gxP, gyP);
+        pano = mix(plateFetch(uPanoPrev, uvP, uSizePrev, gxP, gyP, sharpen), pano, uPanoFade);
       }
+      // The storm plate is a full-ring panorama, always.
       if (uPanoStormMix > 0.001) {
-        pano = mix(pano, texture2D(uPanoStorm, panoUv).rgb, uPanoStormMix);
+        vec2 uvS; vec2 gxS; vec2 gyS;
+        plateUv(vec4(0.0, 3.14159265, 0.0, 10.0), elev, eGrad, sGrad, uvS, gxS, gyS);
+        pano = mix(pano, plateFetch(uPanoStorm, uvS, uSizeStorm, gxS, gyS, sharpen), uPanoStormMix);
       }
       float panoLum = dot(pano, vec3(0.2126, 0.7152, 0.0722));
       float panoForm = clamp(1.0 + (panoLum - 0.45) * 1.40, 0.45, 1.50);
       vec3 relitPano = mix(c * panoForm, pano * 1.15, 0.65);
       float az = max(0.0, dot(dir.xz, uSunAz) / max(length(dir.xz), 0.001));
       relitPano += uSunlit * (pow(az, 4.0) * smoothstep(0.40, 1.10, panoForm) * 0.55);
-      float panoBand = 1.0 - smoothstep(0.28, 0.55, up);
-      /* The join azimuth, hidden. The two weather plates are seamless
-         (measured: their edge columns differ by ~1.5 of 255) but the three
-         hour plates are not (~25-34), so through dawn, dusk and night the
-         plate's wrap put a hard vertical picture cut in the sky uphill.
-         Rather than flag which plate happens to be bound — a crossfade can
-         hold one of each — the plate always hands the few degrees around
-         its own join back to the procedural sky it is drawn over. */
-      float seamD = abs(vPanoU - floor(vPanoU + 0.5));
-      float seamHide = smoothstep(0.02, 0.075, seamD);
-      c = mix(c, relitPano, uPanoStrength * panoBand * seamHide);
+      c = mix(c, relitPano, uPanoStrength * panoBand * keep);
     }
     // One dot product of atmosphere: the sky is brighter and warmer near
     // whatever is lighting it, and the effect is strongest at the horizon
     float lobe = max(0.0, dot(dir, uSunDir));
     c += uGlow * (pow(lobe, 7.0) * 0.85 + pow(lobe, 2.0) * 0.14)
        * uGlowStrength * (1.0 - smoothstep(0.1, 0.75, up) * 0.55);
-    // Thin high cirrus above the cloud deck. Integer noise scales keep wind
-    // wrapping seamless; the horizon fade leaves the shared fog untouched.
-    if (up > 0.20) {
-      vec2 highCloud = dir.xz * (0.9 / max(up, 0.20)) + uCloudDrift;
-      float wisps = n64Noise(highCloud * vec2(2.0, 12.0)) * 0.7
-        + n64Noise(highCloud * vec2(4.0, 24.0) + 17.0) * 0.3;
-      float veil = smoothstep(0.53, 0.79, wisps) * smoothstep(0.20, 0.40, up)
-        * (1.0 - uCloud * 0.75) * 0.18;
-      c = mix(c, uHorizon + uGlow * pow(lobe, 8.0) * 0.2, veil);
+    /* High cirrus, above the deck.
+
+       These were two octaves of hashed noise stretched six to one along the
+       world's x axis, and what that draws is not cirrus: it is a stack of
+       evenly spaced horizontal dashes, the same at every hour, reading from
+       the chase camera as scan lines across the sky. Real cirrus is ice
+       combed out along the upper wind — long strands that bend, fray and
+       come in patches with open sky between them.
+
+       So the layer is a plane at altitude like the deck, turned into a fixed
+       jet-stream frame, warped by a smooth vector field before it is
+       stretched four to one along the jet, and cut by a coarse patch field so
+       whole tracts of sky are clear. Three filtered fetches of the cloud
+       plate replace the eight hashes; mipmapping thins the strands out
+       towards the horizon, where they would otherwise alias. The drift is
+       the deck's own, geared by a quarter, which keeps its 64-cell wrap a
+       whole number of plate repeats. Lit like the deck: by the horizon stop,
+       with the sun's glow forward-scattered through it — white at noon,
+       rose at dusk, grey under the moon. */
+    if (uCirrus > 0.01) {
+      vec2 cp = dir.xz * (0.55 / max(up, 0.035)) + uCloudDrift * 0.25;
+      vec2 cq = vec2(dot(cp, vec2(0.8, 0.6)), dot(cp, vec2(-0.6, 0.8)));
+      vec4 cw = texture2D(uCloudTex, cq * 0.21 + vec2(0.37, 0.11));
+      vec2 fq = cq + (cw.ba - 0.5) * 0.55;
+      float strand = texture2D(uCloudTex, fq * vec2(0.34, 1.35)).r * 0.72
+        + texture2D(uCloudTex, fq * vec2(0.9, 3.6) + 0.5).r * 0.28;
+      float cirrus = smoothstep(0.50, 0.78, strand) * smoothstep(0.36, 0.66, cw.g)
+        * smoothstep(0.035, 0.22, up) * uCirrus;
+      vec3 cirrusShade = uHorizon * (0.90 + 0.14 * strand)
+        + uGlow * (pow(lobe, 6.0) * 0.55 + 0.05);
+      c = mix(c, cirrusShade, cirrus * 0.45);
     }
-    // The deck, from the same string shading.js's fog term includes, so the
-    // sky a ridge dissolves into and the sky above it are the same sky.
-    vec2 deck = n64Deck(dir, uCloudDrift, uCloud);
-    c = mix(c, n64DeckShade(deck.y, lobe, uHaze, uHorizon, uGlow), deck.x);
+    /* The deck, from the same string shading.js's fog term includes, so the
+       sky a ridge dissolves into and the sky above it are the same sky.
+
+       Up here — and only up here, above the band the fog ever dissolves
+       into — its edge is eroded by the plate's detail field and its body
+       carries that detail as thickness, so a cell of cloud has a torn rim
+       and a lit, lumpy top instead of reading as a smooth smudge. The fog's
+       copy never sees the erosion, and at the elevations where the two skies
+       meet it is faded to nothing, so they still agree there. */
+    if (uCloud > 0.002) {
+      vec2 deck = n64Deck(dir, uCloudDrift, uCloud);
+      vec2 dp = dir.xz * (0.62 / max(up, 0.075)) + uCloudDrift;
+      float lump = texture2D(uCloudTex, dp * 0.25 + vec2(0.71, 0.29)).g;
+      float torn = smoothstep(0.10, 0.30, up);
+      float cover = deck.x * mix(1.0,
+        smoothstep(0.18, 0.62, lump + deck.x * 0.55), torn);
+      float thick = clamp(deck.y + (lump - 0.5) * 0.6 * torn, 0.0, 1.0);
+      c = mix(c, n64DeckShade(thick, lobe, uHaze, uHorizon, uGlow), cover);
+    }
     gl_FragColor = vec4(c, 1.0);
   }
 `;
@@ -866,6 +1083,7 @@ const AURORA_FRAG = `
      shimmer, it is a stutter and then a freeze. */
   precision highp float;
   uniform sampler2D uNoise;
+  uniform sampler2D uRays;
   uniform vec3 uLow, uHigh;
   uniform float uTime, uStrength, uFoot, uHead;
   varying vec2 vUv;
@@ -880,47 +1098,46 @@ const AURORA_FRAG = `
     // mesh's own v, so the ramp does not care how the band was built and the
     // horizon fade below is measured against the real sky
     float t = clamp((dir.y - uFoot) / (uHead - uFoot), 0.0, 1.0);
+    float x = vUv.x;
 
-    /* Three octaves of the same tiling field, fetched rather than hashed.
-       The whole coordinate streams upward and drifts sideways six times
-       slower, and each finer octave inherits both movements multiplied by
-       its own scale — which is where the shimmer comes from and why it costs
-       nothing but the fetch. The vertical scale is a quarter of the
-       horizontal one, because that ratio is the whole difference between a
-       curtain and a cloud. */
-    vec2 q = vec2(vUv.x * 1.3 + uTime * 0.0035, t * 0.34 - uTime * 0.021);
-    float n = texture2D(uNoise, q).r * 0.55
-      + texture2D(uNoise, q * 2.7 + vec2(0.31, 0.17)).g * 0.30
-      + texture2D(uNoise, q * 6.3 + vec2(0.63, 0.11)).b * 0.15;
+    /* A curtain, drawn as one: a sheet of light hanging from a lower edge.
 
-    // The folds are what is left once the flat middle of the noise is thrown
-    // away. Cutting high is what keeps the display sparse and stops the band
-    // reading as a green wash over the whole north.
-    float fold = smoothstep(0.40, 0.86, n);
-    /* The rays. A curtain is not a cloud: it is field-aligned, which on a
-       screen means vertical striations running the height of the band. One
-       more fetch buys them — the same field read fast across the sky and
-       almost not at all up it, so a bright column at the foot is the same
-       bright column at the head. Multiplied into the folds rather than added
-       beside them, because rays are structure *in* the curtain, and centred
-       on one so the band's overall energy is untouched. They dissolve
-       towards the head, where a real display frays into haze — which is also
-       what roots them visually at the foot. */
-    float ray = texture2D(uNoise, vec2(vUv.x * 5.0 + uTime * 0.006, 0.71 + t * 0.05)).g;
-    fold *= mix(0.40 + 1.20 * smoothstep(0.30, 0.80, ray), 1.0,
-      smoothstep(0.55, 0.95, t));
-    // Brightest a quarter of the way up and gone by the top; faded off both
-    // ends of the arc so the curtain has no cut edge; and faded out towards
-    // the horizon, where the haze would have had it
-    float shape = smoothstep(0.0, 0.24, t) * (1.0 - smoothstep(0.26, 1.0, t))
-      * smoothstep(0.0, 0.13, vUv.x) * (1.0 - smoothstep(0.87, 1.0, vUv.x))
+       This was three octaves of isotropic noise cut at a threshold, which
+       draws what isotropic noise always draws — soft blobs, green ones — and
+       rays multiplied into the blobs could not turn them into anything else.
+       What makes an aurora read is its structure, and all of it is in one
+       direction: a lower edge that is sharp, because the particles stop at a
+       height; a glow that thins out for tens of degrees above it; the edge
+       itself folding back and forth across the sky as the sheet drifts; and
+       fine vertical rays through all of it, because the light runs along the
+       field lines.
+
+       So the edge is a height that wanders along the arc at two scales and
+       drifts with time, the body is an exponential tail above it, the folds
+       are a slow brightness wave along the arc, and the rays are the cloud
+       plate read many times across the band and almost not at all up it.
+       Four fetches, as before. */
+    float edge = 0.08
+      + 0.24 * texture2D(uNoise, vec2(x * 1.6 + uTime * 0.0030, 0.13)).r
+      + 0.10 * texture2D(uNoise, vec2(x * 4.1 - uTime * 0.0055, 0.57)).g;
+    float above = t - edge;
+    float body = smoothstep(-0.012, 0.018, above) * exp(-max(above, 0.0) * 5.5);
+    float fold = 0.22 + 0.78 * smoothstep(0.30, 0.82,
+      texture2D(uNoise, vec2(x * 2.7 + uTime * 0.0075, 0.31)).b);
+    // Read a little way up the band as well as across it, so a ray brightens
+    // and fades along its length instead of running the full height.
+    float rays = texture2D(uRays, vec2(x * 21.0 + uTime * 0.009, 0.4 + t * 0.35)).r;
+    rays = 0.30 + 1.10 * smoothstep(0.36, 0.76, rays);
+    // Faded off both ends of the arc so the curtain has no cut edge, and out
+    // towards the horizon, where the haze would have had it.
+    float shape = smoothstep(0.0, 0.13, x) * (1.0 - smoothstep(0.87, 1.0, x))
       * smoothstep(0.045, 0.19, dir.y);
 
-    float a = fold * shape * uStrength;
+    float a = body * fold * rays * shape * uStrength;
     if (a <= 0.002) discard;
-    // Green at the foot, violet at the fringe, and the noise moved into the
-    // mix so the colour breaks along the folds rather than in flat bands
-    vec3 c = mix(uLow, uHigh, smoothstep(0.18, 0.85, t + n * 0.25 - 0.12));
+    // Green where the sheet is dense, the violet fringe higher up it — the
+    // colour is measured from the edge, so it folds with the curtain.
+    vec3 c = mix(uLow, uHigh, smoothstep(0.06, 0.42, above + (rays - 0.8) * 0.04));
     gl_FragColor = vec4(c, a);
   }
 `;
@@ -1125,6 +1342,7 @@ const RELIEF_VERT = `
   attribute float aAltitude;
   attribute vec4 aGeology;
   uniform float uPitch;
+  uniform float uSink;
   varying highp float vHeight;
   varying vec3 vNormal;
   varying float vAltitude;
@@ -1140,7 +1358,8 @@ const RELIEF_VERT = `
       / ${(RELIEF.corridorTo - RELIEF.corridorFrom).toFixed(4)}, 0.0, 1.0);
     float corridor = 1.0 - ${RELIEF.corridorCut.toFixed(4)}
       * corS * corS * (3.0 - 2.0 * corS);
-    p.y *= corridor;
+    // uSink lowers the whole shell as a photographed plate takes over.
+    p.y *= corridor * (1.0 - uSink);
     p.y -= aRadius * pitch;
     /* The normal takes the same deformation the height just did. The baked
        normals describe the uncut shell; for a heightfield written as
@@ -1176,6 +1395,7 @@ const RELIEF_FRAG = `
   uniform sampler2D uNoise;
   uniform sampler2D uRockDetail;
   uniform vec3 uHaze, uSnow, uRockCool, uRockWarm, uIce, uAlpenglow;
+  uniform vec3 uKeyLight, uSkyFill, uGroundFill;
   uniform float uStorm, uAir, uWhiteout;
   varying highp float vHeight;
   varying vec3 vNormal;
@@ -1184,7 +1404,7 @@ const RELIEF_FRAG = `
   varying vec4 vGeology;
   void main() {
     vec3 n = normalize(vNormal);
-    float steep = smoothstep(0.08, 0.40, vNaturalSlope);
+    float steep = smoothstep(0.05, 0.34, vNaturalSlope);
 
     // Two mipmapped samples replace the old three sine stripes. The angular
     // coordinate closes on an integer texture repeat; the height shear gives
@@ -1215,24 +1435,42 @@ const RELIEF_FRAG = `
       * (0.50 + fissures * 1.60);
     vec3 body = mix(uSnow * (0.88 + grain.g * 0.09), rockColor, rock);
     body = mix(body, uIce, glacier * 0.20);
+    /* The shell is a smooth heightfield with a facet every thirteen metres,
+       and lit honestly that smoothness shows: a cone of snow. The two noise
+       reads above already describe ribs and gullies at the scale a real face
+       has them, so they tilt the normal too — more on rock than on snow —
+       and the light picks the texture out the way low sun does on a ridge. */
+    n = normalize(n + vec3(grain.r - 0.5, 0.0, grain.b - 0.5) * (0.35 + 0.55 * rock)
+      + vec3(folds.b - 0.5, 0.0, folds.r - 0.5) * 0.30);
 
-    // Distant snow and stone keep a broad matte response.
+    /* Lit by the lamp that lights the snow under the board.
+
+       It was sixty per cent flat ambient and a quarter of sun, so every
+       face of the massif came out the same pale grey-beige whichever way it
+       faced: a paper cut-out standing in front of a photograph. A mountain a
+       kilometre and a half away is the most strongly modelled thing in a
+       real view — sunlit snow against blue shade against dark rock ribs —
+       and the haze below only takes a third of that away. So the albedos
+       are real ones and they are lit by the same key and hemisphere fill
+       Three hands the terrain, which the sky already owns: the sunward face
+       takes the key's own colour, white at noon and amber at dusk, and the
+       face turned away keeps only the blue of the sky. */
     float direct = max(0.0, dot(n, uSunDir));
-    float skylight = 0.60 + max(n.y, 0.0) * 0.12;
-    body *= skylight + direct * 0.26;
-    body += uAlpenglow * direct * snow * (0.25 + 0.75 * vAltitude);
+    vec3 fill = mix(uGroundFill, uSkyFill, 0.5 + 0.5 * n.y);
+    vec3 lit = body * (fill + uKeyLight * direct) * 0.3183099;
+    lit += uAlpenglow * direct * snow * (0.25 + 0.75 * vAltitude);
 
     // High summit windblown snow spindrift & sunlit crest plumes
     float summitWind = smoothstep(0.70, 0.98, vAltitude) * smoothstep(0.40, 0.88, 1.0 - abs(n.y));
     if (summitWind > 0.005) {
-      vec3 spindriftColor = mix(uSnow, uAlpenglow, direct * 0.85);
-      body = mix(body, spindriftColor * 1.28, summitWind * 0.40 * (1.0 - uStorm * 0.45));
+      vec3 plume = uSnow * (fill + uKeyLight * (0.35 + 0.65 * direct)) * 0.3183099;
+      lit = mix(lit, plume + uAlpenglow * direct, summitWind * 0.40 * (1.0 - uStorm * 0.45));
     }
 
     /* Atmospheric aerial perspective: mountains dissolve into horizon haze near their foot */
     float foot = smoothstep(0.02, 0.28, vAltitude);
     float extinction = clamp(uAir * (0.85 - vAltitude * 0.25), 0.0, 0.75);
-    vec3 c = mix(body, uHaze, mix(1.0, extinction, foot));
+    vec3 c = mix(lit, uHaze, mix(1.0, extinction, foot));
     /* The storm's own curtain, over the top of the clear-air extinction.
        The far ribbons and the panorama both dissolve on this exact ramp
        (rangeAlpha and panoStrength in update) — the relief shell did not,
@@ -1450,6 +1688,26 @@ export function createSky(THREE) {
   // hysteresis in `update` measures its margins from.
   let plateChoice = 'clear';
 
+  /* Every plate's placement on the ring, kept beside the texture it
+     describes — see `PLATE` and `preparePlate`. Anything without an entry,
+     the neutral fallback included, is a full-ring panorama with no mask. */
+  const plateInfo = new WeakMap();
+  const panoramaLayout = {
+    mirror: false, span: Math.PI, center: 0, top: 10, width: 1, height: 1, rows: null,
+  };
+  const layoutOf = (texture) => plateInfo.get(texture) || panoramaLayout;
+  const bindLayout = (texture, layout, size) => {
+    const info = layoutOf(texture);
+    if (layout) layout.set(info.mirror ? 1 : 0, info.span, info.center, info.top);
+    size.set(info.width, info.height, 1 / info.width, 1 / info.height);
+  };
+  const layoutClear = new THREE.Vector4(0, Math.PI, 0, 10);
+  const layoutPrev = new THREE.Vector4(0, Math.PI, 0, 10);
+  const sizeClear = new THREE.Vector4(1, 1, 1, 1);
+  const sizePrev = new THREE.Vector4(1, 1, 1, 1);
+  const sizeStorm = new THREE.Vector4(1, 1, 1, 1);
+  const cloudTex = createCloudTexture(THREE);
+
   // --- dome ----------------------------------------------------------------
   const domeMat = new THREE.ShaderMaterial({
     uniforms: {
@@ -1462,13 +1720,20 @@ export function createSky(THREE) {
       uGlowStrength: { value: 1 },
       uCloud: { value: 0 },
       uCloudDrift: { value: new THREE.Vector2() },
+      uCloudTex: { value: cloudTex },
+      uCirrus: { value: 0.6 },
       uPanoClear: panoClear,
       uPanoPrev: panoPrev,
       uPanoStorm: panoStorm,
+      uLayoutClear: { value: layoutClear },
+      uLayoutPrev: { value: layoutPrev },
+      uSizeClear: { value: sizeClear },
+      uSizePrev: { value: sizePrev },
+      uSizeStorm: { value: sizeStorm },
       uPanoStrength: panoStrength,
       uPanoStormMix: { value: 0 },
       uPanoFade: panoFade,
-      // Source centre looks down-run; its joined edge sits safely uphill.
+      // A panorama's centre looks down-run; its joined edge sits uphill.
       uPanoYaw: { value: 0.25 },
       // The plate's alpenglow: the ranges' own borrowed amber, and the sun's
       // heading flattened onto the ground. Both are written every frame.
@@ -1500,9 +1765,16 @@ export function createSky(THREE) {
   dome.name = 'sky-dome';
   group.add(dome);
 
-  const plateSkylines = new WeakMap();
-  const preparePlate = (texture) => {
-    texture.wrapS = THREE.RepeatWrapping;
+  /* `top` is the elevation the plate keeps its own sky up to — see PLATE;
+     omitted, it keeps all of it. Whether a plate is a panorama or a
+     landscape is read off its shape — a 2:1 image is the full ring,
+     anything else is a view of part of it. */
+  const preparePlate = (texture, top = 10) => {
+    const image = texture.image;
+    const width = image?.width || 0;
+    const height = image?.height || 0;
+    const mirror = width > 0 && height > 0 && Math.abs(width / height - 2) > 0.15;
+    texture.wrapS = mirror ? THREE.MirroredRepeatWrapping : THREE.RepeatWrapping;
     texture.wrapT = THREE.ClampToEdgeWrapping;
     /* Mipmapped and anisotropic now. The plate is heavily minified exactly
        where it matters most — the ridge band at the horizon — and a
@@ -1518,13 +1790,16 @@ export function createSky(THREE) {
     texture.colorSpace = THREE.SRGBColorSpace;
     // The photographs carry no depth. Read their sharp skyline once, while
     // decoding, so the sun cannot be composited over a photographed summit.
+    // It is kept as an image row per column, which is a fact about the
+    // picture, and turned into an elevation through the plate's layout.
+    let rows = null;
     try {
       const canvas = document.createElement('canvas');
       canvas.width = 256; canvas.height = 128;
       const context = canvas.getContext('2d', { willReadFrequently: true });
       context.drawImage(texture.image, 0, 0, 256, 128);
       const pixels = context.getImageData(0, 0, 256, 128).data;
-      const skyline = new Float32Array(256);
+      rows = new Float32Array(256);
       const edges = new Float32Array(128);
       for (let x = 0; x < 256; x++) {
         let strongest = 0;
@@ -1538,20 +1813,53 @@ export function createSky(THREE) {
         }
         let y = 40;
         while (y < 75 && edges[y] < Math.max(12, strongest * 0.5)) y++;
-        skyline[x] = (0.5 - (y + 0.5) / 128) * Math.PI;
+        rows[x] = (y + 0.5) / 128;
       }
-      plateSkylines.set(texture, skyline);
     } catch {
       // Failed image reads retain the procedural sky's normal horizon fade.
+      rows = null;
     }
+    const span = mirror ? PLATE.band * (height / width) : Math.PI;
+    let center = 0;
+    if (mirror && rows) {
+      /* Stand the landscape's ridge where the panorama's stands. The median
+         is robust to the odd column the edge test reads off a cloud. */
+      const sorted = Array.from(rows).sort((a, b) => a - b);
+      const median = sorted[sorted.length >> 1];
+      center = PLATE.ridge - (0.5 - median) * span;
+    }
+    plateInfo.set(texture, {
+      mirror,
+      span,
+      center,
+      top: mirror ? top : 10,
+      width: width || 1,
+      height: height || 1,
+      rows,
+    });
     return texture;
   };
-  const plateHorizon = (texture, u) => {
-    const skyline = plateSkylines.get(texture);
-    if (!skyline) return -Math.PI / 2;
-    const x = frac(u) * skyline.length;
-    const i = Math.floor(x), t = x - i;
-    return skyline[i] * (1 - t) + skyline[(i + 1) % skyline.length] * t;
+  /* The photographed ridge's elevation on a given bearing, through the same
+     layout the dome samples the plate with. The sun is hidden behind it. */
+  const plateRidge = (texture, azimuth) => {
+    const info = plateInfo.get(texture);
+    if (!info || !info.rows) return -Math.PI / 2;
+    const s = frac(0.75 - azimuth / TAU);    // the dome sphere's own u
+    let u;
+    if (info.mirror) {
+      u = 2 - 2 * s;
+      u -= 2 * Math.floor(u / 2);
+      if (u > 1) u = 2 - u;
+    } else {
+      u = frac(1 + domeMat.uniforms.uPanoYaw.value - s);
+    }
+    const rows = info.rows;
+    const x = u * rows.length;
+    const i = Math.min(rows.length - 1, Math.floor(x));
+    const t = x - i;
+    const j = info.mirror ? Math.min(rows.length - 1, i + 1) : (i + 1) % rows.length;
+    const row = rows[i] * (1 - t) + rows[j] * t;
+    return info.center + (0.5 - row) * info.span;
   };
   let sunrisePlate = null;
   let sunsetPlate = null;
@@ -1605,14 +1913,14 @@ export function createSky(THREE) {
   plateLoader.load(
     new URL('../assets/textures/sky/alps-sunrise.jpg', import.meta.url).href,
     (texture) => {
-      sunrisePlate = preparePlate(texture);
+      sunrisePlate = preparePlate(texture, PLATE.top.sunrise);
       settlePlates();
     },
   );
   plateLoader.load(
     new URL('../assets/textures/sky/alps-aurora-night.jpg', import.meta.url).href,
     (texture) => {
-      nightPlate = preparePlate(texture);
+      nightPlate = preparePlate(texture, PLATE.top.night);
       settlePlates();
     },
   );
@@ -1621,7 +1929,7 @@ export function createSky(THREE) {
   plateLoader.load(
     new URL('../assets/textures/sky/alps-peaks-sunset.jpg', import.meta.url).href,
     (texture) => {
-      sunsetPlate = preparePlate(texture);
+      sunsetPlate = preparePlate(texture, PLATE.top.sunset);
       settlePlates();
     },
   );
@@ -1784,6 +2092,7 @@ export function createSky(THREE) {
   const auroraMat = new THREE.ShaderMaterial({
     uniforms: {
       uNoise: { value: fieldTex },
+      uRays: { value: cloudTex },
       uLow: { value: new THREE.Color('#4dffa6') },
       uHigh: { value: new THREE.Color('#a05cff') },
       uTime: { value: 0 },
@@ -2124,15 +2433,20 @@ export function createSky(THREE) {
     const mat = new THREE.ShaderMaterial({
       uniforms: {
         uPitch: { value: TERRAIN.grade.base },
+        uSink: { value: 0 },
         uNoise: { value: fieldTex },
         uRockDetail: rockDetail,
         uSunDir: { value: sunDir },
         uHaze: { value: new THREE.Color('#d7e2ec') },
-        uSnow: { value: new THREE.Color('#dce7f1') },
-        uRockCool: { value: new THREE.Color('#46546a') },
-        uRockWarm: { value: new THREE.Color('#685d59') },
-        uIce: { value: new THREE.Color('#b9d2df') },
+        // Albedos, not lit colours: the light arrives in the three below.
+        uSnow: { value: new THREE.Color('#e6edf5') },
+        uRockCool: { value: new THREE.Color('#4b4f58') },
+        uRockWarm: { value: new THREE.Color('#5d544e') },
+        uIce: { value: new THREE.Color('#bcd3e0') },
         uAlpenglow: { value: new THREE.Color(0, 0, 0) },
+        uKeyLight: { value: new THREE.Color(0, 0, 0) },
+        uSkyFill: { value: new THREE.Color(0.4, 0.45, 0.5) },
+        uGroundFill: { value: new THREE.Color(0.4, 0.45, 0.5) },
         uStorm: { value: 0 },
         uWhiteout: { value: 0 },
         uAir: { value: airAt(RELIEF.apparentFar) },
@@ -2638,6 +2952,11 @@ export function createSky(THREE) {
     domeMat.uniforms.uGlowStrength.value = 1 - w.storm * 0.8;
     domeMat.uniforms.uCloud.value = w.cloud;
     domeMat.uniforms.uCloudDrift.value.set(w.cloudX, w.cloudZ);
+    /* Cirrus runs ahead of weather: an unsettled airmass combs the upper sky
+       long before anything reaches the mountain, and a settled high leaves it
+       nearly bare. The front itself swallows them into the deck. */
+    domeMat.uniforms.uCirrus.value = (0.3 + 0.7 * clamp01(w.airmass ?? 1))
+      * (1 - ramp(w.storm, 0.3, 0.8)) * (1 - 0.5 * ramp(w.cloud, 0.3, 0.9));
     /* Lightning. The weather owns the trigger — see the note there, it is a
        hash of its own clock, so a seed replays its storms strikes and all —
        and this end only says what a strike looks like: the whole atmosphere
@@ -2698,6 +3017,10 @@ export function createSky(THREE) {
       panoWish = 1;
     }
     panoFade.value += (1 - panoFade.value) * (1 - Math.exp(-1.1 * dt));
+    // Each sampler is placed by its own plate's layout, whichever is bound.
+    bindLayout(panoClear.value, layoutClear, sizeClear);
+    bindLayout(panoPrev.value, layoutPrev, sizePrev);
+    bindLayout(panoStorm.value, null, sizeStorm);
     panoReady += (panoTarget * panoWish - panoReady) * (1 - Math.exp(-2.8 * dt));
     domeMat.uniforms.uPanoStormMix.value = ramp(w.storm, 0.12, 0.78);
     // Night keeps a faint mountain plate under the stars; a whiteout gives it
@@ -2761,15 +3084,14 @@ export function createSky(THREE) {
     const moon = w.moon;
     const risen = ramp(w.elevation, -0.028, 0.018);
     const discRadius = (0.085 - moon * 0.032) * 0.46 / 0.85;
-    const panoU = frac(0.25 + domeMat.uniforms.uPanoYaw.value + w.azimuth / TAU);
     const currentRidge = Math.max(
-      plateHorizon(panoClear.value, panoU - discRadius / TAU),
-      plateHorizon(panoClear.value, panoU),
-      plateHorizon(panoClear.value, panoU + discRadius / TAU));
+      plateRidge(panoClear.value, w.azimuth - discRadius),
+      plateRidge(panoClear.value, w.azimuth),
+      plateRidge(panoClear.value, w.azimuth + discRadius));
     const previousRidge = Math.max(
-      plateHorizon(panoPrev.value, panoU - discRadius / TAU),
-      plateHorizon(panoPrev.value, panoU),
-      plateHorizon(panoPrev.value, panoU + discRadius / TAU));
+      plateRidge(panoPrev.value, w.azimuth - discRadius),
+      plateRidge(panoPrev.value, w.azimuth),
+      plateRidge(panoPrev.value, w.azimuth + discRadius));
     // Both ranges are visible during a crossfade. Respect the higher skyline,
     // easing its arrival/departure only at the faint ends of that transition.
     const ridge = Math.max(
@@ -2925,10 +3247,21 @@ export function createSky(THREE) {
     // exact haze stop already used by the dome, mist and distant ranges.
     hazeMat.color.copy(atmosphere.haze);
 
-    /* The relief shell is always resident. Its apparent
-       travel is a pure function of world position, while pitch and every
-       material regime move through uniforms; there is no rebuild, threshold
-       or async state to reveal during play. */
+    /* The relief shell is the photographs' fallback now, like the ribbons.
+
+       It was built when the hour plates were being stretched round the whole
+       ring and the day plate was a blur, and against those it earned its
+       keep. With every plate laid out at its own scale, the shell's only
+       visible contribution in front of one was a handful of flat grey cones
+       at the vanishing point — procedural silhouettes standing in front of
+       photographed ones, at every hour including night. So as a plate is
+       revealed the shell sinks under the terrain's horizon over the same
+       second the plate fades in, and stops drawing once it is gone. With no
+       plate — a slow first load, or none at all — it stands exactly as it
+       did, and a storm still takes it away through its own whiteout. */
+    const sink = ramp(panoReady, 0.05, 0.95);
+    relief.mat.uniforms.uSink.value = sink;
+    relief.mesh.visible = warmingLayers || sink < 0.999;
     // Stable landmark bearings, with bounded parallax for an endless descent.
     relief.mesh.position.set(
       -lateral * (RELIEF.crest / RELIEF.apparentFar), 0,
@@ -2936,17 +3269,9 @@ export function createSky(THREE) {
     );
     relief.mat.uniforms.uPitch.value = pitch;
     relief.mat.uniforms.uHaze.value.copy(atmosphere.haze);
-    snowTmp.copy(atmosphere.horizon).lerp(atmosphere.key, 0.10);
-    relief.mat.uniforms.uSnow.value.copy(snowTmp);
-    rockTmp.copy(atmosphere.mid).lerp(atmosphere.zenith, 0.46)
-      .multiplyScalar(0.56);
-    relief.mat.uniforms.uRockCool.value.copy(rockTmp);
-    rockTmp.copy(atmosphere.mid).lerp(atmosphere.key, 0.14)
-      .multiplyScalar(0.52);
-    relief.mat.uniforms.uRockWarm.value.copy(rockTmp);
-    iceTmp.copy(atmosphere.horizon).lerp(atmosphere.mid, 0.18);
-    relief.mat.uniforms.uIce.value.copy(iceTmp);
-    relief.mat.uniforms.uAlpenglow.value.copy(sunlit).multiplyScalar(0.46);
+    // The key already carries the dusk's colour now; this is only the extra
+    // glow a low sun lays on high snow.
+    relief.mat.uniforms.uAlpenglow.value.copy(sunlit).multiplyScalar(0.24);
     relief.mat.uniforms.uStorm.value = w.storm;
     // The same dissolution the far ribbons ride — see the shader note.
     relief.mat.uniforms.uWhiteout.value = ramp(w.storm, 0.28, 0.82);
@@ -3164,6 +3489,10 @@ export function createSky(THREE) {
     // And the strike, added rather than scaled: a flash lights the clouds
     // from inside, so it arrives through the fill and not through the key.
     hemi.intensity = w.hemiI + flash * 2.2;
+    // The massif is lit by exactly this rig — see RELIEF_FRAG.
+    relief.mat.uniforms.uKeyLight.value.copy(key.color).multiplyScalar(key.intensity);
+    relief.mat.uniforms.uSkyFill.value.copy(hemi.color).multiplyScalar(hemi.intensity);
+    relief.mat.uniforms.uGroundFill.value.copy(hemi.groundColor).multiplyScalar(hemi.intensity);
     if (dt > 0) warmSkyLayers = false;
   }
 
