@@ -307,24 +307,36 @@ export function growCardSpruce(THREE, seed, spec, height, layout = SPRUCE_LAYOUT
     }
   }
 
-  /* ---- the spire: crossed upright cards at the crown ---- */
+  /* ---- the spire: crossed upright cards at the crown ----
+
+     A spruce ends in a leader: one upright shoot with a last short whorl
+     round its foot, so the crown comes to a point. The cards used to stand
+     the sprig up the way it grows — stem at the bottom, fan at the top — on
+     a quad that widened upwards, which put an open fan of needles on top of
+     every tree: against the sky, a small white crown or a trident. The same
+     sprig hung the other way round does the leader's job: its dense fan
+     makes the short whorl at the foot, and its bare stem runs up to a tip
+     the card now narrows to. Held green, because nothing that steep carries
+     a snow load; the draw stays in the sequence so every tree keeps its
+     shape. */
   if (spec.spire > 0 && !layout.bare) {
     const sh = Math.min(height * 0.22, spec.spire * 1.9);
-    const sw = sh * 0.62;
+    const sw = sh * 0.46;
     const yTop = height * 0.995;
     const cell = CELLS[0];
     for (let k = 0; k < 2; k++) {
       const a = k * Math.PI * 0.5 + rnd() * 0.4;
       side.set(Math.cos(a), 0, Math.sin(a));
       n.set(-Math.sin(a), 0.35, Math.cos(a)).normalize();
-      p[0].copy(side).multiplyScalar(-sw * 0.15); p[0].y = yTop - sh;
-      p[1].copy(side).multiplyScalar(sw * 0.15); p[1].y = yTop - sh;
-      p[2].copy(side).multiplyScalar(sw * 0.5); p[2].y = yTop;
-      p[3].copy(side).multiplyScalar(-sw * 0.5); p[3].y = yTop;
+      p[0].copy(side).multiplyScalar(-sw * 0.5); p[0].y = yTop - sh;
+      p[1].copy(side).multiplyScalar(sw * 0.5); p[1].y = yTop - sh;
+      p[2].copy(side).multiplyScalar(sw * 0.05); p[2].y = yTop;
+      p[3].copy(side).multiplyScalar(-sw * 0.05); p[3].y = yTop;
       for (const q of p) { q.x += stemX(q.y); q.z += stemZ(q.y); }
-      const snowy = rnd() < spec.snow;
-      quad(p[0], p[1], p[2], p[3], n, cell, k === 1,
-        snowy ? FROST_DROP : 0, snowy ? SNOW_COL : white, snowy ? 0 : 1);
+      rnd();
+      // Root edge (v0) along the top, tip edge (v1) along the foot; the same
+      // winding as the quad it replaces.
+      quad(p[2], p[3], p[0], p[1], n, cell, k === 1, 0, white, 1);
     }
   }
 

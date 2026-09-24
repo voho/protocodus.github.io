@@ -471,6 +471,17 @@ const VERT = `
         * (1.0 - smoothstep(3.5, 9.0, l))
         * (1.0 - smoothstep(6.0, 16.0, vDepth))
         * (1.0 - uSnowFresh) * min(uSunLevel, 1.0);
+      /* The max-flow wake is loose ice crystals rather than crust, and a
+         crystal tumbling through the light flashes several times a second
+         instead of once in twenty. Its window is wide, its rate fast and
+         its own, and it keeps flashing at any size — the sprite is tiny by
+         construction — while still answering to the sun and the storm. */
+      if (aTint < -0.5) {
+        float cw = fract(aSeed * 17.0 + uTime * (1.4 + aSeed * 2.2));
+        vGlint = (smoothstep(0.0, 0.06, cw) - smoothstep(0.08, 0.30, cw))
+          * (1.0 - smoothstep(10.0, 28.0, vDepth))
+          * (1.0 - uSnowFresh * 0.7) * min(uSunLevel, 1.0);
+      }
     }
   }
 `;
@@ -512,13 +523,15 @@ const FRAG = `
     float a = vAlpha * pow(k, vSoft);
     // A field of identical flakes reads as a pattern; each one leaning its
     // own fixed step towards the haze reads as depth the field does not have.
-    // Below zero the tint runs towards the overdrive ember instead — the
+    // Below zero the tint runs towards the max-flow crystals instead — the
     // same lerp continued, not a branch, so the whole field pays nothing for
-    // a feature only the max-combo sparks use, and an ember still takes the
-    // fog, scatter and glint treatment every other grain takes.
+    // a feature only that wake uses. A crystal is lit ice, so it leans
+    // towards the key's own hue: white at noon, gold at dusk, cold under the
+    // moon. It was a fixed ember orange, the one colour on the mountain that
+    // no light on it could have made.
     vec3 col = mix(
       mix(uColor, uFog, max(vTint, 0.0) * 0.35),
-      vec3(1.0, 0.62, 0.16),
+      mix(uColor, uSunTint, 0.55),
       clamp(-vTint, 0.0, 1.0));
     // The backlit lift: the sun's own hue folded into the flake, and a modest
     // raise in coverage, strongest looking straight down the light. The mix
@@ -1685,41 +1698,49 @@ export function createSpray(THREE, shading) {
     }
   }
 
-  /* The overdrive embers at max combo — the one emitter allowed off the
-     snow palette, via the negative tint the fragment shader folds towards
-     its ember colour. Peak stays at one: brightness above that flattened
-     the falloff into an opaque disc with a hard rim, which is the exact
-     soap-bubble artefact the header of this file exists to forbid. */
+  /* The max-flow wake: diamond dust off the board.
+
+     This was an ember shower — orange streaks thrown four metres a second in
+     every direction from the feet — and with the meter full for most of any
+     run it was also the one thing on screen at almost every moment. Nothing
+     on a mountain burns. What a board at full commitment does throw is a
+     haze of loose ice crystals lifted off the surface, and a crystal is only
+     ever visible because it catches the light. So these are tiny, faint and
+     slow, drifting in the wind behind the rider and flashing as they tumble
+     — the negative tint picks the crystal colour and the fast glint in the
+     vertex stage — which says "something is different about this run" in
+     the vocabulary of the rest of the snow. */
   function sparks(pos, dirX, dirZ, count) {
     for (let k = 0; k < count; k++) {
       const i = head;
       head = (head + 1) % n;
       const j = i * 3;
       fine[i] = 1.0;
-      streak[i] = 1.0;
+      // Barely smeared: a crystal is a point of light, and the camera
+      // sweeping past at speed would otherwise draw every one as a dash.
+      streak[i] = 0.15;
       seed[i] = Math.random();
       tint[i] = -1.0;
       streakDirty = true;
 
       const angle = Math.random() * Math.PI * 2;
-      const vx = dirX + Math.cos(angle) * 1.5;
-      const vz = dirZ + Math.sin(angle) * 1.5;
+      const drift = 0.5 + Math.random() * 0.9;
 
-      position[j] = pos.x - anchor.x + Math.random() - 0.5;
-      position[j + 1] = pos.y - anchor.y + 0.1;
-      position[j + 2] = pos.z - anchor.z + Math.random() - 0.5;
+      position[j] = pos.x - anchor.x + (Math.random() - 0.5) * 0.9;
+      position[j + 1] = pos.y - anchor.y + 0.05 + Math.random() * 0.35;
+      position[j + 2] = pos.z - anchor.z + (Math.random() - 0.5) * 0.9;
 
-      vel[j] = vx * 4.0;
-      vel[j + 1] = 4.0 + Math.random() * 4.0;
-      vel[j + 2] = vz * 4.0;
+      vel[j] = dirX + Math.cos(angle) * drift;
+      vel[j + 1] = 1.2 + Math.random() * 2.2;
+      vel[j + 2] = dirZ + Math.sin(angle) * drift;
 
-      maxLife[i] = 0.5 + Math.random() * 0.5;
+      maxLife[i] = 0.9 + Math.random() * 0.8;
       life[i] = maxLife[i];
-      born[i] = SNOW.spraySize * SPRAY.born * 0.55;
-      grow[i] = 0.5;
-      peak[i] = 1.0;
-      tumble[i] = 0.6 + Math.random() * 1.2;
-      spin[i] = (2 + Math.random() * 4) * (Math.random() < 0.5 ? -1 : 1);
+      born[i] = SNOW.spraySize * SPRAY.born * (0.18 + Math.random() * 0.12);
+      grow[i] = 0.05;
+      peak[i] = 0.32;
+      tumble[i] = 0.3 + Math.random() * 0.6;
+      spin[i] = (1 + Math.random() * 3) * (Math.random() < 0.5 ? -1 : 1);
       phase[i] = Math.random() * Math.PI * 2;
       size[i] = born[i];
       alpha[i] = 0;
