@@ -122,7 +122,7 @@ export function createHud(root) {
     const record = g.bestAtStart || 0;
     text('best', bestPassed ? `Personal best · ${fmt.format(Math.round(g.best))}` : `Best ${fmt.format(Math.round(record))}`);
     if (fields.best.dataset.passed !== String(bestPassed)) fields.best.dataset.passed = String(bestPassed);
-    text('gates', `${g.gateRun} gates linked`);
+    text('gates', `${g.gateRun} ${g.gateRun === 1 ? 'gate' : 'gates'} linked`);
     hidden('gates', !(g.gateRun > 0));
     text('speed', String(Math.round(rider.speed * 3.6)));
     text('descent', `${(rider.distance / 1000).toFixed(2)} km  /  ${Math.round(rider.drop)} m ↓`);

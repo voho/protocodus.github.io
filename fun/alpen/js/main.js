@@ -46,6 +46,9 @@ import { createInput } from './input.js';
 import { createAudio } from './audio.js';
 import { createHud } from './hud.js';
 import {
+  comboFor, feedFlow, flowFromPoints, stepFlowMeter,
+} from './flow.js';
+import {
   randomWorldSeed, setWorldSeed, worldSeedCode,
 } from './noise.js';
 
@@ -407,6 +410,7 @@ const game = {
   liveTrick: '',
   gateRun: 0,
   flow: 0,
+  flowHold: 0,           // seconds of riding before the surplus starts to fade
   flowMaxAnnounced: false,
   maxDistanceAnnounced: 0,
   maxSpeedAnnounced: 0,
@@ -539,6 +543,7 @@ function restart(fullReset = false) {
   game.liveTrick = '';
   game.bestAtStart = game.best;
   game.flow = 0;
+  game.flowHold = 0;
   game.flowMaxAnnounced = false;
   /* Seeded from where the run resumes, not zeroed. A restart picks up from
      the last gate taken, so the rider can already be four kilometres down
@@ -731,9 +736,8 @@ function scoreLanding(s) {
      is deliberately NOT in that number — paying flow on the already-
      multiplied score would compound, and a meter that fills faster the
      fuller it is has no middle. */
-  const gained = flowFromPoints(earned)
-    * (s.verdict === CLEAN ? 1 : SCORE.flowSketchy);
-  game.flow = Math.min(1, game.flow + gained);
+  feedFlow(game, flowFromPoints(earned)
+    * (s.verdict === CLEAN ? 1 : SCORE.flowSketchy));
   syncCombo();
   if (s.verdict !== CLEAN) audio.thud();
 }
@@ -778,6 +782,8 @@ rider.on('fall', (cause, into = 0) => {
      a trick game wants. Losing over half of it still hurts, and the run
      keeps something to build on. */
   game.flow = Math.max(0, game.flow * (1 - SCORE.flowBail));
+  // …and the chain it was holding up ends here: what is left starts to fade.
+  game.flowHold = 0;
   syncCombo();
   game.flowMaxAnnounced = false;
   // Rebuild after this physics batch; mutating the collision list from inside
@@ -850,7 +856,7 @@ rider.on('butter', (spin, time) => {
   const halves = butterHalfTurns(spin);
   const pts = halves * 0.5 * SCORE.butterPerTurn * game.combo;
   award(pts, butterName(spin), '');
-  game.flow = Math.min(1, game.flow + SCORE.flowButter * halves * 0.5);
+  feedFlow(game, SCORE.flowButter * halves * 0.5);
   syncCombo();
 });
 
@@ -886,15 +892,10 @@ rider.on('pump', (drive) => {
    the run was going. They are one thing now: flow is the meter, and the
    multiplier is where the meter has got to. Everything downstream still
    reads `game.combo`, and it still steps in whole numbers so the HUD and
-   the combo tone have something to land on. */
+   the combo tone have something to land on. The step itself is `comboFor`
+   in flow.js, beside the rules that fill the meter it reads. */
 function syncCombo() {
-  /* `>= 0.99` counts as full, which is the same threshold MAX FLOW fires
-     on: a meter the player has been told is full must show the multiplier
-     they were promised, and a bar that stops one short of its own top is
-     the kind of detail that reads as a bug. */
-  const t = game.flow >= 0.99 ? 1 : game.flow;
-  const want = Math.min(SCORE.comboMax,
-    1 + Math.floor(t * (SCORE.comboMax - 1) + 1e-6));
+  const want = comboFor(game.flow);
   if (want > game.combo) {
     game.combo = want;
     audio.combo(game.combo);
@@ -903,50 +904,13 @@ function syncCombo() {
   }
 }
 
-/* What a payout is worth in meter. Sub-linear on purpose: a trick worth ten
-   times another should not fill the bar ten times faster, or one enormous
-   air ends the progression and everything after it is decoration. */
-function flowFromPoints(pts) {
-  return Math.sqrt(Math.max(0, pts)) * SCORE.flowPerPoint;
-}
-
 function stepFlow() {
   if (game.mode === 'playing') {
-    if (rider.grounded) {
-      /* WHAT FILLS THE METER, and it used to be almost nothing.
-
-         The build was gated on `carveLoad > 0.4`. Measured, a full-lock
-         turn on the piste sits around 0.08 — carve load is the fraction of
-         available GRIP a turn is using, and ordinary riding does not spend
-         half its grip — so the gate was above anything the game produces
-         and flow only ever moved when a trick or a gate moved it. That was
-         survivable while flow was a speed governor with a bar beside it.
-         It is the score multiplier now, so it has to answer to riding.
-
-         Three terms, and they are the three things "flow" means on a
-         snowboard: keep moving, keep it clean, and put the board on edge.
-         The base barely clears the decay on its own, so a straight line
-         holds the meter roughly where it is; speed and edge are what
-         actually fill it. */
-      const clean = rider.state === 'ride' && rider.slide < 1.2;
-      if (clean && rider.speed > 6) {
-        const fast = Math.min(1, Math.max(0,
-          (rider.speed - 6) / (RIDER.baseMaxSpeed - 6)));
-        game.flow = Math.min(1, game.flow
-          + (0.058 + fast * 0.06 + rider.carveLoad * 0.40) * STEP);
-      } else if (rider.slide > 2.0) {
-        game.flow = Math.max(0, game.flow - rider.slide * 0.1 * STEP);
-      }
-      game.flow = Math.max(0, game.flow - 0.05 * STEP);
-      /* …and W spends it. The powered tuck used to be free speed with an
-         invisible hand behind it — a compounding `vel *= 1 + flow` push
-         nobody asked for. Now the meter is the fuel: hold the tuck and it
-         drains, and `rider.flowDrive` (read by the powered floor) is what
-         is left. Fast line or big multiplier, not both at once. */
-      if (rider.tucking && rider.state === 'ride') {
-        game.flow = Math.max(0, game.flow - SCORE.flowTuckDrain * STEP);
-      }
-    }
+    /* What fills the meter, what holds it and what W spends it on are all in
+       flow.js now — see the note at its head for why riding alone stopped
+       filling the bar. `rider.flowDrive` (read by the powered floor) is what
+       is left after this step. */
+    stepFlowMeter(game, rider, STEP);
     rider.flowDrive = game.flow;
     // The multiplier catches up with the meter *before* the announcement
     // pays out: a meter the player just filled promises the top multiplier,
@@ -1043,8 +1007,10 @@ function checkGates() {
     const pts = SCORE.gate * game.gateRun * game.combo;
     award(pts, game.gateRun > 1 ? `GATE ×${game.gateRun}` : 'GATE', 'near');
     /* Taking the line is riding well, so it pays the meter — scaled by the
-       run, because the fifth gate in a row is the one that was hard. */
-    game.flow = Math.min(1, game.flow + SCORE.flowGate * Math.sqrt(game.gateRun));
+       run, because the fifth gate in a row is the one that was hard. It does
+       not hold the meter, though: every gate spans the piste, so a run of
+       them is the reward for staying on it, not a trick. */
+    feedFlow(game, SCORE.flowGate * Math.sqrt(game.gateRun), false);
     syncCombo();
     audio.chime(game.gateRun);
     lastPassedGate = { x: g.x, z: g.z - 3.0 };
@@ -1272,7 +1238,7 @@ const onCocoa = () => {
   if (game.mode !== 'playing') return;
   award(SCORE.cocoa * game.combo, 'COCOA STOP', 'near');
   // A stop at the hut is a rest, and it hands back a chunk of meter.
-  game.flow = Math.min(1, game.flow + 0.22);
+  feedFlow(game, 0.22);
   syncCombo();
   audio.cocoa();
   input.rumble(0.3, 0.15, 200);
@@ -1564,10 +1530,11 @@ function frame(now) {
         Math.max(1, Math.round(1 + drag * 4)), 0.38 + drag * 0.62);
     }
 
-    /* The overdrive spark trail at max combo, budgeted against time rather
-       than frames — a per-frame emit was twice as dense at 120 Hz as at 60,
-       and rolled the whole spray pool over in seconds, cutting rooster tails
-       short mid-flight. 120 sparks a second is the authored 60 Hz look. */
+    /* The max-flow crystal wake (see `sparks` in particles.js), budgeted
+       against time rather than frames — a per-frame emit was twice as dense
+       at 120 Hz as at 60, and rolled the whole spray pool over in seconds,
+       cutting rooster tails short mid-flight. 120 a second is the authored
+       60 Hz look. */
     if (game.combo >= SCORE.comboMax && rider.state === 'ride' && rider.grounded && rider.speed > 5) {
       sparkCarry += dt * 120;
       const embers = Math.min(4, Math.floor(sparkCarry));
@@ -1812,6 +1779,9 @@ window.__alpen = {
   debug: () => ({
     mode: game.mode,
     speed: +(rider.speed * 3.6).toFixed(1),
+    flow: +game.flow.toFixed(3),
+    flowHold: +game.flowHold.toFixed(2),
+    combo: game.combo,
     pos: [rider.pos.x, rider.pos.y, rider.pos.z].map((v) => +v.toFixed(1)),
     state: rider.state,
     grounded: rider.grounded,

@@ -1805,11 +1805,11 @@ export const SCORE = {
   // Scales the three one-shot milestone awards (100 km/h, 1,000 m, 5,000 m)
   // in main.js — the only thing it still does. The old "multiplier per clean
   // landing" mechanism it once named is gone: the combo is derived from the
-  // flow meter now (see `syncCombo`).
+  // flow meter now (see `comboFor` in flow.js).
   comboStep: 1,
   comboMax: 12,
   /* FLOW, which is now the multiplier itself rather than a speed governor
-     with a number beside it. See `stepFlow` in main.js.
+     with a number beside it. See `flow.js`.
 
      `flowPerPoint` is the exchange rate from a trick's payout into meter,
      applied to the SQUARE ROOT of the payout so that a trick worth ten
@@ -1823,8 +1823,26 @@ export const SCORE = {
      full meter to one caught edge is the kind of punishment that stops
      people trying tricks at all, which is the opposite of the point. */
   flowPerPoint: 0.0042,
-  flowGate: 0.035,
+  /* A gate is worth little meter because it costs little: every gate spans
+     the whole piste, so the ladder is really a count of how long the run
+     has stayed on it. At 0.035 a clean descent with no tricks at all was
+     filling the bar by itself. */
+  flowGate: 0.012,
   flowButter: 0.05,
+  /* What riding alone is worth, and how the rest of the bar is held.
+
+     `flowCruise` is the level clean, fast carving settles at — ×3 — and the
+     riding terms ease off over the last `flowCruiseEase` of it rather than
+     stopping at a wall. Above it only awards fill the bar. Each one holds
+     the meter still for `flowHold` seconds of riding, after which the
+     surplus relaxes back towards cruise at `flowFade` of itself a second:
+     stop doing things and a full bar is back near ×4 in about half a
+     minute, which is long enough to find the next jump and short enough
+     that the multiplier describes the run as it is now. */
+  flowCruise: 0.28,
+  flowCruiseEase: 0.5,
+  flowHold: 4.0,
+  flowFade: 0.08,
   flowSketchy: 0.35,   // share of a clean landing's flow a sketchy one earns
   flowBail: 0.55,      // share of the meter a wipeout takes
   /* And what it costs to spend. W converts flow into speed: while the tuck
