@@ -1,0 +1,17 @@
+commit razer
+
+---
+
+[Image: original 1425x4280, displayed at 666x2000. Multiply coordinates by 2.14 to map to original image.]
+
+---
+
+[Image: original 1425x4911, displayed at 580x2000. Multiply coordinates by 2.46 to map to original image.]
+
+---
+
+[Image: original 1425x2570, displayed at 1109x2000. Multiply coordinates by 1.28 to map to original image.]
+
+---
+
+[Image: original 1425x3195, displayed at 892x2000. Multiply coordinates by 1.60 to map to original image.]
