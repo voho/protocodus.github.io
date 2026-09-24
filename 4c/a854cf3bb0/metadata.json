@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "4ca854cf3bb0",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "fun/alpen/js/config.js",
+    "fun/alpen/js/rider.js",
+    "fun/alpen/js/riderModel.js",
+    "fun/alpen/tests/README.md",
+    "fun/alpen/tests/flow-check.mjs",
+    "fun/alpen/tests/riding-check.mjs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/4c/a854cf3bb0/0/metadata.json",
+      "transcript": "/4c/a854cf3bb0/0/full.jsonl",
+      "context": "/4c/a854cf3bb0/0/context.md",
+      "content_hash": "/4c/a854cf3bb0/0/content_hash.txt",
+      "prompt": "/4c/a854cf3bb0/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 122,
+    "cache_creation_tokens": 190621,
+    "cache_read_tokens": 9167156,
+    "output_tokens": 44614,
+    "api_call_count": 61
+  }
+}
