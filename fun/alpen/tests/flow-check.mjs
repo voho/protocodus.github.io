@@ -2,10 +2,10 @@
 import assert from 'node:assert/strict';
 import * as THREE from '../../../assets/vendor/three/three.module.min.js';
 import { Rider, trickName, CLEAN, BAIL } from '../js/rider.js';
-import { RIDER, SCORE } from '../js/config.js';
+import { RIDER, SCORE, PROPS } from '../js/config.js';
 import {
   heightAt, getTerrainMaterialAt, nearestCenter, corridorHalfAt, beyondLipAt,
-  guideAt, centersAt,
+  guideAt, gateSlotsIn,
 } from '../js/terrain.js';
 import { setWorldSeed } from '../js/noise.js';
 import {
@@ -61,24 +61,11 @@ assert.equal(comboFor(1), SCORE.comboMax);
 /* The economy on the real mountain: the real rider, a steering bot, and the
    award rules from main.js. Riding the line with no tricks must stay a low
    multiplier; a rider landing tricks must still reach the top of the bar. */
-function outerEdge(z, side) {
-  const c = centersAt(z, [0, 0]);
-  return (side < 0 ? c[0] : c[1]) + side * corridorHalfAt(z);
-}
-
-function waypointGates(zLo) {
-  // props.js: every eighth 18 m boundary stake pair, spanning the piste.
-  const gates = [];
-  for (let b = 1; b >= Math.floor(zLo / 40) - 1; b--) {
-    for (let k = 1; k >= 0; k--) {
-      const z = b * 40 + k * 18 + 9;
-      if (z > 0 || z < zLo || Math.round(-z / 18) % 8 !== 0) continue;
-      const xl = outerEdge(z, -1) - 0.35;
-      const xr = outerEdge(z, 1) + 0.35;
-      gates.push({ x: (xl + xr) / 2, z, half: (xr - xl) / 2 });
-    }
-  }
-  return gates.sort((a, b) => b.z - a.z);
+// The race gates as props.js plants them: a pair of panels either side of
+// the racing line on every guide slot, scored across PROPS.gateHalf.
+function raceGates(zLo) {
+  return gateSlotsIn(zLo, 0).map((slot) => ({ x: slot.x, z: slot.z, half: PROPS.gateHalf }))
+    .sort((a, b) => b.z - a.z);
 }
 
 function ride(seed, seconds, tricks) {
@@ -110,7 +97,7 @@ function ride(seed, seconds, tricks) {
     game.flow *= 1 - SCORE.flowBail;
     game.flowHold = 0;
   });
-  const gates = waypointGates(-4000);
+  const gates = raceGates(-4000);
   let next = 0;
   const control = { turn: 0, tuck: false, brake: false, jump: false, trickGrab: false, trickFlip: false };
   let turn = 0;
@@ -162,7 +149,9 @@ for (const seed of seeds) {
   assert.ok(cruise.maxCombo <= 5, `${seed}: riding the line alone stays a low multiplier (×${cruise.maxCombo})`);
   const trick = ride(seed, 60, true);
   assert.ok(trick.landed >= 8, `${seed}: the trick bot lands tricks (${trick.landed})`);
-  assert.ok(trick.fullAt !== null && trick.fullAt < 50,
+  // A modest spin-and-grab every four seconds, and the race gates missed
+  // whenever a landing puts the bot off the line: within a minute.
+  assert.ok(trick.fullAt !== null && trick.fullAt < 55,
     `${seed}: steady tricks reach a full bar (${trick.fullAt})`);
 }
 

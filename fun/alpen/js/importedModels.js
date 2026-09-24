@@ -1,11 +1,15 @@
 /* Imported open-source models, folded into the instanced prop pipeline.
 
-   The models are Quaternius' CC0 low-poly nature set (quaternius.com, via
-   the flo-bit/tiny-planets mirror), stored under assets/models/nature. They
-   arrive as ordinary glTF scenes; what the game's pools need is one merged
-   BufferGeometry per variant carrying the exact attribute contract the
-   procedural growers emit — position, normal, per-vertex COLOUR-AS-VALUE,
-   and the `surfaceOwn` mask — so this module's whole job is translation:
+   Two families live under assets/models/nature: Poly Haven's CC0
+   photoscans (the rocks, crags, stumps, logs and deadfall — see MODELS.md,
+   and `upgradeTextured`/`upgradeTexturedSet` below), and Quaternius' CC0
+   low-poly nature set (quaternius.com, via the flo-bit/tiny-planets
+   mirror), which only the `upgrade` path still knows how to read. The
+   low-poly models arrive as ordinary glTF scenes; what the game's pools
+   need is one merged BufferGeometry per variant carrying the exact
+   attribute contract the procedural growers emit — position, normal,
+   per-vertex COLOUR-AS-VALUE, and the `surfaceOwn` mask — so that path's
+   whole job is translation:
 
    - Owned surfaces (needles, bark) are stored as grey *values*, because the
      per-instance cast is the colour: that is how a stand of imported pines
@@ -102,12 +106,15 @@ export function bakePoolGeometry(THREE, root, mode, palette) {
 }
 
 /* Ground the geometry (base at y = 0, centred in x/z) and scale it
-   uniformly to the height the pool's material was compiled for. */
+   uniformly to the height the pool's material was compiled for. A null
+   height keeps the scan's own size — the right answer for anything whose
+   placement already speaks in metres, like a log or a fallen branch. */
 function normalise(THREE, g, targetHeight, sink = 0) {
   g.computeBoundingBox();
   const box = g.boundingBox;
   const height = Math.max(0.001, box.max.y - box.min.y);
-  const s = targetHeight / height;
+  const s = targetHeight ? targetHeight / height : 1;
+  targetHeight = height * s;
   const cx = (box.min.x + box.max.x) / 2;
   const cz = (box.min.z + box.max.z) / 2;
   g.translate(-cx, -box.min.y, -cz);
@@ -129,7 +136,7 @@ function normalise(THREE, g, targetHeight, sink = 0) {
    material built around the scan's own baseColor map. `surfaceOwn` and
    `color` still ride along so the shared prop shaders can carve snow and
    sheen the same way they do everywhere else. */
-export function bakeTexturedGeometry(THREE, root) {
+export function bakeTexturedGeometry(THREE, root, only = null) {
   const positions = [];
   const normals = [];
   const uvs = [];
@@ -142,6 +149,9 @@ export function bakeTexturedGeometry(THREE, root) {
   root.updateMatrixWorld(true);
   root.traverse((node) => {
     if (!node.isMesh || !node.geometry) return;
+    // A set file keeps several objects as named nodes; the loader may name a
+    // mesh or its parent after the node, depending on how it was written.
+    if (only && node.name !== only && node.parent?.name !== only) return;
     const geo = node.geometry;
     const pos = geo.attributes.position;
     const nor = geo.attributes.normal;
@@ -218,5 +228,31 @@ export function createModelUpgrader(THREE) {
     }, undefined, () => { /* the grown variant simply remains */ });
   }
 
-  return { upgrade, upgradeTextured };
+  /* Several pools out of one file: a set of photoscans that share a texture
+     (the granite stones, the fallen branches) is one request, one decode and
+     one GPU texture, shared by every pool it feeds through one material.
+     Each entry names its node and says what height to normalise it to (null
+     keeps the scan's own metres) and how far to sink it. */
+  function upgradeTexturedSet(name, entries, makeMaterial) {
+    loader.load(url(name), (gltf) => {
+      let map = null;
+      gltf.scene.traverse((node) => {
+        if (!map && node.isMesh && node.material?.map) map = node.material.map;
+      });
+      if (map) {
+        map.colorSpace = THREE.SRGBColorSpace;
+        map.anisotropy = 4;
+      }
+      const material = map && makeMaterial ? makeMaterial(map) : null;
+      for (const entry of entries) {
+        const g = bakeTexturedGeometry(THREE, gltf.scene, entry.node);
+        if (!g.attributes.position || g.attributes.position.count === 0) continue;
+        swap(entry.pool, normalise(THREE, g, entry.height ?? null, entry.sink || 0));
+        if (material) entry.pool.mesh.material = material;
+        entry.onReady?.(entry.pool.mesh.geometry);
+      }
+    }, undefined, () => { /* the stand-ins simply remain */ });
+  }
+
+  return { upgrade, upgradeTextured, upgradeTexturedSet };
 }

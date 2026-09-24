@@ -35,8 +35,9 @@ export function flowFromPoints(pts) {
 }
 
 /* An award paid into the meter. Most awards also re-arm the hold; a gate
-   does not, because every gate on this mountain spans the whole piste and
-   staying on the piste is riding, not a trick. */
+   does not, because every gate on this mountain stands on the racing line
+   the groomed ribbon already marks, and riding that line is riding, not a
+   trick. */
 export function feedFlow(game, amount, hold = true) {
   game.flow = Math.min(1, game.flow + amount);
   if (hold) game.flowHold = SCORE.flowHold;

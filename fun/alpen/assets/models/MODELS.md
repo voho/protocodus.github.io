@@ -33,6 +33,58 @@ into one buffer, keeps its UVs and baseColor map, normalises it to the
 grown variant's height and swaps it into the live pool; `props.js`'s
 `photoMat` adds the up-facing snow dusting and the shared scene shading.
 
+### Forest floor and stones (added 2026-09-24)
+
+Also CC0 from Poly Haven, downloaded 2026-09-24 as the 1k glTF packages.
+Processed the same way with glTF-Transform 4 + meshoptimizer: the wanted
+nodes isolated, welded, and simplified per node with
+`simplifyPrimitive`. Ambient occlusion (the ARM map's red channel) is
+multiplied into the diffuse in linear light at 0.7–0.8 strength and the
+colour is desaturated by 8–10%. The result is written as WebP inside the
+GLB, and the normal and ARM maps are dropped. A "set" file keeps several
+objects as named nodes sharing one texture. `upgradeTexturedSet` feeds
+one pool per node from it, so the texture loads once.
+
+| file | source asset | nodes | in game as | tris |
+|---|---|---|---|---|
+| `fallen_log_01.glb` | dead_tree_trunk | `fallen_log_01` | fallen log, natural scale | 1.6k |
+| `fallen_trunk_02.glb` | dead_tree_trunk_02 | `fallen_trunk_02` | fallen broken trunk | 2.6k |
+| `deadfall_branches.glb` | dry_branches_medium_01 | `branch_a`, `branch_b`, `branch_c` | deadfall scatter | 1.2k / 0.7k / 0.7k |
+| `stone_granite_set.glb` | rock_moss_set_02 | `stone_10`, `stone_11`, `stone_13` (rocks 10, 11, 13) | granite stones | 1.3k each |
+
+The logs are solid and low enough to jump (a capsule of three circles
+along the trunk). The branches have no collision and no shadow. The
+granite stones join the scenic stone families.
+
+## Sapling impostor atlas
+
+`assets/textures/tree/sapling-impostors.webp` (1024 × 2048, RGBA) is a
+render of the Poly Haven **fir_sapling** and **pine_sapling_small** models
+(CC0, three saplings each). Their needles are real geometry, at 125–157k
+triangles per sapling, so they cannot be simplified to a game budget
+without losing the needles. Instead, each sapling was drawn in a headless
+three.js page from three bearings 60° apart. Each view is an orthographic
+camera looking along the normal of a vertical card through the trunk,
+with image-right along the card, at 768 px wide.
+
+The bake shader outputs albedo times:
+
+- a crown-occlusion term (0.42–1.0, from how deep a needle sits inside
+  its height band's 92nd-percentile envelope, times 0.72–1.0 towards the
+  foot);
+- a hemisphere term (0.8 + 0.2·nᵧ).
+
+Needle colour is desaturated 18% and cooled by (0.74, 0.84, 0.82). A snow
+load goes on up-facing, exposed needles in two scales of hashed clumps.
+
+The views are downsampled with premultiplied box filtering to 310 texels
+per metre and colour-dilated into the transparent gutter, then packed one
+sapling per row with 8 px padding. The atlas is WebP at quality 82 with
+lossless alpha. The UV rectangles and each sapling's frame (half-width
+`R` and height `H`, in metres) are the `SAPLINGS` table in `js/props.js`.
+In game, each view is a 3 × 3 card at the bearing it was drawn from:
+24 triangles per young tree.
+
 ## Card conifer atlas
 
 The needled tree species are card conifers built at runtime by

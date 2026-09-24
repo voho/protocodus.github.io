@@ -402,24 +402,6 @@ export const TERRAIN = {
     gather: 0.55, // metres of dish centred on the line: gravity points at it
   },
 
-  /* How hard a lit gate burns into the snow, and how far ahead the light
-     carries. The shader is in `terrain.js` and the reasoning with it; these
-     two are here because they are the only part of it worth a player's
-     opinion. The reach is deliberately shorter than the fog: a gate should
-     resolve out of the storm rather than be visible through it. */
-  gateGlow: 0.85,
-  gateGlowReach: 230,
-  /* …and what the next one is worth over the three behind it. The course was
-     legible as a course and mute as an instruction: four identical pools of
-     light down the hill say where the run goes and not which of them has to be
-     threaded in the next second and a half. Past about 1.0 the mix inside the
-     mouth saturates, so this is the number at which the leading gate stops
-     being one of a row and becomes a mark on the snow — which is exactly what
-     it should be, because it is the only one the rider can still do anything
-     about. The masts above it are promoted by the same rule; see `BEACON` in
-     `props.js`. */
-  gateLead: 1.7,
-
   /* Outside the corridor: a transition, a lip, and then a wall that cannot
      be climbed.
 
@@ -1823,10 +1805,11 @@ export const SCORE = {
      full meter to one caught edge is the kind of punishment that stops
      people trying tricks at all, which is the opposite of the point. */
   flowPerPoint: 0.0042,
-  /* A gate is worth little meter because it costs little: every gate spans
-     the whole piste, so the ladder is really a count of how long the run
-     has stayed on it. At 0.035 a clean descent with no tricks at all was
-     filling the bar by itself. */
+  /* A gate is worth little meter because it asks for little: every gate
+     stands on the racing line the groomed ribbon already marks, so the
+     ladder is really a count of how long the run has held that line. At
+     0.035 a clean descent with no tricks at all was filling the bar by
+     itself. */
   flowGate: 0.012,
   flowButter: 0.05,
   /* What riding alone is worth, and how the rest of the bar is held.
@@ -1917,7 +1900,8 @@ export const PROPS = {
   /* Where the forest is allowed to begin, measured out from the groomed edge.
      THE PISTE IS EMPTY. */
   verge: 2.2,
-  /* Slalom gates, and how wide the pair stands. */
+  /* Race gates: how far either side of the racing line each panel stands,
+     which is also how wide a gate scores. */
   gateHalf: 4.6,
   trees: {
     variants: 24,

@@ -5,10 +5,17 @@ import * as THREE from '../../../assets/vendor/three/three.module.min.js';
 // Run with: node tests/models-check.mjs
 const base = new URL('../', import.meta.url);
 // Geometry builders stay private in production; expose them only in this smoke check.
+// The glTF loader imports the bare specifier 'three', which node cannot
+// resolve; nothing here loads a file, so a module that imports it gets a stub.
+const upgraderStub = 'data:text/javascript;base64,' + Buffer.from(
+  'export function createModelUpgrader() { const none = () => {}; '
+  + 'return { upgrade: none, upgradeTextured: none, upgradeTexturedSet: none }; }',
+).toString('base64');
 async function load(file, exports = []) {
   const url = new URL('js/' + file, base);
   let source = await readFile(url, 'utf8');
   source = source.replace(/^import \{ GLTFLoader \}.*$/m, '')
+    .replace(/from\s+(['"])\.\/importedModels\.js\1/g, `from '${upgraderStub}'`)
     .replace(/from\s+(['"])(\.\.?\/[^'"]+)\1/g,
       (_, quote, path) => `from ${quote}${new URL(path, url).href}${quote}`)
     .replaceAll('import.meta.url', JSON.stringify(url.href));
@@ -111,6 +118,7 @@ for (let i = 0; i < 2; i++) {
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 3), new THREE.MeshBasicMaterial());
   mesh.position.set(i * 4, i, -i);
   mesh.scale.set(1 + i, 0.5, 1);
+  mesh.name = `part_${i}`;
   scene.add(mesh);
 }
 const baked = bakeTexturedGeometry(THREE, scene);
@@ -118,6 +126,39 @@ assert.equal(valid('indexed scan', baked), 24);
 assert.equal(baked.attributes.position.count, 48);
 assert.equal(baked.index.count, 72);
 assert.equal(baked.boundingBox.max.x, 5);
+// A set file feeds one pool per named node.
+const one = bakeTexturedGeometry(THREE, scene, 'part_1');
+assert.equal(valid('one node of a set', one), 12);
+assert.equal(one.boundingBox.min.x, 3, 'only the named node is baked');
+
+/* The race gate and the sapling impostors. The gate's fabric must be the only
+   thing that flutters, and pinned at both poles; each sapling is three cards
+   of eight triangles whose texture rectangles sit inside the atlas and keep
+   the aspect ratio of the frame the tree was drawn in (1024 × 2048). */
+const props = await load('props.js', ['raceGatePanelGeometry', 'saplingCardGeometry', 'SAPLINGS', 'GATE_PANEL']);
+const panel = props.raceGatePanelGeometry(THREE);
+assert.ok(valid('race gate panel', panel) <= 400, 'race gate triangle budget');
+const flutter = panel.attributes.aFlutter;
+const panelPos = panel.attributes.position;
+let moving = 0;
+for (let i = 0; i < flutter.count; i++) {
+  const x = panelPos.getX(i);
+  if (flutter.getX(i) > 0) moving++;
+  if (Math.abs(x) < 0.03 || Math.abs(x - props.GATE_PANEL.width) < 0.03) {
+    assert.equal(flutter.getX(i), 0, 'poles and collars never flutter');
+  }
+}
+assert.ok(moving > 20, 'the fabric ripples');
+for (const spec of props.SAPLINGS) {
+  const cards = props.saplingCardGeometry(THREE, spec);
+  assert.equal(valid('sapling ' + spec.name, cards), 24, 'three cards, eight triangles each');
+  assert.ok(Math.abs(cards.boundingBox.max.y - spec.H) < 1e-6, spec.name + ': drawn to its height');
+  for (const [u0, v0, u1, v1] of spec.views) {
+    assert.ok(u0 >= 0 && u1 <= 1 && v0 >= 0 && v1 <= 1 && u1 > u0 && v1 > v0, spec.name + ': rect in atlas');
+    const texelAspect = ((u1 - u0) * 1024) / ((v1 - v0) * 2048);
+    assert.ok(Math.abs(texelAspect / ((2 * spec.R) / spec.H) - 1) < 0.02, spec.name + ': view keeps its aspect');
+  }
+}
 
 const namespace = { ...THREE, TextureLoader: class {
   load() { return new THREE.Texture(); }

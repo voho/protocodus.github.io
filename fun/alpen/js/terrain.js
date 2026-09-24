@@ -1875,45 +1875,6 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   const snowAlbedo = { value: new THREE.Vector2(0.034, 0.030) };
   const snowHeight = { value: new THREE.Vector2(0.85, 0.72) };
 
-  /* THE LIT GATE, which is a light on the snow and not a light in the scene.
-
-     A slalom gate is two poles and a flag, and at a hundred metres in falling
-     snow that is two vertical lines about a pixel wide each. The thing the
-     player actually has to see is not the poles, it is the GAP — the piece of
-     hill they are supposed to ride through — and nothing was drawing that at
-     all.
-
-     Three ways to draw it were available and two of them are wrong here.
-
-     A real light costs a light slot in every material's loop and lights the
-     sky as readily as the ground. A decal — a quad laid on the snow — has to
-     conform to a hill with four octaves of relief on it, and at the grazing
-     angle a rider sees the ground from, a quad that is a hand's breadth out
-     anywhere along its nine metres reads as a floating sheet of paper.
-
-     So it goes in the ground's own fragment shader, where the geometry
-     problem does not exist: the pixel already knows exactly where on the
-     mountain it is, `vWorld` is already here for the corduroy, and the glow
-     is a function of that. It conforms perfectly because it is not a surface,
-     and it costs four distance tests on the one material that wants them.
-
-     The shape is two pools, one at each pole base, and deliberately NOT a
-     lozenge across the mouth: the distance is measured to the two poles
-     only (see the loop in the fragment patch), each with about two and a
-     half metres of reach, so the beacons light the snow they stand on and
-     the middle of the piste stays unlit. An earlier draft measured to the
-     segment between them and washed the whole mouth in colour.
-
-     `w` is the strength and zero means an unused slot, which is what keeps
-     the loop branchless-ish and lets the writer simply stop early. */
-  const GATE_SLOTS = 4;
-  const gateGlow = {
-    value: Array.from({ length: GATE_SLOTS }, () => new THREE.Vector4()),
-  };
-  const gateTint = {
-    value: Array.from({ length: GATE_SLOTS }, () => new THREE.Color()),
-  };
-
   /* WHERE THE TEXTURE COORDINATES COUNT FROM, and why they cannot count from
      the top of the mountain.
 
@@ -2079,8 +2040,6 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       uTileGroomZ: tileGroomZ,
       uSnowAlbedo: snowAlbedo,
       uSnowHeight: snowHeight,
-      uGateGlow: gateGlow,
-      uGateTint: gateTint,
     });
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>
@@ -2134,9 +2093,8 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
            is tiled, differentiated, or fetched with a gradient is built from
            this and its matching uTile* origin, and never from vWorld — see
            the note beside it in the vertex shader. vWorld stays true world
-           space for the things that genuinely need it: the gate glow subtracts
-           a gate's own world position from it, and the far field's phases and
-           patch noise are read at world scale on purpose. */
+           space for the things that genuinely need it: the far field's phases
+           and patch noise are read at world scale on purpose. */
         varying vec2 vLocal;
         uniform vec2 uTilePowderMacro;
         uniform vec2 uTilePowderDetail;
@@ -2147,8 +2105,6 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
         varying float vRock;
         varying float vRockKind;
         varying vec2 vGroomFrame;
-        uniform vec4 uGateGlow[${GATE_SLOTS}];
-        uniform vec3 uGateTint[${GATE_SLOTS}];
         uniform sampler2D uSnowPowder;
         uniform sampler2D uSnowGroomed;
         uniform sampler2D uRockTex;
@@ -2658,34 +2614,6 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
 
           normal = normalize(normal + mat3(viewMatrix)
             * vec3(n64FarSlopeX, 0.0, n64FarSlopeZ));
-        }`)
-      /* The gate lights, added to the lit colour and before the fog — so a
-         gate two hundred metres off glows through the storm exactly as much
-         as the storm allows, which is what makes it read as a light on a
-         mountain rather than a sticker on the screen.
-
-         `opaque_fragment` is where `outgoingLight` becomes `gl_FragColor`,
-         and after it is the last moment the colour is still linear. Adding
-         before tone mapping is the difference between a light and a paint
-         bucket: a bright gate on bright snow rolls off instead of clipping to
-         a flat disc of pure hue.
-         (No back-ticks in here: this comment is inside a template literal.) */
-      .replace('#include <opaque_fragment>', `#include <opaque_fragment>
-        for (int n64Gi = 0; n64Gi < ${GATE_SLOTS}; n64Gi++) {
-          vec4 n64Gate = uGateGlow[n64Gi];
-          if (n64Gate.w <= 0.0) continue;
-          // Distance to the two individual pole bases ONLY — leaving the middle piste unlit
-          float n64DistLeft = length(vWorld.xz - vec2(n64Gate.x - n64Gate.z, n64Gate.y));
-          float n64DistRight = length(vWorld.xz - vec2(n64Gate.x + n64Gate.z, n64Gate.y));
-          float n64PoleDist = min(n64DistLeft, n64DistRight);
-          float n64GateD = n64PoleDist * 0.38;
-          if (n64GateD >= 1.0) continue;
-          float n64GateA = n64Gate.w * exp(-2.8 * n64GateD * n64GateD)
-            * (1.0 - smoothstep(0.50, 1.0, n64GateD));
-          vec3 n64GateC = uGateTint[n64Gi];
-          gl_FragColor.rgb = mix(gl_FragColor.rgb,
-            gl_FragColor.rgb * n64GateC * 1.30 + n64GateC * 0.35,
-            min(n64GateA, 1.0));
         }`);
   };
   /* Keep direction-aware atmospheric fog and continuous Lambert response,
@@ -3615,59 +3543,9 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     shading.uniforms.uShadeLevel.value = level * shadeHealth;
   }
 
-  /* Which gates are lit, written once a frame by whoever owns the prop field.
-     Everything ahead of the rider and inside the falloff's reach is a
-     candidate; the four nearest win, because four is what the shader has and
-     a gate behind you is not a thing you are aiming at.
-
-     A taken gate keeps a low ember rather than going out. Snapping it off is
-     the version that was tried first and it looks like a bug — the light
-     vanishes at the exact moment the rider is between the poles and cannot
-     see why. Fading it says *that one is done* while the pair is still in
-     shot, which is the entire message. */
-  const gateWarm = new THREE.Color('#ffa818');
-  const gateCool = new THREE.Color('#ff7800');
-  const gateOrder = [];
-  function setGates(gates, riderZ) {
-    gateOrder.length = 0;
-    for (let i = 0; i < gates.length; i++) {
-      const g = gates[i];
-      // Ahead, and near enough that its glow would still reach the ground
-      const ahead = riderZ - g.z;
-      if (ahead < -12 || ahead > TERRAIN.gateGlowReach) continue;
-      gateOrder.push(g);
-    }
-    gateOrder.sort((a, b) => (riderZ - a.z) - (riderZ - b.z));
-    /* The one still to take, which is not simply the first of the four: the
-       window reaches twelve metres *behind* the rider so a gate does not go
-       out under their feet, and a gate ridden past — through the poles or
-       beside them — is finished either way. Whatever the boost is worth, it
-       has to land on the same pair the masts are flashing, or the ground says
-       one thing and the beacons say another. */
-    let lead = -1;
-    for (let i = 0; i < gateOrder.length; i++) {
-      if (gateOrder[i].taken || gateOrder[i].z > riderZ) continue;
-      lead = i;
-      break;
-    }
-    for (let i = 0; i < GATE_SLOTS; i++) {
-      const g = gateOrder[i];
-      const slot = gateGlow.value[i];
-      if (!g) { slot.set(0, 0, 0, 0); continue; }
-      /* The far end of the reach fades in rather than switching on, so a gate
-         entering the fourth slot does not appear as a disc of light. */
-      const near = 1 - Math.max(0, (riderZ - g.z) / TERRAIN.gateGlowReach);
-      const weight = g.taken ? 0.22 : i === lead ? TERRAIN.gateLead : 1;
-      slot.set(g.x, g.z, g.half, TERRAIN.gateGlow
-        * weight * (0.25 + 0.75 * near * near));
-      gateTint.value[i].copy(g.warm ? gateWarm : gateCool);
-    }
-  }
-
   return {
     mesh,
     setSun,
-    setGates,
     update,
     reset,
     snapSnowReady,
@@ -3681,11 +3559,6 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       anchorX, anchorY, anchorZ, morphing: false, morphAge: 0, anchorMul,
       reusedHeights, reusedSurfaces,
       chapter: chapterNameAt(anchorZ),
-      // What the four gate slots are lit with this frame — the only way to
-      // tell a glow that is in the wrong place from one that is not there
-      gates: gateGlow.value.map((g) => [
-        +g.x.toFixed(1), +g.y.toFixed(1), +g.z.toFixed(1), +g.w.toFixed(2),
-      ]),
       shade: {
         page: [shadePageSamplesX, shadePageSamplesZ],
         span: [shadePageSpanX, shadePageSpanZ],

@@ -15,9 +15,14 @@ These cover jump charge and timing, ballistic flight, trick landing assistance,
 input pulses, camera tracking, terrain continuity and determinism, shadow seams,
 model geometry budgets, shadow refresh timing, and adaptive rendering recovery.
 The flow check rides the real rider down three seeded mountains with the award
-rules from `main.js`: steering the line alone must stay a low multiplier and
-never fill the bar, while a rider landing a trick every few seconds must still
-reach it. It also pins the hold, fade and tuck-spend rules in `flow.js`.
+rules from `main.js` and the race gates where `props.js` plants them (a panel
+either side of the racing line on every guide slot): steering the line alone
+must stay a low multiplier and never fill the bar, while a rider landing a
+trick every few seconds must still reach it within a minute. It also pins the
+hold, fade and tuck-spend rules in `flow.js`.
+The model check also covers the race-gate panel (only its fabric may
+flutter) and the sapling impostor cards (24 triangles, atlas rectangles that
+keep each tree's drawn aspect), and that a set file bakes only the named node.
 The graphics check also places each sky plate: 2:1 panoramas wrap the ring,
 16:9 hour plates are laid out as mirrored landscapes at their own aspect, and
 a revealed photograph retires the relief shell.

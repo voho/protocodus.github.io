@@ -1,4 +1,5 @@
-/* Everything standing on the mountain: trees, shrubs, rocks and slalom gates.
+/* Everything standing on the mountain: trees, young trees, shrubs, deadwood,
+   rocks and race gates.
 
    The hill is filled a band at a time — forty metres of it — and every band
    is generated from its own index, so the same stretch of mountain always
@@ -102,7 +103,7 @@
 
 import {
   heightAt, nearestCenter, corridorHalfAt, centersAt, normalFrom, SNOWPACK,
-  chapterTreesAt,
+  chapterTreesAt, gateSlotsIn, guideAt,
 } from './terrain.js';
 import { createModelUpgrader } from './importedModels.js';
 import { growCardSpruce, createTwigAtlas } from './spruce.js';
@@ -368,6 +369,48 @@ const ALPINE = {
   },
 };
 
+/* The young forest: where saplings come up, how tall, and which species.
+
+   Firs regenerate in the shelter of the stand — along its edge and in the
+   gaps a fallen tree leaves — so the odds climb where the stand field is at
+   its steepest and with the understory. Pines take the exposed ground and
+   the high end of the run, where above the closed forest the few trees left
+   grow as low, wind-flattened krummholz; `krummholz` is how much wider and
+   shorter an exposed pine gets. Candidates use their own hash channels, so
+   none of this can move a tree, a rock or a gate. */
+const YOUNG = {
+  candidates: 18,
+  near: 1.4,          // metres past the groomed edge, before the crown
+  far: 46,
+  height: [0.8, 2.9],
+  heightBias: 1.45,   // mostly small, a few that are nearly trees
+  krummholz: [1.25, 1.75],
+};
+
+/* Timber on the forest floor. A log is placed only where there is forest to
+   have dropped it, lies along the ground it fell on, and is sunk `bury` of
+   its height into the snow. `length` and `radius` shape the stand-in the
+   pool shows until the scan arrives and the collision capsule along its
+   axis; `height` is the scan's own, branch stubs included. */
+const DEADWOOD = {
+  logCandidates: 3,
+  logs: [
+    { file: 'fallen_log_01.glb', length: 3.05, radius: 0.15, height: 0.29, bury: 0.34, scale: [1.15, 1.75] },
+    { file: 'fallen_trunk_02.glb', length: 4.05, radius: 0.30, height: 1.06, bury: 0.20, scale: [0.85, 1.20] },
+  ],
+  logNear: 3.0,
+  logFar: 40,
+  branchCandidates: 10,
+  branches: ['branch_a', 'branch_b', 'branch_c'],
+  branchNear: 0.6,
+  branchFar: 38,
+};
+
+/* How often each shrub slot is chosen: bare willow and alder scrub, the
+   dwarf mountain pine, and a cut stump — which is forestry, so it stands only
+   where the forest does. */
+const SHRUB_PICK = [0.46, 0.86];
+
 /* One line of shader, and the whole scheme rests on it.
 
    `<color_vertex>` leaves `vColor.rgb` holding the baked colour times the
@@ -390,10 +433,9 @@ const OWN_MIX = `#include <color_vertex>
 
 /* Wind, as the vertex shader sees it.
 
-   The forest and the piste-stake beacons share these two uniform records,
-   and `setAir` writes them once per frame — the same one-write-moves-
-   everything arrangement the shared shading uses for the sky. The lamps
-   take only the clock out of it; the wind is the forest's. The time wraps at 200π
+   The forest and the race-gate panels share these two uniform records, and
+   `setAir` writes them once per frame — the same one-write-moves-everything
+   arrangement the shared shading uses for the sky. The time wraps at 200π
    rather than growing forever because a float's precision does not: every
    frequency used below is a multiple of 0.01 Hz-ish, so `f * 200π` is a whole
    number of turns and the wrap is invisible.
@@ -430,74 +472,6 @@ const SWAY = `#include <begin_vertex>
   transformed.xz += n64Gust.xz * (0.02 * n64Wave * n64Up);
 }
 #endif`;
-
-/* THE GATE LAMP, and why a checkpoint is a light rather than a cloth.
-
-   A flag says where a gate is only while there is daylight on it and no
-   weather in the way, which on this mountain is a minority of the run: the
-   day cycles into dusk and aurora, and a storm takes the far distance long
-   before it takes the near. A lamp is the opposite — it is brightest exactly
-   when the snow has gone flat and grey, which is when a rider most needs to
-   know where the next gate is. So the pair of them are two lit masts, and the
-   course reads as a line of lights down the hill.
-
-   The mast is lit along its length rather than only at its head, and that is
-   a fix and not a flourish. A single lens on a two-and-a-half-metre pole is
-   under a pixel by the time it is far enough away to be useful, and there is
-   nothing else to see: in flat light the dark mast has already dissolved into
-   the snow behind it. Three bands up the pole and the lens above them are a
-   vertical dashed line, and a dashed line survives being two pixels wide,
-   because what reads at that size is not the shape but that something on that
-   bearing is brighter than the snow and blinking. The mast under the bands
-   also flies the panel colour now, so a gate says which way it wants to be
-   taken in daylight, when the beacon is the least of what is visible.
-
-   The flash is a function of the clock and nothing else, so it costs one
-   shader instruction and no per-frame work at all. Its phase comes from the
-   instance's world z, which has two consequences and both are wanted: the two
-   lamps of one gate sit at the same z and therefore flash *together*, so a
-   gate reads as one signal rather than two unrelated lights; and consecutive
-   gates are a hundred and fifty metres apart, so they land far enough apart in
-   phase that the run ahead ripples instead of strobing as one.
-
-   Sharpened with a power rather than left as a sine, because a beacon is
-   mostly dark with a snap in it — a sine reads as something slowly breathing.
-   The floor keeps the lens visible between flashes: an unlit gate that is
-   invisible for two thirds of a second is worse than no gate at all.
-
-   AND ONE OF THEM IS THE NEXT ONE, which the line of lights could not say.
-   Eight beacons rippling down the hill in the same colour at the same rate is
-   a course; it is not an instruction, and the gate a rider has to commit to
-   *now* was indistinguishable from the four behind it. `uNextGate` is that
-   gate's z, written once a frame by `setNextGate` — one float for the whole
-   field, because both masts of a pair stand at the same z and are therefore
-   promoted together, whole. What it buys the leader is a faster clock, its
-   own phase rather than a place in the downhill wave, and about twice the
-   output: it steps out of the ripple instead of riding it. */
-const LAMP_DECL = `
-uniform float uAirTime;
-uniform float uNextGate;`;
-
-/* Airfield runway guiding light shader: smooth pulsating wave flowing down the mountain */
-const PISTE_BEACON = `#include <color_vertex>
-{
-  float n64Ph = 0.0;
-  float n64Lead = 0.0;
-  #ifdef USE_INSTANCING
-    n64Ph = fract(instanceMatrix[3].z * 0.018) * 6.2832;
-    /* Promotion for the upcoming active waypoint gate pair */
-    n64Lead = 1.0 - smoothstep(1.0, 5.0, abs(instanceMatrix[3].z - uNextGate));
-  #endif
-  /* Airfield runway guiding wave: smooth progressive pulse running down the mountain */
-  float n64Rate = mix(3.2, 5.6, n64Lead);
-  float n64Wave = sin(uAirTime * n64Rate - instanceMatrix[3].z * 0.045 + n64Ph * 0.4);
-  float n64Norm = 0.5 + 0.5 * n64Wave;
-  float n64Flash = n64Norm * n64Norm * (3.0 - 2.0 * n64Norm);
-  #if defined( USE_COLOR ) || defined( USE_INSTANCING_COLOR )
-    // Warm airfield amber output with bright promotion on active leader
-    vColor.rgb *= (1.40 + 3.60 * n64Flash) * (1.0 + 1.20 * n64Lead);
-  #endif
-}`;
 
 /* The mask itself, built from the same array `compose` is about to eat.
 
@@ -1321,14 +1295,12 @@ function growCrag(THREE, seed, geos, palette) {
 }
 
 /* A winter shrub keeps its dark mass below the snow instead of becoming a
-   white scrap. One variant carries exaggerated bilberry/lingonberry clusters:
-   the fruit is still small, but large enough to survive motion and haze. */
-function growShrub(THREE, seed, geos, berries) {
+   white scrap. */
+function growShrub(THREE, seed, geos) {
   const rnd = stream(seed);
   const parts = [];
   const spent = [];
-  const foliage = berries ? '#40554a' : '#506057';
-  const fruit = berries ? ['#30364d', '#642f3f'] : [];
+  const foliage = '#506057';
 
   const twigCount = 7 + ((rnd() * 3) | 0);
   const stem = rnd() * TAU;
@@ -1365,19 +1337,6 @@ function growShrub(THREE, seed, geos, berries) {
         pos: [Math.cos(a) * off - 0.025, y + r * 0.54, Math.sin(a) * off],
         rot: [0, rnd() * TAU, 0],
         scale: [r * 0.84, r * 0.18, r * 0.76],
-      });
-    }
-  }
-
-  if (berries) {
-    const count = 8 + ((rnd() * 4) | 0);
-    for (let i = 0; i < count; i++) {
-      const a = rnd() * TAU;
-      const r = 0.18 + rnd() * 0.32;
-      parts.push({
-        geo: geos.berry, color: fruit[i % fruit.length], own: OWN_ALL,
-        pos: [Math.cos(a) * r, 0.38 + rnd() * 0.38, Math.sin(a) * r],
-        scale: [0.052, 0.052, 0.052],
       });
     }
   }
@@ -1485,55 +1444,6 @@ function growDwarfPine(THREE, seed, geos) {
           scale: [br * 1.05, br * 0.16, br * 0.75],
         });
       }
-    }
-  }
-  const geometry = compose(THREE, parts);
-  geometry.setAttribute('surfaceOwn', ownership(THREE, parts));
-  spent.forEach((g) => g.dispose());
-  return geometry;
-}
-
-/* Alpine Winter Heath with rust/burgundy blossoms */
-function growAlpineHeath(THREE, seed, geos) {
-  const rnd = stream(seed);
-  const parts = [];
-  const spent = [];
-  const heathTone = ['#5a464c', '#6d4847', '#4b5444'];
-  const bloomTone = ['#8b4859', '#a25562', '#7c3848'];
-
-  const lobeCount = 4 + ((rnd() * 2) | 0);
-  const base = rnd() * TAU;
-  for (let i = 0; i < lobeCount; i++) {
-    const a = base + (i / lobeCount) * TAU + (rnd() - 0.5) * 0.6;
-    const r = 0.22 + rnd() * 0.12;
-    const off = 0.10 + rnd() * 0.22;
-    const y = 0.14 + rnd() * 0.18;
-    const g = weather(THREE, geos.stone, rnd, 0.45);
-    spent.push(g);
-    parts.push({
-      geo: g, color: new THREE.Color(heathTone[i % heathTone.length]).multiplyScalar(0.9 + rnd() * 0.2),
-      own: OWN_ALL,
-      pos: [Math.cos(a) * off, y, Math.sin(a) * off],
-      rot: [(rnd() - 0.5) * 0.35, rnd() * TAU, (rnd() - 0.5) * 0.35],
-      scale: [r, r * 0.52, r * 0.9],
-    });
-    const bloomCount = 3 + ((rnd() * 3) | 0);
-    for (let k = 0; k < bloomCount; k++) {
-      const ba = rnd() * TAU;
-      const boff = r * (0.4 + rnd() * 0.5);
-      parts.push({
-        geo: geos.berry, color: bloomTone[k % bloomTone.length], own: OWN_ALL,
-        pos: [Math.cos(a) * off + Math.cos(ba) * boff, y + r * 0.35 + rnd() * 0.08, Math.sin(a) * off + Math.sin(ba) * boff],
-        scale: [0.048, 0.058, 0.048],
-      });
-    }
-    if (rnd() < 0.6) {
-      parts.push({
-        geo: g, color: SNOW, own: OWN_SNOW,
-        pos: [Math.cos(a) * off, y + r * 0.32, Math.sin(a) * off],
-        rot: [0, rnd() * TAU, 0],
-        scale: [r * 0.75, r * 0.14, r * 0.70],
-      });
     }
   }
   const geometry = compose(THREE, parts);
@@ -1708,71 +1618,162 @@ function waymarkGeometry(THREE) {
   return geometry;
 }
 
-/* Piste boundary stakes — slender fluorescent trail poles with iconic European
-   round run marker discs placed along the groomed corridor margins. */
-function pisteStakeGeometry(THREE) {
-  const pole = new THREE.CylinderGeometry(0.04, 0.04, 2.3, 8);
-  pole.translate(0, 1.15, 0);
-  const ring1 = new THREE.CylinderGeometry(0.05, 0.05, 0.20, 8);
-  ring1.translate(0, 2.10, 0);
-  const ring2 = new THREE.CylinderGeometry(0.05, 0.05, 0.16, 8);
-  ring2.translate(0, 1.65, 0);
-  const housing = new THREE.CylinderGeometry(0.065, 0.065, 0.12, 8);
-  housing.translate(0, 2.25, 0);
+/* One side of a race gate: an inner and an outer pole with the panel slung
+   between them, the way a giant-slalom course is actually set.
 
-  // Iconic round circular European alpine piste marker disc
-  const disc = new THREE.CylinderGeometry(0.25, 0.25, 0.035, 16);
-  disc.rotateX(Math.PI / 2);
-  disc.translate(0, 1.85, 0.04);
-  const discRim = new THREE.TorusGeometry(0.25, 0.022, 6, 16);
-  discRim.translate(0, 1.85, 0.04);
-  const discEmblem = new THREE.CylinderGeometry(0.09, 0.09, 0.04, 12);
-  discEmblem.rotateX(Math.PI / 2);
-  discEmblem.translate(0, 1.85, 0.045);
+   This replaced a line of lamp posts. Every eighteen metres down both edges
+   of the piste stood an orange mast with a glowing globe on it, pulsing like
+   runway lights, and every eighth pair of them was a scoring "gate" forty
+   metres wide. No mountain has that. A course that trains racers does: two
+   panels in the race colour, four to eight metres apart, on the fall line,
+   alternating red and blue down the hill.
 
-  const geometry = compose(THREE, [
-    { geo: pole, color: '#e66000' },     // Fluorescent boundary pole
-    { geo: ring1, color: '#1c2026' },
-    { geo: ring2, color: '#1c2026' },
-    { geo: housing, color: '#14181e' },
-    { geo: disc, color: '#d02020' },     // Red European piste run marker
-    { geo: discRim, color: '#ffffff' },  // White circular border
-    { geo: discEmblem, color: '#ffffff' }, // Piste run number badge
-  ]);
-  pole.dispose();
-  ring1.dispose();
-  ring2.dispose();
-  housing.dispose();
-  disc.dispose();
-  discRim.dispose();
-  discEmblem.dispose();
+   Local frame: the inner pole stands on the origin, the outer one `width`
+   out along +X, the fabric faces ±Z. The instance colour is the race colour
+   — everything here is white but the hinge collars, which stay dark under
+   any tint. The fabric's flutter weight is derived from position after the
+   merge (see `aFlutter`), so the poles and collars can never move. */
+const GATE_PANEL = {
+  width: 0.92,        // pole to pole, a little over the 75 cm of a real panel
+  bottom: 0.98,
+  top: 1.62,
+  pole: 1.92,         // metres of pole above the snow
+  bury: 0.18,
+};
+
+function raceGatePanelGeometry(THREE) {
+  const { width, bottom, top, pole, bury } = GATE_PANEL;
+  const shaft = new THREE.CylinderGeometry(0.017, 0.019, pole + bury, 8);
+  shaft.translate(0, (pole - bury) * 0.5, 0);
+  const collar = new THREE.CylinderGeometry(0.030, 0.030, 0.13, 8);
+  collar.translate(0, 0.12, 0);
+  const cap = new THREE.CylinderGeometry(0.021, 0.017, 0.07, 8);
+  cap.translate(0, pole + 0.02, 0);
+  /* The fabric is a sheet with enough rows to ripple, bellied a few
+     centimetres downwind so a still frame does not read as a sign. */
+  const cloth = new THREE.PlaneGeometry(width - 0.04, top - bottom, 8, 3);
+  cloth.translate(width * 0.5, (top + bottom) * 0.5, 0);
+  const cp = cloth.attributes.position;
+  for (let i = 0; i < cp.count; i++) {
+    const u = Math.min(1, Math.max(0, cp.getX(i) / width));
+    cp.setZ(i, 0.035 * Math.sin(Math.PI * u));
+  }
+  cloth.computeVertexNormals();
+  const parts = [];
+  for (const x of [0, width]) {
+    parts.push({ geo: shaft, color: '#ffffff', pos: [x, 0, 0] });
+    parts.push({ geo: collar, color: '#25282e', pos: [x, 0, 0] });
+    parts.push({ geo: cap, color: '#f2f2f2', pos: [x, 0, 0] });
+  }
+  parts.push({ geo: cloth, color: '#ffffff' });
+  const geometry = compose(THREE, parts);
+  const pos = geometry.attributes.position;
+  const flutter = new Float32Array(pos.count);
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    const y = pos.getY(i);
+    const inCloth = x > 0.03 && x < width - 0.03 && y > bottom - 0.02 && y < top + 0.02;
+    flutter[i] = inCloth ? Math.sin(Math.PI * (x / width)) : 0;
+  }
+  geometry.setAttribute('aFlutter', new THREE.BufferAttribute(flutter, 1));
+  for (const g of [shaft, collar, cap, cloth]) g.dispose();
   return geometry;
 }
 
-/* Luminous airfield runway beacon for piste stakes.
+/* YOUNG TREES, as impostors of real ones.
 
-   One globe, not three. This used to compose a 0.14 lens and a 0.26 inner
-   corona inside the 0.44 outer shell — language borrowed from an additive
-   halo that was never implemented: the pool draws an opaque MeshBasic, so
-   the outer icosahedron is the entire silhouette and the two shells inside
-   it were four hundred triangles per instance that no camera could ever
-   see. The soft halo itself is the post stack's job (the lamp is
-   `toneMapped: false`, so a lit beacon clears the bloom threshold). */
-function pisteStakeLampGeometry(THREE) {
-  const globe = new THREE.IcosahedronGeometry(0.44, 1);
-  const band1 = new THREE.CylinderGeometry(0.052, 0.052, 0.18, 8);
-  const band2 = new THREE.CylinderGeometry(0.052, 0.052, 0.14, 8);
+   The Poly Haven fir and pine saplings (CC0 photogrammetry-grade models) are
+   125 to 160 thousand triangles each, because every needle is geometry —
+   about eighteen thousand separate needles on the tallest fir. No mesh
+   simplifier survives that: it can only delete needles or melt them into a
+   green blob, and a young tree is nothing but its needles.
 
-  const geometry = compose(THREE, [
-    { geo: globe, pos: [0, 2.12, 0], color: '#ffffff' },
-    // Reflective luminous bands along the mast
-    { geo: band1, pos: [0, 1.80, 0], color: '#ffffff' },
-    { geo: band2, pos: [0, 1.40, 0], color: '#ffffff' },
-  ]);
-  globe.dispose();
-  band1.dispose();
-  band2.dispose();
-  return geometry;
+   So they were rendered instead — assets/models/MODELS.md describes the
+   bake: each sapling drawn from three bearings sixty degrees apart as
+   albedo, with the crown's own occlusion (a needle deep inside the envelope
+   of its height band sees less sky) and a light snow load on up-facing
+   exposed needles, packed with its alpha into one atlas. In game each view
+   is a card through the trunk at the bearing it was drawn from, so from any
+   side at least one card is facing the lens with the photographed tree on
+   it. Twenty-four triangles a tree.
+
+   `R` and `H` are the model's own half-width and height in metres, which is
+   the frame each view was drawn in; `views` are the three UV rectangles
+   [u0, v0, u1, v1] in three's flipY space. */
+const SAPLINGS = [
+  { name: 'fir_sapling_a', R: 0.4799, H: 1.3007, pine: false, views: [
+    [0.00781, 0.79932, 0.29883, 0.99609],
+    [0.30664, 0.79932, 0.59766, 0.99609],
+    [0.60547, 0.79932, 0.89648, 0.99609],
+  ] },
+  { name: 'fir_sapling_b', R: 0.435, H: 0.9516, pine: false, views: [
+    [0.00781, 0.65137, 0.27148, 0.79541],
+    [0.27930, 0.65137, 0.54297, 0.79541],
+    [0.55078, 0.65137, 0.81445, 0.79541],
+  ] },
+  { name: 'fir_sapling_c', R: 0.3911, H: 0.7357, pine: false, views: [
+    [0.00781, 0.53613, 0.24414, 0.64746],
+    [0.25195, 0.53613, 0.48828, 0.64746],
+    [0.49609, 0.53613, 0.73242, 0.64746],
+  ] },
+  { name: 'pine_sapling_small_a', R: 0.44, H: 1.299, pine: true, views: [
+    [0.00781, 0.33545, 0.27441, 0.53223],
+    [0.28223, 0.33545, 0.54883, 0.53223],
+    [0.55664, 0.33545, 0.82324, 0.53223],
+  ] },
+  { name: 'pine_sapling_small_b', R: 0.3843, H: 1.0456, pine: true, views: [
+    [0.00781, 0.17334, 0.24023, 0.33154],
+    [0.24805, 0.17334, 0.48047, 0.33154],
+    [0.48828, 0.17334, 0.72070, 0.33154],
+  ] },
+  { name: 'pine_sapling_small_c', R: 0.3026, H: 0.9613, pine: true, views: [
+    [0.00781, 0.02393, 0.19141, 0.16943],
+    [0.19922, 0.02393, 0.38281, 0.16943],
+    [0.39062, 0.02393, 0.57422, 0.16943],
+  ] },
+];
+
+/* Three cards through the trunk, each a 3 × 3 grid so the normal can do
+   what a crown does: lean out of the tree towards each edge and up towards
+   the top. Baked like the spruce cards' canopy normals, so the whole sapling
+   shades as one volume and the back of a card is lit exactly like its front. */
+function saplingCardGeometry(THREE, spec) {
+  const { R, H } = spec;
+  const pos = [];
+  const nrm = [];
+  const uv = [];
+  const index = [];
+  const n = new THREE.Vector3();
+  for (let k = 0; k < spec.views.length; k++) {
+    const phi = (k / spec.views.length) * Math.PI;
+    const dx = Math.cos(phi);
+    const dz = Math.sin(phi);
+    const [u0, v0, u1, v1] = spec.views[k];
+    const base = pos.length / 3;
+    for (let row = 0; row < 3; row++) {
+      const t = row / 2;
+      for (let col = 0; col < 3; col++) {
+        const s = col - 1;
+        pos.push(dx * s * R, t * H, dz * s * R);
+        n.set(dx * s * 0.8, 0.35 + 0.4 * t, dz * s * 0.8).normalize();
+        nrm.push(n.x, n.y, n.z);
+        uv.push(u0 + (col / 2) * (u1 - u0), v0 + t * (v1 - v0));
+      }
+    }
+    for (let row = 0; row < 2; row++) {
+      for (let col = 0; col < 2; col++) {
+        const a = base + row * 3 + col;
+        index.push(a, a + 1, a + 4, a, a + 4, a + 3);
+      }
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.setIndex(index);
+  g.computeBoundingSphere();
+  return g;
 }
 
 /* ==========================================================================
@@ -1894,14 +1895,6 @@ export function createProps(THREE, shading) {
   const air = {
     uAirTime: { value: 0 },
     uAirWind: { value: new THREE.Vector2() },
-  };
-
-  /* The beacons' own record: the forest's clock, shared by reference, plus
-     the one thing only they read. Far enough from any gate that nothing is
-     promoted until `setNextGate` has actually found one. */
-  const beacon = {
-    uAirTime: air.uAirTime,
-    uNextGate: { value: -1e9 },
   };
 
   /* The same, plus the one thing a tree needs that nothing else on the
@@ -2123,22 +2116,78 @@ export function createProps(THREE, shading) {
     return shading.apply(m, { cameraFade: true, sheen: 1, fogPull: FOG_PULL_STONE });
   };
 
-  /* The beacon lens material, flashed by the shared clock. Deliberately
-     unlit — a lamp that took the key light would go out at dusk, which is
-     the one hour it exists for — so this is the one material on the mountain
-     whose colour is its own output. It keeps three's fog, so a beacon still
-     dissolves into a storm at the same distance everything else does; one
-     burning at full strength through a whiteout would be the one object in
-     the scene claiming the weather does not apply to it. */
-  const pisteStakeLampMat = () => {
-    const m = new THREE.MeshBasicMaterial({ vertexColors: true, fog: true });
-    m.toneMapped = false;
+  /* The race panels: lit like everything else (a flag at dusk is a dusk
+     flag), coloured by the instance, and the fabric moving in the same wind
+     as the forest. The ripple runs across the panel from the poles, which
+     hold it, and grows with the weather's wind; the poles, collars and caps
+     carry a flutter weight of zero and never move. */
+  const gateMat = (() => {
+    const m = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
     m.onBeforeCompile = (shader) => {
-      Object.assign(shader.uniforms, beacon);
+      Object.assign(shader.uniforms, air);
       shader.vertexShader = shader.vertexShader
-        .replace('#include <common>', `#include <common>${LAMP_DECL}`)
-        .replace('#include <color_vertex>', PISTE_BEACON);
+        .replace('#include <common>', `#include <common>
+        attribute float aFlutter;
+        uniform float uAirTime;
+        uniform vec2 uAirWind;`)
+        .replace('#include <begin_vertex>', `#include <begin_vertex>
+        if (aFlutter > 0.0) {
+          float n64Ph = 0.0;
+          #ifdef USE_INSTANCING
+            n64Ph = fract(dot(instanceMatrix[3].xz, vec2(0.0713, 0.0417))) * 6.2832;
+          #endif
+          float n64Wind = min(length(uAirWind), 18.0);
+          float n64Ripple = sin(uAirTime * (4.6 + n64Wind * 0.35) - transformed.x * 7.5 + n64Ph) * 0.65
+            + sin(uAirTime * 9.7 - transformed.x * 15.0 + n64Ph * 1.7) * 0.35;
+          transformed.z += aFlutter * n64Ripple * (0.022 + n64Wind * 0.0045);
+        }`);
     };
+    return shading.apply(m);
+  })();
+
+  /* The sapling cards. Lambert over the photographed atlas, cut out by its
+     alpha with alpha-to-coverage on the multisampled world target, so the
+     needles' soft edges resolve instead of stair-stepping.
+
+     COVERAGE HAS TO SURVIVE THE MIP CHAIN. A needle is a fraction of a texel
+     wide at any distance worth drawing a sapling from, and averaging alpha
+     down the mips takes it under the cutout a level or two in: the crowns
+     thinned to a scatter of dashes by fifty metres. The alpha is lifted by
+     how far down the chain the fetch landed, which keeps a distant sapling as
+     dense as a near one (the technique from Golus's "Anti-aliased Alpha
+     Test").
+
+     Everything else is borrowed from the trees: the back-face normal flip is
+     undone because the baked canopy normals are right from either side, the
+     crowns sway in the forest's wind, and a storm settles snow on every
+     up-facing part of the crown by the dial the ground answers to. */
+  const saplingMat = (atlas) => {
+    const m = new THREE.MeshLambertMaterial({
+      map: atlas, alphaTest: 0.42, side: THREE.DoubleSide,
+    });
+    m.alphaToCoverage = true;
+    m.onBeforeCompile = (shader) => {
+      Object.assign(shader.uniforms, air, { uSwayHeight: { value: 1.3 } });
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', `#include <common>${AIR_DECL}`)
+        .replace('#include <begin_vertex>', SWAY);
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <map_fragment>', `#include <map_fragment>
+        {
+          vec2 n64Texel = vMapUv * vec2(1024.0, 2048.0);
+          float n64Lod = log2(max(max(length(dFdx(n64Texel)), length(dFdy(n64Texel))), 1.0));
+          diffuseColor.a = min(1.0, diffuseColor.a * (1.0 + n64Lod * 0.30));
+          float n64Up = dot(normalize(vNormal), viewMatrix[1].xyz);
+          float n64Load = smoothstep(0.20, 0.80, n64Up) * uSnowFresh;
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.839, 0.890, 0.957), n64Load * 0.45);
+        }`)
+        .replace('#include <normal_fragment_begin>', `#include <normal_fragment_begin>
+        normal = normalize( vNormal );
+        nonPerturbedNormal = normal;`);
+    };
+    shading.apply(m, { cameraFade: true, sheen: 1, fogPull: FOG_PULL_TREE });
+    const programKey = m.customProgramCacheKey();
+    m.customProgramCacheKey = () => `${programKey}|sapling`;
     return m;
   };
 
@@ -2483,23 +2532,8 @@ export function createProps(THREE, shading) {
   for (const pool of treePools) bindShadowPrefix(pool);
 
   // --- everything else ------------------------------------------------------
-  /* THE MAST, which now flies the gate's own colour.
-
-     It was a single dark grey for both panels, which meant the one thing on
-     the course carrying a left/right decision said nothing about it until the
-     lens above it happened to be mid-flash. The colour arrives per instance,
-     so the geometry only has to be a white mast for the instance to tint —
-     hence `compose` over a bare cylinder, which is here purely to give the
-     vertex colour attribute the tinted material needs. */
-  /* The old slalom-gate pole and beacon pools stood here. The stake-gate
-     rework replaced them — gates are pairs of piste stakes now, lit by
-     `pisteStakeLamps` — but the pools, their geometry and their compiled
-     BEACON material survived it, empty: nothing ever called `.add` on
-     either again. They spent a compiled program, two instance buffers and
-     a slot in every band snapshot to draw nothing, so they are gone. */
-
-  /* Five instanced calls make the ecology: one whole plant patch, two winter
-     shrubs and two stone families. Shapes, snow masks and colours are baked
+  /* The ecology's own instanced calls: plant patches, winter shrubs and the
+     stone families. Shapes, snow masks and colours are baked
      now, before renderer.compile warms them; streaming later rewrites only
      matrices. Small vegetation receives light but does not cast a flickering
      sub-pixel shadow. Boulder shadows use the same conservative band prefix
@@ -2516,11 +2550,14 @@ export function createProps(THREE, shading) {
     Math.ceil((bands * BIOMES.plantCandidates + 32) / plantVariants.length),
   ));
 
+  /* Three shrub slots, where there were five. The two that went were a
+     heath in pink bloom and a bilberry hung with fruit, both on snow in the
+     middle of winter; the young trees and the deadwood below took their
+     place. What is left is the bare willow and alder scrub, the dwarf mountain
+     pine and a cut stump — see `SHRUB_PICK` for how often each is chosen. */
   const shrubVariants = [
-    growShrub(THREE, 0x2b7f41, geos, false),
-    growShrub(THREE, 0x2b7f41 + 5827, geos, true),
+    growShrub(THREE, 0x2b7f41, geos),
     growDwarfPine(THREE, 0x2b7f41 + 9913, geos),
-    growAlpineHeath(THREE, 0x2b7f41 + 14421, geos),
     growWinterBramble(THREE, 0x2b7f41 + 19937, geos),
   ];
   const shrubPools = shrubVariants.map((grownGeo, i) => new Pool(
@@ -2528,9 +2565,15 @@ export function createProps(THREE, shading) {
     Math.ceil((bands * BIOMES.shrubCandidates + 48) / shrubVariants.length),
   ));
 
+  /* The first two are the hazard families and stay first: the verge
+     boulder picks between them by index. The three after them are granite
+     from one Poly Haven set, stand-ins until the scans land. */
   const boulderVariants = [
     growBoulder(THREE, 0x9d2b1f, geos, SNOWPACK.slate),
     growBoulder(THREE, 0x9d2b1f + 6151, geos, SNOWPACK.iron),
+    growBoulder(THREE, 0x9d2b1f + 11213, geos, SNOWPACK.slate),
+    growBoulder(THREE, 0x9d2b1f + 16301, geos, SNOWPACK.iron),
+    growBoulder(THREE, 0x9d2b1f + 21347, geos, SNOWPACK.slate),
   ];
   const rockPools = boulderVariants.map((grown) => new Pool(
     THREE, grown.geometry, stoneMaterial,
@@ -2556,6 +2599,7 @@ export function createProps(THREE, shading) {
   }
   rockPools[0].mesh.name = 'slate-boulders';
   rockPools[1].mesh.name = 'iron-boulders';
+  for (let i = 2; i < rockPools.length; i++) rockPools[i].mesh.name = `granite-stones-${i - 2}`;
 
   /* Real boulders — photoscanned ones now. Each pool trades its grown stone
      for a Poly Haven scan at the same height, wearing the scan's own
@@ -2567,11 +2611,16 @@ export function createProps(THREE, shading) {
   };
   {
     const scans = ['rock_07.glb', 'rock_09.glb'];
-    for (let i = 0; i < rockPools.length; i++) {
+    for (let i = 0; i < scans.length; i++) {
       upgrader.upgradeTextured(rockPools[i], scans[i],
         heightOfGrown(boulderVariants[i].geometry),
         (map) => photoMat(map, 0.62), 0.16);
     }
+    upgrader.upgradeTexturedSet('stone_granite_set.glb', ['stone_10', 'stone_11', 'stone_13']
+      .map((node, k) => ({
+        node, pool: rockPools[2 + k], sink: 0.14,
+        height: heightOfGrown(boulderVariants[2 + k].geometry),
+      })), (map) => photoMat(map, 0.62));
   }
 
   cragPools.forEach((p, i) => { p.mesh.name = `flank-crag-${i}`; });
@@ -2587,13 +2636,78 @@ export function createProps(THREE, shading) {
     }
   }
 
-  /* One of the five shrub slots becomes a photoscanned stump: forest floor
+  /* The last shrub slot becomes a photoscanned stump: forest floor
      furniture where the bramble used to be, same streaming, same bands. It
      keeps the shrubs' no-shadow trade, and being under a metre it never
      needed the wind. */
-  upgrader.upgradeTextured(shrubPools[4], 'tree_stump_01.glb',
-    heightOfGrown(shrubVariants[4]), (map) => photoMat(map, 0.55), 0.06);
-  for (const p of rockPools.concat(cragPools)) {
+  upgrader.upgradeTextured(shrubPools[2], 'tree_stump_01.glb',
+    heightOfGrown(shrubVariants[2]), (map) => photoMat(map, 0.55), 0.06);
+
+  /* --- the young forest and the deadwood --------------------------------
+
+     Real alpine woods are not a stand of full-grown conifers on clean snow.
+     The edge of a forest is where the young trees are — firs and pines a
+     metre or three tall, crowding every gap the old ones leave — and the
+     floor of it is timber: trunks that came down in a storm and lie half
+     buried, and the branches the snow broke off above them. Four kinds of
+     object, all Poly Haven (CC0); see assets/models/MODELS.md.
+
+     The saplings are impostor cards off one atlas (see `SAPLINGS`), six
+     pools sharing one material, casting through the same banded shadow
+     prefix as the trees. The logs are real scans at their own scale, solid
+     and low enough to jump. The branches are pure scatter: no collision, no
+     shadow, and invisible until their file lands, because nothing depends
+     on them. */
+  // Fully transparent until the atlas lands: the cutout discards every
+  // fragment, so a sapling is simply not there yet rather than a grey card.
+  const clearTex = new THREE.DataTexture(new Uint8Array([0, 0, 0, 0]), 1, 1, THREE.RGBAFormat);
+  clearTex.needsUpdate = true;
+  const saplingMaterial = saplingMat(clearTex);
+  texLoader.load(
+    new URL('../assets/textures/tree/sapling-impostors.webp', import.meta.url).href,
+    (t) => {
+      t.colorSpace = THREE.SRGBColorSpace;
+      t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+      t.anisotropy = 4;
+      saplingMaterial.map = t;
+    },
+  );
+  const saplingPools = SAPLINGS.map((spec) => {
+    const pool = new Pool(THREE, saplingCardGeometry(THREE, spec), saplingMaterial,
+      Math.ceil(bands * YOUNG.candidates * 0.5) + 16, true);
+    pool.mesh.name = `sapling-${spec.name}`;
+    return pool;
+  });
+
+  /* A log before its scan arrives is a plain cylinder of the right size, so
+     a collider is never standing on nothing for the second it takes. */
+  const logStandIn = (length, radius) => {
+    const g = new THREE.CylinderGeometry(radius * 0.9, radius, length, 10, 1);
+    g.rotateZ(Math.PI / 2);
+    g.translate(0, radius, 0);
+    return g;
+  };
+  const logStandInMat = shading.apply(new THREE.MeshLambertMaterial({ color: '#4a3f36' }));
+  const logPools = DEADWOOD.logs.map((spec) => {
+    const pool = new Pool(THREE, logStandIn(spec.length, spec.radius), logStandInMat,
+      bands * DEADWOOD.logCandidates + 8);
+    pool.mesh.name = `fallen-${spec.file.replace('.glb', '')}`;
+    upgrader.upgradeTextured(pool, spec.file, null, (map) => photoMat(map, 0.24));
+    return pool;
+  });
+
+  const branchPools = DEADWOOD.branches.map((node) => {
+    const pool = new Pool(THREE, new THREE.BufferGeometry(), logStandInMat,
+      Math.ceil(bands * DEADWOOD.branchCandidates * 0.5) + 8);
+    pool.mesh.name = `deadfall-${node}`;
+    pool.mesh.userData.noShadow = true;
+    return pool;
+  });
+  upgrader.upgradeTexturedSet('deadfall_branches.glb', DEADWOOD.branches
+    .map((node, k) => ({ node, pool: branchPools[k], sink: 0.28 })),
+  (map) => photoMat(map, 0.2));
+
+  for (const p of rockPools.concat(cragPools, saplingPools, logPools)) {
     p.shadowEnds = new Uint16Array(streamSpan + 1);
     shadowPools.push(p);
     bindShadowPrefix(p);
@@ -2628,19 +2742,13 @@ export function createProps(THREE, shading) {
   const waymarks = new Pool(
     THREE, waymarkGeometry(THREE), alpineMat, bands,
   );
-  const pisteStakes = new Pool(
-    THREE, pisteStakeGeometry(THREE), alpineMat, bands * 4 + 32,
-  );
-  const pisteStakeLamps = new Pool(
-    THREE, pisteStakeLampGeometry(THREE), pisteStakeLampMat(), pisteStakes.capacity, true,
-  );
-  pisteStakeLamps.mesh.userData.noShadow = true;
-  pisteStakeLamps.mesh.name = 'piste-stake-lamps';
+  // Two panels a gate, at most one gate slot a band.
+  const gatePanels = new Pool(THREE, raceGatePanelGeometry(THREE), gateMat, bands * 2 + 8, true);
+  gatePanels.mesh.name = 'race-gates';
   avalancheFences.mesh.name = 'avalanche-fences';
   waymarks.mesh.name = 'swiss-waymarks';
-  pisteStakes.mesh.name = 'piste-stakes';
 
-  for (const p of [avalancheFences, waymarks, pisteStakes, pisteStakeLamps]) p.cullable = true;
+  for (const p of [avalancheFences, waymarks, gatePanels]) p.cullable = true;
 
   const sphereHull = (pool) => {
     const geometry = pool.mesh.geometry;
@@ -2684,7 +2792,8 @@ export function createProps(THREE, shading) {
 
   const pools = [
     ...plantPools, ...shrubPools, ...rockPools, ...cragPools,
-    avalancheFences, waymarks, pisteStakes, pisteStakeLamps,
+    ...saplingPools, ...logPools, ...branchPools,
+    avalancheFences, waymarks, gatePanels,
   ];
   pools.forEach((p) => group.add(p.mesh));
   const allPools = pools.concat(treePools);
@@ -2707,6 +2816,11 @@ export function createProps(THREE, shading) {
      goes because the tree's snow is no longer listening. See the head of the
      file. The shrub tints that sat beside them went with the shrubs. */
   const centres = [0, 0];
+  const gateSlots = [];
+  // Race red and race blue, a little under full saturation so a panel in
+  // full sun on snow does not clip to a flat disc of hue.
+  const gateRed = new THREE.Color('#c01d27');
+  const gateBlue = new THREE.Color('#1b4db0');
   const courseAbove = [0, 0];
   const courseBelow = [0, 0];
   const bankNormal = new THREE.Vector3();
@@ -3128,7 +3242,9 @@ export function createProps(THREE, shading) {
         eco.heath, eco.understory, eco.avalanche * 0.45, eco.alpine * 0.35,
       ));
       if (hash2(b, 3100 + i, 223) > shrubCover * dynamicDensity) continue;
-      const v = Math.floor(hash2(b, 3120 + i, 223) * shrubPools.length);
+      const pick = hash2(b, 3120 + i, 223);
+      let v = pick < SHRUB_PICK[0] ? 0 : pick < SHRUB_PICK[1] ? 1 : 2;
+      if (v === 2 && eco.stand * down < 0.25) v = 0;
       const y = heightAt(x, z) - 0.05;
       const s = lerp(0.70, 1.85, hash2(b, 3140 + i, 223)) * (0.85 + 0.35 * thicketNoise);
       const sy = s * lerp(0.80, 1.30, hash2(b, 3180 + i, 223));
@@ -3153,7 +3269,12 @@ export function createProps(THREE, shading) {
       ecologyAt(x, z, eco);
       const rockCover = clamp01(0.12 + 0.50 * Math.max(eco.talus, eco.exposure));
       if (hash2(b, 3560 + i, 229) > rockCover) continue;
-      const v = hash2(b, 3580 + i, 229) < eco.exposure ? 0 : 1;
+      /* Two in five draw one of the granite scans; the rest keep the old
+         split, slate where the ground is exposed and iron where it is not. */
+      const family = hash2(b, 3580 + i, 229);
+      const v = family < 0.40
+        ? 2 + Math.min(2, Math.floor((family / 0.40) * 3))
+        : (hash2(b, 3585 + i, 229) < eco.exposure ? 0 : 1);
       const sx = s * lerp(0.85, 1.15, hash2(b, 3620 + i, 229));
       const sy = s * lerp(0.75, 1.08, hash2(b, 3640 + i, 229));
       const sz = s * lerp(0.85, 1.15, hash2(b, 3660 + i, 229));
@@ -3196,6 +3317,111 @@ export function createProps(THREE, shading) {
           kind: HARD, top: shape.top, cameraPad: 0.55, volume: true,
         });
       }
+    }
+
+    // --- the young forest -------------------------------------------------
+    for (let i = 0; i < YOUNG.candidates; i++) {
+      const z = z0 + hash2(b, 4100 + i, 241) * band;
+      const side = hash2(b, 4120 + i, 241) < 0.5 ? -1 : 1;
+      const draw = hash2(b, 4140 + i, 241);
+      const tall = lerp(YOUNG.height[0], YOUNG.height[1],
+        Math.pow(hash2(b, 4160 + i, 241), YOUNG.heightBias)) * lineScale;
+      /* A fir wants the stand's shelter and a pine takes what is left:
+         exposed shoulders, and the high run above the closed forest. */
+      const probeX = outerEdgeAt(z, side) + side * YOUNG.far * Math.pow(draw, 1.6);
+      ecologyAt(probeX, z, eco);
+      const edge = 4 * eco.stand * (1 - eco.stand);
+      const pine = hash2(b, 4180 + i, 241)
+        < clamp01(0.20 + 0.45 * eco.exposure + 0.45 * eco.alpine - 0.35 * eco.understory);
+      const v = (pine ? 3 : 0) + Math.min(2, Math.floor(hash2(b, 4200 + i, 241) * 3));
+      const spec = SAPLINGS[v];
+      const krummholz = pine && eco.alpine > 0.45
+        ? lerp(YOUNG.krummholz[0], YOUNG.krummholz[1], hash2(b, 4220 + i, 241)) : 1;
+      const sy = (tall / spec.H) / Math.sqrt(krummholz);
+      const sxz = (tall / spec.H) * krummholz;
+      const crown = spec.R * sxz;
+      // Clear of the corduroy by the crown's own reach, like the trees.
+      const distance = YOUNG.near + crown + (YOUNG.far - YOUNG.near) * Math.pow(draw, 1.6);
+      const x = vergeXAt(z, side, distance,
+        hash2(b, 4240 + i, 241), hash2(b, 4260 + i, 241));
+      const cover = clamp01(0.08 + 0.50 * edge * (0.4 + 0.6 * down)
+        + 0.30 * eco.understory + 0.32 * eco.alpine + 0.12 * eco.avalanche);
+      if (hash2(b, 4280 + i, 241) > cover * density) continue;
+      if (!clearOfBandHazards(x, z, crown, bandHazards, 1.0)) continue;
+      const ground = heightAt(x, z);
+      normalFrom(heightAt, x, z, floraNormal);
+      floraNormal.lerp(worldUp, 0.82).normalize();
+      // Standing in the snow rather than on it: the foot of a young tree is
+      // buried by the same drift that buries everything else.
+      const y = ground - tall * 0.05;
+      const yaw = hash2(b, 4300 + i, 241) * TAU;
+      const lift = 0.86 + 0.26 * hash2(b, 4320 + i, 241);
+      tint.setRGB(lift * (0.94 + 0.08 * hash2(b, 4340 + i, 241)), lift, lift * 1.02);
+      if (!saplingPools[v].addOnSlope(x, y, z, yaw, sxz, sy, sxz, floraNormal, tint)) continue;
+      solids.push({
+        x, z, r: Math.max(0.28, crown * 0.55), type: 'sapling', kind: SOFT,
+        top: y + spec.H * sy, drag: PROPS.shrubDrag * 0.85,
+      });
+    }
+
+    // --- deadwood ---------------------------------------------------------
+    /* Logs only fall where there was forest to drop them, and they are
+       solid: a buried trunk is exactly what a rider carving the verge finds.
+       Low enough to jump, and their collision is a capsule of three circles
+       along the trunk rather than one disc as long as the log. */
+    for (let i = 0; i < DEADWOOD.logCandidates; i++) {
+      const z = z0 + 4 + hash2(b, 4400 + i, 251) * (band - 8);
+      const side = hash2(b, 4410 + i, 251) < 0.5 ? -1 : 1;
+      const distance = lerp(DEADWOOD.logNear, DEADWOOD.logFar,
+        Math.pow(hash2(b, 4420 + i, 251), 1.1));
+      const x = outerEdgeAt(z, side) + side * distance;
+      ecologyAt(x, z, eco);
+      const woods = eco.stand * (0.25 + 0.75 * down) * lineCover;
+      if (hash2(b, 4430 + i, 251) > woods * 0.55 * density) continue;
+      const v = hash2(b, 4440 + i, 251) < 0.58 ? 0 : 1;
+      const spec = DEADWOOD.logs[v];
+      const scale = lerp(spec.scale[0], spec.scale[1], hash2(b, 4450 + i, 251));
+      const half = spec.length * 0.5 * scale;
+      if (!clearOfBandHazards(x, z, half, bandHazards, 1.5)) continue;
+      // Only where the ground is gentle enough to hold one: on a steep bank
+      // a trunk slides, and one drawn lying on it reads as sticking out of
+      // the snow. And across the slope rather than down it — a tree that
+      // comes down a hillside ends up along the contour.
+      normalFrom(heightAt, x, z, bankNormal);
+      if (bankNormal.y < 0.93) continue;
+      const across = courseYawAt(z, side) + Math.PI / 2;
+      const yaw = across + (hash2(b, 4460 + i, 251) - 0.5) * 1.0;
+      const y = heightAt(x, z) - spec.height * spec.bury * scale;
+      if (!logPools[v].addOnSlope(x, y, z, yaw, scale, scale, scale, bankNormal)) continue;
+      const ax = Math.cos(yaw);
+      const az = -Math.sin(yaw);
+      const r = Math.max(0.42, spec.radius * scale * 1.35);
+      const top = y + spec.height * scale;
+      const contact = { hit: false };
+      for (let k = -1; k <= 1; k++) {
+        solids.push({
+          x: x + ax * half * 0.62 * k, z: z + az * half * 0.62 * k,
+          r, type: 'log', kind: JUMPABLE, top, cameraPad: 0.3, volume: true, contact,
+        });
+      }
+    }
+
+    /* Branches the snow broke off: scatter under and around the stands,
+       lying flat and half buried. Decoration only — no collider, no shadow. */
+    for (let i = 0; i < DEADWOOD.branchCandidates; i++) {
+      const z = z0 + hash2(b, 4500 + i, 257) * band;
+      const side = hash2(b, 4520 + i, 257) < 0.5 ? -1 : 1;
+      const distance = lerp(DEADWOOD.branchNear, DEADWOOD.branchFar,
+        Math.pow(hash2(b, 4540 + i, 257), 1.15));
+      const x = vergeXAt(z, side, distance,
+        hash2(b, 4560 + i, 257), hash2(b, 4580 + i, 257));
+      ecologyAt(x, z, eco);
+      if (hash2(b, 4600 + i, 257) > (0.10 + 0.75 * eco.stand * down) * density) continue;
+      const v = Math.min(2, Math.floor(hash2(b, 4620 + i, 257) * 3));
+      const scale = lerp(1.0, 1.8, hash2(b, 4640 + i, 257));
+      normalFrom(heightAt, x, z, floraNormal);
+      branchPools[v].addOnSlope(x, heightAt(x, z) - 0.02, z,
+        hash2(b, 4660 + i, 257) * TAU, scale, scale, scale, floraNormal);
     }
 
     // --- alpine infrastructure --------------------------------------------
@@ -3286,46 +3512,26 @@ export function createProps(THREE, shading) {
       waymarks.add(x, y, z, yaw, scale, scale, scale);
     }
 
-    // --- piste boundary guide stakes & airfield waypoints ------------------
-    // Slender airfield guiding poles placed rhythmically along the outer
-    // left and right boundaries of the groomed corduroy. They frame the course
-    // down the mountain with warm airfield amber lights.
-    // Selected pairs along the runway act as the waypoint gates so we do not
-    // have duplicate poles or clutter the groomed track.
-    const stakeStep = 18;
-    const numStakes = Math.floor(band / stakeStep);
-    const stakeAirfield = new THREE.Color('#ff7800');
-    const stakeWaypoint = new THREE.Color('#ffa818');
-
-    for (let k = 0; k < numStakes; k++) {
-      const z = z0 + k * stakeStep + 9;
-      // Designate every 8th stake pair (~144m) as a scoring waypoint gate
-      const isWaypoint = (Math.round(-z / stakeStep) % 8 === 0);
-      const activeColor = isWaypoint ? stakeWaypoint : stakeAirfield;
-      const xLeft = outerEdgeAt(z, -1) - 0.35;
-      const xRight = outerEdgeAt(z, 1) + 0.35;
-      const yLeft = heightAt(xLeft, z);
-      const yRight = heightAt(xRight, z);
-      const yawLeft = courseYawAt(z, -1);
-      const yawRight = courseYawAt(z, 1);
-
-      pisteStakes.add(xLeft, yLeft, z, yawLeft, 1, 1, 1);
-      pisteStakeLamps.add(xLeft, yLeft, z, yawLeft, 1, 1, 1, tint.copy(activeColor));
-
-      pisteStakes.add(xRight, yRight, z, yawRight, 1, 1, 1);
-      pisteStakeLamps.add(xRight, yRight, z, yawRight, 1, 1, 1, tint.copy(activeColor));
-
-      if (isWaypoint) {
-        const midX = (xLeft + xRight) * 0.5;
-        const half = (xRight - xLeft) * 0.5;
-        gates.push({
-          x: midX,
-          z: z,
-          half: half,
-          taken: takenGates.has(z),
-          warm: true,
-        });
+    // --- race gates ---------------------------------------------------------
+    /* A panel either side of the racing line, on the slots the terrain's
+       own guide is drawn through — so every gate stands mid-corduroy on the
+       groomed ribbon, at a rhythm no band rebuild can disturb, alternating
+       red and blue the way a set course reads. The panels turn with the
+       line, and the gate is scored across `PROPS.gateHalf` either side of
+       it exactly as it is drawn. */
+    for (const slot of gateSlotsIn(z0, z0 + band, gateSlots)) {
+      const colour = slot.k % 2 === 0 ? gateRed : gateBlue;
+      const dx = guideAt(slot.z - 2) - guideAt(slot.z + 2);
+      const yaw = Math.atan2(-dx, 4);
+      for (const side of [-1, 1]) {
+        const x = slot.x + side * PROPS.gateHalf;
+        const y = heightAt(x, slot.z) - 0.02;
+        gatePanels.add(x, y, slot.z, side < 0 ? yaw + Math.PI : yaw, 1, 1, 1, colour);
       }
+      gates.push({
+        x: slot.x, z: slot.z, half: PROPS.gateHalf,
+        taken: takenGates.has(slot.z),
+      });
     }
   }
 
@@ -3607,28 +3813,6 @@ export function createProps(THREE, shading) {
     air.uAirWind.value.set(windX, windZ);
   }
 
-  /* Which pair the run is pointed at, handed to the beacons as a single z.
-
-     Downhill is negative, so the gate to take is the *largest* z still below
-     the rider among the ones that are neither crossed nor missed — both of
-     which `main.js` marks `taken`, because a gate you rode past is finished
-     whichever side of the poles you were on.
-
-     It is a scan and not a cached index because the list is rebuilt at every
-     band boundary and the rider can be put back onto the hill at a checkpoint
-     between two of them. The list is the streamed window, gates are a hundred
-     and fifty metres apart, and the window is under a kilometre: this walks
-     about five entries. */
-  function setNextGate(riderZ) {
-    let lead = -1e9;
-    for (let i = 0; i < gates.length; i++) {
-      const g = gates[i];
-      if (g.taken || g.z > riderZ || g.z <= lead) continue;
-      lead = g.z;
-    }
-    beacon.uNextGate.value = lead;
-  }
-
   /* Everything downhill of a point is an unridden course again.
 
      A restart resumes from the last gate taken, which is uphill of every gate
@@ -3662,13 +3846,17 @@ export function createProps(THREE, shading) {
       spacing: +(spacingByBand.get(currentBand) || 1).toFixed(2),
       plants: plantPools.reduce((sum, p) => sum + p.n, 0),
       shrubs: shrubPools.reduce((sum, p) => sum + p.n, 0),
-      scenicRocks: rockPools[0].n + rockPools[1].n - hazards.length,
+      scenicRocks: rockPools.reduce((sum, p) => sum + p.n, 0) - hazards.length,
+      saplings: saplingPools.reduce((sum, p) => sum + p.n, 0),
+      logs: logPools.reduce((sum, p) => sum + p.n, 0),
+      branches: branchPools.reduce((sum, p) => sum + p.n, 0),
+      gatePanels: gatePanels.n,
       hazards,
     };
   }
 
   return {
-    group, update, reset, setAir, setNextGate, reopenGatesBelow,
+    group, update, reset, setAir, reopenGatesBelow,
     solids, gates, debugBiomes,
   };
 }

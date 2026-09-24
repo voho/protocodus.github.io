@@ -997,6 +997,12 @@ function checkGates() {
     const g = gates[i];
     if (g.taken || g.z > zFrom || g.z <= zTo) continue;
     g.taken = true;
+    /* Every gate crossed is the checkpoint, threaded or not. A gate is a
+       pair of race panels on the racing line now, and a rider who misses
+       them all must not have R send them back to the last one they happened
+       to thread — which could be kilometres uphill. It respawns on the line
+       itself, which is the middle of the groomed ribbon. */
+    lastPassedGate = { x: g.x, z: g.z - 3.0 };
     const t = (zFrom - g.z) / (zFrom - zTo || 1);
     const x = prev.x + (rider.pos.x - prev.x) * t;
     if (Math.abs(x - g.x) > g.half) {
@@ -1008,12 +1014,12 @@ function checkGates() {
     award(pts, game.gateRun > 1 ? `GATE ×${game.gateRun}` : 'GATE', 'near');
     /* Taking the line is riding well, so it pays the meter — scaled by the
        run, because the fifth gate in a row is the one that was hard. It does
-       not hold the meter, though: every gate spans the piste, so a run of
-       them is the reward for staying on it, not a trick. */
+       not hold the meter, though: the gates stand on the racing line the
+       groomed ribbon already marks, so a run of them is the reward for
+       riding that line, not a trick. */
     feedFlow(game, SCORE.flowGate * Math.sqrt(game.gateRun), false);
     syncCombo();
     audio.chime(game.gateRun);
-    lastPassedGate = { x: g.x, z: g.z - 3.0 };
     if (spray) {
       spray.burst({ x: g.x, y: world.height(g.x, g.z) + 0.4, z: g.z }, 0, -6, 14, 1.2);
     }
@@ -1440,16 +1446,6 @@ function frame(now) {
     }
 
     huts.update(dt, rider, w, onCocoa);
-
-    /* The gates light the snow they stand on, and the ground's own shader is
-       what draws it — so this hands the terrain the nearest few and nothing
-       else. It runs here, with the rest of the world's per-frame state,
-       because the prop field's gate list is only rebuilt at band boundaries
-       and the *choice* of which four are lit has to follow the rider. The
-       beacons on the masts need the same answer for the same reason, and take
-       it as the one gate the run is actually pointed at. */
-    terrain.setGates(props.gates, rider.pos.z);
-    props.setNextGate(rider.pos.z);
 
     const center = nearestCenter(rider.pos.x, rider.pos.z);
     const half = corridorHalfAt(rider.pos.z);
