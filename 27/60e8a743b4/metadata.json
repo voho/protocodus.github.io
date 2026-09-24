@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "2760e8a743b4",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "fun/alpen/index.html",
+    "fun/alpen/js/config.js",
+    "fun/alpen/js/flow.js",
+    "fun/alpen/js/hud.js",
+    "fun/alpen/js/main.js",
+    "fun/alpen/tests/flow-check.mjs",
+    "fun/alpen/tests/hud-check.mjs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/27/60e8a743b4/0/metadata.json",
+      "transcript": "/27/60e8a743b4/0/full.jsonl",
+      "context": "/27/60e8a743b4/0/context.md",
+      "content_hash": "/27/60e8a743b4/0/content_hash.txt",
+      "prompt": "/27/60e8a743b4/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
