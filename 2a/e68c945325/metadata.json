@@ -3,7 +3,7 @@
   "checkpoint_id": "2ae68c945325",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "fun/alpen/assets/models/MODELS.md",
     "fun/alpen/assets/models/nature/deadfall_branches.glb",
@@ -43,13 +43,20 @@
       "context": "/2a/e68c945325/2/context.md",
       "content_hash": "/2a/e68c945325/2/content_hash.txt",
       "prompt": "/2a/e68c945325/2/prompt.txt"
+    },
+    {
+      "metadata": "/2a/e68c945325/3/metadata.json",
+      "transcript": "/2a/e68c945325/3/full.jsonl",
+      "context": "/2a/e68c945325/3/context.md",
+      "content_hash": "/2a/e68c945325/3/content_hash.txt",
+      "prompt": "/2a/e68c945325/3/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 290,
-    "cache_creation_tokens": 217817,
-    "cache_read_tokens": 19502791,
-    "output_tokens": 77621,
-    "api_call_count": 145
+    "input_tokens": 878,
+    "cache_creation_tokens": 1825581,
+    "cache_read_tokens": 178298731,
+    "output_tokens": 454994,
+    "api_call_count": 439
   }
 }
