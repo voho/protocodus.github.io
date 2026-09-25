@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createCampaign, beginLevel, spawnEnemy, spawnFormation, update, buyUpgrade, shipStats, selectWeapon } from '../sim.js';
+import { createCampaign, beginLevel, spawnEnemy, spawnFormation, update, buyUpgrade, shipStats, selectWeapon, killEnemy, buyPrimary, buySupply, START_LIVES } from '../sim.js';
 import { serializeRun, restoreRun, readCampaign, writeCampaign, clearCampaign, SAVE_KEY, LEGACY_SAVE_KEY } from '../save-game.js';
 
 let failures = 0;
@@ -364,6 +364,120 @@ check('invalid relationships, versions, statuses and oversized collections are r
   corrupt(record => { record.state.bullets = Array(1025).fill(record.state.bullets[0]); });
   corrupt(record => { record.damage = Array(24001).fill(['prop', 1]); });
   assert.equal(restoreRun(' '.repeat(4_000_001)), null);
+});
+
+check('mid-wave flights keep the script, hive, squadrons, dives, beams and drones step for step', () => seeded(71, () => {
+  const state = createCampaign(2), player = state.players[0];
+  Object.assign(player, { power: 3, drones: 2, bombs: 4, hurt: 1e6 });
+  let snapshot = null;
+  for (let t = 0; t < 120 && !snapshot; t += 1 / 60) {
+    update(state, 1 / 60, [{ x: Math.sin(t) }]); state.events.length = 0;
+    const diving = state.enemies.some(enemy => enemy.ai === 'dive'), entering = state.enemies.some(enemy => enemy.ai === 'entry');
+    if (diving && entering && state.squadrons.length && player.wing.length === 2) snapshot = true;
+  }
+  assert.ok(snapshot, 'reached a busy hive wave');
+  state.beams.push({ owner: state.enemies[0].id, angle: 1.2, t: .3, warn: .9, dx: 0, dy: 20 });
+  state.pickups.push({ x: 300, y: 300, age: 1, kind: 'power', value: 0, vx: 40, vy: -120, lock: .6 });
+  const restored = restoreRun(serializeRun(state)).state;
+  assert.deepEqual(restored.players, state.players);
+  assert.deepEqual(restored.director, state.director);
+  assert.deepEqual(restored.squadrons, state.squadrons);
+  assert.deepEqual(restored.beams, state.beams);
+  assert.deepEqual(restored.pickups, state.pickups);
+  for (let tick = 0; tick < 90; tick++) {
+    const input = [{ fire: tick % 3 > 0, x: tick % 40 < 20 ? 1 : -1, bomb: tick === 50 }];
+    seeded(100 + tick, () => update(state, 1 / 60, input));
+    seeded(100 + tick, () => update(restored, 1 / 60, input));
+  }
+  const a = JSON.parse(serializeRun(state)), b = JSON.parse(serializeRun(restored));
+  a.savedAt = b.savedAt = 0;
+  assert.deepEqual(b, a);
+  assert.deepEqual(restored.events, state.events);
+}));
+
+check('shop loadout, reserve ships and challenge results survive the hangar and a reload', () => {
+  const state = createCampaign(0);
+  killEnemy(state, spawnEnemy(state, 9, 600, 155));
+  for (let t = 0; t < 60 && state.status === 'playing'; t += 1 / 30) {
+    update(state, 1 / 30); state.events.length = 0;
+    for (const enemy of state.enemies) if (enemy.challenge && !enemy.dead && enemy.y > 0 && enemy.x > 0 && enemy.x < state.width && enemy.pathD >= 0) killEnemy(state, enemy);
+  }
+  assert.equal(state.status, 'hangar');
+  state.credits = 20000;
+  assert.ok(buyPrimary(state, 'lance')); assert.ok(buySupply(state, 'drone')); assert.ok(buySupply(state, 'life'));
+  const run = restoreRun(serializeRun(state));
+  assert.equal(run.scene, 'hangar');
+  assert.equal(run.state.primary, 'lance'); assert.deepEqual(run.state.owned, ['pulse', 'lance']);
+  assert.equal(run.state.players[0].drones, 1); assert.equal(run.state.lives, START_LIVES + 1 + (state.lives - START_LIVES - 1));
+  assert.equal(run.state.livesBought, 1);
+  assert.deepEqual(run.state.challenge, state.challenge); assert.deepEqual(run.state.stats, state.stats);
+  beginLevel(run.state, 1);
+  assert.equal(run.state.primary, 'lance'); assert.equal(run.state.players[0].drones, 1); assert.equal(run.state.challenge, null);
+});
+
+check('saves from before the wave director resume with a fresh script and default loadout', () => {
+  const record = JSON.parse(serializeRun(flight()));
+  for (const key of ['director', 'hive', 'squadrons', 'nextSquadId', 'challenge', 'beams', 'primary', 'owned', 'lives', 'livesBought', 'nextLife', 'respawn', 'stats']) delete record.state[key];
+  for (const player of record.state.players) for (const key of ['power', 'drones', 'bombs', 'guard', 'bombHeld', 'wing']) delete player[key];
+  const restored = restoreRun(record).state;
+  assert.equal(restored.primary, 'pulse'); assert.deepEqual(restored.owned, ['pulse']); assert.equal(restored.lives, START_LIVES);
+  assert.equal(restored.director.wave, -1); assert.deepEqual(restored.squadrons, []); assert.deepEqual(restored.beams, []);
+  assert.deepEqual([restored.players[0].power, restored.players[0].drones, restored.players[0].bombs, restored.players[0].wing.length], [0, 0, 3, 0]);
+  update(restored, 1 / 60, [{ fire: true }]);
+});
+
+check('corrupt scripted state is rejected', () => {
+  const state = createCampaign(1);
+  for (let t = 0; t < 6; t += 1 / 30) { update(state, 1 / 30); state.events.length = 0; }
+  state.players[0].drones = 1; update(state, 1 / 30);
+  const source = serializeRun(state);
+  const corrupt = edit => { const record = JSON.parse(source); edit(record); assert.equal(restoreRun(record), null); };
+  corrupt(record => { record.state.director.plan = ['hive', 'party']; });
+  corrupt(record => { record.state.director.plan = []; });
+  corrupt(record => { record.state.enemies[0].ai = 'teleport'; });
+  corrupt(record => { record.state.enemies[0].path = 'secret'; });
+  corrupt(record => { record.state.players[0].wing.push({ x: 1, y: 2 }, { x: 3, y: 4 }); });
+  corrupt(record => { record.state.pickups.push({ x: 1, y: 1, age: 0, kind: 'jackpot', value: 1 }); });
+  corrupt(record => { record.state.beams = [{ owner: 999999, angle: 0, t: 0, warn: 1, dx: 0, dy: 0 }]; });
+  corrupt(record => { record.state.squadrons = [{ id: 1, size: 2 }, { id: 1, size: 2 }]; });
+  const bounded = JSON.parse(source);
+  bounded.state.lives = 99; bounded.state.players[0].power = 99; bounded.state.players[0].bombs = -4; bounded.state.owned = ['pulse', 'railgun', 'scatter']; bounded.state.primary = 'lance';
+  const run = restoreRun(bounded).state;
+  assert.equal(run.lives, 5); assert.equal(run.players[0].power, 4); assert.equal(run.players[0].bombs, 0);
+  assert.deepEqual(run.owned, ['pulse', 'scatter']); assert.equal(run.primary, 'pulse', 'an unowned primary cannot be equipped from a save');
+});
+
+check('saving the step a lancer dies mid-beam succeeds, and a tractor pull round-trips exactly', () => {
+  const state = createCampaign(3); state.director.hold = true; state.bossSpawned = true;
+  const pilot = state.players[0]; pilot.hurt = 1e6;
+  const lancer = spawnEnemy(state, 5, pilot.x, 200);
+  Object.assign(lancer, { ai: 'station', stationX: pilot.x, stationY: 200, hold: 60, sway: 0, fire: 0 });
+  update(state, 1 / 60);
+  assert.equal(state.beams.length, 1);
+  state.bullets.push({ x: lancer.x, y: lancer.y + 30, px: lancer.x, py: lancer.y + 30, vx: 0, vy: -900, team: 0, damage: 1e6, radius: 4, life: 1 });
+  update(state, 1 / 60);
+  assert.ok(lancer.dead); assert.equal(state.beams.length, 0, 'the beam leaves with its lancer');
+  assert.ok(restoreRun(serializeRun(state)), 'the save is valid on the very step the lancer dies');
+  const beam = createCampaign(0), player = beam.players[0];
+  beam.director.wave = 5; beam.director.clock = 99; player.hurt = 1e6;
+  for (let t = 0; t < 8 && !(player.blastVy < -60); t += 1 / 60) {
+    const captor = beam.enemies.find(enemy => enemy.ai === 'captor');
+    update(beam, 1 / 60, [{ x: captor ? Math.sign(captor.x - player.x) * (Math.abs(captor.x - player.x) > 12) : 0 }]); beam.events.length = 0;
+  }
+  assert.ok(player.blastVy < -60, 'the tractor beam is pulling');
+  const restored = restoreRun(serializeRun(beam)).state;
+  for (let i = 0; i < 20; i++) { seeded(i, () => update(beam, 1 / 60)); seeded(i, () => update(restored, 1 / 60)); }
+  assert.deepEqual(restored.players, beam.players);
+});
+
+check('an older high-score save does not pay out every past extra-ship milestone at once', () => {
+  const record = JSON.parse(serializeRun(flight()));
+  record.state.score = 1_500_000; delete record.state.nextLife; delete record.state.lives;
+  const restored = restoreRun(record).state, credits = restored.credits;
+  assert.ok(restored.nextLife > restored.score);
+  update(restored, 1 / 60);
+  assert.equal(restored.lives, START_LIVES); assert.equal(restored.credits, credits);
+  assert.ok(!restored.events.some(event => event.type === 'extra-life'));
 });
 
 if (failures) process.exitCode = 1;

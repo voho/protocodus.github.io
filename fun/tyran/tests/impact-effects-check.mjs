@@ -163,7 +163,7 @@ try {
 
     const ending = await page.evaluate(() => {
       const fx = impactQA.effects, pilot = tyran.state.players[0];
-      fx.reset(); pilot.hull = 1; pilot.hurt = 0; pilot.invulnerableTime = 0;
+      fx.reset(); pilot.hull = 1; pilot.hurt = 0; pilot.invulnerableTime = 0; tyran.state.lives = 0;
       impactQA.hit(false, 1000); __impactFrame(0);
       const impact = impactQA.snapshot();
       __impactAdvance(3);

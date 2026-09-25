@@ -61,7 +61,7 @@ try {
       const pilot = tyran.state.players[0];
       tyran.state.pickups.push({ x: pilot.x, y: pilot.y, age: 0, kind: 'credit', value: 80 });
       tyran.step(1 / 60);
-      pilot.shield = 0; pilot.hull = 1; pilot.hurt = 0;
+      pilot.shield = 0; pilot.hull = 1; pilot.hurt = 0; tyran.state.lives = 0;
       hurtPlayer(tyran.state, pilot, 100); tyran.step(1 / 60);
       __pumpFrame(1100);
       const hadReward = effects.texts.some(text => text.text === '+80 CR');

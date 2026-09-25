@@ -172,6 +172,8 @@ try {
     const s = tyran.state; s.credits = 5000;
     s.players[0].hull = 62; s.players[0].shield = 3;
     killEnemy(s, spawnEnemy(s, 9, s.width / 2, 180)); tyran.step(3.4);
+    // Sector one continues into its challenging stage; let the formation pass.
+    if (s.challenge) { for (const enemy of s.enemies) if (enemy.challenge) enemy.gone = true; tyran.step(5); }
   });
   assert(await page.locator('#hangar-screen').isVisible());
   assert.equal((await record(page)).scene, 'hangar', 'Sector completion autosaves the shop');
@@ -181,7 +183,13 @@ try {
     assert.equal(await page.evaluate(id => tyran.state.upgrades[id], id), 1);
     assert.equal((await record(page)).state.upgrades[id], 1, `${id} purchase autosaves`);
   }
-  assert.equal(await page.locator('#weapon-list article[data-weapon]').count(), 2, 'The shop explains both directly controlled fire channels');
+  assert.equal(await page.locator('#weapon-list [data-primary]').count(), 3, 'The shop offers three primary guns');
+  assert.equal(await page.locator('#weapon-list article[data-weapon="plasma"]').count(), 1, 'The shop explains the secondary fire channel');
+  await page.locator('[data-primary="scatter"]').click();
+  assert.equal(await page.evaluate(() => tyran.state.primary), 'scatter');
+  assert.equal((await record(page)).state.primary, 'scatter', 'Buying a gun autosaves');
+  await page.locator('[data-supply="bomb"]').click();
+  assert.equal((await record(page)).state.players[0].bombs, 4, 'Supplies autosave');
   assert(await page.evaluate(credits => tyran.state.credits < credits, startingCredits), 'Upgrades spend earned credits');
   const shopFlight = await flight(page);
   await page.screenshot({ path: `${output}/autosaved-shop.png` });

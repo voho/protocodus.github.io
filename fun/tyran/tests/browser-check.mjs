@@ -95,6 +95,8 @@ try {
     const {spawnEnemy,killEnemy}=await import('./sim.js');
     killEnemy(tyran.state,spawnEnemy(tyran.state,9,tyran.state.width/2,180));
     tyran.step(3.4);
+    // Sector one continues into its challenging stage; let the formation pass.
+    if (tyran.state.challenge) { for (const enemy of tyran.state.enemies) if (enemy.challenge) enemy.gone = true; tyran.step(5); }
   });
   assert(await page.locator('#hangar-screen').isVisible());
   assert.equal(await page.evaluate(() => tyran.state.status), 'hangar');

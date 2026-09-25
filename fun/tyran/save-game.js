@@ -1,4 +1,6 @@
-import { createCampaign, MAX_UPGRADE, shipStats, normalizeWeapon, FORMATIONS, SECONDARY_ENERGY_COST } from './sim.js';
+import { createCampaign, MAX_UPGRADE, shipStats, normalizeWeapon, FORMATIONS, SECONDARY_ENERGY_COST, PRIMARIES, normalizePrimary,
+  MAX_POWER, MAX_DRONES, MAX_BOMBS, MAX_LIVES, START_LIVES, START_BOMBS, FIRST_EXTRA_LIFE, EXTRA_LIFE_STEP, RESPAWN_DELAY, RESPAWN_GUARD, PICKUP_KINDS, sectorDuration } from './sim.js';
+import { createDirector, WAVE_KINDS, AI_MODES, PATHS } from './waves.js';
 
 export const SAVE_KEY = 'tyran-campaign';
 export const LEGACY_SAVE_KEY = 'tyran-campaign-v1';
@@ -46,6 +48,43 @@ function color(value, fallback) {
   if (!/^#[\da-f]{6}$/i.test(result)) invalid();
   return result;
 }
+function optional(target, source, spec) {
+  // Newer flight fields are copied only when present, so older records keep
+  // their exact shape and fresh fields never appear on legacy actors.
+  for (const [key, [kind, min, max, allowed]] of Object.entries(spec)) {
+    const value = source[key];
+    if (value === undefined) continue;
+    if (kind === 'bool') target[key] = bool(value);
+    else if (kind === 'int') target[key] = integer(value, 0, min, max);
+    else if (kind === 'enum') { if (!allowed.includes(value)) invalid(); target[key] = value; }
+    else target[key] = number(value, 0, min ?? -100_000_000, max ?? 100_000_000);
+  }
+  return target;
+}
+const ENEMY_FIELDS = {
+  ai: ['enum', 0, 0, AI_MODES], path: ['enum', 0, 0, Object.keys(PATHS)], role: ['enum', 0, 0, ['midboss', 'captor']],
+  pathD: ['num'], pathSpeed: ['num', 0, 4000], mirror: ['int', -1, 1], pathOx: ['num', -4000, 4000], pathOy: ['num', -4000, 4000],
+  wave: ['int', -1, 64], squad: ['int', 0, 100_000], slotRow: ['int', 0, 8], slotCol: ['int', 0, 16], slotCount: ['int', 0, 16],
+  diveT: ['num', 0, 1000], diveX0: ['num'], diveY0: ['num'], diveSide: ['int', -1, 1], diveTx: ['num'], diveSpeed: ['num', 0, 4000],
+  diveWeave: ['num', 0, 400], diveHome: ['int', 0, 1], diveFired: ['int', 0, 8], returnToHive: ['bool'], leaveDx: ['num', -1, 1], leaveDy: ['num', -1, 1],
+  stationX: ['num'], stationY: ['num'], hold: ['num', -1000, 1000], sway: ['num', 0, 2000],
+  capState: ['int', 0, 3], capTimer: ['num', -1000, 1000], capBeams: ['int', 0, 16], capX: ['num'], capGrip: ['num', 0, 10], captive: ['int', 0, 1], captiveFire: ['num', -1000, 1000],
+  harmless: ['bool'], noFire: ['bool'], challenge: ['bool'], potshot: ['int', 0, 1], volley: ['int', 0, 8], gone: ['bool'], launch: ['num', -1000, 1000],
+};
+function restoreDirector(raw, level) {
+  if (raw === undefined) return createDirector(level);
+  if (!object(raw)) invalid();
+  const plan = list(raw.plan, 16).map(kind => { if (!WAVE_KINDS.includes(kind)) invalid(); return kind; });
+  if (!plan.length) invalid();
+  const director = { plan, ...fields(raw, { clock: 0, rest: 2.6, timeout: 0, dive: 3, potshot: 4, pendingAt: 0 }) };
+  director.wave = integer(raw.wave, -1, -1, plan.length);
+  director.kind = raw.kind === undefined || raw.kind === '' ? '' : WAVE_KINDS.includes(raw.kind) ? raw.kind : invalid();
+  director.state = raw.state === 'wave' ? 'wave' : raw.state === 'rest' || raw.state === undefined ? 'rest' : invalid();
+  director.pending = integer(raw.pending, 0, 0, 4);
+  director.hold = bool(raw.hold); director.done = bool(raw.done); director.abandon = bool(raw.abandon);
+  return director;
+}
+
 function coordinates(source) {
   if (!object(source) || !Number.isFinite(source.x) || !Number.isFinite(source.y)) invalid();
   return fields(source, { x: 0, y: 0, px: source.x, py: source.y, vx: 0, vy: 0 });
@@ -69,7 +108,7 @@ function restoreState(raw) {
   state.startLevel = integer(raw.startLevel, 0, 0, state.level);
   state.weapon = normalizeWeapon(raw.weapon);
   Object.assign(state, fields(raw, {
-    width: 1200, height: 900, time: 0, scroll: 0, duration: 90 + raw.level * 3,
+    width: 1200, height: 900, time: 0, scroll: 0, duration: sectorDuration(raw.level),
     credits: 0, score: 0, kills: 0, destroyed: 0, totalKills: 0,
     combo: 0, comboTime: 0, comboDamage: 1, comboBlast: 1,
     nextEnemyId: 1, nextFormationId: 1, formationTimer: 10.5,
@@ -81,6 +120,43 @@ function restoreState(raw) {
   state.comboDamage = number(raw.comboDamage, 1, 1, 1.27); state.comboBlast = number(raw.comboBlast, 1, 1, 1.38);
   state.comboLabel = string(raw.comboLabel, '', 24);
   state.bossSpawned = bool(raw.bossSpawned); state.bossDefeated = bool(raw.bossDefeated);
+  state.owned = PRIMARIES.map(weapon => weapon.id).filter(id => id === 'pulse' || list(raw.owned, 8).includes(id));
+  state.primary = state.owned.includes(normalizePrimary(raw.primary)) ? normalizePrimary(raw.primary) : 'pulse';
+  state.lives = integer(raw.lives, START_LIVES, 0, MAX_LIVES);
+  state.livesBought = integer(raw.livesBought, 0, 0, 20);
+  state.nextLife = number(raw.nextLife, FIRST_EXTRA_LIFE, FIRST_EXTRA_LIFE, 1_000_000_000);
+  // Older saves never tracked milestones: start from the next one ahead of the score.
+  if (raw.nextLife === undefined) while (state.nextLife <= state.score) state.nextLife += EXTRA_LIFE_STEP;
+  state.respawn = number(raw.respawn, 0, -1, RESPAWN_DELAY);
+  const rawStats = raw.stats === undefined ? {} : object(raw.stats) ? raw.stats : invalid();
+  state.stats = Object.fromEntries(['shots', 'hits', 'squads', 'dives', 'rescues'].map(key => [key, integer(rawStats[key], 0)]));
+  state.director = restoreDirector(raw.director, state.level);
+  state.hive = { age: raw.hive === undefined ? 0 : object(raw.hive) ? number(raw.hive.age, 0, 0, 100_000) : invalid() };
+  state.nextSquadId = integer(raw.nextSquadId, 1, 1);
+  const squadIds = new Set();
+  state.squadrons = list(raw.squadrons, 96).map(squad => {
+    if (!object(squad)) invalid();
+    const result = { id: integer(squad.id, 0, 1), size: integer(squad.size, 1, 1, 16), killed: integer(squad.killed, 0, 0, 16), broken: bool(squad.broken), wave: integer(squad.wave, 0, -1, 64) };
+    if (squad.challenge !== undefined) result.challenge = bool(squad.challenge);
+    if (squadIds.has(result.id)) invalid();
+    squadIds.add(result.id);
+    return result;
+  });
+  state.nextSquadId = Math.max(state.nextSquadId, ...state.squadrons.map(squad => squad.id + 1));
+  if (raw.challenge === undefined || raw.challenge === null) state.challenge = null;
+  else {
+    if (!object(raw.challenge)) invalid();
+    state.challenge = { clock: number(raw.challenge.clock, 0, 0, 1000), total: integer(raw.challenge.total, 40, 1, 64), hits: integer(raw.challenge.hits, 0, 0, 64),
+      done: bool(raw.challenge.done), result: number(raw.challenge.result, 0, 0, 100_000) };
+    if (raw.challenge.credits !== undefined) state.challenge.credits = integer(raw.challenge.credits, 0, 0, 100_000);
+  }
+  state.beams = list(raw.beams, 16).map(beam => {
+    if (!object(beam)) invalid();
+    const result = { owner: integer(beam.owner, 0, 1), angle: number(beam.angle, 0, -10, 10), t: number(beam.t, 0, 0, 10), warn: number(beam.warn, 1, 0, 5), dx: number(beam.dx, 0, -500, 500), dy: number(beam.dy, 0, -500, 500) };
+    if (beam.x !== undefined) { result.x = number(beam.x); result.y = number(beam.y); }
+    if (beam.fired !== undefined) result.fired = bool(beam.fired);
+    return result;
+  });
   const stats = shipStats(state.upgrades);
   if (raw.players.length !== raw.mode) invalid();
   state.players = raw.players.map((player, index) => {
@@ -101,9 +177,16 @@ function restoreState(raw) {
     result.mass = number(player.mass, stats.mass, .1, 10);
     result.radius = number(player.radius, 17, 1, 64);
     result.blastVx = number(player.blastVx, 0, -110, 110); result.blastVy = number(player.blastVy, 0, -110, 110);
+    result.power = integer(player.power, 0, 0, MAX_POWER);
+    result.drones = integer(player.drones, 0, 0, MAX_DRONES);
+    result.bombs = integer(player.bombs, START_BOMBS, 0, MAX_BOMBS);
+    result.guard = number(player.guard, 0, 0, RESPAWN_GUARD);
+    result.bombHeld = bool(player.bombHeld);
+    result.wing = list(player.wing, MAX_DRONES).map(drone => coordinates(drone)).map(({ x, y, px, py }) => ({ x, y, px, py }));
+    if (result.wing.length > result.drones) invalid();
     return result;
   });
-  if (state.status === 'playing' && !state.players.some(player => player.alive)) invalid();
+  if (state.status === 'playing' && !state.players.some(player => player.alive) && !(state.lives > 0 && state.mode === 1)) invalid();
   const turretIds = new Set();
   state.turrets = list(raw.turrets, 3).map(turret => {
     if (!object(turret)) invalid();
@@ -162,8 +245,10 @@ function restoreState(raw) {
       });
       if (result.weakPoints.length !== 4) invalid();
     }
+    optional(result, enemy, ENEMY_FIELDS);
     return result;
   });
+  for (const beam of state.beams) if (!enemyIds.has(beam.owner)) invalid();
   state.nextEnemyId = Math.max(state.nextEnemyId, 1, ...state.enemies.map(enemy => enemy.id + 1));
   state.nextFormationId = Math.max(state.nextFormationId, 1, ...state.formations.map(formation => formation.id + 1));
   state.bullets = list(raw.bullets, 1024).map(bullet => {
@@ -181,14 +266,17 @@ function restoreState(raw) {
       if (bullet[key] !== undefined) result[key] = number(bullet[key], 0, 0, max);
     }
     if (bullet.hitIds !== undefined) result.hitIds = list(bullet.hitIds, 128).map(id => integer(id, 0, 1));
+    if (bullet.drone !== undefined) result.drone = bool(bullet.drone);
+    if (bullet.ground !== undefined) result.ground = bool(bullet.ground);
     // Collision bounds are derived from the last movement segment.
     result.left = Math.min(result.x, result.px); result.right = Math.max(result.x, result.px);
     result.top = Math.min(result.y, result.py); result.bottom = Math.max(result.y, result.py);
     return result;
   });
   state.pickups = list(raw.pickups, 256).map(pickup => {
-    if (!object(pickup) || !['repair', 'credit', 'rapid', 'invulnerable'].includes(pickup.kind)) invalid();
-    return { x: number(pickup.x), y: number(pickup.y), age: number(pickup.age, 0, 0), kind: pickup.kind, value: integer(pickup.value, 40, 0, 100_000) };
+    if (!object(pickup) || !PICKUP_KINDS.includes(pickup.kind)) invalid();
+    const result = { x: number(pickup.x), y: number(pickup.y), age: number(pickup.age, 0, 0), kind: pickup.kind, value: integer(pickup.value, 40, 0, 100_000) };
+    return optional(result, pickup, { vx: ['num', -2000, 2000], vy: ['num', -2000, 2000], lock: ['num', 0, 5] });
   });
   if (raw.mode === 2) {
     // Continue the first surviving ship, preserving its exact resources and

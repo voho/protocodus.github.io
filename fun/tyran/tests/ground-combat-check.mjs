@@ -9,7 +9,7 @@ function check(name, fn) {
 }
 function quiet() {
   const state = createCampaign();
-  state.showcase = 9; state.spawnTimer = state.formationTimer = state.duration = Infinity;
+  state.showcase = 9; state.spawnTimer = state.formationTimer = state.duration = Infinity; state.director.hold = true;
   return state;
 }
 function advance(state, seconds, controls = [], targets = []) {

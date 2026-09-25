@@ -165,7 +165,7 @@ export class Effects {
       if (event.type !== 'phase' && !event.ground && !event.secondary) this.wrecks.push({ x: x - groundOffset, y: y - scroll, size, angle: random(0, TAU), age: 0 });
       this.shake = Math.min(23, this.shake + size * (event.ground ? .028 : .09));
       this.flash = Math.max(this.flash, boss ? .5 : event.player ? .24 : .03);
-      if (event.value) this.texts.push({ x, y, text: `+${event.value}`, life: 1.15, age: 0, color: '#f3debe' });
+      if (event.value) this.texts.push({ x, y, text: event.dive ? `+${event.value}  ×2` : `+${event.value}`, life: 1.15, age: 0, color: event.dive ? '#ffd27a' : '#f3debe' });
     } else if (event.type === 'spark') {
       this.reserveParticles(4);
       for (let i = 0; i < 4; i++) this.particle(x, y, random(-100, 100), random(10, 150), random(.1, .22), random(1, 3), '#ddffed');
@@ -199,6 +199,37 @@ export class Effects {
       this.rings.push({ x, y, age: 0, life: .2, radius: event.type === 'blocked' ? 15 : 25, color: event.type === 'blocked' ? '#ff8b78' : '#fff1a6' });
     } else if (event.type === 'weak-break') {
       this.emit({ type: 'explosion', x, y, size: size * 1.35, color: '#ffe36d' }, scroll, groundOffset);
+    } else if (event.type === 'nova') {
+      // A shockwave from the ship; every cancelled round becomes a gold spark.
+      this.rings.push({ x, y, age: 0, life: .75, radius: 1400, color: '#fff1c2' }, { x, y, age: 0, life: .55, radius: 820, color: '#8affd7' });
+      this.lights.push({ x, y, age: 0, life: .5, radius: 520, color: '#ffe8b0', fire: true });
+      const cancels = event.cancels || [];
+      this.reserveParticles(cancels.length * 2);
+      for (const [cx, cy] of cancels) for (let i = 0; i < 2; i++) this.particle(cx, cy, random(-60, 60), random(-120, 20), random(.35, .7), random(1.6, 2.8), '#ffe38a');
+      this.shake = Math.min(23, this.shake + 14); this.flash = Math.max(this.flash, .42);
+      if (cancels.length) this.texts.push({ x, y: y - 60, text: `${cancels.length} rounds cleared`, life: 1.4, age: 0, color: '#ffe8b0', size: 14 });
+    } else if (event.type === 'squadron') {
+      const color = event.challenge ? '#9bf6ff' : '#ffe36d';
+      this.texts.push({ x, y: y - 30, text: `Squadron +${event.bonus}`, life: 1.7, age: 0, color, size: 16 });
+      this.rings.push({ x, y, age: 0, life: .6, radius: 110, color });
+    } else if (event.type === 'captured' || event.type === 'rescue') {
+      const rescue = event.type === 'rescue', color = rescue ? '#8affd7' : '#ff7a8a';
+      const toX = event.toX ?? x, toY = event.toY ?? y, steps = 14;
+      this.reserveParticles(steps);
+      for (let i = 0; i < steps; i++) {
+        const t = i / (steps - 1);
+        this.particle(x + (toX - x) * t, y + (toY - y) * t, random(-20, 20), random(-20, 20), .25 + t * .35, random(2, 3.4), color);
+      }
+      this.rings.push({ x: rescue ? x : toX, y: rescue ? y : toY, age: 0, life: .5, radius: 70, color });
+      this.texts.push({ x, y: y - 24, text: rescue ? 'Drone rescued +1,500' : 'Drone captured', life: 1.6, age: 0, color, size: 15 });
+    } else if (event.type === 'respawn') {
+      this.rings.push({ x, y, age: 0, life: .6, radius: 180, color: '#a4ffee' }, { x, y, age: 0, life: .9, radius: 320, color: '#e7fff8' });
+    } else if (event.type === 'power-lost') {
+      this.rings.push({ x, y, age: 0, life: .35, radius: 60, color: '#ffb36b' });
+      this.texts.push({ x, y: y - 40, text: 'Power lost', life: 1, age: 0, color: '#ffb36b' });
+    } else if (event.type === 'beam') {
+      this.lights.push({ x, y, age: 0, life: .35, radius: 120, color: '#ff9ab8', fire: false });
+      this.shake = Math.min(18, this.shake + 3);
     }
     for (const key of CAPPED_STATES) keepNewest(this[key], EFFECT_LIMITS[key]);
   }

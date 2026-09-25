@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import { ENEMY_TYPES } from '../ships.js';
 import { createCampaign, beginLevel, update, spawnEnemy, killEnemy, hurtPlayer,
-  spawnFormation, selectWeapon, weaponStats, WEAPONS, buyUpgrade, upgradeCost, shipStats, UPGRADES, MAX_UPGRADE, applyStructureBlast, missionScrollSpeed, SECONDARY_ENERGY_COST, SECONDARY_RESTART_ENERGY } from '../sim.js';
+  spawnFormation, selectWeapon, weaponStats, WEAPONS, buyUpgrade, upgradeCost, shipStats, UPGRADES, MAX_UPGRADE, applyStructureBlast, missionScrollSpeed, SECONDARY_ENERGY_COST, SECONDARY_RESTART_ENERGY,
+  PRIMARIES, primaryStats, buyPrimary, buySupply, supplyCost, MAX_POWER, MAX_DRONES, MAX_BOMBS, MAX_LIVES, START_LIVES, FIRST_EXTRA_LIFE, RESPAWN_DELAY, challengeSector } from '../sim.js';
+import { sectorPlan, isDormant, hiveSlot, pathTable, pathPoint, PATHS, CHALLENGE_SIZE } from '../waves.js';
 import { serializeRun, restoreRun } from '../save-game.js';
 
 // Run with: node fun/tyran/tests/sim-check.mjs
@@ -57,12 +59,13 @@ check('mission scrolling accelerates within each sector, stays bounded, and rese
 check('accelerating terrain travels consistently at 30, 60 and 120 Hz', () => {
   const distances = [30, 60, 120].map(hz => {
     const state = createCampaign();
-    state.showcase = 9; state.spawnTimer = state.formationTimer = Infinity;
+    state.director.hold = true;
     let firstSecond = 0, lastSecondStart = 0;
-    for (let tick = 0; tick < 72 * hz; tick++) {
+    const seconds = Math.ceil(state.duration);
+    for (let tick = 0; tick < seconds * hz; tick++) {
       update(state, 1 / hz);
       if (tick === hz - 1) firstSecond = state.scroll;
-      if (tick === 71 * hz - 1) lastSecondStart = state.scroll;
+      if (tick === (seconds - 1) * hz - 1) lastSecondStart = state.scroll;
     }
     assert(state.scroll - lastSecondStart > firstSecond * 1.5, 'actual late-flight displacement increases');
     assert.equal(state.bossSpawned, false);
@@ -74,7 +77,7 @@ check('accelerating terrain travels consistently at 30, 60 and 120 Hz', () => {
 check('resuming preserves the speed ramp and ground targets receive the current scroll position', () => {
   const state = createCampaign(6);
   state.time = 63.25; state.scroll = 7432.5;
-  state.showcase = 9; state.spawnTimer = state.formationTimer = Infinity;
+  state.director.hold = true;
   const restored = restoreRun(serializeRun(state)).state;
   assert.equal(missionScrollSpeed(restored), missionScrollSpeed(state));
   let targetScroll;
@@ -304,18 +307,21 @@ check('boss armor blocks real shots between windows and weak points open fire la
   assert.ok(boss.hp < sealed, 'an exposed core can be damaged');
 });
 
-check('all ten sectors introduce all nine normal classes and one boss', () => seeded(7261, () => {
+check('all ten sectors fly every wave, introduce all nine normal classes and end with one boss', () => seeded(7261, () => {
   for (let level = 0; level < 10; level++) {
-    const state = createCampaign(level), seen = new Set();
+    const state = createCampaign(level), seen = new Set(), kinds = [];
     // Ignore damage only for this spawn-schedule check; balance trials use real HP.
     state.players[0].hurt = Infinity;
     let bossEvents = 0;
-    for (let t = 0; t < state.duration + 3; t += .05) {
+    for (let t = 0; t < 900 && !state.bossSpawned; t += .05) {
       update(state, .05);
-      state.enemies.forEach(e => seen.add(e.type));
+      state.enemies.forEach(e => { if (!isDormant(e)) seen.add(e.type); });
       bossEvents += state.events.filter(e => e.type === 'boss').length;
+      kinds.push(...state.events.filter(e => e.type === 'wave').map(e => e.kind));
       state.events.length = 0;
     }
+    update(state, .05); bossEvents += state.events.filter(e => e.type === 'boss').length;
+    assert.deepEqual(kinds, sectorPlan(level), `sector ${level + 1} flies its script in order`);
     assert.deepEqual([...seen].sort((a, b) => a - b), [0,1,2,3,4,5,6,7,8,9], `sector ${level + 1}`);
     assert.equal(bossEvents, 1, `sector ${level + 1}`);
     const boss = state.enemies.find(e => e.boss);
@@ -368,7 +374,7 @@ check('enemy destruction rewards once and boss clears remaining enemies', () => 
 }));
 
 check('boss destruction cancels hostile collisions later in the same frame', () => {
-  const state = isolated(), player = state.players[0];
+  const state = isolated(1), player = state.players[0];
   player.hull = 1; player.shield = 0; player.lastHit = 0;
   const boss = spawnEnemy(state, 9, 600, 155); boss.fire = 100;
   state.bullets = [bolt(600, 155, 0, 999999), bolt(player.x, player.y, -1, 99)];
@@ -384,10 +390,18 @@ check('every sector completes, pays its bonus once, and final sector wins', () =
   for (let level = 0; level < 10; level++) {
     const state = isolated(level), boss = spawnEnemy(state, 9, 600, 155);
     killEnemy(state, boss);
-    const priorCredits = state.credits, priorScore = state.score;
+    let priorCredits = state.credits, priorScore = state.score;
     advance(state, 3);
     assert.equal(state.status, 'playing');
     advance(state, .3);
+    if (challengeSector(state)) {
+      // Odd-numbered sectors fly a challenging stage before the shop.
+      assert.equal(state.status, 'playing'); assert.ok(state.challenge && !state.challenge.done);
+      for (let t = 0; t < 45 && !state.challenge.done; t += .025) { update(state, .025); state.events.length = 0; }
+      assert.ok(state.challenge.done); assert.equal(state.status, 'playing');
+      priorCredits = state.credits; priorScore = state.score;
+      advance(state, 3);
+    }
     assert.equal(state.status, level === 9 ? 'victory' : 'hangar');
     assert.equal(state.credits, priorCredits + 650 + level * 100);
     assert.equal(state.score, priorScore + 2500 * (level + 1));
@@ -399,6 +413,7 @@ check('every sector completes, pays its bonus once, and final sector wins', () =
 
 check('shields absorb first, damage immunity expires, and hull can be destroyed', () => {
   const state = isolated(), player = state.players[0];
+  state.lives = 0;
   hurtPlayer(state, player, 100);
   assert.equal(player.shield, 0);
   assert.equal(player.hull, 105);
@@ -450,7 +465,7 @@ check('shop rejects unavailable purchases and charges exactly through maximum ti
 });
 
 check('one pilot is restored with purchased upgrades next sector and defeat ends the flight', () => {
-  const state = isolated();
+  const state = isolated(1);
   killEnemy(state, spawnEnemy(state, 9, 600, 155)); advance(state, 3.3);
   assert.equal(state.status, 'hangar');
   assert(buyUpgrade(state, 'hull')); assert(buyUpgrade(state, 'shield'));
@@ -459,7 +474,7 @@ check('one pilot is restored with purchased upgrades next sector and defeat ends
   assert.equal(state.players.length, 1); assert.equal(state.players[0].id, 0);
   assert.equal(state.credits, credits); assert.equal(state.score, score);
   assert.equal(state.players[0].hull, 165); assert.equal(state.players[0].shield, 123);
-  hurtPlayer(state, state.players[0], 10000); update(state, .016);
+  state.lives = 0; hurtPlayer(state, state.players[0], 10000); update(state, .016);
   assert.equal(state.status, 'defeat');
 });
 
@@ -576,13 +591,331 @@ check('checkpoint restoration sanitizes upgrade tiers and preserves earned progr
   assert.equal(state.totalKills, 72);
 });
 
+// ——— Choreography, power, drones, novas, reserve ships and challenging stages ———
+function scripted(level = 0) {
+  const state = createCampaign(level);
+  state.players[0].hurt = Infinity;
+  return state;
+}
+function runUntil(state, predicate, seconds = 120, controls = []) {
+  for (let t = 0; t < seconds; t += 1 / 60) {
+    if (predicate(state)) return true;
+    update(state, 1 / 60, controls); state.events.length = 0;
+  }
+  return predicate(state);
+}
+
+check('flight paths are smooth, start offscreen and exit paths leave the arena', () => {
+  for (const name of Object.keys(PATHS)) for (const width of [430, 1200, 1900]) {
+    const table = pathTable(name, width), start = pathPoint(table, 0);
+    const x = width / 2 + start.x;
+    assert.ok(start.y < -80 || x < -60 || x > width + 60, `${name} begins out of sight at ${width}`);
+    let previous = start;
+    for (let d = 20; d <= table.length; d += 20) {
+      const point = pathPoint(table, d);
+      assert.ok(Math.hypot(point.x - previous.x, point.y - previous.y) < 21, `${name} has no jumps`);
+      previous = point;
+    }
+    if (PATHS[name].exit) {
+      const end = pathPoint(table, table.length), ex = width / 2 + end.x;
+      assert.ok(end.y > 1000 || end.y < -100 || ex < -60 || ex > width + 60, `${name} exits the arena`);
+    }
+  }
+});
+
+check('squadrons enter in conga lines, settle into a breathing hive and never collide with the HUD', () => seeded(31, () => {
+  const state = scripted(3);
+  assert.ok(runUntil(state, s => s.director.kind === 'hive' && s.director.clock > .1, 10));
+  const members = state.enemies.filter(enemy => enemy.wave === 0);
+  assert.equal(members.length, 28);
+  assert.ok(members.every(enemy => enemy.ai === 'entry'));
+  assert.ok(members.filter(isDormant).length > 20, 'later ships wait their turn offscreen');
+  assert.ok(runUntil(state, s => s.enemies.filter(enemy => enemy.ai === 'hive').length >= 12, 25));
+  const slots = state.enemies.filter(enemy => enemy.ai === 'hive').map(enemy => hiveSlot(state, enemy));
+  assert.ok(slots.every(slot => slot.y > 150 && slot.y < 400), 'the hive sits below the HUD and above the pilot');
+  assert.equal(new Set(slots.map(slot => `${Math.round(slot.x)}:${Math.round(slot.y)}`)).size, slots.length, 'every ship has its own slot');
+}));
+
+check('hive ships dive at the pilot, fire during the swoop, wrap to the top and return to their slot', () => seeded(44, () => {
+  const state = scripted(2);
+  let diver = null, fired = false;
+  for (let t = 0; t < 40 && !diver; t += 1 / 60) {
+    update(state, 1 / 60); fired ||= state.bullets.some(b => b.team < 0); state.events.length = 0;
+    diver = state.enemies.find(enemy => enemy.ai === 'dive' && enemy.slotCount && enemy.type !== 0);
+  }
+  assert.ok(diver, 'a ship leaves the hive to dive');
+  const id = diver.id;
+  let wrapped = false, lowest = 0;
+  for (let t = 0; t < 12; t += 1 / 60) {
+    update(state, 1 / 60); fired ||= state.bullets.some(b => b.team < 0); state.events.length = 0;
+    const ship = state.enemies.find(enemy => enemy.id === id);
+    if (!ship) break;
+    lowest = Math.max(lowest, ship.y);
+    if (ship.ai === 'join' && ship.y < 100) wrapped = true;
+    if (wrapped && ship.ai === 'hive') break;
+  }
+  assert.ok(lowest > state.height * .75, 'the dive reaches the pilot lane');
+  assert.ok(wrapped, 'the diver reappears above the arena');
+  assert.ok(fired, 'divers return fire');
+}));
+
+check('a ship destroyed mid-dive is worth double', () => {
+  const calm = scripted(), diving = scripted();
+  for (const state of [calm, diving]) { state.director.hold = true; state.bossSpawned = true; }
+  const a = spawnEnemy(calm, 2, 400, 300), b = spawnEnemy(diving, 2, 400, 300);
+  b.ai = 'dive';
+  killEnemy(calm, a); killEnemy(diving, b);
+  assert.equal(diving.score, calm.score * 2);
+  assert.equal(diving.stats.dives, 1);
+});
+
+check('wiping a whole squadron pays once; an escapee cancels the bonus', () => {
+  const state = scripted(); state.director.hold = true;
+  const squad = { id: 7, size: 3, killed: 0, broken: false, wave: 0 };
+  state.squadrons.push(squad);
+  const ships = [0, 1, 2].map(i => Object.assign(spawnEnemy(state, 1, 300 + i * 80, 300), { squad: 7 }));
+  killEnemy(state, ships[0]); killEnemy(state, ships[1]);
+  const before = state.score;
+  killEnemy(state, ships[2]);
+  assert.ok(state.events.some(event => event.type === 'squadron'));
+  assert.ok(state.score > before + 200);
+  assert.equal(state.stats.squads, 1);
+  assert.ok(state.pickups.some(pickup => pickup.kind === 'power'), 'the first wiped squadron drops a power core');
+  const broken = scripted(); broken.director.hold = true;
+  broken.squadrons.push({ id: 9, size: 2, killed: 0, broken: false, wave: 0 });
+  const [stay, leave] = [0, 1].map(i => Object.assign(spawnEnemy(broken, 1, 300 + i * 80, 300), { squad: 9 }));
+  Object.assign(leave, { ai: 'leave', leaveDx: 0, leaveDy: -1, y: -400 });
+  update(broken, 1 / 60); broken.events.length = 0;
+  killEnemy(broken, stay);
+  assert.ok(!broken.events.some(event => event.type === 'squadron'));
+});
+
+check('the sector director advances wave by wave to the guardian when the sky is cleared', () => seeded(5, () => {
+  const state = scripted(0), waves = [];
+  for (let t = 0; t < 400 && !state.bossSpawned; t += 1 / 30) {
+    update(state, 1 / 30);
+    waves.push(...state.events.filter(event => event.type === 'wave').map(event => event.wave));
+    state.events.length = 0;
+    for (const enemy of state.enemies) if (!enemy.dead && !isDormant(enemy) && enemy.y > 0 && enemy.y < state.height && enemy.x > 0 && enemy.x < state.width) killEnemy(state, enemy);
+  }
+  assert.ok(state.bossSpawned);
+  assert.deepEqual(waves, sectorPlan(0).map((_, index) => index + 1));
+  assert.ok(state.time < 200, `cleared quickly, sector took ${state.time.toFixed(1)}s`);
+}));
+
+check('power cores widen every primary, cap at five levels, and a hull breach knocks one loose', () => {
+  for (const weapon of PRIMARIES) {
+    const counts = [];
+    for (let power = 0; power <= MAX_POWER; power++) {
+      const state = isolated(); state.primary = weapon.id; state.players[0].power = power;
+      counts.push(primaryStats(state).count);
+      const dps = primaryStats(state).volley.reduce((sum, bolt) => sum + (bolt[2] ?? 1), 0) * primaryStats(state).damage / primaryStats(state).interval;
+      if (power) assert.ok(dps > counts.dps, `${weapon.id} power ${power + 1} is stronger`);
+      counts.dps = dps;
+    }
+    for (let i = 1; i < counts.length; i++) assert.ok(counts[i] >= counts[i - 1], `${weapon.id} volley never shrinks`);
+  }
+  const state = isolated(), player = state.players[0];
+  for (let i = 0; i < 6; i++) { state.pickups.push({ x: player.x, y: player.y, age: 0, kind: 'power', value: 0 }); update(state, 1 / 60); }
+  assert.equal(player.power, MAX_POWER);
+  hurtPlayer(state, player, 20);
+  assert.equal(player.power, MAX_POWER, 'shield-absorbed hits keep power');
+  player.shield = 0; player.hurt = 0;
+  hurtPlayer(state, player, 20);
+  assert.equal(player.power, MAX_POWER - 1);
+  const core = state.pickups.find(pickup => pickup.kind === 'power');
+  assert.ok(core && core.lock > 0, 'the dropped core cannot be collected instantly');
+  update(state, 1 / 60); assert.equal(player.power, MAX_POWER - 1);
+  update(state, 1.2); for (let i = 0; i < 90 && player.power < MAX_POWER; i++) update(state, 1 / 60, [{ x: Math.sign(core.x - player.x), y: Math.sign(core.y - player.y) }]);
+  assert.equal(player.power, MAX_POWER, 'the loose core can be caught again');
+});
+
+check('the shop sells primaries once, equips owned guns and caps supplies', () => {
+  const state = isolated(); state.status = 'hangar'; state.credits = 100000;
+  assert.equal(buyPrimary(state, 'scatter'), true); assert.equal(state.primary, 'scatter');
+  const afterScatter = state.credits;
+  assert.equal(buyPrimary(state, 'pulse'), true); assert.equal(buyPrimary(state, 'scatter'), true);
+  assert.equal(state.credits, afterScatter, 'owned guns switch for free');
+  assert.equal(buyPrimary(state, 'railgun'), false);
+  for (let i = 0; i < 9; i++) buySupply(state, 'drone');
+  assert.equal(state.players[0].drones, MAX_DRONES);
+  for (let i = 0; i < 9; i++) buySupply(state, 'bomb');
+  assert.equal(state.players[0].bombs, MAX_BOMBS);
+  const first = supplyCost(state, 'life'); buySupply(state, 'life');
+  assert.ok(supplyCost(state, 'life') > first, 'reserve ships grow more expensive');
+  for (let i = 0; i < 9; i++) buySupply(state, 'life');
+  assert.equal(state.lives, MAX_LIVES);
+  state.status = 'playing'; assert.equal(buySupply(state, 'bomb'), false);
+  beginLevel(state, 2);
+  assert.equal(state.primary, 'scatter'); assert.equal(state.players[0].drones, MAX_DRONES); assert.equal(state.players[0].bombs, MAX_BOMBS);
+  const retry = createCampaign(2, state);
+  assert.equal(retry.primary, 'scatter'); assert.deepEqual(retry.owned, ['pulse', 'scatter']);
+  update(state, .01, [{ fire: true }]);
+  assert.ok(state.bullets.filter(b => b.kind === 'scatter').length >= 3);
+  assert.equal(state.bullets.filter(b => b.drone).length, 2, 'each drone echoes the primary volley');
+});
+
+check('wing drones follow in formation and soak up hostile rounds', () => {
+  const state = isolated(), player = state.players[0];
+  player.drones = 2; advance(state, .5);
+  assert.equal(player.wing.length, 2);
+  assert.ok(player.wing[0].x < player.x && player.wing[1].x > player.x);
+  const drone = player.wing[1];
+  state.bullets.push({ ...bolt(drone.x, drone.y - 30, -1, 50, 0, 300), kind: 'hostile' });
+  const hull = player.hull, shield = player.shield;
+  advance(state, .2);
+  assert.equal(state.bullets.filter(b => b.team < 0).length, 0);
+  assert.deepEqual([player.hull, player.shield], [hull, shield]);
+});
+
+check('a captor steals a drone with its tractor beam, and destroying it brings the drone home', () => {
+  const state = createCampaign(0), player = state.players[0];
+  state.director.wave = 5; state.director.clock = 99; player.drones = 2; player.hurt = Infinity;
+  let captor = null;
+  for (let t = 0; t < 12 && !captor?.captive; t += 1 / 60) {
+    captor = state.enemies.find(enemy => enemy.ai === 'captor');
+    const dx = captor ? Math.sign(captor.x - player.x) * (Math.abs(captor.x - player.x) > 12) : 0;
+    update(state, 1 / 60, [{ x: dx }]); state.events.length = 0;
+  }
+  assert.ok(captor?.captive, 'the beam captures a drone');
+  assert.equal(player.drones, 1);
+  let captiveShot = false;
+  for (let t = 0; t < 4; t += 1 / 60) { update(state, 1 / 60); captiveShot ||= state.bullets.some(b => b.team < 0 && b.y > captor.y + captor.radius); state.events.length = 0; }
+  assert.ok(captiveShot, 'the captured drone fires on its pilot');
+  killEnemy(state, captor);
+  assert.equal(player.drones, 2);
+  assert.equal(state.stats.rescues, 1);
+  assert.ok(state.events.some(event => event.type === 'rescue'));
+});
+
+check('without a drone to steal, the tractor beam drains shields and energy', () => {
+  const state = createCampaign(0), player = state.players[0];
+  state.director.wave = 5; state.director.clock = 99; player.hurt = Infinity;
+  let drained = false;
+  for (let t = 0; t < 10 && !drained; t += 1 / 60) {
+    const captor = state.enemies.find(enemy => enemy.ai === 'captor');
+    const dx = captor ? Math.sign(captor.x - player.x) * (Math.abs(captor.x - player.x) > 12) : 0;
+    update(state, 1 / 60, [{ x: dx }]); state.events.length = 0;
+    drained = player.shield < player.maxShield - 20 && player.fireEnergy < 60;
+  }
+  assert.ok(drained);
+  assert.equal(player.hull, player.maxHull, 'the beam never breaches the hull');
+});
+
+check('a nova clears hostile fire, strikes every visible ship, shields the pilot and needs a fresh press', () => {
+  const state = isolated(1), player = state.players[0];
+  for (let i = 0; i < 20; i++) state.bullets.push({ ...bolt(100 + i * 40, 300, -1, 10, 0, 50), kind: 'hostile' });
+  const small = spawnEnemy(state, 0, 400, 300), heavy = spawnEnemy(state, 8, 800, 250), hidden = spawnEnemy(state, 0, 600, -300);
+  for (const enemy of [small, heavy, hidden]) enemy.fire = Infinity;
+  const bombs = player.bombs, score = state.score;
+  update(state, 1 / 60, [{ bomb: true }]);
+  assert.equal(player.bombs, bombs - 1);
+  assert.equal(state.bullets.filter(b => b.team < 0).length, 0);
+  assert.ok(small.dead && !heavy.dead && heavy.hp < heavy.maxHp && !hidden.dead);
+  assert.ok(state.score > score + 20 * 10);
+  assert.ok(player.guard > 1);
+  update(state, 1 / 60, [{ bomb: true }]);
+  assert.equal(player.bombs, bombs - 1, 'holding the key does not chain detonations');
+  update(state, 1 / 60, [{}]); update(state, 1 / 60, [{ bomb: true }]);
+  assert.equal(player.bombs, bombs - 2);
+  player.bombs = 0; update(state, 1 / 60, [{}]); update(state, 1 / 60, [{ bomb: true }]);
+  assert.equal(player.bombs, 0);
+});
+
+check('reserve ships relaunch after a delay with a launch shield and a lighter loadout', () => {
+  const state = isolated(1), player = state.players[0];
+  assert.equal(state.lives, START_LIVES);
+  Object.assign(player, { power: 3, drones: 2, bombs: 0 });
+  player.shield = 0; hurtPlayer(state, player, 10000);
+  assert.equal(player.alive, false); assert.equal(player.power, 1); assert.equal(player.drones, 1);
+  advance(state, RESPAWN_DELAY - .1);
+  assert.equal(player.alive, false); assert.equal(state.status, 'playing');
+  advance(state, .2);
+  assert.equal(player.alive, true); assert.equal(state.lives, START_LIVES - 1);
+  assert.equal(player.hull, player.maxHull); assert.ok(player.guard > 2); assert.equal(player.bombs, 2);
+  hurtPlayer(state, player, 500);
+  assert.equal(player.hull, player.maxHull, 'the launch shield blocks damage');
+  state.lives = 0; player.guard = 0; player.shield = 0; hurtPlayer(state, player, 10000); update(state, 1 / 60);
+  assert.equal(state.status, 'defeat');
+});
+
+check('score milestones award extra ships up to the hangar limit', () => {
+  const state = isolated(1), lives = state.lives;
+  state.score = FIRST_EXTRA_LIFE; update(state, 1 / 60);
+  assert.equal(state.lives, lives + 1);
+  update(state, 1 / 60); assert.equal(state.lives, lives + 1, 'each milestone pays once');
+  state.lives = MAX_LIVES; state.score = state.nextLife; const credits = state.credits; update(state, 1 / 60);
+  assert.equal(state.lives, MAX_LIVES); assert.ok(state.credits > credits);
+});
+
+check('challenging stages follow odd sectors, never fire back, and pay a perfect bonus once', () => {
+  assert.deepEqual([...Array(10).keys()].filter(level => challengeSector({ level })), [0, 2, 4, 6, 8]);
+  const state = isolated(0);
+  killEnemy(state, spawnEnemy(state, 9, 600, 155));
+  advance(state, 3.4);
+  assert.ok(state.challenge && state.challenge.total === CHALLENGE_SIZE);
+  const ships = state.enemies.filter(enemy => enemy.challenge);
+  assert.equal(ships.length, CHALLENGE_SIZE);
+  assert.ok(ships.every(enemy => enemy.harmless && enemy.noFire));
+  const hull = state.players[0].hull;
+  for (let t = 0; t < 40 && !state.challenge.done; t += 1 / 60) {
+    update(state, 1 / 60); state.events.length = 0;
+    for (const enemy of state.enemies) if (enemy.challenge && !enemy.dead && !isDormant(enemy) && enemy.y > 0 && enemy.x > 0 && enemy.x < state.width) killEnemy(state, enemy);
+  }
+  assert.equal(state.challenge.hits, CHALLENGE_SIZE);
+  assert.equal(state.bullets.filter(b => b.team < 0).length, 0);
+  assert.equal(state.players[0].hull, hull);
+  assert.ok(state.challenge.credits >= 700, 'a perfect stage pays its bonus');
+  const credits = state.credits;
+  advance(state, 3);
+  assert.equal(state.status, 'hangar');
+  assert.equal(state.credits, credits + 650);
+});
+
+check('lancers paint a firing line before a short beam that only hurts inside the line', () => {
+  const state = isolated(1), player = state.players[0];
+  const lancer = spawnEnemy(state, 5, player.x, 200);
+  Object.assign(lancer, { ai: 'station', stationX: player.x, stationY: 200, hold: 60, sway: 0, fire: 0 });
+  update(state, 1 / 60);
+  assert.equal(state.beams.length, 1);
+  const hull = player.hull + player.shield;
+  advance(state, state.beams[0].warn - .1);
+  assert.equal(player.hull + player.shield, hull, 'the telegraph is harmless');
+  advance(state, .3);
+  assert.ok(player.hull + player.shield < hull, 'standing in the line is punished');
+  const dodge = isolated(1), pilot = dodge.players[0];
+  const other = spawnEnemy(dodge, 5, pilot.x, 200);
+  Object.assign(other, { ai: 'station', stationX: pilot.x, stationY: 200, hold: 60, sway: 0, fire: 0 });
+  update(dodge, 1 / 60);
+  const total = pilot.hull + pilot.shield;
+  advance(dodge, 1.2, [{ x: 1 }]);
+  assert.equal(pilot.hull + pilot.shield, total, 'leaving the line avoids the beam');
+});
+
+check('central bolts strike the ground; wide volley bolts and drone bolts fly over it', () => {
+  const state = isolated(), player = state.players[0];
+  player.power = MAX_POWER; player.drones = 2; advance(state, .3);
+  state.bullets.length = 0; player.fire = 0;
+  update(state, 1 / 60, [{ fire: true }]);
+  const ground = state.bullets.filter(b => b.ground !== false);
+  assert.ok(ground.length >= 2 && ground.length <= 3);
+  assert.ok(state.bullets.filter(b => b.drone).every(b => b.ground === false));
+});
+
+check('pickups dropped past either edge move into the flight lane and stay collectible', () => {
+  const state = isolated(1);
+  state.pickups.push({ x: -40, y: 300, age: 0, kind: 'power', value: 0 }, { x: state.width + 60, y: 300, age: 0, kind: 'credit', value: 50 });
+  update(state, 1 / 60);
+  assert.ok(state.pickups.every(pickup => pickup.x >= 30 && pickup.x <= state.width - 30));
+});
+
 // Human-like bot: only the public update() input surface; no edits to HP, enemy
 // state, projectiles, currency, timer, or positions. Controls refresh at 10 Hz.
 function pilotControls(state, pilot) {
   if (!pilot.alive) return {};
   let target = null, priority = -Infinity;
   for (const enemy of state.enemies) {
-    if (enemy.dead || enemy.y > pilot.y - 35) continue;
+    if (enemy.dead || enemy.y > pilot.y - 35 || enemy.y < 0 || isDormant(enemy)) continue;
     const score = enemy.boss ? 2000 : enemy.y - Math.abs(enemy.x - pilot.x) * .5 + enemy.radius * 2;
     if (score > priority) { target = enemy; priority = score; }
   }
@@ -606,7 +939,7 @@ function pilotControls(state, pilot) {
       score += Math.max(0, 1 - separation / 70) ** 3 * 85 * (1 - time);
     }
     for (const enemy of state.enemies) {
-      if (enemy.dead) continue;
+      if (enemy.dead || isDormant(enemy)) continue;
       const separation = Math.hypot(enemy.x - px, enemy.y + enemy.speed * .23 - py);
       score += Math.max(0, 1 - separation / (enemy.radius + 50)) ** 2 * 100;
     }
@@ -632,13 +965,13 @@ function runCampaign(seed) {
     let controls = [], tick = 0;
     while (state.status !== 'victory' && state.status !== 'defeat') {
       const startingCredits = state.credits, startingUpgrades = { ...state.upgrades };
-      while (state.status === 'playing' && state.time < 240) {
+      while (state.status === 'playing' && state.time < 600) {
         if (tick++ % 3 === 0) controls = state.players.map(p => pilotControls(state, p));
         update(state, 1 / 30, controls);
         state.events.length = 0;
       }
       results.push({ sector: state.level + 1, status: state.status, seconds: Math.round(state.time), kills: state.kills,
-        earned: state.credits - startingCredits, hull: state.players.map(p => Math.round(p.hull)),
+        earned: state.credits - startingCredits, hull: state.players.map(p => Math.round(p.hull)), lives: state.lives, power: state.players[0].power, drones: state.players[0].drones,
         bossHP: Math.round(state.enemies.find(e => e.boss)?.hp || 0), upgrades: startingUpgrades });
       if (state.status !== 'hangar') break;
       buyBalanced(state);
@@ -655,12 +988,21 @@ if (process.argv.includes('--balance')) {
     check('campaign is winnable using movement, shooting, and earned upgrades', () => assert.equal(result.status, 'victory'));
   }
   const stationary = seeded(817, () => {
-    const state = createCampaign();
-    while (state.status === 'playing' && state.time < 220) { update(state, .05, [{ fire: true }]); state.events.length = 0; }
-    return { status: state.status, seconds: Math.round(state.time), kills: state.kills, hull: Math.round(state.players[0].hull) };
+    // Reserve ships can carry a motionless pilot through the gentle opening
+    // sectors, but never without losses, and never through the third.
+    const state = createCampaign(), sectors = [];
+    for (let sector = 0; sector < 3 && state.status !== 'defeat'; sector++) {
+      while (state.status === 'playing' && state.time < 500) { update(state, .05, [{ fire: true }]); state.events.length = 0; }
+      sectors.push({ status: state.status, seconds: Math.round(state.time), kills: state.kills, lives: state.lives });
+      if (state.status === 'hangar') beginLevel(state, state.level + 1);
+    }
+    return { status: state.status, sectors };
   });
   console.log(`STATIONARY ${JSON.stringify(stationary)}`);
-  check('stationary firing cannot survive the first sector', () => assert.equal(stationary.status, 'defeat'));
+  check('stationary firing costs ships in the first sector and cannot survive the third', () => {
+    assert.equal(stationary.status, 'defeat');
+    assert.ok(stationary.sectors[0].status === 'defeat' || stationary.sectors[0].lives < START_LIVES + 1, 'the first sector costs ships');
+  });
 }
 
 if (failures) process.exitCode = 1;
