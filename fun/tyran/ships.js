@@ -170,7 +170,8 @@ function rasterHull(kind, player, world = 0) {
     left = -nose.x * width;
     top = Math.min(...ys);
   }
-  const out = surface(kind === 9 && !player ? 640 : 384), c = out.getContext('2d');
+  // The livery repaint reads these pixels back, so keep the base hull in CPU memory.
+  const out = surface(kind === 9 && !player ? 640 : 384), c = out.getContext('2d', { willReadFrequently: true });
   c.translate(out.width / 2, out.height / 2); c.scale(out.width / 280, out.height / 280);
   c.imageSmoothingQuality = 'high';
   if (reversed) {

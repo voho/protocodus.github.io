@@ -192,7 +192,8 @@ export class WorldRenderer {
     }
   }
   prepare(width,height) {
-    const last=Math.floor(height/(width/WIDTH)/TILE);
+    // Match drawGroundScenery's padded range, or the first frame builds a row itself.
+    const last=Math.floor((height/(width/WIDTH)+PAD)/TILE);
     for(let row=-1;row<=last;row++){
       if(!this.tiles.has(row))this.queueWarm(`terrain:${row}`,()=>this.getTile(row));
       if(!this.sceneryLayers[0].has(row)){
@@ -864,15 +865,17 @@ export class WorldRenderer {
     const out=canvas(480,320),c=out.getContext('2d'),rng=random(777+this.index);
     const source=spriteCell('nature',15);
     if(source){
+      // Grade on a temporary CPU canvas; the drawn cloud stays on the GPU.
+      const grade=canvas(480,320),g=grade.getContext('2d',{willReadFrequently:true});
       const scale=Math.min(450/source.width,290/source.height),w=source.width*scale,h=source.height*scale;
-      c.drawImage(source,(480-w)*.5,(320-h)*.5,w,h);
-      const pixels=c.getImageData(0,0,480,320),data=pixels.data,fog=rgb(this.palette.fog);
+      g.drawImage(source,(480-w)*.5,(320-h)*.5,w,h);
+      const pixels=g.getImageData(0,0,480,320),data=pixels.data,fog=rgb(this.palette.fog);
       for(let i=0;i<data.length;i+=4){
         if(!data[i+3])continue;
         const light=.38+(data[i]*.2126+data[i+1]*.7152+data[i+2]*.0722)/255*.62;
         for(let channel=0;channel<3;channel++)data[i+channel]=fog[channel]*light;
       }
-      c.putImageData(pixels,0,0);
+      c.putImageData(pixels,0,0);grade.width=grade.height=1;
       return out;
     }
     for(let i=0;i<16;i++){const x=100+rng()*280,y=95+rng()*130,r=55+rng()*65;const g=c.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,this.palette.fog);g.addColorStop(.45,this.palette.fog+'88');g.addColorStop(1,'transparent');c.globalAlpha=.2;circle(c,x,y,r,g);}return out;

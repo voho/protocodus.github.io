@@ -6,6 +6,13 @@ const LAYOUTS = Object.freeze({
   fleetJungle: [4, 3], fleetSnow: [4, 3], fleetDesert: [4, 3], fleetParadise: [4, 3], fleetAsteroid: [4, 3],
   fleetMars: [4, 3], fleetVolcanic: [4, 3], fleetNeon: [4, 3], fleetAlien: [4, 3], fleetVoid: [4, 3],
 });
+// Scenery, terrain, hull and ammunition artwork is recolored from its pixels.
+// Keeping these cells in CPU memory avoids a synchronous GPU readback (10–100
+// ms) whenever a new appearance is prepared; none is drawn directly per frame.
+// Effects and pickups stay GPU-resident: they are only drawn, never read.
+const CPU_ATLASES = new Set(['nature', 'structures', 'structureLight', 'structureHeavy', 'structureCrater', 'materials', 'projectiles',
+  'fleet', 'fleetJungle', 'fleetSnow', 'fleetDesert', 'fleetParadise', 'fleetAsteroid', 'fleetMars', 'fleetVolcanic', 'fleetNeon', 'fleetAlien', 'fleetVoid']);
+const cellContext = (canvas, name) => canvas.getContext('2d', CPU_ATLASES.has(name) ? { willReadFrequently: true } : undefined);
 const atlases = new Map();
 const cells = new Map();
 const status = new Map();
@@ -105,7 +112,7 @@ function connectedCells(name, image, [columns, rows]) {
   for (let index = 0; index < bounds.length; index++) {
     const { left, top, right, bottom } = bounds[index], key = `${name}:${index}`;
     if (right < left) { cells.set(key,null); continue; }
-    const out = surface(right-left+5,bottom-top+5), context = out.getContext('2d');
+    const out = surface(right-left+5,bottom-top+5), context = cellContext(out, name);
     const crop = context.createImageData(out.width,out.height);
     for (let y = top; y <= bottom; y++) for (let x = left; x <= right; x++) {
       const sourcePixel = y * width + x;
@@ -147,7 +154,7 @@ export function spriteCell(name, index) {
   left = Math.max(0, left - 2); top = Math.max(0, top - 2);
   right = Math.min(width - 1, right + 2); bottom = Math.min(height - 1, bottom + 2);
   const out = surface(right - left + 1, bottom - top + 1);
-  out.getContext('2d').drawImage(cell, left, top, out.width, out.height, 0, 0, out.width, out.height);
+  cellContext(out, name).drawImage(cell, left, top, out.width, out.height, 0, 0, out.width, out.height);
   cell.width = cell.height = 1;
   cells.set(key, out);
   return out;

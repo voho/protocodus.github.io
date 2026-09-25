@@ -119,10 +119,13 @@ export class TerrainSprites {
       // repeating as a row of identical stamps, while retaining fine detail.
       const zoom=1.22+(variant%3)*.15,span=SURFACE_SIZE*zoom;
       const dx=(random()-.5)*(span-SURFACE_SIZE)*.8,dy=(random()-.5)*(span-SURFACE_SIZE)*.8;
-      c.save();c.translate(SURFACE_SIZE/2,SURFACE_SIZE/2);
-      c.rotate((variant%4)*Math.PI/2);c.scale(variant>=4?-1:1,1);
-      c.drawImage(texture,-span/2+dx,-span/2+dy,span,span);c.restore();
-      const pixels=c.getImageData(0,0,SURFACE_SIZE,SURFACE_SIZE),data=pixels.data,base=rgb(this.colors[material]);
+      // Grade on a CPU scratch: reading the GPU output back would stall the frame.
+      const scratch=this.pixelScratch||(this.pixelScratch=surface()),s=scratch.getContext('2d',{willReadFrequently:true});
+      s.clearRect(0,0,SURFACE_SIZE,SURFACE_SIZE);
+      s.save();s.translate(SURFACE_SIZE/2,SURFACE_SIZE/2);
+      s.rotate((variant%4)*Math.PI/2);s.scale(variant>=4?-1:1,1);
+      s.drawImage(texture,-span/2+dx,-span/2+dy,span,span);s.restore();
+      const pixels=s.getImageData(0,0,SURFACE_SIZE,SURFACE_SIZE),data=pixels.data,base=rgb(this.colors[material]);
       const seam=grain(rng(4919+index*7717+material*811),7);
       let mean=0;
       for(let i=0;i<data.length;i+=4)mean+=data[i]*.2126+data[i+1]*.7152+data[i+2]*.0722;
