@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "29234933a405",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "fun/tyran/audio.js",
+    "fun/tyran/effects.js",
+    "fun/tyran/sim.js",
+    "fun/tyran/tests/flight-features-check.mjs",
+    "fun/tyran/waves.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/29/234933a405/0/metadata.json",
+      "transcript": "/29/234933a405/0/full.jsonl",
+      "context": "/29/234933a405/0/context.md",
+      "content_hash": "/29/234933a405/0/content_hash.txt",
+      "prompt": "/29/234933a405/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 412,
+    "cache_creation_tokens": 733339,
+    "cache_read_tokens": 106004849,
+    "output_tokens": 366454,
+    "api_call_count": 204
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "29234933a405",
+  "session_id": "ba216770-a224-4ea4-8143-63e4bf167b01",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-25T20:16:15.953557Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "fun/tyran/audio.js",
+    "fun/tyran/effects.js",
+    "fun/tyran/sim.js",
+    "fun/tyran/tests/flight-features-check.mjs",
+    "fun/tyran/waves.js"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "fce0fee922eb",
+  "transcript_identifier_at_start": "ce3af50c-0f70-4401-9d67-f22b06d0c8e6",
+  "token_usage": {
+    "input_tokens": 412,
+    "cache_creation_tokens": 733339,
+    "cache_read_tokens": 106004849,
+    "output_tokens": 366454,
+    "api_call_count": 204
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-25T20:16:13.46122Z",
+    "agent_lines": 1232,
+    "human_added": 1108,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 2340,
+    "agent_percentage": 52.649572649572654
+  },
+  "transcript_path": ".claude/projects/-Users-vojta-Dev-protocodus-github-io/ba216770-a224-4ea4-8143-63e4bf167b01.jsonl"
+}
