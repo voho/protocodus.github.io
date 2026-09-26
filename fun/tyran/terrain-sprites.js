@@ -31,8 +31,8 @@ function mix(a,b,t) { const x=rgb(a),y=rgb(b);return `rgb(${x.map((v,i)=>Math.ro
 function grain(random, divisions) {
   const values=Float32Array.from({length:divisions*divisions},()=>random()-.5);
   return (x,y)=>{
-    const u=x/SURFACE_SIZE*divisions,v=y/SURFACE_SIZE*divisions;
-    const ix=Math.floor(u),iy=Math.floor(v),fx=u-ix,fy=v-iy;
+    const u=x/(SURFACE_SIZE-1)*divisions,v=y/(SURFACE_SIZE-1)*divisions;
+    const cellX=Math.floor(u),cellY=Math.floor(v),ix=cellX%divisions,iy=cellY%divisions,fx=u-cellX,fy=v-cellY;
     const sx=fx*fx*(3-2*fx),sy=fy*fy*(3-2*fy);
     const a=values[iy*divisions+ix],b=values[iy*divisions+(ix+1)%divisions];
     const c=values[((iy+1)%divisions)*divisions+ix],d=values[((iy+1)%divisions)*divisions+(ix+1)%divisions];
@@ -126,17 +126,28 @@ export class TerrainSprites {
       s.rotate((variant%4)*Math.PI/2);s.scale(variant>=4?-1:1,1);
       s.drawImage(texture,-span/2+dx,-span/2+dy,span,span);s.restore();
       const pixels=s.getImageData(0,0,SURFACE_SIZE,SURFACE_SIZE),data=pixels.data,base=rgb(this.colors[material]);
+      // Preserve source heights before grading so the light direction is stable
+      // regardless of pixel traversal. This scratch is released after baking.
+      const heights=new Float32Array(SURFACE_SIZE*SURFACE_SIZE);
       const seam=grain(rng(4919+index*7717+material*811),7);
+      const seamDetail=grain(rng(8831+index*7717+material*811),43);
       let mean=0;
-      for(let i=0;i<data.length;i+=4)mean+=data[i]*.2126+data[i+1]*.7152+data[i+2]*.0722;
+      for(let i=0;i<data.length;i+=4){heights[i/4]=data[i]*.2126+data[i+1]*.7152+data[i+2]*.0722;mean+=heights[i/4];}
       mean/=SURFACE_SIZE*SURFACE_SIZE;
       for(let y=0;y<SURFACE_SIZE;y++)for(let x=0;x<SURFACE_SIZE;x++) {
-        const i=(y*SURFACE_SIZE+x)*4,luma=data[i]*.2126+data[i+1]*.7152+data[i+2]*.0722;
+        const pixel=y*SURFACE_SIZE+x,i=pixel*4,luma=heights[pixel];
         const edge=Math.min(1,x/7,y/7,(SURFACE_SIZE-1-x)/7,(SURFACE_SIZE-1-y)/7);
         // Common edge tones join independently chosen cells without a hard seam.
         // Luminosity retains the generated relief; hue belongs to the biome.
         const contrast=material===0&&(index===4||index===9)?.3:.85;
-        const shade=1+Math.max(-.48,Math.min(.58,(luma-mean)/128))*edge*contrast+seam(x,y)*.13;
+        const slope=(heights[y*SURFACE_SIZE+Math.max(0,x-2)]-heights[y*SURFACE_SIZE+Math.min(SURFACE_SIZE-1,x+2)]
+          +heights[Math.max(0,y-2)*SURFACE_SIZE+x]-heights[Math.min(SURFACE_SIZE-1,y+2)*SURFACE_SIZE+x])/255;
+        const relief=material===0?.045:material===3?.25:.18;
+        // Shared fine grain bridges the softened source edges so they do not
+        // read as a flat grid when the 2× material is displayed at full size.
+        const edgeDetail=material===0?.07:.36;
+        const shade=1+(Math.max(-.48,Math.min(.58,(luma-mean)/128))*contrast+slope*relief)*edge
+          +seam(x,y)*.13+seamDetail(x,y)*(1-edge*.85)*edgeDetail;
         for(let k=0;k<3;k++)data[i+k]=Math.min(255,base[k]*shade);
         data[i+3]=255;
       }
@@ -246,7 +257,52 @@ export class TerrainSprites {
       c.strokeStyle=p.high;c.globalAlpha=.09;c.lineWidth=.7;
       c.beginPath();c.moveTo(x,y);c.bezierCurveTo(x+length*.3,y-4,x+length*.7,y+1,x+length,y-2);c.stroke();
     }
+    this.addMaterialDetails(c,material,random);
     c.restore();
+  }
+  addMaterialDetails(c,material,random) {
+    const index=this.index,p=this.palette;
+    // Larger screens reveal these small, sharply lit details. Every mark stays
+    // inside the tile and is baked only once; none changes the terrain mask.
+    for(let patch=0;patch<3;patch++) {
+      const x=20+random()*60,y=20+random()*60;
+      if(index===2||index===5) {
+        // Wind-combed dunes and red sediment ridges share a prevailing direction.
+        const length=10+random()*14;
+        for(let ridge=0;ridge<4;ridge++) {
+          const dy=ridge*2.4;
+          const ridgePath=offset=>{c.beginPath();c.moveTo(x-length*.5,y+dy+offset);
+            c.bezierCurveTo(x-length*.2,y+dy-2+offset,x+length*.2,y+dy+2+offset,x+length*.5,y+dy+offset);};
+          ridgePath(0);c.strokeStyle=p.low;c.globalAlpha=.2;c.lineWidth=1.1;c.stroke();
+          ridgePath(-.65);c.strokeStyle=p.high;c.globalAlpha=.22;c.lineWidth=.6;c.stroke();
+        }
+      } else if(index===4) {
+        const r=3+random()*5;
+        c.beginPath();c.ellipse(x+1,y+1,r+1,r*.68,0,0,TAU);c.fillStyle=p.low;c.globalAlpha=.42;c.fill();
+        c.beginPath();c.ellipse(x,y,r,r*.65,0,Math.PI*.92,Math.PI*1.95);c.strokeStyle=p.high;c.globalAlpha=.3;c.lineWidth=.85;c.stroke();
+        c.beginPath();c.ellipse(x,y+1,r*.6,r*.34,0,0,TAU);c.fillStyle=p.base;c.globalAlpha=.48;c.fill();
+      } else if(index===7||index===9) {
+        // Inset service panels, grooves and fasteners read as built surfaces.
+        const width=9+random()*7,height=4+random()*4;
+        c.fillStyle=p.low;c.globalAlpha=.4;c.fillRect(x,y,width,height);
+        c.strokeStyle=p.high;c.lineWidth=.6;c.globalAlpha=.24;c.beginPath();c.moveTo(x,y+height);c.lineTo(x,y);c.lineTo(x+width,y);c.stroke();
+        c.fillStyle=p.high;c.globalAlpha=.32;c.fillRect(x+2,y+2,.8,.8);c.fillRect(x+width-3,y+height-2,.8,.8);
+        c.fillStyle=p.mid;c.globalAlpha=.4;c.fillRect(x+4,y+2,width-8,1);
+      } else if(index===1||index===6) {
+        const vein=[[x-7,y-5],[x-2,y-2],[x-3,y+1],[x+3,y+3],[x+6,y+8]];
+        c.beginPath();vein.forEach(([px,py],j)=>j?c.lineTo(px,py):c.moveTo(px,py));
+        c.strokeStyle=p.low;c.globalAlpha=.43;c.lineWidth=2.1;c.stroke();
+        c.strokeStyle=index===6&&material===1?p.shore:mix(p.mid,p.shore,.4);c.globalAlpha=index===6?.38:.34;c.lineWidth=.65;c.stroke();
+        if(index===1){c.beginPath();vein.forEach(([px,py],j)=>j?c.lineTo(px-1,py-.7):c.moveTo(px-1,py-.7));c.strokeStyle=p.high;c.globalAlpha=.3;c.lineWidth=.55;c.stroke();}
+      } else {
+        // Small moss/lichen islands interrupt broad stone and forest surfaces.
+        for(let fleck=0;fleck<18;fleck++) {
+          const a=random()*TAU,r=Math.sqrt(random())*8,px=x+Math.cos(a)*r,py=y+Math.sin(a)*r*.58;
+          c.fillStyle=fleck%4?p.high:p.shore;c.globalAlpha=.1+random()*.14;
+          c.beginPath();c.ellipse(px,py,.4+random()*1.4,.25+random()*.7,-.5,0,TAU);c.fill();
+        }
+      }
+    }
   }
   get(material,variant,mask=15) {
     if(mask===15)return this.getMaterial(material,variant);
@@ -264,7 +320,21 @@ export class TerrainSprites {
       if(cliff)for(const offset of [2.7,5.3]) {
         contour(c,parts,offset);c.strokeStyle=mix(this.colors[material],p.low,.4);c.globalAlpha=.5;c.lineWidth=.8;c.stroke();
       }
-      c.globalAlpha=1;c.save();shape(c,mask,parts);c.clip();c.drawImage(this.getMaterial(material,variant),0,0,SIZE,SIZE);c.restore();
+      // Local facets turn the existing drop shadow into a readable rock face.
+      // Keep their ends inset: neighboring masks still share exact edge alpha.
+      if(cliff)for(const {points}of parts)for(let i=3;i<points.length-4;i++) {
+        const a=points[i],b=points[i+1],dx=b[0]-a[0],dy=b[1]-a[1];
+        const facing=Math.min(1,Math.abs(dx-dy)/Math.max(.01,Math.hypot(dx,dy))*.7);
+        c.beginPath();c.moveTo(a[0],a[1]);c.lineTo(b[0],b[1]);
+        c.lineTo(b[0]+2.2,b[1]+5.3);c.lineTo(a[0]+2.2,a[1]+5.3);c.closePath();
+        c.fillStyle=mix(p.low,this.colors[material],.25+facing*.3);c.globalAlpha=.52;c.fill();
+        if(i%3===0){c.beginPath();c.moveTo(a[0]+.6,a[1]+1.5);c.lineTo(a[0]+2,a[1]+5);c.strokeStyle=p.low;c.globalAlpha=.3;c.lineWidth=.5;c.stroke();}
+      }
+      c.globalAlpha=1;c.save();shape(c,mask,parts);c.clip();c.drawImage(this.getMaterial(material,variant),0,0,SIZE,SIZE);
+      // A broad wet shelf or raised lip brings the contour into the material;
+      // clipping ensures that nearby channels do not acquire bright halos.
+      contour(c,parts);c.strokeStyle=material===1?p.shore:p.high;c.globalAlpha=material===1?.15:.1;c.lineWidth=cliff?6:8;c.stroke();
+      c.restore();
       contour(c,parts);c.strokeStyle=material===1?mix(this.colors[1],p.shore,.32):mix(this.colors[material],p.high,.4);c.globalAlpha=material===1?.55:.65;c.lineWidth=material===1?1.6:1.15;c.stroke();
       // Sparse bank chips soften the continuous contour without a repeated rim.
       const random=rng(3911+this.index*1193+mask*117+variant*911+material*551);

@@ -2,6 +2,8 @@
 import { MAP_TILE_SIZE, hashLevel, tileAt } from './tile-map.js';
 import { TerrainSprites } from './terrain-sprites.js';
 import { spritesReady, spriteRevision, spriteCell } from './sprite-assets.js';
+import { StructureEffects } from './structure-effects.js';
+import { BONUS_PALETTE, bonusBadge } from './bonus-sprites.js';
 
 export const WORLDS = [
   { id: 'jungle', name: 'Emerald Frontier', subtitle: '01 / The Living Canopy', description: 'Ancient temples disappear beneath a vast emerald rainforest.', color: '#67f0b1', accent: '#b7ffcc', enemyColor: '#f05245', bossName: 'Canopy Devourer' },
@@ -22,11 +24,12 @@ const WIDTH = 1200;
 const MARGIN = MAP_TILE_SIZE; // Actual offscreen cells cover lateral drift.
 const PAD = 140;
 const HIT_CELL = 160;
-const MAX_DAMAGE_SPRITES = 32; // 8.25 MiB; fresh sprites stay warm for terrain streaming.
+const MAX_DAMAGE_SPRITES = 80; // 20.7 MiB: every damage appearance in the active sector, never all ten sectors.
 const TAU = Math.PI * 2;
 export const PARALLAX_LAYERS = Object.freeze([
   { id:'ground', label:'Terrain and scenery', speed:1, x:1 },
-  { id:'atmosphere', label:'Clouds and drifting particles', speed:1.16, x:1.35 },
+  { id:'atmosphere', label:'Clouds and their ground shadows', speed:1.32, x:1.8 },
+  { id:'foreground', label:'High cloud wisps and weather', speed:1.85, x:3.1 },
 ].map(Object.freeze));
 const PALETTES = [
   { base:'#102e2c', low:'#09201f', mid:'#214c3d', high:'#406e44', water:'#0b4b53', shore:'#387f6e', fog:'#aecdc5', props:['tree','palm','temple','fern','bunker','tree'] },
@@ -104,7 +107,8 @@ function siteHash(id) {
 /** Seeded terrain and scenery share one ground plane; only atmosphere drifts. */
 export class WorldRenderer {
   constructor() {
-    this.tiles=new Map();this.bands=new Map();this.sprites=new Map();this.damageSpriteKeys=new Set();
+    this.detailScale=1;
+    this.tiles=new Map();this.pendingTiles=new Map();this.bands=new Map();this.sprites=new Map();this.damageSpriteKeys=new Set();
     this.sceneryLayers=[new Map()];this.sceneryDirty=new Map();
     this.layerViews=[{zoom:1,x:0,y:0,first:0,last:0}];
     this.hitBuckets=new Map();this.visibleProps=[];this.damage=new Map();this.destroyed=new Set();this.turretActivity=new Map();
@@ -124,11 +128,12 @@ export class WorldRenderer {
     this.scale=1;this.scroll=0;this.parallaxX=0;
     // A preview or retry reuses immutable artwork while resetting destruction.
     if(reuse)return;
-    this.warmEpoch=(this.warmEpoch||0)+1;this.warmJobs=[];this.warmKeys=new Set();this.warmPending=false;
+    this.warmEpoch=(this.warmEpoch||0)+1;this.warmJobs=[];this.warmKeys=new Set();this.warmPending=false;this.flightAssetsQueued=false;this.pendingTiles.clear();
     this.terrain=new TerrainSprites(this.index,this.palette);this.tiles.clear();this.sprites.clear();this.damageSpriteKeys.clear();this.clouds=[];
     const rng=random(this.levelHash);
     for(let i=0;i<7;i++)this.clouds.push({x:rng()*WIDTH,y:rng()*1500,r:150+rng()*160,phase:rng()*TAU});
-    this.cloudSprite=this.makeCloud();this.lightSprite=this.makeLight();this.radarSweepSprite=this.makeRadarSweep();this.scorchSprite=this.makeScorch();
+    this.cloudSprite=this.makeCloud();this.cloudShadowSprite=this.makeCloudShadow();this.lightSprite=this.makeLight();this.radarSweepSprite=this.makeRadarSweep();this.scorchSprite=this.makeScorch();
+    this.structureEffects=new StructureEffects(this.index,this.palette,this.world.accent);
     this.siteSprites=this.makeGroundSiteSprites();
     this.shaftSprite=this.makeShaft();this.vignetteSprite=this.makeVignette();this.substrateSprite=this.makeSubstrate();
     this.assetRevision=spriteRevision;
@@ -138,22 +143,46 @@ export class WorldRenderer {
     for(let material=0;material<4;material++)for(let variant=0;variant<6;variant++)this.queueWarm(`material:${material}:${variant}`,()=>this.terrain.getMaterial(material,variant));
     this.warmScenery();
   }
-  warmScenery() {
+  warmScenery(damage=false) {
     const types=new Set([...this.palette.props,...DISTRICTS[this.index].flat(),...GROUND_DETAILS[this.index],'crawler','hauler']);
     for(const type of types)for(let variant=0;variant<5;variant++){
       this.queueWarm(`sprite:${type}:${variant}:0`,()=>this.getSprite(type,variant));
+      this.queueWarm(`foundation:${type}:${variant}`,()=>this.structureEffects.getFoundation(type,variant));
+      if(variant===0)this.queueWarm(`fixture:${type}`,()=>this.structureEffects.getFixtures(type));
+      if(damage&&BUILDINGS.has(type))for(let stage=1;stage<=3;stage++){
+        this.queueWarm(`sprite:${type}:${variant}:${stage}`,()=>this.getSprite(type,variant,stage));
+      }
     }
+  }
+  warmFlightAssets() {
+    if(this.flightAssetsQueued)return;
+    this.flightAssetsQueued=true;
+    for(let material=0;material<4;material++)for(let variant=0;variant<6;variant++){
+      this.queueWarm(`material:${material}:${variant}`,()=>this.terrain.getMaterial(material,variant));
+      if(material)for(let mask=1;mask<15;mask++)this.queueWarm(`edge:${material}:${variant}:${mask}`,()=>this.terrain.get(material,variant,mask));
+    }
+    this.warmScenery(true);
   }
   refreshSpriteAssets() {
     if(this.assetRevision===spriteRevision)return;
     this.assetRevision=spriteRevision;this.sprites.clear();this.damageSpriteKeys.clear();
+    this.warmEpoch++;this.warmJobs=[];this.warmKeys.clear();this.warmPending=false;this.flightAssetsQueued=false;this.pendingTiles.clear();
     this.tiles.clear();this.terrain.materials.clear();this.terrain.edges.clear();
     for(const layer of this.sceneryLayers)layer.clear();
     this.sceneryDirty.clear();
-    this.cloudSprite=this.makeCloud();this.warmScenery();
+    this.cloudSprite=this.makeCloud();this.cloudShadowSprite=this.makeCloudShadow();this.warmScenery();
+  }
+  setDetailScale(pixelWidth,quality='high') {
+    const scale=quality==='high'&&pixelWidth>1600?2:1;
+    if(scale===this.detailScale)return;
+    this.detailScale=scale;this.tiles.clear();this.pendingTiles.clear();
+    this.warmJobs=this.warmJobs.filter(job=>!job.key.startsWith('terrain:')&&!job.key.startsWith('scenery:'));
+    this.warmKeys=new Set(this.warmJobs.map(job=>job.key));
+    for(const layer of this.sceneryLayers)layer.clear();
+    this.sceneryDirty.clear();this.sceneryScratch=null;
   }
   queueWarm(key,work) {
-    if(typeof requestIdleCallback!=='function'||this.warmKeys.has(key))return;
+    if(this.warmKeys.has(key))return;
     this.warmKeys.add(key);this.warmJobs.push({key,work});this.runWarmQueue();
   }
   restoreDamage(damage=[], destroyed=[], sceneryVersion=3) {
@@ -191,27 +220,63 @@ export class WorldRenderer {
       }
     }
   }
-  prepare(width,height) {
-    // Match drawGroundScenery's padded range, or the first frame builds a row itself.
-    const last=Math.floor((height/(width/WIDTH)+PAD)/TILE);
-    for(let row=-1;row<=last;row++){
-      if(!this.tiles.has(row))this.queueWarm(`terrain:${row}`,()=>this.getTile(row));
-      if(!this.sceneryLayers[0].has(row)){
+  prepare(width,height,scroll=0) {
+    this.warmFlightAssets();
+    const h=height/(width/WIDTH),first=Math.floor((-scroll-PAD)/TILE),last=Math.floor((h-scroll+PAD)/TILE);
+    // One complete strip leads the padded viewport, giving several seconds to
+    // prepare the next strip even at late-mission speed. Geometry stays bounded.
+    for(let row=Math.floor(-scroll/TILE)-1;row<=Math.floor((h-scroll)/TILE);row++)this.queueTerrain(row);
+    for(let row=first-1;row<=last;row++){
+      if(!this.sceneryLayers[0].has(row)||this.sceneryDirty.has(row)){
         this.queueWarm(`scenery:0:${row}`,()=>this.getSceneryLayer(row,this.getBand(row)));
       }
     }
+    // Damage copies into this shared buffer, never allocating it on a first hit.
+    this.queueWarm('scenery:scratch',()=>{
+      if(!this.sceneryScratch)this.sceneryScratch=canvas((WIDTH+MARGIN*2)*this.detailScale,(TILE+PAD*2)*this.detailScale);
+    });
+  }
+  /** Complete preparation before entering play; menu/shop idle work usually did it already. */
+  prepareFlight(width,height,scroll=0) {
+    this.refreshSpriteAssets();this.prepare(width,height,scroll);
+    while(this.warmJobs.length){const job=this.warmJobs.shift();this.warmKeys.delete(job.key);job.work();}
+  }
+  /** Yield between small batches while loading, independent of browser idle support. */
+  async prepareReady(width,height,scroll=0) {
+    await this.ready;
+    const epoch=this.warmEpoch;this.prepare(width,height,scroll);
+    while(epoch===this.warmEpoch&&this.warmJobs.length){
+      const start=performance.now();
+      do{const job=this.warmJobs.shift();this.warmKeys.delete(job.key);job.work();}
+      while(this.warmJobs.length&&performance.now()-start<6);
+      if(this.warmJobs.length)await new Promise(resolve=>setTimeout(resolve,0));
+    }
+  }
+  queueTerrain(row) {
+    if(this.tiles.has(row)||this.pendingTiles.has(row))return;
+    const state={out:null,next:0};this.pendingTiles.set(row,state);
+    const work=()=>{
+      if(this.pendingTiles.get(row)!==state)return;
+      if(!state.out)state.out=canvas((WIDTH+MARGIN*2)*this.detailScale,TILE*this.detailScale);
+      this.paintTerrainRow(state.out,row,state.next++);
+      if(state.next===TILE/MAP_TILE_SIZE){this.tiles.set(row,state.out);this.pendingTiles.delete(row);}
+      else this.queueWarm(`terrain:${row}`,work);
+    };
+    this.queueWarm(`terrain:${row}`,work);
   }
   runWarmQueue() {
-    if(this.warmPending||!this.warmJobs.length||typeof requestIdleCallback!=='function')return;
+    if(this.warmPending||!this.warmJobs.length)return;
     this.warmPending=true;const epoch=this.warmEpoch;
-    requestIdleCallback(deadline=>{
+    const run=deadline=>{
       if(epoch!==this.warmEpoch)return;
       this.warmPending=false;const start=performance.now();
-      while(this.warmJobs.length&&deadline.timeRemaining()>3&&performance.now()-start<3) {
+      while(this.warmJobs.length&&(deadline.didTimeout||deadline.timeRemaining()>3)&&performance.now()-start<3) {
         const job=this.warmJobs.shift();this.warmKeys.delete(job.key);job.work();
       }
       this.runWarmQueue();
-    });
+    };
+    if(typeof requestIdleCallback==='function')requestIdleCallback(run,{timeout:80});
+    else setTimeout(()=>run({didTimeout:true,timeRemaining:()=>6}),0);
   }
   tileAt(col,row) {return tileAt(this.levelHash,this.index,col,row);}
   makeSubstrate() {
@@ -230,15 +295,20 @@ export class WorldRenderer {
     const shift=scroll*PARALLAX_LAYERS[0].speed,first=Math.floor(-shift/600);
     for(let row=first;row*600+shift<h;row++)for(let col=-1;col<3;col++)c.drawImage(this.substrateSprite,col*600,row*600+shift);
   }
-  getTile(row) {
-    if(this.tiles.has(row))return this.tiles.get(row);
-    const out=canvas(WIDTH+MARGIN*2,TILE),c=out.getContext('2d');
-    for(let y=0;y<TILE/MAP_TILE_SIZE;y++)for(let col=-1;col<=WIDTH/MAP_TILE_SIZE;col++) {
+  paintTerrainRow(out,row,y) {
+    const c=out.getContext('2d');c.setTransform(this.detailScale,0,0,this.detailScale,0,0);
+    for(let col=-1;col<=WIDTH/MAP_TILE_SIZE;col++) {
       const tile=this.tileAt(col,row*(TILE/MAP_TILE_SIZE)+y),x=col*MAP_TILE_SIZE+MARGIN,py=y*MAP_TILE_SIZE;
       c.globalAlpha=.86;c.drawImage(this.terrain.getMaterial(0,tile.variant),x,py,MAP_TILE_SIZE,MAP_TILE_SIZE);c.globalAlpha=1;
       for(let material=1;material<4;material++)if(tile.cornerMasks[material])c.drawImage(this.terrain.get(material,tile.variant,tile.cornerMasks[material]),x,py,MAP_TILE_SIZE,MAP_TILE_SIZE);
     }
-    this.tiles.set(row,out);return out;
+  }
+  getTile(row) {
+    if(this.tiles.has(row))return this.tiles.get(row);
+    const state=this.pendingTiles.get(row);
+    const out=state?.out||canvas((WIDTH+MARGIN*2)*this.detailScale,TILE*this.detailScale);
+    for(let y=state?.next||0;y<TILE/MAP_TILE_SIZE;y++)this.paintTerrainRow(out,row,y);
+    this.pendingTiles.delete(row);this.tiles.set(row,out);return out;
   }
   getBand(row) {
     if(this.bands.has(row))return this.bands.get(row);
@@ -272,42 +342,35 @@ export class WorldRenderer {
     // keeps existing props, damage IDs and durability stable in saved campaigns.
     const sites=props.filter(prop=>STRUCTURE_SPRITES.includes(prop.type)&&prop.x>130&&prop.x<WIDTH-130)
       .sort((a,b)=>siteHash(a.id)-siteHash(b.id));
-    if(sites.length){
-      const firstRole=sites.length>1||((this.levelHash^row)&1)?'turret':'cache';
-      for(let i=0;i<Math.min(2,sites.length);i++){
-        const prop=sites[i],hash=siteHash(`${prop.id}:site`);
-        prop.groundRole=i?'cache':firstRole;prop.phase=hash/4294967296*TAU;
-        if(prop.groundRole==='cache')prop.bonus=SITE_BONUSES[(hash>>>8)%SITE_BONUSES.length];
-      }
+    // Keep the original supply's identity even when a retired gun or a vehicle
+    // sorted ahead of it. Protected vehicles no longer carry supply rewards.
+    const supply=sites[sites.length>1?1:((this.levelHash^row)&1)?-1:0];
+    if(supply&&BUILDINGS.has(supply.type)){
+      const hash=siteHash(`${supply.id}:site`);
+      supply.groundRole='cache';supply.phase=hash/4294967296*TAU;
+      supply.bonus=SITE_BONUSES[(hash>>>8)%SITE_BONUSES.length];
     }
     props.sort((a,b)=>a.y-b.y);
-    // Simulation only needs the few mounted guns, not every tree and rock.
-    props.turrets=props.filter(prop=>prop.groundRole==='turret');
     this.bands.set(row,props);return props;
   }
-  /** Refresh simulation coordinates independently of the last rendered frame. */
-  getGroundTargets(width,height,scroll,focusX=width*.5) {
+  /** Refresh ground collision geometry independently of the last rendered frame. */
+  prepareGround(width,height,scroll,focusX=width*.5) {
     const scale=width/WIDTH,offset=(.5-clamp(focusX/width,0,1))*WIDTH*.02;
     this.scale=scale;this.scroll=scroll;this.parallaxX=offset;
-    const h=height/scale,first=Math.floor((-scroll-PAD)/TILE),last=Math.floor((h-scroll+PAD)/TILE),targets=[];
-    for(let row=first;row<=last;row++)for(const prop of this.getBand(row).turrets){
-      if(prop.hp<=0||this.destroyed.has(prop.id))continue;
-      const x=(prop.x+offset)*scale,y=(prop.y+scroll)*scale,radius=prop.size*.32*scale;
-      if(x<-radius||x>width+radius||y<-PAD*scale||y>height+PAD*scale)continue;
-      targets.push({id:prop.id,x,y,radius,phase:prop.phase});
-    }
-    return targets;
+    const h=height/scale,first=Math.floor((-scroll-PAD)/TILE),last=Math.floor((h-scroll+PAD)/TILE);
+    for(let row=first;row<=last;row++)this.getBand(row);
+    return [];
   }
-  setTurretActivity(turrets=[]) {
-    this.turretActivity.clear();
-    for(const turret of turrets)this.turretActivity.set(turret.id,turret);
-  }
+  // Legacy QA/callers can still query this API; ground guns have been retired.
+  getGroundTargets(...args) {return this.prepareGround(...args);}
+  setTurretActivity() {this.turretActivity.clear();}
   getSceneryLayer(row,band,depth=0) {
     const cache=this.sceneryLayers[depth],existing=cache.get(row),dirty=this.sceneryDirty.get(row);
     if(existing&&!dirty)return existing;
-    const out=existing||canvas(WIDTH+MARGIN*2,TILE+PAD*2),bounds=existing?dirty:null;
+    const d=this.detailScale;
+    const out=existing||canvas((WIDTH+MARGIN*2)*d,(TILE+PAD*2)*d),bounds=existing?dirty:null;
     const target=bounds?(this.sceneryScratch||(this.sceneryScratch=canvas(out.width,out.height))):out;
-    const c=target.getContext('2d');
+    const c=target.getContext('2d');c.setTransform(d,0,0,d,0,0);
     if(bounds){
       const x=bounds.left+MARGIN,y=bounds.top-row*TILE+PAD,w=bounds.right-bounds.left,h=bounds.bottom-bounds.top;
       c.clearRect(x,y,w,h);
@@ -322,6 +385,7 @@ export class WorldRenderer {
       const structural=STRUCTURE_SPRITES.includes(prop.type),destroyed=this.destroyed.has(prop.id);
       if(destroyed&&!structural){this.drawScorch(c,x,y,prop.size);continue;}
       const stage=structural?(destroyed?3:structureStage(prop)):0;
+      this.structureEffects.drawFoundation(c,prop,x,y,destroyed);
       c.drawImage(this.getSprite(prop.type,prop.variant,stage),x-130*scale,y-130*scale,260*scale,260*scale);
       if(!structural&&prop.hp<prop.maxHp)ellipse(c,x+4,y+5,prop.size*.22,prop.size*.16,'rgba(36,28,37,.36)');
     }
@@ -329,9 +393,10 @@ export class WorldRenderer {
       // Clipping scaled transparent sprites can change edge sampling. Paint the
       // neighbors normally on one shared scratch strip, then copy whole pixels.
       const x=Math.max(0,bounds.left+MARGIN),y=Math.max(0,bounds.top-row*TILE+PAD);
-      const w=Math.min(out.width,bounds.right+MARGIN)-x,h=Math.min(out.height,bounds.bottom-row*TILE+PAD)-y;
+      const w=Math.min(out.width/d,bounds.right+MARGIN)-x,h=Math.min(out.height/d,bounds.bottom-row*TILE+PAD)-y;
       const destination=out.getContext('2d');
-      destination.clearRect(x,y,w,h);destination.drawImage(target,x,y,w,h,x,y,w,h);
+      destination.setTransform(1,0,0,1,0,0);
+      destination.clearRect(x*d,y*d,w*d,h*d);destination.drawImage(target,x*d,y*d,w*d,h*d,x*d,y*d,w*d,h*d);
     }
     this.sceneryDirty.delete(row);
     cache.set(row,out);return out;
@@ -426,37 +491,11 @@ export class WorldRenderer {
     const halo=color=>{
       const out=canvas(96,96),c=out.getContext('2d');glow(c,48,48,48,color,1);return out;
     };
-    const turret=canvas(128,128),c=turret.getContext('2d');
-    c.translate(64,64);c.lineJoin='round';
-    ellipse(c,4,7,29,22,'rgba(0,5,12,.6)');
-    polygon(c,[[-26,-14],[-16,-25],[16,-25],[26,-14],[26,16],[14,25],[-14,25],[-26,16]],'#25303a','#78858a',2);
-    polygon(c,[[-20,-12],[-12,-20],[12,-20],[20,-12],[20,12],[12,19],[-12,19],[-20,12]],'#48515a','#99a09b',1);
-    c.fillStyle='#141e28';c.fillRect(-9,-42,18,38);c.fillStyle='#6e787a';c.fillRect(-6,-42,12,35);
-    c.fillStyle='#b2b7aa';c.fillRect(-5,-41,3,31);c.fillStyle='#111a23';c.fillRect(-8,-46,16,8);
-    c.fillStyle='#efb05a';c.fillRect(-8,-38,16,3);ellipse(c,-2,0,12,10,'#727b7a');
-    line(c,[[-17,12],[-10,17],[10,17],[17,12]],'#e89d55',3);
-    for(const x of [-17,17])circle(c,x,-11,2,'#19242c');
-    const badges={};
-    for(const bonus of SITE_BONUSES){
-      const out=canvas(64,64),b=out.getContext('2d');b.translate(32,32);b.lineJoin='round';b.lineCap='round';
-      polygon(b,[[-16,-20],[16,-20],[22,-14],[22,14],[16,20],[-16,20],[-22,14],[-22,-14]],'#102b28','#86edb0',2);
-      line(b,[[-17,-13],[-17,-8]],'#c0f7d3',2);line(b,[[17,8],[17,13]],'#c0f7d3',2);
-      if(bonus==='rapid')polygon(b,[[2,-14],[-10,3],[-1,3],[-4,15],[10,-4],[2,-4]],'#b8fbd3');
-      else if(bonus==='invulnerable'){
-        polygon(b,[[0,-13],[-11,-8],[-9,6],[0,14],[9,6],[11,-8]],null,'#b8fbd3',2.6);
-        line(b,[[0,-6],[0,7]],'#b8fbd3',2);
-      } else if(bonus==='repair'){
-        b.fillStyle='#b8fbd3';b.fillRect(-3,-12,6,24);b.fillRect(-12,-3,24,6);
-      } else {
-        polygon(b,[[0,-13],[11,0],[0,13],[-11,0]],null,'#b8fbd3',2.5);
-        line(b,[[0,-7],[0,7]],'#b8fbd3',2);
-      }
-      badges[bonus]=out;
-    }
-    return {turret,badges,supplyHalo:halo('#71eba4'),warningHalo:halo('#ffae51')};
+    const badges=Object.fromEntries(SITE_BONUSES.map(kind=>[kind,bonusBadge(kind)]));
+    return {badges,supplyHalo:halo(BONUS_PALETTE.glow)};
   }
   drawGroundSite(c,prop,time,motion=true) {
-    if(!prop.groundRole||prop.hp<=0||this.destroyed.has(prop.id))return;
+    if(prop.groundRole!=='cache'||prop.hp<=0||this.destroyed.has(prop.id))return;
     const stage=structureStage(prop),power=[1,.8,.6,0][stage],s=prop.size;
     c.save();c.translate(prop.x,prop.y);
     if(prop.groundRole==='cache'){
@@ -464,23 +503,6 @@ export class WorldRenderer {
       c.globalAlpha=.35*power*pulse;c.drawImage(this.siteSprites.supplyHalo,-r,-r,r*2,r*2);
       const size=clamp(s*.56,27,44);
       c.globalAlpha=power;c.drawImage(this.siteSprites.badges[prop.bonus],-size*.5,-size*.5,size,size);
-    } else {
-      const active=this.turretActivity.get(prop.id),charge=clamp(active?.charge||0,0,1);
-      const angle=Number.isFinite(active?.angle)?active.angle:Math.PI*.5;
-      const size=clamp(s*1.05,48,86),radius=size*.29;
-      if(charge>0){
-        const glowSize=size*(.5+charge*.3);
-        c.globalAlpha=.1+charge*.38;c.drawImage(this.siteSprites.warningHalo,-glowSize,-glowSize,glowSize*2,glowSize*2);
-        c.globalAlpha=.42+charge*.5;c.strokeStyle='#ffc078';c.lineWidth=1.5;
-        c.beginPath();c.arc(0,0,radius+4,-Math.PI*.5,-Math.PI*.5+TAU*charge);c.stroke();
-      }
-      c.rotate(angle+Math.PI*.5);c.globalAlpha=power;
-      c.drawImage(this.siteSprites.turret,-size*.5,-size*.5,size,size);
-      if(active?.flash>0){
-        c.globalAlpha=clamp(active.flash*9,0,1);const muzzleY=-size*.35;
-        c.drawImage(this.siteSprites.warningHalo,-size*.3,muzzleY-size*.3,size*.6,size*.6);
-        polygon(c,[[-2,muzzleY],[0,muzzleY-size*.2],[3,muzzleY]],'#fff1bf');
-      }
     }
     c.restore();
   }
@@ -491,12 +513,13 @@ export class WorldRenderer {
     c.save();c.translate(view.x,view.y);
     for(let row=first;row<=last;row++) {
       const band=this.getBand(row);c.globalAlpha=1;
-      c.drawImage(this.getSceneryLayer(row,band),-MARGIN,row*TILE-PAD);
+      c.drawImage(this.getSceneryLayer(row,band),-MARGIN,row*TILE-PAD,WIDTH+MARGIN*2,TILE+PAD*2);
       for(const prop of band){
         if(this.destroyed.has(prop.id))continue;
         const y=prop.y+scroll;if(y<-PAD||y>h+PAD)continue;
         prop.screenX=prop.x+view.x;prop.screenY=y;this.visibleProps.push(prop);
         this.drawStructureActivity(c,prop,time,quality,motion);
+        this.structureEffects.draw(c,prop,time,quality,motion);
         if(prop.emissive&&quality!=='low'){
           const power=STRUCTURE_SPRITES.includes(prop.type)?[1,.52,.19,0][structureStage(prop)]:1;
           const radius=prop.size*.65;c.globalAlpha=(.1+Math.sin((motion?time:0)*1.7+prop.variant*2)*.03)*power;
@@ -518,8 +541,9 @@ export class WorldRenderer {
     const first=Math.floor(-scroll/TILE),last=Math.floor((h-scroll)/TILE);
     for(let row=first;row<=last;row++)ctx.drawImage(this.getTile(row),-MARGIN,row*TILE+scroll,WIDTH+MARGIN*2,TILE+.5);
     ctx.restore();
+    if(quality!=='low')this.drawCloudShadows(ctx,h,scroll,motion?time:0,motion);
     this.drawGroundScenery(ctx,h,scroll,time,quality,motion);
-    ctx.globalAlpha=1;ctx.save();ctx.translate(this.parallaxX*PARALLAX_LAYERS[1].x,0);this.drawAtmosphere(ctx,h,scroll,motion?time:0,quality);ctx.restore();
+    ctx.globalAlpha=1;this.drawAtmosphere(ctx,h,scroll,motion?time:0,quality,motion);
     ctx.drawImage(this.vignetteSprite,0,0,WIDTH,h);ctx.restore();
     for(const row of this.tiles.keys())if(row<first-1||row>last+1)this.tiles.delete(row);
     // Keep only nearby pixel caches and regenerated bands. Damage is a compact ledger.
@@ -527,8 +551,10 @@ export class WorldRenderer {
       for(const prop of band){const key=`${Math.floor(prop.y/HIT_CELL)}:${Math.floor(prop.x/HIT_CELL)}`,bucket=this.hitBuckets.get(key);if(bucket){const i=bucket.indexOf(prop);if(i>=0)bucket.splice(i,1);if(!bucket.length)this.hitBuckets.delete(key);}}
       this.bands.delete(row);
     }
-    const epoch=this.warmEpoch;
-    if(!this.tiles.has(first-1))this.queueWarm(`terrain:${first-1}`,()=>{if(epoch===this.warmEpoch)this.getTile(first-1);});
+    const next=this.layerViews[0].first-1;
+    this.queueTerrain(first-1);
+    if(!this.sceneryLayers[0].has(next))this.queueWarm(`scenery:0:${next}`,()=>this.getSceneryLayer(next,this.getBand(next)));
+    for(const row of this.pendingTiles.keys())if(row<first-1||row>last+1)this.pendingTiles.delete(row);
   }
   /** All ground sprites and hits use exactly the terrain's translation. */
   hit(x,y,radius,damage,scroll=this.scroll) {
@@ -536,13 +562,13 @@ export class WorldRenderer {
     for(let by=Math.floor((py-reach)/HIT_CELL);by<=Math.floor((py+reach)/HIT_CELL);by++)for(let bx=Math.floor((px-reach)/HIT_CELL);bx<=Math.floor((px+reach)/HIT_CELL);bx++){
       const bucket=this.hitBuckets.get(`${by}:${bx}`);if(!bucket)continue;
       for(const prop of bucket){
-        if(this.destroyed.has(prop.id)||(px-prop.x)**2+(py-prop.y)**2>(r+prop.size*.32)**2)continue;
+        if(!BUILDINGS.has(prop.type)||this.destroyed.has(prop.id)||(px-prop.x)**2+(py-prop.y)**2>(r+prop.size*.32)**2)continue;
         const structural=STRUCTURE_SPRITES.includes(prop.type),before=structural?structureStage(prop):prop.hp<prop.maxHp?1:0;
         prop.hp=Math.max(0,prop.hp-damage);
         if(prop.hp>0)this.damage.set(prop.id,prop.hp);else this.damage.delete(prop.id);
         const after=structural?structureStage(prop):prop.hp<=0?3:prop.hp<prop.maxHp?1:0;
-        // Prepare just the next appearance while a damaged structure is still
-        // standing; untouched scenery never allocates three unused damage images.
+        // Prepared flights already retain every building appearance. Keep the
+        // next stage warm for lightweight preview/debug callers as well.
         if(structural&&after<3){
           const next=after+1,key=`${prop.type}:${prop.variant}:${next}`;
           if(!this.sprites.has(key))this.queueWarm(`sprite:${key}`,()=>this.getSprite(prop.type,prop.variant,next));
@@ -612,8 +638,10 @@ export class WorldRenderer {
     const bytes=values=>Array.from(values).reduce((sum,sprite)=>sum+sprite.width*sprite.height*4,0);
     return {spriteCount:this.sprites.size,spriteBytes:bytes(this.sprites.values()),
       damageSpriteCount:this.damageSpriteKeys.size,damageSpriteLimit:MAX_DAMAGE_SPRITES,
-      stripBytes:bytes(this.tiles.values())+bytes(this.sceneryLayers[0].values()),
+      stripBytes:bytes(this.tiles.values())+bytes(this.sceneryLayers[0].values())+bytes([...this.pendingTiles.values()].map(state=>state.out).filter(Boolean)),
+      terrainBytes:bytes(this.terrain.materials.values())+bytes(this.terrain.edges.values()),
       scratchBytes:bytes([this.spriteScratch,this.shadowScratch,this.sceneryScratch].filter(Boolean)),
+      detailScale:this.detailScale,structureEffectBytes:this.structureEffects.memoryStats().spriteBytes,
       damagedProps:this.damage.size,craters:this.destroyed.size};
   }
   makeDamagedFallback(type,variant,stage) {
@@ -880,23 +908,53 @@ export class WorldRenderer {
     }
     for(let i=0;i<16;i++){const x=100+rng()*280,y=95+rng()*130,r=55+rng()*65;const g=c.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,this.palette.fog);g.addColorStop(.45,this.palette.fog+'88');g.addColorStop(1,'transparent');c.globalAlpha=.2;circle(c,x,y,r,g);}return out;
   }
-  drawAtmosphere(c,h,scroll,time,quality) {
+  makeCloudShadow() {
+    const out=canvas(240,160),c=out.getContext('2d');
+    c.drawImage(this.cloudSprite,0,0,240,160);
+    c.globalCompositeOperation='source-in';c.fillStyle='#030c18';c.fillRect(0,0,240,160);
+    return out;
+  }
+  cloudPosition(cloud,h,scroll,time,layer=1,motion=true) {
+    const depth=PARALLAX_LAYERS[layer],period=h+1000;
+    return {
+      x:cloud.x+this.parallaxX*(motion?depth.x:1)+Math.sin((motion?time:0)*.045+cloud.phase)*72,
+      y:((cloud.y+scroll*(motion?depth.speed:1))%period+period)%period-500,
+    };
+  }
+  drawCloudShadows(c,h,scroll,time,motion) {
+    if(this.index===4||this.index===9)return;
+    c.save();c.globalAlpha=this.index===7?.12:.19;
+    for(const cloud of this.clouds){
+      const {x,y}=this.cloudPosition(cloud,h,scroll,time,1,motion),r=cloud.r;
+      // The same cloud at altitude casts a broad shadow to the lower right.
+      c.drawImage(this.cloudShadowSprite,x-r+42,y-r*.67+64,r*2,r*1.34);
+    }
+    c.restore();
+  }
+  drawAtmosphere(c,h,scroll,time,quality,motion=true) {
     const space=this.index===4||this.index===9;
+    c.save();
     if(quality!=='low') {
       for(let i=0;i<this.clouds.length;i++){
-        const cloud=this.clouds[i],period=h+650;
-        const y=((cloud.y+scroll*PARALLAX_LAYERS[1].speed) % period+period)%period-325;
-        const x=cloud.x+Math.sin(time*.05+cloud.phase)*100;
-        c.globalAlpha=space?.07:this.index===1?.15:this.index===3?.17:this.index===6?.12:.1;
+        const cloud=this.clouds[i],{x,y}=this.cloudPosition(cloud,h,scroll,time,1,motion);
+        c.globalAlpha=space?.085:this.index===1?.2:this.index===3?.22:this.index===6?.15:.16;
         c.drawImage(this.cloudSprite,x-cloud.r,y-cloud.r*.67,cloud.r*2,cloud.r*1.34);
+      }
+      // Larger wisps pass faster at the sides; keep the firing lane readable.
+      for(let i=0;i<3;i++){
+        const cloud=this.clouds[i+2],position=this.cloudPosition(cloud,h,scroll,time,2,motion);
+        const x=(i%2?WIDTH+70:-70)+(position.x-cloud.x)*1.3,r=cloud.r*1.35;
+        c.globalAlpha=space?.065:this.index===1?.18:.14;
+        c.drawImage(this.cloudSprite,x-r,position.y-r*.67,r*2,r*1.34);
       }
       c.globalAlpha=1;
     }
     const count=quality==='low'?13:this.index===1?75:this.index===7?70:38;
     for(let i=0;i<count;i++) {
       const depth=.3+(i%7)*.13;
-      const x=((i*191.7+Math.sin(time*.2+i)*18+(this.index===2||this.index===5?time*55:0))%WIDTH+WIDTH)%WIDTH;
-      const y=((i*149.31+scroll*PARALLAX_LAYERS[1].speed+time*(this.index===1?18:4))%(h+40)+h+40)%(h+40)-20;
+      const layer=PARALLAX_LAYERS[i%3===0?2:1];
+      const x=((i*191.7+this.parallaxX*(motion?layer.x:1)+Math.sin(time*.2+i)*18+(this.index===2||this.index===5?time*55:0))%WIDTH+WIDTH)%WIDTH;
+      const y=((i*149.31+scroll*(motion?layer.speed:1)+time*(this.index===1?18:4))%(h+40)+h+40)%(h+40)-20;
       if(this.index===7){line(c,[[x,y],[x-4,y+17]],'rgba(162,189,220,.17)',.8);continue;}
       if(this.index===2||this.index===5){line(c,[[x,y],[x+6+depth*8,y+1]],'rgba(238,194,145,.2)',.7);continue;}
       const color=this.index===1?'#e4f6f2':this.index===6?'#ffa26e':this.index===8?'#a9ffd3':space?'#c6c1e6':'#acdabb';
@@ -907,9 +965,10 @@ export class WorldRenderer {
     c.globalAlpha=1;
     if(this.index===0||this.index===3||this.index===8) {
       // Slow, soft sun shafts sit above the canopy and behind combat effects.
-      c.save();c.globalCompositeOperation='screen';c.globalAlpha=.023;
+      c.save();c.globalCompositeOperation='screen';c.globalAlpha=.038;
       for(let i=0;i<3;i++){const x=100+i*390+Math.sin(time*.03+i)*60;c.drawImage(this.shaftSprite,x-24,0,384,h);}
       c.restore();
     }
+    c.restore();
   }
 }

@@ -137,7 +137,7 @@ check('old co-op saves keep a surviving ship, remap ownership and convert enemy 
     assert.equal(restored.state.players.length, 1);
     const pilot = restored.state.players[0], expected = before.players[firstAlive ? 0 : 1];
     for (const field of ['x', 'y', 'hull', 'shield', 'fireEnergy', 'fireEnergyDelay', 'fireEnergyLocked', 'rapidFireTime']) assert.equal(pilot[field], expected[field]);
-    assert.equal(pilot.id, 0); assert.equal(restored.state.bullets[0].team, 0); assert.equal(restored.state.turrets[0].targetId, 0);
+    assert.equal(pilot.id, 0); assert.equal(restored.state.bullets[0].team, 0); assert.deepEqual(restored.state.turrets, []);
     for (const field of ['level', 'credits', 'score', 'totalKills', 'time', 'scroll']) assert.equal(restored.state[field], before[field]);
     assert.deepEqual(restored.state.upgrades, before.upgrades);
     restored.state.enemies.forEach((enemy, i) => {
@@ -189,12 +189,71 @@ check('Infinity timers survive JSON without becoming null or NaN', () => {
   assert.ok(run.state.players.every(player => Number.isFinite(player.x)));
 });
 
-check('victory reloads as a finished campaign without replaying rewards', () => {
-  const state = createCampaign(9); state.status = 'victory'; state.score = 45600;
-  const run = restoreRun(serializeRun(state, { scene: 'end', unlocked: 9 }));
-  assert.equal(run.scene, 'end'); assert.equal(run.state.status, 'victory');
+check('former victory saves reopen the hangar and continue into the next environment cycle', () => {
+  const state = createCampaign(9); state.status = 'hangar'; state.score = 45600; state.credits = 3210;
+  state.upgrades.weapon = 3; state.players[0].power = 4; state.players[0].drones = 2; state.players[0].bombs = 5;
+  const record = JSON.parse(serializeRun(state, { unlocked: 9 }));
+  record.scene = 'end'; record.state.status = 'victory';
+  const run = restoreRun(record);
+  assert.equal(run.scene, 'hangar'); assert.equal(run.state.status, 'hangar'); assert.equal(run.state.level, 9);
+  assert.equal(run.migrated, true); assert.equal(run.unlocked, 10);
   update(run.state, 1 / 60, [{ fire: true }]);
-  assert.equal(run.state.score, 45600); assert.deepEqual(run.state.events, []);
+  assert.equal(run.state.score, 45600); assert.equal(run.state.credits, 3210); assert.deepEqual(run.state.events, []);
+  assert.equal(run.state.upgrades.weapon, 3);
+  assert.deepEqual(['power', 'drones', 'bombs'].map(key => run.state.players[0][key]), [4, 2, 5]);
+  const normalized = restoreRun(serializeRun({ ...state, status: 'victory' }, { unlocked: 9 }));
+  assert.equal(normalized.scene, 'hangar'); assert.equal(normalized.unlocked, 10);
+  const promoted = restoreRun(serializeRun(run.state, run));
+  assert.equal(promoted.scene, 'hangar'); assert.equal(promoted.migrated, false);
+  assert.equal(promoted.unlocked, 10); assert.equal(promoted.state.score, 45600);
+  beginLevel(run.state, run.state.level + 1);
+  assert.equal(run.state.level, 10); assert.equal(run.state.status, 'playing');
+  assert.equal(run.state.credits, 3210); assert.equal(run.state.upgrades.weapon, 3);
+});
+
+check('absolute sectors, starting sectors and unlocked progress survive later campaign cycles', () => {
+  for (const level of [9, 10, 29, 1001, 100_000_001, Number.MAX_SAFE_INTEGER]) for (const status of ['playing', 'hangar']) {
+    const state = createCampaign(level);
+    state.status = status; state.startLevel = Math.max(0, level - 7);
+    state.score = 45000; state.credits = 2500; state.upgrades.shield = 3;
+    const damage = new Map([['1894:1:2:3:0', 18.5]]), destroyed = new Set(['1894:1:2:3:1']);
+    const unlocked = Math.min(Number.MAX_SAFE_INTEGER, level + 1);
+    const run = restoreRun(serializeRun(state, { unlocked, damage, destroyed }));
+    assert.ok(run, `sector ${level} ${status} round-trips`);
+    assert.equal(run.state.level, level); assert.equal(run.state.startLevel, state.startLevel); assert.equal(run.unlocked, unlocked);
+    assert.equal(run.scene, status === 'playing' ? 'pause' : 'hangar'); assert.equal(run.migrated, false);
+    assert.equal(run.state.score, 45000); assert.equal(run.state.credits, 2500); assert.equal(run.state.upgrades.shield, 3);
+    assert.deepEqual(run.damage, damage); assert.deepEqual(run.destroyed, destroyed, 'environment-specific scenery IDs stay intact');
+  }
+});
+
+check('long campaign totals and extra-ship milestones survive saves without truncation', () => {
+  for (const total of [100_000_123, 4_000_000_001, Number.MAX_SAFE_INTEGER]) {
+    const state = createCampaign(1001);
+    state.credits = state.score = state.totalKills = total;
+    state.nextLife = Math.min(Number.MAX_SAFE_INTEGER, total + 10000);
+    const record = JSON.parse(serializeRun(state)), restored = restoreRun(record).state;
+    for (const key of ['credits', 'score', 'totalKills', 'nextLife']) assert.equal(restored[key], state[key], `${key} keeps ${total}`);
+    delete record.state.nextLife;
+    const legacy = restoreRun(record).state;
+    assert(legacy.nextLife > legacy.score || legacy.nextLife === Number.MAX_SAFE_INTEGER, 'Old saves skip earned milestones in constant time');
+    const credits = legacy.credits, lives = legacy.lives;
+    update(legacy, 1 / 60);
+    assert.equal(legacy.credits, credits); assert.equal(legacy.lives, lives, 'Loading never pays old or exhausted milestones');
+    assert.ok(!legacy.events.some(event => event.type === 'extra-life'));
+  }
+});
+
+check('invalid absolute sector numbers cannot enter a restored campaign', () => {
+  const source = serializeRun(createCampaign());
+  for (const key of ['level', 'startLevel']) for (const value of [-1, 1.5, Number.MAX_SAFE_INTEGER + 1, Infinity, NaN, '10', null]) {
+    const record = JSON.parse(source); record.state[key] = value;
+    assert.equal(restoreRun(record), null, `${key} rejects ${value}`);
+  }
+  for (const value of [-1, 1.5, Number.MAX_SAFE_INTEGER + 1, Infinity, NaN, '10', null]) {
+    const record = JSON.parse(source); record.unlocked = value;
+    assert.equal(restoreRun(record), null, `unlocked rejects ${value}`);
+  }
 });
 
 check('one campaign autosave replaces progress and reports missing saves', () => {
@@ -302,7 +361,7 @@ check('untrusted save data is bounded and unknown properties never enter live st
   record.state.bullets[0].splash = 1e20; record.state.bullets[0].comboBlast = 1e20;
   record.state.__proto__ = { polluted: 'yes' }; record.state.customCode = 'alert(1)';
   const run = restoreRun(record);
-  assert.ok(run); assert.equal(run.state.upgrades.hull, 6); assert.equal(run.state.credits, 100_000_000);
+  assert.ok(run); assert.equal(run.state.upgrades.hull, 6); assert.equal(run.state.credits, Number.MAX_SAFE_INTEGER);
   assert.equal(run.state.players[0].hull, shipStats(run.state.upgrades).hull);
   assert.ok(run.state.bullets[0].splash * run.state.bullets[0].comboBlast < 221);
   assert.equal(Object.hasOwn(run.state, 'customCode'), false); assert.equal(run.state.polluted, undefined);
@@ -348,7 +407,6 @@ check('invalid relationships, versions, statuses and oversized collections are r
   corrupt(record => { record.version = 900; });
   corrupt(record => { record.scene = 'hangar'; });
   corrupt(record => { record.state.status = 'defeat'; });
-  corrupt(record => { record.state.level = 9; record.state.status = 'hangar'; record.scene = 'hangar'; });
   corrupt(record => { record.state.status = 'victory'; record.scene = 'end'; });
   corrupt(record => { record.state.enemies[0].formationId = 999999; });
   corrupt(record => { record.state.enemies[1].id = record.state.enemies[0].id; });

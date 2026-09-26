@@ -104,10 +104,19 @@ try {
   });
   await page.waitForFunction(() => tyran.world.visibleProps.length > 3 && tyran.world.visibleProps.every(p => Math.abs(p.screenY - p.y - tyran.state.scroll) < 1e-7));
   await page.evaluate(() => {
-    const w = tyran.world, p = w.visibleProps.find(p => p.hp > 2 && !w.destroyed.has(p.id));
-    w.hit((p.screenX ?? p.x) * w.scale, p.screenY * w.scale, 1, 2, tyran.state.scroll);
-    const other = w.visibleProps.find(q => q.id !== p.id && Math.hypot(q.x - p.x, q.y - p.y) > 150);
-    w.hit((other.screenX ?? other.x) * w.scale, other.screenY * w.scale, 1, 10000, tyran.state.scroll);
+    const buildings = new Set(['temple','ruin','bunker','station','radar','dome','solar','refinery','building','tower','pylon','fortress','hut','satellite']);
+    const w = tyran.world;
+    // A forest-only view may contain no buildings; persistence also covers cached
+    // scenery outside the current viewport without moving the active flight.
+    let p, other;
+    for (let row = 0; row >= -20 && !other; row--) for (const prop of w.getBand(row)) {
+      if (!buildings.has(prop.type) || prop.hp <= 2 || w.destroyed.has(prop.id)) continue;
+      if (!p) p = prop;
+      else if (Math.hypot(prop.x - p.x, prop.y - p.y) > 150) { other = prop; break; }
+    }
+    if (!p || !other) throw new Error('Missing pair of campaign building fixtures');
+    const hit = (prop, damage) => w.hit((prop.x + w.parallaxX) * w.scale, (prop.y + tyran.state.scroll) * w.scale, 1, damage, tyran.state.scroll);
+    hit(p, 2); hit(other, 10000);
   });
   const savedFlight = await flight(page);
   assert(savedFlight.players.length === 1 && savedFlight.players[0].fireEnergy < 100, 'The checkpoint captures spent secondary energy');
@@ -209,18 +218,22 @@ try {
   assert.equal(await page.evaluate(() => tyran.scene), 'pause');
   assert.equal(await page.evaluate(() => tyran.state.credits), 777);
 
-  // Victory is a resumable final campaign state, with no repeated award.
+  // Clearing the tenth sector saves the shop, ready to continue another cycle.
   await page.evaluate(async () => {
     const { spawnEnemy, killEnemy } = await import('./sim.js');
     tyran.launch(9, { credits: 5000, score: 1000, upgrades: { weapon: 6, shield: 6, hull: 6, recharge: 6 } });
     killEnemy(tyran.state, spawnEnemy(tyran.state, 9, tyran.state.width / 2, 180)); tyran.step(3.4);
   });
-  assert.equal((await record(page)).state.status, 'victory');
-  const finalCampaign = await flight(page);
-  await page.locator('#end-menu-button').click();
+  assert.equal((await record(page)).state.status, 'hangar');
+  const cycleCampaign = await flight(page);
+  await page.locator('#hangar-menu-button').click();
   await page.reload(); await ready(page); await page.locator('#continue-button').click();
-  assert(await page.locator('#end-screen').isVisible());
-  assert.deepEqual(await flight(page), finalCampaign, 'Victory survives reload without awarding the final bonus twice');
+  assert(await page.locator('#hangar-screen').isVisible());
+  assert.deepEqual(await flight(page), cycleCampaign, 'The cycle boundary survives reload without awarding its bonus twice');
+  await page.locator('#next-button').click();
+  assert.equal(await page.evaluate(() => tyran.state.level), 10);
+  assert.equal(await page.evaluate(() => tyran.world.index), 0);
+  assert.equal((await record(page)).state.level, 10, 'The next cycle autosaves its absolute sector');
 
   // Old saves are migrated by recency, while an existing canonical campaign
   // remains authoritative even when damaged (no silent fallback to old progress).
@@ -272,5 +285,5 @@ try {
   const restrictedTime = await restricted.evaluate(() => tyran.state.time);
   await restricted.waitForFunction(time => tyran.state.time > time, restrictedTime);
   assert.deepEqual(errors, [], 'No browser errors throughout automatic campaign flows');
-  console.log('Campaign browser checks passed: new/resume UI, periodic/pause/menu/pagehide autosaves, exact single-player flight and scenery restoration, responsive formations, practice isolation, shop upgrades, stage progression, victory, legacy migration, corruption and storage failures.');
+  console.log('Campaign browser checks passed: new/resume UI, periodic/pause/menu/pagehide autosaves, exact single-player flight and scenery restoration, responsive formations, practice isolation, shop upgrades, stage progression, endless cycle transition, legacy migration, corruption and storage failures.');
 } finally { await browser.close(); }

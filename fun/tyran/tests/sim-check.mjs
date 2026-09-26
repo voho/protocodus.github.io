@@ -7,7 +7,7 @@ import { sectorPlan, isDormant, hiveSlot, pathTable, pathPoint, PATHS, CHALLENGE
 import { serializeRun, restoreRun } from '../save-game.js';
 
 // Run with: node fun/tyran/tests/sim-check.mjs
-// Add --balance for reproducible keyboard-style autopilot campaign trials.
+// Add --balance for a seeded first-circuit autopilot trial, or --endless-balance for two circuits.
 let failures = 0;
 function check(name, fn) {
   try { fn(); console.log(`PASS ${name}`); }
@@ -74,17 +74,18 @@ check('accelerating terrain travels consistently at 30, 60 and 120 Hz', () => {
   assert(Math.max(...distances) - Math.min(...distances) < .001, 'refresh rate cannot change the traveled map');
 });
 
-check('resuming preserves the speed ramp and ground targets receive the current scroll position', () => {
+check('resuming preserves the speed ramp and ground hits receive the current scroll position', () => {
   const state = createCampaign(6);
   state.time = 63.25; state.scroll = 7432.5;
   state.director.hold = true;
   const restored = restoreRun(serializeRun(state)).state;
   assert.equal(missionScrollSpeed(restored), missionScrollSpeed(state));
   let targetScroll;
-  update(state, 1 / 60, [], null, current => { targetScroll = current.scroll; return []; });
+  state.bullets.push({ x: 300, y: 200, px: 300, py: 200, vx: 0, vy: 0, team: 0, radius: 4, damage: 1, life: 1 });
+  update(state, 1 / 60, [], (x, y, radius, damage, scroll) => { targetScroll = scroll; return []; });
   update(restored, 1 / 60);
   assert.equal(restored.scroll, state.scroll); assert.equal(restored.time, state.time);
-  assert.equal(targetScroll, state.scroll, 'turret aiming and scenery hits use the newly advanced terrain');
+  assert.equal(targetScroll, state.scroll, 'scenery hits use the newly advanced terrain');
 });
 
 check('one pilot uses two dedicated fire channels with a shared cooldown', () => {
@@ -386,7 +387,7 @@ check('boss destruction cancels hostile collisions later in the same frame', () 
   assert.equal(state.status, 'hangar');
 });
 
-check('every sector completes, pays its bonus once, and final sector wins', () => {
+check('every first-circuit sector completes and pays its hangar bonus once', () => {
   for (let level = 0; level < 10; level++) {
     const state = isolated(level), boss = spawnEnemy(state, 9, 600, 155);
     killEnemy(state, boss);
@@ -402,7 +403,7 @@ check('every sector completes, pays its bonus once, and final sector wins', () =
       priorCredits = state.credits; priorScore = state.score;
       advance(state, 3);
     }
-    assert.equal(state.status, level === 9 ? 'victory' : 'hangar');
+    assert.equal(state.status, 'hangar');
     assert.equal(state.credits, priorCredits + 650 + level * 100);
     assert.equal(state.score, priorScore + 2500 * (level + 1));
     const credits = state.credits;
@@ -950,7 +951,7 @@ function pilotControls(state, pilot) {
 
 function buyBalanced(state) {
   // Prioritize enough firepower to kill capital ships; buy defense in between.
-  const desired = [2,4,5,6,6,6,6,6,6][state.level];
+  const desired = [2,4,5,6,6,6,6,6,6][state.level] ?? MAX_UPGRADE;
   while (state.upgrades.weapon < desired && buyUpgrade(state, 'weapon')) {}
   for (let i = 0; i < 18; i++) {
     const choices = ['recharge','shield','hull'].filter(id => state.upgrades[id] < MAX_UPGRADE)
@@ -959,11 +960,11 @@ function buyBalanced(state) {
   }
 }
 
-function runCampaign(seed) {
+function runCampaign(seed, sectorCount = 10) {
   return seeded(seed, () => {
     const state = createCampaign(), results = [];
     let controls = [], tick = 0;
-    while (state.status !== 'victory' && state.status !== 'defeat') {
+    while (state.status !== 'defeat' && results.length < sectorCount) {
       const startingCredits = state.credits, startingUpgrades = { ...state.upgrades };
       while (state.status === 'playing' && state.time < 600) {
         if (tick++ % 3 === 0) controls = state.players.map(p => pilotControls(state, p));
@@ -973,7 +974,7 @@ function runCampaign(seed) {
       results.push({ sector: state.level + 1, status: state.status, seconds: Math.round(state.time), kills: state.kills,
         earned: state.credits - startingCredits, hull: state.players.map(p => Math.round(p.hull)), lives: state.lives, power: state.players[0].power, drones: state.players[0].drones,
         bossHP: Math.round(state.enemies.find(e => e.boss)?.hp || 0), upgrades: startingUpgrades });
-      if (state.status !== 'hangar') break;
+      if (state.status !== 'hangar' || results.length >= sectorCount) break;
       buyBalanced(state);
       beginLevel(state, state.level + 1);
     }
@@ -981,11 +982,14 @@ function runCampaign(seed) {
   });
 }
 
-if (process.argv.includes('--balance')) {
+if (process.argv.includes('--balance') || process.argv.includes('--endless-balance')) {
+  const sectorCount = process.argv.includes('--endless-balance') ? 20 : 10;
   for (const seed of [2907]) {
-    const result = runCampaign(seed);
+    const result = runCampaign(seed, sectorCount);
     console.log(`BALANCE ${JSON.stringify(result)}`);
-    check('campaign is winnable using movement, shooting, and earned upgrades', () => assert.equal(result.status, 'victory'));
+    check(`${sectorCount} sectors remain playable using movement, shooting, and earned upgrades`, () => {
+      assert.equal(result.status, 'hangar'); assert.equal(result.results.length, sectorCount);
+    });
   }
   const stationary = seeded(817, () => {
     // Reserve ships can carry a motionless pilot through the gentle opening

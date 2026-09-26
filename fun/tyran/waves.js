@@ -1,3 +1,5 @@
+import { normalizeLevel, environmentIndex, combatTier, cycleScale } from './campaign.js';
+
 /* Tyran choreography: Galaga-style squadron flights, a breathing hive with
  * diving attackers, and a Tyrian-style script of waves for every sector.
  * This module decides where hostile craft want to be and what to launch next;
@@ -97,6 +99,7 @@ const SCRIPT_MIDDLES = [
   ['sweep', 'hive', 'gunship', 'midboss', 'sweep', 'captor'],
 ];
 export function sectorPlan(level) {
+  level = normalizeLevel(level);
   const plan = ['hive', ...SCRIPT_MIDDLES[level % SCRIPT_MIDDLES.length], 'hive'];
   if (level >= 3) plan.splice(plan.indexOf('midboss') + 1, 0, 'formation');
   if (level >= 6) plan.splice(plan.length - 1, 0, 'gunship');
@@ -155,7 +158,7 @@ export function startDive(s, enemy, target, speedScale = 1) {
   if (enemy.x + side * r * 2.4 < 40 || enemy.x + side * r * 2.4 > s.width - 40) side = -side;
   Object.assign(enemy, {
     ai: 'dive', diveT: 0, diveX0: enemy.x, diveY0: enemy.y, diveSide: side, diveFired: 0,
-    diveTx: clamp(target?.x ?? center, 50, s.width - 50), diveSpeed: (250 + s.level * 11) * speedScale,
+    diveTx: clamp(target?.x ?? center, 50, s.width - 50), diveSpeed: (250 + combatTier(s.level) * 11) * speedScale,
     diveWeave: enemy.type === 0 ? 0 : 55 + enemy.type * 8, diveHome: enemy.type === 0 ? 1 : 0,
   });
   s.events.push({ type: 'dive', x: enemy.x, y: enemy.y, shipType: enemy.type });
@@ -285,11 +288,11 @@ function hiveRows(level, compact = false) {
 }
 
 function buildHive(s, spawn, wave, compact = false) {
-  const rows = hiveRows(s.level, compact), speed = 330 + s.level * 9;
+  const rows = hiveRows(s.level, compact), speed = 330 + combatTier(s.level) * 9;
   // A captor's escorts sit lower so the captor and its prize stay in the clear.
   const offset = compact ? 2 : 0;
   rows.forEach(([type, count], row) => {
-    const path = HIVE_PATHS[(row + wave + s.level) % HIVE_PATHS.length];
+    const path = HIVE_PATHS[(row + wave + environmentIndex(s.level)) % HIVE_PATHS.length];
     const squad = newSquad(s, count, wave);
     const delay = .6 + row * 2.5, columns = Array.from({ length: count }, (_, i) => i);
     // Wider rows arrive as two mirrored lines, the centre ships first.
@@ -302,15 +305,15 @@ function buildHive(s, spawn, wave, compact = false) {
       launchLine(s, spawn, { type, count, path, mirror, delay, speed, wave, squad, slotRow: row + offset, slotCols: order, slotCount: count });
     }
   });
-  return 30 + s.level * .8 + rows.length * 1.5;
+  return 30 + combatTier(s.level) * .8 + rows.length * 1.5;
 }
 
 function buildSweep(s, spawn, wave, second = false) {
-  const squads = 3 + (s.level >= 4 ? 1 : 0), size = s.level >= 6 ? 6 : 5, speed = 285 + s.level * 8;
+  const squads = 3 + (s.level >= 4 ? 1 : 0), size = s.level >= 6 ? 6 : 5, speed = 285 + combatTier(s.level) * 8;
   const types = second ? [3, 7, 2, 7] : [1, 7, 2, 3];
   for (let k = 0; k < squads; k++) {
     const type = types[k % types.length], reaper = type === 7;
-    const path = reaper ? 'plunge' : SWEEP_PATHS[(k + wave + s.level) % SWEEP_PATHS.length];
+    const path = reaper ? 'plunge' : SWEEP_PATHS[(k + wave + environmentIndex(s.level)) % SWEEP_PATHS.length];
     const count = reaper ? 3 : size;
     const squad = newSquad(s, count, wave);
     launchLine(s, spawn, { type, count, path, mirror: k % 2 ? -1 : 1, delay: .5 + k * 2.8, spacing: reaper ? .3 : .2,
@@ -321,7 +324,7 @@ function buildSweep(s, spawn, wave, second = false) {
 
 function stationShip(s, spawn, type, x, y, wave, options = {}) {
   const enemy = spawn(s, type, x, -80 - ENEMY_SIZE(type));
-  Object.assign(enemy, { ai: 'station', stationX: x, stationY: y, hold: 11 + s.level * .35, sway: 42, wave, vx: 0, vy: 90, ...options });
+  Object.assign(enemy, { ai: 'station', stationX: x, stationY: y, hold: 11 + combatTier(s.level) * .35, sway: 42, wave, vx: 0, vy: 90, ...options });
   return enemy;
 }
 const ENEMY_SIZE = type => [12, 17, 22, 27, 32, 36, 41, 46, 54, 110][type] || 30;
@@ -336,8 +339,8 @@ function buildGunship(s, spawn, wave, second = false) {
     heavy.hp *= 1.6; heavy.maxHp = heavy.hp;
   }
   const squad = newSquad(s, 5, wave);
-  launchLine(s, spawn, { type: 0, count: 5, path: 'arc', mirror: wave % 2 ? -1 : 1, delay: 3.4, spacing: .18, speed: 330 + s.level * 8, wave, squad });
-  return 24 + s.level * .4;
+  launchLine(s, spawn, { type: 0, count: 5, path: 'arc', mirror: wave % 2 ? -1 : 1, delay: 3.4, spacing: .18, speed: 330 + combatTier(s.level) * 8, wave, squad });
+  return 24 + combatTier(s.level) * .4;
 }
 
 function buildMidboss(s, spawn, wave) {
@@ -345,7 +348,7 @@ function buildMidboss(s, spawn, wave) {
   boss.hp *= 4; boss.maxHp = boss.hp;
   for (let k = 0; k < 2; k++) {
     const squad = newSquad(s, 4, wave);
-    launchLine(s, spawn, { type: 2, count: 4, path: 'cross', mirror: k ? -1 : 1, delay: 4 + k * 9, spacing: .22, speed: 300 + s.level * 8, wave, squad });
+    launchLine(s, spawn, { type: 2, count: 4, path: 'cross', mirror: k ? -1 : 1, delay: 4 + k * 9, spacing: .22, speed: 300 + combatTier(s.level) * 8, wave, squad });
   }
   s.events.push({ type: 'midboss', x: boss.x, y: 120 });
   return 44;
@@ -369,7 +372,7 @@ export function updateDirector(s, dt, spawn, spawnFormation, pilot) {
   if (d.state === 'rest') {
     if (d.clock < d.rest) return false;
     if (d.wave + 1 >= d.plan.length) { d.done = true; return true; }
-    d.wave++; d.kind = d.plan[d.wave]; d.state = 'wave'; d.clock = 0; d.abandon = false; d.dive = 3.2 - Math.min(1.2, s.level * .1); d.potshot = 3;
+    d.wave++; d.kind = d.plan[d.wave]; d.state = 'wave'; d.clock = 0; d.abandon = false; d.dive = 3.2 - Math.min(1.2, combatTier(s.level) * .1); d.potshot = 3;
     const count = d.plan.slice(0, d.wave + 1).filter(kind => kind === d.kind).length;
     d.timeout = d.kind === 'hive' ? buildHive(s, spawn, d.wave)
       : d.kind === 'sweep' ? buildSweep(s, spawn, d.wave, count > 1)
@@ -413,7 +416,7 @@ export function updateDirector(s, dt, spawn, spawnFormation, pilot) {
     const members = s.enemies.filter(enemy => !enemy.dead && enemy.wave === d.wave && enemy.ai === 'hive');
     const entering = s.enemies.some(enemy => !enemy.dead && enemy.wave === d.wave && enemy.ai === 'entry' && enemy.slotCount && !isDormant(enemy));
     d.dive -= dt * (entering ? .45 : 1);
-    const maxDivers = 2 + Math.floor(s.level / 3) + (members.length <= 6 ? 1 : 0);
+    const maxDivers = 2 + Math.floor(combatTier(s.level) / 3) + (members.length <= 6 ? 1 : 0);
     if (d.dive <= 0 && diving < maxDivers && pilot?.alive) {
       const lead = members[Math.floor(Math.random() * members.length)];
       startDive(s, lead, pilot);
@@ -422,7 +425,7 @@ export function updateDirector(s, dt, spawn, spawnFormation, pilot) {
         const escorts = members.filter(enemy => enemy !== lead && enemy.slotRow === lead.slotRow + 1 && Math.abs(hiveSlot(s, enemy).x - lead.x) < 110).slice(0, 2);
         for (const escort of escorts) { startDive(s, escort, pilot); escort.diveSide = lead.diveSide; escort.diveTx = lead.diveTx + (escort.x - lead.x) * .6; }
       }
-      d.dive = Math.max(.6, 2.15 - s.level * .13) * (members.length > 8 ? 1 : .68) * (.8 + Math.random() * .4);
+      d.dive = Math.max(.6, 2.15 - combatTier(s.level) * .13) * (members.length > 8 ? 1 : .68) * (.8 + Math.random() * .4);
     }
     d.potshot -= dt;
     if (d.potshot <= 0 && members.length) {
@@ -430,7 +433,7 @@ export function updateDirector(s, dt, spawn, spawnFormation, pilot) {
       const shooters = members.filter(enemy => enemy.slotRow === bottom);
       const shooter = shooters[Math.floor(Math.random() * shooters.length)];
       if (shooter) shooter.potshot = 1;
-      d.potshot = Math.max(.9, 2.4 - s.level * .16);
+      d.potshot = Math.max(.9, 2.4 - combatTier(s.level) * .16);
     }
   }
   return false;
@@ -439,15 +442,15 @@ export function updateDirector(s, dt, spawn, spawnFormation, pilot) {
 // ——— Challenge stage ———
 export function startChallenge(s, spawn) {
   s.challenge = { clock: 0, total: CHALLENGE_SIZE, hits: 0, done: false, result: 0 };
-  const speed = 420 + s.level * 6;
+  const speed = 420 + combatTier(s.level) * 6;
   for (let k = 0; k < 5; k++) {
     const squad = newSquad(s, 8, -1, { challenge: true });
-    const path = CHALLENGE_PATHS[(k + s.level) % CHALLENGE_PATHS.length];
+    const path = CHALLENGE_PATHS[(k + environmentIndex(s.level)) % CHALLENGE_PATHS.length];
     const lines = PATHS[path].exit ? [[1, 8]] : [[-1, 4], [1, 4]];
     for (const [mirror, count] of lines) {
-      const ships = launchLine(s, spawn, { type: (k + s.level) % 4, count, path, mirror: k % 2 && lines.length === 1 ? -1 : mirror, delay: 1.2 + k * 3.6,
+      const ships = launchLine(s, spawn, { type: (k + environmentIndex(s.level)) % 4, count, path, mirror: k % 2 && lines.length === 1 ? -1 : mirror, delay: 1.2 + k * 3.6,
         spacing: .15, speed, wave: -1, squad, flags: { challenge: true, harmless: true, noFire: true } });
-      for (const enemy of ships) { enemy.hp = enemy.maxHp = 8 + s.level * 2; }
+      for (const enemy of ships) { enemy.hp = enemy.maxHp = (8 + combatTier(s.level) * 2) * cycleScale(s.level, .22); }
     }
   }
   s.events.push({ type: 'challenge', total: CHALLENGE_SIZE });
@@ -463,7 +466,8 @@ export function updateChallenge(s, dt) {
   if ((!remaining && c.clock > 2) || c.clock > 36) {
     for (const enemy of s.enemies) if (enemy.challenge) enemy.gone = true;
     const perfect = c.hits >= c.total;
-    const credits = c.hits * 9 + (perfect ? 450 : 0), score = c.hits * 150 * (1 + s.level * .1) + (perfect ? 10000 : 0);
+    const rewardScale = cycleScale(s.level, .3);
+    const credits = (c.hits * 9 + (perfect ? 450 : 0)) * rewardScale, score = (c.hits * 150 * (1 + combatTier(s.level) * .1) + (perfect ? 10000 : 0)) * rewardScale;
     s.credits += Math.round(credits); s.score += Math.round(score);
     c.done = true; c.result = s.time; c.credits = Math.round(credits);
     s.events.push({ type: 'challenge-result', hits: c.hits, total: c.total, perfect, credits: Math.round(credits), score: Math.round(score) });

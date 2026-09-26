@@ -7,12 +7,13 @@ const url = process.env.TYRAN_URL || 'http://127.0.0.1:8773/fun/tyran/';
 const out = process.env.TYRAN_PERF_OUTPUT || '/tmp/tyran-performance';
 const seconds = Math.max(25, Number(process.env.TYRAN_PERF_SECONDS) || 25);
 const dpr = Number(process.env.TYRAN_DPR || 1);
+const viewport = { width: Number(process.env.TYRAN_VIEWPORT_WIDTH) || 1440, height: Number(process.env.TYRAN_VIEWPORT_HEIGHT) || 960 };
 const coldLaunch = process.env.TYRAN_PERF_COLD === '1';
 const stress = process.env.TYRAN_PERF_STRESS === '1';
 const cpuRate = Math.max(1, Number(process.env.TYRAN_CPU_RATE) || 1);
 await mkdir(out, { recursive: true });
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
-const page = await browser.newPage({ viewport: { width: 1440, height: 960 }, deviceScaleFactor: dpr });
+const page = await browser.newPage({ viewport, deviceScaleFactor: dpr });
 const errors = [];
 const system = await (await browser.newBrowserCDPSession()).send('SystemInfo.getInfo');
 const gpu = { devices: system.gpu.devices.map(({ vendorString, deviceString }) => ({ vendorString, deviceString })), features: system.gpu.featureStatus };
@@ -44,9 +45,9 @@ try {
   const before = await metrics();
   const flight = await page.evaluate(async ({ seconds, stress }) => {
     const { spawnEnemy, hurtPlayer } = await import('./sim.js'), world = tyran.world;
-    const started = performance.now(), trace = { draws: [], terrainBuilds: [], sceneryBuilds: [], longTasks: [], frames: [] };
-    let chunkHeight = 0;
-    const draw = world.draw, getTile = world.getTile, getSceneryLayer = world.getSceneryLayer;
+    const started = performance.now(), trace = { draws: [], terrainBuilds: [], terrainRows: [], sceneryBuilds: [], longTasks: [], frames: [] };
+    let chunkHeight = 0, inFlight = false;
+    const draw = world.draw, getTile = world.getTile, getSceneryLayer = world.getSceneryLayer, paintTerrainRow = world.paintTerrainRow;
     world.draw = function (...args) {
       const time = performance.now();
       const result = draw.apply(this, args);
@@ -54,17 +55,26 @@ try {
       return result;
     };
     world.getTile = function (row) {
-      if (this.tiles.has(row)) return getTile.call(this, row);
+      if (this.tiles.has(row)) {
+        const result = getTile.call(this, row);
+        chunkHeight = result.height / (world.detailScale || 1);
+        return result;
+      }
       const time = performance.now(), result = getTile.call(this, row);
-      chunkHeight = result.height;
-      trace.terrainBuilds.push({ row, at: time - started, ms: performance.now() - time });
+      chunkHeight = result.height / (world.detailScale || 1);
+      trace.terrainBuilds.push({ row, inFlight, at: time - started, ms: performance.now() - time });
+      return result;
+    };
+    if (paintTerrainRow) world.paintTerrainRow = function (out, row, y) {
+      const time = performance.now(), result = paintTerrainRow.call(this, out, row, y);
+      trace.terrainRows.push({ row, y, inFlight, at: time - started, ms: performance.now() - time });
       return result;
     };
     world.getSceneryLayer = function (row, band, depth = 0) {
       const partial = this.sceneryLayers[depth].has(row);
       if (partial && !this.sceneryDirty?.has(row)) return getSceneryLayer.call(this, row, band, depth);
       const time = performance.now(), result = getSceneryLayer.call(this, row, band, depth);
-      trace.sceneryBuilds.push({ row, depth, partial, at: time - started, ms: performance.now() - time });
+      trace.sceneryBuilds.push({ row, depth, partial, inFlight, at: time - started, ms: performance.now() - time });
       return result;
     };
     const observer = new PerformanceObserver(list => {
@@ -84,6 +94,7 @@ try {
     const key = (code, down) => window.dispatchEvent(new KeyboardEvent(down ? 'keydown' : 'keyup', { code, bubbles: true, cancelable: true }));
     key('Space', true); key('KeyQ', true);
     const startScroll = state.scroll, startTime = state.time, flightStarted = performance.now();
+    inFlight = true;
     let previous = null, steering = -1, lastImpact = -1;
     await new Promise(resolve => {
       function sample(timestamp) {
@@ -113,8 +124,10 @@ try {
     });
     for (const code of ['Space', 'KeyQ', 'KeyA', 'KeyD']) key(code, false);
     observer.disconnect(); world.draw = draw; world.getTile = getTile; world.getSceneryLayer = getSceneryLayer;
+    if (paintTerrainRow) world.paintTerrainRow = paintTerrainRow;
     return { ...trace, launchMs, startScroll, endScroll: state.scroll, simulationSeconds: state.time - startTime, elapsedMs: performance.now() - started, flightMs: performance.now() - flightStarted,
-      chunkHeight, chunkBoundaries: Math.floor(state.scroll / chunkHeight) - Math.floor(startScroll / chunkHeight), performance: tyran.performance };
+      chunkHeight, chunkBoundaries: Math.floor(state.scroll / chunkHeight) - Math.floor(startScroll / chunkHeight), performance: tyran.performance,
+      assetRequests: performance.getEntriesByType('resource').filter(entry => entry.startTime >= flightStarted && entry.name.startsWith('http') && entry.name.includes('/assets/')).map(entry => entry.name) };
   }, { seconds, stress });
   const after = await metrics(), { profile } = await cdp.send('Profiler.stop');
   const counts = new Map();
@@ -124,10 +137,14 @@ try {
   const builds = [...flight.terrainBuilds.map(build => ({ ...build, kind: 'terrain' })), ...flight.sceneryBuilds.map(build => ({ ...build, kind: 'scenery' }))];
   const frameCount = flight.frames.length, warmDraws = flight.draws.filter(draw => draw.at >= 1500);
   const result = {
-    url, dpr, stress, cpuRate, gpu, launchMode: coldLaunch ? 'cold' : 'after-preview', launchMs: flight.launchMs,
+    url, viewport, dpr, stress, cpuRate, gpu, launchMode: coldLaunch ? 'cold' : 'after-preview', launchMs: flight.launchMs,
     requestedSeconds: seconds, elapsedSeconds: flight.elapsedMs / 1000, flightSeconds: flight.flightMs / 1000, simulationSeconds: flight.simulationSeconds,
     streaming: { startScroll: flight.startScroll, endScroll: flight.endScroll, chunkHeight: flight.chunkHeight, chunkBoundaries: flight.chunkBoundaries,
       terrainBuilds: flight.terrainBuilds.length, sceneryBuilds: flight.sceneryBuilds.length, partialSceneryBuilds: flight.sceneryBuilds.filter(build => build.partial).length },
+    preflight: { terrainRows: flight.terrainRows.filter(row => !row.inFlight).length, sceneryBuilds: flight.sceneryBuilds.filter(build => !build.inFlight).length },
+    inFlightPreparation: { synchronousTerrainBuilds: flight.terrainBuilds.filter(build => build.inFlight).length,
+      incrementalTerrainRows: flight.terrainRows.filter(row => row.inFlight).length,
+      terrainRowWork: distribution(flight.terrainRows.filter(row => row.inFlight).map(row => row.ms)), assetRequests: flight.assetRequests },
     frames: distribution(flight.frames.map(frame => frame.ms)), over25ms: flight.frames.filter(frame => frame.ms > 25).length,
     over50ms: flight.frames.filter(frame => frame.ms > 50).length, terrainDraw: distribution(flight.draws.map(draw => draw.ms)), warmTerrainDraw: distribution(warmDraws.map(draw => draw.ms)),
     gameRenderMovingAverage: distribution(flight.frames.map(frame => frame.renderAverageMs)),
@@ -148,5 +165,6 @@ try {
   await writeFile(`${out}/results.json`, JSON.stringify(result, null, 2));
   console.log(JSON.stringify(result, null, 2));
   assert.ok(flight.chunkBoundaries >= 3, 'flight must cross at least three actual terrain chunk boundaries');
+  assert.deepEqual(flight.assetRequests, [], 'sustained flight must use preloaded assets without network requests');
   assert.deepEqual(errors, [], 'sustained flight must run without browser errors');
 } finally { await browser.close(); }

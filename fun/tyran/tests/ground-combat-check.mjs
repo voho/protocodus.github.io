@@ -20,7 +20,6 @@ function collect(state, kind, pilot = 0) {
   state.pickups.push({ x: player.x, y: player.y, age: 0, kind, value: 0 });
   update(state, 1 / 60);
 }
-const turret = (id = 'turret:one', x = 600, y = 220) => ({ id, x, y, radius: 22, phase: .23 });
 
 check('cache destruction pays and drops its marked bonus once, including collateral rewards', () => {
   const state = quiet(), prop = { id: 'cache:one', x: 600, y: 220, size: 60, structural: true, value: 16, bonus: 'rapid' };
@@ -92,59 +91,32 @@ check('invulnerability blocks projectiles and collisions, expires normally, and 
   assert.deepEqual(state.turrets, []);
 });
 
-check('turrets warn before firing, lock aim, preserve cadence by ID, and disappear with their targets', () => {
-  const state = quiet(), target = turret();
-  advance(state, 1, [], [target]);
-  assert.equal(state.bullets.length, 0); assert(state.turrets[0].charge > 0);
-  const angle = state.turrets[0].angle, cooldown = state.turrets[0].cooldown;
-  state.players[0].x += 160;
-  update(state, 1 / 60, [], null, [{ ...target, y: target.y + 1 }]);
-  assert.equal(state.turrets[0].angle, angle);
-  assert(state.turrets[0].cooldown < cooldown);
-  advance(state, .5, [], [target]);
-  assert.equal(state.bullets.length, 1);
-  const bullet = state.bullets[0];
-  assert.equal(bullet.color, '#ffc76c'); assert.equal(bullet.variant, 3);
-  assert(Math.abs(Math.atan2(bullet.vy, bullet.vx) - angle) < 1e-9);
-  update(state, 1 / 60, [], null, []);
-  assert.deepEqual(state.turrets, []);
+check('natural scenery never creates explosions, salvage or blast impulses', () => {
+  const state = quiet(), pilot = state.players[0];
+  for (const type of ['tree', 'rock', 'fern', 'crystal', 'cactus']) applyGroundReward(state, {
+    id: type, type, x: pilot.x - 20, y: pilot.y, size: 80, structural: false, value: 12, bonus: 'rapid',
+  });
+  assert.equal(state.destroyed, 0); assert.equal(state.credits, 0); assert.equal(state.score, 0);
+  assert.deepEqual(state.pickups, []); assert.deepEqual(state.events, []);
+  assert.equal(pilot.blastVx || 0, 0); assert.equal(pilot.blastVy || 0, 0);
 });
 
-check('turrets use current-step scenery positions and never consume simulation random numbers', () => {
-  const state = quiet(), random = Math.random;
-  let callbackScroll;
-  Math.random = () => { throw new Error('Turret cadence consumed the game RNG'); };
-  try {
-    advance(state, 2, [], current => { callbackScroll = current.scroll; return [turret()]; });
-  } finally { Math.random = random; }
-  assert.equal(callbackScroll, state.scroll);
-  assert.equal(state.bullets.length, 1);
+check('ground sites cannot emit hostile fire', () => {
+  const state = quiet();
+  advance(state, 8, [], [{ id: 'retired-turret', x: 600, y: 220, radius: 22, phase: .23 }]);
+  assert.deepEqual(state.turrets, []); assert.equal(state.bullets.length, 0);
+  assert.equal(state.events.some(event => event.type === 'turret-shot'), false);
 });
 
-check('turrets respect the shared bullet limit, maximum count, safe firing lane, and boss silence', () => {
-  const state = quiet(), targets = [turret('a', 450), turret('b', 600), turret('c', 750), turret('d', 850)];
-  for (let i = 0; i < 77; i++) state.bullets.push({ x: 100, y: 100, px: 100, py: 100, vx: 0, vy: 0, team: -1, radius: 2, damage: 1, life: 20 });
-  advance(state, 2, [], targets);
-  assert.equal(state.turrets.length, 3); assert.equal(state.bullets.length, 78);
-  const unsafeTargets = [turret('offscreen', 600, -20), turret('behind', 600, 750), turret('close', 600, state.players[0].y - 60)];
-  const unsafe = quiet(); advance(unsafe, 5, [], unsafeTargets);
-  assert.equal(unsafe.bullets.length, 0); assert(unsafe.turrets.every(item => !item.charge));
-  for (const flag of ['bossSpawned', 'bossDefeated']) {
-    const boss = quiet(); boss[flag] = true;
-    update(boss, 1 / 60, [], null, targets);
-    assert.deepEqual(boss.turrets, []); assert.equal(boss.bullets.length, 0);
-  }
-});
-
-check('autosaves preserve timers, charging turret aim, and uncollected boosts with bounded older-save defaults', () => {
-  const state = quiet(), targets = [turret()];
-  advance(state, 1, [], targets);
+check('autosaves preserve bonuses while retiring saved ground defenses', () => {
+  const state = quiet();
+  advance(state, 1);
   state.players[0].rapidFireTime = 4.125; state.players[0].invulnerableTime = 8.25;
   state.pickups.push({ x: 100, y: 100, age: 1.5, kind: 'invulnerable', value: 0 }, { x: 900, y: 90, age: 2, kind: 'rapid', value: 0 });
   const encoded = serializeRun(state), restored = restoreRun(encoded).state;
   assert.equal(restored.players[0].rapidFireTime, 4.125); assert.equal(restored.players[0].invulnerableTime, 8.25);
   assert.deepEqual(restored.turrets, state.turrets); assert.deepEqual(restored.pickups, state.pickups);
-  update(state, 1 / 60, [], null, targets); update(restored, 1 / 60, [], null, targets);
+  update(state, 1 / 60); update(restored, 1 / 60);
   assert.deepEqual(restored.turrets, state.turrets);
   assert.equal(restored.players[0].rapidFireTime, state.players[0].rapidFireTime);
   const old = JSON.parse(encoded);
@@ -153,10 +125,18 @@ check('autosaves preserve timers, charging turret aim, and uncollected boosts wi
   const legacy = restoreRun(old).state;
   assert.deepEqual(legacy.turrets, []);
   assert(legacy.players.every(player => !player.rapidFireTime && !player.invulnerableTime));
-  const oversized = JSON.parse(encoded); oversized.state.turrets = Array.from({ length: 4 }, (_, index) => ({ ...state.turrets[0], id: String(index) }));
-  assert.equal(restoreRun(oversized), null);
-  const duplicate = JSON.parse(encoded); duplicate.state.turrets.push(duplicate.state.turrets[0]);
-  assert.equal(restoreRun(duplicate), null);
+  const retired = JSON.parse(encoded);
+  retired.state.turrets = [{ id: 'legacy-turret', x: 600, y: 220, charge: 1, cooldown: 0 }];
+  retired.state.bullets.push(
+    { x: 400, y: 200, vx: 0, vy: 180, team: -1, color: '#ffc76c', kind: 'hostile', variant: 3 },
+    { x: 450, y: 200, vx: 0, vy: 180, team: -1, color: '#ffe16a', kind: 'hostile', variant: 3 },
+  );
+  const resumed = restoreRun(retired).state;
+  assert.deepEqual(resumed.turrets, []);
+  assert.equal(resumed.bullets.length, 1, 'Only retired turret rounds disappear');
+  assert.equal(resumed.bullets[0].color, '#ffe16a', 'Ship-fired ammunition survives restoration');
+  assert.equal(resumed.hostileCount, 1);
+
 });
 
 if (failures) process.exitCode = 1;

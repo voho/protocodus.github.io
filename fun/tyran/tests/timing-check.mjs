@@ -18,8 +18,8 @@ function near(actual, expected, message, tolerance = 1e-7) {
   assert.ok(Math.abs(actual - expected) < tolerance, `${message}: ${actual} versus ${expected}`);
 }
 
-async function flight() {
-  const page = await browser.newPage({ viewport: { width: 1440, height: 960 }, deviceScaleFactor: 1 });
+async function flight(viewport = { width: 1440, height: 960 }) {
+  const page = await browser.newPage({ viewport, deviceScaleFactor: 1 });
   page.on('pageerror', error => errors.push(error.message));
   await page.addInitScript(() => {
     const queued = new Map(); let sequence = 0;
@@ -66,7 +66,7 @@ async function snapshot(page) {
   return page.evaluate(() => ({ time: tyran.state.time, width: tyran.state.width,
     players: tyran.state.players.map(p => ({ x: p.x, y: p.y, px: p.px, py: p.py, vx: p.vx, vy: p.vy, mass: p.mass })),
     teams: [...new Set(tyran.state.bullets.map(b => b.team))], perf: tyran.performance,
-    painted: window.__paintedPilot, surfaceWidth: document.querySelector('#game-canvas').width }));
+    painted: window.__paintedPilot, surfaceWidth: document.querySelector('#game-canvas').width, terrainDensity: tyran.world.detailScale }));
 }
 
 try {
@@ -142,13 +142,16 @@ try {
   });
 
   await check('adaptive resolution lowers pixel work without moving or resizing the arena', async () => {
-    const page = await flight();
+    const page = await flight({ width: 1680, height: 1050 });
     try {
       await advance(page, .2, 60);
       const before = await snapshot(page);
       await advance(page, 4.3, 30);
       const after = await snapshot(page);
       assert.ok(after.perf.renderScale < before.perf.renderScale && after.surfaceWidth < before.surfaceWidth, 'sustained slow frames reduce backing resolution');
+      assert.equal(before.terrainDensity, 2, 'large-screen terrain starts prepared at double density');
+      assert.ok(after.surfaceWidth <= 1600, 'adaptive backing resolution crosses the terrain density threshold');
+      assert.equal(after.terrainDensity, before.terrainDensity, 'adaptation reuses prepared terrain instead of rebuilding it in flight');
       assert.equal(after.width, before.width, 'logical arena size remains unchanged');
       near(after.players[0].x, before.players[0].x, 'adaptive resolution preserves pilot x');
       near(after.players[0].y, before.players[0].y, 'adaptive resolution preserves pilot y');

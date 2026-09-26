@@ -1,4 +1,5 @@
 import { spriteCell, spriteRevision, spritesReady } from './sprite-assets.js';
+import { BONUS_PALETTE } from './bonus-sprites.js';
 
 const random = (a, b) => a + Math.random() * (b - a);
 const TAU = Math.PI * 2;
@@ -108,13 +109,13 @@ function fitSprite(ctx, sprite, x, y, diameter) {
   const scale = diameter / Math.max(sprite.width, sprite.height), width = sprite.width * scale, height = sprite.height * scale;
   ctx.drawImage(sprite, x - width / 2, y - height / 2, width, height);
 }
-function warmEffectsTextures() {
+export function warmEffectsTextures(colors = []) {
   for (let i = 0; i < 14; i++) spriteCell('effects', i);
   wreckTexture(); wreckTexture(true); smokeTexture(); smokeTexture(true);
   fireBloomTexture(); lensStreakTexture(); lensGhostTexture();
-  for (const color of ['#ffbb6b', '#ffc985', '#ff9e7d', '#ffe36d']) lightTexture(color);
+  for (const color of new Set(['#ffbb6b', '#ffc985', '#ff9e7d', '#ffe36d', '#ffe8b0', '#ff9ab8', ...colors])) if (color) lightTexture(color);
 }
-spritesReady.then(warmEffectsTextures);
+spritesReady.then(() => warmEffectsTextures());
 function ageAndCompact(list, dt) {
   let length = 0;
   for (const p of list) { p.age += dt; if (p.age < p.life) list[length++] = p; }
@@ -175,7 +176,7 @@ export class Effects {
       this.rings.push({ x, y, age: 0, life: .27, radius: 52, color: event.shield ? '#91ffee' : '#ff6c5e' });
     } else if (event.type === 'pickup') {
       const timed = event.bonus === 'rapid' || event.bonus === 'invulnerable';
-      const color = event.bonus === 'rapid' ? '#ffe2a0' : '#8affd7';
+      const color = BONUS_PALETTE.rim;
       const offset = event.bonus === 'rapid' ? 44 : event.bonus === 'invulnerable' ? 24 : 0;
       this.texts.push({ x, y: y - offset, text: `${event.value}`, life: timed ? 1.8 : 1.3, age: 0, color });
       if (timed) this.rings.push({ x, y, age: 0, life: .45, radius: 65, color });

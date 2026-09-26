@@ -84,11 +84,18 @@ try {
   await page.locator('#resume-button').click();
   // Destruction is real, persistent, and rewards salvage.
   const destruction = await page.evaluate(() => {
-    const w = tyran.world, p = w.visibleProps[0], scale = w.scale;
+    const w = tyran.world, scale = w.scale;
+    const buildings = new Set(['temple','ruin','bunker','station','radar','dome','solar','refinery','building','tower','pylon','fortress','hut','satellite']);
+    const p = w.visibleProps.find(prop => buildings.has(prop.type));
+    const nature = w.visibleProps.find(prop => !buildings.has(prop.type));
     const destroyed = w.hit((p.screenX ?? p.x) * scale, p.screenY * scale, 3, 100000, tyran.state.scroll);
     const twice = w.hit((p.screenX ?? p.x) * scale, p.screenY * scale, 3, 100000, tyran.state.scroll);
-    return { count:destroyed.length, twice:twice.length, size:destroyed[0]?.size };
+    const natureHp = nature.hp;
+    const natureEvents = w.hit((nature.screenX ?? nature.x) * scale, nature.screenY * scale, 0, 100000, tyran.state.scroll);
+    const natureUnchanged = nature.hp === natureHp && !w.damage.has(nature.id) && !w.destroyed.has(nature.id) && !natureEvents.some(event => event.id === nature.id);
+    return { count:destroyed.length, twice:twice.length, size:destroyed[0]?.size, natureUnchanged };
   });
+  assert(destruction.natureUnchanged, 'Nature remains intact and never rewards salvage after a direct hit');
   assert(destruction.count > 0 && destruction.size > 0); assert.equal(destruction.twice, 0, 'Destroyed props cannot pay out twice');
   // Drive actual boss-death transition into the service bay.
   await page.evaluate(async () => {
@@ -122,9 +129,13 @@ try {
     tyran.launch(9,{ upgrades:{weapon:6,shield:6,hull:6,recharge:6} });
     killEnemy(tyran.state,spawnEnemy(tyran.state,9,tyran.state.width/2,180)); tyran.step(3.4);
   });
-  assert(await page.locator('#end-screen').isVisible());
-  assert.equal(await page.evaluate(() => tyran.state.status), 'victory');
-  assert.match(await page.locator('#end-title').textContent(), /skies are yours/);
+  assert(await page.locator('#hangar-screen').isVisible());
+  assert.equal(await page.evaluate(() => tyran.state.status), 'hangar');
+  assert.match(await page.locator('#hangar-subtitle').textContent(), /new cycle awaits/i);
+  await page.locator('#next-button').click();
+  assert.equal(await page.evaluate(() => tyran.state.level), 10, 'The tenth guardian leads into a new campaign cycle');
+  assert.equal(await page.evaluate(() => tyran.world.index), 0);
+  assert.match(await page.locator('#level-number').textContent(), /11.*Cycle 2/);
   // Storage denial must not prevent boot or play.
   const restricted = await browser.newPage(); watch(restricted);
   await restricted.addInitScript(() => { Object.defineProperty(window,'localStorage',{get(){throw new Error('Storage disabled');}}); });
@@ -153,5 +164,5 @@ try {
   await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
   await mobile.screenshot({path:`${output}/mobile-flight.png`});
   assert.deepEqual(errors,[],'No browser errors');
-  console.log('Tyran browser QA passed: ten worlds, single-player controls, pause, scenery destruction, upgrade economy, saved continuation, victory, blocked storage, and mobile touch.');
+  console.log('Tyran browser QA passed: ten worlds, single-player controls, pause, scenery destruction, upgrade economy, saved continuation, endless cycle transition, blocked storage, and mobile touch.');
 } finally { await browser.close(); }

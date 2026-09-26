@@ -32,6 +32,7 @@ try {
     window.groundQA = {
       quiet() {
         const s = tyran.state;
+        s.director.hold = true;
         Object.assign(s, { spawnTimer: 10000, formationTimer: 10000, showcase: 9, duration: 10000, enemies: [], bullets: [], events: [] });
       },
       site(role, bonus) {
@@ -55,42 +56,45 @@ try {
     };
   });
   await click('#launch-button');
-  const warning = await page.evaluate(() => {
-    groundQA.quiet();
-    const s = tyran.state, prop = groundQA.site('turret');
-    groundQA.turretId = prop.id;
-    groundQA.focus(prop, 170);
-    for (let frame = 0; frame < 360; frame++) {
-      tyran.step(1 / 60);
-      const activity = s.turrets.find(t => t.id === prop.id);
-      if (activity?.charge > .55) {
-        document.querySelector('#announcement').hidden = true; __frame();
-        return { charged: true, fired: activity.flash > 0 };
-      }
+  const peacefulGround = await page.evaluate(() => {
+    const results = [];
+    for (let index = 0; index < 10; index++) {
+      tyran.launch(index); groundQA.quiet();
+      const s = tyran.state, w = tyran.world;
+      const props = Array.from({ length: 4 }, (_, row) => w.getBand(-row)).flat();
+      const targets = w.getGroundTargets(s.width, s.height, s.scroll, s.players[0].x);
+      tyran.step(8);
+      results.push({ index, turrets: props.filter(prop => prop.groundRole === 'turret').length,
+        targets: targets.length, hostile: s.bullets.filter(bullet => bullet.team < 0).length });
     }
-    return { charged: false };
+    return results;
   });
-  assert(warning.charged && !warning.fired, 'A turret telegraphs its aim before firing');
-  await page.screenshot({ path: `${output}/ground-turret-warning.png` });
-  const turret = await page.evaluate(() => {
-    const s = tyran.state, id = groundQA.turretId;
-    let fired = false;
-    for (let frame = 0; frame < 180; frame++) {
-      tyran.step(1 / 60);
-      const activity = s.turrets.find(t => t.id === id);
-      if (activity?.flash > 0 && s.bullets.some(b => b.team < 0 && b.color === '#ffc76c')) { fired = true; break; }
+  assert(peacefulGround.every(result => !result.turrets && !result.targets && !result.hostile), 'Every biome has scenery and supply caches without ground defenses');
+  console.log('PASS all ten sectors have no ground turrets or ground-fired projectiles');
+
+  const protectedScenery = await page.evaluate(() => {
+    const results = [];
+    for (const trigger of ['projectile', 'airborne explosion', 'nova']) {
+      tyran.launch(0); groundQA.quiet();
+      const s = tyran.state, w = tyran.world;
+      const prop = w.getBand(-1).find(item => ['tree', 'palm', 'fern'].includes(item.type) && item.x > 180 && item.x < 1020);
+      const point = groundQA.focus(prop, 240), hp = prop.hp;
+      const groundExplosions = [], emit = tyran.fx.emit;
+      tyran.fx.emit = function(event, ...args) { if(event.ground && event.type === 'explosion') groundExplosions.push(event.id); return emit.call(this, event, ...args); };
+      try {
+        if (trigger === 'projectile') groundQA.projectile(point);
+        else s.events.push({ type: trigger === 'nova' ? 'nova' : 'explosion', ...point, size: 200 });
+        tyran.step(1 / 60);
+      } finally { tyran.fx.emit = emit; }
+      results.push({ trigger, hp: prop.hp, previous: hp, damaged: w.damage.has(prop.id), destroyed: w.destroyed.has(prop.id), exploded: groundExplosions.includes(prop.id) });
     }
-    const activity = s.turrets.find(t => t.id === id);
-    const point = { x: activity?.x, y: activity?.y };
-    s.bullets = []; groundQA.projectile(point); tyran.step(1 / 60);
-    const destroyed = tyran.world.destroyed.has(id);
-    s.bullets = []; tyran.step(1 / 60);
-    const removed = !s.turrets.some(t => t.id === id);
-    return { fired, destroyed, removed };
+    return results;
   });
-  assert(turret.fired, 'The telegraphed turret fires a hostile projectile');
-  assert(turret.destroyed && turret.removed, 'Destroying its scenery removes the active turret');
-  console.log('PASS real turret telegraph, hostile fire and destruction shutdown');
+  for (const result of protectedScenery) {
+    assert.equal(result.hp, result.previous, `${result.trigger} leaves natural scenery intact`);
+    assert(!result.damaged && !result.destroyed && !result.exploded, `${result.trigger} creates no nature damage, fire, or destruction ledger entry`);
+  }
+  console.log('PASS direct fire, airborne blasts and nova leave natural scenery intact');
 
   const rewards = await page.evaluate(() => {
     const results = [];
@@ -145,7 +149,7 @@ try {
   await page.reload(); await ready(); await click('#continue-button');
   assert.equal(await page.evaluate(() => tyran.scene), 'pause');
   assert.deepEqual(await page.evaluate(() => tyran.state.players.map(p => [p.rapidFireTime, p.invulnerableTime])), checkpoint.timers, 'Autosave/reload keeps each pilot’s exact remaining bonus time');
-  assert.deepEqual(await page.evaluate(() => tyran.state.turrets), checkpoint.turrets, 'Autosave/reload keeps active turret firing state');
+  assert.deepEqual(await page.evaluate(() => tyran.state.turrets), checkpoint.turrets, 'Autosave/reload keeps ground defenses absent');
   await click('#resume-button');
   const refreshed = await page.evaluate(() => {
     const s = tyran.state, p = s.players[0];

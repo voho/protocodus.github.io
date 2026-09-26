@@ -1,4 +1,4 @@
-# Tyran visual assets
+# Tyran assets
 
 ## `hero.jpg`
 
@@ -42,13 +42,13 @@ Each sector fleet sheet uses a 4 × 3 layout. Cell 0 is an unused player referen
 | Alien | Spore Covenant | `sprites/fleet-alien.webp` |
 | Void | Aurum Cathedral | `sprites/fleet-void.webp` |
 
-`sprite-assets.js` decodes the library before flight preparation and retains one reusable alpha-trimmed canvas per cell, releasing each full decoded sheet after extraction. Connected hull/structure components keep wings and antennas intact where generated objects cross nominal grid boundaries. Color grading, shadows and sprite variants are cached by appearance. Ship caches are bounded to roughly one fleet and both pilots; exhaust frames are shared across palettes. Fresh scenery is warmed in advance, while damage art uses a 32-entry cache and prepares the next stage when a structure takes damage. Procedural art remains a fallback if an atlas cannot load.
+`sprite-assets.js` decodes the library before flight preparation and retains one reusable alpha-trimmed canvas per cell, releasing each full decoded sheet after extraction. Connected hull/structure components keep wings and antennas intact where generated objects cross nominal grid boundaries. Color grading, shadows and sprite variants are cached by appearance. Ship caches are bounded to roughly one fleet and both pilots; exhaust frames are shared across palettes. Flight preparation warms all fresh scenery and building damage appearances for the active sector, along with foundations and fixture overlays. Damage art has an 80-entry cap (20.7 MiB); other sectors' derived art is released on a world change. All 24 material cells and 252 bank/cliff masks are prepared before flight. Opening strips and the next strip are ready before play, then bounded nearby terrain streams through small idle row jobs with scenery prepared ahead of the camera. Procedural art remains a fallback if an atlas cannot load.
 
 ## Terrain tile library
 
 `terrain-sprites.js` bakes the generated material cells into 100 × 100 logical-pixel tiles at double resolution. Each biome has four materials with six orientations each, plus matching irregular corner masks for banks and cliffs. Shared crossings and tangents keep all six contour variants connected. Broken rims, layered ledge shadows, fissures and low mounds add visual depth; material crops vary to soften repetition. Material luminosity preserves the generated surface detail; the original terrain palette supplies its hue. Common edge tones join adjacent tiles. `tile-map.js` generates connected terrain cells from the level hash. `worlds.js` assembles those cells into cached 800-pixel strips and places reusable scenery sprites from the same hash. A separate seeded stream adds clustered pebbles, brush, coral and rubble to cached ground strips while preserving all destructible IDs and positions.
 
-Exactly two scrolling planes provide depth. The **ground** plane contains water or space, terrain, rocks, plants, vehicles, buildings and destruction remains under one shared translation. Nothing standing on the map drifts away from its terrain cell. The **atmosphere** plane contains faster clouds and drifting particles. One extra cell beyond each horizontal edge covers the camera's 1% lateral drift. Terrain and ground vehicles use subdued biome materials; saturated complementary colors are reserved for airborne fleets.
+Three scrolling planes provide depth. The **ground** plane contains water or space, terrain, rocks, plants, vehicles, buildings and destruction remains under one shared translation. Nothing standing on the map drifts away from its terrain cell. The **atmosphere** plane contains clouds and their ground shadows at 1.32× ground speed; **foreground weather** adds peripheral wisps and particles at 1.85×. Reduced motion removes the extra drift. Large displays retain both cached terrain and scenery strips at 2× resolution. One extra cell beyond each horizontal edge covers the camera's 1% lateral drift. Terrain and ground vehicles use subdued biome materials; saturated complementary colors are reserved for airborne fleets.
 
 ## Fixed ship sprites
 
@@ -71,14 +71,29 @@ Structure durability scales with footprint area (`size²`) and a type-specific a
 
 Service lights, small radar sweeps and rooftop exhaust animate over the cached structure bodies. Their intensity follows the damage stage and stops at destruction. The overlays use cached light/cloud textures, with no per-frame pixel processing.
 
-Seeded ground sites reuse these same structure bodies and destruction stages. Turrets add a cached armored gun mount with an aiming barrel, amber charge arc and brief muzzle flash. Supply structures add green beacons marked with the bonus they release. Roles and contents use a separate hash so existing scenery positions and damage IDs stay stable.
+Seeded supply buildings reuse these same structure bodies and destruction stages, with mint beacons marked by the bonus they release. Their contents use a separate hash so existing scenery positions and damage IDs stay stable. Ground turrets have been removed, and natural scenery and ground vehicles no longer take damage.
 
 The crater is painted by the scenery renderer. Ground explosion effects add transient fire, smoke and fragments without adding a second persistent wreck. A large structure's final blast gently displaces nearby small ships; its decaying, mass-sensitive impulse causes no damage and leaves large craft and bosses unaffected.
 
-Repair and salvage pickups keep their original capsule/chip artwork, surrounded by a shared green halo baked into their cached textures.
+The earlier repair capsule/chip atlas is retained as source artwork. All seven live pickups now use the same cached beveled teal case, mint rim, pale emblem and green halo from `bonus-sprites.js`. Supply-building markers reuse those badges.
 
-Temporary rapid-fire and invulnerability pickups reuse those equipment sprites with distinct lightning/shield emblems. Their ten-second duration appears on the pickup and pilot HUD. Cached mint barrier art and small amber wing markers show the active bonuses without replacing or tilting the ship hull.
+Distinct repair, credit, lightning, shield, power, drone and nova symbols distinguish bonuses within the shared shape and palette. Temporary bonuses show their remaining duration in the pilot HUD. Cached mint barrier art and mint wing markers show active bonuses without replacing or tilting the ship hull.
 
 ## Fonts
 
 Menus, HUD and canvas text use locally served Chakra Petch in four Latin WOFF2 weights (about 39 KB total). See [font provenance and license](fonts/README.md). No third-party font request is made.
+
+## Downloaded audio
+
+Tyran includes 18 CC0 sound-effect variants from Kenney's Sci-fi Sounds and Digital Audio packs, plus three full CC0 synthwave songs. Original notices, track-specific source pages, conversion details and checksums are preserved with the files:
+
+- [Sound effects and licenses](audio/sfx/SFX-SOURCES.md)
+- [Music and licenses](audio/music/MUSIC-SOURCES.md)
+
+`audio-assets.js` preloads all 21 files before flight, regardless of the mute setting. Eighteen short WAV effects decode in an OfflineAudioContext; the three full MP3s remain compressed in local Blob URLs and play through one reusable media element. This avoids roughly 140 MB of fully decoded song buffers. All sectors and retries share the in-memory assets, and optional versioned Cache Storage retains downloaded bytes for later visits. Playback never fetches assets. One 15-second deadline bounds the entire preload queue; missing or stalled assets use the synthesized fallback for the session with no in-flight retries. Preloading does not create a live playback context or start audio.
+
+Collectible icons are drawn and cached by `bonus-sprites.js`; every bonus uses the same teal case and mint palette with a distinct symbol.
+
+## Shop previews
+
+`shop-art.js` composes eleven 640 × 280 product images from the existing decoded fleet, structure, projectile and effects art. Weapon cards show firing patterns; support cards show drones, a reserve ship and nova hardware; system cards show armament, shields, armor and the reactor. Startup caches these inline PNG previews once, so opening or updating the shop makes no additional asset requests.

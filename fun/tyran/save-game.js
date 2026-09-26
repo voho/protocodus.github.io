@@ -1,5 +1,5 @@
 import { createCampaign, MAX_UPGRADE, shipStats, normalizeWeapon, FORMATIONS, SECONDARY_ENERGY_COST, PRIMARIES, normalizePrimary,
-  MAX_POWER, MAX_DRONES, MAX_BOMBS, MAX_LIVES, START_LIVES, START_BOMBS, FIRST_EXTRA_LIFE, EXTRA_LIFE_STEP, RESPAWN_DELAY, RESPAWN_GUARD, PICKUP_KINDS, sectorDuration } from './sim.js';
+  MAX_POWER, MAX_DRONES, MAX_BOMBS, MAX_LIVES, START_LIVES, START_BOMBS, FIRST_EXTRA_LIFE, nextLifeAfterScore, RESPAWN_DELAY, RESPAWN_GUARD, PICKUP_KINDS, sectorDuration } from './sim.js';
 import { createDirector, WAVE_KINDS, AI_MODES, PATHS } from './waves.js';
 
 export const SAVE_KEY = 'tyran-campaign';
@@ -21,6 +21,13 @@ function number(value, fallback = 0, min = -100_000_000, max = 100_000_000, time
   return Math.max(min, Math.min(max, value));
 }
 const integer = (value, fallback = 0, min = 0, max = 100_000_000) => Math.trunc(number(value, fallback, min, max));
+// Campaign progression is an absolute sector number, independent of the ten
+// reusable environments. Never truncate or wrap it while loading a save.
+function campaignLevel(value, fallback = 0, max = Number.MAX_SAFE_INTEGER) {
+  if (value === undefined) return fallback;
+  if (!Number.isSafeInteger(value) || value < 0) invalid();
+  return Math.min(value, max);
+}
 function bool(value, fallback = false) {
   if (value === undefined) return fallback;
   if (typeof value !== 'boolean') invalid();
@@ -99,13 +106,14 @@ function parse(raw) {
 }
 
 function restoreState(raw) {
-  if (!object(raw) || ![1, 2].includes(raw.mode) || !Number.isInteger(raw.level) || raw.level < 0 || raw.level > 9 || !['playing', 'hangar', 'victory'].includes(raw.status)) invalid();
-  if ((raw.status === 'hangar' && raw.level === 9) || (raw.status === 'victory' && raw.level !== 9)) invalid();
+  if (!object(raw) || ![1, 2].includes(raw.mode) || !Number.isSafeInteger(raw.level) || raw.level < 0 || !['playing', 'hangar', 'victory'].includes(raw.status)) invalid();
+  // Only the former final sector can carry a legacy victory marker.
+  if (raw.status === 'victory' && raw.level !== 9) invalid();
   if (!object(raw.upgrades) || !Array.isArray(raw.players) || !Array.isArray(raw.enemies) || !Array.isArray(raw.bullets) || !Array.isArray(raw.formations)) invalid();
   const state = createCampaign(raw.level);
   for (const id of Object.keys(state.upgrades)) state.upgrades[id] = integer(raw.upgrades[id], 0, 0, MAX_UPGRADE);
-  state.status = raw.status;
-  state.startLevel = integer(raw.startLevel, 0, 0, state.level);
+  state.status = raw.status === 'victory' ? 'hangar' : raw.status;
+  state.startLevel = campaignLevel(raw.startLevel, 0, state.level);
   state.weapon = normalizeWeapon(raw.weapon);
   Object.assign(state, fields(raw, {
     width: 1200, height: 900, time: 0, scroll: 0, duration: sectorDuration(raw.level),
@@ -115,7 +123,8 @@ function restoreState(raw) {
     bossDeathTime: 0, spawnTimer: 1.5, showcase: 0,
   }, ['spawnTimer', 'formationTimer', 'duration', 'comboTime', 'bossDeathTime']));
   state.width = number(raw.width, 1200, 320, 6000); state.height = number(raw.height, 900, 320, 6000);
-  for (const key of ['credits', 'score', 'kills', 'destroyed', 'totalKills', 'combo', 'nextEnemyId', 'nextFormationId', 'showcase']) state[key] = integer(state[key], 0);
+  for (const key of ['kills', 'destroyed', 'combo', 'nextEnemyId', 'nextFormationId', 'showcase']) state[key] = integer(state[key], 0);
+  for (const key of ['credits', 'score', 'totalKills']) state[key] = integer(raw[key], 0, 0, Number.MAX_SAFE_INTEGER);
   for (const key of ['time', 'scroll', 'duration', 'comboTime']) state[key] = Math.max(0, state[key]);
   state.comboDamage = number(raw.comboDamage, 1, 1, 1.27); state.comboBlast = number(raw.comboBlast, 1, 1, 1.38);
   state.comboLabel = string(raw.comboLabel, '', 24);
@@ -124,9 +133,9 @@ function restoreState(raw) {
   state.primary = state.owned.includes(normalizePrimary(raw.primary)) ? normalizePrimary(raw.primary) : 'pulse';
   state.lives = integer(raw.lives, START_LIVES, 0, MAX_LIVES);
   state.livesBought = integer(raw.livesBought, 0, 0, 20);
-  state.nextLife = number(raw.nextLife, FIRST_EXTRA_LIFE, FIRST_EXTRA_LIFE, 1_000_000_000);
+  state.nextLife = integer(raw.nextLife, FIRST_EXTRA_LIFE, FIRST_EXTRA_LIFE, Number.MAX_SAFE_INTEGER);
   // Older saves never tracked milestones: start from the next one ahead of the score.
-  if (raw.nextLife === undefined) while (state.nextLife <= state.score) state.nextLife += EXTRA_LIFE_STEP;
+  if (raw.nextLife === undefined) state.nextLife = nextLifeAfterScore(state.score);
   state.respawn = number(raw.respawn, 0, -1, RESPAWN_DELAY);
   const rawStats = raw.stats === undefined ? {} : object(raw.stats) ? raw.stats : invalid();
   state.stats = Object.fromEntries(['shots', 'hits', 'squads', 'dives', 'rescues'].map(key => [key, integer(rawStats[key], 0)]));
@@ -187,19 +196,8 @@ function restoreState(raw) {
     return result;
   });
   if (state.status === 'playing' && !state.players.some(player => player.alive) && !(state.lives > 0 && state.mode === 1)) invalid();
-  const turretIds = new Set();
-  state.turrets = list(raw.turrets, 3).map(turret => {
-    if (!object(turret)) invalid();
-    const id = string(turret.id);
-    if (!id || turretIds.has(id)) invalid();
-    turretIds.add(id);
-    return {
-      id, x: number(turret.x), y: number(turret.y), radius: number(turret.radius, 22, 1, 128),
-      phase: number(turret.phase, 0, 0, 1), angle: number(turret.angle, Math.PI / 2, -Math.PI, Math.PI),
-      charge: number(turret.charge, 0, 0, 1), flash: number(turret.flash, 0, 0, .16),
-      cooldown: number(turret.cooldown, 1.25, 0, 5), targetId: integer(turret.targetId, -1, -1, raw.mode - 1),
-    };
-  });
+  // Ground defenses were retired; old charging guns must never resume firing.
+  state.turrets = [];
   const formationsById = new Map();
   state.formations = list(raw.formations, 64).map(formation => {
     if (!object(formation) || !FORMATIONS.includes(formation.kind)) invalid();
@@ -251,7 +249,8 @@ function restoreState(raw) {
   for (const beam of state.beams) if (!enemyIds.has(beam.owner)) invalid();
   state.nextEnemyId = Math.max(state.nextEnemyId, 1, ...state.enemies.map(enemy => enemy.id + 1));
   state.nextFormationId = Math.max(state.nextFormationId, 1, ...state.formations.map(formation => formation.id + 1));
-  state.bullets = list(raw.bullets, 1024).map(bullet => {
+  // This color/variant pair belonged only to removed ground turrets.
+  state.bullets = list(raw.bullets, 1024).filter(bullet => !(bullet?.team === -1 && bullet.color === '#ffc76c' && bullet.variant === 3)).map(bullet => {
     const result = { ...coordinates(bullet), ...fields(bullet, { age: 0, damage: 0, radius: 4, life: 1 }, ['life']) };
     result.damage = number(bullet.damage, 0, 0, 1_000_000); result.radius = number(bullet.radius, 4, .1, 100);
     result.team = integer(bullet.team, 0, -1, raw.mode - 1);
@@ -288,7 +287,6 @@ function restoreState(raw) {
       for (const point of enemy.weakPoints || []) { point.hp /= 1.65; point.maxHp /= 1.65; }
     }
     for (const bullet of state.bullets) if (bullet.team >= 0) bullet.team = 0;
-    for (const turret of state.turrets) if (turret.targetId >= 0) turret.targetId = 0;
   }
   state.weapon = state.players[0].weapon;
   state.hostileCount = state.bullets.filter(bullet => bullet.team < 0 && bullet.life > 0).length;
@@ -328,8 +326,8 @@ export function serializeRun(state, { seed = 'tyran-v2', damage = new Map(), des
   // Validate and copy before encoding; never retain or modify live game objects.
   const restored = restoreState(rawState);
   const record = {
-    version: VERSION, savedAt: Date.now(), scene: state.status === 'victory' ? 'end' : state.status === 'hangar' ? 'hangar' : 'pause',
-    seed: string(seed, 'tyran-v2'), unlocked: integer(unlocked, state.level, 0, 9),
+    version: VERSION, savedAt: Date.now(), scene: restored.status === 'hangar' ? 'hangar' : 'pause',
+    seed: string(seed, 'tyran-v2'), unlocked: Math.max(campaignLevel(unlocked, state.level), state.status === 'victory' ? state.level + 1 : 0),
     state: { ...restored, enemies: restored.enemies.map(enemy => {
       const { formation, formationOffset, ...rest } = enemy;
       return { ...rest, formationId: formation?.id ?? null };
@@ -346,9 +344,12 @@ export function restoreRun(raw) {
   try {
     const record = parse(raw);
     if (record.version !== VERSION || !['pause', 'hangar', 'end'].includes(record.scene)) return null;
-    const state = restoreState(record.state);
-    if (record.scene !== (state.status === 'victory' ? 'end' : state.status === 'hangar' ? 'hangar' : 'pause')) return null;
-    return { state, scene: record.scene, seed: string(record.seed, 'tyran-v2'), ...scenery(record), unlocked: integer(record.unlocked, state.level, 0, 9), savedAt: number(record.savedAt, 0, 0, 10_000_000_000_000), migrated: record.state.mode === 2 };
+    const state = restoreState(record.state), legacyVictory = record.state.status === 'victory';
+    if (record.scene !== (legacyVictory ? 'end' : state.status === 'hangar' ? 'hangar' : 'pause')) return null;
+    const unlocked = campaignLevel(record.unlocked, state.level);
+    return { state, scene: state.status === 'hangar' ? 'hangar' : 'pause', seed: string(record.seed, 'tyran-v2'), ...scenery(record),
+      unlocked: legacyVictory ? Math.max(unlocked, state.level + 1) : unlocked,
+      savedAt: number(record.savedAt, 0, 0, 10_000_000_000_000), migrated: record.state.mode === 2 || legacyVictory };
   } catch { return null; }
 }
 

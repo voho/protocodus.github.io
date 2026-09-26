@@ -3,16 +3,27 @@ import { ENEMY_TYPES, SHIP_PALETTES, drawShip, warmShipSprites } from './ships.j
 import { createCampaign, beginLevel, update, buyUpgrade, upgradeCost, UPGRADES, WEAPONS, BULLET_SPECTRUM, MAX_UPGRADE, clamp, selectWeapon, shipStats, weaponStats, SECONDARY_ENERGY_COST, SECONDARY_RESTART_ENERGY, bossWeakPointPosition, comboLabel, applyGroundReward,
   PRIMARIES, SUPPLIES, buyPrimary, buySupply, supplyCost, supplyStock, primaryStats, MAX_POWER } from './sim.js';
 import { isDormant, directorProgress } from './waves.js';
-import { Effects } from './effects.js';
-import { AudioEngine } from './audio.js';
+import { Effects, warmEffectsTextures } from './effects.js';
+import { AudioEngine, preloadAudio } from './audio.js';
 import { readCampaign, writeCampaign } from './save-game.js';
-import { spritesReady, spriteStatus, spriteCell } from './sprite-assets.js';
-import { drawProjectiles, warmProjectileTextures, projectileTexture } from './projectile-sprites.js';
+import { spritesReady, spriteStatus } from './sprite-assets.js';
+import { drawProjectiles, warmProjectileTextures } from './projectile-sprites.js';
+import { BONUS_KINDS, BONUS_PALETTE, pickupTexture } from './bonus-sprites.js';
+import { environmentIndex, campaignCycle, normalizeLevel } from './campaign.js';
+import { warmShopArt, shopArtMarkup } from './shop-art.js';
 
-// Load atlas art and the canvas typeface before warming cached artwork.
+const environment = level => WORLDS[environmentIndex(level)];
+const sectorLabel = level => `Sector ${String(level + 1).padStart(2, '0')} · Cycle ${campaignCycle(level) + 1}`;
+const sectorSeed = level => campaignCycle(level) ? `tyran-v2-cycle-${campaignCycle(level) + 1}` : 'tyran-v2';
+const nextSector = level => Math.min(Number.MAX_SAFE_INTEGER, level + 1);
+
+// Finish downloads, font loading and sound decoding before enabling launch.
 await Promise.all([
   spritesReady,
-  document.fonts.load('700 14px "Chakra Petch"').catch(() => []),
+  ...[400, 500, 600, 700].map(weight => document.fonts.load(`${weight} 14px "Chakra Petch"`).catch(() => [])),
+  preloadAudio(({ completed, total }) => {
+    document.getElementById('startup-status').textContent = `Preparing flight… ${Math.round(completed / total * 100)}%`;
+  }),
 ]);
 
 const elements = new Map();
@@ -34,11 +45,13 @@ const STEP = 1 / 60;
 let accumulator = 0, previousScroll = 0, renderAlpha = 1, renderDirty = true, frameHandle = 0, idleHandle = 0, hitstop = 0;
 let resolutionScale = 1, frameAverage = 16.7, fastestFrame = 100, lastAdapt = 0, vignette = null;
 const perf = { fps: 60, frameMs: 16.7, renderMs: 0, updateMs: 0, renderScale: 1, frames: 0, steps: 0 };
-const environmentHit = (...args) => world.hit(...args);
-const groundTargets = s => {
-  let focus = 0, pilots = 0;
-  for (const player of s.players) if (player.alive) { focus += player.x; pilots++; }
-  return world.getGroundTargets(s.width, s.height, s.scroll, pilots ? focus / pilots : s.width * .5);
+const environmentHit = (...args) => {
+  if (state) {
+    let focus = 0, pilots = 0;
+    for (const player of state.players) if (player.alive) { focus += player.x; pilots++; }
+    world.prepareGround(state.width, state.height, args[4] ?? state.scroll, pilots ? focus / pilots : state.width * .5);
+  }
+  return world.hit(...args);
 };
 const lerp = (before, after) => (before ?? after) + (after - (before ?? after)) * renderAlpha;
 const controls = [{ x: 0, y: 0, fire: false, secondary: false, bomb: false }];
@@ -107,10 +120,8 @@ function resumeCampaign() {
     formation.x *= sx; formation.baseX *= sx; formation.y *= sy;
     for (const offset of formation.offsets) { offset.x *= sx; offset.y *= sy; }
   }
-  for (const turret of state.turrets || []) { turret.x *= sx; turret.y *= sy; turret.radius *= sx; }
-  state.width = W; state.height = H; selected = state.level;
+  state.width = W; state.height = H; selected = environmentIndex(state.level);
   world.setWorld(state.level, run.seed); world.restoreDamage(run.damage, run.destroyed, run.sceneryVersion);
-  world.setTurretActivity(state.turrets || []);
   warmFleet(state.level); fx.reset(); keys.clear(); clock = state.time;
   $('announcement').hidden = true; $('boss-hud').hidden = true;
   if (run.scene === 'hangar') showHangar(0, true);
@@ -127,12 +138,15 @@ function scaleScriptX(enemy, factor) {
 }
 
 function setScreen(next) {
+  // Also covers saved flights, sector transitions and resuming after a resize.
+  if (next === 'playing' && state) world.prepareFlight(W, H, state.scroll);
   scene = next;
   for (const id of screens) if ($(id)) $(id).hidden = id !== `${next}-screen`;
   $('hud').hidden = next === 'menu';
   document.body.dataset.scene = next;
   if ($('touch-controls')) $('touch-controls').hidden = next !== 'playing';
   if (next !== 'playing') {
+    audio.pause();
     keys.clear(); touch.x = touch.y = 0; touch.fire = touch.secondary = touch.bomb = false;
     const pointer = touch.pointer; touch.pointer = null;
     if (pointer != null && stick?.hasPointerCapture(pointer)) stick.releasePointerCapture(pointer);
@@ -153,10 +167,13 @@ function requestFrame() {
   frameHandle = requestAnimationFrame(frame);
 }
 
-function sizeSurface(rect) {
-  const pixelBudget = quality === 'high' ? 4_000_000 : 2_200_000;
+function sizeSurface(rect, adaptive = false) {
+  const pixelBudget = quality === 'high' ? 8_300_000 : 2_200_000;
   dpr = Math.min(devicePixelRatio || 1, quality === 'high' ? 1.7 : 1, Math.sqrt(pixelBudget / (rect.width * rect.height))) * resolutionScale;
   canvas.width = Math.round(rect.width * dpr); canvas.height = Math.round(rect.height * dpr);
+  // Automatic resolution changes reuse the prepared terrain. Only an explicit
+  // viewport/quality change replaces its backing surfaces.
+  if (!adaptive) world.setDetailScale(canvas.width, quality);
   perf.renderScale = dpr;
   ctx.setTransform(canvas.width / W, 0, 0, canvas.height / H, 0, 0);
   vignette = ctx.createRadialGradient(W * .5, H * .5, H * .25, W * .5, H * .5, Math.max(W, H) * .75);
@@ -182,20 +199,21 @@ function resize() {
     }
     for (const b of state.bullets) { b.x *= W / oldW; b.px = b.x; b.py = b.y; }
     for (const p of state.pickups) p.x *= W / oldW;
-    for (const turret of state.turrets || []) { turret.x *= W / oldW; turret.y *= H / oldH; turret.radius *= W / oldW; }
     for (const list of [fx.particles, fx.rings, fx.lights, fx.texts, fx.wrecks, fx.flares]) for (const effect of list) effect.x *= W / oldW;
   }
-  if (scene === 'menu') world.prepare(W, H);
+  if (scene === 'playing') world.prepareFlight(W, H, state.scroll);
+  else world.prepare(W, H, scene === 'menu' || scene === 'hangar' ? 0 : state?.scroll || 0);
   requestFrame();
 }
 
 function warmFleet(index) {
+  index = environmentIndex(index);
   warmShipSprites(SHIP_PALETTES[index], index);
   warmShipSprites('#a4ffee', index, true);
   warmShipSprites(DRONE_COLOR, index, true); warmShipSprites(CAPTIVE_COLOR, index, true);
   warmProjectileTextures([...WEAPONS, ...PRIMARIES, { id: 'drone', kind: 'pulse', color: DRONE_COLOR }], BULLET_SPECTRUM);
-  projectileTexture({ team: -1, color: TURRET_ROUND, variant: 3 });
-  for (const kind of ['repair', 'credit', 'rapid', 'invulnerable', 'power', 'drone', 'bomb']) pickupTexture(kind);
+  for (const kind of BONUS_KINDS) pickupTexture(kind);
+  warmEffectsTextures([WORLDS[index].color, ...WEAPONS.filter(weapon => weapon.splash).map(weapon => weapon.color)]);
   pilotBarrierTexture();
 }
 
@@ -213,14 +231,14 @@ function announce(kicker, title, description = '', seconds = 3, compact = false)
 function launch(level = 0, checkpoint = null, persist = true) {
   audio.start();
   activeCampaign = persist; lastAutosaveTime = 0;
-  level = clamp(Math.floor(Number(level) || 0), 0, WORLDS.length - 1);
-  selected = level;
+  level = normalizeLevel(level);
+  selected = environmentIndex(level);
   state = createCampaign(level, checkpoint);
   state.startLevel = checkpoint?.startLevel ?? level;
   state.width = W; state.height = H; beginLevel(state, level);
-  world.setWorld(level); warmFleet(level); fx.reset(); keys.clear(); previousScroll = 0; $('boss-hud').hidden = true;
+  world.setWorld(level, sectorSeed(level)); warmFleet(level); fx.reset(); keys.clear(); previousScroll = 0; $('boss-hud').hidden = true;
   setScreen('playing');
-  announce(`Sector ${String(level + 1).padStart(2, '0')} / 10`, WORLDS[level].name, WORLDS[level].subtitle || 'Clear the skies. Bring everyone home.', 3.2);
+  announce(sectorLabel(level), environment(level).name, environment(level).subtitle || 'Clear the skies. Bring everyone home.', 3.2);
   autosave(); refreshContinue();
   canvas.focus({ preventScroll: true });
   refreshHUD();
@@ -250,8 +268,8 @@ function refreshHUD() {
   if (!state) return;
   const bonuses = String(state.players.some(p => p.alive && (p.rapidFireTime > 0 || p.invulnerableTime > 0)));
   if (document.body.dataset.bonuses !== bonuses) document.body.dataset.bonuses = bonuses;
-  setText($('level-name'), WORLDS[state.level].name);
-  setText($('level-number'), `${String(state.level + 1).padStart(2, '0')} / 10`);
+  setText($('level-name'), environment(state.level).name);
+  setText($('level-number'), `${String(state.level + 1).padStart(2, '0')} · Cycle ${campaignCycle(state.level) + 1}`);
   setText($('wave-label'), waveLabel(state));
   setText($('score-value'), number(state.score)); setText($('credits-value'), number(state.credits));
   const pilot = state.players[0], profile = primaryStats(state, pilot);
@@ -292,32 +310,36 @@ function refreshHUD() {
   const boss = state.enemies.find(e => e.boss && !e.dead);
   setHidden($('boss-hud'), !boss);
   if (boss) {
-    setText($('boss-name'), WORLDS[state.level].bossName || 'Sector guardian'); setFill($('boss-fill'), boss.hp / boss.maxHp);
+    setText($('boss-name'), environment(state.level).bossName || 'Sector guardian'); setFill($('boss-fill'), boss.hp / boss.maxHp);
     setText($('boss-status'), boss.vulnerable ? `Core exposed · ${boss.windowClock.toFixed(1)}s` : `Armor sealed · ${boss.windowClock.toFixed(1)}s`);
     $('boss-hud').classList.toggle('exposed', !!boss.vulnerable);
   }
 }
 
 function showHangar(bonus, loading = false) {
-  if (activeCampaign) unlocked = Math.max(unlocked, state.level + 1);
+  const next = nextSector(state.level);
+  if (activeCampaign) unlocked = Math.max(unlocked, next);
   setScreen('hangar'); $('announcement').hidden = true;
   $('hangar-title').textContent = 'Refit your ship.';
-  $('hangar-subtitle').textContent = `${WORLDS[state.level].name} cleared · ${state.kills} ship${state.kills === 1 ? '' : 's'} down · ${state.destroyed} ground targets destroyed.${bonus ? ` ${number(bonus)} credits awarded.` : ''} Spend your salvage before the next launch.`;
+  $('hangar-subtitle').textContent = `${environment(state.level).name} cleared · ${sectorLabel(state.level)} · ${state.kills} ship${state.kills === 1 ? '' : 's'} down · ${state.destroyed} buildings destroyed.${bonus ? ` ${number(bonus)} credits awarded.` : ''} ${environmentIndex(state.level) === 9 ? 'A new cycle awaits with stronger enemies and richer rewards.' : 'Spend your salvage before the next launch.'}`;
   renderReport();
-  $('next-button').textContent = `Launch sector ${String(state.level + 2).padStart(2, '0')} — ${WORLDS[state.level + 1].name}  ↗`;
+  $('next-button').textContent = `Launch sector ${String(next + 1).padStart(2, '0')} — ${environment(next).name}  ↗`;
+  const routeStart = campaignCycle(next) * WORLDS.length;
+  $('campaign-route').setAttribute('aria-label', `Cycle ${campaignCycle(next) + 1} flight path`);
   $('campaign-route').innerHTML = WORLDS.map((world, index) => {
-    const complete = index >= (state.startLevel || 0) && index <= state.level, current = index === state.level + 1;
-    return `<li class="${complete ? 'complete' : current ? 'current' : ''}" ${current ? 'aria-current="step"' : ''}><span>${String(index + 1).padStart(2, '0')}${complete ? ' ✓' : ''}</span><strong>${world.name}</strong></li>`;
+    const sector = routeStart + index, complete = sector >= (state.startLevel || 0) && sector <= state.level, current = sector === next;
+    return `<li class="${complete ? 'complete' : current ? 'current' : ''}" ${current ? 'aria-current="step"' : ''}><span>${String(sector + 1).padStart(2, '0')}${complete ? ' ✓' : ''}</span><strong>${world.name}</strong></li>`;
   }).join('');
   renderUpgrades(); $('next-button').focus({ preventScroll: true });
   if (!loading) autosave();
   // Prepare the next world and fleet while the shop is on screen, not at launch.
   // The cleared world's destruction ledger is no longer needed after its guardian.
-  const next = state.level + 1;
-  if (next < WORLDS.length && typeof requestIdleCallback === 'function') requestIdleCallback(() => {
-    if (scene !== 'hangar' || state?.level + 1 !== next) return;
-    warmFleet(next); world.setWorld(next); world.prepare(W, H);
-  });
+  const prepareNext = () => {
+    if (scene !== 'hangar' || !state || nextSector(state.level) !== next) return;
+    warmFleet(next); world.setWorld(next, sectorSeed(next)); world.prepare(W, H);
+  };
+  if (typeof requestIdleCallback === 'function') requestIdleCallback(prepareNext);
+  else setTimeout(prepareNext, 0);
 }
 
 // Galaga-style results: shots, hits and ratio, plus this campaign's extras.
@@ -327,7 +349,7 @@ function renderReport() {
   const challenge = state.challenge?.done ? state.challenge : null;
   const perfect = challenge && challenge.hits >= challenge.total;
   $('hangar-report').innerHTML = `<div><dt>Hit ratio</dt><dd>${ratio}<small>${number(hits)} hits · ${number(shots)} shots</small></dd></div><div><dt>Squadrons wiped</dt><dd>${stats.squads || 0}</dd></div><div><dt>Dive kills</dt><dd>${stats.dives || 0}<small>${stats.rescues ? `${stats.rescues} drone${stats.rescues === 1 ? '' : 's'} rescued` : 'Worth double points'}</small></dd></div><div><dt>Challenging stage</dt><dd class="${perfect ? 'perfect' : ''}">${challenge ? `${challenge.hits} / ${challenge.total}` : '—'}<small>${challenge ? (perfect ? 'Perfect!' : `+${number(challenge.credits || 0)} credits`) : 'After odd sectors'}</small></dd></div>`;
-  $('hangar-report-note').textContent = `${WORLDS[state.level].name}`;
+  $('hangar-report-note').textContent = environment(state.level).name;
 }
 
 function renderUpgrades() {
@@ -340,7 +362,7 @@ function renderUpgrades() {
     const preview = u.id === 'weapon' ? `${weapon.damage.toFixed(1)} → ${nextWeapon.damage.toFixed(1)} power · ${(1 / nextWeapon.interval).toFixed(1)} shots/s`
       : u.id === 'recharge' ? `${stats.recharge} → ${upgraded.recharge} shield/s · ${stats.energyRecharge} → ${upgraded.energyRecharge} energy/s`
       : `${stats[u.id]} → ${upgraded[u.id]} ${u.id}`;
-    return `<button class="upgrade-card" data-upgrade="${u.id}" ${maxed || state.credits < cost ? 'disabled' : ''}><span class="upgrade-icon" aria-hidden="true">${u.icon}</span><span class="upgrade-level">Mk ${String(level + 1).padStart(2, '0')} / 07</span><span class="upgrade-name">${u.name}</span><span class="upgrade-description">${u.subtitle}</span><span class="upgrade-preview">${maxed ? 'Maximum performance reached' : preview}</span><span class="upgrade-pips" aria-hidden="true">${Array.from({ length: 6 }, (_, i) => `<i class="${i < level ? 'filled' : ''}"></i>`).join('')}</span><span class="upgrade-cost">${maxed ? 'Fully upgraded' : `${number(cost)} credits <span aria-hidden="true">+</span>`}</span></button>`;
+    return `<button class="upgrade-card" data-upgrade="${u.id}" ${maxed || state.credits < cost ? 'disabled' : ''}>${shopArtMarkup(`upgrade:${u.id}`)}<span class="upgrade-level">Mk ${String(level + 1).padStart(2, '0')} / 07</span><span class="upgrade-name">${u.name}</span><span class="upgrade-description">${u.subtitle}</span><span class="upgrade-preview">${maxed ? 'Maximum performance reached' : preview}</span><span class="upgrade-pips" aria-hidden="true">${Array.from({ length: 6 }, (_, i) => `<i class="${i < level ? 'filled' : ''}"></i>`).join('')}</span><span class="upgrade-cost">${maxed ? 'Fully upgraded' : `${number(cost)} credits <span aria-hidden="true">+</span>`}</span></button>`;
   }).join('');
   renderWeapons(); renderSupplies();
 }
@@ -349,7 +371,7 @@ function renderSupplies() {
   $('supply-list').innerHTML = SUPPLIES.map(item => {
     const [stock, max] = supplyStock(state, item.id), cost = supplyCost(state, item.id), full = stock >= max;
     const label = item.id === 'life' ? 'reserve ships' : item.id === 'bomb' ? 'charges' : 'drones';
-    return `<button class="upgrade-card" data-supply="${item.id}" ${full || state.credits < cost ? 'disabled' : ''}><span class="upgrade-icon" aria-hidden="true">${item.icon}</span><span class="upgrade-level">${stock} / ${max} ${label}</span><span class="upgrade-name">${item.name}</span><span class="upgrade-description">${item.subtitle}</span><span class="upgrade-cost">${full ? 'Fully stocked' : `${number(cost)} credits <span aria-hidden="true">+</span>`}</span></button>`;
+    return `<button class="upgrade-card" data-supply="${item.id}" ${full || state.credits < cost ? 'disabled' : ''}>${shopArtMarkup(`supply:${item.id}`)}<span class="upgrade-level">${stock} / ${max} ${label}</span><span class="upgrade-name">${item.name}</span><span class="upgrade-description">${item.subtitle}</span><span class="upgrade-cost">${full ? 'Fully stocked' : `${number(cost)} credits <span aria-hidden="true">+</span>`}</span></button>`;
   }).join('');
 }
 
@@ -367,24 +389,24 @@ function renderWeapons() {
     const stats = primaryStats({ ...state, primary: weapon.id });
     const status = equipped ? 'Equipped · space' : owned ? 'Owned · click to equip' : `${number(weapon.cost)} credits to buy`;
     const disabled = !owned && state.credits < weapon.cost;
-    return `<button type="button" class="weapon-card" data-primary="${weapon.id}" data-state="${equipped ? 'equipped' : owned ? 'owned' : 'shop'}" aria-pressed="${equipped}" style="--weapon-color:${weapon.color}" ${disabled ? 'disabled' : ''}><span class="weapon-icon" aria-hidden="true">${WEAPON_ICONS[weapon.id]}</span><span class="weapon-swatch"></span><span class="weapon-copy"><strong>${weapon.name}</strong><small>Primary · ${weapon.tag}</small></span><span class="weapon-description">${weapon.description}</span>${weaponBars(stats, stats.count, fastestInterval)}<span class="weapon-status">${status}</span></button>`;
+    return `<button type="button" class="weapon-card" data-primary="${weapon.id}" data-state="${equipped ? 'equipped' : owned ? 'owned' : 'shop'}" aria-pressed="${equipped}" style="--weapon-color:${weapon.color}" ${disabled ? 'disabled' : ''}>${shopArtMarkup(`weapon:${weapon.id}`)}<span class="weapon-copy"><strong>${weapon.name}</strong><small>Primary · ${weapon.tag}</small></span><span class="weapon-description">${weapon.description}</span>${weaponBars(stats, stats.count, fastestInterval)}<span class="weapon-status">${status}</span></button>`;
   });
   const plasma = WEAPONS[1], stats = weaponStats(state, 'plasma');
-  primaries.push(`<article class="weapon-card" data-weapon="plasma" data-state="equipped" style="--weapon-color:${plasma.color}"><span class="weapon-icon" aria-hidden="true">${WEAPON_ICONS.plasma}</span><span class="weapon-swatch"></span><span class="weapon-copy"><strong>${plasma.name}</strong><small>Secondary · q</small></span><span class="weapon-description">${plasma.description} ${SECONDARY_ENERGY_COST} energy per shot; resumes at ${SECONDARY_RESTART_ENERGY} after depletion.</span>${weaponBars(stats, 1, fastestInterval)}<span class="weapon-status">Always equipped</span></article>`);
+  primaries.push(`<article class="weapon-card" data-weapon="plasma" data-state="equipped" style="--weapon-color:${plasma.color}">${shopArtMarkup('weapon:plasma')}<span class="weapon-copy"><strong>${plasma.name}</strong><small>Secondary · q</small></span><span class="weapon-description">${plasma.description} ${SECONDARY_ENERGY_COST} energy per shot; resumes at ${SECONDARY_RESTART_ENERGY} after depletion.</span>${weaponBars(stats, 1, fastestInterval)}<span class="weapon-status">Always equipped</span></article>`);
   $('weapon-list').innerHTML = primaries.join('');
 }
 
 function showEnd(won, loading = false) {
+  if (won) { showHangar(0, loading); return; }
   setScreen('end'); $('announcement').hidden = true;
-  $('end-title').textContent = won ? 'The skies are yours.' : 'Signal lost.';
-  $('end-description').textContent = won ? 'The citadel has fallen. Your campaign is complete. Start a fresh flight or return to flight command.' : `Your flight ended over ${WORLDS[state.level].name}. Retry with your current equipment or return to the main menu.${activeCampaign && campaign.run ? ' Your last autosave is ready to resume.' : ''}`;
+  $('end-title').textContent = 'Signal lost.';
+  $('end-description').textContent = `Your flight ended over ${environment(state.level).name} · ${sectorLabel(state.level)}. Retry with your current equipment or return to the main menu.${activeCampaign && campaign.run ? ' Your last autosave is ready to resume.' : ''}`;
   $('end-score').textContent = number(state.score);
   const record = !loading && recordBestScore();
   $('end-best').hidden = !bestScore;
   $('end-best').classList.toggle('record', record);
   $('end-best').textContent = record ? 'New best score!' : `Best score ${number(bestScore)}`;
-  $('retry-button').textContent = won ? 'Fly a new campaign ↗' : 'Retry sector ↗';
-  if (won && !loading && activeCampaign) { unlocked = 9; autosave(); }
+  $('retry-button').textContent = 'Retry sector ↗';
   refreshContinue();
   $('retry-button').focus({ preventScroll: true });
 }
@@ -405,7 +427,7 @@ function refreshContinue() {
 }
 
 function saveDescription(run) {
-  return run.scene === 'end' ? 'Campaign complete' : `Sector ${String(run.state.level + 1).padStart(2, '0')} · ${run.scene === 'hangar' ? 'Shop' : 'Flight'}`;
+  return `${sectorLabel(run.state.level)} · ${run.scene === 'hangar' ? 'Shop' : 'Flight'}`;
 }
 
 function selectWorld(index) {
@@ -445,7 +467,7 @@ function processEvents() {
     audio.effect(sound, e.size ?? e.wave, e.type === 'challenge-result' && e.perfect ? 'perfect' : e.weapon || e.label);
     if (e.type === 'explosion' && !e.ground) {
       const blast = e.blast || 1;
-      for (const prop of world.hit(e.x, e.y, Math.min(250, e.size * 1.5 * blast), e.size * 2 * blast, state.scroll)) {
+      for (const prop of environmentHit(e.x, e.y, Math.min(250, e.size * 1.5 * blast), e.size * 2 * blast, state.scroll)) {
         applyGroundReward(state, prop, blast);
       }
       if (e.boss) hitstop = Math.max(hitstop, .14);
@@ -454,9 +476,9 @@ function processEvents() {
     }
     if (e.type === 'nova') {
       hitstop = Math.max(hitstop, .08);
-      for (const prop of world.hit(e.x, e.y, 320, 420, state.scroll)) applyGroundReward(state, prop, 1.2);
+      for (const prop of environmentHit(e.x, e.y, 320, 420, state.scroll)) applyGroundReward(state, prop, 1.2);
     }
-    if (e.type === 'boss') announce('Warning · heavy signature', WORLDS[state.level].bossName, 'Break through its armor. Watch for changing attack patterns.', 3);
+    if (e.type === 'boss') announce('Warning · heavy signature', environment(state.level).bossName, 'Break through its armor. Watch for changing attack patterns.', 3);
     if (e.type === 'phase') announce('Reactor surge', 'Guardian enraged', 'New attack pattern detected.', 1.6, true);
     if (e.type === 'boss-open' && e.openCount === 1) announce('Window open', 'Core exposed', 'Aim for the glowing weak points before the armor seals.', 1.5, true);
     if (e.type === 'formation' && !state.director) announce('Tactical formation', e.label, `${e.count} contacts moving as one.`, 1.15, true);
@@ -477,97 +499,11 @@ function processEvents() {
     // Collateral destruction can add ground effects even on the final tick.
     if (state.events.length) events.push(...state.events.splice(0));
   }
-  world.setTurretActivity(state.turrets || []);
   // Save at a bounded cadence, after combat and reward events have settled.
   if (scene === 'playing' && activeCampaign && state.time - lastAutosaveTime >= 5) autosave();
 }
 
-const DRONE_COLOR = '#ffc46b', CAPTIVE_COLOR = '#ff7a8a', TURRET_ROUND = '#ffc76c';
-const pickupTextures = new Map();
-const EQUIPMENT = { power: '#ffb347', drone: DRONE_COLOR, bomb: '#fff0b0' };
-// In-flight equipment reads as a glowing hex core with its own emblem.
-function equipmentTexture(kind) {
-  const out = document.createElement('canvas'); out.width = out.height = 112;
-  const paint = out.getContext('2d'), color = EQUIPMENT[kind];
-  const glow = paint.createRadialGradient(56, 56, 8, 56, 56, 54);
-  glow.addColorStop(0, `${color}66`); glow.addColorStop(.45, `${color}22`); glow.addColorStop(1, `${color}00`);
-  paint.fillStyle = glow; paint.fillRect(0, 0, 112, 112);
-  paint.translate(56, 56);
-  const hex = radius => { paint.beginPath(); for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3 - Math.PI / 2; i ? paint.lineTo(Math.cos(a) * radius, Math.sin(a) * radius) : paint.moveTo(Math.cos(a) * radius, Math.sin(a) * radius); } paint.closePath(); };
-  paint.shadowColor = '#02080dcc'; paint.shadowBlur = 6; paint.shadowOffsetY = 3;
-  hex(27); const body = paint.createLinearGradient(-20, -26, 20, 26);
-  body.addColorStop(0, '#2c2318'); body.addColorStop(1, '#0c0f12'); paint.fillStyle = body; paint.fill();
-  paint.shadowBlur = 0; paint.shadowOffsetY = 0;
-  paint.lineWidth = 3; paint.strokeStyle = color; paint.stroke();
-  hex(21); paint.lineWidth = 1; paint.strokeStyle = `${color}88`; paint.stroke();
-  paint.fillStyle = color; paint.strokeStyle = color; paint.lineJoin = 'round';
-  if (kind === 'power') {
-    paint.font = '700 30px "Chakra Petch", sans-serif'; paint.textAlign = 'center'; paint.textBaseline = 'middle';
-    paint.shadowColor = color; paint.shadowBlur = 10; paint.fillText('P', 1, 2);
-  } else if (kind === 'drone') {
-    const ship = spriteCell('fleet', 0);
-    if (ship) { const scale = 30 / Math.max(ship.width, ship.height); paint.drawImage(ship, -ship.width * scale / 2, -ship.height * scale / 2, ship.width * scale, ship.height * scale); }
-    else { paint.beginPath(); paint.moveTo(0, -13); paint.lineTo(11, 11); paint.lineTo(0, 6); paint.lineTo(-11, 11); paint.closePath(); paint.fill(); }
-  } else {
-    paint.shadowColor = color; paint.shadowBlur = 8; paint.beginPath();
-    for (let i = 0; i < 16; i++) { const a = i * Math.PI / 8 - Math.PI / 2, r = i % 2 ? 6 : 15; i ? paint.lineTo(Math.cos(a) * r, Math.sin(a) * r) : paint.moveTo(Math.cos(a) * r, Math.sin(a) * r); }
-    paint.closePath(); paint.fill();
-  }
-  return out;
-}
-
-function pickupTexture(kind) {
-  if (EQUIPMENT[kind]) {
-    if (!pickupTextures.has(kind)) pickupTextures.set(kind, equipmentTexture(kind));
-    return pickupTextures.get(kind);
-  }
-  const repair = kind === 'repair', timed = kind === 'rapid' || kind === 'invulnerable';
-  const key = timed ? kind : repair ? 'repair' : 'credit';
-  if (pickupTextures.has(key)) return pickupTextures.get(key);
-  const out = document.createElement('canvas'); out.width = out.height = 96;
-  const paint = out.getContext('2d'), color = key === 'rapid' ? '#ffe2a0' : repair || key === 'invulnerable' ? '#aaffd0' : '#ffdc90';
-  // The same restrained green halo marks every collectible as beneficial;
-  // the repair capsule and gold credit chips keep their distinct body colors.
-  const glow = paint.createRadialGradient(48, 48, 10, 48, 48, 45);
-  glow.addColorStop(0, '#6bf3a04d'); glow.addColorStop(.4, '#62e99526'); glow.addColorStop(1, '#62e99500');
-  paint.fillStyle = glow; paint.fillRect(0, 0, 96, 96);
-  const source = spriteCell('pickups', repair || key === 'invulnerable' ? 0 : 1);
-  if (source) {
-    const scale = 58 / Math.max(source.width, source.height), width = source.width * scale, height = source.height * scale;
-    paint.shadowColor = '#02080dcc'; paint.shadowBlur = 5; paint.shadowOffsetY = 4;
-    paint.drawImage(source, 48 - width / 2, 48 - height / 2, width, height);
-  } else {
-    paint.fillStyle = color; paint.font = 'bold 42px sans-serif'; paint.textAlign = 'center'; paint.textBaseline = 'middle';
-    paint.fillText(repair ? '+' : '•', 48, 48);
-  }
-  if (timed) {
-    // Reuse the detailed equipment body, with distinct high-contrast emblems.
-    paint.shadowBlur = 0; paint.shadowOffsetY = 0;
-    paint.fillStyle = '#09201eee'; paint.strokeStyle = color; paint.lineWidth = 1.8;
-    paint.beginPath();
-    for (let i = 0; i < 6; i++) {
-      const a = i * Math.PI / 3 - Math.PI / 2;
-      const x = 48 + Math.cos(a) * 23, y = 46 + Math.sin(a) * 23;
-      i ? paint.lineTo(x, y) : paint.moveTo(x, y);
-    }
-    paint.closePath(); paint.fill(); paint.stroke();
-    paint.fillStyle = color; paint.lineWidth = 2.8; paint.lineJoin = 'round';
-    paint.beginPath();
-    if (key === 'rapid') {
-      paint.moveTo(50, 28); paint.lineTo(37, 48); paint.lineTo(46, 48);
-      paint.lineTo(43, 63); paint.lineTo(59, 41); paint.lineTo(49, 41);
-      paint.closePath(); paint.fill();
-    } else {
-      paint.moveTo(48, 31); paint.lineTo(60, 36); paint.lineTo(58, 49);
-      paint.quadraticCurveTo(55, 56, 48, 61); paint.quadraticCurveTo(41, 56, 38, 49);
-      paint.lineTo(36, 36); paint.closePath(); paint.stroke();
-      paint.fillRect(46, 40, 4, 11); paint.fillRect(42, 44, 12, 3);
-    }
-    paint.font = 'bold 14px "Chakra Petch", sans-serif'; paint.textAlign = 'center'; paint.fillText('10s', 48, 81);
-  }
-  pickupTextures.set(key, out); return out;
-}
-
+const DRONE_COLOR = '#ffc46b', CAPTIVE_COLOR = '#ff7a8a';
 let pilotBarrier = null;
 function pilotBarrierTexture() {
   if (pilotBarrier) return pilotBarrier;
@@ -592,7 +528,7 @@ function drawPilotBonuses(p, x, y) {
   }
   if (rapid > 0) {
     ctx.globalAlpha = fx.reduced ? .8 : .72 + Math.sin(clock * 6) * .16;
-    ctx.strokeStyle = '#ffe2a0'; ctx.lineWidth = 2; ctx.lineJoin = 'round';
+    ctx.strokeStyle = BONUS_PALETTE.rim; ctx.lineWidth = 2; ctx.lineJoin = 'round';
     for (const side of [-1, 1]) {
       ctx.beginPath(); ctx.moveTo(x + side * 26, y + 14);
       ctx.lineTo(x + side * 32, y + 6); ctx.lineTo(x + side * 38, y + 14); ctx.stroke();
@@ -719,7 +655,7 @@ function drawBossWeakPoints(enemy, clock) {
 
 function draw() {
   ctx.setTransform(canvas.width / W, 0, 0, canvas.height / H, 0, 0);
-  const scroll = state ? lerp(previousScroll, state.scroll) : previewScroll, index = state ? state.level : selected;
+  const scroll = state ? lerp(previousScroll, state.scroll) : previewScroll, index = environmentIndex(state ? state.level : selected);
   ctx.save();
   const impactMotion = scene === 'playing' || scene === 'end';
   const shake = fx.reduced || !impactMotion ? 0 : fx.shake;
@@ -760,9 +696,8 @@ function draw() {
       }
     }
     for (const pickup of state.pickups) {
-      const timed = pickup.kind === 'rapid' || pickup.kind === 'invulnerable', equipment = pickup.kind in EQUIPMENT;
-      const pulse = fx.reduced ? 0 : Math.sin(clock * (equipment ? 5 : 3) + pickup.age);
-      const size = equipment ? 70 + pulse * 4 : timed ? 76 + pulse * 2 : 64;
+      const pulse = fx.reduced ? 0 : Math.sin(clock * 3 + pickup.age);
+      const size = 76 + pulse * 2;
       // Pickups about to expire blink so a pilot knows to hurry.
       if (pickup.age > 11.5 && !fx.reduced && Math.floor(clock * 10) % 2) continue;
       ctx.globalAlpha = pickup.lock > 0 ? .55 : 1;
@@ -830,7 +765,7 @@ function frame(time) {
     else accumulator = Math.min(.1, accumulator + dt);
     while (hitstop <= 0 && accumulator + 1e-9 >= STEP && scene === 'playing') {
       previousScroll = state.scroll;
-      update(state, STEP, input(), environmentHit, groundTargets);
+      update(state, STEP, input(), environmentHit);
       accumulator -= STEP; perf.steps++;
       processEvents();
       // Freezing mid catch-up keeps only a partial step, so resuming never bursts ahead.
@@ -847,9 +782,9 @@ function frame(time) {
       const wallClock = time / 1000;
       // Reduce only backing resolution under sustained load; physics and game speed stay fixed.
       if (wallClock - lastAdapt > 4 && frameAverage > Math.max(25, fastestFrame * 1.55) && resolutionScale > .7) {
-        resolutionScale = Math.max(.7, resolutionScale - .1); sizeSurface(canvas.getBoundingClientRect()); lastAdapt = wallClock;
+        resolutionScale = Math.max(.7, resolutionScale - .1); sizeSurface(canvas.getBoundingClientRect(), true); lastAdapt = wallClock;
       } else if (wallClock - lastAdapt > 12 && frameAverage < Math.max(18, fastestFrame * 1.15) && perf.renderMs < 7 && resolutionScale < 1) {
-        resolutionScale = Math.min(1, resolutionScale + .05); sizeSurface(canvas.getBoundingClientRect()); lastAdapt = wallClock;
+        resolutionScale = Math.min(1, resolutionScale + .05); sizeSurface(canvas.getBoundingClientRect(), true); lastAdapt = wallClock;
       }
     }
   } else if (preview) previewScroll += dt * 45;
@@ -948,11 +883,11 @@ on('continue-button', resumeCampaign);
 on('hangar-menu-button', returnToMenu);
 on('pause-button', pause); on('resume-button', pause); on('menu-button', returnToMenu); on('end-menu-button', returnToMenu);
 on('restart-button', () => launch(state.level, state, activeCampaign));
-on('retry-button', () => state.status === 'victory' ? launch(0) : launch(state.level, state, activeCampaign));
+on('retry-button', () => launch(state.level, state, activeCampaign));
 on('next-button', () => {
   if (state?.status !== 'hangar') return;
-  beginLevel(state, state.level + 1); world.setWorld(state.level); warmFleet(state.level); previousScroll = 0; fx.reset(); setScreen('playing'); audio.start(); $('boss-hud').hidden = true;
-  announce(`Sector ${String(state.level + 1).padStart(2, '0')} / 10`, WORLDS[state.level].name, WORLDS[state.level].subtitle, 3); refreshHUD(); canvas.focus({ preventScroll: true });
+  beginLevel(state, nextSector(state.level)); selected = environmentIndex(state.level); world.setWorld(state.level, sectorSeed(state.level)); warmFleet(state.level); previousScroll = 0; fx.reset(); setScreen('playing'); audio.start(); $('boss-hud').hidden = true;
+  announce(sectorLabel(state.level), environment(state.level).name, environment(state.level).subtitle, 3); refreshHUD(); canvas.focus({ preventScroll: true });
   autosave();
 });
 $('weapon-list').addEventListener('click', event => {
@@ -1017,13 +952,16 @@ $('world-list').innerHTML = WORLDS.map((w, i) => `<button class="world-card ${i 
   $('world-list').addEventListener('click', event => { const button = event.target.closest('button[data-world]'); if (button) { document.body.dataset.preview = 'true'; selectWorld(Number(button.dataset.world)); } });
 canvas.tabIndex = -1;
 document.querySelectorAll('.modal-screen').forEach(el => { el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); });
+await warmShopArt();
 syncSettings(); refreshContinue(); selectWorld(0); setScreen('menu'); resize();
+setText($('startup-status'), 'Preparing terrain…');
+await world.prepareReady(W, H);
 // Readable state and deterministic stepping for browser QA and tuning.
 window.tyran = {
   get state() { return state; }, get scene() { return scene; }, get world() { return world; }, get fx() { return fx; }, worlds: WORLDS, enemyTypes: ENEMY_TYPES, weapons: WEAPONS, bulletSpectrum: BULLET_SPECTRUM, parallaxLayers: PARALLAX_LAYERS, shipPalettes: SHIP_PALETTES,
   get performance() { return { ...perf, interpolation: renderAlpha, fixedStep: STEP }; },
   launch, selectWorld, selectWeapon, pause, spriteStatus, buyPrimary, buySupply,
-  step(seconds, controls = []) { for (let i = 0; i < Math.ceil(seconds * 60); i++) { if (state && scene === 'playing') { previousScroll = state.scroll; update(state, STEP, controls, environmentHit, groundTargets); processEvents(); } } accumulator = 0; renderAlpha = 1; renderDirty = true; refreshHUD(); requestFrame(); },
+  step(seconds, controls = []) { for (let i = 0; i < Math.ceil(seconds * 60); i++) { if (state && scene === 'playing') { previousScroll = state.scroll; update(state, STEP, controls, environmentHit); processEvents(); } } accumulator = 0; renderAlpha = 1; renderDirty = true; refreshHUD(); requestFrame(); },
 };
 document.body.dataset.ready = 'true';
 $('menu-screen').inert = false;

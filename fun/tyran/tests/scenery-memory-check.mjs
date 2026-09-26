@@ -31,11 +31,15 @@ try {
     const evicted = !world.sprites.has('temple:0:1');
     const regenerated = hash(world.getSprite('temple', 0, 1));
     const loaded = new WorldRenderer(); await loaded.ready;
-    let target;
-    for (let row = 0; row >= -20 && !target; row--) target = loaded.getBand(row).find(prop => ['temple', 'bunker'].includes(prop.type) && prop.x > 150 && prop.x < 1050);
-    if (!target) throw new Error('Missing structure fixture');
+    const buildings = new Set(['temple','ruin','bunker','station','radar','dome','solar','refinery','building','tower','pylon','fortress','hut','satellite']);
+    let target, injured;
+    for (let row = 0; row >= -20 && !injured; row--) {
+      const candidates = loaded.getBand(row).filter(prop => buildings.has(prop.type) && prop.x > 150 && prop.x < 1050);
+      target = candidates.find(prop => ['temple', 'bunker'].includes(prop.type));
+      if (target) injured = candidates.find(prop => prop.id !== target.id);
+    }
+    if (!target || !injured) throw new Error('Missing pair of building fixtures');
     const row = target.row;
-    const injured = loaded.getBand(row).find(prop => prop.id !== target.id && prop.x > 150 && prop.x < 1050);
     loaded.restoreDamage(new Map([[target.id, 0], [injured.id, injured.maxHp * .54]]), new Set([target.id]));
     const prop = loaded.getBand(row).find(prop => prop.id === target.id);
     const normalized = !loaded.damage.has(target.id) && loaded.destroyed.has(target.id) && prop.hp === 0;
@@ -57,8 +61,8 @@ try {
     return { initial, maxDamageSprites, evicted, samePixels: before === regenerated, normalized, persisted, paidTwice, hits,
       final: world.memoryStats() };
   });
-  assert.equal(result.initial.damageSpriteCount, 0, 'untouched world does not prebuild destruction art');
-  assert.ok(result.initial.spriteBytes < 15 * 1024 * 1024, 'fresh jungle scenery retains under 15 MiB (previously 36 MiB)');
+  assert.ok(result.initial.damageSpriteCount > 0 && result.initial.damageSpriteCount <= result.initial.damageSpriteLimit, 'flight preparation prebuilds bounded damage art for the active sector');
+  assert.ok(result.initial.spriteBytes < 40 * 1024 * 1024, 'fresh and preloaded damaged jungle scenery fit below 40 MiB');
   assert.equal(result.maxDamageSprites, result.final.damageSpriteLimit);
   assert.equal(result.evicted, true);
   assert.equal(result.samePixels, true, 'evicted damage art regenerates pixel-exactly');
@@ -67,6 +71,6 @@ try {
   assert.equal(result.paidTwice, false);
   assert.deepEqual(result.hits, [false, true], 'new destruction removes obsolete HP state');
   assert.deepEqual(errors, []);
-  console.log('PASS lazy destruction art, bounded cache, pixel-exact regeneration and single crater records');
+  console.log('PASS preloaded destruction art, bounded cache, pixel-exact regeneration and single crater records');
   console.log(JSON.stringify(result));
 } finally { await browser.close(); }
