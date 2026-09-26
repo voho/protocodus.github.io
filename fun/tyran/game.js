@@ -323,7 +323,12 @@ function refreshHUD() {
   setText($('level-number'), `${String(state.level + 1).padStart(2, '0')} · Cycle ${campaignCycle(state.level) + 1}`);
   setText($('difficulty-value'), difficultyProfile(state.difficulty).label);
   setText($('wave-label'), waveLabel(state));
-  setText($('score-value'), number(state.score)); setText($('credits-value'), number(state.credits));
+  // Endless runs keep the instrument width stable; exact totals remain
+  // available to assistive technology and on hover.
+  for (const [id, value, label] of [['score-value', state.score, 'score'], ['credits-value', state.credits, 'credits']]) {
+    const el = $(id), exact = `${number(value)} ${label}`;
+    setText(el, rewardNumber(value)); setAttribute(el, 'title', exact); setAttribute(el, 'aria-label', exact);
+  }
   const pilot = state.players[0], profile = primaryStats(state, pilot);
   const stats = shipStats(state.upgrades);
   setText($('weapon-value'), profile.name); setText($('weapon-level'), `P${profile.power + 1} · Mk ${String(profile.level + 1).padStart(2, '0')}`);
