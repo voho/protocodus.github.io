@@ -4,12 +4,17 @@ import { audioAssets, SAMPLE_GROUPS as SAMPLES, SONGS } from './audio-assets.js'
 export { preloadAudio } from './audio-assets.js';
 
 const FLIGHT_SONGS = Object.freeze(['flight', 'flight2', 'flight3']);
+// A media element can only bind to one MediaElementAudioSourceNode. Production
+// has one engine; additional consumers use synth fallback without taking it over.
+const musicOwners = new WeakMap();
 
 export class AudioEngine {
   constructor() {
     this.context = null; this.muted = false; this.active = false; this.beat = 0; this.nextBeat = 0; this.lastShot = 0;
     this.samples = audioAssets.samples; this.sampleVoices = new Set(); this.synthVoices = new Set(); this.lastSample = new Map();
     this.failedSongs = new Set(); this.songKey = 'flight'; this.musicPlaying = false; this.musicToken = 0;
+    this.musicPlayers = new Map(); this.musicSources = new Map(); this.musicChannels = new Map();
+    this.unlockedSongs = new Set(); this.blockedSongs = new Set(); this.musicUnlocks = new Map(); this.musicAttempts = new Map();
   }
   start() {
     if (this.muted) return;
@@ -29,9 +34,10 @@ export class AudioEngine {
       if (this.context.state === 'suspended') this.context.resume().catch(() => {});
       this.nextBeat = this.context.currentTime;
       this.prepareMusic();
-      this.musicBlocked = false;
-      // Unlock the media element in the same gesture as AudioContext. Its gain
-      // stays at zero until update confirms the arena is actually playing.
+      this.blockedSongs.clear(); this.musicBlocked = false;
+      // Safari authorizes media elements individually. Every prepared player is
+      // unlocked by this gesture; inactive channel gates keep the mixer silent.
+      this.unlockMusic();
       this.playMusic();
     } catch { /* Audio is optional; gameplay continues on restricted browsers. */ }
   }
@@ -71,54 +77,97 @@ export class AudioEngine {
     return true;
   }
   prepareMusic() {
-    if (this.music || this.musicUnavailable || !audioAssets.ready || !audioAssets.songs.size) return;
+    if (this.musicGain || this.musicUnavailable || !audioAssets.ready || !audioAssets.players.size) return;
     try {
-      this.music = new Audio(); this.music.preload = 'none'; this.music.loop = true;
       this.musicGain = this.context.createGain(); this.musicGain.gain.value = 0; this.musicGain.connect(this.master);
-      this.musicSource = this.context.createMediaElementSource(this.music); this.musicSource.connect(this.musicGain);
-      this.music.addEventListener('playing', () => {
-        this.musicPlaying = true;
-        if (!this.active || this.muted) this.stopMusic();
-      });
-      this.music.addEventListener('waiting', () => { this.musicPlaying = false; });
-      this.music.addEventListener('error', () => {
-        this.failedSongs.add(this.songKey); this.stopMusic();
-      });
-      if (audioAssets.songs.has(this.songKey)) this.music.src = audioAssets.songs.get(this.songKey);
+      for (const [key, player] of audioAssets.players) {
+        if (musicOwners.has(player)) continue;
+        let source, channel;
+        try {
+          source = this.context.createMediaElementSource(player);
+          channel = this.context.createGain(); channel.gain.value = 0;
+          source.connect(channel); channel.connect(this.musicGain);
+          musicOwners.set(player, this); this.musicPlayers.set(key, player); this.musicSources.set(key, source);
+          this.musicChannels.set(key, channel);
+          player.addEventListener('playing', () => {
+            this.unlockedSongs.add(key); this.blockedSongs.delete(key);
+            if (player !== this.music || !this.active || this.muted) {
+              player.pause();
+              if (player === this.music) this.stopMusic();
+            } else { this.musicPlaying = true; this.musicBlocked = false; }
+          });
+          player.addEventListener('waiting', () => { if (player === this.music) this.musicPlaying = false; });
+          player.addEventListener('error', () => {
+            this.failedSongs.add(key); player.pause();
+            if (player === this.music) this.stopMusic();
+          });
+        } catch { source?.disconnect(); channel?.disconnect(); this.failedSongs.add(key); }
+      }
+      this.music = this.musicPlayers.get(this.songKey) || null;
+      this.musicSource = this.musicSources.get(this.songKey) || null;
+      this.musicUnavailable = !this.musicPlayers.size;
     } catch { this.musicUnavailable = true; this.music = null; }
   }
+  musicFailure(key, error) {
+    if (error?.name === 'AbortError') return;
+    if (error?.name === 'NotAllowedError') { this.blockedSongs.add(key); this.unlockedSongs.delete(key); }
+    else this.failedSongs.add(key);
+    if (key === this.songKey) { this.musicBlocked = this.blockedSongs.has(key); this.musicPlaying = false; }
+  }
+  unlockMusic() {
+    for (const [key, player] of this.musicPlayers) {
+      if (player === this.music || this.unlockedSongs.has(key) || this.failedSongs.has(key) || this.musicUnlocks.has(key)) continue;
+      const attempt = (this.musicAttempts.get(key) || 0) + 1;
+      this.musicAttempts.set(key, attempt); this.musicUnlocks.set(key, attempt);
+      try {
+        Promise.resolve(player.play()).then(() => {
+          if (this.musicAttempts.get(key) !== attempt) return;
+          this.unlockedSongs.add(key); this.blockedSongs.delete(key);
+          if (player !== this.music || !this.active || this.muted) player.pause();
+        }, error => { if (this.musicAttempts.get(key) === attempt) this.musicFailure(key, error); })
+          .finally(() => { if (this.musicUnlocks.get(key) === attempt) this.musicUnlocks.delete(key); });
+      } catch (error) { this.musicUnlocks.delete(key); this.musicFailure(key, error); }
+    }
+  }
   playMusic() {
-    if (!this.music || this.muted || this.musicBlocked || !audioAssets.songs.has(this.songKey) || this.failedSongs.has(this.songKey) || this.musicPending || !this.music.paused) return;
-    const token = ++this.musicToken;
+    if (!this.music || this.muted || this.blockedSongs.has(this.songKey) || !audioAssets.songs.has(this.songKey) || this.failedSongs.has(this.songKey) || this.musicPending || !this.music.paused) return;
+    const token = ++this.musicToken, key = this.songKey, attempt = (this.musicAttempts.get(key) || 0) + 1;
+    this.musicAttempts.set(key, attempt);
     this.musicPending = true;
     try {
       Promise.resolve(this.music.play()).catch(error => {
-        if (token !== this.musicToken) return;
+        if (token !== this.musicToken || this.musicAttempts.get(key) !== attempt) return;
         // A rejected gesture/autoplay attempt can retry on the next start().
         // Unsupported or broken files use the synth for the rest of the visit.
-        if (error?.name === 'NotAllowedError') this.musicBlocked = true;
-        else if (error?.name !== 'AbortError') this.failedSongs.add(this.songKey);
-        this.musicPlaying = false;
+        this.musicFailure(key, error);
       }).finally(() => { if (token === this.musicToken) this.musicPending = false; });
-    } catch { this.failedSongs.add(this.songKey); this.musicPending = false; }
+    } catch (error) { this.musicFailure(key, error); this.musicPending = false; }
   }
   stopMusic() {
-    if (!this.music) return;
-    this.musicToken++; this.musicPending = false; this.musicPlaying = false; this.music.pause();
-    this.musicGain.gain.setValueAtTime(0, this.context.currentTime);
+    this.musicToken++; this.musicPending = false; this.musicPlaying = false;
+    for (const key of this.musicPlayers.keys()) this.musicAttempts.set(key, (this.musicAttempts.get(key) || 0) + 1);
+    this.musicUnlocks.clear();
+    for (const channel of this.musicChannels.values()) channel.gain.setValueAtTime(0, this.context.currentTime);
+    for (const player of this.musicPlayers.values()) player.pause();
+    if (this.musicGain) this.musicGain.gain.setValueAtTime(0, this.context.currentTime);
   }
   updateMusic(playing, mood, level = 0) {
-    if (!this.music) return false;
-    if (!playing || this.muted) { if (!this.music.paused || this.musicPending) this.stopMusic(); return false; }
+    if (!this.musicGain || this.musicUnavailable) return false;
+    if (!playing || this.muted) { if (this.music && (!this.music.paused || this.musicPending)) this.stopMusic(); return false; }
     // Absolute sector order rotates the three flight tracks across every cycle.
     const sector = Number.isSafeInteger(level) && level >= 0 ? level : 0;
     const flight = FLIGHT_SONGS[sector % FLIGHT_SONGS.length];
     const key = mood === 'boss' || mood === 'challenge' ? mood : flight;
     if (key !== this.songKey) {
       this.stopMusic(); this.songKey = key;
-      if (audioAssets.songs.has(key)) this.music.src = audioAssets.songs.get(key);
-      else this.music.removeAttribute('src');
+      this.music = this.musicPlayers.get(key) || null;
+      this.musicSource = this.musicSources.get(key) || null;
+      this.musicBlocked = this.blockedSongs.has(key);
+      if (this.music) this.music.currentTime = 0;
     }
+    if (!this.music) return false;
+    const channel = this.musicChannels.get(key);
+    if (channel.gain.value !== 1) channel.gain.setValueAtTime(1, this.context.currentTime);
     this.playMusic();
     this.musicGain.gain.setTargetAtTime(SONGS[key].gain, this.context.currentTime, .12);
     return this.musicPlaying && !this.music.paused && this.music.readyState >= 2;

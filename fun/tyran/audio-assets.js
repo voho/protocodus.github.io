@@ -9,7 +9,7 @@ export const SONGS = {
   boss: { file: '4.mp3', gain: .235 },
   challenge: { file: '5.mp3', gain: .249 }
 };
-export const audioAssets = { samples: new Map(), songs: new Map(), ready: false };
+export const audioAssets = { samples: new Map(), songs: new Map(), players: new Map(), ready: false };
 
 const assets = [
   ...Object.values(SAMPLE_GROUPS).flat().map(key => ({ key, path: `sfx/${key}.wav`, sample: true })),
@@ -23,6 +23,44 @@ const notify = () => {
     try { callback({ ...progress }); } catch { /* Progress UI cannot interrupt loading. */ }
   }
 };
+
+function prepareSong(url, signal) {
+  const player = new Audio();
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const readyEvents = ['canplaythrough', 'loadeddata', 'durationchange', 'progress', 'suspend'];
+    const finish = error => {
+      if (settled) return;
+      settled = true;
+      for (const event of readyEvents) player.removeEventListener(event, playable);
+      player.removeEventListener('error', failed);
+      signal.removeEventListener('abort', aborted);
+      if (error) {
+        // Abort stalled media work before opening the arena. Late browser events
+        // cannot publish a timed-out player or leave its Blob URL alive.
+        try { player.pause(); player.removeAttribute('src'); player.load(); } catch { /* Still settle the shared deadline. */ }
+        reject(error);
+      } else resolve(player);
+    };
+    const playable = () => {
+      const buffered = player.buffered;
+      // HAVE_ENOUGH_DATA alone can precede the end of the Blob request. Wait
+      // for the complete duration (allow one MP3 frame of rounding) and idle IO.
+      if (player.readyState >= 4 && player.networkState === 1 && Number.isFinite(player.duration) && player.duration > 0
+        && buffered.length && buffered.start(0) <= .05 && buffered.end(buffered.length - 1) >= player.duration - .05) finish();
+    };
+    const failed = () => finish(new Error('Song playback unavailable'));
+    const aborted = () => finish(new Error('Audio preflight timed out'));
+    if (signal.aborted) { aborted(); return; }
+    for (const event of readyEvents) player.addEventListener(event, playable);
+    player.addEventListener('error', failed);
+    signal.addEventListener('abort', aborted, { once: true });
+    try {
+      player.preload = 'auto'; player.loop = true; player.src = url; player.load();
+      playable();
+    } catch (error) { finish(error); }
+  });
+}
 
 export function preloadAudio(onProgress) {
   if (typeof onProgress === 'function') {
@@ -68,7 +106,12 @@ export function preloadAudio(onProgress) {
           } else {
             const blob = await wait(response.blob());
             if (!blob.size) throw new Error('Empty song');
-            audioAssets.songs.set(asset.key, URL.createObjectURL(blob));
+            const songUrl = URL.createObjectURL(blob);
+            try {
+              const player = await prepareSong(songUrl, signal);
+              audioAssets.songs.set(asset.key, songUrl);
+              audioAssets.players.set(asset.key, player);
+            } catch (error) { URL.revokeObjectURL(songUrl); throw error; }
           }
           progress.loaded++;
         } catch { progress.failed++; /* This session permanently uses the synth for failed assets. */ }

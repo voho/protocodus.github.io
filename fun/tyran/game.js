@@ -20,9 +20,22 @@ const sectorLabel = level => `Sector ${String(level + 1).padStart(2, '0')} · Cy
 const sectorSeed = level => campaignCycle(level) ? `tyran-v2-cycle-${campaignCycle(level) + 1}` : 'tyran-v2';
 const nextSector = level => Math.min(Number.MAX_SAFE_INTEGER, level + 1);
 
-// Finish downloads, font loading and sound decoding before enabling launch.
+// CSS preloads alone do not gate launch: a slow title image could keep
+// downloading behind the flight. Finish it here and disable its fallback URL
+// on failure so returning to the menu cannot retry the request during a run.
+async function preloadTitleArt() {
+  const image = new Image();
+  try {
+    image.src = new URL('./assets/hero.jpg', import.meta.url).href;
+    await image.decode();
+  } catch { document.querySelector('.hero-art').style.backgroundImage = 'none'; }
+  finally { image.src = ''; }
+}
+
+// Finish downloads, image/font loading and sound preparation before launch.
 await Promise.all([
   spritesReady,
+  preloadTitleArt(),
   ...[400, 500, 600, 700].map(weight => document.fonts.load(`${weight} 14px "Chakra Petch"`).catch(() => [])),
   preloadAudio(({ completed, total }) => {
     document.getElementById('startup-status').textContent = `Preparing flight… ${Math.round(completed / total * 100)}%`;
