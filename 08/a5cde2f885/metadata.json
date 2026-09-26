@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "08a5cde2f885",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "fun/tyran/README.md",
+    "fun/tyran/assets/ASSETS.md",
+    "fun/tyran/assets/sprites/pickups.webp",
+    "fun/tyran/assets/sprites/prompts.json",
+    "fun/tyran/effects.js",
+    "fun/tyran/sprite-assets.js",
+    "fun/tyran/tests/effects-memory-check.mjs",
+    "fun/tyran/tests/fleet-families-check.mjs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/08/a5cde2f885/0/metadata.json",
+      "transcript": "/08/a5cde2f885/0/full.jsonl",
+      "context": "/08/a5cde2f885/0/context.md",
+      "content_hash": "/08/a5cde2f885/0/content_hash.txt",
+      "prompt": "/08/a5cde2f885/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 184,
+    "cache_creation_tokens": 222747,
+    "cache_read_tokens": 6989952,
+    "output_tokens": 50046,
+    "api_call_count": 67
+  }
+}
