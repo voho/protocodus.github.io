@@ -62,7 +62,7 @@ function validateGame(s) {
     for (const key of ['targetId', 'attackerId']) if (e[key] != null) valid(integer(e[key], 1, s.nextId - 1));
     if (e.order.targetId != null) valid(integer(e.order.targetId, 1, s.nextId - 1));
     if (e.order.tile !== undefined) valid(integer(e.order.tile, 0, cells - 1) && point(e.order) && number(e.order.nextPlan, 0) && integer(e.order.navVersion));
-    valid(Array.isArray(e.path) && e.path.length <= cells && e.path.every(point));
+    valid(Array.isArray(e.path) && e.path.length <= cells && e.path.every(p=>point(p)&&(p.flock===undefined||typeof p.flock==='boolean')));
     if (e.pathGoal !== undefined) valid(point(e.pathGoal));
     if (e.rally !== undefined) valid(point(e.rally));
     if (e.trafficWait !== undefined) valid(e.kind === 'unit' && number(e.trafficWait, 0, .8));

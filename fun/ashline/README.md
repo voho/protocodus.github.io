@@ -32,7 +32,9 @@ Every completed refinery includes one free hauler. Haulers automatically collect
 
 Damage to your forces raises a throttled **under attack** warning with an orange ping on the tactical map, destroyed units are reported, losing the last hauler prompts a replacement, and low power warns once and marks the power readout while defenses stay offline. Shells and tracers fired from concealed positions are drawn and heard where they land, never where they came from.
 
-Units wait and turn in place around traffic, leaving parked allies in place. If friendly units jam in a tight passage, their spacing briefly softens so they can pass and continue their orders. Rocks, lava, buildings, and enemy collision boundaries remain solid. This also keeps haulers moving through shared refinery approaches.
+Units use [Craig Reynolds’ Boids rules](https://www.red3d.com/cwr/boids/) for local herd movement: **separation** avoids crowding nearby bodies, **alignment** follows nearby allies’ average heading, and **cohesion** draws traveling allies together. Only nearby allies traveling toward compatible destinations align and cohere; guards remain parked and opposing traffic keeps its own orders. The herd influence fades near each unit’s assigned destination. Each simulation tick reads a shared snapshot of neighbors from a spatial grid, and the resulting short steering legs preserve deterministic save continuation.
+
+Units turn in place before following a herd steering leg. If friendly units jam in a tight passage, their spacing briefly softens so they can pass and continue their orders. Rocks, lava, buildings, and enemy collision boundaries remain solid. This also keeps haulers moving through shared refinery approaches.
 
 Clear routes follow direct lines at any angle. Obstacle routes discard unnecessary grid waypoints. Units rotate in place to face each straight path segment, then accelerate forward with a fixed heading. Turning and translation never happen in the same simulation tick. Stationary units stop their walking and track animations. Every shortcut checks the swept path against solid ground. The same routing serves manual orders, rallies, harvesting, scouting, and combat pursuit.
 
@@ -115,7 +117,7 @@ node tests/capacity-check.mjs
 node tests/nexus-check.mjs
 node tests/ai-nexus-check.mjs
 node --test tests/control-groups.test.mjs
-node --test tests/camera.test.mjs tests/movement.test.mjs
+node --test tests/camera.test.mjs tests/movement.test.mjs tests/flocking.test.mjs
 node tests/lava-check.mjs
 node tests/distribution-check.mjs
 node tests/relief-check.mjs

@@ -1,4 +1,5 @@
 // Ashline: deterministic, dependency-free skirmish simulation. Coordinates are tiles.
+import {createFlockSnapshot,flockSteering} from './flocking.js';
 export const UNIT_CAP=2000;
 export const UNIT_CAP_PER_NEXUS=200,NEXUS_DEPLOY_RANGE=4;
 export const BUILDINGS = {
@@ -115,7 +116,7 @@ function indexEntity(s,e){
   if(!spatial.buckets.has(key))spatial.buckets.set(key,[]);spatial.buckets.get(key).push(entry);
 }
 function beginSpatialStep(s){
-  spatialStates.set(s,{buckets:new Map(),entries:new Map(),nextIndex:0});
+  spatialStates.set(s,{buckets:new Map(),entries:new Map(),nextIndex:0,flock:createFlockSnapshot(s.entities)});
   for(const e of s.entities)if(alive(e))indexEntity(s,e);
 }
 function nearbyEntities(s,p,r){
@@ -800,7 +801,7 @@ function navigate(s,u,tx,ty,dt,stop=.2,movement){
     tx=u.order.x=goal.x;ty=u.order.y=goal.y;u.repath=0;
   }
   if(Math.hypot(tx-u.x,ty-u.y)<=stop+(precise?0:.12)){u.path=[];u.moveSpeed=0;u.turnVelocity=0;return true;}
-  if(u.repath<=0||u.pathVersion!==s.navVersion||!u.pathGoal||Math.hypot(u.pathGoal.x-tx,u.pathGoal.y-ty)>1.4){
+  if(u.repath<=0&&!u.path[0]?.flock||u.pathVersion!==s.navVersion||!u.pathGoal||Math.hypot(u.pathGoal.x-tx,u.pathGoal.y-ty)>1.4){
     const found=findPath(s,u,tx,ty,stop);if(!found){u.path=[];return false;}
     u.path=found;u.pathGoal={x:tx,y:ty};u.pathVersion=s.navVersion;u.repath=1.3+random(s)*.6;
   }
@@ -808,6 +809,17 @@ function navigate(s,u,tx,ty,dt,stop=.2,movement){
     if(!precise)return Math.hypot(tx-u.x,ty-u.y)<=Math.max(stop+.8,1.1);
     if(!clearStep(s,u,tx,ty))return false;
     u.path=[{x:tx,y:ty}];
+  }
+  // Sample the herd into a short, fixed leg. Keep it through turning and travel;
+  // chasing a new heading every tick would leave turn-in-place vehicles stuck.
+  if(!u.path[0].flock&&Math.hypot(tx-u.x,ty-u.y)>1.2){
+    const neighbors=spatialStates.get(s).flock(u).filter(other=>clearStep(s,u,other.x,other.y));
+    const route=u.path[0],steering=flockSteering(u,{x:tx,y:ty},neighbors,s.time,route);
+    if(steering){
+      const length=Math.min(2.4,distance(u,route)),leg={x:u.x+steering.x*length,y:u.y+steering.y*length,flock:true};
+      // A herd cannot shortcut a wall or replace a required pathfinding bend.
+      if(length>.5&&clearStep(s,u,leg.x,leg.y)&&clearStep(s,leg,route.x,route.y))u.path.unshift(leg);
+    }
   }
   // Each pruned path leg is straight. Units stop and turn before starting the next leg.
   const p=u.path[0],dx=p.x-u.x,dy=p.y-u.y,d=Math.hypot(dx,dy);
