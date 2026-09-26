@@ -1,0 +1,56 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "f78389cf3662",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "fun/tyran/README.md",
+    "fun/tyran/effects.js",
+    "fun/tyran/flight-layout.css",
+    "fun/tyran/game.js",
+    "fun/tyran/geometry.js",
+    "fun/tyran/gpu-canvas.js",
+    "fun/tyran/projectile-sprites.js",
+    "fun/tyran/ships.js",
+    "fun/tyran/tests/PERFORMANCE.md",
+    "fun/tyran/tests/browser-check.mjs",
+    "fun/tyran/tests/cinematic-effects-check.mjs",
+    "fun/tyran/tests/cloud-crop-check.mjs",
+    "fun/tyran/tests/fleet-families-check.mjs",
+    "fun/tyran/tests/gpu-batch-check.mjs",
+    "fun/tyran/tests/gpu-geometry-check.mjs",
+    "fun/tyran/tests/gpu-mock.mjs",
+    "fun/tyran/tests/gpu-performance-results.json",
+    "fun/tyran/tests/gpu-recovery-browser-check.mjs",
+    "fun/tyran/tests/gpu-recovery-check.mjs",
+    "fun/tyran/tests/gpu-soft-layer-check.mjs",
+    "fun/tyran/tests/graphics-depth-check.mjs",
+    "fun/tyran/tests/native-cpu-client.mjs",
+    "fun/tyran/tests/native-cpu.py",
+    "fun/tyran/tests/owned-gpu-stats.py",
+    "fun/tyran/tests/particle-discs-check.mjs",
+    "fun/tyran/tests/performance-check.mjs",
+    "fun/tyran/tests/preload-check.mjs",
+    "fun/tyran/tests/scenery-refresh-check.mjs",
+    "fun/tyran/tests/ship-fixed-check.mjs",
+    "fun/tyran/tests/ship-source-crop-check.mjs",
+    "fun/tyran/worlds.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/f7/8389cf3662/0/metadata.json",
+      "transcript": "/f7/8389cf3662/0/full.jsonl",
+      "context": "/f7/8389cf3662/0/context.md",
+      "content_hash": "/f7/8389cf3662/0/content_hash.txt",
+      "prompt": "/f7/8389cf3662/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 184,
+    "cache_creation_tokens": 222747,
+    "cache_read_tokens": 6989952,
+    "output_tokens": 50046,
+    "api_call_count": 67
+  }
+}
