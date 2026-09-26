@@ -43,8 +43,8 @@ const world = new WorldRenderer(), fx = new Effects(), audio = new AudioEngine()
 const feedback = new CombatFeedback();
 let feedbackRevision = -1;
 const keys = new Set(), numberFormat = new Intl.NumberFormat('en-US'), number = n => numberFormat.format(Math.floor(n || 0));
-const compactRewardFormat = new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 });
-const rewardNumber = n => n >= 1_000_000 ? compactRewardFormat.format(n) : number(n);
+const compactRewardFormat = new Intl.NumberFormat('en-US', { notation: 'compact', maximumSignificantDigits: 3 });
+const rewardNumber = n => n >= 1e15 ? `${compactRewardFormat.format(n / 1e15)}Q` : n >= 10_000 ? compactRewardFormat.format(n) : number(n);
 const screens = ['menu-screen', 'pause-screen', 'hangar-screen', 'end-screen'];
 let campaign = campaignSummary(readCampaign()), campaignError = null, activeCampaign = false, lastAutosaveTime = 0;
 let state = null, selected = 0, scene = 'menu', unlocked = campaign.run?.unlocked || 0;
@@ -328,6 +328,8 @@ function refreshHUD() {
   const bonuses = String(state.players.some(p => p.alive && (p.rapidFireTime > 0 || p.invulnerableTime > 0)));
   if (document.body.dataset.bonuses !== bonuses) document.body.dataset.bonuses = bonuses;
   setText($('level-name'), environment(state.level).name);
+  setText($('sector-value'), String(state.level + 1).padStart(2, '0'));
+  setAttribute($('sector-value'), 'title', `Sector ${state.level + 1} · Cycle ${campaignCycle(state.level) + 1}`);
   setText($('level-number'), `${String(state.level + 1).padStart(2, '0')} · Cycle ${campaignCycle(state.level) + 1}`);
   setText($('difficulty-value'), difficultyProfile(state.difficulty).label);
   setText($('wave-label'), waveLabel(state));
@@ -355,10 +357,15 @@ function refreshHUD() {
     setFill($(prefix + '-energy'), p.fireEnergy / stats.energy);
     setAttribute($(prefix + '-energy').parentElement, 'aria-label', `Pilot ${p.id + 1} fire energy ${Math.floor(p.fireEnergy)} of ${stats.energy}${p.fireEnergyLocked ? ', recharging' : ''}`);
     const energyPercent = Math.floor(p.fireEnergy / stats.energy * 100);
-    const energyStatus = !p.alive ? 'Offline' : p.fireEnergyLocked ? `Recharging · ${energyPercent}%` : `${energyPercent}%`;
+    const energyStatus = !p.alive ? 'Offline' : p.fireEnergyLocked ? `↻ ${energyPercent}%` : `${energyPercent}%`;
+    const energyDescription = p.alive && p.fireEnergyLocked ? `Recharging · ${energyPercent}%` : energyStatus;
+    setAttribute($(prefix + '-energy-status'), 'title', energyDescription);
+    setAttribute($(prefix + '-energy-status'), 'aria-label', energyDescription);
     setText($(prefix + '-energy-status'), energyStatus);
     setAttribute($(prefix + '-energy-line'), 'data-depleted', String(p.fireEnergyLocked));
     setFill($(prefix + '-hull'), p.hull / p.maxHull); setFill($(prefix + '-shield'), p.shield / p.maxShield);
+    setText($(prefix + '-hull-value'), `${Math.ceil(p.hull / p.maxHull * 100)}%`);
+    setText($(prefix + '-shield-value'), `${Math.ceil(p.shield / p.maxShield * 100)}%`);
     setAttribute($(prefix + '-hull').parentElement, 'aria-label', `Pilot ${p.id + 1} hull ${Math.ceil(p.hull)} of ${p.maxHull}`);
     const shieldMode = p.shield >= p.maxShield ? 'full' : !p.alive || state.time - p.lastHit <= stats.delay ? 'wait' : (p.shieldFireDelay || 0) > 0 ? 'firing' : 'rest';
     const shieldRate = stats.recharge * (shieldMode === 'firing' ? SHIELD_FIRING_RECHARGE : SHIELD_REST_RECHARGE);
@@ -369,6 +376,7 @@ function refreshHUD() {
     if (shieldLabel) {
       setText(shieldLabel, shieldMode === 'firing' ? 'Shield ↓' : shieldMode === 'rest' ? 'Shield ↑' : 'Shield');
       setAttribute(shieldLabel, 'data-recharge', shieldMode); setAttribute(shieldLabel, 'title', shieldStatus);
+      setAttribute(shieldLabel.parentElement, 'data-recharge', shieldMode); setAttribute(shieldLabel.parentElement, 'title', shieldStatus);
     }
     setAttribute($(prefix + '-shield').parentElement, 'aria-label', `Pilot ${p.id + 1} shield ${Math.ceil(p.shield)} of ${p.maxShield}. ${shieldStatus}`);
     const rapid = p.alive ? p.rapidFireTime || 0 : 0, invulnerable = p.alive ? p.invulnerableTime || 0 : 0;
@@ -385,7 +393,10 @@ function refreshHUD() {
   setHidden($('boss-hud'), !boss || !!challenge);
   if (boss) {
     setText($('boss-name'), environment(state.level).bossName || 'Sector guardian'); setFill($('boss-fill'), boss.hp / boss.maxHp);
-    setText($('boss-status'), boss.vulnerable ? `Core exposed · ${boss.windowClock.toFixed(1)}s` : `Armor sealed · ${boss.windowClock.toFixed(1)}s`);
+    const bossTime = `${boss.windowClock.toFixed(1)}s`;
+    setText($('boss-status'), `${boss.vulnerable ? 'Open' : 'Locked'} · ${bossTime}`);
+    setAttribute($('boss-status'), 'title', `${boss.vulnerable ? 'Core exposed' : 'Armor sealed'} · ${bossTime}`);
+    setAttribute($('boss-status'), 'aria-label', $('boss-status').title);
     $('boss-hud').classList.toggle('exposed', !!boss.vulnerable);
   }
 }

@@ -79,8 +79,9 @@ async function audit(page, label, touch) {
     // ellipsis; essential values and timed combat status must remain complete.
     const textSlots = [
       ['#score-value', '.score-instrument'], ['#credits-value', '.credits-instrument'],
-      ['#difficulty-value', '.mission-instrument'],
+      ['#sector-value', '.mission-instrument'], ['#difficulty-value', '.mission-instrument'],
       ['#p1-bombs', '.loadout-item'], ['#p1-drones', '.loadout-item'], ['#p1-lives', '.loadout-item'],
+      ['#p1-hull-value', '.hull-line'], ['#p1-shield-value', '.shield-line'],
       ['#p1-energy-status', '#p1-energy-line'], ['#boss-status', '#boss-hud'],
       ['#challenge-count', '#challenge-hud'],
       ['#p1-rapid-time', '#p1-rapid'], ['#p1-invulnerable-time', '#p1-invulnerable'],
@@ -126,6 +127,7 @@ async function audit(page, label, touch) {
         && essential.every(selector => document.querySelector('#flight-header').contains(document.querySelector(selector))),
       uniformScale: Math.abs(r.width / tyran.state.width - r.height / tyran.state.height) < 1e-9,
       rootOverflow: document.documentElement.scrollWidth > innerWidth || document.documentElement.scrollHeight > innerHeight,
+      valueFonts: ['#score-value','#credits-value','#p1-hull-value','#p1-shield-value','#p1-energy-status','#p1-bombs','#p1-drones','#p1-lives'].map(selector => ({ selector, size: parseFloat(getComputedStyle(document.querySelector(selector)).fontSize) })),
       notice: document.querySelector('#announcement-title').textContent, canvasText: [...__uiCanvasText], textFit,
     };
   });
@@ -146,6 +148,7 @@ async function audit(page, label, touch) {
       && item.y + item.height <= result.viewport.height + .5, `${label}: ${item.selector} stays on screen`);
     assert(item.y >= bar.y && item.y + item.height <= bar.y + bar.height + .5, `${label}: ${item.selector} fits inside the top bar`);
   }
+  for (const value of result.valueFonts) assert(value.size >= 16, `${label}: ${value.selector} is readable without tiny text`);
   for (const item of result.textFit) {
     assert(item.fragments.length, `${label}: ${item.selector} renders its text`);
     assert.deepEqual(item.outside, [], `${label}: ${item.selector} (${item.text}) fits its allocated slots; text ${JSON.stringify(item.fragments)}`);
@@ -169,13 +172,14 @@ async function stressLongRunHUD(page, label, touch, stable) {
   const original = await page.evaluate(() => {
     const s = tyran.state, p = s.players[0], boss = s.enemies.find(enemy => enemy.boss && !enemy.dead);
     return {
-      state: { level: s.level, score: s.score, credits: s.credits, combo: s.combo, comboTime: s.comboTime, comboLabel: s.comboLabel },
+      state: { level: s.level, difficulty: s.difficulty, score: s.score, credits: s.credits, combo: s.combo, comboTime: s.comboTime, comboLabel: s.comboLabel },
       pilot: { alive: p.alive, fireEnergy: p.fireEnergy, fireEnergyLocked: p.fireEnergyLocked, rapidFireTime: p.rapidFireTime, invulnerableTime: p.invulnerableTime },
       boss: { vulnerable: boss.vulnerable, windowClock: boss.windowClock },
     };
   });
   const cases = [
     // The last unshortened total is wider than many compact large totals.
+    { total: 9999, level: 9998, energy: .99, vulnerable: false },
     { total: 999999, level: 9998, energy: .99, vulnerable: false },
     { total: 1e12, level: 9998, energy: 0, vulnerable: true },
     { total: Number.MAX_SAFE_INTEGER, level: 99989, energy: .99, vulnerable: false },
@@ -184,7 +188,7 @@ async function stressLongRunHUD(page, label, touch, stable) {
     const hud = await page.evaluate(async fixture => {
       const { shipStats } = await import('./sim.js');
       const s = tyran.state, p = s.players[0], boss = s.enemies.find(enemy => enemy.boss && !enemy.dead);
-      s.level = fixture.level; s.score = 0; s.credits = 0; tyran.feedback.reset(s);
+      s.level = fixture.level; s.difficulty = 'medium'; s.score = 0; s.credits = 0; tyran.feedback.reset(s);
       s.score = fixture.total; s.credits = fixture.total; s.combo = 99; s.comboTime = 4; s.comboLabel = 'Rampage';
       p.rapidFireTime = 10; p.invulnerableTime = 10;
       p.fireEnergy = shipStats(s.upgrades).energy * fixture.energy; p.fireEnergyLocked = true;
@@ -198,7 +202,9 @@ async function stressLongRunHUD(page, label, touch, stable) {
       return {
         sector: document.querySelector('#level-number').textContent,
         energy: document.querySelector('#p1-energy-status').textContent,
+        energyAccessible: document.querySelector('#p1-energy-status').getAttribute('aria-label'),
         boss: document.querySelector('#boss-status').textContent,
+        bossAccessible: document.querySelector('#boss-status').getAttribute('aria-label'),
         simultaneous: ['p1-rapid', 'p1-invulnerable', 'boss-hud', 'combat-feedback'].every(shown),
         notices: document.querySelector('#combat-feedback-detail').textContent,
         totals: ['score-value', 'credits-value'].map(id => { const el = document.getElementById(id); return { text: el.textContent, title: el.title, accessible: el.getAttribute('aria-label') }; }),
@@ -208,12 +214,14 @@ async function stressLongRunHUD(page, label, touch, stable) {
     const caseLabel = `${label}-sector-${fixture.level + 1}-totals-${fixture.total}`;
     const exact = new Intl.NumberFormat('en-US').format(fixture.total);
     assert.equal(hud.sector, `${fixture.level + 1} · Cycle ${Math.floor(fixture.level / 10) + 1}`);
-    assert.equal(hud.energy, `Recharging · ${Math.floor(fixture.energy * 100)}%`);
-    assert.equal(hud.boss, `${fixture.vulnerable ? 'Core exposed' : 'Armor sealed'} · 10.0s`);
+    assert.equal(hud.energy, `↻ ${Math.floor(fixture.energy * 100)}%`);
+    assert.equal(hud.energyAccessible, `Recharging · ${Math.floor(fixture.energy * 100)}%`);
+    assert.equal(hud.boss, `${fixture.vulnerable ? 'Open' : 'Locked'} · 10.0s`);
+    assert.equal(hud.bossAccessible, `${fixture.vulnerable ? 'Core exposed' : 'Armor sealed'} · 10.0s`);
     assert(hud.simultaneous && hud.notices.includes('+2 more'), `${caseLabel}: both timed bonuses, boss and multiple reward notices remain active together`);
     for (const total of hud.totals) {
       assert(total.title.startsWith(exact) && total.accessible.startsWith(exact), `${caseLabel}: compact totals retain their exact accessible value`);
-      if (fixture.total === 999999) assert.equal(total.text, exact, 'the widest unshortened counter remains intact');
+      if (fixture.total === 9999) assert.equal(total.text, exact, 'the widest unshortened counter remains intact');
     }
     assert(hud.rewards.every(reward => reward.visible && reward.title.startsWith(`+${exact}`)), `${caseLabel}: both reward totals retain their exact value`);
     await audit(page, caseLabel, touch);
@@ -221,6 +229,7 @@ async function stressLongRunHUD(page, label, touch, stable) {
   }
   await page.evaluate(() => { tyran.state.players[0].alive = false; tyran.step(0); __uiFrame(); });
   assert.equal(await page.locator('#p1-energy-status').textContent(), 'Offline');
+  assert.equal(await page.locator('#p1-energy-status').getAttribute('aria-label'), 'Offline');
   await audit(page, `${label}-offline`, touch);
   assert.deepEqual(await arena(page), stable, 'offline status never changes arena geometry');
   await page.evaluate(original => {
@@ -276,10 +285,11 @@ try {
         const text = range.getBoundingClientRect(), box = line.getBoundingClientRect();
         const wordVisible = getComputedStyle(word).display !== 'none' && getComputedStyle(word).visibility === 'visible';
         range.selectNodeContents(word); const label = range.getBoundingClientRect();
-        return { value: status.textContent, fits: text.left >= box.left - .5 && text.right <= box.right + .5,
+        return { value: status.textContent, accessible: status.getAttribute('aria-label'), fits: text.left >= box.left - .5 && text.right <= box.right + .5,
           clearsLabel: !wordVisible || label.right <= text.left + .5 };
       });
-      assert.match(recharge.value, /Recharging/);
+      assert.match(recharge.value, /^↻ \d+%$/);
+      assert.match(recharge.accessible, /Recharging/);
       assert(recharge.fits && recharge.clearsLabel, `${label}: depleted-energy status remains legible inside its instrument`);
       await audit(page, `${label}-recharging`, touch);
       assert.deepEqual(await arena(page), stable, 'depleted-energy text does not resize the arena');

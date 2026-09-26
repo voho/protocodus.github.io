@@ -35,7 +35,7 @@
   <section class="hud" id="hud" aria-label="Flight instruments">
     <header class="flight-header" id="flight-header">
       <div class="mission-instrument">
-        <span class="hud-kicker">Sector <b id="level-number">01 · Cycle 1</b><span class="difficulty-badge" id="difficulty-value">Easy</span></span>
+        <span class="mission-route"><svg class="hud-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="m15 9-2 4-4 2 2-4 4-2Z"/></svg><b id="sector-value" title="Sector 1 · Cycle 1">01</b><span class="hud-secondary">Sector <b id="level-number">01 · Cycle 1</b></span><span class="difficulty-badge" id="difficulty-value">Easy</span></span>
         <strong id="level-name">Verdant Reach</strong>
         <span class="wave-label" id="wave-label">Wave 01 / 08</span>
         <div class="mission-progress" title="Mission progress"><i id="progress-fill"></i></div>
@@ -43,22 +43,22 @@
       <div class="player-panel" id="p1-panel">
         <div class="player-label"><strong>Vanguard</strong><small id="p1-reserve">2 ships in reserve</small></div>
         <div class="player-resources">
-          <div class="resource-line"><span>Hull</span><div class="resource-meter hull-meter"><i id="p1-hull"></i></div></div>
-          <div class="resource-line"><span id="p1-shield-label">Shield</span><div class="resource-meter shield-meter"><i id="p1-shield"></i></div></div>
-          <div class="resource-line energy-line" id="p1-energy-line"><span>Energy</span><span class="energy-status" id="p1-energy-status">100%</span><div class="resource-meter energy-meter"><i id="p1-energy"></i></div></div>
+          <div class="resource-line hull-line" title="Hull integrity"><svg class="hud-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 8 17-8-4-8 4 8-17Z"/><path d="M12 8v8"/></svg><span class="hud-secondary">Hull</span><div class="resource-meter hull-meter"><i id="p1-hull"></i></div><b class="resource-value" id="p1-hull-value">100%</b></div>
+          <div class="resource-line shield-line" title="Shield"><svg class="hud-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 8 3-1 7c-1 4-7 8-7 8s-6-4-7-8L4 6l8-3Z"/></svg><span class="hud-secondary" id="p1-shield-label">Shield</span><div class="resource-meter shield-meter"><i id="p1-shield"></i></div><b class="resource-value" id="p1-shield-value">100%</b></div>
+          <div class="resource-line energy-line" id="p1-energy-line" title="Plasma energy"><svg class="hud-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14 2-9 12h7l-2 8 9-13h-7l2-7Z"/></svg><span class="hud-secondary">Energy</span><span class="energy-status" id="p1-energy-status">100%</span><div class="resource-meter energy-meter"><i id="p1-energy"></i></div></div>
         </div>
         <div class="pilot-bonuses" id="p1-bonuses" hidden>
-          <span class="pilot-bonus rapid-bonus" id="p1-rapid" hidden><svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="m11 1-8 11h6l-1 7 9-12h-6Z"/></svg>Rapid fire <b id="p1-rapid-time">10s</b></span>
-          <span class="pilot-bonus invulnerable-bonus" id="p1-invulnerable" hidden><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m10 2 7 3-1 7-6 6-6-6-1-7 7-3Z" stroke="currentColor" stroke-width="1.5"/></svg>Invulnerable <b id="p1-invulnerable-time">10s</b></span>
+          <span class="pilot-bonus rapid-bonus" id="p1-rapid" title="Rapid fire" aria-label="Rapid fire duration" hidden><svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="m11 1-8 11h6l-1 7 9-12h-6Z"/></svg><span class="hud-secondary">Rapid fire</span><b id="p1-rapid-time">10s</b></span>
+          <span class="pilot-bonus invulnerable-bonus" id="p1-invulnerable" title="Invulnerability" aria-label="Invulnerability duration" hidden><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m10 2 7 3-1 7-6 6-6-6-1-7 7-3Z" stroke="currentColor" stroke-width="1.5"/></svg><span class="hud-secondary">Invulnerable</span><b id="p1-invulnerable-time">10s</b></span>
         </div>
       </div>
       <div class="armament-instrument">
-        <div class="weapon-instrument"><span class="hud-kicker">Armament <b id="weapon-level">Mk 01</b></span><strong id="weapon-value">Pulse Array</strong></div>
+        <div class="weapon-instrument" title="Primary weapon"><svg class="hud-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 20V9m7 11V4m7 16V9M3 11l2-3 2 3m3-5 2-3 2 3m3 5 2-3 2 3"/></svg><span class="hud-secondary">Armament <b id="weapon-level">Mk 01</b></span><strong id="weapon-value">Pulse Array</strong></div>
         <div class="loadout-line" id="p1-loadout">
-          <span class="loadout-item power-item" title="Power level"><small>Power</small><span class="power-pips" id="p1-power" aria-label="Power 1 of 5"><i></i><i></i><i></i><i></i><i></i></span></span>
-          <span class="loadout-item" title="Nova charges · e"><small>Nova</small><b id="p1-bombs">3</b></span>
-          <span class="loadout-item" title="Wing drones"><small>Drones</small><b id="p1-drones">0</b></span>
-          <span class="loadout-item" title="Reserve ships"><small>Ships</small><b id="p1-lives">2</b></span>
+          <span class="loadout-item power-item" title="Power level"><svg class="hud-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 16 7-6 7 6M5 10l7-6 7 6"/></svg><small class="hud-secondary">Power</small><span class="power-pips" id="p1-power" aria-label="Power 1 of 5"><i></i><i></i><i></i><i></i><i></i></span></span>
+          <span class="loadout-item" title="Nova charges · e"><svg class="hud-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 2 6 6-3-3 6 5 1-5 2 3 6-6-3-2 5-2-5-6 3 3-6-5-2 5-1-3-6 6 3 2-6Z"/></svg><small class="hud-secondary">Nova</small><b id="p1-bombs">3</b></span>
+          <span class="loadout-item" title="Wing drones"><svg class="hud-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 5 4 13-4-3-4 3L6 5Zm12 0 4 13-4-3-4 3 4-13Z"/></svg><small class="hud-secondary">Drones</small><b id="p1-drones">0</b></span>
+          <span class="loadout-item" title="Reserve ships"><svg class="hud-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 8 17-8-4-8 4 8-17Z"/><path d="M12 8v8"/></svg><small class="hud-secondary">Ships</small><b id="p1-lives">2</b></span>
         </div>
       </div>
       <div class="flight-updates">
@@ -74,8 +74,8 @@
         </div>
       </div>
       <div class="scoreboard">
-        <div class="score-instrument"><span class="hud-kicker">Score</span><strong id="score-value">000000</strong></div>
-        <div class="credits-instrument"><span class="hud-kicker">Credits</span><strong><span class="credit-symbol">$</span> <span id="credits-value">0</span></strong></div>
+        <div class="score-instrument" title="Score"><svg class="hud-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z"/></svg><span class="hud-secondary">Score</span><strong id="score-value">000000</strong></div>
+        <div class="credits-instrument" title="Credits"><span class="hud-secondary">Credits</span><strong><span class="credit-symbol">$</span> <span id="credits-value">0</span></strong></div>
       </div>
       <button type="button" class="pause-button" id="pause-button" aria-label="Pause flight" title="Pause · Escape"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8 5v14M16 5v14" stroke="currentColor" stroke-width="3"/></svg></button>
       <div class="control-legend flight-controls" aria-label="Flight controls"><span><kbd>wasd</kbd> Move</span><span><kbd>space</kbd> Primary</span><span><kbd>q</kbd> Plasma</span><span><kbd>e</kbd> Nova</span></div>
