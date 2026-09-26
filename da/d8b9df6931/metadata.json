@@ -3,7 +3,7 @@
   "checkpoint_id": "dad8b9df6931",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 0,
+  "checkpoints_count": 1,
   "files_touched": [
     "fun/tyran/flight-layout.css",
     "fun/tyran/game.js",
@@ -31,13 +31,20 @@
       "context": "/da/d8b9df6931/2/context.md",
       "content_hash": "/da/d8b9df6931/2/content_hash.txt",
       "prompt": "/da/d8b9df6931/2/prompt.txt"
+    },
+    {
+      "metadata": "/da/d8b9df6931/3/metadata.json",
+      "transcript": "/da/d8b9df6931/3/full.jsonl",
+      "context": "/da/d8b9df6931/3/context.md",
+      "content_hash": "/da/d8b9df6931/3/content_hash.txt",
+      "prompt": "/da/d8b9df6931/3/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 58,
-    "cache_creation_tokens": 150008,
-    "cache_read_tokens": 2121455,
-    "output_tokens": 57045,
-    "api_call_count": 31
+    "input_tokens": 304,
+    "cache_creation_tokens": 2835940,
+    "cache_read_tokens": 47100870,
+    "output_tokens": 199337,
+    "api_call_count": 149
   }
 }
