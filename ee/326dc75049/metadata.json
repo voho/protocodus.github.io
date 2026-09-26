@@ -1,0 +1,38 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "ee326dc75049",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "fun/tyran/README.md",
+    "fun/tyran/effects.js",
+    "fun/tyran/game.js",
+    "fun/tyran/index.html",
+    "fun/tyran/save-game.js",
+    "fun/tyran/sim.js",
+    "fun/tyran/style.css",
+    "fun/tyran/tests/cinematic-effects-check.mjs",
+    "fun/tyran/tests/difficulty-check.mjs",
+    "fun/tyran/tests/endless-browser-check.mjs",
+    "fun/tyran/tests/render-lifecycle-check.mjs",
+    "fun/tyran/tests/save-game-check.mjs",
+    "fun/tyran/tests/sim-check.mjs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ee/326dc75049/0/metadata.json",
+      "transcript": "/ee/326dc75049/0/full.jsonl",
+      "context": "/ee/326dc75049/0/context.md",
+      "content_hash": "/ee/326dc75049/0/content_hash.txt",
+      "prompt": "/ee/326dc75049/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 214,
+    "cache_creation_tokens": 398948,
+    "cache_read_tokens": 25536700,
+    "output_tokens": 261161,
+    "api_call_count": 108
+  }
+}
