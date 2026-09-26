@@ -31,6 +31,11 @@ export const BONUS_DURATION = 10;
 export const RAPID_FIRE_MULTIPLIER = 1.65;
 export const SECONDARY_ENERGY_COST = 20;
 export const SECONDARY_RESTART_ENERGY = 40;
+// Weapons divert reactor output from shields. A short settling window makes
+// releasing fire a deliberate recovery choice rather than a between-shot trick.
+export const SHIELD_FIRE_DELAY = .75;
+export const SHIELD_FIRING_RECHARGE = .75;
+export const SHIELD_REST_RECHARGE = 1.25;
 // In-flight progression: power cores widen the primary weapon, wing drones fly
 // in formation, nova charges clear the sky and reserve ships continue a sector.
 export const MAX_POWER = 4;
@@ -57,7 +62,7 @@ const DRONE_COLOR = '#ffc46b';
 // for stronger bursts and area damage against clustered ships and ground sites.
 export const WEAPONS = [
   { id: 'pulse', name: 'Pulse Array', tag: 'Rapid precision', description: 'Fast, precise twin bolts with reliable reach.', kind: 'pulse', color: '#9cfff0', interval: .17, damage: 9.8, count: 2, spread: .018, speed: 900, life: 1.35, radius: 3.8 },
-  { id: 'plasma', name: 'Plasma Mortar', tag: 'Heavy blast', description: 'Powerful explosive orbs consume regenerating fire energy.', kind: 'plasma', color: '#ff9e7d', interval: .41, damage: 58, count: 1, spread: .012, speed: 640, life: 2.45, radius: 8, splash: 50, splashFactor: .46 },
+  { id: 'plasma', name: 'Plasma Mortar', tag: 'Guided blast', description: 'Gently guided explosive orbs favor large nearby enemies and consume fire energy.', kind: 'plasma', color: '#ff9e7d', interval: .41, damage: 58, count: 1, spread: .012, speed: 640, life: 2.45, radius: 8, splash: 50, splashFactor: .46, homing: .65 },
 ];
 // Three primary guns for the Space channel, bought once in the shop. Each has
 // five power levels collected in flight; the pattern grows, never the hitbox.
@@ -306,7 +311,7 @@ export function beginLevel(s, level) {
   const stats = shipStats(s.upgrades);
   const x = s.width * .5, y = s.height * .68;
   const drones = clamp(Math.floor(previous.drones || 0), 0, MAX_DRONES);
-  s.players = [{ id: 0, weapon, x, y, px: x, py: y, vx: 0, vy: 0, blastVx: 0, blastVy: 0, mass: stats.mass, thrust: .9, radius: 17, hull: stats.hull, shield: stats.shield, maxHull: stats.hull, maxShield: stats.shield, fire: 0, fireEnergy: stats.energy, fireEnergyDelay: 0, fireEnergyLocked: false, hurt: 0, lastHit: -10, alive: true, rapidFireTime: 0, invulnerableTime: 0,
+  s.players = [{ id: 0, weapon, x, y, px: x, py: y, vx: 0, vy: 0, blastVx: 0, blastVy: 0, mass: stats.mass, thrust: .9, radius: 17, hull: stats.hull, shield: stats.shield, maxHull: stats.hull, maxShield: stats.shield, fire: 0, fireEnergy: stats.energy, fireEnergyDelay: 0, fireEnergyLocked: false, shieldFireDelay: 0, hurt: 0, lastHit: -10, alive: true, rapidFireTime: 0, invulnerableTime: 0,
     power: clamp(Math.floor(previous.power || 0), 0, MAX_POWER), drones, bombs: clamp(Math.max(2, Math.floor(previous.bombs ?? START_BOMBS)), 0, MAX_BOMBS), guard: 0, bombHeld: false,
     wing: DRONE_SLOTS.slice(0, drones).map(([dx, dy]) => ({ x: x + dx, y: y + dy, px: x + dx, py: y + dy })) }];
   s.weapon = s.players[0].weapon;
@@ -399,6 +404,7 @@ function bolt(s, p, x, y, angle, profile, damage, extra = {}) {
 }
 
 function shoot(s, p, id, remainder = 0) {
+  p.shieldFireDelay = SHIELD_FIRE_DELAY;
   const comboDamage = s.comboDamage || 1;
   // Keep the existing single-player damage balance.
   const damageAssist = 1.35;
@@ -468,13 +474,30 @@ function nearestEnemy(s, x, y, maxDistance = Infinity, exclude = null) {
   return found;
 }
 
+function plasmaTarget(s, bullet) {
+  let found = null, priority = Infinity;
+  for (const enemy of s.enemies) {
+    if (enemy.dead || enemy.hp <= 0 || isDormant(enemy)
+      || enemy.x < 0 || enemy.x > s.width || enemy.y < 0 || enemy.y > s.height) continue;
+    const dx = enemy.x - bullet.x, dy = enemy.y - bullet.y, squared = dx * dx + dy * dy;
+    if (squared > 650 * 650 || dx * bullet.vx + dy * bullet.vy < 0) continue;
+    // Favor larger hulls at similar range, but let much closer ships win.
+    // One scan stays cheap even in a swarm; the turn limit smooths retargeting.
+    const score = squared / Math.max(12, enemy.radius);
+    if (score < priority) { priority = score; found = enemy; }
+  }
+  return found;
+}
+
 function guideProjectile(s, bullet, dt) {
   if (!bullet.homing || bullet.team < 0) return;
-  const target = nearestEnemy(s, bullet.x, bullet.y, 650);
+  const target = bullet.kind === 'plasma' ? plasmaTarget(s, bullet) : nearestEnemy(s, bullet.x, bullet.y, 650);
   if (!target) return;
   const speed = Math.hypot(bullet.vx, bullet.vy) || 1;
   let angle = Math.atan2(bullet.vy, bullet.vx), wanted = Math.atan2(target.y - bullet.y, target.x - bullet.x);
-  let delta = (wanted - angle + Math.PI) % TAU - Math.PI;
+  let delta = wanted - angle;
+  if (delta > Math.PI) delta -= TAU;
+  else if (delta < -Math.PI) delta += TAU;
   delta = clamp(delta, -bullet.homing * dt, bullet.homing * dt);
   angle += delta;
   bullet.vx = Math.cos(angle) * speed; bullet.vy = Math.sin(angle) * speed;
@@ -665,7 +688,7 @@ function respawn(s, p) {
   const stats = shipStats(s.upgrades), x = s.width * .5, y = s.height * .8;
   s.lives--;
   Object.assign(p, { alive: true, hull: stats.hull, shield: stats.shield, maxHull: stats.hull, maxShield: stats.shield, x, y, px: x, py: y, vx: 0, vy: 0, blastVx: 0, blastVy: 0,
-    hurt: 0, guard: RESPAWN_GUARD, fire: .2, fireEnergy: stats.energy, fireEnergyDelay: 0, fireEnergyLocked: false, bombs: Math.max(p.bombs || 0, 2), lastHit: s.time });
+    hurt: 0, guard: RESPAWN_GUARD, fire: .2, fireEnergy: stats.energy, fireEnergyDelay: 0, fireEnergyLocked: false, shieldFireDelay: 0, bombs: Math.max(p.bombs || 0, 2), lastHit: s.time });
   p.wing = DRONE_SLOTS.slice(0, p.drones || 0).map(([dx, dy]) => ({ x: x + dx, y: y + dy, px: x + dx, py: y + dy }));
   // Clear the launch lane so a new ship never appears inside a volley.
   s.bullets = s.bullets.filter(b => b.team >= 0 || Math.hypot(b.x - x, b.y - y) > 280);
@@ -673,6 +696,7 @@ function respawn(s, p) {
 }
 
 function detonateNova(s, p) {
+  p.shieldFireDelay = SHIELD_FIRE_DELAY;
   p.bombs--; p.guard = Math.max(p.guard || 0, 1.4);
   const cancels = [];
   let retained = 0;
@@ -868,7 +892,8 @@ export function update(s, dt, input = [], environmentHit = null) {
     const thrustResponse = 1 - Math.exp(-dt / (.085 * Math.sqrt(p.mass)));
     p.thrust += (.9 + Math.hypot(x, y) / norm * .28 + Math.max(0, -y / norm) * .43 - p.thrust) * thrustResponse;
     if (p.wing || p.drones) updateWing(p, dt);
-    if (s.time - p.lastHit > stats.delay) p.shield = Math.min(stats.shield, p.shield + stats.recharge * dt);
+    const shieldLoad = p.shieldFireDelay || 0;
+    p.shieldFireDelay = Math.max(0, shieldLoad - dt);
     // Integrate only the part of this tick after the recharge delay expires.
     // Primary fire does not interrupt recovery of the secondary reserve.
     const rechargeTime = Math.max(0, dt - p.fireEnergyDelay);
@@ -891,6 +916,14 @@ export function update(s, dt, input = [], environmentHit = null) {
         shoot(s, p, 'plasma', remainder);
       } else if (controls.fire) shoot(s, p, 'pulse', remainder);
     }
+    // Integrate only the eligible portion of the tick, splitting at the hit
+    // cooldown and weapon-load boundaries. A shot this tick immediately diverts
+    // power; an empty trigger does not delay recovery. Neither rate heals hull.
+    const shieldTime = clamp(s.time - p.lastHit - stats.delay, 0, dt);
+    const loadedUntil = p.shieldFireDelay > 0 ? dt : Math.min(dt, shieldLoad);
+    const loadedTime = Math.max(0, loadedUntil - (dt - shieldTime));
+    if (shieldTime > 0) p.shield = Math.min(stats.shield, p.shield + stats.recharge *
+      (loadedTime * SHIELD_FIRING_RECHARGE + (shieldTime - loadedTime) * SHIELD_REST_RECHARGE));
   }
   const pilot = s.players.find(p => p.alive) || null;
   if (!s.bossSpawned && s.director) {

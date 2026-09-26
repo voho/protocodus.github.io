@@ -80,6 +80,33 @@ check('older current-version saves default missing fire upgrades to zero without
   }
 });
 
+check('shield weapon load resumes exactly, safely defaults old saves and bounds malformed values', () => {
+  const state = createCampaign(); state.bossSpawned = true;
+  const pilot = state.players[0]; pilot.shield = 12; pilot.hull = 80;
+  update(state, 1 / 60, [{ fire: true }]);
+  for (let i = 0; i < 22; i++) update(state, 1 / 60);
+  assert(pilot.shieldFireDelay > 0 && pilot.shieldFireDelay < .75);
+  const record = JSON.parse(serializeRun(state)), resumed = restoreRun(record).state;
+  assert.deepEqual(resumed.players, state.players, 'resume never resets load or heals the ship');
+  for (let frame = 0; frame < 120; frame++) {
+    const controls = [{ fire: frame > 65 && frame < 85, secondary: frame >= 100 }];
+    update(state, 1 / 60, controls); update(resumed, 1 / 60, controls);
+    assert.deepEqual(resumed.players, state.players, 'load expiry and fresh volleys continue exactly');
+  }
+  const old = structuredClone(record); delete old.state.players[0].shieldFireDelay;
+  const legacy = restoreRun(old).state.players[0];
+  assert.equal(legacy.shieldFireDelay, 0);
+  assert.equal(legacy.shield, record.state.players[0].shield); assert.equal(legacy.hull, 80);
+  for (const [input, expected] of [[-5, 0], [50, .75]]) {
+    const bounded = structuredClone(record); bounded.state.players[0].shieldFireDelay = input;
+    assert.equal(restoreRun(bounded).state.players[0].shieldFireDelay, expected);
+  }
+  for (const value of ['ready', '@infinity', null]) {
+    const invalid = structuredClone(record); invalid.state.players[0].shieldFireDelay = value;
+    assert.equal(restoreRun(invalid), null);
+  }
+});
+
 check('purchased fire rate and power ranks survive hangar autosave, resume, next sector and retry', () => {
   const state = flight(), storage = memoryStorage(); state.status = 'hangar'; state.credits = 100_000;
   for (const [id, ranks] of [['fireRate', 3], ['firePower', 5]]) for (let rank = 0; rank < ranks; rank++) assert.equal(buyUpgrade(state, id), true);
@@ -231,6 +258,56 @@ check('autosaves preserve fire energy, exhaustion and cadence through mixed prim
     assert.deepEqual(resumed.events, state.events);
   }
   assert.deepEqual(resumed.bullets, state.bullets, 'resuming keeps both firing cadences and projectile types');
+});
+
+check('guided plasma resumes its exact turn while older saved orbs retain their straight trajectory', () => {
+  const state = createCampaign(2), storage = memoryStorage();
+  state.director.hold = true; state.bossSpawned = true;
+  for (const [x, y] of [[740, 260], [400, 175]]) {
+    const enemy = spawnEnemy(state, 8, x, y);
+    Object.assign(enemy, { ai: 'station', stationX: x, stationY: y, hold: 60, sway: 42, noFire: true });
+  }
+  const initialEnemyX = state.enemies[0].x;
+  seeded(723, () => update(state, 1 / 60, [{ secondary: true }]));
+  for (let tick = 0; tick < 6; tick++) update(state, 1 / 60);
+  const orb = state.bullets.find(bullet => bullet.kind === 'plasma');
+  assert.ok(orb); assert.equal(orb.homing, .65); assert.ok(orb.vx > 0, 'a real plasma shot has begun turning toward the nearer forward target');
+  assert.notEqual(state.enemies[0].x, initialEnemyX, 'the tracked ship moves during the scenario');
+  assert.equal(state.players[0].fireEnergy, 80, 'guidance does not change the secondary energy charge');
+  assert.equal(writeCampaign(state, {}, storage).ok, true);
+  const resumed = readCampaign(storage).run.state, resumedOrb = resumed.bullets[0], record = JSON.parse(storage.getItem(SAVE_KEY));
+  for (const key of ['homing', 'x', 'y', 'vx', 'vy', 'age', 'life', 'damage', 'radius']) assert.equal(resumedOrb[key], orb[key], `${key} survives the save`);
+  assert.deepEqual(resumed.players, state.players, 'energy reserve and weapon cooldown survive without a reset');
+  state.events.length = 0;
+  let velocityBeforeDeath = 0;
+  for (let tick = 0; tick < 24; tick++) {
+    if (tick === 6) {
+      velocityBeforeDeath = orb.vx;
+      seeded(831, () => killEnemy(state, state.enemies[0]));
+      seeded(831, () => killEnemy(resumed, resumed.enemies[0]));
+    }
+    seeded(900 + tick, () => update(state, 1 / 60));
+    seeded(900 + tick, () => update(resumed, 1 / 60));
+    assert.deepEqual(resumed.bullets, state.bullets, 'resumed guidance follows the same moving target and retargets after its death');
+    assert.deepEqual(resumed.players, state.players); assert.deepEqual(resumed.events, state.events);
+  }
+  assert.ok(state.bullets.includes(orb), 'the tracked orb remains in flight throughout the save comparison');
+  assert.ok(orb.vx < velocityBeforeDeath, 'the orb starts steering toward the remaining target after its first target dies');
+  for (const homing of [0, undefined]) {
+    const legacy = structuredClone(record);
+    if (homing === undefined) delete legacy.state.bullets[0].homing; else legacy.state.bullets[0].homing = homing;
+    const old = restoreRun(legacy).state, oldOrb = old.bullets[0], vx = oldOrb.vx, vy = oldOrb.vy;
+    assert.equal(oldOrb.homing, homing, 'loading an old orb never adds guidance retroactively');
+    for (let tick = 0; tick < 8; tick++) {
+      update(old, 1 / 60);
+      assert.equal(oldOrb.vx, vx); assert.equal(oldOrb.vy, vy);
+    }
+    old.players[0].fire = 0;
+    update(old, 1 / 60, [{ secondary: true }]);
+    const newOrb = old.bullets.find(bullet => bullet !== oldOrb && bullet.kind === 'plasma');
+    assert.ok(newOrb); assert.equal(newOrb.homing, .65, 'new plasma shots use guidance after an older flight resumes');
+    assert.equal(oldOrb.vx, vx); assert.equal(oldOrb.vy, vy);
+  }
 });
 
 check('legacy saves start with full fire energy while retaining old in-flight projectiles', () => {

@@ -1,4 +1,4 @@
-import { createCampaign, MAX_UPGRADE, shipStats, normalizeWeapon, FORMATIONS, SECONDARY_ENERGY_COST, PRIMARIES, normalizePrimary,
+import { createCampaign, MAX_UPGRADE, shipStats, normalizeWeapon, FORMATIONS, SECONDARY_ENERGY_COST, SHIELD_FIRE_DELAY, PRIMARIES, normalizePrimary,
   MAX_POWER, MAX_DRONES, MAX_BOMBS, MAX_LIVES, START_LIVES, START_BOMBS, FIRST_EXTRA_LIFE, nextLifeAfterScore, RESPAWN_DELAY, RESPAWN_GUARD, PICKUP_KINDS, sectorDuration } from './sim.js';
 import { createDirector, WAVE_KINDS, AI_MODES, PATHS } from './waves.js';
 import { normalizeDifficulty } from './difficulty.js';
@@ -192,6 +192,7 @@ function restoreState(raw) {
     result.fireEnergy = number(player.fireEnergy, stats.energy, 0, stats.energy);
     result.fireEnergyDelay = number(player.fireEnergyDelay, 0, 0, 1);
     result.fireEnergyLocked = bool(player.fireEnergyLocked, result.fireEnergy < SECONDARY_ENERGY_COST);
+    result.shieldFireDelay = number(player.shieldFireDelay, 0, 0, SHIELD_FIRE_DELAY);
     if (!result.alive) result.rapidFireTime = result.invulnerableTime = 0;
     result.mass = number(player.mass, stats.mass, .1, 10);
     result.radius = number(player.radius, 17, 1, 64);

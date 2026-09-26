@@ -66,12 +66,12 @@ try {
       hurtPlayer(tyran.state, pilot, 100); tyran.step(1 / 60);
       __pumpFrame(1100);
       const feedbackHidden = getComputedStyle(document.querySelector('#combat-feedback')).visibility === 'hidden' || document.querySelector('#combat-feedback').hidden || getComputedStyle(document.querySelector('#combat-feedback')).display === 'none';
-      for (let i = 1; i <= 90; i++) __pumpFrame(1100 + i * 1000 / 60);
+      for (let i = 1; i <= 120; i++) __pumpFrame(1100 + i * 1000 / 60);
       const finished = { scene: tyran.scene, hadReward, feedbackHidden,
         particles: effects.particles.length, rings: effects.rings.length,
         lights: effects.lights.length, delayed: effects.delayed.length,
         flash: effects.flash, shake: effects.shake, frames: tyran.performance.frames };
-      for (let i = 1; i <= 60; i++) __pumpFrame(2600 + i * 1000 / 60);
+      for (let i = 1; i <= 60; i++) __pumpFrame(3100 + i * 1000 / 60);
       return { ...finished, idleFrames: tyran.performance.frames };
     });
     assert.equal(result.scene, 'end');

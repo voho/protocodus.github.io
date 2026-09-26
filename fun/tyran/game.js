@@ -1,9 +1,9 @@
 import { WORLDS, PARALLAX_LAYERS, WorldRenderer } from './worlds.js';
 import { ENEMY_TYPES, SHIP_PALETTES, drawShip, warmShipSprites } from './ships.js';
 import { createCampaign, beginLevel, update, buyUpgrade, upgradeCost, UPGRADES, WEAPONS, BULLET_SPECTRUM, MAX_UPGRADE, clamp, selectWeapon, shipStats, weaponStats, SECONDARY_ENERGY_COST, SECONDARY_RESTART_ENERGY, bossWeakPointPosition, applyGroundReward,
-  PRIMARIES, SUPPLIES, buyPrimary, buySupply, supplyCost, supplyStock, primaryStats, firingInterval, MAX_POWER } from './sim.js';
+  PRIMARIES, SUPPLIES, buyPrimary, buySupply, supplyCost, supplyStock, primaryStats, firingInterval, MAX_POWER, SHIELD_FIRING_RECHARGE, SHIELD_REST_RECHARGE } from './sim.js';
 import { isDormant, directorProgress } from './waves.js';
-import { Effects, warmEffectsTextures } from './effects.js';
+import { Effects, explosionIntensity, warmEffectsTextures } from './effects.js';
 import { CombatFeedback } from './combat-feedback.js';
 import { difficultyProfile, normalizeDifficulty } from './difficulty.js';
 import { AudioEngine, preloadAudio } from './audio.js';
@@ -34,7 +34,11 @@ const setText = (el, text) => { if (el.textContent !== text) el.textContent = te
 const setFill = (el, fraction) => { const transform = `scaleX(${Number(clamp(fraction, 0, 1).toFixed(3))})`; if (el.style.transform !== transform) el.style.transform = transform; };
 const setHidden = (el, hidden) => { if (el.hidden !== hidden) el.hidden = hidden; };
 const setAttribute = (el, name, value) => { if (el.getAttribute(name) !== value) el.setAttribute(name, value); };
+const setActionLabel = (el, label) => { const arrow = document.createElement('span'); arrow.setAttribute('aria-hidden', 'true'); arrow.textContent = '↗'; el.replaceChildren(label, arrow); };
 const canvas = $('game-canvas'), ctx = canvas.getContext('2d', { alpha: false });
+// A tiny reusable strip supplies signal interference without pixel readbacks
+// or copying the full arena into another texture during an explosion.
+const signalStrip = document.createElement('canvas'), signalContext = signalStrip.getContext('2d', { alpha: false });
 const world = new WorldRenderer(), fx = new Effects(), audio = new AudioEngine();
 const feedback = new CombatFeedback();
 let feedbackRevision = -1;
@@ -52,6 +56,8 @@ let keyboardLockEpoch = 0;
 const STEP = 1 / 60;
 let accumulator = 0, previousScroll = 0, renderAlpha = 1, renderDirty = true, frameHandle = 0, idleHandle = 0, hitstop = 0;
 let resolutionScale = 1, frameAverage = 16.7, fastestFrame = 100, lastAdapt = 0, vignette = null;
+let endFade = null;
+const END_IMPACT_HOLD = .22, END_FADE_SECONDS = 1.5;
 const perf = { fps: 60, frameMs: 16.7, renderMs: 0, updateMs: 0, renderScale: 1, frames: 0, steps: 0 };
 const environmentHit = (...args) => {
   if (state) {
@@ -148,6 +154,7 @@ function scaleScriptX(enemy, factor) {
 
 function setScreen(next) {
   scene = next;
+  if (next !== 'end') { endFade = null; canvas.style.opacity = ''; }
   for (const id of screens) if ($(id)) $(id).hidden = id !== `${next}-screen`;
   document.body.dataset.scene = next;
   // Instruments and touch controls reserve their space even behind menus.
@@ -188,6 +195,7 @@ function sizeSurface(rect, adaptive = false) {
   const pixelBudget = quality === 'high' ? 8_300_000 : 2_200_000;
   dpr = Math.min(devicePixelRatio || 1, quality === 'high' ? 1.7 : 1, Math.sqrt(pixelBudget / (rect.width * rect.height))) * resolutionScale;
   canvas.width = Math.round(rect.width * dpr); canvas.height = Math.round(rect.height * dpr);
+  signalStrip.width = canvas.width; signalStrip.height = Math.max(1, Math.ceil(canvas.height / H * 7));
   // Automatic resolution changes reuse the prepared terrain. Only an explicit
   // viewport/quality change replaces its backing surfaces.
   if (!adaptive) world.setDetailScale(canvas.width, quality);
@@ -352,7 +360,17 @@ function refreshHUD() {
     setAttribute($(prefix + '-energy-line'), 'data-depleted', String(p.fireEnergyLocked));
     setFill($(prefix + '-hull'), p.hull / p.maxHull); setFill($(prefix + '-shield'), p.shield / p.maxShield);
     setAttribute($(prefix + '-hull').parentElement, 'aria-label', `Pilot ${p.id + 1} hull ${Math.ceil(p.hull)} of ${p.maxHull}`);
-    setAttribute($(prefix + '-shield').parentElement, 'aria-label', `Pilot ${p.id + 1} shield ${Math.ceil(p.shield)} of ${p.maxShield}`);
+    const shieldMode = p.shield >= p.maxShield ? 'full' : !p.alive || state.time - p.lastHit <= stats.delay ? 'wait' : (p.shieldFireDelay || 0) > 0 ? 'firing' : 'rest';
+    const shieldRate = stats.recharge * (shieldMode === 'firing' ? SHIELD_FIRING_RECHARGE : SHIELD_REST_RECHARGE);
+    const shieldStatus = shieldMode === 'firing' ? `Weapons drawing power: slower shield recharge (${shieldRate.toFixed(1)} / s)`
+      : shieldMode === 'rest' ? `Weapons resting: faster shield recharge (${shieldRate.toFixed(1)} / s)`
+        : shieldMode === 'full' ? 'Shield fully charged' : 'Shield recharge waiting after damage';
+    const shieldLabel = $(prefix + '-shield-label');
+    if (shieldLabel) {
+      setText(shieldLabel, shieldMode === 'firing' ? 'Shield ↓' : shieldMode === 'rest' ? 'Shield ↑' : 'Shield');
+      setAttribute(shieldLabel, 'data-recharge', shieldMode); setAttribute(shieldLabel, 'title', shieldStatus);
+    }
+    setAttribute($(prefix + '-shield').parentElement, 'aria-label', `Pilot ${p.id + 1} shield ${Math.ceil(p.shield)} of ${p.maxShield}. ${shieldStatus}`);
     const rapid = p.alive ? p.rapidFireTime || 0 : 0, invulnerable = p.alive ? p.invulnerableTime || 0 : 0;
     setHidden($(prefix + '-bonuses'), rapid <= 0 && invulnerable <= 0);
     for (const [kind, remaining] of [['rapid', rapid], ['invulnerable', invulnerable]]) {
@@ -379,7 +397,7 @@ function showHangar(bonus, loading = false) {
   $('hangar-title').textContent = 'Refit your ship.';
   $('hangar-subtitle').textContent = `${environment(state.level).name} cleared · ${sectorLabel(state.level)} · ${state.kills} ship${state.kills === 1 ? '' : 's'} down · ${state.destroyed} buildings destroyed.${bonus ? ` ${number(bonus)} credits awarded.` : ''} ${environmentIndex(state.level) === 9 ? 'A new cycle awaits with stronger enemies and richer rewards.' : 'Spend your salvage before the next launch.'}`;
   renderReport();
-  $('next-button').textContent = `Launch sector ${String(next + 1).padStart(2, '0')} — ${environment(next).name}  ↗`;
+  setActionLabel($('next-button'), `Launch sector ${String(next + 1).padStart(2, '0')} — ${environment(next).name}`);
   const routeStart = campaignCycle(next) * WORLDS.length;
   $('campaign-route').setAttribute('aria-label', `Cycle ${campaignCycle(next) + 1} flight path`);
   $('campaign-route').innerHTML = WORLDS.map((world, index) => {
@@ -457,6 +475,9 @@ function renderWeapons() {
 function showEnd(won, loading = false) {
   if (won) { showHangar(0, loading); return; }
   setScreen('end'); $('announcement').hidden = true;
+  endFade = { elapsed: 0, complete: false };
+  $('end-screen').hidden = true;
+  canvas.style.opacity = '1';
   $('end-title').textContent = 'Signal lost.';
   $('end-description').textContent = `Your flight ended over ${environment(state.level).name} · ${sectorLabel(state.level)}. Retry with your current equipment or return to the main menu.${activeCampaign && campaign.run ? ' Your last autosave is ready to resume.' : ''}`;
   $('end-score').textContent = number(state.score);
@@ -464,8 +485,20 @@ function showEnd(won, loading = false) {
   $('end-best').hidden = !bestScore;
   $('end-best').classList.toggle('record', record);
   $('end-best').textContent = record ? 'New best score!' : `Best score ${number(bestScore)}`;
-  $('retry-button').textContent = 'Retry sector ↗';
+  setActionLabel($('retry-button'), 'Retry sector');
   refreshContinue();
+}
+
+function updateEndFade(dt) {
+  if (!endFade || endFade.complete) return;
+  endFade.elapsed += dt;
+  const progress = clamp((endFade.elapsed - END_IMPACT_HOLD) / END_FADE_SECONDS, 0, 1);
+  const opacity = String(Number((1 - progress * progress * (3 - 2 * progress)).toFixed(4)));
+  if (canvas.style.opacity !== opacity) canvas.style.opacity = opacity;
+  if (progress < 1) return;
+  endFade.complete = true; fx.reset(); hitstop = 0;
+  canvas.style.filter = ''; canvas.style.opacity = '0';
+  $('end-screen').hidden = false;
   $('retry-button').focus({ preventScroll: true });
 }
 
@@ -528,12 +561,15 @@ function processEvents() {
       for (const prop of environmentHit(e.x, e.y, Math.min(250, e.size * 1.5 * blast), e.size * 2 * blast, state.scroll)) {
         applyGroundReward(state, prop, blast);
       }
-      if (e.boss) hitstop = Math.max(hitstop, .14);
-      else if (e.player) hitstop = Math.max(hitstop, .16);
-      else if (e.midboss) hitstop = Math.max(hitstop, .09);
+      if (!fx.reduced) {
+        if (e.boss) hitstop = Math.max(hitstop, .14);
+        else if (e.player) hitstop = Math.max(hitstop, .16);
+        else if (e.midboss) hitstop = Math.max(hitstop, .09);
+        else if (explosionIntensity(e) >= .35) hitstop = Math.max(hitstop, .035 + explosionIntensity(e) * .045);
+      }
     }
     if (e.type === 'nova') {
-      hitstop = Math.max(hitstop, .08);
+      if (!fx.reduced) hitstop = Math.max(hitstop, .08);
       for (const prop of environmentHit(e.x, e.y, 320, 420, state.scroll)) applyGroundReward(state, prop, 1.2);
     }
     if (e.type === 'boss') announce('Warning · heavy signature', environment(state.level).bossName, 'Break through its armor. Watch for changing attack patterns.', 3);
@@ -713,7 +749,21 @@ function drawBossWeakPoints(enemy, clock) {
   ctx.restore();
 }
 
+function drawSignalInterference() {
+  if (quality !== 'high' || fx.reduced || fx.glitch <= 0) return;
+  const strength = fx.glitch / .12, scale = canvas.height / H, height = signalStrip.height;
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+  for (let band = 0; band < 2; band++) {
+    const y = Math.round(clamp((fx.signalY + band * 73 - 34) * scale, 0, canvas.height - height));
+    signalContext.drawImage(canvas, 0, y, canvas.width, height, 0, 0, canvas.width, height);
+    const offset = Math.round((band ? -1 : 1) * strength * 7 * scale);
+    ctx.drawImage(signalStrip, offset, y);
+  }
+  ctx.restore();
+}
+
 function draw() {
+  if (scene === 'end' && endFade?.complete) return;
   ctx.setTransform(canvas.width / W, 0, 0, canvas.height / H, 0, 0);
   const scroll = state ? lerp(previousScroll, state.scroll) : previewScroll, index = environmentIndex(state ? state.level : selected);
   ctx.save();
@@ -792,11 +842,13 @@ function draw() {
   fx.draw(ctx, W, H);
   ctx.restore();
   ctx.fillStyle = vignette; ctx.fillRect(0, 0, W, H);
+  if (impactMotion) drawSignalInterference();
   // Brief defocus belongs to the flight canvas, keeping menus and HUD text sharp.
   const blur = quality === 'high' && !fx.reduced && impactMotion
-    ? Math.max(fx.damagePulse * 1.65, fx.shake > 8 ? Math.min(.85, fx.shake * .045) : 0) : 0;
+    ? Math.max(fx.damagePulse * 1.65, fx.impact * 2.4, fx.shake > 8 ? Math.min(.85, fx.shake * .045) : 0) : 0;
   const blurTenths = Math.round(blur * 10);
-  const filter = blurTenths ? `blur(${(blurTenths / 10).toFixed(1)}px)` : '';
+  const saturation = quality === 'high' && !fx.reduced && impactMotion ? Math.round((1 - fx.impact * .78) * 100) : 100;
+  const filter = [blurTenths ? `blur(${(blurTenths / 10).toFixed(1)}px)` : '', saturation < 100 ? `saturate(${saturation}%)` : ''].filter(Boolean).join(' ');
   if (canvas.style.filter !== filter) canvas.style.filter = filter;
 }
 
@@ -806,7 +858,7 @@ function frame(time) {
   const elapsed = lastTime ? Math.max(0, (time - lastTime) / 1000) : 0;
   const dt = Math.min(.1, elapsed); lastTime = time;
   const preview = scene === 'menu' && document.body.dataset.preview === 'true';
-  const fading = scene === 'end' && (fx.particles.length || fx.rings.length || fx.delayed.length || fx.lights.length || fx.flares.length || fx.damagePulse > .02 || fx.flash > .01 || fx.shake > .3);
+  const fading = scene === 'end' && endFade && !endFade.complete;
   const active = scene === 'playing' || preview || fading;
   if (active) clock += dt;
   if (scene === 'playing' && state) {
@@ -841,6 +893,7 @@ function frame(time) {
     }
   } else if (preview) previewScroll += dt * 45;
   else if (fading) fx.update(dt);
+  if (scene === 'end') updateEndFade(dt);
   renderCombatFeedback();
   audio.update(scene === 'playing', state?.level || 0, state?.challenge && !state.challenge.done ? 'challenge' : state?.bossSpawned && !state.bossDefeated ? 'boss' : '');
   if (clock > announcementUntil && !$('announcement').hidden) $('announcement').hidden = true;
@@ -921,6 +974,11 @@ document.addEventListener('visibilitychange', () => {
   if (!document.hidden) { lastTime = 0; renderDirty = true; requestFrame(); }
 });
 window.addEventListener('pagehide', autosave);
+matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', event => {
+  fx.reduced = event.matches;
+  if (fx.reduced) { fx.impact = fx.impactPeak = fx.impactDuration = fx.glitch = 0; hitstop = 0; canvas.style.filter = ''; }
+  renderDirty = true; requestFrame();
+});
 window.addEventListener('resize', resize);
 // CSS docks, device rotation and browser chrome can resize the arena without
 // changing the full window. Render and collide within its actual content box.

@@ -104,6 +104,7 @@ try {
   await page.evaluate(() => { tyran.state.status = 'defeat'; tyran.state.events.push({ type: 'defeat' }); tyran.step(1 / 60); });
   assert.equal(await page.evaluate(() => tyran.scene), 'end');
   assert.match(await page.locator('#end-description').textContent(), /Sector 11.*Cycle 2/);
+  await page.evaluate(() => { for (let i = 0; i < 120; i++) __pumpFrame(); });
   await click('retry-button'); await assertFlight(10);
   assert.deepEqual(await gear(), retryGear, 'Retrying a later sector retains purchased gear and campaign credits');
   await clearSector(); await assertRoute(2, 11, 12);

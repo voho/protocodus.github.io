@@ -8,6 +8,15 @@ const TAU = Math.PI * 2;
 export const EFFECT_LIMITS = Object.freeze({ particles: 700, rings: 96, lights: 48, wrecks: 60, delayed: 72, flares: 6, textures: 24 });
 const CAPPED_STATES = ['rings', 'lights', 'wrecks', 'delayed', 'flares'];
 const EFFECT_STATES = ['particles', ...CAPPED_STATES];
+// Capital ships get a short camera response; routine kills and collateral
+// bursts keep their impact local so a crowded wave remains readable.
+export function explosionIntensity(event) {
+  if (event.secondary || event.ground || event.type !== 'explosion') return 0;
+  if (event.boss) return 1;
+  if (event.midboss) return .8;
+  if (event.player) return .65;
+  return Math.max(0, Math.min(.72, ((event.size || 20) - 36) / 36));
+}
 const textures = new Map();
 function releaseTexture(canvas) { canvas.width = canvas.height = 1; }
 export function effectTextureStats() {
@@ -125,11 +134,12 @@ function keepNewest(list, limit) {
   if (list.length > limit) { list.copyWithin(0, list.length - limit); list.length = limit; }
 }
 export class Effects {
-  constructor() { this.particles = []; this.particlePool = []; this.rings = []; this.lights = []; this.wrecks = []; this.delayed = []; this.flares = []; this.shake = 0; this.flash = 0; this.damagePulse = 0; this.reduced = matchMedia('(prefers-reduced-motion: reduce)').matches; this.quality = 'high'; }
+  constructor() { this.particles = []; this.particlePool = []; this.rings = []; this.lights = []; this.wrecks = []; this.delayed = []; this.flares = []; this.shake = 0; this.flash = 0; this.damagePulse = 0; this.impact = 0; this.impactPeak = 0; this.impactStart = 0; this.impactAge = 0; this.impactDuration = 0; this.glitch = 0; this.signalY = 0; this.reduced = matchMedia('(prefers-reduced-motion: reduce)').matches; this.quality = 'high'; }
   reset() {
     for (const key of EFFECT_STATES) this[key].length = 0;
     this.particlePool.length = 0;
     this.shake = 0; this.flash = 0; this.damagePulse = 0;
+    this.impact = this.impactPeak = this.impactStart = this.impactAge = this.impactDuration = this.glitch = 0;
   }
   get memory() {
     return { particleRecords: this.particles.length + this.particlePool.length,
@@ -150,22 +160,29 @@ export class Effects {
   emit(event, scroll = 0, groundOffset = 0) {
     const { x = 0, y = 0, size = 20 } = event;
     if (event.type === 'explosion' || event.type === 'phase') {
-      const boss = event.boss, count = Math.min(boss ? 130 : 55, Math.round(size * 1.1)) * (this.quality === 'high' ? 1 : .55);
-      if (boss) for (let i = 0; i < 18; i++) this.delayed.push({ delay: .1 + i * .085, scroll, groundOffset, event: { type: 'explosion', x: x + random(-size, size), y: y + random(-size * .7, size * .7), size: random(19, 48), secondary: true } });
+      const boss = event.boss, weight = explosionIntensity(event), count = Math.min(boss ? 130 : 55, Math.round(size * 1.1)) * (this.quality === 'high' ? 1 : .55);
+      const charges = boss ? 18 : !event.player && weight >= .35 ? (event.midboss ? 6 : 3) : 0;
+      for (let i = 0; i < charges; i++) this.delayed.push({ delay: .1 + i * (boss ? .085 : .09), scroll, groundOffset, event: { type: 'explosion', x: x + random(-size, size) * .8, y: y + random(-size * .7, size * .7), size: random(19, boss ? 56 : Math.max(24, size * .68)), secondary: true } });
       const color = event.ground ? (event.color || '#ffc985') : '#ffbb6b';
       this.reserveParticles(count);
       for (let i = 0; i < count; i++) {
-        const angle = random(0, TAU), speed = random(25, boss ? 420 : size * 5 + 50);
+        const angle = random(0, TAU), speed = random(25, boss ? 470 : (size * 5 + 50) * (1 + weight * .3));
         this.particle(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed, random(.3, boss ? 2.3 : 1.2), random(1.2, size * .12 + 2), color, i % 4 === 0, i % 5 === 0, !!event.ground, angle);
       }
-      this.rings.push({ x, y, age: 0, life: boss ? 1.2 : .5, radius: size * (boss ? 6 : 3), color, explosion: true, diameter: size * 4, ground: !!event.ground });
-      this.lights.push({ x, y, age: 0, life: boss ? .9 : .3, radius: size * 5, color, fire: true, ground: !!event.ground });
+      this.rings.push({ x, y, age: 0, life: boss ? 1.35 : .5 + weight * .25, radius: size * (boss ? 7 : 3 + weight * 2), color, explosion: true, diameter: size * (4 + weight), ground: !!event.ground });
+      if (weight >= .35) this.rings.push({ x, y, age: 0, life: boss ? 1.05 : .75, radius: size * (boss ? 8.5 : 5), color: '#ffd7a0' });
+      this.lights.push({ x, y, age: 0, life: boss ? 1.05 : .3 + weight * .35, radius: size * (5 + weight), color, fire: true, ground: !!event.ground });
       if (!this.reduced && !event.secondary && (boss || size >= 45)) {
         this.flares.push({ x, y, age: 0, life: boss ? .7 : .48, radius: size * (boss ? 5 : 4), strength: boss ? 1 : .75, ground: !!event.ground });
       }
       if (event.type !== 'phase' && !event.ground && !event.secondary) this.wrecks.push({ x: x - groundOffset, y: y - scroll, size, angle: random(0, TAU), age: 0 });
-      this.shake = Math.min(23, this.shake + size * (event.ground ? .028 : .09));
-      this.flash = Math.max(this.flash, boss ? .5 : event.player ? .24 : .03);
+      this.shake = Math.min(23, this.shake + size * (event.ground ? .028 : .09) + weight * 12);
+      this.flash = Math.max(this.flash, boss ? .32 : event.player ? .2 : .03 + weight * .06);
+      if (!this.reduced && weight > 0) {
+        this.impactStart = this.impact; this.impactPeak = Math.max(this.impact, weight);
+        this.impactAge = 0; this.impactDuration = .28 + this.impactPeak * .42;
+        if (weight >= .5) { this.glitch = .12; this.signalY = y; }
+      }
     } else if (event.type === 'spark') {
       this.reserveParticles(4);
       for (let i = 0; i < 4; i++) this.particle(x, y, random(-100, 100), random(10, 150), random(.1, .22), random(1, 3), '#ddffed');
@@ -231,6 +248,12 @@ export class Effects {
     for (const charge of this.delayed) { charge.delay -= dt; if (charge.delay <= 0) this.emit(charge.event, charge.scroll, charge.groundOffset); else this.delayed[length++] = charge; }
     this.delayed.length = length;
     this.shake *= Math.exp(-dt * 8); this.flash *= Math.exp(-dt * 7); this.damagePulse *= Math.exp(-dt * 12);
+    this.glitch = Math.max(0, this.glitch - dt);
+    if (this.impactAge < this.impactDuration) {
+      this.impactAge = Math.min(this.impactDuration, this.impactAge + dt);
+      const rise = Math.min(1, this.impactAge / .035), remaining = 1 - this.impactAge / this.impactDuration;
+      this.impact = (this.impactStart + (this.impactPeak - this.impactStart) * rise) * remaining * remaining;
+    } else this.impact = 0;
     const drag = Math.exp(-dt * 2.5);
     length = 0;
     for (const p of this.particles) { p.age += dt; if (p.age >= p.life) { this.particlePool.push(p); continue; } p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= drag; p.vy *= drag; this.particles[length++] = p; }

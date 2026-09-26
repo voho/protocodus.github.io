@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { ENEMY_TYPES } from '../ships.js';
 import { createCampaign, beginLevel, update, spawnEnemy, killEnemy, hurtPlayer,
   spawnFormation, selectWeapon, weaponStats, firingInterval, WEAPONS, buyUpgrade, upgradeCost, shipStats, UPGRADES, MAX_UPGRADE, applyStructureBlast, missionScrollSpeed, SECONDARY_ENERGY_COST, SECONDARY_RESTART_ENERGY,
+  SHIELD_FIRE_DELAY, SHIELD_FIRING_RECHARGE, SHIELD_REST_RECHARGE,
   PRIMARIES, primaryStats, buyPrimary, buySupply, supplyCost, MAX_POWER, MAX_DRONES, MAX_BOMBS, MAX_LIVES, START_LIVES, FIRST_EXTRA_LIFE, RESPAWN_DELAY, challengeSector } from '../sim.js';
 import { sectorPlan, isDormant, hiveSlot, pathTable, pathPoint, PATHS, CHALLENGE_SIZE } from '../waves.js';
 import { serializeRun, restoreRun } from '../save-game.js';
@@ -29,6 +30,21 @@ function isolated(level = 0) {
 function bolt(x, y, team, damage, vx = 0, vy = 0) {
   return { x, y, px: x, py: y, team, damage, vx, vy, radius: 4, life: 1.4 };
 }
+function plasmaScenario() {
+  const state = isolated();
+  update(state, 1 / 60, [{ secondary: true }]);
+  const projectile = state.bullets.find(bullet => bullet.kind === 'plasma');
+  assert(projectile, 'the real secondary channel creates a plasma bomb');
+  Object.assign(projectile, { x: 600, y: 700, px: 600, py: 700, vx: 0, vy: -640 });
+  return { state, projectile };
+}
+function homingTarget(state, type, x, y, extra = {}) {
+  const enemy = spawnEnemy(state, type, x, y);
+  // A neutral fixture goal isolates guidance from authored flight patterns.
+  return Object.assign(enemy, { ai: 'fixture', vx: 0, vy: 0, noFire: true, harmless: true, ...extra });
+}
+const heading = projectile => Math.atan2(projectile.vy, projectile.vx);
+const signedTurn = (before, after) => Math.atan2(Math.sin(after - before), Math.cos(after - before));
 
 check('ten progressively stronger enemy classes with distinct names', () => {
   assert.equal(ENEMY_TYPES.length, 10);
@@ -135,6 +151,120 @@ check('secondary bursts consume energy and holding an empty weapon waits for a u
   update(state, .025, [{ fire: true, secondary: true }]);
   assert.equal(state.events.at(-1).weapon, 'plasma', 'secondary has priority when both triggers are held');
   assert(player.fireEnergy >= 0);
+});
+
+check('real plasma bombs gain slow guidance without changing their damage, energy, splash or speed', () => {
+  const { state, projectile } = plasmaScenario(), player = state.players[0];
+  assert.equal(WEAPONS.find(weapon => weapon.id === 'plasma').homing, .65);
+  assert.equal(projectile.homing, .65);
+  assert.equal(projectile.damage, 58 * 1.35); assert.equal(projectile.baseDamage, 58);
+  assert.equal(projectile.radius, 8); assert.equal(projectile.splash, 50); assert.equal(projectile.splashFactor, .46);
+  assert.equal(player.fireEnergy, 100 - SECONDARY_ENERGY_COST); assert.equal(player.fire, .41);
+  assert(Math.abs(projectile.life - (2.45 - 1 / 60)) < 1e-12);
+  homingTarget(state, 8, 820, 400);
+  const before = heading(projectile), damage = projectile.damage;
+  update(state, 1 / 60);
+  assert(projectile.vx > 0, 'a real fired bomb gently bends toward a heavy target');
+  assert(Math.abs(signedTurn(before, heading(projectile)) - .65 / 60) < 1e-12);
+  assert(Math.abs(Math.hypot(projectile.vx, projectile.vy) - 640) < 1e-10);
+  assert.equal(projectile.damage, damage); assert.equal(projectile.splash, 50);
+  assert.equal(player.fireEnergy, 100 - SECONDARY_ENERGY_COST, 'guidance consumes no extra energy');
+  state.upgrades.weapon = 6; state.upgrades.firePower = 6;
+  assert.equal(weaponStats(state, 'plasma').homing, .65, 'damage upgrades never sharpen guidance');
+  const primary = isolated(); update(primary, 1 / 60, [{ fire: true }]);
+  assert(primary.bullets.every(bullet => bullet.homing === 0), 'primary fire stays unguided');
+});
+
+check('plasma weighs target size against distance and reevaluates the choice every step', () => {
+  const heavy = plasmaScenario();
+  homingTarget(heavy.state, 0, 430, 450);
+  homingTarget(heavy.state, 8, 820, 400);
+  update(heavy.state, 1 / 60);
+  assert(heavy.projectile.vx > 0, 'a moderately farther large ship wins over a small fighter');
+  const close = homingTarget(heavy.state, 0, 530, 620), before = heading(heavy.projectile);
+  update(heavy.state, 1 / 60);
+  assert(signedTurn(before, heading(heavy.projectile)) < 0, 'a newly much-closer fighter immediately becomes the preferred target');
+  killEnemy(heavy.state, close);
+  const afterClose = heading(heavy.projectile); update(heavy.state, 1 / 60);
+  assert(signedTurn(afterClose, heading(heavy.projectile)) > 0, 'the bomb retargets after its preferred fighter dies');
+  const generic = plasmaScenario(); generic.projectile.kind = 'seeker';
+  homingTarget(generic.state, 0, 430, 450); homingTarget(generic.state, 8, 820, 400);
+  update(generic.state, 1 / 60);
+  assert(generic.projectile.vx < 0, 'other homing projectile kinds keep nearest-target behavior');
+});
+
+check('plasma acquires only living visible non-dormant targets ahead within 650 world units', () => {
+  const exclusions = [
+    { name: 'dead', x: 820, y: 450, extra: { dead: true } },
+    { name: 'zero health', x: 820, y: 450, extra: { hp: 0 } },
+    { name: 'dormant', x: 820, y: 450, extra: { ai: 'entry', pathD: -1000, pathSpeed: 0 } },
+    { name: 'behind', x: 850, y: 800 },
+    { name: 'above arena', x: 800, y: -40, origin: [600, 450], valid: [420, 250] },
+    { name: 'right of arena', x: 1250, y: 500, origin: [1000, 700], valid: [750, 500] },
+    { name: 'below arena', x: 800, y: 950, origin: [600, 450], valid: [420, 650], down: true },
+    { name: 'left of arena', x: -50, y: 500, origin: [200, 700], valid: [450, 500], right: true },
+  ];
+  for (const fixture of exclusions) {
+    const { state, projectile } = plasmaScenario();
+    if (fixture.origin) [projectile.x, projectile.y] = fixture.origin;
+    if (fixture.down) projectile.vy = 640;
+    const invalid = homingTarget(state, 9, fixture.x, fixture.y, fixture.extra);
+    const [x, y] = fixture.valid || [450, 450]; homingTarget(state, 0, x, y);
+    assert(Math.hypot(invalid.x - projectile.x, invalid.y - projectile.y) < 650, 'the exclusion is not accidentally tested by range');
+    update(state, 1 / 60);
+    assert(fixture.right ? projectile.vx > 0 : projectile.vx < 0, `${fixture.name}: an ineligible heavy target cannot distract guidance`);
+  }
+  for (const distance of [649, 651]) {
+    const { state, projectile } = plasmaScenario();
+    homingTarget(state, 8, projectile.x + distance / Math.SQRT2, projectile.y - distance / Math.SQRT2);
+    update(state, 1 / 60);
+    assert(distance < 650 ? projectile.vx > 0 : projectile.vx === 0, 'acquisition respects the 650-unit range');
+  }
+  const side = plasmaScenario(); homingTarget(side.state, 4, 900, 700);
+  update(side.state, 1 / 60); assert(side.projectile.vx > 0, 'a target exactly beside the velocity vector is eligible');
+  const rotated = plasmaScenario(); rotated.projectile.vx = 640; rotated.projectile.vy = 0;
+  homingTarget(rotated.state, 9, 350, 500); homingTarget(rotated.state, 0, 800, 850);
+  update(rotated.state, 1 / 60); assert(rotated.projectile.vy > 0, 'ahead means the current heading, not the upper half of the screen');
+  const boss = plasmaScenario(); const sealed = homingTarget(boss.state, 9, 850, 400);
+  update(boss.state, 1 / 60);
+  assert.equal(sealed.vulnerable, false); assert(boss.projectile.vx > 0, 'a sealed boss remains a valid enemy target');
+});
+
+check('plasma flies straight without a target and homing crosses the angle seam by the shortest turn', () => {
+  const empty = plasmaScenario(), before = { x: empty.projectile.x, y: empty.projectile.y };
+  for (let tick = 0; tick < 15; tick++) update(empty.state, 1 / 60);
+  assert.equal(empty.projectile.vx, 0); assert.equal(empty.projectile.vy, -640);
+  assert.equal(empty.projectile.x, before.x); assert(Math.abs(empty.projectile.y - (before.y - 160)) < 1e-9);
+  for (const kind of ['plasma', 'seeker']) {
+    const { state, projectile } = plasmaScenario(), angle = Math.PI - .01;
+    Object.assign(projectile, { kind, vx: Math.cos(angle) * 640, vy: Math.sin(angle) * 640 });
+    homingTarget(state, 4, 300, 697);
+    update(state, 1 / 60);
+    const turn = signedTurn(angle, heading(projectile));
+    assert(turn > 0 && turn <= .65 / 60 + 1e-12, `${kind}: crossing from +π to −π turns the short way`);
+    assert(Math.abs(Math.hypot(projectile.vx, projectile.vy) - 640) < 1e-10);
+  }
+});
+
+check('slow plasma guidance tracks moving enemies consistently across simulation step sizes', () => {
+  const endpoints = [30, 60, 120].map(hz => {
+    const { state, projectile } = plasmaScenario(); projectile.y = 750;
+    const target = homingTarget(state, 4, 820, 190);
+    for (let tick = 0; tick < hz * .6; tick++) {
+      const time = (tick + 1) / hz;
+      target.x = 820 - 400 * time; target.y = 190 + 25 * time;
+      const before = heading(projectile); update(state, 1 / hz);
+      assert(Math.abs(signedTurn(before, heading(projectile))) <= .65 / hz + 1e-12, 'guidance respects its turn budget at every step');
+      assert(Math.abs(Math.hypot(projectile.vx, projectile.vy) - 640) < 1e-9, 'guidance never accelerates or slows the bomb');
+      assert(state.bullets.includes(projectile), 'the comparison remains in flight without a collision');
+    }
+    return { x: projectile.x, y: projectile.y, angle: heading(projectile) };
+  });
+  const reference = endpoints.at(-1);
+  for (const endpoint of endpoints) {
+    assert(Math.hypot(endpoint.x - reference.x, endpoint.y - reference.y) < 6, '30–120Hz paths stay within six world pixels');
+    assert(Math.abs(signedTurn(endpoint.angle, reference.angle)) < .03, 'moving-target heading differs by less than 0.03 radians');
+  }
 });
 
 check('fire energy recharge is frame-rate independent, upgraded, bounded, and paused with simulation', () => {
@@ -559,6 +689,96 @@ check('shield recharge waits after damage, respects capacity, and improves with 
     advance(state, 15);
     assert.equal(player.shield, stats.shield);
   }
+});
+
+check('successful primary, plasma and nova volleys load shield recovery without taxing fire energy', () => {
+  assert.equal(SHIELD_FIRE_DELAY, .75); assert.equal(SHIELD_FIRING_RECHARGE, .75); assert.equal(SHIELD_REST_RECHARGE, 1.25);
+  for (const control of [{ fire: true }, { secondary: true }, { bomb: true }]) {
+    const state = isolated(), player = state.players[0], energy = player.fireEnergy;
+    player.shield = 0; player.lastHit = -10;
+    update(state, .025, [control]);
+    assert.equal(player.shieldFireDelay, SHIELD_FIRE_DELAY, 'an actual volley starts one bounded load window');
+    assert(Math.abs(player.shield - 10 * SHIELD_FIRING_RECHARGE * .025) < 1e-10, 'the firing tick immediately uses the loaded rate');
+    assert.equal(player.fireEnergy, energy - (control.secondary ? SECONDARY_ENERGY_COST : 0));
+    state.events.length = 0; update(state, .025, [control]);
+    assert.equal(state.events.filter(event => event.type === 'shot' || event.type === 'nova').length, 0);
+    assert(Math.abs(player.shieldFireDelay - (SHIELD_FIRE_DELAY - .025)) < 1e-10, 'holding a trigger during cooldown never refreshes the load window');
+  }
+  const dry = isolated(), pilot = dry.players[0];
+  Object.assign(pilot, { shieldFireDelay: .3, fireEnergy: 0, fireEnergyLocked: true, fireEnergyDelay: 10, bombs: 0 });
+  advance(dry, .4, [{ secondary: true, bomb: true }]);
+  assert.equal(pilot.shieldFireDelay, 0, 'dry secondary and empty nova controls do not consume shield recovery');
+  assert.equal(pilot.fireEnergy, 0);
+  update(dry, 1 / 60, [{ fire: true }]);
+  assert(dry.events.some(event => event.type === 'shot' && event.weapon === 'pulse'), 'primary remains usable at zero fire energy');
+  assert.equal(pilot.shieldFireDelay, SHIELD_FIRE_DELAY); assert.equal(pilot.fireEnergy, 0);
+});
+
+check('shield recovery trades sustained fire for faster recovery after releasing the trigger', () => {
+  for (const recharge of [0, 6]) for (const control of [{ fire: true }, { secondary: true }, {}]) {
+    const state = createCampaign(0, { upgrades: { recharge } }), player = state.players[0], stats = shipStats(state.upgrades);
+    state.bossSpawned = true; player.shield = 0; player.lastHit = -10;
+    for (let tick = 0; tick < 60; tick++) update(state, 1 / 60, [control]);
+    const multiplier = control.fire || control.secondary ? SHIELD_FIRING_RECHARGE : SHIELD_REST_RECHARGE;
+    assert(Math.abs(player.shield - stats.recharge * multiplier) < 1e-8, 'capacitor upgrades scale both recovery modes proportionally');
+    if (control.fire) assert.equal(player.fireEnergy, 100, 'continuous primary fire consumes no finite reserve');
+  }
+  const state = isolated(), player = state.players[0]; player.shield = 0; player.lastHit = -10;
+  update(state, .01, [{ fire: true }]);
+  const before = player.shield;
+  advance(state, 1);
+  const expected = 10 * (SHIELD_FIRE_DELAY * SHIELD_FIRING_RECHARGE + (1 - SHIELD_FIRE_DELAY) * SHIELD_REST_RECHARGE);
+  assert(Math.abs(player.shield - before - expected) < 1e-8, 'releasing fire integrates the remaining load window and then the full rest rate');
+  assert.equal(player.shieldFireDelay, 0);
+  const rested = player.shield; advance(state, 1);
+  assert(Math.abs(player.shield - rested - 10 * SHIELD_REST_RECHARGE) < 1e-8);
+});
+
+check('damage lockout and weapon load split partial ticks exactly and remain frame-rate independent', () => {
+  for (const [damageDelay, weaponDelay] of [[.012, .018], [.018, .012]]) {
+    const state = isolated(), player = state.players[0], stats = shipStats(state.upgrades);
+    state.time = 10; player.shield = 0; player.lastHit = 10 - stats.delay + damageDelay; player.shieldFireDelay = weaponDelay;
+    update(state, .025);
+    const loaded = Math.max(0, weaponDelay - damageDelay), resting = .025 - Math.max(damageDelay, weaponDelay);
+    assert(Math.abs(player.shield - stats.recharge * (loaded * SHIELD_FIRING_RECHARGE + resting * SHIELD_REST_RECHARGE)) < 1e-8);
+    assert.equal(player.shieldFireDelay, 0);
+  }
+  for (const recharge of [0, 6]) {
+    const recovered = [30, 60, 120].map(hz => {
+      const state = createCampaign(0, { upgrades: { recharge } }), player = state.players[0], stats = shipStats(state.upgrades);
+      state.bossSpawned = true; state.time = 10;
+      player.shield = 0; player.lastHit = 10 - stats.delay + .27; player.shieldFireDelay = .333;
+      for (let tick = 0; tick < hz; tick++) update(state, 1 / hz);
+      const expected = stats.recharge * ((.333 - .27) * SHIELD_FIRING_RECHARGE + (1 - .333) * SHIELD_REST_RECHARGE);
+      assert(Math.abs(player.shield - expected) < 1e-8); assert.equal(player.shieldFireDelay, 0);
+      return player.shield;
+    });
+    assert(Math.max(...recovered) - Math.min(...recovered) < 1e-8, '30–120Hz stepping cannot change shield recovery');
+  }
+  const locked = isolated(), pilot = locked.players[0]; pilot.shield = 0; pilot.lastHit = locked.time;
+  advance(locked, 1, [{ fire: true }]); assert.equal(pilot.shield, 0, 'firing never bypasses the existing damage cooldown');
+});
+
+check('shield weapon load pauses, respects capacity, and resets for relaunches and new sectors', () => {
+  const state = isolated(), player = state.players[0]; player.shield = 0; player.lastHit = -10;
+  update(state, .025, [{ fire: true }]);
+  const paused = [state.time, player.shield, player.shieldFireDelay, player.fireEnergy];
+  state.status = 'hangar'; advance(state, 3, [{ fire: true }]);
+  assert.deepEqual([state.time, player.shield, player.shieldFireDelay, player.fireEnergy], paused, 'pausing simulation freezes regeneration and weapon load');
+  state.status = 'playing'; advance(state, 20);
+  assert.equal(player.shield, player.maxShield); assert.equal(player.shieldFireDelay, 0);
+  player.shieldFireDelay = .5;
+  const retry = createCampaign(state.level, state); assert.equal(retry.players[0].shieldFireDelay, 0, 'a retry starts with a fresh reactor');
+  beginLevel(state, 1); assert.equal(state.players[0].shieldFireDelay, 0, 'the next sector starts with a fresh reactor');
+  const pilot = state.players[0]; pilot.shieldFireDelay = .5; pilot.shield = 0;
+  hurtPlayer(state, pilot, 10000); assert.equal(pilot.alive, false);
+  advance(state, .5); assert.equal(pilot.shield, 0, 'a destroyed ship never regenerates');
+  advance(state, RESPAWN_DELAY);
+  assert(pilot.alive); assert.equal(pilot.shieldFireDelay, 0, 'a reserve ship starts unloaded');
+  delete pilot.shieldFireDelay; pilot.shield = 0; pilot.lastHit = -10;
+  update(state, .025);
+  assert.equal(pilot.shieldFireDelay, 0, 'legacy pilots without the timer safely default to rest');
+  assert(Math.abs(pilot.shield - 10 * SHIELD_REST_RECHARGE * .025) < 1e-8);
 });
 
 check('shop rejects unavailable purchases and charges exactly through maximum tier', () => {

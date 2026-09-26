@@ -3,7 +3,7 @@ import {createHash} from 'node:crypto';
 import {DIFFICULTIES,difficultyProfile,normalizeDifficulty} from '../difficulty.js';
 import {ENEMY_TYPES} from '../ships.js';
 import {cycleScale} from '../campaign.js';
-import {createCampaign,beginLevel,spawnEnemy,spawnFormation,update} from '../sim.js';
+import {createCampaign,beginLevel,spawnEnemy,spawnFormation,update,SHIELD_FIRE_DELAY} from '../sim.js';
 import {startDive,startChallenge,updateDirector} from '../waves.js';
 // Captured before difficulty integration: three seeded sectors, scripted waves,
 // every hull, dive, beam, captive fire, player fire and 90 seconds of simulation.
@@ -25,6 +25,12 @@ function easyFingerprint(difficulty) {
         update(s,1/60,[{x:Math.sin(frame*.03)*.4,y:0,fire:frame%180<80}]);
         if(frame%30===0)hash.update(JSON.stringify(s,(key,value)=>{
           if(key==='difficulty')return undefined;
+          // The historical replay predates weapon load. Its guarded pilot
+          // keeps a full shield, so every original combat value still matches.
+          if(key==='shieldFireDelay'){
+            assert(Number.isFinite(value)&&value>=0&&value<=SHIELD_FIRE_DELAY);
+            return undefined;
+          }
           // New, unequipped upgrades do not belong to the historical state
           // schema; keep comparing every original combat value unchanged.
           if(key==='upgrades'){
