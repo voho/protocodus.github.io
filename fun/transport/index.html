@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#eeeee5">
+  <meta name="description" content="Build connections. Grow a world. Transport is a free, detailed transport and city-building strategy game set in the taiga, tundra and desert.">
+  <title>Transport — Build connections. Grow a world.</title>
+  <link rel="icon" type="image/svg+xml" href="./icon.svg">
+  <link rel="preload" href="/assets/fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="./chains.css">
+  <link rel="stylesheet" href="./routes.css">
+  <link rel="stylesheet" href="./industry-targets.css">
+  <link rel="stylesheet" href="./compact-hud.css">
+  <link rel="stylesheet" href="./saves.css">
+  <link rel="stylesheet" href="./visibility.css">
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <a class="wordmark" href="/fun/" aria-label="Transport — back to games"><span class="brand-symbol" aria-hidden="true">t</span><span class="wordmark-text">transport<span class="wordmark-dot">.</span></span></a>
+      <nav class="main-nav" aria-label="Game views">
+        <button class="nav-button active" data-view="build"><span data-icon="map"></span> Build</button>
+        <button class="nav-button" data-view="routes"><span data-icon="route"></span> Routes</button>
+        <button class="nav-button" data-view="industry"><span data-icon="factory"></span> Industries</button>
+        <button class="nav-button" data-open-chains aria-haspopup="dialog" title="Production chains (C)"><span data-icon="chains"></span> Chains</button>
+        <button class="nav-button" data-view="towns"><span data-icon="city"></span> Towns</button>
+      </nav>
+      <div class="hud-finance-wrap">
+        <button class="hud-finances" id="company-stats" aria-label="Company finances and statistics" aria-describedby="company-tooltip" aria-expanded="false">
+          <span class="hud-stat"><span>Balance</span><strong id="balance">$400,000</strong></span>
+          <span class="hud-stat"><span>Profit / month</span><strong id="profit" class="positive">+$0</strong></span>
+        </button>
+        <div class="hud-tooltip" id="company-tooltip" role="tooltip"><div><span>Balance</span><strong id="balance-exact">$400,000</strong></div><div><span>Profit / month</span><strong id="profit-exact">+$0</strong></div><div><span>Inflation</span><strong id="inflation-rate">Base prices</strong></div><div><span>Delivered</span><strong id="delivered">0 <small>units</small></strong></div><div><span>Routes</span><strong id="route-count">1</strong></div><div><span>Connected towns</span><strong id="connected">2 <small>/ 4</small></strong></div></div>
+      </div>
+      <div class="date-block"><span id="date">Jan 1950</span><div class="speed-control" role="group" aria-label="Simulation speed"><button data-speed="0" aria-label="Pause" title="Pause (Space)"><span data-icon="pause"></span></button><button data-speed="1" class="active" aria-label="Normal speed">1×</button><button data-speed="3" aria-label="Triple speed">3×</button><button data-speed="8" aria-label="Eight times speed">8×</button></div></div>
+      <div class="header-actions"><button id="help-button" class="icon-button" aria-label="How to play" title="How to play (?)"><span data-icon="help"></span></button><button id="save-button" class="icon-button" aria-label="Load / Save games" aria-haspopup="dialog" title="Load / Save (Ctrl+S or Cmd+S)"><span data-icon="save"></span></button><button id="world-button" class="button button-outline"><span data-icon="globe"></span> New world</button></div>
+    </header>
+
+    <main class="workspace">
+      <aside class="sidebar" aria-label="Management panel">
+        <nav class="mobile-management" aria-label="Management views"><button data-mobile-view="build" title="Build">Build</button><button data-mobile-view="routes" title="Routes">Routes</button><button data-mobile-view="industry" title="Industries">Industry</button><button data-mobile-view="towns" title="Towns">Towns</button><button data-open-chains aria-haspopup="dialog">Chains</button></nav>
+        <div id="panel-content"></div>
+        <div class="sidebar-foot"><span class="live-dot"></span><span id="save-status">Autosave on</span><button id="panel-help" class="icon-button" aria-label="Open field guide" title="Field guide"><span data-icon="help"></span></button><button id="panel-save" class="icon-button" aria-label="Load / Save games" aria-haspopup="dialog" title="Load / Save games"><span data-icon="save"></span></button><button id="audio-button" class="icon-button" aria-label="Enable sound" title="Toggle interface sounds"><span data-icon="volume"></span></button></div>
+      </aside>
+
+      <section class="map-section" aria-label="World map">
+        <canvas id="world" tabindex="0" aria-label="Transport world. Drag to explore, scroll to zoom. Select a construction tool and click or drag to build."></canvas>
+        <div class="map-topline"><div class="map-title"><span id="weather"><span data-icon="sun"></span> Local weather</span></div><div class="map-display-tools"><button id="grid-button" class="map-chip" aria-pressed="false" title="Toggle grid (G)"><span data-icon="grid"></span><span>Grid</span></button><button id="layers-button" class="map-chip" aria-expanded="false" aria-controls="layers-panel" title="Map layers (L)"><span data-icon="layers"></span><span>Layers</span></button></div></div>
+        <section id="layers-panel" aria-label="Map layers" hidden></section>
+        <div class="objective-card" id="objective-card" hidden><div class="objective-heading"><span class="eyebrow">GOAL</span><button id="dismiss-objective" aria-label="Hide objective" class="tiny-button">×</button></div><h2>First 100 deliveries</h2><p>Connect an industry to keep cargo moving.</p><div class="objective-step"><span data-icon="check"></span><span>First route running</span></div><div class="objective-step" id="objective-progress"><span class="step-circle">2</span><span>Cargo delivered <b id="goal-progress">0 / 100</b></span></div><div class="progress-track"><div id="goal-bar"></div></div><button class="text-button" id="guide-button">How to connect <span>↗</span></button></div>
+        <div id="inspector" class="inspector" hidden></div>
+        <div class="map-bottomline"><div class="map-hint" id="map-hint"><span data-icon="mouse"></span><span>Drag to explore <i>·</i> Scroll to zoom</span></div><div class="view-controls"><button id="routes-toggle" class="icon-button active" aria-label="Toggle route overlay" aria-pressed="true" title="Show routes"><span data-icon="route"></span></button><span class="control-separator"></span><button id="zoom-out" class="icon-button" aria-label="Zoom out" title="Zoom out (−)">−</button><div class="zoom-levels" role="group" aria-label="Map zoom"><button data-zoom-level="0.5" aria-label="Region view, 50 percent" aria-pressed="false" title="Region · Plan the wider network">50%</button><button data-zoom-level="1" aria-label="Town view, 100 percent" aria-pressed="true" title="Town · Build and connect neighborhoods">100%</button><button data-zoom-level="2" aria-label="Detail view, 200 percent" aria-pressed="false" title="Detail · Inspect buildings and vehicles">200%</button></div><span id="zoom-label" class="sr-only" aria-live="polite">Town · 100%</span><button id="zoom-in" class="icon-button" aria-label="Zoom in" title="Zoom in (+)">+</button><button id="home-view" class="icon-button" aria-label="Return to starting town" title="Center map (H)"><span data-icon="focus"></span></button></div></div>
+        <div class="minimap-wrap"><button class="minimap-label" id="atlas-button" aria-label="Open region atlas" title="Open region atlas (M)"><span>Atlas ↗</span><span data-icon="compass"></span></button><canvas id="minimap" width="192" height="122" aria-label="Region overview. Click to navigate." tabindex="0"></canvas></div>
+        <div id="placement-tip" class="placement-tip" hidden></div>
+      </section>
+    </main>
+
+    <footer class="statusbar"><div><span class="live-dot"></span><span id="status-message">Drag to explore. Choose a tool to build.</span></div><div class="status-right"><span id="tile-coordinates">48° N · 12° E</span></div></footer>
+    <div id="toast-region" aria-live="polite" class="toast-region"></div>
+    <dialog id="modal"><div id="modal-content"></div></dialog>
+  </div>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

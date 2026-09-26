@@ -1,0 +1,78 @@
+/* Recipe graphs share the map's paper, pine and copper palette. */
+#modal:has(.chains-explorer){width:min(1240px,calc(100vw - 40px));max-height:92dvh}
+.chains-explorer{padding:28px 30px 30px;min-width:0;position:relative;display:grid;grid-template-columns:minmax(0,1fr) 34px;column-gap:10px;align-items:start}
+.chains-explorer>:not(.close-modal){grid-column:1}
+.chains-explorer>.close-modal{position:sticky;top:15px;grid-column:2;grid-row:1 / span 5;align-self:start;display:grid;place-items:center;z-index:2}
+.chains-heading{display:block}
+.chains-heading h2{margin:7px 0 5px}
+.chains-heading p{margin:0}
+.chains-toolbar{display:flex;justify-content:space-between;align-items:center;gap:24px;margin:23px 0 21px;padding:16px 18px;background:#edf1e4;border:1px solid #dce3d0;border-radius:9px}
+.chains-toolbar label{display:flex;align-items:center;gap:14px;font-size:13px;color:#556d48;min-width:0}
+.chains-toolbar select{font-size:15px;color:#365631;border:1px solid #c7d2b8;border-radius:6px;background:#faf9f0;padding:10px 32px 10px 12px;min-width:190px;max-width:100%;min-height:42px}
+.chain-key{display:flex;align-items:center;gap:11px;font-size:16px;color:#435e37}
+.chain-key>.cargo-icon{height:40px;width:40px}
+.chain-key small{display:block;margin-top:4px;font-size:12px;color:#6c7d61}
+.chain-all-mark{display:grid;place-items:center;width:37px;height:37px;border-radius:8px;background:#dce6ce;color:#54723f;font-size:25px}
+.chain-scroll{overflow:auto;border:1px solid #e0e4d5;border-radius:9px;background:#f3f4e9;scrollbar-width:thin;scrollbar-color:#acb99b #e8ecdd}
+.chain-board{position:relative;display:grid;grid-template-columns:repeat(var(--chain-stages),minmax(170px,1fr));gap:28px;min-width:calc(var(--chain-stages) * 198px + 12px);padding:20px;isolation:isolate}
+.chain-stage{min-width:0;position:relative;z-index:1}
+.chain-stage-label{display:flex;align-items:center;gap:8px;margin:0 0 15px;color:#758569;font-size:12px;text-transform:uppercase;letter-spacing:.6px}
+.chain-stage-label b{display:grid;place-items:center;width:25px;height:25px;border-radius:50%;background:#e1e8d5;color:#72845e;font-size:11px;font-weight:500;letter-spacing:0}
+.chain-stage-nodes{display:flex;flex-direction:column;justify-content:center;gap:13px;height:calc(100% - 40px)}
+.chain-node{display:flex;flex-direction:column;align-items:flex-start;text-align:left;width:100%;min-height:115px;padding:13px 12px 11px;background:#fafaf1;border:1px solid #cdd7bf;border-radius:8px;box-shadow:0 2px 2px #3f533107;color:#435f37;transition:border-color .15s,background .15s}
+.chain-node:hover{background:#edf2df;border-color:#91ab76}
+.chain-node.selected{background:#fbf0df;border-color:#b88950;box-shadow:0 0 0 1px #b88950}
+.chain-node-missing{border-style:dashed}
+.chain-node-kicker{display:none}
+.chain-node>strong{font-size:15px;font-weight:500;line-height:1.3}
+.chain-node .cargo-recipe{gap:4px;margin:12px 0 10px}
+.chain-node .cargo-inputs,.chain-node .cargo-outputs{gap:3px}
+.chain-node .cargo-result{gap:4px}
+.chain-node .cargo-badge{padding:3px 4px;min-height:31px;border-color:#d9e1cc;background:#eef2e3;gap:3px}
+.chain-node .cargo-icon{width:24px;height:24px}
+.chain-node .cargo-count{font-size:12px}
+.chain-node .cargo-arrow{font-size:17px}
+.chain-node-sites{display:flex;justify-content:space-between;align-items:center;width:100%;margin-top:auto;color:#627953;font-size:12px;line-height:1.4}
+.chain-node-sites>span{font-size:17px;color:#7b8e6b}
+.chain-node.selected .chain-node-sites{color:#936d42}
+.chain-town-node{background:#e5ecda;border-color:#bccda8}
+.chain-town-cargo{display:flex;flex-wrap:wrap;gap:4px;margin:12px 0 10px}
+.chain-edges{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0;overflow:visible}
+.chain-edges>path{fill:none;stroke:#8b9d79;stroke-width:1.7;opacity:.8}
+.chain-edges>path.selected{stroke:#b77641;stroke-width:2.4;opacity:1}
+.chains-caption{font-size:12px;color:#6a7b60;line-height:1.5;margin:10px 0 24px}
+.chains-caption>span{display:none}
+.chain-site-section{border-top:1px solid #dce2d1;padding-top:22px}
+.chain-back{font-size:12px;color:#647d54;padding:0 0 15px;text-decoration:underline;text-underline-offset:3px}
+.chain-sites-title{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px}
+.chain-sites-title>div{min-width:0}
+.chain-sites-title h3{font-size:22px;font-weight:500;letter-spacing:-.5px;margin:6px 0 0;display:flex;align-items:center;flex-wrap:wrap;gap:10px}
+.chain-sites-title h3>span{font-size:13px;font-weight:400;letter-spacing:0;padding:4px 7px;background:#e7eddb;color:#668150;border-radius:5px}
+.chain-build{border:1px solid #c9d5b9;background:#edf2e1;flex-shrink:0}
+.chain-consumers{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:-3px 0 17px;font-size:13px;color:#687b5b}
+.chain-consumers>span{margin-right:3px}
+.chain-consumers button{display:flex;align-items:center;gap:6px;padding:5px 9px 5px 5px;border:1px solid #d6dfc9;border-radius:6px;background:#f0f4e6;color:#4c6b3f;font-size:13px}
+.chain-consumers button:hover{background:#e2ebd3}
+.chain-consumers .cargo-icon{width:25px;height:25px}
+.chain-places{display:grid;grid-template-columns:245px minmax(0,1fr);align-items:start;gap:19px}
+.chain-map-wrap{padding:5px;background:#e7eddc;border:1px solid #d3dec4;border-radius:8px}
+#chain-sites-map{display:block;width:100%;height:auto;border-radius:4px;cursor:crosshair;image-rendering:pixelated}
+.chain-map-wrap p{font-size:12px;color:#697e5a;line-height:1.4;text-align:center;margin:9px 3px 5px}
+.chain-sites-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(205px,1fr));gap:11px;min-width:0}
+.chain-site{position:relative;min-width:0;padding:13px;border:1px solid #dce3d0;border-radius:7px;background:#f4f5ea}
+.chain-site-name{display:flex;align-items:center;gap:8px}
+.chain-site-name strong{font-size:14px;font-weight:500;line-height:1.4;overflow-wrap:anywhere}
+.chain-pin{display:grid;place-items:center;flex:0 0 23px;height:23px;font-size:12px;background:#b9814d;color:#fff9e8;border-radius:50%;font-variant-numeric:tabular-nums}
+.chain-site p{font-size:12px;color:#6a7d5f;line-height:1.5;margin:8px 0}
+.chain-site-detail{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:7px}
+.chain-site-coordinates{font-size:12px;font-variant-numeric:tabular-nums;color:#667b59}
+.chain-site-detail .cargo-icon{width:23px;height:23px}
+.chain-site-detail .cargo-badge{min-height:29px;padding:2px 5px}
+.chain-site .small-button{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;margin-top:11px;border:1px solid #d0dcbf;background:#e9efdd}
+.chain-site .small-button:hover{background:#dce8cc}
+.chain-site .small-button svg{width:16px;height:16px}
+.chain-no-sites{border:1px dashed #c4d1b4;border-radius:8px;padding:24px;text-align:center;background:#f0f3e6}
+.chain-no-sites strong{font-size:16px;font-weight:500}
+.chain-no-sites p{font-size:13px;color:#697d5c;margin:9px 0 17px}
+@media(max-width:950px){.chains-toolbar{gap:15px;padding:14px}.chains-toolbar label{flex-direction:column;align-items:flex-start;gap:7px}.chain-places{grid-template-columns:210px minmax(0,1fr)}.chains-caption>span{display:inline}.chain-sites-list{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}}
+@media(max-width:700px){#modal:has(.chains-explorer){width:calc(100vw - 20px);max-height:94dvh}.chains-explorer{padding:23px 15px}.chains-toolbar{align-items:stretch;flex-direction:column;gap:13px;padding:12px;margin:19px 0 16px}.chains-toolbar label{font-size:12px;gap:7px}.chains-toolbar select{width:100%;font-size:14px;min-width:0}.chain-key{font-size:15px}.chain-key>.cargo-icon{width:33px;height:33px}.chain-key small{font-size:12px}.chain-board{padding:15px;gap:25px;min-width:calc(var(--chain-stages) * 195px + 5px)}.chain-node{padding:12px 11px}.chain-sites-title h3{font-size:20px}.chain-places{grid-template-columns:1fr;gap:13px}.chain-map-wrap{max-width:430px;width:100%}.chain-sites-list{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}.chain-site{padding:13px}.chain-site-section{padding-top:19px}.chain-no-sites{padding:20px 15px}.chain-sites-title .eyebrow{font-size:12px}.chains-caption{margin-bottom:20px}.chain-consumers{gap:7px}.chain-consumers>span{width:100%;margin:0}.chain-build{padding:10px;font-size:12px}}
