@@ -18,7 +18,7 @@ function memoryStorage() {
 }
 function flight() {
   const state = createCampaign(4);
-  state.startLevel = 1; state.upgrades = { weapon: 2, shield: 3, hull: 1, recharge: 4 };
+  state.startLevel = 1; Object.assign(state.upgrades, { weapon: 2, shield: 3, hull: 1, recharge: 4 });
   beginLevel(state, 4);
   selectWeapon(state, 'plasma');
   state.time = 22.3; state.scroll = 2452.75; state.spawnTimer = 1.3; state.formationTimer = 5.4;
@@ -59,6 +59,61 @@ check('flight preserves equipment, motion, formation identity, boss windows and 
   assert.deepEqual(run.damage, damage); assert.deepEqual(run.destroyed, destroyed);
   assert.deepEqual(run.state.events, []); assert.equal(JSON.stringify(state), before);
   assert.ok(run.savedAt > Date.now() - 1000);
+});
+
+check('older current-version saves default missing fire upgrades to zero without losing equipment', () => {
+  const source = JSON.parse(serializeRun(flight()));
+  Object.assign(source.state.upgrades, { fireRate: 3, firePower: 5 });
+  for (const missing of [['fireRate'], ['firePower'], ['fireRate', 'firePower']]) {
+    const record = structuredClone(source), expected = { ...source.state.upgrades };
+    for (const id of missing) { delete record.state.upgrades[id]; expected[id] = 0; }
+    const before = structuredClone(record), storage = memoryStorage();
+    storage.setItem(SAVE_KEY, JSON.stringify(record));
+    const result = readCampaign(storage);
+    assert.equal(result.ok, true); assert.equal(result.run.migrated, false);
+    assert.deepEqual(result.run.state.upgrades, expected);
+    assert.deepEqual(result.run.state.players, record.state.players, 'defaulting new ranks never heals or resets the saved ship');
+    assert.equal(result.run.state.credits, record.state.credits); assert.equal(result.run.state.weapon, record.state.weapon);
+    assert.deepEqual(record, before, 'loading never rewrites an older record');
+    assert.equal(writeCampaign(result.run.state, result.run, storage).ok, true);
+    assert.deepEqual(readCampaign(storage).run.state.upgrades, expected);
+  }
+});
+
+check('purchased fire rate and power ranks survive hangar autosave, resume, next sector and retry', () => {
+  const state = flight(), storage = memoryStorage(); state.status = 'hangar'; state.credits = 100_000;
+  for (const [id, ranks] of [['fireRate', 3], ['firePower', 5]]) for (let rank = 0; rank < ranks; rank++) assert.equal(buyUpgrade(state, id), true);
+  const equipment = { ...state.upgrades }, credits = state.credits;
+  assert.equal(writeCampaign(state, {}, storage).ok, true);
+  const resumed = readCampaign(storage).run.state;
+  assert.equal(resumed.status, 'hangar'); assert.deepEqual(resumed.upgrades, equipment); assert.equal(resumed.credits, credits);
+  beginLevel(resumed, resumed.level + 1);
+  assert.deepEqual(resumed.upgrades, equipment); assert.equal(resumed.credits, credits);
+  assert.equal(writeCampaign(resumed, {}, storage).ok, true);
+  const airborne = readCampaign(storage).run.state, retry = createCampaign(airborne.level, airborne);
+  assert.deepEqual(airborne.upgrades, equipment); assert.deepEqual(retry.upgrades, equipment);
+  assert.equal(retry.credits, credits); assert.equal(retry.weapon, state.weapon);
+});
+
+check('saved fire upgrade ranks are bounded and malformed ranks cannot replace valid progress', () => {
+  const source = serializeRun(flight());
+  for (const id of ['fireRate', 'firePower']) {
+    for (const [value, expected] of [[-20, 0], [0, 0], [2.9, 2], [6, 6], [999, 6]]) {
+      const record = JSON.parse(source); record.state.upgrades[id] = value;
+      const run = restoreRun(record);
+      assert.ok(run); assert.equal(run.state.upgrades[id], expected);
+      assert.equal(run.state.upgrades.weapon, 2); assert.equal(run.state.upgrades.recharge, 4);
+    }
+    for (const value of [null, true, '3', {}, [], Infinity, -Infinity, NaN, '@infinity']) {
+      const record = JSON.parse(source); record.state.upgrades[id] = value;
+      assert.equal(restoreRun(record), null, `${id} rejects a malformed rank`);
+    }
+    const storage = memoryStorage(), state = flight();
+    state.upgrades[id] = 4; assert.equal(writeCampaign(state, {}, storage).ok, true);
+    const previous = storage.getItem(SAVE_KEY); state.upgrades[id] = NaN;
+    assert.equal(writeCampaign(state, {}, storage).error, 'invalid-run');
+    assert.equal(storage.getItem(SAVE_KEY), previous); assert.equal(readCampaign(storage).run.state.upgrades[id], 4);
+  }
 });
 
 check('all difficulty choices persist through flight, hangar, retry and later cycles', () => {
@@ -156,11 +211,13 @@ check('a restored flight produces the same next combat step', () => {
 
 check('autosaves preserve fire energy, exhaustion and cadence through mixed primary and secondary fire', () => {
   const state = createCampaign(), storage = memoryStorage();
+  Object.assign(state.upgrades, { fireRate: 4, firePower: 5 });
   selectWeapon(state, 'plasma');
   state.players[0].fire = .31;
   Object.assign(state.players[0], { fireEnergy: 13.75, fireEnergyDelay: .37, fireEnergyLocked: true });
   assert.equal(writeCampaign(state, {}, storage).ok, true);
   const resumed = readCampaign(storage).run.state;
+  assert.deepEqual(resumed.upgrades, state.upgrades);
   assert.deepEqual(resumed.players.map(player => player.weapon), ['plasma']);
   assert.deepEqual(resumed.players.map(player => player.fire), [.31]);
   assert.deepEqual(resumed.players, state.players);
@@ -390,7 +447,8 @@ check('legacy checkpoints resume at the preceding shop with campaign progress in
   const result = readCampaign(storage), run = result.run;
   assert.equal(result.ok, true); assert.equal(run.migrated, true); assert.equal(run.savedAt, 0);
   assert.equal(run.scene, 'hangar'); assert.equal(run.state.level, 4); assert.equal(run.state.mode, 1);
-  assert.equal(run.state.upgrades.weapon, 3); assert.equal(run.state.weapon, 'plasma');
+  assert.deepEqual(run.state.upgrades, { ...createCampaign().upgrades, weapon: 3, hull: 2, shield: 1, recharge: 4, fireRate: 0, firePower: 0 });
+  assert.equal(run.state.weapon, 'plasma');
   assert.equal(run.state.credits, 2340); assert.equal(run.unlocked, 6);
   assert.equal(run.state.events.length, 0);
   assert.equal(buyUpgrade(run.state, 'shield'), true);

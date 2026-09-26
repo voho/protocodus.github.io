@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { ENEMY_TYPES } from '../ships.js';
 import { createCampaign, beginLevel, update, spawnEnemy, killEnemy, hurtPlayer,
-  spawnFormation, selectWeapon, weaponStats, WEAPONS, buyUpgrade, upgradeCost, shipStats, UPGRADES, MAX_UPGRADE, applyStructureBlast, missionScrollSpeed, SECONDARY_ENERGY_COST, SECONDARY_RESTART_ENERGY,
+  spawnFormation, selectWeapon, weaponStats, firingInterval, WEAPONS, buyUpgrade, upgradeCost, shipStats, UPGRADES, MAX_UPGRADE, applyStructureBlast, missionScrollSpeed, SECONDARY_ENERGY_COST, SECONDARY_RESTART_ENERGY,
   PRIMARIES, primaryStats, buyPrimary, buySupply, supplyCost, MAX_POWER, MAX_DRONES, MAX_BOMBS, MAX_LIVES, START_LIVES, FIRST_EXTRA_LIFE, RESPAWN_DELAY, challengeSector } from '../sim.js';
 import { sectorPlan, isDormant, hiveSlot, pathTable, pathPoint, PATHS, CHALLENGE_SIZE } from '../waves.js';
 import { serializeRun, restoreRun } from '../save-game.js';
@@ -167,6 +167,125 @@ check('shared upgrades improve both channels and new stages and retries refill f
   for (const run of [state, retry]) for (const player of run.players) {
     assert.equal(player.fireEnergy, 100); assert.equal(player.fireEnergyDelay, 0); assert.equal(player.fireEnergyLocked, false);
   }
+});
+
+check('independent fire upgrades preserve Ion armament and cap their added damage and rate', () => {
+  assert.deepEqual(UPGRADES.map(upgrade => upgrade.id), ['weapon', 'fireRate', 'firePower', 'shield', 'hull', 'recharge']);
+  assert.equal(UPGRADES.find(upgrade => upgrade.id === 'fireRate').base, 540);
+  assert.equal(UPGRADES.find(upgrade => upgrade.id === 'firePower').base, 600);
+  const otherStats = ({ damage, interval, fireRate, ...rest }) => rest;
+  for (let weapon = 0; weapon <= MAX_UPGRADE; weapon++) {
+    const base = createCampaign(0, { upgrades: { weapon } });
+    const rate = createCampaign(0, { upgrades: { weapon, fireRate: 6 } });
+    const power = createCampaign(0, { upgrades: { weapon, firePower: 6 } });
+    const both = createCampaign(0, { upgrades: { weapon, fireRate: 6, firePower: 6 } });
+    assert.equal(base.upgrades.fireRate, 0); assert.equal(base.upgrades.firePower, 0);
+    assert.deepEqual(shipStats(both.upgrades), shipStats(base.upgrades), 'new gun upgrades leave energy, shields, hull, mass and nova damage unchanged');
+    for (const id of ['pulse', 'scatter', 'lance', 'plasma']) {
+      const before = weaponStats(base, id), faster = weaponStats(rate, id), stronger = weaponStats(power, id), combined = weaponStats(both, id);
+      assert.equal(faster.damage, before.damage); assert(faster.interval < before.interval);
+      assert.equal(stronger.interval, before.interval); assert(stronger.damage > before.damage);
+      assert.deepEqual(otherStats(combined), otherStats(before), 'spread, splash, projectile geometry and existing armament metadata stay intact');
+      const addedDps = combined.damage / before.damage * firingInterval(before) / firingInterval(combined);
+      const limit = weapon === 6 ? 1.187430900301329 : 1.2544;
+      assert(addedDps <= limit + 1e-12, 'the two new upgrades add a bounded relative benefit');
+      if (weapon === 0 || weapon === 6) assert(Math.abs(addedDps - limit) < 1e-12);
+      if (weapon === 0) {
+        const stock = [...WEAPONS, ...PRIMARIES].find(profile => profile.id === id);
+        assert.equal(before.damage, stock.damage); assert.equal(before.interval, stock.interval);
+      }
+    }
+  }
+});
+
+check('every fire-rate rank increases actual sustained cadence without changing the old zero-rank timing', () => {
+  const legacyTicks = { 0: { pulse: 11, scatter: 14, lance: 19 }, 6: { pulse: 10, scatter: 12, lance: 16 } };
+  const poweredRapidTicks = { 0: { pulse: 7, scatter: 7, lance: 10 }, 6: { pulse: 6, scatter: 6, lance: 9 } };
+  for (const weapon of [0, 6]) for (const primary of ['pulse', 'scatter', 'lance']) for (const rapid of [false, true]) {
+    let previousCount = 0;
+    for (let fireRate = 0; fireRate <= MAX_UPGRADE; fireRate++) {
+      const state = createCampaign(0, { upgrades: { weapon, fireRate }, primary, owned: ['pulse', 'scatter', 'lance'], players: [{ power: rapid ? MAX_POWER : 0 }] });
+      state.bossSpawned = true;
+      const pickup = () => {
+        const p = state.players[0]; state.pickups.push({ x: p.x, y: p.y, age: 0, kind: 'rapid' });
+      };
+      if (rapid) { pickup(); update(state, 1 / 60); }
+      const shots = [];
+      for (let tick = 0; tick < 3600; tick++) {
+        if (rapid && tick > 0 && tick % 300 === 0) pickup();
+        update(state, 1 / 60, [{ fire: true }]);
+        if (state.events.some(event => event.type === 'shot')) shots.push(tick);
+        state.events.length = 0;
+      }
+      assert(shots.length > previousCount, `${primary}, Ion ${weapon}, powered rapid ${rapid}: rank ${fireRate} delivers more shots over one minute`);
+      previousCount = shots.length;
+      const baselineTicks = rapid ? poweredRapidTicks : legacyTicks;
+      if (!fireRate) assert(shots.slice(1).every((tick, index) => tick - shots[index] === baselineTicks[weapon][primary]), 'zero new ranks retain exact legacy firing ticks');
+      const elapsed = (shots.at(-1) - shots[0]) / 60, predicted = (shots.length - 1) * firingInterval(primaryStats(state), rapid);
+      assert(Math.abs(elapsed - predicted) <= 1 / 60 + 1e-8, 'actual shot timing matches the rate shown by the shop');
+    }
+  }
+});
+
+check('new gun tuning reaches all real projectiles and drones, stacks with rapid pickups, and keeps energy cost', () => {
+  const firstVolley = (id, fireRate, firePower, rapid = false) => {
+    const state = createCampaign(0, { upgrades: { weapon: 6, fireRate, firePower }, primary: id === 'plasma' ? 'pulse' : id,
+      owned: ['pulse', 'scatter', 'lance'], players: [{ drones: 2 }] });
+    state.bossSpawned = true;
+    const player = state.players[0];
+    if (rapid) {
+      state.pickups.push({ x: player.x, y: player.y, age: 0, kind: 'rapid' });
+      update(state, 1 / 60);
+      assert(player.rapidFireTime > 0, 'the actual pickup activates rapid fire');
+    }
+    update(state, 1 / 60, [id === 'plasma' ? { secondary: true } : { fire: true }]);
+    return { state, player, bullets: state.bullets.filter(bullet => bullet.team === 0) };
+  };
+  for (const id of ['pulse', 'scatter', 'lance', 'plasma']) {
+    const plain = firstVolley(id, 0, 0), tuned = firstVolley(id, 6, 6), rapid = firstVolley(id, 6, 6, true);
+    assert.equal(tuned.bullets.length, plain.bullets.length, 'upgrades do not add extra projectiles');
+    assert.equal(tuned.bullets.filter(bullet => bullet.drone).length, id === 'plasma' ? 0 : 2);
+    const geometry = ({ damage, baseDamage, ...rest }) => rest;
+    tuned.bullets.forEach((bullet, index) => {
+      assert(Math.abs(bullet.damage / plain.bullets[index].damage - 1.75 / 1.63) < 1e-12, 'real gun and drone damage gains the same modest additive boost');
+      assert.deepEqual(geometry(bullet), geometry(plain.bullets[index]), 'spread, splash, speed, lifetime and pierce are unchanged');
+      assert.equal(rapid.bullets[index].damage, bullet.damage, 'rapid pickup affects cadence only');
+    });
+    const profile = id === 'plasma' ? weaponStats(tuned.state, id) : primaryStats(tuned.state);
+    assert.equal(tuned.player.fire, firingInterval(profile));
+    assert.equal(rapid.player.fire, firingInterval(profile, true));
+    assert(rapid.player.fire < tuned.player.fire);
+    for (const run of [plain, tuned, rapid]) assert.equal(run.player.fireEnergy, id === 'plasma' ? 100 - SECONDARY_ENERGY_COST : 100);
+  }
+});
+
+check('fractional upgraded cooldowns cannot accumulate idle debt or bypass the shared firing channel', () => {
+  const state = createCampaign(0, { upgrades: { fireRate: 6 } }), player = state.players[0]; state.bossSpawned = true;
+  advance(state, 3);
+  update(state, 1 / 60, [{ fire: true }]);
+  assert.equal(player.fire, firingInterval(primaryStats(state)), 'the first shot after idling starts a full interval');
+  state.events.length = 0;
+  for (let tick = 0; tick < 5; tick++) update(state, 1 / 60, [{ fire: true, secondary: true }]);
+  assert.equal(state.events.filter(event => event.type === 'shot').length, 0, 'switching to secondary cannot skip the shared cooldown');
+  let fired = false;
+  for (let tick = 0; tick < 10 && !fired; tick++) {
+    update(state, 1 / 60, [{ secondary: true }]);
+    fired = state.events.some(event => event.type === 'shot' && event.weapon === 'plasma');
+  }
+  assert(fired); assert.equal(player.fireEnergy, 100 - SECONDARY_ENERGY_COST);
+  advance(state, 3);
+  player.fireEnergy = 100; player.fireEnergyLocked = false;
+  state.events.length = 0; update(state, 1 / 60, [{ secondary: true }]);
+  assert.equal(state.events.filter(event => event.type === 'shot').length, 1, 'idle time never produces catch-up volleys');
+  assert.equal(player.fire, firingInterval(weaponStats(state, 'plasma')));
+  player.fireEnergy = 0; player.fireEnergyLocked = true; player.fireEnergyDelay = 2;
+  advance(state, 1, [{ secondary: true }]);
+  assert(player.fire < 0, 'a held empty secondary can become ready while waiting for energy');
+  player.fireEnergy = SECONDARY_RESTART_ENERGY; player.fireEnergyLocked = false; player.fireEnergyDelay = 1;
+  state.events.length = 0; update(state, 1 / 60, [{ secondary: true }]);
+  assert.equal(state.events.filter(event => event.type === 'shot').length, 1);
+  assert.equal(player.fireEnergy, SECONDARY_RESTART_ENERGY - SECONDARY_ENERGY_COST);
+  assert.equal(player.fire, firingInterval(weaponStats(state, 'plasma')), 'energy starvation never accumulates cooldown debt');
 });
 
 check('hostile rounds scale with ship class and use spectrum colors', () => {
@@ -584,12 +703,30 @@ check('pickups repair without exceeding stats', () => {
 
 check('checkpoint restoration sanitizes upgrade tiers and preserves earned progress', () => {
   const state = createCampaign(7, { upgrades: { weapon: 100, hull: -2, shield: '3', recharge: 'bad' }, credits: 1234, score: 78901, totalKills: 72 });
-  assert.deepEqual(state.upgrades, { weapon: 6, hull: 0, shield: 3, recharge: 0 });
+  assert.deepEqual(state.upgrades, { weapon: 6, fireRate: 0, firePower: 0, hull: 0, shield: 3, recharge: 0 });
   assert.equal(state.players.length, 1);
   assert.equal(state.level, 7);
   assert.equal(state.credits, 1234);
   assert.equal(state.score, 78901);
   assert.equal(state.totalKills, 72);
+});
+
+check('upgrade ranks normalize to finite bounded integers through retries, stats and purchases', () => {
+  for (const [value, expected] of [[-4, 0], [2.9, 2], ['3.9', 3], [100, 6], [NaN, 0], [Infinity, 0], [-Infinity, 0], ['bad', 0], [undefined, 0]]) {
+    const upgrades = Object.fromEntries(UPGRADES.map(({ id }) => [id, value]));
+    const state = createCampaign(20, { upgrades });
+    assert(Object.values(state.upgrades).every(rank => rank === expected));
+    const normalized = weaponStats(state, 'plasma');
+    state.upgrades = upgrades;
+    assert.deepEqual(weaponStats(state, 'plasma'), normalized, 'direct stats normalize malformed ranks consistently');
+    state.status = 'hangar'; state.credits = 1e6;
+    assert.equal(buyUpgrade(state, 'fireRate'), expected < MAX_UPGRADE);
+    if (expected < MAX_UPGRADE) assert.equal(state.upgrades.fireRate, expected + 1);
+  }
+  const state = createCampaign(9, { upgrades: { weapon: 5, fireRate: 4, firePower: 3 } });
+  const expected = { ...state.upgrades };
+  beginLevel(state, 10); assert.deepEqual(state.upgrades, expected);
+  assert.deepEqual(createCampaign(10, state).upgrades, expected, 'cycle transitions and retries retain both independent ranks');
 });
 
 // ——— Choreography, power, drones, novas, reserve ships and challenging stages ———

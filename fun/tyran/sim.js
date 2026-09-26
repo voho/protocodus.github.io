@@ -5,12 +5,18 @@ import { createDirector, updateDirector, enemyGoal, isDormant, startChallenge, u
 
 export const UPGRADES = [
   { id: 'weapon', name: 'Ion armament', subtitle: 'More firepower for every weapon and drone.', base: 420, icon: '⌁' },
+  { id: 'fireRate', name: 'Fire rate', subtitle: '+2% base fire rate per rank for guns and drones.', base: 540, icon: '»' },
+  { id: 'firePower', name: 'Fire power', subtitle: '+2% base shot damage per rank for guns and drones.', base: 600, icon: '✦' },
   { id: 'shield', name: 'Flux shield', subtitle: 'A larger energy barrier.', base: 340, icon: '◇' },
   { id: 'hull', name: 'Titanium hull', subtitle: 'Stronger armor. More inertia.', base: 300, icon: '⬡' },
   { id: 'recharge', name: 'Fusion capacitor', subtitle: 'Recover shields and fire energy faster, sooner.', base: 280, icon: 'ϟ' },
 ];
 export const MAX_UPGRADE = 6;
 export const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+const upgradeRank = value => {
+  const rank = Number(value);
+  return Number.isFinite(rank) ? clamp(Math.floor(rank), 0, MAX_UPGRADE) : 0;
+};
 const rand = (a, b) => a + Math.random() * (b - a);
 const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const TAU = Math.PI * 2;
@@ -89,7 +95,7 @@ export const comboLabel = combo => combo >= 5 ? 'Rampage' : combo >= 3 ? 'Multi 
 const comboTier = combo => combo >= 5 ? 3 : combo >= 3 ? 2 : combo >= 2 ? 1 : 0;
 const comboDamageFor = combo => [1, 1.1, 1.18, 1.27][comboTier(combo)];
 const comboBlastFor = combo => [1, 1.12, 1.24, 1.38][comboTier(combo)];
-export const upgradeCost = (s, id) => Math.round(UPGRADES.find(u => u.id === id).base * 1.55 ** s.upgrades[id]);
+export const upgradeCost = (s, id) => Math.round(UPGRADES.find(u => u.id === id).base * 1.55 ** upgradeRank(s.upgrades[id]));
 export const shipStats = u => ({ hull: 120 + u.hull * 45, shield: 85 + u.shield * 38, recharge: 10 + u.recharge * 5, delay: Math.max(.8, 3.2 - u.recharge * .35), damage: 13 + u.weapon * 6,
   energy: 100, energyRecharge: 18 + u.recharge * 3, energyDelay: Math.max(.4, 1 - u.recharge * .1),
   mass: 1 + u.hull * .055 + u.weapon * .018 + u.shield * .014 + u.recharge * .008 });
@@ -110,12 +116,14 @@ export function supplyStock(s, id) {
 }
 
 export function weaponStats(s, id = s.players?.[0]?.weapon ?? s.weapon) {
-  const profile = primaryById.get(id) && id !== 'pulse' ? primaryById.get(id) : weaponInfo(id), level = clamp(Number(s.upgrades?.weapon) || 0, 0, MAX_UPGRADE);
+  const profile = primaryById.get(id) && id !== 'pulse' ? primaryById.get(id) : weaponInfo(id), level = upgradeRank(s.upgrades?.weapon);
+  const fireRate = upgradeRank(s.upgrades?.fireRate), firePower = upgradeRank(s.upgrades?.firePower);
   return {
     ...profile,
-    level,
-    damage: profile.damage * (1 + level * .105),
-    interval: profile.interval / (1 + level * .022),
+    level, fireRate,
+    damage: profile.damage * (1 + level * .105 + firePower * .02),
+    baseInterval: profile.interval / (1 + level * .022),
+    interval: profile.interval / (1 + level * .022 + fireRate * .02),
     spread: profile.spread * (1 - level * .018),
     splash: (profile.splash || 0) + (profile.id === 'plasma' ? level * 4 : 0),
   };
@@ -125,7 +133,17 @@ export function weaponStats(s, id = s.players?.[0]?.weapon ?? s.weapon) {
 export function primaryStats(s, pilot = s.players?.[0]) {
   const id = normalizePrimary(s.primary), base = weaponStats(s, id), power = clamp(Math.floor(pilot?.power || 0), 0, MAX_POWER);
   const volley = VOLLEYS[id][power];
-  return { ...base, power, volley, count: volley.length, interval: base.interval / RATE[id][power] };
+  return { ...base, power, volley, count: volley.length, baseInterval: base.baseInterval / RATE[id][power], interval: base.interval / RATE[id][power] };
+}
+
+/** Actual sustained spacing at the game's fixed 60 Hz simulation rate. */
+export function firingInterval(profile, rapid = false) {
+  const baseline = profile.baseInterval ?? profile.interval;
+  let remaining = baseline / (rapid ? RAPID_FIRE_MULTIPLIER : 1), ticks = 0;
+  // Preserve the old cooldown's exact rounding, including floating-point
+  // boundaries (for example, the Lance Driver's .3s takes 19 ticks).
+  do { remaining -= 1 / 60; ticks++; } while (remaining > 0);
+  return ticks / 60 * profile.interval / baseline;
 }
 
 export function selectWeapon(s, id, playerId = 0) {
@@ -241,7 +259,7 @@ const newStats = () => ({ shots: 0, hits: 0, squads: 0, dives: 0, rescues: 0 });
 export function createCampaign(level = 0, checkpoint = null, difficulty = 'easy') {
   const state = {
     mode: 1, level: normalizeLevel(level), status: 'playing', difficulty: normalizeDifficulty(checkpoint?.difficulty === undefined ? difficulty : checkpoint.difficulty),
-    upgrades: { weapon: 0, shield: 0, hull: 0, recharge: 0 }, credits: 0, score: 0,
+    upgrades: { weapon: 0, fireRate: 0, firePower: 0, shield: 0, hull: 0, recharge: 0 }, credits: 0, score: 0,
     width: 1200, height: 900, time: 0, scroll: 0, enemies: [], bullets: [], pickups: [], players: [], turrets: [],
     events: [], kills: 0, destroyed: 0, totalKills: 0, combo: 0, comboTime: 0, comboDamage: 1, comboBlast: 1, comboLabel: '',
     weapon: 'pulse', formations: [], nextEnemyId: 1, nextFormationId: 1, formationTimer: 11,
@@ -250,7 +268,7 @@ export function createCampaign(level = 0, checkpoint = null, difficulty = 'easy'
   };
   let carry = { power: 0, drones: 0, bombs: START_BOMBS };
   if (checkpoint) {
-    for (const id of Object.keys(state.upgrades)) state.upgrades[id] = clamp(Math.floor(Number(checkpoint.upgrades?.[id]) || 0), 0, MAX_UPGRADE);
+    for (const id of Object.keys(state.upgrades)) state.upgrades[id] = upgradeRank(checkpoint.upgrades?.[id]);
     state.credits = campaignTotal(checkpoint.credits);
     state.score = campaignTotal(checkpoint.score);
     state.totalKills = campaignTotal(checkpoint.totalKills);
@@ -296,11 +314,13 @@ export function beginLevel(s, level) {
 }
 
 export function buyUpgrade(s, id) {
-  if (s.status !== 'hangar' || !UPGRADES.some(u => u.id === id) || s.upgrades[id] >= MAX_UPGRADE) return false;
+  if (s.status !== 'hangar' || !UPGRADES.some(u => u.id === id)) return false;
+  const rank = upgradeRank(s.upgrades[id]);
+  if (rank >= MAX_UPGRADE) return false;
   const cost = upgradeCost(s, id);
   if (s.credits < cost) return false;
   s.credits -= cost;
-  s.upgrades[id]++;
+  s.upgrades[id] = rank + 1;
   return true;
 }
 
@@ -378,7 +398,7 @@ function bolt(s, p, x, y, angle, profile, damage, extra = {}) {
     chainFactor: profile.chainFactor || .6, hitIds: [], age: 0, comboBlast: s.comboBlast || 1, ...extra });
 }
 
-function shoot(s, p, id) {
+function shoot(s, p, id, remainder = 0) {
   const comboDamage = s.comboDamage || 1;
   // Keep the existing single-player damage balance.
   const damageAssist = 1.35;
@@ -407,7 +427,10 @@ function shoot(s, p, id) {
       bolt(s, p, drone.x, drone.y - 14, -Math.PI / 2, { ...pulse, color: DRONE_COLOR, radius: 3.1 }, pulse.damage * .55 * comboDamage * damageAssist, { drone: true, ground: false });
     }
   }
-  p.fire = profile.interval / (p.rapidFireTime > 0 ? RAPID_FIRE_MULTIPLIER : 1);
+  // New rate ranks retain fractional progress between held shots. Zero ranks
+  // keep the original timing, and fresh presses never inherit idle-time debt.
+  p.fire = profile.fireRate > 0 ? firingInterval(profile, p.rapidFireTime > 0) + remainder
+    : profile.interval / (p.rapidFireTime > 0 ? RAPID_FIRE_MULTIPLIER : 1);
   p.weapon = id === 'plasma' ? 'plasma' : 'pulse';
   if (p.id === 0) s.weapon = p.weapon;
   s.events.push({ type: 'shot', player: p.id, weapon: id === 'plasma' ? 'plasma' : profile.id });
@@ -855,7 +878,9 @@ export function update(s, dt, input = [], environmentHit = null) {
     // Nova charges trigger on a fresh press only.
     if (controls.bomb && !p.bombHeld && p.bombs > 0) detonateNova(s, p);
     if (p.bombHeld !== undefined || controls.bomb) p.bombHeld = !!controls.bomb;
+    const fireWasCooling = p.fire > 0;
     p.fire -= dt;
+    const remainder = fireWasCooling ? Math.min(0, p.fire) : 0;
     if (p.fire <= 0) {
       if (controls.secondary && !p.fireEnergyLocked && p.fireEnergy >= SECONDARY_ENERGY_COST) {
         p.fireEnergy -= SECONDARY_ENERGY_COST;
@@ -863,8 +888,8 @@ export function update(s, dt, input = [], environmentHit = null) {
         // Recharge enough for a useful burst instead of stuttering one shot
         // every time the meter reaches its minimum cost.
         if (p.fireEnergy < SECONDARY_ENERGY_COST) p.fireEnergyLocked = true;
-        shoot(s, p, 'plasma');
-      } else if (controls.fire) shoot(s, p, 'pulse');
+        shoot(s, p, 'plasma', remainder);
+      } else if (controls.fire) shoot(s, p, 'pulse', remainder);
     }
   }
   const pilot = s.players.find(p => p.alive) || null;

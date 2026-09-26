@@ -273,6 +273,8 @@ button.weapon-card:disabled{opacity:.5}
 @media(prefers-reduced-motion:no-preference){.shop-art img{transition:transform .25s ease}.upgrade-card:hover:enabled .shop-art img,.weapon-card:hover:enabled .shop-art img{transform:scale(1.025)}}
 
 .shop-art,.weapon-card .shop-art,.supply-list .shop-art{height:auto;aspect-ratio:16/7}
+#upgrade-list .upgrade-card{grid-template-rows:auto auto auto 1fr auto auto auto}
+@media(min-width:761px){#upgrade-list{grid-template-columns:repeat(3,minmax(0,1fr))}}
 
 /* One stationary reward readout keeps kill and pickup text out of the flight path. */
 .flight-readouts{display:flex;flex-direction:column;align-items:flex-end;gap:12px;flex-shrink:0}

@@ -23,7 +23,17 @@ function easyFingerprint(difficulty) {
           }
         }
         update(s,1/60,[{x:Math.sin(frame*.03)*.4,y:0,fire:frame%180<80}]);
-        if(frame%30===0)hash.update(JSON.stringify(s,(key,value)=>key==='difficulty'?undefined:value));
+        if(frame%30===0)hash.update(JSON.stringify(s,(key,value)=>{
+          if(key==='difficulty')return undefined;
+          // New, unequipped upgrades do not belong to the historical state
+          // schema; keep comparing every original combat value unchanged.
+          if(key==='upgrades'){
+            const {fireRate,firePower,...original}=value;
+            assert.equal(fireRate,0);assert.equal(firePower,0);
+            return original;
+          }
+          return value;
+        }));
         s.events.length=0;
       }
     }

@@ -96,4 +96,4 @@ Collectible icons are drawn and cached by `bonus-sprites.js`; every bonus uses t
 
 ## Shop previews
 
-`shop-art.js` composes eleven 640 × 280 product images from the existing decoded fleet, structure, projectile and effects art. Weapon cards show firing patterns; support cards show drones, a reserve ship and nova hardware; system cards show armament, shields, armor and the reactor. Startup caches these inline PNG previews once, so opening or updating the shop makes no additional asset requests.
+`shop-art.js` composes thirteen 640 × 280 product images from the existing decoded fleet, structure, projectile and effects art. Weapon cards show firing patterns; support cards show drones, a reserve ship and nova hardware; system cards show armament, firing cadence, shot power, shields, armor and the reactor. Startup caches these inline PNG previews once, so opening or updating the shop makes no additional asset requests.

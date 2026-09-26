@@ -1,7 +1,7 @@
 import { WORLDS, PARALLAX_LAYERS, WorldRenderer } from './worlds.js';
 import { ENEMY_TYPES, SHIP_PALETTES, drawShip, warmShipSprites } from './ships.js';
 import { createCampaign, beginLevel, update, buyUpgrade, upgradeCost, UPGRADES, WEAPONS, BULLET_SPECTRUM, MAX_UPGRADE, clamp, selectWeapon, shipStats, weaponStats, SECONDARY_ENERGY_COST, SECONDARY_RESTART_ENERGY, bossWeakPointPosition, applyGroundReward,
-  PRIMARIES, SUPPLIES, buyPrimary, buySupply, supplyCost, supplyStock, primaryStats, MAX_POWER } from './sim.js';
+  PRIMARIES, SUPPLIES, buyPrimary, buySupply, supplyCost, supplyStock, primaryStats, firingInterval, MAX_POWER } from './sim.js';
 import { isDormant, directorProgress } from './waves.js';
 import { Effects, warmEffectsTextures } from './effects.js';
 import { CombatFeedback } from './combat-feedback.js';
@@ -415,10 +415,12 @@ function renderUpgrades() {
   $('upgrade-list').innerHTML = UPGRADES.map(u => {
     const level = state.upgrades[u.id], maxed = level >= MAX_UPGRADE, cost = upgradeCost(state, u.id);
     const next = { ...state, upgrades: { ...state.upgrades, [u.id]: Math.min(MAX_UPGRADE, level + 1) } }, upgraded = shipStats(next.upgrades), nextWeapon = primaryStats(next);
-    const preview = u.id === 'weapon' ? `${weapon.damage.toFixed(1)} → ${nextWeapon.damage.toFixed(1)} power · ${(1 / nextWeapon.interval).toFixed(1)} shots/s`
+    const preview = u.id === 'fireRate' ? `${(1 / firingInterval(weapon)).toFixed(2)} → ${(1 / firingInterval(nextWeapon)).toFixed(2)} volleys/s`
+      : u.id === 'firePower' ? `${weapon.damage.toFixed(2)} → ${nextWeapon.damage.toFixed(2)} shot damage`
+      : u.id === 'weapon' ? `${weapon.damage.toFixed(1)} → ${nextWeapon.damage.toFixed(1)} damage · ${(1 / firingInterval(nextWeapon)).toFixed(2)} volleys/s`
       : u.id === 'recharge' ? `${stats.recharge} → ${upgraded.recharge} shield/s · ${stats.energyRecharge} → ${upgraded.energyRecharge} energy/s`
       : `${stats[u.id]} → ${upgraded[u.id]} ${u.id}`;
-    return `<button class="upgrade-card" data-upgrade="${u.id}" ${maxed || state.credits < cost ? 'disabled' : ''}>${shopArtMarkup(`upgrade:${u.id}`)}<span class="upgrade-level">Mk ${String(level + 1).padStart(2, '0')} / 07</span><span class="upgrade-name">${u.name}</span><span class="upgrade-description">${u.subtitle}</span><span class="upgrade-preview">${maxed ? 'Maximum performance reached' : preview}</span><span class="upgrade-pips" aria-hidden="true">${Array.from({ length: 6 }, (_, i) => `<i class="${i < level ? 'filled' : ''}"></i>`).join('')}</span><span class="upgrade-cost">${maxed ? 'Fully upgraded' : `${number(cost)} credits <span aria-hidden="true">+</span>`}</span></button>`;
+    return `<button class="upgrade-card" data-upgrade="${u.id}" ${maxed || state.credits < cost ? 'disabled' : ''}>${shopArtMarkup(`upgrade:${u.id}`)}<span class="upgrade-level">Mk ${String(level + 1).padStart(2, '0')} / ${String(MAX_UPGRADE + 1).padStart(2, '0')}</span><span class="upgrade-name">${u.name}</span><span class="upgrade-description">${u.subtitle}</span><span class="upgrade-preview">${maxed ? 'Maximum performance reached' : preview}</span><span class="upgrade-pips" aria-hidden="true">${Array.from({ length: MAX_UPGRADE }, (_, i) => `<i class="${i < level ? 'filled' : ''}"></i>`).join('')}</span><span class="upgrade-cost">${maxed ? 'Fully upgraded' : `${number(cost)} credits <span aria-hidden="true">+</span>`}</span></button>`;
   }).join('');
   renderWeapons(); renderSupplies();
 }
@@ -434,12 +436,12 @@ function renderSupplies() {
 const WEAPON_ICONS = { pulse: 'Ⅱ', scatter: '⋔', lance: '|', plasma: '◉' };
 function weaponBars(stats, count, fastestInterval) {
   const power = Math.round(Math.min(100, stats.damage * count * 1.18));
-  const speed = Math.round(Math.min(100, 100 * fastestInterval / stats.interval));
+  const speed = Math.round(Math.min(100, 100 * fastestInterval / firingInterval(stats)));
   const range = Math.round(Math.min(100, stats.speed * stats.life / 12));
-  return `<span class="weapon-bars" aria-label="Power ${power}, fire rate ${speed}, reach ${range}"><i style="--bar:${power}%"></i><i style="--bar:${speed}%"></i><i style="--bar:${range}%"></i></span><span class="weapon-readout"><b>${stats.damage.toFixed(1)} damage${count > 1 ? ` × ${count}` : ''}</b><b>${(1 / stats.interval).toFixed(1)} / s</b></span>`;
+  return `<span class="weapon-bars" aria-label="Power ${power}, fire rate ${speed}, reach ${range}"><i style="--bar:${power}%"></i><i style="--bar:${speed}%"></i><i style="--bar:${range}%"></i></span><span class="weapon-readout"><b>${stats.damage.toFixed(1)} damage${count > 1 ? ` × ${count}` : ''}</b><b>${(1 / firingInterval(stats)).toFixed(2)} / s</b></span>`;
 }
 function renderWeapons() {
-  const fastestInterval = weaponStats(state, 'pulse').interval;
+  const fastestInterval = firingInterval(weaponStats(state, 'pulse'));
   const primaries = PRIMARIES.map(weapon => {
     const owned = state.owned?.includes(weapon.id), equipped = state.primary === weapon.id;
     const stats = primaryStats({ ...state, primary: weapon.id });

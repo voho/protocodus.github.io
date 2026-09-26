@@ -6,6 +6,7 @@ const WIDTH=640,HEIGHT=280,TAU=Math.PI*2,images=new Map(),decoded=new Map();
 let ready;
 const ITEMS=Object.freeze({
   'upgrade:weapon':'#91efe0','upgrade:shield':'#8ecfff','upgrade:hull':'#d8d4b5','upgrade:recharge':'#ffce8f',
+  'upgrade:fireRate':'#82ddff','upgrade:firePower':'#ffb577',
   'weapon:pulse':'#9cfff0','weapon:scatter':'#ffd37a','weapon:lance':'#c9b2ff','weapon:plasma':'#ff9e7d',
   'supply:drone':'#ffc46b','supply:bomb':'#d8bcff','supply:life':'#9cfff0',
 });
@@ -56,6 +57,34 @@ function armor(c){
     c.fillStyle='#15282b';for(const [x,y]of points){c.beginPath();c.arc(x+(160-x)*.04,y+(76-y)*.08,1.2,0,TAU);c.fill();}
   }
 }
+function fireRate(c,color){
+  fighter(c,160,106,87,99);
+  // Separate, evenly spaced pairs read as rapid volleys at card-thumbnail size.
+  for(const [i,y]of [17,39,61].entries()){
+    c.save();c.globalAlpha=.62+i*.18;
+    for(const x of [145,175]){glow(c,x,y,12,color,.2);bolt(c,'pulse',color,x,y,17,26);}
+    c.restore();
+  }
+  for(const side of [-1,1]){
+    const x=160+side*57;
+    c.strokeStyle=`${color}62`;c.lineWidth=1;c.beginPath();c.moveTo(x,23);c.lineTo(x,73);c.lineTo(x-side*10,82);c.stroke();
+    for(let n=0;n<5;n++){c.fillStyle=n<3?'#bdf5ff':'#538896';c.fillRect(x-3,26+n*10,6,3);}
+  }
+}
+function firePower(c,color){
+  fighter(c,160,101,102,110);
+  // A reinforced central emitter and one dense bolt distinguish power from cadence.
+  const casing=c.createLinearGradient(138,55,182,101);casing.addColorStop(0,'#d3d9be');casing.addColorStop(.3,'#778f88');casing.addColorStop(1,'#293e3e');
+  path(c,[[141,62],[147,52],[173,52],[179,62],[174,104],[146,104]]);c.fillStyle=casing;c.fill();c.strokeStyle='#cadcc5';c.lineWidth=.8;c.stroke();
+  c.fillStyle='#172a2a';c.fillRect(150,68,20,30);
+  for(const x of [146,171]){c.fillStyle='#e6c18f';c.fillRect(x,70,3,22);c.fillStyle='#556c64';c.fillRect(x,80,3,2);}
+  glow(c,160,55,37,color,.43);c.fillStyle='#162c2a';c.beginPath();c.ellipse(160,60,16,10,0,0,TAU);c.fill();
+  c.strokeStyle='#ffd6a0';c.lineWidth=2;c.stroke();
+  bolt(c,'lance',color,160,30,48,77);
+  glow(c,160,54,19,'#fff2cb',.64);
+  c.strokeStyle=`${color}6b`;c.lineWidth=1;
+  for(const side of [-1,1]){c.beginPath();c.moveTo(160+side*27,28);c.lineTo(160+side*35,47);c.lineTo(160+side*27,62);c.stroke();}
+}
 function build(key,color){
   const out=document.createElement('canvas');out.width=WIDTH;out.height=HEIGHT;
   const c=out.getContext('2d');c.scale(2,2);c.imageSmoothingQuality='high';stage(c,color);
@@ -63,7 +92,9 @@ function build(key,color){
   else if(key==='upgrade:weapon'){
     fighter(c,160,83,104,116);for(const x of [127,193]){bolt(c,'pulse',color,x,47,27,77);c.fillStyle='#798d8b';c.fillRect(x-3,62,6,27);c.fillStyle='#c3d9ce';c.fillRect(x-1,60,2,23);}
     glow(c,160,74,42,color,.12);
-  }else if(key==='upgrade:shield'){
+  }else if(key==='upgrade:fireRate')fireRate(c,color);
+  else if(key==='upgrade:firePower')firePower(c,color);
+  else if(key==='upgrade:shield'){
     fighter(c,160,79);const g=c.createRadialGradient(155,69,18,160,76,66);g.addColorStop(0,'#7cdbff00');g.addColorStop(.85,'#7cdbff12');g.addColorStop(1,'#b6ecff5c');
     c.fillStyle=g;c.beginPath();c.ellipse(160,75,66,58,0,0,TAU);c.fill();
     for(let n=0;n<6;n++){c.strokeStyle=n%2?'#bcecffb8':'#6dceff52';c.lineWidth=n%2?1.1:2;c.beginPath();c.ellipse(160,75,68,60,0,n*TAU/6+.08,(n+1)*TAU/6-.06);c.stroke();}
