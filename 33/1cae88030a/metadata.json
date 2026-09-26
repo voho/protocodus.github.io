@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "331cae88030a",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "fun/tyran/README.md",
+    "fun/tyran/assets/ASSETS.md",
+    "fun/tyran/audio-assets.js",
+    "fun/tyran/tests/preload-browser-check.mjs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/33/1cae88030a/0/metadata.json",
+      "transcript": "/33/1cae88030a/0/full.jsonl",
+      "context": "/33/1cae88030a/0/context.md",
+      "content_hash": "/33/1cae88030a/0/content_hash.txt",
+      "prompt": "/33/1cae88030a/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 184,
+    "cache_creation_tokens": 222747,
+    "cache_read_tokens": 6989952,
+    "output_tokens": 50046,
+    "api_call_count": 67
+  }
+}
