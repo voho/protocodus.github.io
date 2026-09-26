@@ -5,7 +5,7 @@ import { seedNumber, randomSource, hashNoise, noise } from './world-noise.js';
 // Settlement regions represent fertile valleys and trade corridors. Their sizes,
 // weights and orientations vary independently, leaving room for quiet wilderness.
 // This file is part of save recipe 2: preserve it when adding later recipes.
-export function populateWorldV2(game, biome, seed, config, { starterX, starterY, land }) {
+export function populateWorldV2(game, biome, seed, config, { starterX, starterY, land, naturalRelief = false }) {
   const { width, height, tiles } = game;
   const numericSeed = seedNumber(seed), random = randomSource(numericSeed ^ 0x628cf315);
   const tile = (x, y) => x >= 0 && y >= 0 && x < width && y < height ? tiles[y * width + x] : null;
@@ -76,12 +76,12 @@ export function populateWorldV2(game, biome, seed, config, { starterX, starterY,
   const publicRoad = (x, y, starter = false) => {
     const t = tile(x, y); if (!t || (!starter && (t.building || (!habitable(t) && !(t.road && t.bridge))))) return false;
     if (t.terrain === 'water') t.bridge = true;
-    else { t.terrain = land; t.detail = ''; t.elevation = .25; }
+    else { t.terrain = land; t.detail = ''; if (!naturalRelief) t.elevation = .25; }
     t.road = true; t.publicRoad = true; t.building = null;
     return true;
   };
   const plantBuilding = (t, kind) => {
-    t.terrain = land; t.detail = ''; t.elevation = .25;
+    t.terrain = land; t.detail = ''; if (!naturalRelief) t.elevation = .25;
     t.building = { kind, level: 1 };
   };
   for (let i = 0; i < locations.length; i++) {
@@ -95,7 +95,7 @@ export function populateWorldV2(game, biome, seed, config, { starterX, starterY,
       for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++) {
         const t = tile(cx + dx, cy + dy);
         if (t.terrain === 'water') { if (dx % 4 === 0 || dy % 4 === 0) publicRoad(cx + dx, cy + dy, true); continue; }
-        t.terrain = land; t.detail = ''; t.elevation = .25;
+        t.terrain = land; t.detail = ''; if (!naturalRelief) t.elevation = .25;
         if (dx % 4 === 0 || dy % 4 === 0) publicRoad(cx + dx, cy + dy, true);
         else if (Math.abs(dx) === 2 && Math.abs(dy) === 2) t.detail = biome === 'taiga' ? 'wildflowers' : biome === 'tundra' ? 'shrubs' : 'scrub';
         else plots.push({ t, dx, dy, order: random() });
@@ -272,7 +272,7 @@ export function populateWorldV2(game, biome, seed, config, { starterX, starterY,
       else if (kind.includes('mine') || kind === 'quarry') { t.terrain = 'rock'; t.detail = biome === 'desert' ? 'canyon' : 'glacial'; }
       else if (kind === 'sand-pit') { t.terrain = 'sand'; t.detail = 'dunes'; }
       else { t.terrain = kind === 'farm' ? 'grass' : land; t.detail = ''; }
-      t.elevation = .25;
+      if (!naturalRelief) t.elevation = .25;
       const inventory = Object.fromEntries([...Object.keys(def.inputs), ...Object.keys(def.outputs)].map(cargo => [cargo, 0]));
       if (extraction) for (const [cargo, rate] of Object.entries(def.outputs)) inventory[cargo] = rate * 12;
       game.industries.push({ id: `industry-${game.industries.length + 1}`, kind, name: def.name, x, y, capacity: 1, inventory, production: 0, totalProduced: 0, activity: 0, shipped: 0, received: 0, idleDays: 0, owner: 'world' });

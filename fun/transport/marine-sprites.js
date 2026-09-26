@@ -1,5 +1,6 @@
-// Original miniature marine artwork, rasterized at each view's display density.
-// Eight headings keep hull edges stable while boats follow the water grid.
+// Generated marine art is cached at each view's display density. The native
+// drawings below are recovery artwork while PNGs load or cannot be fetched.
+// Eight authored headings keep hull edges stable on the water grid.
 import { drawRasterVehicle, drawRasterInfrastructure } from './raster-transport.js';
 import { worldArtRevision } from './atlas-runtime.js';
 export const MARINE_SIZE = 64;

@@ -59,7 +59,9 @@ Layer settings change the view while the transport network and hidden structures
 
 Woodland uses 64 arrangements per habitat, from a single mature tree to five-tree clusters. Pine, spruce, fir, broadleaf and mixed stands have varied heights, saplings, leafy crowns and bare branches; desert and tundra keep their own species. Crowns overlap tile edges to break up regular rows. Mountains, boulders, shrubs and ground plants also vary in shape, size and placement. This artwork updates existing saves when you reload.
 
-Generated miniature artwork covers houses, civic buildings, shops, services, industries, nature, vehicles and transport infrastructure. New industry sites occupy **2×2 tiles**, with recognizable pits, yards, tanks and machinery; stops can serve them from any edge. Existing saved industries keep their original footprint. Every bus, truck, locomotive, coach, wagon and ship has eight separately drawn travel directions, with cargo and lighting following its heading. Sprite sources and generation prompts are recorded in [assets/world/README.md](assets/world/README.md).
+Land has elevation levels from 0 to 16, shown when inspecting a parcel. Natural elevations blend into continuous hills, valleys and plateaus, with soft sunlight on northwest slopes and shade on southeast slopes. Ground color follows altitude, moisture and geological material; plants and rocky outcrops are subdued, while woodland varies between dense canopy and open clearings. Smooth riverbanks and local shallows replace uniform bright shoreline outlines. The same relief appears on the overview and remains visible with decorations hidden. These rendering improvements use existing companies' saved elevations. Newly generated companies also preserve natural elevation beneath roads and settlements, avoiding rectangular depressions; choose **New world** for that generation change.
+
+Generated miniature artwork covers houses, civic buildings, shops, services, industries, nature, vehicles and transport infrastructure. New industry sites occupy **2×2 tiles**, with recognizable pits, yards, tanks and machinery; stops can serve them from any edge. Existing saved industries keep their original footprint. Every bus, truck, locomotive, coach, wagon and ship has eight separately drawn travel directions, with cargo and lighting following its heading. Sprite sources and generation prompts are recorded in [assets/world/README.md](assets/world/README.md). Build menus, industry lists and inspectors, production chains and route vehicle previews use the same artwork, with display-density matching on Retina screens. Resource and navigation pictograms remain clear at small sizes.
 
 Sprites and terrain are drawn at the resolution of each view, including high-density displays. Houses vary their roof and wall finishes; detailed views reveal masonry, roof tiles, reflective windows, paving and garden fences. Tundra roofs carry snow, and yards use plants suited to the environment. Sawmills, blast furnaces, food plants, silos, glassworks, wire mills and assembly factories have distinct silhouettes and working yards. Water has depth shading, shallow banks, submerged stones, subtle reflections and curved ripples; motion pauses with the simulation. Region emphasizes clear silhouettes, Town balances building detail and network planning, and Detail makes fine architectural and terrain features easier to inspect. Zooming toward the pointer keeps the same map location under it.
 
@@ -120,9 +122,15 @@ The nine house designs use generated, textured miniature artwork with distinct r
 
 Residential zoning moves through the three housing tiers as it develops. Community buildings and services improve local development conditions; the game does not simulate individual education, crime, disease or fire incidents.
 
+## Shape the land and cross it
+
+Open **Build → Network → Terrain & crossings**. **Raise +1** and **Lower −1** change each selected dry tile by one level per click or drag, with smooth slopes blending into its neighbors. Land stays between levels 1 and 16; water is unchanged. Clear buildings, zones and networks first. Cities, industries and stops remain protected. The preview shows the level change and price; edits are saved with your company.
+
+Choose **Road** or **Rail** in the same section, then **Bridge** or **Tunnel**. Drag at least three tiles between two dry ends at the **same level**. The preview snaps to a straight line. Bridges cross water or lower ground; tunnels pass through higher dry ground. Raise or lower the approaches to match their levels first. Invalid spans show the reason before you release and leave the whole landscape and balance unchanged. Connect roads or rails to each end; routes use the completed crossing. Ordinary Road and Rail tools still provide automatic crossings over water and mountain terrain.
+
 ## Scope
 
-Transport uses a compact economic simulation with two-stop routes, one vehicle per service, and automatic vehicle movement. Road vehicles, trains and ships can carry passengers or freight, with different speeds, capacities and costs. Road and rail crossings are allowed. There are no signals, collision management, competitors, multiplayer, terrain sculpting, canals or vehicle timetables. Road and Rail automatically choose bridges and tunnels per tile across the relevant terrain.
+Transport uses a compact economic simulation with two-stop routes, one vehicle per service, and automatic vehicle movement. Road vehicles, trains and ships can carry passengers or freight, with different speeds, capacities and costs. Road and rail crossings are allowed. There are no signals, collision management, competitors, multiplayer, canals or vehicle timetables. Road and Rail automatically choose bridges and tunnels per tile across the relevant terrain.
 
 ## Run locally
 
@@ -220,4 +228,12 @@ Square-world checks: `square-world-ui-check.mjs` creates all three sizes through
 
 `uneven-world-check.mjs` compares old and new atlas layouts, habitat variation and settlement clustering across seeds, environments and all square sizes.
 
+`ui-art-browser-check.mjs` verifies generated art in desktop and mobile build menus, inspectors, filtered lists, production chains, route vehicle selection and biome previews, including Retina density. Screenshots go to `/tmp/transport-ui-art`.
+
 `raster-houses-browser-check.mjs` verifies all nine generated house designs in each environment at every zoom and display density, along with transparent sources, cache limits, delayed loading and artwork fallbacks. It saves source sheets, zoom galleries and gameplay views to `/tmp/transport-raster-houses-qa`.
+
+The terrain construction browser check covers raising/lowering with real pointer gestures, level and cost previews, protected tiles, road/rail bridges and tunnels, invalid span rejection, save restoration, and the compact mobile tools:
+
+```sh
+TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/earthworks-browser-check.mjs
+```

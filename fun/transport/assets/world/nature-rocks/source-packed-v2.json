@@ -1,0 +1,119 @@
+{
+  "source": "fun/transport/assets/world/nature-rocks/source-generated-v2.png",
+  "sourceSize": [
+    1254,
+    1254
+  ],
+  "cell": 640,
+  "operation": "RGBA crop and integer translation only",
+  "cells": [
+    {
+      "sourceCrop": [
+        0,
+        0,
+        429,
+        453
+      ],
+      "integerOffset": [
+        105,
+        93
+      ]
+    },
+    {
+      "sourceCrop": [
+        429,
+        0,
+        835,
+        453
+      ],
+      "integerOffset": [
+        117,
+        93
+      ]
+    },
+    {
+      "sourceCrop": [
+        835,
+        0,
+        1254,
+        453
+      ],
+      "integerOffset": [
+        110,
+        93
+      ]
+    },
+    {
+      "sourceCrop": [
+        0,
+        453,
+        419,
+        870
+      ],
+      "integerOffset": [
+        110,
+        111
+      ]
+    },
+    {
+      "sourceCrop": [
+        419,
+        453,
+        846,
+        870
+      ],
+      "integerOffset": [
+        106,
+        111
+      ]
+    },
+    {
+      "sourceCrop": [
+        846,
+        453,
+        1254,
+        870
+      ],
+      "integerOffset": [
+        116,
+        111
+      ]
+    },
+    {
+      "sourceCrop": [
+        0,
+        870,
+        420,
+        1254
+      ],
+      "integerOffset": [
+        110,
+        128
+      ]
+    },
+    {
+      "sourceCrop": [
+        420,
+        870,
+        838,
+        1254
+      ],
+      "integerOffset": [
+        111,
+        128
+      ]
+    },
+    {
+      "sourceCrop": [
+        838,
+        870,
+        1254,
+        1254
+      ],
+      "integerOffset": [
+        112,
+        128
+      ]
+    }
+  ]
+}

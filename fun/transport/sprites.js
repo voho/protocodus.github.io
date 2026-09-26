@@ -1,6 +1,6 @@
-import { BUILDINGS } from './buildings.js';
+import { BUILDINGS, residentialKind, commercialKind } from './buildings.js';
 import { INDUSTRIES } from './data.js';
-import { worldArtRevision } from './atlas-runtime.js';
+import { worldArtRevision, preloadWorldArt } from './atlas-runtime.js';
 import { drawRasterIndustry } from './raster-industries.js';
 import { drawRasterBuilding } from './raster-buildings.js';
 import { drawRasterNature } from './raster-nature.js';
@@ -10,7 +10,7 @@ import { drawTerrainDetail } from './terrain-sprites.js';
 import { drawForest, drawTree } from './tree-sprites.js';
 import { drawMountain, drawBoulder } from './relief-sprites.js';
 import { drawRasterHouse, houseAssetsRevision, preloadHouses } from './raster-houses.js';
-// Generated house artwork and code-native objects share one bounded sprite cache.
+// Generated artwork and emergency code-native fallbacks share one bounded cache.
 export const TILE = 32;
 export const PALETTES = {
   taiga: { ground: '#91a77a', ground2: '#9aae82', ground3: '#879f72', speck: '#bcc19a', dark: '#738e65', water: '#528f96', deep: '#377881', shore: '#b9bea0', forest: '#799664', mountain: '#999d91', sand: '#c4ba94' },
@@ -105,15 +105,20 @@ function industry(ctx,kind,r,biome,detailLevel='town') {
   }
 }
 export function createSprites(biome,{pixelScale=2,detailLevel='town'}={}) {
-  // Rasterize each profile at its final screen density. Houses use matching
-  // bitmap LODs; code-native objects retain their profile-specific detail.
+  // Every consumer, including detached previews, starts the generated artwork.
+  // Revision checks replace temporary fallbacks as individual images arrive.
   void preloadHouses({waitMs:0});
+  void preloadWorldArt({waitMs:0});
   const density=Number.isFinite(pixelScale)&&pixelScale>0?pixelScale:2;
   const profile=['region','town','detail'].includes(detailLevel)?detailLevel:'town';
   // Each factory owns its cache, so biome, density and profile are part of its identity.
   const cache=new Map(),cacheLimit=16*1024*1024;let cacheBytes=0,assetRevision=houseAssetsRevision(),worldRevision=worldArtRevision();
   const natureKinds=new Set(['forest','rock','mountain','terrain-detail']);
   return function sprite(kind,variant=0,level=1,detail='') {
+    // Saved companies and external previews can still use the original names.
+    // Resolve before caching so these share the exact current artwork identity.
+    if(kind==='house'||kind==='apartment')kind=residentialKind(variant,level);
+    else if(kind==='shop'||kind==='office')kind=commercialKind(variant,level);
     if(assetRevision!==houseAssetsRevision()||worldRevision!==worldArtRevision()){cache.clear();cacheBytes=0;assetRevision=houseAssetsRevision();worldRevision=worldArtRevision();}
     const variants=natureKinds.has(kind)?64:12;
     variant=((Math.floor(variant)%variants)+variants)%variants;
@@ -128,7 +133,7 @@ export function createSprites(biome,{pixelScale=2,detailLevel='town'}={}) {
       const siteKind=kind==='factory'?(biome==='tundra'?'equipment-factory':biome==='desert'?'goods-factory':'furniture-factory'):kind;
       if(!drawRasterIndustry(ctx,siteKind,biome,density,{size:32*span})){ctx.save();ctx.scale(span,span);industry(ctx,siteKind,r,biome,profile);ctx.restore();}
     }
-    else if(drawRasterNature(ctx,kind,biome,detail,variant,density)){}
+    else if(drawRasterNature(ctx,kind,biome,detail,variant,density,{density:kind==='forest'?level:1})){}
     else if(kind==='terrain-detail') drawTerrainDetail(ctx,detail,r,biome,profile);
     else if(kind==='forest') drawForest(ctx,biome,detail,variant,profile);
     else if(kind==='tree')conifer(ctx,16,25,14,r,biome,profile);

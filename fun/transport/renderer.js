@@ -1,4 +1,6 @@
-import { resolveBuildTool } from './construction-plan.js';
+import { resolveBuildTool, quoteBuildPlan } from './construction-plan.js';
+import { terraformProblem, networkEdgeAllowed } from './terrain-engineering.js';
+import { isEngineeredTunnel, isUndergroundAt } from './structure-visibility.js';
 import { TILE, PALETTES, createSprites, rng } from './sprites.js';
 import { INDUSTRIES, BUILD_COSTS } from './data.js';
 import { STATION_RADIUS, priceFor, hasClearableDecoration } from './model.js';
@@ -12,9 +14,12 @@ import { createLighting } from './lighting.js';
 import { paintWaterRelief, drawWaterMotion } from './water-art.js';
 import { houseAssetsRevision, getHouseAssetStats } from './raster-houses.js';
 import { worldArtRevision, worldArtStats } from './atlas-runtime.js';
-import { drawRasterVehicle, drawRasterInfrastructure } from './raster-transport.js';
+import { drawRasterVehicle, drawRasterInfrastructure, drawRasterNetwork, hasRasterTransport } from './raster-transport.js';
 import { industrySize, industryTiles, industryContains, industryDistance, industrySiteProblem } from './industry-sites.js';
 import { hasRasterIndustry } from './raster-industries.js';
+import { terrainLevel, terrainElevation, terrainReliefRaster, terrainOverviewColor } from './terrain-elevation.js';
+import { noise, hashNoise } from './world-noise.js';
+import { shorelineContours, appendShoreline } from './shoreline.js';
 
 const TAU=Math.PI*2;
 const CHUNK_TILES=8, CHUNK_PIXELS=CHUNK_TILES*TILE, CHUNK_GUTTER=2;
@@ -31,6 +36,7 @@ const titleCase=s=>String(s||'Industry').replace(/[-_]/g,' ').replace(/\b\w/g,c=
 export function createRenderer(canvas, initialGame, options={}) {
   let game=initialGame,ctx=canvas.getContext('2d'),W=1,H=1,dpr=1;
   let layers=normalizeLayers(options.layers||DEFAULT_LAYERS);
+  const reliefCanvas=document.createElement('canvas'),reliefContext=reliefCanvas.getContext('2d');
   let camera={x:48*TILE,y:32*TILE,zoom:nearestZoom(options.zoom)};
   let palette=PALETTES[game.biome]||PALETTES.taiga,sprite,marine,rasterScale=0,detailLevel='',cacheLimit=CACHE_BASE;
   // The map can cover hundreds of thousands of tiles. Only visible, reusable
@@ -110,6 +116,28 @@ export function createRenderer(canvas, initialGame, options={}) {
     let h=(game.seed||0)^Math.imul(x+1,374761393)^Math.imul(y+1,668265263)^Math.imul((t.variant||0)+1,1274126177);
     h=Math.imul(h^(h>>>13),1274126177);return (h^(h>>>16))>>>26;
   }
+  function natureDensity(x,y,t) {
+    const seed=game.seed||0;
+    if(t.terrain==='forest'){
+      let neighbors=0;
+      for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)if((dx||dy)&&tile(x+dx,y+dy)?.terrain==='forest')neighbors++;
+      const patch=noise(x,y,seed+2179,7.3)*.7+noise(x,y,seed+2203,19)*.3;
+      // Woodland interiors form canopy, softer edges and broad open glades.
+      if(neighbors<=3||patch<.3)return 1;
+      return neighbors>=6&&patch>.42?3:2;
+    }
+    let rocky=0,min=terrainElevation(t),max=min;
+    for(const [dx,dy]of[[-1,0],[1,0],[0,-1],[0,1]]){
+      const n=tile(x+dx,y+dy);if(!n)continue;
+      if(n.terrain==='mountain'||n.terrain==='rock')rocky++;
+      const height=terrainElevation(n);min=Math.min(min,height);max=Math.max(max,height);
+    }
+    const patch=noise(x,y,seed+2221,6.3),mountain=t.terrain==='mountain';
+    let chance=(mountain?.045:.08)+patch*patch*(mountain?.32:.48)+Math.min(.1,(max-min)*.05);
+    chance*=.55+rocky*.1125;
+    if(patch<.36)chance*=.18;else if(patch>.7)chance*=1.5;
+    return hashNoise(x,y,seed+2267)<chance?1:0;
+  }
   function chunkBounds(cx,cy){return{x0:Math.max(0,cx*CHUNK_TILES-2),y0:Math.max(0,cy*CHUNK_TILES-2),x1:Math.min(game.width,(cx+1)*CHUNK_TILES+2),y1:Math.min(game.height,(cy+1)*CHUNK_TILES+2)};}
   function fingerprint(b){
     let hash=2166136261;
@@ -117,6 +145,7 @@ export function createRenderer(canvas, initialGame, options={}) {
       const t=tile(x,y),id=y*game.width+x,ind=industryIndex.get(id),st=stationIndex.get(id);
       const flags=(t.road?1:0)|(t.rail?2:0)|(t.bridge?4:0)|(t.tunnel?8:0);
       hash=Math.imul(hash^code(t.terrain),16777619);hash=Math.imul(hash^code(t.detail),16777619);
+      hash=Math.imul(hash^Math.round(terrainElevation(t)*65536)^((t.structureLevel||0)<<8)^code(t.structureAxis),16777619);
       hash=Math.imul(hash^(t.variant||0)^flags,16777619);hash=Math.imul(hash^code(t.zone),16777619);
       hash=Math.imul(hash^code(t.building?.kind)^((t.building?.level||0)<<12),16777619);
       hash=Math.imul(hash^code(ind?.kind)^((ind?.footprint||1)<<10)^code(st?.mode),16777619);
@@ -124,81 +153,94 @@ export function createRenderer(canvas, initialGame, options={}) {
     return hash;
   }
   function drawGround(c,b){
-    c.fillStyle=palette.ground;c.fillRect(b.x0*TILE,b.y0*TILE,(b.x1-b.x0)*TILE,(b.y1-b.y0)*TILE);
-    // Every patch is anchored to a world tile. Padded chunks therefore paint the
-    // exact same landscape at their boundaries, including oversized soft patches.
-    for(let y=b.y0;y<b.y1;y++)for(let x=b.x0;x<b.x1;x++){
-      const r=rng((game.seed||1847)+x*17651+y*2671),px=x*TILE,py=y*TILE;
-      c.fillStyle=r()>.5?palette.ground2+'38':palette.ground3+'32';c.beginPath();c.ellipse(px+r()*32,py+r()*32,18+r()*34,10+r()*24,r()*3,0,TAU);c.fill();
-    }
-    if(game.biome==='desert'){c.fillStyle=palette.sand+'77';c.fillRect(b.x0*TILE,b.y0*TILE,(b.x1-b.x0)*TILE,(b.y1-b.y0)*TILE);}
+    const relief=terrainReliefRaster(game,b);
+    if(reliefCanvas.width!==relief.width||reliefCanvas.height!==relief.height){reliefCanvas.width=relief.width;reliefCanvas.height=relief.height;}
+    reliefContext.putImageData(new ImageData(relief.pixels,relief.width,relief.height),0,0);
+    c.save();c.imageSmoothingEnabled=true;c.imageSmoothingQuality='low';
+    c.drawImage(reliefCanvas,b.x0*TILE,b.y0*TILE,(b.x1-b.x0)*TILE,(b.y1-b.y0)*TILE);c.restore();
     for(let y=b.y0;y<b.y1;y++)for(let x=b.x0;x<b.x1;x++){
       const t=tile(x,y),px=x*TILE,py=y*TILE,r=rng((game.seed||1847)+x*17651+y*2671);if(t.terrain==='water')continue;
       if(t.terrain==='sand'){
-        if(game.biome!=='desert'){c.fillStyle=palette.sand+'65';c.beginPath();c.ellipse(px+16,py+16,21,20,0,0,TAU);c.fill();}
-        for(let j=0;j<3;j++){const xx=px+r()*25,yy=py+r()*32;if(detailLevel==='region'&&j>0)continue;c.strokeStyle='#f0dda341';c.lineWidth=.7;c.beginPath();c.ellipse(xx,yy,9,2,0,Math.PI,TAU);c.stroke();}
+        for(let j=0;j<3;j++){const xx=px+r()*25,yy=py+r()*32;if(detailLevel==='region'&&j>0)continue;c.strokeStyle='#f0dda325';c.lineWidth=.7;c.beginPath();c.ellipse(xx,yy,9,2,0,Math.PI,TAU);c.stroke();}
       }
-      if(t.terrain==='snow'||t.terrain==='mountain'||t.detail==='marsh'||t.detail==='glacial'||t.detail==='saltflat'){
-        const color=t.detail==='marsh'?'#657d6a':t.detail==='saltflat'?'#eeead3':t.terrain==='mountain'?palette.mountain:'#e5ead8',wash=c.createRadialGradient(px+16,py+16,2,px+16,py+16,27);wash.addColorStop(0,color+'29');wash.addColorStop(1,color+'00');c.fillStyle=wash;c.fillRect(px-11,py-11,54,54);
+      if(t.terrain==='snow'||t.detail==='marsh'||t.detail==='glacial'||t.detail==='saltflat'){
+        const color=t.detail==='marsh'?'#657d6a':t.detail==='saltflat'?'#eeead3':t.terrain==='mountain'?palette.mountain:'#e5ead8',wash=c.createRadialGradient(px+16,py+16,2,px+16,py+16,27);wash.addColorStop(0,color+'14');wash.addColorStop(1,color+'00');c.fillStyle=wash;c.fillRect(px-11,py-11,54,54);
       }
-      for(let n=0;n<8;n++){const xx=px+r()*31,yy=py+r()*31,w=.7+r()*1.5,h=.5+r();if(detailLevel==='region'&&n%4!==0)continue;c.fillStyle=n%3===0?palette.speck+'72':palette.dark+'38';c.fillRect(xx,yy,w,h);}
+      for(let n=0;n<8;n++){const xx=px+r()*31,yy=py+r()*31,w=.7+r()*1.5,h=.5+r();if(detailLevel==='region'&&n%4!==0)continue;c.fillStyle=n%3===0?palette.speck+'28':palette.dark+'18';c.fillRect(xx,yy,w,h);}
       if(layers.trees&&r()>.97&&detailLevel!=='region'&&!t.building&&!t.road&&!t.rail&&t.terrain==='grass'){for(let n=0;n<3;n++)dot(c,px+10+r()*8,py+10+r()*8,.7,game.biome==='tundra'?'#e7dfb2':'#e9cf92');}
     }
-    // Fixed-radius contour curves are local, unlike smoothing an entire coast.
-    // The padded outline closes outside the visible chunk so banks stay seamless.
-    const edges=new Map(),stride=game.width+1;
-    const water=(x,y)=>x>=b.x0&&x<b.x1&&y>=b.y0&&y<b.y1&&tile(x,y)?.terrain==='water';
-    const edge=(ax,ay,bx,by)=>{const key=ay*stride+ax;if(!edges.has(key))edges.set(key,[]);edges.get(key).push([bx,by]);};
-    for(let y=b.y0;y<b.y1;y++)for(let x=b.x0;x<b.x1;x++)if(water(x,y)){
-      if(!water(x,y-1))edge(x,y,x+1,y);if(!water(x+1,y))edge(x+1,y,x+1,y+1);
-      if(!water(x,y+1))edge(x+1,y+1,x,y+1);if(!water(x-1,y))edge(x,y+1,x,y);
-    }
+    // World-anchored contour smoothing softens staircase coasts while keeping
+    // every water and land tile center on its original side of the shoreline.
     const waterPath=new Path2D();
-    while(edges.size){
-      const first=edges.keys().next().value,points=[[first%stride,Math.floor(first/stride)]];let key=first,guard=0;
-      do{const list=edges.get(key);if(!list?.length)break;const next=list.pop();if(!list.length)edges.delete(key);key=next[1]*stride+next[0];points.push(next);}while(key!==first&&++guard<4000);
-      if(points.length<4)continue;points.pop();const last=points[points.length-1],start=points[0];
-      waterPath.moveTo((last[0]+start[0])*TILE/2,(last[1]+start[1])*TILE/2);
-      for(let i=0;i<points.length;i++){const p=points[i],next=points[(i+1)%points.length];waterPath.quadraticCurveTo(p[0]*TILE,p[1]*TILE,(p[0]+next[0])*TILE/2,(p[1]+next[1])*TILE/2);}
-      waterPath.closePath();
-    }
-    c.lineJoin='round';c.strokeStyle=palette.dark+'80';c.lineWidth=10;c.stroke(waterPath);c.strokeStyle=palette.shore;c.lineWidth=7;c.stroke(waterPath);
+    appendShoreline(waterPath,shorelineContours(game,b,TILE));
+    // A narrow damp edge grounds the water; sandbars are local patches, never a
+    // uniform pale ribbon running around every lake and river.
+    c.lineJoin='round';c.strokeStyle=palette.dark+'40';c.lineWidth=2.5;c.stroke(waterPath);
     c.fillStyle=palette.deep;c.fill(waterPath,'evenodd');c.save();c.clip(waterPath,'evenodd');
-    c.strokeStyle=palette.water;c.lineWidth=26;c.stroke(waterPath);c.strokeStyle='#95b5a581';c.lineWidth=7;c.stroke(waterPath);c.strokeStyle='#d0d7b66b';c.lineWidth=2;c.stroke(waterPath);
     paintWaterRelief(c,b,tile,game.biome,game.seed||0,detailLevel,layers);
     c.restore();
     if(!layers.trees)return;
     for(let y=b.y0;y<b.y1;y++)for(let x=b.x0;x<b.x1;x++){
       const t=tile(x,y);if(detailLevel==='region'||t.terrain==='water'||t.building||t.road||t.rail)continue;
-      const r=rng(x*3461+y*3727);for(const [dx,dy]of [[1,0],[-1,0],[0,1],[0,-1]])if(tile(x+dx,y+dy)?.terrain==='water'&&r()>.4){for(let j=0;j<3;j++){const px=(x+.5)*TILE+dx*14+(dy?r()*12-6:0),py=(y+.5)*TILE+dy*14+(dx?r()*12-6:0);line(c,[[px,py],[px-1,py-3-r()*2]],'#71886b',1);}}
+      const r=rng(x*3461+y*3727);for(const [dx,dy]of [[1,0],[-1,0],[0,1],[0,-1]])if(tile(x+dx,y+dy)?.terrain==='water'&&r()>(t.terrain==='forest'||['marsh','reeds','oasis'].includes(t.detail)?.6:.94)){for(let j=0;j<3;j++){const px=(x+.5)*TILE+dx*14+(dy?r()*12-6:0),py=(y+.5)*TILE+dy*14+(dx?r()*12-6:0);line(c,[[px,py],[px-1,py-3-r()*2]],'#71886b',1);}}
+    }
+  }
+  function tunnelPortal(c,x,y,t,mode,arms){
+    // A buried alignment contributes no visible track between its mouths.
+    // Each mouth faces an exposed approach on the engineering axis.
+    const cx=(x+.5)*TILE,cy=(y+.5)*TILE;
+    for(const [dx,dy]of arms){
+      const adjacent=tile(x+dx,y+dy);if(!adjacent?.[mode]||isEngineeredTunnel(adjacent))continue;
+      const angle=Math.atan2(dy,dx),mouthX=cx+dx*6,mouthY=cy+dy*6;
+      line(c,[[mouthX,mouthY],[cx+dx*16,cy+dy*16]],mode==='road'?'#b5a587':'#b6b698',mode==='road'?18:11);
+      line(c,[[mouthX,mouthY],[cx+dx*16,cy+dy*16]],mode==='road'?'#696963':'#79775f',mode==='road'?12:7);
+      if(mode==='rail')for(const o of [-2.4,2.4])line(c,[[mouthX+dy*o,mouthY-dx*o],[cx+dx*16+dy*o,cy+dy*16-dx*o]],'#d4d7c6',1.1);
+      c.save();c.translate(mouthX,mouthY);c.rotate(angle-Math.PI/2);
+      if(!drawRasterInfrastructure(c,mode+'-tunnel',-16,-20,32,32,rasterScale)){
+        c.fillStyle='#8d927d';roundRect(c,-11,-8,22,15,7);c.fill();
+        c.fillStyle='#d0ceb0';roundRect(c,-9,-7,18,14,6);c.fill();
+        c.fillStyle='#26362c';roundRect(c,-6,-3,12,11,4);c.fill();
+      }
+      c.restore();
     }
   }
   function network(c,x,y,t,mode){
     if(!t[mode])return;const px=x*TILE,py=y*TILE,cx=px+16,cy=py+16;
-    const neighbors=[[0,-1],[1,0],[0,1],[-1,0]].filter(([dx,dy])=>tile(x+dx,y+dy)?.[mode]);
-    const arms=neighbors.length?neighbors:[[0,-.48],[0,.48]];
-    const bridge=t.terrain==='water'||t.bridge;const tunnel=t.terrain==='mountain'||t.tunnel;
+    const neighbors=[[0,-1],[1,0],[0,1],[-1,0]].filter(([dx,dy])=>{
+      const adjacent=tile(x+dx,y+dy);if(!adjacent?.[mode])return false;
+      return networkEdgeAllowed(t,adjacent,dx,dy,mode);
+    });
+    const arms=neighbors.length?neighbors:t.structureAxis==='x'?[[-1,0],[1,0]]:[[0,-.48],[0,.48]];
+    if(isEngineeredTunnel(t)){tunnelPortal(c,x,y,t,mode,arms);return;}
+    const bridge=t.terrain==='water'||t.bridge;const tunnel=!bridge&&(t.terrain==='mountain'||t.tunnel);
+    const textured=!tunnel&&hasRasterTransport('infra:'+mode+(bridge?'-bridge':''));
     const points=arms.map(([dx,dy])=>[cx+dx*16,cy+dy*16]);
     c.lineCap='butt';c.lineJoin='round';
     const stroke=(color,width)=>{for(const p of points)line(c,[[cx,cy],p],color,width);dot(c,cx,cy,width/2,color);};
-    if(bridge){c.save();c.translate(3,4);stroke('#203c4845',17);c.restore();stroke('#b7b4a0',17);stroke('#737f73',15);}
-    else stroke(mode==='road'?'#b5a587':'#b6b698',mode==='road'?18:10);
+    if(bridge){
+      const clearance=t.structureLevel?Math.max(1,t.structureLevel-terrainLevel(t)):1,drop=Math.min(18,4+clearance*2);
+      c.save();c.translate(3+drop*.3,drop);stroke('#203c4840',18);c.restore();
+      if(t.structureLevel){
+        // Visible southeast faces give land viaducts the same sense of height
+        // as water crossings; the deck itself stays aligned with the route.
+        c.fillStyle='#4d574a80';c.beginPath();c.moveTo(cx-4,cy+5);c.lineTo(cx+3,cy+5);c.lineTo(cx+3+drop*.3,cy+5+drop);c.lineTo(cx-4+drop*.3,cy+5+drop);c.closePath();c.fill();
+        line(c,[[cx-4,cy+5],[cx-4+drop*.3,cy+5+drop]],'#c4bea0',2.5);
+        line(c,[[cx-5+drop*.3,cy+5+drop],[cx+5+drop*.3,cy+5+drop]],'#626b5680',3);
+      }
+      stroke('#b7b4a0',17);stroke('#737f73',15);
+    }
+    else stroke(mode==='road'?'#b5a587':textured?'#796f5c':'#b6b698',mode==='road'?18:10);
     if(mode==='road'){
       stroke('#676762',12);stroke('#6c6b67',10);c.lineCap='butt';
-      if(detailLevel!=='region')for(const p of points){c.setLineDash([3,4]);line(c,[[cx,cy],p],'#d3cfa773',.75);c.setLineDash([]);}
+      if(!textured&&detailLevel!=='region')for(const p of points){c.setLineDash([3,4]);line(c,[[cx,cy],p],'#d3cfa773',.75);c.setLineDash([]);}
       if(bridge)for(const [dx,dy]of arms){const ox=dy*7,oy=-dx*7;line(c,[[cx+ox,cy+oy],[cx+dx*16+ox,cy+dy*16+oy]],'#dfd9bd',1);line(c,[[cx-ox,cy-oy],[cx+dx*16-ox,cy+dy*16-oy]],'#d6d2b5',1);}
     }else{
       stroke('#666f615c',9);
-      for(const [dx,dy]of arms){for(let p=2;p<17;p+=detailLevel==='region'?8:4){const ax=cx+dx*p,ay=cy+dy*p;line(c,[[ax+dy*4,ay-dx*4],[ax-dy*4,ay+dx*4]],'#796c56',2);}
+      if(!textured)for(const [dx,dy]of arms){for(let p=2;p<17;p+=detailLevel==='region'?8:4){const ax=cx+dx*p,ay=cy+dy*p;line(c,[[ax+dy*4,ay-dx*4],[ax-dy*4,ay+dx*4]],'#796c56',2);}
         for(const o of [-2.4,2.4])line(c,[[cx+dy*o,cy-dx*o],[cx+dx*16+dy*o,cy+dy*16-dx*o]],'#d4d7c6',1.1);
       }
     }
-    const straight=arms.length<=2&&arms.every(([dx,dy])=>arms[0][0]===0?dx===0:dy===0);
-    if(straight&&!tunnel){
-      c.save();c.beginPath();c.rect(x*TILE,y*TILE,TILE,TILE);c.clip();c.translate(cx,cy);if(arms[0][0]!==0)c.rotate(Math.PI/2);
-      const width=bridge?32:mode==='rail'?22:44;
-      drawRasterInfrastructure(c,mode+(bridge?'-bridge':''),-width/2,-18,width,36,rasterScale);c.restore();
-    }
+    if(!tunnel)drawRasterNetwork(c,mode+(bridge?'-bridge':''),cx,cy,arms,rasterScale);
     if(tunnel){const exit=arms.find(([dx,dy])=>{const adjacent=tile(x+dx,y+dy);return adjacent&&adjacent.terrain!=='mountain'&&!adjacent.tunnel;});
       if(exit){c.save();c.translate(cx,cy);c.rotate(Math.atan2(exit[1],exit[0])-Math.PI/2);const painted=drawRasterInfrastructure(c,mode+'-tunnel',-16,-19,32,36,rasterScale);c.restore();if(painted)return;}
       else return;
@@ -224,16 +266,22 @@ export function createRenderer(canvas, initialGame, options={}) {
     drawGround(c,b);
     for(let y=b.y0;y<b.y1;y++)for(let x=b.x0;x<b.x1;x++){
       const t=tile(x,y);
-      if(t.detail&&(layers.trees||!isPlantDetail(t.detail))&&!LANDMARKS.has(t.terrain)&&t.terrain!=='water'&&(!t.building||!layers.buildings)&&(!t.road||!layers.roads)&&(!t.rail||!layers.rails)&&(!t.zone||!layers.zones)&&(!industryIndex.has(y*game.width+x)||!layers.buildings))c.drawImage(sprite('terrain-detail',natureVariant(x,y,t),1,t.detail),x*TILE,y*TILE-8,32,40);
+      const variant=natureVariant(x,y,t),sparseDetail=['snow','glacial','dunes','ice','saltflat'].includes(t.detail)?variant%5===0:variant%4!==0;
+      if(t.detail&&sparseDetail&&(layers.trees||!isPlantDetail(t.detail))&&!LANDMARKS.has(t.terrain)&&t.terrain!=='water'&&(!t.building||!layers.buildings)&&(!t.road||!layers.roads||isEngineeredTunnel(t))&&(!t.rail||!layers.rails||isEngineeredTunnel(t))&&(!t.zone||!layers.zones)&&(!industryIndex.has(y*game.width+x)||!layers.buildings)){c.save();c.globalAlpha=.48;c.drawImage(sprite('terrain-detail',variant,1,t.detail),x*TILE,y*TILE-8,32,40);c.restore();}
       if(layers.zones&&t.zone&&(!t.building||!layers.buildings)){const color=t.zone==='residential'?'#e6e9b5':t.zone==='commercial'?'#c0d9db':'#e3c795';c.fillStyle=color+'45';c.fillRect(x*TILE+2,y*TILE+2,28,28);c.strokeStyle=color+'b0';c.lineWidth=.7;c.setLineDash([3,3]);c.strokeRect(x*TILE+3,y*TILE+3,26,26);c.setLineDash([]);}
       if(layers.roads)network(c,x,y,t,'road');if(layers.rails)network(c,x,y,t,'rail');
     }
     // Draw objects in row order; padded chunks also include overhanging tree crowns.
     for(let y=b.y0;y<b.y1;y++)for(let x=b.x0;x<b.x1;x++){
       const t=tile(x,y),id=y*game.width+x,ind=industryIndex.get(id),st=stationIndex.get(id);
-      if(LANDMARKS.has(t.terrain)&&(t.terrain!=='forest'||layers.trees)&&(!t.building||!layers.buildings)&&(!t.road||!layers.roads)&&(!t.rail||!layers.rails)&&(!t.zone||!layers.zones)&&(!ind||!layers.buildings)){
-        const forest=t.terrain==='forest';
-        c.drawImage(sprite(t.terrain,natureVariant(x,y,t),1,!layers.trees&&t.detail==='wooded-foothill'?'bare-foothill':t.detail),x*TILE-(forest?8:0),y*TILE-(forest?16:8),forest?48:32,forest?48:40);
+      if(LANDMARKS.has(t.terrain)&&(t.terrain!=='forest'||layers.trees)&&(!t.building||!layers.buildings)&&(!t.road||!layers.roads||isEngineeredTunnel(t))&&(!t.rail||!layers.rails||isEngineeredTunnel(t))&&(!t.zone||!layers.zones)&&(!ind||!layers.buildings)){
+        const forest=t.terrain==='forest',variant=natureVariant(x,y,t),density=natureDensity(x,y,t);
+        // Relief describes the landform. A few subdued outcrops describe its
+        // material, instead of repeating a mountain icon on every high tile.
+        if(density){
+          c.save();c.globalAlpha=forest?.94:1;
+          c.drawImage(sprite(t.terrain,variant,density,!layers.trees&&t.detail==='wooded-foothill'?'bare-foothill':t.detail),x*TILE-(forest?8:0),y*TILE-(forest?16:8),forest?48:32,forest?48:40);c.restore();
+        }
       }
       if(layers.buildings&&t.building){const variant=t.variant??x*13+y,level=t.building.level||1,legacy=t.building.kind,kind=['house','apartment'].includes(legacy)?residentialKind(variant,level):['shop','office'].includes(legacy)?commercialKind(variant,level):legacy;c.drawImage(sprite(kind,variant,level),x*TILE,y*TILE-8,32,40);}
       if(layers.buildings&&ind&&ind.x===x&&ind.y===y){const span=industrySize(ind);c.drawImage(sprite(ind.kind,x+y,span),x*TILE,y*TILE-8,32*span,32*span+8);}
@@ -256,7 +304,7 @@ export function createRenderer(canvas, initialGame, options={}) {
   function vehicle(v,route){
     if(!visible(v.x,v.y))return;const train=route?.mode==='rail';const color=route?.color||'#c78753';
     if(route?.mode==='water'){drawShipWake(ctx,v,lastTime,detailLevel);ctx.drawImage(marine.ship(v,route),(v.x+.5)*TILE-MARINE_SIZE/2,(v.y+.5)*TILE-MARINE_SIZE/2,MARINE_SIZE,MARINE_SIZE);return;}
-    function car(x,y,angle,engine){ctx.save();ctx.translate((x+.5)*TILE,(y+.5)*TILE);ctx.rotate(angle);if(drawRasterVehicle(ctx,v,route,{engine,pixelScale:rasterScale,heading:angle})){ctx.restore();return;}if(detailLevel==='region'){ctx.fillStyle='#293e36';roundRect(ctx,-8,-4.5,16,9,2);ctx.fill();ctx.fillStyle=color;ctx.fillRect(-7,-3.5,14,7);ctx.fillStyle='#f1ddb5';ctx.fillRect(-6,-2.5,9,5);ctx.fillStyle='#3d6269';ctx.fillRect(4,-2.5,2,5);if(train&&engine){ctx.fillStyle='#526361';ctx.fillRect(-2,-2,4,4);}ctx.restore();return;}ctx.fillStyle='#233e3a40';roundRect(ctx,-4,-1,12,6,1.5);ctx.fill();ctx.fillStyle='#343d37';ctx.fillRect(-5,-4,3,1.5);ctx.fillRect(3,-4,3,1.5);ctx.fillRect(-5,2.5,3,1.5);ctx.fillRect(3,2.5,3,1.5);ctx.fillStyle=color;roundRect(ctx,-7,-3.5,14,7,1.5);ctx.fill();ctx.fillStyle='#ead8ad';ctx.fillRect(-6,-2.5,10,5);ctx.fillStyle='#536e71';ctx.fillRect(4,-2.3,2,4.6);ctx.fillStyle='#829b99';ctx.fillRect(-4,-2.5,6,1);ctx.fillRect(-4,1.5,6,1);ctx.fillStyle='#ddd3ac';ctx.fillRect(6,-2,1,1);ctx.fillRect(6,1,1,1);if(train&&engine){ctx.fillStyle='#526361';ctx.fillRect(-2,-2,4,4);ctx.fillStyle='#adbead';ctx.fillRect(-1,-1,2,2);}ctx.restore();}
+    function car(x,y,angle,engine){if(isUndergroundAt(game,x,y))return;ctx.save();ctx.translate((x+.5)*TILE,(y+.5)*TILE);ctx.rotate(angle);if(drawRasterVehicle(ctx,v,route,{engine,pixelScale:rasterScale,heading:angle})){ctx.restore();return;}if(detailLevel==='region'){ctx.fillStyle='#293e36';roundRect(ctx,-8,-4.5,16,9,2);ctx.fill();ctx.fillStyle=color;ctx.fillRect(-7,-3.5,14,7);ctx.fillStyle='#f1ddb5';ctx.fillRect(-6,-2.5,9,5);ctx.fillStyle='#3d6269';ctx.fillRect(4,-2.5,2,5);if(train&&engine){ctx.fillStyle='#526361';ctx.fillRect(-2,-2,4,4);}ctx.restore();return;}ctx.fillStyle='#233e3a40';roundRect(ctx,-4,-1,12,6,1.5);ctx.fill();ctx.fillStyle='#343d37';ctx.fillRect(-5,-4,3,1.5);ctx.fillRect(3,-4,3,1.5);ctx.fillRect(-5,2.5,3,1.5);ctx.fillRect(3,2.5,3,1.5);ctx.fillStyle=color;roundRect(ctx,-7,-3.5,14,7,1.5);ctx.fill();ctx.fillStyle='#ead8ad';ctx.fillRect(-6,-2.5,10,5);ctx.fillStyle='#536e71';ctx.fillRect(4,-2.3,2,4.6);ctx.fillStyle='#829b99';ctx.fillRect(-4,-2.5,6,1);ctx.fillRect(-4,1.5,6,1);ctx.fillStyle='#ddd3ac';ctx.fillRect(6,-2,1,1);ctx.fillRect(6,1,1,1);if(train&&engine){ctx.fillStyle='#526361';ctx.fillRect(-2,-2,4,4);ctx.fillStyle='#adbead';ctx.fillRect(-1,-1,2,2);}ctx.restore();}
     if(train&&route.path?.length>1){
       const path=route.path,max=path.length-1,direction=v.direction||1;
       for(const offset of [34/TILE,17/TILE]){const position=Math.max(0,Math.min(max,(v.progress||0)-offset*direction));const index=Math.min(Math.floor(position),max-1),f=position-index,a=path[index],b=path[index+1];car(a.x+(b.x-a.x)*f,a.y+(b.y-a.y)*f,Math.atan2((b.y-a.y)*direction,(b.x-a.x)*direction),false);}
@@ -266,11 +314,13 @@ export function createRenderer(canvas, initialGame, options={}) {
   function validPreview(tool,p,preferredMode='road'){
     tool=resolveBuildTool(game,tool,p.x,p.y,{preferredMode});
     const t=tile(p.x,p.y);if(!t)return false;if(tool==='inspect')return true;
+    if(tool==='raise'||tool==='lower')return game.money>=priceFor(game,BUILD_COSTS[tool]||0)&&!terraformProblem(game,tool,p.x,p.y);
     const station=(game.stations||[]).find(s=>s.x===p.x&&s.y===p.y),industry=(game.industries||[]).find(s=>industryContains(s,p.x,p.y)),city=(game.cities||[]).find(s=>s.x===p.x&&s.y===p.y);
     if(INDUSTRIES[tool])return game.money>=priceFor(game,BUILD_COSTS[tool])&&!industrySiteProblem(game,tool,p.x,p.y);
     if(tool==='bulldoze')return game.money>=priceFor(game,BUILD_COSTS.bulldoze)&&!city&&!(station&&(game.routes||[]).some(r=>r.stops.includes(station.id)))&&Boolean(station||industry||t.building||t.zone||t.road||t.rail||['forest','rock'].includes(t.terrain)||hasClearableDecoration(t));
     if(['road','rail','bridge','railbridge','tunnel','railtunnel'].includes(tool)){
       const mode=tool.startsWith('rail')?'rail':'road',bridge=tool==='bridge'||tool==='railbridge',tunnel=tool==='tunnel'||tool==='railtunnel';
+      if(t.structureAxis&&!t[mode])return false;
       if(t[mode]&&(!bridge||t.bridge)&&(!tunnel||t.tunnel))return true;
       return game.money>=priceFor(game,BUILD_COSTS[tool]+(t.terrain==='forest'?80:t.terrain==='rock'&&!tunnel?100:0))&&!industry&&!t.building&&!t.zone&&(!station||station.mode===mode)&&!(t.terrain==='water'&&!bridge&&!t.bridge)&&!(t.terrain==='mountain'&&!tunnel&&!t.tunnel)&&(!bridge||t.terrain==='water')&&(!tunnel||['mountain','rock'].includes(t.terrain));
     }
@@ -296,7 +346,7 @@ export function createRenderer(canvas, initialGame, options={}) {
     return image;
   }
   function vehicleLoadIndicator(v,route){
-    if(!route||!visible(v.x,v.y,40))return;
+    if(!route||!visible(v.x,v.y,40)||(route.mode!=='water'&&isUndergroundAt(game,v.x,v.y)))return;
     const p=worldToScreen(v.x,v.y),fraction=Math.max(0,Math.min(1,(v.load||0)/Math.max(1,v.capacity||1)));
     const state=fraction<=.00001?'empty':fraction>=.99999?'full':'partial';vehicleIndicatorCounts[state]++;
     const size=detailLevel==='detail'?22:18,w=state==='empty'?24:size+8,h=state==='empty'?11:size+13;
@@ -359,11 +409,17 @@ export function createRenderer(canvas, initialGame, options={}) {
     const serviceCenter=['stop','bus-stop','train-stop','port'].includes(tool)?hover:selectedStation;
     if(serviceCenter){const x=(serviceCenter.x+.5)*TILE,y=(serviceCenter.y+.5)*TILE;ctx.fillStyle='#eff2cd19';ctx.strokeStyle='#f3e5ad';ctx.lineWidth=1.3/camera.zoom;ctx.setLineDash([5/camera.zoom,5/camera.zoom]);ctx.beginPath();ctx.arc(x,y,STATION_RADIUS*TILE,0,TAU);ctx.fill();ctx.stroke();ctx.setLineDash([]);for(const node of [...(game.cities||[]),...(game.industries||[])])if((node.kind?industryDistance(node,serviceCenter):Math.hypot(node.x-serviceCenter.x,node.y-serviceCenter.y))<=STATION_RADIUS)highlight(node,'#efe8b2',false,industrySize(node));}
     if(selected&&typeof selected.x==='number'){const site=industryIndex.get(selected.y*game.width+selected.x);highlight(site||selected,'#fbefba',false,industrySize(site));}
-    for(const p of preview||[])highlight(previewSite(p),validPreview(tool,p,preferredMode)?tool==='bulldoze'?'#e3aa6d':'#f2d88d':'#d7725f',true,previewSpan(p));
-    if(hover)highlight(previewSite(hover),tool==='inspect'?'#f7efd3':validPreview(tool,hover,preferredMode)?tool==='bulldoze'?'#e3aa6d':'#f4d090':'#d7725f',tool!=='inspect',previewSpan(hover));
+    const spanTool=['bridge','railbridge','tunnel','railtunnel'].includes(tool),spanPoints=preview?.length?preview:hover?[hover]:[];
+    const spanQuote=spanTool&&spanPoints.length?quoteBuildPlan(game,tool,spanPoints,{preferredMode}):null;
+    const previewValid=p=>spanQuote?spanQuote.ok===true:validPreview(tool,p,preferredMode);
+    for(const p of preview||[])highlight(previewSite(p),previewValid(p)?tool==='bulldoze'?'#e3aa6d':'#f2d88d':'#d7725f',true,previewSpan(p));
+    if(hover)highlight(previewSite(hover),tool==='inspect'?'#f7efd3':previewValid(hover)?tool==='bulldoze'?'#e3aa6d':'#f4d090':'#d7725f',tool!=='inspect',previewSpan(hover));
     for(const stop of routeStops){const s=typeof stop==='object'?stop:(game.stations||[]).find(st=>st.id===stop);if(s){ctx.strokeStyle='#f4d397';ctx.lineWidth=2/camera.zoom;ctx.beginPath();ctx.arc((s.x+.5)*TILE,(s.y+.5)*TILE,21,0,TAU);ctx.stroke();}}
     ctx.restore();
     drawLighting(ctx,{game,layers,camera,width:W,height:H,bounds:{x0:Math.max(0,x0-1),y0:Math.max(0,y0-1),x1,y1},industryIndex,stationIndex,routesById});
+    if(hover&&(tool==='raise'||tool==='lower')){
+      const t=tile(hover.x,hover.y);if(t){const p=worldToScreen(hover.x,hover.y),level=terrainLevel(t),allowed=validPreview(tool,hover,preferredMode);pill(p.x,p.y-28*camera.zoom,allowed?`Level ${level} → ${level+(tool==='raise'?1:-1)}`:`Level ${level}`,{size:12,h:25,fill:allowed?'#f7f1ddef':'#f5e7dfef',color:allowed?'#43573b':'#934f3f'});}
+    }
     if(serviceCenter){const p=worldToScreen(serviceCenter.x,serviceCenter.y);pill(p.x,p.y-STATION_RADIUS*TILE*camera.zoom-15,'5-tile reach',{size:11,h:25,fill:'#f5f3e8e8',color:'#5c7155'});}
     // Labels stay crisp at every camera zoom, with population separated from place names.
     const regionLabels=[];
@@ -394,8 +450,8 @@ export function createRenderer(canvas, initialGame, options={}) {
     const packed=hex=>new Uint32Array(new Uint8Array([parseInt(hex.slice(1,3),16),parseInt(hex.slice(3,5),16),parseInt(hex.slice(5,7),16),255]).buffer)[0];
     const colors={grass:packed(palette.ground),water:packed(palette.deep),forest:packed(palette.forest),mountain:packed(palette.mountain),rock:packed(palette.mountain),sand:packed(palette.sand),snow:packed(palette.ground2),road:packed('#d7cbb0'),rail:packed('#655f52'),building:packed('#cfb78b'),zone:packed('#b2b78c'),marsh:packed('#708879'),saltflat:packed('#e3d9bc')};
     for(let y=0;y<height;y++)for(let x=0;x<width;x++){
-      const t=game.tiles[Math.floor((y+.5)*stepY)*game.width+Math.floor((x+.5)*stepX)],terrain=t.terrain==='forest'&&!layers.trees?'grass':t.terrain;
-      minimapWords[y*width+x]=layers.buildings&&t.building?colors.building:layers.rails&&t.rail?colors.rail:layers.roads&&t.road?colors.road:layers.zones&&t.zone?colors.zone:colors[t.detail]||colors[terrain]||colors.grass;
+      const tx=Math.floor((x+.5)*stepX),ty=Math.floor((y+.5)*stepY),t=game.tiles[ty*game.width+tx],terrain=t.terrain==='forest'&&!layers.trees?'grass':t.terrain;
+      minimapWords[y*width+x]=layers.buildings&&t.building?colors.building:layers.rails&&t.rail?colors.rail:layers.roads&&t.road?colors.road:layers.zones&&t.zone?colors.zone:terrain==='water'?colors.water:terrain==='forest'?colors.forest:terrainOverviewColor(game,tx,ty);
     }
     minimapTerrainSamples=width*height;
     if(scale<1&&(layers.roads||layers.rails)){

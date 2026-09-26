@@ -5,6 +5,7 @@ import { localEnvironment } from '../environment.js';
 import { industryConditions } from '../industry-simulation.js';
 import { encodeGame } from '../save-codec.js';
 import { industryTiles, industrySiteProblem } from '../industry-sites.js';
+import { WORLD_GENERATION_VERSION } from '../world.js';
 import { emptyGame, tileAt } from './helpers.mjs';
 
 test('a 2×2 industry reserves every tile and demolition clears the complete site',()=>{
@@ -123,7 +124,7 @@ test('footprints survive saves while legacy sites keep their original extent',()
 });
 test('new worlds have valid 2×2 industrial sites and old geography recipes remain unchanged',()=>{
   for(const biome of ['taiga','tundra','desert']){
-    const game=createGame({biome,size:'square512',seed:1847});assert.equal(game.generationVersion,3);
+    const game=createGame({biome,size:'square512',seed:1847});assert.equal(game.generationVersion,WORLD_GENERATION_VERSION);
     for(const industry of game.industries){assert.equal(industry.footprint,2);assert.equal(industrySiteProblem(game,industry.kind,industry.x,industry.y,2,industry),null);}
   }
   const legacy=createGame({size:'square512',generationVersion:2});assert.equal(legacy.generationVersion,2);assert.ok(legacy.industries.every(i=>i.footprint===undefined));

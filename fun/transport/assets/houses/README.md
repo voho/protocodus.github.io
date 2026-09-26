@@ -40,6 +40,6 @@ python3 fun/transport/tools/build-house-atlases.py \
   --qa-dir /tmp/transport-house-review
 ```
 
-The game loads only the 12 small atlases, approximately 1 MB compressed in total. `raster-houses.js` selects the matching sprite density and owns the measured window positions used by `lighting.js`. Slow or unavailable images retain the original procedural fallback; successfully loaded artwork refreshes sprite and terrain caches without changing the company or camera.
+The game loads only the 12 small atlases, approximately 1 MB compressed in total. `raster-houses.js` selects the closest available sprite density and owns the measured window positions used by `lighting.js`. Each density becomes usable independently. Missing densities use another loaded resolution; a missing climate can use the same house from another available climate, with procedural drawing only when no image is usable. Successfully loaded artwork refreshes sprite and terrain caches without changing the company or camera.
 
 `tests/raster-houses-browser-check.mjs` checks all 162 combinations of house, environment, zoom and display density, source transparency, cache limits, delayed loading and fallbacks. Existing saved towns receive the new artwork on reload.

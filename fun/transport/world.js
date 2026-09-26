@@ -21,8 +21,8 @@ export const WORLD_SIZES = {
 };
 export const DEFAULT_WORLD_SIZE = 'square512';
 export const MAX_WORLD_TILES = 2048 * 2048;
-export const WORLD_GENERATION_VERSION = 3;
-export const supportsGenerationVersion = version => version === 1 || version === 2 || version === 3;
+export const WORLD_GENERATION_VERSION = 4;
+export const supportsGenerationVersion = version => version === 1 || version === 2 || version === 3 || version === 4;
 
 // Terrain stays in seven gameplay categories; details supply local visual character.
 // Version 1 is also a save-file recipe. Future geography must add a new version
@@ -31,8 +31,8 @@ export function generateWorld(biome, seed, size = DEFAULT_WORLD_SIZE, generation
   if (!supportsGenerationVersion(generationVersion)) throw new Error('Unsupported world generation version.');
   if (!Object.hasOwn(WORLD_SIZES, size)) size = DEFAULT_WORLD_SIZE;
   if(generationVersion>=2&&Object.hasOwn(NEW_WORLD_SIZES,size)){
-    const world=generateWorldV2(biome,seed,size,WORLD_SIZES[size]);
-    if(generationVersion===3){expandGeneratedIndustrySites({...world,biome});world.generationVersion=3;}
+    const world=generateWorldV2(biome,seed,size,WORLD_SIZES[size],generationVersion>=4?{naturalRelief:true}:undefined);
+    if(generationVersion>=3){expandGeneratedIndustrySites({...world,biome});world.generationVersion=generationVersion;}
     return world;
   }
   return generateWorldV1(biome,seed,size);

@@ -58,7 +58,7 @@ let status = 'idle', revision = 0, pending = null, lastCellSize = 0, lastBiome =
 export const isRasterHouse = kind => indices.has(kind);
 export const houseAssetsRevision = () => revision;
 
-const resolveBiome = biome => biomes.has(biome) ? biome : biomes.has('taiga') ? 'taiga' : null;
+const resolveBiome = biome => biomes.has(biome) ? biome : biomes.has('taiga') ? 'taiga' : biomes.keys().next().value || null;
 export const hasRasterHouse = (kind, biome = 'taiga') => indices.has(kind) && resolveBiome(biome) !== null;
 export const houseWindowAnchors = (kind, biome = 'taiga') => windowAnchors[resolveBiome(biome)]?.[kind] || noWindows;
 
@@ -95,19 +95,22 @@ async function decodeAtlas(biome, cell) {
 }
 
 export function preloadHouses({ waitMs = 4000, retry = false } = {}) {
-  if (status === 'ready' && (!retry || biomes.size === HOUSE_BIOMES.length)) return Promise.resolve(true);
+  const complete = HOUSE_BIOMES.every(biome => biomes.get(biome)?.size === LOD_CELLS.length);
+  if (status === 'ready' && (!retry || complete)) return Promise.resolve(true);
   if (typeof Image === 'undefined' || typeof document === 'undefined') return Promise.resolve(false);
   if (!pending && (status === 'idle' || retry)) {
     status = 'loading';
-    pending = Promise.all(HOUSE_BIOMES.filter(biome => !biomes.has(biome)).map(async biome => {
+    pending = Promise.all(HOUSE_BIOMES.flatMap(biome => LOD_CELLS.filter(cell => !biomes.get(biome)?.has(cell)).map(async cell => {
+      const key = `${biome}/${cell}`;
       try {
-        // Publish all zoom densities together. A damaged or absent biome falls
-        // back to the complete taiga set, avoiding mixed art during zooming.
-        const levels = await Promise.all(LOD_CELLS.map(cell => decodeAtlas(biome, cell)));
-        biomes.set(biome, new Map(levels)); errors.delete(biome); revision++;
+        // A slow or damaged zoom density must not discard healthy artwork.
+        // Publish each density immediately and refresh already-cached sprites.
+        const [, image] = await decodeAtlas(biome, cell);
+        if (!biomes.has(biome)) biomes.set(biome, new Map());
+        biomes.get(biome).set(cell, image); errors.delete(key); revision++;
         for (const listener of listeners) queueMicrotask(listener);
-      } catch (reason) { errors.set(biome, reason instanceof Error ? reason.message : String(reason)); }
-    })).then(() => { status = biomes.size ? 'ready' : 'failed'; return biomes.size > 0; })
+      } catch (reason) { errors.set(key, reason instanceof Error ? reason.message : String(reason)); }
+    }))).then(() => { status = biomes.size ? 'ready' : 'failed'; return biomes.size > 0; })
       .finally(() => { pending = null; });
   }
   if (!pending || waitMs <= 0) return Promise.resolve(false);
@@ -124,8 +127,9 @@ export function drawRasterHouse(c, kind, { pixelScale = 1, biome = 'taiga' } = {
   const activeBiome = resolveBiome(biome);
   if (activeBiome === null) { if (status === 'idle') void preloadHouses({ waitMs: 0 }); return false; }
   const desired = 32 * (Number.isFinite(pixelScale) && pixelScale > 0 ? pixelScale : 1);
-  const cell = LOD_CELLS.find(size => size >= desired) || LOD_CELLS.at(-1);
-  const atlas = biomes.get(activeBiome).get(cell);
+  const levels = biomes.get(activeBiome), available = [...levels.keys()].sort((a, b) => a - b);
+  const cell = available.find(size => size >= desired) || available.at(-1);
+  const atlas = levels.get(cell);
   c.save();
   c.imageSmoothingEnabled = desired !== cell; c.imageSmoothingQuality = 'high';
   // createSprites has already translated its context down by eight pixels.

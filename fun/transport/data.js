@@ -54,7 +54,7 @@ export const INDUSTRIES = {
 export const BUILD_COSTS = {
   road: 180, rail: 420, bridge: 1400, railbridge: 2300, tunnel: 2200, railtunnel: 3400,
   'bus-stop': 3200, 'train-stop': 12000, port: 18000, residential: 420, commercial: 640,
-  industrial: 880, city: 45000, bulldoze: 100,
+  industrial: 880, city: 45000, bulldoze: 100, raise: 240, lower: 180,
   ...Object.fromEntries(Object.entries(BUILDINGS).map(([kind, building]) => [kind, building.cost])),
   ...Object.fromEntries(Object.entries(INDUSTRIES).map(([kind, industry]) => [kind, industry.cost])),
 };

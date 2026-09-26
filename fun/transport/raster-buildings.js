@@ -98,8 +98,7 @@ const windows = Object.fromEntries(Object.entries(sourceWindows).map(([biome, ki
 ]));
 function loadedBiome(kind, biome) {
   if (!knownKinds.has(kind)) return null;
-  if (atlasAvailable(entryId(kind, biome))) return biome;
-  return atlasAvailable(entryId(kind, 'taiga')) ? 'taiga' : null;
+  return [biome, ...biomes].find(candidate => atlasAvailable(entryId(kind, candidate))) || null;
 }
 export function hasRasterBuilding(kind, biome = 'taiga') {
   return loadedBiome(kind, biome) !== null;
@@ -112,6 +111,8 @@ export function drawRasterBuilding(c, kind, biome = 'taiga', pixelScale = 1) {
   const scale = Number.isFinite(pixelScale) && pixelScale > 0 ? pixelScale : 1;
   // drawAtlas starts a bounded, shared asynchronous request when an external
   // createSprites consumer has not called the app's preload path yet.
-  if (drawAtlas(c, entryId(kind, biome), 0, 0, 32, 32, { pixelScale: scale })) return true;
-  return biome !== 'taiga' && drawAtlas(c, entryId(kind, 'taiga'), 0, 0, 32, 32, { pixelScale: scale });
+  for (const candidate of new Set([biome, ...biomes])) {
+    if (drawAtlas(c, entryId(kind, candidate), 0, 0, 32, 32, { pixelScale: scale })) return true;
+  }
+  return false;
 }

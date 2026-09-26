@@ -15,6 +15,11 @@ const unevenRecipes = {
   tundra: 'ecb7a1cdaa3a5f0bd3861f846ce89da63277d05d9d40bf5c001a31c89f5fbdca',
   desert: '19ff7580669eb1e1b44f921beeb9d238a1423e1afef5ff1bba749de335b167cc',
 };
+const industrySiteRecipes = {
+  taiga: '9c9e19de131cb3d0d128c1be45c8a98ab68c80657b6f64fe7477c7cef4e17c7f',
+  tundra: 'f6ada9f95b32af7435e0f4d60264a62089cf4b1496aa66513e9b784c9b0f9750',
+  desert: '559b570f47053a2e9818e1e264d8af1957c9a5b11682eb04c4770bba50b6846c',
+};
 
 test('new-world choices are exactly 512², 1024², and 2048²; legacy dimensions remain loadable', () => {
   assert.deepEqual(Object.entries(NEW_WORLD_SIZES).map(([key, size]) => [key, size.width, size.height]), [
@@ -50,6 +55,12 @@ for (const biome of ['taiga','tundra','desert']) test(`${biome}: uneven recipe 2
   const generated = generateWorld(biome,1847,'square512',2);
   assert.equal(createHash('sha256').update(JSON.stringify(generated)).digest('hex'),unevenRecipes[biome],
     'new terrain or placement changes require a new recipe so existing sparse saves remain intact');
+});
+
+for (const biome of ['taiga','tundra','desert']) test(`${biome}: recipe 3 retains its exact terrain and industrial sites`, () => {
+  const generated = generateWorld(biome,1847,'square512',3);
+  assert.equal(createHash('sha256').update(JSON.stringify(generated)).digest('hex'),industrySiteRecipes[biome],
+    'natural settlement elevations must only affect new recipe-4 companies');
 });
 
 test('1024² worlds retain distinct town names and sparse ecology work', () => {

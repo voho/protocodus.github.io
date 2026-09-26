@@ -1,8 +1,10 @@
+import { terrainLevel } from './terrain-elevation.js';
 import { refreshRouteConnections, getVehiclePurchase, getVehicleUpgrade, getFleetUpgrade, upgradeRouteVehicle, upgradeFleet, priceFor, inflationInfo, createGame, addRoute, removeRoute, tick, saveGame, loadGame, BIOMES, INDUSTRIES, CARGO, BUILD_COSTS, stationCoverage, WORLD_SIZES, industryConditions, settlementSuitability, weatherAt } from './model.js';
 import { createRenderer } from './renderer.js';
 import { quoteBuildPlan, buildPlan } from './construction-plan.js';
 import { DEFAULT_WORLD_SIZE, NEW_WORLD_SIZES } from './world.js';
 import { TILE, createSprites } from './sprites.js';
+import { drawUIArtwork } from './ui-art.js';
 import { BUILDINGS, BUILDING_GROUPS } from './buildings.js';
 import { ZOOM_LEVELS, ZOOM_VIEWS, zoomIndex } from './zoom.js';
 import { cargoIcon, cargoBadge, cargoRecipe } from './cargo-icons.js';
@@ -48,6 +50,8 @@ const iconPaths = {
  rail:'<path d="M7 2v20M17 2v20M4 5h16M4 10h16M4 15h16M4 20h16"/>',
  bridge:'<path d="M2 17h20M4 17V5m16 12V5M4 7q8 12 16 0M8 12v5m4-3v3m4-5v5M2 21h20"/>',
  tunnel:'<path d="M2 20h20M4 20V11a8 8 0 0 1 16 0v9M8 20v-8a4 4 0 0 1 8 0v8M10 16l-1 4m5-4 1 4M2 9l3-6h14l3 6"/>',
+ raise:'<path d="m2 20 5-5 5 2 5-2 5 5M12 13V3m-4 4 4-4 4 4"/>',
+ lower:'<path d="m2 18 5-3 5 5 5-5 5 3M12 3v10m-4-4 4 4 4-4"/>',
  bus:'<rect x="5" y="3" width="14" height="15" rx="3"/><path d="M5 11h14M9 3v8M7 18v3m10-3v3M8 14h1m6 0h1"/>',
  ship:'<path d="M4 13V7h5V3h6v4h5v6M3 13l9-3 9 3-3 6H6zM8 7h8M2 21q2-2 4 0t4 0 4 0 4 0 4 0"/>',
  port:'<circle cx="12" cy="5" r="2"/><path d="M12 7v14M8 10h8M4 13v3a8 8 0 0 0 16 0v-3M2 15l2-2 2 2m12 0 2-2 2 2"/>',
@@ -76,10 +80,12 @@ const TOOL_INFO = {
  inspect:{name:'Explore', icon:'inspect', detail:'Click to inspect. Drag to pan.'},
  road:{name:'Road',icon:'road',key:'R',detail:'Drag to build. Bridges and tunnels are automatic.'},
  rail:{name:'Rail',icon:'rail',key:'T',detail:'Drag to build. Bridges and tunnels are automatic.'},
- bridge:{name:'Road bridge',icon:'bridge',key:'B',detail:'Drag across water. Connect both ends to roads.'},
- railbridge:{name:'Rail bridge',icon:'bridge',detail:'Drag across water. Connect both ends to rail.'},
- tunnel:{name:'Road tunnel',icon:'tunnel',detail:'Cross mountains. Connect both portals to roads.'},
- railtunnel:{name:'Rail tunnel',icon:'tunnel',detail:'Cross mountains. Connect both portals to rail.'},
+ bridge:{name:'Road bridge',icon:'bridge',key:'B',detail:'Drag between two banks at the same level, across water or lower land.'},
+ railbridge:{name:'Rail bridge',icon:'bridge',detail:'Drag between two banks at the same level, across water or lower land.'},
+ tunnel:{name:'Road tunnel',icon:'tunnel',detail:'Drag between two portals at the same level, through higher dry land.'},
+ railtunnel:{name:'Rail tunnel',icon:'tunnel',detail:'Drag between two portals at the same level, through higher dry land.'},
+ raise:{name:'Raise land',icon:'raise',detail:'Click or drag: +1 level per tile. Clear buildings and networks first.'},
+ lower:{name:'Lower land',icon:'lower',detail:'Click or drag: −1 level per tile, down to level 1. Water stays unchanged.'},
  stop:{name:'Stop',icon:'bus',key:'S',detail:'Click a road or railway near customers.'},
  'bus-stop':{name:'Road stop',icon:'bus',key:'S',detail:'Place on a road, within 5 tiles of customers.'},
  'train-stop':{name:'Rail station',icon:'train',detail:'Place on rail, within 5 tiles of customers.'},
@@ -99,10 +105,10 @@ let pricingYear = inflationInfo(game).year;
 let mapLayers = loadVisibility(), layersView = null, layerStorageNotice = false;
 renderer.setLayers(mapLayers);
 let view = 'build', category = 'network', tool = 'inspect', speed = 1, previousSpeed = 1;
-let buildingGroup = 'homes', paletteBiome = game.biome, paletteSprites = createSprites(game.biome);
+let buildingGroup = 'homes';
 let hover = null, selected = null, preview = [];
 let pointer = null, spaceDown = false, spaceUsedForPan = false, sounds = false, audioContext;
-let preferredMode = 'road', touchGesture = null;
+let preferredMode = 'road', touchGesture = null, engineeringOpen = false;
 const touchPoints = new Map();
 let lastFrame = performance.now(), hudAt = 0, saveAt = performance.now(), minimapAt = 0, panelAt = 0;
 let formDraft = { name:'', mode:'road', from:'', to:'', cargo:'passengers' };
@@ -111,7 +117,9 @@ let entityFilters = { towns:'', industry:'', kind:'all' };
 let lastRevision = -1;
 let lastNoticeId = game.notifications[0]?.id;
 let milestoneReached = false;
-const lineTools = new Set(['road','rail','bridge','railbridge','tunnel','railtunnel','residential','commercial','industrial','bulldoze']);
+const spanTools = new Set(['bridge','railbridge','tunnel','railtunnel']);
+const terrainTools = new Set(['raise','lower']);
+const lineTools = new Set(['road','rail',...spanTools,...terrainTools,'residential','commercial','industrial','bulldoze']);
 const mobileToggle = document.createElement('button');
 mobileToggle.className = 'mobile-panel-toggle'; mobileToggle.innerHTML = icon('road')+'<span>Manage</span>'; mobileToggle.setAttribute('aria-label','Toggle construction and management panel'); mobileToggle.setAttribute('aria-expanded','false');
 $('.workspace').append(mobileToggle);
@@ -157,12 +165,15 @@ function syncToolControls() {
  $('#active-tool-name').textContent=info?.name||'Build';
  $('#active-tool-hint').textContent=lineTools.has(tool)?window.innerWidth<=700?'Drag to build · Two fingers to move':'Drag to build · Done to explore':window.innerWidth<=700?'Tap to place · Drag to move':'Click to place · Drag to move';
  if(tool==='bulldoze')$('#active-tool-hint').textContent='Click or drag to clear';
+ if(terrainTools.has(tool))$('#active-tool-hint').textContent=`Click or drag · ${tool==='raise'?'+1':'−1'} level per tile`;
+ if(spanTools.has(tool))$('#active-tool-hint').textContent='Drag straight · Both ends at the same level';
  $('#map-hint').hidden=tool!=='inspect'||isRoutePicking();
 }
 function setTool(next) {
  cancelGesture();closeMapMenus();cancelRoutePicking();
  if(['road','bridge','tunnel','bus-stop'].includes(next))preferredMode='road';
  if(['rail','railbridge','railtunnel','train-stop'].includes(next))preferredMode='rail';
+ if(spanTools.has(next)||terrainTools.has(next)){category='network';engineeringOpen=true;}
  tool=['bus-stop','train-stop'].includes(next)?'stop':next;selected=null;hover=null;
  $('#inspector').hidden=true;canvas.classList.toggle('build-mode',tool!=='inspect');
  $('#status-message').textContent=toolDescription(tool);renderPanel();syncToolControls();
@@ -176,9 +187,14 @@ function setView(next) {
  $$('.nav-button[data-view]').forEach(el=>{el.classList.toggle('active',el.dataset.view===view);el.setAttribute('aria-current',el.dataset.view===view?'page':'false');});
  renderPanel();if(changedView)$('#panel-content').scrollTop=0;syncToolControls();if(window.innerWidth<=700&&!$('.sidebar').classList.contains('mobile-open'))mobileToggle.click();
 }
-function toolCard(key) {
+function infrastructureKind(key) {
+ return ({stop:preferredMode==='rail'?'train-stop':'bus-stop',bridge:'road-bridge',railbridge:'rail-bridge',tunnel:'road-tunnel',railtunnel:'rail-tunnel'})[key]||(['road','rail','port','bus-stop','train-stop'].includes(key)?key:'');
+}
+function infrastructurePortrait(kind,cls='tool-art') { return `<canvas class="${cls}" width="72" height="56" data-infrastructure-sprite="${kind}" aria-hidden="true"></canvas>`; }
+function industryPortrait(kind,cls='entity-art') { return `<canvas class="${cls}" width="112" height="112" data-industry-sprite="${kind}" aria-hidden="true"></canvas>`; }
+function toolCard(key, label) {
  const info=TOOL_INFO[key],base=key==='stop'?Math.min(BUILD_COSTS['bus-stop'],BUILD_COSTS['train-stop']):BUILD_COSTS[key],automatic=['road','rail','stop'].includes(key);
- return `<button class="tool-card ${tool===key?'active':''}" data-tool="${key}" aria-pressed="${tool===key}" title="${escapeHTML(info.detail)}">${icon(info.icon)}<span class="tool-title">${info.name}</span><span class="tool-cost">${automatic?'from ':''}${compactMoney(priceFor(game,base))}${lineTools.has(key)?' / tile':''}</span>${info.key?`<span class="shortcut">${info.key}</span>`:''}</button>`;
+ return `<button class="tool-card ${tool===key?'active':''}" data-tool="${key}" aria-pressed="${tool===key}" title="${escapeHTML(info.detail)}">${infrastructureKind(key)?infrastructurePortrait(infrastructureKind(key)):icon(info.icon)}<span class="tool-title">${label||info.name}</span><span class="tool-cost">${automatic?'from ':''}${compactMoney(priceFor(game,base))}${lineTools.has(key)?' / tile':''}</span>${info.key?`<span class="shortcut">${info.key}</span>`:''}</button>`;
 }
 function toolDescription(key) {
  if (TOOL_INFO[key]) return TOOL_INFO[key].detail;
@@ -195,20 +211,20 @@ function buildingBenefit(kind) {
 function buildingPalette() {
  return `<div class="section-divider"></div><div class="panel-heading"><h2>Buildings</h2><span>26 designs</span></div><label class="building-filter"><span class="sr-only">Building collection</span><select id="building-group" aria-label="Building collection">${Object.entries(BUILDING_GROUPS).map(([key,g])=>`<option value="${key}" ${buildingGroup===key?'selected':''}>${g.name} · ${Object.values(BUILDINGS).filter(b=>b.group===key).length}</option>`).join('')}</select></label><div class="building-grid">${Object.entries(BUILDINGS).filter(([,b])=>b.group===buildingGroup).map(([key,b])=>`<button class="building-card ${tool===key?'active':''}" data-tool="${key}" aria-pressed="${tool===key}" title="${escapeHTML(b.name)} · ${money(priceFor(game,b.cost))} · ${escapeHTML(buildingBenefit(key))}"><canvas width="96" height="100" data-building-sprite="${key}" aria-hidden="true"></canvas><span class="building-tier">${b.tier||BUILDING_GROUPS[b.group].name}</span><strong>${escapeHTML(b.name)}</strong><span class="building-price">${money(priceFor(game,b.cost))}</span></button>`).join('')}</div>`;
 }
-function drawPaletteSprites() {
- if(paletteBiome!==game.biome){paletteBiome=game.biome;paletteSprites=createSprites(game.biome);}
- $$('[data-building-sprite]').forEach(canvas=>{const c=canvas.getContext('2d');c.clearRect(0,0,canvas.width,canvas.height);c.imageSmoothingEnabled=false;c.drawImage(paletteSprites(canvas.dataset.buildingSprite,0,1),16,8,64,80);});
- $$('[data-industry-sprite]').forEach(canvas=>{const c=canvas.getContext('2d');c.clearRect(0,0,canvas.width,canvas.height);c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';c.drawImage(paletteSprites(canvas.dataset.industrySprite,0,2),8,0,96,108);});
-}
+function drawPaletteSprites(root = document) { drawUIArtwork(root, game); }
+
 function projectCard() {
  const project=nextProject(game);
  return `<details class="project-card"><summary>${escapeHTML(project.title)}</summary><p>${escapeHTML(project.detail)}</p><button class="small-button" data-project-action="${project.action}" ${project.target?`data-project-target="${escapeHTML(project.target)}"`:''}>${escapeHTML(project.button)} ${icon('arrow')}</button></details>`;
+}
+function engineeringTools() {
+ return `<details class="engineering-tools" ${engineeringOpen?'open':''}><summary>${icon('raise')} Terrain &amp; crossings</summary><div class="tool-grid">${toolCard('raise','Raise +1')}${toolCard('lower','Lower −1')}</div><div class="stop-mode-picker" role="group" aria-label="Bridge and tunnel transport"><span>Crossings</span>${['road','rail'].map(mode=>`<button data-crossing-mode="${mode}" aria-pressed="${preferredMode===mode}">${icon(mode)} ${mode==='road'?'Road':'Rail'}</button>`).join('')}</div><div class="tool-grid">${toolCard(preferredMode==='rail'?'railbridge':'bridge','Bridge')}${toolCard(preferredMode==='rail'?'railtunnel':'tunnel','Tunnel')}</div></details>`;
 }
 function buildPanel() {
  const groups={network:['road','rail','stop','port','bulldoze'],towns:['residential','commercial','industrial','city']};
  const tabs=`<div class="build-tabs" role="tablist" aria-label="Construction categories">${[['network','Network'],['towns','Town'],['industry','Industry']].map(([key,label])=>`<button role="tab" aria-selected="${category===key}" data-category="${key}" class="${category===key?'active':''}">${label}</button>`).join('')}</div>`;
  const industries=`<div class="tool-list">${Object.entries(INDUSTRIES).filter(([,d])=>d.biomes.includes(game.biome)).map(([key,d])=>`<button class="industry-tool ${tool===key?'active':''}" data-tool="${key}" aria-pressed="${tool===key}"><canvas class="industry-art" width="112" height="112" data-industry-sprite="${key}" aria-hidden="true"></canvas><span class="industry-tool-summary"><strong>${d.name}</strong>${cargoRecipe(d.inputs,d.outputs,{counts:false})}</span><span class="tool-cost">${compactMoney(priceFor(game,d.cost))}<small>2 × 2</small></span></button>`).join('')}</div>`;
- return `<div class="panel-heading"><h2>Build</h2></div>${tabs}${category==='industry'?industries:`<div class="tool-grid">${groups[category].map(toolCard).join('')}</div>`}${tool==='stop'?`<div class="stop-mode-picker" role="group" aria-label="Stop type at road and rail crossings"><span>At crossings</span>${['road','rail'].map(mode=>`<button data-stop-mode="${mode}" aria-pressed="${preferredMode===mode}">${icon(mode)} ${mode==='road'?'Road':'Rail'}</button>`).join('')}</div>`:''}<div class="tool-description">${category==='network'?'Road and Rail include bridges and tunnels.':escapeHTML(toolDescription(tool))}</div><div class="build-bottom-tools"><button class="compact-tool ${tool==='inspect'?'active':''}" data-tool="inspect">${icon('inspect')} Explore <span>Esc</span></button>${category!=='network'?`<button class="compact-tool danger ${tool==='bulldoze'?'active':''}" data-tool="bulldoze">${icon('bulldoze')} Bulldozer <span>X</span></button>`:''}</div>${category==='towns'?buildingPalette():projectCard()+`<button class="text-button" data-action="help">How to play <span>↗</span></button>`}`;
+ return `<div class="panel-heading"><h2>Build</h2></div>${tabs}${category==='industry'?industries:`<div class="tool-grid">${groups[category].map(key=>toolCard(key)).join('')}</div>`}${tool==='stop'?`<div class="stop-mode-picker" role="group" aria-label="Stop type at road and rail crossings"><span>At crossings</span>${['road','rail'].map(mode=>`<button data-stop-mode="${mode}" aria-pressed="${preferredMode===mode}">${icon(mode)} ${mode==='road'?'Road':'Rail'}</button>`).join('')}</div>`:''}${category==='network'?engineeringTools():''}<div class="tool-description">${category==='network'&&tool==='inspect'?'Road and Rail include automatic crossings. Shape land and build level spans in Terrain & crossings.':escapeHTML(toolDescription(tool))}</div><div class="build-bottom-tools"><button class="compact-tool ${tool==='inspect'?'active':''}" data-tool="inspect">${icon('inspect')} Explore <span>Esc</span></button>${category!=='network'?`<button class="compact-tool danger ${tool==='bulldoze'?'active':''}" data-tool="bulldoze">${icon('bulldoze')} Bulldozer <span>X</span></button>`:''}</div>${category==='towns'?buildingPalette():projectCard()+`<button class="text-button" data-action="help">How to play <span>↗</span></button>`}`;
 }
 function cargoChoices() {
  const available=Object.entries(CARGO).filter(([k])=>k==='passengers'||Object.values(INDUSTRIES).some(d=>d.biomes.includes(game.biome)&&(d.inputs[k]||d.outputs[k])));
@@ -224,7 +240,7 @@ function routeForm() {
  const opts=(current)=>'<option value="">Choose a stop…</option>'+stations.map(s=>`<option value="${s.id}" ${String(s.id)===String(current)?'selected':''}>${escapeHTML(s.name)}</option>`).join('');
  const plan=validateRoutePlan(game,formDraft);
  const stopField=(key,label,coverage)=>`<div class="route-stop-field"><div class="route-stop-label"><span>${label}</span><button type="button" data-pick-route="${key}" aria-pressed="${routePicking===key}" aria-label="Select ${key==='from'?'start':'end'} stop on map">${icon('focus')} Pick on map</button></div><label class="form-field"><span class="sr-only">${label} stop</span><select name="${key}" required>${opts(formDraft[key])}</select></label>${coverageNote(formDraft[key],coverage)}</div>`;
- return `<form id="route-form" class="panel-form"><h3>New route</h3><p class="form-note">Pick a start, then an end. We’ll check the connection.</p><label class="form-field"><span>Name (optional)</span><input name="name" maxlength="36" placeholder="Route name" value="${escapeHTML(formDraft.name)}"></label><label class="form-field"><span>Transport</span><select name="mode"><option value="road" ${formDraft.mode==='road'?'selected':''}>Road · bus / truck</option><option value="rail" ${formDraft.mode==='rail'?'selected':''}>Rail · train</option><option value="water" ${formDraft.mode==='water'?'selected':''}>Water · ship / ferry</option></select></label>${formDraft.mode==='water'?'<p class="form-note">Ports need connected water. Ships pass beneath bridges.</p>':''}${stopField('from','Start','produces')}${stopField('to','End','accepts')}<div id="route-connection" class="route-connection" role="status" aria-live="polite" data-state="${plan.state}" data-valid="${plan.valid}">${routePlanMessage(plan)}</div>${cargoChoices()}<div class="form-summary"><span id="vehicle-purchase-spec">Gen ${purchase.level+1} · ${purchase.capacity} units</span><strong id="vehicle-purchase-price">${money(purchase.cost)}</strong></div><button class="button button-primary full" type="submit" ${plan.valid?'':'disabled'}>${icon(transportIcon(formDraft.mode))} Launch route</button><p class="form-note">Route earnings must cover daily upkeep. Upgrade only when demand needs more capacity.</p></form>`;
+ return `<form id="route-form" class="panel-form"><h3>New route</h3><p class="form-note">Pick a start, then an end. We’ll check the connection.</p><label class="form-field"><span>Name (optional)</span><input name="name" maxlength="36" placeholder="Route name" value="${escapeHTML(formDraft.name)}"></label><label class="form-field"><span>Transport</span><select name="mode"><option value="road" ${formDraft.mode==='road'?'selected':''}>Road · bus / truck</option><option value="rail" ${formDraft.mode==='rail'?'selected':''}>Rail · train</option><option value="water" ${formDraft.mode==='water'?'selected':''}>Water · ship / ferry</option></select></label>${formDraft.mode==='water'?'<p class="form-note">Ports need connected water. Ships pass beneath bridges.</p>':''}${stopField('from','Start','produces')}${stopField('to','End','accepts')}<div id="route-connection" class="route-connection" role="status" aria-live="polite" data-state="${plan.state}" data-valid="${plan.valid}">${routePlanMessage(plan)}</div>${cargoChoices()}<div class="purchase-vehicle"><canvas width="80" height="64" data-vehicle-sprite="purchase" data-mode="${formDraft.mode}" data-cargo="${formDraft.cargo}" data-level="${purchase.level}" aria-hidden="true"></canvas><div class="form-summary"><span id="vehicle-purchase-spec">Gen ${purchase.level+1} · ${purchase.capacity} units</span><strong id="vehicle-purchase-price">${money(purchase.cost)}</strong></div></div><button class="button button-primary full" type="submit" ${plan.valid?'':'disabled'}>${icon(transportIcon(formDraft.mode))} Launch route</button><p class="form-note">Route earnings must cover daily upkeep. Upgrade only when demand needs more capacity.</p></form>`;
 }
 function routesPanel() {
  const options=(entries,current)=>entries.map(([key,label])=>`<option value="${key}" ${key===current?'selected':''}>${escapeHTML(label)}</option>`).join('');
@@ -234,7 +250,7 @@ function routesPanel() {
 function routeCards(routes) {
  return routes.length?routes.map(route=>{
  const from=game.stations.find(s=>s.id===route.stops[0]),to=game.stations.find(s=>s.id===route.stops[1]),health=routeHealth(game,route),profit=route.revenue-(route.revenueAtAccountingStart||0)-(route.expenses||0);
- return `<article class="route-card" data-route-id="${route.id}"><div class="route-header"><span class="route-dot" style="background:${escapeHTML(route.color||'#d9965c')}"></span><strong>${escapeHTML(route.name)}</strong><span data-route-status="${route.id}">${escapeHTML(health.label)}</span></div><div class="route-journey">${escapeHTML(from?.name||'Removed stop')}${icon('arrow')}${escapeHTML(to?.name||'Removed stop')}</div><div class="route-stats"><span class="route-mode-icon" title="${transportName(route.mode)}">${icon(transportIcon(route.mode))}<span class="sr-only">${transportName(route.mode)}</span></span>${cargoBadge(route.cargo,{label:true})}<span data-route-stat="${route.id}">${integer(route.delivered)} moved</span></div><div class="route-earnings"><span>Net earned</span><strong data-route-revenue="${route.id}" title="Revenue minus route upkeep; excludes construction.">${profit<0?'−':''}${money(profit)}</strong><span data-route-load="${route.id}"></span></div><p class="route-health" data-route-health="${route.id}" title="${escapeHTML(health.detail)}">${escapeHTML(health.detail)}</p><div class="route-vehicle-spec" data-vehicle-spec="${route.id}">${vehicleSpec(getVehicleUpgrade(game,route.id))}</div><div class="route-actions"><button class="small-button" data-focus-route="${route.id}">Show</button>${upgradeButton(route)}<button class="small-button danger" data-remove-route="${route.id}">Retire</button></div></article>`;}).join(''):`<div class="empty-state">${icon('route')}${game.routes.length?'No routes match these filters.':'Connect two stops to start.'}</div>`;
+ return `<article class="route-card" data-route-id="${route.id}"><div class="route-header"><span class="route-dot" style="background:${escapeHTML(route.color||'#d9965c')}"></span><strong>${escapeHTML(route.name)}</strong><span data-route-status="${route.id}">${escapeHTML(health.label)}</span></div><div class="route-journey">${escapeHTML(from?.name||'Removed stop')}${icon('arrow')}${escapeHTML(to?.name||'Removed stop')}</div><div class="route-stats"><span class="route-mode-icon" title="${transportName(route.mode)}"><canvas width="80" height="64" data-vehicle-sprite="${route.id}" aria-hidden="true"></canvas><span class="sr-only">${transportName(route.mode)}</span></span>${cargoBadge(route.cargo,{label:true})}<span data-route-stat="${route.id}">${integer(route.delivered)} moved</span></div><div class="route-earnings"><span>Net earned</span><strong data-route-revenue="${route.id}" title="Revenue minus route upkeep; excludes construction.">${profit<0?'−':''}${money(profit)}</strong><span data-route-load="${route.id}"></span></div><p class="route-health" data-route-health="${route.id}" title="${escapeHTML(health.detail)}">${escapeHTML(health.detail)}</p><div class="route-vehicle-spec" data-vehicle-spec="${route.id}">${vehicleSpec(getVehicleUpgrade(game,route.id))}</div><div class="route-actions"><button class="small-button" data-focus-route="${route.id}">Show</button>${upgradeButton(route)}<button class="small-button danger" data-remove-route="${route.id}">Retire</button></div></article>`;}).join(''):`<div class="empty-state">${icon('route')}${game.routes.length?'No routes match these filters.':'Connect two stops to start.'}</div>`;
 }
 function vehicleSpec(quote) { return `<span>Gen ${quote.level+1} · ${quote.capacity} units</span><span>${quote.speedMultiplier.toFixed(1)}× speed</span>`; }
 function upgradeTitle(quote) {
@@ -264,6 +280,7 @@ function refreshUpgradeControls() {
  const purchase=getVehiclePurchase(game,formDraft.mode);
  if($('#vehicle-purchase-price'))$('#vehicle-purchase-price').textContent=money(purchase.cost);
  if($('#vehicle-purchase-spec'))$('#vehicle-purchase-spec').textContent=`Gen ${purchase.level+1} · ${purchase.capacity} units`;
+ const portrait=$('[data-vehicle-sprite="purchase"]');if(portrait){Object.assign(portrait.dataset,{mode:formDraft.mode,cargo:formDraft.cargo,level:String(purchase.level)});drawPaletteSprites($('#route-form'));}
 }
 function performUpgrade(routeId) {
  const restoreFocus=document.activeElement?.matches('[data-upgrade-route],#upgrade-fleet');
@@ -285,7 +302,7 @@ function bindRouteCards(root) {
 }
 function refreshRouteList() {
  const list=$('#route-list');if(!list)return;const routes=filterRoutes(game,routeFilters);
- list.innerHTML=routeCards(routes);$('#route-results-count').textContent=`${routes.length} of ${game.routes.length} routes`;bindRouteCards(list);
+ list.innerHTML=routeCards(routes);$('#route-results-count').textContent=`${routes.length} of ${game.routes.length} routes`;bindRouteCards(list);drawPaletteSprites(list);
 }
 function isRoutePicking() { return Boolean(routePicking); }
 function routePickStops() { return view==='routes'?[formDraft.from,formDraft.to].map(id=>game.stations.find(s=>String(s.id)===String(id))).filter(Boolean):[]; }
@@ -323,7 +340,7 @@ function entityMatches(entity, query, extra='') {
 }
 function entityCards() {
  if(view==='towns')return game.cities.filter(city=>entityMatches(city,entityFilters.towns)).map(city=>`<button class="entity-card" data-city="${city.id}"><h3>${escapeHTML(city.name)}${icon('arrowup')}</h3><p>${cargoBadge('passengers',{count:Math.floor(city.population)})} <span>residents</span></p><div class="entity-metric"><span>Transport</span><span>${townService(game,city).label}</span></div></button>`).join('');
- return game.industries.filter(site=>(entityFilters.kind==='all'||site.kind===entityFilters.kind)&&entityMatches(site,entityFilters.industry,[INDUSTRIES[site.kind].name,...Object.keys(INDUSTRIES[site.kind].inputs),...Object.keys(INDUSTRIES[site.kind].outputs)].join(' '))).map(site=>{const def=INDUSTRIES[site.kind],status=industryStatus(site);return `<button class="entity-card" data-industry="${site.id}"><h3>${escapeHTML(site.name||def.name)}${icon('arrowup')}</h3>${cargoRecipe(def.inputs,def.outputs)}<p class="site-status" data-state="${status.state}">${escapeHTML(status.label)}</p><div class="entity-metric"><span>${integer(Object.values(site.inventory||{}).reduce((a,b)=>a+b,0))} stored</span><span>${Math.round((site.capacity||1)*100)}% capacity</span></div></button>`;}).join('');
+ return game.industries.filter(site=>(entityFilters.kind==='all'||site.kind===entityFilters.kind)&&entityMatches(site,entityFilters.industry,[INDUSTRIES[site.kind].name,...Object.keys(INDUSTRIES[site.kind].inputs),...Object.keys(INDUSTRIES[site.kind].outputs)].join(' '))).map(site=>{const def=INDUSTRIES[site.kind],status=industryStatus(site);return `<button class="entity-card" data-industry="${site.id}"><div class="entity-heading">${industryPortrait(site.kind)}<h3>${escapeHTML(site.name||def.name)}${icon('arrowup')}</h3></div>${cargoRecipe(def.inputs,def.outputs)}<p class="site-status" data-state="${status.state}">${escapeHTML(status.label)}</p><div class="entity-metric"><span>${integer(Object.values(site.inventory||{}).reduce((a,b)=>a+b,0))} stored</span><span>${Math.round((site.capacity||1)*100)}% capacity</span></div></button>`;}).join('');
 }
 function entitySearch(label) {
  return `<label class="entity-search"><span class="sr-only">${label}</span><input id="entity-search" type="search" aria-label="${label}" placeholder="${label}" value="${escapeHTML(entityFilters[view])}"></label>`;
@@ -336,13 +353,19 @@ function bindEntityCards(root) {
 }
 function refreshEntities() {
  const list=$('#entity-list');if(!list)return;
- list.innerHTML=entityCards()||'<p class="empty-state">No matches. Try another name or cargo.</p>';bindEntityCards(list);
+ list.innerHTML=entityCards()||'<p class="empty-state">No matches. Try another name or cargo.</p>';bindEntityCards(list);drawPaletteSprites(list);
 }
 function renderPanel() {
  const panel=$('#panel-content'), scroll=panel.scrollTop;
  panel.innerHTML=view==='build'?buildPanel():view==='routes'?routesPanel():view==='towns'?townsPanel():industryPanel(); panel.scrollTop=scroll;
  drawPaletteSprites();
  panel.querySelectorAll('[data-stop-mode]').forEach(el=>el.addEventListener('click',()=>{preferredMode=el.dataset.stopMode;renderPanel();canvas.focus({preventScroll:true});}));
+ panel.querySelector('.engineering-tools')?.addEventListener('toggle',e=>{engineeringOpen=e.currentTarget.open;});
+ panel.querySelectorAll('[data-crossing-mode]').forEach(el=>el.addEventListener('click',()=>{
+  preferredMode=el.dataset.crossingMode;
+  if(spanTools.has(tool))setTool((preferredMode==='rail'?'rail':'')+(tool.includes('bridge')?'bridge':'tunnel'));
+  else{renderPanel();canvas.focus({preventScroll:true});}
+ }));
  if($('#building-group'))$('#building-group').addEventListener('change',e=>{buildingGroup=e.target.value;renderPanel();});
  panel.querySelectorAll('[data-tool]').forEach(el=>el.addEventListener('click',()=>setTool(el.dataset.tool)));
  panel.querySelectorAll('[data-category]').forEach(el=>el.addEventListener('click',()=>{category=el.dataset.category;renderPanel();$('#panel-content').scrollTop=0;}));
@@ -368,14 +391,14 @@ function renderPanel() {
  panel.querySelectorAll('[data-cargo-choice]').forEach(el=>el.addEventListener('click',()=>{
   formDraft.cargo=el.dataset.cargoChoice;$('#route-form select[name=cargo]').value=formDraft.cargo;
   panel.querySelectorAll('[data-cargo-choice]').forEach(choice=>choice.setAttribute('aria-pressed',String(choice.dataset.cargoChoice===formDraft.cargo)));
-  refreshRoutePlan();
+  refreshRoutePlan();refreshUpgradeControls();
  }));
  const form=$('#route-form');
  if(form){
   form.addEventListener('input',e=>{if(e.target.name)formDraft[e.target.name]=e.target.value;});
   form.addEventListener('change',e=>{
    const key=e.target.name;if(!key)return;formDraft[key]=e.target.value;
-   if(key==='cargo'){panel.querySelectorAll('[data-cargo-choice]').forEach(choice=>choice.setAttribute('aria-pressed',String(choice.dataset.cargoChoice===formDraft.cargo)));refreshRoutePlan();}
+   if(key==='cargo'){panel.querySelectorAll('[data-cargo-choice]').forEach(choice=>choice.setAttribute('aria-pressed',String(choice.dataset.cargoChoice===formDraft.cargo)));refreshRoutePlan();refreshUpgradeControls();}
    else if(key==='mode'){cancelRoutePicking();formDraft.from='';formDraft.to='';renderPanel();$('#route-form [name=mode]')?.focus({preventScroll:true});}
    else if(key==='from'||key==='to'){cancelRoutePicking();const s=game.stations.find(s=>String(s.id)===e.target.value);if(s)renderer.focus(s.x,s.y);renderPanel();$(`#route-form [name=${key}]`)?.focus({preventScroll:true});}
   });
@@ -464,11 +487,11 @@ function inspect(x,y,kind='') {
  const tile=tileAt(x,y);if(!tile)return;const changed=!selected||selected.x!==x||selected.y!==y||selected.kind!==kind;selected={x,y,kind};
  const station=game.stations.find(s=>s.x===x&&s.y===y),industry=game.industries.find(i=>industryContains(i,x,y)), city=game.cities.find(c=>c.x===x&&c.y===y)||game.cities.find(c=>Math.hypot(c.x-x,c.y-y)<4&&tile.building);
  let title,tag,body;
- if(station&&kind!=='city'&&kind!=='industry'){title=station.name;tag=stopName(station.mode).toUpperCase();body=`<div class="inspector-grid"><div><small>Network</small><strong>${transportName(station.mode)}</strong></div><div><small>Coverage</small><strong>5 tiles</strong></div></div>${coverageNote(station.id,'produces')}${coverageNote(station.id,'accepts')}<button class="button button-primary full" id="station-route">${icon('route')} New route</button>`;}
- else if(industry){const d=INDUSTRIES[industry.kind],conditions=industryConditions(game,industry),typical=Object.values(d.outputs).reduce((a,b)=>a+b,0)*(industry.capacity||1)*conditions.productivity;title=industry.name||d.name;tag=`INDUSTRY · ${industrySize(industry)} × ${industrySize(industry)} site`;const status=industryStatus(industry);body=`${cargoRecipe(d.inputs,d.outputs)}<div class="industry-condition" data-state="${status.state}"><strong>${escapeHTML(status.label)}</strong><p>${escapeHTML(status.detail)}</p></div>${industryDestinations(industry)}<div class="inspector-grid"><div><small>Capacity</small><strong>${Math.round((industry.capacity||1)*100)}%</strong></div><div><small>Potential / day</small><strong>${typical.toLocaleString('en-US',{maximumFractionDigits:1})}</strong></div></div>${localConditions(conditions)}<div class="section-divider"></div><div class="ledger">${Object.entries(industry.inventory||{}).map(([key,n])=>`<div class="ledger-row">${cargoBadge(key,{label:true})}<strong>${integer(n)}</strong></div>`).join('')||'<span class="micro-note">Storage empty</span>'}</div><p>Add a stop within 5 tiles.</p>`;}
+ if(station&&kind!=='city'&&kind!=='industry'){title=station.name;tag=stopName(station.mode).toUpperCase();body=`${infrastructurePortrait(station.mode==='water'?'port':station.mode==='rail'?'train-stop':'bus-stop','inspector-station-art')}<div class="inspector-grid"><div><small>Network</small><strong>${transportName(station.mode)}</strong></div><div><small>Coverage</small><strong>5 tiles</strong></div></div>${coverageNote(station.id,'produces')}${coverageNote(station.id,'accepts')}<button class="button button-primary full" id="station-route">${icon('route')} New route</button>`;}
+ else if(industry){const d=INDUSTRIES[industry.kind],conditions=industryConditions(game,industry),typical=Object.values(d.outputs).reduce((a,b)=>a+b,0)*(industry.capacity||1)*conditions.productivity;title=industry.name||d.name;tag=`INDUSTRY · ${industrySize(industry)} × ${industrySize(industry)} site`;const status=industryStatus(industry);body=`<div class="inspector-industry-art">${industryPortrait(industry.kind)}${cargoRecipe(d.inputs,d.outputs)}</div><div class="industry-condition" data-state="${status.state}"><strong>${escapeHTML(status.label)}</strong><p>${escapeHTML(status.detail)}</p></div>${industryDestinations(industry)}<div class="inspector-grid"><div><small>Capacity</small><strong>${Math.round((industry.capacity||1)*100)}%</strong></div><div><small>Potential / day</small><strong>${typical.toLocaleString('en-US',{maximumFractionDigits:1})}</strong></div></div>${localConditions(conditions)}<div class="section-divider"></div><div class="ledger">${Object.entries(industry.inventory||{}).map(([key,n])=>`<div class="ledger-row">${cargoBadge(key,{label:true})}<strong>${integer(n)}</strong></div>`).join('')||'<span class="micro-note">Storage empty</span>'}</div><p>Add a stop within 5 tiles.</p>`;}
  else if(kind!=='city'&&tile.building&&BUILDINGS[tile.building.kind]){const b=BUILDINGS[tile.building.kind];title=b.name;tag=b.tier?b.tier.toUpperCase()+' HOME':BUILDING_GROUPS[b.group].name.toUpperCase();const nearest=game.cities.reduce((best,c)=>!best||Math.hypot(c.x-x,c.y-y)<Math.hypot(best.x-x,best.y-y)?c:best,null);body=`<div class="inspector-building"><canvas width="96" height="100" data-building-sprite="${tile.building.kind}" aria-hidden="true"></canvas><p>${escapeHTML(b.tier||BUILDING_GROUPS[b.group].name)} · ${nearest&&Math.hypot(nearest.x-x,nearest.y-y)<=10?escapeHTML(nearest.name):'Countryside'}</p></div><div class="inspector-grid"><div><small>Collection</small><strong>${escapeHTML(BUILDING_GROUPS[b.group].name)}</strong></div><div><small>Development</small><strong>Level ${tile.building.level||1}</strong></div></div><p>${escapeHTML(buildingBenefit(tile.building.kind))}</p>`;}
  else if(city&&(kind==='city'||!tile.zone)){title=city.name;tag='TOWN';body=`<div class="inspector-grid"><div><small>Population</small><strong>${integer(city.population)}</strong></div><div><small>Activity</small><strong>${integer(city.activity||0)}</strong></div></div><p class="site-status">${townService(game,city).label}</p>${localConditions(settlementSuitability(game,city))}<button class="button button-primary full" id="zone-town">${icon('house')} Add zones</button>`;}
- else{title=tile.zone?TOOL_INFO[tile.zone].name+' zone':tile.road?'Road':tile.rail?'Railway':{grass:'Open countryside',forest:'Woodland',water:'Water',mountain:'Mountain ridge',rock:'Rocky ground',sand:'Desert sands',snow:'Snowfield'}[tile.terrain]||'Countryside';if(tile.detail&&!tile.road&&!tile.rail&&!tile.zone)title=tile.detail.replace(/-/g,' ').replace(/^./,c=>c.toUpperCase());tag=`LAND PARCEL · ${x}, ${y}`;body=`<p>${tile.zone?'Develops gradually with local demand.':tile.terrain==='water'?'Build a port on water beside a bank. Ships follow connected water and pass beneath bridges.':tile.terrain==='mountain'?'Use a tunnel through mountains.':'Build roads, zones or industry here.'}</p>`;}
+ else{title=tile.zone?TOOL_INFO[tile.zone].name+' zone':tile.road?'Road':tile.rail?'Railway':{grass:'Open countryside',forest:'Woodland',water:'Water',mountain:'Mountain ridge',rock:'Rocky ground',sand:'Desert sands',snow:'Snowfield'}[tile.terrain]||'Countryside';if(tile.detail&&!tile.road&&!tile.rail&&!tile.zone)title=tile.detail.replace(/-/g,' ').replace(/^./,c=>c.toUpperCase());tag=`LEVEL ${terrainLevel(tile)} · ${x}, ${y}`;body=`<p>${tile.zone?'Develops gradually with local demand.':tile.terrain==='water'?'Build a port on water beside a bank. Ships follow connected water and pass beneath bridges.':tile.terrain==='mountain'?'Use Terrain & crossings to tunnel through higher ground, or reshape clear land.':'Build here, or use Terrain & crossings to raise or lower clear land.'}</p>`;}
  if(tile.zone){const zone=game.zones.find(zone=>zone.x===x&&zone.y===y);body+=`<p>Development: ${Math.round((zone?.progress||0)/3*100)}% · Road access and regular town deliveries required.</p>`+localConditions(settlementSuitability(game,{x,y},tile.zone));}
  const box=$('#inspector');box.innerHTML=`<div class="inspector-top"><span class="eyebrow">${tag}</span><button class="tiny-button" aria-label="Close inspector">×</button></div><h3>${escapeHTML(title)}</h3>${body}`;box.hidden=false;drawPaletteSprites();box.querySelector('.tiny-button').onclick=()=>{box.hidden=true;selected=null;};
  if($('#station-route'))$('#station-route').onclick=()=>{if(formDraft.mode!==station.mode||formDraft.to===String(station.id))formDraft.to='';formDraft.mode=station.mode;formDraft.from=String(station.id);setView('routes');$('#route-form')?.scrollIntoView({block:'nearest',behavior:'smooth'});};
@@ -533,11 +556,11 @@ function openChains(options={}) {
 $('#modal').addEventListener('close',()=>{saveDialogController?.dispose();saveDialogController=null;chainExplorer?.dispose();chainExplorer=null;if(modalPreviousSpeed!==null){changeSpeed(modalPreviousSpeed);modalPreviousSpeed=null;}});
 $('#modal').addEventListener('click',e=>{if(e.target===$('#modal')){const b=$('#modal').getBoundingClientRect();if(e.clientX<b.left||e.clientX>b.right||e.clientY<b.top||e.clientY>b.bottom)closeModal();}});
 function drawBiomePreview(element,biome) {
- const ctx=element.getContext('2d'), w=element.width=280,h=element.height=145;const colors={taiga:['#91a579','#657e53','#3f6748','#729c92','#a5b39a'],tundra:['#d3dbd3','#bcc9bf','#7c998b','#88adb2','#f3f4e6'],desert:['#d8ba80','#caa86d','#a47c53','#71a49a','#e5d09a']}[biome];
+ const ctx=element.getContext('2d'),density=Math.min(2,window.devicePixelRatio||1),w=280,h=145;element.width=w*density;element.height=h*density;ctx.setTransform(density,0,0,density,0,0);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';const colors={taiga:['#91a579','#657e53','#3f6748','#729c92','#a5b39a'],tundra:['#d3dbd3','#bcc9bf','#7c998b','#88adb2','#f3f4e6'],desert:['#d8ba80','#caa86d','#a47c53','#71a49a','#e5d09a']}[biome];
  ctx.fillStyle=colors[0];ctx.fillRect(0,0,w,h);let rand=931;const r=()=>{rand=(rand*1664525+1013904223)>>>0;return rand/4294967296;};
  for(let y=0;y<h;y+=3)for(let x=0;x<w;x+=3){if(r()>.78){ctx.globalAlpha=.17;ctx.fillStyle=colors[r()>.5?1:4];ctx.fillRect(x,y,3,3);}}ctx.globalAlpha=1;
  ctx.strokeStyle=colors[4];ctx.lineWidth=26;ctx.beginPath();ctx.moveTo(0,90);ctx.bezierCurveTo(70,150,85,0,165,69);ctx.bezierCurveTo(235,130,235,55,290,43);ctx.stroke();ctx.strokeStyle=colors[3];ctx.lineWidth=20;ctx.stroke();
- const previewSprites=createSprites(biome,{pixelScale:1,detailLevel:'region'}),trees=biome==='desert'?['palm','acacia','tamarisk']:biome==='tundra'?['larch','dwarf-birch','pine']:['pine','birch','oak'];
+ const previewSprites=createSprites(biome,{pixelScale:density,detailLevel:'region'}),trees=biome==='desert'?['palm','acacia','tamarisk']:biome==='tundra'?['larch','dwarf-birch','pine']:['pine','birch','oak'];
  for(let n=0;n<130;n++){const x=r()*w,y=r()*h;if(x>80&&x<175)continue;ctx.drawImage(previewSprites('forest',n%64,1,trees[n%3]),x-8,y-12,18,18);}
  for(let n=0;n<5;n++)ctx.drawImage(previewSprites('mountain',n*3,1,biome==='desert'?'mesa':biome==='tundra'?'glacier':'granite'),201+n*13,10+(n%2)*8,30,37.5);
  ctx.strokeStyle='#dfd5ae';ctx.lineWidth=6;ctx.beginPath();ctx.moveTo(40,h);ctx.lineTo(115,76);ctx.lineTo(215,76);ctx.stroke();ctx.strokeStyle='#868773';ctx.lineWidth=4;ctx.stroke();
@@ -574,7 +597,7 @@ function openAtlas() {
 }
 function openHelp(tab='basics') {
  if(tab==='chains'){openChains();return;}
- const basics=`<div class="guide-grid"><div class="guide-item"><span>${icon('road')}Build a network</span><p>Drag roads or rail. Bridges and tunnels are automatic. Place ports beside riverbanks and coasts.</p></div><div class="guide-item"><span>${icon('route')}Connect two stops</span><p>Place stops or ports within 5 tiles of customers. Connect them, choose cargo, then launch a bus, train or ship.</p></div><div class="guide-item"><span>${icon('factory')}Supply factories</span><p>Deliver every input in a recipe. Towns buy finished goods. Freight returns empty; passengers travel both ways.</p></div><div class="guide-item"><span>${icon('leaf')}Slow, local growth</span><p>Zone within 10 tiles of a town, beside roads. Regular deliveries drive growth; services and greenery help.</p></div><div class="guide-item"><span>${icon('leaf')}Build at your own pace</span><p>Your starter bus earns money while you plan. Start small, supply every factory input, and expand when demand fills your vehicles. Next projects are optional.</p></div><div class="guide-item"><span>${icon('route')}Understand the money</span><p>Profit shows operations this calendar month. Tap Balance for building spend and last month. Routes show fares minus upkeep since tracking began, excluding construction.</p></div></div><div class="keyboard-help"><span><kbd>R</kbd> Road</span><span><kbd>T</kbd> Rail</span><span><kbd>S</kbd> Stop on road / rail</span><span><kbd>P</kbd> Port</span><span><kbd>Right drag</kbd> Move map</span><span><kbd>Two fingers</kbd> Move / pinch to zoom</span><span><kbd>X</kbd> Bulldozer</span><span><kbd>G</kbd> Grid</span><span><kbd>L</kbd> Layers</span><span><kbd>H</kbd> Home</span><span><kbd>M</kbd> Map</span><span><kbd>Space</kbd> Pause / hold to pan</span><span><kbd>Esc</kbd> Done</span></div>`;
+ const basics=`<div class="guide-grid"><div class="guide-item"><span>${icon('road')}Build a network</span><p>Drag roads or rail for automatic crossings. In Terrain &amp; crossings, raise or lower land one level at a time. For a bridge over a valley or a tunnel through a hill, drag between two ends at the same level. Choose Road or Rail before building.</p></div><div class="guide-item"><span>${icon('route')}Connect two stops</span><p>Place stops or ports within 5 tiles of customers. Connect them, choose cargo, then launch a bus, train or ship.</p></div><div class="guide-item"><span>${icon('factory')}Supply factories</span><p>Deliver every input in a recipe. Towns buy finished goods. Freight returns empty; passengers travel both ways.</p></div><div class="guide-item"><span>${icon('leaf')}Slow, local growth</span><p>Zone within 10 tiles of a town, beside roads. Regular deliveries drive growth; services and greenery help.</p></div><div class="guide-item"><span>${icon('leaf')}Build at your own pace</span><p>Your starter bus earns money while you plan. Start small, supply every factory input, and expand when demand fills your vehicles. Next projects are optional.</p></div><div class="guide-item"><span>${icon('route')}Understand the money</span><p>Profit shows operations this calendar month. Tap Balance for building spend and last month. Routes show fares minus upkeep since tracking began, excluding construction.</p></div></div><div class="keyboard-help"><span><kbd>R</kbd> Road</span><span><kbd>T</kbd> Rail</span><span><kbd>S</kbd> Stop on road / rail</span><span><kbd>P</kbd> Port</span><span><kbd>Right drag</kbd> Move map</span><span><kbd>Two fingers</kbd> Move / pinch to zoom</span><span><kbd>X</kbd> Bulldozer</span><span><kbd>G</kbd> Grid</span><span><kbd>L</kbd> Layers</span><span><kbd>H</kbd> Home</span><span><kbd>M</kbd> Map</span><span><kbd>Space</kbd> Pause / hold to pan</span><span><kbd>Esc</kbd> Done</span></div>`;
  const chainBody=`<p class="panel-description">Base recipes · output varies by local conditions</p><div class="help-chain-grid">${Object.values(INDUSTRIES).filter(d=>d.biomes.includes(game.biome)).map(d=>`<article class="chain-card"><h4>${d.name}</h4>${cargoRecipe(d.inputs,d.outputs)}</article>`).join('')}</div>`;
  const resources=`<div class="resource-legend">${Object.entries(CARGO).map(([key,c])=>`<div class="resource-entry">${cargoIcon(key,{decorative:true})}<span>${c.name}</span></div>`).join('')}</div>`;
  openModal(`<div class="modal-inner"><div class="modal-heading"><div><h2>Field guide</h2></div><button class="close-modal" aria-label="Close dialog">×</button></div><div class="modal-tabbar"><button data-help-tab="basics" class="${tab==='basics'?'active':''}">Basics</button><button data-help-tab="chains" class="${tab==='chains'?'active':''}">Production</button><button data-help-tab="resources" class="${tab==='resources'?'active':''}">Resources</button></div>${tab==='basics'?basics:tab==='chains'?chainBody:resources}<div class="modal-actions"><button class="button button-primary" data-close>Back to game ${icon('arrow')}</button></div></div>`);
@@ -582,7 +605,14 @@ function openHelp(tab='basics') {
 }
 
 function gridLine(a,b) { const points=[];let x=a.x,y=a.y;points.push({x,y});const horizontalFirst=Math.abs(b.x-a.x)>=Math.abs(b.y-a.y);const stepX=()=>{while(x!==b.x){x+=Math.sign(b.x-x);points.push({x,y});}};const stepY=()=>{while(y!==b.y){y+=Math.sign(b.y-y);points.push({x,y});}};if(horizontalFirst){stepX();stepY();}else{stepY();stepX();}return points; }
-function paintPath(points) { const result=buildPlan(game,tool,points,{preferredMode});toast(result.message,!result.ok);preview=[];if(result.ok)refreshRouteConnections(game);updateHud();if(result.ok){persist();if(view!=='build')renderPanel();} }
+function constructionLine(a,b,key) {
+ if(spanTools.has(key))b=Math.abs(b.x-a.x)>=Math.abs(b.y-a.y)?{x:b.x,y:a.y}:{x:a.x,y:b.y};
+ return gridLine(a,b);
+}
+function paintPath(points) {
+ if(spanTools.has(tool)&&points.length<3){toast('Drag a straight span of at least 3 tiles, including both ends.',true);preview=[];return;}
+ const result=buildPlan(game,tool,points,{preferredMode});toast(result.message,!result.ok);preview=[];if(result.ok)refreshRouteConnections(game);updateHud();if(result.ok){persist();if(view!=='build')renderPanel();}
+}
 function pickMapTile(clientX,clientY) {
  if(isRoutePicking()) {
   const rect=canvas.getBoundingClientRect(),camera=renderer.getCamera();
@@ -610,11 +640,14 @@ function touchFrame() {
 function updatePlacementTip(e) {
  const tip=$('#placement-tip');
  if(tool==='inspect'||!hover||!tileAt(hover.x,hover.y)||pointer?.pan||touchGesture){tip.hidden=true;return;}
- const points=preview.length?preview:[hover],plan=quoteBuildPlan(game,tool,points,{preferredMode}),n=points.length;
- const effective=n===1?plan.placements[0]?.tool:tool;
+ const points=preview.length?preview:[hover],n=points.length,plan=spanTools.has(tool)&&n<3?{ok:false,message:'Drag at least 3 tiles between level ends.',placements:[],cost:0}:quoteBuildPlan(game,tool,points,{preferredMode});
+ const effective=n===1&&!spanTools.has(tool)?plan.placements[0]?.tool:tool;
  const name=TOOL_INFO[effective]?.name||BUILDINGS[effective]?.name||INDUSTRIES[effective]?.name||'Build';
- tip.textContent=`${name} · ${money(plan.cost)}${n>1?' · '+n+' tiles':''}`;
- const rect=canvas.getBoundingClientRect();tip.style.left=Math.max(4,Math.min(rect.width-220,e.clientX-rect.left+17))+'px';tip.style.top=Math.max(4,Math.min(rect.height-55,e.clientY-rect.top+18))+'px';tip.hidden=false;
+ const levels=terrainTools.has(tool)?n===1?`Level ${terrainLevel(tileAt(hover.x,hover.y))} → ${Math.max(1,Math.min(16,terrainLevel(tileAt(hover.x,hover.y))+(tool==='raise'?1:-1)))}`:`${tool==='raise'?'+1':'−1'} level / tile`:spanTools.has(tool)&&Number.isFinite(plan.level)?`Level ${plan.level}`:'';
+ tip.textContent=plan.ok===false?plan.message:`${name}${levels?' · '+levels:''} · ${money(plan.cost)}${n>1?' · '+n+' tiles':''}`;
+ tip.classList.toggle('invalid',plan.ok===false);
+ const rect=canvas.getBoundingClientRect();tip.hidden=false;
+ tip.style.left=Math.max(4,Math.min(rect.width-tip.offsetWidth-4,e.clientX-rect.left+17))+'px';tip.style.top=Math.max(4,Math.min(rect.height-tip.offsetHeight-4,e.clientY-rect.top+18))+'px';
 }
 canvas.addEventListener('pointerdown',e=>{
  if(e.button!==0&&e.button!==1&&e.button!==2)return;
@@ -644,7 +677,7 @@ canvas.addEventListener('pointermove',e=>{
   if(Math.hypot(e.clientX-pointer.x,e.clientY-pointer.y)>5)pointer.moved=true;
   if(pointer.moved&&!lineTools.has(pointer.tool)){pointer.pan=true;preview=[];canvas.classList.add('dragging');}
   if(pointer.pan){renderer.pan(dx,dy);if(spaceDown)spaceUsedForPan=true;}
-  else if(lineTools.has(pointer.tool))preview=gridLine(pointer.start,hover);
+  else if(lineTools.has(pointer.tool))preview=constructionLine(pointer.start,hover,pointer.tool);
   pointer.lastX=e.clientX;pointer.lastY=e.clientY;
  }
  updatePlacementTip(e);
@@ -728,7 +761,7 @@ document.addEventListener('keydown',e=>{
 });
 document.addEventListener('keyup',e=>{if(e.code==='Space'){if(spaceDown&&!spaceUsedForPan&&!pointer&&performance.now()-spaceStarted<260)changeSpeed(speed===0?previousSpeed:0);spaceDown=false;}});
 window.addEventListener('blur',()=>{spaceDown=false;spaceUsedForPan=false;cancelGesture();});
-window.addEventListener('resize',()=>{renderer.resize();syncToolControls();});
+window.addEventListener('resize',()=>{renderer.resize();syncToolControls();refreshArtwork();});
 window.addEventListener('pagehide',()=>persist());
 document.addEventListener('visibilitychange',()=>{lastFrame=performance.now();if(document.hidden)persist();});
 
@@ -738,6 +771,7 @@ const refreshArtwork=()=>{
  if($('#modal').open)$$('#modal [data-preview]').forEach(element=>drawBiomePreview(element,element.dataset.preview));
 };
 onHouseAssetsChange(refreshArtwork);onWorldArtChange(refreshArtwork);
+window.addEventListener('online',()=>{void preloadHouses({retry:true});void preloadWorldArt({retry:true});});
 syncLayerControls();
 updateRegion();renderPanel();syncToolControls();updateHud();changeSpeed(1);renderer.resize();if(window.innerWidth<=700)renderer.focus(game.cities[0].x+2,game.cities[0].y);
 // Establish the browser save immediately, including on the first visit.

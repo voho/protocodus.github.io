@@ -1,0 +1,119 @@
+{
+  "source": "fun/transport/assets/world/nature-mountains/source-generated-v2.png",
+  "sourceSize": [
+    1254,
+    1254
+  ],
+  "cell": 640,
+  "operation": "RGBA crop and integer translation only",
+  "cells": [
+    {
+      "sourceCrop": [
+        0,
+        0,
+        425,
+        448
+      ],
+      "integerOffset": [
+        107,
+        96
+      ]
+    },
+    {
+      "sourceCrop": [
+        425,
+        0,
+        832,
+        448
+      ],
+      "integerOffset": [
+        116,
+        96
+      ]
+    },
+    {
+      "sourceCrop": [
+        832,
+        0,
+        1254,
+        448
+      ],
+      "integerOffset": [
+        109,
+        96
+      ]
+    },
+    {
+      "sourceCrop": [
+        0,
+        448,
+        414,
+        844
+      ],
+      "integerOffset": [
+        113,
+        122
+      ]
+    },
+    {
+      "sourceCrop": [
+        414,
+        448,
+        832,
+        844
+      ],
+      "integerOffset": [
+        111,
+        122
+      ]
+    },
+    {
+      "sourceCrop": [
+        832,
+        448,
+        1254,
+        844
+      ],
+      "integerOffset": [
+        109,
+        122
+      ]
+    },
+    {
+      "sourceCrop": [
+        0,
+        844,
+        434,
+        1254
+      ],
+      "integerOffset": [
+        103,
+        115
+      ]
+    },
+    {
+      "sourceCrop": [
+        434,
+        844,
+        836,
+        1254
+      ],
+      "integerOffset": [
+        119,
+        115
+      ]
+    },
+    {
+      "sourceCrop": [
+        836,
+        844,
+        1254,
+        1254
+      ],
+      "integerOffset": [
+        111,
+        115
+      ]
+    }
+  ]
+}

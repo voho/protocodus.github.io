@@ -4,6 +4,7 @@ import { hasRasterIndustry, rasterIndustryWindows } from './raster-industries.js
 import { industrySize } from './industry-sites.js';
 import { hasRasterBuilding, rasterBuildingWindows } from './raster-buildings.js';
 import { vehicleHeadingIndex } from './vehicle-directions.js';
+import { isEngineeredTunnel, isUndergroundAt } from './structure-visibility.js';
 
 const TAU = Math.PI * 2;
 const clamp = value => Math.max(0, Math.min(1, value));
@@ -65,7 +66,7 @@ export function createLighting() {
           }
         }
       }
-      if (layers.roads && t.road && hash % 11 === 0) {
+      if (layers.roads && t.road && !isEngineeredTunnel(t) && hash % 11 === 0) {
         const lx = p.x + 9 * zoom, ly = p.y - 5 * zoom;
         glow(lx, ly, Math.max(5, 14 * zoom), '#ffcf82', .68); bulb(lx, ly, .9);
         c.globalAlpha = night * .55; c.strokeStyle = '#cfb478'; c.lineWidth = Math.max(.6, .7 * zoom); c.beginPath(); c.moveTo(lx, ly); c.lineTo(lx, ly + 5 * zoom); c.stroke(); c.globalAlpha = 1;
@@ -84,7 +85,7 @@ export function createLighting() {
       }
     }
     if (layers.vehicles) for (const vehicle of game.vehicles || []) {
-      const route = routesById.get(vehicle.routeId), p = project(vehicle.x, vehicle.y); if (!route || !visible(p)) continue;
+      const route = routesById.get(vehicle.routeId), p = project(vehicle.x, vehicle.y); if (!route || !visible(p) || (route.mode !== 'water' && isUndergroundAt(game, vehicle.x, vehicle.y))) continue;
       const angle = vehicleHeadingIndex(vehicle.angle) * Math.PI / 4, cosine = Math.cos(angle), sine = Math.sin(angle), ship = route.mode === 'water';
       const point = (dx, dy) => ({ x: p.x + (dx * cosine - dy * sine) * zoom, y: p.y + (dx * sine + dy * cosine) * zoom });
       const underBridge = (dx, dy) => { const t = tile(Math.floor(vehicle.x + .5 + (dx * cosine - dy * sine) / 32), Math.floor(vehicle.y + .5 + (dx * sine + dy * cosine) / 32)); return ship && t?.bridge && ((layers.roads && t.road) || (layers.rails && t.rail)); };

@@ -16,26 +16,28 @@ for (const sheet of sheets) {
   const entries = sheet.kinds.map(kind => {
     const id = `industry:${kind}:${sheet.biome}`;
     ids.add(id);
-    if (!byKind.has(kind)) byKind.set(kind, id);
+    if (!byKind.has(kind)) byKind.set(kind, []);
+    byKind.get(kind).push(id);
     return id;
   });
   registerAtlas({ id: `industries-${sheet.family}`, path: `./assets/world/industries-${sheet.family}/atlas`, columns: sheet.columns, rows: sheet.rows, entries, maxCell: 256 });
 }
 export const RASTER_INDUSTRY_IDS = Object.freeze([...ids]);
-const resolveId = (kind, biome) => {
+const candidateIds = (kind, biome) => {
   const requested = `industry:${kind}:${biome}`;
-  return ids.has(requested) ? requested : byKind.get(kind) || null;
+  return [...new Set([...(ids.has(requested) ? [requested] : []), ...(byKind.get(kind) || [])])];
 };
+const loadedId = (kind, biome) => candidateIds(kind, biome).find(atlasAvailable);
 export function hasRasterIndustry(kind, biome = 'taiga') {
-  const id = resolveId(kind, biome);
-  return id !== null && atlasAvailable(id);
+  return Boolean(loadedId(kind, biome));
 }
 export function drawRasterIndustry(c, kind, biome = 'taiga', pixelScale = 1, { size = 64 } = {}) {
-  const id = resolveId(kind, biome);
-  if (!id) return false;
   const drawSize = Number.isFinite(size) && size > 0 ? size : 64;
   const density = Number.isFinite(pixelScale) && pixelScale > 0 ? pixelScale : 1;
-  return drawAtlas(c, id, 0, 0, drawSize, drawSize, { pixelScale: density });
+  for (const id of candidateIds(kind, biome)) {
+    if (drawAtlas(c, id, 0, 0, drawSize, drawSize, { pixelScale: density })) return true;
+  }
+  return false;
 }
 
 // Small glass panes measured on the final 256px originals, not generic lights
@@ -89,5 +91,5 @@ for (const [biome, sites] of Object.entries(sourceWindows)) for (const [kind, pa
   windows.set(`industry:${kind}:${biome}`, Object.freeze(panes.map(pane => Object.freeze(pane.map(value => value / 8)))));
 }
 export function rasterIndustryWindows(kind, biome = 'taiga') {
-  return windows.get(resolveId(kind, biome)) || noWindows;
+  return windows.get(loadedId(kind, biome) || candidateIds(kind, biome)[0]) || noWindows;
 }

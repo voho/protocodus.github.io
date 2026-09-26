@@ -7,6 +7,8 @@ import { randomAt, localEnvironment, weatherAt, stepEcology } from './environmen
 import { stepSettlements, housingCapacity } from './settlements.js';
 import { initializeIndustry, stepIndustries } from './industry-simulation.js';
 import { availableVehicleLevel, priceFor, inflationInfo, calendarMonth } from './economy-pricing.js';
+import { terrainLevel, TERRAIN_LEVELS } from './terrain-elevation.js';
+import { terraformProblem, planStructureSpan, networkEdgeAllowed, transportElevation, validStructureMetadata } from './terrain-engineering.js';
 export { priceFor, inflationInfo } from './economy-pricing.js';
 export { industryConditions } from './industry-simulation.js';
 export { settlementSuitability } from './settlements.js';
@@ -99,7 +101,7 @@ export function passengerEndpoints(game,from,to) {
 const pathSearchBuffers = new WeakMap();
 function validNetwork(tile,mode) {
   if(mode==='water')return tile?.terrain==='water';
-  return tile && tile[mode] && (tile.terrain!=='water' || tile.bridge) && (tile.terrain!=='mountain' || tile.tunnel);
+  return tile && tile[mode] && (tile.terrain!=='water' || tile.bridge) && (tile.terrain!=='mountain' || tile.tunnel || tile.bridge);
 }
 export function findPath(game,from,to,mode='road') {
   if (!TRANSPORT_MODES.includes(mode) || !from || !to || !validNetwork(tileAt(game,from.x,from.y),mode) || !validNetwork(tileAt(game,to.x,to.y),mode)) return null;
@@ -116,7 +118,7 @@ export function findPath(game,from,to,mode='road') {
     const x=current%game.width,y=Math.floor(current/game.width);
     for(const [dx,dy] of DIRECTIONS) {
       const nx=x+dx,ny=y+dy,tile=tileAt(game,nx,ny);
-      if(!validNetwork(tile,mode)) continue;
+      if(!validNetwork(tile,mode) || !networkEdgeAllowed(game.tiles[current],tile,dx,dy,mode)) continue;
       const next=ny*game.width+nx;
       if(parent[next]!==-1) continue;
       if(tail===queue.length){const expanded=new Int32Array(Math.min(game.tiles.length,queue.length*2));expanded.set(queue);queue=buffers.queue=expanded;}
@@ -130,6 +132,30 @@ export function findPath(game,from,to,mode='road') {
 }
 function invalidateNetwork(game){game.revision++;game.networkRevision=(game.networkRevision||0)+1;}
 function spend(game,cost) { game.money-=cost;game.monthlyExpenses+=cost;game.totalExpenses+=cost; }
+export function quoteStructureSpan(game,tool,points) {
+  const plan=planStructureSpan(game,tool,points);if(!plan.ok)return plan;
+  const placements=plan.placements.map(p=>({...p,cost:constructionCost(game,p.tool,p.x,p.y)}));
+  const cost=placements.reduce((sum,p)=>sum+p.cost,0);
+  return {...plan,placements,cost,...game.money<cost?{ok:false,message:`Need ${moneyText(cost)} for the complete ${plan.structure}.`}:{}};
+}
+export function buildStructureSpan(game,tool,points) {
+  const plan=quoteStructureSpan(game,tool,points);
+  if(!plan.ok)return {...plan,cost:0,built:0,failed:points.length,skipped:0};
+  let built=0,skipped=0;
+  // The whole span is checked before any charge or mutation, so an invalid
+  // portal, obstacle or short budget can never leave half a crossing behind.
+  for(const p of plan.placements){
+    const t=tileAt(game,p.x,p.y);
+    if(p.cost===0){skipped++;continue;}
+    t[plan.mode]=true;
+    if(p.interior){t[plan.structure]=true;t.structureLevel=plan.level;t.structureAxis=plan.axis;}
+    if(t.terrain==='forest'&&(!p.interior||plan.structure!=='tunnel')){t.terrain=game.biome==='desert'?'sand':game.biome==='tundra'?'snow':'grass';t.detail='';}
+    if(!p.interior)t.detail='';
+    built++;
+  }
+  if(built){spend(game,plan.cost);invalidateNetwork(game);}
+  return result(true,built?`${plan.mode==='rail'?'Rail':'Road'} ${plan.structure} · level ${plan.level} · ${moneyText(plan.cost)}`:'Already built.',{cost:plan.cost,built,failed:0,skipped,level:plan.level});
+}
 function closestCity(game,point,max=Infinity) {
   let closest=null,best=max;
   for(const city of game.cities) {const d=distance(city,point);if(d<=best){closest=city;best=d;}}
@@ -147,6 +173,15 @@ export function build(game,tool,x,y) {
   if(!owns(BUILD_COSTS,tool)) return result(false,'Unknown construction tool.');
   const point={x,y},station=stationAt(game,x,y),industry=industryAt(game,x,y);
   const city=game.cities.find(c=>c.x===x&&c.y===y);
+  if(tool==='raise'||tool==='lower') {
+    const problem=terraformProblem(game,tool,x,y);if(problem)return result(false,problem);
+    const cost=constructionCost(game,tool,x,y);if(game.money<cost)return result(false,`Need ${moneyText(cost)} to shape this tile.`);
+    const level=terrainLevel(t)+(tool==='raise'?1:-1);
+    spend(game,cost);t.elevation=level/TERRAIN_LEVELS;t.detail='';
+    if(t.terrain==='forest'||(t.terrain==='mountain'&&level<12)||(t.terrain==='rock'&&level<10))t.terrain=game.biome==='desert'?'sand':game.biome==='tundra'?'snow':'grass';
+    game.revision++;
+    return result(true,`${tool==='raise'?'Raised':'Lowered'} to level ${level} · ${moneyText(cost)}`,{cost,level});
+  }
   if(tool==='bulldoze') {
     if(station && game.routes.some(r=>r.stops.includes(station.id))) return result(false,'Retire routes using this station before removing it.');
     if(city) return result(false,'A city center cannot be demolished.');
@@ -163,7 +198,7 @@ export function build(game,tool,x,y) {
     }
     game.zones=game.zones.filter(z=>z.x!==x||z.y!==y);
     const changedNetwork=t.road||t.rail||Boolean(station);
-    t.road=false;t.rail=false;t.bridge=false;t.tunnel=false;t.building=null;t.zone=null;if(t.terrain!=='water')t.detail='';delete t.publicRoad;
+    t.road=false;t.rail=false;t.bridge=false;t.tunnel=false;t.building=null;t.zone=null;if(t.terrain!=='water')t.detail='';delete t.publicRoad;delete t.structureLevel;delete t.structureAxis;
     if(['forest','rock'].includes(t.terrain)) t.terrain=game.biome==='desert'?'sand':game.biome==='tundra'?'snow':'grass';
     if(changedNetwork)invalidateNetwork(game);else game.revision++;
     return result(true,`Cleared tile · ${moneyText(cost)}`,{cost});
@@ -172,6 +207,7 @@ export function build(game,tool,x,y) {
     const mode=tool.startsWith('rail')?'rail':'road';
     const bridge=tool==='bridge'||tool==='railbridge',tunnel=tool==='tunnel'||tool==='railtunnel';
     if(t[mode] && (!bridge||t.bridge) && (!tunnel||t.tunnel)) return result(true,'Already built.',{cost:0,unchanged:true});
+    if(t.structureAxis)return result(false,'Each elevated span carries one transport mode. Build another span alongside it.');
     if(industry||t.building||t.zone) return result(false,'Clear the building or zone before building a connection.');
     if(station&&station.mode!==mode) return result(false,'Cannot cross another transport mode at a station.');
     if(t.terrain==='water'&&!bridge&&!t.bridge) return result(false,`Water needs a ${mode==='rail'?'rail ':''}bridge.`);
@@ -436,7 +472,7 @@ function travelSpeed(game,route,vehicle,segment){
   for(const city of game.cities){const d=Math.hypot(city.x-a.x,city.y-a.y);if(d<5)congestion+=Math.min(.15,city.population/10000)*(1-d/6);}
   for(const [dx,dy]of DIRECTIONS){const kind=tileAt(game,a.x+dx,a.y+dy)?.building?.kind;if(kind==='service-garage'||kind==='police-station')support+=.035;}
   const terrain=(ta.bridge||tb.bridge)?.8:(ta.tunnel||tb.tunnel)?.88:1;
-  const grade=1-Math.min(.16,Math.abs(ta.elevation-tb.elevation)*.4);
+  const grade=1-Math.min(.16,Math.abs(transportElevation(ta)-transportElevation(tb))*.4);
   const dailyVariation=.94+randomAt(game,day,vehicle.id,511)*.12;
   const speed=(route.mode==='road'?2.8:4.6)*terrain*grade*climate.travel*dailyVariation*(1-clamp(congestion,0,route.mode==='road'?.22:.06)+Math.min(.07,support))*vehicleSpeedMultiplier(vehicleLevel(vehicle));
   cache.speeds.set(key,speed);return speed;
@@ -581,6 +617,7 @@ export function validateGame(game) {
   const ids=new Set();
   const uniqueId=obj=>{if(typeof obj?.id!=='string'||ids.has(obj.id))return false;ids.add(obj.id);return true;};
   if(!game.tiles.every(t=>t&&TERRAIN.has(t.terrain)&&finite(t.elevation)&&(t.detail===undefined||(typeof t.detail==='string'&&t.detail.length<80))&&(t.publicRoad===undefined||typeof t.publicRoad==='boolean')&&Number.isInteger(t.variant)&&['road','rail','bridge','tunnel'].every(k=>typeof t[k]==='boolean')&&(t.zone===null||ZONE_TYPES.includes(t.zone))&&(t.building===null||(t.building&&(owns(BUILDINGS,t.building.kind)||['house','apartment','shop','office','factory'].includes(t.building.kind))&&finite(t.building.level,1,3)))))return false;
+  if(!game.tiles.every(validStructureMetadata))return false;
   if(!game.cities.every(c=>validPoint(game,c)&&uniqueId(c)&&typeof c.name==='string'&&finite(c.population,0,1e8)&&finite(c.activity,0)&&finite(c.passengers,0)&&finite(c.growth,0)&&finite(c.delivered,0)&&finite(c.supplies,0)))return false;
   if(!game.cities.every(c=>c.lastServiceDay===undefined||c.lastServiceDay===null||finite(c.lastServiceDay,0,game.day)))return false;
   if(!game.tiles.every(tile=>tile.building?.populationCityId===undefined||tile.building.populationCityId===null||game.cities.some(city=>city.id===tile.building.populationCityId)))return false;

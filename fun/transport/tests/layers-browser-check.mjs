@@ -150,11 +150,14 @@ try {
     const result=await page.evaluate(()=>{
       const q=layersQA,render=()=>{q.renderer.render(0);return q.canvas.toDataURL();};
       const baseline=render(),comparisons=[];
-      const crop=(x,y)=>{const camera=q.renderer.getCamera(),scale=camera.zoom*(devicePixelRatio||1);const px=(q.canvas.width/2+((x+.5)*32-camera.x)*scale),py=(q.canvas.height/2+((y+.5)*32-camera.y)*scale);return Array.from(q.canvas.getContext('2d').getImageData(Math.round(px-6*scale),Math.round(py-6*scale),Math.max(1,Math.round(12*scale)),Math.max(1,Math.round(12*scale))).data).join(',');};
+      const crop=(x,y)=>{const camera=q.renderer.getCamera(),scale=camera.zoom*(devicePixelRatio||1);const px=(q.canvas.width/2+((x+.5)*32-camera.x)*scale),py=(q.canvas.height/2+((y+.5)*32-camera.y)*scale);return Array.from(q.canvas.getContext('2d').getImageData(Math.round(px-6*scale),Math.round(py-6*scale),Math.max(1,Math.round(12*scale)),Math.max(1,Math.round(12*scale))).data);};
+      // Filtered relief under translucent stones can round a channel by one
+      // between Canvas raster paths. Geometry and the underlying terrain remain.
+      const samePixels=(a,b)=>a.length===b.length&&a.every((value,i)=>Math.abs(value-b[i])<=1);
       const rock=crop(46,29),mountain=crop(47,29);
       for(const [key,value] of Object.entries(q.defaults)){
         q.renderer.setLayers({[key]:!value});const changed=render();
-        const stats=q.renderer.getStats(),rockPreserved=key!=='trees'||(crop(46,29)===rock&&crop(47,29)===mountain);
+        const stats=q.renderer.getStats(),rockPreserved=key!=='trees'||(samePixels(crop(46,29),rock)&&samePixels(crop(47,29),mountain));
         q.renderer.setLayers({[key]:value});const restored=render();
         comparisons.push({key,changed:changed!==baseline,restored:restored===baseline,rockPreserved,stats});
       }

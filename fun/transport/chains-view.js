@@ -1,5 +1,6 @@
 import { BIOMES, CARGO, INDUSTRIES, TOWN_CARGO } from './data.js';
 import { cargoBadge, cargoIcon, cargoRecipe } from './cargo-icons.js';
+import { drawUIArtwork } from './ui-art.js';
 import { chainProducts, defaultChainProduct, nearestTown, productionChain } from './chains.js';
 
 const escape = value => String(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
@@ -23,7 +24,7 @@ export function mountChains(container, game, { onLocate, onBuild, onClose, onCha
     const sites = sitesFor(node.kind), selected = node.kind === selectedKind;
     if (node.kind === 'towns') return `<button type="button" class="chain-node chain-town-node${selected ? ' selected' : ''}" data-chain-industry="towns" data-chain-node="towns" aria-pressed="${selected}" aria-label="Towns, ${sites.length} locations"><span class="chain-node-kicker">Customers</span><strong>Towns</strong><span class="chain-town-cargo">${Object.keys(node.definition.inputs).map(key => cargoBadge(key)).join('')}</span><span class="chain-node-sites">${sites.length} towns <span aria-hidden="true">↗</span></span></button>`;
     const definition = node.definition;
-    return `<button type="button" class="chain-node${selected ? ' selected' : ''}${sites.length ? '' : ' chain-node-missing'}" data-chain-industry="${node.kind}" data-chain-node="${node.kind}" aria-pressed="${selected}" aria-label="${escape(definition.name)}, ${sites.length} sites"><span class="chain-node-kicker">${Object.keys(definition.inputs).length ? 'Processing' : 'Raw materials'}</span><strong>${escape(definition.name)}</strong>${cargoRecipe(definition.inputs, definition.outputs)}<span class="chain-node-sites">${sites.length ? `${sites.length} ${sites.length === 1 ? 'site' : 'sites'}` : 'No sites · build one'} <span aria-hidden="true">↗</span></span></button>`;
+    return `<button type="button" class="chain-node${selected ? ' selected' : ''}${sites.length ? '' : ' chain-node-missing'}" data-chain-industry="${node.kind}" data-chain-node="${node.kind}" aria-pressed="${selected}" aria-label="${escape(definition.name)}, ${sites.length} sites"><span class="chain-node-kicker">${Object.keys(definition.inputs).length ? 'Processing' : 'Raw materials'}</span><span class="chain-node-heading"><canvas width="112" height="112" data-industry-sprite="${node.kind}" aria-hidden="true"></canvas><strong>${escape(definition.name)}</strong></span>${cargoRecipe(definition.inputs, definition.outputs)}<span class="chain-node-sites">${sites.length ? `${sites.length} ${sites.length === 1 ? 'site' : 'sites'}` : 'No sites · build one'} <span aria-hidden="true">↗</span></span></button>`;
   }
 
   function render() {
@@ -35,6 +36,7 @@ export function mountChains(container, game, { onLocate, onBuild, onClose, onCha
     container.querySelector('#chain-product').addEventListener('change', event => { cargo = event.target.value; render(); container.querySelector('#chain-product').focus({ preventScroll: true }); });
     container.querySelectorAll('[data-chain-industry]').forEach(button => button.addEventListener('click', () => { select(button.dataset.chainIndustry); container.querySelector('.chain-site-section').scrollIntoView({ block: 'start' }); }));
     renderSites();
+    drawUIArtwork(container,game);
     resizeObserver?.disconnect();
     resizeObserver = new ResizeObserver(scheduleEdges);
     resizeObserver.observe(container.querySelector('.chain-board'));

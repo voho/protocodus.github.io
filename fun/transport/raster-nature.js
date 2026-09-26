@@ -45,6 +45,14 @@ function treeID(tree, biome) {
     else if (biome === 'desert' && species === 'joshua') species = 'small-joshua';
     else if (biome !== 'desert' && ['pine','spruce','fir','larch'].includes(species)) species = 'sapling';
   }
+  // Generated woodland includes these habitat variants in addition to the
+  // original simulation species. Select them from each stable tree seed so
+  // existing companies gain the complete artwork without rewriting geography.
+  if (!tree.bare && tree.size >= 12) {
+    if (biome === 'tundra' && species === 'pine' && tree.seed % 4 === 0) species = 'ice-pine';
+    else if (biome === 'tundra' && species === 'dwarf-birch' && tree.seed % 3 === 0) species = 'willow-tree';
+    else if (biome === 'desert' && species === 'joshua' && tree.seed % 4 === 0) species = 'succulent-tree';
+  }
   if (!TREE_KINDS[biome].includes(species)) species = TREE_KINDS[biome][0];
   return `nature-trees-${biome}:${species}`;
 }
@@ -52,7 +60,9 @@ function drawTree(c, tree, biome, pixelScale) {
   const box = tree.size * 1.18;
   return drawAtlas(c, treeID(tree, biome), tree.x - box / 2, tree.y - box * .955, box, box, { pixelScale });
 }
-function groundID(detail, biome) {
+function groundID(detail, biome, variant = 0) {
+  // Salt pans have both a thin ground crust and isolated crystalline outcrops.
+  if (detail === 'saltflat' && biome === 'desert' && variant % 3 === 0) return 'nature-rocks:desert-salt';
   if (GROUND_KINDS[biome].includes(detail)) return `nature-ground-${biome}:${detail}`;
   const geological = { glacial: biome === 'tundra' ? 'tundra-glacial' : 'taiga-scree', ice: 'tundra-ice', snow: 'tundra-snow', dunes: 'desert-dunes', saltflat: 'desert-salt', canyon: 'desert-strata' };
   if (geological[detail]) return `nature-rocks:${geological[detail]}`;
@@ -63,32 +73,51 @@ function groundID(detail, biome) {
   return null;
 }
 
-export function drawRasterNature(c, kind, biome = 'taiga', rawDetail = '', variant = 0, pixelScale = 1) {
+export function drawRasterNature(c, kind, biome = 'taiga', rawDetail = '', variant = 0, pixelScale = 1, { density = 1 } = {}) {
   if (!TREE_KINDS[biome]) biome = 'taiga';
   const detail = normalizedDetail(rawDetail), v = wrap(variant), r = random(seedFor(biome, rawDetail === 'bare-foothill' ? 'wooded-foothill' : detail, v));
   if (kind === 'forest') {
     const trees = forestComposition(biome, rawDetail, v);
+    if (density > 1) {
+      const extras = forestComposition(biome, rawDetail, v + 23), target = density >= 3 ? 5 : 3;
+      for (let i = 0; trees.length < target; i++) trees.push({ ...extras[i % extras.length] });
+      for (const tree of trees) {
+        tree.size = Math.min(35, tree.size * (density >= 3 ? 1.55 : 1.28));
+        const box = tree.size * 1.18;
+        tree.x = clamp(16 + (tree.x - 16) * 1.4, box / 2 - 7, 39 - box / 2);
+        tree.y = clamp(16 + (tree.y - 16) * 1.2, box * .955 - 15, 31);
+      }
+      trees.sort((a, b) => a.y - b.y);
+    }
     if (!trees.every(tree => atlasAvailable(treeID(tree, biome)))) return false;
     for (const tree of trees) drawTree(c, tree, biome, pixelScale);
     return true;
   }
   if (kind === 'tree') {
-    const tree = { x: 16, y: 27, size: 22, species: biome === 'desert' ? 'acacia' : 'pine', bare: false, seed: v };
+    const species = TREE_KINDS[biome].includes(rawDetail) ? rawDetail : biome === 'desert' ? 'acacia' : 'pine';
+    const tree = { x: 16, y: 27, size: 22, species, bare: false, seed: v };
     return drawTree(c, tree, biome, pixelScale);
   }
   if (kind === 'mountain') {
     let mountain = rawDetail === 'bare-foothill' ? 'wooded-foothill' : rawDetail;
     if (!MOUNTAINS.includes(mountain)) mountain = biome === 'desert' ? (rawDetail === 'cliff' ? 'canyon' : 'mesa') : biome === 'tundra' ? 'frost-ridge' : 'granite-ridge';
+    // A geological region contains related exposures, not an identical tiny
+    // glacier/mesa on every marked tile. Keep the original identity dominant
+    // across the region, with companion strata sharing its climate/material.
+    if (v % 5 >= 2) {
+      const family = RELIEF_NEIGHBORS[mountain];
+      mountain = family[Math.floor(r() * family.length)];
+    }
     const id = `nature-mountains:${mountain}`;
     if (!atlasAvailable(id)) return false;
     // Mixed outcrops and uneven baselines break the repeated peak-per-tile
     // silhouette while preserving the terrain's principal geological identity.
-    const paired = r() < .58, width = (paired ? 18 : 21) + r() * 10;
-    const pieces = [{ id, width, height: 20 + r() * 16, left: .5 + (31 - width) * r(), bottom: 23 + r() * 8, flip: r() < .5 }];
+    const paired = r() < .52, width = 20 + r() * 11;
+    const pieces = [{ id, width, height: width * (.88 + r() * .1), left: .5 + (31 - width) * r(), bottom: 25 + r() * 6, flip: r() < .5 }];
     if (paired) {
       const neighbors = RELIEF_NEIGHBORS[mountain], companion = neighbors[Math.floor(r() * neighbors.length)];
-      const width = 10 + r() * 11;
-      pieces.push({ id: `nature-mountains:${companion}`, width, height: 12 + r() * 13,
+      const width = 10 + r() * 8;
+      pieces.push({ id: `nature-mountains:${companion}`, width, height: width * .9,
         left: .5 + (31 - width) * r(), bottom: 23 + r() * 8, flip: r() < .5 });
     }
     for (const piece of pieces.sort((a, b) => a.bottom - b.bottom)) {
@@ -102,9 +131,18 @@ export function drawRasterNature(c, kind, biome = 'taiga', rawDetail = '', varia
     return true;
   }
   if (kind === 'rock') {
-    const id = `nature-rocks:${detail === 'glacial' || biome === 'tundra' ? 'tundra-glacial' : biome === 'desert' ? (v % 3 ? 'desert-boulder' : 'desert-strata') : (v % 4 ? 'taiga-boulder' : 'taiga-scree')}`;
+    // "glacial" is also the old saved name for ordinary taiga scree. Respect
+    // its climate rather than turning every northern rock into a tundra image.
+    const rockKind = biome === 'tundra'
+      ? (detail === 'snow' ? 'tundra-snow' : detail === 'ice' ? 'tundra-ice' : 'tundra-glacial')
+      : biome === 'desert'
+        ? (detail === 'saltflat' ? 'desert-salt' : detail === 'dunes' ? 'desert-dunes' : v % 3 ? 'desert-boulder' : 'desert-strata')
+        : (v % 4 ? 'taiga-boulder' : 'taiga-scree');
+    const id = `nature-rocks:${rockKind}`;
     if (!atlasAvailable(id)) return false;
-    const rocks = Array.from({ length: 1 + v % 5 }, (_, i) => ({ size: i === 0 ? 14 + r() * 12 : 5 + r() * 10, x: 5 + r() * 22, y: 13 + r() * 17 })).sort((a, b) => a.y - b.y);
+    // Each regenerated patch already contains embedded fragments. A single
+    // main outcrop and an occasional satellite avoid a pile of repeated icons.
+    const rocks = Array.from({ length: v % 4 === 0 ? 2 : 1 }, (_, i) => ({ size: i === 0 ? 20 + r() * 10 : 6 + r() * 6, x: 5 + r() * 22, y: 13 + r() * 17 })).sort((a, b) => a.y - b.y);
     for (const rock of rocks) {
       const x = clamp(rock.x - rock.size / 2, .5, 31.5 - rock.size), y = clamp(rock.y - rock.size * .92, -7, 31 - rock.size);
       drawAtlas(c, id, x, y, rock.size, rock.size, { pixelScale });
@@ -112,7 +150,7 @@ export function drawRasterNature(c, kind, biome = 'taiga', rawDetail = '', varia
     return true;
   }
   if (kind !== 'terrain-detail' || !detail) return false;
-  const id = groundID(detail, biome);
+  const id = groundID(detail, biome, v);
   if (!id || !atlasAvailable(id)) return false;
   const flat = ['ice','snow','dunes','saltflat','canyon','lichen','marsh'].includes(detail);
   const count = flat ? 1 + v % 2 : 1 + v % 3;

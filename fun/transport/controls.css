@@ -49,6 +49,19 @@
 .stop-mode-picker button{display:flex;align-items:center;justify-content:center;gap:6px;flex:1;min-width:0;min-height:44px;border-radius:5px;padding:8px 6px;font-size:14px;color:#5f7355}
 .stop-mode-picker button svg{width:17px;height:17px;flex:0 0 17px}
 .stop-mode-picker button[aria-pressed=true]{background:#fafbf2;color:#385e3c;box-shadow:0 1px 5px #294a2920}
+.engineering-tools{border:1px solid #dbe3cf;border-radius:8px;margin-top:12px;padding:0 10px;background:#f2f5e9}
+.engineering-tools>summary{cursor:pointer;min-height:46px;display:flex;align-items:center;gap:8px;font-size:14px;color:#4d6741;list-style:none}
+.engineering-tools>summary::-webkit-details-marker{display:none}
+.engineering-tools>summary:after{content:'+';margin-left:auto;font-size:19px}
+.engineering-tools[open]>summary:after{content:'−'}
+.engineering-tools>summary svg{width:21px;height:21px;flex:0 0 21px}
+.engineering-tools[open]{padding-bottom:10px}
+.engineering-tools .tool-card{min-height:85px;padding:10px}
+.engineering-tools .tool-card .tool-title{font-size:13px}
+.engineering-tools .tool-card .tool-cost{font-size:11px}
+.engineering-tools .stop-mode-picker>span{display:none}
+.placement-tip{max-width:min(340px,calc(100% - 8px));white-space:normal;line-height:1.4}
+.placement-tip.invalid{color:#8a4b35;border-color:#d5ae96;background:#fff1e6f5}
 @media(max-width:950px){
   #map-options{right:14px;top:66px}
   #active-tool-bar{left:14px;top:72px;max-width:calc(100% - 28px)}
@@ -84,3 +97,17 @@
   .route-pick-banner button{min-height:44px;font-size:13px}
 }
 @media(prefers-reduced-motion:reduce){.view-controls button,.map-popover button{transition:none}}
+.tool-card .tool-art{display:block;width:60px;height:38px;margin:0 0 5px;object-fit:contain}
+.building-card canvas,.industry-art,.biome-card canvas,.inspector-building canvas{image-rendering:auto;object-fit:contain}
+.biome-card canvas{object-fit:cover}
+.entity-heading{display:flex;align-items:center;gap:8px;min-width:0}
+.entity-heading .entity-art{width:60px;height:60px;flex:0 0 60px;object-fit:contain}
+.entity-heading h3{flex:1;min-width:0}
+.inspector-industry-art{display:flex;align-items:center;gap:10px}
+.inspector-industry-art .entity-art{width:96px;height:96px;flex:0 0 96px;object-fit:contain}
+.inspector-industry-art .cargo-recipe{flex-wrap:wrap}
+.inspector-station-art{display:block;width:96px;height:75px;object-fit:contain;margin:0 auto 8px}
+.route-mode-icon canvas{display:block;width:48px;height:38px;object-fit:contain}
+.purchase-vehicle{display:flex;align-items:center;gap:8px}
+.purchase-vehicle>canvas{display:block;width:64px;height:52px;flex:0 0 64px;object-fit:contain}
+.purchase-vehicle .form-summary{flex:1;min-width:0;flex-wrap:wrap;gap:5px}

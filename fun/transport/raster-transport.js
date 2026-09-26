@@ -7,6 +7,27 @@ registerAtlas({id:'cargo',path:'./assets/world/cargo/atlas',entries:['coal','ore
 export const hasRasterTransport=kind=>atlasAvailable(kind);
 export const drawRasterInfrastructure=(c,kind,x,y,w,h,pixelScale=1)=>drawAtlas(c,'infra:'+kind,x,y,w,h,{pixelScale});
 
+// The authored network tiles run north/south. Compose their textured arms for
+// bends and junctions too, retaining the renderer's connected bed beneath the
+// transparent edges. Wedges meet at the tile center without painting a road
+// into a direction that is not connected.
+export function drawRasterNetwork(c,kind,cx,cy,arms,pixelScale=1){
+  const bridge=kind.endsWith('-bridge'),width=bridge?32:kind==='rail'?22:44;
+  const straight=arms.length<=2&&arms.every(([dx,dy])=>arms[0][0]===0?dx===0:dy===0);
+  c.save();c.beginPath();c.rect(cx-16,cy-16,32,32);c.clip();c.translate(cx,cy);
+  let painted=false;
+  if(straight){
+    if(arms[0][0]!==0)c.rotate(Math.PI/2);
+    painted=drawRasterInfrastructure(c,kind,-width/2,-18,width,36,pixelScale);
+  }else for(const [dx,dy]of arms){
+    c.save();c.rotate(Math.atan2(dy,dx)+Math.PI/2);
+    c.beginPath();c.moveTo(0,0);c.lineTo(-16,-16);c.lineTo(16,-16);c.closePath();c.clip();
+    painted=drawRasterInfrastructure(c,kind,-width/2,-18,width,36,pixelScale)||painted;
+    c.restore();
+  }
+  c.restore();return painted;
+}
+
 function upright(c,heading){
   c.rotate(-heading);
   // Inverse rotations can leave microscopic skew, selecting a different Canvas

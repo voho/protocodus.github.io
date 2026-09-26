@@ -60,7 +60,7 @@ function lakeDistricts(config, seed, random) {
   return { buckets, columns };
 }
 
-export function generateTerrainV2(biome, seed, config) {
+export function generateTerrainV2(biome, seed, config, { naturalRelief = false } = {}) {
   const { width, height } = config, unit = Math.min(width, height), numericSeed = seedNumber(seed);
   const random = randomSource(numericSeed ^ 0x71c3d521), nature = BIOME_NATURE[biome];
   const land = biome === 'desert' ? 'sand' : biome === 'tundra' ? 'snow' : 'grass';
@@ -115,9 +115,34 @@ export function generateTerrainV2(biome, seed, config) {
     }
   }
   const tile = (x, y) => x >= 0 && y >= 0 && x < width && y < height ? tiles[y * width + x] : null;
-  // The opening company always has two habitable towns, whatever surrounds it.
-  for (const cx of [starterX, starterX + 24]) for (let y = starterY - 4; y <= starterY + 4; y++) for (let x = cx - 4; x <= cx + 4; x++) {
-    Object.assign(tile(x, y), { terrain: land, elevation: .25, detail: '' });
+  // Recipe 4 keeps the underlying hills under settlements. If a starting town
+  // falls offshore, its guaranteed land has an irregular, gently sloping shore
+  // instead of the old nine-by-nine square. Work stays local to the two towns.
+  if (naturalRelief) for (const cx of [starterX, starterX + 24]) {
+    let nearbyHeight = 0, nearbyLand = 0;
+    for (let dy = -14; dy <= 14; dy += 2) for (let dx = -14; dx <= 14; dx += 2) {
+      const t = tile(cx + dx, starterY + dy);
+      if (t && t.terrain !== 'water') { nearbyHeight += t.elevation; nearbyLand++; }
+    }
+    const centerHeight = clamp(nearbyLand ? nearbyHeight / nearbyLand : .18, .14, .30);
+    for (let dy = -14; dy <= 14; dy++) for (let dx = -14; dx <= 14; dx++) {
+      const x = cx + dx, y = starterY + dy, t = tile(x, y); if (!t) continue;
+      const distance = Math.hypot(dx / 1.08, dy / .96);
+      const outer = 11 + (noise(x, y, numericSeed + 2231, 6) - .5) * 3;
+      const core = Math.abs(dx) <= 4 && Math.abs(dy) <= 4;
+      if (t.terrain === 'water' && (core || distance < outer)) {
+        const edge = clamp((outer - distance) / (outer - 6.4), 0, 1);
+        const blend = edge * edge * (3 - 2 * edge);
+        t.terrain = land;
+        t.elevation = Math.max(1 / 1024, Math.round((centerHeight + (noise(x, y, numericSeed + 2237, 9) - .5) * .035) * blend * 1024) / 1024);
+        t.detail = '';
+      } else if (core) { t.terrain = land; t.detail = ''; }
+    }
+  } else {
+    // Frozen recipe 2/3: existing sparse saves depend on these exact tiles.
+    for (const cx of [starterX, starterX + 24]) for (let y = starterY - 4; y <= starterY + 4; y++) for (let x = cx - 4; x <= cx + 4; x++) {
+      Object.assign(tile(x, y), { terrain: land, elevation: .25, detail: '' });
+    }
   }
   const riverTiles = new Set();
   function paintRiver(points, radius) {
@@ -192,6 +217,9 @@ export function generateTerrainV2(biome, seed, config) {
       else t.detail = biome === 'tundra' ? (t.variant % 5 === 0 ? 'reeds' : t.variant % 3 ? 'cotton-grass' : 'willow-scrub') : (t.variant % 3 ? 'reeds' : 'ferns');
     }
   }
-  for (const cx of [starterX, starterX + 24]) Object.assign(tile(cx, starterY + 4), { terrain: land, elevation: .25, detail: '' });
-  return { tiles, starterX, starterY, land };
+  for (const cx of [starterX, starterX + 24]) {
+    const bank = tile(cx, starterY + 4);
+    Object.assign(bank, { terrain: land, elevation: naturalRelief ? bank.elevation || tile(cx, starterY + 3).elevation : .25, detail: '' });
+  }
+  return { tiles, starterX, starterY, land, naturalRelief };
 }

@@ -157,7 +157,7 @@ async function home(page) {
 
 try {
   const page = await start({ width: 1440, height: 1000 });
-  assert.deepEqual(await page.locator('.tool-grid [data-tool]').evaluateAll(nodes => nodes.map(node => node.dataset.tool)), ['road', 'rail', 'stop', 'port', 'bulldoze'], 'five network tools replace separate bridge, tunnel, and station choices');
+  assert.deepEqual(await page.locator('#panel-content > .tool-grid [data-tool]').evaluateAll(nodes => nodes.map(node => node.dataset.tool)), ['road', 'rail', 'stop', 'port', 'bulldoze'], 'five primary network tools stay visible; engineering choices are expandable');
   assert.match(await page.locator('.build-bottom-tools [data-tool="inspect"]').innerText(), /Explore/);
   await menus(page);
   const site = await fixture(page);
@@ -240,7 +240,7 @@ try {
     const mobile = await start({ width, height: 844 }, true);
     await menus(mobile);
     await mobile.locator('.mobile-panel-toggle').click();
-    assert.equal(await mobile.locator('.tool-grid [data-tool]').count(), 5);
+    assert.equal(await mobile.locator('#panel-content > .tool-grid [data-tool]').count(), 5);
     await layout(mobile, ['.sidebar', '.mobile-panel-toggle']);
     await mobile.screenshot({ path: `${output}/mobile-${width}-network.png` });
     await mobile.locator('[data-tool="road"]').click();
