@@ -82,3 +82,118 @@ resume
 ---
 
 [Image: original 3840x1620, displayed at 2000x844. Multiply coordinates by 1.92 to map to original image.]
+
+---
+
+[Image: original 2880x1080, displayed at 2000x750. Multiply coordinates by 1.44 to map to original image.]
+
+---
+
+[Image: original 2880x1080, displayed at 2000x750. Multiply coordinates by 1.44 to map to original image.]
+
+---
+
+Base directory for this skill: /Users/vojta/.claude/skills/music-visualizer
+
+# Music visualizer
+
+A proven pipeline: **analyze -> inspect -> art-direct one scene module -> stills -> debug preview -> verify -> full render -> notes.**
+The generic parts (analysis, signal layer, GPU engine, render/mux, verification, notes) are finished scripts in `scripts/`.
+Your per-song work is the **art direction**: a palette, a motif, and one `scene.py` module. Spend tokens there, not on re-deriving plumbing.
+
+## Bundled files
+
+| File | What it does |
+|---|---|
+| `scripts/setup.sh` | creates `WORK/venv` with librosa, moderngl, soundfile (numpy/scipy/PIL/matplotlib from the system) |
+| `scripts/analyze.py` | song -> `audio.wav` (48 kHz, the ONLY audio used for analysis and mux) + `timeline.json` |
+| `scripts/inspect_analysis.py` | prints tempo, sections, per-bar table; writes `analysis.png` (spectrogram + sections + bands + zoom) |
+| `scripts/timeline.py` | signal layer: per-frame envelopes (instant attack), A/R-smoothed bands, `beatpos`, `flow`, section progress, phrase info, arcade counters |
+| `scripts/gfx.py` | GPU engine: `Camera`, `Lines`, `circle_pts`, `rot`, `Fluid`, `Engine` (bg/stars/nebula, lines with DOF, HUD layer, post chain) |
+| `scripts/vfont.py` | stroke font (A-Z, 0-9, symbols): text becomes glowing line segments; `draw_on` for beam write-on |
+| `scripts/render.py` | stills / clips / full render, `--debug` sync overlay, fluid warm-up, ffmpeg pipe with audio mux |
+| `scripts/contact_sheet.py` | tiles stills into one image, so one Read reviews 12-16 frames |
+| `scripts/verify_sync.py` | measures the MP4: stream specs, lag of visual hits per onset type, mute-test proxy, audio-vs-source alignment, flashes/s |
+| `scripts/make_notes.py` | delivery notes: BPM, section table, spot-check timestamps, verification results, plus your `mapping.md` |
+| `examples/scene_arcade.py` | complete worked scene ("Arcade Rush"): tunnel highway, spectrogram terrain, gyroscope core, radar beat clock, countdown builds, HUD, lockup |
+| `references/analysis.md` | how the analysis works, the pitfalls it already handles, how to fix a wrong tempo/downbeat/section |
+| `references/engine.md` | API reference for timeline / gfx / vfont / render, post parameters, performance numbers, rendering gotchas |
+| `references/design-playbook.md` | identity process, audio->visual mapping table, section treatments, escalation, transitions, photosensitivity |
+
+## Workflow
+
+`SK` = this skill's directory, `W` = a work directory (for example the scratchpad). All commands run from anywhere.
+
+### 1. Setup and analysis (about 1 minute)
+```bash
+bash $SK/scripts/setup.sh W                          # once per machine/work dir
+W/venv/bin/python $SK/scripts/analyze.py "song.mp3" --workdir W
+W/venv/bin/python $SK/scripts/inspect_analysis.py --workdir W --zoom 60,64   # then Read W/analysis.png
+```
+Check the printout and the PNG, not raw JSON. Section boundaries should sit on audible changes (the band curves step there), the downbeat lines should carry the big transitions, and the zoom row should show kicks on the red beat lines.
+If something is off (tempo octave, downbeat phase, a missed or extra section), read `references/analysis.md`; the fixes are parameter-level.
+Title and artist come from the file tags (`--title/--artist` override). The cover art is often embedded: `ffmpeg -i song.mp3 -an -c:v copy W/cover.jpg`. Look at it before designing.
+
+### 2. Art direction (think here; this is where the quality comes from)
+Read `references/design-playbook.md`. Decide and write down in `W/mapping.md`:
+- the identity: 4-6 palette colors (linear RGB), ONE motif that recurs in every section, a type treatment
+- the audio -> visual table (kick / snare / hat / beat / downbeat / phrase / sub / mids / highs / loudness / section)
+- one treatment per section type, and how each repeat escalates (drop 1 < drop 2 < finale)
+
+### 3. Scene module
+Copy `examples/scene_arcade.py` to `W/scene.py` and re-art-direct it. Keep its structural patterns (they are what makes sync exact): the highway depth mapping, envelopes from `timeline.py`, cyclic motion from `beatpos` at 1/4-4 beats per cycle, phrase-indexed camera changes, the iris transition on section starts, HUD on its own layer.
+Contract: `class Scene(tl, eng)` with `render(f)`; optional `fluid(f)` for warm-up. See `references/engine.md`.
+
+### 4. Look development with stills (cheap)
+```bash
+W/venv/bin/python $SK/scripts/render.py --workdir W --scene W/scene.py --stills 12,40.3,55,76,100,131,170,203.5
+W/venv/bin/python $SK/scripts/contact_sheet.py W/stills W/sheet.png 4       # Read one image
+```
+Pick one still per section, plus drop starts about 2 frames in. Iterate here until every section reads. The usual first-pass problems and their fixes are in `references/engine.md` under "Gotchas".
+
+### 5. Debug preview of the most complex section
+```bash
+W/venv/bin/python $SK/scripts/render.py --workdir W --scene W/scene.py --start 138 --end 158 --debug --preset veryfast --out W/debug.mp4
+```
+The overlay shows the scrolling beat/downbeat grid, typed onsets, section labels, bar.beat, band meters and onset lamps.
+Pull a filmstrip around a drop (`ffmpeg -i W/debug.mp4 -vf "select='between(n,N-3,N+4)',scale=480:270" -vsync 0 W/strip/f_%02d.png`, then contact-sheet it). The drop must change on the frame nearest its timestamp, together with the kick lamp.
+
+### 6. Verify on a clean clip, then render everything
+```bash
+W/venv/bin/python $SK/scripts/render.py --workdir W --scene W/scene.py --start 138 --end 158 --preset veryfast --out W/clip.mp4
+W/venv/bin/python $SK/scripts/verify_sync.py --workdir W --video W/clip.mp4 --offset 138
+W/venv/bin/python $SK/scripts/render.py --workdir W --scene W/scene.py --out W/final.mp4    # run in background
+W/venv/bin/python $SK/scripts/verify_sync.py --workdir W --video W/final.mp4
+W/venv/bin/python $SK/scripts/make_notes.py --workdir W --video W/final.mp4 --mapping W/mapping.md --out W/NOTES.md
+```
+Pass criteria: kick, beat and section `peak_lag == 0`; audio-vs-source lag 0 samples at start, middle and end; `max_flashes_per_second <= 3`; beats with a visible hit close to 100% in non-silent passages. Deliver the MP4 and NOTES.md next to the source song, or wherever the user asks.
+
+## Environment notes
+- **GPU needs the sandbox off.** On macOS, `moderngl.create_standalone_context()` fails inside the Claude Code sandbox with "cannot choose pixel format". Run render, stills and smoke tests with the sandbox disabled. Analysis and verification run fine sandboxed.
+- **Speed.** On an M1 Max a 1080p60 render runs at about 20-28 fps (libx264 `slow`, CRF 18), so a 3.5-minute song takes about 10 minutes. Always run the full render in the background.
+- The output is H.264 High, yuv420p, BT.709 tv-range tags, CRF 18, AAC 320k 48 kHz, `+faststart`. Grain plus TPDF dither in the final shader prevents banding.
+
+## Rules that keep it honest (and why)
+- **Every moving parameter reads the timeline.** Cyclic motion uses `tl.beatpos` (phase-locked); non-cyclic drift uses `tl.flow` or highway travel scaled by `tl.activity`, so silence means stillness. Never use a raw clock. That is what makes a muted viewer able to tap along.
+- **Hits happen on the transient frame.** Envelopes jump on the frame nearest the event and only decay afterwards. Beats are snapped to kick transients, so kick, beat and section visuals share a frame. Do not smooth event envelopes; smooth only continuous bands (fast attack, slow release).
+- **The highway trick.** Place anything that "arrives" at depth `D(te) - D(t) + ZS`, where `D` is integrated travel. It crosses the strike plane exactly when it sounds, at any speed, including during accelerating builds.
+- **Transitions land on the boundary frame.** Start iris wipes and surges at `sec_time == 0`. Anticipation (a build's suction, countdowns) may precede the boundary, but the change itself may not.
+- **Photosensitivity.** Keep full-screen additive flashes tiny (<= 0.02 linear); use exposure surges instead, which keep contrast. Put strobing detail in small elements, and check `max_flashes_per_second`.
+- **Title-safe.** HUD text stays within 90% of the frame (|x| <= 864, |y| <= 486 px from the centre at 1080p).
+
+## Token-saving habits
+- Review frames via contact sheets and filmstrips, never one PNG per Read.
+- Print compact tables (`inspect_analysis.py`) instead of dumping JSON.
+- Edit scene parameters surgically (small python/sed replacements) and re-render only the affected stills.
+- Do not re-derive the analysis heuristics or the engine. If they fail on a song, fix the specific parameter the references point to.
+
+
+ARGUMENTS: Continuing an in-progress custom visualizer for /Users/vojta/Downloads/Arcade Rush.mp3 — engine and scenes already built in scratchpad/viz/render; need guidance on verification, delivery and any pitfalls.
+
+---
+
+[Image: original 3840x1620, displayed at 2000x844. Multiply coordinates by 1.92 to map to original image.]
+
+---
+
+[Image: original 3840x1620, displayed at 2000x844. Multiply coordinates by 1.92 to map to original image.]

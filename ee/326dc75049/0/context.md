@@ -58,3 +58,31 @@ resume
 
 [Image: original 3840x1620, displayed at 2000x844. Multiply coordinates by 1.92 to map to original image.]
 
+### Prompt 14
+
+[Image: original 2880x1080, displayed at 2000x750. Multiply coordinates by 1.44 to map to original image.]
+
+### Prompt 15
+
+[Image: original 2880x1080, displayed at 2000x750. Multiply coordinates by 1.44 to map to original image.]
+
+### Prompt 16
+
+Base directory for this skill: /Users/vojta/.claude/skills/music-visualizer
+
+# Music visualizer
+
+A proven pipeline: **analyze -> inspect -> art-direct one scene module -> stills -> debug preview -> verify -> full render -> notes.**
+The generic parts (analysis, signal layer, GPU engine, render/mux, verification, notes) are finished scripts in `scripts/`.
+Your per-song work is the **art direction**: a palette, a motif, and one `scene.py` module. Spend tokens there, not on re-deriving plumbing.
+
+##...
+
+### Prompt 17
+
+[Image: original 3840x1620, displayed at 2000x844. Multiply coordinates by 1.92 to map to original image.]
+
+### Prompt 18
+
+[Image: original 3840x1620, displayed at 2000x844. Multiply coordinates by 1.92 to map to original image.]
+
