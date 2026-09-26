@@ -748,6 +748,11 @@ function draw() {
       if (e.ai === 'dive' && !fx.reduced) drawDiveStreak(e, x, y, palette);
       drawShip(ctx, x, y, e.radius * (e.type < 2 ? 1.35 : 1), e.type, palette?.primary || WORLDS[index].enemyColor || '#b07355', clock, { hit: e.hurt / .07 * .3, phase: e.phase, world: index, quality, thrust: e.thrust, palette, motion: !fx.reduced });
       drawBossWeakPoints(e, clock);
+      // Damaged heavy craft retain their local health readout; bosses use the HUD.
+      if (!e.boss && !e.dead && e.hp > 0 && e.hp < e.maxHp && e.radius >= 24) {
+        ctx.fillStyle = '#09171aca'; ctx.fillRect(x - e.radius, y - e.radius * 1.6 - 8, e.radius * 2, 3);
+        ctx.fillStyle = '#fb9f7c'; ctx.fillRect(x - e.radius, y - e.radius * 1.6 - 8, e.radius * 2 * Math.max(0, e.hp / e.maxHp), 3);
+      }
     }
     for (const pickup of state.pickups) {
       const pulse = fx.reduced ? 0 : Math.sin(clock * 3 + pickup.age);
