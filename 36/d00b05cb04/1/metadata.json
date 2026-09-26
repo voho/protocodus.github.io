@@ -1,0 +1,45 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "36d00b05cb04",
+  "session_id": "bfe2e96d-781f-430d-ac77-c700dcb1b278",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-26T14:08:29.732316Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "fun/tyran/effects.js",
+    "fun/tyran/structure-effects.js",
+    "fun/tyran/style.css",
+    "fun/tyran/tests/structure-effects-check.mjs",
+    "fun/tyran/tests/weather-render-work-check.mjs",
+    "fun/tyran/ships.js",
+    "fun/tyran/tests/loading-browser-check.mjs",
+    "fun/tyran/tests/ship-draw-check.mjs",
+    "fun/tyran/index.html",
+    "fun/tyran/tests/effects-render-work-check.mjs",
+    "fun/tyran/tests/performance-results.json",
+    "fun/tyran/worlds.js",
+    "fun/tyran/tests/opaque-ground-check.mjs",
+    "fun/tyran/tests/performance-check.mjs",
+    "fun/tyran/README.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "5fa5468dce41",
+  "token_usage": {
+    "input_tokens": 246,
+    "cache_creation_tokens": 2685932,
+    "cache_read_tokens": 44979415,
+    "output_tokens": 142292,
+    "api_call_count": 118
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-26T14:08:26.924464Z",
+    "agent_lines": 0,
+    "human_added": 12708,
+    "human_modified": 57,
+    "human_removed": 0,
+    "total_committed": 12708,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude/projects/-Users-vojta-Dev-protocodus-github-io/bfe2e96d-781f-430d-ac77-c700dcb1b278.jsonl"
+}

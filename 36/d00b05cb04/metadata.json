@@ -3,7 +3,7 @@
   "checkpoint_id": "36d00b05cb04",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 0,
+  "checkpoints_count": 1,
   "files_touched": [
     "fun/tyran/README.md",
     "fun/tyran/effects.js",
@@ -28,13 +28,20 @@
       "context": "/36/d00b05cb04/0/context.md",
       "content_hash": "/36/d00b05cb04/0/content_hash.txt",
       "prompt": "/36/d00b05cb04/0/prompt.txt"
+    },
+    {
+      "metadata": "/36/d00b05cb04/1/metadata.json",
+      "transcript": "/36/d00b05cb04/1/full.jsonl",
+      "context": "/36/d00b05cb04/1/context.md",
+      "content_hash": "/36/d00b05cb04/1/content_hash.txt",
+      "prompt": "/36/d00b05cb04/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 0,
-    "cache_creation_tokens": 0,
-    "cache_read_tokens": 0,
-    "output_tokens": 0,
-    "api_call_count": 2
+    "input_tokens": 246,
+    "cache_creation_tokens": 2685932,
+    "cache_read_tokens": 44979415,
+    "output_tokens": 142292,
+    "api_call_count": 120
   }
 }
