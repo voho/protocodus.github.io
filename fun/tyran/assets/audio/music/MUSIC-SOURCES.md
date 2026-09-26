@@ -1,58 +1,27 @@
-# Tyran music sources
+# Tyran music inventory
 
-These three full synthwave recordings were downloaded on 2026-09-26. Each
-creator's OpenGameArt submission explicitly lists **CC0** and links to the
-[CC0 1.0 Universal Public Domain Dedication](https://creativecommons.org/publicdomain/zero/1.0/)
-([legal code](https://creativecommons.org/publicdomain/zero/1.0/legalcode)).
-Credits are retained here as provenance and appreciation.
+These five MP3 files were supplied by the user, who identified them as generated with Suno AI. They replace the previous downloaded soundtrack. The supplied files are retained unchanged, including their embedded metadata and cover artwork.
 
-| Local file | Track / artist | Duration | Size | Suggested game use |
-| --- | --- | --- | --- | --- |
-| `space-adventure.mp3` | Space Adventure — MintoDog | 2:10.286 | 5,214,163 bytes | Normal stages |
-| `synthwave-type.mp3` | synthwave_type — G_P | 1:53.162 | 2,263,307 bytes | Boss encounters |
-| `slampe.mp3` | Slampe - Synthwave House — Fupi | 2:34.389 | 3,707,278 bytes | Challenge stages |
+This inventory records the supplied provenance; it makes no additional license or public-domain claim.
 
-Total audio payload: **11,184,748 bytes** (10.67 MiB). All files are stereo,
-44.1 kHz MP3. They contain the complete source recordings; none are excerpts.
+Tracks 1–3 rotate by absolute sector number throughout the endless campaign. Track 4 plays during guardian combat and track 5 during challenge stages. Each selected track loops. All five compressed files load into memory and the versioned browser cache before flight; playback uses blob URLs and makes no in-game audio downloads.
 
-## Space Adventure
+| File | Use | Duration | Bytes | Input LUFS | True peak dBTP | Playback gain |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| `1.mp3` | Flight sectors 1, 4, 7, … | 209.893 s | 4843073 | -14.79 | -1.61 | 0.245 |
+| `2.mp3` | Flight sectors 2, 5, 8, … | 209.534 s | 4740751 | -14.98 | -1.67 | 0.251 |
+| `3.mp3` | Flight sectors 3, 6, 9, … | 204.374 s | 4683897 | -14.50 | -2.22 | 0.237 |
+| `4.mp3` | Guardian / boss combat | 204.494 s | 4682716 | -14.41 | -2.24 | 0.235 |
+| `5.mp3` | Challenge stage | 194.774 s | 4509453 | -14.92 | -3.07 | 0.249 |
 
-- Artist: **MintoDog**.
-- [Creator's source and track-specific CC0 declaration](https://opengameart.org/content/space-adventure).
-- [Original download](https://opengameart.org/sites/default/files/space_adventure_bpm140.mp3).
-- Original filename: `space_adventure_bpm140.mp3`.
-- License: [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/).
-- The creator describes it as synthwave, 140 BPM, and loopable.
-- Processing: renamed only; original 320 kb/s MP3 bytes preserved.
-- SHA-256: `d778093ed7e826b8ad604f489cda3675b2d8203576d906a0d2553cfe20f0a93f`.
+All five audio streams are stereo MP3 at 48 kHz. Duration and byte counts were measured with `ffprobe`; integrated loudness and true peak were measured with the input analysis of FFmpeg’s `loudnorm` filter. Playback gains align the songs near −27 LUFS before the shared master gain and limiter, leaving space for game effects. Analysis wrote no audio output and did not re-encode or normalize these source files.
 
-## synthwave_type
+## SHA-256 of unchanged supplied files
 
-- Artist: **G_P**.
-- [Creator's source and track-specific CC0 declaration](https://opengameart.org/content/synthwavetype).
-- [Original download](https://opengameart.org/sites/default/files/synth_type_1.mp3).
-- Original filename: `synth_type.mp3` (download URL uses `synth_type_1.mp3`).
-- License: [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/).
-- The creator identifies it as a synthwave track.
-- Processing: renamed only; original 160 kb/s MP3 bytes preserved.
-- SHA-256: `df87e826f113f3fc425b24fc85361e1f5866045eb44f06096ea64b792a362389`.
+- `1.mp3`: `a560515a9c78686f5a821c7f363f5cd55481b0ae016eb952a56cdeaf8e7c2507`
+- `2.mp3`: `da30c1c20dd1112824711387a0f8ee7c786d687f8080bf3d775c501f214323bf`
+- `3.mp3`: `a66ea90840a6497b791a34443d460c3b09a0f8368203e9854724da7f27218558`
+- `4.mp3`: `e6ce71fd67835ff355737532710aa5a73989b16e3cac5886750f76dbb4471b85`
+- `5.mp3`: `6e633d0a48df84fd9723c1f7247c16289152b2c644d6af12588ef51192dea4fc`
 
-## Slampe - Synthwave House
-
-- Artist: **Fupi**.
-- [Creator's source and track-specific CC0 declaration](https://opengameart.org/content/slampe-synthwave-house).
-- [Original download](https://opengameart.org/sites/default/files/slampe.wav).
-- Original filename: `slampe.wav`.
-- License: [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/).
-- The creator describes it as a full synthwave/house song made from samples of
-  their own songs; the submission is tagged 114 BPM.
-- Processing: complete WAV converted to 192 kb/s MP3 with FFmpeg/libmp3lame;
-  title, artist, and CC0 source URL added as metadata. No arrangement changes.
-- SHA-256: `b6baf4b660c21b93467ffeb7a7db3439f618f1e2ddba61e9079ccea6a52e17e7`.
-
-## Verification
-
-The source pages and their CC0 links were checked on the download date.
-`ffprobe` verified codec, channels, sample rate, and full duration; `ffmpeg`
-decoded each complete local MP3 with no errors. The sources are individual
-audio downloads and do not include separate license files.
+Inventory and measurements recorded on 2026-09-26.

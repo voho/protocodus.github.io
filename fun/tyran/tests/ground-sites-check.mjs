@@ -26,7 +26,7 @@ try {
     for(let row=0;row>=-20&&!prop;row--)prop=world.getBand(row).find(p=>p.groundRole==='cache');
     const scroll=350-prop.y;
     const targets=world.getGroundTargets(900,500,scroll,900);
-    const x=(prop.x-12)*.75,y=350*.75;
+    const x=prop.x-12,y=350;
     const marker={...prop,x:600,y:450,size:100};
     const pixels=(time,motion=false)=>{c.clearRect(0,0,1200,900);world.drawGroundSite(c,marker,time,motion);return [...c.getImageData(500,350,200,200).data].join(',');};
     const still=pixels(0),stillLater=pixels(5),active=pixels(5,true);

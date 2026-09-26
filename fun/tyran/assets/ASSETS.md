@@ -48,7 +48,7 @@ Each sector fleet sheet uses a 4 × 3 layout. Cell 0 is an unused player referen
 
 `terrain-sprites.js` bakes the generated material cells into 100 × 100 logical-pixel tiles at double resolution. Each biome has four materials with six orientations each, plus matching irregular corner masks for banks and cliffs. Shared crossings and tangents keep all six contour variants connected. Broken rims, layered ledge shadows, fissures and low mounds add visual depth; material crops vary to soften repetition. Material luminosity preserves the generated surface detail; the original terrain palette supplies its hue. Common edge tones join adjacent tiles. `tile-map.js` generates connected terrain cells from the level hash. `worlds.js` assembles those cells into cached 800-pixel strips and places reusable scenery sprites from the same hash. A separate seeded stream adds clustered pebbles, brush, coral and rubble to cached ground strips while preserving all destructible IDs and positions.
 
-Three scrolling planes provide depth. The **ground** plane contains water or space, terrain, rocks, plants, vehicles, buildings and destruction remains under one shared translation. Nothing standing on the map drifts away from its terrain cell. The **atmosphere** plane contains clouds and their ground shadows at 1.32× ground speed; **foreground weather** adds peripheral wisps and particles at 1.85×. Reduced motion removes the extra drift. Large displays retain both cached terrain and scenery strips at 2× resolution. One extra cell beyond each horizontal edge covers the camera's 1% lateral drift. Terrain and ground vehicles use subdued biome materials; saturated complementary colors are reserved for airborne fleets.
+Three scrolling planes provide depth. The **ground** plane contains water or space, terrain, rocks, plants, vehicles, buildings and destruction remains under one shared translation. Nothing standing on the map drifts away from its terrain cell. The **atmosphere** plane contains clouds and their ground shadows at 1.32× ground speed; **foreground weather** adds peripheral wisps and particles at 1.85×. Reduced motion removes the extra drift. Large displays retain both cached terrain and scenery strips at 2× resolution. Viewport width adds 100-unit terrain columns at a fixed height-based camera scale. Seeded 1,200-unit districts preserve scenery and supply identities across resize. One extra cell beyond each horizontal edge covers the camera's lateral drift (up to 12 map units). Terrain and ground vehicles use subdued biome materials; saturated complementary colors are reserved for airborne fleets.
 
 ## Fixed ship sprites
 
@@ -83,14 +83,14 @@ Distinct repair, credit, lightning, shield, power, drone and nova symbols distin
 
 Menus, HUD and canvas text use locally served Chakra Petch in four Latin WOFF2 weights (about 39 KB total). See [font provenance and license](fonts/README.md). No third-party font request is made.
 
-## Downloaded audio
+## Audio
 
-Tyran includes 18 CC0 sound-effect variants from Kenney's Sci-fi Sounds and Digital Audio packs, plus three full CC0 synthwave songs. Original notices, track-specific source pages, conversion details and checksums are preserved with the files:
+Tyran includes 18 CC0 sound-effect variants from Kenney's Sci-fi Sounds and Digital Audio packs, plus five MP3 tracks supplied by the user and identified as Suno AI generations. The sound-effect notices and the supplied music inventory are recorded separately; no public-domain license is claimed for the Suno tracks:
 
 - [Sound effects and licenses](audio/sfx/SFX-SOURCES.md)
-- [Music and licenses](audio/music/MUSIC-SOURCES.md)
+- [Supplied music inventory](audio/music/MUSIC-SOURCES.md)
 
-`audio-assets.js` preloads all 21 files before flight, regardless of the mute setting. Eighteen short WAV effects decode in an OfflineAudioContext; the three full MP3s remain compressed in local Blob URLs and play through one reusable media element. This avoids roughly 140 MB of fully decoded song buffers. All sectors and retries share the in-memory assets, and optional versioned Cache Storage retains downloaded bytes for later visits. Playback never fetches assets. One 15-second deadline bounds the entire preload queue; missing or stalled assets use the synthesized fallback for the session with no in-flight retries. Preloading does not create a live playback context or start audio.
+`audio-assets.js` preloads all 23 files before flight, regardless of the mute setting. Eighteen short WAV effects decode in an OfflineAudioContext; the five full MP3s remain compressed in local Blob URLs and play through one reusable media element. This avoids keeping fully decoded song buffers in memory. All sectors and retries share the in-memory assets, and optional versioned Cache Storage retains downloaded bytes for later visits. Playback never fetches assets. One 15-second deadline bounds the entire preload queue; missing or stalled assets use the synthesized fallback for the session with no in-flight retries. Preloading does not create a live playback context or start audio.
 
 Collectible icons are drawn and cached by `bonus-sprites.js`; every bonus uses the same teal case and mint palette with a distinct symbol.
 

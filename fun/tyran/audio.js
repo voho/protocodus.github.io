@@ -3,6 +3,8 @@
 import { audioAssets, SAMPLE_GROUPS as SAMPLES, SONGS } from './audio-assets.js';
 export { preloadAudio } from './audio-assets.js';
 
+const FLIGHT_SONGS = Object.freeze(['flight', 'flight2', 'flight3']);
+
 export class AudioEngine {
   constructor() {
     this.context = null; this.muted = false; this.active = false; this.beat = 0; this.nextBeat = 0; this.lastShot = 0;
@@ -105,10 +107,13 @@ export class AudioEngine {
     this.musicToken++; this.musicPending = false; this.musicPlaying = false; this.music.pause();
     this.musicGain.gain.setValueAtTime(0, this.context.currentTime);
   }
-  updateMusic(playing, mood) {
+  updateMusic(playing, mood, level = 0) {
     if (!this.music) return false;
     if (!playing || this.muted) { if (!this.music.paused || this.musicPending) this.stopMusic(); return false; }
-    const key = mood === 'boss' || mood === 'challenge' ? mood : 'flight';
+    // Absolute sector order rotates the three flight tracks across every cycle.
+    const sector = Number.isSafeInteger(level) && level >= 0 ? level : 0;
+    const flight = FLIGHT_SONGS[sector % FLIGHT_SONGS.length];
+    const key = mood === 'boss' || mood === 'challenge' ? mood : flight;
     if (key !== this.songKey) {
       this.stopMusic(); this.songKey = key;
       if (audioAssets.songs.has(key)) this.music.src = audioAssets.songs.get(key);
@@ -201,7 +206,7 @@ export class AudioEngine {
   update(playing, level = 0, mood = '') {
     if (!playing && this.active) this.pause();
     this.active = playing;
-    const streamedMusic = this.updateMusic(playing, mood);
+    const streamedMusic = this.updateMusic(playing, mood, level);
     if (!this.context || this.muted || !playing || this.context.state !== 'running') return;
     if (streamedMusic) { this.nextBeat = this.context.currentTime; return; }
     const now = this.context.currentTime;

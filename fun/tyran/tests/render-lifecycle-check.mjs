@@ -57,16 +57,17 @@ try {
       const original = Effects.prototype.draw;
       let effects;
       Effects.prototype.draw = function (...args) { effects = this; return original.apply(this, args); };
-      Math.random = () => 0; // Explosion particles finish before reward text.
+      Math.random = () => 0; // Deterministic particle lifetimes during end-screen cleanup.
       const pilot = tyran.state.players[0];
       tyran.state.pickups.push({ x: pilot.x, y: pilot.y, age: 0, kind: 'credit', value: 80 });
       tyran.step(1 / 60);
+      const hadReward = tyran.feedback.visible && tyran.feedback.credits === 80;
       pilot.shield = 0; pilot.hull = 1; pilot.hurt = 0; tyran.state.lives = 0;
       hurtPlayer(tyran.state, pilot, 100); tyran.step(1 / 60);
       __pumpFrame(1100);
-      const hadReward = effects.texts.some(text => text.text === '+80 CR');
+      const feedbackHidden = getComputedStyle(document.querySelector('#combat-feedback')).visibility === 'hidden' || document.querySelector('#combat-feedback').hidden || getComputedStyle(document.querySelector('#combat-feedback')).display === 'none';
       for (let i = 1; i <= 90; i++) __pumpFrame(1100 + i * 1000 / 60);
-      const finished = { scene: tyran.scene, hadReward, texts: effects.texts.length,
+      const finished = { scene: tyran.scene, hadReward, feedbackHidden,
         particles: effects.particles.length, rings: effects.rings.length,
         lights: effects.lights.length, delayed: effects.delayed.length,
         flash: effects.flash, shake: effects.shake, frames: tyran.performance.frames };
@@ -75,12 +76,13 @@ try {
     });
     assert.equal(result.scene, 'end');
     assert.equal(result.hadReward, true, 'the fatal-hit scenario includes a real collected reward');
-    for (const kind of ['texts', 'particles', 'rings', 'lights', 'delayed']) {
+    assert.equal(result.feedbackHidden, true, 'ending the flight hides its transient reward indicator');
+    for (const kind of ['particles', 'rings', 'lights', 'delayed']) {
       assert.equal(result[kind], 0, `end-screen ${kind} must finish their lifetimes`);
     }
     assert.ok(result.flash <= .01 && result.shake <= .3, 'visible impact motion finishes before idling');
     assert.equal(result.idleFrames, result.frames, 'the completed end screen stops repainting');
-    console.log('PASS reward text finishes after the last explosion and the end screen becomes idle');
+    console.log('PASS reward feedback hides on flight end, final explosions finish, and the end screen becomes idle');
   } finally { await ending.close(); }
   assert.deepEqual(errors, [], 'no browser runtime errors');
   console.log('Render lifecycle checks passed.');

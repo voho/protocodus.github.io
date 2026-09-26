@@ -43,11 +43,11 @@ try {
         throw new Error(`Missing ${role}/${bonus || 'any'} fixture`);
       },
       focus(prop, y = 220) {
-        const s = tyran.state, w = tyran.world, scale = s.width / 1200;
-        s.scroll = y / scale - prop.y;
+        const s = tyran.state, w = tyran.world;
+        s.scroll = y - prop.y;
         const focus = s.players.reduce((sum, p) => sum + p.x, 0) / s.players.length;
         w.getGroundTargets(s.width, s.height, s.scroll, focus);
-        return { x: (prop.x + w.parallaxX) * scale, y: (prop.y + s.scroll) * scale };
+        return { x: prop.x + w.parallaxX, y: prop.y + s.scroll };
       },
       projectile(point, damage = 10000) {
         tyran.state.bullets.push({ x: point.x, y: point.y, px: point.x, py: point.y, vx: 0, vy: 0,

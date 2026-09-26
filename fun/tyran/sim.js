@@ -1,5 +1,6 @@
 import { normalizeLevel, combatTier, cycleScale } from './campaign.js';
 import { ENEMY_TYPES } from './ships.js';
+import { normalizeDifficulty, difficultyProfile } from './difficulty.js';
 import { createDirector, updateDirector, enemyGoal, isDormant, startChallenge, updateChallenge, tractorReach, startDive, DIVE_LOOP } from './waves.js';
 
 export const UPGRADES = [
@@ -237,9 +238,9 @@ function segmentHits(b, body, radius) {
 
 const newStats = () => ({ shots: 0, hits: 0, squads: 0, dives: 0, rescues: 0 });
 
-export function createCampaign(level = 0, checkpoint = null) {
+export function createCampaign(level = 0, checkpoint = null, difficulty = 'easy') {
   const state = {
-    mode: 1, level: normalizeLevel(level), status: 'playing',
+    mode: 1, level: normalizeLevel(level), status: 'playing', difficulty: normalizeDifficulty(checkpoint?.difficulty === undefined ? difficulty : checkpoint.difficulty),
     upgrades: { weapon: 0, shield: 0, hull: 0, recharge: 0 }, credits: 0, score: 0,
     width: 1200, height: 900, time: 0, scroll: 0, enemies: [], bullets: [], pickups: [], players: [], turrets: [],
     events: [], kills: 0, destroyed: 0, totalKills: 0, combo: 0, comboTime: 0, comboDamage: 1, comboBlast: 1, comboLabel: '',
@@ -274,6 +275,7 @@ export function createCampaign(level = 0, checkpoint = null) {
 }
 
 export function beginLevel(s, level) {
+  s.difficulty = normalizeDifficulty(s.difficulty);
   const previous = s.players[0] || {};
   const weapon = normalizeWeapon(previous.weapon ?? s.weapon);
   Object.assign(s, { mode: 1, level: normalizeLevel(level), time: 0, scroll: 0, status: 'playing', enemies: [], bullets: [], pickups: [], turrets: [], events: [], formations: [], kills: 0, destroyed: 0, combo: 0, comboTime: 0, comboDamage: 1, comboBlast: 1, comboLabel: '', bossSpawned: false, bossDefeated: false, bossDeathTime: 0, spawnTimer: 1.5, showcase: 0, formationTimer: 10.5 });
@@ -332,7 +334,7 @@ export function spawnEnemy(s, type, x, y = -100) {
   // Guardians grow each sector without turning the late campaign into a
   // damage sponge; the open-core rhythm supplies the challenge instead.
   // Guardians carry extra armor because power cores and drones multiply player fire.
-  const hp = spec.hp * (1 + combatTier(s.level) * (boss ? .08 : .24)) * (boss ? 1.8 : 1) * cycleScale(s.level, .22);
+  const hp = spec.hp * (1 + combatTier(s.level) * (boss ? .08 : .24)) * (boss ? 1.8 : 1) * cycleScale(s.level, .22) * difficultyProfile(s.difficulty).health;
   const e = { id: s.nextEnemyId++, type, x: x ?? rand(100, s.width - 100), y, originX: x ?? s.width / 2, vx: 0, vy: boss ? 0 : spec.speed,
     blastVx: 0, blastVy: 0, mass: .55 + (spec.radius / 18) ** 1.4 * .5, thrust: boss ? 1.05 : .85,
     hp, maxHp: hp, radius: spec.radius, speed: spec.speed, age: 0, fire: boss ? 2 : rand(.8, 2.4), phase: 0, hurt: 0, seed: rand(0, 10), dead: false, boss, warning: 0,
@@ -413,12 +415,14 @@ function shoot(s, p, id) {
 
 function hostileShot(s, e, angle, speed = 220, radius = 5, origin = null) {
   if (s.hostileCount >= MAX_HOSTILE_BULLETS) return;
+  const difficulty = difficultyProfile(s.difficulty);
+  speed *= difficulty.shotSpeed;
   const sizeRatio = clamp(e.radius / 110, .08, 1);
   const bulletRadius = clamp((Number(radius) || 5) * (.42 + sizeRatio * .72), 2.2, e.boss ? 8.4 : 6.4);
   // Later sectors hit harder so upgraded hulls still respect incoming fire.
   const damage = (e.boss
     ? clamp(13 + e.radius * .12 + e.type * .4, 13, 28)
-    : clamp(3.8 + e.radius * .16 + e.type * .42, 4.5, 17.5)) * (1 + combatTier(s.level) * .09) * cycleScale(s.level, .12);
+    : clamp(3.8 + e.radius * .16 + e.type * .42, 4.5, 17.5)) * (1 + combatTier(s.level) * .09) * cycleScale(s.level, .12) * difficulty.damage;
   const variant = e.boss ? 5 : e.type % 5;
   const x = origin?.x ?? e.x, y = origin?.y ?? e.y + e.radius * .65;
   s.bullets.push({ x, y, px: origin?.x ?? e.x, py: origin?.y ?? e.y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
@@ -566,7 +570,7 @@ function updateBeams(s, dt) {
       for (const p of s.players) {
         if (!p.alive) continue;
         const along = (p.x - beam.x) * cos + (p.y - beam.y) * sin, across = Math.abs(-(p.x - beam.x) * sin + (p.y - beam.y) * cos);
-        if (along > 0 && across < 14 + p.radius * .55) hurtPlayer(s, p, (15 + combatTier(s.level) * .9) * cycleScale(s.level, .12));
+        if (along > 0 && across < 14 + p.radius * .55) hurtPlayer(s, p, (15 + combatTier(s.level) * .9) * cycleScale(s.level, .12) * difficultyProfile(s.difficulty).damage);
       }
     }
     s.beams[retained++] = beam;
@@ -786,7 +790,7 @@ function steerScripted(s, e, dt, pilot) {
 function updateCaptor(s, e, dt, pilot) {
   if (e.capState === 3 && e.captive) {
     // The stolen drone turns its guns on its former pilot.
-    e.captiveFire = (e.captiveFire ?? 1.2) - dt;
+    e.captiveFire = (e.captiveFire ?? 1.2) - dt * difficultyProfile(s.difficulty).fireRate;
     if (e.captiveFire <= 0 && pilot && e.y < pilot.y - 120) {
       const origin = { x: e.x, y: e.y + e.radius + 18 };
       hostileShot(s, { ...e, type: 1, radius: 14 }, Math.atan2(pilot.y - origin.y, pilot.x - origin.x), 230 + combatTier(s.level) * 7, 5, origin);
@@ -806,7 +810,8 @@ function updateCaptor(s, e, dt, pilot) {
     return;
   }
   // With no drone to steal, the beam drains shields and fire energy and hauls the ship upward.
-  pilot.shield = Math.max(0, pilot.shield - 26 * dt); pilot.fireEnergy = Math.max(0, pilot.fireEnergy - 34 * dt);
+  const drain = difficultyProfile(s.difficulty).damage;
+  pilot.shield = Math.max(0, pilot.shield - 26 * dt * drain); pilot.fireEnergy = Math.max(0, pilot.fireEnergy - 34 * dt * drain);
   pilot.fireEnergyDelay = Math.max(pilot.fireEnergyDelay, .5);
   if (pilot.fireEnergy < SECONDARY_ENERGY_COST) pilot.fireEnergyLocked = true;
   pilot.lastHit = s.time;
@@ -944,12 +949,12 @@ export function update(s, dt, input = [], environmentHit = null) {
     }
     const volleys = !e.noFire && (!e.ai || e.ai === 'drift' || e.ai === 'station' || (e.ai === 'captor' && e.capState === 0) || (e.ai === 'entry' && !e.slotCount));
     if (volleys) {
-      e.fire -= dt;
+      e.fire -= dt * difficultyProfile(s.difficulty).fireRate;
       if (e.fire <= 0 && e.y > 30 && e.y < s.height * .73 && !s.bossDefeated) enemyFire(s, e);
     }
     if (e.harmless) continue;
     for (const p of s.players) if (p.alive && distance(p, e) < p.radius + e.radius * .75) {
-      hurtPlayer(s, p, e.boss ? 55 : 22);
+      hurtPlayer(s, p, (e.boss ? 55 : 22) * difficultyProfile(s.difficulty).damage);
       // Light craft are destroyed by the collision; heavy hulls shrug it off.
       if (!e.boss && e.radius < 36 && e.role !== 'midboss') killEnemy(s, e, 'ram');
     }

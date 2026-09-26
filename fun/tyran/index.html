@@ -48,7 +48,18 @@
 
         <div class="flight-options">
           <div class="control-legend menu-controls" aria-label="Flight controls"><span><kbd>wasd</kbd> Move</span><span><kbd>space</kbd> Primary</span><span><kbd>q</kbd> Plasma</span><span><kbd>e</kbd> Nova</span></div>
-          <button type="button" class="launch-button" id="launch-button"><span><small>Sector 01 · Endless campaign</small><strong>New campaign</strong></span><svg viewBox="0 0 28 28" fill="none" aria-hidden="true"><path d="M5 14h18m-8-8 8 8-8 8" stroke="currentColor" stroke-width="2" stroke-linecap="square"/></svg></button>
+          <fieldset class="difficulty-picker" id="difficulty-picker" aria-describedby="difficulty-description difficulty-scope">
+            <legend>Difficulty <span>New flights</span></legend>
+            <div class="difficulty-options">
+              <label><input type="radio" name="difficulty" value="easy" checked><span>Easy</span></label>
+              <label><input type="radio" name="difficulty" value="medium"><span>Medium</span></label>
+              <label><input type="radio" name="difficulty" value="hard"><span>Hard</span></label>
+              <label><input type="radio" name="difficulty" value="real"><span>Real</span></label>
+            </div>
+            <p id="difficulty-description">The original balance. Room to learn and explore.</p>
+            <small id="difficulty-scope">Applies to new campaigns and practice. Saved flights keep their difficulty.</small>
+          </fieldset>
+          <button type="button" class="launch-button" id="launch-button"><span><small id="launch-route">Sector 01 · Easy · Endless campaign</small><strong>New campaign</strong></span><svg viewBox="0 0 28 28" fill="none" aria-hidden="true"><path d="M5 14h18m-8-8 8 8-8 8" stroke="currentColor" stroke-width="2" stroke-linecap="square"/></svg></button>
           <button type="button" class="continue-button" id="continue-button" disabled><span id="continue-label">Resume campaign</span><span aria-hidden="true">→</span></button>
           <p class="save-summary" id="save-summary" role="status">Campaign progress saves automatically in this browser.</p>
         </div>
@@ -70,17 +81,23 @@
 
   <section class="hud" id="hud" aria-label="Flight instruments" hidden>
     <div class="hud-top">
-      <div class="mission-instrument"><span class="hud-kicker">Sector <b id="level-number">01 · Cycle 1</b> <span class="wave-label" id="wave-label">Wave 01 / 08</span></span><strong id="level-name">Verdant Reach</strong><div class="mission-progress" title="Mission progress"><i id="progress-fill"></i></div></div>
+      <div class="mission-instrument"><span class="hud-kicker">Sector <b id="level-number">01 · Cycle 1</b> <span class="wave-label" id="wave-label">Wave 01 / 08</span><span class="difficulty-badge" id="difficulty-value">Easy</span></span><strong id="level-name">Verdant Reach</strong><div class="mission-progress" title="Mission progress"><i id="progress-fill"></i></div></div>
       <div class="score-instrument"><span class="hud-kicker">Score</span><strong id="score-value">000000</strong></div>
       <div class="weapon-instrument"><span class="hud-kicker">Armament <b id="weapon-level">Mk 01</b></span><strong id="weapon-value">Pulse Array</strong></div>
-      <div class="combo-instrument" id="combo-instrument"><span class="hud-kicker">Chain</span><strong id="combo-value">Ready</strong><div class="combo-progress"><i id="combo-fill"></i></div></div>
       <div class="credits-instrument"><span class="hud-kicker">Credits</span><strong><span class="credit-symbol">$</span> <span id="credits-value">0</span></strong></div>
       <button type="button" class="pause-button" id="pause-button" aria-label="Pause flight" title="Pause · Escape"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8 5v14M16 5v14" stroke="currentColor" stroke-width="3"/></svg></button>
     </div>
     <div class="boss-hud" id="boss-hud" hidden><div><span class="boss-alert"><span class="live-dot"></span> Capital ship detected</span><strong id="boss-name">Leviathan</strong><span class="boss-status" id="boss-status">Armor sealed</span></div><div class="boss-meter"><i id="boss-fill"></i></div></div>
     <div class="hud-bottom">
       <div class="player-panel" id="p1-panel"><div class="player-label"><span class="pilot-number">01</span><span><strong>Vanguard</strong><small id="p1-reserve">2 ships in reserve</small></span><svg viewBox="0 0 28 28" fill="none" aria-hidden="true"><path d="m14 3 9 22-9-4-9 4L14 3Z" stroke="currentColor" stroke-width="1.5"/></svg></div><div class="resource-line"><span>Hull</span><div class="resource-meter hull-meter"><i id="p1-hull"></i></div></div><div class="resource-line"><span>Shield</span><div class="resource-meter shield-meter"><i id="p1-shield"></i></div></div><div class="resource-line energy-line" id="p1-energy-line"><span>Energy</span><div class="resource-meter energy-meter"><i id="p1-energy"></i></div></div><span class="energy-status" id="p1-energy-status">100%</span><div class="loadout-line" id="p1-loadout"><span class="loadout-item power-item" title="Power level"><small>Power</small><span class="power-pips" id="p1-power" aria-label="Power 1 of 5"><i></i><i></i><i></i><i></i><i></i></span></span><span class="loadout-item" title="Nova charges · e"><small>Nova</small><b id="p1-bombs">3</b></span><span class="loadout-item" title="Wing drones"><small>Drones</small><b id="p1-drones">0</b></span><span class="loadout-item" title="Reserve ships"><small>Ships</small><b id="p1-lives">2</b></span></div><div class="pilot-bonuses" id="p1-bonuses" hidden><span class="pilot-bonus rapid-bonus" id="p1-rapid" hidden><svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="m11 1-8 11h6l-1 7 9-12h-6Z"/></svg>Rapid fire <b id="p1-rapid-time">10s</b></span><span class="pilot-bonus invulnerable-bonus" id="p1-invulnerable" hidden><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m10 2 7 3-1 7-6 6-6-6-1-7 7-3Z" stroke="currentColor" stroke-width="1.5"/></svg>Invulnerable <b id="p1-invulnerable-time">10s</b></span></div></div>
-      <div class="control-legend flight-controls" aria-label="Flight controls"><span><kbd>wasd</kbd> Move</span><span><kbd>space</kbd> Primary</span><span><kbd>q</kbd> Plasma</span><span><kbd>e</kbd> Nova</span></div>
+      <div class="flight-readouts">
+        <div class="combat-feedback" id="combat-feedback" role="group" aria-label="Recent combat rewards" hidden>
+          <span class="combat-feedback-chain" id="combat-feedback-chain">Recent rewards</span>
+          <div class="combat-feedback-totals"><span><strong id="combat-feedback-score">+0</strong><small>score</small></span><span><strong id="combat-feedback-credits">$ +0</strong></span></div>
+          <span class="combat-feedback-detail" id="combat-feedback-detail"></span>
+        </div>
+        <div class="control-legend flight-controls" aria-label="Flight controls"><span><kbd>wasd</kbd> Move</span><span><kbd>space</kbd> Primary</span><span><kbd>q</kbd> Plasma</span><span><kbd>e</kbd> Nova</span></div>
+      </div>
     </div>
   </section>
 

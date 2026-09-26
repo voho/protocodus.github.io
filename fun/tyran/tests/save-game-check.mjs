@@ -61,6 +61,87 @@ check('flight preserves equipment, motion, formation identity, boss windows and 
   assert.ok(run.savedAt > Date.now() - 1000);
 });
 
+check('all difficulty choices persist through flight, hangar, retry and later cycles', () => {
+  for (const difficulty of ['easy', 'medium', 'hard', 'real']) for (const status of ['playing', 'hangar']) {
+    const state = createCampaign(29, null, difficulty); state.status = status; state.startLevel = 20;
+    state.credits = 7654; state.upgrades.weapon = 3;
+    const enemy = spawnEnemy(state, 8, 400, 180); enemy.hp *= .4;
+    const run = restoreRun(serializeRun(state));
+    assert.equal(run.state.difficulty, difficulty); assert.equal(run.state.status, status);
+    assert.equal(run.state.enemies[0].hp, enemy.hp); assert.equal(run.state.enemies[0].maxHp, enemy.maxHp);
+    assert.deepEqual(run.state.players, state.players, 'Restoring difficulty never heals or rescales the pilot');
+    const retry = createCampaign(run.state.level, run.state, 'easy');
+    assert.equal(retry.difficulty, difficulty, 'The saved campaign wins over a different menu selection');
+    assert.equal(retry.credits, 7654); assert.equal(retry.upgrades.weapon, 3);
+    beginLevel(run.state, 30);
+    assert.equal(run.state.difficulty, difficulty); assert.equal(run.state.level, 30);
+    assert.equal(restoreRun(serializeRun(run.state)).state.difficulty, difficulty);
+  }
+});
+
+check('old campaigns and unknown difficulty values normalize to Easy', () => {
+  const source = serializeRun(flight());
+  const missing = JSON.parse(source); delete missing.state.difficulty;
+  assert.equal(restoreRun(missing).state.difficulty, 'easy');
+  for (const difficulty of [undefined, null, '', 'unknown', 'REAL', 1, {}, ['hard']]) {
+    const record = JSON.parse(source); record.state.difficulty = difficulty;
+    assert.equal(restoreRun(record).state.difficulty, 'easy');
+  }
+  for (const difficulty of [undefined, 'easy', 'medium', 'hard', 'real']) {
+    const storage = memoryStorage();
+    storage.setItem(LEGACY_SAVE_KEY, JSON.stringify({ version: 1, checkpoint: { level: 3, credits: 1234, difficulty } }));
+    const migrated = readCampaign(storage).run;
+    assert.equal(migrated.state.difficulty, difficulty || 'easy'); assert.equal(migrated.scene, 'hangar');
+    assert.equal(migrated.state.credits, 1234); assert.equal(migrated.migrated, true);
+  }
+});
+
+check('Real difficulty enemy health and hostile damage round-trip exactly in deep campaign cycles', () => {
+  for (const level of [0, 29, 10000, Number.MAX_SAFE_INTEGER]) {
+    const state = createCampaign(level, null, 'real'); state.director.hold = true;
+    const enemy = spawnEnemy(state, 9, state.width / 2, 180); enemy.fire = 0;
+    state.players[0].hurt = 1e6;
+    update(state, 1 / 60);
+    const hostile = state.bullets.filter(bullet => bullet.team === -1);
+    assert(hostile.length, `sector ${level} produces a real hostile volley`);
+    const restored = restoreRun(serializeRun(state)).state;
+    assert.equal(restored.difficulty, 'real');
+    assert.equal(restored.enemies[0].maxHp, enemy.maxHp); assert.equal(restored.enemies[0].hp, enemy.hp);
+    assert.deepEqual(restored.bullets.map(bullet => bullet.damage), state.bullets.map(bullet => bullet.damage), 'Save limits preserve every live damage value');
+    assert.deepEqual(restored.enemies[0].weakPoints, enemy.weakPoints);
+  }
+});
+
+check('narrow, ultrawide and fractional arena sizes retain exact saved actor proportions', () => {
+  for (const [width, height] of [[250.25, 900], [7200.5, 900], [80_000, 900], [900, 250.125], [1920 / 1080 * 900, 900]]) {
+    const state = createCampaign(10); state.width = width; state.height = height; beginLevel(state, state.level);
+    state.players[0].x = width * .37; state.players[0].px = state.players[0].x;
+    state.players[0].y = height * .7; state.players[0].py = state.players[0].y;
+    state.scroll = 2452.75;
+    const enemy = spawnEnemy(state, 7, width * .6, height * .2); enemy.pathOx = width * .06;
+    const damage = new Map([['1894:1:2:3:0', 18.5]]), destroyed = new Set(['1894:1:2:3:1']);
+    const run = restoreRun(serializeRun(state, { damage, destroyed }));
+    assert.equal(run.state.width, width); assert.equal(run.state.height, height);
+    assert.equal(run.state.players[0].x / run.state.width, state.players[0].x / width);
+    assert.equal(run.state.players[0].y / run.state.height, state.players[0].y / height);
+    assert.deepEqual(run.state.players, state.players);
+    assert.equal(run.state.enemies[0].x, enemy.x); assert.equal(run.state.enemies[0].pathOx, enemy.pathOx, 'Entry paths keep their arena-scaled horizontal anchor');
+    assert.equal(run.state.scroll, state.scroll, 'Terrain scroll already uses map units and needs no migration');
+    assert.deepEqual(run.damage, damage); assert.deepEqual(run.destroyed, destroyed, 'Scenery IDs stay independent of the viewport');
+  }
+});
+
+check('invalid arena dimensions are rejected rather than silently changing actor proportions', () => {
+  const source = serializeRun(createCampaign());
+  for (const key of ['width', 'height']) for (const value of [0, -1, 1e-7, 100_000_001, Infinity, NaN, '900', null]) {
+    const record = JSON.parse(source); record.state[key] = value;
+    assert.equal(restoreRun(record), null, `${key} rejects ${value}`);
+  }
+  const legacy = JSON.parse(source); delete legacy.state.width; delete legacy.state.height;
+  const run = restoreRun(legacy);
+  assert.equal(run.state.width, 1200); assert.equal(run.state.height, 900, 'Legacy dimensions retain their defaults');
+});
+
 check('a restored flight produces the same next combat step', () => {
   const state = seeded(9, flight), restored = restoreRun(serializeRun(state)).state;
   state.events.length = 0;

@@ -13,11 +13,11 @@ try {
     let active=false,allocations=0,readbacks=0;
     window.OffscreenCanvas=new Proxy(NativeCanvas,{construct(target,args){if(active)allocations++;return new target(...args);}});
     prototype.getImageData=function(...args){if(active)readbacks++;return read.apply(this,args);};
-    const width=2400,height=1350,output=new NativeCanvas(width,height),context=output.getContext('2d'),reports=[];
+    const width=1600,height=900,output=new NativeCanvas(width,height),context=output.getContext('2d'),reports=[];
     const buildings=new Set(['temple','ruin','bunker','station','radar','dome','solar','refinery','building','tower','pylon','fortress','hut','satellite']);
     try {
       for(let index=0;index<10;index++){
-        const world=new WorldRenderer();world.setWorld(index);world.setDetailScale(width,'high');
+        const world=new WorldRenderer();world.setWorld(index);world.setDetailScale(2400,'high');
         const started=performance.now();await world.prepareReady(width,height);
         const preparationMs=performance.now()-started;
         allocations=0;readbacks=0;let maxStrips=0,maxBytes=0;
@@ -46,8 +46,9 @@ try {
     assert.equal(report.allocations,0,`sector ${report.index}: playing frames allocate no raster surfaces, including first hits`);
     assert.equal(report.readbacks,0,`sector ${report.index}: no artwork grading/readback during combat`);
     assert.equal(report.materials,24);assert.equal(report.edges,252);
-    assert.ok(report.maxStrips<=8,`sector ${report.index}: only the viewport and next strips stay resident`);
-    assert.ok(report.maxBytes<180*1024**2,`sector ${report.index}: 2× streaming buffers remain bounded`);
+    assert.ok(report.maxStrips<=10,`sector ${report.index}: only the viewport and next strips stay resident`);
+    const columnBytes=(report.memory.mapWidth+200)*report.memory.detailScale**2*4;
+    assert.ok(report.maxBytes<=columnBytes*(5*800+5*1080),`sector ${report.index}: buffers stay within five nearby rows per plane at the current viewport width`);
     assert.ok(report.memory.damageSpriteCount<=report.memory.damageSpriteLimit);
   }
   assert.deepEqual(errors,[]);

@@ -14,6 +14,7 @@ try {
     const {WorldRenderer,PARALLAX_LAYERS}=await import('./worlds.js'),world=new WorldRenderer();await world.ready;
     world.warmEpoch++;world.warmJobs=[];world.queueWarm=()=>{};
     const surface=document.querySelector('canvas'),c=surface.getContext('2d'),frames=[];
+    const width=1600,height=900;c.setTransform(1.6,0,0,1.6,0,0);world.setViewport(width);
     world.setDetailScale(2560,'high');
     const tile=world.getTile(0),scenery=world.getSceneryLayer(0,world.getBand(0));
     const dimensions={terrain:[tile.width,tile.height],scenery:[scenery.width,scenery.height]};
@@ -24,35 +25,35 @@ try {
       return {speed:(b.y-a.y)/100,reducedSpeed:(frozen.y-still.y)/100,reducedX:frozen.x===still.x};
     });
     for(const index of [0,3,6,7,9]){
-      world.setWorld(index);world.draw(c,2560,1440,3200,3,'high',1280);
+      world.setWorld(index);world.draw(c,width,height,3200,3,'high',width*.5);
       const buildings=world.visibleProps.filter(p=>['building','tower','refinery','fortress','station'].includes(p.type)&&p.screenY>70&&p.screenY<550);
       for(const p of buildings.slice(0,4))world.hit(p.screenX*world.scale,p.screenY*world.scale,0,p.maxHp*.77);
-      world.draw(c,2560,1440,3200,3,'high',1280);
+      world.draw(c,width,height,3200,3,'high',width*.5);
       frames.push({name:world.world.id,png:surface.toDataURL()});
     }
-    world.draw(c,2560,1440,3200,3,'high',1280,false);const still=surface.toDataURL();
-    world.draw(c,2560,1440,3200,99,'high',1280,false);const frozen=still===surface.toDataURL();
+    world.draw(c,width,height,3200,3,'high',width*.5,false);const still=surface.toDataURL();
+    world.draw(c,width,height,3200,99,'high',width*.5,false);const frozen=still===surface.toDataURL();
     const target=world.visibleProps.find(p=>['pylon','fortress','station','ruin'].includes(p.type));
     if(!target)throw Error('Missing building fixture');
     world.hit(target.screenX*world.scale,target.screenY*world.scale,0,target.maxHp*.2);
     const hp=target.hp;
-    world.setDetailScale(1200,'low');world.draw(c,2560,1440,3200,3,'low',1280);
+    world.setDetailScale(1200,'low');world.draw(c,width,height,3200,3,'low',width*.5);
     const downgrade={density:world.detailScale,tileWidth:world.getTile(0).width,hp:world.getBand(target.row).find(p=>p.id===target.id).hp===hp};
     world.setDetailScale(3840,'high');
     let maxBytes=0,maxTiles=0,maxScenery=0;
     for(let i=0;i<35;i++){
-      world.draw(c,2560,1440,i*8000,3,'high',1280);
+      world.draw(c,width,height,i*8000,3,'high',width*.5);
       maxBytes=Math.max(maxBytes,world.memoryStats().stripBytes);maxTiles=Math.max(maxTiles,world.tiles.size);maxScenery=Math.max(maxScenery,world.sceneryLayers[0].size);
     }
     return {dimensions,rates,frozen,downgrade,maxBytes,maxTiles,maxScenery,layers:PARALLAX_LAYERS.map(l=>l.id),frames};
   });
-  assert.deepEqual(result.dimensions,{terrain:[2800,1600],scenery:[2800,2160]},'large displays retain source detail in both cached planes');
+  assert.deepEqual(result.dimensions,{terrain:[3600,1600],scenery:[3600,2160]},'large displays retain source detail in both cached planes');
   assert.deepEqual(result.layers,['ground','atmosphere','foreground']);
   assert(Math.abs(result.rates[0].speed-1.32)<1e-9&&Math.abs(result.rates[1].speed-1.85)<1e-9,'cloud planes visibly separate during scrolling');
   assert(result.rates.every(r=>r.reducedSpeed===1&&r.reducedX),'reduced motion removes extra parallax and drift');
   assert(result.frozen,'all ambient decoration freezes with reduced motion');
-  assert.deepEqual(result.downgrade,{density:1,tileWidth:1400,hp:true},'low quality sheds dense strips without losing building damage');
-  assert(result.maxTiles<=4&&result.maxScenery<=4&&result.maxBytes<140*1024**2,'high-detail streaming stays bounded');
+  assert.deepEqual(result.downgrade,{density:1,tileWidth:1800,hp:true},'low quality sheds dense strips without losing building damage');
+  assert(result.maxTiles<=5&&result.maxScenery<=5&&result.maxBytes<1800*4*4*(5*800+5*1080),'high-detail streaming is bounded by viewport columns and nearby rows');
   for(const frame of result.frames)await writeFile(`${output}/enhanced-${frame.name}.png`,Buffer.from(frame.png.split(',')[1],'base64'));
   delete result.frames;
   // The complete game keeps a native 4K backing surface while using the same arena.

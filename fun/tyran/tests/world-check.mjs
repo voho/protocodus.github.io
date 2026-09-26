@@ -27,7 +27,7 @@ try {
         const start=performance.now();w.draw(c,width,960,6400,2,'high',focus);cold.push(performance.now()-start);
         for(let i=0;i<12;i++){const start=performance.now();w.draw(c,width,960,6400+i*.6,2+i/60,'high',focus);warm.push(performance.now()-start);}
         for(const type of new Set(w.visibleProps.map(prop=>prop.type))) {
-          const p=w.visibleProps.find(p=>p.type===type&&p.screenY>50&&p.screenY<960/w.scale-50&&p.screenX>30&&p.screenX<1170);
+          const p=w.visibleProps.find(p=>p.type===type&&p.screenY>50&&p.screenY<960/w.scale-50&&p.screenX>30&&p.screenX<width-30);
           if(!p)continue;
           const before=p.hp;
           w.hit(p.screenX*w.scale,p.screenY*w.scale,0,.5,w.scroll);

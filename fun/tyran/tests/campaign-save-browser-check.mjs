@@ -24,6 +24,8 @@ const newPage = async (options = {}) => {
 
 // Capture observable flight state, including relationships needed to keep a
 // formation flying together. Drawing interpolation and transient effects may reset.
+// In the hangar the renderer asynchronously prepares the next environment and
+// drops cleared scenery; only an active flight owns persistent terrain state.
 const flight = page => page.evaluate(() => {
   const s = tyran.state;
   const pick = (object, names) => Object.fromEntries(names.map(name => [name, object[name]]));
@@ -35,9 +37,11 @@ const flight = page => page.evaluate(() => {
     formations: s.formations.map(f => pick(f, ['id', 'kind', 'age', 'baseX', 'x', 'y', 'offsets', 'members'])),
     attached: s.enemies.filter(e => e.formation).every(e => s.formations.includes(e.formation) && e.formationOffset === e.formation.offsets[e.formationIndex]),
     pickups: s.pickups.map(p => pick(p, ['x', 'y', 'age', 'kind', 'value'])),
-    seed: tyran.world.seed,
-    damage: [...tyran.world.damage],
-    destroyedScenery: [...tyran.world.destroyed],
+    ...(s.status === 'playing' ? {
+      seed: tyran.world.seed,
+      damage: [...tyran.world.damage],
+      destroyedScenery: [...tyran.world.destroyed],
+    } : {}),
   };
 });
 
@@ -226,6 +230,8 @@ try {
   });
   assert.equal((await record(page)).state.status, 'hangar');
   const cycleCampaign = await flight(page);
+  await page.waitForFunction(() => tyran.world.index === 0 && tyran.world.seed === 'tyran-v2-cycle-2');
+  assert.deepEqual(await flight(page), cycleCampaign, 'Preparing the next environment never changes cleared-sector progress');
   await page.locator('#hangar-menu-button').click();
   await page.reload(); await ready(page); await page.locator('#continue-button').click();
   assert(await page.locator('#hangar-screen').isVisible());
@@ -234,6 +240,8 @@ try {
   assert.equal(await page.evaluate(() => tyran.state.level), 10);
   assert.equal(await page.evaluate(() => tyran.world.index), 0);
   assert.equal((await record(page)).state.level, 10, 'The next cycle autosaves its absolute sector');
+  assert.deepEqual(await page.evaluate(() => ({ seed: tyran.world.seed, damage: tyran.world.damage.size, destroyed: tyran.world.destroyed.size })),
+    { seed: 'tyran-v2-cycle-2', damage: 0, destroyed: 0 }, 'The next cycle launches with its own terrain seed and fresh scenery');
 
   // Old saves are migrated by recency, while an existing canonical campaign
   // remains authoritative even when damaged (no silent fallback to old progress).

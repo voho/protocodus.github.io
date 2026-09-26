@@ -1,6 +1,7 @@
 import { createCampaign, MAX_UPGRADE, shipStats, normalizeWeapon, FORMATIONS, SECONDARY_ENERGY_COST, PRIMARIES, normalizePrimary,
   MAX_POWER, MAX_DRONES, MAX_BOMBS, MAX_LIVES, START_LIVES, START_BOMBS, FIRST_EXTRA_LIFE, nextLifeAfterScore, RESPAWN_DELAY, RESPAWN_GUARD, PICKUP_KINDS, sectorDuration } from './sim.js';
 import { createDirector, WAVE_KINDS, AI_MODES, PATHS } from './waves.js';
+import { normalizeDifficulty } from './difficulty.js';
 
 export const SAVE_KEY = 'tyran-campaign';
 export const LEGACY_SAVE_KEY = 'tyran-campaign-v1';
@@ -21,6 +22,14 @@ function number(value, fallback = 0, min = -100_000_000, max = 100_000_000, time
   return Math.max(min, Math.min(max, value));
 }
 const integer = (value, fallback = 0, min = 0, max = 100_000_000) => Math.trunc(number(value, fallback, min, max));
+function arenaDimension(value, fallback) {
+  if (value === undefined) return fallback;
+  // Saved dimensions only normalize actor positions on resume; the live
+  // viewport determines all rendering allocations. Preserve fractional aspect
+  // ratios exactly, and reject pathological denominators instead of skewing them.
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < .000001 || value > 100_000_000) invalid();
+  return value;
+}
 // Campaign progression is an absolute sector number, independent of the ten
 // reusable environments. Never truncate or wrap it while loading a save.
 function campaignLevel(value, fallback = 0, max = Number.MAX_SAFE_INTEGER) {
@@ -70,7 +79,7 @@ function optional(target, source, spec) {
 }
 const ENEMY_FIELDS = {
   ai: ['enum', 0, 0, AI_MODES], path: ['enum', 0, 0, Object.keys(PATHS)], role: ['enum', 0, 0, ['midboss', 'captor']],
-  pathD: ['num'], pathSpeed: ['num', 0, 4000], mirror: ['int', -1, 1], pathOx: ['num', -4000, 4000], pathOy: ['num', -4000, 4000],
+  pathD: ['num'], pathSpeed: ['num', 0, 4000], mirror: ['int', -1, 1], pathOx: ['num'], pathOy: ['num', -4000, 4000],
   wave: ['int', -1, 64], squad: ['int', 0, 100_000], slotRow: ['int', 0, 8], slotCol: ['int', 0, 16], slotCount: ['int', 0, 16],
   diveT: ['num', 0, 1000], diveX0: ['num'], diveY0: ['num'], diveSide: ['int', -1, 1], diveTx: ['num'], diveSpeed: ['num', 0, 4000],
   diveWeave: ['num', 0, 400], diveHome: ['int', 0, 1], diveFired: ['int', 0, 8], returnToHive: ['bool'], leaveDx: ['num', -1, 1], leaveDy: ['num', -1, 1],
@@ -110,7 +119,8 @@ function restoreState(raw) {
   // Only the former final sector can carry a legacy victory marker.
   if (raw.status === 'victory' && raw.level !== 9) invalid();
   if (!object(raw.upgrades) || !Array.isArray(raw.players) || !Array.isArray(raw.enemies) || !Array.isArray(raw.bullets) || !Array.isArray(raw.formations)) invalid();
-  const state = createCampaign(raw.level);
+  // Existing campaigns predate the selector and retain the original Easy balance.
+  const state = createCampaign(raw.level, null, normalizeDifficulty(raw.difficulty));
   for (const id of Object.keys(state.upgrades)) state.upgrades[id] = integer(raw.upgrades[id], 0, 0, MAX_UPGRADE);
   state.status = raw.status === 'victory' ? 'hangar' : raw.status;
   state.startLevel = campaignLevel(raw.startLevel, 0, state.level);
@@ -122,7 +132,7 @@ function restoreState(raw) {
     nextEnemyId: 1, nextFormationId: 1, formationTimer: 10.5,
     bossDeathTime: 0, spawnTimer: 1.5, showcase: 0,
   }, ['spawnTimer', 'formationTimer', 'duration', 'comboTime', 'bossDeathTime']));
-  state.width = number(raw.width, 1200, 320, 6000); state.height = number(raw.height, 900, 320, 6000);
+  state.width = arenaDimension(raw.width, 1200); state.height = arenaDimension(raw.height, 900);
   for (const key of ['kills', 'destroyed', 'combo', 'nextEnemyId', 'nextFormationId', 'showcase']) state[key] = integer(state[key], 0);
   for (const key of ['credits', 'score', 'totalKills']) state[key] = integer(raw[key], 0, 0, Number.MAX_SAFE_INTEGER);
   for (const key of ['time', 'scroll', 'duration', 'comboTime']) state[key] = Math.max(0, state[key]);

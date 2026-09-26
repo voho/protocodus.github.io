@@ -12,7 +12,7 @@ page.on('request', request => {
   if (request.url().startsWith('http') && request.url().includes('/fun/tyran/assets/')) requests.push({ url: request.url(), phase });
 });
 await page.addInitScript(() => localStorage.setItem('tyran-muted', 'false'));
-await page.route('**/space-adventure.mp3', async route => {
+await page.route('**/assets/audio/music/1.mp3', async route => {
   heldSong();
   await new Promise(resolve => { releaseSong = resolve; });
   await route.continue();
@@ -46,10 +46,10 @@ try {
     document.body.append(button);
     return { status, samples: audioAssets.samples.size, songs: audioAssets.songs.size };
   });
-  assert.deepEqual(assets.status, { ready: true, completed: 21, total: 21, loaded: 21, failed: 0 });
+  assert.deepEqual(assets.status, { ready: true, completed: 23, total: 23, loaded: 23, failed: 0 });
   assert.equal(assets.samples, 18, 'Every effect is decoded before readiness');
-  assert.equal(assets.songs, 3, 'Every complete soundtrack is in memory before readiness');
-  assert.equal(requests.filter(request => request.url.includes('/audio/')).length, 21, 'Cold startup fetches each audio asset exactly once');
+  assert.equal(assets.songs, 5, 'Every complete soundtrack is in memory before readiness');
+  assert.equal(requests.filter(request => request.url.includes('/audio/')).length, 23, 'Cold startup fetches each audio asset exactly once');
   phase = 'after-ready';
   await context.setOffline(true);
   await page.click('#preflight-test-launch');
@@ -113,5 +113,5 @@ try {
   assert.equal(result.songIsCached, true);
   assert.equal(result.scene, 'playing');
   assert.deepEqual(errors, [], 'Preflight and offline flight have no browser errors');
-  console.log(`Preflight browser checks passed: gated 21 audio assets, offline flight/resume/display changes, zero expensive texture builds (${result.canvases.length} lightweight strip/scratch canvases).`);
+  console.log(`Preflight browser checks passed: gated 23 audio assets, offline flight/resume/display changes, zero expensive texture builds (${result.canvases.length} lightweight strip/scratch canvases).`);
 } finally { clearTimeout(startupTimeout); releaseSong?.(); await browser.close(); }

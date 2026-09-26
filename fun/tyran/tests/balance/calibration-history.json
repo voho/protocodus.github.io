@@ -1,0 +1,255 @@
+{
+  "method": "Global REAL_PRESSURE search using the same frozen seed prefix for preliminary surveys and all100 frozen seeds for calibration. The pilot and seed list stay unchanged. No seeds or individual outcomes are edited.",
+  "pilot": "predictive-pilot-v1",
+  "trials": [
+    {
+      "pressure": 2,
+      "attempts": 4,
+      "wins": 4,
+      "successRate": 1,
+      "meanSectorsCleared": 10,
+      "meanDeaths": 0,
+      "timeouts": 0,
+      "phase": "preliminary survey",
+      "sourceHashes": {
+        "sim.js": "43defe361f6580f012bed11f341e391bfe9d74c4b9b18034e76015471d77ed89",
+        "waves.js": "181fe19a22e57cdd491d9f02f4283ca661259e09e8b107e8f82b2e6c2e0af081",
+        "tests/balance-pilot.mjs": "d93669232839a6a135251c34f0233b98a850a8d1b54bbf0ee658deb674cbd580"
+      }
+    },
+    {
+      "pressure": 6,
+      "attempts": 20,
+      "wins": 0,
+      "successRate": 0,
+      "meanSectorsCleared": 0.4,
+      "meanDeaths": 3.7,
+      "timeouts": 0,
+      "phase": "preliminary survey",
+      "sourceHashes": {
+        "sim.js": "43defe361f6580f012bed11f341e391bfe9d74c4b9b18034e76015471d77ed89",
+        "waves.js": "181fe19a22e57cdd491d9f02f4283ca661259e09e8b107e8f82b2e6c2e0af081",
+        "tests/balance-pilot.mjs": "d93669232839a6a135251c34f0233b98a850a8d1b54bbf0ee658deb674cbd580"
+      }
+    },
+    {
+      "pressure": 4,
+      "attempts": 20,
+      "wins": 20,
+      "successRate": 1,
+      "meanSectorsCleared": 10,
+      "meanDeaths": 1.4,
+      "timeouts": 0,
+      "phase": "preliminary survey",
+      "sourceHashes": {
+        "sim.js": "43defe361f6580f012bed11f341e391bfe9d74c4b9b18034e76015471d77ed89",
+        "waves.js": "181fe19a22e57cdd491d9f02f4283ca661259e09e8b107e8f82b2e6c2e0af081",
+        "tests/balance-pilot.mjs": "d93669232839a6a135251c34f0233b98a850a8d1b54bbf0ee658deb674cbd580"
+      }
+    },
+    {
+      "pressure": 5,
+      "attempts": 100,
+      "wins": 68,
+      "successRate": 0.68,
+      "meanSectorsCleared": 7.25,
+      "meanDeaths": 6.29,
+      "timeouts": 0,
+      "phase": "calibration",
+      "sourceHashes": {
+        "sim.js": "21aaba3fbe8c44fc9c3494eac870d84565445ebe4b99acc027a815b8e7e8a4e0",
+        "waves.js": "181fe19a22e57cdd491d9f02f4283ca661259e09e8b107e8f82b2e6c2e0af081",
+        "tests/balance-pilot.mjs": "d93669232839a6a135251c34f0233b98a850a8d1b54bbf0ee658deb674cbd580"
+      }
+    },
+    {
+      "pressure": 5.5,
+      "attempts": 100,
+      "wins": 21,
+      "successRate": 0.21,
+      "meanSectorsCleared": 2.92,
+      "meanDeaths": 6.1,
+      "timeouts": 0,
+      "phase": "calibration",
+      "sourceHashes": {
+        "sim.js": "21aaba3fbe8c44fc9c3494eac870d84565445ebe4b99acc027a815b8e7e8a4e0",
+        "waves.js": "181fe19a22e57cdd491d9f02f4283ca661259e09e8b107e8f82b2e6c2e0af081",
+        "tests/balance-pilot.mjs": "d93669232839a6a135251c34f0233b98a850a8d1b54bbf0ee658deb674cbd580"
+      }
+    },
+    {
+      "pressure": 5.65,
+      "attempts": 100,
+      "wins": 15,
+      "successRate": 0.15,
+      "meanSectorsCleared": 2.73,
+      "meanDeaths": 6.08,
+      "timeouts": 0,
+      "phase": "calibration",
+      "sourceHashes": {
+        "sim.js": "21aaba3fbe8c44fc9c3494eac870d84565445ebe4b99acc027a815b8e7e8a4e0",
+        "waves.js": "181fe19a22e57cdd491d9f02f4283ca661259e09e8b107e8f82b2e6c2e0af081",
+        "tests/balance-pilot.mjs": "d93669232839a6a135251c34f0233b98a850a8d1b54bbf0ee658deb674cbd580"
+      }
+    },
+    {
+      "pressure": 5.75,
+      "attempts": 100,
+      "wins": 6,
+      "successRate": 0.06,
+      "meanSectorsCleared": 1.51,
+      "meanDeaths": 5.02,
+      "timeouts": 0,
+      "phase": "calibration",
+      "sourceHashes": {
+        "sim.js": "21aaba3fbe8c44fc9c3494eac870d84565445ebe4b99acc027a815b8e7e8a4e0",
+        "waves.js": "181fe19a22e57cdd491d9f02f4283ca661259e09e8b107e8f82b2e6c2e0af081",
+        "tests/balance-pilot.mjs": "d93669232839a6a135251c34f0233b98a850a8d1b54bbf0ee658deb674cbd580"
+      }
+    },
+    {
+      "pressure": 5.7,
+      "attempts": 100,
+      "wins": 13,
+      "successRate": 0.13,
+      "meanSectorsCleared": 2.38,
+      "meanDeaths": 5.94,
+      "timeouts": 0,
+      "phase": "calibration",
+      "sourceHashes": {
+        "sim.js": "21aaba3fbe8c44fc9c3494eac870d84565445ebe4b99acc027a815b8e7e8a4e0",
+        "waves.js": "181fe19a22e57cdd491d9f02f4283ca661259e09e8b107e8f82b2e6c2e0af081",
+        "tests/balance-pilot.mjs": "d93669232839a6a135251c34f0233b98a850a8d1b54bbf0ee658deb674cbd580"
+      }
+    },
+    {
+      "pressure": 5.725,
+      "attempts": 100,
+      "wins": 7,
+      "successRate": 0.07,
+      "meanSectorsCleared": 1.7,
+      "meanDeaths": 5.19,
+      "timeouts": 0,
+      "phase": "calibration",
+      "sourceHashes": {
+        "sim.js": "21aaba3fbe8c44fc9c3494eac870d84565445ebe4b99acc027a815b8e7e8a4e0",
+        "waves.js": "181fe19a22e57cdd491d9f02f4283ca661259e09e8b107e8f82b2e6c2e0af081",
+        "tests/balance-pilot.mjs": "d93669232839a6a135251c34f0233b98a850a8d1b54bbf0ee658deb674cbd580"
+      }
+    },
+    {
+      "pressure": 5.71,
+      "attempts": 100,
+      "wins": 13,
+      "successRate": 0.13,
+      "meanSectorsCleared": 2.07,
+      "meanDeaths": 5.24,
+      "timeouts": 0,
+      "phase": "calibration",
+      "sourceHashes": {
+        "sim.js": "21aaba3fbe8c44fc9c3494eac870d84565445ebe4b99acc027a815b8e7e8a4e0",
+        "waves.js": "181fe19a22e57cdd491d9f02f4283ca661259e09e8b107e8f82b2e6c2e0af081",
+        "tests/balance-pilot.mjs": "d93669232839a6a135251c34f0233b98a850a8d1b54bbf0ee658deb674cbd580"
+      }
+    },
+    {
+      "pressure": 5.72,
+      "attempts": 100,
+      "wins": 7,
+      "successRate": 0.07,
+      "meanSectorsCleared": 1.77,
+      "meanDeaths": 5.42,
+      "timeouts": 0,
+      "phase": "calibration",
+      "sourceHashes": {
+        "sim.js": "21aaba3fbe8c44fc9c3494eac870d84565445ebe4b99acc027a815b8e7e8a4e0",
+        "waves.js": "181fe19a22e57cdd491d9f02f4283ca661259e09e8b107e8f82b2e6c2e0af081",
+        "tests/balance-pilot.mjs": "d93669232839a6a135251c34f0233b98a850a8d1b54bbf0ee658deb674cbd580"
+      }
+    },
+    {
+      "pressure": 5.715,
+      "attempts": 100,
+      "wins": 11,
+      "successRate": 0.11,
+      "meanSectorsCleared": 2.54,
+      "meanDeaths": 6.13,
+      "timeouts": 0,
+      "phase": "calibration",
+      "sourceHashes": {
+        "sim.js": "21aaba3fbe8c44fc9c3494eac870d84565445ebe4b99acc027a815b8e7e8a4e0",
+        "waves.js": "181fe19a22e57cdd491d9f02f4283ca661259e09e8b107e8f82b2e6c2e0af081",
+        "tests/balance-pilot.mjs": "d93669232839a6a135251c34f0233b98a850a8d1b54bbf0ee658deb674cbd580"
+      }
+    },
+    {
+      "pressure": 5.716,
+      "attempts": 100,
+      "wins": 7,
+      "successRate": 0.07,
+      "meanSectorsCleared": 2.47,
+      "meanDeaths": 6.21,
+      "timeouts": 0,
+      "phase": "calibration",
+      "sourceHashes": {
+        "sim.js": "21aaba3fbe8c44fc9c3494eac870d84565445ebe4b99acc027a815b8e7e8a4e0",
+        "waves.js": "181fe19a22e57cdd491d9f02f4283ca661259e09e8b107e8f82b2e6c2e0af081",
+        "tests/balance-pilot.mjs": "d93669232839a6a135251c34f0233b98a850a8d1b54bbf0ee658deb674cbd580"
+      }
+    },
+    {
+      "pressure": 5.7155,
+      "attempts": 100,
+      "wins": 12,
+      "successRate": 0.12,
+      "meanSectorsCleared": 2.68,
+      "meanDeaths": 6.22,
+      "timeouts": 0,
+      "phase": "calibration",
+      "sourceHashes": {
+        "sim.js": "21aaba3fbe8c44fc9c3494eac870d84565445ebe4b99acc027a815b8e7e8a4e0",
+        "waves.js": "181fe19a22e57cdd491d9f02f4283ca661259e09e8b107e8f82b2e6c2e0af081",
+        "tests/balance-pilot.mjs": "d93669232839a6a135251c34f0233b98a850a8d1b54bbf0ee658deb674cbd580"
+      }
+    },
+    {
+      "pressure": 5.71575,
+      "attempts": 100,
+      "wins": 7,
+      "successRate": 0.07,
+      "meanSectorsCleared": 2.48,
+      "meanDeaths": 6.3,
+      "timeouts": 0,
+      "phase": "calibration",
+      "sourceHashes": {
+        "sim.js": "21aaba3fbe8c44fc9c3494eac870d84565445ebe4b99acc027a815b8e7e8a4e0",
+        "waves.js": "181fe19a22e57cdd491d9f02f4283ca661259e09e8b107e8f82b2e6c2e0af081",
+        "tests/balance-pilot.mjs": "d93669232839a6a135251c34f0233b98a850a8d1b54bbf0ee658deb674cbd580"
+      }
+    },
+    {
+      "pressure": 5.7156,
+      "attempts": 100,
+      "wins": 10,
+      "successRate": 0.1,
+      "meanSectorsCleared": 2.69,
+      "meanDeaths": 6.49,
+      "timeouts": 0,
+      "phase": "calibration",
+      "sourceHashes": {
+        "sim.js": "21aaba3fbe8c44fc9c3494eac870d84565445ebe4b99acc027a815b8e7e8a4e0",
+        "waves.js": "181fe19a22e57cdd491d9f02f4283ca661259e09e8b107e8f82b2e6c2e0af081",
+        "tests/balance-pilot.mjs": "d93669232839a6a135251c34f0233b98a850a8d1b54bbf0ee658deb674cbd580"
+      }
+    }
+  ],
+  "finalPressure": 5.7156,
+  "pilotHash": "d93669232839a6a135251c34f0233b98a850a8d1b54bbf0ee658deb674cbd580",
+  "sourceNote": "The initial4/20-attempt surveys precede an early sim.js source update. Every full100-attempt calibration uses the same sim.js, waves.js and pilot hashes; only REAL_PRESSURE changes. Source fingerprints are recorded per trial.",
+  "runtime": {
+    "node": "v26.0.0",
+    "v8": "14.6.202.33-node.19",
+    "platform": "darwin",
+    "arch": "arm64"
+  }
+}

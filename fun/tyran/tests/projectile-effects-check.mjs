@@ -80,7 +80,7 @@ try {
     fx.emit({ type: 'explosion', x: 600, y: 400, size: 90, boss: true });
     fx.emit({ type: 'combo', x: 600, y: 400, combo: 5, label: 'Rampage' });
     for (let i = 0; i < 300; i++) fx.update(1 / 60);
-    const finished = Object.fromEntries(['particles', 'rings', 'lights', 'texts', 'delayed'].map(key => [key, fx[key].length]));
+    const finished = Object.fromEntries(['particles', 'rings', 'lights', 'delayed'].map(key => [key, fx[key].length]));
     fx.reset();
     return { assets, frames, reused, warmWork, hues, finished, resetWrecks: fx.wrecks.length };
   });

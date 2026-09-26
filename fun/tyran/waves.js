@@ -1,4 +1,5 @@
 import { normalizeLevel, environmentIndex, combatTier, cycleScale } from './campaign.js';
+import { difficultyProfile } from './difficulty.js';
 
 /* Tyran choreography: Galaga-style squadron flights, a breathing hive with
  * diving attackers, and a Tyrian-style script of waves for every sector.
@@ -158,7 +159,7 @@ export function startDive(s, enemy, target, speedScale = 1) {
   if (enemy.x + side * r * 2.4 < 40 || enemy.x + side * r * 2.4 > s.width - 40) side = -side;
   Object.assign(enemy, {
     ai: 'dive', diveT: 0, diveX0: enemy.x, diveY0: enemy.y, diveSide: side, diveFired: 0,
-    diveTx: clamp(target?.x ?? center, 50, s.width - 50), diveSpeed: (250 + combatTier(s.level) * 11) * speedScale,
+    diveTx: clamp(target?.x ?? center, 50, s.width - 50), diveSpeed: (250 + combatTier(s.level) * 11) * speedScale * difficultyProfile(s.difficulty).diveSpeed,
     diveWeave: enemy.type === 0 ? 0 : 55 + enemy.type * 8, diveHome: enemy.type === 0 ? 1 : 0,
   });
   s.events.push({ type: 'dive', x: enemy.x, y: enemy.y, shipType: enemy.type });
@@ -415,7 +416,7 @@ export function updateDirector(s, dt, spawn, spawnFormation, pilot) {
     // Galaga pacing: dives grow more frequent as the swarm thins.
     const members = s.enemies.filter(enemy => !enemy.dead && enemy.wave === d.wave && enemy.ai === 'hive');
     const entering = s.enemies.some(enemy => !enemy.dead && enemy.wave === d.wave && enemy.ai === 'entry' && enemy.slotCount && !isDormant(enemy));
-    d.dive -= dt * (entering ? .45 : 1);
+    d.dive -= dt * (entering ? .45 : 1) * difficultyProfile(s.difficulty).diveRate;
     const maxDivers = 2 + Math.floor(combatTier(s.level) / 3) + (members.length <= 6 ? 1 : 0);
     if (d.dive <= 0 && diving < maxDivers && pilot?.alive) {
       const lead = members[Math.floor(Math.random() * members.length)];
@@ -427,7 +428,7 @@ export function updateDirector(s, dt, spawn, spawnFormation, pilot) {
       }
       d.dive = Math.max(.6, 2.15 - combatTier(s.level) * .13) * (members.length > 8 ? 1 : .68) * (.8 + Math.random() * .4);
     }
-    d.potshot -= dt;
+    d.potshot -= dt * difficultyProfile(s.difficulty).fireRate;
     if (d.potshot <= 0 && members.length) {
       const bottom = Math.max(...members.map(enemy => enemy.slotRow || 0));
       const shooters = members.filter(enemy => enemy.slotRow === bottom);
@@ -450,7 +451,7 @@ export function startChallenge(s, spawn) {
     for (const [mirror, count] of lines) {
       const ships = launchLine(s, spawn, { type: (k + environmentIndex(s.level)) % 4, count, path, mirror: k % 2 && lines.length === 1 ? -1 : mirror, delay: 1.2 + k * 3.6,
         spacing: .15, speed, wave: -1, squad, flags: { challenge: true, harmless: true, noFire: true } });
-      for (const enemy of ships) { enemy.hp = enemy.maxHp = (8 + combatTier(s.level) * 2) * cycleScale(s.level, .22); }
+      for (const enemy of ships) { enemy.hp = enemy.maxHp = (8 + combatTier(s.level) * 2) * cycleScale(s.level, .22) * difficultyProfile(s.difficulty).health; }
     }
   }
   s.events.push({ type: 'challenge', total: CHALLENGE_SIZE });

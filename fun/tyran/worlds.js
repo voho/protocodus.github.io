@@ -20,7 +20,7 @@ export const WORLDS = [
 
 
 const TILE = 800; // Eight rows of 100px map cells per cached strip.
-const WIDTH = 1200;
+const WIDTH = 1200; // Stable seeded districts; viewport coverage is independent.
 const MARGIN = MAP_TILE_SIZE; // Actual offscreen cells cover lateral drift.
 const PAD = 140;
 const HIT_CELL = 160;
@@ -107,7 +107,7 @@ function siteHash(id) {
 /** Seeded terrain and scenery share one ground plane; only atmosphere drifts. */
 export class WorldRenderer {
   constructor() {
-    this.detailScale=1;
+    this.detailScale=1;this.preferredDetailScale=1;this.viewportWidth=WIDTH;this.mapWidth=WIDTH;
     this.tiles=new Map();this.pendingTiles=new Map();this.bands=new Map();this.sprites=new Map();this.damageSpriteKeys=new Set();
     this.sceneryLayers=[new Map()];this.sceneryDirty=new Map();
     this.layerViews=[{zoom:1,x:0,y:0,first:0,last:0}];
@@ -130,8 +130,7 @@ export class WorldRenderer {
     if(reuse)return;
     this.warmEpoch=(this.warmEpoch||0)+1;this.warmJobs=[];this.warmKeys=new Set();this.warmPending=false;this.flightAssetsQueued=false;this.pendingTiles.clear();
     this.terrain=new TerrainSprites(this.index,this.palette);this.tiles.clear();this.sprites.clear();this.damageSpriteKeys.clear();this.clouds=[];
-    const rng=random(this.levelHash);
-    for(let i=0;i<7;i++)this.clouds.push({x:rng()*WIDTH,y:rng()*1500,r:150+rng()*160,phase:rng()*TAU});
+    this.extendClouds();
     this.cloudSprite=this.makeCloud();this.cloudShadowSprite=this.makeCloudShadow();this.lightSprite=this.makeLight();this.radarSweepSprite=this.makeRadarSweep();this.scorchSprite=this.makeScorch();
     this.structureEffects=new StructureEffects(this.index,this.palette,this.world.accent);
     this.siteSprites=this.makeGroundSiteSprites();
@@ -172,14 +171,38 @@ export class WorldRenderer {
     this.sceneryDirty.clear();
     this.cloudSprite=this.makeCloud();this.cloudShadowSprite=this.makeCloudShadow();this.warmScenery();
   }
-  setDetailScale(pixelWidth,quality='high') {
-    const scale=quality==='high'&&pixelWidth>1600?2:1;
-    if(scale===this.detailScale)return;
-    this.detailScale=scale;this.tiles.clear();this.pendingTiles.clear();
+  clearStripCaches(geometry=false) {
+    this.tiles.clear();this.pendingTiles.clear();
     this.warmJobs=this.warmJobs.filter(job=>!job.key.startsWith('terrain:')&&!job.key.startsWith('scenery:'));
     this.warmKeys=new Set(this.warmJobs.map(job=>job.key));
     for(const layer of this.sceneryLayers)layer.clear();
     this.sceneryDirty.clear();this.sceneryScratch=null;
+    if(geometry){this.bands.clear();this.hitBuckets.clear();this.visibleProps.length=0;}
+  }
+  updateDetailScale() {
+    // Keep native detail through 32:9. Extremely wide canvases fall back before
+    // a strip would exceed the 8192-pixel backing-width portability boundary.
+    const scale=(this.mapWidth+MARGIN*2)*this.preferredDetailScale<=8192?this.preferredDetailScale:1;
+    if(scale===this.detailScale)return;
+    this.detailScale=scale;this.clearStripCaches();
+  }
+  setDetailScale(pixelWidth,quality='high') {
+    this.preferredDetailScale=quality==='high'&&pixelWidth>1600?2:1;
+    this.updateDetailScale();
+  }
+  setViewport(width) {
+    this.viewportWidth=Number.isFinite(width)&&width>0?width:WIDTH;
+    const mapWidth=Math.ceil(this.viewportWidth/MAP_TILE_SIZE)*MAP_TILE_SIZE;
+    if(mapWidth===this.mapWidth)return;
+    this.mapWidth=mapWidth;this.clearStripCaches(true);this.updateDetailScale();this.extendClouds();
+  }
+  extendClouds() {
+    const groups=Math.ceil(this.mapWidth/WIDTH);
+    this.clouds=[];
+    for(let group=0;group<groups;group++){
+      const rng=random(this.levelHash^Math.imul(group,0x731d5a39));
+      for(let i=0;i<7;i++)this.clouds.push({x:group*WIDTH+rng()*WIDTH,y:rng()*1500,r:150+rng()*160,phase:rng()*TAU});
+    }
   }
   queueWarm(key,work) {
     if(this.warmKeys.has(key))return;
@@ -221,8 +244,8 @@ export class WorldRenderer {
     }
   }
   prepare(width,height,scroll=0) {
-    this.warmFlightAssets();
-    const h=height/(width/WIDTH),first=Math.floor((-scroll-PAD)/TILE),last=Math.floor((h-scroll+PAD)/TILE);
+    this.setViewport(width);this.warmFlightAssets();
+    const h=height,first=Math.floor((-scroll-PAD)/TILE),last=Math.floor((h-scroll+PAD)/TILE);
     // One complete strip leads the padded viewport, giving several seconds to
     // prepare the next strip even at late-mission speed. Geometry stays bounded.
     for(let row=Math.floor(-scroll/TILE)-1;row<=Math.floor((h-scroll)/TILE);row++)this.queueTerrain(row);
@@ -233,7 +256,7 @@ export class WorldRenderer {
     }
     // Damage copies into this shared buffer, never allocating it on a first hit.
     this.queueWarm('scenery:scratch',()=>{
-      if(!this.sceneryScratch)this.sceneryScratch=canvas((WIDTH+MARGIN*2)*this.detailScale,(TILE+PAD*2)*this.detailScale);
+      if(!this.sceneryScratch)this.sceneryScratch=canvas((this.mapWidth+MARGIN*2)*this.detailScale,(TILE+PAD*2)*this.detailScale);
     });
   }
   /** Complete preparation before entering play; menu/shop idle work usually did it already. */
@@ -257,7 +280,7 @@ export class WorldRenderer {
     const state={out:null,next:0};this.pendingTiles.set(row,state);
     const work=()=>{
       if(this.pendingTiles.get(row)!==state)return;
-      if(!state.out)state.out=canvas((WIDTH+MARGIN*2)*this.detailScale,TILE*this.detailScale);
+      if(!state.out)state.out=canvas((this.mapWidth+MARGIN*2)*this.detailScale,TILE*this.detailScale);
       this.paintTerrainRow(state.out,row,state.next++);
       if(state.next===TILE/MAP_TILE_SIZE){this.tiles.set(row,state.out);this.pendingTiles.delete(row);}
       else this.queueWarm(`terrain:${row}`,work);
@@ -291,13 +314,13 @@ export class WorldRenderer {
     return out;
   }
   drawSubstrate(c,h,scroll) {
-    c.fillStyle=this.palette.low;c.fillRect(-MARGIN,0,WIDTH+MARGIN*2,h);
+    c.fillStyle=this.palette.low;c.fillRect(-MARGIN,0,this.mapWidth+MARGIN*2,h);
     const shift=scroll*PARALLAX_LAYERS[0].speed,first=Math.floor(-shift/600);
-    for(let row=first;row*600+shift<h;row++)for(let col=-1;col<3;col++)c.drawImage(this.substrateSprite,col*600,row*600+shift);
+    for(let row=first;row*600+shift<h;row++)for(let col=-1;col<=Math.ceil(this.mapWidth/600);col++)c.drawImage(this.substrateSprite,col*600,row*600+shift);
   }
   paintTerrainRow(out,row,y) {
     const c=out.getContext('2d');c.setTransform(this.detailScale,0,0,this.detailScale,0,0);
-    for(let col=-1;col<=WIDTH/MAP_TILE_SIZE;col++) {
+    for(let col=-1;col<=this.mapWidth/MAP_TILE_SIZE;col++) {
       const tile=this.tileAt(col,row*(TILE/MAP_TILE_SIZE)+y),x=col*MAP_TILE_SIZE+MARGIN,py=y*MAP_TILE_SIZE;
       c.globalAlpha=.86;c.drawImage(this.terrain.getMaterial(0,tile.variant),x,py,MAP_TILE_SIZE,MAP_TILE_SIZE);c.globalAlpha=1;
       for(let material=1;material<4;material++)if(tile.cornerMasks[material])c.drawImage(this.terrain.get(material,tile.variant,tile.cornerMasks[material]),x,py,MAP_TILE_SIZE,MAP_TILE_SIZE);
@@ -306,7 +329,7 @@ export class WorldRenderer {
   getTile(row) {
     if(this.tiles.has(row))return this.tiles.get(row);
     const state=this.pendingTiles.get(row);
-    const out=state?.out||canvas((WIDTH+MARGIN*2)*this.detailScale,TILE*this.detailScale);
+    const out=state?.out||canvas((this.mapWidth+MARGIN*2)*this.detailScale,TILE*this.detailScale);
     for(let y=state?.next||0;y<TILE/MAP_TILE_SIZE;y++)this.paintTerrainRow(out,row,y);
     this.pendingTiles.delete(row);this.tiles.set(row,out);return out;
   }
@@ -314,7 +337,10 @@ export class WorldRenderer {
     if(this.bands.has(row))return this.bands.get(row);
     const props=[],rng=random(this.levelHash^Math.imul(row,33479));
     const district=Math.floor(rng()*DISTRICTS[this.index].length),types=DISTRICTS[this.index][district];
-    for(let y=0;y<TILE/MAP_TILE_SIZE;y++)for(let col=-1;col<=WIDTH/MAP_TILE_SIZE;col++) {
+    const groups=Math.max(1,Math.ceil(this.mapWidth/WIDTH));
+    // Complete each seeded district even if the viewport cuts through it. A
+    // wider view can therefore never choose a different supply in an old cell.
+    for(let y=0;y<TILE/MAP_TILE_SIZE;y++)for(let col=-1;col<=groups*WIDTH/MAP_TILE_SIZE;col++) {
       const tileRow=row*(TILE/MAP_TILE_SIZE)+y,tile=this.tileAt(col,tileRow);
       const r=random(this.levelHash^Math.imul(tileRow,90149)^Math.imul(col,19433));
       const space=this.index===4||this.index===9;
@@ -340,24 +366,26 @@ export class WorldRenderer {
     }
     // Assign a few active sites after geometry generation. An independent hash
     // keeps existing props, damage IDs and durability stable in saved campaigns.
-    const sites=props.filter(prop=>STRUCTURE_SPRITES.includes(prop.type)&&prop.x>130&&prop.x<WIDTH-130)
-      .sort((a,b)=>siteHash(a.id)-siteHash(b.id));
-    // Keep the original supply's identity even when a retired gun or a vehicle
-    // sorted ahead of it. Protected vehicles no longer carry supply rewards.
-    const supply=sites[sites.length>1?1:((this.levelHash^row)&1)?-1:0];
-    if(supply&&BUILDINGS.has(supply.type)){
-      const hash=siteHash(`${supply.id}:site`);
-      supply.groundRole='cache';supply.phase=hash/4294967296*TAU;
-      supply.bonus=SITE_BONUSES[(hash>>>8)%SITE_BONUSES.length];
+    for(let group=0;group<groups;group++){
+      const sites=props.filter(prop=>STRUCTURE_SPRITES.includes(prop.type)&&prop.x>group*WIDTH+130&&prop.x<(group+1)*WIDTH-130)
+        .sort((a,b)=>siteHash(a.id)-siteHash(b.id));
+      // Group zero reproduces the original 1200-unit supply selection exactly.
+      // Extra districts own independent choices that cannot shift on resize.
+      const supply=sites[sites.length>1?1:((this.levelHash^row^group)&1)?-1:0];
+      if(supply&&BUILDINGS.has(supply.type)){
+        const hash=siteHash(`${supply.id}:site`);
+        supply.groundRole='cache';supply.phase=hash/4294967296*TAU;
+        supply.bonus=SITE_BONUSES[(hash>>>8)%SITE_BONUSES.length];
+      }
     }
     props.sort((a,b)=>a.y-b.y);
     this.bands.set(row,props);return props;
   }
   /** Refresh ground collision geometry independently of the last rendered frame. */
   prepareGround(width,height,scroll,focusX=width*.5) {
-    const scale=width/WIDTH,offset=(.5-clamp(focusX/width,0,1))*WIDTH*.02;
-    this.scale=scale;this.scroll=scroll;this.parallaxX=offset;
-    const h=height/scale,first=Math.floor((-scroll-PAD)/TILE),last=Math.floor((h-scroll+PAD)/TILE);
+    this.setViewport(width);
+    this.scale=1;this.scroll=scroll;this.parallaxX=(.5-clamp(focusX/width,0,1))*WIDTH*.02;
+    const h=height,first=Math.floor((-scroll-PAD)/TILE),last=Math.floor((h-scroll+PAD)/TILE);
     for(let row=first;row<=last;row++)this.getBand(row);
     return [];
   }
@@ -368,7 +396,7 @@ export class WorldRenderer {
     const cache=this.sceneryLayers[depth],existing=cache.get(row),dirty=this.sceneryDirty.get(row);
     if(existing&&!dirty)return existing;
     const d=this.detailScale;
-    const out=existing||canvas((WIDTH+MARGIN*2)*d,(TILE+PAD*2)*d),bounds=existing?dirty:null;
+    const out=existing||canvas((this.mapWidth+MARGIN*2)*d,(TILE+PAD*2)*d),bounds=existing?dirty:null;
     const target=bounds?(this.sceneryScratch||(this.sceneryScratch=canvas(out.width,out.height))):out;
     const c=target.getContext('2d');c.setTransform(d,0,0,d,0,0);
     if(bounds){
@@ -380,6 +408,7 @@ export class WorldRenderer {
       // Repaint every overlapping object in its original order so transparent
       // wings, foliage and shadows remain identical to a complete strip rebuild.
       const reach=prop.size*1.3+2;
+      if(prop.x+reach<-MARGIN||prop.x-reach>this.mapWidth+MARGIN)continue;
       if(bounds&&(prop.x+reach<bounds.left||prop.x-reach>bounds.right||prop.y+reach<bounds.top||prop.y-reach>bounds.bottom))continue;
       const y=prop.y-row*TILE+PAD,x=prop.x+MARGIN,scale=prop.size/100;
       const structural=STRUCTURE_SPRITES.includes(prop.type),destroyed=this.destroyed.has(prop.id);
@@ -412,26 +441,30 @@ export class WorldRenderer {
   }
   getGroundDetails(row) {
     const band=this.getBand(row);if(band.details)return band.details;
-    const rng=random(this.levelHash^Math.imul(row,71867)^0x57a3c12d),details=[];
-    const types=GROUND_DETAILS[this.index];
-    for(let cluster=0;cluster<34;cluster++){
-      const x=-MARGIN+rng()*(WIDTH+MARGIN*2),y=(row+rng())*TILE;
-      const tile=this.tileAt(Math.floor(x/MAP_TILE_SIZE),Math.floor(y/MAP_TILE_SIZE));
-      // Shallows grow coral; empty water and orbital gaps remain open.
-      if(tile.material===0&&(this.index!==3||rng()>.16))continue;
-      const radius=20+rng()*43,count=3+Math.floor(rng()*5),items=[];
-      for(let n=0;n<count;n++){
-        const a=rng()*TAU,d=Math.sqrt(rng())*radius;
-        const type=this.index===3&&tile.material<2?'coral':types[Math.floor(rng()*types.length)];
-        items.push({type,x:x+Math.cos(a)*d,y:y+Math.sin(a)*d*.62,size:9+rng()*(n===0?27:15),variant:Math.floor(rng()*5),flip:rng()<.5?-1:1});
+    const details=[],types=GROUND_DETAILS[this.index];
+    // Seed ground cover by fixed districts, including the next district's edge
+    // so a resize cannot introduce overlapping decoration into an existing view.
+    for(let group=0;group<=Math.ceil(this.mapWidth/WIDTH);group++){
+      const rng=random(this.levelHash^Math.imul(row,71867)^0x57a3c12d^Math.imul(group,0x419d6b17));
+      for(let cluster=0;cluster<34;cluster++){
+        const x=group*WIDTH-MARGIN+rng()*(WIDTH+MARGIN*2),y=(row+rng())*TILE;
+        const tile=this.tileAt(Math.floor(x/MAP_TILE_SIZE),Math.floor(y/MAP_TILE_SIZE));
+        // Shallows grow coral; empty water and orbital gaps remain open.
+        if(tile.material===0&&(this.index!==3||rng()>.16))continue;
+        const radius=20+rng()*43,count=3+Math.floor(rng()*5),items=[];
+        for(let n=0;n<count;n++){
+          const a=rng()*TAU,d=Math.sqrt(rng())*radius;
+          const type=this.index===3&&tile.material<2?'coral':types[Math.floor(rng()*types.length)];
+          items.push({type,x:x+Math.cos(a)*d,y:y+Math.sin(a)*d*.62,size:9+rng()*(n===0?27:15),variant:Math.floor(rng()*5),flip:rng()<.5?-1:1});
+        }
+        const bounds={left:x-radius*1.3-8,right:x+radius*1.3+8,top:y-radius*1.3-8,bottom:y+radius*1.3+8};
+        for(const item of items){
+          const reach=item.size*1.3+2;
+          bounds.left=Math.min(bounds.left,item.x-reach);bounds.right=Math.max(bounds.right,item.x+reach);
+          bounds.top=Math.min(bounds.top,item.y-reach);bounds.bottom=Math.max(bounds.bottom,item.y+reach);
+        }
+        details.push({x,y,radius,seed:Math.floor(rng()*0xffffffff),items,bounds});
       }
-      const bounds={left:x-radius*1.3-8,right:x+radius*1.3+8,top:y-radius*1.3-8,bottom:y+radius*1.3+8};
-      for(const item of items){
-        const reach=item.size*1.3+2;
-        bounds.left=Math.min(bounds.left,item.x-reach);bounds.right=Math.max(bounds.right,item.x+reach);
-        bounds.top=Math.min(bounds.top,item.y-reach);bounds.bottom=Math.max(bounds.bottom,item.y+reach);
-      }
-      details.push({x,y,radius,seed:Math.floor(rng()*0xffffffff),items,bounds});
     }
     band.details=details;return details;
   }
@@ -439,6 +472,7 @@ export class WorldRenderer {
     const p=this.palette;
     for(const cluster of this.getGroundDetails(row)){
       const b=cluster.bounds;
+      if(b.right<-MARGIN||b.left>this.mapWidth+MARGIN)continue;
       if(bounds&&(b.right<bounds.left||b.left>bounds.right||b.bottom<bounds.top||b.top>bounds.bottom))continue;
       const x=cluster.x+MARGIN,y=cluster.y-row*TILE+PAD,rng=random(cluster.seed);
       // Uneven silt, leaf litter and rubble beds ground the scattered objects.
@@ -513,10 +547,10 @@ export class WorldRenderer {
     c.save();c.translate(view.x,view.y);
     for(let row=first;row<=last;row++) {
       const band=this.getBand(row);c.globalAlpha=1;
-      c.drawImage(this.getSceneryLayer(row,band),-MARGIN,row*TILE-PAD,WIDTH+MARGIN*2,TILE+PAD*2);
+      c.drawImage(this.getSceneryLayer(row,band),-MARGIN,row*TILE-PAD,this.mapWidth+MARGIN*2,TILE+PAD*2);
       for(const prop of band){
         if(this.destroyed.has(prop.id))continue;
-        const y=prop.y+scroll;if(y<-PAD||y>h+PAD)continue;
+        const y=prop.y+scroll;if(y<-PAD||y>h+PAD||prop.x<-PAD||prop.x>this.viewportWidth+PAD)continue;
         prop.screenX=prop.x+view.x;prop.screenY=y;this.visibleProps.push(prop);
         this.drawStructureActivity(c,prop,time,quality,motion);
         this.structureEffects.draw(c,prop,time,quality,motion);
@@ -532,19 +566,19 @@ export class WorldRenderer {
     for(const row of cache.keys())if(row<first-1||row>last+1){cache.delete(row);this.sceneryDirty.delete(row);}
   }
   draw(ctx,W,H,scroll,time,quality='high',focusX=W*.5,motion=true) {
-    this.refreshSpriteAssets();
-    const s=W/WIDTH,h=H/s;
-    this.scale=s;this.scroll=scroll;this.parallaxX=(.5-clamp(focusX/W,0,1))*WIDTH*.02;this.visibleProps.length=0;
-    ctx.save();ctx.scale(s,s);
+    this.setViewport(W);this.refreshSpriteAssets();
+    const h=H;
+    this.scale=1;this.scroll=scroll;this.parallaxX=(.5-clamp(focusX/W,0,1))*WIDTH*.02;this.visibleProps.length=0;
+    ctx.save();
     ctx.save();ctx.translate(this.parallaxX,0);
     this.drawSubstrate(ctx,h,scroll);
     const first=Math.floor(-scroll/TILE),last=Math.floor((h-scroll)/TILE);
-    for(let row=first;row<=last;row++)ctx.drawImage(this.getTile(row),-MARGIN,row*TILE+scroll,WIDTH+MARGIN*2,TILE+.5);
+    for(let row=first;row<=last;row++)ctx.drawImage(this.getTile(row),-MARGIN,row*TILE+scroll,this.mapWidth+MARGIN*2,TILE+.5);
     ctx.restore();
     if(quality!=='low')this.drawCloudShadows(ctx,h,scroll,motion?time:0,motion);
     this.drawGroundScenery(ctx,h,scroll,time,quality,motion);
     ctx.globalAlpha=1;this.drawAtmosphere(ctx,h,scroll,motion?time:0,quality,motion);
-    ctx.drawImage(this.vignetteSprite,0,0,WIDTH,h);ctx.restore();
+    ctx.drawImage(this.vignetteSprite,0,0,W,h);ctx.restore();
     for(const row of this.tiles.keys())if(row<first-1||row>last+1)this.tiles.delete(row);
     // Keep only nearby pixel caches and regenerated bands. Damage is a compact ledger.
     for(const [row,band] of this.bands)if(!this.layerViews.some(view=>row>=view.first-1&&row<=view.last+1)){
@@ -641,7 +675,7 @@ export class WorldRenderer {
       stripBytes:bytes(this.tiles.values())+bytes(this.sceneryLayers[0].values())+bytes([...this.pendingTiles.values()].map(state=>state.out).filter(Boolean)),
       terrainBytes:bytes(this.terrain.materials.values())+bytes(this.terrain.edges.values()),
       scratchBytes:bytes([this.spriteScratch,this.shadowScratch,this.sceneryScratch].filter(Boolean)),
-      detailScale:this.detailScale,structureEffectBytes:this.structureEffects.memoryStats().spriteBytes,
+      detailScale:this.detailScale,viewportWidth:this.viewportWidth,mapWidth:this.mapWidth,structureEffectBytes:this.structureEffects.memoryStats().spriteBytes,
       damagedProps:this.damage.size,craters:this.destroyed.size};
   }
   makeDamagedFallback(type,variant,stage) {
@@ -943,17 +977,17 @@ export class WorldRenderer {
       // Larger wisps pass faster at the sides; keep the firing lane readable.
       for(let i=0;i<3;i++){
         const cloud=this.clouds[i+2],position=this.cloudPosition(cloud,h,scroll,time,2,motion);
-        const x=(i%2?WIDTH+70:-70)+(position.x-cloud.x)*1.3,r=cloud.r*1.35;
+        const x=(i%2?this.viewportWidth+70:-70)+(position.x-cloud.x)*1.3,r=cloud.r*1.35;
         c.globalAlpha=space?.065:this.index===1?.18:.14;
         c.drawImage(this.cloudSprite,x-r,position.y-r*.67,r*2,r*1.34);
       }
       c.globalAlpha=1;
     }
     const count=quality==='low'?13:this.index===1?75:this.index===7?70:38;
-    for(let i=0;i<count;i++) {
+    for(let group=0;group<Math.ceil(this.viewportWidth/WIDTH);group++)for(let i=0;i<count;i++) {
       const depth=.3+(i%7)*.13;
       const layer=PARALLAX_LAYERS[i%3===0?2:1];
-      const x=((i*191.7+this.parallaxX*(motion?layer.x:1)+Math.sin(time*.2+i)*18+(this.index===2||this.index===5?time*55:0))%WIDTH+WIDTH)%WIDTH;
+      const x=group*WIDTH+((i*191.7+this.parallaxX*(motion?layer.x:1)+Math.sin(time*.2+i)*18+(this.index===2||this.index===5?time*55:0))%WIDTH+WIDTH)%WIDTH;
       const y=((i*149.31+scroll*(motion?layer.speed:1)+time*(this.index===1?18:4))%(h+40)+h+40)%(h+40)-20;
       if(this.index===7){line(c,[[x,y],[x-4,y+17]],'rgba(162,189,220,.17)',.8);continue;}
       if(this.index===2||this.index===5){line(c,[[x,y],[x+6+depth*8,y+1]],'rgba(238,194,145,.2)',.7);continue;}
@@ -966,7 +1000,7 @@ export class WorldRenderer {
     if(this.index===0||this.index===3||this.index===8) {
       // Slow, soft sun shafts sit above the canopy and behind combat effects.
       c.save();c.globalCompositeOperation='screen';c.globalAlpha=.038;
-      for(let i=0;i<3;i++){const x=100+i*390+Math.sin(time*.03+i)*60;c.drawImage(this.shaftSprite,x-24,0,384,h);}
+      for(let i=0;i<Math.ceil(this.viewportWidth/390);i++){const x=100+i*390+Math.sin(time*.03+i)*60;c.drawImage(this.shaftSprite,x-24,0,384,h);}
       c.restore();
     }
     c.restore();

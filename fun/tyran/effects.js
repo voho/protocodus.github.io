@@ -5,8 +5,8 @@ const random = (a, b) => a + Math.random() * (b - a);
 const TAU = Math.PI * 2;
 // Effects retain shared artwork and current playback state only. Repeated bursts
 // reuse particle records instead of leaving hundreds of short-lived objects for GC.
-export const EFFECT_LIMITS = Object.freeze({ particles: 700, rings: 96, lights: 48, texts: 48, wrecks: 60, delayed: 72, flares: 6, textures: 24 });
-const CAPPED_STATES = ['rings', 'lights', 'texts', 'wrecks', 'delayed', 'flares'];
+export const EFFECT_LIMITS = Object.freeze({ particles: 700, rings: 96, lights: 48, wrecks: 60, delayed: 72, flares: 6, textures: 24 });
+const CAPPED_STATES = ['rings', 'lights', 'wrecks', 'delayed', 'flares'];
 const EFFECT_STATES = ['particles', ...CAPPED_STATES];
 const textures = new Map();
 function releaseTexture(canvas) { canvas.width = canvas.height = 1; }
@@ -125,7 +125,7 @@ function keepNewest(list, limit) {
   if (list.length > limit) { list.copyWithin(0, list.length - limit); list.length = limit; }
 }
 export class Effects {
-  constructor() { this.particles = []; this.particlePool = []; this.rings = []; this.lights = []; this.texts = []; this.wrecks = []; this.delayed = []; this.flares = []; this.shake = 0; this.flash = 0; this.damagePulse = 0; this.reduced = matchMedia('(prefers-reduced-motion: reduce)').matches; this.quality = 'high'; }
+  constructor() { this.particles = []; this.particlePool = []; this.rings = []; this.lights = []; this.wrecks = []; this.delayed = []; this.flares = []; this.shake = 0; this.flash = 0; this.damagePulse = 0; this.reduced = matchMedia('(prefers-reduced-motion: reduce)').matches; this.quality = 'high'; }
   reset() {
     for (const key of EFFECT_STATES) this[key].length = 0;
     this.particlePool.length = 0;
@@ -158,15 +158,14 @@ export class Effects {
         const angle = random(0, TAU), speed = random(25, boss ? 420 : size * 5 + 50);
         this.particle(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed, random(.3, boss ? 2.3 : 1.2), random(1.2, size * .12 + 2), color, i % 4 === 0, i % 5 === 0, !!event.ground, angle);
       }
-      this.rings.push({ x, y, age: 0, life: boss ? 1.2 : .5, radius: size * (boss ? 6 : 3), color, explosion: true, diameter: size * 4 });
-      this.lights.push({ x, y, age: 0, life: boss ? .9 : .3, radius: size * 5, color, fire: true });
+      this.rings.push({ x, y, age: 0, life: boss ? 1.2 : .5, radius: size * (boss ? 6 : 3), color, explosion: true, diameter: size * 4, ground: !!event.ground });
+      this.lights.push({ x, y, age: 0, life: boss ? .9 : .3, radius: size * 5, color, fire: true, ground: !!event.ground });
       if (!this.reduced && !event.secondary && (boss || size >= 45)) {
-        this.flares.push({ x, y, age: 0, life: boss ? .7 : .48, radius: size * (boss ? 5 : 4), strength: boss ? 1 : .75 });
+        this.flares.push({ x, y, age: 0, life: boss ? .7 : .48, radius: size * (boss ? 5 : 4), strength: boss ? 1 : .75, ground: !!event.ground });
       }
       if (event.type !== 'phase' && !event.ground && !event.secondary) this.wrecks.push({ x: x - groundOffset, y: y - scroll, size, angle: random(0, TAU), age: 0 });
       this.shake = Math.min(23, this.shake + size * (event.ground ? .028 : .09));
       this.flash = Math.max(this.flash, boss ? .5 : event.player ? .24 : .03);
-      if (event.value) this.texts.push({ x, y, text: event.dive ? `+${event.value}  ×2` : `+${event.value}`, life: 1.15, age: 0, color: event.dive ? '#ffd27a' : '#f3debe' });
     } else if (event.type === 'spark') {
       this.reserveParticles(4);
       for (let i = 0; i < 4; i++) this.particle(x, y, random(-100, 100), random(10, 150), random(.1, .22), random(1, 3), '#ddffed');
@@ -177,12 +176,9 @@ export class Effects {
     } else if (event.type === 'pickup') {
       const timed = event.bonus === 'rapid' || event.bonus === 'invulnerable';
       const color = BONUS_PALETTE.rim;
-      const offset = event.bonus === 'rapid' ? 44 : event.bonus === 'invulnerable' ? 24 : 0;
-      this.texts.push({ x, y: y - offset, text: `${event.value}`, life: timed ? 1.8 : 1.3, age: 0, color });
       if (timed) this.rings.push({ x, y, age: 0, life: .45, radius: 65, color });
     } else if (event.type === 'combo') {
       const color = event.combo >= 5 ? '#ffe36d' : '#b8ffe2';
-      this.texts.push({ x, y: y - 16, text: `${event.combo}  ${event.label}`, life: 1.65, age: 0, color, size: event.combo >= 5 ? 18 : 15 });
       this.rings.push({ x, y, age: 0, life: .55, radius: 42 + event.combo * 5, color });
       this.shake = Math.min(18, this.shake + 2 + event.combo * .35);
     } else if (event.type === 'blast') {
@@ -208,10 +204,8 @@ export class Effects {
       this.reserveParticles(cancels.length * 2);
       for (const [cx, cy] of cancels) for (let i = 0; i < 2; i++) this.particle(cx, cy, random(-60, 60), random(-120, 20), random(.35, .7), random(1.6, 2.8), '#ffe38a');
       this.shake = Math.min(23, this.shake + 14); this.flash = Math.max(this.flash, .42);
-      if (cancels.length) this.texts.push({ x, y: y - 60, text: `${cancels.length} rounds cleared`, life: 1.4, age: 0, color: '#ffe8b0', size: 14 });
     } else if (event.type === 'squadron') {
       const color = event.challenge ? '#9bf6ff' : '#ffe36d';
-      this.texts.push({ x, y: y - 30, text: `Squadron +${event.bonus}`, life: 1.7, age: 0, color, size: 16 });
       this.rings.push({ x, y, age: 0, life: .6, radius: 110, color });
     } else if (event.type === 'captured' || event.type === 'rescue') {
       const rescue = event.type === 'rescue', color = rescue ? '#8affd7' : '#ff7a8a';
@@ -222,12 +216,10 @@ export class Effects {
         this.particle(x + (toX - x) * t, y + (toY - y) * t, random(-20, 20), random(-20, 20), .25 + t * .35, random(2, 3.4), color);
       }
       this.rings.push({ x: rescue ? x : toX, y: rescue ? y : toY, age: 0, life: .5, radius: 70, color });
-      this.texts.push({ x, y: y - 24, text: rescue ? 'Drone rescued +1,500' : 'Drone captured', life: 1.6, age: 0, color, size: 15 });
     } else if (event.type === 'respawn') {
       this.rings.push({ x, y, age: 0, life: .6, radius: 180, color: '#a4ffee' }, { x, y, age: 0, life: .9, radius: 320, color: '#e7fff8' });
     } else if (event.type === 'power-lost') {
       this.rings.push({ x, y, age: 0, life: .35, radius: 60, color: '#ffb36b' });
-      this.texts.push({ x, y: y - 40, text: 'Power lost', life: 1, age: 0, color: '#ffb36b' });
     } else if (event.type === 'beam') {
       this.lights.push({ x, y, age: 0, life: .35, radius: 120, color: '#ff9ab8', fire: false });
       this.shake = Math.min(18, this.shake + 3);
@@ -243,7 +235,7 @@ export class Effects {
     length = 0;
     for (const p of this.particles) { p.age += dt; if (p.age >= p.life) { this.particlePool.push(p); continue; } p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= drag; p.vy *= drag; this.particles[length++] = p; }
     this.particles.length = length;
-    ageAndCompact(this.rings, dt); ageAndCompact(this.lights, dt); ageAndCompact(this.texts, dt); ageAndCompact(this.flares, dt);
+    ageAndCompact(this.rings, dt); ageAndCompact(this.lights, dt); ageAndCompact(this.flares, dt);
   }
   drawGround(ctx, scroll, H, offset = 0) {
     let length = 0;
@@ -332,9 +324,6 @@ export class Effects {
         ctx.drawImage(lensGhostTexture(), x - radius, y - radius, radius * 2, radius * 2);
       }
     }
-    ctx.restore();
-    ctx.save(); ctx.textAlign = 'center';
-    for (const t of this.texts) { ctx.globalAlpha = Math.min(1, (t.life - t.age) * 3); ctx.fillStyle = t.color; ctx.font = `bold ${Math.round((t.size || 13) * 1.25)}px "Chakra Petch", sans-serif`; ctx.fillText(t.text, t.x, t.y - t.age * 38); }
     ctx.restore();
     if (this.flash > .01 && !this.reduced) { ctx.fillStyle = `rgba(255,236,210,${this.flash * .5})`; ctx.fillRect(0, 0, W, H); }
   }

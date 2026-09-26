@@ -1,11 +1,13 @@
 // Keep encoded songs and decoded one-shot effects ready before the first flight.
-// Songs remain compressed: decoding the entire soundtrack would cost ~140 MB.
+// Songs remain compressed; complete tracks are cached without decoding them all into PCM.
 export const SAMPLE_GROUPS = Object.fromEntries(['laser-small', 'laser-retro', 'laser-heavy', 'explosion', 'impact', 'pickup'].map(group =>
   [group, [1, 2, 3].map(index => `${group}-${index}`)]));
 export const SONGS = {
-  flight: { file: 'space-adventure.mp3', gain: .25 },
-  boss: { file: 'synthwave-type.mp3', gain: .228 },
-  challenge: { file: 'slampe.mp3', gain: .323 }
+  flight: { file: '1.mp3', gain: .245 },
+  flight2: { file: '2.mp3', gain: .251 },
+  flight3: { file: '3.mp3', gain: .237 },
+  boss: { file: '4.mp3', gain: .235 },
+  challenge: { file: '5.mp3', gain: .249 }
 };
 export const audioAssets = { samples: new Map(), songs: new Map(), ready: false };
 
@@ -44,7 +46,7 @@ export function preloadAudio(onProgress) {
       const OfflineContext = window.OfflineAudioContext || window.webkitOfflineAudioContext;
       decoder = new OfflineContext(1, 1, 22050);
     } catch { /* SFX will use the synthesizer if offline decoding is unavailable. */ }
-    try { cache = await wait(globalThis.caches?.open('tyran-audio-v1')); } catch { /* Storage is optional. */ }
+    try { cache = await wait(globalThis.caches?.open('tyran-audio-v2')); } catch { /* Storage is optional. */ }
     const queue = [...assets];
     const worker = async () => {
       while (queue.length) {

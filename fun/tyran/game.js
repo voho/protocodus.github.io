@@ -1,9 +1,11 @@
 import { WORLDS, PARALLAX_LAYERS, WorldRenderer } from './worlds.js';
 import { ENEMY_TYPES, SHIP_PALETTES, drawShip, warmShipSprites } from './ships.js';
-import { createCampaign, beginLevel, update, buyUpgrade, upgradeCost, UPGRADES, WEAPONS, BULLET_SPECTRUM, MAX_UPGRADE, clamp, selectWeapon, shipStats, weaponStats, SECONDARY_ENERGY_COST, SECONDARY_RESTART_ENERGY, bossWeakPointPosition, comboLabel, applyGroundReward,
+import { createCampaign, beginLevel, update, buyUpgrade, upgradeCost, UPGRADES, WEAPONS, BULLET_SPECTRUM, MAX_UPGRADE, clamp, selectWeapon, shipStats, weaponStats, SECONDARY_ENERGY_COST, SECONDARY_RESTART_ENERGY, bossWeakPointPosition, applyGroundReward,
   PRIMARIES, SUPPLIES, buyPrimary, buySupply, supplyCost, supplyStock, primaryStats, MAX_POWER } from './sim.js';
 import { isDormant, directorProgress } from './waves.js';
 import { Effects, warmEffectsTextures } from './effects.js';
+import { CombatFeedback } from './combat-feedback.js';
+import { difficultyProfile, normalizeDifficulty } from './difficulty.js';
 import { AudioEngine, preloadAudio } from './audio.js';
 import { readCampaign, writeCampaign } from './save-game.js';
 import { spritesReady, spriteStatus } from './sprite-assets.js';
@@ -34,12 +36,17 @@ const setHidden = (el, hidden) => { if (el.hidden !== hidden) el.hidden = hidden
 const setAttribute = (el, name, value) => { if (el.getAttribute(name) !== value) el.setAttribute(name, value); };
 const canvas = $('game-canvas'), ctx = canvas.getContext('2d', { alpha: false });
 const world = new WorldRenderer(), fx = new Effects(), audio = new AudioEngine();
+const feedback = new CombatFeedback();
+let feedbackRevision = -1;
 const keys = new Set(), numberFormat = new Intl.NumberFormat('en-US'), number = n => numberFormat.format(Math.floor(n || 0));
+const compactRewardFormat = new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 });
+const rewardNumber = n => n >= 1_000_000 ? compactRewardFormat.format(n) : number(n);
 const screens = ['menu-screen', 'pause-screen', 'hangar-screen', 'end-screen'];
 let campaign = campaignSummary(readCampaign()), campaignError = null, activeCampaign = false, lastAutosaveTime = 0;
 let state = null, selected = 0, scene = 'menu', unlocked = campaign.run?.unlocked || 0;
 let W = 1200, H = 900, dpr = 1, previewScroll = 0, clock = 0, lastTime = 0, hudClock = 0;
 let announcementUntil = 0, quality = 'high', helpPaused = false, helpFocus = null;
+let selectedDifficulty = 'easy';
 let keyboardLockEpoch = 0;
 const STEP = 1 / 60;
 let accumulator = 0, previousScroll = 0, renderAlpha = 1, renderDirty = true, frameHandle = 0, idleHandle = 0, hitstop = 0;
@@ -61,6 +68,7 @@ let bestScore = 0;
 try {
   audio.mute(localStorage.getItem('tyran-muted') === 'true');
   quality = localStorage.getItem('tyran-quality') === 'low' ? 'low' : 'high';
+  selectedDifficulty = normalizeDifficulty(localStorage.getItem('tyran-difficulty'));
   bestScore = Math.max(0, Math.floor(Number(localStorage.getItem('tyran-best-score')) || 0));
 } catch { /* Local saves are optional in private/restricted browsing. */ }
 
@@ -76,8 +84,8 @@ function recordBestScore() {
 // here, rather than a second entire flight and destruction ledger after each save.
 function campaignSummary(result) {
   if (!result.run) return result;
-  const { scene, unlocked, state: { level, credits, score } } = result.run;
-  return { ok: result.ok, error: result.error, run: { scene, unlocked, state: { level, credits, score } } };
+  const { scene, unlocked, state: { level, credits, score, difficulty } } = result.run;
+  return { ok: result.ok, error: result.error, run: { scene, unlocked, state: { level, credits, score, difficulty } } };
 }
 
 function saveStatus(message) {
@@ -122,7 +130,7 @@ function resumeCampaign() {
   }
   state.width = W; state.height = H; selected = environmentIndex(state.level);
   world.setWorld(state.level, run.seed); world.restoreDamage(run.damage, run.destroyed, run.sceneryVersion);
-  warmFleet(state.level); fx.reset(); keys.clear(); clock = state.time;
+  warmFleet(state.level); fx.reset(); feedback.reset(state); keys.clear(); clock = state.time;
   $('announcement').hidden = true; $('boss-hud').hidden = true;
   if (run.scene === 'hangar') showHangar(0, true);
   else if (run.scene === 'end') showEnd(true, true);
@@ -184,7 +192,9 @@ function sizeSurface(rect, adaptive = false) {
 function resize() {
   const rect = canvas.getBoundingClientRect();
   const oldW = W, oldH = H;
-  H = 900; W = Math.round(clamp(H * rect.width / Math.max(1, rect.height), 430, 1900));
+  // Height fixes the camera scale. Additional screen width reveals more world
+  // units; capping or rounding W would stretch the canvas to a different ratio.
+  H = 900; W = H * Math.max(1, rect.width) / Math.max(1, rect.height);
   sizeSurface(rect);
   if (state) {
     state.width = W; state.height = H;
@@ -199,7 +209,7 @@ function resize() {
     }
     for (const b of state.bullets) { b.x *= W / oldW; b.px = b.x; b.py = b.y; }
     for (const p of state.pickups) p.x *= W / oldW;
-    for (const list of [fx.particles, fx.rings, fx.lights, fx.texts, fx.wrecks, fx.flares]) for (const effect of list) effect.x *= W / oldW;
+    for (const list of [fx.particles, fx.rings, fx.lights, fx.flares]) for (const effect of list) if (!effect.ground) effect.x *= W / oldW;
   }
   if (scene === 'playing') world.prepareFlight(W, H, state.scroll);
   else world.prepare(W, H, scene === 'menu' || scene === 'hangar' ? 0 : state?.scroll || 0);
@@ -233,10 +243,10 @@ function launch(level = 0, checkpoint = null, persist = true) {
   activeCampaign = persist; lastAutosaveTime = 0;
   level = normalizeLevel(level);
   selected = environmentIndex(level);
-  state = createCampaign(level, checkpoint);
+  state = createCampaign(level, checkpoint, selectedDifficulty);
   state.startLevel = checkpoint?.startLevel ?? level;
   state.width = W; state.height = H; beginLevel(state, level);
-  world.setWorld(level, sectorSeed(level)); warmFleet(level); fx.reset(); keys.clear(); previousScroll = 0; $('boss-hud').hidden = true;
+  world.setWorld(level, sectorSeed(level)); warmFleet(level); fx.reset(); feedback.reset(state); keys.clear(); previousScroll = 0; $('boss-hud').hidden = true;
   setScreen('playing');
   announce(sectorLabel(level), environment(level).name, environment(level).subtitle || 'Clear the skies. Bring everyone home.', 3.2);
   autosave(); refreshContinue();
@@ -246,7 +256,7 @@ function launch(level = 0, checkpoint = null, persist = true) {
 
 function returnToMenu() {
   autosave(); recordBestScore();
-  state = null; activeCampaign = false; fx.reset(); selectWorld(selected); setScreen('menu');
+  state = null; activeCampaign = false; fx.reset(); feedback.reset(state); selectWorld(selected); setScreen('menu');
   $('announcement').hidden = true; $('boss-hud').hidden = true; refreshContinue();
   $(campaign.run ? 'continue-button' : 'launch-button').focus({ preventScroll: true });
 }
@@ -264,12 +274,40 @@ function waveLabel(s) {
 }
 function flash(el) { el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
 
+function refreshDifficultyChoice() {
+  const profile = difficultyProfile(selectedDifficulty);
+  for (const option of $('difficulty-picker').querySelectorAll('input')) option.checked = option.value === profile.id;
+  setText($('difficulty-description'), profile.description);
+  setText($('launch-route'), `Sector 01 · ${profile.label} · Endless campaign`);
+}
+
+function renderCombatFeedback() {
+  const el = $('combat-feedback');
+  setHidden(el, !feedback.visible);
+  if (feedbackRevision !== feedback.revision) {
+    feedbackRevision = feedback.revision;
+    setText($('combat-feedback-chain'), feedback.chain >= 2 ? `${feedback.label} ×${feedback.chain}` : 'Recent rewards');
+    setText($('combat-feedback-score'), `+${rewardNumber(feedback.score)}`);
+    setText($('combat-feedback-credits'), `$ +${rewardNumber(feedback.credits)}`);
+    setAttribute($('combat-feedback-score'), 'title', `+${number(feedback.score)} score`);
+    setAttribute($('combat-feedback-credits'), 'title', `+${number(feedback.credits)} credits`);
+    setHidden($('combat-feedback-score').parentElement, feedback.score <= 0);
+    setHidden($('combat-feedback-credits').parentElement, feedback.credits <= 0);
+    setText($('combat-feedback-detail'), feedback.details);
+    setAttribute(el, 'data-rampage', String(feedback.chain >= 5));
+  }
+  const opacity = String(Number(feedback.opacity.toFixed(3)));
+  if (el.style.opacity !== opacity) el.style.opacity = opacity;
+}
+
 function refreshHUD() {
   if (!state) return;
+  renderCombatFeedback();
   const bonuses = String(state.players.some(p => p.alive && (p.rapidFireTime > 0 || p.invulnerableTime > 0)));
   if (document.body.dataset.bonuses !== bonuses) document.body.dataset.bonuses = bonuses;
   setText($('level-name'), environment(state.level).name);
   setText($('level-number'), `${String(state.level + 1).padStart(2, '0')} · Cycle ${campaignCycle(state.level) + 1}`);
+  setText($('difficulty-value'), difficultyProfile(state.difficulty).label);
   setText($('wave-label'), waveLabel(state));
   setText($('score-value'), number(state.score)); setText($('credits-value'), number(state.credits));
   const pilot = state.players[0], profile = primaryStats(state, pilot);
@@ -284,10 +322,6 @@ function refreshHUD() {
   }
   setText($('p1-reserve'), state.lives === 1 ? '1 ship in reserve' : `${state.lives || 0} ships in reserve`);
   setText($('touch-bomb-count'), String(pilot.bombs || 0));
-  const activeCombo = state.combo >= 2 && state.comboTime > 0;
-  setText($('combo-value'), activeCombo ? `${state.combo} · ${comboLabel(state.combo)}` : 'Ready');
-  setFill($('combo-fill'), activeCombo ? state.comboTime / 5.2 : 0);
-  $('combo-instrument').classList.toggle('active', activeCombo);
   setFill($('progress-fill'), directorProgress(state));
   for (const p of state.players) {
     const prefix = `p${p.id + 1}`;
@@ -427,7 +461,7 @@ function refreshContinue() {
 }
 
 function saveDescription(run) {
-  return `${sectorLabel(run.state.level)} · ${run.scene === 'hangar' ? 'Shop' : 'Flight'}`;
+  return `${sectorLabel(run.state.level)} · ${difficultyProfile(run.state.difficulty).label} · ${run.scene === 'hangar' ? 'Shop' : 'Flight'}`;
 }
 
 function selectWorld(index) {
@@ -459,10 +493,10 @@ const WAVE_BRIEFS = {
   formation: ['Tactical formations', 'Break the formation before it passes.'],
 };
 function processEvents() {
-  const groundOffset = (world.parallaxX || 0) * W / 1200;
+  const groundOffset = world.parallaxX || 0;
   const events = state.events.length ? state.events.splice(0) : state.events;
   for (const e of events) {
-    fx.emit(e, state.scroll * W / 1200, groundOffset);
+    fx.emit(e, state.scroll, groundOffset);
     const sound = e.type === 'pickup' && (e.bonus === 'power' || e.bonus === 'drone') ? e.bonus : e.type;
     audio.effect(sound, e.size ?? e.wave, e.type === 'challenge-result' && e.perfect ? 'perfect' : e.weapon || e.label);
     if (e.type === 'explosion' && !e.ground) {
@@ -499,6 +533,8 @@ function processEvents() {
     // Collateral destruction can add ground effects even on the final tick.
     if (state.events.length) events.push(...state.events.splice(0));
   }
+  feedback.collect(state, events);
+  renderCombatFeedback();
   // Save at a bounded cadence, after combat and reward events have settled.
   if (scene === 'playing' && activeCampaign && state.time - lastAutosaveTime >= 5) autosave();
 }
@@ -664,7 +700,7 @@ function draw() {
   for (const pilot of state?.players || []) if (pilot.alive) { focusX += lerp(pilot.px, pilot.x); focusPilots++; }
   focusX = focusPilots ? focusX / focusPilots : W * .66;
   world.draw(ctx, W, H, scroll, clock, quality, focusX, !fx.reduced);
-  fx.drawGround(ctx, scroll * W / 1200, H, (world.parallaxX || 0) * W / 1200);
+  fx.drawGround(ctx, scroll, H, world.parallaxX || 0);
   if (state) {
     if (state.formations?.length) {
       ctx.save(); ctx.globalAlpha = .16; ctx.strokeStyle = SHIP_PALETTES[index]?.rim || '#e7f79a'; ctx.lineWidth = 1; ctx.setLineDash([4, 9]);
@@ -727,11 +763,6 @@ function draw() {
       ctx.textAlign = 'center'; ctx.font = '600 20px "Chakra Petch", sans-serif'; ctx.fillStyle = '#9bf6ff';
       ctx.fillText(`Hits  ${state.challenge.hits} / ${state.challenge.total}`, W / 2, 138);
     }
-    if (state.combo >= 2 && state.comboTime > 0) {
-      ctx.textAlign = 'right'; ctx.font = 'bold 22px "Chakra Petch", sans-serif'; ctx.fillStyle = state.combo >= 5 ? '#ffe36d' : '#d8fce7';
-      ctx.fillText(`${state.combo}  ${comboLabel(state.combo)}`, W - 30, H - 32);
-      ctx.fillStyle = '#d8fce766'; ctx.fillRect(W - 180, H - 20, 150, 2); ctx.fillStyle = '#ffe18c'; ctx.fillRect(W - 180, H - 20, 150 * clamp(state.comboTime / 5.2, 0, 1), 2);
-    }
   } else {
     const px = W * .66 + (fx.reduced ? 0 : Math.sin(clock * .5) * 45), py = H * .57 + (fx.reduced ? 0 : Math.cos(clock * .8) * 15);
     drawShip(ctx, px, py, 45, 'player', '#9bfff0', clock, { world: index, quality, motion: !fx.reduced });
@@ -754,7 +785,7 @@ function frame(time) {
   const elapsed = lastTime ? Math.max(0, (time - lastTime) / 1000) : 0;
   const dt = Math.min(.1, elapsed); lastTime = time;
   const preview = scene === 'menu' && document.body.dataset.preview === 'true';
-  const fading = scene === 'end' && (fx.particles.length || fx.rings.length || fx.delayed.length || fx.texts.length || fx.lights.length || fx.flares.length || fx.damagePulse > .02 || fx.flash > .01 || fx.shake > .3);
+  const fading = scene === 'end' && (fx.particles.length || fx.rings.length || fx.delayed.length || fx.lights.length || fx.flares.length || fx.damagePulse > .02 || fx.flash > .01 || fx.shake > .3);
   const active = scene === 'playing' || preview || fading;
   if (active) clock += dt;
   if (scene === 'playing' && state) {
@@ -773,7 +804,7 @@ function frame(time) {
     }
     renderAlpha = scene === 'playing' ? clamp(accumulator / STEP, 0, 1) : 1;
     perf.updateMs += (performance.now() - started - perf.updateMs) * .05;
-    fx.update(dt);
+    fx.update(dt); feedback.update(dt);
     if (elapsed > .006) {
       fastestFrame = Math.min(fastestFrame, elapsed * 1000);
       // A very slow frame still counts toward load; only simulation catch-up is capped.
@@ -789,6 +820,7 @@ function frame(time) {
     }
   } else if (preview) previewScroll += dt * 45;
   else if (fading) fx.update(dt);
+  renderCombatFeedback();
   audio.update(scene === 'playing', state?.level || 0, state?.challenge && !state.challenge.done ? 'challenge' : state?.bossSpawned && !state.bossDefeated ? 'boss' : '');
   if (clock > announcementUntil && !$('announcement').hidden) $('announcement').hidden = true;
   if (scene === 'playing') { hudClock += dt; if (hudClock > .1) { refreshHUD(); hudClock = 0; } }
@@ -877,6 +909,12 @@ canvas.addEventListener('pointerdown', event => {
   canvas.focus({ preventScroll: true }); consumeInput(event);
 });
 function on(id, fn) { $(id)?.addEventListener('click', fn); }
+$('difficulty-picker').addEventListener('change', event => {
+  if (!event.target.matches('input[name="difficulty"]')) return;
+  selectedDifficulty = normalizeDifficulty(event.target.value);
+  try { localStorage.setItem('tyran-difficulty', selectedDifficulty); } catch { /* optional */ }
+  refreshDifficultyChoice();
+});
 on('launch-button', () => launch(0));
 on('sector-flight-button', () => launch(selected, null, false));
 on('continue-button', resumeCampaign);
@@ -886,7 +924,7 @@ on('restart-button', () => launch(state.level, state, activeCampaign));
 on('retry-button', () => launch(state.level, state, activeCampaign));
 on('next-button', () => {
   if (state?.status !== 'hangar') return;
-  beginLevel(state, nextSector(state.level)); selected = environmentIndex(state.level); world.setWorld(state.level, sectorSeed(state.level)); warmFleet(state.level); previousScroll = 0; fx.reset(); setScreen('playing'); audio.start(); $('boss-hud').hidden = true;
+  beginLevel(state, nextSector(state.level)); selected = environmentIndex(state.level); world.setWorld(state.level, sectorSeed(state.level)); warmFleet(state.level); previousScroll = 0; fx.reset(); feedback.reset(state); setScreen('playing'); audio.start(); $('boss-hud').hidden = true;
   announce(sectorLabel(state.level), environment(state.level).name, environment(state.level).subtitle, 3); refreshHUD(); canvas.focus({ preventScroll: true });
   autosave();
 });
@@ -953,12 +991,12 @@ $('world-list').innerHTML = WORLDS.map((w, i) => `<button class="world-card ${i 
 canvas.tabIndex = -1;
 document.querySelectorAll('.modal-screen').forEach(el => { el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); });
 await warmShopArt();
-syncSettings(); refreshContinue(); selectWorld(0); setScreen('menu'); resize();
+syncSettings(); refreshDifficultyChoice(); refreshContinue(); selectWorld(0); setScreen('menu'); resize();
 setText($('startup-status'), 'Preparing terrain…');
 await world.prepareReady(W, H);
 // Readable state and deterministic stepping for browser QA and tuning.
 window.tyran = {
-  get state() { return state; }, get scene() { return scene; }, get world() { return world; }, get fx() { return fx; }, worlds: WORLDS, enemyTypes: ENEMY_TYPES, weapons: WEAPONS, bulletSpectrum: BULLET_SPECTRUM, parallaxLayers: PARALLAX_LAYERS, shipPalettes: SHIP_PALETTES,
+  get state() { return state; }, get scene() { return scene; }, get world() { return world; }, get fx() { return fx; }, get feedback() { return feedback; }, worlds: WORLDS, enemyTypes: ENEMY_TYPES, weapons: WEAPONS, bulletSpectrum: BULLET_SPECTRUM, parallaxLayers: PARALLAX_LAYERS, shipPalettes: SHIP_PALETTES,
   get performance() { return { ...perf, interpolation: renderAlpha, fixedStep: STEP }; },
   launch, selectWorld, selectWeapon, pause, spriteStatus, buyPrimary, buySupply,
   step(seconds, controls = []) { for (let i = 0; i < Math.ceil(seconds * 60); i++) { if (state && scene === 'playing') { previousScroll = state.scroll; update(state, STEP, controls, environmentHit); processEvents(); } } accumulator = 0; renderAlpha = 1; renderDirty = true; refreshHUD(); requestFrame(); },

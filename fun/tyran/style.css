@@ -29,9 +29,9 @@ body[data-ready=false] #menu-screen{opacity:.6}
 
 /* Fleet readability and the service-bay arsenal. These colors are reserved for
    flight hardware; terrain art keeps its own material palette. */
-.weapon-instrument,.combo-instrument{min-width:112px}.weapon-instrument>strong,.combo-instrument>strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:500 18px var(--display);color:#e7f2df;letter-spacing:-.2px}.weapon-instrument .hud-kicker b{color:var(--orange);padding-left:5px}.combo-instrument{opacity:.58;transition:opacity .2s}.combo-instrument.active{opacity:1}.combo-instrument>strong{color:var(--orange);font-size:19px}.combo-progress{height:3px;margin-top:7px;background:#d4e9d51c}.combo-progress i{display:block;width:0;height:100%;background:var(--orange);box-shadow:0 0 10px #ff9a6a88;transition:transform .12s}.boss-hud.exposed .boss-alert,.boss-hud.exposed .boss-status{color:#ffe277}.boss-status{font-size:12px;letter-spacing:1px;color:#ff987b;white-space:nowrap}.weapon-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.weapon-card{position:relative;display:grid;grid-template-columns:25px 1fr;grid-template-rows:auto auto auto 1fr;column-gap:8px;min-height:153px;padding:13px 13px 11px;text-align:left;color:var(--paper);background:#b4d7b206;border:1px solid #b2d7b224;transition:background .18s,border-color .18s,transform .18s}.weapon-icon{display:grid;place-items:center;width:22px;height:22px;border:1px solid #d8ebd645;color:#d8ebd6;font:500 16px var(--display)}.weapon-swatch{display:block;grid-column:2;width:20px;height:3px;margin-top:9px;background:var(--weapon-color);box-shadow:0 0 12px var(--weapon-color)}.weapon-copy{grid-column:2;display:grid;gap:3px;margin-top:-22px;padding-left:28px}.weapon-copy strong{font:500 18px var(--display);letter-spacing:-.2px}.weapon-copy small{font-size:12px;letter-spacing:1px;color:var(--weapon-color,#9cfff0)}.weapon-description{grid-column:1/-1;margin-top:11px;min-height:35px;font-size:13px;line-height:1.5;color:#8fa78e}.weapon-bars{grid-column:1/-1;display:grid;gap:4px;margin-top:9px}.weapon-bars i{display:block;width:100%;height:3px;background:#d4e7d418}.weapon-bars i::after{content:'';display:block;width:var(--bar);height:100%;background:var(--weapon-color,#9cfff0);box-shadow:0 0 7px color-mix(in srgb,var(--weapon-color,#9cfff0) 48%,transparent)}.weapon-readout{grid-column:1/-1;display:flex;justify-content:space-between;gap:8px;margin-top:8px;color:#bdcdb9;font-size:12px;letter-spacing:.5px}.weapon-readout b{font-weight:500}.hangar-panel{max-height:calc(100vh - 40px);overflow:auto}.hangar-panel::-webkit-scrollbar{width:4px}.hangar-panel::-webkit-scrollbar-thumb{background:#c7ddba33}
-@media(max-width:760px){.weapon-instrument{display:none}.combo-instrument{min-width:90px}.weapon-list{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.weapon-card{min-height:161px;padding:12px 10px}.weapon-copy strong{font-size:19px}.weapon-description{font-size:12px}.weapon-readout{font-size:12px}.boss-status{font-size:12px;letter-spacing:.5px}.hangar-panel{max-height:calc(100vh - 26px)}}
-@media(max-width:480px){.combo-instrument{display:none}.weapon-list{grid-template-columns:1fr 1fr}.weapon-card{min-height:173px}.weapon-copy{padding-left:26px}.weapon-copy strong{font-size:17px}.weapon-description{min-height:43px;font-size:12px}.weapon-readout{display:grid;gap:3px}.boss-status{display:none}}
+.weapon-instrument{min-width:112px}.weapon-instrument>strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:500 18px var(--display);color:#e7f2df;letter-spacing:-.2px}.weapon-instrument .hud-kicker b{color:var(--orange);padding-left:5px}.boss-hud.exposed .boss-alert,.boss-hud.exposed .boss-status{color:#ffe277}.boss-status{font-size:12px;letter-spacing:1px;color:#ff987b;white-space:nowrap}.weapon-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.weapon-card{position:relative;display:grid;grid-template-columns:25px 1fr;grid-template-rows:auto auto auto 1fr;column-gap:8px;min-height:153px;padding:13px 13px 11px;text-align:left;color:var(--paper);background:#b4d7b206;border:1px solid #b2d7b224;transition:background .18s,border-color .18s,transform .18s}.weapon-icon{display:grid;place-items:center;width:22px;height:22px;border:1px solid #d8ebd645;color:#d8ebd6;font:500 16px var(--display)}.weapon-swatch{display:block;grid-column:2;width:20px;height:3px;margin-top:9px;background:var(--weapon-color);box-shadow:0 0 12px var(--weapon-color)}.weapon-copy{grid-column:2;display:grid;gap:3px;margin-top:-22px;padding-left:28px}.weapon-copy strong{font:500 18px var(--display);letter-spacing:-.2px}.weapon-copy small{font-size:12px;letter-spacing:1px;color:var(--weapon-color,#9cfff0)}.weapon-description{grid-column:1/-1;margin-top:11px;min-height:35px;font-size:13px;line-height:1.5;color:#8fa78e}.weapon-bars{grid-column:1/-1;display:grid;gap:4px;margin-top:9px}.weapon-bars i{display:block;width:100%;height:3px;background:#d4e7d418}.weapon-bars i::after{content:'';display:block;width:var(--bar);height:100%;background:var(--weapon-color,#9cfff0);box-shadow:0 0 7px color-mix(in srgb,var(--weapon-color,#9cfff0) 48%,transparent)}.weapon-readout{grid-column:1/-1;display:flex;justify-content:space-between;gap:8px;margin-top:8px;color:#bdcdb9;font-size:12px;letter-spacing:.5px}.weapon-readout b{font-weight:500}.hangar-panel{max-height:calc(100vh - 40px);overflow:auto}.hangar-panel::-webkit-scrollbar{width:4px}.hangar-panel::-webkit-scrollbar-thumb{background:#c7ddba33}
+@media(max-width:760px){.weapon-instrument{display:none}.weapon-list{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.weapon-card{min-height:161px;padding:12px 10px}.weapon-copy strong{font-size:19px}.weapon-description{font-size:12px}.weapon-readout{font-size:12px}.boss-status{font-size:12px;letter-spacing:.5px}.hangar-panel{max-height:calc(100vh - 26px)}}
+@media(max-width:480px){.weapon-list{grid-template-columns:1fr 1fr}.weapon-card{min-height:173px}.weapon-copy{padding-left:26px}.weapon-copy strong{font-size:17px}.weapon-description{min-height:43px;font-size:12px}.weapon-readout{display:grid;gap:3px}.boss-status{display:none}}
 
 /* Sentence-case copy and one consistent space-console typeface. */
 .brand-copy strong,.launch-button,.primary-button,.secondary-button,.text-button,.utility-button,.back-link,.world-card,.continue-button,.upgrade-card,.weapon-card,.campaign-heading h2,.campaign-hint,.hero-stats,.hud-kicker,.player-label,.boss-alert,.boss-status,.hangar-rule,.modal-emblem,.modal-panel h2,.hangar-top h2,.end-score>span,.touch-fire,.menu-return-button{font-family:var(--display)}
@@ -115,8 +115,8 @@ body[data-ready=false] #menu-screen{opacity:.6}
 }
 
 /* Animate HUD fills on the compositor without relaying out the playfield. */
-.mission-progress i,.combo-progress i,.resource-meter i,.boss-meter i{width:100%;transform-origin:left center}
-.mission-progress i,.combo-progress i{transform:scaleX(0)}
+.mission-progress i,.resource-meter i,.boss-meter i{width:100%;transform-origin:left center}
+.mission-progress i{transform:scaleX(0)}
 
 /* Secondary-energy reserve and touch fire buttons. */
 
@@ -157,7 +157,7 @@ body[data-ready=false] #menu-screen{opacity:.6}
 .sector-flight p{max-width:320px}.sector-flight .secondary-button{flex-shrink:0}
 .pilot-bonus{font-size:12px}.pilot-bonus svg{width:14px;height:14px}
 .touch-fire>span{font-size:13px;letter-spacing:0}.touch-fire{width:80px;height:80px}
-@media(max-width:1100px){.hud-top{gap:20px}.mission-instrument{min-width:160px}.combo-instrument{display:none}}
+@media(max-width:1100px){.hud-top{gap:20px}.mission-instrument{min-width:160px}}
 @media(max-width:760px){
   .briefing-main{align-items:flex-start}.hero-stats{gap:12px}.hero-stats>span{gap:5px;letter-spacing:0}
   .flight-options{max-width:440px}.campaign-heading{align-items:flex-start}.campaign-hint{letter-spacing:0}
@@ -255,3 +255,48 @@ button.weapon-card:disabled{opacity:.5}
 @media(prefers-reduced-motion:no-preference){.shop-art img{transition:transform .25s ease}.upgrade-card:hover:enabled .shop-art img,.weapon-card:hover:enabled .shop-art img{transform:scale(1.025)}}
 
 .shop-art,.weapon-card .shop-art,.supply-list .shop-art{height:auto;aspect-ratio:16/7}
+
+/* One stationary reward readout keeps kill and pickup text out of the flight path. */
+.flight-readouts{display:flex;flex-direction:column;align-items:flex-end;gap:12px;flex-shrink:0}
+.combat-feedback{width:260px;height:112px;padding:12px 15px;text-align:right;border-right:2px solid #a0edcc88;background:linear-gradient(90deg,#07161300,#071613e8 35%);color:#d5fae7;pointer-events:none;contain:layout paint}
+.combat-feedback-chain{display:block;height:23px;font:600 17px/1.2 var(--display);color:#a6efcd;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.combat-feedback[data-rampage=true] .combat-feedback-chain{color:#ffe39b}
+.combat-feedback-totals{display:flex;justify-content:flex-end;align-items:baseline;gap:16px;min-height:32px;font-variant-numeric:tabular-nums}
+.combat-feedback-totals>span{display:flex;align-items:baseline;gap:5px;min-width:0}
+.combat-feedback-totals strong{font:600 24px/1.1 var(--display);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.combat-feedback-totals small{font-size:11px;color:#93b3a6}
+#combat-feedback-credits{font-size:18px;color:#e9d99f}
+.combat-feedback-detail{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;font:500 12px/1.35 var(--display);color:#aec8bb}
+body:not([data-scene=playing]) .combat-feedback{visibility:hidden}
+@media(max-width:760px){
+  .flight-readouts{gap:8px}
+  .combat-feedback{width:132px;height:146px;padding:10px 9px}
+  .combat-feedback-chain{font-size:14px;height:22px}
+  .combat-feedback-totals{flex-direction:column;align-items:flex-end;justify-content:flex-start;gap:4px;min-height:66px}
+  .combat-feedback-totals strong{font-size:20px}
+  #combat-feedback-credits{font-size:17px}
+  .combat-feedback-detail{font-size:11px;-webkit-line-clamp:3}
+}
+@media(max-height:600px) and (orientation:landscape){
+  .combat-feedback{width:260px;height:102px;padding:9px 12px}
+  .combat-feedback-chain{font-size:16px;height:23px}
+  .combat-feedback-totals{flex-direction:row;align-items:baseline;justify-content:flex-end;gap:16px;min-height:29px}
+  .combat-feedback-detail{-webkit-line-clamp:2}
+}
+@media(max-width:480px){.player-panel{width:calc(100vw - 170px)}}
+
+/* Difficulty is chosen for a new flight; saved campaigns retain their setting. */
+.difficulty-picker{min-width:0;margin:0 0 18px;padding:0;border:0}
+.difficulty-picker legend{display:flex;align-items:center;gap:12px;width:100%;margin-bottom:9px;color:#d9e8df;font:500 15px var(--display)}
+.difficulty-picker legend span{margin-left:auto;color:#8fa79a;font-size:12px}
+.difficulty-options{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.difficulty-options label{position:relative;cursor:pointer;min-width:0}
+.difficulty-options input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer}
+.difficulty-options label>span{display:block;padding:11px 5px;text-align:center;border:1px solid #a3cfbb38;background:#081812c9;color:#adc4b8;font:500 16px var(--display)}
+.difficulty-options input:checked+span{border-color:#8cebd7;background:#163c32;color:#d9fff0}
+.difficulty-options input:focus-visible+span{outline:2px solid var(--orange);outline-offset:3px}
+.difficulty-options label:hover>span{border-color:#8cebd78a}
+.difficulty-picker p{min-height:36px;margin:10px 0 5px;color:#d1ded5;font:400 13px/1.4 var(--display)}
+.difficulty-picker>small{display:block;color:#8da599;font:400 12px/1.4 var(--display)}
+.difficulty-badge{display:inline-block;margin-left:10px;padding:2px 5px;border:1px solid #8cebd738;color:#b7eddb;font-size:11px;letter-spacing:0}
+@media(max-width:480px){.difficulty-options label>span{font-size:14px;padding:10px 3px}.difficulty-badge{margin-left:6px}}

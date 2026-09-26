@@ -42,16 +42,17 @@ try {
   const context = await browser.newContext(), page = await context.newPage();
   const requests = []; page.on('request', request => { if (request.url().startsWith('http') && request.url().includes('/assets/audio/')) requests.push(request.url()); });
   await setup(page);
-  assert.equal(requests.length, 21, 'Preflight completely loads all 18 effects and 3 songs');
-  assert.equal(new Set(requests).size, 21, 'Each asset is fetched only once');
+  assert.equal(requests.length, 23, 'Preflight completely loads all 18 effects and 5 songs');
+  assert.equal(new Set(requests).size, 23, 'Each asset is fetched only once');
+  assert.deepEqual(requests.filter(url => url.endsWith('.mp3')).map(url => new URL(url).pathname.split('/').at(-1)).sort(), ['1.mp3', '2.mp3', '3.mp3', '4.mp3', '5.mp3'], 'Only the five supplied songs are requested');
   assert.equal(await page.evaluate(() => sharedAudioPreload), true, 'Repeated calls share a single preflight promise');
-  assert.deepEqual(await page.evaluate(() => audioStatus), { ready: true, completed: 21, total: 21, loaded: 21, failed: 0 });
+  assert.deepEqual(await page.evaluate(() => audioStatus), { ready: true, completed: 23, total: 23, loaded: 23, failed: 0 });
   assert.equal(await page.evaluate(() => audioProgress.at(-1).ready), true, 'Progress reports settled readiness');
   assert.equal(await page.evaluate(() => audioTest.context), null, 'Preloading creates no live playback context');
   assert.equal(await page.evaluate(() => audioTest.samples.size), 18, 'All WAVs are already decoded before a user gesture');
   await page.evaluate(() => { audioTest.mute(true); audioTest.start(); });
   assert.equal(await page.evaluate(() => audioTest.context), null, 'A saved mute preference avoids creating audio at launch');
-  assert.equal(requests.length, 21, 'Muted launch reuses the completed cache');
+  assert.equal(requests.length, 23, 'Muted launch reuses the completed cache');
   await page.evaluate(() => audioTest.mute(false));
   // Every track and cue must remain usable with the network completely absent.
   await page.context().setOffline(true);
@@ -76,13 +77,16 @@ try {
   await page.waitForTimeout(150);
   assert(Math.abs(await page.evaluate(() => audioTest.music.currentTime) - pausedAt) < .03, 'Pause freezes song position');
   assert((await rms(page)) < .0001, 'Pause silences actual audio output');
-  for (const [mood, key] of [['boss', 'boss'], ['challenge', 'challenge'], ['', 'flight']]) {
-    await page.evaluate(mood => audioTest.update(true, 0, mood), mood);
+  const songSources = new Set();
+  for (const [level, mood, key] of [[0, '', 'flight'], [1, '', 'flight2'], [2, '', 'flight3'], [2, 'boss', 'boss'], [2, 'challenge', 'challenge'], [3, '', 'flight'], [10, '', 'flight2'], [20, '', 'flight3']]) {
+    await page.evaluate(({level, mood}) => audioTest.update(true, level, mood), {level, mood});
     await page.waitForFunction(() => audioTest.musicPlaying && !audioTest.music.paused);
-    assert.equal(await page.evaluate(() => audioTest.songKey), key, 'Arena mood selects its own song');
-    assert((await page.evaluate(() => audioTest.music.src)).startsWith('blob:'), 'Music reads complete cached bytes, never a network URL');
+    assert.equal(await page.evaluate(() => audioTest.songKey), key, 'Sector rotation and combat mood select the intended song');
+    const source = await page.evaluate(() => audioTest.music.src); songSources.add(source);
+    assert(source.startsWith('blob:'), 'Music reads complete cached bytes, never a network URL');
     assert((await rms(page)) > .001, 'Each downloaded song routes audible samples into the mixer');
   }
+  assert.equal(songSources.size, 5, 'All five supplied songs play offline');
   await page.evaluate(() => audioTest.mute(true));
   assert.equal(await page.evaluate(() => audioTest.music.paused), true, 'Mute pauses streamed music');
   await page.waitForTimeout(150);
@@ -108,19 +112,19 @@ try {
   await page.click('#audio-test-start');
   await page.waitForFunction(() => audioTest.musicPlaying && !audioTest.musicBlocked);
   await page.evaluate(() => audioTest.pause());
-  assert.equal(requests.length, 21, 'Flight, every mood, pause/resume, and retries make no audio network requests');
+  assert.equal(requests.length, 23, 'Flight, every mood, pause/resume, and retries make no audio network requests');
   await page.context().setOffline(false);
   const cached = await page.context().newPage(), cachedRequests = [];
   cached.on('request', request => { if (request.url().startsWith('http') && request.url().includes('/assets/audio/')) cachedRequests.push(request.url()); });
   await setup(cached);
-  assert.equal(await cached.evaluate(() => audioStatus.loaded), 21, 'A later visit restores every audio asset from persistent storage');
+  assert.equal(await cached.evaluate(() => audioStatus.loaded), 23, 'A later visit restores every audio asset from persistent storage');
   assert.equal(cachedRequests.length, 0, 'Persistent audio cache avoids repeat network downloads');
   await cached.close();
 
   const fallback = await browser.newPage(), fallbackRequests = [];
   fallback.on('request', request => { if (request.url().startsWith('http') && request.url().includes('/assets/audio/')) fallbackRequests.push(request.url()); });
   await setup(fallback, true);
-  assert.deepEqual(await fallback.evaluate(() => audioStatus), { ready: true, completed: 21, total: 21, loaded: 0, failed: 21 }, 'Missing files settle preflight into a usable fallback');
+  assert.deepEqual(await fallback.evaluate(() => audioStatus), { ready: true, completed: 23, total: 23, loaded: 0, failed: 23 }, 'Missing files settle preflight into a usable fallback');
   await fallback.click('#audio-test-start');
   const fallbackState = await fallback.evaluate(() => {
     audioTest.update(true); audioTest.effect('pickup'); audioTest.effect('explosion', 100);
@@ -130,7 +134,7 @@ try {
   assert(fallbackState.voices > 0, 'Missing audio files retain synthesized effects and music');
   assert((await rms(fallback)) > .001, 'The download-failure fallback is actually audible');
   await fallback.evaluate(() => { audioTest.update(true, 1, 'boss'); audioTest.update(true, 1, 'challenge'); audioTest.pause(); audioTest.start(); });
-  assert.equal(fallbackRequests.length, 21, 'Failed preflight assets are not retried during gameplay');
+  assert.equal(fallbackRequests.length, 23, 'Failed preflight assets are not retried during gameplay');
   await fallback.evaluate(() => audioTest.pause());
 
   // Speed up only the documented shared deadline while leaving requests hung.
@@ -147,7 +151,7 @@ try {
     const before = performance.now(), status = await preloadAudio();
     return { status, elapsed: performance.now() - before };
   });
-  assert.deepEqual(deadline.status, { ready: true, completed: 21, total: 21, loaded: 0, failed: 21 });
+  assert.deepEqual(deadline.status, { ready: true, completed: 23, total: 23, loaded: 0, failed: 23 });
   assert(deadline.elapsed < 1500, 'One shared deadline settles all queued assets');
   assert(stalledRequests.length <= 4, 'Expired preload does not start another batch of network requests');
   await stalled.close();
