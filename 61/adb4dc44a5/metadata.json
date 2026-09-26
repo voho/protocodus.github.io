@@ -1,0 +1,34 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "61adb4dc44a5",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "fun/tyran/README.md",
+    "fun/tyran/flight-layout.css",
+    "fun/tyran/game.js",
+    "fun/tyran/index.html",
+    "fun/tyran/tests/browser-check.mjs",
+    "fun/tyran/tests/graphics-depth-check.mjs",
+    "fun/tyran/tests/ground-combat-browser-check.mjs",
+    "fun/tyran/tests/unobstructed-arena-check.mjs",
+    "fun/tyran/tests/widescreen-browser-check.mjs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/61/adb4dc44a5/0/metadata.json",
+      "transcript": "/61/adb4dc44a5/0/full.jsonl",
+      "context": "/61/adb4dc44a5/0/context.md",
+      "content_hash": "/61/adb4dc44a5/0/content_hash.txt",
+      "prompt": "/61/adb4dc44a5/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 246,
+    "cache_creation_tokens": 2685932,
+    "cache_read_tokens": 44979415,
+    "output_tokens": 142292,
+    "api_call_count": 118
+  }
+}
