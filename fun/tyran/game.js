@@ -1,15 +1,16 @@
+import { createGpuCanvas } from './gpu-canvas.js';
 import { WORLDS, PARALLAX_LAYERS, WorldRenderer } from './worlds.js';
-import { ENEMY_TYPES, SHIP_PALETTES, drawShip, warmShipSprites } from './ships.js';
+import { ENEMY_TYPES, SHIP_PALETTES, drawShip, warmShipSprites, warmGpuShipSprites } from './ships.js';
 import { createCampaign, beginLevel, update, buyUpgrade, upgradeCost, UPGRADES, WEAPONS, BULLET_SPECTRUM, MAX_UPGRADE, clamp, selectWeapon, shipStats, weaponStats, SECONDARY_ENERGY_COST, SECONDARY_RESTART_ENERGY, bossWeakPointPosition, applyGroundReward,
   PRIMARIES, SUPPLIES, buyPrimary, buySupply, supplyCost, supplyStock, primaryStats, firingInterval, MAX_POWER, SHIELD_FIRING_RECHARGE, SHIELD_REST_RECHARGE } from './sim.js';
 import { isDormant, directorProgress } from './waves.js';
-import { Effects, explosionIntensity, warmEffectsTextures } from './effects.js';
+import { Effects, explosionIntensity, warmEffectsTextures, warmGpuEffectTextures } from './effects.js';
 import { CombatFeedback } from './combat-feedback.js';
 import { difficultyProfile, normalizeDifficulty } from './difficulty.js';
 import { AudioEngine, preloadAudio } from './audio.js';
 import { readCampaign, writeCampaign } from './save-game.js';
 import { spritesReady, spriteStatus } from './sprite-assets.js';
-import { drawProjectiles, warmProjectileTextures } from './projectile-sprites.js';
+import { drawProjectiles, warmProjectileTextures, warmGpuProjectileTextures } from './projectile-sprites.js';
 import { BONUS_KINDS, BONUS_PALETTE, pickupTexture } from './bonus-sprites.js';
 import { environmentIndex, campaignCycle, normalizeLevel } from './campaign.js';
 import { warmShopArt, shopArtMarkup } from './shop-art.js';
@@ -35,7 +36,19 @@ const setFill = (el, fraction) => { const transform = `scaleX(${Number(clamp(fra
 const setHidden = (el, hidden) => { if (el.hidden !== hidden) el.hidden = hidden; };
 const setAttribute = (el, name, value) => { if (el.getAttribute(name) !== value) el.setAttribute(name, value); };
 const setActionLabel = (el, label) => { const arrow = document.createElement('span'); arrow.setAttribute('aria-hidden', 'true'); arrow.textContent = '↗'; el.replaceChildren(label, arrow); };
-const canvas = $('game-canvas'), ctx = canvas.getContext('2d', { alpha: false });
+const canvas = $('game-canvas'), displayCtx = canvas.getContext('2d', { alpha: false });
+const gpuSurface = document.createElement('canvas');
+gpuSurface.id = 'game-gpu-canvas'; gpuSurface.setAttribute('aria-hidden', 'true'); gpuSurface.hidden = true;
+const gpu = new URLSearchParams(location.search).get('renderer') === 'native' ? null : createGpuCanvas(1, 1, gpuSurface);
+if (gpu) canvas.after(gpuSurface);
+let ctx = gpu || displayCtx;
+function syncGpuDisplay() {
+  if (!gpu) return;
+  const active = ctx === gpu && gpu.usable;
+  gpuSurface.hidden = !active; canvas.classList.toggle('gpu-backing-hidden', active);
+  if (gpuSurface.style.filter !== canvas.style.filter) gpuSurface.style.filter = canvas.style.filter;
+  if (gpuSurface.style.opacity !== canvas.style.opacity) gpuSurface.style.opacity = canvas.style.opacity;
+}
 // A tiny reusable strip supplies signal interference without pixel readbacks
 // or copying the full arena into another texture during an explosion.
 const signalStrip = document.createElement('canvas'), signalContext = signalStrip.getContext('2d', { alpha: false });
@@ -167,7 +180,7 @@ function setScreen(next) {
   }
   syncArenaSize();
   // Also covers saved flights, sector transitions and resuming after a resize.
-  if (next === 'playing' && state) world.prepareFlight(W, H, state.scroll);
+  if (next === 'playing' && state) { world.prepareFlight(W, H, state.scroll); warmGpuSources(); }
   if (next !== 'playing') {
     audio.pause();
     keys.clear(); touch.x = touch.y = 0; touch.fire = touch.secondary = touch.bomb = false;
@@ -195,14 +208,27 @@ function sizeSurface(rect, adaptive = false) {
   const pixelBudget = quality === 'high' ? 8_300_000 : 2_200_000;
   dpr = Math.min(devicePixelRatio || 1, quality === 'high' ? 1.7 : 1, Math.sqrt(pixelBudget / (rect.width * rect.height))) * resolutionScale;
   canvas.width = Math.round(rect.width * dpr); canvas.height = Math.round(rect.height * dpr);
+  gpu?.resize(canvas.width, canvas.height);
+  gpu?.prepareSoftLayer(.5);
   signalStrip.width = canvas.width; signalStrip.height = Math.max(1, Math.ceil(canvas.height / H * 7));
   // Automatic resolution changes reuse the prepared terrain. Only an explicit
   // viewport/quality change replaces its backing surfaces.
   if (!adaptive) world.setDetailScale(canvas.width, quality);
   perf.renderScale = dpr;
   ctx.setTransform(canvas.width / W, 0, 0, canvas.height / H, 0, 0);
-  vignette = ctx.createRadialGradient(W * .5, H * .5, H * .25, W * .5, H * .5, Math.max(W, H) * .75);
-  vignette.addColorStop(0, '#02080d00'); vignette.addColorStop(1, '#02080d9c');
+  // The screen-space shade never changes between resizes. Rasterize its soft
+  // gradient once rather than evaluating a radial shader over every frame.
+  vignette ||= document.createElement('canvas');
+  const shadeScale = Math.min(1, 1024 / canvas.width);
+  vignette.width = Math.max(1, Math.round(canvas.width * shadeScale));
+  vignette.height = Math.max(1, Math.round(canvas.height * shadeScale));
+  const shade = vignette.getContext('2d');
+  shade.setTransform(vignette.width / W, 0, 0, vignette.height / H, 0, 0);
+  const gradient = shade.createRadialGradient(W * .5, H * .5, H * .25, W * .5, H * .5, Math.max(W, H) * .75);
+  gradient.addColorStop(0, '#02080d00'); gradient.addColorStop(1, '#02080d9c');
+  shade.fillStyle = gradient; shade.fillRect(0, 0, W, H);
+  vignette._tyranTextureVersion = (vignette._tyranTextureVersion || 0) + 1;
+  if (gpu) gpu.prewarm(vignette);
   renderDirty = true;
 }
 
@@ -248,6 +274,18 @@ function warmFleet(index) {
   for (const kind of BONUS_KINDS) pickupTexture(kind);
   warmEffectsTextures([WORLDS[index].color, ...WEAPONS.filter(weapon => weapon.splash).map(weapon => weapon.color)]);
   pilotBarrierTexture();
+  warmGpuSources();
+}
+
+function warmGpuSources() {
+  if (!gpu) return;
+  gpu.prepareSoftLayer(.5);
+  warmGpuShipSprites(gpu); warmGpuProjectileTextures(gpu); warmGpuEffectTextures(gpu);
+  for (const kind of BONUS_KINDS) gpu.prewarm(pickupTexture(kind));
+  gpu.prewarm(pilotBarrierTexture());
+  if (vignette) gpu.prewarm(vignette);
+  if (signalStrip) gpu.prewarm(signalStrip);
+  world.warmGpuSources(gpu);
 }
 
 // Every notice stays in the reserved instrument strip outside the arena.
@@ -763,18 +801,41 @@ function drawBossWeakPoints(enemy, clock) {
 function drawSignalInterference() {
   if (quality !== 'high' || fx.reduced || fx.glitch <= 0) return;
   const strength = fx.glitch / .12, scale = canvas.height / H, height = signalStrip.height;
-  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+  const target = ctx === gpu ? gpu : displayCtx, source = ctx === gpu ? gpu.canvas : canvas;
+  if (ctx === gpu) gpu.endFrame();
+  target.save(); target.setTransform(1, 0, 0, 1, 0, 0);
   for (let band = 0; band < 2; band++) {
     const y = Math.round(clamp((fx.signalY + band * 73 - 34) * scale, 0, canvas.height - height));
-    signalContext.drawImage(canvas, 0, y, canvas.width, height, 0, 0, canvas.width, height);
+    signalContext.drawImage(source, 0, y, canvas.width, height, 0, 0, canvas.width, height);
     const offset = Math.round((band ? -1 : 1) * strength * 7 * scale);
-    ctx.drawImage(signalStrip, offset, y);
+    signalStrip._tyranTextureVersion = (signalStrip._tyranTextureVersion || 0) + 1;
+    target.drawImage(signalStrip, offset, y);
+    if (ctx === gpu) gpu.endFrame();
   }
-  ctx.restore();
+  target.restore();
 }
 
 function draw() {
+  const gpuFrame = !!gpu?.usable;
+  try {
+    drawFrame();
+  } catch (error) {
+    if (!gpuFrame) throw error;
+    gpu.fail(error);
+  }
+  // The browser composites after this task. A failed GPU pass must be replaced
+  // in the same frame, without stepping simulation or exposing partial pixels.
+  if (gpuFrame && !gpu.usable) drawFrame();
+}
+
+function drawFrame() {
+  ctx = gpu?.usable ? gpu : displayCtx;
+  syncGpuDisplay();
   if (scene === 'end' && endFade?.complete) return;
+  if (ctx === gpu) gpu.beginFrame();
+  // Finished paths are not part of Canvas's saved state. Discard them before
+  // moving image-only passes so their vertices need not follow each transform.
+  ctx.beginPath();
   ctx.setTransform(canvas.width / W, 0, 0, canvas.height / H, 0, 0);
   const scroll = state ? lerp(previousScroll, state.scroll) : previewScroll, index = environmentIndex(state ? state.level : selected);
   ctx.save();
@@ -785,6 +846,7 @@ function draw() {
   for (const pilot of state?.players || []) if (pilot.alive) { focusX += lerp(pilot.px, pilot.x); focusPilots++; }
   focusX = focusPilots ? focusX / focusPilots : W * .66;
   world.draw(ctx, W, H, scroll, clock, quality, focusX, !fx.reduced);
+  ctx.beginPath();
   fx.drawGround(ctx, scroll, H, world.parallaxX || 0);
   if (state) {
     if (state.formations?.length) {
@@ -802,6 +864,7 @@ function draw() {
     drawEntryWarnings();
     for (const e of state.enemies) if (e.ai === 'captor' && (e.capState === 1 || e.capState === 2) && !e.dead) drawTractor(e);
     drawBeams();
+    ctx.beginPath();
     for (const e of state.enemies) {
       if (isDormant(e)) continue;
       const x = lerp(e.px, e.x), y = lerp(e.py, e.y);
@@ -826,6 +889,7 @@ function draw() {
       ctx.drawImage(pickupTexture(pickup.kind), pickup.x - size / 2, pickup.y - size / 2, size, size);
       ctx.globalAlpha = 1;
     }
+    ctx.beginPath();
     drawProjectiles(ctx, state.bullets, renderAlpha, W, H);
     for (const p of state.players) if (p.alive) {
       const color = '#a4ffee', x = lerp(p.px, p.x), y = lerp(p.py, p.y);
@@ -850,9 +914,11 @@ function draw() {
     drawShip(ctx, px, py, 45, 'player', '#9bfff0', clock, { world: index, quality, motion: !fx.reduced });
     drawShip(ctx, px + 145, py + 115, 25, 'player', '#ffd0a0', clock, { world: index, quality, motion: !fx.reduced });
   }
+  ctx.beginPath();
   fx.draw(ctx, W, H);
   ctx.restore();
-  ctx.fillStyle = vignette; ctx.fillRect(0, 0, W, H);
+  ctx.drawImage(vignette, 0, 0, W, H);
+  if (ctx === gpu) gpu.present(displayCtx);
   if (impactMotion) drawSignalInterference();
   // Brief defocus belongs to the flight canvas, keeping menus and HUD text sharp.
   const blur = quality === 'high' && !fx.reduced && impactMotion
@@ -861,6 +927,7 @@ function draw() {
   const saturation = quality === 'high' && !fx.reduced && impactMotion ? Math.round((1 - fx.impact * .78) * 100) : 100;
   const filter = [blurTenths ? `blur(${(blurTenths / 10).toFixed(1)}px)` : '', saturation < 100 ? `saturate(${saturation}%)` : ''].filter(Boolean).join(' ');
   if (canvas.style.filter !== filter) canvas.style.filter = filter;
+  syncGpuDisplay();
 }
 
 function frame(time) {
@@ -1087,10 +1154,13 @@ await warmShopArt();
 syncSettings(); refreshDifficultyChoice(); refreshContinue(); selectWorld(0); setScreen('menu'); resize();
 setText($('startup-status'), 'Preparing terrain…');
 await world.prepareReady(W, H);
+gpu?.setRecoveryPrewarm(warmGpuSources);
+warmGpuSources();
 // Readable state and deterministic stepping for browser QA and tuning.
 window.tyran = {
   get state() { return state; }, get scene() { return scene; }, get world() { return world; }, get fx() { return fx; }, get feedback() { return feedback; }, worlds: WORLDS, enemyTypes: ENEMY_TYPES, weapons: WEAPONS, bulletSpectrum: BULLET_SPECTRUM, parallaxLayers: PARALLAX_LAYERS, shipPalettes: SHIP_PALETTES,
   get performance() { return { ...perf, interpolation: renderAlpha, fixedStep: STEP }; },
+  get renderer() { return { backend: ctx === gpu ? 'webgl2' : 'canvas2d', ...(gpu?.stats || {}) }; },
   launch, selectWorld, selectWeapon, pause, spriteStatus, buyPrimary, buySupply,
   step(seconds, controls = []) { for (let i = 0; i < Math.ceil(seconds * 60); i++) { if (state && scene === 'playing') { previousScroll = state.scroll; update(state, STEP, controls, environmentHit); processEvents(); } } accumulator = 0; renderAlpha = 1; renderDirty = true; refreshHUD(); requestFrame(); },
 };

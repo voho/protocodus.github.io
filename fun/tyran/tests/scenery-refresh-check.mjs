@@ -30,22 +30,26 @@ try {
         const structural = [...buildings].sort((a, b) => b.size - a.size)[0];
         for (const target of [...new Set([boundary, structural].filter(Boolean))]) {
           const band = world.getBand(target.row);
-          world.getSceneryLayer(target.row, band);
+          for (let row = target.row - 1; row <= target.row + 1; row++) world.getSceneryLayer(row, world.getBand(row));
           world.scale = 1; world.scroll = 400 - target.y; world.parallaxX = 0;
           for (const fraction of [.4, .4, .3]) {
-            const before = world.getSceneryLayer(target.row, band);
+            const before = new Map(world.sceneryLayers[0]);
             world.hit(target.x, 400, 0, target.maxHp * fraction);
             if (!world.sceneryDirty.has(target.row)) continue;
             // Exclude preparation of a previously unseen appearance from redraw counts.
             for (const p of band) world.getSprite(p.type, p.variant, structures.has(p.type) ? structureStage(p) : 0);
-            draws = 0;
-            const patched = world.getSceneryLayer(target.row, band), patchDraws = draws, actual = pixels(patched);
-            world.sceneryLayers[0].delete(target.row);
-            draws = 0;
-            const rebuilt = world.getSceneryLayer(target.row, band), rebuildDraws = draws, expected = pixels(rebuilt);
-            let changedPixels = 0;
-            for (let i = 0; i < actual.length; i++) if (actual[i] !== expected[i]) changedPixels++;
-            checks.push({ density, sector, type: target.type, stage: structureStage(target), reused: before === patched, changedPixels, patchDraws, rebuildDraws });
+            for (const row of [...world.sceneryDirty.keys()]) {
+              draws = 0;
+              const patched = world.getSceneryLayer(row, world.getBand(row)), patchDraws = draws, actual = pixels(patched);
+              world.sceneryLayers[0].delete(row);
+              draws = 0;
+              const rebuilt = world.getSceneryLayer(row, world.getBand(row)), rebuildDraws = draws, expected = pixels(rebuilt);
+              let changedPixels = 0;
+              for (let i = 0; i < actual.length; i++) if (actual[i] !== expected[i]) changedPixels++;
+              checks.push({ density, sector, type: target.type, stage: structureStage(target), neighboring: row !== target.row,
+                reused: before.get(row) === patched, changedPixels, patchDraws, rebuildDraws,
+                opaque: actual.every(pixel => (pixel >>> 24) === 255), height: patched.height });
+            }
           }
         }
         for (const target of [props.find(p => !structures.has(p.type) && p.type !== 'crawler' && p.type !== 'hauler'), props.find(p => p.type === 'crawler'), props.find(p => p.type === 'hauler')].filter(Boolean)) {
@@ -75,11 +79,14 @@ try {
   });
   assert.ok(result.checks.length >= 60, 'Damage refresh covers every biome and both strip densities, including large buildings and band edges');
   assert.deepEqual([...new Set(result.checks.map(check => check.density))], [1, 2]);
+  assert.ok(result.checks.some(check => check.neighboring), 'Damage crossing a strip boundary refreshes the neighboring fused ground too');
   assert.ok(result.protectedChecks.length >= 20, 'Protected scenery is exercised in every biome at both densities');
   for (const check of result.protectedChecks) assert.ok(check.unchanged, `${check.density}x:${check.sector}:${check.type} survives direct damage without a reward or destruction record`);
   for (const check of result.checks) {
     assert.equal(check.changedPixels, 0, `${check.density}x:${check.sector}:${check.type}:${check.stage} matches a full rebuild pixel for pixel`);
     assert.equal(check.reused, true, 'The existing scenery strip survives a damage change');
+    assert.equal(check.opaque, true, 'Fused scenery includes opaque terrain throughout the strip');
+    assert.equal(check.height, 800 * check.density, 'Opaque strips contain only their central world region, with no overlapping opaque padding');
   }
   const patchDraws = result.checks.reduce((sum, check) => sum + check.patchDraws, 0);
   const rebuildDraws = result.checks.reduce((sum, check) => sum + check.rebuildDraws, 0);

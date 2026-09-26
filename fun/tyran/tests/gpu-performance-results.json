@@ -1,0 +1,370 @@
+{
+  "date": "2026-09-27",
+  "baselineCommit": "40b6cbeb719e6a794d5f1f0a9f5330b45126b887",
+  "optimizedSourceSha256": {
+    "game.js": "a522a07e7389d77eff96e0c7078ff031106f4fd3a543c1d827f2c20ad5f0ad39",
+    "gpu-canvas.js": "293767b8fae3eb89dda6be8e8a711734c1b5a18b3e675425df6d1e98b6b265d6",
+    "geometry.js": "942666bb8765c832901dbd721e92e058dbed9cdc514b3e7779e2e6b7cdaab258",
+    "worlds.js": "7dd67635fc4f4677458386e5af6649d526d3e1db4d02e4cd5887aa0b68c6417e",
+    "ships.js": "83a9875552937900380820e214fb593a423de88ad8af998c388c70c79a0e88eb",
+    "effects.js": "c4631aaa42a7639d35ed871bd37aef26f6f7bc5ca815fe473c6417a4c1b56da5",
+    "projectile-sprites.js": "e8d44294e2a474babab2817b6466dcece569f73e00bbd5df3d5daf3490366ccf",
+    "flight-layout.css": "503deee29914baee124349dff463a90cb41143d88031674b1fe1fa2c7b417ab5",
+    "index.html": "b2e50fae5dec9d15ddc89e46681e10c2f4a100506aa2cfdf1ef8d3ca1caa5dd3"
+  },
+  "method": {
+    "platform": "macOS, Apple M1 Max, Chrome headless, hardware Metal rendering",
+    "viewport": [
+      3840,
+      2160
+    ],
+    "dpr": 1,
+    "quality": "high",
+    "world": 6,
+    "stress": true,
+    "settleMs": 60000,
+    "flightSeconds": 25,
+    "profiling": false,
+    "concurrency": "One owned benchmark browser at a time; no concurrent visual QA",
+    "cpu": "All owned Chrome process CPU via proc_pid_rusage; Mach ticks converted using mach_timebase_info; PID identity checked",
+    "gpu": "Owned AGXDeviceUserClient AppUsage accumulatedGPUTime, registry identities checked; raw units are undocumented, only relative rates compared",
+    "boundaries": "Same RAF callback start gate for both variants; normal RAF and simulation during flight; launch, warmup and report transfer excluded",
+    "randomness": "Seed 7481; identical diagnostic-only visual/simulation stream separation in both frozen sources"
+  },
+  "summary": {
+    "cpuReductionPercent": 16.400424993072114,
+    "ownedGpuReductionPercent": 23.123380443779418,
+    "meanCpuSecondsPerFlight": {
+      "baseline": 9.290126312500002,
+      "optimized": 7.766610979166667
+    },
+    "meanOwnedGpuRate": {
+      "baseline": 283753699.3565655,
+      "optimized": 218140251.93104878
+    }
+  },
+  "limitations": [
+    "Two runs per version on one machine and one sustained stress environment; savings are not a universal hardware guarantee.",
+    "Final canvas and sharp terrain/ship geometry retain full backing resolution and 60 FPS. Soft atmosphere and overlapping lights use a half-resolution intermediate; texture filtering and geometric anti-aliasing have small visual differences.",
+    "GPU rate is a relative driver counter, not a whole-device utilization percentage.",
+    "New texture allocations are checked for driver rejection immediately. Dimension-stable subimage updates avoid synchronous queries; a rare GL-only update error may be observed later through diagnostics. Exceptions and physical context loss still trigger native fallback."
+  ],
+  "trials": {
+    "baseline": [
+      {
+        "run": "native-1",
+        "cpuSeconds": 9.032551250000003,
+        "cpuWindowSeconds": 25.01358441699999,
+        "processCpuSeconds": {
+          "browser": 0.08044345833333466,
+          "renderer": 3.9045254583333326,
+          "GPU": 5.039108083333334,
+          "network.mojom.NetworkService": 0.006565458333333329,
+          "storage.mojom.StorageService": 0.0019087916666666663
+        },
+        "ownedGpuDelta": 6987663583,
+        "ownedGpuWindowSeconds": 25.09592890739441,
+        "ownedGpuRate": 278438132.68617904,
+        "cadence": {
+          "renderedFrames": 1501,
+          "simulationSteps": 1494,
+          "worldDraws": 1501,
+          "sampledFrameIntervals": 1500,
+          "finalScene": "playing",
+          "framesPerSecond": 60.01479378660962
+        },
+        "workload": {
+          "initial": {
+            "shots": 0,
+            "hits": 0,
+            "squads": 0,
+            "dives": 0,
+            "rescues": 0,
+            "kills": 0,
+            "destroyed": 0,
+            "score": 0,
+            "credits": 0,
+            "enemies": 18,
+            "bullets": 0
+          },
+          "final": {
+            "shots": 291,
+            "hits": 173,
+            "squads": 0,
+            "dives": 4,
+            "rescues": 0,
+            "kills": 20,
+            "destroyed": 26,
+            "score": 5947,
+            "credits": 656,
+            "enemies": 11,
+            "bullets": 30
+          },
+          "injectedImpacts": 13,
+          "enemyFrameSamples": 43137,
+          "bulletFrameSamples": 51290
+        },
+        "scriptMsPerFrame": 1.1851312458361094,
+        "surface": {
+          "width": 3840,
+          "height": 2032,
+          "cssWidth": 3840,
+          "cssHeight": 2032,
+          "detailScale": 2,
+          "renderScale": 1,
+          "quality": "high"
+        },
+        "surfaceChanges": [],
+        "inFlightPreparation": {
+          "synchronousTerrainBuilds": 0,
+          "incrementalTerrainRows": 56,
+          "terrainRowWork": {
+            "samples": 56,
+            "medianMs": 0.10000002384185791,
+            "p95Ms": 0.20000004768371582,
+            "p99Ms": 0.30000007152557373,
+            "maxMs": 0.30000007152557373
+          },
+          "assetRequests": []
+        },
+        "errors": []
+      },
+      {
+        "run": "native-2",
+        "cpuSeconds": 9.547701375,
+        "cpuWindowSeconds": 25.008175707999996,
+        "processCpuSeconds": {
+          "browser": 0.0894665416666669,
+          "renderer": 4.322479625000001,
+          "GPU": 5.127567833333334,
+          "network.mojom.NetworkService": 0.00628691666666667,
+          "storage.mojom.StorageService": 0.0019004583333333339
+        },
+        "ownedGpuDelta": 7248995125,
+        "ownedGpuWindowSeconds": 25.077017784118652,
+        "ownedGpuRate": 289069266.02695197,
+        "cadence": {
+          "renderedFrames": 1501,
+          "simulationSteps": 1494,
+          "worldDraws": 1501,
+          "sampledFrameIntervals": 1500,
+          "finalScene": "playing",
+          "framesPerSecond": 60.02703416067854
+        },
+        "workload": {
+          "initial": {
+            "shots": 0,
+            "hits": 0,
+            "squads": 0,
+            "dives": 0,
+            "rescues": 0,
+            "kills": 0,
+            "destroyed": 0,
+            "score": 0,
+            "credits": 0,
+            "enemies": 18,
+            "bullets": 0
+          },
+          "final": {
+            "shots": 291,
+            "hits": 173,
+            "squads": 0,
+            "dives": 4,
+            "rescues": 0,
+            "kills": 20,
+            "destroyed": 26,
+            "score": 5947,
+            "credits": 656,
+            "enemies": 11,
+            "bullets": 30
+          },
+          "injectedImpacts": 13,
+          "enemyFrameSamples": 43109,
+          "bulletFrameSamples": 51244
+        },
+        "scriptMsPerFrame": 1.3359706862091938,
+        "surface": {
+          "width": 3840,
+          "height": 2032,
+          "cssWidth": 3840,
+          "cssHeight": 2032,
+          "detailScale": 2,
+          "renderScale": 1,
+          "quality": "high"
+        },
+        "surfaceChanges": [],
+        "inFlightPreparation": {
+          "synchronousTerrainBuilds": 0,
+          "incrementalTerrainRows": 56,
+          "terrainRowWork": {
+            "samples": 56,
+            "medianMs": 0.10000002384185791,
+            "p95Ms": 0.2999999523162842,
+            "p99Ms": 0.6000000238418579,
+            "maxMs": 0.6000000238418579
+          },
+          "assetRequests": []
+        },
+        "errors": []
+      }
+    ],
+    "optimized": [
+      {
+        "run": "final-1",
+        "cpuSeconds": 8.1402545,
+        "cpuWindowSeconds": 25.003755124999994,
+        "processCpuSeconds": {
+          "browser": 0.08296745833333397,
+          "renderer": 3.935831,
+          "GPU": 4.113086624999999,
+          "network.mojom.NetworkService": 0.006305624999999981,
+          "storage.mojom.StorageService": 0.0020637916666666686
+        },
+        "ownedGpuDelta": 5609195459,
+        "ownedGpuWindowSeconds": 25.064114332199097,
+        "ownedGpuRate": 223793882.54681072,
+        "cadence": {
+          "renderedFrames": 1501,
+          "simulationSteps": 1494,
+          "worldDraws": 1501,
+          "sampledFrameIntervals": 1500,
+          "finalScene": "playing",
+          "framesPerSecond": 60.037838637866294
+        },
+        "workload": {
+          "initial": {
+            "shots": 0,
+            "hits": 0,
+            "squads": 0,
+            "dives": 0,
+            "rescues": 0,
+            "kills": 0,
+            "destroyed": 0,
+            "score": 0,
+            "credits": 0,
+            "enemies": 18,
+            "bullets": 0
+          },
+          "final": {
+            "shots": 291,
+            "hits": 173,
+            "squads": 0,
+            "dives": 4,
+            "rescues": 0,
+            "kills": 20,
+            "destroyed": 26,
+            "score": 5947,
+            "credits": 656,
+            "enemies": 11,
+            "bullets": 30
+          },
+          "injectedImpacts": 13,
+          "enemyFrameSamples": 43110,
+          "bulletFrameSamples": 51242
+        },
+        "scriptMsPerFrame": 1.099197868087941,
+        "surface": {
+          "width": 3840,
+          "height": 2032,
+          "cssWidth": 3840,
+          "cssHeight": 2032,
+          "detailScale": 2,
+          "renderScale": 1,
+          "quality": "high"
+        },
+        "surfaceChanges": [],
+        "inFlightPreparation": {
+          "synchronousTerrainBuilds": 0,
+          "incrementalTerrainRows": 56,
+          "terrainRowWork": {
+            "samples": 56,
+            "medianMs": 0.10000002384185791,
+            "p95Ms": 0.2999999523162842,
+            "p99Ms": 0.6000000238418579,
+            "maxMs": 0.6000000238418579
+          },
+          "assetRequests": []
+        },
+        "errors": []
+      },
+      {
+        "run": "final-2",
+        "cpuSeconds": 7.3929674583333345,
+        "cpuWindowSeconds": 25.019281625000005,
+        "processCpuSeconds": {
+          "browser": 0.07036016666666711,
+          "renderer": 3.5792100000000007,
+          "GPU": 3.7357273749999997,
+          "network.mojom.NetworkService": 0.0058052083333333115,
+          "storage.mojom.StorageService": 0.0018647083333333328
+        },
+        "ownedGpuDelta": 5329882208,
+        "ownedGpuWindowSeconds": 25.083377838134766,
+        "ownedGpuRate": 212486621.31528684,
+        "cadence": {
+          "renderedFrames": 1501,
+          "simulationSteps": 1494,
+          "worldDraws": 1501,
+          "sampledFrameIntervals": 1500,
+          "finalScene": "playing",
+          "framesPerSecond": 60.002318543840026
+        },
+        "workload": {
+          "initial": {
+            "shots": 0,
+            "hits": 0,
+            "squads": 0,
+            "dives": 0,
+            "rescues": 0,
+            "kills": 0,
+            "destroyed": 0,
+            "score": 0,
+            "credits": 0,
+            "enemies": 18,
+            "bullets": 0
+          },
+          "final": {
+            "shots": 291,
+            "hits": 173,
+            "squads": 0,
+            "dives": 4,
+            "rescues": 0,
+            "kills": 20,
+            "destroyed": 26,
+            "score": 5947,
+            "credits": 656,
+            "enemies": 11,
+            "bullets": 30
+          },
+          "injectedImpacts": 13,
+          "enemyFrameSamples": 43109,
+          "bulletFrameSamples": 51259
+        },
+        "scriptMsPerFrame": 0.9872771485676219,
+        "surface": {
+          "width": 3840,
+          "height": 2032,
+          "cssWidth": 3840,
+          "cssHeight": 2032,
+          "detailScale": 2,
+          "renderScale": 1,
+          "quality": "high"
+        },
+        "surfaceChanges": [],
+        "inFlightPreparation": {
+          "synchronousTerrainBuilds": 0,
+          "incrementalTerrainRows": 56,
+          "terrainRowWork": {
+            "samples": 56,
+            "medianMs": 0.10000002384185791,
+            "p95Ms": 0.30000007152557373,
+            "p99Ms": 0.5,
+            "maxMs": 0.5
+          },
+          "assetRequests": []
+        },
+        "errors": []
+      }
+    ]
+  }
+}

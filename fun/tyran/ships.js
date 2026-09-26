@@ -69,6 +69,22 @@ const styles = new Map();
 const playerPalettes = new Map();
 const rasterHulls = new SpriteCache(12);
 const rasterShapes = new Map();
+// Keep the full artwork and sampling grid. Weak metadata follows the existing
+// bounded caches without retaining an evicted Canvas or allocating in flight.
+const spriteBounds = new WeakMap();
+function setSpriteBounds(sprite,left,top,right,bottom,guard=2) {
+  const x=Math.max(0,Math.floor(left)-guard),y=Math.max(0,Math.floor(top)-guard);
+  const width=Math.min(sprite.width,Math.ceil(right)+guard)-x;
+  const height=Math.min(sprite.height,Math.ceil(bottom)+guard)-y;
+  if(width>0&&height>0)spriteBounds.set(sprite,{x,y,width,height,sourceWidth:sprite.width,sourceHeight:sprite.height});
+}
+function drawBoundedSprite(ctx,sprite,x,y,width,height) {
+  const bounds=spriteBounds.get(sprite);
+  if(!bounds){ctx.drawImage(sprite,x,y,width,height);return;}
+  const sx=width/bounds.sourceWidth,sy=height/bounds.sourceHeight;
+  ctx.drawImage(sprite,bounds.x,bounds.y,bounds.width,bounds.height,
+    x+bounds.x*sx,y+bounds.y*sy,bounds.width*sx,bounds.height*sy);
+}
 let assetRevision = -1;
 const TAU = Math.PI * 2;
 
@@ -178,6 +194,9 @@ function rasterHull(kind, player, world = 0) {
     c.save(); c.translate(left + width / 2, top + height / 2); c.rotate(Math.PI);
     c.drawImage(cell, -width / 2, -height / 2, width, height); c.restore();
   } else c.drawImage(cell, left, top, width, height);
+  const rasterScale=out.width/280;
+  setSpriteBounds(out,out.width/2+left*rasterScale,out.height/2+top*rasterScale,
+    out.width/2+(left+width)*rasterScale,out.height/2+(top+height)*rasterScale);
   const anchors = source === 'fleetSnow' && kind === 5
     ? { engines: RASTER_ANCHORS[index].engines, core: [.5, .57, .065] }
     : RASTER_ANCHORS[index];
@@ -195,12 +214,16 @@ function flightShape(kind, player, world = 0) {
 }
 
 function paintedRaster(base, palette, player) {
-  const out = surface(base.width), c = out.getContext('2d', { willReadFrequently: true });
-  c.drawImage(base, 0, 0);
-  const pixels = c.getImageData(0, 0, out.width, out.height), data = pixels.data;
+  // The immutable base already lives in CPU memory. Recolor a fresh pixel
+  // copy there, then upload the finished livery to a drawing-only surface.
+  // Only the source needs readbacks; the repeatedly drawn result does not.
+  const pixels = base.getContext('2d').getImageData(0, 0, base.width, base.height), data = pixels.data;
   const primary = rgb(palette.primary), rim = rgb(palette.rim || palette.primary);
+  let left=base.width,top=base.height,right=-1,bottom=-1;
   for (let i = 0; i < data.length; i += 4) {
     if (!data[i + 3]) continue;
+    const pixel=i/4,x=pixel%base.width,y=Math.floor(pixel/base.width);
+    left=Math.min(left,x);right=Math.max(right,x);top=Math.min(top,y);bottom=Math.max(bottom,y);
     const r = data[i], g = data[i + 1], b = data[i + 2], max = Math.max(r,g,b), min = Math.min(r,g,b);
     let target;
     if (player) {
@@ -214,7 +237,9 @@ function paintedRaster(base, palette, player) {
     const light = max / 255, highlight = (min / Math.max(1,max)) ** 2 * .55;
     for (let channel = 0; channel < 3; channel++) data[i + channel] = Math.round((target[channel] * (1 - highlight) + 255 * highlight) * light);
   }
-  c.putImageData(pixels, 0, 0);
+  const out = surface(base.width);
+  out.getContext('2d').putImageData(pixels, 0, 0);
+  if(right>=left)setSpriteBounds(out,left,top,right+1,bottom+1);
   return out;
 }
 
@@ -566,6 +591,14 @@ function silhouetteSprites(kind,player,world=0) {
         ctx.globalCompositeOperation = 'destination-over'; ctx.globalAlpha = .45;
         ctx.filter = 'blur(5px)'; ctx.drawImage(canvas, -160, -160); ctx.filter = 'none';
       }
+      const bounds=spriteBounds.get(raster);
+      if(bounds){
+        const scale=280/raster.width;
+        // Gaussian support plus a transparent sampling guard retains even the
+        // faint cast-shadow fringe; the flash needs only the sampling guard.
+        setSpriteBounds(canvas,20+bounds.x*scale,20+bounds.y*scale,
+          20+(bounds.x+bounds.width)*scale,20+(bounds.y+bounds.height)*scale,isShadow?18:2);
+      }
       continue;
     }
     if(isShadow) {
@@ -594,6 +627,7 @@ function flameSprite(color, large = false) {
   const canvas=surface(192),ctx=canvas.getContext('2d');
   if (flame) {
     ctx.drawImage(flame, 58, 12, 76, 174);
+    setSpriteBounds(canvas,58,12,134,186);
     flames.set(key, canvas); return canvas;
   }
   const glow=ctx.createRadialGradient(96,28,0,96,58,87);
@@ -618,16 +652,25 @@ function lightsSprite(kind,color,player,palette=shipPalette(0,color),world=0) {
   if(lights.has(key))return lights.get(key);
   const canvas=surface(320),ctx=canvas.getContext('2d'),shape=flightShape(kind,player,world);
   ctx.translate(160,160);
+  let left=Infinity,top=Infinity,right=-Infinity,bottom=-Infinity;
+  const include=(x,y,diameter)=>{
+    left=Math.min(left,x-diameter/2);right=Math.max(right,x+diameter/2);
+    top=Math.min(top,y-diameter/2);bottom=Math.max(bottom,y+diameter/2);
+  };
   const warm=glowSprite(palette.engine||'#ff9a4b');
   for(const [x,y,r] of shape.engines) {
     const diameter=r*6.4;
+    include(x,y+4,diameter);
     ctx.globalAlpha=.72;ctx.drawImage(warm,x-diameter/2,y+4-diameter/2,diameter,diameter);
     // A cool nozzle rim anchors the hot orange exhaust to the engine hardware.
     const diameterCool=r*2.9;
+    include(x,y,diameterCool);
     ctx.globalAlpha=.7;ctx.drawImage(glowSprite(palette.glow||color),x-diameterCool/2,y-diameterCool/2,diameterCool,diameterCool);
   }
   const [x,y,r]=shape.core,diameter=r*(player?3.8:4.7);
+  include(x,y,diameter);
   ctx.globalAlpha=.48;ctx.drawImage(glowSprite(color),x-diameter/2,y-diameter/2,diameter,diameter);
+  setSpriteBounds(canvas,left+160,top+160,right+160,bottom+160);
   lights.set(key,canvas);
   return canvas;
 }
@@ -697,7 +740,7 @@ export function drawShip(ctx,x,y,size,kind,color,time=0,options={}) {
   ctx.transform(shadowScale,0,0,shadowScale,x+5+size*.17,y+9+size*.24);
   const shipAlpha=ctx.globalAlpha*(options.opacity??1),composite=ctx.globalCompositeOperation;
   ctx.globalAlpha=shipAlpha*.74;
-  ctx.drawImage(silhouettes.shadow,-160,-160,320,320);
+  drawBoundedSprite(ctx,silhouettes.shadow,-160,-160,320,320);
   // Move from the shadow directly to the hull without copying the entire
   // canvas state a second time for every ship in the formation.
   ctx.transform(1/.97,0,0,1/.97,-(5+size*.17)/shadowScale,-(9+size*.24)/shadowScale);
@@ -711,12 +754,12 @@ export function drawShip(ctx,x,y,size,kind,color,time=0,options={}) {
     const length=(player?70:51)*(.48+thrust*.55)*shimmer;
     const width=er*(4.6+thrust*.2),engineX=ex,engineY=ey;
     ctx.globalAlpha=shipAlpha*(.79+thrust*.08);
-    ctx.drawImage(flame,engineX-width/2,engineY-8,width,length+14);
+    drawBoundedSprite(ctx,flame,engineX-width/2,engineY-8,width,length+14);
   }
   ctx.globalAlpha=shipAlpha;ctx.globalCompositeOperation=composite;
 
   const sprite=hullSprite(kind,flightColor,world,player,palette);
-  ctx.drawImage(sprite,-140,-140,280,280);
+  drawBoundedSprite(ctx,sprite,-140,-140,280,280);
 
   // Restore only the two values changed by additive layers. The outer save
   // retains every caller style and transform without a state stack per effect.
@@ -725,7 +768,7 @@ export function drawShip(ctx,x,y,size,kind,color,time=0,options={}) {
   const [cx,cy,cr]=shape.core;
   if(detailed) {
     ctx.globalAlpha=shipAlpha*(.7+thrust*.14)*pulse;
-    ctx.drawImage(lightsSprite(kind,palette.glow||flightColor,player,palette,world),-160,-160,320,320);
+    drawBoundedSprite(ctx,lightsSprite(kind,palette.glow||flightColor,player,palette,world),-160,-160,320,320);
   }
   if(detailed) {
     // The reactor breathes independently of the exhaust; its hull and hitbox stay still.
@@ -735,7 +778,7 @@ export function drawShip(ctx,x,y,size,kind,color,time=0,options={}) {
   }
   if(hit>0) {
     ctx.globalAlpha=shipAlpha*hit*.76;
-    ctx.drawImage(silhouettes.flash,-160,-160,320,320);
+    drawBoundedSprite(ctx,silhouettes.flash,-160,-160,320,320);
   }
   if(shield>0) {
     const lightStyle=lightStyles(palette.glow||flightColor);
@@ -748,4 +791,10 @@ export function drawShip(ctx,x,y,size,kind,color,time=0,options={}) {
     ctx.beginPath();ctx.ellipse(0,-3,112,127,0,angle-.48,angle+.48);ctx.stroke();
   }
   ctx.restore();
+}
+
+// Preflight uploads only artwork drawn directly in flight.
+export function warmGpuShipSprites(gpu) {
+  for (const cache of [hulls, flames, glows, lights]) gpu.prewarm([...cache.values()]);
+  for (const sprites of silhouettes.values()) gpu.prewarm([sprites.shadow, sprites.flash]);
 }

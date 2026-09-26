@@ -1,0 +1,48 @@
+import assert from 'node:assert/strict';
+const log=[];let nextId=0,activeUnit=0,framebuffer=null,status='FRAMEBUFFER_COMPLETE';const bindings=[],attachments=new Map();
+const gl=new Proxy({}, {get(_,name){
+  if(name==='NO_ERROR')return 0;if(name==='TEXTURE0')return 1000;
+  if(name==='getError')return()=>0;
+  if(name==='isContextLost')return()=>false;
+  if(name==='getShaderParameter'||name==='getProgramParameter')return()=>true;
+  if(name==='getParameter')return key=>key==='MAX_TEXTURE_SIZE'?16384:8;
+  if(name==='getUniformLocation')return(_,uniform)=>uniform;
+  if(name==='checkFramebufferStatus')return()=>status;
+  if(name.startsWith('create'))return()=>{const handle={kind:name,id:++nextId};log.push([name,handle]);return handle;};
+  if(name==='activeTexture')return value=>{activeUnit=value-1000;log.push([name,value]);};
+  if(name==='bindTexture')return(_,texture)=>{bindings[activeUnit]=texture;log.push([name,activeUnit,texture]);};
+  if(name==='bindFramebuffer')return(_,target)=>{framebuffer=target;log.push([name,target]);};
+  if(name==='framebufferTexture2D')return(_a,_b,_c,texture)=>{assert(!bindings.includes(texture),'Target texture unbound before attachment');attachments.set(framebuffer,texture);log.push([name,texture]);};
+  if(name==='drawArrays')return(...values)=>{if(framebuffer)assert(!bindings.includes(attachments.get(framebuffer)),'No framebuffer feedback');log.push([name,framebuffer,...values]);};
+  if(/^[A-Z_0-9]+$/.test(name))return name;
+  return(...values)=>log.push([name,...values]);
+}});
+globalThis.OffscreenCanvas=class {constructor(width,height){this.width=width;this.height=height;this.handlers=new Map();}getContext(){return gl;}addEventListener(name,callback){this.handlers.set(name,callback);}};
+const {GPUCanvas2D}=await import('../gpu-canvas.js');
+const c=new GPUCanvas2D(1920,1080),cloud={width:64,height:64};c.prewarm(cloud);
+const creations=()=>log.filter(row=>row[0]==='createTexture'||row[0]==='createFramebuffer').length;
+const caller=c._state,stack=c._stack;caller.globalAlpha=.6;caller.matrix=[2,0,0,2,13,17];caller.fillStyle='#aabbcc';caller.dash=[7,3];
+const expected=structuredClone(caller),callback=ctx=>{assert.equal(ctx, c);ctx.globalAlpha=.24;ctx.fillStyle='#ff0000';ctx.save();ctx.translate(5,7);ctx.drawImage(cloud,10,20,30,40);ctx.restore();return 7;};
+assert.equal(c.drawSoftLayer(callback),7);assert.deepEqual(caller,expected);assert.equal(c._state,caller);assert.equal(c._stack,stack);assert.equal(c._softLayer,null);
+assert.equal(c.prepareSoftLayer(),true);assert.deepEqual([c._softLayer.width,c._softLayer.height,c._softLayer.bytes],[960,540,960*540*4]);
+const preparedCreates=creations(),texture=c._softLayer.texture,fb=c._softLayer.framebuffer;
+assert.equal(c.prepareSoftLayer(),true);assert.equal(creations(),preparedCreates);
+for(let i=0;i<12;i++){
+  assert.equal(c.drawSoftLayer(callback),7);assert.equal(c._state,caller);assert.equal(c._stack,stack);assert.deepEqual(caller,expected);assert.equal(framebuffer,null);assert.equal(c._count,6);
+  const vertices=c._vertices.slice(0,66);assert.deepEqual([...vertices.slice(0,8)],[0,0,0,1,1,1,1,1]);assert.deepEqual([...vertices.slice(22,30)],[1920,1080,1,0,1,1,1,1]);
+}
+assert.equal(creations(),preparedCreates,'No per-frame texture or FBO allocations');
+const ownership=()=>{const states=[...c._statePool,...c._stack,c._state,c._softState];assert.equal(new Set(states).size,states.length,'Pooled states have one owner');assert.equal(new Set(states.map(s=>s.matrix)).size,states.length);assert.equal(new Set(states.map(s=>s.dash)).size,states.length);};ownership();
+assert(log.some(row=>row[0]==='viewport'&&row[3]===960&&row[4]===540));
+assert(log.some(row=>row[0]==='uniform2f'&&row[1]==='uSize'&&row[2]===1920&&row[3]===1080));
+assert(log.some(row=>row[0]==='drawArrays'&&row[1]===fb));
+assert(log.some(row=>row[0]==='drawArrays'&&row[1]===null));
+assert.throws(()=>c.drawSoftLayer(ctx=>{ctx.save();ctx.save();ctx.drawImage(cloud,0,0);ctx.globalAlpha=.1;throw Error('fixture');}),/fixture/);assert.equal(framebuffer,null);assert.equal(c._count,0);assert.equal(c._state,caller);assert.deepEqual(caller,expected);
+ownership();c.reset();ownership();assert.equal(c._softLayer.texture,texture);assert.equal(framebuffer,null);
+c.resize(1025,769);assert.deepEqual([c._softLayer.width,c._softLayer.height],[512,384]);assert.notEqual(c._softLayer.texture,texture);assert(log.some(row=>row[0]==='deleteTexture'&&row[1]===texture));
+c.resize(16000,16000);assert(c.stats.softLayerBytes<=c.stats.maxSoftLayerBytes);assert(c._softLayer.width<=16384&&c._softLayer.height<=16384);
+c.canvas.handlers.get('webglcontextlost')({preventDefault(){}});assert.equal(c._softLayer,null);assert.equal(c.stats.softLayerBytes,0);assert.equal(c.usable,false);
+await c.canvas.handlers.get('webglcontextrestored')();assert.equal(c.usable,true);assert(c._softLayer);assert(c.stats.softLayerBytes<=32*1024*1024);
+c.prepareSoftLayer(0);assert.equal(c._softLayer,null);status='INCOMPLETE';assert.equal(c.prepareSoftLayer(.5),false);assert.equal(c._softLayer,null);assert.equal(framebuffer,null);assert.equal(c.drawSoftLayer(()=>9),9);
+status='FRAMEBUFFER_COMPLETE';assert(c.prepareSoftLayer(.5));const finalLayer=c._softLayer;c.dispose();assert.equal(c._softLayer,null);assert.equal(c._softLayerScale,0);assert(log.some(row=>row[0]==='deleteTexture'&&row[1]===finalLayer.texture));assert(log.some(row=>row[0]==='deleteFramebuffer'&&row[1]===finalLayer.framebuffer));
+console.log(JSON.stringify({preparation:true,repeatedGroups:12,noPerFrameGpuAllocation:true,stateAndThrowRestoration:true,flippedUvs:true,feedbackAvoided:true,resizeBudget:true,lossRestore:true,incompleteFallback:true,dispose:true}));

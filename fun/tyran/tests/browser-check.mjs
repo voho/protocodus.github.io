@@ -22,7 +22,13 @@ try {
     assert.equal(await page.evaluate(() => tyran.world.index), i);
     assert.equal(await page.locator('#world-list button[aria-pressed="true"]').count(), 1, 'Exactly one world preview is selected');
     assert.equal(await page.locator('#world-list button[aria-pressed="true"]').getAttribute('data-world'), String(i), 'The selected card matches its renderer');
-    samples.add(await page.evaluate(() => document.querySelector('canvas').toDataURL().slice(-1200)));
+    // Read the visible renderer within RAF, before WebGL discards its drawing
+    // buffer after presentation. The native input canvas can be hidden.
+    samples.add(await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => {
+      const gpu = document.querySelector('#game-gpu-canvas');
+      const surface = gpu && !gpu.hidden ? gpu : document.querySelector('#game-canvas');
+      resolve(surface.toDataURL().slice(-1200));
+    }))));
   }
   assert.equal(samples.size, 10, 'Ten visually different live environments');
   assert.equal(await page.locator('.hero-art').evaluate(el => getComputedStyle(el).opacity), '0', 'World previews reveal the live arena');

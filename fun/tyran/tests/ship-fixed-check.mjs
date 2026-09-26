@@ -21,11 +21,13 @@ try {
     let captures;
     const drawImage = ctx.drawImage.bind(ctx);
     ctx.drawImage = (...args) => {
-      if (captures && args.length === 5) {
-        const type = args[1] === -140 && args[3] === 280 ? 'hull' : args[1] === -160 && args[3] === 320 && !captures.shadow ? 'shadow' : null;
+      if (captures) {
+        const [image,sx,sy,sw,sh,dx,dy,dw,dh]=args;
+        const full=args.length===9?[image,dx-sx*dw/sw,dy-sy*dh/sh,image.width*dw/sw,image.height*dh/sh]:args;
+        const type = Math.abs(full[1]+140)<1e-8 && Math.abs(full[3]-280)<1e-8 ? 'hull' : Math.abs(full[1]+160)<1e-8 && Math.abs(full[3]-320)<1e-8 && !captures.shadow ? 'shadow' : null;
         if (type) {
           const m = ctx.getTransform();
-          captures[type] = { source: args[0], geometry: [m.a, m.b, m.c, m.d, m.e, m.f, ...args.slice(1)] };
+          captures[type] = { source: image, geometry: [m.a, m.b, m.c, m.d, m.e, m.f, ...full.slice(1)] };
         }
       }
       return drawImage(...args);

@@ -20,7 +20,12 @@ try{
     prototype.drawImage=function(...args){if(sources.has(args[0]))used.add(sources.get(args[0]));return original.apply(this,args);};
     const canvas=document.createElement('canvas');canvas.width=canvas.height=384;
     const c=canvas.getContext('2d'),draw=c.drawImage.bind(c);let hull;
-    c.drawImage=(...args)=>{if(args.length===5&&args[1]===-140&&args[3]===280)hull=args[0];return draw(...args);};
+    c.drawImage=(...args)=>{
+      const [image,sx,sy,sw,sh,dx,dy,dw,dh]=args;
+      const left=args.length===9?dx-sx*dw/sw:sx,width=args.length===9?image.width*dw/sw:sw;
+      if(Math.abs(left+140)<1e-8&&Math.abs(width-280)<1e-8)hull=image;
+      return draw(...args);
+    };
     const bounds=canvas=>{
       const {width:w,height:h}=canvas,p=canvas.getContext('2d').getImageData(0,0,w,h).data;
       let left=w,top=h,right=-1,bottom=-1,hash=2166136261;

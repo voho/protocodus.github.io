@@ -47,13 +47,13 @@ try {
     }
     return {dimensions,rates,frozen,downgrade,maxBytes,maxTiles,maxScenery,layers:PARALLAX_LAYERS.map(l=>l.id),frames};
   });
-  assert.deepEqual(result.dimensions,{terrain:[3600,1600],scenery:[3600,2160]},'large displays retain source detail in both cached planes');
+  assert.deepEqual(result.dimensions,{terrain:[3600,1600],scenery:[3600,1600]},'large displays retain source detail in both cached planes');
   assert.deepEqual(result.layers,['ground','atmosphere','foreground']);
   assert(Math.abs(result.rates[0].speed-1.32)<1e-9&&Math.abs(result.rates[1].speed-1.85)<1e-9,'cloud planes visibly separate during scrolling');
   assert(result.rates.every(r=>r.reducedSpeed===1&&r.reducedX),'reduced motion removes extra parallax and drift');
   assert(result.frozen,'all ambient decoration freezes with reduced motion');
   assert.deepEqual(result.downgrade,{density:1,tileWidth:1800,hp:true},'low quality sheds dense strips without losing building damage');
-  assert(result.maxTiles<=5&&result.maxScenery<=5&&result.maxBytes<1800*4*4*(5*800+5*1080),'high-detail streaming is bounded by viewport columns and nearby rows');
+  assert(result.maxTiles<=5&&result.maxScenery<=5&&result.maxBytes<1800*4*4*(5*800+5*800),'high-detail streaming is bounded by viewport columns and nearby rows');
   for(const frame of result.frames)await writeFile(`${output}/enhanced-${frame.name}.png`,Buffer.from(frame.png.split(',')[1],'base64'));
   delete result.frames;
   // On a 4K display, the arena retains native resolution below its reserved HUD.

@@ -48,7 +48,7 @@ try {
     assert.equal(report.materials,24);assert.equal(report.edges,252);
     assert.ok(report.maxStrips<=10,`sector ${report.index}: only the viewport and next strips stay resident`);
     const columnBytes=(report.memory.mapWidth+200)*report.memory.detailScale**2*4;
-    assert.ok(report.maxBytes<=columnBytes*(5*800+5*1080),`sector ${report.index}: buffers stay within five nearby rows per plane at the current viewport width`);
+    assert.ok(report.maxBytes<=columnBytes*(5*800+5*800),`sector ${report.index}: buffers stay within five nearby rows per plane at the current viewport width`);
     assert.ok(report.memory.damageSpriteCount<=report.memory.damageSpriteLimit);
   }
   assert.deepEqual(errors,[]);

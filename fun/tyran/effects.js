@@ -5,7 +5,7 @@ const random = (a, b) => a + Math.random() * (b - a);
 const TAU = Math.PI * 2;
 // Effects retain shared artwork and current playback state only. Repeated bursts
 // reuse particle records instead of leaving hundreds of short-lived objects for GC.
-export const EFFECT_LIMITS = Object.freeze({ particles: 700, rings: 96, lights: 48, wrecks: 60, delayed: 72, flares: 6, textures: 24 });
+export const EFFECT_LIMITS = Object.freeze({ particles: 700, rings: 96, lights: 48, wrecks: 60, delayed: 72, flares: 6, textures: 24, sparkTextures: 24 });
 const CAPPED_STATES = ['rings', 'lights', 'wrecks', 'delayed', 'flares'];
 const EFFECT_STATES = ['particles', ...CAPPED_STATES];
 // Capital ships get a short camera response; routine kills and collateral
@@ -18,11 +18,28 @@ export function explosionIntensity(event) {
   return Math.max(0, Math.min(.72, ((event.size || 20) - 36) / 36));
 }
 const textures = new Map();
+// Sparks have their own tiny, preflight-only cache: their palette must never
+// displace an explosion texture or allocate artwork during a busy fight.
+const sparkTextures = new Map();
+const SPARK_SIZES = [8, 16, 32, 64, 128];
+const SPARK_PIXELS = SPARK_SIZES.reduce((sum, size) => sum + size * size, 0);
+const SPARK_COLORS = ['#fffbea', '#ffbb6b', '#ffc985', '#ddffed', '#ffe88d', '#ffe38a', '#8affd7', '#ff7a8a'];
+function warmSparkTexture(color) {
+  if (sparkTextures.has(color) || sparkTextures.size >= EFFECT_LIMITS.sparkTextures) return;
+  const levels = SPARK_SIZES.map(size => {
+    const canvas = typeof OffscreenCanvas === 'undefined' ? document.createElement('canvas') : new OffscreenCanvas(size, size);
+    canvas.width = canvas.height = size;
+    const context = canvas.getContext('2d');
+    context.fillStyle = color; context.beginPath(); context.arc(size / 2, size / 2, size / 2 - 1, 0, TAU); context.fill();
+    return canvas;
+  });
+  sparkTextures.set(color, levels);
+}
 function releaseTexture(canvas) { canvas.width = canvas.height = 1; }
 export function effectTextureStats() {
   let bytes = 0;
   for (const canvas of textures.values()) bytes += canvas.width * canvas.height * 4;
-  return { count: textures.size, bytes };
+  return { count: textures.size, bytes, sparks: { count: sparkTextures.size, bytes: sparkTextures.size * SPARK_PIXELS * 4 } };
 }
 let textureRevision = -1;
 function texture(key, paint, size = 128) {
@@ -123,6 +140,7 @@ export function warmEffectsTextures(colors = []) {
   wreckTexture(); wreckTexture(true); smokeTexture(); smokeTexture(true);
   fireBloomTexture(); lensStreakTexture(); lensGhostTexture();
   for (const color of new Set(['#ffbb6b', '#ffc985', '#ff9e7d', '#ffe36d', '#ffe8b0', '#ff9ab8', ...colors])) if (color) lightTexture(color);
+  for (const color of new Set([...SPARK_COLORS, ...colors])) if (color) warmSparkTexture(color);
 }
 spritesReady.then(() => warmEffectsTextures());
 function ageAndCompact(list, dt) {
@@ -134,7 +152,7 @@ function keepNewest(list, limit) {
   if (list.length > limit) { list.copyWithin(0, list.length - limit); list.length = limit; }
 }
 export class Effects {
-  constructor() { this.particles = []; this.particlePool = []; this.rings = []; this.lights = []; this.wrecks = []; this.delayed = []; this.flares = []; this.shake = 0; this.flash = 0; this.damagePulse = 0; this.impact = 0; this.impactPeak = 0; this.impactStart = 0; this.impactAge = 0; this.impactDuration = 0; this.glitch = 0; this.signalY = 0; this.reduced = matchMedia('(prefers-reduced-motion: reduce)').matches; this.quality = 'high'; }
+  constructor() { this.particles = []; this.particlePool = []; this.rings = []; this.lights = []; this.wrecks = []; this.delayed = []; this.flares = []; this.shake = 0; this.flash = 0; this.damagePulse = 0; this.impact = 0; this.impactPeak = 0; this.impactStart = 0; this.impactAge = 0; this.impactDuration = 0; this.glitch = 0; this.signalY = 0; this.reduced = matchMedia('(prefers-reduced-motion: reduce)').matches; this.quality = 'high'; this.softLightPass = { width: 0, height: 0 }; this.softLightDraw = ctx => { const pass = this.softLightPass; this.drawLights(ctx, pass.width, pass.height); }; }
   reset() {
     for (const key of EFFECT_STATES) this[key].length = 0;
     this.particlePool.length = 0;
@@ -278,6 +296,43 @@ export class Effects {
     ctx.restore();
     this.wrecks.length = length;
   }
+  shouldUseSoftLights(W, H) {
+    // At half resolution, the light quads cost roughly one quarter as many
+    // fragments, but clearing/compositing the layer adds a full-surface cost.
+    // Require two visible screens of additive image coverage before paying it.
+    // Gameplay caps this scan at 48 lights; crowded bursts exit early.
+    if (!(W > 0 && H > 0)) return false;
+    const threshold = 2 * W * H;
+    let area = 0;
+    for (const l of this.lights) {
+      const a = 1 - l.age / l.life, r = l.radius * (.5 + l.age / l.life);
+      if (a <= 0 || !intersectsView(l.x, l.y, r, r, W, H)) continue;
+      const width = Math.max(0, Math.min(W, l.x + r) - Math.max(0, l.x - r));
+      const height = Math.max(0, Math.min(H, l.y + r) - Math.max(0, l.y - r));
+      area += width * height;
+      if (area >= threshold) return true;
+      if (l.fire) {
+        const core = r * .62;
+        const coreWidth = Math.max(0, Math.min(W, l.x + core) - Math.max(0, l.x - core));
+        const coreHeight = Math.max(0, Math.min(H, l.y + core) - Math.max(0, l.y - core));
+        area += coreWidth * coreHeight;
+        if (area >= threshold) return true;
+      }
+    }
+    return false;
+  }
+  drawLights(ctx, W, H) {
+    for (const l of this.lights) {
+      const a = 1 - l.age / l.life, r = l.radius * (.5 + l.age / l.life);
+      if (a <= 0 || !intersectsView(l.x, l.y, r, r, W, H)) continue;
+      ctx.globalAlpha = a; ctx.drawImage(lightTexture(l.color), l.x - r, l.y - r, r * 2, r * 2);
+      if (l.fire) {
+        const core = r * .62;
+        ctx.globalAlpha = a * a * (this.reduced ? .28 : this.quality === 'high' ? .6 : .38);
+        ctx.drawImage(fireBloomTexture(), l.x - core, l.y - core, core * 2, core * 2);
+      }
+    }
+  }
   draw(ctx, W, H) {
     let airSmoke, groundSmoke, airFragment, groundFragment;
     ctx.save();
@@ -312,22 +367,29 @@ export class Effects {
     }
     ctx.restore();
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
-    for (const l of this.lights) {
-      const a = 1 - l.age / l.life, r = l.radius * (.5 + l.age / l.life);
-      if (a <= 0 || !intersectsView(l.x, l.y, r, r, W, H)) continue;
-      ctx.globalAlpha = a; ctx.drawImage(lightTexture(l.color), l.x - r, l.y - r, r * 2, r * 2);
-      if (l.fire) {
-        const core = r * .62;
-        ctx.globalAlpha = a * a * (this.reduced ? .28 : this.quality === 'high' ? .6 : .38);
-        ctx.drawImage(fireBloomTexture(), l.x - core, l.y - core, core * 2, core * 2);
-      }
-    }
+    if (this.lights.length && typeof ctx.drawSoftLayer === 'function' && this.shouldUseSoftLights(W, H)) {
+      // Only the broad, preblurred light/bloom sprites use the prepared soft
+      // surface. The callback and parameter record are reused across frames.
+      const pass = this.softLightPass; pass.width = W; pass.height = H;
+      ctx.drawSoftLayer(this.softLightDraw);
+    } else this.drawLights(ctx, W, H);
+    const sparkScale = Math.max(Math.hypot(ca, cb), Math.hypot(cc, cd));
     for (const p of this.particles) if (!p.smoke && !p.debris) {
       const radius = Math.max(.3, p.radius * (1 - p.age / p.life));
       if (p.age >= p.life || !intersectsView(p.x, p.y, radius, radius, W, H)) continue;
       ctx.globalAlpha = 1 - p.age / p.life;
-      ctx.fillStyle = p.age < .08 ? '#fffbea' : p.color;
-      ctx.beginPath(); ctx.arc(p.x, p.y, radius, 0, TAU); ctx.fill();
+      const color = p.age < .08 ? '#fffbea' : p.color, levels = sparkTextures.get(color), pixels = radius * sparkScale;
+      if (levels && pixels >= 2) {
+        // Nearest prefiltered scale keeps circle edges crisp as they shrink.
+        // Subpixel sparks retain exact vector coverage rather than aliasing.
+        const sprite = levels[pixels < 5 ? 0 : pixels < 10 ? 1 : pixels < 22 ? 2 : pixels < 45 ? 3 : 4];
+        const extent = radius * sprite.width / (sprite.width - 2);
+        ctx.drawImage(sprite, p.x - extent, p.y - extent, extent * 2, extent * 2);
+      } else {
+        // A saved or future palette remains accurate without an unbounded
+        // runtime cache. Every color emitted by current gameplay is prewarmed.
+        ctx.fillStyle = color; ctx.beginPath(); ctx.arc(p.x, p.y, radius, 0, TAU); ctx.fill();
+      }
     }
     for (const ring of this.rings) {
       const t = ring.age / ring.life;
@@ -360,4 +422,10 @@ export class Effects {
     ctx.restore();
     if (this.flash > .01 && !this.reduced) { ctx.fillStyle = `rgba(255,236,210,${this.flash * .5})`; ctx.fillRect(0, 0, W, H); }
   }
+}
+
+export function warmGpuEffectTextures(gpu) {
+  gpu.prewarm([...textures.values()]);
+  for (const levels of sparkTextures.values()) gpu.prewarm(levels);
+  for (let i = 0; i < 16; i++) { const sprite = spriteCell('effects', i); if (sprite) gpu.prewarm(sprite); }
 }

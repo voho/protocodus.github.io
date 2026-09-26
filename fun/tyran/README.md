@@ -1,6 +1,6 @@
 # Tyran
 
-An original browser arcade shooter inspired by the vertical scrolling tradition of Tyrian and the swarming choreography of Galaga. Available at `/fun/tyran/`, linked from the home page and Fun section. Static ES modules and Canvas 2D; no build step, third-party runtime, account, or backend.
+An original browser arcade shooter inspired by the vertical scrolling tradition of Tyrian and the swarming choreography of Galaga. Available at `/fun/tyran/`, linked from the home page and Fun section. Static ES modules with a batched WebGL2 flight renderer and Canvas 2D fallback; no build step, third-party runtime, account, or backend.
 
 ## Play
 
@@ -74,6 +74,8 @@ Runtime artwork uses 20 detailed sprite atlases: seven base sheets for terrain, 
 
 Audio preflight fetches all 23 files before launch, even when sound is muted: eighteen CC0 effects from Kenney and five user-provided songs generated with Suno AI. Short effects decode with an OfflineAudioContext before flight; complete compressed songs become reusable local Blob URLs. One shared in-memory cache serves every sector and retry, while optional versioned Cache Storage avoids repeat downloads on later visits. Playback makes no audio network requests. A shared 15-second startup deadline bounds failed downloads, storage and decoding; unavailable assets settle to synthesized fallbacks for the session without in-flight retries. Playback starts only after a sound-enabled user gesture. Kenney's laser, explosion, impact and pickup effects use subtle pitch variation, short weapon tails and bounded simultaneous voices. Tracks `1.mp3`, `2.mp3` and `3.mp3` rotate between sectors; `4.mp3` accompanies guardians and `5.mp3` accompanies challenges. The single music element reads cached compressed bytes through the same master volume and limiter, avoiding the memory cost of fully decoded songs. Mute, pause and leaving flight stop playback immediately; denied playback permission also uses the original adaptive sequence. Kenney sources and CC0 notices are recorded in `assets/audio/sfx/SFX-SOURCES.md`; the supplied songs and their checksums are inventoried separately in `assets/audio/music/MUSIC-SOURCES.md`. The Suno tracks are not described as public-domain assets.
 
+Flight batches cached artwork into a visible WebGL2 canvas. Geometry remains at the arena’s full backing resolution; soft cloud/shadow passes and large overlapping light fields use a reusable half-resolution layer. Transparent ship/cloud margins are skipped, opaque terrain avoids unnecessary blending, shockwave rings use bounded analytic geometry, and vertex storage and drawing state are reused. Texture caches are bounded at 256 MiB / 256 sources, with a separate soft-layer budget of 32 MiB. Source art is still prepared with Canvas 2D before launch. Context loss uses the native renderer while current textures recover in short work slices; permanent GPU failure releases its resources and redraws the current frame natively. Append `?renderer=native` to exercise that fallback directly.
+
 Player damage produces a brief defocus pulse (stronger for hull hits); the canvas softens while HUD and menu text stay sharp. Explosions add a warm fire bloom, with horizontal lens streaks and faint reflections for large blasts and bosses. Shared cached textures and a six-flare limit keep these effects bounded. Effects have high/low settings. Reduced-motion preference disables screen shake, impact blur, lens flares and bright screen flashes, and softens fire bloom. Losing window focus automatically pauses. Failure or denial of local storage and audio does not prevent play.
 
 Ships cast separate ground shadows, with silver armor rims, white-hot engine fire and warm nozzle bloom. Every sector has a reserved high-contrast fleet palette (for example red/yellow over jungle and acid green/yellow over the black asteroid belt), separate from terrain and scenery materials. Fleet source sheets share red armor and gold trim, which the renderer remaps to each sector's complementary colors while preserving neutral metal shading. Every ship uses one fixed hull sprite and shadow: players face up, enemies face down. Steering never rotates or deforms a hull. Restrained exhaust flicker and reactor lighting provide life without alternate sprite frames; reduced-motion mode freezes these decorative effects. Two cached player projectile textures make each weapon readable in motion; hostile projectiles also use cached sprites with size and color tied to the firing ship. Thrust responds to acceleration. Hull and equipment add mass: heavier ships accelerate, coast and reverse more gradually while retaining their cruise speed. Keyboard and touch controls both use this motion model. Mouse movement and clicks never steer or fire a ship; interface buttons remain clickable.
@@ -132,6 +134,11 @@ node fun/tyran/tests/sim-check.mjs --balance
 node fun/tyran/tests/sim-check.mjs --endless-balance
 node fun/tyran/tests/endless-campaign-check.mjs
 node fun/tyran/tests/tile-map-check.mjs
+node fun/tyran/tests/gpu-geometry-check.mjs
+node fun/tyran/tests/gpu-batch-check.mjs
+node fun/tyran/tests/gpu-recovery-check.mjs
+node fun/tyran/tests/gpu-soft-layer-check.mjs
+node fun/tyran/tests/cloud-crop-check.mjs
 node fun/tyran/tests/save-game-check.mjs
 node fun/tyran/tests/ground-combat-check.mjs
 node tests/navigation-check.mjs
@@ -164,6 +171,7 @@ TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/ras
 TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/fleet-families-check.mjs
 TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/projectile-effects-check.mjs
 TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/render-lifecycle-check.mjs
+TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/gpu-recovery-browser-check.mjs
 node fun/tyran/tests/combat-feedback-check.mjs
 TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/unobstructed-arena-check.mjs
 node fun/tyran/tests/difficulty-check.mjs
@@ -222,4 +230,6 @@ Real was tuned against this fixed sample for ten successful attempts out of 100;
 
 Startup uses a centered, accessible loading overlay until assets and initial terrain are prepared. Terrain strips retain their substrate composition; only a flat seam clear remains per frame. Ground vignettes and building fixtures skip transparent image regions, rain and dust share a stroke submission, and debris/wrecks share camera-state saves. That performance pass preserved resolution, 60 Hz simulation, interpolated movement, animation cadence and effect counts; the later cinematic explosion pass adds bounded local cascades for larger ships.
 
-The [September 2026 comparison](tests/performance-results.json) records all trials and source hashes. In three paired 4K stress runs, total Chrome CPU time was essentially unchanged (14.87 → 14.95 CPU seconds per 25-second flight). OS whole-device GPU utilization fell from 42.52% to 41.04% in Inferno Foundry and 43.88% to 41.60% in Neon Afterlife, about 3–5% relative improvement. These readings include other applications. Every timed flight held 60 FPS; the 50% overall reduction target was not reached.
+The earlier [September 2026 comparison](tests/performance-results.json) records all trials and source hashes. In three paired 4K stress runs, total Chrome CPU time was essentially unchanged (14.87 → 14.95 CPU seconds per 25-second flight). OS whole-device GPU utilization fell from 42.52% to 41.04% in Inferno Foundry and 43.88% to 41.60% in Neon Afterlife, about 3–5% relative improvement. These readings include other applications. Every timed flight held 60 FPS; the 50% overall reduction target was not reached.
+
+The [WebGL2 release comparison](tests/gpu-performance-results.json) measures the cumulative changes against the enlarged-HUD release at the same 4K backing size and 60 FPS. Two runs per version showed 16.4% lower total owned Chrome CPU use and 23.1% lower owned GPU time. These results apply to one machine and the seeded Inferno Foundry stress flight; all ten environments were checked separately for visual/runtime correctness. See [measurement instructions](tests/PERFORMANCE.md) for the portable harness, fixed startup settle and counter definitions.

@@ -21,7 +21,7 @@ try {
       }
       const draw=prototype.drawImage;
       prototype.drawImage=function(source,...args){
-        if(window.__measure&&source.id==='game-canvas') {__work.signalCopies++;__work.signalArea+=args[2]*args[3];}
+        if(window.__measure&&['game-canvas','game-gpu-canvas'].includes(source.id)) {__work.signalCopies++;__work.signalArea+=args[2]*args[3];}
         return draw.call(this,source,...args);
       };
     }

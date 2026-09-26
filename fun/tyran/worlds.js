@@ -50,6 +50,29 @@ function random(seed) {
 }
 const clamp = (n,a,b) => Math.max(a,Math.min(b,n));
 function canvas(w,h) { const c = typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(w,h) : document.createElement('canvas'); c.width=w; c.height=h; return c; }
+// Clouds retain full-resolution pixels; cached guarded bounds exclude only
+// transparent margins from repeated large sprite draws. Two source pixels keep
+// GPU bilinear filtering inside the original image on every cropped edge.
+// Native Canvas keeps its existing image-filtering and draw commands unchanged.
+function cloudBounds(left,top,right,bottom,width,height,padding=2) {
+  left=Math.max(0,Math.floor(left)-padding);top=Math.max(0,Math.floor(top)-padding);
+  right=Math.min(width,Math.ceil(right)+padding);bottom=Math.min(height,Math.ceil(bottom)+padding);
+  return right>left&&bottom>top?{x:left,y:top,width:right-left,height:bottom-top}:null;
+}
+function cloudPixelBounds(data,width,height) {
+  let left=width,top=height,right=-1,bottom=-1;
+  for(let y=0;y<height;y++)for(let x=0;x<width;x++)if(data[(y*width+x)*4+3]){
+    left=Math.min(left,x);top=Math.min(top,y);right=Math.max(right,x+1);bottom=Math.max(bottom,y+1);
+  }
+  return cloudBounds(left,top,right,bottom,width,height);
+}
+function drawCloudImage(c,source,x,y,width,height) {
+  const b=source._tyranAlphaBounds;
+  if(!b||typeof c.prewarm!=='function'){c.drawImage(source,x,y,width,height);return;}
+  c.drawImage(source,b.x,b.y,b.width,b.height,
+    x+b.x*width/source.width,y+b.y*height/source.height,
+    b.width*width/source.width,b.height*height/source.height);
+}
 function circle(c,x,y,r,color) { c.fillStyle=color; c.beginPath(); c.arc(x,y,r,0,TAU); c.fill(); }
 function ellipse(c,x,y,rx,ry,color) { c.fillStyle=color; c.beginPath(); c.ellipse(x,y,rx,ry,0,0,TAU); c.fill(); }
 function polygon(c,points,fill,stroke=null,width=1) { c.beginPath(); points.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y)); c.closePath(); if(fill){c.fillStyle=fill;c.fill();} if(stroke){c.strokeStyle=stroke;c.lineWidth=width;c.stroke();} }
@@ -112,6 +135,9 @@ export class WorldRenderer {
     this.sceneryLayers=[new Map()];this.sceneryDirty=new Map();
     this.layerViews=[{zoom:1,x:0,y:0,first:0,last:0}];
     this.hitBuckets=new Map();this.visibleProps=[];this.damage=new Map();this.destroyed=new Set();this.turretActivity=new Map();
+    this.softCloudPass={h:0,scroll:0,time:0,motion:true};
+    this.softCloudShadows=c=>{const p=this.softCloudPass;this.drawCloudShadowSprites(c,p.h,p.scroll,p.time,p.motion);};
+    this.softClouds=c=>{const p=this.softCloudPass;this.drawCloudSprites(c,p.h,p.scroll,p.time,p.motion);};
     this.setWorld(0);
   }
   setWorld(index, seed='tyran-v2') {
@@ -141,6 +167,14 @@ export class WorldRenderer {
     });
     for(let material=0;material<4;material++)for(let variant=0;variant<6;variant++)this.queueWarm(`material:${material}:${variant}`,()=>this.terrain.getMaterial(material,variant));
     this.warmScenery();
+  }
+  warmGpuSources(gpu) {
+    this.gpu = gpu;
+    gpu.prewarm([...this.sceneryLayers[0].values(), this.cloudSprite, this.cloudShadowSprite,
+      this.lightSprite, this.radarSweepSprite, this.shaftSprite, this.vignetteSprite,
+      this.structureEffects.light, this.structureEffects.heat, this.structureEffects.fire,
+      this.structureEffects.smoke, ...this.structureEffects.fixtures.values(),
+      this.siteSprites.supplyHalo, ...Object.values(this.siteSprites.badges)]);
   }
   warmScenery(damage=false) {
     const types=new Set([...this.palette.props,...DISTRICTS[this.index].flat(),...GROUND_DETAILS[this.index],'crawler','hauler']);
@@ -245,18 +279,17 @@ export class WorldRenderer {
   }
   prepare(width,height,scroll=0) {
     this.setViewport(width);this.warmFlightAssets();
-    const h=height,first=Math.floor((-scroll-PAD)/TILE),last=Math.floor((h-scroll+PAD)/TILE);
-    // One complete strip leads the padded viewport, giving several seconds to
+    const h=height,first=Math.floor(-scroll/TILE),last=Math.floor((h-scroll)/TILE);
+    this.warmFirst=first-1;this.warmLast=last+1;
+    // One complete strip leads the viewport, giving several seconds to
     // prepare the next strip even at late-mission speed. Geometry stays bounded.
     for(let row=Math.floor(-scroll/TILE)-1;row<=Math.floor((h-scroll)/TILE);row++)this.queueTerrain(row);
     for(let row=first-1;row<=last;row++){
-      if(!this.sceneryLayers[0].has(row)||this.sceneryDirty.has(row)){
-        this.queueWarm(`scenery:0:${row}`,()=>this.getSceneryLayer(row,this.getBand(row)));
-      }
+      if(!this.sceneryLayers[0].has(row)||this.sceneryDirty.has(row))this.queueScenery(row);
     }
     // Damage copies into this shared buffer, never allocating it on a first hit.
     this.queueWarm('scenery:scratch',()=>{
-      if(!this.sceneryScratch)this.sceneryScratch=canvas((this.mapWidth+MARGIN*2)*this.detailScale,(TILE+PAD*2)*this.detailScale);
+      if(!this.sceneryScratch)this.sceneryScratch=canvas((this.mapWidth+MARGIN*2)*this.detailScale,TILE*this.detailScale);
     });
   }
   /** Complete preparation before entering play; menu/shop idle work usually did it already. */
@@ -286,6 +319,17 @@ export class WorldRenderer {
       else this.queueWarm(`terrain:${row}`,work);
     };
     this.queueWarm(`terrain:${row}`,work);
+  }
+  queueScenery(row) {
+    const key=`scenery:0:${row}`;
+    const work=()=>{
+      if(row<this.warmFirst||row>this.warmLast)return;
+      // A fused strip needs finished terrain. Let the existing row jobs finish
+      // instead of synchronously baking the remaining terrain during flight.
+      if(!this.tiles.has(row)){this.queueTerrain(row);this.queueWarm(key,work);return;}
+      this.getSceneryLayer(row,this.getBand(row));
+    };
+    this.queueWarm(key,work);
   }
   runWarmQueue() {
     if(this.warmPending||!this.warmJobs.length)return;
@@ -400,49 +444,64 @@ export class WorldRenderer {
   getSceneryLayer(row,band,depth=0) {
     const cache=this.sceneryLayers[depth],existing=cache.get(row),dirty=this.sceneryDirty.get(row);
     if(existing&&!dirty)return existing;
-    const d=this.detailScale;
-    const out=existing||canvas((this.mapWidth+MARGIN*2)*d,(TILE+PAD*2)*d),bounds=existing?dirty:null;
+    const d=this.detailScale,width=this.mapWidth+MARGIN*2;
+    const out=existing||canvas(width*d,TILE*d),bounds=existing?dirty:null;
     const target=bounds?(this.sceneryScratch||(this.sceneryScratch=canvas(out.width,out.height))):out;
-    const c=target.getContext('2d');c.setTransform(d,0,0,d,0,0);
+    const c=target.getContext('2d',{alpha:false});c.setTransform(d,0,0,d,0,0);
+    // Only fused opaque strips opt into the GPU's no-blend image command.
+    // Check the actual context contract; unsupported attribute queries keep
+    // the ordinary source-over path. Partial updates retain this same context.
+    if(target===out&&c.getContextAttributes?.().alpha===false)out._tyranOpaque=true;
+    const terrain=this.getTile(row);
+    let x=0,y=0,w=width,h=TILE;
     if(bounds){
-      const x=bounds.left+MARGIN,y=bounds.top-row*TILE+PAD,w=bounds.right-bounds.left,h=bounds.bottom-bounds.top;
-      c.clearRect(x,y,w,h);
-    }
-    this.drawGroundDetails(c,row,bounds);
-    for(const prop of band) {
-      // Repaint every overlapping object in its original order so transparent
-      // wings, foliage and shadows remain identical to a complete strip rebuild.
-      const reach=prop.size*1.3+2;
-      if(prop.x+reach<-MARGIN||prop.x-reach>this.mapWidth+MARGIN)continue;
-      if(bounds&&(prop.x+reach<bounds.left||prop.x-reach>bounds.right||prop.y+reach<bounds.top||prop.y-reach>bounds.bottom))continue;
-      const y=prop.y-row*TILE+PAD,x=prop.x+MARGIN,scale=prop.size/100;
-      const structural=STRUCTURE_SPRITES.includes(prop.type),destroyed=this.destroyed.has(prop.id);
-      if(destroyed&&!structural){this.drawScorch(c,x,y,prop.size);continue;}
-      const stage=structural?(destroyed?3:structureStage(prop)):0;
-      this.structureEffects.drawFoundation(c,prop,x,y,destroyed);
-      c.drawImage(this.getSprite(prop.type,prop.variant,stage),x-130*scale,y-130*scale,260*scale,260*scale);
-      if(!structural&&prop.hp<prop.maxHp)ellipse(c,x+4,y+5,prop.size*.22,prop.size*.16,'rgba(36,28,37,.36)');
+      x=Math.max(0,bounds.left+MARGIN);y=Math.max(0,bounds.top-row*TILE);
+      w=Math.min(width,bounds.right+MARGIN)-x;h=Math.min(TILE,bounds.bottom-row*TILE)-y;
+      c.drawImage(terrain,x*d,y*d,w*d,h*d,x,y,w,h);
+    }else c.drawImage(terrain,0,0,width,TILE);
+    // Each opaque strip owns only its central 800 world units. Neighboring
+    // foliage, buildings and ground cover still spill across that boundary in
+    // their original band order; opaque padding must never erase them.
+    const paintBounds=bounds||{left:-MARGIN,right:this.mapWidth+MARGIN,top:row*TILE,bottom:(row+1)*TILE};
+    for(let sourceRow=row-1;sourceRow<=row+1;sourceRow++){
+      const sourceBand=sourceRow===row?band:this.getBand(sourceRow);
+      c.save();c.translate(0,(sourceRow-row)*TILE-PAD);this.drawGroundDetails(c,sourceRow,paintBounds);c.restore();
+      for(const prop of sourceBand) {
+        const reach=prop.size*1.3+2;
+        if(prop.x+reach<paintBounds.left||prop.x-reach>paintBounds.right||prop.y+reach<paintBounds.top||prop.y-reach>paintBounds.bottom)continue;
+        const py=prop.y-row*TILE,px=prop.x+MARGIN,scale=prop.size/100;
+        const structural=STRUCTURE_SPRITES.includes(prop.type),destroyed=this.destroyed.has(prop.id);
+        if(destroyed&&!structural){this.drawScorch(c,px,py,prop.size);continue;}
+        const stage=structural?(destroyed?3:structureStage(prop)):0;
+        this.structureEffects.drawFoundation(c,prop,px,py,destroyed);
+        c.drawImage(this.getSprite(prop.type,prop.variant,stage),px-130*scale,py-130*scale,260*scale,260*scale);
+        if(!structural&&prop.hp<prop.maxHp)ellipse(c,px+4,py+5,prop.size*.22,prop.size*.16,'rgba(36,28,37,.36)');
+      }
     }
     if(bounds){
-      // Clipping scaled transparent sprites can change edge sampling. Paint the
-      // neighbors normally on one shared scratch strip, then copy whole pixels.
-      const x=Math.max(0,bounds.left+MARGIN),y=Math.max(0,bounds.top-row*TILE+PAD);
-      const w=Math.min(out.width/d,bounds.right+MARGIN)-x,h=Math.min(out.height/d,bounds.bottom-row*TILE+PAD)-y;
-      const destination=out.getContext('2d');
-      destination.setTransform(1,0,0,1,0,0);
-      destination.clearRect(x*d,y*d,w*d,h*d);destination.drawImage(target,x*d,y*d,w*d,h*d,x*d,y*d,w*d,h*d);
+      // Paint neighbors normally on the shared scratch, then copy whole pixels;
+      // clipping individual transparent sprites changes their edge sampling.
+      const destination=out.getContext('2d');destination.setTransform(1,0,0,1,0,0);
+      destination.drawImage(target,x*d,y*d,w*d,h*d,x*d,y*d,w*d,h*d);
     }
-    this.sceneryDirty.delete(row);
-    cache.set(row,out);return out;
+    this.sceneryDirty.delete(row);cache.set(row,out);
+    out._tyranTextureVersion = (out._tyranTextureVersion || 0) + 1;
+    out._tyranTextureDirty = bounds ? { x: x*d, y: y*d, width: w*d, height: h*d } : null;
+    if (this.gpu) this.gpu.prewarm(out);
+    return out;
   }
   dirtyScenery(prop) {
-    if(!this.sceneryLayers[0].has(prop.row))return;
-    const reach=prop.size*1.3+2,old=this.sceneryDirty.get(prop.row);
+    const reach=prop.size*1.3+2;
     const bounds={left:Math.floor(prop.x-reach),right:Math.ceil(prop.x+reach),top:Math.floor(prop.y-reach),bottom:Math.ceil(prop.y+reach)};
-    if(old){
-      old.left=Math.min(old.left,bounds.left);old.right=Math.max(old.right,bounds.right);
-      old.top=Math.min(old.top,bounds.top);old.bottom=Math.max(old.bottom,bounds.bottom);
-    }else this.sceneryDirty.set(prop.row,bounds);
+    if(bounds.right<=-MARGIN||bounds.left>=this.mapWidth+MARGIN)return;
+    for(let row=Math.floor(bounds.top/TILE);row<=Math.floor(bounds.bottom/TILE);row++){
+      if(!this.sceneryLayers[0].has(row)||bounds.bottom<=row*TILE||bounds.top>=(row+1)*TILE)continue;
+      const old=this.sceneryDirty.get(row);
+      if(old){
+        old.left=Math.min(old.left,bounds.left);old.right=Math.max(old.right,bounds.right);
+        old.top=Math.min(old.top,bounds.top);old.bottom=Math.max(old.bottom,bounds.bottom);
+      }else this.sceneryDirty.set(row,{...bounds});
+    }
   }
   getGroundDetails(row) {
     const band=this.getBand(row);if(band.details)return band.details;
@@ -520,7 +579,7 @@ export class WorldRenderer {
         for(let n=0;n<2;n++){
           const age=((clock*.22+phase+n*.5)%1+1)%1,radius=s*(.12+age*.17);
           c.globalAlpha=power*Math.sin(age*Math.PI)*.095;
-          c.drawImage(this.cloudSprite,x-s*.22+age*s*.17-radius,y-s*.22-age*s*.3-radius*.66,radius*2,radius*1.32);
+          drawCloudImage(c,this.cloudSprite,x-s*.22+age*s*.17-radius,y-s*.22-age*s*.3-radius*.66,radius*2,radius*1.32);
         }
       }
     }
@@ -549,10 +608,16 @@ export class WorldRenderer {
     const view=this.layerViews[0];view.x=this.parallaxX;view.y=scroll;
     const first=view.first=Math.floor((-scroll-PAD)/TILE);
     const last=view.last=Math.floor((h-scroll+PAD)/TILE),cache=this.sceneryLayers[0];
+    c.save();c.translate(view.x,view.y);c.globalAlpha=1;
+    for(let row=Math.floor(-scroll/TILE);row<=Math.floor((h-scroll)/TILE);row++)
+      c.drawImage(this.getSceneryLayer(row,this.getBand(row)),-MARGIN,row*TILE,this.mapWidth+MARGIN*2,TILE+.5);
+    c.restore();
+    // Altitude shadows now shade the complete ground, including tree canopies
+    // and roofs. Animated lights and flames remain above the moving shadows.
+    if(quality!=='low')this.drawCloudShadows(c,h,scroll,motion?time:0,motion);
     c.save();c.translate(view.x,view.y);
     for(let row=first;row<=last;row++) {
       const band=this.getBand(row);c.globalAlpha=1;
-      c.drawImage(this.getSceneryLayer(row,band),-MARGIN,row*TILE-PAD,this.mapWidth+MARGIN*2,TILE+PAD*2);
       for(const prop of band){
         if(this.destroyed.has(prop.id))continue;
         const y=prop.y+scroll;if(y<-PAD||y>h+PAD||prop.x<-PAD||prop.x>this.viewportWidth+PAD)continue;
@@ -580,9 +645,7 @@ export class WorldRenderer {
     // clear keeps those seams independent of the previous frame's contents.
     ctx.fillStyle=this.palette.low;ctx.fillRect(-MARGIN,0,this.mapWidth+MARGIN*2,h);
     const first=Math.floor(-scroll/TILE),last=Math.floor((h-scroll)/TILE);
-    for(let row=first;row<=last;row++)ctx.drawImage(this.getTile(row),-MARGIN,row*TILE+scroll,this.mapWidth+MARGIN*2,TILE+.5);
     ctx.restore();
-    if(quality!=='low')this.drawCloudShadows(ctx,h,scroll,motion?time:0,motion);
     this.drawGroundScenery(ctx,h,scroll,time,quality,motion);
     ctx.globalAlpha=1;this.drawAtmosphere(ctx,h,scroll,motion?time:0,quality,motion);
     // The middle 55% is transparent. Keep guarded edge slices with the same
@@ -595,9 +658,10 @@ export class WorldRenderer {
       for(const prop of band){const key=`${Math.floor(prop.y/HIT_CELL)}:${Math.floor(prop.x/HIT_CELL)}`,bucket=this.hitBuckets.get(key);if(bucket){const i=bucket.indexOf(prop);if(i>=0)bucket.splice(i,1);if(!bucket.length)this.hitBuckets.delete(key);}}
       this.bands.delete(row);
     }
-    const next=this.layerViews[0].first-1;
-    this.queueTerrain(first-1);
-    if(!this.sceneryLayers[0].has(next))this.queueWarm(`scenery:0:${next}`,()=>this.getSceneryLayer(next,this.getBand(next)));
+    this.warmFirst=first-1;this.warmLast=last+1;
+    const next=first-1;
+    this.queueTerrain(next);
+    if(!this.sceneryLayers[0].has(next))this.queueScenery(next);
     for(const row of this.pendingTiles.keys())if(row<first-1||row>last+1)this.pendingTiles.delete(row);
   }
   /** All ground sprites and hits use exactly the terrain's translation. */
@@ -947,15 +1011,19 @@ export class WorldRenderer {
         const light=.38+(data[i]*.2126+data[i+1]*.7152+data[i+2]*.0722)/255*.62;
         for(let channel=0;channel<3;channel++)data[i+channel]=fog[channel]*light;
       }
-      c.putImageData(pixels,0,0);grade.width=grade.height=1;
+      c.putImageData(pixels,0,0);out._tyranAlphaBounds=cloudPixelBounds(data,480,320);grade.width=grade.height=1;
       return out;
     }
-    for(let i=0;i<16;i++){const x=100+rng()*280,y=95+rng()*130,r=55+rng()*65;const g=c.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,this.palette.fog);g.addColorStop(.45,this.palette.fog+'88');g.addColorStop(1,'transparent');c.globalAlpha=.2;circle(c,x,y,r,g);}return out;
+    let left=480,top=320,right=0,bottom=0;
+    for(let i=0;i<16;i++){const x=100+rng()*280,y=95+rng()*130,r=55+rng()*65;const g=c.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,this.palette.fog);g.addColorStop(.45,this.palette.fog+'88');g.addColorStop(1,'transparent');c.globalAlpha=.2;circle(c,x,y,r,g);left=Math.min(left,x-r);top=Math.min(top,y-r);right=Math.max(right,x+r);bottom=Math.max(bottom,y+r);}
+    out._tyranAlphaBounds=cloudBounds(left,top,right,bottom,480,320);return out;
   }
   makeCloudShadow() {
     const out=canvas(240,160),c=out.getContext('2d');
     c.drawImage(this.cloudSprite,0,0,240,160);
     c.globalCompositeOperation='source-in';c.fillStyle='#030c18';c.fillRect(0,0,240,160);
+    const b=this.cloudSprite._tyranAlphaBounds;
+    if(b)out._tyranAlphaBounds=cloudBounds(b.x*.5,b.y*.5,(b.x+b.width)*.5,(b.y+b.height)*.5,240,160);
     return out;
   }
   cloudPosition(cloud,h,scroll,time,layer=1,motion=true) {
@@ -967,30 +1035,45 @@ export class WorldRenderer {
   }
   drawCloudShadows(c,h,scroll,time,motion) {
     if(this.index===4||this.index===9)return;
+    this.drawSoftCloudGroup(c,h,scroll,time,motion,true);
+  }
+  drawSoftCloudGroup(c,h,scroll,time,motion,shadows=false) {
+    if(typeof c.drawSoftLayer!=='function'||c.globalCompositeOperation!=='source-over'){
+      if(shadows)this.drawCloudShadowSprites(c,h,scroll,time,motion);else this.drawCloudSprites(c,h,scroll,time,motion);
+      return;
+    }
+    const pass=this.softCloudPass;pass.h=h;pass.scroll=scroll;pass.time=time;pass.motion=motion;
+    c.drawSoftLayer(shadows?this.softCloudShadows:this.softClouds);
+  }
+  drawCloudShadowSprites(c,h,scroll,time,motion) {
     c.save();c.globalAlpha=this.index===7?.12:.19;
     for(const cloud of this.clouds){
       const {x,y}=this.cloudPosition(cloud,h,scroll,time,1,motion),r=cloud.r;
       // The same cloud at altitude casts a broad shadow to the lower right.
-      c.drawImage(this.cloudShadowSprite,x-r+42,y-r*.67+64,r*2,r*1.34);
+      drawCloudImage(c,this.cloudShadowSprite,x-r+42,y-r*.67+64,r*2,r*1.34);
     }
     c.restore();
+  }
+  drawCloudSprites(c,h,scroll,time,motion) {
+    const space=this.index===4||this.index===9;
+    for(let i=0;i<this.clouds.length;i++){
+      const cloud=this.clouds[i],{x,y}=this.cloudPosition(cloud,h,scroll,time,1,motion);
+      c.globalAlpha=space?.085:this.index===1?.2:this.index===3?.22:this.index===6?.15:.16;
+      drawCloudImage(c,this.cloudSprite,x-cloud.r,y-cloud.r*.67,cloud.r*2,cloud.r*1.34);
+    }
+    // Larger wisps pass faster at the sides; keep the firing lane readable.
+    for(let i=0;i<3;i++){
+      const cloud=this.clouds[i+2],position=this.cloudPosition(cloud,h,scroll,time,2,motion);
+      const x=(i%2?this.viewportWidth+70:-70)+(position.x-cloud.x)*1.3,r=cloud.r*1.35;
+      c.globalAlpha=space?.065:this.index===1?.18:.14;
+      drawCloudImage(c,this.cloudSprite,x-r,position.y-r*.67,r*2,r*1.34);
+    }
   }
   drawAtmosphere(c,h,scroll,time,quality,motion=true) {
     const space=this.index===4||this.index===9;
     c.save();
     if(quality!=='low') {
-      for(let i=0;i<this.clouds.length;i++){
-        const cloud=this.clouds[i],{x,y}=this.cloudPosition(cloud,h,scroll,time,1,motion);
-        c.globalAlpha=space?.085:this.index===1?.2:this.index===3?.22:this.index===6?.15:.16;
-        c.drawImage(this.cloudSprite,x-cloud.r,y-cloud.r*.67,cloud.r*2,cloud.r*1.34);
-      }
-      // Larger wisps pass faster at the sides; keep the firing lane readable.
-      for(let i=0;i<3;i++){
-        const cloud=this.clouds[i+2],position=this.cloudPosition(cloud,h,scroll,time,2,motion);
-        const x=(i%2?this.viewportWidth+70:-70)+(position.x-cloud.x)*1.3,r=cloud.r*1.35;
-        c.globalAlpha=space?.065:this.index===1?.18:.14;
-        c.drawImage(this.cloudSprite,x-r,position.y-r*.67,r*2,r*1.34);
-      }
+      this.drawSoftCloudGroup(c,h,scroll,time,motion);
       c.globalAlpha=1;
     }
     const count=quality==='low'?13:this.index===1?75:this.index===7?70:38;

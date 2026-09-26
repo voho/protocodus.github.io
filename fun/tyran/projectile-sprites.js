@@ -138,3 +138,5 @@ spritesReady.then(() => {
   textures.clear(); revision = spriteRevision;
   for (const bullet of requested.values()) projectileTexture(bullet);
 });
+
+export function warmGpuProjectileTextures(gpu) { gpu.prewarm([...textures.values()]); }
