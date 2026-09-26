@@ -1,0 +1,48 @@
+Create a bold, cinematic music visualization for the attached song, rendered as a Full HD MP4 ready for YouTube. It should feel like the official visualizer an exceptionally talented motion designer would make for a major release: meticulously art-directed, fully driven by the music, and visually surprising from the first frame to the last.
+
+AUDIO ANALYSIS — THE SOURCE OF ALL MOTION
+Before designing anything, analyze the track and save the results as a timeline data file that drives the entire render:
+- Tempo: BPM, plus tempo changes over time if the song has any.
+- Beat grid: the timestamp of every beat and downbeat, bar numbers, and phrase boundaries (4/8/16-bar groups).
+- Onsets: transient timestamps, separated by type where possible (kick, snare/clap, hi-hats, other percussive hits).
+- Per-frame energy: at the video frame rate, energy in the sub, bass, low-mid, high-mid, and high bands, plus overall loudness.
+- Structure: timestamps and labels for every section (intro, verse, pre-chorus, chorus/drop, bridge, breakdown, outro). Note which sections repeat.
+Every animated parameter must be computed from this data. No hardcoded timings, and no free-running loops or animations that move independently of the audio.
+
+HOW THE VISUALS MUST REACT
+Tempo: All cyclic motion (rotation, oscillation, pulsing, camera drift, loop cycles) is phase-locked to the beat grid at musically related rates (1/4, 1/2, 1, 2, or 4 beats per cycle). If the tempo changes, the motion follows.
+Beats: Every beat produces a visible event. Downbeats hit harder than off-beats. Phrase boundaries (every 4/8/16 bars) trigger a larger change: a new camera angle, a new layer, or a palette shift.
+Onsets: Kick → scale punch, camera shake, or shockwave. Snare/clap → flash, cut, or shape reveal. Hi-hats → particle bursts and fine detail. Each type keeps a consistent visual response so the viewer learns the language.
+Frequency bands: Sub/bass drives weight and mass (size, pressure, displacement depth). Mids and vocals drive fluid motion, color, and typography. Highs drive sparkle, edges, and particles.
+Dynamics: Loudness drives overall intensity, density, and brightness. Quiet passages are sparse and slow. Silence or near-silence means near-stillness.
+Structure: Each section type has its own distinct visual state (palette, camera behavior, dominant technique). Transitions between sections land exactly on the section boundary. Repeated sections (e.g. every chorus) are recognizably related, and each repeat escalates. Build-ups visibly accelerate and tighten toward the drop, and the drop lands on its exact first beat.
+Timing precision: Visual hits land on the frame of the transient, never after it. Use fast attack and slower release on reactive signals, so smoothing removes jitter without adding lag.
+
+VERIFY THE SYNC BEFORE FINAL RENDER
+- Render a short debug preview of the most complex section with an overlay: beat and downbeat ticks, current section label, and band-energy meters. Check that the visual hits align with the overlay.
+- Apply the mute test: someone watching the video without sound should be able to tap along to the beat and point out where each chorus or drop begins. If they couldn't, the reactivity is too weak or too smoothed. Fix it before the final render.
+- In the delivery notes, include the detected BPM, the section timestamps, the audio-to-visual mapping, and three timestamps where a strong beat-synced moment can be spot-checked.
+
+VISUAL LANGUAGE
+Showcase a wide range of advanced techniques, each assigned to the part of the song it suits best: kinetic typography (song title, artist, and optionally key lyrics timed to the vocal), 2D and 3D animation, abstract geometry, fluid simulations, particles, distortion and displacement, creative masking, compositing, lighting, depth of field, and seamless camera movement. Establish one cohesive visual identity — a defined color palette, typography, and motif — derived from the song's mood and genre, and evolve it across sections rather than switching styles randomly. Every section should transition naturally into the next, with recurring motifs that make the whole piece feel like one continuous world.
+
+STRUCTURE
+- Intro: establish the world and the motif; reveal title and artist.
+- Verses: controlled, rhythmic, detail-rich.
+- Pre-chorus/build: rising tension and acceleration.
+- Chorus/drop: maximum impact, the most spectacular moments.
+- Bridge: a surprising shift in perspective, palette, or scale.
+- Outro: resolve the motif, end on a clean, memorable final frame (title/artist lockup).
+Adapt this to the song's actual structure.
+
+TECHNICAL REQUIREMENTS
+- Resolution 1920×1080, 16:9, at 60 fps (or 30 fps if rendering cost demands it).
+- H.264 video, yuv420p pixel format, high quality (e.g. CRF 18 or ~12–16 Mbps), AAC audio at 320 kbps, 48 kHz.
+- Duration exactly matches the song; the original audio is muxed in with no drift. Verify sync at the start, middle, and end.
+- Avoid banding in gradients (add subtle dithering/grain), avoid large full-screen strobing (keep flashes brief and within photosensitivity-safe limits), and keep text inside title-safe margins.
+- Deliver the MP4 plus a short note listing the detected BPM, section timestamps, and which audio features drive which visuals.
+
+Push the creativity, polish, timing, and visual impact as far as possible. This should feel like the visualizer that makes people replay the song.
+
+
+SONG LOCATION: /Users/vojta/Downloads/Arcade Rush.mp3
