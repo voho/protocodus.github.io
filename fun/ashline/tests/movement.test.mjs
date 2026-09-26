@@ -33,19 +33,27 @@ test('combat remains responsive while armor rotates through a bounded shortest t
 });
 
 for(const race of ['organics','aiUnity'])for(const role of ['rifle','rocket','scout','tank','artillery','harvester','engineer','striker','constructor']){
-  test(`${race} ${role} rotates in place before moving and separates turning from travel`,()=>{
+  test(`${race} ${role} turns while traveling along its body heading and reaches its destination`,()=>{
     const {s,add}=scene();s.teams[0].race=race;
     const unit=add(raceUnit(s,0,role),30.5,40.5,Math.PI),goal={x:44.5,y:45.5};
     issueOrder(s,[unit.id],{type:'move',...goal});
-    let turning=0,traveling=0;
+    const rate=UNITS[unit.type].armor==='infantry'?7:['scout','striker'].includes(role)?2.6:1.8;
+    let turning=0,traveling=0,curving=0;
     for(let tick=0;tick<800;tick++){
       const before={x:unit.x,y:unit.y,angle:unit.angle};updateGame(s,.05);
       const angle=turn(unit.angle,before.angle),distance=Math.hypot(unit.x-before.x,unit.y-before.y);
-      assert(!(angle>1e-8&&distance>1e-8),`Frame ${tick}: body turn ${angle} and movement ${distance} may not occur together`);
-      if(angle>1e-8){turning++;assert.equal(unit.moving,false,'Turning in place does not animate translation');}
-      if(distance>1e-8)traveling++;
+      assert(angle<=rate*.05+1e-8,`Frame ${tick}: turn remains within the class steering rate`);
+      if(angle>1e-8)turning++;
+      if(distance>1e-8){
+        traveling++;
+        const dx=unit.x-before.x,dy=unit.y-before.y,fx=Math.cos(unit.angle),fy=Math.sin(unit.angle);
+        assert(Math.abs(dx*fy-dy*fx)<=1e-8&&dx*fx+dy*fy>=-1e-8,`Frame ${tick}: travel follows the current body heading instead of sliding sideways`);
+        if(angle>1e-8)curving++;
+      }
+      if(distance>.008)assert.equal(unit.moving,true,'Traveling through a turn animates translation');
+      if(distance<=1e-8)assert.equal(unit.moving,false,'Stationary frames do not animate translation');
     }
-    assert(turning>0&&traveling>0,'The test exercises both phases instead of accepting a stationary unit');
-    assert(Math.hypot(unit.x-goal.x,unit.y-goal.y)<.081,'Turning restrictions must still allow exact destination arrival');
+    assert(turning>0&&traveling>0&&curving>0,'Every class must actually rotate and translate together during its trip');
+    assert(Math.hypot(unit.x-goal.x,unit.y-goal.y)<.081,'Curved travel still reaches the exact destination');
   });
 }

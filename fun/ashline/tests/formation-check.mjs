@@ -31,8 +31,9 @@ function command(s,units,point,type='move'){
 // A mixed military/hauler formation settles, and refreshed/reordered selection cannot reshuffle slots.
 function army(){
   const{s,add}=scene(),types=Object.keys(UNITS),units=Array.from({length:60},(_,i)=>add(types[i%types.length],20.5+i%6*1.1,20.5+Math.floor(i/6)*1.1));
-  const point={x:45.23,y:38.71},goals=command(s,units,point);
-  assert([...goals.values()].every(p=>distance(p,point)<5),'An open-field army stays near the click');
+  const point={x:45.23,y:38.71},cx=units.reduce((sum,u)=>sum+u.x,0)/units.length,cy=units.reduce((sum,u)=>sum+u.y,0)/units.length;
+  const goals=command(s,units,point);
+  for(const u of units)assert(distance(goals.get(u.id),{x:point.x+u.x-cx,y:point.y+u.y-cy})<1e-9,'An open-field army translates its source formation exactly');
   units[0].trafficWait=.4;units[0].passUntil=s.time+1;
   issueOrder(s,units.map(u=>u.id).reverse(),{type:'move',...point});
   assert.equal(units[0].trafficWait,.4);assert.equal(units[0].passUntil,s.time+1);
@@ -41,10 +42,11 @@ function army(){
 }
 const first=army(),second=army();assert.deepEqual(first.entities,second.entities);assert.equal(first.rng,second.rng,'Formation decisions remain deterministic');
 
-// Selection order cannot send a nearby unit across a farther unit's route unnecessarily.
+// A widely spaced selection translates as a group rather than compacting around the click.
 {
   const{s,add}=scene('assignment'),far=add('tank',20.5,25.5),near=add('rifle',40.5,25.5);
-  const goals=command(s,[far,near],{x:40.5,y:25.5});assert.equal(distance(near,goals.get(near.id)),0);
+  const goals=command(s,[far,near],{x:40.5,y:25.5});
+  assert.deepEqual(goals.get(far.id),{x:30.5,y:25.5});assert.deepEqual(goals.get(near.id),{x:50.5,y:25.5});
   run(s,25);arrived([far,near],goals);
 }
 
@@ -55,7 +57,7 @@ const first=army(),second=army();assert.deepEqual(first.entities,second.entities
   const parked=add('tank',89.5,74.5),original={x:parked.x,y:parked.y};
   const units=Array.from({length:12},(_,i)=>add(Object.keys(UNITS)[i%6],82.5+i%4,73.5+Math.floor(i/4)));
   const goals=command(s,units,{x:92.4,y:74.3},'attackMove');
-  for(const u of units)assert(distance(goals.get(u.id),parked)>(u.size+parked.size)*.43+.17);
+  for(const u of units)assert(distance(goals.get(u.id),parked)>=(u.size+parked.size)*.43,'Each translated or fallback slot clears the parked body');
   run(s,40);arrived(units,goals);assert(distance(parked,original)<.01,'Destination allocation leaves parked units in place');
 }
 
@@ -65,11 +67,11 @@ const first=army(),second=army();assert.deepEqual(first.entities,second.entities
   const goals=command(s,units,{x:.01,y:s.height-.01});run(s,35);arrived(units,goals);
 }
 
-// A one-tile destination corridor expands the formation along its length, never into its walls.
+// A one-tile destination corridor keeps valid offsets and adjusts only slots needing wall clearance.
 {
   const{s,add}=scene('corridor');s.terrain.fill(1);for(let x=10;x<=70;x++)s.terrain[25*s.width+x]=0;
   const units=Array.from({length:12},(_,i)=>add(i%2?'artillery':'rifle',15.5+i,25.5));
-  const goals=command(s,units,{x:55.3,y:25.4});assert([...goals.values()].every(p=>p.y===25.5));
+  const goals=command(s,units,{x:55.3,y:25.4});assert([...goals.values()].every(p=>Math.abs(p.y-25.4)<=.10000001));
   run(s,80);arrived(units,goals);
 }
 

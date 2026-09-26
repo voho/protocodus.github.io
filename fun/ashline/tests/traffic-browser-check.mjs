@@ -77,11 +77,19 @@ try {
   const start = await point(88.1, 73.1), end = await point(94, 76);
   await page.mouse.move(start.x, start.y); await page.mouse.down(); await page.mouse.move(end.x, end.y, {steps: 8}); await page.mouse.up();
   assert.equal(await page.evaluate(() => ashline.view.selected.size), 10, 'Drag selects all military units and leaves automatic haulers working');
+  const sources = await page.evaluate(() => ashline.state.entities.filter(u => ashline.view.selected.has(u.id)).map(u => ({id: u.id, x: u.x, y: u.y})));
   const destination = await point(100.5, 75.5); await page.mouse.click(destination.x, destination.y, {button: 'right'});
   const goals = () => page.evaluate(() => ashline.state.entities.filter(u => ashline.view.selected.has(u.id)).map(u => ({id: u.id, x: u.order.x, y: u.order.y})));
   const checkArrival = (units, slots) => { assert.equal(units.length, 10); assert.equal(new Set(slots.map(p => `${p.x},${p.y}`)).size, 10); for (const u of units) { const p = slots.find(p => p.id === u.id); assert(Math.hypot(u.x - p.x, u.y - p.y) <= .081, 'Each selected unit reaches its own destination'); assert.equal(u.type, 'idle'); } };
   const desktopGoals = await goals(); await page.evaluate(() => formationAdvance(0)); await page.screenshot({path: `${output}/group-command.png`});
-  checkArrival(await page.evaluate(() => formationAdvance(60)), desktopGoals); await page.screenshot({path: `${output}/group-arrived.png`});
+  const translation = {x: desktopGoals[0].x - sources[0].x, y: desktopGoals[0].y - sources[0].y};
+  for (const source of sources) {
+    const goal = desktopGoals.find(p => p.id === source.id);
+    assert(Math.hypot(goal.x-source.x-translation.x, goal.y-source.y-translation.y)<1e-8, 'The real group command preserves every relative source position');
+  }
+  await page.evaluate(() => formationAdvance(1)); await page.screenshot({path: `${output}/group-turning.png`});
+  await page.evaluate(() => formationAdvance(7)); await page.screenshot({path: `${output}/group-detouring.png`});
+  checkArrival(await page.evaluate(() => formationAdvance(52)), desktopGoals); await page.screenshot({path: `${output}/group-arrived.png`});
   await page.setViewportSize({width: 390, height: 844});
   await page.evaluate(() => new Promise(resolve => formationFixture.raf.call(window, () => formationFixture.raf.call(window, resolve))));
   await page.evaluate(() => { Object.assign(ashline.view, {x: 100.5, y: 75.5, zoom: 24}); formationAdvance(0); });

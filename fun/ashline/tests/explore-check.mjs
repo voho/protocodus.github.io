@@ -74,7 +74,9 @@ for(const type of ['rifle','scout','tank','artillery']){
   issueOrder(s,[u.id],{type:'explore'});const origin={x:u.x,y:u.y},before=enemy.hp;advance(s,.2);
   assert(enemy.hp<before,`Exploring ${type} guards against a visible nearby enemy`);
   assert.deepEqual({x:u.x,y:u.y},origin,`${type} holds position while firing`);assert.equal(u.order.type,'explore');
-  enemy.x=u.x+UNITS[type].range+2;u.cooldown=0;const distantHp=enemy.hp,unopposed=structuredClone(s);
+  // Leave a full second of travel outside weapon range now that a unit can
+  // resume forward motion during its turn toward the exploration route.
+  enemy.x=u.x+UNITS[type].range+UNITS[type].speed+2;u.cooldown=0;const distantHp=enemy.hp,unopposed=structuredClone(s);
   unopposed.entities=unopposed.entities.filter(e=>e.id!==enemy.id);advance(s,1);advance(unopposed,1);
   assert.equal(enemy.hp,distantHp,`${type} does not attack an out-of-range former target`);
   assert.deepEqual({x:u.x,y:u.y},{x:unopposed.entities[0].x,y:unopposed.entities[0].y},`${type} follows its exploration route without chasing a distant enemy`);

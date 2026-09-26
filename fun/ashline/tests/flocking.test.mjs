@@ -26,7 +26,10 @@ function advance(s) {
   updateGame(s,.05);
   for(const u of s.entities) {
     const old=before.get(u.id),length=distance(old,u);
-    assert(!(turn(old.angle,u.angle)>1e-8&&length>1e-8),'Flocking preserves stationary turns');
+    const d=UNITS[u.type],rate=d.armor==='infantry'?7:['scout','striker'].includes(d.role)?2.6:1.8;
+    assert(turn(old.angle,u.angle)<=rate*.05+1e-8,'Flocking uses a bounded body turn');
+    const dx=u.x-old.x,dy=u.y-old.y,fx=Math.cos(u.angle),fy=Math.sin(u.angle);
+    assert(Math.abs(dx*fy-dy*fx)<=1e-8&&dx*fx+dy*fy>=-1e-8,`Flocking travel follows the current body heading: unit ${u.id} at ${s.time.toFixed(2)}s moved (${dx}, ${dy}) with heading ${u.angle}`);
     const steps=Math.max(1,Math.ceil(length/.08));
     for(let step=1;step<=steps;step++)for(const dx of [-.189,.189])for(const dy of [-.189,.189]) {
       const x=old.x+(u.x-old.x)*step/steps+dx,y=old.y+(u.y-old.y)*step/steps+dy;
@@ -55,7 +58,19 @@ test('alignment responds to the actual headings of nearby traveling allies',()=>
   assert.equal(flockSteering(u,goal,[{...other,vx:0,vy:0}],0),null,'Stationary bodies have no velocity to align to');
 });
 
-test('separation avoids parked bodies and coincident spawns without pulling settled units away',()=>{
+test('formation cohesion preserves offsets and corrects displacement from assigned lanes',()=>{
+  const formation={x:50,y:25,dx:0,dy:-1.5};
+  const u={id:1,team:0,x:20,y:23.5,size:.8,order:{type:'move',formation}},goal={x:50,y:23.5};
+  const other={id:2,team:0,x:20,y:26.5,size:.8,vx:1,vy:0,goal:{x:50,y:26.5},formation:{...formation,dy:1.5}};
+  assert.equal(flockSteering(u,goal,[other],0),null,'An intact formation must not contract toward its center');
+  const displaced={...u,y:20.5};
+  const correction=flockSteering(displaced,goal,[{...other,y:23.5}],0,{x:50,y:20.5});
+  assert.equal(correction,null,'Equal displacement of both lanes preserves their relative offsets');
+  const narrow={...other,y:23.5,goal:{x:50,y:23.5},formation:{...formation,dy:-1.5}};
+  assert(flockSteering(displaced,goal,[narrow],0,{x:50,y:20.5})?.y>0,'A unit displaced from the shared translation rejoins the formation');
+});
+
+test('separation avoids parked bodies and coincident spawns and remains active during arrival',()=>{
   const u={id:1,team:0,x:20,y:25,size:.8},goal={x:50,y:25};
   const parked={id:2,team:0,x:20,y:25.8,size:.8,vx:0,vy:0,goal:null};
   assert(flockSteering(u,goal,[parked],0).y<0,'A parked ally still repels an approaching unit');
@@ -63,7 +78,18 @@ test('separation avoids parked bodies and coincident spawns without pulling sett
   const a=flockSteering(u,goal,[{...parked,x:20,y:25}],0);
   const b=flockSteering({...u,id:2},goal,[{...parked,id:1,x:20,y:25}],0);
   assert(Number.isFinite(a.x+a.y+b.x+b.y)&&a.y*b.y<0,'Coincident units choose finite opposite escape directions');
-  assert.equal(flockSteering(u,{x:20.5,y:25},[parked],0),null,'The personal destination takes priority while settling');
+  assert(flockSteering(u,{x:20.5,y:25},[parked],0).y<0,'Body clearance still takes priority beside the destination');
+});
+
+test('comfortably spaced parallel movers keep stable straight lanes',()=>{
+  const {s,add}=scene('stable-flock'),a=add('tank',20,25),b=add('tank',20,25.9);
+  command(s,a,50,25);command(s,b,50,25.9);
+  for(let tick=0;tick<800;tick++) {
+    advance(s);
+    assert.equal(a.y,25);assert.equal(b.y,25.9);
+    assert.equal(a.angle,0);assert.equal(b.angle,0);
+  }
+  assert.equal(a.order.type,'idle');assert.equal(b.order.type,'idle');
 });
 
 test('a flock neighborhood is fixed for a tick and ignores dead units and buildings',()=>{
@@ -84,6 +110,10 @@ test('parked workers and repairing engineers do not advertise stale flock destin
   const neighbors=createFlockSnapshot(s.entities)(mover);
   assert.deepEqual(neighbors.map(u=>u.goal),[null,null],'Work in place does not attract passing units toward an obsolete route');
   assert.equal(flockSteering(mover,{x:50,y:25},neighbors,0),null);
+  worker.moving=true;worker.moveSpeed=2;worker.order.formation={x:40,y:25,dx:0,dy:0};
+  const hauling=createFlockSnapshot(s.entities)(mover).find(other=>other.id===worker.id);
+  assert.deepEqual(hauling.goal,worker.pathGoal,'An active hauler advertises its current resource route');
+  assert.equal(hauling.formation,null,'Resumed harvesting cannot reactivate a completed formation');
 });
 
 test('a nearby herd across a solid wall does not pull a unit off its clear route',()=>{
@@ -98,35 +128,48 @@ test('a nearby herd across a solid wall does not pull a unit off its clear route
   assert(a.x>30,'The unit follows its own open route');
 });
 
-test('nearby parallel movers separate and still settle into their exact destinations',()=>{
-  const {s,add}=scene(),a=add('tank',20,25),b=add('tank',20,25.9);
+test('compressed parallel movers separate and still settle into their exact destinations',()=>{
+  const {s,add}=scene(),a=add('tank',20,25),b=add('tank',20,25.72);
   const goals=[command(s,a,50,25),command(s,b,50,25.9)];
-  assert.deepEqual(goals,[{x:50,y:25},{x:50,y:25.9}],'The routes begin parallel without a reserved-slot detour');
-  let separation=distance(a,b),activeSteering=false;
+  assert.deepEqual(goals,[{x:50,y:25},{x:50,y:25.9}],'Distinct reserved destinations remain at their requested spacing');
+  let separation=distance(a,b),activeSteering=false,curving=false;
   for(let tick=0;tick<1600;tick++) {
+    const previous={x:a.x,y:a.y,angle:a.angle};
     advance(s);
     if(Math.max(a.x,b.x)<35)separation=Math.max(separation,distance(a,b));
-    activeSteering ||= a.path.some(p=>p.flock===true)||b.path.some(p=>p.flock===true);
+    activeSteering ||= a.y<24.99;
+    curving ||= distance(previous,a)>1e-8&&turn(previous.angle,a.angle)>1e-8;
+    assert(distance(a,b)>=(a.size+b.size)*.43-.01,'Separation never lets the moving bodies intersect');
   }
-  assert(activeSteering,'The fixture exercises a real flock steering leg');
-  assert(separation>1.05,'Close allies create room while moving together');
+  assert(activeSteering&&curving,'The fixture exercises visible flock steering while traveling');
+  assert(separation>.85,'Compressed allies restore comfortable clearance while moving together');
   [a,b].forEach((u,i)=>{assert(distance(u,goals[i])<=.081);assert.equal(u.order.type,'idle');assert.equal(u.moving,false);});
 });
 
 test('an active flock turn resumes exactly from a save and a stop cancels it',()=>{
-  const {s,add}=scene('saved-flock'),units=[add('tank',20,25),add('tank',20,25.9)];
+  const {s,add}=scene('saved-flock'),units=[add('tank',20,25),add('tank',20,25.72)];
   units.forEach((u,i)=>command(s,u,50,25+i*.9));
-  for(let tick=0;tick<200&&!units.some(u=>u.path.some(p=>p.flock===true));tick++)advance(s);
-  assert(units.some(u=>u.path.some(p=>p.flock===true)),'Save during a flock steering leg');
+  let curving=false;
+  for(let tick=0;tick<200&&!curving;tick++){
+    const before=units.map(u=>({x:u.x,y:u.y,angle:u.angle}));advance(s);
+    curving=units.some((u,i)=>distance(u,before[i])>1e-8&&turn(u.angle,before[i].angle)>1e-8);
+  }
+  assert(curving,'Save while the herd is visibly turning and traveling');
   const saved=encodeGame(s),restored=decodeGame(saved).game;
-  const damaged=JSON.parse(saved),path=damaged.game.entities.find(u=>u.path.some(p=>p.flock===true)).path;
-  path.find(p=>p.flock===true).flock='true';
+  const damaged=JSON.parse(saved),path=damaged.game.entities.find(u=>u.path.length).path;
+  path[0].flock='true';
   assert.throws(()=>decodeGame(JSON.stringify(damaged)),/damaged|incompatible/,'Saved steering flags must be boolean');
+  for(const invalid of [0,-1,.5,s.nextId,'1']) {
+    const malformed=JSON.parse(saved);malformed.game.entities[0].passTargetId=invalid;
+    assert.throws(()=>decodeGame(JSON.stringify(malformed)),/damaged|incompatible/,'A temporary passing target must be a valid entity ID');
+    const badRoute=JSON.parse(saved);badRoute.game.entities.find(u=>u.path.length).path[0].trafficId=invalid;
+    assert.throws(()=>decodeGame(JSON.stringify(badRoute)),/damaged|incompatible/,'A traffic detour must reference a valid entity ID');
+  }
   const cancelled=decodeGame(encodeGame(s)).game;
   stopUnits(cancelled,units.map(u=>u.id));
   const stopped=cancelled.entities.map(u=>({x:u.x,y:u.y}));
   for(let tick=0;tick<30;tick++)advance(cancelled);
-  assert.deepEqual(cancelled.entities.map(u=>({x:u.x,y:u.y})),stopped,'Stopping an active steering leg holds the current position');
+  assert.deepEqual(cancelled.entities.map(u=>({x:u.x,y:u.y})),stopped,'Stopping during a curve holds the current position');
   for(let tick=0;tick<700;tick++) {advance(s);advance(restored);}
   assert.deepEqual(restored.entities,s.entities,'Stored steering decisions continue identically');
   assert.equal(restored.rng,s.rng);
