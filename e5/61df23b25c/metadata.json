@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "e561df23b25c",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "fun/tyran/README.md",
+    "fun/tyran/assets/ASSETS.md",
+    "fun/tyran/audio-assets.js",
+    "fun/tyran/audio.js",
+    "fun/tyran/game.js",
+    "fun/tyran/index.html",
+    "fun/tyran/tests/audio-check.mjs",
+    "fun/tyran/tests/preload-browser-check.mjs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/e5/61df23b25c/0/metadata.json",
+      "transcript": "/e5/61df23b25c/0/full.jsonl",
+      "context": "/e5/61df23b25c/0/context.md",
+      "content_hash": "/e5/61df23b25c/0/content_hash.txt",
+      "prompt": "/e5/61df23b25c/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 184,
+    "cache_creation_tokens": 222747,
+    "cache_read_tokens": 6989952,
+    "output_tokens": 50046,
+    "api_call_count": 67
+  }
+}
