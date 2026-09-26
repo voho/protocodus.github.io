@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "58ce105d39f6",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "fun/tyran/flight-layout.css",
+    "fun/tyran/game.js",
+    "fun/tyran/index.html",
+    "fun/tyran/tests/unobstructed-arena-check.mjs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/58/ce105d39f6/0/metadata.json",
+      "transcript": "/58/ce105d39f6/0/full.jsonl",
+      "context": "/58/ce105d39f6/0/context.md",
+      "content_hash": "/58/ce105d39f6/0/content_hash.txt",
+      "prompt": "/58/ce105d39f6/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 184,
+    "cache_creation_tokens": 222747,
+    "cache_read_tokens": 6989952,
+    "output_tokens": 50046,
+    "api_call_count": 67
+  }
+}
