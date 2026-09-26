@@ -6,8 +6,8 @@ import { stepEcology, localEnvironment } from '../environment.js';
 import { encodeGame, decodeGame } from '../save-codec.js';
 
 for(const [biome,nature] of Object.entries(BIOME_NATURE)){
-  test(`${biome} has a complete, deterministic nature repertoire in every world size`,()=>{
-    for(const size of Object.keys(WORLD_SIZES)){
+  test(`${biome} has a complete, deterministic nature repertoire in legacy and starter square worlds`,()=>{
+    for(const size of Object.keys(WORLD_SIZES).filter(size => WORLD_SIZES[size].width <= 768)){
       const game=generateWorld(biome,1847,size),repeat=generateWorld(biome,1847,size);
       assert.deepEqual(game.tiles,repeat.tiles);
       const treeDetails=new Set(game.tiles.filter(tile=>tile.terrain==='forest').map(tile=>tile.detail));

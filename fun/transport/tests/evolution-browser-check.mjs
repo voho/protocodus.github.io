@@ -13,7 +13,7 @@ try{
   await page.waitForFunction(()=>window.transport?.game);
   await page.locator('[data-speed="0"]').click();
   await page.locator('#world-button').click();
-  await page.locator('[data-world-size="regional"]').click();
+  await page.locator('[data-world-size="square512"]').click();
   await page.locator('#generate-world').click();
   await page.locator('[data-speed="0"]').click();
   const setup=await page.evaluate(async()=>{

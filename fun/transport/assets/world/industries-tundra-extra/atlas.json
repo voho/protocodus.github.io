@@ -1,0 +1,56 @@
+{
+  "columns": 1,
+  "rows": 1,
+  "cellSizes": [
+    16,
+    32,
+    64,
+    128,
+    256
+  ],
+  "masterCell": 256,
+  "order": [
+    "industry:equipment-factory:tundra"
+  ],
+  "source": "source-generated.png",
+  "sourceSha256": "2226539b82d779bab2af77cf55ca2b79c73cdd7c82ad97347af2bf45c4c97606",
+  "sprites": [
+    {
+      "id": "industry:equipment-factory:tundra",
+      "cell": 0,
+      "sourceBounds": [
+        0,
+        0,
+        1254,
+        1254
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          21,
+          191,
+          1239,
+          1098
+        ],
+        "rawAlphaBounds": [
+          0,
+          9,
+          1240,
+          1254
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.466613
+      },
+      "bounds": [
+        12,
+        71,
+        244,
+        244
+      ]
+    }
+  ]
+}

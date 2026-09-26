@@ -1,0 +1,155 @@
+{
+  "sourceSize": [
+    1254,
+    1254
+  ],
+  "paddedCellSize": 640,
+  "operations": "RGBA crop and integer translation only; no resampling or rotation",
+  "cells": [
+    {
+      "originalCrop": [
+        0,
+        0,
+        450,
+        480
+      ],
+      "paddedCellOffset": [
+        95,
+        80
+      ],
+      "meaningfulBounds": [
+        56,
+        81,
+        424,
+        429
+      ]
+    },
+    {
+      "originalCrop": [
+        450,
+        0,
+        810,
+        480
+      ],
+      "paddedCellOffset": [
+        140,
+        80
+      ],
+      "meaningfulBounds": [
+        97,
+        57,
+        257,
+        418
+      ]
+    },
+    {
+      "originalCrop": [
+        810,
+        0,
+        1254,
+        480
+      ],
+      "paddedCellOffset": [
+        98,
+        80
+      ],
+      "meaningfulBounds": [
+        16,
+        81,
+        386,
+        429
+      ]
+    },
+    {
+      "originalCrop": [
+        0,
+        480,
+        490,
+        745
+      ],
+      "paddedCellOffset": [
+        75,
+        187
+      ],
+      "meaningfulBounds": [
+        32,
+        46,
+        458,
+        243
+      ]
+    },
+    null,
+    {
+      "originalCrop": [
+        760,
+        480,
+        1254,
+        745
+      ],
+      "paddedCellOffset": [
+        73,
+        187
+      ],
+      "meaningfulBounds": [
+        32,
+        46,
+        460,
+        243
+      ]
+    },
+    {
+      "originalCrop": [
+        0,
+        735,
+        450,
+        1254
+      ],
+      "paddedCellOffset": [
+        95,
+        60
+      ],
+      "meaningfulBounds": [
+        55,
+        77,
+        430,
+        434
+      ]
+    },
+    {
+      "originalCrop": [
+        450,
+        735,
+        810,
+        1254
+      ],
+      "paddedCellOffset": [
+        140,
+        60
+      ],
+      "meaningfulBounds": [
+        94,
+        116,
+        262,
+        443
+      ]
+    },
+    {
+      "originalCrop": [
+        810,
+        735,
+        1254,
+        1254
+      ],
+      "paddedCellOffset": [
+        98,
+        60
+      ],
+      "meaningfulBounds": [
+        13,
+        78,
+        386,
+        434
+      ]
+    }
+  ]
+}

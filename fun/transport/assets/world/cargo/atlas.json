@@ -1,0 +1,360 @@
+{
+  "columns": 3,
+  "rows": 3,
+  "cellSizes": [
+    16,
+    32,
+    64,
+    128
+  ],
+  "masterCell": 256,
+  "vehicleLengthNormalized": false,
+  "order": [
+    "cargo:coal",
+    "cargo:ore",
+    "cargo:timber",
+    "cargo:grain",
+    "cargo:crates",
+    "cargo:steel",
+    "cargo:barrels",
+    "cargo:glass",
+    "cargo:fish"
+  ],
+  "source": "source-generated.png",
+  "sourceSha256": "afd07d1e634a2d093946f632bb6db929056a7b9155fc0be52704263e5ea21fef",
+  "sprites": [
+    {
+      "id": "cargo:coal",
+      "cell": 0,
+      "sourceBounds": [
+        0,
+        0,
+        418,
+        418
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          37,
+          131,
+          382,
+          351
+        ],
+        "rawAlphaBounds": [
+          32,
+          103,
+          412,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.616555
+      },
+      "bounds": [
+        12,
+        54,
+        244,
+        202
+      ]
+    },
+    {
+      "id": "cargo:ore",
+      "cell": 1,
+      "sourceBounds": [
+        418,
+        0,
+        836,
+        418
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          38,
+          131,
+          382,
+          352
+        ],
+        "rawAlphaBounds": [
+          21,
+          48,
+          418,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.609098
+      },
+      "bounds": [
+        12,
+        53,
+        244,
+        202
+      ]
+    },
+    {
+      "id": "cargo:timber",
+      "cell": 2,
+      "sourceBounds": [
+        836,
+        0,
+        1254,
+        418
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          41,
+          130,
+          388,
+          350
+        ],
+        "rawAlphaBounds": [
+          27,
+          45,
+          389,
+          404
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.603552
+      },
+      "bounds": [
+        12,
+        54,
+        244,
+        201
+      ]
+    },
+    {
+      "id": "cargo:grain",
+      "cell": 3,
+      "sourceBounds": [
+        0,
+        418,
+        418,
+        836
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          38,
+          120,
+          378,
+          317
+        ],
+        "rawAlphaBounds": [
+          33,
+          0,
+          416,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.642236
+      },
+      "bounds": [
+        12,
+        61,
+        244,
+        195
+      ]
+    },
+    {
+      "id": "cargo:crates",
+      "cell": 4,
+      "sourceBounds": [
+        418,
+        418,
+        836,
+        836
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          42,
+          104,
+          379,
+          321
+        ],
+        "rawAlphaBounds": [
+          25,
+          6,
+          414,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.598321
+      },
+      "bounds": [
+        12,
+        53,
+        244,
+        202
+      ]
+    },
+    {
+      "id": "cargo:steel",
+      "cell": 5,
+      "sourceBounds": [
+        836,
+        418,
+        1254,
+        836
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          40,
+          113,
+          382,
+          315
+        ],
+        "rawAlphaBounds": [
+          9,
+          7,
+          387,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.637474
+      },
+      "bounds": [
+        12,
+        59,
+        244,
+        196
+      ]
+    },
+    {
+      "id": "cargo:barrels",
+      "cell": 6,
+      "sourceBounds": [
+        0,
+        836,
+        418,
+        1254
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          49,
+          64,
+          368,
+          306
+        ],
+        "rawAlphaBounds": [
+          0,
+          0,
+          418,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.601005
+      },
+      "bounds": [
+        12,
+        40,
+        244,
+        216
+      ]
+    },
+    {
+      "id": "cargo:glass",
+      "cell": 7,
+      "sourceBounds": [
+        418,
+        836,
+        836,
+        1254
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          41,
+          77,
+          377,
+          305
+        ],
+        "rawAlphaBounds": [
+          15,
+          15,
+          418,
+          396
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.612154
+      },
+      "bounds": [
+        12,
+        49,
+        244,
+        206
+      ]
+    },
+    {
+      "id": "cargo:fish",
+      "cell": 8,
+      "sourceBounds": [
+        836,
+        836,
+        1254,
+        1254
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          40,
+          77,
+          379,
+          299
+        ],
+        "rawAlphaBounds": [
+          1,
+          49,
+          387,
+          395
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.594366
+      },
+      "bounds": [
+        12,
+        52,
+        244,
+        204
+      ]
+    }
+  ]
+}

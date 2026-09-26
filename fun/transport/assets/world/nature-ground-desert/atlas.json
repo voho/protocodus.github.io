@@ -1,0 +1,359 @@
+{
+  "columns": 3,
+  "rows": 3,
+  "cellSizes": [
+    16,
+    32,
+    64,
+    128
+  ],
+  "masterCell": 256,
+  "order": [
+    "nature-ground-desert:cactus",
+    "nature-ground-desert:agave",
+    "nature-ground-desert:prickly-pear",
+    "nature-ground-desert:aloe",
+    "nature-ground-desert:desert-flowers",
+    "nature-ground-desert:dry-grass",
+    "nature-ground-desert:scrub",
+    "nature-ground-desert:reeds",
+    "nature-ground-desert:saltflat"
+  ],
+  "source": "exec-000e1a74-7b60-449b-941e-695edfc315a7.png",
+  "sourceSha256": "af0cfb9546528788d49ecd59d4e2aa2320b02349b65cd1edf21e353135e60588",
+  "sprites": [
+    {
+      "id": "nature-ground-desert:cactus",
+      "cell": 0,
+      "sourceBounds": [
+        0,
+        0,
+        418,
+        418
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          164,
+          135,
+          302,
+          365
+        ],
+        "rawAlphaBounds": [
+          0,
+          19,
+          392,
+          410
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.891217
+      },
+      "bounds": [
+        58,
+        12,
+        197,
+        244
+      ]
+    },
+    {
+      "id": "nature-ground-desert:agave",
+      "cell": 1,
+      "sourceBounds": [
+        418,
+        0,
+        836,
+        418
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          124,
+          196,
+          291,
+          362
+        ],
+        "rawAlphaBounds": [
+          7,
+          51,
+          402,
+          412
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.89223
+      },
+      "bounds": [
+        13,
+        13,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "nature-ground-desert:prickly-pear",
+      "cell": 2,
+      "sourceBounds": [
+        836,
+        0,
+        1254,
+        418
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          118,
+          202,
+          276,
+          367
+        ],
+        "rawAlphaBounds": [
+          49,
+          73,
+          362,
+          398
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.899035
+      },
+      "bounds": [
+        17,
+        12,
+        239,
+        244
+      ]
+    },
+    {
+      "id": "nature-ground-desert:aloe",
+      "cell": 3,
+      "sourceBounds": [
+        0,
+        418,
+        418,
+        836
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          143,
+          180,
+          318,
+          333
+        ],
+        "rawAlphaBounds": [
+          43,
+          31,
+          418,
+          402
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.89939
+      },
+      "bounds": [
+        12,
+        41,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "nature-ground-desert:desert-flowers",
+      "cell": 4,
+      "sourceBounds": [
+        418,
+        418,
+        836,
+        836
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          129,
+          188,
+          293,
+          327
+        ],
+        "rawAlphaBounds": [
+          1,
+          21,
+          414,
+          398
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.914952
+      },
+      "bounds": [
+        12,
+        47,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "nature-ground-desert:dry-grass",
+      "cell": 5,
+      "sourceBounds": [
+        836,
+        418,
+        1254,
+        836
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          108,
+          181,
+          282,
+          334
+        ],
+        "rawAlphaBounds": [
+          29,
+          7,
+          399,
+          400
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.886656
+      },
+      "bounds": [
+        12,
+        40,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "nature-ground-desert:scrub",
+      "cell": 6,
+      "sourceBounds": [
+        0,
+        836,
+        418,
+        1254
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          137,
+          135,
+          319,
+          296
+        ],
+        "rawAlphaBounds": [
+          39,
+          29,
+          382,
+          394
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.881928
+      },
+      "bounds": [
+        12,
+        39,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "nature-ground-desert:reeds",
+      "cell": 7,
+      "sourceBounds": [
+        418,
+        836,
+        836,
+        1254
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          128,
+          115,
+          292,
+          302
+        ],
+        "rawAlphaBounds": [
+          1,
+          23,
+          404,
+          392
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.883679
+      },
+      "bounds": [
+        26,
+        12,
+        229,
+        244
+      ]
+    },
+    {
+      "id": "nature-ground-desert:saltflat",
+      "cell": 8,
+      "sourceBounds": [
+        836,
+        836,
+        1254,
+        1254
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          103,
+          173,
+          296,
+          294
+        ],
+        "rawAlphaBounds": [
+          9,
+          49,
+          378,
+          394
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.905542
+      },
+      "bounds": [
+        12,
+        99,
+        244,
+        244
+      ]
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 import { BUILDINGS, residentialKind, commercialKind } from './buildings.js';
 import { localEnvironment, randomAt, weatherAt } from './environment.js';
+import { industryTiles } from './industry-sites.js';
 
 const clamp = (value, min = 0, max = 1) => Math.max(min, Math.min(max, value));
 const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -67,7 +68,7 @@ export function housingCapacity(building) {
 // cannot trigger a chain of same-day development across its entire street.
 export function stepSettlements(game) {
   const day = Math.floor(game.day), proposals = [];
-  const occupied = new Set([...game.industries, ...game.stations, ...game.cities].map(point => `${point.x},${point.y}`));
+  const occupied = new Set([...game.industries.flatMap(industryTiles), ...game.stations, ...game.cities].map(point => `${point.x},${point.y}`));
   for (const city of game.cities) {
     const environment = localEnvironment(game, city.x, city.y);
     const weather = weatherAt(game, city.x, city.y, day);

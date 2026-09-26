@@ -1,0 +1,359 @@
+{
+  "columns": 3,
+  "rows": 3,
+  "cellSizes": [
+    16,
+    32,
+    64,
+    128
+  ],
+  "masterCell": 256,
+  "order": [
+    "nature-trees-tundra:pine",
+    "nature-trees-tundra:larch",
+    "nature-trees-tundra:dwarf-birch",
+    "nature-trees-tundra:dwarf-pine",
+    "nature-trees-tundra:deadwood",
+    "nature-trees-tundra:bare-birch",
+    "nature-trees-tundra:sapling",
+    "nature-trees-tundra:ice-pine",
+    "nature-trees-tundra:willow-tree"
+  ],
+  "source": "exec-7ab621e1-2fc7-4ee8-9064-3931404754b4.png",
+  "sourceSha256": "b0a84852c5883d4d0501d1c6b21f8fcb00798a139651e47b2b5a6dcb18c02d3d",
+  "sprites": [
+    {
+      "id": "nature-trees-tundra:pine",
+      "cell": 0,
+      "sourceBounds": [
+        0,
+        0,
+        418,
+        418
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          64,
+          40,
+          397,
+          415
+        ],
+        "rawAlphaBounds": [
+          0,
+          9,
+          418,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.585758
+      },
+      "bounds": [
+        25,
+        12,
+        231,
+        244
+      ]
+    },
+    {
+      "id": "nature-trees-tundra:larch",
+      "cell": 1,
+      "sourceBounds": [
+        418,
+        0,
+        836,
+        418
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          88,
+          24,
+          342,
+          418
+        ],
+        "rawAlphaBounds": [
+          1,
+          12,
+          418,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.689671
+      },
+      "bounds": [
+        53,
+        12,
+        203,
+        244
+      ]
+    },
+    {
+      "id": "nature-trees-tundra:dwarf-birch",
+      "cell": 2,
+      "sourceBounds": [
+        836,
+        0,
+        1254,
+        418
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          28,
+          112,
+          376,
+          414
+        ],
+        "rawAlphaBounds": [
+          0,
+          20,
+          390,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.599511
+      },
+      "bounds": [
+        12,
+        43,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "nature-trees-tundra:dwarf-pine",
+      "cell": 3,
+      "sourceBounds": [
+        0,
+        418,
+        418,
+        836
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          25,
+          122,
+          395,
+          391
+        ],
+        "rawAlphaBounds": [
+          0,
+          0,
+          418,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.661449
+      },
+      "bounds": [
+        12,
+        75,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "nature-trees-tundra:deadwood",
+      "cell": 4,
+      "sourceBounds": [
+        418,
+        418,
+        836,
+        836
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          112,
+          18,
+          336,
+          418
+        ],
+        "rawAlphaBounds": [
+          1,
+          0,
+          418,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.801567
+      },
+      "bounds": [
+        63,
+        12,
+        193,
+        244
+      ]
+    },
+    {
+      "id": "nature-trees-tundra:bare-birch",
+      "cell": 5,
+      "sourceBounds": [
+        836,
+        418,
+        1254,
+        836
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          57,
+          16,
+          391,
+          401
+        ],
+        "rawAlphaBounds": [
+          1,
+          0,
+          404,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.600719
+      },
+      "bounds": [
+        27,
+        12,
+        228,
+        244
+      ]
+    },
+    {
+      "id": "nature-trees-tundra:sapling",
+      "cell": 6,
+      "sourceBounds": [
+        0,
+        836,
+        418,
+        1254
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          115,
+          64,
+          321,
+          383
+        ],
+        "rawAlphaBounds": [
+          0,
+          0,
+          418,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.787482
+      },
+      "bounds": [
+        53,
+        12,
+        203,
+        244
+      ]
+    },
+    {
+      "id": "nature-trees-tundra:ice-pine",
+      "cell": 7,
+      "sourceBounds": [
+        418,
+        836,
+        836,
+        1254
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          75,
+          0,
+          342,
+          392
+        ],
+        "rawAlphaBounds": [
+          0,
+          0,
+          418,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.643752
+      },
+      "bounds": [
+        49,
+        12,
+        207,
+        244
+      ]
+    },
+    {
+      "id": "nature-trees-tundra:willow-tree",
+      "cell": 8,
+      "sourceBounds": [
+        836,
+        836,
+        1254,
+        1254
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          17,
+          100,
+          397,
+          384
+        ],
+        "rawAlphaBounds": [
+          0,
+          0,
+          406,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.602253
+      },
+      "bounds": [
+        12,
+        71,
+        244,
+        244
+      ]
+    }
+  ]
+}

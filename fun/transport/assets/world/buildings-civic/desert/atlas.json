@@ -1,0 +1,359 @@
+{
+  "columns": 3,
+  "rows": 3,
+  "cellSizes": [
+    16,
+    32,
+    64,
+    128
+  ],
+  "masterCell": 256,
+  "order": [
+    "school",
+    "hospital",
+    "police-station",
+    "fire-station",
+    "stadium",
+    "church",
+    "pub",
+    "shop-grocery",
+    "shop-bakery"
+  ],
+  "source": "desert-source.png",
+  "sourceSha256": "73b09981787730b1e34f9ca1b0163ce894b15e714c60e6283faf0c81682337ca",
+  "sprites": [
+    {
+      "id": "school",
+      "cell": 0,
+      "sourceBounds": [
+        0,
+        0,
+        418,
+        418
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          16,
+          27,
+          403,
+          401
+        ],
+        "rawAlphaBounds": [
+          0,
+          26,
+          406,
+          412
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.45893
+      },
+      "bounds": [
+        16,
+        22,
+        240,
+        239
+      ]
+    },
+    {
+      "id": "hospital",
+      "cell": 1,
+      "sourceBounds": [
+        418,
+        0,
+        836,
+        418
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          13,
+          99,
+          403,
+          400
+        ],
+        "rawAlphaBounds": [
+          12,
+          71,
+          414,
+          406
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.488679
+      },
+      "bounds": [
+        15,
+        64,
+        241,
+        238
+      ]
+    },
+    {
+      "id": "police-station",
+      "cell": 2,
+      "sourceBounds": [
+        836,
+        0,
+        1254,
+        418
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          16,
+          95,
+          406,
+          400
+        ],
+        "rawAlphaBounds": [
+          13,
+          95,
+          406,
+          407
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.45921
+      },
+      "bounds": [
+        17,
+        62,
+        242,
+        238
+      ]
+    },
+    {
+      "id": "fire-station",
+      "cell": 3,
+      "sourceBounds": [
+        0,
+        418,
+        418,
+        836
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          18,
+          28,
+          402,
+          401
+        ],
+        "rawAlphaBounds": [
+          0,
+          28,
+          418,
+          408
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.442429
+      },
+      "bounds": [
+        17,
+        23,
+        240,
+        239
+      ]
+    },
+    {
+      "id": "stadium",
+      "cell": 4,
+      "sourceBounds": [
+        418,
+        418,
+        836,
+        836
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          9,
+          101,
+          406,
+          402
+        ],
+        "rawAlphaBounds": [
+          0,
+          7,
+          418,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.500355
+      },
+      "bounds": [
+        12,
+        65,
+        242,
+        239
+      ]
+    },
+    {
+      "id": "church",
+      "cell": 5,
+      "sourceBounds": [
+        836,
+        418,
+        1254,
+        836
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          18,
+          19,
+          401,
+          401
+        ],
+        "rawAlphaBounds": [
+          14,
+          9,
+          403,
+          412
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.511836
+      },
+      "bounds": [
+        18,
+        18,
+        239,
+        239
+      ]
+    },
+    {
+      "id": "pub",
+      "cell": 6,
+      "sourceBounds": [
+        0,
+        836,
+        418,
+        1254
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          15,
+          52,
+          403,
+          400
+        ],
+        "rawAlphaBounds": [
+          0,
+          11,
+          403,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.388579
+      },
+      "bounds": [
+        16,
+        38,
+        240,
+        238
+      ]
+    },
+    {
+      "id": "shop-grocery",
+      "cell": 7,
+      "sourceBounds": [
+        418,
+        836,
+        836,
+        1254
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          14,
+          22,
+          404,
+          400
+        ],
+        "rawAlphaBounds": [
+          13,
+          1,
+          406,
+          406
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.337395
+      },
+      "bounds": [
+        15,
+        20,
+        241,
+        238
+      ]
+    },
+    {
+      "id": "shop-bakery",
+      "cell": 8,
+      "sourceBounds": [
+        836,
+        836,
+        1254,
+        1254
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          17,
+          50,
+          406,
+          401
+        ],
+        "rawAlphaBounds": [
+          9,
+          1,
+          405,
+          406
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.411489
+      },
+      "bounds": [
+        17,
+        36,
+        242,
+        239
+      ]
+    }
+  ]
+}

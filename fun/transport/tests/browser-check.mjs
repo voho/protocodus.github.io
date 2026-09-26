@@ -23,7 +23,7 @@ try {
   await waitForGame(page);
   assert.equal(await page.evaluate(() => transport.game.routes.length), 1);
   assert.equal(await page.evaluate(() => transport.game.biome), 'taiga');
-  assert.deepEqual(await page.evaluate(() => [transport.game.width,transport.game.height]),[768,576], 'new games default to a vast world');
+  assert.deepEqual(await page.evaluate(() => [transport.game.width,transport.game.height]),[512,512], 'new games default to a square world');
   await page.locator('[data-speed="0"]').click();
   const pausedDay = await page.evaluate(() => transport.game.day);
   await page.waitForTimeout(150);
@@ -190,7 +190,7 @@ try {
     assert.equal(await page.evaluate(() => transport.speed), 0, 'new-world dialog pauses the current world');
     await page.locator(`[data-biome="${biome}"]`).click();
     await page.locator('#world-seed').fill('95573');
-    await page.locator('[data-world-size="huge"]').click();
+    await page.locator('[data-world-size="square512"]').click();
     await page.locator('#generate-world').click();
     await page.locator('[data-speed="0"]').click();
     assert.equal(await page.evaluate(() => transport.game.biome), biome);

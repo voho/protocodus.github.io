@@ -1,0 +1,326 @@
+{
+  "columns": 3,
+  "rows": 3,
+  "cellSizes": [
+    16,
+    32,
+    64,
+    128
+  ],
+  "masterCell": 256,
+  "vehicleLengthNormalized": true,
+  "order": [
+    "vehicle:express-bus:NW",
+    "vehicle:express-bus:N",
+    "vehicle:express-bus:NE",
+    "vehicle:express-bus:W",
+    null,
+    "vehicle:express-bus:E",
+    "vehicle:express-bus:SW",
+    "vehicle:express-bus:S",
+    "vehicle:express-bus:SE"
+  ],
+  "source": "directions-source-v3.png",
+  "sourceSha256": "8d965b69d8a11019d5d8881977c89b711cedd0600469fbfd374f0040821cce45",
+  "sprites": [
+    {
+      "id": "vehicle:express-bus:NW",
+      "cell": 0,
+      "sourceBounds": [
+        0,
+        0,
+        418,
+        418
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          122,
+          163,
+          345,
+          346
+        ],
+        "rawAlphaBounds": [
+          107,
+          89,
+          354,
+          416
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.866796
+      },
+      "bounds": [
+        22,
+        41,
+        233,
+        213
+      ]
+    },
+    {
+      "id": "vehicle:express-bus:N",
+      "cell": 1,
+      "sourceBounds": [
+        418,
+        0,
+        836,
+        418
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          158,
+          150,
+          260,
+          347
+        ],
+        "rawAlphaBounds": [
+          15,
+          144,
+          260,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.900351
+      },
+      "bounds": [
+        68,
+        12,
+        188,
+        244
+      ]
+    },
+    {
+      "id": "vehicle:express-bus:NE",
+      "cell": 2,
+      "sourceBounds": [
+        836,
+        0,
+        1254,
+        418
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          75,
+          161,
+          297,
+          345
+        ],
+        "rawAlphaBounds": [
+          47,
+          35,
+          356,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.866218
+      },
+      "bounds": [
+        21,
+        39,
+        235,
+        216
+      ]
+    },
+    {
+      "id": "vehicle:express-bus:W",
+      "cell": 3,
+      "sourceBounds": [
+        0,
+        418,
+        418,
+        836
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          111,
+          156,
+          372,
+          270
+        ],
+        "rawAlphaBounds": [
+          57,
+          5,
+          394,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.848699
+      },
+      "bounds": [
+        12,
+        77,
+        244,
+        178
+      ]
+    },
+    {
+      "id": null
+    },
+    {
+      "id": "vehicle:express-bus:E",
+      "cell": 5,
+      "sourceBounds": [
+        836,
+        418,
+        1254,
+        836
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          55,
+          154,
+          337,
+          271
+        ],
+        "rawAlphaBounds": [
+          49,
+          0,
+          350,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.833377
+      },
+      "bounds": [
+        12,
+        80,
+        244,
+        176
+      ]
+    },
+    {
+      "id": "vehicle:express-bus:SW",
+      "cell": 6,
+      "sourceBounds": [
+        0,
+        836,
+        418,
+        1254
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          110,
+          88,
+          350,
+          294
+        ],
+        "rawAlphaBounds": [
+          0,
+          39,
+          414,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.841836
+      },
+      "bounds": [
+        24,
+        39,
+        231,
+        216
+      ]
+    },
+    {
+      "id": "vehicle:express-bus:S",
+      "cell": 7,
+      "sourceBounds": [
+        418,
+        836,
+        836,
+        1254
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          148,
+          73,
+          270,
+          296
+        ],
+        "rawAlphaBounds": [
+          41,
+          5,
+          418,
+          345
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.876846
+      },
+      "bounds": [
+        64,
+        12,
+        191,
+        244
+      ]
+    },
+    {
+      "id": "vehicle:express-bus:SE",
+      "cell": 8,
+      "sourceBounds": [
+        836,
+        836,
+        1254,
+        1254
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          66,
+          87,
+          308,
+          296
+        ],
+        "rawAlphaBounds": [
+          0,
+          0,
+          330,
+          346
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.835535
+      },
+      "bounds": [
+        26,
+        40,
+        229,
+        216
+      ]
+    }
+  ]
+}

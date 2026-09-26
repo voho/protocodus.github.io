@@ -2,39 +2,88 @@
 // Coordinates share the original 32 px plot with eight pixels of roof overhang.
 // Profiles are scoped to a drawing context so concurrent atlases never share state.
 const regionalContexts = new WeakSet();
+const finishes = new WeakMap();
+const finish = c => finishes.get(c) || {variant:0,biome:'taiga',kind:'',detail:'town'};
 const isRegional = c => regionalContexts.has(c);
 const ink = '#4b5954', glass = '#729292', cream = '#ded8bd', wall = '#c7c6ae';
 function rect(c,x,y,w,h,color){c.fillStyle=color;c.fillRect(x,y,w,h);}
 function poly(c,points,color){c.fillStyle=color;c.beginPath();points.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));c.closePath();c.fill();}
 function line(c,points,color,width=.7){c.strokeStyle=color;c.lineWidth=width;c.beginPath();points.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));c.stroke();}
 function oval(c,x,y,rx,ry,color){c.fillStyle=color;c.beginPath();c.ellipse(x,y,rx,ry,0,0,Math.PI*2);c.fill();}
-function window(c,x,y,w=2,h=3){rect(c,x,y,w,h,ink);if(isRegional(c)){rect(c,x+.5,y+.5,w-1,Math.min(1.5,h-1),'#d4d9ba');return;}rect(c,x+.4,y+.3,w-.8,h-.7,'#bed0bc');rect(c,x+.4,y+.3,w-.8,.6,'#e8e2bd');}
+function window(c,x,y,w=2,h=3){
+  rect(c,x-.25,y-.3,w+.5,h+.65,'#c6c4ab');rect(c,x,y,w,h,ink);
+  if(isRegional(c)){rect(c,x+.5,y+.5,w-1,Math.min(1.5,h-1),'#d4d9ba');return;}
+  const warm=(Math.floor(x+y)+finish(c).variant)%5===0;
+  rect(c,x+.35,y+.35,w-.7,h-.7,warm?'#d3c696':'#8caca9');
+  poly(c,[[x+.35,y+.35],[x+w-.35,y+.35],[x+.35,y+h-1]],warm?'#efe0b1':'#c8dfd3');
+  if(w>=2.4&&h>=3){rect(c,x+w/2-.17,y+.3,.34,h-.6,'#dbd9bd');rect(c,x+.3,y+h*.56,w-.6,.28,'#d7d6bb');}
+  rect(c,x-.35,y+h,w+.7,.5,'#e1d9b8');rect(c,x,y+h+.5,w,.4,'#46575035');
+}
 function windows(c,x,y,n,step=4,w=2,h=3){for(let i=0;i<n;i++)window(c,x+i*step,y,w,h);}
 function door(c,x,y,w=3,h=4,color='#776c55'){rect(c,x,y,w,h,color);rect(c,x+.6,y+.6,w-1.2,1.1,glass);if(!isRegional(c))rect(c,x+w-.8,y+h-1.4,.4,.4,cream);}
 function hedge(c,x,y,w,h=2){rect(c,x+.7,y+1,w,h,'#495c4444');rect(c,x,y,w,h,'#6a8055');if(!isRegional(c))rect(c,x+.6,y,w-1.2,.6,'#9aa372');}
-function tree(c,x,y,size=3){oval(c,x+1,y+2,size,1.6,'#41553d35');rect(c,x-.4,y-1,.8,3,'#75694d');oval(c,x,y-1,size,size,'#617e4e');oval(c,x-.7,y-1.7,size*.7,size*.7,'#8c9f60');}
+function tree(c,x,y,size=3){
+  const biome=finish(c).biome;oval(c,x+1,y+2,size,1.6,'#41553d35');rect(c,x-.4,y-1,.8,3,'#75694d');
+  if(biome==='tundra'){poly(c,[[x,y-size-2],[x-size,y+1],[x+size,y+1]],'#688878');poly(c,[[x,y-size-2],[x-size*.65,y-.1],[x+.4,y-.2]],'#d4ddc9');}
+  else if(biome==='desert'){oval(c,x,y-1,size*1.15,size*.64,'#68845b');oval(c,x-.7,y-1.7,size*.8,size*.4,'#9ead75');}
+  else{oval(c,x,y-1,size,size,'#516f46');oval(c,x-.8,y-1.6,size*.77,size*.83,'#7e9657');oval(c,x+.9,y-.3,size*.55,size*.55,'#67894d');if(!isRegional(c))oval(c,x-1.1,y-2.3,size*.38,size*.34,'#a1b06a');}
+}
 function pot(c,x,y,color='#b3986c'){rect(c,x,y,2,1.6,color);oval(c,x+1,y-.2,1.5,1,'#6a8751');if(!isRegional(c))rect(c,x+.5,y-.8,1,.6,'#d5bc76');}
 function chimney(c,x,y,h=4){rect(c,x,y,2,h,'#796d5b');rect(c,x-.3,y,2.6,.9,'#b3a88d');}
 function path(c,x,y,w,h){rect(c,x,y,w,h,'#b9b49a');rect(c,x,y,w,.7,'#d6d0b4');}
 function plot(c,biome,kind='garden'){
-  if(kind==='paved'){rect(c,2,6,28,25,'#aaa994');rect(c,2,29,28,2,'#c6c2a8');}
-  else {const green=biome==='desert'?'#9d9e70':biome==='tundra'?'#a7b6a0':'#819764';rect(c,2,7,28,23,green);rect(c,2,29,28,1,'#b6baa0');}
+  const {variant,detail}=finish(c);
+  if(kind==='paved'){
+    rect(c,2,6,28,25,biome==='desert'?'#b9aa8c':'#aaa994');
+    if(!isRegional(c))for(let y=8;y<30;y+=3){line(c,[[2,y],[30,y]],'#e3dfc224',.45);if(detail==='detail')for(let x=3+(y%2)*2;x<30;x+=4)line(c,[[x,y],[x,y+3]],'#5f6e5a20',.4);}
+    rect(c,2,29,28,2,'#c6c2a8');rect(c,2,29,28,.6,'#e0dbc0');
+  }else {
+    const green=biome==='desert'?['#aaa37a','#a2a578','#adac7d']:biome==='tundra'?['#b5c1ac','#abbba5','#c4cdb8']:['#8e9f6b','#849964','#92a16f'];
+    rect(c,2,7,28,23,green[variant%3]);
+    for(let y=8;y<29;y+=4)rect(c,3,y,26,1.5,biome==='tundra'?'#eff0dc15':'#d4d3a616');
+    if(!isRegional(c))for(let i=0;i<18;i++){const x=3+(i*11+variant*3)%26,y=8+(i*7+variant)%20;rect(c,x,y,.6,.5,'#c6c8a642');}
+    rect(c,2,29,28,1,'#b6baa0');
+    if(variant%3===1){for(const x of [3,6,9,24,27,29])rect(c,x,28,.55,2.6,'#d5ceae');line(c,[[3,29],[10,29]],'#b9b895',.6);line(c,[[24,29],[29,29]],'#b9b895',.6);}
+  }
 }
 function roof(c,x,y,w,d,color='#8c715b',style='hip'){
+  const f=finish(c);
+  if(f.kind.startsWith('house-')){
+    const colors=f.biome==='desert'?['#af815e','#9b7053','#c09870','#8c8770']:['#986f56','#6b8280','#897d62','#a97555'];
+    color=colors[(f.variant+Number(f.kind.at(-1)))%colors.length];
+  }
   if(style==='flat'){
     rect(c,x-1,y,w+2,d,color);rect(c,x-.6,y,w+1.2,.9,'#dce0c247');rect(c,x-1,y,1,d,'#f5efd030');rect(c,x-1,y+d-.8,w+2,1,'#4d5b493f');
   }else {
     poly(c,[[x-1,y+d],[x+1.8,y],[x+w-1.8,y],[x+w+1,y+d]],color);
     poly(c,[[x+1.8,y],[x+w-1.8,y],[x+w-.8,y+d*.43],[x+.8,y+d*.43]],'#20372c24');
     line(c,[[x+.8,y+d*.43],[x+w-.8,y+d*.43]],'#e4d6aa70');
-    if(!isRegional(c))for(let yy=2;yy<d;yy+=2)line(c,[[x+1.4-yy/d*2, y+yy],[x+w-1.4+yy/d*2,y+yy]],'#392f2726',.55);
+    if(!isRegional(c))for(let yy=1.8;yy<d-.3;yy+=1.8){
+      const inset=1.8-yy/d*2.7;line(c,[[x+inset,y+yy],[x+w-inset,y+yy]],'#352f292f',.45);
+      if(f.detail==='detail')for(let xx=x+inset+((Math.round(yy)+f.variant)%2)*1.3;xx<x+w-inset;xx+=2.6){line(c,[[xx,y+yy],[xx-.25,y+Math.min(d,yy+1.65)]],'#e0c6a02b',.35);}
+    }
+    line(c,[[x+2,y+.4],[x+w-2,y+.4]],'#ead6b16b',.65);
+    if(f.biome==='tundra'){
+      poly(c,[[x+2,y],[x+w-2,y],[x+w-.8,y+d*.35],[x+w*.57,y+d*.44],[x+w*.32,y+d*.28],[x+.9,y+d*.4]],'#dae1d0');
+      line(c,[[x+.9,y+d*.4],[x+w*.32,y+d*.28],[x+w*.57,y+d*.44]],'#f1f0dc',.7);
+    }
     rect(c,x-1,y+d-.5,w+2,1,'#42463c4d');
   }
 }
 function block(c,x,y,w,h,roofDepth=7,roofColor='#879188',wallColor=wall,style='hip'){
   poly(c,[[x+2,y+4],[x+w+3,y+5],[x+w+4,y+h+3],[x+4,y+h+3]],'#253c363d');
-  rect(c,x,y+roofDepth-1,w,h-roofDepth+1,wallColor);rect(c,x+w-2,y+roofDepth-1,2,h-roofDepth+1,'#727b6866');rect(c,x,y+h-1,w,1,'#5d665552');
+  const f=finish(c),facadeY=y+roofDepth-1,facadeH=h-roofDepth+1;
+  if(f.kind.startsWith('house-'))wallColor=(f.biome==='desert'?['#e0c49b','#d5b58b','#d6c5a5']:['#d9d1b5','#c6b799','#d3cbb5','#bca68a'])[f.variant% (f.biome==='desert'?3:4)];
+  rect(c,x,facadeY,w,facadeH,wallColor);
+  if(!isRegional(c)){
+    rect(c,x,facadeY,1,facadeH,'#f1e4c737');
+    if(f.detail==='detail')for(let row=0;row<facadeH;row+=2){line(c,[[x,y+roofDepth+row],[x+w,y+roofDepth+row]],'#695e4c12',.35);for(let xx=x+(row%4?2:0);xx<x+w;xx+=4)rect(c,xx,facadeY+row,.35,1.7,'#685e4c12');}
+  }
+  rect(c,x+w-2,y+roofDepth-1,2,h-roofDepth+1,'#727b6866');rect(c,x,y+h-1,w,1,'#5d665552');
   roof(c,x,y,w,roofDepth,roofColor,style);
+  if(!isRegional(c)){line(c,[[x-.6,y+roofDepth+.7],[x+w+.6,y+roofDepth+.7]],'#dbd4b767',.45);rect(c,x+w-1.4,y+roofDepth,.45,Math.max(0,h-roofDepth),'#565c4b3a');}
+  if(f.biome==='tundra'&&style==='flat'){rect(c,x+.4,y+.3,w-1.4,Math.max(1,roofDepth*.35),'#dce3d1');}
+
 }
 function gable(c,x,y,w,h,color='#9a7559'){
   poly(c,[[x-1,y+h],[x+w*.5,y],[x+w+1,y+h]],color);line(c,[[x-.5,y+h],[x+w*.5,y+.2],[x+w+.5,y+h]],'#dac49b80');
@@ -112,7 +161,8 @@ function service(c,kind,biome){
     block(c,7,1,18,25,9,'#6b817b','#c9bda0');windows(c,10,13,2,8,3,4);rect(c,8,19,15,2,'#827662');rect(c,10,22,7,4,'#6d938f');door(c,20,21,3,5);rect(c,26,19,2.5,7,'#e2dbc0');for(let y=19;y<26;y+=2)poly(c,[[26,y],[28.5,y+1],[28.5,y+2],[26,y+1]],'#ae7d6d');oval(c,27.25,18.7,1.5,.6,'#7e9182');oval(c,27.25,26.2,1.5,.6,'#7e9182');rect(c,4,27,3,4,'#8e8063');rect(c,4.5,27.5,2,2,'#cbb894');pot(c,9,28);chimney(c,21,0,5);
   }
 }
-export function drawTownBuilding(ctx,kind,biome,detailLevel='town'){
+export function drawTownBuilding(ctx,kind,biome,detailLevel='town',variant=0){
+  finishes.set(ctx,{variant:Math.abs(Math.floor(variant))%12,biome,kind,detail:detailLevel});
   if(detailLevel==='region')regionalContexts.add(ctx);
   try {
     if(kind.startsWith('house-'))home(ctx,kind,biome);
@@ -124,5 +174,5 @@ export function drawTownBuilding(ctx,kind,biome,detailLevel='town'){
       poly(ctx,[[2,29],[8,29],[10,30],[8,31],[2,31]],'#e0e5d4');
       poly(ctx,[[25,27],[29,27],[30,29],[26,30]],'#dbe1d0');
     }
-  } finally { regionalContexts.delete(ctx); }
+  } finally { regionalContexts.delete(ctx);finishes.delete(ctx); }
 }

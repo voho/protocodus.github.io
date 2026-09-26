@@ -1,9 +1,16 @@
 import { BUILDINGS } from './buildings.js';
+import { INDUSTRIES } from './data.js';
+import { worldArtRevision } from './atlas-runtime.js';
+import { drawRasterIndustry } from './raster-industries.js';
+import { drawRasterBuilding } from './raster-buildings.js';
+import { drawRasterNature } from './raster-nature.js';
 import { drawTownBuilding } from './building-sprites.js';
+import { drawProcessingPlant } from './processing-sprites.js';
 import { drawTerrainDetail } from './terrain-sprites.js';
 import { drawForest, drawTree } from './tree-sprites.js';
 import { drawMountain, drawBoulder } from './relief-sprites.js';
-// Transport's original miniature sprite set. All artwork is drawn once into an atlas.
+import { drawRasterHouse, houseAssetsRevision, preloadHouses } from './raster-houses.js';
+// Generated house artwork and code-native objects share one bounded sprite cache.
 export const TILE = 32;
 export const PALETTES = {
   taiga: { ground: '#91a77a', ground2: '#9aae82', ground3: '#879f72', speck: '#bcc19a', dark: '#738e65', water: '#528f96', deep: '#377881', shore: '#b9bea0', forest: '#799664', mountain: '#999d91', sand: '#c4ba94' },
@@ -57,6 +64,7 @@ function building(ctx,kind,r,level,biome) {
   if(kind==='factory'){ctx.fillStyle='#8d715c';ctx.fillRect(22,2,4,12);ctx.fillStyle='#67534a';ctx.fillRect(21,2,6,2);}
 }
 function industry(ctx,kind,r,biome,detailLevel='town') {
+  if(drawProcessingPlant(ctx,kind,r,biome,detailLevel))return;
   ctx.fillStyle=biome==='desert'?'#b6a787':'#a1a68e';ctx.fillRect(2,12,28,17);
   ctx.fillStyle='#65766355';ctx.fillRect(1,29,30,1);ctx.fillStyle='#d0c3a0';ctx.fillRect(2,27,28,2);
   if(/mine|quarry|coal|iron|copper|ore|salt/.test(kind)) {
@@ -97,23 +105,30 @@ function industry(ctx,kind,r,biome,detailLevel='town') {
   }
 }
 export function createSprites(biome,{pixelScale=2,detailLevel='town'}={}) {
-  // Rasterize each profile at its final screen density. Drawing the original vectors
-  // avoids both blurred downsampling at Region and enlarged source pixels at Detail.
+  // Rasterize each profile at its final screen density. Houses use matching
+  // bitmap LODs; code-native objects retain their profile-specific detail.
+  void preloadHouses({waitMs:0});
   const density=Number.isFinite(pixelScale)&&pixelScale>0?pixelScale:2;
   const profile=['region','town','detail'].includes(detailLevel)?detailLevel:'town';
   // Each factory owns its cache, so biome, density and profile are part of its identity.
-  const cache=new Map(),cacheLimit=16*1024*1024;let cacheBytes=0;
+  const cache=new Map(),cacheLimit=16*1024*1024;let cacheBytes=0,assetRevision=houseAssetsRevision(),worldRevision=worldArtRevision();
   const natureKinds=new Set(['forest','rock','mountain','terrain-detail']);
   return function sprite(kind,variant=0,level=1,detail='') {
+    if(assetRevision!==houseAssetsRevision()||worldRevision!==worldArtRevision()){cache.clear();cacheBytes=0;assetRevision=houseAssetsRevision();worldRevision=worldArtRevision();}
     const variants=natureKinds.has(kind)?64:12;
     variant=((Math.floor(variant)%variants)+variants)%variants;
     const key=`${kind}:${variant}:${level}:${detail}`;
     if(cache.has(key)){const cached=cache.get(key);cache.delete(key);cache.set(key,cached);return cached;}
-    const forest=kind==='forest',width=forest?48:TILE,height=forest?48:TILE+8;
+    const forest=kind==='forest',span=Object.hasOwn(INDUSTRIES,kind)&&level===2?2:1,width=forest?48:TILE*span,height=forest?48:TILE*span+8;
     const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(width*density));canvas.height=Math.max(1,Math.round(height*density));
     const ctx=canvas.getContext('2d');ctx.scale(canvas.width/width,canvas.height/height);ctx.translate(forest?8:0,forest?16:8);
     const r=rng(7331+variant*799+kind.length*371+level*97);
-    if(BUILDINGS[kind]) drawTownBuilding(ctx,kind,biome,profile);
+    if(BUILDINGS[kind]) {if(!drawRasterHouse(ctx,kind,{pixelScale:density,biome})&&!drawRasterBuilding(ctx,kind,biome,density))drawTownBuilding(ctx,kind,biome,profile,variant);}
+    else if(Object.hasOwn(INDUSTRIES,kind)||kind==='factory'){
+      const siteKind=kind==='factory'?(biome==='tundra'?'equipment-factory':biome==='desert'?'goods-factory':'furniture-factory'):kind;
+      if(!drawRasterIndustry(ctx,siteKind,biome,density,{size:32*span})){ctx.save();ctx.scale(span,span);industry(ctx,siteKind,r,biome,profile);ctx.restore();}
+    }
+    else if(drawRasterNature(ctx,kind,biome,detail,variant,density)){}
     else if(kind==='terrain-detail') drawTerrainDetail(ctx,detail,r,biome,profile);
     else if(kind==='forest') drawForest(ctx,biome,detail,variant,profile);
     else if(kind==='tree')conifer(ctx,16,25,14,r,biome,profile);
@@ -127,7 +142,7 @@ export function createSprites(biome,{pixelScale=2,detailLevel='town'}={}) {
     }
     else if(kind==='mountain') drawMountain(ctx,detail,r,biome,profile);
     else if(['house','apartment','shop','office','factory'].includes(kind)) building(ctx,kind,r,level,biome);
-    else industry(ctx,kind,r,biome,profile);
+    else {ctx.save();ctx.scale(span,span);industry(ctx,kind,r,biome,profile);ctx.restore();}
     const bytes=canvas.width*canvas.height*4;
     while(cacheBytes+bytes>cacheLimit&&cache.size){const oldest=cache.keys().next().value,image=cache.get(oldest);cacheBytes-=image.width*image.height*4;cache.delete(oldest);}
     cache.set(key,canvas);cacheBytes+=bytes;return canvas;

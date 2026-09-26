@@ -1,0 +1,35 @@
+{
+  "generator": "built-in image_gen",
+  "styleReference": "../../../houses/taiga/house-atlas.png",
+  "order": [
+    "shop-butcher",
+    "shop-hardware",
+    "shop-florist",
+    "service-post-office",
+    "service-bank",
+    "service-hotel",
+    "service-garage",
+    "service-barber",
+    null
+  ],
+  "prompts": {
+    "taiga": "Use case: style-transfer. Asset type: transparent commercial-building sprite atlas for the 2D transport strategy game Transport. Input image: STYLE AND CAMERA REFERENCE ONLY, the existing house atlas. Create a NEW square atlas of EIGHT distinct commercial/service buildings in a precise three-column by three-row equal-cell grid. Match the reference's realistic finely painted miniature raster art, subdued cream stone/red brick/timber materials, rich believable roof texture, soft upper-left light and near-frontal elevated camera with a little right-hand facade visible. Each building is a self-contained transparent cutout, centered and bottom-grounded within its own cell, with ample transparent margins around its complete silhouette and soft contact shadow. Keep broad characteristic shapes legible at 16px. Green temperate/taiga small doorstep gardens. No continuous ground plane or background panels, no cell boundaries, captions, letters, words, numbers or watermark. Real transparent RGBA background.\nEXACT row-major identities:\nROW 1 LEFT: BUTCHER SHOP, compact red-brick corner building with dark russet roof, deep red-and-cream striped awning, broad cool display window and a small hanging simple cleaver-shaped sign, no text. ROW 1 CENTER: HARDWARE SHOP, a sturdy warm stone workshop with low dark slate roof, wide ochre-framed front windows, a hanging hammer-shaped sign and tidy barrel/tool-display beside the door. ROW 1 RIGHT: FLORIST, an elegant light plaster small shop with pale sage pitched roof, greenhouse-like large front glazing and colorful flower tubs clustered directly at its threshold.\nROW 2 LEFT: POST OFFICE, a dignified two-story light brick civic storefront with pitched green-gray roof, a simple envelope-shaped relief above its front entrance and one red posting box. ROW 2 CENTER: BANK, a solid neoclassical light limestone building with a broad triangular pediment, four stone columns and a heavy dark-green double entrance; clearly different silhouette from the shops. ROW 2 RIGHT: HOTEL, a tall three-story red-brick corner hotel with a dark mansard roof, rows of large windows, projecting entrance canopy and two small elegant entrance lamps, no lettering.\nROW 3 LEFT: VEHICLE GARAGE, low broad brick service workshop with an open dark garage bay, a second closed blue steel shutter, red mechanic's tool cabinet and a small roof ventilation stack; no parked vehicles outside. ROW 3 CENTER: BARBER SHOP, small quaint cream-brick shop with a teal pitched roof, large front glazing, one clear red-white-blue barber pole beside its front door and a tiny bench. ROW 3 RIGHT: completely empty TRANSPARENT cell: no building, no object, no text.\nNo people, no street scene, no large floating icons; symbolic trade signs must be attached naturally to the facade. All eight complete objects must fit fully within their allocated square cells, never crossing boundaries. Not vector icons or simplified block buildings.\nCRITICAL ATLAS PADDING: each complete object occupies at most 76 percent of its equal cell width and 84 percent of its equal cell height. Leave fully transparent gutters on all four sides INSIDE every cell. No tower, shadow, shop sign or garden can cross any one-third/two-thirds grid line. Keep this extra space even if the buildings seem small; software will crop them individually.",
+    "tundra": "Use case: lighting-weather. Edit target: this normalized transparent 3x3 building sprite atlas. Preserve exact cell positions, every silhouette, scale, roof design, doors and individual window locations, viewing angle, finely textured realistic miniature raster style, and all building identities. Change ONLY climate materials and tiny threshold landscaping. Do not zoom, enlarge, shrink, rearrange, replace, add or remove buildings. Keep true transparent RGBA background and each cell's existing transparent margin. No background panels, text, labels, watermark or large ground plane.\nTUNDRA / WINTER FINISH: add natural shallow snow caps on upward roof surfaces, ledges and shrub tops, a few subtle icicles, cool winter materials, muted frost-blue glazing, snowy threshold ground patches. Roof colors remain faintly recognizable beneath the snow. Keep doorways and all facade window glass clearly exposed, dark and unlit for the night renderer; no festive decoration. Sparse hardy snowy shrubs replace flowers. The stadium keeps the same walls, bleachers and four poles but its grass pitch has subtle frost with recognizable green playing area. Everything else stays in exactly the same location.",
+    "desert": "Use case: lighting-weather. Edit target: this normalized transparent 3x3 building sprite atlas. Preserve exact cell positions, every silhouette, scale, roof design, doors and individual window locations, viewing angle, finely textured realistic miniature raster style, and all building identities. Change ONLY climate materials and tiny threshold landscaping. Do not zoom, enlarge, shrink, rearrange, replace, add or remove buildings. Keep true transparent RGBA background and each cell's existing transparent margin. No background panels, text, labels, watermark or large ground plane.\nDESERT / ARID FINISH: warm sun-weathered ochre plaster, sandstone masonry and dusty terracotta/slate roofs while preserving each building's architecture and recognizable roof-color identity. Threshold gardens become sparse dry grasses, small succulents or low arid shrubs, with compact sandy doorsteps and no surrounding ground tile. All facade window glass remains dark and unlit. Shop flowers remain modest pots appropriate to a florist. The stadium keeps a recognizable irrigated green playing field but arid vegetation outside. No palms towering over roofs. Everything else stays in exactly the same location."
+  },
+  "selectedSource": "generated/taiga-source.png",
+  "generatorOutputs": [
+    "exec-94a24ecd-2673-42df-92bc-4a2e6cd27caf.png"
+  ],
+  "climateReference": "taiga/atlas.png",
+  "climateSources": {
+    "tundra": {
+      "file": "generated/tundra-source.png",
+      "generatorOutput": "exec-182bb194-6b9f-4ee4-9fee-ec191c17680e.png"
+    },
+    "desert": {
+      "file": "generated/desert-source.png",
+      "generatorOutput": "exec-f2825560-815c-4d49-a70b-ab19310a4243.png"
+    }
+  }
+}

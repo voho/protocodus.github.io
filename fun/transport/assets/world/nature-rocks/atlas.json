@@ -1,0 +1,359 @@
+{
+  "columns": 3,
+  "rows": 3,
+  "cellSizes": [
+    16,
+    32,
+    64,
+    128
+  ],
+  "masterCell": 256,
+  "order": [
+    "nature-rocks:taiga-boulder",
+    "nature-rocks:taiga-scree",
+    "nature-rocks:tundra-glacial",
+    "nature-rocks:tundra-snow",
+    "nature-rocks:desert-boulder",
+    "nature-rocks:desert-dunes",
+    "nature-rocks:desert-salt",
+    "nature-rocks:desert-strata",
+    "nature-rocks:tundra-ice"
+  ],
+  "source": "exec-f9b5a5e0-84d4-4416-966f-0c76ae219941.png",
+  "sourceSha256": "542594d11ea597bc60a09e8ca30f24aa1de3cc73021ae160531cce2621c14fa7",
+  "sprites": [
+    {
+      "id": "nature-rocks:taiga-boulder",
+      "cell": 0,
+      "sourceBounds": [
+        0,
+        0,
+        418,
+        418
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          40,
+          111,
+          408,
+          405
+        ],
+        "rawAlphaBounds": [
+          33,
+          45,
+          414,
+          412
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.579949
+      },
+      "bounds": [
+        12,
+        59,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "nature-rocks:taiga-scree",
+      "cell": 1,
+      "sourceBounds": [
+        418,
+        0,
+        836,
+        418
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          38,
+          153,
+          412,
+          403
+        ],
+        "rawAlphaBounds": [
+          25,
+          9,
+          417,
+          412
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.655674
+      },
+      "bounds": [
+        12,
+        89,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "nature-rocks:tundra-glacial",
+      "cell": 2,
+      "sourceBounds": [
+        836,
+        0,
+        1254,
+        418
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          24,
+          126,
+          389,
+          408
+        ],
+        "rawAlphaBounds": [
+          17,
+          17,
+          396,
+          414
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.617574
+      },
+      "bounds": [
+        12,
+        65,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "nature-rocks:tundra-snow",
+      "cell": 3,
+      "sourceBounds": [
+        0,
+        418,
+        418,
+        836
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          38,
+          129,
+          418,
+          365
+        ],
+        "rawAlphaBounds": [
+          30,
+          12,
+          418,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.675219
+      },
+      "bounds": [
+        12,
+        100,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "nature-rocks:desert-boulder",
+      "cell": 4,
+      "sourceBounds": [
+        418,
+        418,
+        836,
+        836
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          35,
+          112,
+          389,
+          361
+        ],
+        "rawAlphaBounds": [
+          0,
+          1,
+          418,
+          410
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.661231
+      },
+      "bounds": [
+        12,
+        81,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "nature-rocks:desert-dunes",
+      "cell": 5,
+      "sourceBounds": [
+        836,
+        418,
+        1254,
+        836
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          11,
+          137,
+          388,
+          351
+        ],
+        "rawAlphaBounds": [
+          1,
+          9,
+          412,
+          416
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.700413
+      },
+      "bounds": [
+        12,
+        112,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "nature-rocks:desert-salt",
+      "cell": 6,
+      "sourceBounds": [
+        0,
+        836,
+        418,
+        1254
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          38,
+          97,
+          404,
+          310
+        ],
+        "rawAlphaBounds": [
+          31,
+          0,
+          418,
+          362
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.696996
+      },
+      "bounds": [
+        12,
+        109,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "nature-rocks:desert-strata",
+      "cell": 7,
+      "sourceBounds": [
+        418,
+        836,
+        836,
+        1254
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          27,
+          88,
+          401,
+          299
+        ],
+        "rawAlphaBounds": [
+          1,
+          1,
+          418,
+          370
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.699417
+      },
+      "bounds": [
+        12,
+        113,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "nature-rocks:tundra-ice",
+      "cell": 8,
+      "sourceBounds": [
+        836,
+        836,
+        1254,
+        1254
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          33,
+          83,
+          386,
+          314
+        ],
+        "rawAlphaBounds": [
+          1,
+          5,
+          388,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.675929
+      },
+      "bounds": [
+        12,
+        92,
+        244,
+        244
+      ]
+    }
+  ]
+}

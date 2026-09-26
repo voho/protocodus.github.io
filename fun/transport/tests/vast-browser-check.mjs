@@ -16,12 +16,12 @@ try {
     const { createGame, saveGame, loadGame, tick, SAVE_KEY } = await import('./model.js');
     const { encodeGame } = await import('./save-codec.js');
     const { writeSaveSlot, readSaveSlot, listSaveSlots, SAVE_SLOT_PREFIX } = await import('./save-slots.js');
-    const game = transport.game, started = performance.now();
+    const game = createGame({size:'vast'}), started = performance.now();
     tick(game, 360);
     const tickMs = performance.now() - started, saveAt = performance.now(), autosave = saveGame(game);
     const autosaveMs = performance.now() - saveAt, stored = JSON.parse(localStorage.getItem(SAVE_KEY));
     const savedAt = performance.now(), first = await writeSaveSlot(game, { name: 'Forest continent' });
-    const slotMs = performance.now() - savedAt, generatedAt = performance.now(), desert = createGame({ biome: 'desert', seed: 82461 });
+    const slotMs = performance.now() - savedAt, generatedAt = performance.now(), desert = createGame({ biome: 'desert', seed: 82461, size:'vast' });
     const generateMs = performance.now() - generatedAt, second = await writeSaveSlot(desert, { name: 'Desert continent' });
     if (!autosave.ok || !first.ok || !second.ok) return { autosave, first, second };
     const fingerprint = g => {
@@ -58,8 +58,8 @@ try {
   const catalog = await page.evaluate(async () => (await import('./save-slots.js')).listSaveSlots());
   assert.equal(catalog.slots.length, 3); assert.ok(catalog.slots.every(slot => slot.status === 'ready'));
   await page.locator('#world-button').click();
-  assert.equal(await page.locator('[data-world-size]').count(), 4, 'all original sizes remain selectable alongside Vast');
-  assert.equal(await page.locator('[data-world-size="vast"]').getAttribute('aria-pressed'), 'true');
+  assert.equal(await page.locator('[data-world-size]').count(), 3, 'new companies offer the three square sizes');
+  assert.equal(await page.locator('[data-world-size="square512"]').getAttribute('aria-pressed'), 'true');
   await page.screenshot({ path: `${output}/vast-world-options.png` });
   await page.keyboard.press('Escape');
   await page.screenshot({ path: `${output}/vast-company.png` });

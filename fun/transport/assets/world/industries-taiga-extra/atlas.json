@@ -1,0 +1,132 @@
+{
+  "columns": 3,
+  "rows": 1,
+  "cellSizes": [
+    16,
+    32,
+    64,
+    128,
+    256
+  ],
+  "masterCell": 256,
+  "order": [
+    "industry:oil-well:taiga",
+    "industry:refinery:taiga",
+    "industry:quarry:taiga"
+  ],
+  "source": "source-generated.png",
+  "sourceSha256": "c286e9b6dd769c020e31d0005c64925ace018d9e2fbefc69a207db8fe892d63c",
+  "sprites": [
+    {
+      "id": "industry:oil-well:taiga",
+      "cell": 0,
+      "sourceBounds": [
+        0,
+        0,
+        724,
+        724
+      ],
+      "normalization": {
+        "originalSize": [
+          724,
+          724
+        ],
+        "sourceBounds": [
+          86,
+          187,
+          618,
+          578
+        ],
+        "rawAlphaBounds": [
+          0,
+          37,
+          710,
+          700
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.755126
+      },
+      "bounds": [
+        12,
+        73,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "industry:refinery:taiga",
+      "cell": 1,
+      "sourceBounds": [
+        724,
+        0,
+        1448,
+        724
+      ],
+      "normalization": {
+        "originalSize": [
+          724,
+          724
+        ],
+        "sourceBounds": [
+          83,
+          124,
+          639,
+          580
+        ],
+        "rawAlphaBounds": [
+          78,
+          106,
+          724,
+          691
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.703855
+      },
+      "bounds": [
+        12,
+        54,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "industry:quarry:taiga",
+      "cell": 2,
+      "sourceBounds": [
+        1448,
+        0,
+        2172,
+        724
+      ],
+      "normalization": {
+        "originalSize": [
+          724,
+          724
+        ],
+        "sourceBounds": [
+          66,
+          170,
+          639,
+          580
+        ],
+        "rawAlphaBounds": [
+          1,
+          71,
+          702,
+          700
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.687805
+      },
+      "bounds": [
+        12,
+        78,
+        244,
+        244
+      ]
+    }
+  ]
+}

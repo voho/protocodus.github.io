@@ -1,0 +1,359 @@
+{
+  "columns": 3,
+  "rows": 3,
+  "cellSizes": [
+    16,
+    32,
+    64,
+    128
+  ],
+  "masterCell": 256,
+  "order": [
+    "vehicle:bus",
+    "vehicle:truck",
+    "vehicle:locomotive",
+    "vehicle:coach",
+    "vehicle:wagon",
+    "vehicle:express-bus",
+    "vehicle:ferry",
+    "vehicle:cargo-ship",
+    "vehicle:tanker"
+  ],
+  "source": "exec-6b8e940a-6eb8-4832-a776-1dbd905cb48d.png",
+  "sourceSha256": "8042e7ff0cc536808a71654e7eaaebbf66785e1f8e45393802f9316fbf79fb39",
+  "sprites": [
+    {
+      "id": "vehicle:bus",
+      "cell": 0,
+      "sourceBounds": [
+        0,
+        0,
+        418,
+        418
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          28,
+          247,
+          416,
+          402
+        ],
+        "rawAlphaBounds": [
+          17,
+          19,
+          418,
+          406
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.686134
+      },
+      "bounds": [
+        12,
+        81,
+        244,
+        174
+      ]
+    },
+    {
+      "id": "vehicle:truck",
+      "cell": 1,
+      "sourceBounds": [
+        418,
+        0,
+        836,
+        418
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          33,
+          234,
+          418,
+          402
+        ],
+        "rawAlphaBounds": [
+          0,
+          28,
+          418,
+          410
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.714538
+      },
+      "bounds": [
+        12,
+        77,
+        244,
+        178
+      ]
+    },
+    {
+      "id": "vehicle:locomotive",
+      "cell": 2,
+      "sourceBounds": [
+        836,
+        0,
+        1254,
+        418
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          0,
+          243,
+          401,
+          398
+        ],
+        "rawAlphaBounds": [
+          0,
+          21,
+          402,
+          414
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.68456
+      },
+      "bounds": [
+        12,
+        83,
+        244,
+        173
+      ]
+    },
+    {
+      "id": "vehicle:coach",
+      "cell": 3,
+      "sourceBounds": [
+        0,
+        418,
+        418,
+        836
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          17,
+          137,
+          418,
+          287
+        ],
+        "rawAlphaBounds": [
+          0,
+          17,
+          418,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.688846
+      },
+      "bounds": [
+        12,
+        84,
+        244,
+        171
+      ]
+    },
+    {
+      "id": "vehicle:wagon",
+      "cell": 4,
+      "sourceBounds": [
+        418,
+        418,
+        836,
+        836
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          0,
+          135,
+          392,
+          286
+        ],
+        "rawAlphaBounds": [
+          0,
+          2,
+          418,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.732595
+      },
+      "bounds": [
+        12,
+        83,
+        244,
+        172
+      ]
+    },
+    {
+      "id": "vehicle:express-bus",
+      "cell": 5,
+      "sourceBounds": [
+        836,
+        418,
+        1254,
+        836
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          0,
+          128,
+          401,
+          286
+        ],
+        "rawAlphaBounds": [
+          0,
+          7,
+          404,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.672672
+      },
+      "bounds": [
+        12,
+        82,
+        244,
+        173
+      ]
+    },
+    {
+      "id": "vehicle:ferry",
+      "cell": 6,
+      "sourceBounds": [
+        0,
+        836,
+        418,
+        1254
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          20,
+          15,
+          413,
+          203
+        ],
+        "rawAlphaBounds": [
+          0,
+          9,
+          418,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.679735
+      },
+      "bounds": [
+        12,
+        72,
+        244,
+        183
+      ]
+    },
+    {
+      "id": "vehicle:cargo-ship",
+      "cell": 7,
+      "sourceBounds": [
+        418,
+        836,
+        836,
+        1254
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          16,
+          12,
+          404,
+          205
+        ],
+        "rawAlphaBounds": [
+          0,
+          0,
+          418,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.678876
+      },
+      "bounds": [
+        12,
+        70,
+        244,
+        185
+      ]
+    },
+    {
+      "id": "vehicle:tanker",
+      "cell": 8,
+      "sourceBounds": [
+        836,
+        836,
+        1254,
+        1254
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          0,
+          31,
+          401,
+          201
+        ],
+        "rawAlphaBounds": [
+          0,
+          0,
+          402,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.689407
+      },
+      "bounds": [
+        12,
+        79,
+        244,
+        177
+      ]
+    }
+  ]
+}

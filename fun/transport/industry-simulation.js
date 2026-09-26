@@ -1,10 +1,11 @@
 import { INDUSTRIES } from './data.js';
 import { localEnvironment, randomAt, weatherAt } from './environment.js';
+import { industrySize } from './industry-sites.js';
 const clamp=(value,min=0,max=1)=>Math.max(min,Math.min(max,value));
 const MAX_INVENTORY=900;
 
 export function industryConditions(game,industry){
-  const e=localEnvironment(game,industry.x,industry.y,4),weather=weatherAt(game,industry.x,industry.y,Math.floor(game.day));
+  const e=localEnvironment(game,industry.x,industry.y,4,industrySize(industry)),weather=weatherAt(game,industry.x,industry.y,Math.floor(game.day));
   const positive=[],negative=[],kind=industry.kind;
   let workers=clamp(e.housing/12),partners=0;
   for(const city of game.cities){const d=Math.hypot(city.x-industry.x,city.y-industry.y);if(d<12)workers=Math.max(workers,clamp(city.population/900)*(1-d/14));}

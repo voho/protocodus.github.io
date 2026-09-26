@@ -1,0 +1,359 @@
+{
+  "columns": 3,
+  "rows": 3,
+  "cellSizes": [
+    16,
+    32,
+    64,
+    128
+  ],
+  "masterCell": 256,
+  "order": [
+    "nature-ground-taiga:wildflowers",
+    "nature-ground-taiga:bluebells",
+    "nature-ground-taiga:ferns",
+    "nature-ground-taiga:grass-tufts",
+    "nature-ground-taiga:berry-bushes",
+    "nature-ground-taiga:heather",
+    "nature-ground-taiga:shrubs",
+    "nature-ground-taiga:reeds",
+    "nature-ground-taiga:marsh"
+  ],
+  "source": "exec-78c30eeb-15f9-49a4-8965-1b612b0e6860.png",
+  "sourceSha256": "1857e7b106a550a6b62c6c6f38352fc24521e7dc2247d5dcb028dee687f0be92",
+  "sprites": [
+    {
+      "id": "nature-ground-taiga:wildflowers",
+      "cell": 0,
+      "sourceBounds": [
+        0,
+        0,
+        418,
+        418
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          41,
+          96,
+          387,
+          360
+        ],
+        "rawAlphaBounds": [
+          24,
+          19,
+          418,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.669547
+      },
+      "bounds": [
+        12,
+        67,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "nature-ground-taiga:bluebells",
+      "cell": 1,
+      "sourceBounds": [
+        418,
+        0,
+        836,
+        418
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          55,
+          86,
+          368,
+          363
+        ],
+        "rawAlphaBounds": [
+          1,
+          19,
+          414,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.669748
+      },
+      "bounds": [
+        12,
+        39,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "nature-ground-taiga:ferns",
+      "cell": 2,
+      "sourceBounds": [
+        836,
+        0,
+        1254,
+        418
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          5,
+          45,
+          387,
+          370
+        ],
+        "rawAlphaBounds": [
+          1,
+          20,
+          400,
+          412
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.565103
+      },
+      "bounds": [
+        12,
+        47,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "nature-ground-taiga:grass-tufts",
+      "cell": 3,
+      "sourceBounds": [
+        0,
+        418,
+        418,
+        836
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          37,
+          39,
+          390,
+          338
+        ],
+        "rawAlphaBounds": [
+          0,
+          9,
+          418,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.619228
+      },
+      "bounds": [
+        12,
+        47,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "nature-ground-taiga:berry-bushes",
+      "cell": 4,
+      "sourceBounds": [
+        418,
+        418,
+        836,
+        836
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          42,
+          67,
+          377,
+          418
+        ],
+        "rawAlphaBounds": [
+          1,
+          0,
+          418,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.638012
+      },
+      "bounds": [
+        17,
+        12,
+        238,
+        244
+      ]
+    },
+    {
+      "id": "nature-ground-taiga:heather",
+      "cell": 5,
+      "sourceBounds": [
+        836,
+        418,
+        1254,
+        836
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          34,
+          77,
+          385,
+          342
+        ],
+        "rawAlphaBounds": [
+          1,
+          1,
+          412,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.656641
+      },
+      "bounds": [
+        12,
+        69,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "nature-ground-taiga:shrubs",
+      "cell": 6,
+      "sourceBounds": [
+        0,
+        836,
+        418,
+        1254
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          44,
+          40,
+          392,
+          351
+        ],
+        "rawAlphaBounds": [
+          0,
+          0,
+          418,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.543125
+      },
+      "bounds": [
+        12,
+        37,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "nature-ground-taiga:reeds",
+      "cell": 7,
+      "sourceBounds": [
+        418,
+        836,
+        836,
+        1254
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          55,
+          0,
+          360,
+          360
+        ],
+        "rawAlphaBounds": [
+          0,
+          0,
+          418,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.579417
+      },
+      "bounds": [
+        29,
+        12,
+        226,
+        244
+      ]
+    },
+    {
+      "id": "nature-ground-taiga:marsh",
+      "cell": 8,
+      "sourceBounds": [
+        836,
+        836,
+        1254,
+        1254
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          18,
+          28,
+          387,
+          364
+        ],
+        "rawAlphaBounds": [
+          1,
+          0,
+          404,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.549106
+      },
+      "bounds": [
+        12,
+        33,
+        244,
+        244
+      ]
+    }
+  ]
+}

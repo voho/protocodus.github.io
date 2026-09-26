@@ -1,0 +1,20 @@
+{
+  "entries": [
+    "logging-camp",
+    "sawmill",
+    "coal-mine",
+    "iron-mine",
+    "steel-mill",
+    "farm",
+    "food-plant",
+    "furniture-factory",
+    "machine-works"
+  ],
+  "prompt": "Use case: style-transfer. Asset type: transparent production sprite atlas for a top-down 2D transport tycoon game. Input image: house atlas is STYLE REFERENCE ONLY. Replace its houses with the industrial sites specified below, retaining its coherent realistically textured miniature illustration style: tactile brick, stone, timber, metal and roof tiles, clear large silhouettes, grounded contact shadows, softly sunlit from upper left, slightly elevated orthographic three-quarter camera with roofs and front walls visible. These are substantial 2-by-2 map-tile industry sites, displayed at 128 to 256 physical pixels. Use detailed recognizable functional industrial architecture and equipment, with a strong coherent silhouette. Not photographs or flat icons.\nLayout: exactly NINE separate sprites in a regular invisible 3-by-3 grid, equal cells, ordered left to right then top to bottom. Each entire site, chimney and shadow is centered inside its own cell with at least 10% clear transparent margin on every side. Each site fills about 78% of cell width and at most82% height, baseline at89% cell height. Every asset is a single compact complete industrial site. NO grid lines, NO cell backgrounds, NO square terrain tiles, NO text, labels, letters, logos, roads, vehicles, people, arrows or resource-symbol overlays. No artwork crosses a cell boundary. Genuine transparent alpha behind all nine cutouts including between them. Do not copy any house from reference. Architecture and machinery distinguish all nine identities immediately. Preserve saturated but natural material colours and crisp details at small size.\nTemperate taiga version: sparse moss and low green ground cover around each tiny site, no large landscape. Exact nine cells:\nTOP ROW: (1) Logging camp: small dark timber cabin, large neatly stacked cut log piles with pale end-grain, two tall pine trees behind; (2) Sawmill: long timber shed with red pitched roof, exposed sawing bay and pale lumber stacks; (3) Coal mine: black coal mound, robust timber-and-steel pithead winding tower, tiny dark mine entry and gray stone utility hut.\nMIDDLE ROW: (4) Iron mine: rust-red exposed rock cut and red ore heap, industrial metal hoist and corrugated hut, clearly different from black coal mine; (5) Steel mill: massive dark red brick furnace hall, stout blast-furnace tower, two narrow smokestacks, small warm orange furnace opening; (6) Grain farm: cream farmhouse/barn with red roof, golden grain patch and single round silver grain silo; compact farmstead silhouette rather than huge field.\nBOTTOM ROW: (7) Food plant: clean pale cream processing hall, green roof, pair of stainless food-processing tanks, orderly grain sacks; (8) Furniture works: welcoming old red brick woodworking workshop, gray sawtooth roof, pale lumber stacks and one small wooden chair outside; (9) Machine works: sturdy gray industrial hall with blue roof, open assembly doorway, small overhead gantry and metal gears/parts. All machines are unbranded. No smoke clouds hiding structures.",
+  "source": "built-in image_gen",
+  "styleReference": "../../houses/taiga/house-atlas.png",
+  "generatedSource": "source-generated.png",
+  "generatedFile": "exec-181cbe15-4862-4a2b-b217-b40e50cb9654.png",
+  "columns": 3,
+  "rows": 3
+}

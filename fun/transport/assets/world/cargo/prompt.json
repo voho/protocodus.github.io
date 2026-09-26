@@ -1,0 +1,20 @@
+{
+  "prompt": "Use case: style-transfer.\nAsset type: one transparent 3\u00d73 cargo-material sprite atlas for a realistic painted miniature transport tycoon game.\nInput image: STYLE REFERENCE ONLY. Match the reference wagon's richly painted wood, metal, weathering, tiny texture, fixed warm upper-left lighting and high orthographic camera looking 60 degrees down. Do NOT draw any wagon, vehicle, bed, frame, wheels or ground.\nPrimary request: nine separate compact cargo loads, one load per equal square cell. Each load is a neat low rectangular mound or bundle, about 1.8 times wider than tall, long axis exactly horizontal across the screen. These will be inserted into existing empty truck beds, freight wagons and ship holds. Show largely the TOP surface with restrained side depth. Recognizable small-scale materials, realistic painted sprite detail rather than flat symbols.\nStrict row-major order:\nTOP LEFT: a compact shallow rectangular pile of irregular charcoal-black coal nuggets, slate-grey glints and varied small lumps.\nTOP MIDDLE: a compact shallow rectangular pile of rough reddish iron ore chunks, rust-red and burnt-sienna stones with a few ochre mineral faces.\nTOP RIGHT: a compact rectangular bundle of many parallel timber logs, horizontal lengths, textured brown bark and clearly visible pale circular cut ends at the right, about two shallow layers.\nMIDDLE LEFT: a low rectangular golden grain heap, warm wheat kernels and gentle uneven mounding, fine grain texture.\nMIDDLE MIDDLE: six compact weathered wooden shipping crates neatly arranged 3\u00d72, honey-brown slats and dark metal straps, no markings or labels.\nMIDDLE RIGHT: a rectangular bundle of parallel blue-grey steel I-beams and girders, horizontal lengths, realistic metallic edge highlights, two dark securing bands.\nBOTTOM LEFT: six compact upright oil barrels arranged 3\u00d72, dark blue-grey weathered metal, round tops and small sealed caps, no logos or labels.\nBOTTOM MIDDLE: compact wooden cargo boxes holding stacked translucent blue-green glass panels, teal reflective edges clearly visible, pale timber separators and braces, simple rectangular bundle.\nBOTTOM RIGHT: several shallow weathered wooden fish boxes arranged in a compact rectangle, open tops revealing small silvery fish and restrained crushed ice texture.\nComposition: exactly 3\u00d73 equal square cells in a square image. All nine loads fully contained within their own cells. Each load occupies only 65\u201372% of its cell width and 40\u201350% of its cell height. Broad completely transparent gaps between cells, no overlap, no clipped items, no loose material outside a pile. Consistent apparent scale and camera. Very subtle attached contact shadows only. Preserve useful small gaps within logs/crates.\nBackground: genuine transparent alpha across all empty space. No background color, no landscape, no floor, no drop-shadow cards, no borders, no grid lines, no vehicles, no people, no text, no numerals, no labels, no arrows, no watermark. No detached specks.",
+  "source": "built-in image_gen",
+  "styleReference": "../vehicle-wagon/atlas.png",
+  "columns": 3,
+  "rows": 3,
+  "entries": [
+    "cargo:coal",
+    "cargo:ore",
+    "cargo:timber",
+    "cargo:grain",
+    "cargo:crates",
+    "cargo:steel",
+    "cargo:barrels",
+    "cargo:glass",
+    "cargo:fish"
+  ],
+  "generatedImage": "/Users/vojta/.codex/generated_images/01a0de03-6b9f-7ed1-ba84-e85d25f494ce/exec-c02a0991-829d-4687-bb44-4168e034ca6b.png",
+  "packing": "build-world-atlases.py --anchor center, independently alpha-trimmed and premultiplied downsampling; no painting or rotation"
+}

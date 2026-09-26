@@ -233,7 +233,7 @@ try {
   });
   assert.equal(saved.hasLayers,false,'display preferences are not embedded in a saved world');
   await page.locator('#world-button').click();
-  await page.locator('[data-biome="desert"]').click();await page.locator('[data-world-size="regional"]').click();
+  await page.locator('[data-biome="desert"]').click();await page.locator('[data-world-size="square512"]').click();
   await page.locator('#world-seed').fill('7719');await page.locator('#generate-world').click();await page.locator('[data-speed="0"]').click();
   assert.deepEqual(await currentLayers(page),preferences,'new worlds retain browser display preferences');
   await page.locator('#save-button').click();

@@ -1,5 +1,7 @@
 // Original miniature marine artwork, rasterized at each view's display density.
 // Eight headings keep hull edges stable while boats follow the water grid.
+import { drawRasterVehicle, drawRasterInfrastructure } from './raster-transport.js';
+import { worldArtRevision } from './atlas-runtime.js';
 export const MARINE_SIZE = 64;
 const TAU = Math.PI * 2;
 const bulk = new Set(['coal', 'iron', 'copper', 'stone', 'sand', 'grain', 'cement']);
@@ -76,7 +78,9 @@ function portArtwork(c, profile) {
 
 export function createMarineSprites({ pixelScale = 1, detailLevel = 'town' } = {}) {
   const scale = Math.max(.25, Number(pixelScale) || 1), cache = new Map();
+  let revision=worldArtRevision();
   function raster(key, angle, draw) {
+    if(revision!==worldArtRevision()){cache.clear();revision=worldArtRevision();}
     if (cache.has(key)) { const image = cache.get(key); cache.delete(key); cache.set(key, image); return image; }
     const image = document.createElement('canvas'); image.width = image.height = Math.ceil(MARINE_SIZE * scale);
     const c = image.getContext('2d'); c.scale(scale, scale); c.translate(MARINE_SIZE / 2, MARINE_SIZE / 2); c.rotate(angle); draw(c);
@@ -88,11 +92,11 @@ export function createMarineSprites({ pixelScale = 1, detailLevel = 'town' } = {
       const heading = ((Math.round((Number.isFinite(vehicle.angle) ? vehicle.angle : 0) / (Math.PI / 4)) % 8) + 8) % 8;
       const ratio = Math.max(0, Math.min(1, (vehicle.load || 0) / Math.max(1, vehicle.capacity || 1))), band = ratio ? Math.max(1, Math.ceil(ratio * 3)) : 0;
       const cargo = route?.cargo || 'goods', color = route?.color || '#a66d4b';
-      return raster(`ship:${heading}:${cargo}:${band}:${color}`, heading * Math.PI / 4, c => shipArtwork(c, cargo, band, color, detailLevel));
+      return raster(`ship:${heading}:${cargo}:${band}:${color}`, heading * Math.PI / 4, c => {if(!drawRasterVehicle(c,vehicle,{...route,mode:'water'},{pixelScale:scale,heading:heading*Math.PI/4}))shipArtwork(c,cargo,band,color,detailLevel);});
     },
     port(landAngle) {
       const heading = ((Math.round((landAngle - Math.PI) / (Math.PI / 2)) % 4) + 4) % 4;
-      return raster(`port:${heading}`, heading * Math.PI / 2, c => portArtwork(c, detailLevel));
+      return raster(`port:${heading}`, heading * Math.PI / 2, c => {if(!drawRasterInfrastructure(c,'port',-29,-27,52,52,scale))portArtwork(c,detailLevel);});
     },
     getStats: () => ({ count: cache.size, pixelScale: scale, size: Math.ceil(MARINE_SIZE * scale) }),
   };

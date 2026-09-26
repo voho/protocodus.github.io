@@ -1,0 +1,21 @@
+{
+  "prompt": "Use case: style-transfer. Asset type: an eight-direction vessel sprite sheet for a realistic painted miniature2Dtransporttycoongame. The supplied image shows ONE vessel design; keep its exact vessel identity, proportions, hullcolour, cabins, funnels and deckequipment. Redraw that same vessel from eight distinct directions, NOT rotated copies of the same flat image. Fixed orthographic camera looking60degrees downward from the viewer, fixed sunlight from upperleft for everyframe. Upright cabinwalls/funnels stay visuallyvertical inworldspace even when the hullheading changes. The near-facing front, rear and sides of the vessel must be correctly visible at each heading. Rich crisp painted materials and natural weathering match reference, not vector/cartoon shapes.\nLayout: exactly3\u00d73equal squarecells, centercellCOMPLETELYEMPTY andfullytransparent, eight ships around it in strictCOMPASSorder. TOP ROW: NWbowpointsupperleft, Nbowpointstop, NEbowpointsupperright. MIDDLE ROW: Wbowpointsleft, EMPTY, Ebowpointsright. BOTTOM ROW: SWbowpointslowerleft, Sbowpointsbottom, SEbowpointslowerright. Bows point OUTWARD awayfromcenteremptycell. In eachframe the STERN and cabinarrangement must be anatomicallyoppositeits bow, so the northernframes clearly differ fromsouthernframes. Do notlabeldirections; no arrows.\nComposition: each vessel completelyinside its owncell, centered, maximum70%ofcellwidth/height, broad transparentmargin andclear gaps. All eight show the SAME vessel at the SAME modelscale and decklength; diagonalboundingboxes may be naturallysmaller thanfull-lengthaxisalignedframes. Allmasttips/hullcornerscontained. Genuine transparentalpha, no water/background, no wake, no grid, no labels/text/logos/shadowsdetachedfromvessel. No extra boats. No scene.\nVesselidentity: compact rust-red cargofreighter, long rectangularOPENEMPTYcargo hold incenter with darkrustredbottom and darkreddishinnerwalls, pointed redbow, flatstern with creamtallbridge/superstructure atAFTendonly, one black-and-redfunnel aft. Cargo hold MUST BE EMPTY inall8frames: no crates, containers, grain, coal orothercargo. Sides have small darkportholes, narrowwalkways/rails. NORTHpointingbow meanscreambridgeatbottom/stern; SOUTHpointingbow meanscreambridgeattop/stern. The emptyholdmust stay unmistakably visiblefromeveryheading.",
+  "source": "built-in image_gen",
+  "styleReference": "../vehicles/sources/vehicle_cargo-ship.png",
+  "columns": 3,
+  "rows": 3,
+  "entries": [
+    "vehicle:cargo-ship:NW",
+    "vehicle:cargo-ship:N",
+    "vehicle:cargo-ship:NE",
+    "vehicle:cargo-ship:W",
+    null,
+    "vehicle:cargo-ship:E",
+    "vehicle:cargo-ship:SW",
+    "vehicle:cargo-ship:S",
+    "vehicle:cargo-ship:SE"
+  ],
+  "generatedImage": "/Users/vojta/.codex/generated_images/01a0de03-6b9f-7ed1-ba84-e85d25f494ce/exec-35eea50d-1756-44e6-b08d-e7165769e6ea.png",
+  "headingAssignment": "Observed bows match requested compass layout.",
+  "preparation": "prepare-source.py preserves complete RGBA frames that extend beyond the nominal equal-cell source grid, without rotating or repainting."
+}

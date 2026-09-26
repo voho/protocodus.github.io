@@ -1,0 +1,523 @@
+{
+  "version": 1,
+  "biome": "tundra",
+  "columns": 3,
+  "rows": 3,
+  "cellSizes": [
+    256,
+    128,
+    64,
+    32,
+    16
+  ],
+  "groundline": 240,
+  "masterCellSize": 256,
+  "order": [
+    "house-cheap-1",
+    "house-cheap-2",
+    "house-cheap-3",
+    "house-normal-1",
+    "house-normal-2",
+    "house-normal-3",
+    "house-expensive-1",
+    "house-expensive-2",
+    "house-expensive-3"
+  ],
+  "houses": [
+    {
+      "id": "house-cheap-1",
+      "source": "exec-bf661152-7a61-47fa-8307-18661ed4d9ee.png",
+      "sourceSha256": "202defbba8877fffe75cb95e1b6864c1c801bb0e5a88d5e796ca021caa3d87f1",
+      "originalSize": [
+        418,
+        418
+      ],
+      "sourceBounds": [
+        36,
+        35,
+        381,
+        392
+      ],
+      "rawAlphaBounds": [
+        0,
+        4,
+        416,
+        418
+      ],
+      "trimAlphaThreshold": 8,
+      "trimPadding": 2,
+      "transparentFraction": 0.461814,
+      "inputMode": "aligned-atlas",
+      "atlasBounds": [
+        0,
+        0,
+        418,
+        418
+      ],
+      "trimmedInvisibleMatte": true,
+      "groundline": 240,
+      "widthLimit": 208,
+      "normalizedBounds": [
+        24,
+        24,
+        231,
+        237
+      ],
+      "drawSize": [
+        248,
+        248
+      ],
+      "offset": [
+        4,
+        4
+      ],
+      "atlasCellTransform": {
+        "scale": 0.96875,
+        "translate": [
+          4,
+          4
+        ]
+      }
+    },
+    {
+      "id": "house-cheap-2",
+      "source": "exec-bf661152-7a61-47fa-8307-18661ed4d9ee.png",
+      "sourceSha256": "202defbba8877fffe75cb95e1b6864c1c801bb0e5a88d5e796ca021caa3d87f1",
+      "originalSize": [
+        418,
+        418
+      ],
+      "sourceBounds": [
+        36,
+        30,
+        383,
+        396
+      ],
+      "rawAlphaBounds": [
+        5,
+        30,
+        394,
+        418
+      ],
+      "trimAlphaThreshold": 8,
+      "trimPadding": 2,
+      "transparentFraction": 0.448868,
+      "inputMode": "aligned-atlas",
+      "atlasBounds": [
+        418,
+        0,
+        836,
+        418
+      ],
+      "trimmedInvisibleMatte": true,
+      "groundline": 240,
+      "widthLimit": 208,
+      "normalizedBounds": [
+        25,
+        21,
+        232,
+        240
+      ],
+      "drawSize": [
+        248,
+        248
+      ],
+      "offset": [
+        4,
+        4
+      ],
+      "atlasCellTransform": {
+        "scale": 0.96875,
+        "translate": [
+          4,
+          4
+        ]
+      }
+    },
+    {
+      "id": "house-cheap-3",
+      "source": "exec-bf661152-7a61-47fa-8307-18661ed4d9ee.png",
+      "sourceSha256": "202defbba8877fffe75cb95e1b6864c1c801bb0e5a88d5e796ca021caa3d87f1",
+      "originalSize": [
+        418,
+        418
+      ],
+      "sourceBounds": [
+        39,
+        90,
+        380,
+        397
+      ],
+      "rawAlphaBounds": [
+        33,
+        90,
+        384,
+        408
+      ],
+      "trimAlphaThreshold": 8,
+      "trimPadding": 2,
+      "transparentFraction": 0.521525,
+      "inputMode": "aligned-atlas",
+      "atlasBounds": [
+        836,
+        0,
+        1254,
+        418
+      ],
+      "trimmedInvisibleMatte": true,
+      "groundline": 240,
+      "widthLimit": 208,
+      "normalizedBounds": [
+        26,
+        57,
+        230,
+        240
+      ],
+      "drawSize": [
+        248,
+        248
+      ],
+      "offset": [
+        4,
+        4
+      ],
+      "atlasCellTransform": {
+        "scale": 0.96875,
+        "translate": [
+          4,
+          4
+        ]
+      }
+    },
+    {
+      "id": "house-normal-1",
+      "source": "exec-bf661152-7a61-47fa-8307-18661ed4d9ee.png",
+      "sourceSha256": "202defbba8877fffe75cb95e1b6864c1c801bb0e5a88d5e796ca021caa3d87f1",
+      "originalSize": [
+        418,
+        418
+      ],
+      "sourceBounds": [
+        23,
+        17,
+        392,
+        397
+      ],
+      "rawAlphaBounds": [
+        0,
+        1,
+        397,
+        407
+      ],
+      "trimAlphaThreshold": 8,
+      "trimPadding": 2,
+      "transparentFraction": 0.379753,
+      "inputMode": "aligned-atlas",
+      "atlasBounds": [
+        0,
+        418,
+        418,
+        836
+      ],
+      "trimmedInvisibleMatte": true,
+      "groundline": 240,
+      "widthLimit": 224,
+      "normalizedBounds": [
+        17,
+        13,
+        238,
+        240
+      ],
+      "drawSize": [
+        248,
+        248
+      ],
+      "offset": [
+        4,
+        4
+      ],
+      "atlasCellTransform": {
+        "scale": 0.96875,
+        "translate": [
+          4,
+          4
+        ]
+      }
+    },
+    {
+      "id": "house-normal-2",
+      "source": "exec-bf661152-7a61-47fa-8307-18661ed4d9ee.png",
+      "sourceSha256": "202defbba8877fffe75cb95e1b6864c1c801bb0e5a88d5e796ca021caa3d87f1",
+      "originalSize": [
+        418,
+        418
+      ],
+      "sourceBounds": [
+        24,
+        33,
+        390,
+        396
+      ],
+      "rawAlphaBounds": [
+        3,
+        0,
+        414,
+        418
+      ],
+      "trimAlphaThreshold": 8,
+      "trimPadding": 2,
+      "transparentFraction": 0.352407,
+      "inputMode": "aligned-atlas",
+      "atlasBounds": [
+        418,
+        418,
+        836,
+        836
+      ],
+      "trimmedInvisibleMatte": true,
+      "groundline": 240,
+      "widthLimit": 224,
+      "normalizedBounds": [
+        17,
+        23,
+        236,
+        240
+      ],
+      "drawSize": [
+        248,
+        248
+      ],
+      "offset": [
+        4,
+        4
+      ],
+      "atlasCellTransform": {
+        "scale": 0.96875,
+        "translate": [
+          4,
+          4
+        ]
+      }
+    },
+    {
+      "id": "house-normal-3",
+      "source": "exec-bf661152-7a61-47fa-8307-18661ed4d9ee.png",
+      "sourceSha256": "202defbba8877fffe75cb95e1b6864c1c801bb0e5a88d5e796ca021caa3d87f1",
+      "originalSize": [
+        418,
+        418
+      ],
+      "sourceBounds": [
+        25,
+        149,
+        396,
+        397
+      ],
+      "rawAlphaBounds": [
+        15,
+        7,
+        402,
+        405
+      ],
+      "trimAlphaThreshold": 8,
+      "trimPadding": 2,
+      "transparentFraction": 0.555259,
+      "inputMode": "aligned-atlas",
+      "atlasBounds": [
+        836,
+        418,
+        1254,
+        836
+      ],
+      "trimmedInvisibleMatte": true,
+      "groundline": 240,
+      "widthLimit": 224,
+      "normalizedBounds": [
+        18,
+        92,
+        240,
+        240
+      ],
+      "drawSize": [
+        248,
+        248
+      ],
+      "offset": [
+        4,
+        4
+      ],
+      "atlasCellTransform": {
+        "scale": 0.96875,
+        "translate": [
+          4,
+          4
+        ]
+      }
+    },
+    {
+      "id": "house-expensive-1",
+      "source": "exec-bf661152-7a61-47fa-8307-18661ed4d9ee.png",
+      "sourceSha256": "202defbba8877fffe75cb95e1b6864c1c801bb0e5a88d5e796ca021caa3d87f1",
+      "originalSize": [
+        418,
+        418
+      ],
+      "sourceBounds": [
+        23,
+        8,
+        390,
+        400
+      ],
+      "rawAlphaBounds": [
+        0,
+        0,
+        392,
+        418
+      ],
+      "trimAlphaThreshold": 8,
+      "trimPadding": 2,
+      "transparentFraction": 0.338133,
+      "inputMode": "aligned-atlas",
+      "atlasBounds": [
+        0,
+        836,
+        418,
+        1254
+      ],
+      "trimmedInvisibleMatte": true,
+      "groundline": 240,
+      "widthLimit": 240,
+      "normalizedBounds": [
+        17,
+        8,
+        236,
+        242
+      ],
+      "drawSize": [
+        248,
+        248
+      ],
+      "offset": [
+        4,
+        4
+      ],
+      "atlasCellTransform": {
+        "scale": 0.96875,
+        "translate": [
+          4,
+          4
+        ]
+      }
+    },
+    {
+      "id": "house-expensive-2",
+      "source": "exec-bf661152-7a61-47fa-8307-18661ed4d9ee.png",
+      "sourceSha256": "202defbba8877fffe75cb95e1b6864c1c801bb0e5a88d5e796ca021caa3d87f1",
+      "originalSize": [
+        418,
+        418
+      ],
+      "sourceBounds": [
+        75,
+        11,
+        341,
+        397
+      ],
+      "rawAlphaBounds": [
+        1,
+        0,
+        416,
+        404
+      ],
+      "trimAlphaThreshold": 8,
+      "trimPadding": 2,
+      "transparentFraction": 0.503257,
+      "inputMode": "aligned-atlas",
+      "atlasBounds": [
+        418,
+        836,
+        836,
+        1254
+      ],
+      "trimmedInvisibleMatte": true,
+      "groundline": 240,
+      "widthLimit": 240,
+      "normalizedBounds": [
+        48,
+        9,
+        207,
+        241
+      ],
+      "drawSize": [
+        248,
+        248
+      ],
+      "offset": [
+        4,
+        4
+      ],
+      "atlasCellTransform": {
+        "scale": 0.96875,
+        "translate": [
+          4,
+          4
+        ]
+      }
+    },
+    {
+      "id": "house-expensive-3",
+      "source": "exec-bf661152-7a61-47fa-8307-18661ed4d9ee.png",
+      "sourceSha256": "202defbba8877fffe75cb95e1b6864c1c801bb0e5a88d5e796ca021caa3d87f1",
+      "originalSize": [
+        418,
+        418
+      ],
+      "sourceBounds": [
+        11,
+        48,
+        406,
+        398
+      ],
+      "rawAlphaBounds": [
+        1,
+        5,
+        407,
+        418
+      ],
+      "trimAlphaThreshold": 8,
+      "trimPadding": 2,
+      "transparentFraction": 0.387989,
+      "inputMode": "aligned-atlas",
+      "atlasBounds": [
+        836,
+        836,
+        1254,
+        1254
+      ],
+      "trimmedInvisibleMatte": true,
+      "groundline": 240,
+      "widthLimit": 240,
+      "normalizedBounds": [
+        10,
+        32,
+        246,
+        241
+      ],
+      "drawSize": [
+        248,
+        248
+      ],
+      "offset": [
+        4,
+        4
+      ],
+      "atlasCellTransform": {
+        "scale": 0.96875,
+        "translate": [
+          4,
+          4
+        ]
+      }
+    }
+  ]
+}

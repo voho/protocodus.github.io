@@ -1,0 +1,325 @@
+{
+  "columns": 3,
+  "rows": 3,
+  "cellSizes": [
+    16,
+    32,
+    64,
+    128
+  ],
+  "masterCell": 256,
+  "order": [
+    "shop-butcher",
+    "shop-hardware",
+    "shop-florist",
+    "service-post-office",
+    "service-bank",
+    "service-hotel",
+    "service-garage",
+    "service-barber",
+    null
+  ],
+  "source": "tundra-source.png",
+  "sourceSha256": "8fb852b0e80c1747e0c89d1d92a031d17dc264eaf627a6d2424f47e7a7f22aa7",
+  "sprites": [
+    {
+      "id": "shop-butcher",
+      "cell": 0,
+      "sourceBounds": [
+        0,
+        0,
+        418,
+        418
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          30,
+          16,
+          385,
+          401
+        ],
+        "rawAlphaBounds": [
+          25,
+          3,
+          404,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.385717
+      },
+      "bounds": [
+        24,
+        16,
+        230,
+        239
+      ]
+    },
+    {
+      "id": "shop-hardware",
+      "cell": 1,
+      "sourceBounds": [
+        418,
+        0,
+        836,
+        418
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          18,
+          30,
+          402,
+          398
+        ],
+        "rawAlphaBounds": [
+          15,
+          23,
+          412,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.37684
+      },
+      "bounds": [
+        17,
+        24,
+        240,
+        238
+      ]
+    },
+    {
+      "id": "shop-florist",
+      "cell": 2,
+      "sourceBounds": [
+        836,
+        0,
+        1254,
+        418
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          19,
+          31,
+          401,
+          401
+        ],
+        "rawAlphaBounds": [
+          13,
+          11,
+          402,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.3423
+      },
+      "bounds": [
+        18,
+        25,
+        239,
+        239
+      ]
+    },
+    {
+      "id": "service-post-office",
+      "cell": 3,
+      "sourceBounds": [
+        0,
+        418,
+        418,
+        836
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          29,
+          17,
+          389,
+          401
+        ],
+        "rawAlphaBounds": [
+          27,
+          0,
+          414,
+          410
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.360094
+      },
+      "bounds": [
+        23,
+        17,
+        232,
+        239
+      ]
+    },
+    {
+      "id": "service-bank",
+      "cell": 4,
+      "sourceBounds": [
+        418,
+        418,
+        836,
+        836
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          20,
+          46,
+          402,
+          401
+        ],
+        "rawAlphaBounds": [
+          7,
+          1,
+          415,
+          416
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.355006
+      },
+      "bounds": [
+        19,
+        33,
+        240,
+        239
+      ]
+    },
+    {
+      "id": "service-hotel",
+      "cell": 5,
+      "sourceBounds": [
+        836,
+        418,
+        1254,
+        836
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          31,
+          16,
+          385,
+          401
+        ],
+        "rawAlphaBounds": [
+          11,
+          1,
+          386,
+          408
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.383376
+      },
+      "bounds": [
+        25,
+        16,
+        229,
+        239
+      ]
+    },
+    {
+      "id": "service-garage",
+      "cell": 6,
+      "sourceBounds": [
+        0,
+        836,
+        418,
+        1254
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          18,
+          117,
+          402,
+          400
+        ],
+        "rawAlphaBounds": [
+          0,
+          5,
+          405,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.523054
+      },
+      "bounds": [
+        17,
+        74,
+        240,
+        239
+      ]
+    },
+    {
+      "id": "service-barber",
+      "cell": 7,
+      "sourceBounds": [
+        418,
+        836,
+        836,
+        1254
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          24,
+          17,
+          390,
+          398
+        ],
+        "rawAlphaBounds": [
+          1,
+          1,
+          398,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.372937
+      },
+      "bounds": [
+        21,
+        17,
+        233,
+        237
+      ]
+    },
+    {
+      "id": null
+    }
+  ]
+}

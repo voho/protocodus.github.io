@@ -1,6 +1,7 @@
 import { BUILDINGS } from './buildings.js';
 import { seedNumber } from './world.js';
 import { BIOME_NATURE, isPlantDetail } from './terrain-sprites.js';
+import { industryTiles, industryDistance } from './industry-sites.js';
 
 const clamp = (value, min = 0, max = 1) => Math.max(min, Math.min(max, value));
 const NEIGHBORS = [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]];
@@ -37,7 +38,8 @@ function entityIndex(game) {
   const occupied = new Set(), industriesAt = new Map(), activeStations = new Map();
   for (const industry of game.industries || []) {
     const key = industry.y * game.width + industry.x;
-    occupied.add(key); industriesAt.set(key, industry);
+    for(const point of industryTiles(industry))occupied.add(point.y*game.width+point.x);
+    industriesAt.set(key, industry);
   }
   for (const item of [...(game.stations || []), ...(game.cities || []), ...(game.zones || [])]) occupied.add(item.y * game.width + item.x);
   const activeIds = new Set((game.routes || []).filter(route => route.active).flatMap(route => route.stops));
@@ -76,18 +78,19 @@ export function weatherAt(game, x, y, day = game.day || 0) {
   return { wetness, cold, heat, growth, travel };
 }
 
-export function localEnvironment(game, x, y, radius = 3) {
+export function localEnvironment(game, x, y, radius = 3, footprint = 1) {
   x = Math.floor(x); y = Math.floor(y); radius = Number.isFinite(radius) ? Math.max(1, Math.min(8, Math.floor(radius))) : 3;
+  footprint=footprint===2?2:1;const extra=footprint-1;
   const entities = entityIndex(game);
   const env = { roads: 0, rails: 0, water: 0, forest: 0, rocks: 0, buildings: 0, housing: 0, shops: 0, services: 0, civic: 0, industries: 0, school: 0, hospital: 0, police: 0, fire: 0, leisure: 0, roadAccess: false, railAccess: false, nature: 0, moisture: 0, amenity: 0, pollution: 0, access: 0, transport: 0, elevation: 0 };
   let cells = 0, vegetation = 0, disturbance = 0, amenity = 0;
   // Access has fixed catchments even when a caller requests a smaller sample.
-  for (let dy = -Math.max(radius, 2); dy <= Math.max(radius, 2); dy++) for (let dx = -Math.max(radius, 2); dx <= Math.max(radius, 2); dx++) {
+  for (let dy = -Math.max(radius, 2); dy <= Math.max(radius, 2)+extra; dy++) for (let dx = -Math.max(radius, 2); dx <= Math.max(radius, 2)+extra; dx++) {
     const tile = tileAt(game, x + dx, y + dy);
     if (!tile) continue;
-    if (Math.abs(dx) <= 1 && Math.abs(dy) <= 1 && tile.road) env.roadAccess = true;
-    if (Math.abs(dx) <= 2 && Math.abs(dy) <= 2 && tile.rail) env.railAccess = true;
-    if (Math.abs(dx) > radius || Math.abs(dy) > radius) continue;
+    if (dx>=-1&&dx<=1+extra&&dy>=-1&&dy<=1+extra&&tile.road) env.roadAccess = true;
+    if (dx>=-2&&dx<=2+extra&&dy>=-2&&dy<=2+extra&&tile.rail) env.railAccess = true;
+    if(dx < -radius || dx > radius+extra || dy < -radius || dy > radius+extra)continue;
     cells++; env.elevation += tile.elevation || 0;
     if (tile.road) env.roads++;
     if (tile.rail) env.rails++;
@@ -113,9 +116,9 @@ export function localEnvironment(game, x, y, radius = 3) {
     const industry = entities.industriesAt.get((y + dy) * game.width + x + dx);
     if (industry) { env.industries++; disturbance += emissions[industry.kind] ?? .65; }
   }
-  for (let by = Math.floor((y - 5) / 8); by <= Math.floor((y + 5) / 8); by++) for (let bx = Math.floor((x - 5) / 8); bx <= Math.floor((x + 5) / 8); bx++) {
+  for (let by = Math.floor((y - 5) / 8); by <= Math.floor((y + extra + 5) / 8); by++) for (let bx = Math.floor((x - 5) / 8); bx <= Math.floor((x + extra + 5) / 8); bx++) {
     for (const station of entities.activeStations.get(`${bx},${by}`) || []) {
-      const distance = Math.hypot(station.x - x, station.y - y);
+      const distance = industryDistance({x,y,footprint},station);
       if (distance <= 5) env.transport = Math.max(env.transport, 1 - distance * .08);
     }
   }
@@ -138,12 +141,12 @@ function coprimeStride(length) {
 }
 
 // A sparse asynchronous Moore-neighborhood automaton: one 128th of the land
-// receives a chance each day, then all proposals commit together. A tile is
-// visited only once in a pass, so growing trees never cascade within a day.
+// receives a chance each day, capped at 4,096 cells on continental worlds.
+// Proposals commit together; growing trees never cascade within the same day.
 export function stepEcology(game) {
   const length = game.tiles.length;
   if (!length) return 0;
-  const day = Math.floor(game.day || 0), budget = Math.ceil(length / 128);
+  const day = Math.floor(game.day || 0), budget = Math.min(4096, Math.ceil(length / 128));
   const entities = entityIndex(game), proposals = [];
   const start = Math.floor(randomAt(game, day, 'ecology-sample', 1) * length), stride = coprimeStride(length);
   const desert = game.biome === 'desert', tundra = game.biome === 'tundra';

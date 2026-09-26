@@ -1,0 +1,326 @@
+{
+  "columns": 3,
+  "rows": 3,
+  "cellSizes": [
+    16,
+    32,
+    64,
+    128
+  ],
+  "masterCell": 256,
+  "vehicleLengthNormalized": true,
+  "order": [
+    "vehicle:tanker:NW",
+    "vehicle:tanker:N",
+    "vehicle:tanker:NE",
+    "vehicle:tanker:W",
+    null,
+    "vehicle:tanker:E",
+    "vehicle:tanker:SW",
+    "vehicle:tanker:S",
+    "vehicle:tanker:SE"
+  ],
+  "source": "source-packed.png",
+  "sourceSha256": "cd09db3df549dfc5c67cf7fbf14639e88608ecc1ea6110a0494f0cdc70f64f1f",
+  "sprites": [
+    {
+      "id": "vehicle:tanker:NW",
+      "cell": 0,
+      "sourceBounds": [
+        0,
+        0,
+        640,
+        640
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          167,
+          159,
+          514,
+          523
+        ],
+        "rawAlphaBounds": [
+          120,
+          158,
+          529,
+          526
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.856006
+      },
+      "bounds": [
+        38,
+        34,
+        217,
+        222
+      ]
+    },
+    {
+      "id": "vehicle:tanker:N",
+      "cell": 1,
+      "sourceBounds": [
+        640,
+        0,
+        1280,
+        640
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          246,
+          112,
+          389,
+          547
+        ],
+        "rawAlphaBounds": [
+          181,
+          111,
+          458,
+          554
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.872419
+      },
+      "bounds": [
+        90,
+        12,
+        166,
+        244
+      ]
+    },
+    {
+      "id": "vehicle:tanker:NE",
+      "cell": 2,
+      "sourceBounds": [
+        1280,
+        0,
+        1920,
+        640
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          125,
+          159,
+          477,
+          525
+        ],
+        "rawAlphaBounds": [
+          123,
+          157,
+          516,
+          556
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.854895
+      },
+      "bounds": [
+        38,
+        34,
+        218,
+        221
+      ]
+    },
+    {
+      "id": "vehicle:tanker:W",
+      "cell": 3,
+      "sourceBounds": [
+        0,
+        640,
+        640,
+        1280
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          94,
+          232,
+          511,
+          415
+        ],
+        "rawAlphaBounds": [
+          90,
+          194,
+          511,
+          417
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.876248
+      },
+      "bounds": [
+        12,
+        77,
+        244,
+        179
+      ]
+    },
+    {
+      "id": null
+    },
+    {
+      "id": "vehicle:tanker:E",
+      "cell": 5,
+      "sourceBounds": [
+        1280,
+        640,
+        1920,
+        1280
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          126,
+          231,
+          545,
+          416
+        ],
+        "rawAlphaBounds": [
+          120,
+          222,
+          551,
+          429
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.875701
+      },
+      "bounds": [
+        12,
+        77,
+        244,
+        179
+      ]
+    },
+    {
+      "id": "vehicle:tanker:SW",
+      "cell": 6,
+      "sourceBounds": [
+        0,
+        1280,
+        640,
+        1920
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          158,
+          113,
+          522,
+          472
+        ],
+        "rawAlphaBounds": [
+          95,
+          100,
+          545,
+          579
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.854133
+      },
+      "bounds": [
+        32,
+        34,
+        223,
+        222
+      ]
+    },
+    {
+      "id": "vehicle:tanker:S",
+      "cell": 7,
+      "sourceBounds": [
+        640,
+        1280,
+        1280,
+        1920
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          246,
+          80,
+          387,
+          530
+        ],
+        "rawAlphaBounds": [
+          149,
+          78,
+          500,
+          579
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.871216
+      },
+      "bounds": [
+        91,
+        12,
+        164,
+        244
+      ]
+    },
+    {
+      "id": "vehicle:tanker:SE",
+      "cell": 8,
+      "sourceBounds": [
+        1280,
+        1280,
+        1920,
+        1920
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          115,
+          114,
+          474,
+          475
+        ],
+        "rawAlphaBounds": [
+          99,
+          98,
+          540,
+          579
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.855669
+      },
+      "bounds": [
+        33,
+        33,
+        222,
+        223
+      ]
+    }
+  ]
+}

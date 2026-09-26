@@ -1,0 +1,14 @@
+[
+  {
+    "biome": "tundra",
+    "prompt": "Use case: lighting-weather. Asset type: production TRANSPARENT HOUSE SPRITE ATLAS, not a presentation. EDIT THIS EXACT atlas into its tundra environment variant. WINTER TUNDRA finish: natural pale snow resting on the sloping roofs, window sills, chimney caps and low garden plants; icy subdued blue-gray stone shade, winter-brown shrubs and small drifts at foundations. Keep visible areas of the original dark slate and red tiles, readable dark window glass and warm wall materials. Snow should look convincingly settled, not a uniform whitewash. Doors and windows unobscured.\nCRITICAL: preserve the exact3by3 grid. Each oftheNINEhouseobjects remains in exactly the same cell, same size, camera, location, silhouette, groundline, roof geometry, doors and window coordinates. Do not add, remove or rearrange houses. Preserve all transparent gutters/margins and actual alpha transparency, not checkerboard or solid background. No cell borders, no labels, no text, no watermark. Output square image with nine separated sprites identicalinregistration toinput. Alter only climate textures/colors and small snow/succulent details. Same richly painted miniature realistic style, upper-left daylight and short contactshadows. This atlas will be split into256pxsquarecells then downscaled into32pxsprites, so broadvaluecontrastsandclearwindows matter.",
+    "reference": "taiga/house-atlas.png",
+    "tool": "built-in image_gen"
+  },
+  {
+    "biome": "desert",
+    "prompt": "Use case: lighting-weather. Asset type: production TRANSPARENT HOUSE SPRITE ATLAS, not a presentation. EDIT THIS EXACT atlas into its desert environment variant. DRY DESERT finish: warm sun-bleached plaster, sandstone and brick, subtly dusty roof materials, tiny arid grasses and succulents in place of damp garden plants. Keep each house's original distinct roofcolor family and masonry/timber identity; mute lush greens to dusty olive. No snow. Plausible dry-climate finishes, restrained warm highlights, dark cool window glass for small-sprite readability.\nCRITICAL: preserve the exact3by3 grid. Each oftheNINEhouseobjects remains in exactly the same cell, same size, camera, location, silhouette, groundline, roof geometry, doors and window coordinates. Do not add, remove or rearrange houses. Preserve all transparent gutters/margins and actual alpha transparency, not checkerboard or solid background. No cell borders, no labels, no text, no watermark. Output square image with nine separated sprites identicalinregistration toinput. Alter only climate textures/colors and small snow/succulent details. Same richly painted miniature realistic style, upper-left daylight and short contactshadows. This atlas will be split into256pxsquarecells then downscaled into32pxsprites, so broadvaluecontrastsandclearwindows matter.",
+    "reference": "taiga/house-atlas.png",
+    "tool": "built-in image_gen"
+  }
+]

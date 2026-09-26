@@ -1,0 +1,6 @@
+{
+  "tool": "Built-in image_gen",
+  "prompt": "Use case: identity-preserve. Productiontransparent8DIRECTIONspritesheet oftheEXACTreferenceEMPTYfreightrailwaywagon: weatheredreddishbrownlowsteelwalls,visiblewoodenplankfloor,blackwheels,metalendcouplers. Make8individuallyredrawnviews in3x3grid, EMPTYcenter: NW,N,NE / W,EMPTY,E / SW,S,SE. AtoneFRONTend a smallredhandbrakewheel andlightmetalstep makeorientationrecognizable. FRONTendpointsOUTWARDfromcenter: upperleft/top/upperright inrow1, leftandrightrow2, bottomleft/bottom/bottomrightrow3. SAMEwagonallviews,sameobjectscale. Fixedhighorthographic60degreesfromsouthcamera, fixedupperleftsun, NOTaflatimage rotated. Nviews nearestcamera iswagonrear withfrontfaratTOP; SviewsfronttowardcameraatBOTTOM. Emptycargobed staysfullyvisible everyanglefordynamicgoods. Oneisolatedcompleteobjecteachcell withgenerous15%transparentmargin. No rails,notrainengine,noaddedcargo,noground,notext,noarrows,nolabels,nogrid. Genuinealphaonthewholebackgroundandcentercell. Richhandpaintedrealisticminiaturematerials, subtlegrainandmetalwear, crispdarkcontactshadows, mutedearthycolor. Squareatlas for256pxmastercellsdownscaledtogamesprites.",
+  "reference": "../vehicles/sources/vehicle_wagon.png",
+  "packing": "prepare-source.py then build-world-atlases.py --anchor center --vehicle; headings assigned by visible front/rear"
+}

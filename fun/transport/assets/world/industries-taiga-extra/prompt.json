@@ -1,0 +1,15 @@
+{
+  "entries": [
+    "oil-well",
+    "refinery",
+    "quarry"
+  ],
+  "columns": 3,
+  "rows": 1,
+  "prompt": "Use case: style-transfer. Asset type: transparent industry sprite atlas for a 2D transport tycoon game. The attached industry atlas is a STYLE REFERENCE, not the layout to preserve. Create the exact new industrial sites below in its realistically textured miniature illustrated style: tactile masonry, timber, metal, roofs, clear strong functional silhouettes, raised orthographic front/three-quarter camera, sunlit from upper left, grounded natural contact shadows. These are substantial2-by-2map-tile sites displayed at128to256physicalpixels; rich realistic detail must remain readable. Entire sites and all shadows must fit within their separate cells with at least12%transparentpadding on every side. Strong coherent shapes, all structures complete. Genuine transparent alpha outside cutouts. No text, letters, labels, logos, gridlines, opaque backgrounds, square maptiles, roads, figures or big smokeclouds. Do not copy existing buildings fromreference; design unique identities requested.\nHorizontal atlas: exactly THREE evenly spaced sprites, one row, LEFT TO RIGHT. Temperate green taiga groundskirts, very sparse moss or grass, no snow or sand. (1) Oil well: very recognizable black steel pumpjack with golden ochre moving beam, two compact black upright oil tanks, a small gray utility hut and grounded connecting pipe. (2) Oil refinery: shiny steel distillation columns of different heights, large curved connecting pipes, two pale cylindrical storage tanks, and a small red brick control office at the front. (3) Stone quarry: pale gray terraced rock excavation with conspicuous big angular cut limestone blocks, an ochre stone crusher and short black conveyor. Quarry is a pale quarry pit, not a coal mine. No overlapping cells. Each sitecenter in its own equal third, own groundbaseline at85% ofimageheight, generousclearspaceabove; use wide3:1canvas ifpossible.",
+  "source": "built-in image_gen",
+  "styleReference": "../industries-taiga/source-generated.png",
+  "generatedSource": "source-generated.png",
+  "generatedFile": "exec-faab113a-06e1-47a3-a8a2-d1c1b55bc6ea.png",
+  "layoutCorrectionPrompt": "layout-fix-prompt.txt"
+}

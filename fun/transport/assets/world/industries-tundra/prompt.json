@@ -1,0 +1,38 @@
+{
+  "entries": [
+    "coal-mine",
+    "iron-mine",
+    "steel-mill",
+    "machine-works",
+    "fishery",
+    "fish-processor",
+    "oil-well",
+    "refinery",
+    "quarry"
+  ],
+  "prompt": "Use case: style-transfer. Asset type: transparent production sprite atlas for a top-down 2D transport tycoon game. Input image: house atlas is STYLE REFERENCE ONLY. Replace its houses with the industrial sites specified below, retaining its coherent realistically textured miniature illustration style: tactile brick, stone, timber, metal and roof tiles, clear large silhouettes, grounded contact shadows, softly sunlit from upper left, slightly elevated orthographic three-quarter camera with roofs and front walls visible. These are substantial 2-by-2 map-tile industry sites, displayed at 128 to 256 physical pixels. Use detailed recognizable functional industrial architecture and equipment, with a strong coherent silhouette. Not photographs or flat icons.\nLayout: exactly NINE separate sprites in a regular invisible 3-by-3 grid, equal cells, ordered left to right then top to bottom. Each entire site, chimney and shadow is centered inside its own cell with at least 10% clear transparent margin on every side. Each site fills about 78% of cell width and at most82% height, baseline at89% cell height. Every asset is a single compact complete industrial site. NO grid lines, NO cell backgrounds, NO square terrain tiles, NO text, labels, letters, logos, roads, vehicles, people, arrows or resource-symbol overlays. No artwork crosses a cell boundary. Genuine transparent alpha behind all nine cutouts including between them. Do not copy any house from reference. Architecture and machinery distinguish all nine identities immediately. Preserve saturated but natural material colours and crisp details at small size.\nCold tundra version: realistic patches of white snow on roofs, rock edges and tiny ground skirts; snow accents leave materials and identity visible. No large landscape. Exact nine cells:\nTOP ROW: (1) Coal mine: black coal heap, timber-and-steel pithead winding tower, dark mine entry, gray utility hut; (2) Iron mine: rust-red exposed rock cut, red ore pile, sturdy metal hoist and corrugated hut; (3) Steel mill: massive dark red brick furnace hall, stout blast-furnace tower, two narrow smokestacks, warm orange furnace opening.\nMIDDLE ROW: (4) Machine works: gray assembly hall, blue roof, overhead steel gantry and metal parts outside; (5) Fishery: blue timber fishing lodge on a short wooden pier with pilings, crab pots, fishing net and silver fish crates, tiny subtly blue icy water-contact shadow directly below pier only; (6) Fish processor: white refrigerated processing warehouse, blue-gray roof, insulated loading doorway, metal refrigeration units and fish crates.\nBOTTOM ROW: (7) Oil well: prominent black steel pumpjack with golden ochre moving beam, two compact upright oil tanks and a small frosted utility hut; (8) Oil refinery: silver distillation columns of different heights, curved connecting pipes, two pale round storage tanks and a low red brick control room; (9) Stone quarry: pale gray terraced stone excavation, cut angular limestone blocks, small ochre quarry conveyor/crusher. All sites compact and entirely visible. No smoke clouds.",
+  "source": "built-in image_gen",
+  "styleReference": "../../houses/taiga/house-atlas.png",
+  "generatedSource": "source-generated.png",
+  "generatedFile": "exec-6d867b35-bcb5-4f36-9148-343f88df19a3.png",
+  "columns": 3,
+  "rows": 3,
+  "layoutCorrectionPrompt": "layout-fix-prompt.txt",
+  "packing": {
+    "prepare": "prepare-source.py",
+    "method": "lossless crop at empty source row gaps, followed by transparent padding",
+    "rowCuts": [
+      0,
+      455,
+      843,
+      1254
+    ],
+    "columnCuts": [
+      0,
+      418,
+      836,
+      1254
+    ],
+    "sourceCellSize": 512
+  }
+}

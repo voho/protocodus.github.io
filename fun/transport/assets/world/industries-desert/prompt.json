@@ -1,0 +1,20 @@
+{
+  "entries": [
+    "farm",
+    "food-plant",
+    "oil-well",
+    "refinery",
+    "quarry",
+    "cement-works",
+    "sand-pit",
+    "glassworks",
+    "copper-mine"
+  ],
+  "prompt": "Use case: style-transfer. Asset type: transparent production sprite atlas for a top-down 2D transport tycoon game. Input image: house atlas is STYLE REFERENCE ONLY. Replace its houses with the industrial sites specified below, retaining its coherent realistically textured miniature illustration style: tactile brick, stone, timber, metal and roof tiles, clear large silhouettes, grounded contact shadows, softly sunlit from upper left, slightly elevated orthographic three-quarter camera with roofs and front walls visible. These are substantial 2-by-2 map-tile industry sites, displayed at 128 to 256 physical pixels. Use detailed recognizable functional industrial architecture and equipment, with a strong coherent silhouette. Not photographs or flat icons.\nLayout: exactly NINE separate sprites in a regular invisible 3-by-3 grid, equal cells, ordered left to right then top to bottom. Each entire site, chimney and shadow is centered inside its own cell with at least 10% clear transparent margin on every side. Each site fills about 78% of cell width and at most82% height, baseline at89% cell height. Every asset is a single compact complete industrial site. NO grid lines, NO cell backgrounds, NO square terrain tiles, NO text, labels, letters, logos, roads, vehicles, people, arrows or resource-symbol overlays. No artwork crosses a cell boundary. Genuine transparent alpha behind all nine cutouts including between them. Do not copy any house from reference. Architecture and machinery distinguish all nine identities immediately. Preserve saturated but natural material colours and crisp details at small size.\nDesert version: warm dry sandstone, ochre dust, minimal dry grass at edges and sparse tiny agave; no snow and no large landscape. Exact nine cells:\nTOP ROW: (1) Grain farm: cream adobe farmhouse/barn with red clay roof, golden grain patch, small irrigation channel and a round silver grain silo, compact farmstead; (2) Food plant: cream clean processing hall with pale green roof, pair of stainless food tanks, neatly stacked grain sacks; (3) Oil well: black steel pumpjack with golden ochre moving beam, two compact upright oil tanks and small tan utility hut.\nMIDDLE ROW: (4) Oil refinery: silver distillation towers of different heights, curved pipes, two pale round storage tanks, low red brick control room; (5) Stone quarry: pale gray terraced stone excavation, cut angular limestone blocks, small ochre crusher/conveyor; (6) Cement works: tall paired pale concrete silos, short horizontal rotary kiln and stout brown processing hall, dusty beige powder stack.\nBOTTOM ROW: (7) Sand pit: warm golden shallow excavation with terraced dune-like banks, short conveyor and a compact orange excavator, visibly all sand without big rocks; (8) Glassworks: teal-glass pitched greenhouse-like factory roof, brick furnace annex with orange glow, turquoise glass panes stacked outside; (9) Copper mine: terraced rust-orange open rock pit, oxidized turquoise/copper ore heap, small timber headframe and sandstone utility shed. All sites compact and entirely visible, distinguish ore colours. No smoke clouds.",
+  "source": "built-in image_gen",
+  "styleReference": "../../houses/taiga/house-atlas.png",
+  "generatedSource": "source-generated.png",
+  "generatedFile": "exec-655c0dba-7522-49e7-bdaa-6352b294571b.png",
+  "columns": 3,
+  "rows": 3
+}

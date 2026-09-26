@@ -1,0 +1,94 @@
+{
+  "columns": 2,
+  "rows": 1,
+  "cellSizes": [
+    16,
+    32,
+    64,
+    128,
+    256
+  ],
+  "masterCell": 256,
+  "order": [
+    "industry:wire-mill:desert",
+    "industry:goods-factory:desert"
+  ],
+  "source": "source-generated.png",
+  "sourceSha256": "af9f62448e7a0e7d1dd16404af7ad59016cc7f6afc1b59c231a2a23d9c568127",
+  "sprites": [
+    {
+      "id": "industry:wire-mill:desert",
+      "cell": 0,
+      "sourceBounds": [
+        0,
+        0,
+        887,
+        887
+      ],
+      "normalization": {
+        "originalSize": [
+          887,
+          887
+        ],
+        "sourceBounds": [
+          22,
+          118,
+          887,
+          784
+        ],
+        "rawAlphaBounds": [
+          0,
+          31,
+          887,
+          833
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.484717
+      },
+      "bounds": [
+        12,
+        65,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "industry:goods-factory:desert",
+      "cell": 1,
+      "sourceBounds": [
+        887,
+        0,
+        1774,
+        887
+      ],
+      "normalization": {
+        "originalSize": [
+          887,
+          887
+        ],
+        "sourceBounds": [
+          15,
+          143,
+          867,
+          780
+        ],
+        "rawAlphaBounds": [
+          14,
+          23,
+          869,
+          847
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.50602
+      },
+      "bounds": [
+        12,
+        71,
+        244,
+        244
+      ]
+    }
+  ]
+}

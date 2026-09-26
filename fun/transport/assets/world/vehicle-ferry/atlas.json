@@ -1,0 +1,326 @@
+{
+  "columns": 3,
+  "rows": 3,
+  "cellSizes": [
+    16,
+    32,
+    64,
+    128
+  ],
+  "masterCell": 256,
+  "vehicleLengthNormalized": true,
+  "order": [
+    "vehicle:ferry:NW",
+    "vehicle:ferry:S",
+    "vehicle:ferry:NE",
+    "vehicle:ferry:W",
+    null,
+    "vehicle:ferry:E",
+    "vehicle:ferry:SW",
+    "vehicle:ferry:N",
+    "vehicle:ferry:SE"
+  ],
+  "source": "source-packed.png",
+  "sourceSha256": "644628db51662081a87646a471c161b7aae4a381a5be69ea62a6c10ab6b74c0c",
+  "sprites": [
+    {
+      "id": "vehicle:ferry:NW",
+      "cell": 0,
+      "sourceBounds": [
+        0,
+        0,
+        640,
+        640
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          145,
+          167,
+          513,
+          473
+        ],
+        "rawAlphaBounds": [
+          95,
+          99,
+          545,
+          556
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.853062
+      },
+      "bounds": [
+        29,
+        46,
+        226,
+        210
+      ]
+    },
+    {
+      "id": "vehicle:ferry:S",
+      "cell": 1,
+      "sourceBounds": [
+        640,
+        0,
+        1280,
+        640
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          229,
+          117,
+          406,
+          505
+        ],
+        "rawAlphaBounds": [
+          143,
+          116,
+          498,
+          560
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.875242
+      },
+      "bounds": [
+        75,
+        12,
+        181,
+        244
+      ]
+    },
+    {
+      "id": "vehicle:ferry:NE",
+      "cell": 2,
+      "sourceBounds": [
+        1280,
+        0,
+        1920,
+        640
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          126,
+          168,
+          493,
+          476
+        ],
+        "rawAlphaBounds": [
+          101,
+          99,
+          536,
+          546
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.851299
+      },
+      "bounds": [
+        30,
+        45,
+        226,
+        210
+      ]
+    },
+    {
+      "id": "vehicle:ferry:W",
+      "cell": 3,
+      "sourceBounds": [
+        0,
+        640,
+        640,
+        1280
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          96,
+          242,
+          519,
+          440
+        ],
+        "rawAlphaBounds": [
+          88,
+          187,
+          527,
+          445
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.853914
+      },
+      "bounds": [
+        12,
+        73,
+        244,
+        182
+      ]
+    },
+    {
+      "id": null
+    },
+    {
+      "id": "vehicle:ferry:E",
+      "cell": 5,
+      "sourceBounds": [
+        1280,
+        640,
+        1920,
+        1280
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          124,
+          241,
+          546,
+          440
+        ],
+        "rawAlphaBounds": [
+          114,
+          194,
+          553,
+          445
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.85321
+      },
+      "bounds": [
+        12,
+        73,
+        244,
+        182
+      ]
+    },
+    {
+      "id": "vehicle:ferry:SW",
+      "cell": 6,
+      "sourceBounds": [
+        0,
+        1280,
+        640,
+        1920
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          144,
+          191,
+          513,
+          486
+        ],
+        "rawAlphaBounds": [
+          128,
+          60,
+          545,
+          541
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.85521
+      },
+      "bounds": [
+        23,
+        44,
+        232,
+        211
+      ]
+    },
+    {
+      "id": "vehicle:ferry:N",
+      "cell": 7,
+      "sourceBounds": [
+        640,
+        1280,
+        1280,
+        1920
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          222,
+          156,
+          413,
+          517
+        ],
+        "rawAlphaBounds": [
+          141,
+          61,
+          500,
+          519
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.867056
+      },
+      "bounds": [
+        66,
+        12,
+        189,
+        244
+      ]
+    },
+    {
+      "id": "vehicle:ferry:SE",
+      "cell": 8,
+      "sourceBounds": [
+        1280,
+        1280,
+        1920,
+        1920
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          125,
+          189,
+          494,
+          486
+        ],
+        "rawAlphaBounds": [
+          98,
+          60,
+          522,
+          563
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.854739
+      },
+      "bounds": [
+        23,
+        43,
+        233,
+        212
+      ]
+    }
+  ]
+}

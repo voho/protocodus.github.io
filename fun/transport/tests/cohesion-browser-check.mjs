@@ -11,7 +11,7 @@ try {
  const page=await browser.newPage({viewport:{width:1440,height:960}});
  page.on('pageerror',error=>errors.push(error.message));
  await page.goto(url);await page.waitForFunction(()=>window.transport?.game);await page.evaluate(()=>transport.setSpeed(0));
- assert.deepEqual(await page.evaluate(()=>[transport.game.width,transport.game.height,transport.game.cities.length]),[768,576,64]);
+ assert.deepEqual(await page.evaluate(()=>[transport.game.width,transport.game.height,transport.game.cities.length]),[512,512,48]);
  await page.locator('.project-card summary').click();
  assert.match(await page.locator('.project-card').innerText(),/first cargo route/);
  await page.locator('[data-project-action="source"]').click();
@@ -50,15 +50,16 @@ try {
  // New world activation is transactional even when the browser rejects writes.
  const before=await page.evaluate(()=>({seed:transport.game.seed,width:transport.game.width,raw:localStorage.getItem('transport-save-v1')}));
  await page.locator('#world-button').click();
- assert.equal(await page.locator('[data-world-size]').count(),4);
- await page.locator('#world-seed').fill('98261');await page.locator('[data-world-size="regional"]').click();
+ assert.equal(await page.locator('[data-world-size]').count(),3);
+ await page.locator('#world-seed').fill('98261');await page.locator('[data-world-size="square512"]').click();
  await page.evaluate(()=>{window.originalSetItem=Storage.prototype.setItem;Storage.prototype.setItem=function(){throw new DOMException('Full','QuotaExceededError');};});
  await page.locator('#generate-world').click();
+ await page.waitForFunction(()=>document.querySelector('#world-generation-status')?.textContent.includes('current world is unchanged')&&!document.querySelector('#generate-world').disabled);
  assert.deepEqual(await page.evaluate(()=>({seed:transport.game.seed,width:transport.game.width,raw:localStorage.getItem('transport-save-v1')})),before);
  assert.equal(await page.locator('#modal').evaluate(el=>el.open),true);
  assert.match(await page.locator('#status-message').innerText(),/current world is unchanged/);
  await page.evaluate(()=>{Storage.prototype.setItem=window.originalSetItem;});
  await page.keyboard.press('Escape');
  assert.deepEqual(errors,[]);
- console.log('Cohesion browser checks passed: vast opening, actionable freight, searches/focus, production explanations, operating accounts, paused disconnection, safe new worlds.');
+ console.log('Cohesion browser checks passed: square opening, actionable freight, searches/focus, production explanations, operating accounts, paused disconnection, safe new worlds.');
 } finally {await browser.close();}

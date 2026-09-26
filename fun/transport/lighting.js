@@ -1,3 +1,10 @@
+import { residentialKind, commercialKind } from './buildings.js';
+import { hasRasterHouse, houseWindowAnchors } from './raster-houses.js';
+import { hasRasterIndustry, rasterIndustryWindows } from './raster-industries.js';
+import { industrySize } from './industry-sites.js';
+import { hasRasterBuilding, rasterBuildingWindows } from './raster-buildings.js';
+import { vehicleHeadingIndex } from './vehicle-directions.js';
+
 const TAU = Math.PI * 2;
 const clamp = value => Math.max(0, Math.min(1, value));
 const smooth = value => { const t = clamp(value); return t * t * (3 - 2 * t); };
@@ -37,11 +44,25 @@ export function createLighting() {
     for (let y = bounds.y0; y < bounds.y1; y++) for (let x = bounds.x0; x < bounds.x1; x++) {
       const t = tile(x, y), id = y * game.width + x, p = project(x, y), hash = (Math.imul(x + 17, 73856093) ^ Math.imul(y + 31, 19349663) ^ (game.seed || 0)) >>> 0;
       if (layers.buildings && (t.building || industryIndex.has(id))) {
-        const industry = industryIndex.get(id), count = industry ? 3 : 1 + hash % 3;
+        const industry = industryIndex.get(id), legacy = t.building?.kind;
+        if(industry&&(industry.x!==x||industry.y!==y))continue;
+        const kind = ['house', 'apartment'].includes(legacy) ? residentialKind(t.variant ?? x * 13 + y, t.building.level || 1) : ['shop', 'office'].includes(legacy) ? commercialKind(t.variant ?? x * 13 + y, t.building.level || 1) : legacy;
+        const zoneFactory=kind==='factory'?(game.biome==='tundra'?'equipment-factory':game.biome==='desert'?'goods-factory':'furniture-factory'):null;
+        const raster = industry ? hasRasterIndustry(industry.kind,game.biome) : zoneFactory?hasRasterIndustry(zoneFactory,game.biome):hasRasterHouse(kind, game.biome)||hasRasterBuilding(kind,game.biome),span=industrySize(industry);
+        const windows = raster ? industry?rasterIndustryWindows(industry.kind,game.biome):zoneFactory?rasterIndustryWindows(zoneFactory,game.biome):hasRasterHouse(kind,game.biome)?houseWindowAnchors(kind,game.biome):rasterBuildingWindows(kind,game.biome) : null, count = raster ? windows.length : industry ? 3 : 1 + hash % 3;
         for (let n = 0; n < count; n++) {
-          const wx = p.x + (-8 + n * 5 + (hash % 3)) * zoom, wy = p.y + (industry ? 4 : 3 + hash % 3) * zoom;
-          glow(wx, wy, Math.max(3, 6 * zoom), '#ffd28b', .48);
-          c.globalAlpha = night * .92; c.fillStyle = '#ffe2a1'; c.fillRect(wx, wy, Math.max(.8, 1.5 * zoom), Math.max(.8, 1.7 * zoom)); c.globalAlpha = 1;
+          const wx0 = raster ? windows[n][0]*span : 8 + n * 5 + hash % 3, wy0 = raster ? windows[n][1]*span : industry ? 20 : 19 + hash % 3;
+          const wx = p.x + (wx0 - 16) * zoom, wy = p.y + (wy0 - 16) * zoom;
+          if (raster) {
+            const w = windows[n][2] * zoom*span, h = windows[n][3] * zoom*span, cx = wx + w / 2, cy = wy + h / 2;
+            const visibleW = Math.max(.8, w), visibleH = Math.max(.8, h);
+            glow(cx, cy, Math.max(3.5, 5 * zoom), '#ffd28b', .82);
+            // Translucent light keeps the generated glazing and mullions visible.
+            c.globalAlpha = night * .9; c.fillStyle = '#ffe1a1'; c.fillRect(cx - visibleW / 2, cy - visibleH / 2, visibleW, visibleH); c.globalAlpha = 1;
+          } else {
+            glow(wx, wy, Math.max(3, 6 * zoom), '#ffd28b', .48);
+            c.globalAlpha = night * .92; c.fillStyle = '#ffe2a1'; c.fillRect(wx, wy, Math.max(.8, 1.5 * zoom), Math.max(.8, 1.7 * zoom)); c.globalAlpha = 1;
+          }
         }
       }
       if (layers.roads && t.road && hash % 11 === 0) {
@@ -64,10 +85,10 @@ export function createLighting() {
     }
     if (layers.vehicles) for (const vehicle of game.vehicles || []) {
       const route = routesById.get(vehicle.routeId), p = project(vehicle.x, vehicle.y); if (!route || !visible(p)) continue;
-      const angle = Number.isFinite(vehicle.angle) ? vehicle.angle : 0, cosine = Math.cos(angle), sine = Math.sin(angle), ship = route.mode === 'water';
+      const angle = vehicleHeadingIndex(vehicle.angle) * Math.PI / 4, cosine = Math.cos(angle), sine = Math.sin(angle), ship = route.mode === 'water';
       const point = (dx, dy) => ({ x: p.x + (dx * cosine - dy * sine) * zoom, y: p.y + (dx * sine + dy * cosine) * zoom });
       const underBridge = (dx, dy) => { const t = tile(Math.floor(vehicle.x + .5 + (dx * cosine - dy * sine) / 32), Math.floor(vehicle.y + .5 + (dx * sine + dy * cosine) / 32)); return ship && t?.bridge && ((layers.roads && t.road) || (layers.rails && t.rail)); };
-      const nose = ship ? 18 : 7, head = point(nose, 0);
+      const nose = ship ? 18 : 8, head = point(nose, 0);
       if (!underBridge(nose, 0)) {
         c.save(); c.translate(head.x, head.y); c.rotate(angle); c.globalAlpha = night * (ship ? .34 : .55);
         const length = (ship ? 19 : 22) * zoom, beam = c.createRadialGradient(0, 0, 0, 0, 0, length);

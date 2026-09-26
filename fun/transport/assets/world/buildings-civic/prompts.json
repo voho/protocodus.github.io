@@ -1,0 +1,35 @@
+{
+  "generator": "built-in image_gen",
+  "styleReference": "../../../houses/taiga/house-atlas.png",
+  "order": [
+    "school",
+    "hospital",
+    "police-station",
+    "fire-station",
+    "stadium",
+    "church",
+    "pub",
+    "shop-grocery",
+    "shop-bakery"
+  ],
+  "prompts": {
+    "taiga": "Use case: style-transfer. Asset type: transparent sprite atlas for the 2D transport-building game Transport. Input image: STYLE AND CAMERA REFERENCE ONLY, the existing nine-house atlas. Create a NEW atlas of nine NON-RESIDENTIAL buildings in exactly a 3-column by 3-row equal-cell square grid. Match the reference's realistic, finely painted miniature raster finish, warm muted masonry, natural roof textures, soft upper-left light, slightly elevated near-frontal view with a little right facade visible, recognisable roof silhouettes, and tiny grounded garden/contact shadows. Do not copy any house. Every building is an independent transparent cutout, horizontally centered and bottom-grounded in its own square cell with generous empty margins on all sides. No overlapping cells, no connected landscape, no drawn tile grid, no panels or captions, no letters or numbers. Transparent RGBA background, not a checkerboard picture. The small lawn/flower edging belongs only immediately around the individual building. Taiga/temperate green surroundings without snow.\nPrecise row-major order, ONE building per cell:\nROW 1 LEFT: a red-brick village SCHOOL with central gabled clock tower, paired classroom wings and a small front entrance courtyard; the clock face has hands only, no numerals. ROW 1 CENTER: a cream stone HOSPITAL with wide clean ward windows, blue-gray roofs, recessed front entrance and one small simple medical cross above it. ROW 1 RIGHT: a blue-gray brick POLICE STATION with a formal entrance, broad dark-blue doors and small shield-shaped badge relief, no lettering.\nROW 2 LEFT: a red-brick FIRE STATION with a square hose-drying tower and two broad red vehicle-bay doors. ROW 2 CENTER: a compact oval STADIUM, distinct green football pitch surrounded by low stone bleachers and four small floodlight masts; no roof hiding the green pitch. ROW 2 RIGHT: a small stone CHURCH with a tall slender square bell tower, modest pitched slate nave roof, arched front door and narrow stained-glass windows.\nROW 3 LEFT: a timber-and-plaster village PUB with a broad dark-green roof, cozy projecting entrance, hanging tankard-shaped sign without text and tiny front benches. ROW 3 CENTER: a GROCER shop with a green striped awning, broad front display glass and recognizable crates of green/red produce at the doorstep. ROW 3 RIGHT: a BAKERY with terracotta roof, cream walls, striped russet awning, side oven chimney and a little display of golden bread by the broad front window.\nThe nine identities must be visually distinct even after reduction to 16 pixels. Favor bold architectural silhouette and characteristic facade over scattered tiny clutter. No people, no vehicles, no labels, no white rectangular backgrounds. Keep each entire silhouette and shadow within its cell.",
+    "tundra": "Use case: lighting-weather. Edit target: this normalized transparent 3x3 building sprite atlas. Preserve exact cell positions, every silhouette, scale, roof design, doors and individual window locations, viewing angle, finely textured realistic miniature raster style, and all building identities. Change ONLY climate materials and tiny threshold landscaping. Do not zoom, enlarge, shrink, rearrange, replace, add or remove buildings. Keep true transparent RGBA background and each cell's existing transparent margin. No background panels, text, labels, watermark or large ground plane.\nTUNDRA / WINTER FINISH: add natural shallow snow caps on upward roof surfaces, ledges and shrub tops, a few subtle icicles, cool winter materials, muted frost-blue glazing, snowy threshold ground patches. Roof colors remain faintly recognizable beneath the snow. Keep doorways and all facade window glass clearly exposed, dark and unlit for the night renderer; no festive decoration. Sparse hardy snowy shrubs replace flowers. The stadium keeps the same walls, bleachers and four poles but its grass pitch has subtle frost with recognizable green playing area. Everything else stays in exactly the same location.",
+    "desert": "Use case: lighting-weather. Edit target: this normalized transparent 3x3 building sprite atlas. Preserve exact cell positions, every silhouette, scale, roof design, doors and individual window locations, viewing angle, finely textured realistic miniature raster style, and all building identities. Change ONLY climate materials and tiny threshold landscaping. Do not zoom, enlarge, shrink, rearrange, replace, add or remove buildings. Keep true transparent RGBA background and each cell's existing transparent margin. No background panels, text, labels, watermark or large ground plane.\nDESERT / ARID FINISH: warm sun-weathered ochre plaster, sandstone masonry and dusty terracotta/slate roofs while preserving each building's architecture and recognizable roof-color identity. Threshold gardens become sparse dry grasses, small succulents or low arid shrubs, with compact sandy doorsteps and no surrounding ground tile. All facade window glass remains dark and unlit. Shop flowers remain modest pots appropriate to a florist. The stadium keeps a recognizable irrigated green playing field but arid vegetation outside. No palms towering over roofs. Everything else stays in exactly the same location."
+  },
+  "selectedSource": "generated/taiga-source-v2.png",
+  "generatorOutputs": [
+    "exec-9568e750-30ad-47f0-9708-d989400aaf62.png"
+  ],
+  "climateReference": "taiga/atlas.png",
+  "climateSources": {
+    "tundra": {
+      "file": "generated/tundra-source.png",
+      "generatorOutput": "exec-7818657a-3157-492b-9c4a-772869897cd5.png"
+    },
+    "desert": {
+      "file": "generated/desert-source.png",
+      "generatorOutput": "exec-1570a814-cc13-4481-b677-0a862c2de27f.png"
+    }
+  }
+}

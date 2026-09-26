@@ -1,0 +1,43 @@
+{
+  "generator": "built-in image_gen",
+  "identityReference": "../vehicles/sources/vehicle_truck.png",
+  "prompt": "prompt.txt",
+  "generatedSources": [
+    {
+      "file": "generated/directions-source-v1.png",
+      "generatorOutput": "exec-1ceca0c5-d4c1-4474-a7ef-de336f78a0db.png"
+    },
+    {
+      "file": "generated/directions-source-v2.png",
+      "generatorOutput": "exec-25eada5e-abd6-4201-b2bc-62698086905e.png",
+      "prompt": "repair-prompt.txt"
+    }
+  ],
+  "selectedSource": "generated/directions-source-cropped.png",
+  "actualCompassOrder": [
+    "NW",
+    "N",
+    "NE",
+    "W",
+    null,
+    "E",
+    "SW",
+    "S",
+    "SE"
+  ],
+  "normalization": "build-world-atlases.py --vehicle --anchor center (alpha principal-axis body length)",
+  "technicalCrop": {
+    "source": "generated/directions-source-v2.png",
+    "cells": [
+      3,
+      5
+    ],
+    "retainLocalRectangle": [
+      0,
+      0,
+      418,
+      350
+    ],
+    "reason": "Remove fragments from the next row across an empty alpha gap; actual side-view bodies occupy y117..290 and are unchanged."
+  }
+}

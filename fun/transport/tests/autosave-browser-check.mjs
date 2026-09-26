@@ -10,8 +10,8 @@ try {
   await page.goto(url);
   await page.waitForFunction(() => window.transport?.game && localStorage.getItem('transport-save-v1'));
   const initial = await page.evaluate(() => JSON.parse(localStorage.getItem('transport-save-v1')).state);
-  assert.equal(initial.width, 768);
-  assert.equal(initial.height, 576);
+  assert.equal(initial.width, 512);
+  assert.equal(initial.height, 512);
   assert.equal(initial.day, 0, 'a first visit establishes the save before play begins');
 
   await page.locator('[data-speed="3"]').click();

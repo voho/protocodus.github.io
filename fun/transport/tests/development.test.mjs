@@ -10,7 +10,7 @@ test('every environment-specific industry can be built on its supported terrain'
       const game = emptyGame(biome);
       const tile = tileAt(game, 20, 20);
       if (definition.terrain) tile.terrain = definition.terrain[0];
-      if (definition.coastal) tileAt(game, 21, 20).terrain = 'water';
+      if (definition.coastal) tileAt(game, 22, 20).terrain = 'water';
       const before = game.money;
       const result = build(game, kind, 20, 20);
       if (definition.biomes.includes(biome)) {

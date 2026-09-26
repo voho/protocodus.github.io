@@ -1,0 +1,359 @@
+{
+  "columns": 3,
+  "rows": 3,
+  "cellSizes": [
+    16,
+    32,
+    64,
+    128
+  ],
+  "masterCell": 256,
+  "order": [
+    "nature-mountains:granite-ridge",
+    "nature-mountains:wooded-foothill",
+    "nature-mountains:granite-peak",
+    "nature-mountains:ice-peak",
+    "nature-mountains:glacier",
+    "nature-mountains:frost-ridge",
+    "nature-mountains:mesa",
+    "nature-mountains:butte",
+    "nature-mountains:canyon"
+  ],
+  "source": "exec-8b4978c5-c22b-41e0-86da-b581498484bb.png",
+  "sourceSha256": "6a8cd98dc3ce6893727943f5b2c04c758be77648f91aa010b7d649701bb8c7f8",
+  "sprites": [
+    {
+      "id": "nature-mountains:granite-ridge",
+      "cell": 0,
+      "sourceBounds": [
+        0,
+        0,
+        418,
+        418
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          50,
+          122,
+          368,
+          385
+        ],
+        "rawAlphaBounds": [
+          49,
+          107,
+          418,
+          409
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.724331
+      },
+      "bounds": [
+        12,
+        52,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "nature-mountains:wooded-foothill",
+      "cell": 1,
+      "sourceBounds": [
+        418,
+        0,
+        836,
+        418
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          47,
+          141,
+          372,
+          381
+        ],
+        "rawAlphaBounds": [
+          1,
+          47,
+          412,
+          394
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.710704
+      },
+      "bounds": [
+        12,
+        73,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "nature-mountains:granite-peak",
+      "cell": 2,
+      "sourceBounds": [
+        836,
+        0,
+        1254,
+        418
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          46,
+          98,
+          372,
+          396
+        ],
+        "rawAlphaBounds": [
+          33,
+          97,
+          372,
+          404
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.660419
+      },
+      "bounds": [
+        12,
+        32,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "nature-mountains:ice-peak",
+      "cell": 3,
+      "sourceBounds": [
+        0,
+        418,
+        418,
+        836
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          35,
+          61,
+          386,
+          366
+        ],
+        "rawAlphaBounds": [
+          31,
+          8,
+          387,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.647049
+      },
+      "bounds": [
+        12,
+        42,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "nature-mountains:glacier",
+      "cell": 4,
+      "sourceBounds": [
+        418,
+        418,
+        836,
+        836
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          31,
+          67,
+          386,
+          370
+        ],
+        "rawAlphaBounds": [
+          9,
+          6,
+          418,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.53798
+      },
+      "bounds": [
+        12,
+        46,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "nature-mountains:frost-ridge",
+      "cell": 5,
+      "sourceBounds": [
+        836,
+        418,
+        1254,
+        836
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          31,
+          127,
+          381,
+          367
+        ],
+        "rawAlphaBounds": [
+          27,
+          47,
+          398,
+          375
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.694799
+      },
+      "bounds": [
+        12,
+        85,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "nature-mountains:mesa",
+      "cell": 6,
+      "sourceBounds": [
+        0,
+        836,
+        418,
+        1254
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          47,
+          42,
+          385,
+          325
+        ],
+        "rawAlphaBounds": [
+          0,
+          1,
+          418,
+          348
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.58676
+      },
+      "bounds": [
+        12,
+        50,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "nature-mountains:butte",
+      "cell": 7,
+      "sourceBounds": [
+        418,
+        836,
+        836,
+        1254
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          72,
+          23,
+          351,
+          340
+        ],
+        "rawAlphaBounds": [
+          25,
+          5,
+          398,
+          370
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.714762
+      },
+      "bounds": [
+        26,
+        12,
+        230,
+        244
+      ]
+    },
+    {
+      "id": "nature-mountains:canyon",
+      "cell": 8,
+      "sourceBounds": [
+        836,
+        836,
+        1254,
+        1254
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          33,
+          48,
+          376,
+          335
+        ],
+        "rawAlphaBounds": [
+          3,
+          1,
+          376,
+          392
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.557502
+      },
+      "bounds": [
+        12,
+        50,
+        244,
+        244
+      ]
+    }
+  ]
+}

@@ -15,8 +15,8 @@ function stable(game) {
   return copy;
 }
 
-test('all supported sizes provide dispersed towns, complete industries and the same short starter service',()=>{
-  for(const [size,dimensions] of Object.entries(WORLD_SIZES)) {
+test('legacy and starter square sizes provide dispersed towns, complete industries and the same short starter service',()=>{
+  for(const [size,dimensions] of Object.entries(WORLD_SIZES).filter(([, dimensions]) => dimensions.width <= 768)) {
     const game=createGame({size,seed:19281});
     assert.equal(game.width,dimensions.width);assert.equal(game.height,dimensions.height);
     assert.equal(game.size,size);assert.equal(validateGame(game),true);

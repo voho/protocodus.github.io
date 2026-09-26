@@ -1,0 +1,12 @@
+{
+  "entries": [
+    "equipment-factory"
+  ],
+  "columns": 1,
+  "rows": 1,
+  "prompt": "Use case: style-transfer. Asset type: transparent industry sprite atlas for a 2D transport tycoon game. The attached industry atlas is a STYLE REFERENCE, not the layout to preserve. Create the exact new industrial sites below in its realistically textured miniature illustrated style: tactile masonry, timber, metal, roofs, clear strong functional silhouettes, raised orthographic front/three-quarter camera, sunlit from upper left, grounded natural contact shadows. These are substantial2-by-2map-tile sites displayed at128to256physicalpixels; rich realistic detail must remain readable. Entire sites and all shadows must fit within their separate cells with at least12%transparentpadding on every side. Strong coherent shapes, all structures complete. Genuine transparent alpha outside cutouts. No text, letters, labels, logos, gridlines, opaque backgrounds, square maptiles, roads, figures or big smokeclouds. Do not copy existing buildings fromreference; design unique identities requested.\nExactly ONE centered complete equipment factory sprite on transparentcanvas. Cold tundra environment: restrained white snow caps on roof and groundedges. A large robust white-and-brick engineering factory, red-orange sawtooth roof, three tall dark loading doors, distinctive yellow overhead gantry outside carrying a suspended metal engine block, metal tracked machinery components and a neat finished industrial crate at its front. The main hall, gantry, bright yellow hoist and snow form a clear recognizable silhouette that differs from a simple machine workshop. Richrealmetaltexture, groundcontactshadow, no large landscape. The wholefactoryfills75%ofcanvaswidth and80%height, groundbaseline90%.",
+  "source": "built-in image_gen",
+  "styleReference": "../industries-tundra/source-generated.png",
+  "generatedSource": "source-generated.png",
+  "generatedFile": "exec-1c6037e8-705c-4704-84ca-638a774732a3.png"
+}

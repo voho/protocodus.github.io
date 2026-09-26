@@ -1,0 +1,388 @@
+{
+  "version": 1,
+  "biome": "taiga",
+  "columns": 3,
+  "rows": 3,
+  "cellSizes": [
+    256,
+    128,
+    64,
+    32,
+    16
+  ],
+  "groundline": 240,
+  "masterCellSize": 256,
+  "order": [
+    "house-cheap-1",
+    "house-cheap-2",
+    "house-cheap-3",
+    "house-normal-1",
+    "house-normal-2",
+    "house-normal-3",
+    "house-expensive-1",
+    "house-expensive-2",
+    "house-expensive-3"
+  ],
+  "houses": [
+    {
+      "id": "house-cheap-1",
+      "source": "exec-e72375fb-e40e-4492-904d-64e0c9fd33aa.png",
+      "sourceSha256": "ed38572881abc6864df735f592280c4f3df5ed9bc5666d608c9caab556d8aad9",
+      "originalSize": [
+        1254,
+        1254
+      ],
+      "sourceBounds": [
+        157,
+        110,
+        1123,
+        1098
+      ],
+      "rawAlphaBounds": [
+        0,
+        0,
+        1232,
+        1254
+      ],
+      "trimAlphaThreshold": 8,
+      "trimPadding": 2,
+      "transparentFraction": 0.533092,
+      "normalizedBounds": [
+        24,
+        27,
+        232,
+        240
+      ],
+      "drawSize": [
+        208,
+        213
+      ],
+      "offset": [
+        24,
+        27
+      ],
+      "groundline": 240,
+      "widthLimit": 208
+    },
+    {
+      "id": "house-cheap-2",
+      "source": "exec-0b636c57-f480-46bf-8cae-d4871533c1f0.png",
+      "sourceSha256": "e375e2edbf82550767e33da7f457a817a8527d059a23dfa8c2db603f5ee91c50",
+      "originalSize": [
+        1254,
+        1254
+      ],
+      "sourceBounds": [
+        167,
+        110,
+        1110,
+        1096
+      ],
+      "rawAlphaBounds": [
+        0,
+        23,
+        1234,
+        1254
+      ],
+      "trimAlphaThreshold": 8,
+      "trimPadding": 2,
+      "transparentFraction": 0.549704,
+      "normalizedBounds": [
+        24,
+        23,
+        232,
+        240
+      ],
+      "drawSize": [
+        208,
+        217
+      ],
+      "offset": [
+        24,
+        23
+      ],
+      "groundline": 240,
+      "widthLimit": 208
+    },
+    {
+      "id": "house-cheap-3",
+      "source": "exec-d3b0d865-2134-4607-9b59-1adb115586fa.png",
+      "sourceSha256": "ff882ed42ae0f5f1ae0aaf28d94ea9ffd715e4a221238996bac7590ab7aec504",
+      "originalSize": [
+        1254,
+        1254
+      ],
+      "sourceBounds": [
+        154,
+        179,
+        1140,
+        1039
+      ],
+      "rawAlphaBounds": [
+        0,
+        17,
+        1200,
+        1220
+      ],
+      "trimAlphaThreshold": 8,
+      "trimPadding": 2,
+      "transparentFraction": 0.564585,
+      "normalizedBounds": [
+        24,
+        59,
+        232,
+        240
+      ],
+      "drawSize": [
+        208,
+        181
+      ],
+      "offset": [
+        24,
+        59
+      ],
+      "groundline": 240,
+      "widthLimit": 208
+    },
+    {
+      "id": "house-normal-1",
+      "source": "exec-8caf1474-3ac1-45a0-889e-55ac9529e8b1.png",
+      "sourceSha256": "e17d9bfef7b39ca30de00a74a82212f7ca010866429ce3968f0f5c33308eca91",
+      "originalSize": [
+        1254,
+        1254
+      ],
+      "sourceBounds": [
+        165,
+        109,
+        1127,
+        1077
+      ],
+      "rawAlphaBounds": [
+        0,
+        29,
+        1192,
+        1254
+      ],
+      "trimAlphaThreshold": 8,
+      "trimPadding": 2,
+      "transparentFraction": 0.538071,
+      "normalizedBounds": [
+        16,
+        15,
+        240,
+        240
+      ],
+      "drawSize": [
+        224,
+        225
+      ],
+      "offset": [
+        16,
+        15
+      ],
+      "groundline": 240,
+      "widthLimit": 224
+    },
+    {
+      "id": "house-normal-2",
+      "source": "exec-00a4df6c-c994-401c-baad-35e70abb8881.png",
+      "sourceSha256": "11e46875a0318d6943124407e964a123174684bad960567678656b277e578461",
+      "originalSize": [
+        1254,
+        1254
+      ],
+      "sourceBounds": [
+        161,
+        170,
+        1125,
+        1106
+      ],
+      "rawAlphaBounds": [
+        0,
+        0,
+        1222,
+        1254
+      ],
+      "trimAlphaThreshold": 8,
+      "trimPadding": 2,
+      "transparentFraction": 0.51159,
+      "normalizedBounds": [
+        16,
+        23,
+        240,
+        240
+      ],
+      "drawSize": [
+        224,
+        217
+      ],
+      "offset": [
+        16,
+        23
+      ],
+      "groundline": 240,
+      "widthLimit": 224
+    },
+    {
+      "id": "house-normal-3",
+      "source": "exec-0b636f30-c4cc-431b-87d7-fb97d74d08e8.png",
+      "sourceSha256": "2a4a7d72c92aeab86e3d381fab680188c9256d09bdb73e89f7053888d0a40196",
+      "originalSize": [
+        1254,
+        1254
+      ],
+      "sourceBounds": [
+        95,
+        255,
+        1174,
+        958
+      ],
+      "rawAlphaBounds": [
+        0,
+        47,
+        1240,
+        1198
+      ],
+      "trimAlphaThreshold": 8,
+      "trimPadding": 2,
+      "transparentFraction": 0.593229,
+      "normalizedBounds": [
+        16,
+        94,
+        240,
+        240
+      ],
+      "drawSize": [
+        224,
+        146
+      ],
+      "offset": [
+        16,
+        94
+      ],
+      "groundline": 240,
+      "widthLimit": 224
+    },
+    {
+      "id": "house-expensive-1",
+      "source": "exec-30d81eb7-5047-41cb-ba71-6d18e9a70fa0.png",
+      "sourceSha256": "d1ff1840a3d79414dbf849b866ed1948c7e78868503605864f984ae3130966f1",
+      "originalSize": [
+        1254,
+        1254
+      ],
+      "sourceBounds": [
+        162,
+        102,
+        1128,
+        1117
+      ],
+      "rawAlphaBounds": [
+        0,
+        7,
+        1208,
+        1254
+      ],
+      "trimAlphaThreshold": 8,
+      "trimPadding": 2,
+      "transparentFraction": 0.49232,
+      "normalizedBounds": [
+        17,
+        8,
+        238,
+        240
+      ],
+      "drawSize": [
+        221,
+        232
+      ],
+      "offset": [
+        17,
+        8
+      ],
+      "groundline": 240,
+      "widthLimit": 240
+    },
+    {
+      "id": "house-expensive-2",
+      "source": "exec-ae2d88d7-aa21-44b7-8042-10f45bed16a9.png",
+      "sourceSha256": "cc6a582395ace7dba9a291d2b0f253d7f5390b000599b63273ba1f83f30e7cf1",
+      "originalSize": [
+        1254,
+        1254
+      ],
+      "sourceBounds": [
+        280,
+        70,
+        1001,
+        1127
+      ],
+      "rawAlphaBounds": [
+        31,
+        49,
+        1134,
+        1254
+      ],
+      "trimAlphaThreshold": 8,
+      "trimPadding": 2,
+      "transparentFraction": 0.584216,
+      "normalizedBounds": [
+        49,
+        8,
+        207,
+        240
+      ],
+      "drawSize": [
+        158,
+        232
+      ],
+      "offset": [
+        49,
+        8
+      ],
+      "groundline": 240,
+      "widthLimit": 240
+    },
+    {
+      "id": "house-expensive-3",
+      "source": "exec-e82ae46c-6991-40d9-a0ac-98617e4eb212.png",
+      "sourceSha256": "c09046920b851d5ebd72003da9d9f5eed4f54a29d6e7acc3bfad62ec8619a39a",
+      "originalSize": [
+        1254,
+        1254
+      ],
+      "sourceBounds": [
+        84,
+        119,
+        1214,
+        1097
+      ],
+      "rawAlphaBounds": [
+        76,
+        54,
+        1222,
+        1224
+      ],
+      "trimAlphaThreshold": 8,
+      "trimPadding": 2,
+      "transparentFraction": 0.457171,
+      "normalizedBounds": [
+        8,
+        32,
+        248,
+        240
+      ],
+      "drawSize": [
+        240,
+        208
+      ],
+      "offset": [
+        8,
+        32
+      ],
+      "groundline": 240,
+      "widthLimit": 240
+    }
+  ]
+}

@@ -1,0 +1,360 @@
+{
+  "columns": 3,
+  "rows": 3,
+  "cellSizes": [
+    16,
+    32,
+    64,
+    128,
+    256
+  ],
+  "masterCell": 256,
+  "order": [
+    "industry:coal-mine:tundra",
+    "industry:iron-mine:tundra",
+    "industry:steel-mill:tundra",
+    "industry:machine-works:tundra",
+    "industry:fishery:tundra",
+    "industry:fish-processor:tundra",
+    "industry:oil-well:tundra",
+    "industry:refinery:tundra",
+    "industry:quarry:tundra"
+  ],
+  "source": "source-packed.png",
+  "sourceSha256": "e4a263fe252675a7c3866964ba1f5ea8629764a78748f735072e2b8b68be6094",
+  "sprites": [
+    {
+      "id": "industry:coal-mine:tundra",
+      "cell": 0,
+      "sourceBounds": [
+        0,
+        0,
+        512,
+        512
+      ],
+      "normalization": {
+        "originalSize": [
+          512,
+          512
+        ],
+        "sourceBounds": [
+          92,
+          141,
+          439,
+          461
+        ],
+        "rawAlphaBounds": [
+          47,
+          79,
+          465,
+          482
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.736996
+      },
+      "bounds": [
+        12,
+        30,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "industry:iron-mine:tundra",
+      "cell": 1,
+      "sourceBounds": [
+        512,
+        0,
+        1024,
+        512
+      ],
+      "normalization": {
+        "originalSize": [
+          512,
+          512
+        ],
+        "sourceBounds": [
+          89,
+          144,
+          427,
+          462
+        ],
+        "rawAlphaBounds": [
+          48,
+          75,
+          465,
+          483
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.745674
+      },
+      "bounds": [
+        12,
+        26,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "industry:steel-mill:tundra",
+      "cell": 2,
+      "sourceBounds": [
+        1024,
+        0,
+        1536,
+        512
+      ],
+      "normalization": {
+        "originalSize": [
+          512,
+          512
+        ],
+        "sourceBounds": [
+          66,
+          119,
+          420,
+          458
+        ],
+        "rawAlphaBounds": [
+          48,
+          85,
+          433,
+          478
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.715378
+      },
+      "bounds": [
+        12,
+        22,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "industry:machine-works:tundra",
+      "cell": 3,
+      "sourceBounds": [
+        0,
+        512,
+        512,
+        1024
+      ],
+      "normalization": {
+        "originalSize": [
+          512,
+          512
+        ],
+        "sourceBounds": [
+          93,
+          115,
+          453,
+          410
+        ],
+        "rawAlphaBounds": [
+          47,
+          62,
+          455,
+          450
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.6819
+      },
+      "bounds": [
+        12,
+        54,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "industry:fishery:tundra",
+      "cell": 4,
+      "sourceBounds": [
+        512,
+        512,
+        1024,
+        1024
+      ],
+      "normalization": {
+        "originalSize": [
+          512,
+          512
+        ],
+        "sourceBounds": [
+          88,
+          127,
+          434,
+          413
+        ],
+        "rawAlphaBounds": [
+          52,
+          62,
+          463,
+          442
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.726341
+      },
+      "bounds": [
+        12,
+        52,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "industry:fish-processor:tundra",
+      "cell": 5,
+      "sourceBounds": [
+        1024,
+        512,
+        1536,
+        1024
+      ],
+      "normalization": {
+        "originalSize": [
+          512,
+          512
+        ],
+        "sourceBounds": [
+          67,
+          135,
+          421,
+          413
+        ],
+        "rawAlphaBounds": [
+          56,
+          88,
+          443,
+          441
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.702351
+      },
+      "bounds": [
+        12,
+        62,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "industry:oil-well:tundra",
+      "cell": 6,
+      "sourceBounds": [
+        0,
+        1024,
+        512,
+        1536
+      ],
+      "normalization": {
+        "originalSize": [
+          512,
+          512
+        ],
+        "sourceBounds": [
+          105,
+          88,
+          442,
+          382
+        ],
+        "rawAlphaBounds": [
+          47,
+          50,
+          451,
+          461
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.79372
+      },
+      "bounds": [
+        12,
+        42,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "industry:refinery:tundra",
+      "cell": 7,
+      "sourceBounds": [
+        512,
+        1024,
+        1024,
+        1536
+      ],
+      "normalization": {
+        "originalSize": [
+          512,
+          512
+        ],
+        "sourceBounds": [
+          117,
+          93,
+          415,
+          376
+        ],
+        "rawAlphaBounds": [
+          48,
+          70,
+          465,
+          461
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.792953
+      },
+      "bounds": [
+        12,
+        24,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "industry:quarry:tundra",
+      "cell": 8,
+      "sourceBounds": [
+        1024,
+        1024,
+        1536,
+        1536
+      ],
+      "normalization": {
+        "originalSize": [
+          512,
+          512
+        ],
+        "sourceBounds": [
+          82,
+          114,
+          414,
+          384
+        ],
+        "rawAlphaBounds": [
+          47,
+          50,
+          435,
+          461
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.718533
+      },
+      "bounds": [
+        12,
+        55,
+        244,
+        244
+      ]
+    }
+  ]
+}

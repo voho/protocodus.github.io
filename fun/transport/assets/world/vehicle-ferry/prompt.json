@@ -1,0 +1,21 @@
+{
+  "prompt": "Use case: style-transfer. Asset type: an eight-direction vessel sprite sheet for a realistic painted miniature2Dtransporttycoongame. The supplied image shows ONE vessel design; keep its exact vessel identity, proportions, hullcolour, cabins, funnels and deckequipment. Redraw that same vessel from eight distinct directions, NOT rotated copies of the same flat image. Fixed orthographic camera looking60degrees downward from the viewer, fixed sunlight from upperleft for everyframe. Upright cabinwalls/funnels stay visuallyvertical inworldspace even when the hullheading changes. The near-facing front, rear and sides of the vessel must be correctly visible at each heading. Rich crisp painted materials and natural weathering match reference, not vector/cartoon shapes.\nLayout: exactly3\u00d73equal squarecells, centercellCOMPLETELYEMPTY andfullytransparent, eight ships around it in strictCOMPASSorder. TOP ROW: NWbowpointsupperleft, Nbowpointstop, NEbowpointsupperright. MIDDLE ROW: Wbowpointsleft, EMPTY, Ebowpointsright. BOTTOM ROW: SWbowpointslowerleft, Sbowpointsbottom, SEbowpointslowerright. Bows point OUTWARD awayfromcenteremptycell. In eachframe the STERN and cabinarrangement must be anatomicallyoppositeits bow, so the northernframes clearly differ fromsouthernframes. Do notlabeldirections; no arrows.\nComposition: each vessel completelyinside its owncell, centered, maximum70%ofcellwidth/height, broad transparentmargin andclear gaps. All eight show the SAME vessel at the SAME modelscale and decklength; diagonalboundingboxes may be naturallysmaller thanfull-lengthaxisalignedframes. Allmasttips/hullcornerscontained. Genuine transparentalpha, no water/background, no wake, no grid, no labels/text/logos/shadowsdetachedfromvessel. No extra boats. No scene.\nVesselidentity: small charming darkteal passengerferry, pointed bow and rounded flatstern, creamraisedcentralwheelhouse with rowsof darkbluewindows, creamroof with navigationfixture, one uprightteal-and-blackfunnel justaftofwheelhouse, teakbrowndeck and simplebenchseating towardstern, creamrailings, tinyorangeliferings on sides. Preserve smallferryproportions and its openpassengerdeck. Avoid people. Correctrearviewshowsthe openbrownseatingdeck nearestviewer; correctfrontviewshowsthe pointedtealbow nearestviewer.",
+  "source": "built-in image_gen",
+  "styleReference": "../vehicles/sources/vehicle_ferry.png",
+  "columns": 3,
+  "rows": 3,
+  "entries": [
+    "vehicle:ferry:NW",
+    "vehicle:ferry:S",
+    "vehicle:ferry:NE",
+    "vehicle:ferry:W",
+    null,
+    "vehicle:ferry:E",
+    "vehicle:ferry:SW",
+    "vehicle:ferry:N",
+    "vehicle:ferry:SE"
+  ],
+  "generatedImage": "/Users/vojta/.codex/generated_images/01a0de03-6b9f-7ed1-ba84-e85d25f494ce/exec-26d9c3da-925a-48f3-8127-655c7b4e4c91.png",
+  "headingAssignment": "IDs follow observed bow direction; top-middle and bottom-middle ferry frames were generated opposite to requested headings.",
+  "preparation": "prepare-source.py preserves complete RGBA frames that extend beyond the nominal equal-cell source grid, without rotating or repainting."
+}

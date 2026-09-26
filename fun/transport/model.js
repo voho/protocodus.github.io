@@ -1,7 +1,8 @@
 import { BIOMES, CARGO, INDUSTRIES, BUILD_COSTS, VEHICLE_COSTS, VEHICLE_CAPACITIES, TOWN_CARGO } from './data.js';
-import { generateWorld, seedNumber, WORLD_SIZES, DEFAULT_WORLD_SIZE } from './world.js';
+import { generateWorld, seedNumber, WORLD_SIZES, NEW_WORLD_SIZES, DEFAULT_WORLD_SIZE, supportsGenerationVersion } from './world.js';
 import { BUILDINGS } from './buildings.js';
-import { encodeGame, decodeGame } from './save-codec.js';
+import { industryContains, industryDistance, industryTiles, industrySiteProblem, industrySize } from './industry-sites.js';
+import { encodeGame, decodeGame, rememberGeneratedWorld } from './save-codec.js';
 import { randomAt, localEnvironment, weatherAt, stepEcology } from './environment.js';
 import { stepSettlements, housingCapacity } from './settlements.js';
 import { initializeIndustry, stepIndustries } from './industry-simulation.js';
@@ -10,7 +11,7 @@ export { priceFor, inflationInfo } from './economy-pricing.js';
 export { industryConditions } from './industry-simulation.js';
 export { settlementSuitability } from './settlements.js';
 export { weatherAt, localEnvironment } from './environment.js';
-export { WORLD_SIZES } from './world.js';
+export { WORLD_SIZES, NEW_WORLD_SIZES } from './world.js';
 export { BUILDINGS } from './buildings.js';
 export { BIOMES, CARGO, INDUSTRIES, BUILD_COSTS, VEHICLE_COSTS } from './data.js';
 
@@ -31,7 +32,7 @@ const makeId = (game,prefix) => `${prefix}-${game.nextId++}`;
 export function tileAt(game,x,y) {
   return Number.isInteger(x) && Number.isInteger(y) && x >= 0 && y >= 0 && x < game.width && y < game.height ? game.tiles[y*game.width+x] : null;
 }
-export function industryAt(game,x,y) { return game.industries.find(i => i.x === x && i.y === y) || null; }
+export function industryAt(game,x,y) { return game.industries.find(i => industryContains(i,x,y)) || null; }
 export function stationAt(game,x,y) { return game.stations.find(s => s.x === x && s.y === y) || null; }
 export function hasClearableDecoration(tile) { return Boolean(tile&&tile.terrain!=='water'&&tile.terrain!=='mountain'&&typeof tile.detail==='string'&&tile.detail); }
 export function constructionCost(game,tool,x,y) {
@@ -49,15 +50,16 @@ function notify(game,message,type='info') {
   game.notifications.unshift({ id: makeId(game,'notice'), day:game.day, message, text:message, type });
   game.notifications.length = Math.min(game.notifications.length,24);
 }
-export function createGame({biome='taiga',seed=1847,size=DEFAULT_WORLD_SIZE}={}) {
+export function createGame({biome='taiga',seed=1847,size=DEFAULT_WORLD_SIZE,generationVersion}={}) {
   if (!owns(BIOMES,biome)) biome='taiga';
   const game = {
-    version:1, seed:seedNumber(seed), biome, ...generateWorld(biome,seed,size),
+    version:1, seed:seedNumber(seed), biome, ...generateWorld(biome,seed,size,generationVersion),
     money:400000, day:0, totalDelivered:0, totalRevenue:0,
     monthlyIncome:0, monthlyExpenses:0, monthlyOperatingExpenses:0, monthlyIncomeAtAccountingStart:0, lastMonthlyProfit:0, lastMonthlyOperatingProfit:0, accountingStartDay:0,
     history:[], notifications:[], revision:0, networkRevision:0, nextId:100,
     totalExpenses:0, totalOperatingExpenses:0, lastDailyDay:0, lastMonth:0,
   };
+  rememberGeneratedWorld(game);
   for(const industry of game.industries)initializeIndustry(game,industry);
   game.stations.push(
     {id:'station-1',name:`${game.cities[0].name} Central`,x:game.cities[0].x,y:game.cities[0].y,mode:'road'},
@@ -72,7 +74,7 @@ export function createGame({biome='taiga',seed=1847,size=DEFAULT_WORLD_SIZE}={})
 
 export function stationCoverage(game,station) {
   const cities=game.cities.filter(city => distance(city,station)<=STATION_RADIUS);
-  const industries=game.industries.filter(industry => distance(industry,station)<=STATION_RADIUS);
+  const industries=game.industries.filter(industry => industryDistance(industry,station)<=STATION_RADIUS);
   const zones=game.zones.filter(zone => distance(zone,station)<=STATION_RADIUS);
   const produces=new Set(cities.length ? ['passengers'] : []);
   const accepts=new Set(cities.length ? ['passengers',...TOWN_CARGO] : []);
@@ -94,6 +96,7 @@ export function passengerEndpoints(game,from,to) {
   }
   return best;
 }
+const pathSearchBuffers = new WeakMap();
 function validNetwork(tile,mode) {
   if(mode==='water')return tile?.terrain==='water';
   return tile && tile[mode] && (tile.terrain!=='water' || tile.bridge) && (tile.terrain!=='mountain' || tile.tunnel);
@@ -101,7 +104,12 @@ function validNetwork(tile,mode) {
 export function findPath(game,from,to,mode='road') {
   if (!TRANSPORT_MODES.includes(mode) || !from || !to || !validNetwork(tileAt(game,from.x,from.y),mode) || !validNetwork(tileAt(game,to.x,to.y),mode)) return null;
   const start=from.y*game.width+from.x, target=to.y*game.width+to.x;
-  const parent=new Int32Array(game.tiles.length).fill(-1), queue=new Int32Array(game.tiles.length);
+  // Reuse the visited lane across route checks. The frontier grows only as far
+  // as the search reaches, so a 25-tile opening trip never allocates a second
+  // full-world 16 MiB queue on a 2048 × 2048 continent.
+  let buffers=pathSearchBuffers.get(game);
+  if(!buffers||buffers.parent.length!==game.tiles.length){buffers={parent:new Int32Array(game.tiles.length),queue:new Int32Array(Math.min(4096,game.tiles.length))};pathSearchBuffers.set(game,buffers);}
+  const parent=buffers.parent.fill(-1);let queue=buffers.queue;
   let head=0,tail=1;queue[0]=start;parent[start]=start;
   while(head<tail) {
     const current=queue[head++]; if(current===target) break;
@@ -111,6 +119,7 @@ export function findPath(game,from,to,mode='road') {
       if(!validNetwork(tile,mode)) continue;
       const next=ny*game.width+nx;
       if(parent[next]!==-1) continue;
+      if(tail===queue.length){const expanded=new Int32Array(Math.min(game.tiles.length,queue.length*2));expanded.set(queue);queue=buffers.queue=expanded;}
       parent[next]=current;queue[tail++]=next;
     }
   }
@@ -148,7 +157,10 @@ export function build(game,tool,x,y) {
     const residents=housingCapacity(t.building),town=residents?(owns(t.building,'populationCityId')?game.cities.find(city=>city.id===t.building.populationCityId):closestCity(game,point,10)):null;
     if(town){town.population=Math.max(0,town.population-residents);town.passengers=Math.min(town.passengers,town.population*.9);}
     if(station) game.stations=game.stations.filter(s=>s.id!==station.id);
-    if(industry) game.industries=game.industries.filter(i=>i.id!==industry.id);
+    if(industry){
+      game.industries=game.industries.filter(i=>i.id!==industry.id);
+      for(const point of industryTiles(industry)){const cell=tileAt(game,point.x,point.y);cell.detail='';if(['forest','rock'].includes(cell.terrain))cell.terrain=game.biome==='desert'?'sand':game.biome==='tundra'?'snow':'grass';}
+    }
     game.zones=game.zones.filter(z=>z.x!==x||z.y!==y);
     const changedNetwork=t.road||t.rail||Boolean(station);
     t.road=false;t.rail=false;t.bridge=false;t.tunnel=false;t.building=null;t.zone=null;if(t.terrain!=='water')t.detail='';delete t.publicRoad;
@@ -186,7 +198,7 @@ export function build(game,tool,x,y) {
       if(t.bridge||t.tunnel) return result(false,'Stations need open ground beside the connection.');
     }
     const cost=constructionCost(game,tool,x,y);if(game.money<cost)return result(false,`Need ${moneyText(cost)} for this station.`);
-    const nearIndustry=game.industries.find(i=>distance(i,point)<=STATION_RADIUS),nearCity=closestCity(game,point,STATION_RADIUS);
+    const nearIndustry=game.industries.find(i=>industryDistance(i,point)<=STATION_RADIUS),nearCity=closestCity(game,point,STATION_RADIUS);
     const name=`${nearCity?.name||nearIndustry?.name||(mode==='water'?'Coastal':'Rural')} ${mode==='water'?'Port':mode==='road'?'Stop':'Station'} ${game.stations.length+1}`;
     const newStation={id:makeId(game,'station'),name,x,y,mode};
     spend(game,cost);game.stations.push(newStation);invalidateNetwork(game);
@@ -224,14 +236,14 @@ export function build(game,tool,x,y) {
     return result(true,`${def.name} constructed · ${moneyText(cost)}`,{cost,building:t.building});
   }
   const def=INDUSTRIES[tool];
+  const siteProblem=industrySiteProblem(game,tool,x,y);if(siteProblem)return result(false,siteProblem);
   if(!def.biomes.includes(game.biome))return result(false,`${def.name} is unavailable in ${BIOMES[game.biome].name}.`);
   if(def.terrain&&!def.terrain.includes(t.terrain))return result(false,`${def.name} needs ${def.terrain.join(', ')} terrain.`);
-  if(def.coastal&&!DIRECTIONS.some(([dx,dy])=>tileAt(game,x+dx,y+dy)?.terrain==='water'))return result(false,'A fishery must be directly beside water.');
   const inventory=Object.fromEntries([...Object.keys(def.inputs),...Object.keys(def.outputs)].map(cargo=>[cargo,0]));
-  const newIndustry={id:makeId(game,'industry'),kind:tool,name:def.name,x,y,capacity:1,inventory,production:0,totalProduced:0,activity:0,shipped:0,received:0,idleDays:0,owner:'player'};
+  const newIndustry={id:makeId(game,'industry'),kind:tool,name:def.name,x,y,footprint:2,capacity:1,inventory,production:0,totalProduced:0,activity:0,shipped:0,received:0,idleDays:0,owner:'player'};
   initializeIndustry(game,newIndustry);
   spend(game,cost);game.industries.push(newIndustry);game.revision++;
-  return result(true,`${def.name} constructed · ${moneyText(cost)}`,{cost,industry:newIndustry});
+  return result(true,`${def.name} constructed · 2 × 2 site · ${moneyText(cost)}`,{cost,industry:newIndustry});
 }
 
 export function buildPath(game,tool,points) {
@@ -510,7 +522,7 @@ function maintenance(game) {
   },0);
   const facilities=game.industries.reduce((sum,i)=>{
     if(i.owner!=='player')return sum;
-    const localWeather=weatherAt(game,i.x,i.y,day),e=localEnvironment(game,i.x,i.y,3),support=1-Math.min(.15,e.fire*.035+e.services*.015);
+    const localWeather=weatherAt(game,i.x,i.y,day),e=localEnvironment(game,i.x,i.y,3,industrySize(i)),support=1-Math.min(.15,e.fire*.035+e.services*.015);
     return sum+INDUSTRIES[i.kind].cost*.00008*(.9+randomAt(game,day,i.id,522)*.2)*(1+localWeather.cold*.2+localWeather.heat*.12)*support;
   },0);
   const infrastructureFactor=(1+weather.wetness*.16+weather.cold*.18)*(.94+randomAt(game,day,'infrastructure',523)*.12);
@@ -556,6 +568,7 @@ function validPoint(game,p) {return p&&Number.isInteger(p.x)&&Number.isInteger(p
 export function validateGame(game) {
   if(!game||typeof game!=='object'||game.version!==1||!owns(BIOMES,game.biome)||!((game.width===100&&game.height===72)||Object.values(WORLD_SIZES).some(size=>size.width===game.width&&size.height===game.height)))return false;
   if(game.size!==undefined&&(!owns(WORLD_SIZES,game.size)||WORLD_SIZES[game.size].width!==game.width||WORLD_SIZES[game.size].height!==game.height))return false;
+  if(game.generationVersion!==undefined&&(!supportsGenerationVersion(game.generationVersion)||!owns(NEW_WORLD_SIZES,game.size)))return false;
   if(!Array.isArray(game.tiles)||game.tiles.length!==game.width*game.height||!finite(game.money,-1e12,1e12)||!finite(game.day,0,1e8)||!Number.isInteger(game.nextId)||game.nextId<0)return false;
   if(game.networkRevision!==undefined&&(!Number.isInteger(game.networkRevision)||!finite(game.networkRevision,0,1e15)))return false;
   if(!Number.isInteger(game.seed)||!finite(game.seed,0,4294967295)||!Number.isInteger(game.revision)||!finite(game.lastMonthlyProfit))return false;
@@ -572,6 +585,12 @@ export function validateGame(game) {
   if(!game.cities.every(c=>c.lastServiceDay===undefined||c.lastServiceDay===null||finite(c.lastServiceDay,0,game.day)))return false;
   if(!game.tiles.every(tile=>tile.building?.populationCityId===undefined||tile.building.populationCityId===null||game.cities.some(city=>city.id===tile.building.populationCityId)))return false;
   if(!game.industries.every(i=>validPoint(game,i)&&uniqueId(i)&&owns(INDUSTRIES,i.kind)&&typeof i.name==='string'&&finite(i.capacity,.1,10)&&finite(i.activity,0)&&finite(i.production,0)&&finite(i.shipped,0)&&finite(i.received,0)&&finite(i.idleDays,0)&&i.inventory&&Object.entries(i.inventory).every(([cargo,n])=>owns(CARGO,cargo)&&finite(n,0,1e9))))return false;
+  if(!game.industries.every(i=>(i.footprint===undefined||i.footprint===1||i.footprint===2)&&i.x+(i.footprint||1)<=game.width&&i.y+(i.footprint||1)<=game.height))return false;
+  const industryCells=new Set();
+  for(const industry of game.industries)for(const point of industryTiles(industry)){
+    const index=point.y*game.width+point.x;if(industryCells.has(index))return false;industryCells.add(index);
+    if(industry.footprint===2){const tile=game.tiles[index];if(tile.terrain==='water'||tile.building||tile.zone||tile.road||tile.rail||game.stations.some(s=>s.x===point.x&&s.y===point.y))return false;}
+  }
   if(!game.industries.every(i=>(i.lastProductionDay===undefined||finite(i.lastProductionDay,0,game.day))&&(i.nextProductionDay===undefined||(Number.isInteger(i.nextProductionDay)&&finite(i.nextProductionDay,0,Math.floor(game.day)+3)))&&(i.nextReviewDay===undefined||(Number.isInteger(i.nextReviewDay)&&finite(i.nextReviewDay,0,Math.floor(game.day)+45)))&&(i.totalProduced===undefined||finite(i.totalProduced,0,1e15))))return false;
   if(!game.stations.every(s=>validPoint(game,s)&&uniqueId(s)&&typeof s.name==='string'&&TRANSPORT_MODES.includes(s.mode)))return false;
   if(!game.zones.every(z=>validPoint(game,z)&&ZONE_TYPES.includes(z.kind)&&finite(z.progress,0,3)))return false;

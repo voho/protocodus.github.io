@@ -1,0 +1,359 @@
+{
+  "columns": 3,
+  "rows": 3,
+  "cellSizes": [
+    16,
+    32,
+    64,
+    128
+  ],
+  "masterCell": 256,
+  "order": [
+    "infra:bus-stop",
+    "infra:train-stop",
+    "infra:port",
+    "infra:road",
+    "infra:rail",
+    "infra:road-bridge",
+    "infra:rail-bridge",
+    "infra:road-tunnel",
+    "infra:rail-tunnel"
+  ],
+  "source": "exec-f033085f-c6b7-445b-8787-fa409fa2d601.png",
+  "sourceSha256": "0fa98ae952c1d9fa4f406daf23879b4f9a9836a2dc7765e16491ad297514f38c",
+  "sprites": [
+    {
+      "id": "infra:bus-stop",
+      "cell": 0,
+      "sourceBounds": [
+        0,
+        0,
+        418,
+        418
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          142,
+          78,
+          333,
+          373
+        ],
+        "rawAlphaBounds": [
+          0,
+          19,
+          418,
+          414
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.759804
+      },
+      "bounds": [
+        53,
+        12,
+        203,
+        244
+      ]
+    },
+    {
+      "id": "infra:train-stop",
+      "cell": 1,
+      "sourceBounds": [
+        418,
+        0,
+        836,
+        418
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          108,
+          38,
+          282,
+          398
+        ],
+        "rawAlphaBounds": [
+          1,
+          38,
+          418,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.740774
+      },
+      "bounds": [
+        72,
+        12,
+        184,
+        244
+      ]
+    },
+    {
+      "id": "infra:port",
+      "cell": 2,
+      "sourceBounds": [
+        836,
+        0,
+        1254,
+        418
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          3,
+          31,
+          377,
+          401
+        ],
+        "rawAlphaBounds": [
+          0,
+          30,
+          398,
+          410
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.513931
+      },
+      "bounds": [
+        12,
+        13,
+        244,
+        243
+      ]
+    },
+    {
+      "id": "infra:road",
+      "cell": 3,
+      "sourceBounds": [
+        0,
+        418,
+        418,
+        836
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          127,
+          9,
+          317,
+          393
+        ],
+        "rawAlphaBounds": [
+          29,
+          1,
+          418,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.615737
+      },
+      "bounds": [
+        70,
+        12,
+        185,
+        244
+      ]
+    },
+    {
+      "id": "infra:rail",
+      "cell": 4,
+      "sourceBounds": [
+        418,
+        418,
+        836,
+        836
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          125,
+          9,
+          296,
+          395
+        ],
+        "rawAlphaBounds": [
+          1,
+          0,
+          412,
+          412
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.655508
+      },
+      "bounds": [
+        76,
+        12,
+        179,
+        244
+      ]
+    },
+    {
+      "id": "infra:road-bridge",
+      "cell": 5,
+      "sourceBounds": [
+        836,
+        418,
+        1254,
+        836
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          76,
+          9,
+          285,
+          398
+        ],
+        "rawAlphaBounds": [
+          13,
+          3,
+          356,
+          414
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.621735
+      },
+      "bounds": [
+        65,
+        12,
+        190,
+        244
+      ]
+    },
+    {
+      "id": "infra:rail-bridge",
+      "cell": 6,
+      "sourceBounds": [
+        0,
+        836,
+        418,
+        1254
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          136,
+          0,
+          309,
+          385
+        ],
+        "rawAlphaBounds": [
+          0,
+          0,
+          418,
+          388
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.651702
+      },
+      "bounds": [
+        76,
+        12,
+        180,
+        244
+      ]
+    },
+    {
+      "id": "infra:road-tunnel",
+      "cell": 7,
+      "sourceBounds": [
+        418,
+        836,
+        836,
+        1254
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          25,
+          17,
+          367,
+          370
+        ],
+        "rawAlphaBounds": [
+          5,
+          1,
+          406,
+          402
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.469529
+      },
+      "bounds": [
+        15,
+        12,
+        240,
+        244
+      ]
+    },
+    {
+      "id": "infra:rail-tunnel",
+      "cell": 8,
+      "sourceBounds": [
+        836,
+        836,
+        1254,
+        1254
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          20,
+          25,
+          368,
+          382
+        ],
+        "rawAlphaBounds": [
+          1,
+          0,
+          372,
+          402
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.479413
+      },
+      "bounds": [
+        15,
+        12,
+        241,
+        244
+      ]
+    }
+  ]
+}

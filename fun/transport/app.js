@@ -1,7 +1,7 @@
 import { refreshRouteConnections, getVehiclePurchase, getVehicleUpgrade, getFleetUpgrade, upgradeRouteVehicle, upgradeFleet, priceFor, inflationInfo, createGame, addRoute, removeRoute, tick, saveGame, loadGame, BIOMES, INDUSTRIES, CARGO, BUILD_COSTS, stationCoverage, WORLD_SIZES, industryConditions, settlementSuitability, weatherAt } from './model.js';
 import { createRenderer } from './renderer.js';
 import { quoteBuildPlan, buildPlan } from './construction-plan.js';
-import { DEFAULT_WORLD_SIZE } from './world.js';
+import { DEFAULT_WORLD_SIZE, NEW_WORLD_SIZES } from './world.js';
 import { TILE, createSprites } from './sprites.js';
 import { BUILDINGS, BUILDING_GROUPS } from './buildings.js';
 import { ZOOM_LEVELS, ZOOM_VIEWS, zoomIndex } from './zoom.js';
@@ -14,6 +14,9 @@ import { mountSaves } from './saves-view.js';
 import { loadVisibility, saveVisibility, normalizeLayers, layerPreset } from './visibility.js';
 import { mountVisibility } from './visibility-view.js';
 import { townService, industryStatus, routeHealth, nextProject } from './gameplay-insights.js';
+import { preloadHouses, onHouseAssetsChange } from './raster-houses.js';
+import { preloadWorldArt, onWorldArtChange } from './atlas-runtime.js';
+import { industryContains, industrySize } from './industry-sites.js';
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
@@ -87,6 +90,7 @@ const TOOL_INFO = {
  city:{name:'Found a town',icon:'city',detail:'Place on open land. Add roads, zones and transport.'},
  bulldoze:{name:'Bulldozer',icon:'bulldoze',key:'X',detail:'Click or drag to clear buildings, networks, trees and plants. Retire routes before removing stops.'}
 };
+await Promise.all([preloadHouses(),preloadWorldArt()]);
 let game;
 try { game = loadGame() || createGame(); } catch { game = createGame(); }
 const canvas = $('#world');
@@ -194,6 +198,7 @@ function buildingPalette() {
 function drawPaletteSprites() {
  if(paletteBiome!==game.biome){paletteBiome=game.biome;paletteSprites=createSprites(game.biome);}
  $$('[data-building-sprite]').forEach(canvas=>{const c=canvas.getContext('2d');c.clearRect(0,0,canvas.width,canvas.height);c.imageSmoothingEnabled=false;c.drawImage(paletteSprites(canvas.dataset.buildingSprite,0,1),16,8,64,80);});
+ $$('[data-industry-sprite]').forEach(canvas=>{const c=canvas.getContext('2d');c.clearRect(0,0,canvas.width,canvas.height);c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';c.drawImage(paletteSprites(canvas.dataset.industrySprite,0,2),8,0,96,108);});
 }
 function projectCard() {
  const project=nextProject(game);
@@ -202,7 +207,7 @@ function projectCard() {
 function buildPanel() {
  const groups={network:['road','rail','stop','port','bulldoze'],towns:['residential','commercial','industrial','city']};
  const tabs=`<div class="build-tabs" role="tablist" aria-label="Construction categories">${[['network','Network'],['towns','Town'],['industry','Industry']].map(([key,label])=>`<button role="tab" aria-selected="${category===key}" data-category="${key}" class="${category===key?'active':''}">${label}</button>`).join('')}</div>`;
- const industries=`<div class="tool-list">${Object.entries(INDUSTRIES).filter(([,d])=>d.biomes.includes(game.biome)).map(([key,d])=>`<button class="industry-tool ${tool===key?'active':''}" data-tool="${key}" aria-pressed="${tool===key}"><span class="industry-tool-summary"><strong>${d.name}</strong>${cargoRecipe(d.inputs,d.outputs,{counts:false})}</span><span class="tool-cost">${compactMoney(priceFor(game,d.cost))}</span></button>`).join('')}</div>`;
+ const industries=`<div class="tool-list">${Object.entries(INDUSTRIES).filter(([,d])=>d.biomes.includes(game.biome)).map(([key,d])=>`<button class="industry-tool ${tool===key?'active':''}" data-tool="${key}" aria-pressed="${tool===key}"><canvas class="industry-art" width="112" height="112" data-industry-sprite="${key}" aria-hidden="true"></canvas><span class="industry-tool-summary"><strong>${d.name}</strong>${cargoRecipe(d.inputs,d.outputs,{counts:false})}</span><span class="tool-cost">${compactMoney(priceFor(game,d.cost))}<small>2 × 2</small></span></button>`).join('')}</div>`;
  return `<div class="panel-heading"><h2>Build</h2></div>${tabs}${category==='industry'?industries:`<div class="tool-grid">${groups[category].map(toolCard).join('')}</div>`}${tool==='stop'?`<div class="stop-mode-picker" role="group" aria-label="Stop type at road and rail crossings"><span>At crossings</span>${['road','rail'].map(mode=>`<button data-stop-mode="${mode}" aria-pressed="${preferredMode===mode}">${icon(mode)} ${mode==='road'?'Road':'Rail'}</button>`).join('')}</div>`:''}<div class="tool-description">${category==='network'?'Road and Rail include bridges and tunnels.':escapeHTML(toolDescription(tool))}</div><div class="build-bottom-tools"><button class="compact-tool ${tool==='inspect'?'active':''}" data-tool="inspect">${icon('inspect')} Explore <span>Esc</span></button>${category!=='network'?`<button class="compact-tool danger ${tool==='bulldoze'?'active':''}" data-tool="bulldoze">${icon('bulldoze')} Bulldozer <span>X</span></button>`:''}</div>${category==='towns'?buildingPalette():projectCard()+`<button class="text-button" data-action="help">How to play <span>↗</span></button>`}`;
 }
 function cargoChoices() {
@@ -393,7 +398,7 @@ function updateWeather() {
  const el=$('#weather');if(el.dataset.condition!==label){el.innerHTML=icon(symbol)+`<span>${label}</span>`;el.dataset.condition=label;}
  el.title=`Local weather at ${x}, ${y}`;
 }
-function updateRegion() { updateWeather(); }
+function updateRegion() { updateWeather();$('#minimap').style.aspectRatio=game.width+'/'+game.height; }
 function updateHud() {
  updateWeather();
  const pricing=inflationInfo(game);
@@ -448,7 +453,7 @@ function industryDestinations(industry) {
 function locateIndustry(id) {
  const industry=game.industries.find(i=>String(i.id)===String(id));
  if(!industry)return;
- setTool('inspect');closeModal();closeMobile();renderer.setZoom(1);renderer.focus(industry.x,industry.y);inspect(industry.x,industry.y,'industry');updateHud();
+ setTool('inspect');closeModal();closeMobile();renderer.setZoom(1);renderer.focus(industry.x+(industrySize(industry)-1)/2,industry.y+(industrySize(industry)-1)/2);inspect(industry.x,industry.y,'industry');updateHud();
 }
 function locateDestination(id,kind) {
  if(kind==='industry'){locateIndustry(id);return;}
@@ -457,10 +462,10 @@ function locateDestination(id,kind) {
 }
 function inspect(x,y,kind='') {
  const tile=tileAt(x,y);if(!tile)return;const changed=!selected||selected.x!==x||selected.y!==y||selected.kind!==kind;selected={x,y,kind};
- const station=game.stations.find(s=>s.x===x&&s.y===y),industry=game.industries.find(i=>i.x===x&&i.y===y), city=game.cities.find(c=>c.x===x&&c.y===y)||game.cities.find(c=>Math.hypot(c.x-x,c.y-y)<4&&tile.building);
+ const station=game.stations.find(s=>s.x===x&&s.y===y),industry=game.industries.find(i=>industryContains(i,x,y)), city=game.cities.find(c=>c.x===x&&c.y===y)||game.cities.find(c=>Math.hypot(c.x-x,c.y-y)<4&&tile.building);
  let title,tag,body;
  if(station&&kind!=='city'&&kind!=='industry'){title=station.name;tag=stopName(station.mode).toUpperCase();body=`<div class="inspector-grid"><div><small>Network</small><strong>${transportName(station.mode)}</strong></div><div><small>Coverage</small><strong>5 tiles</strong></div></div>${coverageNote(station.id,'produces')}${coverageNote(station.id,'accepts')}<button class="button button-primary full" id="station-route">${icon('route')} New route</button>`;}
- else if(industry){const d=INDUSTRIES[industry.kind],conditions=industryConditions(game,industry),typical=Object.values(d.outputs).reduce((a,b)=>a+b,0)*(industry.capacity||1)*conditions.productivity;title=industry.name||d.name;tag=`INDUSTRY · ${x}, ${y}`;const status=industryStatus(industry);body=`${cargoRecipe(d.inputs,d.outputs)}<div class="industry-condition" data-state="${status.state}"><strong>${escapeHTML(status.label)}</strong><p>${escapeHTML(status.detail)}</p></div>${industryDestinations(industry)}<div class="inspector-grid"><div><small>Capacity</small><strong>${Math.round((industry.capacity||1)*100)}%</strong></div><div><small>Potential / day</small><strong>${typical.toLocaleString('en-US',{maximumFractionDigits:1})}</strong></div></div>${localConditions(conditions)}<div class="section-divider"></div><div class="ledger">${Object.entries(industry.inventory||{}).map(([key,n])=>`<div class="ledger-row">${cargoBadge(key,{label:true})}<strong>${integer(n)}</strong></div>`).join('')||'<span class="micro-note">Storage empty</span>'}</div><p>Add a stop within 5 tiles.</p>`;}
+ else if(industry){const d=INDUSTRIES[industry.kind],conditions=industryConditions(game,industry),typical=Object.values(d.outputs).reduce((a,b)=>a+b,0)*(industry.capacity||1)*conditions.productivity;title=industry.name||d.name;tag=`INDUSTRY · ${industrySize(industry)} × ${industrySize(industry)} site`;const status=industryStatus(industry);body=`${cargoRecipe(d.inputs,d.outputs)}<div class="industry-condition" data-state="${status.state}"><strong>${escapeHTML(status.label)}</strong><p>${escapeHTML(status.detail)}</p></div>${industryDestinations(industry)}<div class="inspector-grid"><div><small>Capacity</small><strong>${Math.round((industry.capacity||1)*100)}%</strong></div><div><small>Potential / day</small><strong>${typical.toLocaleString('en-US',{maximumFractionDigits:1})}</strong></div></div>${localConditions(conditions)}<div class="section-divider"></div><div class="ledger">${Object.entries(industry.inventory||{}).map(([key,n])=>`<div class="ledger-row">${cargoBadge(key,{label:true})}<strong>${integer(n)}</strong></div>`).join('')||'<span class="micro-note">Storage empty</span>'}</div><p>Add a stop within 5 tiles.</p>`;}
  else if(kind!=='city'&&tile.building&&BUILDINGS[tile.building.kind]){const b=BUILDINGS[tile.building.kind];title=b.name;tag=b.tier?b.tier.toUpperCase()+' HOME':BUILDING_GROUPS[b.group].name.toUpperCase();const nearest=game.cities.reduce((best,c)=>!best||Math.hypot(c.x-x,c.y-y)<Math.hypot(best.x-x,best.y-y)?c:best,null);body=`<div class="inspector-building"><canvas width="96" height="100" data-building-sprite="${tile.building.kind}" aria-hidden="true"></canvas><p>${escapeHTML(b.tier||BUILDING_GROUPS[b.group].name)} · ${nearest&&Math.hypot(nearest.x-x,nearest.y-y)<=10?escapeHTML(nearest.name):'Countryside'}</p></div><div class="inspector-grid"><div><small>Collection</small><strong>${escapeHTML(BUILDING_GROUPS[b.group].name)}</strong></div><div><small>Development</small><strong>Level ${tile.building.level||1}</strong></div></div><p>${escapeHTML(buildingBenefit(tile.building.kind))}</p>`;}
  else if(city&&(kind==='city'||!tile.zone)){title=city.name;tag='TOWN';body=`<div class="inspector-grid"><div><small>Population</small><strong>${integer(city.population)}</strong></div><div><small>Activity</small><strong>${integer(city.activity||0)}</strong></div></div><p class="site-status">${townService(game,city).label}</p>${localConditions(settlementSuitability(game,city))}<button class="button button-primary full" id="zone-town">${icon('house')} Add zones</button>`;}
  else{title=tile.zone?TOOL_INFO[tile.zone].name+' zone':tile.road?'Road':tile.rail?'Railway':{grass:'Open countryside',forest:'Woodland',water:'Water',mountain:'Mountain ridge',rock:'Rocky ground',sand:'Desert sands',snow:'Snowfield'}[tile.terrain]||'Countryside';if(tile.detail&&!tile.road&&!tile.rail&&!tile.zone)title=tile.detail.replace(/-/g,' ').replace(/^./,c=>c.toUpperCase());tag=`LAND PARCEL · ${x}, ${y}`;body=`<p>${tile.zone?'Develops gradually with local demand.':tile.terrain==='water'?'Build a port on water beside a bank. Ships follow connected water and pass beneath bridges.':tile.terrain==='mountain'?'Use a tunnel through mountains.':'Build roads, zones or industry here.'}</p>`;}
@@ -532,26 +537,38 @@ function drawBiomePreview(element,biome) {
  ctx.fillStyle=colors[0];ctx.fillRect(0,0,w,h);let rand=931;const r=()=>{rand=(rand*1664525+1013904223)>>>0;return rand/4294967296;};
  for(let y=0;y<h;y+=3)for(let x=0;x<w;x+=3){if(r()>.78){ctx.globalAlpha=.17;ctx.fillStyle=colors[r()>.5?1:4];ctx.fillRect(x,y,3,3);}}ctx.globalAlpha=1;
  ctx.strokeStyle=colors[4];ctx.lineWidth=26;ctx.beginPath();ctx.moveTo(0,90);ctx.bezierCurveTo(70,150,85,0,165,69);ctx.bezierCurveTo(235,130,235,55,290,43);ctx.stroke();ctx.strokeStyle=colors[3];ctx.lineWidth=20;ctx.stroke();
- for(let n=0;n<160;n++){const x=r()*w,y=r()*h;if(x>80&&x<175)continue;ctx.fillStyle='#30473920';ctx.fillRect(x+3,y+6,7,3);ctx.fillStyle=colors[2];if(biome==='desert'){ctx.fillRect(x,y,4,5);ctx.fillStyle=colors[1];ctx.fillRect(x,y,4,2);}else{ctx.beginPath();ctx.moveTo(x,y-9);ctx.lineTo(x-5,y+4);ctx.lineTo(x+5,y+4);ctx.fill();ctx.fillStyle=colors[1];ctx.beginPath();ctx.moveTo(x,y-9);ctx.lineTo(x-5,y+4);ctx.lineTo(x,y+2);ctx.fill();}}
+ const previewSprites=createSprites(biome,{pixelScale:1,detailLevel:'region'}),trees=biome==='desert'?['palm','acacia','tamarisk']:biome==='tundra'?['larch','dwarf-birch','pine']:['pine','birch','oak'];
+ for(let n=0;n<130;n++){const x=r()*w,y=r()*h;if(x>80&&x<175)continue;ctx.drawImage(previewSprites('forest',n%64,1,trees[n%3]),x-8,y-12,18,18);}
+ for(let n=0;n<5;n++)ctx.drawImage(previewSprites('mountain',n*3,1,biome==='desert'?'mesa':biome==='tundra'?'glacier':'granite'),201+n*13,10+(n%2)*8,30,37.5);
  ctx.strokeStyle='#dfd5ae';ctx.lineWidth=6;ctx.beginPath();ctx.moveTo(40,h);ctx.lineTo(115,76);ctx.lineTo(215,76);ctx.stroke();ctx.strokeStyle='#868773';ctx.lineWidth=4;ctx.stroke();
- for(let n=0;n<12;n++){const x=115+(n%4)*13,y=35+Math.floor(n/4)*13;ctx.fillStyle='#52624b50';ctx.fillRect(x+3,y+4,8,9);ctx.fillStyle=n%3?'#e5d9b2':'#bd805b';ctx.fillRect(x,y,8,9);ctx.fillStyle=n%3?'#84938c':'#925e43';ctx.fillRect(x,y,8,3);}
+ for(let n=0;n<12;n++){const x=115+(n%4)*14,y=30+Math.floor(n/4)*14;ctx.drawImage(previewSprites(n===1?'church':n===9?'shop-grocery':'house-normal-'+(n%3+1),n,1),x,y,13,16.25);}
 }
 function openWorld() {
  let chosen=game.biome,chosenSize=DEFAULT_WORLD_SIZE;
- openModal(`<div class="modal-inner"><div class="modal-heading"><div><h2>New world</h2><p>Choose a landscape and map size.</p></div><button class="close-modal" aria-label="Close dialog">×</button></div><div class="biome-options">${Object.entries(BIOMES).map(([key,b])=>`<button class="biome-card ${chosen===key?'selected':''}" data-biome="${key}" aria-pressed="${chosen===key}"><canvas data-preview="${key}"></canvas><span class="biome-card-info"><strong>${b.name}<span>${key===game.biome?'↗':''}</span></strong><small>${escapeHTML(b.description)}</small></span></button>`).join('')}</div><div class="world-size-heading"><span class="eyebrow">MAP SIZE</span></div><div class="world-size-options">${Object.entries(WORLD_SIZES).map(([key,size])=>`<button type="button" class="world-size-card ${key===chosenSize?'selected':''}" data-world-size="${key}" aria-pressed="${key===chosenSize}"><strong>${escapeHTML(size.label)}</strong><span>${size.width} × ${size.height}</span><small>${integer(size.width*size.height)} tiles</small></button>`).join('')}</div><div class="modal-actions"><label class="form-field"><span>World seed</span><input id="world-seed" type="number" min="1" max="999999999" value="${Math.floor(Math.random()*900000+100000)}"></label><button class="button button-primary" id="generate-world">Create world ${icon('arrow')}</button></div><p class="modal-note">Creating a world replaces autosave. Named saves stay saved.</p></div>`);
+ openModal(`<div class="modal-inner"><div class="modal-heading"><div><h2>New world</h2><p>Choose a landscape and map size.</p></div><button class="close-modal" aria-label="Close dialog">×</button></div><div class="biome-options">${Object.entries(BIOMES).map(([key,b])=>`<button class="biome-card ${chosen===key?'selected':''}" data-biome="${key}" aria-pressed="${chosen===key}"><canvas data-preview="${key}"></canvas><span class="biome-card-info"><strong>${b.name}<span>${key===game.biome?'↗':''}</span></strong><small>${escapeHTML(b.description)}</small></span></button>`).join('')}</div><div class="world-size-heading"><span class="eyebrow">MAP SIZE</span></div><div class="world-size-options">${Object.entries(NEW_WORLD_SIZES).map(([key,size])=>`<button type="button" class="world-size-card ${key===chosenSize?'selected':''}" data-world-size="${key}" aria-pressed="${key===chosenSize}"><strong>${escapeHTML(size.label)}</strong><span>${integer(size.towns)} towns</span><small>${integer(size.width*size.height)} tiles</small></button>`).join('')}</div><div class="modal-actions"><label class="form-field"><span>World seed</span><input id="world-seed" type="number" min="1" max="999999999" value="${Math.floor(Math.random()*900000+100000)}"></label><button class="button button-primary" id="generate-world">Create world ${icon('arrow')}</button></div><p id="world-generation-status" class="modal-note" role="status" aria-live="polite">Creating a world replaces autosave. Named saves stay saved.</p></div>`);
  $$('[data-preview]').forEach(el=>drawBiomePreview(el,el.dataset.preview));$$('[data-biome]').forEach(el=>el.addEventListener('click',()=>{chosen=el.dataset.biome;$$('[data-biome]').forEach(b=>{b.classList.toggle('selected',b.dataset.biome===chosen);b.setAttribute('aria-pressed',String(b.dataset.biome===chosen));});}));
  $$('[data-world-size]').forEach(el=>el.addEventListener('click',()=>{chosenSize=el.dataset.worldSize;$$('[data-world-size]').forEach(b=>{b.classList.toggle('selected',b.dataset.worldSize===chosenSize);b.setAttribute('aria-pressed',String(b.dataset.worldSize===chosenSize));});}));
- $('#generate-world').addEventListener('click',()=>{
+ $('#generate-world').addEventListener('click',async()=>{
+  const button=$('#generate-world'),status=$('#world-generation-status'),dialog=$('#modal');
   const seed=Math.min(999999999,Math.max(1,Math.floor(Number($('#world-seed').value)||1847)));
-  const next=createGame({biome:chosen,seed,size:chosenSize});
-  const saved=saveGame(next);if(!saved?.ok){toast('Could not save the new world. Free some local storage or choose a smaller map. Your current world is unchanged.',true);return;}
-  activateGame(next);saveAt=performance.now();$('#save-status').textContent='Saved just now';modalPreviousSpeed=1;closeModal();
-  toast(`${BIOMES[chosen].name} awaits. Your first bus is already on the road.`);
+  const biome=chosen,size=chosenSize,controls=$$('#modal .biome-card, #modal .world-size-card, #world-seed, #generate-world');
+  controls.forEach(control=>control.disabled=true);button.textContent='Creating…';status.textContent='Generating terrain, rivers and towns…';
+  const paint=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+  const current=()=>dialog.open&&button.isConnected;
+  try{
+   await paint();if(!current())return;
+   const next=createGame({biome,seed,size});
+   status.textContent='Saving your new world…';await paint();if(!current())return;
+   const saved=saveGame(next);if(!saved?.ok){status.textContent='Could not save. Free some local storage and try again. Your current world is unchanged.';toast(status.textContent,true);return;}
+   activateGame(next);saveAt=performance.now();$('#save-status').textContent='Saved just now';modalPreviousSpeed=1;closeModal();
+   toast(`${BIOMES[biome].name} awaits. Your first bus is already on the road.`);
+  }catch{if(current()){status.textContent='Could not create this world. Your current company is unchanged. Try a smaller map.';toast(status.textContent,true);}}
+  finally{controls.forEach(control=>control.disabled=false);button.innerHTML='Create world '+icon('arrow');}
  });
 }
 function openAtlas() {
  openModal(`<div class="modal-inner"><div class="modal-heading"><div><h2>World map</h2><p>Click a location to explore.</p></div><button class="close-modal" aria-label="Close dialog">×</button></div><canvas id="atlas-map" width="640" height="480" tabindex="0" aria-label="World atlas. Click to center the world map on a location."></canvas><div class="atlas-legend"><span><i class="atlas-town"></i> Towns</span><span><i class="atlas-industry"></i> Industries</span><span><i class="atlas-route"></i> Your network</span><span>Use H to return home</span></div></div>`);
- const atlas=$('#atlas-map');atlas.style.aspectRatio=game.width+'/'+game.height;renderer.drawMinimap(atlas);
+ const atlas=$('#atlas-map');atlas.style.aspectRatio=game.width+'/'+game.height;atlas.style.setProperty('--atlas-ratio',game.width/game.height);renderer.drawMinimap(atlas);
  atlas.addEventListener('click',e=>{const rect=atlas.getBoundingClientRect(),left=atlas.clientLeft,top=atlas.clientTop;renderer.focus(Math.max(0,Math.min(1,(e.clientX-rect.left-left)/atlas.clientWidth))*game.width,Math.max(0,Math.min(1,(e.clientY-rect.top-top)/atlas.clientHeight))*game.height);closeModal();closeMobile();});
  atlas.addEventListener('keydown',e=>{if(e.key==='Enter'){renderer.focus(game.cities[0].x,game.cities[0].y);closeModal();}});
 }
@@ -716,6 +733,11 @@ window.addEventListener('pagehide',()=>persist());
 document.addEventListener('visibilitychange',()=>{lastFrame=performance.now();if(document.hidden)persist();});
 
 layersView=mountVisibility($('#layers-panel'),$('#layers-button'),{getLayers:()=>({...mapLayers}),onChange:(key,visible)=>setMapLayers({[key]:visible}),onPreset:name=>setMapLayers(layerPreset(name))});
+const refreshArtwork=()=>{
+ drawPaletteSprites();
+ if($('#modal').open)$$('#modal [data-preview]').forEach(element=>drawBiomePreview(element,element.dataset.preview));
+};
+onHouseAssetsChange(refreshArtwork);onWorldArtChange(refreshArtwork);
 syncLayerControls();
 updateRegion();renderPanel();syncToolControls();updateHud();changeSpeed(1);renderer.resize();if(window.innerWidth<=700)renderer.focus(game.cities[0].x+2,game.cities[0].y);
 // Establish the browser save immediately, including on the first visit.

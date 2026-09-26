@@ -1,0 +1,21 @@
+{
+  "prompt": "Use case: style-transfer. Asset type: an eight-direction vessel sprite sheet for a realistic painted miniature2Dtransporttycoongame. The supplied image shows ONE vessel design; keep its exact vessel identity, proportions, hullcolour, cabins, funnels and deckequipment. Redraw that same vessel from eight distinct directions, NOT rotated copies of the same flat image. Fixed orthographic camera looking60degrees downward from the viewer, fixed sunlight from upperleft for everyframe. Upright cabinwalls/funnels stay visuallyvertical inworldspace even when the hullheading changes. The near-facing front, rear and sides of the vessel must be correctly visible at each heading. Rich crisp painted materials and natural weathering match reference, not vector/cartoon shapes.\nLayout: exactly3\u00d73equal squarecells, centercellCOMPLETELYEMPTY andfullytransparent, eight ships around it in strictCOMPASSorder. TOP ROW: NWbowpointsupperleft, Nbowpointstop, NEbowpointsupperright. MIDDLE ROW: Wbowpointsleft, EMPTY, Ebowpointsright. BOTTOM ROW: SWbowpointslowerleft, Sbowpointsbottom, SEbowpointslowerright. Bows point OUTWARD awayfromcenteremptycell. In eachframe the STERN and cabinarrangement must be anatomicallyoppositeits bow, so the northernframes clearly differ fromsouthernframes. Do notlabeldirections; no arrows.\nComposition: each vessel completelyinside its owncell, centered, maximum70%ofcellwidth/height, broad transparentmargin andclear gaps. All eight show the SAME vessel at the SAME modelscale and decklength; diagonalboundingboxes may be naturallysmaller thanfull-lengthaxisalignedframes. Allmasttips/hullcornerscontained. Genuine transparentalpha, no water/background, no wake, no grid, no labels/text/logos/shadowsdetachedfromvessel. No extra boats. No scene.\nVesselidentity: compact darknavyblue tanker, pointedbow andflatstern, three large silverroundedindustrialcargo tanks inline alongdeck connectedwith slimgraypipes and railings, creamraisedbridge/superstructure atAFTendonly andred-and-blackfunnel. Preserve exactlythree silvertanks as the recognizablesignature anddarknavyhull. NORTHpointingbow placescreamaftbridgeatbottom/stern; SOUTHpointingbow placescreamaftbridgeattop/stern. Render tank ends andpipes correctlyforthe eightheadings, not simplyspinningoneperspectiveimage.",
+  "source": "built-in image_gen",
+  "styleReference": "../vehicles/sources/vehicle_tanker.png",
+  "columns": 3,
+  "rows": 3,
+  "entries": [
+    "vehicle:tanker:NW",
+    "vehicle:tanker:N",
+    "vehicle:tanker:NE",
+    "vehicle:tanker:W",
+    null,
+    "vehicle:tanker:E",
+    "vehicle:tanker:SW",
+    "vehicle:tanker:S",
+    "vehicle:tanker:SE"
+  ],
+  "generatedImage": "/Users/vojta/.codex/generated_images/01a0de03-6b9f-7ed1-ba84-e85d25f494ce/exec-7cabfa5c-5745-4272-a8af-a53a73907d59.png",
+  "headingAssignment": "Observed bows match requested compass layout.",
+  "preparation": "prepare-source.py preserves complete RGBA frames that extend beyond the nominal equal-cell source grid, without rotating or repainting."
+}

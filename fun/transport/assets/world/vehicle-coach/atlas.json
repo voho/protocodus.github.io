@@ -1,0 +1,326 @@
+{
+  "columns": 3,
+  "rows": 3,
+  "cellSizes": [
+    16,
+    32,
+    64,
+    128
+  ],
+  "masterCell": 256,
+  "vehicleLengthNormalized": true,
+  "order": [
+    "vehicle:coach:SE",
+    "vehicle:coach:N",
+    "vehicle:coach:SW",
+    "vehicle:coach:W",
+    null,
+    "vehicle:coach:E",
+    "vehicle:coach:NE",
+    "vehicle:coach:S",
+    "vehicle:coach:NW"
+  ],
+  "source": "directions-source-v3.png",
+  "sourceSha256": "e50705c57288045d7cfd78f7e941f210e10aa0574373d075f6f973de7d2b898f",
+  "sprites": [
+    {
+      "id": "vehicle:coach:SE",
+      "cell": 0,
+      "sourceBounds": [
+        0,
+        0,
+        512,
+        341
+      ],
+      "normalization": {
+        "originalSize": [
+          512,
+          341
+        ],
+        "sourceBounds": [
+          135,
+          88,
+          416,
+          299
+        ],
+        "rawAlphaBounds": [
+          0,
+          0,
+          417,
+          309
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.80652
+      },
+      "bounds": [
+        18,
+        46,
+        237,
+        210
+      ]
+    },
+    {
+      "id": "vehicle:coach:N",
+      "cell": 1,
+      "sourceBounds": [
+        512,
+        0,
+        1024,
+        341
+      ],
+      "normalization": {
+        "originalSize": [
+          512,
+          341
+        ],
+        "sourceBounds": [
+          205,
+          78,
+          307,
+          300
+        ],
+        "rawAlphaBounds": [
+          9,
+          78,
+          476,
+          341
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.887521
+      },
+      "bounds": [
+        74,
+        12,
+        181,
+        244
+      ]
+    },
+    {
+      "id": "vehicle:coach:SW",
+      "cell": 2,
+      "sourceBounds": [
+        1024,
+        0,
+        1536,
+        341
+      ],
+      "normalization": {
+        "originalSize": [
+          512,
+          341
+        ],
+        "sourceBounds": [
+          93,
+          86,
+          375,
+          298
+        ],
+        "rawAlphaBounds": [
+          92,
+          84,
+          466,
+          336
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.802889
+      },
+      "bounds": [
+        19,
+        46,
+        237,
+        210
+      ]
+    },
+    {
+      "id": "vehicle:coach:W",
+      "cell": 3,
+      "sourceBounds": [
+        0,
+        341,
+        512,
+        683
+      ],
+      "normalization": {
+        "originalSize": [
+          512,
+          342
+        ],
+        "sourceBounds": [
+          79,
+          99,
+          450,
+          227
+        ],
+        "rawAlphaBounds": [
+          78,
+          18,
+          452,
+          299
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.764466
+      },
+      "bounds": [
+        12,
+        88,
+        244,
+        168
+      ]
+    },
+    {
+      "id": null
+    },
+    {
+      "id": "vehicle:coach:E",
+      "cell": 5,
+      "sourceBounds": [
+        1024,
+        341,
+        1536,
+        683
+      ],
+      "normalization": {
+        "originalSize": [
+          512,
+          342
+        ],
+        "sourceBounds": [
+          60,
+          99,
+          433,
+          227
+        ],
+        "rawAlphaBounds": [
+          55,
+          1,
+          462,
+          339
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.764597
+      },
+      "bounds": [
+        12,
+        88,
+        244,
+        168
+      ]
+    },
+    {
+      "id": "vehicle:coach:NE",
+      "cell": 6,
+      "sourceBounds": [
+        0,
+        683,
+        512,
+        1024
+      ],
+      "normalization": {
+        "originalSize": [
+          512,
+          341
+        ],
+        "sourceBounds": [
+          122,
+          30,
+          416,
+          255
+        ],
+        "rawAlphaBounds": [
+          67,
+          4,
+          510,
+          341
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.782968
+      },
+      "bounds": [
+        20,
+        45,
+        236,
+        211
+      ]
+    },
+    {
+      "id": "vehicle:coach:S",
+      "cell": 7,
+      "sourceBounds": [
+        512,
+        683,
+        1024,
+        1024
+      ],
+      "normalization": {
+        "originalSize": [
+          512,
+          341
+        ],
+        "sourceBounds": [
+          205,
+          27,
+          307,
+          258
+        ],
+        "rawAlphaBounds": [
+          17,
+          25,
+          466,
+          317
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.880951
+      },
+      "bounds": [
+        77,
+        12,
+        179,
+        244
+      ]
+    },
+    {
+      "id": "vehicle:coach:NW",
+      "cell": 8,
+      "sourceBounds": [
+        1024,
+        683,
+        1536,
+        1024
+      ],
+      "normalization": {
+        "originalSize": [
+          512,
+          341
+        ],
+        "sourceBounds": [
+          94,
+          30,
+          389,
+          255
+        ],
+        "rawAlphaBounds": [
+          15,
+          2,
+          432,
+          307
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.781376
+      },
+      "bounds": [
+        20,
+        45,
+        236,
+        210
+      ]
+    }
+  ]
+}

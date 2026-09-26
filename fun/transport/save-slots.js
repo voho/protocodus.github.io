@@ -1,5 +1,5 @@
 import { BIOMES, SAVE_KEY, restoreGame, validateGame } from './model.js';
-import { encodeGame, encodeBytes, decodeBytes } from './save-codec.js';
+import { encodeGame, encodeBytes, decodeBytes, savedTileCount, inspectSavedGame } from './save-codec.js';
 import { MAX_WORLD_TILES } from './world.js';
 
 export const SAVE_SLOT_PREFIX = 'transport-slot-v1:';
@@ -53,7 +53,14 @@ function damagedSummary(id, raw, message = 'This save is damaged or from an unsu
 function autosaveSummary(raw) {
   if (raw === autosaveCache.raw && autosaveCache.slot) return { ...autosaveCache.slot };
   let game = null;
-  try { if (raw.length <= MAX_SAVE_LENGTH) game = restoreGame(JSON.parse(raw)); } catch {}
+  try {
+    if (raw.length <= MAX_SAVE_LENGTH) {
+      const saved = JSON.parse(raw), state = inspectSavedGame(saved);
+      if (state) {
+        if (state.version === 1 && Object.hasOwn(BIOMES,state.biome) && finite(state.day) && state.day >= 0 && finite(state.money) && Number.isInteger(state.seed) && Number.isInteger(state.nextId) && ['cities','industries','routes','stations','vehicles','zones','history','notifications'].every(key => Array.isArray(state[key]))) game = state;
+      } else game = restoreGame(saved);
+    }
+  } catch {}
   const slot = game ? { ...metadata(game, 'autosave', 'Autosave', null), readonly: true, status: 'ready' } : { ...damagedSummary('autosave', raw), name: 'Autosave', readonly: true };
   autosaveCache = { raw, slot };
   return { ...slot };
@@ -85,7 +92,7 @@ export function listSaveSlots() {
 async function pack(json, saved) {
   if (typeof CompressionStream !== 'function' || typeof DecompressionStream !== 'function') return { encoding: 'json', payload: json };
   // Gzip the packed tile bytes directly, avoiding base64 overhead inside gzip.
-  const tileBytes = decodeBytes(saved.tiles.data,saved.tiles.encoding??'base64',saved.state.width*saved.state.height*4), header = { ...saved, tiles: { ...saved.tiles } };
+  const tileBytes = decodeBytes(saved.tiles.data,saved.tiles.encoding??'base64',savedTileCount(saved)*4), header = { ...saved, tiles: { ...saved.tiles } };
   delete header.tiles.data;
   const headerBytes = new TextEncoder().encode(JSON.stringify(header)), framed = new Uint8Array(9 + headerBytes.length + tileBytes.length);
   framed.set(new TextEncoder().encode('TRSP1'));
@@ -117,7 +124,7 @@ async function unpack(slot) {
     const headerLength = new DataView(expanded.buffer).getUint32(5);
     if (headerLength < 2 || headerLength > length - 9) throw new Error('Invalid tile header');
     const saved = JSON.parse(decoder.decode(expanded.subarray(9, 9 + headerLength)));
-    if (!saved?.tiles || !saved.state || expanded.length - 9 - headerLength !== saved.state.width * saved.state.height * 4) throw new Error('Invalid tile frame size');
+    if (!saved?.tiles || !saved.state || expanded.length - 9 - headerLength !== savedTileCount(saved) * 4) throw new Error('Invalid tile frame size');
     saved.tiles.data = encodeBytes(expanded.subarray(9 + headerLength),saved.tiles.encoding??'base64');
     return JSON.stringify(saved);
   } finally { reader.releaseLock(); }

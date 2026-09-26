@@ -13,13 +13,13 @@ function content(game) {
   return copy;
 }
 
-test('the default continent adds 2.25 times the area while keeping every existing size unchanged', () => {
-  assert.equal(DEFAULT_WORLD_SIZE, 'vast');
-  assert.equal(MAX_WORLD_TILES, 768 * 576);
+test('the legacy vast continent retains 2.25 times the area while keeping every existing size unchanged', () => {
+  assert.equal(DEFAULT_WORLD_SIZE, 'square512');
+  assert.equal(MAX_WORLD_TILES, 2048 * 2048);
   for (const [size, dimensions] of [['regional', [128, 96]], ['large', [256, 192]], ['huge', [512, 384]]]) {
     assert.deepEqual([WORLD_SIZES[size].width, WORLD_SIZES[size].height], dimensions);
   }
-  const game = createGame();
+  const game = createGame({size:'vast'});
   assert.equal(game.size, 'vast');
   assert.equal(game.tiles.length / (512 * 384), 2.25);
   assert.equal(game.routes[0].path.length, 25, 'the opening trip stays short on a larger continent');
@@ -75,7 +75,7 @@ test('a developed vast autosave and two distinct vast slots fit 5 MiB and resume
   };
   Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: local });
   try {
-    const forest = createGame({ biome: 'taiga', seed: 1847 }), desert = createGame({ biome: 'desert', seed: 82461 });
+    const forest = createGame({ biome: 'taiga', size:'vast', seed: 1847 }), desert = createGame({ biome: 'desert', size:'vast', seed: 82461 });
     tick(forest, 360); tick(desert, 90);
     Object.assign(forest.tiles[0], { elevation: Math.PI, variant: 42, detail: 'custom-saved-riverbank' });
     assert.equal(saveGame(forest).ok, true);
@@ -108,7 +108,7 @@ test('a developed vast autosave and two distinct vast slots fit 5 MiB and resume
 });
 
 test('vast ecology visits a bounded sparse sample and preserves infrastructure', () => {
-  const game = createGame({ biome: 'taiga', seed: 1234 }), tiles = game.tiles;
+  const game = createGame({ biome: 'taiga', size:'vast', seed: 1234 }), tiles = game.tiles;
   const protectedTiles = new Map();
   for (let i = 0; i < tiles.length; i++) if (tiles[i].road || tiles[i].rail || tiles[i].building || tiles[i].terrain === 'water') protectedTiles.set(i, { ...tiles[i] });
   let reads = 0;

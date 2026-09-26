@@ -1,0 +1,359 @@
+{
+  "columns": 3,
+  "rows": 3,
+  "cellSizes": [
+    16,
+    32,
+    64,
+    128
+  ],
+  "masterCell": 256,
+  "order": [
+    "nature-trees-taiga:pine",
+    "nature-trees-taiga:spruce",
+    "nature-trees-taiga:fir",
+    "nature-trees-taiga:birch",
+    "nature-trees-taiga:oak",
+    "nature-trees-taiga:aspen",
+    "nature-trees-taiga:deadwood",
+    "nature-trees-taiga:bare-birch",
+    "nature-trees-taiga:sapling"
+  ],
+  "source": "exec-44087921-ae45-4447-b649-9f83abdcaf38.png",
+  "sourceSha256": "b1e99c36208bd56ef23ff9913ea4582f15d91b9a9a0ae20621da29c0d6287db0",
+  "sprites": [
+    {
+      "id": "nature-trees-taiga:pine",
+      "cell": 0,
+      "sourceBounds": [
+        0,
+        0,
+        418,
+        418
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          72,
+          56,
+          389,
+          389
+        ],
+        "rawAlphaBounds": [
+          0,
+          4,
+          418,
+          410
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.658919
+      },
+      "bounds": [
+        17,
+        12,
+        238,
+        244
+      ]
+    },
+    {
+      "id": "nature-trees-taiga:spruce",
+      "cell": 1,
+      "sourceBounds": [
+        418,
+        0,
+        836,
+        418
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          106,
+          51,
+          328,
+          394
+        ],
+        "rawAlphaBounds": [
+          1,
+          17,
+          418,
+          414
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.749256
+      },
+      "bounds": [
+        53,
+        12,
+        203,
+        244
+      ]
+    },
+    {
+      "id": "nature-trees-taiga:fir",
+      "cell": 2,
+      "sourceBounds": [
+        836,
+        0,
+        1254,
+        418
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          89,
+          74,
+          321,
+          394
+        ],
+        "rawAlphaBounds": [
+          1,
+          17,
+          402,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.743143
+      },
+      "bounds": [
+        44,
+        12,
+        212,
+        244
+      ]
+    },
+    {
+      "id": "nature-trees-taiga:birch",
+      "cell": 3,
+      "sourceBounds": [
+        0,
+        418,
+        418,
+        836
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          93,
+          55,
+          344,
+          404
+        ],
+        "rawAlphaBounds": [
+          9,
+          1,
+          418,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.667292
+      },
+      "bounds": [
+        44,
+        12,
+        211,
+        244
+      ]
+    },
+    {
+      "id": "nature-trees-taiga:oak",
+      "cell": 4,
+      "sourceBounds": [
+        418,
+        418,
+        836,
+        836
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          17,
+          58,
+          418,
+          404
+        ],
+        "rawAlphaBounds": [
+          3,
+          1,
+          418,
+          412
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.498827
+      },
+      "bounds": [
+        12,
+        44,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "nature-trees-taiga:aspen",
+      "cell": 5,
+      "sourceBounds": [
+        836,
+        418,
+        1254,
+        836
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          0,
+          47,
+          332,
+          404
+        ],
+        "rawAlphaBounds": [
+          0,
+          7,
+          412,
+          412
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.716267
+      },
+      "bounds": [
+        20,
+        12,
+        236,
+        244
+      ]
+    },
+    {
+      "id": "nature-trees-taiga:deadwood",
+      "cell": 6,
+      "sourceBounds": [
+        0,
+        836,
+        418,
+        1254
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          139,
+          38,
+          324,
+          358
+        ],
+        "rawAlphaBounds": [
+          0,
+          0,
+          418,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.844543
+      },
+      "bounds": [
+        61,
+        12,
+        195,
+        244
+      ]
+    },
+    {
+      "id": "nature-trees-taiga:bare-birch",
+      "cell": 7,
+      "sourceBounds": [
+        418,
+        836,
+        836,
+        1254
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          73,
+          40,
+          350,
+          357
+        ],
+        "rawAlphaBounds": [
+          0,
+          1,
+          398,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.713199
+      },
+      "bounds": [
+        26,
+        12,
+        229,
+        244
+      ]
+    },
+    {
+      "id": "nature-trees-taiga:sapling",
+      "cell": 8,
+      "sourceBounds": [
+        836,
+        836,
+        1254,
+        1254
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          126,
+          88,
+          303,
+          358
+        ],
+        "rawAlphaBounds": [
+          1,
+          9,
+          386,
+          400
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.823167
+      },
+      "bounds": [
+        52,
+        12,
+        204,
+        244
+      ]
+    }
+  ]
+}
