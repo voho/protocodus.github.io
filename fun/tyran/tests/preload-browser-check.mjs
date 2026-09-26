@@ -17,6 +17,10 @@ page.on('request', request => {
 });
 page.on('requestfinished', request => pending.delete(request));
 page.on('requestfailed', request => pending.delete(request));
+// Chromium can keep a local Blob reader open after media reports readiness.
+// Completed HTTP bodies establish download completion; any new Blob/HTTP
+// request after readiness still fails the separate request-start assertion.
+const pendingDownloads = () => [...pending.values()].filter(({ url }) => /^https?:/.test(url));
 await page.addInitScript(() => localStorage.setItem('tyran-muted', 'false'));
 await page.route('**/assets/audio/music/1.mp3', async route => {
   heldSong();
@@ -46,7 +50,7 @@ try {
   assert.equal(await page.locator('#menu-screen').evaluate(el => el.inert), true);
   releaseHero();
   await page.waitForFunction(() => window.tyran && document.body.dataset.ready === 'true');
-  assert.deepEqual([...pending.values()], [], 'Readiness leaves no download or media load still running');
+  assert.deepEqual(pendingDownloads(), [], 'Readiness leaves no HTTP download still running');
   assert((await page.locator('link[rel="icon"]').getAttribute('href')).startsWith('data:'), 'The browser icon cannot start a delayed network request');
   const assets = await page.evaluate(async () => {
     const { audioAssets, preloadAudio } = await import('./audio-assets.js');
@@ -65,11 +69,13 @@ try {
     button.style = 'position:fixed;top:0;left:0;z-index:99999';
     button.onclick = () => { tyran.launch(6); for (const pilot of tyran.state.players) pilot.hurt = 1e8; preflightAudit.phase = 'flight'; button.remove(); };
     document.body.append(button);
-    return { status, samples: audioAssets.samples.size, songs: audioAssets.songs.size };
+    return { status, samples: audioAssets.samples.size, songs: audioAssets.songs.size, players: audioAssets.players.size,
+      playersReady: [...audioAssets.players.values()].every(player => player.readyState >= 4 && player.networkState === 1) };
   });
   assert.deepEqual(assets.status, { ready: true, completed: 23, total: 23, loaded: 23, failed: 0 });
   assert.equal(assets.samples, 18, 'Every effect is decoded before readiness');
   assert.equal(assets.songs, 5, 'Every complete soundtrack is in memory before readiness');
+  assert.equal(assets.players, 5); assert.equal(assets.playersReady, true, 'Every cached song has a prepared playback element');
   assert.equal(requests.filter(request => request.url.includes('/audio/')).length, 23, 'Cold startup fetches each audio asset exactly once');
   phase = 'after-ready';
   await context.setOffline(true);
@@ -168,8 +174,8 @@ try {
   assert.equal(await page.evaluate(() => flightAudio.muted), true);
   await page.keyboard.press('KeyV');
   await page.waitForFunction(() => flightAudio.musicPlaying && !flightAudio.muted);
-  assert.deepEqual([...pending.values()], [], 'No pending file or media loads after transitions');
+  assert.deepEqual(pendingDownloads(), [], 'No pending HTTP downloads after transitions');
   assert.deepEqual(requests.filter(request => request.phase === 'after-ready'), [], 'Flight, all sectors, shop, retry, saved resume and unmute never start a file or media load');
   assert.deepEqual(errors, [], 'Preflight and offline flight have no browser errors');
-  console.log(`Preflight browser checks passed: gated title and 23 audio assets, no outstanding loads at readiness, all ten worlds/shop/retry/resume/unmute offline, zero in-flight file/media loads or expensive texture builds (${result.canvases.length} lightweight strip/scratch canvases).`);
+  console.log(`Preflight browser checks passed: gated title and 23 audio assets, no outstanding downloads at readiness, five prepared music players, all ten worlds/shop/retry/resume/unmute offline, zero new in-flight file/media requests or expensive texture builds (${result.canvases.length} lightweight strip/scratch canvases).`);
 } finally { clearTimeout(startupTimeout); releaseSong?.(); releaseHero?.(); await browser.close(); }

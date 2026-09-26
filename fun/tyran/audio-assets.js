@@ -44,8 +44,9 @@ function prepareSong(url, signal) {
     };
     const playable = () => {
       const buffered = player.buffered;
-      // HAVE_ENOUGH_DATA alone can precede the end of the Blob request. Wait
-      // for the complete duration (allow one MP3 frame of rounding) and idle IO.
+      // The complete file is already in the Blob. Require playback readiness
+      // and local availability; browsers may retain internal Blob readers and
+      // decode compressed music as it plays (allow one MP3 frame of rounding).
       if (player.readyState >= 4 && player.networkState === 1 && Number.isFinite(player.duration) && player.duration > 0
         && buffered.length && buffered.start(0) <= .05 && buffered.end(buffered.length - 1) >= player.duration - .05) finish();
     };
