@@ -1,0 +1,40 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "36d00b05cb04",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "fun/tyran/README.md",
+    "fun/tyran/effects.js",
+    "fun/tyran/index.html",
+    "fun/tyran/ships.js",
+    "fun/tyran/structure-effects.js",
+    "fun/tyran/style.css",
+    "fun/tyran/tests/effects-render-work-check.mjs",
+    "fun/tyran/tests/loading-browser-check.mjs",
+    "fun/tyran/tests/opaque-ground-check.mjs",
+    "fun/tyran/tests/performance-check.mjs",
+    "fun/tyran/tests/performance-results.json",
+    "fun/tyran/tests/ship-draw-check.mjs",
+    "fun/tyran/tests/structure-effects-check.mjs",
+    "fun/tyran/tests/weather-render-work-check.mjs",
+    "fun/tyran/worlds.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/36/d00b05cb04/0/metadata.json",
+      "transcript": "/36/d00b05cb04/0/full.jsonl",
+      "context": "/36/d00b05cb04/0/context.md",
+      "content_hash": "/36/d00b05cb04/0/content_hash.txt",
+      "prompt": "/36/d00b05cb04/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 2
+  }
+}
