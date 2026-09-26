@@ -45,6 +45,7 @@ const screens = ['menu-screen', 'pause-screen', 'hangar-screen', 'end-screen'];
 let campaign = campaignSummary(readCampaign()), campaignError = null, activeCampaign = false, lastAutosaveTime = 0;
 let state = null, selected = 0, scene = 'menu', unlocked = campaign.run?.unlocked || 0;
 let W = 1200, H = 900, dpr = 1, previewScroll = 0, clock = 0, lastTime = 0, hudClock = 0;
+let surfaceWidth = 0, surfaceHeight = 0;
 let announcementUntil = 0, quality = 'high', helpPaused = false, helpFocus = null;
 let selectedDifficulty = 'easy';
 let keyboardLockEpoch = 0;
@@ -146,13 +147,20 @@ function scaleScriptX(enemy, factor) {
 }
 
 function setScreen(next) {
-  // Also covers saved flights, sector transitions and resuming after a resize.
-  if (next === 'playing' && state) world.prepareFlight(W, H, state.scroll);
   scene = next;
   for (const id of screens) if ($(id)) $(id).hidden = id !== `${next}-screen`;
-  $('hud').hidden = next === 'menu';
   document.body.dataset.scene = next;
-  if ($('touch-controls')) $('touch-controls').hidden = next !== 'playing';
+  // Instruments and touch controls reserve their space even behind menus.
+  // Flight therefore uses the exact arena geometry prepared before launch.
+  $('hud').hidden = false;
+  $('hud').inert = next !== 'playing';
+  if ($('touch-controls')) {
+    $('touch-controls').hidden = false;
+    $('touch-controls').inert = next !== 'playing';
+  }
+  syncArenaSize();
+  // Also covers saved flights, sector transitions and resuming after a resize.
+  if (next === 'playing' && state) world.prepareFlight(W, H, state.scroll);
   if (next !== 'playing') {
     audio.pause();
     keys.clear(); touch.x = touch.y = 0; touch.fire = touch.secondary = touch.bomb = false;
@@ -176,6 +184,7 @@ function requestFrame() {
 }
 
 function sizeSurface(rect, adaptive = false) {
+  surfaceWidth = rect.width; surfaceHeight = rect.height;
   const pixelBudget = quality === 'high' ? 8_300_000 : 2_200_000;
   dpr = Math.min(devicePixelRatio || 1, quality === 'high' ? 1.7 : 1, Math.sqrt(pixelBudget / (rect.width * rect.height))) * resolutionScale;
   canvas.width = Math.round(rect.width * dpr); canvas.height = Math.round(rect.height * dpr);
@@ -191,6 +200,7 @@ function sizeSurface(rect, adaptive = false) {
 
 function resize() {
   const rect = canvas.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return;
   const oldW = W, oldH = H;
   // Height fixes the camera scale. Additional screen width reveals more world
   // units; capping or rounding W would stretch the canvas to a different ratio.
@@ -216,6 +226,11 @@ function resize() {
   requestFrame();
 }
 
+function syncArenaSize() {
+  const rect = canvas.getBoundingClientRect();
+  if (rect.width !== surfaceWidth || rect.height !== surfaceHeight) resize();
+}
+
 function warmFleet(index) {
   index = environmentIndex(index);
   warmShipSprites(SHIP_PALETTES[index], index);
@@ -227,8 +242,7 @@ function warmFleet(index) {
   pilotBarrierTexture();
 }
 
-// In-combat notices use the compact banner high above the fight; sector,
-// guardian and bonus-stage announcements keep the full centred title.
+// Every notice stays in the reserved instrument strip outside the arena.
 function announce(kicker, title, description = '', seconds = 3, compact = false) {
   $('announcement').classList.toggle('compact', compact);
   $('announcement-kicker').textContent = kicker;
@@ -341,8 +355,11 @@ function refreshHUD() {
       setText($(prefix + '-' + kind + '-time'), `${Math.ceil(remaining)}s`);
     }
   }
+  const challenge = state.challenge && !state.challenge.done;
+  setHidden($('challenge-hud'), !challenge);
+  if (challenge) setText($('challenge-count'), `${state.challenge.hits} / ${state.challenge.total} hits`);
   const boss = state.enemies.find(e => e.boss && !e.dead);
-  setHidden($('boss-hud'), !boss);
+  setHidden($('boss-hud'), !boss || !!challenge);
   if (boss) {
     setText($('boss-name'), environment(state.level).bossName || 'Sector guardian'); setFill($('boss-fill'), boss.hp / boss.maxHp);
     setText($('boss-status'), boss.vulnerable ? `Core exposed · ${boss.windowClock.toFixed(1)}s` : `Armor sealed · ${boss.windowClock.toFixed(1)}s`);
@@ -726,10 +743,6 @@ function draw() {
       if (e.ai === 'dive' && !fx.reduced) drawDiveStreak(e, x, y, palette);
       drawShip(ctx, x, y, e.radius * (e.type < 2 ? 1.35 : 1), e.type, palette?.primary || WORLDS[index].enemyColor || '#b07355', clock, { hit: e.hurt / .07 * .3, phase: e.phase, world: index, quality, thrust: e.thrust, palette, motion: !fx.reduced });
       drawBossWeakPoints(e, clock);
-      if (!e.boss && e.hp < e.maxHp && e.radius >= 24) {
-        ctx.fillStyle = '#09171aca'; ctx.fillRect(x - e.radius, y - e.radius * 1.6 - 8, e.radius * 2, 3);
-        ctx.fillStyle = '#fb9f7c'; ctx.fillRect(x - e.radius, y - e.radius * 1.6 - 8, e.radius * 2 * Math.max(0, e.hp / e.maxHp), 3);
-      }
     }
     for (const pickup of state.pickups) {
       const pulse = fx.reduced ? 0 : Math.sin(clock * 3 + pickup.age);
@@ -758,10 +771,6 @@ function draw() {
         ctx.globalAlpha *= .36; ctx.fillStyle = color; ctx.fill(); ctx.restore();
       }
       drawPilotBonuses(p, x, y);
-    }
-    if (state.challenge && !state.challenge.done) {
-      ctx.textAlign = 'center'; ctx.font = '600 20px "Chakra Petch", sans-serif'; ctx.fillStyle = '#9bf6ff';
-      ctx.fillText(`Hits  ${state.challenge.hits} / ${state.challenge.total}`, W / 2, 138);
     }
   } else {
     const px = W * .66 + (fx.reduced ? 0 : Math.sin(clock * .5) * 45), py = H * .57 + (fx.reduced ? 0 : Math.cos(clock * .8) * 15);
@@ -901,6 +910,9 @@ document.addEventListener('visibilitychange', () => {
 });
 window.addEventListener('pagehide', autosave);
 window.addEventListener('resize', resize);
+// CSS docks, device rotation and browser chrome can resize the arena without
+// changing the full window. Render and collide within its actual content box.
+new ResizeObserver(syncArenaSize).observe(canvas);
 for (const type of ['contextmenu', 'dragstart']) canvas.addEventListener(type, consumeInput);
 canvas.addEventListener('wheel', event => { if (scene === 'playing') consumeInput(event); }, { passive: false });
 // Clicking the arena only restores keyboard focus; flight uses keys or touch.

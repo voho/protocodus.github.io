@@ -56,11 +56,12 @@ try {
   assert(result.maxTiles<=5&&result.maxScenery<=5&&result.maxBytes<1800*4*4*(5*800+5*1080),'high-detail streaming is bounded by viewport columns and nearby rows');
   for(const frame of result.frames)await writeFile(`${output}/enhanced-${frame.name}.png`,Buffer.from(frame.png.split(',')[1],'base64'));
   delete result.frames;
-  // The complete game keeps a native 4K backing surface while using the same arena.
+  // On a 4K display, the arena retains native resolution below its reserved HUD.
   await page.setViewportSize({width:3840,height:2160});
-  await page.goto(process.env.TYRAN_URL||'http://127.0.0.1:8773/fun/tyran/');await page.waitForFunction(()=>window.tyran);
-  const display=await page.evaluate(()=>{const c=document.querySelector('#game-canvas');return {width:c.width,height:c.height,density:tyran.world.detailScale};});
-  assert.deepEqual(display,{width:3840,height:2160,density:2},'high quality starts at native 4K and keeps adaptive rendering available');
+  await page.goto(process.env.TYRAN_URL||'http://127.0.0.1:8773/fun/tyran/');await page.waitForFunction(()=>window.tyran&&document.body.dataset.ready==='true');
+  const display=await page.evaluate(()=>{const c=document.querySelector('#game-canvas'),rect=c.getBoundingClientRect();return {width:c.width,height:c.height,css:{width:rect.width,height:rect.height},density:tyran.world.detailScale};});
+  assert.deepEqual({width:display.width,height:display.height},{width:Math.round(display.css.width),height:Math.round(display.css.height)},'high quality starts at the arena’s native resolution on a 4K display');
+  assert.equal(display.density,2,'large-display terrain keeps its high-density cached planes');
   assert.deepEqual(errors,[]);
   await writeFile(`${output}/depth-results.json`,JSON.stringify({...result,display},null,2));
   console.log('PASS large-screen detail, three parallax planes, reduced motion, quality changes and bounded streaming.');

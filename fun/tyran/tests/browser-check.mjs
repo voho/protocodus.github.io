@@ -73,11 +73,17 @@ try {
   // An orientation change must not strand visible salvage outside the new arena.
   await page.evaluate(() => tyran.state.pickups.push({ x:tyran.state.width * .8, y:300, age:0, kind:'credit', value:1, qaResize:true }));
   await page.setViewportSize({ width:390, height:844 });
-  await page.waitForFunction(() => tyran.state.width < 1000);
+  await page.waitForFunction(() => {
+    const rect = document.querySelector('#game-canvas').getBoundingClientRect();
+    return Math.abs(tyran.state.width - 900 * rect.width / rect.height) < 1e-7;
+  });
   const resizedPickup = await page.evaluate(() => ({ width:tyran.state.width, x:tyran.state.pickups.find(p => p.qaResize).x }));
   assert(Math.abs(resizedPickup.x / resizedPickup.width - .8) < .001, 'Salvage preserves its position within the resized arena');
   await page.setViewportSize({ width:1440, height:960 });
-  await page.waitForFunction(() => tyran.state.width > 1000);
+  await page.waitForFunction(() => {
+    const rect = document.querySelector('#game-canvas').getBoundingClientRect();
+    return Math.abs(tyran.state.width - 900 * rect.width / rect.height) < 1e-7;
+  });
   await page.evaluate(() => { tyran.state.pickups = tyran.state.pickups.filter(p => !p.qaResize); });
   await page.locator('#pause-quality-toggle').click();
   assert.equal(await page.locator('#pause-quality-toggle').getAttribute('aria-pressed'), 'false');

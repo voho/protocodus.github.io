@@ -66,13 +66,13 @@ try {
       };
     });
     assert(Math.abs(result.scale.x - result.scale.y) < 1e-9, 'CSS scales both game axes equally');
-    assert.equal(result.logical.width, 900 * viewport.width / viewport.height);
+    assert.equal(result.logical.width, 900 * result.css.width / result.css.height);
     assert.equal(result.logical.height, 900);
     assert(result.shapes.ship && result.shapes.shield && result.shapes.guard, 'actual flight draws a hull, shield and circular guard');
     assert(Math.abs(result.shapes.ship.width / result.shapes.ship.height - 1) < 1e-9, 'ship sprite keeps its source proportions');
     assert(Math.abs(result.shapes.shield.width / result.shapes.shield.height - 74 / 92) < 1e-9, 'shield retains its authored ellipse');
     assert(Math.abs(result.shapes.guard.width / result.shapes.guard.height - 1) < 1e-9, 'circular guard stays round');
-    assert(Math.abs(result.shapes.ship.width / viewport.height - 280 * 30 / 82 / 900) < 1e-7, `same screen height gives the same ship size: ${JSON.stringify(result.shapes.ship)}`);
+    assert(Math.abs(result.shapes.ship.width / result.css.height - 280 * 30 / 82 / 900) < 1e-7, `same arena height gives the same ship size: ${JSON.stringify(result.shapes.ship)}`);
     assert.equal(result.terrain.scale, 1, 'terrain uses the same world units as ships and projectiles');
     assert.equal(result.terrain.viewportWidth, result.logical.width);
     assert.equal(result.terrain.mapWidth, Math.ceil(result.logical.width / 100) * 100);

@@ -179,8 +179,16 @@ try {
     assert(await mobile.locator('#p1-rapid').isVisible() && await mobile.locator('#p1-invulnerable').isVisible());
     const panel = await mobile.locator('#p1-panel').boundingBox();
     const stick = await mobile.locator('#touch-stick').boundingBox(), fire = await mobile.locator('#touch-fire').boundingBox(), secondary = await mobile.locator('#touch-secondary').boundingBox();
-    assert(stick.y + stick.height + 8 <= panel.y, `${name}: touch steering clears the expanded pilot HUD`);
-    assert(secondary && secondary.y + secondary.height + 8 <= panel.y, `${name}: secondary touch fire clears the expanded pilot HUD`);
+    const bomb = await mobile.locator('#touch-bomb').boundingBox();
+    assert(panel, `${name}: the expanded pilot HUD is visible`);
+    for (const [label, box] of [['pilot HUD', panel], ['steering', stick], ['primary fire', fire], ['secondary fire', secondary], ['nova', bomb]]) {
+      assert(box, `${name}: ${label} is visible`);
+      assert(box.x >= -.5 && box.y >= -.5 && box.x + box.width <= width + .5 && box.y + box.height <= height + .5, `${name}: ${label} stays inside the viewport`);
+      if (box === panel) continue;
+      const overlapX = Math.max(0, Math.min(box.x + box.width, panel.x + panel.width) - Math.max(box.x, panel.x));
+      const overlapY = Math.max(0, Math.min(box.y + box.height, panel.y + panel.height) - Math.max(box.y, panel.y));
+      assert(overlapX * overlapY < .5, `${name}: ${label} clears the expanded pilot HUD`);
+    }
     const cdp = await mobile.context().newCDPSession(mobile);
     const steer = { x: stick.x + stick.width / 2, y: stick.y + stick.height / 2, id: 9 };
     const trigger = { x: fire.x + fire.width / 2, y: fire.y + fire.height / 2, id: 10 };
