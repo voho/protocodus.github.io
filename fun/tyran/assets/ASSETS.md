@@ -10,9 +10,9 @@ Use case: stylized-concept. Asset type: original cinematic title-screen artwork 
 
 ## Realistic sprite atlases
 
-The seven base atlases were generated with the built-in ImageGen tool on 2026-09-19. Three destruction sheets and ten sector fleet sheets bring the active library to 20 atlases. Every ship uses one fixed hull. [sprites/prompts.json](./sprites/prompts.json) records the exact prompts, historical generation sources, cell names and layouts. A failed specialized sheet uses the common fleet or procedural fallback.
+The six active base atlases were generated with the built-in ImageGen tool on 2026-09-19. Three destruction sheets and ten sector fleet sheets bring the active library to 19 atlases. Every ship uses one fixed hull. [sprites/prompts.json](./sprites/prompts.json) records the exact prompts, historical generation sources, cell names and layouts. A failed specialized sheet uses the common fleet or procedural fallback.
 
-The library contains the `.webp` files used by the runtime, exported with `cwebp -lossless -exact -m 6`. All 20 exports were verified against their original PNGs for identical decoded RGBA pixels and dimensions before removing the duplicate PNGs. These lossless atlases preserve the complete artwork and transparency for future edits. Retired terrain paintings and banking sheets have also been removed; gameplay uses seeded material tiles. Historical source/reference paths in the provenance record describe generation inputs, not required repository files.
+The library contains the `.webp` files used by the runtime, exported with `cwebp -lossless -exact -m 6`. The original 20 exports were verified against their original PNGs for identical decoded RGBA pixels and dimensions before removing the duplicate PNGs. These lossless atlases preserve the complete artwork and transparency for future edits. The unused pickup sheet, retired terrain paintings and banking sheets have been removed; gameplay uses seeded material tiles. Historical source/reference paths in the provenance record describe generation inputs, not required repository files.
 
 | Atlas | Layout | Contents |
 | --- | --- | --- |
@@ -22,12 +22,11 @@ The library contains the `.webp` files used by the runtime, exported with `cwebp
 | `sprites/materials.webp` | 8 × 5 | Four tile materials for each of ten environments |
 | `sprites/effects.webp` | 4 × 4 | Eight explosion frames, smoke, fragments, scorches, two thrusters |
 | `sprites/projectiles.webp` | 4 × 3 | Six weapon profiles and six enemy projectile silhouettes |
-| `sprites/pickups.webp` | 2 × 1 | Repair capsule and salvage credits |
 | `sprites/structure-light.webp` | 4 × 4 | Light damage matching all 16 structure/vehicle cells |
 | `sprites/structure-heavy.webp` | 4 × 4 | Heavy damage matching all 16 structure/vehicle cells |
 | `sprites/structure-crater.webp` | 4 × 4 | Craters and wreckage matching all 16 structure/vehicle cells |
 
-Each sector fleet sheet uses a 4 × 3 layout. Cell 0 is an unused player reference, cells 1–10 contain the nine enemy classes and guardian, and cell 11 is empty. Enemy class order matches `fleet.webp`; each family supplies its own hull designs.
+Each sector fleet sheet uses a 4 × 3 layout. Cell 0 is an unused player reference and is omitted from the decoded cell cache; pilots, drones and shop previews share `fleet.webp` cell 0. Cells 1–10 contain the nine enemy classes and guardian, and cell 11 is empty. Connected-component ownership and all cell indices remain unchanged. Enemy class order matches `fleet.webp`; each family supplies its own hull designs.
 
 | Sector | Fleet family | Atlas |
 | --- | --- | --- |
@@ -43,6 +42,21 @@ Each sector fleet sheet uses a 4 × 3 layout. Cell 0 is an unused player referen
 | Void | Aurum Cathedral | `sprites/fleet-void.webp` |
 
 `sprite-assets.js` decodes the library before flight preparation and retains one reusable alpha-trimmed canvas per cell, releasing each full decoded sheet after extraction. Connected hull/structure components keep wings and antennas intact where generated objects cross nominal grid boundaries. Color grading, shadows and sprite variants are cached by appearance. Ship caches are bounded to roughly one fleet and both pilots; exhaust frames are shared across palettes. Flight preparation warms all fresh scenery and building damage appearances for the active sector, along with foundations and fixture overlays. Damage art has an 80-entry cap (20.7 MiB); other sectors' derived art is released on a world change. All 24 material cells and 252 bank/cliff masks are prepared before flight. Opening strips and the next strip are ready before play, then bounded nearby terrain streams through small idle row jobs with scenery prepared ahead of the camera. Procedural art remains a fallback if an atlas cannot load.
+
+## Resolution and unused-art audit (2026-09-27)
+
+All 47 remaining media files have runtime references: 19 sprite sheets, 23 audio files, four fonts and the title image. Removing the unused pickup sheet saves 665,914 download bytes and 2,213,436 decoded RGBA bytes. Omitting the ten unused sector player reference cells saves another 3,033,924 decoded bytes. Shared source surfaces now retain about 70.6 MiB, a 5.0 MiB reduction; full decoded sheets are released after extraction. Licenses and generation provenance remain available.
+
+| Artwork | Source dimensions | Prepared use and sizing conclusion |
+| --- | --- | --- |
+| Terrain materials | 1586 × 992, 8 × 5 cells | Each 198–199 px cell feeds a 200 px tile. Keep this resolution for large displays. |
+| Structures and three damage sheets | 1254 × 1254 each, 4 × 4 cells | Cached in 260 px canvases with roughly 121–183 px of visible art. Source sheets have downsizing headroom; this cleanup preserves their original pixels and damage alignment. |
+| Projectiles | 1448 × 1086, 4 × 3 cells | Prepared as 128 px textures. Smaller source sheets could reduce loading and source memory; they would not reduce the prepared texture size or flight drawing cost. |
+| Shared and sector fleets | 1448 × 1086 each, 4 × 3 cells | Hull caches are 384 px, or 640 px for bosses. Preserve boss detail; omit unused player reference cells from sector caches. |
+| Nature and effects | 1254 × 1254 each, 4 × 4 cells | Large cloud and explosion draws need their detail. Avoid reducing whole sheets just to shrink smaller individual props. |
+| Title image | 1672 × 941 | Used across the title screen and social preview; retained at its existing resolution. |
+
+These are source-memory and loading savings. Flight already uses cropped, prepared textures and bounded caches; they are not a measured additional CPU/GPU percentage. Sprite-memory, all 100 fleet hulls and offline preflight checks pass after cleanup.
 
 ## Terrain tile library
 
@@ -75,7 +89,7 @@ Seeded supply buildings reuse these same structure bodies and destruction stages
 
 The crater is painted by the scenery renderer. Ground explosion effects add transient fire, smoke and fragments without adding a second persistent wreck. A large structure's final blast gently displaces nearby small ships; its decaying, mass-sensitive impulse causes no damage and leaves large craft and bosses unaffected.
 
-The earlier repair capsule/chip atlas is retained as source artwork. All seven live pickups now use the same cached beveled teal case, mint rim, pale emblem and green halo from `bonus-sprites.js`. Supply-building markers reuse those badges.
+The unused repair capsule/chip atlas and its preload entry have been removed; its generation record remains in `sprites/prompts.json`. All seven live pickups now use the same cached beveled teal case, mint rim, pale emblem and green halo from `bonus-sprites.js`. Supply-building markers reuse those badges.
 
 Distinct repair, credit, lightning, shield, power, drone and nova symbols distinguish bonuses within the shared shape and palette. Temporary bonuses show their remaining duration in the pilot HUD. Cached mint barrier art and mint wing markers show active bonuses without replacing or tilting the ship hull.
 

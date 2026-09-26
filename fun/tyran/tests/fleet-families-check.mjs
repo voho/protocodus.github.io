@@ -55,10 +55,13 @@ try{
       board.fillStyle='#091016';board.fillRect(0,world*170,1440,24);board.fillStyle='#fff';board.font='14px monospace';board.fillText(names[world],12,world*170+17);
       for(let kind=-1;kind<10;kind++)drawShip(board,64+(kind+1)*130,world*170+102,kind===9?41:34,kind<0?'player':kind,null,0,{world,thrust:.2});
     }
-    return{status:spriteStatus(),used:used.size,proportions,identities:new Set(identities).size};
+    return{status:spriteStatus(),used:used.size,proportions,identities:new Set(identities).size,
+      sharedPlayer:!!spriteCell('fleet',0),unusedPlayerReferences:names.every(name=>spriteCell(`fleet${name}`,0)===null)};
   });
   for(const name of ['Jungle','Snow','Desert','Paradise','Asteroid','Mars','Volcanic','Neon','Alien','Void'])assert.equal(result.status[`fleet${name}`]?.state,'ready',`${name} fleet is available`);
   assert.equal(result.used,100,'All ten classes use each of the ten biome fleets');
+  assert.equal(result.sharedPlayer,true,'The shared player source remains available to pilots, drones and shop previews');
+  assert.equal(result.unusedPlayerReferences,true,'Sector player references do not retain unused pixel buffers');
   assert.ok(result.proportions.every(error=>error<.06),'Fleet silhouettes retain source aspect ratios');
   assert.equal(result.identities,10,'Each environment has a distinct heavy-fighter silhouette');
   await page.screenshot({path:`${output}/fleet-families.png`});

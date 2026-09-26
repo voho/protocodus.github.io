@@ -1,7 +1,7 @@
 /** Shared, alpha-trimmed atlas cells. Full decoded sheets are released after preparation. */
 const LAYOUTS = Object.freeze({
   fleet: [4, 3], nature: [4, 4], structures: [4, 4],
-  materials: [8, 5], effects: [4, 4], projectiles: [4, 3], pickups: [2, 1],
+  materials: [8, 5], effects: [4, 4], projectiles: [4, 3],
   structureLight: [4, 4], structureHeavy: [4, 4], structureCrater: [4, 4],
   fleetJungle: [4, 3], fleetSnow: [4, 3], fleetDesert: [4, 3], fleetParadise: [4, 3], fleetAsteroid: [4, 3],
   fleetMars: [4, 3], fleetVolcanic: [4, 3], fleetNeon: [4, 3], fleetAlien: [4, 3], fleetVoid: [4, 3],
@@ -9,7 +9,7 @@ const LAYOUTS = Object.freeze({
 // Scenery, terrain, hull and ammunition artwork is recolored from its pixels.
 // Keeping these cells in CPU memory avoids a synchronous GPU readback (10–100
 // ms) whenever a new appearance is prepared; none is drawn directly per frame.
-// Effects and pickups stay GPU-resident: they are only drawn, never read.
+// Effects stay GPU-resident: they are only drawn, never read.
 const CPU_ATLASES = new Set(['nature', 'structures', 'structureLight', 'structureHeavy', 'structureCrater', 'materials', 'projectiles',
   'fleet', 'fleetJungle', 'fleetSnow', 'fleetDesert', 'fleetParadise', 'fleetAsteroid', 'fleetMars', 'fleetVolcanic', 'fleetNeon', 'fleetAlien', 'fleetVoid']);
 const cellContext = (canvas, name) => canvas.getContext('2d', CPU_ATLASES.has(name) ? { willReadFrequently: true } : undefined);
@@ -111,7 +111,10 @@ function connectedCells(name, image, [columns, rows]) {
   }
   for (let index = 0; index < bounds.length; index++) {
     const { left, top, right, bottom } = bounds[index], key = `${name}:${index}`;
-    if (right < left) { cells.set(key,null); continue; }
+    // Sector player references are never used: pilots, drones and shop previews
+    // share fleet:0. Keep component ownership above intact for neighboring hulls.
+    const unusedPlayer = index === 0 && name.startsWith('fleet') && name !== 'fleet';
+    if (unusedPlayer || right < left) { cells.set(key,null); continue; }
     const out = surface(right-left+5,bottom-top+5), context = cellContext(out, name);
     const crop = context.createImageData(out.width,out.height);
     for (let y = top; y <= bottom; y++) for (let x = left; x <= right; x++) {

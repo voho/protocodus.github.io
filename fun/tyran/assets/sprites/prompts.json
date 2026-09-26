@@ -184,6 +184,9 @@
     },
     {
       "file": "pickups.webp",
+      "status": "retired",
+      "retired": "2026-09-27",
+      "retirement": "Unused media and preload entry removed. All live collectible and supply-building badges are drawn by bonus-sprites.js; this historical generation record is preserved.",
       "grid": [
         2,
         1
@@ -597,12 +600,13 @@
       ]
     }
   ],
-  "updated": "2026-09-20",
+  "updated": "2026-09-27",
   "runtimeExport": {
     "format": "lossless WebP",
     "command": "cwebp -lossless -exact -m 6 INPUT.png -o OUTPUT.webp",
-    "verification": "All 20 lossless WebP atlases verified for exact decoded RGBA pixels and dimensions against their PNGs before the duplicate PNG files were removed. Retired bank views are absent from the runtime and asset inventory.",
+    "verification": "All 20 lossless WebP atlases verified for exact decoded RGBA pixels and dimensions against their PNGs before the duplicate PNG files were removed. Retired bank views are absent from the runtime and asset inventory. The unused pickup sheet was removed on 2026-09-27, leaving 19 active atlases.",
     "sourcePngBytes": 35343239,
-    "runtimeWebpBytes": 25794458
+    "runtimeAtlasCount": 19,
+    "runtimeWebpBytes": 25128544
   }
 }

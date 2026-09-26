@@ -178,14 +178,15 @@ export class Effects {
   emit(event, scroll = 0, groundOffset = 0) {
     const { x = 0, y = 0, size = 20 } = event;
     if (event.type === 'explosion' || event.type === 'phase') {
-      const boss = event.boss, weight = explosionIntensity(event), count = Math.min(boss ? 130 : 55, Math.round(size * 1.1)) * (this.quality === 'high' ? 1 : .55);
+      const boss = event.boss, noDebris = boss || event.noDebris, weight = explosionIntensity(event), count = Math.min(boss ? 130 : 55, Math.round(size * 1.1)) * (this.quality === 'high' ? 1 : .55);
       const charges = boss ? 18 : !event.player && weight >= .35 ? (event.midboss ? 6 : 3) : 0;
-      for (let i = 0; i < charges; i++) this.delayed.push({ delay: .1 + i * (boss ? .085 : .09), scroll, groundOffset, event: { type: 'explosion', x: x + random(-size, size) * .8, y: y + random(-size * .7, size * .7), size: random(19, boss ? 56 : Math.max(24, size * .68)), secondary: true } });
+      // Secondary boss detonations retain their fire and sparks without metal fragments.
+      for (let i = 0; i < charges; i++) this.delayed.push({ delay: .1 + i * (boss ? .085 : .09), scroll, groundOffset, event: { type: 'explosion', x: x + random(-size, size) * .8, y: y + random(-size * .7, size * .7), size: random(19, boss ? 56 : Math.max(24, size * .68)), secondary: true, noDebris } });
       const color = event.ground ? (event.color || '#ffc985') : '#ffbb6b';
       this.reserveParticles(count);
       for (let i = 0; i < count; i++) {
         const angle = random(0, TAU), speed = random(25, boss ? 470 : (size * 5 + 50) * (1 + weight * .3));
-        this.particle(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed, random(.3, boss ? 2.3 : 1.2), random(1.2, size * .12 + 2), color, i % 4 === 0, i % 5 === 0, !!event.ground, angle);
+        this.particle(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed, random(.3, boss ? 2.3 : 1.2), random(1.2, size * .12 + 2), color, i % 4 === 0, !noDebris && i % 5 === 0, !!event.ground, angle);
       }
       this.rings.push({ x, y, age: 0, life: boss ? 1.35 : .5 + weight * .25, radius: size * (boss ? 7 : 3 + weight * 2), color, explosion: true, diameter: size * (4 + weight), ground: !!event.ground });
       if (weight >= .35) this.rings.push({ x, y, age: 0, life: boss ? 1.05 : .75, radius: size * (boss ? 8.5 : 5), color: '#ffd7a0' });
@@ -193,7 +194,7 @@ export class Effects {
       if (!this.reduced && !event.secondary && (boss || size >= 45)) {
         this.flares.push({ x, y, age: 0, life: boss ? .7 : .48, radius: size * (boss ? 5 : 4), strength: boss ? 1 : .75, ground: !!event.ground });
       }
-      if (event.type !== 'phase' && !event.ground && !event.secondary) this.wrecks.push({ x: x - groundOffset, y: y - scroll, size, angle: random(0, TAU), age: 0 });
+      if (event.type !== 'phase' && !event.ground && !event.secondary && !noDebris) this.wrecks.push({ x: x - groundOffset, y: y - scroll, size, angle: random(0, TAU), age: 0 });
       this.shake = Math.min(23, this.shake + size * (event.ground ? .028 : .09) + weight * 12);
       this.flash = Math.max(this.flash, boss ? .32 : event.player ? .2 : .03 + weight * .06);
       if (!this.reduced && weight > 0) {
@@ -230,7 +231,7 @@ export class Effects {
     } else if (event.type === 'weak-hit' || event.type === 'blocked') {
       this.rings.push({ x, y, age: 0, life: .2, radius: event.type === 'blocked' ? 15 : 25, color: event.type === 'blocked' ? '#ff8b78' : '#fff1a6' });
     } else if (event.type === 'weak-break') {
-      this.emit({ type: 'explosion', x, y, size: size * 1.35, color: '#ffe36d' }, scroll, groundOffset);
+      this.emit({ type: 'explosion', x, y, size: size * 1.35, color: '#ffe36d', noDebris: true }, scroll, groundOffset);
     } else if (event.type === 'nova') {
       // A shockwave from the ship; every cancelled round becomes a gold spark.
       this.rings.push({ x, y, age: 0, life: .75, radius: 1400, color: '#fff1c2' }, { x, y, age: 0, life: .55, radius: 820, color: '#8affd7' });
