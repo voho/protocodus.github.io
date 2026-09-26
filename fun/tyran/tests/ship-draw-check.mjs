@@ -52,8 +52,8 @@ try {
     return { samples, maxStack, maxTransforms };
   });
   assert.equal(result.samples, 80);
-  assert.equal(result.maxStack, 2, 'all optional ship effects use only two Canvas save/restore pairs');
+  assert.equal(result.maxStack, 1, 'all optional ship effects share one Canvas save/restore pair');
   assert.equal(result.maxTransforms, 2, 'the fixed hull and its offset shadow use two combined transforms');
   assert.deepEqual(errors, []);
-  console.log('PASS 80 ship variants preserve transformed caller state with two Canvas save/restore pairs and two combined transforms.');
+  console.log('PASS 80 ship variants preserve transformed caller state with one Canvas save/restore pair and two combined transforms.');
 } finally { await browser.close(); }

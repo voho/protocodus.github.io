@@ -1,0 +1,1419 @@
+{
+  "date": "2026-09-26",
+  "baselineCommit": "dc5dbf40f41245104c156ab9b607751b963eeed8",
+  "optimizedSourceSha256": {
+    "game.js": "603de5b66dc6fe4285340e94fd31d618f74fdbc6fe711cb92ae96fb9846b1c0f",
+    "worlds.js": "9915aacdc3738e9aafe9d1c5cfe6ba7808c8a5516a65b87f7ebe8f7c8d37201b",
+    "ships.js": "2c8e7c79f539c12b31132f1afa41bcd7d62844efea808f089f0e1b2b4d9acf9e",
+    "effects.js": "68dcd7e1d16428fcf95363c99e421edd20d4c11ac1cbe2c93deda6a0f9958451",
+    "structure-effects.js": "2ef5787fb8cac004f383ce2fec371f8aa7fe3f97ff93b9e7a43110c2d0aefc98",
+    "index.html": "43fa59fd4adf76428b44662fb4240aff1b234bc799ad8c4d21c18ad4449d1911",
+    "style.css": "22633ae7aad6db23f41a5d19c43598522072ab26166f3102f1da779d9539da31",
+    "tests/performance-check.mjs": "74dd8181030a7c600941b4920e306873f4a61b5394bea71719e2188500447786"
+  },
+  "method": "Sequential Chrome headless runs on Apple M1 Max at 3840x2160 DPR1, high quality, identical seeded 25-second stress flights. Sampling profiler disabled; no concurrent QA browsers. Three alternating CPU pairs in Inferno Foundry; one GPU pair each in Inferno Foundry and Neon Afterlife.",
+  "limitations": [
+    "Hardware GPU readings are whole-device OS utilization percentages and include other apps. They are observational, not isolated per-process GPU time.",
+    "CPU differences are within observed run-to-run variation. The 50% overall CPU/GPU reduction target was not achieved.",
+    "No resolution, framerate, gameplay speed, animation cadence or effect-count reductions."
+  ],
+  "summary": {
+    "cpuMedianSecondsPer25SecondFlight": {
+      "baseline": 14.865570999999997,
+      "optimized": 14.945659000000001
+    },
+    "cpuMedianChangePercent": 0.5387482256820286,
+    "gpuMeanDevicePercent": {
+      "6": {
+        "baseline": 42.52,
+        "optimized": 41.04
+      },
+      "7": {
+        "baseline": 43.88,
+        "optimized": 41.6
+      }
+    },
+    "gpuRelativeReductionPercent": {
+      "6": 3.480714957666986,
+      "7": 5.195989061075668
+    },
+    "allTimedFlights60fps": true,
+    "specificDrawWorkReductions": {
+      "buildingFixtureSubmittedImageAreaPercent": 91.034,
+      "groundVignetteSubmittedImageAreaPercent": 54.6875,
+      "wideNeonWeatherNativeCallsPercent": 66.43
+    }
+  },
+  "cpuTrials": {
+    "baseline": [
+      {
+        "viewport": {
+          "width": 3840,
+          "height": 2160
+        },
+        "dpr": 1,
+        "stress": true,
+        "worldIndex": 6,
+        "profiling": false,
+        "flightSeconds": 25.00060000002384,
+        "simulationSeconds": 24.983333333349123,
+        "frames": {
+          "samples": 1500,
+          "medianMs": 16.69999999999891,
+          "p95Ms": 16.799999999999272,
+          "p99Ms": 16.80000000000109,
+          "maxMs": 16.80000000000291
+        },
+        "over25ms": 0,
+        "over50ms": 0,
+        "scriptMsPerFrame": 1.2470533333333333,
+        "taskMsPerFrame": 1.9240913333333338,
+        "totalProcessCpuSeconds": 14.865570999999997,
+        "processCpuSeconds": {
+          "browser": 5.794324,
+          "renderer": 4.095262999999999,
+          "GPU": 4.967953,
+          "network.mojom.NetworkService": 0.005889000000000005,
+          "storage.mojom.StorageService": 0.002141999999999998
+        },
+        "performance": {
+          "fps": 60.006964749004716,
+          "frameMs": 16.66473223871211,
+          "renderMs": 0.9417994520046704,
+          "updateMs": 0.1996088028647279,
+          "renderScale": 1,
+          "frames": 1577,
+          "steps": 1499,
+          "interpolation": 0.9340000000002633,
+          "fixedStep": 0.016666666666666666
+        },
+        "inFlightPreparation": {
+          "synchronousTerrainBuilds": 0,
+          "incrementalTerrainRows": 56,
+          "terrainRowWork": {
+            "samples": 56,
+            "medianMs": 0.10000002384185791,
+            "p95Ms": 0.2999999523162842,
+            "p99Ms": 0.2999999523162842,
+            "maxMs": 0.2999999523162842
+          },
+          "assetRequests": []
+        },
+        "hardwareGpu": null,
+        "errors": []
+      },
+      {
+        "viewport": {
+          "width": 3840,
+          "height": 2160
+        },
+        "dpr": 1,
+        "stress": true,
+        "worldIndex": 6,
+        "profiling": false,
+        "flightSeconds": 25.003300000071526,
+        "simulationSeconds": 24.983333333349123,
+        "frames": {
+          "samples": 1500,
+          "medianMs": 16.69999999999891,
+          "p95Ms": 16.799999999999272,
+          "p99Ms": 16.80000000000109,
+          "maxMs": 16.80000000000291
+        },
+        "over25ms": 0,
+        "over50ms": 0,
+        "scriptMsPerFrame": 1.3696593333333333,
+        "taskMsPerFrame": 2.082204666666667,
+        "totalProcessCpuSeconds": 14.733876,
+        "processCpuSeconds": {
+          "browser": 5.060840000000001,
+          "renderer": 4.3921969999999995,
+          "GPU": 5.2727900000000005,
+          "network.mojom.NetworkService": 0.005548999999999998,
+          "storage.mojom.StorageService": 0.0025000000000000022
+        },
+        "performance": {
+          "fps": 59.99760596415263,
+          "frameMs": 16.667331703159622,
+          "renderMs": 0.8189643675376246,
+          "updateMs": 0.12788821885334084,
+          "renderScale": 1,
+          "frames": 1577,
+          "steps": 1499,
+          "interpolation": 0.9400000000001665,
+          "fixedStep": 0.016666666666666666
+        },
+        "inFlightPreparation": {
+          "synchronousTerrainBuilds": 0,
+          "incrementalTerrainRows": 56,
+          "terrainRowWork": {
+            "samples": 56,
+            "medianMs": 0.10000002384185791,
+            "p95Ms": 0.2999999523162842,
+            "p99Ms": 0.30000007152557373,
+            "maxMs": 0.30000007152557373
+          },
+          "assetRequests": []
+        },
+        "hardwareGpu": null,
+        "errors": []
+      },
+      {
+        "viewport": {
+          "width": 3840,
+          "height": 2160
+        },
+        "dpr": 1,
+        "stress": true,
+        "worldIndex": 6,
+        "profiling": false,
+        "flightSeconds": 25.008299999952317,
+        "simulationSeconds": 24.983333333349123,
+        "frames": {
+          "samples": 1500,
+          "medianMs": 16.69999999999891,
+          "p95Ms": 16.799999999999272,
+          "p99Ms": 16.80000000000109,
+          "maxMs": 16.80000000000291
+        },
+        "over25ms": 0,
+        "over50ms": 0,
+        "scriptMsPerFrame": 1.3544180000000003,
+        "taskMsPerFrame": 2.064212666666667,
+        "totalProcessCpuSeconds": 15.441289,
+        "processCpuSeconds": {
+          "browser": 5.694115999999999,
+          "renderer": 4.362424000000001,
+          "GPU": 5.379484000000001,
+          "network.mojom.NetworkService": 0.003167000000000003,
+          "storage.mojom.StorageService": 0.0020979999999999957
+        },
+        "performance": {
+          "fps": 60.00791626937921,
+          "frameMs": 16.664467993038432,
+          "renderMs": 1.1770368170370333,
+          "updateMs": 0.23034599784495455,
+          "renderScale": 1,
+          "frames": 1578,
+          "steps": 1499,
+          "interpolation": 0.93400000000025,
+          "fixedStep": 0.016666666666666666
+        },
+        "inFlightPreparation": {
+          "synchronousTerrainBuilds": 0,
+          "incrementalTerrainRows": 56,
+          "terrainRowWork": {
+            "samples": 56,
+            "medianMs": 0.10000002384185791,
+            "p95Ms": 0.3999999761581421,
+            "p99Ms": 0.6000000238418579,
+            "maxMs": 0.6000000238418579
+          },
+          "assetRequests": []
+        },
+        "hardwareGpu": null,
+        "errors": []
+      }
+    ],
+    "optimized": [
+      {
+        "viewport": {
+          "width": 3840,
+          "height": 2160
+        },
+        "dpr": 1,
+        "stress": true,
+        "worldIndex": 6,
+        "profiling": false,
+        "flightSeconds": 25.009300000071526,
+        "simulationSeconds": 24.983333333349123,
+        "frames": {
+          "samples": 1500,
+          "medianMs": 16.69999999999891,
+          "p95Ms": 16.700000000000728,
+          "p99Ms": 16.80000000000109,
+          "maxMs": 16.80000000000291
+        },
+        "over25ms": 0,
+        "over50ms": 0,
+        "scriptMsPerFrame": 1.3380833333333335,
+        "taskMsPerFrame": 2.0402460000000002,
+        "totalProcessCpuSeconds": 14.557612000000002,
+        "processCpuSeconds": {
+          "browser": 5.01867,
+          "renderer": 4.241682000000001,
+          "GPU": 5.287535,
+          "network.mojom.NetworkService": 0.007599000000000022,
+          "storage.mojom.StorageService": 0.002126000000000003
+        },
+        "performance": {
+          "fps": 60.002960671462866,
+          "frameMs": 16.665844298506347,
+          "renderMs": 1.0229936558852797,
+          "updateMs": 0.19583951889107692,
+          "renderScale": 1,
+          "frames": 1577,
+          "steps": 1499,
+          "interpolation": 0.9400000000002243,
+          "fixedStep": 0.016666666666666666
+        },
+        "inFlightPreparation": {
+          "synchronousTerrainBuilds": 0,
+          "incrementalTerrainRows": 56,
+          "terrainRowWork": {
+            "samples": 56,
+            "medianMs": 0.10000002384185791,
+            "p95Ms": 0.2999999523162842,
+            "p99Ms": 0.2999999523162842,
+            "maxMs": 0.2999999523162842
+          },
+          "assetRequests": []
+        },
+        "hardwareGpu": null,
+        "errors": []
+      },
+      {
+        "viewport": {
+          "width": 3840,
+          "height": 2160
+        },
+        "dpr": 1,
+        "stress": true,
+        "worldIndex": 6,
+        "profiling": false,
+        "flightSeconds": 25.000300000071526,
+        "simulationSeconds": 24.983333333349123,
+        "frames": {
+          "samples": 1500,
+          "medianMs": 16.69999999999891,
+          "p95Ms": 16.700000000000728,
+          "p99Ms": 16.80000000000109,
+          "maxMs": 16.80000000000291
+        },
+        "over25ms": 0,
+        "over50ms": 0,
+        "scriptMsPerFrame": 1.36116,
+        "taskMsPerFrame": 2.074598,
+        "totalProcessCpuSeconds": 14.945659000000001,
+        "processCpuSeconds": {
+          "browser": 5.377383,
+          "renderer": 4.283785,
+          "GPU": 5.277027,
+          "network.mojom.NetworkService": 0.005000999999999978,
+          "storage.mojom.StorageService": 0.002463
+        },
+        "performance": {
+          "fps": 60.002453393422016,
+          "frameMs": 16.66598519635913,
+          "renderMs": 1.0424805525182779,
+          "updateMs": 0.16529621205715503,
+          "renderScale": 1,
+          "frames": 1577,
+          "steps": 1499,
+          "interpolation": 0.9400000000002243,
+          "fixedStep": 0.016666666666666666
+        },
+        "inFlightPreparation": {
+          "synchronousTerrainBuilds": 0,
+          "incrementalTerrainRows": 56,
+          "terrainRowWork": {
+            "samples": 56,
+            "medianMs": 0.10000002384185791,
+            "p95Ms": 0.20000004768371582,
+            "p99Ms": 0.30000007152557373,
+            "maxMs": 0.30000007152557373
+          },
+          "assetRequests": []
+        },
+        "hardwareGpu": null,
+        "errors": []
+      },
+      {
+        "viewport": {
+          "width": 3840,
+          "height": 2160
+        },
+        "dpr": 1,
+        "stress": true,
+        "worldIndex": 6,
+        "profiling": false,
+        "flightSeconds": 25.001600000023842,
+        "simulationSeconds": 24.983333333349123,
+        "frames": {
+          "samples": 1500,
+          "medianMs": 16.69999999999891,
+          "p95Ms": 16.700000000000728,
+          "p99Ms": 16.800000000000182,
+          "maxMs": 16.80000000000291
+        },
+        "over25ms": 0,
+        "over50ms": 0,
+        "scriptMsPerFrame": 1.3697206666666664,
+        "taskMsPerFrame": 2.079682666666667,
+        "totalProcessCpuSeconds": 15.628541,
+        "processCpuSeconds": {
+          "browser": 5.742492,
+          "renderer": 4.382761,
+          "GPU": 5.493354999999999,
+          "network.mojom.NetworkService": 0.007570999999999994,
+          "storage.mojom.StorageService": 0.002362000000000003
+        },
+        "performance": {
+          "fps": 60.00482159627322,
+          "frameMs": 16.665327441988563,
+          "renderMs": 0.9288062079104682,
+          "updateMs": 0.1342289532181285,
+          "renderScale": 1,
+          "frames": 1577,
+          "steps": 1499,
+          "interpolation": 0.9400000000003867,
+          "fixedStep": 0.016666666666666666
+        },
+        "inFlightPreparation": {
+          "synchronousTerrainBuilds": 0,
+          "incrementalTerrainRows": 56,
+          "terrainRowWork": {
+            "samples": 56,
+            "medianMs": 0.10000002384185791,
+            "p95Ms": 0.2999999523162842,
+            "p99Ms": 0.3999999761581421,
+            "maxMs": 0.3999999761581421
+          },
+          "assetRequests": []
+        },
+        "hardwareGpu": null,
+        "errors": []
+      }
+    ]
+  },
+  "gpuTrials": {
+    "6": {
+      "baseline": {
+        "viewport": {
+          "width": 3840,
+          "height": 2160
+        },
+        "dpr": 1,
+        "stress": true,
+        "worldIndex": 6,
+        "profiling": false,
+        "flightSeconds": 25.008699999928474,
+        "simulationSeconds": 24.983333333349123,
+        "frames": {
+          "samples": 1500,
+          "medianMs": 16.69999999999891,
+          "p95Ms": 16.700000000000728,
+          "p99Ms": 16.80000000000109,
+          "maxMs": 16.80000000000291
+        },
+        "over25ms": 0,
+        "over50ms": 0,
+        "scriptMsPerFrame": 1.2941299999999998,
+        "taskMsPerFrame": 1.9882980000000003,
+        "totalProcessCpuSeconds": 15.157995,
+        "processCpuSeconds": {
+          "browser": 5.642224,
+          "renderer": 4.254575,
+          "GPU": 5.253121999999999,
+          "network.mojom.NetworkService": 0.005731999999999987,
+          "storage.mojom.StorageService": 0.002341999999999997
+        },
+        "performance": {
+          "fps": 60.00181174724279,
+          "frameMs": 16.666163418739636,
+          "renderMs": 0.9485175593864734,
+          "updateMs": 0.15907729061615994,
+          "renderScale": 1,
+          "frames": 1581,
+          "steps": 1499,
+          "interpolation": 0.9400000000002818,
+          "fixedStep": 0.016666666666666666
+        },
+        "inFlightPreparation": {
+          "synchronousTerrainBuilds": 0,
+          "incrementalTerrainRows": 56,
+          "terrainRowWork": {
+            "samples": 56,
+            "medianMs": 0.10000002384185791,
+            "p95Ms": 0.2999999523162842,
+            "p99Ms": 0.30000007152557373,
+            "maxMs": 0.30000007152557373
+          },
+          "assetRequests": []
+        },
+        "hardwareGpu": {
+          "source": "macOS AGXAccelerator PerformanceStatistics",
+          "scope": "Whole device, including other apps",
+          "samplePeriodMs": 1000,
+          "samples": [
+            {
+              "device": 38,
+              "renderer": 37,
+              "tiler": 38
+            },
+            {
+              "device": 39,
+              "renderer": 38,
+              "tiler": 39
+            },
+            {
+              "device": 47,
+              "renderer": 46,
+              "tiler": 47
+            },
+            {
+              "device": 30,
+              "renderer": 29,
+              "tiler": 30
+            },
+            {
+              "device": 50,
+              "renderer": 50,
+              "tiler": 50
+            },
+            {
+              "device": 44,
+              "renderer": 43,
+              "tiler": 44
+            },
+            {
+              "device": 51,
+              "renderer": 50,
+              "tiler": 51
+            },
+            {
+              "device": 28,
+              "renderer": 27,
+              "tiler": 28
+            },
+            {
+              "device": 50,
+              "renderer": 50,
+              "tiler": 50
+            },
+            {
+              "device": 35,
+              "renderer": 34,
+              "tiler": 35
+            },
+            {
+              "device": 55,
+              "renderer": 54,
+              "tiler": 55
+            },
+            {
+              "device": 31,
+              "renderer": 29,
+              "tiler": 31
+            },
+            {
+              "device": 50,
+              "renderer": 50,
+              "tiler": 50
+            },
+            {
+              "device": 37,
+              "renderer": 35,
+              "tiler": 37
+            },
+            {
+              "device": 53,
+              "renderer": 52,
+              "tiler": 53
+            },
+            {
+              "device": 30,
+              "renderer": 29,
+              "tiler": 30
+            },
+            {
+              "device": 56,
+              "renderer": 55,
+              "tiler": 56
+            },
+            {
+              "device": 36,
+              "renderer": 35,
+              "tiler": 36
+            },
+            {
+              "device": 54,
+              "renderer": 53,
+              "tiler": 54
+            },
+            {
+              "device": 28,
+              "renderer": 27,
+              "tiler": 28
+            },
+            {
+              "device": 52,
+              "renderer": 51,
+              "tiler": 52
+            },
+            {
+              "device": 38,
+              "renderer": 37,
+              "tiler": 38
+            },
+            {
+              "device": 51,
+              "renderer": 51,
+              "tiler": 51
+            },
+            {
+              "device": 28,
+              "renderer": 27,
+              "tiler": 28
+            },
+            {
+              "device": 52,
+              "renderer": 52,
+              "tiler": 52
+            }
+          ],
+          "meanPercent": {
+            "device": 42.52,
+            "renderer": 41.64,
+            "tiler": 42.52
+          }
+        },
+        "errors": []
+      },
+      "optimized": {
+        "viewport": {
+          "width": 3840,
+          "height": 2160
+        },
+        "dpr": 1,
+        "stress": true,
+        "worldIndex": 6,
+        "profiling": false,
+        "flightSeconds": 25.003100000023842,
+        "simulationSeconds": 24.983333333349123,
+        "frames": {
+          "samples": 1500,
+          "medianMs": 16.69999999999891,
+          "p95Ms": 16.700000000000728,
+          "p99Ms": 16.80000000000109,
+          "maxMs": 16.80000000000291
+        },
+        "over25ms": 0,
+        "over50ms": 0,
+        "scriptMsPerFrame": 1.3136433333333333,
+        "taskMsPerFrame": 2.0049053333333333,
+        "totalProcessCpuSeconds": 14.468149000000002,
+        "processCpuSeconds": {
+          "browser": 4.946766,
+          "renderer": 4.206984000000001,
+          "GPU": 5.3047,
+          "network.mojom.NetworkService": 0.007251999999999981,
+          "storage.mojom.StorageService": 0.002446999999999998
+        },
+        "performance": {
+          "fps": 60.00331839079344,
+          "frameMs": 16.665744942423622,
+          "renderMs": 0.9072714056200549,
+          "updateMs": 0.15385635165667344,
+          "renderScale": 1,
+          "frames": 1577,
+          "steps": 1499,
+          "interpolation": 0.9340000000002133,
+          "fixedStep": 0.016666666666666666
+        },
+        "inFlightPreparation": {
+          "synchronousTerrainBuilds": 0,
+          "incrementalTerrainRows": 56,
+          "terrainRowWork": {
+            "samples": 56,
+            "medianMs": 0.10000002384185791,
+            "p95Ms": 0.20000004768371582,
+            "p99Ms": 0.2999999523162842,
+            "maxMs": 0.2999999523162842
+          },
+          "assetRequests": []
+        },
+        "hardwareGpu": {
+          "source": "macOS AGXAccelerator PerformanceStatistics",
+          "scope": "Whole device, including other apps",
+          "samplePeriodMs": 1000,
+          "samples": [
+            {
+              "device": 36,
+              "renderer": 35,
+              "tiler": 36
+            },
+            {
+              "device": 26,
+              "renderer": 25,
+              "tiler": 26
+            },
+            {
+              "device": 52,
+              "renderer": 51,
+              "tiler": 52
+            },
+            {
+              "device": 32,
+              "renderer": 31,
+              "tiler": 32
+            },
+            {
+              "device": 51,
+              "renderer": 50,
+              "tiler": 51
+            },
+            {
+              "device": 37,
+              "renderer": 35,
+              "tiler": 37
+            },
+            {
+              "device": 50,
+              "renderer": 49,
+              "tiler": 50
+            },
+            {
+              "device": 30,
+              "renderer": 28,
+              "tiler": 30
+            },
+            {
+              "device": 55,
+              "renderer": 54,
+              "tiler": 55
+            },
+            {
+              "device": 29,
+              "renderer": 28,
+              "tiler": 29
+            },
+            {
+              "device": 54,
+              "renderer": 52,
+              "tiler": 54
+            },
+            {
+              "device": 30,
+              "renderer": 28,
+              "tiler": 30
+            },
+            {
+              "device": 55,
+              "renderer": 54,
+              "tiler": 55
+            },
+            {
+              "device": 27,
+              "renderer": 26,
+              "tiler": 27
+            },
+            {
+              "device": 52,
+              "renderer": 51,
+              "tiler": 52
+            },
+            {
+              "device": 30,
+              "renderer": 29,
+              "tiler": 30
+            },
+            {
+              "device": 50,
+              "renderer": 49,
+              "tiler": 50
+            },
+            {
+              "device": 26,
+              "renderer": 25,
+              "tiler": 26
+            },
+            {
+              "device": 52,
+              "renderer": 51,
+              "tiler": 52
+            },
+            {
+              "device": 32,
+              "renderer": 30,
+              "tiler": 32
+            },
+            {
+              "device": 53,
+              "renderer": 52,
+              "tiler": 53
+            },
+            {
+              "device": 25,
+              "renderer": 24,
+              "tiler": 25
+            },
+            {
+              "device": 54,
+              "renderer": 53,
+              "tiler": 54
+            },
+            {
+              "device": 35,
+              "renderer": 34,
+              "tiler": 35
+            },
+            {
+              "device": 53,
+              "renderer": 52,
+              "tiler": 53
+            }
+          ],
+          "meanPercent": {
+            "device": 41.04,
+            "renderer": 39.84,
+            "tiler": 41.04
+          }
+        },
+        "errors": []
+      }
+    },
+    "7": {
+      "baseline": {
+        "viewport": {
+          "width": 3840,
+          "height": 2160
+        },
+        "dpr": 1,
+        "stress": true,
+        "worldIndex": 7,
+        "profiling": false,
+        "flightSeconds": 25.01589999997616,
+        "simulationSeconds": 25.00000000001937,
+        "frames": {
+          "samples": 1501,
+          "medianMs": 16.69999999999891,
+          "p95Ms": 16.700000000000728,
+          "p99Ms": 16.80000000000109,
+          "maxMs": 16.80000000000291
+        },
+        "over25ms": 0,
+        "over50ms": 0,
+        "scriptMsPerFrame": 1.3495423051299136,
+        "taskMsPerFrame": 2.0719193870752837,
+        "totalProcessCpuSeconds": 15.287849,
+        "processCpuSeconds": {
+          "browser": 5.64255,
+          "renderer": 4.381833,
+          "GPU": 5.254792,
+          "network.mojom.NetworkService": 0.006489999999999996,
+          "storage.mojom.StorageService": 0.0021839999999999984
+        },
+        "performance": {
+          "fps": 60.004142555730134,
+          "frameMs": 16.665516036184144,
+          "renderMs": 1.1018937223181688,
+          "updateMs": 0.12686752271334348,
+          "renderScale": 1,
+          "frames": 1579,
+          "steps": 1500,
+          "interpolation": 0.9420000000003823,
+          "fixedStep": 0.016666666666666666
+        },
+        "inFlightPreparation": {
+          "synchronousTerrainBuilds": 0,
+          "incrementalTerrainRows": 56,
+          "terrainRowWork": {
+            "samples": 56,
+            "medianMs": 0.10000002384185791,
+            "p95Ms": 0.20000004768371582,
+            "p99Ms": 0.2999999523162842,
+            "maxMs": 0.2999999523162842
+          },
+          "assetRequests": []
+        },
+        "hardwareGpu": {
+          "source": "macOS AGXAccelerator PerformanceStatistics",
+          "scope": "Whole device, including other apps",
+          "samplePeriodMs": 1000,
+          "samples": [
+            {
+              "device": 41,
+              "renderer": 40,
+              "tiler": 41
+            },
+            {
+              "device": 32,
+              "renderer": 31,
+              "tiler": 32
+            },
+            {
+              "device": 50,
+              "renderer": 50,
+              "tiler": 50
+            },
+            {
+              "device": 39,
+              "renderer": 38,
+              "tiler": 39
+            },
+            {
+              "device": 49,
+              "renderer": 48,
+              "tiler": 49
+            },
+            {
+              "device": 30,
+              "renderer": 29,
+              "tiler": 30
+            },
+            {
+              "device": 53,
+              "renderer": 52,
+              "tiler": 53
+            },
+            {
+              "device": 41,
+              "renderer": 40,
+              "tiler": 41
+            },
+            {
+              "device": 55,
+              "renderer": 55,
+              "tiler": 55
+            },
+            {
+              "device": 31,
+              "renderer": 30,
+              "tiler": 31
+            },
+            {
+              "device": 52,
+              "renderer": 51,
+              "tiler": 52
+            },
+            {
+              "device": 34,
+              "renderer": 33,
+              "tiler": 34
+            },
+            {
+              "device": 59,
+              "renderer": 58,
+              "tiler": 59
+            },
+            {
+              "device": 33,
+              "renderer": 32,
+              "tiler": 33
+            },
+            {
+              "device": 52,
+              "renderer": 52,
+              "tiler": 52
+            },
+            {
+              "device": 40,
+              "renderer": 39,
+              "tiler": 40
+            },
+            {
+              "device": 55,
+              "renderer": 54,
+              "tiler": 54
+            },
+            {
+              "device": 31,
+              "renderer": 29,
+              "tiler": 31
+            },
+            {
+              "device": 56,
+              "renderer": 55,
+              "tiler": 56
+            },
+            {
+              "device": 41,
+              "renderer": 39,
+              "tiler": 41
+            },
+            {
+              "device": 51,
+              "renderer": 50,
+              "tiler": 51
+            },
+            {
+              "device": 30,
+              "renderer": 29,
+              "tiler": 30
+            },
+            {
+              "device": 52,
+              "renderer": 51,
+              "tiler": 52
+            },
+            {
+              "device": 40,
+              "renderer": 39,
+              "tiler": 40
+            },
+            {
+              "device": 50,
+              "renderer": 49,
+              "tiler": 50
+            }
+          ],
+          "meanPercent": {
+            "device": 43.88,
+            "renderer": 42.92,
+            "tiler": 43.84
+          }
+        },
+        "errors": []
+      },
+      "optimized": {
+        "viewport": {
+          "width": 3840,
+          "height": 2160
+        },
+        "dpr": 1,
+        "stress": true,
+        "worldIndex": 7,
+        "profiling": false,
+        "flightSeconds": 25.005600000023843,
+        "simulationSeconds": 24.98333333335269,
+        "frames": {
+          "samples": 1500,
+          "medianMs": 16.69999999999891,
+          "p95Ms": 16.700000000000728,
+          "p99Ms": 16.80000000000109,
+          "maxMs": 16.80000000000291
+        },
+        "over25ms": 0,
+        "over50ms": 0,
+        "scriptMsPerFrame": 1.3507833333333332,
+        "taskMsPerFrame": 2.0620540000000003,
+        "totalProcessCpuSeconds": 15.264608,
+        "processCpuSeconds": {
+          "browser": 5.719193000000001,
+          "renderer": 4.306569999999999,
+          "GPU": 5.230679,
+          "network.mojom.NetworkService": 0.0061179999999999846,
+          "storage.mojom.StorageService": 0.002048000000000001
+        },
+        "performance": {
+          "fps": 60.007255277982274,
+          "frameMs": 16.66465155534147,
+          "renderMs": 1.0280173312612026,
+          "updateMs": 0.12225575946060233,
+          "renderScale": 1,
+          "frames": 1578,
+          "steps": 1499,
+          "interpolation": 0.9340000000002033,
+          "fixedStep": 0.016666666666666666
+        },
+        "inFlightPreparation": {
+          "synchronousTerrainBuilds": 0,
+          "incrementalTerrainRows": 56,
+          "terrainRowWork": {
+            "samples": 56,
+            "medianMs": 0.10000002384185791,
+            "p95Ms": 0.3999999761581421,
+            "p99Ms": 0.5999999046325684,
+            "maxMs": 0.5999999046325684
+          },
+          "assetRequests": []
+        },
+        "hardwareGpu": {
+          "source": "macOS AGXAccelerator PerformanceStatistics",
+          "scope": "Whole device, including other apps",
+          "samplePeriodMs": 1000,
+          "samples": [
+            {
+              "device": 40,
+              "renderer": 39,
+              "tiler": 40
+            },
+            {
+              "device": 38,
+              "renderer": 37,
+              "tiler": 38
+            },
+            {
+              "device": 53,
+              "renderer": 52,
+              "tiler": 53
+            },
+            {
+              "device": 32,
+              "renderer": 31,
+              "tiler": 32
+            },
+            {
+              "device": 53,
+              "renderer": 52,
+              "tiler": 53
+            },
+            {
+              "device": 30,
+              "renderer": 29,
+              "tiler": 30
+            },
+            {
+              "device": 51,
+              "renderer": 51,
+              "tiler": 51
+            },
+            {
+              "device": 35,
+              "renderer": 34,
+              "tiler": 35
+            },
+            {
+              "device": 53,
+              "renderer": 52,
+              "tiler": 53
+            },
+            {
+              "device": 33,
+              "renderer": 32,
+              "tiler": 33
+            },
+            {
+              "device": 53,
+              "renderer": 52,
+              "tiler": 53
+            },
+            {
+              "device": 31,
+              "renderer": 30,
+              "tiler": 31
+            },
+            {
+              "device": 62,
+              "renderer": 62,
+              "tiler": 62
+            },
+            {
+              "device": 27,
+              "renderer": 26,
+              "tiler": 27
+            },
+            {
+              "device": 55,
+              "renderer": 55,
+              "tiler": 55
+            },
+            {
+              "device": 30,
+              "renderer": 29,
+              "tiler": 30
+            },
+            {
+              "device": 49,
+              "renderer": 48,
+              "tiler": 49
+            },
+            {
+              "device": 31,
+              "renderer": 30,
+              "tiler": 31
+            },
+            {
+              "device": 51,
+              "renderer": 50,
+              "tiler": 51
+            },
+            {
+              "device": 27,
+              "renderer": 26,
+              "tiler": 27
+            },
+            {
+              "device": 51,
+              "renderer": 50,
+              "tiler": 51
+            },
+            {
+              "device": 26,
+              "renderer": 25,
+              "tiler": 26
+            },
+            {
+              "device": 53,
+              "renderer": 52,
+              "tiler": 53
+            },
+            {
+              "device": 26,
+              "renderer": 24,
+              "tiler": 26
+            },
+            {
+              "device": 50,
+              "renderer": 49,
+              "tiler": 50
+            }
+          ],
+          "meanPercent": {
+            "device": 41.6,
+            "renderer": 40.68,
+            "tiler": 41.6
+          }
+        },
+        "errors": []
+      }
+    }
+  },
+  "discardedExperiments": {
+    "retainFilterLayer": {
+      "reason": "No clear total CPU gain; not shipped.",
+      "measurement": {
+        "viewport": {
+          "width": 3840,
+          "height": 2160
+        },
+        "dpr": 1,
+        "stress": true,
+        "worldIndex": null,
+        "profiling": false,
+        "flightSeconds": 25.016799999952315,
+        "simulationSeconds": 25.000000000015802,
+        "frames": {
+          "samples": 1501,
+          "medianMs": 16.69999999999891,
+          "p95Ms": 16.700000000000728,
+          "p99Ms": 16.80000000000109,
+          "maxMs": 16.80000000000291
+        },
+        "over25ms": 0,
+        "over50ms": 0,
+        "scriptMsPerFrame": 1.2519133910726183,
+        "taskMsPerFrame": 1.922379746835443,
+        "totalProcessCpuSeconds": 15.156459000000002,
+        "processCpuSeconds": {
+          "browser": 5.923678,
+          "renderer": 4.063884,
+          "GPU": 5.161518,
+          "network.mojom.NetworkService": 0.00559599999999999,
+          "storage.mojom.StorageService": 0.0017829999999999999
+        },
+        "performance": {
+          "fps": 59.99796580698351,
+          "frameMs": 16.667231739440144,
+          "renderMs": 0.7744766653388708,
+          "updateMs": 0.1326173600374551,
+          "renderScale": 1,
+          "frames": 1577,
+          "steps": 1500,
+          "interpolation": 0.9420000000003249,
+          "fixedStep": 0.016666666666666666
+        },
+        "inFlightPreparation": {
+          "synchronousTerrainBuilds": 0,
+          "incrementalTerrainRows": 56,
+          "terrainRowWork": {
+            "samples": 56,
+            "medianMs": 0.10000002384185791,
+            "p95Ms": 0.20000004768371582,
+            "p99Ms": 0.40000009536743164,
+            "maxMs": 0.40000009536743164
+          },
+          "assetRequests": []
+        },
+        "hardwareGpu": null,
+        "errors": []
+      }
+    },
+    "disableImpactBlur": {
+      "reason": "No GPU utilization improvement; preserve the existing visual effect. Not shipped.",
+      "measurement": {
+        "viewport": {
+          "width": 3840,
+          "height": 2160
+        },
+        "dpr": 1,
+        "stress": true,
+        "worldIndex": 6,
+        "profiling": false,
+        "flightSeconds": 25.013899999976157,
+        "simulationSeconds": 25.000000000015802,
+        "frames": {
+          "samples": 1501,
+          "medianMs": 16.69999999999891,
+          "p95Ms": 16.700000000000728,
+          "p99Ms": 16.800000000000182,
+          "maxMs": 16.80000000000291
+        },
+        "over25ms": 0,
+        "over50ms": 0,
+        "scriptMsPerFrame": 1.36062691538974,
+        "taskMsPerFrame": 2.080328447701532,
+        "totalProcessCpuSeconds": 13.448617,
+        "processCpuSeconds": {
+          "browser": 3.7526020000000004,
+          "renderer": 4.370465,
+          "GPU": 5.312677,
+          "network.mojom.NetworkService": 0.00864899999999999,
+          "storage.mojom.StorageService": 0.004223999999999999
+        },
+        "performance": {
+          "fps": 59.99661965232798,
+          "frameMs": 16.66760570503572,
+          "renderMs": 1.0126809585946492,
+          "updateMs": 0.16313337070384062,
+          "renderScale": 1,
+          "frames": 1578,
+          "steps": 1500,
+          "interpolation": 0.9480000000003017,
+          "fixedStep": 0.016666666666666666
+        },
+        "inFlightPreparation": {
+          "synchronousTerrainBuilds": 0,
+          "incrementalTerrainRows": 56,
+          "terrainRowWork": {
+            "samples": 56,
+            "medianMs": 0.10000002384185791,
+            "p95Ms": 0.30000007152557373,
+            "p99Ms": 3,
+            "maxMs": 3
+          },
+          "assetRequests": []
+        },
+        "hardwareGpu": {
+          "source": "macOS AGXAccelerator PerformanceStatistics",
+          "scope": "Whole device, including other apps",
+          "samplePeriodMs": 1000,
+          "samples": [
+            {
+              "device": 25,
+              "renderer": 24,
+              "tiler": 25
+            },
+            {
+              "device": 28,
+              "renderer": 27,
+              "tiler": 28
+            },
+            {
+              "device": 29,
+              "renderer": 28,
+              "tiler": 29
+            },
+            {
+              "device": 25,
+              "renderer": 24,
+              "tiler": 25
+            },
+            {
+              "device": 42,
+              "renderer": 40,
+              "tiler": 41
+            },
+            {
+              "device": 70,
+              "renderer": 68,
+              "tiler": 70
+            },
+            {
+              "device": 77,
+              "renderer": 76,
+              "tiler": 77
+            },
+            {
+              "device": 52,
+              "renderer": 51,
+              "tiler": 52
+            },
+            {
+              "device": 71,
+              "renderer": 69,
+              "tiler": 70
+            },
+            {
+              "device": 59,
+              "renderer": 58,
+              "tiler": 59
+            },
+            {
+              "device": 64,
+              "renderer": 62,
+              "tiler": 64
+            },
+            {
+              "device": 69,
+              "renderer": 67,
+              "tiler": 69
+            },
+            {
+              "device": 49,
+              "renderer": 48,
+              "tiler": 49
+            },
+            {
+              "device": 59,
+              "renderer": 58,
+              "tiler": 59
+            },
+            {
+              "device": 49,
+              "renderer": 48,
+              "tiler": 49
+            },
+            {
+              "device": 27,
+              "renderer": 25,
+              "tiler": 27
+            },
+            {
+              "device": 31,
+              "renderer": 29,
+              "tiler": 31
+            },
+            {
+              "device": 34,
+              "renderer": 33,
+              "tiler": 34
+            },
+            {
+              "device": 33,
+              "renderer": 31,
+              "tiler": 33
+            },
+            {
+              "device": 37,
+              "renderer": 36,
+              "tiler": 37
+            },
+            {
+              "device": 32,
+              "renderer": 31,
+              "tiler": 32
+            },
+            {
+              "device": 26,
+              "renderer": 25,
+              "tiler": 26
+            },
+            {
+              "device": 28,
+              "renderer": 27,
+              "tiler": 28
+            },
+            {
+              "device": 26,
+              "renderer": 25,
+              "tiler": 26
+            },
+            {
+              "device": 28,
+              "renderer": 27,
+              "tiler": 28
+            }
+          ],
+          "meanPercent": {
+            "device": 42.8,
+            "renderer": 41.48,
+            "tiler": 42.72
+          }
+        },
+        "errors": []
+      }
+    }
+  }
+}

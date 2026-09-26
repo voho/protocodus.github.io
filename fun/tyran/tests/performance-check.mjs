@@ -2,6 +2,8 @@
 // not machine-dependent pass/fail thresholds; coverage and errors are asserted.
 import assert from 'node:assert/strict';
 import { writeFile, mkdir } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 const { chromium } = await import(process.env.TYRAN_PLAYWRIGHT || 'playwright');
 const url = process.env.TYRAN_URL || 'http://127.0.0.1:8773/fun/tyran/';
 const out = process.env.TYRAN_PERF_OUTPUT || '/tmp/tyran-performance';
@@ -10,12 +12,28 @@ const dpr = Number(process.env.TYRAN_DPR || 1);
 const viewport = { width: Number(process.env.TYRAN_VIEWPORT_WIDTH) || 1440, height: Number(process.env.TYRAN_VIEWPORT_HEIGHT) || 960 };
 const coldLaunch = process.env.TYRAN_PERF_COLD === '1';
 const stress = process.env.TYRAN_PERF_STRESS === '1';
+const profiling = process.env.TYRAN_PERF_PROFILE !== '0';
+const worldIndex = Math.max(0, Math.min(9, Math.floor(Number(process.env.TYRAN_PERF_WORLD ?? 6))));
+const sampleHardwareGpu = process.env.TYRAN_PERF_GPU_SAMPLE === '1' && process.platform === 'darwin';
+const runFile = promisify(execFile), hardwareGpuSamples = [];
+let hardwareGpuTimer, hardwareGpuPending;
+const sampleGpu = () => {
+  if (hardwareGpuPending) return;
+  hardwareGpuPending = runFile('ioreg', ['-r', '-c', 'AGXAccelerator', '-d', '1'], { maxBuffer: 1024 * 1024 }).then(({ stdout }) => {
+    const stats = stdout.split('\n').find(line => line.includes('"PerformanceStatistics"')) || '';
+    const value = name => Number(stats.match(new RegExp(`"${name} Utilization %"=(\\d+)`))?.[1]);
+    const device = value('Device'), renderer = value('Renderer'), tiler = value('Tiler');
+    if ([device, renderer, tiler].every(Number.isFinite)) hardwareGpuSamples.push({ device, renderer, tiler });
+  }).catch(() => {}).finally(() => { hardwareGpuPending = null; });
+};
 const cpuRate = Math.max(1, Number(process.env.TYRAN_CPU_RATE) || 1);
 await mkdir(out, { recursive: true });
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
 const page = await browser.newPage({ viewport, deviceScaleFactor: dpr });
 const errors = [];
-const system = await (await browser.newBrowserCDPSession()).send('SystemInfo.getInfo');
+const browserCdp = await browser.newBrowserCDPSession();
+const system = await browserCdp.send('SystemInfo.getInfo');
+const processTimes = async () => (await browserCdp.send('SystemInfo.getProcessInfo')).processInfo;
 const gpu = { devices: system.gpu.devices.map(({ vendorString, deviceString }) => ({ vendorString, deviceString })), features: system.gpu.featureStatus };
 page.on('pageerror', error => errors.push(error.message));
 await page.addInitScript(() => {
@@ -35,15 +53,18 @@ try {
   await page.evaluate(async () => { await tyran.world.ready; });
   const idleBefore = await metrics(); await page.waitForTimeout(1500); const idleAfter = await metrics();
   if (!coldLaunch) {
-    await page.locator('[data-world="6"]').click();
+    await page.locator(`[data-world="${worldIndex}"]`).click();
     await page.waitForTimeout(1200);
   }
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: cpuRate });
-  await cdp.send('Profiler.enable');
-  await cdp.send('Profiler.setSamplingInterval', { interval: 1000 });
-  await cdp.send('Profiler.start');
-  const before = await metrics();
-  const flight = await page.evaluate(async ({ seconds, stress }) => {
+  if (profiling) {
+    await cdp.send('Profiler.enable');
+    await cdp.send('Profiler.setSamplingInterval', { interval: 1000 });
+    await cdp.send('Profiler.start');
+  }
+  const processesBefore = await processTimes(), before = await metrics();
+  if (sampleHardwareGpu) hardwareGpuTimer = setInterval(sampleGpu, 1000);
+  const flight = await page.evaluate(async ({ seconds, stress, worldIndex }) => {
     const { spawnEnemy, hurtPlayer } = await import('./sim.js'), world = tyran.world;
     const started = performance.now(), trace = { draws: [], terrainBuilds: [], terrainRows: [], sceneryBuilds: [], longTasks: [], frames: [] };
     let chunkHeight = 0, inFlight = false;
@@ -82,7 +103,7 @@ try {
     });
     observer.observe({ type: 'longtask' });
     const launchStarted = performance.now();
-    tyran.launch(6, { upgrades: { weapon: 6, shield: 4, hull: 4, recharge: 4 } });
+    tyran.launch(worldIndex, { upgrades: { weapon: 6, shield: 4, hull: 4, recharge: 4 } });
     const launchMs = performance.now() - launchStarted;
     await world.ready;
     const state = tyran.state;
@@ -128,8 +149,17 @@ try {
     return { ...trace, launchMs, startScroll, endScroll: state.scroll, simulationSeconds: state.time - startTime, elapsedMs: performance.now() - started, flightMs: performance.now() - flightStarted,
       chunkHeight, chunkBoundaries: Math.floor(state.scroll / chunkHeight) - Math.floor(startScroll / chunkHeight), performance: tyran.performance,
       assetRequests: performance.getEntriesByType('resource').filter(entry => entry.startTime >= flightStarted && entry.name.startsWith('http') && entry.name.includes('/assets/')).map(entry => entry.name) };
-  }, { seconds, stress });
-  const after = await metrics(), { profile } = await cdp.send('Profiler.stop');
+  }, { seconds, stress, worldIndex });
+  const after = await metrics(), processesAfter = await processTimes();
+  clearInterval(hardwareGpuTimer); await hardwareGpuPending;
+  const { profile } = profiling ? await cdp.send('Profiler.stop') : { profile: { nodes: [], samples: [] } };
+  // OS CPU seconds for each Chrome process, including raster/compositor work
+  // outside the main JS thread. GPU-process CPU is not GPU hardware time.
+  const processCpuSeconds = {};
+  for (const process of processesAfter) {
+    const previous = processesBefore.find(item => item.id === process.id);
+    if (previous) processCpuSeconds[process.type] = (processCpuSeconds[process.type] || 0) + process.cpuTime - previous.cpuTime;
+  }
   const counts = new Map();
   for (const id of profile.samples || []) counts.set(id, (counts.get(id) || 0) + 1);
   const hot = profile.nodes.map(node => ({ name: node.callFrame.functionName, url: node.callFrame.url.split('/').at(-1), samples: counts.get(node.id) || 0 }))
@@ -137,7 +167,7 @@ try {
   const builds = [...flight.terrainBuilds.map(build => ({ ...build, kind: 'terrain' })), ...flight.sceneryBuilds.map(build => ({ ...build, kind: 'scenery' }))];
   const frameCount = flight.frames.length, warmDraws = flight.draws.filter(draw => draw.at >= 1500);
   const result = {
-    url, viewport, dpr, stress, cpuRate, gpu, launchMode: coldLaunch ? 'cold' : 'after-preview', launchMs: flight.launchMs,
+    url, viewport, dpr, stress, worldIndex, profiling, cpuRate, gpu, launchMode: coldLaunch ? 'cold' : 'after-preview', launchMs: flight.launchMs,
     requestedSeconds: seconds, elapsedSeconds: flight.elapsedMs / 1000, flightSeconds: flight.flightMs / 1000, simulationSeconds: flight.simulationSeconds,
     streaming: { startScroll: flight.startScroll, endScroll: flight.endScroll, chunkHeight: flight.chunkHeight, chunkBoundaries: flight.chunkBoundaries,
       terrainBuilds: flight.terrainBuilds.length, sceneryBuilds: flight.sceneryBuilds.length, partialSceneryBuilds: flight.sceneryBuilds.filter(build => build.partial).length },
@@ -157,6 +187,11 @@ try {
     scriptMsPerFrame: (after.ScriptDuration - before.ScriptDuration) * 1000 / frameCount,
     taskMsPerFrame: (after.TaskDuration - before.TaskDuration) * 1000 / frameCount,
     layoutMs: (after.LayoutDuration - before.LayoutDuration) * 1000, idleScriptMs: (idleAfter.ScriptDuration - idleBefore.ScriptDuration) * 1000,
+    processCpuSeconds, totalProcessCpuSeconds: Object.values(processCpuSeconds).reduce((sum, value) => sum + value, 0),
+    hardwareGpu: sampleHardwareGpu ? { source: 'macOS AGXAccelerator PerformanceStatistics', scope: 'Whole device, including other apps',
+      samplePeriodMs: 1000, samples: hardwareGpuSamples,
+      meanPercent: Object.fromEntries(['device', 'renderer', 'tiler'].map(key => [key, hardwareGpuSamples.length
+        ? hardwareGpuSamples.reduce((sum, sample) => sum + sample[key], 0) / hardwareGpuSamples.length : null])) } : null,
     performance: flight.performance, hot, errors,
   };
   await page.screenshot({ path: `${out}/busy-flight.png` });
@@ -167,4 +202,4 @@ try {
   assert.ok(flight.chunkBoundaries >= 3, 'flight must cross at least three actual terrain chunk boundaries');
   assert.deepEqual(flight.assetRequests, [], 'sustained flight must use preloaded assets without network requests');
   assert.deepEqual(errors, [], 'sustained flight must run without browser errors');
-} finally { await browser.close(); }
+} finally { clearInterval(hardwareGpuTimer); await hardwareGpuPending; await browser.close(); }

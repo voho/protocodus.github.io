@@ -28,6 +28,47 @@ try {
     prop.hp=20;const original=JSON.stringify(prop),damaged=sample(1),damagedLater=sample(2),frozen=sample(1,false),frozenLater=sample(12,false),low=sample(1,true,'low');
     const unchanged=original===JSON.stringify(prop),destroyed=sample(1,true,'high',true);prop.hp=0;const dead=sample(1);
     const types=['temple','ruin','bunker','station','radar','dome','solar','refinery','building','tower','pylon','fortress','hut','satellite','crawler','hauler'];
+    // Compare the actual cropped draw with the former full-image sampling,
+    // including neon rails, subpixel scaling, rotation and inherited clipping.
+    const reference=document.createElement('canvas'),cropped=document.createElement('canvas');
+    reference.width=reference.height=cropped.width=cropped.height=256;
+    const referenceContext=reference.getContext('2d'),croppedContext=cropped.getContext('2d');
+    const fixtureComparison={cases:0,differentPixels:0,maxChannelDifference:0,meanChannelDifference:0,submittedPixelRatio:0,allPixelsInsideBounds:true};
+    let fixtureArea=0,fullArea=0,channelDifferences=0;
+    for(const currentEffects of [effects,new StructureEffects(0,world.palette,world.world.accent)])for(const type of types){
+      const fixture=currentEffects.getFixtures(type);if(!fixture)continue;
+      const bounds=currentEffects.fixtureBounds.get(type);
+      fixtureArea+=bounds.width*bounds.height;fullArea+=fixture.width*fixture.height;
+      const pixels=fixture.getContext('2d').getImageData(0,0,fixture.width,fixture.height).data;
+      for(let y=0;y<fixture.height;y++)for(let x=0;x<fixture.width;x++)if(pixels[(y*fixture.width+x)*4+3]&&(x<bounds.x||x>=bounds.x+bounds.width||y<bounds.y||y>=bounds.y+bounds.height))fixtureComparison.allPixelsInsideBounds=false;
+      for(const [size,scale,angle]of [[29.25,.73,.18],[93.5,1.37,-.31],[143.75,2,0]]){
+        const current={...prop,hp:100,type,size};
+        for(const [context,full]of [[referenceContext,true],[croppedContext,false]]){
+          context.reset();context.fillStyle='#172e3a';context.fillRect(0,0,256,256);
+          context.translate(128.375,128.125);context.rotate(angle);context.scale(scale,scale);context.translate(-128,-128);
+          context.beginPath();context.rect(33,39,190,177);context.clip();context.globalAlpha=.43;
+          const draw=context.drawImage;
+          context.drawImage=function(image,...args){
+            return full&&image===fixture?draw.call(this,image,current.x-size*1.2,current.y-size*1.2,size*2.4,size*2.4):draw.call(this,image,...args);
+          };
+          currentEffects.draw(context,current,2.37,'low');context.drawImage=draw;
+        }
+        const a=referenceContext.getImageData(0,0,256,256).data,b=croppedContext.getImageData(0,0,256,256).data;
+        for(let i=0;i<a.length;i+=4){
+          let changed=false;
+          for(let channel=0;channel<4;channel++){
+            const difference=Math.abs(a[i+channel]-b[i+channel]);
+            if(difference)changed=true;
+            fixtureComparison.maxChannelDifference=Math.max(fixtureComparison.maxChannelDifference,difference);
+            channelDifferences+=difference;
+          }
+          if(changed)fixtureComparison.differentPixels++;
+        }
+        fixtureComparison.cases++;
+      }
+    }
+    fixtureComparison.submittedPixelRatio=fixtureArea/fullArea;
+    fixtureComparison.meanChannelDifference=channelDifferences/(fixtureComparison.cases*256*256*4);
     let foundationsInsideBounds=true;
     for(const type of types)for(let variant=0;variant<100;variant++){
       const current={...prop,hp:100,type,variant};effects.getFixtures(type);effects.getFoundation(type,variant);
@@ -42,8 +83,11 @@ try {
     const initial=effects.memoryStats().spriteCount;
     for(let i=0;i<120;i++){
       prop.hp=20;sample(i/60);effects.drawFoundation(p,prop);allocations+=effects.memoryStats().spriteCount-initial;
-      p.globalAlpha=.43;p.globalCompositeOperation='source-over';effects.draw(p,prop,i/60);
-      restored&&=Math.abs(p.globalAlpha-.43)<.0001&&p.globalCompositeOperation==='source-over';p.globalAlpha=1;
+      p.globalAlpha=.43;p.globalCompositeOperation='lighter';p.fillStyle='#123456';p.translate(3,5);
+      effects.draw(p,prop,i/60);effects.drawFoundation(p,prop);
+      const transform=p.getTransform();
+      restored&&=Math.abs(p.globalAlpha-.43)<.0001&&p.globalCompositeOperation==='lighter'&&p.fillStyle==='#123456'&&transform.e===3&&transform.f===5;
+      p.setTransform(1,0,0,1,0,0);p.globalAlpha=1;p.globalCompositeOperation='source-over';
     }
     proto.createRadialGradient=radial;proto.createLinearGradient=linear;
     const nature=[];
@@ -63,7 +107,7 @@ try {
       effects.draw(c,current,2,'high');
       c.fillStyle='#c3d4df';c.fillText(`${type} / ${hp}%`,col*320+18,row*320+293);
     }
-    return {alive,aliveLater,damaged,damagedLater,frozen,frozenLater,low,unchanged,destroyed,dead,memory,gradients,allocations,restored,foundationsInsideBounds,nature,vehicleFlames};
+    return {alive,aliveLater,damaged,damagedLater,frozen,frozenLater,low,unchanged,destroyed,dead,memory,gradients,allocations,restored,foundationsInsideBounds,nature,vehicleFlames,fixtureComparison};
   });
   assert.notEqual(result.alive.hash,result.aliveLater.hash,'operating fixtures animate');
   assert.notEqual(result.damaged.hash,result.damagedLater.hash,'standing damage animates flames and smoke');
@@ -72,6 +116,9 @@ try {
   assert.equal(result.destroyed.alpha,0,'a destroyed ledger flag immediately extinguishes effects');
   assert.equal(result.dead.alpha,0,'zero HP structures have no residual fire');
   assert(result.unchanged&&result.restored,'rendering preserves prop and context state');
+  assert(result.fixtureComparison.allPixelsInsideBounds,'fixture bounds include every painted pixel, including neon rail spill');
+  assert(result.fixtureComparison.maxChannelDifference<=1&&result.fixtureComparison.meanChannelDifference<.001,'cropped fixtures match full-image drawing within subpixel rounding under transforms and clipping');
+  assert(result.fixtureComparison.submittedPixelRatio<.25,'fixture draws skip at least three quarters of transparent source area');
   assert(result.foundationsInsideBounds,'foundations fit existing partial redraw bounds');
   assert(result.memory.spriteCount<=result.memory.spriteLimit&&result.memory.spriteBytes<8*1024*1024,'effect caches are bounded even with arbitrary variants');
   assert.equal(result.gradients,0,'warm effects do not build new gradients');

@@ -319,7 +319,12 @@ export class WorldRenderer {
     for(let row=first;row*600+shift<h;row++)for(let col=-1;col<=Math.ceil(this.mapWidth/600);col++)c.drawImage(this.substrateSprite,col*600,row*600+shift);
   }
   paintTerrainRow(out,row,y) {
-    const c=out.getContext('2d');c.setTransform(this.detailScale,0,0,this.detailScale,0,0);
+    const c=out.getContext('2d',{alpha:false});c.setTransform(this.detailScale,0,0,this.detailScale,0,0);
+    if(y===0){
+      // Ground and substrate share one scroll plane. Bake their composition
+      // once, retaining the 600px substrate phase across 800px terrain strips.
+      c.save();c.translate(MARGIN,0);this.drawSubstrate(c,TILE,-row*TILE);c.restore();
+    }
     for(let col=-1;col<=this.mapWidth/MAP_TILE_SIZE;col++) {
       const tile=this.tileAt(col,row*(TILE/MAP_TILE_SIZE)+y),x=col*MAP_TILE_SIZE+MARGIN,py=y*MAP_TILE_SIZE;
       c.globalAlpha=.86;c.drawImage(this.terrain.getMaterial(0,tile.variant),x,py,MAP_TILE_SIZE,MAP_TILE_SIZE);c.globalAlpha=1;
@@ -496,7 +501,7 @@ export class WorldRenderer {
     const stage=structureStage(prop),power=stage===0?1:stage===1?.52:.19;
     const phase=prop.variant*1.79+prop.x*.009,clock=motion?time:0;
     const pulse=.76+Math.sin(clock*1.6+phase)*.24,s=prop.size,x=prop.x,y=prop.y;
-    c.save();
+    const alpha=c.globalAlpha,fill=c.fillStyle;
     // A small service light has a cached halo, with no per-frame raster work.
     const lx=x+s*.22,ly=y-s*.16,r=Math.round(s*.13);
     c.globalAlpha=power*pulse*.2;c.drawImage(this.lightSprite,Math.round(lx-r),Math.round(ly-r),r*2,r*2);
@@ -519,7 +524,7 @@ export class WorldRenderer {
         }
       }
     }
-    c.restore();
+    c.globalAlpha=alpha;c.fillStyle=fill;
   }
   makeGroundSiteSprites() {
     const halo=color=>{
@@ -531,14 +536,14 @@ export class WorldRenderer {
   drawGroundSite(c,prop,time,motion=true) {
     if(prop.groundRole!=='cache'||prop.hp<=0||this.destroyed.has(prop.id))return;
     const stage=structureStage(prop),power=[1,.8,.6,0][stage],s=prop.size;
-    c.save();c.translate(prop.x,prop.y);
+    const alpha=c.globalAlpha;
     if(prop.groundRole==='cache'){
       const pulse=.88+Math.sin((motion?time:0)*2+prop.phase)*.12,r=s*.59;
-      c.globalAlpha=.35*power*pulse;c.drawImage(this.siteSprites.supplyHalo,-r,-r,r*2,r*2);
+      c.globalAlpha=.35*power*pulse;c.drawImage(this.siteSprites.supplyHalo,prop.x-r,prop.y-r,r*2,r*2);
       const size=clamp(s*.56,27,44);
-      c.globalAlpha=power;c.drawImage(this.siteSprites.badges[prop.bonus],-size*.5,-size*.5,size,size);
+      c.globalAlpha=power;c.drawImage(this.siteSprites.badges[prop.bonus],prop.x-size*.5,prop.y-size*.5,size,size);
     }
-    c.restore();
+    c.globalAlpha=alpha;
   }
   drawGroundScenery(c,h,scroll,time,quality,motion=true) {
     const view=this.layerViews[0];view.x=this.parallaxX;view.y=scroll;
@@ -571,14 +576,19 @@ export class WorldRenderer {
     this.scale=1;this.scroll=scroll;this.parallaxX=(.5-clamp(focusX/W,0,1))*WIDTH*.02;this.visibleProps.length=0;
     ctx.save();
     ctx.save();ctx.translate(this.parallaxX,0);
-    this.drawSubstrate(ctx,h,scroll);
+    // Fractional strip edges may cover only part of a pixel. A cheap opaque
+    // clear keeps those seams independent of the previous frame's contents.
+    ctx.fillStyle=this.palette.low;ctx.fillRect(-MARGIN,0,this.mapWidth+MARGIN*2,h);
     const first=Math.floor(-scroll/TILE),last=Math.floor((h-scroll)/TILE);
     for(let row=first;row<=last;row++)ctx.drawImage(this.getTile(row),-MARGIN,row*TILE+scroll,this.mapWidth+MARGIN*2,TILE+.5);
     ctx.restore();
     if(quality!=='low')this.drawCloudShadows(ctx,h,scroll,motion?time:0,motion);
     this.drawGroundScenery(ctx,h,scroll,time,quality,motion);
     ctx.globalAlpha=1;this.drawAtmosphere(ctx,h,scroll,motion?time:0,quality,motion);
-    ctx.drawImage(this.vignetteSprite,0,0,W,h);ctx.restore();
+    // The middle 55% is transparent. Keep guarded edge slices with the same
+    // source-to-screen mapping rather than blending another full-screen quad.
+    ctx.drawImage(this.vignetteSprite,0,0,58,1,0,0,W*58/256,h);
+    ctx.drawImage(this.vignetteSprite,198,0,58,1,W*198/256,0,W*58/256,h);ctx.restore();
     for(const row of this.tiles.keys())if(row<first-1||row>last+1)this.tiles.delete(row);
     // Keep only nearby pixel caches and regenerated bands. Damage is a compact ledger.
     for(const [row,band] of this.bands)if(!this.layerViews.some(view=>row>=view.first-1&&row<=view.last+1)){
@@ -984,18 +994,22 @@ export class WorldRenderer {
       c.globalAlpha=1;
     }
     const count=quality==='low'?13:this.index===1?75:this.index===7?70:38;
+    const streaks=this.index===7||this.index===2||this.index===5;
+    if(streaks){
+      c.beginPath();c.strokeStyle=this.index===7?'rgba(162,189,220,.17)':'rgba(238,194,145,.2)';c.lineWidth=this.index===7?.8:.7;
+    }
     for(let group=0;group<Math.ceil(this.viewportWidth/WIDTH);group++)for(let i=0;i<count;i++) {
       const depth=.3+(i%7)*.13;
       const layer=PARALLAX_LAYERS[i%3===0?2:1];
       const x=group*WIDTH+((i*191.7+this.parallaxX*(motion?layer.x:1)+Math.sin(time*.2+i)*18+(this.index===2||this.index===5?time*55:0))%WIDTH+WIDTH)%WIDTH;
       const y=((i*149.31+scroll*(motion?layer.speed:1)+time*(this.index===1?18:4))%(h+40)+h+40)%(h+40)-20;
-      if(this.index===7){line(c,[[x,y],[x-4,y+17]],'rgba(162,189,220,.17)',.8);continue;}
-      if(this.index===2||this.index===5){line(c,[[x,y],[x+6+depth*8,y+1]],'rgba(238,194,145,.2)',.7);continue;}
+      if(streaks){c.moveTo(x,y);c.lineTo(this.index===7?x-4:x+6+depth*8,this.index===7?y+17:y+1);continue;}
       const color=this.index===1?'#e4f6f2':this.index===6?'#ffa26e':this.index===8?'#a9ffd3':space?'#c6c1e6':'#acdabb';
       c.globalAlpha=this.index===1?.25+depth*.28:this.index===6?.15+Math.sin(time+i)*.12:.16+Math.sin(time*.8+i)*.1;
       circle(c,x,y,(space?.6:1)*depth,color);
       if(this.index===6&&i%4===0)line(c,[[x,y],[x-1,y+5]],color,.7);
     }
+    if(streaks)c.stroke();
     c.globalAlpha=1;
     if(this.index===0||this.index===3||this.index===8) {
       // Slow, soft sun shafts sit above the canopy and behind combat effects.

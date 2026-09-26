@@ -20,7 +20,16 @@
   <link rel="stylesheet" href="./flight-layout.css">
 </head>
 <body data-ready="false">
-  <div id="startup-status" class="startup-status" role="status">Preparing flight…</div>
+  <section id="startup-loader" class="startup-loader" aria-labelledby="startup-title">
+    <div class="startup-card">
+      <div class="startup-emblem" aria-hidden="true"><svg viewBox="0 0 36 36" fill="none"><path d="M4 7h28l-5 7h-6v14l-3 4-3-4V14H9L4 7Z" fill="currentColor"/><path d="m3 20 6 8m24-8-6 8" stroke="currentColor" stroke-width="2"/></svg></div>
+      <p class="startup-kicker">Flight command</p>
+      <h2 id="startup-title">Loading Tyran<span aria-hidden="true">.</span></h2>
+      <p id="startup-status" class="startup-status" role="status" aria-live="polite" aria-atomic="true">Preparing flight…</p>
+      <div class="startup-activity" aria-hidden="true"><span></span></div>
+      <p class="startup-note">Getting worlds, ships and sound ready for takeoff.</p>
+    </div>
+  </section>
   <div class="flight-layout" id="flight-layout">
   <canvas id="game-canvas" tabindex="-1" aria-label="Tyran flight arena. W, A, S and D move; space fires your primary gun, q fires secondary plasma, e detonates a nova charge. Secondary fire uses regenerating energy. Escape pauses; v toggles sound."></canvas>
   <section class="hud" id="hud" aria-label="Flight instruments">

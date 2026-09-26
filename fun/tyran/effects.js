@@ -238,16 +238,21 @@ export class Effects {
     ageAndCompact(this.rings, dt); ageAndCompact(this.lights, dt); ageAndCompact(this.flares, dt);
   }
   drawGround(ctx, scroll, H, offset = 0) {
+    if (!this.wrecks.length) return;
+    const { a, b, c, d, e, f } = ctx.getTransform();
+    ctx.save();
     let length = 0;
     for (const w of this.wrecks) {
       const y = w.y + scroll;
       if (y > H + w.size * 3) continue;
       this.wrecks[length++] = w;
       if (y < -w.size * 2) continue;
-      ctx.save(); ctx.translate(w.x + offset, y); ctx.rotate(w.angle);
+      const x = w.x + offset, cos = Math.cos(w.angle), sin = Math.sin(w.angle);
+      ctx.setTransform(a * cos + c * sin, b * cos + d * sin, c * cos - a * sin, d * cos - b * sin,
+        a * x + c * y + e, b * x + d * y + f);
       ctx.drawImage(wreckTexture(w.size < 38), -w.size * 1.8, -w.size * 1.8, w.size * 3.6, w.size * 3.6);
-      ctx.restore();
     }
+    ctx.restore();
     this.wrecks.length = length;
   }
   draw(ctx, W, H) {
@@ -260,15 +265,20 @@ export class Effects {
       ctx.globalAlpha = a * (p.ground ? .6 : .48);
       fitSprite(ctx, sprite, p.x, p.y, diameter);
     }
+    const { a: ca, b: cb, c: cc, d: cd, e: ce, f: cf } = ctx.getTransform();
+    let transformed = false;
     for (const p of this.particles) if (p.debris && !p.smoke) {
       if (p.age >= p.life || !intersectsView(p.x, p.y, p.radius * 3, p.radius * 3, W, H)) continue;
       ctx.globalAlpha = 1 - p.age / p.life;
-      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.angle + p.age * 8);
+      const angle = p.angle + p.age * 8, cos = Math.cos(angle), sin = Math.sin(angle);
+      ctx.setTransform(ca * cos + cc * sin, cb * cos + cd * sin, cc * cos - ca * sin, cd * cos - cb * sin,
+        ca * p.x + cc * p.y + ce, cb * p.x + cd * p.y + cf);
+      transformed = true;
       const fragment = p.ground ? groundFragment ||= spriteCell('effects', 11) : airFragment ||= spriteCell('effects', 10);
       if (fragment) fitSprite(ctx, fragment, 0, 0, p.radius * 4.2);
       else { ctx.fillStyle = '#75695c'; ctx.fillRect(-p.radius, -p.radius / 3, p.radius * 2, p.radius * .7); }
-      ctx.restore();
     }
+    if (transformed) ctx.setTransform(ca, cb, cc, cd, ce, cf);
     for (const burst of this.rings) if (burst.explosion) {
       const t = burst.age / burst.life, diameter = burst.diameter * (.4 + t * .9);
       if (t >= 1 || !intersectsView(burst.x, burst.y, diameter / 2, diameter / 2, W, H)) continue;

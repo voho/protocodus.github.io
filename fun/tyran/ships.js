@@ -695,12 +695,13 @@ export function drawShip(ctx,x,y,size,kind,color,time=0,options={}) {
   ctx.save();
   const shadowScale=direction*scale*.97;
   ctx.transform(shadowScale,0,0,shadowScale,x+5+size*.17,y+9+size*.24);
-  ctx.globalAlpha*=(options.opacity??1)*.74;
-  ctx.drawImage(silhouettes.shadow,-160,-160,320,320);ctx.restore();
-
-  ctx.save();ctx.transform(direction*scale,0,0,direction*scale,x,y);
-  if(options.opacity!=null)ctx.globalAlpha*=options.opacity;
-  const shipAlpha=ctx.globalAlpha,composite=ctx.globalCompositeOperation;
+  const shipAlpha=ctx.globalAlpha*(options.opacity??1),composite=ctx.globalCompositeOperation;
+  ctx.globalAlpha=shipAlpha*.74;
+  ctx.drawImage(silhouettes.shadow,-160,-160,320,320);
+  // Move from the shadow directly to the hull without copying the entire
+  // canvas state a second time for every ship in the formation.
+  ctx.transform(1/.97,0,0,1/.97,-(5+size*.17)/shadowScale,-(9+size*.24)/shadowScale);
+  ctx.globalAlpha=shipAlpha;
 
   const flame=flameSprite(palette.engine||flightColor,!player&&kind>=8);
   ctx.globalCompositeOperation='screen';

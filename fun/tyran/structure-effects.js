@@ -48,7 +48,7 @@ function halo(color) {
 export class StructureEffects {
   constructor(index,palette,accent='#b7ffcc') {
     this.index=index;this.palette=palette;this.accent=accent;
-    this.foundations=new Map();this.fixtures=new Map();
+    this.foundations=new Map();this.fixtures=new Map();this.fixtureBounds=new Map();
     this.light=halo(accent);this.heat=halo('#ff8339');
     this.fire=this.makeFire();this.smoke=this.makeSmoke();
   }
@@ -98,15 +98,20 @@ export class StructureEffects {
   drawFoundation(c,prop,x=prop.x,y=prop.y,destroyed=false) {
     if(destroyed||prop.hp<=0)return;
     const sprite=this.getFoundation(prop.type,prop.variant);if(!sprite)return;
-    const extent=prop.size*2.4;
-    c.save();c.globalAlpha=.64;c.drawImage(sprite,x-extent*.5,y-extent*.5,extent,extent);c.restore();
+    const extent=prop.size*2.4,alpha=c.globalAlpha;
+    c.globalAlpha=.64;c.drawImage(sprite,x-extent*.5,y-extent*.5,extent,extent);c.globalAlpha=alpha;
   }
   getFixtures(type) {
     const points=FIXTURES[type];if(!points)return null;
     if(this.fixtures.has(type))return this.fixtures.get(type);
     const out=canvas(DETAIL_SIZE,DETAIL_SIZE),c=out.getContext('2d');c.translate(120,120);
+    let left=Infinity,top=Infinity,right=-Infinity,bottom=-Infinity;
+    const include=(x,y,width,height)=>{
+      left=Math.min(left,x);top=Math.min(top,y);right=Math.max(right,x+width);bottom=Math.max(bottom,y+height);
+    };
     const vehicle=type==='crawler'||type==='hauler';
     for(const [x,y]of points) {
+      include(x-4,y-3,8,5);
       c.fillStyle='#101d28';c.fillRect(x-4,y-3,8,5);
       c.fillStyle=vehicle?'#c8c5ad':this.accent;c.fillRect(x-3,y-2,6,1.5);
       c.fillStyle='#e5eadc';c.globalAlpha=.65;c.fillRect(x-2,y-2,3,.6);c.globalAlpha=1;
@@ -114,6 +119,7 @@ export class StructureEffects {
     if(this.index===7&&['building','tower','fortress'].includes(type)) {
       const edge=type==='fortress'?43:type==='tower'?59:64,top=type==='fortress'?-39:-61,bottom=type==='fortress'?43:53;
       const rail=(points,color)=>{
+        for(const [x,y]of points)include(x-4,y-4,8,8);
         c.beginPath();points.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));
         c.strokeStyle=color;c.globalAlpha=.1;c.lineWidth=8;c.stroke();
         c.globalAlpha=.84;c.lineWidth=2;c.stroke();
@@ -126,11 +132,16 @@ export class StructureEffects {
       rail([[edge,-5],[edge,22]],'#ec88f4');
       for(let n=0;n<7;n++) {
         const x=-24+n*8,y=bottom+3;
+        include(x-1,y-1,6,6);
         c.globalAlpha=.8;c.fillStyle='#111d2c';c.fillRect(x-1,y-1,6,6);
         c.globalAlpha=n%3===1?.36:.8;c.fillStyle=n%3===1?'#87c7db':'#f5ca88';c.fillRect(x,y,3.5,2);
       }
       c.globalAlpha=1;
     }
+    // Preserve the original image and its sampling grid, but submit only the
+    // painted area. Two clear pixels guard the filtered edges at any scale.
+    const x=Math.max(0,Math.floor(left+120)-2),y=Math.max(0,Math.floor(top+120)-2);
+    this.fixtureBounds.set(type,{x,y,width:Math.min(DETAIL_SIZE,Math.ceil(right+120)+2)-x,height:Math.min(DETAIL_SIZE,Math.ceil(bottom+120)+2)-y});
     this.fixtures.set(type,out);return out;
   }
   makeFire() {
@@ -181,26 +192,37 @@ export class StructureEffects {
     const health=prop.hp/prop.maxHp,stage=health<=.35?2:health<=.7?1:0;
     const s=prop.size,x=prop.x,y=prop.y,phase=prop.variant*1.79+x*.009;
     const clock=motion?time:0,low=quality==='low',power=stage===0?1:stage===1?.5:.17;
-    c.save();
+    // These overlays change only opacity and, for embers, fill color. Keeping
+    // those values avoids a full Canvas state-stack copy for every structure.
+    const alpha=c.globalAlpha;
     const fixtures=this.getFixtures(prop.type);
     if(fixtures) {
-      const pulse=.9+Math.sin(clock*1.4+phase)*.1;
-      c.globalAlpha=power*pulse*.8;c.drawImage(fixtures,x-s*1.2,y-s*1.2,s*2.4,s*2.4);
-      if(!low)for(const point of FIXTURES[prop.type]) {
-        const lx=x+point[0]*s*.01,ly=y+point[1]*s*.01,r=s*.18;
-        c.globalAlpha=power*pulse*.16;c.drawImage(this.light,lx-r,ly-r,r*2,r*2);
+      const pulse=.9+Math.sin(clock*1.4+phase)*.1,bounds=this.fixtureBounds.get(prop.type),scale=s*.01;
+      c.globalAlpha=power*pulse*.8;
+      c.drawImage(fixtures,bounds.x,bounds.y,bounds.width,bounds.height,
+        x+(bounds.x-120)*scale,y+(bounds.y-120)*scale,bounds.width*scale,bounds.height*scale);
+      if(!low) {
+        const r=s*.18;
+        c.globalAlpha=power*pulse*.16;
+        for(const point of FIXTURES[prop.type]) {
+          const lx=x+point[0]*s*.01,ly=y+point[1]*s*.01;
+          c.drawImage(this.light,lx-r,ly-r,r*2,r*2);
+        }
       }
     }
     // Live refinery stacks have a small pilot flare; damaged structures burn
     // only while standing. Supply markers remain clearly visible.
     const pilot=prop.type==='refinery'&&stage===0;
     if((stage&&BURNABLE.has(prop.type))||pilot) {
-      const count=low||stage<2?1:2;
+      const count=low||stage<2?1:2,embers=!low&&stage===2;
+      const fill=embers?c.fillStyle:null;
+      const width=s*(pilot?.19:stage===1?.28:.4),height=width*1.5;
+      const secondaryFlicker=Math.sin(clock*11+phase)*.04;
+      if(embers)c.fillStyle='#ffc275';
       for(let n=0;n<count;n++) {
         const px=x+s*(pilot?-.45:n===0?-.21:.27),py=y+s*(pilot?-.48:n===0?.09:-.15);
         const firePhase=clock*9+phase*2+n*4,frame=((Math.floor(firePhase)%FIRE_FRAMES)+FIRE_FRAMES)%FIRE_FRAMES;
-        const flicker=.88+Math.sin(clock*7+phase+n*2)*.08+Math.sin(clock*11+phase)*.04;
-        const width=s*(pilot?.19:stage===1?.28:.4),height=width*1.5;
+        const flicker=.88+Math.sin(clock*7+phase+n*2)*.08+secondaryFlicker;
         if(!low) {
           const radius=width*1.7;c.globalAlpha=(pilot?.16:.31)*flicker;
           c.drawImage(this.heat,px-radius,py-radius*.62,radius*2,radius*1.5);
@@ -214,14 +236,15 @@ export class StructureEffects {
         }
         c.globalAlpha=pilot?.8:.92;
         c.drawImage(this.fire,frame*FIRE_W,0,FIRE_W,FIRE_H,px-width*.5,py-height*.88,width,height);
-        if(!low&&stage===2)for(let ember=0;ember<2;ember++) {
+        if(embers)for(let ember=0;ember<2;ember++) {
           const age=((clock*.61+phase+ember*.5+n*.3)%1+1)%1;
-          c.globalAlpha=(1-age)*.7;c.fillStyle='#ffc275';
+          c.globalAlpha=(1-age)*.7;
           c.fillRect(px+Math.sin(age*5+phase)*s*.08+age*s*.12,py-age*s*.61,Math.max(.6,s*.012),Math.max(.8,s*.02));
         }
       }
+      if(embers)c.fillStyle=fill;
     }
-    c.restore();
+    c.globalAlpha=alpha;
   }
   memoryStats() {
     const images=[this.light,this.heat,this.fire,this.smoke,...this.foundations.values(),...this.fixtures.values()];
