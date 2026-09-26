@@ -121,7 +121,7 @@ try {
   assert.deepEqual(await fingerprint(page), alpha, 'loading restores every simulation and tile value');
   assert.deepEqual(await fingerprint(page, 'autosave'), alpha, 'the loaded world immediately becomes the current autosave');
   assert.equal(await page.locator('#inspector').isVisible(), false, 'old industry selection is cleared');
-  await page.waitForFunction(() => transport.renderer.getStats().minimapWidth === 512);
+  await page.waitForFunction(() => transport.renderer.getStats().minimapWidth === 768);
   assert.equal(await page.evaluate(point => transport.game.tiles[point.y * transport.game.width + point.x].building.kind, alphaBuilding), alphaBuilding.kind);
   await page.locator('.main-nav [data-view="routes"]').click();
   assert.equal(await page.locator('#route-form [name="name"]').inputValue(), '');

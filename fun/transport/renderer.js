@@ -1,3 +1,4 @@
+import { resolveBuildTool } from './construction-plan.js';
 import { TILE, PALETTES, createSprites, rng } from './sprites.js';
 import { INDUSTRIES, BUILD_COSTS } from './data.js';
 import { STATION_RADIUS, priceFor, hasClearableDecoration } from './model.js';
@@ -31,6 +32,7 @@ export function createRenderer(canvas, initialGame, options={}) {
   const chunks=new Map(), minimapLayer=document.createElement('canvas'), codes=new Map(), cargoImages=new Map();
   const drawLighting=createLighting();
   let cachedRevision=-1, minimapRevision=-1, cachedBiome=game.biome, cachedSeed=game.seed;
+  let minimapPixels=null,minimapWords=null;
   let industryIndex=new Map(), stationIndex=new Map(), cacheBytes=0, composedChunks=0;
   let largestSurface=0, lastTime=0, vehicleIndicatorCounts={empty:0,partial:0,full:0};
   function code(value){if(!value)return 0;const key=String(value);if(codes.has(key))return codes.get(key);let h=0;for(let i=0;i<key.length;i++)h=(Math.imul(h,31)+key.charCodeAt(i))|0;codes.set(key,h);return h;}
@@ -245,7 +247,8 @@ export function createRenderer(canvas, initialGame, options={}) {
     }
     car(v.x,v.y,Number.isFinite(v.angle)?v.angle:0,train);
   }
-  function validPreview(tool,p){
+  function validPreview(tool,p,preferredMode='road'){
+    tool=resolveBuildTool(game,tool,p.x,p.y,{preferredMode});
     const t=tile(p.x,p.y);if(!t)return false;if(tool==='inspect')return true;
     const station=(game.stations||[]).find(s=>s.x===p.x&&s.y===p.y),industry=(game.industries||[]).find(s=>s.x===p.x&&s.y===p.y),city=(game.cities||[]).find(s=>s.x===p.x&&s.y===p.y);
     if(tool==='bulldoze')return game.money>=priceFor(game,BUILD_COSTS.bulldoze)&&!city&&!(station&&(game.routes||[]).some(r=>r.stops.includes(station.id)))&&Boolean(station||industry||t.building||t.zone||t.road||t.rail||['forest','rock'].includes(t.terrain)||hasClearableDecoration(t));
@@ -311,7 +314,7 @@ export function createRenderer(canvas, initialGame, options={}) {
     }
   }
   function render(now,view={}){
-    lastTime=now||0;const {tool='inspect',hover=null,preview=[],selected=null,routeStops=[]}=view;
+    lastTime=now||0;const {tool='inspect',hover=null,preview=[],selected=null,routeStops=[],preferredMode='road'}=view;
     const showGrid=typeof view.showGrid==='boolean'?view.showGrid:layers.grid,showRoutes=typeof view.showRoutes==='boolean'?view.showRoutes:layers.routes;
     ensureRevision();const routesById=new Map((game.routes||[]).map(route=>[route.id,route]));vehicleIndicatorCounts={empty:0,partial:0,full:0};
     ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);ctx.fillStyle=palette.ground;ctx.fillRect(0,0,W,H);
@@ -334,11 +337,11 @@ export function createRenderer(canvas, initialGame, options={}) {
     }
     function highlight(p,color,filled=true){if(!p||p.x<0||p.y<0||p.x>=game.width||p.y>=game.height)return;const x=p.x*TILE,y=p.y*TILE;ctx.fillStyle=color+'26';if(filled)ctx.fillRect(x+1,y+1,30,30);ctx.strokeStyle=color;ctx.lineWidth=1.5/camera.zoom;ctx.strokeRect(x+1,y+1,30,30);}
     const selectedStation=selected&&(game.stations||[]).find(s=>s.x===selected.x&&s.y===selected.y);
-    const serviceCenter=['bus-stop','train-stop','port'].includes(tool)?hover:selectedStation;
+    const serviceCenter=['stop','bus-stop','train-stop','port'].includes(tool)?hover:selectedStation;
     if(serviceCenter){const x=(serviceCenter.x+.5)*TILE,y=(serviceCenter.y+.5)*TILE;ctx.fillStyle='#eff2cd19';ctx.strokeStyle='#f3e5ad';ctx.lineWidth=1.3/camera.zoom;ctx.setLineDash([5/camera.zoom,5/camera.zoom]);ctx.beginPath();ctx.arc(x,y,STATION_RADIUS*TILE,0,TAU);ctx.fill();ctx.stroke();ctx.setLineDash([]);for(const node of [...(game.cities||[]),...(game.industries||[])])if(Math.hypot(node.x-serviceCenter.x,node.y-serviceCenter.y)<=STATION_RADIUS)highlight(node,'#efe8b2',false);}
     if(selected&&typeof selected.x==='number')highlight(selected,'#fbefba',false);
-    for(const p of preview||[])highlight(p,validPreview(tool,p)?tool==='bulldoze'?'#e3aa6d':'#f2d88d':'#d7725f');
-    if(hover)highlight(hover,tool==='inspect'?'#f7efd3':validPreview(tool,hover)?tool==='bulldoze'?'#e3aa6d':'#f4d090':'#d7725f',tool!=='inspect');
+    for(const p of preview||[])highlight(p,validPreview(tool,p,preferredMode)?tool==='bulldoze'?'#e3aa6d':'#f2d88d':'#d7725f');
+    if(hover)highlight(hover,tool==='inspect'?'#f7efd3':validPreview(tool,hover,preferredMode)?tool==='bulldoze'?'#e3aa6d':'#f4d090':'#d7725f',tool!=='inspect');
     for(const stop of routeStops){const s=typeof stop==='object'?stop:(game.stations||[]).find(st=>st.id===stop);if(s){ctx.strokeStyle='#f4d397';ctx.lineWidth=2/camera.zoom;ctx.beginPath();ctx.arc((s.x+.5)*TILE,(s.y+.5)*TILE,21,0,TAU);ctx.stroke();}}
     ctx.restore();
     drawLighting(ctx,{game,layers,camera,width:W,height:H,bounds:{x0,y0,x1,y1},industryIndex,stationIndex,routesById});
@@ -358,11 +361,22 @@ export function createRenderer(canvas, initialGame, options={}) {
   }
   function cacheMinimap(){
     ensureRevision();if(minimapRevision===cachedRevision&&minimapLayer.width===game.width&&minimapLayer.height===game.height)return;
-    minimapLayer.width=game.width;minimapLayer.height=game.height;const c=minimapLayer.getContext('2d'),pixels=c.createImageData(game.width,game.height);
-    const rgb=hex=>[parseInt(hex.slice(1,3),16),parseInt(hex.slice(3,5),16),parseInt(hex.slice(5,7),16)];
-    const colors={grass:rgb(palette.ground),water:rgb(palette.deep),forest:rgb(palette.forest),mountain:rgb(palette.mountain),rock:rgb(palette.mountain),sand:rgb(palette.sand),snow:rgb(palette.ground2),road:rgb('#d7cbb0'),rail:rgb('#655f52'),building:rgb('#cfb78b'),zone:rgb('#b2b78c'),marsh:rgb('#708879'),saltflat:rgb('#e3d9bc')};
-    for(let i=0;i<game.tiles.length;i++){const t=game.tiles[i],terrain=t.terrain==='forest'&&!layers.trees?'grass':t.terrain,color=layers.buildings&&(t.building||industryIndex.has(i))?colors.building:layers.rails&&t.rail?colors.rail:layers.roads&&t.road?colors.road:layers.zones&&t.zone?colors.zone:colors[t.detail]||colors[terrain]||colors.grass,index=i*4;pixels.data[index]=color[0];pixels.data[index+1]=color[1];pixels.data[index+2]=color[2];pixels.data[index+3]=255;}
-    c.putImageData(pixels,0,0);minimapRevision=cachedRevision;
+    if(minimapLayer.width!==game.width||minimapLayer.height!==game.height||!minimapPixels){
+      minimapLayer.width=game.width;minimapLayer.height=game.height;
+      minimapPixels=minimapLayer.getContext('2d').createImageData(game.width,game.height);
+      minimapWords=new Uint32Array(minimapPixels.data.buffer);
+    }
+    // Ecology can alter the landscape every day. Reuse its one-pixel-per-tile
+    // buffer, write each RGBA pixel once, and visit sparse industries separately
+    // instead of querying a Map for every tile in a continental world.
+    const packed=hex=>new Uint32Array(new Uint8Array([parseInt(hex.slice(1,3),16),parseInt(hex.slice(3,5),16),parseInt(hex.slice(5,7),16),255]).buffer)[0];
+    const colors={grass:packed(palette.ground),water:packed(palette.deep),forest:packed(palette.forest),mountain:packed(palette.mountain),rock:packed(palette.mountain),sand:packed(palette.sand),snow:packed(palette.ground2),road:packed('#d7cbb0'),rail:packed('#655f52'),building:packed('#cfb78b'),zone:packed('#b2b78c'),marsh:packed('#708879'),saltflat:packed('#e3d9bc')};
+    for(let i=0;i<game.tiles.length;i++){
+      const t=game.tiles[i],terrain=t.terrain==='forest'&&!layers.trees?'grass':t.terrain;
+      minimapWords[i]=layers.buildings&&t.building?colors.building:layers.rails&&t.rail?colors.rail:layers.roads&&t.road?colors.road:layers.zones&&t.zone?colors.zone:colors[t.detail]||colors[terrain]||colors.grass;
+    }
+    if(layers.buildings)for(const industry of game.industries||[])minimapWords[industry.y*game.width+industry.x]=colors.building;
+    minimapLayer.getContext('2d').putImageData(minimapPixels,0,0);minimapRevision=cachedRevision;
   }
   function drawMinimap(minimap){
     cacheMinimap();const rect=minimap.getBoundingClientRect();const mw=Math.round(rect.width||180),mh=Math.round(rect.height||115),ratio=Math.min(window.devicePixelRatio||1,2);if(minimap.width!==mw*ratio||minimap.height!==mh*ratio){minimap.width=mw*ratio;minimap.height=mh*ratio;}

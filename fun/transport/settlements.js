@@ -56,7 +56,7 @@ export function settlementSuitability(game, point, kind = 'residential') {
   return suitability(game, point, kind, localEnvironment(game, point.x, point.y), weatherAt(game, point.x, point.y), nearestCity(game, point));
 }
 
-function housingCapacity(building) {
+export function housingCapacity(building) {
   if (!building) return 0;
   const residents = BUILDINGS[building.kind]?.residents;
   return residents ? residents * building.level : ['house', 'apartment'].includes(building.kind) ? 15 * building.level : 0;
@@ -128,11 +128,16 @@ export function stepSettlements(game) {
     if (claimed.has(key)) continue;
     claimed.add(key);
     const population = Math.max(0, housingCapacity(building) - housingCapacity(tile.building));
+    // A later town foundation must not move an existing home's residents to a
+    // different town. Explicit null identifies countryside housing, too.
+    const populationCityId = Object.hasOwn(tile.building || {}, 'populationCityId') ? tile.building.populationCityId : city.id;
+    if (housingCapacity(building) > 0) building.populationCityId = populationCityId;
     const previousLevel = tile.building?.level || 0;
     tile.building = building;
     tile.detail = '';
     if (tile.terrain === 'forest') tile.terrain = land(game.biome);
-    city.population = Math.max(0, city.population + population);
+    const populationCity = game.cities.find(town => town.id === populationCityId);
+    if (populationCity) populationCity.population = Math.max(0, populationCity.population + population);
     if (zone?.kind === 'commercial') city.supplies += (building.level - previousLevel) * 8;
     if (zone?.kind === 'industrial') city.activity += (building.level - previousLevel) * 10;
     changed = true;

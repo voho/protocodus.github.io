@@ -1,5 +1,6 @@
 import { BIOMES, SAVE_KEY, restoreGame, validateGame } from './model.js';
-import { encodeGame } from './save-codec.js';
+import { encodeGame, encodeBytes, decodeBytes } from './save-codec.js';
+import { MAX_WORLD_TILES } from './world.js';
 
 export const SAVE_SLOT_PREFIX = 'transport-slot-v1:';
 export const SAVE_SLOT_FORMAT = 'transport-slot-v1';
@@ -29,16 +30,17 @@ function checksum(text) {
 function parseEnvelope(raw, id) {
   if (!raw || raw.length > MAX_SAVE_LENGTH) throw new Error('Invalid save size');
   const slot = JSON.parse(raw);
-  if (!slot || slot.format !== SAVE_SLOT_FORMAT || slot.id !== id || !validName(slot.name) || !Object.hasOwn(BIOMES, slot.biome) || !finite(slot.day) || slot.day < 0 || !finite(slot.money) || !Number.isInteger(slot.width) || !Number.isInteger(slot.height) || slot.width < 1 || slot.height < 1 || slot.width * slot.height > 512 * 384 || !Number.isInteger(slot.routes) || slot.routes < 0 || typeof slot.savedAt !== 'string' || !Number.isFinite(Date.parse(slot.savedAt)) || !['json', 'gzip-base64'].includes(slot.encoding) || typeof slot.payload !== 'string' || slot.payload.length > MAX_SAVE_LENGTH || slot.checksum !== checksum(slot.payload)) throw new Error('Damaged save');
+  if (!slot || slot.format !== SAVE_SLOT_FORMAT || slot.id !== id || !validName(slot.name) || !Object.hasOwn(BIOMES, slot.biome) || !finite(slot.day) || slot.day < 0 || !finite(slot.money) || !Number.isInteger(slot.width) || !Number.isInteger(slot.height) || slot.width < 1 || slot.height < 1 || slot.width * slot.height > MAX_WORLD_TILES || !Number.isInteger(slot.routes) || slot.routes < 0 || typeof slot.savedAt !== 'string' || !Number.isFinite(Date.parse(slot.savedAt)) || !['json', 'gzip-base64', 'gzip-utf16'].includes(slot.encoding) || typeof slot.payload !== 'string' || slot.payload.length > MAX_SAVE_LENGTH || slot.checksum !== checksum(slot.payload)) throw new Error('Damaged save');
   if (slot.encoding === 'gzip-base64' && (!/^H4sI[A-Za-z0-9+/]*={0,2}$/.test(slot.payload) || slot.payload.length % 4 !== 0)) throw new Error('Invalid compressed save');
-  if (slot.codec !== undefined && (slot.codec !== 'tile-binary-v1' || slot.encoding !== 'gzip-base64')) throw new Error('Unsupported save codec');
+  if (slot.codec !== undefined && (slot.codec !== 'tile-binary-v1' || !slot.encoding.startsWith('gzip-'))) throw new Error('Unsupported save codec');
+  if (slot.encoding === 'gzip-utf16' && (slot.payload.length < 3 || slot.payload.charCodeAt(0) < 256 || slot.payload.charCodeAt(0) > 270)) throw new Error('Invalid compressed save');
   if (slot.encoding === 'json') JSON.parse(slot.payload);
   return slot;
 }
 
 function slotSummary(slot) {
   const { payload, checksum: ignored, encoding, codec, format, ...summary } = slot;
-  const unavailable = encoding === 'gzip-base64' && typeof DecompressionStream !== 'function';
+  const unavailable = encoding.startsWith('gzip-') && typeof DecompressionStream !== 'function';
   return { ...summary, readonly: false, status: unavailable ? 'unavailable' : 'ready', ...(unavailable ? { message: 'This browser cannot open compressed saves. Use a browser with gzip support.' } : {}) };
 }
 
@@ -80,35 +82,24 @@ export function listSaveSlots() {
   } catch { return { ok: false, slots, message: 'Browser storage is unavailable.' }; }
 }
 
-function toBase64(bytes) {
-  const parts = [];
-  for (let offset = 0; offset < bytes.length; offset += 8192) parts.push(String.fromCharCode(...bytes.subarray(offset, offset + 8192)));
-  return btoa(parts.join(''));
-}
-
-function fromBase64(text) {
-  const binary = atob(text), bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes;
-}
-
 async function pack(json, saved) {
   if (typeof CompressionStream !== 'function' || typeof DecompressionStream !== 'function') return { encoding: 'json', payload: json };
   // Gzip the packed tile bytes directly, avoiding base64 overhead inside gzip.
-  const tileBytes = fromBase64(saved.tiles.data), header = { ...saved, tiles: { ...saved.tiles } };
+  const tileBytes = decodeBytes(saved.tiles.data,saved.tiles.encoding??'base64',saved.state.width*saved.state.height*4), header = { ...saved, tiles: { ...saved.tiles } };
   delete header.tiles.data;
   const headerBytes = new TextEncoder().encode(JSON.stringify(header)), framed = new Uint8Array(9 + headerBytes.length + tileBytes.length);
   framed.set(new TextEncoder().encode('TRSP1'));
   new DataView(framed.buffer).setUint32(5, headerBytes.length);
   framed.set(headerBytes, 9); framed.set(tileBytes, 9 + headerBytes.length);
   const bytes = await new Response(new Blob([framed]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer();
-  return { encoding: 'gzip-base64', codec: 'tile-binary-v1', payload: toBase64(new Uint8Array(bytes)) };
+  const dense=saved.tiles.encoding==='utf16-15';
+  return { encoding: dense?'gzip-utf16':'gzip-base64', codec: 'tile-binary-v1', payload: encodeBytes(new Uint8Array(bytes),dense?'utf16-15':'base64') };
 }
 
 async function unpack(slot) {
   if (slot.encoding === 'json') return slot.payload;
   if (typeof DecompressionStream !== 'function') throw new Error('Compression unsupported');
-  const bytes = fromBase64(slot.payload);
+  const bytes = decodeBytes(slot.payload,slot.encoding==='gzip-utf16'?'utf16-15':'base64');
   const reader = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip')).getReader();
   const decoder = new TextDecoder(), pieces = [];
   let length = 0;
@@ -127,7 +118,7 @@ async function unpack(slot) {
     if (headerLength < 2 || headerLength > length - 9) throw new Error('Invalid tile header');
     const saved = JSON.parse(decoder.decode(expanded.subarray(9, 9 + headerLength)));
     if (!saved?.tiles || !saved.state || expanded.length - 9 - headerLength !== saved.state.width * saved.state.height * 4) throw new Error('Invalid tile frame size');
-    saved.tiles.data = toBase64(expanded.subarray(9 + headerLength));
+    saved.tiles.data = encodeBytes(expanded.subarray(9 + headerLength),saved.tiles.encoding??'base64');
     return JSON.stringify(saved);
   } finally { reader.releaseLock(); }
 }
@@ -164,7 +155,7 @@ export async function readSaveSlot(id) {
     let json = raw;
     if (id !== 'autosave') {
       const slot = parseEnvelope(raw, id);
-      if (slot.encoding === 'gzip-base64' && typeof DecompressionStream !== 'function') return fail('This browser cannot open compressed saves. Use a browser with gzip support.');
+      if (slot.encoding.startsWith('gzip-') && typeof DecompressionStream !== 'function') return fail('This browser cannot open compressed saves. Use a browser with gzip support.');
       json = await unpack(slot);
     }
     if (json.length > MAX_SAVE_LENGTH) return fail('This save is too large to load.');

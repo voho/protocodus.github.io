@@ -1,4 +1,4 @@
-import { findPath, stationCoverage, getVehiclePurchase } from './model.js';
+import { findPath, stationCoverage, getVehiclePurchase, passengerEndpoints } from './model.js';
 import { CARGO, INDUSTRIES, TOWN_CARGO } from './data.js';
 
 const pathCache = new WeakMap();
@@ -30,7 +30,7 @@ export function validateRoutePlan(game, draft) {
   if (result.path.length < 3) return fail('Stops are too close. Leave at least two tiles of travel.');
   const coverage = stations.map(stop => stationCoverage(game, stop));
   if (cargo === 'passengers') {
-    if (!coverage[0].cities.some(a => coverage[1].cities.some(b => a.id !== b.id))) return fail('Connected. Each stop must serve a different town within 5 tiles.');
+    if (!passengerEndpoints(game, ...stations)) return fail('Connected. Each stop must serve a different town within 5 tiles.');
   } else {
     const canShip = (a, b) => {
       const producers = a.industries.filter(industry => INDUSTRIES[industry.kind].outputs[cargo]);

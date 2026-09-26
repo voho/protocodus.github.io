@@ -1,4 +1,8 @@
-// Four bytes per tile keep a huge world well below localStorage's usual quota.
+import { MAX_WORLD_TILES } from './world.js';
+
+// Four bytes per tile preserve every gameplay field. Vast worlds store 15 bits
+// per safe UTF-16 character instead of base64's six: localStorage charges for
+// UTF-16 code units, so this leaves room for named saves without lossy terrain.
 // Numeric elevation palettes are lossless: no rounding occurs when saving a company.
 const TERRAINS = ['grass','water','forest','mountain','rock','sand','snow'];
 const CORE_KEYS = new Set(['terrain','variant','detail','elevation','road','rail','bridge','tunnel']);
@@ -9,50 +13,83 @@ function toBase64(bytes) {
   return btoa(pieces.join(''));
 }
 function fromBase64(text, length) {
-  if(typeof text!=='string'||text.length!==Math.ceil(length/3)*4)throw new Error('Invalid tile data.');
-  const binary=atob(text);if(binary.length!==length)throw new Error('Invalid tile data.');
-  const bytes=new Uint8Array(length);for(let i=0;i<length;i++)bytes[i]=binary.charCodeAt(i);return bytes;
+  if(typeof text!=='string'||(length!==undefined&&text.length!==Math.ceil(length/3)*4))throw new Error('Invalid tile data.');
+  const binary=atob(text);if(length!==undefined&&binary.length!==length)throw new Error('Invalid tile data.');
+  const bytes=new Uint8Array(binary.length);for(let i=0;i<bytes.length;i++)bytes[i]=binary.charCodeAt(i);return bytes;
+}
+export function encodeBytes(bytes, encoding = 'base64') {
+  if(encoding==='base64')return toBase64(bytes);
+  if(encoding!=='utf16-15')throw new Error('Unknown byte encoding.');
+  const padding=(15-(bytes.length*8)%15)%15, chars=[String.fromCharCode(256+padding)];
+  let bits=0,buffer=0,batch=[];
+  for(const byte of bytes) {
+    buffer|=byte<<bits;bits+=8;
+    if(bits>=15){batch.push(256+(buffer&32767));buffer>>>=15;bits-=15;}
+    if(batch.length===8192){chars.push(String.fromCharCode(...batch));batch=[];}
+  }
+  if(bits)batch.push(256+buffer);
+  if(batch.length)chars.push(String.fromCharCode(...batch));
+  return chars.join('');
+}
+export function decodeBytes(text, encoding = 'base64', length) {
+  if(encoding==='base64')return fromBase64(text,length);
+  if(encoding!=='utf16-15'||typeof text!=='string'||!text.length)throw new Error('Unknown byte encoding.');
+  const padding=text.charCodeAt(0)-256, bitLength=(text.length-1)*15-padding;
+  if(padding<0||padding>14||bitLength<0||bitLength%8||(length!==undefined&&bitLength!==length*8))throw new Error('Invalid byte length.');
+  const bytes=new Uint8Array(bitLength/8);
+  let bits=0,buffer=0,index=0;
+  for(let i=1;i<text.length;i++) {
+    const code=text.charCodeAt(i)-256;
+    if(code<0||code>32767)throw new Error('Invalid byte character.');
+    buffer|=code<<bits;bits+=15;
+    while(bits>=8&&index<bytes.length){bytes[index++]=buffer&255;buffer>>>=8;bits-=8;}
+  }
+  if(buffer!==0||index!==bytes.length)throw new Error('Invalid byte padding.');
+  return bytes;
 }
 export function encodeGame(game) {
   const {tiles,...state}=game;
   const bytes=new Uint8Array(tiles.length*4), elevations=[], elevationIds=new Map(), details=[null], detailIds=new Map();
   const extras=[];
   for(let i=0;i<tiles.length;i++) {
-    const t=tiles[i],extra={};
+    const t=tiles[i];let extra=null;
     let elevation=elevationIds.get(t.elevation);
     if(elevation===undefined) {
       if(elevations.length<65535) {elevation=elevations.length;elevationIds.set(t.elevation,elevation);elevations.push(t.elevation);}
-      else {elevation=0;extra.elevation=t.elevation;}
+      else {elevation=0;(extra??={}).elevation=t.elevation;}
     }
     let detail=0;
     if(typeof t.detail==='string') {
       detail=detailIds.get(t.detail);
       if(detail===undefined) {
         if(details.length<32) {detail=details.length;detailIds.set(t.detail,detail);details.push(t.detail);}
-        else {detail=0;extra.detail=t.detail;}
+        else {detail=0;(extra??={}).detail=t.detail;}
       }
     }
     let variant=t.variant;
-    if(variant<0||variant>15) {extra.variant=variant;variant=0;}
+    if(variant<0||variant>15) {(extra??={}).variant=variant;variant=0;}
     const flags=Number(t.road)|(Number(t.rail)<<1)|(Number(t.bridge)<<2)|(Number(t.tunnel)<<3);
     const packed=TERRAINS.indexOf(t.terrain)|(variant<<3)|(detail<<7)|(flags<<12);
     bytes[i*4]=packed&255;bytes[i*4+1]=packed>>>8;bytes[i*4+2]=elevation&255;bytes[i*4+3]=elevation>>>8;
-    for(const [key,value] of Object.entries(t)) {
-      if(CORE_KEYS.has(key)||((key==='building'||key==='zone')&&value===null))continue;
-      extra[key]=value;
+    // Most terrain has no extras. Avoid allocating an object and a dozen entry
+    // arrays per tile during the synchronous autosave on a 442,368-cell world.
+    for(const key in t) {
+      if(CORE_KEYS.has(key)||((key==='building'||key==='zone')&&t[key]===null)||!Object.hasOwn(t,key))continue;
+      (extra??={})[key]=t[key];
     }
-    if(Object.keys(extra).length)extras.push([i,extra]);
+    if(extra)extras.push([i,extra]);
   }
-  return {format:FORMAT,state,tiles:{data:toBase64(bytes),elevations,details,extras}};
+  const encoding=tiles.length>512*384?'utf16-15':'base64';
+  return {format:FORMAT,state,tiles:{data:encodeBytes(bytes,encoding),...(encoding==='base64'?{}:{encoding}),elevations,details,extras}};
 }
 export function decodeGame(saved) {
   if(saved?.format!==FORMAT)return saved;
   const state=saved.state, packed=saved.tiles;
-  if(!state||!Number.isInteger(state.width)||!Number.isInteger(state.height)||state.width<1||state.height<1||state.width*state.height>512*384)throw new Error('Invalid world dimensions.');
+  if(!state||!Number.isInteger(state.width)||!Number.isInteger(state.height)||state.width<1||state.height<1||state.width*state.height>MAX_WORLD_TILES)throw new Error('Invalid world dimensions.');
   const length=state.width*state.height;
   if(!packed||!Array.isArray(packed.elevations)||!packed.elevations.length||packed.elevations.length>65535||!Array.isArray(packed.details)||packed.details.length>32||packed.details[0]!==null||!Array.isArray(packed.extras)||packed.extras.length>length)throw new Error('Invalid tile palette.');
   if(!packed.elevations.every(e=>typeof e==='number'&&Number.isFinite(e))||!packed.details.slice(1).every(d=>typeof d==='string'))throw new Error('Invalid tile values.');
-  const bytes=fromBase64(packed.data,length*4), tiles=new Array(length);
+  const bytes=decodeBytes(packed.data,packed.encoding??'base64',length*4), tiles=new Array(length);
   for(let i=0;i<length;i++) {
     const p=bytes[i*4]|bytes[i*4+1]<<8,elevationId=bytes[i*4+2]|bytes[i*4+3]<<8,detailId=(p>>>7)&31;
     if((p&7)>=TERRAINS.length||elevationId>=packed.elevations.length||detailId>=packed.details.length)throw new Error('Invalid tile index.');

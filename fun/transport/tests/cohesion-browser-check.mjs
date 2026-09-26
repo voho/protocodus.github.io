@@ -1,0 +1,64 @@
+// Real browser checks use a fresh context; the player's storage is never touched.
+import assert from 'node:assert/strict';
+import { mkdir } from 'node:fs/promises';
+const { chromium } = await import(process.env.TRANSPORT_PLAYWRIGHT || 'playwright');
+const browser = await chromium.launch({ channel: process.env.TRANSPORT_BROWSER || 'chrome', headless: true });
+const url = process.env.TRANSPORT_URL || 'http://localhost:8765/fun/transport/';
+const output = '/tmp/transport-cohesion-qa';
+await mkdir(output,{recursive:true});
+const errors=[];
+try {
+ const page=await browser.newPage({viewport:{width:1440,height:960}});
+ page.on('pageerror',error=>errors.push(error.message));
+ await page.goto(url);await page.waitForFunction(()=>window.transport?.game);await page.evaluate(()=>transport.setSpeed(0));
+ assert.deepEqual(await page.evaluate(()=>[transport.game.width,transport.game.height,transport.game.cities.length]),[768,576,64]);
+ await page.locator('.project-card summary').click();
+ assert.match(await page.locator('.project-card').innerText(),/first cargo route/);
+ await page.locator('[data-project-action="source"]').click();
+ assert.equal(await page.locator('#inspector').isVisible(),true);
+ assert.ok(await page.locator('.industry-target').count()>0);
+ await page.screenshot({path:`${output}/first-cargo-project.png`});
+ await page.locator('#inspector .tiny-button').click();
+ await page.locator('[data-view="industry"]').click();
+ await page.locator('#industry-kind').selectOption('steel-mill');
+ assert.equal(await page.locator('[data-industry]').count(),await page.evaluate(()=>transport.game.industries.filter(site=>site.kind==='steel-mill').length));
+ assert.match(await page.locator('.site-status').first().innerText(),/Needs/);
+ await page.locator('#entity-search').fill('no-such-site');
+ assert.equal(await page.locator('[data-industry]').count(),0);
+ await page.waitForTimeout(7300);
+ assert.equal(await page.locator('#entity-search').inputValue(),'no-such-site','periodic status updates preserve query');
+ assert.equal(await page.locator('#entity-search').evaluate(el=>el===document.activeElement),true,'refresh preserves search focus');
+ await page.locator('#entity-search').fill('steel');
+ await page.locator('[data-industry]').first().click();
+ assert.match(await page.locator('.industry-condition').innerText(),/Deliver every input/);
+ await page.locator('#panel-content').evaluate(el=>el.scrollTop=el.scrollHeight);
+ await page.locator('[data-view="build"]').click();
+ assert.equal(await page.locator('#panel-content').evaluate(el=>el.scrollTop),0,'switching views returns to the main tools');
+ await page.evaluate(async()=>{const {tick,build}=await import('./model.js');tick(transport.game,10);const c=transport.game.cities[0];for(let y=c.y-10;y<c.y+10;y++)for(let x=c.x-10;x<c.x+10;x++){const result=build(transport.game,'road',x,y);if(result.ok)return;}});
+ await page.waitForTimeout(600);
+ const money=await page.evaluate(()=>({net:Math.floor(transport.game.monthlyIncome-transport.game.monthlyIncomeAtAccountingStart-transport.game.monthlyOperatingExpenses),capital:Math.floor(transport.game.monthlyExpenses-transport.game.monthlyOperatingExpenses)}));
+ await page.locator('#company-stats').click();
+ assert.equal(await page.locator('#profit-exact').innerText(),`${money.net<0?'−':'+'}$${Math.abs(money.net).toLocaleString('en-US')}`);
+ assert.equal(await page.locator('#building-exact').innerText(),`$${money.capital.toLocaleString('en-US')}`);
+ await page.locator('#company-stats').click();
+ await page.evaluate(()=>transport.setView('routes'));
+ assert.match(await page.locator('[data-route-revenue]').first().getAttribute('title'),/route upkeep/i);
+ // Disconnect and repair while paused: diagnostics must not wait for time to advance.
+ await page.evaluate(async()=>{const {build,refreshRouteConnections}=await import('./model.js');const g=transport.game,c=g.cities[0];for(let y=0;y<g.height;y++){const t=g.tiles[y*g.width+c.x+12];if(t.road&&!g.stations.some(s=>s.x===c.x+12&&s.y===y))build(g,'bulldoze',c.x+12,y);}refreshRouteConnections(g);});
+ await page.waitForFunction(()=>document.querySelector('[data-route-status]')?.textContent==='Disconnected');
+ assert.equal(await page.evaluate(()=>transport.speed),0);
+ // New world activation is transactional even when the browser rejects writes.
+ const before=await page.evaluate(()=>({seed:transport.game.seed,width:transport.game.width,raw:localStorage.getItem('transport-save-v1')}));
+ await page.locator('#world-button').click();
+ assert.equal(await page.locator('[data-world-size]').count(),4);
+ await page.locator('#world-seed').fill('98261');await page.locator('[data-world-size="regional"]').click();
+ await page.evaluate(()=>{window.originalSetItem=Storage.prototype.setItem;Storage.prototype.setItem=function(){throw new DOMException('Full','QuotaExceededError');};});
+ await page.locator('#generate-world').click();
+ assert.deepEqual(await page.evaluate(()=>({seed:transport.game.seed,width:transport.game.width,raw:localStorage.getItem('transport-save-v1')})),before);
+ assert.equal(await page.locator('#modal').evaluate(el=>el.open),true);
+ assert.match(await page.locator('#status-message').innerText(),/current world is unchanged/);
+ await page.evaluate(()=>{Storage.prototype.setItem=window.originalSetItem;});
+ await page.keyboard.press('Escape');
+ assert.deepEqual(errors,[]);
+ console.log('Cohesion browser checks passed: vast opening, actionable freight, searches/focus, production explanations, operating accounts, paused disconnection, safe new worlds.');
+} finally {await browser.close();}

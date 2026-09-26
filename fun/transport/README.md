@@ -6,13 +6,13 @@ Transport is a single-player, top-down transport and city-building game. A new c
 
 ## Your first connection
 
-1. Find a producer and a matching customer, such as a logging camp and a sawmill in the taiga.
-2. Build a continuous road or railway between them. Use bridges on water and tunnels through mountains. Clear occupied buildings before laying a connection.
-3. Place a road stop or train station on the completed network within **5 tiles** of each industry. Stations need open ground; they cannot occupy a bridge or tunnel.
+1. Open **Your first cargo route** in Build for a nearby suggestion, or find a producer and a matching customer, such as a logging camp and a sawmill in the taiga.
+2. Choose **Road** or **Rail** and drag between them. Water automatically becomes a bridge and mountains become tunnels; the preview shows the combined cost. Clear occupied buildings before laying a connection.
+3. Choose **Stop** and click the completed network within **5 tiles** of each industry. The tool selects a road stop or train station from the tile; at a road/rail crossing, use the small Road/Rail choice. Stations need open ground; they cannot occupy a bridge or tunnel.
 4. Open **Routes**, choose the transport mode and cargo, then choose two stations from the lists or pick them on the map. The planner checks the continuous network and cargo coverage before enabling launch. Buying a road vehicle costs $18,000; a train costs $78,000.
 5. Vehicles load from the producer's inventory and earn money when they deliver. Connect the customer's output to the next factory or a town to extend the chain.
 
-Passenger routes need two different towns within their stations' catchment areas. Every route operates one vehicle between two stops. A broken network stops the affected service until you repair it. Retiring a route sells the vehicle for 45% of the amount paid, including upgrades; retire services before removing their stations.
+Passenger routes need two different towns within their stations' catchment areas. Every route operates one vehicle between two stops. A broken network stops the affected service until you repair it; connection status updates even while paused. Route cards explain missing producers, full buyers and missing factory inputs, and show net earnings after route upkeep. Retiring a route sells the vehicle for 45% of the amount paid, including upgrades; retire services before removing their stations.
 
 Use the route search and mode, status and cargo filters to find services in a large network. **Pick on map** selects a departure and then an arrival; only stations for the chosen transport mode are accepted. Cancel the picker or press Escape to return to normal map controls. The connection check updates as you change stops or infrastructure.
 
@@ -34,9 +34,9 @@ Inflation is a seeded **1–5% each year**, compounded from 1950 prices. It affe
 
 ## Controls and saving
 
-Drag the map in **Explore** mode to pan; click a place to inspect it. Choose one of three views: **Region (50%)**, **Town (100%)**, or **Detail (200%)**. Scroll, press + / −, or use the zoom buttons to move one view at a time; click its percentage to select it directly. Click the minimap to travel around the region. Construction tools place a structure with a click or lay roads, tracks and zones with a drag. On a narrow screen, **Manage** opens the construction and management panel.
+Drag the map in **Explore** mode to pan; click a place to inspect it. Choose one of three views: **Region (50%)**, **Town (100%)**, or **Detail (200%)**. Scroll, press + / −, or use the zoom buttons to move one view at a time; click the percentage to open the three choices. Click the minimap to travel around the region. Construction tools place a structure with a click or lay roads, tracks and zones with a drag. Press **Done**, **Escape**, or right-click to leave construction. Right-drag or hold Space while dragging to move the map while building. On touch screens, two fingers move the map and pinch changes zoom; dragging a single stop, port or building tool moves the map without placing it. On a narrow screen, **Manage** opens the construction and management panel.
 
-Balance, monthly profit, date and simulation speed share a compact header. Hover, focus or tap the balance/profit area to see delivered cargo and connected-town totals.
+The five network tools are **Road, Rail, Stop, Port, and Bulldozer**. Grid, route lines and centering on your home town are in the map’s **⋯** menu. Balance, operating profit for the current calendar month, date and simulation speed share a compact header. The finances tooltip separates fares, running costs, construction/vehicle purchases and the previous month’s operating profit. Hover, focus or tap the balance/profit area to see delivered cargo and connected-town totals.
 
 Open **Layers** on the map, or press **L**, to control trees and plants, buildings, roads, railways, stops, names, industry icons, vehicles, cargo loads, route lines, zones, day/night lighting and the grid. Buildings includes industry structures. Hiding vehicles also hides their load indicators. **Terrain only** shows bare ground, water, mountains and rocks; **Show all** enables every layer, including the grid. Selection outlines and construction previews remain available for building and inspection. The panel leaves the simulation running, and Escape closes it.
 
@@ -44,11 +44,11 @@ Layer settings change the view while the transport network and hidden structures
 
 | Key | Action |
 | --- | --- |
-| R / T / S | Road / railway / road stop |
+| R / T / S | Road / rail / automatic stop |
 | P | Port |
-| B / X | Road bridge / bulldozer |
+| X | Bulldozer |
 | 1 / 2 / 3 | Residential / commercial / industrial zoning |
-| Escape | Return to Explore |
+| Escape / right-click | Finish the current tool |
 | Space | Tap to pause or resume; hold while dragging to pan |
 | Arrow keys | Pan the map |
 | + / − | Zoom in / out |
@@ -71,11 +71,11 @@ The game autosaves to local storage immediately on opening, after construction a
 
 Open **Load / save** with the save button, **Ctrl+S / Cmd+S**, or the save icon in the mobile management panel. Give the current world a name and choose **Save game** to keep an independent snapshot. The dialog lists each saved company's landscape, game date, balance and save time. You can load, rename, overwrite or delete named slots. Loading, overwriting and deleting ask for confirmation; loading replaces the active world and its autosave. Named snapshots change only when you overwrite them, so generating a new world preserves your other companies.
 
-The latest autosave also appears in the dialog as a load-only checkpoint. The simulation and periodic autosaving pause while the dialog is open. Huge-world snapshots use compact, lossless tiles and browser compression when available. Save capacity depends on the browser's available storage; failed writes report an error and preserve existing saves. Slots are local to this browser and device, and clearing browser storage removes them.
+The latest autosave also appears in the dialog as a load-only checkpoint. The simulation and periodic autosaving pause while the dialog is open. World snapshots use compact, lossless tiles and browser compression when available. Vast worlds use denser browser strings; an autosave and two developed Vast slots fit a conservative 5 MiB quota. Creating a new world activates it only after its autosave succeeds; a failed write leaves the current world intact. Save capacity depends on the browser's available storage; failed writes report an error and preserve existing saves. Slots are local to this browser and device, and clearing browser storage removes them.
 
 ## Worlds and industry
 
-New companies default to a **512 × 384 tile Huge world** (196,608 tiles, about 27 times the original area), with 32 towns and 60–72 industry sites. The new-world dialog also offers Regional (128 × 96, eight towns) and Large (256 × 192, sixteen towns). Each world has meandering rivers, tributaries, lakes, a coastline, mountain ranges and valleys. Taiga adds spruce, fir, birch, oak and aspen around granite peaks and wooded foothills, with bluebells, ferns and berry bushes. Tundra has larches, dwarf birches and pines, ice peaks and glaciers, with arctic poppies, cotton grass, heather and lichen. Desert adds palms, acacia, Joshua trees, mesas and buttes, with agave, aloe, prickly pear and desert flowers. Reeds and other plants follow local moisture, and tree species spread gradually from neighboring woodland. Each environment has its own colors, towns and industry catalog. Entering the same seed, environment and size recreates the same starting world. Open the region atlas with **M** or the minimap heading, then click a location to travel there. Existing 100 × 72 saves continue to load at their original size; choose **New world → Huge** for the larger landscape.
+New companies default to a **768 × 576 tile Vast world** (442,368 tiles), with **64 towns and 120–144 industry sites**: 2.25 times the area of the previous largest map. The new-world dialog retains Regional (128 × 96, eight towns), Large (256 × 192, sixteen towns), and Huge (512 × 384, thirty-two towns). Each world has meandering rivers, tributaries, lakes, a coastline, mountain ranges and valleys. Taiga adds spruce, fir, birch, oak and aspen around granite peaks and wooded foothills, with bluebells, ferns and berry bushes. Tundra has larches, dwarf birches and pines, ice peaks and glaciers, with arctic poppies, cotton grass, heather and lichen. Desert adds palms, acacia, Joshua trees, mesas and buttes, with agave, aloe, prickly pear and desert flowers. Reeds and other plants follow local moisture, and tree species spread gradually from neighboring woodland. Each environment has its own colors, towns and industry catalog. Entering the same seed, environment and size recreates the same starting world. Open the region atlas with **M** or the minimap heading, then click a location to travel there. Existing 100 × 72 saves continue to load at their original size; choose **New world → Vast** for the larger landscape. Towns and Industries have searchable lists; industry search also matches input/output cargo, with a separate industry-type filter.
 
 | Environment | Simple chains | Longer production chains |
 | --- | --- | --- |
@@ -89,7 +89,7 @@ The **Chains** explorer connects recipes into a complete production graph for th
 
 The world changes through slow, local updates. Factories work on staggered days; output and expansion depend on their surroundings, ingredients and deliveries. Forests help logging camps, water helps farms, mineral ground helps mines, and road or rail access helps factories. Weather changes productivity and travel. Industry capacity is reviewed at varied intervals, so factories do not expand together on the first day of each month.
 
-Vehicles vary their pace with local conditions and pause to load at stops. Vehicle and infrastructure upkeep continues between deliveries. Monthly accounts still close every 30 simulation days. Purchases count toward those expenses, so a large construction project can temporarily make a profitable service's monthly balance negative.
+Vehicles vary their pace with local conditions and pause to load at stops. Vehicle and infrastructure upkeep continues between deliveries. Accounts close at real calendar-month boundaries, including leap years. Operating profit excludes construction and vehicle purchases, which remain visible separately in the finances tooltip. Route earnings deduct a share of used infrastructure and vehicle upkeep; idle infrastructure and factories remain company costs. Older saves begin operating-cost tracking when first loaded by this version, instead of inventing historical expenses. Factories expand only after productive operation; delivering one ingredient to a stalled recipe does not increase capacity.
 
 Each vehicle has a small load meter above it. Loaded vehicles show their resource icon, including passengers; a full green meter means full capacity, an amber meter shows a partial load, and an unfilled meter means empty. These indicators stay readable in all three zoom views.
 
@@ -97,13 +97,13 @@ Each vehicle has a small load meter above it. Loaded vehicles show their resourc
 
 Recent passenger arrivals and cargo supplies create demand for gradual growth. Roads, neighboring homes, shops and local services help neighborhoods fill in; greenery improves residential surroundings, while nearby industry discourages housing. Development happens in small, staggered steps. A new town costs $45,000 and needs level land at least 11 tiles from another town center.
 
-Place residential, commercial or industrial zones near a town, then provide nearby roads and transport service. Isolated zoning stays vacant. Residential buildings house more people, commercial buildings support the town, and industrial zones increase local activity. Cargo-producing mines and factories are separate buildings in the industry catalog. Existing buildings remain in place when development stalls.
+Place residential, commercial or industrial zones near a town, then provide nearby roads and transport service. Isolated zoning stays vacant. Residential buildings house more people, commercial buildings support the town, and industrial zones increase local activity. Bulldozing housing removes its residents from the town that originally received them, even if another town is later founded nearby. Cargo-producing mines and factories are separate buildings in the industry catalog. Existing buildings remain in place when development stalls.
 
 Nature also changes gradually: neighboring vegetation, moisture, climate and development influence local succession. It spreads in small steps and preserves roads, stations, industries, buildings and designated zones. The same seed and actions reproduce the same future; simulation speed and frame rate do not change the random outcomes. Saving preserves production schedules and vehicle loading waits.
 
 ## Building variety
 
-**Development** offers zoning and an illustrated catalog of 26 directly placeable building designs. Generated towns contain these same buildings, and residential/commercial zoning develops varied houses, shops and services over time.
+**Build → Town** offers zoning and an illustrated catalog of 26 directly placeable building designs. Generated towns contain these same buildings, and residential/commercial zoning develops varied houses, shops and services over time.
 
 | Collection | Designs |
 | --- | --- |
@@ -118,7 +118,7 @@ These buildings share the original miniature sprite style. Residential zoning mo
 
 ## Scope
 
-Transport uses a compact economic simulation with two-stop routes, one vehicle per service, and automatic vehicle movement. Road vehicles, trains and ships can carry passengers or freight, with different speeds, capacities and costs. Road and rail crossings are allowed. There are no signals, collision management, competitors, multiplayer, terrain sculpting, canals or vehicle timetables. Bridges and tunnels are built per tile across the relevant terrain.
+Transport uses a compact economic simulation with two-stop routes, one vehicle per service, and automatic vehicle movement. Road vehicles, trains and ships can carry passengers or freight, with different speeds, capacities and costs. Road and rail crossings are allowed. There are no signals, collision management, competitors, multiplayer, terrain sculpting, canals or vehicle timetables. Road and Rail automatically choose bridges and tunnels per tile across the relevant terrain.
 
 ## Run locally
 
@@ -201,3 +201,11 @@ The nature check renders woodland contact sheets and wilderness views in each bi
 ```sh
 TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/nature-browser-check.mjs
 ```
+
+The controls check covers automatic crossings and stops, exact quotes, drag cancellation, keyboard activation, compact menus, desktop controls, and real touch pan/pinch gestures at 390px and 320px:
+
+```sh
+TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/controls-browser-check.mjs
+```
+
+The comprehensive follow-up checks include `cohesion-browser-check.mjs` (projects, searches, finances, paused disconnection and storage failure), `vast-browser-check.mjs` (large-world quota and continuation), and `controls-browser-check.mjs` (mouse, keyboard and real multi-touch gestures).

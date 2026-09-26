@@ -10,6 +10,10 @@ const errors = [];
 const watch = page => page.on('pageerror', error => errors.push(error.message));
 const currentLayers = page => page.evaluate(() => transport.renderer.getLayers());
 const fits = (page, selector) => page.locator(selector).evaluate(element => element.scrollWidth <= element.clientWidth + 1);
+async function clickMapOption(page, selector) {
+  if (!(await page.locator(selector).isVisible())) await page.locator('#map-options-button').click();
+  await page.locator(selector).click();
+}
 async function openLayers(page) {
   if (!(await page.locator('#layers-panel').isVisible())) await page.locator('#layers-button').click();
   await page.locator('#layers-panel').waitFor({ state: 'visible' });
@@ -75,7 +79,7 @@ try {
   // Existing map shortcuts share the same state as the corresponding switches.
   for(const [key,button] of [['grid','#grid-button'],['routes','#routes-toggle']]){
     const before=defaults[key];
-    await page.locator(button).click();
+    await clickMapOption(page, button);
     await openLayers(page);
     assert.equal(await page.locator(`[data-layer="${key}"]`).isChecked(),!before,`${key} map button updates its Layers switch`);
     await setLayer(page,key,before);

@@ -1,11 +1,11 @@
 import { BIOMES, CARGO, INDUSTRIES, BUILD_COSTS, VEHICLE_COSTS, VEHICLE_CAPACITIES, TOWN_CARGO } from './data.js';
-import { generateWorld, seedNumber, WORLD_SIZES } from './world.js';
+import { generateWorld, seedNumber, WORLD_SIZES, DEFAULT_WORLD_SIZE } from './world.js';
 import { BUILDINGS } from './buildings.js';
 import { encodeGame, decodeGame } from './save-codec.js';
 import { randomAt, localEnvironment, weatherAt, stepEcology } from './environment.js';
-import { stepSettlements } from './settlements.js';
+import { stepSettlements, housingCapacity } from './settlements.js';
 import { initializeIndustry, stepIndustries } from './industry-simulation.js';
-import { availableVehicleLevel, priceFor, inflationInfo } from './economy-pricing.js';
+import { availableVehicleLevel, priceFor, inflationInfo, calendarMonth } from './economy-pricing.js';
 export { priceFor, inflationInfo } from './economy-pricing.js';
 export { industryConditions } from './industry-simulation.js';
 export { settlementSuitability } from './settlements.js';
@@ -49,14 +49,14 @@ function notify(game,message,type='info') {
   game.notifications.unshift({ id: makeId(game,'notice'), day:game.day, message, text:message, type });
   game.notifications.length = Math.min(game.notifications.length,24);
 }
-export function createGame({biome='taiga',seed=1847,size='huge'}={}) {
+export function createGame({biome='taiga',seed=1847,size=DEFAULT_WORLD_SIZE}={}) {
   if (!owns(BIOMES,biome)) biome='taiga';
   const game = {
     version:1, seed:seedNumber(seed), biome, ...generateWorld(biome,seed,size),
     money:400000, day:0, totalDelivered:0, totalRevenue:0,
-    monthlyIncome:0, monthlyExpenses:0, lastMonthlyProfit:0,
+    monthlyIncome:0, monthlyExpenses:0, monthlyOperatingExpenses:0, monthlyIncomeAtAccountingStart:0, lastMonthlyProfit:0, lastMonthlyOperatingProfit:0, accountingStartDay:0,
     history:[], notifications:[], revision:0, networkRevision:0, nextId:100,
-    totalExpenses:0, lastDailyDay:0, lastMonth:0,
+    totalExpenses:0, totalOperatingExpenses:0, lastDailyDay:0, lastMonth:0,
   };
   for(const industry of game.industries)initializeIndustry(game,industry);
   game.stations.push(
@@ -81,6 +81,18 @@ export function stationCoverage(game,station) {
     for (const cargo of Object.keys(INDUSTRIES[industry.kind].inputs)) accepts.add(cargo);
   }
   return { cities,industries,zones,produces:[...produces],accepts:[...accepts] };
+}
+// A two-stop passenger service connects two actual towns, even where older
+// maps have overlapping catchments. It must not collect and return the same town.
+export function passengerEndpoints(game,from,to) {
+  if(!from||!to)return null;
+  let best=null,bestDistance=Infinity;
+  for(const a of stationCoverage(game,from).cities)for(const b of stationCoverage(game,to).cities){
+    if(a.id===b.id)continue;
+    const walking=distance(a,from)+distance(b,to);
+    if(walking<bestDistance){best=[a,b];bestDistance=walking;}
+  }
+  return best;
 }
 function validNetwork(tile,mode) {
   if(mode==='water')return tile?.terrain==='water';
@@ -114,6 +126,12 @@ function closestCity(game,point,max=Infinity) {
   for(const city of game.cities) {const d=distance(city,point);if(d<=best){closest=city;best=d;}}
   return closest;
 }
+function rememberHousingOwners(game){
+  for(let i=0;i<game.tiles.length;i++){
+    const building=game.tiles[i].building;
+    if(housingCapacity(building)&&!owns(building,'populationCityId'))building.populationCityId=closestCity(game,{x:i%game.width,y:Math.floor(i/game.width)},10)?.id??null;
+  }
+}
 export function build(game,tool,x,y) {
   const t=tileAt(game,x,y);
   if(!t) return result(false,'Choose a tile inside the map.');
@@ -127,6 +145,8 @@ export function build(game,tool,x,y) {
     const cost=constructionCost(game,tool,x,y);
     if(game.money<cost) return result(false,'Not enough funds to demolish this tile.');
     spend(game,cost);
+    const residents=housingCapacity(t.building),town=residents?(owns(t.building,'populationCityId')?game.cities.find(city=>city.id===t.building.populationCityId):closestCity(game,point,10)):null;
+    if(town){town.population=Math.max(0,town.population-residents);town.passengers=Math.min(town.passengers,town.population*.9);}
     if(station) game.stations=game.stations.filter(s=>s.id!==station.id);
     if(industry) game.industries=game.industries.filter(i=>i.id!==industry.id);
     game.zones=game.zones.filter(z=>z.x!==x||z.y!==y);
@@ -184,6 +204,9 @@ export function build(game,tool,x,y) {
   if(tool==='city') {
     if(game.cities.some(c=>distance(c,point)<11))return result(false,'Found a new city at least 11 tiles from another center.');
     if(['mountain','rock'].includes(t.terrain))return result(false,'A new city needs level land.');
+    // Preserve the town credited for existing housing before a new center can
+    // become nearer, including legacy buildings that predate explicit owners.
+    rememberHousingOwners(game);
     const prefixes=game.biome==='taiga'?['Birch','Willow','Silver','Fern','Maple']:game.biome==='tundra'?['Ice','Frost','North','Winter','Snow']:['Amber','Gold','Dune','Palm','Sun'];
     const suffixes=['field','haven','ford','creek','ridge'];
     const n=Math.max(0,game.cities.length-4);
@@ -194,7 +217,7 @@ export function build(game,tool,x,y) {
   }
   if(owns(BUILDINGS,tool)) {
     const def=BUILDINGS[tool],nearCity=closestCity(game,point,10);
-    spend(game,cost);t.building={kind:tool,level:1};t.detail='';
+    spend(game,cost);t.building={kind:tool,level:1,...def.residents?{populationCityId:nearCity?.id??null}:{}};t.detail='';
     if(['forest','rock'].includes(t.terrain))t.terrain=game.biome==='desert'?'sand':game.biome==='tundra'?'snow':'grass';
     if(nearCity&&def.residents)nearCity.population+=def.residents;
     game.revision++;
@@ -291,8 +314,7 @@ export function addRoute(game,{name,mode='road',stops,cargo='passengers'}={}) {
   let stations=stops.map(id=>game.stations.find(s=>s.id===id));
   if(stations.some(s=>!s||s.mode!==mode))return result(false,mode==='water'?'Choose two ports for a ship route.':`Both stations must serve ${mode==='road'?'roads':'railways'}.`);
   if(cargo==='passengers') {
-    const a=stationCoverage(game,stations[0]).cities,b=stationCoverage(game,stations[1]).cities;
-    if(!a.length||!b.length||!a.some(c1=>b.some(c2=>c1.id!==c2.id)))return result(false,'Passenger stations must serve two different cities within 5 tiles.');
+    if(!passengerEndpoints(game,...stations))return result(false,'Passenger stations must serve two different cities within 5 tiles.');
   } else if(!freightPair(game,stations[0],stations[1],cargo)) {
     if(freightPair(game,stations[1],stations[0],cargo))stations.reverse();
     else return result(false,`Stations need a ${CARGO[cargo].name.toLowerCase()} producer and a matching factory or town within 5 tiles.`);
@@ -302,7 +324,7 @@ export function addRoute(game,{name,mode='road',stops,cargo='passengers'}={}) {
   if(path.length<3)return result(false,'Stations are too close for a transport service.');
   const purchase=getVehiclePurchase(game,mode),cost=purchase.cost;if(game.money<cost)return result(false,`Need ${moneyText(cost)} to buy this ${mode==='water'?'ship':mode==='rail'?'train':cargo==='passengers'?'bus':'truck'}.`);
   const palette=['#efc16f','#69c6bc','#d893b1','#88aee4','#b3cf83','#e5966d'];
-  const route={id:makeId(game,'route'),name:String(name||`${stations[0].name} → ${stations[1].name}`).slice(0,100),mode,stops:stations.map(s=>s.id),cargo,delivered:0,revenue:0,color:palette[game.routes.length%palette.length],path,active:true,status:'Running',pathRevision:game.networkRevision||0};
+  const route={id:makeId(game,'route'),name:String(name||`${stations[0].name} → ${stations[1].name}`).slice(0,100),mode,stops:stations.map(s=>s.id),cargo,delivered:0,revenue:0,expenses:0,accountingStartDay:game.day,revenueAtAccountingStart:0,color:palette[game.routes.length%palette.length],path,active:true,status:'Running',pathRevision:game.networkRevision||0};
   const vehicle={id:makeId(game,'vehicle'),routeId:route.id,x:path[0].x,y:path[0].y,angle:0,load:0,capacity:purchase.capacity,level:purchase.level,paidPrice:cost,progress:0,direction:1,totalDistance:0,dwellRemaining:0,tripSerial:0};
   spend(game,cost);game.routes.push(route);game.vehicles.push(vehicle);loadVehicle(game,route,vehicle,0);game.revision++;
   return result(true,`${route.name} launched · ${moneyText(cost)}`,{route,cost});
@@ -317,7 +339,8 @@ function loadVehicle(game,route,vehicle,stopIndex) {
   const station=game.stations.find(s=>s.id===route.stops[stopIndex]);if(!station)return;
   const coverage=stationCoverage(game,station);let free=vehicle.capacity-vehicle.load;
   if(route.cargo==='passengers') {
-    for(const city of coverage.cities) {
+    const endpoints=passengerEndpoints(game,...route.stops.map(id=>game.stations.find(stop=>stop.id===id)));
+    for(const city of endpoints?[endpoints[stopIndex]]:[]) {
       const amount=Math.min(free,Math.floor(city.passengers||0));
       city.passengers-=amount;vehicle.load+=amount;free-=amount;city.activity+=amount*.18;
       if(free<=0)break;
@@ -336,8 +359,8 @@ function unloadVehicle(game,route,vehicle,stopIndex,arrivalDay=game.day) {
   const station=game.stations.find(s=>s.id===route.stops[stopIndex]);if(!station)return;
   const coverage=stationCoverage(game,station);let remaining=vehicle.load,delivered=0;
   if(route.cargo==='passengers') {
-    const cities=coverage.cities;if(!cities.length)return;
-    const city=cities[0];city.activity+=remaining;city.delivered+=remaining;city.lastServiceDay=arrivalDay;delivered=remaining;remaining=0;
+    const endpoints=passengerEndpoints(game,...route.stops.map(id=>game.stations.find(stop=>stop.id===id)));if(!endpoints)return;
+    const city=endpoints[stopIndex];city.activity+=remaining;city.delivered+=remaining;city.lastServiceDay=arrivalDay;delivered=remaining;remaining=0;
   } else if(stopIndex===1) {
     for(const industry of coverage.industries) {
       if(!INDUSTRIES[industry.kind].inputs[route.cargo])continue;
@@ -377,6 +400,7 @@ function updateRoutePath(game,route) {
   }
   route.path=path;
 }
+export function refreshRouteConnections(game) { for(const route of game.routes)updateRoutePath(game,route); }
 const movementCache=new WeakMap();
 function travelSpeed(game,route,vehicle,segment){
   const day=Math.floor(game.day);let cache=movementCache.get(game);
@@ -451,6 +475,23 @@ function moveVehicles(game,days) {
     vehicle.x=a.x+(b.x-a.x)*fraction;vehicle.y=a.y+(b.y-a.y)*fraction;vehicle.angle=Math.atan2((b.y-a.y)*vehicle.direction,(b.x-a.x)*vehicle.direction);
   }
 }
+const upkeepShareCache=new WeakMap();
+function infrastructureShares(game){
+  const revision=game.networkRevision||0,previous=upkeepShareCache.get(game);
+  if(previous&&previous.revision===revision&&previous.routes===game.routes&&previous.count===game.routes.length)return previous.shares;
+  const users=new Map(),shares=new Map(game.routes.map(route=>[route.id,0]));
+  const add=(key,cost,route)=>{if(!cost)return;let entry=users.get(key);if(!entry){entry={cost,routes:new Set()};users.set(key,entry);}entry.routes.add(route.id);};
+  for(const route of game.routes){
+    if(route.mode!=='water')for(const point of route.path){
+      const tile=tileAt(game,point.x,point.y),key=point.y*game.width+point.x;if(!tile?.[route.mode])continue;
+      add(`${key}:${route.mode}`,route.mode==='rail'?.14:tile.publicRoad?0:.075,route);
+      if(tile.bridge||tile.tunnel)add(`${key}:structure`,.2,route);
+    }
+    for(const id of route.stops){const station=game.stations.find(stop=>stop.id===id);if(station)add(`station:${id}`,station.mode==='water'?6:station.mode==='road'?1.2:4,route);}
+  }
+  for(const {cost,routes}of users.values())for(const id of routes)shares.set(id,shares.get(id)+cost/routes.size);
+  upkeepShareCache.set(game,{revision,routes:game.routes,count:game.routes.length,shares});return shares;
+}
 function maintenance(game) {
   if(game.maintenanceRevision!==(game.networkRevision||0)) {
     let upkeep=0;
@@ -459,26 +500,39 @@ function maintenance(game) {
     game.infrastructureUpkeep=upkeep;game.maintenanceRevision=game.networkRevision||0;
   }
   const day=Math.floor(game.day),center=game.cities[0]||{x:game.width/2,y:game.height/2},weather=weatherAt(game,center.x,center.y,day);
+  const routeCosts=new Map(game.routes.map(route=>[route.id,0]));
   const fleet=game.vehicles.reduce((sum,v)=>{
     const route=game.routes.find(r=>r.id===v.routeId),localWeather=weatherAt(game,v.x,v.y,day),e=localEnvironment(game,v.x,v.y,2);
     const support=1-Math.min(.12,e.police*.025+e.services*.015);
-    return sum+(route?.mode==='water'?70:route?.mode==='rail'?90:22)*(route?.active?1:.45)*(.91+randomAt(game,day,v.id,521)*.18)*(1+localWeather.cold*(route?.mode==='water'?.23:.14)+localWeather.heat*.08)*support;
+    const expense=(route?.mode==='water'?70:route?.mode==='rail'?90:22)*(route?.active?1:.45)*(.91+randomAt(game,day,v.id,521)*.18)*(1+localWeather.cold*(route?.mode==='water'?.23:.14)+localWeather.heat*.08)*support;
+    if(route)routeCosts.set(route.id,routeCosts.get(route.id)+expense);
+    return sum+expense;
   },0);
   const facilities=game.industries.reduce((sum,i)=>{
     if(i.owner!=='player')return sum;
     const localWeather=weatherAt(game,i.x,i.y,day),e=localEnvironment(game,i.x,i.y,3),support=1-Math.min(.15,e.fire*.035+e.services*.015);
     return sum+INDUSTRIES[i.kind].cost*.00008*(.9+randomAt(game,day,i.id,522)*.2)*(1+localWeather.cold*.2+localWeather.heat*.12)*support;
   },0);
-  const infrastructure=(game.infrastructureUpkeep||0)*(1+weather.wetness*.16+weather.cold*.18)*(.94+randomAt(game,day,'infrastructure',523)*.12);
-  const expenses=priceFor(game,infrastructure+fleet+facilities);
+  const infrastructureFactor=(1+weather.wetness*.16+weather.cold*.18)*(.94+randomAt(game,day,'infrastructure',523)*.12);
+  const infrastructure=(game.infrastructureUpkeep||0)*infrastructureFactor,rawTotal=infrastructure+fleet+facilities;
+  const expenses=priceFor(game,rawTotal),shares=infrastructureShares(game);
+  for(const route of game.routes){
+    // Allocate the real charge, including inflation, without charging shared
+    // tracks twice. Unused infrastructure and factories remain company costs.
+    const raw=(routeCosts.get(route.id)||0)+(shares.get(route.id)||0)*infrastructureFactor;
+    route.expenses=(route.expenses||0)+(rawTotal>0?Math.floor(expenses*raw/rawTotal):0);
+  }
   game.money-=expenses;game.monthlyExpenses+=expenses;game.totalExpenses+=expenses;
+  game.monthlyOperatingExpenses=(game.monthlyOperatingExpenses||0)+expenses;
+  game.totalOperatingExpenses=(game.totalOperatingExpenses||0)+expenses;
 }
 
 function monthlyUpdate(game) {
   game.lastMonthlyProfit=game.monthlyIncome-game.monthlyExpenses;
-  game.history.push({month:game.lastMonth,day:Math.floor(game.day),income:game.monthlyIncome,expenses:game.monthlyExpenses,profit:game.lastMonthlyProfit,money:game.money,population:game.cities.reduce((sum,c)=>sum+c.population,0),delivered:game.totalDelivered});
+  game.lastMonthlyOperatingProfit=game.monthlyIncome-(game.monthlyIncomeAtAccountingStart||0)-(game.monthlyOperatingExpenses||0);
+  game.history.push({month:game.lastMonth,day:Math.floor(game.day),income:game.monthlyIncome,expenses:game.monthlyExpenses,operatingExpenses:game.monthlyOperatingExpenses||0,operatingProfit:game.lastMonthlyOperatingProfit,profit:game.lastMonthlyProfit,money:game.money,population:game.cities.reduce((sum,c)=>sum+c.population,0),delivered:game.totalDelivered});
   if(game.history.length>36)game.history.shift();
-  game.monthlyIncome=0;game.monthlyExpenses=0;
+  game.monthlyIncome=0;game.monthlyExpenses=0;game.monthlyOperatingExpenses=0;game.monthlyIncomeAtAccountingStart=0;
   if(game.money<0)notify(game,'Your company is operating on credit. Launch profitable deliveries or sell an underused service.','warning');
 }
 export function tick(game,days) {
@@ -491,7 +545,7 @@ export function tick(game,days) {
     moveVehicles(game,step);game.day+=step;remaining-=step;
     if(game.day+.00000001>=nextDay) {
       game.day=nextDay;stepIndustries(game,notify);stepSettlements(game);stepEcology(game);maintenance(game);game.lastDailyDay=nextDay;
-      const month=Math.floor(game.day/30);
+      const month=calendarMonth(game);
       if(month>game.lastMonth){monthlyUpdate(game);game.lastMonth=month;}
     }
   }
@@ -507,16 +561,23 @@ export function validateGame(game) {
   if(!Number.isInteger(game.seed)||!finite(game.seed,0,4294967295)||!Number.isInteger(game.revision)||!finite(game.lastMonthlyProfit))return false;
   for(const key of ['cities','industries','stations','routes','vehicles','zones','history','notifications'])if(!Array.isArray(game[key])||game[key].length>10000)return false;
   for(const key of ['totalDelivered','totalRevenue','monthlyIncome','monthlyExpenses','totalExpenses','revision','lastDailyDay','lastMonth'])if(!finite(game[key],0,1e15))return false;
+  for(const key of ['monthlyOperatingExpenses','totalOperatingExpenses','monthlyIncomeAtAccountingStart'])if(game[key]!==undefined&&!finite(game[key],0,1e15))return false;
+  if(game.accountingStartDay!==undefined&&!finite(game.accountingStartDay,0,game.day))return false;
+  if(game.monthlyIncomeAtAccountingStart!==undefined&&game.monthlyIncomeAtAccountingStart>game.monthlyIncome)return false;
+  if(game.lastMonthlyOperatingProfit!==undefined&&!finite(game.lastMonthlyOperatingProfit))return false;
   const ids=new Set();
   const uniqueId=obj=>{if(typeof obj?.id!=='string'||ids.has(obj.id))return false;ids.add(obj.id);return true;};
   if(!game.tiles.every(t=>t&&TERRAIN.has(t.terrain)&&finite(t.elevation)&&(t.detail===undefined||(typeof t.detail==='string'&&t.detail.length<80))&&(t.publicRoad===undefined||typeof t.publicRoad==='boolean')&&Number.isInteger(t.variant)&&['road','rail','bridge','tunnel'].every(k=>typeof t[k]==='boolean')&&(t.zone===null||ZONE_TYPES.includes(t.zone))&&(t.building===null||(t.building&&(owns(BUILDINGS,t.building.kind)||['house','apartment','shop','office','factory'].includes(t.building.kind))&&finite(t.building.level,1,3)))))return false;
   if(!game.cities.every(c=>validPoint(game,c)&&uniqueId(c)&&typeof c.name==='string'&&finite(c.population,0,1e8)&&finite(c.activity,0)&&finite(c.passengers,0)&&finite(c.growth,0)&&finite(c.delivered,0)&&finite(c.supplies,0)))return false;
   if(!game.cities.every(c=>c.lastServiceDay===undefined||c.lastServiceDay===null||finite(c.lastServiceDay,0,game.day)))return false;
+  if(!game.tiles.every(tile=>tile.building?.populationCityId===undefined||tile.building.populationCityId===null||game.cities.some(city=>city.id===tile.building.populationCityId)))return false;
   if(!game.industries.every(i=>validPoint(game,i)&&uniqueId(i)&&owns(INDUSTRIES,i.kind)&&typeof i.name==='string'&&finite(i.capacity,.1,10)&&finite(i.activity,0)&&finite(i.production,0)&&finite(i.shipped,0)&&finite(i.received,0)&&finite(i.idleDays,0)&&i.inventory&&Object.entries(i.inventory).every(([cargo,n])=>owns(CARGO,cargo)&&finite(n,0,1e9))))return false;
   if(!game.industries.every(i=>(i.lastProductionDay===undefined||finite(i.lastProductionDay,0,game.day))&&(i.nextProductionDay===undefined||(Number.isInteger(i.nextProductionDay)&&finite(i.nextProductionDay,0,Math.floor(game.day)+3)))&&(i.nextReviewDay===undefined||(Number.isInteger(i.nextReviewDay)&&finite(i.nextReviewDay,0,Math.floor(game.day)+45)))&&(i.totalProduced===undefined||finite(i.totalProduced,0,1e15))))return false;
   if(!game.stations.every(s=>validPoint(game,s)&&uniqueId(s)&&typeof s.name==='string'&&TRANSPORT_MODES.includes(s.mode)))return false;
   if(!game.zones.every(z=>validPoint(game,z)&&ZONE_TYPES.includes(z.kind)&&finite(z.progress,0,3)))return false;
   if(!game.routes.every(r=>uniqueId(r)&&typeof r.name==='string'&&TRANSPORT_MODES.includes(r.mode)&&owns(CARGO,r.cargo)&&typeof r.active==='boolean'&&finite(r.delivered,0)&&finite(r.revenue,0)&&Array.isArray(r.stops)&&r.stops.length===2&&r.stops.every(id=>game.stations.some(s=>s.id===id&&s.mode===r.mode))&&Array.isArray(r.path)&&r.path.length>1&&r.path.length<=game.tiles.length&&r.path.every(p=>validPoint(game,p))))return false;
+  if(!game.routes.every(route=>route.expenses===undefined||finite(route.expenses,0,1e15)))return false;
+  if(!game.routes.every(route=>(route.accountingStartDay===undefined||finite(route.accountingStartDay,0,game.day))&&(route.revenueAtAccountingStart===undefined||finite(route.revenueAtAccountingStart,0,route.revenue))))return false;
   if(!game.vehicles.every(v=>uniqueId(v)&&game.routes.some(r=>r.id===v.routeId)&&finite(v.x,0,game.width)&&finite(v.y,0,game.height)&&finite(v.angle)&&finite(v.capacity,1,1e9)&&finite(v.load,0,v.capacity)&&finite(v.progress,0,(game.routes.find(r=>r.id===v.routeId)?.path.length||1)-1)&&[1,-1].includes(v.direction)))return false;
   if(!game.vehicles.every(v=>(v.dwellRemaining===undefined||finite(v.dwellRemaining,0,3))&&(v.tripSerial===undefined||(Number.isInteger(v.tripSerial)&&finite(v.tripSerial,0,1e10)))&&(v.totalDistance===undefined||finite(v.totalDistance,0,1e15))))return false;
   const availableLevel=availableVehicleLevel(game);
@@ -528,6 +589,7 @@ export function validateGame(game) {
     for(let i=0;i<2;i++) {const station=game.stations.find(s=>s.id===route.stops[i]);if(distance(station,endpoints[i])!==0)return false;}
   }
   if(!game.history.every(h=>h&&['month','day','income','expenses','profit','money','population','delivered'].every(k=>finite(h[k]))))return false;
+  if(!game.history.every(h=>(h.operatingExpenses===undefined||finite(h.operatingExpenses,0,1e15))&&(h.operatingProfit===undefined||finite(h.operatingProfit))))return false;
   if(!game.notifications.every(n=>n&&typeof n.message==='string'&&typeof n.text==='string'&&typeof n.type==='string'&&finite(n.day,0)))return false;
   return true;
 }
@@ -541,10 +603,13 @@ export function restoreGame(saved) {
   try {
     const game=decodeGame(saved);if(!validateGame(game))return null;
     game.networkRevision??=0;
+    if(game.monthlyOperatingExpenses===undefined)game.monthlyIncomeAtAccountingStart=game.monthlyIncome;
+    game.monthlyOperatingExpenses??=0;game.totalOperatingExpenses??=0;game.lastMonthlyOperatingProfit??=0;game.monthlyIncomeAtAccountingStart??=0;game.accountingStartDay??=game.day;
+    game.lastMonth=calendarMonth(game);
     for(const industry of game.industries)initializeIndustry(game,industry);
     for(const vehicle of game.vehicles){vehicle.dwellRemaining??=0;vehicle.tripSerial??=0;vehicle.level??=0;vehicle.paidPrice??=VEHICLE_COSTS[game.routes.find(route=>route.id===vehicle.routeId).mode];}
     for(const city of game.cities)if(city.lastServiceDay===undefined)city.lastServiceDay=city.delivered>0?game.day:null;
-    for(const route of game.routes)route.pathRevision=-1;
+    for(const route of game.routes){route.pathRevision=-1;if(route.expenses===undefined)route.revenueAtAccountingStart=route.revenue;route.expenses??=0;route.accountingStartDay??=game.day;route.revenueAtAccountingStart??=0;}
     game.maintenanceRevision=-1;
     return game;
   }catch{return null;}

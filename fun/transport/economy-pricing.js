@@ -10,6 +10,11 @@ export function calendarYear(game, day = game.day) {
   return new Date(START_DATE + Math.max(0, Math.floor(day || 0)) * DAY_MS).getUTCFullYear();
 }
 
+export function calendarMonth(game, day = game.day) {
+  const date = new Date(START_DATE + Math.max(0, Math.floor(day || 0)) * DAY_MS);
+  return (date.getUTCFullYear() - 1950) * 12 + date.getUTCMonth();
+}
+
 export function availableVehicleLevel(game) {
   return Math.max(0, calendarYear(game) - 1950);
 }

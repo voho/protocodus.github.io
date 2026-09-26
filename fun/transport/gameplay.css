@@ -1,0 +1,32 @@
+/* Explain the simulation where players make decisions, without covering the map. */
+.project-card{margin:14px 0 3px;padding:12px;border:1px solid #d8e1ca;border-radius:8px;background:#eef2e4;font-size:13px;color:#4c6844}
+.project-card summary{cursor:pointer;min-height:24px;font-size:14px;font-weight:500;line-height:1.5}
+.project-card p{line-height:1.6;margin:10px 0;color:#607456}
+.project-card .small-button{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:44px;background:#fafbf3;font-size:13px}
+.project-card .small-button svg{width:17px;height:17px}
+.entity-search{display:block;margin:0 0 11px}
+.entity-search input,.entity-search select{width:100%;min-height:44px;padding:10px;border:1px solid #d1ddc3;border-radius:6px;background:#f7f8ef;font:inherit;font-size:14px;color:#425e3a}
+.entity-card .site-status{font-size:13px;line-height:1.4;margin:10px 0;color:#477142}
+.site-status[data-state=waiting],.site-status[data-state=full]{color:#8b633a}
+.industry-condition{margin:12px 0;padding:11px 12px;background:#e9efdc;border-radius:7px;font-size:14px;color:#4c6e3d}
+.industry-condition[data-state=waiting],.industry-condition[data-state=full]{background:#f5e8d4;color:#835e35}
+.industry-condition p{margin:6px 0 0;font-size:13px;line-height:1.45;color:inherit}
+.route-health{margin:9px 0 0;font-size:12px;line-height:1.5;color:#627458}
+.route-health[data-state=waiting],.route-health[data-state=blocked]{color:#8b633a}
+.route-header>span:last-child{max-width:96px;text-align:right;font-size:11px;line-height:1.35}
+.hud-tooltip{min-width:275px;max-height:calc(100dvh - 90px);overflow:auto}
+.world-size-options{grid-template-columns:repeat(4,minmax(0,1fr))}
+#atlas-map{box-sizing:content-box;width:min(calc(100% - 10px),calc(55dvh * 4 / 3));height:auto;max-height:none;margin-left:auto;margin-right:auto;aspect-ratio:4/3}
+/* Keep dismissal available while the world options scroll on small screens. */
+#modal:has(.biome-options) .modal-inner{display:grid;grid-template-columns:minmax(0,1fr) 36px;column-gap:10px}
+#modal:has(.biome-options) .modal-heading{display:contents}
+#modal:has(.biome-options) .modal-heading>div{grid-column:1;grid-row:1}
+#modal:has(.biome-options) .close-modal{grid-column:2;grid-row:1;position:sticky;top:12px;align-self:start;z-index:2;width:36px;height:36px;background:#e7eddd;box-shadow:0 1px 6px #36482916}
+#modal:has(.biome-options) .modal-inner>:not(.modal-heading){grid-column:1/-1}
+@media(max-width:700px){
+ .world-size-options{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .world-size-card{min-height:85px;font-size:13px}
+ .world-size-card strong{font-size:14px}
+ .world-size-card span,.world-size-card small{font-size:12px}
+ .hud-tooltip{position:fixed;top:61px;left:8px;right:8px;min-width:0;max-width:370px;margin:auto}
+}

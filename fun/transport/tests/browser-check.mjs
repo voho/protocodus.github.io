@@ -12,6 +12,10 @@ const watch = page => {
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
 };
 const waitForGame = page => page.waitForFunction(() => window.transport?.game && window.transport?.renderer);
+async function clickMapOption(page, selector) {
+  if (!(await page.locator(selector).isVisible())) await page.locator('#map-options-button').click();
+  await page.locator(selector).click();
+}
 try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 960 } });
   watch(page);
@@ -19,7 +23,7 @@ try {
   await waitForGame(page);
   assert.equal(await page.evaluate(() => transport.game.routes.length), 1);
   assert.equal(await page.evaluate(() => transport.game.biome), 'taiga');
-  assert.deepEqual(await page.evaluate(() => [transport.game.width,transport.game.height]),[512,384], 'new games default to a huge world');
+  assert.deepEqual(await page.evaluate(() => [transport.game.width,transport.game.height]),[768,576], 'new games default to a vast world');
   await page.locator('[data-speed="0"]').click();
   const pausedDay = await page.evaluate(() => transport.game.day);
   await page.waitForTimeout(150);
@@ -31,7 +35,7 @@ try {
   await page.keyboard.press('Escape');
   assert.equal(await page.locator('#modal').evaluate(el => el.open), false);
   assert.equal(await page.evaluate(() => transport.speed), 0, 'closing a modal preserves a paused game');
-  await page.locator('#grid-button').click();
+  await clickMapOption(page, '#grid-button');
   assert.equal(await page.locator('#grid-button').getAttribute('aria-pressed'), 'true');
   const initialZoom = await page.evaluate(() => transport.renderer.getCamera().zoom);
   await page.locator('#zoom-in').click();
@@ -145,7 +149,7 @@ try {
   assert.equal(await page.locator('#modal').evaluate(el=>el.open),false);
   const explored=await page.evaluate(()=>transport.renderer.getCamera());
   assert.ok(explored.x>100*32,'the atlas travels beyond the old map boundary');
-  await page.locator('#home-view').click();
+  await clickMapOption(page, '#home-view');
   const cache=await page.evaluate(()=>transport.renderer.getStats());
   assert.ok(cache.maxSurfaceWidth<=2048&&cache.maxSurfaceHeight<=2048,'huge maps never allocate a world-size texture');
   assert.ok(cache.cacheBytes<=cache.cacheLimit,'chunk memory remains bounded');

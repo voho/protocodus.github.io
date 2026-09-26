@@ -10,7 +10,11 @@ await mkdir(output, { recursive: true });
 const errors = [];
 const summaries = [];
 const cameraZoom = page => page.evaluate(() => transport.renderer.getCamera().zoom);
-const chooseView = (page, zoom) => page.locator(`[data-zoom-level="${zoom}"]`).click();
+const chooseView = async (page, zoom) => {
+  if (!(await page.locator('#zoom-menu').isVisible())) await page.locator('#zoom-level').click();
+  await page.locator('#zoom-menu').waitFor({ state: 'visible' });
+  await page.locator(`[data-zoom-level="${zoom}"]`).click();
+};
 try {
   for (const deviceScaleFactor of [1, 2]) {
     const context = await browser.newContext({ viewport: { width: 1440, height: 960 }, deviceScaleFactor });

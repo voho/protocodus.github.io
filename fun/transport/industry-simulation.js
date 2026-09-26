@@ -79,7 +79,7 @@ export function stepIndustries(game,notify=()=>{}){
     }
     if(day>=industry.nextReviewDay){
       const old=industry.capacity,activity=industry.activity||0;
-      if(activity>25){
+      if(activity>25&&industry.totalProduced>0&&industry.idleDays<18){
         industry.capacity=clamp(old+(.035+randomAt(game,day,industry.id,433)*.09)*( .5+conditions.productivity)*Math.min(1.6,.7+activity/250),.5,3);
       }else if(industry.idleDays>18){
         const stock=Object.values(industry.inventory||{}).reduce((max,n)=>Math.max(max,n),0);

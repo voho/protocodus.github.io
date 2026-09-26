@@ -26,22 +26,26 @@ function noise(x, y, seed, scale) {
   return top * (1 - ty) + bottom * ty;
 }
 export const WORLD_SIZES = {
-  regional: { width: 128, height: 96, label: 'Regional', description: '128 × 96 · 8 towns · a compact county' },
-  large: { width: 256, height: 192, label: 'Large', description: '256 × 192 · 16 towns · room to expand' },
-  huge: { width: 512, height: 384, label: 'Huge', description: '512 × 384 · 32 towns · an entire region' },
+  regional: { width: 128, height: 96, towns: 8, clusters: 1, columns: 3, lakes: 4, separation: 14, label: 'Regional', description: '128 × 96 · 8 towns · a compact county' },
+  large: { width: 256, height: 192, towns: 16, clusters: 3, columns: 4, lakes: 7, separation: 19, label: 'Large', description: '256 × 192 · 16 towns · room to expand' },
+  huge: { width: 512, height: 384, towns: 32, clusters: 6, columns: 6, lakes: 13, separation: 24, label: 'Huge', description: '512 × 384 · 32 towns · an entire region' },
+  vast: { width: 768, height: 576, towns: 64, clusters: 12, columns: 8, lakes: 25, separation: 24, label: 'Vast', description: '768 × 576 · 64 towns · a connected continent' },
 };
+export const DEFAULT_WORLD_SIZE = 'vast';
+export const MAX_WORLD_TILES = 768 * 576;
 
 // Terrain stays in seven gameplay categories; details supply local visual character.
-export function generateWorld(biome, seed, size = 'huge') {
-  if (!Object.prototype.hasOwnProperty.call(WORLD_SIZES, size)) size = 'huge';
-  const { width, height } = WORLD_SIZES[size], numericSeed = seedNumber(seed), random = randomSource(seed);
+export function generateWorld(biome, seed, size = DEFAULT_WORLD_SIZE) {
+  if (!Object.prototype.hasOwnProperty.call(WORLD_SIZES, size)) size = DEFAULT_WORLD_SIZE;
+  const config = WORLD_SIZES[size];
+  const { width, height } = config, numericSeed = seedNumber(seed), random = randomSource(seed);
   const phase = random() * Math.PI * 2, scale = width / 100;
   const land = biome === 'desert' ? 'sand' : biome === 'tundra' ? 'snow' : 'grass';
   const nature = BIOME_NATURE[biome];
   const starterX = Math.round(width * .43), starterY = Math.round(height * .47);
   const westRiver = y => width * .20 + Math.sin(y / (9 * scale) + phase) * 4 * scale + Math.sin(y / (3 * scale)) * scale;
   const eastRiver = y => width * .72 + Math.sin(y / (12 * scale) + phase) * 5 * scale;
-  const lakes = Array.from({ length: size === 'huge' ? 13 : size === 'large' ? 7 : 4 }, () => ({
+  const lakes = Array.from({ length: config.lakes }, () => ({
     x: (.12 + random() * .66) * width, y: (.1 + random() * .77) * height,
     rx: 3.5 + random() * 4.5 * Math.sqrt(scale), ry: 2.5 + random() * 3.5 * Math.sqrt(scale),
   }));
@@ -147,11 +151,11 @@ export function generateWorld(biome, seed, size = 'huge') {
   const prefixes = biome === 'taiga' ? ['Birch','Willow','Cedar','Elm','Fern','Oak','Moss','Ash'] : biome === 'tundra' ? ['Ice','Frost','Winter','Snow','White','North','Glacier','Silver'] : ['Amber','Copper','Dune','Palm','Sun','Golden','Red','Saffron'];
   const suffixes = ['ford','haven','field','mere','ridge','bridge','brook','vale'];
   const locations = [[starterX, starterY], [starterX + 24, starterY]];
-  const cityCount = size === 'huge' ? 32 : size === 'large' ? 16 : 8;
+  const cityCount = config.towns;
   // Stratified candidates spread towns across the landmass; a local search follows habitable valleys.
-  const columns = size === 'huge' ? 6 : size === 'large' ? 4 : 3;
+  const columns = config.columns;
   const rows = Math.ceil(cityCount / columns);
-  const separation = size === 'huge' ? 24 : size === 'large' ? 19 : 14;
+  const separation = config.separation;
   for (let attempt = 0; locations.length < cityCount && attempt < cityCount * 200; attempt++) {
     const cell = attempt % (columns * rows);
     const x = Math.round((.08 + ((cell % columns) + .25 + random() * .5) / columns * .73) * width);
@@ -203,7 +207,7 @@ export function generateWorld(biome, seed, size = 'huge') {
   for (let x = starterX; x <= starterX + 24; x++) publicRoad(x, starterY);
 
   const kinds = Object.keys(INDUSTRIES).filter(kind => INDUSTRIES[kind].biomes.includes(biome));
-  const clusters = size === 'huge' ? 6 : size === 'large' ? 3 : 1;
+  const clusters = config.clusters;
   const placed = new Set();
   for (let cluster = 0; cluster < clusters; cluster++) {
     const anchor = game.cities[cluster === 0 ? 0 : Math.min(game.cities.length - 1, Math.floor(cluster * game.cities.length / clusters))];
