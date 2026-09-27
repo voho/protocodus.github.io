@@ -1,8 +1,14 @@
 # Ashline visual assets
 
-## Prepared unit directions (2026-09-27)
+## Generated eight-view unit atlases (2026-09-27)
 
-The runtime now prepares 16 views, spaced 22.5° apart, from each existing unit pose and faction color. These are derived from the source atlases listed below; no new source art was generated. Each view rotates the overhead roof before applying the shared .88 projection and down-screen side depth. The battlefield, portraits, formation previews, and production bays select the nearest view to the unit heading. Cropped canvases retain explicit offsets from the same body anchor and the original native pixel density. Shared directional shadows keep fixed lower-right lighting, and cargo colors/fill levels use a bounded variant cache. Simulation movement and aiming retain continuous headings.
+All 18 unit types now load their own transparent atlas from `directions/<type>.webp`. These are separately generated views with fixed shallow overhead cameras, distinct front/back geometry, and shared identity references. Each vehicle sheet has four columns and two rows in E, SE, S, SW, W, NW, N, NE order; rifle and rocket infantry have four rows, with a second set of eight walking poses. Friendly/enemy colors derive from each view, not separate regenerated designs. Empty hauler hoppers use per-view interior polygons for mineral cargo. The runtime selects the nearest 45° heading, without rotating, reprojecting, or extruding the unit image. It extracts the complete main silhouette from padded cell bounds and normalizes all views and poses together; shadows retain their fixed lower-right direction.
+
+Generated PNGs were converted to lossless RGBA WebP. The exact prompts, source paths and targeted corrections are recorded in [Organics prompts](directions/organics-prompts.md) and [AI Unity prompts](directions/unity-prompts.md). All generation used the built-in imagegen tool. Previous unit sheets below remain identity references and history; the runtime loads only the new directional unit sheets, two building sheets, props, trees, and ground.
+
+## Superseded prepared unit directions (2026-09-27)
+
+The previous runtime prepared 16 views, spaced 22.5° apart, from each existing unit pose and faction color. These were derived from the source atlases listed below; no new source art was generated for that version. Each view rotated the overhead roof before applying the shared .88 projection and down-screen side depth. This pipeline has been replaced by the separately generated eight-view atlases above.
 
 ## Rounded Organics refresh (2026-09-08)
 

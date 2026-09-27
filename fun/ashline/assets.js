@@ -1,6 +1,6 @@
 // Generated art is decoded once; the battlefield only draws small, prepared frames.
 import { UNITS, BUILDINGS as BUILDING_DEFS, buildingRole, unitRole } from './sim.js';
-export const assetStatus = { loaded: 0, total: 11, ready: false, started: false, errors: [] };
+export const assetStatus = { loaded: 0, total: 5 + Object.keys(UNITS).length, ready: false, started: false, errors: [] };
 import { nextPaint } from './loading.js';
 let startLoading;
 const loadingRequested = new Promise(resolve => { startLoading = resolve; });
@@ -11,15 +11,16 @@ export const terrainImages = { ground: null, detail: null };
 const BUILDINGS = Object.assign(Object.create(null), Object.fromEntries(Object.entries(BUILDING_DEFS).map(([type, d]) => [type, d.size])));
 const UNIT_SIZES = { tank: 44, scout: 36, artillery: 56, harvester: 45, rifle: 26, rocket: 32, engineer: 46, striker: 48, constructor: 56 };
 const UNIT_PIXELS = { rifle: 64, rocket: 80, scout: 96, tank: 112, artillery: 128, harvester: 112, engineer: 112, striker: 128, constructor: 128 };
-const UNIT_DEPTH = { tank: 3, scout: 2, artillery: 3, harvester: 4, rifle: 1.5, rocket: 1.5, engineer: 3, striker: 2, constructor: 4 };
-export const UNIT_DIRECTIONS = 16;
+const UNIT_SHADOW_HEIGHT = { tank: 3, scout: 2, artillery: 3, harvester: 4, rifle: 1.5, rocket: 1.5, engineer: 3, striker: 2, constructor: 4 };
+export const UNIT_DIRECTIONS = 8;
 const UNIT_ANGLE_STEP = Math.PI * 2 / UNIT_DIRECTIONS;
 const CARGO_DIRECTION_LIMIT = 16 * 1024 * 1024;
-const cargoDirections = new Map(), sourceIds = new WeakMap();
-let nextSourceId = 0, directionBytes = 0, directionImages = 0, cargoDirectionBytes = 0;
+const cargoDirections = new Map();
+let directionBytes = 0, directionImages = 0, cargoDirectionBytes = 0;
 const sprites = Object.create(null), props = {};
-// Every unit faces east in the source atlas; cached views share one camera elevation.
-const UNIT_CELLS = { rifle: [0, 1] };
+// Each source sheet contains independently drawn E, SE, S, SW, W, NW, N, NE views.
+// Infantry repeats those eight directions for its walking pose.
+const WALKING_ROLES = new Set(['rifle', 'rocket']);
 
 function unitDirection(angle) {
   const direction = Math.round((Number.isFinite(angle) ? angle % (Math.PI * 2) : 0) / UNIT_ANGLE_STEP);
@@ -251,24 +252,61 @@ function hopperLevel(entity) {
   return fill <= 0 ? 0 : fill >= .999 ? 4 : Math.max(1, Math.min(3, Math.round(fill * 4)));
 }
 
-function splitSheet(image, columns, rows, size, keyed, anchored = false, recolor = true, indices = null) {
+function isolateUnit(pixels) {
+  const { data, width, height } = pixels, labels = new Int32Array(width * height);
+  const queue = new Int32Array(labels.length);
+  let label = 0, largestLabel = 0, largest = 0;
+  for (let start = 0; start < labels.length; start++) {
+    if (labels[start] || data[start * 4 + 3] <= 32) continue;
+    label++; let head = 0, tail = 1; queue[0] = start; labels[start] = label;
+    while (head < tail) {
+      const at = queue[head++], x = at % width, y = Math.floor(at / width);
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const nx = x + dx, ny = y + dy, next = ny * width + nx;
+        if (nx < 0 || nx >= width || ny < 0 || ny >= height || labels[next] || data[next * 4 + 3] <= 32) continue;
+        labels[next] = label; queue[tail++] = next;
+      }
+    }
+    if (tail > largest) { largest = tail; largestLabel = label; }
+  }
+  for (let at = 0; at < labels.length; at++) {
+    if (!data[at * 4 + 3] || labels[at] === largestLabel) continue;
+    const x = at % width, y = Math.floor(at / width);
+    let edge = false;
+    // Keep only the chosen body's antialiased edge, never a neighboring cell's fragment.
+    if (data[at * 4 + 3] <= 32) for (let dy = -1; dy <= 1 && !edge; dy++) for (let dx = -1; dx <= 1; dx++) {
+      const nx = x + dx, ny = y + dy;
+      if (nx >= 0 && nx < width && ny >= 0 && ny < height && labels[ny * width + nx] === largestLabel) { edge = true; break; }
+    }
+    if (!edge) data[at * 4 + 3] = 0;
+  }
+  return largest;
+}
+
+function splitSheet(image, columns, rows, size, keyed, anchored = false, recolor = true, indices = null, bleed = 0) {
   const cellWidth = image.width / columns, cellHeight = image.height / rows;
   const cells = [];
   for (const index of indices || Array.from({ length: columns * rows }, (_, i) => i)) {
     const row = Math.floor(index / columns), column = index % columns;
-    const source = canvas(Math.ceil(cellWidth), Math.ceil(cellHeight));
+    const padX = cellWidth * bleed, padY = cellHeight * bleed;
+    const sourceX = column * cellWidth - padX, sourceY = row * cellHeight - padY;
+    const source = canvas(Math.ceil(cellWidth + padX * 2), Math.ceil(cellHeight + padY * 2));
     const ctx = source.getContext('2d', { willReadFrequently: true });
-    ctx.drawImage(image, column * cellWidth, row * cellHeight, cellWidth, cellHeight, 0, 0, source.width, source.height);
+    if (bleed) ctx.drawImage(image, -sourceX, -sourceY);
+    else ctx.drawImage(image, column * cellWidth, row * cellHeight, cellWidth, cellHeight, 0, 0, source.width, source.height);
     const pixels = ctx.getImageData(0, 0, source.width, source.height);
-    if (keyed) { removeMatte(pixels); ctx.putImageData(pixels, 0, 0); }
+    if (keyed) removeMatte(pixels);
+    const mainPixels = bleed ? isolateUnit(pixels) : null;
+    if (keyed || bleed) ctx.putImageData(pixels, 0, 0);
     const box = bounds(pixels, !anchored);
     if (!anchored) { box.cx = box.left + box.width / 2; box.cy = box.top + box.height / 2; }
-    cells.push({ source, box });
+    cells.push({ source, box, padX, padY, sourceBounds: { x: sourceX + box.left, y: sourceY + box.top,
+      width: box.width, height: box.height, mainPixels } });
   }
   // Recenter each source pose on the same output body anchor; animation shares one scale.
   const maxDimension = Math.max(...cells.map(({ box }) => Math.max(box.width, box.height)));
   const maxRadius = Math.max(...cells.map(({ box: b }) => Math.max(b.cx - b.left, b.left + b.width - b.cx, b.cy - b.top, b.top + b.height - b.cy)));
-  return cells.map(({ source, box }) => {
+  return cells.map(({ source, box, padX, padY, sourceBounds }) => {
     const dimension = anchored ? maxDimension : Math.max(box.width, box.height);
     const scale = (size - 8) / (anchored ? maxRadius * 2 : dimension);
     const prepared = canvas(size), ctx = prepared.getContext('2d');
@@ -279,9 +317,11 @@ function splitSheet(image, columns, rows, size, keyed, anchored = false, recolor
       box.width * scale, box.height * scale);
     const friendly = recolor ? factionFrame(prepared, 0) : prepared;
     return { teams: recolor ? [friendly, factionFrame(friendly, 1)] : [prepared],
-      side: anchored ? silhouette(prepared, '#344147') : null,
       shadow: silhouette(prepared, '#0b1117', size * .021),
       contact: silhouette(prepared, '#080f14', size * .008),
+      sourceBounds,
+      sourceSpace: { width: bleed ? cellWidth : source.width, height: bleed ? cellHeight : source.height, scale,
+        x: size / 2 - (box.cx - padX) * scale, y: size / 2 - (box.cy - padY) * scale },
       drawScale: size / (dimension * scale), coverage: box.width * box.height / (source.width * source.height) };
   });
 }
@@ -336,35 +376,25 @@ export const assetsReady = loadingRequested.then(() => Promise.all([
       sprites[type] = [frame];
     });
   }),
-  load('units-hires', image => {
-    for (const [type, indices] of Object.entries(UNIT_CELLS)) {
-      // Normalize each class independently; the long siege gun must not shrink infantry.
-      sprites[type] = splitSheet(image, 3, 2, UNIT_PIXELS[type], true, true, true, indices);
+  ...Object.keys(UNITS).map(type => load(`directions/${type}`, async image => {
+    const role = unitRole(type), poses = WALKING_ROLES.has(role) ? 2 : 1;
+    // Generative sheets can place a weapon slightly across an otherwise empty grid gap.
+    // Read a padded cell and retain its complete main silhouette before normalization.
+    const views = splitSheet(image, 4, poses * 2, UNIT_PIXELS[role], false, true, true, null, .12);
+    const frames = [];
+    for (let pose = 0; pose < poses; pose++) {
+      await nextPaint();
+      const directions = views.slice(pose * UNIT_DIRECTIONS, (pose + 1) * UNIT_DIRECTIONS);
+      for (const view of directions) {
+        view.body = view.teams.map(source => ({ image: source, x: -source.width / 2, y: -source.height / 2,
+          bytes: source.width * source.height * 4 }));
+        view.castShadow = prepareUnitShadow(view, type);
+        for (const cached of [...view.body, view.castShadow]) { directionBytes += cached.bytes; directionImages++; }
+      }
+      frames.push({ ...directions[0], directions });
     }
-  }),
-  load('organics-alien-rocket', image => { sprites.rocket = splitSheet(image, 2, 1, UNIT_PIXELS.rocket, true, true); }),
-  load('organics-vehicles', image => {
-    for (const [index, type] of ['scout', 'tank', 'artillery', 'harvester', 'engineer', 'striker'].entries()) {
-      sprites[type] = splitSheet(image, 3, 2, UNIT_PIXELS[type], true, true, true, [index]);
-      if (type === 'harvester') prepareHopper(sprites[type][0], [0, .18, .54, .85]);
-    }
-  }),
-  load('constructors', image => {
-    for (const [index, type] of ['constructor', 'unityConstructor'].entries()) {
-      sprites[type] = splitSheet(image, 2, 1, UNIT_PIXELS.constructor, true, true, true, [index]);
-    }
-  }),
-  load('unity-light', image => {
-    for (const [type, indices] of Object.entries({ unityRifle: [0, 1], unityScout: [2], unityRocket: [3, 4], unityStriker: [5] })) {
-      sprites[type] = splitSheet(image, 3, 2, UNIT_PIXELS[unitRole(type)], true, true, true, indices);
-    }
-  }),
-  load('unity-heavy', image => {
-    for (const [index, type] of ['unityTank', 'unityArtillery', 'unityHarvester', 'unityEngineer'].entries()) {
-      sprites[type] = splitSheet(image, 2, 2, UNIT_PIXELS[unitRole(type)], true, true, true, [index]);
-      if (unitRole(type) === 'harvester') prepareHopper(sprites[type][0], [0, .18, .56, .85]);
-    }
-  }),
+    sprites[type] = frames;
+  })),
   load('unity-buildings', image => {
     for (const [index, type] of ['unityCore', 'unityReactor', 'unityRefinery', 'unityBarracks', 'unityFactory', 'unityLab', 'unityCapacitor', 'unityTurret', 'unityRocketTower'].entries()) {
       const [frame] = splitSheet(image, 3, 3, BUILDINGS[type] * 64 + 16, true, false, true, [index]);
@@ -384,9 +414,9 @@ export const assetsReady = loadingRequested.then(() => Promise.all([
       const source = frame.teams[0], prepared = canvas(160), ctx = prepared.getContext('2d');
       const side = silhouette(source, '#39332d');
       ctx.translate(80, 80);
-      // Overhead branch layers use the same fixed projection as unit roofs.
-      for (let depth = variant < 4 ? 6 : 2; depth > 0; depth -= 2) drawUnitPlane(ctx, side, 160, 0, 0, depth);
-      drawUnitPlane(ctx, source, 160, 0);
+      // Existing overhead branches retain their own shallow projection.
+      for (let depth = variant < 4 ? 6 : 2; depth > 0; depth -= 2) drawTreePlane(ctx, side, 160, depth);
+      drawTreePlane(ctx, source, 160);
       frame.teams[0] = prepared; frame.shadow = silhouette(prepared, '#0b1117', 2);
     });
   }),
@@ -399,84 +429,109 @@ export const assetsReady = loadingRequested.then(() => Promise.all([
     frame.powerDownTeams = frame.teams.map(powerDownFrame);
     if (frame.hopperTeams) frame.powerDownHoppers = frame.hopperTeams.map(teams => teams.map(powerDownFrame));
   }
-  for (const type of ['harvester', 'refinery', 'unityHarvester', 'unityRefinery']) for (const frame of sprites[type] || []) {
+  for (const type of ['refinery', 'unityRefinery']) for (const frame of sprites[type] || []) {
     await nextPaint();
     frame.mineralHoppers = { 2: frame.hopperTeams.map(teams => teams.map(source => mineralFrame(source, 2))),
       3: frame.hopperTeams.map(teams => teams.map(source => mineralFrame(source, 3))) };
     if (buildingRole(type) === 'refinery') frame.powerDownMineralHoppers = Object.fromEntries(Object.entries(frame.mineralHoppers)
       .map(([type, levels]) => [type, levels.map(teams => teams.map(powerDownFrame))]));
   }
-  for (const type of Object.keys(UNITS)) for (const frame of sprites[type] || []) {
-    // Keep the loading UI responsive while preparing each animation pose.
-    await nextPaint();
-    frame.directions = Array.from({ length: UNIT_DIRECTIONS }, (_, direction) => {
-      const teams = frame.teams.map(source => prepareUnitDirection(frame, type, source, direction));
-      const shadow = prepareUnitDirection(frame, type, null, direction);
-      for (const cached of [...teams, shadow]) { directionBytes += cached.bytes; directionImages++; }
-      return { teams, shadow };
-    });
-  }
   assetStatus.ready = assetStatus.errors.length === 0; return assetStatus;
 });
 
-function drawUnitPlane(ctx, source, size, angle, x = 0, y = 0) {
-  ctx.save(); ctx.translate(x, y);
-  // Fixed camera elevation: turn on the ground plane, then project toward the screen.
-  ctx.scale(1, .88); ctx.rotate(angle);
+function drawTreePlane(ctx, source, size, y = 0) {
+  ctx.save(); ctx.translate(0, y);
+  // Existing tree crowns are overhead layers; unit atlases are already projected.
+  ctx.scale(1, .88);
   ctx.drawImage(source, -size / 2, -size / 2, size, size);
   ctx.restore();
 }
 
-function prepareUnitDirection(frame, type, source, direction) {
-  const role = unitRole(type), pixels = frame.teams[0].width;
-  const density = pixels / (UNIT_SIZES[role] * frame.drawScale), depth = UNIT_DEPTH[role];
-  const offset = 3 + depth, shadow = !source;
-  // Rotate the whole source square safely, including diagonal barrels and blurred edges.
-  const padding = Math.ceil((shadow ? offset * 1.5 : depth) * density) + 4;
-  const width = Math.ceil(pixels * Math.SQRT2) + padding * 2;
-  const height = Math.ceil(pixels * Math.SQRT2 * .88) + padding * 2;
-  const work = canvas(width, height), ctx = work.getContext('2d', { willReadFrequently: true });
-  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
-  ctx.translate(width / 2, height / 2);
-  const angle = direction * UNIT_ANGLE_STEP;
-  if (shadow) {
-    ctx.globalAlpha = .22;
-    drawUnitPlane(ctx, frame.contact, pixels, angle, density, density * 2);
-    ctx.globalAlpha = .32;
-    drawUnitPlane(ctx, frame.shadow, pixels, angle, offset * density, offset * density * 1.5);
-  } else {
-    // Projection follows heading rotation; side depth always extends down-screen.
-    for (let y = depth; y > 0; y--) drawUnitPlane(ctx, frame.side, pixels, angle, 0, y * density);
-    drawUnitPlane(ctx, source, pixels, angle);
-  }
-  const { data } = ctx.getImageData(0, 0, width, height);
-  let left = width, top = height, right = 0, bottom = 0;
-  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) if (data[(y * width + x) * 4 + 3]) {
-    left = Math.min(left, x); right = Math.max(right, x);
-    top = Math.min(top, y); bottom = Math.max(bottom, y);
-  }
-  if (left > right) throw new Error(`Empty directional sprite: ${type}`);
-  // Cropping saves memory without recentering the body or changing its physical scale.
-  left = Math.max(0, left - 2); top = Math.max(0, top - 2);
-  right = Math.min(width - 1, right + 2); bottom = Math.min(height - 1, bottom + 2);
-  const image = canvas(right - left + 1, bottom - top + 1);
-  image.getContext('2d').drawImage(work, left, top, image.width, image.height, 0, 0, image.width, image.height);
-  // Release temporary backing stores promptly rather than waiting for canvas GC.
-  work.width = work.height = 0;
-  return { image, x: left - width / 2, y: top - height / 2,
-    bytes: image.width * image.height * 4 };
+function prepareUnitShadow(frame, type) {
+  const pixels = frame.teams[0].width, role = unitRole(type);
+  const density = pixels / (UNIT_SIZES[role] * frame.drawScale), offset = 3 + UNIT_SHADOW_HEIGHT[role];
+  const padding = Math.ceil(offset * 1.5 * density) + 4;
+  const work = canvas(pixels + padding * 2), ctx = work.getContext('2d');
+  // The generated views already contain their side walls and camera projection.
+  // Shadow offset is screen-fixed; no heading rotation or extra extrusion is applied.
+  ctx.globalAlpha = .22;
+  ctx.drawImage(frame.contact, padding + density, padding + density * 2);
+  ctx.globalAlpha = .32;
+  ctx.drawImage(frame.shadow, padding + offset * density, padding + offset * density * 1.5);
+  return { image: work, x: -work.width / 2, y: -work.height / 2, bytes: work.width * work.height * 4 };
 }
 
-function unitBodyDirection(frame, type, source, direction) {
-  const team = frame.teams.indexOf(source);
-  if (team !== -1) return frame.directions[direction].teams[team];
-  // Cargo colors and fill levels share the regular silhouettes and shadows. Cache
-  // uncommon body variants on demand instead of multiplying every atlas at startup.
-  if (!sourceIds.has(source)) sourceIds.set(source, ++nextSourceId);
-  const key = `${sourceIds.get(source)}:${direction}`;
+// Interior corners in source-cell coordinates, ordered rear-left/front-left/front-right/rear-right.
+// Cargo is drawn into each generated bed; the truck body itself is never transformed.
+const UNIT_HOPPER_REGIONS = {
+  harvester: [
+    [[.17, .315], [.444, .315], [.444, .55], [.17, .55]],
+    [[.383, .174], [.552, .298], [.395, .440], [.232, .316]],
+    [[.640, .135], [.640, .388], [.352, .388], [.352, .135]],
+    [[.779, .300], [.599, .451], [.420, .309], [.603, .142]],
+    [[.895, .518], [.620, .518], [.620, .256], [.895, .256]],
+    [[.700, .585], [.527, .441], [.691, .283], [.878, .430]],
+    [[.352, .635], [.352, .396], [.636, .396], [.636, .635]],
+    [[.121, .439], [.308, .281], [.461, .423], [.306, .583]],
+  ],
+  unityHarvester: [
+    [[.251, .369], [.469, .369], [.469, .546], [.251, .546]],
+    [[.392, .231], [.567, .320], [.417, .408], [.266, .327]],
+    [[.604, .192], [.604, .370], [.388, .370], [.388, .192]],
+    [[.736, .322], [.601, .404], [.450, .320], [.596, .232]],
+    [[.822, .533], [.611, .533], [.611, .369], [.822, .369]],
+    [[.659, .563], [.513, .466], [.659, .348], [.797, .443]],
+    [[.386, .567], [.386, .432], [.604, .432], [.604, .567]],
+    [[.200, .459], [.337, .353], [.488, .466], [.337, .567]],
+  ],
+};
+
+function loadedUnitHopper(view, type, direction, team, level, mineral) {
+  const source = view.teams[team], image = canvas(source.width, source.height), ctx = image.getContext('2d');
+  ctx.drawImage(source, 0, 0);
+  const space = view.sourceSpace;
+  const corners = (UNIT_HOPPER_REGIONS[type] || UNIT_HOPPER_REGIONS.harvester)[direction]
+    .map(([x, y]) => [space.x + x * space.width * space.scale, space.y + y * space.height * space.scale]);
+  const boundary = new Path2D();
+  corners.forEach(([x, y], i) => i ? boundary.lineTo(x, y) : boundary.moveTo(x, y)); boundary.closePath();
+  ctx.save(); ctx.clip(boundary); ctx.globalCompositeOperation = 'source-atop';
+  const palette = mineral === 3 ? ['#a54760', '#df748a', '#ffbcc6']
+    : mineral === 2 ? ['#397899', '#71bfe1', '#c1e9fa'] : ['#487d70', '#82c6a6', '#c9f4d5'];
+  const [a, b, c, d] = corners;
+  const point = (u, v) => [a[0] * (1 - u) * (1 - v) + b[0] * u * (1 - v) + c[0] * u * v + d[0] * (1 - u) * v,
+    a[1] * (1 - u) * (1 - v) + b[1] * u * (1 - v) + c[1] * u * v + d[1] * (1 - u) * v];
+  const breadth = Math.min(Math.hypot(a[0] - d[0], a[1] - d[1]), Math.hypot(b[0] - a[0], b[1] - a[1]));
+  const fill = .12 + level * .21;
+  ctx.fillStyle = palette[0]; ctx.beginPath();
+  [point(.08, .09), point(.92, .09), point(.92, fill), point(.08, fill)]
+    .forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y));
+  ctx.closePath(); ctx.fill();
+  const chunks = [];
+  for (let n = 0; n < Math.ceil(level * 9 / 4); n++) {
+    const [x, y] = point(.18 + (n % 3) * .31, .20 + Math.floor(n / 3) * .30);
+    chunks.push({ x, y, r: breadth * (.20 + (n % 3) * .012) });
+  }
+  // Crystal height stays vertical in screen space at every vehicle heading.
+  for (const { x, y, r } of chunks.sort((a, b) => a.y - b.y)) {
+    ctx.fillStyle = palette[0]; ctx.beginPath(); ctx.moveTo(x - r, y); ctx.lineTo(x, y - r * 1.5);
+    ctx.lineTo(x + r, y); ctx.lineTo(x, y + r * .65); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = palette[1]; ctx.beginPath(); ctx.moveTo(x, y - r * 1.5); ctx.lineTo(x + r, y);
+    ctx.lineTo(x, y + r * .65); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = palette[2]; ctx.lineWidth = Math.max(.7, source.width / 128);
+    ctx.beginPath(); ctx.moveTo(x - r * .7, y - r * .1); ctx.lineTo(x, y - r * 1.5); ctx.lineTo(x + r * .55, y - r * .45); ctx.stroke();
+  }
+  ctx.restore(); return image;
+}
+
+function unitBodyDirection(frame, entity, direction) {
+  const view = frame.directions[direction], team = entity.team === 1 ? 1 : 0;
+  if (unitRole(entity) !== 'harvester' || !hopperLevel(entity)) return view.body[team];
+  const level = hopperLevel(entity), mineral = entity.cargoType === 2 || entity.cargoType === 3 ? entity.cargoType : 1;
+  const key = `${entity.type}:${direction}:${team}:${level}:${mineral}`;
   let cached = cargoDirections.get(key);
   if (cached) { cargoDirections.delete(key); cargoDirections.set(key, cached); return cached; }
-  cached = prepareUnitDirection(frame, type, source, direction);
+  const image = loadedUnitHopper(view, entity.type, direction, team, level, mineral);
+  cached = { image, x: -image.width / 2, y: -image.height / 2, bytes: image.width * image.height * 4 };
   while (cargoDirectionBytes + cached.bytes > CARGO_DIRECTION_LIMIT && cargoDirections.size) {
     const oldest = cargoDirections.keys().next().value;
     cargoDirectionBytes -= cargoDirections.get(oldest).bytes; cargoDirections.delete(oldest);
@@ -519,7 +574,7 @@ export function drawSpriteShadow(ctx, entity, time = 0) {
     ctx.drawImage(frame.shadow, -size / 2 + height * 4, roofY + height * 6, size, size);
   } else {
     ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
-    drawUnitDirection(ctx, frame.directions[unitDirection(entity.angle)].shadow, size, frame.teams[0].width);
+    drawUnitDirection(ctx, frame.directions[unitDirection(entity.angle)].castShadow, size, frame.teams[0].width);
   }
   ctx.restore();
   return true;
@@ -530,16 +585,15 @@ export function drawSprite(ctx, entity, time = 0) {
   if (!sprite) return false;
   const { frame, size, building } = sprite;
   if (!building && !frame.directions) return false;
-  const unpowered = building && entity.powerRatio < 1 && BUILDING_DEFS[entity.type]?.power < 0;
-  const mineralType = buildingRole(entity) === 'refinery' ? entity.processingType : entity.cargoType;
-  const coloredHoppers = frame.mineralHoppers?.[mineralType];
-  const teams = unpowered ? (frame.powerDownMineralHoppers?.[mineralType] || frame.powerDownHoppers)?.[hopperLevel(entity)] || frame.powerDownTeams || frame.teams
-    : frame.idleTeams && !entity.queue?.length && !(entity.processingAmount > 0)
-    ? frame.idleTeams : (coloredHoppers || frame.hopperTeams)?.[hopperLevel(entity)] || frame.teams;
-  const source = teams[entity.team === 1 ? 1 : 0];
   // Applies equally to the battlefield, portraits and units inside production bays.
   ctx.save(); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
   if (building) {
+    const unpowered = entity.powerRatio < 1 && BUILDING_DEFS[entity.type]?.power < 0;
+    const mineralType = entity.processingType, coloredHoppers = frame.mineralHoppers?.[mineralType];
+    const teams = unpowered ? (frame.powerDownMineralHoppers?.[mineralType] || frame.powerDownHoppers)?.[hopperLevel(entity)] || frame.powerDownTeams || frame.teams
+      : frame.idleTeams && !entity.queue?.length && !(entity.processingAmount > 0)
+      ? frame.idleTeams : (coloredHoppers || frame.hopperTeams)?.[hopperLevel(entity)] || frame.teams;
+    const source = teams[entity.team === 1 ? 1 : 0];
     ctx.translate(0, buildingRole(entity) === 'wall' ? 0 : -8);
     ctx.drawImage(source, -size / 2, -size / 2, size, size);
   } else {
@@ -548,7 +602,7 @@ export function drawSprite(ctx, entity, time = 0) {
     if (UNITS[entity.type]?.race === 'aiUnity' && !['rifle', 'rocket', 'scout'].includes(unitRole(entity)) && (entity.moving ?? !!entity.path?.length)) {
       ctx.translate(0, -Math.abs(Math.sin(time * 8 + (entity.id || 0))) * .55);
     }
-    drawUnitDirection(ctx, unitBodyDirection(frame, entity.type, source, unitDirection(entity.angle)), size, frame.teams[0].width);
+    drawUnitDirection(ctx, unitBodyDirection(frame, entity, unitDirection(entity.angle)), size, frame.teams[0].width);
   }
   ctx.restore();
   return true;
@@ -577,6 +631,10 @@ export function drawPropShadow(ctx, type, x, y, size, variant = 0) {
 export function spriteStats() {
   return { ...assetStatus, errors: [...assetStatus.errors],
     frames: Object.fromEntries(Object.entries(sprites).map(([type, frames]) => [type, frames.length])),
+    directionSources: Object.fromEntries(Object.keys(sprites).filter(type => UNITS[type]).map(type => [type, {
+      path: `assets/generated/directions/${type}.webp`, columns: 4, rows: WALKING_ROLES.has(unitRole(type)) ? 4 : 2,
+      cells: sprites[type].map((_, pose) => Array.from({ length: UNIT_DIRECTIONS }, (_, direction) => pose * UNIT_DIRECTIONS + direction)),
+      sourceBounds: sprites[type].map(frame => frame.directions.map(view => ({ ...view.sourceBounds }))) }])),
     directions: Object.fromEntries(Object.entries(sprites).filter(([type]) => UNITS[type])
       .map(([type, frames]) => [type, Math.min(...frames.map(frame => frame.directions?.length || 0))])),
     directionCache: { bytes: directionBytes, images: directionImages, cargoBytes: cargoDirectionBytes,
