@@ -15,6 +15,7 @@ const view = { x: 14, y: 37, zoom: innerWidth <= 680 ? 24 : 38, selected: new Se
 let frameRequest = 0;
 let game = null, launched = false, paused = true, loading = false, activeTab = 'build', orderMode = null;
 let lastTime = performance.now(), accumulator = 0, hudTimer = 0, toastUntil = 0, lastEvent = 0;
+let gameSpeed = 1;
 let pointer = null, pointerPosition = null, lastPortrait = '', lastQueue = '', lastNotice = '', lowPower = false, pinchDistance = 0;
 const touches = new Map();
 let edgePointer = null, wheelTravel = 0, lastZoomAt = 0;
@@ -1014,6 +1015,12 @@ $('home').addEventListener('click', centerBase);
 $('zoom-in').addEventListener('click', () => zoom(1.18));
 $('zoom-out').addEventListener('click', () => zoom(1 / 1.18));
 $('pause').addEventListener('click', () => { if (launched) paused ? resume() : showMenu(); });
+$('game-speed').addEventListener('input', event => {
+  gameSpeed = event.target.valueAsNumber / 100;
+  $('game-speed-value').value = `${event.target.value}%`;
+  event.target.setAttribute('aria-valuetext', `${event.target.value}% game speed`);
+});
+$('game-speed').addEventListener('focus', () => keys.clear());
 $('help').addEventListener('click', () => { if (launched) showMenu(game.status !== 'playing', true); });
 function toggleSfx() { audio.unlock(); audio.setSfxEnabled(!audio.status.sfxEnabled); updateSoundButton(); playSound('select'); }
 $('sound').addEventListener('click', toggleSfx);
@@ -1050,7 +1057,8 @@ function frame(now) {
   if (paused) { updateHUD(); return; }
   const elapsed = Math.min((now - lastTime) / 1000, .2); lastTime = now;
   if (!busy()) {
-    accumulator += elapsed;
+    // Run more fixed simulation steps; camera and interface timing stay in real time.
+    accumulator += elapsed * gameSpeed;
     while (accumulator >= .05) {
       updateGame(game, .05); accumulator -= .05;
       if (game.status !== 'playing') { showMenu(true); playSound(game.status); accumulator = 0; break; }

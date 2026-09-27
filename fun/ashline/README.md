@@ -91,6 +91,7 @@ Open <http://localhost:8000/fun/ashline/>. No build step or installation is requ
 | Mouse wheel / pinch / + / − | Five zoom levels, capped at native 1:1 texture resolution |
 | Shift (or Ctrl) + 1–5 / 1–5 | Assign / select a control group |
 | P | Pause or resume |
+| Speed slider below the minimap | Set simulation speed to 100%, 125%, 150%, 175%, or 200% |
 | B / Command button | Open or close the production console |
 | Escape / × button | Cancel the current action / clear the selection |
 | Sidebar | Construct, recruit, research, and monitor power |

@@ -29,8 +29,8 @@ dialog{color:var(--text);background:#142027;border:1px solid #8bb0b350;padding:0
 #order-hint{display:flex;align-items:center;gap:10px;pointer-events:auto;z-index:4}
 #order-hint-text{min-width:0}
 #cancel-order{flex-shrink:0;min-height:36px;padding:0 10px;border:1px solid var(--line);background:#8dccca12;color:var(--accent);font:10px var(--mono)}
-@media(max-width:680px){body #order-hint,body:has(#repair-building:not([hidden])) #order-hint{bottom:calc(max(130px,var(--selection-height,0px)) + 20px)}body:has(#order-hint:not([hidden])) #select-army{display:none}}
-@media(max-width:680px){body:has(#order-hint:not([hidden])) #notifications{bottom:calc(max(130px,var(--selection-height,0px)) + var(--order-hint-height,70px) + 30px)}}
+@media(max-width:680px){body #order-hint,body:has(#repair-building:not([hidden])) #order-hint{bottom:calc(max(180px,var(--selection-height,0px)) + 20px)}body:has(#order-hint:not([hidden])) #select-army{display:none}}
+@media(max-width:680px){body:has(#order-hint:not([hidden])) #notifications{bottom:calc(max(180px,var(--selection-height,0px)) + var(--order-hint-height,70px) + 30px)}}
 .console-navigation{position:sticky;top:0;z-index:2;flex-shrink:0;background:#142027;box-shadow:0 1px 0 var(--line)}
 .sidebar{scroll-padding-top:90px}
 .console-tabs button{padding-inline:6px;font-size:11px;min-height:42px}
@@ -49,6 +49,11 @@ dialog{color:var(--text);background:#142027;border:1px solid #8bb0b350;padding:0
 #building-upgrades{padding:12px 10px 3px;border-bottom:1px solid var(--line)}#upgrade-target{color:var(--accent);text-transform:none;line-height:1.6}.upgrade-card{display:flex;flex-direction:column;gap:4px;width:100%;min-height:49px;margin-bottom:6px;text-align:left;padding:8px;border:1px solid var(--line);background:#8dccca08}.upgrade-card b{font:11px var(--font)}.upgrade-card span{font:9px/1.5 var(--mono);color:var(--amber)}.upgrade-card:disabled{background:#0c161b50}.upgrade-card[data-state=complete] span{color:var(--accent)}
 #map-description{font:11px/1.65 var(--font);color:var(--muted);margin:-3px 0 17px;min-height:36px}.mission-options{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr)}
 #zoom-level{font:9px var(--mono);color:var(--muted);min-width:25px;text-align:center}.map-tools button:disabled{opacity:.35}.resource>span:last-child{gap:6px}
+.speed-control{padding:6px 9px 3px;border-top:1px solid var(--line)}
+.speed-control label{display:flex;align-items:center;justify-content:space-between;font:10px var(--mono);color:var(--muted)}
+.speed-control output{color:var(--accent);font-variant-numeric:tabular-nums}
+#game-speed{display:block;width:100%;height:24px;margin:0;accent-color:var(--accent);cursor:pointer}
+@media(pointer:coarse){#game-speed{height:36px}}
 @media(min-width:901px){.sidebar{width:246px}.build-card .card-name{font-size:11px}.commandbar{max-width:calc(100% - 480px)}}
 @media(max-width:900px){.unit-actions:has(#upgrade-building:not([hidden])){flex-wrap:wrap;max-width:148px}.unit-actions:has(#upgrade-building:not([hidden])) button{flex:1;min-width:44px;height:42px}.unit-actions:has(#upgrade-building:not([hidden])) button>span{font-size:16px}}
 @media(max-width:680px){.unit-actions:has(#upgrade-building:not([hidden])){max-width:none}.unit-actions #upgrade-building{grid-column:1/-1;height:36px!important}.unit-actions:has(#repair-building:not([hidden])) #upgrade-building>span{display:inline-block}.map-tools button{width:29px}.map-tools #zoom-level{min-width:19px;font-size:8px}.mission-options{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.mission-options label{font-size:9px;letter-spacing:.5px}.mission-options select{font-size:10px}.console-tabs button{min-height:42px}.sidebar{max-height:calc(100dvh - 270px)}#grid-state{margin-top:7px}.research-card{min-height:84px}.resource strong{font-size:12px}.selection-info #building-actions-note{line-height:1.35}.topbar{gap:6px}.resources{gap:8px}}
@@ -57,7 +62,7 @@ dialog{color:var(--text);background:#142027;border:1px solid #8bb0b350;padding:0
 /* Keep notifications and the open console clear of contextual actions. */
 @media(max-width:680px){
   .sidebar{bottom:calc(max(126px,var(--selection-height,0px)) + 80px);max-height:calc(100dvh - 104px - max(126px,var(--selection-height,0px)) - 80px)}
-  #notifications{top:auto;bottom:calc(max(116px,var(--selection-height,0px)) + 16px)}
+  #notifications{top:auto;bottom:calc(max(180px,var(--selection-height,0px)) + 16px)}
   body[data-commands=true] #select-army{display:none}
 }
 @media(min-width:681px) and (max-width:900px){
@@ -133,7 +138,7 @@ body[data-screen=briefing] #game-shell,body[data-screen=loading] #game-shell{vis
 
 @media(max-width:680px){
   /* A selected unit places Army above its action panel; keep toasts above both. */
-  body[data-selection=true] #notifications{bottom:calc(max(116px,var(--selection-height,0px)) + 60px)}
+  body[data-selection=true] #notifications{bottom:calc(max(180px,var(--selection-height,0px)) + 60px)}
 }
 
 /* Idle preferences stay separate from movement orders and their current effect. */
