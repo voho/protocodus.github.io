@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "cd04d706c628",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "fun/tyran/sim.js",
+    "fun/tyran/tests/sim-check.mjs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/cd/04d706c628/0/metadata.json",
+      "transcript": "/cd/04d706c628/0/full.jsonl",
+      "context": "/cd/04d706c628/0/context.md",
+      "content_hash": "/cd/04d706c628/0/content_hash.txt",
+      "prompt": "/cd/04d706c628/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 184,
+    "cache_creation_tokens": 222747,
+    "cache_read_tokens": 6989952,
+    "output_tokens": 50046,
+    "api_call_count": 67
+  }
+}
