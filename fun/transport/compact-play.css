@@ -34,6 +34,10 @@
 #game-menu-button{width:36px;height:36px;background:#e8eddf;color:#42623e}
 #game-menu-button:hover,#game-menu-button[aria-expanded=true]{background:#dce8d2}
 #game-menu-button svg{width:19px;height:19px}
+#game-menu-button[data-alert]{position:relative}
+#game-menu-button[data-alert]::after{content:'';position:absolute;top:5px;right:5px;width:8px;height:8px;border-radius:50%;background:var(--orange);box-shadow:0 0 0 2px #e8eddf}
+#game-menu-button[data-alert]:hover::after,#game-menu-button[data-alert][aria-expanded=true]::after{box-shadow:0 0 0 2px #dce8d2}
+#save-status.save-failed{color:#b65340}
 #game-menu{position:absolute;top:calc(100% + 10px);right:0;width:262px;max-width:calc(100vw - 16px);max-height:calc(100dvh - var(--play-header) - 16px);overflow:auto;border:1px solid var(--ui-edge);border-radius:10px;box-shadow:var(--ui-shadow);background:var(--ui-surface);padding:6px}
 .compact-menu-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 8px 12px;border-bottom:1px solid var(--ui-edge);margin-bottom:5px}
 .compact-menu-heading strong{font-size:14px;font-weight:600;letter-spacing:-.4px}

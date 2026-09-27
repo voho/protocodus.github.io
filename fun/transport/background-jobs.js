@@ -55,11 +55,13 @@ async function openWorld(operation,payload,options={}){
 export function createGameAsync(config,options){return openWorld('create',config,options);}
 export function restoreGameAsync(saved,options){return openWorld('restore',saved,options);}
 
-// Pause simulation and edits only while this phase captures a consistent world;
-// the returned detached snapshot is independent, so play can resume immediately.
+// Pause edits and daily steps only while this phase captures a consistent world.
+// Vehicles may keep moving inside the current day: tiles and route paths do not
+// change until the next daily step, and all other state is cloned up front.
+// The returned detached snapshot is independent, so play can resume immediately.
 export async function captureGame(game,options={}){
-  const day=game.day,revision=game.revision,networkRevision=game.networkRevision;
-  const isCurrent=()=>game.day===day&&game.revision===revision&&game.networkRevision===networkRevision&&(!options.isCurrent||options.isCurrent());
+  const day=Math.floor(game.day+1e-8),revision=game.revision,networkRevision=game.networkRevision;
+  const isCurrent=()=>Math.floor(game.day+1e-8)===day&&game.revision===revision&&game.networkRevision===networkRevision&&(!options.isCurrent||options.isCurrent());
   options.onProgress?.({phase:'capturing'});
   return captureWorld(game,{...options,isCurrent});
 }

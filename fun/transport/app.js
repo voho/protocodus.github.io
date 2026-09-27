@@ -558,8 +558,19 @@ function inspect(x,y,kind='') {
  box.querySelectorAll('[data-target-id]').forEach(el=>el.onclick=()=>locateDestination(el.dataset.targetId,el.dataset.targetKind));
  if(changed)box.scrollTop=0;
 }
-function cancelPendingSave(){const job=pendingSave;pendingSave=null;capturingSave=false;job?.controller.abort();}
-function saveFinished(world,day,revision){savedWorld=world;savedDay=day;savedRevision=revision;saveAt=performance.now();$('#save-status').textContent='Saved just now';}
+// Construction saves wait for a pause in building, so a drag never holds vehicles.
+let constructionSaveTimer=0,saveHealthy=true;
+function persistSoon(delay=3000){clearTimeout(constructionSaveTimer);constructionSaveTimer=setTimeout(()=>{constructionSaveTimer=0;if(!menuOpening)persist();},delay);}
+function markSaveFailed(){
+ const announce=saveHealthy,button=$('#game-menu-button');saveHealthy=false;saveAt=performance.now()+40000;
+ $('#save-status').textContent='Save unavailable';$('#save-status').classList.add('save-failed');
+ button?.setAttribute('data-alert','');button?.setAttribute('aria-label','Game menu · autosave failed');
+ if(announce)toast('Autosave failed: browser storage is full or blocked. Delete older saves in Save / load (Ctrl+S) to free space.',true);
+ return announce;
+}
+function saveRecovered(){saveHealthy=true;$('#save-status').classList.remove('save-failed');$('#game-menu-button')?.removeAttribute('data-alert');$('#game-menu-button')?.setAttribute('aria-label','Game menu');toast('Autosave is working again.');}
+function cancelPendingSave(){clearTimeout(constructionSaveTimer);constructionSaveTimer=0;const job=pendingSave;pendingSave=null;capturingSave=false;job?.controller.abort();}
+function saveFinished(world,day,revision){savedWorld=world;savedDay=day;savedRevision=revision;saveAt=performance.now();$('#save-status').textContent='Saved just now';if(!saveHealthy)saveRecovered();}
 function persist(notify=false){
  saveAt=performance.now();
  if(pendingSave){pendingSave.again=true;pendingSave.notify||=notify;return pendingSave.promise;}
@@ -581,7 +592,11 @@ function persist(notify=false){
    }while(job.again&&current());
    if(job.notify&&current())toast('Game saved.');return true;
   }catch(error){
-   if(current()&&error.name!=='AbortError'){$('#save-status').textContent='Save unavailable';if(job.notify)toast('Your browser could not save this world. Check available storage.',true);}
+   if(current()&&error.name!=='AbortError'){
+    // A world edited through every retry saves on the next timer; only real failures alert.
+    const announced=error.name!=='SnapshotChangedError'&&markSaveFailed();
+    if(!announced){$('#save-status').textContent='Save unavailable';if(job.notify)toast('Your browser could not save this world. Check available storage.',true);}
+   }
    return false;
   }finally{if(current()){pendingSave=null;capturingSave=false;}}
  })();
@@ -594,7 +609,7 @@ function flushSave(){
  if(savedWorld===worldSerial&&savedDay===game.day&&savedRevision===game.revision)return;
  const result=saveGame(game);
  if(result?.ok)saveFinished(worldSerial,game.day,game.revision);
- else $('#save-status').textContent='Save unavailable';
+ else markSaveFailed();
 }
 
 let modalPreviousSpeed = null;
@@ -763,7 +778,7 @@ function constructionLine(a,b,key) {
 }
 function paintPath(points) {
  if(spanTools.has(tool)&&points.length<3){toast('Drag a straight span of at least 3 tiles, including both ends.',true);preview=[];return;}
- const result=buildPlan(game,tool,points,{preferredMode});toast(result.message,!result.ok);preview=[];if(result.ok)refreshRouteConnections(game);updateHud();if(result.ok){persist();if(view!=='build')renderPanel();}
+ const result=buildPlan(game,tool,points,{preferredMode});toast(result.message,!result.ok);preview=[];if(result.ok)refreshRouteConnections(game);updateHud();if(result.ok){persistSoon();if(view!=='build')renderPanel();}
 }
 function pickMapTile(clientX,clientY) {
  if(isRoutePicking()) {
@@ -941,7 +956,8 @@ let painted=null,hudState=null,minimapState=null,panelDay=-1,panelRevision=-1;
 function frame(now){
  const elapsed=Math.min((now-lastFrame)/1000,.15);lastFrame=now;
  if(isLoading()||document.hidden||$('#start-menu')?.open){requestAnimationFrame(frame);return;}
- if(speed>0&&!capturingSave)tick(game,elapsed*speed);
+ // A capture holds only the next daily step; vehicles keep moving inside the day.
+ if(speed>0){if(!capturingSave)tick(game,elapsed*speed);else{const room=Math.floor(game.day+1e-8)+1-game.day-1e-6;if(room>0)tick(game,Math.min(elapsed*speed,room));}}
  const camera=renderer.getCamera(),w=canvas.width,h=canvas.height;
  const changed=!painted||painted.game!==game||painted.day!==game.day||painted.revision!==game.revision||painted.money!==game.money||painted.scene!==sceneRevision||painted.x!==camera.x||painted.y!==camera.y||painted.height!==camera.height||painted.zoom!==camera.zoom||painted.w!==w||painted.h!==h||painted.layers!==mapLayers||painted.tool!==tool||painted.hover!==hover||painted.preview!==preview||painted.selected!==selected||painted.mode!==preferredMode||painted.view!==view||painted.from!==formDraft.from||painted.to!==formDraft.to;
  if(changed){
@@ -960,7 +976,8 @@ function frame(now){
  }
  // No world state changes while paused: avoid rescanning millions of tiles to
  // rewrite the same autosave. Explicit saves and page-leave saves still run.
- if(now-saveAt>20000&&!saveDialogController){if(savedWorld!==worldSerial||savedDay!==game.day||savedRevision!==game.revision)persist();else saveAt=now;}
+ // While running, start early in a day so the capture fits before the next one.
+ if(now-saveAt>20000&&!saveDialogController&&(!speed||game.day-Math.floor(game.day)<.25)){if(savedWorld!==worldSerial||savedDay!==game.day||savedRevision!==game.revision)persist();else saveAt=now;}
  if(now-panelAt>7000&&!$('.sidebar').inert&&(view==='industry'||view==='towns')&&(panelDay!==game.day||panelRevision!==game.revision)){
   if(!$('#entity-list')?.contains(document.activeElement))refreshEntities();panelAt=now;panelDay=game.day;panelRevision=game.revision;
  }

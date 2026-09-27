@@ -93,11 +93,13 @@ Choose **Bulldozer** in Build → Network, or press **X**, then click or drag to
 
 The simulation runs at 1×, 3× or 8× speed. One real second represents one day at 1×. You can build while paused, and dialogs pause the simulation while open.
 
-The game autosaves to local storage when a company is activated, after construction and route changes, every 20 seconds while the world changes, and when hiding or leaving gameplay. Reloading returns to the main menu; choose **Load game → Autosave** to continue the latest company. Hidden tabs do not advance the simulation, and there is no offline time progression.
+The game autosaves to local storage when a company is activated, three seconds after your last construction stroke, after route changes, every 20 seconds while the world changes, and when hiding or leaving gameplay. Reloading returns to the main menu; choose **Load game → Autosave** to continue the latest company. Hidden tabs do not advance the simulation, and there is no offline time progression.
 
 A full-screen loading view shows progress while opening the game, creating a world or restoring a save. Generation and restoration run in the background, keeping the loading screen responsive. Choose **Cancel** or press **Escape** during creation or restoration to return without replacing your current world or autosave. The map appears when its first view is ready; the loading animation respects reduced-motion preferences.
 
-Autosaves briefly hold simulation while capturing a consistent checkpoint, then let play continue while the save is encoded in the background. Closing or hiding the page takes a final synchronous checkpoint so the browser cannot abandon your latest progress with an unfinished worker.
+Vehicles keep moving while an autosave captures its checkpoint; only the next day's economy waits until the capture is complete, which on large maps at 8× can take a fraction of a second. The save is then encoded in the background. Closing or hiding the page takes a final synchronous checkpoint so the browser cannot abandon your latest progress with an unfinished worker.
+
+If browser storage is full or blocked, a notice appears once, the Game menu button shows an orange dot and the menu reads **Save unavailable**. Delete older saves in **Save / load** to free space; the dot clears and a short notice confirms when autosave works again.
 
 Open **Game menu → Save / load** or press **Ctrl+S / Cmd+S**. Give the current world a name and choose **Save game** to keep an independent snapshot. The dialog lists each saved company's landscape, game date, balance and save time. You can load, rename, overwrite or delete named slots. The in-game dialog confirms loading, overwriting and deleting; loading replaces the active world and its autosave. Named snapshots change only when you overwrite them, so generating a new world preserves your other companies.
 
@@ -192,7 +194,7 @@ TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/brow
 
 Set `TRANSPORT_PLAYWRIGHT` to an absolute Playwright module path if it is not installed in the current Node environment. The smoke exercises desktop construction and routes, saving and reloading huge worlds, all building collections, civic placement, atlas navigation, rendering cache limits, biome generation, the delivery milestone, and mobile management and navigation. It writes screenshots to `/tmp/transport-qa` by default.
 
-The focused autosave check waits for a real timed write, leaves the page, and verifies restoration without creating a named save:
+The focused autosave check waits for a real timed write, leaves the page, and verifies restoration without creating a named save. It then blocks storage and checks the single failure notice, the Game menu marker and recovery:
 
 ```sh
 TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/autosave-browser-check.mjs

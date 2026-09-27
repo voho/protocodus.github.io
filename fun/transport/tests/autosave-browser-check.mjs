@@ -49,8 +49,40 @@ try {
   assert.deepEqual(restored.routes, beforeNavigation.routes);
   assert.ok(restored.day >= beforeNavigation.day && restored.day < beforeNavigation.day + 2);
   assert.ok(restored.delivered >= beforeNavigation.delivered);
+
+  // Full or blocked storage is announced once, marked on the game menu, and cleared by the next good save.
+  await page.evaluate(() => {
+    window.autosaveNotices = [];
+    new MutationObserver(records => { for (const record of records) for (const node of record.addedNodes) if (node.textContent?.includes('Autosave')) window.autosaveNotices.push({ text:node.textContent, error:node.classList.contains('error') }); })
+      .observe(document.querySelector('#toast-region'), { childList:true });
+    const setItem = Storage.prototype.setItem;
+    window.restoreStorage = () => { Storage.prototype.setItem = setItem; };
+    Storage.prototype.setItem = function (key, value) { if (String(key).startsWith('transport')) throw new DOMException('The quota has been exceeded.', 'QuotaExceededError'); return setItem.call(this, key, value); };
+  });
+  await page.locator('[data-speed="8"]').click();
+  await page.waitForTimeout(22000);
+  const failed = await page.evaluate(() => window.autosaveNotices);
+  assert.equal(failed.length, 1, 'the first failing autosave is announced');
+  assert.equal(failed[0].error, true);
+  assert.match(failed[0].text, /Autosave failed: browser storage is full or blocked/);
+  const menuButton = page.locator('#game-menu-button');
+  assert.equal(await menuButton.getAttribute('data-alert'), '');
+  assert.equal(await menuButton.getAttribute('aria-label'), 'Game menu · autosave failed');
+  assert.equal(await page.locator('#save-status').textContent(), 'Save unavailable');
+  assert.equal(await page.locator('#save-status').evaluate(el => el.classList.contains('save-failed')), true);
+  await page.waitForTimeout(22000);
+  assert.equal(await page.evaluate(() => transport.persist()), false);
+  assert.equal((await page.evaluate(() => window.autosaveNotices)).length, 1, 'later failures do not repeat the notice');
+  assert.equal(await page.evaluate(() => { window.restoreStorage(); return transport.persist(); }), true);
+  assert.equal(await menuButton.getAttribute('data-alert'), null);
+  assert.equal(await menuButton.getAttribute('aria-label'), 'Game menu');
+  assert.equal(await page.locator('#save-status').evaluate(el => el.classList.contains('save-failed')), false);
+  const recovered = await page.evaluate(() => window.autosaveNotices);
+  assert.equal(recovered.length, 2);
+  assert.equal(recovered[1].text, 'Autosave is working again.');
+  assert.equal(recovered[1].error, false);
   assert.deepEqual(errors, []);
-  console.log('Autosave browser check passed: initial save, timed progress, leaving, menu preservation and loading Autosave; no manual save used.');
+  console.log('Autosave browser check passed: initial save, timed progress, leaving, menu preservation, loading Autosave and failed-storage notices; the Save dialog is never used.');
 } finally {
   await browser.close();
 }
