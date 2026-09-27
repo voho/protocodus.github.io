@@ -551,6 +551,8 @@ function lavaSurface(pool, time) {
     const x = Math.sin(time * .1 + pool.phase) * 20, y = Math.sin(time * .08 + pool.phase * 1.7) * 14;
     ctx.drawImage(pool.flow, x - 24, y - 24);
     ctx.globalCompositeOperation = 'destination-in'; ctx.drawImage(pool.mask, 0, 0);
+    // The rim shades the lowered surface, so the relief stays still as lava flows.
+    ctx.globalCompositeOperation = 'source-atop'; ctx.drawImage(pool.innerShade, 0, 0);
     ctx.globalCompositeOperation = 'source-over'; pool.flowTime = time;
   }
   return pool.surface;
@@ -790,7 +792,7 @@ export class Renderer {
     const rockMask = tileMask(i => state.terrain[i] === 1, 3);
     const basaltMask = tileMask((i, x, y) => coherentBasalt(state, i, x, y));
     // One blurred scorch stain around every lava pool; the basalt banks later cover its inner part.
-    if (state.terrain.includes(3)) stamp(tileMask(i => state.terrain[i] === 3, 2), '#1d100b', 0, 0, .6, 14);
+    if (state.terrain.includes(3)) stamp(tileMask(i => state.terrain[i] === 3, 2), '#1d100b', 0, 0, .35, 10);
     stamp(basaltMask, '#7a7d76', 0, -1, .18);
     yield* plate(basaltMask, (x, y, data, at) => {
       const fleck = smoothNoise(x / 36, y / 36, seed + 61), seam = smoothNoise(x / 92, y / 92, seed + 67);
@@ -854,27 +856,54 @@ export class Renderer {
       const mask = document.createElement('canvas'); mask.width = w; mask.height = h;
       const m = mask.getContext('2d');
       for (const i of cells) rect(m, (i % state.width - x0) * TILE + 16, (Math.floor(i / state.width) - y0) * TILE + 16, TILE, TILE, '#1d100b');
-      const layers = Array.from({ length: 3 }, () => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; });
+      const layers = Array.from({ length: 4 }, () => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; });
       const bank = layers[0].getContext('2d'); bank.filter = 'blur(9px)'; bank.drawImage(mask, 0, 0); bank.filter = 'none';
-      const pixels = bank.getImageData(0, 0, w, h), shore = m.createImageData(w, h);
+      const pixels = bank.getImageData(0, 0, w, h), shore = m.createImageData(w, h), shade = m.createImageData(w, h);
+      const edges = new Float32Array(w * h), coverage = new Uint8Array(w * h);
       for (let y = 0; y < h; y++) {
         if (y % 8 === 0) yield;
         for (let x = 0; x < w; x++) {
         const i = (y * w + x) * 4, raw = pixels.data[i + 3];
+        coverage[y * w + x] = raw;
         if (!raw) continue;
         const wx = x0 * TILE + x - 16, wy = y0 * TILE + y - 16;
         // A broad wander plus fine grit turns the tile outline into an irregular shoreline.
-        const grain = smoothNoise(wx / 24, wy / 24, this.seed + 71) * .65 + smoothNoise(wx / 6, wy / 6, this.seed + 73) * .35, grit = noise(wx, wy, this.seed + 79);
-        const edge = raw - (grain - .5) * 100;
-        const alpha = Math.max(0, Math.min(255, (edge - 138) * 4));
-        // Dark basalt bank, warmed where it meets the melt.
-        const heatTint = Math.max(0, Math.min(1, (edge - 110) / 40)), rock = 28 + grain * 18 + grit * 12 + Math.max(0, 150 - raw) * .08;
-        pixels.data.set([rock + heatTint * 26, rock * .94 + heatTint * 6, rock * .86, Math.max(0, Math.min(255, (edge - 84) * 5))], i);
+        const grain = smoothNoise(wx / 24, wy / 24, this.seed + 71) * .65 + smoothNoise(wx / 6, wy / 6, this.seed + 73) * .35;
+        edges[y * w + x] = raw - (grain - .5) * 100;
+      }
+      }
+      const edgeAt = (x, y) => x >= 0 && y >= 0 && x < w && y < h ? edges[y * w + x] : 0;
+      const coverageAt = (x, y) => x >= 0 && y >= 0 && x < w && y < h ? coverage[y * w + x] : 0;
+      const clamp01 = value => Math.max(0, Math.min(1, value));
+      for (let y = 0; y < h; y++) {
+        if (y % 8 === 0) yield;
+        for (let x = 0; x < w; x++) {
+        const i = (y * w + x) * 4, edge = edges[y * w + x];
+        const wx = x0 * TILE + x - 16, wy = y0 * TILE + y - 16;
+        const grain = (pixels.data[i + 3] - edge) / 100 + .5, grit = noise(wx, wy, this.seed + 79);
+        // The floor is inset and six world pixels below the ground lip. Intersect
+        // with the opening so the near bank occludes it instead of casting outside.
+        const floorEdge = Math.min(edge, edgeAt(x, y - 6));
+        const alpha = Math.max(0, Math.min(255, (floorEdge - 150) * 5));
+        const gx = edgeAt(x + 2, y) - edgeAt(x - 2, y), gy = edgeAt(x, y + 2) - edgeAt(x, y - 2);
+        // Concave lighting: upper-left inner walls are shaded; the opposite
+        // slope catches a narrow ground-colored bevel, never a glowing outline.
+        const light = Math.max(0, -(gx + gy) / (Math.hypot(gx, gy) || 1) * Math.SQRT1_2);
+        const depth = clamp01((edge - 110) / 75), rim = Math.max(0, 1 - Math.abs(edge - 110) / 14);
+        const rock = 44 + grain * 10 + grit * 5 - depth * 20 + light * (depth * 15 + rim * 12);
+        const heatTint = clamp01((floorEdge - 142) / 60);
+        pixels.data.set([rock + heatTint * 12, rock * .94 + heatTint * 3, rock * .86, Math.max(0, Math.min(255, (edge - 84) * 5))], i);
         shore.data.set([29, 16, 11, alpha], i);
+        // Shade from the basin outline, not its grit: fully open interiors stay hot.
+        const floorCoverage = Math.min(coverageAt(x, y), coverageAt(x, y - 6));
+        const contact = clamp01((235 - floorCoverage) / 70) * .4;
+        const cast = clamp01((coverageAt(x, y) - coverageAt(x - 4, y - 12)) / 100) * .6;
+        shade.data.set([13, 10, 8, Math.min(.75, contact + cast) * 255], i);
       }
       }
       bank.putImageData(pixels, 0, 0);
       m.putImageData(shore, 0, 0);
+      layers[3].getContext('2d').putImageData(shade, 0, 0);
       // The molten texture is computed at half resolution (its folds are far wider than 2 px) and upsampled.
       const flow = layers[2]; flow.width = w + 48; flow.height = h + 48;
       const half = document.createElement('canvas'); half.width = Math.ceil(flow.width / 2); half.height = Math.ceil(flow.height / 2);
@@ -896,10 +925,9 @@ export class Renderer {
       }
       hc.putImageData(heat, 0, 0);
       const f = flow.getContext('2d'); f.imageSmoothingEnabled = true; f.imageSmoothingQuality = 'high'; f.drawImage(half, 0, 0, flow.width, flow.height);
-      const pool = { cells, x: x0 * TILE - 16, y: y0 * TILE - 16, width: w, height: h, surface: layers[1], flow, mask, phase: noise(start, 7, this.seed) * Math.PI * 2 };
-      ctx.save(); ctx.shadowColor = '#130f1299'; ctx.shadowBlur = 4; ctx.shadowOffsetY = 3;
+      const pool = { cells, x: x0 * TILE - 16, y: y0 * TILE - 16, width: w, height: h, surface: layers[1], flow, mask, innerShade: layers[3], phase: noise(start, 7, this.seed) * Math.PI * 2 };
+      ctx.save();
       ctx.drawImage(layers[0], pool.x, pool.y, pool.width, pool.height);
-      ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
       ctx.drawImage(lavaSurface(pool, 0), pool.x, pool.y, pool.width, pool.height); ctx.restore();
       this.lavaPools.push(pool);
     }
