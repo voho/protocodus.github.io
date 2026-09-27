@@ -118,7 +118,7 @@ This improves responsiveness, not total throughput. Including the benchmark's fi
 
 Vehicles no longer stop during autosave capture. Daily steps wait for the capture, and periodic saves start early in a day, so at 1× no frame is held up to 2048² and at 8× the hold is about 85 ms at 1024² and 640 ms at 2048² (previously about 0.2 s at 512², 0.7 s at 1024² and 2.9 s at 2048², at every speed). Tiles that `delete` has put into dictionary mode (terrain object release, bulldozing) used to make every later tile take generic per-key loads; plain tiles now only check their key names. After about 30 played days, capture takes 31 ms instead of 118 ms at 512² and 123 ms instead of 462 ms at 1024², and freshly generated worlds are unchanged (28 and 107 ms). Construction autosaves wait three seconds after the last stroke, so a drag never holds vehicles.
 
-Browser regression checks cover startup, cancellation by button/Escape, save-slot round trips, quotas, delayed stale worker responses, overlapping saves, continued simulation during encoding and the final page-leave checkpoint. The new UI scenarios pass on both 512² and 2048² maps. All 417 model tests pass.
+Browser regression checks cover startup, cancellation by button/Escape, save-slot round trips, quotas, delayed stale worker responses, overlapping saves, continued simulation during encoding and the final page-leave checkpoint. The new UI scenarios pass on both 512² and 2048² maps. All 431 model tests pass.
 
 ```sh
 node fun/transport/tests/background-jobs-browser-check.mjs

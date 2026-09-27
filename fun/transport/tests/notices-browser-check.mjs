@@ -145,6 +145,11 @@ try {
   assert.equal(await page.evaluate(() => transport.game.money), money, 'reviewing upgrades never spends money');
   assert.equal(await page.locator('.nav-button[data-view="routes"]').getAttribute('aria-expanded'), 'true');
   assert.equal((await toastsSince(page, from)).filter(toast => /^1951/.test(toast.text)).length, 1, 'one year toast per January');
+  // The review followed a mouse click, so Space still pauses and resumes instead of pressing Upgrade all.
+  await page.keyboard.press('Space');
+  assert.equal(await page.evaluate(() => transport.speed), 8, 'Space after a clicked review resumes play');
+  assert.match(await page.locator('#fleet-upgrade-note').innerText(), /vehicles ready/, 'Space after a clicked review never upgrades the fleet');
+  await page.keyboard.press('Space');
 
   // The Towns search keeps focus and text across a January repricing.
   await page.locator('.nav-button[data-view="towns"]').click();

@@ -113,7 +113,7 @@
 .purchase-vehicle .form-summary{flex:1;min-width:0;flex-wrap:wrap;gap:5px}
 /* Pinches on the game chrome never zoom the page; dialogs stay zoomable, and a zoomed page takes map pinches back. */
 .compact-play:not(.page-zoomed)>:is(.topbar,.workspace,.statusbar){touch-action:pan-x pan-y}
-.compact-play:not(.page-zoomed) :is(.map-bottomline,#active-tool-bar,.route-pick-banner){touch-action:none}
+.compact-play:not(.page-zoomed) :is(.map-bottomline,#active-tool-bar,.route-pick-banner,.toast-action){touch-action:none}
 .compact-play.page-zoomed #world{touch-action:pinch-zoom}
 html,body{overscroll-behavior:none}
 #panel-content,#inspector,#game-menu,#modal{overscroll-behavior:contain}

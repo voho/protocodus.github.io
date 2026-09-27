@@ -565,10 +565,10 @@ function markSaveFailed(){
  const announce=saveHealthy,button=$('#game-menu-button');saveHealthy=false;saveAt=performance.now()+40000;
  $('#save-status').textContent='Save unavailable';$('#save-status').classList.add('save-failed');
  button?.setAttribute('data-alert','');button?.setAttribute('aria-label','Game menu · autosave failed');
- if(announce)toast('Autosave failed: browser storage is full or blocked. Delete older saves in Save / load (Ctrl+S) to free space.',true);
+ if(announce)toast('Autosave failed: browser storage is full or blocked. Delete older saves in Save / load (Ctrl+S) to free space.',{type:'error',key:'autosave-failed'});
  return announce;
 }
-function saveRecovered(){saveHealthy=true;$('#save-status').classList.remove('save-failed');$('#game-menu-button')?.removeAttribute('data-alert');$('#game-menu-button')?.setAttribute('aria-label','Game menu');toast('Autosave is working again.');}
+function saveRecovered(){saveHealthy=true;$('#save-status').classList.remove('save-failed');$('#game-menu-button')?.removeAttribute('data-alert');$('#game-menu-button')?.setAttribute('aria-label','Game menu');[...$('#toast-region').children].find(el=>el.toastKey==='autosave-failed')?.remove();toast('Autosave is working again.');}
 function cancelPendingSave(){clearTimeout(constructionSaveTimer);constructionSaveTimer=0;const job=pendingSave;pendingSave=null;capturingSave=false;job?.controller.abort();}
 function saveFinished(world,day,revision){savedWorld=world;savedDay=day;savedRevision=revision;saveAt=performance.now();$('#save-status').textContent='Saved just now';if(!saveHealthy)saveRecovered();}
 function persist(notify=false){
@@ -734,7 +734,9 @@ function reviewUpgrades() { closeModal();setView('routes');revealInPanel($('.fle
 function revealInPanel(el,focusTarget=el) {
  const panel=$('#panel-content');if(!el||!panel.contains(el))return;
  const box=el.getBoundingClientRect(),area=panel.getBoundingClientRect();panel.scrollTop+=box.top-area.top-Math.max(0,(area.height-box.height)/2);
- focusTarget?.focus({preventScroll:true});if(focusTarget&&document.activeElement!==focusTarget)setTimeout(()=>{if(!document.activeElement||document.activeElement===document.body)focusTarget.focus({preventScroll:true});},200);
+ // Focus moved for a mouse click keeps Space as pause, so a press never activates the revealed control.
+ const owned=pointerFocus!==null,focus=()=>{focusTarget.focus({preventScroll:true});if(owned&&document.activeElement===focusTarget)pointerFocus=focusTarget;};
+ if(focusTarget)focus();if(focusTarget&&document.activeElement!==focusTarget)setTimeout(()=>{if(!document.activeElement||document.activeElement===document.body)focus();},200);
 }
 // Every freight route launched this session is watched; loaded routes only if they have not delivered yet.
 function watchRoutes() {
