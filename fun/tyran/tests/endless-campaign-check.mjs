@@ -108,7 +108,7 @@ for (const level of [9, 10, 19, 20, 10000, Number.MAX_SAFE_INTEGER]) {
     assert.equal(state.director.wave, wave); assert(state.enemies.length <= 28);
     assert(state.director.timeout <= 44);
     for (const enemy of state.enemies) {
-      if (enemy.pathSpeed != null) assert(enemy.pathSpeed <= 518);
+      if (enemy.pathSpeed != null) assert(enemy.pathSpeed > 0 && enemy.pathSpeed <= 650);
       if (enemy.hold != null) assert(enemy.hold <= 40);
       assert(Number.isFinite(enemy.hp));
     }

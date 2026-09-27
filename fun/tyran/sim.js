@@ -1,6 +1,7 @@
 import { normalizeLevel, combatTier, cycleScale } from './campaign.js';
 import { ENEMY_TYPES } from './ships.js';
 import { normalizeDifficulty, difficultyProfile } from './difficulty.js';
+import { waveTactics, applyTactics } from './tactics.js';
 import { createDirector, updateDirector, enemyGoal, isDormant, startChallenge, updateChallenge, tractorReach, startDive, DIVE_LOOP } from './waves.js';
 
 export const UPGRADES = [
@@ -375,22 +376,92 @@ export function spawnEnemy(s, type, x, y = -100) {
   return e;
 }
 
-export function spawnFormation(s, kind = FORMATIONS[Math.floor((s.nextFormationId - 1) % FORMATIONS.length)], wave = null) {
-  kind = kind || FORMATIONS[Math.floor((s.nextFormationId - 1) % FORMATIONS.length)];
+// Resolved offsets are saved; this derived fit/velocity cache is rebuilt once
+// on restoration or resize without adding mutable choreography to the save.
+const formationGeometry = new WeakMap();
+const formationMotion = { x: 0, y: 0 };
+function fitFormation(s, formation, radii) {
+  const offsets = formation.offsets, orbit = formation.kind === 'orbit', wiggle = formation.kind === 'pincer' ? 15 : 0;
+  const maxRadius = formation.hullRadius || Math.max(...radii, 12), available = Math.max(1, s.width * .5 - maxRadius - wiggle - 20);
+  let extent = 0;
+  for (const offset of offsets) extent = Math.max(extent, orbit ? Math.hypot(offset.x, offset.y) : Math.abs(offset.x));
+  const fit = Math.min(1, available / Math.max(1, extent));
+  if (fit < 1) for (const offset of offsets) { offset.x *= fit; if (orbit) offset.y *= fit; }
+  if (!orbit && (formation.entry || fit < 1)) {
+    // Compressing a wide rank is not enough: six large hulls still need their
+    // physical space. Reflow crowded groups into depth without changing their
+    // member order, leaving their lower edge above the pilot's normal row.
+    const separation = maxRadius * 2 + wiggle * 2 + 12;
+    let closest = Infinity, horizontal = 0;
+    for (const offset of offsets) horizontal = Math.max(horizontal, Math.abs(offset.x));
+    for (let i = 0; i < offsets.length; i++) for (let j = i + 1; j < offsets.length; j++) {
+      closest = Math.min(closest, Math.hypot(offsets[i].x - offsets[j].x, offsets[i].y - offsets[j].y));
+    }
+    const growth = separation / Math.max(1, closest);
+    if (growth > 1 + 1e-6 && horizontal * growth <= available) {
+      // On a wide arena, expand the authored V/escort/pincer before considering
+      // extra rows, so its tactical silhouette stays recognizable.
+      for (const offset of offsets) { offset.x *= growth; offset.y *= growth; }
+    } else if (growth > 1 + 1e-6) {
+      const columns = Math.max(1, Math.min(offsets.length, 1 + Math.floor(available * 2 / separation)));
+      const rows = Math.ceil(offsets.length / columns), arms = formation.kind === 'pincer' && columns >= 2;
+      for (let i = 0; i < offsets.length; i++) {
+        const row = arms ? i % Math.ceil(offsets.length / 2) : Math.floor(i / columns);
+        const col = arms ? Math.floor(i / Math.ceil(offsets.length / 2)) : i % columns;
+        const rowColumns = arms ? 2 : Math.min(columns, offsets.length - row * columns);
+        offsets[i].x = (col - (rowColumns - 1) * .5) * separation;
+        offsets[i].y = (row - ((arms ? Math.ceil(offsets.length / 2) : rows) - 1) * .5) * separation;
+      }
+    }
+  }
+  let left = 0, right = 0, top = 0, bottom = 0;
+  for (let i = 0; i < offsets.length; i++) {
+    const offset = offsets[i], radius = formation.hullRadius || radii[i] || maxRadius, span = orbit ? Math.hypot(offset.x, offset.y) : 0;
+    left = Math.min(left, (orbit ? -span : offset.x) - radius - wiggle);
+    right = Math.max(right, (orbit ? span : offset.x) + radius + wiggle);
+    top = Math.min(top, (orbit ? -span : offset.y) - radius - wiggle);
+    bottom = Math.max(bottom, (orbit ? span : offset.y) + radius + wiggle);
+  }
+  const minX = Math.min(s.width * .5, 20 - left), maxX = Math.max(s.width * .5, s.width - 20 - right);
+  const side = formation.entry === 'left' ? -1 : formation.entry === 'right' ? 1 : 0;
+  const startX = side < 0 ? -right - 40 : side > 0 ? s.width - left + 40 : formation.baseX;
+  const entryTime = side ? Math.max(4.8, Math.abs(clamp(formation.baseX, minX, maxX) - startX) / 220) : 480 / 84;
+  const geometry = { width: s.width, radii, minX, maxX, startX, startY: -bottom - 40, entryTime, vx: 0, vy: 0 };
+  formationGeometry.set(formation, geometry);
+  return geometry;
+}
+
+export function spawnFormation(s, kind = null, wave = null, order = 0) {
+  const tactic = wave == null ? null : waveTactics(s.level, wave), slot = Math.abs(Math.floor(order)) % 2;
+  kind = kind || (tactic ? tactic.formationKinds[slot] : FORMATIONS[Math.floor((s.nextFormationId - 1) % FORMATIONS.length)]);
   if (s.bossSpawned || !FORMATION_LAYOUTS[kind] || (wave == null && s.enemies.length > 15)) return null;
   const offsets = FORMATION_LAYOUTS[kind].map(([x, y]) => ({ x, y }));
-  const anchor = { id: s.nextFormationId++, kind, label: formationName(kind), age: 0, baseX: rand(s.width * .25, s.width * .75), x: 0, y: -150, offsets, members: offsets.length };
+  const anchor = { id: s.nextFormationId++, kind, label: formationName(kind), age: 0, baseX: tactic ? s.width * (.5 + .15 * tactic.formationDrift) : rand(s.width * .25, s.width * .75), x: 0, y: -150, offsets, members: offsets.length };
+  if (tactic) Object.assign(anchor, { entry: tactic.formationEntries[slot], motionSpeed: tactic.formationSpeed, drift: tactic.formationDrift });
   anchor.x = anchor.baseX;
   s.formations.push(anchor);
   // Scripted formation waves scale with the sector; free formations with elapsed time.
-  const tier = wave == null ? clamp(Math.floor(s.time / 14) + Math.floor(combatTier(s.level) / 3), 0, 6) : clamp(1 + Math.floor(combatTier(s.level) / 2), 0, 5);
+  const tier = wave == null ? clamp(Math.floor(s.time / 14) + Math.floor(combatTier(s.level) / 3), 0, 6) : clamp(1 + Math.floor(combatTier(s.level) / 2) + tactic.formationTier, 0, 5);
+  const members = [], radii = [];
   offsets.forEach((offset, index) => {
     const escort = kind === 'escort' && index === 0;
     const type = clamp(tier + (escort ? 2 : index % 3 === 0 ? 1 : 0), 0, 8);
     const enemy = spawnEnemy(s, type, anchor.x + offset.x, anchor.y + offset.y);
     enemy.formation = anchor; enemy.formationOffset = offset; enemy.formationIndex = index;
-    if (wave != null) enemy.wave = wave;
+    if (tactic) { enemy.wave = wave; applyTactics(enemy, tactic); }
+    members.push(enemy); radii.push(enemy.radius);
   });
+  anchor.hullRadius = Math.max(...radii, 12);
+  const geometry = fitFormation(s, anchor, radii);
+  if (tactic) {
+    anchor.baseX = clamp(anchor.baseX, geometry.minX, geometry.maxX);
+    anchor.x = anchor.entry === 'top' ? anchor.baseX : geometry.startX;
+    anchor.y = anchor.entry === 'top' ? geometry.startY : 180;
+  }
+  for (const enemy of members) {
+    enemy.x = enemy.px = anchor.x + enemy.formationOffset.x;
+    enemy.y = enemy.py = anchor.y + enemy.formationOffset.y;
+  }
   s.events.push({ type: 'formation', formation: kind, label: anchor.label, count: offsets.length, x: anchor.x, y: anchor.y });
   return anchor;
 }
@@ -558,10 +629,51 @@ function chainDamage(s, bullet, origin) {
 }
 
 function updateFormationAnchors(s, dt) {
+  let needsFit = false;
+  for (const formation of s.formations) {
+    const geometry = formationGeometry.get(formation);
+    if (!geometry || geometry.width !== s.width) needsFit = true;
+  }
+  if (needsFit) {
+    // Restore membership in one pass rather than searching enemies per group.
+    const pending = new Map();
+    for (const formation of s.formations) {
+      const geometry = formationGeometry.get(formation);
+      if (!geometry || geometry.width !== s.width) pending.set(formation, new Array(formation.offsets.length).fill(0));
+    }
+    for (const enemy of s.enemies) {
+      const radii = pending.get(enemy.formation);
+      if (radii) radii[enemy.formationIndex] = enemy.radius;
+    }
+    for (const [formation, radii] of pending) fitFormation(s, formation, radii);
+  }
   for (const formation of s.formations) {
     formation.age += dt;
+    const geometry = formationGeometry.get(formation);
+    if (formation.entry) {
+      const beforeX = formation.x, beforeY = formation.y, time = formation.age * (formation.motionSpeed || 1);
+      const entry = geometry.entryTime, departure = entry + 4.5, drift = formation.drift || 0;
+      const lane = clamp(formation.baseX, geometry.minX, geometry.maxX);
+      const excursion = Math.min(80, Math.max(0, (geometry.maxX - geometry.minX) * .25));
+      if (time < entry) {
+        const fraction = time / entry, ease = fraction * fraction * (3 - 2 * fraction);
+        const startX = formation.entry === 'top' ? lane : geometry.startX;
+        formation.x = startX + (lane - startX) * ease;
+        formation.y = formation.entry === 'top' ? geometry.startY + (300 - geometry.startY) * ease : 180 + 120 * ease;
+      } else {
+        const travel = time - entry;
+        formation.x = clamp(lane + Math.sin(travel * .6) * excursion * drift, geometry.minX, geometry.maxX);
+        formation.y = time < departure ? 300 + Math.sin(travel * Math.PI / 4.5) * 28 : 300 + (time - departure) * 135;
+      }
+      geometry.vx = dt > 0 ? (formation.x - beforeX) / dt : 0;
+      geometry.vy = dt > 0 ? (formation.y - beforeY) / dt : 0;
+      continue;
+    }
     const sway = Math.sin(formation.age * (formation.kind === 'orbit' ? .7 : .48) + formation.id) * (formation.kind === 'pincer' ? 26 : 42);
-    formation.x = clamp(formation.baseX + sway, 180, s.width - 180);
+    // Preserve the legacy flight on roomy arenas and avoid inverted clamp
+    // bounds on phones, where its fixed 180px margins cannot both fit.
+    const margin = Math.min(180, s.width * .5);
+    formation.x = clamp(formation.baseX + sway, Math.max(margin, geometry.minX), Math.min(s.width - margin, geometry.maxX));
     // Enter together, sweep the combat lane, then fly through. A stationary
     // anchor leaves surviving ships behind and eventually blocks new waves.
     const entry = 480 / 84, departure = 11;
@@ -586,7 +698,15 @@ function formationVelocity(enemy) {
   }
   const desiredX = formation.x + x, desiredY = formation.y + y;
   const response = .14;
-  return { x: clamp((desiredX - enemy.x) / response, -enemy.speed * 1.65, enemy.speed * 1.65), y: clamp((desiredY - enemy.y) / response, -enemy.speed * 1.3, enemy.speed * 1.3) };
+  if (formation.entry) {
+    const geometry = formationGeometry.get(formation), speed = Math.max(300, enemy.speed * 3) * (formation.motionSpeed || 1);
+    formationMotion.x = clamp((geometry?.vx || 0) + (desiredX - enemy.x) / response, -speed, speed);
+    formationMotion.y = clamp((geometry?.vy || 0) + (desiredY - enemy.y) / response, -speed, speed);
+  } else {
+    formationMotion.x = clamp((desiredX - enemy.x) / response, -enemy.speed * 1.65, enemy.speed * 1.65);
+    formationMotion.y = clamp((desiredY - enemy.y) / response, -enemy.speed * 1.3, enemy.speed * 1.3);
+  }
+  return formationMotion;
 }
 
 function nearestPilot(s, e) {
@@ -986,7 +1106,7 @@ export function update(s, dt, input = [], environmentHit = null) {
         }
       }
       accelerate(e, targetX, targetY, response, dt);
-      constrain(e, e.radius, s.width - e.radius, -Infinity, e.boss ? s.height * .56 : Infinity);
+      if (!e.formation?.entry) constrain(e, e.radius, s.width - e.radius, -Infinity, e.boss ? s.height * .56 : Infinity);
     }
     const thrustResponse = 1 - Math.exp(-dt / response);
     e.thrust += (.82 + Math.abs(e.vx) / 180 + Math.max(0, e.vy - e.speed) / 190 - e.thrust) * thrustResponse;
@@ -1007,8 +1127,10 @@ export function update(s, dt, input = [], environmentHit = null) {
     }
     const volleys = !e.noFire && (!e.ai || e.ai === 'drift' || e.ai === 'station' || (e.ai === 'captor' && e.capState === 0) || (e.ai === 'entry' && !e.slotCount));
     if (volleys) {
-      e.fire -= dt * difficultyProfile(s.difficulty).fireRate;
-      if (e.fire <= 0 && e.y > 30 && e.y < s.height * .73 && !s.bossDefeated) enemyFire(s, e);
+      const formation = e.formation, geometry = formation?.entry && formationGeometry.get(formation);
+      const ready = !geometry || (formation.age * (formation.motionSpeed || 1) >= geometry.entryTime && e.x >= e.radius && e.x <= s.width - e.radius);
+      if (ready) e.fire -= dt * difficultyProfile(s.difficulty).fireRate * (e.tacticFire || 1);
+      if (ready && e.fire <= 0 && e.y > 30 && e.y < s.height * .73 && !s.bossDefeated) enemyFire(s, e);
     }
     if (e.harmless) continue;
     for (const p of s.players) if (p.alive && distance(p, e) < p.radius + e.radius * .75) {

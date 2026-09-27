@@ -1,5 +1,6 @@
-import { normalizeLevel, environmentIndex, combatTier, cycleScale } from './campaign.js';
+import { environmentIndex, combatTier, cycleScale } from './campaign.js';
 import { difficultyProfile } from './difficulty.js';
+import { tacticalPlan, waveTactics, applyTactics } from './tactics.js';
 
 /* Tyran choreography: Galaga-style squadron flights, a breathing hive with
  * diving attackers, and a Tyrian-style script of waves for every sector.
@@ -27,8 +28,6 @@ export const PATHS = Object.freeze({
   figure: { exit: true, points: [['L', 200], [-220, 262], [0, 420], [150, 560], [0, 660], [-150, 560], [0, 420], [220, 262], ['R', 200]] },
   orbit: { exit: true, points: [['L', 330], [-240, 330], [-130, 250], [0, 222], [130, 250], [180, 360], [130, 470], [0, 500], [-130, 470], [-180, 360], [-130, 250], [0, 222], [240, 160], ['R', 90]] },
 });
-const HIVE_PATHS = ['dropLoop', 'sideHook', 'topSpiral', 'sideSweep'];
-const SWEEP_PATHS = ['zigzag', 'cross', 'arc', 'snake', 'uTurn'];
 const CHALLENGE_PATHS = ['figure', 'orbit', 'dropLoop', 'sideHook', 'topSpiral'];
 export const WAVE_KINDS = Object.freeze(['hive', 'sweep', 'gunship', 'midboss', 'captor', 'formation']);
 export const AI_MODES = Object.freeze(['drift', 'entry', 'join', 'hive', 'dive', 'station', 'retreat', 'leave', 'captor']);
@@ -92,20 +91,7 @@ export function enemyPathPosition(s, enemy) {
   return { x: s.width / 2 + point.x * mirror + (enemy.pathOx || 0), y: point.y + (enemy.pathOy || 0), tx: point.tx * mirror, ty: point.ty, done: point.done, exit: table.exit };
 }
 
-// Every sector opens and closes with a swarm; the middle of the script rotates
-// so neighbouring sectors never fly the same order.
-const SCRIPT_MIDDLES = [
-  ['sweep', 'gunship', 'hive', 'midboss', 'sweep', 'captor'],
-  ['gunship', 'sweep', 'hive', 'midboss', 'captor', 'sweep'],
-  ['sweep', 'hive', 'gunship', 'midboss', 'sweep', 'captor'],
-];
-export function sectorPlan(level) {
-  level = normalizeLevel(level);
-  const plan = ['hive', ...SCRIPT_MIDDLES[level % SCRIPT_MIDDLES.length], 'hive'];
-  if (level >= 3) plan.splice(plan.indexOf('midboss') + 1, 0, 'formation');
-  if (level >= 6) plan.splice(plan.length - 1, 0, 'gunship');
-  return plan;
-}
+export const sectorPlan = tacticalPlan;
 
 export function createDirector(level) {
   return { plan: sectorPlan(level), wave: -1, kind: '', state: 'rest', clock: 0, rest: 2.6, timeout: 0, dive: 3, potshot: 4, pending: 0, pendingAt: 0, hold: false, done: false, abandon: false };
@@ -121,6 +107,7 @@ export function directorProgress(s) {
 }
 
 // ——— Hive formation ———
+const ORBIT_RADII = [48, 108, 157, 197];
 export function hiveCenter(s) {
   const age = s.hive?.age || 0;
   return { x: s.width / 2 + Math.sin(age * .42) * Math.min(58, s.width * .04), y: 176 };
@@ -129,10 +116,29 @@ export function hiveCenter(s) {
 export function hiveSlot(s, enemy) {
   const age = s.hive?.age || 0, center = hiveCenter(s);
   const columns = Math.max(1, enemy.slotCount || 1), col = enemy.slotCol || 0, row = enemy.slotRow || 0;
-  const spacing = Math.min(62, (s.width - 180) / 8.5);
+  const spacing = Math.min(62, (s.width - 140) / Math.max(3, columns - 1));
   // The hive breathes like a living swarm; outer ships travel furthest.
   const breath = 1 + .085 * (1 - Math.cos(age * 1.55)) / 2;
-  return { x: center.x + (col - (columns - 1) / 2) * spacing * breath, y: center.y + row * 55 + (breath - 1) * row * 40 };
+  let x = (col - (columns - 1) / 2) * spacing * breath;
+  let y = row * 55 + (breath - 1) * row * 40;
+  switch (enemy.hiveShape) {
+    case 'chevron': y += Math.abs(col - (columns - 1) / 2) * 11; break;
+    case 'stagger': x += (row % 2 ? 1 : -1) * spacing * .22; y += col % 2 * 13; break;
+    case 'split': x += Math.sign(x) * Math.min(65, s.width * .06); y += Math.sin(age * .65 + (x < 0 ? 0 : Math.PI)) * 12; break;
+    case 'diamond': x *= 1 + (1 - Math.abs(Math.min(row, 3) - 1.5) / 1.5) * .12; y += (1 - Math.abs(col - (columns - 1) / 2) / Math.max(1, columns / 2)) * 22; break;
+    case 'orbit': {
+      // Concentric circles have enough radial separation for each hull class.
+      // Phones use ranks rather than squeezing intersecting ellipses together.
+      if (s.width < 520) break;
+      const angle = col * Math.PI * 2 / columns + age * .16 * (row % 2 ? -1 : 1);
+      const radius = ORBIT_RADII[Math.min(row, 3)];
+      x = Math.cos(angle) * radius;
+      y = 94 + Math.sin(angle) * radius;
+      break;
+    }
+  }
+  const margin = enemy.radius + 24;
+  return { x: clamp(center.x + x, margin, s.width - margin), y: center.y + y };
 }
 
 // ——— Dives ———
@@ -159,8 +165,8 @@ export function startDive(s, enemy, target, speedScale = 1) {
   if (enemy.x + side * r * 2.4 < 40 || enemy.x + side * r * 2.4 > s.width - 40) side = -side;
   Object.assign(enemy, {
     ai: 'dive', diveT: 0, diveX0: enemy.x, diveY0: enemy.y, diveSide: side, diveFired: 0,
-    diveTx: clamp(target?.x ?? center, 50, s.width - 50), diveSpeed: (250 + combatTier(s.level) * 11) * speedScale * difficultyProfile(s.difficulty).diveSpeed,
-    diveWeave: enemy.type === 0 ? 0 : 55 + enemy.type * 8, diveHome: enemy.type === 0 ? 1 : 0,
+    diveTx: clamp(target?.x ?? center, 50, s.width - 50), diveSpeed: (250 + combatTier(s.level) * 11) * speedScale * (enemy.tacticSpeed || 1) * difficultyProfile(s.difficulty).diveSpeed,
+    diveWeave: enemy.type === 0 ? 0 : (55 + enemy.type * 8) * (enemy.hiveShape === 'orbit' ? 1.3 : enemy.hiveShape === 'ranks' ? .55 : 1), diveHome: enemy.type === 0 ? 1 : 0,
   });
   s.events.push({ type: 'dive', x: enemy.x, y: enemy.y, shipType: enemy.type });
 }
@@ -268,10 +274,12 @@ function newSquad(s, size, wave, options = {}) {
   return squad;
 }
 
-function launchLine(s, spawn, { type, count, path, mirror = 1, delay = 0, spacing = .17, speed, wave, squad, slotRow = null, slotCols = null, slotCount = 0, ox = 0, oy = 0, flags = {} }) {
+function launchLine(s, spawn, { type, count, path, mirror = 1, delay = 0, spacing = .17, speed, wave, squad, slotRow = null, slotCols = null, slotCount = 0, ox = 0, oy = 0, flags = {}, tactics = null }) {
   const ships = [];
+  if (tactics) speed *= tactics.speed;
   for (let i = 0; i < count; i++) {
     const enemy = spawn(s, type, s.width / 2, -200);
+    if (tactics) applyTactics(enemy, tactics);
     Object.assign(enemy, { ai: 'entry', path, pathD: -(delay + i * spacing) * speed, pathSpeed: speed, mirror, pathOx: ox, pathOy: oy,
       wave, squad: squad?.id ?? 0, vx: 0, vy: 0, ...flags });
     if (slotRow != null) Object.assign(enemy, { slotRow, slotCol: slotCols[i], slotCount });
@@ -289,75 +297,87 @@ function hiveRows(level, compact = false) {
 }
 
 function buildHive(s, spawn, wave, compact = false) {
-  const rows = hiveRows(s.level, compact), speed = 330 + combatTier(s.level) * 9;
+  const tactics = waveTactics(s.level, wave), speed = 330 + combatTier(s.level) * 9;
+  const rows = hiveRows(s.level, compact).map(([type, count]) => {
+    // A narrow arena uses fewer columns, never overlapping hulls at its edges.
+    const fit = Math.max(2, Math.floor((s.width - 120) / (ENEMY_SIZE(type) * 2 + 10) / 2) * 2);
+    return [type, Math.min(count, fit)];
+  });
   // A captor's escorts sit lower so the captor and its prize stay in the clear.
   const offset = compact ? 2 : 0;
   rows.forEach(([type, count], row) => {
-    const path = HIVE_PATHS[(row + wave + environmentIndex(s.level)) % HIVE_PATHS.length];
+    const path = tactics.hivePaths[row % tactics.hivePaths.length];
     const squad = newSquad(s, count, wave);
-    const delay = .6 + row * 2.5, columns = Array.from({ length: count }, (_, i) => i);
+    const delay = .6 + row * tactics.rowGap, columns = Array.from({ length: count }, (_, i) => i);
+    const flags = { hiveShape: compact ? 'ranks' : tactics.hiveShape };
     // Wider rows arrive as two mirrored lines, the centre ships first.
     if (count >= 6) {
       const half = count / 2, left = columns.slice(0, half).reverse(), right = columns.slice(half);
-      launchLine(s, spawn, { type, count: half, path, mirror: -1, delay, speed, wave, squad, slotRow: row + offset, slotCols: left, slotCount: count });
-      launchLine(s, spawn, { type, count: half, path, mirror: 1, delay, speed, wave, squad, slotRow: row + offset, slotCols: right, slotCount: count });
+      launchLine(s, spawn, { type, count: half, path, mirror: -tactics.mirror, delay, spacing: tactics.spacing, speed, wave, squad, slotRow: row + offset, slotCols: left, slotCount: count, tactics, flags });
+      launchLine(s, spawn, { type, count: half, path, mirror: tactics.mirror, delay: delay + tactics.flankDelay, spacing: tactics.spacing, speed, wave, squad, slotRow: row + offset, slotCols: right, slotCount: count, tactics, flags });
     } else {
-      const mirror = row % 2 ? -1 : 1, order = mirror < 0 ? columns.slice().reverse() : columns;
-      launchLine(s, spawn, { type, count, path, mirror, delay, speed, wave, squad, slotRow: row + offset, slotCols: order, slotCount: count });
+      const mirror = (row % 2 ? -1 : 1) * tactics.mirror, order = mirror < 0 ? columns.slice().reverse() : columns;
+      launchLine(s, spawn, { type, count, path, mirror, delay, spacing: tactics.spacing, speed, wave, squad, slotRow: row + offset, slotCols: order, slotCount: count, tactics, flags });
     }
   });
   return 30 + combatTier(s.level) * .8 + rows.length * 1.5;
 }
 
 function buildSweep(s, spawn, wave, second = false) {
+  const tactics = waveTactics(s.level, wave);
   const squads = 3 + (s.level >= 4 ? 1 : 0), size = s.level >= 6 ? 6 : 5, speed = 285 + combatTier(s.level) * 8;
-  const types = second ? [3, 7, 2, 7] : [1, 7, 2, 3];
+  const types = tactics.sweepTypes;
   for (let k = 0; k < squads; k++) {
-    const type = types[k % types.length], reaper = type === 7;
-    const path = reaper ? 'plunge' : SWEEP_PATHS[(k + wave + environmentIndex(s.level)) % SWEEP_PATHS.length];
+    const type = types[(k + (second ? 1 : 0)) % types.length], reaper = type === 7;
+    const path = tactics.sweepPaths[k % tactics.sweepPaths.length];
     const count = reaper ? 3 : size;
     const squad = newSquad(s, count, wave);
-    launchLine(s, spawn, { type, count, path, mirror: k % 2 ? -1 : 1, delay: .5 + k * 2.8, spacing: reaper ? .3 : .2,
-      speed: reaper ? speed * 1.45 : speed, wave, squad, ox: reaper ? (k % 2 ? -1 : 1) * s.width * .06 : 0 });
+    launchLine(s, spawn, { type, count, path, mirror: (k % 2 ? -1 : 1) * tactics.mirror, delay: .5 + k * tactics.squadGap, spacing: reaper ? .3 : tactics.spacing,
+      speed: reaper ? speed * 1.45 : speed, wave, squad, ox: reaper ? (k % 2 ? -1 : 1) * Math.min(90, s.width * .06) : 0, tactics });
   }
   return 20 + squads * 1.5;
 }
 
-function stationShip(s, spawn, type, x, y, wave, options = {}) {
+function stationShip(s, spawn, type, x, y, wave, tactics, options = {}) {
   const enemy = spawn(s, type, x, -80 - ENEMY_SIZE(type));
+  applyTactics(enemy, tactics);
   Object.assign(enemy, { ai: 'station', stationX: x, stationY: y, hold: 11 + combatTier(s.level) * .35, sway: 42, wave, vx: 0, vy: 90, ...options });
   return enemy;
 }
 const ENEMY_SIZE = type => [12, 17, 22, 27, 32, 36, 41, 46, 54, 110][type] || 30;
 
 function buildGunship(s, spawn, wave, second = false) {
+  const tactics = waveTactics(s.level, wave);
   const span = Math.min(s.width - 200, 1000), center = s.width / 2;
-  const heavies = second ? [5, 4, 5] : [4, 5, 4];
+  const heavies = tactics.heavies;
   const count = s.level >= 5 ? 3 : 2;
   for (let i = 0; i < count; i++) {
-    const x = count === 2 ? center + (i ? 1 : -1) * span * .26 : center + (i - 1) * span * .34;
-    const heavy = stationShip(s, spawn, heavies[i], x, 216 + (i % 2) * 46, wave, { seed: i * 2.1 });
+    const x = center + (count === 2 ? (i ? 1 : -1) * span * .26 : (i - 1) * span * .34) * tactics.mirror;
+    const heavy = stationShip(s, spawn, heavies[(i + (second ? 1 : 0)) % heavies.length], x, 210 + (i % 2) * 56, wave, tactics,
+      { seed: i * 2.1, sway: 24 + Math.abs(tactics.stationLane) * 220, fire: 1.4 + i * .7 });
     heavy.hp *= 1.6; heavy.maxHp = heavy.hp;
   }
   const squad = newSquad(s, 5, wave);
-  launchLine(s, spawn, { type: 0, count: 5, path: 'arc', mirror: wave % 2 ? -1 : 1, delay: 3.4, spacing: .18, speed: 330 + combatTier(s.level) * 8, wave, squad });
+  launchLine(s, spawn, { type: 0, count: 5, path: tactics.sweepPaths[0], mirror: tactics.mirror, delay: 3.4, spacing: tactics.spacing, speed: 330 + combatTier(s.level) * 8, wave, squad, tactics });
   return 24 + combatTier(s.level) * .4;
 }
 
 function buildMidboss(s, spawn, wave) {
-  const boss = stationShip(s, spawn, 8, s.width / 2, 230, wave, { hold: 40, sway: Math.min(210, s.width * .18), role: 'midboss' });
+  const tactics = waveTactics(s.level, wave);
+  const boss = stationShip(s, spawn, 8, s.width * (.5 + tactics.stationLane), 230, wave, tactics, { hold: 40, sway: Math.min(210, s.width * .18), role: 'midboss' });
   boss.hp *= 4; boss.maxHp = boss.hp;
   for (let k = 0; k < 2; k++) {
     const squad = newSquad(s, 4, wave);
-    launchLine(s, spawn, { type: 2, count: 4, path: 'cross', mirror: k ? -1 : 1, delay: 4 + k * 9, spacing: .22, speed: 300 + combatTier(s.level) * 8, wave, squad });
+    launchLine(s, spawn, { type: tactics.sweepTypes.find(type => type > 0 && type < 4) || 2, count: 4, path: tactics.sweepPaths[k % tactics.sweepPaths.length], mirror: (k ? -1 : 1) * tactics.mirror, delay: 4 + k * 9, spacing: .22, speed: 300 + combatTier(s.level) * 8, wave, squad, tactics });
   }
   s.events.push({ type: 'midboss', x: boss.x, y: 120 });
   return 44;
 }
 
 function buildCaptor(s, spawn, wave) {
-  const captor = spawn(s, 6, s.width / 2, -120);
-  Object.assign(captor, { ai: 'captor', wave, capState: 0, capTimer: 3.4, capBeams: 0, capX: s.width / 2, captive: 0, capGrip: 0, vx: 0, vy: 120, role: 'captor' });
+  const tactics = waveTactics(s.level, wave), x = s.width * (.5 + tactics.stationLane);
+  const captor = applyTactics(spawn(s, 6, x, -120), tactics);
+  Object.assign(captor, { ai: 'captor', wave, capState: 0, capTimer: 3.4, capBeams: 0, capX: x, captive: 0, capGrip: 0, vx: 0, vy: 120, role: 'captor' });
   buildHive(s, spawn, wave, true);
   s.events.push({ type: 'captor', x: captor.x, y: 120 });
   return 40;
@@ -380,11 +400,11 @@ export function updateDirector(s, dt, spawn, spawnFormation, pilot) {
       : d.kind === 'gunship' ? buildGunship(s, spawn, d.wave, count > 1)
       : d.kind === 'midboss' ? buildMidboss(s, spawn, d.wave)
       : d.kind === 'captor' ? buildCaptor(s, spawn, d.wave)
-      : (spawnFormation(s, null, d.wave), d.pending = 1, d.pendingAt = 6.5, 28);
+      : (spawnFormation(s, null, d.wave, 0), d.pending = 1, d.pendingAt = 6.5, 28);
     s.events.push({ type: 'wave', wave: d.wave + 1, total: d.plan.length, kind: d.kind });
     return false;
   }
-  if (d.pending > 0 && d.clock >= d.pendingAt) { d.pending--; spawnFormation(s, null, d.wave); }
+  if (d.pending > 0 && d.clock >= d.pendingAt) { d.pending--; spawnFormation(s, null, d.wave, 1); }
   let live = 0, hive = 0, diving = 0;
   for (const enemy of s.enemies) {
     if (enemy.dead || enemy.wave !== d.wave || enemy.challenge) continue;
@@ -423,10 +443,10 @@ export function updateDirector(s, dt, spawn, spawnFormation, pilot) {
       startDive(s, lead, pilot);
       // Commanders take escorts from the row beneath them.
       if (lead.type === 3 || lead.slotRow === 0) {
-        const escorts = members.filter(enemy => enemy !== lead && enemy.slotRow === lead.slotRow + 1 && Math.abs(hiveSlot(s, enemy).x - lead.x) < 110).slice(0, 2);
+        const escorts = members.filter(enemy => enemy !== lead && enemy.slotRow === lead.slotRow + 1 && Math.abs(hiveSlot(s, enemy).x - lead.x) < 110).slice(0, Math.min(2, maxDivers - diving - 1));
         for (const escort of escorts) { startDive(s, escort, pilot); escort.diveSide = lead.diveSide; escort.diveTx = lead.diveTx + (escort.x - lead.x) * .6; }
       }
-      d.dive = Math.max(.6, 2.15 - combatTier(s.level) * .13) * (members.length > 8 ? 1 : .68) * (.8 + Math.random() * .4);
+      d.dive = Math.max(.6, 2.15 - combatTier(s.level) * .13) * (members.length > 8 ? 1 : .68) * (.8 + Math.random() * .4) / (lead.tacticSpeed || 1);
     }
     d.potshot -= dt * difficultyProfile(s.difficulty).fireRate;
     if (d.potshot <= 0 && members.length) {
@@ -434,7 +454,7 @@ export function updateDirector(s, dt, spawn, spawnFormation, pilot) {
       const shooters = members.filter(enemy => enemy.slotRow === bottom);
       const shooter = shooters[Math.floor(Math.random() * shooters.length)];
       if (shooter) shooter.potshot = 1;
-      d.potshot = Math.max(.9, 2.4 - combatTier(s.level) * .16);
+      d.potshot = Math.max(.9, 2.4 - combatTier(s.level) * .16) / (shooter?.tacticFire || 1);
     }
   }
   return false;
@@ -475,4 +495,3 @@ export function updateChallenge(s, dt) {
   }
   return false;
 }
-

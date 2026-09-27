@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { createCampaign, beginLevel, spawnEnemy, spawnFormation, update, buyUpgrade, shipStats, selectWeapon, killEnemy, buyPrimary, buySupply, START_LIVES } from '../sim.js';
 import { serializeRun, restoreRun, readCampaign, writeCampaign, clearCampaign, SAVE_KEY, LEGACY_SAVE_KEY } from '../save-game.js';
+import { startDive } from '../waves.js';
 
 let failures = 0;
 function check(name, fn) {
@@ -669,6 +670,168 @@ check('mid-wave flights keep the script, hive, squadrons, dives, beams and drone
   assert.deepEqual(restored.events, state.events);
 }));
 
+check('resolved tactics and fitted formations survive repeated saves without rescaling', () => seeded(81, () => {
+  const shapes = ['ranks', 'chevron', 'stagger', 'split', 'diamond', 'orbit'];
+  for (const [index, hiveShape] of shapes.entries()) {
+    const state = flight(), enemy = state.enemies[0], anchor = state.formations[0];
+    Object.assign(enemy, { tacticSpeed: .5 + index * .3, tacticFire: 2 - index * .3, hiveShape });
+    enemy.hp *= .43; enemy.maxHp *= 1.17; enemy.speed *= 1.23;
+    Object.assign(anchor, { entry: ['top', 'left', 'right'][index % 3], motionSpeed: .5 + index * .3, drift: -1 + index * .4, hullRadius: 31 + index * .5 });
+    anchor.offsets.forEach((offset, i) => { offset.x *= .63; offset.y += i * 2.3; });
+    let restored = state;
+    for (let pass = 0; pass < 3; pass++) restored = restoreRun(serializeRun(restored)).state;
+    const savedEnemy = restored.enemies[0];
+    for (const key of ['hp', 'maxHp', 'speed', 'tacticSpeed', 'tacticFire', 'hiveShape']) assert.equal(savedEnemy[key], enemy[key], key);
+    assert.deepEqual(restored.formations[0], anchor);
+    assert.equal(savedEnemy.formation, restored.formations[0]);
+    assert.equal(savedEnemy.formationOffset, restored.formations[0].offsets[savedEnemy.formationIndex]);
+    assert.deepEqual(restored.director.plan, state.director.plan);
+  }
+}));
+
+check('tactical entries, a live dive and a side formation continue identically after reload', () => seeded(91, () => {
+  const state = createCampaign(3); state.players[0].hurt = 1e6;
+  state.director.wave = state.director.plan.indexOf('hive') - 1; state.director.clock = 99;
+  for (let tick = 0; tick < 180 && !state.enemies.length; tick++) update(state, 1 / 60);
+  assert(state.enemies.length > 2, 'the opening wave has launched');
+  state.director.hold = true;
+  state.enemies.forEach((enemy, index) => {
+    Object.assign(enemy, { tacticSpeed: 1.14, tacticFire: 1.18, hiveShape: index % 2 ? 'chevron' : 'split' });
+    enemy.pathSpeed *= 1.14; enemy.pathD *= 1.14;
+  });
+  const diver = state.enemies[0]; diver.x = 480; diver.y = 230;
+  startDive(state, diver, state.players[0]); diver.diveT = .3;
+  const anchor = spawnFormation(state, 'orbit', state.director.wave);
+  assert(['left', 'right'].includes(anchor.entry));
+  Object.assign(anchor, { motionSpeed: 1.21, drift: .31, age: 2.3 });
+  for (const enemy of state.enemies.filter(enemy => enemy.formation === anchor)) Object.assign(enemy, { tacticSpeed: 1.21, tacticFire: 1.16 });
+  state.events.length = 0;
+  const restored = restoreRun(serializeRun(state)).state;
+  assert.deepEqual(restored.formations, state.formations);
+  assert(restored.enemies.some(enemy => enemy.ai === 'entry' && enemy.pathD < 0));
+  assert.equal(restored.enemies.find(enemy => enemy.id === diver.id).diveSpeed, diver.diveSpeed);
+  for (let tick = 0; tick < 180; tick++) {
+    // Existing simulation RNG is external; give both branches identical draws
+    // to isolate persistence of movement, fire timing and fitted geometry.
+    const input = [{ x: Math.sin(tick * .025) * .3 }];
+    seeded(2000 + tick, () => update(state, 1 / 60, input));
+    seeded(2000 + tick, () => update(restored, 1 / 60, input));
+  }
+  const a = JSON.parse(serializeRun(state)), b = JSON.parse(serializeRun(restored));
+  a.savedAt = b.savedAt = 0;
+  assert.deepEqual(b, a);
+  assert.deepEqual(restored.events, state.events);
+}));
+
+check('a formation retains its original hull clearance after its largest member dies and the flight reloads', () => seeded(93, () => {
+  const state = createCampaign(4); state.width = 320; state.director.hold = true; state.players[0].hurt = 1e6;
+  const anchor = spawnFormation(state, 'escort', 0);
+  const largest = Math.max(...state.enemies.map(enemy => enemy.radius));
+  assert.equal(anchor.hullRadius, largest);
+  assert(state.enemies.some(enemy => enemy.radius < largest), 'the surviving ships are smaller');
+  for (let tick = 0; tick < 45; tick++) update(state, 1 / 60);
+  for (const enemy of state.enemies) if (enemy.radius === largest) killEnemy(state, enemy);
+  update(state, 1 / 60); state.events.length = 0;
+  assert(state.enemies.length > 0 && state.enemies.every(enemy => enemy.radius < largest));
+  assert.equal(anchor.hullRadius, largest);
+  const restored = restoreRun(serializeRun(state)).state;
+  assert.equal(restored.formations[0].hullRadius, largest);
+  assert.deepEqual(restored.formations[0].offsets, anchor.offsets);
+  for (let tick = 0; tick < 180; tick++) {
+    seeded(3000 + tick, () => update(state, 1 / 60));
+    seeded(3000 + tick, () => update(restored, 1 / 60));
+  }
+  const a = JSON.parse(serializeRun(state)), b = JSON.parse(serializeRun(restored));
+  a.savedAt = b.savedAt = 0;
+  assert.deepEqual(b, a);
+  assert.deepEqual(restored.events, state.events);
+}));
+
+check('older actors keep absent tactic fields and the saved wave order', () => {
+  const record = JSON.parse(serializeRun(flight()));
+  record.state.director.plan = ['hive', 'captor', 'sweep', 'hive'];
+  for (const enemy of record.state.enemies) for (const key of ['tacticSpeed', 'tacticFire', 'hiveShape']) delete enemy[key];
+  for (const anchor of record.state.formations) for (const key of ['entry', 'motionSpeed', 'drift', 'hullRadius']) delete anchor[key];
+  const restored = restoreRun(record).state, encoded = JSON.parse(serializeRun(restored));
+  assert.deepEqual(restored.director.plan, record.state.director.plan);
+  assert.deepEqual(encoded.state.director.plan, record.state.director.plan);
+  for (const enemy of encoded.state.enemies) for (const key of ['tacticSpeed', 'tacticFire', 'hiveShape']) assert(!Object.hasOwn(enemy, key), key);
+  for (const anchor of encoded.state.formations) for (const key of ['entry', 'motionSpeed', 'drift', 'hullRadius']) assert(!Object.hasOwn(anchor, key), key);
+  assert.deepEqual(encoded.state.enemies.map(enemy => [enemy.hp, enemy.maxHp, enemy.speed]), record.state.enemies.map(enemy => [enemy.hp, enemy.maxHp, enemy.speed]));
+});
+
+check('saved wave boundaries preserve future tactical spawns and delayed formation reinforcements', () => {
+  for (const pending of [false, true]) seeded(94, () => {
+    const state = createCampaign(6), director = state.director;
+    const formationWave = director.plan.indexOf('formation');
+    assert(formationWave >= 0);
+    director.wave = formationWave - 1; director.clock = 99;
+    state.players[0].hurt = 1e6;
+    if (pending) {
+      update(state, 1 / 60);
+      assert(director.pending > 0, 'the next formation is scheduled');
+      director.clock = director.pendingAt - 1 / 120;
+    }
+    state.events.length = 0;
+    const count = state.formations.length, restored = restoreRun(serializeRun(state)).state;
+    seeded(404, () => update(state, 1 / 60));
+    seeded(404, () => update(restored, 1 / 60));
+    assert.equal(state.formations.length, count + 1);
+    const a = JSON.parse(serializeRun(state)), b = JSON.parse(serializeRun(restored));
+    a.savedAt = b.savedAt = 0;
+    assert.deepEqual(b, a, pending ? 'scheduled reinforcement' : 'next wave');
+    assert.deepEqual(restored.events, state.events);
+  });
+});
+
+check('a partial tactical save without a motion multiplier resumes at normal speed', () => seeded(95, () => {
+  const state = createCampaign(4); state.director.hold = true;
+  spawnFormation(state, 'escort', 0);
+  const record = JSON.parse(serializeRun(state));
+  delete record.state.formations[0].motionSpeed;
+  const missing = restoreRun(record).state;
+  record.state.formations[0].motionSpeed = 1;
+  const normal = restoreRun(record).state;
+  for (let tick = 0; tick < 180; tick++) {
+    seeded(5000 + tick, () => update(missing, 1 / 60));
+    seeded(5000 + tick, () => update(normal, 1 / 60));
+  }
+  for (let i = 0; i < missing.enemies.length; i++) {
+    for (const key of ['x', 'y', 'vx', 'vy', 'fire']) {
+      assert(Number.isFinite(missing.enemies[i][key]));
+      assert.equal(missing.enemies[i][key], normal.enemies[i][key]);
+    }
+  }
+}));
+
+check('tactic fields are bounded and malformed tactics cannot overwrite a valid save', () => {
+  const source = serializeRun(flight());
+  const fields = [['enemies', 'tacticSpeed', .5, 2], ['enemies', 'tacticFire', .5, 2], ['formations', 'motionSpeed', .5, 2], ['formations', 'drift', -1, 1], ['formations', 'hullRadius', 1, 256]];
+  for (const [collection, key, min, max] of fields) {
+    for (const [value, expected] of [[min - 100, min], [max + 100, max], [min, min], [max, max], [(min + max) / 2, (min + max) / 2]]) {
+      const record = JSON.parse(source); record.state[collection][0][key] = value;
+      assert.equal(restoreRun(record).state[collection][0][key], expected);
+    }
+    for (const value of [null, true, '1.2', {}, [], Infinity, -Infinity, NaN, '@infinity']) {
+      const record = JSON.parse(source); record.state[collection][0][key] = value;
+      assert.equal(restoreRun(record), null, `${key} rejects malformed data`);
+    }
+  }
+  for (const [collection, key] of [['enemies', 'hiveShape'], ['formations', 'entry']]) {
+    for (const value of ['unknown', '', null, 1, [], {}]) {
+      const record = JSON.parse(source); record.state[collection][0][key] = value;
+      assert.equal(restoreRun(record), null, `${key} rejects malformed data`);
+    }
+  }
+  const storage = memoryStorage(), state = flight();
+  state.enemies[0].tacticFire = 1.2;
+  assert.equal(writeCampaign(state, {}, storage).ok, true);
+  const previous = storage.getItem(SAVE_KEY);
+  state.enemies[0].tacticFire = NaN;
+  assert.equal(writeCampaign(state, {}, storage).error, 'invalid-run');
+  assert.equal(storage.getItem(SAVE_KEY), previous);
+});
+
 check('shop loadout, reserve ships and challenge results survive the hangar and a reload', () => {
   const state = createCampaign(0);
   killEnemy(state, spawnEnemy(state, 9, 600, 155));
@@ -733,7 +896,7 @@ check('saving the step a lancer dies mid-beam succeeds, and a tractor pull round
   assert.ok(lancer.dead); assert.equal(state.beams.length, 0, 'the beam leaves with its lancer');
   assert.ok(restoreRun(serializeRun(state)), 'the save is valid on the very step the lancer dies');
   const beam = createCampaign(0), player = beam.players[0];
-  beam.director.wave = 5; beam.director.clock = 99; player.hurt = 1e6;
+  beam.director.wave = beam.director.plan.indexOf('captor') - 1; beam.director.clock = 99; player.hurt = 1e6;
   for (let t = 0; t < 8 && !(player.blastVy < -60); t += 1 / 60) {
     const captor = beam.enemies.find(enemy => enemy.ai === 'captor');
     update(beam, 1 / 60, [{ x: captor ? Math.sign(captor.x - player.x) * (Math.abs(captor.x - player.x) > 12) : 0 }]); beam.events.length = 0;

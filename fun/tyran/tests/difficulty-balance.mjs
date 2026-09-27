@@ -69,7 +69,7 @@ if (!isMainThread) {
   if (modes.some(mode => !['easy', 'medium', 'hard', 'real'].includes(mode))) throw new Error('Unknown difficulty');
   if (!profiles && modes.some(mode => mode !== 'easy')) throw new Error('Non-Easy trials require the difficulty implementation');
   const sourceHashes = {};
-  for (const name of ['sim.js', 'waves.js', 'difficulty.js', 'tests/balance-pilot.mjs', 'tests/difficulty-balance.mjs']) {
+  for (const name of ['sim.js', 'waves.js', 'tactics.js', 'difficulty.js', 'tests/balance-pilot.mjs', 'tests/difficulty-balance.mjs']) {
     try { sourceHashes[name] = createHash('sha256').update(await readFile(new URL(`../${name}`, import.meta.url))).digest('hex'); }
     catch (error) { if (error.code !== 'ENOENT') throw error; }
   }
@@ -101,7 +101,7 @@ if (!isMainThread) {
     sectorTimeoutSeconds: SECTOR_LIMIT, limitations: ['Deterministic artificial pilot; the measured sample is not a promise of human success rates.', 'Headless simulation omits ground scenery, its collisions, destruction rewards and ground bonus drops.', 'Pilot reads current entity positions and velocities; it cannot alter health, inventory, damage, currency, RNG outcomes or the wave director.'],
     controls: 'Nine movement choices at 10 Hz, .48s projectile prediction, visible beam/contact avoidance, nearby pickup pursuit, pulse/plasma and defensive Nova use.',
     shop: 'Buy reserve ships to 2, planned weapon tiers 2/4/5/6, one wing drone, balanced recharge/shield/hull, then Nova stock to 3.',
-    calibration: 'REAL_PRESSURE is tuned against this frozen sample for 10/100 Real completions. These are calibration outcomes, not an independent validation sample.' },
+    calibration: 'REAL_PRESSURE was historically tuned for 10/100 Real completions before subsequent gameplay and strategy changes. This run measures the recorded source hashes; the frozen calibration seeds are not an independent validation sample.' },
     profiles, sourceHashes, summary, attempts: results };
   // Keep one complete attempt per line so a changed seed produces a useful diff.
   const { attempts: records, ...metadata } = report;

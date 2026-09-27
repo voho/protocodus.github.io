@@ -60,7 +60,7 @@ try {
   // Captor tractor beam, captured drone and lancer telegraph all render.
   const captor = await page.evaluate(() => {
     const s = tyran.state; s.enemies.length = 0; s.bullets.length = 0;
-    s.director.wave = 5; s.director.state = 'rest'; s.director.clock = 99; s.director.abandon = false;
+    s.director.wave = s.director.plan.indexOf('captor') - 1; s.director.state = 'rest'; s.director.clock = 99; s.director.abandon = false;
     for (let i = 0; i < 60 * 9; i++) {
       const cap = s.enemies.find(e => e.ai === 'captor'), p = s.players[0];
       tyran.step(1 / 60, [{ x: cap ? Math.sign(cap.x - p.x) * (Math.abs(cap.x - p.x) > 12) : 0 }]);

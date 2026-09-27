@@ -557,7 +557,8 @@ check('boss armor blocks real shots between windows and weak points open fire la
   assert.ok(boss.hp < sealed, 'an exposed core can be damaged');
 });
 
-check('all ten sectors fly every wave, introduce all nine normal classes and end with one boss', () => seeded(7261, () => {
+check('all ten sectors fly every authored wave, span all nine normal classes and end with one boss each', () => seeded(7261, () => {
+  const circuitClasses = new Set();
   for (let level = 0; level < 10; level++) {
     const state = createCampaign(level), seen = new Set(), kinds = [];
     // Ignore damage only for this spawn-schedule check; balance trials use real HP.
@@ -572,12 +573,14 @@ check('all ten sectors fly every wave, introduce all nine normal classes and end
     }
     update(state, .05); bossEvents += state.events.filter(e => e.type === 'boss').length;
     assert.deepEqual(kinds, sectorPlan(level), `sector ${level + 1} flies its script in order`);
-    assert.deepEqual([...seen].sort((a, b) => a - b), [0,1,2,3,4,5,6,7,8,9], `sector ${level + 1}`);
+    for (const type of seen) circuitClasses.add(type);
+    assert(seen.has(6) && seen.has(8) && seen.has(9), `sector ${level + 1} retains its captor, midboss and guardian`);
     assert.equal(bossEvents, 1, `sector ${level + 1}`);
     const boss = state.enemies.find(e => e.boss);
     assert.ok(boss.hp >= 2600);
     assert.ok(Number.isFinite(boss.x) && Number.isFinite(boss.y));
   }
+  assert.deepEqual([...circuitClasses].sort((a, b) => a - b), [0,1,2,3,4,5,6,7,8,9], 'Authored sector class mixes cover the complete fleet');
 }));
 
 check('swept projectile collision hits a small ship between frames', () => {
@@ -983,6 +986,8 @@ check('flight paths are smooth, start offscreen and exit paths leave the arena',
 
 check('squadrons enter in conga lines, settle into a breathing hive and never collide with the HUD', () => seeded(31, () => {
   const state = scripted(3);
+  // Exercise a hive directly; this sector's authored opening may use another kind.
+  state.director.plan = ['hive'];
   assert.ok(runUntil(state, s => s.director.kind === 'hive' && s.director.clock > .1, 10));
   const members = state.enemies.filter(enemy => enemy.wave === 0);
   assert.equal(members.length, 28);
@@ -996,12 +1001,16 @@ check('squadrons enter in conga lines, settle into a breathing hive and never co
 
 check('hive ships dive at the pilot, fire during the swoop, wrap to the top and return to their slot', () => seeded(44, () => {
   const state = scripted(2);
+  state.director.plan = ['hive'];
   let diver = null, fired = false;
   for (let t = 0; t < 40 && !diver; t += 1 / 60) {
     update(state, 1 / 60); fired ||= state.bullets.some(b => b.team < 0); state.events.length = 0;
     diver = state.enemies.find(enemy => enemy.ai === 'dive' && enemy.slotCount && enemy.type !== 0);
   }
   assert.ok(diver, 'a ship leaves the hive to dive');
+  // Avoid destroying this tracked diver in a ram: invulnerability protects the
+  // pilot, but collision still consumes the attacker before its return pass.
+  state.players[0].x = state.players[0].px = 35;
   const id = diver.id;
   let wrapped = false, lowest = 0;
   for (let t = 0; t < 12; t += 1 / 60) {
@@ -1128,7 +1137,7 @@ check('wing drones follow in formation and soak up hostile rounds', () => {
 
 check('a captor steals a drone with its tractor beam, and destroying it brings the drone home', () => {
   const state = createCampaign(0), player = state.players[0];
-  state.director.wave = 5; state.director.clock = 99; player.drones = 2; player.hurt = Infinity;
+  state.director.wave = state.director.plan.indexOf('captor') - 1; state.director.clock = 99; player.drones = 2; player.hurt = Infinity;
   let captor = null;
   for (let t = 0; t < 12 && !captor?.captive; t += 1 / 60) {
     captor = state.enemies.find(enemy => enemy.ai === 'captor');
@@ -1148,7 +1157,7 @@ check('a captor steals a drone with its tractor beam, and destroying it brings t
 
 check('without a drone to steal, the tractor beam drains shields and energy', () => {
   const state = createCampaign(0), player = state.players[0];
-  state.director.wave = 5; state.director.clock = 99; player.hurt = Infinity;
+  state.director.wave = state.director.plan.indexOf('captor') - 1; state.director.clock = 99; player.hurt = Infinity;
   let drained = false;
   for (let t = 0; t < 10 && !drained; t += 1 / 60) {
     const captor = state.enemies.find(enemy => enemy.ai === 'captor');

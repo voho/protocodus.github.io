@@ -86,6 +86,7 @@ const ENEMY_FIELDS = {
   stationX: ['num'], stationY: ['num'], hold: ['num', -1000, 1000], sway: ['num', 0, 2000],
   capState: ['int', 0, 3], capTimer: ['num', -1000, 1000], capBeams: ['int', 0, 16], capX: ['num'], capGrip: ['num', 0, 10], captive: ['int', 0, 1], captiveFire: ['num', -1000, 1000],
   harmless: ['bool'], noFire: ['bool'], challenge: ['bool'], potshot: ['int', 0, 1], volley: ['int', 0, 8], gone: ['bool'], launch: ['num', -1000, 1000],
+  tacticSpeed: ['num', .5, 2], tacticFire: ['num', .5, 2], hiveShape: ['enum', 0, 0, ['ranks', 'chevron', 'stagger', 'split', 'diamond', 'orbit']],
 };
 function restoreDirector(raw, level) {
   if (raw === undefined) return createDirector(level);
@@ -222,6 +223,9 @@ function restoreState(raw) {
     });
     if (!result.offsets.length) invalid();
     result.members = integer(formation.members, result.offsets.length, 0, 16);
+    optional(result, formation, {
+      entry: ['enum', 0, 0, ['top', 'left', 'right']], motionSpeed: ['num', .5, 2], drift: ['num', -1, 1], hullRadius: ['num', 1, 256],
+    });
     formationsById.set(result.id, result);
     return result;
   });
