@@ -1,8 +1,10 @@
 import { INDUSTRIES, CARGO, TOWN_CARGO } from './data.js';
 import { STATION_RADIUS } from './model.js';
 import { findIndustryTargets } from './chains.js';
+import { industryDistance } from './industry-sites.js';
 
 const nearby = (a, b) => Math.hypot(a.x - b.x, a.y - b.y) <= STATION_RADIUS;
+const covers = (site, stop) => industryDistance(site, stop) <= STATION_RADIUS;
 const joinCargo = keys => keys.map(key => CARGO[key].name.toLowerCase()).join(' + ');
 
 // These explanations use the same catchment and storage rules as the simulation.
@@ -35,10 +37,10 @@ export function routeHealth(game, route) {
     if (!towns[0].some(a => towns[1].some(b => a.id !== b.id))) return { state: 'blocked', label: 'No passengers', detail: 'Each stop must cover a different town.' };
     return { state: 'running', label: 'Running', detail: 'Passengers travel in both directions.' };
   }
-  const sources = game.industries.filter(site => nearby(site, stops[0]) && INDUSTRIES[site.kind].outputs[route.cargo]);
-  const buyers = game.industries.filter(site => nearby(site, stops[1]) && INDUSTRIES[site.kind].inputs[route.cargo]);
+  const sources = game.industries.filter(site => covers(site, stops[0]) && INDUSTRIES[site.kind].outputs[route.cargo]);
+  const buyers = game.industries.filter(site => covers(site, stops[1]) && INDUSTRIES[site.kind].inputs[route.cargo] && !sources.includes(site));
   const townBuyer = TOWN_CARGO.includes(route.cargo) && game.cities.some(city => nearby(city, stops[1]));
-  if (!sources.length) return { state: 'blocked', label: 'No producer', detail: `Add a ${CARGO[route.cargo].name.toLowerCase()} producer within 5 tiles of the start.` };
+  if (!sources.length) return { state: 'blocked', label: 'No producer', detail: `Add a producer of ${CARGO[route.cargo].name.toLowerCase()} within 5 tiles of the start.` };
   if (!buyers.length && !townBuyer) return { state: 'blocked', label: 'No buyer', detail: 'Add a buyer within 5 tiles of the end stop.' };
   if (!townBuyer && buyers.every(site => (site.inventory?.[route.cargo] || 0) >= 900 * (site.capacity || 1) - .001)) {
     return { state: 'waiting', label: 'Buyer full', detail: 'Supply its other inputs and carry away its output.' };

@@ -477,7 +477,7 @@ export function addRoute(game,{name,mode='road',stops,cargo='passengers'}={}) {
     if(!passengerEndpoints(game,...stations))return result(false,'Passenger stations must serve two different cities within 5 tiles.');
   } else if(!freightPair(game,stations[0],stations[1],cargo)) {
     if(freightPair(game,stations[1],stations[0],cargo))stations.reverse();
-    else return result(false,`Stations need a ${CARGO[cargo].name.toLowerCase()} producer and a matching factory or town within 5 tiles.`);
+    else return result(false,`Stations need a producer of ${CARGO[cargo].name.toLowerCase()} and a matching factory or town within 5 tiles.`);
   }
   const path=findPath(game,stations[0],stations[1],mode);
   if(!path)return result(false,mode==='water'?'Ports must share connected water. Choose ports on the same river, lake or sea.':`Connect both stations with continuous ${mode==='road'?'roads':'rails'}, including bridges and tunnels.`);

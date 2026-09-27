@@ -164,7 +164,7 @@ The route planner, filters, map picking, port inspector and save validation acce
 
 ## Playability and accounting
 
-`gameplay-insights.js` derives optional next projects, truthful town service, industry input/storage states and actionable route health. It uses the simulation’s five-tile station catchment and capacity-dependent900-unit storage. The interface keeps search/filter inputs mounted during periodic entity refresh, returns explicit view changes to the top, and exposes building benefits in the catalog and inspector.
+`gameplay-insights.js` derives optional next projects, truthful town service, industry input/storage states and actionable route health. It uses the simulation’s five-tile station catchment, measured to an industry’s nearest footprint tile and to a town’s centre, and capacity-dependent900-unit storage. The interface keeps search/filter inputs mounted during periodic entity refresh, returns explicit view changes to the top, and exposes building benefits in the catalog and inspector.
 
 Passenger loading and delivery share `passengerEndpoints`, selecting a distinct pair of covered towns by nearest combined walking distance. Homes record `populationCityId` to retain population ownership after new towns are founded; outlying homes explicitly retain null. Housing creation and demolition share `housingCapacity`. A finished construction gesture refreshes network connections while paused.
 

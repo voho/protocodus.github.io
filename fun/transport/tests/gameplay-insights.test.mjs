@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { townService, industryStatus, routeHealth, nextProject } from '../gameplay-insights.js';
-import { emptyGame } from './helpers.mjs';
+import { build, buildPath, addRoute, tick } from '../model.js';
+import { emptyGame, line, advance } from './helpers.mjs';
 
 const site = (id, kind, x, inventory = {}) => ({ id, kind, x, y: 12, inventory, capacity: 1 });
 const routeGame = () => ({
@@ -35,6 +36,28 @@ test('route diagnostics explain missing customers, empty sources and blocked pro
   game.industries.pop();assert.equal(routeHealth(game,route).label,'No buyer');
   game.industries=[];assert.equal(routeHealth(game,route).label,'No producer');
   route.active=false;assert.equal(routeHealth(game,route).label,'Disconnected');
+});
+
+test('route diagnostics measure industries to their nearest footprint tile, like the simulation', () => {
+  const game=routeGame(),route=game.routes[0];
+  for(const industry of game.industries)industry.footprint=2;
+  game.stations=[{id:'a',x:16,y:13},{id:'b',x:25,y:13}];game.vehicles.push({routeId:'r',load:10});
+  assert.equal(routeHealth(game,route).label,'Running','both stops sit five tiles from a footprint edge but farther from the anchor');
+  game.stations[0].x=17;assert.equal(routeHealth(game,route).label,'No producer');
+});
+
+test('a working iron route beside large sites reads as running and names its cargo cleanly', () => {
+  const game=emptyGame();
+  assert.equal(build(game,'iron-mine',20,40).ok,true);assert.equal(build(game,'steel-mill',60,40).ok,true);
+  assert.equal(buildPath(game,'road',line(24,56,41)).ok,true);
+  assert.equal(build(game,'bus-stop',26,41).ok,true);assert.equal(build(game,'bus-stop',55,41).ok,true);
+  const result=addRoute(game,{name:'Ore run',mode:'road',stops:game.stations.map(stop=>stop.id),cargo:'iron'});
+  assert.equal(result.ok,true,result.message);
+  advance(game,60,tick);
+  const route=game.routes[0];assert.ok(route.delivered>0,'the simulation delivers the ore');
+  assert.equal(routeHealth(game,route).state,'running');
+  const missing=routeHealth({...game,industries:game.industries.filter(site=>site.kind!=='iron-mine')},route);
+  assert.equal(missing.label,'No producer');assert.doesNotMatch(missing.detail,/\ba iron/);assert.match(missing.detail,/producer of iron ore/);
 });
 
 test('a processing route points back to its missing input instead of recommending more vehicles', () => {
