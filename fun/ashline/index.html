@@ -22,7 +22,7 @@
   <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg?v=20260911">
   <link rel="preload" href="/assets/fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="./assets/fonts/oxanium-latin.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="./ashline.css?v=hud-labels-20260927">
+  <link rel="stylesheet" href="./ashline.css?v=power-legend-20260927">
 </head>
 <body data-ui="compact" data-screen="briefing">
   <div id="game-shell">
@@ -30,7 +30,7 @@
       <a class="game-brand" href="/fun/" aria-label="Ashline — back to games"><svg viewBox="0 0 36 36" aria-hidden="true"><path d="M2 30 17 3h5L9 30Zm12 0L25 10l10 20h-8l-4-9-5 9Z" fill="currentColor"/></svg><span>Ashline<small>Frontier command</small></span></a>
       <div class="resources" aria-label="Resources">
         <div class="resource mineral"><span class="resource-symbol">◈</span><span><strong id="credits">1,800</strong><small>Credits</small></span></div>
-        <div class="resource" id="power-resource"><span class="resource-symbol">ϟ</span><span><strong id="power">—</strong><small id="power-label">Power</small></span></div>
+        <div class="resource" id="power-resource" role="group" aria-label="Power: generated / needed"><span class="resource-symbol">ϟ</span><span><strong id="power">—</strong><small id="power-label">Generated / Needed</small></span></div>
         <div class="resource army-resource"><span class="resource-symbol">▱</span><span><strong id="army">—</strong><small>Units / capacity</small></span></div>
       </div>
       <div class="top-actions"><span id="mission-time">00:00</span><button id="select-army" class="text-button" title="Select all combat units · E"><span aria-hidden="true">▱</span><span class="action-label">Army</span><kbd>E</kbd></button><button id="command-toggle" class="text-button" aria-controls="command-console" aria-expanded="true" title="Open or close command console · B"><span aria-hidden="true">⌘</span> Command <kbd>B</kbd><span id="pending-count" hidden></span></button><button id="sound" class="icon-button" aria-label="Enable sound" aria-pressed="false" title="Toggle sound">♪</button><button id="pause" class="icon-button" aria-label="Pause game" title="Pause · P">Ⅱ</button><button id="help" class="icon-button" aria-label="Controls and field guide" title="Field guide">?</button></div>
@@ -107,6 +107,6 @@
   <div id="boot-error" class="no-script" hidden>Ashline could not start. Reload the page or try a current browser.</div>
   <script>(function(){var show=function(e){if(!(window.ashline&&window.ashline.booted)&&(e.target===window||e.type==='unhandledrejection'||(e.target&&e.target.tagName==='SCRIPT')))document.getElementById('boot-error').hidden=false;};addEventListener('error',show,true);addEventListener('unhandledrejection',show);})()</script>
   <script nomodule>document.getElementById('boot-error').hidden=false</script>
-  <script type="module" src="./main.js?v=hud-labels-20260927"></script>
+  <script type="module" src="./main.js?v=power-legend-20260927"></script>
 </body>
 </html>

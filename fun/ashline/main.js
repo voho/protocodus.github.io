@@ -393,11 +393,12 @@ function updateHUD() {
   // Let a live warning (such as the reactor's destruction) finish before the low-power line replaces it.
   if (low !== lowPower && !(low && performance.now() < toastUntil && $('notifications').classList.contains('warning'))) { lowPower = low; if (low && game.status === 'playing' && !paused) notify(`Low power: defenses offline and production slowed. Build ${BUILDINGS[raceBuilding(game, 0, 'reactor')].name}.`, true); }
   $('power').textContent = `${Math.floor(power.supply)} / ${Math.ceil(power.demand)}`;
-  $('power-label').textContent = low ? 'Brownout' : power.usingReserve ? 'Reserve' : 'Power';
   $('power-resource').classList.toggle('low-power', low);
   $('power-resource').classList.toggle('reserve-power', power.usingReserve);
   const powerDetail = low ? `Brownout: ${Math.round(power.ratio * 100)}% power. Production, research, mineral processing and repairs slow; defenses are offline.` : power.usingReserve ? `Reserve power: ${Math.ceil(power.reserveSeconds)} seconds remaining. Build a reactor before storage runs out.` : `Grid stable. ${Math.round(power.supply - power.demand)} spare power · +${Math.round((power.productionMultiplier - 1) * 100)}% construction and production speed. Diminishing returns, up to +25%.`;
-  $('power-resource').title = powerDetail;
+  const powerDescription = `Power generated: ${Math.floor(power.supply)}. Power needed: ${Math.ceil(power.demand)}. ${powerDetail}`;
+  $('power-resource').title = powerDescription;
+  $('power-resource').setAttribute('aria-label', powerDescription);
   $('grid-summary').textContent = low ? 'Brownout' : power.usingReserve ? 'Reserve active' : 'Grid stable';
   $('grid-state').dataset.state = power.status;
   $('grid-rate').textContent = `${Math.round(power.ratio * power.productionMultiplier * 100)}%`;
