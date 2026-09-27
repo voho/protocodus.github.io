@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "fd1ee633ea14",
+  "session_id": "495d27df-aecc-47c3-bdc5-ab2b4fc2d55d",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-27T07:44:56.990534Z",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "fun/tyran/README.md",
+    "fun/tyran/save-game.js",
+    "fun/tyran/sim.js",
+    "fun/tyran/tests/save-game-check.mjs",
+    "fun/tyran/tests/sim-check.mjs"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "67f9d64b5ef3",
+  "checkpoint_transcript_start": 682,
+  "transcript_lines_at_start": 682,
+  "token_usage": {
+    "input_tokens": 194,
+    "cache_creation_tokens": 398482,
+    "cache_read_tokens": 25417227,
+    "output_tokens": 280484,
+    "api_call_count": 95
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-27T07:44:56.056128Z",
+    "agent_lines": 0,
+    "human_added": 151,
+    "human_modified": 13,
+    "human_removed": 0,
+    "total_committed": 151,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude/projects/-Users-vojta-Dev-protocodus-github-io/495d27df-aecc-47c3-bdc5-ab2b4fc2d55d.jsonl"
+}
