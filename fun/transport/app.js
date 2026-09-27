@@ -20,6 +20,7 @@ import { mountSaves } from './saves-view.js';
 import { loadVisibility, saveVisibility, normalizeLayers, layerPreset } from './visibility.js';
 import { mountVisibility } from './visibility-view.js';
 import { townService, industryStatus, routeHealth, nextProject } from './gameplay-insights.js';
+import { collectNotices, groupNotices, crossedMilestone, newYearNotice, toastType } from './ui-notices.js';
 import { preloadHouses, onHouseAssetsChange } from './raster-houses.js';
 import { preloadWorldArt, onWorldArtChange } from './atlas-runtime.js';
 import { industryContains, industrySize, industryFootprint } from './industry-sites.js';
@@ -136,8 +137,10 @@ let routePage = 0;
 let routeFilters = { query:'', mode:'all', status:'all', cargo:'all' }, routePicking = '';
 let entityFilters = { towns:'', industry:'', kind:'all' };
 let lastRevision = -1;
-let lastNoticeId = game.notifications[0]?.id;
+let lastNoticeId = game.day<1 ? undefined : game.notifications[0]?.id;
 let milestoneReached = false;
+let noticeQueue=[],noticeAt=0,pacedNoticeAt=-Infinity,panelPricesStale=false,knownRoutes=new Set(),firstDeliveryPending=new Set(),townPeaks=new Map(),townDay=-1;
+resetMoments();
 const spanTools = new Set(['bridge','railbridge','tunnel','railtunnel']);
 const terrainTools = new Set(['raise','lower','level']);
 const lineTools = new Set(['road','rail',...spanTools,...terrainTools,'residential','commercial','industrial','bulldoze']);
@@ -164,8 +167,15 @@ function beep(type='ok') {
  if (!sounds) return;
  try { audioContext ||= new (window.AudioContext || window.webkitAudioContext)(); audioContext.resume(); const oscillator = audioContext.createOscillator(), gain = audioContext.createGain(); oscillator.connect(gain); gain.connect(audioContext.destination); oscillator.type='sine'; oscillator.frequency.setValueAtTime(type==='error'?190:560,audioContext.currentTime); oscillator.frequency.exponentialRampToValueAtTime(type==='error'?120:830,audioContext.currentTime+.09); gain.gain.setValueAtTime(.025,audioContext.currentTime); gain.gain.exponentialRampToValueAtTime(.001,audioContext.currentTime+.13); oscillator.start(); oscillator.stop(audioContext.currentTime+.14); } catch { sounds=false; }
 }
-function toast(message, error=false) {
- const el=document.createElement('div'); el.className='toast'+(error?' error':''); el.innerHTML=icon(error?'warning':'check')+`<span>${escapeHTML(message)}</span>`; $('#toast-region').append(el); while($('#toast-region').children.length>3) $('#toast-region').firstChild.remove(); setTimeout(()=>el.remove(),5000); $('#status-message').textContent=message; beep(error?'error':'ok');
+function toast(message, options=false) {
+ const {type=options===true?'error':'ok',action=null,key=message,silent=false}=typeof options==='object'&&options?options:{},region=$('#toast-region');
+ let el=[...region.children].find(node=>node.toastKey===key),count=1;
+ if(el){count=el.toastCount+1;clearTimeout(el.toastTimer);}else{el=document.createElement('div');region.append(el);}
+ el.className='toast'+(type==='ok'?'':' '+type);el.toastKey=key;el.toastCount=count;
+ el.innerHTML=icon(type==='ok'||type==='milestone'?'check':'warning')+`<span>${escapeHTML(message)}</span>`+(count>1?`<b class="toast-count">×${count}</b>`:'')+(action?`<button type="button" class="toast-action">${escapeHTML(action.label)}</button>`:'');
+ if(action)el.querySelector('.toast-action').onclick=()=>{el.remove();action.run();};
+ while(region.children.length>3) region.firstChild.remove();
+ el.toastTimer=setTimeout(()=>el.remove(),type==='warning'||type==='error'?8000:5000); $('#status-message').textContent=message; if(!silent&&type!=='ok')beep(type==='milestone'?'ok':'error');
 }
 function changeSpeed(next) { if(next>0)previousSpeed=next; speed=next; $$('.speed-control button').forEach(el=>{el.classList.toggle('active',Number(el.dataset.speed)===speed);el.setAttribute('aria-pressed',String(Number(el.dataset.speed)===speed));}); }
 function closeMapMenus(restoreFocus=false) {
@@ -464,7 +474,7 @@ function updateHud() {
  const pricing=inflationInfo(game);
  $('#inflation-rate').textContent=pricing.rate?`+${(pricing.rate*100).toFixed(2)}% / year`:'Base prices';
  $('#inflation-rate').title=`Prices are ${((pricing.index-1)*100).toFixed(1)}% above 1950. New inflation rate each January.`;
- if(pricing.year!==pricingYear){pricingYear=pricing.year;if(view==='routes')refreshRouteList();else if(view==='build'||view==='towns')renderPanel();}
+ if(pricing.year!==pricingYear){if(pricing.year>pricingYear)queueNewYear(pricing);pricingYear=pricing.year;if(view==='routes')refreshRouteList();else if(view==='build'||view==='towns'){if($('#panel-content').contains(document.activeElement)&&document.activeElement.matches('input,select,textarea'))panelPricesStale=true;else renderPanel();}}
  const hudMoney=value=>Math.abs(value)>=(window.innerWidth<=1100?10000:1000000)?'$'+Math.abs(value).toLocaleString('en-US',{notation:'compact',maximumFractionDigits:1}):money(value);
  $('#balance').textContent=(game.money<0?'−':'')+hudMoney(game.money);$('#balance').title=(game.money<0?'−':'')+money(game.money);
  const profit=(game.monthlyIncome||0)-(game.monthlyIncomeAtAccountingStart||0)-(game.monthlyOperatingExpenses||0);$('#profit').textContent=(profit>=0?'+':'−')+hudMoney(profit);$('#profit').title=(profit>=0?'+':'−')+money(profit)+' operating profit this month';$('#profit').className=profit>=0?'positive':'negative';
@@ -477,6 +487,7 @@ function updateHud() {
  const activeStopIds=new Set(game.routes.filter(route=>route.active).flatMap(route=>route.stops));
  const activeStops=game.stations.filter(stop=>activeStopIds.has(stop.id));
  const served=game.cities.filter(city=>townService(game,city,activeStops).connected).length;
+ watchTowns(activeStops);
  $('#connected').innerHTML=served+` <small>/ ${game.cities.length}</small>`;$('#route-count').textContent=game.routes.length;
  const date=new Date(Date.UTC(1950,0,1+Math.floor(game.day)));$('#date').textContent=date.toLocaleDateString('en-US',{month:'short',year:'numeric',timeZone:'UTC'});$('#date').title=date.toLocaleDateString('en-US',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'});
  const amount=Math.min(100,Math.floor(game.totalDelivered));if($('#goal-progress'))$('#goal-progress').textContent=amount>=100?'Milestone reached':amount+' / 100';$('#goal-bar').style.width=amount+'%';
@@ -604,7 +615,8 @@ function activateGame(next) {
  view='build';category='network';buildingGroup='homes';chainSelection={};
  formDraft={name:'',mode:'road',from:'',to:'',cargo:'passengers'};
  routePage=0;routeFilters={query:'',mode:'all',status:'all',cargo:'all'};entityFilters={towns:'',industry:'',kind:'all'};
- milestoneReached=false;lastNoticeId=game.notifications[0]?.id;lastRevision=-1;minimapAt=0;panelAt=0;lastFrame=performance.now();
+ milestoneReached=false;lastNoticeId=game.day<1?undefined:game.notifications[0]?.id;lastRevision=-1;minimapAt=0;panelAt=0;lastFrame=performance.now();
+ resetMoments();
  canvas.classList.remove('build-mode','dragging','route-picking');$('#placement-tip').hidden=true;
  $('#inspector').hidden=true;$('#inspector').replaceChildren();$('#toast-region').replaceChildren();
  $('#objective-card').hidden=true;$('#objective-card h2').textContent='First 100 deliveries';$('#objective-card p').textContent='Connect an industry to keep cargo moving.';
@@ -681,6 +693,67 @@ function openHelp(tab='basics') {
  openModal(`<div class="modal-inner"><div class="modal-heading"><div><h2>Field guide</h2></div><button class="close-modal" aria-label="Close dialog">×</button></div><div class="modal-tabbar"><button data-help-tab="basics" class="${tab==='basics'?'active':''}">Basics</button><button data-help-tab="chains" class="${tab==='chains'?'active':''}">Production</button><button data-help-tab="resources" class="${tab==='resources'?'active':''}">Resources</button></div>${tab==='basics'?basics:tab==='chains'?chainBody:resources}<div class="modal-actions"><button class="button button-primary" data-close>Back to game ${icon('arrow')}</button></div></div>`);
  $$('[data-help-tab]').forEach(el=>el.addEventListener('click',()=>openHelp(el.dataset.helpTab)));
 }
+
+// Notices reach the HUD through one queue: model notices, grouped by topic, and
+// moments derived here so the simulation never spends ids on presentation.
+function resetMoments() {
+ noticeQueue=[];pricingYear=inflationInfo(game).year;panelPricesStale=false;townDay=-1;
+ knownRoutes=new Set(game.routes.map(route=>route.id));firstDeliveryPending=new Set(game.routes.filter(route=>route.cargo!=='passengers'&&route.delivered===0).map(route=>route.id));
+ townPeaks=new Map(game.cities.map(city=>[city.id,city.population]));
+}
+function showQueuedNotices(now) {
+ const urgent=entry=>entry.type==='warning'||entry.type==='error'?1:0;noticeQueue.sort((a,b)=>urgent(b)-urgent(a));
+ let shown=0,beeped=false;
+ for(let i=0;i<noticeQueue.length&&shown<2;){
+  const entry=noticeQueue[i];if(entry.paced&&now-pacedNoticeAt<2000){i++;continue;}
+  noticeQueue.splice(i,1);if(entry.paced)pacedNoticeAt=now;
+  const target=entry.targets?.find(noticeTargetExists);
+  toast(entry.message,{type:entry.type,action:entry.action||(target?{label:'Show',run:()=>showNoticeTarget(target)}:null),silent:beeped});beeped||=entry.type!=='ok';shown++;
+ }
+}
+function queueNewYear(pricing) {
+ noticeQueue.push({message:newYearNotice(pricing.year,pricing.rate),type:'milestone',action:getFleetUpgrade(game).available?{label:'Review upgrades',run:reviewUpgrades}:null});
+}
+function reviewUpgrades() { closeModal();setView('routes');revealInPanel($('.fleet-upgrades'),$('#upgrade-fleet')); }
+// Scroll only the drawer's own list; the drawer may still be sliding in, so focus retries once it is visible.
+function revealInPanel(el,focusTarget=el) {
+ const panel=$('#panel-content');if(!el||!panel.contains(el))return;
+ const box=el.getBoundingClientRect(),area=panel.getBoundingClientRect();panel.scrollTop+=box.top-area.top-Math.max(0,(area.height-box.height)/2);
+ focusTarget?.focus({preventScroll:true});if(focusTarget&&document.activeElement!==focusTarget)setTimeout(()=>{if(!document.activeElement||document.activeElement===document.body)focusTarget.focus({preventScroll:true});},200);
+}
+// Every freight route launched this session is watched; loaded routes only if they have not delivered yet.
+function watchRoutes() {
+ for(const route of game.routes){
+  if(!knownRoutes.has(route.id)){knownRoutes.add(route.id);if(route.cargo!=='passengers')firstDeliveryPending.add(route.id);}
+  if(route.delivered>0&&firstDeliveryPending.delete(route.id))noticeQueue.push({message:`First ${CARGO[route.cargo].name.toLowerCase()} delivered on ${route.name} · +${money(route.revenue)}`,type:'milestone',targets:[{kind:'route',id:route.id}]});
+ }
+}
+function watchTowns(activeStops) {
+ const day=Math.floor(game.day);if(day===townDay)return;townDay=day;
+ for(const city of game.cities){
+  const peak=townPeaks.get(city.id);if(peak!==undefined&&city.population<=peak)continue;townPeaks.set(city.id,city.population);if(peak===undefined)continue;
+  const reached=crossedMilestone(peak,city.population);
+  if(reached&&townService(game,city,activeStops).connected)noticeQueue.push({message:`${city.name} reached ${integer(reached)} residents`,type:'milestone',targets:[{kind:'city',id:city.id}],paced:true});
+ }
+}
+function noticeTargetExists(target) { return Boolean(target)&&(target.kind==='route'?game.routes:target.kind==='city'?game.cities:game.industries).some(item=>String(item.id)===target.id); }
+function showNoticeTarget(target) {
+ if(!noticeTargetExists(target))return;
+ if(target.kind!=='route'){locateDestination(target.id,target.kind);return;}
+ closeModal();
+ if(!filterRoutes(game,routeFilters).some(route=>String(route.id)===target.id))routeFilters={query:'',mode:'all',status:'all',cargo:'all'};
+ routePage=Math.max(0,Math.floor(filterRoutes(game,routeFilters).findIndex(route=>String(route.id)===target.id)/ROUTES_PER_PAGE));setView('routes');
+ const card=$$('#route-list [data-route-id]').find(el=>el.dataset.routeId===target.id);revealInPanel(card,card?.querySelector('[data-focus-route]'));
+}
+function openNews() {
+ const notices=[...game.notifications],date=day=>new Date(Date.UTC(1950,0,1+Math.floor(day))).toLocaleDateString('en-US',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'});
+ const items=notices.map((notice,index)=>{const type=toastType(notice.type);return `<li class="news-item" data-type="${type}">${icon(type==='ok'||type==='milestone'?'check':'warning')}<div><time>${date(notice.day)}</time><p>${escapeHTML(notice.message)}</p></div>${noticeTargetExists(notice.target)?`<button class="small-button" data-news-target="${index}">Show</button>`:''}</li>`;}).join('');
+ closeMobile();openModal(`<div class="modal-inner"><div class="modal-heading"><div><h2>News</h2><p>Recent company notices, newest first. The log keeps the latest 24.</p></div><button class="close-modal" aria-label="Close dialog">×</button></div><ol class="news-list">${items||'<li class="news-empty">No news yet. Notices about your network, towns and industries appear here.</li>'}</ol><div class="modal-actions"><button class="button button-primary" data-close>Back to game ${icon('arrow')}</button></div></div>`);
+ $$('[data-news-target]').forEach(el=>el.addEventListener('click',()=>showNoticeTarget(notices[Number(el.dataset.newsTarget)].target)));
+ $('#modal .close-modal')?.focus({preventScroll:true});
+}
+// A January repricing waits while the player types in the panel's search.
+$('#panel-content').addEventListener('focusout',()=>setTimeout(()=>{if(panelPricesStale&&!$('#panel-content').contains(document.activeElement)){panelPricesStale=false;if(view==='build'||view==='towns')renderPanel();}}));
 
 function gridLine(a,b) { const points=[];let x=a.x,y=a.y;points.push({x,y});const horizontalFirst=Math.abs(b.x-a.x)>=Math.abs(b.y-a.y);const stepX=()=>{while(x!==b.x){x+=Math.sign(b.x-x);points.push({x,y});}};const stepY=()=>{while(y!==b.y){y+=Math.sign(b.y-y);points.push({x,y});}};if(horizontalFirst){stepX();stepY();}else{stepY();stepX();}return points; }
 function constructionLine(a,b,key) {
@@ -847,7 +920,7 @@ window.addEventListener('pagehide',()=>{if((!isLoading()||menuOpening)&&!$('#sta
 document.addEventListener('visibilitychange',()=>{lastFrame=performance.now();if(document.hidden&&(!isLoading()||menuOpening)&&!$('#start-menu')?.open)flushSave();});
 
 layersView=mountVisibility($('#layers-panel'),$('#layers-button'),{getLayers:()=>({...mapLayers}),onChange:(key,visible)=>setMapLayers({[key]:visible}),onPreset:name=>setMapLayers(layerPreset(name))});
-compactUI=mountCompactPlay({onMenu:openGameMenu,onView:setView,getView:()=>view,onCancelGesture:cancelGesture,onMinimapOpen:()=>{renderer.drawMinimap($('#minimap'));invalidateScene();}});
+compactUI=mountCompactPlay({onMenu:openGameMenu,onNews:openNews,onView:setView,getView:()=>view,onCancelGesture:cancelGesture,onMinimapOpen:()=>{renderer.drawMinimap($('#minimap'));invalidateScene();}});
 const refreshArtwork=()=>{
  invalidateScene();
  drawPaletteSprites();
@@ -877,9 +950,10 @@ function frame(now){
  }
  if(now-hudAt>400&&(!hudState||hudState.game!==game||hudState.day!==game.day||hudState.revision!==game.revision||hudState.money!==game.money||hudState.zoom!==camera.zoom||hudState.w!==w||hudState.view!==view)){
   updateHud();hudAt=now;hudState={game,day:game.day,revision:game.revision,money:game.money,zoom:camera.zoom,w,view};
-  const notice=game.notifications[0];if(notice&&notice.id!==lastNoticeId){lastNoticeId=notice.id;toast(notice.message,notice.type==='warning');}
+  const fresh=collectNotices(game.notifications,lastNoticeId);lastNoticeId=game.notifications[0]?.id;for(const entry of groupNotices(fresh))noticeQueue.push({...entry,type:toastType(entry.type)});watchRoutes();
   if(selected&&!$('#inspector').hidden&&!$('#inspector').contains(document.activeElement))inspect(selected.x,selected.y,selected.kind);
  }
+ if(noticeQueue.length&&now-noticeAt>400){noticeAt=now;showQueuedNotices(now);}
  if((!compactUI||compactUI.isMinimapVisible())&&(!minimapState||minimapState.game!==game||minimapState.revision!==game.revision||minimapState.layers!==mapLayers||minimapState.x!==camera.x||minimapState.y!==camera.y||minimapState.height!==camera.height||minimapState.zoom!==camera.zoom||minimapState.w!==w||minimapState.h!==h)){
   renderer.drawMinimap($('#minimap'));minimapAt=now;lastRevision=game.revision;
   minimapState={game,revision:game.revision,layers:mapLayers,x:camera.x,y:camera.y,height:camera.height,zoom:camera.zoom,w,h};

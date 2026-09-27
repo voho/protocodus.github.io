@@ -1,0 +1,231 @@
+// Notices in a real browser: nothing is dropped, bursts are grouped and toasts act.
+// Serve the repository root first; every page uses fresh, isolated browser storage.
+import assert from 'node:assert/strict';
+import { mkdir } from 'node:fs/promises';
+import { createWorldFromMenu, loadAutosaveFromMenu, openGameAction } from './browser-start.mjs';
+const { chromium } = await import(process.env.TRANSPORT_PLAYWRIGHT || 'playwright');
+const browser = await chromium.launch({ channel: process.env.TRANSPORT_BROWSER || 'chrome', headless: true });
+const url = process.env.TRANSPORT_URL || 'http://localhost:8765/fun/transport/';
+const output = process.env.TRANSPORT_OUTPUT || process.env.TRANSPORT_SCREENSHOTS || '/tmp/transport-notices-qa';
+await mkdir(output, { recursive: true });
+const errors = [];
+
+async function open(viewport) {
+  const page = await browser.newPage({ viewport, deviceScaleFactor: 1, isMobile: viewport.width <= 700, hasTouch: viewport.width <= 700 });
+  page.on('pageerror', error => errors.push(error.message));
+  // Record every toast as it is shown, including ones that later scroll out of the region.
+  await page.addInitScript(() => {
+    window.__toasts = [];
+    addEventListener('DOMContentLoaded', () => new MutationObserver(records => {
+      for (const record of records) for (const node of record.addedNodes) if (node.classList?.contains('toast')) window.__toasts.push({ text: node.querySelector(':scope > span')?.textContent, type: node.className, action: node.querySelector('.toast-action')?.textContent || '' });
+    }).observe(document.querySelector('#toast-region'), { childList: true }));
+  });
+  await page.goto(url);
+  return page;
+}
+const shown = page => page.evaluate(() => window.__toasts.length);
+const toastsSince = (page, from) => page.evaluate(from => window.__toasts.slice(from), from);
+const waitForToast = (page, pattern, from = 0) => page.waitForFunction(({ source, from }) => window.__toasts.slice(from).some(toast => new RegExp(source).test(toast.text)), { source: pattern.source, from }, { timeout: 20000 })
+  .catch(async error => { throw new Error(`No toast matching ${pattern}; shown: ${JSON.stringify(await toastsSince(page, from))}`, { cause: error }); });
+const clearToasts = page => page.evaluate(() => document.querySelector('#toast-region').replaceChildren());
+
+try {
+  const page = await open({ width: 1440, height: 960 });
+  await createWorldFromMenu(page);
+  await waitForToast(page, /^Welcome to /);
+  assert.equal((await toastsSince(page, 0)).filter(toast => /^Welcome/.test(toast.text)).length, 1, 'a fresh world shows its welcome once');
+  await page.waitForTimeout(900);
+  assert.equal((await toastsSince(page, 0)).filter(toast => /^Welcome/.test(toast.text)).length, 1, 'the welcome is not repeated');
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: `${output}/welcome-desktop.png` });
+
+  // Three unrelated notices in one HUD interval: all three appear (formerly only the newest).
+  await clearToasts(page);
+  let from = await shown(page);
+  await page.evaluate(() => {
+    const g = transport.game;
+    for (const n of [1, 2, 3]) g.notifications.unshift({ id: `notice-test-${n}`, day: g.day, message: `Test notice ${n}`, text: `Test notice ${n}`, type: 'info' });
+    g.money += 1;
+  });
+  await page.waitForFunction(from => window.__toasts.slice(from).filter(toast => /^Test notice/.test(toast.text)).length === 3, from);
+  assert.deepEqual((await toastsSince(page, from)).map(toast => toast.text), ['Test notice 1', 'Test notice 2', 'Test notice 3'], 'queued notices are shown oldest first');
+  assert.equal(await page.locator('#toast-region .toast').count(), 3);
+
+  // Repeating the same rejected action merges into one toast with a count.
+  await clearToasts(page);
+  await page.evaluate(() => { const c = transport.game.cities[0]; transport.renderer.focus(c.x, c.y); transport.setTool('bulldoze'); });
+  const center = await page.evaluate(() => { const c = transport.game.cities[0], p = transport.renderer.worldToScreen(c.x, c.y), box = document.querySelector('#world').getBoundingClientRect(); return { x: box.left + p.x, y: box.top + p.y }; });
+  for (let n = 0; n < 3; n++) { await page.mouse.click(center.x, center.y); await page.waitForTimeout(80); }
+  assert.equal(await page.locator('#toast-region .toast.error').count(), 1, 'identical errors share one toast');
+  assert.equal(await page.locator('#toast-region .toast.error .toast-count').innerText(), '×3');
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: `${output}/repeated-error-desktop.png` });
+  await page.evaluate(() => transport.setTool('inspect'));
+
+  // A served town announces its next resident milestone once.
+  from = await shown(page);
+  const town = await page.evaluate(() => {
+    const g = transport.game, city = g.cities[0], next = [1000, 2500, 5000, 10000].find(n => n > city.population);
+    city.population = next + 5; g.day += 1; g.money += 1; return { name: city.name, next };
+  });
+  await waitForToast(page, new RegExp(`^${town.name} reached ${town.next.toLocaleString('en-US')} residents$`), from);
+  await page.evaluate(() => { const g = transport.game; g.cities[0].population += 50; g.day += 1; g.money += 1; });
+  await page.waitForTimeout(900);
+  const moments = (await toastsSince(page, from)).filter(toast => /reached/.test(toast.text));
+  assert.equal(moments.length, 1, 'a milestone is announced once');
+  assert.match(moments[0].type, /milestone/);
+  assert.equal(moments[0].action, 'Show');
+
+  // One bulldozed road tile shared by three services: one grouped warning.
+  await clearToasts(page);
+  const cut = await page.evaluate(async () => {
+    const { addRoute } = await import('./model.js');
+    const g = transport.game, first = g.routes[0];
+    for (const n of [2, 3]) { const result = addRoute(g, { name: `Relief line ${n}`, mode: 'road', stops: [...first.stops], cargo: 'passengers' }); if (!result.ok) throw new Error(result.message); }
+    const station = new Set(g.stations.map(s => `${s.x},${s.y}`)), city = g.cities.slice(0, 2);
+    return first.path.slice(4, -4).find(p => !station.has(`${p.x},${p.y}`) && city.every(c => Math.hypot(c.x - p.x, c.y - p.y) > 6));
+  });
+  assert.ok(cut, 'the starter route has an open middle tile');
+  from = await shown(page);
+  const cutResult = await page.evaluate(async cut => {
+    const { build, refreshRouteConnections } = await import('./model.js');
+    const g = transport.game, before = g.notifications[0].id, result = build(g, 'bulldoze', cut.x, cut.y);
+    refreshRouteConnections(g);
+    return { ok: result.ok, message: result.message, fresh: g.notifications.slice(0, g.notifications.findIndex(n => n.id === before)).map(n => n.topic) };
+  }, cut);
+  assert.equal(cutResult.ok, true, cutResult.message);
+  assert.deepEqual(cutResult.fresh, ['route-connection', 'route-connection', 'route-connection']);
+  await waitForToast(page, /^3 routes lost their connection/, from);
+  await page.waitForTimeout(900);
+  const disconnect = (await toastsSince(page, from)).filter(toast => /connection/.test(toast.text));
+  assert.equal(disconnect.length, 1, 'three disconnects become one toast');
+  assert.match(disconnect[0].type, /warning/);
+  assert.equal(disconnect[0].action, 'Show');
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: `${output}/grouped-warning-desktop.png` });
+  await page.locator('#toast-region .toast.warning .toast-action').click();
+  await page.waitForFunction(() => document.activeElement?.matches('[data-focus-route]'));
+  assert.equal(await page.evaluate(() => transport.game.routes.some(r => r.id === document.activeElement.dataset.focusRoute)), true, 'Show opens Routes at the broken service');
+  await page.screenshot({ path: `${output}/show-route-desktop.png` });
+
+  // News lists the stored notices newest first, and Show locates an industry.
+  await page.evaluate(() => {
+    const g = transport.game, site = g.industries[3];
+    g.notifications.unshift({ id: 'notice-test-industry', day: g.day, message: `${site.name} expanded to 150% capacity.`, text: `${site.name} expanded to 150% capacity.`, type: 'success', topic: 'industry-growth', target: { kind: 'industry', id: site.id } });
+  });
+  await openGameAction(page, 'news-button');
+  await page.locator('.news-list').waitFor();
+  assert.equal(await page.locator('.news-item').count(), await page.evaluate(() => transport.game.notifications.length), 'News lists every stored notice');
+  assert.match(await page.locator('.news-item').first().innerText(), /expanded to 150% capacity/);
+  assert.match(await page.locator('.news-item').last().innerText(), /Welcome/);
+  assert.equal(await page.evaluate(() => document.querySelector('#modal h2').textContent), 'News');
+  await page.screenshot({ path: `${output}/news-desktop.png` });
+  await page.locator('.news-item').first().locator('[data-news-target]').click();
+  await page.locator('#inspector').waitFor({ state: 'visible' });
+  const inspected = await page.evaluate(() => ({ open: document.querySelector('#modal').open, title: document.querySelector('#inspector h3').textContent, name: transport.game.industries[3].name }));
+  assert.equal(inspected.open, false);
+  assert.equal(inspected.title, inspected.name, 'Show in News focuses the industry');
+  await page.locator('#inspector .tiny-button').click();
+
+  // January 1: a year toast whose action reviews upgrades without spending.
+  await clearToasts(page);
+  from = await shown(page);
+  await page.evaluate(() => { transport.game.day = 364.5; });
+  await page.locator('[data-speed="8"]').click();
+  await waitForToast(page, /^1951 · Generation 2 vehicles: \+20% capacity, \+10% speed · prices \+\d\.\d% this year$/, from);
+  await page.locator('[data-speed="0"]').click();
+  const year = (await toastsSince(page, from)).find(toast => /^1951/.test(toast.text));
+  assert.match(year.type, /milestone/);
+  assert.equal(year.action, 'Review upgrades');
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: `${output}/new-year-desktop.png` });
+  const money = await page.evaluate(() => transport.game.money);
+  await page.locator('#toast-region .toast-action', { hasText: 'Review upgrades' }).click();
+  await page.waitForFunction(() => document.activeElement?.id === 'upgrade-fleet');
+  assert.equal(await page.evaluate(() => transport.game.money), money, 'reviewing upgrades never spends money');
+  assert.equal(await page.locator('.nav-button[data-view="routes"]').getAttribute('aria-expanded'), 'true');
+  assert.equal((await toastsSince(page, from)).filter(toast => /^1951/.test(toast.text)).length, 1, 'one year toast per January');
+
+  // The Towns search keeps focus and text across a January repricing.
+  await page.locator('.nav-button[data-view="towns"]').click();
+  await page.locator('#entity-search').fill('a');
+  await page.locator('#entity-search').focus();
+  from = await shown(page);
+  const price = await page.locator('[data-tool="city"]').innerText();
+  await page.evaluate(() => { transport.game.day = 729.8; });
+  await page.locator('[data-speed="8"]').evaluate(button => button.click());
+  await waitForToast(page, /^1952 · Generation 3/, from);
+  await page.evaluate(() => transport.setSpeed(0));
+  assert.equal(await page.evaluate(() => document.activeElement?.id), 'entity-search', 'typing continues across January');
+  assert.equal(await page.locator('#entity-search').inputValue(), 'a');
+  assert.equal(await page.locator('[data-tool="city"]').innerText(), price, 'repricing waits while the search has focus');
+  await page.locator('#world').focus();
+  await page.waitForFunction(price => document.querySelector('[data-tool="city"]')?.innerText !== price, price);
+  assert.equal(await page.locator('#entity-search').inputValue(), 'a', 'the deferred repricing keeps the query');
+
+  // A new freight route announces its first delivery once, with a way to the route.
+  from = await shown(page);
+  const freight = await page.evaluate(async () => {
+    const { build, addRoute } = await import('./model.js'), { buildPlan } = await import('./construction-plan.js');
+    const g = transport.game, path = [[219, 255], [220, 255], ...Array.from({ length: 11 }, (_, i) => [221, 255 - i])].map(([x, y]) => ({ x, y }));
+    const road = buildPlan(g, 'road', path), stops = [build(g, 'bus-stop', 220, 255), build(g, 'bus-stop', 221, 245)];
+    const result = addRoute(g, { name: 'Quarry line', mode: 'road', stops: stops.map(stop => stop.station?.id), cargo: 'stone' });
+    return { ok: road.ok && stops.every(stop => stop.ok) && result.ok, message: [road.message, ...stops.map(stop => stop.message), result.message].join(' / ') };
+  });
+  assert.equal(freight.ok, true, freight.message);
+  await page.waitForTimeout(600);
+  await page.evaluate(async () => { const { tick } = await import('./model.js'); tick(transport.game, 30); });
+  await waitForToast(page, /^First stone delivered on Quarry line · \+\$[\d,]+$/, from);
+  await page.evaluate(async () => { const { tick } = await import('./model.js'); tick(transport.game, 20); });
+  await page.waitForTimeout(900);
+  const firsts = (await toastsSince(page, from)).filter(toast => /^First stone/.test(toast.text));
+  assert.equal(firsts.length, 1, 'the first delivery is announced once');
+  assert.match(firsts[0].type, /milestone/);
+  assert.equal(firsts[0].action, 'Show');
+
+  // A loaded mid-year save replays nothing: no welcome and no year toast.
+  await page.evaluate(async () => { transport.game.day = 900.4; await transport.persist(); });
+  await page.reload();
+  await loadAutosaveFromMenu(page);
+  await page.locator('[data-speed="1"]').click();
+  await page.waitForTimeout(2500);
+  const replay = (await toastsSince(page, 0)).filter(toast => /^Welcome|Generation|^Test notice/.test(toast.text));
+  assert.deepEqual(replay, [], 'loading a save shows no old notices');
+  // Switching in play to a save from a later year starts that year quietly too.
+  from = await shown(page);
+  await openGameAction(page, 'main-menu-button');
+  await page.locator('#start-load').waitFor();
+  await page.evaluate(async () => {
+    const { encodeGame } = await import('./save-codec.js'), later = { ...transport.game, day: 1200.3 };
+    localStorage.setItem('transport-save-v1', JSON.stringify(encodeGame(later)));
+  });
+  await loadAutosaveFromMenu(page);
+  assert.equal(await page.evaluate(() => new Date(Date.UTC(1950, 0, 1 + Math.floor(transport.game.day))).getUTCFullYear()), 1953);
+  await page.locator('[data-speed="1"]').click();
+  await page.waitForTimeout(2500);
+  assert.deepEqual((await toastsSince(page, from)).filter(toast => /^Welcome|Generation/.test(toast.text)), [], 'activating a later-year save shows no year toast');
+  await page.close();
+
+  // Phone layout: a toast with an action fits beside the map controls.
+  const phone = await open({ width: 390, height: 844 });
+  await createWorldFromMenu(phone);
+  await waitForToast(phone, /^Welcome to /);
+  await clearToasts(phone);
+  await phone.evaluate(() => { const g = transport.game, site = g.industries[0]; g.notifications.unshift({ id: 'notice-test-phone', day: g.day, message: `${site.name} expanded to 150% capacity.`, text: '', type: 'success', topic: 'industry-growth', target: { kind: 'industry', id: site.id } }, { id: 'notice-test-phone-2', day: g.day, message: 'Test line has lost its connection. Repair the network to resume.', text: '', type: 'warning' }); g.money += 1; });
+  await phone.waitForFunction(() => document.querySelectorAll('#toast-region .toast').length === 2);
+  const layout = await phone.evaluate(() => ({ overflow: document.documentElement.scrollWidth > innerWidth, toasts: [...document.querySelectorAll('#toast-region .toast')].map(el => { const box = el.getBoundingClientRect(); return { left: box.left, right: box.right }; }) }));
+  assert.equal(layout.overflow, false);
+  assert.ok(layout.toasts.every(box => box.left >= 0 && box.right <= 390), 'toasts stay on screen at 390px');
+  await phone.waitForTimeout(300);
+  await phone.screenshot({ path: `${output}/toasts-390.png` });
+  await openGameAction(phone, 'news-button');
+  await phone.locator('.news-list').waitFor();
+  assert.equal(await phone.evaluate(() => document.querySelector('#modal').scrollWidth <= document.querySelector('#modal').clientWidth + 1), true, 'News fits a phone');
+  await phone.screenshot({ path: `${output}/news-390.png` });
+  await phone.close();
+
+  assert.deepEqual(errors, []);
+  console.log('Notices browser check passed: welcome, three-notice burst, grouped disconnects with Show, News with Show, January toast and upgrade review, Towns search focus, first delivery, town milestones, quiet save loading, 390px layout.');
+} finally {
+  await browser.close();
+}

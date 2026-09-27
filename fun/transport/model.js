@@ -55,8 +55,8 @@ export function constructionCost(game,tool,x,y) {
   }
   return priceFor(game,base);
 }
-function notify(game,message,type='info') {
-  game.notifications.unshift({ id: makeId(game,'notice'), day:game.day, message, text:message, type });
+function notify(game,message,type='info',extra) {
+  game.notifications.unshift({ id: makeId(game,'notice'), day:game.day, message, text:message, type, ...(extra?.topic?{topic:extra.topic}:{}), ...(extra?.target?{target:extra.target}:{}) });
   game.notifications.length = Math.min(game.notifications.length,24);
 }
 export function createGame({biome='taiga',seed=1847,size=DEFAULT_WORLD_SIZE,generationVersion,townCount,industryDistricts}={}) {
@@ -353,7 +353,7 @@ export function build(game,tool,x,y) {
     const newCity={id:makeId(game,'city'),name:prefixes[n%prefixes.length]+suffixes[Math.floor(n/prefixes.length)%suffixes.length],x,y,population:80,activity:0,growth:0,passengers:12,delivered:0,supplies:0,lastServiceDay:null};
     releaseTerrainObjects(game,[point]);
     spend(game,cost);game.cities.push(newCity);t.road=true;t.detail='';t.terrain=game.biome==='desert'?'sand':game.biome==='tundra'?'snow':'grass';invalidateNetwork(game,[point]);
-    notify(game,`${newCity.name} founded. Add housing and connect a passenger service.`,'success');
+    notify(game,`${newCity.name} founded. Add housing and connect a passenger service.`,'success',{target:{kind:'city',id:newCity.id}});
     return result(true,`${newCity.name} founded · ${moneyText(cost)}`,{cost,city:newCity});
   }
   if(owns(BUILDINGS,tool)) {
@@ -564,7 +564,7 @@ function updateRoutePath(game,route) {
   const path=a&&b?findPath(game,a,b,route.mode):null;
   const wasActive=route.active;
   route.active=Boolean(path);route.pathRevision=networkRevision;
-  if(!path) {route.status='Disconnected';if(wasActive)notify(game,route.mode==='water'?`${route.name} has lost its water connection. Ports need a continuous waterway.`:`${route.name} has lost its connection. Repair the network to resume.`,'warning');return;}
+  if(!path) {route.status='Disconnected';if(wasActive)notify(game,route.mode==='water'?`${route.name} has lost its water connection. Ports need a continuous waterway.`:`${route.name} has lost its connection. Repair the network to resume.`,'warning',{topic:'route-connection',target:{kind:'route',id:route.id}});return;}
   route.status='Running';
   const changed=route.path.length!==path.length||route.path.some((p,i)=>p.x!==path[i].x||p.y!==path[i].y);
   if(changed) {
@@ -835,6 +835,7 @@ export function validateGame(game) {
   if(!game.history.every(h=>h&&['month','day','income','expenses','profit','money','population','delivered'].every(k=>finite(h[k]))))return false;
   if(!game.history.every(h=>(h.operatingExpenses===undefined||finite(h.operatingExpenses,0,1e15))&&(h.operatingProfit===undefined||finite(h.operatingProfit))))return false;
   if(!game.notifications.every(n=>n&&typeof n.message==='string'&&typeof n.text==='string'&&typeof n.type==='string'&&finite(n.day,0)))return false;
+  if(!game.notifications.every(n=>(n.topic===undefined||typeof n.topic==='string'&&n.topic.length<=32)&&(n.target===undefined||Boolean(n.target)&&['industry','city','route'].includes(n.target.kind)&&typeof n.target.id==='string'&&n.target.id.length<=64)))return false;
   return true;
 }
 export function saveGame(game) {

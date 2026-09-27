@@ -38,6 +38,14 @@ Every January 1 unlocks one new vehicle generation for roads, railways and ships
 
 Inflation is a seeded **1–5% each year**, compounded from 1950 prices. It affects construction, vehicles, upgrades, upkeep and delivery fares. Hover or tap the finances to see this year's rate. Costs throughout the interface update with the calendar; prices quoted in this guide are starting prices. Selling a vehicle returns 45% of the amount actually spent on it, including upgrades.
 
+## Notices and news
+
+Every company notice reaches the screen. Notices that arrive together appear one after another, oldest first and warnings first. When several routes lose their connection at once, or several industries expand on the same day, one notice names them all. Repeating the same rejected action adds a count to its notice instead of stacking copies. Warnings and errors stay for 8 seconds, other notices for 5.
+
+A notice about a route, town or industry has a **Show** button: a route opens at its card in Routes, and a town or industry is centered and inspected. A new company greets you when it opens; loading a save never replays old notices. Each January 1 announces the new vehicle generation and the year's price rise. When vehicles can be upgraded, **Review upgrades** opens Routes at **Upgrade all**; it never spends money. The first delivery of each new freight route, and a served town passing 1,000, 2,500, 5,000 or 10,000 residents, are announced as they happen. With sound on, only warnings, errors and these moments play a tone, at most once per batch.
+
+**Game menu → News** lists the latest 24 company notices with their dates, newest first, and a **Show** button while the route, town or industry still exists. The yearly, first-delivery and town moments are shown as they happen and are not kept in News.
+
 ## Controls and saving
 
 Drag the map in **Explore** mode to pan; click a place to inspect it. Choose one of three views: **Region (50%)**, **Town (100%)**, or **Detail (200%)**. Scroll, press + / −, or use the zoom buttons to move one view at a time; click the percentage to open the three choices. Turn on **Game menu → Mini map** to navigate with a small overview, or press **M** for the region atlas. Construction tools place a structure with a click or lay roads, tracks and zones with a drag. Press **Done**, **Escape**, or right-click to leave construction. Right-drag or hold Space while dragging to move the map while building. On touch screens, two fingers move the map and pinch changes zoom; dragging a single stop, port or building tool moves the map without placing it.
@@ -236,6 +244,12 @@ The annual-economy browser check verifies individual and fleet upgrades, afforda
 
 ```sh
 TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/evolution-browser-check.mjs
+```
+
+The notices check covers the welcome toast, bursts of notices, grouped disconnections and their Show action, News, the January toast and its upgrade review, the Towns search across January, first deliveries, town milestones, quiet save loading and the 390px layout. Screenshots go to `/tmp/transport-notices-qa`:
+
+```sh
+TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/notices-browser-check.mjs
 ```
 
 Marine and lighting rendering have focused checks in `tests/shipping-renderer-check.mjs` and `tests/daynight-renderer-check.mjs`.

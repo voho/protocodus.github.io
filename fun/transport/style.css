@@ -208,3 +208,28 @@ body{font-size:13px}
 
 .route-pagination{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:12px 0;color:var(--muted);font-size:11px}
 .route-pagination .small-button{font-size:11px;min-height:32px}
+
+/* Notices: the region never blocks the map; only a toast's action takes clicks. */
+.toast-region{width:max-content}
+.toast>span{flex:1;min-width:0}
+.toast:has(.toast-action){max-width:540px}
+.toast.warning{background:#3f4431;border-color:#e17b4a8c;box-shadow:0 6px 20px #0003,inset 3px 0 0 var(--orange)}
+.toast.warning>svg{color:#f4a47c}
+.toast.milestone{border-left:4px solid var(--orange)}
+.toast.milestone>svg{color:#f4a47c;animation:toast-check .2s ease-out}
+@keyframes toast-check{from{transform:scale(.3);opacity:0}}
+.toast-count{flex:0 0 auto;padding:1px 7px;border-radius:9px;background:#f9f8eb26;font-size:11px;font-weight:600;font-variant-numeric:tabular-nums}
+.toast-action{pointer-events:auto;flex:0 0 auto;min-height:32px;padding:5px 11px;border:1px solid #f9f8eb66;border-radius:6px;background:transparent;color:#f9f8eb;font:inherit;font-size:12px;font-weight:600;white-space:nowrap;cursor:pointer}
+.toast-action:hover{background:#f9f8eb1f;border-color:#f9f8eb}
+.toast-action:focus-visible{outline:2px solid var(--orange);outline-offset:2px}
+@media(prefers-reduced-motion:reduce){.toast.milestone>svg{animation:none}}
+#modal:has(.news-list){width:min(640px,calc(100vw - 32px))}
+.news-list{list-style:none;margin:18px 0 0;padding:0;display:grid;gap:7px}
+.news-item{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:11px;padding:10px 12px;border:1px solid #dfe6d4;border-radius:8px;background:#f3f5ea;color:#3f5a37}
+.news-item>svg{width:18px;height:18px;color:#6f9159}
+.news-item[data-type=warning]>svg,.news-item[data-type=error]>svg{color:#c86d42}
+.news-item[data-type=milestone]{border-left:4px solid var(--orange)}
+.news-item[data-type=milestone]>svg{color:var(--orange)}
+.news-item time{display:block;font-size:12px;color:#66795b}
+.news-item p{margin:2px 0 0;font-size:14px;line-height:1.45;overflow-wrap:anywhere}
+.news-empty{padding:14px;border:1px dashed #d5dccb;border-radius:8px;font-size:14px;color:#617455}
