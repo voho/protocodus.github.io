@@ -78,7 +78,7 @@ try{
       transport.setTool('inspect');transport.renderer.setLayers({names:false,industryIcons:false});transport.renderer.focus(found.x,found.y);transport.renderer.render(0);return found;
     });
     const box=await page.locator('#world').boundingBox();await page.mouse.click(box.x+box.width/2,box.y+box.height/2);
-    assert.match(await page.locator('#inspector .eyebrow').textContent(),new RegExp(`LEVEL ${parcel.level} · ${parcel.x}, ${parcel.y}`));
+    assert.match(await page.locator('#inspector .eyebrow').textContent(),new RegExp(`Level ${parcel.level} · ${parcel.x}, ${parcel.y}`));
     await context.close();
   }
   assert.deepEqual(errors,[]);console.log(JSON.stringify({passed:true,results,output},null,2));

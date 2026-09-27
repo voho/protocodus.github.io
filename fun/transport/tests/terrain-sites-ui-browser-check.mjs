@@ -1,5 +1,6 @@
 // Use isolated browser storage; never modify a player's open company.
 import assert from 'node:assert/strict';
+import { createWorldFromMenu, loadAutosaveFromMenu } from './browser-start.mjs';
 const { chromium } = await import(process.env.TRANSPORT_PLAYWRIGHT || 'playwright');
 const browser = await chromium.launch({ channel: process.env.TRANSPORT_BROWSER || 'chrome', headless: true });
 const url = process.env.TRANSPORT_URL || 'http://127.0.0.1:8765/fun/transport/';
@@ -12,7 +13,7 @@ try {
   for (const mobile of [false, true]) {
     const page = await browser.newPage({ viewport: mobile ? { width: 390, height: 844 } : { width: 1440, height: 960 }, deviceScaleFactor: mobile ? 2 : 1, isMobile: mobile, hasTouch: mobile });
     page.on('pageerror', error => errors.push(error.message));
-    await page.goto(url); await page.waitForFunction(() => window.transport?.renderer);
+    await page.goto(url); await createWorldFromMenu(page);
     const site = await page.evaluate(async () => {
       transport.setSpeed(0); const g = transport.game; let p;
       for (let y = 30; y < g.height - 30 && !p; y += 20) for (let x = 30; x < g.width - 30 && !p; x += 20) {
@@ -38,13 +39,13 @@ try {
       return p;
     });
     // Save/reload must preserve the actual parcel, not infer new neighbors.
-    await page.reload(); await page.waitForFunction(() => window.transport?.renderer);
+    await page.reload(); await loadAutosaveFromMenu(page);
     await page.evaluate(p => { transport.setSpeed(0); transport.renderer.setZoom(1); transport.renderer.focus(p.x + 1, p.y + 1); }, site);
     const corner = { x: site.x + 2, y: site.y + 2 }, p = await screen(page, corner);
     await page.waitForFunction(p => document.elementFromPoint(p.x, p.y)?.id === 'world', p);
     if (mobile) await page.touchscreen.tap(p.x, p.y); else await page.mouse.click(p.x, p.y);
     await page.waitForFunction(() => !document.querySelector('#inspector').hidden);
-    assert.match(await page.locator('#inspector .eyebrow').innerText(), /3 × 3 SITE/);
+    assert.match(await page.locator('#inspector .eyebrow').innerText(), /3 × 3 site/);
     assert.match(await page.locator('#inspector').innerText(), /Bulldoze any part to clear the whole site/);
     await page.locator('#inspector [aria-label="Close inspector"]').click();
     const before = await page.evaluate(() => transport.game.money);

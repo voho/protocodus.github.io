@@ -138,7 +138,7 @@ The world changes through slow, local updates. Factories work on staggered days;
 
 Vehicles vary their pace with local conditions and pause to load at stops. Vehicle and infrastructure upkeep continues between deliveries. Accounts close at real calendar-month boundaries, including leap years. Operating profit excludes construction and vehicle purchases, which remain visible separately in the finances tooltip. Route earnings deduct a share of used infrastructure and vehicle upkeep; idle infrastructure and factories remain company costs. Older saves begin operating-cost tracking when first loaded by this version, instead of inventing historical expenses. Factories expand only after productive operation; delivering one ingredient to a stalled recipe does not increase capacity.
 
-Each vehicle has a small load meter above it. Loaded vehicles show their resource icon, including passengers; a full green meter means full capacity, an amber meter shows a partial load, and an unfilled meter means empty. These indicators stay readable in all three zoom views.
+Each vehicle has a small load meter above it. Loaded vehicles show their resource icon, including passengers; a full green meter means full capacity, an amber meter shows a partial load, and an unfilled meter means empty. These indicators stay readable in all three zoom views. Town names rise above a stop built at or beside the town centre, and a meter that crosses a town name fades so the name stays legible.
 
 ## Grow your towns
 
@@ -231,6 +231,12 @@ The focused resource check covers the illustrated key, recipe quantities, invent
 
 ```sh
 TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/resources-browser-check.mjs
+```
+
+The readability check starts a seed-1847 world and verifies that the first town's name clears its central stop sign at all three zooms, that Region stop signs still pick route stops, that the stop inspector keeps its values clear of the coverage below, and that inspector tags, the drawer heading and dialogs use sentence case. Screenshots go to `/tmp/transport-readability-qa`:
+
+```sh
+TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/readability-browser-check.mjs
 ```
 
 The focused network-planning check covers complete production graphs, industry locations and nearby customers, route searching/filtering, selecting stations on the map, live network verification, vehicle load indicators at all three zooms, and compact desktop/mobile layouts. It uses isolated browser storage and writes screenshots to `/tmp/transport-features-qa`:

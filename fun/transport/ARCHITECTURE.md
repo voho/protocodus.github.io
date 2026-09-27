@@ -39,6 +39,7 @@ City `{id,name,x,y,population,activity,growth}`. Industry `{id,kind,name,x,y,cap
 - `screenToTile(clientX,clientY,{clamp=false}={})` -> `{x,y}` (coordinates relative viewport); off the world it returns `{x:-1,y:-1}`, or with `clamp` the nearest edge tile, unprojected at that edge's height. `screenToVertex` takes the same option.
 - `worldToScreen(x,y)` -> `{x,y}` in local CSS pixels for the center of a world tile; fractional tile coordinates support moving vehicles and multi-tile sites
 - `stationMarker(station)` -> `{x,y}` in local CSS pixels for a station's screen-space sign; map picking uses this shared placement
+- `cityLabels()` -> `[{id,x,y,w,h}]`, the town label boxes drawn in the last frame, in local CSS pixels. A label rises clear of the signs of stops within one tile of its town centre (found per station-index revision); signs never move, so picking is unaffected. Vehicle load badges that cross a label draw at 35% opacity
 - `industryMarker(industry)` -> `{x,y,size}` in local CSS pixels for the center of a site's resource badge
 - `screenToInspectTile(clientX,clientY)` -> `{x,y}`; picks industry resource markers and visible opaque artwork from front to back before falling through to the ordinary map tile. Construction always uses `screenToTile`.
 - `pan(dx,dy)` pixels; `setZoom(value,clientX?,clientY?)` snaps to a supported view; `zoomAt(factor,clientX?,clientY?)` moves one level according to factor direction; `focus(x,y)` tile coords
