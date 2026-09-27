@@ -1,5 +1,5 @@
 import { nextPaint } from './loading.js';
-import { drawSprite, drawSpriteShadow, drawProp, drawPropShadow, terrainImages, assetsReady } from './assets.js';
+import { drawSprite, drawSpriteShadow, drawProp, drawPropShadow, terrainImages, assetsReady, unitSpriteAngle } from './assets.js';
 import { powerStats, UNITS, BUILDINGS as BUILDING_DEFS, mapLayout, unitRank, unitStats, buildingRole, unitRole } from './sim.js';
 
 const TILE = 32;
@@ -451,7 +451,7 @@ function building(ctx, entity, time = 0) {
 
 function unit(ctx, entity, time = 0) {
   const t = TEAM[entity.team || 0] || TEAM[0];
-  const angle = entity.angle || 0;
+  const angle = unitSpriteAngle(entity.angle);
   const infantry = isInfantry(entity);
   const moving = entity.moving ?? entity.path?.length > 0;
   if (drawSprite(ctx, entity, time)) return;
@@ -1174,7 +1174,8 @@ export class Renderer {
       const dx = (depot.x + depot.size / 2) * TILE, dy = (depot.y + depot.size / 2) * TILE;
       const targetX = dx - (entityRole(depot) === 'refinery' ? depot.size * TILE * .20 : 0);
       const targetY = dy + depot.size * TILE * (entityRole(depot) === 'refinery' ? -.30 : .32);
-      const x = hauler.x * TILE - Math.cos(hauler.angle || 0) * 10, y = hauler.y * TILE - Math.sin(hauler.angle || 0) * 9;
+      const angle = unitSpriteAngle(hauler.angle);
+      const x = hauler.x * TILE - Math.cos(angle) * 10, y = hauler.y * TILE - Math.sin(angle) * 9;
       for (let i = 0; i < 5; i++) {
         const p = (time * 1.7 + i / 5) % 1;
         const px = x + (targetX - x) * p, py = y + (targetY - y) * p - Math.sin(p * Math.PI) * 9;
@@ -1464,8 +1465,9 @@ export class Renderer {
     }
     if (e.kind === 'unit') {
       const moving = e.moving ?? e.path?.length > 0;
+      const angle = unitSpriteAngle(e.angle);
       if (moving && !isInfantry(e)) {
-        ctx.save(); ctx.rotate(e.angle || 0);
+        ctx.save(); ctx.rotate(angle);
         const walker = UNITS[e.type]?.race === 'aiUnity' && unitRole(e) !== 'scout';
         for (let j = 0; j < 4; j++) {
           const age = (time * .9 + j * .25 + e.id * .17) % 1;
@@ -1476,7 +1478,7 @@ export class Renderer {
         }
         ctx.restore();
       } else if (entityRole(e) === 'harvester' && e.order?.type === 'harvest' && e.harvestPhase === 'gather' && e.cargo > 0) {
-        ctx.save(); ctx.rotate(e.angle || 0);
+        ctx.save(); ctx.rotate(angle);
         for (let j = 0; j < 3; j++) {
           const age = (time * 1.5 + j / 3) % 1;
           ctx.globalAlpha = (1 - age) * .34;
@@ -1488,7 +1490,7 @@ export class Renderer {
       if (shot > 0 && !['engineer', 'harvester'].includes(entityRole(e))) {
         const reach = { rifle: 11, rocket: 15, scout: 16, tank: 24, artillery: 31, striker: 25 }[entityRole(e)] || 18;
         const unity = UNITS[e.type]?.race === 'aiUnity';
-        ctx.save(); ctx.scale(1, .88); ctx.rotate(e.angle || 0); ctx.globalAlpha *= shot;
+        ctx.save(); ctx.scale(1, .88); ctx.rotate(angle); ctx.globalAlpha *= shot;
         for (const y of entityRole(e) === 'striker' ? [-2, 2] : [0]) {
           polygon(ctx, [[reach, y - 1.2], [reach + 7 * shot, y], [reach, y + 1.2]], unity ? '#e0eef0' : '#ffe2ac');
           glow(ctx, reach + 1, y, 4 + shot * 3, unity ? '#b4d4db65' : '#ffc27e65');

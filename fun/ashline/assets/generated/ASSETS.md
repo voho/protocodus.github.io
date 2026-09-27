@@ -1,5 +1,9 @@
 # Ashline visual assets
 
+## Prepared unit directions (2026-09-27)
+
+The runtime now prepares 16 views, spaced 22.5° apart, from each existing unit pose and faction color. These are derived from the source atlases listed below; no new source art was generated. Each view rotates the overhead roof before applying the shared .88 projection and down-screen side depth. The battlefield, portraits, formation previews, and production bays select the nearest view to the unit heading. Cropped canvases retain explicit offsets from the same body anchor and the original native pixel density. Shared directional shadows keep fixed lower-right lighting, and cargo colors/fill levels use a bounded variant cache. Simulation movement and aiming retain continuous headings.
+
 ## Rounded Organics refresh (2026-09-08)
 
 The user requested a stronger round, clunky, obsolete visual identity. Built-in image_gen created six new vehicle designs and nine new buildings; this is a full architectural and machinery redraw, preserving the simulation's existing IDs, roles, footprints and stats. The current Organics use bulbous cast turrets, rounded cab roofs and fenders, exposed heavy pipes, barrel-vault factory/garrison roofs, domed radar housings and cylindrical boiler/storage drums. Broad ivory/cobalt and crimson faction paint remains shared with the rest of Ashline. Existing human rifle poses and alien rocket poses remain in service.

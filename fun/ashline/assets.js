@@ -12,9 +12,22 @@ const BUILDINGS = Object.assign(Object.create(null), Object.fromEntries(Object.e
 const UNIT_SIZES = { tank: 44, scout: 36, artillery: 56, harvester: 45, rifle: 26, rocket: 32, engineer: 46, striker: 48, constructor: 56 };
 const UNIT_PIXELS = { rifle: 64, rocket: 80, scout: 96, tank: 112, artillery: 128, harvester: 112, engineer: 112, striker: 128, constructor: 128 };
 const UNIT_DEPTH = { tank: 3, scout: 2, artillery: 3, harvester: 4, rifle: 1.5, rocket: 1.5, engineer: 3, striker: 2, constructor: 4 };
+export const UNIT_DIRECTIONS = 16;
+const UNIT_ANGLE_STEP = Math.PI * 2 / UNIT_DIRECTIONS;
+const CARGO_DIRECTION_LIMIT = 16 * 1024 * 1024;
+const cargoDirections = new Map(), sourceIds = new WeakMap();
+let nextSourceId = 0, directionBytes = 0, directionImages = 0, cargoDirectionBytes = 0;
 const sprites = Object.create(null), props = {};
-// Every unit faces east in the atlas; rotation never changes its overhead projection.
+// Every unit faces east in the source atlas; cached views share one camera elevation.
 const UNIT_CELLS = { rifle: [0, 1] };
+
+function unitDirection(angle) {
+  const direction = Math.round((Number.isFinite(angle) ? angle % (Math.PI * 2) : 0) / UNIT_ANGLE_STEP);
+  return (direction % UNIT_DIRECTIONS + UNIT_DIRECTIONS) % UNIT_DIRECTIONS;
+}
+
+// Visual headings only: steering, aiming and saved simulation angles stay continuous.
+export function unitSpriteAngle(angle = 0) { return unitDirection(angle) * UNIT_ANGLE_STEP; }
 
 function canvas(width, height = width) {
   const result = document.createElement('canvas');
@@ -393,6 +406,16 @@ export const assetsReady = loadingRequested.then(() => Promise.all([
     if (buildingRole(type) === 'refinery') frame.powerDownMineralHoppers = Object.fromEntries(Object.entries(frame.mineralHoppers)
       .map(([type, levels]) => [type, levels.map(teams => teams.map(powerDownFrame))]));
   }
+  for (const type of Object.keys(UNITS)) for (const frame of sprites[type] || []) {
+    // Keep the loading UI responsive while preparing each animation pose.
+    await nextPaint();
+    frame.directions = Array.from({ length: UNIT_DIRECTIONS }, (_, direction) => {
+      const teams = frame.teams.map(source => prepareUnitDirection(frame, type, source, direction));
+      const shadow = prepareUnitDirection(frame, type, null, direction);
+      for (const cached of [...teams, shadow]) { directionBytes += cached.bytes; directionImages++; }
+      return { teams, shadow };
+    });
+  }
   assetStatus.ready = assetStatus.errors.length === 0; return assetStatus;
 });
 
@@ -402,6 +425,70 @@ function drawUnitPlane(ctx, source, size, angle, x = 0, y = 0) {
   ctx.scale(1, .88); ctx.rotate(angle);
   ctx.drawImage(source, -size / 2, -size / 2, size, size);
   ctx.restore();
+}
+
+function prepareUnitDirection(frame, type, source, direction) {
+  const role = unitRole(type), pixels = frame.teams[0].width;
+  const density = pixels / (UNIT_SIZES[role] * frame.drawScale), depth = UNIT_DEPTH[role];
+  const offset = 3 + depth, shadow = !source;
+  // Rotate the whole source square safely, including diagonal barrels and blurred edges.
+  const padding = Math.ceil((shadow ? offset * 1.5 : depth) * density) + 4;
+  const width = Math.ceil(pixels * Math.SQRT2) + padding * 2;
+  const height = Math.ceil(pixels * Math.SQRT2 * .88) + padding * 2;
+  const work = canvas(width, height), ctx = work.getContext('2d', { willReadFrequently: true });
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+  ctx.translate(width / 2, height / 2);
+  const angle = direction * UNIT_ANGLE_STEP;
+  if (shadow) {
+    ctx.globalAlpha = .22;
+    drawUnitPlane(ctx, frame.contact, pixels, angle, density, density * 2);
+    ctx.globalAlpha = .32;
+    drawUnitPlane(ctx, frame.shadow, pixels, angle, offset * density, offset * density * 1.5);
+  } else {
+    // Projection follows heading rotation; side depth always extends down-screen.
+    for (let y = depth; y > 0; y--) drawUnitPlane(ctx, frame.side, pixels, angle, 0, y * density);
+    drawUnitPlane(ctx, source, pixels, angle);
+  }
+  const { data } = ctx.getImageData(0, 0, width, height);
+  let left = width, top = height, right = 0, bottom = 0;
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) if (data[(y * width + x) * 4 + 3]) {
+    left = Math.min(left, x); right = Math.max(right, x);
+    top = Math.min(top, y); bottom = Math.max(bottom, y);
+  }
+  if (left > right) throw new Error(`Empty directional sprite: ${type}`);
+  // Cropping saves memory without recentering the body or changing its physical scale.
+  left = Math.max(0, left - 2); top = Math.max(0, top - 2);
+  right = Math.min(width - 1, right + 2); bottom = Math.min(height - 1, bottom + 2);
+  const image = canvas(right - left + 1, bottom - top + 1);
+  image.getContext('2d').drawImage(work, left, top, image.width, image.height, 0, 0, image.width, image.height);
+  // Release temporary backing stores promptly rather than waiting for canvas GC.
+  work.width = work.height = 0;
+  return { image, x: left - width / 2, y: top - height / 2,
+    bytes: image.width * image.height * 4 };
+}
+
+function unitBodyDirection(frame, type, source, direction) {
+  const team = frame.teams.indexOf(source);
+  if (team !== -1) return frame.directions[direction].teams[team];
+  // Cargo colors and fill levels share the regular silhouettes and shadows. Cache
+  // uncommon body variants on demand instead of multiplying every atlas at startup.
+  if (!sourceIds.has(source)) sourceIds.set(source, ++nextSourceId);
+  const key = `${sourceIds.get(source)}:${direction}`;
+  let cached = cargoDirections.get(key);
+  if (cached) { cargoDirections.delete(key); cargoDirections.set(key, cached); return cached; }
+  cached = prepareUnitDirection(frame, type, source, direction);
+  while (cargoDirectionBytes + cached.bytes > CARGO_DIRECTION_LIMIT && cargoDirections.size) {
+    const oldest = cargoDirections.keys().next().value;
+    cargoDirectionBytes -= cargoDirections.get(oldest).bytes; cargoDirections.delete(oldest);
+  }
+  cargoDirections.set(key, cached); cargoDirectionBytes += cached.bytes;
+  return cached;
+}
+
+function drawUnitDirection(ctx, cached, size, pixels) {
+  const scale = size / pixels;
+  ctx.drawImage(cached.image, cached.x * scale, cached.y * scale,
+    cached.image.width * scale, cached.image.height * scale);
 }
 
 function spriteFrame(entity, time) {
@@ -420,6 +507,7 @@ export function drawSpriteShadow(ctx, entity, time = 0) {
   const sprite = spriteFrame(entity, time);
   if (!sprite || entity.hp <= 0) return false;
   const { frame, size, building } = sprite;
+  if (!building && !frame.directions) return false;
   const progress = building ? Math.max(0, Math.min(1, entity.progress ?? 1)) : 1;
   ctx.save(); ctx.globalAlpha *= progress;
   if (building) {
@@ -430,11 +518,8 @@ export function drawSpriteShadow(ctx, entity, time = 0) {
     ctx.globalAlpha *= .33;
     ctx.drawImage(frame.shadow, -size / 2 + height * 4, roofY + height * 6, size, size);
   } else {
-    const offset = 3 + UNIT_DEPTH[unitRole(entity)];
-    ctx.save(); ctx.globalAlpha *= .22;
-    drawUnitPlane(ctx, frame.contact, size, entity.angle || 0, 1, 2); ctx.restore();
-    ctx.globalAlpha *= .32;
-    drawUnitPlane(ctx, frame.shadow, size, entity.angle || 0, offset, offset * 1.5);
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+    drawUnitDirection(ctx, frame.directions[unitDirection(entity.angle)].shadow, size, frame.teams[0].width);
   }
   ctx.restore();
   return true;
@@ -444,6 +529,7 @@ export function drawSprite(ctx, entity, time = 0) {
   const sprite = spriteFrame(entity, time);
   if (!sprite) return false;
   const { frame, size, building } = sprite;
+  if (!building && !frame.directions) return false;
   const unpowered = building && entity.powerRatio < 1 && BUILDING_DEFS[entity.type]?.power < 0;
   const mineralType = buildingRole(entity) === 'refinery' ? entity.processingType : entity.cargoType;
   const coloredHoppers = frame.mineralHoppers?.[mineralType];
@@ -457,15 +543,12 @@ export function drawSprite(ctx, entity, time = 0) {
     ctx.translate(0, buildingRole(entity) === 'wall' ? 0 : -8);
     ctx.drawImage(source, -size / 2, -size / 2, size, size);
   } else {
-    const angle = entity.angle || 0, depth = UNIT_DEPTH[unitRole(entity)];
     // A tiny fixed-screen step pulse distinguishes grounded walkers from wheeled hulls.
     // Shadows remain at the ground anchor, and idle/queued robots never walk in place.
     if (UNITS[entity.type]?.race === 'aiUnity' && !['rifle', 'rocket', 'scout'].includes(unitRole(entity)) && (entity.moving ?? !!entity.path?.length)) {
       ctx.translate(0, -Math.abs(Math.sin(time * 8 + (entity.id || 0))) * .55);
     }
-    // Side walls stay down-screen, independent of heading; shadows use the ground pass.
-    for (let y = depth; y > 0; y--) drawUnitPlane(ctx, frame.side, size, angle, 0, y);
-    drawUnitPlane(ctx, source, size, angle);
+    drawUnitDirection(ctx, unitBodyDirection(frame, entity.type, source, unitDirection(entity.angle)), size, frame.teams[0].width);
   }
   ctx.restore();
   return true;
@@ -494,6 +577,10 @@ export function drawPropShadow(ctx, type, x, y, size, variant = 0) {
 export function spriteStats() {
   return { ...assetStatus, errors: [...assetStatus.errors],
     frames: Object.fromEntries(Object.entries(sprites).map(([type, frames]) => [type, frames.length])),
+    directions: Object.fromEntries(Object.entries(sprites).filter(([type]) => UNITS[type])
+      .map(([type, frames]) => [type, Math.min(...frames.map(frame => frame.directions?.length || 0))])),
+    directionCache: { bytes: directionBytes, images: directionImages, cargoBytes: cargoDirectionBytes,
+      cargoImages: cargoDirections.size, cargoLimitBytes: CARGO_DIRECTION_LIMIT },
     props: Object.fromEntries(Object.entries(props).map(([type, frames]) => [type, frames.length])) };
 }
 

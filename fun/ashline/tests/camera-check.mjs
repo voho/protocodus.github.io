@@ -1,5 +1,5 @@
 // Run alongside browser-check.mjs with the same ASHLINE_URL / ASHLINE_PLAYWRIGHT overrides.
-// Pixel invariants catch heading-dependent scale, clipping and abrupt camera changes;
+// Pixel invariants catch heading-dependent scale, clipping and incorrect facing selection;
 // the contact sheets and battlefield captures require visual review of the art itself.
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -16,7 +16,7 @@ try {
   // Cropping can conceal a barrel crossing into the next atlas cell. Check the source too.
   const clearCellBorders = await page.evaluate(async () => {
     const { removeMatte } = await import('./assets.js');
-    for (const [name, columns, rows] of [['units-hires', 3, 2], ['organics-alien-rocket', 2, 1], ['organics-buildings', 3, 3], ['organics-vehicles', 3, 2], ['unity-light', 3, 2], ['unity-heavy', 2, 2], ['unity-buildings', 3, 3]]) {
+    for (const [name, columns, rows] of [['units-hires', 3, 2], ['organics-alien-rocket', 2, 1], ['organics-buildings', 3, 3], ['organics-vehicles', 3, 2], ['constructors', 2, 1], ['unity-light', 3, 2], ['unity-heavy', 2, 2], ['unity-buildings', 3, 3]]) {
       const image = new Image(); image.src = `./assets/generated/${name}.webp`; await image.decode();
       const canvas = document.createElement('canvas'); canvas.width = image.width; canvas.height = image.height;
       const ctx = canvas.getContext('2d'); ctx.drawImage(image, 0, 0);
@@ -35,27 +35,72 @@ try {
   });
   assert(clearCellBorders, 'Every source sprite has clear cell borders, without clipping or neighbouring fragments');
   const report = await page.evaluate(async () => {
-    const { drawSprite } = await import('./assets.js');
+    const { drawSprite, drawSpriteShadow, UNIT_DIRECTIONS, unitSpriteAngle, spriteStats } = await import('./assets.js');
     const { UNITS, BUILDINGS, unitRole } = await import('./sim.js');
     const canvas = document.createElement('canvas'); canvas.width = canvas.height = 192;
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     // Test actual prepared images and draw state, including portraits/production callers.
     const nativeDraw = ctx.drawImage;
-    const unitPixels = { rifle: 64, rocket: 80, scout: 96, tank: 112, artillery: 128, harvester: 112, engineer: 112, striker: 128 };
+    const unitPixels = { rifle: 64, rocket: 80, scout: 96, tank: 112, artillery: 128, harvester: 112, engineer: 112, striker: 128, constructor: 128 };
+    const step = Math.PI * 2 / UNIT_DIRECTIONS;
+    if (UNIT_DIRECTIONS < 8) throw Error('Every unit needs at least eight prepared facings');
+    for (const type of Object.keys(UNITS)) if (spriteStats().directions[type] !== UNIT_DIRECTIONS) throw Error(`${type}: missing prepared directions`);
     const pixels = Object.fromEntries([...Object.keys(UNITS).map(type => [type, unitPixels[unitRole(type)]]), ...Object.entries(BUILDINGS).map(([type, d]) => [type, d.size * 64 + 16])]);
     for (const [type, size] of Object.entries(pixels)) for (const team of [0, 1]) for (const moving of [false, true]) {
-      let drawn = false;
+      let draws = 0;
       ctx.drawImage = function (source, ...args) {
-        drawn = true;
-        if (source.width !== size || source.height !== size) throw Error(`${type}: expected ${size}px prepared sprite, got ${source.width}×${source.height}`);
+        draws++;
+        if (BUILDINGS[type] && (source.width !== size || source.height !== size)) throw Error(`${type}: expected ${size}px prepared sprite, got ${source.width}×${source.height}`);
+        // Directional frames may crop transparent margins but must remain small prepared art.
+        if (UNITS[type] && (!(source.width > 0 && source.height > 0) || source.width > size * 2 || source.height > size * 2)) throw Error(`${type}: invalid prepared directional size ${source.width}×${source.height}`);
         if (!this.imageSmoothingEnabled || this.imageSmoothingQuality !== 'high') throw Error(`${type}: high-resolution art needs smooth high-quality sampling`);
         return nativeDraw.call(this, source, ...args);
       };
-      ctx.imageSmoothingEnabled = false; ctx.imageSmoothingQuality = 'low';
+      ctx.imageSmoothingEnabled = false; ctx.imageSmoothingQuality = 'low'; ctx.filter = 'brightness(2)';
       drawSprite(ctx, {type, team, moving, id: 0}, .2);
-      if (!drawn || ctx.imageSmoothingEnabled || ctx.imageSmoothingQuality !== 'low') throw Error(`${type}: drawing must restore the caller's smoothing state`);
+      if (draws !== 1 || ctx.imageSmoothingEnabled || ctx.imageSmoothingQuality !== 'low' || ctx.filter !== 'brightness(2)') throw Error(`${type}: drawing must preserve the caller's sampling and highlight state`);
+      ctx.filter = 'none';
     }
     ctx.drawImage = nativeDraw;
+    // Capture renderer inputs rather than cache internals. Repeated headings must reuse
+    // one image, and ground shadows must follow the same closest facing as the body.
+    const checkedBorders = new Set();
+    function drawnSource(entity, shadow = false) {
+      const sources = [], nativeRotate = ctx.rotate;
+      ctx.drawImage = function (source) { sources.push(source); };
+      ctx.rotate = () => { throw Error(`${entity.type}: prepared directions must not rotate at draw time`); };
+      const rendered = { hp: 100, ...entity };
+      try { (shadow ? drawSpriteShadow : drawSprite)(ctx, rendered, .25); }
+      finally { ctx.drawImage = nativeDraw; ctx.rotate = nativeRotate; }
+      if (rendered.angle !== entity.angle) throw Error(`${entity.type}: rendering must preserve continuous simulation headings`);
+      if (sources.length !== 1) throw Error(`${entity.type}: expected one prepared ${shadow ? 'shadow' : 'body'} draw`);
+      const source = sources[0];
+      if (!checkedBorders.has(source)) {
+        const pixels = source.getContext('2d').getImageData(0, 0, source.width, source.height).data;
+        for (let x = 0; x < source.width; x++) if (pixels[x * 4 + 3] || pixels[((source.height - 1) * source.width + x) * 4 + 3]) throw Error(`${entity.type}: clipped directional top/bottom border`);
+        for (let y = 0; y < source.height; y++) if (pixels[y * source.width * 4 + 3] || pixels[(y * source.width + source.width - 1) * 4 + 3]) throw Error(`${entity.type}: clipped directional side border`);
+        checkedBorders.add(source);
+      }
+      return source;
+    }
+    for (const type of Object.keys(UNITS)) for (const team of [0, 1]) for (const moving of [false, true]) for (const shadow of [false, true]) {
+      const entity = { type, team, moving, id: 0 }, sources = [];
+      for (let direction = 0; direction < UNIT_DIRECTIONS; direction++) {
+        const angle = direction * step, source = drawnSource({ ...entity, angle }, shadow);
+        sources.push(source);
+        for (const offset of [-.49, 0, .49]) for (const turns of [-2, 0, 2]) {
+          const requested = angle + offset * step + turns * Math.PI * 2;
+          if (drawnSource({ ...entity, angle: requested }, shadow) !== source) throw Error(`${type}: closest facing or cache reuse failed at ${requested}`);
+          if (Math.abs(unitSpriteAngle(requested) - angle) > 1e-9) throw Error(`${type}: facing selection failed at ${requested}`);
+        }
+        const next = drawnSource({ ...entity, angle: angle + step * .51 }, shadow);
+        if (next === source) throw Error(`${type}: crossing a half-step boundary must change facing`);
+      }
+      if (new Set(sources).size !== UNIT_DIRECTIONS) throw Error(`${type}: every direction needs a distinct prepared image`);
+      for (let direction = 0; direction < UNIT_DIRECTIONS; direction++) {
+        if (drawnSource({ ...entity, angle: direction * step }, shadow) !== sources[direction]) throw Error(`${type}: revisiting a direction must reuse its cached image`);
+      }
+    }
     function sample(type, team, moving, angle) {
       ctx.clearRect(0, 0, 192, 192); ctx.save(); ctx.translate(96, 96); ctx.scale(2, 2);
       drawSprite(ctx, { type, team, moving, angle, id: 0 }, .25); ctx.restore();
@@ -74,18 +119,18 @@ try {
     const rows = [];
     for (const type of Object.keys(UNITS)) for (const team of [0, 1]) for (const moving of [false, true]) {
       const samples = Array.from({ length: 32 }, (_, n) => sample(type, team, moving, n * Math.PI / 16));
-      let jump = 0, poseDrift = 0;
-      // Cross every old eight-direction frame boundary, plus intermediate headings.
-      for (let n = 0; n < 16; n++) {
-        const angle = n * Math.PI / 8;
-        jump = Math.max(jump, difference(sample(type, team, moving, angle - .006), sample(type, team, moving, angle + .006)));
+      let sameBin = 0, poseDrift = 0, boundaryChange = Infinity;
+      for (let n = 0; n < UNIT_DIRECTIONS; n++) {
+        const angle = n * step;
+        sameBin = Math.max(sameBin, difference(sample(type, team, moving, angle - .49 * step), sample(type, team, moving, angle + .49 * step)));
+        boundaryChange = Math.min(boundaryChange, difference(sample(type, team, moving, angle + .49 * step), sample(type, team, moving, angle + .51 * step)));
         const idle = sample(type, team, false, angle), walk = sample(type, team, true, angle);
         poseDrift = Math.max(poseDrift, Math.hypot(idle.x - walk.x, idle.y - walk.y));
       }
       rows.push({ type, team, moving, minArea: Math.min(...samples.map(s => s.area)),
         areaRatio: Math.max(...samples.map(s => s.area)) / Math.min(...samples.map(s => s.area)),
         edge: samples.reduce((n, s) => n + s.edge, 0), matte: samples.reduce((n, s) => n + s.matte, 0),
-        jump, poseDrift, fullTurn: difference(samples[0], sample(type, team, moving, Math.PI * 2)) });
+        sameBin, boundaryChange, poseDrift, fullTurn: difference(samples[0], sample(type, team, moving, Math.PI * 2)) });
     }
     return rows;
   });
@@ -93,7 +138,8 @@ try {
     const label = `${row.type}, faction ${row.team}, ${row.moving ? 'moving' : 'idle'}`;
     assert(row.minArea > 60, `${label}: nonempty silhouette`);
     assert(row.areaRatio < 1.3, `${label}: physical scale remains stable through a full turn (${row.areaRatio.toFixed(3)})`);
-    assert(row.jump < .15, `${label}: small turns never snap to a different camera view (${row.jump.toFixed(3)})`);
+    assert.equal(row.sameBin, 0, `${label}: headings within one direction bin share identical pixels`);
+    assert(row.boundaryChange > .001, `${label}: crossing a direction boundary changes the visible facing`);
     assert(row.poseDrift < 3, `${label}: walking keeps the body anchored (${row.poseDrift.toFixed(3)}px)`);
     assert.equal(row.edge, 0, `${label}: no clipped sprite extremities`);
     assert.equal(row.matte, 0, `${label}: no chroma-key fringe`);
@@ -157,5 +203,5 @@ try {
     await page.screenshot({ path: `${output}/battlefield-${width}-zoom${zoom}.png` });
   }
   assert.deepEqual(errors, [], 'No browser errors');
-  console.log(`Camera checks passed: ${report.length * 32} full-turn sprite cases, smooth arbitrary headings, both factions and poses. Review screenshots in ${output}`);
+  console.log(`Camera checks passed: ${report.length * 32} full-turn sprite cases, nearest cached directions, both factions and poses. Review screenshots in ${output}`);
 } finally { await browser.close(); }
