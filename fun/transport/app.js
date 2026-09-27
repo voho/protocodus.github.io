@@ -90,12 +90,12 @@ const TOOL_INFO = {
  road:{name:'Road',icon:'road',key:'R',detail:'Drag to build. Bridges and tunnels are automatic.'},
  rail:{name:'Rail',icon:'rail',key:'T',detail:'Drag to build. Bridges and tunnels are automatic.'},
  bridge:{name:'Road bridge',icon:'bridge',key:'B',detail:'Drag between flat banks at the same level, across water or lower land. Start back from the shoreline.'},
- railbridge:{name:'Rail bridge',icon:'bridge',detail:'Drag between flat banks at the same level, across water or lower land. Start back from the shoreline.'},
- tunnel:{name:'Road tunnel',icon:'tunnel',detail:'Drag between flat portal sites at the same level, through higher dry land.'},
- railtunnel:{name:'Rail tunnel',icon:'tunnel',detail:'Drag between flat portal sites at the same level, through higher dry land.'},
- raise:{name:'Raise land',icon:'raise',detail:'Click or drag: +1 level per grid point, up to 7. Clear adjoining buildings and networks first.'},
- level:{name:'Level land',icon:'level',detail:'Drag an area to match its first grid point’s height. Each changed point is charged per level. Clear buildings and networks first.'},
- lower:{name:'Lower land',icon:'lower',detail:'Click or drag: −1 level per grid point, down to level 1. Water stays unchanged.'},
+ railbridge:{name:'Rail bridge',icon:'bridge',key:'B',detail:'Drag between flat banks at the same level, across water or lower land. Start back from the shoreline.'},
+ tunnel:{name:'Road tunnel',icon:'tunnel',key:'N',detail:'Drag between flat portal sites at the same level, through higher dry land.'},
+ railtunnel:{name:'Rail tunnel',icon:'tunnel',key:'N',detail:'Drag between flat portal sites at the same level, through higher dry land.'},
+ raise:{name:'Raise land',icon:'raise',key:']',detail:'Click or drag: +1 level per grid point, up to 7. Clear adjoining buildings and networks first.'},
+ level:{name:'Level land',icon:'level',key:'E',detail:'Drag an area to match its first grid point’s height. Each changed point is charged per level. Clear buildings and networks first.'},
+ lower:{name:'Lower land',icon:'lower',key:'[',detail:'Click or drag: −1 level per grid point, down to level 1. Water stays unchanged.'},
  stop:{name:'Stop',icon:'bus',key:'S',detail:'Click a road or railway near customers.'},
  'bus-stop':{name:'Road stop',icon:'bus',key:'S',detail:'Place on a road, within 5 tiles of customers.'},
  'train-stop':{name:'Rail station',icon:'train',detail:'Place on rail, within 5 tiles of customers.'},
@@ -780,7 +780,7 @@ function paintPath(points) {
  if(spanTools.has(tool)&&points.length<3){toast('Drag a straight span of at least 3 tiles, including both ends.',true);preview=[];return;}
  const result=buildPlan(game,tool,points,{preferredMode});toast(result.message,!result.ok);preview=[];if(result.ok)refreshRouteConnections(game);updateHud();if(result.ok){persistSoon();if(view!=='build')renderPanel();}
 }
-function pickMapTile(clientX,clientY) {
+function pickMapTile(clientX,clientY,clamp=false) {
  if(isRoutePicking()) {
   const rect=canvas.getBoundingClientRect();
   // Station signs stay fourteen screen pixels wide, including at Region zoom.
@@ -791,8 +791,8 @@ function pickMapTile(clientX,clientY) {
   }
   return renderer.screenToTile(clientX,clientY);
  }
- if(terrainTools.has(tool))return renderer.screenToVertex(clientX,clientY);
- return tool==='inspect'?renderer.screenToInspectTile(clientX,clientY):renderer.screenToTile(clientX,clientY);
+ if(terrainTools.has(tool))return renderer.screenToVertex(clientX,clientY,{clamp});
+ return tool==='inspect'?renderer.screenToInspectTile(clientX,clientY):renderer.screenToTile(clientX,clientY,{clamp});
 }
 function cancelGesture() {
  const captures=new Set([...touchPoints.keys(),...(pointer?[pointer.id]:[])]);
@@ -840,8 +840,11 @@ canvas.addEventListener('pointermove',e=>{
    touchGesture.x=next.x;touchGesture.y=next.y;
   }e.preventDefault();return;
  }
- hover=pickMapTile(e.clientX,e.clientY);$('#tile-coordinates').textContent=`${hover.x}, ${hover.y} · ${BIOMES[game.biome].name}`;
+ hover=pickMapTile(e.clientX,e.clientY,pointer&&!pointer.pan&&!pointer.cancelled&&lineTools.has(pointer.tool));$('#tile-coordinates').textContent=`${hover.x}, ${hover.y} · ${BIOMES[game.biome].name}`;
  if(pointer&&pointer.id===e.pointerId){
+  // A chorded right press arrives as a move; it abandons the stroke but keeps the tool.
+  if(!pointer.cancelled&&e.pointerType==='mouse'&&pointer.button===0&&!pointer.pan&&(e.buttons&2)){pointer.cancelled=true;preview=[];canvas.classList.remove('dragging');}
+  if(pointer.cancelled){pointer.lastX=e.clientX;pointer.lastY=e.clientY;$('#placement-tip').hidden=true;return;}
   const dx=e.clientX-pointer.lastX,dy=e.clientY-pointer.lastY;
   if(Math.hypot(e.clientX-pointer.x,e.clientY-pointer.y)>5)pointer.moved=true;
   if(pointer.moved&&!lineTools.has(pointer.tool)){pointer.pan=true;preview=[];canvas.classList.add('dragging');}
@@ -856,6 +859,7 @@ canvas.addEventListener('pointerup',e=>{
  if(touchGesture){if(canvas.hasPointerCapture(e.pointerId))canvas.releasePointerCapture(e.pointerId);if(!touchPoints.size){touchGesture=null;canvas.classList.remove('dragging');}preview=[];hover=null;return;}
  if(!pointer||pointer.id!==e.pointerId)return;
  const p=pointer;pointer=null;canvas.classList.remove('dragging');if(canvas.hasPointerCapture(e.pointerId))canvas.releasePointerCapture(e.pointerId);
+ if(p.cancelled){preview=[];$('#placement-tip').hidden=true;return;}
  if(p.button!==0){preview=[];if(p.button===2&&!p.moved)setTool('inspect');return;}
  if(p.tool!==tool){preview=[];return;}
  if(!p.moved&&!spaceDown&&pickRouteStopAt(p.start.x,p.start.y))return;
@@ -867,7 +871,7 @@ canvas.addEventListener('pointerup',e=>{
 canvas.addEventListener('pointercancel',cancelGesture);
 canvas.addEventListener('lostpointercapture',e=>{if(pointer?.id===e.pointerId||touchPoints.has(e.pointerId))cancelGesture();});
 canvas.addEventListener('pointerleave',()=>{if(!pointer)hover=null;$('#placement-tip').hidden=true;});
-canvas.addEventListener('contextmenu',e=>e.preventDefault());
+canvas.addEventListener('contextmenu',e=>{e.preventDefault();if(pointer&&!pointer.pan&&!touchPoints.has(pointer.id)&&(e.pointerType||'mouse')==='mouse'){pointer.cancelled=true;preview=[];$('#placement-tip').hidden=true;}});
 let wheelAt=-Infinity, wheelDelta=0, wheelConsumed=false;
 canvas.addEventListener('wheel',e=>{
  e.preventDefault();if(!e.deltaY)return;
@@ -907,6 +911,10 @@ $('#company-stats').onclick=()=>{const el=$('#company-stats');el.setAttribute('a
 document.addEventListener('pointerdown',e=>{if(!e.target.closest('.hud-finance-wrap'))$('#company-stats').setAttribute('aria-expanded','false');});
 $('#company-stats').addEventListener('keydown',e=>{if(e.key==='Escape'){$('#company-stats').setAttribute('aria-expanded','false');e.currentTarget.blur();}});
 let spaceStarted=0;
+// Mouse clicks leave focus on HUD buttons; Space should still pause rather than click them again.
+let pointerFocus=null,spaceConsumed=false;
+document.addEventListener('pointerdown',e=>{pointerFocus=e.target.closest?.('button,a,summary,[role=button]')||null;},true);
+document.addEventListener('focusin',e=>{if(e.target!==pointerFocus)pointerFocus=null;});
 document.addEventListener('keydown',e=>{
  if(e.defaultPrevented||isLoading()||$('#start-menu')?.open)return;
  if(e.key==='Escape'&&(!$('#zoom-menu').hidden||!$('#map-options').hidden)){e.preventDefault();closeMapMenus(true);return;}
@@ -916,19 +924,20 @@ document.addEventListener('keydown',e=>{
  if($('#modal').open||e.target.matches('input,select,textarea')||e.target.closest('#layers-panel, #layers-button'))return;
  if(e.ctrlKey||e.metaKey||e.altKey)return;
  if(e.code==='Space'){
-  if(e.target.closest('button,a,summary,[role=button]'))return;
-  e.preventDefault();if(!e.repeat){spaceDown=true;spaceUsedForPan=false;spaceStarted=performance.now();if(pointer){pointer.pan=true;preview=[];spaceUsedForPan=true;canvas.classList.add('dragging');}}return;
+  const control=e.target.closest('button,a,summary,[role=button]');if(control&&control!==pointerFocus)return;
+  e.preventDefault();spaceConsumed=true;if(!e.repeat){spaceDown=true;spaceUsedForPan=false;spaceStarted=performance.now();if(pointer){pointer.pan=true;preview=[];spaceUsedForPan=true;canvas.classList.add('dragging');}}return;
  }
  if(e.repeat)return;const key=e.key.toLowerCase();
- if(key==='escape'){setTool('inspect');closeMobile();return;}
- const keys={r:'road',t:'rail',s:'stop',p:'port',b:'bridge',x:'bulldoze','1':'residential','2':'commercial','3':'industrial'};
- if(keys[key]&&!e.metaKey&&!e.ctrlKey){category=['1','2','3'].includes(key)?'towns':'network';view='build';setView('build');setTool(keys[key]);}
+ if(key==='escape'){if(pointer&&!pointer.pan&&tool!=='inspect'){cancelGesture();return;}setTool('inspect');closeMobile();return;}
+ // Physical keys keep brackets and digits reachable on QWERTZ and AZERTY layouts; a printed + still zooms.
+ const rail=preferredMode==='rail',keys={r:'road',t:'rail',s:'stop',p:'port',b:rail?'railbridge':'bridge',x:'bulldoze','1':'residential','2':'commercial','3':'industrial'},codes={KeyE:'level',BracketLeft:'lower',BracketRight:key==='+'?null:'raise',KeyN:rail?'railtunnel':'tunnel',Digit1:'residential',Digit2:'commercial',Digit3:'industrial'},next=keys[key]||codes[e.code];
+ if(next){category=['residential','commercial','industrial'].includes(next)?'towns':'network';view='build';setView('build');setTool(next);return;}
  if(key==='l'){e.preventDefault();closeMapMenus();cancelGesture();layersView?.toggle();}
  if(key==='m')openAtlas();if(key==='c'&&!e.ctrlKey&&!e.metaKey)openChains();if(key==='g')$('#grid-button').click();if(key==='h')$('#home-view').click();if(key==='?')openHelp();
  if(key==='='||key==='+')$('#zoom-in').click();if(key==='-')$('#zoom-out').click();
  if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)){e.preventDefault();renderer.pan(e.key==='ArrowLeft'?90:e.key==='ArrowRight'?-90:0,e.key==='ArrowUp'?90:e.key==='ArrowDown'?-90:0);}
 });
-document.addEventListener('keyup',e=>{if(e.code==='Space'){if(!isLoading()&&spaceDown&&!spaceUsedForPan&&!pointer&&performance.now()-spaceStarted<260)changeSpeed(speed===0?previousSpeed:0);spaceDown=false;}});
+document.addEventListener('keyup',e=>{if(e.code==='Space'){if(spaceConsumed){e.preventDefault();spaceConsumed=false;}if(!isLoading()&&spaceDown&&!spaceUsedForPan&&!pointer&&performance.now()-spaceStarted<260)changeSpeed(speed===0?previousSpeed:0);spaceDown=false;}});
 window.addEventListener('blur',()=>{spaceDown=false;spaceUsedForPan=false;cancelGesture();});
 window.addEventListener('resize',()=>{renderer.resize();syncToolControls();refreshArtwork();});
 window.addEventListener('pagehide',()=>{if((!isLoading()||menuOpening)&&!$('#start-menu')?.open)flushSave();});

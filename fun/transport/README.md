@@ -60,13 +60,18 @@ Open **Game menu → Map layers**, or press **L**, to control trees and plants, 
 
 Layer settings change the view while the transport network and hidden structures continue operating. These browser preferences survive reloads and remain the same when creating or loading a different company; they are separate from game saves. A fresh browser starts with all layers visible, including a gentle tile grid. Press **G** to toggle it.
 
+Right-click during a drag cancels it and keeps the tool, and so does the first Escape; press Escape again to finish the tool. A road, track, zone or earthwork dragged past the map edge stops at the edge instead of being discarded.
+
 | Key | Action |
 | --- | --- |
 | R / T / S | Road / rail / automatic stop |
 | P | Port |
+| B / N | Bridge / tunnel for the current road or rail mode |
+| [ / ] / E | Lower / raise / level land |
 | X | Bulldozer |
 | 1 / 2 / 3 | Residential / commercial / industrial zoning |
-| Escape / right-click | Finish the current tool |
+| Escape | Cancel the stroke, then finish the tool |
+| Right-click | Finish the current tool; during a drag, cancel the stroke |
 | Space | Tap to pause or resume; hold while dragging to pan |
 | Arrow keys | Pan the map |
 | + / − | Zoom in / out |

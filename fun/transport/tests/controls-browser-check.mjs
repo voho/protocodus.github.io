@@ -2,6 +2,7 @@
 // Serve the repository root before running; the player's browser saves are untouched.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
+import { createWorldFromMenu } from './browser-start.mjs';
 const { chromium } = await import(process.env.TRANSPORT_PLAYWRIGHT || 'playwright');
 const browser = await chromium.launch({ channel: process.env.TRANSPORT_BROWSER || 'chrome', headless: true });
 const url = process.env.TRANSPORT_URL || 'http://localhost:8765/fun/transport/';
@@ -89,6 +90,112 @@ async function keyTool(page, key, name) {
   assert.ok((await page.locator('#active-tool-hint').innerText()).length > 4, 'active tool explains its map gesture');
 }
 
+// Stroke cancelling, edge clamping, Space after clicks and engineering keys, on a menu-created world.
+async function strokeInput() {
+  const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+  page.on('pageerror', error => errors.push(error.message));
+  await page.goto(url);
+  await createWorldFromMenu(page);
+  const site = await fixture(page), open = site.open, row = { x: open.x + 5, y: open.y };
+  // Read the live construction preview from what the renderer is asked to draw.
+  await page.evaluate(() => { const r = transport.renderer, render = r.render; r.render = (now, state) => { window.previewTiles = state.preview.length; return render(now, state); }; });
+  const previewTiles = () => page.evaluate(() => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(() => done(window.previewTiles)))));
+  const screen = tiles => page.evaluate(tiles => {
+    const box = document.querySelector('#world').getBoundingClientRect();
+    return tiles.map(p => { const s = transport.renderer.worldToScreen(p.x, p.y); return { x: box.left + s.x, y: box.top + s.y }; });
+  }, tiles);
+  const toolName = () => page.locator('#active-tool-name').innerText(), speed = () => page.evaluate(() => transport.speed);
+  const press = async () => {
+    const [a, b] = await screen([open, row]);
+    await page.mouse.move(a.x, a.y); await page.mouse.down(); await page.mouse.move(b.x, b.y, { steps: 5 });
+    assert.equal(await previewTiles(), 6, 'a road drag previews its stroke');
+    return b;
+  };
+  await page.evaluate(p => transport.renderer.focus(p.x + 2, p.y), open);
+
+  for (const [first, last] of [['right', 'left'], ['left', 'right']]) {
+    await keyTool(page, 'r', /Road/);
+    const before = await snapshot(page, site), b = await press();
+    await page.mouse.down({ button: 'right' });
+    assert.equal(await previewTiles(), 0, 'a right press during a drag clears the stroke');
+    assert.equal(await page.locator('#placement-tip').isVisible(), false);
+    await page.mouse.move(b.x + 30, b.y + 15, { steps: 2 });
+    await page.mouse.up({ button: first }); await page.mouse.up({ button: last });
+    assert.equal(await snapshot(page, site), before, `releasing ${first} first never builds a right-cancelled stroke`);
+    assert.equal(await toolName(), 'Road', 'right-click during a drag keeps the tool');
+    assert.equal(await previewTiles(), 0);
+  }
+  let before = await snapshot(page, site);
+  await press(); await page.keyboard.press('Escape');
+  assert.equal(await previewTiles(), 0, 'Escape clears the stroke');
+  await page.mouse.up();
+  assert.equal(await snapshot(page, site), before, 'Escape cancels the stroke before release');
+  assert.equal(await toolName(), 'Road', 'the first Escape keeps the tool');
+  await page.keyboard.press('Escape');
+  assert.equal(await page.locator('#active-tool-bar').isVisible(), false, 'a second Escape finishes the tool');
+
+  const edgeY = await page.evaluate(async () => {
+    const g = transport.game, { releaseTerrainObjects } = await import('./terrain-objects.js'), cleared = [];
+    let y = 120; while ([...g.cities, ...g.industries, ...g.stations].some(p => p.x < 16 && Math.abs(p.y - y) < 8)) y += 16;
+    for (let dy = -3; dy <= 3; dy++) for (let x = 0; x <= 10; x++) cleared.push({ x, y: y + dy });
+    releaseTerrainObjects(g, cleared);
+    for (const p of cleared) Object.assign(g.tiles[p.y * g.width + p.x], { terrain: 'grass', detail: '', elevation: .2, variant: 0,
+      road: false, rail: false, bridge: false, tunnel: false, publicRoad: false, building: null, zone: null });
+    g.revision++; g.networkRevision++;
+    return y;
+  });
+  await keyTool(page, 'r', /Road/);
+  await page.evaluate(y => transport.renderer.focus(2, y), edgeY);
+  const [inside] = await screen([{ x: 6, y: edgeY }]);
+  await page.mouse.move(inside.x, inside.y); await page.mouse.down();
+  await page.mouse.move(inside.x - 260, inside.y - 130, { steps: 8 });
+  assert.equal(await previewTiles(), 7, 'a stroke dragged beyond the west edge ends at x=0');
+  assert.equal(await page.locator('#placement-tip').isVisible(), true, 'the quote stays visible beyond the edge');
+  assert.match(await page.locator('#placement-tip').innerText(), /7 tiles/);
+  assert.match(await page.locator('#tile-coordinates').textContent(), new RegExp(`^0, ${edgeY} `));
+  await page.screenshot({ path: `${output}/desktop-edge-stroke.png` });
+  await page.mouse.up();
+  assert.deepEqual(await page.evaluate(y => Array.from({ length: 7 }, (_, x) => transport.game.tiles[y * transport.game.width + x].road), edgeY), Array(7).fill(true), 'the clamped stroke builds up to the edge');
+  assert.doesNotMatch(await page.locator('#toast-region').innerText(), /boundary/);
+  await page.keyboard.press('Escape');
+
+  await page.locator('[data-speed="3"]').click();
+  await page.keyboard.press('Space');
+  assert.equal(await speed(), 0, 'Space pauses after clicking a speed button');
+  await page.keyboard.press('Space');
+  assert.equal(await speed(), 3, 'Space resumes after clicking a speed button');
+  const routes = page.locator('.main-nav [data-view="routes"]'), drawer = () => page.locator('.sidebar').getAttribute('aria-hidden');
+  await routes.click();
+  const drawerState = await drawer();
+  await page.keyboard.press('Space');
+  assert.equal(await drawer(), drawerState, 'Space does not click the Routes button again');
+  assert.equal(await speed(), 0, 'Space pauses after clicking a nav button');
+  await page.locator('#route-search').click(); await page.keyboard.type('e');
+  assert.equal(await page.locator('#route-search').inputValue(), 'e');
+  assert.equal(await page.locator('#active-tool-bar').isVisible(), false, 'typing in route search never picks a tool');
+  await routes.click();
+  await page.locator('[data-speed="8"]').focus(); await page.keyboard.press('Space');
+  assert.equal(await speed(), 8, 'a keyboard-focused speed button keeps native Space');
+  await page.evaluate(() => transport.setSpeed(0));
+
+  for (const [key, name] of [['KeyE', /Level land/], ['BracketLeft', /Lower land/], ['BracketRight', /Raise land/], ['KeyN', /Road tunnel/], ['b', /Road bridge/], ['t', /Rail/], ['b', /Rail bridge/], ['KeyN', /Rail tunnel/]]) await keyTool(page, key, name);
+  assert.deepEqual(await page.locator('.engineering-tools .shortcut').allTextContents(), [']', '[', 'E', 'B', 'N'], 'engineering tools show their keys');
+  // Physical positions on QWERTZ layouts: Czech + sits on Digit1, German + keeps zooming from BracketRight.
+  const layoutKey = (key, code) => page.evaluate(([key, code]) => document.querySelector('#world').dispatchEvent(new KeyboardEvent('keydown', { key, code, bubbles: true, cancelable: true })), [key, code]);
+  await layoutKey('+', 'Digit1');
+  assert.match(await toolName(), /Residential/);
+  const zoom = await page.evaluate(() => transport.renderer.getCamera().zoom);
+  await layoutKey('+', 'BracketRight');
+  assert.match(await toolName(), /Residential/);
+  assert.equal(await page.evaluate(() => transport.renderer.getCamera().zoom), zoom * 2, 'a printed + still zooms in');
+  await keyTool(page, 'KeyE', /Level land/);
+  await page.locator('.main-nav [data-view="build"]').click();
+  await page.waitForFunction(() => document.querySelector('.sidebar').getBoundingClientRect().left >= 0);
+  await page.locator('.engineering-tools').scrollIntoViewIfNeeded();
+  await page.screenshot({ path: `${output}/desktop-engineering-keys.png` });
+  await page.close();
+}
+
 async function clickTile(page, tile) {
   const [p] = await points(page, [tile]);
   await page.mouse.click(p.x, p.y);
@@ -159,6 +266,7 @@ async function home(page) {
 }
 
 try {
+  await strokeInput();
   const page = await start({ width: 1440, height: 1000 });
   assert.deepEqual(await page.locator('#panel-content > .tool-grid [data-tool]').evaluateAll(nodes => nodes.map(node => node.dataset.tool)), ['road', 'rail', 'stop', 'port', 'bulldoze'], 'five primary network tools stay visible; engineering choices are expandable');
   assert.match(await page.locator('.build-bottom-tools [data-tool="inspect"]').innerText(), /Explore/);

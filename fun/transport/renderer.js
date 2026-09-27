@@ -190,7 +190,7 @@ export function createRenderer(canvas, initialGame, options={}) {
     camera.zoom=next;camera.x+=move.x;camera.y+=move.y;bounds();updateRaster();
   }
   function zoomAt(factor,clientX,clientY){if(!Number.isFinite(factor)||factor<=0||factor===1)return;setZoom(stepZoom(camera.zoom,Math.sign(factor-1)),clientX,clientY);}
-  function screenToTile(clientX,clientY){
+  function screenToTile(clientX,clientY,{clamp=false}={}){
     const rect=canvas.getBoundingClientRect(),origin=cameraPoint(),px=(clientX-rect.left-W/2)/camera.zoom+origin.x,py=(clientY-rect.top-H/2)/camera.zoom+origin.y;
     // A high viaduct may cover a different ground tile in screen space. Pick
     // its visible deck before the land below, including for demolition.
@@ -198,11 +198,18 @@ export function createRenderer(canvas, initialGame, options={}) {
       const hit=bridgeHits[i],p=unprojectPoint(px,py+hit.height*HEIGHT_STEP),u=p.x/TILE,v=p.y/TILE;
       if(Math.floor(u)===hit.x&&Math.floor(v)===hit.y&&Math.abs(hit.axis==='x'?v-hit.y-.5:u-hit.x-.5)<=9/TILE)return{x:hit.x,y:hit.y};
     }
-    const p=pickGround(game,px,py);return p?{x:Math.floor(p.x),y:Math.floor(p.y)}:{x:-1,y:-1};
+    const p=pickGround(game,px,py);return p?{x:Math.floor(p.x),y:Math.floor(p.y)}:clamp?edgePoint(px,py,Math.floor,.5):{x:-1,y:-1};
   }
-  function screenToVertex(clientX,clientY){
+  // A construction drag that leaves the world ends at its nearest edge tile. As in
+  // pickGround, the frontmost edge point whose ground reaches the pointer's ray wins.
+  function edgePoint(px,py,snap,middle){
+    const fit=p=>({x:Math.max(0,Math.min(game.width-1,snap(p.x/TILE))),y:Math.max(0,Math.min(game.height-1,snap(p.y/TILE)))});
+    for(let h=MAX_HEIGHT;h>0;h-=.5){const edge=fit(unprojectPoint(px,py+h*HEIGHT_STEP));if(surfaceHeight(game,edge.x+middle,edge.y+middle)>=h)return edge;}
+    return fit(unprojectPoint(px,py));
+  }
+  function screenToVertex(clientX,clientY,{clamp=false}={}){
     const rect=canvas.getBoundingClientRect(),origin=cameraPoint(),px=(clientX-rect.left-W/2)/camera.zoom+origin.x,py=(clientY-rect.top-H/2)/camera.zoom+origin.y;
-    const picked=pickGround(game,px,py);if(!picked)return{x:-1,y:-1};
+    const picked=pickGround(game,px,py);if(!picked)return clamp?edgePoint(px,py,Math.round,0):{x:-1,y:-1};
     let nearest=null,distance=Infinity;
     // Snap to the closest visible corner, including on foreshortened slopes.
     for(const y of [Math.floor(picked.y),Math.ceil(picked.y)])for(const x of [Math.floor(picked.x),Math.ceil(picked.x)]){

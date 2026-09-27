@@ -36,7 +36,7 @@ City `{id,name,x,y,population,activity,growth}`. Industry `{id,kind,name,x,y,cap
 - `setGame(game)` for new/load
 - `render(now, {tool='inspect',hover=null,preview=[],selected=null,showGrid=true,showRoutes=true,routeStops=[]}={})`
 - `resize()` use canvas CSS rect and devicePixelRatio capped 2
-- `screenToTile(clientX,clientY)` -> `{x,y}` (coordinates relative viewport)
+- `screenToTile(clientX,clientY,{clamp=false}={})` -> `{x,y}` (coordinates relative viewport); off the world it returns `{x:-1,y:-1}`, or with `clamp` the nearest edge tile, unprojected at that edge's height. `screenToVertex` takes the same option.
 - `worldToScreen(x,y)` -> `{x,y}` in local CSS pixels for the center of a world tile; fractional tile coordinates support moving vehicles and multi-tile sites
 - `stationMarker(station)` -> `{x,y}` in local CSS pixels for a station's screen-space sign; map picking uses this shared placement
 - `industryMarker(industry)` -> `{x,y,size}` in local CSS pixels for the center of a site's resource badge
@@ -160,7 +160,7 @@ The route planner, filters, map picking, port inspector and save validation acce
 
 `construction-plan.js` adapts the five-tool interface to existing model operations. `resolveBuildTool` chooses bridges/tunnels for Road/Rail and a station mode for Stop; explicit legacy tools still pass through. `quoteBuildPlan` deduplicates tiles and calls the authoritative construction quote. `buildPlan` delegates every placement to `model.build`, preserving single-placement metadata and the existing partial-success path policy. Renderer highlights resolve through the same adapter. The active tool never changes save structure or simulation rules.
 
-`app.js` owns compact zoom/options popovers and the active-tool Done control. Every tool/view/dialog change cancels captured gestures. The gesture stores the original tool; releases cannot apply a subsequently chosen tool. Single-object dragging pans, while line tools build on release. A second touch cancels construction, pans with the midpoint and advances at most one of the three zooms per pinch gesture; releases remain inert until all touches lift. Space retains native button behavior, and a pan cannot also toggle pause. `controls.css` keeps map targets at least 44px and moves secondary options behind menus.
+`app.js` owns compact zoom/options popovers and the active-tool Done control. Every tool/view/dialog change cancels captured gestures. The gesture stores the original tool; releases cannot apply a subsequently chosen tool. Single-object dragging pans, while line tools build on release. A second touch cancels construction, pans with the midpoint and advances at most one of the three zooms per pinch gesture; releases remain inert until all touches lift. A chorded right press (a pointermove with `buttons&2`) or the first Escape marks the captured stroke cancelled and keeps the tool; line-tool drags pick with `clamp`, so a stroke past the map edge ends at the edge. Space retains native button behavior for keyboard focus, but a button focused by a pointer press still pauses; a pan cannot also toggle pause. E, [, ], N and 1-3 also match `e.code` (KeyE, BracketLeft/Right, KeyN, Digit1-3), so they survive QWERTZ and AZERTY layouts; a printed + still zooms. `controls.css` keeps map targets at least 44px and moves secondary options behind menus.
 
 ## Playability and accounting
 
