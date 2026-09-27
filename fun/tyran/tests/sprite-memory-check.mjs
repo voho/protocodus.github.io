@@ -17,6 +17,10 @@ try {
     for (const name of ['structures', 'structureLight', 'structureHeavy', 'structureCrater', 'effects']) {
       for (let index = 0; index < 16; index++) {
         const cell = spriteCell(name, index);
+        if (name === 'effects' && index >= 10 && index <= 13) {
+          if (cell !== null) throw new Error(`Retired debris source retained: ${index}`);
+          continue;
+        }
         if (!cell || cell.width < 4 || cell.height < 4) throw new Error(`Missing ${name}:${index} after atlas release`);
         frames.push({ name, index, cell });
       }

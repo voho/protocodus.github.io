@@ -9,9 +9,10 @@ page.on('pageerror', error => errors.push(error.message));
 try {
   await page.goto(process.env.TYRAN_URL || 'http://127.0.0.1:8773/fun/tyran/');
   const result = await page.evaluate(async () => {
-    const { Effects, EFFECT_LIMITS, effectTextureStats } = await import('./effects.js');
+    const { Effects, EFFECT_LIMITS, effectTextureStats, warmEffectsTextures } = await import('./effects.js');
     const { spritesReady } = await import('./sprite-assets.js');
     await spritesReady;
+    warmEffectsTextures();
     const fx = new Effects(), records = new Set();
     const bossBursts = [];
     for (const quality of ['high', 'low']) for (const reduced of [false, true]) {
@@ -60,7 +61,8 @@ try {
     }
     const recycled = { unique: records.size, memory: fx.memory };
     fx.emit({ type: 'spark', x: 100, y: 100 });
-    const clearedFlags = fx.particles.every(particle => !particle.smoke && !particle.debris && !particle.ground && particle.angle === 0 && particle.age === 0);
+    const clearedFlags = fx.particles.every(particle => !particle.smoke && !particle.debris && !particle.ground && particle.angle === 0 && particle.age === 0
+      && particle.variant === 0 && particle.spin === 0 && particle.flip === 1);
     fx.reset(); records.clear();
     // An extreme chain reaction must have a fixed ceiling, including delayed bursts.
     let bounded = true;
@@ -108,12 +110,14 @@ try {
   }
   assert.equal(result.recycled.unique, 55, '100 consecutive explosions reuse the same 55 particle records');
   assert.equal(result.recycled.memory.particleRecords, 55, 'only high-water particle storage is retained');
-  assert.ok(result.clearedFlags, 'recycled particles do not retain smoke, debris, ground or angular state');
+  assert.ok(result.clearedFlags, 'recycled particles do not retain smoke, debris, ground, artwork, spin or mirroring state');
   assert.ok(result.stressed.bounded, 'every transient list stays within its fixed budget during chain reactions');
   assert.equal(result.stressed.unique, result.limits.particles, 'sustained chain reactions reuse at most 700 particle records');
   for (const [kind, count] of Object.entries(result.finished.active)) assert.equal(count, 0, `${kind} finishes normally after a stress burst`);
   assert.ok(result.textures.count <= result.limits.textures, 'light texture storage is bounded across arbitrary palettes');
   assert.ok(result.textures.bytes <= result.limits.textures * 256 * 256 * 4, 'texture backing memory stays within its worst-case pixel budget');
+  assert.equal(result.textures.debris.count, 2, 'all debris shares two prepared atlases');
+  assert.ok(result.textures.debris.bytes <= 4 * 1024 * 1024, 'debris atlas memory has its own fixed 4 MiB ceiling');
   assert.equal(result.reset.particleRecords, 0, 'reset releases retained particle records');
   assert.ok(Object.values(result.reset.active).every(count => count === 0), 'reset releases every playback state');
   assert.deepEqual(errors, [], 'no browser errors');

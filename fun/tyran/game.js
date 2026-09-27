@@ -65,7 +65,7 @@ function syncGpuDisplay() {
 // A tiny reusable strip supplies signal interference without pixel readbacks
 // or copying the full arena into another texture during an explosion.
 const signalStrip = document.createElement('canvas'), signalContext = signalStrip.getContext('2d', { alpha: false });
-const world = new WorldRenderer(), fx = new Effects(), audio = new AudioEngine();
+const world = new WorldRenderer(), fx = new Effects((x, y, scroll, radius) => world.canPlaceDebris(x, y, scroll, radius)), audio = new AudioEngine();
 const feedback = new CombatFeedback();
 let feedbackRevision = -1;
 const keys = new Set(), numberFormat = new Intl.NumberFormat('en-US'), number = n => numberFormat.format(Math.floor(n || 0));
@@ -928,7 +928,7 @@ function drawFrame() {
     drawShip(ctx, px + 145, py + 115, 25, 'player', '#ffd0a0', clock, { world: index, quality, motion: !fx.reduced });
   }
   ctx.beginPath();
-  fx.draw(ctx, W, H);
+  fx.draw(ctx, W, H, scroll);
   ctx.restore();
   ctx.drawImage(vignette, 0, 0, W, H);
   if (ctx === gpu) gpu.present(displayCtx);
@@ -968,7 +968,7 @@ function frame(time) {
     }
     renderAlpha = scene === 'playing' ? clamp(accumulator / STEP, 0, 1) : 1;
     perf.updateMs += (performance.now() - started - perf.updateMs) * .05;
-    fx.update(dt); feedback.update(dt);
+    fx.update(dt, state.scroll); feedback.update(dt);
     if (elapsed > .006) {
       fastestFrame = Math.min(fastestFrame, elapsed * 1000);
       // A very slow frame still counts toward load; only simulation catch-up is capped.
@@ -983,7 +983,7 @@ function frame(time) {
       }
     }
   } else if (preview) previewScroll += dt * 45;
-  else if (fading) fx.update(dt);
+  else if (fading) fx.update(dt, state?.scroll || 0);
   if (scene === 'end') updateEndFade(dt);
   renderCombatFeedback();
   audio.update(scene === 'playing', state?.level || 0, state?.challenge && !state.challenge.done ? 'challenge' : state?.bossSpawned && !state.bossDefeated ? 'boss' : '');

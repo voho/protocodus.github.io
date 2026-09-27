@@ -1,5 +1,5 @@
 /** Tyran: deterministic tile maps and reusable terrain/scenery sprites. */
-import { MAP_TILE_SIZE, hashLevel, tileAt } from './tile-map.js';
+import { MAP_TILE_SIZE, hashLevel, tileAt, isDryTerrainTile } from './tile-map.js';
 import { TerrainSprites } from './terrain-sprites.js';
 import { spritesReady, spriteRevision, spriteCell } from './sprite-assets.js';
 import { StructureEffects } from './structure-effects.js';
@@ -24,6 +24,7 @@ const WIDTH = 1200; // Stable seeded districts; viewport coverage is independent
 const MARGIN = MAP_TILE_SIZE; // Actual offscreen cells cover lateral drift.
 const PAD = 140;
 const HIT_CELL = 160;
+const DEBRIS_SURFACE_CACHE_SIZE = 1024;
 const MAX_DAMAGE_SPRITES = 80; // 20.7 MiB: every damage appearance in the active sector, never all ten sectors.
 const TAU = Math.PI * 2;
 export const PARALLAX_LAYERS = Object.freeze([
@@ -135,6 +136,11 @@ export class WorldRenderer {
     this.sceneryLayers=[new Map()];this.sceneryDirty=new Map();
     this.layerViews=[{zoom:1,x:0,y:0,first:0,last:0}];
     this.hitBuckets=new Map();this.visibleProps=[];this.damage=new Map();this.destroyed=new Set();this.turretActivity=new Map();
+    // Fixed numeric slots avoid string keys, tile objects and growing caches in
+    // the per-fragment surface checks. 0 = empty, 1 = unsafe, 2 = entirely dry.
+    this.debrisSurfaceCols=new Float64Array(DEBRIS_SURFACE_CACHE_SIZE);
+    this.debrisSurfaceRows=new Float64Array(DEBRIS_SURFACE_CACHE_SIZE);
+    this.debrisSurfaceStates=new Uint8Array(DEBRIS_SURFACE_CACHE_SIZE);
     this.softCloudPass={h:0,scroll:0,time:0,motion:true};
     this.softCloudShadows=c=>{const p=this.softCloudPass;this.drawCloudShadowSprites(c,p.h,p.scroll,p.time,p.motion);};
     this.softClouds=c=>{const p=this.softCloudPass;this.drawCloudSprites(c,p.h,p.scroll,p.time,p.motion);};
@@ -152,6 +158,7 @@ export class WorldRenderer {
     }
     this.damage.clear();this.destroyed.clear();this.visibleProps.length=0;this.turretActivity.clear();this.sceneryDirty.clear();
     this.scale=1;this.scroll=0;this.parallaxX=0;
+    if(!reuse)this.debrisSurfaceStates.fill(0);
     // A preview or retry reuses immutable artwork while resetting destruction.
     if(reuse)return;
     this.warmEpoch=(this.warmEpoch||0)+1;this.warmJobs=[];this.warmKeys=new Set();this.warmPending=false;this.flightAssetsQueued=false;this.pendingTiles.clear();
@@ -346,6 +353,28 @@ export class WorldRenderer {
     else setTimeout(()=>run({didTimeout:true,timeRemaining:()=>6}),0);
   }
   tileAt(col,row) {return tileAt(this.levelHash,this.index,col,row);}
+  /** A debris footprint must remain fully over the visible dry ground plane. */
+  canPlaceDebris(x,y,scroll=this.scroll,radius=0) {
+    if(this.index===4||this.index===9)return false;
+    const scale=this.scale||1;
+    if(!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(scroll)||!Number.isFinite(radius)||!Number.isFinite(scale)||scale<=0)return false;
+    if(this.index===2||this.index===5)return true;
+    const px=x/scale-this.parallaxX,py=y/scale-scroll,r=Math.max(0,radius)/scale+1;
+    // The one-pixel guard includes filtered sprite edges. Checking the whole
+    // footprint's box is conservative for rotated fragments and broad wrecks.
+    const firstCol=Math.floor((px-r)/MAP_TILE_SIZE),lastCol=Math.floor((px+r)/MAP_TILE_SIZE);
+    const firstRow=Math.floor((py-r)/MAP_TILE_SIZE),lastRow=Math.floor((py+r)/MAP_TILE_SIZE);
+    for(let row=firstRow;row<=lastRow;row++)for(let col=firstCol;col<=lastCol;col++){
+      const slot=(Math.imul(col,0x9e3779b1)^Math.imul(row,0x85ebca77))&(DEBRIS_SURFACE_CACHE_SIZE-1);
+      let state=this.debrisSurfaceStates[slot];
+      if(!state||this.debrisSurfaceCols[slot]!==col||this.debrisSurfaceRows[slot]!==row){
+        state=isDryTerrainTile(this.levelHash,this.index,col,row)?2:1;
+        this.debrisSurfaceCols[slot]=col;this.debrisSurfaceRows[slot]=row;this.debrisSurfaceStates[slot]=state;
+      }
+      if(state===1)return false;
+    }
+    return true;
+  }
   makeSubstrate() {
     const out=canvas(600,600),c=out.getContext('2d'),p=this.palette,rng=random(this.levelHash^5371);
     c.fillStyle=p.low;c.fillRect(0,0,600,600);
@@ -471,6 +500,10 @@ export class WorldRenderer {
         if(prop.x+reach<paintBounds.left||prop.x-reach>paintBounds.right||prop.y+reach<paintBounds.top||prop.y-reach>paintBounds.bottom)continue;
         const py=prop.y-row*TILE,px=prop.x+MARGIN,scale=prop.size/100;
         const structural=STRUCTURE_SPRITES.includes(prop.type),destroyed=this.destroyed.has(prop.id);
+        // A destroyed site stays in the damage ledger, but its crater and
+        // foundation cannot leave wreckage over water, lava or orbital space.
+        const groundScale=this.scale||1;
+        if(destroyed&&!this.canPlaceDebris((prop.x+this.parallaxX)*groundScale,(prop.y+this.scroll)*groundScale,this.scroll,reach*groundScale))continue;
         if(destroyed&&!structural){this.drawScorch(c,px,py,prop.size);continue;}
         const stage=structural?(destroyed?3:structureStage(prop)):0;
         this.structureEffects.drawFoundation(c,prop,px,py,destroyed);

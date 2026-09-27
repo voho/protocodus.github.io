@@ -10,8 +10,9 @@ page.on('pageerror', error => errors.push(error.message));
 try {
   await page.goto(process.env.TYRAN_URL || 'http://127.0.0.1:8773/fun/tyran/');
   const result = await page.evaluate(async () => {
-    const { Effects } = await import('./effects.js');
+    const { Effects, warmEffectsTextures } = await import('./effects.js');
     await (await import('./sprite-assets.js')).spritesReady;
+    warmEffectsTextures();
     const surface = (scale = 1) => {
       const canvas = document.createElement('canvas'); canvas.width = Math.ceil(640 * scale); canvas.height = Math.ceil(480 * scale);
       const ctx = canvas.getContext('2d'); ctx.scale(scale, scale);
@@ -53,10 +54,11 @@ try {
     let ghostAlpha = 0;
     for (let i = 3; i < ghostPixels.length; i += 4) ghostAlpha += ghostPixels[i];
     let batchDifference = 0, batchRestored = true, maxBatchSaves = 0;
-    for (const ground of [false, true]) for (const matrix of [[1,0,0,1,0,0], [1.13,.07,-.04,.91,8,12]]) {
+    for (const legacy of [false, true]) for (const ground of [false, true]) for (const matrix of [[1,0,0,1,0,0], [1.13,.07,-.04,.91,8,12]]) {
       const current = surface(), reference = surface(), fx = new Effects();
       const items = Array.from({ length: 16 }, (_, i) => ({ x: 65 + i % 4 * 145, y: 65 + Math.floor(i / 4) * 95,
-        angle: i * .47, age: .17, life: .9, radius: 4 + i % 3, size: 9 + i % 5, debris: true, smoke: false, ground: i % 2 === 0 }));
+        angle: i * .47, age: .17, life: .9, radius: 4 + i % 3, size: 9 + i % 5, debris: true, smoke: false, ground: i % 2 === 0,
+        ...(legacy ? {} : { variant: i % 12, spin: (i % 2 ? -1 : 1) * (4.5 + i % 4 * 2.1), flip: i % 3 ? 1 : -1 }) }));
       if (ground) fx.wrecks.push(...items); else fx.particles.push(...items);
       for (const target of [current, reference]) {
         target.ctx.fillStyle = '#21302b'; target.ctx.fillRect(0, 0, 640, 480);
@@ -72,7 +74,8 @@ try {
       items.forEach((item, index) => {
         const c = reference.ctx;
         c.save(); c.translate(item.x + (ground ? 7 : 0), item.y + (ground ? 13 : 0));
-        c.rotate(item.angle + (ground ? 0 : item.age * 8));
+        c.rotate(item.angle + (ground ? 0 : item.age * (item.spin ?? 8)));
+        if (!ground) c.scale(item.flip || 1, 1);
         if (!ground) c.globalAlpha = 1 - item.age / item.life;
         c.drawImage(...current.calls[index]); c.restore();
       });

@@ -12,12 +12,12 @@ try {
     const { WorldRenderer, structureStage, structureDurability, BUILDING_DURABILITY_MULTIPLIER } = await import('./worlds.js');
     const { createCampaign, weaponStats } = await import('./sim.js');
     const { serializeRun, restoreRun } = await import('./save-game.js');
-    const { Effects } = await import('./effects.js');
+    const { Effects, warmEffectsTextures } = await import('./effects.js');
     const canvas = document.createElement('canvas'); canvas.width = 1200; canvas.height = 900;
     const context = canvas.getContext('2d');
-    const findProp = (world, types) => {
+    const findProp = (world, types, accept = () => true) => {
       for (let row = -1; row >= -40; row--) {
-        const found = world.getBand(row).find(prop => types.includes(prop.type) && prop.x > 150 && prop.x < 1050);
+        const found = world.getBand(row).find(prop => types.includes(prop.type) && prop.x > 150 && prop.x < 1050 && accept(prop));
         if (found) return found;
       }
       throw new Error(`No scenery fixture: ${types.join(', ')}`);
@@ -30,13 +30,22 @@ try {
       const source = world.getSceneryLayer(prop.row, world.getBand(prop.row), prop.depth);
       const crop = document.createElement('canvas'); crop.width = crop.height = 160;
       const c = crop.getContext('2d');
-      c.drawImage(source, prop.x + 100 - 80, prop.y - prop.row * 800 + 140 - 80, 160, 160, 0, 0, 160, 160);
+      // Fused strips contain the central 800px terrain band, with horizontal
+      // margin only. Their old transparent 140px vertical padding is gone.
+      const density = world.detailScale;
+      c.drawImage(source, (prop.x + 100 - 80) * density, (prop.y - prop.row * 800 - 80) * density,
+        160 * density, 160 * density, 0, 0, 160, 160);
       const bytes = c.getImageData(0, 0, 160, 160).data;
       let hash = 2166136261;
       for (const byte of bytes) hash = Math.imul(hash ^ byte, 16777619) >>> 0;
       return hash;
     };
-    const world = await freshWorld(0), target = findProp(world, ['temple', 'bunker', 'station']);
+    const world = await freshWorld(0), target = findProp(world, ['temple', 'bunker', 'station'], prop => {
+      const localY = prop.y - prop.row * 800;
+      // This test requires a visible crater. Water/shoreline destruction is
+      // intentionally recorded without a crater by the dry-ground policy.
+      return localY >= 80 && localY <= 720 && world.canPlaceDebris(prop.x + world.parallaxX, prop.y, 0, prop.size * 1.3 + 2);
+    });
     const scroll = 450 - target.y, stages = [];
     for (let expected = 0; expected < 4; expected++) {
       world.draw(context, 1200, 900, scroll, 0, 'high');
@@ -120,6 +129,7 @@ try {
     const armor = { multiplier: BUILDING_DURABILITY_MULTIPLIER, survivesThirtyBolts: building.hp > 0,
       damaged: building.hp < building.maxHp, examples: ['bunker','fortress','crawler','hauler'].map(type => ({type,
         old: Math.round(60 * 60 * .085 * oldArmor[type]), current: structureDurability(type, 60)})) };
+    warmEffectsTextures();
     const fx = new Effects(); fx.emit({ type: 'explosion', x: 400, y: 330, size: 20, ground: true }, 200, 10);
     const groundWrecks = fx.wrecks.length;
     fx.emit({ type: 'explosion', x: 400, y: 330, size: 20 }, 200, 10);

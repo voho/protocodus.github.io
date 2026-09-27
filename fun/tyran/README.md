@@ -38,6 +38,8 @@ After the guardians of sectors 1, 3, 5, 7 and 9, a **challenging stage** flies 4
 
 Heavy kills briefly freeze the simulation (hitstop); the freeze holds actor positions still and resumes without a catch-up burst. Large hulls add expanding shockwaves, stronger light and staggered secondary blasts. A brief, size-scaled camera response adds shake, defocus, smooth desaturation and two narrow signal slips; the HUD stays sharp. Camera effects honor reduced motion and the impact-motion setting, and all particle/cascade budgets remain bounded. On final defeat, the impact plays briefly before a 1.5-second fade to black; the debrief appears only after the fade, and retry restores the normal view. All notices, including sector titles, guardians, waves and pickups, stay in the reserved instrument strip outside the arena. A master limiter and a shared voice slot for simultaneous explosions keep novas and mass kills from clipping. The shop prepares the next sector's terrain, scenery and fleet liveries during idle time, so launching it builds nothing. The soundtrack uses five user-provided Suno tracks: three rotate between sectors, with separate music for challenges and guardians. The shop shows a Galaga-style flight report: shots, hits and hit ratio, squadrons wiped, dive kills, rescues and the challenging stage result.
 
+Debris uses twelve detailed fragment designs and twelve wreck compositions: torn armor, wing ribs, broken engines, pipes, circuitry and masonry. Fragments vary their spin and orientation; grounded wrecks use distinct silhouettes and scorched component clusters. Two fixed atlases are prepared before launch (about 3.4 MiB RGBA), with one image draw per piece and the existing 700-particle/60-wreck limits. Replaced source fragment/scorch cells are no longer retained. Water, lava and both space environments receive no fragments, ship wrecks or destroyed-building craters; fire, smoke, sparks and shockwaves remain. Full footprint checks also remove fragments crossing a shoreline. Mixed shoreline cells are conservatively kept clear; dry desert riverbeds and Martian canyons allow debris. Bosses and their delayed explosions still leave no debris anywhere.
+
 All successful primary, plasma and nova volleys divert reactor power from shields for 0.75 seconds: recharge runs at 75% of the capacitor rate while weapons draw power and 125% after they settle (7.5/s versus 12.5/s without upgrades). Releasing fire creates a deliberate dodge-and-recover window; the normal post-hit delay still applies, and neither mode restores hull. Dry triggers do not consume shield power. The existing shield label shows ↓ while firing and ↑ during faster recovery, with no extra HUD row. Weapon-load timing survives saves and resets with a fresh ship or sector.
 
 Primary fire is unlimited. Secondary plasma deals 58 base damage per orb, adds splash damage and costs 20 fire energy. Its orbs gently steer toward live, visible enemies ahead within 650 world units, balancing proximity against hull size: larger ships win at similar distance, while much closer fighters take priority. Guidance turns at most 0.65 radians (about 37 degrees) per second without changing projectile speed or lifetime, and reassesses targets as they move or are destroyed. Your ship has a 100-energy reserve that regenerates at 18/s after one second without a secondary shot. Depletion locks secondary fire until 40 energy has recovered, then a held secondary key resumes automatically. Primary fire remains available while energy recovers; holding both keys favors secondary while charged and primary during recovery. A shared shot cooldown prevents rapid key alternation from firing extra volleys. Fusion capacitor upgrades increase energy regeneration by 3/s per tier and reduce its delay by 0.1 seconds per tier, alongside their existing shield benefits. Rapid fire consumes secondary energy faster. New sectors refill the reserve.
@@ -122,6 +124,7 @@ Damage refreshes only the affected part of a scenery strip, retaining overlappin
 | `terrain-sprites.js` | Reusable material and shoreline/cliff sprites |
 | `structure-effects.js` | Cached architectural foundations, service lights, fire, smoke and embers |
 | `sprite-assets.js` | Atlas loading, alpha extraction and shared decoded cells |
+| `debris-sprites.js` | Fixed preflight atlases for detailed fragments and varied grounded wrecks |
 | `ships.js` | Ten enemy classes and fleet families, reserved palettes, fixed hulls and cached spacecraft artwork |
 | `projectile-sprites.js` | Palette-matched ammunition textures and visual sizing |
 | `bonus-sprites.js` | Shared collectible cases, symbols, palette and supply badges |
@@ -138,6 +141,7 @@ node fun/tyran/tests/sim-check.mjs --endless-balance
 node fun/tyran/tests/endless-campaign-check.mjs
 node fun/tyran/tests/strategy-check.mjs
 node fun/tyran/tests/tile-map-check.mjs
+node fun/tyran/tests/debris-surface-check.mjs
 node fun/tyran/tests/gpu-geometry-check.mjs
 node fun/tyran/tests/gpu-batch-check.mjs
 node fun/tyran/tests/gpu-recovery-check.mjs
@@ -151,6 +155,7 @@ TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/cam
 TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/endless-browser-check.mjs
 TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/shop-art-check.mjs
 TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/destruction-save-check.mjs
+TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/debris-browser-check.mjs
 TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/blast-integration-check.mjs
 TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/ground-sites-check.mjs
 TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/audio-check.mjs

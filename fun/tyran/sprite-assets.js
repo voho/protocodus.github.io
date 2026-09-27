@@ -134,6 +134,9 @@ function connectedCells(name, image, [columns, rows]) {
 export function spriteCell(name, index) {
   const layout = LAYOUTS[name];
   if (!layout || !Number.isInteger(index) || index < 0 || index >= layout[0] * layout[1]) return null;
+  // Detailed debris uses two fixed atlases now. Do not extract or retain the
+  // retired metal, masonry and scorch cells; explosion, smoke and engines stay.
+  if (name === 'effects' && index >= 10 && index <= 13) return null;
   const key = `${name}:${index}`;
   if (cells.has(key)) return cells.get(key);
   const image = atlases.get(name);

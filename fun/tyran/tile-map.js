@@ -117,6 +117,24 @@ function heightAt(seed, biome, x, y) {
 const materialAt = height => height < .28 ? 0 : height < .44 ? 1 : height < .68 ? 2 : 3;
 
 /**
+ * Whether the rendered tile is entirely dry, without allocating tile metadata.
+ * A full >=1 corner overlay covers the base material; mixed masks deliberately
+ * fail because their curved shoreline can leave water anywhere inside the cell.
+ * Desert riverbeds and Martian canyons are dry even at their lowest elevation.
+ * Orbital sectors never retain wreckage, including their rocks and platforms.
+ */
+export function isDryTerrainTile(levelHash, worldIndex, col, row) {
+  const biome = modulo(Math.floor(worldIndex), 10);
+  if (biome === 4 || biome === 9) return false;
+  if (biome === 2 || biome === 5) return true;
+  const seed = (levelHash ^ Math.imul(biome + 1, 0x632be5ab)) >>> 0;
+  return heightAt(seed, biome, col, row) >= .28
+    && heightAt(seed, biome, col + 1, row) >= .28
+    && heightAt(seed, biome, col + 1, row + 1) >= .28
+    && heightAt(seed, biome, col, row + 1) >= .28;
+}
+
+/**
  * One logical tile, independent of request order.
  *
  * Materials/elevations: 0 deep water/void, 1 shore/low earth, 2 ground, 3 raised.
