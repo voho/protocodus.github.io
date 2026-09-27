@@ -201,7 +201,7 @@ node --test fun/transport/tests/*.test.mjs
 
 The checks cover seeded worlds, construction, connected deliveries, production conservation, local development and ecology, frame-independent random outcomes, huge-world simulation costs, and save validation and continuation.
 
-The minimap renders at most 512 × 512 terrain samples while preserving thin roads and rails in a separate overlay. Ecology samples at most 4,096 cells per simulation day on large maps.
+The minimap renders at most 512 × 512 terrain samples while preserving thin roads and rails in a separate overlay. Ecology samples at most 4,096 cells per simulation day on large maps. The map then redraws only the terrain around the cells that changed, which roughly halves the cost of drawing a new day at Region view.
 
 The optional browser smoke uses Playwright and an installed Chrome browser. With the server running on port 8000:
 

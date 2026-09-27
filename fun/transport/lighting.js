@@ -9,6 +9,7 @@ import { isEngineeredTunnel, isUndergroundAt } from './structure-visibility.js';
 import { isometricStationLights } from './isometric-infrastructure.js';
 import { projectAngle } from './isometric.js';
 import { worldArtRevision } from './atlas-runtime.js';
+import { surfaceChangesSince } from './change-journal.js';
 
 const TAU = Math.PI * 2;
 const clamp = value => Math.max(0, Math.min(1, value));
@@ -112,6 +113,8 @@ export function createLighting() {
   }
   function staticEmitters(game, bounds, industryIndex, stationIndex, artwork) {
     const revision = game.revision, reusable = Number.isFinite(revision);
+    // Ecology changes no building, road, station or shore; the renderer keeps its indexes.
+    if (reusable && emitters?.game === game && emitters.tiles === game.tiles && emitters.revision !== revision && emitters.industryIndex === industryIndex && surfaceChangesSince(game, emitters.revision) !== null) emitters.revision = revision;
     if (reusable && emitters?.game === game && emitters.tiles === game.tiles && emitters.revision === revision &&
         emitters.artwork === artwork && emitters.biome === game.biome && emitters.seed === game.seed && emitters.industryIndex === industryIndex &&
         emitters.stationIndex === stationIndex && bounds.x0 >= emitters.x0 && bounds.y0 >= emitters.y0 &&

@@ -20,6 +20,7 @@ import { createVehicleSprites, drawRasterInfrastructure, drawRasterNetwork, hasR
 import { industrySize, industryFootprint, industryTiles, industryContains, industryDistance } from './industry-sites.js';
 import { buildingSize, buildingFootprint, buildingAt } from './building-sites.js';
 import { terrainObjectAt, terrainObjectSize } from './terrain-objects.js';
+import { surfaceChangesSince } from './change-journal.js';
 import { natureObjectLayout, drawRasterTreeShadows, treeShadowCacheStats } from './raster-nature.js';
 import { terrainLevel, terrainElevation, terrainReliefRaster, terrainOverviewColor } from './terrain-elevation.js';
 import { noise, hashNoise } from './world-noise.js';
@@ -81,6 +82,7 @@ export function createRenderer(canvas, initialGame, options={}) {
   let sceneBuilds=0,foundationBuilds=0,projectedOrigin=null;
   const routeIndexes=new WeakMap(),routePaths=new WeakMap(),minimapRoutePaths=new WeakMap();
   let routeSegmentsConsidered=0,routePathBuilds=0;
+  let structureRevision=0;
   const frameVehicles=[];
   let largestSurface=0, lastTime=0, vehicleIndicatorCounts={empty:0,partial:0,full:0};
   function code(value){if(!value)return 0;const key=String(value);if(codes.has(key))return codes.get(key);let h=0;for(let i=0;i<key.length;i++)h=(Math.imul(h,31)+key.charCodeAt(i))|0;codes.set(key,h);return h;}
@@ -110,10 +112,27 @@ export function createRenderer(canvas, initialGame, options={}) {
     if(cachedHouseAssets!==houseAssetsRevision()||cachedWorldAssets!==worldArtRevision()){clearChunks();updateRaster(true);cachedHouseAssets=houseAssetsRevision();cachedWorldAssets=worldArtRevision();}
     if(cachedBiome!==game.biome||cachedSeed!==game.seed){clearChunks();palette=PALETTES[game.biome]||PALETTES.taiga;updateRaster(true);cachedBiome=game.biome;cachedSeed=game.seed;cachedRevision=-1;minimapRevision=-1;}
     if(cachedRevision===(game.revision||0))return;
+    const surface=surfaceChangesSince(game,cachedRevision);if(surface){refreshSurface(surface);return;}
     buildingIndex.clear();terrainObjectIndex.clear();foundations.clear();sceneryBudget.clear();sceneCache=null;gridCache=null;
     industryIndex=new Map((game.industries||[]).flatMap(item=>industryTiles(item).map(p=>[p.y*game.width+p.x,item])));
     stationIndex=new Map((game.stations||[]).map(item=>[item.y*game.width+item.x,item]));
-    cachedRevision=game.revision||0;
+    cachedRevision=game.revision||0;structureRevision++;
+  }
+  // Ecology rewrites only terrain, detail and dissolved groves, never heights,
+  // water, structures or sites. Keep every index, foundation, grid and route
+  // path; forget only the changed parcels and re-fingerprint only chunks whose
+  // bounds, padded by three tiles, hold a change. Scenery still rebuilds whole.
+  function refreshSurface(changes){
+    sceneryBudget.clear();sceneCache=null;
+    const reach=5,columns=Math.ceil(game.width/CHUNK_TILES)+2,near=new Set(),revision=game.revision||0;
+    for(const index of changes){
+      terrainObjectIndex.delete(index);
+      const x=index%game.width,y=Math.floor(index/game.width);
+      for(let cy=Math.ceil((y-reach-CHUNK_TILES+1)/CHUNK_TILES);cy<=Math.floor((y+reach)/CHUNK_TILES);cy++)for(let cx=Math.ceil((x-reach-CHUNK_TILES+1)/CHUNK_TILES);cx<=Math.floor((x+reach)/CHUNK_TILES);cx++)near.add((cy+1)*columns+cx+1);
+    }
+    // Only a chunk current at the previous revision may skip its fingerprint.
+    for(const [key,entry] of chunks){if(entry.revision!==cachedRevision)continue;const [cx,cy]=key.split(',').map(Number);if(!near.has((cy+1)*columns+cx+1))entry.revision=revision;}
+    cachedRevision=revision;
   }
   const tile=(x,y)=> x<0||y<0||x>=game.width||y>=game.height?null:game.tiles[y*game.width+x];
   function buildingSiteAt(x,y){
@@ -770,7 +789,7 @@ export function createRenderer(canvas, initialGame, options={}) {
     routeSegmentsConsidered=0;
     if(showRoutes)for(const r of game.routes||[])if(r.path?.length){
       const key=`${x0},${y0},${x1},${y1}`,path=r.path;let cached=routePaths.get(r);
-      if(!cached||cached.path!==path||cached.length!==path.length||cached.key!==key||cached.revision!==cachedRevision||cached.mode!==r.mode){
+      if(!cached||cached.path!==path||cached.length!==path.length||cached.key!==key||cached.revision!==structureRevision||cached.mode!==r.mode){
         let index=routeIndexes.get(path);
         if(!index||index.length!==path.length){index={length:path.length,spatial:createRouteRenderIndex(path)};routeIndexes.set(path,index);}
         const drawing=new Path2D();let previous=-1,count=0,segments=0;
@@ -780,7 +799,7 @@ export function createRenderer(canvas, initialGame, options={}) {
           if(previous!==i-1){const p=transportPoint(a.x,a.y,r.mode);drawing.moveTo(p.x,p.y);}
           const edge=transportPoint((a.x+b.x)/2,(a.y+b.y)/2,r.mode),p=transportPoint(b.x,b.y,r.mode);drawing.lineTo(edge.x,edge.y);drawing.lineTo(p.x,p.y);previous=i;count++;
         }
-        cached={path,length:path.length,key,revision:cachedRevision,mode:r.mode,drawing,count,segments};routePaths.set(r,cached);routePathBuilds++;
+        cached={path,length:path.length,key,revision:structureRevision,mode:r.mode,drawing,count,segments};routePaths.set(r,cached);routePathBuilds++;
         routeSegmentsConsidered+=segments;
       }
       if(!cached.count)continue;

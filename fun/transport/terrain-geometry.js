@@ -1,4 +1,5 @@
 import { landHeightLevel, LAND_HEIGHT_LEVELS, TERRAIN_LEVELS } from './terrain-elevation.js';
+import { surfaceChangesSince } from './change-journal.js';
 
 export const TERRAIN_TILE_SIZE = 32;
 export const HEIGHT_STEP = 24;
@@ -13,6 +14,8 @@ const toVisual = level => Math.round(clamp(level, 0, TERRAIN_LEVELS) * MAX_VISUA
 function cacheFor(game) {
   let cache = caches.get(game);
   if (!cache || cache.tiles !== game.tiles || cache.revision !== game.revision || cache.width !== game.width || cache.height !== game.height) {
+    // Ecology never changes elevation, water or bridges: its fields stay exact.
+    if (cache && cache.tiles === game.tiles && cache.width === game.width && cache.height === game.height && surfaceChangesSince(game, cache.revision) !== null) { cache.revision = game.revision; return cache; }
     cache = { tiles: game.tiles, revision: game.revision, width: game.width, height: game.height, columns: Math.floor(game.width / CHUNK) + 1, chunks: new Map(), hotKey: -1, hotHeights: null, bridges: new Map(), bridgeSpans: new Map(), sampledTiles: 0, builtChunks: 0 };
     caches.set(game, cache);
   }

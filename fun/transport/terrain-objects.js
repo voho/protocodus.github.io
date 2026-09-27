@@ -20,11 +20,18 @@ export function terrainObjectTiles(site){
   for(let dy=0;dy<size;dy++)for(let dx=0;dx<size;dx++)points.push({x:site.x+dx,y:site.y+dy});
   return points;
 }
-export function releaseTerrainObjects(game,points){
-  const anchors=new Set();
-  for(const point of points){const site=terrainObjectAt(game,point.x,point.y);if(site)anchors.add(site.y*game.width+site.x);}
-  for(const index of anchors)delete game.tiles[index].terrainObject;
-  return anchors.size;
+function releaseSites(game,points){
+  const anchors=new Map();
+  for(const point of points){const site=terrainObjectAt(game,point.x,point.y);if(site)anchors.set(site.y*game.width+site.x,site);}
+  for(const index of anchors.keys())delete game.tiles[index].terrainObject;
+  return anchors;
+}
+export function releaseTerrainObjects(game,points){return releaseSites(game,points).size;}
+// Every cell whose shared grove or outcrop artwork dissolved, for view caches.
+export function releaseTerrainObjectsCells(game,points){
+  const cells=[];
+  for(const site of releaseSites(game,points).values())for(const point of terrainObjectTiles(site))cells.push(point.y*game.width+point.x);
+  return cells;
 }
 
 // Continuous elevation limits avoid giant sprites perched across a hill even

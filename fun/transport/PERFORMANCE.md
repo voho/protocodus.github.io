@@ -153,3 +153,26 @@ TRANSPORT_FRESH_SCENES=1 TRANSPORT_SCENES=forest,mixed TRANSPORT_CONDITIONS=day,
   TRANSPORT_FRAMES=24 TRANSPORT_EXPECT_STABLE_SPRITES=1 \
   node fun/transport/tests/busy-scenes-browser-check.mjs
 ```
+
+## Daily ecology revisions
+
+Every simulated day, ecology changes a few hundred tiles on a 512² map and bumps `game.revision`. The renderer used to discard every index, prepared strip, route path and height field, then fingerprint every visible chunk again, so an empty revision cost almost as much as a real one. `change-journal.js` now records exactly which cells each ecology day changed. A journaled day keeps the indexes, foundations, grid, route paths, height fields and night-light emitters, and fingerprints only chunks within three tiles of a change. Chunks whose terrain changed are still repainted, and scenery lists and strips are still rebuilt. Construction, settlement and industry revisions, or any gap in the journal, take the previous full path.
+
+Paired runs against an immutable copy of the previous build used a 512² taiga map (seed 1847), 1440 × 900 CSS pixels and DPR 2. Values are medians in milliseconds:
+
+| Workload | Before | After |
+| --- | ---: | ---: |
+| First render after one ecology day, paused, Region | 33.5 | 18.6 |
+| First render after one ecology day, paused, Town | 12.3 | 7.3 |
+| First render after one ecology day, paused, Detail | 5.8 | 3.0 |
+| Day frames during 8 seconds at 8×, Region | 34.1 | 18.5 |
+| Other frames in the same run | 3.3 | 3.0 |
+
+In the 8× run, 56 of 64 day frames were ecology only (median 18.1 ms). The other 8 days also grew a town or industry and still cost about 39 ms. A revision that is not journaled still costs about 25 ms at Region. A journaled day with no changes costs 11 ms; that remainder is the scenery rebuild.
+
+The cached/fresh regression adds journaled ecology days at all three zooms, by day and night, at DPR 1 and 2. They change tiles in view, on chunk seams and out of view, dissolve a 3×3 grove, then run three real ecology days. Every RGBA pixel and sampled inspection target matches a new renderer, and route paths, foundations and night emitters are not rebuilt. Seeded ecology outcomes match fixtures recorded before the journal existed.
+
+```sh
+node --test fun/transport/tests/change-journal.test.mjs
+node fun/transport/tests/scene-cache-browser-check.mjs
+```

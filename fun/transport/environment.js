@@ -3,7 +3,8 @@ import { seedNumber } from './world.js';
 import { BIOME_NATURE, isPlantDetail } from './terrain-sprites.js';
 import { industryTiles, industryDistance } from './industry-sites.js';
 import { buildingSize } from './building-sites.js';
-import { releaseTerrainObjects } from './terrain-objects.js';
+import { releaseTerrainObjectsCells } from './terrain-objects.js';
+import { noteSurfaceChanges } from './change-journal.js';
 
 const clamp = (value, min = 0, max = 1) => Math.max(min, Math.min(max, value));
 const NEIGHBORS = [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]];
@@ -251,11 +252,12 @@ export function stepEcology(game) {
   }
   // A changing constituent returns the shared grove/outcrop to its unchanged
   // single-tile fallbacks before the succession proposal takes effect.
-  if (proposals.length) releaseTerrainObjects(game, proposals.map(p => ({ x: p.index % game.width, y: Math.floor(p.index / game.width) })));
+  const released = proposals.length ? releaseTerrainObjectsCells(game, proposals.map(p => ({ x: p.index % game.width, y: Math.floor(p.index / game.width) }))) : [];
   for (const proposal of proposals) {
     const tile = game.tiles[proposal.index];
     tile.terrain = proposal.terrain; tile.detail = proposal.detail;
   }
-  if (proposals.length) game.revision = (game.revision || 0) + 1;
+  // Views patch only these cells; heights, water and structures never change.
+  if (proposals.length) { const from = game.revision || 0; game.revision = from + 1; noteSurfaceChanges(game, from, game.revision, [...proposals.map(p => p.index), ...released]); }
   return proposals.length;
 }
