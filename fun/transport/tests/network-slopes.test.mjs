@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { build, buildPath, findPath, restoreGame, validateGame } from '../model.js';
 import { buildPlan, quoteBuildPlan } from '../construction-plan.js';
-import { networkTerrainShape, networkTerrainProblem } from '../terrain-engineering.js';
+import { networkTerrainShape, networkTerrainProblem, networkTerrainPlanIssues, networkTerrainPlanProblem } from '../terrain-engineering.js';
 import { emptyGame, tileAt } from './helpers.mjs';
 
 function terrain(surface) {
@@ -50,6 +50,27 @@ for(const mode of ['road','rail']) {
     const raw=buildPath(game,mode,points);assert.equal(raw.ok,false);assert.equal(raw.cost,0);assert.deepEqual(game,before);
   });
 }
+
+for(const mode of ['road','rail'])test(`${mode}: a rejected stroke pinpoints only the tiles that break the grade rules`,()=>{
+  const game=terrain((x,y)=>4+(x===0&&y===0?1:0)),L=[...Array.from({length:6},(_,n)=>({x:15+n,y:21})),{x:20,y:20}];
+  const placements=L.map(p=>({...p,tool:mode}));
+  assert.deepEqual(networkTerrainPlanIssues(game,placements),[{x:20,y:20,kind:'uneven'}],'the L crosses one uneven tile');
+  assert.equal(networkTerrainPlanProblem(game,placements),'Level this slope first. Roads and rails need flat ground or a straight uphill/downhill grade.');
+  const quote=quoteBuildPlan(game,mode,L);
+  assert.equal(quote.ok,false);assert.deepEqual(quote.placements.map(p=>p.state),['ok','ok','ok','ok','ok','ok','slope']);
+  assert.equal(quote.message,'1 tile needs flat ground or a straight grade. Level this slope first or drag around it.');
+  const junction=terrain((x,y)=>4+(axisSide(x,y)?1:0)),sideways=[{x:19,y:20},{x:20,y:20},{x:20,y:21}].map(p=>({...p,tool:mode}));
+  assert.deepEqual(networkTerrainPlanIssues(terrain(x=>4+x),sideways),[{x:20,y:20,kind:'sideways'},{x:20,y:21,kind:'sideways'}],'the bend and the branch climb sideways; the approach does not');
+  for(let x=18;x<=22;x++)tileAt(junction,x,20)[mode]=true; // A legacy line running across the slope.
+  const join=[{x:20,y:17},{x:20,y:18},{x:20,y:19}];
+  assert.equal(networkTerrainShape(junction,20,19).kind,'flat');assert.equal(networkTerrainShape(junction,20,20).axis,'y');
+  assert.deepEqual(networkTerrainPlanIssues(junction,join.map(p=>({...p,tool:mode}))),[{x:20,y:19,kind:'ramp-junction',at:{x:20,y:20}}]);
+  const joined=quoteBuildPlan(junction,mode,join);
+  assert.equal(joined.ok,false);assert.equal(joined.message,'Joins the ramp at 20, 20 from the side — end before it or approach along the slope');
+  const before=structuredClone(junction);assert.equal(buildPlan(junction,mode,join).ok,false);assert.deepEqual(junction,before);
+  assert.equal(quoteBuildPlan(junction,mode,join.slice(0,2)).ok,true,'ending one tile earlier is buildable');
+});
+const axisSide=(x,y)=>y>=1;
 
 test('gentle natural variations remain buildable while old nonconforming networks still route and load',()=>{
   const gentle=terrain((x,y)=>4+x*.02+y*.02);

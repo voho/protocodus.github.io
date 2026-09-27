@@ -13,7 +13,7 @@ Choose **Load game** to open the latest autosave or a named local save. Opening 
 ## Your first connection
 
 1. Open **Your first cargo route** in Build for a nearby suggestion, or find a producer and a matching customer, such as a logging camp and a sawmill in the taiga.
-2. Choose **Road** or **Rail** and drag between them. Water automatically becomes a bridge and mountains become tunnels; the preview shows the combined cost. Clear occupied buildings before laying a connection.
+2. Choose **Road** or **Rail** and drag between them. Water automatically becomes a bridge and mountains become tunnels; the preview shows the combined cost. Blocked or unaffordable road and rail strokes build nothing; the red tiles show why, and the tip says whether to drag around them, bulldoze, level the slope or wait for funds.
 3. Choose **Stop** and click the completed network within **5 tiles** of each industry. The tool selects a road stop or train station from the tile; at a road/rail crossing, use the small Road/Rail choice. Stations need open ground; they cannot occupy a bridge or tunnel.
 4. Open **Routes**, choose the transport mode and cargo, then choose two stations from the lists or pick them on the map. The planner checks the continuous network and cargo coverage before enabling launch. Buying a road vehicle costs $18,000; a train costs $78,000.
 5. Vehicles load from the producer's inventory and earn money when they deliver. Connect the customer's output to the next factory or a town to extend the chain.
@@ -96,7 +96,9 @@ Local weather also affects the finished map palette: overcast skies mute its col
 
 A smooth day/night cycle takes **one minute at 1×**, with warm windows, street and port lights, vehicle headlights and ship navigation lights. It follows simulation speed and pause, and resumes at the saved phase. Switch off **Day / night** in Layers for constant daytime.
 
-Choose **Bulldozer** in Build → Network, or press **X**, then click or drag to clear buildings, tracks, roads, trees and decorative plants. Existing cities and stops serving active routes remain protected. Clearing ports or bridges leaves the water intact.
+Choose **Bulldozer** in Build → Network, or press **X**, then click or drag to clear buildings, tracks, roads, trees and decorative plants. Existing cities and stops serving active routes remain protected. Clearing ports or bridges leaves the water intact. Tiles that carry a running route turn orange, and the tip names the route the demolition would cut.
+
+Every construction tip matches what the release will do. Red tiles are refused and the tip explains why. Zone and Bulldozer drags may still build part of a stroke; the amber tip says how many tiles, for example **Builds 2 of 9 · funds for 2**. Hovering the **Stop** or **Port** tool over a valid tile names what the stop would load, accept and serve, or warns that no customers are within 5 tiles.
 
 The simulation runs at 1×, 3× or 8× speed. One real second represents one day at 1×. You can build while paused, and dialogs pause the simulation while open.
 
@@ -165,7 +167,7 @@ Open **Build → Network → Terrain & crossings**. **Raise +1** and **Lower −
 
 **Level area** matches a rectangle of grid points to its first point’s height. The preview includes the full price; each changed point is charged for every height step. Protected land, an unreachable boundary height or insufficient funds reject the whole area. Leave a border around the corridor you want to build so its edges can slope into the surrounding land.
 
-Roads and railways climb only straight uphill/downhill grades. Turns and junctions need flat ground. Side slopes, corner slopes and uneven crests must be reshaped first; rejected slope strokes do not charge or partially build. Existing saved networks continue to work.
+Roads and railways climb only straight uphill/downhill grades. Turns and junctions need flat ground. Side slopes, corner slopes and uneven crests must be reshaped first; rejected slope strokes do not charge or partially build, and only the offending tiles turn red. A stroke that would join an old road or track on a slope from the side outlines that tile, too. Existing saved networks continue to work.
 
 Choose **Road** or **Rail** in the same section, then **Bridge** or **Tunnel**. Drag at least three tiles between two flat, dry ends at the **same level**. The preview snaps to a straight line. Bridges cross water or lower ground; tunnels pass through higher dry ground. Level the approaches to match their heights first. At a shoreline, start back from the sloping bank. Invalid spans show the reason before you release and leave the whole landscape and balance unchanged. Connect roads or rails to each end; routes use the completed crossing. Ordinary Road and Rail tools still provide automatic crossings over water and mountain terrain.
 
@@ -269,7 +271,7 @@ The nature check renders woodland contact sheets and wilderness views in each bi
 TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/nature-browser-check.mjs
 ```
 
-The controls check covers automatic crossings and stops, exact quotes, drag cancellation, keyboard activation, compact menus, desktop controls, and real touch pan/pinch gestures at 390px and 320px:
+The controls check covers automatic crossings and stops, exact quotes (refused strokes that spend nothing, partial zone drags, stop coverage and route warnings in the tip, and pixel checks that only the offending tile turns red), drag cancellation, keyboard activation, compact menus, desktop controls, and real touch pan/pinch gestures at 390px and 320px:
 
 ```sh
 TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/controls-browser-check.mjs

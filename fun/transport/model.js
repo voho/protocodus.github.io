@@ -245,16 +245,77 @@ function rememberHousingOwners(game){
     if(housingCapacity(building)&&!owns(building,'populationCityId'))building.populationCityId=closestCity(game,{x:i%game.width,y:Math.floor(i/game.width)},10)?.id??null;
   }
 }
-export function build(game,tool,x,y) {
-  const t=tileAt(game,x,y);
-  if(!t) return result(false,'Choose a tile inside the map.');
-  if(!owns(BUILD_COSTS,tool)) return result(false,'Unknown construction tool.');
-  if(tool==='level')return buildTerraformLevel(game,[{x,y}]);
-  const point={x,y},station=stationAt(game,x,y),industry=industryAt(game,x,y),site=buildingAt(game,x,y),nature=terrainObjectAt(game,x,y);
+export function networkAlreadyBuilt(tile,tool) { return Boolean(tile[tool.startsWith('rail')?'rail':'road']&&(!['bridge','railbridge'].includes(tool)||tile.bridge)&&(!['tunnel','railtunnel'].includes(tool)||tile.tunnel)); }
+/** Why build() would refuse this tile, checked in build()'s own order; null when it would succeed or is already built. Plans pass a running `money`. Area leveling is quoted by quoteTerraformLevel. */
+export function buildProblem(game,tool,x,y,{money=game.money}={}) {
+  const t=tileAt(game,x,y),fail=(message,reason='blocked')=>({message,reason});
+  if(!t) return fail('Choose a tile inside the map.');
+  if(!owns(BUILD_COSTS,tool)) return fail('Unknown construction tool.');
+  if(tool==='level')return null;
+  const point={x,y},station=stationAt(game,x,y),industry=industryAt(game,x,y),site=buildingAt(game,x,y);
   const city=game.cities.find(c=>c.x===x&&c.y===y);
   if(tool==='raise'||tool==='lower') {
-    const problem=terraformProblem(game,tool,x,y);if(problem)return result(false,problem);
-    const cost=constructionCost(game,tool,x,y);if(game.money<cost)return result(false,`Need ${moneyText(cost)} to shape this point.`);
+    const problem=terraformProblem(game,tool,x,y);if(problem)return fail(problem,'terrain');
+    const cost=constructionCost(game,tool,x,y);return money<cost?fail(`Need ${moneyText(cost)} to shape this point.`,'funds'):null;
+  }
+  if(tool==='bulldoze') {
+    if(station && game.routes.some(r=>r.stops.includes(station.id))) return fail('Retire routes using this station before removing it.');
+    if(city) return fail('A city center cannot be demolished.');
+    if(!station&&!industry&&!site&&!t.zone&&!t.road&&!t.rail&&t.terrain!=='forest'&&t.terrain!=='rock'&&!hasClearableDecoration(t)) return fail('There is nothing to demolish here.');
+    return money<constructionCost(game,tool,x,y)?fail('Not enough funds to demolish this tile.','funds'):null;
+  }
+  if(NETWORK_TOOLS.includes(tool)) {
+    const mode=tool.startsWith('rail')?'rail':'road';
+    const bridge=tool==='bridge'||tool==='railbridge',tunnel=tool==='tunnel'||tool==='railtunnel';
+    if(networkAlreadyBuilt(t,tool)) return null;
+    if(t.structureAxis)return fail('Each elevated span carries one transport mode. Build another span alongside it.');
+    if(industry||site||t.zone) return fail('Clear the building or zone before building a connection.');
+    if(station&&station.mode!==mode) return fail('Cannot cross another transport mode at a station.');
+    if(t.terrain==='water'&&!bridge&&!t.bridge) return fail(`Water needs a ${mode==='rail'?'rail ':''}bridge.`,'terrain');
+    if(t.terrain==='mountain'&&!tunnel&&!t.tunnel) return fail(`Mountains need a ${mode==='rail'?'rail ':''}tunnel.`,'terrain');
+    if(bridge&&t.terrain!=='water') return fail('Place bridges on water; connect the banks with ordinary track or road.','terrain');
+    if(tunnel&&t.terrain!=='mountain'&&t.terrain!=='rock') return fail('Tunnels must cross mountains or rock.','terrain');
+    if(!bridge&&!tunnel){const problem=networkTerrainProblem(game,x,y,mode);if(problem)return fail(problem,'terrain');}
+    const cost=constructionCost(game,tool,x,y);
+    return money<cost?fail(`Need ${moneyText(cost)} for this connection.`,'funds'):null;
+  }
+  if(tool==='bus-stop'||tool==='train-stop'||tool==='port') {
+    const mode=tool==='port'?'water':tool==='bus-stop'?'road':'rail';
+    if(station) return fail('There is already a station here.');
+    if(mode==='water'){
+      if(t.terrain!=='water')return fail('Place a port on water directly beside land.','terrain');
+      if(industry||site||t.zone||t.road||t.rail||t.bridge||t.tunnel||city)return fail('Ports need empty shoreline water, away from bridges.');
+      if(!DIRECTIONS.some(([dx,dy])=>{const shore=tileAt(game,x+dx,y+dy);return shore&&shore.terrain!=='water';}))return fail('Place a port directly beside the shore.','terrain');
+    }else{
+      if(industry||site||t.zone) return fail('Choose an unoccupied road or rail tile.');
+      if(!validNetwork(t,mode)) return fail(`Build a ${mode==='road'?'road':'railway'} here first.`);
+      if(t.bridge||t.tunnel) return fail('Stations need open ground beside the connection.');
+    }
+    const cost=constructionCost(game,tool,x,y);return money<cost?fail(`Need ${moneyText(cost)} for this station.`,'funds'):null;
+  }
+  if(station||industry||site||t.zone||t.road||t.rail||city) return fail('Choose an empty tile or clear this one first.');
+  if(t.terrain==='water'||(t.terrain==='mountain'&&!INDUSTRIES[tool]?.terrain?.includes('mountain'))) return fail('This structure needs buildable land.','terrain');
+  const cost=constructionCost(game,tool,x,y);if(money<cost)return fail(`Need ${moneyText(cost)} for this construction.`,'funds');
+  if(ZONE_TYPES.includes(tool))return null;
+  if(tool==='city') {
+    const terrainProblem=networkTerrainProblem(game,x,y,'road');if(terrainProblem)return fail(terrainProblem,'terrain');
+    if(game.cities.some(c=>distance(c,point)<11))return fail('Found a new city at least 11 tiles from another center.');
+    if(['mountain','rock'].includes(t.terrain))return fail('A new city needs level land.','terrain');
+    return null;
+  }
+  if(owns(BUILDINGS,tool)) {const problem=buildingSiteProblem(game,tool,x,y,buildingFootprint(tool));return problem?fail(problem):null;}
+  const def=INDUSTRIES[tool];
+  const siteProblem=industrySiteProblem(game,tool,x,y);if(siteProblem)return fail(siteProblem);
+  if(!def.biomes.includes(game.biome))return fail(`${def.name} is unavailable in ${BIOMES[game.biome].name}.`);
+  if(def.terrain&&!def.terrain.includes(t.terrain))return fail(`${def.name} needs ${def.terrain.join(', ')} terrain.`,'terrain');
+  return null;
+}
+export function build(game,tool,x,y) {
+  const problem=buildProblem(game,tool,x,y);if(problem)return result(false,problem.message);
+  if(tool==='level')return buildTerraformLevel(game,[{x,y}]);
+  const t=tileAt(game,x,y),point={x,y},station=stationAt(game,x,y),industry=industryAt(game,x,y),site=buildingAt(game,x,y),nature=terrainObjectAt(game,x,y);
+  if(tool==='raise'||tool==='lower') {
+    const cost=constructionCost(game,tool,x,y);
     const level=surfaceHeight(game,x,y)+(tool==='raise'?1:-1);
     releaseTerrainObjects(game,Array.from({length:9},(_,n)=>({x:x+n%3-1,y:y+Math.floor(n/3)-1})));
     spend(game,cost);t.elevation=level/LAND_HEIGHT_LEVELS;t.detail='';
@@ -263,11 +324,7 @@ export function build(game,tool,x,y) {
     return result(true,`${tool==='raise'?'Raised':'Lowered'} to level ${level} · ${moneyText(cost)}`,{cost,level});
   }
   if(tool==='bulldoze') {
-    if(station && game.routes.some(r=>r.stops.includes(station.id))) return result(false,'Retire routes using this station before removing it.');
-    if(city) return result(false,'A city center cannot be demolished.');
-    if(!station&&!industry&&!site&&!t.zone&&!t.road&&!t.rail&&t.terrain!=='forest'&&t.terrain!=='rock'&&!hasClearableDecoration(t)) return result(false,'There is nothing to demolish here.');
     const cost=constructionCost(game,tool,x,y);
-    if(game.money<cost) return result(false,'Not enough funds to demolish this tile.');
     spend(game,cost);
     if(nature&&['forest','rock'].includes(nature.object.kind)){
       const points=terrainObjectTiles(nature);releaseTerrainObjects(game,points);
@@ -294,17 +351,8 @@ export function build(game,tool,x,y) {
   if(NETWORK_TOOLS.includes(tool)) {
     const mode=tool.startsWith('rail')?'rail':'road';
     const bridge=tool==='bridge'||tool==='railbridge',tunnel=tool==='tunnel'||tool==='railtunnel';
-    if(t[mode] && (!bridge||t.bridge) && (!tunnel||t.tunnel)) return result(true,'Already built.',{cost:0,unchanged:true});
-    if(t.structureAxis)return result(false,'Each elevated span carries one transport mode. Build another span alongside it.');
-    if(industry||site||t.zone) return result(false,'Clear the building or zone before building a connection.');
-    if(station&&station.mode!==mode) return result(false,'Cannot cross another transport mode at a station.');
-    if(t.terrain==='water'&&!bridge&&!t.bridge) return result(false,`Water needs a ${mode==='rail'?'rail ':''}bridge.`);
-    if(t.terrain==='mountain'&&!tunnel&&!t.tunnel) return result(false,`Mountains need a ${mode==='rail'?'rail ':''}tunnel.`);
-    if(bridge&&t.terrain!=='water') return result(false,'Place bridges on water; connect the banks with ordinary track or road.');
-    if(tunnel&&t.terrain!=='mountain'&&t.terrain!=='rock') return result(false,'Tunnels must cross mountains or rock.');
-    if(!bridge&&!tunnel){const problem=networkTerrainProblem(game,x,y,mode);if(problem)return result(false,problem);}
+    if(networkAlreadyBuilt(t,tool)) return result(true,'Already built.',{cost:0,unchanged:true});
     const cost=constructionCost(game,tool,x,y);
-    if(game.money<cost) return result(false,`Need ${moneyText(cost)} for this connection.`);
     releaseTerrainObjects(game,[point]);
     spend(game,cost);t[mode]=true;if(bridge)t.bridge=true;if(tunnel)t.tunnel=true;
     if(t.terrain==='forest'){t.terrain=game.biome==='tundra'?'snow':game.biome==='desert'?'sand':'grass';t.detail='';}
@@ -313,26 +361,14 @@ export function build(game,tool,x,y) {
   }
   if(tool==='bus-stop'||tool==='train-stop'||tool==='port') {
     const mode=tool==='port'?'water':tool==='bus-stop'?'road':'rail';
-    if(station) return result(false,'There is already a station here.');
-    if(mode==='water'){
-      if(t.terrain!=='water')return result(false,'Place a port on water directly beside land.');
-      if(industry||site||t.zone||t.road||t.rail||t.bridge||t.tunnel||city)return result(false,'Ports need empty shoreline water, away from bridges.');
-      if(!DIRECTIONS.some(([dx,dy])=>{const shore=tileAt(game,x+dx,y+dy);return shore&&shore.terrain!=='water';}))return result(false,'Place a port directly beside the shore.');
-    }else{
-      if(industry||site||t.zone) return result(false,'Choose an unoccupied road or rail tile.');
-      if(!validNetwork(t,mode)) return result(false,`Build a ${mode==='road'?'road':'railway'} here first.`);
-      if(t.bridge||t.tunnel) return result(false,'Stations need open ground beside the connection.');
-    }
-    const cost=constructionCost(game,tool,x,y);if(game.money<cost)return result(false,`Need ${moneyText(cost)} for this station.`);
+    const cost=constructionCost(game,tool,x,y);
     const nearIndustry=game.industries.find(i=>industryDistance(i,point)<=STATION_RADIUS),nearCity=closestCity(game,point,STATION_RADIUS);
     const name=`${nearCity?.name||nearIndustry?.name||(mode==='water'?'Coastal':'Rural')} ${mode==='water'?'Port':mode==='road'?'Stop':'Station'} ${game.stations.length+1}`;
     const newStation={id:makeId(game,'station'),name,x,y,mode};
     spend(game,cost);game.stations.push(newStation);invalidateNetwork(game,[point]);
     return result(true,`${name} opened · ${moneyText(cost)}`,{cost,station:newStation});
   }
-  if(station||industry||site||t.zone||t.road||t.rail||city) return result(false,'Choose an empty tile or clear this one first.');
-  if(t.terrain==='water'||(t.terrain==='mountain'&&!INDUSTRIES[tool]?.terrain?.includes('mountain'))) return result(false,'This structure needs buildable land.');
-  const cost=constructionCost(game,tool,x,y);if(game.money<cost)return result(false,`Need ${moneyText(cost)} for this construction.`);
+  const cost=constructionCost(game,tool,x,y);
   if(ZONE_TYPES.includes(tool)) {
     releaseTerrainObjects(game,[point]);
     spend(game,cost);t.zone=tool;t.detail='';
@@ -341,9 +377,6 @@ export function build(game,tool,x,y) {
     return result(true,`${tool[0].toUpperCase()+tool.slice(1)} zone designated · ${moneyText(cost)}`,{cost});
   }
   if(tool==='city') {
-    const terrainProblem=networkTerrainProblem(game,x,y,'road');if(terrainProblem)return result(false,terrainProblem);
-    if(game.cities.some(c=>distance(c,point)<11))return result(false,'Found a new city at least 11 tiles from another center.');
-    if(['mountain','rock'].includes(t.terrain))return result(false,'A new city needs level land.');
     // Preserve the town credited for existing housing before a new center can
     // become nearer, including legacy buildings that predate explicit owners.
     rememberHousingOwners(game);
@@ -358,7 +391,7 @@ export function build(game,tool,x,y) {
   }
   if(owns(BUILDINGS,tool)) {
     const def=BUILDINGS[tool],nearCity=closestCity(game,point,10);
-    const size=buildingFootprint(tool),problem=buildingSiteProblem(game,tool,x,y,size);if(problem)return result(false,problem);
+    const size=buildingFootprint(tool);
     const placed=placeBuildingSite(game,tool,x,y,{size,building:{level:1,...def.residents?{populationCityId:nearCity?.id??null}:{}}});
     spend(game,cost);
     if(nearCity&&def.residents)nearCity.population+=def.residents;
@@ -366,9 +399,6 @@ export function build(game,tool,x,y) {
     return result(true,`${def.name} constructed · ${size} × ${size} site · ${moneyText(cost)}`,{cost,building:placed.building});
   }
   const def=INDUSTRIES[tool];
-  const siteProblem=industrySiteProblem(game,tool,x,y);if(siteProblem)return result(false,siteProblem);
-  if(!def.biomes.includes(game.biome))return result(false,`${def.name} is unavailable in ${BIOMES[game.biome].name}.`);
-  if(def.terrain&&!def.terrain.includes(t.terrain))return result(false,`${def.name} needs ${def.terrain.join(', ')} terrain.`);
   const inventory=Object.fromEntries([...Object.keys(def.inputs),...Object.keys(def.outputs)].map(cargo=>[cargo,0]));
   const size=industryFootprint(tool),newIndustry={id:makeId(game,'industry'),kind:tool,name:def.name,x,y,footprint:size,capacity:1,inventory,production:0,totalProduced:0,activity:0,shipped:0,received:0,idleDays:0,owner:'player'};
   initializeIndustry(game,newIndustry);

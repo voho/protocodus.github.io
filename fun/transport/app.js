@@ -7,6 +7,7 @@ import { surfaceHeight, tileSurface, MAX_HEIGHT } from './terrain-geometry.js';
 import { refreshRouteConnections, getVehiclePurchase, getVehicleUpgrade, getFleetUpgrade, upgradeRouteVehicle, upgradeFleet, priceFor, inflationInfo, addRoute, removeRoute, tick, saveGame, BIOMES, INDUSTRIES, CARGO, BUILD_COSTS, stationCoverage, industryConditions, settlementSuitability, weatherAt } from './model.js';
 import { createRenderer } from './renderer.js';
 import { quoteBuildPlan, buildPlan } from './construction-plan.js';
+import { routeTileIndex } from './route-tiles.js';
 import { TILE } from './sprites.js';
 import { drawUIArtwork } from './ui-art.js';
 import { BUILDINGS, BUILDING_GROUPS } from './buildings.js';
@@ -780,7 +781,8 @@ function constructionLine(a,b,key) {
 }
 function paintPath(points) {
  if(spanTools.has(tool)&&points.length<3){toast('Drag a straight span of at least 3 tiles, including both ends.',true);preview=[];return;}
- const result=buildPlan(game,tool,points,{preferredMode});toast(result.message,!result.ok);preview=[];if(result.ok)refreshRouteConnections(game);updateHud();if(result.ok){persistSoon();if(view!=='build')renderPanel();}
+ const result=buildPlan(game,tool,points,{preferredMode});toast(result.message,{type:!result.ok?'error':result.built>0&&result.failed>0?'warning':'ok'});preview=[];if(result.ok)refreshRouteConnections(game);updateHud();if(result.ok){persistSoon();if(view!=='build')renderPanel();}
+ if(hover&&updatePlacementTip.at)updatePlacementTip(); // Re-quote the tile under the pointer, never the finished stroke.
 }
 function pickMapTile(clientX,clientY,clamp=false) {
  if(isRoutePicking()) {
@@ -806,8 +808,25 @@ function touchFrame() {
  const [a,b]=[...touchPoints.values()];if(!a||!b)return null;
  return {x:(a.x+b.x)/2,y:(a.y+b.y)/2,distance:Math.max(1,Math.hypot(a.x-b.x,a.y-b.y))};
 }
-function updatePlacementTip(e) {
- const tip=$('#placement-tip');
+// A valid stop names what it will serve; a bulldozer names the services it would cut.
+const coverageTips=new WeakMap();
+function placementNote(effective,plan) {
+ if(['bus-stop','train-stop','port'].includes(effective)&&plan.placements.length===1){
+  const {x,y}=plan.placements[0],key=`${x},${y}:${game.revision}`;let cache=coverageTips.get(game);if(!cache)coverageTips.set(game,cache=new Map());
+  if(!cache.has(key)){
+   const c=stationCoverage(game,{x,y}),list=items=>items.slice(0,3).join(', ')+(items.length>3?` +${items.length-3}`:''),cargo=keys=>keys.filter(k=>k!=='passengers').map(k=>CARGO[k].name.toLowerCase());
+   const parts=[[cargo(c.produces),'Loads'],[cargo(c.accepts),'Accepts'],[c.cities.map(city=>city.name),'serves']].filter(([items])=>items.length).map(([items,label])=>`${label} ${list(items)}`);
+   if(cache.size>=64)cache.delete(cache.keys().next().value);
+   cache.set(key,parts.length?{text:parts.join(' · ')}:{text:'No customers within 5 tiles',warning:true});
+  }
+  return cache.get(key);
+ }
+ if(tool!=='bulldoze')return {text:''};
+ const index=routeTileIndex(game),names=new Set(plan.placements.flatMap(p=>index.get(p.y*game.width+p.x)||[]));
+ return names.size?{text:`breaks ${names.size===1?`the ${[...names][0]} route`:names.size+' routes'}`,warning:true}:{text:''};
+}
+function updatePlacementTip(e=updatePlacementTip.at) {
+ const tip=$('#placement-tip');updatePlacementTip.at={clientX:e.clientX,clientY:e.clientY};
  if(tool==='inspect'||!hover||!tileAt(hover.x,hover.y)||pointer?.pan||touchGesture){tip.hidden=true;return;}
  const points=preview.length?preview:[hover],n=points.length,plan=spanTools.has(tool)&&n<3?{ok:false,message:'Drag at least 3 tiles between level ends.',placements:[],cost:0}:quoteBuildPlan(game,tool,points,{preferredMode});
  const effective=n===1&&!spanTools.has(tool)?plan.placements[0]?.tool:tool;
@@ -815,8 +834,9 @@ function updatePlacementTip(e) {
  const levels=tool==='level'?`Level ${plan.level??surfaceHeight(game,points[0].x,points[0].y)}`:terrainTools.has(tool)?n===1?`Level ${surfaceHeight(game,hover.x,hover.y)} → ${Math.max(1,Math.min(MAX_HEIGHT,surfaceHeight(game,hover.x,hover.y)+(tool==='raise'?1:-1)))}`:`${tool==='raise'?'+1':'−1'} level / point`:spanTools.has(tool)&&Number.isFinite(plan.height)?`Level ${plan.height}`:'';
  const nature=tool==='bulldoze'&&n===1?terrainObjectAt(game,hover.x,hover.y):null;
  const siteSize=BUILDINGS[effective]?buildingFootprint(effective):INDUSTRIES[effective]?industryFootprint(effective):nature&&nature.object.kind!=='mountain'?terrainObjectSize(nature.object):0;
- tip.textContent=plan.ok===false?plan.message:`${name}${siteSize?' · '+siteSize+' × '+siteSize:''}${levels?' · '+levels:''} · ${money(plan.cost)}${plan.placements.length>1?' · '+plan.placements.length+(tool==='bulldoze'?' sites':terrainTools.has(tool)?' points':' tiles'):''}`;
- tip.classList.toggle('invalid',plan.ok===false);
+ const note=plan.ok===false?{text:''}:placementNote(effective,plan);
+ tip.textContent=plan.ok===false?plan.message:`${name}${siteSize?' · '+siteSize+' × '+siteSize:''}${levels?' · '+levels:''} · ${money(plan.cost)}${plan.placements.length>1?' · '+plan.placements.length+(tool==='bulldoze'?' sites':terrainTools.has(tool)?' points':' tiles'):''}${plan.partial?' · '+plan.message:''}${note.text?' · '+note.text:''}`;
+ tip.classList.toggle('invalid',plan.ok===false);tip.classList.toggle('partial',plan.ok!==false&&Boolean(plan.partial));tip.classList.toggle('warning',Boolean(note.warning));
  const rect=canvas.getBoundingClientRect();tip.hidden=false;
  tip.style.left=Math.max(4,Math.min(rect.width-tip.offsetWidth-4,e.clientX-rect.left+17))+'px';tip.style.top=Math.max(4,Math.min(rect.height-tip.offsetHeight-4,e.clientY-rect.top+18))+'px';
 }

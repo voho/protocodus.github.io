@@ -62,6 +62,7 @@
 .engineering-tools .stop-mode-picker>span{display:none}
 .placement-tip{max-width:min(340px,calc(100% - 8px));white-space:normal;line-height:1.4}
 .placement-tip.invalid{color:#8a4b35;border-color:#d5ae96;background:#fff1e6f5}
+.placement-tip.partial,.placement-tip.warning{color:#8a5a2c;border-color:#dfbd92;background:#f5e7d2}
 @media(max-width:950px){
   #map-options{right:14px;top:66px}
   #active-tool-bar{left:14px;top:72px;max-width:calc(100% - 28px)}

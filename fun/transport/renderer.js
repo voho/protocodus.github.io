@@ -1,9 +1,10 @@
 import { resolveBuildTool, quoteBuildPlan } from './construction-plan.js';
-import { terraformProblem, networkEdgeAllowed, networkTerrainProblem, networkTerrainShape } from './terrain-engineering.js';
+import { routeTileIndex } from './route-tiles.js';
+import { terraformProblem, networkEdgeAllowed, networkTerrainShape } from './terrain-engineering.js';
 import { isEngineeredTunnel, isUndergroundAt } from './structure-visibility.js';
 import { TILE, PALETTES, createSprites, createSpriteCache, rng } from './sprites.js';
 import { INDUSTRIES, BUILD_COSTS } from './data.js';
-import { STATION_RADIUS, priceFor, hasClearableDecoration } from './model.js';
+import { STATION_RADIUS, priceFor, buildProblem } from './model.js';
 import { BUILDINGS, residentialKind, commercialKind } from './buildings.js';
 import { ZOOM_VIEWS, nearestZoom, stepZoom } from './zoom.js';
 import { cargoIcon } from './cargo-icons.js';
@@ -16,8 +17,8 @@ import { paintWaterRelief, paintCoast, drawWaterMotion } from './water-art.js';
 import { houseAssetsRevision, getHouseAssetStats } from './raster-houses.js';
 import { worldArtRevision, worldArtStats } from './atlas-runtime.js';
 import { createVehicleSprites, drawRasterInfrastructure, drawRasterNetwork, hasRasterTransport } from './raster-transport.js';
-import { industrySize, industryFootprint, industryTiles, industryContains, industryDistance, industrySiteProblem } from './industry-sites.js';
-import { buildingSize, buildingFootprint, buildingAt, buildingSiteProblem } from './building-sites.js';
+import { industrySize, industryFootprint, industryTiles, industryContains, industryDistance } from './industry-sites.js';
+import { buildingSize, buildingFootprint, buildingAt } from './building-sites.js';
 import { terrainObjectAt, terrainObjectSize } from './terrain-objects.js';
 import { natureObjectLayout, drawRasterTreeShadows, treeShadowCacheStats } from './raster-nature.js';
 import { terrainLevel, terrainElevation, terrainReliefRaster, terrainOverviewColor } from './terrain-elevation.js';
@@ -655,24 +656,8 @@ export function createRenderer(canvas, initialGame, options={}) {
     tool=resolveBuildTool(game,tool,p.x,p.y,{preferredMode});
     const t=tile(p.x,p.y);if(!t)return false;if(tool==='inspect')return true;
     if(tool==='raise'||tool==='lower'||tool==='level')return game.money>=priceFor(game,BUILD_COSTS[tool]||0)&&!terraformProblem(game,tool,p.x,p.y);
-    const station=(game.stations||[]).find(s=>s.x===p.x&&s.y===p.y),industry=(game.industries||[]).find(s=>industryContains(s,p.x,p.y)),city=(game.cities||[]).find(s=>s.x===p.x&&s.y===p.y),building=buildingSiteAt(p.x,p.y);
-    if(INDUSTRIES[tool])return game.money>=priceFor(game,BUILD_COSTS[tool])&&!industrySiteProblem(game,tool,p.x,p.y);
-    if(BUILDINGS[tool])return game.money>=priceFor(game,BUILDINGS[tool].cost)&&!buildingSiteProblem(game,tool,p.x,p.y);
-    if(tool==='bulldoze'){const nature=terrainSiteAt(p.x,p.y)?.object;return game.money>=priceFor(game,BUILD_COSTS.bulldoze)&&!city&&!(station&&(game.routes||[]).some(r=>r.stops.includes(station.id)))&&Boolean(station||industry||building||t.zone||t.road||t.rail||(nature?.kind!=='mountain'&&(nature||['forest','rock'].includes(t.terrain)||hasClearableDecoration(t))));}
-    if(['road','rail','bridge','railbridge','tunnel','railtunnel'].includes(tool)){
-      const mode=tool.startsWith('rail')?'rail':'road',bridge=tool==='bridge'||tool==='railbridge',tunnel=tool==='tunnel'||tool==='railtunnel';
-      if(t.structureAxis&&!t[mode])return false;
-      if(t[mode]&&(!bridge||t.bridge)&&(!tunnel||t.tunnel))return true;
-      if(['road','rail'].includes(tool)&&networkTerrainProblem(game,p.x,p.y,tool))return false;
-      return game.money>=priceFor(game,BUILD_COSTS[tool]+(t.terrain==='forest'?80:t.terrain==='rock'&&!tunnel?100:0))&&!industry&&!building&&!t.zone&&(!station||station.mode===mode)&&!(t.terrain==='water'&&!bridge&&!t.bridge)&&!(t.terrain==='mountain'&&!tunnel&&!t.tunnel)&&(!bridge||t.terrain==='water')&&(!tunnel||['mountain','rock'].includes(t.terrain));
-    }
-    if(priceFor(game,BUILD_COSTS[tool]||0)>game.money)return false;
-    if(tool==='port')return t.terrain==='water'&&!station&&!industry&&!city&&!building&&!t.zone&&!t.road&&!t.rail&&!t.bridge&&!t.tunnel&&[[-1,0],[0,-1],[1,0],[0,1]].some(([dx,dy])=>tile(p.x+dx,p.y+dy)&&tile(p.x+dx,p.y+dy).terrain!=='water');
-    if(tool==='bus-stop'||tool==='train-stop'){const mode=tool==='bus-stop'?'road':'rail';return !station&&!industry&&!building&&!t.zone&&t[mode]&&!t.bridge&&!t.tunnel;}
-    if(station||industry||city||building||t.zone||t.road||t.rail||t.terrain==='water')return false;
-    if(tool==='city')return !networkTerrainProblem(game,p.x,p.y,'road')&&!['mountain','rock'].includes(t.terrain)&&!(game.cities||[]).some(c=>Math.hypot(c.x-p.x,c.y-p.y)<11);
-    const def=INDUSTRIES[tool];if(!def)return t.terrain!=='mountain';
-    return def.biomes.includes(game.biome)&&(!def.terrain||def.terrain.includes(t.terrain))&&(t.terrain!=='mountain'||def.terrain?.includes('mountain'))&&(!def.coastal||[[0,1],[0,-1],[1,0],[-1,0]].some(([dx,dy])=>tile(p.x+dx,p.y+dy)?.terrain==='water'));
+    // The model's own predicate, so a highlight can never promise what build() refuses.
+    return !buildProblem(game,tool,p.x,p.y);
   }
   function pill(x,y,label,opts={}){
     const size=opts.size||11;ctx.font=`${opts.bold?600:500} ${size}px Space, system-ui, sans-serif`;
@@ -801,11 +786,15 @@ export function createRenderer(canvas, initialGame, options={}) {
     if(serviceCenter){ctx.fillStyle='#eff2cd19';ctx.strokeStyle='#f3e5ad';ctx.lineWidth=1.3/camera.zoom;ctx.setLineDash([5/camera.zoom,5/camera.zoom]);ring(serviceCenter.x,serviceCenter.y,STATION_RADIUS);ctx.fill();ctx.stroke();ctx.setLineDash([]);for(const node of [...(game.cities||[]),...(game.industries||[])])if((node.kind?industryDistance(node,serviceCenter):Math.hypot(node.x-serviceCenter.x,node.y-serviceCenter.y))<=STATION_RADIUS)highlight(node,'#efe8b2',false,industrySize(node));}
     if(selected&&typeof selected.x==='number'){const site=inspectSiteAt(selected.x,selected.y);highlight(site||selected,'#fbefba',false,siteSize(site));}
     const spanTool=['bridge','railbridge','tunnel','railtunnel'].includes(tool),spanPoints=preview?.length?preview:hover?[hover]:[];
-    const spanQuote=(spanTool||['road','rail','raise','lower','level'].includes(tool))&&spanPoints.length?quoteBuildPlan(game,tool,spanPoints,{preferredMode}):null;
-    const previewValid=p=>spanQuote?spanQuote.ok===true&&(!['road','rail'].includes(tool)||validPreview(tool,p,preferredMode)):validPreview(tool,p,preferredMode);
+    const spanQuote=(spanTool||['road','rail','raise','lower','level','residential','commercial','industrial','bulldoze'].includes(tool))&&spanPoints.length?spanTool&&spanPoints.length<3?{ok:false,placements:[]}:quoteBuildPlan(game,tool,spanPoints,{preferredMode}):null;
+    // Stroke quotes mark each placement with the running-balance state that release will meet.
+    const states=spanQuote?.placements?.[0]?.state?new Map(spanQuote.placements.map(p=>[p.y*game.width+p.x,p.state])):null,refused=['road','rail'].includes(tool)&&spanQuote?.ok===false,routeTiles=tool==='bulldoze'?routeTileIndex(game):null;
+    const previewValid=p=>spanQuote&&!states?spanQuote.ok===true:validPreview(tool,p,preferredMode);
+    const previewColor=(p,valid)=>{const site=previewSite(p),key=site.y*game.width+site.x,state=states?.get(key);if(!state)return previewValid(p)?valid:'#d7725f';return ['blocked','slope','funds'].includes(state)?'#d7725f':refused?'#cdbfa6':routeTiles?.has(key)?'#e3aa6d':valid;};
     const earthwork=['raise','lower','level'].includes(tool),highlightPreview=(p,color)=>earthwork?highlightVertex(p,color):highlight(previewSite(p),color,tool!=='inspect',previewSpan(p));
-    for(const p of preview||[])highlightPreview(p,previewValid(p)?tool==='bulldoze'?'#e3aa6d':'#f2d88d':'#d7725f');
-    if(hover)highlightPreview(hover,tool==='inspect'?'#f7efd3':previewValid(hover)?tool==='bulldoze'?'#e3aa6d':'#f4d090':'#d7725f');
+    for(const p of preview||[])highlightPreview(p,previewColor(p,'#f2d88d'));
+    if(hover)highlightPreview(hover,tool==='inspect'?'#f7efd3':previewColor(hover,'#f4d090'));
+    if(refused)for(const issue of spanQuote.issues)if(issue.at)highlight(issue.at,'#d7725f',false);
     for(const stop of routeStops){const s=typeof stop==='object'?stop:(game.stations||[]).find(st=>st.id===stop);if(s){ctx.strokeStyle='#f4d397';ctx.lineWidth=2/camera.zoom;ring(s.x,s.y,21/TILE);ctx.stroke();}}
     ctx.restore();ctx.restore();
     drawLighting(ctx,{game,layers,camera,dpr,artRevision:`${cachedWorldAssets}:${cachedHouseAssets}`,width:W,height:H,bounds:{x0:Math.max(0,x0-1),y0:Math.max(0,y0-1),x1,y1},industryIndex,stationIndex,routesById,vehicles:frameVehicles,project:worldToScreen,projectVehicle:vehicleToScreen,projectBuilding:buildingToScreen,projected:true});

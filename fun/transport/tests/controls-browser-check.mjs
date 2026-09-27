@@ -194,6 +194,72 @@ async function strokeInput() {
   await page.close();
 }
 
+// The tip, the highlights and the release agree: refused strokes cost nothing and name their problem tiles.
+async function truthfulQuotes() {
+  const page = await start({ width: 1440, height: 1000 });
+  const tip = () => page.evaluate(() => { const t = document.querySelector('#placement-tip'); return { text: t.textContent, visible: !t.hidden, invalid: t.classList.contains('invalid'), partial: t.classList.contains('partial'), warning: t.classList.contains('warning') }; });
+  const money = () => page.evaluate(() => transport.game.money), lastToast = () => page.evaluate(() => document.querySelector('#toast-region .toast:last-child')?.className);
+  const hold = async (from, to) => { const [a, b] = await points(page, [from, to]); await page.mouse.move(a.x, a.y); await page.mouse.down(); await page.mouse.move(b.x, b.y, { steps: 8 }); return tip(); };
+  const hover = async tile => { const [p] = await points(page, [tile]); await page.mouse.move(p.x - 3, p.y); await page.mouse.move(p.x, p.y); return tip(); };
+  await page.evaluate(() => transport.renderer.setZoom(1));
+  await keyTool(page, 'r', /Road/);
+  // Seed 1847: a straight drag at x=218 crosses two houses south of Alderbrook.
+  let before = await money(), held = await hold({ x: 218, y: 254 }, { x: 218, y: 245 });
+  assert.equal(held.invalid, true, 'a road through houses is refused before release');
+  assert.equal(held.text, '2 tiles are blocked by buildings or zones — drag around them or bulldoze first');
+  await page.screenshot({ path: `${output}/quote-blocked-road.png` });
+  await page.mouse.up();
+  assert.equal(await money(), before, 'the refused stroke spends nothing');
+  assert.match(await lastToast(), /\berror\b/, 'a stroke that built nothing never shows a success toast');
+  assert.doesNotMatch((await tip()).text, /blocked/, 'the tip re-quotes the tile under the pointer after release');
+  held = await hold({ x: 218, y: 242 }, { x: 218, y: 244 });
+  assert.match(held.text, /^Joins the ramp at 218, 245 from the side/, 'the tip names the old ramp the stroke would join sideways');
+  await page.keyboard.press('Escape'); await page.mouse.up();
+  const site = await fixture(page);
+  await page.evaluate(({ x, y }) => { const g = transport.game; g.tiles[(y + 18) * g.width + x + 10].elevation = .2 + 1 / 7; g.money = 1000; g.revision++; }, site);
+  await keyTool(page, 'Digit1', /Residential/);
+  const zones = await page.evaluate(() => transport.game.zones.length);
+  held = await hold(site.open, { x: site.open.x + 8, y: site.open.y });
+  assert.equal(held.partial, true); assert.match(held.text, /Builds 2 of 9 · funds for 2$/, 'a zone drag says how much the balance covers');
+  await page.screenshot({ path: `${output}/quote-partial-zones.png` });
+  await page.mouse.up();
+  assert.equal(await page.evaluate(() => transport.game.zones.length), zones + 2, 'the balance buys exactly the two quoted zones');
+  assert.match(await lastToast(), /\bwarning\b/, 'a partial build is a warning');
+  await page.evaluate(() => { transport.game.money = 1_000_000; });
+  await keyTool(page, 's', /Stop/);
+  assert.deepEqual(await hover({ x: site.open.x, y: site.open.y + 2 }), { text: 'Build a road here first.', visible: true, invalid: true, partial: false, warning: false }, 'a stop on grass is refused in the tip');
+  const lonely = await hover(site.stop);
+  assert.equal(lonely.warning, true); assert.match(lonely.text, /No customers within 5 tiles$/);
+  await page.evaluate(async () => { const { build } = await import('./model.js'); build(transport.game, 'road', 216, 254); });
+  assert.match((await hover({ x: 216, y: 254 })).text, /^Road stop · \$[\d,]+ · Loads stone/, 'the stop tip names what the quarry stop will load');
+  await page.screenshot({ path: `${output}/quote-stop-coverage.png` });
+  await keyTool(page, 'x', /Bulldozer/);
+  const served = await page.evaluate(() => { const g = transport.game, route = g.routes[0], stop = g.stations.find(s => s.id === route.stops[0]); return { stop: { x: stop.x, y: stop.y }, middle: route.path[Math.floor(route.path.length / 2)], name: route.name }; });
+  assert.deepEqual(await hover(served.stop), { text: 'Retire routes using this station before removing it.', visible: true, invalid: true, partial: false, warning: false });
+  const cut = await hover(served.middle);
+  assert.equal(cut.warning, true); assert.ok(cut.text.endsWith(`breaks the ${served.name} route`), cut.text);
+  await page.screenshot({ path: `${output}/quote-bulldoze-route.png` });
+  // Only the one uneven tile of this L turns red; the rest of the refused stroke is muted.
+  await page.keyboard.press('Escape'); await page.keyboard.press('Escape');
+  const stroke = [...Array.from({ length: 6 }, (_, i) => ({ x: site.x + 5 + i, y: site.y + 19 })), { x: site.x + 10, y: site.y + 18 }];
+  const redness = await page.evaluate(async stroke => {
+    const { quoteBuildPlan } = await import('./construction-plan.js'), r = transport.renderer, ctx = document.querySelector('#world').getContext('2d'), d = devicePixelRatio || 1;
+    r.setZoom(2); r.focus(stroke[3].x, stroke[3].y);
+    const states = quoteBuildPlan(transport.game, 'road', stroke).placements.map(p => p.state);
+    const sample = () => stroke.map(p => { const s = r.worldToScreen(p.x, p.y), data = ctx.getImageData(Math.round(s.x * d) - 4, Math.round(s.y * d) - 4, 8, 8).data; let red = 0, green = 0; for (let i = 0; i < data.length; i += 4) { red += data[i]; green += data[i + 1]; } return (red - green) / (data.length / 4); });
+    for (let i = 0; i < 4; i++) r.render(0, { tool: 'road', preview: [] });
+    const base = sample();
+    r.render(0, { tool: 'road', preview: stroke, hover: stroke.at(-1) }); const held = sample();
+    r.render(0, { tool: 'road', preview: [] });
+    return { states, steady: sample().every((value, i) => Math.abs(value - base[i]) < 1), shift: held.map((value, i) => value - base[i]) };
+  }, stroke);
+  assert.deepEqual(redness.states, ['ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'slope']);
+  assert.equal(redness.steady, true, 'the map repaints identically without the preview');
+  assert.ok(redness.shift.at(-1) > 12, `the uneven tile is drawn in the error colour: ${redness.shift}`);
+  assert.ok(redness.shift.slice(0, -1).every(value => value < 7), `the rest of the refused stroke is muted, not red: ${redness.shift}`);
+  await page.close();
+}
+
 async function clickTile(page, tile) {
   const [p] = await points(page, [tile]);
   await page.mouse.click(p.x, p.y);
@@ -319,6 +385,7 @@ async function gestures(page, send, touch) {
 
 try {
   await strokeInput();
+  await truthfulQuotes();
   const page = await start({ width: 1440, height: 1000 });
   await page.locator('.main-nav [data-view="build"]').click(); await page.locator('.sidebar').waitFor({ state: 'visible' });
   assert.deepEqual(await page.locator('#panel-content > .tool-grid [data-tool]').evaluateAll(nodes => nodes.map(node => node.dataset.tool)), ['road', 'rail', 'stop', 'port', 'bulldoze'], 'five primary network tools stay visible; engineering choices are expandable');

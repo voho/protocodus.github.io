@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { resolveBuildTool, quoteBuildPlan, buildPlan } from '../construction-plan.js';
-import { build, constructionCost, findPath } from '../model.js';
+import { build, buildProblem, constructionCost, findPath } from '../model.js';
+import { routeTileIndex } from '../route-tiles.js';
 import { emptyGame, tileAt, line } from './helpers.mjs';
 
 for (const mode of ['road', 'rail']) {
@@ -78,18 +79,138 @@ test('a deduplicated stop click returns its station and repeated demolition says
   assert.equal(cleared.built, 2); assert.match(cleared.message, /^Cleared 2 tiles/);
 });
 
-test('partial paths skip blocked and unaffordable tiles while charging only completed connections', () => {
+// Policy: a gapped road is useless, so Road and Rail strokes are all-or-nothing.
+test('a road through a house with too little money builds nothing and marks each problem tile', () => {
   const game = emptyGame(); game.day = 365;
-  for (let y=0;y<game.height;y++) Object.assign(tileAt(game,11,y),{terrain:'water',elevation:0}); // Straight banks have an aligned grade.
-  Object.assign(tileAt(game, 11, 10), { terrain: 'water', detail: 'river' });
   tileAt(game, 12, 10).building = { kind: 'house-cheap-1', level: 1 };
   const roadCost = constructionCost(game, 'road', 10, 10); game.money = roadCost * 2;
-  const quote = quoteBuildPlan(game, 'road', line(10, 13, 10));
-  assert.ok(quote.cost > game.money, 'the preview exposes the full requested cost');
-  const result = buildPlan(game, 'road', line(10, 13, 10));
-  assert.equal(result.ok, true); assert.equal(result.built, 2); assert.equal(result.failed, 2); assert.equal(result.cost, roadCost * 2);
-  assert.equal(game.money, 0); assert.equal(tileAt(game, 11, 10).road, false); assert.equal(tileAt(game, 11, 10).bridge, false);
-  assert.ok(tileAt(game, 12, 10).building); assert.equal(tileAt(game, 13, 10).road, true);
+  const before = structuredClone(game), quote = quoteBuildPlan(game, 'road', line(10, 14, 10));
+  assert.equal(quote.ok, false);
+  assert.deepEqual(quote.placements.map(p => p.state), ['ok', 'ok', 'blocked', 'funds', 'funds']);
+  assert.match(quote.placements[2].problem, /Clear the building/);
+  assert.equal(quote.blocked, 1); assert.equal(quote.unaffordable, 2); assert.equal(quote.buildable, 2); assert.deepEqual(quote.issues, []);
+  assert.equal(quote.cost, roadCost * 4, 'the blocked tile is not priced');
+  assert.equal(quote.message, 'Clear the building or zone before building a connection.');
+  const result = buildPlan(game, 'road', line(10, 14, 10));
+  assert.equal(result.ok, false); assert.equal(result.cost, 0); assert.equal(result.built, 0); assert.equal(result.failed, 5);
+  assert.deepEqual(game, before, 'a refused stroke leaves no road stub and takes no money');
+  tileAt(game, 13, 10).building = { kind: 'house-cheap-1', level: 1 };
+  assert.equal(quoteBuildPlan(game, 'road', line(10, 14, 10)).message, '2 tiles are blocked by buildings or zones — drag around them or bulldoze first');
+  const railCost = constructionCost(game, 'rail', 10, 11); game.money = railCost * 2;
+  const short = quoteBuildPlan(game, 'rail', line(10, 14, 11));
+  assert.equal(short.ok, false); assert.deepEqual(short.placements.map(p => p.state), ['ok', 'ok', 'funds', 'funds', 'funds']);
+  assert.equal(short.message, `Need $${(railCost * 5).toLocaleString('en-US')} · balance $${game.money.toLocaleString('en-US')}`);
+  assert.equal(buildPlan(game, 'rail', line(10, 14, 11)).ok, false); assert.equal(game.money, railCost * 2);
+});
+
+test('a funded stroke that avoids the house builds fully at its quoted price', () => {
+  const game = emptyGame(); tileAt(game, 12, 10).building = { kind: 'house-cheap-1', level: 1 };
+  const points = [...line(10, 11, 10), ...line(11, 14, 11), { x: 14, y: 10 }], quote = quoteBuildPlan(game, 'road', points), money = game.money;
+  assert.equal(quote.ok, true); assert.equal(quote.message, 'Follow flat ground or a straight grade.');
+  assert.ok(quote.placements.every(p => p.state === 'ok'));
+  const result = buildPlan(game, 'road', points);
+  assert.equal(result.ok, true); assert.equal(result.built, 7); assert.equal(result.failed, 0); assert.equal(result.cost, quote.cost); assert.equal(game.money, money - quote.cost);
+});
+
+test('existing road plus one house is refused at no cost and names the house', () => {
+  const game = emptyGame();
+  for (const { x, y } of line(10, 13, 10)) build(game, 'road', x, y);
+  tileAt(game, 14, 10).building = { kind: 'house-cheap-1', level: 1 };
+  const money = game.money, quote = quoteBuildPlan(game, 'road', line(10, 14, 10));
+  assert.equal(quote.ok, false); assert.equal(quote.cost, 0); assert.match(quote.message, /Clear the building/);
+  assert.deepEqual(quote.placements.map(p => p.state), ['built', 'built', 'built', 'built', 'blocked']);
+  const result = buildPlan(game, 'road', line(10, 14, 10));
+  assert.equal(result.ok, false); assert.equal(result.built, 0); assert.equal(result.cost, 0); assert.equal(game.money, money);
+});
+
+test('zones and demolition stay partial, but the quote and the result say so', () => {
+  const game = emptyGame(), zoneCost = constructionCost(game, 'residential', 10, 10); game.money = zoneCost * 2 + 1;
+  const quote = quoteBuildPlan(game, 'residential', line(10, 18, 10));
+  assert.equal(quote.ok, true); assert.equal(quote.partial, true); assert.equal(quote.buildable, 2); assert.equal(quote.unaffordable, 7);
+  assert.equal(quote.message, 'Builds 2 of 9 · funds for 2');
+  const result = buildPlan(game, 'residential', line(10, 18, 10));
+  assert.equal(result.ok, true); assert.equal(result.built, 2); assert.equal(result.failed, 7, 'a partial build is reported as a warning, not a success');
+  game.money = 1_000_000; tileAt(game, 14, 11).building = { kind: 'house-cheap-1', level: 1 };
+  const blocked = quoteBuildPlan(game, 'commercial', line(10, 18, 11));
+  assert.equal(blocked.partial, true); assert.equal(blocked.message, 'Builds 8 of 9 · 1 blocked');
+  const occupied = quoteBuildPlan(game, 'industrial', line(10, 11, 10));
+  assert.equal(occupied.ok, false); assert.equal(occupied.message, 'Choose an empty tile or clear this one first.');
+  const nothing = buildPlan(game, 'industrial', line(10, 11, 10));
+  assert.equal(nothing.ok, false, 'zero built plus a blocker is an error'); assert.equal(nothing.built, 0);
+  const served = emptyGame(); build(served, 'road', 20, 20); build(served, 'bus-stop', 20, 20); served.routes.push({ id: 'route-1', name: 'Test freight', stops: [served.stations[0].id] });
+  const retire = quoteBuildPlan(served, 'bulldoze', [{ x: 20, y: 20 }]);
+  assert.equal(retire.ok, false); assert.equal(retire.message, 'Retire routes using this station before removing it.');
+});
+
+test('single stops, ports and towns quote exactly what build() will say', () => {
+  const game = emptyGame();
+  const grass = quoteBuildPlan(game, 'stop', [{ x: 10, y: 10 }]);
+  assert.equal(grass.ok, false); assert.equal(grass.message, 'Build a road here first.');
+  build(game, 'road', 10, 10);
+  assert.equal(quoteBuildPlan(game, 'stop', [{ x: 10, y: 10 }]).ok, true);
+  assert.equal(quoteBuildPlan(game, 'port', [{ x: 12, y: 12 }]).message, 'Place a port on water directly beside land.');
+  build(game, 'city', 30, 30);
+  const near = quoteBuildPlan(game, 'city', [{ x: 35, y: 30 }]);
+  assert.equal(near.ok, false); assert.equal(near.message, 'Found a new city at least 11 tiles from another center.');
+  game.money = 10;
+  assert.match(quoteBuildPlan(game, 'city', [{ x: 60, y: 60 }]).message, /^Need \$/);
+});
+
+test('route tiles name the running land routes a demolition would cut, and follow rerouting', () => {
+  const game = emptyGame(), path = line(10, 14, 10), key = (x, y) => y * game.width + x;
+  game.routes.push({ id: 'r1', name: 'Test freight', mode: 'road', active: true, path, stops: [] }, { id: 'r2', name: 'Ferry', mode: 'water', active: true, path, stops: [] }, { id: 'r3', name: 'Idle', mode: 'road', active: false, path, stops: [] });
+  assert.deepEqual(routeTileIndex(game).get(key(12, 10)), ['Test freight'], 'ships and disconnected routes are never cut');
+  assert.equal(routeTileIndex(game).has(key(12, 11)), false);
+  game.routes[0].path = line(10, 14, 11);
+  assert.equal(routeTileIndex(game).has(key(12, 10)), false, 'a new path replaces the cached one');
+  game.routes = game.routes.slice(1);
+  assert.equal(routeTileIndex(game).size, 0);
+});
+
+test('buildProblem gives build()’s exact refusal for random tools, tiles and balances', () => {
+  const game = emptyGame();
+  let seed = 7; const random = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648);
+  for (let y = 20; y <= 26; y++) for (let x = 20; x <= 26; x++) tileAt(game, x, y).elevation = (4 + Math.max(0, x - 22)) / 7;
+  for (let x = 8; x <= 40; x++) Object.assign(tileAt(game, x, 14), { terrain: 'water', detail: 'river', elevation: 0 });
+  for (const [x, y, terrain] of [[24, 16, 'mountain'], [25, 16, 'rock'], [26, 16, 'forest'], [27, 16, 'sand'], [9, 20, 'forest'], [10, 20, 'forest'], [11, 20, 'rock']]) tileAt(game, x, y).terrain = terrain;
+  for (const x of [10, 11, 12, 13]) build(game, 'road', x, 10);
+  for (const y of [10, 11, 12]) build(game, 'rail', 15, y);
+  for (const x of [16, 17, 18]) build(game, 'residential', x, 18);
+  build(game, 'bus-stop', 11, 10); build(game, 'train-stop', 15, 11); build(game, 'house-cheap-1', 20, 10); build(game, 'house-cheap-1', 22, 12); build(game, 'city', 9, 17);
+  build(game, 'port', 12, 14); build(game, 'logging-camp', 9, 23); build(game, 'road', 23, 22); game.routes.push({ id: 'route-x', name: 'Test freight', stops: [game.stations[0].id] });
+  const tools = ['road', 'rail', 'residential', 'commercial', 'industrial', 'bulldoze', 'bus-stop', 'port', 'city'];
+  const obstacles = [[11, 10], [15, 11], [9, 17], [12, 14], [13, 14], [20, 10], [16, 18], [9, 23], [10, 24], [23, 22], [24, 22], [24, 16], [25, 16], [15, 12]];
+  for (let n = 0; n < 500; n++) {
+    const tool = tools[Math.floor(random() * tools.length)], [x, y] = n % 3 ? [8 + Math.floor(random() * 20), 8 + Math.floor(random() * 20)] : obstacles[Math.floor(random() * obstacles.length)];
+    game.money = [0, 150, 1e6][Math.floor(random() * 3)];
+    // A predicted refusal must leave the world untouched, so only a predicted success needs a copy.
+    const problem = buildProblem(game, tool, x, y), built = build(problem ? game : structuredClone(game), tool, x, y);
+    assert.equal(problem?.message, built.ok ? undefined : built.message, `${tool} at ${x},${y} with $${game.money}`);
+  }
+});
+
+test('the quote predicts exactly what a random drag builds, refuses and charges', () => {
+  const game = emptyGame();
+  let seed = 3; const random = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648), pick = list => list[Math.floor(random() * list.length)];
+  for (let y = 22; y <= 30; y++) for (let x = 22; x <= 30; x++) tileAt(game, x, y).elevation = (4 + Math.max(0, Math.min(2, x - 25)) + (x === 24 && y === 26 ? 1 : 0)) / 7;
+  for (let y = 8; y <= 36; y++) tileAt(game, 18, y).terrain = 'water';
+  for (let n = 0; n < 40; n++) build(game, pick(['house-cheap-1', 'residential', 'road', 'rail']), 8 + Math.floor(random() * 28), 8 + Math.floor(random() * 28));
+  for (let n = 0; n < 12; n++) Object.assign(tileAt(game, 8 + Math.floor(random() * 28), 8 + Math.floor(random() * 28)), { terrain: pick(['forest', 'rock', 'mountain']) });
+  build(game, 'road', 12, 12); build(game, 'bus-stop', 12, 12); game.routes.push({ id: 'route-x', name: 'Test freight', stops: [game.stations[0].id] });
+  for (let n = 0; n < 150; n++) {
+    const tool = pick(['road', 'rail', 'residential', 'commercial', 'industrial', 'bulldoze']), a = { x: 8 + Math.floor(random() * 28), y: 8 + Math.floor(random() * 28) }, b = { x: 8 + Math.floor(random() * 28), y: a.y + Math.floor(random() * 7) - 3 };
+    const points = [...line(Math.min(a.x, b.x), Math.max(a.x, b.x), a.y), ...Array.from({ length: Math.abs(b.y - a.y) }, (_, i) => ({ x: b.x, y: a.y + Math.sign(b.y - a.y) * (i + 1) }))];
+    game.money = pick([0, 500, 3000, 1e6]);
+    const quote = quoteBuildPlan(game, tool, points), result = buildPlan(structuredClone(game), tool, points), ok = quote.placements.filter(p => p.state === 'ok');
+    const label = `${tool} ${JSON.stringify(a)}→${JSON.stringify(b)} with $${game.money}: ${quote.message} / ${result.message}`;
+    if (tool === 'road' || tool === 'rail') {
+      assert.equal(result.built, quote.ok ? ok.length : 0, label); assert.equal(result.cost, quote.ok ? quote.cost : 0, label);
+      if (quote.ok) assert.equal(result.failed, 0, label);
+    } else {
+      assert.equal(result.built, quote.buildable, label); assert.equal(result.failed, quote.blocked + quote.unaffordable, label);
+      assert.equal(result.cost, ok.reduce((sum, p) => sum + p.cost, 0), label);
+    }
+  }
 });
 
 test('duplicates, invalid coordinates, unknown tools and empty requests cannot create spurious charges', () => {

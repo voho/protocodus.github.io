@@ -123,45 +123,58 @@ export function networkTerrainShape(game, x, y) {
 const NETWORK_DIRECTIONS = [[1,0],[-1,0],[0,1],[0,-1]];
 const slopeMessage = 'Level this slope first. Roads and rails need flat ground or a straight uphill/downhill grade.';
 
-/** Construction eligibility only. Saved networks keep their existing routes. */
-export function networkTerrainProblem(game, x, y, mode, { proposed = null, axis = null, checkNeighbors = true } = {}) {
+// The tile a stroke must avoid or reshape: 'uneven' ground, an incline used
+// 'sideways', or a 'ramp-junction' that would give the existing ramp `at` a side link.
+function networkTerrainIssue(game, x, y, mode, { proposed = null, axis = null, checkNeighbors = true } = {}) {
   const tile = tileAt(game, x, y);
   if (!tile || !['road', 'rail'].includes(mode)) return null;
   if (tile.bridge || tile.tunnel || tile.structureAxis) return null;
   const index = y * game.width + x;
   const planned = proposed || new Set([index]);
   const shape = networkTerrainShape(game, x, y);
-  if (shape.kind === 'complex') return slopeMessage;
-  if (shape.kind === 'incline' && axis && axis !== shape.axis) return slopeMessage;
+  if (shape.kind === 'complex') return { x, y, kind: 'uneven' };
+  if (shape.kind === 'incline' && axis && axis !== shape.axis) return { x, y, kind: 'sideways' };
   for (const [dx, dy] of NETWORK_DIRECTIONS) {
     const nx = x + dx, ny = y + dy, neighbor = tileAt(game, nx, ny);
     if (!neighbor || (!neighbor[mode] && !planned.has(ny * game.width + nx))) continue;
     if (!networkEdgeAllowed(tile, neighbor, dx, dy, mode, game, x, y)) continue;
     const direction = dx ? 'x' : 'y';
-    if (shape.kind === 'incline' && direction !== shape.axis) return slopeMessage;
+    if (shape.kind === 'incline' && direction !== shape.axis) return { x, y, kind: 'sideways' };
     // Connecting a new flat tile to the side of an existing ramp would turn
     // that old ramp into an illegal bend or junction, too.
     if (checkNeighbors && neighbor[mode] && !neighbor.bridge && !neighbor.tunnel && !neighbor.structureAxis) {
-      const problem = networkTerrainProblem(game, nx, ny, mode, { proposed: planned, axis: direction, checkNeighbors: false });
-      if (problem) return problem;
+      if (networkTerrainIssue(game, nx, ny, mode, { proposed: planned, axis: direction, checkNeighbors: false })) return { x, y, kind: 'ramp-junction', at: { x: nx, y: ny } };
     }
   }
   return null;
 }
 
-/** Check the final stroke before committing any of its pieces. */
-export function networkTerrainPlanProblem(game, placements) {
+/** Construction eligibility only. Saved networks keep their existing routes. */
+export function networkTerrainProblem(game, x, y, mode, options) {
+  return networkTerrainIssue(game, x, y, mode, options) ? slopeMessage : null;
+}
+
+/** Every tile of the final stroke that breaks the grade rules, once each. */
+export function networkTerrainPlanIssues(game, placements, limit = 64) {
+  const issues = [], seen = new Set();
   for (const mode of ['road', 'rail']) {
     const points = placements.filter(p => p.tool === mode || p.tool === (mode === 'rail' ? 'railbridge' : 'bridge') || p.tool === (mode === 'rail' ? 'railtunnel' : 'tunnel'));
     const proposed = new Set(points.map(p => p.y * game.width + p.x));
     for (const point of points) {
       const tile = tileAt(game, point.x, point.y);
       if (!tile || point.tool !== mode || tile[mode] || tile.bridge || tile.tunnel || tile.terrain === 'water' || tile.terrain === 'mountain') continue;
-      const problem = networkTerrainProblem(game, point.x, point.y, mode, { proposed });
-      if (problem) return problem;
+      const issue = networkTerrainIssue(game, point.x, point.y, mode, { proposed }), key = issue && issue.y * game.width + issue.x;
+      if (!issue || seen.has(key)) continue;
+      seen.add(key); issues.push(issue);
+      if (issues.length >= limit) return issues;
     }
   }
-  return null;
+  return issues;
+}
+
+/** Check the final stroke before committing any of its pieces. */
+export function networkTerrainPlanProblem(game, placements) {
+  return networkTerrainPlanIssues(game, placements, 1).length ? slopeMessage : null;
 }
 
 // Only interiors carry a deck/bore level. Ordinary network tiles keep their
