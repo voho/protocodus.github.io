@@ -940,6 +940,10 @@ document.addEventListener('keydown',e=>{
 document.addEventListener('keyup',e=>{if(e.code==='Space'){if(spaceConsumed){e.preventDefault();spaceConsumed=false;}if(!isLoading()&&spaceDown&&!spaceUsedForPan&&!pointer&&performance.now()-spaceStarted<260)changeSpeed(speed===0?previousSpeed:0);spaceDown=false;}});
 window.addEventListener('blur',()=>{spaceDown=false;spaceUsedForPan=false;cancelGesture();});
 window.addEventListener('resize',()=>{renderer.resize();syncToolControls();refreshArtwork();});
+const pageZoomed=()=>(window.visualViewport?.scale||1)>1.01,syncPageZoom=()=>$('#app').classList.toggle('page-zoomed',pageZoomed());
+window.visualViewport?.addEventListener('resize',syncPageZoom);syncPageZoom();
+// Safari pinches arrive as gesture events: the chrome never zooms the page, but dialogs and an already zoomed page still pinch.
+for(const type of ['gesturestart','gesturechange'])document.addEventListener(type,e=>{if(!$('#modal').open&&!$('#start-menu')?.open&&!pageZoomed())e.preventDefault();},{passive:false});
 window.addEventListener('pagehide',()=>{if((!isLoading()||menuOpening)&&!$('#start-menu')?.open)flushSave();});
 document.addEventListener('visibilitychange',()=>{lastFrame=performance.now();if(document.hidden&&(!isLoading()||menuOpening)&&!$('#start-menu')?.open)flushSave();});
 

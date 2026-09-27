@@ -2,7 +2,7 @@
 // Serve the repository root before running; the player's browser saves are untouched.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
-import { createWorldFromMenu } from './browser-start.mjs';
+import { createWorldFromMenu, openGameAction } from './browser-start.mjs';
 const { chromium } = await import(process.env.TRANSPORT_PLAYWRIGHT || 'playwright');
 const browser = await chromium.launch({ channel: process.env.TRANSPORT_BROWSER || 'chrome', headless: true });
 const url = process.env.TRANSPORT_URL || 'http://localhost:8765/fun/transport/';
@@ -14,8 +14,7 @@ async function start(viewport, touch = false) {
   const page = await browser.newPage({ viewport, hasTouch: touch, isMobile: touch });
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(url);
-  await page.waitForFunction(() => window.transport?.game && window.transport?.renderer);
-  await page.locator('[data-speed="0"]').click();
+  await createWorldFromMenu(page);
   return page;
 }
 
@@ -57,9 +56,8 @@ async function points(page, tiles) {
   const screen = await page.evaluate(tiles => {
     const center = tiles.reduce((a, p) => ({ x: a.x + p.x / tiles.length, y: a.y + p.y / tiles.length }), { x: 0, y: 0 });
     transport.renderer.focus(center.x, center.y);
-    const box = document.querySelector('#world').getBoundingClientRect(), camera = transport.renderer.getCamera();
-    return tiles.map(p => ({ x: box.left + box.width / 2 + ((p.x + .5) * 32 - camera.x) * camera.zoom,
-      y: box.top + box.height / 2 + ((p.y + .5) * 32 - camera.y) * camera.zoom }));
+    const box = document.querySelector('#world').getBoundingClientRect();
+    return tiles.map(p => { const s = transport.renderer.worldToScreen(p.x, p.y); return { x: box.left + s.x, y: box.top + s.y }; });
   }, tiles);
   for (const p of screen) await page.waitForFunction(p => document.elementFromPoint(p.x, p.y)?.id === 'world', p);
   return screen;
@@ -222,24 +220,24 @@ async function menus(page) {
   await page.locator('#zoom-level').click();
   await page.locator('#date').click();
   assert.equal(await page.locator('#zoom-menu').isVisible(), false, 'outside clicks dismiss zoom choices');
-  await page.locator('#map-options-button').focus();
+  await page.locator('#game-menu-button').click(); await page.locator('#map-options-button').focus();
   await page.keyboard.press('Space');
   assert.equal(await page.locator('#map-options').isVisible(), true, 'native Space opens Map options');
   assert.equal(await page.evaluate(() => transport.speed), 0);
   await page.keyboard.press('Escape');
   assert.equal(await page.locator('#map-options').isVisible(), false);
-  assert.equal(await page.evaluate(() => document.activeElement.id), 'map-options-button');
-  await page.locator('#map-options-button').click();
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'game-menu-button');
+  await openGameAction(page, 'map-options-button');
   await page.locator('#grid-button').click();
-  assert.equal(await page.evaluate(() => transport.renderer.getLayers().grid), true, 'Grid remains functional inside Map options');
-  if (!(await page.locator('#map-options').isVisible())) await page.locator('#map-options-button').click();
+  assert.equal(await page.evaluate(() => transport.renderer.getLayers().grid), false, 'Grid remains functional inside Map options');
+  if (!(await page.locator('#map-options').isVisible())) await openGameAction(page, 'map-options-button');
   await page.locator('#grid-button').click();
-  if (!(await page.locator('#map-options').isVisible())) await page.locator('#map-options-button').click();
+  if (!(await page.locator('#map-options').isVisible())) await openGameAction(page, 'map-options-button');
   await page.locator('#routes-toggle').click();
   assert.equal(await page.evaluate(() => transport.renderer.getLayers().routes), false);
-  if (!(await page.locator('#map-options').isVisible())) await page.locator('#map-options-button').click();
+  if (!(await page.locator('#map-options').isVisible())) await openGameAction(page, 'map-options-button');
   await page.locator('#routes-toggle').click();
-  if (!(await page.locator('#map-options').isVisible())) await page.locator('#map-options-button').click();
+  if (!(await page.locator('#map-options').isVisible())) await openGameAction(page, 'map-options-button');
   await page.locator('#date').click();
   assert.equal(await page.locator('#map-options').isVisible(), false, 'outside clicks dismiss Map options');
 }
@@ -260,14 +258,69 @@ async function layout(page, selectors) {
 
 async function home(page) {
   await page.locator('#world').focus(); await page.keyboard.press('Escape');
-  await page.locator('#map-options-button').click(); await page.locator('#home-view').click();
+  await openGameAction(page, 'map-options-button'); await page.locator('#home-view').click();
   await page.locator('#world').focus(); await page.keyboard.press('Escape');
   await page.waitForFunction(() => !document.querySelector('#toast-region .toast'));
+}
+
+// Only dialogs pinch-zoom the page; the game chrome never does, and a zoomed page can always pinch back out.
+async function gestures(page, send, touch) {
+  const size = page.viewportSize(), middle = { x: size.width / 2, y: size.height / 2 }, scale = () => page.evaluate(() => visualViewport.scale);
+  const center = async selector => {
+    const box = await page.locator(selector).boundingBox(), p = { x: box.x + box.width / 2, y: box.y + Math.min(box.height / 2, 80) };
+    assert.ok(await page.evaluate(({ p, selector }) => [p.x - 12, p.x + 12].every(x => document.elementFromPoint(x, p.y)?.closest(selector)), { p, selector }), `both fingers start on ${selector}`);
+    return p;
+  };
+  const pinch = async ({ x, y }, from, to) => {
+    const at = (id, dx) => touch(id, Math.max(4, Math.min(size.width - 4, x + dx)), y);
+    await send('touchStart', [at(1, -from), at(2, from)]);
+    for (let i = 1; i <= 8; i++) await send('touchMove', [at(1, -from - (to - from) * i / 8), at(2, from + (to - from) * i / 8)]);
+    await send('touchEnd', []); await page.waitForTimeout(250);
+  };
+  await page.keyboard.press('Escape');
+  for (const selector of ['.topbar', '.view-controls']) {
+    await pinch(await center(selector), 12, 140);
+    assert.equal(await scale(), 1, `a spread on ${selector} never zooms the page`);
+  }
+  await page.locator('.mobile-panel-toggle').click();
+  await page.waitForFunction(() => document.querySelector('.sidebar').getBoundingClientRect().left >= 0);
+  await pinch(await center('.sidebar'), 12, 140);
+  assert.equal(await scale(), 1, 'a spread on the drawer never zooms the page');
+  const panel = await page.locator('#panel-content').boundingBox(), swipeX = panel.x + panel.width / 2, swipeY = panel.y + panel.height - 30;
+  await page.locator('#panel-content').evaluate(el => { el.scrollTop = 0; });
+  await send('touchStart', [touch(1, swipeX, swipeY)]);
+  for (let i = 1; i <= 8; i++) await send('touchMove', [touch(1, swipeX, swipeY - i * 30)]);
+  await send('touchEnd', []);
+  assert.ok(await page.locator('#panel-content').evaluate(el => el.scrollTop) > 0, 'one finger still scrolls the drawer');
+  await page.locator('#panel-content [data-tool="road"]').click(); await page.locator('#active-tool-bar').waitFor();
+  await pinch(await center('#active-tool-bar'), 12, 140);
+  assert.equal(await scale(), 1, 'a spread on the active tool bar never zooms the page');
+  await page.locator('#cancel-tool-button').click();
+  await page.evaluate(() => { const city = transport.game.cities[0]; transport.inspect(city.x, city.y); });
+  await page.locator('#inspector').waitFor();
+  await pinch(await center('#inspector'), 12, 140);
+  assert.equal(await scale(), 1, 'a spread on the inspector never zooms the page');
+  await page.locator('#world').focus(); await page.keyboard.press('Escape'); await page.locator('#inspector').waitFor({ state: 'hidden' });
+  await openGameAction(page, 'help-button'); await page.locator('#modal').waitFor();
+  await pinch(middle, 12, 140);
+  assert.ok(await scale() > 1, 'the Field guide stays pinch-zoomable');
+  await page.waitForFunction(() => document.querySelector('#app').classList.contains('page-zoomed'));
+  await page.keyboard.press('Escape'); await page.waitForFunction(() => !document.querySelector('#modal').open);
+  for (let i = 0; i < 3; i++) await pinch(middle, 90, 10);
+  assert.ok(await scale() <= 1.01, 'pinching in over the map undoes a page zoom');
+  await page.waitForFunction(() => !document.querySelector('#app').classList.contains('page-zoomed'), undefined, { timeout: 2000 }).catch(() => {});
+  assert.equal(await page.locator('#app').evaluate(el => el.classList.contains('page-zoomed')), false, 'the map takes pinches back once the page is at its normal size');
+  await page.evaluate(() => transport.renderer.setZoom(1));
+  assert.equal(await page.evaluate(p => document.elementFromPoint(p.x, p.y)?.id, middle), 'world');
+  await pinch(middle, 30, 90);
+  assert.equal(await page.evaluate(() => transport.renderer.getCamera().zoom), 2, 'after recovery a map pinch steps the map zoom again');
+  assert.equal(await scale(), 1);
 }
 
 try {
   await strokeInput();
   const page = await start({ width: 1440, height: 1000 });
+  await page.locator('.main-nav [data-view="build"]').click(); await page.locator('.sidebar').waitFor({ state: 'visible' });
   assert.deepEqual(await page.locator('#panel-content > .tool-grid [data-tool]').evaluateAll(nodes => nodes.map(node => node.dataset.tool)), ['road', 'rail', 'stop', 'port', 'bulldoze'], 'five primary network tools stay visible; engineering choices are expandable');
   assert.match(await page.locator('.build-bottom-tools [data-tool="inspect"]').innerText(), /Explore/);
   await menus(page);
@@ -331,7 +384,7 @@ try {
   assert.equal(await snapshot(page, site), before, 'swiping a single-object tool does not place at the initial tile');
   await keyTool(page, 'r', /Road/);
   const [outside] = await points(page, [site.open]);
-  await page.locator('#map-options-button').click();
+  await openGameAction(page, 'map-options-button');
   await page.mouse.click(outside.x, outside.y);
   assert.equal(await page.locator('#map-options').isVisible(), false, 'a map click dismisses Map options');
   assert.equal(await snapshot(page, site), before, 'dismissing a menu over the map cannot also build a road');
@@ -340,8 +393,8 @@ try {
   await keyTool(page, 'x', /Bulldozer/); await clickTile(page, { x: site.road.x + 8, y: site.road.y });
   assert.equal(await page.evaluate(p => transport.game.tiles[p.y * transport.game.width + p.x].road, { x: site.road.x + 8, y: site.road.y }), false);
   await home(page);
-  await page.locator('[data-tool="road"]').click();
-  await layout(page, ['#active-tool-bar', '#cancel-tool-button', '.view-controls', '#map-options-button']);
+  await page.locator('.main-nav [data-view="build"]').click(); await page.locator('[data-tool="road"]').click();
+  await layout(page, ['#active-tool-bar', '#cancel-tool-button', '.view-controls', '#game-menu-button']);
   await page.screenshot({ path: `${output}/desktop-simple-controls.png` });
   await page.locator('#cancel-tool-button').click(); await page.locator('#zoom-level').click();
   await page.screenshot({ path: `${output}/desktop-zoom-menu.png` });
@@ -357,7 +410,7 @@ try {
     await mobile.locator('[data-tool="road"]').click();
     assert.equal(await mobile.locator('.sidebar').evaluate(el => el.classList.contains('mobile-open')), false, 'choosing a mobile tool reveals the map');
     await mobile.waitForFunction(() => document.querySelector('.sidebar').getBoundingClientRect().right <= 1);
-    await layout(mobile, ['#active-tool-bar', '#cancel-tool-button', '.view-controls', '#map-options-button']);
+    await layout(mobile, ['#active-tool-bar', '#cancel-tool-button', '.view-controls', '#game-menu-button']);
     await mobile.screenshot({ path: `${output}/mobile-${width}-build.png` });
     const mobileSite = await fixture(mobile);
     const cdp = await mobile.context().newCDPSession(mobile);
@@ -394,9 +447,11 @@ try {
     await layout(mobile, ['#zoom-menu', '.view-controls']);
     await mobile.screenshot({ path: `${output}/mobile-${width}-zoom.png` });
     await mobile.keyboard.press('Escape');
-    await mobile.locator('#map-options-button').click();
-    await layout(mobile, ['#map-options', '#map-options-button']);
+    await openGameAction(mobile, 'map-options-button');
+    await layout(mobile, ['#map-options', '#game-menu-button']);
     await mobile.screenshot({ path: `${output}/mobile-${width}-map-options.png` });
+    await gestures(mobile, send, touch);
+    await mobile.screenshot({ path: `${output}/mobile-${width}-after-pinches.png` });
     await mobile.close();
   }
   assert.deepEqual(errors, [], 'all controls run without uncaught browser errors');
