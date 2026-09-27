@@ -1324,6 +1324,42 @@ export class Renderer {
       rect(ctx, point.x - .7, point.y - .7, 1.4, 1.4, color);
       ctx.restore();
     }
+    if (view.formationPreview) {
+      const preview = view.formationPreview, anchor = this.worldToScreen(preview.x, preview.y, view), color = '#b4e2e6';
+      let obstructed = false;
+      for (const unit of preview.positions) {
+        const p = this.worldToScreen(unit.x, unit.y, view), radius = Math.max(5, unit.size * zoom * .55);
+        // Match destination reservation clearance, while checking only observed
+        // obstruction cells so the preview cannot disclose hidden structures.
+        const margin = unit.size * .43 + .08;
+        const blocked = unit.x < margin || unit.y < margin || unit.x >= state.width - margin || unit.y >= state.height - margin || [-margin, margin].some(dx => [-margin, margin].some(dy => {
+          const x = Math.floor(unit.x + dx), y = Math.floor(unit.y + dy), index = y * state.width + x;
+          return visible?.[index] && state.blocked?.[index];
+        }));
+        obstructed ||= blocked;
+        const slotColor = blocked ? '#e39881' : color;
+        ctx.save(); ctx.translate(p.x, p.y); ctx.scale(scale, scale); ctx.globalAlpha = .48;
+        drawSprite(ctx, { ...unit, moving: false, cargo: 0 }, 0); ctx.restore();
+        ellipse(ctx, p.x, p.y + 2, radius, radius * .62, blocked ? '#e3988120' : '#8edbe318', slotColor + 'bb', 1);
+        const dx = Math.cos(preview.heading), dy = Math.sin(preview.heading);
+        line(ctx, p.x + dx * (radius + 2), p.y + dy * (radius + 2), p.x + dx * (radius + 7), p.y + dy * (radius + 7), slotColor, 1.5);
+      }
+      const dx = Math.cos(preview.heading), dy = Math.sin(preview.heading), length = Math.max(34, zoom * 1.8);
+      const tip = { x: anchor.x + dx * length, y: anchor.y + dy * length };
+      ctx.save(); ctx.setLineDash([4, 4]);
+      ellipse(ctx, anchor.x, anchor.y, 20, 20, '#142027b0', color + '80', 1);
+      ctx.setLineDash([]);
+      line(ctx, anchor.x, anchor.y, tip.x, tip.y, color, 2);
+      polygon(ctx, [[tip.x, tip.y], [tip.x - dx * 10 - dy * 5, tip.y - dy * 10 + dx * 5], [tip.x - dx * 10 + dy * 5, tip.y - dy * 10 - dx * 5]], color);
+      rect(ctx, anchor.x - 44, anchor.y + 26, 88, 20, '#142027ed');
+      ctx.font = '10px monospace'; ctx.fillStyle = color; ctx.textAlign = 'center';
+      ctx.fillText(`ROTATE ${Math.round((preview.angle * 180 / Math.PI + 360) % 360)}°`, anchor.x, anchor.y + 40);
+      if (obstructed) {
+        rect(ctx, anchor.x - 69, anchor.y + 46, 138, 20, '#142027ed'); ctx.fillStyle = '#e39881';
+        ctx.fillText('Blocked slots adjust', anchor.x, anchor.y + 60);
+      }
+      ctx.restore();
+    }
     for (const e of state.entities) if (e.hp > 0 && e.team === 0 && view.selected?.has(e.id) && e.rally && ['barracks', 'factory', 'refinery'].includes(entityRole(e))) {
       const origin = this.worldToScreen(e.x + e.size / 2, e.y + e.size / 2, view);
       const point = this.worldToScreen(e.rally.x, e.rally.y, view);

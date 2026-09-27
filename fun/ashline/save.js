@@ -58,7 +58,15 @@ function validateGame(s) {
     valid(object(e.order) && ['idle', 'move', 'attack', 'attackMove', 'harvest', 'explore'].includes(e.order.type));
     if(e.order.speedLimit!==undefined)valid(e.kind==='unit'&&['move','attackMove'].includes(e.order.type)&&number(e.order.speedLimit,.1,30));
     if(e.order.turnRateLimit!==undefined)valid(e.kind==='unit'&&['move','attackMove'].includes(e.order.type)&&number(e.order.turnRateLimit,.1,7));
-    if(e.order.formation!==undefined)valid(e.kind==='unit'&&['move','attackMove','idle','harvest'].includes(e.order.type)&&point(e.order)&&point(e.order.formation)&&number(e.order.formation.dx,-width,width)&&number(e.order.formation.dy,-height,height));
+    if(e.order.formation!==undefined){
+      const formation=e.order.formation;
+      valid(e.kind==='unit'&&['move','attackMove','idle','harvest'].includes(e.order.type)&&point(e.order)&&point(formation)&&number(formation.dx,-width,width)&&number(formation.dy,-height,height));
+      if(formation.compact!==undefined)valid(typeof formation.compact==='boolean');
+      if(formation.group!==undefined)valid(integer(formation.group,0,0xffffffff));
+      if(formation.angle!==undefined)valid(number(formation.angle,-Math.PI,Math.PI));
+      if(formation.facing!==undefined)valid(number(formation.facing,-Math.PI,Math.PI));
+    }
+    if(e.order.facing!==undefined)valid(e.kind==='unit'&&['move','attackMove'].includes(e.order.type)&&number(e.order.facing,-Math.PI,Math.PI));
     if (['move', 'attack', 'attackMove'].includes(e.order.type)) valid(point(e.order));
     for (const key of ['x', 'y']) if (e.order[key] !== undefined) valid(number(e.order[key], 0, key === 'x' ? width : height));
     for (const key of ['targetId', 'attackerId']) if (e[key] != null) valid(integer(e[key], 1, s.nextId - 1));

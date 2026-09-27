@@ -11,7 +11,7 @@ const $ = id => document.getElementById(id);
 const canvas = $('world');
 const compactScreen = matchMedia('(max-width: 680px)');
 const renderer = new Renderer(canvas, $('minimap'));
-const view = { x: 14, y: 37, zoom: innerWidth <= 680 ? 24 : 38, selected: new Set(), hover: null, placement: null, placementValid: false, placementReason: '', drag: null, commandMarker: null, showGrid: false };
+const view = { x: 14, y: 37, zoom: innerWidth <= 680 ? 24 : 38, selected: new Set(), hover: null, placement: null, placementValid: false, placementReason: '', drag: null, formationPreview: null, commandMarker: null, showGrid: false };
 let frameRequest = 0;
 let game = null, launched = false, paused = true, loading = false, activeTab = 'build', orderMode = null;
 let lastTime = performance.now(), accumulator = 0, hudTimer = 0, toastUntil = 0, lastEvent = 0;
@@ -61,6 +61,7 @@ function notify(text, warning = false, soft = false) {
 }
 
 async function reset(prepared, restored) {
+  cancelFormationGesture();
   game = prepared;
   view.selected.clear(); keys.clear();
   view.placement = null; view.deployUnitId = null; view.drag = null; view.hover = null; view.commandMarker = null;
@@ -294,11 +295,15 @@ function chooseProduction(type, touch = false) {
 }
 
 function setOrderHint() {
-  $('order-hint').hidden = !view.placement && !orderMode;
-  canvas.classList.toggle('ordering', Boolean(view.placement || orderMode));
+  $('order-hint').hidden = !view.placement && !orderMode && !view.formationPreview;
+  canvas.classList.toggle('ordering', Boolean(view.placement || orderMode || view.formationPreview));
   $('attack-order').classList.toggle('active', orderMode === 'attackMove');
   $('move-order').classList.toggle('active', orderMode === 'move');
   $('rally-order').classList.toggle('active', orderMode === 'rally');
+  if (view.formationPreview) {
+    $('order-hint-text').textContent = 'Formation move · Drag to rotate · Release to deploy · Esc to cancel';
+    return;
+  }
   if (view.placement === 'wall') {
     const plan = view.wallPlan;
     $('order-hint-text').textContent = `Wall line · ${plan?.count ?? 1} segments · ◈ ${plan?.cost ?? BUILDINGS.wall.cost}${plan?.reason ? ` · ${plan.reason}` : ' · Drag to build'}`;
@@ -307,11 +312,12 @@ function setOrderHint() {
   $('order-hint-text').textContent = view.placement ? `${view.deployUnitId ? 'Deploy' : 'Place'} ${BUILDINGS[view.placement].name} · ${view.placementReason || (view.deployUnitId ? 'Within 4 tiles of the vehicle · consumes vehicle' : 'Click to build')}` : orderMode === 'rally' ? 'Rally point · Select a destination' : orderMode === 'attackMove' ? 'Attack move · Select a destination' : 'Move · Select a destination';
 }
 
-function cancelOrder() { view.deployUnitId = null; view.placement = null; view.placementReason = ''; view.showGrid = false; view.wallStart = null; view.wallPlan = null; orderMode = null; view.drag = null; setOrderHint(); updateCatalog(); }
+function cancelOrder() { cancelFormationGesture(); view.deployUnitId = null; view.placement = null; view.placementReason = ''; view.showGrid = false; view.wallStart = null; view.wallPlan = null; orderMode = null; view.drag = null; setOrderHint(); updateCatalog(); }
 $('cancel-order').addEventListener('click', () => { cancelOrder(); canvas.focus({preventScroll:true}); });
 
 function setOrder(type) {
   if (busy() || !(type === 'rally' ? selectedProducers() : selectedUnits()).length) return;
+  cancelFormationGesture();
   view.placement = null; view.deployUnitId = null; view.showGrid = false;
   orderMode = orderMode === type ? null : type;
   setOrderHint(); updateCatalog();
@@ -545,6 +551,7 @@ function updateHUD() {
 
 function showMenu(finished = false, guide = false) {
   stopFrames();
+  cancelFormationGesture();
   paused = true; keys.clear(); pointer = null; view.drag = null;
   audio.setPaused(true);
   $('menu-title').textContent = finished ? game.status === 'victory' ? 'The frontier is yours.' : 'The line has fallen.' : 'Hold the line.';
@@ -738,6 +745,42 @@ function localPoint(event) {
   const rect = canvas.getBoundingClientRect(); return { x: event.clientX - rect.left, y: event.clientY - rect.top };
 }
 
+function cancelFormationGesture() {
+  const previewing = Boolean(view.formationPreview);
+  if (pointer?.formation) {
+    clearTimeout(pointer.formation.timer);
+    if (canvas.hasPointerCapture(pointer.id)) canvas.releasePointerCapture(pointer.id);
+    pointer = null;
+  }
+  view.formationPreview = null;
+  if (previewing) setOrderHint();
+}
+
+function updateFormationPreview(active, point, held = false) {
+  const formation = active.formation;
+  if (!formation || (!active.dragged && !held && !view.formationPreview)) return;
+  const world = renderer.screenToWorld(point.x, point.y, view), anchor = active.startWorld;
+  const heading = Math.hypot(world.x - anchor.x, world.y - anchor.y) > 6 / view.zoom ? Math.atan2(world.y - anchor.y, world.x - anchor.x) : formation.heading;
+  const angle = Math.atan2(Math.sin(heading - formation.heading), Math.cos(heading - formation.heading));
+  const c = Math.cos(angle), s = Math.sin(angle);
+  const living = new Set(game.entities.filter(unit => unit.kind === 'unit' && unit.hp > 0).map(unit => unit.id));
+  const positions = formation.offsets.filter(unit => living.has(unit.id)).map(unit => ({ ...unit, x: anchor.x + unit.x * c - unit.y * s, y: anchor.y + unit.x * s + unit.y * c, angle: heading }));
+  view.formationPreview = positions.length ? { x: anchor.x, y: anchor.y, heading, angle, positions } : null;
+  setOrderHint();
+}
+
+function commitFormation(active) {
+  const preview = view.formationPreview;
+  clearTimeout(active.formation.timer);
+  view.formationPreview = null;
+  if (!preview) return false;
+  const ids = new Set(preview.positions.map(unit => unit.id)), offsets = active.formation.offsets.filter(unit => ids.has(unit.id));
+  issueOrder(game, [...ids], { type: 'move', x: preview.x, y: preview.y, formationAngle: preview.angle, facing: preview.heading, formationOffsets: offsets.map(({id, x, y}) => ({id, x, y})) });
+  view.commandMarker = { x: preview.x, y: preview.y, time: performance.now() / 1000, type: 'move' };
+  orderMode = null; setOrderHint(); playSound('confirm'); updateHUD();
+  return true;
+}
+
 canvas.addEventListener('contextmenu', event => event.preventDefault());
 canvas.addEventListener('pointerdown', event => {
   if (event.pointerType === 'touch') {
@@ -749,6 +792,17 @@ canvas.addEventListener('pointerdown', event => {
   const point = localPoint(event), world = renderer.screenToWorld(point.x, point.y, view);
   canvas.setPointerCapture(event.pointerId);
   pointer = { id: event.pointerId, button: event.button, touch: event.pointerType === 'touch', start: point, last: point, startWorld: world, shift: event.shiftKey, dragged: false, pan: event.button === 1 || event.pointerType === 'touch' };
+  if (event.button === 2 && event.pointerType !== 'touch' && !view.placement && !orderMode) {
+    const units = selectedUnits();
+    if (units.length) {
+      const x = units.reduce((sum, unit) => sum + unit.x, 0) / units.length, y = units.reduce((sum, unit) => sum + unit.y, 0) / units.length;
+      const sx = units.reduce((sum, unit) => sum + Math.cos(unit.angle), 0), sy = units.reduce((sum, unit) => sum + Math.sin(unit.angle), 0);
+      const heading = Math.hypot(sx, sy) > .001 ? Math.atan2(sy, sx) : units[0].angle;
+      pointer.formation = { heading, offsets: units.map(unit => ({ id: unit.id, type: unit.type, team: unit.team, size: unit.size, x: unit.x - x, y: unit.y - y })) };
+      const active = pointer;
+      active.formation.timer = setTimeout(() => { if (pointer === active && !busy()) updateFormationPreview(active, active.last, true); }, 200);
+    }
+  }
   if (view.placement === 'wall' && event.button === 0) {
     pointer.wall = true; pointer.pan = false; view.wallStart = { x: Math.floor(world.x), y: Math.floor(world.y) };
   }
@@ -772,6 +826,7 @@ canvas.addEventListener('pointermove', event => {
   }
   if (!pointer || event.pointerId !== pointer.id || busy()) return;
   if (Math.hypot(point.x - pointer.start.x, point.y - pointer.start.y) > 6) pointer.dragged = true;
+  if (pointer.formation) updateFormationPreview(pointer, point);
   if (pointer.dragged) {
     if (pointer.pan) { view.x -= (point.x - pointer.last.x) / view.zoom; view.y -= (point.y - pointer.last.y) / view.zoom; clampCamera(); }
     else if (pointer.button === 0 && !view.placement && !orderMode) view.drag = { x1: pointer.start.x, y1: pointer.start.y, x2: point.x, y2: point.y };
@@ -782,9 +837,14 @@ canvas.addEventListener('pointerup', event => {
   if (touches.delete(event.pointerId) && pinchDistance) { pinchDistance = 0; if (pointer && touches.size === 1) pointer.last = touches.values().next().value; }
   if (!pointer || event.pointerId !== pointer.id) return;
   const active = pointer; pointer = null;
+  if (active.formation) clearTimeout(active.formation.timer);
   if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
-  if (busy()) return;
+  if (busy()) { view.formationPreview = null; setOrderHint(); return; }
   const point = localPoint(event), world = renderer.screenToWorld(point.x, point.y, view);
+  if (active.formation && view.formationPreview) {
+    updateFormationPreview(active, point, true);
+    if (commitFormation(active)) return;
+  }
   if (active.wall && view.wallStart && view.placement === 'wall') {
     const result = buildWallLine(game, 0, view.wallStart.x, view.wallStart.y, Math.floor(world.x), Math.floor(world.y));
     view.wallStart = null; view.wallPlan = null; view.drag = null;
@@ -807,7 +867,7 @@ canvas.addEventListener('pointerup', event => {
     else selectAt(world, active.shift, active.touch);
   }
 });
-canvas.addEventListener('pointercancel', event => { touches.delete(event.pointerId); pinchDistance = 0; pointer = null; view.drag = null; view.wallStart = null; view.wallPlan = null; });
+canvas.addEventListener('pointercancel', event => { cancelFormationGesture(); touches.delete(event.pointerId); pinchDistance = 0; pointer = null; view.drag = null; view.wallStart = null; view.wallPlan = null; setOrderHint(); });
 canvas.addEventListener('pointerleave', () => { if (!pointer) { pointerPosition = null; view.hover = null; } });
 canvas.addEventListener('dblclick', event => {
   if (busy()) return;
@@ -879,7 +939,7 @@ document.addEventListener('keydown', event => {
   else if (key === '-') zoom(1 / 1.15);
 });
 document.addEventListener('keyup', event => keys.delete(event.key.toLowerCase()));
-window.addEventListener('blur', () => { keys.clear(); touches.clear(); pointer = null; pointerPosition = null; edgePointer = null; view.drag = null; if (launched && !paused && game.status === 'playing') showMenu(); });
+window.addEventListener('blur', () => { cancelFormationGesture(); keys.clear(); touches.clear(); pointer = null; pointerPosition = null; edgePointer = null; view.drag = null; setOrderHint(); if (launched && !paused && game.status === 'playing') showMenu(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden && launched && !paused && game.status === 'playing') showMenu(); });
 window.addEventListener('resize', () => { renderer.resize(); if (game) { view.zoom = nearestZoom(view.zoom, cameraLevels()); clampCamera(); updateZoomLabel(); if (paused && !loading && renderer.terrainSource === game.terrain) renderer.draw(game, view); } });
 
@@ -999,6 +1059,7 @@ function frame(now) {
     }
   }
   if (pointerPosition && !busy()) view.hover = renderer.screenToWorld(pointerPosition.x, pointerPosition.y, view);
+  if (pointer?.formation && view.formationPreview && !busy()) updateFormationPreview(pointer, pointer.last, true);
   if (view.placement === 'wall' && view.hover && !busy()) {
     const to = { x: Math.floor(view.hover.x), y: Math.floor(view.hover.y) }, from = view.wallStart || to;
     const key = `${from.x}:${from.y}:${to.x}:${to.y}:${game.navVersion}`;

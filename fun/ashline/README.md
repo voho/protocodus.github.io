@@ -32,13 +32,15 @@ Every completed refinery includes one free hauler. Haulers automatically collect
 
 Damage to your forces raises a throttled **under attack** warning with an orange ping on the tactical map, destroyed units are reported, losing the last hauler prompts a replacement, and low power warns once and marks the power readout while defenses stay offline. Shells and tracers fired from concealed positions are drawn and heard where they land, never where they came from.
 
-Units use [Craig Reynolds’ Boids rules](https://www.red3d.com/cwr/boids/) for local herd movement: **separation** avoids crowding nearby bodies, **alignment** follows nearby allies’ average heading, and **cohesion** draws traveling allies together. Commanded formations measure cohesion against their assigned offsets so edge units keep their lanes. Only nearby allies traveling toward compatible destinations align and cohere; opposing traffic keeps its own orders. Comfortable spacing has a deadband so an orderly formation does not continually squeeze together and spread apart. Attraction fades near the destination while collision clearance stays active. Each simulation tick reads a shared snapshot of neighbors from a spatial grid, preserving deterministic save continuation.
+Units use [Craig Reynolds’ Boids rules](https://www.red3d.com/cwr/boids/) for local herd movement: **separation** avoids crowding nearby bodies, **alignment** follows nearby allies’ average heading, and **cohesion** draws traveling allies together. Group orders guide the flock toward compact destinations around a shared rally point. Only nearby allies traveling toward compatible destinations align and cohere; opposing traffic keeps its own orders. Comfortable spacing has a deadband so an orderly flock does not continually squeeze together and spread apart. Attraction fades near the destination while collision clearance stays active. Each simulation tick reads a shared snapshot of neighbors from a spatial grid, preserving deterministic save continuation.
 
 Units anticipate crossing traffic, slow behind a leader, and route around nearby bodies. A blocked unit can back out of a crowd; an enclosing parked ally can step aside and return after it passes. Friendly spacing only softens between a specific blocked pair when static geometry prevents a bypass in a tight lane. Rocks, lava, buildings, and enemy collision boundaries remain solid. This also keeps haulers moving through shared refinery approaches.
 
 Clear routes follow direct lines at any angle. Obstacle routes discard unnecessary grid waypoints. Units steer and travel at the same time, moving along their current body heading without sliding sideways. They slow for sharp turns and brake when a corner requires more clearance. Stationary units stop their walking and track animations. Every movement checks the swept path against solid ground. The same routing serves manual orders, rallies, harvesting, scouting, and combat pursuit.
 
-Group move and attack-move orders translate the source formation so its center lands at the click. Each unit keeps its relative position; mixed groups share the slowest members’ travel and turning pace. Local detours and yielding temporarily deform the formation to prevent clogs, then units return to their reserved positions. When a translated position is obstructed, outside the map, or unreachable, it resolves to nearby available ground on that unit’s side of the obstacle. Repeating the same order preserves the original offsets and assigned positions. Selected units show their own destination brackets and subtle route segments through visible ground.
+Group move and attack-move orders gather scattered units into one compact army around the click. Units keep roughly their left/right and front/back ordering while closing the original gaps. They travel and turn at their own speeds, using local detours, speed matching and yielding to clear traffic. Distinct parking positions leave room for late arrivals to pass between settled allies. Obstructed, clipped or unreachable rally points use nearby available ground on each unit’s side of the obstacle. Repeating the same order for the same selection keeps its reserved positions stable; a different selection can regroup. Selected units show their own destination brackets and subtle route segments through visible ground.
+
+To preserve a particular formation, hold the right mouse button at its destination and drag around that point. A live preview rotates the selected layout through a full 360 degrees; release to move into that layout and face the chosen direction. The layout is captured when the gesture begins, so moving units cannot change the preview underneath it. Preserved formations share travel and turning limits while avoiding obstacles. A quick right-click continues to gather a compact flock.
 
 Select units and toggle **Explore** (X) to automatically scout reachable unexplored areas. Armed explorers stop to fire at nearby visible enemies and resume exploring afterward. Haulers can explore too; they resume harvesting when exploration ends. Toggle Explore again, stop, or issue a manual move, attack, or harvest order to end auto-explore. When no reachable unexplored areas remain, armed units return to guarding.
 
@@ -71,7 +73,8 @@ Open <http://localhost:8000/fun/ashline/>. No build step or installation is requ
 | Left click / drag a box | Select a unit or building / select multiple units |
 | Double click a unit | Select all friendly units of that type currently on screen |
 | Shift + select | Add to the selection |
-| Right click | Move, attack an enemy, or send a harvester to minerals |
+| Right click | Gather units at a point, attack an enemy, or send a harvester to minerals |
+| Hold right button and drag | Preview and rotate a preserved formation; release to move and face that direction |
 | Q, then click | Attack move |
 | R, then click / Rally button | Set selected production buildings’ rally point |
 | Repair / Sell buttons | Repair or sell the selected building |
@@ -117,7 +120,7 @@ node tests/capacity-check.mjs
 node tests/nexus-check.mjs
 node tests/ai-nexus-check.mjs
 node --test tests/control-groups.test.mjs
-node --test tests/camera.test.mjs tests/movement.test.mjs tests/flocking.test.mjs tests/traffic-stability.test.mjs tests/formation-preservation.test.mjs
+node --test tests/camera.test.mjs tests/movement.test.mjs tests/flocking.test.mjs tests/traffic-stability.test.mjs tests/compact-flock.test.mjs tests/formation-drag.test.mjs
 node tests/lava-check.mjs
 node tests/distribution-check.mjs
 node tests/relief-check.mjs
@@ -139,6 +142,7 @@ ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs node tests/operation-visual-che
 ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs node tests/rocket-browser-check.mjs
 ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs node tests/rank-browser-check.mjs
 ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs node tests/traffic-browser-check.mjs
+ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs node tests/formation-gesture-browser-check.mjs
 ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs node tests/lava-browser-check.mjs
 ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs node tests/map-browser-check.mjs
 ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs node tests/trees-browser-check.mjs

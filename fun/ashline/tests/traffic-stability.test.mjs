@@ -21,6 +21,14 @@ function command(s,u,x,y) {
   issueOrder(s,[u.id],{type:'move',x,y});
 }
 
+function compactSlots(units,point) {
+  const radius=Math.sqrt(units.length)*.85+1;
+  for(let i=0;i<units.length;i++) {
+    assert(distance(units[i].order,point)<=radius,'Assigned positions form a compact army around the click');
+    for(let j=0;j<i;j++)assert(distance(units[i].order,units[j].order)>=(units[i].size+units[j].size)*.43-1e-8,'Compact destinations retain full body clearance');
+  }
+}
+
 // Observe the whole trip: eventual arrival alone does not catch bodies passing
 // through one another, or a straight convoy repeatedly stopping to turn.
 function completeOpenTrip(s,units,seconds=80) {
@@ -75,10 +83,59 @@ test('a moving tank drives around a parked ally on open ground',()=>{
   assert.deepEqual({x:parked.x,y:parked.y},{x:28,y:25},'An idle ally holds its position while traffic passes');
 });
 
+test('an unfinished yield returns home when its beneficiary has already parked',()=>{
+  const {s,add}=scene('obsolete-yield'),engineer=add('engineer',24,25,Math.PI),parked=add('tank',26,25.4);
+  const home={x:22,y:25};
+  engineer.order={type:'move',...home,facing:Math.PI/2};
+  engineer.yieldReturn={...home};engineer.yieldPoint={x:26,y:25.4};engineer.yieldFor=parked.id;
+  engineer.path=[{...engineer.yieldPoint,flock:true,trafficId:parked.id}];
+  updateGame(s,.05);
+  assert(engineer.x<24,'The unit abandons its occupied pullout immediately and drives toward its own slot');
+  assert.deepEqual(engineer.yieldPoint,home);
+  completeOpenTrip(s,[engineer,parked],10);
+  assert.equal(engineer.yieldReturn,undefined,'Finishing the return clears the temporary yield state');
+  assert(turn(engineer.angle,Math.PI/2)<1e-8,'Returning from a yield completes the requested final facing');
+});
+
+test('a heavy vehicle settles at a nearby goal instead of orbiting it',()=>{
+  const {s,add}=scene('close-turn-arrival'),tank=add('tank',20,25,Math.PI/2);
+  command(s,tank,20.25,25);
+  completeOpenTrip(s,[tank],6);
+});
+
+test('almost side-by-side convoy members do not wait for one another to lead',()=>{
+  const {s,add}=scene('side-by-side-convoy');
+  const scout=add('scout',23.42336447447539,24.787694536401304,.25126219793804616);
+  const tank=add('tank',23.721751018875207,24.24036880895041,.5496383691741706);
+  issueOrder(s,[scout.id,tank.id],{type:'move',x:50,y:40});
+  completeOpenTrip(s,[scout,tank],35);
+});
+
 for(const side of [3,5])test(`${side*side} tanks cross open ground and settle without overlapping`,()=>{
   const {s,add}=scene(`open-formation-${side}`),units=[];
   for(let y=0;y<side;y++)for(let x=0;x<side;x++)units.push(add('tank',20+x*1.3,22+y*1.3));
   issueOrder(s,units.map(u=>u.id),{type:'move',x:50,y:25});
+  compactSlots(units,{x:50,y:25});
+  completeOpenTrip(s,units);
+});
+
+test('a dense preserved formation rotates and settles with its final facing',()=>{
+  const {s,add}=scene('dense-rotated-formation'),units=[];
+  for(let y=0;y<3;y++)for(let x=0;x<3;x++)units.push(add('tank',20+x*1.1,20+y*1.1));
+  issueOrder(s,units.map(u=>u.id),{type:'move',x:45,y:30,formationAngle:Math.PI/2,facing:Math.PI/2});
+  completeOpenTrip(s,units);
+  units.forEach(u=>assert(turn(u.angle,Math.PI/2)<1e-8,'Every arrived tank finishes with the requested facing'));
+});
+
+test('scattered military units gather into one compact army without intersecting',()=>{
+  const {s,add}=scene('scattered-rally'),positions=[[13,12],[22,14],[31,11],[16,22],[29,21],[36,18],[11,33],[23,30],[34,32],[17,42],[28,41],[38,39]];
+  const units=positions.map(([x,y],i)=>add(['rifle','tank','scout','rocket'][i%4],x,y));
+  const point={x:51,y:27};
+  issueOrder(s,units.map(u=>u.id),{type:'move',...point});
+  compactSlots(units,point);
+  const width=Math.max(...units.map(u=>u.order.x))-Math.min(...units.map(u=>u.order.x));
+  const height=Math.max(...units.map(u=>u.order.y))-Math.min(...units.map(u=>u.order.y));
+  assert(width<10&&height<10,'Wide source gaps disappear at the rally point');
   completeOpenTrip(s,units);
 });
 
@@ -88,7 +145,7 @@ test('a faster rear vehicle follows or passes a slower convoy without intersecti
   completeOpenTrip(s,[rear,front]);
 });
 
-for(const side of [3,5])test(`${side*side}-unit destination assignment preserves formation ranks and repeated slots`,()=>{
+for(const side of [3,5])test(`${side*side}-unit compact assignment keeps rough ordering and repeated slots`,()=>{
   const {s,add}=scene(`formation-assignment-${side}`),rows=[];
   for(let y=0;y<side;y++){
     const row=[];
@@ -97,10 +154,10 @@ for(const side of [3,5])test(`${side*side}-unit destination assignment preserves
   }
   const units=rows.flat();
   issueOrder(s,units.map(u=>u.id),{type:'move',x:50,y:25});
-  for(let y=0;y<side;y++)for(let x=0;x<side;x++){
-    if(x)assert(rows[y][x].order.x>=rows[y][x-1].order.x,'A rear tank must not be sent past the tank directly ahead');
-    if(y)assert(rows[y][x].order.y>=rows[y-1][x].order.y,'Parallel rows must not be assigned across one another');
-  }
+  compactSlots(units,{x:50,y:25});
+  const mean=(members,axis)=>members.reduce((total,u)=>total+u.order[axis],0)/members.length;
+  assert(mean(rows.map(row=>row[0]),'x')<mean(rows.map(row=>row.at(-1)),'x'),'The rear column generally retains the rear compact slots');
+  assert(mean(rows[0],'y')<mean(rows.at(-1),'y'),'The top row generally retains the upper compact slots');
   const goals=units.map(u=>({...u.order}));
   // Units can change relative positions while traveling. Repeating the command
   // must preserve their reserved slots instead of optimizing the assignment again.

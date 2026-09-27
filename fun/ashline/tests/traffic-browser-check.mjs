@@ -5,6 +5,24 @@ const {chromium} = await import(process.env.ASHLINE_PLAYWRIGHT || 'playwright');
 const browser = await chromium.launch({channel: process.env.ASHLINE_BROWSER || 'chrome', headless: true});
 const output = process.env.ASHLINE_SCREENSHOTS || '/tmp/ashline-traffic-qa';
 await mkdir(output, {recursive: true});
+const compactGoals = (sources, slots, point) => {
+  const radius=.9*Math.sqrt(slots.length)+1;
+  assert.equal(new Set(slots.map(p=>`${p.x},${p.y}`)).size,slots.length,'Each selected unit reserves a distinct rally position');
+  for(let i=0;i<slots.length;i++) {
+    assert(Math.hypot(slots[i].x-point.x,slots[i].y-point.y)<=radius,'The army gathers into a compact group near the click');
+    for(let j=0;j<i;j++) {
+      const a=sources.find(u=>u.id===slots[i].id),b=sources.find(u=>u.id===slots[j].id);
+      assert(Math.hypot(slots[i].x-slots[j].x,slots[i].y-slots[j].y)>=(a.size+b.size)*.43-1e-8,'Rally positions leave room for both unit bodies');
+    }
+  }
+  for(const axis of ['x','y']) {
+    const ordered=[...sources].sort((a,b)=>a[axis]-b[axis]);
+    if(ordered.at(-1)[axis]-ordered[0][axis]<2)continue;
+    const quarter=Math.max(1,Math.floor(ordered.length/4));
+    const mean=group=>group.reduce((sum,u)=>sum+slots.find(p=>p.id===u.id)[axis],0)/group.length;
+    assert(mean(ordered.slice(0,quarter))<=mean(ordered.slice(-quarter))+.2,'Compaction keeps the broad spatial ordering of the selected units');
+  }
+};
 try {
   const page = await browser.newPage({viewport: {width: 1440, height: 900}, hasTouch: true}), errors = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -77,16 +95,12 @@ try {
   const start = await point(88.1, 73.1), end = await point(94, 76);
   await page.mouse.move(start.x, start.y); await page.mouse.down(); await page.mouse.move(end.x, end.y, {steps: 8}); await page.mouse.up();
   assert.equal(await page.evaluate(() => ashline.view.selected.size), 10, 'Drag selects all military units and leaves automatic haulers working');
-  const sources = await page.evaluate(() => ashline.state.entities.filter(u => ashline.view.selected.has(u.id)).map(u => ({id: u.id, x: u.x, y: u.y})));
+  const sources = await page.evaluate(() => ashline.state.entities.filter(u => ashline.view.selected.has(u.id)).map(u => ({id: u.id, x: u.x, y: u.y, size: u.size})));
   const destination = await point(100.5, 75.5); await page.mouse.click(destination.x, destination.y, {button: 'right'});
   const goals = () => page.evaluate(() => ashline.state.entities.filter(u => ashline.view.selected.has(u.id)).map(u => ({id: u.id, x: u.order.x, y: u.order.y})));
   const checkArrival = (units, slots) => { assert.equal(units.length, 10); assert.equal(new Set(slots.map(p => `${p.x},${p.y}`)).size, 10); for (const u of units) { const p = slots.find(p => p.id === u.id); assert(Math.hypot(u.x - p.x, u.y - p.y) <= .081, 'Each selected unit reaches its own destination'); assert.equal(u.type, 'idle'); } };
   const desktopGoals = await goals(); await page.evaluate(() => formationAdvance(0)); await page.screenshot({path: `${output}/group-command.png`});
-  const translation = {x: desktopGoals[0].x - sources[0].x, y: desktopGoals[0].y - sources[0].y};
-  for (const source of sources) {
-    const goal = desktopGoals.find(p => p.id === source.id);
-    assert(Math.hypot(goal.x-source.x-translation.x, goal.y-source.y-translation.y)<1e-8, 'The real group command preserves every relative source position');
-  }
+  compactGoals(sources,desktopGoals,{x:100.5,y:75.5});
   await page.evaluate(() => formationAdvance(1)); await page.screenshot({path: `${output}/group-turning.png`});
   await page.evaluate(() => formationAdvance(7)); await page.screenshot({path: `${output}/group-detouring.png`});
   checkArrival(await page.evaluate(() => formationAdvance(52)), desktopGoals); await page.screenshot({path: `${output}/group-arrived.png`});
@@ -96,6 +110,46 @@ try {
   await page.locator('#move-order').tap(); const touch = await point(103.5, 78.2); await page.touchscreen.tap(touch.x, touch.y);
   const mobileGoals = await goals(); checkArrival(await page.evaluate(() => formationAdvance(25)), mobileGoals);
   await page.screenshot({path: `${output}/group-arrived-mobile.png`});
+
+  // A widely scattered selection should visibly become one army at a single click.
+  // Run the same source geometry through desktop and touchscreen command paths.
+  for(const platform of ['desktop','mobile']) {
+    await page.setViewportSize(platform==='desktop'?{width:1440,height:900}:{width:390,height:844});
+    await page.evaluate(() => new Promise(resolve => formationFixture.raf.call(window, () => formationFixture.raf.call(window, resolve))));
+    const scattered = await page.evaluate(async platform => {
+      const {UNITS,updateGame}=await import('./sim.js'),s=ashline.state,r=ashline.renderer,v=ashline.view;
+      const template=structuredClone(s.entities.find(e=>e.kind==='unit'));
+      s.entities=s.entities.filter(e=>e.kind==='building');s.terrain.fill(0);s.minerals.fill(0);s.effects=[];s.navVersion++;
+      const positions=[[89.5,68],[94,66.5],[99,68],[102.5,71],[101,77],[101.5,82],[96.5,82.5],[92,81],[89.5,77],[92,73],[96,71],[97.5,78]];
+      const units=positions.map(([x,y],i)=>{
+        const type=['rifle','tank','scout','rocket'][i%4],d=UNITS[type];
+        const u={...structuredClone(template),id:s.nextId++,type,x,y,angle:0,size:d.size,hp:d.hp,maxHp:d.hp,order:{type:'idle'},path:[],targetId:null};
+        for(const key of ['pathGoal','yieldReturn','yieldPoint','yieldFor','yieldWaiting','passUntil','passTargetId','trafficWait','moveSpeed','turnVelocity','trafficBlockedAt','crowdPlanAt','avoidUntil'])delete u[key];
+        s.entities.push(u);return u;
+      });
+      s.visible[0].fill(1);s.explored[0].fill(1);v.selected.clear();
+      Object.assign(v,{x:96,y:75.5,zoom:platform==='desktop'?38:24});r.resize();r.createTerrain(s);
+      window.rallyAdvance=seconds=>{
+        for(let tick=0;tick<Math.round(seconds*20);tick++){
+          updateGame(s,.05);
+          for(let i=0;i<units.length;i++)for(let j=0;j<i;j++)if(Math.hypot(units[i].x-units[j].x,units[i].y-units[j].y)<(units[i].size+units[j].size)*.43-.01)throw new Error('Scattered rally units overlapped while converging');
+        }
+        r.draw(s,v);return units.map(u=>({id:u.id,x:u.x,y:u.y,type:u.order.type}));
+      };
+      rallyAdvance(0);return units.map(u=>({id:u.id,x:u.x,y:u.y,size:u.size}));
+    },platform);
+    await page.keyboard.press('e');
+    assert.equal(await page.evaluate(()=>ashline.view.selected.size),12,'The entire scattered army is selected');
+    await page.evaluate(()=>rallyAdvance(0));await page.screenshot({path:`${output}/scattered-${platform}-source.png`});
+    const rally=await point(96,75.5);
+    if(platform==='desktop')await page.mouse.click(rally.x,rally.y,{button:'right'});
+    else {await page.locator('#move-order').tap();await page.touchscreen.tap(rally.x,rally.y);}
+    const rallyGoals=await goals();compactGoals(scattered,rallyGoals,{x:96,y:75.5});
+    await page.evaluate(()=>rallyAdvance(3));await page.screenshot({path:`${output}/scattered-${platform}-moving.png`});
+    const arrived=await page.evaluate(seconds=>rallyAdvance(seconds),platform==='desktop'?57:22);
+    for(const u of arrived){const slot=rallyGoals.find(p=>p.id===u.id);assert(Math.hypot(u.x-slot.x,u.y-slot.y)<=.081,'A scattered unit reaches its compact rally position');assert.equal(u.type,'idle');}
+    await page.screenshot({path:`${output}/scattered-${platform}-arrived.png`});
+  }
   assert.deepEqual(errors, []);
-  console.log(`Traffic browser check passed: paused state, narrow-lane passage, guarding ally, solid walls, and desktop/touch group commands with individual arrivals. Screenshots: ${output}`);
+  console.log(`Traffic browser check passed: paused state, narrow-lane passage, guarding ally, solid walls, compact desktop/touch rally orders, and scattered armies converging without overlaps. Screenshots: ${output}`);
 } finally { await browser.close(); }

@@ -1,12 +1,14 @@
 // Bounded local recovery when a stopped unit must back out of a crowded lane.
 // Ordinary travel and flocking stay in the main navigator; this search is only
 // for finding a few clear straight legs around nearby unit bodies.
-const GRID=.5,RADIUS=5,SIDE=RADIUS*2/GRID+1,COUNT=SIDE*SIDE;
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 
 export function findTrafficDetour(unit,goal,neighbors,clearStatic){
   const start={x:unit.x,y:unit.y},initial=distance(start,goal);
   if(initial<.08)return null;
+  // Parking lanes can be narrower than half a tile. Use a finer bounded search
+  // near the destination so a valid entrance is not mistaken for a sealed crowd.
+  const GRID=initial<6?.25:.5,RADIUS=initial<6?3:5,SIDE=RADIUS*2/GRID+1,COUNT=SIDE*SIDE;
   const bodies=neighbors.filter(other=>other.id!==unit.id&&other.hp!==0)
     .map(other=>({x:other.x,y:other.y,r:(unit.size+other.size)*.43+.02}));
   const clear=(a,b)=>{
