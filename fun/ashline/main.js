@@ -79,8 +79,6 @@ async function reset(prepared, restored) {
     // Mineral material is immutable; only previously explored deposits have known colors.
     renderer.knownMineralTypes = Uint8Array.from(game.mineralTypes, (type, i) => game.explored[0][i] ? type : 0);
   }
-  $('seed-label').textContent = `${game.seed} · ${game.width}×${game.height}`;
-  $('sector-label').textContent = `${MAP_PROFILES[game.mapProfile]?.name || 'Ash frontier'} / ${game.seed}`;
   setConsole(!compactScreen.matches && !matchMedia('(pointer: coarse)').matches);
   centerBase();
   if (restored?.view) Object.assign(view, restored.view);
