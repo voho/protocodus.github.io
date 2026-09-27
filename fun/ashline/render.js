@@ -1,6 +1,6 @@
 import { nextPaint } from './loading.js';
 import { drawSprite, drawSpriteShadow, drawProp, drawPropShadow, terrainImages, assetsReady } from './assets.js';
-import { powerStats, UNITS, BUILDINGS as BUILDING_DEFS, mapLayout, unitRank, buildingRole, unitRole } from './sim.js';
+import { powerStats, UNITS, BUILDINGS as BUILDING_DEFS, mapLayout, unitRank, unitStats, buildingRole, unitRole } from './sim.js';
 
 const TILE = 32;
 const TEAM = [
@@ -1036,6 +1036,20 @@ export class Renderer {
     ctx.drawImage(this.decals, left, top, state.width * zoom, state.height * zoom);
     ctx.save(); ctx.translate(left, top); ctx.scale(scale, scale);
     this.drawLava(state, visible, time, x0, y0, x1, y1);
+    const rangeUnits = state.entities.filter(e => e.kind === 'unit' && e.team === 0 && e.hp > 0 && view.selected?.has(e.id) && UNITS[e.type].damage > 0);
+    if (rangeUnits.length) {
+      const fade = 1 / Math.sqrt(rangeUnits.length);
+      ctx.save(); ctx.lineWidth = 1 / scale;
+      for (const e of rangeUnits) {
+        const radius = unitStats(e).range * TILE;
+        // Simulation distances are circles on the ground plane. Fade overlapping
+        // selections and draw beneath units and fog, using friendly state only.
+        ctx.beginPath(); ctx.arc(e.x * TILE, e.y * TILE, radius, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(141,204,202,${.016 / rangeUnits.length})`; ctx.fill();
+        ctx.strokeStyle = `rgba(141,204,202,${.25 * fade})`; ctx.stroke();
+      }
+      ctx.restore();
+    }
     for (const prop of this.rockProps) {
       if (prop.x < x0 - 2 || prop.x > x1 + 2 || prop.y < y0 - 2 || prop.y > y1 + 2) continue;
       if (explored && !explored[Math.floor(prop.y) * state.width + Math.floor(prop.x)]) continue;

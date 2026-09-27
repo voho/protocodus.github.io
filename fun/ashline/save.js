@@ -56,6 +56,10 @@ function validateGame(s) {
     const maxHp = e.kind === 'unit' ? unitStats(e).hp : d.hp;
     valid(e.size === d.size && e.maxHp === maxHp && number(e.hp, 0, maxHp) && number(e.progress, 0, 1) && point(e) && number(e.angle) && number(e.cooldown, 0) && number(e.repath));
     valid(object(e.order) && ['idle', 'move', 'attack', 'attackMove', 'harvest', 'explore'].includes(e.order.type));
+    if(e.stance!==undefined)valid(e.kind==='unit'&&d.damage>0&&['guard','defend'].includes(e.stance));
+    if(e.defendAnchor!==undefined)valid(e.kind==='unit'&&d.damage>0&&e.stance==='defend'&&e.order.type==='idle'&&point(e.defendAnchor));
+    if(e.retaliationTargetId!==undefined)valid(e.defendAnchor!==undefined&&integer(e.retaliationTargetId,1,s.nextId-1));
+    if(e.defendReturning!==undefined)valid(e.defendAnchor!==undefined&&typeof e.defendReturning==='boolean');
     if(e.order.speedLimit!==undefined)valid(e.kind==='unit'&&['move','attackMove'].includes(e.order.type)&&number(e.order.speedLimit,.1,30));
     if(e.order.turnRateLimit!==undefined)valid(e.kind==='unit'&&['move','attackMove'].includes(e.order.type)&&number(e.order.turnRateLimit,.1,7));
     if(e.order.formation!==undefined){
@@ -67,6 +71,7 @@ function validateGame(s) {
       if(formation.facing!==undefined)valid(number(formation.facing,-Math.PI,Math.PI));
     }
     if(e.order.facing!==undefined)valid(e.kind==='unit'&&['move','attackMove'].includes(e.order.type)&&number(e.order.facing,-Math.PI,Math.PI));
+    if(e.formationReady!==undefined)valid(e.kind==='unit'&&e.order.type==='move'&&e.order.formation!==undefined&&typeof e.formationReady==='boolean');
     if (['move', 'attack', 'attackMove'].includes(e.order.type)) valid(point(e.order));
     for (const key of ['x', 'y']) if (e.order[key] !== undefined) valid(number(e.order[key], 0, key === 'x' ? width : height));
     for (const key of ['targetId', 'attackerId']) if (e[key] != null) valid(integer(e[key], 1, s.nextId - 1));

@@ -1,4 +1,4 @@
-import { BUILDINGS, UNITS, UNIT_CAP, UNIT_CAP_PER_NEXUS, unitCapacity, deploymentStatus, deployNexus, RESEARCH, BUILDING_UPGRADES, MAP_SIZES, MAP_PROFILES, RACES, buildingRole, unitRole, teamRace, raceBuilding, raceUnit, planWallLine, buildWallLine, terrainCover, researchStatus, startResearch, buildingUpgradeStatus, startBuildingUpgrade, updateGame, placeBuilding, canPlace, trainUnit, setRallyPoint, issueOrder, stopUnits, powerStats, getEntity, unitRank, unitStats, toggleRepair, sellBuilding, salvageValue } from './sim.js';
+import { BUILDINGS, UNITS, UNIT_CAP, UNIT_CAP_PER_NEXUS, unitCapacity, deploymentStatus, deployNexus, RESEARCH, BUILDING_UPGRADES, MAP_SIZES, MAP_PROFILES, RACES, buildingRole, unitRole, teamRace, raceBuilding, raceUnit, planWallLine, buildWallLine, terrainCover, researchStatus, startResearch, buildingUpgradeStatus, startBuildingUpgrade, updateGame, placeBuilding, canPlace, trainUnit, setRallyPoint, issueOrder, stopUnits, setUnitStance, effectiveUnitStance, powerStats, getEntity, unitRank, unitStats, toggleRepair, sellBuilding, salvageValue } from './sim.js';
 import { Renderer, drawIcon } from './render.js';
 import { startAssets, assetStatus, spriteNativeZoom } from './assets.js';
 import { zoomLevels, nearestZoom, steppedZoom, cameraDirection } from './camera.js';
@@ -452,7 +452,7 @@ function updateHUD() {
       const cargo = (first.cargo || 0) * (first.unloadDepotId ? Math.max(0, 1 - (first.unload || 0) / 1.2) : 1);
       detail = `${cargo < 1 ? 'Empty' : cargo >= UNITS[first.type].capacity ? 'Full' : `Cargo ${Math.ceil(cargo)} / ${UNITS[first.type].capacity}`} · ${first.unloadDepotId ? 'Unloading minerals' : first.order?.type === 'explore' ? 'Auto-exploring' : first.order?.type === 'move' ? 'Relocating · auto-harvest next' : first.harvestPhase === 'return' ? 'Returning cargo' : 'Auto-harvesting'}`;
     }
-    else detail = `${Math.ceil(first.hp)} / ${first.maxHp} integrity · ${first.order?.type === 'explore' ? `Auto-exploring${first.targetId ? ' · Engaging' : ''}` : first.order?.type === 'move' ? 'Moving' : unitRole(first) === 'constructor' ? `Ready to deploy · +${UNIT_CAP_PER_NEXUS} slots` : unitRole(first) === 'engineer' ? first.repairTargetId ? 'Repairing nearby machinery' : 'Auto-repair within 4 tiles' : first.targetId || first.order?.type === 'attack' ? 'Engaging' : first.order?.type === 'attackMove' ? 'Advancing' : 'Guarding'}`;
+    else detail = `${Math.ceil(first.hp)} / ${first.maxHp} integrity · ${first.order?.type === 'explore' ? `Auto-exploring${first.targetId ? ' · Engaging' : ''}` : first.order?.type === 'move' ? 'Moving' : unitRole(first) === 'constructor' ? `Ready to deploy · +${UNIT_CAP_PER_NEXUS} slots` : unitRole(first) === 'engineer' ? first.repairTargetId ? 'Repairing nearby machinery' : 'Auto-repair within 4 tiles' : first.targetId || first.order?.type === 'attack' ? 'Engaging' : first.order?.type === 'attackMove' ? 'Advancing' : first.stance === 'defend' ? 'Defending' : 'Guarding'}`;
   }
   if (selection.length === 1 && first.kind === 'unit' && terrainCover(game, first) > 0) detail += ' · 15% crater cover';
   if (selection.length === 1 && first.controlGroup) detail += ` · Group ${first.controlGroup}`;
@@ -476,6 +476,20 @@ function updateHUD() {
   const portraitKey = first ? `${first.id}:${first.type}:${Math.floor(first.progress * 10)}:${first.queue?.[0]?.type}:${Math.floor((first.queue?.[0]?.progress || 0) * 10)}:${Math.ceil((first.processingAmount || 0) / 50)}:${first.processingType}:${first.cargoType}:${Math.ceil((first.cargo || 0) * (first.unloadDepotId ? Math.max(0, 1 - (first.unload || 0) / 1.2) : 1) / 50)}:${Math.round(power.ratio * 20)}:${power.status}:${Math.round((first.research?.progress || 0) * 10)}:${Math.round((first.reserve || 0) / 100)}:${Math.round((first.upgrade?.progress || 0) * 10)}` : 'core';
   if (portraitKey !== lastPortrait) { drawIcon($('portrait'), first?.type || raceBuilding(game, 0, 'core'), 0, { ...first, powerRatio: power.ratio, powerStatus: power.status }); lastPortrait = portraitKey; }
   for (const id of ['move-order', 'attack-order', 'explore-order', 'stop-order']) { $(id).disabled = busy() || !units.length; $(id).hidden = !units.length; }
+  const military = units.filter(unit => UNITS[unit.type].damage > 0);
+  $('unit-stance').hidden = !military.length;
+  const preferredDefend = military.filter(unit => unit.stance === 'defend').length;
+  const defending = military.filter(unit => effectiveUnitStance(unit) === 'defend').length;
+  const commanded = military.some(unit => unit.order?.type !== 'idle');
+  for (const stance of ['guard', 'defend']) {
+    const button = $(`stance-${stance}`), count = stance === 'defend' ? preferredDefend : military.length - preferredDefend;
+    button.disabled = busy() || !military.length;
+    button.setAttribute('aria-pressed', count ? count === military.length ? 'true' : 'mixed' : 'false');
+    button.classList.toggle('active', count > 0);
+  }
+  $('stance-status').textContent = !preferredDefend ? commanded ? 'Guard · command active' : 'Guard · hold position' : preferredDefend === military.length
+    ? defending === military.length ? 'Defend · retaliate nearby' : !defending ? 'Guard now · Defend when idle' : `${defending} Defend · ${military.length - defending} Guard until idle`
+    : !defending ? 'Guard now · mixed idle stances' : `${defending} Defend · ${military.length - defending} Guard`;
   const constructor = selection.length === 1 && first?.kind === 'unit' && unitRole(first) === 'constructor' ? first : null;
   $('deploy-nexus').hidden = !constructor;
   $('deploy-nexus').disabled = busy() || !constructor;
@@ -970,6 +984,13 @@ $('deploy-nexus').addEventListener('click', () => {
 $('attack-order').addEventListener('click', () => setOrder('attackMove'));
 $('move-order').addEventListener('click', () => setOrder('move'));
 $('rally-order').addEventListener('click', () => setOrder('rally'));
+for (const stance of ['guard', 'defend']) $(`stance-${stance}`).addEventListener('click', () => {
+  if (busy()) return;
+  const units = selectedUnits().filter(unit => UNITS[unit.type].damage > 0);
+  if (!units.length) return;
+  setUnitStance(game, units.map(unit => unit.id), stance);
+  playSound('confirm'); updateHUD();
+});
 $('repair-building').addEventListener('click', () => {
   if (busy()) return;
   const selection = selectedEntities(); if (selection.length !== 1) return;

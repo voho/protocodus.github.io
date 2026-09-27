@@ -164,7 +164,7 @@ for (const dimensions of [{width: 144, height: 112}, {width: 72, height: 56}]) {
   for (const unit of units) {
     const copy = getEntity(restored, unit.id), rank = Math.min(3, Math.floor(unit.kills / 5)), multiplier = 1 + .2 * rank;
     assert.equal(unitRank(copy), rank); assert.equal(copy.hp, copy.maxHp - 7);
-    assert.deepEqual(unitStats(copy), {rank, hp: UNITS[unit.type].hp * multiplier, damage: UNITS[unit.type].damage * multiplier, speed: UNITS[unit.type].speed * multiplier});
+    assert.deepEqual(unitStats(copy), {rank, hp: UNITS[unit.type].hp * multiplier, damage: UNITS[unit.type].damage * multiplier, speed: UNITS[unit.type].speed * multiplier, range: UNITS[unit.type].range});
   }
   for (let i = 0; i < 8; i++) { advance(veterans, .5); advance(restored, .5); assert.deepEqual(stateJSON(restored), stateJSON(veterans), 'Ranked movement continues identically after loading'); }
   for (const corrupt of [

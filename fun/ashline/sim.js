@@ -131,7 +131,22 @@ export function unitRank(e){return e?.kind==='unit'?Math.min(3,Math.floor(Math.m
 export function unitStats(e){
   const d=UNITS[e?.type];if(!d)return null;
   const rank=unitRank(e),bonus=1+rank*.2,tech=e.tech||[],infantry=d.armor==='infantry';
-  return{rank,hp:d.hp*bonus*(infantry&&tech.includes('infantryArmor')?1.2:1),damage:d.damage*bonus*(tech.includes(infantry?'infantryWeapons':'vehicleWeapons')?1.18:1)*(tech.includes('advancedBallistics')&&['rocket','artillery'].includes(entityRole(e))?1.1:1),speed:d.speed*bonus*(!infantry&&tech.includes('mobility')?1.15:1)};
+  return{rank,hp:d.hp*bonus*(infantry&&tech.includes('infantryArmor')?1.2:1),damage:d.damage*bonus*(tech.includes(infantry?'infantryWeapons':'vehicleWeapons')?1.18:1)*(tech.includes('advancedBallistics')&&['rocket','artillery'].includes(entityRole(e))?1.1:1),speed:d.speed*bonus*(!infantry&&tech.includes('mobility')?1.15:1),range:d.range};
+}
+
+const militaryUnit=u=>u?.kind==='unit'&&UNITS[u.type]?.damage>0;
+export function effectiveUnitStance(u){return militaryUnit(u)&&u.order?.type==='idle'&&u.stance==='defend'?'defend':'guard';}
+function clearDefendState(u){delete u.defendAnchor;delete u.retaliationTargetId;delete u.defendReturning;}
+export function setUnitStance(s,ids,stance){
+  if(!['guard','defend'].includes(stance))return;
+  for(const id of new Set(ids)){
+    const u=getEntity(s,id);if(!militaryUnit(u)||(u.stance||'guard')===stance)continue;
+    u.stance=stance;clearDefendState(u);
+    if(u.order.type==='idle'){
+      u.path=[];u.repath=0;u.targetId=null;u.moveSpeed=0;clearTrafficOrder(u);
+      if(stance==='defend')u.defendAnchor={x:u.x,y:u.y};
+    }
+  }
 }
 
 export function mapLayout(s){
@@ -756,7 +771,7 @@ function movementDestinations(s,units,x,y,formation){
   return assigned;
 }
 function clearTrafficOrder(u){
-  for(const key of ['trafficWait','passUntil','passTargetId','avoidUntil','trafficBlockedAt','crowdPlanAt','yieldReturn','yieldPoint','yieldFor','yieldWaiting'])delete u[key];
+  for(const key of ['trafficWait','passUntil','passTargetId','avoidUntil','trafficBlockedAt','crowdPlanAt','yieldReturn','yieldPoint','yieldFor','yieldWaiting','formationReady'])delete u[key];
 }
 export function issueOrder(s,ids,order){
   const {width:W,height:H}=s;
@@ -779,7 +794,9 @@ export function issueOrder(s,ids,order){
     for(const p of group){const goal=goals.get(p.u.id);if(goal){p.x=goal.x;p.y=goal.y;p.formation=goal.formation;p.speedLimit=pace;p.turnRateLimit=turnPace;p.facing=preserve&&Number.isFinite(order.facing)?Math.atan2(Math.sin(order.facing),Math.cos(order.facing)):undefined;}else p.type=entityRole(p.u)==='harvester'?'harvest':'idle';}
   }
   plans.forEach(({u,type,x,y,target,formation,speedLimit,turnRateLimit,facing})=>{
-    const unchanged=!u.yieldReturn&&u.order.type===type&&u.order.x===x&&u.order.y===y&&u.order.facing===facing&&(u.order.targetId??null)===target;
+    clearDefendState(u);
+    const previous=u.order.formation,sameFormation=previous?.group===formation?.group&&previous?.compact===formation?.compact&&previous?.angle===formation?.angle&&previous?.x===formation?.x&&previous?.y===formation?.y;
+    const unchanged=!u.yieldReturn&&sameFormation&&u.order.type===type&&u.order.x===x&&u.order.y===y&&u.order.facing===facing&&(u.order.targetId??null)===target;
     if(!unchanged)clearTrafficOrder(u);
     u.order=type==='explore'||type==='idle'||type==='harvest'&&order.type!=='harvest'?{type}:{type,x,y,...(target?{targetId:target}:{}),...(formation?{formation}:{}),...(speedLimit?{speedLimit}:{}),...(turnRateLimit?{turnRateLimit}:{}),...(facing!==undefined?{facing}:{})};
     if(unchanged)return;
@@ -787,7 +804,7 @@ export function issueOrder(s,ids,order){
     if(entityRole(u)==='harvester'){u.unloadDepotId=null;if(u.cargo>=UNITS.harvester.capacity)u.harvestPhase='return';}
   });
 }
-export function stopUnits(s,ids){for(const id of ids){const u=getEntity(s,id);if(u?.kind==='unit'){u.order={type:entityRole(u)==='harvester'?'harvest':'idle'};u.targetId=null;u.path=[];u.repath=0;clearTrafficOrder(u);if(entityRole(u)==='harvester')u.unloadDepotId=null;}}}
+export function stopUnits(s,ids){for(const id of ids){const u=getEntity(s,id);if(u?.kind==='unit'){u.order={type:entityRole(u)==='harvester'?'harvest':'idle'};u.targetId=null;u.path=[];u.repath=0;clearTrafficOrder(u);clearDefendState(u);if(entityRole(u)==='harvester')u.unloadDepotId=null;}}}
 
 function updateFog(s){
   const {width:W,height:H}=s;
@@ -825,12 +842,12 @@ function findPath(s,u,tx,ty,stop=0){
     const x=cur%W,y=Math.floor(cur/W);if(stop>=.2&&h<=Math.max(.75,stop)||(x===goalX&&y===goalY)){best=cur;break;}
     for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
       if(!dx&&!dy)continue;const xx=x+dx,yy=y+dy;if(!inside(s,xx,yy))continue;
-      const next=yy*W+xx;if(s.blocked[next]||closed[next]||(dx&&dy&&(s.blocked[y*W+xx]||s.blocked[yy*W+x])))continue;
+      const next=yy*W+xx;if(s.blocked[next]||closed[next]||!insideMovementLeash(u,xx+.5,yy+.5)||(dx&&dy&&(s.blocked[y*W+xx]||s.blocked[yy*W+x])))continue;
       const g=costs[cur]+(dx&&dy?1.4142:1);if(g>=costs[next])continue;costs[next]=g;parent[next]=cur;push(next,g+heuristic(next));
     }
   }
   const path=[];for(let at=best;at!==start&&at>=0;at=parent[at])path.push({x:at%W+.5,y:Math.floor(at/W)+.5});path.reverse();
-  if(stop<.2&&clearStep(s,path.at(-1)||u,tx,ty))path.push({x:tx,y:ty});
+  if(stop<.2&&insideMovementLeash(u,tx,ty)&&clearStep(s,path.at(-1)||u,tx,ty))path.push({x:tx,y:ty});
   // Curved travel can stop off-center beside an inside corner. Grid A* starts
   // at the cell center, so explicitly reconnect the actual pose to that center.
   if(path.length&&!clearStep(s,u,path[0].x,path[0].y)){
@@ -851,7 +868,11 @@ function findPath(s,u,tx,ty,stop=0){
   return route;
 }
 
+function insideMovementLeash(u,x,y){return !u.defendAnchor||effectiveUnitStance(u)!=='defend'||Math.hypot(x-u.defendAnchor.x,y-u.defendAnchor.y)<=unitStats(u).range+1e-8;}
 function clearStep(s,u,x,y){
+  // A circle is convex, so constraining both ends also constrains every swept
+  // point. This applies to travel, detours and contact corrections alike.
+  if(!insideMovementLeash(u,x,y))return false;
   // Nearby units usually share open ground. An empty expanded rectangle proves
   // the entire swept footprint clear without sampling the same tiles repeatedly.
   if((x-u.x)**2+(y-u.y)**2<=16){
@@ -892,7 +913,7 @@ function trafficDetour(s,u,blocker,fx,fy){
     const advance=Math.max(0,forward-spacing);
     const detour={x:u.x+fx*advance-fy*offset,y:u.y+fy*advance+fx*offset,flock:true,trafficId:blocker.id};
     const beyond={x:u.x+fx*(forward+spacing)-fy*offset,y:u.y+fy*(forward+spacing)+fx*offset,flock:true,trafficId:blocker.id};
-    if(!clearStep(s,u,detour.x,detour.y)||!clearStep(s,detour,beyond.x,beyond.y))continue;
+    if(!clearStep(s,u,detour.x,detour.y)||!insideMovementLeash(u,beyond.x,beyond.y)||!clearStep(s,detour,beyond.x,beyond.y))continue;
     const route=u.path.find(p=>!p.flock)||u.path.at(-1);
     if(route&&!clearStep(s,beyond,route.x,route.y))continue;
     hasRoom=true;
@@ -906,7 +927,8 @@ function trafficDetour(s,u,blocker,fx,fy){
 
 function yieldParkedAlly(s,u,neighbors){
   for(const other of neighbors){
-    if(other.team!==u.team||other.order.type!=='idle'||other.yieldReturn||other.targetId||other.repairActive||distance(u,other)>2)continue;
+    const assembling=other.order.type==='move'&&other.formationReady;
+    if(other.team!==u.team||!(assembling||other.order.type==='idle'&&!militaryUnit(other))||other.yieldReturn||other.targetId||other.repairActive||distance(u,other)>2)continue;
     const angle=Math.atan2(other.y-u.y,other.x-u.x);
     for(const turn of [0,Math.PI/4,-Math.PI/4]){
       const goal={x:other.x+Math.cos(angle+turn)*1.1,y:other.y+Math.sin(angle+turn)*1.1};
@@ -915,6 +937,7 @@ function yieldParkedAlly(s,u,neighbors){
       // Keep the assigned slot exact across repeated yields; returning within
       // another arrival radius of the stopped position would accumulate drift.
       other.yieldReturn={x:other.order.x??other.x,y:other.order.y??other.y};other.yieldPoint=goal;other.yieldFor=u.id;other.path=[];other.repath=0;
+      delete other.formationReady;
       other.order={...other.order,type:'move',x:other.order.x??other.x,y:other.order.y??other.y};
       if(other.order.formation?.facing!==undefined)other.order.facing=other.order.formation.facing;
       return true;
@@ -941,7 +964,10 @@ function navigate(s,u,tx,ty,dt,stop=.2,movement){
   const precise=stop<.2;
   if(precise&&(!walkable(s,tx,ty,u.size*.43+.08)||s.regions[cell(s,tx,ty)]!==s.regions[cell(s,u.x,u.y)])){
     const goal=movementDestinations(s,[u],tx,ty).get(u.id);if(!goal)return false;
-    tx=u.order.x=goal.x;ty=u.order.y=goal.y;u.repath=0;
+    // Temporary retaliation and yield legs must not rewrite a retained parking
+    // reservation. Only an explicit destination can adopt its reachable fallback.
+    if(['move','attackMove'].includes(u.order.type)&&u.order.x===tx&&u.order.y===ty){u.order.x=goal.x;u.order.y=goal.y;}
+    tx=goal.x;ty=goal.y;u.repath=0;
   }
   if(Math.hypot(tx-u.x,ty-u.y)<=stop+(precise?0:.12)){u.path=[];u.moveSpeed=0;if(u.order.facing===undefined)u.turnVelocity=0;return true;}
   if(u.repath<=0&&!u.path[0]?.flock||u.pathVersion!==s.navVersion||!u.pathGoal||Math.hypot(u.pathGoal.x-tx,u.pathGoal.y-ty)>1.4){
@@ -1046,11 +1072,11 @@ function navigate(s,u,tx,ty,dt,stop=.2,movement){
     u.trafficBlockedAt??=s.time;
     // Near a parking slot, chaining one-body doglegs can circle the entire
     // parked formation. Search the crowd once a bypass reaches a second body.
-    if(p.trafficId&&p.trafficId!==blocker.id&&blocker.order.type==='idle'&&Math.hypot(tx-u.x,ty-u.y)<6&&!(u.crowdPlanAt>s.time)&&pathBudget>0){
+    if(p.trafficId&&p.trafficId!==blocker.id&&(blocker.order.type==='idle'||blocker.formationReady)&&Math.hypot(tx-u.x,ty-u.y)<6&&!(u.crowdPlanAt>s.time)&&pathBudget>0){
       u.crowdPlanAt=s.time+1;pathBudget--;
       const crowd=nearbyEntities(s,u,8).filter(e=>e!==u&&e.kind==='unit'&&alive(e)&&distance(u,e)<8);
       const goal=u.path.find(p=>!p.flock)||{x:tx,y:ty};
-      const route=findTrafficDetour(u,goal,crowd,(a,b)=>clearStep(s,a,b.x,b.y));
+      const route=findTrafficDetour(u,goal,crowd,(a,b)=>insideMovementLeash(u,b.x,b.y)&&clearStep(s,a,b.x,b.y));
       if(route){while(u.path[0]?.flock)u.path.shift();u.path.unshift(...route.map(p=>({...p,flock:true,trafficId:blocker.id})));return false;}
       if(yieldParkedAlly(s,u,crowd))return false;
     }
@@ -1065,7 +1091,7 @@ function navigate(s,u,tx,ty,dt,stop=.2,movement){
       u.crowdPlanAt=s.time+1;pathBudget--;
       const crowd=nearbyEntities(s,u,8).filter(e=>e!==u&&e.kind==='unit'&&alive(e)&&distance(u,e)<8);
       const goal=u.path.find(p=>!p.flock)||{x:tx,y:ty};
-      const route=findTrafficDetour(u,goal,crowd,(a,b)=>clearStep(s,a,b.x,b.y));
+      const route=findTrafficDetour(u,goal,crowd,(a,b)=>insideMovementLeash(u,b.x,b.y)&&clearStep(s,a,b.x,b.y));
       if(route){while(u.path[0]?.flock)u.path.shift();u.path.unshift(...route.map(p=>({...p,flock:true,trafficId:blocker.id})));}
       else yieldParkedAlly(s,u,crowd);
     }
@@ -1149,9 +1175,52 @@ function explore(s,u,dt,movement){
 }
 
 function targetDistance(a,b){const ca=center(a),cb=center(b);return Math.max(0,distance(ca,cb)-(b.kind==='building'?b.size*.45:0));}
-function acquire(s,e,r){
-  let best=null,score=Infinity;for(const enemy of nearbyEntities(s,center(e),r+1.5)){if(enemy.team===e.team||!alive(enemy)||!seen(s,e.team,enemy))continue;const d=targetDistance(e,enemy);if(d>r)continue;const threat=enemy.kind==='building'?(BUILDINGS[enemy.type].damage?-1:1):entityRole(enemy)==='harvester'?.8:0;const value=d+threat;if(value<score){score=value;best=enemy;}}
+function acquire(s,e,r,closest=false){
+  let best=null,score=Infinity;for(const enemy of nearbyEntities(s,center(e),r+1.5)){if(enemy.team===e.team||!alive(enemy)||!seen(s,e.team,enemy))continue;const d=targetDistance(e,enemy);if(d>r)continue;const threat=closest?0:enemy.kind==='building'?(BUILDINGS[enemy.type].damage?-1:1):entityRole(enemy)==='harvester'?.8:0;const value=d+threat;if(value<score||value===score&&enemy.id<best.id){score=value;best=enemy;}}
   return best;
+}
+
+function recordRetaliation(target,attacker){
+  if(effectiveUnitStance(target)!=='defend'||target.team===attacker.team)return;
+  target.defendAnchor??={x:target.x,y:target.y};
+  if(target.retaliationTargetId!==attacker.id){target.path=[];target.repath=0;clearTrafficOrder(target);}
+  target.retaliationTargetId=attacker.id;delete target.defendReturning;
+}
+
+function idleMilitary(s,u,dt,movement){
+  const range=unitStats(u).range,defend=effectiveUnitStance(u)==='defend';
+  let attacker=null;
+  if(defend){
+    u.defendAnchor??={x:u.x,y:u.y};
+    attacker=getEntity(s,u.retaliationTargetId);
+    if(!attacker||attacker.team===u.team||!seen(s,u.team,attacker)||targetDistance(u.defendAnchor,attacker)>range*2){
+      if(u.retaliationTargetId!==undefined){delete u.retaliationTargetId;u.path=[];u.repath=0;clearTrafficOrder(u);}
+      attacker=null;
+      if(distance(u,u.defendAnchor)>.08)u.defendReturning=true;
+    }
+  }
+  // Idle stances always reconsider the closest visible enemy already in range;
+  // a prior target or distant attacker cannot displace that immediate shot.
+  const target=acquire(s,u,range,true);u.targetId=target?.id??null;
+  if(target){
+    u.path=[];u.repath=0;const c=center(target);
+    turnUnit(u,Math.atan2(c.y-u.y,c.x-u.x),dt,true);
+    if(u.cooldown<=0)shoot(s,u,target);
+    return;
+  }
+  if(!defend)return;
+  if(attacker){
+    const c=center(attacker),dx=c.x-u.defendAnchor.x,dy=c.y-u.defendAnchor.y,d=Math.hypot(dx,dy),scale=Math.min(1,range/Math.max(d,.001));
+    navigate(s,u,u.defendAnchor.x+dx*scale,u.defendAnchor.y+dy*scale,dt,.005,movement);
+    // Static A* can return its closest reachable cell when the desired point is
+    // sealed. If that endpoint cannot reach firing range, do not camp at a wall.
+    const end=u.path.at(-1);
+    if(end&&targetDistance(end,attacker)>range+.005&&Math.hypot(end.x-(u.defendAnchor.x+dx*scale),end.y-(u.defendAnchor.y+dy*scale))>.1){
+      delete u.retaliationTargetId;u.defendReturning=true;u.path=[];u.repath=0;clearTrafficOrder(u);
+    }
+  }else if(u.defendReturning&&navigate(s,u,u.defendAnchor.x,u.defendAnchor.y,dt,.08,movement)){
+    delete u.defendReturning;u.path=[];u.repath=0;
+  }
 }
 function armorMultiplier(attacker,target){
   const armor=target.kind==='building'?'building':UNITS[target.type].armor;
@@ -1183,6 +1252,9 @@ function hurt(s,target,amount,attacker){
 }
 function shoot(s,e,target){
   const d=definition(e),a=center(e),b=center(target),damage=e.kind==='unit'?unitStats(e).damage:d.damage;e.aimAngle=Math.atan2(b.y-a.y,b.x-a.x);if(e.kind==='building')e.angle=e.aimAngle;e.cooldown=d.interval||1;e.lastShot=s.time;
+  // Dispatch, rather than delayed projectile impact, defines who fired on an
+  // idle defender. A shot from before an explicit command cannot wake it later.
+  recordRetaliation(target,e);
   if(entityRole(e)==='rocket'||entityRole(e)==='rocketTower'){
     const flight=clamp(distance(a,b)/15,.2,.65);
     s.effects.push({type:'rocket',weapon:entityRole(e),attackerId:e.id,targetId:target.id,damage,x:a.x,y:a.y,tx:b.x,ty:b.y,life:flight,maxLife:flight,team:e.team});
@@ -1204,6 +1276,7 @@ function rocketImpact(s,fx){
 }
 
 function finishOrder(u,type='idle'){
+  delete u.formationReady;
   const {formation,x,y}=u.order;
   u.order=formation?{type,x,y,formation}:{type};
 }
@@ -1214,7 +1287,20 @@ function finishMovement(u,dt,movement,type='idle'){
     const remaining=Math.atan2(Math.sin(u.order.facing-u.angle),Math.cos(u.order.facing-u.angle));
     if(Math.abs(remaining)>1e-8)return;
   }
+  if(u.order.type==='move'&&u.order.formation&&!u.order.formation.compact){u.formationReady=true;return;}
   finishOrder(u,type);
+}
+function finishFormationAssemblies(s){
+  const groups=new Map();
+  for(const u of s.entities){
+    const f=u.order?.formation;
+    if(!alive(u)||u.kind!=='unit'||u.order.type!=='move'||!f||f.compact)continue;
+    const key=`${u.team}:${f.group}:${f.x}:${f.y}:${f.angle}`;
+    if(!groups.has(key))groups.set(key,[]);groups.get(key).push(u);
+  }
+  for(const group of groups.values())if(group.every(u=>u.formationReady&&!u.yieldReturn))for(const u of group){
+    delete u.formationReady;finishOrder(u,entityRole(u)==='harvester'?'harvest':'idle');
+  }
 }
 function stepUnit(s,u,dt,movement,power){
   if(entityRole(u)==='harvester')u.unloadDepotId=null;
@@ -1258,6 +1344,7 @@ function stepUnit(s,u,dt,movement,power){
     else if(['attack','attackMove'].includes(order.type)&&navigate(s,u,order.x,order.y,dt,.08,movement))finishMovement(u,dt,movement);
     return;
   }
+  if(order.type==='idle'&&militaryUnit(u)){idleMilitary(s,u,dt,movement);return;}
   let target=getEntity(s,order.type==='attack'?order.targetId:u.targetId);
   if(target&&(target.team===u.team||!seen(s,u.team,target)))target=null;
   if(target&&order.type!=='attack'&&targetDistance(u,target)>(order.type==='attackMove'?d.sight+1:d.range))target=null;
@@ -1608,6 +1695,7 @@ function step(s,dt){
     }
   }
   separateUnits(s,dt,movement);
+  finishFormationAssemblies(s);
   // Damaged vehicles can fall back to their nexus for slow paid repairs.
   const repairCores=[0,1].map(team=>own(s,team,'core').filter(core=>core.progress>=1));
   for(const e of s.entities)if(alive(e)&&e.kind==='unit'&&e.hp<e.maxHp&&s.time-(e.lastHit??-99)>8&&s.teams[e.team].credits>1&&repairCores[e.team].some(core=>distance(e,center(core))<7)){const amount=Math.min(e.maxHp-e.hp,dt*5*powers[e.team].ratio,s.teams[e.team].credits*8);e.hp+=amount;s.teams[e.team].credits-=amount/8;}

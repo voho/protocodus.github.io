@@ -135,3 +135,24 @@ body[data-screen=briefing] #game-shell,body[data-screen=loading] #game-shell{vis
   /* A selected unit places Army above its action panel; keep toasts above both. */
   body[data-selection=true] #notifications{bottom:calc(max(116px,var(--selection-height,0px)) + 60px)}
 }
+
+/* Idle preferences stay separate from movement orders and their current effect. */
+.commandbar:has(#unit-stance:not([hidden])){display:grid;grid-template-columns:69px minmax(0,1fr) auto;row-gap:8px}
+#unit-stance{grid-column:1/-1;display:flex;align-items:center;gap:12px;padding-top:8px;border-top:1px solid var(--line)}
+.stance-summary{display:flex;flex:1;min-width:0;flex-direction:column;gap:3px}
+.stance-summary>span{font:9px var(--mono);color:var(--muted)}
+.stance-summary>strong{font:11px/1.35 var(--font);color:var(--accent)}
+.stance-options{display:flex;gap:4px}
+.stance-options button{min-width:70px;min-height:36px;padding:6px 12px;font:11px var(--font);background:#8dccca06;border:1px solid #8bb0b323}
+.stance-options button.active{background:#8dccca25;border-color:var(--accent)}
+.stance-options button[aria-pressed=mixed]{border-style:dashed}
+.stance-options button:disabled{opacity:.3}
+@media(min-width:681px) and (max-width:1190px){.commandbar:has(#unit-stance:not([hidden])){grid-template-columns:58px minmax(0,1fr) auto}}
+@media(max-width:680px){
+  .commandbar:has(#unit-stance:not([hidden])){grid-template-columns:1fr}
+  #unit-stance{display:grid;grid-template-columns:1fr;gap:6px;padding-top:6px}
+  .stance-summary{gap:2px}.stance-summary>strong{font-size:10px}
+  .stance-options button{flex:1;min-width:0;min-height:44px;padding:5px}
+  body[data-selection=true] #select-army{bottom:calc(var(--selection-height,152px) + 20px)}
+}
+@media(min-width:681px) and (max-width:900px) and (max-height:500px){.commandbar:has(#unit-stance:not([hidden])){grid-template-columns:minmax(0,1fr) auto}}
