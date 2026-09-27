@@ -84,17 +84,47 @@ try {
     measurements.push({ width: viewport.width, menu, launchMs, progressSamples: launch.samples.length, progressStages: [...new Set(launch.samples.map(sample => sample.label))] });
     await page.close();
   }
-  // A worker failure leaves a usable route back to setup and can be retried.
+  // Browsers that disallow workers can still deploy with the chosen settings.
   const failure = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  failure.on('pageerror', error => errors.push(error.message));
   await failure.goto(url); await ready(failure);
+  await failure.evaluate(() => { window.originalWorker = Worker; });
+  await failure.locator('#map-size').selectOption('standard');
+  await failure.locator('#map-profile').selectOption('basin');
+  await failure.locator('#player-race').selectOption('aiUnity');
+  await failure.locator('#difficulty').selectOption('hard');
+  const backToSetup = async () => { await failure.locator('#pause').click(); await failure.locator('#new-game').click(); };
+  const deployFallback = async seed => {
+    await failure.locator('#seed').fill(seed);
+    await failure.locator('#deploy').click(); await deployed(failure);
+    assert.deepEqual(await failure.evaluate(() => ({ seed: ashline.state.seed, width: ashline.state.width,
+      profile: ashline.state.mapProfile, race: ashline.state.teams[0].race, difficulty: ashline.state.difficulty,
+      ready: ashline.renderer.terrainSource === ashline.state.terrain })),
+    { seed, width: 144, profile: 'basin', race: 'aiUnity', difficulty: 'hard', ready: true });
+    await backToSetup();
+  };
   await failure.route('**/world-worker.js', route => route.abort());
+  await deployFallback('BLOCKED-WORKER-SCRIPT');
+  await failure.unroute('**/world-worker.js');
+  await failure.evaluate(() => { window.Worker = class { constructor() { throw new DOMException('Worker origin is blocked', 'SecurityError'); } }; });
+  await deployFallback('BLOCKED-WORKER-ORIGIN');
+  await failure.evaluate(() => { window.Worker = undefined; });
+  await deployFallback('WORKER-UNAVAILABLE');
+
+  // A genuine generation error still returns to setup and allows a normal retry.
+  await failure.evaluate(() => {
+    window.Worker = class {
+      postMessage() { queueMicrotask(() => this.onmessage({ data: { error: 'Generation fixture failed' } })); }
+      terminate() {}
+    };
+  });
   await failure.locator('#deploy').click();
   await failure.locator('#loading-back').waitFor({ state: 'visible', timeout: 120000 });
+  assert.equal(await failure.locator('#loading-stage').textContent(), 'Generation fixture failed');
   await failure.locator('#loading-back').click();
   assert.equal(await failure.evaluate(() => ashline.state), null);
   assert(await failure.locator('#deploy').isEnabled());
-  await failure.unroute('**/world-worker.js');
-  await failure.locator('#map-size').selectOption('standard');
+  await failure.evaluate(() => { window.Worker = originalWorker; });
   await failure.locator('#deploy').click(); await deployed(failure);
   assert.equal(await failure.evaluate(() => ashline.state.width), 144);
   await failure.close();
