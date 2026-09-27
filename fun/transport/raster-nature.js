@@ -1,6 +1,7 @@
-import { registerAtlas, drawAtlas, atlasAvailable } from './atlas-runtime.js';
+import { registerAtlas, drawAtlas, atlasAvailable, worldArtRevision } from './atlas-runtime.js';
 import { forestComposition } from './tree-sprites.js';
 import { normalizedDetail } from './terrain-sprites.js';
+import { treeShadowGeometry, treeShadowBounds, drawTreeShadows } from './tree-shadows.js';
 
 // These are individual transparent objects, rather than repeated forest tiles.
 // Their placement still uses the original deterministic 64 woodland variants.
@@ -24,11 +25,11 @@ const RELIEF_NEIGHBORS = {
 const ROCKS = ['taiga-boulder','taiga-scree','tundra-glacial','tundra-snow','desert-boulder','desert-dunes','desert-salt','desert-strata','tundra-ice'];
 for (const [biome, kinds] of Object.entries(TREE_KINDS)) {
   const id = `nature-trees-${biome}`;
-  registerAtlas({ id, path: `./assets/world/${id}/atlas`, columns: 3, rows: 3, maxCell: 256, entries: kinds.map(kind => `${id}:${kind}`) });
+  registerAtlas({ id, path: `./assets/world/${id}/atlas`, biome, columns: 3, rows: 3, maxCell: 256, entries: kinds.map(kind => `${id}:${kind}`) });
 }
 for (const [biome, kinds] of Object.entries(GROUND_KINDS)) {
   const id = `nature-ground-${biome}`;
-  registerAtlas({ id, path: `./assets/world/${id}/atlas`, columns: 3, rows: 3, entries: kinds.map(kind => `${id}:${kind}`) });
+  registerAtlas({ id, path: `./assets/world/${id}/atlas`, biome, columns: 3, rows: 3, entries: kinds.map(kind => `${id}:${kind}`) });
 }
 registerAtlas({ id: 'nature-mountains', path: './assets/world/nature-mountains/atlas', columns: 3, rows: 3, maxCell: 256, entries: MOUNTAINS.map(kind => `nature-mountains:${kind}`) });
 registerAtlas({ id: 'nature-rocks', path: './assets/world/nature-rocks/atlas', columns: 3, rows: 3, maxCell: 256, entries: ROCKS.map(kind => `nature-rocks:${kind}`) });
@@ -80,10 +81,11 @@ export function natureObjectLayout(footprint) {
   return { width: 64 * span, height: 64 * span, anchorX: 32 * span, anchorY: 48 * span };
 }
 
-export function drawRasterNatureObject(c, kind, biome, rawDetail, variant, footprint, pixelScale = 1) {
+export function rasterForestComposition(biome='taiga',rawDetail='',variant=0,{density=1,footprint=1}={}){
   if (!TREE_KINDS[biome]) biome = 'taiga';
-  const span = clamp(Math.floor(footprint) || 2, 2, 3), v = wrap(variant), r = random(seedFor(biome, rawDetail, v)), layout = natureObjectLayout(span);
-  if (kind === 'forest') {
+  const v=wrap(variant);
+  if(footprint>1){
+    const span=clamp(Math.floor(footprint)||2,2,3),r=random(seedFor(biome,rawDetail,v)),layout=natureObjectLayout(span);
     const species = forestComposition(biome, rawDetail, v), trees = [], extent = span - .85;
     const count = span === 2 ? 6 + v % 3 : 11 + v % 5;
     // Jittered cells and a minimum spacing create an irregular open grove, with
@@ -99,8 +101,68 @@ export function drawRasterNatureObject(c, kind, biome, rawDetail, variant, footp
         x: layout.anchorX + (u - w) * 32,
         y: layout.anchorY + (u + w) * 16 });
     }
-    if (!trees.every(tree => atlasAvailable(treeID(tree, biome)))) return false;
-    for (const tree of trees.sort((a, b) => a.y - b.y)) drawTree(c, tree, biome, pixelScale);
+    return trees.sort((a,b)=>a.y-b.y);
+  }
+  const trees=forestComposition(biome,rawDetail,v);
+  if(density>1){
+    const extras=forestComposition(biome,rawDetail,v+23),target=density>=3?5:3;
+    for(let i=0;trees.length<target;i++)trees.push({...extras[i%extras.length]});
+    for(const tree of trees){
+      tree.size=Math.min(35,tree.size*(density>=3?1.55:1.28));
+      const box=tree.size*1.18;
+      tree.x=clamp(16+(tree.x-16)*1.4,box/2-7,39-box/2);
+      tree.y=clamp(16+(tree.y-16)*1.2,box*.955-15,31);
+    }
+    trees.sort((a,b)=>a.y-b.y);
+  }
+  return trees;
+}
+
+// All three physical-pixel zoom profiles share this allowance. Retina groves
+// exhausted 8 MiB and rebuilt gradients every frame; keep their prepared stamps
+// resident while bounding total memory across views and climates.
+const shadowCache=new Map(),SHADOW_CACHE_LIMIT=32*1024*1024;
+let shadowBytes=0,shadowRevision=-1,shadowCreated=0,shadowHits=0,shadowDrawn=0,shadowSkipped=0;
+export function treeShadowCacheStats(){return {entries:shadowCache.size,bytes:shadowBytes,limit:SHADOW_CACHE_LIMIT,created:shadowCreated,hits:shadowHits,drawn:shadowDrawn,skipped:shadowSkipped};}
+
+// x/y is the composition origin, not the tile center. The separate ground pass
+// can extend beyond the upright sprite without clipping shadows at its edges.
+export function drawRasterTreeShadows(c,{biome='taiga',detail='',variant=0,density=1,footprint=1,x=0,y=0,pixelScale=1,viewBounds=null,preparedState=false}={}){
+  if(!TREE_KINDS[biome])biome='taiga';
+  const revision=worldArtRevision();if(revision!==shadowRevision){shadowCache.clear();shadowBytes=0;shadowRevision=revision;}
+  const scale=clamp(pixelScale,.5,4),span=clamp(Math.floor(footprint)||1,1,3),key=`${biome}:${detail}:${wrap(variant)}:${density}:${span}:${scale}`;
+  let stamp=shadowCache.get(key);
+  if(stamp){shadowCache.delete(key);shadowCache.set(key,stamp);shadowHits++;}
+  else{
+    let trees=rasterForestComposition(biome,detail,variant,{density,footprint:span});
+    const fallback=!trees.every(tree=>atlasAvailable(treeID(tree,biome)));
+    if(fallback){
+      trees=forestComposition(biome,detail,variant);
+      if(span>1){const layout=natureObjectLayout(span);trees=trees.map(tree=>({...tree,x:layout.anchorX+(tree.x-16)*span,y:layout.anchorY+(tree.y-16)*span,size:tree.size*span}));}
+    }
+    const opacity=(span>1?.76:density>=3?.7:density>1?.82:1)*(fallback?.72:1);
+    const shadows=trees.map(tree=>treeShadowGeometry(tree,biome,{opacity,contact:!fallback})),bounds=treeShadowBounds(shadows);
+    const width=bounds.right-bounds.left,height=bounds.bottom-bounds.top,canvas=document.createElement('canvas');
+    canvas.width=Math.max(1,Math.ceil(width*scale));canvas.height=Math.max(1,Math.ceil(height*scale));
+    const context=canvas.getContext('2d');context.scale(scale,scale);context.translate(-bounds.left,-bounds.top);drawTreeShadows(context,shadows);
+    stamp={canvas,left:bounds.left,top:bounds.top,width:canvas.width/scale,height:canvas.height/scale,bytes:canvas.width*canvas.height*4};
+    while(shadowBytes+stamp.bytes>SHADOW_CACHE_LIMIT&&shadowCache.size){const oldest=shadowCache.keys().next().value;shadowBytes-=shadowCache.get(oldest).bytes;shadowCache.delete(oldest);}
+    shadowCache.set(key,stamp);shadowBytes+=stamp.bytes;shadowCreated++;
+  }
+  const left=x+stamp.left,top=y+stamp.top;
+  if(viewBounds&&(left>viewBounds.right+2||top>viewBounds.bottom+2||left+stamp.width<viewBounds.left-2||top+stamp.height<viewBounds.top-2)){shadowSkipped++;return;}
+  if(!preparedState){c.save();c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';}
+  c.drawImage(stamp.canvas,left,top,stamp.width,stamp.height);shadowDrawn++;
+  if(!preparedState)c.restore();
+}
+
+export function drawRasterNatureObject(c, kind, biome, rawDetail, variant, footprint, pixelScale = 1) {
+  if (!TREE_KINDS[biome]) biome = 'taiga';
+  const span = clamp(Math.floor(footprint) || 2, 2, 3), v = wrap(variant), layout = natureObjectLayout(span);
+  if(kind==='forest'){
+    const trees=rasterForestComposition(biome,rawDetail,v,{footprint:span});
+    if(!trees.every(tree=>atlasAvailable(treeID(tree,biome))))return false;
+    for(const tree of trees)drawTree(c,tree,biome,pixelScale);
     return true;
   }
   let id;
@@ -123,18 +185,7 @@ export function drawRasterNature(c, kind, biome = 'taiga', rawDetail = '', varia
   if (!TREE_KINDS[biome]) biome = 'taiga';
   const detail = normalizedDetail(rawDetail), v = wrap(variant), r = random(seedFor(biome, rawDetail === 'bare-foothill' ? 'wooded-foothill' : detail, v));
   if (kind === 'forest') {
-    const trees = forestComposition(biome, rawDetail, v);
-    if (density > 1) {
-      const extras = forestComposition(biome, rawDetail, v + 23), target = density >= 3 ? 5 : 3;
-      for (let i = 0; trees.length < target; i++) trees.push({ ...extras[i % extras.length] });
-      for (const tree of trees) {
-        tree.size = Math.min(35, tree.size * (density >= 3 ? 1.55 : 1.28));
-        const box = tree.size * 1.18;
-        tree.x = clamp(16 + (tree.x - 16) * 1.4, box / 2 - 7, 39 - box / 2);
-        tree.y = clamp(16 + (tree.y - 16) * 1.2, box * .955 - 15, 31);
-      }
-      trees.sort((a, b) => a.y - b.y);
-    }
+    const trees = rasterForestComposition(biome,rawDetail,v,{density});
     if (!trees.every(tree => atlasAvailable(treeID(tree, biome)))) return false;
     for (const tree of trees) drawTree(c, tree, biome, pixelScale);
     return true;

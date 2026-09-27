@@ -1,0 +1,5 @@
+{
+  "operation": "Shared-scale repack; original artwork unchanged",
+  "source": "fun/transport/assets/world/vehicle-coach/source-isometric-packed.png",
+  "packing": "build-world-atlases.py --anchor center --shared-scale"
+}

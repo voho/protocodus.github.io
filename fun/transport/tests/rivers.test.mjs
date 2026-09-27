@@ -67,7 +67,9 @@ for(const biome of ['taiga','tundra','desert'])for(const size of Object.keys(WOR
       }
     }
     assert.ok(rivers>game.width*3,'the world has a substantial branching river network');
-    if(game.generationVersion!==2)assert.ok(bridges>0,'legacy town grids exercise river crossings');
+    // Legacy town grids always cross water for this seed. New terrain recipes
+    // relocate later towns, so a valid world can have no prebuilt crossing.
+    if(game.generationVersion===1)assert.ok(bridges>0,'legacy town grids exercise river crossings');
     for(const industry of game.industries)assert.notEqual(tileAt(game,industry.x,industry.y).terrain,'water');
     assert.ok(game.cities.length>=(size==='huge'?30:size==='large'?16:8));
     assert.deepEqual(new Set(game.tiles.flatMap(tile=>tile.building?[tile.building.kind]:[])),new Set(Object.keys(BUILDINGS)),'the starting towns retain the complete building collection');

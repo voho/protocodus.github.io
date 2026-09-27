@@ -20,7 +20,7 @@ for (const sheet of sheets) {
     byKind.get(kind).push(id);
     return id;
   });
-  registerAtlas({ id: `industries-${sheet.family}`, path: `./assets/world/industries-${sheet.family}/atlas`, columns: sheet.columns, rows: sheet.rows, entries, maxCell: 256 });
+  registerAtlas({ id: `industries-${sheet.family}`, path: `./assets/world/industries-${sheet.family}/atlas`, biome:sheet.biome, columns: sheet.columns, rows: sheet.rows, entries, maxCell: 256 });
 }
 export const RASTER_INDUSTRY_IDS = Object.freeze([...ids]);
 const candidateIds = (kind, biome) => {

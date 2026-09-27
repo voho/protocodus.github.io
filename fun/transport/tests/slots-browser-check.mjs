@@ -1,6 +1,7 @@
 // Serve the repository root first. Every mutation uses fresh, isolated browser storage.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
+import { createWorldFromMenu, loadAutosaveFromMenu, openGameAction } from './browser-start.mjs';
 const { chromium } = await import(process.env.TRANSPORT_PLAYWRIGHT || 'playwright');
 const browser = await chromium.launch({ channel: process.env.TRANSPORT_BROWSER || 'chrome', headless: true });
 const url = process.env.TRANSPORT_URL || 'http://localhost:8765/fun/transport/';
@@ -14,11 +15,7 @@ const confirm = (page, id, name) => card(page, id).locator(`[data-save-confirm="
 const slotRaw = (page, id) => page.evaluate(id => localStorage.getItem(`transport-slot-v1:${id}`), id);
 const fits = (page, selector) => page.locator(selector).evaluate(element => element.scrollWidth <= element.clientWidth + 1);
 async function openSaves(page) {
-  if (await page.locator('#save-button').isVisible()) await page.locator('#save-button').click();
-  else {
-    if (!(await page.locator('.sidebar').evaluate(element => element.classList.contains('mobile-open')))) await page.locator('.mobile-panel-toggle').click();
-    await page.locator('#panel-save').click();
-  }
+  await openGameAction(page, 'save-button');
   await page.locator('.saves-explorer').waitFor({ state: 'visible' });
 }
 async function closeSaves(page) {
@@ -58,13 +55,14 @@ async function loadSlot(page, id) {
 async function prepareCompany(page, { label, kind, days, money }) {
   return page.evaluate(async ({ label, kind, days, money }) => {
     const { build, addRoute, tick, validateGame } = await import('./model.js');
+    const { buildingSiteProblem } = await import('./building-sites.js');
     const game = transport.game, home = game.cities[0];
     game.money = 1_000_000;
     let plot;
     for (let y = home.y + 6; y < home.y + 18 && !plot; y++) for (let x = home.x - 8; x < home.x + 16 && !plot; x++) {
       const tile = game.tiles[y * game.width + x];
       if (tile && ['grass', 'sand', 'snow', 'forest', 'rock'].includes(tile.terrain) && !tile.road && !tile.rail && !tile.zone && !tile.building
-          && !game.industries.some(industry => industry.x === x && industry.y === y)) plot = { x, y };
+          && !buildingSiteProblem(game, kind, x, y)) plot = { x, y };
     }
     if (!plot) throw new Error('No suitable QA building plot.');
     const built = build(game, kind, plot.x, plot.y);
@@ -80,6 +78,7 @@ try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   watch(page);
   await page.goto(url);
+  await createWorldFromMenu(page);
   await page.waitForFunction(() => window.transport?.game && localStorage.getItem('transport-save-v1'));
   await page.locator('[data-speed="0"]').click();
   const alphaBuilding = await prepareCompany(page, { label: 'Alpine', kind: 'school', days: 17.25, money: 111222.75 });
@@ -92,12 +91,7 @@ try {
   await closeSaves(page);
 
   // A second world has different dimensions, biome, routes, buildings and cash.
-  await page.locator('#world-button').click();
-  await page.locator('[data-biome="desert"]').click();
-  await page.locator('[data-world-size="square1024"]').click();
-  await page.locator('#world-seed').fill('9042');
-  await page.locator('#generate-world').click();
-  await page.locator('[data-speed="0"]').click();
+  await createWorldFromMenu(page, { biome:'desert', size:'square1024', seed:9042 });
   const betaBuilding = await prepareCompany(page, { label: 'Oasis', kind: 'house-expensive-3', days: 43.5, money: 222333.5 });
   const beta = await fingerprint(page);
   await openSaves(page);
@@ -249,9 +243,10 @@ try {
     return ids;
   });
   await page.reload();
-  await page.waitForFunction(() => window.transport?.game);
-  await page.locator('[data-speed="0"]').click();
-  assert.equal(await page.evaluate(() => transport.game.seed), betaUpdated.seed, 'reload continues the active autosave');
+  await page.locator('#start-menu').waitFor();
+  assert.equal(await page.evaluate(() => !!window.transport), false, 'reload opens the menu before loading a company');
+  await loadAutosaveFromMenu(page);
+  assert.equal(await page.evaluate(() => transport.game.seed), betaUpdated.seed, 'Load game resumes the active autosave');
   assert.equal(await page.evaluate(() => transport.game.biome), 'desert');
   assert.ok(await page.evaluate(day => transport.game.day >= day && transport.game.day < day + 2, betaUpdated.day));
   assert.equal(await slotRaw(page, betaId), updatedBetaRaw, 'autosave restoration does not overwrite the manual snapshot');

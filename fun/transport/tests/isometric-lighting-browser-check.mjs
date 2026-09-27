@@ -16,12 +16,45 @@ try {
       const { projectPoint, projectAngle } = await import('./isometric.js'), { vehicleFrameAngle } = await import('./vehicle-directions.js');
       const { preloadWorldArt } = await import('./atlas-runtime.js'), houses = await import('./raster-houses.js');
       const civic = await import('./raster-buildings.js'), industry = await import('./raster-industries.js');
-      const { isometricStationLights, drawIsometricPort, drawIsometricStop } = await import('./isometric-infrastructure.js');
+      const { isometricStationLights, isometricStationBounds, drawIsometricInfrastructure, drawIsometricPort, drawIsometricStop } = await import('./isometric-infrastructure.js');
       const { DEFAULT_LAYERS } = await import('./visibility.js');
       await Promise.all([preloadWorldArt({ waitMs: 10000 }), houses.preloadHouses({ waitMs: 10000 })]);
       const canvas = document.createElement('canvas'), width = 600, height = 440, dpr = devicePixelRatio;
       canvas.width = width * dpr; canvas.height = height * dpr; document.body.append(canvas);
       const c = canvas.getContext('2d'), drawLighting = createLighting(), result = [];
+      // A square authored cell must remain square on screen, including narrow
+      // UI previews. Stretching it changes the camera angle and pane positions.
+      const drawImage = c.drawImage.bind(c); let infrastructureDraws=[];
+      c.drawImage=(...args)=>{infrastructureDraws.push(args);return drawImage(...args);};
+      for(const mode of ['road','rail','water']){
+        infrastructureDraws=[];
+        if(mode==='water')drawIsometricPort(c,-1,0,80,90);else drawIsometricStop(c,mode,80,90);
+        const call=infrastructureDraws.at(-1),bounds=isometricStationBounds(mode);
+        if(!call||call[7]!==call[8]||call[5]!==80+bounds.left||call[6]!==90+bounds.top)throw new Error(`Station art stretched ${mode}`);
+        if(!call[0].src.includes('/isometric-infrastructure-v2/'))throw new Error(`Legacy station art ${mode}`);
+        if(bounds.top+bounds.size!==(mode==='water'?16:4))throw new Error(`Station contact point moved ${mode}`);
+      }
+      for(const kind of ['bus-stop','train-stop','port','road-tunnel','rail-tunnel']){
+        infrastructureDraws=[];drawIsometricInfrastructure(c,kind,10,20,70,30);
+        const call=infrastructureDraws.at(-1);
+        if(!call||call.slice(5).join(',')!=='30,20,30,30')throw new Error(`Infrastructure preview stretched ${kind}`);
+        if(!call[0].src.includes(kind.endsWith('tunnel')?'/isometric-portals-v2/':'/isometric-infrastructure-v2/'))throw new Error(`Legacy infrastructure preview ${kind}`);
+      }
+      c.drawImage=drawImage;
+      // Check the authored pixels as well as light placement: both rendering
+      // and panes could otherwise agree on stale coordinates outside the glass.
+      const master=new Image();master.src='./assets/world/isometric-infrastructure-v2/atlas-256.png';await master.decode();
+      const probe=document.createElement('canvas');probe.width=master.width;probe.height=master.height;
+      const probeContext=probe.getContext('2d');probeContext.drawImage(master,0,0);
+      const stations=[['road',0,0],['rail',0,0],['water',-1,0],['water',1,0],['water',0,-1],['water',0,1]];
+      for(const [index,[mode,dx,dy]]of stations.entries()){
+        const {left,top,size}=isometricStationBounds(mode);
+        for(const [x,y,w,h]of isometricStationLights(mode,dx,dy)){
+          const px=Math.floor((x+w/2-left)/size*256)+index%3*256,py=Math.floor((y+h/2-top)/size*256)+Math.floor(index/3)*256;
+          const [r,g,b,a]=probeContext.getImageData(px,py,1,1).data;
+          if(r<140||g<95||b>180||a<150||r<b*1.25)throw new Error(`Station pane misses authored glazing ${mode}/${dx}/${dy} at${px},${py}`);
+        }
+      }
       const arc = c.arc.bind(c); let bulbs = []; c.arc = (...args) => { bulbs.push(args.slice(0,2)); arc(...args); };
       const game = { width: 8, height: 8, day: 30, seed: 7, biome: 'taiga', tiles: [], vehicles: [] };
       const reset = () => { game.tiles = Array.from({ length: 64 }, () => ({ terrain: 'grass' })); game.vehicles = []; };
@@ -42,16 +75,17 @@ try {
           { kind: 'refinery', span: 3, panes: industry.rasterIndustryWindows('refinery', biome), industry: true },
         ];
         let sampled = 0, lit = 0;
-        for (const fixture of fixtures) {
+        for (const fixture of fixtures) for (const lift of [0,24]) {
           reset(); options.industryIndex.clear(); const { kind, span, panes } = fixture;
           if (!panes.length) throw new Error(`Missing generated pane fixture ${biome}/${kind}`);
           if (fixture.industry) options.industryIndex.set(27, { x: 3, y: 3, kind, footprint: span });
           else game.tiles[27].building = { kind, footprint: span };
-          const center = project(3 + (span - 1) / 2, 3 + (span - 1) / 2);
+          const projectBuilding=(x,y,size)=>{const p=project(x+(size-1)/2,y+(size-1)/2);return{x:p.x,y:p.y-lift*zoom};};
+          const center = projectBuilding(3,3,span);
           const render = buildings => {
             c.setTransform(dpr,0,0,dpr,0,0); c.fillStyle = '#738970'; c.fillRect(0,0,width,height);
             c.drawImage(sprites(kind,0,fixture.industry?span:1,'',span), center.x - 24 * span * zoom, center.y - (36 * span + 12) * zoom, 48 * span * zoom, (48 * span + 12) * zoom);
-            drawLighting(c, { ...options, layers: { ...without, buildings } });
+            drawLighting(c, { ...options, projectBuilding:lift?projectBuilding:undefined, layers: { ...without, buildings } });
             return c.getImageData(0,0,canvas.width,canvas.height).data;
           };
           const unlit = render(false), bright = render(true);
@@ -65,11 +99,13 @@ try {
         result.push({ biome, zoom, dpr, sampled, lit });
         // Projected screen directions must select the same eight headings as art.
         reset(); options.industryIndex.clear(); options.routesById.set('road', { mode: 'road' });
-        for (let heading = 0; heading < 8; heading++) {
+        for (let heading = 0; heading < 8; heading++) for(const lift of [0,41]) {
           const angle = heading * Math.PI / 4; game.vehicles = [{ routeId: 'road', x: 3, y: 3, angle }]; bulbs = [];
-          drawLighting(c, { ...options, layers: { ...without, vehicles: true } });
+          const slopeProject=(x,y)=>{const p=project(x,y);return{x:p.x,y:p.y-(x-3)*31*zoom};};
+          const projectVehicle=(x,y,mode,vehicle)=>{if(mode!=='road'||vehicle!==game.vehicles[0])throw new Error('Missing transport callback context');const p=slopeProject(x,y);return{x:p.x,y:p.y-lift*zoom};};
+          drawLighting(c, { ...options, project:lift?slopeProject:project, projectVehicle:lift?projectVehicle:undefined, layers: { ...without, vehicles: true } });
           const screenAngle = vehicleFrameAngle(projectAngle(angle));
-          const p = project(3,3), expected = [p.x + 8 * Math.cos(screenAngle) * zoom, p.y + 8 * Math.sin(screenAngle) * zoom];
+          const p = project(3,3), expected = [p.x + 8 * Math.cos(screenAngle) * zoom, p.y-lift*zoom + 8 * Math.sin(screenAngle) * zoom];
           if (bulbs.length !== 2 || Math.hypot(bulbs[0][0]-expected[0], bulbs[0][1]-expected[1]) > .0001) throw new Error(`Vehicle beam heading mismatch ${heading}`);
         }
         // A ship nose can cross a bridge tile even when its projected heading does not.
@@ -104,5 +140,5 @@ try {
   }
   for (const profile of profiles) assert.equal(profile.lit, profile.sampled, `${JSON.stringify(profile)} authored panes light at their sprite coordinates`);
   assert.deepEqual(errors, []);
-  console.log(JSON.stringify({ profiles, headingChecks: profiles.length * 8, bridgeOcclusion: 'world coordinates', stationProfiles: profiles.length * 6, dockLamps: 'measured upright panes in four shoreline views' }, null, 2));
+  console.log(JSON.stringify({ profiles, headingChecks: profiles.length * 16, raisedFoundations:'24px lift at all footprint sizes',bridgeDecks:'41px lift with slope-independent headings',bridgeOcclusion: 'world coordinates', stationProfiles: profiles.length * 6, dockLamps: 'measured upright panes in four shoreline views' }, null, 2));
 } finally { await browser.close(); }

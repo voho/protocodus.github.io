@@ -74,21 +74,22 @@ try {
       await page.locator('canvas').screenshot({ path: `${output}/engineering-zoom${zoom}-dpr${dpr}.png` });
     }
     const previews = await page.evaluate(() => {
-      const { g, tile, canvas, renderer } = engineeringQA, c = canvas.getContext('2d'), original = c.strokeRect.bind(c), colors = [];
-      c.strokeRect = (...args) => { colors.push(c.strokeStyle); original(...args); };
+      const { g, tile, canvas, renderer } = engineeringQA, c = canvas.getContext('2d'), original = c.stroke.bind(c), originalFill = c.fill.bind(c), colors = [];
+      c.stroke = (...args) => { if(['#f2d88d','#d7725f','#f4d090'].includes(c.strokeStyle))colors.push(c.strokeStyle); original(...args); };
+      c.fill = (...args) => { if(['#d7725f','#f4d090'].includes(c.fillStyle))colors.push(c.fillStyle); originalFill(...args); };
       const points = Array.from({ length: 13 }, (_, i) => ({ x: 36 + i, y: 41 }));
       const capture = view => { colors.length = 0; renderer.render(0, view); return [...colors]; };
       try {
         const good = capture({ tool: 'bridge', preview: points });
-        tile(48, 41).elevation = 5 / 16; g.revision++;
+        tile(48, 41).terrain = 'water'; g.revision++;
         const bad = capture({ tool: 'bridge', preview: points });
-        tile(48, 41).elevation = .25; g.revision++;
+        tile(48, 41).terrain = 'grass'; g.revision++;
         const money = g.money; g.money = 0;
         const unaffordable = capture({ tool: 'raise', hover: { x: 49, y: 37 } });
         g.money = money;
         const terraform = capture({ tool: 'raise', hover: { x: 49, y: 37 } });
         return { good, bad, unaffordable, terraform };
-      } finally { c.strokeRect = original; }
+      } finally { c.stroke = original; c.fill = originalFill; }
     });
     assert.deepEqual(previews.good, Array(13).fill('#f2d88d'), 'valid span preview covers every tile');
     assert.deepEqual(previews.bad, Array(13).fill('#d7725f'), 'one invalid endpoint marks the whole span invalid');

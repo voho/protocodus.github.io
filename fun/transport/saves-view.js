@@ -1,5 +1,6 @@
 import { BIOMES } from './data.js';
 import { listSaveSlots, writeSaveSlot, readSaveSlot, renameSaveSlot, deleteSaveSlot } from './save-slots.js';
+import { showLoading, hideLoading, paintLoading, loadingJobProgress } from './loading-screen.js';
 
 const escape = value => String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
 const paths = {
@@ -25,12 +26,12 @@ function savedDate(value, autosave = false) {
 
 /** Local save management. A disposed dialog never applies a pending load. */
 export function mountSaves(container, game, { onLoad, onClose }) {
-  let alive = true, busy = false, slots = [], expanded = null;
+  let alive = true, busy = false, slots = [], expanded = null, operationController = null;
   const defaultName = `${game.cities?.[0]?.name || BIOMES[game.biome]?.name || 'New'} Transport`.slice(0, 40);
   const dialog = container.closest('dialog');
 
   const isActive = () => alive && (!dialog || dialog.open);
-  function dispose() { alive = false; }
+  function dispose() { alive = false; operationController?.abort(); }
   function close() { dispose(); onClose?.(); }
   function setMessage(text = '', error = false, reveal = false) {
     if (!isActive()) return;
@@ -46,10 +47,11 @@ export function mountSaves(container, game, { onLoad, onClose }) {
   }
   async function run(message, operation) {
     if (!isActive() || busy) return;
+    operationController = new AbortController();
     setBusy(true); setMessage(message);
     try { await operation(); }
     catch (error) { if (isActive()) setMessage(error?.message || 'This browser could not complete that save action.', true, true); }
-    finally { if (isActive()) setBusy(false); }
+    finally { operationController = null; if (isActive()) setBusy(false); }
   }
   function getSlot(id) { return slots.find(slot => String(slot.id) === String(id)); }
 
@@ -106,15 +108,22 @@ export function mountSaves(container, game, { onLoad, onClose }) {
     return run(progress, async () => {
       let result;
       if (action === 'load') {
-        result = await readSaveSlot(id);
-        if (!isActive()) return;
-        if (result.ok) result = await onLoad?.(result.game, slot, { isActive });
-        if (!isActive()) return;
-        if (result?.ok === false) setMessage(result.message || 'The save could not be loaded. Your current world is unchanged.', true, true);
-        else if (result?.ok) { dispose(); onClose?.(); }
+        const controller=operationController;
+        showLoading({ title: 'Loading your world', status: 'Reading your saved company…', stage: 1, onCancel:()=>controller.abort() });
+        try {
+          await paintLoading();
+          if (!isActive()) return;
+          result = await readSaveSlot(id,{signal:controller.signal,onProgress:loadingJobProgress});
+          controller.signal.throwIfAborted();
+          if (!isActive()) return;
+          if (result.ok) result = await onLoad?.(result.game, slot, { isActive, signal:controller.signal });
+          if (!isActive()) return;
+          if (result?.ok === false) setMessage(result.message || 'The save could not be loaded. Your current world is unchanged.', true, true);
+          else if (result?.ok) { dispose(); onClose?.(); }
+        } finally { hideLoading(); }
         return;
       }
-      if (action === 'overwrite') result = await writeSaveSlot(game, { id, name: slot.name });
+      if (action === 'overwrite') result = await writeSaveSlot(game, { id, name: slot.name, capturePaused:true, signal:operationController.signal, isCurrent:isActive });
       if (action === 'rename') result = await renameSaveSlot(id, name);
       if (action === 'delete') result = await deleteSaveSlot(id);
       if (!isActive()) return;
@@ -130,7 +139,7 @@ export function mountSaves(container, game, { onLoad, onClose }) {
     event.preventDefault(); const name = container.querySelector('#save-new-name').value.trim();
     if (!name) { setMessage('Give this save a name.', true, true); return; }
     run('Saving current world…', async () => {
-      const result = await writeSaveSlot(game, { name });
+      const result = await writeSaveSlot(game, { name, capturePaused:true, signal:operationController.signal, isCurrent:isActive });
       if (!isActive()) return;
       if (!result?.ok) { setMessage(result?.message || 'This browser could not save the world.', true, true); return; }
       expanded = null;

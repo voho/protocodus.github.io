@@ -1,9 +1,9 @@
 // Shared generated artwork registry. Loading never mutates simulation state.
 const atlases=new Map(),entries=new Map(),listeners=new Set(),draws=new Map();
 let revision=0;
-export function registerAtlas({id,path,columns=3,rows=3,entries:ids,maxCell=128}){
+export function registerAtlas({id,path,columns=3,rows=3,entries:ids,maxCell=128,biome=null}){
   if(atlases.has(id))return;
-  const atlas={id,path,columns,rows,ids,maxCell,levels:new Map(),failures:new Map(),status:'idle',error:null,pending:null};
+  const atlas={id,path,columns,rows,ids,maxCell,biome,levels:new Map(),orderedLevels:[],failures:new Map(),status:'idle',error:null,pending:null};
   atlases.set(id,atlas);
   ids.forEach((key,index)=>{if(key)entries.set(key,{atlas,index});});
 }
@@ -23,7 +23,7 @@ async function loadAtlas(atlas,{retry=false}={}){
     if(image.naturalWidth!==atlas.columns*cell||image.naturalHeight!==atlas.rows*cell)throw new Error('Unexpected atlas dimensions');
     // Publish usable art immediately. One missing density must not force old
     // procedural artwork when other authored densities decoded successfully.
-    atlas.levels.set(cell,image);atlas.failures.delete(cell);revision++;
+    atlas.levels.set(cell,image);atlas.orderedLevels=[...atlas.levels.keys()].sort((a,b)=>a-b);atlas.failures.delete(cell);revision++;
     for(const fn of listeners)queueMicrotask(fn);
     }catch(error){atlas.failures.set(cell,error.message);}
   })).then(()=>{
@@ -32,9 +32,9 @@ async function loadAtlas(atlas,{retry=false}={}){
   }).finally(()=>{atlas.pending=null;});
   return atlas.pending;
 }
-export async function preloadWorldArt({waitMs=4000,retry=false}={}){
+export async function preloadWorldArt({waitMs=4000,retry=false,biome=null}={}){
   if(typeof Image==='undefined')return false;
-  const pending=Promise.all([...atlases.values()].map(atlas=>loadAtlas(atlas,{retry})));
+  const pending=Promise.all([...atlases.values()].filter(atlas=>!biome||!atlas.biome||atlas.biome===biome).map(atlas=>loadAtlas(atlas,{retry})));
   if(waitMs<=0)return false;
   let timer;await Promise.race([pending,new Promise(resolve=>{timer=setTimeout(resolve,waitMs);})]);clearTimeout(timer);
   return [...atlases.values()].some(a=>a.levels.size);
@@ -42,7 +42,7 @@ export async function preloadWorldArt({waitMs=4000,retry=false}={}){
 export function drawAtlas(c,id,x,y,w,h,{pixelScale=1,flipX=false}={}){
   const entry=entries.get(id);if(!entry)return false;
   const {atlas,index}=entry;if(!atlas.levels.size){void loadAtlas(atlas);return false;}
-  const needed=Math.max(w,h)*pixelScale,levels=[...atlas.levels.keys()].sort((a,b)=>a-b),cell=levels.find(n=>n>=needed)||levels.at(-1),image=atlas.levels.get(cell);
+  const needed=Math.max(w,h)*pixelScale,levels=atlas.orderedLevels,cell=levels.find(n=>n>=needed)||levels.at(-1),image=atlas.levels.get(cell);
   c.save();c.imageSmoothingEnabled=needed!==cell;c.imageSmoothingQuality='high';
   if(flipX){c.translate(x+w,y);c.scale(-1,1);x=y=0;}
   c.drawImage(image,index%atlas.columns*cell,Math.floor(index/atlas.columns)*cell,cell,cell,x,y,w,h);c.restore();draws.set(id,(draws.get(id)||0)+1);return true;

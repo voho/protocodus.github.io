@@ -1,0 +1,23 @@
+{
+  "tool": "built-in image_gen",
+  "use_case": "sketch-to-render",
+  "source": "source-generated.png",
+  "guide": "geometry-guide.png",
+  "prompt": "Use case: sketch-to-render. Turn this EXACT orthographic blockout into a finished painted miniature game sprite sheet. This is a camera-calibration asset, so match the supplied geometry rather than composing a new view.\nPRESERVE the original image layout, every object's silhouette and size, hull axis slopes, relative foreshortening and three-dimensional position. Keep objects where they are. The eight ships are the same rigid model seen with a SINGLE camera fixed30 degrees above the ground. Both diagonal ground axes have slope1:2 (26.565 degrees). Match the low camera in the input exactly; do NOT make the view more top-down. North/south hulls are only about half the length of east/west hulls; do NOT enlarge them to fill their cells. A visible upright cabin adds its natural height to the hull.\nFinish the blockout with this identity: Navy blue oil tanker hull, three silver rounded cylindrical tanks exactly at the guide's three small deck boxes; preserve their base positions. Cream rear wheelhouse, red funnel with black rim at rear, fine cream pipes and rails, small capstan on sharp forward bow.\nUse realistic textured metal, wood, windows and crisp restrained highlights, high-quality hand-painted Transport Tycoon-style art, no thick cartoon outlines. Fine texture should sit on the surfaces already in the guide. Fixed upper-left sunlight.\nThe exact 3×3 cell order is NW,N,NE / W,EMPTY,E / SW,S,SE. Orange dots indicate the FRONT pointed bow; replace each dot with natural bow detail. N points up, S points down. Remove all labels, dots and every blueprint/guide mark. Retain the complete empty transparent center cell, generous transparent spacing and the same physical scale across views. Background must be true alpha transparency. No water, wake, ground tile, cast shadows, text, frames or extra objects. Output a square sheet.",
+  "repairPrompt": "Use case: precise-object-edit. Correct ONLY the TOP CENTER sprite in image1, the transparent oil-tanker sprite sheet. That cell must be a REAR VIEW facing north: the CREAM WHEELHOUSE and RED FUNNEL must be at the BOTTOM nearest the viewer, followed by THREE SILVER TANKS extending UP AWAY FROM THE VIEWER, with the SHARP FRONT BOW at the very TOP. The wide squared STERN is at the bottom, never a pointed bow. The top center ship in image2 (rust-red cargo ship) has the correct direction: use its geometry and position as the direction reference, but retain the NAVY BLUE oil tanker identity with three silver tanks from image1. Retain the fixed low 2:1 dimetric camera (diagonals26.565°, elevation30°), shortened north/south size, and exactly the same scale as other cells. Preserve the other SEVEN cells of image1 unchanged and preserve the empty center. No text, labels, water, shadows, ground, outlines or extra objects. Keep true transparent background. Output full3x3 oil tanker sheet.",
+  "camera": {
+    "groundSlope": 0.5,
+    "elevation": 30
+  },
+  "observedOrder": [
+    "NW",
+    "N",
+    "NE",
+    "W",
+    null,
+    "E",
+    "SW",
+    "S",
+    "SE"
+  ]
+}

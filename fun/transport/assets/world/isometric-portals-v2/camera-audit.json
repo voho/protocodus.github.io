@@ -1,0 +1,34 @@
+{
+  "camera": "Orthographic2:1, level approach strips \u00b126.565degrees; upright retaining walls.",
+  "acceptedFrames": "First generated pass front approaches road-e/road-s/rail-e/rail-s; second pass rear road-w/road-n/rail-w/rail-n. source-registration.json preserves cell provenance.",
+  "observedEdgesDegrees": {
+    "road-e": [
+      25.1,
+      26.6,
+      26.1
+    ],
+    "road-s": [
+      -29.1,
+      -28.4,
+      -28.2
+    ],
+    "road-w": [
+      26.6
+    ],
+    "road-n": [
+      -28.1,
+      -28.6
+    ],
+    "rail-e": [
+      27.9,
+      28.6,
+      27.8
+    ],
+    "rail-s": [
+      -28.6,
+      -27.5,
+      -28.3
+    ]
+  },
+  "caveat": "Short partly obscured rear rails are visually approximate; exact subpixel ground slope cannot be reliably measured from these hand-painted segments. All long approaches are within~3degrees of reference, replacing previous35\u201339degree mismatch."
+}

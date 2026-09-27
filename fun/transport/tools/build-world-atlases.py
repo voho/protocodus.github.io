@@ -40,6 +40,22 @@ def build(args):
         raise ValueError('Provide one unique ID per grid cell; use - for unused cells')
     dest = Path(args.output_dir)
     dest.mkdir(parents=True, exist_ok=True)
+    shared_scale = None
+    if args.shared_scale:
+        if args.aligned:
+            raise ValueError('--shared-scale and --aligned are separate registration modes')
+        # A fixed-camera turnaround has one world-to-pixel scale. In particular,
+        # its north/south views must retain the source's depth foreshortening.
+        # Fit the entire family once, never normalize each silhouette's length.
+        scales = []
+        for index, key in enumerate(ids):
+            if key == '-':
+                continue
+            x, y = index % args.columns, index // args.columns
+            source = image.crop((round(x * image.width / args.columns), round(y * image.height / args.rows), round((x+1)*image.width/args.columns), round((y+1)*image.height/args.rows)))
+            left, top, right, bottom = house.trim_bounds(source)
+            scales.extend((args.width / (right-left), args.height / (bottom-top)))
+        shared_scale = min(scales)
     cells, records = [], []
     for index, key in enumerate(ids):
         x, y = index % args.columns, index // args.columns
@@ -57,8 +73,8 @@ def build(args):
             out.paste(house.resize_alpha(clean, (240,240)), (inset,inset))
         else:
             trimmed = source.crop(bounds)
-            scale = min(args.width / trimmed.width, args.height / trimmed.height)
-            if args.vehicle:
+            scale = shared_scale if shared_scale is not None else min(args.width / trimmed.width, args.height / trimmed.height)
+            if args.vehicle and shared_scale is None:
                 scale = min(scale, args.width / principal_length(trimmed))
             w,h = max(1,round(trimmed.width*scale)),max(1,round(trimmed.height*scale))
             top = 244-h if args.anchor == 'bottom' else (256-h)//2
@@ -76,7 +92,10 @@ def build(args):
         house.save_png(atlas,dest / ('atlas.png' if size==256 else f'atlas-{size}.png'))
         if size == 256 and args.max_cell == 256:
             house.save_png(atlas,dest / 'atlas-256.png')
-    metadata={'columns':args.columns,'rows':args.rows,'cellSizes':[s for s in sizes if s<=args.max_cell], 'masterCell':256,'vehicleLengthNormalized':args.vehicle,'order':[None if i=='-' else i for i in ids], 'source':Path(args.atlas).name,'sourceSha256':hashlib.sha256(Path(args.atlas).read_bytes()).hexdigest(),'sprites':records}
+    metadata={'columns':args.columns,'rows':args.rows,'cellSizes':[s for s in sizes if s<=args.max_cell], 'masterCell':256,'vehicleLengthNormalized':args.vehicle and shared_scale is None,'order':[None if i=='-' else i for i in ids], 'source':Path(args.atlas).name,'sourceSha256':hashlib.sha256(Path(args.atlas).read_bytes()).hexdigest(),'sprites':records}
+    if shared_scale is not None:
+        metadata['sharedScale'] = shared_scale
+        metadata['registration'] = 'One uniform family scale, centered per frame; source foreshortening preserved'
     (dest/'atlas.json').write_text(json.dumps(metadata,indent=2)+'\n')
     if args.qa:
         # Actual scale strips on the game's ground, with a magnified master row.
@@ -97,5 +116,6 @@ if __name__=='__main__':
     p.add_argument('--anchor',choices=['bottom','center'],default='bottom');p.add_argument('--width',type=int,default=232);p.add_argument('--height',type=int,default=232)
     p.add_argument('--aligned',action='store_true');p.add_argument('--max-cell',type=int,choices=[128,256],default=128)
     p.add_argument('--vehicle',action='store_true',help='Normalize body length along its principal axis across headings')
+    p.add_argument('--shared-scale',action='store_true',help='Fit all frames with one common scale, preserving fixed-camera foreshortening')
     p.add_argument('--qa');p.add_argument('--background',default='#91a77a')
     build(p.parse_args())

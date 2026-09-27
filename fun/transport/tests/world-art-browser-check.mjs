@@ -24,6 +24,7 @@ async function install(page) {
     const assets = await import('./atlas-runtime.js'), buildings = await import('./raster-buildings.js'), industries = await import('./raster-industries.js');
     const houses = await import('./raster-houses.js'), identities = await import('./buildings.js');
     const { buildingSize } = await import('./building-sites.js');
+    const { surfaceHeight, HEIGHT_STEP } = await import('./terrain-geometry.js');
     const { drawRasterNature } = await import('./raster-nature.js'), { BIOME_NATURE } = await import('./terrain-sprites.js');
     const canvas = document.createElement('canvas'); canvas.id = 'art-world'; canvas.style.cssText = 'width:1200px;height:760px;display:block';
     const panel = document.createElement('section'); panel.id = 'art-qa'; panel.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#eef0e0;padding:18px;overflow:auto;font:16px system-ui';
@@ -31,10 +32,10 @@ async function install(page) {
     const hash = canvas => { let h = 2166136261; for (const b of canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data) h = Math.imul(h ^ b, 16777619); return h >>> 0; };
     const setup = biome => {
       const game = model.createGame({ biome, size: 'square512', seed: 1847 });
-      const renderer = createRenderer(canvas, game, { layers: { lighting: true, names: true, industryIcons: true, routes: false } });
+      const renderer = createRenderer(canvas, game, { layers: { lighting: true, weather: false, names: true, industryIcons: true, routes: false } });
       renderer.focus(game.cities[0].x, game.cities[0].y); renderer.render(0); return { game, renderer };
     };
-    window.artQA = { model, createSprites, createRenderer, assets, buildings, industries, houses, identities, buildingSize, drawRasterNature, BIOME_NATURE, canvas, hash, setup };
+    window.artQA = { model, createSprites, createRenderer, assets, buildings, industries, houses, identities, buildingSize, surfaceHeight, HEIGHT_STEP, drawRasterNature, BIOME_NATURE, canvas, hash, setup };
   });
 }
 async function emptyPage(context) {
@@ -46,7 +47,10 @@ try {
   for (const dpr of [1, 2]) {
     const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: dpr });
     const page = await context.newPage(); page.on('pageerror', error => errors.push(error.message));
-    await page.goto(baseURL); await page.waitForFunction(() => window.transport?.renderer);
+    await page.goto(baseURL);
+    await page.waitForFunction(() => window.transport?.renderer || document.querySelector('#start-create'));
+    if(!await page.evaluate(()=>Boolean(window.transport?.renderer)))await page.locator('#start-create').click();
+    await page.waitForFunction(() => window.transport?.renderer);
     await page.evaluate(() => transport.setSpeed(0));
     const ready = await page.evaluate(async () => { const a = await import('./atlas-runtime.js'); await a.preloadWorldArt({ waitMs: 8000 }); return a.worldArtStats(); });
     assert.equal(ready.ready, ready.atlases, 'every registered atlas decodes successfully'); assert.deepEqual(ready.errors, []);
@@ -153,6 +157,12 @@ try {
           if(['shop','office'].includes(kind))kind=q.identities.commercialKind(t.variant??x*13+y,t.building.level||1);
           const panes=q.houses.hasRasterHouse(kind,q.game.biome)?q.houses.houseWindowAnchors(kind,q.game.biome):q.buildings.rasterBuildingWindows(kind,q.game.biome);
           const span=q.buildingSize(t.building),center=r.worldToScreen(x+(span-1)/2,y+(span-1)/2);
+          // Generated sites can sit on raised foundations. Probe the upright
+          // artwork at that foundation, rather than the sloping surface below.
+          let foundation=0;
+          for(let v=y;v<=y+span;v++)for(let u=x;u<=x+span;u++)foundation=Math.max(foundation,q.surfaceHeight(q.game,u,v));
+          for(let v=y;v<y+span;v++)for(let u=x;u<x+span;u++)foundation=Math.max(foundation,q.surfaceHeight(q.game,u+.5,v+.5));
+          center.y-=(foundation-q.surfaceHeight(q.game,x+span/2,y+span/2))*q.HEIGHT_STEP*camera.zoom;
           for(const [wx,wy,w,h] of panes){
             const px=Math.floor((center.x+(wx+w/2-16)*1.5*span*camera.zoom)*devicePixelRatio),py=Math.floor((center.y+(wy+h/2-24)*1.5*span*camera.zoom)*devicePixelRatio);
             if(px<0||py<0||px>=q.canvas.width||py>=q.canvas.height)continue;const i=(py*q.canvas.width+px)*4;sampled++;

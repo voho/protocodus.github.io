@@ -14,6 +14,7 @@ const ART = {
   vehicles: '<rect x="3" y="4" width="18" height="14" rx="3"/><path d="M3 11h18M8 4v7m8-7v7M6 18v3m12-3v3M7 15h1m8 0h1"/>',
   vehicleLoads: '<path d="m3 7 9-4 9 4v11l-9 4-9-4ZM3 7l9 4 9-4M12 11v11M8 5l9 4v5"/>',
   lighting: '<path d="M20 15.2A8.8 8.8 0 0 1 8.8 4a9 9 0 1 0 11.2 11.2Z"/><path d="M17 3v4m-2-2h4"/>',
+  weather: '<path d="M6 14a4 4 0 0 1-.5-8 6 6 0 0 1 11-1A4.5 4.5 0 1 1 19 14H6Zm1 3-1 3m6-3-1 3m6-3-1 3"/>',
   grid: '<rect x="3" y="3" width="18" height="18" rx="1"/><path d="M9 3v18m6-18v18M3 9h18M3 15h18"/>',
   close: '<path d="m6 6 12 12M6 18 18 6"/>',
 };

@@ -1,0 +1,18 @@
+{
+  "tool": "Built-in image_gen",
+  "prompt": "Use case: sketch-to-render. Precisely paint detailed vehicle surfaces over these eight geometric poses. The attached image is the EXACT projected geometry and common physical scale to preserve. Each rectangular prism becomes a empty rust-red open railway freight wagon, low steel sidewalls, visible worn wooden floor, two black bogies, couplers and buffers at both ends, small red handbrake wheel at ORANGE front.\nPreserve the exact long-edge directions and plane shapes of EACH prism: diagonal long edges slope exactly 1 up/down per2 horizontal; N/S roofs are SHORT, with exactly half the ground length of E/W roofs. Keep each object same scale as its guide prism. Camera stays fixed at30degrees elevation; no convergence. Do not enlarge individual poses, do not steepen any diagonal. Top row points away; bottom row points toward viewer. Orange end is the vehicle FRONT. Realistic painted miniature sprite textures, readable modeled surfaces, modest detail, muted transport-tycoon palette. Northwest sunlight. Crisp wheels/couplers may extend slightly below prism. Surfaces may be rounded but retain geometric orientation precisely.\nExact3×3 layout, eight vehicles, center cell completely EMPTY. Return transparent alpha outside vehicles, remove all background and guide blocks/lines/orange markers. No text, labels, ground, shadows, rails or decorative objects. Do not change the camera or layout from this guide. The geometric guide is the ONLY reference.",
+  "reference": "geometry-guide.png",
+  "identity": "../vehicle-wagon/atlas.png inspected for textual identity; intentionally omitted from successful generation to avoid copying its old camera",
+  "generatedSource": "/Users/vojta/.codex/generated_images/01a0dfc6-d7e4-7341-8858-5684af96e1f0/exec-ff5b2702-c1f2-4389-adfe-3f23511c776d.png",
+  "observedOrder": [
+    "NW",
+    "N",
+    "NE",
+    "W",
+    null,
+    "E",
+    "SW",
+    "S",
+    "SE"
+  ]
+}

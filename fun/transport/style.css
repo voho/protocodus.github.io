@@ -205,3 +205,6 @@ body{font-size:13px}
   .toast{font-size:13px;min-width:220px}.resource-legend{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.resource-entry{padding:8px;font-size:12px;gap:6px}.atlas-legend{font-size:12px;gap:12px}
 }
 @media(max-width:350px){.wordmark{font-size:20px}.brand-symbol{width:23px;margin-right:5px}.topbar{gap:7px}.main-nav{gap:9px}.nav-button{font-size:12px}.stat>strong{font-size:18px}.stat>span{font-size:12px}.speed-control button{width:22px}.date-block>span{font-size:12px}.objective-card{display:none}.resource-entry{flex-direction:column;justify-content:center;text-align:center;min-height:73px;font-size:13px}}
+
+.route-pagination{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:12px 0;color:var(--muted);font-size:11px}
+.route-pagination .small-button{font-size:11px;min-height:32px}

@@ -1,5 +1,6 @@
 import { BIOME_NATURE } from './terrain-sprites.js';
 import { seedNumber, randomSource, hashNoise, noise } from './world-noise.js';
+import { createTerrainTile, generatedElevation } from './world-tiles.js';
 
 const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
 const TAU = Math.PI * 2;
@@ -111,7 +112,7 @@ export function generateTerrainV2(biome, seed, config, { naturalRelief = false }
         else if (local > .50 && habitat > .35) detail = ['cactus', 'agave', 'prickly-pear', 'aloe', 'scrub'][Math.min(4, Math.floor((habitat - .35) / .65 * 5))];
         else detail = climate > .45 ? 'dunes' : habitat > .7 ? 'dry-grass' : '';
       }
-      tiles[y * width + x] = { terrain, elevation, detail, variant: Math.min(15, Math.floor(hashNoise(x, y, numericSeed + 397) * 16)), road: false, rail: false, bridge: false, tunnel: false, building: null, zone: null };
+      tiles[y*width+x]=createTerrainTile(terrain,elevation,detail,Math.min(15,Math.floor(hashNoise(x,y,numericSeed+397)*16)));
     }
   }
   const tile = (x, y) => x >= 0 && y >= 0 && x < width && y < height ? tiles[y * width + x] : null;
@@ -134,7 +135,7 @@ export function generateTerrainV2(biome, seed, config, { naturalRelief = false }
         const edge = clamp((outer - distance) / (outer - 6.4), 0, 1);
         const blend = edge * edge * (3 - 2 * edge);
         t.terrain = land;
-        t.elevation = Math.max(1 / 1024, Math.round((centerHeight + (noise(x, y, numericSeed + 2237, 9) - .5) * .035) * blend * 1024) / 1024);
+        t.elevation = generatedElevation(Math.max(1 / 1024, Math.round((centerHeight + (noise(x, y, numericSeed + 2237, 9) - .5) * .035) * blend * 1024) / 1024));
         t.detail = '';
       } else if (core) { t.terrain = land; t.detail = ''; }
     }

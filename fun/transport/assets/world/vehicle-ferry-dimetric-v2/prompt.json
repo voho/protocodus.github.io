@@ -1,0 +1,23 @@
+{
+  "tool": "built-in image_gen",
+  "use_case": "sketch-to-render",
+  "source": "source-generated.png",
+  "guide": "geometry-guide.png",
+  "prompt": "Use case: sketch-to-render. Turn this EXACT orthographic blockout into a finished painted miniature game sprite sheet. This is a camera-calibration asset, so match the supplied geometry rather than composing a new view.\nPRESERVE the original image layout, every object's silhouette and size, hull axis slopes, relative foreshortening and three-dimensional position. Keep objects where they are. The eight ships are the same rigid model seen with a SINGLE camera fixed30 degrees above the ground. Both diagonal ground axes have slope1:2 (26.565 degrees). Match the low camera in the input exactly; do NOT make the view more top-down. North/south hulls are only about half the length of east/west hulls; do NOT enlarge them to fill their cells. A visible upright cabin adds its natural height to the hull.\nFinish the blockout with this identity: Teal-blue passenger ferry hull, cream cabin, orange wooden benches on the stern deck, teal funnel with black rim, ivory handrails, tiny orange lifebuoys. Cabin windows dark teal, fine hull rivets, weathered deck planks. Rounded aft corners but sharp forward bow as in guide.\nUse realistic textured metal, wood, windows and crisp restrained highlights, high-quality hand-painted Transport Tycoon-style art, no thick cartoon outlines. Fine texture should sit on the surfaces already in the guide. Fixed upper-left sunlight.\nThe exact 3×3 cell order is NW,N,NE / W,EMPTY,E / SW,S,SE. Orange dots indicate the FRONT pointed bow; replace each dot with natural bow detail. N points up, S points down. Remove all labels, dots and every blueprint/guide mark. Retain the complete empty transparent center cell, generous transparent spacing and the same physical scale across views. Background must be true alpha transparency. No water, wake, ground tile, cast shadows, text, frames or extra objects. Output a square sheet.",
+  "repairPrompt": "Use case: precise-object-edit. Correct this transparent eight-direction ferry sprite sheet. Preserve all eight ferry designs, their colors, camera, relative sizes, the 3x3 layout and EMPTY CENTER. Make exactly these corrections: (1) TOP CENTER cell is north/rear view and is currently wrong: the ship's WIDE FLAT STERN must be at the BOTTOM nearest the viewer, with ORANGE PASSENGER BENCHES clearly visible across that rear stern deck. The sharp POINTED FRONT BOW must be at the TOP far away, beyond the cabin. Show the BACK of the cabin at the bottom-facing end, NOT its front windshield. The lower-middle S cell correctly points down and must remain exactly as it is. (2) REMOVE ALL CAST SHADOWS outside the ships in every cell. Every pixel outside the hulls must be fully transparent, no dark blobs beside or below them. Keep every other detail and orientation of the seven non-N ships unchanged. No text, labels, dots, water, wakes or ground. True alpha transparent background.",
+  "camera": {
+    "groundSlope": 0.5,
+    "elevation": 30
+  },
+  "observedOrder": [
+    "NW",
+    "N",
+    "NE",
+    "W",
+    null,
+    "E",
+    "SW",
+    "S",
+    "SE"
+  ]
+}

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { projectPoint, unprojectPoint, projectAngle, projectedDepth } from '../isometric.js';
+import { projectPoint, unprojectPoint, projectAngle, projectedDepth, projectedGroundBasis } from '../isometric.js';
 
 const near = (actual, expected, tolerance = 1e-9) => assert.ok(Math.abs(actual - expected) <= tolerance, `${actual} differs from ${expected}`);
 
@@ -54,4 +54,16 @@ test('depth orders foreground anchors after background anchors', () => {
   assert.equal(projectedDepth(8, 4), projectedDepth(4, 8));
   assert.ok(projectedDepth(8, 5) > projectedDepth(8, 4));
   assert.ok(projectedDepth(9, 4) > projectedDepth(8, 4));
+});
+
+test('cargo bed axes share the terrain projection and preserve depth foreshortening',()=>{
+  for(let n=0;n<8;n++){
+    const worldAngle=n*Math.PI/4,screenAngle=projectAngle(worldAngle),basis=projectedGroundBasis(screenAngle);
+    const along=projectPoint(Math.cos(worldAngle),Math.sin(worldAngle)),across=projectPoint(-Math.sin(worldAngle),Math.cos(worldAngle));
+    near(basis.a,along.x*Math.SQRT1_2);near(basis.b,along.y*Math.SQRT1_2);
+    near(basis.c,across.x*Math.SQRT1_2);near(basis.d,across.y*Math.SQRT1_2);
+    near(basis.a*basis.d-basis.b*basis.c,.5);
+  }
+  const horizontal=projectedGroundBasis(0),vertical=projectedGroundBasis(Math.PI/2);
+  near(Math.hypot(horizontal.a,horizontal.b),1);near(Math.hypot(vertical.a,vertical.b),.5);
 });

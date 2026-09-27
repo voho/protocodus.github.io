@@ -1,0 +1,103 @@
+/* Quiet game chrome: management and information are opened when needed. */
+.compact-play{--play-header:52px;--drawer-width:320px;--ui-surface:#fafaf1;--ui-edge:#d5dfcb;--ui-shadow:0 5px 24px #253c2926}
+.compact-play .topbar{height:var(--play-header);min-height:var(--play-header);padding:0 12px;gap:17px;z-index:30}
+.compact-play .topbar .wordmark{font-size:22px;letter-spacing:-1.2px}
+.compact-play .topbar .brand-symbol{width:25px;height:28px;font-size:26px;margin-right:6px;border-radius:6px}
+.compact-play .main-nav{gap:3px;align-items:center}
+.compact-play .main-nav .nav-button{min-height:36px;padding:7px 10px;border:0;border-radius:6px;gap:6px;color:#51664b;font-size:13px}
+.compact-play .main-nav .nav-button svg{display:block;width:16px;height:16px}
+.compact-play .main-nav .nav-button:hover,.compact-play .main-nav .nav-button.active{background:#e1ebd8;color:#355c3b}
+.compact-play .hud-finances{gap:16px;padding:5px 7px}
+.compact-play .hud-stat>span{font-size:10px;margin-bottom:1px}
+.compact-play .hud-stat strong{font-size:16px;letter-spacing:-.3px}
+.compact-play .topbar .date-block{display:flex;align-items:center;gap:9px}
+.compact-play .topbar .date-block>span{font-size:12px;margin:0}
+.compact-play .topbar .speed-control{padding:2px;gap:1px}
+.compact-play .topbar .speed-control button{width:27px;height:29px;font-size:12px}
+.compact-play .header-actions,.compact-play .map-topline,.compact-play>.statusbar,.compact-play .map-hint,.compact-play .sidebar-foot{display:none}
+.compact-play>.workspace{position:relative;display:block;height:calc(100dvh - var(--play-header));overflow:hidden}
+.compact-play .map-section{width:100%;height:100%;min-width:0}
+.compact-play .sidebar{position:absolute;z-index:15;left:8px;top:8px;bottom:8px;width:var(--drawer-width);max-width:calc(100% - 16px);border:1px solid var(--ui-edge);border-radius:10px;background:var(--ui-surface);box-shadow:var(--ui-shadow);backdrop-filter:none;transform:translateX(calc(-100% - 12px));visibility:hidden;pointer-events:none;transition:transform .16s ease-out,visibility .16s;overflow:hidden}
+.compact-play .sidebar.mobile-open{transform:translateX(0);visibility:visible;pointer-events:auto}
+.management-drawer-heading{display:flex;align-items:center;justify-content:space-between;flex:0 0 41px;gap:12px;padding:4px 6px 4px 16px;border-bottom:1px solid var(--ui-edge);color:#77876b;font-size:11px;letter-spacing:.5px;text-transform:uppercase}
+.management-drawer-heading button{display:grid;place-items:center;width:34px;height:34px;border-radius:6px;color:#536c48}
+.management-drawer-heading button:hover{background:#e6eddf}
+.management-drawer-heading svg{width:17px;height:17px}
+.compact-play #panel-content{padding:16px 14px}
+.compact-play .panel-heading{margin-bottom:12px}
+.compact-play .panel-heading h2{font-size:20px}
+.compact-play .mobile-panel-toggle{display:none;position:static;transform:none;box-shadow:none;background:#e9efdf;border:0;border-radius:6px;padding:8px 10px;min-height:36px;color:#3f6340;font-size:13px;gap:6px}
+.compact-play .mobile-panel-toggle.open{position:static;left:auto;top:auto;bottom:auto;padding:8px 10px}
+.compact-play .mobile-panel-toggle.open span{display:inline}
+.compact-play .mobile-panel-toggle svg{width:17px;height:17px}
+.compact-menu-wrap{position:relative;flex:0 0 36px;display:flex;align-items:center}
+#game-menu-button{width:36px;height:36px;background:#e8eddf;color:#42623e}
+#game-menu-button:hover,#game-menu-button[aria-expanded=true]{background:#dce8d2}
+#game-menu-button svg{width:19px;height:19px}
+#game-menu{position:absolute;top:calc(100% + 10px);right:0;width:262px;max-width:calc(100vw - 16px);max-height:calc(100dvh - var(--play-header) - 16px);overflow:auto;border:1px solid var(--ui-edge);border-radius:10px;box-shadow:var(--ui-shadow);background:var(--ui-surface);padding:6px}
+.compact-menu-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 8px 12px;border-bottom:1px solid var(--ui-edge);margin-bottom:5px}
+.compact-menu-heading strong{font-size:14px;font-weight:600;letter-spacing:-.4px}
+#compact-menu-weather #weather{display:flex;font-size:11px;gap:5px;color:#748367}
+#compact-menu-weather svg{width:14px;height:14px}
+.compact-menu-actions{display:grid;grid-template-columns:1fr;gap:2px}
+#game-menu .compact-menu-action{display:flex;align-items:center;justify-content:flex-start;width:100%;min-height:38px;height:auto;margin:0;padding:8px 10px;border:0;border-radius:6px;gap:11px;background:transparent;text-align:left;font-size:13px;font-weight:400;color:#43613c;transform:none}
+#game-menu .compact-menu-action:hover,#game-menu .compact-menu-action:focus-visible{background:#e7eedc}
+#game-menu .compact-menu-action svg{display:block;flex:0 0 18px;width:18px;height:18px;color:#728c61}
+#game-menu #audio-button:after{content:'Sound effects'}
+#game-menu #overview-button[aria-pressed=true]:after{content:'✓';margin-left:auto;color:#4f7548}
+#game-menu .compact-menu-action>span{display:inline}
+.compact-menu-status{display:flex;justify-content:space-between;gap:10px;border-top:1px solid var(--ui-edge);margin-top:5px;padding:11px 9px 6px;font-size:10px;line-height:1.4;color:#7c8a72}
+.compact-menu-status #save-status{flex:1}
+.compact-menu-status #tile-coordinates{max-width:110px;text-align:right}
+.compact-play #map-options,.compact-play #layers-panel{top:8px;right:8px;max-height:calc(100% - 24px)}
+.compact-play #active-tool-bar,.compact-play .route-pick-banner{left:12px;top:12px;max-width:calc(100% - 24px)}
+.compact-play #active-tool-bar{gap:9px;padding:6px 7px 6px 10px}
+.compact-play #active-tool-name{font-size:14px}
+.compact-play #active-tool-hint{font-size:12px}
+.compact-play #active-tool-icon,.compact-play #active-tool-icon svg{width:22px;flex-basis:22px}
+.compact-play #cancel-tool-button{min-height:36px;min-width:52px;padding:7px 11px;font-size:13px}
+.compact-play .map-bottomline{left:auto;right:12px;bottom:12px;gap:0;justify-content:flex-end}
+.compact-play .view-controls{padding:2px;border-radius:7px}
+.compact-play .view-controls .icon-button{width:34px;height:34px;font-size:21px}
+.compact-play #zoom-level{min-width:65px;min-height:34px;padding:6px;gap:5px}
+.compact-play #zoom-label{font-size:12px}
+.compact-play #zoom-menu{left:auto;right:0;min-width:162px}
+.compact-play .minimap-wrap{width:200px;right:12px;bottom:62px;border:4px solid var(--ui-surface);border-top:0;border-radius:8px;box-shadow:var(--ui-shadow)}
+.compact-play .minimap-label{height:32px;font-size:11px;padding-right:34px}
+.compact-play #minimap{width:100%;height:auto;aspect-ratio:1}
+#close-minimap{position:absolute;right:1px;top:2px;display:grid;place-items:center;width:28px;height:28px;border-radius:4px;color:#6d815e}
+#close-minimap:hover{background:#e4ecd8}
+#close-minimap svg{width:15px;height:15px}
+.compact-play .inspector{left:12px;bottom:12px;max-height:calc(100% - 86px)}
+.compact-play .toast-region{bottom:16px}
+@media(max-width:1180px){.compact-play .wordmark-text{display:none}.compact-play .topbar .brand-symbol{margin-right:0}.compact-play .topbar{gap:10px}.compact-play .main-nav .nav-button{padding:7px 8px}.compact-play .hud-finances{gap:12px}}
+@media(max-width:900px){.compact-play .main-nav .nav-button svg{display:none}.compact-play .main-nav .nav-button[data-view=industry],.compact-play .main-nav .nav-button[data-view=towns]{display:flex}.compact-play .topbar .date-block{display:block}.compact-play .topbar .date-block>span{font-size:10px;margin:0 0 2px}.compact-play .topbar .speed-control button{width:23px;height:20px}.compact-play .topbar .speed-control{padding:1px}.compact-play .hud-finances{gap:10px}.compact-play .hud-stat strong{font-size:15px}}
+@media(max-width:700px){
+ .compact-play{--drawer-width:min(328px,calc(100vw - 16px))}
+ .compact-play .topbar{gap:8px;padding:0 8px}
+ .compact-play .main-nav{display:none}
+ .compact-play .mobile-panel-toggle{display:flex;flex:0 0 auto}
+ .compact-play .hud-finance-wrap{margin-left:auto;min-width:0;flex-shrink:1}
+ .compact-play .hud-finances{display:block;padding:3px;line-height:1.25}
+ .compact-play .hud-stat>span{display:none}
+ .compact-play .hud-stat:first-child strong{font-size:15px}
+ .compact-play .hud-stat:last-child strong{font-size:11px;letter-spacing:0}
+ .compact-play .hud-tooltip{top:calc(var(--play-header) + 4px)}
+ .compact-play .mobile-management{display:flex;padding:5px;border-bottom:1px solid var(--ui-edge);background:#f3f6ea}
+ .compact-play .mobile-management button{min-height:38px;font-size:12px;padding:7px 4px}
+ .compact-play .management-drawer-heading{flex-basis:40px}
+ .compact-play .sidebar.mobile-open~.map-section .inspector{display:none}
+ .compact-play .view-controls .icon-button{width:40px;height:40px}
+ .compact-play #zoom-level{min-height:40px;min-width:66px}
+ .compact-play .map-bottomline{bottom:10px;right:10px}
+ .compact-play .minimap-wrap{right:10px;bottom:64px;width:178px}
+ .compact-play .inspector{left:10px;bottom:62px;max-width:calc(100% - 20px);max-height:calc(100% - 138px)}
+ .compact-play #active-tool-bar,.compact-play .route-pick-banner{left:10px;top:10px;max-width:calc(100% - 20px)}
+ .compact-play #active-tool-bar{width:calc(100% - 20px)}
+ .compact-play .active-tool-copy{flex:1;max-width:none}
+ .compact-play #active-tool-hint{font-size:11px}
+ .compact-play .toast-region{bottom:64px}
+ .compact-play .workspace:has(#zoom-menu:not([hidden]))>.mobile-panel-toggle{visibility:visible}
+}
+@media(max-width:370px){.compact-play .topbar{gap:5px;padding:0 6px}.compact-play .topbar .wordmark{display:none}.compact-play .mobile-panel-toggle{padding:8px}.compact-play .topbar .speed-control button{width:22px}.compact-play .hud-stat:first-child strong{font-size:14px}}
+@media(prefers-reduced-motion:reduce){.compact-play .sidebar{transition:none}}

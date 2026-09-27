@@ -7,6 +7,7 @@ import { emptyGame, tileAt, line } from './helpers.mjs';
 for (const mode of ['road', 'rail']) {
   test(`${mode} gestures automatically bridge water and tunnel mountains at the quoted inflated cost`, () => {
     const game = emptyGame(); game.day = 730;
+    for (let y=0;y<game.height;y++) Object.assign(tileAt(game,12,y),{terrain:'water',elevation:0}); // Straight banks have an aligned grade.
     const points = line(10, 16, 10), terrains = ['grass', 'forest', 'water', 'grass', 'mountain', 'rock', 'grass'];
     for (const [i, point] of points.entries()) Object.assign(tileAt(game, point.x, point.y), { terrain: terrains[i], detail: terrains[i] === 'water' ? 'river' : '' });
     const before = structuredClone(game), quote = quoteBuildPlan(game, mode, [...points, points[2]]);
@@ -79,6 +80,7 @@ test('a deduplicated stop click returns its station and repeated demolition says
 
 test('partial paths skip blocked and unaffordable tiles while charging only completed connections', () => {
   const game = emptyGame(); game.day = 365;
+  for (let y=0;y<game.height;y++) Object.assign(tileAt(game,11,y),{terrain:'water',elevation:0}); // Straight banks have an aligned grade.
   Object.assign(tileAt(game, 11, 10), { terrain: 'water', detail: 'river' });
   tileAt(game, 12, 10).building = { kind: 'house-cheap-1', level: 1 };
   const roadCost = constructionCost(game, 'road', 10, 10); game.money = roadCost * 2;

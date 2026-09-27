@@ -3,6 +3,7 @@
 // Eight authored headings keep hull edges stable on the water grid.
 import { drawRasterVehicle, drawRasterInfrastructure } from './raster-transport.js';
 import { worldArtRevision } from './atlas-runtime.js';
+import { createSpriteCache } from './sprite-cache.js';
 export const MARINE_SIZE = 64;
 const TAU = Math.PI * 2;
 const bulk = new Set(['coal', 'iron', 'copper', 'stone', 'sand', 'grain', 'cement']);
@@ -77,16 +78,18 @@ function portArtwork(c, profile) {
   rect(c, -15, -17, 4, 4, '#d6c18b'); rect(c, -14, -16, 2, 2, '#597471');
 }
 
-export function createMarineSprites({ pixelScale = 1, detailLevel = 'town' } = {}) {
-  const scale = Math.max(.25, Number(pixelScale) || 1), cache = new Map();
-  let revision=worldArtRevision();
+export function createMarineSprites({ pixelScale = 1, detailLevel = 'town', cache:sharedCache=null } = {}) {
+  const scale = Math.max(.25, Number(pixelScale) || 1), cache = sharedCache||createSpriteCache({limit:32*1024*1024}),prefix=`marine:${scale}:${detailLevel}:`;
+  // A mixed fleet readily exceeds 64 heading/cargo/color combinations. Bound
+  // the backing pixels instead, so a harbor does not rebuild every ship on
+  // every frame just because another route entered the view.
+  let revision=worldArtRevision(),created=0,hits=0;cache.syncRevision(revision);
   function raster(key, angle, draw) {
-    if(revision!==worldArtRevision()){cache.clear();revision=worldArtRevision();}
-    if (cache.has(key)) { const image = cache.get(key); cache.delete(key); cache.set(key, image); return image; }
+    if(revision!==worldArtRevision()){revision=worldArtRevision();cache.syncRevision(revision);}
+    key=prefix+key;const cached=cache.get(key);if(cached){hits++;return cached;}
     const image = document.createElement('canvas'); image.width = image.height = Math.ceil(MARINE_SIZE * scale);
     const c = image.getContext('2d'); c.scale(scale, scale); c.translate(MARINE_SIZE / 2, MARINE_SIZE / 2); c.rotate(angle); draw(c);
-    if (cache.size >= 64) { const oldest = cache.keys().next().value, old = cache.get(oldest); old.width = old.height = 0; cache.delete(oldest); }
-    cache.set(key, image); return image;
+    cache.set(key, image);created++;return image;
   }
   return {
     ship(vehicle, route) {
@@ -99,7 +102,7 @@ export function createMarineSprites({ pixelScale = 1, detailLevel = 'town' } = {
       const heading = ((Math.round((landAngle - Math.PI) / (Math.PI / 2)) % 4) + 4) % 4;
       return raster(`port:${heading}`, heading * Math.PI / 2, c => {if(!drawRasterInfrastructure(c,'port',-29,-27,52,52,scale))portArtwork(c,detailLevel);});
     },
-    getStats: () => ({ count: cache.size, pixelScale: scale, size: Math.ceil(MARINE_SIZE * scale) }),
+    getStats: () => ({ ...cache.getStats(),count:cache.getStats().entries,created,hits,pixelScale: scale, size: Math.ceil(MARINE_SIZE * scale),shared:Boolean(sharedCache) }),
   };
 }
 

@@ -113,7 +113,11 @@ test('old companies gain parcels once without modifying geography or neighbors',
 
 test('a valid tunnel span releases a mountain parcel without changing its elevations',()=>{
   const game=flatGame();parcel(game,'mountain');
-  const points=Array.from({length:7},(_,n)=>({x:18+n,y:21}));tileAt(game,18,21).elevation=7/16;tileAt(game,24,21).elevation=7/16;
+  // Lower the land on both sides of the ridge, preserving the parcel's flat
+  // collar while giving each new portal a straight approach instead of a pit.
+  for(let y=0;y<game.height;y++)for(let x=0;x<game.width;x++)if(x<19||x>23)tileAt(game,x,y).elevation=7/16;
+  game.revision++;
+  const points=Array.from({length:8},(_,n)=>({x:17+n,y:21}));
   const before=points.map(p=>tileAt(game,p.x,p.y).elevation),result=buildStructureSpan(game,'tunnel',points);
   assert.equal(result.ok,true,result.message);assert.equal(terrainObjectAt(game,20,20),null);assert.deepEqual(points.map(p=>tileAt(game,p.x,p.y).elevation),before);
   assert.equal(tileAt(game,22,21).terrain,'mountain');assert.equal(tileAt(game,22,21).tunnel,true);assert.equal(validateGame(game),true);

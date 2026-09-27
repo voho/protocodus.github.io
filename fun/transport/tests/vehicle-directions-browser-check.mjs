@@ -3,13 +3,14 @@
 import assert from 'node:assert/strict';
 import { mkdir, readFile, access } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
+import { VEHICLE_ATLAS_PATHS } from '../vehicle-directions.js';
 const { chromium } = await import(process.env.TRANSPORT_PLAYWRIGHT || 'playwright');
 const baseURL = process.env.TRANSPORT_URL || 'http://127.0.0.1:8765/fun/transport/';
 const output = process.env.TRANSPORT_SCREENSHOTS || '/tmp/transport-vehicle-directions-qa';
 const kinds = ['bus','express-bus','truck','locomotive','coach','wagon','ferry','cargo-ship','tanker'];
 const metadata = {}, missing = [];
 for (const kind of kinds) {
-  const directory = new URL(`../assets/world/vehicle-${kind}/`, import.meta.url);
+  const directory = new URL(`../${VEHICLE_ATLAS_PATHS[kind].slice(2).replace(/atlas$/, '')}`, import.meta.url);
   try {
     await access(fileURLToPath(new URL('atlas-128.png',directory)));
     metadata[kind] = JSON.parse(await readFile(new URL('atlas.json',directory),'utf8'));
@@ -26,7 +27,7 @@ async function harness(context) {
   await page.route('**/vehicle-directions-qa',route=>route.fulfill({contentType:'text/html',body:'<!doctype html><meta charset="utf-8"><style>body{margin:0;padding:20px;background:#edf0e3;color:#273d35;font:16px system-ui}h1{font-size:23px}h2{font-size:17px}canvas{display:block}section{padding:16px;margin-bottom:18px;background:#faf9f0;border-radius:10px}#gallery{width:max-content}.world{width:1100px;height:700px}</style><h1>Eight independently drawn vehicle directions</h1><main id="gallery"></main>'}));
   await page.goto(new URL('vehicle-directions-qa',baseURL).href);
   await page.evaluate(async ({metadata,missing})=>{
-    const directions=await import('./vehicle-directions.js'),assets=await import('./atlas-runtime.js');
+    const directions=await import('./vehicle-directions.js'),assets=await import('./atlas-runtime.js'),isometric=await import('./isometric.js');
     const {drawRasterVehicle}=await import('./raster-transport.js'),{createMarineSprites}=await import('./marine-sprites.js');
     const {createRenderer}=await import('./renderer.js'),{createGame}=await import('./model.js');
     const activeKinds=directions.VEHICLE_KINDS.filter(kind=>!missing.includes(kind));
@@ -48,7 +49,7 @@ async function harness(context) {
     const direct=(kind,angle,scale=1)=>{const canvas=makeCanvas(Math.ceil(64*scale),Math.ceil(64*scale)),c=canvas.getContext('2d');c.scale(scale,scale);c.translate(32,32);directions.drawDirectionalVehicle(c,kind,angle,spec(kind).size,scale);return canvas;};
     const load=async url=>{const image=new Image();await new Promise((resolve,reject)=>{image.onload=resolve;image.onerror=()=>reject(new Error(url));image.src=url;});await image.decode();return image;};
     const section=title=>{const box=document.createElement('section'),h=document.createElement('h2');h.textContent=title;box.append(h);document.querySelector('#gallery').append(box);return box;};
-    window.vehicleQA={directions,assets,drawRasterVehicle,createMarineSprites,createRenderer,createGame,activeKinds,metadata,makeCanvas,hash,spec,sprite,direct,difference,load,section};
+    window.vehicleQA={directions,assets,isometric,drawRasterVehicle,createMarineSprites,createRenderer,createGame,activeKinds,metadata,makeCanvas,hash,spec,sprite,direct,difference,load,section};
     await assets.preloadWorldArt({waitMs:12000});
   },{metadata,missing});
   return page;
@@ -69,7 +70,7 @@ try {
       for(const angle of [NaN,Infinity,-Infinity,undefined])selection.push({actual:q.directions.vehicleHeading(angle),expected:'E'});
       for(const kind of q.activeKinds){
         for(const cell of [16,32,64,128]){
-          const image=await q.load(`./assets/world/vehicle-${kind}/atlas-${cell}.png`),hashes=[],ink=[];
+          const image=await q.load(`${q.directions.VEHICLE_ATLAS_PATHS[kind]}-${cell}.png`),hashes=[],ink=[];
           const center=q.makeCanvas(cell,cell);center.getContext('2d').drawImage(image,cell,cell,cell,cell,0,0,cell,cell);
           for(let index=0;index<9;index++)if(q.metadata[kind].order[index]){
             const frame=q.makeCanvas(cell,cell);frame.getContext('2d').drawImage(image,index%3*cell,Math.floor(index/3)*cell,cell,cell,0,0,cell,cell);
@@ -80,7 +81,9 @@ try {
         for(const zoom of [.5,1,2])for(let i=0;i<8;i++){
           const heading=i*step,scale=zoom*devicePixelRatio,empty=q.sprite(kind,heading,scale),loaded=q.sprite(kind,heading,scale,100),partial=q.sprite(kind,heading,scale,20),negative=q.sprite(kind,heading,scale,-2),overfull=q.sprite(kind,heading,scale,120);
           const draw=empty.draws[0],atlas=q.metadata[kind],cell=draw?.args[2],index=draw?draw.args[1]/cell*3+draw.args[0]/cell:-1;
-          profiles.push({kind,zoom,heading:q.directions.VEHICLE_HEADINGS[i],drawn:empty.drawn,src:draw?.src,id:atlas.order[index],matrix:draw?.matrix,hash:empty.hash,matchesDirect:empty.hash===q.hash(q.direct(kind,heading,scale)),difference:q.difference(empty.canvas,q.direct(kind,heading,scale)),loadChanges:loaded.hash!==empty.hash,partialChanges:partial.hash!==empty.hash,fullVsPartial:partial.hash!==loaded.hash,negativeClamped:negative.hash===empty.hash,overfullClamped:overfull.hash===loaded.hash,overfullDifference:q.difference(overfull.canvas,loaded.canvas)});
+          const cargo=loaded.draws.find(draw=>draw.src?.includes('/cargo/atlas-')),cargoScale=scale*(kind==='cargo-ship'?1.7:1);
+          const cargoMatrix=cargo&&Object.fromEntries(['a','b','c','d'].map(key=>[key,cargo.matrix[key]/cargoScale]));
+          profiles.push({kind,zoom,heading:q.directions.VEHICLE_HEADINGS[i],drawn:empty.drawn,src:draw?.src,id:atlas.order[index],matrix:draw?.matrix,cargoMatrix,expectedCargoMatrix:q.isometric.projectedGroundBasis(q.directions.vehicleFrameAngle(heading)),hash:empty.hash,matchesDirect:empty.hash===q.hash(q.direct(kind,heading,scale)),difference:q.difference(empty.canvas,q.direct(kind,heading,scale)),loadChanges:loaded.hash!==empty.hash,partialChanges:partial.hash!==empty.hash,fullVsPartial:partial.hash!==loaded.hash,negativeClamped:negative.hash===empty.hash,overfullClamped:overfull.hash===loaded.hash,overfullDifference:q.difference(overfull.canvas,loaded.canvas)});
         }
       }
       for(const kind of ['coach','wagon'].filter(k=>q.activeKinds.includes(k)))for(const heading of [0,Math.PI/2,Math.PI,Math.PI*1.5]){
@@ -99,12 +102,13 @@ try {
     for(const frame of checks.frames){assert.equal(new Set(frame.hashes).size,8,`${frame.kind} ${frame.cell}px has 8 unique frames`);assert.ok(frame.ink.every(n=>n>2));assert.equal(frame.blankCenter,true);}
     for(const p of checks.profiles){
       const label=`${p.kind} ${p.heading} zoom${p.zoom} DPR${dpr}`;
-      assert.equal(p.drawn,true,label);assert.ok(p.src.includes(`/vehicle-${p.kind}/`),`${label} uses directional art`);assert.equal(p.id,`vehicle:${p.kind}:${p.heading}`,label);
+      assert.equal(p.drawn,true,label);assert.ok(p.src.includes(VEHICLE_ATLAS_PATHS[p.kind].slice(1)),`${label} uses active directional art`);assert.equal(p.id,`vehicle:${p.kind}:${p.heading}`,label);
       assert.ok(Math.abs(p.matrix.b)<1e-9&&Math.abs(p.matrix.c)<1e-9&&Math.abs(p.matrix.a-p.matrix.d)<1e-9,`${label} keeps camera upright`);
       // In Chromium, cancelling rotations can move a handful of filtered
       // channel values by one or two units at DPR2; camera geometry must still be exact.
       assert.ok(p.matchesDirect||(p.difference.max<=2&&p.difference.changed<=p.difference.bytes*.001),`${label} body matches the authored frame ${JSON.stringify(p.difference)}`);
       const cargo=['truck','wagon','cargo-ship'].includes(p.kind);
+      if(cargo)for(const key of ['a','b','c','d'])assert.ok(Math.abs(p.cargoMatrix[key]-p.expectedCargoMatrix[key])<1e-7,`${label} cargo projects onto the bed plane: ${JSON.stringify({actual:p.cargoMatrix,expected:p.expectedCargoMatrix})}`);
       assert.equal(p.loadChanges,cargo,`${label} cargo overlay`);assert.equal(p.partialChanges,cargo,label);assert.equal(p.fullVsPartial,cargo,label);
       assert.equal(p.negativeClamped,true,`${label} negative load clamp`);assert.equal(p.overfullClamped,true,`${label} overfull load clamp ${JSON.stringify(p.overfullDifference)}`);
     }
@@ -153,7 +157,7 @@ try {
       const runs=[];
       for(const zoom of [.5,1,2]){
         renderer.setZoom(zoom);renderer.focus(11,10);const draw=CanvasRenderingContext2D.prototype.drawImage,observed=[];
-        CanvasRenderingContext2D.prototype.drawImage=function(image,...args){if(image.src?.includes('/vehicle-')){const m=this.getTransform(),kind=image.src.match(/vehicle-([^/]+)/)[1],cell=args[2],index=args[1]/cell*3+args[0]/cell;observed.push({kind,id:q.metadata[kind]?.order[index],matrix:{a:m.a,b:m.b,c:m.c,d:m.d}});}return draw.call(this,image,...args);};
+        CanvasRenderingContext2D.prototype.drawImage=function(image,...args){if(this===canvas.getContext('2d')&&(image.vehicleFrame||image.src?.includes('/vehicle-'))){const m=this.getTransform(),kind=image.vehicleFrame?.kind||q.activeKinds.find(kind=>image.src.includes(q.directions.VEHICLE_ATLAS_PATHS[kind].slice(1))),cell=args[2],index=args[1]/cell*3+args[0]/cell,id=image.vehicleFrame?`vehicle:${kind}:${image.vehicleFrame.heading}`:q.metadata[kind]?.order[index];observed.push({kind,id,matrix:{a:m.a,b:m.b,c:m.c,d:m.d}});}return draw.call(this,image,...args);};
         try{renderer.render(0);}finally{CanvasRenderingContext2D.prototype.drawImage=draw;}
         runs.push({zoom,observed,stats:renderer.getStats()});
       }
@@ -169,6 +173,21 @@ try {
     results.push({dpr,vehicleKinds:Object.keys(metadata).length,authoredFrames:checks.frames.length*8,renderedProfiles:checks.profiles.length,headingChecks:checks.selection.length,trailerChecks:checks.trailers.length,rendererZooms:integrated.length});
     await context.close();
   }
+  // When a directional sheet is unavailable, its generic recovery image must
+  // use the corrected camera too, without rotating an already projected body.
+  const fallbackContext=await browser.newContext();
+  await fallbackContext.route('**/assets/world/vehicle-*/atlas-*.png',route=>route.abort());
+  const fallbackPage=await harness(fallbackContext);
+  const fallback=await fallbackPage.evaluate(()=>{
+    const q=vehicleQA,checks=[];
+    for(const kind of q.activeKinds)for(let index=0;index<8;index++){
+      const result=q.sprite(kind,index*Math.PI/4,1,0),body=result.draws[0];
+      checks.push({kind,index,drawn:result.drawn,src:body?.src,matrix:body?.matrix});
+    }
+    return checks;
+  });
+  for(const check of fallback){assert.equal(check.drawn,true);assert.ok(check.src.includes('/vehicles-dimetric-v2/'),`${check.kind} recovery art uses the corrected camera`);assert.ok(Math.abs(check.matrix.b)<1e-9&&Math.abs(check.matrix.c)<1e-9,`${check.kind} recovery body stays upright`);}
+  await fallbackContext.close();
   assert.deepEqual(errors,[],'no browser errors');
-  console.log(JSON.stringify({results,missing,screenshots:output},null,2));
+  console.log(JSON.stringify({results,fallbackChecks:fallback.length,missing,screenshots:output},null,2));
 }finally{await browser.close();}

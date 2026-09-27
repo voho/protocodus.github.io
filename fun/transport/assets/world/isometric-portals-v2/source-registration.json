@@ -1,0 +1,93 @@
+{
+  "operation": "Lossless RGBA cell selection from two generated 3x3 masters; no painting, geometry edits or alpha reconstruction",
+  "cells": [
+    {
+      "id": "road-e",
+      "cell": 0,
+      "source": "source-front.png",
+      "bounds": [
+        0,
+        0,
+        418,
+        418
+      ]
+    },
+    {
+      "id": "road-s",
+      "cell": 1,
+      "source": "source-front.png",
+      "bounds": [
+        418,
+        0,
+        836,
+        418
+      ]
+    },
+    {
+      "id": "road-w",
+      "cell": 2,
+      "source": "source-rear.png",
+      "bounds": [
+        836,
+        0,
+        1254,
+        418
+      ]
+    },
+    {
+      "id": "road-n",
+      "cell": 3,
+      "source": "source-rear.png",
+      "bounds": [
+        0,
+        418,
+        418,
+        836
+      ]
+    },
+    {
+      "id": "rail-e",
+      "cell": 4,
+      "source": "source-front.png",
+      "bounds": [
+        418,
+        418,
+        836,
+        836
+      ]
+    },
+    {
+      "id": "rail-s",
+      "cell": 5,
+      "source": "source-front.png",
+      "bounds": [
+        836,
+        418,
+        1254,
+        836
+      ]
+    },
+    {
+      "id": "rail-w",
+      "cell": 6,
+      "source": "source-rear.png",
+      "bounds": [
+        0,
+        836,
+        418,
+        1254
+      ]
+    },
+    {
+      "id": "rail-n",
+      "cell": 7,
+      "source": "source-rear.png",
+      "bounds": [
+        418,
+        836,
+        836,
+        1254
+      ]
+    }
+  ]
+}

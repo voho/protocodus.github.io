@@ -1,21 +1,23 @@
 import { BUILDINGS, residentialKind, commercialKind } from './buildings.js';
 import { INDUSTRIES } from './data.js';
 import { worldArtRevision, preloadWorldArt } from './atlas-runtime.js';
-import { drawRasterIndustry } from './raster-industries.js';
-import { drawRasterBuilding } from './raster-buildings.js';
+import { drawRasterIndustry, hasRasterIndustry } from './raster-industries.js';
+import { drawRasterBuilding, hasRasterBuilding } from './raster-buildings.js';
 import { drawRasterNature, drawRasterNatureObject, natureObjectLayout } from './raster-nature.js';
 import { drawTownBuilding } from './building-sprites.js';
 import { drawProcessingPlant } from './processing-sprites.js';
 import { drawTerrainDetail } from './terrain-sprites.js';
 import { drawForest, drawTree } from './tree-sprites.js';
 import { drawMountain, drawBoulder } from './relief-sprites.js';
-import { drawRasterHouse, houseAssetsRevision, preloadHouses } from './raster-houses.js';
+import { drawRasterHouse, hasRasterHouse, houseAssetsRevision, preloadHouses } from './raster-houses.js';
+import { createSpriteCache } from './sprite-cache.js';
+export { createSpriteCache } from './sprite-cache.js';
 // Generated artwork and emergency code-native fallbacks share one bounded cache.
 export const TILE = 32;
 export const PALETTES = {
-  taiga: { ground: '#91a77a', ground2: '#9aae82', ground3: '#879f72', speck: '#bcc19a', dark: '#738e65', water: '#528f96', deep: '#377881', shore: '#b9bea0', forest: '#799664', mountain: '#999d91', sand: '#c4ba94' },
-  tundra: { ground: '#cbd4c5', ground2: '#d7dece', ground3: '#bfcbbc', speck: '#dde3d4', dark: '#91a695', water: '#6699a3', deep: '#487b8d', shore: '#d4d8c6', forest: '#99ac9c', mountain: '#afb7b6', sand: '#c8c8b1' },
-  desert: { ground: '#c6b48b', ground2: '#cfbc92', ground3: '#bfaa7f', speck: '#e6d0a1', dark: '#b29b70', water: '#639999', deep: '#3e8289', shore: '#decea5', forest: '#b5ae7f', mountain: '#aa9e8c', sand: '#d4bc8d' },
+  taiga: { ground: '#91a77a', ground2: '#9aae82', ground3: '#879f72', speck: '#bcc19a', dark: '#738e65', water: '#548f95', deep: '#326b77', shore: '#aaaf91', forest: '#799664', mountain: '#999d91', sand: '#c4ba94' },
+  tundra: { ground: '#cbd4c5', ground2: '#d7dece', ground3: '#bfcbbc', speck: '#dde3d4', dark: '#91a695', water: '#709da7', deep: '#426f83', shore: '#b8c5bb', forest: '#99ac9c', mountain: '#afb7b6', sand: '#c8c8b1' },
+  desert: { ground: '#c6b48b', ground2: '#cfbc92', ground3: '#bfaa7f', speck: '#e6d0a1', dark: '#b29b70', water: '#629f9d', deep: '#367984', shore: '#c6b185', forest: '#b5ae7f', mountain: '#aa9e8c', sand: '#d4bc8d' },
 };
 export function rng(seed) { let a = seed >>> 0; return () => { a += 0x6d2b79f5; let t = a; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 function polygon(ctx, points, fill) { ctx.fillStyle = fill; ctx.beginPath(); points.forEach(([x,y],i)=>i ? ctx.lineTo(x,y):ctx.moveTo(x,y)); ctx.closePath(); ctx.fill(); }
@@ -104,27 +106,36 @@ function industry(ctx,kind,r,biome,detailLevel='town') {
     ctx.fillStyle='#bb9954';ctx.fillRect(24,25,6,3);
   }
 }
-export function createSprites(biome,{pixelScale=2,detailLevel='town'}={}) {
+export function createSprites(biome,{pixelScale=2,detailLevel='town',cache:sharedCache=null}={}) {
   // Every consumer, including detached previews, starts the generated artwork.
   // Revision checks replace temporary fallbacks as individual images arrive.
-  void preloadHouses({waitMs:0});
-  void preloadWorldArt({waitMs:0});
+  void preloadHouses({waitMs:0,biome});
+  void preloadWorldArt({waitMs:0,biome});
   const density=Number.isFinite(pixelScale)&&pixelScale>0?pixelScale:2;
   const profile=['region','town','detail'].includes(detailLevel)?detailLevel:'town';
-  // Each factory owns its cache, so biome, density and profile are part of its identity.
-  const cache=new Map(),cacheLimit=16*1024*1024;let cacheBytes=0,assetRevision=houseAssetsRevision(),worldRevision=worldArtRevision();
+  // A renderer can share one byte budget across all exact zoom/DPR factories.
+  // Detail/retina views need more backing pixels for the same woodland
+  // variants. A fixed 16 MiB cache evicted visible trees before the next frame
+  // could reuse them. Grow with display density, within a firm 64 MiB ceiling;
+  // canvases are still allocated only when a view actually needs them.
+  const cache=sharedCache||createSpriteCache({limit:16*1024*1024*Math.min(4,Math.max(1,density*density))}),prefix=`${biome}:${density}:${profile}:`;
+  let assetRevision=houseAssetsRevision(),worldRevision=worldArtRevision(),created=0,hits=0;
+  cache.syncRevision(`${assetRevision}:${worldRevision}`);
   const natureKinds=new Set(['forest','rock','mountain','terrain-detail']);
-  return function sprite(kind,variant=0,level=1,detail='',footprint=1) {
+  function sprite(kind,variant=0,level=1,detail='',footprint=1) {
     // Saved companies and external previews can still use the original names.
     // Resolve before caching so these share the exact current artwork identity.
     if(kind==='house'||kind==='apartment')kind=residentialKind(variant,level);
     else if(kind==='shop'||kind==='office')kind=commercialKind(variant,level);
-    if(assetRevision!==houseAssetsRevision()||worldRevision!==worldArtRevision()){cache.clear();cacheBytes=0;assetRevision=houseAssetsRevision();worldRevision=worldArtRevision();}
+    if(assetRevision!==houseAssetsRevision()||worldRevision!==worldArtRevision()){assetRevision=houseAssetsRevision();worldRevision=worldArtRevision();cache.syncRevision(`${assetRevision}:${worldRevision}`);}
     const variants=natureKinds.has(kind)?64:12;
     variant=((Math.floor(variant)%variants)+variants)%variants;
     const span=Math.max(1,Math.min(3,Math.floor(Object.hasOwn(INDUSTRIES,kind)?level:footprint)||1));
-    const key=`${kind}:${variant}:${level}:${detail}:${span}`;
-    if(cache.has(key)){const cached=cache.get(key);cache.delete(key);cache.set(key,cached);return cached;}
+    // Authored buildings have one image per identity and footprint. Twelve
+    // legacy seed variants must not retain twelve copies of identical pixels.
+    const authored=BUILDINGS[kind]&&(hasRasterHouse(kind,biome)||hasRasterBuilding(kind,biome))||Object.hasOwn(INDUSTRIES,kind)&&hasRasterIndustry(kind,biome);
+    const key=prefix+(authored?`${kind}:art:${span}`:`${kind}:${variant}:${level}:${detail}:${span}`),cached=cache.get(key);
+    if(cached){hits++;return cached;}
     const natureObject=span>1&&['forest','rock','mountain'].includes(kind),layout=natureObject?natureObjectLayout(span):null;
     const forest=kind==='forest',width=layout?.width||(forest?48:TILE*span),height=layout?.height||(forest?48:TILE*span+8);
     const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(width*density));canvas.height=Math.max(1,Math.round(height*density));
@@ -157,8 +168,8 @@ export function createSprites(biome,{pixelScale=2,detailLevel='town'}={}) {
     else if(kind==='mountain') drawMountain(ctx,detail,r,biome,profile);
     else if(['house','apartment','shop','office','factory'].includes(kind)) building(ctx,kind,r,level,biome);
     else {ctx.save();ctx.scale(span,span);industry(ctx,kind,r,biome,profile);ctx.restore();}
-    const bytes=canvas.width*canvas.height*4;
-    while(cacheBytes+bytes>cacheLimit&&cache.size){const oldest=cache.keys().next().value,image=cache.get(oldest);cacheBytes-=image.width*image.height*4;cache.delete(oldest);}
-    cache.set(key,canvas);cacheBytes+=bytes;return canvas;
-  };
+    cache.set(key,canvas);created++;return canvas;
+  }
+  sprite.getStats=()=>({...cache.getStats(),created,hits,shared:Boolean(sharedCache)});
+  return sprite;
 }

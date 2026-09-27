@@ -1,0 +1,15 @@
+{
+  "operation": "Copy9 active southeast vehicle master cells without rescaling; produce density variants with existing premultiplied-alpha pipeline",
+  "sourceAtlases": [
+    "../vehicle-bus-dimetric-v2",
+    "../vehicle-truck-dimetric-v2",
+    "../vehicle-locomotive-dimetric-v2",
+    "../vehicle-coach-dimetric-v2",
+    "../vehicle-wagon-dimetric-v2",
+    "../vehicle-express-bus-dimetric-v2",
+    "../vehicle-ferry-dimetric-v2",
+    "../vehicle-cargo-ship-dimetric-v2",
+    "../vehicle-tanker-dimetric-v2"
+  ],
+  "heading": "SE"
+}

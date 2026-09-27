@@ -17,9 +17,26 @@
   <link rel="stylesheet" href="./visibility.css">
   <link rel="stylesheet" href="./controls.css">
   <link rel="stylesheet" href="./gameplay.css">
+  <link rel="stylesheet" href="./loading-screen.css">
+  <link rel="stylesheet" href="./start-menu.css">
+  <link rel="stylesheet" href="./compact-play.css">
 </head>
 <body>
-  <div id="app">
+  <dialog id="loading-screen" open aria-modal="true" aria-labelledby="loading-title" aria-describedby="loading-status">
+    <div class="loading-content">
+      <div class="loading-brand" aria-label="Transport"><span aria-hidden="true">t</span><span>transport<b>.</b></span></div>
+      <p class="loading-tagline">Build connections. Grow a world.</p>
+      <div class="loading-scene" aria-hidden="true"><div class="loading-track"></div><img class="loading-train" src="./assets/world/vehicle-locomotive-dimetric-v2/sources/vehicle_locomotive_E.png" width="170" height="170" alt="" fetchpriority="high"></div>
+      <h1 id="loading-title">Loading your world</h1>
+      <div class="loading-status-row"><span class="loading-pulse" aria-hidden="true"></span><p id="loading-status" role="status" aria-live="polite" aria-atomic="true">Getting everything ready…</p></div>
+      <progress id="loading-progress" max="3" value="0" aria-label="Loading progress" aria-valuetext="Getting everything ready…"></progress>
+      <p id="loading-step">Step 1 of 3</p>
+      <button id="loading-retry" type="button" hidden>Try again</button>
+      <button id="loading-cancel" type="button" hidden>Cancel</button>
+      <noscript><span class="loading-noscript">Enable JavaScript to play Transport.</span></noscript>
+    </div>
+  </dialog>
+  <div id="app" inert aria-busy="true">
     <header class="topbar">
       <a class="wordmark" href="/fun/" aria-label="Transport — back to games"><span class="brand-symbol" aria-hidden="true">t</span><span class="wordmark-text">transport<span class="wordmark-dot">.</span></span></a>
       <nav class="main-nav" aria-label="Game views">
@@ -65,6 +82,6 @@
     <div id="toast-region" aria-live="polite" class="toast-region"></div>
     <dialog id="modal"><div id="modal-content"></div></dialog>
   </div>
-  <script type="module" src="./app.js"></script>
+  <script type="module" src="./boot.js"></script>
 </body>
 </html>

@@ -1,0 +1,30 @@
+// Busy-view frame costs, visible-object counts, CPU profiles and screenshots.
+// TRANSPORT_URL may point to an immutable older server for reproducible comparisons.
+import assert from 'node:assert/strict';
+import {mkdir,writeFile} from 'node:fs/promises';
+import {installBusyScenes} from './busy-scenes-fixture.mjs';
+const {chromium}=await import(process.env.TRANSPORT_PLAYWRIGHT||'playwright');
+const base=process.env.TRANSPORT_URL||'http://127.0.0.1:8765/fun/transport/',out=process.env.TRANSPORT_OUTPUT||'/tmp/transport-busy-scenes';await mkdir(out,{recursive:true});
+const scenes=(process.env.TRANSPORT_SCENES||'generated-forest,generated-city,forest,city,vehicles,mixed').split(','),conditions=(process.env.TRANSPORT_CONDITIONS||'day,night,rain').split(','),zooms=(process.env.TRANSPORT_ZOOMS||'.5,1,2').split(',').map(Number),frames=Number(process.env.TRANSPORT_FRAMES||12);
+const browser=await chromium.launch({channel:process.env.TRANSPORT_BROWSER||'chrome',headless:true});const rows=[],errors=[];
+try{
+  let page;
+  async function openScenePage(){page=await browser.newPage({viewport:{width:1280,height:900},deviceScaleFactor:2});page.on('pageerror',e=>errors.push(e.message));
+  await page.route('**/busy-scenes-qa',r=>r.fulfill({contentType:'text/html',body:'<style>body{margin:0}canvas{width:1280px;height:900px}</style><canvas></canvas>'}));await page.goto(new URL('busy-scenes-qa',base).href);await page.evaluate(installBusyScenes);}
+  for(const scene of scenes){
+  if(!page||process.env.TRANSPORT_FRESH_SCENES==='1'){if(page)await page.close();await openScenePage();}
+  for(const zoom of zooms)for(const condition of conditions){
+    const row=await page.evaluate(async({scene,zoom,condition,frames})=>{const q=busyQA,metadata=q.select(scene,zoom,condition),times=[],wall=[],pan=[];let t=performance.now();q.renderer.render(1000);const coldMs=performance.now()-t;await new Promise(r=>setTimeout(r,50));for(let n=0;n<3;n++){q.renderer.render(1000);await new Promise(requestAnimationFrame);}let preparationFrames=0;while(q.renderer.getStats().sceneryBatches?.pending&&preparationFrames++<120){await new Promise(requestAnimationFrame);q.renderer.render(1000);}if(q.renderer.getStats().sceneryBatches?.pending)throw new Error("Scenery preparation did not settle.");const before=q.renderer.getStats(),hash=q.hash();
+      let prev=performance.now();for(let n=0;n<frames;n++){await new Promise(requestAnimationFrame);const start=performance.now();wall.push(start-prev);q.advance(n);q.renderer.render(1000);times.push(performance.now()-start);prev=start;}
+      const stats=q.renderer.getStats();for(let n=0;n<frames;n++){await new Promise(requestAnimationFrame);q.renderer.pan(-8,4);const start=performance.now();q.advance(frames+n);q.renderer.render(1000);pan.push(performance.now()-start);}const panStats=q.renderer.getStats();
+      times.sort((a,b)=>a-b);wall.sort((a,b)=>a-b);pan.sort((a,b)=>a-b);return{...metadata,coldMs,preparationFrames,warmMedian:times[Math.floor(frames/2)],warmP90:times[Math.floor(frames*.9)],frameIntervalMedian:wall[Math.floor(frames/2)],panMedian:pan[Math.floor(frames/2)],panP90:pan[Math.floor(frames*.9)],warmComposed:stats.composedChunks-before.composedChunks,panComposed:panStats.composedChunks-stats.composedChunks,visibleVehicles:stats.visibleVehicleCandidates,visibleLoadBadges:Object.values(stats.vehicleIndicators).reduce((a,b)=>a+b,0),warmSceneBuilds:(stats.sceneBuilds||0)-(before.sceneBuilds||0),panSceneBuilds:(panStats.sceneBuilds||0)-(stats.sceneBuilds||0),warmVehicleCreated:(stats.vehicleSprites?.created||0)-(before.vehicleSprites?.created||0),warmShadowCreated:(stats.treeShadows?.created||0)-(before.treeShadows?.created||0),warmSpriteCreated:(stats.sprites?.created||0)-(before.sprites?.created||0),warmUprightCreated:(stats.uprightSprites?.created||0)-(before.uprightSprites?.created||0),indicators:stats.vehicleIndicators,hash,stats};},{scene,zoom,condition,frames});
+    assert.equal(row.warmComposed,0,'static terrain must stay resident');assert.ok(row.stats.cacheBytes<=row.stats.cacheLimit);if(process.env.TRANSPORT_EXPECT_STABLE_SPRITES==='1'){assert.equal(row.warmSpriteCreated,0,'visible nature sprites must stay resident');assert.equal(row.warmUprightCreated,0,'visible buildings must stay resident');assert.equal(row.warmVehicleCreated,0,'moving vehicles reuse their directional sprites');assert.equal(row.warmShadowCreated,0,'visible tree shadows must stay resident');assert.equal(row.warmSceneBuilds,0,'moving vehicles do not rebuild static scenery');}if(scene==='vehicles'||scene==='mixed')assert.ok(row.visibleVehicles>=75,'fixture must exercise many visible vehicles even in Detail');rows.push(row);console.log(JSON.stringify({...row,stats:undefined}));
+    if((condition==='day'&&zoom===1)||(condition!=='day'&&zoom===.5))await page.locator('canvas').screenshot({path:`${out}/${scene}-${condition}-zoom${zoom}.png`});
+    if(process.env.TRANSPORT_PROFILE==='1'&&zoom===.5&&condition!=='rain'){
+      const session=await page.context().newCDPSession(page);await session.send('Profiler.enable');await session.send('Profiler.start');await page.evaluate(async()=>{for(let n=0;n<40;n++){await new Promise(requestAnimationFrame);busyQA.renderer.pan(-2,1);busyQA.advance(n);busyQA.renderer.render(1000);}});const{profile}=await session.send('Profiler.stop');await writeFile(`${out}/${scene}-${condition}.cpuprofile`,JSON.stringify(profile));const counts=new Map();for(const id of profile.samples||[])counts.set(id,(counts.get(id)||0)+1);const totals=profile.nodes.map(n=>({name:n.callFrame.functionName||'(anonymous)',url:n.callFrame.url.split('/').at(-1),ms:(counts.get(n.id)||0)*(profile.endTime-profile.startTime)/(profile.samples.length*1000)})).sort((a,b)=>b.ms-a.ms).slice(0,20);console.log(JSON.stringify({profile:scene,condition,totals}));await session.detach();
+    }
+    await writeFile(`${out}/results.json`,JSON.stringify({base,freshScenes:process.env.TRANSPORT_FRESH_SCENES==='1',rows,errors},null,2));
+  }
+  }
+  assert.deepEqual(errors,[]);
+}finally{await browser.close();}

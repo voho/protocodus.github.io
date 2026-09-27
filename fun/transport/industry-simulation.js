@@ -1,6 +1,7 @@
 import { INDUSTRIES } from './data.js';
-import { localEnvironment, randomAt, weatherAt } from './environment.js';
+import { localEnvironment, localTransport, randomAt, weatherAt } from './environment.js';
 import { industrySize } from './industry-sites.js';
+import { nearbyCities, nearbyIndustries } from './simulation-spatial.js';
 const clamp=(value,min=0,max=1)=>Math.max(min,Math.min(max,value));
 const MAX_INVENTORY=900;
 
@@ -8,9 +9,9 @@ export function industryConditions(game,industry){
   const e=localEnvironment(game,industry.x,industry.y,4,industrySize(industry)),weather=weatherAt(game,industry.x,industry.y,Math.floor(game.day));
   const positive=[],negative=[],kind=industry.kind;
   let workers=clamp(e.housing/12),partners=0;
-  for(const city of game.cities){const d=Math.hypot(city.x-industry.x,city.y-industry.y);if(d<12)workers=Math.max(workers,clamp(city.population/900)*(1-d/14));}
+  for(const city of nearbyCities(game,industry.x,industry.y,12)){const d=Math.hypot(city.x-industry.x,city.y-industry.y);if(d<12)workers=Math.max(workers,clamp(city.population/900)*(1-d/14));}
   const definition=INDUSTRIES[kind];
-  for(const other of game.industries){
+  for(const other of nearbyIndustries(game,industry.x,industry.y,8)){
     if(other===industry||Math.hypot(other.x-industry.x,other.y-industry.y)>8)continue;
     const neighbor=INDUSTRIES[other.kind];
     if(Object.keys(definition.inputs).some(c=>neighbor.outputs[c])||Object.keys(definition.outputs).some(c=>neighbor.inputs[c]))partners++;
@@ -61,7 +62,10 @@ export function stepIndustries(game,notify=()=>{}){
   const day=Math.floor(game.day);
   for(const industry of game.industries){
     initializeIndustry(game,industry);
-    const conditions=industryConditions(game,industry),e=conditions.environment;
+    // Off-cycle activity decay depends only on transport coverage. Full
+    // production conditions are needed solely when production/review is due.
+    const conditions=day>=industry.nextProductionDay||day>=industry.nextReviewDay?industryConditions(game,industry):null;
+    const e=conditions?.environment||{transport:localTransport(game,industry.x,industry.y,industrySize(industry))};
     industry.activity=Math.max(0,(industry.activity||0)*(1-(.006+randomAt(game,day,industry.id,430)*.008)/(1+e.transport*.3)));
     if(day>=industry.nextProductionDay){
       const elapsed=Math.max(0,day-industry.lastProductionDay),definition=INDUSTRIES[industry.kind];

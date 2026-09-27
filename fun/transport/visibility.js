@@ -18,6 +18,7 @@ export const LAYER_GROUPS = [
     { key: 'vehicles', label: 'Vehicles' },
     { key: 'vehicleLoads', label: 'Cargo loads' },
     { key: 'lighting', label: 'Day / night' },
+    { key: 'weather', label: 'Weather' },
     { key: 'grid', label: 'Grid' },
   ] },
 ];

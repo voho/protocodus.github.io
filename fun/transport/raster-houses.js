@@ -52,8 +52,8 @@ const windowAnchors = Object.fromEntries(Object.entries(sourceWindows).map(([bio
   Object.fromEntries(Object.entries(houses).map(([kind, panes]) => [kind, Object.freeze(panes.map(pane => Object.freeze(pane.map(value => value / 8))))])),
 ]));
 const noWindows = Object.freeze([]);
-const biomes = new Map(), listeners = new Set(), draws = new Map(), errors = new Map();
-let status = 'idle', revision = 0, pending = null, lastCellSize = 0, lastBiome = null;
+const biomes = new Map(), listeners = new Set(), draws = new Map(), errors = new Map(), pending = new Map(), orderedLevels = new Map();
+let status = 'idle', revision = 0, lastCellSize = 0, lastBiome = null;
 
 export const isRasterHouse = kind => indices.has(kind);
 export const houseAssetsRevision = () => revision;
@@ -69,6 +69,7 @@ export function getHouseAssetStats(biome = 'taiga') {
     atlasWidth: activeBiome ? SOURCE_CELL * 3 : 0, atlasHeight: activeBiome ? SOURCE_CELL * 3 : 0,
     availableBiomes: [...biomes.keys()], lodCellSizes: levels ? [...levels.keys()].sort((a, b) => a - b) : [],
     lastCellSize, lastBiome, rasterizedHouses: Object.fromEntries(draws), errors: Object.fromEntries(errors),
+    decodedBytes:[...biomes.values()].reduce((sum,levels)=>sum+[...levels.values()].reduce((n,image)=>n+image.naturalWidth*image.naturalHeight*4,0),0),
   };
 }
 
@@ -94,30 +95,33 @@ async function decodeAtlas(biome, cell) {
   return [cell, image];
 }
 
-export function preloadHouses({ waitMs = 4000, retry = false } = {}) {
-  const complete = HOUSE_BIOMES.every(biome => biomes.get(biome)?.size === LOD_CELLS.length);
-  if (status === 'ready' && (!retry || complete)) return Promise.resolve(true);
+export function preloadHouses({ waitMs = 4000, retry = false, biome = null } = {}) {
+  const requested = HOUSE_BIOMES.includes(biome) ? [biome] : HOUSE_BIOMES;
+  if (requested.every(name => biomes.get(name)?.size === LOD_CELLS.length)) return Promise.resolve(true);
   if (typeof Image === 'undefined' || typeof document === 'undefined') return Promise.resolve(false);
-  if (!pending && (status === 'idle' || retry)) {
-    status = 'loading';
-    pending = Promise.all(HOUSE_BIOMES.flatMap(biome => LOD_CELLS.filter(cell => !biomes.get(biome)?.has(cell)).map(async cell => {
+  const work=[];
+  for(const biome of requested)for(const cell of LOD_CELLS){
       const key = `${biome}/${cell}`;
+      if(biomes.get(biome)?.has(cell)||errors.has(key)&&!retry)continue;
+      if(pending.has(key)){work.push(pending.get(key));continue;}
+      status='loading';
+      const task=(async()=>{
       try {
         // A slow or damaged zoom density must not discard healthy artwork.
         // Publish each density immediately and refresh already-cached sprites.
         const [, image] = await decodeAtlas(biome, cell);
         if (!biomes.has(biome)) biomes.set(biome, new Map());
-        biomes.get(biome).set(cell, image); errors.delete(key); revision++;
+        biomes.get(biome).set(cell, image); orderedLevels.set(biome,[...biomes.get(biome).keys()].sort((a,b)=>a-b)); errors.delete(key); revision++;
         for (const listener of listeners) queueMicrotask(listener);
       } catch (reason) { errors.set(key, reason instanceof Error ? reason.message : String(reason)); }
-    }))).then(() => { status = biomes.size ? 'ready' : 'failed'; return biomes.size > 0; })
-      .finally(() => { pending = null; });
+      })().finally(()=>{pending.delete(key);if(!pending.size)status=biomes.size?'ready':'failed';});
+      pending.set(key,task);work.push(task);
   }
-  if (!pending || waitMs <= 0) return Promise.resolve(false);
+  if (!work.length || waitMs <= 0) return Promise.resolve(requested.some(name=>biomes.has(name)));
   // Startup has a bounded wait. If a slow image arrives afterwards, revision
   // and listeners refresh the existing caches without resetting the world.
   let timer;
-  return Promise.race([pending, new Promise(resolve => { timer = setTimeout(() => resolve(false), waitMs); })])
+  return Promise.race([Promise.all(work).then(()=>requested.some(name=>biomes.has(name))), new Promise(resolve => { timer = setTimeout(() => resolve(false), waitMs); })])
     .finally(() => clearTimeout(timer));
 }
 
@@ -125,9 +129,9 @@ export function drawRasterHouse(c, kind, { pixelScale = 1, biome = 'taiga' } = {
   const index = indices.get(kind);
   if (index === undefined) return false;
   const activeBiome = resolveBiome(biome);
-  if (activeBiome === null) { if (status === 'idle') void preloadHouses({ waitMs: 0 }); return false; }
+  if (activeBiome === null) { void preloadHouses({ waitMs: 0, biome }); return false; }
   const desired = 32 * (Number.isFinite(pixelScale) && pixelScale > 0 ? pixelScale : 1);
-  const levels = biomes.get(activeBiome), available = [...levels.keys()].sort((a, b) => a - b);
+  const levels = biomes.get(activeBiome), available = orderedLevels.get(activeBiome);
   const cell = available.find(size => size >= desired) || available.at(-1);
   const atlas = levels.get(cell);
   c.save();

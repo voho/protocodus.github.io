@@ -69,12 +69,28 @@ test('ecology and earthworks preserve every child cell of a 3×3 landmark', () =
   const before = points.map(p => structuredClone(tileAt(game, p.x, p.y)));
   for (let day = 1; day <= 240; day++) { game.day = day; stepEcology(game); }
   assert.deepEqual(points.map(p => tileAt(game, p.x, p.y)), before);
-  for (const p of points) assert.match(terraformProblem(game, 'raise', p.x, p.y), /Clear buildings/);
+  // All sixteen shared vertices, including the far outer corner, support at
+  // least one of the landmark's nine cells and must remain protected.
+  for (let y = 20; y <= 23; y++) for (let x = 20; x <= 23; x++) {
+    for (const tool of ['raise', 'lower']) assert.match(terraformProblem(game, tool, x, y), /Clear buildings/);
+  }
   for (const tool of ['bridge', 'tunnel']) {
     const span = Array.from({ length: 5 }, (_, n) => ({ x: 22, y: 19 + n }));
-    for (const [n, p] of span.entries()) tileAt(game, p.x, p.y).elevation = (n === 0 || n === 4 ? 4 : tool === 'bridge' ? 2 : 7) / 16;
+    // Flat level-three endpoint cells need two equal vertex rows. The middle
+    // rows form a valid valley/ridge, crossing only the landmark's far edge.
+    for (let y = 15; y <= 28; y++) for (let x = 15; x <= 28; x++) tileAt(game, x, y).elevation = 3 / 7;
+    const levels = tool === 'bridge' ? [3, 3, 2, 2, 3, 3] : [3, 3, 4, 4, 3, 3];
+    for (const [n, level] of levels.entries()) for (let x = 20; x <= 24; x++) tileAt(game, x, 19 + n).elevation = level / 7;
+    game.revision++;
+    const anchor = tileAt(game, 20, 20), landmark = anchor.building;
+    anchor.building = null;
+    const unobstructed = planStructureSpan(game, tool, span);
+    anchor.building = landmark;
+    assert.equal(unobstructed.ok, true, `the same ${tool} is geometrically valid without the landmark: ${unobstructed.message}`);
+    const snapshot = JSON.stringify(game);
     const plan = planStructureSpan(game, tool, span);
     assert.equal(plan.ok, false); assert.match(plan.message, /Clear|occupied|building/i);
+    assert.equal(JSON.stringify(game), snapshot, 'rejected construction preserves every reserved child cell');
   }
 });
 

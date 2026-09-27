@@ -6,9 +6,12 @@ const nearby = (a, b) => Math.hypot(a.x - b.x, a.y - b.y) <= STATION_RADIUS;
 const joinCargo = keys => keys.map(key => CARGO[key].name.toLowerCase()).join(' + ');
 
 // These explanations use the same catchment and storage rules as the simulation.
-export function townService(game, city) {
-  const stops = new Set(game.routes.filter(route => route.active).flatMap(route => route.stops));
-  const connected = game.stations.some(stop => stops.has(stop.id) && nearby(stop, city));
+export function townService(game, city, activeStops = null) {
+  if (!activeStops) {
+    const stops = new Set(game.routes.filter(route => route.active).flatMap(route => route.stops));
+    activeStops = game.stations.filter(stop => stops.has(stop.id));
+  }
+  const connected = activeStops.some(stop => nearby(stop, city));
   const served = connected && Number.isFinite(city.lastServiceDay) && game.day - city.lastServiceDay <= 30;
   return { connected, served, label: served ? 'Served recently' : connected ? 'Awaiting deliveries' : 'No service' };
 }

@@ -2,6 +2,7 @@ import { BUILDINGS, residentialKind, commercialKind } from './buildings.js';
 import { localEnvironment, randomAt, weatherAt } from './environment.js';
 import { industryTiles } from './industry-sites.js';
 import { buildingAt, buildingFootprint, buildingSiteProblem, buildingTiles, placeBuildingSite } from './building-sites.js';
+import { nearbyCities } from './simulation-spatial.js';
 
 const clamp = (value, min = 0, max = 1) => Math.max(min, Math.min(max, value));
 const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -17,15 +18,19 @@ function nearestCity(game, point) {
   return nearest;
 }
 
-function recentlyServed(game, city) {
-  return !!city && Number.isFinite(city.lastServiceDay) && game.day - city.lastServiceDay <= 30 &&
-    game.stations.some(station => distance(city, station) <= 5 &&
-      game.routes.some(route => route.active && route.stops.includes(station.id)));
+function activeCities(game) {
+  const stops=new Set(),cities=new Set();
+  for(const route of game.routes)if(route.active)for(const id of route.stops)stops.add(id);
+  for(const station of game.stations)if(stops.has(station.id))for(const city of nearbyCities(game,station.x,station.y,5))if(distance(city,station)<=5)cities.add(city);
+  return cities;
+}
+function recentlyServed(game, city, connectedCities) {
+  return !!city && Number.isFinite(city.lastServiceDay) && game.day - city.lastServiceDay <= 30 && (connectedCities||activeCities(game)).has(city);
 }
 
-function suitability(game, point, kind, environment, weather, city) {
+function suitability(game, point, kind, environment, weather, city, connectedCities) {
   const e = environment, positive = [], negative = [];
-  const connected = recentlyServed(game, city);
+  const connected = recentlyServed(game, city, connectedCities);
   const neighbors = kind === 'residential' ? e.housing : kind === 'commercial' ? e.housing + e.shops : e.industries;
   const clustering = clamp(neighbors / (kind === 'industrial' ? 3 : 10));
   const climate = clamp(weather.growth, .35, 1.2);
@@ -76,13 +81,13 @@ export function housingCapacity(building) {
 // and plots. Buffered building proposals see yesterday's neighbors; a new home
 // cannot trigger a chain of same-day development across its entire street.
 export function stepSettlements(game) {
-  const day = Math.floor(game.day), proposals = [];
+  const day = Math.floor(game.day), proposals = [], connectedCities=activeCities(game);
   const occupied = new Set([...game.industries.flatMap(industryTiles), ...game.stations, ...game.cities].map(point => `${point.x},${point.y}`));
   for (const city of game.cities) {
     const environment = localEnvironment(game, city.x, city.y);
     const weather = weatherAt(game, city.x, city.y, day);
-    const quality = suitability(game, city, 'residential', environment, weather, city).score;
-    const connected = recentlyServed(game, city);
+    const quality = suitability(game, city, 'residential', environment, weather, city, connectedCities).score;
+    const connected = recentlyServed(game, city, connectedCities);
     const arrivals = city.population * (.005 + .006 * clamp(environment.housing / 14) + .003 * environment.amenity + .002 * clamp(environment.shops / 6)) *
       (.55 + randomAt(game, day, city.id, 101) * .95) * (.70 + weather.travel * .3) * (1 - environment.pollution * .22);
     city.passengers = clamp((city.passengers || 0) + arrivals, 0, Math.max(0, city.population * .9));
@@ -102,7 +107,7 @@ export function stepSettlements(game) {
       if (!tile || buildingAt(game, x, y) || tile.zone || tile.road || tile.rail || occupied.has(key) || !['grass', 'sand', 'snow', 'forest'].includes(tile.terrain)) continue;
       const local = localEnvironment(game, x, y, 2);
       if (!local.roadAccess) continue;
-      const score = suitability(game, { x, y }, 'residential', local, weather, city).score;
+      const score = suitability(game, { x, y }, 'residential', local, weather, city, connectedCities).score;
       const rank = score * (.5 + randomAt(game, day, key, 106) * .5);
       const kind = residentialKind(tile.variant, 1);
       if (buildingSiteProblem(game, kind, x, y)) continue;
@@ -118,13 +123,13 @@ export function stepSettlements(game) {
     if (existing && (existing.x !== zone.x || existing.y !== zone.y)) continue;
     const city = nearestCity(game, zone), environment = localEnvironment(game, zone.x, zone.y);
     const key = `zone:${zone.x},${zone.y}`, occupiedLevel = tile.building?.level || 0;
-    if (!recentlyServed(game, city) || !environment.roadAccess) {
+    if (!recentlyServed(game, city, connectedCities) || !environment.roadAccess) {
       // Vacant development interest fades, but an occupied building is retained.
       if (randomAt(game, day, key, 201) < .18) zone.progress = clamp(zone.progress - (.005 + randomAt(game, day, key, 202) * .01), occupiedLevel, 3);
       continue;
     }
     const weather = weatherAt(game, zone.x, zone.y, day);
-    const quality = suitability(game, zone, zone.kind, environment, weather, city).score;
+    const quality = suitability(game, zone, zone.kind, environment, weather, city, connectedCities).score;
     if (randomAt(game, day, key, 203) >= .25 + quality * .10) continue;
     const demand = clamp((city.activity + city.supplies * .6) / 65, .65, 1.2);
     const increment = (.026 + quality * .026) * (.7 + randomAt(game, day, key, 204) * .6) * weather.growth * demand;

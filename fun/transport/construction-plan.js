@@ -1,5 +1,5 @@
-import { build, constructionCost, tileAt, quoteStructureSpan, buildStructureSpan, BUILDINGS, INDUSTRIES, industryAt } from './model.js';
-import { SPAN_TOOLS, terraformProblem } from './terrain-engineering.js';
+import { build, constructionCost, tileAt, quoteStructureSpan, buildStructureSpan, quoteTerraformLevel, buildTerraformLevel, quoteTerraformStroke, buildTerraformStroke, BUILDINGS, INDUSTRIES, industryAt } from './model.js';
+import { SPAN_TOOLS, networkTerrainProblem, networkTerrainPlanProblem } from './terrain-engineering.js';
 import { buildingAt, buildingFootprint, buildingSiteProblem } from './building-sites.js';
 import { industryFootprint, industrySiteProblem } from './industry-sites.js';
 import { terrainObjectAt } from './terrain-objects.js';
@@ -37,6 +37,8 @@ function constructionPoints(game, tool, points) {
 }
 
 export function quoteBuildPlan(game, tool, points, options) {
+  if(tool==='level')return quoteTerraformLevel(game,points,options);
+  if(tool==='raise'||tool==='lower')return quoteTerraformStroke(game,tool,points);
   const unique=constructionPoints(game,tool,points);
   if(SPAN_TOOLS.has(tool)&&unique.length>1)return quoteStructureSpan(game,tool,unique);
   const placements = unique.map(({ x, y }) => {
@@ -44,9 +46,14 @@ export function quoteBuildPlan(game, tool, points, options) {
     return { x, y, tool: resolved, cost: constructionCost(game, resolved, x, y) };
   });
   const cost=placements.reduce((sum, placement) => sum + placement.cost, 0);
-  if(tool==='raise'||tool==='lower'){
-    const problem=unique.map(p=>terraformProblem(game,tool,p.x,p.y)).find(Boolean)|| (cost>game.money?`Need $${Math.round(cost).toLocaleString('en-US')} to shape these tiles.`:null);
-    return {placements,cost,ok:unique.length>0&&!problem,message:problem||'Change each tile by one level.'};
+  if(!placements.length)return {placements,cost};
+  if(tool==='city'){
+    const problem=unique.map(p=>networkTerrainProblem(game,p.x,p.y,'road')).find(Boolean);
+    return {placements,cost,ok:unique.length>0&&!problem,message:problem||'A new town center.'};
+  }
+  if(tool==='road'||tool==='rail'){
+    const problem=networkTerrainPlanProblem(game,placements);
+    return {placements,cost,ok:unique.length>0&&!problem,message:problem||'Follow flat ground or a straight grade.'};
   }
   if (Object.hasOwn(BUILDINGS, tool) || Object.hasOwn(INDUSTRIES, tool)) {
     const industry = Object.hasOwn(INDUSTRIES, tool), span = industry ? industryFootprint(tool) : buildingFootprint(tool), claimed = new Set();
@@ -70,9 +77,12 @@ export function quoteBuildPlan(game, tool, points, options) {
 /** Preserve buildPath's partial success policy; model.build owns every charge. */
 export function buildPlan(game, tool, points, options) {
   if (!Array.isArray(points) || !points.length) return { ok: false, message: 'Choose a construction path.', cost: 0, built: 0, failed: 0, skipped: 0 };
+  if(tool==='level')return buildTerraformLevel(game,points,options);
+  if(tool==='raise'||tool==='lower')return buildTerraformStroke(game,tool,points);
   const unique=uniquePoints(points);
   if(SPAN_TOOLS.has(tool)&&unique.length>1)return buildStructureSpan(game,tool,unique);
-  const { placements } = quoteBuildPlan(game, tool, points, options);
+  const quote = quoteBuildPlan(game, tool, points, options), { placements } = quote;
+  if((tool==='road'||tool==='rail')&&quote.ok===false)return {ok:false,message:quote.message,cost:0,built:0,failed:placements.length,skipped:0};
   if (placements.length === 1) {
     const placement = placements[0], result = build(game, placement.tool, placement.x, placement.y);
     return { ...result, cost: result.cost || 0, built: result.ok && !result.unchanged ? 1 : 0, failed: result.ok ? 0 : 1, skipped: result.ok && result.unchanged ? 1 : 0 };

@@ -1,10 +1,13 @@
-import { terrainLevel } from './terrain-elevation.js';
-import { refreshRouteConnections, getVehiclePurchase, getVehicleUpgrade, getFleetUpgrade, upgradeRouteVehicle, upgradeFleet, priceFor, inflationInfo, createGame, addRoute, removeRoute, tick, saveGame, loadGame, BIOMES, INDUSTRIES, CARGO, BUILD_COSTS, stationCoverage, WORLD_SIZES, industryConditions, settlementSuitability, weatherAt } from './model.js';
+import { mountCompactPlay } from './compact-play.js';
+import { captureGame, encodeCapturedGame } from './background-jobs.js';
+import { savePreparedGame } from './autosave-storage.js';
+import { SAVE_KEY } from './model.js';
+import { takeStartupGame, openStartMenu } from './start-menu.js';
+import { surfaceHeight, tileSurface, MAX_HEIGHT } from './terrain-geometry.js';
+import { refreshRouteConnections, getVehiclePurchase, getVehicleUpgrade, getFleetUpgrade, upgradeRouteVehicle, upgradeFleet, priceFor, inflationInfo, addRoute, removeRoute, tick, saveGame, BIOMES, INDUSTRIES, CARGO, BUILD_COSTS, stationCoverage, industryConditions, settlementSuitability, weatherAt } from './model.js';
 import { createRenderer } from './renderer.js';
 import { quoteBuildPlan, buildPlan } from './construction-plan.js';
-import { DEFAULT_WORLD_SIZE, NEW_WORLD_SIZES } from './world.js';
-import { TILE, createSprites } from './sprites.js';
-import { projectPoint } from './isometric.js';
+import { TILE } from './sprites.js';
 import { drawUIArtwork } from './ui-art.js';
 import { BUILDINGS, BUILDING_GROUPS } from './buildings.js';
 import { ZOOM_LEVELS, ZOOM_VIEWS, zoomIndex } from './zoom.js';
@@ -22,6 +25,7 @@ import { preloadWorldArt, onWorldArtChange } from './atlas-runtime.js';
 import { industryContains, industrySize, industryFootprint } from './industry-sites.js';
 import { buildingAt, buildingSize, buildingFootprint } from './building-sites.js';
 import { terrainObjectAt, terrainObjectSize } from './terrain-objects.js';
+import { showLoading, updateLoading, hideLoading, isLoading, paintLoading } from './loading-screen.js';
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
@@ -54,6 +58,7 @@ const iconPaths = {
  bridge:'<path d="M2 17h20M4 17V5m16 12V5M4 7q8 12 16 0M8 12v5m4-3v3m4-5v5M2 21h20"/>',
  tunnel:'<path d="M2 20h20M4 20V11a8 8 0 0 1 16 0v9M8 20v-8a4 4 0 0 1 8 0v8M10 16l-1 4m5-4 1 4M2 9l3-6h14l3 6"/>',
  raise:'<path d="m2 20 5-5 5 2 5-2 5 5M12 13V3m-4 4 4-4 4 4"/>',
+ level:'<path d="M3 18h18M6 5v8m-3-3 3 3 3-3M18 13V5m-3 3 3-3 3 3"/>',
  lower:'<path d="m2 18 5-3 5 5 5-5 5 3M12 3v10m-4-4 4 4 4-4"/>',
  bus:'<rect x="5" y="3" width="14" height="15" rx="3"/><path d="M5 11h14M9 3v8M7 18v3m10-3v3M8 14h1m6 0h1"/>',
  ship:'<path d="M4 13V7h5V3h6v4h5v6M3 13l9-3 9 3-3 6H6zM8 7h8M2 21q2-2 4 0t4 0 4 0 4 0 4 0"/>',
@@ -83,12 +88,13 @@ const TOOL_INFO = {
  inspect:{name:'Explore', icon:'inspect', detail:'Click to inspect. Drag to pan.'},
  road:{name:'Road',icon:'road',key:'R',detail:'Drag to build. Bridges and tunnels are automatic.'},
  rail:{name:'Rail',icon:'rail',key:'T',detail:'Drag to build. Bridges and tunnels are automatic.'},
- bridge:{name:'Road bridge',icon:'bridge',key:'B',detail:'Drag between two banks at the same level, across water or lower land.'},
- railbridge:{name:'Rail bridge',icon:'bridge',detail:'Drag between two banks at the same level, across water or lower land.'},
- tunnel:{name:'Road tunnel',icon:'tunnel',detail:'Drag between two portals at the same level, through higher dry land.'},
- railtunnel:{name:'Rail tunnel',icon:'tunnel',detail:'Drag between two portals at the same level, through higher dry land.'},
- raise:{name:'Raise land',icon:'raise',detail:'Click or drag: +1 level per tile. Clear buildings and networks first.'},
- lower:{name:'Lower land',icon:'lower',detail:'Click or drag: −1 level per tile, down to level 1. Water stays unchanged.'},
+ bridge:{name:'Road bridge',icon:'bridge',key:'B',detail:'Drag between flat banks at the same level, across water or lower land. Start back from the shoreline.'},
+ railbridge:{name:'Rail bridge',icon:'bridge',detail:'Drag between flat banks at the same level, across water or lower land. Start back from the shoreline.'},
+ tunnel:{name:'Road tunnel',icon:'tunnel',detail:'Drag between flat portal sites at the same level, through higher dry land.'},
+ railtunnel:{name:'Rail tunnel',icon:'tunnel',detail:'Drag between flat portal sites at the same level, through higher dry land.'},
+ raise:{name:'Raise land',icon:'raise',detail:'Click or drag: +1 level per grid point, up to 7. Clear adjoining buildings and networks first.'},
+ level:{name:'Level land',icon:'level',detail:'Drag an area to match its first grid point’s height. Each changed point is charged per level. Clear buildings and networks first.'},
+ lower:{name:'Lower land',icon:'lower',detail:'Click or drag: −1 level per grid point, down to level 1. Water stays unchanged.'},
  stop:{name:'Stop',icon:'bus',key:'S',detail:'Click a road or railway near customers.'},
  'bus-stop':{name:'Road stop',icon:'bus',key:'S',detail:'Place on a road, within 5 tiles of customers.'},
  'train-stop':{name:'Rail station',icon:'train',detail:'Place on rail, within 5 tiles of customers.'},
@@ -99,14 +105,22 @@ const TOOL_INFO = {
  city:{name:'Found a town',icon:'city',detail:'Place on open land. Add roads, zones and transport.'},
  bulldoze:{name:'Bulldozer',icon:'bulldoze',key:'X',detail:'Click or drag to clear buildings, groves, rocks or individual network tiles. Each whole site is charged once. Retire routes before removing stops.'}
 };
-await Promise.all([preloadHouses(),preloadWorldArt()]);
+updateLoading('Preparing terrain and your company…',1);
+await paintLoading();
 let game;
-try { game = loadGame() || createGame(); } catch { game = createGame(); }
+game=takeStartupGame()||await openStartMenu();
+updateLoading('Loading buildings, vehicles and landscapes…',2);
+await paintLoading();
+await Promise.all([preloadHouses({biome:game.biome}),preloadWorldArt({biome:game.biome})]);
 const canvas = $('#world');
-const renderer = createRenderer(canvas, game);
+let sceneRevision=0;
+const invalidateScene=()=>{sceneRevision++;};
+const renderer = createRenderer(canvas, game,{onInvalidate:invalidateScene});
+document.fonts?.ready.then(invalidateScene);
 let pricingYear = inflationInfo(game).year;
 let mapLayers = loadVisibility(), layersView = null, layerStorageNotice = false;
 renderer.setLayers(mapLayers);
+let compactUI=null;
 let view = 'build', category = 'network', tool = 'inspect', speed = 1, previousSpeed = 1;
 let buildingGroup = 'homes';
 let hover = null, selected = null, preview = [];
@@ -114,20 +128,24 @@ let pointer = null, spaceDown = false, spaceUsedForPan = false, sounds = false, 
 let preferredMode = 'road', touchGesture = null, engineeringOpen = false;
 const touchPoints = new Map();
 let lastFrame = performance.now(), hudAt = 0, saveAt = performance.now(), minimapAt = 0, panelAt = 0;
+let worldSerial=0,savedWorld=-1,savedDay=-1,savedRevision=-1;
+let pendingSave=null, capturingSave=false, menuOpening=false;
 let formDraft = { name:'', mode:'road', from:'', to:'', cargo:'passengers' };
+const ROUTES_PER_PAGE = 50;
+let routePage = 0;
 let routeFilters = { query:'', mode:'all', status:'all', cargo:'all' }, routePicking = '';
 let entityFilters = { towns:'', industry:'', kind:'all' };
 let lastRevision = -1;
 let lastNoticeId = game.notifications[0]?.id;
 let milestoneReached = false;
 const spanTools = new Set(['bridge','railbridge','tunnel','railtunnel']);
-const terrainTools = new Set(['raise','lower']);
+const terrainTools = new Set(['raise','lower','level']);
 const lineTools = new Set(['road','rail',...spanTools,...terrainTools,'residential','commercial','industrial','bulldoze']);
 const mobileToggle = document.createElement('button');
 mobileToggle.className = 'mobile-panel-toggle'; mobileToggle.innerHTML = icon('road')+'<span>Manage</span>'; mobileToggle.setAttribute('aria-label','Toggle construction and management panel'); mobileToggle.setAttribute('aria-expanded','false');
 $('.workspace').append(mobileToggle);
 mobileToggle.addEventListener('click', () => { cancelGesture();const open = $('.sidebar').classList.toggle('mobile-open'); mobileToggle.classList.toggle('open',open); mobileToggle.setAttribute('aria-expanded',String(open)); mobileToggle.innerHTML=icon(open?'close':'road')+'<span>Manage</span>'; });
-function closeMobile() { $('.sidebar').classList.remove('mobile-open'); mobileToggle.classList.remove('open'); mobileToggle.setAttribute('aria-expanded','false'); mobileToggle.innerHTML=icon('road')+'<span>Manage</span>'; }
+function closeMobile() { $('.sidebar').classList.remove('mobile-open'); mobileToggle.classList.remove('open'); mobileToggle.setAttribute('aria-expanded','false'); mobileToggle.innerHTML=icon('road')+'<span>Manage</span>'; compactUI?.syncManagement(); }
 function syncLayerControls() {
  $('#grid-button').setAttribute('aria-pressed',String(mapLayers.grid));
  $('#grid-button').classList.toggle('active',mapLayers.grid);
@@ -169,8 +187,8 @@ function syncToolControls() {
  $('#active-tool-hint').textContent=lineTools.has(tool)?window.innerWidth<=700?'Drag to build · Two fingers to move':'Drag to build · Done to explore':window.innerWidth<=700?'Tap to place · Drag to move':'Click to place · Drag to move';
  if(tool==='bulldoze')$('#active-tool-hint').textContent='Click or drag · Clears whole sites';
  if(BUILDINGS[tool]||INDUSTRIES[tool]){const size=BUILDINGS[tool]?buildingFootprint(tool):industryFootprint(tool);$('#active-tool-hint').textContent=`${size} × ${size} site · Click to place`;}
- if(terrainTools.has(tool))$('#active-tool-hint').textContent=`Click or drag · ${tool==='raise'?'+1':'−1'} level per tile`;
- if(spanTools.has(tool))$('#active-tool-hint').textContent='Drag straight · Both ends at the same level';
+ if(terrainTools.has(tool))$('#active-tool-hint').textContent=tool==='level'?'Drag an area · Match the first point':`Click or drag · ${tool==='raise'?'+1':'−1'} level per point`;
+ if(spanTools.has(tool))$('#active-tool-hint').textContent='Drag straight · Flat ends at the same level';
  $('#map-hint').hidden=tool!=='inspect'||isRoutePicking();
 }
 function setTool(next) {
@@ -181,7 +199,7 @@ function setTool(next) {
  tool=['bus-stop','train-stop'].includes(next)?'stop':next;selected=null;hover=null;
  $('#inspector').hidden=true;canvas.classList.toggle('build-mode',tool!=='inspect');
  $('#status-message').textContent=toolDescription(tool);renderPanel();syncToolControls();
- if(window.innerWidth<=700)closeMobile();canvas.focus({preventScroll:true});
+ closeMobile();canvas.focus({preventScroll:true});
 }
 function setView(next) {
  const changedView=view!==next;
@@ -189,7 +207,7 @@ function setView(next) {
  if(next!=='build'&&tool!=='inspect'){tool='inspect';canvas.classList.remove('build-mode');}
  view=next;$$('[data-mobile-view]').forEach(el=>el.classList.toggle('active',el.dataset.mobileView===next));
  $$('.nav-button[data-view]').forEach(el=>{el.classList.toggle('active',el.dataset.view===view);el.setAttribute('aria-current',el.dataset.view===view?'page':'false');});
- renderPanel();if(changedView)$('#panel-content').scrollTop=0;syncToolControls();if(window.innerWidth<=700&&!$('.sidebar').classList.contains('mobile-open'))mobileToggle.click();
+ renderPanel();if(changedView)$('#panel-content').scrollTop=0;syncToolControls();if(compactUI){compactUI.openManagement();updateHud();}else if(window.innerWidth<=700&&!$('.sidebar').classList.contains('mobile-open'))mobileToggle.click();
 }
 function infrastructureKind(key) {
  return ({stop:preferredMode==='rail'?'train-stop':'bus-stop',bridge:'road-bridge',railbridge:'rail-bridge',tunnel:'road-tunnel',railtunnel:'rail-tunnel'})[key]||(['road','rail','port','bus-stop','train-stop'].includes(key)?key:'');
@@ -198,7 +216,7 @@ function infrastructurePortrait(kind,cls='tool-art') { return `<canvas class="${
 function industryPortrait(kind,cls='entity-art') { return `<canvas class="${cls}" width="112" height="112" data-industry-sprite="${kind}" aria-hidden="true"></canvas>`; }
 function toolCard(key, label) {
  const info=TOOL_INFO[key],base=key==='stop'?Math.min(BUILD_COSTS['bus-stop'],BUILD_COSTS['train-stop']):BUILD_COSTS[key],automatic=['road','rail','stop'].includes(key);
- return `<button class="tool-card ${tool===key?'active':''}" data-tool="${key}" aria-pressed="${tool===key}" title="${escapeHTML(info.detail)}">${infrastructureKind(key)?infrastructurePortrait(infrastructureKind(key)):icon(info.icon)}<span class="tool-title">${label||info.name}</span><span class="tool-cost">${automatic?'from ':''}${compactMoney(priceFor(game,base))}${lineTools.has(key)?key==='bulldoze'?' / site':' / tile':''}</span>${info.key?`<span class="shortcut">${info.key}</span>`:''}</button>`;
+ return `<button class="tool-card ${tool===key?'active':''}" data-tool="${key}" aria-pressed="${tool===key}" title="${escapeHTML(info.detail)}">${infrastructureKind(key)?infrastructurePortrait(infrastructureKind(key)):icon(info.icon)}<span class="tool-title">${label||info.name}</span><span class="tool-cost">${automatic?'from ':''}${compactMoney(priceFor(game,base))}${lineTools.has(key)?key==='bulldoze'?' / site':key==='level'?' / step':terrainTools.has(key)?' / point':' / tile':''}</span>${info.key?`<span class="shortcut">${info.key}</span>`:''}</button>`;
 }
 function toolDescription(key) {
  if (TOOL_INFO[key]) return TOOL_INFO[key].detail;
@@ -222,13 +240,13 @@ function projectCard() {
  return `<details class="project-card"><summary>${escapeHTML(project.title)}</summary><p>${escapeHTML(project.detail)}</p><button class="small-button" data-project-action="${project.action}" ${project.target?`data-project-target="${escapeHTML(project.target)}"`:''}>${escapeHTML(project.button)} ${icon('arrow')}</button></details>`;
 }
 function engineeringTools() {
- return `<details class="engineering-tools" ${engineeringOpen?'open':''}><summary>${icon('raise')} Terrain &amp; crossings</summary><div class="tool-grid">${toolCard('raise','Raise +1')}${toolCard('lower','Lower −1')}</div><div class="stop-mode-picker" role="group" aria-label="Bridge and tunnel transport"><span>Crossings</span>${['road','rail'].map(mode=>`<button data-crossing-mode="${mode}" aria-pressed="${preferredMode===mode}">${icon(mode)} ${mode==='road'?'Road':'Rail'}</button>`).join('')}</div><div class="tool-grid">${toolCard(preferredMode==='rail'?'railbridge':'bridge','Bridge')}${toolCard(preferredMode==='rail'?'railtunnel':'tunnel','Tunnel')}</div></details>`;
+ return `<details class="engineering-tools" ${engineeringOpen?'open':''}><summary>${icon('raise')} Terrain &amp; crossings</summary><div class="tool-grid">${toolCard('raise','Raise +1')}${toolCard('lower','Lower −1')}${toolCard('level','Level area')}</div><div class="stop-mode-picker" role="group" aria-label="Bridge and tunnel transport"><span>Crossings</span>${['road','rail'].map(mode=>`<button data-crossing-mode="${mode}" aria-pressed="${preferredMode===mode}">${icon(mode)} ${mode==='road'?'Road':'Rail'}</button>`).join('')}</div><div class="tool-grid">${toolCard(preferredMode==='rail'?'railbridge':'bridge','Bridge')}${toolCard(preferredMode==='rail'?'railtunnel':'tunnel','Tunnel')}</div></details>`;
 }
 function buildPanel() {
  const groups={network:['road','rail','stop','port','bulldoze'],towns:['residential','commercial','industrial','city']};
  const tabs=`<div class="build-tabs" role="tablist" aria-label="Construction categories">${[['network','Network'],['towns','Town'],['industry','Industry']].map(([key,label])=>`<button role="tab" aria-selected="${category===key}" data-category="${key}" class="${category===key?'active':''}">${label}</button>`).join('')}</div>`;
  const industries=`<div class="tool-list">${Object.entries(INDUSTRIES).filter(([,d])=>d.biomes.includes(game.biome)).map(([key,d])=>`<button class="industry-tool ${tool===key?'active':''}" data-tool="${key}" aria-pressed="${tool===key}"><canvas class="industry-art" width="112" height="112" data-industry-sprite="${key}" aria-hidden="true"></canvas><span class="industry-tool-summary"><strong>${d.name}</strong>${cargoRecipe(d.inputs,d.outputs,{counts:false})}</span><span class="tool-cost">${compactMoney(priceFor(game,d.cost))}<small>${industryFootprint(key)} × ${industryFootprint(key)}</small></span></button>`).join('')}</div>`;
- return `<div class="panel-heading"><h2>Build</h2></div>${tabs}${category==='industry'?industries:`<div class="tool-grid">${groups[category].map(key=>toolCard(key)).join('')}</div>`}${tool==='stop'?`<div class="stop-mode-picker" role="group" aria-label="Stop type at road and rail crossings"><span>At crossings</span>${['road','rail'].map(mode=>`<button data-stop-mode="${mode}" aria-pressed="${preferredMode===mode}">${icon(mode)} ${mode==='road'?'Road':'Rail'}</button>`).join('')}</div>`:''}${category==='network'?engineeringTools():''}<div class="tool-description">${category==='network'&&tool==='inspect'?'Road and Rail include automatic crossings. Shape land and build level spans in Terrain & crossings.':escapeHTML(toolDescription(tool))}</div><div class="build-bottom-tools"><button class="compact-tool ${tool==='inspect'?'active':''}" data-tool="inspect">${icon('inspect')} Explore <span>Esc</span></button>${category!=='network'?`<button class="compact-tool danger ${tool==='bulldoze'?'active':''}" data-tool="bulldoze">${icon('bulldoze')} Bulldozer <span>X</span></button>`:''}</div>${category==='towns'?buildingPalette():projectCard()+`<button class="text-button" data-action="help">How to play <span>↗</span></button>`}`;
+ return `<div class="panel-heading"><h2>Build</h2></div>${tabs}${category==='industry'?industries:`<div class="tool-grid">${groups[category].map(key=>toolCard(key)).join('')}</div>`}${tool==='stop'?`<div class="stop-mode-picker" role="group" aria-label="Stop type at road and rail crossings"><span>At crossings</span>${['road','rail'].map(mode=>`<button data-stop-mode="${mode}" aria-pressed="${preferredMode===mode}">${icon(mode)} ${mode==='road'?'Road':'Rail'}</button>`).join('')}</div>`:''}${category==='network'?engineeringTools():''}<div class="tool-description">${category==='network'&&tool==='inspect'?'Roads and rails climb straight slopes. Level awkward ground in Terrain & crossings.':escapeHTML(toolDescription(tool))}</div><div class="build-bottom-tools"><button class="compact-tool ${tool==='inspect'?'active':''}" data-tool="inspect">${icon('inspect')} Explore <span>Esc</span></button>${category!=='network'?`<button class="compact-tool danger ${tool==='bulldoze'?'active':''}" data-tool="bulldoze">${icon('bulldoze')} Bulldozer <span>X</span></button>`:''}</div>${category==='towns'?buildingPalette():projectCard()+`<button class="text-button" data-action="help">How to play <span>↗</span></button>`}`;
 }
 function cargoChoices() {
  const available=Object.entries(CARGO).filter(([k])=>k==='passengers'||Object.values(INDUSTRIES).some(d=>d.biomes.includes(game.biome)&&(d.inputs[k]||d.outputs[k])));
@@ -249,11 +267,21 @@ function routeForm() {
 function routesPanel() {
  const options=(entries,current)=>entries.map(([key,label])=>`<option value="${key}" ${key===current?'selected':''}>${escapeHTML(label)}</option>`).join('');
  const routes=filterRoutes(game,routeFilters);
- return `<div class="panel-heading"><h2>Routes</h2><button class="small-button" id="new-route-button">+ New route</button></div>${fleetControls()}<div class="route-filters"><label class="route-search-field"><span class="sr-only">Search routes</span><input id="route-search" type="search" placeholder="Search routes, stops or cargo" aria-label="Search routes, stops or cargo" value="${escapeHTML(routeFilters.query)}"></label><label><span>Transport</span><select id="route-filter-mode">${options([['all','All transport'],['road','Road'],['rail','Rail'],['water','Water · ships']],routeFilters.mode)}</select></label><label><span>Status</span><select id="route-filter-status">${options([['all','All statuses'],['running','Connected'],['disconnected','Disconnected']],routeFilters.status)}</select></label><label class="route-cargo-filter"><span class="sr-only">Filter routes by cargo</span><select id="route-filter-cargo" aria-label="Filter routes by cargo">${options([['all','All cargo'],...Object.entries(CARGO).map(([key,cargo])=>[key,cargo.name])],routeFilters.cargo)}</select></label></div><div class="route-list-heading"><span id="route-results-count" role="status">${routes.length} of ${game.routes.length} routes</span><button class="small-button" id="clear-route-filters">Clear filters</button></div><div id="route-list">${routeCards(routes)}</div>${routeForm()}`;
+ return `<div class="panel-heading"><h2>Routes</h2><button class="small-button" id="new-route-button">+ New route</button></div>${fleetControls()}<div class="route-filters"><label class="route-search-field"><span class="sr-only">Search routes</span><input id="route-search" type="search" placeholder="Search routes, stops or cargo" aria-label="Search routes, stops or cargo" value="${escapeHTML(routeFilters.query)}"></label><label><span>Transport</span><select id="route-filter-mode">${options([['all','All transport'],['road','Road'],['rail','Rail'],['water','Water · ships']],routeFilters.mode)}</select></label><label><span>Status</span><select id="route-filter-status">${options([['all','All statuses'],['running','Connected'],['disconnected','Disconnected']],routeFilters.status)}</select></label><label class="route-cargo-filter"><span class="sr-only">Filter routes by cargo</span><select id="route-filter-cargo" aria-label="Filter routes by cargo">${options([['all','All cargo'],...Object.entries(CARGO).map(([key,cargo])=>[key,cargo.name])],routeFilters.cargo)}</select></label></div><div class="route-list-heading"><span id="route-results-count" role="status">${routes.length} of ${game.routes.length} routes</span><button class="small-button" id="clear-route-filters">Clear filters</button></div><div id="route-list">${routePageCards(routes)}</div>${routeForm()}`;
+}
+function visibleRoutePage(routes) {
+ routePage=Math.min(routePage,Math.max(0,Math.ceil(routes.length/ROUTES_PER_PAGE)-1));
+ return routes.slice(routePage*ROUTES_PER_PAGE,(routePage+1)*ROUTES_PER_PAGE);
+}
+function routePageCards(routes) {
+ const visible=visibleRoutePage(routes),pages=Math.ceil(routes.length/ROUTES_PER_PAGE);
+ const controls=pages>1?`<nav class="route-pagination" aria-label="Route pages"><button class="small-button" data-route-page="previous" ${routePage===0?'disabled':''}>Previous</button><span>Page ${routePage+1} of ${pages}</span><button class="small-button" data-route-page="next" ${routePage===pages-1?'disabled':''}>Next</button></nav>`:'';
+ return controls+routeCards(visible)+controls;
 }
 function routeCards(routes) {
+ const stopsById=new Map(game.stations.map(stop=>[stop.id,stop]));
  return routes.length?routes.map(route=>{
- const from=game.stations.find(s=>s.id===route.stops[0]),to=game.stations.find(s=>s.id===route.stops[1]),health=routeHealth(game,route),profit=route.revenue-(route.revenueAtAccountingStart||0)-(route.expenses||0);
+ const from=stopsById.get(route.stops[0]),to=stopsById.get(route.stops[1]),health=routeHealth(game,route),profit=route.revenue-(route.revenueAtAccountingStart||0)-(route.expenses||0);
  return `<article class="route-card" data-route-id="${route.id}"><div class="route-header"><span class="route-dot" style="background:${escapeHTML(route.color||'#d9965c')}"></span><strong>${escapeHTML(route.name)}</strong><span data-route-status="${route.id}">${escapeHTML(health.label)}</span></div><div class="route-journey">${escapeHTML(from?.name||'Removed stop')}${icon('arrow')}${escapeHTML(to?.name||'Removed stop')}</div><div class="route-stats"><span class="route-mode-icon" title="${transportName(route.mode)}"><canvas width="80" height="64" data-vehicle-sprite="${route.id}" aria-hidden="true"></canvas><span class="sr-only">${transportName(route.mode)}</span></span>${cargoBadge(route.cargo,{label:true})}<span data-route-stat="${route.id}">${integer(route.delivered)} moved</span></div><div class="route-earnings"><span>Net earned</span><strong data-route-revenue="${route.id}" title="Revenue minus route upkeep; excludes construction.">${profit<0?'−':''}${money(profit)}</strong><span data-route-load="${route.id}"></span></div><p class="route-health" data-route-health="${route.id}" title="${escapeHTML(health.detail)}">${escapeHTML(health.detail)}</p><div class="route-vehicle-spec" data-vehicle-spec="${route.id}">${vehicleSpec(getVehicleUpgrade(game,route.id))}</div><div class="route-actions"><button class="small-button" data-focus-route="${route.id}">Show</button>${upgradeButton(route)}<button class="small-button danger" data-remove-route="${route.id}">Retire</button></div></article>`;}).join(''):`<div class="empty-state">${icon('route')}${game.routes.length?'No routes match these filters.':'Connect two stops to start.'}</div>`;
 }
 function vehicleSpec(quote) { return `<span>Gen ${quote.level+1} · ${quote.capacity} units</span><span>${quote.speedMultiplier.toFixed(1)}× speed</span>`; }
@@ -300,13 +328,18 @@ function refreshRoutePlan() {
  status.dataset.state=plan.state;status.dataset.valid=String(plan.valid);form.querySelector('[type=submit]').disabled=!plan.valid;
 }
 function bindRouteCards(root) {
+ root.querySelectorAll('[data-route-page]').forEach(button=>button.addEventListener('click',()=>{
+  const direction=button.dataset.routePage;routePage+=direction==='next'?1:-1;refreshRouteList();
+  $('#route-list').scrollIntoView({block:'start'});
+  $(`#route-list [data-route-page="${direction}"]:not(:disabled)`)?.focus({preventScroll:true});
+ }));
  root.querySelectorAll('[data-upgrade-route]').forEach(button=>button.addEventListener('click',()=>performUpgrade(button.dataset.upgradeRoute)));
  root.querySelectorAll('[data-focus-route]').forEach(el=>el.addEventListener('click',()=>{const r=game.routes.find(r=>String(r.id)===el.dataset.focusRoute);const s=r&&game.stations.find(s=>s.id===r.stops[0]);if(!s)return;cancelRoutePicking();renderer.focus(s.x,s.y);setMapLayers({routes:true});closeMobile();}));
  root.querySelectorAll('[data-remove-route]').forEach(el=>el.addEventListener('click',()=>retireRoute(el.dataset.removeRoute)));
 }
 function refreshRouteList() {
  const list=$('#route-list');if(!list)return;const routes=filterRoutes(game,routeFilters);
- list.innerHTML=routeCards(routes);$('#route-results-count').textContent=`${routes.length} of ${game.routes.length} routes`;bindRouteCards(list);drawPaletteSprites(list);
+ list.innerHTML=routePageCards(routes);$('#route-results-count').textContent=`${routes.length} of ${game.routes.length} routes`;bindRouteCards(list);drawPaletteSprites(list);
 }
 function isRoutePicking() { return Boolean(routePicking); }
 function routePickStops() { return view==='routes'?[formDraft.from,formDraft.to].map(id=>game.stations.find(s=>String(s.id)===String(id))).filter(Boolean):[]; }
@@ -387,9 +420,9 @@ function renderPanel() {
  });
  bindRouteCards(panel);
  if($('#upgrade-fleet'))$('#upgrade-fleet').onclick=()=>performUpgrade();
- if($('#route-search'))$('#route-search').addEventListener('input',e=>{routeFilters.query=e.target.value;refreshRouteList();});
- for(const key of ['mode','status','cargo'])if($(`#route-filter-${key}`))$(`#route-filter-${key}`).addEventListener('change',e=>{routeFilters[key]=e.target.value;refreshRouteList();});
- if($('#clear-route-filters'))$('#clear-route-filters').onclick=()=>{routeFilters={query:'',mode:'all',status:'all',cargo:'all'};$('#route-search').value='';for(const key of ['mode','status','cargo'])$(`#route-filter-${key}`).value='all';refreshRouteList();};
+ if($('#route-search'))$('#route-search').addEventListener('input',e=>{routeFilters.query=e.target.value;routePage=0;refreshRouteList();});
+ for(const key of ['mode','status','cargo'])if($(`#route-filter-${key}`))$(`#route-filter-${key}`).addEventListener('change',e=>{routeFilters[key]=e.target.value;routePage=0;refreshRouteList();});
+ if($('#clear-route-filters'))$('#clear-route-filters').onclick=()=>{routePage=0;routeFilters={query:'',mode:'all',status:'all',cargo:'all'};$('#route-search').value='';for(const key of ['mode','status','cargo'])$(`#route-filter-${key}`).value='all';refreshRouteList();};
  if($('#new-route-button'))$('#new-route-button').onclick=()=>{$('#route-form').scrollIntoView({block:'start',behavior:'smooth'});$('#route-form [name=name]').focus({preventScroll:true});};
  panel.querySelectorAll('[data-pick-route]').forEach(el=>el.addEventListener('click',()=>beginRoutePicking(el.dataset.pickRoute)));
  panel.querySelectorAll('[data-cargo-choice]').forEach(el=>el.addEventListener('click',()=>{
@@ -441,7 +474,9 @@ function updateHud() {
  const lastProfit=game.history.at(-1)?.operatingProfit;$('#previous-profit').textContent=Number.isFinite(lastProfit)?(lastProfit>=0?'+':'−')+money(lastProfit):'—';
  $('#profit-exact').title='Operating figures tracked since '+new Date(Date.UTC(1950,0,1+Math.floor(game.accountingStartDay||0))).toLocaleDateString('en-US',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'});
  $('#delivered').innerHTML=integer(game.totalDelivered)+' <small>units</small>';
- const served=game.cities.filter(city=>townService(game,city).connected).length;
+ const activeStopIds=new Set(game.routes.filter(route=>route.active).flatMap(route=>route.stops));
+ const activeStops=game.stations.filter(stop=>activeStopIds.has(stop.id));
+ const served=game.cities.filter(city=>townService(game,city,activeStops).connected).length;
  $('#connected').innerHTML=served+` <small>/ ${game.cities.length}</small>`;$('#route-count').textContent=game.routes.length;
  const date=new Date(Date.UTC(1950,0,1+Math.floor(game.day)));$('#date').textContent=date.toLocaleDateString('en-US',{month:'short',year:'numeric',timeZone:'UTC'});$('#date').title=date.toLocaleDateString('en-US',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'});
  const amount=Math.min(100,Math.floor(game.totalDelivered));if($('#goal-progress'))$('#goal-progress').textContent=amount>=100?'Milestone reached':amount+' / 100';$('#goal-bar').style.width=amount+'%';
@@ -452,14 +487,19 @@ function updateHud() {
  $('#zoom-level').setAttribute('aria-label',zoomLabel+' · Choose zoom');$('#zoom-level').title=zoomLabel;
  $$('[data-zoom-level]').forEach(el=>el.setAttribute('aria-pressed',String(Number(el.dataset.zoomLevel)===zoom)));
  $('#zoom-out').disabled=currentZoom===0;$('#zoom-in').disabled=currentZoom===ZOOM_LEVELS.length-1;
- $$('[data-route-status]').forEach(el=>{const r=game.routes.find(r=>String(r.id)===el.dataset.routeStatus);if(r){const health=routeHealth(game,r);el.textContent=health.label;el.classList.toggle('route-offline',health.state!=='running');}});
- $$('[data-route-revenue]').forEach(el=>{const r=game.routes.find(r=>String(r.id)===el.dataset.routeRevenue);if(r){const net=r.revenue-(r.revenueAtAccountingStart||0)-(r.expenses||0);el.textContent=(net<0?'−':'')+money(net);el.title=`Fares ${money(r.revenue-(r.revenueAtAccountingStart||0))} · Route upkeep ${money(r.expenses||0)} · Tracked since ${new Date(Date.UTC(1950,0,1+Math.floor(r.accountingStartDay||0))).toLocaleDateString('en-US',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'})} · Excludes construction`;}});
- $$('[data-route-health]').forEach(el=>{const r=game.routes.find(r=>String(r.id)===el.dataset.routeHealth);if(r){const health=routeHealth(game,r);el.textContent=health.detail;el.title=health.detail;el.dataset.state=health.state;}});
- $$('[data-route-load]').forEach(el=>{const vehicles=game.vehicles.filter(v=>String(v.routeId)===el.dataset.routeLoad);if(vehicles.length)el.textContent=integer(vehicles.reduce((n,v)=>n+v.load,0))+' / '+integer(vehicles.reduce((n,v)=>n+v.capacity,0))+' loaded';});
- $$('[data-route-stat]').forEach(el=>{const r=game.routes.find(r=>String(r.id)===el.dataset.routeStat);if(r)el.textContent=integer(r.delivered)+' moved';});
- if(view==='routes'){
+ const showingRoutes=view==='routes'&&!$('.sidebar').inert;
+ const routesById=showingRoutes?new Map(game.routes.map(route=>[String(route.id),route])):null;
+ const loadsByRoute=new Map();
+ if(showingRoutes)for(const vehicle of game.vehicles){const key=String(vehicle.routeId),load=loadsByRoute.get(key)||{load:0,capacity:0};load.load+=vehicle.load;load.capacity+=vehicle.capacity;loadsByRoute.set(key,load);}
+ if(showingRoutes)$$('[data-route-status]').forEach(el=>{const r=routesById?.get(el.dataset.routeStatus);if(r){const health=routeHealth(game,r);el.textContent=health.label;el.classList.toggle('route-offline',health.state!=='running');}});
+ if(showingRoutes)$$('[data-route-revenue]').forEach(el=>{const r=routesById?.get(el.dataset.routeRevenue);if(r){const net=r.revenue-(r.revenueAtAccountingStart||0)-(r.expenses||0);el.textContent=(net<0?'−':'')+money(net);el.title=`Fares ${money(r.revenue-(r.revenueAtAccountingStart||0))} · Route upkeep ${money(r.expenses||0)} · Tracked since ${new Date(Date.UTC(1950,0,1+Math.floor(r.accountingStartDay||0))).toLocaleDateString('en-US',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'})} · Excludes construction`;}});
+ if(showingRoutes)$$('[data-route-health]').forEach(el=>{const r=routesById?.get(el.dataset.routeHealth);if(r){const health=routeHealth(game,r);el.textContent=health.detail;el.title=health.detail;el.dataset.state=health.state;}});
+ if(showingRoutes)$$('[data-route-load]').forEach(el=>{const load=loadsByRoute.get(el.dataset.routeLoad);if(load)el.textContent=integer(load.load)+' / '+integer(load.capacity)+' loaded';});
+ if(showingRoutes)$$('[data-route-stat]').forEach(el=>{const r=routesById?.get(el.dataset.routeStat);if(r)el.textContent=integer(r.delivered)+' moved';});
+ if(showingRoutes){
   refreshRoutePlan();refreshUpgradeControls();
-  const ids=filterRoutes(game,routeFilters).map(route=>String(route.id));
+  const filtered=filterRoutes(game,routeFilters),ids=visibleRoutePage(filtered).map(route=>String(route.id));
+  $('#route-results-count').textContent=`${filtered.length} of ${game.routes.length} routes`;
   if(ids.join('|')!==$$('#route-list [data-route-id]').map(el=>el.dataset.routeId).join('|'))refreshRouteList();
  }
 }
@@ -489,7 +529,7 @@ function locateDestination(id,kind) {
 }
 function inspect(x,y,kind='') {
  const site=kind!=='city'?buildingAt(game,x,y):null;if(site){x=site.x;y=site.y;}
- const nature=kind!=='city'&&!site?terrainObjectAt(game,x,y):null;if(nature){x=nature.x;y=nature.y;}
+ const terrainSite=kind!=='city'&&!site?terrainObjectAt(game,x,y):null,nature=terrainSite?.object.kind==='mountain'?null:terrainSite;if(nature){x=nature.x;y=nature.y;}
  const tile=tileAt(x,y);if(!tile)return;const changed=!selected||selected.x!==x||selected.y!==y||selected.kind!==kind;selected={x,y,kind};
  const station=game.stations.find(s=>s.x===x&&s.y===y),industry=game.industries.find(i=>industryContains(i,x,y)), city=game.cities.find(c=>c.x===x&&c.y===y)||game.cities.find(c=>Math.hypot(c.x-x,c.y-y)<4&&tile.building);
  let title,tag,body;
@@ -498,7 +538,7 @@ function inspect(x,y,kind='') {
  else if(kind!=='city'&&tile.building&&BUILDINGS[tile.building.kind]){const b=BUILDINGS[tile.building.kind],span=buildingSize(tile.building);title=b.name;tag=`${span} × ${span} SITE · ${b.tier?b.tier.toUpperCase()+' HOME':BUILDING_GROUPS[b.group].name.toUpperCase()}`;const nearest=game.cities.reduce((best,c)=>!best||Math.hypot(c.x-x,c.y-y)<Math.hypot(best.x-x,best.y-y)?c:best,null);body=`<div class="inspector-building"><canvas width="96" height="100" data-building-sprite="${tile.building.kind}" aria-hidden="true"></canvas><p>${escapeHTML(b.tier||BUILDING_GROUPS[b.group].name)} · ${nearest&&Math.hypot(nearest.x-x,nearest.y-y)<=10?escapeHTML(nearest.name):'Countryside'}</p></div><div class="inspector-grid"><div><small>Collection</small><strong>${escapeHTML(BUILDING_GROUPS[b.group].name)}</strong></div><div><small>Development</small><strong>Level ${tile.building.level||1}</strong></div></div><p>${escapeHTML(buildingBenefit(tile.building.kind))}</p>${span<buildingFootprint(tile.building.kind)?'<p class="micro-note">Compact legacy site. New construction uses a larger plot.</p>':''}`;}
  else if(kind!=='city'&&tile.building?.kind==='factory'){const span=buildingSize(tile.building);title='Neighborhood workshop';tag=`${span} × ${span} SITE`;body='<div class="inspector-building"><canvas width="96" height="100" data-building-sprite="factory" aria-hidden="true"></canvas><p>Local industry</p></div><p>Road access and town deliveries drive development. Each level supports local town activity.</p>';}
  else if(city&&(kind==='city'||!tile.zone)){title=city.name;tag='TOWN';body=`<div class="inspector-grid"><div><small>Population</small><strong>${integer(city.population)}</strong></div><div><small>Activity</small><strong>${integer(city.activity||0)}</strong></div></div><p class="site-status">${townService(game,city).label}</p>${localConditions(settlementSuitability(game,city))}<button class="button button-primary full" id="zone-town">${icon('house')} Add zones</button>`;}
- else{title=tile.zone?TOOL_INFO[tile.zone].name+' zone':tile.road?'Road':tile.rail?'Railway':{grass:'Open countryside',forest:'Woodland',water:'Water',mountain:'Mountain ridge',rock:'Rocky ground',sand:'Desert sands',snow:'Snowfield'}[tile.terrain]||'Countryside';if(tile.detail&&!tile.road&&!tile.rail&&!tile.zone)title=tile.detail.replace(/-/g,' ').replace(/^./,c=>c.toUpperCase());tag=`${nature?terrainObjectSize(nature.object)+' × '+terrainObjectSize(nature.object)+' SITE · ':''}LEVEL ${terrainLevel(tile)} · ${x}, ${y}`;body=`<p>${nature&&nature.object.kind!=='mountain'?'A natural '+(nature.object.kind==='forest'?'grove':'outcrop')+' on level ground. Bulldoze any part to clear the whole site.':tile.zone?'Develops gradually with local demand.':tile.terrain==='water'?'Build a port on water beside a bank. Ships follow connected water and pass beneath bridges.':tile.terrain==='mountain'?'Use Terrain & crossings to tunnel through higher ground, or reshape clear land.':'Build here, or use Terrain & crossings to raise or lower clear land.'}</p>`;}
+ else{title=tile.zone?TOOL_INFO[tile.zone].name+' zone':tile.road?'Road':tile.rail?'Railway':{grass:'Open countryside',forest:'Woodland',water:'Water',mountain:'Mountain ridge',rock:'Rocky ground',sand:'Desert sands',snow:'Snowfield'}[tile.terrain]||'Countryside';if(tile.detail&&!tile.road&&!tile.rail&&!tile.zone)title=tile.detail.replace(/-/g,' ').replace(/^./,c=>c.toUpperCase());tag=`${nature?terrainObjectSize(nature.object)+' × '+terrainObjectSize(nature.object)+' SITE · ':''}LEVEL ${[...new Set(tileSurface(game,x,y).corners.map(p=>p.height))].sort((a,b)=>a-b).join('–')} · ${x}, ${y}`;body=`<p>${nature&&nature.object.kind!=='mountain'?'A natural '+(nature.object.kind==='forest'?'grove':'outcrop')+' on level ground. Bulldoze any part to clear the whole site.':tile.zone?'Develops gradually with local demand.':tile.terrain==='water'?'Build a port on water beside a bank. Ships follow connected water and pass beneath bridges.':tile.terrain==='mountain'?'Use Terrain & crossings to tunnel through higher ground, or reshape clear land.':'Build on flat ground or a straight slope. Use Terrain & crossings to reshape or level clear land.'}</p>`;}
  if(tile.zone){const zone=game.zones.find(zone=>zone.x===x&&zone.y===y);body+=`<p>Development: ${Math.round((zone?.progress||0)/3*100)}% · Road access and regular town deliveries required.</p>`+localConditions(settlementSuitability(game,{x,y},tile.zone));}
  const box=$('#inspector');box.innerHTML=`<div class="inspector-top"><span class="eyebrow">${tag}</span><button class="tiny-button" aria-label="Close inspector">×</button></div><h3>${escapeHTML(title)}</h3>${body}`;box.hidden=false;drawPaletteSprites();box.querySelector('.tiny-button').onclick=()=>{box.hidden=true;selected=null;};
  if($('#station-route'))$('#station-route').onclick=()=>{if(formDraft.mode!==station.mode||formDraft.to===String(station.id))formDraft.to='';formDraft.mode=station.mode;formDraft.from=String(station.id);setView('routes');$('#route-form')?.scrollIntoView({block:'nearest',behavior:'smooth'});};
@@ -507,7 +547,44 @@ function inspect(x,y,kind='') {
  box.querySelectorAll('[data-target-id]').forEach(el=>el.onclick=()=>locateDestination(el.dataset.targetId,el.dataset.targetKind));
  if(changed)box.scrollTop=0;
 }
-function persist(notify=false){saveAt=performance.now();try{const result=saveGame(game);if(result===false||result?.ok===false)throw new Error('Storage unavailable');$('#save-status').textContent='Saved just now';saveAt=performance.now();if(notify)toast('Game saved.');}catch{$('#save-status').textContent='Save unavailable';if(notify)toast('Your browser could not save this world. Check available storage.',true);}}
+function cancelPendingSave(){const job=pendingSave;pendingSave=null;capturingSave=false;job?.controller.abort();}
+function saveFinished(world,day,revision){savedWorld=world;savedDay=day;savedRevision=revision;saveAt=performance.now();$('#save-status').textContent='Saved just now';}
+function persist(notify=false){
+ saveAt=performance.now();
+ if(pendingSave){pendingSave.again=true;pendingSave.notify||=notify;return pendingSave.promise;}
+ const job={controller:new AbortController(),again:false,notify,world:worldSerial,game};pendingSave=job;
+ const current=()=>pendingSave===job&&game===job.game&&worldSerial===job.world;
+ job.promise=(async()=>{
+  let retries=0;
+  try{
+   do{
+    job.again=false;const day=game.day,revision=game.revision;
+    $('#save-status').textContent='Saving…';capturingSave=true;
+    let snapshot;
+    try{snapshot=await captureGame(job.game,{signal:job.controller.signal,isCurrent:current});}
+    catch(error){if(error.name==='SnapshotChangedError'&&current()&&retries++<3){job.again=true;continue;}throw error;}
+    finally{if(current())capturingSave=false;}
+    const serialized=await encodeCapturedGame(snapshot,{signal:job.controller.signal});
+    if(!current())return false;
+    localStorage.setItem(SAVE_KEY,serialized);saveFinished(job.world,day,revision);
+   }while(job.again&&current());
+   if(job.notify&&current())toast('Game saved.');return true;
+  }catch(error){
+   if(current()&&error.name!=='AbortError'){$('#save-status').textContent='Save unavailable';if(job.notify)toast('Your browser could not save this world. Check available storage.',true);}
+   return false;
+  }finally{if(current()){pendingSave=null;capturingSave=false;}}
+ })();
+ return job.promise;
+}
+// Browsers may stop workers as soon as the page leaves. The final checkpoint
+// must finish synchronously; cancelling the old job prevents a late overwrite.
+function flushSave(){
+ cancelPendingSave();
+ if(savedWorld===worldSerial&&savedDay===game.day&&savedRevision===game.revision)return;
+ const result=saveGame(game);
+ if(result?.ok)saveFinished(worldSerial,game.day,game.revision);
+ else $('#save-status').textContent='Save unavailable';
+}
 
 let modalPreviousSpeed = null;
 let chainSelection = {}, chainExplorer = null;
@@ -521,11 +598,12 @@ function openModal(html) {
 }
 function closeModal(){if($('#modal').open)$('#modal').close();}
 function activateGame(next) {
+ cancelPendingSave();
  cancelRoutePicking();cancelGesture();closeMapMenus();
- game=next;spaceDown=false;selected=null;hover=null;tool='inspect';preferredMode='road';
+ game=next;worldSerial++;spaceDown=false;selected=null;hover=null;tool='inspect';preferredMode='road';
  view='build';category='network';buildingGroup='homes';chainSelection={};
  formDraft={name:'',mode:'road',from:'',to:'',cargo:'passengers'};
- routeFilters={query:'',mode:'all',status:'all',cargo:'all'};entityFilters={towns:'',industry:'',kind:'all'};
+ routePage=0;routeFilters={query:'',mode:'all',status:'all',cargo:'all'};entityFilters={towns:'',industry:'',kind:'all'};
  milestoneReached=false;lastNoticeId=game.notifications[0]?.id;lastRevision=-1;minimapAt=0;panelAt=0;lastFrame=performance.now();
  canvas.classList.remove('build-mode','dragging','route-picking');$('#placement-tip').hidden=true;
  $('#inspector').hidden=true;$('#inspector').replaceChildren();$('#toast-region').replaceChildren();
@@ -538,17 +616,42 @@ function activateGame(next) {
  updateRegion();setView('build');updateHud();closeMobile();
  $('#panel-content').scrollTop=0;$('#status-message').textContent=toolDescription(tool);
 }
+async function drawLoadedWorld() {
+ updateLoading('Drawing your world…',3);await paintLoading();
+ renderer.render(performance.now(),{tool,hover,preview,selected,preferredMode,routeStops:routePickStops()});
+ renderer.drawMinimap($('#minimap'));minimapAt=performance.now();lastRevision=game.revision;
+ await paintLoading();
+}
+async function openGameMenu() {
+ if(menuOpening||$('#start-menu')?.open||isLoading())return;
+ menuOpening=true;
+ const resumeSpeed=speed;changeSpeed(0);
+ let saveFailed=false;
+ if(pendingSave||savedWorld!==worldSerial||savedDay!==game.day||savedRevision!==game.revision){showLoading({title:'Saving your company',status:'Keeping your latest progress…'});saveFailed=!await persist();}
+ cancelGesture();cancelRoutePicking();closeMapMenus();closeMobile();
+ const next=await openStartMenu({canResume:true,biome:game.biome,notice:saveFailed?'Your latest changes could not be saved. Resume your company or free some browser storage.':''});
+ if(next){
+  activateGame(next);
+  await Promise.all([preloadHouses({biome:game.biome}),preloadWorldArt({biome:game.biome})]);
+  await drawLoadedWorld();hideLoading();
+  savedWorld=worldSerial;savedDay=game.day;savedRevision=game.revision;saveAt=performance.now();
+ }
+ menuOpening=false;lastFrame=performance.now();changeSpeed(next?1:resumeSpeed);canvas.focus({preventScroll:true});
+}
 function openSaves() {
+ cancelPendingSave();
  closeMobile();openModal('');
  saveDialogController=mountSaves($('#modal-content'),game,{
   onClose:closeModal,
-  onLoad:(next,slot)=>{
+  onLoad:async(next,slot,{isActive,signal}={})=>{
    if(!$('#modal').open||!saveDialogController)return {ok:false,message:'Load cancelled.'};
    // Commit the resumed world first; a failed write keeps the current world and
    // its autosave intact instead of unexpectedly reverting on the next reload.
-   const saved=saveGame(next);
+   updateLoading('Restoring your transport company…',2);await paintLoading();
+   if(!$('#modal').open||!saveDialogController||signal?.aborted||isActive?.()===false)return {ok:false,message:'Load cancelled.'};
+   const saved=savePreparedGame(next);
    if(!saved.ok)return {ok:false,message:'Could not activate this save. Free some local storage and try again. Your current world is unchanged.'};
-   activateGame(next);saveAt=performance.now();$('#save-status').textContent='Saved just now';closeModal();
+   activateGame(next);saveFinished(worldSerial,game.day,game.revision);showLoading({title:'Loading your world',status:'Drawing your world…',stage:3});await drawLoadedWorld();closeModal();
    toast(`${slot.name||'Autosave'} loaded.`);
    return {ok:true};
   }
@@ -563,55 +666,7 @@ function openChains(options={}) {
 }
 $('#modal').addEventListener('close',()=>{saveDialogController?.dispose();saveDialogController=null;chainExplorer?.dispose();chainExplorer=null;if(modalPreviousSpeed!==null){changeSpeed(modalPreviousSpeed);modalPreviousSpeed=null;}});
 $('#modal').addEventListener('click',e=>{if(e.target===$('#modal')){const b=$('#modal').getBoundingClientRect();if(e.clientX<b.left||e.clientX>b.right||e.clientY<b.top||e.clientY>b.bottom)closeModal();}});
-function drawBiomePreview(element,biome) {
- const ctx=element.getContext('2d'),density=Math.min(2,window.devicePixelRatio||1),w=280,h=145;
- element.width=w*density;element.height=h*density;ctx.setTransform(density,0,0,density,0,0);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
- const colors={taiga:['#91a579','#657e53','#3f6748','#729c92','#a5b39a'],tundra:['#d3dbd3','#bcc9bf','#7c998b','#88adb2','#f3f4e6'],desert:['#d8ba80','#caa86d','#a47c53','#71a49a','#e5d09a']}[biome];
- const scale=8.4,point=(x,y)=>{const p=projectPoint(x*scale,y*scale);return {x:w/2+p.x,y:7+p.y};};
- const polygon=(points,fill)=>{ctx.beginPath();points.forEach(([x,y],i)=>{const p=point(x,y);i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y);});ctx.closePath();ctx.fillStyle=fill;ctx.fill();};
- const stroke=(points,color,width)=>{ctx.beginPath();points.forEach(([x,y],i)=>{const p=point(x,y);i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y);});ctx.strokeStyle=color;ctx.lineWidth=width;ctx.lineCap='round';ctx.lineJoin='round';ctx.stroke();};
- ctx.fillStyle=biome==='desert'?'#eee5d1':biome==='tundra'?'#e8ede7':'#dee5d8';ctx.fillRect(0,0,w,h);
- ctx.save();ctx.translate(0,3);polygon([[0,0],[15,0],[15,15],[0,15]],colors[1]);ctx.restore();
- polygon([[0,0],[15,0],[15,15],[0,15]],colors[0]);
- let rand=931;const r=()=>{rand=(rand*1664525+1013904223)>>>0;return rand/4294967296;};
- for(let y=0;y<15;y++)for(let x=0;x<15;x++){ctx.globalAlpha=.07+r()*.06;polygon([[x,y],[x+1,y],[x+1,y+1],[x,y+1]],colors[r()>.5?1:4]);}ctx.globalAlpha=1;
- const riverY=x=>5.6+Math.sin(x*.5)*1.2,river=Array.from({length:61},(_,i)=>[i/4,riverY(i/4)]);
- stroke(river,colors[4],12);stroke(river,colors[3],9);
- stroke([[2,10],[12,10],[12,4]],'#dfd5ae',4);stroke([[2,10],[12,10],[12,4]],'#868773',2.2);
- const previewSprites=createSprites(biome,{pixelScale:density,detailLevel:'region'}),trees=biome==='desert'?['palm','acacia','tamarisk']:biome==='tundra'?['larch','dwarf-birch','pine']:['pine','birch','oak'],objects=[];
- for(let y=0;y<15;y++)for(let x=0;x<15;x++){
-  if(Math.abs(y+.5-riverY(x+.5))<1.1||(y>=8&&y<=11&&x>=5&&x<=12)||(x>=11&&y>=3&&y<=10))continue;
-  const chance=biome==='desert'?.2:.52;
-  if(r()<chance){const px=x+.25+r()*.5,py=y+.25+r()*.5;objects.push({x:px,y:py,kind:'forest',variant:(x+y*15)%64,detail:trees[(x+y)%3],width:17,height:17});}
- }
- for(let n=0;n<5;n++)objects.push({x:9.5+n*.9,y:1.2+(n%2)*1.1,kind:'mountain',variant:n*3,detail:biome==='desert'?'mesa':biome==='tundra'?'glacier':'granite',width:24,height:25});
- for(let n=0;n<12;n++)objects.push({x:6+(n%6),y:n<6?8.6:11.1,kind:n===1?'church':n===9?'shop-grocery':'house-normal-'+(n%3+1),variant:n,width:16,height:20});
- objects.sort((a,b)=>(a.x+a.y)-(b.x+b.y));
- for(const object of objects){const p=point(object.x,object.y);ctx.drawImage(previewSprites(object.kind,object.variant,1,object.detail),p.x-object.width/2,p.y-object.height+4,object.width,object.height);}
-}
-function openWorld() {
- let chosen=game.biome,chosenSize=DEFAULT_WORLD_SIZE;
- openModal(`<div class="modal-inner"><div class="modal-heading"><div><h2>New world</h2><p>Choose a landscape and map size.</p></div><button class="close-modal" aria-label="Close dialog">×</button></div><div class="biome-options">${Object.entries(BIOMES).map(([key,b])=>`<button class="biome-card ${chosen===key?'selected':''}" data-biome="${key}" aria-pressed="${chosen===key}"><canvas data-preview="${key}"></canvas><span class="biome-card-info"><strong>${b.name}<span>${key===game.biome?'↗':''}</span></strong><small>${escapeHTML(b.description)}</small></span></button>`).join('')}</div><div class="world-size-heading"><span class="eyebrow">MAP SIZE</span></div><div class="world-size-options">${Object.entries(NEW_WORLD_SIZES).map(([key,size])=>`<button type="button" class="world-size-card ${key===chosenSize?'selected':''}" data-world-size="${key}" aria-pressed="${key===chosenSize}"><strong>${escapeHTML(size.label)}</strong><span>${integer(size.towns)} towns</span><small>${integer(size.width*size.height)} tiles</small></button>`).join('')}</div><div class="modal-actions"><label class="form-field"><span>World seed</span><input id="world-seed" type="number" min="1" max="999999999" value="${Math.floor(Math.random()*900000+100000)}"></label><button class="button button-primary" id="generate-world">Create world ${icon('arrow')}</button></div><p id="world-generation-status" class="modal-note" role="status" aria-live="polite">Creating a world replaces autosave. Named saves stay saved.</p></div>`);
- $$('[data-preview]').forEach(el=>drawBiomePreview(el,el.dataset.preview));$$('[data-biome]').forEach(el=>el.addEventListener('click',()=>{chosen=el.dataset.biome;$$('[data-biome]').forEach(b=>{b.classList.toggle('selected',b.dataset.biome===chosen);b.setAttribute('aria-pressed',String(b.dataset.biome===chosen));});}));
- $$('[data-world-size]').forEach(el=>el.addEventListener('click',()=>{chosenSize=el.dataset.worldSize;$$('[data-world-size]').forEach(b=>{b.classList.toggle('selected',b.dataset.worldSize===chosenSize);b.setAttribute('aria-pressed',String(b.dataset.worldSize===chosenSize));});}));
- $('#generate-world').addEventListener('click',async()=>{
-  const button=$('#generate-world'),status=$('#world-generation-status'),dialog=$('#modal');
-  const seed=Math.min(999999999,Math.max(1,Math.floor(Number($('#world-seed').value)||1847)));
-  const biome=chosen,size=chosenSize,controls=$$('#modal .biome-card, #modal .world-size-card, #world-seed, #generate-world');
-  controls.forEach(control=>control.disabled=true);button.textContent='Creating…';status.textContent='Generating terrain, rivers and towns…';
-  const paint=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
-  const current=()=>dialog.open&&button.isConnected;
-  try{
-   await paint();if(!current())return;
-   const next=createGame({biome,seed,size});
-   status.textContent='Saving your new world…';await paint();if(!current())return;
-   const saved=saveGame(next);if(!saved?.ok){status.textContent='Could not save. Free some local storage and try again. Your current world is unchanged.';toast(status.textContent,true);return;}
-   activateGame(next);saveAt=performance.now();$('#save-status').textContent='Saved just now';modalPreviousSpeed=1;closeModal();
-   toast(`${BIOMES[biome].name} awaits. Your first bus is already on the road.`);
-  }catch{if(current()){status.textContent='Could not create this world. Your current company is unchanged. Try a smaller map.';toast(status.textContent,true);}}
-  finally{controls.forEach(control=>control.disabled=false);button.innerHTML='Create world '+icon('arrow');}
- });
-}
+function openWorld() { void openGameMenu(); }
 function openAtlas() {
  openModal(`<div class="modal-inner"><div class="modal-heading"><div><h2>World map</h2><p>Click a location to explore.</p></div><button class="close-modal" aria-label="Close dialog">×</button></div><canvas id="atlas-map" width="640" height="480" tabindex="0" aria-label="World atlas. Click to center the world map on a location."></canvas><div class="atlas-legend"><span><i class="atlas-town"></i> Towns</span><span><i class="atlas-industry"></i> Industries</span><span><i class="atlas-route"></i> Your network</span><span>Use H to return home</span></div></div>`);
  const atlas=$('#atlas-map');atlas.style.aspectRatio=game.width+'/'+game.height;atlas.style.setProperty('--atlas-ratio',game.width/game.height);renderer.drawMinimap(atlas);
@@ -620,7 +675,7 @@ function openAtlas() {
 }
 function openHelp(tab='basics') {
  if(tab==='chains'){openChains();return;}
- const basics=`<div class="guide-grid"><div class="guide-item"><span>${icon('road')}Build a network</span><p>Drag roads or rail for automatic crossings. In Terrain &amp; crossings, raise or lower land one level at a time. For a bridge over a valley or a tunnel through a hill, drag between two ends at the same level. Choose Road or Rail before building.</p></div><div class="guide-item"><span>${icon('route')}Connect two stops</span><p>Place stops or ports within 5 tiles of customers. Connect them, choose cargo, then launch a bus, train or ship.</p></div><div class="guide-item"><span>${icon('factory')}Supply factories</span><p>Deliver every input in a recipe. Towns buy finished goods. Freight returns empty; passengers travel both ways.</p></div><div class="guide-item"><span>${icon('leaf')}Slow, local growth</span><p>Zone within 10 tiles of a town, beside roads. Regular deliveries drive growth; services and greenery help.</p></div><div class="guide-item"><span>${icon('leaf')}Build at your own pace</span><p>Your starter bus earns money while you plan. Start small, supply every factory input, and expand when demand fills your vehicles. Next projects are optional.</p></div><div class="guide-item"><span>${icon('route')}Understand the money</span><p>Profit shows operations this calendar month. Tap Balance for building spend and last month. Routes show fares minus upkeep since tracking began, excluding construction.</p></div></div><div class="keyboard-help"><span><kbd>R</kbd> Road</span><span><kbd>T</kbd> Rail</span><span><kbd>S</kbd> Stop on road / rail</span><span><kbd>P</kbd> Port</span><span><kbd>Right drag</kbd> Move map</span><span><kbd>Two fingers</kbd> Move / pinch to zoom</span><span><kbd>X</kbd> Bulldozer</span><span><kbd>G</kbd> Grid</span><span><kbd>L</kbd> Layers</span><span><kbd>H</kbd> Home</span><span><kbd>M</kbd> Map</span><span><kbd>Space</kbd> Pause / hold to pan</span><span><kbd>Esc</kbd> Done</span></div>`;
+ const basics=`<div class="guide-grid"><div class="guide-item"><span>${icon('road')}Build a network</span><p>Roads and rails climb straight slopes; turns need flat ground. Terrain has eight levels, 0–7. Use Terrain &amp; crossings to raise or lower grid points, or drag an area level. Bridges and tunnels need flat ends at the same level. Choose Road or Rail before building.</p></div><div class="guide-item"><span>${icon('route')}Connect two stops</span><p>Place stops or ports within 5 tiles of customers. Connect them, choose cargo, then launch a bus, train or ship.</p></div><div class="guide-item"><span>${icon('factory')}Supply factories</span><p>Deliver every input in a recipe. Towns buy finished goods. Freight returns empty; passengers travel both ways.</p></div><div class="guide-item"><span>${icon('leaf')}Slow, local growth</span><p>Zone within 10 tiles of a town, beside roads. Regular deliveries drive growth; services and greenery help.</p></div><div class="guide-item"><span>${icon('leaf')}Build at your own pace</span><p>Your starter bus earns money while you plan. Start small, supply every factory input, and expand when demand fills your vehicles. Next projects are optional.</p></div><div class="guide-item"><span>${icon('route')}Understand the money</span><p>Profit shows operations this calendar month. Tap Balance for building spend and last month. Routes show fares minus upkeep since tracking began, excluding construction.</p></div></div><div class="keyboard-help"><span><kbd>R</kbd> Road</span><span><kbd>T</kbd> Rail</span><span><kbd>S</kbd> Stop on road / rail</span><span><kbd>P</kbd> Port</span><span><kbd>Right drag</kbd> Move map</span><span><kbd>Two fingers</kbd> Move / pinch to zoom</span><span><kbd>X</kbd> Bulldozer</span><span><kbd>G</kbd> Grid</span><span><kbd>L</kbd> Layers</span><span><kbd>H</kbd> Home</span><span><kbd>M</kbd> Map</span><span><kbd>Space</kbd> Pause / hold to pan</span><span><kbd>Esc</kbd> Done</span></div>`;
  const chainBody=`<p class="panel-description">Base recipes · output varies by local conditions</p><div class="help-chain-grid">${Object.values(INDUSTRIES).filter(d=>d.biomes.includes(game.biome)).map(d=>`<article class="chain-card"><h4>${d.name}</h4>${cargoRecipe(d.inputs,d.outputs)}</article>`).join('')}</div>`;
  const resources=`<div class="resource-legend">${Object.entries(CARGO).map(([key,c])=>`<div class="resource-entry">${cargoIcon(key,{decorative:true})}<span>${c.name}</span></div>`).join('')}</div>`;
  openModal(`<div class="modal-inner"><div class="modal-heading"><div><h2>Field guide</h2></div><button class="close-modal" aria-label="Close dialog">×</button></div><div class="modal-tabbar"><button data-help-tab="basics" class="${tab==='basics'?'active':''}">Basics</button><button data-help-tab="chains" class="${tab==='chains'?'active':''}">Production</button><button data-help-tab="resources" class="${tab==='resources'?'active':''}">Resources</button></div>${tab==='basics'?basics:tab==='chains'?chainBody:resources}<div class="modal-actions"><button class="button button-primary" data-close>Back to game ${icon('arrow')}</button></div></div>`);
@@ -629,6 +684,7 @@ function openHelp(tab='basics') {
 
 function gridLine(a,b) { const points=[];let x=a.x,y=a.y;points.push({x,y});const horizontalFirst=Math.abs(b.x-a.x)>=Math.abs(b.y-a.y);const stepX=()=>{while(x!==b.x){x+=Math.sign(b.x-x);points.push({x,y});}};const stepY=()=>{while(y!==b.y){y+=Math.sign(b.y-y);points.push({x,y});}};if(horizontalFirst){stepX();stepY();}else{stepY();stepX();}return points; }
 function constructionLine(a,b,key) {
+ if(key==='level'){const points=[a];for(let y=Math.min(a.y,b.y);y<=Math.max(a.y,b.y);y++)for(let x=Math.min(a.x,b.x);x<=Math.max(a.x,b.x);x++)if(x!==a.x||y!==a.y)points.push({x,y});return points;}
  if(spanTools.has(key))b=Math.abs(b.x-a.x)>=Math.abs(b.y-a.y)?{x:b.x,y:a.y}:{x:a.x,y:b.y};
  return gridLine(a,b);
 }
@@ -647,6 +703,7 @@ function pickMapTile(clientX,clientY) {
   }
   return renderer.screenToTile(clientX,clientY);
  }
+ if(terrainTools.has(tool))return renderer.screenToVertex(clientX,clientY);
  return tool==='inspect'?renderer.screenToInspectTile(clientX,clientY):renderer.screenToTile(clientX,clientY);
 }
 function cancelGesture() {
@@ -665,10 +722,10 @@ function updatePlacementTip(e) {
  const points=preview.length?preview:[hover],n=points.length,plan=spanTools.has(tool)&&n<3?{ok:false,message:'Drag at least 3 tiles between level ends.',placements:[],cost:0}:quoteBuildPlan(game,tool,points,{preferredMode});
  const effective=n===1&&!spanTools.has(tool)?plan.placements[0]?.tool:tool;
  const name=TOOL_INFO[effective]?.name||BUILDINGS[effective]?.name||INDUSTRIES[effective]?.name||'Build';
- const levels=terrainTools.has(tool)?n===1?`Level ${terrainLevel(tileAt(hover.x,hover.y))} → ${Math.max(1,Math.min(16,terrainLevel(tileAt(hover.x,hover.y))+(tool==='raise'?1:-1)))}`:`${tool==='raise'?'+1':'−1'} level / tile`:spanTools.has(tool)&&Number.isFinite(plan.level)?`Level ${plan.level}`:'';
+ const levels=tool==='level'?`Level ${plan.level??surfaceHeight(game,points[0].x,points[0].y)}`:terrainTools.has(tool)?n===1?`Level ${surfaceHeight(game,hover.x,hover.y)} → ${Math.max(1,Math.min(MAX_HEIGHT,surfaceHeight(game,hover.x,hover.y)+(tool==='raise'?1:-1)))}`:`${tool==='raise'?'+1':'−1'} level / point`:spanTools.has(tool)&&Number.isFinite(plan.height)?`Level ${plan.height}`:'';
  const nature=tool==='bulldoze'&&n===1?terrainObjectAt(game,hover.x,hover.y):null;
  const siteSize=BUILDINGS[effective]?buildingFootprint(effective):INDUSTRIES[effective]?industryFootprint(effective):nature&&nature.object.kind!=='mountain'?terrainObjectSize(nature.object):0;
- tip.textContent=plan.ok===false?plan.message:`${name}${siteSize?' · '+siteSize+' × '+siteSize:''}${levels?' · '+levels:''} · ${money(plan.cost)}${plan.placements.length>1?' · '+plan.placements.length+(tool==='bulldoze'?' sites':' tiles'):''}`;
+ tip.textContent=plan.ok===false?plan.message:`${name}${siteSize?' · '+siteSize+' × '+siteSize:''}${levels?' · '+levels:''} · ${money(plan.cost)}${plan.placements.length>1?' · '+plan.placements.length+(tool==='bulldoze'?' sites':terrainTools.has(tool)?' points':' tiles'):''}`;
  tip.classList.toggle('invalid',plan.ok===false);
  const rect=canvas.getBoundingClientRect();tip.hidden=false;
  tip.style.left=Math.max(4,Math.min(rect.width-tip.offsetWidth-4,e.clientX-rect.left+17))+'px';tip.style.top=Math.max(4,Math.min(rect.height-tip.offsetHeight-4,e.clientY-rect.top+18))+'px';
@@ -736,7 +793,7 @@ canvas.addEventListener('wheel',e=>{
 },{passive:false});
 $('#minimap').addEventListener('click',e=>{const box=e.currentTarget.getBoundingClientRect();renderer.focus((e.clientX-box.left)/box.width*game.width,(e.clientY-box.top)/box.height*game.height);});
 $('#minimap').addEventListener('keydown',e=>{if(e.key==='Enter'){renderer.focus(game.cities[0].x,game.cities[0].y);}});
-$$('.nav-button[data-view]').forEach(el=>el.addEventListener('click',()=>setView(el.dataset.view)));
+$$('.nav-button[data-view]').forEach(el=>el.addEventListener('click',()=>compactUI?compactUI.toggleManagement(el.dataset.view):setView(el.dataset.view)));
 $$('[data-open-chains]').forEach(el=>el.addEventListener('click',()=>openChains()));
 $$('[data-mobile-view]').forEach(el=>el.addEventListener('click',()=>setView(el.dataset.mobileView)));
 $$('[data-speed]').forEach(el=>el.addEventListener('click',()=>changeSpeed(Number(el.dataset.speed))));
@@ -763,7 +820,7 @@ document.addEventListener('pointerdown',e=>{if(!e.target.closest('.hud-finance-w
 $('#company-stats').addEventListener('keydown',e=>{if(e.key==='Escape'){$('#company-stats').setAttribute('aria-expanded','false');e.currentTarget.blur();}});
 let spaceStarted=0;
 document.addEventListener('keydown',e=>{
- if(e.defaultPrevented)return;
+ if(e.defaultPrevented||isLoading()||$('#start-menu')?.open)return;
  if(e.key==='Escape'&&(!$('#zoom-menu').hidden||!$('#map-options').hidden)){e.preventDefault();closeMapMenus(true);return;}
  if(e.key==='Escape'&&!$('#layers-panel').hidden){e.preventDefault();layersView?.close();return;}
  if(e.key.toLowerCase()==='s'&&(e.ctrlKey||e.metaKey)){e.preventDefault();if(!saveDialogController)openSaves();return;}
@@ -783,24 +840,58 @@ document.addEventListener('keydown',e=>{
  if(key==='='||key==='+')$('#zoom-in').click();if(key==='-')$('#zoom-out').click();
  if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)){e.preventDefault();renderer.pan(e.key==='ArrowLeft'?90:e.key==='ArrowRight'?-90:0,e.key==='ArrowUp'?90:e.key==='ArrowDown'?-90:0);}
 });
-document.addEventListener('keyup',e=>{if(e.code==='Space'){if(spaceDown&&!spaceUsedForPan&&!pointer&&performance.now()-spaceStarted<260)changeSpeed(speed===0?previousSpeed:0);spaceDown=false;}});
+document.addEventListener('keyup',e=>{if(e.code==='Space'){if(!isLoading()&&spaceDown&&!spaceUsedForPan&&!pointer&&performance.now()-spaceStarted<260)changeSpeed(speed===0?previousSpeed:0);spaceDown=false;}});
 window.addEventListener('blur',()=>{spaceDown=false;spaceUsedForPan=false;cancelGesture();});
 window.addEventListener('resize',()=>{renderer.resize();syncToolControls();refreshArtwork();});
-window.addEventListener('pagehide',()=>persist());
-document.addEventListener('visibilitychange',()=>{lastFrame=performance.now();if(document.hidden)persist();});
+window.addEventListener('pagehide',()=>{if((!isLoading()||menuOpening)&&!$('#start-menu')?.open)flushSave();});
+document.addEventListener('visibilitychange',()=>{lastFrame=performance.now();if(document.hidden&&(!isLoading()||menuOpening)&&!$('#start-menu')?.open)flushSave();});
 
 layersView=mountVisibility($('#layers-panel'),$('#layers-button'),{getLayers:()=>({...mapLayers}),onChange:(key,visible)=>setMapLayers({[key]:visible}),onPreset:name=>setMapLayers(layerPreset(name))});
+compactUI=mountCompactPlay({onMenu:openGameMenu,onView:setView,getView:()=>view,onCancelGesture:cancelGesture,onMinimapOpen:()=>{renderer.drawMinimap($('#minimap'));invalidateScene();}});
 const refreshArtwork=()=>{
+ invalidateScene();
  drawPaletteSprites();
- if($('#modal').open)$$('#modal [data-preview]').forEach(element=>drawBiomePreview(element,element.dataset.preview));
 };
-onHouseAssetsChange(refreshArtwork);onWorldArtChange(refreshArtwork);
-window.addEventListener('online',()=>{void preloadHouses({retry:true});void preloadWorldArt({retry:true});});
+let artworkRefreshPending=false;
+function queueArtworkRefresh(){
+ invalidateScene();if(artworkRefreshPending)return;artworkRefreshPending=true;
+ requestAnimationFrame(()=>{artworkRefreshPending=false;refreshArtwork();});
+}
+onHouseAssetsChange(queueArtworkRefresh);onWorldArtChange(queueArtworkRefresh);
+window.addEventListener('online',()=>{void preloadHouses({retry:true,biome:game.biome});void preloadWorldArt({retry:true,biome:game.biome});});
 syncLayerControls();
 updateRegion();renderPanel();syncToolControls();updateHud();changeSpeed(1);renderer.resize();if(window.innerWidth<=700)renderer.focus(game.cities[0].x+1,game.cities[0].y-1);
-// Establish the browser save immediately, including on the first visit.
-persist();
-function frame(now){const elapsed=Math.min((now-lastFrame)/1000,.15);lastFrame=now;if(!document.hidden&&speed>0)tick(game,elapsed*speed);renderer.render(now,{tool,hover,preview,selected,preferredMode,routeStops:routePickStops()});if(now-hudAt>400){updateHud();hudAt=now;const notice=game.notifications[0];if(notice&&notice.id!==lastNoticeId){lastNoticeId=notice.id;toast(notice.message,notice.type==='warning');}if(selected&&!$('#inspector').hidden&&!$('#inspector').contains(document.activeElement))inspect(selected.x,selected.y,selected.kind);}if(now-minimapAt>900||lastRevision!==game.revision){renderer.drawMinimap($('#minimap'));minimapAt=now;lastRevision=game.revision;}if(now-saveAt>20000&&!saveDialogController)persist();if(now-panelAt>7000&&(view==='industry'||view==='towns')){if(!$('#entity-list')?.contains(document.activeElement))refreshEntities();panelAt=now;}requestAnimationFrame(frame);}
+// The start menu has already saved a new world or loaded its checkpoint.
+savedWorld=worldSerial;savedDay=game.day;savedRevision=game.revision;saveAt=performance.now();
+await drawLoadedWorld();hideLoading();lastFrame=performance.now();
+let painted=null,hudState=null,minimapState=null,panelDay=-1,panelRevision=-1;
+function frame(now){
+ const elapsed=Math.min((now-lastFrame)/1000,.15);lastFrame=now;
+ if(isLoading()||document.hidden||$('#start-menu')?.open){requestAnimationFrame(frame);return;}
+ if(speed>0&&!capturingSave)tick(game,elapsed*speed);
+ const camera=renderer.getCamera(),w=canvas.width,h=canvas.height;
+ const changed=!painted||painted.game!==game||painted.day!==game.day||painted.revision!==game.revision||painted.money!==game.money||painted.scene!==sceneRevision||painted.x!==camera.x||painted.y!==camera.y||painted.height!==camera.height||painted.zoom!==camera.zoom||painted.w!==w||painted.h!==h||painted.layers!==mapLayers||painted.tool!==tool||painted.hover!==hover||painted.preview!==preview||painted.selected!==selected||painted.mode!==preferredMode||painted.view!==view||painted.from!==formDraft.from||painted.to!==formDraft.to;
+ if(changed){
+  renderer.render(now,{tool,hover,preview,selected,preferredMode,routeStops:routePickStops()});
+  painted={game,day:game.day,revision:game.revision,money:game.money,scene:sceneRevision,x:camera.x,y:camera.y,height:camera.height,zoom:camera.zoom,w,h,layers:mapLayers,tool,hover,preview,selected,mode:preferredMode,view,from:formDraft.from,to:formDraft.to};
+ }
+ if(now-hudAt>400&&(!hudState||hudState.game!==game||hudState.day!==game.day||hudState.revision!==game.revision||hudState.money!==game.money||hudState.zoom!==camera.zoom||hudState.w!==w||hudState.view!==view)){
+  updateHud();hudAt=now;hudState={game,day:game.day,revision:game.revision,money:game.money,zoom:camera.zoom,w,view};
+  const notice=game.notifications[0];if(notice&&notice.id!==lastNoticeId){lastNoticeId=notice.id;toast(notice.message,notice.type==='warning');}
+  if(selected&&!$('#inspector').hidden&&!$('#inspector').contains(document.activeElement))inspect(selected.x,selected.y,selected.kind);
+ }
+ if((!compactUI||compactUI.isMinimapVisible())&&(!minimapState||minimapState.game!==game||minimapState.revision!==game.revision||minimapState.layers!==mapLayers||minimapState.x!==camera.x||minimapState.y!==camera.y||minimapState.height!==camera.height||minimapState.zoom!==camera.zoom||minimapState.w!==w||minimapState.h!==h)){
+  renderer.drawMinimap($('#minimap'));minimapAt=now;lastRevision=game.revision;
+  minimapState={game,revision:game.revision,layers:mapLayers,x:camera.x,y:camera.y,height:camera.height,zoom:camera.zoom,w,h};
+ }
+ // No world state changes while paused: avoid rescanning millions of tiles to
+ // rewrite the same autosave. Explicit saves and page-leave saves still run.
+ if(now-saveAt>20000&&!saveDialogController){if(savedWorld!==worldSerial||savedDay!==game.day||savedRevision!==game.revision)persist();else saveAt=now;}
+ if(now-panelAt>7000&&!$('.sidebar').inert&&(view==='industry'||view==='towns')&&(panelDay!==game.day||panelRevision!==game.revision)){
+  if(!$('#entity-list')?.contains(document.activeElement))refreshEntities();panelAt=now;panelDay=game.day;panelRevision=game.revision;
+ }
+ requestAnimationFrame(frame);
+}
 requestAnimationFrame(frame);
 // Explicit diagnostic surface for deterministic browser regression checks; no internal state duplicated.
 window.transport={get game(){return game;},get renderer(){return renderer;},get speed(){return speed;},setSpeed:changeSpeed,setTool,setView,inspect,persist};

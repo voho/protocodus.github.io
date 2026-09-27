@@ -1,6 +1,7 @@
 import { BIOMES, SAVE_KEY, restoreGame, validateGame } from './model.js';
 import { encodeGame, encodeBytes, decodeBytes, savedTileCount, inspectSavedGame } from './save-codec.js';
 import { MAX_WORLD_TILES } from './world.js';
+import { restoreGameAsync, encodeGameAsync } from './background-jobs.js';
 
 export const SAVE_SLOT_PREFIX = 'transport-slot-v1:';
 export const SAVE_SLOT_FORMAT = 'transport-slot-v1';
@@ -131,28 +132,34 @@ async function unpack(slot) {
 }
 
 /** A single setItem is the commit: failures preserve the complete previous slot. */
-export async function writeSaveSlot(game, { id, name } = {}) {
+export async function writeSaveSlot(game, { id, name, capturePaused = false, ...options } = {}) {
   if (!validName(name)) return fail('Use a name between 1 and 40 characters.');
   if (id !== undefined && !validId(id)) return fail('Choose a named save to overwrite.');
   try {
-    if (!validateGame(game)) return fail('The game state could not be validated.');
     const local = storage();
     if (id !== undefined && local.getItem(SAVE_SLOT_PREFIX + id) === null) return fail('That save no longer exists. Create a new save.');
-    const saved = encodeGame(game), json = JSON.stringify(saved);
+    // Cooperative capture requires its caller to hold the simulation and edits.
+    // Older callers may advance the live game immediately after this call, so
+    // keep their synchronous snapshot contract while the modal opts into jobs.
+    let json;
+    if(capturePaused)json=await encodeGameAsync(game,options);
+    else{if(!validateGame(game))return fail('The game state could not be validated.');json=JSON.stringify(encodeGame(game));}
+    const saved = JSON.parse(json);
     if (json.length > MAX_SAVE_LENGTH) return fail('This world is too large to save in browser storage.');
     // Snapshot metadata before compression yields, matching the exact serialized world.
     const slotId = id ?? crypto.randomUUID();
-    const info = metadata(game, slotId, name.trim(), new Date().toISOString());
+    const info = metadata(saved.state, slotId, name.trim(), new Date().toISOString());
     const packed = await pack(json, saved);
     const envelope = { format: SAVE_SLOT_FORMAT, ...info, ...packed, checksum: checksum(packed.payload) };
     const serialized = JSON.stringify(envelope);
     if (serialized.length > MAX_SAVE_LENGTH) return fail('This world is too large to save in browser storage.');
+    if (options.signal?.aborted || (options.isCurrent && !options.isCurrent())) return fail('Save cancelled. Existing saves were kept.');
     local.setItem(SAVE_SLOT_PREFIX + slotId, serialized);
     return { ok: true, id: slotId, message: 'Saved on this device.' };
   } catch { return fail('Could not save. Browser storage may be full or unavailable. Existing saves were kept.'); }
 }
 
-export async function readSaveSlot(id) {
+export async function readSaveSlot(id, options = {}) {
   if (id !== 'autosave' && !validId(id)) return fail('Choose a save to load.');
   let raw;
   try { raw = storage().getItem(id === 'autosave' ? SAVE_KEY : SAVE_SLOT_PREFIX + id); }
@@ -166,10 +173,10 @@ export async function readSaveSlot(id) {
       json = await unpack(slot);
     }
     if (json.length > MAX_SAVE_LENGTH) return fail('This save is too large to load.');
-    const game = restoreGame(JSON.parse(json));
+    const game = await restoreGameAsync(json, options);
     if (!game) return fail('This save is damaged or incompatible. Your current world is unchanged.');
     return { ok: true, id, game, message: 'World loaded.' };
-  } catch { return fail('This save is damaged or incompatible. Your current world is unchanged.'); }
+  } catch(error) { if(error.name==='AbortError')throw error;return fail('This save is damaged or incompatible. Your current world is unchanged.'); }
 }
 
 export function renameSaveSlot(id, name) {

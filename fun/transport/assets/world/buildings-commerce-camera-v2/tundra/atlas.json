@@ -1,0 +1,346 @@
+{
+  "columns": 3,
+  "rows": 3,
+  "cellSizes": [
+    16,
+    32,
+    64,
+    128,
+    256
+  ],
+  "masterCell": 256,
+  "vehicleLengthNormalized": false,
+  "order": [
+    "shop-butcher",
+    "shop-hardware",
+    "shop-florist",
+    "service-post-office",
+    "service-bank",
+    "service-hotel",
+    "service-garage",
+    "service-barber",
+    null
+  ],
+  "source": "Individual generated camera corrections; unchanged cells from ../buildings-commerce/tundra",
+  "sprites": [
+    {
+      "id": "shop-butcher",
+      "cell": 0,
+      "sourceBounds": [
+        0,
+        0,
+        640,
+        640
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          119,
+          121,
+          520,
+          518
+        ],
+        "rawAlphaBounds": [
+          118,
+          120,
+          521,
+          519
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.721008
+      },
+      "bounds": [
+        12,
+        14,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "shop-hardware",
+      "cell": 1,
+      "source": "generated/shop-hardware.png",
+      "sourceSha256": "7f49ea036584254f9c58ed54dd31dc3639423592521ae520d6ccd53b6ed2421d",
+      "sourceBounds": [
+        136,
+        173,
+        1117,
+        1113
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          136,
+          173,
+          1117,
+          1113
+        ],
+        "rawAlphaBounds": [
+          49,
+          21,
+          1236,
+          1254
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.64257
+      },
+      "bounds": [
+        12,
+        22,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "shop-florist",
+      "cell": 2,
+      "sourceBounds": [
+        1280,
+        0,
+        1920,
+        640
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          119,
+          122,
+          520,
+          518
+        ],
+        "rawAlphaBounds": [
+          118,
+          122,
+          521,
+          519
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.715786
+      },
+      "bounds": [
+        12,
+        15,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "service-post-office",
+      "cell": 3,
+      "sourceBounds": [
+        0,
+        640,
+        640,
+        1280
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          120,
+          111,
+          519,
+          528
+        ],
+        "rawAlphaBounds": [
+          119,
+          110,
+          520,
+          529
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.73834
+      },
+      "bounds": [
+        17,
+        12,
+        239,
+        244
+      ]
+    },
+    {
+      "id": "service-bank",
+      "cell": 4,
+      "source": "generated/service-bank.png",
+      "sourceSha256": "0df08cf0962c0465691099afe26d8515a37c064f11407db1d2ae40401c1a538c",
+      "sourceBounds": [
+        119,
+        112,
+        1150,
+        1145
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          119,
+          112,
+          1150,
+          1145
+        ],
+        "rawAlphaBounds": [
+          49,
+          53,
+          1156,
+          1224
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.572203
+      },
+      "bounds": [
+        12,
+        12,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "service-hotel",
+      "cell": 5,
+      "sourceBounds": [
+        1280,
+        640,
+        1920,
+        1280
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          120,
+          111,
+          520,
+          529
+        ],
+        "rawAlphaBounds": [
+          119,
+          110,
+          521,
+          530
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.702393
+      },
+      "bounds": [
+        17,
+        12,
+        239,
+        244
+      ]
+    },
+    {
+      "id": "service-garage",
+      "cell": 6,
+      "source": "generated/service-garage.png",
+      "sourceSha256": "17f695a9e3ce622bc054a721b7d3c2b69fe93e562231a85468dc74666ecc243f",
+      "sourceBounds": [
+        157,
+        208,
+        1098,
+        1044
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          157,
+          208,
+          1098,
+          1044
+        ],
+        "rawAlphaBounds": [
+          156,
+          21,
+          1174,
+          1198
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.686151
+      },
+      "bounds": [
+        12,
+        38,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "service-barber",
+      "cell": 7,
+      "sourceBounds": [
+        640,
+        1280,
+        1280,
+        1920
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          118,
+          126,
+          521,
+          513
+        ],
+        "rawAlphaBounds": [
+          117,
+          125,
+          522,
+          514
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.747236
+      },
+      "bounds": [
+        12,
+        21,
+        244,
+        244
+      ]
+    },
+    {
+      "id": null
+    }
+  ],
+  "selectiveReplacement": {
+    "indices": [
+      1,
+      4,
+      6
+    ],
+    "ids": [
+      "shop-hardware",
+      "service-bank",
+      "service-garage"
+    ],
+    "unchangedCells": "Original pixels copied at each existing LOD; no regeneration or resampling",
+    "previousFamily": "buildings-commerce"
+  }
+}

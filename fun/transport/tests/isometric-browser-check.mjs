@@ -18,8 +18,9 @@ try {
       const { createGame } = await import('./model.js'), { createRenderer } = await import('./renderer.js');
       const { preloadWorldArt, worldArtStats } = await import('./atlas-runtime.js');
       const { preloadHouses } = await import('./raster-houses.js');
+      const { surfaceHeight, HEIGHT_STEP } = await import('./terrain-geometry.js');
       await Promise.all([preloadWorldArt({ waitMs: 12000 }), preloadHouses({ waitMs: 12000 })]);
-      window.isoQA = { createGame, createRenderer, worldArtStats, canvas: document.querySelector('canvas') };
+      window.isoQA = { createGame, createRenderer, worldArtStats, surfaceHeight, HEIGHT_STEP, canvas: document.querySelector('canvas') };
     });
     for (const biome of ['taiga', 'tundra', 'desert']) {
       const scenes = await page.evaluate(biome => {
@@ -41,6 +42,8 @@ try {
         const result = await page.evaluate(({ scene, zoom }) => {
           const q = isoQA, r = q.renderer; q.game.day = scene.day || 0; r.setZoom(zoom); r.focus(scene.x, scene.y);
           const rect = q.canvas.getBoundingClientRect(), p = r.worldToScreen(scene.x, scene.y), east = r.worldToScreen(scene.x + 1, scene.y), south = r.worldToScreen(scene.x, scene.y + 1);
+          const height = q.surfaceHeight(q.game, scene.x + .5, scene.y + .5);
+          const heightDrop = (dx,dy) => (height - q.surfaceHeight(q.game, scene.x + dx + .5, scene.y + dy + .5)) * q.HEIGHT_STEP * zoom;
           const picked = r.screenToTile(rect.left + p.x, rect.top + p.y);
           const c = q.canvas.getContext('2d'), original = c.drawImage, objectTransforms = [];
           c.drawImage = function(image, ...args) {
@@ -51,7 +54,7 @@ try {
           };
           const start = performance.now(); try { r.render(0); } finally { c.drawImage = original; }
           const coldMs = performance.now() - start, before = r.getStats().composedChunks; r.render(0);
-          return { picked, east: { x: east.x - p.x, y: east.y - p.y }, south: { x: south.x - p.x, y: south.y - p.y }, objectTransforms, coldMs, repeated: r.getStats().composedChunks - before, stats: r.getStats(), art: q.worldArtStats() };
+          return { picked, east: { x: east.x - p.x, y: east.y - p.y - heightDrop(1,0) }, south: { x: south.x - p.x, y: south.y - p.y - heightDrop(0,1) }, objectTransforms, coldMs, repeated: r.getStats().composedChunks - before, stats: r.getStats(), art: q.worldArtStats() };
         }, { scene, zoom });
         assert.deepEqual(result.picked, { x: scene.x, y: scene.y }, 'projected tile centers pick the same tile');
         assert.deepEqual(result.east, { x: 32 * zoom, y: 16 * zoom }, 'east follows the southeast diamond axis');
@@ -96,7 +99,7 @@ try {
         const capture = span => {
           const order = [];
           c.drawImage = function(image, ...args) {
-            if (image instanceof HTMLImageElement && image.src.includes('/vehicle-bus/')) order.push('vehicle');
+            if (image instanceof HTMLImageElement && image.src.includes('/vehicle-bus-dimetric-v2/')) order.push('vehicle');
             if (image instanceof HTMLCanvasElement && args.length === 4 && args[2] === 48 * span && args[3] === 48 * span + 12) order.push(span === 1 ? 'building' : 'industry');
             return original.call(this, image, ...args);
           };
@@ -137,7 +140,7 @@ try {
     const { releaseTerrainObjects } = await import('./terrain-objects.js'), cleared = [];
     for (let dy = -5; dy <= 11; dy++) for (let dx = -5; dx <= 11; dx++) cleared.push({ x: site.x + dx, y: site.y + dy });
     releaseTerrainObjects(g, cleared);
-    for (let dy = -4; dy <= 10; dy++) for (let dx = -4; dx <= 10; dx++) Object.assign(g.tiles[(site.y + dy) * g.width + site.x + dx], { terrain: 'grass', elevation: 6 / 16, detail: '', road: false, rail: false, bridge: false, tunnel: false, building: null, zone: null, publicRoad: false });
+    for (let dy = -4; dy <= 10; dy++) for (let dx = -4; dx <= 10; dx++) Object.assign(g.tiles[(site.y + dy) * g.width + site.x + dx], { terrain: 'grass', elevation: 3 / 7, detail: '', road: false, rail: false, bridge: false, tunnel: false, building: null, zone: null, publicRoad: false });
     g.money = 1000000; g.revision++; g.networkRevision++; transport.renderer.setZoom(1); transport.renderer.focus(site.x + 3, site.y + 2); return site;
   });
   async function point(x, y) { return app.evaluate(({ x, y }) => { const p = transport.renderer.worldToScreen(x, y), rect = document.querySelector('#world').getBoundingClientRect(); return { x: rect.left + p.x, y: rect.top + p.y }; }, { x, y }); }
@@ -146,8 +149,10 @@ try {
   await app.mouse.move(start.x, start.y); await app.mouse.down(); await app.mouse.move(end.x, end.y, { steps: 6 }); await app.mouse.up();
   const roads = await app.evaluate(({ x, y }) => [0, 1, 2, 3, 4].map(dx => transport.game.tiles[y * transport.game.width + x + dx].road), site);
   assert.deepEqual(roads, [true, true, true, true, true], 'a diagonal screen drag builds a straight five-tile world road');
-  await app.evaluate(() => transport.setTool('raise')); const earth = await point(site.x + 2, site.y + 3); await app.mouse.click(earth.x, earth.y);
-  assert.equal(await app.evaluate(({ x, y }) => transport.game.tiles[(y + 3) * transport.game.width + x + 2].elevation, site), 7 / 16, 'earthworks use the same isometric picker');
+  await app.evaluate(() => transport.setTool('raise'));
+  const earth = await app.evaluate(({x,y}) => { const p=transport.renderer.gridPointToScreen(x+2,y+3),rect=document.querySelector('#world').getBoundingClientRect();return{x:rect.left+p.x,y:rect.top+p.y}; },site);
+  await app.mouse.click(earth.x, earth.y);
+  assert.equal(await app.evaluate(({ x, y }) => transport.game.tiles[(y + 3) * transport.game.width + x + 2].elevation, site), 4 / 7, 'earthworks target the raised grid vertex');
   await app.evaluate(() => transport.setTool('inspect')); const panBefore = await point(site.x, site.y);
   await app.mouse.move(start.x, start.y); await app.mouse.down({ button: 'middle' }); await app.mouse.move(start.x + 65, start.y + 35, { steps: 4 }); await app.mouse.up({ button: 'middle' });
   const panAfter = await point(site.x, site.y); assert.ok(Math.abs(panAfter.x - panBefore.x - 65) < 2 && Math.abs(panAfter.y - panBefore.y - 35) < 2, 'real pointer panning follows screen axes');
@@ -172,7 +177,7 @@ try {
   await app.reload(); await app.waitForFunction(() => window.transport?.renderer); await app.evaluate(() => transport.setSpeed(0));
   const restored = await app.evaluate(() => { const g = transport.game; return { seed: g.seed, generationVersion: g.generationVersion, size: [g.width, g.height], money: g.money, stations: g.stations, routes: g.routes.map(({ pathRevision, ...route }) => route) }; });
   assert.deepEqual(restored, saved, 'projection conversion preserves saved company data');
-  assert.equal(await app.evaluate(({ x, y }) => transport.game.tiles[(y + 3) * transport.game.width + x + 2].elevation, site), 7 / 16);
+  assert.equal(await app.evaluate(({ x, y }) => transport.game.tiles[(y + 3) * transport.game.width + x + 2].elevation, site), 4 / 7);
   await app.evaluate(() => { const city = transport.game.cities[0]; transport.renderer.setZoom(2); transport.renderer.focus(city.x + 2, city.y); });
   await app.screenshot({ path: `${output}/app-desktop.png` }); interactions.push('road drag', 'raise terrain', 'pointer pan', 'opaque roof inspection', 'local save reload');
   await app.locator('#world-button').click(); await app.screenshot({ path: `${output}/new-world-preview.png` }); await app.keyboard.press('Escape');

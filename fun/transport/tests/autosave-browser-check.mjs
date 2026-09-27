@@ -1,5 +1,6 @@
 // Serve the repository root first; no manual save action is used in this check.
 import assert from 'node:assert/strict';
+import { createWorldFromMenu, loadAutosaveFromMenu } from './browser-start.mjs';
 const { chromium } = await import(process.env.TRANSPORT_PLAYWRIGHT || 'playwright');
 const browser = await chromium.launch({ channel: process.env.TRANSPORT_BROWSER || 'chrome', headless: true });
 const url = process.env.TRANSPORT_URL || 'http://localhost:8765/fun/transport/';
@@ -8,6 +9,7 @@ try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(url);
+  await createWorldFromMenu(page);
   await page.waitForFunction(() => window.transport?.game && localStorage.getItem('transport-save-v1'));
   const initial = await page.evaluate(() => JSON.parse(localStorage.getItem('transport-save-v1')).state);
   assert.equal(initial.width, 512);
@@ -34,8 +36,11 @@ try {
   assert.equal(leaving.totalDelivered, beforeNavigation.delivered);
 
   await page.goto(url);
-  await page.waitForFunction(() => !!window.transport?.game);
-  await page.locator('[data-speed="0"]').click();
+  await page.locator('#start-menu').waitFor();
+  assert.equal(await page.evaluate(() => !!window.transport), false, 'reload waits for an explicit world selection');
+  assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('transport-save-v1')).state.day), leaving.day,
+    'opening the menu does not advance or replace the autosave');
+  await loadAutosaveFromMenu(page);
   const restored = await page.evaluate(() => ({
     day: transport.game.day, seed: transport.game.seed,
     delivered: transport.game.totalDelivered, routes: transport.game.routes.map(route => route.id),
@@ -45,7 +50,7 @@ try {
   assert.ok(restored.day >= beforeNavigation.day && restored.day < beforeNavigation.day + 2);
   assert.ok(restored.delivered >= beforeNavigation.delivered);
   assert.deepEqual(errors, []);
-  console.log('Autosave browser check passed: initial save, timed progress, leaving, and automatic restoration; no manual save used.');
+  console.log('Autosave browser check passed: initial save, timed progress, leaving, menu preservation and loading Autosave; no manual save used.');
 } finally {
   await browser.close();
 }

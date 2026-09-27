@@ -7,6 +7,7 @@ import { generateWorldV2 } from './world-v2.js';
 import { expandGeneratedIndustrySites } from './industry-sites.js';
 import { allocateGeneratedSites } from './world-sites-v5.js';
 import { allocateTerrainObjects } from './world-terrain-objects.js';
+import { createTerrainTile } from './world-tiles.js';
 export { seedNumber, randomSource, hashNoise } from './world-noise.js';
 
 export const NEW_WORLD_SIZES = {
@@ -23,17 +24,41 @@ export const WORLD_SIZES = {
 };
 export const DEFAULT_WORLD_SIZE = 'square512';
 export const MAX_WORLD_TILES = 2048 * 2048;
-export const WORLD_GENERATION_VERSION = 6;
-export const supportsGenerationVersion = version => version === 1 || version === 2 || version === 3 || version === 4 || version === 5 || version === 6;
+export const WORLD_GENERATION_VERSION = 7;
+export const supportsGenerationVersion = version => version === 1 || version === 2 || version === 3 || version === 4 || version === 5 || version === 6 || version === 7;
+
+// Keep complete production chains together: one district contains one of every
+// industry available in the climate. Population and industry density are
+// independent, so a quiet landscape can still have a busy freight economy.
+export function worldGenerationOptions(size = DEFAULT_WORLD_SIZE, biome = 'taiga') {
+  const config = NEW_WORLD_SIZES[size] || NEW_WORLD_SIZES[DEFAULT_WORLD_SIZE];
+  const industriesPerDistrict = Object.values(INDUSTRIES).filter(industry => industry.biomes.includes(biome)).length;
+  return {
+    townCount: config.towns, minTowns: 2, maxTowns: config.towns * 2,
+    industryDistricts: config.clusters, minIndustryDistricts: 1, maxIndustryDistricts: config.clusters * 2,
+    industriesPerDistrict,
+  };
+}
+export function validGenerationOptions(size, options) {
+  if (options === undefined) return true;
+  if (!Object.hasOwn(NEW_WORLD_SIZES, size) || !options || typeof options !== 'object' || Array.isArray(options)) return false;
+  const limits = worldGenerationOptions(size);
+  return Object.keys(options).length === 2 && Object.hasOwn(options, 'townCount') && Object.hasOwn(options, 'industryDistricts') &&
+    Number.isInteger(options.townCount) && options.townCount >= limits.minTowns && options.townCount <= limits.maxTowns &&
+    Number.isInteger(options.industryDistricts) && options.industryDistricts >= limits.minIndustryDistricts && options.industryDistricts <= limits.maxIndustryDistricts;
+}
 
 // Terrain stays in seven gameplay categories; details supply local visual character.
 // Version 1 is also a save-file recipe. Future geography must add a new version
 // while retaining this implementation for already-saved procedural companies.
-export function generateWorld(biome, seed, size = DEFAULT_WORLD_SIZE, generationVersion = WORLD_GENERATION_VERSION) {
+export function generateWorld(biome, seed, size = DEFAULT_WORLD_SIZE, generationVersion = WORLD_GENERATION_VERSION, generationOptions) {
   if (!supportsGenerationVersion(generationVersion)) throw new Error('Unsupported world generation version.');
   if (!Object.hasOwn(WORLD_SIZES, size)) size = DEFAULT_WORLD_SIZE;
+  if (!validGenerationOptions(size, generationOptions) || (generationOptions && generationVersion < 7)) throw new Error('Invalid world generation options.');
   if(generationVersion>=2&&Object.hasOwn(NEW_WORLD_SIZES,size)){
-    const world=generateWorldV2(biome,seed,size,WORLD_SIZES[size],generationVersion>=4?{naturalRelief:true}:undefined);
+    const config = generationOptions ? { ...WORLD_SIZES[size], towns: generationOptions.townCount, clusters: generationOptions.industryDistricts } : WORLD_SIZES[size];
+    const world=generateWorldV2(biome,seed,size,config,generationVersion>=4?{naturalRelief:true,...(generationVersion>=7?{mountainRelief:true}:{})}:undefined);
+    if (generationOptions) world.generationOptions = { ...generationOptions };
     if(generationVersion>=3){expandGeneratedIndustrySites({...world,biome});world.generationVersion=generationVersion;}
     if(generationVersion>=5)allocateGeneratedSites({...world,biome});
     if(generationVersion>=6){allocateTerrainObjects({...world,biome,seed});world.terrainObjectVersion=1;}
@@ -105,7 +130,7 @@ function generateWorldV1(biome, seed, size) {
       if (nearRiver < riverWidth + 3.4) { terrain = vegetation > .51 ? 'forest' : 'grass'; detail = terrain === 'forest' ? (habitat > .97 ? 'deadwood' : choose(['palm','acacia','joshua','tamarisk'])) : choose(['reeds','desert-flowers','dry-grass']); }
       else detail = vegetation > .60 ? choose(['cactus','agave','prickly-pear','aloe','desert-flowers']) : fine < .23 ? 'saltflat' : vegetation < .36 ? choose(['scrub','dry-grass','']) : 'dunes';
     }
-    tiles[y*width+x] = { terrain, elevation, detail, variant: Math.floor(random() * 16), road: false, rail: false, bridge: false, tunnel: false, building: null, zone: null };
+    tiles[y*width+x] = createTerrainTile(terrain,elevation,detail,Math.floor(random()*16));
   }
   const game = { width, height, size, ...(square?{generationVersion:1}:{}), tiles, cities: [], industries: [], zones: [], stations: [], routes: [], vehicles: [] };
   const tile = (x, y) => x >= 0 && y >= 0 && x < width && y < height ? tiles[y * width + x] : null;

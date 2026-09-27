@@ -1,7 +1,9 @@
-import { registerAtlas, drawAtlas, atlasAvailable } from './atlas-runtime.js';
-import { drawDirectionalVehicle, vehicleHeadingIndex, vehicleFrameAngle } from './vehicle-directions.js';
+import { registerAtlas, drawAtlas, atlasAvailable, worldArtRevision } from './atlas-runtime.js';
+import { drawDirectionalVehicle, vehicleHeadingIndex, vehicleFrameAngle, VEHICLE_HEADINGS } from './vehicle-directions.js';
+import { projectedGroundBasis } from './isometric.js';
+import { createSpriteCache } from './sprite-cache.js';
 
-registerAtlas({id:'vehicles',path:'./assets/world/vehicles/atlas',entries:['bus','truck','locomotive','coach','wagon','express-bus','ferry','cargo-ship','tanker'].map(id=>'vehicle:'+id)});
+registerAtlas({id:'vehicles',path:'./assets/world/vehicles-dimetric-v2/atlas',entries:['bus','truck','locomotive','coach','wagon','express-bus','ferry','cargo-ship','tanker'].map(id=>'vehicle:'+id)});
 registerAtlas({id:'infrastructure',path:'./assets/world/infrastructure/atlas',entries:['bus-stop','train-stop','port','road','rail','road-bridge','rail-bridge','road-tunnel','rail-tunnel'].map(id=>'infra:'+id)});
 registerAtlas({id:'cargo',path:'./assets/world/cargo/atlas',entries:['coal','ore','timber','grain','crates','steel','barrels','glass','fish'].map(id=>'cargo:'+id)});
 export const hasRasterTransport=kind=>atlasAvailable(kind);
@@ -59,18 +61,52 @@ export function drawRasterVehicle(c,vehicle,route,{engine=true,pixelScale=1,head
   const size=ship?43:train?20:20;
   c.save();upright(c,heading);
   const directional=drawDirectionalVehicle(c,kind,heading,size,pixelScale);
+  const painted=directional||drawAtlas(c,'vehicle:'+kind,-size/2,-size/2,size,size,{pixelScale});
   c.restore();
-  if(!directional&&!drawAtlas(c,'vehicle:'+kind,-size/2,-size/2,size,size,{pixelScale}))return false;
+  if(!painted)return false;
   c.save();
-  if(directional){
-    // Loads share the selected body's heading, with a small screen-up offset
-    // onto its bed. The separately drawn body keeps the lighting fixed.
-    upright(c,heading);c.translate(0,ship?-.65:-.7);c.rotate(vehicleFrameAngle(heading));
-    if(ship)c.translate(3.5,0);
+  {
+    // Cargo sheets are overhead material patches. Project their bed plane once
+    // rather than rotating them flat on screen; the body remains upright.
+    upright(c,heading);c.translate(0,ship?-.65:-.7);
+    const plane=projectedGroundBasis(directional?vehicleFrameAngle(heading):Math.atan(.5));
+    c.transform(plane.a,plane.b,plane.c,plane.d,0,0);
+    if(ship)c.translate(3.5,0);else if(!train)c.translate(-1.8,0);
   }
   const fraction=Math.max(0,Math.min(1,(vehicle.load||0)/Math.max(1,vehicle.capacity||1)));
   if(!passengers&&(!train||!engine)&&kind!=='tanker')payload(c,route?.cargo||'goods',fraction,ship,pixelScale);
   // Small company-color markings preserve route identity without recoloring art.
   if(route?.color){c.fillStyle=route.color;c.globalAlpha=.9;c.fillRect(ship?-13:-5,ship?4.3:2.5,ship?6:5,ship?1.1:.7);c.globalAlpha=1;}
   c.restore();return true;
+}
+
+// Prepare each visible heading/load/company combination at its final physical
+// size. Runtime callers translate an upright context and copy native pixels;
+// atlas scaling, cargo projection and marker painting happen only on a miss.
+export function createVehicleSprites({pixelScale=1,cache:sharedCache=null}={}){
+  const scale=Math.max(.25,Number(pixelScale)||1),cache=sharedCache||createSpriteCache({limit:32*1024*1024}),prefix=`vehicle:${scale}:`;
+  let revision=worldArtRevision(),created=0,hits=0;
+  cache.syncRevision(revision);
+  return {
+    draw(c,vehicle,route,{engine=true,heading=vehicle.angle||0}={}){
+      const next=worldArtRevision();if(next!==revision){revision=next;cache.syncRevision(revision);}
+      const passengers=route?.cargo==='passengers',train=route?.mode==='rail',ship=route?.mode==='water';
+      const kind=ship?(passengers?'ferry':['oil','fuel'].includes(route.cargo)?'tanker':'cargo-ship'):train?(engine?'locomotive':passengers?'coach':'wagon'):passengers?((vehicle.level||1)>1?'express-bus':'bus'):'truck';
+      const index=vehicleHeadingIndex(heading),angle=index*Math.PI/4;
+      const carries=!passengers&&(!train||!engine)&&kind!=='tanker',fraction=Math.max(0,Math.min(1,(vehicle.load||0)/Math.max(1,vehicle.capacity||1))),band=carries&&fraction?Math.ceil(fraction*3):0;
+      const key=`${prefix}${kind}:${index}:${band?route?.cargo||'goods':''}:${band}:${route?.color||''}`;
+      let image=cache.get(key);
+      if(image)hits++;
+      else{
+        const size=ship?64:24;image=document.createElement('canvas');image.width=image.height=Math.ceil(size*scale);
+        const context=image.getContext('2d');context.scale(scale,scale);context.translate(size/2,size/2);context.rotate(angle);
+        if(!drawRasterVehicle(context,vehicle,route,{engine,pixelScale:scale,heading:angle}))return false;
+        // Also available to diagnostic image inspectors without rereading pixels.
+        image.vehicleFrame={kind,heading:VEHICLE_HEADINGS[index],pixelScale:scale,size};
+        cache.set(key,image);created++;
+      }
+      const size=image.vehicleFrame.size;c.drawImage(image,-size/2,-size/2,image.width/scale,image.height/scale);return true;
+    },
+    getStats:()=>({...cache.getStats(),pixelScale:scale,created,hits,shared:Boolean(sharedCache)}),
+  };
 }

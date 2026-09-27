@@ -1,0 +1,135 @@
+{
+  "columns": 3,
+  "rows": 3,
+  "cellSizes": [
+    16,
+    32,
+    64,
+    128
+  ],
+  "masterCell": 256,
+  "order": [
+    "vehicle:bus",
+    "vehicle:truck",
+    "vehicle:locomotive",
+    "vehicle:coach",
+    "vehicle:wagon",
+    "vehicle:express-bus",
+    "vehicle:ferry",
+    "vehicle:cargo-ship",
+    "vehicle:tanker"
+  ],
+  "source": "source-isometric.png",
+  "sourceSha256": "9a7bc72df12fc39e5469cca904e95c831f01d260bc17e71348239847e7d9dbe9",
+  "registration": "Exact active SE master cells; no per-frame renormalization",
+  "sprites": [
+    {
+      "id": "vehicle:bus",
+      "cell": 0,
+      "sourceFamily": "../vehicle-bus-dimetric-v2",
+      "sourceHeading": "SE",
+      "bounds": [
+        25,
+        47,
+        230,
+        209
+      ]
+    },
+    {
+      "id": "vehicle:truck",
+      "cell": 1,
+      "sourceFamily": "../vehicle-truck-dimetric-v2",
+      "sourceHeading": "SE",
+      "bounds": [
+        17,
+        38,
+        239,
+        217
+      ]
+    },
+    {
+      "id": "vehicle:locomotive",
+      "cell": 2,
+      "sourceFamily": "../vehicle-locomotive-dimetric-v2",
+      "sourceHeading": "SE",
+      "bounds": [
+        26,
+        47,
+        229,
+        209
+      ]
+    },
+    {
+      "id": "vehicle:coach",
+      "cell": 3,
+      "sourceFamily": "../vehicle-coach-dimetric-v2",
+      "sourceHeading": "SE",
+      "bounds": [
+        22,
+        45,
+        233,
+        210
+      ]
+    },
+    {
+      "id": "vehicle:wagon",
+      "cell": 4,
+      "sourceFamily": "../vehicle-wagon-dimetric-v2",
+      "sourceHeading": "SE",
+      "bounds": [
+        25,
+        56,
+        231,
+        200
+      ]
+    },
+    {
+      "id": "vehicle:express-bus",
+      "cell": 5,
+      "sourceFamily": "../vehicle-express-bus-dimetric-v2",
+      "sourceHeading": "SE",
+      "bounds": [
+        20,
+        36,
+        236,
+        219
+      ]
+    },
+    {
+      "id": "vehicle:ferry",
+      "cell": 6,
+      "sourceFamily": "../vehicle-ferry-dimetric-v2",
+      "sourceHeading": "SE",
+      "bounds": [
+        26,
+        54,
+        229,
+        202
+      ]
+    },
+    {
+      "id": "vehicle:cargo-ship",
+      "cell": 7,
+      "sourceFamily": "../vehicle-cargo-ship-dimetric-v2",
+      "sourceHeading": "SE",
+      "bounds": [
+        31,
+        54,
+        224,
+        201
+      ]
+    },
+    {
+      "id": "vehicle:tanker",
+      "cell": 8,
+      "sourceFamily": "../vehicle-tanker-dimetric-v2",
+      "sourceHeading": "SE",
+      "bounds": [
+        32,
+        57,
+        224,
+        198
+      ]
+    }
+  ]
+}

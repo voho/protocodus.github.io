@@ -1,0 +1,315 @@
+{
+  "method": "Approximate hand-selected horizontal architectural edges on active256px masters (±1–2 degrees per edge). Pitched roof edges excluded. In orthographic camera, tan(a)*tan(b)=sin(cameraElevation)^2 independent of rotation of the rectangular building in its plot. Expected slope product0.25 and elevation30 degrees for 2:1. Small painterly deviations remain; these are not CAD assets.",
+  "rows": [
+    {
+      "id": "house-cheap-1",
+      "family": "houses",
+      "a": [
+        [
+          49,
+          127
+        ],
+        [
+          142,
+          164
+        ]
+      ],
+      "b": [
+        [
+          170,
+          177
+        ],
+        [
+          185,
+          168
+        ]
+      ],
+      "note": "Slight in-plot rotation; compatible camera",
+      "angles": [
+        21.7,
+        31
+      ],
+      "slopeProduct": 0.239,
+      "cameraElevation": 29.3
+    },
+    {
+      "id": "house-cheap-2",
+      "family": "houses",
+      "a": [
+        [
+          52,
+          132
+        ],
+        [
+          134,
+          165
+        ]
+      ],
+      "b": [
+        [
+          145,
+          198
+        ],
+        [
+          191,
+          170
+        ]
+      ],
+      "note": "Slight in-plot rotation; compatible camera",
+      "angles": [
+        21.9,
+        31.3
+      ],
+      "slopeProduct": 0.245,
+      "cameraElevation": 29.7
+    },
+    {
+      "id": "house-normal-2",
+      "family": "houses",
+      "a": [
+        [
+          36,
+          130
+        ],
+        [
+          150,
+          178
+        ]
+      ],
+      "b": [
+        [
+          157,
+          177
+        ],
+        [
+          207,
+          149
+        ]
+      ],
+      "note": "Slight in-plot rotation; compatible camera",
+      "angles": [
+        22.8,
+        29.2
+      ],
+      "slopeProduct": 0.236,
+      "cameraElevation": 29.1
+    },
+    {
+      "id": "house-expensive-2",
+      "family": "houses",
+      "a": [
+        [
+          54,
+          126
+        ],
+        [
+          144,
+          159
+        ]
+      ],
+      "b": [
+        [
+          151,
+          158
+        ],
+        [
+          201,
+          132
+        ]
+      ],
+      "note": "Modest preserved painterly camera drift",
+      "angles": [
+        20.1,
+        27.5
+      ],
+      "slopeProduct": 0.191,
+      "cameraElevation": 25.9
+    },
+    {
+      "id": "service-bank",
+      "family": "buildings-commerce",
+      "a": [
+        [
+          34,
+          97
+        ],
+        [
+          140,
+          126
+        ]
+      ],
+      "b": [
+        [
+          180,
+          120
+        ],
+        [
+          230,
+          87
+        ]
+      ],
+      "note": "Old camera: material mismatch",
+      "angles": [
+        15.3,
+        33.4
+      ],
+      "slopeProduct": 0.181,
+      "cameraElevation": 25.2
+    },
+    {
+      "id": "service-garage",
+      "family": "buildings-commerce",
+      "a": [
+        [
+          132,
+          128
+        ],
+        [
+          182,
+          141
+        ]
+      ],
+      "b": [
+        [
+          184,
+          139
+        ],
+        [
+          225,
+          118
+        ]
+      ],
+      "note": "Old camera: material mismatch",
+      "angles": [
+        14.6,
+        27.1
+      ],
+      "slopeProduct": 0.133,
+      "cameraElevation": 21.4
+    },
+    {
+      "id": "shop-hardware",
+      "family": "buildings-commerce",
+      "a": [
+        [
+          40,
+          105
+        ],
+        [
+          145,
+          136
+        ]
+      ],
+      "b": [
+        [
+          155,
+          204
+        ],
+        [
+          222,
+          164
+        ]
+      ],
+      "note": "Old camera: material mismatch",
+      "angles": [
+        16.4,
+        30.8
+      ],
+      "slopeProduct": 0.176,
+      "cameraElevation": 24.8
+    },
+    {
+      "id": "service-bank",
+      "family": "buildings-commerce-camera-v2",
+      "a": [
+        [
+          39,
+          88
+        ],
+        [
+          137,
+          126
+        ]
+      ],
+      "b": [
+        [
+          175,
+          126
+        ],
+        [
+          224,
+          96
+        ]
+      ],
+      "note": "Corrected: compatible camera, slight plot rotation",
+      "angles": [
+        21.2,
+        31.5
+      ],
+      "slopeProduct": 0.237,
+      "cameraElevation": 29.1
+    },
+    {
+      "id": "service-garage",
+      "family": "buildings-commerce-camera-v2",
+      "a": [
+        [
+          40,
+          96
+        ],
+        [
+          137,
+          141
+        ]
+      ],
+      "b": [
+        [
+          146,
+          138
+        ],
+        [
+          218,
+          99
+        ]
+      ],
+      "note": "Corrected: near both plot axes",
+      "angles": [
+        24.9,
+        28.4
+      ],
+      "slopeProduct": 0.251,
+      "cameraElevation": 30.1
+    },
+    {
+      "id": "shop-hardware",
+      "family": "buildings-commerce-camera-v2",
+      "a": [
+        [
+          42,
+          106
+        ],
+        [
+          135,
+          151
+        ]
+      ],
+      "b": [
+        [
+          155,
+          201
+        ],
+        [
+          214,
+          170
+        ]
+      ],
+      "note": "Corrected: near both plot axes",
+      "angles": [
+        25.8,
+        27.7
+      ],
+      "slopeProduct": 0.254,
+      "cameraElevation": 30.3
+    }
+  ]
+}

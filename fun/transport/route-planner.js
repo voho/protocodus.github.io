@@ -47,12 +47,13 @@ export function validateRoutePlan(game, draft) {
 
 export function filterRoutes(game, filters = {}) {
   const words = String(filters.query || '').trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
-  const stops = new Map(game.stations.map(stop => [String(stop.id), stop.name]));
+  const stops = words.length ? new Map(game.stations.map(stop => [String(stop.id), stop.name])) : null;
   return game.routes.filter(route => {
     if (filters.mode && filters.mode !== 'all' && route.mode !== filters.mode) return false;
     if (filters.status === 'running' && !route.active) return false;
     if (filters.status === 'disconnected' && route.active) return false;
     if (filters.cargo && filters.cargo !== 'all' && route.cargo !== filters.cargo) return false;
+    if (!words.length) return true;
     const search = [route.name, CARGO[route.cargo]?.name, route.cargo, route.mode, route.mode === 'water' ? 'ship ferry boat port' : route.mode === 'rail' ? 'train' : route.cargo === 'passengers' ? 'bus' : 'truck', ...route.stops.map(id => stops.get(String(id)))].join(' ').toLocaleLowerCase();
     return words.every(word => search.includes(word));
   });

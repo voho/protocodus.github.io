@@ -9,6 +9,8 @@ const clamp = (value, min = 0, max = 1) => Math.max(min, Math.min(max, value));
 const NEIGHBORS = [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]];
 const indexCache = new WeakMap();
 const seedCache = new WeakMap();
+const weatherCache = new WeakMap();
+const WEATHER_SAMPLE_LIMIT = 16384;
 const emissions = { 'coal-mine': 1.2, 'iron-mine': .8, 'copper-mine': .8, 'oil-well': .9, refinery: 1.5, 'steel-mill': 1.5, 'cement-works': 1.2, quarry: .9, 'sand-pit': .6, 'logging-camp': .3, farm: .15, fishery: .1 };
 
 function numericSeed(game) {
@@ -78,17 +80,35 @@ function entityIndex(game) {
 // daylight, elevation and biome keep oases, highlands and lowlands distinct.
 export function weatherAt(game, x, y, day = game.day || 0) {
   const wholeDay = Math.floor(day), front = Math.floor(wholeDay / 12), progress = (wholeDay % 12) / 12;
-  const eased = progress * progress * (3 - 2 * progress);
+  let cache = weatherCache.get(game);
+  if (!cache || cache.seed !== game.seed || cache.front !== front) {
+    cache = { seed: game.seed, front, day: null, samples: new Map() };
+    weatherCache.set(game, cache);
+  }
+  if (cache.day !== wholeDay) {
+    cache.day = wholeDay;
+    cache.eased = progress * progress * (3 - 2 * progress);
+    cache.summer = Math.sin((wholeDay - 30) / 360 * Math.PI * 2);
+  }
+  const eased = cache.eased;
   const gx = Math.floor(x / 24), gy = Math.floor(y / 24), fx = x / 24 - gx, fy = y / 24 - gy;
   const sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
   const sample = (xx, yy) => {
     const key = `weather:${xx},${yy}`;
-    return randomAt(game, front, key, 11) * (1 - eased) + randomAt(game, front + 1, key, 11) * eased;
+    let values = cache.samples.get(key);
+    if (!values) {
+      values = [randomAt(game, front, key, 11), randomAt(game, front + 1, key, 11)];
+      // A complete 2048² world's weather lattice fits; unusual callers remain
+      // bounded too. Only immutable seeded front values are retained.
+      if (cache.samples.size >= WEATHER_SAMPLE_LIMIT) cache.samples.delete(cache.samples.keys().next().value);
+      cache.samples.set(key, values);
+    }
+    return values[0] * (1 - eased) + values[1] * eased;
   };
   const north = sample(gx, gy) * (1 - sx) + sample(gx + 1, gy) * sx;
   const south = sample(gx, gy + 1) * (1 - sx) + sample(gx + 1, gy + 1) * sx;
   const rain = north * (1 - sy) + south * sy;
-  const summer = Math.sin((wholeDay - 30) / 360 * Math.PI * 2);
+  const summer = cache.summer;
   const elevation = tileAt(game, Math.floor(x), Math.floor(y))?.elevation || 0;
   const desert = game.biome === 'desert', tundra = game.biome === 'tundra';
   const wetness = clamp((desert ? .1 : tundra ? .39 : .52) + (rain - .5) * .48 - summer * .07 + elevation * .08);
@@ -97,6 +117,18 @@ export function weatherAt(game, x, y, day = game.day || 0) {
   const growth = clamp(1.18 - cold * .61 - Math.max(0, heat - .55) * .8 - Math.max(0, .25 - wetness) * .48, .4, 1.2);
   const travel = clamp(1.08 - cold * .23 - wetness * .14 - Math.max(0, heat - .72) * .3, .65, 1.1);
   return { wetness, cold, heat, growth, travel };
+}
+
+export function localTransport(game, x, y, footprint = 1) {
+  const extra = footprint - 1, entities = entityIndex(game);
+  let transport = 0;
+  for (let by = Math.floor((y - 5) / 8); by <= Math.floor((y + extra + 5) / 8); by++) for (let bx = Math.floor((x - 5) / 8); bx <= Math.floor((x + extra + 5) / 8); bx++) {
+    for (const station of entities.activeStations.get(`${bx},${by}`) || []) {
+      const distance = industryDistance({x,y,footprint},station);
+      if (distance <= 5) transport = Math.max(transport, 1 - distance * .08);
+    }
+  }
+  return transport;
 }
 
 export function localEnvironment(game, x, y, radius = 3, footprint = 1) {
@@ -141,12 +173,7 @@ export function localEnvironment(game, x, y, radius = 3, footprint = 1) {
     const industry = entities.industriesAt.get((y + dy) * game.width + x + dx);
     if (industry && !seenIndustries.has(industry)) { seenIndustries.add(industry); env.industries++; disturbance += emissions[industry.kind] ?? .65; }
   }
-  for (let by = Math.floor((y - 5) / 8); by <= Math.floor((y + extra + 5) / 8); by++) for (let bx = Math.floor((x - 5) / 8); bx <= Math.floor((x + extra + 5) / 8); bx++) {
-    for (const station of entities.activeStations.get(`${bx},${by}`) || []) {
-      const distance = industryDistance({x,y,footprint},station);
-      if (distance <= 5) env.transport = Math.max(env.transport, 1 - distance * .08);
-    }
-  }
+  env.transport = localTransport(game, x, y, footprint);
   env.elevation /= Math.max(1, cells);
   env.nature = clamp(vegetation / Math.max(1, cells));
   const weather = weatherAt(game, x, y);

@@ -15,15 +15,24 @@ export function drawUIArtwork(root, game) {
     profile = nextProfile;
     sprites = createSprites(game.biome, { pixelScale: density * 2, detailLevel: 'detail' });
   }
-  for (const canvas of root.querySelectorAll(selector)) {
+  const canvases = root.querySelectorAll(selector);
+  // Resolve portraits once per panel, never scan the entire fleet per canvas.
+  const needsFleet = [...canvases].some(canvas => canvas.dataset.vehicleSprite && canvas.dataset.vehicleSprite !== 'purchase');
+  const routes = needsFleet ? new Map(game.routes.map(route => [String(route.id), route])) : null;
+  const vehicles = new Map();
+  if (needsFleet) for (const vehicle of game.vehicles) {
+    const id = String(vehicle.routeId);
+    if (!vehicles.has(id)) vehicles.set(id, vehicle);
+  }
+  for (const canvas of canvases) {
     const width = Number(canvas.dataset.artWidth ||= canvas.width);
     const height = Number(canvas.dataset.artHeight ||= canvas.height);
     const route = canvas.dataset.vehicleSprite === 'purchase'
       ? { mode: canvas.dataset.mode, cargo: canvas.dataset.cargo }
-      : game.routes?.find(route => String(route.id) === canvas.dataset.vehicleSprite);
+      : routes?.get(canvas.dataset.vehicleSprite);
     const vehicle = route && (canvas.dataset.vehicleSprite === 'purchase'
       ? { level: Number(canvas.dataset.level), load: 0, capacity: 1 }
-      : game.vehicles?.find(vehicle => String(vehicle.routeId) === String(route.id)));
+      : vehicles.get(String(route.id)));
     const identity = canvas.dataset.buildingSprite || canvas.dataset.industrySprite || canvas.dataset.infrastructureSprite || `${route?.mode}:${route?.cargo}:${vehicle?.level}`;
     const key = `${profile}:${identity}:${houseAssetsRevision()}:${worldArtRevision()}`;
     if (canvas.dataset.artDrawn === key) continue;

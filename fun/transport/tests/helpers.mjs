@@ -4,7 +4,7 @@ export function emptyGame(biome = 'taiga') {
   const game = createGame({ biome, size: 'regional', seed: 1847 });
   for (const tile of game.tiles) Object.assign(tile, {
     terrain: biome === 'desert' ? 'sand' : biome === 'tundra' ? 'snow' : 'grass',
-    detail: '', publicRoad: false,
+    detail: '', elevation: .25, publicRoad: false,
     road: false, rail: false, bridge: false, tunnel: false, building: null, zone: null,
   });
   for (const tile of game.tiles) delete tile.terrainObject;

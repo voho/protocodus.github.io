@@ -20,7 +20,8 @@ for (const biome of biomes) {
   for (const [family, kinds] of Object.entries(families)) {
     registerAtlas({
       id: `${family}:${biome}`,
-      path: `./assets/world/${family}/${biome}/atlas`,
+      biome,
+      path: `./assets/world/${family === 'buildings-commerce' ? 'buildings-commerce-camera-v2' : family}/${biome}/atlas`,
       columns: 3, rows: 3, maxCell: 256,
       entries: kinds.map(kind => kind ? entryId(kind, biome) : null),
     });
@@ -29,7 +30,7 @@ for (const biome of biomes) {
 
 // Source rectangles are hand-measured on the final 256px transparent cells.
 // Glass stays exposed in every climate finish. Stadium rectangles are the
-// actual floodlight panels; the garage also has its visible workshop lamp.
+// actual floodlight panels; corrected commerce panes use exposed dark glass.
 // Provenance and reviewable source coordinates live beside the asset sheets.
 const sourceWindows = {
   taiga: {
@@ -43,12 +44,12 @@ const sourceWindows = {
     "shop-grocery": [[104,109,4,8],[191,128,4,8],[139,124,4,8]],
     "shop-bakery": [[72,104,4,7],[109,122,4,8],[158,129,4,8]],
     "shop-butcher": [[59,93,4,8],[90,103,4,8],[196,122,4,8]],
-    "shop-hardware": [[63,145,4,9],[194,146,4,8]],
+    "shop-hardware": [[59,136,3,6],[187,155,3,7]],
     "shop-florist": [[194,139,4,8],[124,99,3,6]],
     "service-post-office": [[61,110,4,8],[129,135,4,8],[189,129,4,8]],
-    "service-bank": [[47,112,4,8],[204,128,4,8]],
+    "service-bank": [[54,106,3,7],[195,138,3,7]],
     "service-hotel": [[89,79,4,8],[128,91,4,8],[172,128,4,8]],
-    "service-garage": [[78,142,5,3],[204,162,4,8]],
+    "service-garage": [[178,151,3,7],[190,145,3,7]],
     "service-barber": [[58,158,4,8],[94,169,4,8],[192,153,4,8]],
   },
   tundra: {
@@ -62,12 +63,12 @@ const sourceWindows = {
     "shop-grocery": [[103,110,4,8],[190,129,4,8],[138,125,4,8]],
     "shop-bakery": [[72,104,4,7],[109,122,4,8],[158,129,4,8]],
     "shop-butcher": [[58,93,4,8],[89,103,4,8],[195,122,4,8]],
-    "shop-hardware": [[62,144,4,9],[193,145,4,8]],
+    "shop-hardware": [[59,136,3,6],[187,155,3,7]],
     "shop-florist": [[194,139,4,8],[124,99,3,6]],
     "service-post-office": [[61,111,4,8],[128,136,4,8],[188,130,4,8]],
-    "service-bank": [[48,111,4,8],[203,127,4,8]],
+    "service-bank": [[54,106,3,7],[195,138,3,7]],
     "service-hotel": [[89,79,4,8],[128,91,4,8],[172,128,4,8]],
-    "service-garage": [[78,140,5,3],[204,160,4,8]],
+    "service-garage": [[178,151,3,7],[190,145,3,7]],
     "service-barber": [[58,158,4,8],[94,169,4,8],[192,153,4,8]],
   },
   desert: {
@@ -81,12 +82,12 @@ const sourceWindows = {
     "shop-grocery": [[104,110,4,8],[191,129,4,8],[139,125,4,8]],
     "shop-bakery": [[72,102,4,7],[109,120,4,8],[158,127,4,8]],
     "shop-butcher": [[59,95,4,8],[90,105,4,8],[195,123,4,8]],
-    "shop-hardware": [[62,145,4,9],[193,146,4,8]],
+    "shop-hardware": [[59,136,3,6],[187,155,3,7]],
     "shop-florist": [[195,139,4,8],[125,98,3,6]],
     "service-post-office": [[61,111,4,8],[128,135,4,8],[188,130,4,8]],
-    "service-bank": [[48,111,4,8],[203,126,4,8]],
+    "service-bank": [[54,106,3,7],[195,138,3,7]],
     "service-hotel": [[89,79,4,8],[128,91,4,8],[171,127,4,8]],
-    "service-garage": [[79,142,5,3],[203,161,4,8]],
+    "service-garage": [[178,151,3,7],[190,145,3,7]],
     "service-barber": [[58,158,4,8],[94,169,4,8],[192,153,4,8]],
   },
 };
