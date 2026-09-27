@@ -1,0 +1,40 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "3101b95b81da",
+  "session_id": "495d27df-aecc-47c3-bdc5-ab2b4fc2d55d",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-27T09:14:17.07893Z",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "fun/tyran/tests/endless-browser-check.mjs",
+    "fun/tyran/tests/flight-features-check.mjs",
+    "fun/tyran/tests/unobstructed-arena-check.mjs",
+    "fun/tyran/flight-layout.css",
+    "fun/tyran/game.js",
+    "fun/tyran/index.html",
+    "fun/tyran/tests/browser-check.mjs",
+    "fun/tyran/tests/difficulty-browser-check.mjs"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "67f9d64b5ef3",
+  "checkpoint_transcript_start": 682,
+  "transcript_lines_at_start": 682,
+  "token_usage": {
+    "input_tokens": 194,
+    "cache_creation_tokens": 398482,
+    "cache_read_tokens": 25417227,
+    "output_tokens": 280484,
+    "api_call_count": 95
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-27T09:14:13.359608Z",
+    "agent_lines": 0,
+    "human_added": 376,
+    "human_modified": 246,
+    "human_removed": 0,
+    "total_committed": 376,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude/projects/-Users-vojta-Dev-protocodus-github-io/495d27df-aecc-47c3-bdc5-ab2b4fc2d55d.jsonl"
+}
