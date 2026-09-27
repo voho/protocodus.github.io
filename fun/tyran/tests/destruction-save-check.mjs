@@ -12,7 +12,6 @@ try {
     const { WorldRenderer, structureStage, structureDurability, BUILDING_DURABILITY_MULTIPLIER } = await import('./worlds.js');
     const { createCampaign, weaponStats } = await import('./sim.js');
     const { serializeRun, restoreRun } = await import('./save-game.js');
-    const { Effects, warmEffectsTextures } = await import('./effects.js');
     const canvas = document.createElement('canvas'); canvas.width = 1200; canvas.height = 900;
     const context = canvas.getContext('2d');
     const findProp = (world, types, accept = () => true) => {
@@ -42,9 +41,8 @@ try {
     };
     const world = await freshWorld(0), target = findProp(world, ['temple', 'bunker', 'station'], prop => {
       const localY = prop.y - prop.row * 800;
-      // This test requires a visible crater. Water/shoreline destruction is
-      // intentionally recorded without a crater by the dry-ground policy.
-      return localY >= 80 && localY <= 720 && world.canPlaceDebris(prop.x + world.parallaxX, prop.y, 0, prop.size * 1.3 + 2);
+      // Keep the crop wholly inside the central scenery strip.
+      return localY >= 80 && localY <= 720;
     });
     const scroll = 450 - target.y, stages = [];
     for (let expected = 0; expected < 4; expected++) {
@@ -129,14 +127,7 @@ try {
     const armor = { multiplier: BUILDING_DURABILITY_MULTIPLIER, survivesThirtyBolts: building.hp > 0,
       damaged: building.hp < building.maxHp, examples: ['bunker','fortress','crawler','hauler'].map(type => ({type,
         old: Math.round(60 * 60 * .085 * oldArmor[type]), current: structureDurability(type, 60)})) };
-    warmEffectsTextures();
-    const fx = new Effects(); fx.emit({ type: 'explosion', x: 400, y: 330, size: 20, ground: true }, 200, 10);
-    const groundWrecks = fx.wrecks.length;
-    fx.emit({ type: 'explosion', x: 400, y: 330, size: 20 }, 200, 10);
-    const positions = [], drawImage = context.drawImage;
-    context.drawImage = function (...args) { const { e, f } = this.getTransform(); positions.push([e, f]); return drawImage.apply(this, args); };
-    fx.drawGround(context, 240, 900, -8); context.drawImage = drawImage;
-    return { stages, cacheTransitions, migrations, armor, boundaryStage, expectedBoundary: boundary.expected, groundWrecks, positions };
+    return { stages, cacheTransitions, migrations, armor, boundaryStage, expectedBoundary: boundary.expected };
   });
   for (const stage of result.stages) {
     assert.equal(stage.stage, stage.expected, 'hits advance the intended damage stage');
@@ -145,10 +136,10 @@ try {
     assert.equal(stage.healthPreserved, true, 'absolute HP survives current-format saves');
     assert.equal(stage.evicted, true, 'fixture actually regenerates the scenery band');
     assert.equal(stage.hash, stage.savedHash, 'restored damage uses the same raster stage');
-    assert.equal(stage.paidTwice, false, 'saved craters cannot pay destruction rewards again');
+    assert.equal(stage.paidTwice, false, 'saved destroyed sites cannot pay destruction rewards again');
     assert.equal(stage.sceneryVersion, 3);
   }
-  assert.equal(new Set(result.stages.map(stage => stage.hash)).size, 4, 'fresh, light, heavy and crater stages visibly differ');
+  assert.equal(new Set(result.stages.map(stage => stage.hash)).size, 4, 'fresh, light, heavy and empty-site stages visibly differ');
   for (const transition of result.cacheTransitions) {
     assert.equal(transition.invalidated, transition.crossesStage, 'a structural hit marks a dirty region only when its stage changes');
     assert.equal(transition.reused, true, 'damage refreshes the existing raster strip in place');
@@ -156,7 +147,7 @@ try {
   for (const migration of result.migrations) {
     assert.ok(Math.abs(migration.fraction - migration.expected) < 1e-9, `${migration.type}: legacy remaining-health percentage survives stronger armor`);
     assert.equal(migration.stage, migration.expectedStage, `${migration.type}: version ${migration.version} keeps its damage stage`);
-    assert.equal(migration.craterPreserved, true, 'Old craters stay destroyed after migration and another save');
+    assert.equal(migration.craterPreserved, true, 'Old destroyed sites stay cleared after migration and another save');
     assert.equal(migration.stable, true, `${migration.type}: migration runs only once`);
     assert.equal(migration.oldVersion, migration.version); assert.equal(migration.newVersion, 3);
   }
@@ -164,8 +155,6 @@ try {
   assert.equal(result.boundaryStage, result.expectedBoundary, 'Floating-point rescaling cannot revive a damaged building appearance');
   assert(result.armor.survivesThirtyBolts && result.armor.damaged, 'An armored building withstands sustained primary fire while taking damage');
   for (const example of result.armor.examples) assert.ok(Math.abs(example.current - example.old * (['crawler','hauler'].includes(example.type) ? 1 : 2.5)) <= 1.5, `${example.type}: only stationary structures receive stronger armor`);
-  assert.equal(result.groundWrecks, 0, 'ground explosions leave crater ownership to the scenery renderer');
-  assert.deepEqual(result.positions, [[382, 370]], 'ship wrecks remain anchored to the tile-ground scroll and lateral offset');
   assert.deepEqual(errors, [], 'no browser runtime errors');
-  console.log('PASS four destruction stages, save/load and eviction, legacy armor migration, and ground-effect alignment');
+  console.log('PASS three damage appearances and cleared sites, save/load and eviction, and legacy armor migration');
 } finally { await browser.close(); }

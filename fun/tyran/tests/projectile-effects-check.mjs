@@ -13,7 +13,7 @@ try {
   const result = await page.evaluate(async () => {
     const { spriteCell, spritesReady } = await import('./sprite-assets.js');
     const { projectileTexture, projectileLayout, warmProjectileTextures } = await import('./projectile-sprites.js');
-    const { Effects } = await import('./effects.js');
+    const { Effects, warmEffectsTextures } = await import('./effects.js');
     const { WEAPONS, BULLET_SPECTRUM } = await import('./sim.js');
     const assets = await spritesReady;
     const frames = [['effects', 16], ['projectiles', 12]].flatMap(([atlas, count]) => Array.from({ length: count }, (_, index) => {
@@ -28,7 +28,7 @@ try {
       }
       return { atlas, index, available: true, opaque, translucent, transparent };
     }));
-    warmProjectileTextures(WEAPONS, BULLET_SPECTRUM);
+    warmProjectileTextures(WEAPONS, BULLET_SPECTRUM); warmEffectsTextures();
     const bullets = WEAPONS.map(weapon => ({ team: 0, kind: weapon.kind, weaponColor: weapon.color, radius: weapon.radius }));
     bullets.push(...BULLET_SPECTRUM.map((color, type) => ({ team: -1, color, variant: type === 9 ? 5 : type % 5, radius: 2 + type * .65 })));
     const canvas = document.createElement('canvas'); canvas.width = 1200; canvas.height = 900;
@@ -82,10 +82,13 @@ try {
     for (let i = 0; i < 300; i++) fx.update(1 / 60);
     const finished = Object.fromEntries(['particles', 'rings', 'lights', 'delayed'].map(key => [key, fx[key].length]));
     fx.reset();
-    return { assets, frames, reused, warmWork, hues, finished, resetWrecks: fx.wrecks.length };
+    return { assets, frames, reused, warmWork, hues, finished, reset: fx.memory.active };
   });
   assert.ok(result.assets.loaded.includes('effects') && result.assets.loaded.includes('projectiles'), 'real effects and projectile atlases decode');
   for (const frame of result.frames) {
+    if (frame.atlas === 'effects' && frame.index >= 10 && frame.index <= 13) {
+      assert.equal(frame.available, false, 'retired fragment source cells are not retained'); continue;
+    }
     assert.ok(frame.available, `${frame.atlas}:${frame.index} is populated`);
     assert.ok(frame.transparent > 0 && frame.translucent > 0, `${frame.atlas}:${frame.index} has actual alpha and soft edges`);
   }
@@ -97,7 +100,8 @@ try {
     assert.ok(hue.degrees < 6, `${hue.color} remains within 6 degrees of its established palette`);
   }
   for (const [kind, count] of Object.entries(result.finished)) assert.equal(count, 0, `${kind} finishes after the explosion sequence`);
-  assert.equal(result.resetWrecks, 0, 'reset clears ground wrecks');
+  assert(Object.values(result.reset).every(count => count === 0), 'reset clears every remaining effect');
+  assert.equal('wrecks' in result.reset, false, 'no wreck playback storage remains');
   assert.deepEqual(errors, [], 'no browser runtime errors');
   const output = process.env.TYRAN_QA_DIR || '/tmp/tyran-projectile-effects-qa';
   await mkdir(output, { recursive: true }); await page.screenshot({ path: `${output}/sprites.png` });

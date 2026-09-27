@@ -1,13 +1,12 @@
 import { spriteCell, spriteRevision, spritesReady } from './sprite-assets.js';
 import { BONUS_PALETTE } from './bonus-sprites.js';
-import { warmDebrisSprites, debrisFragment, debrisWreck, debrisTextureSources, debrisTextureStats } from './debris-sprites.js';
 
 const random = (a, b) => a + Math.random() * (b - a);
 const TAU = Math.PI * 2;
 // Effects retain shared artwork and current playback state only. Repeated bursts
 // reuse particle records instead of leaving hundreds of short-lived objects for GC.
-export const EFFECT_LIMITS = Object.freeze({ particles: 700, rings: 96, lights: 48, wrecks: 60, delayed: 72, flares: 6, textures: 24, sparkTextures: 24 });
-const CAPPED_STATES = ['rings', 'lights', 'wrecks', 'delayed', 'flares'];
+export const EFFECT_LIMITS = Object.freeze({ particles: 700, rings: 96, lights: 48, delayed: 72, flares: 6, textures: 24, sparkTextures: 24 });
+const CAPPED_STATES = ['rings', 'lights', 'delayed', 'flares'];
 const EFFECT_STATES = ['particles', ...CAPPED_STATES];
 // Capital ships get a short camera response; routine kills and collateral
 // bursts keep their impact local so a crowded wave remains readable.
@@ -40,7 +39,7 @@ function releaseTexture(canvas) { canvas.width = canvas.height = 1; }
 export function effectTextureStats() {
   let bytes = 0;
   for (const canvas of textures.values()) bytes += canvas.width * canvas.height * 4;
-  return { count: textures.size, bytes, sparks: { count: sparkTextures.size, bytes: sparkTextures.size * SPARK_PIXELS * 4 }, debris: debrisTextureStats() };
+  return { count: textures.size, bytes, sparks: { count: sparkTextures.size, bytes: sparkTextures.size * SPARK_PIXELS * 4 } };
 }
 let textureRevision = -1;
 function texture(key, paint, size = 128) {
@@ -118,7 +117,7 @@ function fitSprite(ctx, sprite, x, y, diameter) {
 }
 export function warmEffectsTextures(colors = []) {
   for (let i = 0; i < 10; i++) spriteCell('effects', i);
-  warmDebrisSprites(); smokeTexture(); smokeTexture(true);
+  smokeTexture(); smokeTexture(true);
   fireBloomTexture(); lensStreakTexture(); lensGhostTexture();
   for (const color of new Set(['#ffbb6b', '#ffc985', '#ff9e7d', '#ffe36d', '#ffe8b0', '#ff9ab8', ...colors])) if (color) lightTexture(color);
   for (const color of new Set([...SPARK_COLORS, ...colors])) if (color) warmSparkTexture(color);
@@ -133,11 +132,10 @@ function keepNewest(list, limit) {
   if (list.length > limit) { list.copyWithin(0, list.length - limit); list.length = limit; }
 }
 export class Effects {
-  constructor(debrisSurface = null) { this.debrisSurface = debrisSurface; this.debrisSerial = 0; this.wreckSerial = 0; this.particles = []; this.particlePool = []; this.rings = []; this.lights = []; this.wrecks = []; this.delayed = []; this.flares = []; this.shake = 0; this.flash = 0; this.damagePulse = 0; this.impact = 0; this.impactPeak = 0; this.impactStart = 0; this.impactAge = 0; this.impactDuration = 0; this.glitch = 0; this.signalY = 0; this.reduced = matchMedia('(prefers-reduced-motion: reduce)').matches; this.quality = 'high'; this.softLightPass = { width: 0, height: 0 }; this.softLightDraw = ctx => { const pass = this.softLightPass; this.drawLights(ctx, pass.width, pass.height); }; }
+  constructor() { this.particles = []; this.particlePool = []; this.rings = []; this.lights = []; this.delayed = []; this.flares = []; this.shake = 0; this.flash = 0; this.damagePulse = 0; this.impact = 0; this.impactPeak = 0; this.impactStart = 0; this.impactAge = 0; this.impactDuration = 0; this.glitch = 0; this.signalY = 0; this.reduced = matchMedia('(prefers-reduced-motion: reduce)').matches; this.quality = 'high'; this.softLightPass = { width: 0, height: 0 }; this.softLightDraw = ctx => { const pass = this.softLightPass; this.drawLights(ctx, pass.width, pass.height); }; }
   reset() {
     for (const key of EFFECT_STATES) this[key].length = 0;
     this.particlePool.length = 0;
-    this.debrisSerial = this.wreckSerial = 0;
     this.shake = 0; this.flash = 0; this.damagePulse = 0;
     this.impact = this.impactPeak = this.impactStart = this.impactAge = this.impactDuration = this.glitch = 0;
   }
@@ -151,40 +149,29 @@ export class Effects {
     for (let i = 0; i < remove; i++) this.particlePool.push(this.particles[i]);
     if (remove) { this.particles.copyWithin(0, remove); this.particles.length -= remove; }
   }
-  particle(x, y, vx, vy, life, radius, color, smoke = false, debris = false, ground = false, angle = 0) {
+  particle(x, y, vx, vy, life, radius, color, smoke = false, ground = false) {
     const p = this.particlePool.pop() || {};
     p.x = x; p.y = y; p.vx = vx; p.vy = vy; p.age = 0; p.life = life; p.radius = radius; p.color = color;
-    p.smoke = smoke; p.debris = debris; p.ground = ground; p.angle = angle;
-    // Every pooled record resets its artwork and angular state. No geometry or
-    // texture is created here, including a fragment's first appearance.
-    p.variant = debris ? this.debrisSerial++ % 8 : 0;
-    p.spin = debris ? (p.variant % 2 ? -1 : 1) * (4.5 + p.variant % 4 * 2.1) : 0;
-    p.flip = debris && p.variant % 3 === 0 ? -1 : 1;
+    p.smoke = smoke; p.ground = ground;
     this.particles.push(p);
   }
-  emit(event, scroll = 0, groundOffset = 0) {
+  emit(event) {
     const { x = 0, y = 0, size = 20 } = event;
     if (event.type === 'explosion' || event.type === 'phase') {
-      const boss = event.boss, noDebris = boss || event.noDebris || (this.debrisSurface && !this.debrisSurface(x, y, scroll, 0)), weight = explosionIntensity(event), count = Math.min(boss ? 130 : 55, Math.round(size * 1.1)) * (this.quality === 'high' ? 1 : .55);
-      const fragments = !noDebris && (!this.debrisSurface || this.debrisSurface(x, y, scroll, 3 * (size * .12 + 2)));
+      const boss = event.boss, weight = explosionIntensity(event), count = Math.min(boss ? 130 : 55, Math.round(size * 1.1)) * (this.quality === 'high' ? 1 : .55);
       const charges = boss ? 18 : !event.player && weight >= .35 ? (event.midboss ? 6 : 3) : 0;
-      // Secondary boss detonations retain their fire and sparks without metal fragments.
-      for (let i = 0; i < charges; i++) this.delayed.push({ delay: .1 + i * (boss ? .085 : .09), scroll, groundOffset, event: { type: 'explosion', x: x + random(-size, size) * .8, y: y + random(-size * .7, size * .7), size: random(19, boss ? 56 : Math.max(24, size * .68)), secondary: true, noDebris } });
+      for (let i = 0; i < charges; i++) this.delayed.push({ delay: .1 + i * (boss ? .085 : .09), event: { type: 'explosion', x: x + random(-size, size) * .8, y: y + random(-size * .7, size * .7), size: random(19, boss ? 56 : Math.max(24, size * .68)), secondary: true } });
       const color = event.ground ? (event.color || '#ffc985') : '#ffbb6b';
       this.reserveParticles(count);
       for (let i = 0; i < count; i++) {
         const angle = random(0, TAU), speed = random(25, boss ? 470 : (size * 5 + 50) * (1 + weight * .3));
-        this.particle(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed, random(.3, boss ? 2.3 : 1.2), random(1.2, size * .12 + 2), color, i % 4 === 0, fragments && i % 5 === 0 && i % 4 !== 0, !!event.ground, angle);
+        this.particle(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed, random(.3, boss ? 2.3 : 1.2), random(1.2, size * .12 + 2), color, i % 4 === 0, !!event.ground);
       }
       this.rings.push({ x, y, age: 0, life: boss ? 1.35 : .5 + weight * .25, radius: size * (boss ? 7 : 3 + weight * 2), color, explosion: true, diameter: size * (4 + weight), ground: !!event.ground });
       if (weight >= .35) this.rings.push({ x, y, age: 0, life: boss ? 1.05 : .75, radius: size * (boss ? 8.5 : 5), color: '#ffd7a0' });
       this.lights.push({ x, y, age: 0, life: boss ? 1.05 : .3 + weight * .35, radius: size * (5 + weight), color, fire: true, ground: !!event.ground });
       if (!this.reduced && !event.secondary && (boss || size >= 45)) {
         this.flares.push({ x, y, age: 0, life: boss ? .7 : .48, radius: size * (boss ? 5 : 4), strength: boss ? 1 : .75, ground: !!event.ground });
-      }
-      if (event.type !== 'phase' && !event.ground && !event.secondary && !noDebris
-        && (!this.debrisSurface || this.debrisSurface(x, y, scroll, size * 2))) {
-        this.wrecks.push({ x: x - groundOffset, y: y - scroll, size, angle: random(0, TAU), variant: this.wreckSerial++ % 12, age: 0 });
       }
       this.shake = Math.min(23, this.shake + size * (event.ground ? .028 : .09) + weight * 12);
       this.flash = Math.max(this.flash, boss ? .32 : event.player ? .2 : .03 + weight * .06);
@@ -222,7 +209,7 @@ export class Effects {
     } else if (event.type === 'weak-hit' || event.type === 'blocked') {
       this.rings.push({ x, y, age: 0, life: .2, radius: event.type === 'blocked' ? 15 : 25, color: event.type === 'blocked' ? '#ff8b78' : '#fff1a6' });
     } else if (event.type === 'weak-break') {
-      this.emit({ type: 'explosion', x, y, size: size * 1.35, color: '#ffe36d', noDebris: true }, scroll, groundOffset);
+      this.emit({ type: 'explosion', x, y, size: size * 1.35, color: '#ffe36d' });
     } else if (event.type === 'nova') {
       // A shockwave from the ship; every cancelled round becomes a gold spark.
       this.rings.push({ x, y, age: 0, life: .75, radius: 1400, color: '#fff1c2' }, { x, y, age: 0, life: .55, radius: 820, color: '#8affd7' });
@@ -253,9 +240,9 @@ export class Effects {
     }
     for (const key of CAPPED_STATES) keepNewest(this[key], EFFECT_LIMITS[key]);
   }
-  update(dt, scroll = 0) {
+  update(dt) {
     let length = 0;
-    for (const charge of this.delayed) { charge.delay -= dt; if (charge.delay <= 0) this.emit(charge.event, charge.scroll, charge.groundOffset); else this.delayed[length++] = charge; }
+    for (const charge of this.delayed) { charge.delay -= dt; if (charge.delay <= 0) this.emit(charge.event); else this.delayed[length++] = charge; }
     this.delayed.length = length;
     this.shake *= Math.exp(-dt * 8); this.flash *= Math.exp(-dt * 7); this.damagePulse *= Math.exp(-dt * 12);
     this.glitch = Math.max(0, this.glitch - dt);
@@ -270,32 +257,10 @@ export class Effects {
       p.age += dt;
       if (p.age >= p.life) { this.particlePool.push(p); continue; }
       p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= drag; p.vy *= drag;
-      if (p.debris && !p.smoke && this.debrisSurface && !this.debrisSurface(p.x, p.y, scroll, p.radius * 3)) { this.particlePool.push(p); continue; }
       this.particles[length++] = p;
     }
     this.particles.length = length;
     ageAndCompact(this.rings, dt); ageAndCompact(this.lights, dt); ageAndCompact(this.flares, dt);
-  }
-  drawGround(ctx, scroll, H, offset = 0) {
-    if (!this.wrecks.length) return;
-    const { a, b, c, d, e, f } = ctx.getTransform();
-    ctx.save();
-    let length = 0;
-    for (const w of this.wrecks) {
-      const y = w.y + scroll;
-      if (y > H + w.size * 3) continue;
-      const x = w.x + offset;
-      if (this.debrisSurface && !this.debrisSurface(x, y, scroll, w.size * 2)) continue;
-      this.wrecks[length++] = w;
-      if (y < -w.size * 2) continue;
-      const cos = Math.cos(w.angle), sin = Math.sin(w.angle);
-      ctx.setTransform(a * cos + c * sin, b * cos + d * sin, c * cos - a * sin, d * cos - b * sin,
-        a * x + c * y + e, b * x + d * y + f);
-      const sprite = debrisWreck(w.variant || 0);
-      if (sprite.source) ctx.drawImage(sprite.source, sprite.sx, sprite.sy, sprite.sw, sprite.sh, -w.size * 1.4, -w.size * 1.4, w.size * 2.8, w.size * 2.8);
-    }
-    ctx.restore();
-    this.wrecks.length = length;
   }
   shouldUseSoftLights(W, H) {
     // At half resolution, the light quads cost roughly one quarter as many
@@ -334,7 +299,7 @@ export class Effects {
       }
     }
   }
-  draw(ctx, W, H, scroll = 0) {
+  draw(ctx, W, H) {
     let airSmoke, groundSmoke;
     ctx.save();
     for (const p of this.particles) if (p.smoke) {
@@ -344,22 +309,6 @@ export class Effects {
       ctx.globalAlpha = a * (p.ground ? .6 : .48);
       fitSprite(ctx, sprite, p.x, p.y, diameter);
     }
-    const { a: ca, b: cb, c: cc, d: cd, e: ce, f: cf } = ctx.getTransform();
-    let transformed = false;
-    for (const p of this.particles) if (p.debris && !p.smoke) {
-      if (p.age >= p.life || !intersectsView(p.x, p.y, p.radius * 3, p.radius * 3, W, H)) continue;
-      // Render interpolation and lateral camera drift can expose a shoreline
-      // between updates; the current full footprint must still be dry.
-      if (this.debrisSurface && !this.debrisSurface(p.x, p.y, scroll, p.radius * 3)) continue;
-      ctx.globalAlpha = 1 - p.age / p.life;
-      const angle = p.angle + (this.reduced ? 0 : p.age * (p.spin ?? 8)), cos = Math.cos(angle), sin = Math.sin(angle), flip = p.flip || 1;
-      ctx.setTransform((ca * cos + cc * sin) * flip, (cb * cos + cd * sin) * flip, cc * cos - ca * sin, cd * cos - cb * sin,
-        ca * p.x + cc * p.y + ce, cb * p.x + cd * p.y + cf);
-      transformed = true;
-      const fragment = debrisFragment(p.variant || 0, p.ground), diameter = p.radius * 4.2;
-      if (fragment.source) ctx.drawImage(fragment.source, fragment.sx, fragment.sy, fragment.sw, fragment.sh, -diameter / 2, -diameter / 2, diameter, diameter);
-    }
-    if (transformed) ctx.setTransform(ca, cb, cc, cd, ce, cf);
     for (const burst of this.rings) if (burst.explosion) {
       const t = burst.age / burst.life, diameter = burst.diameter * (.4 + t * .9);
       if (t >= 1 || !intersectsView(burst.x, burst.y, diameter / 2, diameter / 2, W, H)) continue;
@@ -376,8 +325,9 @@ export class Effects {
       const pass = this.softLightPass; pass.width = W; pass.height = H;
       ctx.drawSoftLayer(this.softLightDraw);
     } else this.drawLights(ctx, W, H);
-    const sparkScale = Math.max(Math.hypot(ca, cb), Math.hypot(cc, cd));
-    for (const p of this.particles) if (!p.smoke && !p.debris) {
+    const { a, b, c, d } = ctx.getTransform();
+    const sparkScale = Math.max(Math.hypot(a, b), Math.hypot(c, d));
+    for (const p of this.particles) if (!p.smoke) {
       const radius = Math.max(.3, p.radius * (1 - p.age / p.life));
       if (p.age >= p.life || !intersectsView(p.x, p.y, radius, radius, W, H)) continue;
       ctx.globalAlpha = 1 - p.age / p.life;
@@ -428,7 +378,6 @@ export class Effects {
 }
 
 export function warmGpuEffectTextures(gpu) {
-  gpu.prewarm(debrisTextureSources());
   gpu.prewarm([...textures.values()]);
   for (const levels of sparkTextures.values()) gpu.prewarm(levels);
   for (let i = 0; i < 16; i++) { const sprite = spriteCell('effects', i); if (sprite) gpu.prewarm(sprite); }

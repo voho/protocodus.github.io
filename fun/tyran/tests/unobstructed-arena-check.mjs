@@ -313,12 +313,12 @@ try {
       const recharge = await page.evaluate(() => {
         const p = tyran.state.players[0]; p.fireEnergy = 0; p.fireEnergyLocked = true; tyran.step(0); __uiFrame();
         const line = document.querySelector('#p1-energy-line'), status = document.querySelector('#p1-energy-status');
-        const word = line.firstElementChild, range = document.createRange(); range.selectNodeContents(status);
+        const word = line.querySelector('.hud-secondary'), range = document.createRange(); range.selectNodeContents(status);
         const text = range.getBoundingClientRect(), box = line.getBoundingClientRect();
         const wordVisible = getComputedStyle(word).display !== 'none' && getComputedStyle(word).visibility === 'visible';
-        range.selectNodeContents(word); const label = range.getBoundingClientRect();
+        const label = word.getBoundingClientRect(), statusBox = status.getBoundingClientRect();
         return { value: status.textContent, accessible: status.getAttribute('aria-label'), fits: text.left >= box.left - .5 && text.right <= box.right + .5,
-          clearsLabel: !wordVisible || label.right <= text.left + .5 };
+          clearsLabel: !wordVisible || label.right <= text.left + .5 || label.bottom <= statusBox.top + .5 || label.top >= statusBox.bottom - .5 };
       });
       assert.match(recharge.value, /^↻ \d+%$/);
       assert.match(recharge.accessible, /Recharging/);

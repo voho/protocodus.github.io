@@ -2,7 +2,7 @@
 const LAYOUTS = Object.freeze({
   fleet: [4, 3], nature: [4, 4], structures: [4, 4],
   materials: [8, 5], effects: [4, 4], projectiles: [4, 3],
-  structureLight: [4, 4], structureHeavy: [4, 4], structureCrater: [4, 4],
+  structureLight: [4, 4], structureHeavy: [4, 4],
   fleetJungle: [4, 3], fleetSnow: [4, 3], fleetDesert: [4, 3], fleetParadise: [4, 3], fleetAsteroid: [4, 3],
   fleetMars: [4, 3], fleetVolcanic: [4, 3], fleetNeon: [4, 3], fleetAlien: [4, 3], fleetVoid: [4, 3],
 });
@@ -10,7 +10,7 @@ const LAYOUTS = Object.freeze({
 // Keeping these cells in CPU memory avoids a synchronous GPU readback (10–100
 // ms) whenever a new appearance is prepared; none is drawn directly per frame.
 // Effects stay GPU-resident: they are only drawn, never read.
-const CPU_ATLASES = new Set(['nature', 'structures', 'structureLight', 'structureHeavy', 'structureCrater', 'materials', 'projectiles',
+const CPU_ATLASES = new Set(['nature', 'structures', 'structureLight', 'structureHeavy', 'materials', 'projectiles',
   'fleet', 'fleetJungle', 'fleetSnow', 'fleetDesert', 'fleetParadise', 'fleetAsteroid', 'fleetMars', 'fleetVolcanic', 'fleetNeon', 'fleetAlien', 'fleetVoid']);
 const cellContext = (canvas, name) => canvas.getContext('2d', CPU_ATLASES.has(name) ? { willReadFrequently: true } : undefined);
 const atlases = new Map();
@@ -134,8 +134,8 @@ function connectedCells(name, image, [columns, rows]) {
 export function spriteCell(name, index) {
   const layout = LAYOUTS[name];
   if (!layout || !Number.isInteger(index) || index < 0 || index >= layout[0] * layout[1]) return null;
-  // Detailed debris uses two fixed atlases now. Do not extract or retain the
-  // retired metal, masonry and scorch cells; explosion, smoke and engines stay.
+  // Do not extract or retain the retired metal, masonry and scorch cells;
+  // explosion, smoke and engine artwork stays in use.
   if (name === 'effects' && index >= 10 && index <= 13) return null;
   const key = `${name}:${index}`;
   if (cells.has(key)) return cells.get(key);

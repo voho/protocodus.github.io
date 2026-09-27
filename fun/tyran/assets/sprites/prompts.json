@@ -262,6 +262,9 @@
     },
     {
       "file": "structure-crater.webp",
+      "status": "retired",
+      "retired": "2026-09-27",
+      "retirement": "Debris removed completely. Destroyed buildings leave empty terrain; the unused crater atlas and its preload entry were deleted. Historical generation provenance is preserved.",
       "grid": [
         4,
         4

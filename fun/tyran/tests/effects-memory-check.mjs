@@ -17,20 +17,20 @@ try {
     const bossBursts = [];
     for (const quality of ['high', 'low']) for (const reduced of [false, true]) {
       fx.reset(); fx.quality = quality; fx.reduced = reduced;
-      // Recycle metal fragments first: pooled flags must not leak into a boss burst.
+      // Recycle smoke first: pooled flags must not leak into a later burst.
       fx.emit({ type: 'explosion', x: 100, y: 100, size: 20 });
-      fx.update(3); fx.wrecks.length = 0;
+      fx.update(3);
       fx.emit({ type: 'explosion', x: 400, y: 240, size: 110, boss: true }, 200, 15);
       const initial = { particles: fx.particles.length, smoke: fx.particles.some(p => p.smoke),
         sparks: fx.particles.some(p => !p.smoke && !p.debris), rings: fx.rings.length,
         fire: fx.lights.some(light => light.fire), charges: fx.delayed.length, flares: fx.flares.length,
         shake: fx.shake, flash: fx.flash, impact: fx.impactPeak };
-      let debrisFree = fx.wrecks.length === 0 && fx.particles.every(p => !p.debris), emitted = 0;
+      let debrisFree = !('wrecks' in fx) && fx.particles.every(p => !('debris' in p)), emitted = 0;
       const emit = fx.emit;
       fx.emit = function (...args) { emitted++; return emit.apply(this, args); };
       for (let frame = 0; frame < 240; frame++) {
         fx.update(1 / 60);
-        debrisFree &&= fx.wrecks.length === 0 && fx.particles.every(p => !p.debris);
+        debrisFree &&= !('wrecks' in fx) && fx.particles.every(p => !('debris' in p));
       }
       delete fx.emit;
       bossBursts.push({ quality, reduced, initial, debrisFree, emitted, finished: fx.memory.active });
@@ -39,18 +39,18 @@ try {
     // The killing bolt can break a boss weak point immediately before the main explosion.
     fx.emit({ type: 'weak-break', x: 420, y: 245, size: 40 }, 200, 15);
     const weakBreak = { fire: fx.lights.some(light => light.fire), rings: fx.rings.length,
-      debrisFree: fx.wrecks.length === 0 && fx.particles.every(p => !p.debris) };
+      debrisFree: !('wrecks' in fx) && fx.particles.every(p => !('debris' in p)) };
     fx.emit({ type: 'explosion', x: 400, y: 240, size: 110, boss: true }, 200, 15);
     for (let frame = 0; frame < 240; frame++) {
       fx.update(1 / 60);
-      weakBreak.debrisFree &&= fx.wrecks.length === 0 && fx.particles.every(p => !p.debris);
+      weakBreak.debrisFree &&= !('wrecks' in fx) && fx.particles.every(p => !('debris' in p));
     }
     weakBreak.finished = fx.memory.active;
     const ordinary = [];
     for (const event of [{ size: 20 }, { size: 54, midboss: true }, { size: 30, ground: true }]) {
       fx.reset(); fx.emit({ type: 'explosion', x: 400, y: 240, ...event }, 200, 15);
       ordinary.push({ ground: !!event.ground, fragments: fx.particles.some(p => p.debris),
-        wrecks: fx.wrecks.map(({ x, y, size }) => ({ x, y, size })), size: event.size });
+        smoke: fx.particles.some(p => p.smoke), fire: fx.lights.some(light => light.fire), rings: fx.rings.length, size: event.size });
     }
     fx.reset();
     // Sequential explosions should reuse the same records after their lives finish.
@@ -61,8 +61,8 @@ try {
     }
     const recycled = { unique: records.size, memory: fx.memory };
     fx.emit({ type: 'spark', x: 100, y: 100 });
-    const clearedFlags = fx.particles.every(particle => !particle.smoke && !particle.debris && !particle.ground && particle.angle === 0 && particle.age === 0
-      && particle.variant === 0 && particle.spin === 0 && particle.flip === 1);
+    const clearedFlags = fx.particles.every(particle => !particle.smoke && !particle.ground && particle.age === 0
+      && ['debris', 'angle', 'variant', 'spin', 'flip'].every(key => !(key in particle)));
     fx.reset(); records.clear();
     // An extreme chain reaction must have a fixed ceiling, including delayed bursts.
     let bounded = true;
@@ -105,22 +105,22 @@ try {
   assert(result.weakBreak.debrisFree, 'a weak point breaking on the killing shot leaves no boss debris');
   assert(Object.values(result.weakBreak.finished).every(count => count === 0), 'weak-point and death effects fully finish');
   for (const item of result.ordinary) {
-    assert(item.fragments, 'ordinary ships, midbosses and buildings keep metal fragments');
-    assert.deepEqual(item.wrecks, item.ground ? [] : [{ x: 385, y: 40, size: item.size }], 'ordinary ship wreckage retains its ground anchoring');
+    assert.equal(item.fragments, false, 'ordinary ships, midbosses and buildings produce no fragments');
+    assert(item.smoke && item.fire && item.rings > 0, 'removing debris preserves each ordinary explosion');
   }
   assert.equal(result.recycled.unique, 55, '100 consecutive explosions reuse the same 55 particle records');
   assert.equal(result.recycled.memory.particleRecords, 55, 'only high-water particle storage is retained');
-  assert.ok(result.clearedFlags, 'recycled particles do not retain smoke, debris, ground, artwork, spin or mirroring state');
+  assert.ok(result.clearedFlags, 'recycled sparks clear smoke and ground flags and have no retired debris fields');
   assert.ok(result.stressed.bounded, 'every transient list stays within its fixed budget during chain reactions');
   assert.equal(result.stressed.unique, result.limits.particles, 'sustained chain reactions reuse at most 700 particle records');
   for (const [kind, count] of Object.entries(result.finished.active)) assert.equal(count, 0, `${kind} finishes normally after a stress burst`);
   assert.ok(result.textures.count <= result.limits.textures, 'light texture storage is bounded across arbitrary palettes');
   assert.ok(result.textures.bytes <= result.limits.textures * 256 * 256 * 4, 'texture backing memory stays within its worst-case pixel budget');
-  assert.equal(result.textures.debris.count, 2, 'all debris shares two prepared atlases');
-  assert.ok(result.textures.debris.bytes <= 4 * 1024 * 1024, 'debris atlas memory has its own fixed 4 MiB ceiling');
+  assert.equal('debris' in result.textures, false, 'no debris atlas cache remains');
+  assert.equal('wrecks' in result.limits, false, 'no wreck storage budget remains');
   assert.equal(result.reset.particleRecords, 0, 'reset releases retained particle records');
   assert.ok(Object.values(result.reset.active).every(count => count === 0), 'reset releases every playback state');
   assert.deepEqual(errors, [], 'no browser errors');
-  console.log('PASS debris-free boss destruction, preserved ordinary wreckage, bounded animation state, particle reuse, clean recycling, shared texture budgets and full reset');
+  console.log('PASS debris-free destruction, preserved ordinary explosions, bounded animation state, particle reuse, clean recycling, shared texture budgets and full reset');
   console.log(JSON.stringify({ particles: result.stressed.memory.particleRecords, textures: result.textures }));
 } finally { await browser.close(); }

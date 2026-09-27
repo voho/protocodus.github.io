@@ -54,12 +54,11 @@ try {
     let ghostAlpha = 0;
     for (let i = 3; i < ghostPixels.length; i += 4) ghostAlpha += ghostPixels[i];
     let batchDifference = 0, batchRestored = true, maxBatchSaves = 0;
-    for (const legacy of [false, true]) for (const ground of [false, true]) for (const matrix of [[1,0,0,1,0,0], [1.13,.07,-.04,.91,8,12]]) {
+    for (const matrix of [[1,0,0,1,0,0], [1.13,.07,-.04,.91,8,12]]) {
       const current = surface(), reference = surface(), fx = new Effects();
       const items = Array.from({ length: 16 }, (_, i) => ({ x: 65 + i % 4 * 145, y: 65 + Math.floor(i / 4) * 95,
-        angle: i * .47, age: .17, life: .9, radius: 4 + i % 3, size: 9 + i % 5, debris: true, smoke: false, ground: i % 2 === 0,
-        ...(legacy ? {} : { variant: i % 12, spin: (i % 2 ? -1 : 1) * (4.5 + i % 4 * 2.1), flip: i % 3 ? 1 : -1 }) }));
-      if (ground) fx.wrecks.push(...items); else fx.particles.push(...items);
+        age: .17, life: .9, radius: 4 + i % 3, smoke: i % 2 === 0, ground: i % 3 === 0, color: '#ffbb6b' }));
+      fx.particles.push(...items);
       for (const target of [current, reference]) {
         target.ctx.fillStyle = '#21302b'; target.ctx.fillRect(0, 0, 640, 480);
         target.ctx.beginPath(); target.ctx.rect(5, 5, 625, 470); target.ctx.clip();
@@ -69,14 +68,14 @@ try {
         alpha: c.globalAlpha, fill: c.fillStyle, composite: c.globalCompositeOperation });
       const before = state(current.ctx), save = current.ctx.save.bind(current.ctx); let saves = 0;
       current.ctx.save = () => { saves++; return save(); };
-      if (ground) fx.drawGround(current.ctx, 13, 480, 7); else fx.draw(current.ctx, 640, 480);
+      fx.draw(current.ctx, 640, 480);
       batchRestored &&= before === state(current.ctx); maxBatchSaves = Math.max(maxBatchSaves, saves);
-      items.forEach((item, index) => {
-        const c = reference.ctx;
-        c.save(); c.translate(item.x + (ground ? 7 : 0), item.y + (ground ? 13 : 0));
-        c.rotate(item.angle + (ground ? 0 : item.age * (item.spin ?? 8)));
-        if (!ground) c.scale(item.flip || 1, 1);
-        if (!ground) c.globalAlpha = 1 - item.age / item.life;
+      // Smoke follows the caller's composite; sparks follow in additive order.
+      const ordered = [...items.filter(item => item.smoke), ...items.filter(item => !item.smoke)];
+      ordered.forEach((item, index) => {
+        const c = reference.ctx; c.save();
+        c.globalAlpha = (1 - item.age / item.life) * (item.smoke ? item.ground ? .6 : .48 : 1);
+        if (!item.smoke) c.globalCompositeOperation = 'lighter';
         c.drawImage(...current.calls[index]); c.restore();
       });
       const a = current.ctx.getImageData(0, 0, 640, 480).data, b = reference.ctx.getImageData(0, 0, 640, 480).data;
@@ -94,7 +93,7 @@ try {
   assert.ok(result.edgeAlpha > 0, 'conservative culling preserves effects crossing the shaken viewport edge');
   assert.equal(result.ghostImages, 1, 'only the visible lens ghost is submitted when the streak is offscreen');
   assert.ok(result.ghostAlpha > 0, 'offscreen light sources retain visible optical ghosts');
-  assert.ok(result.batchDifference <= 1, 'batched debris and wreck rotations retain reference pixels under transformed, clipped cameras');
+  assert.ok(result.batchDifference <= 1, 'smoke and additive sparks retain reference pixels under transformed, clipped cameras');
   assert.ok(result.batchRestored, 'effect batches restore caller transform, opacity, fill and composite');
   assert.ok(result.maxBatchSaves <= 2, 'effect state copies stay constant as the particle count grows');
   assert.deepEqual(errors, [], 'no browser errors');

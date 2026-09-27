@@ -1,5 +1,5 @@
 /** Tyran: deterministic tile maps and reusable terrain/scenery sprites. */
-import { MAP_TILE_SIZE, hashLevel, tileAt, isDryTerrainTile } from './tile-map.js';
+import { MAP_TILE_SIZE, hashLevel, tileAt } from './tile-map.js';
 import { TerrainSprites } from './terrain-sprites.js';
 import { spritesReady, spriteRevision, spriteCell } from './sprite-assets.js';
 import { StructureEffects } from './structure-effects.js';
@@ -24,7 +24,6 @@ const WIDTH = 1200; // Stable seeded districts; viewport coverage is independent
 const MARGIN = MAP_TILE_SIZE; // Actual offscreen cells cover lateral drift.
 const PAD = 140;
 const HIT_CELL = 160;
-const DEBRIS_SURFACE_CACHE_SIZE = 1024;
 const MAX_DAMAGE_SPRITES = 80; // 20.7 MiB: every damage appearance in the active sector, never all ten sectors.
 const TAU = Math.PI * 2;
 export const PARALLAX_LAYERS = Object.freeze([
@@ -84,7 +83,7 @@ const STRUCTURES = new Set(['temple','bunker','station','radar','dome','solar','
 const EMISSIVE = new Set(['crystal','pylon','mushroom','radar','tower','vent']);
 const NATURE_SPRITES = Object.freeze(['tree','alienTree','palm','pine','fern','cactus','mushroom','pod','ice','crystal','rock','asteroid','basalt','vent','coral','cloud']);
 const STRUCTURE_SPRITES = Object.freeze(['temple','ruin','bunker','station','radar','dome','solar','refinery','building','tower','pylon','fortress','hut','satellite','crawler','hauler']);
-const STRUCTURE_ATLASES = Object.freeze(['structures','structureLight','structureHeavy','structureCrater']);
+const STRUCTURE_ATLASES = Object.freeze(['structures','structureLight','structureHeavy']);
 const STRUCTURE_STRENGTH = Object.freeze({temple:1.5,ruin:.7,bunker:1.8,station:1.35,radar:.9,dome:1.05,solar:.7,refinery:1.55,building:1.4,tower:1.15,pylon:.85,fortress:2.2,hut:.65,satellite:.9,crawler:1.55,hauler:1.15});
 export const BUILDING_DURABILITY_MULTIPLIER = 2.5;
 const BUILDINGS = new Set(STRUCTURE_SPRITES.filter(type=>type!=='crawler'&&type!=='hauler'));
@@ -136,11 +135,9 @@ export class WorldRenderer {
     this.sceneryLayers=[new Map()];this.sceneryDirty=new Map();
     this.layerViews=[{zoom:1,x:0,y:0,first:0,last:0}];
     this.hitBuckets=new Map();this.visibleProps=[];this.damage=new Map();this.destroyed=new Set();this.turretActivity=new Map();
-    // Fixed numeric slots avoid string keys, tile objects and growing caches in
-    // the per-fragment surface checks. 0 = empty, 1 = unsafe, 2 = entirely dry.
-    this.debrisSurfaceCols=new Float64Array(DEBRIS_SURFACE_CACHE_SIZE);
-    this.debrisSurfaceRows=new Float64Array(DEBRIS_SURFACE_CACHE_SIZE);
-    this.debrisSurfaceStates=new Uint8Array(DEBRIS_SURFACE_CACHE_SIZE);
+    // Legacy callers may still ask for a terminal damage sprite. Share one
+    // transparent pixel instead of allocating or rendering destroyed-site art.
+    this.emptyScenerySprite=canvas(1,1);
     this.softCloudPass={h:0,scroll:0,time:0,motion:true};
     this.softCloudShadows=c=>{const p=this.softCloudPass;this.drawCloudShadowSprites(c,p.h,p.scroll,p.time,p.motion);};
     this.softClouds=c=>{const p=this.softCloudPass;this.drawCloudSprites(c,p.h,p.scroll,p.time,p.motion);};
@@ -158,13 +155,12 @@ export class WorldRenderer {
     }
     this.damage.clear();this.destroyed.clear();this.visibleProps.length=0;this.turretActivity.clear();this.sceneryDirty.clear();
     this.scale=1;this.scroll=0;this.parallaxX=0;
-    if(!reuse)this.debrisSurfaceStates.fill(0);
     // A preview or retry reuses immutable artwork while resetting destruction.
     if(reuse)return;
     this.warmEpoch=(this.warmEpoch||0)+1;this.warmJobs=[];this.warmKeys=new Set();this.warmPending=false;this.flightAssetsQueued=false;this.pendingTiles.clear();
     this.terrain=new TerrainSprites(this.index,this.palette);this.tiles.clear();this.sprites.clear();this.damageSpriteKeys.clear();this.clouds=[];
     this.extendClouds();
-    this.cloudSprite=this.makeCloud();this.cloudShadowSprite=this.makeCloudShadow();this.lightSprite=this.makeLight();this.radarSweepSprite=this.makeRadarSweep();this.scorchSprite=this.makeScorch();
+    this.cloudSprite=this.makeCloud();this.cloudShadowSprite=this.makeCloudShadow();this.lightSprite=this.makeLight();this.radarSweepSprite=this.makeRadarSweep();
     this.structureEffects=new StructureEffects(this.index,this.palette,this.world.accent);
     this.siteSprites=this.makeGroundSiteSprites();
     this.shaftSprite=this.makeShaft();this.vignetteSprite=this.makeVignette();this.substrateSprite=this.makeSubstrate();
@@ -189,7 +185,7 @@ export class WorldRenderer {
       this.queueWarm(`sprite:${type}:${variant}:0`,()=>this.getSprite(type,variant));
       this.queueWarm(`foundation:${type}:${variant}`,()=>this.structureEffects.getFoundation(type,variant));
       if(variant===0)this.queueWarm(`fixture:${type}`,()=>this.structureEffects.getFixtures(type));
-      if(damage&&BUILDINGS.has(type))for(let stage=1;stage<=3;stage++){
+      if(damage&&BUILDINGS.has(type))for(let stage=1;stage<=2;stage++){
         this.queueWarm(`sprite:${type}:${variant}:${stage}`,()=>this.getSprite(type,variant,stage));
       }
     }
@@ -250,7 +246,7 @@ export class WorldRenderer {
     this.warmKeys.add(key);this.warmJobs.push({key,work});this.runWarmQueue();
   }
   restoreDamage(damage=[], destroyed=[], sceneryVersion=3) {
-    // A prop owns either remaining HP or a crater marker, never both. Normalize
+    // A prop owns either remaining HP or a destroyed marker, never both. Normalize
     // older saves that wrote destroyed IDs to both collections (including zero HP).
     this.damage=new Map();this.destroyed=new Set(destroyed);
     for(const [id,hp] of damage){
@@ -353,28 +349,6 @@ export class WorldRenderer {
     else setTimeout(()=>run({didTimeout:true,timeRemaining:()=>6}),0);
   }
   tileAt(col,row) {return tileAt(this.levelHash,this.index,col,row);}
-  /** A debris footprint must remain fully over the visible dry ground plane. */
-  canPlaceDebris(x,y,scroll=this.scroll,radius=0) {
-    if(this.index===4||this.index===9)return false;
-    const scale=this.scale||1;
-    if(!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(scroll)||!Number.isFinite(radius)||!Number.isFinite(scale)||scale<=0)return false;
-    if(this.index===2||this.index===5)return true;
-    const px=x/scale-this.parallaxX,py=y/scale-scroll,r=Math.max(0,radius)/scale+1;
-    // The one-pixel guard includes filtered sprite edges. Checking the whole
-    // footprint's box is conservative for rotated fragments and broad wrecks.
-    const firstCol=Math.floor((px-r)/MAP_TILE_SIZE),lastCol=Math.floor((px+r)/MAP_TILE_SIZE);
-    const firstRow=Math.floor((py-r)/MAP_TILE_SIZE),lastRow=Math.floor((py+r)/MAP_TILE_SIZE);
-    for(let row=firstRow;row<=lastRow;row++)for(let col=firstCol;col<=lastCol;col++){
-      const slot=(Math.imul(col,0x9e3779b1)^Math.imul(row,0x85ebca77))&(DEBRIS_SURFACE_CACHE_SIZE-1);
-      let state=this.debrisSurfaceStates[slot];
-      if(!state||this.debrisSurfaceCols[slot]!==col||this.debrisSurfaceRows[slot]!==row){
-        state=isDryTerrainTile(this.levelHash,this.index,col,row)?2:1;
-        this.debrisSurfaceCols[slot]=col;this.debrisSurfaceRows[slot]=row;this.debrisSurfaceStates[slot]=state;
-      }
-      if(state===1)return false;
-    }
-    return true;
-  }
   makeSubstrate() {
     const out=canvas(600,600),c=out.getContext('2d'),p=this.palette,rng=random(this.levelHash^5371);
     c.fillStyle=p.low;c.fillRect(0,0,600,600);
@@ -496,17 +470,14 @@ export class WorldRenderer {
       const sourceBand=sourceRow===row?band:this.getBand(sourceRow);
       c.save();c.translate(0,(sourceRow-row)*TILE-PAD);this.drawGroundDetails(c,sourceRow,paintBounds);c.restore();
       for(const prop of sourceBand) {
+        // Destruction records survive saves and strip eviction, but a destroyed
+        // site leaves the original terrain visible without rubble or a crater.
+        if(this.destroyed.has(prop.id)||prop.hp<=0)continue;
         const reach=prop.size*1.3+2;
         if(prop.x+reach<paintBounds.left||prop.x-reach>paintBounds.right||prop.y+reach<paintBounds.top||prop.y-reach>paintBounds.bottom)continue;
         const py=prop.y-row*TILE,px=prop.x+MARGIN,scale=prop.size/100;
-        const structural=STRUCTURE_SPRITES.includes(prop.type),destroyed=this.destroyed.has(prop.id);
-        // A destroyed site stays in the damage ledger, but its crater and
-        // foundation cannot leave wreckage over water, lava or orbital space.
-        const groundScale=this.scale||1;
-        if(destroyed&&!this.canPlaceDebris((prop.x+this.parallaxX)*groundScale,(prop.y+this.scroll)*groundScale,this.scroll,reach*groundScale))continue;
-        if(destroyed&&!structural){this.drawScorch(c,px,py,prop.size);continue;}
-        const stage=structural?(destroyed?3:structureStage(prop)):0;
-        this.structureEffects.drawFoundation(c,prop,px,py,destroyed);
+        const structural=STRUCTURE_SPRITES.includes(prop.type),stage=structural?structureStage(prop):0;
+        this.structureEffects.drawFoundation(c,prop,px,py);
         c.drawImage(this.getSprite(prop.type,prop.variant,stage),px-130*scale,py-130*scale,260*scale,260*scale);
         if(!structural&&prop.hp<prop.maxHp)ellipse(c,px+4,py+5,prop.size*.22,prop.size*.16,'rgba(36,28,37,.36)');
       }
@@ -710,7 +681,7 @@ export class WorldRenderer {
         const after=structural?structureStage(prop):prop.hp<=0?3:prop.hp<prop.maxHp?1:0;
         // Prepared flights already retain every building appearance. Keep the
         // next stage warm for lightweight preview/debug callers as well.
-        if(structural&&after<3){
+        if(structural&&after<2){
           const next=after+1,key=`${prop.type}:${prop.variant}:${next}`;
           if(!this.sprites.has(key))this.queueWarm(`sprite:${key}`,()=>this.getSprite(prop.type,prop.variant,next));
         }
@@ -734,6 +705,7 @@ export class WorldRenderer {
     c.fillStyle='#bdc4a2';c.fillRect(-w+4,-h+3,5,2);c.fillRect(w-9,-h+3,5,2);
   }
   getSprite(type,variant,stage=0) {
+    if(stage>=3)return this.emptyScenerySprite;
     const key=`${type}:${variant}:${stage}`;
     if(this.sprites.has(key)){
       if(stage){this.damageSpriteKeys.delete(key);this.damageSpriteKeys.add(key);}
@@ -783,24 +755,17 @@ export class WorldRenderer {
       terrainBytes:bytes(this.terrain.materials.values())+bytes(this.terrain.edges.values()),
       scratchBytes:bytes([this.spriteScratch,this.shadowScratch,this.sceneryScratch].filter(Boolean)),
       detailScale:this.detailScale,viewportWidth:this.viewportWidth,mapWidth:this.mapWidth,structureEffectBytes:this.structureEffects.memoryStats().spriteBytes,
-      damagedProps:this.damage.size,craters:this.destroyed.size};
+      damagedProps:this.damage.size,destroyedProps:this.destroyed.size};
   }
   makeDamagedFallback(type,variant,stage) {
+    if(stage>=3)return this.emptyScenerySprite;
     const out=canvas(260,260),c=out.getContext('2d'),rng=random(variant*531+STRUCTURE_SPRITES.indexOf(type)*731);
-    if(stage===3){
-      this.drawScorch(c,130,130,130);
-      for(let i=0;i<30;i++){
-        const a=rng()*TAU,r=18+rng()*63,x=130+Math.cos(a)*r,y=130+Math.sin(a)*r*.7;
-        c.fillStyle=i%3?this.palette.low:this.palette.mid;c.fillRect(x,y,2+rng()*7,2+rng()*5);
-      }
-    } else {
-      c.drawImage(this.getSprite(type,variant),0,0);c.globalCompositeOperation='source-atop';
-      for(let i=0;i<(stage===1?4:9);i++){
-        const x=88+rng()*84,y=83+rng()*88,r=stage===1?8+rng()*8:12+rng()*14;
-        ellipse(c,x,y,r,r*.72,'rgba(6,11,15,.8)');line(c,[[x-r,y-r],[x,y],[x+r*.8,y-r*.4]],this.palette.low,stage+1);
-      }
-      c.globalCompositeOperation='source-over';
+    c.drawImage(this.getSprite(type,variant),0,0);c.globalCompositeOperation='source-atop';
+    for(let i=0;i<(stage===1?4:9);i++){
+      const x=88+rng()*84,y=83+rng()*88,r=stage===1?8+rng()*8:12+rng()*14;
+      ellipse(c,x,y,r,r*.72,'rgba(6,11,15,.8)');line(c,[[x-r,y-r],[x,y],[x+r*.8,y-r*.4]],this.palette.low,stage+1);
     }
+    c.globalCompositeOperation='source-over';
     return out;
   }
   sceneryRamp(type) {
@@ -823,6 +788,7 @@ export class WorldRenderer {
     ];
   }
   makeAtlasSprite(type,variant,stage=0) {
+    if(stage>=3)return this.emptyScenerySprite;
     const naturalIndex=NATURE_SPRITES.indexOf(type),structureIndex=STRUCTURE_SPRITES.indexOf(type);
     const source=naturalIndex>=0?spriteCell('nature',naturalIndex):structureIndex>=0?spriteCell(STRUCTURE_ATLASES[stage],structureIndex):null;
     if(!source)return null;
@@ -848,7 +814,6 @@ export class WorldRenderer {
       for(let channel=0;channel<3;channel++)data[i+channel]=incandescent?ember[channel]*(.64+luminance*.36):ramp[step][channel]+(ramp[step+1][channel]-ramp[step][channel])*fraction;
     }
     b.putImageData(pixels,0,0);
-    if(stage===3){c.drawImage(body,0,0);return out;}
     // Shadows use the actual silhouette, including fronds, antennae and tracks.
     c.drawImage(body,0,0);c.globalCompositeOperation='source-in';c.fillStyle=foliage?'rgba(3,12,15,.42)':'rgba(3,10,16,.48)';c.fillRect(0,0,260,260);
     c.globalCompositeOperation='source-over';
@@ -1006,9 +971,6 @@ export class WorldRenderer {
     for(let i=0;i<5;i++)line(c,[[-17+i*7,h-lift-3],[-13+i*7,h-lift-7]],i%2?'#d0b478':'#3a464a',2);
     circle(c,w-10,-h-lift+12,2.5,accent);circle(c,w-10,-h-lift+20,1.5,'#cc937f');
   }
-  drawScorch(c,x,y,size) {
-    const r=size*.66;c.drawImage(this.scorchSprite,x-r,y-r,r*2,r*2);
-  }
   makeLight() {
     const out=canvas(128,128),c=out.getContext('2d');glow(c,64,64,64,this.world.accent,1);return out;
   }
@@ -1016,11 +978,6 @@ export class WorldRenderer {
     const out=canvas(96,96),c=out.getContext('2d');
     c.strokeStyle=this.palette.fog;c.lineWidth=2.5;c.beginPath();c.arc(48,48,43,-.5,0);c.stroke();
     line(c,[[48,48],[91,48]],this.palette.fog,2.5);return out;
-  }
-  makeScorch() {
-    const out=canvas(160,160),c=out.getContext('2d'),rng=random(61821+this.index);
-    const g=c.createRadialGradient(80,80,8,80,80,77);g.addColorStop(0,'rgba(6,11,18,.72)');g.addColorStop(.5,'rgba(10,17,24,.45)');g.addColorStop(1,'transparent');ellipse(c,80,80,77,53,g);
-    for(let i=0;i<15;i++){const a=rng()*TAU,d=rng()*50;c.fillStyle=i%3?'#394347':'#5c5c55';c.fillRect(80+Math.cos(a)*d,80+Math.sin(a)*d*.65,2+rng()*6,2+rng()*5);}return out;
   }
   makeShaft() {
     const out=canvas(256,512),c=out.getContext('2d'),g=c.createLinearGradient(0,0,160,512);

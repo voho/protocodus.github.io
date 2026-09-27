@@ -113,8 +113,7 @@ try {
     const world = tyran.world, buildings = new Set(['temple', 'ruin', 'bunker', 'station', 'radar', 'dome', 'solar', 'refinery', 'building', 'tower', 'pylon', 'fortress', 'hut', 'satellite']);
     world.prepareGround(tyran.state.width, tyran.state.height, 0, tyran.state.width / 2);
     let target;
-    for (let row = 0; row > -15 && !target; row--) target = world.getBand(row).find(prop => prop.x > 2000 && prop.x < 3000 && buildings.has(prop.type)
-      && world.canPlaceDebris(prop.x + world.parallaxX, prop.y, 0, Math.max(40, prop.size * 1.3 + 2)));
+    for (let row = 0; row > -15 && !target; row--) target = world.getBand(row).find(prop => prop.x > 2000 && prop.x < 3000 && buildings.has(prop.type));
     if (!target) throw new Error('Missing expanded-column building');
     const before = target.hp, at = { x: target.x, y: target.y, size: target.size };
     world.hit(target.x + world.parallaxX, target.y + world.scroll, 0, 3);
@@ -145,30 +144,24 @@ try {
     const world = tyran.world, state = tyran.state, target = world.getBand(wideBuilding.row).find(prop => prop.id === wideBuilding.id);
     world.prepareGround(state.width, state.height, state.scroll, state.players[0].x);
     const x = target.x + world.parallaxX, y = target.y + state.scroll, size = 20;
-    // A normal 20px ship burst has a 40px wreck footprint. Weaken the building
-    // through a real hit instead of creating an enormous, shoreline-crossing wreck.
+    // A normal ship burst still damages the building without leaving wreckage.
     world.hit(x, y, 0, target.hp - 20, state.scroll);
-    if (target.hp !== 20 || !world.canPlaceDebris(x, y, state.scroll, size * 2)) throw new Error('Burst fixture must be a damaged building on fully dry ground');
+    if (target.hp !== 20) throw new Error('Burst fixture must be a damaged building');
     tyran.fx.reset(); state.events.push({ type: 'explosion', x, y, size });
     tyran.step(1 / 60); tyran.pause();
-    const wreck = tyran.fx.wrecks[0], ground = tyran.fx.rings.find(ring => ring.ground);
+    const ground = tyran.fx.rings.find(ring => ring.ground);
     if (!world.destroyed.has(target.id)) throw new Error('Air burst missed its right-side ground target');
-    if (!wreck || !ground) throw new Error('Missing burst ground effects');
-    const expected = { x: x - world.parallaxX, y: y - state.scroll };
-    window.burstAudit = { wreck, ground, before: { x: wreck.x, y: wreck.y, groundX: ground.x }, draw: null };
-    const original = tyran.fx.drawGround;
-    tyran.fx.drawGround = function (ctx, scroll, height, offset) { burstAudit.draw = { scroll, offset }; return original.call(this, ctx, scroll, height, offset); };
-    return { x: wreck.x, y: wreck.y, expected, target: target.id, destroyed: world.destroyed.has(target.id) };
+    if (!ground) throw new Error('Missing burst ground shockwave');
+    window.burstAudit = { ground, before: { x: ground.x, y: ground.y, radius: ground.radius } };
+    return { x: ground.x, expectedX: x, target: target.id, destroyed: world.destroyed.has(target.id), wrecks: 'wrecks' in tyran.fx };
   });
-  assert(Math.abs(burst.x - burst.expected.x) < 1e-9 && Math.abs(burst.y - burst.expected.y) < 1e-9, 'air wreck anchors use unscaled terrain coordinates');
+  assert(Math.abs(burst.x - burst.expectedX) < 1e-9, 'collateral shockwave aligns with the unscaled building');
+  assert.equal(burst.wrecks, false, 'ship bursts have no persistent wreck storage');
   await page.setViewportSize({ width: 1600, height: 900 }); await settled();
   const anchored = await page.evaluate(() => ({
-    before: burstAudit.before, after: { x: burstAudit.wreck.x, y: burstAudit.wreck.y, groundX: burstAudit.ground.x },
-    draw: burstAudit.draw, scroll: tyran.state.scroll, offset: tyran.world.parallaxX,
+    before: burstAudit.before, after: { x: burstAudit.ground.x, y: burstAudit.ground.y, radius: burstAudit.ground.radius },
   }));
-  assert.deepEqual(anchored.after, anchored.before, 'wrecks and ground bursts stay anchored across resize');
-  assert.equal(anchored.draw.scroll, anchored.scroll, 'wrecks scroll at exactly the terrain speed');
-  assert.equal(anchored.draw.offset, anchored.offset, 'wrecks follow the terrain parallax offset');
+  assert.deepEqual(anchored.after, anchored.before, 'ground bursts retain their unscaled position and radius across resize');
   assert.deepEqual(errors, [], 'widescreen changes have no runtime errors');
   await writeFile(`${output}/results.json`, JSON.stringify({ results, damage, returned, burst, anchored, errors }, null, 2));
   console.log('PASS widescreen rendering: 4:3,16:9,21:9,32:9, native5120×1440, uniform ship/shield geometry, extra terrain, fixed scroll speed, right-side hits, and resize/save damage preservation.');

@@ -28,7 +28,7 @@ try {
     const { spriteCell } = await import('./sprite-assets.js');
     const report = {};
     const fleets = ['fleet', 'fleetJungle', 'fleetSnow', 'fleetDesert', 'fleetParadise', 'fleetAsteroid', 'fleetMars', 'fleetVolcanic', 'fleetNeon', 'fleetAlien', 'fleetVoid'].map(name => [name, 12]);
-    for (const [atlas, count] of [['nature', 16], ['structures', 16], ['structureLight', 16], ['structureHeavy', 16], ['structureCrater', 16], ['materials', 40], ['projectiles', 12], ...fleets]) {
+    for (const [atlas, count] of [['nature', 16], ['structures', 16], ['structureLight', 16], ['structureHeavy', 16], ['materials', 40], ['projectiles', 12], ...fleets]) {
       const cells = Array.from({ length: count }, (_, index) => spriteCell(atlas, index)).filter(Boolean);
       report[atlas] = { cells: cells.length, cpu: cells.filter(cell => cell.getContext('2d').getContextAttributes().willReadFrequently).length };
     }

@@ -13,8 +13,9 @@ try {
     const { drawShip, warmShipSprites, shipSpriteMemory, SHIP_PALETTES } = await import('./ships.js');
     await spritesReady;
     const before = spriteMemory();
+    if ('structureCrater' in spriteStatus() || spriteCell('structureCrater', 0) !== null) throw new Error('Retired crater atlas remains loaded');
     const frames = [];
-    for (const name of ['structures', 'structureLight', 'structureHeavy', 'structureCrater', 'effects']) {
+    for (const name of ['structures', 'structureLight', 'structureHeavy', 'effects']) {
       for (let index = 0; index < 16; index++) {
         const cell = spriteCell(name, index);
         if (name === 'effects' && index >= 10 && index <= 13) {

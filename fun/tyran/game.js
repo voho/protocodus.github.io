@@ -65,7 +65,7 @@ function syncGpuDisplay() {
 // A tiny reusable strip supplies signal interference without pixel readbacks
 // or copying the full arena into another texture during an explosion.
 const signalStrip = document.createElement('canvas'), signalContext = signalStrip.getContext('2d', { alpha: false });
-const world = new WorldRenderer(), fx = new Effects((x, y, scroll, radius) => world.canPlaceDebris(x, y, scroll, radius)), audio = new AudioEngine();
+const world = new WorldRenderer(), fx = new Effects(), audio = new AudioEngine();
 const feedback = new CombatFeedback();
 let feedbackRevision = -1;
 const keys = new Set(), numberFormat = new Intl.NumberFormat('en-US'), number = n => numberFormat.format(Math.floor(n || 0));
@@ -646,10 +646,9 @@ const WAVE_BRIEFS = {
   formation: ['Tactical formations', 'Break the formation before it passes.'],
 };
 function processEvents() {
-  const groundOffset = world.parallaxX || 0;
   const events = state.events.length ? state.events.splice(0) : state.events;
   for (const e of events) {
-    fx.emit(e, state.scroll, groundOffset);
+    fx.emit(e);
     const sound = e.type === 'pickup' && (e.bonus === 'power' || e.bonus === 'drone') ? e.bonus : e.type;
     audio.effect(sound, e.size ?? e.wave, e.type === 'challenge-result' && e.perfect ? 'perfect' : e.weapon || e.label);
     if (e.type === 'explosion' && !e.ground) {
@@ -897,7 +896,6 @@ function drawFrame() {
   focusX = focusPilots ? focusX / focusPilots : W * .66;
   world.draw(ctx, W, H, scroll, clock, quality, focusX, !fx.reduced);
   ctx.beginPath();
-  fx.drawGround(ctx, scroll, H, world.parallaxX || 0);
   if (state) {
     if (state.formations?.length) {
       ctx.save(); ctx.globalAlpha = .16; ctx.strokeStyle = SHIP_PALETTES[index]?.rim || '#e7f79a'; ctx.lineWidth = 1; ctx.setLineDash([4, 9]);
@@ -965,7 +963,7 @@ function drawFrame() {
     drawShip(ctx, px + 145, py + 115, 25, 'player', '#ffd0a0', clock, { world: index, quality, motion: !fx.reduced });
   }
   ctx.beginPath();
-  fx.draw(ctx, W, H, scroll);
+  fx.draw(ctx, W, H);
   ctx.restore();
   ctx.drawImage(vignette, 0, 0, W, H);
   if (ctx === gpu) gpu.present(displayCtx);
@@ -1005,7 +1003,7 @@ function frame(time) {
     }
     renderAlpha = scene === 'playing' ? clamp(accumulator / STEP, 0, 1) : 1;
     perf.updateMs += (performance.now() - started - perf.updateMs) * .05;
-    fx.update(dt, state.scroll); feedback.update(dt);
+    fx.update(dt); feedback.update(dt);
     if (elapsed > .006) {
       fastestFrame = Math.min(fastestFrame, elapsed * 1000);
       // A very slow frame still counts toward load; only simulation catch-up is capped.
@@ -1020,7 +1018,7 @@ function frame(time) {
       }
     }
   } else if (preview) previewScroll += dt * 45;
-  else if (fading) fx.update(dt, state?.scroll || 0);
+  else if (fading) fx.update(dt);
   if (scene === 'end') updateEndFade(dt);
   if (scene === 'bonus-outro') updateBonusOutro(dt);
   renderCombatFeedback();
