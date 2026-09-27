@@ -12,33 +12,49 @@ await mkdir(output, { recursive: true });
 await page.addInitScript(() => {
   localStorage.setItem('tyran-muted', 'true');
   window.shapeAudit = {};
-  const proto = CanvasRenderingContext2D.prototype;
   const cssScale = ctx => {
     const transform = ctx.getTransform(), box = ctx.canvas.getBoundingClientRect();
-    return [Math.abs(transform.a) * box.width / ctx.canvas.width, Math.abs(transform.d) * box.height / ctx.canvas.height];
+    const x = box.width / ctx.canvas.width, y = box.height / ctx.canvas.height;
+    return [Math.hypot(transform.a * x, transform.b * y), Math.hypot(transform.c * x, transform.d * y)];
   };
-  for (const name of ['drawImage', 'ellipse', 'arc']) {
+  window.installShapeAudit = (proto, backend) => { for (const name of ['drawImage', 'ellipse', 'arc']) {
     const original = proto[name];
     proto[name] = function (...args) {
-      if (this.canvas.id === 'game-canvas') {
+      if (this.canvas.id === 'game-canvas' || this.canvas.id === 'game-gpu-canvas') {
         const [sx, sy] = cssScale(this);
-        if (name === 'drawImage' && args.length === 5 && args[1] === -140 && args[2] === -140 && args[3] === 280 && args[4] === 280) {
-          shapeAudit.ship = { width: 280 * sx, height: 280 * sy };
+        if (name === 'drawImage' && (args.length === 5 || args.length === 9) && this.globalCompositeOperation === 'source-over') {
+          // Hulls trim transparent borders with the nine-argument overload.
+          // Recover their full source footprint without assuming a crop size.
+          const source = args[0], cropped = args.length === 9;
+          const scaleX = cropped ? args[7] / args[3] : args[3] / source.width;
+          const scaleY = cropped ? args[8] / args[4] : args[4] / source.height;
+          const x = cropped ? args[5] - args[1] * scaleX : args[1];
+          const y = cropped ? args[6] - args[2] * scaleY : args[2];
+          const width = source.width * scaleX, height = source.height * scaleY;
+          if (Math.abs(x + 140) < 1e-7 && Math.abs(y + 140) < 1e-7
+            && Math.abs(width - 280) < 1e-7 && Math.abs(height - 280) < 1e-7) {
+            shapeAudit.ship = { width: width * sx, height: height * sy, backend };
+          }
         }
         if (name === 'ellipse' && args[0] === 0 && args[1] === 0 && args[2] === 37 && args[3] === 46) {
-          shapeAudit.shield = { width: 74 * sx, height: 92 * sy };
+          shapeAudit.shield = { width: 74 * sx, height: 92 * sy, backend };
         }
         if (name === 'arc' && args[2] >= 42 && args[2] <= 46 && args[3] === 0 && args[4] === Math.PI * 2) {
-          shapeAudit.guard = { width: args[2] * 2 * sx, height: args[2] * 2 * sy };
+          shapeAudit.guard = { width: args[2] * 2 * sx, height: args[2] * 2 * sy, backend };
         }
       }
       return original.apply(this, args);
     };
-  }
+  } };
+  installShapeAudit(CanvasRenderingContext2D.prototype, 'canvas2d');
 });
 const settled = () => page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
 try {
   await page.goto(url); await page.waitForFunction(() => window.tyran && document.body.dataset.ready === 'true');
+  await page.evaluate(async () => {
+    const { GPUCanvas2D } = await import('./gpu-canvas.js');
+    installShapeAudit(GPUCanvas2D.prototype, 'webgl2');
+  });
   for (const viewport of [{ width: 1200, height: 900 }, { width: 1600, height: 900 }, { width: 2100, height: 900 }, { width: 3200, height: 900 }, { width: 5120, height: 1440 }]) {
     await page.setViewportSize(viewport);
     await page.evaluate(() => {
@@ -57,7 +73,7 @@ try {
       const props = [...world.bands.values()].flat();
       return {
         css: { width: box.width, height: box.height }, logical: { width: state.width, height: state.height }, backing: { width: surface.width, height: surface.height },
-        scale: { x: box.width / state.width, y: box.height / state.height }, shapes: structuredClone(shapeAudit),
+        scale: { x: box.width / state.width, y: box.height / state.height }, shapes: structuredClone(shapeAudit), renderer: tyran.renderer.backend,
         terrain: { scale: world.scale, mapWidth: world.mapWidth, viewportWidth: world.viewportWidth, tileWidth: tile.width, detailScale: world.detailScale,
           rightCoverage: Array.from(sample).filter((_, index) => index % 4 === 3).every(alpha => alpha > 0),
           rightProps: props.filter(prop => prop.x > state.width * .75 && prop.x < state.width).length,
@@ -69,6 +85,8 @@ try {
     assert.equal(result.logical.width, 900 * result.css.width / result.css.height);
     assert.equal(result.logical.height, 900);
     assert(result.shapes.ship && result.shapes.shield && result.shapes.guard, 'actual flight draws a hull, shield and circular guard');
+    assert.equal(result.renderer, new URL(url).searchParams.get('renderer') === 'native' ? 'canvas2d' : 'webgl2', 'the requested renderer is active throughout geometry verification');
+    assert(Object.values(result.shapes).every(shape => shape.backend === result.renderer), 'every geometry sample comes from the active visible renderer');
     assert(Math.abs(result.shapes.ship.width / result.shapes.ship.height - 1) < 1e-9, 'ship sprite keeps its source proportions');
     assert(Math.abs(result.shapes.shield.width / result.shapes.shield.height - 74 / 92) < 1e-9, 'shield retains its authored ellipse');
     assert(Math.abs(result.shapes.guard.width / result.shapes.guard.height - 1) < 1e-9, 'circular guard stays round');
@@ -95,7 +113,8 @@ try {
     const world = tyran.world, buildings = new Set(['temple', 'ruin', 'bunker', 'station', 'radar', 'dome', 'solar', 'refinery', 'building', 'tower', 'pylon', 'fortress', 'hut', 'satellite']);
     world.prepareGround(tyran.state.width, tyran.state.height, 0, tyran.state.width / 2);
     let target;
-    for (let row = 0; row > -5 && !target; row--) target = world.getBand(row).find(prop => prop.x > 2000 && prop.x < 3000 && buildings.has(prop.type));
+    for (let row = 0; row > -15 && !target; row--) target = world.getBand(row).find(prop => prop.x > 2000 && prop.x < 3000 && buildings.has(prop.type)
+      && world.canPlaceDebris(prop.x + world.parallaxX, prop.y, 0, Math.max(40, prop.size * 1.3 + 2)));
     if (!target) throw new Error('Missing expanded-column building');
     const before = target.hp, at = { x: target.x, y: target.y, size: target.size };
     world.hit(target.x + world.parallaxX, target.y + world.scroll, 0, 3);
@@ -125,7 +144,11 @@ try {
     tyran.pause();
     const world = tyran.world, state = tyran.state, target = world.getBand(wideBuilding.row).find(prop => prop.id === wideBuilding.id);
     world.prepareGround(state.width, state.height, state.scroll, state.players[0].x);
-    const x = target.x + world.parallaxX, y = target.y + state.scroll, size = target.hp;
+    const x = target.x + world.parallaxX, y = target.y + state.scroll, size = 20;
+    // A normal 20px ship burst has a 40px wreck footprint. Weaken the building
+    // through a real hit instead of creating an enormous, shoreline-crossing wreck.
+    world.hit(x, y, 0, target.hp - 20, state.scroll);
+    if (target.hp !== 20 || !world.canPlaceDebris(x, y, state.scroll, size * 2)) throw new Error('Burst fixture must be a damaged building on fully dry ground');
     tyran.fx.reset(); state.events.push({ type: 'explosion', x, y, size });
     tyran.step(1 / 60); tyran.pause();
     const wreck = tyran.fx.wrecks[0], ground = tyran.fx.rings.find(ring => ring.ground);

@@ -73,6 +73,25 @@ async function audit(page, label, touch) {
     });
     const pointTargets = [.01, .5, .99].flatMap(x => [.01, .5, .99].map(y =>
       document.elementFromPoint(r.left + r.width * x, r.top + r.height * y)?.id));
+    // These independent instruments may rearrange or share a slot when one is
+    // hidden, but two visible groups must never cover each other's content.
+    const groups = ['.mission-instrument', '.player-resources', '.pilot-bonuses', '.weapon-instrument',
+      '.loadout-line', '#announcement', '#boss-hud', '#challenge-hud', '#combat-feedback', '.scoreboard', '#pause-button']
+      .flatMap(selector => {
+        const el = document.querySelector(selector);
+        return visible(el) ? [{ selector, ...bounds(el) }] : [];
+      });
+    const groupOverlaps = [];
+    for (let i = 0; i < groups.length; i++) for (let j = i + 1; j < groups.length; j++) {
+      const a = groups[i], b = groups[j];
+      const width = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x);
+      const height = Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y);
+      if (width > .75 && height > .75) groupOverlaps.push({ first: a.selector, second: b.selector, width, height });
+    }
+    const horizontalGroups = [
+      { name: 'vital resources', selectors: ['.hull-line', '.shield-line', '.energy-line'] },
+      { name: 'score and credits', selectors: ['.score-instrument', '.credits-instrument'] },
+    ].map(group => ({ name: group.name, boxes: group.selectors.map(selector => ({ selector, ...bounds(document.querySelector(selector)) })) }));
     // Element boxes can fit while their text overflows a shrinking grid/flex
     // slot. Measure the actual text fragments, including clipped fragments.
     // Mission/announcement copy and reward descriptions may intentionally use
@@ -128,7 +147,7 @@ async function audit(page, label, touch) {
       uniformScale: Math.abs(r.width / tyran.state.width - r.height / tyran.state.height) < 1e-9,
       rootOverflow: document.documentElement.scrollWidth > innerWidth || document.documentElement.scrollHeight > innerHeight,
       valueFonts: ['#score-value','#credits-value','#p1-hull-value','#p1-shield-value','#p1-energy-status','#p1-bombs','#p1-drones','#p1-lives'].map(selector => ({ selector, size: parseFloat(getComputedStyle(document.querySelector(selector)).fontSize) })),
-      notice: document.querySelector('#announcement-title').textContent, canvasText: [...__uiCanvasText], textFit,
+      notice: document.querySelector('#announcement-title').textContent, canvasText: [...__uiCanvasText], textFit, groupOverlaps, horizontalGroups,
     };
   });
   assert.deepEqual(result.overlaps, [], `${label}: no visible UI covers any arena pixel`);
@@ -137,7 +156,18 @@ async function audit(page, label, touch) {
   assert.equal(result.rootOverflow, false, `${label}: layout stays inside the screen`);
   assert(result.oneBar, `${label}: every flight instrument belongs to the single top bar`);
   const bar = result.instruments[0];
-  assert(bar.height <= 144 && Math.abs(bar.y + bar.height - result.arena.y) < .5, `${label}: one compact bar sits directly above the arena`);
+  const maxBarHeight = result.viewport.width >= 1200 ? 72 : result.viewport.width > 600 ? 104 : 120;
+  assert(bar.height <= maxBarHeight, `${label}: the compact HUD is at most ${maxBarHeight}px high`);
+  assert(Math.abs(bar.y + bar.height - result.arena.y) < .5, `${label}: the single bar sits directly above the arena`);
+  assert.deepEqual(result.groupOverlaps, [], `${label}: independent visible HUD instruments never overlap`);
+  if (result.viewport.width >= 1200) for (const group of result.horizontalGroups) {
+    const firstCenter = group.boxes[0].y + group.boxes[0].height / 2;
+    for (const [index, box] of group.boxes.entries()) {
+      assert(Math.abs(box.y + box.height / 2 - firstCenter) <= 1, `${label}: ${group.name} share one horizontal row`);
+      if (index) assert(group.boxes[index - 1].x + group.boxes[index - 1].width <= box.x + .75,
+        `${label}: ${group.name} read left to right without overlap`);
+    }
+  }
   if (!touch) assert(Math.abs(result.arena.y + result.arena.height - result.viewport.height) < .5, `${label}: no bottom HUD reserves map space`);
   assert(result.arena.height >= result.viewport.height * .5, `${label}: at least half the screen height remains playable`);
   assert(result.arena.width >= result.viewport.width * .6, `${label}: controls leave a useful flight width`);
@@ -246,7 +276,9 @@ try {
   for (const touch of [false, true]) {
     const viewports = touch
       ? [{ width: 320, height: 568 }, { width: 390, height: 844 }, { width: 568, height: 320 }, { width: 667, height: 375 }, { width: 844, height: 390 }, { width: 1024, height: 768 }]
-      : [{ width: 1280, height: 720 }, { width: 1200, height: 720 }, { width: 1920, height: 1080 }, { width: 5120, height: 1440 }, { width: 760, height: 600 }];
+      : [{ width: 1280, height: 720 }, { width: 1200, height: 720 }, { width: 1199, height: 720 },
+        { width: 1920, height: 1080 }, { width: 5120, height: 1440 }, { width: 760, height: 600 },
+        { width: 601, height: 720 }, { width: 600, height: 720 }];
     const page = await newPage(touch, viewports[0]);
     for (const viewport of viewports) {
       await page.setViewportSize(viewport); await settled(page);
