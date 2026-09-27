@@ -141,6 +141,7 @@ For browser interaction checks, use an existing Playwright installation and Chro
 ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs node tests/startup-browser-check.mjs
 ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs node tests/browser-check.mjs
 ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs node tests/camera-check.mjs
+ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs node tests/resource-check.mjs
 ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs node tests/faction-browser-check.mjs
 ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs node tests/shadows-check.mjs
 ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs node tests/cargo-check.mjs
@@ -176,8 +177,21 @@ The setup menu is a static DOM screen. Changing seed, faction, size, or terrain 
 
 The game runs directly from static files. `sim.js` owns the deterministic simulation and opponent, `render.js` draws the battlefield with Canvas 2D, and `main.js` connects pointer/keyboard/touch input to the compact DOM command console. `save.js` validates and restores the versioned local save, and `audio.js` generates sound effects with native Web Audio and plays the local soundtrack. No runtime packages or network services are required.
 
-Units and buildings use newly generated high-resolution military sprites with smooth contours, broad armor panels, substantial weapons and restrained mechanical detail designed for gameplay size. Unit frames are prepared at 64–128 pixels and building frames at 80–208 pixels for high-density displays, keeping their existing battlefield sizes. High-quality filtered preparation and sprite drawing keep roofs, turns, zoom, portraits, and production previews smooth. Friendly units and buildings have ivory armor with cobalt panels and blue square insignia; enemies have broad crimson armor and red diamond insignia. These colors and shapes carry through production previews, cargo/idle states, and the minimap. `assets.js` loads and normalizes the sprite atlases once, prepares faction colors, and supplies the textured terrain. The battlefield fills the viewport; a collapsible production console and contextual selection controls preserve space for play. Asset provenance and the complete built-in image-generation prompt set are in [assets/generated/ASSETS.md](assets/generated/ASSETS.md).
+Units and buildings use generated military sprites with smooth contours, broad armor panels, substantial weapons and restrained mechanical detail designed for gameplay size. Unit frames are baked at 64–128 pixels into small lossless WebP atlases before shipping; building frames are prepared at 80–208 pixels during loading. These sizes serve high-density displays while keeping existing battlefield sizes. Filtered preparation and sprite drawing keep roofs, turns, zoom, portraits, and production previews smooth. Friendly units and buildings have ivory armor with cobalt panels and blue square insignia; enemies have broad crimson armor and red diamond insignia. These colors and shapes carry through production previews, cargo/idle states, and the minimap. `assets.js` slices the prepared unit atlases without resizing or recoloring friendly frames, derives enemy colors and shadows, normalizes building sprites, and supplies the textured terrain. The battlefield fills the viewport; a collapsible production console and contextual selection controls preserve space for play. Asset provenance and the complete built-in image-generation prompt set are in [assets/generated/ASSETS.md](assets/generated/ASSETS.md).
 
 Every unit uses **eight separately generated direction views**, spaced 45° apart, for both factions. Infantry also has eight walking poses. While turning and moving, it displays the closest view to its continuous simulation heading. Each sheet shows the same unit from a fixed shallow overhead camera, including distinct front and rear surfaces. The renderer uses those views directly, preserves whole silhouettes and shared scales, and keeps shadows pointing lower-right. Attached effects follow the selected direction, and hauler cargo fills each view's hopper through a bounded cache. The camera check covers source integrity, nearest-direction selection, full turns, animation registration, transparency, and desktop/mobile previews at normal and minimum zoom.
 
 Units and buildings cast soft silhouette shadows from a fixed upper-left light. Shadows draw on the ground before objects, grow with building construction, and respect fog of war. Prepared shadow images are cached with the sprites.
+
+### Rebuilding unit atlases
+
+Keep original directional art in `assets/generated/directions/`. The game downloads only `assets/prepared/units/`: 18 lossless sheets totaling 1.30 MB instead of 16.16 MB. Each cell uses the existing renderer's prepared resolution and normalization, preserving physical size, anchors, native maximum zoom, and portrait detail. The manifest stores original draw scales and hopper polygons in prepared pixel coordinates. `source-bounds.json` records extraction bounds for source-art QA and is not loaded during play.
+
+After changing a unit master, source normalization, friendly paint, or hopper bounds, rebuild with an existing Playwright/Chrome installation and `cwebp` from libwebp. Run from `fun/ashline/`; the tool starts its own temporary local server. `ASHLINE_BROWSER` and `CWEBP` can override the browser channel and encoder executable.
+
+```sh
+ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs node tools/prepare-unit-atlases.mjs
+ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs node tools/prepare-unit-atlases.mjs --check
+```
+
+The check regenerates into a temporary directory and compares all outputs without modifying them. Commit the updated sheets and metadata together. `tests/resource-check.mjs` verifies the download/pixel budgets, exact consumption of baked frames, unchanged maximum zoom, and successful loading with source masters blocked. Unit masters remain available for future art changes but are never fetched during game startup or play.

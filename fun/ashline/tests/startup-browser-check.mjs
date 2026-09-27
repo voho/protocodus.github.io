@@ -14,7 +14,7 @@ try {
     const page = await browser.newPage({ viewport, hasTouch: viewport.width < 800 });
     const assetRequests = [];
     page.on('pageerror', error => errors.push(error.message));
-    page.on('request', request => { if (request.url().includes('/assets/generated/')) assetRequests.push(request.url()); });
+    page.on('request', request => { if (/\/assets\/(?:generated|prepared)\/.*\.webp(?:\?|$)/.test(request.url())) assetRequests.push(request.url()); });
     await page.addInitScript(() => {
       window.startupFrames = 0;
       const raf = requestAnimationFrame.bind(window);

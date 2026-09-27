@@ -17,14 +17,16 @@ try {
   const sourceIntegrity = await page.evaluate(async () => {
     const { removeMatte, spriteStats } = await import('./assets.js');
     const { UNITS, unitRole } = await import('./sim.js'), stats = spriteStats();
+    const masterBounds = await (await fetch('./assets/prepared/units/source-bounds.json')).json();
     if (!stats.ready || stats.errors.length) throw Error(`Assets did not load: ${stats.errors.join('; ')}`);
     const sources = [['organics-buildings', 3, 3], ['unity-buildings', 3, 3]].map(([name, columns, rows]) => ({ path: `assets/generated/${name}.webp`, columns, rows }));
     for (const type of Object.keys(UNITS)) {
       const source = stats.directionSources[type], poses = ['rifle', 'rocket'].includes(unitRole(type)) ? 2 : 1;
-      if (!source || source.path !== `assets/generated/directions/${type}.webp` || source.columns !== 4 || source.rows !== poses * 2) throw Error(`${type}: missing authored directional atlas`);
+      if (!source || source.path !== `assets/prepared/units/${type}.webp` || source.sourcePath !== `assets/generated/directions/${type}.webp` || source.columns !== 4 || source.rows !== poses * 2) throw Error(`${type}: missing authored directional atlas`);
       if (source.cells.length !== poses || source.cells.some((cells, pose) => cells.length !== 8 || cells.some((cell, direction) => cell !== pose * 8 + direction))) throw Error(`${type}: directions must use distinct source cells in E, SE, S, SW, W, NW, N, NE order`);
-      if (!source.sourceBounds || source.sourceBounds.length !== poses || source.sourceBounds.some(cells => cells.length !== 8)) throw Error(`${type}: missing extracted source bounds`);
-      sources.push(source);
+      const sourceBounds = masterBounds[type];
+      if (!sourceBounds || sourceBounds.length !== poses || sourceBounds.some(cells => cells.length !== 8)) throw Error(`${type}: missing extracted source bounds`);
+      sources.push({ ...source, path: source.sourcePath, sourceBounds });
     }
     function components(pixels) {
       const { data, width, height } = pixels, visited = new Uint8Array(width * height), queue = new Int32Array(width * height), found = [];

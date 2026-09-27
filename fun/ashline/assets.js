@@ -1,5 +1,6 @@
-// Generated art is decoded once; the battlefield only draws small, prepared frames.
+// Units ship at their prepared resolution; high-resolution masters stay out of game loading.
 import { UNITS, BUILDINGS as BUILDING_DEFS, buildingRole, unitRole } from './sim.js';
+import { UNIT_SHEETS } from './assets/prepared/units/manifest.js';
 export const assetStatus = { loaded: 0, total: 5 + Object.keys(UNITS).length, ready: false, started: false, errors: [] };
 import { nextPaint } from './loading.js';
 let startLoading;
@@ -326,10 +327,39 @@ function splitSheet(image, columns, rows, size, keyed, anchored = false, recolor
   });
 }
 
-async function load(name, prepare) {
+// Build-time entry point for tools/prepare-unit-atlases.mjs. Reuse the original
+// browser normalization so baking preserves prepared detail and physical unit sizes.
+export function prepareUnitAtlas(image, type) {
+  const role = unitRole(type), pixels = UNIT_PIXELS[role], rows = WALKING_ROLES.has(role) ? 4 : 2;
+  const views = splitSheet(image, 4, rows, pixels, false, true, true, null, .12);
+  const atlas = canvas(pixels * 4, pixels * rows), ctx = atlas.getContext('2d');
+  views.forEach((view, index) => ctx.drawImage(view.teams[0], index % 4 * pixels, Math.floor(index / 4) * pixels));
+  const metadata = { pixels, rows, drawScale: views[0].drawScale };
+  if (role === 'harvester') metadata.hoppers = views.map((view, index) => {
+    const space = view.sourceSpace;
+    return UNIT_HOPPER_REGIONS[type][index].map(([x, y]) =>
+      [space.x + x * space.width * space.scale, space.y + y * space.height * space.scale]);
+  });
+  return { atlas, metadata, sourceBounds: views.map(view => view.sourceBounds) };
+}
+
+function preparedUnitViews(image, type) {
+  const { pixels, rows, drawScale, hoppers } = UNIT_SHEETS[type];
+  if (image.width !== pixels * 4 || image.height !== pixels * rows) throw new Error('Prepared unit atlas dimensions do not match its manifest');
+  return Array.from({ length: 4 * rows }, (_, index) => {
+    const friendly = canvas(pixels);
+    friendly.getContext('2d').drawImage(image, index % 4 * pixels, Math.floor(index / 4) * pixels, pixels, pixels, 0, 0, pixels, pixels);
+    // Friendly paint is already baked. Applying it again would change its colors.
+    return { teams: [friendly, factionFrame(friendly, 1)], drawScale, hopper: hoppers?.[index],
+      shadow: silhouette(friendly, '#0b1117', pixels * .021),
+      contact: silhouette(friendly, '#080f14', pixels * .008) };
+  });
+}
+
+async function load(name, prepare, directory = 'generated') {
   try {
     const image = new Image();
-    image.src = new URL(`./assets/generated/${name}.webp`, import.meta.url).href;
+    image.src = new URL(`./assets/${directory}/${name}.webp`, import.meta.url).href;
     await image.decode();
     // Image decoding can finish together. Serialize CPU work with a paint between atlases.
     const prepared = preparation.then(async () => { await nextPaint(); await prepare(image); assetStatus.loaded++; });
@@ -376,11 +406,8 @@ export const assetsReady = loadingRequested.then(() => Promise.all([
       sprites[type] = [frame];
     });
   }),
-  ...Object.keys(UNITS).map(type => load(`directions/${type}`, async image => {
-    const role = unitRole(type), poses = WALKING_ROLES.has(role) ? 2 : 1;
-    // Generative sheets can place a weapon slightly across an otherwise empty grid gap.
-    // Read a padded cell and retain its complete main silhouette before normalization.
-    const views = splitSheet(image, 4, poses * 2, UNIT_PIXELS[role], false, true, true, null, .12);
+  ...Object.keys(UNITS).map(type => load(type, async image => {
+    const views = preparedUnitViews(image, type), poses = views.length / UNIT_DIRECTIONS;
     const frames = [];
     for (let pose = 0; pose < poses; pose++) {
       await nextPaint();
@@ -394,7 +421,7 @@ export const assetsReady = loadingRequested.then(() => Promise.all([
       frames.push({ ...directions[0], directions });
     }
     sprites[type] = frames;
-  })),
+  }, 'prepared/units')),
   load('unity-buildings', image => {
     for (const [index, type] of ['unityCore', 'unityReactor', 'unityRefinery', 'unityBarracks', 'unityFactory', 'unityLab', 'unityCapacitor', 'unityTurret', 'unityRocketTower'].entries()) {
       const [frame] = splitSheet(image, 3, 3, BUILDINGS[type] * 64 + 16, true, false, true, [index]);
@@ -486,12 +513,10 @@ const UNIT_HOPPER_REGIONS = {
   ],
 };
 
-function loadedUnitHopper(view, type, direction, team, level, mineral) {
+function loadedUnitHopper(view, team, level, mineral) {
   const source = view.teams[team], image = canvas(source.width, source.height), ctx = image.getContext('2d');
   ctx.drawImage(source, 0, 0);
-  const space = view.sourceSpace;
-  const corners = (UNIT_HOPPER_REGIONS[type] || UNIT_HOPPER_REGIONS.harvester)[direction]
-    .map(([x, y]) => [space.x + x * space.width * space.scale, space.y + y * space.height * space.scale]);
+  const corners = view.hopper;
   const boundary = new Path2D();
   corners.forEach(([x, y], i) => i ? boundary.lineTo(x, y) : boundary.moveTo(x, y)); boundary.closePath();
   ctx.save(); ctx.clip(boundary); ctx.globalCompositeOperation = 'source-atop';
@@ -530,7 +555,7 @@ function unitBodyDirection(frame, entity, direction) {
   const key = `${entity.type}:${direction}:${team}:${level}:${mineral}`;
   let cached = cargoDirections.get(key);
   if (cached) { cargoDirections.delete(key); cargoDirections.set(key, cached); return cached; }
-  const image = loadedUnitHopper(view, entity.type, direction, team, level, mineral);
+  const image = loadedUnitHopper(view, team, level, mineral);
   cached = { image, x: -image.width / 2, y: -image.height / 2, bytes: image.width * image.height * 4 };
   while (cargoDirectionBytes + cached.bytes > CARGO_DIRECTION_LIMIT && cargoDirections.size) {
     const oldest = cargoDirections.keys().next().value;
@@ -632,9 +657,9 @@ export function spriteStats() {
   return { ...assetStatus, errors: [...assetStatus.errors],
     frames: Object.fromEntries(Object.entries(sprites).map(([type, frames]) => [type, frames.length])),
     directionSources: Object.fromEntries(Object.keys(sprites).filter(type => UNITS[type]).map(type => [type, {
-      path: `assets/generated/directions/${type}.webp`, columns: 4, rows: WALKING_ROLES.has(unitRole(type)) ? 4 : 2,
-      cells: sprites[type].map((_, pose) => Array.from({ length: UNIT_DIRECTIONS }, (_, direction) => pose * UNIT_DIRECTIONS + direction)),
-      sourceBounds: sprites[type].map(frame => frame.directions.map(view => ({ ...view.sourceBounds }))) }])),
+      path: `assets/prepared/units/${type}.webp`, sourcePath: `assets/generated/directions/${type}.webp`,
+      columns: 4, rows: UNIT_SHEETS[type].rows, pixels: UNIT_SHEETS[type].pixels,
+      cells: sprites[type].map((_, pose) => Array.from({ length: UNIT_DIRECTIONS }, (_, direction) => pose * UNIT_DIRECTIONS + direction)) }])),
     directions: Object.fromEntries(Object.entries(sprites).filter(([type]) => UNITS[type])
       .map(([type, frames]) => [type, Math.min(...frames.map(frame => frame.directions?.length || 0))])),
     directionCache: { bytes: directionBytes, images: directionImages, cargoBytes: cargoDirectionBytes,

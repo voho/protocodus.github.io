@@ -1,0 +1,1314 @@
+{
+  "rifle": [
+    [
+      {
+        "x": 84.38,
+        "y": 91.38,
+        "width": 224,
+        "height": 186,
+        "mainPixels": 22615
+      },
+      {
+        "x": 403.88,
+        "y": 88.38,
+        "width": 196,
+        "height": 194,
+        "mainPixels": 21010
+      },
+      {
+        "x": 712.38,
+        "y": 80.38,
+        "width": 144,
+        "height": 203,
+        "mainPixels": 17547
+      },
+      {
+        "x": 976.88,
+        "y": 88.38,
+        "width": 188,
+        "height": 193,
+        "mainPixels": 20151
+      },
+      {
+        "x": 60.38,
+        "y": 382.88,
+        "width": 214,
+        "height": 187,
+        "mainPixels": 20884
+      },
+      {
+        "x": 399.88,
+        "y": 375.88,
+        "width": 168,
+        "height": 193,
+        "mainPixels": 20033
+      },
+      {
+        "x": 709.38,
+        "y": 344.88,
+        "width": 144,
+        "height": 233,
+        "mainPixels": 17909
+      },
+      {
+        "x": 1004.88,
+        "y": 378.88,
+        "width": 167,
+        "height": 193,
+        "mainPixels": 18567
+      }
+    ],
+    [
+      {
+        "x": 83.38,
+        "y": 685.38,
+        "width": 224,
+        "height": 182,
+        "mainPixels": 23744
+      },
+      {
+        "x": 401.88,
+        "y": 669.38,
+        "width": 199,
+        "height": 197,
+        "mainPixels": 20367
+      },
+      {
+        "x": 711.38,
+        "y": 662.38,
+        "width": 143,
+        "height": 213,
+        "mainPixels": 17799
+      },
+      {
+        "x": 983.88,
+        "y": 675.38,
+        "width": 187,
+        "height": 204,
+        "mainPixels": 19955
+      },
+      {
+        "x": 58.38,
+        "y": 970.88,
+        "width": 211,
+        "height": 183,
+        "mainPixels": 21053
+      },
+      {
+        "x": 398.88,
+        "y": 962.88,
+        "width": 170,
+        "height": 204,
+        "mainPixels": 20255
+      },
+      {
+        "x": 709.38,
+        "y": 934.88,
+        "width": 145,
+        "height": 242,
+        "mainPixels": 17750
+      },
+      {
+        "x": 1003.88,
+        "y": 966.88,
+        "width": 169,
+        "height": 207,
+        "mainPixels": 19833
+      }
+    ]
+  ],
+  "rocket": [
+    [
+      {
+        "x": 66.38,
+        "y": 27.380000000000003,
+        "width": 283,
+        "height": 223,
+        "mainPixels": 39256
+      },
+      {
+        "x": 367.88,
+        "y": 36.38,
+        "width": 260,
+        "height": 245,
+        "mainPixels": 36350
+      },
+      {
+        "x": 710.38,
+        "y": 25.380000000000003,
+        "width": 146,
+        "height": 256,
+        "mainPixels": 25757
+      },
+      {
+        "x": 955.88,
+        "y": 33.38,
+        "width": 251,
+        "height": 251,
+        "mainPixels": 35606
+      },
+      {
+        "x": 18.380000000000003,
+        "y": 336.88,
+        "width": 274,
+        "height": 245,
+        "mainPixels": 38075
+      },
+      {
+        "x": 365.88,
+        "y": 329.88,
+        "width": 246,
+        "height": 249,
+        "mainPixels": 34400
+      },
+      {
+        "x": 700.38,
+        "y": 323.88,
+        "width": 160,
+        "height": 279,
+        "mainPixels": 26875
+      },
+      {
+        "x": 973.88,
+        "y": 335.88,
+        "width": 230,
+        "height": 233,
+        "mainPixels": 30327
+      }
+    ],
+    [
+      {
+        "x": 64.38,
+        "y": 649.38,
+        "width": 284,
+        "height": 233,
+        "mainPixels": 39464
+      },
+      {
+        "x": 362.88,
+        "y": 653.38,
+        "width": 272,
+        "height": 254,
+        "mainPixels": 37323
+      },
+      {
+        "x": 709.38,
+        "y": 646.38,
+        "width": 148,
+        "height": 255,
+        "mainPixels": 25039
+      },
+      {
+        "x": 957.88,
+        "y": 649.38,
+        "width": 253,
+        "height": 264,
+        "mainPixels": 37575
+      },
+      {
+        "x": 17.380000000000003,
+        "y": 957.88,
+        "width": 281,
+        "height": 238,
+        "mainPixels": 38823
+      },
+      {
+        "x": 365.88,
+        "y": 953.88,
+        "width": 246,
+        "height": 241,
+        "mainPixels": 32253
+      },
+      {
+        "x": 700.38,
+        "y": 940.88,
+        "width": 164,
+        "height": 275,
+        "mainPixels": 27063
+      },
+      {
+        "x": 968.88,
+        "y": 949.88,
+        "width": 240,
+        "height": 239,
+        "mainPixels": 31748
+      }
+    ]
+  ],
+  "scout": [
+    [
+      {
+        "x": 83.78,
+        "y": 71.78,
+        "width": 292,
+        "height": 299,
+        "mainPixels": 63550
+      },
+      {
+        "x": 504.28,
+        "y": 69.78,
+        "width": 359,
+        "height": 319,
+        "mainPixels": 63103
+      },
+      {
+        "x": 970.78,
+        "y": 68.78,
+        "width": 278,
+        "height": 294,
+        "mainPixels": 63781
+      },
+      {
+        "x": 1356.28,
+        "y": 81.78,
+        "width": 341,
+        "height": 306,
+        "mainPixels": 64492
+      },
+      {
+        "x": 94.78,
+        "y": 509.28,
+        "width": 308,
+        "height": 297,
+        "mainPixels": 67438
+      },
+      {
+        "x": 505.28,
+        "y": 503.28,
+        "width": 343,
+        "height": 314,
+        "mainPixels": 62666
+      },
+      {
+        "x": 964.78,
+        "y": 494.28,
+        "width": 288,
+        "height": 309,
+        "mainPixels": 65738
+      },
+      {
+        "x": 1375.28,
+        "y": 503.28,
+        "width": 341,
+        "height": 315,
+        "mainPixels": 62494
+      }
+    ]
+  ],
+  "tank": [
+    [
+      {
+        "x": 53.78,
+        "y": 129.78,
+        "width": 377,
+        "height": 222,
+        "mainPixels": 60053
+      },
+      {
+        "x": 502.28,
+        "y": 65.78,
+        "width": 335,
+        "height": 319,
+        "mainPixels": 62926
+      },
+      {
+        "x": 978.78,
+        "y": 56.78,
+        "width": 258,
+        "height": 322,
+        "mainPixels": 69014
+      },
+      {
+        "x": 1383.28,
+        "y": 60.78,
+        "width": 335,
+        "height": 323,
+        "mainPixels": 64093
+      },
+      {
+        "x": 24.78,
+        "y": 565.28,
+        "width": 372,
+        "height": 224,
+        "mainPixels": 61010
+      },
+      {
+        "x": 502.28,
+        "y": 483.28,
+        "width": 341,
+        "height": 329,
+        "mainPixels": 63634
+      },
+      {
+        "x": 975.78,
+        "y": 455.28,
+        "width": 262,
+        "height": 350,
+        "mainPixels": 64222
+      },
+      {
+        "x": 1377.28,
+        "y": 485.28,
+        "width": 328,
+        "height": 332,
+        "mainPixels": 60636
+      }
+    ]
+  ],
+  "artillery": [
+    [
+      {
+        "x": 65.78,
+        "y": 136.78,
+        "width": 382,
+        "height": 162,
+        "mainPixels": 43863
+      },
+      {
+        "x": 516.28,
+        "y": 81.78,
+        "width": 352,
+        "height": 260,
+        "mainPixels": 46054
+      },
+      {
+        "x": 1017.78,
+        "y": 63.78,
+        "width": 180,
+        "height": 345,
+        "mainPixels": 43087
+      },
+      {
+        "x": 1347.28,
+        "y": 81.78,
+        "width": 352,
+        "height": 259,
+        "mainPixels": 46194
+      },
+      {
+        "x": 42.78,
+        "y": 579.28,
+        "width": 394,
+        "height": 164,
+        "mainPixels": 45863
+      },
+      {
+        "x": 526.28,
+        "y": 497.28,
+        "width": 328,
+        "height": 294,
+        "mainPixels": 46276
+      },
+      {
+        "x": 1017.78,
+        "y": 460.28,
+        "width": 180,
+        "height": 347,
+        "mainPixels": 44356
+      },
+      {
+        "x": 1361.28,
+        "y": 495.28,
+        "width": 328,
+        "height": 296,
+        "mainPixels": 46355
+      }
+    ]
+  ],
+  "harvester": [
+    [
+      {
+        "x": 48.78,
+        "y": 103.78,
+        "width": 372,
+        "height": 251,
+        "mainPixels": 75239
+      },
+      {
+        "x": 502.28,
+        "y": 47.78,
+        "width": 383,
+        "height": 332,
+        "mainPixels": 76745
+      },
+      {
+        "x": 991.78,
+        "y": 40.78,
+        "width": 233,
+        "height": 354,
+        "mainPixels": 71254
+      },
+      {
+        "x": 1322.28,
+        "y": 45.78,
+        "width": 385,
+        "height": 332,
+        "mainPixels": 77477
+      },
+      {
+        "x": 42.78,
+        "y": 531.28,
+        "width": 378,
+        "height": 251,
+        "mainPixels": 76800
+      },
+      {
+        "x": 478.28,
+        "y": 489.28,
+        "width": 383,
+        "height": 326,
+        "mainPixels": 75384
+      },
+      {
+        "x": 981.78,
+        "y": 464.28,
+        "width": 245,
+        "height": 335,
+        "mainPixels": 68934
+      },
+      {
+        "x": 1347.28,
+        "y": 486.28,
+        "width": 385,
+        "height": 327,
+        "mainPixels": 75356
+      }
+    ]
+  ],
+  "engineer": [
+    [
+      {
+        "x": 64.78,
+        "y": 107.78,
+        "width": 352,
+        "height": 259,
+        "mainPixels": 61186
+      },
+      {
+        "x": 527.28,
+        "y": 99.78,
+        "width": 332,
+        "height": 289,
+        "mainPixels": 60770
+      },
+      {
+        "x": 998.78,
+        "y": 85.78,
+        "width": 222,
+        "height": 300,
+        "mainPixels": 53088
+      },
+      {
+        "x": 1356.28,
+        "y": 97.78,
+        "width": 348,
+        "height": 291,
+        "mainPixels": 60382
+      },
+      {
+        "x": 59.78,
+        "y": 535.28,
+        "width": 355,
+        "height": 261,
+        "mainPixels": 62238
+      },
+      {
+        "x": 530.28,
+        "y": 509.28,
+        "width": 306,
+        "height": 314,
+        "mainPixels": 59679
+      },
+      {
+        "x": 997.78,
+        "y": 500.28,
+        "width": 218,
+        "height": 310,
+        "mainPixels": 44443
+      },
+      {
+        "x": 1384.28,
+        "y": 515.28,
+        "width": 296,
+        "height": 310,
+        "mainPixels": 58436
+      }
+    ]
+  ],
+  "constructor": [
+    [
+      {
+        "x": 35.78,
+        "y": 94.78,
+        "width": 383,
+        "height": 277,
+        "mainPixels": 87007
+      },
+      {
+        "x": 468.28,
+        "y": 72.78,
+        "width": 413,
+        "height": 349,
+        "mainPixels": 87305
+      },
+      {
+        "x": 960.78,
+        "y": 60.78,
+        "width": 301,
+        "height": 337,
+        "mainPixels": 87599
+      },
+      {
+        "x": 1343.28,
+        "y": 65.78,
+        "width": 407,
+        "height": 355,
+        "mainPixels": 83494
+      },
+      {
+        "x": 29.78,
+        "y": 508.28,
+        "width": 385,
+        "height": 283,
+        "mainPixels": 89440
+      },
+      {
+        "x": 495.28,
+        "y": 474.28,
+        "width": 381,
+        "height": 345,
+        "mainPixels": 76539
+      },
+      {
+        "x": 962.78,
+        "y": 468.28,
+        "width": 297,
+        "height": 343,
+        "mainPixels": 85197
+      },
+      {
+        "x": 1348.28,
+        "y": 473.28,
+        "width": 380,
+        "height": 345,
+        "mainPixels": 78094
+      }
+    ]
+  ],
+  "striker": [
+    [
+      {
+        "x": 38.78,
+        "y": 136.78,
+        "width": 404,
+        "height": 216,
+        "mainPixels": 68416
+      },
+      {
+        "x": 496.28,
+        "y": 72.78,
+        "width": 362,
+        "height": 315,
+        "mainPixels": 69238
+      },
+      {
+        "x": 989.78,
+        "y": 66.78,
+        "width": 229,
+        "height": 331,
+        "mainPixels": 62098
+      },
+      {
+        "x": 1348.28,
+        "y": 68.78,
+        "width": 372,
+        "height": 316,
+        "mainPixels": 70113
+      },
+      {
+        "x": 39.78,
+        "y": 579.28,
+        "width": 406,
+        "height": 211,
+        "mainPixels": 68158
+      },
+      {
+        "x": 509.28,
+        "y": 494.28,
+        "width": 362,
+        "height": 316,
+        "mainPixels": 67596
+      },
+      {
+        "x": 982.78,
+        "y": 466.28,
+        "width": 242,
+        "height": 341,
+        "mainPixels": 62937
+      },
+      {
+        "x": 1357.28,
+        "y": 485.28,
+        "width": 351,
+        "height": 323,
+        "mainPixels": 67656
+      }
+    ]
+  ],
+  "unityRifle": [
+    [
+      {
+        "x": 56.38,
+        "y": 61.38,
+        "width": 256,
+        "height": 199,
+        "mainPixels": 25811
+      },
+      {
+        "x": 372.88,
+        "y": 54.38,
+        "width": 223,
+        "height": 205,
+        "mainPixels": 25715
+      },
+      {
+        "x": 706.38,
+        "y": 33.38,
+        "width": 155,
+        "height": 236,
+        "mainPixels": 26076
+      },
+      {
+        "x": 971.88,
+        "y": 54.38,
+        "width": 215,
+        "height": 207,
+        "mainPixels": 24886
+      },
+      {
+        "x": 23.380000000000003,
+        "y": 363.88,
+        "width": 255,
+        "height": 205,
+        "mainPixels": 26724
+      },
+      {
+        "x": 369.88,
+        "y": 363.88,
+        "width": 209,
+        "height": 204,
+        "mainPixels": 25126
+      },
+      {
+        "x": 700.38,
+        "y": 318.88,
+        "width": 168,
+        "height": 245,
+        "mainPixels": 23945
+      },
+      {
+        "x": 1001.88,
+        "y": 360.88,
+        "width": 208,
+        "height": 207,
+        "mainPixels": 24773
+      }
+    ],
+    [
+      {
+        "x": 57.38,
+        "y": 678.38,
+        "width": 255,
+        "height": 206,
+        "mainPixels": 26332
+      },
+      {
+        "x": 381.88,
+        "y": 670.38,
+        "width": 231,
+        "height": 214,
+        "mainPixels": 26625
+      },
+      {
+        "x": 701.38,
+        "y": 650.38,
+        "width": 168,
+        "height": 239,
+        "mainPixels": 24573
+      },
+      {
+        "x": 961.88,
+        "y": 669.38,
+        "width": 226,
+        "height": 218,
+        "mainPixels": 26808
+      },
+      {
+        "x": 23.380000000000003,
+        "y": 985.88,
+        "width": 254,
+        "height": 214,
+        "mainPixels": 27376
+      },
+      {
+        "x": 359.88,
+        "y": 980.88,
+        "width": 212,
+        "height": 211,
+        "mainPixels": 28405
+      },
+      {
+        "x": 698.38,
+        "y": 941.88,
+        "width": 170,
+        "height": 241,
+        "mainPixels": 23859
+      },
+      {
+        "x": 1005.88,
+        "y": 978.88,
+        "width": 206,
+        "height": 219,
+        "mainPixels": 27593
+      }
+    ]
+  ],
+  "unityRocket": [
+    [
+      {
+        "x": 38.38,
+        "y": 59.38,
+        "width": 266,
+        "height": 215,
+        "mainPixels": 28906
+      },
+      {
+        "x": 367.88,
+        "y": 53.38,
+        "width": 249,
+        "height": 217,
+        "mainPixels": 28116
+      },
+      {
+        "x": 693.38,
+        "y": 41.38,
+        "width": 179,
+        "height": 239,
+        "mainPixels": 26116
+      },
+      {
+        "x": 949.88,
+        "y": 46.38,
+        "width": 245,
+        "height": 232,
+        "mainPixels": 28524
+      },
+      {
+        "x": 24.380000000000003,
+        "y": 374.88,
+        "width": 255,
+        "height": 213,
+        "mainPixels": 28478
+      },
+      {
+        "x": 361.88,
+        "y": 359.88,
+        "width": 239,
+        "height": 225,
+        "mainPixels": 27772
+      },
+      {
+        "x": 700.38,
+        "y": 333.88,
+        "width": 166,
+        "height": 247,
+        "mainPixels": 25153
+      },
+      {
+        "x": 979.88,
+        "y": 357.88,
+        "width": 222,
+        "height": 229,
+        "mainPixels": 27593
+      }
+    ],
+    [
+      {
+        "x": 44.38,
+        "y": 674.38,
+        "width": 266,
+        "height": 222,
+        "mainPixels": 29441
+      },
+      {
+        "x": 381.88,
+        "y": 666.38,
+        "width": 246,
+        "height": 227,
+        "mainPixels": 28013
+      },
+      {
+        "x": 695.38,
+        "y": 661.38,
+        "width": 172,
+        "height": 239,
+        "mainPixels": 26599
+      },
+      {
+        "x": 939.88,
+        "y": 666.38,
+        "width": 246,
+        "height": 220,
+        "mainPixels": 27960
+      },
+      {
+        "x": 24.380000000000003,
+        "y": 981.88,
+        "width": 264,
+        "height": 225,
+        "mainPixels": 29752
+      },
+      {
+        "x": 354.88,
+        "y": 971.88,
+        "width": 243,
+        "height": 216,
+        "mainPixels": 27625
+      },
+      {
+        "x": 700.38,
+        "y": 947.88,
+        "width": 166,
+        "height": 255,
+        "mainPixels": 25868
+      },
+      {
+        "x": 975.88,
+        "y": 971.88,
+        "width": 235,
+        "height": 217,
+        "mainPixels": 29182
+      }
+    ]
+  ],
+  "unityScout": [
+    [
+      {
+        "x": 123.78,
+        "y": 140.78,
+        "width": 245,
+        "height": 204,
+        "mainPixels": 25750
+      },
+      {
+        "x": 561.28,
+        "y": 138.78,
+        "width": 236,
+        "height": 193,
+        "mainPixels": 24006
+      },
+      {
+        "x": 998.78,
+        "y": 132.78,
+        "width": 221,
+        "height": 219,
+        "mainPixels": 23417
+      },
+      {
+        "x": 1426.28,
+        "y": 139.78,
+        "width": 235,
+        "height": 181,
+        "mainPixels": 23849
+      },
+      {
+        "x": 98.78,
+        "y": 569.28,
+        "width": 250,
+        "height": 207,
+        "mainPixels": 26817
+      },
+      {
+        "x": 570.28,
+        "y": 570.28,
+        "width": 215,
+        "height": 191,
+        "mainPixels": 23597
+      },
+      {
+        "x": 998.78,
+        "y": 535.28,
+        "width": 222,
+        "height": 230,
+        "mainPixels": 25045
+      },
+      {
+        "x": 1431.28,
+        "y": 569.28,
+        "width": 224,
+        "height": 197,
+        "mainPixels": 24706
+      }
+    ]
+  ],
+  "unityTank": [
+    [
+      {
+        "x": 69.78,
+        "y": 57.78,
+        "width": 354,
+        "height": 328,
+        "mainPixels": 70759
+      },
+      {
+        "x": 485.28,
+        "y": 69.78,
+        "width": 362,
+        "height": 338,
+        "mainPixels": 64968
+      },
+      {
+        "x": 954.78,
+        "y": 70.78,
+        "width": 323,
+        "height": 323,
+        "mainPixels": 64713
+      },
+      {
+        "x": 1373.28,
+        "y": 65.78,
+        "width": 357,
+        "height": 343,
+        "mainPixels": 62748
+      },
+      {
+        "x": 42.78,
+        "y": 496.28,
+        "width": 357,
+        "height": 318,
+        "mainPixels": 67792
+      },
+      {
+        "x": 488.28,
+        "y": 497.28,
+        "width": 371,
+        "height": 324,
+        "mainPixels": 59603
+      },
+      {
+        "x": 944.78,
+        "y": 469.28,
+        "width": 335,
+        "height": 340,
+        "mainPixels": 62663
+      },
+      {
+        "x": 1363.28,
+        "y": 494.28,
+        "width": 369,
+        "height": 326,
+        "mainPixels": 58629
+      }
+    ]
+  ],
+  "unityArtillery": [
+    [
+      {
+        "x": 173.78,
+        "y": 135.78,
+        "width": 242,
+        "height": 202,
+        "mainPixels": 15847
+      },
+      {
+        "x": 561.28,
+        "y": 129.78,
+        "width": 244,
+        "height": 193,
+        "mainPixels": 15410
+      },
+      {
+        "x": 1006.78,
+        "y": 136.78,
+        "width": 208,
+        "height": 219,
+        "mainPixels": 16268
+      },
+      {
+        "x": 1397.28,
+        "y": 129.78,
+        "width": 231,
+        "height": 198,
+        "mainPixels": 15229
+      },
+      {
+        "x": 118.78,
+        "y": 573.28,
+        "width": 252,
+        "height": 200,
+        "mainPixels": 17031
+      },
+      {
+        "x": 572.28,
+        "y": 565.28,
+        "width": 232,
+        "height": 218,
+        "mainPixels": 15130
+      },
+      {
+        "x": 1006.78,
+        "y": 544.28,
+        "width": 209,
+        "height": 221,
+        "mainPixels": 16957
+      },
+      {
+        "x": 1427.28,
+        "y": 563.28,
+        "width": 211,
+        "height": 219,
+        "mainPixels": 15767
+      }
+    ]
+  ],
+  "unityHarvester": [
+    [
+      {
+        "x": 67.78,
+        "y": 131.78,
+        "width": 377,
+        "height": 241,
+        "mainPixels": 57479
+      },
+      {
+        "x": 490.28,
+        "y": 80.78,
+        "width": 381,
+        "height": 287,
+        "mainPixels": 56659
+      },
+      {
+        "x": 967.78,
+        "y": 60.78,
+        "width": 280,
+        "height": 342,
+        "mainPixels": 59667
+      },
+      {
+        "x": 1346.28,
+        "y": 80.78,
+        "width": 381,
+        "height": 288,
+        "mainPixels": 56894
+      },
+      {
+        "x": 41.78,
+        "y": 574.28,
+        "width": 374,
+        "height": 234,
+        "mainPixels": 55677
+      },
+      {
+        "x": 496.28,
+        "y": 507.28,
+        "width": 380,
+        "height": 322,
+        "mainPixels": 56150
+      },
+      {
+        "x": 959.78,
+        "y": 484.28,
+        "width": 297,
+        "height": 308,
+        "mainPixels": 53836
+      },
+      {
+        "x": 1339.28,
+        "y": 506.28,
+        "width": 382,
+        "height": 323,
+        "mainPixels": 56355
+      }
+    ]
+  ],
+  "unityEngineer": [
+    [
+      {
+        "x": 74.78,
+        "y": 83.78,
+        "width": 338,
+        "height": 293,
+        "mainPixels": 39557
+      },
+      {
+        "x": 522.28,
+        "y": 65.78,
+        "width": 336,
+        "height": 307,
+        "mainPixels": 43143
+      },
+      {
+        "x": 967.78,
+        "y": 61.78,
+        "width": 285,
+        "height": 350,
+        "mainPixels": 43525
+      },
+      {
+        "x": 1361.28,
+        "y": 62.78,
+        "width": 335,
+        "height": 311,
+        "mainPixels": 43464
+      },
+      {
+        "x": 35.78,
+        "y": 528.28,
+        "width": 335,
+        "height": 291,
+        "mainPixels": 39402
+      },
+      {
+        "x": 515.28,
+        "y": 517.28,
+        "width": 335,
+        "height": 296,
+        "mainPixels": 38494
+      },
+      {
+        "x": 967.78,
+        "y": 477.28,
+        "width": 285,
+        "height": 351,
+        "mainPixels": 44329
+      },
+      {
+        "x": 1371.28,
+        "y": 517.28,
+        "width": 335,
+        "height": 296,
+        "mainPixels": 38488
+      }
+    ]
+  ],
+  "unityConstructor": [
+    [
+      {
+        "x": 44.78,
+        "y": 114.78,
+        "width": 391,
+        "height": 277,
+        "mainPixels": 80428
+      },
+      {
+        "x": 479.28,
+        "y": 64.78,
+        "width": 389,
+        "height": 361,
+        "mainPixels": 79922
+      },
+      {
+        "x": 952.78,
+        "y": 64.78,
+        "width": 314,
+        "height": 349,
+        "mainPixels": 70490
+      },
+      {
+        "x": 1358.28,
+        "y": 81.78,
+        "width": 372,
+        "height": 351,
+        "mainPixels": 73365
+      },
+      {
+        "x": 31.78,
+        "y": 536.28,
+        "width": 391,
+        "height": 260,
+        "mainPixels": 76406
+      },
+      {
+        "x": 489.28,
+        "y": 495.28,
+        "width": 382,
+        "height": 337,
+        "mainPixels": 67508
+      },
+      {
+        "x": 953.78,
+        "y": 477.28,
+        "width": 307,
+        "height": 326,
+        "mainPixels": 67525
+      },
+      {
+        "x": 1346.28,
+        "y": 497.28,
+        "width": 381,
+        "height": 335,
+        "mainPixels": 67391
+      }
+    ]
+  ],
+  "unityStriker": [
+    [
+      {
+        "x": 90.78,
+        "y": 117.78,
+        "width": 380,
+        "height": 266,
+        "mainPixels": 52366
+      },
+      {
+        "x": 511.28,
+        "y": 97.78,
+        "width": 358,
+        "height": 304,
+        "mainPixels": 49300
+      },
+      {
+        "x": 969.78,
+        "y": 81.78,
+        "width": 275,
+        "height": 340,
+        "mainPixels": 51915
+      },
+      {
+        "x": 1367.28,
+        "y": 93.78,
+        "width": 358,
+        "height": 313,
+        "mainPixels": 49848
+      },
+      {
+        "x": 34.78,
+        "y": 547.28,
+        "width": 361,
+        "height": 261,
+        "mainPixels": 50318
+      },
+      {
+        "x": 468.28,
+        "y": 518.28,
+        "width": 372,
+        "height": 318,
+        "mainPixels": 50328
+      },
+      {
+        "x": 968.78,
+        "y": 474.28,
+        "width": 275,
+        "height": 338,
+        "mainPixels": 50144
+      },
+      {
+        "x": 1378.28,
+        "y": 512.28,
+        "width": 360,
+        "height": 325,
+        "mainPixels": 49748
+      }
+    ]
+  ]
+}

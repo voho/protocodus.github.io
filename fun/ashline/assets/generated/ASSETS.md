@@ -2,9 +2,17 @@
 
 ## Generated eight-view unit atlases (2026-09-27)
 
-All 18 unit types now load their own transparent atlas from `directions/<type>.webp`. These are separately generated views with fixed shallow overhead cameras, distinct front/back geometry, and shared identity references. Each vehicle sheet has four columns and two rows in E, SE, S, SW, W, NW, N, NE order; rifle and rocket infantry have four rows, with a second set of eight walking poses. Friendly/enemy colors derive from each view, not separate regenerated designs. Empty hauler hoppers use per-view interior polygons for mineral cargo. The runtime selects the nearest 45° heading, without rotating, reprojecting, or extruding the unit image. It extracts the complete main silhouette from padded cell bounds and normalizes all views and poses together; shadows retain their fixed lower-right direction.
+All 18 unit types have a transparent source master at `directions/<type>.webp`. These are separately generated views with fixed shallow overhead cameras, distinct front/back geometry, and shared identity references. Each vehicle sheet has four columns and two rows in E, SE, S, SW, W, NW, N, NE order; rifle and rocket infantry have four rows, with a second set of eight walking poses. Friendly/enemy colors derive from each view, not separate regenerated designs. Empty hauler hoppers use per-view interior polygons for mineral cargo. The runtime selects the nearest 45° heading, without rotating, reprojecting, or extruding the unit image. Offline preparation extracts the complete main silhouette from padded cell bounds and normalizes all views and poses together; shadows retain their fixed lower-right direction.
 
-Generated PNGs were converted to lossless RGBA WebP. The exact prompts, source paths and targeted corrections are recorded in [Organics prompts](directions/organics-prompts.md) and [AI Unity prompts](directions/unity-prompts.md). All generation used the built-in imagegen tool. Previous unit sheets below remain identity references and history; the runtime loads only the new directional unit sheets, two building sheets, props, trees, and ground.
+Generated PNGs were converted to lossless RGBA WebP. The exact prompts, source paths and targeted corrections are recorded in [Organics prompts](directions/organics-prompts.md) and [AI Unity prompts](directions/unity-prompts.md). All generation used the built-in imagegen tool. Previous unit sheets below remain identity references and history.
+
+### Production resolution (2026-09-27)
+
+The browser loads `../prepared/units/<type>.webp`, lossless derivatives baked from the friendly frames the renderer previously prepared in memory. Frame sizes stay at 64 pixels for rifles, 80 for rocket infantry, 96 for scouts, 112 for tanks/haulers/engineers, and 128 for artillery/constructors/strikers. Sheets are only 256–512 pixels wide. The manifest preserves physical draw scales and cargo polygons; runtime extraction does no further normalization or friendly recoloring. Enemy colors and fixed shadows are prepared as before.
+
+The 18 production sheets total **1,300,664 bytes**, compared with **16,164,270 bytes** for the masters (92% less download). Decoded atlas pixels fall from 28,319,596 to 1,871,872 (93% less), while maximum zoom and portrait detail retain the same prepared resolution. High-resolution masters and QA-only `source-bounds.json` are never fetched by the game. Two building sheets, props, trees, and ground keep their existing loading paths.
+
+Rebuild with `tools/prepare-unit-atlases.mjs`; see [README preparation instructions](../../README.md#rebuilding-unit-atlases). This optimization resamples existing source art deterministically; it does not generate or redraw any unit designs.
 
 ## Superseded prepared unit directions (2026-09-27)
 
