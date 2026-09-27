@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createCampaign, beginLevel, spawnEnemy, spawnFormation, update, buyUpgrade, shipStats, selectWeapon, killEnemy, buyPrimary, buySupply, START_LIVES } from '../sim.js';
+import { createCampaign, beginLevel, spawnEnemy, spawnFormation, update, buyUpgrade, shipStats, selectWeapon, killEnemy, buyPrimary, buySupply, START_LIVES, missionScrollSpeed, MAX_SCROLL_SPEED } from '../sim.js';
 import { serializeRun, restoreRun, readCampaign, writeCampaign, clearCampaign, SAVE_KEY, LEGACY_SAVE_KEY } from '../save-game.js';
 import { startDive } from '../waves.js';
 
@@ -235,6 +235,65 @@ check('a restored flight produces the same next combat step', () => {
   originalRecord.savedAt = restoredRecord.savedAt = 0;
   assert.deepEqual(restoredRecord, originalRecord);
   assert.deepEqual(restored.events, state.events);
+});
+
+check('scroll momentum preserves exact speed and the next combat steps while accelerating or slowing', () => {
+  for (const speed of [0, 37.125, 177.123456789, MAX_SCROLL_SPEED]) seeded(219, () => {
+    const state = createCampaign(6); state.time = 81.25; state.scroll = 7192.875; state.scrollSpeed = speed;
+    state.director.hold = true; state.players[0].hurt = 1e6;
+    for (let index = 0; index < 8; index++) spawnEnemy(state, 2, 100 + index * 130, 180 + index % 2 * 80);
+    state.events.length = 0;
+    const target = missionScrollSpeed(state), resumed = restoreRun(serializeRun(state)).state;
+    assert.equal(resumed.scrollSpeed, speed); assert.equal(resumed.scroll, state.scroll);
+    for (let tick = 0; tick < 90; tick++) {
+      const before = state.scroll;
+      seeded(9000 + tick, () => update(state, 1 / 60));
+      seeded(9000 + tick, () => update(resumed, 1 / 60));
+      assert.equal(resumed.scrollSpeed, state.scrollSpeed);
+      assert.equal(resumed.scroll, state.scroll);
+      assert(state.scroll > before);
+      if (tick === 0) {
+        assert.equal(Math.sign(state.scrollSpeed - speed), Math.sign(target - speed), 'momentum moves toward the target');
+        assert(Math.abs(state.scrollSpeed - speed) < Math.abs(target - speed), 'one step retains existing momentum');
+      }
+    }
+    const a = JSON.parse(serializeRun(state)), b = JSON.parse(serializeRun(resumed));
+    a.savedAt = b.savedAt = 0;
+    assert.deepEqual(b, a);
+  });
+});
+
+check('legacy scroll momentum derives from restored enemies, progress, boss and challenge state', () => {
+  for (const phase of ['empty', 'crowded', 'boss', 'challenge']) seeded(220, () => {
+    const state = createCampaign(9); state.time = 121.75; state.width = 760;
+    if (phase !== 'empty') for (let i = 0; i < 10; i++) spawnEnemy(state, 1, 80 + i % 5 * 140, 160 + Math.floor(i / 5) * 90);
+    if (phase === 'boss' || phase === 'challenge') state.bossSpawned = true;
+    if (phase === 'challenge') state.challenge = { clock: 2.5, total: 40, hits: 8, done: false, result: 0 };
+    const record = JSON.parse(serializeRun(state)); delete record.state.scrollSpeed;
+    const restored = restoreRun(record).state;
+    assert.equal(restored.scrollSpeed, missionScrollSpeed(restored), phase);
+    assert.notEqual(restored.scrollSpeed, missionScrollSpeed(createCampaign(9)), 'the empty new-sector default is not used');
+    if (phase === 'crowded') assert(restored.scrollSpeed < missionScrollSpeed({ ...restored, enemies: [] }));
+    assert.equal(restoreRun(serializeRun(restored)).state.scrollSpeed, restored.scrollSpeed);
+  });
+});
+
+check('saved scroll speed is bounded and malformed momentum cannot overwrite valid progress', () => {
+  const source = serializeRun(flight());
+  for (const [value, expected] of [[-100, 0], [0, 0], [71.375, 71.375], [MAX_SCROLL_SPEED, MAX_SCROLL_SPEED], [1e9, MAX_SCROLL_SPEED]]) {
+    const record = JSON.parse(source); record.state.scrollSpeed = value;
+    assert.equal(restoreRun(record).state.scrollSpeed, expected);
+  }
+  for (const value of [null, true, '125', {}, [], Infinity, -Infinity, NaN, '@infinity']) {
+    const record = JSON.parse(source); record.state.scrollSpeed = value;
+    assert.equal(restoreRun(record), null, 'malformed scroll speed is rejected');
+  }
+  const state = flight(), storage = memoryStorage(); state.scrollSpeed = 125.75;
+  assert.equal(writeCampaign(state, {}, storage).ok, true);
+  const previous = storage.getItem(SAVE_KEY); state.scrollSpeed = NaN;
+  assert.equal(writeCampaign(state, {}, storage).error, 'invalid-run');
+  assert.equal(storage.getItem(SAVE_KEY), previous);
+  assert.equal(readCampaign(storage).run.state.scrollSpeed, 125.75);
 });
 
 check('autosaves preserve fire energy, exhaustion and cadence through mixed primary and secondary fire', () => {

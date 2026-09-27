@@ -1,5 +1,5 @@
 import { createCampaign, MAX_UPGRADE, shipStats, normalizeWeapon, FORMATIONS, SECONDARY_ENERGY_COST, SHIELD_FIRE_DELAY, PRIMARIES, normalizePrimary,
-  MAX_POWER, MAX_DRONES, MAX_BOMBS, MAX_LIVES, START_LIVES, START_BOMBS, FIRST_EXTRA_LIFE, nextLifeAfterScore, RESPAWN_DELAY, RESPAWN_GUARD, PICKUP_KINDS, sectorDuration } from './sim.js';
+  MAX_POWER, MAX_DRONES, MAX_BOMBS, MAX_LIVES, START_LIVES, START_BOMBS, FIRST_EXTRA_LIFE, nextLifeAfterScore, RESPAWN_DELAY, RESPAWN_GUARD, PICKUP_KINDS, sectorDuration, missionScrollSpeed, MAX_SCROLL_SPEED } from './sim.js';
 import { createDirector, WAVE_KINDS, AI_MODES, PATHS } from './waves.js';
 import { normalizeDifficulty } from './difficulty.js';
 
@@ -305,6 +305,9 @@ function restoreState(raw) {
   }
   state.weapon = state.players[0].weapon;
   state.hostileCount = state.bullets.filter(bullet => bullet.team < 0 && bullet.life > 0).length;
+  // Legacy flights start at the target for their restored battlefield, not the
+  // empty sector created above. New saves retain momentum between combat steps.
+  state.scrollSpeed = raw.scrollSpeed === undefined ? missionScrollSpeed(state) : number(raw.scrollSpeed, 0, 0, MAX_SCROLL_SPEED);
   // Transient sound, particles, rewards, and transition events must not replay.
   state.events = [];
   return state;

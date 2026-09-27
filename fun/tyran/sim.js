@@ -266,7 +266,7 @@ export function createCampaign(level = 0, checkpoint = null, difficulty = 'easy'
   const state = {
     mode: 1, level: normalizeLevel(level), status: 'playing', difficulty: normalizeDifficulty(checkpoint?.difficulty === undefined ? difficulty : checkpoint.difficulty),
     upgrades: { weapon: 0, fireRate: 0, firePower: 0, shield: 0, hull: 0, recharge: 0 }, credits: 0, score: 0,
-    width: 1200, height: 900, time: 0, scroll: 0, enemies: [], bullets: [], pickups: [], players: [], turrets: [],
+    width: 1200, height: 900, time: 0, scroll: 0, scrollSpeed: 0, enemies: [], bullets: [], pickups: [], players: [], turrets: [],
     events: [], kills: 0, destroyed: 0, totalKills: 0, combo: 0, comboTime: 0, comboDamage: 1, comboBlast: 1, comboLabel: '',
     weapon: 'pulse', formations: [], nextEnemyId: 1, nextFormationId: 1, formationTimer: 11,
     bossSpawned: false, bossDefeated: false, bossDeathTime: 0, spawnTimer: 1, showcase: 0,
@@ -316,6 +316,7 @@ export function beginLevel(s, level) {
     power: clamp(Math.floor(previous.power || 0), 0, MAX_POWER), drones, bombs: clamp(Math.max(2, Math.floor(previous.bombs ?? START_BOMBS)), 0, MAX_BOMBS), guard: 0, bombHeld: false,
     wing: DRONE_SLOTS.slice(0, drones).map(([dx, dy]) => ({ x: x + dx, y: y + dy, px: x + dx, py: y + dy })) }];
   s.weapon = s.players[0].weapon;
+  s.scrollSpeed = missionScrollSpeed(s, 0);
   return s;
 }
 
@@ -905,18 +906,39 @@ export function killEnemy(s, e, cause = 'shot') {
   }
 }
 
-// Build forward momentum over the mission without storing another timer in saves.
-// Ease in and out so the terrain accelerates smoothly toward the final approach.
+// Clearing the screen opens up the flight pace. Queued arrivals and departed
+// ships do not slow terrain the player can see; the boss has its own base pace.
+export const MAX_SCROLL_SPEED = 208.25; // Final approach at the highest capped tier.
 export function missionScrollSpeed(s, time = s.time) {
-  if (s.challenge && !s.challenge.done) return 150;
-  if (s.bossSpawned) return 42;
+  let count = 0;
+  for (const enemy of s.enemies) {
+    if (enemy.dead || enemy.gone || enemy.hp <= 0 || isDormant(enemy) || (s.bossSpawned && enemy.boss)) continue;
+    const r = enemy.radius || 0;
+    if (enemy.x + r <= 0 || enemy.x - r >= s.width || enemy.y + r <= 0 || enemy.y - r >= s.height) continue;
+    count++;
+  }
+  const crowd = .4 + .6 / (1 + count / 4);
+  if (s.challenge && !s.challenge.done) return 150 * crowd;
+  if (s.bossSpawned) return 42 * crowd;
   const progress = clamp(time / Math.max(1, s.duration), 0, 1);
   const ramp = progress * progress * (3 - 2 * progress);
-  return (92 + combatTier(s.level) * 3) * (1 + .75 * ramp);
+  return (92 + combatTier(s.level) * 3) * (1 + .75 * ramp) * crowd;
+}
+
+function advanceMissionScroll(s, dt) {
+  const target = missionScrollSpeed(s, s.time + dt * .5);
+  const speed = Number.isFinite(s.scrollSpeed) ? clamp(s.scrollSpeed, 0, MAX_SCROLL_SPEED) : missionScrollSpeed(s);
+  // Brake into a crowded wave, then build speed more gradually as it clears.
+  // Integrate the exponential response as distance as well as velocity, so
+  // 30/60/120 Hz steps do not change the momentum or ground collision plane.
+  const responseTime = target < speed ? .65 : 1.8;
+  const response = -Math.expm1(-dt / responseTime);
+  s.scroll += target * dt + (speed - target) * responseTime * response;
+  s.scrollSpeed = speed + (target - speed) * response;
 }
 
 export const challengeSector = s => normalizeLevel(s.level) % 2 === 0;
-// Nominal flight time before the guardian; the terrain speeds up across it.
+// Nominal flight time before the guardian; encounter timing stays independent of terrain speed.
 export const sectorDuration = level => 140 + combatTier(level) * 6;
 
 function finishSector(s) {
@@ -989,7 +1011,7 @@ function updateCaptor(s, e, dt, pilot) {
 export function update(s, dt, input = [], environmentHit = null) {
   if (s.status !== 'playing') return;
   dt = clamp(dt, 0, .05);
-  s.scroll += dt * missionScrollSpeed(s, s.time + dt * .5);
+  advanceMissionScroll(s, dt);
   s.time += dt;
   s.beams = s.beams || []; s.stats = s.stats || newStats(); s.squadrons = s.squadrons || [];
   if (s.comboTime > 0) {

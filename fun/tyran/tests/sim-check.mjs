@@ -65,10 +65,12 @@ check('mission scrolling accelerates within each sector, stays bounded, and rese
     assert.equal(missionScrollSpeed(state, state.duration * 10), opening * 1.75, 'acceleration has a finite ceiling');
     state.time = state.duration * .9; state.scroll = 1000; state.bossSpawned = true;
     assert.equal(missionScrollSpeed(state), 42, 'guardians keep their readable battle pacing');
-    const before = state.scroll; update(state, .025);
-    assert(Math.abs(state.scroll - before - 42 * .025) < 1e-9);
+    const before = state.scroll, speed = state.scrollSpeed; update(state, .025);
+    assert(state.scrollSpeed < speed && state.scrollSpeed > 42, 'entering a boss fight brakes smoothly');
+    assert(state.scroll - before > 42 * .025 && state.scroll - before < speed * .025);
     beginLevel(state, level);
     assert.equal(state.time, 0); assert.equal(state.scroll, 0); assert.equal(missionScrollSpeed(state), opening);
+    assert.equal(state.scrollSpeed, opening, 'a new sector resets momentum');
   }
 });
 
@@ -102,6 +104,71 @@ check('resuming preserves the speed ramp and ground hits receive the current scr
   update(restored, 1 / 60);
   assert.equal(restored.scroll, state.scroll); assert.equal(restored.time, state.time);
   assert.equal(targetScroll, state.scroll, 'scenery hits use the newly advanced terrain');
+});
+
+function scrollingBattle(count = 0) {
+  const state = createCampaign(); state.duration = Infinity; state.director.hold = true;
+  for (let i = 0; i < count; i++) {
+    const enemy = spawnEnemy(state, 0, 100 + i % 8 * 120, 180 + Math.floor(i / 8) * 65);
+    Object.assign(enemy, { ai: 'fixture', vx: 0, vy: 0, noFire: true, harmless: true });
+  }
+  return state;
+}
+
+check('visible living enemies slow the target pace while queued and departed ships do not', () => {
+  const state = scrollingBattle(), clear = missionScrollSpeed(state);
+  const targets = [0, 1, 4, 8, 20, 80].map(count => missionScrollSpeed(scrollingBattle(count)));
+  for (let i = 1; i < targets.length; i++) assert(targets[i] < targets[i - 1]);
+  assert.equal(targets[0], clear); assert(Math.abs(targets[2] / clear - .7) < 1e-12);
+  assert.equal(targets[4] / clear, .5); assert(targets.at(-1) > clear * .4, 'a dense battle cannot stop or reverse terrain');
+  state.enemies.push(...[
+    { dead: true }, { gone: true }, { hp: 0 }, { ai: 'entry', pathD: -1 },
+    { x: -40 }, { x: state.width + 40 }, { y: -40 }, { y: state.height + 40 },
+  ].map(extra => ({ x: 300, y: 200, hp: 10, radius: 20, ...extra })));
+  assert.equal(missionScrollSpeed(state), clear);
+  state.enemies.push({ x: -10, y: 200, hp: 10, radius: 20 });
+  assert(missionScrollSpeed(state) < clear, 'a hull entering the visible edge counts');
+  state.enemies.length = 0; state.bossSpawned = true;
+  state.enemies.push({ x: 300, y: 180, hp: 100, radius: 100, boss: true });
+  assert.equal(missionScrollSpeed(state), 42, 'a lone boss retains its dedicated pace');
+  state.enemies.push({ x: 400, y: 220, hp: 10, radius: 20 });
+  assert(missionScrollSpeed(state) < 42, 'boss escorts add crowd pressure');
+  state.challenge = { done: false };
+  assert(missionScrollSpeed(state) < 150, 'challenge formations also influence forward speed');
+});
+
+check('scroll momentum brakes into a crowd and gradually rebuilds after actual kills', () => {
+  const state = scrollingBattle(20), clear = state.scrollSpeed, busy = missionScrollSpeed(state);
+  assert.equal(clear, 92); assert.equal(busy, 46);
+  const before = state.scroll; update(state, 1 / 60);
+  assert(state.scrollSpeed < clear && state.scrollSpeed > busy, 'arrival does not snap speed to its target');
+  assert(state.scroll - before > busy / 60 && state.scroll - before < clear / 60, 'movement uses the same changing velocity');
+  advance(state, 2);
+  assert(Math.abs(state.scrollSpeed - busy) < 3, 'braking is noticeable within a short combat window');
+  for (const enemy of state.enemies) killEnemy(state, enemy);
+  const slow = state.scrollSpeed;
+  assert.equal(missionScrollSpeed(state), clear);
+  update(state, 1 / 60);
+  assert(state.scrollSpeed > slow && state.scrollSpeed < slow + 1, 'a screen clear starts gradual acceleration');
+  advance(state, 1);
+  assert(state.scrollSpeed > slow + 10 && state.scrollSpeed < clear - 10, 'clearing does not cause a sudden terrain rush');
+  advance(state, 6);
+  assert(Math.abs(state.scrollSpeed - clear) < 1.5);
+  const frozen = [state.time, state.scroll, state.scrollSpeed];
+  state.status = 'hangar'; advance(state, 4);
+  assert.deepEqual([state.time, state.scroll, state.scrollSpeed], frozen, 'paused simulation has no hidden momentum timer');
+});
+
+check('crowd braking and recovery integrate the same distance at 30, 60 and 120 Hz', () => {
+  const results = [30, 60, 120].map(hz => {
+    const state = scrollingBattle(8);
+    for (let tick = 0; tick < 2 * hz; tick++) update(state, 1 / hz);
+    const slow = { speed: state.scrollSpeed, scroll: state.scroll };
+    for (const enemy of state.enemies) enemy.dead = true;
+    for (let tick = 0; tick < 4 * hz; tick++) update(state, 1 / hz);
+    return [slow.speed, slow.scroll, state.scrollSpeed, state.scroll];
+  });
+  for (let index = 0; index < 4; index++) assert(Math.max(...results.map(r => r[index])) - Math.min(...results.map(r => r[index])) < 1e-8);
 });
 
 check('one pilot uses two dedicated fire channels with a shared cooldown', () => {
