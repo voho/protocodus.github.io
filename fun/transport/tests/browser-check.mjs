@@ -209,10 +209,11 @@ try {
     // the actual milestone while retaining a bound that catches stalled routes.
     for (let days = 0; days < 120 && transport.game.totalDelivered < 100; days += 5) tick(transport.game, 5);
   });
-  assert.ok(await page.evaluate(() => transport.game.totalDelivered) >= 100, 'the starter service reaches its delivery milestone');
-  await page.waitForFunction(() => document.querySelector('#objective-progress').textContent.includes('Milestone reached'));
+  assert.ok(await page.evaluate(() => transport.game.totalDelivered) >= 100, 'the starter service delivers 100 passengers');
+  await page.waitForFunction(() => document.querySelector('#objective-title').textContent === 'Your first cargo route');
   await page.waitForTimeout(900);
-  assert.ok(await page.evaluate(() => transport.game.totalDelivered) >= 100, 'the delivery milestone survives repeated HUD refreshes');
+  assert.equal(await page.locator('#objective-title').textContent(), 'Your first cargo route', 'passive bus deliveries never complete the next goal');
+  assert.equal(await page.locator('#objective-card').isVisible(), true);
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.waitForTimeout(100);

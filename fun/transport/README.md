@@ -12,11 +12,13 @@ Choose **Load game** to open the latest autosave or a named local save. Opening 
 
 ## Your first connection
 
-1. Open **Your first cargo route** in Build for a nearby suggestion, or find a producer and a matching customer, such as a logging camp and a sawmill in the taiga.
+1. Follow **Next goal** at the top right of the map for a nearby suggestion, or find a producer and a matching customer yourself, such as a logging camp and a sawmill in the taiga.
 2. Choose **Road** or **Rail** and drag between them. Water automatically becomes a bridge and mountains become tunnels; the preview shows the combined cost. Blocked or unaffordable road and rail strokes build nothing; the red tiles show why, and the tip says whether to drag around them, bulldoze, level the slope or wait for funds.
 3. Choose **Stop** and click the completed network within **5 tiles** of each industry. The tool selects a road stop or train station from the tile; at a road/rail crossing, use the small Road/Rail choice. Stations need open ground; they cannot occupy a bridge or tunnel.
 4. Open **Routes**, choose the transport mode and cargo, then choose two stations from the lists or pick them on the map. The planner checks the continuous network and cargo coverage before enabling launch. Buying a road vehicle costs $18,000; a train costs $78,000.
 5. Vehicles load from the producer's inventory and earn money when they deliver. Connect the customer's output to the next factory or a town to extend the chain.
+
+The **Next goal** card suggests one optional project at a time. For the first cargo route it names a producer and a buyer that stops can actually serve, then ticks a checklist as you work: a stop near each site, a connection, a launched route and its first delivery. Only the next open step has a button: it frames both sites and picks Road, Stop or Port, or opens Routes with the stops and cargo already chosen. **Another idea** offers up to two other nearby pairs. Later goals follow your company: 100 cargo deliveries, supplying a factory, carrying its output onward, growing a neighborhood and finally your own plans. Passenger fares never count. The × folds the card into a small chip that stays folded after a reload until the goal changes; on a phone the card starts as a one-line pill at the bottom left and opens with a tap. **Show on map** under the same suggestion in Build brings it back.
 
 Passenger routes need two different towns within their stations' catchment areas. Every route operates one vehicle between two stops. A broken network stops the affected service until you repair it; connection status updates even while paused. Route cards explain missing producers, full buyers and missing factory inputs, and show net earnings after route upkeep. They judge catchment like the Stop tool: an industry counts when any of its tiles is within 5 tiles of the stop. Retiring a route sells the vehicle for 45% of the amount paid, including upgrades; retire services before removing their stations.
 
@@ -276,6 +278,8 @@ The controls check covers automatic crossings and stops, exact quotes (refused s
 ```sh
 TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/controls-browser-check.mjs
 ```
+
+`next-goal-browser-check.mjs` walks the seed-1847 first route through the Next goal checklist, alternatives, collapse memory and the phone pill at 390px and 320px. `node fun/transport/tests/next-goal-servable-check.mjs` is a slower sweep: 75 new worlds must suggest only producers and buyers a stop can serve.
 
 The comprehensive follow-up checks include `cohesion-browser-check.mjs` (projects, searches, finances, paused disconnection and storage failure), `vast-browser-check.mjs` (large-world quota and continuation), and `controls-browser-check.mjs` (mouse, keyboard and real multi-touch gestures).
 

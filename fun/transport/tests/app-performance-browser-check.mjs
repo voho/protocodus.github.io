@@ -2,6 +2,7 @@
 // manager. Timings are reported, not asserted against machine-dependent limits.
 import assert from 'node:assert/strict';
 import {writeFile} from 'node:fs/promises';
+import {createWorldFromMenu} from './browser-start.mjs';
 const {chromium}=await import(process.env.TRANSPORT_PLAYWRIGHT||'playwright');
 const browser=await chromium.launch({channel:process.env.TRANSPORT_BROWSER||'chrome',headless:true});
 const result={},errors=[];
@@ -69,6 +70,14 @@ try{
  await page.locator('#clear-route-filters').click();
  assert.equal(await page.locator('#route-list [data-route-id]').count(),50);
  assert.equal(await page.locator('#route-list [data-route-id]').first().getAttribute('data-route-id'),'perf-0');
+ // Tool changes rebuild the Build drawer, whose next goal must come from the memo on a vast world.
+ await createWorldFromMenu(page,{size:'square2048'});
+ result.vastTools=await page.evaluate(()=>{
+  transport.setView('build');const times=[];
+  for(let n=0;n<9;n++)for(const tool of ['road','stop','inspect']){const start=performance.now();transport.setTool(tool);times.push(performance.now()-start);}
+  times.sort((a,b)=>a-b);return{medianMs:times[Math.floor(times.length/2)],maxMs:times.at(-1)};
+ });
+ assert.ok(result.vastTools.medianMs<5,`setTool on a 2048 world takes ${result.vastTools.medianMs.toFixed(1)} ms`);
  assert.deepEqual(errors,[]);result.errors=errors;
  if(process.env.TRANSPORT_PERFORMANCE_OUTPUT)await writeFile(process.env.TRANSPORT_PERFORMANCE_OUTPUT,JSON.stringify(result,null,2));
  console.log(JSON.stringify(result,null,2));

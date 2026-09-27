@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { townService, industryStatus, routeHealth, nextProject } from '../gameplay-insights.js';
-import { build, buildPath, addRoute, tick } from '../model.js';
-import { emptyGame, line, advance } from './helpers.mjs';
+import { townService, industryStatus, routeHealth, nextProject, stopSiteKind, firstRouteSteps } from '../gameplay-insights.js';
+import { build, buildPath, addRoute, tick, createGame } from '../model.js';
+import { industryContains, industryDistance } from '../industry-sites.js';
+import { emptyGame, line, advance, tileAt } from './helpers.mjs';
 
 const site = (id, kind, x, inventory = {}) => ({ id, kind, x, y: 12, inventory, capacity: 1 });
 const routeGame = () => ({
@@ -68,12 +69,88 @@ test('a processing route points back to its missing input instead of recommendin
 });
 
 test('optional projects progress through deliberate freight and town building, not passive starter bus revenue', () => {
-  const game=emptyGame();game.cities=[{id:'home',name:'Home',x:15,y:12}];
-  game.industries=[site('source','logging-camp',10),site('buyer','sawmill',30)];
+  const game=emptyGame();game.cities=[{id:'home',name:'Home',x:15,y:12,lastServiceDay:null}];
+  game.industries=[site('source','logging-camp',10),site('buyer','sawmill',30),site('furniture','furniture-factory',50)];
+  const exists=project=>assert.ok(!project.target||[...game.industries,...game.cities].some(item=>item.id===project.target),project.title);
   game.totalDelivered=10000;game.routes=[{cargo:'passengers',delivered:10000}];
-  assert.equal(nextProject(game).target,'source');
-  game.routes.push({cargo:'timber',delivered:10});assert.match(nextProject(game).title,/100/);
-  game.routes[1].delivered=100;assert.equal(nextProject(game).action,'chains');
-  game.routes.push({cargo:'lumber',delivered:1});assert.equal(nextProject(game).action,'towns');
+  assert.equal(nextProject(game).target,'source');exists(nextProject(game));
+  game.routes.push({cargo:'timber',delivered:10});assert.match(nextProject(game).title,/100/);assert.deepEqual(nextProject(game).progress,{value:10,max:100});
+  game.routes[1].delivered=100;
+  let project=nextProject(game);assert.equal(project.action,'source');assert.equal(project.target,'source');assert.equal(project.buyer.id,'buyer');exists(project);
+  assert.match(project.detail,/Timber from Logging camp → Sawmill \(20 tiles\)\. Sawmills turn 4 timber into 3 lumber\./);
+  game.stations=[{id:'a',x:10,y:10,mode:'road'},{id:'b',x:30,y:10,mode:'road'}];game.routes[1].stops=['a','b'];
+  project=nextProject(game);assert.equal(project.title,'Carry lumber onward');assert.equal(project.target,'buyer');assert.equal(project.buyer.id,'furniture');assert.match(project.detail,/Sawmill → Furniture works/);exists(project);
+  game.routes.push({cargo:'lumber',delivered:1});
+  project=nextProject(game);assert.equal(project.action,'city');assert.equal(project.target,'home');exists(project);
   game.zones.push({x:1,y:1});assert.equal(nextProject(game).action,'atlas');
+});
+
+test('first cargo suggestions skip producers that no stop can ever reach and offer distinct alternatives', () => {
+  const game=emptyGame();game.cities=[{id:'home',name:'Home',x:40,y:20,lastServiceDay:null}];
+  const quarry={id:'quarry',kind:'quarry',name:'Stone quarry',x:30,y:20,footprint:2,inventory:{},capacity:1};
+  game.industries=[quarry,{...site('camp','logging-camp',70),y:40,footprint:2},{...site('mill','sawmill',90),y:40,footprint:2}];
+  assert.equal(nextProject(game).target,'quarry','an open quarry beside town is the obvious first route');
+  for(let y=14;y<=27;y++)for(let x=24;x<=37;x++)if(!industryContains(quarry,x,y)&&industryDistance(quarry,{x,y})<=6)tileAt(game,x,y).terrain='mountain';
+  game.networkRevision++;
+  assert.equal(stopSiteKind(game,quarry),null);assert.equal(stopSiteKind(game,game.cities[0]),'road');
+  const project=nextProject(game);
+  assert.equal(project.target,'camp');assert.ok(project.choices.every(choice=>choice.source.id!=='quarry'));
+  assert.match(project.detail,/Carry timber from Logging camp to Sawmill/);
+  for(let y=19;y<=22;y++)tileAt(game,25,y).terrain='water';game.networkRevision++;
+  assert.equal(stopSiteKind(game,quarry),'port','shoreline water still takes a port');
+  assert.equal(nextProject(game).target,'camp','port-only sites rank behind road access');
+  assert.deepEqual(nextProject(game).choices.map(choice=>choice.source.id),['camp','quarry']);
+  assert.equal(nextProject(game,{source:'quarry'}).target,'quarry','a chosen alternative stays selected');
+  assert.equal(nextProject(game,{source:'quarry'}).choice,1);
+  assert.equal(nextProject(game,{source:'gone'}).target,'camp');
+});
+
+test('first route steps tick exactly when each stop, connection, route and delivery exists', () => {
+  const game=emptyGame();game.cities=[{id:'town',name:'Town',x:40,y:41,population:400,activity:0,growth:0,passengers:0,delivered:0,supplies:0,lastServiceDay:null}];
+  assert.equal(build(game,'quarry',10,40).ok,true);
+  const quarry=game.industries[0],choice={source:quarry,buyer:{id:'town',kind:'city',name:'Town',x:40,y:41},cargo:'stone'};
+  const done=()=>firstRouteSteps(game,choice).map(step=>step.done);
+  assert.deepEqual(firstRouteSteps(game,choice).map(step=>step.label),['Stop near Stone quarry','Stop near Town','Connect them','Launch a stone route','First delivery']);
+  assert.deepEqual(done(),[false,false,false,false,false]);
+  assert.equal(firstRouteSteps(game,choice)[0].tool,'road','no road yet: build one first');
+  assert.equal(buildPath(game,'road',line(17,30,41)).ok,true);assert.equal(build(game,'road',37,41).ok,true);
+  assert.equal(firstRouteSteps(game,choice)[0].tool,'road','the road stops six tiles from the footprint');
+  assert.equal(build(game,'bus-stop',17,41).ok,true);
+  assert.deepEqual(done(),[false,false,false,false,false],'six tiles from the footprint is outside the catchment');
+  assert.equal(build(game,'bulldoze',17,41).ok,true);assert.equal(buildPath(game,'road',line(16,17,41)).ok,true);
+  assert.equal(firstRouteSteps(game,choice)[0].tool,'bus-stop');assert.equal(firstRouteSteps(game,choice)[0].button,'Place stop');
+  assert.equal(build(game,'bus-stop',16,41).ok,true);
+  assert.deepEqual(done(),[true,false,false,false,false],'five tiles from the footprint edge counts although the anchor is farther');
+  assert.equal(build(game,'bus-stop',37,41).ok,true);
+  assert.deepEqual(done(),[true,true,false,false,false],'two stops on separate roads are not connected');
+  assert.equal(buildPath(game,'road',line(30,37,41)).ok,true);
+  assert.deepEqual(done(),[true,true,true,false,false]);
+  const launch=firstRouteSteps(game,choice)[3];assert.deepEqual([launch.mode,launch.from,launch.to,launch.cargo],['road',game.stations[0].id,game.stations[1].id,'stone']);
+  assert.equal(addRoute(game,{mode:'road',stops:[game.stations[1].id,game.stations[0].id],cargo:'stone'}).ok,true);
+  assert.deepEqual(done(),[true,true,true,true,false]);
+  for(let day=0;day<60&&!game.routes[0].delivered;day++)advance(game,1,tick);
+  assert.ok(game.routes[0].delivered>0);assert.deepEqual(done(),[true,true,true,true,true]);
+});
+
+test('next projects are memoised without going stale as the company grows', () => {
+  const game=emptyGame();
+  game.cities=[{id:'town',name:'Town',x:40,y:41,population:400,activity:0,growth:0,passengers:0,delivered:0,supplies:0,lastServiceDay:null}];
+  assert.equal(build(game,'quarry',10,40).ok,true);assert.equal(build(game,'logging-camp',10,70).ok,true);assert.equal(build(game,'sawmill',40,70).ok,true);
+  const same=label=>assert.deepEqual(nextProject(game),nextProject(structuredClone(game)),label);
+  same('fresh world');
+  assert.equal(buildPath(game,'road',line(16,37,41)).ok,true);assert.equal(build(game,'bus-stop',16,41).ok,true);assert.equal(build(game,'bus-stop',37,41).ok,true);
+  same('stops and roads');
+  assert.equal(addRoute(game,{mode:'road',stops:game.stations.map(stop=>stop.id),cargo:'stone'}).ok,true);
+  same('a route');
+  assert.equal(build(game,'city',80,20).ok,true);same('a founded town');
+  assert.equal(build(game,'refinery',60,20).ok,true);same('a new industry');
+  for(let day=0;day<400&&game.routes[0].delivered<100;day++)advance(game,1,tick);
+  assert.ok(game.routes[0].delivered>=100);assert.equal(nextProject(game).title,'Supply a factory');same('100 deliveries');
+});
+
+test('the first cargo suggestion is cheap to repeat on a vast world', () => {
+  const game=createGame({biome:'taiga',seed:1847,size:'square2048'});
+  const first=nextProject(game);assert.equal(first.title,'Your first cargo route');
+  const start=performance.now();nextProject(game);const elapsed=performance.now()-start;
+  assert.ok(elapsed<1,`${elapsed.toFixed(2)} ms`);
 });

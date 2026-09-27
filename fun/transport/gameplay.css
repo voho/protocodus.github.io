@@ -40,3 +40,48 @@
 .industry-tool .industry-art{width:56px;height:56px;flex:0 0 56px;object-fit:contain}
 .industry-tool>.tool-cost small{display:block;text-align:right;margin-top:5px;font-size:11px;color:var(--muted)}
 .industry-tool-summary .cargo-recipe{gap:3px}
+/* Next goal: one optional suggestion on the map. It collapses to a chip and never covers open menus. */
+#objective-card{top:12px;right:12px;width:296px;max-height:calc(100% - 96px);overflow:auto;padding:14px 16px;background:#faf9f1;border:1px solid #dde4d2;border-radius:10px;box-shadow:0 5px 24px #253c2926;backdrop-filter:none;z-index:4;scrollbar-width:thin;color:#2f4a33}
+#objective-card .objective-heading .eyebrow,.objective-chip .eyebrow{font-size:12px;font-weight:500;letter-spacing:0;color:#6a7d5f}
+#objective-card .tiny-button{display:grid;place-items:center;width:30px;height:30px;margin:-7px -9px -7px 0;padding:0;border-radius:6px;font-size:20px;color:#7d8c72}
+#objective-card .tiny-button:hover{background:#e8eedf;color:#3f5e3a}
+#objective-card h2{font-size:19px;line-height:1.25;letter-spacing:-.4px;margin:6px 0;color:#2c4632}
+#objective-card p{font-size:13px;line-height:1.45;color:#5d7152;margin:0 0 11px}
+.objective-steps{list-style:none;margin:0 0 12px;padding:0}
+#objective-card .objective-step{display:flex;align-items:center;gap:9px;min-height:32px;margin:0;font-size:13px;line-height:1.3;color:#6f8065}
+#objective-card .objective-step>span:nth-child(2){flex:1;min-width:0}
+#objective-card .objective-step svg{flex:0 0 20px;width:20px;height:20px;padding:4px;background:#dde9d0;stroke:#4d7a45;stroke-width:2.2}
+#objective-card .objective-step.done>span:nth-child(2){color:#809077}
+#objective-card .step-circle{width:20px;height:20px;font-size:11px;color:#7c8b71;background:#fbfbf5}
+#objective-card .objective-step.current{color:#2c4632;font-weight:500}
+#objective-card .objective-step.current .step-circle{border-color:var(--orange);background:var(--orange-light);color:#a14f28;font-weight:600}
+#objective-card .objective-step .small-button{flex:0 0 auto;min-height:30px;padding:5px 10px;border:1px solid #9db58a;border-radius:6px;background:#fffdf5;font-size:12px;font-weight:500;color:#36573a}
+#objective-card .objective-step .small-button:hover{background:#eef4e4;border-color:#6f9159}
+#objective-card .progress-track{height:6px;margin:0 0 12px;background:#e3e9d6}
+#objective-card #goal-bar{background:#6f9159}
+.objective-actions{display:flex;align-items:center;gap:6px 14px;flex-wrap:wrap}
+#objective-action{display:inline-flex;align-items:center;gap:6px;min-height:34px;padding:7px 12px;border-radius:7px;background:var(--green);color:#fffdf2;font-size:13px;font-weight:500}
+#objective-action:hover{background:#3d6a4c}
+#objective-action svg{width:15px;height:15px}
+.objective-another,.project-card .project-show{min-height:34px;padding:0 2px;font-size:13px;color:#4c6a3e;text-decoration:underline;text-decoration-color:#a9bb98;text-underline-offset:3px}
+.objective-another:hover,.project-card .project-show:hover{color:#2f4a33;text-decoration-color:currentColor}
+#objective-card .text-button{margin-top:12px;padding-top:10px;font-size:12px}
+.project-card .project-show{display:block;margin:6px auto 0}
+.objective-chip{display:none;align-items:center;gap:6px;width:100%;min-height:38px;padding:8px 14px;border-radius:19px;font-size:13px;color:#2f4a33;white-space:nowrap;text-align:left}
+.objective-chip:hover{background:#eef3e5}
+.objective-chip #objective-chip-title{min-width:0;overflow:hidden;text-overflow:ellipsis;font-weight:500}
+#objective-card.collapsed{width:auto;max-width:min(360px,calc(100% - 24px));padding:0;border-radius:20px;overflow:hidden}
+#objective-card.collapsed .objective-chip{display:flex}
+#objective-card.collapsed .objective-body{display:none}
+.compact-play:has(#game-menu:not([hidden])) #objective-card,.map-section:has(#layers-panel:not([hidden]),#map-options:not([hidden])) #objective-card{display:none}
+@media(max-width:1100px){.compact-play:has(.sidebar.mobile-open) #objective-card,.map-section:has(#inspector:not([hidden])) #objective-card{display:none}}
+@media(max-width:700px){
+ .compact-play #objective-card{display:block;top:auto;right:auto;left:10px;bottom:10px;width:auto;max-width:calc(100% - 190px);padding:0;border-radius:20px;overflow:hidden}
+ #objective-card:not(.open) .objective-body{display:none}
+ #objective-card:not(.open) .objective-chip{display:flex}
+ .objective-chip{padding:8px 13px 8px 11px}
+ .objective-chip .eyebrow,.objective-chip>[aria-hidden]{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+ .objective-chip::before{content:'';flex:0 0 9px;height:9px;border-radius:50%;background:var(--orange);box-shadow:0 0 0 3px var(--orange-light)}
+ .compact-play #objective-card.open{width:min(400px,calc(100% - 20px));max-width:none;max-height:calc(100% - 20px);padding:13px 14px 12px;border-radius:10px;overflow:auto}
+ .compact-play:has(#objective-card.open:not([hidden])) .toast-region{top:calc(var(--play-header) + 12px);bottom:auto}
+}
