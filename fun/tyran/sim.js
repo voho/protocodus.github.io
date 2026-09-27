@@ -35,7 +35,7 @@ export const SECONDARY_RESTART_ENERGY = 40;
 // Weapons divert reactor output from shields. A short settling window makes
 // releasing fire a deliberate recovery choice rather than a between-shot trick.
 export const SHIELD_FIRE_DELAY = .75;
-export const SHIELD_FIRING_RECHARGE = .75;
+export const SHIELD_FIRING_RECHARGE = .1;
 export const SHIELD_REST_RECHARGE = 1.25;
 // In-flight progression: power cores widen the primary weapon, wing drones fly
 // in formation, nova charges clear the sky and reserve ships continue a sector.

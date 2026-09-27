@@ -695,7 +695,7 @@ check('shield recharge waits after damage, respects capacity, and improves with 
 });
 
 check('successful primary, plasma and nova volleys load shield recovery without taxing fire energy', () => {
-  assert.equal(SHIELD_FIRE_DELAY, .75); assert.equal(SHIELD_FIRING_RECHARGE, .75); assert.equal(SHIELD_REST_RECHARGE, 1.25);
+  assert.equal(SHIELD_FIRE_DELAY, .75); assert.equal(SHIELD_FIRING_RECHARGE, .1); assert.equal(SHIELD_REST_RECHARGE, 1.25);
   for (const control of [{ fire: true }, { secondary: true }, { bomb: true }]) {
     const state = isolated(), player = state.players[0], energy = player.fireEnergy;
     player.shield = 0; player.lastHit = -10;
