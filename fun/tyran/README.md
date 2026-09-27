@@ -32,7 +32,7 @@ Ten authored strategies (`tactics.js`) give the environments different wave orde
 
 Destroying every ship of a squadron before any escapes pays a squadron bonus; every third wiped squadron drops a power core. Enraged guardians launch pairs of diving interceptors.
 
-After the guardians of sectors 1, 3, 5, 7 and 9, a **challenging stage** flies 40 ships through acrobatic figure-eight, orbit and loop paths without firing or colliding. The stage reports hits out of 40 and pays credits and score per hit, with a large perfect bonus.
+After the guardians of sectors 1, 3, 5, 7 and 9, a **challenging stage** flies 40 ships through acrobatic figure-eight, orbit and loop paths without firing or colliding. The stage reports hits out of 40 and pays credits and score per hit, with a large perfect bonus. After the result's 2.6-second hold, the entire screen and all audio fade together over 1.5 seconds. The challenge track continues through the fade, followed by a brief silent black frame before the upgrade shop opens. The transition freezes flight, preserves the player's mute preference and saves the completed round immediately; resuming that save goes straight to the shop.
 
 **In-flight progression.** Power cores widen the primary through five levels (pulse stream, scatter fan, piercing lances); outer bolts are slightly weaker so width is not pure multiplication, and only the central bolts strike ground scenery so wide volleys do not farm salvage. A hit that gets through the shield knocks one core loose; it drifts away and can be caught again after about a second. Up to two wing drones fly in formation, echo every primary volley and soak up hostile rounds. Nova charges clear all hostile fire (each cancelled round scores), strike every visible ship, interrupt captor beams and grant a brief shield; they need a fresh key press. Each sector launches with at least two. Reserve ships continue the sector after a short delay with a three-second launch shield, a cleared launch lane, two fewer power levels and one fewer drone. Score milestones (30,000, then every 120,000) award extra ships up to five in reserve. Retrying a failed sector continues with at least two reserve ships.
 
@@ -161,6 +161,7 @@ TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/deb
 TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/blast-integration-check.mjs
 TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/ground-sites-check.mjs
 TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/audio-check.mjs
+TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/bonus-outro-browser-check.mjs
 TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/ground-combat-browser-check.mjs
 TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/mouse-controls-check.mjs
 TYRAN_PLAYWRIGHT=/absolute/path/to/playwright/index.mjs node fun/tyran/tests/timing-check.mjs

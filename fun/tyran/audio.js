@@ -10,7 +10,7 @@ const musicOwners = new WeakMap();
 
 export class AudioEngine {
   constructor() {
-    this.context = null; this.muted = false; this.active = false; this.beat = 0; this.nextBeat = 0; this.lastShot = 0;
+    this.context = null; this.muted = false; this.active = false; this.transitionGain = 1; this.beat = 0; this.nextBeat = 0; this.lastShot = 0;
     this.samples = audioAssets.samples; this.sampleVoices = new Set(); this.synthVoices = new Set(); this.lastSample = new Map();
     this.failedSongs = new Set(); this.songKey = 'flight'; this.musicPlaying = false; this.musicToken = 0;
     this.musicPlayers = new Map(); this.musicSources = new Map(); this.musicChannels = new Map();
@@ -25,7 +25,11 @@ export class AudioEngine {
         this.limiter = this.context.createDynamicsCompressor();
         this.limiter.threshold.value = -12; this.limiter.knee.value = 10; this.limiter.ratio.value = 12;
         this.limiter.attack.value = .003; this.limiter.release.value = .2;
-        this.master = this.context.createGain(); this.master.gain.value = .34; this.master.connect(this.limiter); this.limiter.connect(this.context.destination);
+        this.master = this.context.createGain(); this.master.gain.value = .34; this.master.connect(this.limiter);
+        // Fade after the limiter so its look-ahead/release cannot leak an audio
+        // tail into the black frame. User mute remains a separate mix control.
+        this.transitionBus = this.context.createGain(); this.transitionBus.gain.value = this.transitionGain;
+        this.limiter.connect(this.transitionBus); this.transitionBus.connect(this.context.destination);
         const length = this.context.sampleRate * 2;
         this.noise = this.context.createBuffer(1, length, this.context.sampleRate);
         const data = this.noise.getChannelData(0);
@@ -45,6 +49,23 @@ export class AudioEngine {
     this.muted = value;
     if (this.master) this.master.gain.setTargetAtTime(value ? 0 : .34, this.context.currentTime, .04);
     if (value) { this.stopMusic(); this.stopVoices(); }
+  }
+  setTransitionGain(value) {
+    if (!Number.isFinite(value)) return;
+    value = Math.max(0, Math.min(1, value));
+    if (value === this.transitionGain) return;
+    this.transitionGain = value;
+    if (!this.transitionBus) return;
+    const gain = this.transitionBus.gain, now = this.context.currentTime;
+    if (value === 0) {
+      // The preceding visual fade frames have already brought the signal down;
+      // unlike an exponential tail, this endpoint guarantees complete silence.
+      gain.cancelScheduledValues(now); gain.setValueAtTime(0, now);
+    } else {
+      if (gain.cancelAndHoldAtTime) gain.cancelAndHoldAtTime(now);
+      else { const current = gain.value; gain.cancelScheduledValues(now); gain.setValueAtTime(current, now); }
+      gain.linearRampToValueAtTime(value, now + .012);
+    }
   }
   pause() { this.active = false; this.stopMusic(); this.stopVoices(); }
   stopVoices() {

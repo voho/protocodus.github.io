@@ -50,7 +50,7 @@ const setup = async (page, blocked = false) => {
         audioTest.start(); audioTest.update(window.audioGestureStartsFlight !== false);
         if (!window.audioMeter) {
           window.audioMeter = audioTest.context.createAnalyser(); audioMeter.fftSize = 2048;
-          audioTest.limiter.connect(audioMeter);
+          audioTest.transitionBus.connect(audioMeter);
         }
       } finally { window.audioTestGesture = false; }
     };
@@ -92,6 +92,11 @@ try {
   assert.equal(prepared.created, 5); assert.equal(prepared.sources, 5); assert.equal(prepared.loads, 5);
   assert.equal(prepared.ready, true, 'Every reusable song player has playable data before readiness');
   assert.equal(prepared.plays, 0); assert.equal(prepared.contexts, 0, 'Preflight neither plays music nor creates a live context');
+  const unopenedFade = await page.evaluate(() => {
+    audioTest.setTransitionGain(.4); audioTest.setTransitionGain(NaN); audioTest.setTransitionGain('0');
+    return { gain: audioTest.transitionGain, context: audioTest.context, muted: audioTest.muted };
+  });
+  assert.deepEqual(unopenedFade, { gain: .4, context: null, muted: false }, 'A transition can be prepared without creating audio or altering mute');
   await page.evaluate(() => { audioTest.mute(true); audioTest.start(); });
   assert.equal(await page.evaluate(() => audioTest.context), null, 'A saved mute preference avoids creating audio at launch');
   assert.equal(requests.length, 23, 'Muted launch reuses the completed cache');
@@ -101,9 +106,10 @@ try {
   await page.evaluate(() => { window.audioGestureStartsFlight = false; });
   await page.click('#audio-test-start');
   await page.waitForFunction(() => audioTest.musicUnlocks.size === 0 && [...preparedAudio.players.values()].every(player => player.paused));
+  assert.equal(await page.evaluate(() => audioTest.transitionBus.gain.value), Math.fround(.4), 'The first context inherits the prepared transition gain');
   assert.equal(await page.evaluate(() => audioMediaAudit.authorized.size), 5, 'One explicit gesture authorizes all five prepared elements');
   assert((await rms(page)) < .0001, 'Priming all players in the menu produces no audible output');
-  await page.evaluate(() => { window.audioGestureStartsFlight = true; audioTest.update(true); });
+  await page.evaluate(() => { window.audioGestureStartsFlight = true; audioTest.setTransitionGain(1); audioTest.update(true); });
   assert.equal(await page.evaluate(() => audioTest.samples.size), 18, 'All 18 shipped WAVs decode in the browser');
   await page.waitForFunction(() => audioTest.musicPlaying && !audioTest.music.paused);
   assert((await rms(page)) > .001, 'The cached song produces audible samples through the shared limiter');
@@ -139,6 +145,44 @@ try {
       'Inactive channels remain silent even if priming play promises finish late');
   }
   assert.equal(songSources.size, 5, 'All five supplied songs play offline');
+  const fade = await page.evaluate(async () => {
+    audioTest.update(true, 2, 'challenge');
+    audioTest.tone(440, 440, 2, .18); audioTest.sample('explosion', .3, .8, 2);
+    const levels = [];
+    for (const value of [.8, .5, .2, .05, 0]) {
+      audioTest.setTransitionGain(value);
+      await new Promise(resolve => setTimeout(resolve, 24));
+      levels.push(audioTest.transitionBus.gain.value);
+    }
+    // Newly emitted effects and still-playing compressed music all share the
+    // final bus; silence cannot depend solely on stopping preexisting voices.
+    audioTest.effect('nova', 100); audioTest.sample('pickup', .3);
+    return { levels, gain: audioTest.transitionGain, muted: audioTest.muted,
+      musicPaused: audioTest.music.paused, samples: audioTest.sampleVoices.size, synths: audioTest.synthVoices.size };
+  });
+  assert(fade.levels.every((gain, i, values) => i === 0 || gain <= values[i - 1]));
+  assert.equal(fade.levels.at(-1), 0); assert.equal(fade.gain, 0); assert.equal(fade.muted, false);
+  assert.equal(fade.musicPaused, false); assert(fade.samples > 0 && fade.synths > 0, 'All three kinds of live audio are tested behind the fade');
+  await page.waitForTimeout(100);
+  assert.equal(await rms(page), 0, 'Black-frame gain0 silences music, decoded samples and synths exactly');
+  await page.evaluate(() => { audioTest.mute(true); audioTest.setTransitionGain(3); });
+  await page.waitForTimeout(150);
+  assert.equal(await page.evaluate(() => audioTest.transitionGain), 1, 'Transition gain clamps to unity');
+  assert.equal(await page.evaluate(() => audioTest.muted), true, 'Restoring transition gain never clears the user mute');
+  assert((await rms(page)) < .0001);
+  await page.evaluate(() => { audioTest.setTransitionGain(-2); audioTest.mute(false); audioTest.effect('upgrade'); });
+  // AudioParam.value reflects the audio rendering thread's last quantum, so
+  // let that thread consume the setValueAtTime endpoint before reading it.
+  await page.waitForTimeout(30);
+  assert.equal(await page.evaluate(() => audioTest.transitionBus.gain.value), 0, 'Unmuting never overrides a black-frame fade');
+  await page.waitForTimeout(100); assert.equal(await rms(page), 0);
+  await page.evaluate(() => { audioTest.pause(); audioTest.setTransitionGain(1); });
+  await page.waitForTimeout(30);
+  await page.evaluate(() => audioTest.effect('upgrade'));
+  assert((await rms(page)) > .001, 'Restored transition gain makes hangar purchase effects audible');
+  await page.evaluate(() => { audioTest.stopVoices(); audioTest.update(true); });
+  await page.waitForFunction(() => audioTest.musicPlaying && !audioTest.music.paused);
+  assert((await rms(page)) > .001, 'The next flight returns to normal music volume');
   await page.evaluate(() => audioTest.mute(true));
   assert.equal(await page.evaluate(() => audioTest.music.paused), true, 'Mute pauses streamed music');
   await page.waitForTimeout(150);
@@ -239,6 +283,11 @@ try {
   assert.equal(fallbackState.samples, 0);
   assert(fallbackState.voices > 0, 'Missing audio files retain synthesized effects and music');
   assert((await rms(fallback)) > .001, 'The download-failure fallback is actually audible');
+  await fallback.evaluate(() => { audioTest.setTransitionGain(0); audioTest.update(true, 1, 'challenge'); audioTest.effect('challenge-result'); });
+  await fallback.waitForTimeout(100);
+  assert.equal(await rms(fallback), 0, 'Synthesized fallback music and result fanfare fade to exact silence too');
+  await fallback.evaluate(() => { audioTest.pause(); audioTest.setTransitionGain(1); audioTest.effect('upgrade'); });
+  assert((await rms(fallback)) > .001, 'Fallback purchase cues recover after the transition');
   await fallback.evaluate(() => { audioTest.update(true, 1, 'boss'); audioTest.update(true, 1, 'challenge'); audioTest.pause(); audioTest.start(); });
   assert.equal(fallbackRequests.length, 23, 'Failed preflight assets are not retried during gameplay');
   await fallback.evaluate(() => audioTest.pause());
@@ -295,5 +344,5 @@ try {
   assert.equal(mediaDeadline.songs, 0); assert.equal(mediaDeadline.prepared, 0, 'Late media readiness cannot publish failed tracks');
   await stalledMedia.close();
   assert.deepEqual(errors, [], 'No uncaught browser errors');
-  console.log('Audio browser checks passed: five playable preflight players, offline playback of every mood without source/load changes, persistent cache, ownership and event isolation, variation/caps, mute/pause, and bounded asset/media/permission fallback.');
+  console.log('Audio browser checks passed: five playable preflight players, offline playback without source/load changes, persistent cache, ownership/event isolation, variation/caps, mute/pause, exact transition silence and recovery, and bounded asset/media/permission fallback.');
 } finally { await browser.close(); }

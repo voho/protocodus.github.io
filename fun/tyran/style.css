@@ -345,6 +345,7 @@ button,.world-card,.upgrade-card,.weapon-card{text-align:center}
 .weapon-readout{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:center;text-align:center}
 
 /* The final flight fades into the same black surface as its debrief. */
+#bonus-outro-fade{position:fixed;inset:0;z-index:80;background:#000;opacity:0;touch-action:none}
 body[data-scene=end] #flight-layout,body[data-scene=end] #end-screen{background:#000}
 body[data-scene=end] #end-screen{backdrop-filter:none}
 #p1-shield-label[data-recharge=rest]{color:#b9ecd2}

@@ -84,6 +84,8 @@ let accumulator = 0, previousScroll = 0, renderAlpha = 1, renderDirty = true, fr
 let resolutionScale = 1, frameAverage = 16.7, fastestFrame = 100, lastAdapt = 0, vignette = null;
 let endFade = null;
 const END_IMPACT_HOLD = .22, END_FADE_SECONDS = 1.5;
+let bonusOutro = null;
+const BONUS_FADE_SECONDS = 1.5, BONUS_BLACK_HOLD = .12;
 const perf = { fps: 60, frameMs: 16.7, renderMs: 0, updateMs: 0, renderScale: 1, frames: 0, steps: 0 };
 const environmentHit = (...args) => {
   if (state) {
@@ -195,11 +197,16 @@ function setScreen(next) {
   // Also covers saved flights, sector transitions and resuming after a resize.
   if (next === 'playing' && state) { world.prepareFlight(W, H, state.scroll); warmGpuSources(); }
   if (next !== 'playing') {
-    audio.pause();
+    if (next !== 'bonus-outro') audio.pause();
     keys.clear(); touch.x = touch.y = 0; touch.fire = touch.secondary = touch.bomb = false;
     const pointer = touch.pointer; touch.pointer = null;
     if (pointer != null && stick?.hasPointerCapture(pointer)) stick.releasePointerCapture(pointer);
     stick?.style.setProperty('--stick-x', '0px'); stick?.style.setProperty('--stick-y', '0px');
+  }
+  if (next !== 'bonus-outro') {
+    bonusOutro = null; $('bonus-outro-fade').hidden = true;
+    // Stop outgoing voices before restoring sound for shop cues or the next flight.
+    audio.setTransitionGain(1);
   }
   if (next !== 'playing' && next !== 'end') canvas.style.filter = '';
   syncKeyboardLock();
@@ -452,6 +459,33 @@ function refreshHUD() {
   }
 }
 
+function beginBonusOutro(bonus) {
+  setScreen('bonus-outro');
+  bonusOutro = { elapsed: 0, bonus, black: false, blackElapsed: 0 };
+  $('bonus-outro-fade').style.opacity = '0'; $('bonus-outro-fade').hidden = false;
+  $('announcement').hidden = true;
+  // Rewards are already settled. Closing the tab during the fade resumes in the shop.
+  if (activeCampaign) unlocked = Math.max(unlocked, nextSector(state.level));
+  autosave();
+}
+
+function updateBonusOutro(dt) {
+  if (!bonusOutro) return;
+  if (bonusOutro.black) {
+    bonusOutro.blackElapsed += dt;
+    if (bonusOutro.blackElapsed >= BONUS_BLACK_HOLD) showHangar(bonusOutro.bonus);
+    return;
+  }
+  bonusOutro.elapsed += dt;
+  const progress = clamp(bonusOutro.elapsed / BONUS_FADE_SECONDS, 0, 1);
+  const opacity = progress * progress * (3 - 2 * progress);
+  $('bonus-outro-fade').style.opacity = String(Number(opacity.toFixed(4)));
+  audio.setTransitionGain(1 - opacity);
+  if (progress < 1) return;
+  // Paint a fully black, silent frame before revealing the upgrade screen.
+  bonusOutro.black = true; audio.pause(); fx.reset(); hitstop = 0;
+}
+
 function showHangar(bonus, loading = false) {
   const next = nextSector(state.level);
   if (activeCampaign) unlocked = Math.max(unlocked, next);
@@ -649,7 +683,10 @@ function processEvents() {
     if (e.type === 'respawn') announce('Reserve ship launched', `${e.lives} left`, 'Two power levels and one drone lost.', 1.6, true);
     if (e.type === 'weapon') { refreshHUD(); renderWeapons(); }
     if (['pickup', 'extra-life', 'respawn', 'nova', 'captured', 'rescue', 'power-lost'].includes(e.type)) refreshHUD();
-    if (e.type === 'hangar') showHangar(e.bonus);
+    if (e.type === 'hangar') {
+      if (state.challenge?.done) beginBonusOutro(e.bonus);
+      else showHangar(e.bonus);
+    }
     if (e.type === 'defeat') showEnd(false);
     if (e.type === 'victory') showEnd(true);
     // Collateral destruction can add ground effects even on the final tick.
@@ -949,7 +986,7 @@ function frame(time) {
   const elapsed = lastTime ? Math.max(0, (time - lastTime) / 1000) : 0;
   const dt = Math.min(.1, elapsed); lastTime = time;
   const preview = scene === 'menu' && document.body.dataset.preview === 'true';
-  const fading = scene === 'end' && endFade && !endFade.complete;
+  const fading = (scene === 'end' && endFade && !endFade.complete) || scene === 'bonus-outro';
   const active = scene === 'playing' || preview || fading;
   if (active) clock += dt;
   if (scene === 'playing' && state) {
@@ -985,8 +1022,10 @@ function frame(time) {
   } else if (preview) previewScroll += dt * 45;
   else if (fading) fx.update(dt, state?.scroll || 0);
   if (scene === 'end') updateEndFade(dt);
+  if (scene === 'bonus-outro') updateBonusOutro(dt);
   renderCombatFeedback();
-  audio.update(scene === 'playing', state?.level || 0, state?.challenge && !state.challenge.done ? 'challenge' : state?.bossSpawned && !state.bossDefeated ? 'boss' : '');
+  audio.update(scene === 'playing' || (scene === 'bonus-outro' && !bonusOutro?.black), state?.level || 0,
+    state?.challenge ? 'challenge' : state?.bossSpawned && !state.bossDefeated ? 'boss' : '');
   if (clock > announcementUntil && !$('announcement').hidden) $('announcement').hidden = true;
   if (scene === 'playing') { hudClock += dt; if (hudClock > .1) { refreshHUD(); hudClock = 0; } }
   if (active || renderDirty) {
@@ -1062,6 +1101,7 @@ window.addEventListener('blur', () => { keys.clear(); capturedKeys.clear(); if (
 document.addEventListener('fullscreenchange', syncKeyboardLock);
 document.addEventListener('visibilitychange', () => {
   if (document.hidden && scene === 'playing') pause();
+  if (document.hidden && scene === 'bonus-outro') audio.pause();
   if (!document.hidden) { lastTime = 0; renderDirty = true; requestFrame(); }
 });
 window.addEventListener('pagehide', autosave);
