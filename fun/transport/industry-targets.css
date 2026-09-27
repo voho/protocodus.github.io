@@ -16,3 +16,4 @@
 .target-detail small{display:block;font-size:12px;color:#647957;margin-top:3px}
 .target-cargo{display:flex;gap:2px}.target-cargo .cargo-icon{width:23px;height:23px}.industry-target>svg{width:17px;height:17px;flex-shrink:0}
 @media(max-width:700px){.main-nav [data-open-chains]{display:none}.mobile-management{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}.mobile-management button{min-height:35px}}
+.inspector h3:focus-visible{outline:2px solid var(--orange);outline-offset:3px;border-radius:2px}

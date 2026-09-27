@@ -460,8 +460,8 @@ function entitySearch(label) {
 function townsPanel() { return `<div class="panel-heading"><h2>Towns</h2><span>${game.cities.length}</span></div>${entitySearch('Find a town')}<div id="entity-list">${entityCards()}</div><div class="section-divider"></div><button class="button button-primary full" data-tool="city">${icon('city')} Found town · ${compactMoney(priceFor(game,BUILD_COSTS.city))}</button><button class="text-button" data-action="development">Zone a neighborhood <span>↗</span></button>`; }
 function industryPanel() { return `<div class="panel-heading"><h2>Industries</h2><span>${game.industries.length} sites</span></div>${entitySearch('Find a site or cargo')}<label class="entity-search"><span class="sr-only">Industry type</span><select id="industry-kind" aria-label="Industry type"><option value="all">All industries</option>${Object.entries(INDUSTRIES).filter(([,def])=>def.biomes.includes(game.biome)).map(([key,def])=>`<option value="${key}" ${entityFilters.kind===key?'selected':''}>${escapeHTML(def.name)}</option>`).join('')}</select></label><div id="entity-list">${entityCards()}</div><div class="section-divider"></div><button class="button button-primary full" data-action="industry-build">${icon('factory')} Build industry</button><button class="text-button" data-action="chains">Production chains <span>↗</span></button>`; }
 function bindEntityCards(root) {
- root.querySelectorAll('[data-city]').forEach(el=>el.addEventListener('click',()=>{const city=game.cities.find(c=>String(c.id)===el.dataset.city);setTool('inspect');renderer.focus(city.x,city.y);inspect(city.x,city.y,'city');closeMobile();}));
- root.querySelectorAll('[data-industry]').forEach(el=>el.addEventListener('click',()=>locateIndustry(el.dataset.industry)));
+ root.querySelectorAll('[data-city]').forEach(el=>el.addEventListener('click',e=>{const city=game.cities.find(c=>String(c.id)===el.dataset.city);setTool('inspect');renderer.focus(city.x,city.y);inspect(city.x,city.y,'city',e.detail===0?'keyboard':'');closeMobile();}));
+ root.querySelectorAll('[data-industry]').forEach(el=>el.addEventListener('click',e=>locateIndustry(el.dataset.industry,e.detail===0?'keyboard':'')));
 }
 function refreshEntities() {
  const list=$('#entity-list');if(!list)return;
@@ -589,17 +589,19 @@ function industryDestinations(industry) {
  }).join('');
  return `<section class="industry-destinations" aria-label="Output destinations"><div class="destination-heading"><h4>Deliver to</h4><button class="small-button" id="industry-chain">${icon('chains')} Full chain</button></div>${uses}<h4>Nearest targets <span>${targets.length}</span></h4><p class="destination-note">Direct distance · transport required</p><div class="industry-target-list">${targets.map((target,index)=>`<button class="industry-target" data-target-id="${escapeHTML(target.id)}" data-target-kind="${target.kind}" aria-label="Locate ${escapeHTML(target.name)} at ${target.x}, ${target.y}"><span class="target-number">${index+1}</span><span class="target-detail"><strong>${escapeHTML(target.name)}</strong><small>${Math.round(target.distance)} tiles · ${target.x}, ${target.y}</small></span><span class="target-cargo">${target.cargo.map(c=>cargoIcon(c,{decorative:true})).join('')}</span>${icon('focus')}</button>`).join('')||'<p class="destination-note">No buyers yet. Open the chain to build one.</p>'}</div></section>`;
 }
-function locateIndustry(id) {
+function locateIndustry(id,origin='') {
  const industry=game.industries.find(i=>String(i.id)===String(id));
  if(!industry)return;
- setTool('inspect');closeModal();closeMobile();renderer.setZoom(1);renderer.focus(industry.x+(industrySize(industry)-1)/2,industry.y+(industrySize(industry)-1)/2);inspect(industry.x,industry.y,'industry');updateHud();
+ setTool('inspect');closeModal();closeMobile();renderer.setZoom(1);renderer.focus(industry.x+(industrySize(industry)-1)/2,industry.y+(industrySize(industry)-1)/2);inspect(industry.x,industry.y,'industry',origin);updateHud();
 }
-function locateDestination(id,kind) {
- if(kind==='industry'){locateIndustry(id);return;}
+function locateDestination(id,kind,origin='') {
+ if(kind==='industry'){locateIndustry(id,origin);return;}
  const city=game.cities.find(c=>String(c.id)===String(id));if(!city)return;
- setTool('inspect');closeModal();closeMobile();renderer.setZoom(1);renderer.focus(city.x,city.y);inspect(city.x,city.y,'city');updateHud();
+ setTool('inspect');closeModal();closeMobile();renderer.setZoom(1);renderer.focus(city.x,city.y);inspect(city.x,city.y,'city',origin);updateHud();
 }
-function inspect(x,y,kind='') {
+// The last generated markup, not box.innerHTML: drawn portraits change their canvas attributes.
+let inspectorHTML='', inspectorKey='', panelPress=false, panelReleasedAt=-Infinity;
+function inspect(x,y,kind='',origin='') {
  const site=kind!=='city'?buildingAt(game,x,y):null;if(site){x=site.x;y=site.y;}
  const terrainSite=kind!=='city'&&!site?terrainObjectAt(game,x,y):null,nature=terrainSite?.object.kind==='mountain'?null:terrainSite;if(nature){x=nature.x;y=nature.y;}
  const tile=tileAt(x,y);if(!tile)return;const changed=!selected||selected.x!==x||selected.y!==y||selected.kind!==kind;selected={x,y,kind};
@@ -612,12 +614,16 @@ function inspect(x,y,kind='') {
  else if(city&&(kind==='city'||!tile.zone)){title=city.name;tag='TOWN';body=`<div class="inspector-grid"><div><small>Population</small><strong>${integer(city.population)}</strong></div><div><small>Activity</small><strong>${integer(city.activity||0)}</strong></div></div><p class="site-status">${townService(game,city).label}</p>${localConditions(settlementSuitability(game,city))}<button class="button button-primary full" id="zone-town">${icon('house')} Add zones</button>`;}
  else{title=tile.zone?TOOL_INFO[tile.zone].name+' zone':tile.road?'Road':tile.rail?'Railway':{grass:'Open countryside',forest:'Woodland',water:'Water',mountain:'Mountain ridge',rock:'Rocky ground',sand:'Desert sands',snow:'Snowfield'}[tile.terrain]||'Countryside';if(tile.detail&&!tile.road&&!tile.rail&&!tile.zone)title=tile.detail.replace(/-/g,' ').replace(/^./,c=>c.toUpperCase());tag=`${nature?terrainObjectSize(nature.object)+' × '+terrainObjectSize(nature.object)+' SITE · ':''}LEVEL ${[...new Set(tileSurface(game,x,y).corners.map(p=>p.height))].sort((a,b)=>a-b).join('–')} · ${x}, ${y}`;body=`<p>${nature&&nature.object.kind!=='mountain'?'A natural '+(nature.object.kind==='forest'?'grove':'outcrop')+' on level ground. Bulldoze any part to clear the whole site.':tile.zone?'Develops gradually with local demand.':tile.terrain==='water'?'Build a port on water beside a bank. Ships follow connected water and pass beneath bridges.':tile.terrain==='mountain'?'Use Terrain & crossings to tunnel through higher ground, or reshape clear land.':'Build on flat ground or a straight slope. Use Terrain & crossings to reshape or level clear land.'}</p>`;}
  if(tile.zone){const zone=game.zones.find(zone=>zone.x===x&&zone.y===y);body+=`<p>Development: ${Math.round((zone?.progress||0)/3*100)}% · Road access and regular town deliveries required.</p>`+localConditions(settlementSuitability(game,{x,y},tile.zone));}
- const box=$('#inspector');box.innerHTML=`<div class="inspector-top"><span class="eyebrow">${tag}</span><button class="tiny-button" aria-label="Close inspector">×</button></div><h3>${escapeHTML(title)}</h3>${body}`;box.hidden=false;drawPaletteSprites();box.querySelector('.tiny-button').onclick=()=>{box.hidden=true;selected=null;};
+ const box=$('#inspector'),html=`<div class="inspector-top"><span class="eyebrow">${tag}</span><button class="tiny-button" aria-label="Close inspector">×</button></div><h3 id="inspector-title" tabindex="-1">${escapeHTML(title)}</h3>${body}`,key=`${worldSerial}|${x},${y},${kind}`;
+ const focusTitle=()=>{if(origin==='keyboard')$('#inspector-title').focus({preventScroll:true});};
+ if(!changed&&!box.hidden&&html===inspectorHTML&&key===inspectorKey){focusTitle();return;}
+ box.innerHTML=inspectorHTML=html;inspectorKey=key;box.hidden=false;drawPaletteSprites();box.querySelector('.tiny-button').onclick=()=>{box.hidden=true;selected=null;inspectorHTML='';};
  if($('#station-route'))$('#station-route').onclick=()=>{if(formDraft.mode!==station.mode||formDraft.to===String(station.id))formDraft.to='';formDraft.mode=station.mode;formDraft.from=String(station.id);setView('routes');$('#route-form')?.scrollIntoView({block:'nearest',behavior:'smooth'});};
  if($('#zone-town'))$('#zone-town').onclick=()=>{category='towns';setView('build');};
  if($('#industry-chain'))$('#industry-chain').onclick=()=>openChains({industryKind:industry.kind});
- box.querySelectorAll('[data-target-id]').forEach(el=>el.onclick=()=>locateDestination(el.dataset.targetId,el.dataset.targetKind));
+ box.querySelectorAll('[data-target-id]').forEach(el=>el.onclick=e=>locateDestination(el.dataset.targetId,el.dataset.targetKind,e.detail===0?'keyboard':''));
  if(changed)box.scrollTop=0;
+ focusTitle();
 }
 // Construction saves wait for a pause in building, so a drag never holds vehicles.
 let constructionSaveTimer=0,saveHealthy=true;
@@ -687,7 +693,7 @@ function closeModal(){if($('#modal').open)$('#modal').close();}
 function activateGame(next) {
  cancelPendingSave();
  cancelRoutePicking();cancelGesture();closeMapMenus();
- game=next;worldSerial++;spaceDown=false;selected=null;hover=null;tool='inspect';preferredMode='road';
+ game=next;worldSerial++;spaceDown=false;selected=null;inspectorHTML='';hover=null;tool='inspect';preferredMode='road';
  view='build';category='network';buildingGroup='homes';chainSelection={};
  formDraft={name:'',mode:'road',from:'',to:'',cargo:'passengers'};
  routePage=0;routeFilters={query:'',mode:'all',status:'all',cargo:'all'};entityFilters={towns:'',industry:'',kind:'all'};
@@ -954,6 +960,10 @@ canvas.addEventListener('pointercancel',cancelGesture);
 canvas.addEventListener('lostpointercapture',e=>{if(pointer?.id===e.pointerId||touchPoints.has(e.pointerId))cancelGesture();});
 canvas.addEventListener('pointerleave',()=>{if(!pointer)hover=null;$('#placement-tip').hidden=true;});
 canvas.addEventListener('contextmenu',e=>{e.preventDefault();if(pointer&&!pointer.pan&&!touchPoints.has(pointer.id)&&(e.pointerType||'mouse')==='mouse'){pointer.cancelled=true;preview=[];$('#placement-tip').hidden=true;}});
+// Safari and iPad never focus a pressed button, so live refreshes wait out a press instead of replacing its target.
+$('#inspector').setAttribute('role','region');$('#inspector').setAttribute('aria-labelledby','inspector-title');
+for(const el of [$('#inspector'),$('#panel-content')])el.addEventListener('pointerdown',()=>{panelPress=true;},true);
+for(const type of ['pointerup','pointercancel'])document.addEventListener(type,()=>{if(panelPress){panelPress=false;panelReleasedAt=performance.now();}},true);
 let wheelAt=-Infinity, wheelDelta=0, wheelConsumed=false;
 canvas.addEventListener('wheel',e=>{
  e.preventDefault();if(!e.deltaY)return;
@@ -1062,7 +1072,7 @@ function frame(now){
  if(now-hudAt>400&&(!hudState||hudState.game!==game||hudState.day!==game.day||hudState.revision!==game.revision||hudState.money!==game.money||hudState.zoom!==camera.zoom||hudState.w!==w||hudState.view!==view)){
   updateHud();hudAt=now;hudState={game,day:game.day,revision:game.revision,money:game.money,zoom:camera.zoom,w,view};
   const fresh=collectNotices(game.notifications,lastNoticeId);lastNoticeId=game.notifications[0]?.id;for(const entry of groupNotices(fresh))noticeQueue.push({...entry,type:toastType(entry.type)});watchRoutes();
-  if(selected&&!$('#inspector').hidden&&!$('#inspector').contains(document.activeElement))inspect(selected.x,selected.y,selected.kind);
+  if(selected&&!$('#inspector').hidden&&!$('#inspector').contains(document.activeElement)&&!panelPress&&now-panelReleasedAt>250)inspect(selected.x,selected.y,selected.kind);
  }
  if(noticeQueue.length&&now-noticeAt>400){noticeAt=now;showQueuedNotices(now);}
  if((!compactUI||compactUI.isMinimapVisible())&&(!minimapState||minimapState.game!==game||minimapState.revision!==game.revision||minimapState.layers!==mapLayers||minimapState.x!==camera.x||minimapState.y!==camera.y||minimapState.height!==camera.height||minimapState.zoom!==camera.zoom||minimapState.w!==w||minimapState.h!==h)){
@@ -1074,7 +1084,7 @@ function frame(now){
  // While running, start early in a day so the capture fits before the next one.
  if(now-saveAt>20000&&!saveDialogController&&(!speed||game.day-Math.floor(game.day)<.25)){if(savedWorld!==worldSerial||savedDay!==game.day||savedRevision!==game.revision)persist();else saveAt=now;}
  if(now-panelAt>7000&&!$('.sidebar').inert&&(view==='industry'||view==='towns')&&(panelDay!==game.day||panelRevision!==game.revision)){
-  if(!$('#entity-list')?.contains(document.activeElement))refreshEntities();panelAt=now;panelDay=game.day;panelRevision=game.revision;
+  if(!$('#entity-list')?.contains(document.activeElement)&&!panelPress&&now-panelReleasedAt>250)refreshEntities();panelAt=now;panelDay=game.day;panelRevision=game.revision;
  }
  requestAnimationFrame(frame);
 }

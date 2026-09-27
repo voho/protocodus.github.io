@@ -56,6 +56,8 @@ Drag the map in **Explore** mode to pan; click a place to inspect it. Choose one
 
 On phones and tablets, a pinch that starts on the top bar, the drawer, the inspector or the map buttons never zooms the page, so the controls stay on screen. Dialogs such as the field guide can still be pinch-zoomed for reading; if the page is still zoomed after you close one, pinch in over the map to return to normal size. Swiping past the top of the drawer or a dialog does not reload the page.
 
+The inspector keeps its numbers current while the game runs, and a click or tap on its buttons always lands, in Safari and on iPad too. Resource tooltips stay open while nothing in the inspector changes. Opening a nearest target, a town or an industry from a list with the keyboard moves focus to the inspector's heading; screen readers announce the inspector as a region named after the selected place.
+
 Management stays closed until needed. Click **Build**, **Routes**, **Industries** or **Towns** to open a drawer; click the same view again or its close button to return to the full map. On narrow screens, **Manage** opens these views. Choosing a construction tool closes the drawer and leaves a small active-tool reminder with a **Done** button. The top lane keeps balance, monthly profit, date and speed visible. Save/load, production chains, map controls, sound and the field guide are in **Game menu** at the top right; the minimap is off by default.
 
 The landscape uses diamond-shaped tiles, with upright buildings and trees layered by their distance from the camera. Roads, railways, rivers, selections and construction previews follow the same isometric grid. Dragging and arrow keys move in screen directions; zoom keeps the location beneath your pointer in place. The atlas remains a flat overhead map for easy navigation. Existing companies, routes and terrain levels work unchanged in the new view.
@@ -259,6 +261,12 @@ The annual-economy browser check verifies individual and fleet upgrades, afforda
 
 ```sh
 TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/evolution-browser-check.mjs
+```
+
+The inspector check emulates Safari's click focus and presses **Full chain** 20 times at 1× and 8×, confirms an unchanged station inspector is never rewritten, and follows a target with the keyboard to the labelled inspector heading:
+
+```sh
+TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/inspector-browser-check.mjs
 ```
 
 The notices check covers the welcome toast, bursts of notices, grouped disconnections and their Show action, News, the January toast and its upgrade review, the Towns search across January, first deliveries, town milestones, quiet save loading and the 390px layout. Screenshots go to `/tmp/transport-notices-qa`:
