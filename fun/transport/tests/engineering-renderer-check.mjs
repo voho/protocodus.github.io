@@ -37,8 +37,8 @@ try {
       const canvas = document.querySelector('canvas'), renderer = createRenderer(canvas, g, { layers: { names: false, industryIcons: false, trees: false, routes: false, lighting: false } });
       const hash = () => { let h = 2166136261; for (const v of canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data) h = Math.imul(h ^ v, 16777619); return h >>> 0; };
       const crop = (x, y) => {
-        const camera = renderer.getCamera(), scale = camera.zoom * devicePixelRatio, px = canvas.width / 2 + (x * 32 - camera.x) * scale, py = canvas.height / 2 + (y * 32 - camera.y) * scale;
-        return Array.from(canvas.getContext('2d').getImageData(Math.round(px), Math.round(py), Math.round(32 * scale), Math.round(32 * scale)).data);
+        const scale = renderer.getCamera().zoom * devicePixelRatio, p = renderer.worldToScreen(x, y), px = p.x * devicePixelRatio - 16 * scale, py = p.y * devicePixelRatio - 8 * scale;
+        return Array.from(canvas.getContext('2d').getImageData(Math.round(px), Math.round(py), Math.round(32 * scale), Math.round(16 * scale)).data);
       };
       window.engineeringQA = { g, tile, canvas, renderer, hash, crop };
     });

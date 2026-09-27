@@ -116,7 +116,7 @@ test('vast ecology visits a bounded sparse sample and preserves infrastructure',
   game.day = 42;
   const networkRevision = game.networkRevision, changes = stepEcology(game);
   assert.ok(changes > 0 && changes <= Math.ceil(tiles.length / 128));
-  assert.ok(reads < tiles.length / 8, `one day samples neighborhoods instead of scanning ${tiles.length} tiles (${reads} reads)`);
+  assert.ok(reads < 4096 * 36, `one day samples neighborhoods instead of scanning ${tiles.length} tiles (${reads} reads)`);
   assert.equal(game.networkRevision, networkRevision, 'nature cannot trigger transport path rebuilding');
   for (const [index, tile] of protectedTiles) assert.deepEqual(tiles[index], tile);
   game.tiles = tiles;

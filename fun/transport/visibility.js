@@ -22,7 +22,7 @@ export const LAYER_GROUPS = [
   ] },
 ];
 export const DEFAULT_LAYERS = Object.freeze(Object.fromEntries(
-  LAYER_GROUPS.flatMap(group => group.items.map(({ key }) => [key, key !== 'grid'])),
+  LAYER_GROUPS.flatMap(group => group.items.map(({ key }) => [key, true])),
 ));
 
 export function normalizeLayers(value) {

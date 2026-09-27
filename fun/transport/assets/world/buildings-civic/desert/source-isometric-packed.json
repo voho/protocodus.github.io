@@ -1,0 +1,134 @@
+{
+  "source": "source-isometric.png",
+  "cell": 640,
+  "operation": "Original RGBA pixels registered by disconnected alpha components; no resampling",
+  "meaningfulPixelsPreserved": 867091,
+  "cells": [
+    {
+      "cell": 0,
+      "sourceBounds": [
+        18,
+        29,
+        436,
+        456
+      ],
+      "offset": [
+        111,
+        106
+      ],
+      "pixels": 104597
+    },
+    {
+      "cell": 1,
+      "sourceBounds": [
+        444,
+        97,
+        820,
+        449
+      ],
+      "offset": [
+        132,
+        144
+      ],
+      "pixels": 88496
+    },
+    {
+      "cell": 2,
+      "sourceBounds": [
+        837,
+        84,
+        1250,
+        445
+      ],
+      "offset": [
+        113,
+        139
+      ],
+      "pixels": 102487
+    },
+    {
+      "cell": 3,
+      "sourceBounds": [
+        16,
+        447,
+        418,
+        847
+      ],
+      "offset": [
+        119,
+        120
+      ],
+      "pixels": 94593
+    },
+    {
+      "cell": 4,
+      "sourceBounds": [
+        422,
+        476,
+        835,
+        847
+      ],
+      "offset": [
+        113,
+        134
+      ],
+      "pixels": 102919
+    },
+    {
+      "cell": 5,
+      "sourceBounds": [
+        853,
+        423,
+        1237,
+        856
+      ],
+      "offset": [
+        128,
+        103
+      ],
+      "pixels": 88801
+    },
+    {
+      "cell": 6,
+      "sourceBounds": [
+        36,
+        860,
+        416,
+        1225
+      ],
+      "offset": [
+        130,
+        137
+      ],
+      "pixels": 90750
+    },
+    {
+      "cell": 7,
+      "sourceBounds": [
+        438,
+        836,
+        824,
+        1226
+      ],
+      "offset": [
+        127,
+        125
+      ],
+      "pixels": 97778
+    },
+    {
+      "cell": 8,
+      "sourceBounds": [
+        854,
+        864,
+        1237,
+        1224
+      ],
+      "offset": [
+        128,
+        140
+      ],
+      "pixels": 96670
+    }
+  ]
+}

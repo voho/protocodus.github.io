@@ -1,5 +1,5 @@
 import { registerAtlas, drawAtlas, atlasAvailable } from './atlas-runtime.js';
-import { drawDirectionalVehicle, vehicleHeadingIndex } from './vehicle-directions.js';
+import { drawDirectionalVehicle, vehicleHeadingIndex, vehicleFrameAngle } from './vehicle-directions.js';
 
 registerAtlas({id:'vehicles',path:'./assets/world/vehicles/atlas',entries:['bus','truck','locomotive','coach','wagon','express-bus','ferry','cargo-ship','tanker'].map(id=>'vehicle:'+id)});
 registerAtlas({id:'infrastructure',path:'./assets/world/infrastructure/atlas',entries:['bus-stop','train-stop','port','road','rail','road-bridge','rail-bridge','road-tunnel','rail-tunnel'].map(id=>'infra:'+id)});
@@ -65,7 +65,7 @@ export function drawRasterVehicle(c,vehicle,route,{engine=true,pixelScale=1,head
   if(directional){
     // Loads share the selected body's heading, with a small screen-up offset
     // onto its bed. The separately drawn body keeps the lighting fixed.
-    upright(c,heading);c.translate(0,ship?-.65:-.7);c.rotate(vehicleHeadingIndex(heading)*Math.PI/4);
+    upright(c,heading);c.translate(0,ship?-.65:-.7);c.rotate(vehicleFrameAngle(heading));
     if(ship)c.translate(3.5,0);
   }
   const fraction=Math.max(0,Math.min(1,(vehicle.load||0)/Math.max(1,vehicle.capacity||1)));

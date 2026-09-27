@@ -8,6 +8,7 @@
     128
   ],
   "masterCell": 256,
+  "vehicleLengthNormalized": true,
   "order": [
     "vehicle:bus",
     "vehicle:truck",
@@ -19,8 +20,8 @@
     "vehicle:cargo-ship",
     "vehicle:tanker"
   ],
-  "source": "exec-6b8e940a-6eb8-4832-a776-1dbd905cb48d.png",
-  "sourceSha256": "8042e7ff0cc536808a71654e7eaaebbf66785e1f8e45393802f9316fbf79fb39",
+  "source": "source-isometric.png",
+  "sourceSha256": "8a7f09d9a64d19a5135248a91d60e0894c7a61e1920f87abc8df67ae8377aba9",
   "sprites": [
     {
       "id": "vehicle:bus",
@@ -28,109 +29,109 @@
       "sourceBounds": [
         0,
         0,
-        418,
-        418
+        256,
+        256
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          256,
+          256
         ],
         "sourceBounds": [
-          28,
-          247,
-          416,
-          402
+          21,
+          31,
+          235,
+          225
         ],
         "rawAlphaBounds": [
-          17,
-          19,
-          418,
-          406
+          21,
+          32,
+          234,
+          224
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.686134
+        "transparentFraction": 0.652008
       },
       "bounds": [
-        12,
-        81,
-        244,
-        174
+        21,
+        32,
+        233,
+        223
       ]
     },
     {
       "id": "vehicle:truck",
       "cell": 1,
       "sourceBounds": [
-        418,
+        256,
         0,
-        836,
-        418
+        512,
+        256
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          256,
+          256
         ],
         "sourceBounds": [
-          33,
-          234,
-          418,
-          402
+          19,
+          40,
+          235,
+          215
         ],
         "rawAlphaBounds": [
-          0,
-          28,
-          418,
-          410
+          20,
+          41,
+          235,
+          214
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.714538
+        "transparentFraction": 0.709763
       },
       "bounds": [
-        12,
-        77,
-        244,
-        178
+        21,
+        42,
+        235,
+        214
       ]
     },
     {
       "id": "vehicle:locomotive",
       "cell": 2,
       "sourceBounds": [
-        836,
+        512,
         0,
-        1254,
-        418
+        768,
+        256
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          256,
+          256
         ],
         "sourceBounds": [
-          0,
-          243,
-          401,
-          398
+          27,
+          30,
+          228,
+          226
         ],
         "rawAlphaBounds": [
-          0,
-          21,
-          402,
-          414
+          28,
+          31,
+          227,
+          225
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.68456
+        "transparentFraction": 0.692688
       },
       "bounds": [
-        12,
-        83,
-        244,
-        173
+        28,
+        31,
+        227,
+        225
       ]
     },
     {
@@ -138,110 +139,110 @@
       "cell": 3,
       "sourceBounds": [
         0,
-        418,
-        418,
-        836
+        256,
+        256,
+        512
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          256,
+          256
         ],
         "sourceBounds": [
-          17,
-          137,
-          418,
-          287
+          20,
+          44,
+          236,
+          212
         ],
         "rawAlphaBounds": [
-          0,
-          17,
-          418,
-          418
+          21,
+          45,
+          235,
+          211
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.688846
+        "transparentFraction": 0.702011
       },
       "bounds": [
-        12,
-        84,
-        244,
-        171
+        21,
+        45,
+        234,
+        211
       ]
     },
     {
       "id": "vehicle:wagon",
       "cell": 4,
       "sourceBounds": [
-        418,
-        418,
-        836,
-        836
+        256,
+        256,
+        512,
+        512
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          256,
+          256
         ],
         "sourceBounds": [
-          0,
-          135,
-          392,
-          286
+          15,
+          36,
+          240,
+          219
         ],
         "rawAlphaBounds": [
-          0,
-          2,
-          418,
-          418
+          16,
+          37,
+          239,
+          218
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.732595
+        "transparentFraction": 0.680145
       },
       "bounds": [
-        12,
-        83,
-        244,
-        172
+        17,
+        38,
+        239,
+        218
       ]
     },
     {
       "id": "vehicle:express-bus",
       "cell": 5,
       "sourceBounds": [
-        836,
-        418,
-        1254,
-        836
+        512,
+        256,
+        768,
+        512
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          256,
+          256
         ],
         "sourceBounds": [
-          0,
-          128,
-          401,
-          286
+          24,
+          39,
+          232,
+          216
         ],
         "rawAlphaBounds": [
-          0,
-          7,
-          404,
-          418
+          25,
+          40,
+          231,
+          215
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.672672
+        "transparentFraction": 0.699158
       },
       "bounds": [
-        12,
-        82,
-        244,
-        173
+        25,
+        41,
+        230,
+        215
       ]
     },
     {
@@ -249,110 +250,110 @@
       "cell": 6,
       "sourceBounds": [
         0,
-        836,
-        418,
-        1254
+        512,
+        256,
+        768
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          256,
+          256
         ],
         "sourceBounds": [
-          20,
-          15,
-          413,
-          203
+          22,
+          44,
+          234,
+          212
         ],
         "rawAlphaBounds": [
-          0,
-          9,
-          418,
-          418
+          23,
+          45,
+          233,
+          211
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.679735
+        "transparentFraction": 0.712723
       },
       "bounds": [
-        12,
-        72,
-        244,
-        183
+        23,
+        45,
+        233,
+        211
       ]
     },
     {
       "id": "vehicle:cargo-ship",
       "cell": 7,
       "sourceBounds": [
-        418,
-        836,
-        836,
-        1254
+        256,
+        512,
+        512,
+        768
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          256,
+          256
         ],
         "sourceBounds": [
-          16,
-          12,
-          404,
-          205
+          24,
+          36,
+          231,
+          219
         ],
         "rawAlphaBounds": [
-          0,
-          0,
-          418,
-          418
+          25,
+          37,
+          230,
+          218
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.678876
+        "transparentFraction": 0.732635
       },
       "bounds": [
-        12,
-        70,
-        244,
-        185
+        26,
+        37,
+        230,
+        218
       ]
     },
     {
       "id": "vehicle:tanker",
       "cell": 8,
       "sourceBounds": [
-        836,
-        836,
-        1254,
-        1254
+        512,
+        512,
+        768,
+        768
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          256,
+          256
         ],
         "sourceBounds": [
-          0,
-          31,
-          401,
-          201
+          29,
+          34,
+          227,
+          222
         ],
         "rawAlphaBounds": [
-          0,
-          0,
-          402,
-          418
+          30,
+          35,
+          226,
+          221
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.689407
+        "transparentFraction": 0.758347
       },
       "bounds": [
-        12,
-        79,
-        244,
-        177
+        30,
+        35,
+        226,
+        221
       ]
     }
   ]

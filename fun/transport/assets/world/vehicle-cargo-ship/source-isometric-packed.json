@@ -1,0 +1,119 @@
+{
+  "source": "fun/transport/assets/world/vehicle-cargo-ship/source-isometric.png",
+  "sourceSize": [
+    1254,
+    1254
+  ],
+  "cell": 640,
+  "operation": "RGBA crop and integer translation only",
+  "cells": [
+    {
+      "sourceCrop": [
+        0,
+        0,
+        433,
+        438
+      ],
+      "integerOffset": [
+        103,
+        101
+      ]
+    },
+    {
+      "sourceCrop": [
+        433,
+        0,
+        822,
+        438
+      ],
+      "integerOffset": [
+        125,
+        101
+      ]
+    },
+    {
+      "sourceCrop": [
+        822,
+        0,
+        1254,
+        438
+      ],
+      "integerOffset": [
+        104,
+        101
+      ]
+    },
+    {
+      "sourceCrop": [
+        0,
+        438,
+        443,
+        799
+      ],
+      "integerOffset": [
+        98,
+        139
+      ]
+    },
+    {
+      "sourceCrop": [
+        443,
+        438,
+        811,
+        799
+      ],
+      "integerOffset": [
+        136,
+        139
+      ]
+    },
+    {
+      "sourceCrop": [
+        811,
+        438,
+        1254,
+        799
+      ],
+      "integerOffset": [
+        98,
+        139
+      ]
+    },
+    {
+      "sourceCrop": [
+        0,
+        799,
+        440,
+        1254
+      ],
+      "integerOffset": [
+        100,
+        92
+      ]
+    },
+    {
+      "sourceCrop": [
+        440,
+        799,
+        814,
+        1254
+      ],
+      "integerOffset": [
+        133,
+        92
+      ]
+    },
+    {
+      "sourceCrop": [
+        814,
+        799,
+        1254,
+        1254
+      ],
+      "integerOffset": [
+        100,
+        92
+      ]
+    }
+  ]
+}

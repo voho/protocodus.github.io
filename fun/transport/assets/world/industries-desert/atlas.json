@@ -9,6 +9,7 @@
     256
   ],
   "masterCell": 256,
+  "vehicleLengthNormalized": false,
   "order": [
     "industry:farm:desert",
     "industry:food-plant:desert",
@@ -20,8 +21,8 @@
     "industry:glassworks:desert",
     "industry:copper-mine:desert"
   ],
-  "source": "source-generated.png",
-  "sourceSha256": "b17005b96ed69648ac056803f1e946881ce6ec2ea81ba5b4b50ab73409b4d875",
+  "source": "source-isometric-packed.png",
+  "sourceSha256": "66dd50056b05edae1cba854239f004d9cfcb337684d0fe4a79b22a09f4e3d704",
   "sprites": [
     {
       "id": "industry:farm:desert",
@@ -29,33 +30,33 @@
       "sourceBounds": [
         0,
         0,
-        418,
-        418
+        640,
+        640
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          640,
+          640
         ],
         "sourceBounds": [
-          9,
-          51,
-          418,
-          389
+          112,
+          187,
+          536,
+          523
         ],
         "rawAlphaBounds": [
-          0,
-          48,
-          418,
-          410
+          104,
+          130,
+          535,
+          540
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.428813
+        "transparentFraction": 0.783311
       },
       "bounds": [
         12,
-        52,
+        60,
         244,
         244
       ]
@@ -64,35 +65,35 @@
       "id": "industry:food-plant:desert",
       "cell": 1,
       "sourceBounds": [
-        418,
+        640,
         0,
-        836,
-        418
+        1280,
+        640
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          640,
+          640
         ],
         "sourceBounds": [
-          16,
-          63,
-          411,
-          382
+          117,
+          210,
+          514,
+          524
         ],
         "rawAlphaBounds": [
-          0,
-          53,
-          418,
-          418
+          118,
+          144,
+          521,
+          540
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.493504
+        "transparentFraction": 0.809993
       },
       "bounds": [
         12,
-        57,
+        61,
         244,
         244
       ]
@@ -101,35 +102,35 @@
       "id": "industry:oil-well:desert",
       "cell": 2,
       "sourceBounds": [
-        836,
+        1280,
         0,
-        1254,
-        418
+        1920,
+        640
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          640,
+          640
         ],
         "sourceBounds": [
-          12,
-          48,
-          409,
-          380
+          118,
+          197,
+          522,
+          523
         ],
         "rawAlphaBounds": [
-          0,
-          48,
-          418,
-          410
+          110,
+          119,
+          530,
+          540
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.532085
+        "transparentFraction": 0.819963
       },
       "bounds": [
         12,
-        50,
+        57,
         244,
         244
       ]
@@ -139,34 +140,34 @@
       "cell": 3,
       "sourceBounds": [
         0,
-        418,
-        418,
-        836
+        640,
+        640,
+        1280
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          640,
+          640
         ],
         "sourceBounds": [
-          10,
-          10,
-          417,
-          393
+          124,
+          129,
+          521,
+          505
         ],
         "rawAlphaBounds": [
-          0,
-          9,
-          418,
-          418
+          114,
+          114,
+          526,
+          527
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.400443
+        "transparentFraction": 0.795234
       },
       "bounds": [
         12,
-        26,
+        24,
         244,
         244
       ]
@@ -175,35 +176,35 @@
       "id": "industry:quarry:desert",
       "cell": 4,
       "sourceBounds": [
-        418,
-        418,
-        836,
-        836
+        640,
+        640,
+        1280,
+        1280
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          640,
+          640
         ],
         "sourceBounds": [
-          9,
-          40,
-          410,
-          388
+          113,
+          153,
+          526,
+          503
         ],
         "rawAlphaBounds": [
-          0,
-          0,
-          418,
-          412
+          108,
+          112,
+          531,
+          521
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.332914
+        "transparentFraction": 0.754431
       },
       "bounds": [
         12,
-        43,
+        47,
         244,
         244
       ]
@@ -212,35 +213,35 @@
       "id": "industry:cement-works:desert",
       "cell": 5,
       "sourceBounds": [
-        836,
-        418,
-        1254,
-        836
+        1280,
+        640,
+        1920,
+        1280
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          640,
+          640
         ],
         "sourceBounds": [
-          2,
-          25,
-          410,
-          384
+          116,
+          143,
+          522,
+          506
         ],
         "rawAlphaBounds": [
-          0,
-          5,
-          418,
-          418
+          110,
+          112,
+          529,
+          517
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.41747
+        "transparentFraction": 0.774519
       },
       "bounds": [
         12,
-        40,
+        37,
         244,
         244
       ]
@@ -250,34 +251,34 @@
       "cell": 6,
       "sourceBounds": [
         0,
-        836,
-        418,
-        1254
+        1280,
+        640,
+        1920
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          640,
+          640
         ],
         "sourceBounds": [
-          8,
-          49,
-          412,
-          375
+          118,
+          156,
+          523,
+          470
         ],
         "rawAlphaBounds": [
-          0,
-          0,
-          418,
-          418
+          109,
+          124,
+          530,
+          519
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.361456
+        "transparentFraction": 0.777114
       },
       "bounds": [
         12,
-        57,
+        64,
         244,
         244
       ]
@@ -286,35 +287,35 @@
       "id": "industry:glassworks:desert",
       "cell": 7,
       "sourceBounds": [
-        418,
-        836,
-        836,
-        1254
+        640,
+        1280,
+        1280,
+        1920
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          640,
+          640
         ],
         "sourceBounds": [
-          4,
-          32,
-          410,
-          376
+          122,
+          143,
+          520,
+          471
         ],
         "rawAlphaBounds": [
-          0,
-          5,
-          418,
-          418
+          114,
+          140,
+          526,
+          519
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.427245
+        "transparentFraction": 0.787158
       },
       "bounds": [
         12,
-        47,
+        53,
         244,
         244
       ]
@@ -323,35 +324,35 @@
       "id": "industry:copper-mine:desert",
       "cell": 8,
       "sourceBounds": [
-        836,
-        836,
-        1254,
-        1254
+        1280,
+        1280,
+        1920,
+        1920
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          640,
+          640
         ],
         "sourceBounds": [
-          3,
-          31,
-          409,
-          376
+          115,
+          149,
+          523,
+          471
         ],
         "rawAlphaBounds": [
-          0,
-          0,
-          417,
-          418
+          109,
+          122,
+          530,
+          519
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.328026
+        "transparentFraction": 0.767356
       },
       "bounds": [
         12,
-        47,
+        61,
         244,
         244
       ]

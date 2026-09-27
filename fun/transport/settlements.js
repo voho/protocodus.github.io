@@ -1,11 +1,12 @@
 import { BUILDINGS, residentialKind, commercialKind } from './buildings.js';
 import { localEnvironment, randomAt, weatherAt } from './environment.js';
 import { industryTiles } from './industry-sites.js';
+import { buildingAt, buildingFootprint, buildingSiteProblem, buildingTiles, placeBuildingSite } from './building-sites.js';
 
 const clamp = (value, min = 0, max = 1) => Math.max(min, Math.min(max, value));
 const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const tileAt = (game, x, y) => x >= 0 && y >= 0 && x < game.width && y < game.height ? game.tiles[y * game.width + x] : null;
-const land = biome => biome === 'desert' ? 'sand' : biome === 'tundra' ? 'snow' : 'grass';
+const developmentKind = (kind, variant, level) => kind === 'residential' ? residentialKind(variant, level) : kind === 'commercial' ? commercialKind(variant, level) : 'factory';
 
 function nearestCity(game, point) {
   let nearest = null, best = 10;
@@ -54,7 +55,15 @@ function suitability(game, point, kind, environment, weather, city) {
 // These are derived from the same neighborhood used by the simulation, so the
 // inspector can explain why a plot is growing without adding save-only state.
 export function settlementSuitability(game, point, kind = 'residential') {
-  return suitability(game, point, kind, localEnvironment(game, point.x, point.y), weatherAt(game, point.x, point.y), nearestCity(game, point));
+  const result = suitability(game, point, kind, localEnvironment(game, point.x, point.y), weatherAt(game, point.x, point.y), nearestCity(game, point));
+  const tile = tileAt(game, point.x, point.y), zone = game.zones.find(z => z.x === point.x && z.y === point.y);
+  const level = Math.floor(zone?.progress || 0);
+  if (zone && level > (tile?.building?.level || 0)) {
+    const next = developmentKind(zone.kind, tile.variant, level), size = buildingFootprint(next), exclude = buildingAt(game, point.x, point.y);
+    const mixed = buildingTiles({ ...point, building: { footprint: size } }).some(p => { const t = tileAt(game, p.x, p.y); return t?.zone && t.zone !== zone.kind; });
+    if (mixed || buildingSiteProblem(game, next, point.x, point.y, size, { exclude, allowZone: true })) result.negative.push(`Needs ${size} × ${size} clear tiles`);
+  }
+  return result;
 }
 
 export function housingCapacity(building) {
@@ -90,12 +99,14 @@ export function stepSettlements(game) {
     for (let dy = -radius; dy <= radius; dy++) for (let dx = -radius; dx <= radius; dx++) {
       const x = city.x + dx, y = city.y + dy, tile = tileAt(game, x, y), key = `${x},${y}`;
       // Paid buildings and landmarks are never replaced by organic growth.
-      if (!tile || tile.building || tile.zone || tile.road || tile.rail || occupied.has(key) || !['grass', 'sand', 'snow', 'forest'].includes(tile.terrain)) continue;
+      if (!tile || buildingAt(game, x, y) || tile.zone || tile.road || tile.rail || occupied.has(key) || !['grass', 'sand', 'snow', 'forest'].includes(tile.terrain)) continue;
       const local = localEnvironment(game, x, y, 2);
       if (!local.roadAccess) continue;
       const score = suitability(game, { x, y }, 'residential', local, weather, city).score;
       const rank = score * (.5 + randomAt(game, day, key, 106) * .5);
-      if (!best || rank > best.rank) best = { x, y, tile, city, rank, building: { kind: residentialKind(tile.variant, 1), level: 1 } };
+      const kind = residentialKind(tile.variant, 1);
+      if (buildingSiteProblem(game, kind, x, y)) continue;
+      if (!best || rank > best.rank) best = { x, y, tile, city, rank, building: { kind, level: 1 } };
     }
     if (best) proposals.push(best);
   }
@@ -103,6 +114,8 @@ export function stepSettlements(game) {
   for (const zone of game.zones) {
     const tile = tileAt(game, zone.x, zone.y);
     if (!tile || tile.zone !== zone.kind) continue;
+    const existing = buildingAt(game, zone.x, zone.y);
+    if (existing && (existing.x !== zone.x || existing.y !== zone.y)) continue;
     const city = nearestCity(game, zone), environment = localEnvironment(game, zone.x, zone.y);
     const key = `zone:${zone.x},${zone.y}`, occupiedLevel = tile.building?.level || 0;
     if (!recentlyServed(game, city) || !environment.roadAccess) {
@@ -118,25 +131,30 @@ export function stepSettlements(game) {
     zone.progress = clamp(zone.progress + increment, occupiedLevel, 3);
     const level = Math.floor(zone.progress);
     if (level <= occupiedLevel) continue;
-    const kind = zone.kind === 'residential' ? residentialKind(tile.variant, level) : zone.kind === 'commercial' ? commercialKind(tile.variant, level) : 'factory';
+    const kind = developmentKind(zone.kind, tile.variant, level);
     proposals.push({ x: zone.x, y: zone.y, tile, city, zone, building: { kind, level } });
   }
 
   let changed = false;
   const claimed = new Set();
   for (const proposal of proposals) {
-    const { x, y, tile, city, building, zone } = proposal, key = `${x},${y}`;
-    if (claimed.has(key)) continue;
-    claimed.add(key);
+    const { x, y, tile, city, building, zone } = proposal;
+    const size = buildingFootprint(building.kind), points = buildingTiles({ x, y, building: { footprint: size } });
+    // Several plots can propose growth on the same day. Validate and reserve
+    // the entire square before committing any building, population or goods.
+    if (points.some(p => claimed.has(`${p.x},${p.y}`))) continue;
+    if (zone && points.some(p => { const t = tileAt(game, p.x, p.y); return t?.zone && t.zone !== zone.kind; })) continue;
+    const existing = buildingAt(game, x, y);
+    if (existing && (existing.x !== x || existing.y !== y)) continue;
+    if (buildingSiteProblem(game, building.kind, x, y, size, { exclude: existing, allowZone: Boolean(zone) })) continue;
     const population = Math.max(0, housingCapacity(building) - housingCapacity(tile.building));
     // A later town foundation must not move an existing home's residents to a
     // different town. Explicit null identifies countryside housing, too.
     const populationCityId = Object.hasOwn(tile.building || {}, 'populationCityId') ? tile.building.populationCityId : city.id;
     if (housingCapacity(building) > 0) building.populationCityId = populationCityId;
     const previousLevel = tile.building?.level || 0;
-    tile.building = building;
-    tile.detail = '';
-    if (tile.terrain === 'forest') tile.terrain = land(game.biome);
+    if (!placeBuildingSite(game, building.kind, x, y, { size, building, exclude: existing, allowZone: Boolean(zone) })) continue;
+    for (const p of points) claimed.add(`${p.x},${p.y}`);
     const populationCity = game.cities.find(town => town.id === populationCityId);
     if (populationCity) populationCity.population = Math.max(0, populationCity.population + population);
     if (zone?.kind === 'commercial') city.supplies += (building.level - previousLevel) * 8;

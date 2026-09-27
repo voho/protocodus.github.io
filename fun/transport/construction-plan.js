@@ -1,5 +1,8 @@
-import { build, constructionCost, tileAt, quoteStructureSpan, buildStructureSpan } from './model.js';
+import { build, constructionCost, tileAt, quoteStructureSpan, buildStructureSpan, BUILDINGS, INDUSTRIES, industryAt } from './model.js';
 import { SPAN_TOOLS, terraformProblem } from './terrain-engineering.js';
+import { buildingAt, buildingFootprint, buildingSiteProblem } from './building-sites.js';
+import { industryFootprint, industrySiteProblem } from './industry-sites.js';
+import { terrainObjectAt } from './terrain-objects.js';
 
 /** Resolve the compact toolbar's intent to an existing, validated model tool. */
 export function resolveBuildTool(game, tool, x, y, { preferredMode = 'road' } = {}) {
@@ -23,8 +26,18 @@ function uniquePoints(points) {
   return [...unique.values()];
 }
 
+// A drag crossing several cells of one site demolishes and pays for it once.
+function constructionPoints(game, tool, points) {
+  const unique = uniquePoints(points);
+  if (tool !== 'bulldoze') return unique;
+  return uniquePoints(unique.map(point => {
+    const nature = terrainObjectAt(game, point.x, point.y);
+    return industryAt(game, point.x, point.y) || buildingAt(game, point.x, point.y) || (nature && nature.object.kind !== 'mountain' ? nature : point);
+  }));
+}
+
 export function quoteBuildPlan(game, tool, points, options) {
-  const unique=uniquePoints(points);
+  const unique=constructionPoints(game,tool,points);
   if(SPAN_TOOLS.has(tool)&&unique.length>1)return quoteStructureSpan(game,tool,unique);
   const placements = unique.map(({ x, y }) => {
     const resolved = resolveBuildTool(game, tool, x, y, options);
@@ -34,6 +47,22 @@ export function quoteBuildPlan(game, tool, points, options) {
   if(tool==='raise'||tool==='lower'){
     const problem=unique.map(p=>terraformProblem(game,tool,p.x,p.y)).find(Boolean)|| (cost>game.money?`Need $${Math.round(cost).toLocaleString('en-US')} to shape these tiles.`:null);
     return {placements,cost,ok:unique.length>0&&!problem,message:problem||'Change each tile by one level.'};
+  }
+  if (Object.hasOwn(BUILDINGS, tool) || Object.hasOwn(INDUSTRIES, tool)) {
+    const industry = Object.hasOwn(INDUSTRIES, tool), span = industry ? industryFootprint(tool) : buildingFootprint(tool), claimed = new Set();
+    let problem = null;
+    for (const { x, y } of unique) {
+      problem = industry ? industrySiteProblem(game, tool, x, y, span) : buildingSiteProblem(game, tool, x, y, span);
+      if (problem) break;
+      for (let dy = 0; dy < span && !problem; dy++) for (let dx = 0; dx < span; dx++) {
+        const index = (y + dy) * game.width + x + dx;
+        if (claimed.has(index)) { problem = 'Building sites must not overlap.'; break; }
+        claimed.add(index);
+      }
+      if (problem) break;
+    }
+    problem ||= cost > game.money ? `Need $${Math.round(cost).toLocaleString('en-US')} for this construction.` : null;
+    return { placements, cost, span, ok: unique.length > 0 && !problem, message: problem || `${span} × ${span} site` };
   }
   return { placements, cost };
 }

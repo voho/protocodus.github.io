@@ -1,0 +1,119 @@
+{
+  "source": "fun/transport/assets/world/vehicle-truck/source-isometric.png",
+  "sourceSize": [
+    1254,
+    1254
+  ],
+  "cell": 640,
+  "operation": "RGBA crop and integer translation only",
+  "cells": [
+    {
+      "sourceCrop": [
+        0,
+        0,
+        431,
+        429
+      ],
+      "integerOffset": [
+        104,
+        105
+      ]
+    },
+    {
+      "sourceCrop": [
+        431,
+        0,
+        823,
+        429
+      ],
+      "integerOffset": [
+        124,
+        105
+      ]
+    },
+    {
+      "sourceCrop": [
+        823,
+        0,
+        1254,
+        429
+      ],
+      "integerOffset": [
+        104,
+        105
+      ]
+    },
+    {
+      "sourceCrop": [
+        0,
+        429,
+        439,
+        812
+      ],
+      "integerOffset": [
+        100,
+        128
+      ]
+    },
+    {
+      "sourceCrop": [
+        439,
+        429,
+        815,
+        812
+      ],
+      "integerOffset": [
+        132,
+        128
+      ]
+    },
+    {
+      "sourceCrop": [
+        815,
+        429,
+        1254,
+        812
+      ],
+      "integerOffset": [
+        100,
+        128
+      ]
+    },
+    {
+      "sourceCrop": [
+        0,
+        812,
+        433,
+        1254
+      ],
+      "integerOffset": [
+        103,
+        99
+      ]
+    },
+    {
+      "sourceCrop": [
+        433,
+        812,
+        820,
+        1254
+      ],
+      "integerOffset": [
+        126,
+        99
+      ]
+    },
+    {
+      "sourceCrop": [
+        820,
+        812,
+        1254,
+        1254
+      ],
+      "integerOffset": [
+        103,
+        99
+      ]
+    }
+  ]
+}

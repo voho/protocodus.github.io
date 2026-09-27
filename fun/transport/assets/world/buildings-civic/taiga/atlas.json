@@ -5,9 +5,11 @@
     16,
     32,
     64,
-    128
+    128,
+    256
   ],
   "masterCell": 256,
+  "vehicleLengthNormalized": false,
   "order": [
     "school",
     "hospital",
@@ -19,8 +21,8 @@
     "shop-grocery",
     "shop-bakery"
   ],
-  "source": "taiga-source-v2.png",
-  "sourceSha256": "5ce1ab65691b9946306a3330a6344a2c609ffbba7f823ebe08df51051782e2e5",
+  "source": "source-isometric-packed.png",
+  "sourceSha256": "8ef0b429eadbfb7cc0677811d9de80186f6aa72f5189ae1fddd7ccf5e9504aba",
   "sprites": [
     {
       "id": "school",
@@ -28,34 +30,34 @@
       "sourceBounds": [
         0,
         0,
-        418,
-        418
+        640,
+        640
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          640,
+          640
         ],
         "sourceBounds": [
-          72,
-          88,
-          370,
-          379
+          112,
+          107,
+          528,
+          532
         ],
         "rawAlphaBounds": [
-          69,
-          67,
-          402,
-          414
+          111,
+          106,
+          529,
+          532
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.676839
+        "transparentFraction": 0.742373
       },
       "bounds": [
+        14,
         12,
-        17,
-        244,
+        241,
         244
       ]
     },
@@ -63,35 +65,35 @@
       "id": "hospital",
       "cell": 1,
       "sourceBounds": [
-        418,
+        640,
         0,
-        836,
-        418
+        1280,
+        640
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          640,
+          640
         ],
         "sourceBounds": [
-          54,
-          130,
-          365,
-          375
+          132,
+          147,
+          508,
+          493
         ],
         "rawAlphaBounds": [
-          49,
-          51,
-          404,
-          414
+          131,
+          146,
+          509,
+          494
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.667848
+        "transparentFraction": 0.781646
       },
       "bounds": [
         12,
-        61,
+        31,
         244,
         244
       ]
@@ -100,35 +102,35 @@
       "id": "police-station",
       "cell": 2,
       "sourceBounds": [
-        836,
+        1280,
         0,
-        1254,
-        418
+        1920,
+        640
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          640,
+          640
         ],
         "sourceBounds": [
-          53,
+          114,
           142,
-          347,
-          374
+          526,
+          498
         ],
         "rawAlphaBounds": [
-          5,
-          24,
-          358,
-          410
+          113,
+          141,
+          527,
+          499
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.683776
+        "transparentFraction": 0.747678
       },
       "bounds": [
         12,
-        61,
+        44,
         244,
         244
       ]
@@ -138,34 +140,34 @@
       "cell": 3,
       "sourceBounds": [
         0,
-        418,
-        418,
-        836
+        640,
+        640,
+        1280
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          640,
+          640
         ],
         "sourceBounds": [
-          76,
-          68,
-          361,
-          347
+          120,
+          122,
+          520,
+          517
         ],
         "rawAlphaBounds": [
-          49,
-          12,
-          404,
-          410
+          119,
+          121,
+          521,
+          518
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.695823
+        "transparentFraction": 0.767058
       },
       "bounds": [
         12,
-        17,
+        15,
         244,
         244
       ]
@@ -174,35 +176,35 @@
       "id": "stadium",
       "cell": 4,
       "sourceBounds": [
-        418,
-        418,
-        836,
-        836
+        640,
+        640,
+        1280,
+        1280
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          640,
+          640
         ],
         "sourceBounds": [
-          47,
-          97,
-          371,
-          350
+          115,
+          137,
+          525,
+          502
         ],
         "rawAlphaBounds": [
-          17,
-          6,
-          376,
-          404
+          114,
+          136,
+          526,
+          503
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.649848
+        "transparentFraction": 0.74824
       },
       "bounds": [
         12,
-        63,
+        37,
         244,
         244
       ]
@@ -211,36 +213,36 @@
       "id": "church",
       "cell": 5,
       "sourceBounds": [
-        836,
-        418,
-        1254,
-        836
+        1280,
+        640,
+        1920,
+        1280
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          640,
+          640
         ],
         "sourceBounds": [
-          63,
-          58,
-          350,
-          353
+          127,
+          105,
+          512,
+          535
         ],
         "rawAlphaBounds": [
-          1,
-          5,
-          366,
-          398
+          126,
+          104,
+          513,
+          535
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.717366
+        "transparentFraction": 0.780525
       },
       "bounds": [
-        15,
+        24,
         12,
-        241,
+        232,
         244
       ]
     },
@@ -249,34 +251,34 @@
       "cell": 6,
       "sourceBounds": [
         0,
-        836,
-        418,
-        1254
+        1280,
+        640,
+        1920
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          640,
+          640
         ],
         "sourceBounds": [
-          67,
-          41,
-          370,
-          314
+          131,
+          139,
+          509,
+          501
         ],
         "rawAlphaBounds": [
-          63,
-          0,
-          418,
-          356
+          130,
+          139,
+          510,
+          501
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.623458
+        "transparentFraction": 0.776904
       },
       "bounds": [
         12,
-        35,
+        22,
         244,
         244
       ]
@@ -285,35 +287,35 @@
       "id": "shop-grocery",
       "cell": 7,
       "sourceBounds": [
-        418,
-        836,
-        836,
-        1254
+        640,
+        1280,
+        1280,
+        1920
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          640,
+          640
         ],
         "sourceBounds": [
-          69,
-          41,
-          345,
-          314
+          127,
+          127,
+          513,
+          513
         ],
         "rawAlphaBounds": [
-          1,
-          9,
-          418,
-          352
+          126,
+          126,
+          513,
+          513
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.657574
+        "transparentFraction": 0.758848
       },
       "bounds": [
         12,
-        15,
+        12,
         244,
         244
       ]
@@ -322,35 +324,35 @@
       "id": "shop-bakery",
       "cell": 8,
       "sourceBounds": [
-        836,
-        836,
-        1254,
-        1254
+        1280,
+        1280,
+        1920,
+        1920
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          640,
+          640
         ],
         "sourceBounds": [
-          47,
-          31,
-          355,
-          312
+          128,
+          142,
+          511,
+          498
         ],
         "rawAlphaBounds": [
-          9,
-          5,
-          355,
-          362
+          127,
+          141,
+          512,
+          499
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.625386
+        "transparentFraction": 0.76179
       },
       "bounds": [
         12,
-        32,
+        28,
         244,
         244
       ]

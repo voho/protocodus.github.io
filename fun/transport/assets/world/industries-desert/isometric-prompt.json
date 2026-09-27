@@ -1,0 +1,21 @@
+{
+  "tool": "built-in image_gen",
+  "date": "2026-09-27",
+  "transparent_background": true,
+  "source": "/Users/vojta/.codex/generated_images/01a0dfc6-d7e4-7341-8858-5684af96e1f0/exec-177ccfe7-064b-4180-ae08-ca6f167fea1c.png",
+  "reference": "atlas.png (pre-isometric version)",
+  "prompt": "Use case: style-transfer. Asset type: replacement industrial sprite atlas for the 2D transport strategy game Transport. The provided atlas is a SUBJECT AND MATERIAL REFERENCE ONLY: redraw every site in consistent true game isometry, changing the old front-facing camera. Strict orthographic 2:1 DIMETRIC view: camera faces the corner, both ground axes run diagonally exactly +26.565 and -26.565 degrees to screen horizontal; vertical walls remain vertical; both building facades visible; roofs visible. Each site's ground footprint is a DIAMOND aligned to those axes, width approximately twice depth. All roofs, yards, fences, rail spurs and foundation corners follow these same axes, no perspective convergence. Detailed realistic painted strategy sprites, subdued natural color, clear modest-size silhouettes and recognizable production equipment. Northwest light, short soft shadow directly beneath. Transparent background with genuine alpha. Do not draw a background, labels, captions, words, borders, grid lines or contact-sheet numbers. Each site complete and isolated with generous fully transparent gutter. Avoid front elevations, floating round pedestals, giant shadows, exaggerated saturated colors, toy gloss. Every object must fit entirely within its assigned cell; preserve the cell order. Sheet layout: 3 columns by 3 rows, equal square cells, exact 9 sprites. Environment: dry desert: muted warm ochre soil, cream plaster, sparse small dry shrubs, weathered metal. Ordered from left to right, top to bottom: 1. farm: cream red-roof barn, silo, irrigated golden grain plot with narrow blue water ditch; 2. food-plant: cream processing factory with muted green roof, steel tanks and food sacks; 3. oil-well: yellow and black oil pumpjack, black storage tanks and small utility shed; 4. refinery: silver processing columns, oil tanks, yellow pipes and low brick control room; 5. quarry: terraced pale stone pit, blocks and yellow crushing conveyor; 6. cement-works: tall cream silos, brick kiln structure, rotary kiln and pale cement mound; 7. sand-pit: excavated golden sand pit, modest orange excavator, conveyor and sand pile; 8. glassworks: brick foundry with cyan glass roof panels, furnace glow and cyan glass crate stacks; 9. copper-mine: stepped red-rock excavation, timber mine headframe and turquoise copper ore piles. Each site should occupy at most 78% of cell width and 80% of cell height with 10% clear transparent margins.",
+  "columns": 3,
+  "rows": 3,
+  "order": [
+    "industry:farm:desert",
+    "industry:food-plant:desert",
+    "industry:oil-well:desert",
+    "industry:refinery:desert",
+    "industry:quarry:desert",
+    "industry:cement-works:desert",
+    "industry:sand-pit:desert",
+    "industry:glassworks:desert",
+    "industry:copper-mine:desert"
+  ]
+}

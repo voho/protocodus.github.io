@@ -5,9 +5,11 @@
     16,
     32,
     64,
-    128
+    128,
+    256
   ],
   "masterCell": 256,
+  "vehicleLengthNormalized": false,
   "order": [
     "shop-butcher",
     "shop-hardware",
@@ -19,8 +21,8 @@
     "service-barber",
     null
   ],
-  "source": "tundra-source.png",
-  "sourceSha256": "8fb852b0e80c1747e0c89d1d92a031d17dc264eaf627a6d2424f47e7a7f22aa7",
+  "source": "source-isometric-packed.png",
+  "sourceSha256": "2789d3c16731ad999319732425f5bff7fa07516a2aa0b0f7289ab64859fb8ed1",
   "sprites": [
     {
       "id": "shop-butcher",
@@ -28,109 +30,109 @@
       "sourceBounds": [
         0,
         0,
-        418,
-        418
+        640,
+        640
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          640,
+          640
         ],
         "sourceBounds": [
-          30,
-          16,
-          385,
-          401
+          119,
+          121,
+          520,
+          518
         ],
         "rawAlphaBounds": [
-          25,
-          3,
-          404,
-          418
+          118,
+          120,
+          521,
+          519
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.385717
+        "transparentFraction": 0.721008
       },
       "bounds": [
-        24,
-        16,
-        230,
-        239
+        12,
+        14,
+        244,
+        244
       ]
     },
     {
       "id": "shop-hardware",
       "cell": 1,
       "sourceBounds": [
-        418,
+        640,
         0,
-        836,
-        418
+        1280,
+        640
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          640,
+          640
         ],
         "sourceBounds": [
-          18,
-          30,
-          402,
-          398
+          114,
+          117,
+          526,
+          523
         ],
         "rawAlphaBounds": [
-          15,
-          23,
-          412,
-          418
+          113,
+          116,
+          527,
+          524
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.37684
+        "transparentFraction": 0.733386
       },
       "bounds": [
-        17,
-        24,
-        240,
-        238
+        12,
+        15,
+        244,
+        244
       ]
     },
     {
       "id": "shop-florist",
       "cell": 2,
       "sourceBounds": [
-        836,
+        1280,
         0,
-        1254,
-        418
+        1920,
+        640
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          640,
+          640
         ],
         "sourceBounds": [
-          19,
-          31,
-          401,
-          401
+          119,
+          122,
+          520,
+          518
         ],
         "rawAlphaBounds": [
-          13,
-          11,
-          402,
-          418
+          118,
+          122,
+          521,
+          519
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.3423
+        "transparentFraction": 0.715786
       },
       "bounds": [
-        18,
-        25,
-        239,
-        239
+        12,
+        15,
+        244,
+        244
       ]
     },
     {
@@ -138,110 +140,110 @@
       "cell": 3,
       "sourceBounds": [
         0,
-        418,
-        418,
-        836
+        640,
+        640,
+        1280
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          640,
+          640
         ],
         "sourceBounds": [
-          29,
-          17,
-          389,
-          401
+          120,
+          111,
+          519,
+          528
         ],
         "rawAlphaBounds": [
-          27,
-          0,
-          414,
-          410
+          119,
+          110,
+          520,
+          529
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.360094
+        "transparentFraction": 0.73834
       },
       "bounds": [
-        23,
         17,
-        232,
-        239
+        12,
+        239,
+        244
       ]
     },
     {
       "id": "service-bank",
       "cell": 4,
       "sourceBounds": [
-        418,
-        418,
-        836,
-        836
+        640,
+        640,
+        1280,
+        1280
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          640,
+          640
         ],
         "sourceBounds": [
-          20,
-          46,
-          402,
-          401
+          108,
+          105,
+          531,
+          535
         ],
         "rawAlphaBounds": [
-          7,
-          1,
-          415,
-          416
+          107,
+          104,
+          532,
+          536
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.355006
+        "transparentFraction": 0.689121
       },
       "bounds": [
-        19,
-        33,
-        240,
-        239
+        14,
+        12,
+        242,
+        244
       ]
     },
     {
       "id": "service-hotel",
       "cell": 5,
       "sourceBounds": [
-        836,
-        418,
-        1254,
-        836
+        1280,
+        640,
+        1920,
+        1280
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          640,
+          640
         ],
         "sourceBounds": [
-          31,
-          16,
-          385,
-          401
+          120,
+          111,
+          520,
+          529
         ],
         "rawAlphaBounds": [
-          11,
-          1,
-          386,
-          408
+          119,
+          110,
+          521,
+          530
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.383376
+        "transparentFraction": 0.702393
       },
       "bounds": [
-        25,
-        16,
-        229,
-        239
+        17,
+        12,
+        239,
+        244
       ]
     },
     {
@@ -249,73 +251,73 @@
       "cell": 6,
       "sourceBounds": [
         0,
-        836,
-        418,
-        1254
+        1280,
+        640,
+        1920
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          640,
+          640
         ],
         "sourceBounds": [
-          18,
           117,
-          402,
-          400
+          161,
+          523,
+          478
         ],
         "rawAlphaBounds": [
-          0,
-          5,
-          405,
-          418
+          116,
+          160,
+          524,
+          479
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.523054
+        "transparentFraction": 0.77574
       },
       "bounds": [
-        17,
-        74,
-        240,
-        239
+        12,
+        63,
+        244,
+        244
       ]
     },
     {
       "id": "service-barber",
       "cell": 7,
       "sourceBounds": [
-        418,
-        836,
-        836,
-        1254
+        640,
+        1280,
+        1280,
+        1920
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          640,
+          640
         ],
         "sourceBounds": [
-          24,
-          17,
-          390,
-          398
+          118,
+          126,
+          521,
+          513
         ],
         "rawAlphaBounds": [
-          1,
-          1,
-          398,
-          418
+          117,
+          125,
+          522,
+          514
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.372937
+        "transparentFraction": 0.747236
       },
       "bounds": [
+        12,
         21,
-        17,
-        233,
-        237
+        244,
+        244
       ]
     },
     {

@@ -1,0 +1,21 @@
+{
+  "tool": "built-in image_gen",
+  "date": "2026-09-27",
+  "transparent_background": true,
+  "source": "/Users/vojta/.codex/generated_images/01a0dfc6-d7e4-7341-8858-5684af96e1f0/exec-501baf0f-dfda-4713-a791-3bf014217ff0.png",
+  "reference": "atlas.png (pre-isometric version)",
+  "prompt": "Use case: style-transfer. Asset type: replacement industrial sprite atlas for the 2D transport strategy game Transport. The provided atlas is a SUBJECT AND MATERIAL REFERENCE ONLY: redraw every site in consistent true game isometry, changing the old front-facing camera. Strict orthographic 2:1 DIMETRIC view: camera faces the corner, both ground axes run diagonally exactly +26.565 and -26.565 degrees to screen horizontal; vertical walls remain vertical; both building facades visible; roofs visible. Each site's ground footprint is a DIAMOND aligned to those axes, width approximately twice depth. All roofs, yards, fences, rail spurs and foundation corners follow these same axes, no perspective convergence. Detailed realistic painted strategy sprites, subdued natural color, clear modest-size silhouettes and recognizable production equipment. Northwest light, short soft shadow directly beneath. Transparent background with genuine alpha. Do not draw a background, labels, captions, words, borders, grid lines or contact-sheet numbers. Each site complete and isolated with generous fully transparent gutter. Avoid front elevations, floating round pedestals, giant shadows, exaggerated saturated colors, toy gloss. Every object must fit entirely within its assigned cell; preserve the cell order. Sheet layout: 3 columns by 3 rows, equal square cells, exact 9 sprites. Environment: lush but muted northern taiga: dark pine green, moss, earth and brick. Ordered from left to right, top to bottom: 1. logging-camp: timber cabin with pine trees and neatly stacked round logs; 2. sawmill: open timber mill with saw blade and stacked cut planks; 3. coal-mine: black coal piles, mine headframe, stone entrance and coal cart; 4. iron-mine: rusty orange ore piles, small mine lift and corrugated shed; 5. steel-mill: brick blast furnace, tall chimneys and glowing casting channel; 6. farm: cream barn, grain silo, fenced golden wheat plot; 7. food-plant: cream processing plant, green roof, stainless vats and grain sacks; 8. furniture-factory: red brick sawtooth roof workshop, lumber stacks and wooden furniture; 9. machine-works: pale industrial workshop, blue roof, crane, gear and steel beams. Each site should occupy at most 78% of cell width and 80% of cell height with 10% clear transparent margins.",
+  "columns": 3,
+  "rows": 3,
+  "order": [
+    "industry:logging-camp:taiga",
+    "industry:sawmill:taiga",
+    "industry:coal-mine:taiga",
+    "industry:iron-mine:taiga",
+    "industry:steel-mill:taiga",
+    "industry:farm:taiga",
+    "industry:food-plant:taiga",
+    "industry:furniture-factory:taiga",
+    "industry:machine-works:taiga"
+  ]
+}

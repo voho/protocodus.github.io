@@ -1,0 +1,119 @@
+{
+  "source": "fun/transport/assets/world/nature-rocks/source-isometric.png",
+  "sourceSize": [
+    1774,
+    887
+  ],
+  "cell": 640,
+  "operation": "RGBA crop and integer translation only",
+  "cells": [
+    {
+      "sourceCrop": [
+        0,
+        0,
+        591,
+        326
+      ],
+      "integerOffset": [
+        24,
+        157
+      ]
+    },
+    {
+      "sourceCrop": [
+        591,
+        0,
+        1186,
+        326
+      ],
+      "integerOffset": [
+        22,
+        157
+      ]
+    },
+    {
+      "sourceCrop": [
+        1186,
+        0,
+        1774,
+        326
+      ],
+      "integerOffset": [
+        26,
+        157
+      ]
+    },
+    {
+      "sourceCrop": [
+        0,
+        326,
+        590,
+        611
+      ],
+      "integerOffset": [
+        25,
+        177
+      ]
+    },
+    {
+      "sourceCrop": [
+        590,
+        326,
+        1185,
+        611
+      ],
+      "integerOffset": [
+        22,
+        177
+      ]
+    },
+    {
+      "sourceCrop": [
+        1185,
+        326,
+        1774,
+        611
+      ],
+      "integerOffset": [
+        25,
+        177
+      ]
+    },
+    {
+      "sourceCrop": [
+        0,
+        611,
+        585,
+        887
+      ],
+      "integerOffset": [
+        27,
+        182
+      ]
+    },
+    {
+      "sourceCrop": [
+        585,
+        611,
+        1183,
+        887
+      ],
+      "integerOffset": [
+        21,
+        182
+      ]
+    },
+    {
+      "sourceCrop": [
+        1183,
+        611,
+        1774,
+        887
+      ],
+      "integerOffset": [
+        24,
+        182
+      ]
+    }
+  ]
+}

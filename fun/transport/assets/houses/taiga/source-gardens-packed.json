@@ -1,0 +1,134 @@
+{
+  "source": "source-gardens.png",
+  "cell": 640,
+  "operation": "Original RGBA pixels registered by disconnected alpha components; no resampling",
+  "meaningfulPixelsPreserved": 782611,
+  "cells": [
+    {
+      "cell": 0,
+      "sourceBounds": [
+        13,
+        67,
+        400,
+        422
+      ],
+      "offset": [
+        126,
+        142
+      ],
+      "pixels": 80472
+    },
+    {
+      "cell": 1,
+      "sourceBounds": [
+        426,
+        58,
+        829,
+        427
+      ],
+      "offset": [
+        118,
+        135
+      ],
+      "pixels": 88266
+    },
+    {
+      "cell": 2,
+      "sourceBounds": [
+        855,
+        87,
+        1241,
+        427
+      ],
+      "offset": [
+        127,
+        150
+      ],
+      "pixels": 79163
+    },
+    {
+      "cell": 3,
+      "sourceBounds": [
+        24,
+        451,
+        394,
+        813
+      ],
+      "offset": [
+        135,
+        139
+      ],
+      "pixels": 85101
+    },
+    {
+      "cell": 4,
+      "sourceBounds": [
+        439,
+        451,
+        812,
+        813
+      ],
+      "offset": [
+        133,
+        139
+      ],
+      "pixels": 93713
+    },
+    {
+      "cell": 5,
+      "sourceBounds": [
+        831,
+        551,
+        1248,
+        845
+      ],
+      "offset": [
+        111,
+        173
+      ],
+      "pixels": 79117
+    },
+    {
+      "cell": 6,
+      "sourceBounds": [
+        9,
+        845,
+        405,
+        1232
+      ],
+      "offset": [
+        122,
+        126
+      ],
+      "pixels": 96881
+    },
+    {
+      "cell": 7,
+      "sourceBounds": [
+        465,
+        846,
+        788,
+        1230
+      ],
+      "offset": [
+        158,
+        128
+      ],
+      "pixels": 83895
+    },
+    {
+      "cell": 8,
+      "sourceBounds": [
+        846,
+        875,
+        1244,
+        1231
+      ],
+      "offset": [
+        121,
+        142
+      ],
+      "pixels": 96003
+    }
+  ]
+}

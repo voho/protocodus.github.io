@@ -20,8 +20,8 @@
     "vehicle:cargo-ship:S",
     "vehicle:cargo-ship:SE"
   ],
-  "source": "source-packed.png",
-  "sourceSha256": "d6ce8fc0907c2a1c2814911ee7543a67eb20ec80f15497846850ff51736f845e",
+  "source": "source-isometric-packed.png",
+  "sourceSha256": "1cb2427f5342b9f03741789ec2fa38984e752b7d83469048b1b59490821f2af4",
   "sprites": [
     {
       "id": "vehicle:cargo-ship:NW",
@@ -38,26 +38,26 @@
           640
         ],
         "sourceBounds": [
-          171,
-          150,
-          490,
+          178,
+          203,
+          492,
           475
         ],
         "rawAlphaBounds": [
-          126,
-          99,
-          545,
-          560
+          128,
+          124,
+          509,
+          513
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.87551
+        "transparentFraction": 0.894436
       },
       "bounds": [
-        37,
-        35,
-        218,
-        220
+        31,
+        44,
+        224,
+        211
       ]
     },
     {
@@ -75,25 +75,25 @@
           640
         ],
         "sourceBounds": [
-          244,
-          108,
+          248,
+          150,
           391,
-          483
+          500
         ],
         "rawAlphaBounds": [
-          141,
-          108,
-          494,
-          560
+          135,
+          149,
+          514,
+          527
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.886812
+        "transparentFraction": 0.896797
       },
       "bounds": [
-        82,
+        80,
         12,
-        173,
+        175,
         244
       ]
     },
@@ -112,26 +112,26 @@
           640
         ],
         "sourceBounds": [
-          145,
-          151,
-          466,
-          477
+          148,
+          203,
+          464,
+          476
         ],
         "rawAlphaBounds": [
-          101,
-          115,
-          524,
-          559
+          105,
+          130,
+          480,
+          527
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.87332
+        "transparentFraction": 0.894365
       },
       "bounds": [
-        37,
-        35,
-        219,
-        220
+        31,
+        44,
+        225,
+        212
       ]
     },
     {
@@ -149,26 +149,26 @@
           640
         ],
         "sourceBounds": [
-          99,
+          130,
           223,
-          499,
-          409
+          507,
+          401
         ],
         "rawAlphaBounds": [
-          92,
-          188,
-          563,
-          452
+          128,
+          164,
+          540,
+          489
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.86647
+        "transparentFraction": 0.886423
       },
       "bounds": [
         12,
-        74,
+        73,
         244,
-        182
+        183
       ]
     },
     {
@@ -189,26 +189,26 @@
           640
         ],
         "sourceBounds": [
-          144,
-          225,
-          543,
-          408
+          132,
+          223,
+          510,
+          400
         ],
         "rawAlphaBounds": [
-          82,
-          194,
-          545,
-          429
+          122,
+          144,
+          510,
+          495
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.868005
+        "transparentFraction": 0.886179
       },
       "bounds": [
         12,
-        75,
+        73,
         244,
-        181
+        182
       ]
     },
     {
@@ -226,26 +226,26 @@
           640
         ],
         "sourceBounds": [
-          154,
-          160,
-          500,
-          475
+          164,
+          150,
+          504,
+          449
         ],
         "rawAlphaBounds": [
-          95,
-          60,
-          545,
-          579
+          157,
+          102,
+          536,
+          483
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.870388
+        "transparentFraction": 0.884458
       },
       "bounds": [
-        26,
-        35,
-        229,
-        220
+        25,
+        38,
+        230,
+        218
       ]
     },
     {
@@ -263,25 +263,25 @@
           640
         ],
         "sourceBounds": [
-          245,
-          144,
-          390,
-          538
+          249,
+          113,
+          392,
+          488
         ],
         "rawAlphaBounds": [
-          141,
-          60,
-          500,
-          541
+          134,
+          110,
+          507,
+          514
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.888945
+        "transparentFraction": 0.897979
       },
       "bounds": [
-        85,
+        84,
         12,
-        170,
+        172,
         244
       ]
     },
@@ -301,25 +301,25 @@
         ],
         "sourceBounds": [
           137,
-          160,
-          483,
-          476
+          149,
+          476,
+          449
         ],
         "rawAlphaBounds": [
-          99,
-          73,
-          526,
-          579
+          101,
+          96,
+          504,
+          521
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.870735
+        "transparentFraction": 0.883425
       },
       "bounds": [
-        26,
-        35,
-        229,
-        220
+        25,
+        37,
+        230,
+        218
       ]
     }
   ]

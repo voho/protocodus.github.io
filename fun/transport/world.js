@@ -5,6 +5,8 @@ import { BIOME_NATURE } from './terrain-sprites.js';
 import { seedNumber, randomSource, hashNoise, noise } from './world-noise.js';
 import { generateWorldV2 } from './world-v2.js';
 import { expandGeneratedIndustrySites } from './industry-sites.js';
+import { allocateGeneratedSites } from './world-sites-v5.js';
+import { allocateTerrainObjects } from './world-terrain-objects.js';
 export { seedNumber, randomSource, hashNoise } from './world-noise.js';
 
 export const NEW_WORLD_SIZES = {
@@ -21,8 +23,8 @@ export const WORLD_SIZES = {
 };
 export const DEFAULT_WORLD_SIZE = 'square512';
 export const MAX_WORLD_TILES = 2048 * 2048;
-export const WORLD_GENERATION_VERSION = 4;
-export const supportsGenerationVersion = version => version === 1 || version === 2 || version === 3 || version === 4;
+export const WORLD_GENERATION_VERSION = 6;
+export const supportsGenerationVersion = version => version === 1 || version === 2 || version === 3 || version === 4 || version === 5 || version === 6;
 
 // Terrain stays in seven gameplay categories; details supply local visual character.
 // Version 1 is also a save-file recipe. Future geography must add a new version
@@ -33,6 +35,8 @@ export function generateWorld(biome, seed, size = DEFAULT_WORLD_SIZE, generation
   if(generationVersion>=2&&Object.hasOwn(NEW_WORLD_SIZES,size)){
     const world=generateWorldV2(biome,seed,size,WORLD_SIZES[size],generationVersion>=4?{naturalRelief:true}:undefined);
     if(generationVersion>=3){expandGeneratedIndustrySites({...world,biome});world.generationVersion=generationVersion;}
+    if(generationVersion>=5)allocateGeneratedSites({...world,biome});
+    if(generationVersion>=6){allocateTerrainObjects({...world,biome,seed});world.terrainObjectVersion=1;}
     return world;
   }
   return generateWorldV1(biome,seed,size);

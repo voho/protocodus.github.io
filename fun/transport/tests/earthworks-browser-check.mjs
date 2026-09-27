@@ -14,12 +14,15 @@ async function start(viewport,hasTouch=false){
  await page.goto(url);await page.waitForFunction(()=>window.transport?.renderer);
  await page.evaluate(()=>transport.setSpeed(0));return page;
 }
-async function fixture(page){return page.evaluate(()=>{
+async function fixture(page){return page.evaluate(async()=>{
  const g=transport.game;let site;
  for(let y=32;y<g.height-40&&!site;y+=24)for(let x=32;x<g.width-40;x+=28){
   if(![...g.cities,...g.industries,...g.stations].some(p=>p.x>=x-8&&p.x<=x+30&&p.y>=y-8&&p.y<=y+30)){site={x,y};break;}
  }
  if(!site)throw new Error('No free earthworks test site.');
+ const {releaseTerrainObjects}=await import('./terrain-objects.js'),cleared=[];
+ for(let y=site.y-3;y<=site.y+23;y++)for(let x=site.x-3;x<=site.x+23;x++)cleared.push({x,y});
+ releaseTerrainObjects(g,cleared);
  for(let y=site.y-2;y<=site.y+22;y++)for(let x=site.x-2;x<=site.x+22;x++){
   const t=g.tiles[y*g.width+x];Object.assign(t,{terrain:'grass',elevation:6/16,detail:'',variant:0,road:false,rail:false,bridge:false,tunnel:false,building:null,zone:null});
   delete t.publicRoad;delete t.structureAxis;delete t.structureLevel;
@@ -34,8 +37,8 @@ async function fixture(page){return page.evaluate(()=>{
 async function screen(page,tiles){return page.evaluate(tiles=>{
  const center=tiles.reduce((s,p)=>({x:s.x+p.x/tiles.length,y:s.y+p.y/tiles.length}),{x:0,y:0});
  transport.renderer.focus(center.x,center.y);
- const r=document.querySelector('#world').getBoundingClientRect(),c=transport.renderer.getCamera();
- return tiles.map(p=>({x:r.left+r.width/2+((p.x+.5)*32-c.x)*c.zoom,y:r.top+r.height/2+((p.y+.5)*32-c.y)*c.zoom}));
+ const r=document.querySelector('#world').getBoundingClientRect();
+ return tiles.map(p=>{const screen=transport.renderer.worldToScreen(p.x,p.y);return{x:r.left+screen.x,y:r.top+screen.y};});
 },tiles);}
 async function choose(page,tool){
  if(await page.locator('.mobile-panel-toggle').isVisible()&&!await page.locator('.sidebar').evaluate(el=>el.classList.contains('mobile-open')))await page.locator('.mobile-panel-toggle').click();

@@ -9,12 +9,13 @@
     256
   ],
   "masterCell": 256,
+  "vehicleLengthNormalized": false,
   "order": [
     "industry:wire-mill:desert",
     "industry:goods-factory:desert"
   ],
-  "source": "source-generated.png",
-  "sourceSha256": "af9f62448e7a0e7d1dd16404af7ad59016cc7f6afc1b59c231a2a23d9c568127",
+  "source": "source-isometric.png",
+  "sourceSha256": "46882eeaea2afaf106ac9b19e883b4dcfd315f6459513997a77dcd5c1dde160a",
   "sprites": [
     {
       "id": "industry:wire-mill:desert",
@@ -31,24 +32,24 @@
           887
         ],
         "sourceBounds": [
-          22,
-          118,
-          887,
-          784
+          18,
+          149,
+          881,
+          827
         ],
         "rawAlphaBounds": [
           0,
-          31,
+          90,
           887,
-          833
+          830
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.484717
+        "transparentFraction": 0.535682
       },
       "bounds": [
         12,
-        65,
+        62,
         244,
         244
       ]
@@ -68,24 +69,24 @@
           887
         ],
         "sourceBounds": [
-          15,
-          143,
-          867,
-          780
+          25,
+          187,
+          871,
+          849
         ],
         "rawAlphaBounds": [
-          14,
-          23,
-          869,
-          847
+          1,
+          37,
+          872,
+          853
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.50602
+        "transparentFraction": 0.538454
       },
       "bounds": [
         12,
-        71,
+        62,
         244,
         244
       ]

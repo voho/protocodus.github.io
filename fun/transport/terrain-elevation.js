@@ -52,7 +52,7 @@ function groundColor(tile, biome, variation = 0, moisture = .5) {
 function light(dx, dy) {
   const nx = -dx*1.2, ny = -dy*1.2;
   // Retain a readable northwest-facing slope without embossed dark contours.
-  return 1 + clamp(((-.48*nx-.62*ny+.62)/Math.hypot(nx,ny,1)-.62)*.34, -.19, .12);
+  return 1 + clamp(((-.77*nx-.18*ny+.62)/Math.hypot(nx,ny,1)-.62)*.34, -.19, .12);
 }
 function soilVariation(x,y,seed) {
   return (noise(x,y,seed+619,23)-.5)*15+(noise(x,y,seed+631,5.3)-.5)*9;

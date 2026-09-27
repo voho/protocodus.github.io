@@ -1,0 +1,83 @@
+{
+  "source": "fun/transport/assets/world/isometric-infrastructure/source-isometric.png",
+  "sourceSize": [
+    1536,
+    1024
+  ],
+  "cell": 640,
+  "operation": "RGBA crop and integer translation only",
+  "cells": [
+    {
+      "sourceCrop": [
+        0,
+        0,
+        511,
+        492
+      ],
+      "integerOffset": [
+        64,
+        74
+      ]
+    },
+    {
+      "sourceCrop": [
+        511,
+        0,
+        986,
+        492
+      ],
+      "integerOffset": [
+        82,
+        74
+      ]
+    },
+    {
+      "sourceCrop": [
+        986,
+        0,
+        1536,
+        492
+      ],
+      "integerOffset": [
+        45,
+        74
+      ]
+    },
+    {
+      "sourceCrop": [
+        0,
+        492,
+        543,
+        1024
+      ],
+      "integerOffset": [
+        48,
+        54
+      ]
+    },
+    {
+      "sourceCrop": [
+        543,
+        492,
+        998,
+        1024
+      ],
+      "integerOffset": [
+        92,
+        54
+      ]
+    },
+    {
+      "sourceCrop": [
+        998,
+        492,
+        1536,
+        1024
+      ],
+      "integerOffset": [
+        51,
+        54
+      ]
+    }
+  ]
+}

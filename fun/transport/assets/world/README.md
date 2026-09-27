@@ -4,6 +4,19 @@ Original artwork was created with the **built-in image_gen tool**, using the gen
 
 The collection includes 51 civic/commercial building variants (17 identities in three climates), 33 supported industry/climate combinations, 72 nature objects, nine infrastructure pieces, nine cargo materials, and **72 individually drawn vehicle frames** (nine vehicle types × eight headings). Houses live in [../houses](../houses/README.md).
 
+## Isometric camera
+
+The game uses a fixed 2:1 dimetric view: ground axes slope ±26.565°, while walls, poles, trees and people stay upright. The architecture, industries, vehicles, ports, stops, tunnel mouths and rocky terrain have been redrawn for this view with the built-in imagegen tool. All three climate finishes retain the same camera. Ground textures and continuous roads are projected once; upright sprites are drawn separately in depth order. The same generated identities appear in the interface.
+
+- Houses: 27 sprites and their source/prompt records in [../houses](../houses/README.md).
+- Civic/commercial buildings: 51 sprites, with `source-isometric.png` in each `buildings-civic/{biome}` and `buildings-commerce/{biome}` folder; [architecture generation and climate prompts](isometric-architecture-prompts.json) also cover the 27 houses.
+- Industries: 33 sprites; each `industries-*` folder keeps `source-isometric.png` and `isometric-prompt.json`.
+- Vehicles: all 72 directional frames; [prompts and observed compass order](vehicle-isometric-prompts.json). Diagonal loads and headlights follow the shallow diamond axes. The generic palette/fallback sheet uses these same new frames.
+- Infrastructure: two stops, four separately drawn harbor orientations and eight road/rail tunnel mouths; [prompts](infrastructure-isometric-prompts.json), [structure atlas](isometric-infrastructure/atlas.png), [portal atlas](isometric-portals/atlas.png). Rear-facing entrances show the back of the masonry rather than a front-facing hole.
+- Terrain: 18 rock and mountain details; [prompts](isometric-terrain-prompts.json) and `source-isometric.png` in `nature-rocks/` and `nature-mountains/`.
+
+Original RGBA pixels are registered into padded cells before downscaling. `prepare-building-atlas.py` handles irregular disconnected cutouts; `prepare-terrain-atlas.py` handles transparent gutters with configurable rows and columns. Both retain the generated alpha rather than repainting silhouettes. The normal atlas pipelines then make transparent 256px masters and isolated display densities.
+
 ## Source and prompt records
 
 - `buildings-civic/` and `buildings-commerce/`: school, hospital, police, fire, stadium, church, pub, five shops and five services. Each folder records the initial prompt, climate edits and any layout repairs.

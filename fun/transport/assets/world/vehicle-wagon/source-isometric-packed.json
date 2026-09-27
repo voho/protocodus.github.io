@@ -1,0 +1,119 @@
+{
+  "source": "fun/transport/assets/world/vehicle-wagon/source-isometric.png",
+  "sourceSize": [
+    1254,
+    1254
+  ],
+  "cell": 640,
+  "operation": "RGBA crop and integer translation only",
+  "cells": [
+    {
+      "sourceCrop": [
+        0,
+        0,
+        438,
+        431
+      ],
+      "integerOffset": [
+        101,
+        104
+      ]
+    },
+    {
+      "sourceCrop": [
+        438,
+        0,
+        815,
+        431
+      ],
+      "integerOffset": [
+        131,
+        104
+      ]
+    },
+    {
+      "sourceCrop": [
+        815,
+        0,
+        1254,
+        431
+      ],
+      "integerOffset": [
+        100,
+        104
+      ]
+    },
+    {
+      "sourceCrop": [
+        0,
+        431,
+        444,
+        809
+      ],
+      "integerOffset": [
+        98,
+        131
+      ]
+    },
+    {
+      "sourceCrop": [
+        444,
+        431,
+        808,
+        809
+      ],
+      "integerOffset": [
+        138,
+        131
+      ]
+    },
+    {
+      "sourceCrop": [
+        808,
+        431,
+        1254,
+        809
+      ],
+      "integerOffset": [
+        97,
+        131
+      ]
+    },
+    {
+      "sourceCrop": [
+        0,
+        809,
+        440,
+        1254
+      ],
+      "integerOffset": [
+        100,
+        97
+      ]
+    },
+    {
+      "sourceCrop": [
+        440,
+        809,
+        814,
+        1254
+      ],
+      "integerOffset": [
+        133,
+        97
+      ]
+    },
+    {
+      "sourceCrop": [
+        814,
+        809,
+        1254,
+        1254
+      ],
+      "integerOffset": [
+        100,
+        97
+      ]
+    }
+  ]
+}

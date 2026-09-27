@@ -1,0 +1,28 @@
+{
+  "selectedIds": [
+    "house-cheap-1",
+    "house-cheap-2",
+    "house-cheap-3",
+    "house-normal-3"
+  ],
+  "unchangedSourceSha256": {
+    "house-normal-1": "c5d78374f960a940cd40197f3f5aee0023268fb0a645bf2b68fe11c9297a28d8",
+    "house-normal-2": "7416b4061188827357e028464404b5ad978eebb9b30401a40ff3336a7c1f717f",
+    "house-expensive-1": "23d79cf23629f74f319186218d7a314c8931b1f9ba9a45297a821fc962234485",
+    "house-expensive-2": "ff0e6a82d443459cd4c03df512dda6493eb18f5a1235ff70bc27b16a976ed285",
+    "house-expensive-3": "d2f1929be9bd7bdf02943e9f7956bc0b1316301c3c589033084e5584ba4d38df"
+  },
+  "changedSourceSha256": {
+    "house-cheap-1": "5de67270bb95b6e55152ddcf2d4093aad644ddfa0f7f079ee82a43e4fd67208c",
+    "house-cheap-2": "f042a8d78f23af847a6f80706bc04b40b44bdb7fdd5dc723a0eeee739f6636de",
+    "house-cheap-3": "4a12f304df450ac4e44ef957736c21bedaffb4ffbf7a20a0c0f501834ae78689",
+    "house-normal-3": "7c1ebec887c8bf78e3428576b529f5e84ae597edf8e28d7ac4b2bd1483a8318b"
+  },
+  "preservedCells": {
+    "256": 5,
+    "128": 5,
+    "64": 5,
+    "32": 5,
+    "16": 5
+  }
+}

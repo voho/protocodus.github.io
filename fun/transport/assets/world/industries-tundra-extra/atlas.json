@@ -9,11 +9,12 @@
     256
   ],
   "masterCell": 256,
+  "vehicleLengthNormalized": false,
   "order": [
     "industry:equipment-factory:tundra"
   ],
-  "source": "source-generated.png",
-  "sourceSha256": "2226539b82d779bab2af77cf55ca2b79c73cdd7c82ad97347af2bf45c4c97606",
+  "source": "source-isometric.png",
+  "sourceSha256": "5bb5cd85e1bffbe09cb73481afb2852deffe263f8fb6e07383718bfdb594769b",
   "sprites": [
     {
       "id": "industry:equipment-factory:tundra",
@@ -30,24 +31,24 @@
           1254
         ],
         "sourceBounds": [
-          21,
-          191,
-          1239,
-          1098
+          35,
+          279,
+          1221,
+          1140
         ],
         "rawAlphaBounds": [
           0,
-          9,
-          1240,
-          1254
+          21,
+          1221,
+          1144
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.466613
+        "transparentFraction": 0.553035
       },
       "bounds": [
         12,
-        71,
+        76,
         244,
         244
       ]

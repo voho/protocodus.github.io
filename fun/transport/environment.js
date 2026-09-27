@@ -2,6 +2,8 @@ import { BUILDINGS } from './buildings.js';
 import { seedNumber } from './world.js';
 import { BIOME_NATURE, isPlantDetail } from './terrain-sprites.js';
 import { industryTiles, industryDistance } from './industry-sites.js';
+import { buildingSize } from './building-sites.js';
+import { releaseTerrainObjects } from './terrain-objects.js';
 
 const clamp = (value, min = 0, max = 1) => Math.max(min, Math.min(max, value));
 const NEIGHBORS = [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]];
@@ -31,15 +33,34 @@ function tileAt(game, x, y) {
   return x >= 0 && y >= 0 && x < game.width && y < game.height ? game.tiles[y * game.width + x] : null;
 }
 
+// A bounded anchor scan resolves an entire neighborhood once, instead of
+// repeating nine backwards lookups for every covered cell. It never scans the
+// full map or stores occupancy in saved child tiles.
+function neighborhoodBuildings(game, left, top, right, bottom) {
+  const occupied = new Map();
+  for (let y = Math.max(0, top - 2); y <= Math.min(game.height - 1, bottom); y++) {
+    for (let x = Math.max(0, left - 2); x <= Math.min(game.width - 1, right); x++) {
+      const building = game.tiles[y * game.width + x]?.building;
+      if (!building) continue;
+      const size = buildingSize(building), site = { x, y, building };
+      for (let py = Math.max(top, y); py <= Math.min(bottom, y + size - 1); py++) {
+        for (let px = Math.max(left, x); px <= Math.min(right, x + size - 1); px++) occupied.set(py * game.width + px, site);
+      }
+    }
+  }
+  return occupied;
+}
+
 function entityIndex(game) {
   const day = Math.floor(game.day || 0);
   let cache = indexCache.get(game);
   if (cache && cache.day === day && cache.revision === game.revision && cache.industries === game.industries && cache.stations === game.stations && cache.routes === game.routes && cache.cities === game.cities && cache.zones === game.zones) return cache;
   const occupied = new Set(), industriesAt = new Map(), activeStations = new Map();
   for (const industry of game.industries || []) {
-    const key = industry.y * game.width + industry.x;
-    for(const point of industryTiles(industry))occupied.add(point.y*game.width+point.x);
-    industriesAt.set(key, industry);
+    for(const point of industryTiles(industry)) {
+      const key = point.y * game.width + point.x;
+      occupied.add(key); industriesAt.set(key, industry);
+    }
   }
   for (const item of [...(game.stations || []), ...(game.cities || []), ...(game.zones || [])]) occupied.add(item.y * game.width + item.x);
   const activeIds = new Set((game.routes || []).filter(route => route.active).flatMap(route => route.stops));
@@ -80,10 +101,12 @@ export function weatherAt(game, x, y, day = game.day || 0) {
 
 export function localEnvironment(game, x, y, radius = 3, footprint = 1) {
   x = Math.floor(x); y = Math.floor(y); radius = Number.isFinite(radius) ? Math.max(1, Math.min(8, Math.floor(radius))) : 3;
-  footprint=footprint===2?2:1;const extra=footprint-1;
+  footprint=Number.isInteger(footprint)?Math.max(1,Math.min(3,footprint)):1;const extra=footprint-1;
   const entities = entityIndex(game);
+  const buildings = neighborhoodBuildings(game, x - radius, y - radius, x + radius + extra, y + radius + extra);
   const env = { roads: 0, rails: 0, water: 0, forest: 0, rocks: 0, buildings: 0, housing: 0, shops: 0, services: 0, civic: 0, industries: 0, school: 0, hospital: 0, police: 0, fire: 0, leisure: 0, roadAccess: false, railAccess: false, nature: 0, moisture: 0, amenity: 0, pollution: 0, access: 0, transport: 0, elevation: 0 };
   let cells = 0, vegetation = 0, disturbance = 0, amenity = 0;
+  const seenBuildings = new Set(), seenIndustries = new Set();
   // Access has fixed catchments even when a caller requests a smaller sample.
   for (let dy = -Math.max(radius, 2); dy <= Math.max(radius, 2)+extra; dy++) for (let dx = -Math.max(radius, 2); dx <= Math.max(radius, 2)+extra; dx++) {
     const tile = tileAt(game, x + dx, y + dy);
@@ -97,9 +120,11 @@ export function localEnvironment(game, x, y, radius = 3, footprint = 1) {
     if (tile.terrain === 'water') env.water++;
     if (tile.terrain === 'forest') env.forest++;
     if (tile.terrain === 'rock' || tile.terrain === 'mountain') env.rocks++;
-    if (!tile.road && !tile.rail && !tile.building) vegetation += tile.terrain === 'forest' ? 1 : tile.terrain === 'water' ? .7 : isPlantDetail(tile.detail) ? .7 : tile.terrain === 'grass' ? .4 : .12;
-    const kind = tile.building?.kind, group = BUILDINGS[kind]?.group;
-    if (kind) {
+    const site = buildings.get((y + dy) * game.width + x + dx), key = site && site.y * game.width + site.x;
+    if (!tile.road && !tile.rail && !site) vegetation += tile.terrain === 'forest' ? 1 : tile.terrain === 'water' ? .7 : isPlantDetail(tile.detail) ? .7 : tile.terrain === 'grass' ? .4 : .12;
+    const kind = site?.building.kind, group = BUILDINGS[kind]?.group;
+    if (kind && !seenBuildings.has(key)) {
+      seenBuildings.add(key);
       env.buildings++;
       if (group === 'homes' || kind === 'house' || kind === 'apartment') env.housing++;
       else if (group === 'shops' || kind === 'shop') { env.shops++; amenity += .8; }
@@ -114,7 +139,7 @@ export function localEnvironment(game, x, y, radius = 3, footprint = 1) {
       } else if (kind === 'factory') { env.industries++; disturbance += .7; }
     }
     const industry = entities.industriesAt.get((y + dy) * game.width + x + dx);
-    if (industry) { env.industries++; disturbance += emissions[industry.kind] ?? .65; }
+    if (industry && !seenIndustries.has(industry)) { seenIndustries.add(industry); env.industries++; disturbance += emissions[industry.kind] ?? .65; }
   }
   for (let by = Math.floor((y - 5) / 8); by <= Math.floor((y + extra + 5) / 8); by++) for (let bx = Math.floor((x - 5) / 8); bx <= Math.floor((x + extra + 5) / 8); bx++) {
     for (const station of entities.activeStations.get(`${bx},${by}`) || []) {
@@ -155,6 +180,8 @@ export function stepEcology(game) {
     const index = (start + n * stride) % length, tile = game.tiles[index];
     if (!eligible(tile, index, entities)) continue;
     const x = index % game.width, y = Math.floor(index / game.width);
+    const buildings = neighborhoodBuildings(game, x - 1, y - 1, x + 1, y + 1);
+    if (buildings.has(index)) continue;
     let forests = 0, water = 0, wetGround = 0, pressure = 0;
     const nearbySpecies = [];
     for (const [dx, dy] of NEIGHBORS) {
@@ -163,7 +190,8 @@ export function stepEcology(game) {
       if (near.terrain === 'forest' && near.detail !== 'deadwood') { forests++; if (species.includes(near.detail)) nearbySpecies.push(near.detail); }
       if (near.terrain === 'water') water++;
       if (near.detail === 'marsh' || near.detail === 'reeds' || near.detail === 'cotton-grass') wetGround++;
-      if (near.road || near.rail || near.building) pressure += near.building?.kind === 'factory' ? .22 : .07;
+      const nearBuilding = buildings.get((y + dy) * game.width + x + dx)?.building;
+      if (near.road || near.rail || nearBuilding) pressure += nearBuilding?.kind === 'factory' ? .22 : .07;
       const industry = entities.industriesAt.get((y + dy) * game.width + x + dx);
       if (industry) pressure += (emissions[industry.kind] ?? .65) * .3;
     }
@@ -194,6 +222,9 @@ export function stepEcology(game) {
     }
     if (terrain !== tile.terrain || detail !== (tile.detail || '')) proposals.push({ index, terrain, detail });
   }
+  // A changing constituent returns the shared grove/outcrop to its unchanged
+  // single-tile fallbacks before the succession proposal takes effect.
+  if (proposals.length) releaseTerrainObjects(game, proposals.map(p => ({ x: p.index % game.width, y: Math.floor(p.index / game.width) })));
   for (const proposal of proposals) {
     const tile = game.tiles[proposal.index];
     tile.terrain = proposal.terrain; tile.detail = proposal.detail;

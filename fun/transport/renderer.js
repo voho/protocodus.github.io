@@ -15,11 +15,15 @@ import { paintWaterRelief, drawWaterMotion } from './water-art.js';
 import { houseAssetsRevision, getHouseAssetStats } from './raster-houses.js';
 import { worldArtRevision, worldArtStats } from './atlas-runtime.js';
 import { drawRasterVehicle, drawRasterInfrastructure, drawRasterNetwork, hasRasterTransport } from './raster-transport.js';
-import { industrySize, industryTiles, industryContains, industryDistance, industrySiteProblem } from './industry-sites.js';
-import { hasRasterIndustry } from './raster-industries.js';
+import { industrySize, industryFootprint, industryTiles, industryContains, industryDistance, industrySiteProblem } from './industry-sites.js';
+import { buildingSize, buildingFootprint, buildingAt, buildingSiteProblem } from './building-sites.js';
+import { terrainObjectAt, terrainObjectSize } from './terrain-objects.js';
+import { natureObjectLayout } from './raster-nature.js';
 import { terrainLevel, terrainElevation, terrainReliefRaster, terrainOverviewColor } from './terrain-elevation.js';
 import { noise, hashNoise } from './world-noise.js';
 import { shorelineContours, appendShoreline } from './shoreline.js';
+import { projectPoint, unprojectPoint, projectAngle } from './isometric.js';
+import { drawIsometricStop, drawIsometricPort, drawIsometricPortal } from './isometric-infrastructure.js';
 
 const TAU=Math.PI*2;
 const CHUNK_TILES=8, CHUNK_PIXELS=CHUNK_TILES*TILE, CHUNK_GUTTER=2;
@@ -38,7 +42,7 @@ export function createRenderer(canvas, initialGame, options={}) {
   let layers=normalizeLayers(options.layers||DEFAULT_LAYERS);
   const reliefCanvas=document.createElement('canvas'),reliefContext=reliefCanvas.getContext('2d');
   let camera={x:48*TILE,y:32*TILE,zoom:nearestZoom(options.zoom)};
-  let palette=PALETTES[game.biome]||PALETTES.taiga,sprite,marine,rasterScale=0,detailLevel='',cacheLimit=CACHE_BASE;
+  let palette=PALETTES[game.biome]||PALETTES.taiga,sprite,uprightSprite,marine,rasterScale=0,detailLevel='',cacheLimit=CACHE_BASE;
   // The map can cover hundreds of thousands of tiles. Only visible, reusable
   // 8×8 chunks receive artwork at the current physical-pixel density. Small
   // chunks keep Detail's retina surfaces bounded; atlas terrain is capped at 512².
@@ -47,10 +51,11 @@ export function createRenderer(canvas, initialGame, options={}) {
   let cachedRevision=-1, minimapRevision=-1, cachedBiome=game.biome, cachedSeed=game.seed, cachedHouseAssets=houseAssetsRevision(),cachedWorldAssets=worldArtRevision();
   let minimapPixels=null,minimapWords=null;
   let minimapNetworkGame=null,minimapNetworkRevision=-1,minimapNetwork=[],minimapNetworkScans=0,minimapTerrainSamples=0;
-  let industryIndex=new Map(), stationIndex=new Map(), cacheBytes=0, composedChunks=0;
+  let industryIndex=new Map(), stationIndex=new Map(), buildingIndex=new Map(), terrainObjectIndex=new Map(), cacheBytes=0, composedChunks=0;
+  let objectHits=[];
   let largestSurface=0, lastTime=0, vehicleIndicatorCounts={empty:0,partial:0,full:0};
   function code(value){if(!value)return 0;const key=String(value);if(codes.has(key))return codes.get(key);let h=0;for(let i=0;i<key.length;i++)h=(Math.imul(h,31)+key.charCodeAt(i))|0;codes.set(key,h);return h;}
-  function clearChunks(){for(const entry of chunks.values()){entry.canvas.width=0;entry.canvas.height=0;}chunks.clear();cacheBytes=0;}
+  function clearChunks(){objectHits=[];for(const entry of chunks.values()){entry.canvas.width=0;entry.canvas.height=0;}chunks.clear();cacheBytes=0;}
   function getLayers(){return {...layers};}
   function setLayers(partial={}){
     if(!partial||typeof partial!=='object')return getLayers();
@@ -64,54 +69,92 @@ export function createRenderer(canvas, initialGame, options={}) {
   }
   function updateRaster(force=false){
     const scale=camera.zoom*dpr,detail=ZOOM_VIEWS.find(view=>view.zoom===camera.zoom).name.toLowerCase();
-    if(force||rasterScale!==scale||detailLevel!==detail){rasterScale=scale;detailLevel=detail;sprite=createSprites(game.biome,{pixelScale:scale,detailLevel:detail});marine=createMarineSprites({pixelScale:scale,detailLevel:detail});}
+    if(force||rasterScale!==scale||detailLevel!==detail){rasterScale=scale;detailLevel=detail;sprite=createSprites(game.biome,{pixelScale:scale,detailLevel:detail});uprightSprite=createSprites(game.biome,{pixelScale:scale*1.5,detailLevel:detail});marine=createMarineSprites({pixelScale:scale,detailLevel:detail});}
   }
   function ensureRevision(){
     if(cachedHouseAssets!==houseAssetsRevision()||cachedWorldAssets!==worldArtRevision()){clearChunks();updateRaster(true);cachedHouseAssets=houseAssetsRevision();cachedWorldAssets=worldArtRevision();}
     if(cachedBiome!==game.biome||cachedSeed!==game.seed){clearChunks();palette=PALETTES[game.biome]||PALETTES.taiga;updateRaster(true);cachedBiome=game.biome;cachedSeed=game.seed;cachedRevision=-1;minimapRevision=-1;}
     if(cachedRevision===(game.revision||0))return;
+    buildingIndex.clear();terrainObjectIndex.clear();
     industryIndex=new Map((game.industries||[]).flatMap(item=>industryTiles(item).map(p=>[p.y*game.width+p.x,item])));
     stationIndex=new Map((game.stations||[]).map(item=>[item.y*game.width+item.x,item]));
     cachedRevision=game.revision||0;
   }
   const tile=(x,y)=> x<0||y<0||x>=game.width||y>=game.height?null:game.tiles[y*game.width+x];
-  function portLandAngle(x,y){const shore=[[-1,0],[0,-1],[1,0],[0,1]].find(([dx,dy])=>tile(x+dx,y+dy)&&tile(x+dx,y+dy).terrain!=='water')||[-1,0];return Math.atan2(shore[1],shore[0]);}
-  const worldToScreen=(x,y)=>({x:(x*TILE+TILE/2-camera.x)*camera.zoom+W/2,y:(y*TILE+TILE/2-camera.y)*camera.zoom+H/2});
+  function buildingSiteAt(x,y){
+    if(!tile(x,y))return null;
+    const id=y*game.width+x;if(buildingIndex.has(id))return buildingIndex.get(id);
+    // Cache only queried parcels; never scan a multi-million-tile world each
+    // frame. A long paused pan also has a fixed memory ceiling.
+    if(buildingIndex.size>=65536)buildingIndex.clear();
+    const site=buildingAt(game,x,y);buildingIndex.set(id,site);return site;
+  }
+  const siteAt=(x,y)=>industryIndex.get(y*game.width+x)||buildingSiteAt(x,y);
+  function terrainSiteAt(x,y){
+    if(!tile(x,y))return null;
+    const id=y*game.width+x;if(terrainObjectIndex.has(id))return terrainObjectIndex.get(id);
+    if(terrainObjectIndex.size>=65536)terrainObjectIndex.clear();
+    const site=terrainObjectAt(game,x,y);terrainObjectIndex.set(id,site);return site;
+  }
+  const inspectSiteAt=(x,y)=>siteAt(x,y)||terrainSiteAt(x,y);
+  const siteSize=site=>site?.object?terrainObjectSize(site.object):site?.building?buildingSize(site.building):industrySize(site);
+  function portLandDirection(x,y){return[[-1,0],[0,-1],[1,0],[0,1]].find(([dx,dy])=>tile(x+dx,y+dy)&&tile(x+dx,y+dy).terrain!=='water')||[-1,0];}
+  // Simulation and saves keep their square grid. Only the view uses a 2:1
+  // diamond projection; upright objects are composed in projected space.
+  const projectTile=(x,y)=>projectPoint((x+.5)*TILE,(y+.5)*TILE);
+  const worldToScreen=(x,y)=>{const p=projectPoint((x+.5)*TILE-camera.x,(y+.5)*TILE-camera.y);return{x:p.x*camera.zoom+W/2,y:p.y*camera.zoom+H/2};};
+  const groundTransform=c=>c.transform(1,.5,-1,.5,0,0);
+  function screenToWorld(x,y){const p=unprojectPoint((x-W/2)/camera.zoom,(y-H/2)/camera.zoom);return{x:p.x+camera.x,y:p.y+camera.y};}
+  function viewportCorners(margin=0){return[[-margin,-margin],[W+margin,-margin],[W+margin,H+margin],[-margin,H+margin]].map(([x,y])=>screenToWorld(x,y));}
+  function visibleBounds(){const points=viewportCorners(180*camera.zoom);return{x0:Math.max(0,Math.floor(Math.min(...points.map(p=>p.x))/TILE)),y0:Math.max(0,Math.floor(Math.min(...points.map(p=>p.y))/TILE)),x1:Math.min(game.width,Math.ceil(Math.max(...points.map(p=>p.x))/TILE)),y1:Math.min(game.height,Math.ceil(Math.max(...points.map(p=>p.y))/TILE))};}
+  function stationMarker(station){const p=worldToScreen(station.x,station.y);return{x:p.x+8*camera.zoom,y:p.y-28*camera.zoom,size:14};}
   function resize(){const rect=canvas.getBoundingClientRect();W=Math.max(1,rect.width);H=Math.max(1,rect.height);dpr=Math.min(window.devicePixelRatio||1,2);canvas.width=Math.round(W*dpr);canvas.height=Math.round(H*dpr);ctx.imageSmoothingEnabled=false;updateRaster();bounds();}
   function bounds(){
-    const halfW=W/(2*camera.zoom),halfH=H/(2*camera.zoom);
-    camera.x=Math.max(Math.min(halfW,game.width*TILE/2),Math.min(game.width*TILE-Math.min(halfW,game.width*TILE/2),camera.x));
-    camera.y=Math.max(Math.min(halfH,game.height*TILE/2),Math.min(game.height*TILE-Math.min(halfH,game.height*TILE/2),camera.y));
-    // Snap the actual world origin, so both rendering and tile picking use the
-    // same camera and a cached texel always lands on one physical display pixel.
-    camera.x=(W/2-Math.round((W/2-camera.x*camera.zoom)*dpr)/dpr)/camera.zoom;
-    camera.y=(H/2-Math.round((H/2-camera.y*camera.zoom)*dpr)/dpr)/camera.zoom;
+    camera.x=Math.max(TILE/2,Math.min((game.width-.5)*TILE,camera.x));
+    camera.y=Math.max(TILE/2,Math.min((game.height-.5)*TILE,camera.y));
+    // Snap the projected origin to physical pixels, then return to world space.
+    const p=projectPoint(camera.x,camera.y);
+    const snapped=unprojectPoint((W/2-Math.round((W/2-p.x*camera.zoom)*dpr)/dpr)/camera.zoom,(H/2-Math.round((H/2-p.y*camera.zoom)*dpr)/dpr)/camera.zoom);
+    camera.x=snapped.x;camera.y=snapped.y;
   }
   function focus(x,y){camera.x=(x+.5)*TILE;camera.y=(y+.5)*TILE;bounds();}
-  function pan(dx,dy){camera.x-=dx/camera.zoom;camera.y-=dy/camera.zoom;bounds();}
+  function pan(dx,dy){const move=unprojectPoint(dx/camera.zoom,dy/camera.zoom);camera.x-=move.x;camera.y-=move.y;bounds();}
   function setZoom(value,clientX,clientY){
     const next=nearestZoom(value);if(next===camera.zoom)return;
     const rect=canvas.getBoundingClientRect(),sx=(clientX===undefined?W/2:clientX-rect.left)-W/2,sy=(clientY===undefined?H/2:clientY-rect.top)-H/2,old=camera.zoom;
-    camera.zoom=next;camera.x+=sx/old-sx/next;camera.y+=sy/old-sy/next;bounds();updateRaster();
+    const move=unprojectPoint(sx/old-sx/next,sy/old-sy/next);
+    camera.zoom=next;camera.x+=move.x;camera.y+=move.y;bounds();updateRaster();
   }
   function zoomAt(factor,clientX,clientY){if(!Number.isFinite(factor)||factor<=0||factor===1)return;setZoom(stepZoom(camera.zoom,Math.sign(factor-1)),clientX,clientY);}
-  function screenToTile(clientX,clientY){const rect=canvas.getBoundingClientRect();return{x:Math.floor(((clientX-rect.left-W/2)/camera.zoom+camera.x)/TILE),y:Math.floor(((clientY-rect.top-H/2)/camera.zoom+camera.y)/TILE)};}
+  function screenToTile(clientX,clientY){const rect=canvas.getBoundingClientRect(),p=screenToWorld(clientX-rect.left,clientY-rect.top);return{x:Math.floor(p.x/TILE),y:Math.floor(p.y/TILE)};}
   function industryMarker(industry){
-    const span=industrySize(industry),p=worldToScreen(industry.x+(span-1)/2,industry.y+span-1),size=detailLevel==='detail'?28:24;
-    return {x:p.x,y:p.y+16*camera.zoom+5+(size+6)/2,size};
+    const span=industrySize(industry),p=worldToScreen(industry.x+(span-1)/2,industry.y+(span-1)/2),size=detailLevel==='detail'?28:24;
+    return {x:p.x,y:p.y+16*span*camera.zoom+5+(size+6)/2,size};
   }
   function screenToInspectTile(clientX,clientY){
+    ensureRevision();
     const rect=canvas.getBoundingClientRect(),x=clientX-rect.left,y=clientY-rect.top;
     // Resource badges are drawn beyond their tile; inspecting one should open
     // its industry while construction continues to target the exact grid tile.
     for(let i=layers.industryIcons?(game.industries||[]).length-1:-1;i>=0;i--){
-      const industry=game.industries[i];if(!visible(industry.x,industry.y))continue;
+      const industry=game.industries[i];if(!visible(industry.x,industry.y,180*camera.zoom))continue;
       const marker=industryMarker(industry);
       if(Math.abs(x-marker.x)<=(marker.size+8)/2&&Math.abs(y-marker.y)<=(marker.size+6)/2)return {x:industry.x,y:industry.y};
     }
-    const picked=screenToTile(clientX,clientY),industry=industryIndex.get(picked.y*game.width+picked.x);return industry?{x:industry.x,y:industry.y}:picked;
+    const picked=screenToTile(clientX,clientY),site=tile(picked.x,picked.y)&&inspectSiteAt(picked.x,picked.y);
+    // A reserved site remains clickable across its full footprint,
+    // including open yards beneath neighboring overhanging tree crowns.
+    if(site)return{x:site.x,y:site.y};
+    // Roofs and tree crowns extend behind their ground parcel. Pick the last
+    // visible opaque sprite pixel, matching the same back-to-front draw order.
+    for(let i=objectHits.length-1;i>=0;i--){const hit=objectHits[i];
+      if(x<hit.x||y<hit.y||x>=hit.x+hit.w||y>=hit.y+hit.h)continue;
+      const sx=Math.floor((x-hit.x)/hit.w*hit.image.width),sy=Math.floor((y-hit.y)/hit.h*hit.image.height);
+      if(hit.image.getContext('2d').getImageData(sx,sy,1,1).data[3]>24)return{x:hit.tx,y:hit.ty};
+    }
+    return picked;
   }
-  function setGame(next){game=next;clearChunks();palette=PALETTES[game.biome]||PALETTES.taiga;updateRaster(true);cachedBiome=game.biome;cachedSeed=game.seed;cachedRevision=-1;minimapRevision=-1;const first=game.cities?.[0];if(first)focus(first.x+9,first.y);else bounds();}
+  function setGame(next){game=next;clearChunks();palette=PALETTES[game.biome]||PALETTES.taiga;updateRaster(true);cachedBiome=game.biome;cachedSeed=game.seed;cachedRevision=-1;minimapRevision=-1;const first=game.cities?.[0];if(first)focus(first.x+4.5,first.y-4.5);else bounds();}
   function natureVariant(x,y,t) {
     let h=(game.seed||0)^Math.imul(x+1,374761393)^Math.imul(y+1,668265263)^Math.imul((t.variant||0)+1,1274126177);
     h=Math.imul(h^(h>>>13),1274126177);return (h^(h>>>16))>>>26;
@@ -142,13 +185,14 @@ export function createRenderer(canvas, initialGame, options={}) {
   function fingerprint(b){
     let hash=2166136261;
     for(let y=b.y0;y<b.y1;y++)for(let x=b.x0;x<b.x1;x++){
-      const t=tile(x,y),id=y*game.width+x,ind=industryIndex.get(id),st=stationIndex.get(id);
+      const t=tile(x,y),id=y*game.width+x,ind=industryIndex.get(id),st=stationIndex.get(id),building=buildingSiteAt(x,y)?.building,nature=terrainSiteAt(x,y)?.object;
       const flags=(t.road?1:0)|(t.rail?2:0)|(t.bridge?4:0)|(t.tunnel?8:0);
       hash=Math.imul(hash^code(t.terrain),16777619);hash=Math.imul(hash^code(t.detail),16777619);
       hash=Math.imul(hash^Math.round(terrainElevation(t)*65536)^((t.structureLevel||0)<<8)^code(t.structureAxis),16777619);
       hash=Math.imul(hash^(t.variant||0)^flags,16777619);hash=Math.imul(hash^code(t.zone),16777619);
-      hash=Math.imul(hash^code(t.building?.kind)^((t.building?.level||0)<<12),16777619);
+      hash=Math.imul(hash^code(building?.kind)^((building?.level||0)<<12)^(buildingSize(building)<<20),16777619);
       hash=Math.imul(hash^code(ind?.kind)^((ind?.footprint||1)<<10)^code(st?.mode),16777619);
+      hash=Math.imul(hash^code(nature?.kind)^code(nature?.detail)^((nature?.variant||0)<<8)^((nature?.footprint||0)<<24),16777619);
     }
     return hash;
   }
@@ -167,7 +211,7 @@ export function createRenderer(canvas, initialGame, options={}) {
         const color=t.detail==='marsh'?'#657d6a':t.detail==='saltflat'?'#eeead3':t.terrain==='mountain'?palette.mountain:'#e5ead8',wash=c.createRadialGradient(px+16,py+16,2,px+16,py+16,27);wash.addColorStop(0,color+'14');wash.addColorStop(1,color+'00');c.fillStyle=wash;c.fillRect(px-11,py-11,54,54);
       }
       for(let n=0;n<8;n++){const xx=px+r()*31,yy=py+r()*31,w=.7+r()*1.5,h=.5+r();if(detailLevel==='region'&&n%4!==0)continue;c.fillStyle=n%3===0?palette.speck+'28':palette.dark+'18';c.fillRect(xx,yy,w,h);}
-      if(layers.trees&&r()>.97&&detailLevel!=='region'&&!t.building&&!t.road&&!t.rail&&t.terrain==='grass'){for(let n=0;n<3;n++)dot(c,px+10+r()*8,py+10+r()*8,.7,game.biome==='tundra'?'#e7dfb2':'#e9cf92');}
+      if(layers.trees&&r()>.97&&detailLevel!=='region'&&(!layers.buildings||!siteAt(x,y))&&!terrainSiteAt(x,y)&&!t.road&&!t.rail&&t.terrain==='grass'){for(let n=0;n<3;n++)dot(c,px+10+r()*8,py+10+r()*8,.7,game.biome==='tundra'?'#e7dfb2':'#e9cf92');}
     }
     // World-anchored contour smoothing softens staircase coasts while keeping
     // every water and land tile center on its original side of the shoreline.
@@ -185,23 +229,19 @@ export function createRenderer(canvas, initialGame, options={}) {
       const r=rng(x*3461+y*3727);for(const [dx,dy]of [[1,0],[-1,0],[0,1],[0,-1]])if(tile(x+dx,y+dy)?.terrain==='water'&&r()>(t.terrain==='forest'||['marsh','reeds','oasis'].includes(t.detail)?.6:.94)){for(let j=0;j<3;j++){const px=(x+.5)*TILE+dx*14+(dy?r()*12-6:0),py=(y+.5)*TILE+dy*14+(dx?r()*12-6:0);line(c,[[px,py],[px-1,py-3-r()*2]],'#71886b',1);}}
     }
   }
-  function tunnelPortal(c,x,y,t,mode,arms){
-    // A buried alignment contributes no visible track between its mouths.
-    // Each mouth faces an exposed approach on the engineering axis.
+  const buried=t=>Boolean(t&&(isEngineeredTunnel(t)||t.tunnel||(t.terrain==='mountain'&&!t.bridge)));
+  function portalArms(x,y,t,mode){
+    return [[0,-1],[1,0],[0,1],[-1,0]].filter(([dx,dy])=>{const adjacent=tile(x+dx,y+dy);return (!t.structureAxis||(t.structureAxis==='x'?dy===0:dx===0))&&adjacent?.[mode]&&!buried(adjacent)&&networkEdgeAllowed(t,adjacent,dx,dy,mode);});
+  }
+  function tunnelPortal(c,x,y,t,mode){
     const cx=(x+.5)*TILE,cy=(y+.5)*TILE;
-    for(const [dx,dy]of arms){
-      const adjacent=tile(x+dx,y+dy);if(!adjacent?.[mode]||isEngineeredTunnel(adjacent))continue;
-      const angle=Math.atan2(dy,dx),mouthX=cx+dx*6,mouthY=cy+dy*6;
+    // Only the short exposed approaches belong in the ground layer. Stone
+    // mouths are upright objects, depth-sorted with buildings and vehicles.
+    for(const [dx,dy]of portalArms(x,y,t,mode)){
+      const mouthX=cx+dx*6,mouthY=cy+dy*6;
       line(c,[[mouthX,mouthY],[cx+dx*16,cy+dy*16]],mode==='road'?'#b5a587':'#b6b698',mode==='road'?18:11);
       line(c,[[mouthX,mouthY],[cx+dx*16,cy+dy*16]],mode==='road'?'#696963':'#79775f',mode==='road'?12:7);
       if(mode==='rail')for(const o of [-2.4,2.4])line(c,[[mouthX+dy*o,mouthY-dx*o],[cx+dx*16+dy*o,cy+dy*16-dx*o]],'#d4d7c6',1.1);
-      c.save();c.translate(mouthX,mouthY);c.rotate(angle-Math.PI/2);
-      if(!drawRasterInfrastructure(c,mode+'-tunnel',-16,-20,32,32,rasterScale)){
-        c.fillStyle='#8d927d';roundRect(c,-11,-8,22,15,7);c.fill();
-        c.fillStyle='#d0ceb0';roundRect(c,-9,-7,18,14,6);c.fill();
-        c.fillStyle='#26362c';roundRect(c,-6,-3,12,11,4);c.fill();
-      }
-      c.restore();
     }
   }
   function network(c,x,y,t,mode){
@@ -211,7 +251,7 @@ export function createRenderer(canvas, initialGame, options={}) {
       return networkEdgeAllowed(t,adjacent,dx,dy,mode);
     });
     const arms=neighbors.length?neighbors:t.structureAxis==='x'?[[-1,0],[1,0]]:[[0,-.48],[0,.48]];
-    if(isEngineeredTunnel(t)){tunnelPortal(c,x,y,t,mode,arms);return;}
+    if(buried(t)){tunnelPortal(c,x,y,t,mode);return;}
     const bridge=t.terrain==='water'||t.bridge;const tunnel=!bridge&&(t.terrain==='mountain'||t.tunnel);
     const textured=!tunnel&&hasRasterTransport('infra:'+mode+(bridge?'-bridge':''));
     const points=arms.map(([dx,dy])=>[cx+dx*16,cy+dy*16]);
@@ -241,12 +281,8 @@ export function createRenderer(canvas, initialGame, options={}) {
       }
     }
     if(!tunnel)drawRasterNetwork(c,mode+(bridge?'-bridge':''),cx,cy,arms,rasterScale);
-    if(tunnel){const exit=arms.find(([dx,dy])=>{const adjacent=tile(x+dx,y+dy);return adjacent&&adjacent.terrain!=='mountain'&&!adjacent.tunnel;});
-      if(exit){c.save();c.translate(cx,cy);c.rotate(Math.atan2(exit[1],exit[0])-Math.PI/2);const painted=drawRasterInfrastructure(c,mode+'-tunnel',-16,-19,32,36,rasterScale);c.restore();if(painted)return;}
-      else return;
-    }
-    if(tunnel){const dir=arms[0];c.save();c.translate(cx,cy);c.rotate(Math.atan2(dir[1],dir[0]));c.fillStyle='#7c8476';c.fillRect(-6,-9,5,18);c.fillStyle='#d0d0b5';c.fillRect(-6,-8,3,16);c.fillStyle='#3e4d44';c.fillRect(-4,-5,3,10);c.restore();}
   }
+
   function drawChunk(cx,cy,scale){
     const key=`${cx},${cy},${scale},${detailLevel}`,b=chunkBounds(cx,cy);let entry=chunks.get(key);
     if(entry){
@@ -265,27 +301,11 @@ export function createRenderer(canvas, initialGame, options={}) {
     const c=entry.canvas.getContext('2d');c.setTransform(1,0,0,1,0,0);c.clearRect(0,0,entry.canvas.width,entry.canvas.height);c.scale(scale,scale);c.translate(-entry.x,-entry.y);c.imageSmoothingEnabled=false;
     drawGround(c,b);
     for(let y=b.y0;y<b.y1;y++)for(let x=b.x0;x<b.x1;x++){
-      const t=tile(x,y);
+      const t=tile(x,y),occupied=(layers.buildings&&siteAt(x,y))||terrainSiteAt(x,y);
       const variant=natureVariant(x,y,t),sparseDetail=['snow','glacial','dunes','ice','saltflat'].includes(t.detail)?variant%5===0:variant%4!==0;
-      if(t.detail&&sparseDetail&&(layers.trees||!isPlantDetail(t.detail))&&!LANDMARKS.has(t.terrain)&&t.terrain!=='water'&&(!t.building||!layers.buildings)&&(!t.road||!layers.roads||isEngineeredTunnel(t))&&(!t.rail||!layers.rails||isEngineeredTunnel(t))&&(!t.zone||!layers.zones)&&(!industryIndex.has(y*game.width+x)||!layers.buildings)){c.save();c.globalAlpha=.48;c.drawImage(sprite('terrain-detail',variant,1,t.detail),x*TILE,y*TILE-8,32,40);c.restore();}
-      if(layers.zones&&t.zone&&(!t.building||!layers.buildings)){const color=t.zone==='residential'?'#e6e9b5':t.zone==='commercial'?'#c0d9db':'#e3c795';c.fillStyle=color+'45';c.fillRect(x*TILE+2,y*TILE+2,28,28);c.strokeStyle=color+'b0';c.lineWidth=.7;c.setLineDash([3,3]);c.strokeRect(x*TILE+3,y*TILE+3,26,26);c.setLineDash([]);}
+      if(t.detail&&sparseDetail&&!isPlantDetail(t.detail)&&(layers.trees||!isPlantDetail(t.detail))&&!LANDMARKS.has(t.terrain)&&t.terrain!=='water'&&!occupied&&(!t.road||!layers.roads||isEngineeredTunnel(t))&&(!t.rail||!layers.rails||isEngineeredTunnel(t))&&(!t.zone||!layers.zones)){c.save();c.globalAlpha=.48;c.drawImage(sprite('terrain-detail',variant,1,t.detail),x*TILE,y*TILE-8,32,40);c.restore();}
+      if(layers.zones&&t.zone&&!occupied){const color=t.zone==='residential'?'#e6e9b5':t.zone==='commercial'?'#c0d9db':'#e3c795';c.fillStyle=color+'45';c.fillRect(x*TILE+2,y*TILE+2,28,28);c.strokeStyle=color+'b0';c.lineWidth=.7;c.setLineDash([3,3]);c.strokeRect(x*TILE+3,y*TILE+3,26,26);c.setLineDash([]);}
       if(layers.roads)network(c,x,y,t,'road');if(layers.rails)network(c,x,y,t,'rail');
-    }
-    // Draw objects in row order; padded chunks also include overhanging tree crowns.
-    for(let y=b.y0;y<b.y1;y++)for(let x=b.x0;x<b.x1;x++){
-      const t=tile(x,y),id=y*game.width+x,ind=industryIndex.get(id),st=stationIndex.get(id);
-      if(LANDMARKS.has(t.terrain)&&(t.terrain!=='forest'||layers.trees)&&(!t.building||!layers.buildings)&&(!t.road||!layers.roads||isEngineeredTunnel(t))&&(!t.rail||!layers.rails||isEngineeredTunnel(t))&&(!t.zone||!layers.zones)&&(!ind||!layers.buildings)){
-        const forest=t.terrain==='forest',variant=natureVariant(x,y,t),density=natureDensity(x,y,t);
-        // Relief describes the landform. A few subdued outcrops describe its
-        // material, instead of repeating a mountain icon on every high tile.
-        if(density){
-          c.save();c.globalAlpha=forest?.94:1;
-          c.drawImage(sprite(t.terrain,variant,density,!layers.trees&&t.detail==='wooded-foothill'?'bare-foothill':t.detail),x*TILE-(forest?8:0),y*TILE-(forest?16:8),forest?48:32,forest?48:40);c.restore();
-        }
-      }
-      if(layers.buildings&&t.building){const variant=t.variant??x*13+y,level=t.building.level||1,legacy=t.building.kind,kind=['house','apartment'].includes(legacy)?residentialKind(variant,level):['shop','office'].includes(legacy)?commercialKind(variant,level):legacy;c.drawImage(sprite(kind,variant,level),x*TILE,y*TILE-8,32,40);}
-      if(layers.buildings&&ind&&ind.x===x&&ind.y===y){const span=industrySize(ind);c.drawImage(sprite(ind.kind,x+y,span),x*TILE,y*TILE-8,32*span,32*span+8);}
-      if(layers.stations&&st){if(st.mode==='water'){c.drawImage(marine.port(portLandAngle(x,y)),(x+.5)*TILE-MARINE_SIZE/2,(y+.5)*TILE-MARINE_SIZE/2,MARINE_SIZE,MARINE_SIZE);}else if(!drawRasterInfrastructure(c,st.mode==='rail'?'train-stop':'bus-stop',x*TILE+17,y*TILE+1,17,29,rasterScale)){const px=x*TILE,py=y*TILE;c.fillStyle='#294d435c';c.fillRect(px+22,py+5,8,21);c.fillStyle='#d8d6b7';c.fillRect(px+22,py+3,6,22);c.fillStyle='#8c9c83';c.fillRect(px+23,py+5,4,12);c.fillStyle='#f1e0b8';c.fillRect(px+24,py+5,2,11);c.fillStyle='#526c5b';c.fillRect(px+22,py+3,7,3);c.fillStyle='#374d42';c.fillRect(px+25,py+22,1,6);c.fillStyle=st.mode==='rail'?'#bc8260':'#ceaa5b';c.fillRect(px+23,py+20,5,4);}}
     }
     composedChunks++;return entry;
   }
@@ -297,39 +317,86 @@ export function createRenderer(canvas, initialGame, options={}) {
     const frameBytes=across*down*(Math.ceil((CHUNK_PIXELS+CHUNK_GUTTER*2)*rasterScale)+1)**2*4;
     cacheLimit=Math.min(CACHE_MAX,Math.max(CACHE_BASE,Math.ceil(frameBytes*1.1)));
     while(cacheBytes>cacheLimit&&chunks.size){const oldest=chunks.keys().next().value,item=chunks.get(oldest);cacheBytes-=item.bytes;item.canvas.width=0;item.canvas.height=0;chunks.delete(oldest);}
-    ctx.imageSmoothingEnabled=false;
-    for(let cy=Math.floor(y0/CHUNK_TILES);cy<Math.ceil(y1/CHUNK_TILES);cy++)for(let cx=Math.floor(x0/CHUNK_TILES);cx<Math.ceil(x1/CHUNK_TILES);cx++){const entry=drawChunk(cx,cy,rasterScale);ctx.drawImage(entry.canvas,entry.x,entry.y,entry.canvas.width/rasterScale,entry.canvas.height/rasterScale);}
+    ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='low';
+    for(let cy=Math.floor(y0/CHUNK_TILES);cy<Math.ceil(y1/CHUNK_TILES);cy++)for(let cx=Math.floor(x0/CHUNK_TILES);cx<Math.ceil(x1/CHUNK_TILES);cx++){if(!visible(cx*CHUNK_TILES+CHUNK_TILES/2-.5,cy*CHUNK_TILES+CHUNK_TILES/2-.5,CHUNK_PIXELS*camera.zoom+80))continue;const entry=drawChunk(cx,cy,rasterScale);ctx.drawImage(entry.canvas,entry.x,entry.y,entry.canvas.width/rasterScale,entry.canvas.height/rasterScale);}
   }
   function visible(x,y,margin=70){const p=worldToScreen(x,y);return p.x>-margin&&p.y>-margin&&p.x<W+margin&&p.y<H+margin;}
-  function vehicle(v,route){
-    if(!visible(v.x,v.y))return;const train=route?.mode==='rail';const color=route?.color||'#c78753';
-    if(route?.mode==='water'){drawShipWake(ctx,v,lastTime,detailLevel);ctx.drawImage(marine.ship(v,route),(v.x+.5)*TILE-MARINE_SIZE/2,(v.y+.5)*TILE-MARINE_SIZE/2,MARINE_SIZE,MARINE_SIZE);return;}
-    function car(x,y,angle,engine){if(isUndergroundAt(game,x,y))return;ctx.save();ctx.translate((x+.5)*TILE,(y+.5)*TILE);ctx.rotate(angle);if(drawRasterVehicle(ctx,v,route,{engine,pixelScale:rasterScale,heading:angle})){ctx.restore();return;}if(detailLevel==='region'){ctx.fillStyle='#293e36';roundRect(ctx,-8,-4.5,16,9,2);ctx.fill();ctx.fillStyle=color;ctx.fillRect(-7,-3.5,14,7);ctx.fillStyle='#f1ddb5';ctx.fillRect(-6,-2.5,9,5);ctx.fillStyle='#3d6269';ctx.fillRect(4,-2.5,2,5);if(train&&engine){ctx.fillStyle='#526361';ctx.fillRect(-2,-2,4,4);}ctx.restore();return;}ctx.fillStyle='#233e3a40';roundRect(ctx,-4,-1,12,6,1.5);ctx.fill();ctx.fillStyle='#343d37';ctx.fillRect(-5,-4,3,1.5);ctx.fillRect(3,-4,3,1.5);ctx.fillRect(-5,2.5,3,1.5);ctx.fillRect(3,2.5,3,1.5);ctx.fillStyle=color;roundRect(ctx,-7,-3.5,14,7,1.5);ctx.fill();ctx.fillStyle='#ead8ad';ctx.fillRect(-6,-2.5,10,5);ctx.fillStyle='#536e71';ctx.fillRect(4,-2.3,2,4.6);ctx.fillStyle='#829b99';ctx.fillRect(-4,-2.5,6,1);ctx.fillRect(-4,1.5,6,1);ctx.fillStyle='#ddd3ac';ctx.fillRect(6,-2,1,1);ctx.fillRect(6,1,1,1);if(train&&engine){ctx.fillStyle='#526361';ctx.fillRect(-2,-2,4,4);ctx.fillStyle='#adbead';ctx.fillRect(-1,-1,2,2);}ctx.restore();}
-    if(train&&route.path?.length>1){
-      const path=route.path,max=path.length-1,direction=v.direction||1;
-      for(const offset of [34/TILE,17/TILE]){const position=Math.max(0,Math.min(max,(v.progress||0)-offset*direction));const index=Math.min(Math.floor(position),max-1),f=position-index,a=path[index],b=path[index+1];car(a.x+(b.x-a.x)*f,a.y+(b.y-a.y)*f,Math.atan2((b.y-a.y)*direction,(b.x-a.x)*direction),false);}
+  function drawCar(v,route,x,y,worldAngle,engine){
+    if(isUndergroundAt(game,x,y))return;
+    const p=projectTile(x,y),angle=projectAngle(worldAngle),train=route?.mode==='rail';
+    ctx.save();ctx.translate(p.x,p.y);ctx.rotate(angle);
+    if(!drawRasterVehicle(ctx,v,route,{engine,pixelScale:rasterScale,heading:angle})){
+      ctx.fillStyle='#263c35';roundRect(ctx,-9,-4.5,18,9,2);ctx.fill();ctx.fillStyle=route?.color||'#c78753';roundRect(ctx,-8,-3.5,16,7,2);ctx.fill();
+      ctx.fillStyle='#e9ddbd';ctx.fillRect(-6,-2.5,10,5);ctx.fillStyle='#426878';ctx.fillRect(4,-2.5,2,5);
+      if(train&&engine){ctx.fillStyle='#526361';ctx.fillRect(-2,-2,4,4);}
     }
-    car(v.x,v.y,Number.isFinite(v.angle)?v.angle:0,train);
+    ctx.restore();
+  }
+  function ship(v,route){const p=projectTile(v.x,v.y);ctx.drawImage(marine.ship({...v,angle:projectAngle(v.angle||0)},route),p.x-MARINE_SIZE/2,p.y-MARINE_SIZE/2,MARINE_SIZE,MARINE_SIZE);}
+  function billboard(image,x,y,w,h,tx,ty){
+    ctx.drawImage(image,x,y,w,h);
+    const origin=projectPoint(camera.x,camera.y);
+    objectHits.push({image,x:(x-origin.x)*camera.zoom+W/2,y:(y-origin.y)*camera.zoom+H/2,w:w*camera.zoom,h:h*camera.zoom,tx,ty});
+  }
+  function drawScene(b,routesById){
+    objectHits=[];
+    const objects=[];
+    const add=(x,y,draw,priority=0)=>objects.push({depth:x+y,x,priority,draw});
+    for(let y=b.y0;y<b.y1;y++)for(let x=b.x0;x<b.x1;x++){
+      if(!visible(x,y,180*camera.zoom))continue;
+      const t=tile(x,y),id=y*game.width+x,ind=industryIndex.get(id),st=stationIndex.get(id),p=projectTile(x,y),occupied=layers.buildings&&(ind||buildingSiteAt(x,y)),nature=terrainSiteAt(x,y);
+      if(nature&&!occupied&&nature.x===x&&nature.y===y&&(nature.object.kind!=='forest'||layers.trees)){
+        const object=nature.object,span=terrainObjectSize(object),center=projectTile(x+(span-1)/2,y+(span-1)/2),layout=natureObjectLayout(span),detail=!layers.trees&&object.detail==='wooded-foothill'?'bare-foothill':object.detail;
+        add(x+span-1,y+span-1,()=>billboard(sprite(object.kind,object.variant||0,1,detail,span),center.x-layout.anchorX,center.y-layout.anchorY,layout.width,layout.height,x,y));
+      }
+      if(!nature&&LANDMARKS.has(t.terrain)&&(t.terrain!=='forest'||layers.trees)&&!occupied&&(!t.road||!layers.roads||isEngineeredTunnel(t))&&(!t.rail||!layers.rails||isEngineeredTunnel(t))&&(!t.zone||!layers.zones)){
+        const forest=t.terrain==='forest',variant=natureVariant(x,y,t),density=natureDensity(x,y,t);
+        if(density)add(x,y,()=>{ctx.save();ctx.globalAlpha=forest?.94:1;billboard(sprite(t.terrain,variant,density,!layers.trees&&t.detail==='wooded-foothill'?'bare-foothill':t.detail),p.x-(forest?24:16),p.y-(forest?40:30),forest?48:32,forest?48:40,x,y);ctx.restore();});
+      }
+      if(!nature&&layers.trees&&isPlantDetail(t.detail)&&!LANDMARKS.has(t.terrain)&&t.terrain!=='water'&&!occupied&&(!t.road||!layers.roads||isEngineeredTunnel(t))&&(!t.rail||!layers.rails||isEngineeredTunnel(t))&&(!t.zone||!layers.zones)){
+        const variant=natureVariant(x,y,t);if(variant%4!==0)add(x,y,()=>{ctx.save();ctx.globalAlpha=.6;ctx.drawImage(sprite('terrain-detail',variant,1,t.detail),p.x-16,p.y-28,32,40);ctx.restore();});
+      }
+      if(layers.buildings&&t.building){const variant=t.variant??x*13+y,level=t.building.level||1,legacy=t.building.kind,kind=['house','apartment'].includes(legacy)?residentialKind(variant,level):['shop','office'].includes(legacy)?commercialKind(variant,level):legacy,span=buildingSize(t.building),center=projectTile(x+(span-1)/2,y+(span-1)/2);add(x+span-1,y+span-1,()=>billboard(uprightSprite(kind,variant,level,'',span),center.x-24*span,center.y-36*span-12,48*span,48*span+12,x,y));}
+      if(layers.buildings&&ind&&ind.x===x&&ind.y===y){const span=industrySize(ind),center=projectTile(x+(span-1)/2,y+(span-1)/2);add(x+span-1,y+span-1,()=>billboard(uprightSprite(ind.kind,x+y,span),center.x-24*span,center.y-36*span-12,48*span,48*span+12,x,y));}
+      if(layers.stations&&st){
+        if(st.mode==='water'){const [dx,dy]=portLandDirection(x,y);add(x,y,()=>drawIsometricPort(ctx,dx,dy,p.x,p.y,rasterScale));}
+        else add(x+.12,y+.12,()=>drawIsometricStop(ctx,st.mode,p.x+11,p.y+2,rasterScale));
+      }
+      if(buried(t))for(const mode of ['road','rail'])if(t[mode]&&layers[mode==='road'?'roads':'rails'])for(const [dx,dy]of portalArms(x,y,t,mode)){
+        const mouth=projectTile(x+dx*.18,y+dy*.18);add(x+dx*.18,y+dy*.18,()=>drawIsometricPortal(ctx,mode,dx,dy,mouth.x,mouth.y,rasterScale),2);
+      }
+
+    }
+    if(layers.vehicles)for(const v of game.vehicles||[]){
+      const route=routesById.get(v.routeId);if(route?.mode==='water'||!visible(v.x,v.y,100*camera.zoom))continue;
+      if(route?.mode==='rail'&&route.path?.length>1){
+        const path=route.path,max=path.length-1,direction=v.direction||1;
+        for(const offset of [34/TILE,17/TILE]){const position=Math.max(0,Math.min(max,(v.progress||0)-offset*direction)),index=Math.min(Math.floor(position),max-1),f=position-index,a=path[index],z=path[index+1],x=a.x+(z.x-a.x)*f,y=a.y+(z.y-a.y)*f,angle=Math.atan2((z.y-a.y)*direction,(z.x-a.x)*direction);add(x,y,()=>drawCar(v,route,x,y,angle,false),1);}
+      }
+      add(v.x,v.y,()=>drawCar(v,route,v.x,v.y,Number.isFinite(v.angle)?v.angle:0,route?.mode==='rail'),1);
+    }
+    objects.sort((a,b)=>a.depth-b.depth||a.x-b.x||a.priority-b.priority);
+    for(const object of objects)object.draw();
   }
   function validPreview(tool,p,preferredMode='road'){
     tool=resolveBuildTool(game,tool,p.x,p.y,{preferredMode});
     const t=tile(p.x,p.y);if(!t)return false;if(tool==='inspect')return true;
     if(tool==='raise'||tool==='lower')return game.money>=priceFor(game,BUILD_COSTS[tool]||0)&&!terraformProblem(game,tool,p.x,p.y);
-    const station=(game.stations||[]).find(s=>s.x===p.x&&s.y===p.y),industry=(game.industries||[]).find(s=>industryContains(s,p.x,p.y)),city=(game.cities||[]).find(s=>s.x===p.x&&s.y===p.y);
+    const station=(game.stations||[]).find(s=>s.x===p.x&&s.y===p.y),industry=(game.industries||[]).find(s=>industryContains(s,p.x,p.y)),city=(game.cities||[]).find(s=>s.x===p.x&&s.y===p.y),building=buildingSiteAt(p.x,p.y);
     if(INDUSTRIES[tool])return game.money>=priceFor(game,BUILD_COSTS[tool])&&!industrySiteProblem(game,tool,p.x,p.y);
-    if(tool==='bulldoze')return game.money>=priceFor(game,BUILD_COSTS.bulldoze)&&!city&&!(station&&(game.routes||[]).some(r=>r.stops.includes(station.id)))&&Boolean(station||industry||t.building||t.zone||t.road||t.rail||['forest','rock'].includes(t.terrain)||hasClearableDecoration(t));
+    if(BUILDINGS[tool])return game.money>=priceFor(game,BUILDINGS[tool].cost)&&!buildingSiteProblem(game,tool,p.x,p.y);
+    if(tool==='bulldoze'){const nature=terrainSiteAt(p.x,p.y)?.object;return game.money>=priceFor(game,BUILD_COSTS.bulldoze)&&!city&&!(station&&(game.routes||[]).some(r=>r.stops.includes(station.id)))&&Boolean(station||industry||building||t.zone||t.road||t.rail||(nature?.kind!=='mountain'&&(nature||['forest','rock'].includes(t.terrain)||hasClearableDecoration(t))));}
     if(['road','rail','bridge','railbridge','tunnel','railtunnel'].includes(tool)){
       const mode=tool.startsWith('rail')?'rail':'road',bridge=tool==='bridge'||tool==='railbridge',tunnel=tool==='tunnel'||tool==='railtunnel';
       if(t.structureAxis&&!t[mode])return false;
       if(t[mode]&&(!bridge||t.bridge)&&(!tunnel||t.tunnel))return true;
-      return game.money>=priceFor(game,BUILD_COSTS[tool]+(t.terrain==='forest'?80:t.terrain==='rock'&&!tunnel?100:0))&&!industry&&!t.building&&!t.zone&&(!station||station.mode===mode)&&!(t.terrain==='water'&&!bridge&&!t.bridge)&&!(t.terrain==='mountain'&&!tunnel&&!t.tunnel)&&(!bridge||t.terrain==='water')&&(!tunnel||['mountain','rock'].includes(t.terrain));
+      return game.money>=priceFor(game,BUILD_COSTS[tool]+(t.terrain==='forest'?80:t.terrain==='rock'&&!tunnel?100:0))&&!industry&&!building&&!t.zone&&(!station||station.mode===mode)&&!(t.terrain==='water'&&!bridge&&!t.bridge)&&!(t.terrain==='mountain'&&!tunnel&&!t.tunnel)&&(!bridge||t.terrain==='water')&&(!tunnel||['mountain','rock'].includes(t.terrain));
     }
     if(priceFor(game,BUILD_COSTS[tool]||0)>game.money)return false;
-    if(tool==='port')return t.terrain==='water'&&!station&&!industry&&!city&&!t.building&&!t.zone&&!t.road&&!t.rail&&!t.bridge&&!t.tunnel&&[[-1,0],[0,-1],[1,0],[0,1]].some(([dx,dy])=>tile(p.x+dx,p.y+dy)&&tile(p.x+dx,p.y+dy).terrain!=='water');
-    if(tool==='bus-stop'||tool==='train-stop'){const mode=tool==='bus-stop'?'road':'rail';return !station&&!industry&&!t.building&&!t.zone&&t[mode]&&!t.bridge&&!t.tunnel;}
-    if(station||industry||city||t.building||t.zone||t.road||t.rail||t.terrain==='water')return false;
+    if(tool==='port')return t.terrain==='water'&&!station&&!industry&&!city&&!building&&!t.zone&&!t.road&&!t.rail&&!t.bridge&&!t.tunnel&&[[-1,0],[0,-1],[1,0],[0,1]].some(([dx,dy])=>tile(p.x+dx,p.y+dy)&&tile(p.x+dx,p.y+dy).terrain!=='water');
+    if(tool==='bus-stop'||tool==='train-stop'){const mode=tool==='bus-stop'?'road':'rail';return !station&&!industry&&!building&&!t.zone&&t[mode]&&!t.bridge&&!t.tunnel;}
+    if(station||industry||city||building||t.zone||t.road||t.rail||t.terrain==='water')return false;
     if(tool==='city')return !['mountain','rock'].includes(t.terrain)&&!(game.cities||[]).some(c=>Math.hypot(c.x-p.x,c.y-p.y)<11);
-    if(BUILDINGS[tool])return t.terrain!=='mountain';
     const def=INDUSTRIES[tool];if(!def)return t.terrain!=='mountain';
     return def.biomes.includes(game.biome)&&(!def.terrain||def.terrain.includes(t.terrain))&&(t.terrain!=='mountain'||def.terrain?.includes('mountain'))&&(!def.coastal||[[0,1],[0,-1],[1,0],[-1,0]].some(([dx,dy])=>tile(p.x+dx,p.y+dy)?.terrain==='water'));
   }
@@ -385,42 +452,51 @@ export function createRenderer(canvas, initialGame, options={}) {
     const showGrid=typeof view.showGrid==='boolean'?view.showGrid:layers.grid,showRoutes=typeof view.showRoutes==='boolean'?view.showRoutes:layers.routes;
     ensureRevision();const routesById=new Map((game.routes||[]).map(route=>[route.id,route]));vehicleIndicatorCounts={empty:0,partial:0,full:0};
     ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);ctx.fillStyle=palette.ground;ctx.fillRect(0,0,W,H);
-    ctx.save();ctx.translate(W/2,H/2);ctx.scale(camera.zoom,camera.zoom);ctx.translate(-camera.x,-camera.y);
-    const x0=Math.max(0,Math.floor((camera.x-W/2/camera.zoom)/TILE)),y0=Math.max(0,Math.floor((camera.y-H/2/camera.zoom)/TILE)),x1=Math.min(game.width,Math.ceil((camera.x+W/2/camera.zoom)/TILE)),y1=Math.min(game.height,Math.ceil((camera.y+H/2/camera.zoom)/TILE));
+    ctx.save();ctx.translate(W/2,H/2);ctx.scale(camera.zoom,camera.zoom);const projectedCamera=projectPoint(camera.x,camera.y);ctx.translate(-projectedCamera.x,-projectedCamera.y);
+    const {x0,y0,x1,y1}=visibleBounds();
+    ctx.save();groundTransform(ctx);
     drawWorld(x0,y0,x1,y1);
     // Small specular currents drift over the cached water texture.
     for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++){const t=tile(x,y);if(detailLevel==='region'||t?.terrain!=='water'||t.road||t.rail)continue;const river=t.detail==='river';if((x*7+y*13)%(river?5:11)!==0)continue;const vertical=river&&[tile(x,y-1),tile(x,y+1)].filter(n=>n?.terrain==='water').length>[tile(x-1,y),tile(x+1,y)].filter(n=>n?.terrain==='water').length;drawWaterMotion(ctx,x,y,river,vertical,game.day||0,game.biome);}
-    if(showGrid){ctx.strokeStyle='#f6f2d330';ctx.lineWidth=.7/camera.zoom;ctx.beginPath();for(let x=x0;x<=x1;x++){ctx.moveTo(x*TILE,y0*TILE);ctx.lineTo(x*TILE,y1*TILE);}for(let y=y0;y<=y1;y++){ctx.moveTo(x0*TILE,y*TILE);ctx.lineTo(x1*TILE,y*TILE);}ctx.stroke();}
+    if(showGrid){
+      // Quiet lines remain readable on snow and sand; fade them at Region zoom.
+      ctx.strokeStyle=(game.biome==='taiga'?'#f2eed5':'#55604d')+(detailLevel==='region'?'16':'24');
+      ctx.lineWidth=.65/camera.zoom;ctx.beginPath();
+      for(let x=x0;x<=x1;x++){ctx.moveTo(x*TILE,y0*TILE);ctx.lineTo(x*TILE,y1*TILE);}
+      for(let y=y0;y<=y1;y++){ctx.moveTo(x0*TILE,y*TILE);ctx.lineTo(x1*TILE,y*TILE);}
+      ctx.stroke();
+    }
     if(showRoutes)for(const r of game.routes||[])if(r.path?.length){ctx.save();ctx.globalAlpha=.65;ctx.setLineDash([3,7]);ctx.lineDashOffset=-now*.003;line(ctx,r.path.map(p=>[(p.x+.5)*TILE,(p.y+.5)*TILE]),r.color||'#ce9d55',1.3/camera.zoom);ctx.restore();}
-    // Steam stacks add activity to mills, factories, and power plants.
-    if(layers.buildings)for(const ind of game.industries||[]){if(detailLevel==='region'||hasRasterIndustry(ind.kind,game.biome)||!visible(ind.x,ind.y)||!(ind.production>0)||/mine|quarry|forest|logging|farm|grain|wheat|ranch|plantation/.test(ind.kind))continue;for(let i=0;i<3;i++){const age=(now*.00014+i*.33)%1;ctx.fillStyle=`rgba(240,239,213,${.21*(1-age)})`;ctx.beginPath();ctx.ellipse(ind.x*TILE+7+age*9,ind.y*TILE-2-age*19,1+age*4,2+age*3,0,0,TAU);ctx.fill();}}
+    if(layers.vehicles)for(const v of game.vehicles||[]){const route=routesById.get(v.routeId);if(route?.mode==='water'&&visible(v.x,v.y))drawShipWake(ctx,v,lastTime,detailLevel);}
+    ctx.restore();
     if(layers.vehicles){
       const crossings=new Set();
-      // Water traffic goes beneath bridge decks. Redraw only nearby deck pieces
-      // over ships, then draw road and rail traffic above the finished crossing.
-      for(const v of game.vehicles||[]){const route=routesById.get(v.routeId);if(route?.mode!=='water'||!visible(v.x,v.y))continue;vehicle(v,route);for(let y=Math.floor(v.y)-1;y<=Math.floor(v.y)+1;y++)for(let x=Math.floor(v.x)-1;x<=Math.floor(v.x)+1;x++){const t=tile(x,y);if(t&&(t.bridge||t.terrain==='water')&&((layers.roads&&t.road)||(layers.rails&&t.rail)))crossings.add(y*game.width+x);}}
+      for(const v of game.vehicles||[]){const route=routesById.get(v.routeId);if(route?.mode!=='water'||!visible(v.x,v.y))continue;ship(v,route);for(let y=Math.floor(v.y)-2;y<=Math.floor(v.y)+2;y++)for(let x=Math.floor(v.x)-2;x<=Math.floor(v.x)+2;x++){const t=tile(x,y);if(t&&(t.bridge||t.terrain==='water')&&((layers.roads&&t.road)||(layers.rails&&t.rail)))crossings.add(y*game.width+x);}}
+      ctx.save();groundTransform(ctx);
       for(const id of crossings){const x=id%game.width,y=Math.floor(id/game.width),t=tile(x,y);if(layers.roads)network(ctx,x,y,t,'road');if(layers.rails)network(ctx,x,y,t,'rail');}
-      for(const v of game.vehicles||[]){const route=routesById.get(v.routeId);if(route?.mode!=='water')vehicle(v,route);}
+      ctx.restore();
     }
+    drawScene({x0,y0,x1,y1},routesById);
+    ctx.save();groundTransform(ctx);
     function highlight(p,color,filled=true,span=1){if(!p||p.x<0||p.y<0||p.x>=game.width||p.y>=game.height)return;const x=p.x*TILE,y=p.y*TILE,edge=span*TILE-2;ctx.fillStyle=color+'26';if(filled)ctx.fillRect(x+1,y+1,edge,edge);ctx.strokeStyle=color;ctx.lineWidth=1.5/camera.zoom;ctx.strokeRect(x+1,y+1,edge,edge);}
-    const previewSite=p=>{const site=industryIndex.get(p.y*game.width+p.x);return (tool==='inspect'||tool==='bulldoze')&&site?site:p;};
-    const previewSpan=p=>INDUSTRIES[tool]?2:industrySize(previewSite(p));
+    const previewSite=p=>{const site=inspectSiteAt(p.x,p.y);return (tool==='inspect'||tool==='bulldoze'&&site?.object?.kind!=='mountain')&&site?site:p;};
+    const previewSpan=p=>INDUSTRIES[tool]?industryFootprint(tool):BUILDINGS[tool]?buildingFootprint(tool):siteSize(previewSite(p));
     const selectedStation=selected&&(game.stations||[]).find(s=>s.x===selected.x&&s.y===selected.y);
     const serviceCenter=['stop','bus-stop','train-stop','port'].includes(tool)?hover:selectedStation;
     if(serviceCenter){const x=(serviceCenter.x+.5)*TILE,y=(serviceCenter.y+.5)*TILE;ctx.fillStyle='#eff2cd19';ctx.strokeStyle='#f3e5ad';ctx.lineWidth=1.3/camera.zoom;ctx.setLineDash([5/camera.zoom,5/camera.zoom]);ctx.beginPath();ctx.arc(x,y,STATION_RADIUS*TILE,0,TAU);ctx.fill();ctx.stroke();ctx.setLineDash([]);for(const node of [...(game.cities||[]),...(game.industries||[])])if((node.kind?industryDistance(node,serviceCenter):Math.hypot(node.x-serviceCenter.x,node.y-serviceCenter.y))<=STATION_RADIUS)highlight(node,'#efe8b2',false,industrySize(node));}
-    if(selected&&typeof selected.x==='number'){const site=industryIndex.get(selected.y*game.width+selected.x);highlight(site||selected,'#fbefba',false,industrySize(site));}
+    if(selected&&typeof selected.x==='number'){const site=inspectSiteAt(selected.x,selected.y);highlight(site||selected,'#fbefba',false,siteSize(site));}
     const spanTool=['bridge','railbridge','tunnel','railtunnel'].includes(tool),spanPoints=preview?.length?preview:hover?[hover]:[];
     const spanQuote=spanTool&&spanPoints.length?quoteBuildPlan(game,tool,spanPoints,{preferredMode}):null;
     const previewValid=p=>spanQuote?spanQuote.ok===true:validPreview(tool,p,preferredMode);
     for(const p of preview||[])highlight(previewSite(p),previewValid(p)?tool==='bulldoze'?'#e3aa6d':'#f2d88d':'#d7725f',true,previewSpan(p));
     if(hover)highlight(previewSite(hover),tool==='inspect'?'#f7efd3':previewValid(hover)?tool==='bulldoze'?'#e3aa6d':'#f4d090':'#d7725f',tool!=='inspect',previewSpan(hover));
     for(const stop of routeStops){const s=typeof stop==='object'?stop:(game.stations||[]).find(st=>st.id===stop);if(s){ctx.strokeStyle='#f4d397';ctx.lineWidth=2/camera.zoom;ctx.beginPath();ctx.arc((s.x+.5)*TILE,(s.y+.5)*TILE,21,0,TAU);ctx.stroke();}}
-    ctx.restore();
-    drawLighting(ctx,{game,layers,camera,width:W,height:H,bounds:{x0:Math.max(0,x0-1),y0:Math.max(0,y0-1),x1,y1},industryIndex,stationIndex,routesById});
+    ctx.restore();ctx.restore();
+    drawLighting(ctx,{game,layers,camera,width:W,height:H,bounds:{x0:Math.max(0,x0-1),y0:Math.max(0,y0-1),x1,y1},industryIndex,stationIndex,routesById,project:worldToScreen,projected:true});
     if(hover&&(tool==='raise'||tool==='lower')){
       const t=tile(hover.x,hover.y);if(t){const p=worldToScreen(hover.x,hover.y),level=terrainLevel(t),allowed=validPreview(tool,hover,preferredMode);pill(p.x,p.y-28*camera.zoom,allowed?`Level ${level} → ${level+(tool==='raise'?1:-1)}`:`Level ${level}`,{size:12,h:25,fill:allowed?'#f7f1ddef':'#f5e7dfef',color:allowed?'#43573b':'#934f3f'});}
     }
-    if(serviceCenter){const p=worldToScreen(serviceCenter.x,serviceCenter.y);pill(p.x,p.y-STATION_RADIUS*TILE*camera.zoom-15,'5-tile reach',{size:11,h:25,fill:'#f5f3e8e8',color:'#5c7155'});}
+    if(serviceCenter){const p=worldToScreen(serviceCenter.x,serviceCenter.y);pill(p.x,p.y-STATION_RADIUS*TILE*Math.SQRT1_2*camera.zoom-15,'5-tile reach',{size:11,h:25,fill:'#f5f3e8e8',color:'#5c7155'});}
     // Labels stay crisp at every camera zoom, with population separated from place names.
     const regionLabels=[];
     if(layers.names)for(const city of game.cities||[]){if(!visible(city.x,city.y))continue;const p=worldToScreen(city.x,city.y),y=p.y-29*camera.zoom;
@@ -428,8 +504,8 @@ export function createRenderer(canvas, initialGame, options={}) {
       ctx.font='600 13px Space, system-ui, sans-serif';const name=city.name||'New city';const nameW=ctx.measureText(name).width;const pop=Number(city.population||0).toLocaleString('en-US');ctx.font='500 11px Space, system-ui, sans-serif';const popW=ctx.measureText(pop).width;const w=nameW+popW+42;
       ctx.shadowColor='#1b38202a';ctx.shadowBlur=10;ctx.shadowOffsetY=2;ctx.fillStyle='#f7f5e9f5';roundRect(ctx,p.x-w/2,y-14,w,29,6);ctx.fill();ctx.shadowColor='transparent';ctx.shadowBlur=0;ctx.shadowOffsetY=0;ctx.strokeStyle='#fbfaee';ctx.lineWidth=.7;ctx.stroke();ctx.textAlign='left';ctx.textBaseline='middle';ctx.font='600 13px Space, system-ui, sans-serif';ctx.fillStyle='#314639';ctx.fillText(name,p.x-w/2+10,y+.5);ctx.fillStyle='#e6e9da';roundRect(ctx,p.x+w/2-popW-22,y-9,popW+16,19,3);ctx.fill();ctx.font='500 11px Space, system-ui, sans-serif';ctx.fillStyle='#60705a';ctx.fillText(pop,p.x+w/2-popW-14,y+.5);
     }
-    for(const ind of game.industries||[]){if(!visible(ind.x,ind.y)||(!layers.names&&!layers.industryIcons))continue;const marker=industryMarker(ind),kind=Object.keys(INDUSTRIES[ind.kind]?.outputs||{})[0]||'goods',hovered=hover&&Math.abs(hover.x-ind.x)<2&&Math.abs(hover.y-ind.y)<2,chosen=selected&&selected.x===ind.x&&selected.y===ind.y,label=layers.names&&(hovered||chosen)?ind.name||titleCase(ind.kind):null;if(layers.industryIcons)resourceMarker(marker.x,marker.y,kind,marker.size,label);else if(label)pill(marker.x,marker.y,label,{size:12,h:28,fill:'#f7f4e7f5',color:'#3e5547',radius:5});}
-    if(layers.stations)for(const st of game.stations||[]){if(!visible(st.x,st.y))continue;const p=worldToScreen(st.x,st.y),mx=p.x+8*camera.zoom,my=p.y-18*camera.zoom;ctx.fillStyle=st.mode==='water'?'#376e7e':st.mode==='rail'?'#3f655a':'#516d53';roundRect(ctx,mx,my,14,14,3);ctx.fill();if(st.mode==='water'){ctx.strokeStyle='#f0eacb';ctx.lineWidth=1.1;ctx.beginPath();ctx.arc(mx+7,my+3.5,1.2,0,TAU);ctx.stroke();line(ctx,[[mx+7,my+4.7],[mx+7,my+11]],'#f0eacb',1.1);line(ctx,[[mx+4,my+6],[mx+10,my+6]],'#f0eacb',1.1);ctx.beginPath();ctx.moveTo(mx+3,my+8);ctx.quadraticCurveTo(mx+3,my+11,mx+7,my+11);ctx.quadraticCurveTo(mx+11,my+11,mx+11,my+8);ctx.stroke();}else{ctx.fillStyle='#f0eacb';ctx.font='bold 9px Space, system-ui, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(st.mode==='rail'?'T':'B',mx+7,my+7.2);}}
+    for(const ind of game.industries||[]){if(!visible(ind.x,ind.y,180*camera.zoom)||(!layers.names&&!layers.industryIcons))continue;const marker=industryMarker(ind),kind=Object.keys(INDUSTRIES[ind.kind]?.outputs||{})[0]||'goods',hovered=hover&&industryContains(ind,hover.x,hover.y),chosen=selected&&industryContains(ind,selected.x,selected.y),label=layers.names&&(hovered||chosen)?ind.name||titleCase(ind.kind):null;if(layers.industryIcons)resourceMarker(marker.x,marker.y,kind,marker.size,label);else if(label)pill(marker.x,marker.y,label,{size:12,h:28,fill:'#f7f4e7f5',color:'#3e5547',radius:5});}
+    if(layers.stations)for(const st of game.stations||[]){if(!visible(st.x,st.y))continue;const marker=stationMarker(st),mx=marker.x,my=marker.y;ctx.fillStyle=st.mode==='water'?'#376e7e':st.mode==='rail'?'#3f655a':'#516d53';roundRect(ctx,mx,my,14,14,3);ctx.fill();if(st.mode==='water'){ctx.strokeStyle='#f0eacb';ctx.lineWidth=1.1;ctx.beginPath();ctx.arc(mx+7,my+3.5,1.2,0,TAU);ctx.stroke();line(ctx,[[mx+7,my+4.7],[mx+7,my+11]],'#f0eacb',1.1);line(ctx,[[mx+4,my+6],[mx+10,my+6]],'#f0eacb',1.1);ctx.beginPath();ctx.moveTo(mx+3,my+8);ctx.quadraticCurveTo(mx+3,my+11,mx+7,my+11);ctx.quadraticCurveTo(mx+11,my+11,mx+11,my+8);ctx.stroke();}else{ctx.fillStyle='#f0eacb';ctx.font='bold 9px Space, system-ui, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(st.mode==='rail'?'T':'B',mx+7,my+7.2);}}
     if(layers.vehicles&&layers.vehicleLoads)for(const v of game.vehicles||[])vehicleLoadIndicator(v,routesById.get(v.routeId));
     // Extremely light edge shade holds the terrain together without dimming the playfield.
     const vignette=ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*.3,W/2,H/2,Math.max(W,H)*.75);vignette.addColorStop(0,'#21382b00');vignette.addColorStop(1,'#21382b10');ctx.fillStyle=vignette;ctx.fillRect(0,0,W,H);
@@ -451,7 +527,7 @@ export function createRenderer(canvas, initialGame, options={}) {
     const colors={grass:packed(palette.ground),water:packed(palette.deep),forest:packed(palette.forest),mountain:packed(palette.mountain),rock:packed(palette.mountain),sand:packed(palette.sand),snow:packed(palette.ground2),road:packed('#d7cbb0'),rail:packed('#655f52'),building:packed('#cfb78b'),zone:packed('#b2b78c'),marsh:packed('#708879'),saltflat:packed('#e3d9bc')};
     for(let y=0;y<height;y++)for(let x=0;x<width;x++){
       const tx=Math.floor((x+.5)*stepX),ty=Math.floor((y+.5)*stepY),t=game.tiles[ty*game.width+tx],terrain=t.terrain==='forest'&&!layers.trees?'grass':t.terrain;
-      minimapWords[y*width+x]=layers.buildings&&t.building?colors.building:layers.rails&&t.rail?colors.rail:layers.roads&&t.road?colors.road:layers.zones&&t.zone?colors.zone:terrain==='water'?colors.water:terrain==='forest'?colors.forest:terrainOverviewColor(game,tx,ty);
+      minimapWords[y*width+x]=layers.buildings&&(t.building||buildingAt(game,tx,ty))?colors.building:layers.rails&&t.rail?colors.rail:layers.roads&&t.road?colors.road:layers.zones&&t.zone?colors.zone:terrain==='water'?colors.water:terrain==='forest'?colors.forest:terrainOverviewColor(game,tx,ty);
     }
     minimapTerrainSamples=width*height;
     if(scale<1&&(layers.roads||layers.rails)){
@@ -461,7 +537,7 @@ export function createRenderer(canvas, initialGame, options={}) {
       }
       for(const id of minimapNetwork){const t=game.tiles[id],color=layers.buildings&&t.building?colors.building:layers.rails&&t.rail?colors.rail:layers.roads&&t.road?colors.road:null;if(color!==null)minimapWords[Math.floor((Math.floor(id/game.width)+.5)/stepY)*width+Math.floor((id%game.width+.5)/stepX)]=color;}
     }
-    if(layers.buildings)for(const industry of game.industries||[])minimapWords[Math.floor((industry.y+.5)/stepY)*width+Math.floor((industry.x+.5)/stepX)]=colors.building;
+    if(layers.buildings)for(const industry of game.industries||[])for(const p of industryTiles(industry))minimapWords[Math.floor((p.y+.5)/stepY)*width+Math.floor((p.x+.5)/stepX)]=colors.building;
     minimapLayer.getContext('2d').putImageData(minimapPixels,0,0);minimapRevision=cachedRevision;
   }
   function drawMinimap(minimap){
@@ -472,9 +548,10 @@ export function createRenderer(canvas, initialGame, options={}) {
     if(layers.industryIcons){c.fillStyle='#d9ba7d';for(const ind of game.industries||[])c.fillRect((ind.x+.5)*sx-1,(ind.y+.5)*sy-1,2,2);}
     if(layers.buildings)for(const city of game.cities||[])dot(c,(city.x+.5)*sx,(city.y+.5)*sy,2.5,'#f7f2d8');
     if(layers.stations)for(const stop of game.stations||[]){const x=(stop.x+.5)*sx,y=(stop.y+.5)*sy;if(stop.mode==='water'){c.fillStyle='#d4ebe1';c.beginPath();c.moveTo(x,y-3);c.lineTo(x+3,y);c.lineTo(x,y+3);c.lineTo(x-3,y);c.closePath();c.fill();dot(c,x,y,1.4,'#376e7e');}else dot(c,x,y,1.7,stop.mode==='rail'?'#365b59':'#658153');}
-    const vx=(camera.x-W/2/camera.zoom)/TILE*sx,vy=(camera.y-H/2/camera.zoom)/TILE*sy,vw=W/camera.zoom/TILE*sx,vh=H/camera.zoom/TILE*sy;
-    c.fillStyle='#f4efcc12';c.fillRect(vx,vy,vw,vh);c.strokeStyle='#f6edc7';c.lineWidth=1.3;c.strokeRect(vx+.5,vy+.5,vw-1,vh-1);c.strokeStyle='#425c4940';c.lineWidth=.6;c.strokeRect(vx-.5,vy-.5,vw+1,vh+1);
+    const footprint=viewportCorners().map(p=>[p.x/TILE*sx,p.y/TILE*sy]);
+    c.beginPath();footprint.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));c.closePath();c.fillStyle='#f4efcc12';c.fill();c.strokeStyle='#f6edc7';c.lineWidth=1.3;c.stroke();
+
   }
-  resize();const first=game.cities?.[0];if(first)focus(first.x+9,first.y);else bounds();
-  return {setGame,setLayers,getLayers,render,resize,screenToTile,screenToInspectTile,pan,zoomAt,setZoom,focus,getCamera:()=>({...camera}),drawMinimap,getStats:()=>({chunkCount:chunks.size,composedChunks,cacheBytes,cacheLimit,cacheMax:CACHE_MAX,chunkTiles:CHUNK_TILES,rasterScale,pixelScale:rasterScale,detailLevel,view:ZOOM_VIEWS.find(view=>view.zoom===camera.zoom).name,devicePixelRatio:dpr,dpr,maxSurfaceWidth:largestSurface,maxSurfaceHeight:largestSurface,minimapWidth:minimapLayer.width,minimapHeight:minimapLayer.height,minimapMaxEdge:MINIMAP_EDGE,minimapWorldWidth:game.width,minimapWorldHeight:game.height,minimapTerrainSamples,minimapNetworkScans,vehicleIndicators:{...vehicleIndicatorCounts},houseArtwork:getHouseAssetStats(game.biome),worldArtwork:worldArtStats(),layers:getLayers()})};
+  resize();const first=game.cities?.[0];if(first)focus(first.x+4.5,first.y-4.5);else bounds();
+  return {setGame,setLayers,getLayers,render,resize,worldToScreen,stationMarker,industryMarker,screenToTile,screenToInspectTile,pan,zoomAt,setZoom,focus,getCamera:()=>({...camera}),drawMinimap,getStats:()=>({projection:'isometric',tileWidth:TILE*2,tileHeight:TILE,chunkCount:chunks.size,composedChunks,cacheBytes,cacheLimit,cacheMax:CACHE_MAX,chunkTiles:CHUNK_TILES,rasterScale,pixelScale:rasterScale,detailLevel,view:ZOOM_VIEWS.find(view=>view.zoom===camera.zoom).name,devicePixelRatio:dpr,dpr,maxSurfaceWidth:largestSurface,maxSurfaceHeight:largestSurface,minimapWidth:minimapLayer.width,minimapHeight:minimapLayer.height,minimapMaxEdge:MINIMAP_EDGE,minimapWorldWidth:game.width,minimapWorldHeight:game.height,minimapTerrainSamples,minimapNetworkScans,vehicleIndicators:{...vehicleIndicatorCounts},houseArtwork:getHouseAssetStats(game.biome),worldArtwork:worldArtStats(),layers:getLayers()})};
 }

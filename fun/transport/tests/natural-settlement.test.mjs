@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { generateTerrainV2 } from '../world-terrain-v2.js';
 import { populateWorldV2 } from '../world-placement-v2.js';
 import { expandGeneratedIndustrySites, industrySiteProblem } from '../industry-sites.js';
-import { WORLD_SIZES } from '../world.js';
+import { WORLD_SIZES, WORLD_GENERATION_VERSION } from '../world.js';
 import { createGame, findPath, restoreGame, validateGame } from '../model.js';
 import { encodeGame } from '../save-codec.js';
 
@@ -44,7 +44,7 @@ test('offshore starter land has feathered irregular shores, with usable towns an
   assert.ok(new Set(elevations).size > 30);
   for (const biome of ['taiga', 'tundra', 'desert']) {
     const game = createGame({ biome, seed, size: 'square512' });
-    assert.equal(game.generationVersion, 4);
+    assert.equal(game.generationVersion, WORLD_GENERATION_VERSION);
     assert.equal(validateGame(game), true);
     assert.equal(game.routes[0].path.length, 25);
     const [from, to] = game.cities.slice(0, 2).map(city => ({ x: city.x, y: city.y + 5 }));

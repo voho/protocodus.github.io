@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Losslessly register a generated 3×3 sheet through its transparent gutters.
+"""Losslessly register a generated sheet through its transparent gutters.
 
 Only RGBA crops and integer translations: no painting, alpha edits or resampling.
 The shared atlas packer subsequently produces the normal display resolutions.
@@ -25,19 +25,19 @@ def separator(counts, near):
     return (left + right) // 2
 
 
-def prepare(source_path, dest):
+def prepare(source_path, dest, columns=3, rows=3):
     source = Image.open(source_path).convert('RGBA')
     mask = source.getchannel('A').point(lambda a: 255 if a > 8 else 0)
     y_counts = [sum(mask.crop((0, y, source.width, y + 1)).histogram()[1:]) for y in range(source.height)]
-    ys = [0, separator(y_counts, source.height // 3), separator(y_counts, source.height * 2 // 3), source.height]
+    ys = [0, *[separator(y_counts, round(source.height * row / rows)) for row in range(1, rows)], source.height]
     cell = 640
-    out = Image.new('RGBA', (cell * 3, cell * 3)); covered = Image.new('L', source.size)
+    out = Image.new('RGBA', (cell * columns, cell * rows)); covered = Image.new('L', source.size)
     records = []
-    for row in range(3):
+    for row in range(rows):
         y0, y1 = ys[row:row + 2]
         counts = [sum(mask.crop((x, y0, x + 1, y1)).histogram()[1:]) for x in range(source.width)]
-        xs = [0, separator(counts, source.width // 3), separator(counts, source.width * 2 // 3), source.width]
-        for col in range(3):
+        xs = [0, *[separator(counts, round(source.width * col / columns)) for col in range(1, columns)], source.width]
+        for col in range(columns):
             box = (xs[col], y0, xs[col + 1], y1)
             crop = source.crop(box)
             assert crop.width < cell and crop.height < cell
@@ -53,4 +53,5 @@ def prepare(source_path, dest):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('source', type=Path); parser.add_argument('output', type=Path)
-    args = parser.parse_args(); prepare(args.source, args.output)
+    parser.add_argument('--columns', type=int, default=3); parser.add_argument('--rows', type=int, default=3)
+    args = parser.parse_args(); prepare(args.source, args.output, args.columns, args.rows)

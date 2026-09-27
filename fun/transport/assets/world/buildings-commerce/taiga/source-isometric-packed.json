@@ -1,0 +1,124 @@
+{
+  "source": "source-isometric.png",
+  "cell": 640,
+  "operation": "Original RGBA pixels registered by disconnected alpha components; no resampling",
+  "meaningfulPixelsPreserved": 870283,
+  "cells": [
+    {
+      "cell": 0,
+      "sourceBounds": [
+        15,
+        42,
+        417,
+        438
+      ],
+      "offset": [
+        119,
+        122
+      ],
+      "pixels": 111273
+    },
+    {
+      "cell": 1,
+      "sourceBounds": [
+        419,
+        35,
+        834,
+        439
+      ],
+      "offset": [
+        112,
+        118
+      ],
+      "pixels": 107127
+    },
+    {
+      "cell": 2,
+      "sourceBounds": [
+        843,
+        44,
+        1246,
+        441
+      ],
+      "offset": [
+        118,
+        121
+      ],
+      "pixels": 114003
+    },
+    {
+      "cell": 3,
+      "sourceBounds": [
+        15,
+        438,
+        414,
+        853
+      ],
+      "offset": [
+        120,
+        112
+      ],
+      "pixels": 104100
+    },
+    {
+      "cell": 4,
+      "sourceBounds": [
+        417,
+        441,
+        842,
+        861
+      ],
+      "offset": [
+        107,
+        110
+      ],
+      "pixels": 124579
+    },
+    {
+      "cell": 5,
+      "sourceBounds": [
+        844,
+        448,
+        1245,
+        866
+      ],
+      "offset": [
+        119,
+        111
+      ],
+      "pixels": 118550
+    },
+    {
+      "cell": 6,
+      "sourceBounds": [
+        17,
+        917,
+        423,
+        1231
+      ],
+      "offset": [
+        117,
+        163
+      ],
+      "pixels": 89416
+    },
+    {
+      "cell": 7,
+      "sourceBounds": [
+        434,
+        849,
+        838,
+        1235
+      ],
+      "offset": [
+        118,
+        127
+      ],
+      "pixels": 101235
+    },
+    {
+      "cell": 8,
+      "empty": true
+    }
+  ]
+}

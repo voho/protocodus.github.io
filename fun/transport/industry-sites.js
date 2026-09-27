@@ -1,7 +1,9 @@
 import { INDUSTRIES } from './data.js';
+import { buildingAt, siteSize } from './building-sites.js';
 
-// Missing footprint means a legacy single-tile site; saves never expand in place.
-export const industrySize = industry => industry?.footprint === 2 ? 2 : 1;
+// Missing footprint means a legacy single-tile site until a safe load migration expands it.
+export const industrySize = siteSize;
+export const industryFootprint = kind => INDUSTRIES[kind]?.footprint || 2;
 export const industryContains = (industry,x,y) => x>=industry.x&&y>=industry.y&&x<industry.x+industrySize(industry)&&y<industry.y+industrySize(industry);
 export function industryTiles(industry){
   const result=[],size=industrySize(industry);
@@ -10,18 +12,19 @@ export function industryTiles(industry){
 }
 export const industryDistance = (industry,point) => Math.hypot(Math.max(industry.x-point.x,0,point.x-industry.x-industrySize(industry)+1),Math.max(industry.y-point.y,0,point.y-industry.y-industrySize(industry)+1));
 
-export function industrySiteProblem(game,kind,x,y,size=2,exclude=null){
+export function industrySiteProblem(game,kind,x,y,size=industryFootprint(kind),exclude=null){
   const def=INDUSTRIES[kind];if(!def)return 'Unknown industry.';
   if(!def.biomes.includes(game.biome))return 'This industry is unavailable in this environment.';
-  if(x<0||y<0||x+size>game.width||y+size>game.height)return 'The whole 2 × 2 site must fit inside the map.';
+  if(![1,2,3].includes(size)||size>industryFootprint(kind)||!Number.isInteger(x)||!Number.isInteger(y))return 'Invalid industry footprint.';
+  if(x<0||y<0||x+size>game.width||y+size>game.height)return `The whole ${size} × ${size} site must fit inside the map.`;
   const tile=(px,py)=>px>=0&&py>=0&&px<game.width&&py<game.height?game.tiles[py*game.width+px]:null;
   const anchor=tile(x,y);
   if(def.terrain&&!def.terrain.includes(anchor.terrain))return `${def.name} needs ${def.terrain.join(', ')} terrain.`;
   let coastal=false;
   for(let dy=0;dy<size;dy++)for(let dx=0;dx<size;dx++){
     const px=x+dx,py=y+dy,t=tile(px,py);
-    if(t.terrain==='water'||(t.terrain==='mountain'&&!def.terrain?.includes('mountain')))return 'The whole 2 × 2 site needs buildable land.';
-    if(t.building||t.zone||t.road||t.rail||t.bridge||t.tunnel||game.stations.some(s=>s.x===px&&s.y===py)||game.cities.some(c=>c.x===px&&c.y===py)||game.industries.some(i=>i!==exclude&&industryContains(i,px,py)))return 'Clear all four tiles before building this industry.';
+    if(t.terrain==='water'||(t.terrain==='mountain'&&!def.terrain?.includes('mountain')))return `The whole ${size} × ${size} site needs buildable land.`;
+    if(buildingAt(game,px,py)||t.zone||t.road||t.rail||t.bridge||t.tunnel||game.stations.some(s=>s.x===px&&s.y===py)||game.cities.some(c=>c.x===px&&c.y===py)||game.industries.some(i=>i!==exclude&&industryContains(i,px,py)))return `Clear all ${size*size} tiles before building this industry.`;
     if([[1,0],[-1,0],[0,1],[0,-1]].some(([ox,oy])=>tile(px+ox,py+oy)?.terrain==='water'))coastal=true;
   }
   if(def.coastal&&!coastal)return 'A fishery site must touch the shoreline.';

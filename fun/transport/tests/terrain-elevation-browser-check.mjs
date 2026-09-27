@@ -22,7 +22,7 @@ try{
       const renderer=createRenderer(canvas,game,{layers:{trees:false,buildings:false,names:false,industryIcons:false,lighting:false}});
       renderer.focus(48,36);renderer.setZoom(1);renderer.render(0);
       const hash=()=>{let h=2166136261;for(const byte of canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data)h=Math.imul(h^byte,16777619);return h>>>0;};
-      const sample=(x,y)=>{const camera=renderer.getCamera(),scale=camera.zoom*devicePixelRatio,px=canvas.width/2+((x+.5)*32-camera.x)*scale,py=canvas.height/2+((y+.5)*32-camera.y)*scale;return Array.from(canvas.getContext('2d').getImageData(Math.round(px),Math.round(py),1,1).data);};
+      const sample=(x,y)=>{const point=renderer.worldToScreen(x,y),px=point.x*devicePixelRatio,py=point.y*devicePixelRatio;return Array.from(canvas.getContext('2d').getImageData(Math.round(px),Math.round(py),1,1).data);};
       window.hillsQA={game,renderer,canvas,hash,sample,createGame};
     });
     const edit=await page.evaluate(()=>{

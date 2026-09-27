@@ -1,0 +1,119 @@
+{
+  "source": "fun/transport/assets/world/vehicle-coach/source-isometric.png",
+  "sourceSize": [
+    1254,
+    1254
+  ],
+  "cell": 640,
+  "operation": "RGBA crop and integer translation only",
+  "cells": [
+    {
+      "sourceCrop": [
+        0,
+        0,
+        437,
+        434
+      ],
+      "integerOffset": [
+        101,
+        103
+      ]
+    },
+    {
+      "sourceCrop": [
+        437,
+        0,
+        817,
+        434
+      ],
+      "integerOffset": [
+        130,
+        103
+      ]
+    },
+    {
+      "sourceCrop": [
+        817,
+        0,
+        1254,
+        434
+      ],
+      "integerOffset": [
+        101,
+        103
+      ]
+    },
+    {
+      "sourceCrop": [
+        0,
+        434,
+        448,
+        807
+      ],
+      "integerOffset": [
+        96,
+        133
+      ]
+    },
+    {
+      "sourceCrop": [
+        448,
+        434,
+        806,
+        807
+      ],
+      "integerOffset": [
+        141,
+        133
+      ]
+    },
+    {
+      "sourceCrop": [
+        806,
+        434,
+        1254,
+        807
+      ],
+      "integerOffset": [
+        96,
+        133
+      ]
+    },
+    {
+      "sourceCrop": [
+        0,
+        807,
+        442,
+        1254
+      ],
+      "integerOffset": [
+        99,
+        96
+      ]
+    },
+    {
+      "sourceCrop": [
+        442,
+        807,
+        812,
+        1254
+      ],
+      "integerOffset": [
+        135,
+        96
+      ]
+    },
+    {
+      "sourceCrop": [
+        812,
+        807,
+        1254,
+        1254
+      ],
+      "integerOffset": [
+        99,
+        96
+      ]
+    }
+  ]
+}

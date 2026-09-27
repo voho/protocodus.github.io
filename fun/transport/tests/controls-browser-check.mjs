@@ -19,7 +19,7 @@ async function start(viewport, touch = false) {
 }
 
 async function fixture(page) {
-  return page.evaluate(() => {
+  return page.evaluate(async () => {
     const g = transport.game;
     let origin;
     for (let y = 32; y < g.height - 40 && !origin; y += 24) {
@@ -31,6 +31,9 @@ async function fixture(page) {
     }
     if (!origin) throw new Error('No empty input-test site.');
     const { x, y } = origin;
+    const { releaseTerrainObjects } = await import('./terrain-objects.js'), cleared = [];
+    for (let dy = -3; dy <= 23; dy++) for (let dx = -3; dx <= 23; dx++) cleared.push({ x: x + dx, y: y + dy });
+    releaseTerrainObjects(g, cleared);
     for (let dy = -2; dy <= 22; dy++) for (let dx = -2; dx <= 22; dx++) {
       Object.assign(g.tiles[(y + dy) * g.width + x + dx], {
         terrain: 'grass', detail: '', elevation: .2, variant: 0,

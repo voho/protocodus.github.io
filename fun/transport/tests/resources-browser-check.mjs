@@ -57,8 +57,7 @@ try {
       transport.renderer.setZoom(zoom);
       transport.renderer.focus(steel.x, steel.y);
       const rect = document.querySelector('#world').getBoundingClientRect();
-      const size = zoom === 2 ? 28 : 24;
-      const x = rect.left + rect.width / 2, y = rect.top + rect.height / 2 + 16 * zoom + 5 + (size + 6) / 2;
+      const p=transport.renderer.industryMarker(steel),x=rect.left+p.x,y=rect.top+p.y;
       return { x, y, ground: transport.renderer.screenToTile(x, y), industry: transport.renderer.screenToInspectTile(x, y) };
     }, { steel, zoom });
     assert.deepEqual(marker.industry, { x: steel.x, y: steel.y }, `${zoom}x marker resolves to its industry`);
@@ -67,8 +66,11 @@ try {
     assert.equal(await page.locator('#inspector h3').textContent(), steel.name, `${zoom}x resource marker opens the industry inspector`);
     await page.locator('#inspector .tiny-button').click();
 
-    const originalTile = await page.evaluate(({ ground }) => {
+    const originalTile = await page.evaluate(async ({ ground }) => {
       const tile = transport.game.tiles[ground.y * transport.game.width + ground.x], original = structuredClone(tile);
+      delete original.terrainObject;
+      const { releaseTerrainObjects } = await import('./terrain-objects.js');
+      releaseTerrainObjects(transport.game, Array.from({ length: 9 }, (_, n) => ({ x: ground.x + n % 3 - 1, y: ground.y + Math.floor(n / 3) - 1 })));
       Object.assign(tile, { terrain: 'grass', detail: '', publicRoad: false, road: false, rail: false, bridge: false, tunnel: false, building: null, zone: null });
       transport.game.revision++;
       transport.setTool('road');

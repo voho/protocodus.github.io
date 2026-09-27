@@ -1,0 +1,16 @@
+{
+  "source": "SE frame of each corresponding vehicle-* isometric atlas",
+  "operation": "RGBA integer atlas assembly only",
+  "prompts": "../vehicle-isometric-prompts.json",
+  "order": [
+    "bus",
+    "truck",
+    "locomotive",
+    "coach",
+    "wagon",
+    "express-bus",
+    "ferry",
+    "cargo-ship",
+    "tanker"
+  ]
+}

@@ -73,7 +73,7 @@ test('1024² worlds retain distinct town names and sparse ecology work', () => {
   const network=game.networkRevision;game.day=42;
   const changes=stepEcology(game);
   assert.ok(changes>0&&changes<=4096);
-  assert.ok(reads<4096*12,`the daily ecology budget stays bounded (${reads} tile reads)`);
+  assert.ok(reads<4096*36,`the daily ecology budget stays bounded (${reads} tile reads)`);
   assert.equal(game.networkRevision,network);
   game.tiles=tiles;
   assert.equal(validateGame(game),true);

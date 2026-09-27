@@ -50,8 +50,14 @@ for (const [zone, buildingKind] of [['residential', RESIDENTIAL_KINDS], ['commer
     assert.equal(result.ok, true, result.message);
     assert.equal(tileAt(game, x, y).zone, zone);
     assert.equal(tileAt(game, x, y).building, null, 'zoning leaves development to the simulation');
+    // Workshops consolidate a real 2 × 2 industrial parcel as they develop.
+    const lots = zone === 'industrial' ? [[0,0],[1,0],[0,1],[1,1]] : [[0,0]];
+    for (const [dx, dy] of lots.slice(1)) {
+      Object.assign(tileAt(game, x + dx, y + dy), { terrain: 'grass', road: false, rail: false, building: null, zone: null });
+      assert.equal(build(game, zone, x + dx, y + dy).ok, true);
+    }
     advance(game, 180, tick);
-    const developed = tileAt(game, x, y).building;
+    const developed = lots.map(([dx,dy]) => tileAt(game, x + dx, y + dy).building).find(building => buildingKind.includes(building?.kind));
     assert.ok(developed, 'active transport and nearby road access attract development');
     assert.ok(buildingKind.includes(developed.kind), `${zone} creates its matching building type`);
   });

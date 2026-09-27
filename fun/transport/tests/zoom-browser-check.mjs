@@ -101,6 +101,7 @@ try {
       const { createGame, build } = await import('./model.js');
       const { createRenderer } = await import('./renderer.js');
       const { createSprites } = await import('./sprites.js');
+      const { projectPoint, unprojectPoint } = await import('./isometric.js');
       const canvas = document.createElement('canvas');
       canvas.style.cssText = 'position:fixed;left:-10000px;top:0;width:640px;height:480px';
       document.body.append(canvas);
@@ -111,17 +112,17 @@ try {
       const rect = canvas.getBoundingClientRect(), anchor = { x: rect.left + 412.25, y: rect.top + 179.25 };
       const worldAt = () => {
         const camera = renderer.getCamera();
-        return { x: camera.x + (anchor.x - rect.left - rect.width / 2) / camera.zoom,
-          y: camera.y + (anchor.y - rect.top - rect.height / 2) / camera.zoom };
+        const offset=unprojectPoint((anchor.x-rect.left-rect.width/2)/camera.zoom,(anchor.y-rect.top-rect.height/2)/camera.zoom);
+        return {x:camera.x+offset.x,y:camera.y+offset.y};
       };
       const anchors = [];
       renderer.focus(200, 150);
       for (const zoom of [2, .5, 1]) {
         const before = worldAt();
         renderer.setZoom(zoom, anchor.x, anchor.y);
-        const after = worldAt(), camera = renderer.getCamera();
-        anchors.push({ errorX: Math.abs(after.x - before.x) * camera.zoom * devicePixelRatio,
-          errorY: Math.abs(after.y - before.y) * camera.zoom * devicePixelRatio,
+        const after = worldAt(), camera = renderer.getCamera(),error=projectPoint(after.x-before.x,after.y-before.y);
+        anchors.push({ errorX: Math.abs(error.x) * camera.zoom * devicePixelRatio,
+          errorY: Math.abs(error.y) * camera.zoom * devicePixelRatio,
           picked: renderer.screenToTile(anchor.x, anchor.y), expected: { x: Math.floor(after.x / 32), y: Math.floor(after.y / 32) } });
       }
       const target = { x: 200, y: 150 };
@@ -151,9 +152,9 @@ try {
           renderer.setZoom(zoom);
           renderer.focus(target.x, target.y);
           renderer.render(0, { showRoutes: false });
-          const bounds = canvas.getBoundingClientRect(), camera = renderer.getCamera();
-          const originX = (bounds.width / 2 - camera.x * zoom) * devicePixelRatio;
-          const originY = (bounds.height / 2 - camera.y * zoom) * devicePixelRatio;
+          const bounds = canvas.getBoundingClientRect(), camera = renderer.getCamera(),projected=projectPoint(camera.x,camera.y);
+          const originX = (bounds.width / 2 - projected.x * zoom) * devicePixelRatio;
+          const originY = (bounds.height / 2 - projected.y * zoom) * devicePixelRatio;
           profiles.push({ zoom, width, height, canvasWidth: canvas.width, canvasHeight: canvas.height,
             picked: renderer.screenToTile(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2),
             aligned: Math.abs(originX - Math.round(originX)) < .00001 && Math.abs(originY - Math.round(originY)) < .00001,

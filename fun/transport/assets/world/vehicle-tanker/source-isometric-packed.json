@@ -1,0 +1,119 @@
+{
+  "source": "fun/transport/assets/world/vehicle-tanker/source-isometric.png",
+  "sourceSize": [
+    1254,
+    1254
+  ],
+  "cell": 640,
+  "operation": "RGBA crop and integer translation only",
+  "cells": [
+    {
+      "sourceCrop": [
+        0,
+        0,
+        432,
+        449
+      ],
+      "integerOffset": [
+        104,
+        95
+      ]
+    },
+    {
+      "sourceCrop": [
+        432,
+        0,
+        822,
+        449
+      ],
+      "integerOffset": [
+        125,
+        95
+      ]
+    },
+    {
+      "sourceCrop": [
+        822,
+        0,
+        1254,
+        449
+      ],
+      "integerOffset": [
+        104,
+        95
+      ]
+    },
+    {
+      "sourceCrop": [
+        0,
+        449,
+        438,
+        798
+      ],
+      "integerOffset": [
+        101,
+        145
+      ]
+    },
+    {
+      "sourceCrop": [
+        438,
+        449,
+        817,
+        798
+      ],
+      "integerOffset": [
+        130,
+        145
+      ]
+    },
+    {
+      "sourceCrop": [
+        817,
+        449,
+        1254,
+        798
+      ],
+      "integerOffset": [
+        101,
+        145
+      ]
+    },
+    {
+      "sourceCrop": [
+        0,
+        798,
+        434,
+        1254
+      ],
+      "integerOffset": [
+        103,
+        92
+      ]
+    },
+    {
+      "sourceCrop": [
+        434,
+        798,
+        821,
+        1254
+      ],
+      "integerOffset": [
+        126,
+        92
+      ]
+    },
+    {
+      "sourceCrop": [
+        821,
+        798,
+        1254,
+        1254
+      ],
+      "integerOffset": [
+        103,
+        92
+      ]
+    }
+  ]
+}

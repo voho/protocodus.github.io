@@ -2,6 +2,7 @@ import { createSprites } from './sprites.js';
 import { drawRasterInfrastructure, drawRasterVehicle } from './raster-transport.js';
 import { houseAssetsRevision } from './raster-houses.js';
 import { worldArtRevision } from './atlas-runtime.js';
+import { drawIsometricInfrastructure } from './isometric-infrastructure.js';
 
 let profile = '', sprites;
 const selector = '[data-building-sprite],[data-industry-sprite],[data-infrastructure-sprite],[data-vehicle-sprite]';
@@ -36,7 +37,11 @@ export function drawUIArtwork(root, game) {
       context.drawImage(sprites(canvas.dataset.industrySprite, 0, 2), 8, 0, 96, 108);
     } else if (canvas.dataset.infrastructureSprite) {
       const size = Math.min(width, height);
-      drawRasterInfrastructure(context, canvas.dataset.infrastructureSprite, (width - size) / 2, 0, size, size, density);
+      const kind=canvas.dataset.infrastructureSprite;
+      if(!drawIsometricInfrastructure(context,kind,(width-size)/2,0,size,size,density)){
+        context.save();context.translate(width/2,height/2);context.transform(.7,.35,-.7,.35,0,0);
+        drawRasterInfrastructure(context,kind,-size/2,-size/2,size,size,density);context.restore();
+      }
     } else if (route) {
       const heading = Math.PI / 4, scale = route.mode === 'water' ? 1.4 : 2.2;
       context.translate(width / 2, height / 2); context.scale(scale, scale); context.rotate(heading);

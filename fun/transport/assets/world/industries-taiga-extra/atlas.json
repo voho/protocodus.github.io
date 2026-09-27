@@ -9,13 +9,14 @@
     256
   ],
   "masterCell": 256,
+  "vehicleLengthNormalized": false,
   "order": [
     "industry:oil-well:taiga",
     "industry:refinery:taiga",
     "industry:quarry:taiga"
   ],
-  "source": "source-generated.png",
-  "sourceSha256": "c286e9b6dd769c020e31d0005c64925ace018d9e2fbefc69a207db8fe892d63c",
+  "source": "source-isometric.png",
+  "sourceSha256": "b29bcda1a340fe28ff1880ed00806631933a31454016013c120b6051b2456d94",
   "sprites": [
     {
       "id": "industry:oil-well:taiga",
@@ -32,24 +33,24 @@
           724
         ],
         "sourceBounds": [
-          86,
-          187,
-          618,
-          578
+          21,
+          150,
+          714,
+          673
         ],
         "rawAlphaBounds": [
           0,
-          37,
-          710,
-          700
+          17,
+          722,
+          704
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.755126
+        "transparentFraction": 0.609667
       },
       "bounds": [
         12,
-        73,
+        69,
         244,
         244
       ]
@@ -69,24 +70,24 @@
           724
         ],
         "sourceBounds": [
-          83,
-          124,
-          639,
-          580
+          16,
+          71,
+          708,
+          671
         ],
         "rawAlphaBounds": [
-          78,
-          106,
+          1,
+          53,
           724,
-          691
+          702
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.703855
+        "transparentFraction": 0.593995
       },
       "bounds": [
         12,
-        54,
+        43,
         244,
         244
       ]
@@ -106,24 +107,24 @@
           724
         ],
         "sourceBounds": [
-          66,
-          170,
-          639,
-          580
+          11,
+          128,
+          708,
+          673
         ],
         "rawAlphaBounds": [
-          1,
-          71,
-          702,
-          700
+          11,
+          3,
+          709,
+          680
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.687805
+        "transparentFraction": 0.581717
       },
       "bounds": [
         12,
-        78,
+        63,
         244,
         244
       ]

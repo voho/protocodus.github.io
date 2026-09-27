@@ -5,7 +5,8 @@
     16,
     32,
     64,
-    128
+    128,
+    256
   ],
   "masterCell": 256,
   "vehicleLengthNormalized": false,
@@ -20,8 +21,8 @@
     "nature-rocks:desert-strata",
     "nature-rocks:tundra-ice"
   ],
-  "source": "source-packed-v2.png",
-  "sourceSha256": "de1a72c7ee79fc4498eb1436675d76108e577314bd8776051114571635d60231",
+  "source": "source-isometric-packed.png",
+  "sourceSha256": "b511af34923798bd7a446d4e041136f531c270ec7766c010605c5bddc7c867ed",
   "sprites": [
     {
       "id": "nature-rocks:taiga-boulder",
@@ -38,24 +39,24 @@
           640
         ],
         "sourceBounds": [
-          112,
-          193,
-          525,
-          514
+          58,
+          191,
+          577,
+          468
         ],
         "rawAlphaBounds": [
-          105,
-          172,
-          533,
-          545
+          57,
+          186,
+          605,
+          482
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.770618
+        "transparentFraction": 0.79002
       },
       "bounds": [
         12,
-        64,
+        120,
         244,
         244
       ]
@@ -75,24 +76,24 @@
           640
         ],
         "sourceBounds": [
-          126,
-          213,
-          513,
-          522
+          60,
+          200,
+          582,
+          470
         ],
         "rawAlphaBounds": [
-          117,
-          112,
-          522,
-          545
+          59,
+          180,
+          584,
+          483
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.804783
+        "transparentFraction": 0.790044
       },
       "bounds": [
         12,
-        59,
+        124,
         244,
         244
       ]
@@ -112,24 +113,24 @@
           640
         ],
         "sourceBounds": [
-          121,
-          198,
-          515,
-          517
+          62,
+          189,
+          589,
+          469
         ],
         "rawAlphaBounds": [
-          110,
-          114,
-          515,
-          543
+          62,
+          188,
+          592,
+          480
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.78647
+        "transparentFraction": 0.78541
       },
       "bounds": [
         12,
-        56,
+        121,
         244,
         244
       ]
@@ -149,24 +150,24 @@
           640
         ],
         "sourceBounds": [
-          128,
-          188,
-          517,
-          489
+          57,
+          190,
+          578,
+          450
         ],
         "rawAlphaBounds": [
-          110,
-          111,
-          526,
-          498
+          54,
+          190,
+          579,
+          456
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.815552
+        "transparentFraction": 0.796196
       },
       "bounds": [
         12,
-        64,
+        128,
         244,
         244
       ]
@@ -186,24 +187,24 @@
           640
         ],
         "sourceBounds": [
-          119,
-          184,
-          518,
-          503
+          60,
+          194,
+          576,
+          454
         ],
         "rawAlphaBounds": [
-          106,
-          111,
-          533,
-          528
+          22,
+          177,
+          613,
+          462
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.784106
+        "transparentFraction": 0.786777
       },
       "bounds": [
         12,
-        59,
+        127,
         244,
         244
       ]
@@ -223,24 +224,24 @@
           640
         ],
         "sourceBounds": [
-          132,
-          195,
-          512,
-          496
+          66,
+          196,
+          588,
+          454
         ],
         "rawAlphaBounds": [
-          117,
-          119,
-          513,
-          526
+          26,
+          187,
+          596,
+          462
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.802197
+        "transparentFraction": 0.79125
       },
       "bounds": [
         12,
-        60,
+        129,
         244,
         244
       ]
@@ -260,24 +261,24 @@
           640
         ],
         "sourceBounds": [
-          124,
-          172,
-          518,
-          477
+          73,
+          192,
+          560,
+          442
         ],
         "rawAlphaBounds": [
-          110,
-          133,
-          530,
-          512
+          71,
+          184,
+          583,
+          444
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.793569
+        "transparentFraction": 0.8028
       },
       "bounds": [
         12,
-        64,
+        125,
         244,
         244
       ]
@@ -297,24 +298,24 @@
           640
         ],
         "sourceBounds": [
-          124,
-          181,
-          520,
-          472
+          74,
+          191,
+          568,
+          442
         ],
         "rawAlphaBounds": [
-          112,
-          128,
-          529,
-          480
+          58,
+          182,
+          567,
+          444
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.794104
+        "transparentFraction": 0.805847
       },
       "bounds": [
         12,
-        74,
+        126,
         244,
         244
       ]
@@ -334,24 +335,24 @@
           640
         ],
         "sourceBounds": [
-          122,
-          164,
-          509,
-          473
+          76,
+          193,
+          581,
+          443
         ],
         "rawAlphaBounds": [
-          113,
-          131,
-          512,
-          512
+          25,
+          182,
+          585,
+          443
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.796101
+        "transparentFraction": 0.789338
       },
       "bounds": [
         12,
-        59,
+        129,
         244,
         244
       ]

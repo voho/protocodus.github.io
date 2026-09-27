@@ -1,0 +1,119 @@
+{
+  "source": "fun/transport/assets/world/industries-taiga/source-isometric.png",
+  "sourceSize": [
+    1254,
+    1254
+  ],
+  "cell": 640,
+  "operation": "RGBA crop and integer translation only",
+  "cells": [
+    {
+      "sourceCrop": [
+        0,
+        0,
+        421,
+        456
+      ],
+      "integerOffset": [
+        109,
+        92
+      ]
+    },
+    {
+      "sourceCrop": [
+        421,
+        0,
+        836,
+        456
+      ],
+      "integerOffset": [
+        112,
+        92
+      ]
+    },
+    {
+      "sourceCrop": [
+        836,
+        0,
+        1254,
+        456
+      ],
+      "integerOffset": [
+        111,
+        92
+      ]
+    },
+    {
+      "sourceCrop": [
+        0,
+        456,
+        420,
+        851
+      ],
+      "integerOffset": [
+        110,
+        122
+      ]
+    },
+    {
+      "sourceCrop": [
+        420,
+        456,
+        837,
+        851
+      ],
+      "integerOffset": [
+        111,
+        122
+      ]
+    },
+    {
+      "sourceCrop": [
+        837,
+        456,
+        1254,
+        851
+      ],
+      "integerOffset": [
+        111,
+        122
+      ]
+    },
+    {
+      "sourceCrop": [
+        0,
+        851,
+        415,
+        1254
+      ],
+      "integerOffset": [
+        112,
+        118
+      ]
+    },
+    {
+      "sourceCrop": [
+        415,
+        851,
+        840,
+        1254
+      ],
+      "integerOffset": [
+        107,
+        118
+      ]
+    },
+    {
+      "sourceCrop": [
+        840,
+        851,
+        1254,
+        1254
+      ],
+      "integerOffset": [
+        113,
+        118
+      ]
+    }
+  ]
+}

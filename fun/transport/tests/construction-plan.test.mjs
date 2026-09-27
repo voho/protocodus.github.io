@@ -106,3 +106,65 @@ test('duplicates, invalid coordinates, unknown tools and empty requests cannot c
   const result = buildPlan(game, 'road', [point, point, { ...point }]);
   assert.equal(quote.placements.length, 1); assert.equal(result.built, 1); assert.equal(result.cost, quote.cost); assert.equal(game.money, before.money - quote.cost);
 });
+
+test('building quotes cover every reserved tile and charge once for the whole site', () => {
+  for (const [kind, span] of [['house-cheap-1', 1], ['hospital', 2], ['stadium', 3], ['steel-mill', 3]]) {
+    const game = emptyGame(), points = [{ x: 20, y: 20 }], before = structuredClone(game);
+    const quote = quoteBuildPlan(game, kind, points);
+    assert.equal(quote.ok, true); assert.equal(quote.span, span);
+    assert.equal(quote.cost, constructionCost(game, kind, 20, 20));
+    assert.deepEqual(game, before, 'the complete-site quote is read-only');
+    const edge = quoteBuildPlan(game, kind, [{ x: game.width - span + 1, y: 20 }]);
+    assert.equal(edge.ok, false, 'a partly out-of-map site cannot be offered');
+    const corner = tileAt(game, 20 + span - 1, 20 + span - 1);
+    corner.road = true;
+    const blocked = quoteBuildPlan(game, kind, points);
+    assert.equal(blocked.ok, false, 'an occupied far corner prevents the whole placement');
+    const balance = game.money;
+    assert.equal(buildPlan(game, kind, points).ok, false);
+    assert.equal(game.money, balance, 'a rejected site never takes payment');
+    corner.road = false;
+    const built = buildPlan(game, kind, points);
+    assert.equal(built.ok, true); assert.equal(built.built, 1); assert.equal(built.cost, quote.cost);
+  }
+});
+
+test('a bulldozer drag crossing one large building bills and demolishes one complete site', () => {
+  for (const kind of ['hospital', 'stadium', 'steel-mill']) {
+    const game = emptyGame(); assert.equal(build(game, kind, 20, 20).ok, true);
+    const points = [{ x: 21, y: 21 }, { x: 20, y: 21 }, { x: 20, y: 20 }, { x: 21, y: 20 }];
+    const quote = quoteBuildPlan(game, 'bulldoze', points), money = game.money;
+    assert.equal(quote.placements.length, 1);
+    assert.equal(quote.cost, constructionCost(game, 'bulldoze', 20, 20));
+    const cleared = buildPlan(game, 'bulldoze', points);
+    assert.equal(cleared.ok, true); assert.equal(cleared.built, 1); assert.equal(cleared.failed, 0);
+    assert.equal(cleared.cost, quote.cost); assert.equal(game.money, money - quote.cost);
+    assert.equal(tileAt(game, 20, 20).building, null); assert.equal(game.industries.length, 0);
+    assert.equal(build(game, 'road', 21, 21).ok, true, 'covered cells are released with the anchor');
+  }
+});
+
+test('a bulldozer drag across a grove or outcrop quotes and clears the whole parcel once', () => {
+  for (const kind of ['forest', 'rock']) for (const span of [2, 3]) {
+    const game = emptyGame(), x = 20, y = 20, points = [];
+    for (let dy = -1; dy <= span; dy++) for (let dx = -1; dx <= span; dx++) tileAt(game, x + dx, y + dy).elevation = 6 / 16;
+    for (let dy = 0; dy < span; dy++) for (let dx = 0; dx < span; dx++) {
+      Object.assign(tileAt(game, x + dx, y + dy), { terrain: kind, detail: kind === 'forest' ? 'pine' : 'boulders' });
+      points.push({ x: x + dx, y: y + dy });
+    }
+    tileAt(game, x, y).terrainObject = { kind, detail: kind === 'forest' ? 'pine' : 'boulders', variant: 3, footprint: span };
+    const before = structuredClone(game), quote = quoteBuildPlan(game, 'bulldoze', points.toReversed());
+    assert.deepEqual(game, before, 'hovering a child cell never changes the parcel');
+    assert.equal(quote.placements.length, 1);
+    assert.deepEqual({ x: quote.placements[0].x, y: quote.placements[0].y }, { x, y });
+    assert.equal(quote.cost, constructionCost(game, 'bulldoze', x, y));
+    const result = buildPlan(game, 'bulldoze', points.toReversed());
+    assert.equal(result.ok, true); assert.equal(result.built, 1); assert.equal(result.failed, 0);
+    assert.equal(result.cost, quote.cost); assert.equal(game.money, before.money - quote.cost);
+    for (const point of points) {
+      const tile = tileAt(game, point.x, point.y);
+      assert.equal(tile.terrain, 'grass'); assert.equal(tile.detail, ''); assert.equal(tile.terrainObject, undefined);
+      assert.equal(tile.elevation, 6 / 16, 'clearing scenery leaves the landscape height intact');
+    }
+  }
+});

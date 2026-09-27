@@ -105,9 +105,10 @@ try {
   assert.ok(strip, 'seed has a buildable test strip');
   await page.locator('[data-tool="road"]').click();
   const points = await page.evaluate(({ x, y }) => {
-    const rect = document.querySelector('#world').getBoundingClientRect(), camera = transport.renderer.getCamera();
-    return [x, x + 3].map(tx => ({ x: rect.left + rect.width / 2 + ((tx + .5) * 32 - camera.x) * camera.zoom,
-      y: rect.top + rect.height / 2 + ((y + .5) * 32 - camera.y) * camera.zoom }));
+    const rect = document.querySelector('#world').getBoundingClientRect();
+    return [x, x + 3].map(tx => {
+      const p=transport.renderer.worldToScreen(tx,y);return {x:rect.left+p.x,y:rect.top+p.y};
+    });
   }, strip);
   const cashBeforeRoad = await page.evaluate(() => transport.game.money);
   await page.mouse.move(points[0].x, points[0].y);

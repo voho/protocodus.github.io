@@ -1,0 +1,119 @@
+{
+  "source": "fun/transport/assets/world/isometric-portals/source-isometric.png",
+  "sourceSize": [
+    1254,
+    1254
+  ],
+  "cell": 640,
+  "operation": "RGBA crop and integer translation only",
+  "cells": [
+    {
+      "sourceCrop": [
+        0,
+        0,
+        419,
+        410
+      ],
+      "integerOffset": [
+        110,
+        115
+      ]
+    },
+    {
+      "sourceCrop": [
+        419,
+        0,
+        835,
+        410
+      ],
+      "integerOffset": [
+        112,
+        115
+      ]
+    },
+    {
+      "sourceCrop": [
+        835,
+        0,
+        1254,
+        410
+      ],
+      "integerOffset": [
+        110,
+        115
+      ]
+    },
+    {
+      "sourceCrop": [
+        0,
+        410,
+        431,
+        827
+      ],
+      "integerOffset": [
+        104,
+        111
+      ]
+    },
+    {
+      "sourceCrop": [
+        431,
+        410,
+        843,
+        827
+      ],
+      "integerOffset": [
+        114,
+        111
+      ]
+    },
+    {
+      "sourceCrop": [
+        843,
+        410,
+        1254,
+        827
+      ],
+      "integerOffset": [
+        114,
+        111
+      ]
+    },
+    {
+      "sourceCrop": [
+        0,
+        827,
+        408,
+        1254
+      ],
+      "integerOffset": [
+        116,
+        106
+      ]
+    },
+    {
+      "sourceCrop": [
+        408,
+        827,
+        848,
+        1254
+      ],
+      "integerOffset": [
+        100,
+        106
+      ]
+    },
+    {
+      "sourceCrop": [
+        848,
+        827,
+        1254,
+        1254
+      ],
+      "integerOffset": [
+        117,
+        106
+      ]
+    }
+  ]
+}

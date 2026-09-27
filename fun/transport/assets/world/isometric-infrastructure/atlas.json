@@ -1,0 +1,246 @@
+{
+  "columns": 3,
+  "rows": 2,
+  "cellSizes": [
+    16,
+    32,
+    64,
+    128
+  ],
+  "masterCell": 256,
+  "vehicleLengthNormalized": false,
+  "order": [
+    "bus-stop",
+    "train-stop",
+    "port-w",
+    "port-e",
+    "port-n",
+    "port-s"
+  ],
+  "source": "source-packed.png",
+  "sourceSha256": "34f1b56aca904f00b24f776d949912a7d8a8fe4604f9f55a1518552ec82b5826",
+  "sprites": [
+    {
+      "id": "bus-stop",
+      "cell": 0,
+      "sourceBounds": [
+        0,
+        0,
+        640,
+        640
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          126,
+          142,
+          478,
+          526
+        ],
+        "rawAlphaBounds": [
+          85,
+          83,
+          572,
+          554
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.788481
+      },
+      "bounds": [
+        21,
+        12,
+        234,
+        244
+      ]
+    },
+    {
+      "id": "train-stop",
+      "cell": 1,
+      "sourceBounds": [
+        640,
+        0,
+        1280,
+        640
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          140,
+          128,
+          498,
+          540
+        ],
+        "rawAlphaBounds": [
+          82,
+          95,
+          557,
+          566
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.81373
+      },
+      "bounds": [
+        27,
+        12,
+        229,
+        244
+      ]
+    },
+    {
+      "id": "port-w",
+      "cell": 2,
+      "sourceBounds": [
+        1280,
+        0,
+        1920,
+        640
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          65,
+          125,
+          551,
+          506
+        ],
+        "rawAlphaBounds": [
+          46,
+          106,
+          581,
+          566
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.742183
+      },
+      "bounds": [
+        12,
+        62,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "port-e",
+      "cell": 3,
+      "sourceBounds": [
+        0,
+        640,
+        640,
+        1280
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          109,
+          81,
+          563,
+          480
+        ],
+        "rawAlphaBounds": [
+          69,
+          80,
+          590,
+          560
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.76325
+      },
+      "bounds": [
+        12,
+        40,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "port-n",
+      "cell": 4,
+      "sourceBounds": [
+        640,
+        640,
+        1280,
+        1280
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          155,
+          106,
+          508,
+          525
+        ],
+        "rawAlphaBounds": [
+          92,
+          54,
+          543,
+          570
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.769907
+      },
+      "bounds": [
+        30,
+        12,
+        225,
+        244
+      ]
+    },
+    {
+      "id": "port-s",
+      "cell": 5,
+      "sourceBounds": [
+        1280,
+        640,
+        1920,
+        1280
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          83,
+          103,
+          542,
+          525
+        ],
+        "rawAlphaBounds": [
+          54,
+          63,
+          575,
+          586
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.766746
+      },
+      "bounds": [
+        12,
+        31,
+        244,
+        244
+      ]
+    }
+  ]
+}

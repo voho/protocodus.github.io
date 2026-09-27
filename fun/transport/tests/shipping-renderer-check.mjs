@@ -14,6 +14,8 @@ try {
     await page.evaluate(async () => {
       transport.setSpeed(0);
       const { createGame } = await import('../transport/model.js');
+      const { preloadWorldArt } = await import('../transport/atlas-runtime.js');
+      await preloadWorldArt({ waitMs: 12000 });
       const game = createGame({ size: 'regional', seed: 1847 });
       for (const tile of game.tiles) Object.assign(tile, { terrain: 'grass', detail: '', building: null, zone: null, road: false, rail: false, bridge: false, tunnel: false });
       for (let y = 0; y < game.height; y++) for (let x = 0; x < game.width; x++) if ((x >= 35 && x <= 57 && y >= 37 && y <= 51) || (x >= 48 && x <= 50)) Object.assign(game.tiles[y * game.width + x], { terrain: 'water', detail: 'river' });
@@ -39,10 +41,15 @@ try {
         const empty = sprites.ship(ship, route), emptyHash = hash(empty), loadedHash = hash(sprites.ship({ ...ship, load: 140 }, route));
         const headings = new Set([0, Math.PI / 2, Math.PI, Math.PI * 1.5].map(angle => hash(sprites.ship({ ...ship, angle, load: 140 }, route))));
         const ports = new Set([0, Math.PI / 2, Math.PI, Math.PI * 1.5].map(angle => hash(sprites.port(angle))));
-        const renderer = transport.renderer, canvas = document.querySelector('#world'), context = canvas.getContext('2d'), camera = renderer.getCamera(), rect = canvas.getBoundingClientRect();
-        const sample = (x, y, offsetX = 0) => { const sx = ((x + .5) * 32 - camera.x + offsetX) * zoom + rect.width / 2, sy = ((y + .5) * 32 - camera.y) * zoom + rect.height / 2; return [...context.getImageData(Math.round(sx * dpr), Math.round(sy * dpr), Math.max(1, Math.round(zoom * dpr)), Math.max(1, Math.round(zoom * dpr))).data]; };
-        renderer.setLayers({ vehicles: false, vehicleLoads: false }); renderer.render(1200); const bridgeWithoutShip = sample(47, 44), outsideWithoutShip = sample(47, 44, 13);
-        renderer.setLayers({ vehicles: true }); renderer.render(1200); const bridgeWithShip = sample(47, 44), outsideWithShip = sample(47, 44, 13);
+        const renderer = transport.renderer, canvas = document.querySelector('#world'), context = canvas.getContext('2d');
+        const sample = (x, y, offsetX = 0) => { const p = renderer.worldToScreen(x + offsetX / 32, y); return [...context.getImageData(Math.round(p.x * dpr), Math.round(p.y * dpr), Math.max(1, Math.round(zoom * dpr)), Math.max(1, Math.round(zoom * dpr))).data]; };
+        // Keep the same direct bridge redraw in both images: a cached projected
+        // texture and a freshly rasterized line can differ by a few RGB levels.
+        // The baseline carrier is two tiles away, outside this sample's hull.
+        const crossingShip = shippingFixture.vehicles.find(v => v.x === 47 && v.y === 44);
+        renderer.setLayers({ vehicles: true, vehicleLoads: false }); crossingShip.y = 46; renderer.render(1200);
+        const bridgeWithoutShip = sample(47, 44), outsideWithoutShip = sample(47, 44, 13);
+        crossingShip.y = 44; renderer.render(1200); const bridgeWithShip = sample(47, 44), outsideWithShip = sample(47, 44, 13);
         renderer.setLayers({ vehicleLoads: true }); renderer.render(1200);
         return { raster: empty.width, expectedRaster: Math.ceil(MARINE_SIZE * zoom * dpr), emptyHash, loadedHash, headings: headings.size, ports: ports.size, bridgeWithoutShip, bridgeWithShip, outsideWithoutShip, outsideWithShip, indicators: renderer.getStats().vehicleIndicators };
       }, { zoom, dpr });

@@ -4,7 +4,7 @@ import { build, createGame, industryAt, stationCoverage, restoreGame, tick } fro
 import { localEnvironment } from '../environment.js';
 import { industryConditions } from '../industry-simulation.js';
 import { encodeGame } from '../save-codec.js';
-import { industryTiles, industrySiteProblem } from '../industry-sites.js';
+import { industryTiles, industrySiteProblem, industryFootprint } from '../industry-sites.js';
 import { WORLD_GENERATION_VERSION } from '../world.js';
 import { emptyGame, tileAt } from './helpers.mjs';
 
@@ -100,7 +100,7 @@ test('industry transport catchments exclude inactive and out-of-range stops with
 });
 
 test('fire and local services reduce player-industry upkeep equally on every side',()=>{
-  const base=flatIndustryGame('machine-works'),expenses=[];
+  const base=flatIndustryGame('oil-well'),expenses=[];
   for(const point of Object.values(siteSides)){
     const game=structuredClone(base);
     for(const y of [19,20,21,22]){
@@ -122,10 +122,10 @@ test('footprints survive saves while legacy sites keep their original extent',()
   delete game.industries[0].footprint;
   assert.equal(industryAt(restoreGame(encodeGame(game)),21,21),null);
 });
-test('new worlds have valid 2×2 industrial sites and old geography recipes remain unchanged',()=>{
+test('new worlds have catalog-sized industrial sites and old geography recipes remain unchanged',()=>{
   for(const biome of ['taiga','tundra','desert']){
     const game=createGame({biome,size:'square512',seed:1847});assert.equal(game.generationVersion,WORLD_GENERATION_VERSION);
-    for(const industry of game.industries){assert.equal(industry.footprint,2);assert.equal(industrySiteProblem(game,industry.kind,industry.x,industry.y,2,industry),null);}
+    for(const industry of game.industries){assert.equal(industry.footprint,industryFootprint(industry.kind));assert.equal(industrySiteProblem(game,industry.kind,industry.x,industry.y,industry.footprint,industry),null);}
   }
   const legacy=createGame({size:'square512',generationVersion:2});assert.equal(legacy.generationVersion,2);assert.ok(legacy.industries.every(i=>i.footprint===undefined));
 });

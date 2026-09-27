@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BUILDINGS, INDUSTRIES, WORLD_SIZES, createGame, build, tileAt, tick, validateGame, saveGame, loadGame, SAVE_KEY } from '../model.js';
+import { emptyGame } from './helpers.mjs';
 import { encodeGame, decodeGame } from '../save-codec.js';
 
 function stored(run) {
@@ -31,13 +32,13 @@ test('legacy and starter square sizes provide dispersed towns, complete industri
 });
 
 test('every house, civic building, shop and service can be built with its listed cost',()=>{
-  const game=createGame({size:'regional'});game.money=1e7;
+  const game=emptyGame();game.money=1e7;
   for(const [kind,definition] of Object.entries(BUILDINGS)) {
     const x=5,y=5,tile=tileAt(game,x,y);
     Object.assign(tile,{terrain:'grass',building:null,zone:null,road:false,rail:false});
     const before=game.money,result=build(game,kind,x,y);
     assert.equal(result.ok,true,`${kind}: ${result.message}`);
-    assert.deepEqual(tile.building,{kind,level:1,...definition.residents?{populationCityId:null}:{}});
+    assert.deepEqual(tile.building,{kind,level:1,footprint:definition.footprint,...definition.residents?{populationCityId:null}:{}});
     assert.equal(game.money,before-definition.cost);
     assert.equal(build(game,kind,x,y).ok,false,'occupied plots remain protected');
     tile.building=null;tile.terrain='water';

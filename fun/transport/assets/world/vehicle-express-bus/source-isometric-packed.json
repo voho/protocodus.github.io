@@ -1,0 +1,119 @@
+{
+  "source": "fun/transport/assets/world/vehicle-express-bus/source-isometric.png",
+  "sourceSize": [
+    1254,
+    1254
+  ],
+  "cell": 640,
+  "operation": "RGBA crop and integer translation only",
+  "cells": [
+    {
+      "sourceCrop": [
+        0,
+        0,
+        431,
+        427
+      ],
+      "integerOffset": [
+        104,
+        106
+      ]
+    },
+    {
+      "sourceCrop": [
+        431,
+        0,
+        823,
+        427
+      ],
+      "integerOffset": [
+        124,
+        106
+      ]
+    },
+    {
+      "sourceCrop": [
+        823,
+        0,
+        1254,
+        427
+      ],
+      "integerOffset": [
+        104,
+        106
+      ]
+    },
+    {
+      "sourceCrop": [
+        0,
+        427,
+        441,
+        814
+      ],
+      "integerOffset": [
+        99,
+        126
+      ]
+    },
+    {
+      "sourceCrop": [
+        441,
+        427,
+        813,
+        814
+      ],
+      "integerOffset": [
+        134,
+        126
+      ]
+    },
+    {
+      "sourceCrop": [
+        813,
+        427,
+        1254,
+        814
+      ],
+      "integerOffset": [
+        99,
+        126
+      ]
+    },
+    {
+      "sourceCrop": [
+        0,
+        814,
+        431,
+        1254
+      ],
+      "integerOffset": [
+        104,
+        100
+      ]
+    },
+    {
+      "sourceCrop": [
+        431,
+        814,
+        823,
+        1254
+      ],
+      "integerOffset": [
+        124,
+        100
+      ]
+    },
+    {
+      "sourceCrop": [
+        823,
+        814,
+        1254,
+        1254
+      ],
+      "integerOffset": [
+        104,
+        100
+      ]
+    }
+  ]
+}

@@ -3,7 +3,7 @@ import { INDUSTRIES } from './data.js';
 import { worldArtRevision, preloadWorldArt } from './atlas-runtime.js';
 import { drawRasterIndustry } from './raster-industries.js';
 import { drawRasterBuilding } from './raster-buildings.js';
-import { drawRasterNature } from './raster-nature.js';
+import { drawRasterNature, drawRasterNatureObject, natureObjectLayout } from './raster-nature.js';
 import { drawTownBuilding } from './building-sprites.js';
 import { drawProcessingPlant } from './processing-sprites.js';
 import { drawTerrainDetail } from './terrain-sprites.js';
@@ -114,7 +114,7 @@ export function createSprites(biome,{pixelScale=2,detailLevel='town'}={}) {
   // Each factory owns its cache, so biome, density and profile are part of its identity.
   const cache=new Map(),cacheLimit=16*1024*1024;let cacheBytes=0,assetRevision=houseAssetsRevision(),worldRevision=worldArtRevision();
   const natureKinds=new Set(['forest','rock','mountain','terrain-detail']);
-  return function sprite(kind,variant=0,level=1,detail='') {
+  return function sprite(kind,variant=0,level=1,detail='',footprint=1) {
     // Saved companies and external previews can still use the original names.
     // Resolve before caching so these share the exact current artwork identity.
     if(kind==='house'||kind==='apartment')kind=residentialKind(variant,level);
@@ -122,13 +122,22 @@ export function createSprites(biome,{pixelScale=2,detailLevel='town'}={}) {
     if(assetRevision!==houseAssetsRevision()||worldRevision!==worldArtRevision()){cache.clear();cacheBytes=0;assetRevision=houseAssetsRevision();worldRevision=worldArtRevision();}
     const variants=natureKinds.has(kind)?64:12;
     variant=((Math.floor(variant)%variants)+variants)%variants;
-    const key=`${kind}:${variant}:${level}:${detail}`;
+    const span=Math.max(1,Math.min(3,Math.floor(Object.hasOwn(INDUSTRIES,kind)?level:footprint)||1));
+    const key=`${kind}:${variant}:${level}:${detail}:${span}`;
     if(cache.has(key)){const cached=cache.get(key);cache.delete(key);cache.set(key,cached);return cached;}
-    const forest=kind==='forest',span=Object.hasOwn(INDUSTRIES,kind)&&level===2?2:1,width=forest?48:TILE*span,height=forest?48:TILE*span+8;
+    const natureObject=span>1&&['forest','rock','mountain'].includes(kind),layout=natureObject?natureObjectLayout(span):null;
+    const forest=kind==='forest',width=layout?.width||(forest?48:TILE*span),height=layout?.height||(forest?48:TILE*span+8);
     const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(width*density));canvas.height=Math.max(1,Math.round(height*density));
-    const ctx=canvas.getContext('2d');ctx.scale(canvas.width/width,canvas.height/height);ctx.translate(forest?8:0,forest?16:8);
+    const ctx=canvas.getContext('2d');ctx.scale(canvas.width/width,canvas.height/height);if(!natureObject)ctx.translate(forest?8:0,forest?16:8);
     const r=rng(7331+variant*799+kind.length*371+level*97);
-    if(BUILDINGS[kind]) {if(!drawRasterHouse(ctx,kind,{pixelScale:density,biome})&&!drawRasterBuilding(ctx,kind,biome,density))drawTownBuilding(ctx,kind,biome,profile,variant);}
+    if(natureObject){
+      if(!drawRasterNatureObject(ctx,kind,biome,detail,variant,span,density)){
+        ctx.save();ctx.translate(layout.anchorX-16*span,layout.anchorY-16*span);ctx.scale(span,span);
+        if(forest)drawForest(ctx,biome,detail,variant,profile);else if(kind==='mountain')drawMountain(ctx,detail,r,biome,profile);else drawBoulder(ctx,16,22,12,r,biome,profile);
+        ctx.restore();
+      }
+    }
+    else if(BUILDINGS[kind]) {ctx.save();ctx.scale(span,span);if(!drawRasterHouse(ctx,kind,{pixelScale:density*span,biome})&&!drawRasterBuilding(ctx,kind,biome,density*span))drawTownBuilding(ctx,kind,biome,profile,variant);ctx.restore();}
     else if(Object.hasOwn(INDUSTRIES,kind)||kind==='factory'){
       const siteKind=kind==='factory'?(biome==='tundra'?'equipment-factory':biome==='desert'?'goods-factory':'furniture-factory'):kind;
       if(!drawRasterIndustry(ctx,siteKind,biome,density,{size:32*span})){ctx.save();ctx.scale(span,span);industry(ctx,siteKind,r,biome,profile);ctx.restore();}

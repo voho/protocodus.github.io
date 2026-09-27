@@ -203,7 +203,7 @@ def atlas_name(size: int) -> str:
     return "house-atlas.png" if size == MASTER_SIZE else f"house-atlas-{size}.png"
 
 
-def aligned_atlas_cells(path: Path) -> tuple[list[Image.Image], list[dict]]:
+def aligned_atlas_cells(path: Path, normalize_cells=False) -> tuple[list[Image.Image], list[dict]]:
     """Split an edited atlas and preserve common framing across its nine cells."""
     with Image.open(path) as opened:
         if opened.format != "PNG":
@@ -231,6 +231,13 @@ def aligned_atlas_cells(path: Path) -> tuple[list[Image.Image], list[dict]]:
             cell = clean
         inputs.append(cell)
         records.append({"id": house_id, "source": path.name, "sourceSha256": digest, **info, "inputMode": "aligned-atlas", "atlasBounds": list(bounds), "trimmedInvisibleMatte": trimmed_matte, "groundline": GROUNDLINE, "widthLimit": WIDTHS[house_id.split("-")[1]]})
+    if normalize_cells:
+        cells = []
+        for cell, house_id, record in zip(inputs, HOUSE_IDS, records):
+            normalized, placement = normalize(cell, house_id)
+            cells.append(normalized)
+            record.update({**placement, "inputMode": "normalized-atlas"})
+        return cells, records
     # Keep one shared affine transform for every house in a biome. This avoids
     # moving individual windows around when new snow/foliage expands a sprite.
     for inset in range(17):
@@ -252,11 +259,11 @@ def aligned_atlas_cells(path: Path) -> tuple[list[Image.Image], list[dict]]:
     raise ValueError(f"{path}: the biome atlas requires more than a 16-pixel common inset; inspect source framing")
 
 
-def build(manifest_path: Path | None, output_dir: Path, qa_dir: Path | None, validate_only=False, atlas_path: Path | None = None, atlas_biome: str | None = None) -> dict:
+def build(manifest_path: Path | None, output_dir: Path, qa_dir: Path | None, validate_only=False, atlas_path: Path | None = None, atlas_biome: str | None = None, normalize_atlas=False) -> dict:
     jobs = {atlas_biome: []} if atlas_path else load_manifest(manifest_path)
     reports = {}
     for biome, houses in jobs.items():
-        cells, records = aligned_atlas_cells(atlas_path) if atlas_path else ([], [])
+        cells, records = aligned_atlas_cells(atlas_path, normalize_atlas) if atlas_path else ([], [])
         for house_id, source in houses:
             with Image.open(source) as opened:
                 if opened.format != "PNG":
@@ -357,6 +364,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--manifest", type=Path)
     parser.add_argument("--atlas", type=Path, help="An aligned transparent 3 × 3 biome-variant atlas; preserves cell framing")
+    parser.add_argument("--normalize-atlas", action="store_true", help="Normalize each atlas cell using the same tier sizes and groundline as standalone sources")
     parser.add_argument("--biome", choices=BIOMES, help="Required with --atlas")
     parser.add_argument("--output-dir", type=Path, default=Path(__file__).resolve().parents[1] / "assets" / "houses")
     parser.add_argument("--qa-dir", type=Path)
@@ -371,7 +379,7 @@ def main():
     if args.atlas and not args.biome:
         parser.error("--biome is required with --atlas")
     try:
-        result = build(args.manifest.resolve() if args.manifest else None, args.output_dir, args.qa_dir, args.validate_only, args.atlas, args.biome)
+        result = build(args.manifest.resolve() if args.manifest else None, args.output_dir, args.qa_dir, args.validate_only, args.atlas, args.biome, args.normalize_atlas)
     except (ValueError, OSError, KeyError, TypeError) as error:
         parser.exit(1, f"House atlas build failed: {error}\n")
     print(json.dumps(result, indent=2))

@@ -8,44 +8,44 @@ export const HOUSE_KINDS = Object.freeze([
 export const HOUSE_BIOMES = Object.freeze(['taiga', 'tundra', 'desert']);
 export const HOUSE_ATLAS_URLS = Object.freeze(Object.fromEntries(HOUSE_BIOMES.map(biome => [biome, new URL(`./assets/houses/${biome}/house-atlas.png`, import.meta.url).href])));
 const SOURCE_CELL = 256;
-const LOD_CELLS = Object.freeze([16, 32, 64, 128]);
+const LOD_CELLS = Object.freeze([16, 32, 64, 128, 256]);
 const indices = new Map(HOUSE_KINDS.map((kind, index) => [kind, index]));
 // Hand-measured glass panes on each final 256² original. Store source pixel
 // boxes for easy art review, then convert [left, top, width, height] to the
 // 32-unit square used by drawRasterHouse. No roof/garden color guessing.
 const sourceWindows = {
   taiga: {
-    'house-cheap-1': [[61,159,7,18],[159,159,7,18]],
-    'house-cheap-2': [[78,159,6,16],[90,159,7,16]],
-    'house-cheap-3': [[53,178,6,15],[172,178,6,15]],
-    'house-normal-1': [[63,104,7,15],[151,113,7,15],[51,169,7,16]],
-    'house-normal-2': [[52,106,7,17],[113,107,7,17],[175,124,7,16],[52,165,7,17]],
-    'house-normal-3': [[146,180,8,17],[167,180,8,17]],
-    'house-expensive-1': [[57,130,7,17],[114,130,7,17],[173,180,7,17]],
-    'house-expensive-2': [[79,108,5,16],[118,108,5,16],[160,162,5,16]],
-    'house-expensive-3': [[46,150,7,11],[111,155,7,8],[181,169,6,11],[47,184,7,11]],
+    "house-cheap-1": [[69,145,4,7],[122,169,4,7],[173,154,4,7]],
+    "house-cheap-2": [[84,147,4,7],[166,150,4,7]],
+    "house-cheap-3": [[67,144,4,7],[130,169,4,7],[177,158,4,7]],
+    "house-normal-1": [[51,145,4,9],[122,135,4,7],[187,173,4,8]],
+    "house-normal-2": [[56,104,4,9],[178,139,4,8],[127,188,4,9]],
+    "house-normal-3": [[130,168,4,7],[186,166,4,7]],
+    "house-expensive-1": [[56,111,4,8],[89,125,4,8],[177,140,4,8]],
+    "house-expensive-2": [[67,104,4,8],[96,117,4,8],[175,118,4,9]],
+    "house-expensive-3": [[43,124,4,8],[94,140,4,8],[209,130,4,8]],
   },
   tundra: {
-    'house-cheap-1': [[62,158,7,17],[158,158,7,17]],
-    'house-cheap-2': [[79,159,6,15],[91,159,6,15]],
-    'house-cheap-3': [[55,177,6,14],[172,177,6,14]],
-    'house-normal-1': [[65,103,6,15],[151,113,7,15],[53,168,7,16]],
-    'house-normal-2': [[53,106,7,17],[113,107,7,17],[175,124,7,15],[53,164,7,16]],
-    'house-normal-3': [[146,179,8,17],[167,179,8,17]],
-    'house-expensive-1': [[58,130,7,16],[114,130,7,16],[172,178,7,16]],
-    'house-expensive-2': [[80,108,5,16],[118,108,5,16],[160,162,5,16]],
-    'house-expensive-3': [[47,151,6,10],[111,155,7,8],[180,168,6,11],[48,184,6,10]],
+    "house-cheap-1": [[73,145,4,7],[124,163,4,7],[171,153,4,7]],
+    "house-cheap-2": [[86,138,4,7],[168,141,4,7]],
+    "house-cheap-3": [[67,141,4,7],[132,163,4,7],[175,151,4,7]],
+    "house-normal-1": [[51,144,4,9],[122,134,4,7],[187,172,4,8]],
+    "house-normal-2": [[56,104,4,9],[178,139,4,8],[127,188,4,9]],
+    "house-normal-3": [[132,163,4,7],[187,161,4,7]],
+    "house-expensive-1": [[57,111,4,8],[89,125,4,8],[177,140,4,8]],
+    "house-expensive-2": [[68,104,4,8],[97,116,4,8],[175,117,4,9]],
+    "house-expensive-3": [[42,123,4,8],[93,139,4,8],[208,129,4,8]],
   },
   desert: {
-    'house-cheap-1': [[64,158,7,17],[157,158,7,17]],
-    'house-cheap-2': [[81,158,6,15],[92,158,6,15]],
-    'house-cheap-3': [[57,177,6,15],[171,177,6,15]],
-    'house-normal-1': [[67,105,6,15],[151,113,7,15],[54,168,7,15]],
-    'house-normal-2': [[55,108,7,16],[113,108,7,16],[172,124,7,16],[55,163,7,16]],
-    'house-normal-3': [[146,179,8,16],[167,179,8,16]],
-    'house-expensive-1': [[59,130,7,16],[114,130,7,16],[171,178,7,16]],
-    'house-expensive-2': [[80,109,5,16],[118,109,5,16],[158,161,5,16]],
-    'house-expensive-3': [[48,151,6,10],[112,155,7,8],[179,169,6,11],[48,184,6,10]],
+    "house-cheap-1": [[72,147,4,7],[125,164,4,7],[173,155,4,7]],
+    "house-cheap-2": [[86,144,4,7],[168,145,4,7]],
+    "house-cheap-3": [[65,146,4,7],[130,171,4,7],[174,159,4,7]],
+    "house-normal-1": [[51,144,4,9],[122,134,4,7],[187,172,4,8]],
+    "house-normal-2": [[56,104,4,9],[178,139,4,8],[127,188,4,9]],
+    "house-normal-3": [[131,166,4,7],[187,164,4,7]],
+    "house-expensive-1": [[56,111,4,8],[89,125,4,8],[176,140,4,8]],
+    "house-expensive-2": [[67,103,4,8],[96,116,4,8],[174,117,4,9]],
+    "house-expensive-3": [[42,123,4,8],[93,139,4,8],[208,129,4,8]],
   },
 };
 const windowAnchors = Object.fromEntries(Object.entries(sourceWindows).map(([biome, houses]) => [biome,
@@ -85,7 +85,7 @@ async function decodeAtlas(biome, cell) {
   await new Promise((resolve, reject) => {
     image.onload = resolve;
     image.onerror = () => reject(new Error(`${biome} house artwork (${cell}px) could not be loaded.`));
-    image.src = new URL(`./assets/houses/${biome}/house-atlas-${cell}.png`, import.meta.url).href;
+    image.src = new URL(`./assets/houses/${biome}/house-atlas${cell === 256 ? '' : '-'+cell}.png`, import.meta.url).href;
   });
   if (image.decode) await image.decode();
   if (image.naturalWidth !== cell * 3 || image.naturalHeight !== cell * 3) {

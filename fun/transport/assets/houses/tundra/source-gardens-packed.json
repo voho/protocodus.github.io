@@ -1,0 +1,134 @@
+{
+  "source": "source-gardens.png",
+  "cell": 640,
+  "operation": "Original RGBA pixels registered by disconnected alpha components; no resampling",
+  "meaningfulPixelsPreserved": 774309,
+  "cells": [
+    {
+      "cell": 0,
+      "sourceBounds": [
+        20,
+        73,
+        409,
+        422
+      ],
+      "offset": [
+        125,
+        145
+      ],
+      "pixels": 78630
+    },
+    {
+      "cell": 1,
+      "sourceBounds": [
+        438,
+        61,
+        817,
+        428
+      ],
+      "offset": [
+        130,
+        136
+      ],
+      "pixels": 80063
+    },
+    {
+      "cell": 2,
+      "sourceBounds": [
+        852,
+        96,
+        1237,
+        432
+      ],
+      "offset": [
+        127,
+        152
+      ],
+      "pixels": 76680
+    },
+    {
+      "cell": 3,
+      "sourceBounds": [
+        23,
+        451,
+        397,
+        812
+      ],
+      "offset": [
+        133,
+        139
+      ],
+      "pixels": 86800
+    },
+    {
+      "cell": 4,
+      "sourceBounds": [
+        439,
+        453,
+        812,
+        813
+      ],
+      "offset": [
+        133,
+        140
+      ],
+      "pixels": 93820
+    },
+    {
+      "cell": 5,
+      "sourceBounds": [
+        835,
+        551,
+        1249,
+        850
+      ],
+      "offset": [
+        113,
+        170
+      ],
+      "pixels": 78966
+    },
+    {
+      "cell": 6,
+      "sourceBounds": [
+        12,
+        849,
+        408,
+        1231
+      ],
+      "offset": [
+        122,
+        129
+      ],
+      "pixels": 97233
+    },
+    {
+      "cell": 7,
+      "sourceBounds": [
+        465,
+        847,
+        789,
+        1232
+      ],
+      "offset": [
+        158,
+        127
+      ],
+      "pixels": 84706
+    },
+    {
+      "cell": 8,
+      "sourceBounds": [
+        845,
+        876,
+        1245,
+        1231
+      ],
+      "offset": [
+        120,
+        142
+      ],
+      "pixels": 97411
+    }
+  ]
+}

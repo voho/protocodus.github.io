@@ -1,0 +1,119 @@
+{
+  "source": "fun/transport/assets/world/vehicle-locomotive/source-isometric.png",
+  "sourceSize": [
+    1254,
+    1254
+  ],
+  "cell": 640,
+  "operation": "RGBA crop and integer translation only",
+  "cells": [
+    {
+      "sourceCrop": [
+        0,
+        0,
+        430,
+        441
+      ],
+      "integerOffset": [
+        105,
+        99
+      ]
+    },
+    {
+      "sourceCrop": [
+        430,
+        0,
+        824,
+        441
+      ],
+      "integerOffset": [
+        123,
+        99
+      ]
+    },
+    {
+      "sourceCrop": [
+        824,
+        0,
+        1254,
+        441
+      ],
+      "integerOffset": [
+        105,
+        99
+      ]
+    },
+    {
+      "sourceCrop": [
+        0,
+        441,
+        448,
+        810
+      ],
+      "integerOffset": [
+        96,
+        135
+      ]
+    },
+    {
+      "sourceCrop": [
+        448,
+        441,
+        806,
+        810
+      ],
+      "integerOffset": [
+        141,
+        135
+      ]
+    },
+    {
+      "sourceCrop": [
+        806,
+        441,
+        1254,
+        810
+      ],
+      "integerOffset": [
+        96,
+        135
+      ]
+    },
+    {
+      "sourceCrop": [
+        0,
+        810,
+        432,
+        1254
+      ],
+      "integerOffset": [
+        104,
+        98
+      ]
+    },
+    {
+      "sourceCrop": [
+        432,
+        810,
+        823,
+        1254
+      ],
+      "integerOffset": [
+        124,
+        98
+      ]
+    },
+    {
+      "sourceCrop": [
+        823,
+        810,
+        1254,
+        1254
+      ],
+      "integerOffset": [
+        104,
+        98
+      ]
+    }
+  ]
+}

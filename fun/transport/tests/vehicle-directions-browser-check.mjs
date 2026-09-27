@@ -139,10 +139,11 @@ try {
     }
 
     // Exercise the real train renderer on a corner: both coaches are still
-    // heading east while the engine has already turned south.
+    // heading world east while the engine has turned world south. Their screen
+    // frames point southeast and southwest on the projected diamond grid.
     const integrated=await page.evaluate(()=>{
       const q=vehicleQA;document.querySelector('#gallery').replaceChildren();
-      const canvas=q.makeCanvas(1100,700);canvas.className='world';q.section('Rail curve · rear coaches east, engine south').append(canvas);
+      const canvas=q.makeCanvas(1100,700);canvas.className='world';q.section('Rail curve · rear coaches southeast, engine southwest').append(canvas);
       const game=q.createGame({size:'regional',seed:1847});
       for(const t of game.tiles)Object.assign(t,{terrain:'grass',detail:'',building:null,zone:null,road:false,rail:false,bridge:false,tunnel:false});
       for(const key of ['cities','industries','stations','routes','vehicles','zones'])game[key]=[];game.revision++;
@@ -159,8 +160,8 @@ try {
       return runs;
     });
     for(const run of integrated){
-      if(!missing.includes('coach'))assert.deepEqual(run.observed.filter(p=>p.kind==='coach').map(p=>p.id),['vehicle:coach:E','vehicle:coach:E']);
-      assert.deepEqual(run.observed.filter(p=>p.kind==='locomotive').map(p=>p.id),['vehicle:locomotive:S']);
+      if(!missing.includes('coach'))assert.deepEqual(run.observed.filter(p=>p.kind==='coach').map(p=>p.id),['vehicle:coach:SE','vehicle:coach:SE']);
+      assert.deepEqual(run.observed.filter(p=>p.kind==='locomotive').map(p=>p.id),['vehicle:locomotive:SW']);
       assert.equal(run.stats.rasterScale,run.zoom*dpr);
       for(const draw of run.observed)assert.ok(Math.abs(draw.matrix.b)<1e-9&&Math.abs(draw.matrix.c)<1e-9,'real renderer never rotates the selected body bitmap');
     }

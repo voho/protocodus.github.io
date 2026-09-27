@@ -11,17 +11,17 @@
   "vehicleLengthNormalized": true,
   "order": [
     "vehicle:bus:SE",
-    "vehicle:bus:S",
+    "vehicle:bus:N",
     "vehicle:bus:SW",
     "vehicle:bus:W",
     null,
     "vehicle:bus:E",
     "vehicle:bus:NE",
-    "vehicle:bus:N",
+    "vehicle:bus:S",
     "vehicle:bus:NW"
   ],
-  "source": "source-packed.png",
-  "sourceSha256": "289bbcb3dc6ce8030a8abcb4eef9c801cc7bda87b023ee35c3aba626cddbfe1f",
+  "source": "source-isometric-packed.png",
+  "sourceSha256": "b2c568babfbddac5bc927f68fbb2f2145adfecb7dc5452f721a446fd60b14c59",
   "sprites": [
     {
       "id": "vehicle:bus:SE",
@@ -38,30 +38,30 @@
           640
         ],
         "sourceBounds": [
-          149,
-          159,
-          521,
-          511
+          150,
+          183,
+          499,
+          498
         ],
         "rawAlphaBounds": [
-          134,
-          99,
-          545,
-          540
+          132,
+          119,
+          531,
+          538
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.827344
+        "transparentFraction": 0.851096
       },
       "bounds": [
-        24,
-        29,
-        232,
-        226
+        21,
+        32,
+        234,
+        224
       ]
     },
     {
-      "id": "vehicle:bus:S",
+      "id": "vehicle:bus:N",
       "cell": 1,
       "sourceBounds": [
         640,
@@ -75,25 +75,25 @@
           640
         ],
         "sourceBounds": [
-          235,
-          135,
-          399,
-          500
+          238,
+          162,
+          402,
+          498
         ],
         "rawAlphaBounds": [
           140,
-          129,
-          488,
-          502
+          115,
+          510,
+          538
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.866399
+        "transparentFraction": 0.875579
       },
       "bounds": [
-        76,
+        71,
         12,
-        180,
+        184,
         244
       ]
     },
@@ -112,26 +112,26 @@
           640
         ],
         "sourceBounds": [
-          112,
-          159,
-          486,
-          511
+          141,
+          183,
+          489,
+          498
         ],
         "rawAlphaBounds": [
           101,
-          125,
-          522,
-          557
+          114,
+          514,
+          538
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.826328
+        "transparentFraction": 0.851807
       },
       "bounds": [
-        24,
-        30,
-        232,
-        226
+        22,
+        32,
+        233,
+        223
       ]
     },
     {
@@ -149,26 +149,26 @@
           640
         ],
         "sourceBounds": [
-          105,
-          231,
-          535,
-          432
+          125,
+          232,
+          516,
+          419
         ],
         "rawAlphaBounds": [
-          75,
-          194,
-          547,
-          432
+          95,
+          132,
+          543,
+          508
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.81322
+        "transparentFraction": 0.845405
       },
       "bounds": [
         12,
-        74,
+        72,
         244,
-        182
+        183
       ]
     },
     {
@@ -189,26 +189,26 @@
           640
         ],
         "sourceBounds": [
-          103,
-          231,
-          535,
-          432
+          123,
+          232,
+          514,
+          419
         ],
         "rawAlphaBounds": [
-          84,
-          198,
-          537,
-          452
+          103,
+          131,
+          514,
+          508
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.813289
+        "transparentFraction": 0.844722
       },
       "bounds": [
         12,
-        74,
+        72,
         244,
-        182
+        183
       ]
     },
     {
@@ -226,30 +226,30 @@
           640
         ],
         "sourceBounds": [
-          148,
+          149,
           135,
-          527,
-          496
+          499,
+          461
         ],
         "rawAlphaBounds": [
-          95,
-          76,
-          545,
-          563
+          122,
+          99,
+          538,
+          506
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.821394
+        "transparentFraction": 0.850366
       },
       "bounds": [
-        25,
-        30,
-        231,
-        226
+        23,
+        31,
+        232,
+        225
       ]
     },
     {
-      "id": "vehicle:bus:N",
+      "id": "vehicle:bus:S",
       "cell": 7,
       "sourceBounds": [
         640,
@@ -263,25 +263,25 @@
           640
         ],
         "sourceBounds": [
-          232,
-          174,
-          404,
-          505
+          235,
+          134,
+          403,
+          472
         ],
         "rawAlphaBounds": [
-          147,
-          76,
-          500,
-          512
+          129,
+          99,
+          510,
+          492
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.876265
+        "transparentFraction": 0.873003
       },
       "bounds": [
-        67,
+        70,
         12,
-        188,
+        185,
         244
       ]
     },
@@ -300,26 +300,26 @@
           640
         ],
         "sourceBounds": [
-          109,
-          136,
-          486,
-          496
+          142,
+          135,
+          489,
+          461
         ],
         "rawAlphaBounds": [
+          103,
           99,
-          67,
           492,
-          555
+          516
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.822224
+        "transparentFraction": 0.850122
       },
       "bounds": [
-        25,
+        24,
         30,
-        230,
-        226
+        231,
+        225
       ]
     }
   ]

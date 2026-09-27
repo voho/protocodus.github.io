@@ -1,12 +1,15 @@
 import { BIOMES, CARGO, INDUSTRIES, BUILD_COSTS, VEHICLE_COSTS, VEHICLE_CAPACITIES, TOWN_CARGO } from './data.js';
 import { generateWorld, seedNumber, WORLD_SIZES, NEW_WORLD_SIZES, DEFAULT_WORLD_SIZE, supportsGenerationVersion } from './world.js';
 import { BUILDINGS } from './buildings.js';
-import { industryContains, industryDistance, industryTiles, industrySiteProblem, industrySize } from './industry-sites.js';
+import { allocateTerrainObjects } from './world-terrain-objects.js';
+import { industryContains, industryDistance, industryTiles, industrySiteProblem, industrySize, industryFootprint } from './industry-sites.js';
+import { buildingAt, buildingSize, buildingFootprint, buildingTiles, buildingSiteProblem, placeBuildingSite } from './building-sites.js';
 import { encodeGame, decodeGame, rememberGeneratedWorld } from './save-codec.js';
 import { randomAt, localEnvironment, weatherAt, stepEcology } from './environment.js';
 import { stepSettlements, housingCapacity } from './settlements.js';
 import { initializeIndustry, stepIndustries } from './industry-simulation.js';
 import { availableVehicleLevel, priceFor, inflationInfo, calendarMonth } from './economy-pricing.js';
+import { TERRAIN_OBJECT_KINDS, terrainObjectAt, terrainObjectSize, terrainObjectTiles, terrainObjectGroundIsFlat, releaseTerrainObjects } from './terrain-objects.js';
 import { terrainLevel, TERRAIN_LEVELS } from './terrain-elevation.js';
 import { terraformProblem, planStructureSpan, networkEdgeAllowed, transportElevation, validStructureMetadata } from './terrain-engineering.js';
 export { priceFor, inflationInfo } from './economy-pricing.js';
@@ -15,6 +18,7 @@ export { settlementSuitability } from './settlements.js';
 export { weatherAt, localEnvironment } from './environment.js';
 export { WORLD_SIZES, NEW_WORLD_SIZES } from './world.js';
 export { BUILDINGS } from './buildings.js';
+export { buildingAt, buildingSize, buildingFootprint } from './building-sites.js';
 export { BIOMES, CARGO, INDUSTRIES, BUILD_COSTS, VEHICLE_COSTS } from './data.js';
 
 export const SAVE_KEY = 'transport-save-v1';
@@ -55,7 +59,7 @@ function notify(game,message,type='info') {
 export function createGame({biome='taiga',seed=1847,size=DEFAULT_WORLD_SIZE,generationVersion}={}) {
   if (!owns(BIOMES,biome)) biome='taiga';
   const game = {
-    version:1, seed:seedNumber(seed), biome, ...generateWorld(biome,seed,size,generationVersion),
+    version:1, siteFootprintVersion:1, terrainObjectVersion:1, seed:seedNumber(seed), biome, ...generateWorld(biome,seed,size,generationVersion),
     money:400000, day:0, totalDelivered:0, totalRevenue:0,
     monthlyIncome:0, monthlyExpenses:0, monthlyOperatingExpenses:0, monthlyIncomeAtAccountingStart:0, lastMonthlyProfit:0, lastMonthlyOperatingProfit:0, accountingStartDay:0,
     history:[], notifications:[], revision:0, networkRevision:0, nextId:100,
@@ -144,6 +148,7 @@ export function buildStructureSpan(game,tool,points) {
   let built=0,skipped=0;
   // The whole span is checked before any charge or mutation, so an invalid
   // portal, obstacle or short budget can never leave half a crossing behind.
+  releaseTerrainObjects(game,plan.placements.filter(p=>p.cost>0));
   for(const p of plan.placements){
     const t=tileAt(game,p.x,p.y);
     if(p.cost===0){skipped++;continue;}
@@ -171,12 +176,13 @@ export function build(game,tool,x,y) {
   const t=tileAt(game,x,y);
   if(!t) return result(false,'Choose a tile inside the map.');
   if(!owns(BUILD_COSTS,tool)) return result(false,'Unknown construction tool.');
-  const point={x,y},station=stationAt(game,x,y),industry=industryAt(game,x,y);
+  const point={x,y},station=stationAt(game,x,y),industry=industryAt(game,x,y),site=buildingAt(game,x,y),nature=terrainObjectAt(game,x,y);
   const city=game.cities.find(c=>c.x===x&&c.y===y);
   if(tool==='raise'||tool==='lower') {
     const problem=terraformProblem(game,tool,x,y);if(problem)return result(false,problem);
     const cost=constructionCost(game,tool,x,y);if(game.money<cost)return result(false,`Need ${moneyText(cost)} to shape this tile.`);
     const level=terrainLevel(t)+(tool==='raise'?1:-1);
+    releaseTerrainObjects(game,Array.from({length:9},(_,n)=>({x:x+n%3-1,y:y+Math.floor(n/3)-1})));
     spend(game,cost);t.elevation=level/TERRAIN_LEVELS;t.detail='';
     if(t.terrain==='forest'||(t.terrain==='mountain'&&level<12)||(t.terrain==='rock'&&level<10))t.terrain=game.biome==='desert'?'sand':game.biome==='tundra'?'snow':'grass';
     game.revision++;
@@ -185,30 +191,38 @@ export function build(game,tool,x,y) {
   if(tool==='bulldoze') {
     if(station && game.routes.some(r=>r.stops.includes(station.id))) return result(false,'Retire routes using this station before removing it.');
     if(city) return result(false,'A city center cannot be demolished.');
-    if(!station&&!industry&&!t.building&&!t.zone&&!t.road&&!t.rail&&t.terrain!=='forest'&&t.terrain!=='rock'&&!hasClearableDecoration(t)) return result(false,'There is nothing to demolish here.');
+    if(!station&&!industry&&!site&&!t.zone&&!t.road&&!t.rail&&t.terrain!=='forest'&&t.terrain!=='rock'&&!hasClearableDecoration(t)) return result(false,'There is nothing to demolish here.');
     const cost=constructionCost(game,tool,x,y);
     if(game.money<cost) return result(false,'Not enough funds to demolish this tile.');
     spend(game,cost);
-    const residents=housingCapacity(t.building),town=residents?(owns(t.building,'populationCityId')?game.cities.find(city=>city.id===t.building.populationCityId):closestCity(game,point,10)):null;
+    if(nature&&['forest','rock'].includes(nature.object.kind)){
+      const points=terrainObjectTiles(nature);releaseTerrainObjects(game,points);
+      for(const p of points){const cell=tileAt(game,p.x,p.y);cell.terrain=game.biome==='desert'?'sand':game.biome==='tundra'?'snow':'grass';cell.detail='';}
+    }else releaseTerrainObjects(game,[point]);
+    const residents=housingCapacity(site?.building),town=residents?(owns(site.building,'populationCityId')?game.cities.find(city=>city.id===site.building.populationCityId):closestCity(game,site,10)):null;
     if(town){town.population=Math.max(0,town.population-residents);town.passengers=Math.min(town.passengers,town.population*.9);}
     if(station) game.stations=game.stations.filter(s=>s.id!==station.id);
     if(industry){
       game.industries=game.industries.filter(i=>i.id!==industry.id);
       for(const point of industryTiles(industry)){const cell=tileAt(game,point.x,point.y);cell.detail='';if(['forest','rock'].includes(cell.terrain))cell.terrain=game.biome==='desert'?'sand':game.biome==='tundra'?'snow':'grass';}
     }
+    if(site){
+      for(const p of buildingTiles(site)){const cell=tileAt(game,p.x,p.y);cell.building=null;cell.zone=null;cell.detail='';}
+      const span=buildingSize(site.building);game.zones=game.zones.filter(z=>z.x<site.x||z.y<site.y||z.x>=site.x+span||z.y>=site.y+span);
+    }
     game.zones=game.zones.filter(z=>z.x!==x||z.y!==y);
     const changedNetwork=t.road||t.rail||Boolean(station);
     t.road=false;t.rail=false;t.bridge=false;t.tunnel=false;t.building=null;t.zone=null;if(t.terrain!=='water')t.detail='';delete t.publicRoad;delete t.structureLevel;delete t.structureAxis;
     if(['forest','rock'].includes(t.terrain)) t.terrain=game.biome==='desert'?'sand':game.biome==='tundra'?'snow':'grass';
     if(changedNetwork)invalidateNetwork(game);else game.revision++;
-    return result(true,`Cleared tile · ${moneyText(cost)}`,{cost});
+    return result(true,`Cleared ${site?'building site':industry?'industry site':nature?'terrain parcel':'tile'} · ${moneyText(cost)}`,{cost});
   }
   if(NETWORK_TOOLS.includes(tool)) {
     const mode=tool.startsWith('rail')?'rail':'road';
     const bridge=tool==='bridge'||tool==='railbridge',tunnel=tool==='tunnel'||tool==='railtunnel';
     if(t[mode] && (!bridge||t.bridge) && (!tunnel||t.tunnel)) return result(true,'Already built.',{cost:0,unchanged:true});
     if(t.structureAxis)return result(false,'Each elevated span carries one transport mode. Build another span alongside it.');
-    if(industry||t.building||t.zone) return result(false,'Clear the building or zone before building a connection.');
+    if(industry||site||t.zone) return result(false,'Clear the building or zone before building a connection.');
     if(station&&station.mode!==mode) return result(false,'Cannot cross another transport mode at a station.');
     if(t.terrain==='water'&&!bridge&&!t.bridge) return result(false,`Water needs a ${mode==='rail'?'rail ':''}bridge.`);
     if(t.terrain==='mountain'&&!tunnel&&!t.tunnel) return result(false,`Mountains need a ${mode==='rail'?'rail ':''}tunnel.`);
@@ -216,6 +230,7 @@ export function build(game,tool,x,y) {
     if(tunnel&&t.terrain!=='mountain'&&t.terrain!=='rock') return result(false,'Tunnels must cross mountains or rock.');
     const cost=constructionCost(game,tool,x,y);
     if(game.money<cost) return result(false,`Need ${moneyText(cost)} for this connection.`);
+    releaseTerrainObjects(game,[point]);
     spend(game,cost);t[mode]=true;if(bridge)t.bridge=true;if(tunnel)t.tunnel=true;
     if(t.terrain==='forest'){t.terrain=game.biome==='tundra'?'snow':game.biome==='desert'?'sand':'grass';t.detail='';}
     invalidateNetwork(game);
@@ -226,10 +241,10 @@ export function build(game,tool,x,y) {
     if(station) return result(false,'There is already a station here.');
     if(mode==='water'){
       if(t.terrain!=='water')return result(false,'Place a port on water directly beside land.');
-      if(industry||t.building||t.zone||t.road||t.rail||t.bridge||t.tunnel||city)return result(false,'Ports need empty shoreline water, away from bridges.');
+      if(industry||site||t.zone||t.road||t.rail||t.bridge||t.tunnel||city)return result(false,'Ports need empty shoreline water, away from bridges.');
       if(!DIRECTIONS.some(([dx,dy])=>{const shore=tileAt(game,x+dx,y+dy);return shore&&shore.terrain!=='water';}))return result(false,'Place a port directly beside the shore.');
     }else{
-      if(industry||t.building||t.zone) return result(false,'Choose an unoccupied road or rail tile.');
+      if(industry||site||t.zone) return result(false,'Choose an unoccupied road or rail tile.');
       if(!validNetwork(t,mode)) return result(false,`Build a ${mode==='road'?'road':'railway'} here first.`);
       if(t.bridge||t.tunnel) return result(false,'Stations need open ground beside the connection.');
     }
@@ -240,10 +255,11 @@ export function build(game,tool,x,y) {
     spend(game,cost);game.stations.push(newStation);invalidateNetwork(game);
     return result(true,`${name} opened · ${moneyText(cost)}`,{cost,station:newStation});
   }
-  if(station||industry||t.building||t.zone||t.road||t.rail||city) return result(false,'Choose an empty tile or clear this one first.');
+  if(station||industry||site||t.zone||t.road||t.rail||city) return result(false,'Choose an empty tile or clear this one first.');
   if(t.terrain==='water'||(t.terrain==='mountain'&&!INDUSTRIES[tool]?.terrain?.includes('mountain'))) return result(false,'This structure needs buildable land.');
   const cost=constructionCost(game,tool,x,y);if(game.money<cost)return result(false,`Need ${moneyText(cost)} for this construction.`);
   if(ZONE_TYPES.includes(tool)) {
+    releaseTerrainObjects(game,[point]);
     spend(game,cost);t.zone=tool;t.detail='';
     if(t.terrain==='forest'||t.terrain==='rock')t.terrain=game.biome==='desert'?'sand':game.biome==='tundra'?'snow':'grass';
     game.zones.push({x,y,kind:tool,progress:0});game.revision++;
@@ -259,32 +275,40 @@ export function build(game,tool,x,y) {
     const suffixes=['field','haven','ford','creek','ridge'];
     const n=Math.max(0,game.cities.length-4);
     const newCity={id:makeId(game,'city'),name:prefixes[n%prefixes.length]+suffixes[Math.floor(n/prefixes.length)%suffixes.length],x,y,population:80,activity:0,growth:0,passengers:12,delivered:0,supplies:0,lastServiceDay:null};
+    releaseTerrainObjects(game,[point]);
     spend(game,cost);game.cities.push(newCity);t.road=true;t.detail='';t.terrain=game.biome==='desert'?'sand':game.biome==='tundra'?'snow':'grass';invalidateNetwork(game);
     notify(game,`${newCity.name} founded. Add housing and connect a passenger service.`,'success');
     return result(true,`${newCity.name} founded · ${moneyText(cost)}`,{cost,city:newCity});
   }
   if(owns(BUILDINGS,tool)) {
     const def=BUILDINGS[tool],nearCity=closestCity(game,point,10);
-    spend(game,cost);t.building={kind:tool,level:1,...def.residents?{populationCityId:nearCity?.id??null}:{}};t.detail='';
-    if(['forest','rock'].includes(t.terrain))t.terrain=game.biome==='desert'?'sand':game.biome==='tundra'?'snow':'grass';
+    const size=buildingFootprint(tool),problem=buildingSiteProblem(game,tool,x,y,size);if(problem)return result(false,problem);
+    const placed=placeBuildingSite(game,tool,x,y,{size,building:{level:1,...def.residents?{populationCityId:nearCity?.id??null}:{}}});
+    spend(game,cost);
     if(nearCity&&def.residents)nearCity.population+=def.residents;
     game.revision++;
-    return result(true,`${def.name} constructed · ${moneyText(cost)}`,{cost,building:t.building});
+    return result(true,`${def.name} constructed · ${size} × ${size} site · ${moneyText(cost)}`,{cost,building:placed.building});
   }
   const def=INDUSTRIES[tool];
   const siteProblem=industrySiteProblem(game,tool,x,y);if(siteProblem)return result(false,siteProblem);
   if(!def.biomes.includes(game.biome))return result(false,`${def.name} is unavailable in ${BIOMES[game.biome].name}.`);
   if(def.terrain&&!def.terrain.includes(t.terrain))return result(false,`${def.name} needs ${def.terrain.join(', ')} terrain.`);
   const inventory=Object.fromEntries([...Object.keys(def.inputs),...Object.keys(def.outputs)].map(cargo=>[cargo,0]));
-  const newIndustry={id:makeId(game,'industry'),kind:tool,name:def.name,x,y,footprint:2,capacity:1,inventory,production:0,totalProduced:0,activity:0,shipped:0,received:0,idleDays:0,owner:'player'};
+  const size=industryFootprint(tool),newIndustry={id:makeId(game,'industry'),kind:tool,name:def.name,x,y,footprint:size,capacity:1,inventory,production:0,totalProduced:0,activity:0,shipped:0,received:0,idleDays:0,owner:'player'};
   initializeIndustry(game,newIndustry);
+  releaseTerrainObjects(game,industryTiles(newIndustry));
   spend(game,cost);game.industries.push(newIndustry);game.revision++;
-  return result(true,`${def.name} constructed · 2 × 2 site · ${moneyText(cost)}`,{cost,industry:newIndustry});
+  return result(true,`${def.name} constructed · ${size} × ${size} site · ${moneyText(cost)}`,{cost,industry:newIndustry});
 }
 
 export function buildPath(game,tool,points) {
   if(!Array.isArray(points)||!points.length)return result(false,'Choose a construction path.');
-  const unique=new Map();for(const point of points)if(point&&Number.isInteger(point.x)&&Number.isInteger(point.y))unique.set(`${point.x},${point.y}`,point);
+  const unique=new Map();
+  for(const point of points)if(point&&Number.isInteger(point.x)&&Number.isInteger(point.y)){
+    const nature=tool==='bulldoze'?terrainObjectAt(game,point.x,point.y):null;
+    const site=tool==='bulldoze'?(buildingAt(game,point.x,point.y)||industryAt(game,point.x,point.y)||(nature&&nature.object.kind!=='mountain'?nature:null)):null;
+    const target=site?{x:site.x,y:site.y}:point;unique.set(`${target.x},${target.y}`,target);
+  }
   let count=0,cost=0,skipped=0;const errors=new Map();
   for(const {x,y} of unique.values()) {
     const built=build(game,tool,x,y);
@@ -470,7 +494,8 @@ function travelSpeed(game,route,vehicle,segment){
   }
   let congestion=0,support=0;
   for(const city of game.cities){const d=Math.hypot(city.x-a.x,city.y-a.y);if(d<5)congestion+=Math.min(.15,city.population/10000)*(1-d/6);}
-  for(const [dx,dy]of DIRECTIONS){const kind=tileAt(game,a.x+dx,a.y+dy)?.building?.kind;if(kind==='service-garage'||kind==='police-station')support+=.035;}
+  const supportingSites=new Set();
+  for(const [dx,dy]of DIRECTIONS){const site=buildingAt(game,a.x+dx,a.y+dy),kind=site?.building.kind;if((kind==='service-garage'||kind==='police-station')&&!supportingSites.has(site.building)){supportingSites.add(site.building);support+=.035;}}
   const terrain=(ta.bridge||tb.bridge)?.8:(ta.tunnel||tb.tunnel)?.88:1;
   const grade=1-Math.min(.16,Math.abs(transportElevation(ta)-transportElevation(tb))*.4);
   const dailyVariation=.94+randomAt(game,day,vehicle.id,511)*.12;
@@ -600,9 +625,12 @@ export function tick(game,days) {
 }
 
 function finite(value,min=-Infinity,max=Infinity) {return typeof value==='number'&&Number.isFinite(value)&&value>=min&&value<=max;}
+function validFootprint(site,maximum) {return site.footprint===undefined||Number.isInteger(site.footprint)&&site.footprint>=1&&site.footprint<=maximum;}
 function validPoint(game,p) {return p&&Number.isInteger(p.x)&&Number.isInteger(p.y)&&p.x>=0&&p.y>=0&&p.x<game.width&&p.y<game.height;}
 export function validateGame(game) {
   if(!game||typeof game!=='object'||game.version!==1||!owns(BIOMES,game.biome)||!((game.width===100&&game.height===72)||Object.values(WORLD_SIZES).some(size=>size.width===game.width&&size.height===game.height)))return false;
+  if(game.terrainObjectVersion!==undefined&&game.terrainObjectVersion!==1)return false;
+  if(game.siteFootprintVersion!==undefined&&game.siteFootprintVersion!==1)return false;
   if(game.size!==undefined&&(!owns(WORLD_SIZES,game.size)||WORLD_SIZES[game.size].width!==game.width||WORLD_SIZES[game.size].height!==game.height))return false;
   if(game.generationVersion!==undefined&&(!supportsGenerationVersion(game.generationVersion)||!owns(NEW_WORLD_SIZES,game.size)))return false;
   if(!Array.isArray(game.tiles)||game.tiles.length!==game.width*game.height||!finite(game.money,-1e12,1e12)||!finite(game.day,0,1e8)||!Number.isInteger(game.nextId)||game.nextId<0)return false;
@@ -616,21 +644,51 @@ export function validateGame(game) {
   if(game.lastMonthlyOperatingProfit!==undefined&&!finite(game.lastMonthlyOperatingProfit))return false;
   const ids=new Set();
   const uniqueId=obj=>{if(typeof obj?.id!=='string'||ids.has(obj.id))return false;ids.add(obj.id);return true;};
-  if(!game.tiles.every(t=>t&&TERRAIN.has(t.terrain)&&finite(t.elevation)&&(t.detail===undefined||(typeof t.detail==='string'&&t.detail.length<80))&&(t.publicRoad===undefined||typeof t.publicRoad==='boolean')&&Number.isInteger(t.variant)&&['road','rail','bridge','tunnel'].every(k=>typeof t[k]==='boolean')&&(t.zone===null||ZONE_TYPES.includes(t.zone))&&(t.building===null||(t.building&&(owns(BUILDINGS,t.building.kind)||['house','apartment','shop','office','factory'].includes(t.building.kind))&&finite(t.building.level,1,3)))))return false;
+  if(!game.tiles.every(t=>t&&TERRAIN.has(t.terrain)&&finite(t.elevation)&&(t.detail===undefined||(typeof t.detail==='string'&&t.detail.length<80))&&(t.publicRoad===undefined||typeof t.publicRoad==='boolean')&&Number.isInteger(t.variant)&&['road','rail','bridge','tunnel'].every(k=>typeof t[k]==='boolean')&&(t.zone===null||ZONE_TYPES.includes(t.zone))&&(t.building===null||(t.building&&(owns(BUILDINGS,t.building.kind)||['house','apartment','shop','office','factory'].includes(t.building.kind))&&finite(t.building.level,1,3)&&validFootprint(t.building,buildingFootprint(t.building.kind))))))return false;
   if(!game.tiles.every(validStructureMetadata))return false;
   if(!game.cities.every(c=>validPoint(game,c)&&uniqueId(c)&&typeof c.name==='string'&&finite(c.population,0,1e8)&&finite(c.activity,0)&&finite(c.passengers,0)&&finite(c.growth,0)&&finite(c.delivered,0)&&finite(c.supplies,0)))return false;
   if(!game.cities.every(c=>c.lastServiceDay===undefined||c.lastServiceDay===null||finite(c.lastServiceDay,0,game.day)))return false;
   if(!game.tiles.every(tile=>tile.building?.populationCityId===undefined||tile.building.populationCityId===null||game.cities.some(city=>city.id===tile.building.populationCityId)))return false;
   if(!game.industries.every(i=>validPoint(game,i)&&uniqueId(i)&&owns(INDUSTRIES,i.kind)&&typeof i.name==='string'&&finite(i.capacity,.1,10)&&finite(i.activity,0)&&finite(i.production,0)&&finite(i.shipped,0)&&finite(i.received,0)&&finite(i.idleDays,0)&&i.inventory&&Object.entries(i.inventory).every(([cargo,n])=>owns(CARGO,cargo)&&finite(n,0,1e9))))return false;
-  if(!game.industries.every(i=>(i.footprint===undefined||i.footprint===1||i.footprint===2)&&i.x+(i.footprint||1)<=game.width&&i.y+(i.footprint||1)<=game.height))return false;
-  const industryCells=new Set();
-  for(const industry of game.industries)for(const point of industryTiles(industry)){
-    const index=point.y*game.width+point.x;if(industryCells.has(index))return false;industryCells.add(index);
-    if(industry.footprint===2){const tile=game.tiles[index];if(tile.terrain==='water'||tile.building||tile.zone||tile.road||tile.rail||game.stations.some(s=>s.x===point.x&&s.y===point.y))return false;}
-  }
+  if(!game.industries.every(i=>validFootprint(i,industryFootprint(i.kind))&&i.x+industrySize(i)<=game.width&&i.y+industrySize(i)<=game.height))return false;
   if(!game.industries.every(i=>(i.lastProductionDay===undefined||finite(i.lastProductionDay,0,game.day))&&(i.nextProductionDay===undefined||(Number.isInteger(i.nextProductionDay)&&finite(i.nextProductionDay,0,Math.floor(game.day)+3)))&&(i.nextReviewDay===undefined||(Number.isInteger(i.nextReviewDay)&&finite(i.nextReviewDay,0,Math.floor(game.day)+45)))&&(i.totalProduced===undefined||finite(i.totalProduced,0,1e15))))return false;
   if(!game.stations.every(s=>validPoint(game,s)&&uniqueId(s)&&typeof s.name==='string'&&TRANSPORT_MODES.includes(s.mode)))return false;
   if(!game.zones.every(z=>validPoint(game,z)&&ZONE_TYPES.includes(z.kind)&&finite(z.progress,0,3)))return false;
+  // Only occupied cells need an index: even the largest world stays sparse.
+  // The anchor owns the building; child copies or intersecting sites are corrupt.
+  const occupied=new Map(),reserved=new Set([...game.cities,...game.stations].map(p=>p.y*game.width+p.x));
+  const claim=(x,y,size,kind,anchor)=>{
+    if(x+size>game.width||y+size>game.height)return false;
+    for(let dy=0;dy<size;dy++)for(let dx=0;dx<size;dx++){
+      const index=(y+dy)*game.width+x+dx,tile=game.tiles[index];
+      if(occupied.has(index)||reserved.has(index)||tile.road||tile.rail||tile.bridge||tile.tunnel||tile.terrain==='water')return false;
+      if(kind==='building'&&tile.terrain==='mountain')return false;
+      if(tile.zone&&(kind!=='building'||dx||dy))return false;
+      occupied.set(index,{kind,anchor});
+    }
+    return true;
+  };
+  const terrainSites=[];
+  for(let index=0;index<game.tiles.length;index++){
+    const building=game.tiles[index].building,object=game.tiles[index].terrainObject;
+    if(object!==undefined){
+      if(!object||!TERRAIN_OBJECT_KINDS.has(object.kind)||![2,3].includes(object.footprint)||typeof object.detail!=='string'||object.detail.length>=80||!Number.isInteger(object.variant))return false;
+      terrainSites.push({x:index%game.width,y:Math.floor(index/game.width),object});
+    }
+    if(building&&!claim(index%game.width,Math.floor(index/game.width),buildingSize(building),'building',index))return false;
+  }
+  for(const industry of game.industries){
+    if(industryTiles(industry).some(p=>game.tiles[p.y*game.width+p.x].terrain==='mountain'&&!INDUSTRIES[industry.kind].terrain?.includes('mountain')))return false;
+    if(!claim(industry.x,industry.y,industrySize(industry),'industry',industry.y*game.width+industry.x))return false;
+  }
+  for(const site of terrainSites){
+    const size=terrainObjectSize(site.object);
+    if(!terrainObjectGroundIsFlat(game,site.x,site.y,size))return false;
+    if(terrainObjectTiles(site).some(p=>game.tiles[p.y*game.width+p.x]?.terrain!==site.object.kind))return false;
+    if(!claim(site.x,site.y,size,'terrainObject',site.y*game.width+site.x))return false;
+  }
+  for(const zone of game.zones){const index=zone.y*game.width+zone.x,site=occupied.get(index);if(site&&(site.kind!=='building'||site.anchor!==index))return false;}
+
   if(!game.routes.every(r=>uniqueId(r)&&typeof r.name==='string'&&TRANSPORT_MODES.includes(r.mode)&&owns(CARGO,r.cargo)&&typeof r.active==='boolean'&&finite(r.delivered,0)&&finite(r.revenue,0)&&Array.isArray(r.stops)&&r.stops.length===2&&r.stops.every(id=>game.stations.some(s=>s.id===id&&s.mode===r.mode))&&Array.isArray(r.path)&&r.path.length>1&&r.path.length<=game.tiles.length&&r.path.every(p=>validPoint(game,p))))return false;
   if(!game.routes.every(route=>route.expenses===undefined||finite(route.expenses,0,1e15)))return false;
   if(!game.routes.every(route=>(route.accountingStartDay===undefined||finite(route.accountingStartDay,0,game.day))&&(route.revenueAtAccountingStart===undefined||finite(route.revenueAtAccountingStart,0,route.revenue))))return false;
@@ -654,10 +712,32 @@ export function saveGame(game) {
   try {if(typeof localStorage==='undefined')return result(false,'Saving is unavailable in this environment.');localStorage.setItem(SAVE_KEY,JSON.stringify(encodeGame(game)));return result(true,'Company saved on this device.');}
   catch{return result(false,'Could not save. Browser storage may be full or unavailable.');}
 }
+// Expand old compact art only into genuinely empty adjoining land. No relocation,
+// population changes, industry resets, or removal of a neighbor's construction.
+function expandRestoredSites(game) {
+  let changed=false;
+  for(let index=0;index<game.tiles.length;index++){
+    const building=game.tiles[index].building;if(!building)continue;
+    const size=buildingFootprint(building.kind);if(buildingSize(building)>=size)continue;
+    const site={x:index%game.width,y:Math.floor(index/game.width),building};
+    if(!buildingSiteProblem(game,building.kind,site.x,site.y,size,{exclude:site})){
+      placeBuildingSite(game,building.kind,site.x,site.y,{size,building,exclude:site});changed=true;
+    }
+  }
+  for(const industry of game.industries){
+    const size=industryFootprint(industry.kind);
+    if(industrySize(industry)<size&&!industrySiteProblem(game,industry.kind,industry.x,industry.y,size,industry)){
+      industry.footprint=size;releaseTerrainObjects(game,industryTiles(industry));changed=true;
+    }
+  }
+  if(changed)game.revision++;
+}
 // Shared hydration keeps autosaves and named saves on the same migration path.
 export function restoreGame(saved) {
   try {
     const game=decodeGame(saved);if(!validateGame(game))return null;
+    if(game.siteFootprintVersion!==1){expandRestoredSites(game);game.siteFootprintVersion=1;}
+    if(game.terrainObjectVersion!==1){allocateTerrainObjects(game);game.revision++;}
     game.networkRevision??=0;
     if(game.monthlyOperatingExpenses===undefined)game.monthlyIncomeAtAccountingStart=game.monthlyIncome;
     game.monthlyOperatingExpenses??=0;game.totalOperatingExpenses??=0;game.lastMonthlyOperatingProfit??=0;game.monthlyIncomeAtAccountingStart??=0;game.accountingStartDay??=game.day;

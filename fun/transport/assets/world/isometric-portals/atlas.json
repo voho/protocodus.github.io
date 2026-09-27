@@ -1,0 +1,326 @@
+{
+  "columns": 3,
+  "rows": 3,
+  "cellSizes": [
+    16,
+    32,
+    64,
+    128
+  ],
+  "masterCell": 256,
+  "vehicleLengthNormalized": false,
+  "order": [
+    "road-e",
+    "road-s",
+    "road-w",
+    "road-n",
+    "rail-e",
+    "rail-s",
+    "rail-w",
+    "rail-n",
+    null
+  ],
+  "source": "source-packed.png",
+  "sourceSha256": "89df13f7a522ecdc1999ea6a3ebfeab45f39e40139a10da00237a9ac41ee80a9",
+  "sprites": [
+    {
+      "id": "road-e",
+      "cell": 0,
+      "sourceBounds": [
+        0,
+        0,
+        640,
+        640
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          139,
+          149,
+          484,
+          492
+        ],
+        "rawAlphaBounds": [
+          110,
+          148,
+          528,
+          524
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.802786
+      },
+      "bounds": [
+        12,
+        13,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "road-s",
+      "cell": 1,
+      "sourceBounds": [
+        640,
+        0,
+        1280,
+        640
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          157,
+          155,
+          491,
+          492
+        ],
+        "rawAlphaBounds": [
+          112,
+          146,
+          525,
+          525
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.806729
+      },
+      "bounds": [
+        13,
+        12,
+        243,
+        244
+      ]
+    },
+    {
+      "id": "road-w",
+      "cell": 2,
+      "sourceBounds": [
+        1280,
+        0,
+        1920,
+        640
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          147,
+          226,
+          511,
+          499
+        ],
+        "rawAlphaBounds": [
+          110,
+          155,
+          513,
+          525
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.828931
+      },
+      "bounds": [
+        12,
+        70,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "road-n",
+      "cell": 3,
+      "sourceBounds": [
+        0,
+        640,
+        640,
+        1280
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          127,
+          196,
+          507,
+          480
+        ],
+        "rawAlphaBounds": [
+          104,
+          111,
+          535,
+          515
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.814011
+      },
+      "bounds": [
+        12,
+        71,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "rail-e",
+      "cell": 4,
+      "sourceBounds": [
+        640,
+        640,
+        1280,
+        1280
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          143,
+          137,
+          483,
+          487
+        ],
+        "rawAlphaBounds": [
+          114,
+          114,
+          523,
+          495
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.804729
+      },
+      "bounds": [
+        15,
+        12,
+        240,
+        244
+      ]
+    },
+    {
+      "id": "rail-s",
+      "cell": 5,
+      "sourceBounds": [
+        1280,
+        640,
+        1920,
+        1280
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          158,
+          137,
+          508,
+          489
+        ],
+        "rawAlphaBounds": [
+          132,
+          114,
+          513,
+          493
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.790359
+      },
+      "bounds": [
+        12,
+        12,
+        243,
+        244
+      ]
+    },
+    {
+      "id": "rail-w",
+      "cell": 6,
+      "sourceBounds": [
+        0,
+        1280,
+        640,
+        1920
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          140,
+          146,
+          478,
+          468
+        ],
+        "rawAlphaBounds": [
+          131,
+          114,
+          520,
+          471
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.807466
+      },
+      "bounds": [
+        12,
+        23,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "rail-n",
+      "cell": 7,
+      "sourceBounds": [
+        640,
+        1280,
+        1280,
+        1920
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          147,
+          150,
+          494,
+          465
+        ],
+        "rawAlphaBounds": [
+          109,
+          114,
+          540,
+          489
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.808479
+      },
+      "bounds": [
+        12,
+        33,
+        244,
+        244
+      ]
+    },
+    {
+      "id": null
+    }
+  ]
+}

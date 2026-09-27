@@ -1,0 +1,18 @@
+{
+  "tool": "Built-in image_gen",
+  "date": "2026-09-27",
+  "transparent_background": true,
+  "images": [
+    {
+      "family": "nature-mountains",
+      "prompt": "Use case: style-transfer. Edit this existing nine-cell terrain atlas to the SAME fixed 2:1 DIMETRIC camera as our new isometric Transport game. Lower the camera from the near-overhead source to 30-degree elevation and45-degree azimuth. Horizontal ground axes slope ±26.565 degrees. Orthographic, no perspective convergence. Preserve EXACT3columns3rows, all9ordered identities, muted realistic painted fine material, soft northwest upper-left light, subtle contact shadows, TRUE zero-alpha transparency and generous clear gutters. No text, no grid, no square pedestals, no dramatic white rims, no thick black outlines. Outcrops must remain small low geological details on larger rendered hills, never large stand-alone miniature mountains. Each cell has complete object with broken tapering fragment edges. Row1: fractured low gray granite ridge; mossy wooded foothill rocky outcrop without trees; broad granite crown. Row2: cold rocky crest with patchy melting snow; low blue-gray glacier tongue with moraine edge and subtle flow grooves, low enough to merge into ground; frost-fractured ridge with intermittent snow. Row3: low flat-topped muted tan mesa ledge; squat eroded sandstone butte; broken canyon sandstone ledges. Change only camera/geometry to genuine dimetric view; preserve original identities, low relief, subtle material and climate.",
+      "source": "nature-mountains/source-isometric.png"
+    },
+    {
+      "family": "nature-rocks",
+      "prompt": "Use case: style-transfer. Edit this existing nine-cell terrain atlas to the SAME fixed 2:1 DIMETRIC camera as our new isometric Transport game. Lower the camera from the near-overhead source to 30-degree elevation and45-degree azimuth. Horizontal ground axes slope ±26.565 degrees. Orthographic, no perspective convergence. Preserve EXACT3columns3rows, all9ordered identities, muted realistic painted fine material, soft northwest upper-left light, subtle contact shadows, TRUE zero-alpha transparency and generous clear gutters. No text, no grid, no square pedestals, no dramatic white rims, no thick black outlines. Outcrops must remain small low geological details on larger rendered hills, never large stand-alone miniature mountains. Each cell has complete object with broken tapering fragment edges. Row1: partly buried gray weathered granite boulders with tiny moss; sparse small gray scree fragments; cold gray glacial boulders with sparse melting snow. Row2: thin dirty offwhite melting snow patch with pebbles; low beige sandstone outcrop; thin subdued windblown sand ripples. Row3: thin warm-gray salt crust; partly buried desaturated ochre sandstone strata; thin muted blue-gray cracked ice. Keep flat patches flat and boulders modest; no tallpedestals. Each ground footprint appears as a low irregular 2:1 diamond in the fixed camera. Preserve natural brokenedges.",
+      "source": "nature-rocks/source-isometric.png"
+    }
+  ],
+  "packing": "Lossless RGBA registration: disconnected alpha components for mountains, transparent gutters for rocks. The existing premultiplied-alpha atlas packer creates 256px masters and 16/32/64/128px mipmaps."
+}

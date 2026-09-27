@@ -79,9 +79,9 @@ try {
     return { stats: q.houses.getHouseAssetStats('desert'), draw: q.calls.at(-1) };
   });
   assert.equal(partial.stats.activeBiome, 'desert');
-  assert.deepEqual(partial.stats.lodCellSizes, [16,32,64]);
-  assert.equal(partial.stats.lastCellSize, 64, 'a missing close-up density uses healthy generated art');
-  assert.match(partial.draw.src, /desert\/house-atlas-64\.png$/);
+  assert.deepEqual(partial.stats.lodCellSizes, [16,32,64,256]);
+  assert.equal(partial.stats.lastCellSize, 256, 'a missing close-up density uses the healthy full-resolution master');
+  assert.match(partial.draw.src, /desert\/house-atlas\.png$/);
   missingDensity = false;
   const recovered = await partialPage.evaluate(async () => {
     const q = artQA; await q.houses.preloadHouses({ retry: true });
@@ -89,7 +89,7 @@ try {
     return { stats: q.houses.getHouseAssetStats('desert'), replaced: after !== q.before };
   });
   assert.equal(recovered.replaced, true, 'recovered artwork invalidates existing sprite caches');
-  assert.deepEqual(recovered.stats.lodCellSizes, [16,32,64,128]);
+  assert.deepEqual(recovered.stats.lodCellSizes, [16,32,64,128,256]);
   assert.deepEqual(recovered.stats.errors, {});
   assert.equal(recovered.stats.lastCellSize, 128);
   for (const [path, count] of houseRequests) assert.equal(count, path.endsWith('/desert/house-atlas-128.png') ? 2 : 1, 'retry preserves all already decoded house densities');

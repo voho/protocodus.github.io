@@ -7,6 +7,7 @@ export function emptyGame(biome = 'taiga') {
     detail: '', publicRoad: false,
     road: false, rail: false, bridge: false, tunnel: false, building: null, zone: null,
   });
+  for (const tile of game.tiles) delete tile.terrainObject;
   for (const key of ['cities', 'industries', 'stations', 'routes', 'vehicles', 'zones']) game[key] = [];
   game.money = 1_000_000;
   game.revision++;

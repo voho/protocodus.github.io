@@ -74,6 +74,8 @@ body{font-size:13px}
 .building-card{min-height:151px;padding:0 10px 12px}
 .building-card canvas{height:82px}
 .building-card .building-tier{font-size:12px;text-transform:none;letter-spacing:0;color:#607550}
+.building-price{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.building-price small{font-size:12px;white-space:nowrap;color:#607550}
 .building-card strong{font-size:13px;line-height:1.35;min-height:0}
 .building-price{font-size:12px;color:#66795b;margin-top:6px}
 .route-card,.entity-card{padding:14px;margin-bottom:11px}

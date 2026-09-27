@@ -2,9 +2,11 @@ import { residentialKind, commercialKind } from './buildings.js';
 import { hasRasterHouse, houseWindowAnchors } from './raster-houses.js';
 import { hasRasterIndustry, rasterIndustryWindows } from './raster-industries.js';
 import { industrySize } from './industry-sites.js';
+import { buildingSize } from './building-sites.js';
 import { hasRasterBuilding, rasterBuildingWindows } from './raster-buildings.js';
-import { vehicleHeadingIndex } from './vehicle-directions.js';
+import { vehicleHeadingIndex, vehicleFrameAngle } from './vehicle-directions.js';
 import { isEngineeredTunnel, isUndergroundAt } from './structure-visibility.js';
+import { isometricStationLights } from './isometric-infrastructure.js';
 
 const TAU = Math.PI * 2;
 const clamp = value => Math.max(0, Math.min(1, value));
@@ -28,7 +30,7 @@ export function createLighting() {
     context.fillStyle = gradient; context.fillRect(0, 0, 64, 64); glows.set(color, image); return image;
   }
 
-  return function drawLighting(c, { game, layers, camera, width, height, bounds, industryIndex, stationIndex, routesById }) {
+  return function drawLighting(c, { game, layers, camera, width, height, bounds, industryIndex, stationIndex, routesById, project: worldToScreen, projected = false }) {
     if (layers.lighting === false) return;
     const state = daylightAt(game.day), night = state.night;
     if (night === 0 && state.dusk === 0) return;
@@ -36,7 +38,7 @@ export function createLighting() {
     if (state.dusk > 0) { c.fillStyle = `rgba(177,115,67,${state.dusk * .085})`; c.fillRect(0, 0, width, height); }
     if (night <= 0) { c.restore(); return; }
     c.fillStyle = `rgba(18,29,61,${night * .47})`; c.fillRect(0, 0, width, height);
-    const zoom = camera.zoom, project = (x, y) => ({ x: ((x + .5) * 32 - camera.x) * zoom + width / 2, y: ((y + .5) * 32 - camera.y) * zoom + height / 2 });
+    const zoom = camera.zoom, project = worldToScreen || ((x, y) => ({ x: ((x + .5) * 32 - camera.x) * zoom + width / 2, y: ((y + .5) * 32 - camera.y) * zoom + height / 2 }));
     const tile = (x, y) => x >= 0 && y >= 0 && x < game.width && y < game.height ? game.tiles[y * game.width + x] : null;
     const visible = p => p.x > -45 && p.y > -45 && p.x < width + 45 && p.y < height + 45;
     const glow = (x, y, radius, color = '#ffce83', power = 1) => { c.globalAlpha = night * power; c.drawImage(glowImage(color), x - radius, y - radius, radius * 2, radius * 2); c.globalAlpha = 1; };
@@ -49,13 +51,18 @@ export function createLighting() {
         if(industry&&(industry.x!==x||industry.y!==y))continue;
         const kind = ['house', 'apartment'].includes(legacy) ? residentialKind(t.variant ?? x * 13 + y, t.building.level || 1) : ['shop', 'office'].includes(legacy) ? commercialKind(t.variant ?? x * 13 + y, t.building.level || 1) : legacy;
         const zoneFactory=kind==='factory'?(game.biome==='tundra'?'equipment-factory':game.biome==='desert'?'goods-factory':'furniture-factory'):null;
-        const raster = industry ? hasRasterIndustry(industry.kind,game.biome) : zoneFactory?hasRasterIndustry(zoneFactory,game.biome):hasRasterHouse(kind, game.biome)||hasRasterBuilding(kind,game.biome),span=industrySize(industry);
+        const raster = industry ? hasRasterIndustry(industry.kind,game.biome) : zoneFactory?hasRasterIndustry(zoneFactory,game.biome):hasRasterHouse(kind, game.biome)||hasRasterBuilding(kind,game.biome),span=industry?industrySize(industry):buildingSize(t.building);
         const windows = raster ? industry?rasterIndustryWindows(industry.kind,game.biome):zoneFactory?rasterIndustryWindows(zoneFactory,game.biome):hasRasterHouse(kind,game.biome)?houseWindowAnchors(kind,game.biome):rasterBuildingWindows(kind,game.biome) : null, count = raster ? windows.length : industry ? 3 : 1 + hash % 3;
+        // Buildings remain upright, including their authored window panes. Only
+        // the footprint center is projected; shearing panes would light roofs.
+        const center = projected ? project(x + (span - 1) / 2, y + (span - 1) / 2) : p;
+        const artScale = projected ? 1.5 : 1;
+        const originX = projected ? 24 * span : 16, originY = projected ? 36 * span : 16;
         for (let n = 0; n < count; n++) {
-          const wx0 = raster ? windows[n][0]*span : 8 + n * 5 + hash % 3, wy0 = raster ? windows[n][1]*span : industry ? 20 : 19 + hash % 3;
-          const wx = p.x + (wx0 - 16) * zoom, wy = p.y + (wy0 - 16) * zoom;
+          const wx0 = raster ? windows[n][0]*span : (8 + n * 5 + hash % 3) * span, wy0 = raster ? windows[n][1]*span : (industry ? 20 : 19 + hash % 3) * span;
+          const wx = center.x + (wx0 * artScale - originX) * zoom, wy = center.y + (wy0 * artScale - originY) * zoom;
           if (raster) {
-            const w = windows[n][2] * zoom*span, h = windows[n][3] * zoom*span, cx = wx + w / 2, cy = wy + h / 2;
+            const w = windows[n][2] * zoom*span*artScale, h = windows[n][3] * zoom*span*artScale, cx = wx + w / 2, cy = wy + h / 2;
             const visibleW = Math.max(.8, w), visibleH = Math.max(.8, h);
             glow(cx, cy, Math.max(3.5, 5 * zoom), '#ffd28b', .82);
             // Translucent light keeps the generated glazing and mullions visible.
@@ -67,28 +74,43 @@ export function createLighting() {
         }
       }
       if (layers.roads && t.road && !isEngineeredTunnel(t) && hash % 11 === 0) {
-        const lx = p.x + 9 * zoom, ly = p.y - 5 * zoom;
+        const roadside = projected ? project(x + 9 / 32, y) : { x: p.x + 9 * zoom, y: p.y };
+        const lx = roadside.x, ly = roadside.y - 5 * zoom;
         glow(lx, ly, Math.max(5, 14 * zoom), '#ffcf82', .68); bulb(lx, ly, .9);
         c.globalAlpha = night * .55; c.strokeStyle = '#cfb478'; c.lineWidth = Math.max(.6, .7 * zoom); c.beginPath(); c.moveTo(lx, ly); c.lineTo(lx, ly + 5 * zoom); c.stroke(); c.globalAlpha = 1;
       }
       const station = layers.stations && stationIndex.get(id);
       if (station) {
-        if (station.mode === 'water') {
+        if (projected) {
+          const port = station.mode === 'water';
+          const shore = port ? [[-1, 0], [0, -1], [1, 0], [0, 1]].find(([dx, dy]) => tile(x + dx, y + dy) && tile(x + dx, y + dy).terrain !== 'water') || [-1, 0] : [0, 0];
+          for (const [sx, sy, sw, sh] of isometricStationLights(station.mode, ...shore)) {
+            const w = sw * zoom, h = sh * zoom, lx = p.x + ((port ? 0 : 11) + sx) * zoom + w / 2, ly = p.y + ((port ? 0 : 2) + sy) * zoom + h / 2;
+            glow(lx, ly, Math.max(4, 8 * zoom), '#ffd493', .75);
+            c.globalAlpha = night * .85; c.fillStyle = '#ffe1a1';
+            c.fillRect(lx - Math.max(.8, w) / 2, ly - Math.max(.8, h) / 2, Math.max(.8, w), Math.max(.8, h)); c.globalAlpha = 1;
+          }
+        } else if (station.mode === 'water') {
           const shore = [[-1, 0], [0, -1], [1, 0], [0, 1]].find(([dx, dy]) => tile(x + dx, y + dy) && tile(x + dx, y + dy).terrain !== 'water') || [-1, 0];
           const angle = Math.atan2(shore[1], shore[0]) - Math.PI, cosine = Math.cos(angle), sine = Math.sin(angle);
           for (const [dx, dy] of [[12, 9], [-15, -13], [-20, 10]]) {
-            const lx = p.x + (dx * cosine - dy * sine) * zoom, ly = p.y + (dx * sine + dy * cosine) * zoom;
+            const rx = dx * cosine - dy * sine, ry = dx * sine + dy * cosine;
+            const lamp = { x: p.x + rx * zoom, y: p.y + ry * zoom };
+            const lx = lamp.x, ly = lamp.y;
             glow(lx, ly, Math.max(5, 13 * zoom), '#ffd493', .8); bulb(lx, ly, .85);
             c.globalAlpha = night * .21; c.fillStyle = '#eac589'; c.fillRect(lx - zoom, ly + 4 * zoom, Math.max(1, 2 * zoom), 4 * zoom); c.fillRect(lx - 1.5 * zoom, ly + 10 * zoom, Math.max(1, 3 * zoom), 1.5 * zoom); c.globalAlpha = 1;
           }
-        } else { glow(p.x + 9 * zoom, p.y - 7 * zoom, Math.max(4, 10 * zoom), '#ffdf9c', .7); bulb(p.x + 9 * zoom, p.y - 7 * zoom); }
+        } else { const ly = p.y - (projected ? 17 : 7) * zoom; glow(p.x + 9 * zoom, ly, Math.max(4, 10 * zoom), '#ffdf9c', .7); bulb(p.x + 9 * zoom, ly); }
       }
     }
     if (layers.vehicles) for (const vehicle of game.vehicles || []) {
       const route = routesById.get(vehicle.routeId), p = project(vehicle.x, vehicle.y); if (!route || !visible(p) || (route.mode !== 'water' && isUndergroundAt(game, vehicle.x, vehicle.y))) continue;
-      const angle = vehicleHeadingIndex(vehicle.angle) * Math.PI / 4, cosine = Math.cos(angle), sine = Math.sin(angle), ship = route.mode === 'water';
+      const worldAngle = Number.isFinite(vehicle.angle) ? vehicle.angle : 0, worldCosine = Math.cos(worldAngle), worldSine = Math.sin(worldAngle);
+      const forward = projected ? project(vehicle.x + worldCosine, vehicle.y + worldSine) : null;
+      const angle = forward ? vehicleFrameAngle(Math.atan2(forward.y - p.y, forward.x - p.x)) : vehicleHeadingIndex(worldAngle) * Math.PI / 4, cosine = Math.cos(angle), sine = Math.sin(angle), ship = route.mode === 'water';
       const point = (dx, dy) => ({ x: p.x + (dx * cosine - dy * sine) * zoom, y: p.y + (dx * sine + dy * cosine) * zoom });
-      const underBridge = (dx, dy) => { const t = tile(Math.floor(vehicle.x + .5 + (dx * cosine - dy * sine) / 32), Math.floor(vehicle.y + .5 + (dx * sine + dy * cosine) / 32)); return ship && t?.bridge && ((layers.roads && t.road) || (layers.rails && t.rail)); };
+      // Occlusion belongs to the world grid, not the vehicle's screen heading.
+      const underBridge = (dx, dy) => { const t = tile(Math.floor(vehicle.x + .5 + (dx * worldCosine - dy * worldSine) / 32), Math.floor(vehicle.y + .5 + (dx * worldSine + dy * worldCosine) / 32)); return ship && t?.bridge && ((layers.roads && t.road) || (layers.rails && t.rail)); };
       const nose = ship ? 18 : 8, head = point(nose, 0);
       if (!underBridge(nose, 0)) {
         c.save(); c.translate(head.x, head.y); c.rotate(angle); c.globalAlpha = night * (ship ? .34 : .55);

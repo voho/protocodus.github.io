@@ -1,10 +1,11 @@
 import { terrainLevel, TERRAIN_LEVELS } from './terrain-elevation.js';
 import { industryContains } from './industry-sites.js';
+import { buildingAt } from './building-sites.js';
 
 export const SPAN_TOOLS = new Set(['bridge', 'railbridge', 'tunnel', 'railtunnel']);
 const tileAt = (game, x, y) => Number.isInteger(x) && Number.isInteger(y) && x >= 0 && y >= 0 && x < game.width && y < game.height ? game.tiles[y * game.width + x] : null;
 const at = (point, x, y) => point.x === x && point.y === y;
-const occupied = (game, x, y) => game.industries.some(i => industryContains(i, x, y)) || game.cities.some(c => at(c, x, y));
+const occupied = (game, x, y) => buildingAt(game, x, y) || game.industries.some(i => industryContains(i, x, y)) || game.cities.some(c => at(c, x, y));
 
 export function terraformProblem(game, tool, x, y) {
   const tile = tileAt(game, x, y);

@@ -23,6 +23,7 @@ async function install(page) {
     const model = await import('./model.js'), { createSprites } = await import('./sprites.js'), { createRenderer } = await import('./renderer.js');
     const assets = await import('./atlas-runtime.js'), buildings = await import('./raster-buildings.js'), industries = await import('./raster-industries.js');
     const houses = await import('./raster-houses.js'), identities = await import('./buildings.js');
+    const { buildingSize } = await import('./building-sites.js');
     const { drawRasterNature } = await import('./raster-nature.js'), { BIOME_NATURE } = await import('./terrain-sprites.js');
     const canvas = document.createElement('canvas'); canvas.id = 'art-world'; canvas.style.cssText = 'width:1200px;height:760px;display:block';
     const panel = document.createElement('section'); panel.id = 'art-qa'; panel.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#eef0e0;padding:18px;overflow:auto;font:16px system-ui';
@@ -33,7 +34,7 @@ async function install(page) {
       const renderer = createRenderer(canvas, game, { layers: { lighting: true, names: true, industryIcons: true, routes: false } });
       renderer.focus(game.cities[0].x, game.cities[0].y); renderer.render(0); return { game, renderer };
     };
-    window.artQA = { model, createSprites, createRenderer, assets, buildings, industries, houses, identities, drawRasterNature, BIOME_NATURE, canvas, hash, setup };
+    window.artQA = { model, createSprites, createRenderer, assets, buildings, industries, houses, identities, buildingSize, drawRasterNature, BIOME_NATURE, canvas, hash, setup };
   });
 }
 async function emptyPage(context) {
@@ -53,7 +54,7 @@ try {
     if (dpr === 1) {
       const target = await page.evaluate(() => { const industry = transport.game.industries.find(site => site.footprint === 2); transport.setTool('inspect'); transport.renderer.setZoom(2); transport.renderer.focus(industry.x + .5, industry.y + .5); return industry; });
       for (const [dx, dy] of [[0,0], [1,0], [0,1], [1,1]]) {
-        const point = await page.evaluate(({ target, dx, dy }) => { const r = document.querySelector('#world').getBoundingClientRect(), c = transport.renderer.getCamera(); return { x: r.left + r.width / 2 + ((target.x + dx + .5) * 32 - c.x) * c.zoom, y: r.top + r.height / 2 + ((target.y + dy + .5) * 32 - c.y) * c.zoom }; }, { target, dx, dy });
+        const point = await page.evaluate(({ target, dx, dy }) => { const r = document.querySelector('#world').getBoundingClientRect(), p = transport.renderer.worldToScreen(target.x + dx, target.y + dy); return { x: r.left + p.x, y: r.top + p.y }; }, { target, dx, dy });
         await page.mouse.click(point.x, point.y);
         assert.equal(await page.locator('#inspector h3').textContent(), target.name, 'each of the four visible site tiles opens the same industry');
       }
@@ -151,8 +152,9 @@ try {
           if(['house','apartment'].includes(kind))kind=q.identities.residentialKind(t.variant??x*13+y,t.building.level||1);
           if(['shop','office'].includes(kind))kind=q.identities.commercialKind(t.variant??x*13+y,t.building.level||1);
           const panes=q.houses.hasRasterHouse(kind,q.game.biome)?q.houses.houseWindowAnchors(kind,q.game.biome):q.buildings.rasterBuildingWindows(kind,q.game.biome);
+          const span=q.buildingSize(t.building),center=r.worldToScreen(x+(span-1)/2,y+(span-1)/2);
           for(const [wx,wy,w,h] of panes){
-            const px=Math.floor(((x*32+wx+w/2-camera.x)*camera.zoom+600)*devicePixelRatio),py=Math.floor(((y*32+wy+h/2-camera.y)*camera.zoom+380)*devicePixelRatio);
+            const px=Math.floor((center.x+(wx+w/2-16)*1.5*span*camera.zoom)*devicePixelRatio),py=Math.floor((center.y+(wy+h/2-24)*1.5*span*camera.zoom)*devicePixelRatio);
             if(px<0||py<0||px>=q.canvas.width||py>=q.canvas.height)continue;const i=(py*q.canvas.width+px)*4;sampled++;
             if(dark[i]>day[i]*.53+18*.47+18)lit++;
           }

@@ -1,0 +1,119 @@
+{
+  "source": "fun/transport/assets/world/industries-tundra/source-isometric.png",
+  "sourceSize": [
+    1254,
+    1254
+  ],
+  "cell": 640,
+  "operation": "RGBA crop and integer translation only",
+  "cells": [
+    {
+      "sourceCrop": [
+        0,
+        0,
+        425,
+        456
+      ],
+      "integerOffset": [
+        107,
+        92
+      ]
+    },
+    {
+      "sourceCrop": [
+        425,
+        0,
+        836,
+        456
+      ],
+      "integerOffset": [
+        114,
+        92
+      ]
+    },
+    {
+      "sourceCrop": [
+        836,
+        0,
+        1254,
+        456
+      ],
+      "integerOffset": [
+        111,
+        92
+      ]
+    },
+    {
+      "sourceCrop": [
+        0,
+        456,
+        432,
+        841
+      ],
+      "integerOffset": [
+        104,
+        127
+      ]
+    },
+    {
+      "sourceCrop": [
+        432,
+        456,
+        829,
+        841
+      ],
+      "integerOffset": [
+        121,
+        127
+      ]
+    },
+    {
+      "sourceCrop": [
+        829,
+        456,
+        1254,
+        841
+      ],
+      "integerOffset": [
+        107,
+        127
+      ]
+    },
+    {
+      "sourceCrop": [
+        0,
+        841,
+        424,
+        1254
+      ],
+      "integerOffset": [
+        108,
+        113
+      ]
+    },
+    {
+      "sourceCrop": [
+        424,
+        841,
+        833,
+        1254
+      ],
+      "integerOffset": [
+        115,
+        113
+      ]
+    },
+    {
+      "sourceCrop": [
+        833,
+        841,
+        1254,
+        1254
+      ],
+      "integerOffset": [
+        109,
+        113
+      ]
+    }
+  ]
+}

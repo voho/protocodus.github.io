@@ -1,0 +1,119 @@
+{
+  "source": "fun/transport/assets/world/industries-desert/source-isometric.png",
+  "sourceSize": [
+    1254,
+    1254
+  ],
+  "cell": 640,
+  "operation": "RGBA crop and integer translation only",
+  "cells": [
+    {
+      "sourceCrop": [
+        0,
+        0,
+        431,
+        441
+      ],
+      "integerOffset": [
+        104,
+        99
+      ]
+    },
+    {
+      "sourceCrop": [
+        431,
+        0,
+        834,
+        441
+      ],
+      "integerOffset": [
+        118,
+        99
+      ]
+    },
+    {
+      "sourceCrop": [
+        834,
+        0,
+        1254,
+        441
+      ],
+      "integerOffset": [
+        110,
+        99
+      ]
+    },
+    {
+      "sourceCrop": [
+        0,
+        441,
+        412,
+        856
+      ],
+      "integerOffset": [
+        114,
+        112
+      ]
+    },
+    {
+      "sourceCrop": [
+        412,
+        441,
+        835,
+        856
+      ],
+      "integerOffset": [
+        108,
+        112
+      ]
+    },
+    {
+      "sourceCrop": [
+        835,
+        441,
+        1254,
+        856
+      ],
+      "integerOffset": [
+        110,
+        112
+      ]
+    },
+    {
+      "sourceCrop": [
+        0,
+        856,
+        421,
+        1254
+      ],
+      "integerOffset": [
+        109,
+        121
+      ]
+    },
+    {
+      "sourceCrop": [
+        421,
+        856,
+        833,
+        1254
+      ],
+      "integerOffset": [
+        114,
+        121
+      ]
+    },
+    {
+      "sourceCrop": [
+        833,
+        856,
+        1254,
+        1254
+      ],
+      "integerOffset": [
+        109,
+        121
+      ]
+    }
+  ]
+}

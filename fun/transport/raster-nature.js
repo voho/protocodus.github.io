@@ -24,14 +24,14 @@ const RELIEF_NEIGHBORS = {
 const ROCKS = ['taiga-boulder','taiga-scree','tundra-glacial','tundra-snow','desert-boulder','desert-dunes','desert-salt','desert-strata','tundra-ice'];
 for (const [biome, kinds] of Object.entries(TREE_KINDS)) {
   const id = `nature-trees-${biome}`;
-  registerAtlas({ id, path: `./assets/world/${id}/atlas`, columns: 3, rows: 3, entries: kinds.map(kind => `${id}:${kind}`) });
+  registerAtlas({ id, path: `./assets/world/${id}/atlas`, columns: 3, rows: 3, maxCell: 256, entries: kinds.map(kind => `${id}:${kind}`) });
 }
 for (const [biome, kinds] of Object.entries(GROUND_KINDS)) {
   const id = `nature-ground-${biome}`;
   registerAtlas({ id, path: `./assets/world/${id}/atlas`, columns: 3, rows: 3, entries: kinds.map(kind => `${id}:${kind}`) });
 }
-registerAtlas({ id: 'nature-mountains', path: './assets/world/nature-mountains/atlas', columns: 3, rows: 3, entries: MOUNTAINS.map(kind => `nature-mountains:${kind}`) });
-registerAtlas({ id: 'nature-rocks', path: './assets/world/nature-rocks/atlas', columns: 3, rows: 3, entries: ROCKS.map(kind => `nature-rocks:${kind}`) });
+registerAtlas({ id: 'nature-mountains', path: './assets/world/nature-mountains/atlas', columns: 3, rows: 3, maxCell: 256, entries: MOUNTAINS.map(kind => `nature-mountains:${kind}`) });
+registerAtlas({ id: 'nature-rocks', path: './assets/world/nature-rocks/atlas', columns: 3, rows: 3, maxCell: 256, entries: ROCKS.map(kind => `nature-rocks:${kind}`) });
 
 const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
 const wrap = value => ((Math.floor(value) || 0) % 64 + 64) % 64;
@@ -71,6 +71,52 @@ function groundID(detail, biome, variant = 0) {
   // palettes. Keep each exact detail visible rather than silently erasing it.
   for (const [sourceBiome, kinds] of Object.entries(GROUND_KINDS)) if (kinds.includes(detail)) return `nature-ground-${sourceBiome}:${detail}`;
   return null;
+}
+
+// The footprint grows along the ground axes. Tree height remains a mature-tree
+// height instead of stretching a one-tile grove into a tower of foliage.
+export function natureObjectLayout(footprint) {
+  const span = clamp(Math.floor(footprint) || 2, 2, 3);
+  return { width: 64 * span, height: 64 * span, anchorX: 32 * span, anchorY: 48 * span };
+}
+
+export function drawRasterNatureObject(c, kind, biome, rawDetail, variant, footprint, pixelScale = 1) {
+  if (!TREE_KINDS[biome]) biome = 'taiga';
+  const span = clamp(Math.floor(footprint) || 2, 2, 3), v = wrap(variant), r = random(seedFor(biome, rawDetail, v)), layout = natureObjectLayout(span);
+  if (kind === 'forest') {
+    const species = forestComposition(biome, rawDetail, v), trees = [], extent = span - .85;
+    const count = span === 2 ? 6 + v % 3 : 11 + v % 5;
+    // Jittered cells and a minimum spacing create an irregular open grove, with
+    // distinct trunks and gaps all the way to the front edge of the parcel.
+    for (let i = 0; i < count; i++) {
+      let u, w;
+      for (let attempt = 0; attempt < 20; attempt++) {
+        u = (r() - .5) * extent; w = (r() - .5) * extent;
+        if (trees.every(tree => Math.hypot(tree.u - u, tree.w - w) > .28)) break;
+      }
+      const template = species[i % species.length], size = 27 + r() * 15;
+      trees.push({ ...template, seed: template.seed + i * 17, size, u, w,
+        x: layout.anchorX + (u - w) * 32,
+        y: layout.anchorY + (u + w) * 16 });
+    }
+    if (!trees.every(tree => atlasAvailable(treeID(tree, biome)))) return false;
+    for (const tree of trees.sort((a, b) => a.y - b.y)) drawTree(c, tree, biome, pixelScale);
+    return true;
+  }
+  let id;
+  if (kind === 'mountain') {
+    let detail = rawDetail === 'bare-foothill' ? 'wooded-foothill' : rawDetail;
+    if (!MOUNTAINS.includes(detail)) detail = biome === 'desert' ? 'mesa' : biome === 'tundra' ? 'frost-ridge' : 'granite-ridge';
+    id = `nature-mountains:${detail}`;
+  } else if (kind === 'rock') {
+    const detail = normalizedDetail(rawDetail), rock = biome === 'tundra'
+      ? detail === 'snow' ? 'tundra-snow' : detail === 'ice' ? 'tundra-ice' : 'tundra-glacial'
+      : biome === 'desert' ? detail === 'saltflat' ? 'desert-salt' : detail === 'dunes' ? 'desert-dunes' : v % 3 ? 'desert-boulder' : 'desert-strata'
+      : v % 4 ? 'taiga-boulder' : 'taiga-scree';
+    id = `nature-rocks:${rock}`;
+  } else return false;
+  const size = (kind === 'mountain' ? 60 : 56) * span;
+  return drawAtlas(c, id, layout.anchorX - size / 2, layout.anchorY + 14 * span - size, size, size, { pixelScale, flipX: v % 2 === 1 });
 }
 
 export function drawRasterNature(c, kind, biome = 'taiga', rawDetail = '', variant = 0, pixelScale = 1, { density = 1 } = {}) {

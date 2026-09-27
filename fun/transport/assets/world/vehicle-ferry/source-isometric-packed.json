@@ -1,0 +1,119 @@
+{
+  "source": "fun/transport/assets/world/vehicle-ferry/source-isometric.png",
+  "sourceSize": [
+    1254,
+    1254
+  ],
+  "cell": 640,
+  "operation": "RGBA crop and integer translation only",
+  "cells": [
+    {
+      "sourceCrop": [
+        0,
+        0,
+        436,
+        426
+      ],
+      "integerOffset": [
+        102,
+        107
+      ]
+    },
+    {
+      "sourceCrop": [
+        436,
+        0,
+        818,
+        426
+      ],
+      "integerOffset": [
+        129,
+        107
+      ]
+    },
+    {
+      "sourceCrop": [
+        818,
+        0,
+        1254,
+        426
+      ],
+      "integerOffset": [
+        102,
+        107
+      ]
+    },
+    {
+      "sourceCrop": [
+        0,
+        426,
+        448,
+        815
+      ],
+      "integerOffset": [
+        96,
+        125
+      ]
+    },
+    {
+      "sourceCrop": [
+        448,
+        426,
+        806,
+        815
+      ],
+      "integerOffset": [
+        141,
+        125
+      ]
+    },
+    {
+      "sourceCrop": [
+        806,
+        426,
+        1254,
+        815
+      ],
+      "integerOffset": [
+        96,
+        125
+      ]
+    },
+    {
+      "sourceCrop": [
+        0,
+        815,
+        436,
+        1254
+      ],
+      "integerOffset": [
+        102,
+        100
+      ]
+    },
+    {
+      "sourceCrop": [
+        436,
+        815,
+        818,
+        1254
+      ],
+      "integerOffset": [
+        129,
+        100
+      ]
+    },
+    {
+      "sourceCrop": [
+        818,
+        815,
+        1254,
+        1254
+      ],
+      "integerOffset": [
+        102,
+        100
+      ]
+    }
+  ]
+}

@@ -20,7 +20,7 @@ try {
       await art.preloadWorldArt({ waitMs: 12000 });
       const game = createGame({ size: 'regional', seed: 418 });
       for (const key of ['cities', 'industries', 'stations', 'vehicles', 'routes', 'zones']) game[key] = [];
-      for (const t of game.tiles) Object.assign(t, { terrain: 'grass', elevation: .25, detail: '', building: null, zone: null, road: false, rail: false, bridge: false, tunnel: false });
+      for (const t of game.tiles) { delete t.terrainObject; Object.assign(t, { terrain: 'grass', elevation: .25, detail: '', building: null, zone: null, road: false, rail: false, bridge: false, tunnel: false }); }
       const tile = (x, y) => game.tiles[y * game.width + x], directions = [[0,-1],[1,0],[0,1],[-1,0]];
       const patterns = [3, 6, 9, 12, 7, 11, 15];
       const centers = [];

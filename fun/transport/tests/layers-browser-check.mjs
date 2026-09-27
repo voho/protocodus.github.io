@@ -33,6 +33,17 @@ try {
   const keys = Object.keys(defaults);
   assert.equal(keys.length, 13);
   assert.deepEqual(await currentLayers(page), defaults);
+  assert.equal(defaults.grid, true, 'a fresh browser starts with the tile grid enabled');
+  await page.keyboard.press('g');
+  assert.equal((await currentLayers(page)).grid, false, 'G can hide the default grid');
+  await page.reload();await page.waitForFunction(() => window.transport?.renderer?.getLayers);await page.locator('[data-speed="0"]').click();
+  assert.equal((await currentLayers(page)).grid, false, 'the G shortcut preference survives reload');
+  await page.keyboard.press('g');
+  await openLayers(page);await setLayer(page, 'grid', false);
+  await page.reload();await page.waitForFunction(() => window.transport?.renderer?.getLayers);await page.locator('[data-speed="0"]').click();
+  assert.equal((await currentLayers(page)).grid, false, 'the Layers off preference survives reload');
+  assert.equal(await page.locator('#grid-button').getAttribute('aria-pressed'), 'false');
+  await page.keyboard.press('g');
   await openLayers(page);
   assert.equal(await page.locator('#layers-button').getAttribute('aria-expanded'), 'true');
   assert.equal(await page.locator('#modal').evaluate(dialog => dialog.open), false, 'Layers is a nonmodal map control');
@@ -78,7 +89,7 @@ try {
 
   // Existing map shortcuts share the same state as the corresponding switches.
   for(const [key,button] of [['grid','#grid-button'],['routes','#routes-toggle']]){
-    const before=defaults[key];
+    const before=(await currentLayers(page))[key];
     await clickMapOption(page, button);
     await openLayers(page);
     assert.equal(await page.locator(`[data-layer="${key}"]`).isChecked(),!before,`${key} map button updates its Layers switch`);
@@ -94,9 +105,8 @@ try {
   assert.ok(station,'the starting world has a road stop for route picking');
   const stationPoints=await page.evaluate(station=>{
     transport.renderer.setZoom(.5);transport.renderer.focus(station.x,station.y);
-    const rect=document.querySelector('#world').getBoundingClientRect(),camera=transport.renderer.getCamera();
-    const tile={x:rect.left+rect.width/2+((station.x+.5)*32-camera.x)*camera.zoom,y:rect.top+rect.height/2+((station.y+.5)*32-camera.y)*camera.zoom};
-    const badge={x:tile.x+8*camera.zoom+7,y:tile.y-18*camera.zoom+7};
+    const rect=document.querySelector('#world').getBoundingClientRect(),p=transport.renderer.worldToScreen(station.x,station.y),marker=transport.renderer.stationMarker(station);
+    const tile={x:rect.left+p.x,y:rect.top+p.y},badge={x:rect.left+marker.x+7,y:rect.top+marker.y+7};
     return{tile,badge,rawBadge:transport.renderer.screenToTile(badge.x,badge.y)};
   },station);
   assert.notDeepEqual(stationPoints.rawBadge,{x:station.x,y:station.y},'stop badge target is outside its own map tile');
@@ -150,7 +160,7 @@ try {
     const result=await page.evaluate(()=>{
       const q=layersQA,render=()=>{q.renderer.render(0);return q.canvas.toDataURL();};
       const baseline=render(),comparisons=[];
-      const crop=(x,y)=>{const camera=q.renderer.getCamera(),scale=camera.zoom*(devicePixelRatio||1);const px=(q.canvas.width/2+((x+.5)*32-camera.x)*scale),py=(q.canvas.height/2+((y+.5)*32-camera.y)*scale);return Array.from(q.canvas.getContext('2d').getImageData(Math.round(px-6*scale),Math.round(py-6*scale),Math.max(1,Math.round(12*scale)),Math.max(1,Math.round(12*scale))).data);};
+      const crop=(x,y)=>{const camera=q.renderer.getCamera(),density=devicePixelRatio||1,scale=camera.zoom*density,p=q.renderer.worldToScreen(x,y),px=p.x*density,py=p.y*density;return Array.from(q.canvas.getContext('2d').getImageData(Math.round(px-6*scale),Math.round(py-6*scale),Math.max(1,Math.round(12*scale)),Math.max(1,Math.round(12*scale))).data);};
       // Filtered relief under translucent stones can round a channel by one
       // between Canvas raster paths. Geometry and the underlying terrain remain.
       const samePixels=(a,b)=>a.length===b.length&&a.every((value,i)=>Math.abs(value-b[i])<=1);
@@ -185,7 +195,7 @@ try {
   }
   const interaction=await page.evaluate(()=>{
     const q=layersQA;q.renderer.setZoom(1);q.renderer.setLayers(q.defaults);q.renderer.focus(48,30);q.renderer.render(0);
-    const rect=q.canvas.getBoundingClientRect(),marker={x:rect.left+rect.width/2,y:rect.top+rect.height/2+16+5+15};
+    const rect=q.canvas.getBoundingClientRect(),p=q.renderer.industryMarker(q.game.industries[0]),marker={x:rect.left+p.x,y:rect.top+p.y};
     const actual=q.renderer.screenToTile(marker.x,marker.y),shown=q.renderer.screenToInspectTile(marker.x,marker.y);
     q.renderer.setLayers({industryIcons:false});q.renderer.render(0);const hidden=q.renderer.screenToInspectTile(marker.x,marker.y);
     const ownTile=q.renderer.screenToInspectTile(rect.left+rect.width/2,rect.top+rect.height/2);
@@ -210,12 +220,12 @@ try {
     const {loadVisibility,VISIBILITY_KEY}=await import('./visibility.js');
     const previous=localStorage.getItem(VISIBILITY_KEY);
     localStorage.setItem(VISIBILITY_KEY,'{broken');const malformed=loadVisibility();
-    localStorage.setItem(VISIBILITY_KEY,JSON.stringify({trees:false,grid:true,roads:'false',unknown:false}));const partial=loadVisibility();
+    localStorage.setItem(VISIBILITY_KEY,JSON.stringify({trees:false,grid:false,roads:'false',unknown:false}));const partial=loadVisibility();
     if(previous===null)localStorage.removeItem(VISIBILITY_KEY);else localStorage.setItem(VISIBILITY_KEY,previous);
     return{malformed,partial};
   });
   assert.deepEqual(preferenceRecovery.malformed,defaults,'malformed preferences recover to defaults');
-  assert.deepEqual(preferenceRecovery.partial,{...defaults,trees:false,grid:true},'partial preferences preserve known booleans and ignore invalid or unknown fields');
+  assert.deepEqual(preferenceRecovery.partial,{...defaults,trees:false,grid:false},'explicit saved grid preferences override the new default');
   await openLayers(page);
   const beforeFailedWrite=await page.evaluate(()=>localStorage.getItem('transport-visibility-v1'));
   await page.evaluate(()=>{window.visibilityStorageWrite=Storage.prototype.setItem;Storage.prototype.setItem=function(key,value){if(key==='transport-visibility-v1')throw new DOMException('Preferences unavailable','QuotaExceededError');return visibilityStorageWrite.call(this,key,value);};});
