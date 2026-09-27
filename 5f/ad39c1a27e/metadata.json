@@ -1,0 +1,38 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "5fad39c1a27e",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "fun/tyran/README.md",
+    "fun/tyran/campaign.js",
+    "fun/tyran/save-game.js",
+    "fun/tyran/sim.js",
+    "fun/tyran/tactics.js",
+    "fun/tyran/tests/difficulty-balance.mjs",
+    "fun/tyran/tests/difficulty-check.mjs",
+    "fun/tyran/tests/endless-campaign-check.mjs",
+    "fun/tyran/tests/flight-features-check.mjs",
+    "fun/tyran/tests/save-game-check.mjs",
+    "fun/tyran/tests/sim-check.mjs",
+    "fun/tyran/tests/strategy-check.mjs",
+    "fun/tyran/waves.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/5f/ad39c1a27e/0/metadata.json",
+      "transcript": "/5f/ad39c1a27e/0/full.jsonl",
+      "context": "/5f/ad39c1a27e/0/context.md",
+      "content_hash": "/5f/ad39c1a27e/0/content_hash.txt",
+      "prompt": "/5f/ad39c1a27e/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 184,
+    "cache_creation_tokens": 222747,
+    "cache_read_tokens": 6989952,
+    "output_tokens": 50046,
+    "api_call_count": 67
+  }
+}
