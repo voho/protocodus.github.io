@@ -130,6 +130,7 @@ try {
     await page.locator('.mobile-panel-toggle').click();
     await page.waitForTimeout(300);
     await page.locator('[data-mobile-view="routes"]').click();
+    await page.locator('#new-route-button').click();
     assert.equal(await fits(page, '#panel-content'), true, `${width}px route panel fits`);
     assert.equal(await page.locator('.cargo-choice').evaluateAll(elements => elements.every(el => el.scrollWidth <= el.clientWidth + 1)), true, `${width}px cargo names fit their buttons`);
     await page.locator('.cargo-field').evaluate(el => el.scrollIntoView({ block: 'start' }));

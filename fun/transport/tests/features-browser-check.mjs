@@ -1,6 +1,7 @@
 // Serve the repository root first. Browser storage is isolated from the user's save.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
+import { createWorldFromMenu } from './browser-start.mjs';
 const { chromium } = await import(process.env.TRANSPORT_PLAYWRIGHT || 'playwright');
 const browser = await chromium.launch({ channel: process.env.TRANSPORT_BROWSER || 'chrome', headless: true });
 const url = process.env.TRANSPORT_URL || 'http://localhost:8765/fun/transport/';
@@ -57,6 +58,74 @@ async function verifyConnection(page, state, valid) {
 }
 
 try {
+  // A first freight route from a new quarry stop: the planner infers the cargo from its stops.
+  const quarryPage = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+  watch(quarryPage);
+  await quarryPage.goto(url);
+  await createWorldFromMenu(quarryPage, { biome: 'taiga', size: 'square512', seed: 1847 });
+  const quarry = await quarryPage.evaluate(async () => {
+    const { build } = await import('./model.js'), { buildPlan } = await import('./construction-plan.js');
+    const game = transport.game, road = buildPlan(game, 'road', [251, 250, 249, 248, 247, 246, 245].map(y => ({ x: 219, y })), { preferredMode: 'road' }), stop = build(game, 'bus-stop', 219, 251);
+    if (!road.ok || !stop.ok) throw new Error(`Could not prepare the quarry fixture: ${road.message}; ${stop.message}`);
+    transport.inspect(219, 251);
+    return { station: stop.station, alder: game.stations.find(station => station.name === 'Alderbrook Central') };
+  });
+  assert.ok(quarry.alder, 'seed 1847 opens with Alderbrook Central');
+  await quarryPage.locator('#station-route').click();
+  await quarryPage.locator('#route-connection').waitFor({ state: 'visible' });
+  assert.equal(await quarryPage.locator('#route-planner').evaluate(element => element.open), true, 'a stop starts the planner open');
+  assert.equal(await quarryPage.locator('[data-cargo-choice="stone"]').getAttribute('aria-pressed'), 'true', 'the start stop suggests its own freight');
+  assert.match(await quarryPage.locator('#route-connection').textContent(), /Cargo set to Stone/);
+  await quarryPage.locator('[data-pick-route="to"]').click();
+  await clickStationBadge(quarryPage, quarry.alder);
+  await quarryPage.locator('#route-pick-banner').waitFor({ state: 'hidden' });
+  assert.equal(await quarryPage.locator('#route-form [name="to"]').inputValue(), quarry.alder.id);
+  assert.equal(await quarryPage.locator('[data-cargo-choice="stone"][aria-pressed="true"]').count(), 1, 'stone stays selected for the pair');
+  await verifyConnection(quarryPage, 'connected', true);
+  assert.match(await quarryPage.locator('#route-connection').textContent(), /Connected · \d+ tiles · Cargo set to Stone/);
+  await quarryPage.waitForFunction(() => {
+    const drawer = document.querySelector('#panel-content').getBoundingClientRect(), launch = document.querySelector('#route-form [type="submit"]').getBoundingClientRect();
+    return launch.top >= drawer.top && launch.bottom <= drawer.bottom + 1;
+  }, undefined, { timeout: 3000 });
+  assert.equal(await quarryPage.locator('[data-cargo-choice="stone"]').getAttribute('data-fits'), 'true');
+  assert.equal(await quarryPage.locator('[data-cargo-choice="passengers"]').getAttribute('data-fits'), 'false', 'other cargo is dimmed but stays clickable');
+  assert.match(await quarryPage.locator('[data-cargo-choice="passengers"]').getAttribute('title'), /different town/);
+  assert.equal(await quarryPage.locator('#route-form [name="name"]').getAttribute('placeholder'), 'Stone · Stone quarry → Alderbrook', 'the default name describes the freight flow');
+  await quarryPage.screenshot({ path: `${output}/desktop-quarry-planner.png` });
+  await quarryPage.locator('.route-stop-field').last().locator('[data-cargo-pick="passengers"]').click();
+  assert.equal(await quarryPage.locator('[data-cargo-choice="passengers"]').getAttribute('aria-pressed'), 'true', 'coverage badges choose cargo');
+  await verifyConnection(quarryPage, 'connected', false);
+  await quarryPage.locator('.route-stop-field').first().locator('[data-cargo-pick="stone"]').click();
+  await verifyConnection(quarryPage, 'connected', true);
+  await quarryPage.locator('#swap-route-stops').click();
+  assert.equal(await quarryPage.locator('#route-form [name="from"]').inputValue(), quarry.alder.id, 'swap exchanges the stops');
+  assert.equal(await quarryPage.locator('#route-form [name="to"]').inputValue(), quarry.station.id);
+  await verifyConnection(quarryPage, 'connected', true);
+  assert.match(await quarryPage.locator('#route-connection').textContent(), /Loads at end stop/);
+  await quarryPage.locator('#swap-route-stops').click();
+  await quarryPage.locator('#route-form button[type="submit"]').click();
+  const stoneRoute = await quarryPage.evaluate(() => transport.game.routes.at(-1));
+  assert.equal(stoneRoute.cargo, 'stone');
+  assert.equal(stoneRoute.name, 'Stone · Stone quarry → Alderbrook', 'an empty name uses the default');
+  assert.equal(await quarryPage.locator('#route-planner').evaluate(element => element.open), false);
+  await quarryPage.waitForFunction(id => {
+    const drawer = document.querySelector('#panel-content').getBoundingClientRect(), card = document.querySelector(`[data-route-id="${id}"]`)?.getBoundingClientRect();
+    return card && card.top >= drawer.top - 1 && card.bottom <= drawer.bottom + 1;
+  }, stoneRoute.id, { timeout: 3000 });
+  await quarryPage.screenshot({ path: `${output}/desktop-quarry-launched.png` });
+  await quarryPage.setViewportSize({ width: 390, height: 844 });
+  await quarryPage.waitForTimeout(250);
+  await quarryPage.evaluate(() => transport.setView('routes'));
+  await quarryPage.locator('#new-route-button').click();
+  assert.equal(await quarryPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, '390px planner fits the screen');
+  assert.equal(await fits(quarryPage, '#panel-content'), true, '390px planner fits the drawer');
+  assert.equal(await fits(quarryPage, '.route-swap'), true);
+  await quarryPage.locator('#swap-route-stops').scrollIntoViewIfNeeded();
+  await quarryPage.screenshot({ path: `${output}/mobile-390-quarry-planner.png` });
+  await quarryPage.close();
+  assert.deepEqual(errors, [], 'the route planner runs without console or runtime errors');
+  console.log('Route planner checks passed: inferred cargo, fit marks, coverage picks, swap, default name, folded planner, 390px.');
+
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   watch(page);
   await page.goto(url);
@@ -180,6 +249,10 @@ try {
   const freight = await page.evaluate(() => transport.game.routes.find(route => route.name === 'Orchard food delivery'));
   assert.equal(freight.cargo, 'food');
   assert.equal(await page.evaluate(id => transport.game.vehicles.find(vehicle => vehicle.routeId === id).load, freight.id), 24, 'new freight loads the selected resource');
+  assert.equal(await page.locator('#route-planner').evaluate(element => element.open), false, 'a launch folds the planner away');
+  assert.equal(await page.locator(`.route-card[data-route-id="${freight.id}"]`).evaluate(element => element.classList.contains('route-flash')), true, 'the new route card flashes');
+  await page.locator('#new-route-button').click();
+  assert.equal(await page.locator('#route-form [name="from"]').inputValue(), fixture.from.id, 'the planner keeps its stops for another vehicle');
 
   await page.locator('#route-form [name="mode"]').selectOption('rail');
   await page.locator('#route-form [name="name"]').fill('Valley passenger express');
@@ -220,6 +293,7 @@ try {
   await page.locator('#route-filter-status').selectOption('all');
   await page.screenshot({ path: `${output}/desktop-routes.png` });
 
+  await page.locator('#new-route-button').click();
   await page.locator('#route-form [name="mode"]').selectOption('road');
   await page.locator('[data-pick-route="from"]').click();
   await page.locator('#cancel-route-pick').click();

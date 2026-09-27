@@ -110,6 +110,8 @@ The cache budget starts at 48 MiB and can grow for large high-density viewports,
 
 The route planner verifies the actual network and station cargo coverage before launch. Its cached path result is invalidated by selected stops, transport mode or `networkRevision`; changes to available funds and cargo eligibility also update launch availability. The simulation's `addRoute` still performs authoritative validation when the form is submitted.
 
+`routeCargoList(game)` lists the environment's route cargo. `routeCargoOptions(game, draft)` judges each of them for the chosen stops with `validateRoutePlan(game, draft, {ignoreFunds:true})`, so short funds never hide a fit and the cached path is reused. Fitting cargo comes first: loaded at the start, then loaded at the end, then passengers. The list stays empty until the stops are connected. When connected stops share no cargo at all, the plan's message names what each end handles. `defaultRouteName(game, plan, cargo)` names a launch after its two towns or its cargo flow, within the form's 36 characters. The Routes panel suggests cargo once per change of stops or transport (`formDraft.autoKey`) and never replaces a cargo that still fits. Whether the planner is folded is session-only draft state; it is never saved.
+
 `compact-hud.css` fits navigation, finances, date and speed into one header row. Company delivery and connection totals are exposed through the finances button's hover/focus/click tooltip. `industry-targets.css` keeps the expanded industry inspector scrollable within the map on desktop and mobile.
 
 ## Local save slots
