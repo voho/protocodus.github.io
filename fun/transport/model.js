@@ -559,6 +559,9 @@ function loadVehicle(game,route,vehicle,stopIndex,context) {
     }
   }
 }
+// Paid deliveries for the map's floating income: never saved, never keyed by nextId or randomAt.
+const deliveryLog=new WeakMap();
+export function drainDeliveryEvents(game) { const log=deliveryLog.get(game)||[];deliveryLog.delete(game);return log; }
 function unloadVehicle(game,route,vehicle,stopIndex,arrivalDay=game.day,context) {
   if(vehicle.load<=0)return;
   const station=context?context.stations.get(route.stops[stopIndex]):game.stations.find(s=>s.id===route.stops[stopIndex]);if(!station)return;
@@ -585,6 +588,8 @@ function unloadVehicle(game,route,vehicle,stopIndex,arrivalDay=game.day,context)
     // Shortest connected distance determines the fare; loops cannot manufacture income.
     const revenue=priceFor(game,delivered*CARGO[route.cargo].price*(1+Math.sqrt(route.path.length-1)*.55),arrivalDay);
     route.delivered+=delivered;route.revenue+=revenue;game.totalDelivered+=delivered;game.totalRevenue+=revenue;game.monthlyIncome+=revenue;game.money+=revenue;
+    let log=deliveryLog.get(game);if(!log)deliveryLog.set(game,log=[]);
+    if(log.length<64)log.push({x:station.x,y:station.y,revenue,cargo:route.cargo,amount:delivered,routeId:route.id,day:arrivalDay});
   }
 }
 function updateRoutePath(game,route) {

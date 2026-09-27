@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createGame, build, buildPath, addRoute, removeRoute, tick, VEHICLE_COSTS } from '../model.js';
+import { createGame, build, buildPath, addRoute, removeRoute, tick, drainDeliveryEvents, saveGame, SAVE_KEY, VEHICLE_COSTS } from '../model.js';
 import { emptyGame, line, advance } from './helpers.mjs';
 
 function freightFixture(mode = 'road') {
@@ -133,4 +133,31 @@ test('passenger service increases city population and activity over an unserved 
     assert.ok(served.cities[index].population > unserved.cities[index].population, 'service stimulates growth');
     assert.ok(served.cities[index].activity > unserved.cities[index].activity);
   }
+});
+
+test('a delivery reports its income once for the map at the receiving stop', () => {
+  const { game, stops } = freightFixture();
+  assert.equal(addRoute(game, { name: 'Timber service', mode: 'road', stops, cargo: 'timber' }).ok, true);
+  const route = game.routes[0], destination = game.stations[1], revenue = route.revenue, delivered = route.delivered;
+  for (let step = 0; step < 4000 && route.revenue === revenue; step++) { assert.deepEqual(drainDeliveryEvents(game), [], 'nothing is reported before cargo arrives'); tick(game, .05); }
+  assert.ok(route.revenue > revenue, 'the truck delivers timber');
+  const events = drainDeliveryEvents(game);
+  assert.equal(events.length, 1);
+  assert.deepEqual(events[0], { x: destination.x, y: destination.y, revenue: route.revenue - revenue, cargo: 'timber', amount: route.delivered - delivered, routeId: route.id, day: events[0].day });
+  assert.ok(events[0].day > 0 && events[0].day <= game.day);
+  assert.deepEqual(drainDeliveryEvents(game), [], 'a drained delivery is not reported twice');
+});
+
+test('reading deliveries never changes the simulation or its save', () => {
+  const original = Object.getOwnPropertyDescriptor(globalThis, 'localStorage'), entries = new Map();
+  Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: { getItem: key => entries.get(key) ?? null, setItem: (key, value) => entries.set(key, String(value)), removeItem: key => entries.delete(key) } });
+  try {
+    const drained = createGame({ biome: 'taiga', size: 'regional', seed: 1847 }), kept = createGame({ biome: 'taiga', size: 'regional', seed: 1847 });
+    let events = 0;
+    for (let n = 0; n < 60 * 4; n++) { tick(drained, .25); tick(kept, .25); events += drainDeliveryEvents(drained).length; }
+    assert.ok(events > 0, 'the starting routes deliver');
+    const saved = game => { assert.equal(saveGame(game).ok, true); return entries.get(SAVE_KEY); };
+    assert.equal(saved(drained), saved(kept));
+    assert.equal(drainDeliveryEvents(kept).length, Math.min(64, events), 'an unread log keeps at most 64 deliveries');
+  } finally { if (original) Object.defineProperty(globalThis, 'localStorage', original); else delete globalThis.localStorage; }
 });

@@ -707,6 +707,27 @@ export function createRenderer(canvas, initialGame, options={}) {
     if(fraction>0){ctx.fillStyle=state==='full'?'#4e7747':'#bd8e43';roundRect(ctx,meterX,meterY,Math.max(1,meterW*fraction),3,1);ctx.fill();}
     ctx.globalAlpha=1;
   }
+  function drawFloaters(floaters,now){
+    // Paid deliveries rise above their stop and fade. Region sums each 3×3-tile cell into one figure
+    // and keeps the full screen offset, because vehicle load badges do not shrink with the map.
+    const region=detailLevel==='region',still=Boolean(motionPreference?.matches),shown=new Map(),format=new Intl.NumberFormat('en-US',{maximumFractionDigits:1});
+    for(const f of floaters){
+      const t=(now-f.born)/1600;if(!(t>=0&&t<1)||!visible(f.x,f.y))continue;
+      const key=region?Math.floor(f.x/3)+','+Math.floor(f.y/3):f,group=shown.get(key);
+      if(!group)shown.set(key,{x:f.x,y:f.y,revenue:f.revenue,cargo:f.cargo,t});else{group.revenue+=f.revenue;if(t<group.t)Object.assign(group,{x:f.x,y:f.y,cargo:f.cargo,t});}
+    }
+    ctx.font='600 12px Space, system-ui, sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';
+    for(const {x,y,revenue,cargo,t} of shown.values()){
+      const p=worldToScreen(x,y),label='+$'+(revenue>=10000?format.format(revenue/1000)+'k':format.format(Math.round(revenue))),image=cargoImage(cargo||'passengers',14);
+      const w=ctx.measureText(label).width+35,h=23,left=Math.round(p.x-w/2),top=Math.round(p.y-58*Math.max(1,camera.zoom)-(still?0:22*(1-(1-t)**3))-h/2);
+      ctx.globalAlpha=t<.6?1:(1-t)/.4;
+      ctx.shadowColor='#293d2620';ctx.shadowBlur=8;ctx.shadowOffsetY=2;ctx.fillStyle='#f7f4e7f0';roundRect(ctx,left,top,w,h,5);ctx.fill();ctx.shadowColor='transparent';ctx.shadowBlur=0;ctx.shadowOffsetY=0;
+      ctx.strokeStyle='#f8f6e8b0';ctx.lineWidth=.7;ctx.stroke();
+      if(image.complete&&image.naturalWidth)ctx.drawImage(image,left+8,top+(h-14)/2,14,14);else dot(ctx,left+15,top+h/2,3,'#849367');
+      ctx.fillStyle='#3f6b45';ctx.fillText(label,left+27,top+h/2+.3);
+    }
+    ctx.globalAlpha=1;
+  }
   function resourceMarker(x,y,kind,size,label){
     // Screen-space markers stay legible in Region and render at native display
     // density. SVG images are local data, cached separately from terrain chunks.
@@ -824,6 +845,7 @@ export function createRenderer(canvas, initialGame, options={}) {
     for(const ind of game.industries||[]){if((!layers.names&&!layers.industryIcons)||!visible(ind.x,ind.y,180*camera.zoom))continue;const marker=industryMarker(ind),kind=Object.keys(INDUSTRIES[ind.kind]?.outputs||{})[0]||'goods',hovered=hover&&industryContains(ind,hover.x,hover.y),chosen=selected&&industryContains(ind,selected.x,selected.y),label=layers.names&&(hovered||chosen)?ind.name||titleCase(ind.kind):null;if(layers.industryIcons)resourceMarker(marker.x,marker.y,kind,marker.size,label);else if(label)pill(marker.x,marker.y,label,{size:12,h:28,fill:'#f7f4e7f5',color:'#3e5547',radius:5});}
     if(layers.stations)for(const st of game.stations||[]){if(!visible(st.x,st.y))continue;const marker=stationMarker(st),mx=marker.x,my=marker.y;ctx.fillStyle=st.mode==='water'?'#376e7e':st.mode==='rail'?'#3f655a':'#516d53';roundRect(ctx,mx,my,14,14,3);ctx.fill();if(st.mode==='water'){ctx.strokeStyle='#f0eacb';ctx.lineWidth=1.1;ctx.beginPath();ctx.arc(mx+7,my+3.5,1.2,0,TAU);ctx.stroke();line(ctx,[[mx+7,my+4.7],[mx+7,my+11]],'#f0eacb',1.1);line(ctx,[[mx+4,my+6],[mx+10,my+6]],'#f0eacb',1.1);ctx.beginPath();ctx.moveTo(mx+3,my+8);ctx.quadraticCurveTo(mx+3,my+11,mx+7,my+11);ctx.quadraticCurveTo(mx+11,my+11,mx+11,my+8);ctx.stroke();}else{ctx.fillStyle='#f0eacb';ctx.font='bold 9px Space, system-ui, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(st.mode==='rail'?'T':'B',mx+7,my+7.2);}}
     if(layers.vehicles&&layers.vehicleLoads)for(const v of frameVehicles)vehicleLoadIndicator(v,routesById.get(v.routeId));
+    if(layers.deliveries&&view.floaters?.length)drawFloaters(view.floaters,now);
     // Extremely light edge shade holds the terrain together without dimming the playfield.
     const vignette=ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*.3,W/2,H/2,Math.max(W,H)*.75);vignette.addColorStop(0,'#21382b00');vignette.addColorStop(1,'#21382b10');ctx.fillStyle=vignette;ctx.fillRect(0,0,W,H);
   }

@@ -42,6 +42,15 @@ try{
  await page.evaluate(()=>transport.setSpeed(1));
  await page.waitForFunction(previous=>perfCounts.renders>previous,previous);
  await page.evaluate(()=>transport.setSpeed(0));
+ // Delivery income floats for 1.6 s; a paused scene is idle again once it fades.
+ const revenue=await page.evaluate(()=>transport.game.routes[0].revenue);
+ await page.evaluate(()=>transport.setSpeed(3));
+ await page.waitForFunction(revenue=>transport.game.routes[0].revenue>revenue,revenue,{timeout:90000});
+ await page.evaluate(()=>transport.setSpeed(0));
+ await page.waitForTimeout(2000);
+ const faded=await page.evaluate(()=>perfCounts.renders);await page.waitForTimeout(1000);
+ result.pausedAfterDelivery=await page.evaluate(faded=>perfCounts.renders-faded,faded);
+ assert.equal(result.pausedAfterDelivery,0,'a paused scene stops redrawing once delivery income fades');
  result.cache=await page.evaluate(async()=>{
   const {createSprites}=await import('./sprites.js'),{HOUSE_KINDS}=await import('./raster-houses.js');
   const sprite=createSprites('taiga',{pixelScale:2,detailLevel:'detail'}),distinct=new Set();

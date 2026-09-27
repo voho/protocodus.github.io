@@ -13,6 +13,7 @@ Static ES modules. No build step. `model.js` owns all game state and exports:
 - `tick(game, days)` advances time, vehicles, economy, growth. Can receive fractional days; sim rate one day per real second at 1x.
 - `findPath(game, from:{x,y}, to:{x,y}, mode)` returns tile coordinate array or null.
 - `saveGame(game)` / `loadGame()` / `deleteSave()` localStorage with validation/version.
+- `drainDeliveryEvents(game)` returns and clears the paid deliveries since the last call, `{x,y,revenue,cargo,amount,routeId,day}` at the receiving stop, at most 64. A module `WeakMap` keyed by the game holds them: never saved, never touching `nextId` or `randomAt`.
 - Optional additional exports welcome. `model.js` must stay DOM-free for Node tests, apart from guarded localStorage.
 
 `background-jobs.js` wraps creation, restoration and save encoding in cancellable module workers. `world-worker.js` uses the same model and codecs as synchronous callers. `world-transfer.js` transfers a four-byte tile buffer, sparse exact extensions, route-coordinate buffers and the procedural-save baseline rather than cloning millions of tile objects. Main-thread capture/hydration yields in small slices; the transfer format is internal and does not change local save formats. Unsupported/blocked workers fall back to the existing model.
@@ -34,7 +35,7 @@ City `{id,name,x,y,population,activity,growth}`. Industry `{id,kind,name,x,y,cap
 
 `renderer.js` exports `createRenderer(canvas, game, options={})` returns:
 - `setGame(game)` for new/load
-- `render(now, {tool='inspect',hover=null,preview=[],selected=null,showGrid=true,showRoutes=true,routeStops=[]}={})`
+- `render(now, {tool='inspect',hover=null,preview=[],selected=null,showGrid=true,showRoutes=true,routeStops=[],floaters=null}={})`; `floaters` are `{x,y,revenue,cargo,born}` income figures, drawn for 1600 ms after `born` on the `now` clock
 - `resize()` use canvas CSS rect and devicePixelRatio capped 2
 - `screenToTile(clientX,clientY,{clamp=false}={})` -> `{x,y}` (coordinates relative viewport); off the world it returns `{x:-1,y:-1}`, or with `clamp` the nearest edge tile, unprojected at that edge's height. `screenToVertex` takes the same option.
 - `worldToScreen(x,y)` -> `{x,y}` in local CSS pixels for the center of a world tile; fractional tile coordinates support moving vehicles and multi-tile sites
@@ -129,13 +130,15 @@ The automatic checkpoint keeps the existing `transport-save-v1` key and compact 
 
 ## Map visibility
 
-`visibility.js` defines thirteen independent display preferences: `trees`, `buildings`, `roads`, `rails`, `stations`, `names`, `industryIcons`, `vehicles`, `vehicleLoads`, `routes`, `zones`, `lighting` and `grid`. Defaults enable every layer, including the gentle grid. `layerPreset('all')` enables all thirteen, while `layerPreset('terrain')` disables all thirteen. Normalization accepts only known boolean fields. Browser persistence uses `transport-visibility-v1`, independently of both the active autosave and named game slots; read/write failures leave the current interface usable.
+`visibility.js` defines fifteen independent display preferences: `trees`, `buildings`, `roads`, `rails`, `stations`, `names`, `industryIcons`, `vehicles`, `vehicleLoads`, `deliveries`, `routes`, `zones`, `lighting`, `weather` and `grid`. Defaults enable every layer, including the gentle grid. `layerPreset('all')` enables all fifteen, while `layerPreset('terrain')` disables all fifteen. Normalization accepts only known boolean fields. Browser persistence uses `transport-visibility-v1`, independently of both the active autosave and named game slots; read/write failures leave the current interface usable.
 
 `visibility-view.js` and `visibility.css` present a nonmodal popover with native labeled checkbox switches, presets, keyboard support and outside/Escape dismissal. It reads current flags through callbacks and delegates changes to `app.js`, without touching simulation state. Opening this panel does not pause the game. Loading or generating a company retains the existing display preferences.
 
 `renderer.js` applies scenery/network flags to cached terrain composition. Changing trees, buildings, roads, railways, stations or zones invalidates baked chunks across zoom levels. Names, industry icons, vehicles, load indicators, routes and the grid are live overlays. Vegetation includes forest sprites and plant details; sparse rocks remain scenery, while mountains use the ground geometry. Buildings includes houses, civic structures and industry art. Roads, rails and stops remain independently controllable. Hidden vehicles never draw load indicators, while hiding only their loads retains the vehicles.
 
 `getStats().layers` exposes a copy of renderer preferences alongside cache and vehicle-indicator statistics. Legacy `render(now, {showGrid, showRoutes})` arguments remain optional per-render overrides and do not rewrite stored preferences. The minimap and atlas reflect applicable scenery/network flags. Hidden industry icons no longer contribute extended inspection hitboxes; hidden stop badges likewise lose their extended map-picker hitboxes. Their actual tiles remain inspectable and all gameplay occupancy/network rules remain intact. Selection, coverage and construction previews are contextual interaction overlays rather than persistent layers.
+
+Delivery income is a live overlay labelled Income (`deliveries`). Right after each `tick`, `app.js` drains `drainDeliveryEvents` into at most 24 screen floaters, merging deliveries at one stop within 300 ms, and drops them after 1600 ms. It repaints a paused map only until the last one fades, then returns to zero redraws. `renderer.js` draws them after the load indicators and before the vignette: a pill with the cargo icon, 58 px above the stop (58 × zoom at Detail), rising 22 px with ease-out unless reduced motion is preferred, opaque until 60% of its life and then fading. At Region zoom it sums each 3×3-tile cell into one pill at its newest delivery. `updateHud` adds a 600 ms `.income-pulse` (`compact-hud.css`) to `#profit` when monthly income rose since the last HUD update. With sound on, a new on-screen floater plays a two-tone chime at most every 700 ms; `transport-sound-v1` remembers the sound choice, and a remembered "on" resumes the audio context on the first pointerdown.
 
 ## Rivers and shipping
 

@@ -64,7 +64,7 @@ The landscape uses diamond-shaped tiles, with upright buildings and trees layere
 
 The five network tools are **Road, Rail, Stop, Port, and Bulldozer**. Grid, route lines and centering on your home town are in **Game menu → Map options**. The finances tooltip separates fares, running costs, construction/vehicle purchases and the previous month’s operating profit. Hover, focus or tap the balance/profit area to see delivered cargo and connected-town totals. Local weather, save status and map coordinates are available in Game menu.
 
-Open **Game menu → Map layers**, or press **L**, to control trees and plants, buildings, roads, railways, stops, names, industry icons, vehicles, cargo loads, route lines, zones, day/night lighting and the grid. Buildings includes industry structures. Hiding vehicles also hides their load indicators. **Terrain only** shows bare ground, water, mountains and rocks; **Show all** enables every layer, including the grid. Selection outlines and construction previews remain available for building and inspection. The panel leaves the simulation running, and Escape closes it.
+Open **Game menu → Map layers**, or press **L**, to control trees and plants, buildings, roads, railways, stops, names, industry icons, vehicles, cargo loads, delivery income, route lines, zones, day/night lighting, weather and the grid. Buildings includes industry structures. Hiding vehicles also hides their load indicators. **Terrain only** shows bare ground, water, mountains and rocks; **Show all** enables every layer, including the grid. Selection outlines and construction previews remain available for building and inspection. The panel leaves the simulation running, and Escape closes it.
 
 Layer settings change the view while the transport network and hidden structures continue operating. These browser preferences survive reloads and remain the same when creating or loading a different company; they are separate from game saves. A fresh browser starts with all layers visible, including a gentle tile grid. Press **G** to toggle it.
 
@@ -139,6 +139,8 @@ The world changes through slow, local updates. Factories work on staggered days;
 Vehicles vary their pace with local conditions and pause to load at stops. Vehicle and infrastructure upkeep continues between deliveries. Accounts close at real calendar-month boundaries, including leap years. Operating profit excludes construction and vehicle purchases, which remain visible separately in the finances tooltip. Route earnings deduct a share of used infrastructure and vehicle upkeep; idle infrastructure and factories remain company costs. Older saves begin operating-cost tracking when first loaded by this version, instead of inventing historical expenses. Factories expand only after productive operation; delivering one ingredient to a stalled recipe does not increase capacity.
 
 Each vehicle has a small load meter above it. Loaded vehicles show their resource icon, including passengers; a full green meter means full capacity, an amber meter shows a partial load, and an unfilled meter means empty. These indicators stay readable in all three zoom views. Town names rise above a stop built at or beside the town centre, and a meter that crosses a town name fades so the name stays legible.
+
+Every paid delivery floats its income above the stop, with the cargo’s icon, and the month’s profit in the top lane glows briefly. Deliveries at one stop within a moment share a figure, and in the Region view nearby stops add up to one total. The figures fade after about a second and a half, stay in place with reduced motion, and can be hidden with **Map layers → Income**. With sound on, a delivery on screen also rings a soft two-note chime; the browser remembers the sound choice and starts audio after your first click or tap.
 
 ## Grow your towns
 
@@ -251,10 +253,16 @@ The focused save-slot check creates distinct companies, switches their complete 
 TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/slots-browser-check.mjs
 ```
 
-The focused Layers check compares rendered pixels for all 13 switches at every zoom, verifies restoration and overview rendering, checks hidden industry/stop marker picking and unchanged game state, and covers preference persistence and recovery, blocked storage, synchronized map buttons, keyboard controls and mobile layouts. It uses isolated browser storage; screenshots go to `/tmp/transport-layers-qa`:
+The focused Layers check compares rendered pixels for all 15 switches at every zoom, verifies restoration and overview rendering, checks hidden industry/stop marker picking and unchanged game state, and covers preference persistence and recovery, blocked storage, synchronized map buttons, keyboard controls and mobile layouts. It uses isolated browser storage; screenshots go to `/tmp/transport-layers-qa`:
 
 ```sh
 TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/layers-browser-check.mjs
+```
+
+The delivery-income check waits for a real delivery at 3×, then compares the pixels above the stop: the figure appears, rises, fades, stays still with reduced motion and disappears with **Income** off. It also checks the profit glow, one summed figure per Region cell and that a paused map stops redrawing once the figures fade. Screenshots go to `/tmp/transport-floaters-qa`:
+
+```sh
+TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/delivery-floaters-browser-check.mjs
 ```
 
 Shipping has a focused browser check for building ports on generated rivers, map picking, ferry deliveries, search/filtering, disconnected lakes, save restoration and mobile layout:

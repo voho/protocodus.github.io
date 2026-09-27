@@ -1,6 +1,7 @@
 // Serve the repository root first; all preferences and worlds use isolated storage.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
+import { createWorldFromMenu, loadAutosaveFromMenu, openGameAction } from './browser-start.mjs';
 const { chromium } = await import(process.env.TRANSPORT_PLAYWRIGHT || 'playwright');
 const browser = await chromium.launch({ channel: process.env.TRANSPORT_BROWSER || 'chrome', headless: true });
 const url = process.env.TRANSPORT_URL || 'http://localhost:8765/fun/transport/';
@@ -11,11 +12,12 @@ const watch = page => page.on('pageerror', error => errors.push(error.message));
 const currentLayers = page => page.evaluate(() => transport.renderer.getLayers());
 const fits = (page, selector) => page.locator(selector).evaluate(element => element.scrollWidth <= element.clientWidth + 1);
 async function clickMapOption(page, selector) {
+  if (!(await page.locator(selector).isVisible())) await page.locator('#game-menu-button').click();
   if (!(await page.locator(selector).isVisible())) await page.locator('#map-options-button').click();
   await page.locator(selector).click();
 }
 async function openLayers(page) {
-  if (!(await page.locator('#layers-panel').isVisible())) await page.locator('#layers-button').click();
+  if (!(await page.locator('#layers-panel').isVisible())) await clickMapOption(page, '#layers-button');
   await page.locator('#layers-panel').waitFor({ state: 'visible' });
 }
 async function setLayer(page, key, value) {
@@ -27,27 +29,27 @@ try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   watch(page);
   await page.goto(url);
-  await page.waitForFunction(() => window.transport?.renderer?.getLayers);
+  await createWorldFromMenu(page);
   await page.locator('[data-speed="0"]').click();
   const defaults = await page.evaluate(async () => (await import('./visibility.js')).DEFAULT_LAYERS);
   const keys = Object.keys(defaults);
-  assert.equal(keys.length, 13);
+  assert.equal(keys.length, 15);
   assert.deepEqual(await currentLayers(page), defaults);
   assert.equal(defaults.grid, true, 'a fresh browser starts with the tile grid enabled');
   await page.keyboard.press('g');
   assert.equal((await currentLayers(page)).grid, false, 'G can hide the default grid');
-  await page.reload();await page.waitForFunction(() => window.transport?.renderer?.getLayers);await page.locator('[data-speed="0"]').click();
+  await page.reload();await loadAutosaveFromMenu(page);await page.locator('[data-speed="0"]').click();
   assert.equal((await currentLayers(page)).grid, false, 'the G shortcut preference survives reload');
   await page.keyboard.press('g');
   await openLayers(page);await setLayer(page, 'grid', false);
-  await page.reload();await page.waitForFunction(() => window.transport?.renderer?.getLayers);await page.locator('[data-speed="0"]').click();
+  await page.reload();await loadAutosaveFromMenu(page);await page.locator('[data-speed="0"]').click();
   assert.equal((await currentLayers(page)).grid, false, 'the Layers off preference survives reload');
   assert.equal(await page.locator('#grid-button').getAttribute('aria-pressed'), 'false');
   await page.keyboard.press('g');
   await openLayers(page);
   assert.equal(await page.locator('#layers-button').getAttribute('aria-expanded'), 'true');
   assert.equal(await page.locator('#modal').evaluate(dialog => dialog.open), false, 'Layers is a nonmodal map control');
-  assert.equal(await page.locator('#layers-panel input[type="checkbox"][role="switch"][data-layer]').count(), 13);
+  assert.equal(await page.locator('#layers-panel input[type="checkbox"][role="switch"][data-layer]').count(), 15);
   const stateBefore = await page.evaluate(() => JSON.stringify(transport.game));
   for (const key of keys) {
     assert.equal(await page.locator(`[data-layer="${key}"]`).isChecked(), defaults[key]);
@@ -65,8 +67,8 @@ try {
   await setLayer(page, 'grid', false);
   await page.locator('[data-layers-close]').click();
   await page.locator('#layers-panel').waitFor({ state: 'hidden' });
-  assert.equal(await page.evaluate(() => document.activeElement.id), 'layers-button');
-  await page.keyboard.press('Enter');
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'game-menu-button', 'Close returns focus to the menu that holds Layers');
+  await page.keyboard.press('Enter');await page.locator('#layers-button').focus();await page.keyboard.press('Enter');
   await page.locator('#layers-panel').waitFor({ state: 'visible' });
   await page.locator('[data-layer="trees"]').focus();
   await page.keyboard.press('Space');
@@ -74,7 +76,7 @@ try {
   assert.equal(await page.evaluate(() => transport.speed), 0, 'a switch key does not trigger the global pause shortcut');
   await page.keyboard.press('Escape');
   await page.locator('#layers-panel').waitFor({ state: 'hidden' });
-  assert.equal(await page.evaluate(() => document.activeElement.id), 'layers-button', 'Escape restores trigger focus');
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'game-menu-button', 'Escape restores focus to the menu that holds Layers');
   await openLayers(page);
   await setLayer(page, 'trees', true);
   await page.locator('#company-stats').click();
@@ -106,7 +108,7 @@ try {
   const stationPoints=await page.evaluate(station=>{
     transport.renderer.setZoom(.5);transport.renderer.focus(station.x,station.y);
     const rect=document.querySelector('#world').getBoundingClientRect(),p=transport.renderer.worldToScreen(station.x,station.y),marker=transport.renderer.stationMarker(station);
-    const tile={x:rect.left+p.x,y:rect.top+p.y},badge={x:rect.left+marker.x+7,y:rect.top+marker.y+7};
+    const tile={x:rect.left+p.x,y:rect.top+p.y},badge={x:rect.left+marker.x+12,y:rect.top+marker.y+2};
     return{tile,badge,rawBadge:transport.renderer.screenToTile(badge.x,badge.y)};
   },station);
   assert.notDeepEqual(stationPoints.rawBadge,{x:station.x,y:station.y},'stop badge target is outside its own map tile');
@@ -116,6 +118,8 @@ try {
   assert.equal(await page.locator('#route-form [name="from"]').inputValue(),station.id,'a visible stop badge can select its stop beyond its tile');
   await page.keyboard.press('Escape');await resetStops();
   await openLayers(page);await setLayer(page,'stations',false);await page.locator('[data-layers-close]').click();
+  // The game menu that holds Layers closes the Routes drawer.
+  if(!(await page.locator('[data-pick-route="from"]').isVisible()))await page.locator('.main-nav [data-view="routes"]').click();
   await page.locator('[data-pick-route="from"]').click();
   await page.mouse.click(stationPoints.badge.x,stationPoints.badge.y);
   assert.equal(await page.locator('#route-form [name="from"]').inputValue(),'','a hidden stop badge cannot intercept the neighboring tile');
@@ -125,7 +129,7 @@ try {
   await page.keyboard.press('Escape');await openLayers(page);await setLayer(page,'stations',true);await page.locator('[data-layers-close]').click();
   await page.evaluate(()=>transport.renderer.setZoom(1));await page.locator('.main-nav [data-view="build"]').click();
 
-  // A compact, controlled map places all thirteen visual categories in view at
+  // A compact, controlled map places all fifteen visual categories in view at
   // every zoom. Comparison happens against actual raster output, not only flags.
   await page.evaluate(async () => {
     const { createRenderer } = await import('./renderer.js');
@@ -151,14 +155,16 @@ try {
     game.routes.push({id:'qa-route',name:'QA route',mode:'road',cargo:'food',color:'#bd7862',active:true,path:Array.from({length:11},(_,index)=>({x:43+index,y:34}))});
     game.vehicles.push({id:'qa-vehicle',routeId:'qa-route',x:50,y:34,angle:0,progress:7,direction:1,load:24,capacity:24});
     const renderer=createRenderer(canvas,game);renderer.focus(48,32);renderer.setLayers(DEFAULT_LAYERS);
-    window.layersQA={canvas,minimap,game,renderer,defaults:DEFAULT_LAYERS,original:JSON.stringify(game)};
+    // Income floats are passed by the app for a moment after each paid delivery.
+    const floaters=[{x:49,y:34,revenue:1669,cargo:'food',born:0}];
+    window.layersQA={canvas,minimap,game,renderer,floaters,defaults:DEFAULT_LAYERS,original:JSON.stringify(game)};
   });
   const rasterResults=[];
   for(const zoom of [.5,1,2]){
-    await page.evaluate(zoom=>{const q=layersQA;q.renderer.setZoom(zoom);q.renderer.setLayers(q.defaults);q.renderer.render(0);},zoom);
+    await page.evaluate(zoom=>{const q=layersQA;q.renderer.setZoom(zoom);q.renderer.setLayers(q.defaults);q.renderer.render(0,{floaters:q.floaters});},zoom);
     await page.waitForTimeout(100);
     const result=await page.evaluate(()=>{
-      const q=layersQA,render=()=>{q.renderer.render(0);return q.canvas.toDataURL();};
+      const q=layersQA,render=()=>{q.renderer.render(0,{floaters:q.floaters});return q.canvas.toDataURL();};
       const baseline=render(),comparisons=[];
       const crop=(x,y)=>{const camera=q.renderer.getCamera(),density=devicePixelRatio||1,scale=camera.zoom*density,p=q.renderer.worldToScreen(x,y),px=p.x*density,py=p.y*density;return Array.from(q.canvas.getContext('2d').getImageData(Math.round(px-6*scale),Math.round(py-6*scale),Math.max(1,Math.round(12*scale)),Math.max(1,Math.round(12*scale))).data);};
       // Filtered relief under translucent stones can round a channel by one
@@ -188,9 +194,9 @@ try {
     assert.equal(result.minimapChanged,true,`${zoom}x Terrain also updates the overview`);
     assert.equal(result.minimapRestored,true,`${zoom}x overview restores exactly`);
     assert.equal(result.unchanged,true,'rendering leaves all map and simulation objects unchanged');
-    await page.evaluate(()=>{layersQA.renderer.setLayers(layersQA.defaults);layersQA.renderer.render(0);});
+    await page.evaluate(()=>{layersQA.renderer.setLayers(layersQA.defaults);layersQA.renderer.render(0,{floaters:layersQA.floaters});});
     await page.locator('#layers-renderer-qa').screenshot({path:`${output}/all-layers-${zoom}x.png`});
-    await page.evaluate(()=>{layersQA.renderer.setLayers(Object.fromEntries(Object.keys(layersQA.defaults).map(key=>[key,false])));layersQA.renderer.render(0);});
+    await page.evaluate(()=>{layersQA.renderer.setLayers(Object.fromEntries(Object.keys(layersQA.defaults).map(key=>[key,false])));layersQA.renderer.render(0,{floaters:layersQA.floaters});});
     await page.locator('#layers-renderer-qa').screenshot({path:`${output}/terrain-only-${zoom}x.png`});
   }
   const interaction=await page.evaluate(()=>{
@@ -245,17 +251,15 @@ try {
     const restored=await readSaveSlot(result.id);return{id:result.id,biome:transport.game.biome,width:transport.game.width,hasLayers:Object.hasOwn(restored.game,'layers')||Object.hasOwn(restored.game,'visibility')};
   });
   assert.equal(saved.hasLayers,false,'display preferences are not embedded in a saved world');
-  await page.locator('#world-button').click();
-  await page.locator('[data-biome="desert"]').click();await page.locator('[data-world-size="square512"]').click();
-  await page.locator('#world-seed').fill('7719');await page.locator('#generate-world').click();await page.locator('[data-speed="0"]').click();
+  await createWorldFromMenu(page, { biome: 'desert', seed: 7719 });
   assert.deepEqual(await currentLayers(page),preferences,'new worlds retain browser display preferences');
-  await page.locator('#save-button').click();
+  await openGameAction(page, 'save-button');
   await page.locator(`[data-save-slot="${saved.id}"] [data-save-action="load"]`).click();
   await page.locator(`[data-save-slot="${saved.id}"] [data-save-confirm="load"]`).click();
   await page.locator('.saves-explorer').waitFor({state:'hidden'});
   assert.equal(await page.evaluate(()=>transport.game.biome),saved.biome);
   assert.deepEqual(await currentLayers(page),preferences,'loading a different named company retains the same preferences');
-  await page.reload();await page.waitForFunction(()=>window.transport?.renderer?.getLayers);await page.locator('[data-speed="0"]').click();
+  await page.reload();await loadAutosaveFromMenu(page);await page.locator('[data-speed="0"]').click();
   assert.deepEqual(await currentLayers(page),preferences,'preferences survive page reload');
   await openLayers(page);
   for(const key of keys)assert.equal(await page.locator(`[data-layer="${key}"]`).isChecked(),preferences[key]);
@@ -267,7 +271,7 @@ try {
     const box=await page.locator('#layers-panel').boundingBox();
     assert.ok(box.x>=0&&box.y>=0&&box.x+box.width<=width&&box.y+box.height<=844,`${width}px panel stays within the screen`);
     const manage=await page.locator('.mobile-panel-toggle').boundingBox();
-    assert.ok(box.y+box.height<=manage.y,`${width}px panel clears the bottom map controls`);
+    assert.ok(box.y>=manage.y+manage.height,`${width}px panel clears the Manage control`);
     await page.locator('[data-layer="grid"]').scrollIntoViewIfNeeded();
     const close=await page.locator('[data-layers-close]').boundingBox();
     assert.ok(close.y>=0&&close.y+close.height<=844,`${width}px Close remains accessible while scrolling`);

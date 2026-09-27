@@ -9,6 +9,7 @@ import { createRenderer } from './renderer.js';
 import { quoteBuildPlan, buildPlan } from './construction-plan.js';
 import { routeTileIndex } from './route-tiles.js';
 import { TILE } from './sprites.js';
+import { drainDeliveryEvents } from './model.js';
 import { drawUIArtwork } from './ui-art.js';
 import { BUILDINGS, BUILDING_GROUPS } from './buildings.js';
 import { ZOOM_LEVELS, ZOOM_VIEWS, zoomIndex } from './zoom.js';
@@ -128,6 +129,7 @@ let view = 'build', category = 'network', tool = 'inspect', speed = 1, previousS
 let buildingGroup = 'homes';
 let hover = null, selected = null, preview = [];
 let pointer = null, spaceDown = false, spaceUsedForPan = false, sounds = false, audioContext;
+let floaters = [], floaterGame = null, chimeAt = 0, incomeSeen = {}, incomePulseAt = -Infinity;
 let preferredMode = 'road', touchGesture = null, engineeringOpen = false;
 const touchPoints = new Map();
 let lastFrame = performance.now(), hudAt = 0, saveAt = performance.now(), minimapAt = 0, panelAt = 0;
@@ -168,6 +170,11 @@ function setMapLayers(patch) {
 function beep(type='ok') {
  if (!sounds) return;
  try { audioContext ||= new (window.AudioContext || window.webkitAudioContext)(); audioContext.resume(); const oscillator = audioContext.createOscillator(), gain = audioContext.createGain(); oscillator.connect(gain); gain.connect(audioContext.destination); oscillator.type='sine'; oscillator.frequency.setValueAtTime(type==='error'?190:560,audioContext.currentTime); oscillator.frequency.exponentialRampToValueAtTime(type==='error'?120:830,audioContext.currentTime+.09); gain.gain.setValueAtTime(.025,audioContext.currentTime); gain.gain.exponentialRampToValueAtTime(.001,audioContext.currentTime+.13); oscillator.start(); oscillator.stop(audioContext.currentTime+.14); } catch { sounds=false; }
+}
+// Deliveries ring two soft rising notes; audio waits for a gesture instead of starting a context itself.
+function chime() {
+ if (!sounds||audioContext?.state!=='running') return;
+ try { for (const [index,frequency] of [660,990].entries()) { const at=audioContext.currentTime+index*.08, oscillator=audioContext.createOscillator(), gain=audioContext.createGain(); oscillator.connect(gain); gain.connect(audioContext.destination); oscillator.type='sine'; oscillator.frequency.setValueAtTime(frequency,at); gain.gain.setValueAtTime(.0001,at); gain.gain.exponentialRampToValueAtTime(.018,at+.012); gain.gain.exponentialRampToValueAtTime(.0005,at+.18); oscillator.start(at); oscillator.stop(at+.19); } } catch { sounds=false; }
 }
 function toast(message, options=false) {
  const {type=options===true?'error':'ok',action=null,key=message,silent=false}=typeof options==='object'&&options?options:{},region=$('#toast-region');
@@ -546,6 +553,8 @@ function updateHud() {
  const hudMoney=value=>Math.abs(value)>=(window.innerWidth<=1100?10000:1000000)?'$'+Math.abs(value).toLocaleString('en-US',{notation:'compact',maximumFractionDigits:1}):money(value);
  $('#balance').textContent=(game.money<0?'−':'')+hudMoney(game.money);$('#balance').title=(game.money<0?'−':'')+money(game.money);
  const profit=(game.monthlyIncome||0)-(game.monthlyIncomeAtAccountingStart||0)-(game.monthlyOperatingExpenses||0);$('#profit').textContent=(profit>=0?'+':'−')+hudMoney(profit);$('#profit').title=(profit>=0?'+':'−')+money(profit)+' operating profit this month';$('#profit').className=profit>=0?'positive':'negative';
+ const income=game.monthlyIncome||0,rose=incomeSeen.game===game&&income>incomeSeen.income;incomeSeen={game,income};if(rose)incomePulseAt=performance.now();
+ $('#profit').classList.toggle('income-pulse',performance.now()-incomePulseAt<600);if(rose)for(const animation of $('#profit').getAnimations?.()||[])animation.currentTime=0;
  $('#balance-exact').textContent=(game.money<0?'−':'')+money(game.money);$('#profit-exact').textContent=(profit>=0?'+':'−')+money(profit);
  $('#income-exact').textContent=money((game.monthlyIncome||0)-(game.monthlyIncomeAtAccountingStart||0));$('#running-exact').textContent=money(game.monthlyOperatingExpenses||0);
  $('#building-exact').textContent=money(Math.max(0,(game.monthlyExpenses||0)-(game.monthlyOperatingExpenses||0)));
@@ -1008,6 +1017,9 @@ $('#audio-button').onclick=()=>{sounds=!sounds;$('#audio-button').innerHTML=icon
 $('#company-stats').onclick=()=>{const el=$('#company-stats');el.setAttribute('aria-expanded',String(el.getAttribute('aria-expanded')!=='true'));};
 document.addEventListener('pointerdown',e=>{if(!e.target.closest('.hud-finance-wrap'))$('#company-stats').setAttribute('aria-expanded','false');});
 $('#company-stats').addEventListener('keydown',e=>{if(e.key==='Escape'){$('#company-stats').setAttribute('aria-expanded','false');e.currentTarget.blur();}});
+// A remembered sound choice resumes audio on the first tap; browsers keep it silent until a gesture.
+$('#audio-button').addEventListener('click',()=>{try{localStorage.setItem('transport-sound-v1',sounds?'on':'off');}catch{}});
+try{if(localStorage.getItem('transport-sound-v1')==='on'){sounds=true;$('#audio-button').innerHTML=icon('volume');$('#audio-button').setAttribute('aria-label','Disable sound');document.addEventListener('pointerdown',()=>{if(sounds)try{audioContext||=new (window.AudioContext||window.webkitAudioContext)();audioContext.resume();}catch{}},{once:true,capture:true});}}catch{}
 let spaceStarted=0;
 // Mouse clicks leave focus on HUD buttons; Space should still pause rather than click them again.
 let pointerFocus=null,spaceConsumed=false;
@@ -1069,10 +1081,14 @@ function frame(now){
  if(isLoading()||document.hidden||$('#start-menu')?.open){requestAnimationFrame(frame);return;}
  // A capture holds only the next daily step; vehicles keep moving inside the day.
  if(speed>0){if(!capturingSave)tick(game,elapsed*speed);else{const room=Math.floor(game.day+1e-8)+1-game.day-1e-6;if(room>0)tick(game,Math.min(elapsed*speed,room));}}
+ // Income floats up where cargo was paid for; deliveries at one stop within 300 ms share a figure.
+ if(floaterGame!==game){floaters=[];floaterGame=game;}
+ for(const event of drainDeliveryEvents(game)){const recent=floaters.find(f=>f.x===event.x&&f.y===event.y&&now-f.born<300);if(recent){recent.revenue+=event.revenue;continue;}floaters.push({x:event.x,y:event.y,revenue:event.revenue,cargo:event.cargo,born:now});if(!sounds||!mapLayers.deliveries||now-chimeAt<=700)continue;const p=renderer.worldToScreen(event.x,event.y);if(p.x>=0&&p.y>=0&&p.x<=canvas.clientWidth&&p.y<=canvas.clientHeight){chimeAt=now;chime();}}
+ const floaterPaint=floaters.length>0;if(floaterPaint)floaters=floaters.filter(f=>now-f.born<1600).slice(-24);
  const camera=renderer.getCamera(),w=canvas.width,h=canvas.height;
  const changed=!painted||painted.game!==game||painted.day!==game.day||painted.revision!==game.revision||painted.money!==game.money||painted.scene!==sceneRevision||painted.x!==camera.x||painted.y!==camera.y||painted.height!==camera.height||painted.zoom!==camera.zoom||painted.w!==w||painted.h!==h||painted.layers!==mapLayers||painted.tool!==tool||painted.hover!==hover||painted.preview!==preview||painted.selected!==selected||painted.mode!==preferredMode||painted.view!==view||painted.from!==formDraft.from||painted.to!==formDraft.to;
- if(changed){
-  renderer.render(now,{tool,hover,preview,selected,preferredMode,routeStops:routePickStops()});
+ if(changed||floaterPaint){
+  renderer.render(now,{tool,hover,preview,selected,preferredMode,routeStops:routePickStops(),floaters});
   painted={game,day:game.day,revision:game.revision,money:game.money,scene:sceneRevision,x:camera.x,y:camera.y,height:camera.height,zoom:camera.zoom,w,h,layers:mapLayers,tool,hover,preview,selected,mode:preferredMode,view,from:formDraft.from,to:formDraft.to};
  }
  if(now-hudAt>400&&(!hudState||hudState.game!==game||hudState.day!==game.day||hudState.revision!==game.revision||hudState.money!==game.money||hudState.zoom!==camera.zoom||hudState.w!==w||hudState.view!==view)){
