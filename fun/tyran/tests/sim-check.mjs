@@ -134,7 +134,25 @@ check('visible living enemies slow the target pace while queued and departed shi
   state.enemies.push({ x: 400, y: 220, hp: 10, radius: 20 });
   assert(missionScrollSpeed(state) < 42, 'boss escorts add crowd pressure');
   state.challenge = { done: false };
-  assert(missionScrollSpeed(state) < 150, 'challenge formations also influence forward speed');
+  assert(missionScrollSpeed(state) < 300, 'challenge formations also influence forward speed');
+});
+
+check('bonus scroll reaches double pace without clipping and eases back after results', () => {
+  const state = scrollingBattle(4);
+  state.bossSpawned = true;
+  state.challenge = { done: false, clock: 0, hits: 0, total: CHALLENGE_SIZE };
+  assert.equal(missionScrollSpeed(state), 210, 'four visible ships retain crowd modulation at twice the old bonus pace');
+  state.enemies.length = 0;
+  assert.equal(missionScrollSpeed(state), 300, 'empty bonus rounds reach twice the old 150 speed');
+  state.scrollSpeed = 300;
+  const before = state.scroll;
+  update(state, .025);
+  assert.equal(state.scrollSpeed, 300, 'the momentum clamp accepts the higher bonus speed');
+  assert.equal(state.scroll - before, 7.5, 'actual terrain displacement uses the full bonus speed');
+  state.challenge.done = true;
+  assert.equal(missionScrollSpeed(state), 42);
+  update(state, .025);
+  assert(state.scrollSpeed < 300 && state.scrollSpeed > 42, 'results return smoothly to the existing exit pace');
 });
 
 check('scroll momentum brakes into a crowd and gradually rebuilds after actual kills', () => {

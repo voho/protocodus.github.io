@@ -908,7 +908,7 @@ export function killEnemy(s, e, cause = 'shot') {
 
 // Clearing the screen opens up the flight pace. Queued arrivals and departed
 // ships do not slow terrain the player can see; the boss has its own base pace.
-export const MAX_SCROLL_SPEED = 208.25; // Final approach at the highest capped tier.
+export const MAX_SCROLL_SPEED = 300; // Bonus rounds outrun the normal final-approach ceiling.
 export function missionScrollSpeed(s, time = s.time) {
   let count = 0;
   for (const enemy of s.enemies) {
@@ -918,7 +918,7 @@ export function missionScrollSpeed(s, time = s.time) {
     count++;
   }
   const crowd = .4 + .6 / (1 + count / 4);
-  if (s.challenge && !s.challenge.done) return 150 * crowd;
+  if (s.challenge && !s.challenge.done) return 300 * crowd;
   if (s.bossSpawned) return 42 * crowd;
   const progress = clamp(time / Math.max(1, s.duration), 0, 1);
   const ramp = progress * progress * (3 - 2 * progress);
