@@ -77,15 +77,22 @@ try {
     const r = new Renderer(canvas, null), s = createGame('rank-graphics', 'normal', {width: 72, height: 56});
     s.terrain.fill(0); s.minerals.fill(0); s.entities = []; s.effects = []; s.visible[0].fill(1); s.explored[0].fill(1); r.createTerrain(s);
     const v = {x: 30.5, y: 30.5, zoom: 38, selected: new Set()}, rows = [];
-    const fills = [], nativeFill = r.ctx.fill;
-    r.ctx.fill = function (...args) { fills.push(this.fillStyle); return nativeFill.apply(this, args); };
+    const glyphCounts = pixels => {
+      const columns = [new Set(), new Set()], colors = [[228, 185, 117], [80, 97, 103]];
+      for (let i = 0; i < pixels.length; i += 4) if (pixels[i + 3] > 240) {
+        for (let color = 0; color < colors.length; color++) if (colors[color].every((value, channel) => Math.abs(pixels[i + channel] - value) <= 2)) columns[color].add(i / 4 % canvas.width);
+      }
+      // Count the three separated chevron silhouettes in the output, regardless
+      // of whether the renderer draws paths or reuses a prepared badge.
+      return columns.map(xs => [...xs].sort((a, b) => a - b).reduce((count, x, index, values) => count + (index === 0 || x > values[index - 1] + 1 ? 1 : 0), 0));
+    };
     for (const zoom of [16, 24, 38]) for (const type of Object.keys(UNITS)) for (let rank = 0; rank <= 3; rank++) {
       v.zoom = zoom; const e = {...structuredClone(rankFixture.templates[type === 'harvester' ? type : 'rifle']), type, x: v.x, y: v.y, kills: rank * 5, size: UNITS[type].size};
-      Object.assign(e, {hp: unitStats(e).hp, maxHp: unitStats(e).hp}); r.ctx.clearRect(0, 0, canvas.width, canvas.height); fills.length = 0; r.drawUnitRank(e, v);
+      Object.assign(e, {hp: unitStats(e).hp, maxHp: unitStats(e).hp}); r.ctx.clearRect(0, 0, canvas.width, canvas.height); r.drawUnitRank(e, v);
       const pixels = r.ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-      rows.push({type, zoom, rank, active: fills.filter(color => color === '#e4b975').length, empty: fills.filter(color => color === '#506167').length, pixels: pixels.filter((value, i) => i % 4 === 3 && value > 64).length});
+      const [active, empty] = glyphCounts(pixels);
+      rows.push({type, zoom, rank, active, empty, pixels: pixels.filter((value, i) => i % 4 === 3 && value > 64).length});
     }
-    r.ctx.fill = nativeFill;
     const enemy = {...structuredClone(rankFixture.templates.rifle), team: 1, x: v.x, y: v.y, kills: 0};
     const pixels = () => { r.draw(s, v); return r.ctx.getImageData(0, 0, canvas.width, canvas.height).data; };
     const difference = (a, b) => a.reduce((n, value, i) => n + (value !== b[i] ? 1 : 0), 0);

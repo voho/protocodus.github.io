@@ -549,7 +549,8 @@ function lavaSurface(pool, time) {
     ctx.clearRect(0, 0, pool.width, pool.height);
     // Advect the cached folds under a stationary shore, rather than flashing their opacity.
     const x = Math.sin(time * .1 + pool.phase) * 20, y = Math.sin(time * .08 + pool.phase * 1.7) * 14;
-    ctx.drawImage(pool.flow, x - 24, y - 24);
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(pool.flow, x - 24, y - 24, pool.width + 48, pool.height + 48);
     ctx.globalCompositeOperation = 'destination-in'; ctx.drawImage(pool.mask, 0, 0);
     // The rim shades the lowered surface, so the relief stays still as lava flows.
     ctx.globalCompositeOperation = 'source-atop'; ctx.drawImage(pool.innerShade, 0, 0);
@@ -567,6 +568,7 @@ export class Renderer {
     this.fogLow = document.createElement('canvas');
     this.decals = document.createElement('canvas');
     this.rememberedBuildings = new Map();
+    this.rankBadges = new Map();
     this.lastMinimap = -Infinity;
     assetsReady.then(() => { if (this.groundImage !== terrainImages.ground) this.terrainSource = null; });
     this.resize();
@@ -574,7 +576,12 @@ export class Renderer {
   resize() {
     const bounds = this.canvas.getBoundingClientRect();
     this.width = Math.max(1, bounds.width); this.height = Math.max(1, bounds.height);
-    this.dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    if (this.dpr !== dpr) {
+      for (const badge of this.rankBadges.values()) badge.width = badge.height = 0;
+      this.rankBadges.clear();
+    }
+    this.dpr = dpr;
     this.canvas.width = Math.round(this.width * this.dpr);
     this.canvas.height = Math.round(this.height * this.dpr);
     this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
@@ -587,6 +594,22 @@ export class Renderer {
     return { x: (x - this.width / 2) / view.zoom + view.x, y: (y - this.height / 2) / view.zoom + view.y };
   }
   drawIcon(canvas, type, team = 0) { drawIcon(canvas, type, team); }
+
+  releaseTerrain() {
+    // Clearing a canvas releases its backing store immediately, including GPU
+    // surfaces; dropping JS references alone can retain them until a later GC.
+    const surfaces = [this.terrain, this.decals, this.fog, this.fogLow, this.fogTint, this.minimapBase, this.miniTiles];
+    for (const pool of this.lavaPools || []) surfaces.push(pool.surface, pool.flow, pool.mask, pool.innerShade);
+    surfaces.push(...this.rankBadges.values()); this.rankBadges.clear();
+    for (const surface of surfaces) if (surface) surface.width = surface.height = 0;
+    this.terrainSource = this.groundImage = null;
+    this.fogTint = this.minimapBase = this.miniTiles = null;
+    this.knownOre = this.knownMineralTypes = this.fogNoise = null;
+    this.fogVisible = this.fogExplored = null;
+    this.rockProps = []; this.lavaPools = [];
+    this.rememberedBuildings.clear(); this.unitPositions?.clear();
+    this.seenEffects = new WeakSet(); this.lastMinimap = -Infinity;
+  }
 
   createTerrain(state) {
     for (const _ of this.terrainSteps(state)) { /* Synchronous rebuild for renderer fixtures. */ }
@@ -603,6 +626,7 @@ export class Renderer {
 
   *terrainSteps(state) {
     yield { value: 0, label: 'Laying the ashlands' };
+    this.releaseTerrain();
     const width = state.width * TILE, height = state.height * TILE;
     // Bound both full-map surfaces together to 64 MiB, even on the largest battlefield.
     // Fine object art stays in native sprite caches; broad terrain tolerates this filtered bake.
@@ -904,14 +928,14 @@ export class Renderer {
       bank.putImageData(pixels, 0, 0);
       m.putImageData(shore, 0, 0);
       layers[3].getContext('2d').putImageData(shade, 0, 0);
-      // The molten texture is computed at half resolution (its folds are far wider than 2 px) and upsampled.
-      const flow = layers[2]; flow.width = w + 48; flow.height = h + 48;
-      const half = document.createElement('canvas'); half.width = Math.ceil(flow.width / 2); half.height = Math.ceil(flow.height / 2);
-      const hc = half.getContext('2d'), heat = hc.createImageData(half.width, half.height);
-      for (let y = 0; y < half.height; y++) {
+      // Keep the molten texture at its generated half resolution. Enlarging this
+      // cache adds no detail; the compositor scales it only for visible pools.
+      const flow = layers[2]; flow.width = (w + 48) / 2; flow.height = (h + 48) / 2;
+      const f = flow.getContext('2d'), heat = f.createImageData(flow.width, flow.height);
+      for (let y = 0; y < flow.height; y++) {
         if (y % 8 === 0) yield;
-        for (let x = 0; x < half.width; x++) {
-        const i = (y * half.width + x) * 4, wx = x0 * TILE + x * 2 - 40, wy = y0 * TILE + y * 2 - 40;
+        for (let x = 0; x < flow.width; x++) {
+        const i = (y * flow.width + x) * 4, wx = x0 * TILE + x * 2 - 40, wy = y0 * TILE + y * 2 - 40;
         // Swirled fractal folds: broad red/orange body, amber folds, yellow only on the hottest crests, sparse dark crust.
         const warp = smoothNoise(wx / 64, wy / 56, this.seed + 37);
         const swirl = smoothNoise(wx / 26 + Math.sin(wy / 31 + warp * 5) * 2.2, wy / 24 + Math.cos(wx / 37 + warp * 4) * 2.2, this.seed + 41);
@@ -923,8 +947,7 @@ export class Renderer {
         heat.data[i + 3] = 255;
       }
       }
-      hc.putImageData(heat, 0, 0);
-      const f = flow.getContext('2d'); f.imageSmoothingEnabled = true; f.imageSmoothingQuality = 'high'; f.drawImage(half, 0, 0, flow.width, flow.height);
+      f.putImageData(heat, 0, 0);
       const pool = { cells, x: x0 * TILE - 16, y: y0 * TILE - 16, width: w, height: h, surface: layers[1], flow, mask, innerShade: layers[3], phase: noise(start, 7, this.seed) * Math.PI * 2 };
       ctx.save();
       ctx.drawImage(layers[0], pool.x, pool.y, pool.width, pool.height);
@@ -1126,9 +1149,15 @@ export class Renderer {
         powerRatio: powers[e.team].ratio, powerStatus: powers[e.team].status, rememberedAt: time });
     }
     for (const [id, e] of this.rememberedBuildings) if (!liveIds.has(id) && entityVisible(e)) this.rememberedBuildings.delete(id);
-    const entities = state.entities.filter(e => e.hp > 0 && (e.team === 0 || entityVisible(e)));
-    const visibleUnits = entities.filter(e => e.kind === 'unit');
-    for (const e of this.rememberedBuildings.values()) if (!entityVisible(e)) entities.push(e);
+    const inView = e => e.x >= x0 - 4 && e.x <= x1 + 2 && e.y >= y0 - 4 && e.y <= y1 + 3;
+    const entities = [], visibleUnits = [];
+    for (const e of state.entities) if (e.hp > 0 && (e.team === 0 || entityVisible(e))) {
+      // Off-screen orders still draw their visible route, but distant bodies do
+      // not need depth sorting with the small portion of the map on screen.
+      if (e.kind === 'unit') visibleUnits.push(e);
+      if (inView(e)) entities.push(e);
+    }
+    for (const e of this.rememberedBuildings.values()) if (inView(e) && !entityVisible(e)) entities.push(e);
     for (const prop of this.rockProps) if (prop.x >= x0 - 2 && prop.x < x1 + 2 && prop.y >= y0 - 2 && prop.y < y1 + 2) {
       if (prop.kind === 'tree' && explored && !explored[Math.floor(prop.y) * state.width + Math.floor(prop.x)]) continue;
       entities.push(prop);
@@ -1553,23 +1582,34 @@ export class Renderer {
     if (p.x < 0 || p.x > this.width || p.y < 0 || p.y > this.height) return;
     const radius = entityRole(entity) === 'artillery' ? 30 : isInfantry(entity) ? 16 : 25;
     const y = Math.round(p.y + Math.max(11, radius * view.zoom / TILE) + 3), x = Math.round(p.x);
-    const rank = unitRank(entity);
-    ctx.save();
-    rect(ctx, x - 14, y - 2, 28, 9, '#0a151ddd');
-    teamInsignia(ctx, entity.team, x - 9, y + 2, 7);
+    const rank = unitRank(entity), team = entity.team === 1 ? 1 : 0;
+    const group = team === 0 && entity.controlGroup >= 1 && entity.controlGroup <= 5 ? entity.controlGroup : 0;
+    const key = `${team}:${rank}:${group}`;
+    let badge = this.rankBadges.get(key);
+    if (!badge) { badge = this.createRankBadge(team, rank, group); this.rankBadges.set(key, badge); }
+    ctx.drawImage(badge, x - 14, y - (group ? 4 : 2), badge.width / this.dpr, badge.height / this.dpr);
+  }
+
+  createRankBadge(team, rank, group) {
+    const badge = document.createElement('canvas');
+    badge.width = Math.ceil((group ? 45 : 28) * this.dpr); badge.height = Math.ceil((group ? 15 : 9) * this.dpr);
+    const ctx = badge.getContext('2d'), x = 0, y = 0;
+    ctx.scale(this.dpr, this.dpr); ctx.translate(14, group ? 4 : 2);
+    rect(ctx, -14, -2, 28, 9, '#0a151ddd');
+    teamInsignia(ctx, team, -9, 2, 7);
     for (let slot = 0; slot < 3; slot++) {
       const left = x - 3 + slot * 5;
       polygon(ctx, [[left, y + 2], [left + 2, y], [left + 4, y + 2], [left + 4, y + 4], [left + 2, y + 2], [left, y + 4]], slot < rank ? '#e4b975' : '#506167');
     }
-    if (entity.team === 0 && entity.controlGroup) {
+    if (group) {
       rect(ctx, x + 16, y - 4, 15, 15, '#0a151df2');
       ctx.strokeStyle = '#8dccca'; ctx.lineWidth = 1;
       ctx.strokeRect(x + 16.5, y - 3.5, 14, 14);
       ctx.fillStyle = '#dbe4de'; ctx.font = 'bold 12px monospace';
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(String(entity.controlGroup), x + 23.5, y + 3.5);
+      ctx.fillText(String(group), x + 23.5, y + 3.5);
     }
-    ctx.restore();
+    return badge;
   }
 
   minimapLayout(state) {

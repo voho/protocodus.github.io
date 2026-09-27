@@ -416,6 +416,10 @@ export const assetsReady = loadingRequested.then(() => Promise.all([
         view.body = view.teams.map(source => ({ image: source, x: -source.width / 2, y: -source.height / 2,
           bytes: source.width * source.height * 4 }));
         view.castShadow = prepareUnitShadow(view, type);
+        // Only the composed shadow is used during play. Release the two temporary
+        // masks now instead of retaining another pair of atlases for every unit.
+        view.shadow.width = view.shadow.height = view.contact.width = view.contact.height = 0;
+        delete view.shadow; delete view.contact;
         for (const cached of [...view.body, view.castShadow]) { directionBytes += cached.bytes; directionImages++; }
       }
       frames.push({ ...directions[0], directions });

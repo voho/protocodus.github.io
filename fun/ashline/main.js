@@ -6,6 +6,7 @@ import { createAudio } from './audio.js';
 import { saveGame, loadGame, getSaveInfo } from './save.js';
 import { nextPaint, generateOperation } from './loading.js';
 import { assignControlGroup, controlGroupMembers } from './control-groups.js';
+import { advanceSimulationFrame } from './frame-scheduler.js';
 
 const $ = id => document.getElementById(id);
 const canvas = $('world');
@@ -697,6 +698,7 @@ async function prepareOperation(restore = false) {
   } catch (error) {
     clearInterval(assetTimer);
     loading = false; game = null;
+    renderer.releaseTerrain();
     $('loading').dataset.error = 'true'; $('loading').setAttribute('aria-busy', 'false');
     $('loading-title').textContent = 'The expedition could not start';
     $('loading-stage').textContent = error.message || 'Please return to setup and try again.';
@@ -709,6 +711,7 @@ function loadOperation() { return prepareOperation(true); }
 function showBriefing() {
   stopFrames();
   launched = false; paused = true; game = null;
+  renderer.releaseTerrain();
   $('queue-list').replaceChildren();
   keys.clear(); view.selected.clear();
   audio.setPaused(true);
@@ -1050,18 +1053,21 @@ function requestFrame() {
 }
 function stopFrames() { if (frameRequest) cancelAnimationFrame(frameRequest); frameRequest = 0; }
 
+function simulateFrameStep(dt) {
+  updateGame(game, dt);
+  if (game.status === 'playing') return true;
+  showMenu(true); playSound(game.status); return false;
+}
+
 function frame(now) {
   frameRequest = 0;
   if (!launched || loading || !game) return;
   if (paused) { updateHUD(); return; }
   const elapsed = Math.min((now - lastTime) / 1000, .2); lastTime = now;
   if (!busy()) {
-    // Run more fixed simulation steps; camera and interface timing stay in real time.
-    accumulator += elapsed * gameSpeed;
-    while (accumulator >= .05) {
-      updateGame(game, .05); accumulator -= .05;
-      if (game.status !== 'playing') { showMenu(true); playSound(game.status); accumulator = 0; break; }
-    }
+    // Speed controls fixed simulation time; input/rendering still get a turn
+    // between expensive ticks when large battles exceed the frame's CPU budget.
+    accumulator = advanceSimulationFrame(accumulator, elapsed, gameSpeed, simulateFrameStep);
     const panSpeed = 400 / view.zoom * elapsed;
     const direction = cameraDirection(keys, !pointer?.pan && !touches.size ? edgePointer : null, renderer.width, renderer.height);
     view.x += direction.x * panSpeed; view.y += direction.y * panSpeed;

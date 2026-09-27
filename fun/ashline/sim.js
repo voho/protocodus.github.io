@@ -102,7 +102,11 @@ const inside=(s,x,y)=>x>=0&&y>=0&&x<s.width&&y<s.height;
 const good=()=>({ok:true,reason:''});
 const bad=reason=>({ok:false,reason});
 const alive=e=>e.hp>0;
-const own=(s,t,type)=>s.entities.filter(e=>alive(e)&&e.team===t&&(!type||e.type===type||entityRole(e)===type));
+const own=(s,t,type)=>{
+  const owned=spatialStates.get(s)?.owned[t];
+  if(owned)return(type?owned.types.get(type)||[]:owned.all).filter(alive);
+  return s.entities.filter(e=>alive(e)&&e.team===t&&(!type||e.type===type||entityRole(e)===type));
+};
 const completed=(s,t,type)=>own(s,t,type).some(e=>e.kind==='building'&&e.progress>=1);
 const definition=e=>e.kind==='building'?BUILDINGS[e.type]:UNITS[e.type];
 // Per-step spatial state is derived, never serialized. Ordering stays identical to entities.
@@ -112,19 +116,33 @@ function indexEntity(s,e){
   const spatial=spatialStates.get(s);if(!spatial)return;
   const key=spatialKey(e),previous=spatial.entries.get(e.id);
   if(previous?.key===key)return;
+  spatial.queries.clear();
   if(previous){const bucket=spatial.buckets.get(previous.key);bucket.splice(bucket.indexOf(previous),1);}
   const entry={e,key,index:previous?.index??spatial.nextIndex++};spatial.entries.set(e.id,entry);
+  if(!previous){
+    const owned=spatial.owned[e.team];owned.all.push(e);
+    const role=entityRole(e);
+    for(const type of e.type===role?[role]:[e.type,role]){
+      if(!owned.types.has(type))owned.types.set(type,[]);owned.types.get(type).push(e);
+    }
+  }
   if(!spatial.buckets.has(key))spatial.buckets.set(key,[]);spatial.buckets.get(key).push(entry);
 }
 function beginSpatialStep(s){
-  spatialStates.set(s,{buckets:new Map(),entries:new Map(),nextIndex:0,flock:createFlockSnapshot(s.entities)});
+  spatialStates.set(s,{buckets:new Map(),entries:new Map(),queries:new Map(),owned:[0,1].map(()=>({all:[],types:new Map()})),nextIndex:0,flock:createFlockSnapshot(s.entities)});
   for(const e of s.entities)if(alive(e))indexEntity(s,e);
 }
 function nearbyEntities(s,p,r){
   const spatial=spatialStates.get(s);if(!spatial)return s.entities;
+  const left=Math.floor((p.x-r)/SPATIAL_CELL),right=Math.floor((p.x+r)/SPATIAL_CELL),top=Math.floor((p.y-r)/SPATIAL_CELL),bottom=Math.floor((p.y+r)/SPATIAL_CELL);
+  const key=`${left},${right},${top},${bottom}`,cached=spatial.queries.get(key);if(cached)return cached;
   const entries=[];
-  for(let y=Math.floor((p.y-r)/SPATIAL_CELL);y<=Math.floor((p.y+r)/SPATIAL_CELL);y++)for(let x=Math.floor((p.x-r)/SPATIAL_CELL);x<=Math.floor((p.x+r)/SPATIAL_CELL);x++)for(const entry of spatial.buckets.get(`${x},${y}`)||[])entries.push(entry);
-  return entries.sort((a,b)=>a.index-b.index).map(entry=>entry.e);
+  for(let y=top;y<=bottom;y++)for(let x=left;x<=right;x++)for(const entry of spatial.buckets.get(`${x},${y}`)||[])entries.push(entry);
+  const result=entries.sort((a,b)=>a.index-b.index).map(entry=>entry.e);
+  // Callers filter live positions; membership/order only changes on bucket moves,
+  // births or deaths. Bound retained queries even for unusually scattered armies.
+  if(spatial.queries.size>=256)spatial.queries.clear();
+  spatial.queries.set(key,result);return result;
 }
 
 export function unitRank(e){return e?.kind==='unit'?Math.min(3,Math.floor(Math.max(0,e.kills||0)/5)):0;}
@@ -481,9 +499,20 @@ export function createGame(seed='ASH-001',difficulty='normal',{width:W=MAP_WIDTH
   return s;
 }
 
+// A summed blocked-tile grid proves empty swept rectangles in constant time.
+// It is derived from navigation, never serialized or shared between games.
+const clearanceGrids=new WeakMap();
+function rebuildClearance(s){
+  const stride=s.width+1,sums=new Uint32Array(stride*(s.height+1));
+  for(let y=0;y<s.height;y++){
+    let row=0;const source=y*s.width,above=y*stride,next=(y+1)*stride;
+    for(let x=0;x<s.width;x++){row+=s.blocked[source+x];sums[next+x+1]=sums[above+x+1]+row;}
+  }
+  clearanceGrids.set(s,{sums,stride});
+}
 function rebuildNavigation(s){
   const {width:W,height:H}=s,N=W*H;
-  if(s.navBuilt===s.navVersion&&s.regionSize)return;
+  if(s.navBuilt===s.navVersion&&s.regionSize){if(!clearanceGrids.has(s))rebuildClearance(s);return;}
   for(let i=0;i<N;i++)s.blocked[i]=s.terrain[i]===1||s.terrain[i]===3||s.terrain[i]===4?1:0;
   for(const e of s.entities)if(alive(e)&&e.kind==='building')for(let y=e.y;y<e.y+e.size;y++)for(let x=e.x;x<e.x+e.size;x++)s.blocked[y*W+x]=1;
   // Connected regions let haulers skip isolated mineral pockets without repeated A* failures.
@@ -494,7 +523,7 @@ function rebuildNavigation(s){
   }
   // Region sizes are derived, never saved: a loaded map rebuilds them once.
   s.regionSize=new Uint32Array(region+1);for(let i=0;i<N;i++)s.regionSize[s.regions[i]]++;
-  s.navBuilt=s.navVersion;
+  s.navBuilt=s.navVersion;rebuildClearance(s);
 }
 function walkable(s,x,y,r=.19){
   const {width:W,height:H}=s;
@@ -830,13 +859,23 @@ function findPath(s,u,tx,ty,stop=0){
   if(pathBudget<=0)return null;pathBudget--;
   const {width:W,height:H}=s,N=W*H;
   const start=cell(s,u.x,u.y),goalX=clamp(Math.floor(tx),0,W-1),goalY=clamp(Math.floor(ty),0,H-1);
-  if(scratch.N!==N)scratch={N,costs:new Float32Array(N),parent:new Int32Array(N),closed:new Uint8Array(N)};
-  const {costs,parent,closed}=scratch,heap=[];costs.fill(Infinity);costs[start]=0;parent.fill(-1);closed.fill(0);
+  if(scratch.N!==N)scratch={N,costs:new Float32Array(N),parent:new Int32Array(N),closed:new Uint8Array(N),heapCells:[],heapScores:[]};
+  const {costs,parent,closed,heapCells,heapScores}=scratch;let heapSize=0;
+  costs.fill(Infinity);costs[start]=0;parent.fill(-1);closed.fill(0);
   const heuristic=i=>Math.hypot(i%W+.5-tx,Math.floor(i/W)+.5-ty);
-  const push=(i,f)=>{let p=heap.length;heap.push({i,f});while(p){const q=(p-1)>>1;if(heap[q].f<=f)break;heap[p]=heap[q];p=q;}heap[p]={i,f};};
-  const pop=()=>{const out=heap[0],last=heap.pop();if(heap.length){let p=0;while(p*2+1<heap.length){let q=p*2+1;if(q+1<heap.length&&heap[q+1].f<heap[q].f)q++;if(heap[q].f>=last.f)break;heap[p]=heap[q];p=q;}heap[p]=last;}return out.i;};
+  // Reuse numeric heap storage instead of allocating two objects per insertion.
+  // Comparisons and left/right tie handling remain identical to the original A*.
+  const push=(i,f)=>{
+    let p=heapSize++;while(p){const q=(p-1)>>1;if(heapScores[q]<=f)break;heapCells[p]=heapCells[q];heapScores[p]=heapScores[q];p=q;}
+    heapCells[p]=i;heapScores[p]=f;
+  };
+  const pop=()=>{
+    const out=heapCells[0],last=heapCells[--heapSize],score=heapScores[heapSize];
+    if(heapSize){let p=0;while(p*2+1<heapSize){let q=p*2+1;if(q+1<heapSize&&heapScores[q+1]<heapScores[q])q++;if(heapScores[q]>=score)break;heapCells[p]=heapCells[q];heapScores[p]=heapScores[q];p=q;}heapCells[p]=last;heapScores[p]=score;}
+    return out;
+  };
   let best=start,bestH=heuristic(start);push(start,bestH);let count=0;
-  while(heap.length&&count++<N){
+  while(heapSize&&count++<N){
     const cur=pop();if(closed[cur])continue;closed[cur]=1;
     const h=heuristic(cur);if(h<bestH){best=cur;bestH=h;}
     const x=cur%W,y=Math.floor(cur/W);if(stop>=.2&&h<=Math.max(.75,stop)||(x===goalX&&y===goalY)){best=cur;break;}
@@ -873,17 +912,15 @@ function clearStep(s,u,x,y){
   // A circle is convex, so constraining both ends also constrains every swept
   // point. This applies to travel, detours and contact corrections alike.
   if(!insideMovementLeash(u,x,y))return false;
-  // Nearby units usually share open ground. An empty expanded rectangle proves
-  // the entire swept footprint clear without sampling the same tiles repeatedly.
-  if((x-u.x)**2+(y-u.y)**2<=16){
-    const left=Math.min(u.x,x)-.19,right=Math.max(u.x,x)+.19,top=Math.min(u.y,y)-.19,bottom=Math.max(u.y,y)+.19;
-    if(left>=0&&top>=0&&right<s.width&&bottom<s.height){
-      let open=true;
-      for(let yy=Math.floor(top);yy<=Math.floor(bottom)&&open;yy++)for(let xx=Math.floor(left);xx<=Math.floor(right);xx++){
-        if(s.blocked[yy*s.width+xx]){open=false;break;}
-      }
-      if(open)return true;
-    }
+  // An empty expanded rectangle proves every swept footprint clear. The prefix
+  // grid also makes long unobstructed routes cheap; occupied rectangles still use
+  // exactly the same corner-safe segment checks below.
+  const grid=clearanceGrids.get(s);
+  const left=Math.min(u.x,x)-.19,right=Math.max(u.x,x)+.19,top=Math.min(u.y,y)-.19,bottom=Math.max(u.y,y)+.19;
+  if(grid&&left>=0&&top>=0&&right<s.width&&bottom<s.height){
+    const x0=Math.floor(left),x1=Math.floor(right)+1,y0=Math.floor(top)*grid.stride,y1=(Math.floor(bottom)+1)*grid.stride;
+    const a=grid.sums;
+    if(a[y1+x1]-a[y0+x1]-a[y1+x0]+a[y0+x0]===0)return true;
   }
   // Check the whole segment so sidesteps and waypoint shortcuts cannot cut solid corners.
   const steps=Math.max(1,Math.ceil(Math.hypot(x-u.x,y-u.y)/.12));
@@ -1235,6 +1272,7 @@ function hurt(s,target,amount,attacker){
   const engaging=target.kind==='unit'&&(target.order.type==='attack'||target.order.type==='attackMove'||s.time-(target.lastShot??-99)<3);
   if(target.team===0&&!engaging&&s.time-(s.alertAt??-99)>8){s.alertAt=s.time;event(s,`${definition(target).name} under attack`,0);}
   if(target.hp<=0){
+    spatialStates.get(s)?.queries.clear();
     s.teams[attacker.team].kills++;
     const killer=getEntity(s,attacker.id);
     if(killer?.kind==='unit'&&killer.team===attacker.team){
@@ -1554,6 +1592,74 @@ function expandAI(s,team,ai){
   ai.mode='Relocating command to a mineral field';return true;
 }
 
+function aiCombatPower(e,targets=[]){
+  const d=definition(e),damage=e.kind==='unit'?unitStats(e).damage:d.damage;
+  if(!damage)return 0;
+  const effectiveness=targets.length?targets.reduce((sum,target)=>sum+armorMultiplier(e,target),0)/targets.length:1;
+  return Math.sqrt(e.hp*damage/d.interval*effectiveness);
+}
+function aiRetreatPoint(s,buildings,unit,enemies){
+  // Only nexuses repair military units; refineries also shelter working haulers.
+  const havens=buildings.filter(b=>b.progress>=1&&(entityRole(b)==='core'||entityRole(unit)==='harvester'&&entityRole(b)==='refinery'));
+  const danger=point=>enemies.reduce((sum,e)=>sum+(definition(e).damage&&distance(center(e),point)<12?aiCombatPower(e):0),0);
+  const haven=havens.sort((a,b)=>distance(unit,center(a))+danger(center(a))*.08-distance(unit,center(b))-danger(center(b))*.08||a.id-b.id)[0];
+  if(!haven)return null;
+  const at=center(haven),threat=enemies.filter(e=>definition(e).damage).sort((a,b)=>distance(center(a),at)-distance(center(b),at)||a.id-b.id)[0];
+  const dx=threat?at.x-center(threat).x:s.width/2-at.x,dy=threat?at.y-center(threat).y:s.height/2-at.y,length=Math.hypot(dx,dy)||1;
+  return{x:clamp(at.x+dx/length*4.5,.5,s.width-.5),y:clamp(at.y+dy/length*4.5,.5,s.height-.5)};
+}
+function defendAI(s,army,buildings,intruders,enemies,power){
+  const assigned=new Set(),groups=[];
+  // Distinct incursions get their own nearby response. All inputs are currently
+  // visible enemies; the commander cannot budget for concealed reinforcements.
+  for(const enemy of [...intruders].sort((a,b)=>a.id-b.id)){
+    const group=groups.find(g=>distance(g.point,enemy)<10);
+    if(group){group.enemies.push(enemy);group.point={x:group.enemies.reduce((sum,e)=>sum+e.x,0)/group.enemies.length,y:group.enemies.reduce((sum,e)=>sum+e.y,0)/group.enemies.length};}
+    else groups.push({enemies:[enemy],point:{x:enemy.x,y:enemy.y}});
+  }
+  for(const group of groups){
+    const threats=group.enemies.map(enemy=>({enemy,strength:aiCombatPower(enemy),cover:0}));
+    // Share each powered sentry's strength only among enemies it can reach.
+    // Overlapping coverage cannot pay for an intruder outside every gun's range.
+    if(power.ratio>=1)for(const b of buildings)if(b.progress>=1&&definition(b).damage){
+      const covered=threats.filter(t=>targetDistance(b,t.enemy)<=definition(b).range);
+      if(!covered.length)continue;
+      const share=aiCombatPower(b,covered.map(t=>t.enemy))*.8/covered.length;
+      for(const threat of covered)threat.cover+=share;
+    }
+    const response=threats.filter(t=>t.cover<t.strength*1.25);
+    if(!response.length)continue;
+    // Fully covered enemies need no mobile budget and cannot make an exposed
+    // flank look safe when its nearby defenders are actually outmatched.
+    const hostile=response.reduce((sum,t)=>sum+t.strength,0),fixed=response.reduce((sum,t)=>sum+t.cover,0);
+    const uncovered=response.filter(t=>t.cover===0),targets=(uncovered.length?uncovered:response).map(t=>t.enemy);
+    const ids=new Set(targets.map(e=>e.id));
+    // Reinforce with local units or idle reserves, not a column already fighting
+    // on the far side of the map. An outmatched local force can fall back instead.
+    const candidates=army.filter(u=>u.hp/u.maxHp>.3&&!assigned.has(u.id)&&(distance(u,group.point)<26||u.order.type==='idle')).map(u=>({u,strength:aiCombatPower(u,targets),
+      arrival:distance(u,group.point)/unitStats(u).speed-(ids.has(u.order.targetId)?2:0)})).sort((a,b)=>a.arrival-b.arrival||a.u.id-b.u.id);
+    const defenders=[];let available=fixed;
+    for(const candidate of candidates){if(available>=hostile*1.25)break;defenders.push(candidate.u);available+=candidate.strength;assigned.add(candidate.u.id);}
+    const overwhelmed=available<hostile*.65;
+    for(const u of defenders){
+      if(overwhelmed){
+        // A losing local defense falls back without aborting an unrelated raid
+        // through the commander's global regroup timer.
+        const point=aiRetreatPoint(s,buildings,u,enemies);
+        if(point&&(u.order.type!=='move'||distance(u.order,point)>2))issueOrder(s,[u.id],{type:'move',...point});
+      }else if(u.order.type!=='attack'||!ids.has(u.order.targetId)){
+        const target=[...targets].sort((a,b)=>targetDistance(u,a)-targetDistance(u,b)||a.id-b.id)[0];
+        issueOrder(s,[u.id],{type:'attack',targetId:target.id,x:target.x,y:target.y});
+      }
+    }
+  }
+  // AI raids use attack-move; direct attack commands are its perimeter response.
+  // Release those orders as soon as their visible threat leaves the perimeter,
+  // instead of letting one fast raider tow the defenders across the whole map.
+  for(const u of army)if(u.order.type==='attack'&&!assigned.has(u.id))stopUnits(s,[u.id]);
+  return assigned;
+}
+
 function thinkAI(s,team=1){
   const {width:W,height:H}=s;
   const ai=aiState(s,team),hard=s.difficulty==='hard',easy=s.difficulty==='easy';ai.nextThink=s.time+(hard?1.2:easy?3.5:2);
@@ -1565,8 +1671,11 @@ function thinkAI(s,team=1){
   // Composition is inferred only from recent sightings; concealed reinforcements cannot change a decision.
   const intelligence=Object.values(ai.known).filter(e=>e.kind==='building'||s.time-e.seenAt<90),knownBuildings=intelligence.filter(e=>e.kind==='building');
   const armorSeen=intelligence.filter(e=>e.kind==='unit'&&UNITS[e.type].armor==='heavy').length,infantrySeen=intelligence.filter(e=>e.kind==='unit'&&UNITS[e.type].armor==='infantry').length,defensesSeen=knownBuildings.filter(e=>BUILDINGS[e.type].damage).length;
-  // A parked rover or hauler is left to the guards; only an armed intrusion pulls the army home.
-  const intruders=enemies.filter(e=>e.kind==='unit'&&entityRole(e)!=='scout'&&UNITS[e.type].damage>0&&buildings.some(b=>distance(center(b),e)<13));
+  // A passing scout is left to guards; actual scout fire against our structures
+  // or haulers warrants the same bounded response as other armed intrusions.
+  const protectedUnits=units.filter(e=>entityRole(e)==='harvester');
+  const intruders=enemies.filter(e=>e.kind==='unit'&&UNITS[e.type].damage>0&&buildings.some(b=>distance(center(b),e)<13)&&
+    (entityRole(e)!=='scout'||[...buildings,...protectedUnits].some(target=>target.attackerId===e.id&&s.time-(target.lastHit??-99)<4)));
   const constructing=buildings.some(e=>e.progress<1),power=powerStats(s,team);
   // Emergency generation can be rebuilt alongside a stalled construction project.
   if(constructing&&power.gridRatio<1&&!buildings.some(e=>entityRole(e)==='reactor'&&e.progress<1))aiBuild(s,team,'reactor');
@@ -1618,23 +1727,19 @@ function thinkAI(s,team=1){
       if(ore)b.rally={x:ore.x,y:ore.y};
     }else b.rally=rally;
   }
-  if(intruders.length){
-    ai.mode='Defending perimeter';const threat=intruders.sort((a,b)=>distance(c,a)-distance(c,b))[0];
-    // One grouped order per response keeps the destination search bounded for large armies.
-    issueOrder(s,army.filter(u=>u.hp/u.maxHp>.25).map(u=>u.id),{type:'attack',targetId:threat.id,x:threat.x,y:threat.y});
-    const fleeing=haulers.filter(h=>enemies.some(e=>e.kind==='unit'&&entityRole(e)!=='harvester'&&distance(h,e)<7));
-    if(fleeing.length)issueOrder(s,fleeing.map(h=>h.id),{type:'move',x:c.x+3,y:c.y+4});
-    return;
+  const defenders=defendAI(s,army,buildings,intruders,enemies,power);
+  if(intruders.length)ai.mode='Defending perimeter';
+  for(const u of [...army.filter(u=>u.hp/u.maxHp<=.3),...haulers.filter(h=>enemies.some(e=>definition(e).damage&&targetDistance(h,e)<7))]){
+    const point=aiRetreatPoint(s,buildings,u,enemies);
+    if(point&&distance(u,point)>1&&(u.order.type!=='move'||distance(u.order,point)>2))issueOrder(s,[u.id],{type:'move',...point});
   }
-  const wounded=army.filter(u=>u.hp/u.maxHp<.3&&distance(u,c)>7);
-  if(wounded.length)issueOrder(s,wounded.map(u=>u.id),{type:'move',x:c.x+4,y:c.y+4});
-  const scout=army.find(e=>entityRole(e)==='scout'&&e.hp/e.maxHp>.3);
+  const scout=army.find(e=>entityRole(e)==='scout'&&e.hp/e.maxHp>.3&&!defenders.has(e.id));
   const {start}=mapLayout(s);
   const waypoints=[{x:W*35/72,y:H/2},{x:start.x+6,y:start.y+3},{x:W/6,y:H*15/56},{x:W*50/72,y:H*43/56},{x:start.x-3,y:start.y+11}].map(p=>team===1?p:{x:W-p.x,y:H-p.y});
   if(scout&&scout.order.type!=='explore'&&!knownBuildings.length&&(scout.order.type==='idle'||s.time>25&&scout.order.type==='attackMove')){
     const point=waypoints[ai.scoutIndex%waypoints.length];if(distance(scout,point)<3)ai.scoutIndex++;const dest=waypoints[ai.scoutIndex%waypoints.length];issueOrder(s,[scout.id],{type:'move',...dest});ai.mode='Scouting the sector';
   }
-  const fighting=army.filter(e=>e!==scout&&e.hp/e.maxHp>.3);
+  const fighting=army.filter(e=>e!==scout&&e.hp/e.maxHp>.3&&!defenders.has(e.id));
   // Local threat estimates use current vision only. Pull back a losing column, then wait for replacements.
   const exposed=fighting.filter(u=>distance(u,c)>18&&enemies.some(e=>definition(e).damage>0&&distance(u,center(e))<10));
   if(!easy&&exposed.length){

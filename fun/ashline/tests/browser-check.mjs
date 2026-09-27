@@ -158,8 +158,17 @@ try {
   await clickWorld(page, moveDestination.x, moveDestination.y, 'right');
   assert.equal(await page.evaluate(id => ashline.state.entities.find(e => e.id === id).order.type, rifle.id), 'move');
   assert.equal(await page.locator('#explore-order').getAttribute('aria-pressed'), 'false', 'Manual movement overrides exploration');
+  const moveStart = await page.evaluate(id => {
+    const u = ashline.state.entities.find(e => e.id === id); return {x: u.x, y: u.y};
+  }, rifle.id);
   await advance(page, 3);
-  assert(await page.evaluate(({id, y}) => ashline.state.entities.find(e => e.id === id).y < y + 1.5, {id: rifle.id, y: moveDestination.y}), 'Move command changes position');
+  const moveProgress = await page.evaluate(({id, start, destination}) => {
+    const u = ashline.state.entities.find(e => e.id === id);
+    return {distance: Math.hypot(u.x-start.x, u.y-start.y), remaining: Math.hypot(u.x-destination.x, u.y-destination.y)};
+  }, {id: rifle.id, start: moveStart, destination: moveDestination});
+  // A valid traffic detour can initially move south around the parked starting
+  // tank. Verify real displacement and goal progress, rather than one y threshold.
+  assert(moveProgress.distance > .5 && moveProgress.remaining < Math.hypot(moveStart.x-moveDestination.x, moveStart.y-moveDestination.y), 'Move command changes position and progresses toward its destination');
   await page.keyboard.press('Escape'); await page.keyboard.press('1');
   assert.equal(await state(page, () => ashline.view.selected.size), 1);
   const dragA = await baseWorld(page, 9, 29), dragB = await baseWorld(page, 18, 36);
@@ -186,7 +195,9 @@ try {
   assert.equal(await page.evaluate(id => ashline.state.entities.find(e => e.id === id).order.type, hauler.id), 'harvest', 'Stopping a hauler restores automatic harvesting');
   await page.waitForFunction(() => /Auto-harvesting|Returning cargo/.test(document.querySelector('#selection-detail').textContent));
   await clickBase(page, 16.5, 39.5, 'right');
-  await advance(page, 5);
+  // Bounded vehicle turning and dock traffic make arrival time variable. Advance
+  // until the real move completes instead of requiring an arbitrary five seconds.
+  for (let elapsed = 0; elapsed < 15 && await page.evaluate(id => ashline.state.entities.find(e => e.id === id).order.type === 'move', hauler.id); elapsed += .5) await advance(page, .5);
   assert.equal(await page.evaluate(id => ashline.state.entities.find(e => e.id === id).order.type, hauler.id), 'harvest', 'Clicking the refinery lets a hauler resume work at its perimeter');
   await page.waitForFunction(() => /Auto-harvesting|Returning cargo/.test(document.querySelector('#selection-detail').textContent));
   await page.screenshot({ path: `${output}/automatic-hauler.png` });

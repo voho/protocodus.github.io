@@ -126,6 +126,7 @@ node tests/nexus-check.mjs
 node tests/ai-nexus-check.mjs
 node --test tests/control-groups.test.mjs
 node --test tests/loading.test.mjs
+node --test tests/performance.test.mjs tests/frame-scheduler.test.mjs tests/ai-defense.test.mjs
 node --test tests/camera.test.mjs tests/movement.test.mjs tests/flocking.test.mjs tests/traffic-stability.test.mjs tests/compact-flock.test.mjs tests/formation-drag.test.mjs tests/unit-stances.test.mjs
 node tests/lava-check.mjs
 node tests/distribution-check.mjs
@@ -142,6 +143,7 @@ ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs node tests/startup-browser-chec
 ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs node tests/browser-check.mjs
 ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs node tests/camera-check.mjs
 ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs node tests/resource-check.mjs
+ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs node tests/memory-check.mjs
 ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs node tests/faction-browser-check.mjs
 ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs node tests/shadows-check.mjs
 ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs node tests/cargo-check.mjs
@@ -172,6 +174,10 @@ ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs node tests/audio-check.mjs
 The startup check separately verifies that setup creates no game state, requests no battlefield art, and starts no game animation frames. It checks desktop/tablet/phone overflow, visible progress through terrain preparation, saved-game loading, automatic fallback for blocked or unavailable workers, and generation error/retry. The loading unit checks verify that file previews skip workers, yield before generation, and preserve deterministic maps. Gameplay fixtures wait for `ashline.booted` to interact with setup and for `!ashline.loading && ashline.state && !ashline.paused` after deployment. Art-only fixtures explicitly call `startAssets()` before inspecting sprites.
 
 ## Implementation
+
+See [performance measurements and reproduction commands](docs/PERFORMANCE.md) for simulation, rendering, and canvas-memory comparisons. Fixed 50 ms simulation steps yield between expensive ticks to keep input and rendering responsive; under sustained overload, effective game speed can fall below the requested slider setting. Returning to setup, replacing a world, or failing deployment releases the old terrain and fog surfaces immediately.
+
+AI perimeter defense assigns nearby troops according to visible threats, armor effectiveness, and powered defenses in actual firing range. It preserves distant raids, stops chasing intruders that leave the perimeter, and withdraws outmatched defenders locally. Critically damaged military units seek a nearby nexus for repairs; threatened haulers can shelter at nearby refineries. These decisions use current vision and preserve deterministic save continuation.
 
 The setup menu is a static DOM screen. Changing seed, faction, size, or terrain updates the form without creating a world. Deploy and Load open a progress screen before art preparation; `world-worker.js` normally generates new simulation state away from the UI thread, with a main-thread fallback when workers are unavailable or blocked. Both paths use the same deterministic generator. The renderer bakes terrain in chunks that yield for painting through `loading.js`. Progress follows completed assets and terrain stages. The game loop starts only after preparation and stops in the pause and setup menus. Oxanium supplies the space-inspired heading face; its self-hosted font and license are in [assets/fonts/CREDITS.md](assets/fonts/CREDITS.md).
 

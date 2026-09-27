@@ -19,12 +19,18 @@ export function createFlockSnapshot(entities){
     const key=`${Math.floor(e.x/RADIUS)},${Math.floor(e.y/RADIUS)}`;
     if(!buckets.has(key))buckets.set(key,[]);buckets.get(key).push(u);
   }
+  const neighborhoods=new Map();
   return u=>{
-    const neighbors=[],cx=Math.floor(u.x/RADIUS),cy=Math.floor(u.y/RADIUS);
-    for(let y=cy-1;y<=cy+1;y++)for(let x=cx-1;x<=cx+1;x++)for(const other of buckets.get(`${x},${y}`)||[]){
-      if(other.id!==u.id&&Math.hypot(other.x-u.x,other.y-u.y)<RADIUS)neighbors.push(other);
+    const cx=Math.floor(u.x/RADIUS),cy=Math.floor(u.y/RADIUS),key=`${cx},${cy}`;
+    let candidates=neighborhoods.get(key);
+    if(!candidates){
+      candidates=[];
+      for(let y=cy-1;y<=cy+1;y++)for(let x=cx-1;x<=cx+1;x++)for(const other of buckets.get(`${x},${y}`)||[])candidates.push(other);
+      candidates.sort((a,b)=>a.id-b.id);neighborhoods.set(key,candidates);
     }
-    return neighbors.sort((a,b)=>a.id-b.id);
+    // The snapshot cannot move during a tick. Share its sorted bucket candidates,
+    // but still test each caller's exact current position against the Boids radius.
+    return candidates.filter(other=>other.id!==u.id&&Math.hypot(other.x-u.x,other.y-u.y)<RADIUS);
   };
 }
 
