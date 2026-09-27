@@ -1,4 +1,4 @@
-// One top instrument bar; every active flight pixel belongs to the arena.
+// Separate translucent HUD islands; every active flight pixel belongs to the arena.
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 
@@ -55,7 +55,7 @@ async function audit(page, label, touch) {
       return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
     };
     const visible = el => {
-      if (el.closest('[hidden]')) return false;
+      if (!el || el.closest('[hidden]')) return false;
       const style = getComputedStyle(el), box = el.getBoundingClientRect();
       return style.display !== 'none' && style.visibility === 'visible' && Number(style.opacity) > 0 && box.width > 0 && box.height > 0;
     };
@@ -64,8 +64,12 @@ async function audit(page, label, touch) {
     const ui = [...document.querySelectorAll('#hud *, #touch-controls, #touch-controls *')].filter(visible);
     const overlaps = ui.map(el => ({ tag: el.id || el.className || el.tagName, box: bounds(el) }))
       .filter(({ box }) => overlap(box) > .1);
-    const essential = ['.hull-meter', '.shield-meter', '.energy-meter', '#p1-bombs', '#p1-drones', '#p1-lives', '#p1-power',
-      '#score-value', '#credits-value', '#difficulty-value', '#pause-button', '#combat-feedback',
+    const announcementVisible = visible(document.querySelector('#announcement'));
+    const rewardVisible = visible(document.querySelector('#combat-feedback'));
+    const essential = ['.hull-meter', '.shield-meter', '.energy-meter', '#p1-bombs', '#p1-lives', '#p1-power',
+      ...(tyran.state.players[0].drones > 0 ? ['#p1-drones'] : []),
+      '#score-value', '#credits-value', '#pause-button',
+      ...(!announcementVisible ? ['#combat-feedback'] : []),
       tyran.state.challenge && !tyran.state.challenge.done ? '#challenge-count' : '#boss-status'];
     const controls = ['#touch-stick', '#touch-fire', '#touch-secondary', '#touch-bomb'].map(selector => {
       const el = document.querySelector(selector);
@@ -75,7 +79,7 @@ async function audit(page, label, touch) {
       document.elementFromPoint(r.left + r.width * x, r.top + r.height * y)?.id));
     // These independent instruments may rearrange or share a slot when one is
     // hidden, but two visible groups must never cover each other's content.
-    const groups = ['.mission-instrument', '.player-resources', '.pilot-bonuses', '.weapon-instrument',
+    const groups = ['.player-resources', '.pilot-bonuses',
       '.loadout-line', '#announcement', '#boss-hud', '#challenge-hud', '#combat-feedback', '.scoreboard', '#pause-button']
       .flatMap(selector => {
         const el = document.querySelector(selector);
@@ -94,11 +98,10 @@ async function audit(page, label, touch) {
     ].map(group => ({ name: group.name, boxes: group.selectors.map(selector => ({ selector, ...bounds(document.querySelector(selector)) })) }));
     // Element boxes can fit while their text overflows a shrinking grid/flex
     // slot. Measure the actual text fragments, including clipped fragments.
-    // Mission/announcement copy and reward descriptions may intentionally use
+    // Announcement copy and reward descriptions may intentionally use
     // ellipsis; essential values and timed combat status must remain complete.
     const textSlots = [
       ['#score-value', '.score-instrument'], ['#credits-value', '.credits-instrument'],
-      ['#sector-value', '.mission-instrument'], ['#difficulty-value', '.mission-instrument'],
       ['#p1-bombs', '.loadout-item'], ['#p1-drones', '.loadout-item'], ['#p1-lives', '.loadout-item'],
       ['#p1-hull-value', '.hull-line'], ['#p1-shield-value', '.shield-line'],
       ['#p1-energy-status', '#p1-energy-line'], ['#boss-status', '#boss-hud'],
@@ -144,21 +147,49 @@ async function audit(page, label, touch) {
       oneBar: [...document.querySelector('#hud').children].length === 1
         && document.querySelector('#hud').firstElementChild.id === 'flight-header'
         && essential.every(selector => document.querySelector('#flight-header').contains(document.querySelector(selector))),
+      retiredMetadata: document.querySelectorAll('#hud :is(#level-name,#level-number,#sector-value,#difficulty-value,#wave-label,#progress-fill,#weapon-value,#weapon-level,#p1-reserve)').length,
+      islands: [...document.querySelectorAll('#hud .hud-island')].filter(visible).map(el => {
+        const style = getComputedStyle(el);
+        return { id: el.id || el.className, ...bounds(el), color: style.backgroundColor, image: style.backgroundImage,
+          alpha: style.backgroundColor === 'transparent' ? 0 : Number(style.backgroundColor.match(/[\d.]+/g)?.[3] ?? 1),
+          radii: [style.borderTopLeftRadius, style.borderTopRightRadius, style.borderBottomLeftRadius, style.borderBottomRightRadius].map(parseFloat) };
+      }),
+      essentialIslands: essential.every(selector => !!document.querySelector(selector).closest('.hud-island')),
+      headerStyle: (() => { const style = getComputedStyle(document.querySelector('#flight-header')); return { color: style.backgroundColor, image: style.backgroundImage, shadow: style.boxShadow }; })(),
       uniformScale: Math.abs(r.width / tyran.state.width - r.height / tyran.state.height) < 1e-9,
       rootOverflow: document.documentElement.scrollWidth > innerWidth || document.documentElement.scrollHeight > innerHeight,
       valueFonts: ['#score-value','#credits-value','#p1-hull-value','#p1-shield-value','#p1-energy-status','#p1-bombs','#p1-drones','#p1-lives'].map(selector => ({ selector, size: parseFloat(getComputedStyle(document.querySelector(selector)).fontSize) })),
-      notice: document.querySelector('#announcement-title').textContent, canvasText: [...__uiCanvasText], textFit, groupOverlaps, horizontalGroups,
+      notice: document.querySelector('#announcement-title').textContent, announcementVisible, rewardVisible,
+      persistentStatusVisible: visible(document.querySelector(tyran.state.challenge && !tyran.state.challenge.done ? '#challenge-hud' : '#boss-hud')),
+      canvasText: [...__uiCanvasText], textFit, groupOverlaps, horizontalGroups,
     };
   });
   assert.deepEqual(result.overlaps, [], `${label}: no visible UI covers any arena pixel`);
   assert.deepEqual(result.canvasText, [], `${label}: HUD labels are never drawn over the flight canvas`);
   assert(result.uniformScale, `${label}: the reserved arena retains uniform world scale`);
   assert.equal(result.rootOverflow, false, `${label}: layout stays inside the screen`);
-  assert(result.oneBar, `${label}: every flight instrument belongs to the single top bar`);
+  assert(result.oneBar, `${label}: every flight instrument belongs to the reserved top region`);
+  assert.equal(result.retiredMetadata, 0, `${label}: removed mission and weapon text do not return to the active HUD`);
+  assert(result.essentialIslands && result.islands.length >= 4, `${label}: combat information is grouped into separate panels`);
+  assert.deepEqual(result.headerStyle, { color: 'rgba(0, 0, 0, 0)', image: 'none', shadow: 'none' }, `${label}: panels do not sit on a continuous painted bar`);
+  for (let i = 0; i < result.islands.length; i++) {
+    const panel = result.islands[i];
+    assert(Math.abs(panel.alpha - .1) < .001 && panel.image === 'none', `${label}: ${panel.id} has a translucent 10% background`);
+    assert(panel.radii.every(radius => radius >= 8), `${label}: ${panel.id} has rounded corners`);
+    for (const other of result.islands.slice(i + 1)) {
+      const x = Math.min(panel.x + panel.width, other.x + other.width) - Math.max(panel.x, other.x);
+      const y = Math.min(panel.y + panel.height, other.y + other.height) - Math.max(panel.y, other.y);
+      assert(x <= .5 || y <= .5, `${label}: ${panel.id} and ${other.id} remain separate islands`);
+    }
+  }
   const bar = result.instruments[0];
   const maxBarHeight = result.viewport.width >= 1200 ? 72 : result.viewport.width > 600 ? 104 : 120;
   assert(bar.height <= maxBarHeight, `${label}: the compact HUD is at most ${maxBarHeight}px high`);
   assert(Math.abs(bar.y + bar.height - result.arena.y) < .5, `${label}: the single bar sits directly above the arena`);
+  if (result.announcementVisible) {
+    assert(result.persistentStatusVisible, `${label}: a temporary notice never replaces the boss or challenge status`);
+    assert.equal(result.rewardVisible, false, `${label}: temporary notices take priority over the reward row`);
+  }
   assert.deepEqual(result.groupOverlaps, [], `${label}: independent visible HUD instruments never overlap`);
   if (result.viewport.width >= 1200) for (const group of result.horizontalGroups) {
     const firstCenter = group.boxes[0].y + group.boxes[0].height / 2;
@@ -202,8 +233,8 @@ async function stressLongRunHUD(page, label, touch, stable) {
   const original = await page.evaluate(() => {
     const s = tyran.state, p = s.players[0], boss = s.enemies.find(enemy => enemy.boss && !enemy.dead);
     return {
-      state: { level: s.level, difficulty: s.difficulty, score: s.score, credits: s.credits, combo: s.combo, comboTime: s.comboTime, comboLabel: s.comboLabel },
-      pilot: { alive: p.alive, fireEnergy: p.fireEnergy, fireEnergyLocked: p.fireEnergyLocked, rapidFireTime: p.rapidFireTime, invulnerableTime: p.invulnerableTime },
+      state: { level: s.level, difficulty: s.difficulty, score: s.score, credits: s.credits, lives: s.lives, combo: s.combo, comboTime: s.comboTime, comboLabel: s.comboLabel },
+      pilot: { alive: p.alive, bombs: p.bombs, drones: p.drones, fireEnergy: p.fireEnergy, fireEnergyLocked: p.fireEnergyLocked, rapidFireTime: p.rapidFireTime, invulnerableTime: p.invulnerableTime },
       boss: { vulnerable: boss.vulnerable, windowClock: boss.windowClock },
     };
   });
@@ -216,10 +247,11 @@ async function stressLongRunHUD(page, label, touch, stable) {
   ];
   for (const fixture of cases) {
     const hud = await page.evaluate(async fixture => {
-      const { shipStats } = await import('./sim.js');
+      const { shipStats, MAX_BOMBS, MAX_LIVES, MAX_DRONES } = await import('./sim.js');
       const s = tyran.state, p = s.players[0], boss = s.enemies.find(enemy => enemy.boss && !enemy.dead);
       s.level = fixture.level; s.difficulty = 'medium'; s.score = 0; s.credits = 0; tyran.feedback.reset(s);
       s.score = fixture.total; s.credits = fixture.total; s.combo = 99; s.comboTime = 4; s.comboLabel = 'Rampage';
+      p.bombs = MAX_BOMBS; p.drones = MAX_DRONES; s.lives = MAX_LIVES;
       p.rapidFireTime = 10; p.invulnerableTime = 10;
       p.fireEnergy = shipStats(s.upgrades).energy * fixture.energy; p.fireEnergyLocked = true;
       boss.vulnerable = fixture.vulnerable; boss.windowClock = 10;
@@ -228,9 +260,11 @@ async function stressLongRunHUD(page, label, touch, stable) {
       // Refresh presentation without advancing a high-score simulation or
       // spawning a different world; this fixture tests fixed HUD allocation.
       tyran.step(0); __uiFrame();
+      // Model the normal expiry of a temporary notice: persistent status and
+      // rewards must then fit together with both timed bonuses.
+      document.querySelector('#announcement').hidden = true;
       const shown = id => { const el = document.getElementById(id); return !el.closest('[hidden]') && el.getBoundingClientRect().width > 0; };
       return {
-        sector: document.querySelector('#level-number').textContent,
         energy: document.querySelector('#p1-energy-status').textContent,
         energyAccessible: document.querySelector('#p1-energy-status').getAttribute('aria-label'),
         boss: document.querySelector('#boss-status').textContent,
@@ -243,7 +277,6 @@ async function stressLongRunHUD(page, label, touch, stable) {
     }, fixture);
     const caseLabel = `${label}-sector-${fixture.level + 1}-totals-${fixture.total}`;
     const exact = new Intl.NumberFormat('en-US').format(fixture.total);
-    assert.equal(hud.sector, `${fixture.level + 1} · Cycle ${Math.floor(fixture.level / 10) + 1}`);
     assert.equal(hud.energy, `↻ ${Math.floor(fixture.energy * 100)}%`);
     assert.equal(hud.energyAccessible, `Recharging · ${Math.floor(fixture.energy * 100)}%`);
     assert.equal(hud.boss, `${fixture.vulnerable ? 'Open' : 'Locked'} · 10.0s`);
@@ -290,6 +323,12 @@ try {
       await settled(page);
       assert.deepEqual(await arena(page), beforeLaunch, 'launch reuses the exact geometry prepared by the menu');
       const stable = await arena(page);
+      const quiet = await page.evaluate(() => ({
+        announcement: document.querySelector('#announcement').hidden,
+        updatesVisible: getComputedStyle(document.querySelector('.flight-updates')).display !== 'none',
+        missionVisible: tyran.worlds.some(world => document.querySelector('#hud').innerText.includes(world.name)),
+      }));
+      assert.deepEqual(quiet, { announcement: true, updatesVisible: false, missionVisible: false }, 'quiet flight has no mission metadata or empty message panel');
       await page.evaluate(async () => {
         const { spawnEnemy, killEnemy } = await import('./sim.js');
         const s = tyran.state, p = s.players[0];
@@ -362,5 +401,5 @@ try {
   }
   assert.deepEqual(errors, [], 'UI layout and controls produce no runtime/resource errors');
   await writeFile(`${output}/results.json`, JSON.stringify(results, null, 2));
-  console.log('PASS one compact top HUD: desktop, ultrawide, touch portrait/landscape, rendered text fit, long-run totals/sectors, simultaneous notices/boss/rewards/bonuses, stable geometry, unobstructed uniformly scaled arena and working touch steering.');
+  console.log('PASS separate translucent HUD islands: desktop, ultrawide, touch portrait/landscape, rendered text fit, long-run totals, simultaneous notices/boss/rewards/bonuses, stable geometry, unobstructed uniformly scaled arena and working touch steering.');
 } finally { await browser.close(); }

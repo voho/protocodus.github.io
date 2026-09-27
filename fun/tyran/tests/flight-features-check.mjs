@@ -31,9 +31,9 @@ try {
 
   // The script opens with a swarm; its squadrons fly in from offscreen.
   await page.evaluate(() => { tyran.state.players[0].hurt = 1e6; __advance(4); });
-  const opening = await page.evaluate(() => ({ wave: tyran.state.director.wave, kind: tyran.state.director.kind, label: document.querySelector('#wave-label').textContent }));
+  const opening = await page.evaluate(() => ({ wave: tyran.state.director.wave, kind: tyran.state.director.kind }));
   assert.deepEqual([opening.wave, opening.kind], [0, 'hive']);
-  assert.match(opening.label, /Wave 01 \/ 0\d/);
+  assert.equal(await page.locator('#hud #wave-label').count(), 0, 'Wave metadata does not occupy the combat HUD');
 
   // Real keyboard: Space fires the primary; E detonates one nova per press.
   await page.evaluate(() => { tyran.state.bullets.push({ x: 500, y: 300, px: 500, py: 300, vx: 0, vy: 40, team: -1, radius: 4, life: 5, damage: 5, kind: 'hostile', color: '#75f5ff', variant: 0, age: 0 }); });
@@ -53,7 +53,7 @@ try {
     __advance(.5);
   });
   assert.equal(await page.locator('#p1-power i.on').count(), 3);
-  assert.match(await text('weapon-level'), /^P3 ·/);
+  assert.match(await page.locator('#p1-power').getAttribute('aria-label'), /Pulse Array · Power 3 of 5/);
   assert.equal(await text('p1-drones'), '2');
   assert.equal(await page.evaluate(() => tyran.state.players[0].wing.length), 2);
 
@@ -99,7 +99,7 @@ try {
   await page.evaluate(() => __advance(1.8));
   assert.equal(await page.evaluate(() => tyran.state.players[0].alive), true);
   assert.equal(await text('p1-lives'), '1');
-  assert.match(await text('p1-reserve'), /1 ship in reserve/);
+  assert.equal(await page.evaluate(() => tyran.state.lives), 1, 'the visible reserve count matches the flight state');
 
   // Guardian, then the challenging stage with its own HUD readout.
   await page.evaluate(async () => {
@@ -108,7 +108,7 @@ try {
     killEnemy(s, spawnEnemy(s, 9, s.width / 2, 180)); tyran.step(3.4); __advance(2);
   });
   assert.ok(await page.evaluate(() => tyran.state.challenge && !tyran.state.challenge.done));
-  assert.match(await text('wave-label'), /Bonus stage · \d+ \/ 40/);
+  assert.match(await text('challenge-count'), /^\d+ \/ 40 hits$/);
   const result = await page.evaluate(async () => {
     const { killEnemy } = await import('./sim.js');
     const s = tyran.state;
@@ -116,7 +116,7 @@ try {
       tyran.step(1 / 60);
       for (const e of s.enemies) if (e.challenge && !e.dead && e.pathD >= 0 && e.y > 0 && e.x > 0 && e.x < s.width) killEnemy(s, e);
     }
-    __advance(3);
+    __advance(4.5);
     return { scene: tyran.scene, hits: s.challenge.hits };
   });
   assert.deepEqual(result, { scene: 'hangar', hits: 40 });
@@ -138,7 +138,9 @@ try {
   assert.equal(saved.state.primary, 'lance'); assert.deepEqual(saved.state.owned, ['pulse', 'lance']);
   await page.locator('#next-button').click();
   assert.equal(await page.evaluate(() => tyran.state.level), 1);
-  assert.equal(await text('weapon-value'), 'Lance Driver');
+  assert.equal(await page.evaluate(() => tyran.state.primary), 'lance');
+  assert.match(await page.locator('#p1-power').getAttribute('aria-label'), /^Lance Driver · Power/);
+  assert.match(await page.locator('#p1-power').evaluate(el => el.parentElement.title), /^Lance Driver · Power.*Mk/);
   await page.keyboard.down('Space'); await page.evaluate(() => __advance(.2)); await page.keyboard.up('Space');
   assert.ok(await page.evaluate(() => tyran.state.bullets.some(b => b.kind === 'lance')));
   assert.deepEqual(errors, []);

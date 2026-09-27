@@ -117,6 +117,7 @@ try {
     // Sector one continues into its challenging stage; let the formation pass.
     if (tyran.state.challenge) { for (const enemy of tyran.state.enemies) if (enemy.challenge) enemy.gone = true; tyran.step(5); }
   });
+  await page.waitForFunction(() => tyran.scene === 'hangar');
   assert(await page.locator('#hangar-screen').isVisible());
   assert.equal(await page.evaluate(() => tyran.state.status), 'hangar');
   await page.screenshot({ path:`${output}/hangar.png` });
@@ -141,13 +142,15 @@ try {
     tyran.launch(9,{ upgrades:{weapon:6,shield:6,hull:6,recharge:6} });
     killEnemy(tyran.state,spawnEnemy(tyran.state,9,tyran.state.width/2,180)); tyran.step(3.4);
   });
+  await page.waitForFunction(() => tyran.scene === 'hangar');
   assert(await page.locator('#hangar-screen').isVisible());
   assert.equal(await page.evaluate(() => tyran.state.status), 'hangar');
   assert.match(await page.locator('#hangar-subtitle').textContent(), /new cycle awaits/i);
   await page.locator('#next-button').click();
   assert.equal(await page.evaluate(() => tyran.state.level), 10, 'The tenth guardian leads into a new campaign cycle');
   assert.equal(await page.evaluate(() => tyran.world.index), 0);
-  assert.match(await page.locator('#level-number').textContent(), /11.*Cycle 2/);
+  assert.equal(await page.locator('#hud #level-number').count(), 0, 'Mission metadata stays out of the active HUD');
+  assert(await page.locator('#announcement').isHidden(), 'New-sector launch does not show a mission-name announcement');
   // Storage denial must not prevent boot or play.
   const restricted = await browser.newPage(); watch(restricted);
   await restricted.addInitScript(() => { Object.defineProperty(window,'localStorage',{get(){throw new Error('Storage disabled');}}); });

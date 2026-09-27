@@ -33,32 +33,37 @@ const clearSector = () => page.evaluate(async () => {
   s.players[0].hurt = 1e6; s.director.hold = true;
   killEnemy(s, spawnEnemy(s, 9, s.width / 2, 180)); tyran.step(3.4);
   if (s.challenge) { for (const enemy of s.enemies) if (enemy.challenge) enemy.gone = true; tyran.step(5); }
+  for (let frame = 0; frame < 110 && tyran.scene === 'bonus-outro'; frame++) __pumpFrame();
   if (tyran.scene !== 'hangar') throw new Error(`Sector ${s.level} did not reach the hangar`);
 });
 const assertFlight = async level => {
   const actual = await page.evaluate(async level => {
     const { drawShip } = await import('./ships.js');
     const { spawnEnemy } = await import('./sim.js');
+    const { GPUCanvas2D } = await import('./gpu-canvas.js');
     const s = tyran.state, index = level % 10, palette = tyran.shipPalettes[index];
     // Identify this environment's actual cached hull, then observe the gameplay
     // canvas draw it. This catches wrong palette/index use in the live renderer.
     const probe = document.createElement('canvas').getContext('2d');
     let expectedHull;
-    probe.drawImage = (image, ...args) => { if (args.join(',') === '-140,-140,280,280') expectedHull = image; };
+    probe.drawImage = (image, ...args) => { if (probe.globalCompositeOperation === 'source-over') expectedHull = image; };
     drawShip(probe, 0, 0, 22, 2, palette.primary, 0, { world: index, palette });
     const enemy = spawnEnemy(s, 2, s.width / 2, 250); enemy.noFire = true;
-    const canvas = document.querySelector('#game-canvas'), context = canvas.getContext('2d'), draw = context.drawImage;
+    if (!expectedHull) throw new Error('The ship probe did not draw a hull');
+    const backend = tyran.renderer.backend;
+    const context = backend === 'webgl2' ? GPUCanvas2D.prototype : CanvasRenderingContext2D.prototype, draw = context.drawImage;
     let fleetDrawn = false;
-    context.drawImage = function (image, ...args) { if (image === expectedHull) fleetDrawn = true; return draw.call(this, image, ...args); };
+    context.drawImage = function (image, ...args) { if (['game-canvas', 'game-gpu-canvas'].includes(this.canvas.id) && image === expectedHull) fleetDrawn = true; return draw.call(this, image, ...args); };
     try { tyran.step(0); __pumpFrame(); } finally { context.drawImage = draw; s.enemies = s.enemies.filter(item => item !== enemy); }
     return { level: s.level, status: s.status, scene: tyran.scene, index: tyran.world.index, id: tyran.world.world.id,
-      expectedId: tyran.worlds[index].id, seed: tyran.world.seed, fleetDrawn, name: document.querySelector('#level-name').textContent,
-      expectedName: tyran.worlds[index].name, label: document.querySelector('#level-number').textContent };
+      expectedId: tyran.worlds[index].id, seed: tyran.world.seed, fleetDrawn, backend,
+      missionLabels: document.querySelectorAll('#hud #level-name, #hud #level-number').length };
   }, level);
   assert.equal(actual.level, level); assert.equal(actual.status, 'playing'); assert.equal(actual.scene, 'playing');
-  assert.equal(actual.index, level % 10); assert.equal(actual.id, actual.expectedId); assert.equal(actual.name, actual.expectedName);
+  assert.equal(actual.index, level % 10); assert.equal(actual.id, actual.expectedId);
   assert.equal(actual.seed, level < 10 ? 'tyran-v2' : `tyran-v2-cycle-${Math.floor(level / 10) + 1}`);
-  assert.equal(actual.label, `${String(level + 1).padStart(2, '0')} · Cycle ${Math.floor(level / 10) + 1}`);
+  assert.equal(actual.missionLabels, 0, 'Environment and campaign progression do not occupy the combat HUD');
+  assert.equal(actual.backend, new URL(url).searchParams.get('renderer') === 'native' ? 'canvas2d' : 'webgl2');
   assert(actual.fleetDrawn, `sector ${level + 1} draws its environment's ship livery`);
 };
 const assertRoute = async (cycle, first, current) => {
@@ -130,5 +135,5 @@ try {
   await click('next-button'); await assertFlight(10);
   assert.deepEqual(await gear(), firstCycleGear, 'Continuing a migrated victory never resets equipment or awards the old bonus again');
   assert.deepEqual(errors, [], 'No browser errors across repeated environments or save migrations');
-  console.log('PASS endless campaign browser flow: 9→10→11 and 19→20, environment and rendered fleet cycling, route/HUD, equipment, credits, later-cycle save/resume/retry, and legacy victory continuation.');
+  console.log('PASS endless campaign browser flow: 9→10→11 and 19→20, environment and rendered fleet cycling, route, compact HUD, equipment, credits, later-cycle save/resume/retry, and legacy victory continuation.');
 } finally { await browser.close(); }

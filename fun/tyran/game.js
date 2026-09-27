@@ -3,7 +3,7 @@ import { WORLDS, PARALLAX_LAYERS, WorldRenderer } from './worlds.js';
 import { ENEMY_TYPES, SHIP_PALETTES, drawShip, warmShipSprites, warmGpuShipSprites } from './ships.js';
 import { createCampaign, beginLevel, update, buyUpgrade, upgradeCost, UPGRADES, WEAPONS, BULLET_SPECTRUM, MAX_UPGRADE, clamp, selectWeapon, shipStats, weaponStats, SECONDARY_ENERGY_COST, SECONDARY_RESTART_ENERGY, bossWeakPointPosition, applyGroundReward,
   PRIMARIES, SUPPLIES, buyPrimary, buySupply, supplyCost, supplyStock, primaryStats, firingInterval, MAX_POWER, SHIELD_FIRING_RECHARGE, SHIELD_REST_RECHARGE } from './sim.js';
-import { isDormant, directorProgress } from './waves.js';
+import { isDormant } from './waves.js';
 import { Effects, explosionIntensity, warmEffectsTextures, warmGpuEffectTextures } from './effects.js';
 import { CombatFeedback } from './combat-feedback.js';
 import { difficultyProfile, normalizeDifficulty } from './difficulty.js';
@@ -308,7 +308,7 @@ function warmGpuSources() {
   world.warmGpuSources(gpu);
 }
 
-// Every notice stays in the reserved instrument strip outside the arena.
+// Contextual notices stay in their HUD island outside the arena.
 function announce(kicker, title, description = '', seconds = 3, compact = false) {
   $('announcement').classList.toggle('compact', compact);
   $('announcement-kicker').textContent = kicker;
@@ -328,7 +328,7 @@ function launch(level = 0, checkpoint = null, persist = true) {
   state.width = W; state.height = H; beginLevel(state, level);
   world.setWorld(level, sectorSeed(level)); warmFleet(level); fx.reset(); feedback.reset(state); keys.clear(); previousScroll = 0; $('boss-hud').hidden = true;
   setScreen('playing');
-  announce(sectorLabel(level), environment(level).name, environment(level).subtitle || 'Clear the skies. Bring everyone home.', 3.2);
+  $('announcement').hidden = true;
   autosave(); refreshContinue();
   canvas.focus({ preventScroll: true });
   refreshHUD();
@@ -346,12 +346,6 @@ function pause() {
   else if (scene === 'pause') { audio.start(); setScreen('playing'); canvas.focus({ preventScroll: true }); }
 }
 
-function waveLabel(s) {
-  if (s.challenge && !s.challenge.done) return `Bonus stage · ${s.challenge.hits} / ${s.challenge.total}`;
-  if (s.bossSpawned) return 'Guardian';
-  const d = s.director, total = d?.plan.length || 0;
-  return d ? `Wave ${String(Math.max(1, d.wave + 1)).padStart(2, '0')} / ${String(total).padStart(2, '0')}` : '';
-}
 function flash(el) { el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
 
 function refreshDifficultyChoice() {
@@ -366,14 +360,16 @@ function renderCombatFeedback() {
   setHidden(el, !feedback.visible);
   if (feedbackRevision !== feedback.revision) {
     feedbackRevision = feedback.revision;
-    setText($('combat-feedback-chain'), feedback.chain >= 2 ? `${feedback.label} ×${feedback.chain}` : 'Recent rewards');
+    const details = feedback.details;
+    setText($('combat-feedback-chain'), feedback.chain >= 2 ? `${feedback.label} ×${feedback.chain}` : details.split(' · ')[0] || 'Rewards');
+    setAttribute($('combat-feedback-chain'), 'title', details || feedback.label);
     setText($('combat-feedback-score'), `+${rewardNumber(feedback.score)}`);
     setText($('combat-feedback-credits'), `$ +${rewardNumber(feedback.credits)}`);
     setAttribute($('combat-feedback-score'), 'title', `+${number(feedback.score)} score`);
     setAttribute($('combat-feedback-credits'), 'title', `+${number(feedback.credits)} credits`);
     setHidden($('combat-feedback-score').parentElement, feedback.score <= 0);
     setHidden($('combat-feedback-credits').parentElement, feedback.credits <= 0);
-    setText($('combat-feedback-detail'), feedback.details);
+    setText($('combat-feedback-detail'), details);
     setAttribute(el, 'data-rampage', String(feedback.chain >= 5));
   }
   const opacity = String(Number(feedback.opacity.toFixed(3)));
@@ -385,12 +381,6 @@ function refreshHUD() {
   renderCombatFeedback();
   const bonuses = String(state.players.some(p => p.alive && (p.rapidFireTime > 0 || p.invulnerableTime > 0)));
   if (document.body.dataset.bonuses !== bonuses) document.body.dataset.bonuses = bonuses;
-  setText($('level-name'), environment(state.level).name);
-  setText($('sector-value'), String(state.level + 1).padStart(2, '0'));
-  setAttribute($('sector-value'), 'title', `Sector ${state.level + 1} · Cycle ${campaignCycle(state.level) + 1}`);
-  setText($('level-number'), `${String(state.level + 1).padStart(2, '0')} · Cycle ${campaignCycle(state.level) + 1}`);
-  setText($('difficulty-value'), difficultyProfile(state.difficulty).label);
-  setText($('wave-label'), waveLabel(state));
   // Endless runs keep the instrument width stable; exact totals remain
   // available to assistive technology and on hover.
   for (const [id, value, label] of [['score-value', state.score, 'score'], ['credits-value', state.credits, 'credits']]) {
@@ -399,17 +389,16 @@ function refreshHUD() {
   }
   const pilot = state.players[0], profile = primaryStats(state, pilot);
   const stats = shipStats(state.upgrades);
-  setText($('weapon-value'), profile.name); setText($('weapon-level'), `P${profile.power + 1} · Mk ${String(profile.level + 1).padStart(2, '0')}`);
+  setAttribute($('p1-power').parentElement, 'title', `${profile.name} · Power ${profile.power + 1} of ${MAX_POWER + 1} · Mk ${profile.level + 1}`);
   const pips = $('p1-power').children, power = pilot.power || 0;
   for (let i = 0; i < pips.length; i++) { pips[i].classList.toggle('on', i <= power); pips[i].classList.toggle('max', power >= MAX_POWER); }
-  setAttribute($('p1-power'), 'aria-label', `Power ${power + 1} of ${MAX_POWER + 1}`);
+  setAttribute($('p1-power'), 'aria-label', `${profile.name} · Power ${power + 1} of ${MAX_POWER + 1}`);
   for (const [id, value] of [['p1-bombs', pilot.bombs || 0], ['p1-drones', pilot.drones || 0], ['p1-lives', state.lives || 0]]) {
     const text = String(value), el = $(id);
     if (el.textContent !== text) { if (el.textContent) flash(el.parentElement); el.textContent = text; }
   }
-  setText($('p1-reserve'), state.lives === 1 ? '1 ship in reserve' : `${state.lives || 0} ships in reserve`);
+  setHidden($('p1-drones').parentElement, !pilot.drones);
   setText($('touch-bomb-count'), String(pilot.bombs || 0));
-  setFill($('progress-fill'), directorProgress(state));
   for (const p of state.players) {
     const prefix = `p${p.id + 1}`;
     setFill($(prefix + '-energy'), p.fireEnergy / stats.energy);
@@ -450,7 +439,11 @@ function refreshHUD() {
   const boss = state.enemies.find(e => e.boss && !e.dead);
   setHidden($('boss-hud'), !boss || !!challenge);
   if (boss) {
-    setText($('boss-name'), environment(state.level).bossName || 'Sector guardian'); setFill($('boss-fill'), boss.hp / boss.maxHp);
+    const hull = Math.ceil(boss.hp / boss.maxHp * 100);
+    setText($('boss-name'), `${hull}%`);
+    setAttribute($('boss-name'), 'aria-label', `Guardian hull ${hull}%`);
+    setAttribute($('boss-hud'), 'title', environment(state.level).bossName || 'Sector guardian');
+    setFill($('boss-fill'), boss.hp / boss.maxHp);
     const bossTime = `${boss.windowClock.toFixed(1)}s`;
     setText($('boss-status'), `${boss.vulnerable ? 'Open' : 'Locked'} · ${bossTime}`);
     setAttribute($('boss-status'), 'title', `${boss.vulnerable ? 'Core exposed' : 'Armor sealed'} · ${bossTime}`);
@@ -667,19 +660,19 @@ function processEvents() {
       if (!fx.reduced) hitstop = Math.max(hitstop, .08);
       for (const prop of environmentHit(e.x, e.y, 320, 420, state.scroll)) applyGroundReward(state, prop, 1.2);
     }
-    if (e.type === 'boss') announce('Warning · heavy signature', environment(state.level).bossName, 'Break through its armor. Watch for changing attack patterns.', 3);
+    if (e.type === 'boss') announce('Warning · heavy signature', 'Guardian incoming', 'Break through its armor. Watch for changing attack patterns.', 3);
     if (e.type === 'phase') announce('Reactor surge', 'Guardian enraged', 'New attack pattern detected.', 1.6, true);
-    if (e.type === 'boss-open' && e.openCount === 1) announce('Window open', 'Core exposed', 'Aim for the glowing weak points before the armor seals.', 1.5, true);
+    if (e.type === 'boss-open' && e.openCount === 1) announce('Window open', 'Core open · hit weak points', 'Aim for the glowing weak points before the armor seals.', 1.5, true);
     if (e.type === 'formation' && !state.director) announce('Tactical formation', e.label, `${e.count} contacts moving as one.`, 1.15, true);
     if (e.type === 'wave' && e.wave > 1 && WAVE_BRIEFS[e.kind]) announce(`Wave ${String(e.wave).padStart(2, '0')} / ${String(e.total).padStart(2, '0')}`, ...WAVE_BRIEFS[e.kind], 1.8, true);
-    if (e.type === 'midboss') announce('Warning · heavy cruiser', 'Dreadnought', 'Destroy it for a power core and a wing drone.', 2.4);
-    if (e.type === 'captor') announce('Warning · captor', 'Tractor beam', 'It steals wing drones. Shoot it down to bring them home.', 2.6);
-    if (e.type === 'captured') announce('Drone captured', 'Shoot the captor', 'Destroy it before it escapes to rescue your drone.', 2, true);
+    if (e.type === 'midboss') announce('Warning · heavy cruiser', 'Cruiser · drops a drone', 'Destroy it for a power core and a wing drone.', 2.4);
+    if (e.type === 'captor') announce('Warning · captor', 'Captor · steals drones', 'It steals wing drones. Shoot it down to bring them home.', 2.6);
+    if (e.type === 'captured') announce('Drone captured', 'Kill captor to rescue drone', 'Destroy it before it escapes to rescue your drone.', 2, true);
     if (e.type === 'captive-lost') announce('Captor escaped', 'Drone lost', '', 1.4, true);
-    if (e.type === 'challenge') announce('Bonus stage', 'Challenging stage', `${e.total} ships. No return fire. Hit every one for a perfect bonus.`, 3);
+    if (e.type === 'challenge') announce('Bonus stage', 'Bonus · no enemy fire', `${e.total} ships. No return fire. Hit every one for a perfect bonus.`, 3);
     if (e.type === 'challenge-result') announce(e.perfect ? 'Perfect!' : 'Challenge complete', `${e.hits} / ${e.total}`, `+${number(e.credits)} credits · +${number(e.score)} score`, 2.6);
-    if (e.type === 'extra-life') announce('Extra ship', e.credits ? `+${e.credits} credits` : '1UP', e.credits ? 'Reserve hangar full.' : `${e.lives} ship${e.lives === 1 ? '' : 's'} in reserve.`, 1.8, true);
-    if (e.type === 'respawn') announce('Reserve ship launched', `${e.lives} left`, 'Two power levels and one drone lost.', 1.6, true);
+    if (e.type === 'extra-life') announce('Extra ship', e.credits ? `+$${e.credits}` : 'Reserve ship +1', e.credits ? 'Reserve hangar full.' : `${e.lives} ship${e.lives === 1 ? '' : 's'} in reserve.`, 1.8, true);
+    if (e.type === 'respawn') announce('Reserve ship launched', `${e.lives} reserve ship${e.lives === 1 ? '' : 's'} left`, 'Two power levels and one drone lost.', 1.6, true);
     if (e.type === 'weapon') { refreshHUD(); renderWeapons(); }
     if (['pickup', 'extra-life', 'respawn', 'nova', 'captured', 'rescue', 'power-lost'].includes(e.type)) refreshHUD();
     if (e.type === 'hangar') {
@@ -1136,7 +1129,7 @@ on('retry-button', () => launch(state.level, state, activeCampaign));
 on('next-button', () => {
   if (state?.status !== 'hangar') return;
   beginLevel(state, nextSector(state.level)); selected = environmentIndex(state.level); world.setWorld(state.level, sectorSeed(state.level)); warmFleet(state.level); previousScroll = 0; fx.reset(); feedback.reset(state); setScreen('playing'); audio.start(); $('boss-hud').hidden = true;
-  announce(sectorLabel(state.level), environment(state.level).name, environment(state.level).subtitle, 3); refreshHUD(); canvas.focus({ preventScroll: true });
+  $('announcement').hidden = true; refreshHUD(); canvas.focus({ preventScroll: true });
   autosave();
 });
 $('weapon-list').addEventListener('click', event => {

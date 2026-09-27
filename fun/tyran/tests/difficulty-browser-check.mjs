@@ -23,7 +23,7 @@ const newPage = async options => {
 const pause = page => page.evaluate(() => { if (tyran.scene === 'playing') tyran.pause(); });
 const assertDifficulty = async (page, difficulty, label) => {
   assert.equal(await page.evaluate(() => tyran.state.difficulty), difficulty);
-  assert.equal(await page.locator('#difficulty-value').textContent(), label);
+  assert.equal(await page.locator('#hud #difficulty-value').count(), 0, `${label} remains in campaign state without occupying active HUD space`);
 };
 const assertPickerFits = async page => {
   await page.locator('#difficulty-picker').scrollIntoViewIfNeeded();
@@ -96,6 +96,7 @@ try {
     killEnemy(s, spawnEnemy(s, 9, s.width / 2, 180)); tyran.step(3.4);
     if (s.challenge) { for (const enemy of s.enemies) if (enemy.challenge) enemy.gone = true; tyran.step(5); }
   });
+  await page.waitForFunction(() => tyran.scene === 'hangar');
   assert.equal(await page.evaluate(() => tyran.scene), 'hangar');
   await page.locator('#next-button').click(); await pause(page);
   assert.equal(await page.evaluate(() => tyran.state.level), 1); await assertDifficulty(page, 'real', 'Real');
