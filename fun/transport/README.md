@@ -8,7 +8,7 @@ Transport is a single-player, isometric transport and city-building game. A new 
 
 The game opens at its main menu. Choose **New game** to select the landscape, map size, number of towns and number of industry districts. Each district contains a complete set of production chains; the menu shows the total industry count before you create the world. The optional **World seed** lets you recreate a landscape with the same settings.
 
-Choose **Load game** to open the latest autosave or a named local save. Opening the menu alone does not generate a map or overwrite a save. Creating a new world replaces the autosave after a successful write; named saves remain unchanged. During play, **Game menu → Main menu** pauses the company and offers **Resume**, New game and Load game.
+When this browser holds an autosave, **Continue** heads the menu with its landscape, game date, balance and how long ago it was saved; one click reopens that company. Choose **Load game** to open the autosave or a named local save; each lists its landscape, game date, balance, map size and routes. Opening the menu alone does not generate a map or overwrite a save. Creating a new world replaces the autosave after a successful write; named saves remain unchanged. During play, **Game menu → Main menu** pauses the company and offers **Resume**, New game and Load game.
 
 ## Your first connection
 
@@ -106,9 +106,9 @@ Choose **Bulldozer** in Build → Network, or press **X**, then click or drag to
 
 Every construction tip matches what the release will do. Red tiles are refused and the tip explains why. Zone and Bulldozer drags may still build part of a stroke; the amber tip says how many tiles, for example **Builds 2 of 9 · funds for 2**. Hovering the **Stop** or **Port** tool over a valid tile names what the stop would load, accept and serve, or warns that no customers are within 5 tiles.
 
-The simulation runs at 1×, 3× or 8× speed. One real second represents one day at 1×. You can build while paused, and dialogs pause the simulation while open.
+The simulation runs at 1×, 3× or 8× speed. One real second represents one day at 1×. You can build while paused, and dialogs pause the simulation while open. While the map is paused, a **Paused** chip at its top says so; press Space, or click or tap the chip, to resume.
 
-The game autosaves to local storage when a company is activated, three seconds after your last construction stroke, after route changes, every 20 seconds while the world changes, and when hiding or leaving gameplay. Reloading returns to the main menu; choose **Load game → Autosave** to continue the latest company. Hidden tabs do not advance the simulation, and there is no offline time progression.
+The game autosaves to local storage when a company is activated, three seconds after your last construction stroke, after route changes, every 20 seconds while the world changes, and when hiding or leaving gameplay. Reloading returns to the main menu; choose **Continue** to pick up the latest company. Hidden tabs do not advance the simulation, and there is no offline time progression.
 
 A full-screen loading view shows progress while opening the game, creating a world or restoring a save. Generation and restoration run in the background, keeping the loading screen responsive. Choose **Cancel** or press **Escape** during creation or restoration to return without replacing your current world or autosave. The map appears when its first view is ready; the loading animation respects reduced-motion preferences.
 

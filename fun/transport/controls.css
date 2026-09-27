@@ -118,3 +118,12 @@
 .compact-play.page-zoomed #world{touch-action:pinch-zoom}
 html,body{overscroll-behavior:none}
 #panel-content,#inspector,#game-menu,#modal{overscroll-behavior:contain}
+/* Paused: a top-centre chip clear of the tool bar and route-pick banner (top-left) and the layers panel (top-right). */
+.paused-chip{position:absolute;top:12px;left:50%;z-index:6;transform:translateX(-50%);min-height:44px;padding:10px 17px 10px 15px;border:1px solid #ddc7a6;border-radius:22px;background:#fff7e8f5;box-shadow:0 4px 17px #35432c25;backdrop-filter:blur(9px);color:#34553b;font-size:14px;font-weight:600;line-height:22px;white-space:nowrap}
+.paused-chip::before{content:'';display:inline-block;vertical-align:-1px;width:10px;height:12px;margin-right:10px;box-sizing:border-box;border-inline:3px solid #de794b}
+.paused-chip span{font-weight:400;color:#7d735f}
+.paused-chip:hover{background:#fff1dc}
+.paused-chip[hidden],.paused-chip .paused-touch,:root:has(#modal[open]) .paused-chip,:root:has(#start-menu[open]) .paused-chip,:root:has(#loading-screen:not([hidden])) .paused-chip{display:none}
+.compact-play:not(.page-zoomed) .paused-chip{touch-action:none}
+@media(max-width:700px),(hover:none) and (pointer:coarse){.paused-chip .paused-keys{display:none}.paused-chip .paused-touch{display:inline}}
+@media(max-width:1000px){.map-section:has(#active-tool-bar:not([hidden])) .paused-chip{top:74px}.map-section:has(#route-pick-banner) .paused-chip{top:92px}}

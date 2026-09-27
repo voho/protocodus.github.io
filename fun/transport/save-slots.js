@@ -200,3 +200,17 @@ export function deleteSaveSlot(id) {
     return { ok: true, id, message: 'Save deleted.' };
   } catch { return fail('Could not delete this save. Browser storage is unavailable.'); }
 }
+
+// Save lists share one wording for the in-game date, balance and size.
+export const slotDate = day => Number.isFinite(day) ? new Date(Date.UTC(1950, 0, 1 + Math.floor(day))).toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' }) : 'Unknown date';
+export const slotMoney = value => Number.isFinite(value) ? `${value < 0 ? '−' : ''}$${Math.round(Math.abs(value)).toLocaleString('en-US')}` : '—';
+export const slotDetails = slot => `${BIOMES[slot.biome]?.name || 'Unknown world'} · ${slotDate(slot.day)} · ${slotMoney(slot.money)} · ${slot.width} × ${slot.height} · ${slot.routes} route${slot.routes === 1 ? '' : 's'}`;
+
+/** Wall-clock age such as '3 minutes ago'; empty when the time is unknown or ahead of this clock. */
+export function savedAgo(value, now = Date.now()) {
+  const seconds = (now - Date.parse(value)) / 1000;
+  if (!Number.isFinite(seconds) || seconds < -60) return '';
+  if (seconds < 60) return 'just now';
+  const [unit, size] = [['day', 86400], ['hour', 3600], ['minute', 60]].find(([, size]) => seconds >= size);
+  return new Intl.RelativeTimeFormat('en', { numeric: 'auto' }).format(-Math.floor(seconds / size), unit);
+}

@@ -1,8 +1,8 @@
 import { BIOMES } from './model.js';
 import { createGameAsync } from './background-jobs.js';
-import { savePreparedGame } from './autosave-storage.js';
+import { savePreparedGame, AUTOSAVE_AT_KEY } from './autosave-storage.js';
 import { DEFAULT_WORLD_SIZE, NEW_WORLD_SIZES, worldGenerationOptions } from './world.js';
-import { listSaveSlots, readSaveSlot } from './save-slots.js';
+import { listSaveSlots, readSaveSlot, slotDate, slotMoney, slotDetails, savedAgo } from './save-slots.js';
 import { hideLoading, showLoading, paintLoading, loadingJobProgress } from './loading-screen.js';
 
 const escape=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -49,20 +49,33 @@ export function openStartMenu({canResume=false,biome='taiga',notice=''}={}){
    });
   });
   function tab(load){$('#start-new-panel').hidden=load;$('#start-load-panel').hidden=!load;$('#start-new').setAttribute('aria-pressed',String(!load));$('#start-load').setAttribute('aria-pressed',String(load));message('');if(load)renderSaves();}
-  function renderSaves(){
-   const result=listSaveSlots(),slots=result.slots||[];
-   $('#start-saves').innerHTML=slots.length?slots.map((slot,i)=>`<button class="start-save" data-slot-index="${i}" ${slot.status!=='ready'?'disabled data-unavailable="true"':''}><span><strong>${escape(slot.name)}</strong><small>${slot.status==='ready'?`${escape(BIOMES[slot.biome]?.name)} · ${slot.width} × ${slot.height} · ${slot.routes} routes`:escape(slot.message||'Unavailable')}</small></span><span aria-hidden="true">↗</span></button>`).join(''):'<div class="start-empty">No saved worlds yet.<br>Start a new game to begin.</div>';
-   if(!result.ok)message(result.message||'Saved games could not be read.');
-   for(const button of $('#start-saves').querySelectorAll('[data-slot-index]'))button.addEventListener('click',()=>void run('Loading your world',async options=>{
-    const slot=slots[Number(button.dataset.slotIndex)],loaded=await readSaveSlot(slot.id,options);options.signal.throwIfAborted();
+  function loadSlot(slot){
+   void run('Loading your world',async options=>{
+    const loaded=await readSaveSlot(slot.id,options);options.signal.throwIfAborted();
     if(!loaded.ok)return loaded;
     if(slot.id!=='autosave'){const saved=savePreparedGame(loaded.game);if(!saved?.ok)return{ok:false,message:'Could not activate this save. Free some browser storage and try again.'};}
     return loaded;
-   }));
+   });
+  }
+  function renderSaves(){
+   const result=listSaveSlots(),slots=result.slots||[];
+   $('#start-saves').innerHTML=slots.length?slots.map((slot,i)=>`<button class="start-save" data-slot-index="${i}" ${slot.status!=='ready'?'disabled data-unavailable="true"':''}><span><strong>${escape(slot.name)}</strong><small>${slot.status==='ready'?escape(slotDetails(slot)):escape(slot.message||'Unavailable')}</small></span><span aria-hidden="true">↗</span></button>`).join(''):'<div class="start-empty">No saved worlds yet.<br>Start a new game to begin.</div>';
+   if(!result.ok)message(result.message||'Saved games could not be read.');
+   for(const button of $('#start-saves').querySelectorAll('[data-slot-index]'))button.addEventListener('click',()=>loadSlot(slots[Number(button.dataset.slotIndex)]));
+  }
+  // Summarising the autosave parses all of it, so Continue joins the menu after its first paint.
+  function offerContinue(){
+   const slot=dialog.isConnected&&listSaveSlots().slots.find(slot=>slot.id==='autosave');if(slot?.status!=='ready')return;
+   let at=null;try{at=localStorage.getItem(AUTOSAVE_AT_KEY);}catch{}
+   const ago=savedAgo(at),button=document.createElement('button');button.id='start-continue';button.className='start-primary';button.disabled=busy;
+   button.innerHTML=`<span><strong>Continue</strong><small>${escape(`${BIOMES[slot.biome]?.name} · ${slotDate(slot.day)} · ${slotMoney(slot.money)}${ago?' · saved '+ago:''}`)}</small></span><span aria-hidden="true">↗</span>`;
+   button.onclick=()=>loadSlot(slot);$('.start-tabs').before(button);
+   if(document.activeElement===$('#start-new'))button.focus({preventScroll:true});
   }
   $('#start-new').onclick=()=>tab(false);$('#start-load').onclick=()=>tab(true);
   $('#start-resume')?.addEventListener('click',()=>{if(!busy){document.querySelector('#app').inert=false;finish(null);}});
   dialog.addEventListener('cancel',event=>{event.preventDefault();if(canResume&&!busy){document.querySelector('#app').inert=false;finish(null);}});
   $('#start-new').focus({preventScroll:true});
+  if(!canResume)requestAnimationFrame(()=>setTimeout(offerContinue,0));
  });
 }

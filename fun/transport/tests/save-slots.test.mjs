@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGame, saveGame, loadGame, SAVE_KEY, tick, validateGame } from '../model.js';
-import { listSaveSlots, writeSaveSlot, readSaveSlot, renameSaveSlot, deleteSaveSlot, SAVE_SLOT_PREFIX } from '../save-slots.js';
+import { listSaveSlots, writeSaveSlot, readSaveSlot, renameSaveSlot, deleteSaveSlot, SAVE_SLOT_PREFIX, slotDate, slotMoney, slotDetails, savedAgo } from '../save-slots.js';
 
 function storageFixture(quota = Infinity) {
   const values = new Map();
@@ -193,3 +193,21 @@ test('readable JSON fallback works without compression and compressed slots repo
     Object.defineProperty(globalThis, 'DecompressionStream', decompression);
   }
 }));
+
+test('save rows name the in-game month, balance and pluralise routes', () => {
+  assert.equal(slotDetails({ biome: 'taiga', day: 0, money: 400000, width: 512, height: 512, routes: 1 }), 'Taiga · Jan 1950 · $400,000 · 512 × 512 · 1 route');
+  assert.equal(slotDetails({ biome: 'desert', day: 790.4, money: -1234.6, width: 256, height: 256, routes: 2 }), 'Desert · Mar 1952 · −$1,235 · 256 × 256 · 2 routes');
+  assert.equal(slotDetails({ biome: 'tundra', day: 31, money: 0, width: 64, height: 64, routes: 0 }), 'Tundra · Feb 1950 · $0 · 64 × 64 · 0 routes');
+  assert.equal(slotDate(null), 'Unknown date'); assert.equal(slotMoney(Number.NaN), '—');
+});
+
+test('save times read relative to now and are omitted when unknown', () => {
+  const now = Date.parse('2026-09-28T12:00:00Z');
+  assert.equal(savedAgo('2026-09-28T11:59:30Z', now), 'just now');
+  assert.equal(savedAgo('2026-09-28T12:00:20Z', now), 'just now', 'small clock skew is not a future save');
+  assert.equal(savedAgo('2026-09-28T11:57:00Z', now), '3 minutes ago');
+  assert.equal(savedAgo('2026-09-28T10:30:00Z', now), '1 hour ago');
+  assert.equal(savedAgo('2026-09-27T09:00:00Z', now), 'yesterday');
+  assert.equal(savedAgo('2026-09-20T12:00:00Z', now), '8 days ago');
+  for (const value of [null, undefined, '', 'not a date', '2026-09-29T12:00:00Z']) assert.equal(savedAgo(value, now), '');
+});

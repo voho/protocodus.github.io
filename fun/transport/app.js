@@ -1,6 +1,6 @@
 import { mountCompactPlay } from './compact-play.js';
 import { captureGame, encodeCapturedGame } from './background-jobs.js';
-import { savePreparedGame } from './autosave-storage.js';
+import { savePreparedGame, noteAutosaveTime } from './autosave-storage.js';
 import { SAVE_KEY } from './model.js';
 import { takeStartupGame, openStartMenu } from './start-menu.js';
 import { surfaceHeight, tileSurface, MAX_HEIGHT } from './terrain-geometry.js';
@@ -179,7 +179,13 @@ function toast(message, options=false) {
  while(region.children.length>3) region.firstChild.remove();
  el.toastTimer=setTimeout(()=>el.remove(),type==='warning'||type==='error'?8000:5000); $('#status-message').textContent=message; if(!silent&&type!=='ok')beep(type==='milestone'?'ok':'error');
 }
-function changeSpeed(next) { if(next>0)previousSpeed=next; speed=next; $$('.speed-control button').forEach(el=>{el.classList.toggle('active',Number(el.dataset.speed)===speed);el.setAttribute('aria-pressed',String(Number(el.dataset.speed)===speed));}); }
+function changeSpeed(next) { if(next>0)previousSpeed=next; speed=next; $$('.speed-control button').forEach(el=>{el.classList.toggle('active',Number(el.dataset.speed)===speed);el.setAttribute('aria-pressed',String(Number(el.dataset.speed)===speed));}); syncPausedChip(); }
+// A frozen world can look hung, so pausing names itself on the map; CSS hides it under dialogs and loading.
+function syncPausedChip() {
+ let chip=$('.paused-chip');
+ if(!chip){chip=document.createElement('button');chip.type='button';chip.className='paused-chip';chip.innerHTML='Paused<span class="paused-keys"> · Space to resume</span><span class="paused-touch"> · Tap to resume</span>';chip.onclick=()=>{changeSpeed(previousSpeed);$('#world').focus({preventScroll:true});};$('#world').parentElement.append(chip);}
+ chip.hidden=speed!==0;
+}
 function closeMapMenus(restoreFocus=false) {
  for(const [menuId,buttonId] of [['zoom-menu','zoom-level'],['map-options','map-options-button']]){
   const menu=$('#'+menuId),button=$('#'+buttonId);if(!menu||menu.hidden)continue;
@@ -637,7 +643,7 @@ function markSaveFailed(){
 }
 function saveRecovered(){saveHealthy=true;$('#save-status').classList.remove('save-failed');$('#game-menu-button')?.removeAttribute('data-alert');$('#game-menu-button')?.setAttribute('aria-label','Game menu');[...$('#toast-region').children].find(el=>el.toastKey==='autosave-failed')?.remove();toast('Autosave is working again.');}
 function cancelPendingSave(){clearTimeout(constructionSaveTimer);constructionSaveTimer=0;const job=pendingSave;pendingSave=null;capturingSave=false;job?.controller.abort();}
-function saveFinished(world,day,revision){savedWorld=world;savedDay=day;savedRevision=revision;saveAt=performance.now();$('#save-status').textContent='Saved just now';if(!saveHealthy)saveRecovered();}
+function saveFinished(world,day,revision){savedWorld=world;savedDay=day;savedRevision=revision;saveAt=performance.now();noteAutosaveTime();$('#save-status').textContent='Saved just now';if(!saveHealthy)saveRecovered();}
 function persist(notify=false){
  saveAt=performance.now();
  if(pendingSave){pendingSave.again=true;pendingSave.notify||=notify;return pendingSave.promise;}

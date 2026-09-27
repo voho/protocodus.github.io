@@ -1,5 +1,5 @@
 import { BIOMES } from './data.js';
-import { listSaveSlots, writeSaveSlot, readSaveSlot, renameSaveSlot, deleteSaveSlot } from './save-slots.js';
+import { listSaveSlots, writeSaveSlot, readSaveSlot, renameSaveSlot, deleteSaveSlot, slotDate as worldDate, slotMoney as money } from './save-slots.js';
 import { showLoading, hideLoading, paintLoading, loadingJobProgress } from './loading-screen.js';
 
 const escape = value => String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
@@ -16,8 +16,6 @@ const paths = {
   desert: '<circle cx="17" cy="6" r="3"/><path d="M2 18c4-9 8-9 13 0M9 21c4-8 8-8 13 0M2 22h20"/>',
 };
 const icon = name => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || paths.save}</svg>`;
-const money = value => Number.isFinite(value) ? `${value < 0 ? '−' : ''}$${Math.round(Math.abs(value)).toLocaleString('en-US')}` : '—';
-const worldDate = day => Number.isFinite(day) ? new Date(Date.UTC(1950, 0, 1 + Math.floor(day))).toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' }) : 'Unknown date';
 function savedDate(value, autosave = false) {
   if (value === null || value === undefined) return autosave ? 'Latest automatic save' : 'Saved date unavailable';
   const date = new Date(value);
