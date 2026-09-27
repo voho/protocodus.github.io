@@ -1009,6 +1009,9 @@ export class Renderer {
   draw(state, view) {
     if (this.terrainSource !== state.terrain) this.createTerrain(state);
     const ctx = this.ctx, zoom = view.zoom, scale = zoom / TILE, time = state.time || 0;
+    const commandAge = view.commandMarker ? performance.now() / 1000 - view.commandMarker.time : -1;
+    const attackPulse = view.commandMarker?.type === 'attack' && commandAge >= 0 && commandAge < .85
+      ? Math.max(0, Math.cos(commandAge / .85 * Math.PI * 6)) * (1 - commandAge / .85) : 0;
     const left = this.width / 2 - view.x * zoom, top = this.height / 2 - view.y * zoom;
     const visible = state.visible?.[0], explored = state.explored?.[0];
     const entityVisible = (e) => {
@@ -1132,7 +1135,12 @@ export class Renderer {
       }
       const remembered = e.team === 1 && !entityVisible(e);
       const visual = isBuilding && !remembered ? { ...wallVisual(e), powerRatio: powers[e.team].ratio, powerStatus: powers[e.team].status } : e;
+      // Blink the actual target silhouette, following its live pose without
+      // revealing a concealed unit or flashing a remembered structure.
+      const targeted = attackPulse > 0 && view.commandMarker.targetId === e.id && !remembered;
+      if (targeted) { ctx.save(); ctx.filter = `brightness(${1 + attackPulse * 2})`; }
       if (isBuilding) building(ctx, visual, remembered ? e.rememberedAt : time); else unit(ctx, e, time);
+      if (targeted) ctx.restore();
       if (!remembered && (e.progress ?? 1) >= 1) this.drawEntityActivity(ctx, visual, time, powers[e.team].ratio);
       else if (remembered && e.progress >= 1 && ['lab', 'capacitor'].includes(entityRole(e))) buildingActivity(ctx, e, e.rememberedAt, e.powerRatio ?? 1);
       if (isBuilding && !remembered && e.progress >= 1 && powers[e.team].ratio < 1 && BUILDING_DEFS[e.type].power < 0) {
@@ -1420,10 +1428,10 @@ export class Renderer {
       ctx.strokeStyle = color; ctx.lineWidth = 1 / scale; ctx.strokeRect(-size * TILE / 2, -size * TILE / 2, size * TILE, size * TILE);
       ctx.restore();
     }
-    if (view.commandMarker) {
-      const marker = view.commandMarker, age = performance.now() / 1000 - marker.time;
+    if (view.commandMarker && view.commandMarker.type !== 'attack') {
+      const marker = view.commandMarker, age = commandAge;
       if (age >= 0 && age < 1) {
-        const p = this.worldToScreen(marker.x, marker.y, view), color = marker.type === 'attack' ? '#ed9972' : '#c5edef';
+        const p = this.worldToScreen(marker.x, marker.y, view), color = '#c5edef';
         ctx.save(); ctx.globalAlpha = 1 - age; ctx.strokeStyle = color; ctx.lineWidth = 1.5;
         const r = 5 + age * 17;
         ellipse(ctx, p.x, p.y, r, r * .65, null, color);

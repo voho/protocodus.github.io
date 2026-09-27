@@ -374,7 +374,7 @@ function commandAt(point, explicitType) {
     issueOrder(game, units.filter(e => unitRole(e) === 'harvester').map(e => e.id), { type, x, y });
     issueOrder(game, units.filter(e => unitRole(e) !== 'harvester').map(e => e.id), { type: 'move', x, y });
   } else issueOrder(game, units.map(e => e.id), { type, x, y, targetId: type === 'attack' ? hit.id : undefined });
-  view.commandMarker = { x, y, time: performance.now() / 1000, type };
+  view.commandMarker = { x, y, time: performance.now() / 1000, type, ...(type === 'attack' ? { targetId: hit.id } : {}) };
   orderMode = null; setOrderHint(); playSound('confirm'); updateHUD();
 }
 
