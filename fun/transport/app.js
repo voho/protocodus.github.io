@@ -441,7 +441,7 @@ function refreshUpgradeControls() {
 // quietly, and only a win and a finished contract are announced.
 let contractsOpen=false,contractSeen=null;
 const contractNames=new WeakMap();
-const monthYear = day => new Date(Date.UTC(1950,0,1+Math.floor(day))).toLocaleDateString('en-US',{month:'short',year:'numeric',timeZone:'UTC'});
+const monthYear = monthText;
 const contractFactor = contract => (1+contract.multiplier).toFixed(1)+'×';
 function contractPair(contract) {
  let names=contractNames.get(contract);if(names)return names;
@@ -844,17 +844,21 @@ function pickContext(row) {
  const rank=row&&selectionContext?.targets.find(t=>String(t.id)===row.dataset.targetId&&t.kind===row.dataset.targetKind)?.rank||null;
  if(selectionContext&&selectionContext.highlight!==rank){selectionContext={...selectionContext,highlight:rank};invalidateScene();}
 }
-// Bubbles of targets out of view stop short of the cards over the map (display pixels).
+// Bubbles of targets out of view stop short of the cards over the map (display pixels), and of the
+// management drawer while it is open over the inspector; the drawer repaints them once it has slid.
 function contextView() {
  if(!selectionContext||selectionContext.selected!==selected)return null;
  const map=canvas.getBoundingClientRect();
- return {...selectionContext,covers:[$('#inspector'),$('#objective-card')].filter(el=>!el.hidden).map(el=>{const r=el.getBoundingClientRect();return {x:r.left-map.left,y:r.top-map.top,w:r.width,h:r.height};})};
+ return {...selectionContext,covers:[$('#inspector'),$('#objective-card'),$('.sidebar.mobile-open')].filter(el=>el&&!el.hidden).map(el=>{const r=el.getBoundingClientRect();return {x:r.left-map.left,y:r.top-map.top,w:r.width,h:r.height};})};
 }
+$('.sidebar').addEventListener('transitionend',e=>{if(e.target===e.currentTarget&&selectionContext)invalidateScene();});
 // The row just pointed at or focused wins; leaving it falls back to the other one.
-const focusedTarget=()=>document.activeElement?.closest?.('#inspector [data-target-id]'),hoveredTarget=()=>$('#inspector [data-target-id]:hover');
-$('#inspector').addEventListener('mouseover',e=>pickContext(e.target.closest?.('[data-target-id]')||focusedTarget()));
+// A target's Plan button beside its row picks out the same arc.
+const targetOf=el=>el?.closest?.('[data-target-id]')||el?.closest?.('.industry-target-row')?.querySelector('[data-target-id]');
+const focusedTarget=()=>$('#inspector').contains(document.activeElement)?targetOf(document.activeElement):null,hoveredTarget=()=>targetOf($('#inspector .industry-target-row:hover,#inspector [data-target-id]:hover'));
+$('#inspector').addEventListener('mouseover',e=>pickContext(targetOf(e.target)||focusedTarget()));
 $('#inspector').addEventListener('mouseleave',()=>pickContext(focusedTarget()));
-$('#inspector').addEventListener('focusin',e=>pickContext(e.target.closest?.('[data-target-id]')||hoveredTarget()));
+$('#inspector').addEventListener('focusin',e=>pickContext(targetOf(e.target)||hoveredTarget()));
 $('#inspector').addEventListener('focusout',()=>pickContext(hoveredTarget()));
 function locateIndustry(id,origin='') {
  const industry=game.industries.find(i=>String(i.id)===String(id));
