@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "9fea1a2d9b3d",
+  "strategy": "manual-commit",
+  "branch": "transport-playability",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "fun/transport/ARCHITECTURE.md",
+    "fun/transport/README.md",
+    "fun/transport/gameplay-insights.js",
+    "fun/transport/gameplay.css",
+    "fun/transport/industry-simulation.js",
+    "fun/transport/renderer.js",
+    "fun/transport/tests/economy.test.mjs",
+    "fun/transport/tests/gameplay-insights.test.mjs",
+    "fun/transport/tests/resources-browser-check.mjs",
+    "fun/transport/visibility-view.js",
+    "fun/transport/visibility.css"
+  ],
+  "sessions": [
+    {
+      "metadata": "/9f/ea1a2d9b3d/0/metadata.json",
+      "transcript": "/9f/ea1a2d9b3d/0/full.jsonl",
+      "context": "/9f/ea1a2d9b3d/0/context.md",
+      "content_hash": "/9f/ea1a2d9b3d/0/content_hash.txt",
+      "prompt": "/9f/ea1a2d9b3d/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 184,
+    "cache_creation_tokens": 222747,
+    "cache_read_tokens": 6989952,
+    "output_tokens": 50046,
+    "api_call_count": 67
+  }
+}
