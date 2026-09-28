@@ -73,7 +73,7 @@ test('industries grow only while their output is carried away', () => {
   assert.ok(one.fill >= .5, 'the quarry stays at least half full');
   assert.ok(eight.capacity >= 2.9, `a fleet that clears the stock lets it grow: ${eight.capacity.toFixed(2)}`);
   assert.ok(eight.fill < .5);
-  assert.match(one.notices[0].message, /^Stone quarry expanded to \d+% capacity · storage \d+% full\.$/);
+  assert.match(one.notices[0].message, /^Stone quarry expanded to \d+% capacity\.$/);
 });
 
 test('route validation blocks bad cargo, missing stops, mode mismatches and disconnected service', () => {

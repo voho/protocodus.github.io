@@ -163,6 +163,22 @@ try {
   await page.locator('#route-form button[type="submit"]').click();
   const stone = await page.evaluate(stop => transport.game.routes.find(route => route.stops[0] === stop && route.cargo === 'stone'), quarry.stop.id);
   assert.ok(stone, 'the planned stone route launches');
+  // The served quarry wears the stone route's ring at every zoom, storage bars appear from Town view in, and a served marker still inspects its site.
+  for (const zoom of [.5, 1, 2]) {
+    const seen = await page.evaluate(({ at, zoom }) => {
+      const site = transport.game.industries.find(industry => industry.x === at.x && industry.y === at.y), rect = document.querySelector('#world').getBoundingClientRect();
+      transport.renderer.setZoom(zoom); transport.renderer.focus(site.x, site.y); transport.renderer.render(performance.now(), {});
+      const p = transport.renderer.industryMarker(site);
+      return { name: site.name, stats: transport.renderer.getStats().industryMarkers, x: rect.left + p.x, y: rect.top + p.y };
+    }, { at: quarry.site, zoom });
+    assert.ok(seen.stats.served >= 1 && seen.stats.served <= seen.stats.drawn, `${zoom}x counts the served quarry: ${JSON.stringify(seen.stats)}`);
+    assert.equal(seen.stats.meters > 0, zoom > .5, `${zoom}x storage bars show only from Town view in: ${JSON.stringify(seen.stats)}`);
+    await closeDrawer();
+    await page.waitForFunction(({ x, y }) => document.elementFromPoint(x, y)?.id === 'world', seen);
+    await page.mouse.click(seen.x, seen.y);
+    assert.equal(await page.locator('#inspector h3').textContent(), seen.name, `${zoom}x a served marker still opens its industry`);
+  }
+  await page.evaluate(() => transport.renderer.setZoom(1));
   await inspectAt(quarry.stop);
   assert.equal(await page.locator('#inspector [data-service-route]').count(), 1, 'the stop inspector lists its service');
   const service = await page.locator('#inspector [data-service-route]').innerText();

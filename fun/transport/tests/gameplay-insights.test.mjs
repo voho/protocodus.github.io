@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { townService, industryStatus, routeHealth, nextProject, stopSiteKind, firstRouteSteps, routesNeedingAttention, routeNeedsAttention } from '../gameplay-insights.js';
+import { townService, industryStatus, industryService, routeHealth, nextProject, stopSiteKind, firstRouteSteps, routesNeedingAttention, routeNeedsAttention } from '../gameplay-insights.js';
 import { build, buildPath, addRoute, tick, createGame } from '../model.js';
 import { industryContains, industryDistance } from '../industry-sites.js';
 import { emptyGame, line, advance, tileAt } from './helpers.mjs';
@@ -30,12 +30,12 @@ test('factory explanations identify every missing ingredient and distinguish ful
   mill.capacity=2;assert.equal(industryStatus(mill).state,'backlog','capacity also controls storage');
 });
 
-test('a half-full store reads as a backlog and names the route that cannot keep up', () => {
+test('a half-full store is more to carry, and names the route another vehicle would help', () => {
   const game=routeGame(),quarry=site('quarry','quarry',10,{stone:540});game.industries=[quarry];Object.assign(game.routes[0],{name:'Stone run',cargo:'stone'});
-  assert.deepEqual(industryStatus(quarry),{state:'backlog',label:'Output piling up',missing:[],detail:'Growth paused until more is shipped. Add vehicles or another route.'});
+  assert.deepEqual(industryStatus(quarry),{state:'backlog',label:'More to carry',missing:[],detail:'Stock is building up. Another vehicle would earn more and let it expand.'});
   quarry.inventory.stone=449;assert.equal(industryStatus(quarry,game).state,'producing','under half full the site keeps growing');
-  quarry.inventory.stone=540;assert.equal(industryStatus(quarry,game).detail,"Your service can't keep up. Add vehicles to Stone run.");
-  quarry.inventory.stone=900;assert.equal(industryStatus(quarry,game).label,'Storage full');assert.equal(industryStatus(quarry,game).detail,"Your service can't keep up. Add vehicles to Stone run.");
+  quarry.inventory.stone=540;assert.equal(industryStatus(quarry,game).detail,'Another vehicle on Stone run would carry more.');
+  quarry.inventory.stone=900;assert.equal(industryStatus(quarry,game).label,'Storage full');assert.equal(industryStatus(quarry,game).detail,'Another vehicle on Stone run would carry more.');
   assert.equal(industryStatus(quarry).detail,'Carry output to a buyer to make room.','the one-argument form is unchanged');
   game.routes[0].stops=['b','a'];assert.equal(industryStatus(quarry,game).detail,'Carry output to a buyer to make room.','a route that only unloads here carries nothing away');
   game.routes[0].stops=['a','b'];game.routes[0].active=false;assert.equal(industryStatus(quarry,game).detail,'Carry output to a buyer to make room.');
@@ -72,6 +72,25 @@ test('a working iron route beside large sites reads as running and names its car
   assert.match(routeHealth(game,route).state,/^(running|busy)$/,'a working route may ask for more trucks but is never blocked');
   const missing=routeHealth({...game,industries:game.industries.filter(site=>site.kind!=='iron-mine')},route);
   assert.equal(missing.label,'No producer');assert.doesNotMatch(missing.detail,/\ba iron/);assert.match(missing.detail,/producer of iron ore/);
+});
+
+test('industry service marks the sites a freight route loads at and delivers to, never a passenger stop', () => {
+  const game=emptyGame();
+  assert.equal(build(game,'iron-mine',20,40).ok,true);assert.equal(build(game,'steel-mill',60,40).ok,true);assert.equal(build(game,'quarry',30,44).ok,true);
+  assert.equal(buildPath(game,'road',line(24,56,41)).ok,true);
+  assert.equal(build(game,'bus-stop',26,41).ok,true);assert.equal(build(game,'bus-stop',55,41).ok,true);
+  const [mine,mill,quarry]=game.industries,stops=game.stations.map(stop=>stop.id);
+  assert.deepEqual(industryService(game),new Map(),'stops alone serve nothing');
+  assert.equal(build(game,'city',25,37).ok,true);assert.equal(build(game,'city',56,37).ok,true);
+  assert.equal(addRoute(game,{mode:'road',stops,cargo:'passengers'}).ok,true);
+  assert.deepEqual(industryService(game),new Map(),'a passenger stop beside the mine does not serve it');
+  assert.equal(addRoute(game,{name:'Ore run',mode:'road',stops,cargo:'iron'}).ok,true);
+  const service=industryService(game),ore=game.routes[1];
+  assert.deepEqual(service.get(mine.id),{source:true,buyer:false,color:ore.color},'the mine loads the ore');
+  assert.deepEqual(service.get(mill.id),{source:false,buyer:true,color:ore.color},'the mill takes it');
+  assert.equal(service.has(quarry.id),false,'a covered quarry does not produce iron ore');
+  assert.equal(build(game,'bulldoze',40,41).ok,true);refreshRouteConnections(game);
+  assert.equal(ore.active,false);assert.equal(industryService(game).size,0,'a broken connection serves nothing');
 });
 
 test('a broken route names the first gap on its old path, using the pathfinder’s own rules', () => {

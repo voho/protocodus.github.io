@@ -155,10 +155,26 @@ export function industryStatus(industry, game = null) {
   const full = Object.keys(definition.outputs).some(key => (inventory[key] || 0) >= 900 * (industry.capacity || 1) - .001);
   if (full || outputFill(industry) >= .5) {
     const loads = game?.routes.find(route => route.active && definition.outputs[route.cargo] && game.stations.some(stop => stop.id === route.stops?.[0] && covers(industry, stop)));
-    const detail = loads ? `Your service can't keep up. Add vehicles to ${loads.name}.` : full ? 'Carry output to a buyer to make room.' : 'Growth paused until more is shipped. Add vehicles or another route.';
-    return full ? { state: 'full', label: 'Storage full', missing: [], detail } : { state: 'backlog', label: 'Output piling up', missing: [], detail };
+    const detail = loads ? `Another vehicle on ${loads.name} would carry more.` : full ? 'Carry output to a buyer to make room.' : 'Stock is building up. Another vehicle would earn more and let it expand.';
+    return full ? { state: 'full', label: 'Storage full', missing: [], detail } : { state: 'backlog', label: 'More to carry', missing: [], detail };
   }
   return { state: 'producing', label: 'Producing', missing: [], detail: 'Output depends on nearby nature, roads, workers and weather.' };
+}
+
+// The sites your freight services load at (first stop) or deliver to (last stop), with the first such route's colour.
+// Passenger and offline routes serve no industry; each stop's catchment, as stationCoverage reads it, is found once per call.
+export function industryService(game) {
+  const stops = new Map(game.stations.map(stop => [stop.id, stop])), coverage = new Map(), service = new Map();
+  const covered = id => { const stop = stops.get(id); if (!coverage.has(id)) coverage.set(id, stop ? nearbyIndustries(game, stop.x, stop.y, STATION_RADIUS + 2).filter(site => covers(site, stop)) : []); return coverage.get(id); };
+  for (const route of game.routes) {
+    if (!route.active || route.cargo === 'passengers') continue;
+    for (const [end, role, list] of [[0, 'source', 'outputs'], [1, 'buyer', 'inputs']]) for (const site of covered(route.stops?.[end])) {
+      if (!INDUSTRIES[site.kind][list][route.cargo]) continue;
+      if (!service.has(site.id)) service.set(site.id, { source: false, buyer: false, color: route.color });
+      service.get(site.id)[role] = true;
+    }
+  }
+  return service;
 }
 
 // The town pair a passenger service actually links, as passengerEndpoints picks it.

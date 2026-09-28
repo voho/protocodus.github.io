@@ -20,6 +20,8 @@ const ART = {
   goal: '<path d="M5 21V4m0 1h12l-2.5 4L17 13H5"/>',
   close: '<path d="m6 6 12 12M6 18 18 6"/>',
 };
+// A short key for map marks whose look carries meaning.
+const NOTES = { industryIcons: ['Ring: served by a route', 'Bar: stored output', 'Amber: missing inputs'] };
 const icon = key => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ART[key]}</svg>`;
 
 /** Lightweight map controls; visibility belongs to the app, not the current save. */
@@ -29,7 +31,7 @@ export function mountVisibility(panel, button, { getLayers, onChange, onPreset }
   if (!panel.id) panel.id = 'layers-panel';
   panel.setAttribute('role', 'region'); panel.setAttribute('aria-label', 'Map layers'); panel.hidden = true;
   button.setAttribute('aria-controls', panel.id); button.setAttribute('aria-expanded', 'false');
-  panel.innerHTML = `<div class="layers-heading"><h2>Map layers</h2><button type="button" class="layers-close" data-layers-close aria-label="Close map layers">${icon('close')}</button></div><div class="layers-scroll">${GROUPS.map(group => `<fieldset class="layer-group"><legend>${group.label}</legend>${group.items.map(([key, label]) => `<label class="layer-row"><span class="layer-symbol">${icon(key)}</span><span class="layer-name">${label}</span><input type="checkbox" role="switch" data-layer="${key}" aria-label="${label}"></label>`).join('')}</fieldset>`).join('')}</div><div class="layers-presets" role="group" aria-label="Layer presets"><button type="button" data-layer-preset="all">Show all</button><button type="button" data-layer-preset="terrain">Terrain only</button></div>`;
+  panel.innerHTML = `<div class="layers-heading"><h2>Map layers</h2><button type="button" class="layers-close" data-layers-close aria-label="Close map layers">${icon('close')}</button></div><div class="layers-scroll">${GROUPS.map(group => `<fieldset class="layer-group"><legend>${group.label}</legend>${group.items.map(([key, label]) => `<label class="layer-row"><span class="layer-symbol">${icon(key)}</span><span class="layer-name">${label}${NOTES[key] ? `<small class="layer-note" id="layer-note-${key}">${NOTES[key].map(part => `<span>${part}</span>`).join(' ')}</small>` : ''}</span><input type="checkbox" role="switch" data-layer="${key}" aria-label="${label}"${NOTES[key] ? ` aria-describedby="layer-note-${key}"` : ''}></label>`).join('')}</fieldset>`).join('')}</div><div class="layers-presets" role="group" aria-label="Layer presets"><button type="button" data-layer-preset="all">Show all</button><button type="button" data-layer-preset="terrain">Terrain only</button></div>`;
 
   function refresh() {
     if (disposed) return;

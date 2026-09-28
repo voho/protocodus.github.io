@@ -102,7 +102,7 @@ export function stepIndustries(game,notify=()=>{}){
         industry.capacity=clamp(Math.max(stockFloor,old-(.025+randomAt(game,day,industry.id,434)*.045)*(1.3-e.access*.3)),.5,3);
       }
       industry.nextReviewDay=day+21+Math.floor(randomAt(game,day,industry.id,435)*25);
-      if(Math.floor(old*2)<Math.floor(industry.capacity*2))notify(game,`${industry.name} expanded to ${Math.round(industry.capacity*100)}% capacity · storage ${Math.round(outputFill(industry)*100)}% full.`,'success',{topic:'industry-growth',target:{kind:'industry',id:industry.id}});
+      if(Math.floor(old*2)<Math.floor(industry.capacity*2))notify(game,`${industry.name} expanded to ${Math.round(industry.capacity*100)}% capacity.`,'success',{topic:'industry-growth',target:{kind:'industry',id:industry.id}});
     }
   }
 }

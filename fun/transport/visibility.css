@@ -36,3 +36,5 @@
   .layers-presets button{min-height:42px}
 }
 @media(prefers-reduced-motion:reduce){.layer-row input,.layer-row input::after{transition:none}}
+.layer-note{display:block;margin-top:2px;font-size:12px;line-height:1.4;color:#7a8d6c}
+.layer-note span{display:block}

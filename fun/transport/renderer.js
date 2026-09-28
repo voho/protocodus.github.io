@@ -9,6 +9,8 @@ import { BUILDINGS, residentialKind, commercialKind } from './buildings.js';
 import { ZOOM_VIEWS, nearestZoom, stepZoom } from './zoom.js';
 import { cargoIcon } from './cargo-icons.js';
 import { lensRole } from './chains.js';
+import { industryService, industryStatus } from './gameplay-insights.js';
+import { outputFill } from './industry-simulation.js';
 import { landscapeScenery } from './landscape-scenery.js';
 import { DEFAULT_LAYERS, normalizeLayers } from './visibility.js';
 import { createMarineSprites, drawShipWake, MARINE_SIZE } from './marine-sprites.js';
@@ -118,6 +120,10 @@ export function createRenderer(canvas, initialGame, options={}) {
   // A cargo lens is view state, never saved: producers and buyers of one cargo stand out on the map, minimap and atlas.
   const LENS_COLORS={source:'#4e7747',buyer:'#3f7f88'};let lens=null,lensStats=null;
   function setLens(cargo){cargo=cargo&&cargo!=='passengers'?cargo:null;if(cargo===lens)return;lens=cargo;lensStats=null;options.onInvalidate?.();}
+  // Which sites a freight service loads at or delivers to changes only with sites, stops, routes and connections.
+  // game.revision moves every day, so it stays out of the key; a route going offline moves no revision, so the active count is in it.
+  let service={key:'',lists:[],sites:new Map()},markerStats={drawn:0,served:0,waiting:0,meters:0,covered:0};
+  function servedSites(){const lists=[game.routes||[],game.stations||[],game.industries||[]];let active=0;for(const r of lists[0])if(r.active)active++;const key=`${game.networkRevision||0}:${lists.map(list=>list.length)}:${active}`;if(service.key!==key||service.lists.some((list,n)=>list!==lists[n]))service={key,lists,sites:industryService(game)};return service.sites;}
   function updateRaster(force=false){
     const scale=camera.zoom*dpr,detail=ZOOM_VIEWS.find(view=>view.zoom===camera.zoom).name.toLowerCase();
     if(force||preparedDpr!==dpr){rasterBundles.clear();preparedSprites.clear();preparedTransport.clear();preparedDpr=dpr;}
@@ -803,22 +809,44 @@ export function createRenderer(canvas, initialGame, options={}) {
     }
     ctx.globalAlpha=1;
   }
-  function resourceMarker(x,y,kind,size,label,role=null){
+  // A marker's paper tile, icon, ring and baked shadow are one prepared image per cargo, ring, size and density,
+  // so no marker blurs a shadow each frame; one whose icon is still loading is drawn directly and not kept.
+  const markerTiles=new Map();
+  function markerTile(kind,ring,size){
+    const key=`${kind}:${ring||'none'}:${size}:${dpr}`;let tile=markerTiles.get(key);
+    if(tile){markerTiles.delete(key);markerTiles.set(key,tile);return tile;}
+    const image=cargoImage(kind,size),[color,width]=ring?ring.split('/'):['#fbfaedf0',1],w=size+8,h=size+6;
+    tile=document.createElement('canvas');tile.width=Math.ceil((w+16)*dpr);tile.height=Math.ceil((h+16)*dpr);
+    const c=tile.getContext('2d');c.scale(dpr,dpr);c.translate(8,8);
+    c.shadowColor='#293d2630';c.shadowBlur=5;c.shadowOffsetY=2;c.fillStyle='#f7f4e7f5';roundRect(c,0,0,w,h,7);c.fill();c.shadowColor='transparent';c.shadowBlur=0;c.shadowOffsetY=0;
+    c.strokeStyle=color;c.lineWidth=+width;c.stroke();
+    if(!image.complete||!image.naturalWidth){dot(c,w/2,h/2,4,'#849367');return tile;}
+    c.drawImage(image,4,3,size,size);
+    if(markerTiles.size>=256)markerTiles.delete(markerTiles.keys().next().value);
+    markerTiles.set(key,tile);return tile;
+  }
+  function resourceMarker(x,y,kind,size,label,role=null,mark={}){
     // Screen-space markers stay legible in Region and render at native display
     // density. SVG images are local data, cached separately from terrain chunks.
-    const image=cargoImage(kind,size);
-    const h=size+6,w=size+8;
-    ctx.shadowColor='#293d2630';ctx.shadowBlur=5;ctx.shadowOffsetY=2;
-    ctx.fillStyle='#f7f4e7f5';roundRect(ctx,x-w/2,y-h/2,w,h,7);ctx.fill();ctx.shadowColor='transparent';ctx.shadowBlur=0;ctx.shadowOffsetY=0;
-    ctx.strokeStyle=role?LENS_COLORS[role]:'#fbfaedf0';ctx.lineWidth=role?1.5:1;ctx.stroke();
-    if(image.complete&&image.naturalWidth)ctx.drawImage(image,x-size/2,y-size/2,size,size);else dot(ctx,x,y,4,'#849367');
+    // A served site is ringed in its route's colour; from Town view in, a bar reads the fullest output store,
+    // and a served factory still missing an input shows those inputs beneath it (an amber dot in Region).
+    const h=size+6,w=size+8,mx=Math.round((x-w/2)*dpr)/dpr,my=Math.round((y-h/2)*dpr)/dpr;
+    const tile=markerTile(kind,mark.color?`${mark.color}/2`:role?`${LENS_COLORS[role]}/1.5`:'',size);ctx.drawImage(tile,mx-8,my-8,tile.width/dpr,tile.height/dpr);
+    if(mark.fill>0){ctx.fillStyle='#e2ddc9';roundRect(ctx,mx+6,my+h-5,w-12,3,1.5);ctx.fill();ctx.fillStyle='#bd8e43';roundRect(ctx,mx+6,my+h-5,Math.max(1.5,(w-12)*Math.min(1,mark.fill)),3,1.5);ctx.fill();}
+    if(mark.missing?.length){
+      if(detailLevel==='region'){dot(ctx,mx+w-2,my+2,4.6,'#fbf6e3');dot(ctx,mx+w-2,my+2,3.2,'#bd8e43');}
+      else mark.missing.forEach((cargo,i)=>{const cx=Math.round(x-(mark.missing.length*18-2)/2+i*18),cy=my+h+3,image=cargoImage(cargo,12);ctx.fillStyle='#f7f4e7f5';roundRect(ctx,cx,cy,16,16,4);ctx.fill();ctx.strokeStyle='#bd8e43';ctx.lineWidth=1;ctx.stroke();if(image.complete&&image.naturalWidth)ctx.drawImage(image,cx+2,cy+2,12,12);else dot(ctx,cx+8,cy+8,2.5,'#bd8e43');});
+    }
     if(label){
       ctx.font='500 12px Space, system-ui, sans-serif';const nameWidth=ctx.measureText(label).width+16;
       const right=x+w/2+4+nameWidth/2,left=x-w/2-4-nameWidth/2;
       pill(right+nameWidth/2>W-8?left:right,y,label,{size:12,h:28,fill:'#f7f4e7f5',color:'#3e5547',radius:5});
     }
     if(role)lensTab(x+w/2-2,y-h/2+2,role);
+    if(mark.covered)coverTab(x-w/2+2,y-h/2+2);
   }
+  // A stop being placed would reach this site: a green tab with a paper tick.
+  function coverTab(x,y){dot(ctx,x,y,8,'#fbf6e3');dot(ctx,x,y,6.6,'#4e7747');ctx.beginPath();ctx.moveTo(x-3,y);ctx.lineTo(x-.9,y+2.2);ctx.lineTo(x+3.1,y-2.2);ctx.strokeStyle='#fbf6e3';ctx.lineWidth=1.6;ctx.lineCap='round';ctx.lineJoin='round';ctx.stroke();ctx.lineCap='butt';ctx.lineJoin='miter';}
   // Lens roles: a green up tab marks a producer, a teal down tab a buyer; a town that buys the cargo carries its icon.
   function lensTab(x,y,role){dot(ctx,x,y,8,'#fbf6e3');dot(ctx,x,y,6.6,LENS_COLORS[role]);const d=role==='source'?-1:1;ctx.beginPath();ctx.moveTo(x,y+d*3.6);ctx.lineTo(x+3.8,y-d*2);ctx.lineTo(x-3.8,y-d*2);ctx.closePath();ctx.fillStyle='#fbf6e3';ctx.fill();}
   function lensChip(x,y){
@@ -935,7 +963,10 @@ export function createRenderer(canvas, initialGame, options={}) {
     const previewSite=p=>{const site=inspectSiteAt(p.x,p.y);return (tool==='inspect'||tool==='bulldoze'&&site?.object?.kind!=='mountain')&&site?site:p;};
     const previewSpan=p=>INDUSTRIES[tool]?industryFootprint(tool):BUILDINGS[tool]?buildingFootprint(tool):siteSize(previewSite(p));
     const selectedStation=selected&&(game.stations||[]).find(s=>s.x===selected.x&&s.y===selected.y);
-    const serviceCenter=['stop','bus-stop','train-stop','port'].includes(tool)?hover:selectedStation;
+    const placing=['stop','bus-stop','train-stop','port'].includes(tool)?hover:null,serviceCenter=placing?null:selectedStation;
+    // Placing a stop draws its reach as a solid ring over the faint rings of existing stops of the same kind (64 at most).
+    // Sites it would reach tick their markers rather than each drawing an outline; a town it reaches keeps its tile outline.
+    if(placing){let rings=0;ctx.globalAlpha=.25;ctx.strokeStyle='#f3e5ad';ctx.lineWidth=1.5/camera.zoom;for(const st of game.stations||[])if(rings<64&&(st.mode==='water')===(tool==='port')&&visible(st.x,st.y,STATION_RADIUS*TILE*camera.zoom)){ring(st.x,st.y,STATION_RADIUS);ctx.stroke();rings++;}ctx.globalAlpha=1;ctx.fillStyle='#eff2cd22';ring(placing.x,placing.y,STATION_RADIUS);ctx.fill();ctx.stroke();for(const city of game.cities||[])if(Math.hypot(city.x-placing.x,city.y-placing.y)<=STATION_RADIUS)highlight(city,'#efe8b2',false);}
     if(serviceCenter){ctx.fillStyle='#eff2cd19';ctx.strokeStyle='#f3e5ad';ctx.lineWidth=1.3/camera.zoom;ctx.setLineDash([5/camera.zoom,5/camera.zoom]);ring(serviceCenter.x,serviceCenter.y,STATION_RADIUS);ctx.fill();ctx.stroke();ctx.setLineDash([]);for(const node of [...(game.cities||[]),...(game.industries||[])])if((node.kind?industryDistance(node,serviceCenter):Math.hypot(node.x-serviceCenter.x,node.y-serviceCenter.y))<=STATION_RADIUS)highlight(node,'#efe8b2',false,industrySize(node));}
     if(selected&&typeof selected.x==='number'){const site=inspectSiteAt(selected.x,selected.y);highlight(site||selected,'#fbefba',false,siteSize(site));}
     const spanTool=['bridge','railbridge','tunnel','railtunnel'].includes(tool),spanPoints=preview?.length?preview:hover?[hover]:[];
@@ -958,7 +989,6 @@ export function createRenderer(canvas, initialGame, options={}) {
     if(hover&&(tool==='raise'||tool==='lower')){
       const t=tile(hover.x,hover.y);if(t){const p=gridPointToScreen(hover.x,hover.y),level=surfaceHeight(game,hover.x,hover.y),allowed=previewValid(hover);pill(p.x,p.y-28*camera.zoom,allowed?`Level ${level} → ${level+(tool==='raise'?1:-1)}`:`Level ${level}`,{size:12,h:25,fill:allowed?'#f7f1ddef':'#f5e7dfef',color:allowed?'#43573b':'#934f3f'});}
     }
-    if(serviceCenter){const p=worldToScreen(serviceCenter.x,serviceCenter.y);pill(p.x,p.y-STATION_RADIUS*TILE*Math.SQRT1_2*camera.zoom-15,'5-tile reach',{size:11,h:25,fill:'#f5f3e8e8',color:'#5c7155'});}
     const contextBubbles=contextArcs(view.context);
     // Labels stay crisp at every camera zoom, with population separated from place names.
     labelRects.length=0;
@@ -971,10 +1001,14 @@ export function createRenderer(canvas, initialGame, options={}) {
       if(townLens)lensChip(p.x-w/2-13,y);
     }
     // A cargo lens draws its producers and buyers last, at full strength with a role tab and, from Town view in, their names; other sites recede to half strength.
-    const industryBadge=(ind,role)=>{const marker=industryMarker(ind),kind=Object.keys(INDUSTRIES[ind.kind]?.outputs||{})[0]||'goods',hovered=hover&&industryContains(ind,hover.x,hover.y),chosen=selected&&industryContains(ind,selected.x,selected.y),label=layers.names&&(hovered||chosen||role&&detailLevel!=='region')?ind.name||titleCase(ind.kind):null;if(role&&marker.x>=0&&marker.y>=0&&marker.x<=W&&marker.y<=H)lensStats[role==='source'?'sources':'buyers']++;ctx.globalAlpha=lens&&!role&&!hovered&&!chosen?.5:1;if(layers.industryIcons)resourceMarker(marker.x,marker.y,kind,marker.size,label,role);else if(label)pill(marker.x,marker.y,label,{size:12,h:28,fill:'#f7f4e7f5',color:'#3e5547',radius:5});ctx.globalAlpha=1;};
+    // Served sites wear their route's ring, a hovered or chosen site names its state, and while a stop is placed the sites it would reach are ticked and the rest recede.
+    const served=servedSites();markerStats={drawn:0,served:0,waiting:0,meters:0,covered:0};
+    const industryBadge=(ind,role)=>{const marker=industryMarker(ind),known=Boolean(INDUSTRIES[ind.kind]),kind=Object.keys(INDUSTRIES[ind.kind]?.outputs||{})[0]||'goods',hovered=hover&&industryContains(ind,hover.x,hover.y),chosen=selected&&industryContains(ind,selected.x,selected.y),svc=served.get(ind.id),status=known&&(hovered||chosen||svc?.buyer)?industryStatus(ind):null,waiting=Boolean(svc?.buyer&&status.state==='waiting'),covered=Boolean(placing)&&industryDistance(ind,placing)<=STATION_RADIUS,name=ind.name||titleCase(ind.kind),label=layers.names&&(hovered||chosen||role&&detailLevel!=='region')?(hovered||chosen)&&status?`${name} · ${status.label}`:name:null;if(role&&marker.x>=0&&marker.y>=0&&marker.x<=W&&marker.y<=H)lensStats[role==='source'?'sources':'buyers']++;ctx.globalAlpha=lens&&!role&&!hovered&&!chosen||placing&&!covered?.5:1;if(layers.industryIcons){const fill=known&&detailLevel!=='region'?outputFill(ind):0;if(marker.x>=0&&marker.y>=0&&marker.x<=W&&marker.y<=H){markerStats.drawn++;if(svc)markerStats.served++;if(waiting)markerStats.waiting++;if(fill>0)markerStats.meters++;if(covered)markerStats.covered++;}resourceMarker(marker.x,marker.y,kind,marker.size,label,role,{color:svc?.color,fill,missing:waiting?status.missing:null,covered});}else if(label)pill(marker.x,marker.y,label,{size:12,h:28,fill:'#f7f4e7f5',color:'#3e5547',radius:5});ctx.globalAlpha=1;};
     const lensSites=[];for(const ind of game.industries||[]){if((!layers.names&&!layers.industryIcons)||!visible(ind.x,ind.y,180*camera.zoom))continue;const role=lensRole(ind.kind,lens);if(role)lensSites.push([ind,role]);else industryBadge(ind,null);}for(const [ind,role] of lensSites)industryBadge(ind,role);
     for(const bubble of contextBubbles)contextBubble(bubble);
     if(layers.stations)for(const st of game.stations||[]){if(!visible(st.x,st.y))continue;const marker=stationMarker(st),mx=marker.x,my=marker.y;ctx.fillStyle=st.mode==='water'?'#376e7e':st.mode==='rail'?'#3f655a':'#516d53';roundRect(ctx,mx,my,14,14,3);ctx.fill();if(st.mode==='water'){ctx.strokeStyle='#f0eacb';ctx.lineWidth=1.1;ctx.beginPath();ctx.arc(mx+7,my+3.5,1.2,0,TAU);ctx.stroke();line(ctx,[[mx+7,my+4.7],[mx+7,my+11]],'#f0eacb',1.1);line(ctx,[[mx+4,my+6],[mx+10,my+6]],'#f0eacb',1.1);ctx.beginPath();ctx.moveTo(mx+3,my+8);ctx.quadraticCurveTo(mx+3,my+11,mx+7,my+11);ctx.quadraticCurveTo(mx+11,my+11,mx+11,my+8);ctx.stroke();}else{ctx.fillStyle='#f0eacb';ctx.font='bold 9px Space, system-ui, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(st.mode==='rail'?'T':'B',mx+7,my+7.2);}}
+    // The reach pill sits above stop signs and town names, so neither hides it.
+    if(placing||serviceCenter){const center=placing||serviceCenter,p=worldToScreen(center.x,center.y);pill(p.x,p.y-STATION_RADIUS*TILE*Math.SQRT1_2*camera.zoom-15,'5-tile reach',{size:11,h:25,fill:'#f5f3e8e8',color:'#5c7155'});}
     // A chosen carrier is ringed in display pixels beneath its load badge, instead of a tile outline, and stays marked in a tunnel.
     const chosenVehicle=view.selectedVehicleId==null?null:frameVehicles.find(v=>v.id===view.selectedVehicleId);if(chosenVehicle){const route=routesById.get(chosenVehicle.routeId),p=vehicleToScreen(chosenVehicle.x,chosenVehicle.y,route?.mode),r=route?.mode==='water'?Math.max(20,20*camera.zoom):Math.max(11,14*camera.zoom);ctx.beginPath();ctx.arc(p.x,p.y-2*camera.zoom,r,0,TAU);ctx.strokeStyle='#26372e4d';ctx.lineWidth=4;ctx.stroke();ctx.strokeStyle='#fbefba';ctx.lineWidth=2;ctx.stroke();}
     if(layers.vehicles&&layers.vehicleLoads)for(const v of frameVehicles)vehicleLoadIndicator(v,routesById.get(v.routeId));
@@ -1027,6 +1061,8 @@ export function createRenderer(canvas, initialGame, options={}) {
       const offline=r.active===false;c.strokeStyle=offline?'#d7725f':r.color||'#e4c38c';c.lineWidth=1.4;if(offline)c.setLineDash([3,2]);c.stroke(entry.drawing);if(offline)c.setLineDash([]);
     }
     if(layers.industryIcons&&!lens){c.fillStyle='#d9ba7d';for(const ind of game.industries||[])c.fillRect((ind.x+.5)*sx-1,(ind.y+.5)*sy-1,2,2);}
+    // Sites your freight serves stand out in green, or amber while a served factory still lacks an input.
+    if(layers.industryIcons&&!lens){const served=servedSites();if(served.size)for(const ind of game.industries||[]){const svc=served.get(ind.id);if(!svc)continue;c.fillStyle=svc.buyer&&industryStatus(ind).state==='waiting'?'#bd8e43':'#4e7747';c.fillRect((ind.x+.5)*sx-1.5,(ind.y+.5)*sy-1.5,3,3);}}
     if(layers.buildings)for(const city of game.cities||[])dot(c,(city.x+.5)*sx,(city.y+.5)*sy,2.5,'#f7f2d8');
     if(layers.stations)for(const stop of game.stations||[]){const x=(stop.x+.5)*sx,y=(stop.y+.5)*sy;if(stop.mode==='water'){c.fillStyle='#d4ebe1';c.beginPath();c.moveTo(x,y-3);c.lineTo(x+3,y);c.lineTo(x,y+3);c.lineTo(x-3,y);c.closePath();c.fill();dot(c,x,y,1.4,'#376e7e');}else dot(c,x,y,1.7,stop.mode==='rail'?'#365b59':'#658153');}
     const footprint=viewportCorners().map(p=>[p.x/TILE*sx,p.y/TILE*sy]);
@@ -1036,5 +1072,5 @@ export function createRenderer(canvas, initialGame, options={}) {
 
   }
   resize();const first=game.cities?.[0];if(first)focus(first.x+4.5,first.y-4.5);else bounds();
-  return {setGame,setLayers,getLayers,setLens,render,resize,worldToScreen,gridPointToScreen,screenToVertex,stationMarker,stationAtMarker,vehicleAt,industryMarker,cityLabels:()=>labelRects.map(rect=>({...rect})),screenToTile,screenToInspectTile,pan,zoomAt,setZoom,focus,getCamera:()=>({...camera}),drawMinimap,getStats:()=>({projection:'isometric',terrainGeometry:true,maxTerrainHeight:MAX_HEIGHT,heightStep:HEIGHT_STEP,tileWidth:TILE*2,tileHeight:TILE,chunkCount:chunks.size,composedChunks,sceneBuilds,sceneryBatches:{...sceneryBudget.stats(),enabled:sceneryBatching,builds:sceneryBatchBuilds,draws:sceneryBatchDraws,directDraws:sceneryDirectDraws,waitingForCamera:sceneryWaitingForCamera,pending:sceneryBatching&&sceneCache&&!sceneCache.batchPlanReady?1:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0))+(sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0),pendingGroups:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0)),pendingShadows:sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0,preparationMs:sceneryPreparationMs,preparationBudgetMs:sceneryPrepareBudgetMs},foundationBuilds,foundationCacheSize:foundations.size,routeSegmentsConsidered,routePathBuilds,routeBreaks,highlightRoute:highlightedRoute,contextTargets,lens:lensStats&&{...lensStats},visibleVehicleCandidates:frameVehicles.length,cacheBytes,cacheLimit,cacheMax:CACHE_MAX,chunkTiles:CHUNK_TILES,rasterScale,pixelScale:rasterScale,detailLevel,view:ZOOM_VIEWS.find(view=>view.zoom===camera.zoom).name,devicePixelRatio:dpr,dpr,maxSurfaceWidth:largestSurface,maxSurfaceHeight:largestSurface,minimapWidth:minimapLayer.width,minimapHeight:minimapLayer.height,minimapMaxEdge:MINIMAP_EDGE,minimapWorldWidth:game.width,minimapWorldHeight:game.height,minimapTerrainSamples,minimapNetworkScans,minimapNetworkBytes:minimapNetwork?.bytes||0,vehicleIndicators:{...vehicleIndicatorCounts},preparedSprites:preparedSprites.getStats(),preparedTransport:preparedTransport.getStats(),vehicleSprites:vehicleSprites.getStats(),infrastructureSprites:infrastructureSprites.getStats(),preparedZooms:rasterBundles.size,loadBadgeCount:loadBadges.size,sprites:sprite?.getStats?.(),uprightSprites:uprightSprite?.getStats?.(),houseArtwork:getHouseAssetStats(game.biome),worldArtwork:worldArtStats(),treeShadows:treeShadowCacheStats(),weather:drawWeather.getStats(),lighting:drawLighting.getStats?.(),marine:marine?.getStats?.(),layers:getLayers()})};
+  return {setGame,setLayers,getLayers,setLens,render,resize,worldToScreen,gridPointToScreen,screenToVertex,stationMarker,stationAtMarker,vehicleAt,industryMarker,cityLabels:()=>labelRects.map(rect=>({...rect})),screenToTile,screenToInspectTile,pan,zoomAt,setZoom,focus,getCamera:()=>({...camera}),drawMinimap,getStats:()=>({projection:'isometric',terrainGeometry:true,maxTerrainHeight:MAX_HEIGHT,heightStep:HEIGHT_STEP,tileWidth:TILE*2,tileHeight:TILE,chunkCount:chunks.size,composedChunks,sceneBuilds,sceneryBatches:{...sceneryBudget.stats(),enabled:sceneryBatching,builds:sceneryBatchBuilds,draws:sceneryBatchDraws,directDraws:sceneryDirectDraws,waitingForCamera:sceneryWaitingForCamera,pending:sceneryBatching&&sceneCache&&!sceneCache.batchPlanReady?1:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0))+(sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0),pendingGroups:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0)),pendingShadows:sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0,preparationMs:sceneryPreparationMs,preparationBudgetMs:sceneryPrepareBudgetMs},foundationBuilds,foundationCacheSize:foundations.size,routeSegmentsConsidered,routePathBuilds,routeBreaks,highlightRoute:highlightedRoute,contextTargets,lens:lensStats&&{...lensStats},industryMarkers:{...markerStats},markerTiles:markerTiles.size,visibleVehicleCandidates:frameVehicles.length,cacheBytes,cacheLimit,cacheMax:CACHE_MAX,chunkTiles:CHUNK_TILES,rasterScale,pixelScale:rasterScale,detailLevel,view:ZOOM_VIEWS.find(view=>view.zoom===camera.zoom).name,devicePixelRatio:dpr,dpr,maxSurfaceWidth:largestSurface,maxSurfaceHeight:largestSurface,minimapWidth:minimapLayer.width,minimapHeight:minimapLayer.height,minimapMaxEdge:MINIMAP_EDGE,minimapWorldWidth:game.width,minimapWorldHeight:game.height,minimapTerrainSamples,minimapNetworkScans,minimapNetworkBytes:minimapNetwork?.bytes||0,vehicleIndicators:{...vehicleIndicatorCounts},preparedSprites:preparedSprites.getStats(),preparedTransport:preparedTransport.getStats(),vehicleSprites:vehicleSprites.getStats(),infrastructureSprites:infrastructureSprites.getStats(),preparedZooms:rasterBundles.size,loadBadgeCount:loadBadges.size,sprites:sprite?.getStats?.(),uprightSprites:uprightSprite?.getStats?.(),houseArtwork:getHouseAssetStats(game.biome),worldArtwork:worldArtStats(),treeShadows:treeShadowCacheStats(),weather:drawWeather.getStats(),lighting:drawLighting.getStats?.(),marine:marine?.getStats?.(),layers:getLayers()})};
 }
