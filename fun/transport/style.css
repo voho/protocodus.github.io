@@ -249,3 +249,17 @@ body{font-size:13px}
 .vehicle-actions [aria-pressed=true]{border-color:var(--green);background:var(--green);color:#fffdf2}
 .vehicle-actions [aria-pressed=true]:hover{background:#345d43}
 .vehicle-actions .small-button:disabled{color:#8c9783;background:transparent;border-color:#dde3d5;cursor:default}
+/* Rename: a quiet pencil beside a stop or route title; its field keeps the title's type. Route cards show it on hover, touch always. */
+.rename-button{position:relative;display:inline-grid;place-items:center;width:22px;height:22px;margin:-4px 0 -4px 4px;padding:0;border:0;border-radius:5px;background:none;color:#94a088;vertical-align:middle;cursor:pointer}
+.rename-button svg{width:15px;height:15px}
+.rename-button::after{content:'';position:absolute;inset:-5px}
+.rename-button:hover{background:#e8eedf;color:#3f5e3a}
+.rename-button:focus-visible{outline:2px solid var(--orange);outline-offset:1px}
+.inspector h3:has(+.rename-button){display:inline-block;max-width:calc(100% - 30px);vertical-align:middle}
+.inspector h3:has(>.rename-input){display:block;max-width:none}
+.rename-input{box-sizing:border-box;width:100%;min-width:0;margin:-3px 0;padding:2px 6px;border:1px solid #c6d8b7;border-radius:5px;background:#fffdf6;color:inherit;font:inherit;letter-spacing:inherit}
+.rename-input:focus-visible{outline-offset:1px}
+.route-header:has(.rename-input)>span:last-child{display:none}
+.route-header .rename-button{opacity:0;transition:opacity .12s}
+.route-header:hover .rename-button,.route-header .rename-button:focus-visible{opacity:1}
+@media(hover:none) and (pointer:coarse){.rename-button::after{inset:-11px}.route-header .rename-button{opacity:1}}

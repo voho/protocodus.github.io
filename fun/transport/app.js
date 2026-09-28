@@ -13,6 +13,7 @@ import { routeTileIndex } from './route-tiles.js';
 import { nearbyStations } from './simulation-spatial.js';
 import { TILE } from './sprites.js';
 import { drainDeliveryEvents } from './model.js';
+import { renameStation, renameRoute } from './model.js';
 import { drawUIArtwork } from './ui-art.js';
 import { BUILDINGS, BUILDING_GROUPS } from './buildings.js';
 import { ZOOM_LEVELS, ZOOM_VIEWS, zoomIndex } from './zoom.js';
@@ -81,6 +82,7 @@ const iconPaths = {
  shop:'<path d="m3 9 2-6h14l2 6M3 9v3a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0V9zM5 15v6h14v-6M9 21v-5h6v5"/>',
  bulldoze:'<path d="M2 17h15l4 3V10M5 17V9h7l3 8M6 9V5h5l1 4M5 21h11a2 2 0 0 0 0-4H5a2 2 0 0 0 0 4z"/>',
  inspect:'<circle cx="10" cy="10" r="6"/><path d="m15 15 6 6M10 7v6m-3-3h6"/>',
+ pencil:'<path d="m4 20 1-5L16 4l4 4L9 19zM14 6l4 4"/>',
  tree:'<path d="m12 2-6 8h3l-5 7h16l-5-7h3zM12 17v5"/>',
  mine:'<path d="m3 21 6-13 3 5 4-10 6 18zM3 4q9-5 16 4M12 4 6 16"/>',
  arrow:'<path d="M4 12h16m-5-5 5 5-5 5"/>',
@@ -345,7 +347,9 @@ function coverageNote(id,key,interactive=false) {
 }
 function routeForm() {
  const stations=game.stations.filter(s=>s.mode===formDraft.mode),purchase=getVehiclePurchase(game,formDraft.mode);
- const opts=(current)=>'<option value="">Choose a stop…</option>'+stations.map(s=>`<option value="${s.id}" ${String(s.id)===String(current)?'selected':''}>${escapeHTML(s.name)}</option>`).join('');
+ // Older saves can hold two stops of one name; their tiles tell them apart.
+ const named=new Map();for(const s of stations)named.set(s.name,(named.get(s.name)||0)+1);
+ const opts=(current)=>'<option value="">Choose a stop…</option>'+stations.map(s=>`<option value="${s.id}" ${String(s.id)===String(current)?'selected':''}>${escapeHTML(named.get(s.name)>1?`${s.name} · ${s.x}, ${s.y}`:s.name)}</option>`).join('');
  const plan=validateRoutePlan(game,formDraft),options=formDraft.from&&formDraft.to?routeCargoOptions(game,formDraft):[];
  const stopField=(key,label,coverage)=>`<div class="route-stop-field"><div class="route-stop-label"><span>${label}</span><button type="button" data-pick-route="${key}" aria-pressed="${routePicking===key}" aria-label="Select ${key==='from'?'start':'end'} stop on map">${icon('focus')} Pick on map</button></div><label class="form-field"><span class="sr-only">${label} stop</span><select name="${key}" required>${opts(formDraft[key])}</select></label>${coverageNote(formDraft[key],coverage,true)}</div>`;
  const swap=`<div class="route-swap"><button type="button" id="swap-route-stops" aria-label="Swap start and end" title="Swap start and end" ${formDraft.from||formDraft.to?'':'disabled'}>${icon('swap')}</button></div>`;
@@ -369,7 +373,7 @@ function routeCards(routes) {
  const stopsById=new Map(game.stations.map(stop=>[stop.id,stop]));
  return routes.length?routes.map(route=>{
  const from=stopsById.get(route.stops[0]),to=stopsById.get(route.stops[1]),health=routeHealth(game,route,getRouteFleet(game,route.id)),rate=routeRate(route),profit=route.revenue-(route.revenueAtAccountingStart||0)-(route.expenses||0);
- return `<article class="route-card" data-route-id="${route.id}"><div class="route-header"><span class="route-dot" style="background:${escapeHTML(route.color||'#d9965c')}"></span><strong>${escapeHTML(route.name)}</strong><span data-route-status="${route.id}">${escapeHTML(health.label)}</span></div><div class="route-journey">${escapeHTML(from?.name||'Removed stop')}${icon('arrow')}${escapeHTML(to?.name||'Removed stop')}</div><div class="route-stats"><span class="route-mode-icon" title="${transportName(route.mode)}"><canvas width="80" height="64" data-vehicle-sprite="${route.id}" aria-hidden="true"></canvas><span class="sr-only">${transportName(route.mode)}</span></span>${cargoBadge(route.cargo,{label:true})}<span data-route-stat="${route.id}">${integer(route.delivered)} moved</span></div><div class="route-earnings"><span>Net earned</span><strong data-route-revenue="${route.id}" title="Revenue minus route upkeep; excludes construction.">${profit<0?'−':''}${money(profit)}</strong><span class="route-rate" data-route-rate="${route.id}" title="${escapeHTML(rate.title)}">${rate.text}</span></div><div class="route-condition"><span class="route-waiting" data-route-waiting="${route.id}" data-state="${health.state}">${waitingText(health)}</span><p class="route-health" data-route-health="${route.id}" data-state="${health.state}" title="${escapeHTML(health.detail)}">${escapeHTML(health.detail)}</p></div><div class="route-vehicle-spec">${fleetStepper(route)}</div><div class="route-actions"><button class="small-button" data-focus-route="${route.id}">Show</button>${upgradeButton(route)}<button class="small-button danger" data-remove-route="${route.id}">Retire</button></div></article>`;}).join(''):`<div class="empty-state">${icon('route')}${game.routes.length?'No routes match these filters.':'Connect two stops to start.'}</div>`;
+ return `<article class="route-card" data-route-id="${route.id}"><div class="route-header"><span class="route-dot" style="background:${escapeHTML(route.color||'#d9965c')}"></span><strong><span>${escapeHTML(route.name)}</span>${renameButton('route',route.id)}</strong><span data-route-status="${route.id}">${escapeHTML(health.label)}</span></div><div class="route-journey">${escapeHTML(from?.name||'Removed stop')}${icon('arrow')}${escapeHTML(to?.name||'Removed stop')}</div><div class="route-stats"><span class="route-mode-icon" title="${transportName(route.mode)}"><canvas width="80" height="64" data-vehicle-sprite="${route.id}" aria-hidden="true"></canvas><span class="sr-only">${transportName(route.mode)}</span></span>${cargoBadge(route.cargo,{label:true})}<span data-route-stat="${route.id}">${integer(route.delivered)} moved</span></div><div class="route-earnings"><span>Net earned</span><strong data-route-revenue="${route.id}" title="Revenue minus route upkeep; excludes construction.">${profit<0?'−':''}${money(profit)}</strong><span class="route-rate" data-route-rate="${route.id}" title="${escapeHTML(rate.title)}">${rate.text}</span></div><div class="route-condition"><span class="route-waiting" data-route-waiting="${route.id}" data-state="${health.state}">${waitingText(health)}</span><p class="route-health" data-route-health="${route.id}" data-state="${health.state}" title="${escapeHTML(health.detail)}">${escapeHTML(health.detail)}</p></div><div class="route-vehicle-spec">${fleetStepper(route)}</div><div class="route-actions"><button class="small-button" data-focus-route="${route.id}">Show</button>${upgradeButton(route)}<button class="small-button danger" data-remove-route="${route.id}">Retire</button></div></article>`;}).join(''):`<div class="empty-state">${icon('route')}${game.routes.length?'No routes match these filters.':'Connect two stops to start.'}</div>`;
 }
 const fleetNoun = (route,count) => { const noun=vehicleNoun(route.mode,route.cargo);return count===1?noun:noun==='bus'?'buses':noun+'s'; };
 function vehicleSpec(route) { const fleet=getRouteFleet(game,route.id);return {text:`${fleet.count} ${fleetNoun(route,fleet.count)} · ${integer(fleet.load)} / ${integer(fleet.capacity)} loaded`,title:`${integer(fleet.capacity)} units · Gen ${fleet.minLevel+1}${fleet.maxLevel>fleet.minLevel?'–'+(fleet.maxLevel+1):''}`}; }
@@ -643,6 +647,27 @@ function retireRoute(routeId) {
  openModal(`<div class="modal-inner"><div class="modal-heading"><div><span class="eyebrow">Network</span><h2>Retire this connection?</h2><p>${escapeHTML(route.name)} will stop carrying ${escapeHTML(CARGO[route.cargo]?.name.toLowerCase())}. ${fleet} for ${money(refund)}; roads, tracks, stops and ports stay in place.</p></div><button class="close-modal" aria-label="Close dialog">×</button></div><div class="modal-actions"><button class="button button-outline" data-close>Keep running</button><button class="button button-orange" id="confirm-retire">Retire · +${money(refund)}</button></div></div>`);
  $('#confirm-retire').addEventListener('click',()=>{const result=removeRoute(game,route.id);closeModal();toast(result.message,!result.ok);renderPanel();updateHud();persist();});
 }
+// The pencil turns its title into a field. Enter or leaving saves; Escape, an empty field or the same name keeps the old one.
+// A focused field holds the inspector's live refresh. The title changes in place, so the click that ended an edit still
+// lands; the live refresh redraws the rest, and a stop's new name reaches the Routes panel's selects and journeys at once.
+function renameButton(kind,id) { return `<button type="button" class="rename-button" data-rename="${kind}" data-id="${escapeHTML(id)}" aria-label="Rename" title="Rename">${icon('pencil')}</button>`; }
+function beginRename(button) {
+ const title=button.previousElementSibling,before=title.textContent,{rename:kind,id}=button.dataset,input=document.createElement('input');
+ Object.assign(input,{className:'rename-input',maxLength:36,value:before,spellcheck:false});input.setAttribute('aria-label',kind==='route'?'Route name':'Stop name');
+ title.replaceChildren(input);button.hidden=true;input.focus();input.select();
+ let done=false;
+ const finish=(save,keyboard)=>{
+  if(done)return;const name=input.value.trim(),result=save&&name!==before&&(name||keyboard)?(kind==='route'?renameRoute:renameStation)(game,id,name):null;
+  if(result&&!result.ok&&keyboard){toast(result.message,true);input.select();return;}
+  done=true;if(result)toast(result.message,!result.ok);
+  title.textContent=result?.ok?name:before;button.hidden=false;if(keyboard)button.focus({preventScroll:true});
+  if(!result?.ok)return;
+  persist();if(kind==='station'&&view==='routes')renderPanel();
+ };
+ input.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key==='Escape'){e.preventDefault();finish(e.key==='Enter',true);}});
+ input.addEventListener('blur',()=>{if(document.hasFocus())finish(true,false);});
+}
+for(const el of [$('#inspector'),$('#panel-content')])el.addEventListener('click',e=>{const button=e.target.closest('[data-rename]');if(button)beginRename(button);});
 function updateWeather() {
  const camera=renderer.getCamera(), x=Math.max(0,Math.min(game.width-1,Math.floor(camera.x/TILE))), y=Math.max(0,Math.min(game.height-1,Math.floor(camera.y/TILE)));
  const weather=weatherAt(game,x,y), label=weather.cold>.65?(weather.wetness>.43?'Snow':'Cold'):weather.wetness>.58?'Rain':weather.heat>.62&&weather.wetness<.3?'Dry':'Mild';
@@ -803,6 +828,7 @@ function inspect(x,y,kind='',origin='') {
  else if(city&&(kind==='city'||!tile.zone)){title=city.name;tag='Town';body=`<div class="inspector-grid town-figures"><div><small>Population</small><strong>${integer(city.population)}</strong></div><div><small>Activity</small><strong>${integer(city.activity||0)}</strong></div><div><small>Waiting</small><strong>${integer(city.passengers)}</strong></div></div><p class="site-status">${townService(game,city).label}</p>${localConditions(settlementSuitability(game,city))}${townNeedsRow(city)}<button class="button button-primary full" id="zone-town">${icon('house')} Add zones</button>`;}
  else{title=tile.zone?TOOL_INFO[tile.zone].name+' zone':tile.road?'Road':tile.rail?'Railway':{grass:'Open countryside',forest:'Woodland',water:'Water',mountain:'Mountain ridge',rock:'Rocky ground',sand:'Desert sands',snow:'Snowfield'}[tile.terrain]||'Countryside';if(tile.detail&&!tile.road&&!tile.rail&&!tile.zone)title=tile.detail.replace(/-/g,' ').replace(/^./,c=>c.toUpperCase());tag=`${nature?terrainObjectSize(nature.object)+' × '+terrainObjectSize(nature.object)+' site · ':''}Level ${[...new Set(tileSurface(game,x,y).corners.map(p=>p.height))].sort((a,b)=>a-b).join('–')} · ${x}, ${y}`;body=tile.road||tile.rail?networkUse(tile,x,y):`<p>${nature&&nature.object.kind!=='mountain'?'A natural '+(nature.object.kind==='forest'?'grove':'outcrop')+' on level ground. Bulldoze any part to clear the whole site.':tile.zone?'Develops gradually with local demand.':tile.terrain==='water'?'Build a port on water beside a bank. Ships follow connected water and pass beneath bridges.':tile.terrain==='mountain'?'Use Terrain & crossings to tunnel through higher ground, or reshape clear land.':'Build on flat ground or a straight slope. Use Terrain & crossings to reshape or level clear land.'}</p>`;}
  if(tile.zone){const zone=game.zones.find(zone=>zone.x===x&&zone.y===y);body+=`<p>Development: ${Math.round((zone?.progress||0)/3*100)}% · Road access and regular town deliveries required.</p>`+localConditions(settlementSuitability(game,{x,y},tile.zone));}
+ if(station&&kind!=='city'&&kind!=='industry')body=renameButton('station',station.id)+body;
  const box=$('#inspector'),html=`<div class="inspector-top"><span class="eyebrow">${tag}</span><button class="tiny-button" aria-label="Close inspector">×</button></div><h3 id="inspector-title" tabindex="-1">${escapeHTML(title)}</h3>${body}`,key=`${worldSerial}|${x},${y},${kind}`;
  const focusTitle=()=>{if(origin==='keyboard')$('#inspector-title').focus({preventScroll:true});};
  if(!changed&&!box.hidden&&html===inspectorHTML&&key===inspectorKey){focusTitle();return;}

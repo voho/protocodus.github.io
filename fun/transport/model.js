@@ -314,6 +314,8 @@ export function buildProblem(game,tool,x,y,{money=game.money}={}) {
   if(def.terrain&&!def.terrain.includes(t.terrain))return fail(`${def.name} needs ${def.terrain.join(', ')} terrain.`,'terrain');
   return null;
 }
+// Counting from the number of stops keeps fresh-game names; after a demolition the count moves past names still in use.
+function nextStationName(game,prefix) { const used=new Set(game.stations.map(s=>s.name));let n=game.stations.length+1;while(used.has(`${prefix} ${n}`))n++;return `${prefix} ${n}`; }
 export function build(game,tool,x,y) {
   const problem=buildProblem(game,tool,x,y);if(problem)return result(false,problem.message);
   if(tool==='level')return buildTerraformLevel(game,[{x,y}]);
@@ -367,7 +369,7 @@ export function build(game,tool,x,y) {
     const mode=tool==='port'?'water':tool==='bus-stop'?'road':'rail';
     const cost=constructionCost(game,tool,x,y);
     const nearIndustry=game.industries.find(i=>industryDistance(i,point)<=STATION_RADIUS),nearCity=closestCity(game,point,STATION_RADIUS);
-    const name=`${nearCity?.name||nearIndustry?.name||(mode==='water'?'Coastal':'Rural')} ${mode==='water'?'Port':mode==='road'?'Stop':'Station'} ${game.stations.length+1}`;
+    const name=nextStationName(game,`${nearCity?.name||nearIndustry?.name||(mode==='water'?'Coastal':'Rural')} ${mode==='water'?'Port':mode==='road'?'Stop':'Station'}`);
     const newStation={id:makeId(game,'station'),name,x,y,mode};
     spend(game,cost);game.stations.push(newStation);invalidateNetwork(game,[point]);
     return result(true,`${name} opened · ${moneyText(cost)}`,{cost,station:newStation});
@@ -530,6 +532,18 @@ export function removeRoute(game,routeId) {
   game.routes=game.routes.filter(r=>r.id!==routeId);game.vehicles=game.vehicles.filter(v=>v.routeId!==routeId);game.money+=refund;game.revision++;
   return result(true,`Service retired. Vehicle sale returned ${moneyText(refund)}.`,{refund});
 }
+// Players name stops and routes freely, duplicates included, within the route form's 36 characters.
+const NAME_LENGTH=36;
+function renameEntry(game,entry,name) {
+  const next=String(name??'').trim();
+  if(!next)return result(false,'Enter a name.');
+  if(next.length>NAME_LENGTH)return result(false,`Keep names to ${NAME_LENGTH} characters.`);
+  if(next===entry.name)return result(false,'That is already its name.');
+  entry.name=next;game.revision++;
+  return result(true,`Renamed to ${next}`);
+}
+export function renameStation(game,id,name) { const station=game.stations.find(s=>s.id===id);return station?renameEntry(game,station,name):result(false,'Stop not found.'); }
+export function renameRoute(game,id,name) { const route=game.routes.find(r=>r.id===id);return route?renameEntry(game,route,name):result(false,'Route not found.'); }
 // Every route runs one or more vehicles. The fleet caps at 10,000 so saves stay valid.
 export function vehicleNoun(mode,cargo) { return mode==='water'?'ship':mode==='rail'?'train':cargo==='passengers'?'bus':'truck'; }
 export const MAX_VEHICLES=10000;

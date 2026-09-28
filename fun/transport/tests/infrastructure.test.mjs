@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { build, buildPath, findPath } from '../model.js';
+import { build, buildPath, findPath, createGame, renameStation, renameRoute, restoreGame, validateGame } from '../model.js';
+import { encodeGame } from '../save-codec.js';
 import { emptyGame, tileAt, line } from './helpers.mjs';
 
 test('construction deducts cash once per tile and rejects unaffordable work', () => {
@@ -63,4 +64,38 @@ test('road and rail crossings retain both networks', () => {
   assert.equal(tileAt(game, 12, 10).rail, true);
   assert.ok(findPath(game, { x: 10, y: 10 }, { x: 14, y: 10 }, 'road'));
   assert.ok(findPath(game, { x: 12, y: 8 }, { x: 12, y: 12 }, 'rail'));
+});
+
+test('default stop names stay unique after a demolition, and fresh names keep their numbers', () => {
+  const game = emptyGame();
+  assert.equal(buildPath(game, 'road', line(10, 60, 10)).ok, true);
+  assert.equal(build(game, 'city', 12, 13).ok, true);
+  for (const x of [12, 30, 14]) assert.equal(build(game, 'bus-stop', x, 10).ok, true);
+  assert.deepEqual(game.stations.map(stop => stop.name), ['Birchfield Stop 1', 'Rural Stop 2', 'Birchfield Stop 3'], 'numbers still count every stop in a fresh game');
+  assert.equal(build(game, 'bulldoze', 30, 10).ok, true);
+  assert.equal(build(game, 'bus-stop', 13, 10).ok, true);
+  assert.equal(build(game, 'bus-stop', 50, 10).ok, true);
+  const names = game.stations.map(stop => stop.name);
+  assert.equal(new Set(names).size, names.length, `no two stops share a name: ${names.join(', ')}`);
+  assert.deepEqual(names.slice(2), ['Birchfield Stop 4', 'Rural Stop 4'], 'a taken number moves on to the next free one');
+});
+
+test('stops and routes can be renamed, and the names survive a save', () => {
+  const game = createGame({ size: 'regional' }), stop = game.stations[0], route = game.routes[0], revision = game.revision;
+  for (const name of ['', '   ', 'x'.repeat(37)]) {
+    assert.equal(renameStation(game, stop.id, name).ok, false, `"${name}" is refused for a stop`);
+    assert.equal(renameRoute(game, route.id, name).ok, false, `"${name}" is refused for a route`);
+  }
+  assert.equal(renameStation(game, stop.id, ' ').message, 'Enter a name.');
+  assert.equal(renameRoute(game, route.id, route.name).ok, false, 'an unchanged name is not a rename');
+  assert.equal(renameStation(game, 'station-missing', 'Anywhere').ok, false);
+  assert.equal(game.revision, revision, 'refusals change nothing');
+  assert.deepEqual(renameStation(game, stop.id, '  Harbour gate  '), { ok: true, message: 'Renamed to Harbour gate' });
+  assert.equal(renameRoute(game, route.id, 'y'.repeat(36)).ok, true, '36 characters fit');
+  assert.equal(renameRoute(game, route.id, 'Morning line').message, 'Renamed to Morning line');
+  assert.equal(game.revision, revision + 3, 'each rename marks the company changed for autosave');
+  const restored = restoreGame(JSON.parse(JSON.stringify(encodeGame(game))));
+  assert.equal(validateGame(restored), true);
+  assert.equal(restored.stations.find(entry => entry.id === stop.id).name, 'Harbour gate');
+  assert.equal(restored.routes.find(entry => entry.id === route.id).name, 'Morning line');
 });

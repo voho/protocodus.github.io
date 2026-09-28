@@ -182,6 +182,68 @@ try {
   assert.deepEqual(errors, [], 'fleet controls run without console or runtime errors');
   console.log('Fleet checks passed: add and sell, price, count, retire refund, autosave reload, planner reuse, 390px card.');
 
+  // A stop renamed in its inspector reaches the planner's list, the route card and search; a route renames on its card.
+  const namePage = await browser.newPage({ viewport: { width: 1440, height: 960 } });
+  watch(namePage);
+  await namePage.goto(url);
+  await createWorldFromMenu(namePage);
+  const renamedStop = await namePage.evaluate(() => { const stop = transport.game.stations[0]; transport.inspect(stop.x, stop.y); return stop.id; });
+  await namePage.locator('#inspector .rename-button').click();
+  assert.equal(await namePage.evaluate(() => document.activeElement.matches('#inspector h3 .rename-input') && document.activeElement.selectionEnd - document.activeElement.selectionStart === document.activeElement.value.length), true, 'the pencil opens a selected name field');
+  await namePage.keyboard.type('Quay side');
+  await namePage.locator('#inspector .tiny-button').click();
+  assert.equal(await namePage.locator('#inspector').isHidden(), true, 'the click that leaves the field still closes the inspector');
+  assert.equal(await namePage.evaluate(id => transport.game.stations.find(stop => stop.id === id).name, renamedStop), 'Quay side', 'leaving the field saves the stop name');
+  await namePage.evaluate(() => { const stop = transport.game.stations[0]; transport.inspect(stop.x, stop.y); });
+  await namePage.locator('#inspector .rename-button').click();
+  await namePage.keyboard.type('Harbour gate');
+  await namePage.screenshot({ path: `${output}/desktop-rename-stop.png`, clip: await namePage.locator('#inspector').boundingBox() });
+  await namePage.keyboard.press('Enter');
+  assert.equal(await namePage.locator('#inspector h3').textContent(), 'Harbour gate', 'Enter saves the stop name');
+  assert.equal(await namePage.evaluate(id => transport.game.stations.find(stop => stop.id === id).name, renamedStop), 'Harbour gate');
+  assert.equal(await namePage.evaluate(() => document.activeElement.dataset.rename), 'station', 'keyboard focus returns to the pencil');
+  await namePage.evaluate(() => transport.setView('routes'));
+  const nameCard = namePage.locator('.route-card[data-route-id]').first(), cardTitle = nameCard.locator('.route-header strong');
+  assert.match(await nameCard.locator('.route-journey').textContent(), /^Harbour gate/, 'the route card journey uses the new stop name');
+  assert.ok((await namePage.locator('#route-form [name="from"] option').allTextContents()).includes('Harbour gate'), 'the planner lists the new stop name');
+  await namePage.locator('#route-search').fill('harbour');
+  assert.equal(await namePage.locator('.route-card[data-route-id]').count(), 1, 'route search finds the renamed stop');
+  await namePage.locator('#clear-route-filters').click();
+  const starterName = await cardTitle.textContent();
+  await namePage.mouse.move(0, 0);
+  assert.equal(await nameCard.locator('.rename-button').evaluate(el => getComputedStyle(el).opacity), '0', 'the card pencil stays out of sight until pointed at');
+  await nameCard.locator('.route-header').hover();
+  await namePage.waitForFunction(() => getComputedStyle(document.querySelector('.route-card .rename-button')).opacity === '1');
+  await nameCard.locator('.rename-button').click();
+  await namePage.keyboard.type('Never kept');
+  await namePage.keyboard.press('Escape');
+  assert.equal(await cardTitle.textContent(), starterName, 'Escape keeps the route name');
+  await nameCard.locator('.rename-button').click();
+  await namePage.keyboard.press('Backspace');
+  await namePage.keyboard.press('Enter');
+  assert.equal(await namePage.locator('#status-message').textContent(), 'Enter a name.', 'an empty name is refused');
+  assert.equal(await nameCard.locator('.rename-input').isVisible(), true, 'a refused name keeps the field open');
+  await namePage.keyboard.type('Morning line');
+  await namePage.screenshot({ path: `${output}/desktop-rename-route.png`, clip: await nameCard.boundingBox() });
+  await namePage.keyboard.press('Enter');
+  assert.equal(await cardTitle.textContent(), 'Morning line', 'Enter saves the route name');
+  await nameCard.locator('.route-header').hover();
+  await nameCard.locator('.rename-button').click();
+  await namePage.keyboard.type('Valley shuttle');
+  await namePage.locator('#route-results-count').click();
+  assert.equal(await cardTitle.textContent(), 'Valley shuttle', 'leaving the field saves too');
+  assert.equal(await namePage.evaluate(() => transport.game.routes[0].name), 'Valley shuttle');
+  // Older saves may hold two stops of one name; the planner tells them apart by tile.
+  const twin = await namePage.evaluate(() => { const [a, b] = transport.game.stations.filter(stop => stop.mode === 'road'); b.name = a.name; transport.setView('routes'); return b; });
+  assert.ok((await namePage.locator('#route-form [name="from"] option').allTextContents()).includes(`Harbour gate · ${twin.x}, ${twin.y}`), 'duplicate stop names show their tile');
+  await namePage.evaluate(() => transport.persist());
+  await namePage.goto(url);
+  await loadAutosaveFromMenu(namePage);
+  assert.deepEqual(await namePage.evaluate(id => [transport.game.stations.find(stop => stop.id === id).name, transport.game.routes[0].name], renamedStop), ['Harbour gate', 'Valley shuttle'], 'new names survive an autosave reload');
+  await namePage.close();
+  assert.deepEqual(errors, [], 'renaming runs without console or runtime errors');
+  console.log('Rename checks passed: stop in the inspector, planner list, journey, search, route card, Escape, refusal, blur, duplicate labels, reload.');
+
   // A carrier and its load badge open a vehicle card at every zoom; stop signs open their stop in Explore mode.
   const vehiclePage = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   watch(vehiclePage);
