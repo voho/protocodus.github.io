@@ -9,11 +9,7 @@
     "fun/transport/PERFORMANCE.md",
     "fun/transport/README.md",
     "fun/transport/app.js",
-    "fun/transport/formatters.js",
     "fun/transport/renderer.js",
-    "fun/transport/tests/cohesion-browser-check.mjs",
-    "fun/transport/tests/features-browser-check.mjs",
-    "fun/transport/tests/formatters.test.mjs",
     "fun/transport/tests/hover-pick-browser-check.mjs",
     "fun/transport/tests/sprite-picking.test.mjs"
   ],
