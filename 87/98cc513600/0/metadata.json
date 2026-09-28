@@ -1,0 +1,38 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "8798cc513600",
+  "session_id": "3b9c315d-693f-4002-bf02-dd13bfe054fa",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-28T16:14:58.724698Z",
+  "branch": "transport-playability",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "fun/transport/tests/evolution-browser-check.mjs",
+    "fun/transport/tests/features-browser-check.mjs",
+    "fun/transport/tests/route-edit.test.mjs",
+    "fun/transport/ARCHITECTURE.md",
+    "fun/transport/README.md",
+    "fun/transport/app.js",
+    "fun/transport/model.js",
+    "fun/transport/routes.css"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "ff5bce9e2172",
+  "token_usage": {
+    "input_tokens": 184,
+    "cache_creation_tokens": 222747,
+    "cache_read_tokens": 6989952,
+    "output_tokens": 50046,
+    "api_call_count": 67
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-28T16:14:58.215523Z",
+    "agent_lines": 0,
+    "human_added": 280,
+    "human_modified": 31,
+    "human_removed": 0,
+    "total_committed": 280,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude/projects/-Users-vojta-Dev-protocodus-github-io/3b9c315d-693f-4002-bf02-dd13bfe054fa.jsonl"
+}
