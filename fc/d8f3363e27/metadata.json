@@ -8,13 +8,8 @@
     "fun/transport/ARCHITECTURE.md",
     "fun/transport/README.md",
     "fun/transport/app.js",
-    "fun/transport/contracts.js",
     "fun/transport/index.html",
-    "fun/transport/model.js",
     "fun/transport/renderer.js",
-    "fun/transport/routes.css",
-    "fun/transport/tests/contracts-browser-check.mjs",
-    "fun/transport/tests/contracts.test.mjs",
     "fun/transport/tests/controls-browser-check.mjs"
   ],
   "sessions": [
