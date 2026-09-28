@@ -523,10 +523,10 @@ function cancelRoutePicking() {
 }
 function showRoutePickHint() {
  let banner=$('#route-pick-banner');if(!banner){banner=document.createElement('div');banner.id='route-pick-banner';banner.className='route-pick-banner';banner.setAttribute('role','status');$('.map-section').append(banner);}
- const label=routePicking==='from'?'start':'end',mode=stopName(formDraft.mode);
- banner.innerHTML=`<div><strong>Click the ${label} ${mode}</strong><span>Drag to explore · Esc to cancel</span></div><button type="button" id="cancel-route-pick">Cancel</button>`;
+ const label=routePicking==='from'?'start':'end',mode=stopName(formDraft.mode),touch=matchMedia('(pointer: coarse)').matches;
+ banner.innerHTML=`<div><strong>${touch?'Tap':'Click'} the ${label} ${mode}</strong><span>${touch?'Drag to explore':'Drag to explore · Esc to cancel'}</span></div><button type="button" id="cancel-route-pick">Cancel</button>`;
  $('#cancel-route-pick').onclick=()=>{cancelRoutePicking();setView('routes');};
- $('#status-message').textContent=`Click the ${label} ${mode}.`;canvas.classList.add('route-picking');
+ $('#status-message').textContent=`${touch?'Tap':'Click'} the ${label} ${mode}.`;canvas.classList.add('route-picking');
 }
 function beginRoutePicking(key) {
  setTool('inspect');routePicking=key;renderPanel();syncToolControls();showRoutePickHint();closeMobile();canvas.focus({preventScroll:true});
@@ -534,7 +534,7 @@ function beginRoutePicking(key) {
 function pickRouteStopAt(x,y) {
  if(!routePicking)return false;
  const station=game.stations.find(s=>s.x===x&&s.y===y);
- if(!station){toast(`Click a ${stopName(formDraft.mode)}.`,true);return true;}
+ if(!station){toast(`Choose a ${stopName(formDraft.mode)}.`,true);return true;}
  if(station.mode!==formDraft.mode){toast(`This is a ${stopName(station.mode)}. Choose a ${stopName(formDraft.mode)}.`,true);return true;}
  if(routePicking==='to'&&String(station.id)===String(formDraft.from)){toast('Choose two different stops.',true);return true;}
  if(routePicking==='from'&&String(station.id)===String(formDraft.to))formDraft.to='';
@@ -741,6 +741,7 @@ function locateDestination(id,kind,origin='') {
 // The last generated markup, not box.innerHTML: drawn portraits change their canvas attributes.
 let inspectorHTML='', inspectorKey='', panelPress=false, panelReleasedAt=-Infinity;
 function inspect(x,y,kind='',origin='') {
+ if(selectedVehicle)clearVehicle();
  const site=kind!=='city'?buildingAt(game,x,y):null;if(site){x=site.x;y=site.y;}
  const terrainSite=kind!=='city'&&!site?terrainObjectAt(game,x,y):null,nature=terrainSite?.object.kind==='mountain'?null:terrainSite;if(nature){x=nature.x;y=nature.y;}
  const tile=tileAt(x,y);if(!tile)return;const changed=!selected||selected.x!==x||selected.y!==y||selected.kind!==kind;selected={x,y,kind};
@@ -763,6 +764,38 @@ function inspect(x,y,kind='',origin='') {
  box.querySelectorAll('[data-target-id]').forEach(el=>el.onclick=e=>locateDestination(el.dataset.targetId,el.dataset.targetKind,e.detail===0?'keyboard':''));
  if(changed)box.scrollTop=0;
  focusTitle();
+}
+// A carrier's card names its service and trip; the map rings the carrier instead of a tile.
+// Load, trip and Follow update in place, so a live refresh never replaces a pressed control.
+let selectedVehicle=null,follow=null;
+function clearVehicle() { selectedVehicle=null;follow=null;invalidateScene(); }
+function stopFollow() { follow=null;$('#inspector [data-vehicle-action="follow"]')?.setAttribute('aria-pressed','false'); }
+// On a phone the card covers the map's centre, so a followed carrier rides in the open map above it (screen pixels).
+function followLift() { const card=$('#inspector').getBoundingClientRect(),map=canvas.getBoundingClientRect(),x=map.left+map.width/2,y=map.top+map.height/2;return card.left<x&&card.right>x&&card.top<y+40?Math.max(0,y-(map.top+card.top)/2):0; }
+function inspectVehicle(id,refresh=false) {
+ const box=$('#inspector'),vehicle=game.vehicles.find(v=>v.id===id),route=vehicle&&game.routes.find(r=>r.id===vehicle.routeId);
+ if(!route){if(selectedVehicle===id){clearVehicle();box.hidden=true;inspectorHTML='';}return;}
+ if(selectedVehicle!==id){follow=null;selectedVehicle=id;invalidateScene();}selected=null;
+ const order=fleetOrder(route),health=routeHealth(game,route,getRouteFleet(game,route.id)),ahead=(vehicle.direction||1)>0,stop=game.stations.find(s=>s.id===route.stops[ahead?1:0]),tiles=Math.max(0,Math.ceil((ahead?route.path.length-1-(vehicle.progress||0):vehicle.progress||0)-1e-6));
+ const load=`${integer(vehicle.load)} / ${integer(vehicle.capacity)}`,trip=`Heading to ${stop?.name||'a removed stop'} · ${tiles===1?'1 tile':integer(tiles)+' tiles'}`;
+ const html=`<div class="inspector-top"><span class="eyebrow">${escapeHTML(order.noun[0].toUpperCase()+order.noun.slice(1))} · Gen ${(vehicle.level||0)+1}</span><button class="tiny-button" aria-label="Close inspector">×</button></div><h3 id="inspector-title" tabindex="-1">${escapeHTML(route.name)}</h3><div class="vehicle-trip"><canvas width="80" height="64" data-vehicle-sprite="purchase" data-mode="${escapeHTML(route.mode)}" data-cargo="${escapeHTML(route.cargo)}" data-level="${vehicle.level||0}" aria-hidden="true"></canvas><div><span class="vehicle-load">${cargoBadge(route.cargo)}<strong data-vehicle-live="load"></strong></span><p data-vehicle-live="trip"></p></div></div><div class="industry-condition" data-state="${health.state}"><strong>${escapeHTML(health.label)}</strong><p>${escapeHTML(health.detail)}</p></div><div class="vehicle-actions"><button class="small-button" data-vehicle-action="follow" aria-pressed="false">${icon('focus')}Follow</button><button class="small-button" data-vehicle-action="show">${icon('route')}Show route</button><button class="small-button" data-vehicle-action="routes">Open in Routes</button><button class="small-button" data-vehicle-action="add" title="${escapeHTML(order.add.title)}" ${order.add.disabled?'disabled':''}>${escapeHTML(order.add.label)}</button></div>`,key=`${worldSerial}|vehicle:${id}`;
+ const same=!box.hidden&&key===inspectorKey,hold=refresh&&(box.contains(document.activeElement)||panelPress||performance.now()-panelReleasedAt<=250);
+ if(!same||html!==inspectorHTML&&!hold){
+  box.innerHTML=inspectorHTML=html;inspectorKey=key;box.hidden=false;drawPaletteSprites(box);if(!same)box.scrollTop=0;
+  box.querySelector('.tiny-button').onclick=()=>{box.hidden=true;inspectorHTML='';clearVehicle();};
+  box.querySelectorAll('[data-vehicle-action]').forEach(button=>button.onclick=()=>vehicleAction(button.dataset.vehicleAction,id));
+ }
+ for(const [live,text] of [['load',load],['trip',trip]]){const el=box.querySelector(`[data-vehicle-live="${live}"]`);if(el&&el.textContent!==text)el.textContent=text;}
+ box.querySelector('[data-vehicle-action="follow"]')?.setAttribute('aria-pressed',String(Boolean(follow)));
+}
+function vehicleAction(action,id) {
+ const vehicle=game.vehicles.find(v=>v.id===id),route=vehicle&&game.routes.find(r=>r.id===vehicle.routeId);if(!route)return;
+ // Follow never changes the game speed; at 8× it steps Detail out to Town, which keeps up with the carrier.
+ if(action==='follow'){if(follow){stopFollow();return;}follow={id,vehicle};$('#inspector [data-vehicle-action="follow"]')?.setAttribute('aria-pressed','true');if(speed>=8&&renderer.getCamera().zoom>1){renderer.setZoom(1);updateHud();}return;}
+ if(action==='show'){showRoute(route.id);return;}
+ if(action==='routes'){if(!filterRoutes(game,routeFilters).some(r=>r.id===route.id))routeFilters={query:'',mode:'all',status:'all',cargo:'all'};setView('routes');flashRoute(route.id);return;}
+ const focused=document.activeElement?.dataset?.vehicleAction==='add';changeFleet(route.id,true);inspectVehicle(id);
+ if(focused)$('#inspector [data-vehicle-action="add"]:not(:disabled)')?.focus({preventScroll:true});
 }
 // Construction saves wait for a pause in building, so a drag never holds vehicles.
 let constructionSaveTimer=0,saveHealthy=true;
@@ -1043,19 +1076,16 @@ function paintPath(points) {
  toast(result.message,{type:!result.ok?'error':result.built>0&&result.failed>0?'warning':'ok',key:undo||result.message,action:undo&&{label:'Undo',run:()=>undoBuild(undo)}});preview=[];if(result.ok)refreshRouteConnections(game);updateHud();if(result.ok){persistSoon();if(view!=='build')renderPanel();}
  if(hover&&updatePlacementTip.at)updatePlacementTip(); // Re-quote the tile under the pointer, never the finished stroke.
 }
-function pickMapTile(clientX,clientY,clamp=false) {
+function pickMapTile(clientX,clientY,clamp=false,pointerType='') {
+ const touch=pointerType==='touch';
  if(isRoutePicking()) {
-  const rect=canvas.getBoundingClientRect();
-  // Station signs stay fourteen screen pixels wide, including at Region zoom.
-  // Their clickable area therefore extends beyond their underlying map tile.
-  for(const station of mapLayers.stations?game.stations:[]) {
-   const marker=renderer.stationMarker(station),x=rect.left+marker.x,y=rect.top+marker.y;
-   if(clientX>=x&&clientX<=x+14&&clientY>=y&&clientY<=y+14)return {x:station.x,y:station.y};
-  }
-  return renderer.screenToTile(clientX,clientY);
+  // Station signs stay fourteen screen pixels wide, including at Region zoom,
+  // so the nearest sign within a finger's or a pointer's reach picks its stop.
+  const station=renderer.stationAtMarker(clientX,clientY,{slop:touch?20:6});
+  return station?{x:station.x,y:station.y}:renderer.screenToTile(clientX,clientY);
  }
  if(terrainTools.has(tool))return renderer.screenToVertex(clientX,clientY,{clamp});
- return tool==='inspect'?renderer.screenToInspectTile(clientX,clientY):renderer.screenToTile(clientX,clientY,{clamp});
+ return tool==='inspect'?renderer.screenToInspectTile(clientX,clientY,{slop:touch?12:0}):renderer.screenToTile(clientX,clientY,{clamp});
 }
 function cancelGesture() {
  const captures=new Set([...touchPoints.keys(),...(pointer?[pointer.id]:[])]);
@@ -1107,7 +1137,7 @@ canvas.addEventListener('pointerdown',e=>{
   if(touchPoints.size>1){pointer=null;preview=[];hover=null;touchGesture={...touchFrame(),zoomed:false};canvas.classList.add('dragging');$('#placement-tip').hidden=true;e.preventDefault();return;}
   if(touchGesture)return;
  }else if(pointer){if(e.button===2)setTool('inspect');return;}
- canvas.focus({preventScroll:true});const tile=pickMapTile(e.clientX,e.clientY);
+ canvas.focus({preventScroll:true});const tile=pickMapTile(e.clientX,e.clientY,false,e.pointerType);
  pointer={id:e.pointerId,button:e.button,tool,x:e.clientX,y:e.clientY,lastX:e.clientX,lastY:e.clientY,start:tile,moved:false,pan:tool==='inspect'||e.button!==0||spaceDown,shift:e.shiftKey};
  canvas.setPointerCapture(e.pointerId);
  if(spaceDown)spaceUsedForPan=true;
@@ -1146,7 +1176,7 @@ canvas.addEventListener('pointerup',e=>{
  if(p.button!==0){preview=[];if(p.button===2&&!p.moved)setTool('inspect');return;}
  if(p.tool!==tool){preview=[];return;}
  if(!p.moved&&!spaceDown&&pickRouteStopAt(p.start.x,p.start.y))return;
- if(p.pan){preview=[];if(!p.moved&&!spaceDown)inspect(p.start.x,p.start.y);return;}
+ if(p.pan){preview=[];if(!p.moved&&!spaceDown){const vehicle=tool==='inspect'&&renderer.vehicleAt(e.clientX,e.clientY,{slop:e.pointerType==='touch'?12:0});if(vehicle)inspectVehicle(vehicle.id);else inspect(p.start.x,p.start.y);}return;}
  if(p.moved&&!lineTools.has(p.tool)){preview=[];return;}
  const points=preview.length?preview:[p.start];
  if(points.every(p=>tileAt(p.x,p.y)))paintPath(points);else{toast('Keep construction within the world boundary.',true);preview=[];}
@@ -1170,6 +1200,9 @@ canvas.addEventListener('wheel',e=>{
  // One step per gesture keeps trackpad momentum from skipping a view.
  wheelConsumed=true;renderer.zoomAt(wheelDelta<0?2:.5,e.clientX,e.clientY);updateHud();
 },{passive:false});
+// Dragging, pinching or scrolling the map ends Follow; other camera moves are caught in the frame.
+canvas.addEventListener('pointermove',()=>{if(follow&&(pointer?.pan&&pointer.moved||touchGesture))stopFollow();});
+canvas.addEventListener('wheel',()=>{if(follow)stopFollow();},{passive:true});
 $('#minimap').addEventListener('click',e=>{const box=e.currentTarget.getBoundingClientRect();renderer.focus((e.clientX-box.left)/box.width*game.width,(e.clientY-box.top)/box.height*game.height);});
 $('#minimap').addEventListener('keydown',e=>{if(e.key==='Enter'){renderer.focus(game.cities[0].x,game.cities[0].y);}});
 $$('.nav-button[data-view]').forEach(el=>el.addEventListener('click',()=>compactUI?compactUI.toggleManagement(el.dataset.view):setView(el.dataset.view)));
@@ -1271,11 +1304,14 @@ function frame(now){
  if(floaterGame!==game){floaters=[];floaterGame=game;}
  for(const event of drainDeliveryEvents(game)){const recent=floaters.find(f=>f.x===event.x&&f.y===event.y&&now-f.born<300);if(recent){recent.revenue+=event.revenue;continue;}floaters.push({x:event.x,y:event.y,revenue:event.revenue,cargo:event.cargo,born:now});if(!sounds||!mapLayers.deliveries||now-chimeAt<=700)continue;const p=renderer.worldToScreen(event.x,event.y);if(p.x>=0&&p.y>=0&&p.x<=canvas.clientWidth&&p.y<=canvas.clientHeight){chimeAt=now;chime();}}
  const floaterPaint=floaters.length>0;if(floaterPaint)floaters=floaters.filter(f=>now-f.born<1600).slice(-24);
+ // Follow centres its carrier until the card closes, a tool is chosen or anything else moves the map.
+ if(selectedVehicle&&$('#inspector').hidden)clearVehicle();
+ if(follow){const at=renderer.getCamera(),v=follow.vehicle;if(follow.id!==selectedVehicle||tool!=='inspect'||follow.cx!==undefined&&Math.hypot(at.x-follow.cx,at.y-follow.cy)>2)stopFollow();else if(!(Math.abs(v.x-follow.x)<=.01&&Math.abs(v.y-follow.y)<=.01)){const lift=followLift();renderer.focus(v.x,v.y);if(lift)renderer.pan(0,-lift);const next=renderer.getCamera();Object.assign(follow,{x:v.x,y:v.y,cx:next.x,cy:next.y});}}
  const camera=renderer.getCamera(),w=canvas.width,h=canvas.height;
  if(highlight.card&&!highlight.card.isConnected)highlight={id:null,until:0};const highlightRoute=highlight.until>now?highlight.id:null;
  const changed=!painted||painted.game!==game||painted.day!==game.day||painted.revision!==game.revision||painted.money!==game.money||painted.scene!==sceneRevision||painted.x!==camera.x||painted.y!==camera.y||painted.height!==camera.height||painted.zoom!==camera.zoom||painted.w!==w||painted.h!==h||painted.layers!==mapLayers||painted.tool!==tool||painted.hover!==hover||painted.preview!==preview||painted.selected!==selected||painted.mode!==preferredMode||painted.view!==view||painted.from!==formDraft.from||painted.to!==formDraft.to||painted.highlight!==highlightRoute;
  if(changed||floaterPaint){
-  renderer.render(now,{tool,hover,preview,selected,preferredMode,routeStops:routePickStops(),floaters,highlightRoute});
+  renderer.render(now,{tool,hover,preview,selected,preferredMode,routeStops:routePickStops(),floaters,highlightRoute,selectedVehicleId:selectedVehicle});
   painted={game,day:game.day,revision:game.revision,money:game.money,scene:sceneRevision,x:camera.x,y:camera.y,height:camera.height,zoom:camera.zoom,w,h,layers:mapLayers,tool,hover,preview,selected,mode:preferredMode,view,from:formDraft.from,to:formDraft.to,highlight:highlightRoute};
  }
  if(now-hudAt>400&&(!hudState||hudState.game!==game||hudState.day!==game.day||hudState.revision!==game.revision||hudState.money!==game.money||hudState.zoom!==camera.zoom||hudState.w!==w||hudState.view!==view)){
@@ -1283,6 +1319,7 @@ function frame(now){
   const fresh=collectNotices(game.notifications,lastNoticeId);lastNoticeId=game.notifications[0]?.id;for(const entry of groupNotices(fresh))noticeQueue.push({...entry,type:toastType(entry.type)});watchRoutes();
   watchMilestones();
   if(selected&&!$('#inspector').hidden&&!$('#inspector').contains(document.activeElement)&&!panelPress&&now-panelReleasedAt>250)inspect(selected.x,selected.y,selected.kind);
+  if(selectedVehicle&&!$('#inspector').hidden)inspectVehicle(selectedVehicle,true);
  }
  if(noticeQueue.length&&now-noticeAt>400){noticeAt=now;showQueuedNotices(now);}
  if((!compactUI||compactUI.isMinimapVisible())&&(!minimapState||minimapState.game!==game||minimapState.revision!==game.revision||minimapState.layers!==mapLayers||minimapState.x!==camera.x||minimapState.y!==camera.y||minimapState.height!==camera.height||minimapState.zoom!==camera.zoom||minimapState.w!==w||minimapState.h!==h)){

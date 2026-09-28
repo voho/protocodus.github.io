@@ -103,6 +103,8 @@ try {
   // At Region zoom the fourteen-pixel stop badge extends beyond its map tile.
   // Only a visible badge may intercept that neighboring tile in the route picker.
   await page.locator('.main-nav [data-view="routes"]').click();
+  // A second Routes click while the drawer slides open would close it again.
+  await page.locator('#route-form [name="mode"]').waitFor({ state: 'visible' });
   const station=await page.evaluate(()=>transport.game.stations.find(stop=>stop.mode==='road'));
   assert.ok(station,'the starting world has a road stop for route picking');
   const stationPoints=await page.evaluate(station=>{
@@ -208,12 +210,22 @@ try {
     const actual=q.renderer.screenToTile(marker.x,marker.y),shown=q.renderer.screenToInspectTile(marker.x,marker.y);
     q.renderer.setLayers({industryIcons:false});q.renderer.render(0);const hidden=q.renderer.screenToInspectTile(marker.x,marker.y);
     const ownTile=q.renderer.screenToInspectTile(rect.left+rect.width/2,rect.top+rect.height/2);
+    // Stop signs and carriers are only pickable while their layer draws them.
+    q.renderer.setLayers(q.defaults);q.renderer.render(0);
+    const stop=q.renderer.stationMarker(q.game.stations[0]),sign={x:rect.left+stop.x+stop.size/2,y:rect.top+stop.y+stop.size/2},car=q.renderer.worldToScreen(50,34),point={x:rect.left+car.x,y:rect.top+car.y},badge={x:point.x,y:point.y-10-31/2-5};
+    const pick=()=>({sign:q.renderer.screenToInspectTile(sign.x,sign.y),point:q.renderer.vehicleAt(point.x,point.y)?.id||null,badge:q.renderer.vehicleAt(badge.x,badge.y)?.id||null});
+    const picks={shown:pick()};q.renderer.setLayers({stations:false,vehicleLoads:false});q.renderer.render(0);picks.hidden=pick();
+    q.renderer.setLayers({vehicles:false});q.renderer.render(0);picks.noVehicles=pick();
     q.renderer.setLayers(q.defaults);q.renderer.render(0);const loaded=q.renderer.getStats().vehicleIndicators.full;
     q.renderer.setLayers({vehicles:false});q.renderer.render(0);const vehiclesHidden=q.renderer.getStats().vehicleIndicators;
     q.renderer.setLayers({vehicles:true,vehicleLoads:false});q.renderer.render(0);const loadsHidden=q.renderer.getStats().vehicleIndicators;
     const returned=q.renderer.getLayers();returned.roads=false;const copySafe=q.renderer.getLayers().roads;
-    return{actual,shown,hidden,ownTile,loaded,vehiclesHidden,loadsHidden,copySafe};
+    return{actual,shown,hidden,ownTile,loaded,vehiclesHidden,loadsHidden,copySafe,picks};
   });
+  assert.deepEqual(interaction.picks.shown,{sign:{x:49,y:34},point:'qa-vehicle',badge:'qa-vehicle'},'a visible stop sign and vehicle open themselves');
+  assert.notDeepEqual(interaction.picks.hidden.sign,{x:49,y:34},'a hidden stop sign loses its hitbox');
+  assert.deepEqual([interaction.picks.hidden.point,interaction.picks.hidden.badge],['qa-vehicle',null],'hidden load badges lose their hitboxes, the vehicle keeps its own');
+  assert.deepEqual([interaction.picks.noVehicles.point,interaction.picks.noVehicles.badge],[null,null],'hidden vehicles cannot be picked');
   assert.deepEqual(interaction.shown,{x:48,y:30});
   assert.notDeepEqual(interaction.actual,interaction.shown,'the test hits a marker outside its industry tile');
   assert.deepEqual(interaction.hidden,interaction.actual,'hidden markers no longer intercept inspection of the underlying tile');

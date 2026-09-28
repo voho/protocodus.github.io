@@ -235,3 +235,17 @@ body{font-size:13px}
 .news-empty{padding:14px;border:1px dashed #d5dccb;border-radius:8px;font-size:14px;color:#617455}
 .eyebrow{letter-spacing:.3px}
 .inspector .inspector-grid + .coverage-note{margin-top:12px}
+/* Vehicle card: the carrier's model, load and trip, then Follow and its service. */
+.vehicle-trip{display:flex;align-items:center;gap:10px;background:#eaf0df;border-radius:6px;padding:4px 10px 4px 4px;margin-bottom:12px}
+.vehicle-trip canvas{display:block;width:70px;height:56px;flex-shrink:0}
+.vehicle-trip>div{min-width:0}
+.vehicle-load{display:flex;align-items:center;gap:6px;font-size:15px;font-weight:500;color:#405d35;font-variant-numeric:tabular-nums}
+.vehicle-load .cargo-badge{min-height:0;padding:0;border:0;background:none}
+.inspector .vehicle-trip p{margin:3px 0 0;line-height:1.4}
+.vehicle-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:12px}
+.vehicle-actions .small-button{display:flex;align-items:center;justify-content:center;gap:6px;min-width:0;border:1px solid #c6d8b7;border-radius:6px;background:#e7efdf;color:#416d4b;white-space:nowrap}
+.vehicle-actions .small-button svg{width:15px;height:15px;flex-shrink:0}
+.vehicle-actions .small-button:hover:not(:disabled){background:#dce8cf}
+.vehicle-actions [aria-pressed=true]{border-color:var(--green);background:var(--green);color:#fffdf2}
+.vehicle-actions [aria-pressed=true]:hover{background:#345d43}
+.vehicle-actions .small-button:disabled{color:#8c9783;background:transparent;border-color:#dde3d5;cursor:default}

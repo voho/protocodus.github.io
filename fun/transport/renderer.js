@@ -257,9 +257,38 @@ export function createRenderer(canvas, initialGame, options={}) {
     const span=industrySize(industry),p=buildingToScreen(industry.x,industry.y,span),size=detailLevel==='detail'?28:24;
     return {x:p.x,y:p.y+16*span*camera.zoom+5+(size+6)/2,size};
   }
-  function screenToInspectTile(clientX,clientY){
+  // Stop signs float above their tile. The topmost sign within two pixels wins;
+  // failing that, the sign whose centre is nearest, if its box lies within slop.
+  function stationAtMarker(clientX,clientY,{slop=0}={}){
+    if(!layers.stations)return null;
+    const rect=canvas.getBoundingClientRect(),x=clientX-rect.left,y=clientY-rect.top,stations=game.stations||[];let best=null,nearest=Infinity;
+    for(let i=stations.length-1;i>=0;i--){
+      const st=stations[i];if(!visible(st.x,st.y))continue;
+      const m=stationMarker(st),dx=Math.max(m.x-x,0,x-m.x-m.size),dy=Math.max(m.y-y,0,y-m.y-m.size);if(dx<=2&&dy<=2)return st;
+      const d=Math.hypot(x-m.x-m.size/2,y-m.y-m.size/2);if(Math.hypot(dx,dy)<=slop&&d<nearest){best=st;nearest=d;}
+    }
+    return best;
+  }
+  // Carriers are picked on demand from the last frame's culled list: load badges
+  // first, as they are drawn above everything, then the nearest vehicle itself.
+  function vehicleAt(clientX,clientY,{slop=0}={}){
+    if(!layers.vehicles)return null;
+    const rect=canvas.getBoundingClientRect(),x=clientX-rect.left,y=clientY-rect.top,routesById=new Map((game.routes||[]).map(route=>[route.id,route]));
+    const shown=v=>{const route=routesById.get(v.routeId);return route&&(route.mode==='water'||!isUndergroundAt(game,v.x,v.y))?route:null;};
+    if(layers.vehicleLoads)for(let i=frameVehicles.length-1;i>=0;i--){const v=frameVehicles[i],route=shown(v);if(!route||!visible(v.x,v.y,40))continue;const b=badgeRect(v,route);if(x>=b.x&&x<=b.x+b.w&&y>=b.y&&y<=b.y+b.h)return v;}
+    let best=null,nearest=Infinity;
+    for(let i=frameVehicles.length-1;i>=0;i--){
+      const v=frameVehicles[i],route=shown(v);if(!route)continue;
+      const p=vehicleToScreen(v.x,v.y,route.mode),reach=(route.mode==='water'?Math.max(20,20*camera.zoom):Math.max(10,14*camera.zoom))+slop,d=Math.hypot(x-p.x,y-p.y);
+      if(d<=reach&&d<nearest){best=v;nearest=d;}
+    }
+    return best;
+  }
+  function screenToInspectTile(clientX,clientY,{slop=0}={}){
     ensureRevision();
     const rect=canvas.getBoundingClientRect(),x=clientX-rect.left,y=clientY-rect.top;
+    // Stop signs are drawn above resource badges, so a sign wins a shared pixel.
+    const sign=stationAtMarker(clientX,clientY);if(sign)return{x:sign.x,y:sign.y};
     // Resource badges are drawn beyond their tile; inspecting one should open
     // its industry while construction continues to target the exact grid tile.
     for(let i=layers.industryIcons?(game.industries||[]).length-1:-1;i>=0;i--){
@@ -267,6 +296,7 @@ export function createRenderer(canvas, initialGame, options={}) {
       const marker=industryMarker(industry);
       if(Math.abs(x-marker.x)<=(marker.size+8)/2&&Math.abs(y-marker.y)<=(marker.size+6)/2)return {x:industry.x,y:industry.y};
     }
+    const near=slop&&stationAtMarker(clientX,clientY,{slop});if(near)return{x:near.x,y:near.y};
     const picked=screenToTile(clientX,clientY),site=tile(picked.x,picked.y)&&inspectSiteAt(picked.x,picked.y);
     // A reserved site remains clickable across its full footprint,
     // including open yards beneath neighboring overhanging tree crowns.
@@ -704,12 +734,15 @@ export function createRenderer(canvas, initialGame, options={}) {
     if(!image){image=new Image();image.onload=()=>options.onInvalidate?.();image.src=`data:image/svg+xml;charset=utf-8,${encodeURIComponent(cargoIcon(kind,{decorative:true}).replace('width="32" height="32"',`width="${pixels}" height="${pixels}"`))}`;cargoImages.set(key,image);}
     return image;
   }
+  // A load badge's display-pixel box above its carrier, shared by drawing and picking.
+  function badgeRect(v,route){
+    const p=vehicleToScreen(v.x,v.y,route.mode),fraction=Math.max(0,Math.min(1,(v.load||0)/Math.max(1,v.capacity||1)));
+    const state=fraction<=.00001?'empty':fraction>=.99999?'full':'partial',size=detailLevel==='detail'?22:18,w=state==='empty'?24:size+8,h=state==='empty'?11:size+13;
+    return {p,fraction,state,size,w,h,x:Math.round(p.x-w/2),y:Math.round(p.y-(route.mode==='water'?22:10)*camera.zoom-h-5)};
+  }
   function vehicleLoadIndicator(v,route){
     if(!route||!visible(v.x,v.y,40)||(route.mode!=='water'&&isUndergroundAt(game,v.x,v.y)))return;
-    const p=vehicleToScreen(v.x,v.y,route.mode),fraction=Math.max(0,Math.min(1,(v.load||0)/Math.max(1,v.capacity||1)));
-    const state=fraction<=.00001?'empty':fraction>=.99999?'full':'partial';vehicleIndicatorCounts[state]++;
-    const size=detailLevel==='detail'?22:18,w=state==='empty'?24:size+8,h=state==='empty'?11:size+13;
-    const x=Math.round(p.x-w/2),y=Math.round(p.y-(route.mode==='water'?22:10)*camera.zoom-h-5);
+    const {p,fraction,state,size,w,h,x,y}=badgeRect(v,route);vehicleIndicatorCounts[state]++;
     ctx.globalAlpha=labelRects.some(r=>x<r.x+r.w&&x+w>r.x&&y<r.y+r.h&&y+h>r.y)?.35:1;
     // Badges use display pixels so a load remains legible at every map scale.
     // An empty carrier has only an unfilled meter; loaded carriers show cargo.
@@ -897,6 +930,8 @@ export function createRenderer(canvas, initialGame, options={}) {
     const industryBadge=(ind,role)=>{const marker=industryMarker(ind),kind=Object.keys(INDUSTRIES[ind.kind]?.outputs||{})[0]||'goods',hovered=hover&&industryContains(ind,hover.x,hover.y),chosen=selected&&industryContains(ind,selected.x,selected.y),label=layers.names&&(hovered||chosen||role&&detailLevel!=='region')?ind.name||titleCase(ind.kind):null;if(role&&marker.x>=0&&marker.y>=0&&marker.x<=W&&marker.y<=H)lensStats[role==='source'?'sources':'buyers']++;ctx.globalAlpha=lens&&!role&&!hovered&&!chosen?.5:1;if(layers.industryIcons)resourceMarker(marker.x,marker.y,kind,marker.size,label,role);else if(label)pill(marker.x,marker.y,label,{size:12,h:28,fill:'#f7f4e7f5',color:'#3e5547',radius:5});ctx.globalAlpha=1;};
     const lensSites=[];for(const ind of game.industries||[]){if((!layers.names&&!layers.industryIcons)||!visible(ind.x,ind.y,180*camera.zoom))continue;const role=lensRole(ind.kind,lens);if(role)lensSites.push([ind,role]);else industryBadge(ind,null);}for(const [ind,role] of lensSites)industryBadge(ind,role);
     if(layers.stations)for(const st of game.stations||[]){if(!visible(st.x,st.y))continue;const marker=stationMarker(st),mx=marker.x,my=marker.y;ctx.fillStyle=st.mode==='water'?'#376e7e':st.mode==='rail'?'#3f655a':'#516d53';roundRect(ctx,mx,my,14,14,3);ctx.fill();if(st.mode==='water'){ctx.strokeStyle='#f0eacb';ctx.lineWidth=1.1;ctx.beginPath();ctx.arc(mx+7,my+3.5,1.2,0,TAU);ctx.stroke();line(ctx,[[mx+7,my+4.7],[mx+7,my+11]],'#f0eacb',1.1);line(ctx,[[mx+4,my+6],[mx+10,my+6]],'#f0eacb',1.1);ctx.beginPath();ctx.moveTo(mx+3,my+8);ctx.quadraticCurveTo(mx+3,my+11,mx+7,my+11);ctx.quadraticCurveTo(mx+11,my+11,mx+11,my+8);ctx.stroke();}else{ctx.fillStyle='#f0eacb';ctx.font='bold 9px Space, system-ui, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(st.mode==='rail'?'T':'B',mx+7,my+7.2);}}
+    // A chosen carrier is ringed in display pixels beneath its load badge, instead of a tile outline, and stays marked in a tunnel.
+    const chosenVehicle=view.selectedVehicleId==null?null:frameVehicles.find(v=>v.id===view.selectedVehicleId);if(chosenVehicle){const route=routesById.get(chosenVehicle.routeId),p=vehicleToScreen(chosenVehicle.x,chosenVehicle.y,route?.mode),r=route?.mode==='water'?Math.max(20,20*camera.zoom):Math.max(11,14*camera.zoom);ctx.beginPath();ctx.arc(p.x,p.y-2*camera.zoom,r,0,TAU);ctx.strokeStyle='#26372e4d';ctx.lineWidth=4;ctx.stroke();ctx.strokeStyle='#fbefba';ctx.lineWidth=2;ctx.stroke();}
     if(layers.vehicles&&layers.vehicleLoads)for(const v of frameVehicles)vehicleLoadIndicator(v,routesById.get(v.routeId));
     // An offline route pins its first gap, above the load badges of vehicles stuck beside it, so the fix is found on the map rather than in a toast.
     routeBreaks=0;for(const r of game.routes||[])if(r.active===false&&r.path?.length&&(showRoutes||r===focusRoute)){const at=routeBreak(r);if(!at||!visible(at.x,at.y))continue;const p=worldToScreen(at.x,at.y);routeBreaks++;dot(ctx,p.x,p.y,6,'#fbf6e3');dot(ctx,p.x,p.y,4,'#d7725f');pill(p.x,p.y-24,'Connection broken',{size:11,h:23,fill:'#f5e7dfef',color:'#934f3f'});}
@@ -956,5 +991,5 @@ export function createRenderer(canvas, initialGame, options={}) {
 
   }
   resize();const first=game.cities?.[0];if(first)focus(first.x+4.5,first.y-4.5);else bounds();
-  return {setGame,setLayers,getLayers,setLens,render,resize,worldToScreen,gridPointToScreen,screenToVertex,stationMarker,industryMarker,cityLabels:()=>labelRects.map(rect=>({...rect})),screenToTile,screenToInspectTile,pan,zoomAt,setZoom,focus,getCamera:()=>({...camera}),drawMinimap,getStats:()=>({projection:'isometric',terrainGeometry:true,maxTerrainHeight:MAX_HEIGHT,heightStep:HEIGHT_STEP,tileWidth:TILE*2,tileHeight:TILE,chunkCount:chunks.size,composedChunks,sceneBuilds,sceneryBatches:{...sceneryBudget.stats(),enabled:sceneryBatching,builds:sceneryBatchBuilds,draws:sceneryBatchDraws,directDraws:sceneryDirectDraws,waitingForCamera:sceneryWaitingForCamera,pending:sceneryBatching&&sceneCache&&!sceneCache.batchPlanReady?1:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0))+(sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0),pendingGroups:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0)),pendingShadows:sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0,preparationMs:sceneryPreparationMs,preparationBudgetMs:sceneryPrepareBudgetMs},foundationBuilds,foundationCacheSize:foundations.size,routeSegmentsConsidered,routePathBuilds,routeBreaks,highlightRoute:highlightedRoute,lens:lensStats&&{...lensStats},visibleVehicleCandidates:frameVehicles.length,cacheBytes,cacheLimit,cacheMax:CACHE_MAX,chunkTiles:CHUNK_TILES,rasterScale,pixelScale:rasterScale,detailLevel,view:ZOOM_VIEWS.find(view=>view.zoom===camera.zoom).name,devicePixelRatio:dpr,dpr,maxSurfaceWidth:largestSurface,maxSurfaceHeight:largestSurface,minimapWidth:minimapLayer.width,minimapHeight:minimapLayer.height,minimapMaxEdge:MINIMAP_EDGE,minimapWorldWidth:game.width,minimapWorldHeight:game.height,minimapTerrainSamples,minimapNetworkScans,minimapNetworkBytes:minimapNetwork?.bytes||0,vehicleIndicators:{...vehicleIndicatorCounts},preparedSprites:preparedSprites.getStats(),preparedTransport:preparedTransport.getStats(),vehicleSprites:vehicleSprites.getStats(),infrastructureSprites:infrastructureSprites.getStats(),preparedZooms:rasterBundles.size,loadBadgeCount:loadBadges.size,sprites:sprite?.getStats?.(),uprightSprites:uprightSprite?.getStats?.(),houseArtwork:getHouseAssetStats(game.biome),worldArtwork:worldArtStats(),treeShadows:treeShadowCacheStats(),weather:drawWeather.getStats(),lighting:drawLighting.getStats?.(),marine:marine?.getStats?.(),layers:getLayers()})};
+  return {setGame,setLayers,getLayers,setLens,render,resize,worldToScreen,gridPointToScreen,screenToVertex,stationMarker,stationAtMarker,vehicleAt,industryMarker,cityLabels:()=>labelRects.map(rect=>({...rect})),screenToTile,screenToInspectTile,pan,zoomAt,setZoom,focus,getCamera:()=>({...camera}),drawMinimap,getStats:()=>({projection:'isometric',terrainGeometry:true,maxTerrainHeight:MAX_HEIGHT,heightStep:HEIGHT_STEP,tileWidth:TILE*2,tileHeight:TILE,chunkCount:chunks.size,composedChunks,sceneBuilds,sceneryBatches:{...sceneryBudget.stats(),enabled:sceneryBatching,builds:sceneryBatchBuilds,draws:sceneryBatchDraws,directDraws:sceneryDirectDraws,waitingForCamera:sceneryWaitingForCamera,pending:sceneryBatching&&sceneCache&&!sceneCache.batchPlanReady?1:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0))+(sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0),pendingGroups:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0)),pendingShadows:sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0,preparationMs:sceneryPreparationMs,preparationBudgetMs:sceneryPrepareBudgetMs},foundationBuilds,foundationCacheSize:foundations.size,routeSegmentsConsidered,routePathBuilds,routeBreaks,highlightRoute:highlightedRoute,lens:lensStats&&{...lensStats},visibleVehicleCandidates:frameVehicles.length,cacheBytes,cacheLimit,cacheMax:CACHE_MAX,chunkTiles:CHUNK_TILES,rasterScale,pixelScale:rasterScale,detailLevel,view:ZOOM_VIEWS.find(view=>view.zoom===camera.zoom).name,devicePixelRatio:dpr,dpr,maxSurfaceWidth:largestSurface,maxSurfaceHeight:largestSurface,minimapWidth:minimapLayer.width,minimapHeight:minimapLayer.height,minimapMaxEdge:MINIMAP_EDGE,minimapWorldWidth:game.width,minimapWorldHeight:game.height,minimapTerrainSamples,minimapNetworkScans,minimapNetworkBytes:minimapNetwork?.bytes||0,vehicleIndicators:{...vehicleIndicatorCounts},preparedSprites:preparedSprites.getStats(),preparedTransport:preparedTransport.getStats(),vehicleSprites:vehicleSprites.getStats(),infrastructureSprites:infrastructureSprites.getStats(),preparedZooms:rasterBundles.size,loadBadgeCount:loadBadges.size,sprites:sprite?.getStats?.(),uprightSprites:uprightSprite?.getStats?.(),houseArtwork:getHouseAssetStats(game.biome),worldArtwork:worldArtStats(),treeShadows:treeShadowCacheStats(),weather:drawWeather.getStats(),lighting:drawLighting.getStats?.(),marine:marine?.getStats?.(),layers:getLayers()})};
 }

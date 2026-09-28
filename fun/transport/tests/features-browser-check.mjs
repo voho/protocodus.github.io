@@ -182,6 +182,120 @@ try {
   assert.deepEqual(errors, [], 'fleet controls run without console or runtime errors');
   console.log('Fleet checks passed: add and sell, price, count, retire refund, autosave reload, planner reuse, 390px card.');
 
+  // A carrier and its load badge open a vehicle card at every zoom; stop signs open their stop in Explore mode.
+  const vehiclePage = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+  watch(vehiclePage);
+  await vehiclePage.goto(url);
+  await createWorldFromMenu(vehiclePage);
+  const starterRoute = await vehiclePage.evaluate(async () => {
+    const { tick } = await import('./model.js');
+    for (let n = 0; n < 40; n++) tick(transport.game, .05);
+    const route = transport.game.routes[0];
+    return { id: route.id, name: route.name, stops: route.stops.map(id => transport.game.stations.find(station => station.id === id)) };
+  });
+  const vehicleTargets = zoom => vehiclePage.evaluate(zoom => {
+    const vehicle = transport.game.vehicles[0], renderer = transport.renderer;
+    renderer.setZoom(zoom); renderer.focus(vehicle.x + 2, vehicle.y - 2); renderer.render(performance.now(), {});
+    const rect = document.querySelector('#world').getBoundingClientRect(), p = renderer.worldToScreen(vehicle.x, vehicle.y), badge = (zoom === 2 ? 22 : 18) + 13;
+    return { point: { x: rect.left + p.x, y: rect.top + p.y }, badge: { x: rect.left + p.x, y: rect.top + p.y - 10 * zoom - badge / 2 - 5 } };
+  }, zoom);
+  for (const zoom of [.5, 1, 2]) {
+    const targets = await vehicleTargets(zoom);
+    for (const [part, point] of Object.entries(targets)) {
+      await vehiclePage.mouse.click(point.x, point.y);
+      assert.equal(await vehiclePage.locator('#inspector h3').textContent(), starterRoute.name, `${zoom}x clicking the bus ${part} opens its route`);
+      assert.equal(await vehiclePage.locator('#inspector .eyebrow').textContent(), 'Bus · Gen 1');
+      assert.match(await vehiclePage.locator('[data-vehicle-live="load"]').textContent(), /^\d+ \/ 24$/);
+      assert.match(await vehiclePage.locator('[data-vehicle-live="trip"]').textContent(), /^Heading to (Alderbrook|Pinehaven) Central · \d+ tiles?$/);
+      await vehiclePage.locator('#inspector .tiny-button').click();
+    }
+  }
+  await vehiclePage.keyboard.press('l');
+  await vehiclePage.locator('[data-layer="vehicles"]').setChecked(false);
+  await vehiclePage.keyboard.press('Escape');
+  const hiddenBus = await vehicleTargets(1);
+  await vehiclePage.mouse.click(hiddenBus.point.x, hiddenBus.point.y);
+  assert.notEqual(await vehiclePage.locator('#inspector h3').textContent(), starterRoute.name, 'with vehicles hidden the same click inspects the map');
+  assert.doesNotMatch(await vehiclePage.locator('#inspector .eyebrow').textContent(), /^Bus/);
+  await vehiclePage.keyboard.press('l');
+  await vehiclePage.locator('[data-layer="vehicles"]').setChecked(true);
+  await vehiclePage.keyboard.press('Escape');
+  for (const zoom of [.5, 1, 2]) for (const station of starterRoute.stops) {
+    const sign = await vehiclePage.evaluate(({ zoom, station }) => {
+      const renderer = transport.renderer; renderer.setZoom(zoom); renderer.focus(station.x, station.y);
+      const rect = document.querySelector('#world').getBoundingClientRect(), marker = renderer.stationMarker(station), x = rect.left + marker.x + marker.size / 2, y = rect.top + marker.y + marker.size / 2;
+      return { x, y, behind: renderer.screenToTile(x, y) };
+    }, { zoom, station });
+    if (zoom > .5) assert.notDeepEqual(sign.behind, { x: station.x, y: station.y }, `${zoom}x the sign stands over another tile`);
+    await vehiclePage.mouse.click(sign.x, sign.y);
+    assert.equal(await vehiclePage.locator('#inspector h3').textContent(), station.name, `${zoom}x the ${station.name} sign opens its stop in Explore mode`);
+  }
+  // Follow keeps the bus centred at 3× until the map is dragged or Escape is pressed; the speed never changes.
+  const followBus = async () => {
+    await vehiclePage.locator('[data-speed="0"]').click();
+    const targets = await vehicleTargets(1);
+    await vehiclePage.mouse.click(targets.badge.x, targets.badge.y);
+    await vehiclePage.locator('[data-vehicle-action="follow"]').click();
+    assert.equal(await vehiclePage.locator('[data-vehicle-action="follow"]').getAttribute('aria-pressed'), 'true');
+    await vehiclePage.locator('[data-speed="3"]').click();
+  };
+  const followGap = () => vehiclePage.evaluate(() => { const vehicle = transport.game.vehicles[0], camera = transport.renderer.getCamera(); return Math.hypot(camera.x / 32 - .5 - vehicle.x, camera.y / 32 - .5 - vehicle.y); });
+  // Once stopped, the camera holds still while the bus travels on.
+  const cameraStays = async message => {
+    const start = await vehiclePage.evaluate(() => { const vehicle = transport.game.vehicles[0], camera = transport.renderer.getCamera(); return { x: vehicle.x, y: vehicle.y, camera: [camera.x, camera.y] }; });
+    await vehiclePage.waitForFunction(start => { const vehicle = transport.game.vehicles[0]; return Math.hypot(vehicle.x - start.x, vehicle.y - start.y) > 2; }, start, { timeout: 15000 });
+    assert.deepEqual(await vehiclePage.evaluate(() => { const camera = transport.renderer.getCamera(); return [camera.x, camera.y]; }), start.camera, message);
+  };
+  await followBus();
+  for (let n = 0; n < 6; n++) { await vehiclePage.waitForTimeout(500); const gap = await followGap(); assert.ok(gap < 1, `the camera stays within a tile of the followed bus: ${gap.toFixed(2)}`); }
+  assert.equal(await vehiclePage.evaluate(() => transport.speed), 3, 'following keeps the chosen speed');
+  await vehiclePage.screenshot({ path: `${output}/desktop-follow-bus.png` });
+  await vehiclePage.mouse.move(760, 420); await vehiclePage.mouse.down(); await vehiclePage.mouse.move(860, 470, { steps: 6 }); await vehiclePage.mouse.up();
+  assert.equal(await vehiclePage.locator('[data-vehicle-action="follow"]').getAttribute('aria-pressed'), 'false', 'a drag stops following');
+  await cameraStays('after a drag the camera stays where it was moved');
+  await followBus();
+  await vehiclePage.keyboard.press('Escape');
+  await vehiclePage.locator('#inspector').waitFor({ state: 'hidden' });
+  await cameraStays('Escape closes the card and stops following');
+  await vehiclePage.locator('[data-speed="0"]').click();
+  // Show route frames and lights the service; Open in Routes flashes its card; + Bus buys another.
+  const cardTargets = await vehicleTargets(1);
+  await vehiclePage.mouse.click(cardTargets.badge.x, cardTargets.badge.y);
+  await vehiclePage.locator('[data-vehicle-action="show"]').click();
+  await vehiclePage.waitForFunction(id => transport.renderer.getStats().highlightRoute === id, starterRoute.id);
+  assert.equal(await vehiclePage.evaluate(stops => { const rect = document.querySelector('#world').getBoundingClientRect(); return stops.every(station => { const p = transport.renderer.worldToScreen(station.x, station.y); return p.x > 0 && p.y > 0 && p.x < rect.width && p.y < rect.height; }); }, starterRoute.stops), true, 'Show route fits both stops on screen');
+  assert.equal(await vehiclePage.locator('#inspector h3').textContent(), starterRoute.name, 'the card stays open while the route is shown');
+  await vehiclePage.locator('[data-vehicle-action="add"]').click();
+  assert.equal(await vehiclePage.evaluate(() => transport.game.vehicles.length), 2, '+ Bus buys another bus for the route');
+  await vehiclePage.locator('[data-vehicle-action="routes"]').click();
+  await vehiclePage.waitForFunction(id => document.querySelector(`.route-card[data-route-id="${id}"]`)?.classList.contains('route-flash'), starterRoute.id);
+  await vehiclePage.screenshot({ path: `${output}/desktop-vehicle-card.png` });
+  await vehiclePage.evaluate(async id => { const { removeRoute } = await import('./model.js'); removeRoute(transport.game, id); }, starterRoute.id);
+  await vehiclePage.locator('#inspector').waitFor({ state: 'hidden' });
+  await vehiclePage.close();
+
+  // On a touch screen the route picker says Tap and takes a stop sign within a finger's reach.
+  const touchContext = await browser.newContext({ viewport: { width: 844, height: 390 }, hasTouch: true });
+  const touchPage = await touchContext.newPage();
+  watch(touchPage);
+  await touchPage.goto(url);
+  await createWorldFromMenu(touchPage);
+  await touchPage.evaluate(() => transport.setView('routes'));
+  await touchPage.locator('[data-pick-route="from"]').tap();
+  assert.match(await touchPage.locator('#route-pick-banner').innerText(), /^Tap the start road stop/);
+  const reach = await touchPage.evaluate(() => {
+    const station = transport.game.stations[0]; transport.renderer.focus(station.x, station.y);
+    const rect = document.querySelector('#world').getBoundingClientRect(), marker = transport.renderer.stationMarker(station);
+    return { id: station.id, x: rect.left + marker.x + marker.size + 12, y: rect.top + marker.y + marker.size / 2 };
+  });
+  await touchPage.touchscreen.tap(reach.x, reach.y);
+  await touchPage.locator('#route-pick-banner').filter({ hasText: 'Tap the end road stop' }).waitFor();
+  assert.equal(await touchPage.locator('#route-form [name="from"]').inputValue(), reach.id, 'a tap 12 px beside a sign picks its stop');
+  assert.equal(await touchPage.locator('.toast.error').count(), 0, 'a near tap raises no error');
+  await touchContext.close();
+  assert.deepEqual(errors, [], 'vehicle cards and stop signs run without console or runtime errors');
+  console.log('Vehicle and stop sign checks passed: badge and bus picks at 3 zooms, hidden vehicles, sign picks, Follow, Show route, touch picking.');
+
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   watch(page);
   await page.goto(url);
