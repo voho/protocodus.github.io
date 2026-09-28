@@ -57,7 +57,8 @@ try {
 
   // Startup preloads only the densities a view draws at once, and each draw fetches a sharper level it lacks.
   // Once no draw waits for art, every zoom matches the eager loader at DPR 1 and 2. The renderer itself varies
-  // by a level or two on a few pixels between runs; a stand-in density differs by far more.
+  // by a level or two on a few pixels between runs, and two eager runs can differ by more than 8 on up to about
+  // 20 pixels of thin terrain edges; a stand-in density differs by more than 8 on at least 240.
   async function artScene(dpr, lazy) {
     const scene = await browser.newContext({ viewport: { width: 1100, height: 760 }, deviceScaleFactor: dpr }), requested = [];
     const page = await scene.newPage(); page.on('pageerror', error => errors.push(error.message));
@@ -104,7 +105,7 @@ try {
     assert.ok(eager.startup.includes(256), 'the eager loader fetches 256 cells');
     assert.equal(lazy.startup.filter(cell => cell === 256).length, 0, `DPR ${dpr} startup requests no 256 cells`);
     if (dpr === 1) assert.equal(lazy.startup.filter(cell => cell === 128).length, 0, 'DPR 1 startup requests no 128 cells');
-    for (const [zoom, match] of Object.entries(matches)) assert.ok(match.far === 0 && match.differing < match.pixels * .005, `zoom ${zoom} at DPR ${dpr} matches the eager loader once art settles: ${JSON.stringify(match)}`);
+    for (const [zoom, match] of Object.entries(matches)) assert.ok(match.far < 64 && match.differing < match.pixels * .005, `zoom ${zoom} at DPR ${dpr} matches the eager loader once art settles: ${JSON.stringify(match)}`);
     assert.ok(lazy.decoded < eager.decoded * (dpr === 1 ? .5 : .9), `the Region and Town views decode ${(lazy.decoded / 2 ** 20).toFixed(1)} of ${(eager.decoded / 2 ** 20).toFixed(1)} MiB`);
     densities.push({ dpr, startupRequests: lazy.startup.length, eagerRequests: eager.startup.length, cells256BeforeDetail: lazy.beforeDetail.filter(cell => cell === 256).length, cells256Eager: eager.startup.filter(cell => cell === 256).length, townMiB: +(lazy.decoded / 2 ** 20).toFixed(1), eagerMiB: +(eager.decoded / 2 ** 20).toFixed(1), differingPixels: Object.values(matches).map(match => match.differing) });
   }
