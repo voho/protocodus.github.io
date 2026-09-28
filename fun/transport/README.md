@@ -48,6 +48,14 @@ Resources use a shared set of 20 illustrated icons in industry recipes, inventor
 
 To see where a freight cargo comes from and where it can go, click it in the route form, choose an industry type in **Industries**, or use **Locate** in **Chains**. The map then lights its producers with a green ▲ tab and its buyers with a teal ▼ tab; other industry markers fade to half strength. From the Town view in, the lit sites show their names, and when towns buy the cargo, each town name carries its icon. The atlas and mini map mark the same producers and buyers as green and teal squares and ring the buying towns. A chip beside the zoom control reads *Showing iron ore*; its × or Escape turns the highlight off. A highlight chosen in Routes also ends when you choose Passengers or the planner sets another cargo, launch the route, fold the planner, close the drawer or switch views, and one from Industries ends with **All industries**, another view or closing the drawer; picking stops on the map or locating a listed site keeps it. One from Chains stays until you clear it or choose another. The highlight is only a view: it is never saved and never changes the cargo you launch.
 
+## Transport contracts
+
+After your company's first freight delivery, **Contract offers** appears in Routes below Fleet upgrades, folded until you open it. At the start of each month up to three offers name a producer the world generated and a buyer 20 to 70 tiles away that no running route serves yet: a factory that uses the cargo, or a town for town cargo. Each offer shows the distance, how many times the normal fare its deliveries will pay, such as *3.9× fares for 12 months*, and when it lapses. **Show** frames both sites and inspects the producer; on a phone it only frames them.
+
+Any route that loads the cargo at that producer and delivers it to that buyer wins the contract with its first delivery; for a town, the delivery must reach that town. For the next 12 months every delivery on the route pays its normal fare plus the bonus, and the income rising above its stop includes it. Longer hauls earn a larger bonus, so a served contract earns more per vehicle than a short local route. The route card shows the route's normal monthly net and the bonus side by side, such as *≈ $2.1k + $4.5k bonus*; hover it for the end date. The offer list marks the contract as won and tells you what normal fares will bring afterwards. When the year is up the route keeps running at normal fares. Retiring the route, or losing either site, ends the contract.
+
+Contracts are entirely optional and nothing is lost by ignoring them. Offers appear and lapse without a notice; only a won contract and a finished one, with the extra it earned, are announced. Industries you build yourself are never the producer, and route forecasts count normal fares only.
+
 ## Rivers and shipping
 
 New worlds have connected, meandering rivers with tributaries and mouths that reach the sea. Both starting towns have a riverbank within their five-tile catchment. Town streets cross water on bridges, so they do not block navigation. Existing saves keep their original landscape; ships can use their lakes, rivers and seas too.
@@ -338,6 +346,8 @@ TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/cont
 ```
 
 `next-goal-browser-check.mjs` walks the seed-1847 first route through the Next goal checklist, alternatives, the folded preference with its changed chip and v1 migration, the Next goal layer, a paused chip that clears the card on a 768px tablet, and the phone pill at 390px and 320px. `milestones-browser-check.mjs` covers the first milestone riding on the first-delivery toast, one milestone toast a game month, News and Company goals at 1440px and 390px, the card past the first-route stages, and silent backfill and no replay after a reload. `node fun/transport/tests/next-goal-servable-check.mjs` is a slower sweep: 75 new worlds must suggest only producers and buyers a stop can serve.
+
+`contracts-browser-check.mjs` follows seed 1847 from the first stone delivery to silent offers folded below Fleet upgrades, **Show** framing both sites beside the inspector at 1440px and without it at 390px, a stone contract for Pinehaven won with one toast and a card that keeps its height, no replay after a reload, and the closing toast twelve months later.
 
 The comprehensive follow-up checks include `cohesion-browser-check.mjs` (projects, searches, finances, paused disconnection and storage failure), `vast-browser-check.mjs` (large-world quota and continuation), and `controls-browser-check.mjs` (mouse, keyboard and real multi-touch gestures).
 

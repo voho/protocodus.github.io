@@ -95,3 +95,26 @@
 .forecast-details[open]>summary:after{content:'−'}
 .forecast-details>summary:hover{color:#3f5d34}
 .forecast-facts{display:grid;gap:3px;margin:3px 0 2px 1px;padding:1px 0 1px 9px;list-style:none;border-left:2px solid #dde5d0}
+.contract-offers{margin:-4px 0 14px;border:1px solid #d5dfc8;border-radius:7px;background:#f4f6ec}
+.contract-offers[hidden]{display:none}
+.contract-offers>summary{display:flex;align-items:center;gap:8px;min-height:40px;padding:0 12px;cursor:pointer;list-style:none;font-size:13px;color:#49663d;border-radius:7px}
+.contract-offers>summary::-webkit-details-marker{display:none}
+.contract-offers>summary strong{font-weight:600}
+.contract-offers>summary small{margin-left:auto;font-size:11px;color:#b0592b}
+.contract-offers>summary:after{content:'+';min-width:10px;font-size:17px;line-height:1;text-align:center;color:#6d8161}
+.contract-offers[open]>summary:after{content:'−'}
+.contract-offers>summary:hover{background:#edf2e3}
+.contract-body{border-top:1px solid #e0e6d6;padding:2px 12px 6px}
+.contract-note{margin:8px 0 2px;font-size:12px;line-height:1.45;color:#66795b}
+.contract-list{margin:0;padding:0;list-style:none}
+.contract-row{display:flex;align-items:center;gap:9px;padding:9px 0;border-top:1px dashed #dde5d0}
+.contract-row:first-child{border-top:0}
+.contract-row>div{flex:1;min-width:0}
+.contract-row strong,.contract-to{display:block;font-size:13px;font-weight:600;line-height:1.35;color:#3f593b;overflow-wrap:anywhere}
+.contract-to{display:flex;align-items:center;gap:4px}
+.contract-to svg{width:13px;height:13px;color:#8a9a7c}
+.contract-row small{display:block;margin-top:2px;font-size:11.5px;line-height:1.4;color:#71836b}
+.contract-row[data-state=active] small{color:#a4532a}
+.contract-row[data-state=complete]{opacity:.75}
+.contract-row .small-button{flex:0 0 auto;min-height:33px}
+.route-rate[data-contract]{color:#b0592b}

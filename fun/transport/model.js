@@ -11,6 +11,7 @@ import { nearbyCities, nearbyIndustries, nearbyStations, nearbyZones } from './s
 import { networkIndex, updateNetworkIndex } from './network-index.js';
 import { initializeIndustry, stepIndustries } from './industry-simulation.js';
 import { evaluateMilestones, validMilestones } from './milestones.js';
+import { stepContracts, contractBonus, validContracts } from './contracts.js';
 import { availableVehicleLevel, priceFor, inflationInfo, calendarMonth } from './economy-pricing.js';
 import { TERRAIN_OBJECT_KINDS, terrainObjectAt, terrainObjectSize, terrainObjectTiles, terrainObjectGroundIsFlat, releaseTerrainObjects } from './terrain-objects.js';
 import { LAND_HEIGHT_LEVELS } from './terrain-elevation.js';
@@ -665,7 +666,7 @@ function unloadVehicle(game,route,vehicle,stopIndex,arrivalDay=game.day,context)
   }
   vehicle.load=remaining;
   if(delivered>0) {
-    const revenue=fareFor(game,route.cargo,route.path.length,delivered,arrivalDay);
+    const fare=fareFor(game,route.cargo,route.path.length,delivered,arrivalDay),revenue=fare+(game.contracts?contractBonus(game,route,fare,arrivalDay,site=>journeyCoverage(game,site,context)):0);
     route.delivered+=delivered;route.revenue+=revenue;game.totalDelivered+=delivered;game.totalRevenue+=revenue;game.monthlyIncome+=revenue;game.money+=revenue;
     let log=deliveryLog.get(game);if(!log)deliveryLog.set(game,log=[]);
     if(log.length<64)log.push({x:station.x,y:station.y,revenue,cargo:route.cargo,amount:delivered,routeId:route.id,day:arrivalDay});
@@ -858,6 +859,7 @@ function monthlyUpdate(game) {
   game.history.push({month:game.lastMonth,day:Math.floor(game.day),income:game.monthlyIncome,expenses:game.monthlyExpenses,operatingExpenses:game.monthlyOperatingExpenses||0,operatingProfit:game.lastMonthlyOperatingProfit,profit:game.lastMonthlyProfit,money:game.money,population:game.cities.reduce((sum,c)=>sum+c.population,0),delivered:game.totalDelivered});
   if(game.history.length>36)game.history.shift();
   game.monthlyIncome=0;game.monthlyExpenses=0;game.monthlyOperatingExpenses=0;game.monthlyIncomeAtAccountingStart=0;
+  stepContracts(game,site=>stationCoverage(game,site));
   if(game.money<0)notify(game,'Your company is operating on credit. Launch profitable deliveries or sell an underused service.','warning');
 }
 export function tick(game,days) {
@@ -961,6 +963,7 @@ export function validateGame(game) {
   if(!game.notifications.every(n=>n&&typeof n.message==='string'&&typeof n.text==='string'&&typeof n.type==='string'&&finite(n.day,0)))return false;
   if(!game.notifications.every(n=>(n.topic===undefined||typeof n.topic==='string'&&n.topic.length<=32)&&(n.target===undefined||Boolean(n.target)&&['industry','city','route'].includes(n.target.kind)&&typeof n.target.id==='string'&&n.target.id.length<=64)))return false;
   if(!validMilestones(game)||!game.cities.every(c=>c.founded===undefined||typeof c.founded==='boolean'))return false;
+  if(!validContracts(game))return false;
   return true;
 }
 export function saveGame(game) {

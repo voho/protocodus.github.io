@@ -33,6 +33,7 @@ import { mountVisibility } from './visibility-view.js';
 import { townService, industryStatus, routeHealth, nextProject } from './gameplay-insights.js';
 import { collectNotices, groupNotices, crossedMilestone, newYearNotice, toastType } from './ui-notices.js';
 import { MILESTONES, CHAPTERS, milestoneChapters, metMilestones, progressText } from './milestones.js';
+import { contractState, contractSites } from './contracts.js';
 import { preloadHouses, onHouseAssetsChange } from './raster-houses.js';
 import { preloadWorldArt, onWorldArtChange } from './atlas-runtime.js';
 import { industryContains, industrySize, industryFootprint } from './industry-sites.js';
@@ -390,6 +391,7 @@ function fleetStepper(route) {
 }
 const waitingText = health => health.waiting>0?'Waiting '+integer(health.waiting):'';
 function routeRate(route) {
+ const contract=contractRate(route);if(contract)return contract;
  const net=route.revenue-(route.revenueAtAccountingStart||0)-(route.expenses||0),months=(game.day-(route.accountingStartDay||0))/30.44;
  return {text:months<1?'—':`≈ ${net<0?'−':''}${compactMoney(Math.abs(net)/months)} / month`,title:'Average since '+new Date(Date.UTC(1950,0,1+Math.floor(route.accountingStartDay||0))).toLocaleDateString('en-US',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'})};
 }
@@ -410,10 +412,11 @@ function upgradeButton(route) {
 }
 function fleetControls() {
  const quote=getFleetUpgrade(game);
- return `<div class="fleet-upgrades"><div class="fleet-upgrade-heading"><strong>Fleet upgrades</strong><small id="fleet-upgrade-note">${quote.available?quote.count+' vehicles ready':'Next: Jan '+(1951+quote.targetLevel)}</small></div><button id="upgrade-fleet" ${quote.available&&quote.affordable?'':'disabled'} title="Upgrade every eligible route to the latest available vehicle">${quote.available?'Upgrade all · '+money(quote.cost):'Fleet up to date'}</button></div>`;
+ return `<div class="fleet-upgrades"><div class="fleet-upgrade-heading"><strong>Fleet upgrades</strong><small id="fleet-upgrade-note">${quote.available?quote.count+' vehicles ready':'Next: Jan '+(1951+quote.targetLevel)}</small></div><button id="upgrade-fleet" ${quote.available&&quote.affordable?'':'disabled'} title="Upgrade every eligible route to the latest available vehicle">${quote.available?'Upgrade all · '+money(quote.cost):'Fleet up to date'}</button></div>${contractOffers()}`;
 }
 function refreshUpgradeControls() {
  const fleetButton=$('#upgrade-fleet');if(!fleetButton)return;
+ refreshContracts();
  const fleet=getFleetUpgrade(game);
  fleetButton.disabled=!fleet.available||!fleet.affordable;
  fleetButton.textContent=fleet.available?'Upgrade all · '+money(fleet.cost):'Fleet up to date';
@@ -431,6 +434,74 @@ function refreshUpgradeControls() {
  if($('#vehicle-purchase-price'))$('#vehicle-purchase-price').textContent=money(purchase.cost);
  if($('#vehicle-purchase-spec'))$('#vehicle-purchase-spec').textContent=`Gen ${purchase.level+1} · ${purchase.capacity} units`;
  const portrait=$('[data-vehicle-sprite="purchase"]');if(portrait){Object.assign(portrait.dataset,{mode:formDraft.mode,cargo:formDraft.cargo,level:String(purchase.level)});drawPaletteSprites($('#route-form'));}
+}
+// Contract offers stay folded below Fleet upgrades. Nothing here is required: offers appear and lapse
+// quietly, and only a win and a finished contract are announced.
+let contractsOpen=false,contractSeen=null;
+const contractNames=new WeakMap();
+const monthYear = day => new Date(Date.UTC(1950,0,1+Math.floor(day))).toLocaleDateString('en-US',{month:'short',year:'numeric',timeZone:'UTC'});
+const contractFactor = contract => (1+contract.multiplier).toFixed(1)+'×';
+function contractPair(contract) {
+ let names=contractNames.get(contract);if(names)return names;
+ const sites=contractSites(game,contract);if(!sites)return null;
+ const place=(site,point)=>{if(!INDUSTRIES[site.kind])return site.name;const town=game.cities.reduce((best,c)=>!best||Math.hypot(c.x-point.x,c.y-point.y)<Math.hypot(best.x-point.x,best.y-point.y)?c:best,null);return (site.name||INDUSTRIES[site.kind].name)+(town?' near '+town.name:'');};
+ names={from:place(sites.source,sites.from),to:place(sites.target,sites.to)};contractNames.set(contract,names);return names;
+}
+// What the route nets a month without the bonus: its net since launch, less the extra the contract paid.
+function normalRate(route,contract) { const net=route.revenue-(route.revenueAtAccountingStart||0)-(route.expenses||0)-contract.earned,months=(game.day-(route.accountingStartDay||0))/30.44;return months<1?'':`≈ ${net<0?'−':''}${compactMoney(Math.abs(net)/months)}`; }
+// The card keeps one line: base and bonus side by side, the end date and the pair in its title.
+function contractRate(route) {
+ const contract=game.contracts?.find(c=>c.routeId===route.id&&contractState(game,c)==='active'),names=contract&&contractPair(contract);if(!names)return null;
+ const normal=normalRate(route,contract),bonus=compactMoney(contract.earned/Math.max(1,(game.day-contract.awardedDay)/30.44));
+ return {text:normal?`${normal} + ${bonus} bonus`:`+${bonus} bonus`,title:`${normal?`Normal fares ${normal} / month · `:''}Contract bonus ≈ ${bonus} / month until ${monthYear(contract.until)} · ${contractFactor(contract)} fares from ${names.from} to ${names.to} · +${money(contract.earned)} extra so far`};
+}
+function markContractRoutes(root) {
+ const awarded=new Set((game.contracts||[]).filter(c=>c.routeId!==undefined&&contractState(game,c)==='active').map(c=>String(c.routeId)));
+ root.querySelectorAll('[data-route-rate]').forEach(el=>el.toggleAttribute('data-contract',awarded.has(el.dataset.routeRate)));
+}
+function contractRows() {
+ const rows=[];let offers=0,active=0;
+ for(const contract of game.contracts||[]){
+  const state=contractState(game,contract),names=state==='expired'?null:contractPair(contract);if(!names)continue;
+  const route=game.routes.find(r=>r.id===contract.routeId),normal=route?normalRate(route,contract):'';
+  const detail=state==='offer'?`${contract.distance} tiles · ${contractFactor(contract)} fares for 12 months · open until ${monthYear(contract.expiresDay)}`:state==='active'?`Won by ${route.name} · ${contractFactor(contract)} fares until ${monthYear(contract.until)}${normal?` · normal fares ${normal} / month afterwards`:''}`:`Completed on ${route.name} · earned +${money(contract.earned)} extra`;
+  if(state==='offer')offers++;else if(state==='active')active++;
+  rows.push(`<li class="contract-row" data-state="${state}">${cargoBadge(contract.cargo)}<div><strong>${escapeHTML(names.from)}</strong><span class="contract-to">${icon('arrow')}${escapeHTML(names.to)}</span><small>${escapeHTML(detail)}</small></div><button class="small-button" data-show-contract="${escapeHTML(contract.id)}">Show</button></li>`);
+ }
+ return {offers,active,html:rows.join('')};
+}
+function contractOffers() {
+ const {offers,active,html}=contractRows();
+ return `<details id="contract-offers" class="contract-offers" ${contractsOpen?'open':''} ${html?'':'hidden'}><summary><strong>Contract offers · <span data-contract-count>${offers}</span></strong><small data-contract-active>${active?active+' active':''}</small></summary><div class="contract-body"><p class="contract-note">Serve a pair with any route for 12 months of bonus fares. Optional; unclaimed offers lapse.</p><ul class="contract-list">${html}</ul></div></details>`;
+}
+function refreshContracts() {
+ const box=$('#contract-offers');if(!box)return;
+ const {offers,active,html}=contractRows(),list=box.querySelector('.contract-list');
+ box.hidden=!html;box.querySelector('[data-contract-count]').textContent=offers;box.querySelector('[data-contract-active]').textContent=active?active+' active':'';
+ if(list.dataset.html!==html){const focused=list.contains(document.activeElement)?document.activeElement.dataset.showContract:null;list.innerHTML=html;list.dataset.html=html;if(focused)list.querySelector(`[data-show-contract="${CSS.escape(focused)}"]`)?.focus({preventScroll:true});}
+ markContractRoutes(document);
+}
+// Show frames the producer and the buyer together in the map the inspector leaves free and selects
+// the producer; on a phone, where the inspector would cover both, it only frames them.
+function showContract(id) {
+ const contract=game.contracts?.find(c=>c.id===id),sites=contract&&contractSites(game,contract);if(!sites)return;
+ const {from,to,source}=sites,width=(Math.abs((from.x-from.y)-(to.x-to.y))+6)*TILE,height=(Math.abs((from.x+from.y)-(to.x+to.y))+6)*TILE/2+48;
+ setTool('inspect');closeModal();if(window.innerWidth>700)inspect(source.x,source.y,'industry');
+ const map=canvas.getBoundingClientRect(),card=$('#inspector').hidden?null:$('#inspector').getBoundingClientRect(),left=card&&card.right<map.left+map.width/2?card.right-map.left:0;
+ renderer.setZoom(Math.max(ZOOM_LEVELS[0],...ZOOM_LEVELS.filter(zoom=>width*zoom<=(map.width-left)*.85&&height*zoom<=map.height*.8)));renderer.focus((from.x+to.x)/2,(from.y+to.y)/2);if(left)renderer.pan(left/2,0);
+ updateHud();
+}
+$('#panel-content').addEventListener('click',e=>{const button=e.target.closest?.('[data-show-contract]');if(button)showContract(button.dataset.showContract);});
+$('#panel-content').addEventListener('toggle',e=>{if(e.target.id==='contract-offers')contractsOpen=e.target.open;},true);
+// A win and a finished contract are the only contract moments.
+function watchContracts() {
+ const states=new Map((game.contracts||[]).map(contract=>[contract.id,contractState(game,contract)]));
+ if(contractSeen?.game===game)for(const contract of game.contracts||[]){
+  const was=contractSeen.states.get(contract.id),state=states.get(contract.id),route=state!==was&&game.routes.find(r=>r.id===contract.routeId);if(!route)continue;
+  if(state==='active')noticeQueue.push({message:`Contract won · ${contractFactor(contract)} fares on ${route.name} until ${monthYear(contract.until)}`,type:'milestone',targets:[{kind:'route',id:route.id}]});
+  else if(state==='complete'&&was==='active')noticeQueue.push({message:`Contract on ${route.name} completed · earned +${money(contract.earned)} extra. Normal fares continue.`,type:'ok',targets:[{kind:'route',id:route.id}]});
+ }
+ contractSeen={game,states};
 }
 function performUpgrade(routeId) {
  const restoreFocus=document.activeElement?.matches('[data-upgrade-route],#upgrade-fleet');
@@ -491,6 +562,7 @@ function autoSelectCargo() {
  if(cargoLens?.origin==='routes'&&cargoLens.cargo!==formDraft.cargo)setCargoLens(null);
 }
 function bindRouteCards(root) {
+ markContractRoutes(root);
  root.querySelectorAll('[data-route-page]').forEach(button=>button.addEventListener('click',()=>{
   const direction=button.dataset.routePage;routePage+=direction==='next'?1:-1;refreshRouteList();
   $('#route-list').scrollIntoView({block:'start'});
@@ -1395,6 +1467,7 @@ function frame(now){
   updateHud();hudAt=now;hudState={game,day:game.day,revision:game.revision,money:game.money,zoom:camera.zoom,w,view};
   const fresh=collectNotices(game.notifications,lastNoticeId);lastNoticeId=game.notifications[0]?.id;for(const entry of groupNotices(fresh))noticeQueue.push({...entry,type:toastType(entry.type)});watchRoutes();
   watchMilestones();
+  watchContracts();
   if(selected&&!$('#inspector').hidden&&!$('#inspector').contains(document.activeElement)&&!panelPress&&now-panelReleasedAt>250)inspect(selected.x,selected.y,selected.kind);
   if(selectedVehicle&&!$('#inspector').hidden)inspectVehicle(selectedVehicle,true);
  }
