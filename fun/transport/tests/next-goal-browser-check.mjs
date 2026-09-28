@@ -1,4 +1,4 @@
-// Next goal card: the seed-1847 first route checklist, alternatives, collapse memory and phone layout.
+// Next goal card: the seed-1847 first route checklist, alternatives, the folded preference and its layer, and phone layout.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { createWorldFromMenu, loadAutosaveFromMenu } from './browser-start.mjs';
@@ -74,12 +74,12 @@ try {
   await page.screenshot({ path: `${output}/desktop-launch.png` });
   await page.locator('#close-management').click();
 
-  // Collapse persists across a reload until the goal itself changes.
+  // Folding is a preference: it survives a reload, and a new goal only updates the chip.
   await page.locator('#dismiss-objective').click();
   assert.equal(await page.locator('#objective-chip').isVisible(), true);
   assert.equal(await page.locator('#objective-body').isVisible(), false);
   assert.match(await page.locator('#objective-chip').innerText(), /Next goal\s*·\s*Your first cargo route/);
-  assert.equal(await page.evaluate(() => localStorage.getItem('transport-next-goal-v1')), 'Your first cargo route');
+  assert.equal(await page.evaluate(() => localStorage.getItem('transport-next-goal-v2')), 'folded');
   assert.equal(await page.evaluate(() => transport.persist()), true);
   await page.reload();
   await loadAutosaveFromMenu(page);
@@ -91,8 +91,14 @@ try {
     const route = transport.game.routes.at(-1);
     for (let day = 0; day < 60 && !route.delivered; day++) for (let n = 0; n < 4; n++) tick(transport.game, .25);
   });
-  await page.waitForFunction(() => document.querySelector('#objective-title').textContent === 'First 100 cargo deliveries');
-  assert.equal(await page.locator('#objective-body').isVisible(), true, 'a new goal expands the card again');
+  await page.waitForFunction(() => document.querySelector('#objective-chip-title').textContent === 'First 100 cargo deliveries');
+  assert.equal(await page.locator('#objective-body').isVisible(), false, 'a new goal keeps the card folded');
+  assert.equal(await page.locator('#objective-card').evaluate(card => card.classList.contains('changed')), true, 'the chip marks the new goal');
+  await page.waitForTimeout(1300);
+  await page.screenshot({ path: `${output}/desktop-changed.png` });
+  await page.locator('#objective-chip').click();
+  assert.equal(await page.locator('#objective-body').isVisible(), true);
+  assert.equal(await page.locator('#objective-card').evaluate(card => card.classList.contains('changed')), false, 'opening clears the mark');
   assert.equal(await page.locator('#objective-progress').isVisible(), true);
   await page.screenshot({ path: `${output}/desktop-progress.png` });
 
@@ -102,6 +108,17 @@ try {
   await page.locator('.project-card summary').click();
   await page.locator('[data-goal-show]').click();
   assert.equal(await page.locator('#objective-body').isVisible(), true);
+  // The Next goal layer removes the card entirely; Show on map turns it back on.
+  await page.locator('#close-management').click();
+  await page.locator('#game-menu-button').click();await page.locator('#layers-button').click();
+  await page.locator('[data-layer="goal"]').setChecked(false);
+  assert.equal(await page.locator('#objective-card').isVisible(), false, 'the layer hides the card');
+  await page.locator('[data-layers-close]').click();
+  await page.evaluate(() => transport.setView('build'));
+  await page.locator('.project-card summary').click();
+  await page.locator('[data-goal-show]').click();
+  assert.equal(await page.locator('#objective-body').isVisible(), true, 'Show on map turns the layer back on');
+  assert.equal(await page.evaluate(() => transport.renderer.getLayers().goal), true);
   await page.locator('#game-menu-button').click();
   assert.equal(await page.locator('#objective-card').isVisible(), false, 'the game menu hides the card');
   await page.keyboard.press('Escape');
@@ -120,6 +137,7 @@ try {
     await createWorldFromMenu(phone, { biome: 'taiga', seed: 1847 });
     await phone.locator('#objective-chip').waitFor({ state: 'visible' });
     assert.equal(await phone.locator('#objective-body').isVisible(), false, 'phones show a one-line pill');
+    assert.equal(await phone.locator('#objective-chip').evaluate(chip => getComputedStyle(chip, '::before').backgroundColor), 'rgb(111, 145, 89)', 'the dot turns orange only for a new goal');
     assert.equal(overlaps(await box(phone, '#objective-card'), await box(phone, '.view-controls')), false, 'the pill clears the zoom control');
     assert.equal(await phone.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
     await phone.screenshot({ path: `${output}/phone-${width}.png` });
@@ -135,6 +153,15 @@ try {
     await phone.screenshot({ path: `${output}/phone-${width}-tool.png` });
     await phone.close();
   }
+  // A card folded under the old title-based key stays folded.
+  const migrated = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  watch(migrated);
+  await migrated.addInitScript(() => { if (!localStorage.getItem('transport-next-goal-v2')) localStorage.setItem('transport-next-goal-v1', 'Your first cargo route'); });
+  await migrated.goto(url);
+  await createWorldFromMenu(migrated, { biome: 'taiga', seed: 1847 });
+  await migrated.locator('#objective-chip').waitFor({ state: 'visible' });
+  assert.equal(await migrated.locator('#objective-body').isVisible(), false);
+  await migrated.close();
   assert.deepEqual(errors, []);
   console.log(`Next goal checks passed. Screenshots: ${output}`);
 } finally { await browser.close(); }

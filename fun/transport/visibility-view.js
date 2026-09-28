@@ -17,6 +17,7 @@ const ART = {
   lighting: '<path d="M20 15.2A8.8 8.8 0 0 1 8.8 4a9 9 0 1 0 11.2 11.2Z"/><path d="M17 3v4m-2-2h4"/>',
   weather: '<path d="M6 14a4 4 0 0 1-.5-8 6 6 0 0 1 11-1A4.5 4.5 0 1 1 19 14H6Zm1 3-1 3m6-3-1 3m6-3-1 3"/>',
   grid: '<rect x="3" y="3" width="18" height="18" rx="1"/><path d="M9 3v18m6-18v18M3 9h18M3 15h18"/>',
+  goal: '<path d="M5 21V4m0 1h12l-2.5 4L17 13H5"/>',
   close: '<path d="m6 6 12 12M6 18 18 6"/>',
 };
 const icon = key => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ART[key]}</svg>`;

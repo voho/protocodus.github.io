@@ -25,6 +25,7 @@ import { loadVisibility, saveVisibility, normalizeLayers, layerPreset } from './
 import { mountVisibility } from './visibility-view.js';
 import { townService, industryStatus, routeHealth, nextProject } from './gameplay-insights.js';
 import { collectNotices, groupNotices, crossedMilestone, newYearNotice, toastType } from './ui-notices.js';
+import { MILESTONES, CHAPTERS, milestoneChapters, metMilestones, progressText } from './milestones.js';
 import { preloadHouses, onHouseAssetsChange } from './raster-houses.js';
 import { preloadWorldArt, onWorldArtChange } from './atlas-runtime.js';
 import { industryContains, industrySize, industryFootprint } from './industry-sites.js';
@@ -145,8 +146,9 @@ let routeFilters = { query:'', mode:'all', status:'all', cargo:'all' }, routePic
 let entityFilters = { towns:'', industry:'', kind:'all' };
 let lastRevision = -1;
 let lastNoticeId = game.day<1 ? undefined : game.notifications[0]?.id;
-let goalChoice = null, goalSignature = '', goalOpen = false, goalCollapsed = (() => { try { return localStorage.getItem('transport-next-goal-v1') || ''; } catch { return ''; } })();
+let goalChoice = null, goalSignature = '', goalOpen = false, goalSeen = null, goalChanged = false, goalFolded = (() => { try { const stored = localStorage.getItem('transport-next-goal-v2'); return stored ? stored === 'folded' : Boolean(localStorage.getItem('transport-next-goal-v1')); } catch { return false; } })();
 let noticeQueue=[],noticeAt=0,pacedNoticeAt=-Infinity,panelPricesStale=false,knownRoutes=new Set(),firstDeliveryPending=new Set(),townPeaks=new Map(),townDay=-1;
+let seenMilestones=new Set(),milestoneMonth=-1;
 resetMoments();
 const spanTools = new Set(['bridge','railbridge','tunnel','railtunnel']);
 const terrainTools = new Set(['raise','lower','level']);
@@ -165,6 +167,7 @@ function syncLayerControls() {
 }
 function setMapLayers(patch) {
  mapLayers=normalizeLayers({...mapLayers,...patch});renderer.setLayers(mapLayers);syncLayerControls();
+ renderGoal();
  renderer.drawMinimap($('#minimap'));minimapAt=performance.now();
  if(saveVisibility(mapLayers))layerStorageNotice=false;
  else if(!layerStorageNotice){layerStorageNotice=true;toast('Layers changed. This browser could not remember the settings.',true);}
@@ -265,7 +268,7 @@ function drawPaletteSprites(root = document) { drawUIArtwork(root, game); }
 
 function projectCard() {
  const project=nextProject(game,{source:goalChoice});
- return `<details class="project-card"><summary>${escapeHTML(project.title)}</summary><p>${escapeHTML(project.detail)}</p><button class="small-button" data-project-action="${project.action}" ${project.target?`data-project-target="${escapeHTML(project.target)}"`:''}>${escapeHTML(project.button)} ${icon('arrow')}</button><button type="button" class="project-show" data-goal-show>Show on map</button></details>`;
+ return `<details class="project-card"><summary>${escapeHTML(project.title)}</summary><p>${escapeHTML(project.detail)}</p><button class="small-button" data-project-action="${project.action}" ${project.target?`data-project-target="${escapeHTML(project.target)}"`:''}${project.tool?` data-project-tool="${project.tool}"`:''}>${escapeHTML(project.button)} ${icon('arrow')}</button><button type="button" class="project-show" data-goal-show>Show on map</button></details>`;
 }
 function runProjectAction(action,target,extra={}) {
  if(action==='source')locateIndustry(target);
@@ -286,25 +289,28 @@ function runProjectAction(action,target,extra={}) {
  else openAtlas();
 }
 // The next goal card repaints only when its text, checklist or progress changes.
-function storeGoalCollapsed(title) { goalCollapsed=title;try{if(title)localStorage.setItem('transport-next-goal-v1',title);else localStorage.removeItem('transport-next-goal-v1');}catch{} }
+// Folding is a preference, not a title: a folded card only marks a new goal on its chip and reopens from the chip or Show on map.
+function storeGoalFolded(folded) { goalFolded=folded;try{localStorage.setItem('transport-next-goal-v2',folded?'folded':'open');localStorage.removeItem('transport-next-goal-v1');}catch{} }
 function renderGoal() {
- const project=nextProject(game,{source:goalChoice}),steps=project.steps||[],current=steps.findIndex(step=>!step.done),collapsed=goalCollapsed===project.title;
- const signature=[project.title,project.detail,steps.map(step=>`${step.done}${step.label}${step.button}`).join(),current,project.progress?.value,project.choice,project.choices?.length,collapsed,goalOpen].join('|');
+ const project=nextProject(game,{source:goalChoice}),steps=project.steps||[],current=steps.findIndex(step=>!step.done),collapsed=goalFolded,visible=mapLayers.goal!==false;
+ if(goalSeen===null||visible&&!collapsed&&(goalOpen||window.innerWidth>700)){goalSeen=project.title;goalChanged=false;}else if(project.title!==goalSeen)goalChanged=true;
+ const signature=[project.title,project.detail,steps.map(step=>`${step.done}${step.label}${step.button}`).join(),current,project.progress?.value,project.choice,project.choices?.length,collapsed,goalOpen,goalChanged,visible].join('|');
  if(signature===goalSignature)return;goalSignature=signature;
- const card=$('#objective-card');card.hidden=false;card.classList.toggle('collapsed',collapsed);card.classList.toggle('open',goalOpen&&!collapsed);
+ const card=$('#objective-card');card.hidden=!visible;card.classList.toggle('collapsed',collapsed);card.classList.toggle('open',goalOpen&&!collapsed);card.classList.toggle('changed',goalChanged);
  $('#objective-chip-title').textContent=project.title;$('#objective-title').textContent=project.title;$('#objective-detail').textContent=project.detail;
  $('#objective-steps').hidden=!steps.length;
  $('#objective-steps').innerHTML=steps.map((step,index)=>`<li class="objective-step${step.done?' done':''}${index===current?' current':''}">${step.done?icon('check'):`<span class="step-circle">${index+1}</span>`}<span>${escapeHTML(step.label)}${step.done?'<span class="sr-only"> · done</span>':''}</span>${index===current&&step.button?`<button type="button" class="small-button" data-goal-step="${index}">${escapeHTML(step.button)}</button>`:''}</li>`).join('');
  $('#objective-progress').hidden=!project.progress;$('#goal-bar').style.width=(project.progress?project.progress.value/project.progress.max*100:0)+'%';
- $('#objective-action').innerHTML=escapeHTML(project.button)+icon('arrow');$('#objective-another').hidden=!(project.choices?.length>1);$('#guide-button').hidden=!steps.length;
+ $('#objective-action').innerHTML=escapeHTML(project.button)+icon('arrow');$('#objective-another').hidden=!(project.choices?.length>1);$('#guide-button').hidden=!steps.length;$('#objective-goals').hidden=steps.length>0;
 }
 function goalClick(e) {
  const button=e.target.closest('button');if(!button||button.id==='guide-button')return;
  const project=nextProject(game,{source:goalChoice}),keyboard=e.detail===0;
- if(button.id==='dismiss-objective'){storeGoalCollapsed(project.title);goalOpen=false;}
- else if(button.id==='objective-chip'){storeGoalCollapsed('');goalOpen=true;}
- else if(button.id==='objective-another'){goalChoice=project.choices[(project.choice+1)%project.choices.length].source.id;if(view==='build')renderPanel();}
- else if(button.id==='objective-action'){goalOpen=false;runProjectAction(project.action,project.target);}
+ if(button.id==='dismiss-objective'){storeGoalFolded(true);goalOpen=false;}
+ else if(button.id==='objective-chip'){storeGoalFolded(false);goalOpen=true;}
+ else if(button.id==='objective-another'){const next=project.choices[(project.choice+1)%project.choices.length];goalChoice=next.source?.id??next;if(view==='build')renderPanel();}
+ else if(button.id==='objective-action'){goalOpen=false;runProjectAction(project.action,project.target,{tool:project.tool});}
+ else if(button.id==='objective-goals')openGoals();
  else if(button.dataset.goalStep){const step=project.steps[Number(button.dataset.goalStep)];goalOpen=false;if(step?.action)runProjectAction(step.action,project.target,{...step,choice:project.choices[project.choice]});}
  renderGoal();
  if(keyboard&&button.id==='dismiss-objective')$('#objective-chip').focus({preventScroll:true});
@@ -554,8 +560,8 @@ function renderPanel() {
  bindEntityCards(panel);
  if($('#entity-search'))$('#entity-search').oninput=e=>{entityFilters[view]=e.target.value;refreshEntities();};
  if($('#industry-kind'))$('#industry-kind').onchange=e=>{entityFilters.kind=e.target.value;refreshEntities();};
- panel.querySelectorAll('[data-project-action]').forEach(button=>button.onclick=()=>runProjectAction(button.dataset.projectAction,button.dataset.projectTarget));
- panel.querySelectorAll('[data-goal-show]').forEach(button=>button.onclick=()=>{storeGoalCollapsed('');goalOpen=true;if(window.innerWidth<=1100)closeMobile();renderGoal();});
+ panel.querySelectorAll('[data-project-action]').forEach(button=>button.onclick=()=>runProjectAction(button.dataset.projectAction,button.dataset.projectTarget,{tool:button.dataset.projectTool}));
+ panel.querySelectorAll('[data-goal-show]').forEach(button=>button.onclick=()=>{storeGoalFolded(false);goalOpen=true;if(!mapLayers.goal)setMapLayers({goal:true});if(window.innerWidth<=1100)closeMobile();renderGoal();});
  bindRouteCards(panel);
  if($('#upgrade-fleet'))$('#upgrade-fleet').onclick=()=>performUpgrade();
  if($('#route-search'))$('#route-search').addEventListener('input',e=>{routeFilters.query=e.target.value;routePage=0;refreshRouteList();});
@@ -855,6 +861,8 @@ function resetMoments() {
  noticeQueue=[];pricingYear=inflationInfo(game).year;panelPricesStale=false;townDay=-1;
  knownRoutes=new Set(game.routes.map(route=>route.id));firstDeliveryPending=new Set(game.routes.filter(route=>route.cargo!=='passengers'&&route.delivered===0).map(route=>route.id));
  townPeaks=new Map(game.cities.map(city=>[city.id,city.population]));
+ // An older save or a new world has no stamps yet; whatever it has already met is backfilled silently.
+ seenMilestones=new Set(game.milestones?Object.keys(game.milestones):metMilestones(game));milestoneMonth=Math.max(-1,...Object.values(game.milestones||{}).map(monthOf));goalSeen=null;goalChanged=false;
 }
 function showQueuedNotices(now) {
  const urgent=entry=>entry.type==='warning'||entry.type==='error'?1:0;noticeQueue.sort((a,b)=>urgent(b)-urgent(a));
@@ -882,7 +890,10 @@ function revealInPanel(el,focusTarget=el) {
 function watchRoutes() {
  for(const route of game.routes){
   if(!knownRoutes.has(route.id)){knownRoutes.add(route.id);if(route.cargo!=='passengers')firstDeliveryPending.add(route.id);}
-  if(route.delivered>0&&firstDeliveryPending.delete(route.id))noticeQueue.push({message:`First ${CARGO[route.cargo].name.toLowerCase()} delivered on ${route.name} · +${money(route.revenue)}`,type:'milestone',targets:[{kind:'route',id:route.id}]});
+  if(!(route.delivered>0&&firstDeliveryPending.delete(route.id)))continue;
+  // The company's first freight delivery is also its first milestone; one toast says both.
+  const first=!seenMilestones.has('first-freight');if(first){seenMilestones.add('first-freight');milestoneMonth=monthOf(game.day);}
+  noticeQueue.push({message:`First ${CARGO[route.cargo].name.toLowerCase()} delivered on ${route.name} · +${money(route.revenue)}${first?' · Milestone':''}`,type:'milestone',targets:[{kind:'route',id:route.id}]});
  }
 }
 function watchTowns(activeStops) {
@@ -893,6 +904,16 @@ function watchTowns(activeStops) {
   if(reached&&townService(game,city,activeStops).connected)noticeQueue.push({message:`${city.name} reached ${integer(reached)} residents`,type:'milestone',targets:[{kind:'city',id:city.id}],paced:true});
  }
 }
+// Each milestone celebrates once, with at most one toast a game month; the rest wait in News and Company goals.
+function watchMilestones() {
+ if(!game.milestones)return;
+ for(const milestone of MILESTONES){
+  const day=game.milestones[milestone.id];if(day===undefined||seenMilestones.has(milestone.id))continue;seenMilestones.add(milestone.id);
+  if(monthOf(day)<=milestoneMonth)continue;milestoneMonth=monthOf(day);
+  noticeQueue.push({message:`Milestone · ${milestone.title}`,type:'milestone',action:{label:'Goals',run:openGoals}});
+ }
+}
+function monthOf(day) { const date=new Date(Date.UTC(1950,0,1+Math.floor(day)));return date.getUTCFullYear()*12+date.getUTCMonth(); }
 function noticeTargetExists(target) { return Boolean(target)&&(target.kind==='route'?game.routes:target.kind==='city'?game.cities:game.industries).some(item=>String(item.id)===target.id); }
 function showNoticeTarget(target) {
  if(!noticeTargetExists(target))return;
@@ -903,10 +924,24 @@ function showNoticeTarget(target) {
  const card=$$('#route-list [data-route-id]').find(el=>el.dataset.routeId===target.id);revealInPanel(card,card?.querySelector('[data-focus-route]'));
 }
 function openNews() {
- const notices=[...game.notifications],date=day=>new Date(Date.UTC(1950,0,1+Math.floor(day))).toLocaleDateString('en-US',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'});
- const items=notices.map((notice,index)=>{const type=toastType(notice.type);return `<li class="news-item" data-type="${type}">${icon(type==='ok'||type==='milestone'?'check':'warning')}<div><time>${date(notice.day)}</time><p>${escapeHTML(notice.message)}</p></div>${noticeTargetExists(notice.target)?`<button class="small-button" data-news-target="${index}">Show</button>`:''}</li>`;}).join('');
+ const date=day=>new Date(Date.UTC(1950,0,1+Math.floor(day))).toLocaleDateString('en-US',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'});
+ // Milestones are company state, not notices: those reached within the log's span join it, one line per day.
+ const since=game.notifications.length>=24?Math.floor(game.notifications.at(-1).day):-Infinity,reached=new Map();
+ for(const milestone of MILESTONES){const day=game.milestones?.[milestone.id];if(day>=since){if(!reached.has(day))reached.set(day,[]);reached.get(day).push(milestone.title);}}
+ const titles=list=>list.length>3?`${list.slice(0,3).join(', ')} and ${list.length-3} more`:list.length>1?`${list.slice(0,-1).join(', ')} and ${list.at(-1)}`:list[0];
+ const notices=[...game.notifications,...[...reached].map(([day,list])=>({day,message:list.length>1?`${list.length} milestones reached: ${titles(list)}`:`Milestone · ${list[0]}`,type:'milestone',goals:true}))].sort((a,b)=>b.day-a.day);
+ const items=notices.map((notice,index)=>{const type=toastType(notice.type);return `<li class="news-item" data-type="${type}">${icon(type==='ok'||type==='milestone'?'check':'warning')}<div><time>${date(notice.day)}</time><p>${escapeHTML(notice.message)}</p></div>${notice.goals?'<button class="small-button" data-news-goals>Goals</button>':noticeTargetExists(notice.target)?`<button class="small-button" data-news-target="${index}">Show</button>`:''}</li>`;}).join('');
  closeMobile();openModal(`<div class="modal-inner"><div class="modal-heading"><div><h2>News</h2><p>Recent company notices, newest first. The log keeps the latest 24.</p></div><button class="close-modal" aria-label="Close dialog">×</button></div><ol class="news-list">${items||'<li class="news-empty">No news yet. Notices about your network, towns and industries appear here.</li>'}</ol><div class="modal-actions"><button class="button button-primary" data-close>Back to game ${icon('arrow')}</button></div></div>`);
  $$('[data-news-target]').forEach(el=>el.addEventListener('click',()=>showNoticeTarget(notices[Number(el.dataset.newsTarget)].target)));
+ $$('[data-news-goals]').forEach(el=>el.addEventListener('click',openGoals));
+ $('#modal .close-modal')?.focus({preventScroll:true});
+}
+// Company goals: every chapter with the dates reached and live progress. Nothing here is required or rewarded.
+function openGoals() {
+ const date=day=>new Date(Date.UTC(1950,0,1+Math.floor(day))).toLocaleDateString('en-US',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}),next=nextProject(game,{source:goalChoice}).milestone;
+ const row=({milestone,reached,progress,done})=>{const text=progress&&!done?progressText(milestone,progress):'';return `<li class="goal-row${done?' done':''}">${done?icon('check'):'<span class="goal-dot" aria-hidden="true"></span>'}<div><strong>${escapeHTML(milestone.title)}</strong><small>${reached!==null?`Reached ${date(reached)}`:done?'Reached today':escapeHTML(milestone.detail)}</small>${text?`<span class="goal-meter"><span><span style="width:${Math.min(100,progress.value/progress.target*100)}%"></span></span>${escapeHTML(text)}</span>`:''}</div>${milestone.id===next?'<em>Next goal</em>':''}</li>`;};
+ const chapters=milestoneChapters(game).map(chapter=>`<section class="goal-chapter${chapter.complete?' complete':''}"><header><div><span class="eyebrow">Chapter ${chapter.chapter} of ${CHAPTERS.length}</span><h3>${escapeHTML(chapter.title)}</h3></div><span class="goal-count">${chapter.done} / ${chapter.items.length}</span></header><ol class="goal-list">${chapter.items.map(row).join('')}</ol></section>`).join('');
+ closeMobile();openModal(`<div class="modal-inner"><div class="modal-heading"><div><h2>Company goals</h2><p>Optional milestones, reached in any order. A chapter is complete when all but one of its goals are done.</p></div><button class="close-modal" aria-label="Close dialog">×</button></div><div class="goal-chapters">${chapters}</div><div class="modal-actions"><button class="button button-primary" data-close>Back to game ${icon('arrow')}</button></div></div>`);
  $('#modal .close-modal')?.focus({preventScroll:true});
 }
 // A January repricing waits while the player types in the panel's search.
@@ -1126,7 +1161,7 @@ window.addEventListener('pagehide',()=>{if((!isLoading()||menuOpening)&&!$('#sta
 document.addEventListener('visibilitychange',()=>{lastFrame=performance.now();if(document.hidden&&(!isLoading()||menuOpening)&&!$('#start-menu')?.open)flushSave();});
 
 layersView=mountVisibility($('#layers-panel'),$('#layers-button'),{getLayers:()=>({...mapLayers}),onChange:(key,visible)=>setMapLayers({[key]:visible}),onPreset:name=>setMapLayers(layerPreset(name))});
-compactUI=mountCompactPlay({onMenu:openGameMenu,onNews:openNews,onView:setView,getView:()=>view,onCancelGesture:cancelGesture,onMinimapOpen:()=>{renderer.drawMinimap($('#minimap'));invalidateScene();}});
+compactUI=mountCompactPlay({onMenu:openGameMenu,onNews:openNews,onGoals:openGoals,onView:setView,getView:()=>view,onCancelGesture:cancelGesture,onMinimapOpen:()=>{renderer.drawMinimap($('#minimap'));invalidateScene();}});
 // Pointing at or focusing a route card lights its route on the map; a timed Show highlight outlives the pointer leaving.
 let highlight={id:null,until:0};for(const type of ['pointerover','focusin','pointerout','focusout'])$('#panel-content').addEventListener(type,e=>{const card=e.target.closest?.('[data-route-id]');if(!card||card.contains(e.relatedTarget))return;const id=game.routes.find(route=>String(route.id)===card.dataset.routeId)?.id;if(type==='pointerover'||type==='focusin'){if(highlight.id!==id||highlight.until<=performance.now())highlight={id,until:Infinity,card};}else if(highlight.id===id&&highlight.until===Infinity)highlight={id:null,until:0};});
 $('#offline-routes').addEventListener('click',()=>{routeFilters={query:'',mode:'all',status:'disconnected',cargo:'all'};routePage=0;setView('routes');});
@@ -1166,6 +1201,7 @@ function frame(now){
  if(now-hudAt>400&&(!hudState||hudState.game!==game||hudState.day!==game.day||hudState.revision!==game.revision||hudState.money!==game.money||hudState.zoom!==camera.zoom||hudState.w!==w||hudState.view!==view)){
   updateHud();hudAt=now;hudState={game,day:game.day,revision:game.revision,money:game.money,zoom:camera.zoom,w,view};
   const fresh=collectNotices(game.notifications,lastNoticeId);lastNoticeId=game.notifications[0]?.id;for(const entry of groupNotices(fresh))noticeQueue.push({...entry,type:toastType(entry.type)});watchRoutes();
+  watchMilestones();
   if(selected&&!$('#inspector').hidden&&!$('#inspector').contains(document.activeElement)&&!panelPress&&now-panelReleasedAt>250)inspect(selected.x,selected.y,selected.kind);
  }
  if(noticeQueue.length&&now-noticeAt>400){noticeAt=now;showQueuedNotices(now);}

@@ -18,7 +18,7 @@ function nearestCity(game, point) {
   return nearest;
 }
 
-function activeCities(game) {
+export function activeCities(game) {
   const stops=new Set(),cities=new Set();
   for(const route of game.routes)if(route.active)for(const id of route.stops)stops.add(id);
   for(const station of game.stations)if(stops.has(station.id))for(const city of nearbyCities(game,station.x,station.y,5))if(distance(city,station)<=5)cities.add(city);

@@ -10,6 +10,7 @@ import { stepSettlements, housingCapacity } from './settlements.js';
 import { nearbyCities, nearbyIndustries, nearbyStations, nearbyZones } from './simulation-spatial.js';
 import { networkIndex, updateNetworkIndex } from './network-index.js';
 import { initializeIndustry, stepIndustries } from './industry-simulation.js';
+import { evaluateMilestones, validMilestones } from './milestones.js';
 import { availableVehicleLevel, priceFor, inflationInfo, calendarMonth } from './economy-pricing.js';
 import { TERRAIN_OBJECT_KINDS, terrainObjectAt, terrainObjectSize, terrainObjectTiles, terrainObjectGroundIsFlat, releaseTerrainObjects } from './terrain-objects.js';
 import { LAND_HEIGHT_LEVELS } from './terrain-elevation.js';
@@ -383,7 +384,7 @@ export function build(game,tool,x,y) {
     const prefixes=game.biome==='taiga'?['Birch','Willow','Silver','Fern','Maple']:game.biome==='tundra'?['Ice','Frost','North','Winter','Snow']:['Amber','Gold','Dune','Palm','Sun'];
     const suffixes=['field','haven','ford','creek','ridge'];
     const n=Math.max(0,game.cities.length-4);
-    const newCity={id:makeId(game,'city'),name:prefixes[n%prefixes.length]+suffixes[Math.floor(n/prefixes.length)%suffixes.length],x,y,population:80,activity:0,growth:0,passengers:12,delivered:0,supplies:0,lastServiceDay:null};
+    const newCity={id:makeId(game,'city'),name:prefixes[n%prefixes.length]+suffixes[Math.floor(n/prefixes.length)%suffixes.length],x,y,population:80,activity:0,growth:0,passengers:12,delivered:0,supplies:0,lastServiceDay:null,founded:true};
     releaseTerrainObjects(game,[point]);
     spend(game,cost);game.cities.push(newCity);t.road=true;t.detail='';t.terrain=game.biome==='desert'?'sand':game.biome==='tundra'?'snow':'grass';invalidateNetwork(game,[point]);
     notify(game,`${newCity.name} founded. Add housing and connect a passenger service.`,'success',{target:{kind:'city',id:newCity.id}});
@@ -834,7 +835,7 @@ export function tick(game,days) {
     const step=Math.min(remaining,nextDay-game.day);
     moveVehicles(game,step);game.day+=step;remaining-=step;
     if(game.day+.00000001>=nextDay) {
-      game.day=nextDay;stepIndustries(game,notify);stepSettlements(game);stepEcology(game);maintenance(game);game.lastDailyDay=nextDay;
+      game.day=nextDay;stepIndustries(game,notify);stepSettlements(game);stepEcology(game);maintenance(game);evaluateMilestones(game);game.lastDailyDay=nextDay;
       const month=calendarMonth(game);
       if(month>game.lastMonth){monthlyUpdate(game);game.lastMonth=month;}
     }
@@ -924,6 +925,7 @@ export function validateGame(game) {
   if(!game.history.every(h=>(h.operatingExpenses===undefined||finite(h.operatingExpenses,0,1e15))&&(h.operatingProfit===undefined||finite(h.operatingProfit))))return false;
   if(!game.notifications.every(n=>n&&typeof n.message==='string'&&typeof n.text==='string'&&typeof n.type==='string'&&finite(n.day,0)))return false;
   if(!game.notifications.every(n=>(n.topic===undefined||typeof n.topic==='string'&&n.topic.length<=32)&&(n.target===undefined||Boolean(n.target)&&['industry','city','route'].includes(n.target.kind)&&typeof n.target.id==='string'&&n.target.id.length<=64)))return false;
+  if(!validMilestones(game)||!game.cities.every(c=>c.founded===undefined||typeof c.founded==='boolean'))return false;
   return true;
 }
 export function saveGame(game) {

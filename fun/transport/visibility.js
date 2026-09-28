@@ -21,6 +21,7 @@ export const LAYER_GROUPS = [
     { key: 'lighting', label: 'Day / night' },
     { key: 'weather', label: 'Weather' },
     { key: 'grid', label: 'Grid' },
+    { key: 'goal', label: 'Next goal' },
   ] },
 ];
 export const DEFAULT_LAYERS = Object.freeze(Object.fromEntries(

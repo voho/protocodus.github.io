@@ -6,6 +6,7 @@ import { buildingAt } from './building-sites.js';
 import { networkTerrainShape } from './terrain-engineering.js';
 import { nearbyIndustries } from './simulation-spatial.js';
 import { outputFill } from './industry-simulation.js';
+import { nextMilestone, progressText } from './milestones.js';
 
 const nearby = (a, b) => Math.hypot(a.x - b.x, a.y - b.y) <= STATION_RADIUS;
 const covers = (site, stop) => industryDistance(site, stop) <= STATION_RADIUS;
@@ -227,6 +228,12 @@ export function nextProject(game, { source: preferred } = {}) {
     // A town served within the month stays put; the latest service day would change hands daily.
     const served = game.cities.filter(city => Number.isFinite(city.lastServiceDay)), city = served.find(city => game.day - city.lastServiceDay <= 30) || served.reduce((best, city) => city.lastServiceDay > best.lastServiceDay ? city : best, served[0]) || game.cities[0];
     return { title: 'Grow a neighborhood', detail: `Zone homes beside roads in ${city?.name || 'a town'}, near a regularly served stop. Add shops and a school to help them flourish.`, action: city ? 'city' : 'towns', target: city?.id, button: 'Plan a neighborhood' };
+  }
+  // Then the company milestones: the lowest open chapter's goals, any of which can be chosen.
+  const next = nextMilestone(game, preferred);
+  if (next) {
+    const { milestone, progress } = next, text = progressText(milestone, progress);
+    return { title: milestone.title, detail: text ? `${milestone.detail} ${text}.` : milestone.detail, action: milestone.action, target: milestone.target?.(game), tool: milestone.tool, button: milestone.button, ...progress.target > 1 ? { progress: { value: Math.min(progress.value, progress.target), max: progress.target } } : {}, milestone: milestone.id, chapter: next.chapter, choices: next.choices, choice: next.choice };
   }
   return { title: 'Build your own story', detail: 'Reach a new town, develop a riverside port, or supply a complex factory. There is no deadline.', action: 'atlas', button: 'Explore the region' };
 }

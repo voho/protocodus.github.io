@@ -115,7 +115,7 @@ try {
   });
   await openGameAction(page, 'news-button');
   await page.locator('.news-list').waitFor();
-  assert.equal(await page.locator('.news-item').count(), await page.evaluate(() => transport.game.notifications.length), 'News lists every stored notice');
+  assert.equal(await page.locator('.news-item:not([data-type="milestone"])').count(), await page.evaluate(() => transport.game.notifications.length), 'News lists every stored notice');
   assert.match(await page.locator('.news-item').first().innerText(), /expanded to 150% capacity/);
   assert.match(await page.locator('.news-item').last().innerText(), /Welcome/);
   assert.equal(await page.evaluate(() => document.querySelector('#modal h2').textContent), 'News');
@@ -180,7 +180,7 @@ try {
   assert.equal(freight.ok, true, freight.message);
   await page.waitForTimeout(600);
   await page.evaluate(async () => { const { tick } = await import('./model.js'); tick(transport.game, 30); });
-  await waitForToast(page, /^First stone delivered on Quarry line · \+\$[\d,]+$/, from);
+  await waitForToast(page, /^First stone delivered on Quarry line · \+\$[\d,]+ · Milestone$/, from);
   await page.evaluate(async () => { const { tick } = await import('./model.js'); tick(transport.game, 20); });
   await page.waitForTimeout(900);
   const firsts = (await toastsSince(page, from)).filter(toast => /^First stone/.test(toast.text));

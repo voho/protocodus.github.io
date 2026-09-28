@@ -130,7 +130,7 @@ test('optional projects progress through deliberate freight and town building, n
   project=nextProject(game);assert.equal(project.title,'Carry lumber onward');assert.equal(project.target,'buyer');assert.equal(project.buyer.id,'furniture');assert.match(project.detail,/Sawmill → Furniture works/);exists(project);
   game.routes.push({cargo:'lumber',delivered:1});
   project=nextProject(game);assert.equal(project.action,'city');assert.equal(project.target,'home');exists(project);
-  game.zones.push({x:1,y:1});assert.equal(nextProject(game).action,'atlas');
+  game.zones.push({x:1,y:1});project=nextProject(game);assert.equal(project.milestone,'processing','then the milestone ladder, where fares still never count');assert.deepEqual(project.choices,['processing','town-supply']);
 });
 
 test('first cargo suggestions skip producers that no stop can ever reach and offer distinct alternatives', () => {

@@ -33,7 +33,7 @@ try {
   await page.locator('[data-speed="0"]').click();
   const defaults = await page.evaluate(async () => (await import('./visibility.js')).DEFAULT_LAYERS);
   const keys = Object.keys(defaults);
-  assert.equal(keys.length, 15);
+  assert.equal(keys.length, 16);
   assert.deepEqual(await currentLayers(page), defaults);
   assert.equal(defaults.grid, true, 'a fresh browser starts with the tile grid enabled');
   await page.keyboard.press('g');
@@ -49,7 +49,7 @@ try {
   await openLayers(page);
   assert.equal(await page.locator('#layers-button').getAttribute('aria-expanded'), 'true');
   assert.equal(await page.locator('#modal').evaluate(dialog => dialog.open), false, 'Layers is a nonmodal map control');
-  assert.equal(await page.locator('#layers-panel input[type="checkbox"][role="switch"][data-layer]').count(), 15);
+  assert.equal(await page.locator('#layers-panel input[type="checkbox"][role="switch"][data-layer]').count(), 16);
   const stateBefore = await page.evaluate(() => JSON.stringify(transport.game));
   for (const key of keys) {
     assert.equal(await page.locator(`[data-layer="${key}"]`).isChecked(), defaults[key]);
@@ -173,7 +173,8 @@ try {
       // between Canvas raster paths. Geometry and the underlying terrain remain.
       const samePixels=(a,b)=>a.length===b.length&&a.every((value,i)=>Math.abs(value-b[i])<=1);
       const rock=crop(46,29),mountain=crop(47,29);
-      for(const [key,value] of Object.entries(q.defaults)){
+      // The Next goal switch shows or hides a card over the map, not canvas art.
+      for(const [key,value] of Object.entries(q.defaults).filter(([key])=>key!=='goal')){
         q.renderer.setLayers({[key]:!value});const changed=render();
         const stats=q.renderer.getStats(),rockPreserved=key!=='trees'||(samePixels(crop(46,29),rock)&&samePixels(crop(47,29),mountain));
         q.renderer.setLayers({[key]:value});const restored=render();
