@@ -1085,7 +1085,7 @@ function networkUse(tile,x,y) {
  const names=routeTileIndex(game).get(y*game.width+x)||[];
  return `<p class="network-use">${names.length?`Used by ${escapeHTML(nameList(names,4))}`:'Not used by any route'}</p><p>${tile.road?tile.publicRoad?'Public road · no upkeep':'Company road':'Company railway'}${tile.road&&tile.rail?' · railway':''}</p>`;
 }
-// On a portrait phone the inspector is a bottom sheet (compact-play.css). Its grabber raises it over the map until the selection changes;
+// On a portrait phone the inspector is a bottom sheet (places.css). Its grabber raises it over the map until the selection changes;
 // the markup never carries that state, so refreshes compare equal and keep it. The grabber shows only when the sheet has more to show.
 const SHEET_MEDIA='(max-width:700px) and (min-height:501px)', sheetGrabber='<button class="sheet-grabber" type="button" aria-label="Expand details" aria-expanded="false"></button>';
 let sheetExpanded=false;

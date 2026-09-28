@@ -1,0 +1,55 @@
+/* Shared primitives: buttons, fields, cargo badges and recipes, notes, rename and small controls. A surface restyles them in its own file. */
+.icon-button{width:31px;height:31px;display:inline-flex;align-items:center;justify-content:center;border-radius:var(--r-2);color:var(--ink-2)}
+.icon-button:hover{background:var(--well)}
+.icon-button.active{color:var(--ink);background:var(--well)}
+.button:hover{transform:translateY(-1px)}
+.button-outline{border:1px solid var(--rule);background:var(--paper)}
+.button-outline:hover{background:var(--well)}
+.button-primary{background:var(--ink);color:var(--on-ink)}
+.button-primary:hover{background:var(--ink-2)}
+.button-orange{background:var(--signal);color:var(--ink)}
+.button-orange:hover{background:var(--signal-ink);color:var(--on-ink)}
+.button.full{width:100%}
+.live-dot{width:5px;height:5px;background:var(--ok);border-radius:50%;display:inline-block;flex-shrink:0;box-shadow:none}
+.progress-track div{height:100%;background:var(--ink);width:0;transition:width 1s}
+.text-button span{font-size:var(--fs-body);line-height:var(--lh-body)}
+.small-button:hover{background:var(--well)}
+.form-field>span{display:block;margin-bottom:8px}
+.empty-state svg{margin:0 auto 12px;width:27px;height:27px;color:var(--ink-2)}
+.button{display:inline-flex;justify-content:center;align-items:center;gap:8px;border-radius:var(--r-3);font-weight:600;white-space:nowrap;transition:background .15s,transform .15s;font-size:var(--fs-small);line-height:var(--lh-small);padding:12px 16px}
+.button svg{width:18px;height:18px}
+.text-button{display:flex;align-items:center;justify-content:space-between;font-weight:500;width:100%;border-top:1px solid var(--rule);padding:12px 0 0;font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2);padding-top:12px}
+.small-button{background:var(--well);border-radius:var(--r-1);font-size:var(--fs-caption);line-height:var(--lh-caption);min-height:34px;padding:8px 8px;color:var(--ink-2)}
+.form-field{display:block;font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2);margin:16px 0}
+.form-field input,.form-field select{width:100%;border:1px solid var(--rule);border-radius:var(--r-2);padding:8px 12px;background:var(--paper);outline-offset:2px;font-size:var(--fs-small);line-height:var(--lh-small);min-height:42px;color:var(--ink-2)}
+.form-field input::placeholder{color:var(--ink-2)}
+.coverage-note{padding-left:1px;font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2);margin:-8px 0 12px}
+.empty-state{text-align:center;padding:24px 16px;font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2)}
+.progress-track{background:var(--well);border-radius:var(--r-1);margin:12px 0 16px;overflow:hidden;height:5px}
+/* Cargo symbols keep recipes and stocks legible without repeated prose. */
+.cargo-icon{width:28px;height:28px;display:inline-block;flex:0 0 auto;vertical-align:middle}
+.cargo-badge{display:inline-flex;align-items:center;gap:4px;min-height:34px;max-width:100%;padding:4px 8px;border:1px solid var(--rule);border-radius:var(--r-3);background:var(--well);color:var(--ink-2);vertical-align:middle}
+.cargo-label{font-size:var(--fs-small);line-height:var(--lh-small)}
+.cargo-count{font-size:var(--fs-body);line-height:var(--lh-body);font-weight:600;font-variant-numeric:tabular-nums}
+.cargo-recipe{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0;font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2)}
+.cargo-inputs,.cargo-outputs{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.cargo-result{display:inline-flex;align-items:center;gap:8px;max-width:100%}
+.cargo-arrow{font-size:var(--fs-title);line-height:1;color:var(--ink-2);flex:0 0 auto}
+.coverage-note>strong{display:block;font-size:var(--fs-caption);line-height:var(--lh-caption);font-weight:500;margin-bottom:8px}
+.coverage-cargo{display:flex;flex-wrap:wrap;gap:4px}
+.eyebrow{font-weight:600;display:flex;align-items:center;gap:8px;font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2);letter-spacing:0}
+/* Rename: a quiet pencil beside a stop or route title; its field keeps the title's type. Route cards show it on hover, touch always. */
+.rename-button{position:relative;display:inline-grid;place-items:center;width:22px;height:22px;margin:-4px 0 -4px 4px;padding:0;border:0;border-radius:var(--r-2);background:none;color:var(--ink-2);vertical-align:middle;cursor:pointer}
+.rename-button svg{width:15px;height:15px}
+.rename-button::after{content:'';position:absolute;inset:-5px}
+.rename-button:hover{background:var(--well);color:var(--ink)}
+.rename-button:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
+.rename-input{box-sizing:border-box;width:100%;min-width:0;margin:-4px 0;padding:2px 8px;border:1px solid var(--rule);border-radius:var(--r-2);background:var(--paper);color:inherit;font:inherit;letter-spacing:inherit}
+.rename-input:focus-visible{outline-offset:1px}
+@media(hover:none) and (pointer:coarse){
+ .rename-button::after{inset:-11px}
+}
+.option-check{margin-left:auto;visibility:hidden;color:var(--ink-2)}
+[aria-pressed=true]>.option-check{visibility:visible}
+.tiny-button{padding:0 0 0 4px;font-size:var(--fs-lead);line-height:1;color:var(--ink-2)}
+.small-button.danger{margin-left:auto;background:none;color:var(--error)}

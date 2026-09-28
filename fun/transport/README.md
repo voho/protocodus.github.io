@@ -426,4 +426,6 @@ TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/eart
 
 Raised-ground checks: `terrain-geometry.test.mjs` covers shared corners, picking, height edits, deck approaches and bounded large-world caches. `terrain-geometry-renderer-check.mjs` verifies ground/overlay registration, foundations, camera operations and screenshots across three zooms and DPR 1/2. `terrain-mesh-browser-check.mjs` checks texture seams and facet shading. `flat-scenery-browser-check.mjs` verifies flat-only trees, rocks and plants, multi-tile fallbacks, and scenery refresh after height edits across all zooms and display densities. `terrain-leveling-browser-check.mjs` exercises paid area leveling through desktop/mobile controls and save restoration.
 
+UI changes follow [DESIGN.md](./DESIGN.md). With the server running, `node fun/transport/tools/ui-snapshot.mjs --out DIR` captures every UI state in `tests/ui-states/` at 1440, 1024, 390 and 320 px wide, as screenshots and computed styles, and `--diff A B` lists what changed between two captures.
+
 Performance changes, reproducible dense-world benchmarks and remaining large-map limits are documented in [PERFORMANCE.md](./PERFORMANCE.md).

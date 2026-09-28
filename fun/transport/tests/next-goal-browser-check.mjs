@@ -137,7 +137,7 @@ try {
     await createWorldFromMenu(phone, { biome: 'taiga', seed: 1847 });
     await phone.locator('#objective-chip').waitFor({ state: 'visible' });
     assert.equal(await phone.locator('#objective-body').isVisible(), false, 'phones show a one-line pill');
-    assert.equal(await phone.locator('#objective-chip').evaluate(chip => getComputedStyle(chip, '::before').backgroundColor), 'rgb(111, 145, 89)', 'the dot turns orange only for a new goal');
+    assert.equal(await phone.locator('#objective-chip').evaluate(chip => getComputedStyle(chip, '::before').backgroundColor), 'rgb(30, 50, 40)', 'the dot turns orange only for a new goal');
     assert.equal(overlaps(await box(phone, '#objective-card'), await box(phone, '.view-controls')), false, 'the pill clears the zoom control');
     assert.equal(await phone.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
     await phone.screenshot({ path: `${output}/phone-${width}.png` });

@@ -1,0 +1,70 @@
+/* Tokens (DESIGN.md 4), the font, element defaults, focus and reduced motion. Every other stylesheet reads its values from here; design-tokens.js carries the same values for the canvas. */
+@font-face{font-family:Space;src:url('/assets/fonts/space-grotesk-latin.woff2') format('woff2');font-style:normal;font-weight:300 700;font-display:swap}
+/* Surfaces and ink (4.1). */
+:root{--paper:#F7F6EF;--well:#EEEFE5;--rule:#DDE0D3;--edge:#7F8A80;--ink:#1E3228;--ink-2:#56665B;--ink-3:#8B958B;--on-ink:#F7F6EF;--on-ink-2:#B9C4B5;--signal:#E17B4A;--signal-ink:#A94B1A;--focus:#B5501F;--scrim:rgb(15 27 21 / .35)}
+/* States (4.2): the colour on paper, then on ink. */
+:root{--ok:#2F7A4B;--ok-on-ink:#8FD1A6;--warn:#8A5A00;--warn-on-ink:#F2C14E;--error:#B03A2A;--error-on-ink:#F4A08C}
+/* Line colours (4.3): fill, then the numerals and map edge. */
+:root{--line-1:#2D5DA8;--line-1-on:#FFFFFF;--line-2:#EFC16F;--line-2-on:#1E3228;--line-3:#B8323F;--line-3-on:#FFFFFF;--line-4:#88AEE4;--line-4-on:#1E3228;--line-5:#833D86;--line-5-on:#FFFFFF;--line-6:#D893B1;--line-6-on:#1E3228;--line-7:#8A5A1C;--line-7-on:#FFFFFF;--line-8:#A99BE0;--line-8-on:#1E3228;--line-9:#4C5761;--line-9-on:#FFFFFF}
+/* Achievement tiers (4.4). */
+:root{--tier-bronze:#B7794A;--tier-silver:#A3ACAF;--tier-gold:#D6A93C;--tier-platinum:#C9D3D6}
+/* Illustrations: the start menu's land and rail, the loading screen's glow and track. Art only, never chrome. */
+:root{--art-land:#B3B993;--art-land-deep:#7D966B;--art-land-side:#66795A;--art-rail-tie:#CFC4A3;--art-rail-bed:#718065;--art-glow:#78977333;--art-grid:#D0DFBA06;--art-track:#B6B49665;--art-shade:#263C3030;--art-train-shade:#071B2440;--art-rail:#C5C4A579;--art-steam:#E5E5D938;--art-smoke:#E5E5D926;--art-haze:#E5E5D910}
+/* The overview map's ground and legend swatches, matching the colours the canvas draws. */
+:root{--art-map-ground:#859672;--art-map-town:#CABB79;--art-map-industry:#C3915B;--art-map-source:#4E7747;--art-map-buyer:#3F7F88}
+/* Type (4.5): one family, seven sizes with their line heights, three weights (700 for numerals and the wordmark), two trackings. */
+:root{--font:Space,system-ui,sans-serif;--fs-caption:12px;--lh-caption:16px;--fs-small:13px;--lh-small:18px;--fs-body:14px;--lh-body:20px;--fs-lead:16px;--lh-lead:22px;--fs-title:18px;--lh-title:24px;--fs-display:22px;--lh-display:28px;--fs-hero:32px;--lh-hero:36px;--fw-regular:400;--fw-medium:500;--fw-semibold:600;--fw-bold:700;--tr-tight:-0.01em;--tr-hero:-0.02em}
+/* Space and size (4.6). */
+:root{--s-1:4px;--s-2:8px;--s-3:12px;--s-4:16px;--s-5:24px;--s-6:32px;--control:32px;--control-dense:28px;--control-touch:44px;--rail-h:48px;--goal-h:40px;--tabbar-h:56px;--drawer-w:400px;--inspector-w:368px;--toast-max:480px;--gutter:12px;--panel-pad:16px;--row:40px;--row-touch:48px}
+/* Radii (4.7), elevation and stacking (4.8), focus (4.9), motion (4.10). */
+:root{--r-1:4px;--r-2:6px;--r-3:8px;--r-4:12px;--r-5:14px;--r-round:999px}
+:root{--e1:0 1px 2px rgb(20 35 25 / .18),0 0 0 1px rgb(20 35 25 / .08);--e2:0 14px 34px -10px rgb(20 35 25 / .34),0 0 0 1px rgb(20 35 25 / .08);--e3:0 14px 30px -10px rgb(6 16 10 / .55);--e4:0 28px 70px -12px rgb(15 27 21 / .40)}
+:root{--z-map:0;--z-map-overlay:10;--z-rail:20;--z-goal:22;--z-sheet:30;--z-toolbar:34;--z-toast:40;--z-headline:42;--z-popover:50;--z-tooltip:55;--z-dialog:60;--z-loading:70}
+:root{--focus-width:2px;--focus-offset:2px;--t-quick:120ms;--t-toast:160ms;--t-panel:180ms;--t-row:160ms;--t-meter:300ms;--t-tint:600ms;--t-camera-min:280ms;--t-camera-max:480ms;--ease:cubic-bezier(.2,.7,.2,1)}
+@media(max-width:700px){
+ :root{--gutter:8px;--panel-pad:14px}
+}
+@media(max-width:360px){
+ :root{--gutter:6px}
+}
+/* Layout values the surfaces share. */
+:root{--sidebar-width:300px;--safe-t:env(safe-area-inset-top,0px);--safe-l:env(safe-area-inset-left,0px);--safe-r:env(safe-area-inset-right,0px);--safe-b:env(safe-area-inset-bottom,0px)}
+@media(max-width:950px){
+ :root{--sidebar-width:280px}
+}
+@media(max-width:700px){
+ :root{--sidebar-width:min(270px,calc(100vw - 48px))}
+}
+:root{color-scheme:light;font-family:var(--font);color:var(--ink);font-synthesis:none}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);overflow:hidden;font-size:var(--fs-small);line-height:var(--lh-small)}
+html,body{width:100%;height:100%;overflow:clip;overscroll-behavior:none}
+/* Figures line up everywhere in the game; prose switches back to proportional figures. */
+#app,dialog,#start-menu{font-variant-numeric:tabular-nums}
+.prose{font-variant-numeric:proportional-nums}
+button,input,select{font:inherit}
+button,a,input,select{-webkit-tap-highlight-color:transparent}
+button{cursor:pointer;color:inherit;border:0;background:none}
+/* Focus is restyled, never removed: an orange ring on paper and well, signal orange on ink, inset on the map. */
+:focus-visible,button:focus-visible,a:focus-visible,canvas:focus-visible,input:focus-visible,select:focus-visible{outline:var(--focus-width) solid var(--focus);outline-offset:var(--focus-offset)}
+.on-ink :focus-visible,.on-ink:focus-visible,.toast :focus-visible,#loading-screen :focus-visible{outline-color:var(--signal)}
+canvas:focus-visible{outline-offset:calc(0px - var(--focus-width))}
+button:disabled{cursor:not-allowed;opacity:.48}
+a{color:inherit;text-decoration:none}
+svg{width:18px;height:18px;display:block;flex-shrink:0}
+button svg{pointer-events:none}
+/* Line icons (DESIGN.md 5.1): a stroke fixed in CSS pixels, drawn in the text colour. */
+svg.i{fill:none;stroke:currentColor;stroke-width:1.5px;stroke-linecap:round;stroke-linejoin:round}
+svg.i *{vector-effect:non-scaling-stroke}
+.i .solid,.i .dot{fill:currentColor;stroke:none}
+.i16{width:16px;height:16px}
+.i20{width:20px;height:20px}
+.i24{width:24px;height:24px}
+svg.i.i24{stroke-width:1.75px}
+[hidden]{display:none!important}
+dialog{padding:0;border:1px solid transparent;background:var(--paper);color:var(--ink);border-radius:var(--r-4);width:min(760px,calc(100vw - 40px));max-height:90dvh;box-shadow:var(--e4);overflow:auto}
+dialog::backdrop{background:var(--scrim);backdrop-filter:blur(5px)}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+@media(prefers-reduced-motion:reduce){
+ *,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+}

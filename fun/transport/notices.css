@@ -1,0 +1,155 @@
+/* Notices: toasts, the goal card, the planned connection and News. */
+.objective-card{position:absolute;top:76px;right:20px;width:227px;background:var(--paper);border:1px solid transparent;box-shadow:var(--e2);border-radius:var(--r-4);padding:20px 20px 12px;backdrop-filter:blur(12px)}
+.objective-heading{display:flex;justify-content:space-between;align-items:center}
+.objective-card h2{font-size:var(--fs-title);line-height:var(--lh-title);font-weight:500;letter-spacing:var(--tr-tight);margin:12px 0 8px}
+.objective-card p{font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2);margin:0 0 16px}
+.objective-step{display:flex;gap:8px;align-items:center;font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2);margin:12px 0}
+.objective-step svg{width:16px;height:16px;padding:4px;border-radius:50%;background:var(--well);stroke:var(--ok);stroke-width:2}
+.step-circle{width:16px;height:16px;border:1px solid var(--rule);border-radius:50%;font-size:var(--fs-caption);line-height:var(--lh-caption);display:flex;align-items:center;justify-content:center;color:var(--ink-2);flex-shrink:0}
+.objective-step>span:nth-child(2){flex:1}
+.toast-region{position:fixed;bottom:58px;left:50%;transform:translateX(-50%);z-index:var(--z-toast);display:flex;flex-direction:column;gap:8px;pointer-events:none;max-width:calc(100vw - 36px);width:max-content}
+.toast{animation:toast-in .2s ease-out;background:var(--ink);color:var(--on-ink);box-shadow:var(--e3);border:1px solid transparent;border-radius:var(--r-3);padding:12px 20px;font-size:var(--fs-caption);line-height:var(--lh-caption);min-width:250px;max-width:460px;display:flex;gap:8px;align-items:center}
+.toast.error{background:var(--ink)}
+.toast.error>svg{color:var(--error-on-ink)}
+.toast svg{width:16px;height:16px;flex-shrink:0}
+@keyframes toast-in{
+ from{opacity:0;transform:translateY(10px)}
+ to{opacity:1;transform:translateY(0)}
+}
+@media(min-width:1650px){
+ .objective-card{width:244px;right:24px}
+ .objective-card h2{font-size:var(--fs-display);line-height:var(--lh-display)}
+ .objective-card p{font-size:var(--fs-caption);line-height:var(--lh-caption)}
+}
+@media(max-width:1200px){
+ .objective-card{width:206px;padding:16px}
+ .objective-card h2{font-size:var(--fs-title);line-height:var(--lh-title)}
+}
+@media(max-width:950px){
+ .objective-card{width:183px;right:14px;top:66px;padding:16px}
+ .objective-card h2{font-size:var(--fs-lead);line-height:var(--lh-lead)}
+ .objective-card p{font-size:var(--fs-caption);line-height:var(--lh-caption)}
+ .objective-step{font-size:var(--fs-caption);line-height:var(--lh-caption)}
+}
+@media(max-width:700px){
+ .objective-card{display:none}
+ .toast-region{bottom:43px}
+ .toast{padding:12px 16px;font-size:var(--fs-small);line-height:var(--lh-small);min-width:220px}
+}
+.objective-card{width:252px;padding:16px}
+.objective-heading .eyebrow{font-size:var(--fs-caption);line-height:var(--lh-caption);letter-spacing:0}
+.objective-card h2{font-size:var(--fs-display);line-height:var(--lh-display);margin:12px 0 8px}
+.objective-card p{font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2);margin-bottom:16px}
+.objective-step{font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2)}
+.objective-step svg,.step-circle{width:20px;height:20px;font-size:var(--fs-caption);line-height:var(--lh-caption)}
+.objective-step b{display:block;font-weight:400;margin-top:4px;font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink)}
+.toast{font-size:var(--fs-small);line-height:var(--lh-small)}
+@media(max-width:1200px){
+ .objective-card{width:235px}
+}
+@media(max-width:950px){
+ .objective-card{width:215px;padding:16px}
+ .objective-card h2{font-size:var(--fs-display);line-height:var(--lh-display)}
+}
+@media(max-width:350px){
+ .objective-card{display:none}
+}
+/* Notices: the region never blocks the map; only a toast's action takes clicks. */
+.toast>span{flex:1;min-width:0}
+.toast:has(.toast-action){max-width:540px}
+.toast.warning{background:var(--ink);box-shadow:var(--e3)}
+.toast.warning>svg{color:var(--warn-on-ink)}
+.toast.milestone{border-left:4px solid var(--signal)}
+.toast.milestone>svg{color:var(--signal);animation:toast-check .2s ease-out}
+@keyframes toast-check{
+ from{transform:scale(.3);opacity:0}
+}
+.toast-count{flex:0 0 auto;padding:1px 8px;border-radius:var(--r-3);background:color-mix(in srgb,var(--on-ink) 15%,transparent);font-size:var(--fs-caption);line-height:var(--lh-caption);font-weight:600;font-variant-numeric:tabular-nums}
+.toast-action{pointer-events:auto;flex:0 0 auto;min-height:32px;padding:4px 12px;border:1px solid color-mix(in srgb,var(--on-ink) 40%,transparent);border-radius:var(--r-2);background:transparent;color:var(--on-ink);font:inherit;font-size:var(--fs-caption);line-height:var(--lh-caption);font-weight:600;white-space:nowrap;cursor:pointer}
+.toast-action:hover{background:color-mix(in srgb,var(--on-ink) 12%,transparent);border-color:var(--on-ink)}
+.toast-action:focus-visible{outline:2px solid var(--signal);outline-offset:2px}
+@media(prefers-reduced-motion:reduce){
+ .toast.milestone>svg{animation:none}
+}
+.news-list{list-style:none;margin:20px 0 0;padding:0;display:grid;gap:8px}
+.news-item{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;padding:12px 12px;border:1px solid var(--rule);border-radius:var(--r-3);background:var(--paper);color:var(--ink-2)}
+.news-item>svg{width:18px;height:18px;color:var(--ink-2)}
+.news-item[data-type=warning]>svg{color:var(--warn)}
+.news-item[data-type=error]>svg{color:var(--error)}
+.news-item[data-type=milestone]{border-left:4px solid var(--signal)}
+.news-item[data-type=milestone]>svg{color:var(--signal-ink)}
+.news-item time{display:block;font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2)}
+.news-item p{margin:2px 0 0;font-size:var(--fs-body);line-height:var(--lh-body);overflow-wrap:anywhere}
+.news-empty{padding:16px;border:1px dashed var(--rule);border-radius:var(--r-3);font-size:var(--fs-body);line-height:var(--lh-body);color:var(--ink-2)}
+/* Toasts with two actions stack them beside the message. */
+.toast-actions{display:flex;flex-direction:column;align-items:stretch;gap:8px;flex:0 0 auto}
+.connection-plan-banner{max-width:min(480px,calc(100% - 40px))}
+.connection-plan-banner>div{flex:1;min-width:0}
+.connection-plan-banner .connection-build{padding:8px 16px;background:var(--ink);color:var(--on-ink);font-weight:500}
+.connection-plan-banner .connection-build:hover{background:var(--ink-2)}
+.connection-plan-banner #cancel-connection-plan{margin-left:-8px}
+#objective-card .objective-plan{min-height:34px;padding:8px 12px;border:1px solid var(--edge);border-radius:var(--r-3);background:var(--paper);font-size:var(--fs-small);line-height:var(--lh-small);font-weight:500;color:var(--ink-2)}
+#objective-card .objective-plan:hover{background:var(--well);border-color:var(--ink)}
+/* Next goal: one optional suggestion on the map. It collapses to a chip and never covers open menus. */
+#objective-card{top:12px;right:12px;width:296px;max-height:calc(100% - 96px);overflow:auto;padding:16px 16px;background:var(--paper);border:1px solid var(--rule);border-radius:var(--r-4);box-shadow:var(--e2);backdrop-filter:none;z-index:var(--z-goal);scrollbar-width:thin;color:var(--ink)}
+#objective-card .objective-heading .eyebrow,.objective-chip .eyebrow{font-size:var(--fs-caption);line-height:var(--lh-caption);font-weight:500;letter-spacing:0;color:var(--ink-2)}
+#objective-card .tiny-button{display:grid;place-items:center;width:30px;height:30px;margin:-8px -8px -8px 0;padding:0;border-radius:var(--r-2);font-size:var(--fs-title);line-height:var(--lh-title);color:var(--ink-2)}
+#objective-card .tiny-button:hover{background:var(--well);color:var(--ink-2)}
+#objective-card h2{font-size:var(--fs-title);line-height:var(--lh-title);letter-spacing:var(--tr-tight);margin:8px 0;color:var(--ink)}
+#objective-card p{font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2);margin:0 0 12px}
+.objective-steps{list-style:none;margin:0 0 12px;padding:0}
+#objective-card .objective-step{display:flex;align-items:center;gap:8px;min-height:32px;margin:0;font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2)}
+#objective-card .objective-step>span:nth-child(2){flex:1;min-width:0}
+#objective-card .objective-step svg{flex:0 0 20px;width:20px;height:20px;padding:4px;background:var(--well);stroke:var(--ok);stroke-width:2.2}
+#objective-card .objective-step.done>span:nth-child(2){color:var(--ink-2)}
+#objective-card .step-circle{width:20px;height:20px;font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2);background:var(--paper)}
+#objective-card .objective-step.current{color:var(--ink);font-weight:500}
+#objective-card .objective-step.current .step-circle{border-color:var(--signal);background:var(--well);color:var(--signal-ink);font-weight:600}
+#objective-card .objective-step .small-button{flex:0 0 auto;min-height:30px;padding:4px 12px;border:1px solid var(--edge);border-radius:var(--r-2);background:var(--paper);font-size:var(--fs-caption);line-height:var(--lh-caption);font-weight:500;color:var(--ink-2)}
+#objective-card .objective-step .small-button:hover{background:var(--well);border-color:var(--ink)}
+#objective-card .progress-track{height:6px;margin:0 0 12px;background:var(--well)}
+#objective-card #goal-bar{background:var(--signal)}
+.objective-actions{display:flex;align-items:center;gap:8px 16px;flex-wrap:wrap}
+#objective-action{display:inline-flex;align-items:center;gap:8px;min-height:34px;padding:8px 12px;border-radius:var(--r-3);background:var(--ink);color:var(--on-ink);font-size:var(--fs-small);line-height:var(--lh-small);font-weight:500}
+#objective-action:hover{background:var(--ink-2)}
+#objective-action svg{width:15px;height:15px}
+.objective-another{min-height:34px;padding:0 2px;font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2);text-decoration:underline;text-decoration-color:var(--edge);text-underline-offset:3px}
+.objective-another:hover{color:var(--ink);text-decoration-color:currentColor}
+#objective-card .text-button{margin-top:12px;padding-top:12px;font-size:var(--fs-caption);line-height:var(--lh-caption)}
+.objective-chip{display:none;align-items:center;gap:8px;width:100%;min-height:38px;padding:8px 16px;border-radius:var(--r-round);font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink);white-space:nowrap;text-align:left}
+.objective-chip:hover{background:var(--well)}
+.objective-chip #objective-chip-title{min-width:0;overflow:hidden;text-overflow:ellipsis;font-weight:500}
+#objective-card.collapsed{width:auto;max-width:min(360px,calc(100% - 24px));padding:0;border-radius:var(--r-round);overflow:hidden}
+#objective-card.collapsed .objective-chip{display:flex}
+#objective-card.collapsed .objective-body{display:none}
+.compact-play:has(#game-menu:not([hidden])) #objective-card,.map-section:has(#layers-panel:not([hidden]),#map-options:not([hidden])) #objective-card{display:none}
+@media(max-width:1100px){
+ .compact-play:has(.sidebar.mobile-open) #objective-card,.map-section:has(#inspector:not([hidden])) #objective-card{display:none}
+}
+@media(max-width:700px){
+ #objective-card:not(.open) .objective-body{display:none}
+ #objective-card:not(.open) .objective-chip{display:flex}
+ .objective-chip{padding:8px 12px 8px 12px}
+ .objective-chip .eyebrow,.objective-chip>[aria-hidden]{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+ .objective-chip::before{content:'';flex:0 0 9px;height:9px;border-radius:50%;background:var(--ink);box-shadow:none;outline:3px solid var(--well);outline-offset:0}
+ .compact-play #objective-card.open{width:min(400px,calc(100% - 20px));max-width:none;max-height:calc(100% - 20px);padding:12px 16px 12px;border-radius:var(--r-4);overflow:auto}
+ .compact-play:has(#objective-card.open:not([hidden])) .toast-region{top:calc(var(--play-header) + 12px);bottom:auto}
+}
+/* A folded goal only marks a change: a soft orange wash on the chip, and on phones an orange dot, until the card is opened. */
+#objective-card.collapsed.changed{background:var(--well);transition:background-color 1.2s ease}
+#objective-card.changed .objective-chip::before{background:var(--signal);box-shadow:none;outline:3px solid var(--well);outline-offset:0}
+@media(prefers-reduced-motion:reduce){
+ #objective-card.collapsed.changed{transition:none}
+}
+.compact-play .toast-region{bottom:16px;margin-bottom:var(--safe-b);max-width:calc(100vw - 36px - var(--safe-l) - var(--safe-r))}
+@media(max-width:700px){
+ .compact-play .toast-region{bottom:64px}
+ .compact-play:has(#inspector:not([hidden])) .toast-region,.compact-play:has(.sidebar.mobile-open) .toast-region{top:calc(var(--play-header) + 12px);bottom:auto}
+}
+.compact-play #objective-card{margin-right:var(--safe-r)}
+@media(max-width:700px){
+ .compact-play #objective-card{display:block;top:auto;right:auto;left:10px;bottom:10px;width:auto;max-width:calc(100% - 190px);padding:0;border-radius:var(--r-4);overflow:hidden;margin-left:var(--safe-l);margin-bottom:var(--safe-b)}
+}
+@media(max-height:500px) and (orientation:landscape){
+ .compact-play .map-section:has(.minimap-wrap:not([hidden])) #objective-card{display:none}
+}
