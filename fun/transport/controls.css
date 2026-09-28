@@ -139,3 +139,5 @@ html,body{overscroll-behavior:none}
 .atlas-lens-source{background:#4e7747}
 .atlas-lens-buyer{background:#3f7f88}
 @media(max-width:700px){.compact-play .cargo-lens-chip{position:absolute;right:0;bottom:calc(100% + 8px);max-width:calc(100vw - 20px);margin:0}.compact-play .cargo-lens-chip button{flex-basis:36px;width:36px;height:36px}}
+/* A phone card (a stop, site or vehicle) rises above the lens chip, so both stay readable and the chip's × stays in reach. */
+@media(max-width:700px){.compact-play .map-section:has(.cargo-lens-chip) .inspector{bottom:112px;max-height:calc(100% - 188px)}}
