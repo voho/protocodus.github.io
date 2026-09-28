@@ -156,6 +156,26 @@ TRANSPORT_FRESH_SCENES=1 TRANSPORT_SCENES=forest,mixed TRANSPORT_CONDITIONS=day,
   node fun/transport/tests/busy-scenes-browser-check.mjs
 ```
 
+## Hover picking
+
+In Explore, every pointer move picks the tile under the cursor by testing the sprites drawn there for an opaque pixel, front to back. Each test used to read one pixel back from a GPU-backed sprite canvas, and each synchronous readback waits for the GPU. One hover sweep across the start town at all three zooms made Chrome log 134 `willReadFrequently` warnings. The slowest first-pass pick took 8 ms. `opaqueAt` now reads a sprite whole the first time it is tested and keeps a full-resolution 1-bit mask of alpha above 24. That is exactly the old threshold, at 1/32 of the RGBA memory, and later tests read nothing back. Canvases above 2²⁰ pixels, or a failed read, keep the one-pixel test. Sprite factories never repaint a canvas they have returned, so masks are never stale.
+
+The pointer handler also replaced `hover` with a new object on every move, which repainted a paused map on each move, even within one tile. It now keeps the object until the tile changes.
+
+A 12-pixel grid sweep (2,948 moves per zoom) over the start town, 1280 × 860 CSS pixels at DPR 2; the after column is the range over five runs:
+
+| View | Slowest pick before → after | Sprites read back once |
+| --- | ---: | ---: |
+| Region | 8.0 → 1.5–2.0 ms | 93 |
+| Town | 2.1 → 1.3–1.7 ms | 30 |
+| Detail | 2.0 → 2.5–2.7 ms | 20 |
+
+A Detail industry sprite is 576 × 624 pixels at DPR 2. Its mask costs about 2 ms once, and later tests of that sprite are free. Readback warnings fell from 134 to 0. Sixty moves inside one tile of a paused map fell from 60 repaints to none. At 500 seeded points per zoom, at DPR 1 and 2, the masks pick the same tile as one-pixel readbacks.
+
+```sh
+node fun/transport/tests/hover-pick-browser-check.mjs
+```
+
 ## Daily ecology revisions
 
 Every simulated day, ecology changes a few hundred tiles on a 512² map and bumps `game.revision`. The renderer used to discard every index, prepared strip, route path and height field, then fingerprint every visible chunk again, so an empty revision cost almost as much as a real one. `change-journal.js` now records exactly which cells each ecology day changed. A journaled day keeps the indexes, foundations, grid, route paths, height fields and night-light emitters, and fingerprints only chunks within three tiles of a change. Chunks whose terrain changed are still repainted, and scenery lists and strips are still rebuilt. Construction, settlement and industry revisions, or any gap in the journal, take the previous full path.

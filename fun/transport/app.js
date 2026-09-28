@@ -1327,7 +1327,8 @@ canvas.addEventListener('pointermove',e=>{
    touchGesture.x=next.x;touchGesture.y=next.y;
   }e.preventDefault();return;
  }
- hover=pickMapTile(e.clientX,e.clientY,pointer&&!pointer.pan&&!pointer.cancelled&&lineTools.has(pointer.tool));$('#tile-coordinates').textContent=`${hover.x}, ${hover.y} · ${BIOMES[game.biome].name}`;
+ // A move within the hovered tile keeps its object, so a paused map does not repaint.
+ const next=pickMapTile(e.clientX,e.clientY,pointer&&!pointer.pan&&!pointer.cancelled&&lineTools.has(pointer.tool));if(!hover||hover.x!==next.x||hover.y!==next.y)hover=next;$('#tile-coordinates').textContent=`${hover.x}, ${hover.y} · ${BIOMES[game.biome].name}`;
  if(pointer&&pointer.id===e.pointerId){
   // A chorded right press arrives as a move; it abandons the stroke but keeps the tool.
   if(!pointer.cancelled&&e.pointerType==='mouse'&&pointer.button===0&&!pointer.pan&&(e.buttons&2)){pointer.cancelled=true;preview=[];canvas.classList.remove('dragging');}

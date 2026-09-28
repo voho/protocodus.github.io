@@ -283,6 +283,12 @@ The readability check starts a seed-1847 world and verifies that the first town'
 TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/readability-browser-check.mjs
 ```
 
+The hover-picking check sweeps the pointer over the start town at all three zooms at 2× density. Each sprite must be read back at most once, with no more readback warnings than sprites, and every pick must stay under 3 ms. At 500 seeded points per zoom, at 1× and 2×, the sprite masks must pick the same tiles as one-pixel readbacks. Sixty moves inside one tile of a paused map may repaint it at most twice. Screenshots go to `/tmp/transport-hover-pick-qa`:
+
+```sh
+TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/hover-pick-browser-check.mjs
+```
+
 The focused network-planning check covers complete production graphs, industry locations and nearby customers with the arcs a selected industry draws to them, route searching/filtering, renaming stops and routes, selecting stations on the map, live network verification, route highlights, Show framing, break pins and the needs-attention chip, vehicle load indicators at all three zooms, and compact desktop/mobile layouts. It uses isolated browser storage and writes screenshots to `/tmp/transport-features-qa`:
 
 ```sh

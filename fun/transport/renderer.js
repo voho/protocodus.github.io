@@ -46,6 +46,19 @@ const MINIMAP_LAYERS=new Set(['trees','buildings','roads','rails','stations','in
 function roundRect(ctx,x,y,w,h,r=5){ctx.beginPath();ctx.roundRect(x,y,w,h,r);}
 function line(ctx,points,color,width=1){ctx.beginPath();points.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.strokeStyle=color;ctx.lineWidth=width;ctx.stroke();}
 function dot(ctx,x,y,r,color){ctx.beginPath();ctx.arc(x,y,r,0,TAU);ctx.fillStyle=color;ctx.fill();}
+// Picking reads each sprite back once, into a full-resolution 1-bit mask of
+// alpha above 24: every GPU readback stalls, and returned sprites never change.
+const alphaMasks=new WeakMap();
+export function opaqueAt(image,sx,sy){
+  let mask=alphaMasks.get(image);
+  if(!mask&&image.width*image.height<=1<<20)try{
+    const w=image.width,h=image.height,data=image.getContext('2d').getImageData(0,0,w,h).data,bits=new Uint8Array(Math.ceil(w*h/8));
+    for(let i=0;i<w*h;i++)if(data[i*4+3]>24)bits[i>>3]|=1<<(i&7);
+    alphaMasks.set(image,mask={w,h,bits});
+  }catch{}
+  if(!mask)return image.getContext('2d').getImageData(sx,sy,1,1).data[3]>24;
+  const i=sy*mask.w+sx;return sx>=0&&sy>=0&&sx<mask.w&&sy<mask.h&&(mask.bits[i>>3]>>(i&7)&1)===1;
+}
 const titleCase=s=>String(s||'Industry').replace(/[-_]/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
 
 export function createRenderer(canvas, initialGame, options={}) {
@@ -311,7 +324,7 @@ export function createRenderer(canvas, initialGame, options={}) {
       const hx=hit.world?(hit.x-origin.x)*camera.zoom+W/2:hit.x,hy=hit.world?(hit.y-origin.y)*camera.zoom+H/2:hit.y,hw=hit.w*(hit.world?camera.zoom:1),hh=hit.h*(hit.world?camera.zoom:1);
       if(x<hx||y<hy||x>=hx+hw||y>=hy+hh)continue;
       const sx=Math.floor((x-hx)/hw*hit.image.width),sy=Math.floor((y-hy)/hh*hit.image.height);
-      if(hit.image.getContext('2d').getImageData(sx,sy,1,1).data[3]>24)return{x:hit.tx,y:hit.ty};
+      if(opaqueAt(hit.image,sx,sy))return{x:hit.tx,y:hit.ty};
     }
     return picked;
   }
