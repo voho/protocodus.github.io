@@ -226,7 +226,9 @@ export function nextProject(game, { source: preferred } = {}) {
   if (!freight.some(route => route.delivered > 0)) {
     const choices = memo(game, 'first', siteKey(game), () => firstRouteChoices(game)), index = Math.max(0, choices.findIndex(choice => choice.source.id === preferred)), choice = choices[index];
     if (!choice) return { title: 'Your first cargo route', detail: 'Use Chains to choose a producer and a buyer.', action: 'chains', button: 'Explore chains', choices, choice: 0, steps: [] };
-    return { title: 'Your first cargo route', detail: `Carry ${cargoName(choice.cargo)} from ${siteName(choice.source)} to ${choice.buyer.name}. Place a stop within 5 tiles of each.`, action: 'source', target: choice.source.id, button: 'Find cargo', choices, choice: index, steps: firstRouteSteps(game, choice) };
+    // Until the two ends are joined, the card can also plan the line and its stops, on land only.
+    const steps = firstRouteSteps(game, choice), line = steps[2], plan = line.done || line.action !== 'connect' || steps.some(step => step.tool === 'port') ? null : line.tool;
+    return { title: 'Your first cargo route', detail: `Carry ${cargoName(choice.cargo)} from ${siteName(choice.source)} to ${choice.buyer.name}. Place a stop within 5 tiles of each.`, action: 'source', target: choice.source.id, button: 'Find cargo', choices, choice: index, steps, plan };
   }
   const delivered = freight.reduce((total, route) => total + route.delivered, 0);
   if (delivered < 100) return { title: 'First 100 cargo deliveries', detail: `${Math.floor(delivered)} / 100 delivered. Keep inputs supplied and your connections intact.`, action: 'routes', button: 'View services', progress: { value: Math.floor(delivered), max: 100 } };

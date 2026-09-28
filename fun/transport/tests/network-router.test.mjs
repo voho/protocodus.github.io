@@ -1,11 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createGame, buildProblem, findPath } from '../model.js';
+import { createGame, buildProblem, findPath, build, addRoute, tick, STATION_RADIUS } from '../model.js';
 import { buildPlan, quoteBuildPlan } from '../construction-plan.js';
-import { planNetworkStroke, gridLine } from '../network-router.js';
+import { planNetworkStroke, planConnection, gridLine } from '../network-router.js';
 import { networkTerrainShape } from '../terrain-engineering.js';
 import { placeBuildingSite } from '../building-sites.js';
-import { emptyGame, tileAt } from './helpers.mjs';
+import { industryDistance } from '../industry-sites.js';
+import { emptyGame, tileAt, advance } from './helpers.mjs';
 
 function levels(surface) {
   const game = emptyGame();
@@ -166,4 +167,72 @@ test('taiga 1847: most drags whose two L bends both fail are rescued quickly', (
   assert.ok(rescued >= 30, `${rescued} of 40 rescued`);
   const p95 = times.sort((x, y) => x - y)[Math.floor(times.length * .95)];
   assert.ok(p95 < 15, `p95 ${p95.toFixed(2)} ms`);
+});
+
+// The first-route planner builds exactly what it quotes: the line, its new stops, then a service between them.
+const connect = (game, source, target, mode = 'road') => planConnection(game, source, target, mode, { budgetMs: 1e9 });
+const inReach = (site, stop) => industryDistance(site, stop) > 0 && industryDistance(site, stop) <= STATION_RADIUS;
+function launch(game, plan, cargo) {
+  const copy = structuredClone(game), money = copy.money, ids = plan.ends.map(stop => stop?.id);
+  assert.equal(buildPlan(copy, plan.mode, plan.path).ok, true, 'the line builds');
+  for (const stop of plan.stops) { const built = build(copy, plan.mode === 'rail' ? 'train-stop' : 'bus-stop', stop.x, stop.y); assert.equal(built.ok, true, built.message); ids[stop.end] = built.station.id; }
+  const route = addRoute(copy, { mode: plan.mode, stops: ids, cargo });
+  assert.equal(route.ok, true, route.message);
+  return { copy, route: route.route, spent: money - copy.money - route.cost };
+}
+const farmAndPlant = (game, plant = { x: 38, y: 26 }) => [build(game, 'farm', 20, 20).industry, build(game, 'food-plant', plant.x, plant.y).industry];
+
+test('taiga 1847: the quarry plan joins Alderbrook Central with one stop beside the quarry', () => {
+  const game = createGame({ biome: 'taiga', seed: 1847 }), quarry = game.industries.find(site => site.kind === 'quarry' && site.x === 217 && site.y === 255), town = game.cities.find(city => city.name === 'Alderbrook');
+  const plan = connect(game, quarry, town);
+  assert.equal(plan.ok, true, plan.reason);
+  assert.ok(clean(quoteBuildPlan(game, 'road', plan.path)), 'the whole line quotes clean'); assert.ok(contiguous(plan.path));
+  assert.equal(plan.ends[0], null); assert.equal(plan.ends[1]?.id, 'station-1', 'Alderbrook Central already serves the town');
+  assert.equal(plan.stops.length, 1, 'one new stop');
+  assert.deepEqual([plan.stops[0].x, plan.stops[0].y, plan.stops[0].end], [plan.path[0].x, plan.path[0].y, 0]);
+  assert.ok(inReach(quarry, plan.stops[0]), 'the stop loads at the quarry');
+  assert.ok(plan.tiles > 0 && plan.tiles <= plan.path.length && plan.vehicleCost > 0);
+  const { copy, route, spent } = launch(game, plan, 'stone');
+  assert.equal(spent, plan.cost, 'Build spends exactly the plan');
+  advance(copy, 30, tick);
+  assert.ok(route.delivered > 0, 'stone reaches Alderbrook within a month');
+  assert.deepEqual(connect(game, quarry, town), plan, 'identical inputs give identical plans');
+});
+
+for (const mode of ['road', 'rail']) test(`${mode}: a plan between two unserved sites places a stop beside each, then finds them joined`, () => {
+  const game = flat(), [farm, plant] = farmAndPlant(game), plan = connect(game, farm, plant, mode);
+  assert.equal(plan.ok, true, plan.reason); assert.deepEqual(plan.ends, [null, null]);
+  assert.deepEqual(plan.stops.map(stop => stop.end), [0, 1]);
+  assert.ok(inReach(farm, plan.stops[0]) && inReach(plant, plan.stops[1]), 'each stop serves its own site');
+  assert.ok(clean(quoteBuildPlan(game, mode, plan.path))); assert.equal(plan.tiles, plan.path.length);
+  const { copy, route, spent } = launch(game, plan, 'grain');
+  assert.equal(spent, plan.cost);
+  const joined = connect(copy, ...copy.industries, mode);
+  assert.deepEqual([joined.tiles, joined.stops, joined.cost], [0, [], 0], 'nothing is left to build');
+  assert.deepEqual(joined.ends.map(stop => stop.id), route.stops);
+});
+
+test('a stop that already serves the source is reused and its line followed', () => {
+  const game = flat(), [farm, plant] = farmAndPlant(game);
+  assert.equal(buildPlan(game, 'road', gridLine({ x: 23, y: 21 }, { x: 28, y: 21 })).ok, true);
+  const stop = build(game, 'bus-stop', 23, 21).station, plan = connect(game, farm, plant);
+  assert.equal(plan.ends[0]?.id, stop.id); assert.deepEqual(plan.stops.map(stop => stop.end), [1]);
+  assert.ok(plan.tiles <= plan.path.length - 6, 'the old road carries the first tiles');
+  launch(game, plan, 'grain');
+});
+
+test('sites whose catchments overlap still get stops three tiles apart', () => {
+  const game = flat(), [farm, plant] = farmAndPlant(game, { x: 23, y: 20 }), plan = connect(game, farm, plant);
+  assert.equal(plan.ok, true, plan.reason); assert.ok(plan.path.length >= 3);
+  launch(game, plan, 'grain');
+});
+
+test('a walled-off buyer or a boxed-in producer has no plan', () => {
+  const game = flat(), [farm, plant] = farmAndPlant(game);
+  zone(game, Array.from({ length: game.height }, (_, y) => [30, y]));
+  assert.deepEqual([connect(game, farm, plant).ok, connect(game, farm, plant).reason], [false, 'no-route']);
+  const boxed = flat(), [site, buyer] = farmAndPlant(boxed), cells = [];
+  for (let y = 14; y <= 27; y++) for (let x = 14; x <= 27; x++) if (x < 20 || x > 21 || y < 20 || y > 21) cells.push([x, y]);
+  zone(boxed, cells);
+  assert.equal(connect(boxed, site, buyer).reason, 'no-site');
 });

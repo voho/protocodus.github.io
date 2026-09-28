@@ -5,6 +5,7 @@ import { build, buildPath, addRoute, tick, createGame } from '../model.js';
 import { industryContains, industryDistance } from '../industry-sites.js';
 import { emptyGame, line, advance, tileAt } from './helpers.mjs';
 import { routeBreakPoint, refreshRouteConnections } from '../model.js';
+import { buildPlan } from '../construction-plan.js';
 
 const site = (id, kind, x, inventory = {}) => ({ id, kind, x, y: 12, inventory, capacity: 1 });
 const routeGame = () => ({
@@ -190,6 +191,15 @@ test('first cargo suggestions skip producers that no stop can ever reach and off
   assert.equal(nextProject(game,{source:'quarry'}).target,'quarry','a chosen alternative stays selected');
   assert.equal(nextProject(game,{source:'quarry'}).choice,1);
   assert.equal(nextProject(game,{source:'gone'}).target,'camp');
+  assert.equal(nextProject(game).plan,'road');assert.equal(nextProject(game,{source:'quarry'}).plan,null,'a port-only site is never planned as a road');
+});
+
+test('the first route card offers a planned line until the two ends are joined', () => {
+  const game=createGame({biome:'taiga',seed:1847});
+  assert.equal(nextProject(game).plan,'road','the quarry and Alderbrook are not joined yet');
+  assert.equal(buildPlan(game,'road',Array.from({length:7},(_,n)=>({x:219,y:251-n}))).ok,true);assert.equal(build(game,'bus-stop',219,251).ok,true);
+  const project=nextProject(game);
+  assert.deepEqual(project.steps.map(step=>step.done),[true,true,true,false,false]);assert.equal(project.plan,null,'a joined pair needs no plan');
 });
 
 test('first route steps tick exactly when each stop, connection, route and delivery exists', () => {

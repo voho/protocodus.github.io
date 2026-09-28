@@ -9,7 +9,7 @@ import { terrainObjectAt, terrainObjectTiles } from './terrain-objects.js';
 const LISTS=['stations','industries','cities','zones'];
 const NATURAL=new Set(['grass','forest','sand','snow']);
 const moneyText=n=>`$${Math.round(n).toLocaleString('en-US')}`;
-const NAMES={road:'Road',rail:'Rail',bridge:'Road bridge',railbridge:'Rail bridge',tunnel:'Road tunnel',railtunnel:'Rail tunnel',port:'Port','bus-stop':'Road stop','train-stop':'Rail station',residential:'Residential zone',commercial:'Commercial zone',industrial:'Industrial zone'};
+const NAMES={connection:'Connection',road:'Road',rail:'Rail',bridge:'Road bridge',railbridge:'Rail bridge',tunnel:'Road tunnel',railtunnel:'Rail tunnel',port:'Port','bus-stop':'Road stop','train-stop':'Rail station',residential:'Residential zone',commercial:'Commercial zone',industrial:'Industrial zone'};
 const cover=terrain=>NATURAL.has(terrain)?'land':terrain;
 const pinned=new WeakSet(); // Tile arrays whose homes all name their town already.
 function same(a,b){

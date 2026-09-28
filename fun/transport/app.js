@@ -9,6 +9,7 @@ import { createRenderer } from './renderer.js';
 import { quoteBuildPlan, buildPlan } from './construction-plan.js';
 import { captureUndo, finishUndo, undoConstruction, undoStale } from './construction-undo.js';
 import { gridLine, planNetworkStroke } from './network-router.js';
+import { planConnection } from './network-router.js';
 import { routeTileIndex } from './route-tiles.js';
 import { nearbyStations } from './simulation-spatial.js';
 import { routesNeedingAttention } from './gameplay-insights.js';
@@ -335,6 +336,8 @@ function renderGoal() {
  $('#objective-steps').innerHTML=steps.map((step,index)=>`<li class="objective-step${step.done?' done':''}${index===current?' current':''}">${step.done?icon('check'):`<span class="step-circle">${index+1}</span>`}<span>${escapeHTML(step.label)}${step.done?'<span class="sr-only"> · done</span>':''}</span>${index===current&&step.button?`<button type="button" class="small-button" data-goal-step="${index}">${escapeHTML(step.button)}</button>`:''}</li>`).join('');
  $('#objective-progress').hidden=!project.progress;$('#goal-bar').style.width=(project.progress?project.progress.value/project.progress.max*100:0)+'%';
  $('#objective-action').innerHTML=escapeHTML(project.button)+icon('arrow');$('#objective-another').hidden=!(project.choices?.length>1);$('#guide-button').hidden=!steps.length;$('#objective-goals').hidden=steps.length>0;
+ $('#objective-plan').hidden=!project.plan;$('#objective-plan').textContent=project.plan==='rail'?'Plan rail':'Plan road';
+ if(connectionPlan&&!(project.plan&&project.choices[project.choice].source.id===connectionPlan.source.id))cancelConnectionPlan(); // Another idea or a joined pair ends a waiting plan.
 }
 function goalClick(e) {
  const button=e.target.closest('button');if(!button||button.id==='guide-button')return;
@@ -343,11 +346,63 @@ function goalClick(e) {
  else if(button.id==='objective-chip'){storeGoalFolded(false);goalOpen=true;}
  else if(button.id==='objective-another'){const next=project.choices[(project.choice+1)%project.choices.length];goalChoice=next.source?.id??next;if(view==='build')renderPanel();}
  else if(button.id==='objective-action'){goalOpen=false;runProjectAction(project.action,project.target,{tool:project.tool});}
+ else if(button.id==='objective-plan'){goalOpen=false;planFirstConnection(project);}
  else if(button.id==='objective-goals')openGoals();
  else if(button.dataset.goalStep){const step=project.steps[Number(button.dataset.goalStep)];goalOpen=false;if(step?.action)runProjectAction(step.action,project.target,{...step,choice:project.choices[project.choice]});}
  renderGoal();
  if(keyboard&&button.id==='dismiss-objective')$('#objective-chip').focus({preventScroll:true});
  if(keyboard&&button.id==='objective-chip')$('#dismiss-objective').focus({preventScroll:true});
+ if(keyboard&&button.id==='objective-plan')$('#build-connection-plan')?.focus({preventScroll:true});
+}
+// Plan road previews the first route's line and new stops like a drag, builds them as one undoable step and
+// drafts the route, so only Launch remains. Nothing is spent before Build; a tool, a view, Escape or a pick drops it.
+let connectionPlan=null;
+const planSummary=plan=>{const n=plan.stops.length,stops=n?`${n} ${plan.mode==='rail'?'station':'stop'}${n===1?'':'s'}`:'';return plan.tiles?`${transportName(plan.mode)} ${integer(plan.tiles)} tile${plan.tiles===1?'':'s'}${stops?' + '+stops:''}`:stops.charAt(0).toUpperCase()+stops.slice(1);};
+function planFirstConnection(project) {
+ const choice=project.choices?.[project.choice],mode=project.plan,target=choice&&(choice.buyer.kind==='city'?game.cities:game.industries).find(site=>site.id===choice.buyer.id);
+ const plan=target&&mode?planConnection(game,choice.source,target,mode):null;
+ if(!plan?.ok){toast(`No gentle ${mode||'road'} route found here. Place the stops and ${mode||'road'} yourself.`,{type:'warning'});return;}
+ if(!plan.tiles&&!plan.stops.length)return runProjectAction('launch',null,{mode,from:plan.ends[0].id,to:plan.ends[1].id,cargo:choice.cargo});
+ setTool('inspect');connectionPlan={game,plan,source:choice.source,target,cargo:choice.cargo};
+ const corners=site=>{const size=industrySize(site);return [site,{x:site.x+size-1,y:site.y+size-1}];};
+ framePoints([...plan.path,...corners(choice.source),...corners(target)]);showConnectionPlan();
+}
+// Centre points in the map left free by the goal card and the plan banner, at Town view when they fit.
+function framePoints(points) {
+ const card=$('#objective-card').getBoundingClientRect(),map=canvas.getBoundingClientRect(),right=card.width&&card.left>map.left+map.width/2?map.right-card.left+12:0,inset={left:40,top:130,right:40+right,bottom:70};
+ const xs=points.map(p=>p.x),ys=points.map(p=>p.y),cx=(Math.min(...xs)+Math.max(...xs))/2,cy=(Math.min(...ys)+Math.max(...ys))/2;
+ const fits=()=>points.every(p=>{const s=renderer.worldToScreen(p.x+.5,p.y+.5);return s.x>inset.left&&s.y>inset.top&&s.x<canvas.clientWidth-inset.right&&s.y<canvas.clientHeight-inset.bottom;});
+ for(const zoom of [1,.5]){renderer.setZoom(zoom);renderer.focus(cx,cy);renderer.pan((inset.left-inset.right)/2,(inset.top-inset.bottom)/2);if(fits())break;}
+ updateHud();
+}
+function showConnectionPlan() {
+ const {plan,cargo}=connectionPlan,short=plan.cost>game.money,reused=plan.ends.find(Boolean);
+ let banner=$('#connection-plan-banner');if(!banner){banner=document.createElement('div');banner.id='connection-plan-banner';banner.className='route-pick-banner connection-plan-banner';banner.setAttribute('role','status');$('.map-section').append(banner);}
+ const next=short?`Need ${money(plan.cost)} · balance ${money(game.money)}`:[plan.tiles?'':`The ${plan.mode} is already there`,`then a ${vehicleNoun(plan.mode,cargo)} ${money(plan.vehicleCost)}`,reused?`uses ${reused.name}`:''].filter(Boolean).join(' · ');
+ banner.innerHTML=`<div><strong>${escapeHTML(planSummary(plan))} · ${money(plan.cost)}</strong><span>${escapeHTML(next.charAt(0).toUpperCase()+next.slice(1))}</span></div><button type="button" class="connection-build" id="build-connection-plan">Build</button><button type="button" id="cancel-connection-plan">Cancel</button>`;
+ $('#build-connection-plan').onclick=buildConnectionPlan;$('#cancel-connection-plan').onclick=cancelConnectionPlan;
+ $('#status-message').textContent=`${planSummary(plan)} planned · ${money(plan.cost)}`;invalidateScene();
+}
+function cancelConnectionPlan() { if(!connectionPlan)return;connectionPlan=null;$('#connection-plan-banner')?.remove();$('#status-message').textContent=toolDescription(tool);invalidateScene(); }
+// The map draws a waiting plan as a road preview with its stops ringed; pointer input stays with Explore.
+function connectionView() { const plan=connectionPlan?.game===game?connectionPlan.plan:null;return plan?{tool:plan.mode,hover:null,preview:plan.path,routeStops:[...plan.stops,...plan.ends.filter(Boolean)]}:{}; }
+function buildConnectionPlan() {
+ if(connectionPlan?.game!==game)return cancelConnectionPlan();
+ const {plan,source,target,cargo}=connectionPlan,fresh=planConnection(game,source,target,plan.mode),sites=option=>JSON.stringify([option.path,option.stops.map(({x,y})=>[x,y])]),same=fresh.ok&&sites(fresh)===sites(plan);
+ // Growth or another build may have changed the land since the preview; a different plan is shown before anything is spent.
+ if(!fresh.ok){cancelConnectionPlan();toast(`The land has changed. Place the stops and ${plan.mode} yourself.`,{type:'warning'});return;}
+ if(!same){connectionPlan.plan=fresh;showConnectionPlan();toast('The land has changed. Check the new plan.',{type:'warning'});return;}
+ if(fresh.cost>game.money){showConnectionPlan();toast(`Need ${money(fresh.cost)} · balance ${money(game.money)}`,true);return;}
+ const journal=captureUndo(game,'connection',[...fresh.path,...fresh.stops]),ids=fresh.ends.map(stop=>stop?.id),line=buildPlan(game,fresh.mode,fresh.path);
+ let spent=line.ok?line.cost:0,failure=line.ok?'':line.message;
+ for(const stop of fresh.stops){if(failure)break;const result=buildPlan(game,fresh.mode==='rail'?'train-stop':'bus-stop',[stop]);if(result.ok){spent+=result.cost;ids[stop.end]=result.station.id;}else failure=result.message;}
+ const undo=finishUndo(journal,game,{ok:true,cost:spent});
+ cancelConnectionPlan();
+ if(failure){if(undo)undoConstruction(game,undo);refreshRouteConnections(game);updateHud();toast(failure,true);return;}
+ if(undo)undoStack=[...undoStack.filter(item=>!undoStale(game,item)).slice(-9),undo];
+ refreshRouteConnections(game);updateHud();persistSoon();
+ toast(`${planSummary(fresh)} built · ${money(spent)}`,{key:undo||'connection',action:undo&&{label:'Undo',run:()=>undoBuild(undo)}});
+ runProjectAction('launch',null,{mode:fresh.mode,from:ids[0],to:ids[1],cargo});
 }
 function engineeringTools() {
  return `<details class="engineering-tools" ${engineeringOpen?'open':''}><summary>${icon('raise')} Terrain &amp; crossings</summary><div class="tool-grid">${toolCard('raise','Raise +1')}${toolCard('lower','Lower −1')}${toolCard('level','Level area')}</div><div class="stop-mode-picker" role="group" aria-label="Bridge and tunnel transport"><span>Crossings</span>${['road','rail'].map(mode=>`<button data-crossing-mode="${mode}" aria-pressed="${preferredMode===mode}">${icon(mode)} ${mode==='road'?'Road':'Rail'}</button>`).join('')}</div><div class="tool-grid">${toolCard(preferredMode==='rail'?'railbridge':'bridge','Bridge')}${toolCard(preferredMode==='rail'?'railtunnel':'tunnel','Tunnel')}</div></details>`;
@@ -652,6 +707,7 @@ function flashRoute(routeId) {
 function isRoutePicking() { return Boolean(routePicking); }
 function routePickStops() { return view==='routes'?[formDraft.from,formDraft.to].map(id=>game.stations.find(s=>String(s.id)===String(id))).filter(Boolean):[]; }
 function cancelRoutePicking() {
+ cancelConnectionPlan(); // A planned connection is the other pick on the map; the same tool, view and Escape changes end it.
  const wasPicking=Boolean(routePicking);
  routePicking='';canvas.classList.remove('route-picking');$('#route-pick-banner')?.remove();
  $$('[data-pick-route]').forEach(button=>button.setAttribute('aria-pressed','false'));
@@ -1713,7 +1769,7 @@ function frame(now){
  if(highlight.card&&!highlight.card.isConnected)highlight={id:null,until:0};const highlightRoute=highlight.until>now?highlight.id:null;
  const changed=!painted||painted.game!==game||painted.day!==game.day||painted.revision!==game.revision||painted.money!==game.money||painted.scene!==sceneRevision||painted.x!==camera.x||painted.y!==camera.y||painted.height!==camera.height||painted.zoom!==camera.zoom||painted.w!==w||painted.h!==h||painted.layers!==mapLayers||painted.tool!==tool||painted.hover!==hover||painted.preview!==preview||painted.selected!==selected||painted.mode!==preferredMode||painted.view!==view||painted.from!==formDraft.from||painted.to!==formDraft.to||painted.highlight!==highlightRoute;
  if(changed||floaterPaint){
-  renderer.render(now,{tool,hover,preview,selected,preferredMode,routeStops:routePickStops(),floaters,highlightRoute,selectedVehicleId:selectedVehicle,context:contextView()});
+  renderer.render(now,{tool,hover,preview,selected,preferredMode,routeStops:routePickStops(),floaters,highlightRoute,selectedVehicleId:selectedVehicle,context:contextView(),...connectionView()});
   painted={game,day:game.day,revision:game.revision,money:game.money,scene:sceneRevision,x:camera.x,y:camera.y,height:camera.height,zoom:camera.zoom,w,h,layers:mapLayers,tool,hover,preview,selected,mode:preferredMode,view,from:formDraft.from,to:formDraft.to,highlight:highlightRoute};
  }
  if(now-hudAt>400&&(!hudState||hudState.game!==game||hudState.day!==game.day||hudState.revision!==game.revision||hudState.money!==game.money||hudState.zoom!==camera.zoom||hudState.w!==w||hudState.view!==view)){

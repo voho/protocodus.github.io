@@ -125,3 +125,12 @@
 .route-edit-note strong{color:#3f5d34;font-weight:600}
 .route-edit-cancel{display:block;width:100%;min-height:40px;margin-top:4px;color:#5c7151;font-size:13px}
 .route-edit-cancel:hover{color:#3f5d34;text-decoration:underline}
+
+.connection-plan-banner{max-width:min(480px,calc(100% - 40px))}
+.connection-plan-banner>div{flex:1;min-width:0}
+.connection-plan-banner .connection-build{padding:9px 15px;background:var(--green);color:#fffdf2;font-weight:500}
+.connection-plan-banner .connection-build:hover{background:#3d6a4c}
+.connection-plan-banner #cancel-connection-plan{margin-left:-6px}
+#objective-card .objective-plan{min-height:34px;padding:7px 12px;border:1px solid #9db58a;border-radius:7px;background:#fffdf5;font-size:13px;font-weight:500;color:#36573a}
+#objective-card .objective-plan:hover{background:#eef4e4;border-color:#6f9159}
+@media(max-width:1000px){.map-section:has(#connection-plan-banner) .paused-chip{top:92px}}
