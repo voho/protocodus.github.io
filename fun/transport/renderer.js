@@ -738,7 +738,10 @@ export function createRenderer(canvas, initialGame, options={}) {
     ctx.font='600 12px Space, system-ui, sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';
     for(const {x,y,revenue,cargo,t} of shown.values()){
       const p=worldToScreen(x,y),label='+$'+(revenue>=10000?format.format(revenue/1000)+'k':format.format(Math.round(revenue))),image=cargoImage(cargo||'passengers',14);
-      const w=ctx.measureText(label).width+35,h=23,left=Math.round(p.x-w/2),top=Math.round(p.y-58*Math.max(1,camera.zoom)-(still?0:22*(1-(1-t)**3))-h/2);
+      const w=ctx.measureText(label).width+35,h=23,left=Math.round(p.x-w/2);let start=p.y-58*Math.max(1,camera.zoom)-h/2,ceiling=-Infinity;
+      // Town names keep their place: a figure that would cover one starts above it, one below stops rising under it.
+      for(const r of labelRects)if(left<r.x+r.w&&left+w>r.x){if(start<r.y+r.h&&start+h>r.y)start=r.y-h-3;else if(start>=r.y+r.h)ceiling=Math.max(ceiling,r.y+r.h+3);}
+      const top=Math.round(Math.max(ceiling,start-(still?0:22*(1-(1-t)**3))));
       ctx.globalAlpha=t<.6?1:(1-t)/.4;
       ctx.shadowColor='#293d2620';ctx.shadowBlur=8;ctx.shadowOffsetY=2;ctx.fillStyle='#f7f4e7f0';roundRect(ctx,left,top,w,h,5);ctx.fill();ctx.shadowColor='transparent';ctx.shadowBlur=0;ctx.shadowOffsetY=0;
       ctx.strokeStyle='#f8f6e8b0';ctx.lineWidth=.7;ctx.stroke();

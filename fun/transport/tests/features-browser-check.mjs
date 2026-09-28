@@ -1,7 +1,7 @@
 // Serve the repository root first. Browser storage is isolated from the user's save.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
-import { createWorldFromMenu } from './browser-start.mjs';
+import { createWorldFromMenu, openGameAction } from './browser-start.mjs';
 const { chromium } = await import(process.env.TRANSPORT_PLAYWRIGHT || 'playwright');
 const browser = await chromium.launch({ channel: process.env.TRANSPORT_BROWSER || 'chrome', headless: true });
 const url = process.env.TRANSPORT_URL || 'http://localhost:8765/fun/transport/';
@@ -14,8 +14,8 @@ const watch = page => {
 };
 const fits = (page, selector) => page.locator(selector).evaluate(element => element.scrollWidth <= element.clientWidth + 1);
 async function openChains(page) {
-  if (await page.locator('#help-button').isVisible()) {
-    await page.locator('#help-button').click();
+  if (await page.locator('.main-nav').isVisible()) {
+    await openGameAction(page, 'help-button');
     await page.locator('[data-help-tab="chains"]').click();
   } else {
     if (!(await page.locator('.sidebar').evaluate(element => element.classList.contains('mobile-open')))) await page.locator('.mobile-panel-toggle').click();
@@ -129,8 +129,7 @@ try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   watch(page);
   await page.goto(url);
-  await page.waitForFunction(() => window.transport?.game && window.transport?.renderer);
-  await page.locator('[data-speed="0"]').click();
+  await createWorldFromMenu(page);
   assert.ok((await page.locator('.topbar').boundingBox()).height <= 68, 'desktop header uses one compact lane');
   assert.equal(await page.locator('.statsbar, .region-header').count(), 0, 'the map no longer loses space to duplicate header rows');
   await page.locator('#company-stats').click();
@@ -172,7 +171,8 @@ try {
   assert.equal(await page.locator('#modal').evaluate(dialog => dialog.open), false, 'Locate returns to the live map');
   assert.equal(await page.locator('#inspector h3').textContent(), steel.name, 'Locate inspects the selected site');
   const camera = await page.evaluate(() => transport.renderer.getCamera());
-  assert.ok(Math.abs(camera.x - (steel.x + .5) * 32) < 1 && Math.abs(camera.y - (steel.y + .5) * 32) < 1, 'Locate centers the actual instance');
+  const middle = (steel.footprint || 1) / 2;
+  assert.ok(Math.abs(camera.x - (steel.x + middle) * 32) < 1 && Math.abs(camera.y - (steel.y + middle) * 32) < 1, 'Locate centers the actual instance');
 
   const expectedSteelTargets = await page.evaluate(steel => {
     return transport.game.industries.filter(industry => ['machine-works', 'furniture-factory'].includes(industry.kind))
@@ -242,6 +242,8 @@ try {
   await page.evaluate(() => transport.setTool('road'));
   await clickMap(page, fixture.gap);
   await page.keyboard.press('Escape');
+  // A construction tool closes the drawer; Routes reopens the planner with its stops.
+  await chooseView(page, 'routes');
   await verifyConnection(page, 'connected', true);
   const beforeFreight = await page.evaluate(() => transport.game.money);
   await page.locator('#route-form button[type="submit"]').click();
@@ -301,6 +303,7 @@ try {
   await page.locator('[data-pick-route="from"]').click();
   await page.keyboard.press('Escape');
   await page.locator('#route-pick-banner').waitFor({ state: 'hidden' });
+  await chooseView(page, 'routes');
   await page.evaluate(() => transport.renderer.setZoom(.5));
   await page.locator('[data-pick-route="from"]').click();
   await clickStationBadge(page, fixture.from);

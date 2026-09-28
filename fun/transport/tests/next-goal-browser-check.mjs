@@ -105,6 +105,12 @@ try {
   await page.locator('#game-menu-button').click();
   assert.equal(await page.locator('#objective-card').isVisible(), false, 'the game menu hides the card');
   await page.keyboard.press('Escape');
+  // A portrait tablet keeps the card in its corner and centres the paused chip in the space beside it.
+  await page.setViewportSize({ width: 768, height: 1024 });
+  if (await page.locator('#close-management').isVisible()) await page.locator('#close-management').click();
+  await page.locator('#objective-body').waitFor({ state: 'visible' });
+  assert.equal(overlaps(await box(page, '.paused-chip'), await box(page, '#objective-card')), false, 'the paused chip clears the card on a tablet');
+  await page.screenshot({ path: `${output}/tablet-paused.png` });
   await page.close();
 
   for (const width of [390, 320]) {

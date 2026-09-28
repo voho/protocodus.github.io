@@ -127,3 +127,4 @@ html,body{overscroll-behavior:none}
 .compact-play:not(.page-zoomed) .paused-chip{touch-action:none}
 @media(max-width:700px),(hover:none) and (pointer:coarse){.paused-chip .paused-keys{display:none}.paused-chip .paused-touch{display:inline}}
 @media(max-width:1000px){.map-section:has(#active-tool-bar:not([hidden])) .paused-chip{top:74px}.map-section:has(#route-pick-banner) .paused-chip{top:92px}}
+@media(min-width:701px) and (max-width:1000px){.map-section:has(#objective-card:not([hidden])) .paused-chip{left:calc(50% - 154px)}}

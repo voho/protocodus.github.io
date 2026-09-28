@@ -140,7 +140,7 @@ Vehicles vary their pace with local conditions and pause to load at stops. Vehic
 
 Each vehicle has a small load meter above it. Loaded vehicles show their resource icon, including passengers; a full green meter means full capacity, an amber meter shows a partial load, and an unfilled meter means empty. These indicators stay readable in all three zoom views. Town names rise above a stop built at or beside the town centre, and a meter that crosses a town name fades so the name stays legible.
 
-Every paid delivery floats its income above the stop, with the cargo’s icon, and the month’s profit in the top lane glows briefly. Deliveries at one stop within a moment share a figure, and in the Region view nearby stops add up to one total. The figures fade after about a second and a half, stay in place with reduced motion, and can be hidden with **Map layers → Income**. With sound on, a delivery on screen also rings a soft two-note chime; the browser remembers the sound choice and starts audio after your first click or tap.
+Every paid delivery floats its income above the stop, with the cargo’s icon, and the month’s profit in the top lane glows briefly. Deliveries at one stop within a moment share a figure, and in the Region view nearby stops add up to one total. Figures never cover a town’s name: one at a town-centre stop starts above the name. The figures fade after about a second and a half, stay in place with reduced motion, and can be hidden with **Map layers → Income**. With sound on, a delivery on screen also rings a soft two-note chime; the browser remembers the sound choice and starts audio after your first click or tap.
 
 ## Grow your towns
 
@@ -259,7 +259,7 @@ The focused Layers check compares rendered pixels for all 15 switches at every z
 TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/layers-browser-check.mjs
 ```
 
-The delivery-income check waits for a real delivery at 3×, then compares the pixels above the stop: the figure appears, rises, fades, stays still with reduced motion and disappears with **Income** off. It also checks the profit glow, one summed figure per Region cell and that a paused map stops redrawing once the figures fade. Screenshots go to `/tmp/transport-floaters-qa`:
+The delivery-income check waits for a real delivery at 3×, then compares the pixels above the stop: the figure appears above the town’s name, rises, fades, stays still with reduced motion and disappears with **Income** off. It also checks the profit glow, one summed figure per Region cell and that a paused map stops redrawing once the figures fade. Screenshots go to `/tmp/transport-floaters-qa`:
 
 ```sh
 TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/delivery-floaters-browser-check.mjs
@@ -303,7 +303,7 @@ The controls check covers automatic crossings and stops, exact quotes (refused s
 TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/controls-browser-check.mjs
 ```
 
-`next-goal-browser-check.mjs` walks the seed-1847 first route through the Next goal checklist, alternatives, collapse memory and the phone pill at 390px and 320px. `node fun/transport/tests/next-goal-servable-check.mjs` is a slower sweep: 75 new worlds must suggest only producers and buyers a stop can serve.
+`next-goal-browser-check.mjs` walks the seed-1847 first route through the Next goal checklist, alternatives, collapse memory, a paused chip that clears the card on a 768px tablet, and the phone pill at 390px and 320px. `node fun/transport/tests/next-goal-servable-check.mjs` is a slower sweep: 75 new worlds must suggest only producers and buyers a stop can serve.
 
 The comprehensive follow-up checks include `cohesion-browser-check.mjs` (projects, searches, finances, paused disconnection and storage failure), `vast-browser-check.mjs` (large-world quota and continuation), and `controls-browser-check.mjs` (mouse, keyboard and real multi-touch gestures).
 

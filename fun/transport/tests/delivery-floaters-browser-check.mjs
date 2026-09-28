@@ -23,16 +23,17 @@ try {
     renderer.render = function (now, view = {}) { floaterQA.renders++; for (const floater of view.floaters || []) if (!floaterQA.seen.includes(floater)) floaterQA.seen.push(floater); return original.apply(this, arguments); };
     new MutationObserver(() => { if (document.querySelector('#profit').classList.contains('income-pulse')) floaterQA.pulses++; }).observe(document.querySelector('#profit'), { attributes: true, attributeFilter: ['class'] });
     // Renders one moment with and without floaters and compares the band above the floaters' tiles.
-    // Everything happens in one task, so the app's own frames cannot repaint in between.
+    // Everything happens in one task, so the app's own frames cannot repaint in between. Staged scenery
+    // batches differ from direct draws by compositing roundoff, so a scene is stable only once they are ready.
     floaterQA.compare = (at, floaters, capture = false, half = 70) => {
       const canvas = document.querySelector('#world'), density = devicePixelRatio || 1, points = floaters.map(f => renderer.worldToScreen(f.x, f.y));
       const top = Math.min(...points.map(p => p.y)) - 150, bottom = Math.max(...points.map(p => p.y));
       const x = Math.round((points[0].x - half) * density), y = Math.round(top * density), w = Math.round(half * 2 * density), h = Math.round((bottom - top) * density);
-      const read = list => { original.call(renderer, at, { floaters: list }); return canvas.getContext('2d').getImageData(x, y, w, h).data; };
-      const plain = read(null), again = read(null), shown = read(floaters), rows = [];
+      const read = list => { original.call(renderer, at, { floaters: list }); return canvas.getContext('2d').getImageData(x, y, w, h).data; }, pending = () => renderer.getStats().sceneryBatches?.pending || 0;
+      const prepared = !pending(), plain = read(null), again = read(null), shown = read(floaters), rows = [];
       for (let row = 0; row < h; row++) { let differs = false; for (let i = row * w * 4; i < (row + 1) * w * 4 && !differs; i++) differs = shown[i] !== plain[i]; rows.push(differs); }
       const ranges = []; for (let row = 0; row < h; row++) if (rows[row] && !rows[row - 1]) ranges.push([row, row]); else if (rows[row]) ranges.at(-1)[1] = row;
-      return { stable: plain.every((value, i) => value === again[i]), changed: rows.some(Boolean), top: rows.indexOf(true) / density, bands: ranges.length, ranges, image: capture ? canvas.toDataURL() : '' };
+      return { stable: prepared && !pending() && plain.every((value, i) => value === again[i]), changed: rows.some(Boolean), top: rows.indexOf(true) / density, bands: ranges.length, ranges, labels: renderer.cityLabels().filter(r => r.x < points[0].x + half && r.x + r.w > points[0].x - half).map(r => (r.y + r.h / 2 - top) * density), image: capture ? canvas.toDataURL() : '' };
     };
   });
   const route = await page.evaluate(() => { const route = transport.game.routes[0]; return { id: route.id, revenue: route.revenue, cargo: route.cargo, stops: route.stops.map(id => transport.game.stations.find(stop => stop.id === id)).map(({ x, y }) => ({ x, y })) }; });
@@ -66,6 +67,7 @@ try {
   // The pill rises with ease-out and fades by 1.6 s; reduced motion keeps it in place.
   const early = await compare(floater.born, live), later = await compare(floater.born + 800, live);
   assert.ok(early.changed && later.changed, 'the pill is drawn above the stop');
+  assert.ok(early.labels.length && !early.labels.some(middle => early.ranges.some(([from, to]) => from <= middle && middle <= to)), 'a new figure starts above the town name at its stop');
   assert.ok(early.top - later.top >= 17 && early.top - later.top <= 22, `the pill rises about 19 px by mid-life (${early.top - later.top})`);
   assert.equal((await compare(floater.born + 1600, live)).changed, false, 'the floater is gone after 1.6 s');
   await page.emulateMedia({ reducedMotion: 'reduce' });

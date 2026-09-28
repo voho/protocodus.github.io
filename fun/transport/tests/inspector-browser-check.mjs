@@ -26,7 +26,8 @@ try {
     for (let trial = 0; trial < 20; trial++) {
       await page.evaluate(speed => { document.activeElement?.blur?.(); const site = transport.game.industries[3]; transport.inspect(site.x, site.y, 'industry'); transport.setSpeed(speed); }, speed);
       await page.waitForTimeout(100 + Math.floor(Math.random() * 400));
-      const point = await page.locator('#industry-chain').evaluate(el => { el.scrollIntoView({ block: 'nearest' }); const box = el.getBoundingClientRect(); return { x: box.x + box.width / 2, y: box.y + box.height / 2 }; });
+      // One task: a locator resolves its element before evaluating, and a live refresh in between detaches it.
+      const point = await page.evaluate(() => { const el = document.querySelector('#industry-chain'); el.scrollIntoView({ block: 'nearest' }); const box = el.getBoundingClientRect(); return { x: box.x + box.width / 2, y: box.y + box.height / 2 }; });
       await page.mouse.move(point.x, point.y);
       await page.mouse.down(); await page.waitForTimeout(150); await page.mouse.up();
       if (await page.waitForFunction(() => document.querySelector('#modal').open, undefined, { timeout: 1000 }).then(() => true, () => false)) {
