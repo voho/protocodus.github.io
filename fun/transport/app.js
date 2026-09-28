@@ -236,6 +236,7 @@ function syncToolControls() {
  if(BUILDINGS[tool]||INDUSTRIES[tool]){const size=BUILDINGS[tool]?buildingFootprint(tool):industryFootprint(tool);$('#active-tool-hint').textContent=`${size} × ${size} site · Click to place`;}
  if(terrainTools.has(tool))$('#active-tool-hint').textContent=tool==='level'?'Drag an area · Match the first point':`Click or drag · ${tool==='raise'?'+1':'−1'} level per point`;
  if(spanTools.has(tool))$('#active-tool-hint').textContent='Drag straight · Flat ends at the same level';
+ if(aimTool(tool)&&(matchMedia('(pointer: coarse)').matches||window.innerWidth<=700)){const size=BUILDINGS[tool]?buildingFootprint(tool):INDUSTRIES[tool]?industryFootprint(tool):0;$('#active-tool-hint').textContent=size?`${size} × ${size} site · Tap to preview`:'Tap to preview · Tap again to place';}
  $('#map-hint').hidden=tool!=='inspect'||isRoutePicking();
 }
 function setTool(next) {
@@ -1358,6 +1359,14 @@ function touchFrame() {
  const [a,b]=[...touchPoints.values()];if(!a||!b)return null;
  return {x:(a.x+b.x)/2,y:(a.y+b.y)/2,distance:Math.max(1,Math.hypot(a.x-b.x,a.y-b.y))};
 }
+// Keys, zoom buttons and edge scrolling move the map under a still pointer; the tile, stroke and quote beneath it follow.
+function refreshStroke() {
+ const at=pointer?{clientX:pointer.lastX,clientY:pointer.lastY,pointerType:pointer.type}:updatePlacementTip.at;
+ if(!at||!hover||hover.keyboard||liveAim()||pointer?.pan||pointer?.cancelled||touchGesture)return;
+ const line=Boolean(pointer)&&lineTools.has(pointer.tool),next=pickMapTile(at.clientX,at.clientY,line);if(hover.x===next.x&&hover.y===next.y)return;
+ hover=next;if(line)preview=constructionLine(pointer.start,hover,pointer.tool,pointer);
+ $('#tile-coordinates').textContent=`${hover.x}, ${hover.y} · ${BIOMES[game.biome].name}`;updatePlacementTip(at);
+}
 // A valid stop names what it will serve; a bulldozer names the services it would cut.
 const coverageTips=new WeakMap();
 function placementNote(effective,plan) {
@@ -1375,9 +1384,29 @@ function placementNote(effective,plan) {
  const index=routeTileIndex(game),names=new Set(plan.placements.flatMap(p=>index.get(p.y*game.width+p.x)||[]));
  return names.size?{text:`breaks ${names.size===1?`the ${[...names][0]} route`:names.size+' routes'}`,warning:true}:{text:''};
 }
+// On touch the tip quotes a point tool above the finger before it lifts. A site or town of $20,000 or more in 1950 prices, or a
+// refused tile, is only aimed by the tap: its tip holds above the tile through pans and pinches, and Place or a second tap builds.
+// A cheaper stop, port or building builds on the tap, and a new stop or port shows its reach for 1.5 s. An aim lapses with its tool or world.
+let touchAim=null,reachFlash=null;
+const placeButton=Object.assign(document.createElement('button'),{type:'button',className:'tip-place',textContent:'Place'});
+const aimTool=key=>!lineTools.has(key)&&BUILD_COSTS[key]>=20000;
+const liveAim=()=>touchAim&&touchAim.game===game&&touchAim.tool===tool&&!hover?.keyboard?touchAim:null;
+function aimPoint(aim) { const box=canvas.getBoundingClientRect(),at=renderer.worldToScreen(aim.x,aim.y);return {clientX:box.left+at.x,clientY:box.top+at.y,pointerType:'touch',shown:at.x>=0&&at.y>=0&&at.x<=box.width&&at.y<=box.height}; }
+function touchPlace(at) {
+ if(!tileAt(at.x,at.y))return false;
+ const aim=liveAim(),again=aim&&aim.x===at.x&&aim.y===at.y;
+ if(!again&&(aimTool(tool)||quoteBuildPlan(game,tool,[at],{preferredMode}).ok===false)){touchAim={x:at.x,y:at.y,at,tool,game};preview=[];hover=at;updatePlacementTip();return true;}
+ const spent=game.money;touchAim=null;hover=null;preview=[];$('#placement-tip').hidden=true;paintPath([at]);
+ // Selecting the new stop draws its service ring, as its inspector would, without a red hover on the tile it now fills.
+ if(game.money<spent&&['stop','port'].includes(tool))selected=reachFlash={x:at.x,y:at.y,until:performance.now()+1500};
+ return true;
+}
+placeButton.addEventListener('click',()=>{const aim=liveAim();if(aim)touchPlace(aim.at);});
+// A mouse or pen takes the map back from a touch aim, as it does from the keyboard cursor.
+for(const type of ['pointerdown','pointermove'])canvas.addEventListener(type,e=>{if(touchAim&&e.pointerType!=='touch'&&(type==='pointerdown'||e.movementX||e.movementY))touchAim=null;},true);
 function updatePlacementTip(e=updatePlacementTip.at) {
- const tip=$('#placement-tip');updatePlacementTip.at={clientX:e.clientX,clientY:e.clientY};
- if(tool==='inspect'||!hover||!tileAt(hover.x,hover.y)||pointer?.pan||touchGesture){tip.hidden=true;return;}
+ const tip=$('#placement-tip'),aim=liveAim();if(aim){hover=aim.at;e=aimPoint(aim);}updatePlacementTip.at={clientX:e.clientX,clientY:e.clientY,pointerType:e.pointerType};
+ if(tool==='inspect'||!hover||!tileAt(hover.x,hover.y)||(aim?!e.shown:pointer?.pan||touchGesture)){tip.hidden=true;return;}
  const points=preview.length?preview:[hover],n=points.length,plan=spanTools.has(tool)&&n<3?{ok:false,message:'Drag at least 3 tiles between level ends.',placements:[],cost:0}:quoteBuildPlan(game,tool,points,{preferredMode});
  const effective=n===1&&!spanTools.has(tool)?plan.placements[0]?.tool:tool;
  const name=TOOL_INFO[effective]?.name||BUILDINGS[effective]?.name||INDUSTRIES[effective]?.name||'Build';
@@ -1389,7 +1418,10 @@ function updatePlacementTip(e=updatePlacementTip.at) {
  tip.textContent=plan.ok===false?route==='too-far'?'No gentle route — level ground or drag in shorter segments':plan.message+terrain:`${name}${siteSize?' · '+siteSize+' × '+siteSize:''}${levels?' · '+levels:''} · ${money(plan.cost)}${plan.placements.length>1?' · '+plan.placements.length+(tool==='bulldoze'?' sites':terrainTools.has(tool)?' points':' tiles'):''}${plan.partial?' · '+plan.message:''}${note.text?' · '+note.text:''}${terrain}`;
  tip.classList.toggle('invalid',plan.ok===false);tip.classList.toggle('partial',plan.ok!==false&&Boolean(plan.partial));tip.classList.toggle('warning',Boolean(note.warning));
  const rect=canvas.getBoundingClientRect();tip.hidden=false;
- tip.style.left=Math.max(4,Math.min(rect.width-tip.offsetWidth-4,e.clientX-rect.left+17))+'px';tip.style.top=Math.max(4,Math.min(rect.height-tip.offsetHeight-4,e.clientY-rect.top+18))+'px';
+ if(aim&&aimTool(tool)){placeButton.disabled=plan.ok===false;tip.append(placeButton);}tip.classList.toggle('aim',Boolean(aim));
+ // A finger would cover a tip beside it, so touch centres the tip above the contact point, or below it at the top edge.
+ const touch=e.pointerType==='touch',above=e.clientY-rect.top-tip.offsetHeight-56;
+ tip.style.left=Math.max(4,Math.min(rect.width-tip.offsetWidth-4,touch?e.clientX-rect.left-tip.offsetWidth/2:e.clientX-rect.left+17))+'px';tip.style.top=Math.max(4,Math.min(rect.height-tip.offsetHeight-4,touch?above<4?e.clientY-rect.top+40:above:e.clientY-rect.top+18))+'px';
 }
 canvas.addEventListener('pointerdown',e=>{
  if(e.button!==0&&e.button!==1&&e.button!==2)return;
@@ -1403,6 +1435,7 @@ canvas.addEventListener('pointerdown',e=>{
  canvas.setPointerCapture(e.pointerId);
  if(spaceDown)spaceUsedForPan=true;
  if(pointer.pan)canvas.classList.add('dragging');else preview=[tile];
+ pointer.type=e.pointerType;if(pointer.type==='touch'&&!pointer.pan){if(!aimTool(tool))touchAim=null;if(liveAim())preview=[];else hover=tile;}
  updatePlacementTip(e);
 });
 canvas.addEventListener('pointermove',e=>{
@@ -1440,12 +1473,13 @@ canvas.addEventListener('pointerup',e=>{
  if(!p.moved&&!spaceDown&&pickRouteStopAt(p.start.x,p.start.y))return;
  if(p.pan){preview=[];if(!p.moved&&!spaceDown){const vehicle=tool==='inspect'&&renderer.vehicleAt(e.clientX,e.clientY,{slop:e.pointerType==='touch'?12:0});if(vehicle)inspectVehicle(vehicle.id);else inspect(p.start.x,p.start.y);}return;}
  if(p.moved&&!lineTools.has(p.tool)){preview=[];return;}
+ if(p.type==='touch'&&!lineTools.has(p.tool)&&touchPlace(p.start))return;
  const points=preview.length?preview:[p.start];
  if(points.every(p=>tileAt(p.x,p.y)))paintPath(points);else{toast('Keep construction within the world boundary.',true);preview=[];}
 });
 canvas.addEventListener('pointercancel',cancelGesture);
 canvas.addEventListener('lostpointercapture',e=>{if(pointer?.id===e.pointerId||touchPoints.has(e.pointerId))cancelGesture();});
-canvas.addEventListener('pointerleave',()=>{if(!pointer)hover=null;$('#placement-tip').hidden=true;});
+canvas.addEventListener('pointerleave',()=>{if(liveAim())return;if(!pointer)hover=null;$('#placement-tip').hidden=true;});
 canvas.addEventListener('contextmenu',e=>{e.preventDefault();if(pointer&&!pointer.pan&&!touchPoints.has(pointer.id)&&(e.pointerType||'mouse')==='mouse'){pointer.cancelled=true;preview=[];$('#placement-tip').hidden=true;}});
 // Safari and iPad never focus a pressed button, so live refreshes wait out a press instead of replacing its target.
 $('#inspector').setAttribute('role','region');$('#inspector').setAttribute('aria-labelledby','inspector-title');
@@ -1477,7 +1511,7 @@ $('#world-button').onclick=openWorld;$('#help-button').onclick=()=>openHelp();$(
 $('#objective-card').addEventListener('click',goalClick);
 $('#grid-button').onclick=()=>setMapLayers({grid:!mapLayers.grid});
 $('#routes-toggle').onclick=()=>setMapLayers({routes:!mapLayers.routes});
-$('#zoom-in').onclick=()=>{closeMapMenus();renderer.zoomAt(1.2);updateHud();};$('#zoom-out').onclick=()=>{closeMapMenus();renderer.zoomAt(1/1.2);updateHud();};$('#home-view').onclick=()=>renderer.focus(game.cities[0].x,game.cities[0].y);
+$('#zoom-in').onclick=()=>{closeMapMenus();renderer.zoomAt(1.2);updateHud();refreshStroke();};$('#zoom-out').onclick=()=>{closeMapMenus();renderer.zoomAt(1/1.2);updateHud();refreshStroke();};$('#home-view').onclick=()=>renderer.focus(game.cities[0].x,game.cities[0].y);
 $$('[data-zoom-level]').forEach(el=>el.addEventListener('click',()=>{renderer.setZoom(Number(el.dataset.zoomLevel));closeMapMenus(true);updateHud();}));
 $('#zoom-level').onclick=()=>toggleMapMenu('zoom-menu','zoom-level');
 $('#map-options-button').onclick=()=>toggleMapMenu('map-options','map-options-button');
@@ -1581,7 +1615,7 @@ document.addEventListener('keydown',e=>{
  if(key==='l'){e.preventDefault();closeMapMenus();cancelGesture();layersView?.toggle();}
  if(key==='m')openAtlas();if(key==='c'&&!e.ctrlKey&&!e.metaKey)openChains();if(key==='g')$('#grid-button').click();if(key==='h')$('#home-view').click();if(key==='?')openHelp();
  if(key==='='||key==='+')$('#zoom-in').click();if(key==='-')$('#zoom-out').click();
- if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)){e.preventDefault();renderer.pan(e.key==='ArrowLeft'?90:e.key==='ArrowRight'?-90:0,e.key==='ArrowUp'?90:e.key==='ArrowDown'?-90:0);}
+ if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)){e.preventDefault();renderer.pan(e.key==='ArrowLeft'?90:e.key==='ArrowRight'?-90:0,e.key==='ArrowUp'?90:e.key==='ArrowDown'?-90:0);refreshStroke();}
 });
 document.addEventListener('keyup',e=>{if(e.code==='Space'){if(spaceConsumed){e.preventDefault();spaceConsumed=false;}if(!isLoading()&&spaceDown&&!spaceUsedForPan&&!pointer&&performance.now()-spaceStarted<260)changeSpeed(speed===0?previousSpeed:0);spaceDown=false;}});
 window.addEventListener('blur',()=>{spaceDown=false;spaceUsedForPan=false;cancelGesture();});
@@ -1620,6 +1654,12 @@ let painted=null,hudState=null,minimapState=null,panelDay=-1,panelRevision=-1;
 function frame(now){
  const elapsed=Math.min((now-lastFrame)/1000,.15);lastFrame=now;
  if(isLoading()||document.hidden||$('#start-menu')?.open){requestAnimationFrame(frame);return;}
+ // A stroke held near or past the map's edge scrolls it, faster the further out, once the drag has moved.
+ if(pointer&&!pointer.pan&&!pointer.cancelled&&pointer.moved&&pointer.tool===tool&&lineTools.has(tool)&&!touchGesture&&!spaceDown){
+  const r=canvas.getBoundingClientRect(),band=pointer.type==='touch'?56:40,depth=(near,far)=>Math.max(0,Math.min(1.5,1-near/band))-Math.max(0,Math.min(1.5,1-far/band));
+  const ex=depth(r.right-pointer.lastX,pointer.lastX-r.left),ey=depth(r.bottom-pointer.lastY,pointer.lastY-r.top),was=renderer.getCamera();
+  if(ex||ey){renderer.pan(-ex*650*elapsed,-ey*650*elapsed);const at=renderer.getCamera();if(at.x!==was.x||at.y!==was.y)refreshStroke();}
+ }
  // A capture holds only the next daily step; vehicles keep moving inside the day.
  if(speed>0){if(!capturingSave)tick(game,elapsed*speed,{reserved:preview});else{const room=Math.floor(game.day+1e-8)+1-game.day-1e-6;if(room>0)tick(game,Math.min(elapsed*speed,room));}}
  // Income floats up where cargo was paid for; deliveries at one stop within 300 ms share a figure.
@@ -1630,6 +1670,10 @@ function frame(now){
  if(selectedVehicle&&$('#inspector').hidden)clearVehicle();
  if(follow){const at=renderer.getCamera(),v=follow.vehicle;if(follow.id!==selectedVehicle||tool!=='inspect'||follow.cx!==undefined&&Math.hypot(at.x-follow.cx,at.y-follow.cy)>2)stopFollow();else if(!(Math.abs(v.x-follow.x)<=.01&&Math.abs(v.y-follow.y)<=.01)){const lift=followLift();renderer.focus(v.x,v.y);if(lift)renderer.pan(0,-lift);const next=renderer.getCamera();Object.assign(follow,{x:v.x,y:v.y,cx:next.x,cy:next.y});}}
  const camera=renderer.getCamera(),w=canvas.width,h=canvas.height;
+ // An aimed tile keeps hover and its tip through pans and pinches; a new stop's reach ring lets go after 1.5 s.
+ if(reachFlash&&(reachFlash.until<now||selected!==reachFlash)){if(selected===reachFlash)selected=null;reachFlash=null;}
+ const aim=liveAim();if(touchAim&&!aim){if(hover===touchAim.at)hover=null;touchAim=null;}
+ else if(aim){hover=aim.at;const key=`${camera.x},${camera.y},${camera.zoom},${camera.height},${w},${h},${game.revision}`;if(!$('.sidebar').classList.contains('mobile-open')&&(aim.key!==key||$('#placement-tip').hidden)){aim.key=key;updatePlacementTip();}}
  if(highlight.card&&!highlight.card.isConnected)highlight={id:null,until:0};const highlightRoute=highlight.until>now?highlight.id:null;
  const changed=!painted||painted.game!==game||painted.day!==game.day||painted.revision!==game.revision||painted.money!==game.money||painted.scene!==sceneRevision||painted.x!==camera.x||painted.y!==camera.y||painted.height!==camera.height||painted.zoom!==camera.zoom||painted.w!==w||painted.h!==h||painted.layers!==mapLayers||painted.tool!==tool||painted.hover!==hover||painted.preview!==preview||painted.selected!==selected||painted.mode!==preferredMode||painted.view!==view||painted.from!==formDraft.from||painted.to!==formDraft.to||painted.highlight!==highlightRoute;
  if(changed||floaterPaint){

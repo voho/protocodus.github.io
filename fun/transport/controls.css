@@ -141,3 +141,10 @@ html,body{overscroll-behavior:none}
 @media(max-width:700px){.compact-play .cargo-lens-chip{position:absolute;right:0;bottom:calc(100% + 8px);max-width:calc(100vw - 20px);margin:0}.compact-play .cargo-lens-chip button{flex-basis:36px;width:36px;height:36px}}
 /* A phone card (a stop, site or vehicle) rises above the lens chip, so both stay readable and the chip's × stays in reach. */
 @media(max-width:700px){.compact-play .map-section:has(.cargo-lens-chip) .inspector{bottom:112px;max-height:calc(100% - 188px)}}
+/* A touch aim holds the quote above its tile with a Place button; the rest of the tip lets taps through to the map. */
+.placement-tip.aim{box-shadow:0 4px 14px #23322030}
+.placement-tip.aim:has(.tip-place){display:flex;align-items:center;gap:12px;padding:6px 6px 6px 12px;border-radius:9px}
+.tip-place{flex:0 0 auto;min-width:64px;min-height:44px;padding:10px 14px;border-radius:7px;background:#4b7155;color:#fffcf3;font-size:14px;font-weight:600;pointer-events:auto}
+.tip-place:hover{background:#365c41}
+.tip-place:disabled{background:#e4e3d6;color:#8d9483;cursor:default}
+.compact-play:not(.page-zoomed) .tip-place{touch-action:none}

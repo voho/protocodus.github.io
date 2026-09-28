@@ -57,8 +57,14 @@ try {
     assert.match(await page.locator('#active-tool-hint').innerText(), /3 × 3/);
     const anchor = await screen(page, site);
     await page.waitForFunction(p => document.elementFromPoint(p.x, p.y)?.id === 'world', anchor);
-    if (profile.name === 'mobile') await page.touchscreen.tap(anchor.x, anchor.y);
-    else {
+    if (profile.name === 'mobile') {
+      // A costly site is aimed first: the tip quotes it above the tile, and Place builds it.
+      await page.touchscreen.tap(anchor.x, anchor.y);
+      assert.match(await page.locator('#placement-tip').innerText(), /^Stadium · 3 × 3 · \$[\d,]+/);
+      assert.equal((await siteState(page, site)).site, null, 'the first tap only aims the stadium');
+      await page.screenshot({ path: `${output}/${profile.name}-stadium-aim.png` });
+      await page.locator('#placement-tip .tip-place').tap();
+    } else {
       await page.mouse.move(anchor.x, anchor.y);
       assert.match(await page.locator('#placement-tip').innerText(), /3 × 3/);
       await page.mouse.click(anchor.x, anchor.y);

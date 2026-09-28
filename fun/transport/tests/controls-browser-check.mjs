@@ -453,6 +453,111 @@ async function keyboardCursor() {
   await page.close();
 }
 
+// Long strokes scroll the map at its edge and follow keyboard pans; touch shows the tip above the finger,
+// builds a stop on the first tap and flashes its reach, and aims a costly site until Place or a second tap.
+async function longStrokesAndTouch() {
+  const watch = async page => {
+    await page.evaluate(() => { const r = transport.renderer, render = r.render; r.render = (now, state) => { const end = state.preview.at(-1); window.stroke = { hover: state.hover && { x: state.hover.x, y: state.hover.y }, selected: state.selected && { x: state.selected.x, y: state.selected.y }, preview: state.preview.length, end: end && `${end.x},${end.y}`, tip: document.querySelector('#placement-tip').textContent }; return render(now, state); }; });
+    return () => page.evaluate(() => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(() => done(window.stroke)))));
+  };
+  const camera = page => page.evaluate(() => transport.renderer.getCamera());
+  const page = await start({ width: 1280, height: 800 }), site = await fixture(page), drawn = await watch(page);
+  await keyTool(page, 'r', /Road/);
+  const [a] = await points(page, [site.open]), world = await page.locator('#world').boundingBox();
+  await page.mouse.move(a.x, a.y); await page.mouse.down(); await page.mouse.move(world.x + world.width - 10, a.y, { steps: 8 });
+  const held = await drawn(), from = await camera(page);
+  await page.waitForTimeout(600);
+  const later = await drawn();
+  assert.notEqual((await camera(page)).x, from.x, 'a road held at the right edge scrolls the map');
+  assert.ok(later.preview > held.preview, `the held stroke grows while the map scrolls: ${held.preview} → ${later.preview}`);
+  assert.match(later.tip, new RegExp(`· ${later.preview} tiles`), 'the tip quotes the grown stroke');
+  await page.screenshot({ path: `${output}/desktop-edge-scroll.png` });
+  await page.keyboard.press('Escape'); await page.mouse.up();
+  const [b, c] = await points(page, [site.open, { x: site.open.x + 4, y: site.open.y }]);
+  await page.mouse.move(b.x, b.y); await page.mouse.down(); await page.mouse.move(c.x, c.y, { steps: 4 });
+  const still = { tip: await page.locator('#placement-tip').textContent(), end: (await drawn()).end };
+  await page.keyboard.press('ArrowUp');
+  const panned = { tip: await page.locator('#placement-tip').textContent(), end: (await drawn()).end };
+  assert.ok(panned.end !== still.end || panned.tip !== still.tip, `ArrowUp mid-drag moves the stroke's end with the map: ${JSON.stringify([still, panned])}`);
+  await page.keyboard.press('Escape'); await page.mouse.up();
+  await page.close();
+
+  const mobile = await start({ width: 390, height: 844 }, true), phone = await fixture(mobile), seen = await watch(mobile);
+  const cdp = await mobile.context().newCDPSession(mobile);
+  const touch = (id, x, y) => ({ id, x, y, radiusX: 6, radiusY: 6, force: 1 });
+  const send = (type, touchPoints) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints });
+  const tip = () => mobile.evaluate(() => { const t = document.querySelector('#placement-tip'), r = t.getBoundingClientRect(); return { visible: !t.hidden, text: t.textContent, invalid: t.classList.contains('invalid'), place: t.querySelector('.tip-place') ? !t.querySelector('.tip-place').disabled : null, x: r.x, y: r.y, bottom: r.bottom }; });
+  const money = () => mobile.evaluate(() => transport.game.money);
+  await keyTool(mobile, 'r', /Road/);
+  const [f0, f1] = await points(mobile, [phone.open, { x: phone.open.x + 3, y: phone.open.y }]), untouched = await snapshot(mobile, phone);
+  await send('touchStart', [touch(1, f0.x, f0.y)]);
+  for (let i = 1; i <= 6; i++) await send('touchMove', [touch(1, f0.x + (f1.x - f0.x) * i / 6, f0.y + (f1.y - f0.y) * i / 6)]);
+  await seen();
+  const dragged = await tip();
+  assert.equal(dragged.visible, true);
+  assert.ok(dragged.bottom <= f1.y - 40, `the tip clears the finger: bottom ${dragged.bottom}, finger ${f1.y}`);
+  await mobile.screenshot({ path: `${output}/mobile-tip-above-finger.png` });
+  const reach = (await seen()).preview, before = await camera(mobile);
+  await send('touchMove', [touch(1, 390 - 14, f1.y)]);
+  await mobile.waitForTimeout(600);
+  assert.notEqual((await camera(mobile)).x, before.x, 'a finger held at the edge scrolls the map');
+  assert.ok((await seen()).preview > reach, 'and the stroke grows with it');
+  await send('touchCancel', []);
+  assert.equal(await snapshot(mobile, phone), untouched, 'a cancelled touch stroke builds nothing');
+
+  await keyTool(mobile, 's', /Stop/);
+  let spent = await money();
+  const [grass] = await points(mobile, [{ x: phone.stop.x, y: phone.stop.y + 2 }]);
+  await mobile.touchscreen.tap(grass.x, grass.y);
+  assert.deepEqual(await tip().then(t => [t.visible, t.invalid, t.text, t.place]), [true, true, 'Build a road here first.', null], 'a refused tap names its reason in the tip');
+  assert.equal(await money(), spent, 'and spends nothing');
+  const [stop] = await points(mobile, [phone.stop]);
+  await mobile.touchscreen.tap(stop.x, stop.y);
+  assert.equal(await mobile.evaluate(p => transport.game.stations.find(s => s.x === p.x && s.y === p.y)?.mode, phone.stop), 'road', 'a stop builds on the first tap');
+  assert.ok(await money() < spent, 'and is paid for');
+  assert.deepEqual(await seen().then(s => [s.hover, s.selected]), [null, { x: phone.stop.x, y: phone.stop.y }], 'its reach ring stays up after the finger lifts');
+  await mobile.screenshot({ path: `${output}/mobile-stop-reach.png` });
+  await mobile.waitForTimeout(1700);
+  assert.equal((await seen()).selected, null, 'and fades after a moment and a half');
+
+  await mobile.evaluate(() => transport.setTool('city'));
+  assert.equal(await mobile.locator('#active-tool-hint').innerText(), 'Tap to preview · Tap again to place');
+  const towns = () => mobile.evaluate(() => transport.game.cities.length), count = await towns();
+  spent = await money();
+  const [site1] = await points(mobile, [phone.open]);
+  await mobile.touchscreen.tap(site1.x, site1.y);
+  const aimed = await tip();
+  assert.equal(await money(), spent, 'the first tap on a costly site spends nothing');
+  assert.equal(await towns(), count);
+  assert.match(aimed.text, /^Found a town · \$[\d,]+Place$/, 'the tip quotes the town');
+  assert.equal(aimed.place, true, 'and offers Place');
+  assert.ok(aimed.bottom <= site1.y - 40, 'above the aimed tile');
+  await mobile.screenshot({ path: `${output}/mobile-aim-town.png` });
+  const view = await camera(mobile);
+  await send('touchStart', [touch(1, 200, 700)]);
+  for (let i = 1; i <= 8; i++) await send('touchMove', [touch(1, 200 + i * 8, 700 - i * 5)]);
+  await send('touchEnd', []);
+  await seen();
+  const followed = await tip();
+  assert.notEqual((await camera(mobile)).x, view.x, 'a swipe after aiming pans the map');
+  assert.equal(await towns(), count, 'without building');
+  assert.equal(followed.visible, true);
+  assert.ok(Math.abs(followed.x - aimed.x - 64) <= 2 && Math.abs(followed.y - aimed.y + 40) <= 2, `the tip follows its tile: ${aimed.x},${aimed.y} → ${followed.x},${followed.y}`);
+  const [site2] = await points(mobile, [phone.open]);
+  await mobile.touchscreen.tap(site2.x, site2.y);
+  assert.equal(await towns(), count + 1, 'a second tap on the aimed tile founds the town');
+  assert.equal(spent - await money(), Number(aimed.text.match(/\$([\d,]+)/)[1].replaceAll(',', '')), 'for exactly the quote');
+  assert.equal((await tip()).visible, false);
+  await mobile.evaluate(() => transport.setTool('hospital'));
+  const [site3] = await points(mobile, [{ x: phone.open.x - 4, y: phone.open.y - 6 }]);
+  await mobile.touchscreen.tap(site3.x, site3.y);
+  assert.equal((await tip()).place, true);
+  await mobile.locator('#cancel-tool-button').tap();
+  assert.equal((await tip()).visible, false, 'Done drops the aim');
+  assert.equal((await seen()).hover, null);
+  await mobile.close();
+}
+
 async function menus(page) {
   assert.equal(await page.locator('#zoom-menu').isVisible(), false);
   assert.equal(await page.locator('#map-options').isVisible(), false);
@@ -577,6 +682,7 @@ try {
   await terrainRoutes();
   await constructionUndo();
   await keyboardCursor();
+  await longStrokesAndTouch();
   const page = await start({ width: 1440, height: 1000 });
   await page.locator('.main-nav [data-view="build"]').click(); await page.locator('.sidebar').waitFor({ state: 'visible' });
   assert.deepEqual(await page.locator('#panel-content > .tool-grid [data-tool]').evaluateAll(nodes => nodes.map(node => node.dataset.tool)), ['road', 'rail', 'stop', 'port', 'bulldoze'], 'five primary network tools stay visible; engineering choices are expandable');
