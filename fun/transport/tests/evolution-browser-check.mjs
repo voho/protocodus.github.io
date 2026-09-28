@@ -23,7 +23,8 @@ try{
     return {first:g.routes[0].id,ship:ship.route.id};
   });
   await page.locator('.main-nav [data-view="routes"]').click();
-  assert.equal(await page.locator('[data-upgrade-route]').count(),3);
+  assert.equal(await page.locator('[data-upgrade-route]').count(),0,'cards offer no upgrade before a newer model exists');
+  assert.equal(await page.locator('.route-vehicle-spec .route-model').count(),3,'each card says its model is the latest');
   assert.equal(await page.locator('#upgrade-fleet').isDisabled(),true,'no future vehicles can be bought in the first year');
   await page.evaluate(async()=>{const {tick}=await import('./model.js');tick(transport.game,365-transport.game.day);});
   await page.waitForFunction(()=>document.querySelector('#date').textContent.includes('1951'));

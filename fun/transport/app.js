@@ -15,6 +15,7 @@ import { routesNeedingAttention } from './gameplay-insights.js';
 import { TILE } from './sprites.js';
 import { drainDeliveryEvents } from './model.js';
 import { renameStation, renameRoute } from './model.js';
+import { editRoute } from './model.js';
 import { drawUIArtwork } from './ui-art.js';
 import { integerText, tenthsText, compactText, dayText, monthText, longDayText } from './formatters.js';
 import { BUILDINGS, BUILDING_GROUPS } from './buildings.js';
@@ -343,25 +344,25 @@ function buildPanel() {
  return `<div class="panel-heading"><h2>Build</h2></div>${tabs}${category==='industry'?industries:`<div class="tool-grid">${groups[category].map(key=>toolCard(key)).join('')}</div>`}${tool==='stop'?`<div class="stop-mode-picker" role="group" aria-label="Stop type at road and rail crossings"><span>At crossings</span>${['road','rail'].map(mode=>`<button data-stop-mode="${mode}" aria-pressed="${preferredMode===mode}">${icon(mode)} ${mode==='road'?'Road':'Rail'}</button>`).join('')}</div>`:''}${category==='network'?engineeringTools():''}<div class="tool-description">${category==='network'&&tool==='inspect'?'Roads and rails climb straight slopes. Level awkward ground in Terrain & crossings.':escapeHTML(toolDescription(tool))}</div><div class="build-bottom-tools"><button class="compact-tool ${tool==='inspect'?'active':''}" data-tool="inspect">${icon('inspect')} Explore <span>Esc</span></button>${category!=='network'?`<button class="compact-tool danger ${tool==='bulldoze'?'active':''}" data-tool="bulldoze">${icon('bulldoze')} Bulldozer <span>X</span></button>`:''}</div>${category==='towns'?buildingPalette():projectCard()+`<button class="text-button" data-action="help">How to play <span>↗</span></button>`}`;
 }
 function cargoChoices(options=[]) {
- const available=routeCargoList(game).map(key=>[key,CARGO[key]]),verdicts=new Map(options.map(option=>[option.cargo,option]));
+ const available=routeCargoList(game).filter(editCargo).map(key=>[key,CARGO[key]]),verdicts=new Map(options.map(option=>[option.cargo,option]));
  const fit=(key,c)=>{const option=verdicts.get(key);return (option?` data-fits="${option.valid}"`:'')+` title="${escapeHTML(option&&!option.valid?option.message:c.name)}"`;};
  return `<fieldset class="cargo-field"><legend>Cargo</legend><select name="cargo" hidden aria-hidden="true" tabindex="-1">${available.map(([key,c])=>`<option value="${key}" ${formDraft.cargo===key?'selected':''}>${c.name}</option>`).join('')}</select><div class="cargo-picker" role="group" aria-label="Choose cargo">${available.map(([key,c])=>`<button type="button" class="cargo-choice" data-cargo-choice="${key}" aria-pressed="${formDraft.cargo===key}"${fit(key,c)}>${cargoIcon(key,{decorative:true})}<span>${c.name}</span>${verdicts.get(key)?.valid?`${icon('check','cargo-fit')}<span class="sr-only"> · fits these stops</span>`:''}</button>`).join('')}</div></fieldset>`;
 }
 function coverageNote(id,key,interactive=false) {
  const station=game.stations.find(s=>String(s.id)===String(id));if(!station)return '';
  const cargo=stationCoverage(game,station)[key];
- const badge=key=>interactive&&Object.hasOwn(CARGO,key)?`<button type="button" class="coverage-pick" data-cargo-pick="${key}" title="Carry ${escapeHTML(CARGO[key].name.toLowerCase())}">${cargoBadge(key)}</button>`:cargoBadge(key);
+ const badge=key=>interactive&&Object.hasOwn(CARGO,key)&&editCargo(key)?`<button type="button" class="coverage-pick" data-cargo-pick="${key}" title="Carry ${escapeHTML(CARGO[key].name.toLowerCase())}">${cargoBadge(key)}</button>`:cargoBadge(key);
  return `<div class="coverage-note"><strong>${key==='produces'?'Loads':'Accepts'}</strong><span class="coverage-cargo">${cargo.length?cargo.map(badge).join(''):'No cargo nearby'}</span></div>`;
 }
 function routeForm() {
- const stations=game.stations.filter(s=>s.mode===formDraft.mode),purchase=getVehiclePurchase(game,formDraft.mode);
+ const editing=editingRoute(),stations=game.stations.filter(s=>s.mode===formDraft.mode),purchase=getVehiclePurchase(game,formDraft.mode);
  // Older saves can hold two stops of one name; their tiles tell them apart.
  const named=new Map();for(const s of stations)named.set(s.name,(named.get(s.name)||0)+1);
  const opts=(current)=>'<option value="">Choose a stop…</option>'+stations.map(s=>`<option value="${s.id}" ${String(s.id)===String(current)?'selected':''}>${escapeHTML(named.get(s.name)>1?`${s.name} · ${s.x}, ${s.y}`:s.name)}</option>`).join('');
- const plan=validateRoutePlan(game,formDraft),options=formDraft.from&&formDraft.to?routeCargoOptions(game,formDraft):[];
+ const plan=draftPlan(),options=formDraft.from&&formDraft.to?routeCargoOptions(game,formDraft):[];
  const stopField=(key,label,coverage)=>`<div class="route-stop-field"><div class="route-stop-label"><span>${label}</span><button type="button" data-pick-route="${key}" aria-pressed="${routePicking===key}" aria-label="Select ${key==='from'?'start':'end'} stop on map">${icon('focus')} Pick on map</button></div><label class="form-field"><span class="sr-only">${label} stop</span><select name="${key}" required>${opts(formDraft[key])}</select></label>${coverageNote(formDraft[key],coverage,true)}</div>`;
  const swap=`<div class="route-swap"><button type="button" id="swap-route-stops" aria-label="Swap start and end" title="Swap start and end" ${formDraft.from||formDraft.to?'':'disabled'}>${icon('swap')}</button></div>`;
- return `<details id="route-planner" class="route-planner" ${routePicking||formDraft.open!==false||!game.routes.length?'open':''}><summary>${icon('route')}<h3>New route</h3></summary><form id="route-form" class="panel-form"><p class="form-note">Pick a start, then an end. We’ll check the connection and suggest cargo.</p><label class="form-field"><span>Name (optional)</span><input name="name" maxlength="36" placeholder="${escapeHTML(defaultRouteName(game,plan,formDraft.cargo)||'Route name')}" value="${escapeHTML(formDraft.name)}"></label><label class="form-field"><span>Transport</span><select name="mode"><option value="road" ${formDraft.mode==='road'?'selected':''}>Road · bus / truck</option><option value="rail" ${formDraft.mode==='rail'?'selected':''}>Rail · train</option><option value="water" ${formDraft.mode==='water'?'selected':''}>Water · ship / ferry</option></select></label>${formDraft.mode==='water'?'<p class="form-note">Ports need connected water. Ships pass beneath bridges.</p>':''}${stopField('from','Start','produces')}${swap}${stopField('to','End','accepts')}${cargoChoices(options)}<div id="route-connection" class="route-connection" role="status" aria-live="polite" data-state="${plan.state}" data-valid="${plan.valid}" data-message="${escapeHTML(routePlanText(plan))}">${routePlanMessage(plan)}</div>${routeForecast(plan)}<div class="purchase-vehicle"><canvas width="80" height="64" data-vehicle-sprite="purchase" data-mode="${formDraft.mode}" data-cargo="${formDraft.cargo}" data-level="${purchase.level}" aria-hidden="true"></canvas><div class="form-summary"><span id="vehicle-purchase-spec">Gen ${purchase.level+1} · ${purchase.capacity} units</span><strong id="vehicle-purchase-price">${money(purchase.cost)}</strong></div></div><div id="route-launch" class="route-launch" data-existing="${escapeHTML(plan.existingRouteId||'')}">${launchButtons(plan)}</div><p class="form-note">Route earnings must cover daily upkeep. Upgrade only when demand needs more capacity.</p></form></details>`;
+ return `<details id="route-planner" class="route-planner" ${routePicking||formDraft.open!==false||!game.routes.length?'open':''}><summary>${icon(editing?'pencil':'route')}<h3>${editing?'Edit route':'New route'}</h3></summary><form id="route-form" class="panel-form">${editing?editNote(editing):`<p class="form-note">Pick a start, then an end. We’ll check the connection and suggest cargo.</p><label class="form-field"><span>Name (optional)</span><input name="name" maxlength="36" placeholder="${escapeHTML(defaultRouteName(game,plan,formDraft.cargo)||'Route name')}" value="${escapeHTML(formDraft.name)}"></label>`}<label class="form-field"><span>Transport</span><select name="mode" ${editing?'disabled':''}><option value="road" ${formDraft.mode==='road'?'selected':''}>Road · bus / truck</option><option value="rail" ${formDraft.mode==='rail'?'selected':''}>Rail · train</option><option value="water" ${formDraft.mode==='water'?'selected':''}>Water · ship / ferry</option></select></label>${formDraft.mode==='water'?'<p class="form-note">Ports need connected water. Ships pass beneath bridges.</p>':''}${stopField('from','Start','produces')}${swap}${stopField('to','End','accepts')}${cargoChoices(options)}<div id="route-connection" class="route-connection" role="status" aria-live="polite" data-state="${plan.state}" data-valid="${plan.valid}" data-message="${escapeHTML(routePlanText(plan))}">${routePlanMessage(plan)}</div>${routeForecast(plan)}${editing?'':`<div class="purchase-vehicle"><canvas width="80" height="64" data-vehicle-sprite="purchase" data-mode="${formDraft.mode}" data-cargo="${formDraft.cargo}" data-level="${purchase.level}" aria-hidden="true"></canvas><div class="form-summary"><span id="vehicle-purchase-spec">Gen ${purchase.level+1} · ${purchase.capacity} units</span><strong id="vehicle-purchase-price">${money(purchase.cost)}</strong></div></div>`}<div id="route-launch" class="route-launch" data-existing="${escapeHTML(plan.existingRouteId||'')}">${launchButtons(plan)}</div>${editing?'':'<p class="form-note">Route earnings must cover daily upkeep. Upgrade only when demand needs more capacity.</p>'}</form></details>`;
 }
 function routesPanel() {
  const options=(entries,current)=>entries.map(([key,label])=>`<option value="${key}" ${key===current?'selected':''}>${escapeHTML(label)}</option>`).join('');
@@ -377,11 +378,13 @@ function routePageCards(routes) {
  const controls=pages>1?`<nav class="route-pagination" aria-label="Route pages"><button class="small-button" data-route-page="previous" ${routePage===0?'disabled':''}>Previous</button><span>Page ${routePage+1} of ${pages}</span><button class="small-button" data-route-page="next" ${routePage===pages-1?'disabled':''}>Next</button></nav>`:'';
  return controls+routeCards(visible)+controls;
 }
+// A card keeps three actions: Show, Edit and Retire. Its vehicle row offers an upgrade while a newer model exists.
 function routeCards(routes) {
  const stopsById=new Map(game.stations.map(stop=>[stop.id,stop]));
  return routes.length?routes.map(route=>{
  const from=stopsById.get(route.stops[0]),to=stopsById.get(route.stops[1]),health=routeHealth(game,route,getRouteFleet(game,route.id)),rate=routeRate(route),profit=route.revenue-(route.revenueAtAccountingStart||0)-(route.expenses||0);
- return `<article class="route-card" data-route-id="${route.id}"><div class="route-header"><span class="route-dot" style="background:${escapeHTML(route.color||'#d9965c')}"></span><strong><span>${escapeHTML(route.name)}</span>${renameButton('route',route.id)}</strong><span data-route-status="${route.id}">${escapeHTML(health.label)}</span></div><div class="route-journey">${escapeHTML(from?.name||'Removed stop')}${icon('arrow')}${escapeHTML(to?.name||'Removed stop')}</div><div class="route-stats"><span class="route-mode-icon" title="${transportName(route.mode)}"><canvas width="80" height="64" data-vehicle-sprite="${route.id}" aria-hidden="true"></canvas><span class="sr-only">${transportName(route.mode)}</span></span>${cargoBadge(route.cargo,{label:true})}<span data-route-stat="${route.id}">${integer(route.delivered)} moved</span></div><div class="route-earnings"><span>Net earned</span><strong data-route-revenue="${route.id}" title="Revenue minus route upkeep; excludes construction.">${profit<0?'−':''}${money(profit)}</strong><span class="route-rate" data-route-rate="${route.id}" title="${escapeHTML(rate.title)}">${rate.text}</span></div><div class="route-condition"><span class="route-waiting" data-route-waiting="${route.id}" data-state="${health.state}">${waitingText(health)}</span><p class="route-health" data-route-health="${route.id}" data-state="${health.state}" title="${escapeHTML(health.detail)}">${escapeHTML(health.detail)}</p></div><div class="route-vehicle-spec">${fleetStepper(route)}</div><div class="route-actions"><button class="small-button" data-focus-route="${route.id}">Show</button>${upgradeButton(route)}<button class="small-button danger" data-remove-route="${route.id}">Retire</button></div></article>`;}).join(''):`<div class="empty-state">${icon('route')}${game.routes.length?'No routes match these filters.':'Connect two stops to start.'}</div>`;
+ const upgrade=getVehicleUpgrade(game,route.id);
+ return `<article class="route-card" data-route-id="${route.id}"><div class="route-header"><span class="route-dot" style="background:${escapeHTML(route.color||'#d9965c')}"></span><strong><span>${escapeHTML(route.name)}</span>${renameButton('route',route.id)}</strong><span data-route-status="${route.id}">${escapeHTML(health.label)}</span></div><div class="route-journey">${escapeHTML(from?.name||'Removed stop')}${icon('arrow')}${escapeHTML(to?.name||'Removed stop')}</div><div class="route-stats"><span class="route-mode-icon" title="${transportName(route.mode)}"><canvas width="80" height="64" data-vehicle-sprite="${route.id}" aria-hidden="true"></canvas><span class="sr-only">${transportName(route.mode)}</span></span>${cargoBadge(route.cargo,{label:true})}<span data-route-stat="${route.id}">${integer(route.delivered)} moved</span></div><div class="route-earnings"><span>Net earned</span><strong data-route-revenue="${route.id}" title="Revenue minus route upkeep; excludes construction.">${profit<0?'−':''}${money(profit)}</strong><span class="route-rate" data-route-rate="${route.id}" title="${escapeHTML(rate.title)}">${rate.text}</span></div><div class="route-condition"><span class="route-waiting" data-route-waiting="${route.id}" data-state="${health.state}">${waitingText(health)}</span><p class="route-health" data-route-health="${route.id}" data-state="${health.state}" title="${escapeHTML(health.detail)}">${escapeHTML(health.detail)}</p></div><div class="route-vehicle-spec">${fleetStepper(route)}${upgrade.available?upgradeButton(route,upgrade):`<span class="route-model" title="${escapeHTML(upgradeTitle(upgrade))}">Latest model</span>`}</div><div class="route-actions"><button class="small-button" data-focus-route="${route.id}">Show</button><button class="small-button" data-edit-route="${route.id}">Edit</button><button class="small-button danger" data-remove-route="${route.id}">Retire</button></div></article>`;}).join(''):`<div class="empty-state">${icon('route')}${game.routes.length?'No routes match these filters.':'Connect two stops to start.'}</div>`;
 }
 const fleetNoun = (route,count) => { const noun=vehicleNoun(route.mode,route.cargo);return count===1?noun:noun==='bus'?'buses':noun+'s'; };
 function vehicleSpec(route) { const fleet=getRouteFleet(game,route.id);return {text:`${fleet.count} ${fleetNoun(route,fleet.count)} · ${integer(fleet.load)} / ${integer(fleet.capacity)} loaded`,title:`${integer(fleet.capacity)} units · Gen ${fleet.minLevel+1}${fleet.maxLevel>fleet.minLevel?'–'+(fleet.maxLevel+1):''}`}; }
@@ -412,8 +415,7 @@ function changeFleet(routeId,add) {
 function upgradeTitle(quote) {
  return quote.available?`${quote.capacity} → ${quote.nextCapacity} capacity · ${quote.speedMultiplier.toFixed(1)}× → ${quote.nextSpeedMultiplier.toFixed(1)}× speed${quote.affordable?'':' · More funds needed'}`:`Next vehicle model: January ${1951+quote.targetLevel}`;
 }
-function upgradeButton(route) {
- const quote=getVehicleUpgrade(game,route.id);
+function upgradeButton(route,quote=getVehicleUpgrade(game,route.id)) {
  return `<button class="small-button route-upgrade-button" data-upgrade-route="${escapeHTML(route.id)}" title="${escapeHTML(upgradeTitle(quote))}" ${quote.available&&quote.affordable?'':'disabled'}>${quote.available?'Upgrade · '+compactMoney(quote.cost):'Latest model'}</button>`;
 }
 function fleetControls() {
@@ -517,6 +519,7 @@ function performUpgrade(routeId) {
 }
 // A route on the same stops and cargo takes another vehicle; a separate service stays possible.
 function launchButtons(plan) {
+ if(editingRoute())return `<button class="button button-primary full" type="submit" ${plan.valid&&editChanges(plan)?'':'disabled'}>Save changes</button><button class="route-edit-cancel" type="button" id="cancel-route-edit">Cancel</button>`;
  const existing=plan.existingRouteId?game.routes.find(route=>route.id===plan.existingRouteId):null;
  if(!existing)return `<button class="button button-primary full" type="submit" ${plan.valid?'':'disabled'}>${icon(transportIcon(formDraft.mode))} Launch route</button>`;
  const order=fleetOrder(existing);
@@ -526,13 +529,44 @@ function addFromPlanner(routeId) {
  const result=addRouteVehicle(game,routeId);toast(result.message,!result.ok);
  if(result.ok){cancelRoutePicking();formDraft.name='';formDraft.autoNote='';formDraft.open=false;renderPanel();updateHud();persist();flashRoute(routeId);}
 }
-function routePlanText(plan) { const existing=plan.existingRouteId&&game.routes.find(route=>route.id===plan.existingRouteId),message=existing?`Already served by ${existing.name}`:plan.message;return formDraft.autoNote?`${message.replace(/\.$/,'')} · ${formDraft.autoNote}`:message; }
+// Edit reuses the planner for one route: its transport stays, nothing is bought or sold, and buses never turn into trucks.
+const editingRoute = () => formDraft.editing?game.routes.find(route=>route.id===formDraft.editing)||null:null;
+const editCargo = cargo => { const route=editingRoute();return !route||(cargo==='passengers')===(route.cargo==='passengers'); };
+const draftPlan = () => validateRoutePlan(game,formDraft,{ignoreFunds:Boolean(editingRoute())});
+function editChanges(plan) { const route=editingRoute(),[a,b]=plan.reversed?[...plan.stations].reverse():plan.stations;return !route||a?.id!==route.stops[0]||b?.id!==route.stops[1]||formDraft.cargo!==route.cargo; }
+function editNote(route) { const count=getRouteFleet(game,route.id).count;return `<p class="form-note route-edit-note"><strong>${escapeHTML(route.name)}</strong> keeps its ${count===1?fleetNoun(route,1):count+' '+fleetNoun(route,count)}. Change the stops${route.cargo==='passengers'?'':' or the freight'}; nothing is bought or sold.</p>`; }
+function startRouteEdit(id,keyboard) {
+ const route=game.routes.find(r=>r.id===id);if(!route)return;
+ cancelRoutePicking();formDraft={editing:route.id,name:'',mode:route.mode,from:String(route.stops[0]),to:String(route.stops[1]),cargo:route.cargo,open:true,autoKey:`${route.stops[0]}|${route.stops[1]}|${route.mode}`};
+ setView('routes');$('#route-planner')?.scrollIntoView({block:'start',behavior:'smooth'});if(keyboard)$('#route-form [name=from]')?.focus({preventScroll:true});
+}
+function leaveRouteEdit(open=false) { formDraft={name:'',mode:'road',from:'',to:'',cargo:'passengers',open}; }
+function cancelRouteEdit() {
+ const id=formDraft.editing;cancelRoutePicking();leaveRouteEdit();renderPanel();
+ const card=$$('#route-list [data-route-id]').find(el=>el.dataset.routeId===id);if(card)revealInPanel(card,card.querySelector('[data-edit-route]'));
+}
+// A new freight leaves the old load behind, so a loaded fleet asks first.
+function saveRouteEdit(plan) {
+ const route=editingRoute(),aboard=formDraft.cargo!==route.cargo?getRouteFleet(game,route.id).load:0;
+ if(!aboard)return commitRouteEdit(route,plan);
+ openModal(`<div class="modal-inner"><div class="modal-heading"><div><span class="eyebrow">Network</span><h2>Change the freight?</h2><p>${integer(aboard)} ${aboard===1?'unit':'units'} of ${escapeHTML(CARGO[route.cargo].name.toLowerCase())} aboard will be discarded. ${escapeHTML(route.name)} then carries ${escapeHTML(CARGO[formDraft.cargo].name.toLowerCase())}.</p></div><button class="close-modal" aria-label="Close dialog">×</button></div><div class="modal-actions"><button class="button button-outline" data-close>Keep editing</button><button class="button button-orange" id="confirm-route-edit">Discard and save</button></div></div>`);
+ $('#confirm-route-edit').addEventListener('click',()=>{closeModal();commitRouteEdit(route,plan);});
+}
+// A route still called by its stops follows them; a name the player chose stays.
+function commitRouteEdit(route,plan) {
+ const before=validateRoutePlan(game,{mode:route.mode,from:route.stops[0],to:route.stops[1],cargo:route.cargo},{ignoreFunds:true}),named=route.name!==defaultRouteName(game,before,route.cargo),name=defaultRouteName(game,plan,formDraft.cargo);
+ const [a,b]=plan.stations,result=editRoute(game,route.id,{stops:[a.id,b.id],cargo:formDraft.cargo});
+ if(result.ok&&!named&&name&&name!==route.name)renameRoute(game,route.id,name);
+ toast(result.message,!result.ok);
+ if(result.ok){cancelRoutePicking();leaveRouteEdit();renderPanel();updateHud();persist();flashRoute(route.id);}
+}
+function routePlanText(plan) { const existing=plan.existingRouteId&&plan.existingRouteId!==formDraft.editing&&game.routes.find(route=>route.id===plan.existingRouteId),message=existing?`Already served by ${existing.name}`:plan.message;return formDraft.autoNote?`${message.replace(/\.$/,'')} · ${formDraft.autoNote}`:message; }
 function routePlanMessage(plan) { return icon(plan.valid?'check':plan.state==='missing'?'route':'warning')+`<span>${escapeHTML(routePlanText(plan))}</span>`; }
 // One line of outlook under the status; supply, throughput and hints stay folded in Forecast details.
 const forecastDetailsOpen = () => { try { return localStorage.getItem('transport-forecast-details')==='open'; } catch { return false; } };
 const perDay = n => (n<9.95?Math.round(n*10)/10:Math.round(n)).toLocaleString('en-US');
 function routeOutlook(plan) {
- const f=forecastRoute(game,formDraft,plan);if(!f)return null;
+ const f=!editingRoute()&&forecastRoute(game,formDraft,plan);if(!f)return null;
  const noun=vehicleNoun(formDraft.mode,formDraft.cargo),months=Math.max(1,Math.round(f.paybackMonths)),room=f.vehiclesToSaturate-1,rail=f.otherModes.find(other=>other.mode==='rail');
  const summary=f.netMonth>0?`≈ +${compactMoney(f.netMonth)} / month · pays back in about ${months<24?`${months}\u00a0month${months===1?'':'s'}`:`${Math.round(months/12)}\u00a0years`}`:'Likely to earn less than its upkeep';
  const shared=f.madeDay-f.supplyDay>.05,plural=noun==='bus'?'buses':noun+'s';
@@ -546,12 +580,12 @@ function routeForecast(plan) {
 }
 function refreshRoutePlan() {
  const status=$('#route-connection'),form=$('#route-form');if(!status||!form)return;
- const plan=validateRoutePlan(game,formDraft),text=routePlanText(plan),name=form.querySelector('[name=name]'),placeholder=defaultRouteName(game,plan,formDraft.cargo)||'Route name';
+ const plan=draftPlan(),text=routePlanText(plan),name=form.querySelector('[name=name]'),placeholder=defaultRouteName(game,plan,formDraft.cargo)||'Route name';
  if(status.dataset.message!==text){status.innerHTML=routePlanMessage(plan);status.dataset.message=text;}
- if(name.placeholder!==placeholder)name.placeholder=placeholder;
+ if(name&&name.placeholder!==placeholder)name.placeholder=placeholder;
  const launch=$('#route-launch'),existing=plan.existingRouteId||'';
  if(launch&&launch.dataset.existing!==existing){launch.innerHTML=launchButtons(plan);launch.dataset.existing=existing;}
- status.dataset.state=plan.state;status.dataset.valid=String(plan.valid);form.querySelector('[type=submit]').disabled=!plan.valid;
+ status.dataset.state=plan.state;status.dataset.valid=String(plan.valid);form.querySelector('[type=submit]').disabled=!plan.valid||!editChanges(plan);
  const forecast=$('#route-forecast'),outlook=routeOutlook(plan),shown=outlook?outlook.summary+outlook.facts:'';
  if(forecast&&forecast.dataset.shown!==shown){forecast.hidden=!outlook;forecast.dataset.outlook=outlook?.outlook||'';forecast.dataset.shown=shown;if(outlook){forecast.querySelector('.forecast-summary').textContent=outlook.summary;forecast.querySelector('.forecast-facts').innerHTML=outlook.facts;}}
  const add=$('#add-route-vehicle'),route=add&&game.routes.find(r=>r.id===add.dataset.route);
@@ -561,10 +595,10 @@ function refreshRoutePlan() {
 function autoSelectCargo() {
  const key=`${formDraft.from}|${formDraft.to}|${formDraft.mode}`;if(formDraft.autoKey===key)return;formDraft.autoKey=key;
  const stops=[formDraft.from,formDraft.to].map(id=>id?game.stations.find(s=>String(s.id)===String(id)):null);if(!stops[0]){formDraft.autoNote='';return;}
- const options=stops[1]?routeCargoOptions(game,formDraft):[];let next='';
+ const options=stops[1]?routeCargoOptions(game,formDraft).filter(option=>editCargo(option.cargo)):[];let next='';
  if(options.length)next=options[0].valid&&!options.some(option=>option.valid&&option.cargo===formDraft.cargo)?options[0].cargo:'';
  else if(!stops.some(stop=>stop&&stationCoverage(game,stop).produces.includes(formDraft.cargo)))next=stationCoverage(game,stops[0]).produces.find(cargo=>cargo!=='passengers'&&routeCargoList(game).includes(cargo))||'';
- if(next&&next!==formDraft.cargo){formDraft.cargo=next;formDraft.autoNote=`Cargo set to ${CARGO[next].name}`;}
+ if(next&&next!==formDraft.cargo&&editCargo(next)){formDraft.cargo=next;formDraft.autoNote=`Cargo set to ${CARGO[next].name}`;}
  if(cargoLens?.origin==='routes'&&cargoLens.cargo!==formDraft.cargo)setCargoLens(null);
 }
 function bindRouteCards(root) {
@@ -577,6 +611,7 @@ function bindRouteCards(root) {
  root.querySelectorAll('[data-upgrade-route]').forEach(button=>button.addEventListener('click',()=>performUpgrade(button.dataset.upgradeRoute)));
  root.querySelectorAll('[data-focus-route]').forEach(el=>el.addEventListener('click',()=>showRoute(el.dataset.focusRoute)));
  root.querySelectorAll('[data-remove-route]').forEach(el=>el.addEventListener('click',()=>retireRoute(el.dataset.removeRoute)));
+ root.querySelectorAll('[data-edit-route]').forEach(el=>el.addEventListener('click',e=>startRouteEdit(el.dataset.editRoute,e.detail===0)));
  root.querySelectorAll('[data-add-vehicle],[data-sell-vehicle]').forEach(button=>button.addEventListener('click',()=>changeFleet(button.dataset.addVehicle||button.dataset.sellVehicle,button.hasAttribute('data-add-vehicle'))));
 }
 // Show frames the whole route at the closest zoom that fits its projected extent, then highlights it for a moment.
@@ -626,7 +661,7 @@ function pickRouteStopAt(x,y) {
  if(routePicking==='from'&&String(station.id)===String(formDraft.to))formDraft.to='';
  formDraft[routePicking]=String(station.id);
  if(routePicking==='from'&&!formDraft.to){routePicking='to';renderPanel();showRoutePickHint();}
- else{cancelRoutePicking();setView('routes');$('#route-form [type=submit]')?.scrollIntoView({block:'nearest',behavior:'smooth'});const plan=validateRoutePlan(game,formDraft);$('#status-message').textContent=plan.message;}
+ else{cancelRoutePicking();setView('routes');$('#route-form [type=submit]')?.scrollIntoView({block:'nearest',behavior:'smooth'});const plan=draftPlan();$('#status-message').textContent=plan.message;}
  return true;
 }
 // A cargo lens lights the producers and buyers of one freight cargo on the map, minimap and atlas; it is view state and never saved.
@@ -691,7 +726,7 @@ function renderPanel() {
  if($('#route-search'))$('#route-search').addEventListener('input',e=>{routeFilters.query=e.target.value;routePage=0;refreshRouteList();});
  for(const key of ['mode','status','cargo'])if($(`#route-filter-${key}`))$(`#route-filter-${key}`).addEventListener('change',e=>{routeFilters[key]=e.target.value;routePage=0;refreshRouteList();});
  if($('#clear-route-filters'))$('#clear-route-filters').onclick=()=>{routePage=0;routeFilters={query:'',mode:'all',status:'all',cargo:'all'};$('#route-search').value='';for(const key of ['mode','status','cargo'])$(`#route-filter-${key}`).value='all';refreshRouteList();};
- if($('#new-route-button'))$('#new-route-button').onclick=()=>{formDraft.open=true;$('#route-planner').open=true;$('#route-planner').scrollIntoView({block:'start',behavior:'smooth'});$('#route-form [name=name]').focus({preventScroll:true});};
+ if($('#new-route-button'))$('#new-route-button').onclick=()=>{if(formDraft.editing){cancelRoutePicking();leaveRouteEdit(true);renderPanel();}formDraft.open=true;$('#route-planner').open=true;$('#route-planner').scrollIntoView({block:'start',behavior:'smooth'});$('#route-form [name=name]').focus({preventScroll:true});};
  const planner=panel.querySelector('#route-planner');if(planner){planner.querySelector('summary').onclick=()=>{formDraft.open=!planner.open;};planner.addEventListener('toggle',()=>{if(planner.isConnected)formDraft.open=planner.open;});}
  panel.querySelector('.forecast-details')?.addEventListener('toggle',e=>{try{localStorage.setItem('transport-forecast-details',e.currentTarget.open?'open':'closed');}catch{}});
  if(planner){planner.addEventListener('toggle',()=>{if(!planner.open)dropCargoLens('routes');});if(!planner.open)dropCargoLens('routes');}
@@ -713,11 +748,13 @@ function renderPanel() {
    else if(key==='from'||key==='to'){cancelRoutePicking();const s=game.stations.find(s=>String(s.id)===e.target.value);if(s)renderer.focus(s.x,s.y);renderPanel();$(`#route-form [name=${key}]`)?.focus({preventScroll:true});}
   });
   form.addEventListener('submit',e=>{
-   e.preventDefault();const plan=validateRoutePlan(game,formDraft);refreshRoutePlan();if(!plan.valid)return toast(plan.message,true);
+   e.preventDefault();const plan=draftPlan();refreshRoutePlan();if(!plan.valid)return toast(plan.message,true);
+   if(editingRoute())return saveRouteEdit(plan);
    const [a,b]=plan.stations,result=addRoute(game,{name:formDraft.name.trim()||defaultRouteName(game,plan,formDraft.cargo),mode:formDraft.mode,stops:[a.id,b.id],cargo:formDraft.cargo});
    toast(result.message,!result.ok);if(result.ok){cancelRoutePicking();formDraft.name='';formDraft.autoNote='';formDraft.open=false;renderPanel();updateHud();persist();flashRoute(result.route.id);}
   });
   form.addEventListener('click',e=>{const button=e.target.closest('#add-route-vehicle');if(button)addFromPlanner(button.dataset.route);});
+  form.addEventListener('click',e=>{if(e.target.closest('#cancel-route-edit'))cancelRouteEdit();});
  }
 }
 function retireRoute(routeId) {
@@ -885,7 +922,7 @@ function servingStops(site) {
  return nearbyStations(game,site.x+(size-1)/2,site.y+(size-1)/2,STATION_RADIUS+size).filter(stop=>reach(stop)<=STATION_RADIUS).sort((a,b)=>reach(a)-reach(b));
 }
 function planRoute(draft,pick='') {
- formDraft={...formDraft,name:'',autoNote:'',open:true,...draft};setView('routes');
+ formDraft={...formDraft,name:'',autoNote:'',open:true,editing:'',...draft};setView('routes');
  if(pick)beginRoutePicking(pick);else $('#route-form')?.scrollIntoView({block:'nearest',behavior:'smooth'});
 }
 function stationCargoNotes(station) {
@@ -943,7 +980,7 @@ function inspect(x,y,kind='',origin='') {
  const focusTitle=()=>{if(origin==='keyboard')$('#inspector-title').focus({preventScroll:true});};
  if(!changed&&!box.hidden&&html===inspectorHTML&&key===inspectorKey){focusTitle();return;}
  box.innerHTML=inspectorHTML=html;inspectorKey=key;box.hidden=false;drawPaletteSprites();box.querySelector('.tiny-button').onclick=()=>{box.hidden=true;selected=null;inspectorHTML='';};
- if($('#station-route'))$('#station-route').onclick=()=>{if(formDraft.mode!==station.mode||formDraft.to===String(station.id))formDraft.to='';formDraft.mode=station.mode;formDraft.from=String(station.id);setView('routes');$('#route-form')?.scrollIntoView({block:'nearest',behavior:'smooth'});};
+ if($('#station-route'))$('#station-route').onclick=()=>{if(formDraft.editing)leaveRouteEdit(true);if(formDraft.mode!==station.mode||formDraft.to===String(station.id))formDraft.to='';formDraft.mode=station.mode;formDraft.from=String(station.id);setView('routes');$('#route-form')?.scrollIntoView({block:'nearest',behavior:'smooth'});};
  if($('#zone-town'))$('#zone-town').onclick=()=>{category='towns';setView('build');};
  if($('#industry-chain'))$('#industry-chain').onclick=()=>openChains({industryKind:industry.kind});
  bindServiceLinks(box);

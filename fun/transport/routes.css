@@ -118,3 +118,10 @@
 .contract-row[data-state=complete]{opacity:.75}
 .contract-row .small-button{flex:0 0 auto;min-height:33px}
 .route-rate[data-contract]{color:#b0592b}
+.route-vehicle-spec{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:6px;row-gap:1px}
+.route-vehicle-spec .fleet-stepper{grid-column:2;grid-row:1/span 2}
+.route-model{grid-column:1;color:#8c9783}
+.route-vehicle-spec .route-upgrade-button{grid-column:1;justify-self:start;margin:3px 0 0;min-height:26px;padding:2px 9px;font-size:11px}
+.route-edit-note strong{color:#3f5d34;font-weight:600}
+.route-edit-cancel{display:block;width:100%;min-height:40px;margin-top:4px;color:#5c7151;font-size:13px}
+.route-edit-cancel:hover{color:#3f5d34;text-decoration:underline}

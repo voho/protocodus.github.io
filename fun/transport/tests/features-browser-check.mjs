@@ -158,6 +158,8 @@ try {
   assert.equal(await fleetPage.evaluate(() => transport.game.money), fleetMoney - 18000, 'the bus costs its quoted price');
   assert.match(await starterCard.locator('[data-vehicle-spec]').textContent(), /^2 buses · \d+ \/ 48 loaded$/);
   assert.equal(await starterCard.locator('[data-sell-vehicle]').isDisabled(), false);
+  assert.deepEqual(await starterCard.locator('.route-actions button').allTextContents(), ['Show', 'Edit', 'Retire'], 'an up-to-date card keeps three actions');
+  assert.equal(await starterCard.locator('.route-vehicle-spec .route-model').textContent(), 'Latest model', 'the vehicle row says the model is current');
   assert.ok((await starterCard.boundingBox()).height <= 280, `390px route card stays compact: ${(await starterCard.boundingBox()).height}px`);
   assert.equal(await fits(fleetPage, '#panel-content'), true, '390px fleet controls fit the drawer');
   await starterCard.screenshot({ path: `${output}/mobile-390-fleet-card.png` });
@@ -181,6 +183,78 @@ try {
   await fleetPage.close();
   assert.deepEqual(errors, [], 'fleet controls run without console or runtime errors');
   console.log('Fleet checks passed: add and sell, price, count, retire refund, autosave reload, planner reuse, 390px card.');
+
+  // Edit moves the stone route to Pinehaven by Pick on map and keeps its trucks; a new freight asks before dropping the load.
+  const editPage = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+  watch(editPage);
+  await editPage.goto(url);
+  await createWorldFromMenu(editPage, { biome: 'taiga', size: 'square512', seed: 1847 });
+  const stone = await editPage.evaluate(async () => {
+    const { build, addRoute, addRouteVehicle } = await import('./model.js'), { buildPlan } = await import('./construction-plan.js'), game = transport.game;
+    const road = buildPlan(game, 'road', [251, 250, 249, 248, 247, 246, 245].map(y => ({ x: 219, y })), { preferredMode: 'road' }), stop = build(game, 'bus-stop', 219, 251);
+    const alder = game.stations.find(station => station.name === 'Alderbrook Central'), pine = game.stations.find(station => station.name === 'Pinehaven Central');
+    const launched = addRoute(game, { name: 'Stone · Stone quarry → Alderbrook', mode: 'road', stops: [stop.station.id, alder.id], cargo: 'stone' });
+    if (!road.ok || !stop.ok || !launched.ok) throw new Error(`Could not prepare the stone route: ${road.message}; ${stop.message}; ${launched.message}`);
+    addRouteVehicle(game, launched.route.id); transport.setView('routes');
+    return { id: launched.route.id, start: stop.station.id, pine, vehicles: game.vehicles.filter(vehicle => vehicle.routeId === launched.route.id).map(vehicle => vehicle.id) };
+  });
+  const stoneCard = editPage.locator(`.route-card[data-route-id="${stone.id}"]`), editMoney = await editPage.evaluate(() => transport.game.money);
+  await stoneCard.locator('[data-edit-route]').click();
+  assert.equal(await editPage.locator('#route-planner summary h3').textContent(), 'Edit route');
+  assert.match(await editPage.locator('.route-edit-note').textContent(), /^Stone · Stone quarry → Alderbrook keeps its 2 trucks\./);
+  assert.equal(await editPage.locator('#route-form [name="mode"]').isDisabled(), true, 'the transport is fixed');
+  assert.deepEqual(await editPage.evaluate(() => ['.purchase-vehicle', '#route-form [name="name"]', '[data-cargo-choice="passengers"]'].map(selector => document.querySelectorAll(selector).length)), [0, 0, 0], 'no purchase, no name field, and trucks never carry passengers');
+  assert.equal(await editPage.locator('#route-forecast').isHidden(), true);
+  assert.equal(await editPage.locator('#route-form [type="submit"]').textContent(), 'Save changes');
+  assert.equal(await editPage.locator('#route-form [type="submit"]').isDisabled(), true, 'nothing to save before a change');
+  await editPage.locator('[data-pick-route="to"]').click();
+  await clickStationBadge(editPage, stone.pine);
+  await editPage.locator('#route-pick-banner').waitFor({ state: 'hidden' });
+  assert.equal(await editPage.locator('#route-form [name="to"]').inputValue(), stone.pine.id);
+  await verifyConnection(editPage, 'connected', true);
+  await editPage.screenshot({ path: `${output}/desktop-edit-route.png` });
+  await editPage.locator('#route-form [type="submit"]').click();
+  await editPage.locator('#route-planner summary h3').filter({ hasText: 'New route' }).waitFor();
+  const moved = await editPage.evaluate(id => { const route = transport.game.routes.find(route => route.id === id); return { stops: route.stops, name: route.name, money: transport.game.money, vehicles: transport.game.vehicles.filter(vehicle => vehicle.routeId === id).map(vehicle => vehicle.id) }; }, stone.id);
+  assert.deepEqual(moved.stops, [stone.start, stone.pine.id], 'the route now ends at Pinehaven');
+  assert.equal(moved.money, editMoney, 'an edit costs nothing');
+  assert.deepEqual(moved.vehicles, stone.vehicles, 'the same trucks run the new route');
+  assert.equal(moved.name, 'Stone · Stone quarry → Pinehaven', 'a default name follows its stops');
+  assert.match(await stoneCard.locator('.route-journey').textContent(), /Pinehaven Central$/, 'the card journey shows the new end');
+  assert.equal(await editPage.locator('#route-planner').evaluate(element => element.open), false, 'saving folds the planner');
+  // A refinery by the quarry lets the same trucks carry fuel to Pinehaven instead.
+  const fuelMoney = await editPage.evaluate(async start => {
+    const { build, buildProblem } = await import('./model.js'), game = transport.game, stop = game.stations.find(station => station.id === start);
+    const site = [[-1, 1], [0, 2], [1, 2], [-5, 2]].find(([dx, dy]) => !buildProblem(game, 'refinery', stop.x + dx, stop.y + dy));
+    if (!site || !build(game, 'refinery', stop.x + site[0], stop.y + site[1]).ok) throw new Error('No room for a refinery by the quarry stop');
+    transport.setView('routes');
+    return game.money;
+  }, stone.start);
+  await stoneCard.locator('[data-edit-route]').click();
+  await editPage.locator('[data-cargo-choice="fuel"]').click();
+  await verifyConnection(editPage, 'connected', true);
+  await editPage.locator('#route-form [type="submit"]').click();
+  assert.match(await editPage.locator('#modal').innerText(), /\d+ units of stone aboard will be discarded\./);
+  await editPage.screenshot({ path: `${output}/desktop-edit-route-confirm.png` });
+  await editPage.locator('#modal [data-close]').click();
+  assert.equal(await editPage.evaluate(id => transport.game.routes.find(route => route.id === id).cargo, stone.id), 'stone', 'Keep editing changes nothing');
+  await editPage.locator('#route-form [type="submit"]').click();
+  await editPage.locator('#confirm-route-edit').click();
+  const fuel = await editPage.evaluate(id => { const route = transport.game.routes.find(route => route.id === id); return { cargo: route.cargo, name: route.name, empty: transport.game.vehicles.filter(vehicle => vehicle.routeId === id).every(vehicle => vehicle.load === 0), money: transport.game.money }; }, stone.id);
+  assert.deepEqual([fuel.cargo, fuel.empty, fuel.money], ['fuel', true, fuelMoney], 'the same trucks carry fuel from empty, free of charge');
+  assert.match(fuel.name, /^Fuel · .+ → Pinehaven$/, 'the default name follows the new freight');
+  await stoneCard.locator('[data-edit-route]').click();
+  await editPage.locator('#cancel-route-edit').click();
+  assert.equal(await editPage.locator('#route-planner summary h3').textContent(), 'New route', 'Cancel leaves the edit');
+  await editPage.setViewportSize({ width: 390, height: 844 });
+  await editPage.evaluate(() => transport.setView('routes'));
+  await stoneCard.locator('[data-edit-route]').click();
+  assert.equal(await fits(editPage, '#panel-content'), true, '390px edit form fits the drawer');
+  await editPage.locator('#cancel-route-edit').scrollIntoViewIfNeeded();
+  await editPage.screenshot({ path: `${output}/mobile-390-edit-route.png` });
+  await editPage.close();
+  assert.deepEqual(errors, [], 'editing a route runs without console or runtime errors');
+  console.log('Edit checks passed: fixed transport, no purchase, pick the end on the map, same trucks, no cost, default name follows, freight change confirm, Cancel, 390px.');
 
   // A stop renamed in its inspector reaches the planner's list, the route card and search; a route renames on its card.
   const namePage = await browser.newPage({ viewport: { width: 1440, height: 960 } });

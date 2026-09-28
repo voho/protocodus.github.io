@@ -524,7 +524,8 @@ export function upgradeFleet(game) {
   return result(true,`${quote.count} vehicle${quote.count===1?'':'s'} upgraded to generation ${quote.targetLevel+1} · ${moneyText(quote.cost)}`,{cost:quote.cost,upgrade:quote});
 }
 
-export function addRoute(game,{name,mode='road',stops,cargo='passengers'}={}) {
+// The service rules a launch and an edit share. Freight loads at its producer's end, whichever stop comes first.
+function planRoute(game,{mode,stops,cargo}) {
   if(!TRANSPORT_MODES.includes(mode)||!owns(CARGO,cargo))return result(false,'Choose a valid transport mode and cargo.');
   if(!Array.isArray(stops)||stops.length!==2||stops[0]===stops[1])return result(false,'Choose two different stations.');
   let stations=stops.map(id=>game.stations.find(s=>s.id===id));
@@ -538,6 +539,11 @@ export function addRoute(game,{name,mode='road',stops,cargo='passengers'}={}) {
   const path=findPath(game,stations[0],stations[1],mode);
   if(!path)return result(false,mode==='water'?'Ports must share connected water. Choose ports on the same river, lake or sea.':`Connect both stations with continuous ${mode==='road'?'roads':'rails'}, including bridges and tunnels.`);
   if(path.length<3)return result(false,'Stations are too close for a transport service.');
+  return result(true,'',{stations,path});
+}
+export function addRoute(game,{name,mode='road',stops,cargo='passengers'}={}) {
+  const plan=planRoute(game,{mode,stops,cargo});if(!plan.ok)return plan;
+  const {stations,path}=plan;
   if(game.vehicles.length>=MAX_VEHICLES)return result(false,FLEET_FULL);
   const purchase=getVehiclePurchase(game,mode),cost=purchase.cost;if(game.money<cost)return result(false,`Need ${moneyText(cost)} to buy this ${vehicleNoun(mode,cargo)}.`);
   const palette=['#efc16f','#69c6bc','#d893b1','#88aee4','#b3cf83','#e5966d'];
@@ -545,6 +551,22 @@ export function addRoute(game,{name,mode='road',stops,cargo='passengers'}={}) {
   const vehicle={id:makeId(game,'vehicle'),routeId:route.id,x:path[0].x,y:path[0].y,angle:0,load:0,capacity:purchase.capacity,level:purchase.level,paidPrice:cost,progress:0,direction:1,totalDistance:0,dwellRemaining:0,tripSerial:0};
   spend(game,cost);game.routes.push(route);game.vehicles.push(vehicle);loadVehicle(game,route,vehicle,0);game.revision++;
   return result(true,`${route.name} launched · ${moneyText(cost)}`,{route,cost});
+}
+// An edit moves a service to new stops or another freight without selling its vehicles. Nothing is
+// bought or sold; the card counts the new service afresh, and a new cargo leaves the old load behind.
+export function editRoute(game,routeId,{stops,cargo}={}) {
+  const route=game.routes.find(r=>r.id===routeId);if(!route)return result(false,'Route not found.');
+  if(cargo!==route.cargo&&(cargo==='passengers'||route.cargo==='passengers'))return result(false,'Passenger and freight vehicles differ. Launch a new service instead.');
+  const plan=planRoute(game,{mode:route.mode,stops,cargo});if(!plan.ok)return plan;
+  const [a,b]=plan.stations,changed=cargo!==route.cargo;
+  if(!changed&&a.id===route.stops[0]&&b.id===route.stops[1])return result(false,'Nothing to change.');
+  route.stops=[a.id,b.id];route.path=plan.path;route.pathRevision=game.networkRevision||0;route.active=true;route.status='Running';
+  snapVehiclesToPath(game,route,plan.path);
+  if(changed){route.cargo=cargo;for(const vehicle of fleetIndex(game).vehiclesByRoute.get(route.id)||[])vehicle.load=0;}
+  route.revenueAtAccountingStart=route.revenue;route.expenses=0;route.accountingStartDay=game.day;
+  // A new routes array also retires the cached upkeep shares and fleet index.
+  game.routes=game.routes.slice();game.revision++;
+  return result(true,`Route updated · ${a.name} → ${b.name}${changed?` · now ${CARGO[cargo].name.toLowerCase()}`:''}`,{route});
 }
 export function removeRoute(game,routeId) {
   const route=game.routes.find(r=>r.id===routeId);if(!route)return result(false,'Route not found.');
@@ -676,6 +698,14 @@ function unloadVehicle(game,route,vehicle,stopIndex,arrivalDay=game.day,context)
     if(log.length<64)log.push({x:station.x,y:station.y,revenue,cargo:route.cargo,amount:delivered,routeId:route.id,day:arrivalDay});
   }
 }
+// Each vehicle steps onto the nearest tile of a new path, keeping its direction and load.
+function snapVehiclesToPath(game,route,path) {
+  for(const vehicle of fleetIndex(game).vehiclesByRoute.get(route.id)||[]) {
+    let nearest=0,best=Infinity;
+    for(let i=0;i<path.length;i++) {const d=distance(vehicle,path[i]);if(d<best){best=d;nearest=i;}}
+    vehicle.progress=nearest;vehicle.x=path[nearest].x;vehicle.y=path[nearest].y;
+  }
+}
 function updateRoutePath(game,route) {
   const networkRevision=game.networkRevision||0;
   if(route.pathRevision===networkRevision)return;
@@ -686,13 +716,7 @@ function updateRoutePath(game,route) {
   if(!path) {route.status='Disconnected';if(wasActive)notify(game,route.mode==='water'?`${route.name} has lost its water connection. Ports need a continuous waterway.`:`${route.name} has lost its connection. Repair the network to resume.`,'warning',{topic:'route-connection',target:{kind:'route',id:route.id}});return;}
   route.status='Running';
   const changed=route.path.length!==path.length||route.path.some((p,i)=>p.x!==path[i].x||p.y!==path[i].y);
-  if(changed) {
-    for(const vehicle of fleetIndex(game).vehiclesByRoute.get(route.id)||[]) {
-      let nearest=0,best=Infinity;
-      for(let i=0;i<path.length;i++) {const d=distance(vehicle,path[i]);if(d<best){best=d;nearest=i;}}
-      vehicle.progress=nearest;vehicle.x=path[nearest].x;vehicle.y=path[nearest].y;
-    }
-  }
+  if(changed)snapVehiclesToPath(game,route,path);
   route.path=path;
 }
 export function refreshRouteConnections(game) { for(const route of game.routes)updateRoutePath(game,route); }
