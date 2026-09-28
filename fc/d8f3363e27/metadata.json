@@ -5,8 +5,16 @@
   "branch": "transport-playability",
   "checkpoints_count": 1,
   "files_touched": [
+    "fun/transport/ARCHITECTURE.md",
+    "fun/transport/README.md",
+    "fun/transport/app.js",
     "fun/transport/controls.css",
-    "fun/transport/tests/cargo-lens-browser-check.mjs"
+    "fun/transport/industry-targets.css",
+    "fun/transport/model.js",
+    "fun/transport/tests/cargo-lens-browser-check.mjs",
+    "fun/transport/tests/construction-plan.test.mjs",
+    "fun/transport/tests/controls-browser-check.mjs",
+    "fun/transport/tests/resources-browser-check.mjs"
   ],
   "sessions": [
     {
