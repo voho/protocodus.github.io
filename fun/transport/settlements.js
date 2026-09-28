@@ -97,6 +97,13 @@ export function housingCapacity(building) {
   return residents ? residents * building.level : ['house', 'apartment'].includes(building.kind) ? 15 * building.level : 0;
 }
 
+// New passengers a town sends to its stops in one day. The route forecast
+// passes the mean draw, .5, instead of the day's seeded sample.
+export function passengerArrivals(game, city, day = Math.floor(game.day), environment = localEnvironment(game, city.x, city.y), weather = weatherAt(game, city.x, city.y, day), draw = randomAt(game, day, city.id, 101)) {
+  return city.population * (.005 + .006 * clamp(environment.housing / 14) + .003 * environment.amenity + .002 * clamp(environment.shops / 6)) *
+    (.55 + draw * .95) * (.70 + weather.travel * .3) * (1 - environment.pollution * .22);
+}
+
 // Each day offers independent update opportunities to individual settlements
 // and plots. Buffered building proposals see yesterday's neighbors; a new home
 // cannot trigger a chain of same-day development across its entire street.
@@ -108,8 +115,7 @@ export function stepSettlements(game) {
     const weather = weatherAt(game, city.x, city.y, day);
     const quality = suitability(game, city, 'residential', environment, weather, city, connectedCities).score;
     const connected = recentlyServed(game, city, connectedCities);
-    const arrivals = city.population * (.005 + .006 * clamp(environment.housing / 14) + .003 * environment.amenity + .002 * clamp(environment.shops / 6)) *
-      (.55 + randomAt(game, day, city.id, 101) * .95) * (.70 + weather.travel * .3) * (1 - environment.pollution * .22);
+    const arrivals = passengerArrivals(game, city, day, environment, weather);
     city.passengers = clamp((city.passengers || 0) + arrivals, 0, Math.max(0, city.population * .9));
     const activityLoss = (.013 + randomAt(game, day, city.id, 102) * .020 + environment.pollution * .008) * (1 - environment.amenity * .22);
     city.activity = Math.max(0, (city.activity || 0) * (1 - activityLoss));

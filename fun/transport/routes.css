@@ -84,3 +84,14 @@
 .route-header .route-busy{color:#c7683a}
 .route-launch .route-separate{margin-top:8px}
 .inspector-grid.town-figures{grid-template-columns:repeat(3,1fr)}
+.route-forecast{margin:-6px 0 14px;padding:0 2px;color:#355b39;font-size:13px;line-height:1.45}
+.route-forecast[hidden]{display:none}
+.forecast-summary{margin:0;font-weight:600}
+.route-forecast[data-outlook=loss] .forecast-summary{color:#8a6d52;font-weight:500}
+.forecast-details{margin-top:3px;color:#66795b;font-size:12px}
+.forecast-details>summary{display:inline-flex;align-items:center;gap:5px;min-height:28px;cursor:pointer;list-style:none;color:#5c7151}
+.forecast-details>summary::-webkit-details-marker{display:none}
+.forecast-details>summary:after{content:'+';font-size:15px;color:#6d8161}
+.forecast-details[open]>summary:after{content:'−'}
+.forecast-details>summary:hover{color:#3f5d34}
+.forecast-facts{display:grid;gap:3px;margin:3px 0 2px 1px;padding:1px 0 1px 9px;list-style:none;border-left:2px solid #dde5d0}

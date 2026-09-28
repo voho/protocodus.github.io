@@ -120,7 +120,7 @@ export function weatherAt(game, x, y, day = game.day || 0) {
   return { wetness, cold, heat, growth, travel };
 }
 
-export function localTransport(game, x, y, footprint = 1) {
+export function localTransport(game, x, y, footprint = 1, served = null) {
   const extra = footprint - 1, entities = entityIndex(game);
   let transport = 0;
   for (let by = Math.floor((y - 5) / 8); by <= Math.floor((y + extra + 5) / 8); by++) for (let bx = Math.floor((x - 5) / 8); bx <= Math.floor((x + extra + 5) / 8); bx++) {
@@ -129,10 +129,12 @@ export function localTransport(game, x, y, footprint = 1) {
       if (distance <= 5) transport = Math.max(transport, 1 - distance * .08);
     }
   }
-  return transport;
+  // A forecast counts the stop it plans to serve from as active.
+  const distance = served ? industryDistance({x,y,footprint},served) : Infinity;
+  return distance <= 5 ? Math.max(transport, 1 - distance * .08) : transport;
 }
 
-export function localEnvironment(game, x, y, radius = 3, footprint = 1) {
+export function localEnvironment(game, x, y, radius = 3, footprint = 1, served = null) {
   x = Math.floor(x); y = Math.floor(y); radius = Number.isFinite(radius) ? Math.max(1, Math.min(8, Math.floor(radius))) : 3;
   footprint=Number.isInteger(footprint)?Math.max(1,Math.min(3,footprint)):1;const extra=footprint-1;
   const entities = entityIndex(game);
@@ -174,7 +176,7 @@ export function localEnvironment(game, x, y, radius = 3, footprint = 1) {
     const industry = entities.industriesAt.get((y + dy) * game.width + x + dx);
     if (industry && !seenIndustries.has(industry)) { seenIndustries.add(industry); env.industries++; disturbance += emissions[industry.kind] ?? .65; }
   }
-  env.transport = localTransport(game, x, y, footprint);
+  env.transport = localTransport(game, x, y, footprint, served);
   env.elevation /= Math.max(1, cells);
   env.nature = clamp(vegetation / Math.max(1, cells));
   const weather = weatherAt(game, x, y);

@@ -1,4 +1,4 @@
-import { BIOMES, CARGO, INDUSTRIES, BUILD_COSTS, VEHICLE_COSTS, VEHICLE_CAPACITIES, TOWN_CARGO } from './data.js';
+import { BIOMES, CARGO, INDUSTRIES, BUILD_COSTS, VEHICLE_COSTS, VEHICLE_CAPACITIES, VEHICLE_UPKEEP, INFRASTRUCTURE_UPKEEP, TOWN_CARGO } from './data.js';
 import { generateWorld, seedNumber, WORLD_SIZES, NEW_WORLD_SIZES, DEFAULT_WORLD_SIZE, supportsGenerationVersion, worldGenerationOptions, validGenerationOptions } from './world.js';
 import { BUILDINGS } from './buildings.js';
 import { allocateTerrainObjects } from './world-terrain-objects.js';
@@ -604,6 +604,8 @@ function loadVehicle(game,route,vehicle,stopIndex,context) {
     }
   }
 }
+// Shortest connected distance determines the fare; loops cannot manufacture income.
+export function fareFor(game,cargo,pathLength,units,day=game.day) { return priceFor(game,units*CARGO[cargo].price*(1+Math.sqrt(pathLength-1)*.55),day); }
 // Paid deliveries for the map's floating income: never saved, never keyed by nextId or randomAt.
 const deliveryLog=new WeakMap();
 export function drainDeliveryEvents(game) { const log=deliveryLog.get(game)||[];deliveryLog.delete(game);return log; }
@@ -631,8 +633,7 @@ function unloadVehicle(game,route,vehicle,stopIndex,arrivalDay=game.day,context)
   }
   vehicle.load=remaining;
   if(delivered>0) {
-    // Shortest connected distance determines the fare; loops cannot manufacture income.
-    const revenue=priceFor(game,delivered*CARGO[route.cargo].price*(1+Math.sqrt(route.path.length-1)*.55),arrivalDay);
+    const revenue=fareFor(game,route.cargo,route.path.length,delivered,arrivalDay);
     route.delivered+=delivered;route.revenue+=revenue;game.totalDelivered+=delivered;game.totalRevenue+=revenue;game.monthlyIncome+=revenue;game.money+=revenue;
     let log=deliveryLog.get(game);if(!log)deliveryLog.set(game,log=[]);
     if(log.length<64)log.push({x:station.x,y:station.y,revenue,cargo:route.cargo,amount:delivered,routeId:route.id,day:arrivalDay});
@@ -775,10 +776,10 @@ function infrastructureShares(game){
   for(const route of game.routes){
     if(route.mode!=='water')for(const point of route.path){
       const tile=tileAt(game,point.x,point.y),key=point.y*game.width+point.x;if(!tile?.[route.mode])continue;
-      add(`${key}:${route.mode}`,route.mode==='rail'?.14:tile.publicRoad?0:.075,route);
-      if(tile.bridge||tile.tunnel)add(`${key}:structure`,.2,route);
+      add(`${key}:${route.mode}`,route.mode==='rail'?INFRASTRUCTURE_UPKEEP.rail:tile.publicRoad?0:INFRASTRUCTURE_UPKEEP.road,route);
+      if(tile.bridge||tile.tunnel)add(`${key}:structure`,INFRASTRUCTURE_UPKEEP.structure,route);
     }
-    for(const id of route.stops){const station=fleetIndex(game).stationById.get(id);if(station)add(`station:${id}`,station.mode==='water'?6:station.mode==='road'?1.2:4,route);}
+    for(const id of route.stops){const station=fleetIndex(game).stationById.get(id);if(station)add(`station:${id}`,INFRASTRUCTURE_UPKEEP.stop[station.mode],route);}
   }
   for(const {cost,routes}of users.values())for(const id of routes)shares.set(id,shares.get(id)+cost/routes.size);
   upkeepShareCache.set(game,{revision,routes:game.routes,count:game.routes.length,shares});return shares;
@@ -786,8 +787,8 @@ function infrastructureShares(game){
 function maintenance(game) {
   if(game.maintenanceRevision!==(game.networkRevision||0)) {
     let upkeep=0;
-    for(const id of networkIndex(game)){const t=game.tiles[id];upkeep+=(t.road&&!t.publicRoad?.075:0)+(t.rail?.14:0)+((t.bridge||t.tunnel)?.2:0);}
-    upkeep+=game.stations.reduce((sum,s)=>sum+(s.mode==='water'?6:s.mode==='road'?1.2:4),0);
+    for(const id of networkIndex(game)){const t=game.tiles[id];upkeep+=(t.road&&!t.publicRoad?INFRASTRUCTURE_UPKEEP.road:0)+(t.rail?INFRASTRUCTURE_UPKEEP.rail:0)+((t.bridge||t.tunnel)?INFRASTRUCTURE_UPKEEP.structure:0);}
+    upkeep+=game.stations.reduce((sum,s)=>sum+INFRASTRUCTURE_UPKEEP.stop[s.mode],0);
     game.infrastructureUpkeep=upkeep;game.maintenanceRevision=game.networkRevision||0;
   }
   const day=Math.floor(game.day),center=game.cities[0]||{x:game.width/2,y:game.height/2},weather=weatherAt(game,center.x,center.y,day);
@@ -796,7 +797,7 @@ function maintenance(game) {
     const route=routeIndex.get(v.routeId),localWeather=weatherAt(game,v.x,v.y,day),key=Math.floor(v.y)*game.width+Math.floor(v.x);
     let e=environments.get(key);if(!e){e=localEnvironment(game,v.x,v.y,2);environments.set(key,e);}
     const support=1-Math.min(.12,e.police*.025+e.services*.015);
-    const expense=(route?.mode==='water'?70:route?.mode==='rail'?90:22)*(route?.active?1:.45)*(.91+randomAt(game,day,v.id,521)*.18)*(1+localWeather.cold*(route?.mode==='water'?.23:.14)+localWeather.heat*.08)*support;
+    const expense=(VEHICLE_UPKEEP[route?.mode]??VEHICLE_UPKEEP.road)*(route?.active?1:.45)*(.91+randomAt(game,day,v.id,521)*.18)*(1+localWeather.cold*(route?.mode==='water'?.23:.14)+localWeather.heat*.08)*support;
     if(route)routeCosts.set(route.id,routeCosts.get(route.id)+expense);
     return sum+expense;
   },0);

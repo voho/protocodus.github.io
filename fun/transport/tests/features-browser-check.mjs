@@ -76,6 +76,7 @@ try {
   assert.equal(await quarryPage.locator('#route-planner').evaluate(element => element.open), true, 'a stop starts the planner open');
   assert.equal(await quarryPage.locator('[data-cargo-choice="stone"]').getAttribute('aria-pressed'), 'true', 'the start stop suggests its own freight');
   assert.match(await quarryPage.locator('#route-connection').textContent(), /Cargo set to Stone/);
+  assert.equal(await quarryPage.locator('#route-forecast').isHidden(), true, 'no forecast before both stops are chosen');
   await quarryPage.locator('[data-pick-route="to"]').click();
   await clickStationBadge(quarryPage, quarry.alder);
   await quarryPage.locator('#route-pick-banner').waitFor({ state: 'hidden' });
@@ -83,10 +84,16 @@ try {
   assert.equal(await quarryPage.locator('[data-cargo-choice="stone"][aria-pressed="true"]').count(), 1, 'stone stays selected for the pair');
   await verifyConnection(quarryPage, 'connected', true);
   assert.match(await quarryPage.locator('#route-connection').textContent(), /Connected · \d+ tiles · Cargo set to Stone/);
+  await quarryPage.locator('#route-forecast').waitFor({ state: 'visible' });
+  const forecastLine = /^≈ \+\$[\d.,]+k? \/ month · pays back in about \d+\u00a0(months?|years)$/, forecast = await quarryPage.locator('.forecast-summary').textContent();
+  assert.match(forecast, forecastLine, 'choosing the end stop forecasts the route');
+  assert.equal(await quarryPage.locator('.forecast-details').evaluate(element => element.open), false, 'forecast details start folded');
   await quarryPage.waitForFunction(() => {
     const drawer = document.querySelector('#panel-content').getBoundingClientRect(), launch = document.querySelector('#route-form [type="submit"]').getBoundingClientRect();
     return launch.top >= drawer.top && launch.bottom <= drawer.bottom + 1;
   }, undefined, { timeout: 3000 });
+  await quarryPage.locator('.forecast-details summary').click();
+  assert.match(await quarryPage.locator('.forecast-facts').innerText(), /^Source makes ≈ [\d.]+ \/ day once served\nOne truck carries ≈ [\d.]+ \/ day\n(Room for ≈ \d+ more trucks?|One truck carries all of it)\nFull load ≈ \$[\d,]+/);
   assert.equal(await quarryPage.locator('[data-cargo-choice="stone"]').getAttribute('data-fits'), 'true');
   assert.equal(await quarryPage.locator('[data-cargo-choice="passengers"]').getAttribute('data-fits'), 'false', 'other cargo is dimmed but stays clickable');
   assert.match(await quarryPage.locator('[data-cargo-choice="passengers"]').getAttribute('title'), /different town/);
@@ -95,13 +102,17 @@ try {
   await quarryPage.locator('.route-stop-field').last().locator('[data-cargo-pick="passengers"]').click();
   assert.equal(await quarryPage.locator('[data-cargo-choice="passengers"]').getAttribute('aria-pressed'), 'true', 'coverage badges choose cargo');
   await verifyConnection(quarryPage, 'connected', false);
+  assert.equal(await quarryPage.locator('#route-forecast').isHidden(), true, 'a cargo the stops cannot carry hides the forecast');
   await quarryPage.locator('.route-stop-field').first().locator('[data-cargo-pick="stone"]').click();
   await verifyConnection(quarryPage, 'connected', true);
+  assert.equal(await quarryPage.locator('.forecast-summary').textContent(), forecast, 'the forecast returns with the fitting cargo');
   await quarryPage.locator('#swap-route-stops').click();
   assert.equal(await quarryPage.locator('#route-form [name="from"]').inputValue(), quarry.alder.id, 'swap exchanges the stops');
   assert.equal(await quarryPage.locator('#route-form [name="to"]').inputValue(), quarry.station.id);
   await verifyConnection(quarryPage, 'connected', true);
   assert.match(await quarryPage.locator('#route-connection').textContent(), /Loads at end stop/);
+  assert.equal(await quarryPage.locator('.forecast-summary').textContent(), forecast, 'loading at the end stop forecasts the same flow');
+  assert.equal(await quarryPage.locator('.forecast-details').evaluate(element => element.open), true, 'the details stay open across a rebuilt form');
   await quarryPage.locator('#swap-route-stops').click();
   await quarryPage.locator('#route-form button[type="submit"]').click();
   const stoneRoute = await quarryPage.evaluate(() => transport.game.routes.at(-1));
@@ -120,11 +131,19 @@ try {
   assert.equal(await quarryPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, '390px planner fits the screen');
   assert.equal(await fits(quarryPage, '#panel-content'), true, '390px planner fits the drawer');
   assert.equal(await fits(quarryPage, '.route-swap'), true);
+  assert.match(await quarryPage.locator('#route-connection').textContent(), /Already served by/);
+  assert.match(await quarryPage.locator('.forecast-summary').textContent(), /^(≈ \+\$[\d.,]+k? \/ month · pays back in about|Likely to earn less than its upkeep)/, 'the planner forecasts one more truck');
+  assert.match(await quarryPage.locator('.forecast-facts').innerText(), /Source makes ≈ [\d.]+ \/ day · (≈ [\d.]+ spare|all taken)/, 'the launched route takes its share of the supply');
+  assert.equal(await fits(quarryPage, '#route-forecast'), true, '390px forecast fits');
+  await quarryPage.locator('#route-forecast').scrollIntoViewIfNeeded();
+  await quarryPage.screenshot({ path: `${output}/mobile-390-route-forecast.png` });
   await quarryPage.locator('#swap-route-stops').scrollIntoViewIfNeeded();
   await quarryPage.screenshot({ path: `${output}/mobile-390-quarry-planner.png` });
+  await quarryPage.locator('#route-form [name="mode"]').selectOption('rail');
+  assert.equal(await quarryPage.locator('#route-forecast').isHidden(), true, 'changing transport clears the stops and the forecast');
   await quarryPage.close();
   assert.deepEqual(errors, [], 'the route planner runs without console or runtime errors');
-  console.log('Route planner checks passed: inferred cargo, fit marks, coverage picks, swap, default name, folded planner, 390px.');
+  console.log('Route planner checks passed: inferred cargo, fit marks, coverage picks, swap, default name, forecast, folded planner, 390px.');
 
   // A route card buys and sells vehicles on its own service; the fleet survives an autosave reload.
   const fleetPage = await browser.newPage({ viewport: { width: 390, height: 844 } });

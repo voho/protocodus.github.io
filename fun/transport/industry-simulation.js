@@ -8,8 +8,8 @@ const MAX_INVENTORY=900;
 /** How full the fullest output store is, 0–1; growth pauses from one half. */
 export function outputFill(industry){return Object.keys(INDUSTRIES[industry.kind].outputs).reduce((fill,cargo)=>Math.max(fill,(industry.inventory?.[cargo]||0)/(MAX_INVENTORY*(industry.capacity||1))),0);}
 
-export function industryConditions(game,industry){
-  const e=localEnvironment(game,industry.x,industry.y,4,industrySize(industry)),weather=weatherAt(game,industry.x,industry.y,Math.floor(game.day));
+export function industryConditions(game,industry,served=null){
+  const e=localEnvironment(game,industry.x,industry.y,4,industrySize(industry),served),weather=weatherAt(game,industry.x,industry.y,Math.floor(game.day));
   const positive=[],negative=[],kind=industry.kind;
   let workers=clamp(e.housing/12),partners=0;
   for(const city of nearbyCities(game,industry.x,industry.y,12)){const d=Math.hypot(city.x-industry.x,city.y-industry.y);if(d<12)workers=Math.max(workers,clamp(city.population/900)*(1-d/14));}
@@ -52,6 +52,9 @@ export function industryConditions(game,industry){
   return {score:clamp(productivity/1.25),productivity,positive,negative,environment:e};
 }
 
+/** One capacity review's gain while output is carried away; the route forecast takes the mean draw. */
+export const reviewGrowth=(productivity,activity,draw=.5)=>(.035+draw*.09)*(.5+productivity)*Math.min(1.6,.7+activity/250);
+
 export function initializeIndustry(game,industry){
   const day=Math.floor(game.day);
   industry.lastProductionDay??=game.day;
@@ -90,7 +93,7 @@ export function stepIndustries(game,notify=()=>{}){
       // Growth needs output carried away: a half-full store holds capacity without shrinking it.
       const hasRoom=Object.keys(INDUSTRIES[industry.kind].outputs).every(cargo=>(industry.inventory[cargo]||0)<MAX_INVENTORY*old*.5);
       if(activity>25&&industry.totalProduced>0&&industry.idleDays<18&&hasRoom){
-        industry.capacity=clamp(old+(.035+randomAt(game,day,industry.id,433)*.09)*( .5+conditions.productivity)*Math.min(1.6,.7+activity/250),.5,3);
+        industry.capacity=clamp(old+reviewGrowth(conditions.productivity,activity,randomAt(game,day,industry.id,433)),.5,3);
       }else if(industry.idleDays>18){
         const stock=Object.values(industry.inventory||{}).reduce((max,n)=>Math.max(max,n),0);
         // Full stores hold capacity until the stock can fit: no cargo disappears

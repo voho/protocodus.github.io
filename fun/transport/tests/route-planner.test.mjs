@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { addRoute, build, buildPath, VEHICLE_COSTS } from '../model.js';
-import { defaultRouteName, filterRoutes, routeCargoList, routeCargoOptions, validateRoutePlan } from '../route-planner.js';
+import { addRoute, addRouteVehicle, build, buildPath, drainDeliveryEvents, fareFor, tick, VEHICLE_COSTS } from '../model.js';
+import { defaultRouteName, filterRoutes, forecastRoute, routeCargoList, routeCargoOptions, validateRoutePlan } from '../route-planner.js';
 import { emptyGame, line, tileAt } from './helpers.mjs';
 
 function fixture(mode = 'road') {
@@ -194,4 +194,94 @@ test('route search combines stop, route, resource and vehicle terms with indepen
   assert.deepEqual(ids({ mode: 'rail', status: 'disconnected' }), []);
   assert.deepEqual(ids({ query: '  ', mode: 'all', cargo: 'all', status: 'all' }), ['one', 'two', 'three']);
   assert.equal(game.routes.length, 3, 'filtering never changes saved routes');
+});
+
+// A quarry and a town `tiles` apart on flat ground, joined by road or rail.
+function quarryLine(mode, tiles) {
+  const game = emptyGame(), end = 10 + tiles, tool = mode === 'rail' ? 'train-stop' : 'bus-stop';
+  assert.equal(build(game, 'quarry', 10, 9).ok, true);
+  game.cities = [{ id: 'town-a', name: 'Alderbrook', x: end, y: 10, population: 400, activity: 0, growth: 0, passengers: 0, delivered: 0, supplies: 0, lastServiceDay: null }];
+  assert.equal(buildPath(game, mode, line(10, end, 12)).ok, true);
+  assert.equal(build(game, tool, 10, 12).ok, true);
+  assert.equal(build(game, tool, end, 12).ok, true);
+  return { game, draft: { mode, cargo: 'stone', from: game.stations[0].id, to: game.stations[1].id } };
+}
+const simulate = (game, days) => { for (let n = 0; n < days * 2; n++) tick(game, .5); };
+// Days 90–180 with a fleet of `count`: does the quarry's stock stop growing (by under a tenth of its output)?
+function fleetClearsQuarry(mode, tiles, count) {
+  const { game, draft } = quarryLine(mode, tiles), route = addRoute(game, { ...draft, stops: [draft.from, draft.to] }).route;
+  for (let n = 1; n < count; n++) assert.equal(addRouteVehicle(game, route.id).ok, true);
+  const quarry = game.industries[0];
+  simulate(game, 90);
+  const stock = quarry.inventory.stone, produced = quarry.totalProduced;
+  simulate(game, 90);
+  return quarry.inventory.stone - stock < (quarry.totalProduced - produced) * .1;
+}
+
+for (const mode of ['road', 'rail']) for (const tiles of [10, 40]) {
+  test(`${mode} forecast over ${tiles} tiles is within 30% of 180 simulated days and sizes the fleet`, () => {
+    const { game, draft } = quarryLine(mode, tiles), money = game.money, revision = game.revision;
+    const forecast = forecastRoute(game, draft);
+    assert.equal(game.money, money); assert.equal(game.revision, revision); assert.equal(game.routes.length, 0, 'forecasting changes nothing');
+    assert.ok(forecast.perVehicleDay > 0 && forecast.supplyDay > 0, JSON.stringify(forecast));
+    assert.equal(forecast.movedDay, Math.min(forecast.perVehicleDay, forecast.supplyDay));
+    const route = addRoute(game, { ...draft, stops: [draft.from, draft.to] }).route;
+    simulate(game, 180);
+    const month = (route.revenue - route.expenses) / 6;
+    assert.ok(Math.abs(month / forecast.netMonth - 1) <= .3, `forecast ${Math.round(forecast.netMonth)} vs simulated ${Math.round(month)} a month`);
+    assert.ok(Math.abs(forecast.paybackMonths - forecast.cost / forecast.netMonth) < 1e-9);
+    let fleet = 1;
+    while (fleet < 12 && !fleetClearsQuarry(mode, tiles, fleet)) fleet++;
+    assert.ok(Math.abs(forecast.vehiclesToSaturate - fleet) <= 1, `forecast ${forecast.vehiclesToSaturate} vehicles, simulated ${fleet}`);
+  });
+}
+
+test('fareFor is the revenue of a real delivery', () => {
+  const { game, draft } = quarryLine('road', 20);
+  game.industries[0].inventory.stone = 60;
+  const route = addRoute(game, { ...draft, stops: [draft.from, draft.to] }).route;
+  for (let step = 0; step < 400 && !route.revenue; step++) tick(game, .25);
+  const [delivery] = drainDeliveryEvents(game);
+  assert.equal(delivery.amount, 24);
+  assert.equal(route.revenue, fareFor(game, 'stone', route.path.length, delivery.amount, delivery.day));
+  assert.equal(forecastRoute(game, draft).fullLoad, fareFor(game, 'stone', route.path.length, 24));
+});
+
+test('the forecast waits for fitting stops and cargo, and is cached per day and fleet', () => {
+  const { game, draft } = quarryLine('road', 20);
+  assert.equal(forecastRoute(game, { ...draft, to: '' }), null);
+  assert.equal(forecastRoute(game, { ...draft, cargo: 'coal' }), null);
+  game.money = 0;
+  const forecast = forecastRoute(game, draft);
+  assert.ok(forecast.netMonth > 0, 'short funds still show the outlook');
+  assert.equal(forecastRoute(game, draft), forecast, 'the same day reuses the forecast');
+  assert.equal(forecastRoute(game, { ...draft, from: draft.to, to: draft.from }).supplyDay, forecast.supplyDay, 'loading at the end stop forecasts the same flow');
+  assert.ok(forecast.otherModes.find(other => other.mode === 'rail').ratio > 4, 'a train carries several trucks’ worth');
+  assert.equal(forecast.joining, false);
+});
+
+test('another vehicle on a served route shares what is left of the supply', () => {
+  const { game, draft } = quarryLine('road', 10);
+  const first = forecastRoute(game, draft);
+  const route = addRoute(game, { ...draft, stops: [draft.from, draft.to] }).route;
+  const second = forecastRoute(game, draft);
+  assert.equal(second.joining, true);
+  assert.ok(second.supplyDay < first.supplyDay && second.supplyDay > 0, `${second.supplyDay} of ${first.supplyDay}`);
+  assert.equal(second.vehiclesToSaturate, first.vehiclesToSaturate - 1);
+  while (game.vehicles.length < first.vehiclesToSaturate) assert.equal(addRouteVehicle(game, route.id).ok, true);
+  const full = forecastRoute(game, draft);
+  assert.equal(full.supplyDay, 0);
+  assert.equal(full.vehiclesToSaturate, 0);
+  assert.ok(full.netMonth < 0, 'a vehicle with nothing to carry costs its upkeep');
+  assert.equal(full.paybackMonths, Infinity);
+});
+
+test('a bus forecast carries both towns’ passengers both ways', () => {
+  const { game, draft } = quarryLine('road', 20);
+  game.industries = [];
+  game.cities.push({ id: 'town-b', name: 'Pinehaven', x: 10, y: 10, population: 600, activity: 0, growth: 0, passengers: 0, delivered: 0, supplies: 0, lastServiceDay: null });
+  const freight = quarryLine('road', 20), bus = forecastRoute(game, { ...draft, cargo: 'passengers' }), truck = forecastRoute(freight.game, freight.draft);
+  assert.ok(Math.abs(bus.perVehicleDay - truck.perVehicleDay * 2) < 1e-9, 'a bus loads at both ends');
+  assert.ok(bus.supplyDay > 0 && bus.netMonth > 0, JSON.stringify(bus));
+  assert.ok(bus.vehiclesToSaturate >= 1);
 });
