@@ -13,7 +13,7 @@ When this browser holds an autosave, **Continue** heads the menu with its landsc
 ## Your first connection
 
 1. Follow **Next goal** at the top right of the map for a nearby suggestion, or find a producer and a matching customer yourself, such as a logging camp and a sawmill in the taiga.
-2. Choose **Road** or **Rail** and drag between them. Water automatically becomes a bridge and mountains become tunnels; the preview shows the combined cost. Blocked or unaffordable road and rail strokes build nothing; the red tiles show why, and the tip says whether to drag around them, bulldoze, level the slope or wait for funds.
+2. Choose **Road** or **Rail** and drag between them. Water automatically becomes a bridge and mountains become tunnels; the preview shows the combined cost. When the plain L would be refused, the drag follows the terrain instead: it bends the other way or steps around slopes, buildings and zones, reusing existing roads or tracks, and the tip adds **follows terrain**. Hold **Shift** while dragging to keep the plain L, bent along the direction you drag first. Blocked or unaffordable road and rail strokes build nothing; the red tiles show why, and the tip says whether to drag around them, bulldoze, level the slope or wait for funds. When the only way around is a long or costly detour, the tip says there is no gentle route: level the ground or drag in shorter segments.
 3. Choose **Stop** and click the completed network within **5 tiles** of each industry. The tool selects a road stop or train station from the tile; at a road/rail crossing, use the small Road/Rail choice. Stations need open ground; they cannot occupy a bridge or tunnel.
 4. Open **Routes**, choose the transport mode, then choose two stations from the lists or pick them on the map. The planner suggests a cargo both stops can carry and checks the continuous network and cargo coverage before enabling launch. Buying a road vehicle costs $18,000; a train costs $78,000.
 5. Vehicles load from the producer's inventory and earn money when they deliver. Connect the customer's output to the next factory or a town to extend the chain.
@@ -81,6 +81,7 @@ Right-click during a drag cancels it and keeps the tool, and so does the first E
 | Escape | Cancel the stroke, then finish the tool |
 | Right-click | Finish the current tool; during a drag, cancel the stroke |
 | Space | Tap to pause or resume; hold while dragging to pan |
+| Shift | Hold while dragging Road or Rail to keep the plain L instead of following the terrain |
 | Arrow keys | Pan the map |
 | + / − | Zoom in / out |
 | G / H / M / ? | Toggle grid / center on starting town / region atlas / field guide |

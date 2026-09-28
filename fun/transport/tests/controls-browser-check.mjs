@@ -203,12 +203,16 @@ async function truthfulQuotes() {
   const hover = async tile => { const [p] = await points(page, [tile]); await page.mouse.move(p.x - 3, p.y); await page.mouse.move(p.x, p.y); return tip(); };
   await page.evaluate(() => transport.renderer.setZoom(1));
   await keyTool(page, 'r', /Road/);
-  // Seed 1847: a straight drag at x=218 crosses two houses south of Alderbrook.
+  // Seed 1847: a straight drag at x=218 crosses two houses south of Alderbrook. No gentle route
+  // leads around them either; Shift keeps the plain line, which names the houses.
   let before = await money(), held = await hold({ x: 218, y: 254 }, { x: 218, y: 245 });
   assert.equal(held.invalid, true, 'a road through houses is refused before release');
+  await page.keyboard.press('Escape'); await page.mouse.up();
+  await page.keyboard.down('Shift');
+  held = await hold({ x: 218, y: 254 }, { x: 218, y: 245 });
   assert.equal(held.text, '2 tiles are blocked by buildings or zones — drag around them or bulldoze first');
   await page.screenshot({ path: `${output}/quote-blocked-road.png` });
-  await page.mouse.up();
+  await page.mouse.up(); await page.keyboard.up('Shift');
   assert.equal(await money(), before, 'the refused stroke spends nothing');
   assert.match(await lastToast(), /\berror\b/, 'a stroke that built nothing never shows a success toast');
   assert.doesNotMatch((await tip()).text, /blocked/, 'the tip re-quotes the tile under the pointer after release');
@@ -257,6 +261,44 @@ async function truthfulQuotes() {
   assert.equal(redness.steady, true, 'the map repaints identically without the preview');
   assert.ok(redness.shift.at(-1) > 12, `the uneven tile is drawn in the error colour: ${redness.shift}`);
   assert.ok(redness.shift.slice(0, -1).every(value => value < 7), `the rest of the refused stroke is muted, not red: ${redness.shift}`);
+  await page.close();
+}
+
+// A Road drag the plain L would refuse follows the terrain around a house and a crown; Shift keeps the red L.
+async function terrainRoutes() {
+  const page = await start({ width: 1440, height: 1000 }), site = await fixture(page);
+  const { a, b } = await page.evaluate(async ({ x, y }) => {
+    const g = transport.game, { placeBuildingSite } = await import('./building-sites.js');
+    placeBuildingSite(g, 'house-expensive-1', x + 8, y + 19);
+    g.tiles[(y + 20) * g.width + x + 13].elevation = .2 + 1 / 7; g.revision++;
+    return { a: { x: x + 3, y: y + 20 }, b: { x: x + 17, y: y + 20 } };
+  }, site);
+  await page.evaluate(() => { const r = transport.renderer, render = r.render; r.render = (now, state) => { window.previewPath = state.preview.map(p => `${p.x},${p.y}`); return render(now, state); }; });
+  const preview = () => page.evaluate(() => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(() => done(window.previewPath)))));
+  const tip = () => page.evaluate(() => { const t = document.querySelector('#placement-tip'); return { text: t.textContent, invalid: t.classList.contains('invalid'), partial: t.classList.contains('partial') }; });
+  const money = () => page.evaluate(() => transport.game.money), before = await money();
+  await keyTool(page, 'r', /Road/);
+  const [from, to] = await points(page, [a, b]);
+  await page.keyboard.down('Shift');
+  await page.mouse.move(from.x, from.y); await page.mouse.down(); await page.mouse.move(to.x, to.y, { steps: 8 });
+  let held = await tip();
+  assert.equal(held.invalid, true, 'Shift keeps the refused straight line');
+  assert.match(held.text, /^2 tiles need flat ground or a straight grade/);
+  assert.deepEqual(await preview(), Array.from({ length: 15 }, (_, i) => `${a.x + i},${a.y}`), 'Shift previews the plain line');
+  await page.screenshot({ path: `${output}/terrain-route-shift.png` });
+  await page.mouse.up(); await page.keyboard.up('Shift');
+  assert.equal(await money(), before, 'the refused Shift stroke builds nothing');
+  await page.mouse.move(from.x, from.y); await page.mouse.down(); await page.mouse.move(to.x, to.y, { steps: 8 });
+  held = await tip();
+  assert.equal(held.invalid, false, held.text); assert.equal(held.partial, false);
+  assert.match(held.text, /^Road · \$[\d,]+ · \d+ tiles · follows\sterrain · Shift:\sstraight$/, 'the tip says the drag follows the terrain');
+  const path = await preview(), blocked = ['8,19', '9,19', '8,20', '9,20', '12,19', '13,19', '12,20', '13,20'].map(p => p.split(',').map(Number)).map(([dx, dy]) => `${site.x + dx},${site.y + dy}`);
+  assert.equal(path[0], `${a.x},${a.y}`); assert.equal(path.at(-1), `${b.x},${b.y}`);
+  assert.ok(path.length > 15 && !path.some(p => blocked.includes(p)), `the preview steps around the house and the crown: ${path}`);
+  await page.screenshot({ path: `${output}/terrain-route.png` });
+  await page.mouse.up();
+  assert.equal(before - await money(), Number(held.text.match(/\$([\d,]+)/)[1].replaceAll(',', '')), 'the release spends exactly the quoted amount');
+  assert.ok(await page.evaluate(async ({ a, b }) => { const { findPath } = await import('./model.js'); return Boolean(findPath(transport.game, a, b, 'road')); }, { a, b }), 'the routed road connects both ends');
   await page.close();
 }
 
@@ -386,6 +428,7 @@ async function gestures(page, send, touch) {
 try {
   await strokeInput();
   await truthfulQuotes();
+  await terrainRoutes();
   const page = await start({ width: 1440, height: 1000 });
   await page.locator('.main-nav [data-view="build"]').click(); await page.locator('.sidebar').waitFor({ state: 'visible' });
   assert.deepEqual(await page.locator('#panel-content > .tool-grid [data-tool]').evaluateAll(nodes => nodes.map(node => node.dataset.tool)), ['road', 'rail', 'stop', 'port', 'bulldoze'], 'five primary network tools stay visible; engineering choices are expandable');

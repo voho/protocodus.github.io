@@ -7,6 +7,7 @@ import { surfaceHeight, tileSurface, MAX_HEIGHT } from './terrain-geometry.js';
 import { refreshRouteConnections, getVehiclePurchase, getVehicleUpgrade, getFleetUpgrade, upgradeRouteVehicle, upgradeFleet, priceFor, inflationInfo, addRoute, removeRoute, tick, saveGame, BIOMES, INDUSTRIES, CARGO, BUILD_COSTS, stationCoverage, industryConditions, settlementSuitability, weatherAt } from './model.js';
 import { createRenderer } from './renderer.js';
 import { quoteBuildPlan, buildPlan } from './construction-plan.js';
+import { gridLine, planNetworkStroke } from './network-router.js';
 import { routeTileIndex } from './route-tiles.js';
 import { TILE } from './sprites.js';
 import { drainDeliveryEvents } from './model.js';
@@ -854,11 +855,17 @@ $('#panel-content').addEventListener('focusout',()=>setTimeout(()=>{if(panelPric
 // A stop's New route opens the planner even when the draft already holds that stop.
 $('#inspector').addEventListener('click',e=>{if(e.target.closest?.('#station-route'))formDraft.open=true;},true);
 
-function gridLine(a,b) { const points=[];let x=a.x,y=a.y;points.push({x,y});const horizontalFirst=Math.abs(b.x-a.x)>=Math.abs(b.y-a.y);const stepX=()=>{while(x!==b.x){x+=Math.sign(b.x-x);points.push({x,y});}};const stepY=()=>{while(y!==b.y){y+=Math.sign(b.y-y);points.push({x,y});}};if(horizontalFirst){stepX();stepY();}else{stepY();stepX();}return points; }
-function constructionLine(a,b,key) {
+// Road and Rail follow the terrain only when the plain L would be refused; Shift keeps the L, bent along the first axis dragged.
+// Each company keeps its last plan, so a drag searches again only when its end tile or the world changes.
+const strokePlans=new WeakMap();
+function constructionLine(a,b,key,{shift=false,firstAxis}={}) {
  if(key==='level'){const points=[a];for(let y=Math.min(a.y,b.y);y<=Math.max(a.y,b.y);y++)for(let x=Math.min(a.x,b.x);x<=Math.max(a.x,b.x);x++)if(x!==a.x||y!==a.y)points.push({x,y});return points;}
  if(spanTools.has(key))b=Math.abs(b.x-a.x)>=Math.abs(b.y-a.y)?{x:b.x,y:a.y}:{x:a.x,y:b.y};
- return gridLine(a,b);
+ if(key!=='road'&&key!=='rail')return gridLine(a,b);
+ if(shift)return gridLine(a,b,firstAxis);
+ const memo=`${key}:${a.x},${a.y}:${b.x},${b.y}:${game.networkRevision}:${game.revision}`;let plan=strokePlans.get(game);
+ if(plan?.memo!==memo)strokePlans.set(game,plan={memo,...planNetworkStroke(game,key,a,b)});
+ return plan.path;
 }
 function paintPath(points) {
  if(spanTools.has(tool)&&points.length<3){toast('Drag a straight span of at least 3 tiles, including both ends.',true);preview=[];return;}
@@ -916,7 +923,8 @@ function updatePlacementTip(e=updatePlacementTip.at) {
  const nature=tool==='bulldoze'&&n===1?terrainObjectAt(game,hover.x,hover.y):null;
  const siteSize=BUILDINGS[effective]?buildingFootprint(effective):INDUSTRIES[effective]?industryFootprint(effective):nature&&nature.object.kind!=='mountain'?terrainObjectSize(nature.object):0;
  const note=plan.ok===false?{text:''}:placementNote(effective,plan);
- tip.textContent=plan.ok===false?plan.message:`${name}${siteSize?' · '+siteSize+' × '+siteSize:''}${levels?' · '+levels:''} · ${money(plan.cost)}${plan.placements.length>1?' · '+plan.placements.length+(tool==='bulldoze'?' sites':terrainTools.has(tool)?' points':' tiles'):''}${plan.partial?' · '+plan.message:''}${note.text?' · '+note.text:''}`;
+ const stroke=strokePlans.get(game),route=preview.length&&preview===stroke?.path?stroke.reason:null,terrain=route==='flipped'||route==='routed'?` · follows\u00a0terrain${e.pointerType==='touch'?'':' · Shift:\u00a0straight'}`:'';
+ tip.textContent=plan.ok===false?route==='too-far'?'No gentle route — level ground or drag in shorter segments':plan.message+terrain:`${name}${siteSize?' · '+siteSize+' × '+siteSize:''}${levels?' · '+levels:''} · ${money(plan.cost)}${plan.placements.length>1?' · '+plan.placements.length+(tool==='bulldoze'?' sites':terrainTools.has(tool)?' points':' tiles'):''}${plan.partial?' · '+plan.message:''}${note.text?' · '+note.text:''}${terrain}`;
  tip.classList.toggle('invalid',plan.ok===false);tip.classList.toggle('partial',plan.ok!==false&&Boolean(plan.partial));tip.classList.toggle('warning',Boolean(note.warning));
  const rect=canvas.getBoundingClientRect();tip.hidden=false;
  tip.style.left=Math.max(4,Math.min(rect.width-tip.offsetWidth-4,e.clientX-rect.left+17))+'px';tip.style.top=Math.max(4,Math.min(rect.height-tip.offsetHeight-4,e.clientY-rect.top+18))+'px';
@@ -929,7 +937,7 @@ canvas.addEventListener('pointerdown',e=>{
   if(touchGesture)return;
  }else if(pointer){if(e.button===2)setTool('inspect');return;}
  canvas.focus({preventScroll:true});const tile=pickMapTile(e.clientX,e.clientY);
- pointer={id:e.pointerId,button:e.button,tool,x:e.clientX,y:e.clientY,lastX:e.clientX,lastY:e.clientY,start:tile,moved:false,pan:tool==='inspect'||e.button!==0||spaceDown};
+ pointer={id:e.pointerId,button:e.button,tool,x:e.clientX,y:e.clientY,lastX:e.clientX,lastY:e.clientY,start:tile,moved:false,pan:tool==='inspect'||e.button!==0||spaceDown,shift:e.shiftKey};
  canvas.setPointerCapture(e.pointerId);
  if(spaceDown)spaceUsedForPan=true;
  if(pointer.pan)canvas.classList.add('dragging');else preview=[tile];
@@ -950,9 +958,10 @@ canvas.addEventListener('pointermove',e=>{
   if(pointer.cancelled){pointer.lastX=e.clientX;pointer.lastY=e.clientY;$('#placement-tip').hidden=true;return;}
   const dx=e.clientX-pointer.lastX,dy=e.clientY-pointer.lastY;
   if(Math.hypot(e.clientX-pointer.x,e.clientY-pointer.y)>5)pointer.moved=true;
+  pointer.shift=e.shiftKey;if(pointer.moved&&!pointer.firstAxis&&(hover.x!==pointer.start.x||hover.y!==pointer.start.y))pointer.firstAxis=Math.abs(hover.x-pointer.start.x)>=Math.abs(hover.y-pointer.start.y)?'x':'y';
   if(pointer.moved&&!lineTools.has(pointer.tool)){pointer.pan=true;preview=[];canvas.classList.add('dragging');}
   if(pointer.pan){renderer.pan(dx,dy);if(spaceDown)spaceUsedForPan=true;}
-  else if(lineTools.has(pointer.tool))preview=constructionLine(pointer.start,hover,pointer.tool);
+  else if(lineTools.has(pointer.tool))preview=constructionLine(pointer.start,hover,pointer.tool,pointer);
   pointer.lastX=e.clientX;pointer.lastY=e.clientY;
  }
  updatePlacementTip(e);
