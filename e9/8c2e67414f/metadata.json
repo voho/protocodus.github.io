@@ -1,0 +1,55 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "e98c2e67414f",
+  "strategy": "manual-commit",
+  "branch": "transport-playability",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "fun/transport/README.md",
+    "fun/transport/app.js",
+    "fun/transport/tests/art-loading-browser-check.mjs",
+    "fun/transport/tests/autosave-browser-check.mjs",
+    "fun/transport/tests/browser-check.mjs",
+    "fun/transport/tests/cohesion-browser-check.mjs",
+    "fun/transport/tests/daynight-renderer-check.mjs",
+    "fun/transport/tests/earthworks-browser-check.mjs",
+    "fun/transport/tests/engineering-renderer-check.mjs",
+    "fun/transport/tests/evolution-browser-check.mjs",
+    "fun/transport/tests/footprint-ui-browser-check.mjs",
+    "fun/transport/tests/generated-art-coverage-browser-check.mjs",
+    "fun/transport/tests/isometric-browser-check.mjs",
+    "fun/transport/tests/large-sites-renderer-check.mjs",
+    "fun/transport/tests/layers-browser-check.mjs",
+    "fun/transport/tests/nature-browser-check.mjs",
+    "fun/transport/tests/resources-browser-check.mjs",
+    "fun/transport/tests/shipping-browser-check.mjs",
+    "fun/transport/tests/shipping-renderer-check.mjs",
+    "fun/transport/tests/square-renderer-check.mjs",
+    "fun/transport/tests/square-save-browser-check.mjs",
+    "fun/transport/tests/square-world-ui-check.mjs",
+    "fun/transport/tests/terrain-elevation-browser-check.mjs",
+    "fun/transport/tests/terrain-geometry-renderer-check.mjs",
+    "fun/transport/tests/terrain-leveling-browser-check.mjs",
+    "fun/transport/tests/terrain-objects-renderer-check.mjs",
+    "fun/transport/tests/ui-art-browser-check.mjs",
+    "fun/transport/tests/vast-browser-check.mjs",
+    "fun/transport/tests/weather-effects-browser-check.mjs",
+    "fun/transport/tests/zoom-browser-check.mjs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/e9/8c2e67414f/0/metadata.json",
+      "transcript": "/e9/8c2e67414f/0/full.jsonl",
+      "context": "/e9/8c2e67414f/0/context.md",
+      "content_hash": "/e9/8c2e67414f/0/content_hash.txt",
+      "prompt": "/e9/8c2e67414f/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 184,
+    "cache_creation_tokens": 222747,
+    "cache_read_tokens": 6989952,
+    "output_tokens": 50046,
+    "api_call_count": 67
+  }
+}
