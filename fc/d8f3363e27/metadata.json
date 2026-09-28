@@ -7,7 +7,6 @@
   "files_touched": [
     "fun/transport/ARCHITECTURE.md",
     "fun/transport/PERFORMANCE.md",
-    "fun/transport/README.md",
     "fun/transport/app.js",
     "fun/transport/formatters.js",
     "fun/transport/renderer.js",
