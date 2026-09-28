@@ -8,21 +8,11 @@
     "fun/transport/ARCHITECTURE.md",
     "fun/transport/README.md",
     "fun/transport/app.js",
-    "fun/transport/compact-hud.css",
     "fun/transport/contracts.js",
-    "fun/transport/gameplay-insights.js",
     "fun/transport/model.js",
-    "fun/transport/route-planner.js",
     "fun/transport/routes.css",
     "fun/transport/tests/contracts-browser-check.mjs",
-    "fun/transport/tests/contracts.test.mjs",
-    "fun/transport/tests/economy.test.mjs",
-    "fun/transport/tests/features-browser-check.mjs",
-    "fun/transport/tests/gameplay-insights.test.mjs",
-    "fun/transport/tests/notices-browser-check.mjs",
-    "fun/transport/tests/route-planner.test.mjs",
-    "fun/transport/tests/ui-notices.test.mjs",
-    "fun/transport/ui-notices.js"
+    "fun/transport/tests/contracts.test.mjs"
   ],
   "sessions": [
     {
