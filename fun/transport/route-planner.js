@@ -50,6 +50,9 @@ export function validateRoutePlan(game, draft, { ignoreFunds = false } = {}) {
     if (canShip(coverage[1], coverage[0], cargo)) result.reversed = true;
     else return fail(sharedCargoGap(game, stations, coverage) || `Connected. Add a ${CARGO[cargo].name.toLowerCase()} producer and buyer within 5 tiles of the stops.`);
   }
+  // The same stops and cargo can take another vehicle instead of a duplicate service.
+  const [first, second] = result.reversed ? [stations[1], stations[0]] : stations;
+  result.existingRouteId = game.routes.find(route => route.mode === mode && route.cargo === cargo && (route.stops[0] === first.id && route.stops[1] === second.id || cargo === 'passengers' && route.stops[0] === second.id && route.stops[1] === first.id))?.id ?? null;
   if (!ignoreFunds && game.money < getVehiclePurchase(game,mode).cost) return fail('Connected. More funds are needed to buy the vehicle.');
   return { ...result, valid: true, message: `${mode === 'water' ? 'Connected by water' : 'Connected'} · ${result.path.length - 1} tiles${result.reversed ? ' · Loads at end stop' : ''}` };
 }

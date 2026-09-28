@@ -70,6 +70,22 @@ test('preview identifies reverse freight loading and agrees with launch orientat
   assert.deepEqual(result.route.stops, [draft.from, draft.to]);
 });
 
+test('a plan for stops a route already serves names that route instead of a new service', () => {
+  const { game, draft } = fixture();
+  assert.equal(validateRoutePlan(game, draft).existingRouteId, null);
+  const route = addRoute(game, { ...draft, stops: [draft.from, draft.to] }).route;
+  assert.equal(validateRoutePlan(game, draft).existingRouteId, route.id);
+  assert.equal(validateRoutePlan(game, { ...draft, from: draft.to, to: draft.from }).existingRouteId, route.id, 'freight compares its loading order after reversal');
+  game.money = 0;
+  assert.equal(validateRoutePlan(game, draft).existingRouteId, route.id, 'short funds still point at the existing service');
+  game.money = 1e6;
+  game.cities = [{ id: 'town-a', x: 10, y: 10 }, { id: 'town-b', x: 30, y: 10 }];
+  const passengers = { ...draft, cargo: 'passengers' };
+  assert.equal(validateRoutePlan(game, passengers).existingRouteId, null, 'another cargo is another service');
+  const bus = addRoute(game, { ...passengers, stops: [draft.to, draft.from] }).route;
+  assert.equal(validateRoutePlan(game, passengers).existingRouteId, bus.id, 'passenger stops match in either order');
+});
+
 test('passenger planning requires two different towns and refuses adjacent stops', () => {
   const { game, draft } = fixture();
   const passengers = { ...draft, cargo: 'passengers' };

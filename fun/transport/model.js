@@ -512,7 +512,8 @@ export function addRoute(game,{name,mode='road',stops,cargo='passengers'}={}) {
   const path=findPath(game,stations[0],stations[1],mode);
   if(!path)return result(false,mode==='water'?'Ports must share connected water. Choose ports on the same river, lake or sea.':`Connect both stations with continuous ${mode==='road'?'roads':'rails'}, including bridges and tunnels.`);
   if(path.length<3)return result(false,'Stations are too close for a transport service.');
-  const purchase=getVehiclePurchase(game,mode),cost=purchase.cost;if(game.money<cost)return result(false,`Need ${moneyText(cost)} to buy this ${mode==='water'?'ship':mode==='rail'?'train':cargo==='passengers'?'bus':'truck'}.`);
+  if(game.vehicles.length>=MAX_VEHICLES)return result(false,FLEET_FULL);
+  const purchase=getVehiclePurchase(game,mode),cost=purchase.cost;if(game.money<cost)return result(false,`Need ${moneyText(cost)} to buy this ${vehicleNoun(mode,cargo)}.`);
   const palette=['#efc16f','#69c6bc','#d893b1','#88aee4','#b3cf83','#e5966d'];
   const route={id:makeId(game,'route'),name:String(name||`${stations[0].name} → ${stations[1].name}`).slice(0,100),mode,stops:stations.map(s=>s.id),cargo,delivered:0,revenue:0,expenses:0,accountingStartDay:game.day,revenueAtAccountingStart:0,color:palette[game.routes.length%palette.length],path,active:true,status:'Running',pathRevision:game.networkRevision||0};
   const vehicle={id:makeId(game,'vehicle'),routeId:route.id,x:path[0].x,y:path[0].y,angle:0,load:0,capacity:purchase.capacity,level:purchase.level,paidPrice:cost,progress:0,direction:1,totalDistance:0,dwellRemaining:0,tripSerial:0};
@@ -521,9 +522,52 @@ export function addRoute(game,{name,mode='road',stops,cargo='passengers'}={}) {
 }
 export function removeRoute(game,routeId) {
   const route=game.routes.find(r=>r.id===routeId);if(!route)return result(false,'Route not found.');
-  const refund=game.vehicles.filter(v=>v.routeId===routeId).reduce((sum,v)=>sum+Math.round((v.paidPrice??VEHICLE_COSTS[route.mode])*.45),0);
+  const refund=getRetirementRefund(game,routeId);
   game.routes=game.routes.filter(r=>r.id!==routeId);game.vehicles=game.vehicles.filter(v=>v.routeId!==routeId);game.money+=refund;game.revision++;
   return result(true,`Service retired. Vehicle sale returned ${moneyText(refund)}.`,{refund});
+}
+// Every route runs one or more vehicles. The fleet caps at 10,000 so saves stay valid.
+export function vehicleNoun(mode,cargo) { return mode==='water'?'ship':mode==='rail'?'train':cargo==='passengers'?'bus':'truck'; }
+export const MAX_VEHICLES=10000;
+const FLEET_FULL='Your fleet has reached 10,000 vehicles.';
+const saleValue=(route,vehicle)=>Math.round((vehicle.paidPrice??VEHICLE_COSTS[route.mode])*.45);
+// Selling loses the least: the oldest generation, then the emptiest, then the latest in line.
+function sellCandidate(vehicles) { let pick=null;for(const v of vehicles)if(!pick||vehicleLevel(v)<vehicleLevel(pick)||vehicleLevel(v)===vehicleLevel(pick)&&v.load<=pick.load)pick=v;return pick; }
+export function getRetirementRefund(game,routeId) {
+  const index=fleetIndex(game),route=index.routeById.get(routeId);
+  return route?(index.vehiclesByRoute.get(routeId)||[]).reduce((sum,v)=>sum+saleValue(route,v),0):0;
+}
+export function getRouteFleet(game,routeId) {
+  const index=fleetIndex(game),route=index.routeById.get(routeId),vehicles=route?index.vehiclesByRoute.get(routeId)||[]:[],levels=vehicles.map(vehicleLevel),pick=sellCandidate(vehicles);
+  return {count:vehicles.length,capacity:vehicles.reduce((sum,v)=>sum+v.capacity,0),load:vehicles.reduce((sum,v)=>sum+v.load,0),minLevel:levels.length?Math.min(...levels):0,maxLevel:levels.length?Math.max(...levels):0,sellRefund:pick?saleValue(route,pick):0};
+}
+// A round trip is a loop of 2L tiles: out along the path, then back. A new vehicle
+// takes the middle of the widest gap in that loop, so a bought fleet never runs as a convoy.
+export function addRouteVehicle(game,routeId) {
+  const index=fleetIndex(game),route=index.routeById.get(routeId);if(!route)return result(false,'Route not found.');
+  if(!route.active)return result(false,'Repair the connection before adding vehicles.');
+  if(game.vehicles.length>=MAX_VEHICLES)return result(false,FLEET_FULL);
+  const noun=vehicleNoun(route.mode,route.cargo),purchase=getVehiclePurchase(game,route.mode),cost=purchase.cost;
+  if(game.money<cost)return result(false,`Need ${moneyText(cost)} to buy another ${noun}.`);
+  const L=route.path.length-1,cycle=2*L,phases=(index.vehiclesByRoute.get(route.id)||[]).map(v=>((v.direction===1?v.progress:cycle-v.progress)%cycle+cycle)%cycle).sort((a,b)=>a-b);
+  let start=0,gap=cycle;
+  for(let i=0;i<phases.length;i++){const span=(i+1<phases.length?phases[i+1]:phases[0]+cycle)-phases[i];if(i===0||span>gap+1e-9){start=phases[i];gap=span;}}
+  const middle=phases.length?(start+gap/2)%cycle:0;
+  let progress=middle<=L?middle:cycle-middle,direction=middle<=L?1:-1,stop=-1;
+  // Within half a tile of a stop, start there as if just loaded and departing.
+  if(progress<=.5){progress=0;direction=1;stop=0;}else if(progress>=L-.5){progress=L;direction=-1;stop=1;}
+  const at=Math.min(Math.floor(progress),L-1),a=route.path[at],b=route.path[at+1],fraction=progress-at;
+  const vehicle={id:makeId(game,'vehicle'),routeId:route.id,x:a.x+(b.x-a.x)*fraction,y:a.y+(b.y-a.y)*fraction,angle:Math.atan2((b.y-a.y)*direction,(b.x-a.x)*direction),load:0,capacity:purchase.capacity,level:purchase.level,paidPrice:cost,progress,direction,totalDistance:0,dwellRemaining:0,tripSerial:0};
+  spend(game,cost);game.vehicles.push(vehicle);if(stop>=0)loadVehicle(game,route,vehicle,stop);game.revision++;
+  return result(true,`${noun[0].toUpperCase()+noun.slice(1)} added to ${route.name} · ${moneyText(cost)}`,{vehicle,cost});
+}
+export function sellRouteVehicle(game,routeId) {
+  const index=fleetIndex(game),route=index.routeById.get(routeId);if(!route)return result(false,'Route not found.');
+  const vehicles=index.vehiclesByRoute.get(route.id)||[];
+  if(vehicles.length<=1)return result(false,'Retire the route to sell its last vehicle.');
+  const vehicle=sellCandidate(vehicles),refund=saleValue(route,vehicle);
+  game.vehicles=game.vehicles.filter(v=>v!==vehicle);game.money+=refund;game.revision++;
+  return result(true,`Vehicle sold · ${moneyText(refund)}`,{vehicle,refund});
 }
 function journeyContext(game) {
   return { stations:fleetIndex(game).stationById, coverage:new Map(), endpoints:new Map(), environments:new Map() };

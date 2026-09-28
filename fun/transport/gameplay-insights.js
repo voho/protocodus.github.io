@@ -1,5 +1,5 @@
 import { INDUSTRIES, CARGO, TOWN_CARGO } from './data.js';
-import { STATION_RADIUS, findPath } from './model.js';
+import { STATION_RADIUS, findPath, vehicleNoun } from './model.js';
 import { findIndustryTargets } from './chains.js';
 import { industryDistance, industryContains, industrySize } from './industry-sites.js';
 import { buildingAt } from './building-sites.js';
@@ -160,14 +160,31 @@ export function industryStatus(industry, game = null) {
   return { state: 'producing', label: 'Producing', missing: [], detail: 'Output depends on nearby nature, roads, workers and weather.' };
 }
 
-export function routeHealth(game, route) {
+// The town pair a passenger service actually links, as passengerEndpoints picks it.
+function endpointTowns(towns, stops) {
+  let best = null, bestDistance = Infinity;
+  for (const a of towns[0]) for (const b of towns[1]) {
+    const walking = Math.hypot(a.x - stops[0].x, a.y - stops[0].y) + Math.hypot(b.x - stops[1].x, b.y - stops[1].y);
+    if (a.id !== b.id && walking < bestDistance) { best = [a, b]; bestDistance = walking; }
+  }
+  return best;
+}
+// Another vehicle pays only while at least two full loads wait for the fleet.
+function fleetHealth(game, route, stats, waiting, running) {
+  const capacity = stats?.capacity ?? game.vehicles.reduce((sum, vehicle) => vehicle.routeId === route.id ? sum + (vehicle.capacity || 0) : sum, 0);
+  if (waiting < Math.max(50, 2 * capacity)) return { ...running, waiting, capacity };
+  return { state: 'busy', label: route.cargo === 'passengers' ? 'Passengers waiting' : 'Cargo piling up', detail: `About ${Math.round(waiting / Math.max(1, capacity))} loads. Add a ${vehicleNoun(route.mode, route.cargo)}.`, waiting, capacity };
+}
+
+export function routeHealth(game, route, stats = null) {
   if (!route.active) return { state: 'blocked', label: 'Disconnected', detail: 'Repair the connection between the two stops.' };
   const stops = route.stops.map(id => game.stations.find(stop => stop.id === id));
   if (stops.some(stop => !stop)) return { state: 'blocked', label: 'Missing stop', detail: 'This service needs both stops.' };
   if (route.cargo === 'passengers') {
     const towns = stops.map(stop => game.cities.filter(city => nearby(city, stop)));
     if (!towns[0].some(a => towns[1].some(b => a.id !== b.id))) return { state: 'blocked', label: 'No passengers', detail: 'Each stop must cover a different town.' };
-    return { state: 'running', label: 'Running', detail: 'Passengers travel in both directions.' };
+    const waiting = Math.min(...endpointTowns(towns, stops).map(city => Math.floor(city.passengers || 0)));
+    return fleetHealth(game, route, stats, waiting, { state: 'running', label: 'Running', detail: 'Passengers travel both ways.' });
   }
   const sources = game.industries.filter(site => covers(site, stops[0]) && INDUSTRIES[site.kind].outputs[route.cargo]);
   const buyers = game.industries.filter(site => covers(site, stops[1]) && INDUSTRIES[site.kind].inputs[route.cargo] && !sources.includes(site));
@@ -182,7 +199,8 @@ export function routeHealth(game, route) {
     const missing = [...new Set(sources.flatMap(site => industryStatus(site).missing))];
     return { state: 'waiting', label: missing.length ? 'Needs inputs' : 'Waiting for cargo', detail: missing.length ? 'Supply ' + joinCargo(missing) + ' to the producer.' : 'The producer is replenishing its stock. Extra vehicles will not help yet.' };
   }
-  return { state: 'running', label: 'Running', detail: 'Freight loads at the start and returns for the next shipment.' };
+  const waiting = sources.reduce((sum, site) => sum + Math.floor(site.inventory?.[route.cargo] || 0), 0);
+  return fleetHealth(game, route, stats, waiting, { state: 'running', label: 'Running', detail: 'Freight loads at the start and returns for the next shipment.' });
 }
 
 /** One optional goal at a time. Searches are memoised; the stage is re-read on every call. */

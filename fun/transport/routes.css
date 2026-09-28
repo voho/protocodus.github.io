@@ -67,3 +67,20 @@
 .route-card.route-flash{animation:route-flash 1.2s ease-out}
 @keyframes route-flash{0%,30%{border-color:#e17b4a;background:#fbecdf;box-shadow:0 0 0 3px #e17b4a33}100%{border-color:#dfe5d4;background:#f2f4e9;box-shadow:0 0 0 0 #e17b4a00}}
 @media(prefers-reduced-motion:reduce){.route-card.route-flash{animation:none;border-color:#e17b4a}}
+
+.route-vehicle-spec{align-items:center;flex-wrap:wrap;gap:6px;margin-top:8px}
+.fleet-stepper{display:inline-flex;gap:4px;margin-left:auto}
+.fleet-stepper .small-button{min-height:26px;padding:2px 9px;font-size:11px;color:#416d4b;background:#e7efdf;border:1px solid #c6d8b7}
+.fleet-stepper [data-sell-vehicle]{min-width:26px;padding:0;font-size:15px;line-height:1}
+.fleet-stepper .small-button:disabled{color:#8c9783;background:transparent;border-color:#dde3d5;cursor:default}
+.route-rate{color:#8a9a7c}
+.route-condition{display:flex;align-items:baseline;gap:6px;margin-top:9px}
+.route-condition .route-health{margin:0;min-width:0}
+.route-waiting:empty{display:none}
+.route-waiting{flex:0 0 auto;padding:0 7px;border-radius:9px;background:#e9eee0;color:#5a7050;font-size:12px;line-height:1.5;white-space:nowrap}
+.route-waiting[data-state=busy]{background:var(--orange-light);color:#b0592b}
+.route-health[data-state=busy]{color:#8b633a}
+.route-card:has(.route-waiting[data-state=busy]) [data-add-vehicle]:not(:disabled){border-color:#e3a57f;background:var(--orange-light);color:#9a4d24}
+.route-header .route-busy{color:#c7683a}
+.route-launch .route-separate{margin-top:8px}
+.inspector-grid.town-figures{grid-template-columns:repeat(3,1fr)}

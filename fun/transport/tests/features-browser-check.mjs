@@ -1,7 +1,7 @@
 // Serve the repository root first. Browser storage is isolated from the user's save.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
-import { createWorldFromMenu, openGameAction } from './browser-start.mjs';
+import { createWorldFromMenu, openGameAction, loadAutosaveFromMenu } from './browser-start.mjs';
 const { chromium } = await import(process.env.TRANSPORT_PLAYWRIGHT || 'playwright');
 const browser = await chromium.launch({ channel: process.env.TRANSPORT_BROWSER || 'chrome', headless: true });
 const url = process.env.TRANSPORT_URL || 'http://localhost:8765/fun/transport/';
@@ -125,6 +125,43 @@ try {
   await quarryPage.close();
   assert.deepEqual(errors, [], 'the route planner runs without console or runtime errors');
   console.log('Route planner checks passed: inferred cargo, fit marks, coverage picks, swap, default name, folded planner, 390px.');
+
+  // A route card buys and sells vehicles on its own service; the fleet survives an autosave reload.
+  const fleetPage = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  watch(fleetPage);
+  await fleetPage.goto(url);
+  await createWorldFromMenu(fleetPage);
+  await fleetPage.evaluate(() => transport.setView('routes'));
+  const starterCard = fleetPage.locator('.route-card[data-route-id]').first(), fleetMoney = await fleetPage.evaluate(() => transport.game.money);
+  assert.equal(await starterCard.locator('[data-sell-vehicle]').isDisabled(), true, 'the last vehicle is kept for retirement');
+  await starterCard.locator('[data-add-vehicle]').click();
+  assert.equal(await fleetPage.evaluate(() => transport.game.vehicles.length), 2, '+ Bus adds a second bus to the starter route');
+  assert.equal(await fleetPage.evaluate(() => transport.game.money), fleetMoney - 18000, 'the bus costs its quoted price');
+  assert.match(await starterCard.locator('[data-vehicle-spec]').textContent(), /^2 buses · \d+ \/ 48 loaded$/);
+  assert.equal(await starterCard.locator('[data-sell-vehicle]').isDisabled(), false);
+  assert.ok((await starterCard.boundingBox()).height <= 280, `390px route card stays compact: ${(await starterCard.boundingBox()).height}px`);
+  assert.equal(await fits(fleetPage, '#panel-content'), true, '390px fleet controls fit the drawer');
+  await starterCard.screenshot({ path: `${output}/mobile-390-fleet-card.png` });
+  await starterCard.locator('[data-remove-route]').click();
+  assert.match(await fleetPage.locator('#modal').innerText(), /Its 2 buses sell for \$16,200/);
+  assert.equal(await fleetPage.locator('#confirm-retire').textContent(), 'Retire · +$16,200');
+  await fleetPage.locator('#modal [data-close]').click();
+  await fleetPage.evaluate(() => transport.persist());
+  await fleetPage.goto(url);
+  await loadAutosaveFromMenu(fleetPage);
+  assert.equal(await fleetPage.evaluate(() => transport.game.vehicles.length), 2, 'the second bus survives an autosave reload');
+  await fleetPage.evaluate(() => transport.setView('routes'));
+  await fleetPage.locator('#new-route-button').click();
+  await fleetPage.locator('#route-form [name="from"]').selectOption('station-1');
+  await fleetPage.locator('#route-form [name="to"]').selectOption('station-2');
+  await fleetPage.locator('[data-cargo-choice="passengers"]').click();
+  assert.match(await fleetPage.locator('#route-connection').textContent(), /Already served by Alderbrook · Pinehaven/);
+  assert.equal(await fleetPage.locator('#route-form [type="submit"]').textContent(), 'Launch separate service', 'a duplicate service stays possible');
+  await fleetPage.locator('#add-route-vehicle').click();
+  assert.deepEqual(await fleetPage.evaluate(() => [transport.game.routes.length, transport.game.vehicles.length]), [1, 3], 'the planner adds to the existing route instead of duplicating it');
+  await fleetPage.close();
+  assert.deepEqual(errors, [], 'fleet controls run without console or runtime errors');
+  console.log('Fleet checks passed: add and sell, price, count, retire refund, autosave reload, planner reuse, 390px card.');
 
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   watch(page);

@@ -69,7 +69,7 @@ test('a working iron route beside large sites reads as running and names its car
   assert.equal(result.ok,true,result.message);
   advance(game,60,tick);
   const route=game.routes[0];assert.ok(route.delivered>0,'the simulation delivers the ore');
-  assert.equal(routeHealth(game,route).state,'running');
+  assert.match(routeHealth(game,route).state,/^(running|busy)$/,'a working route may ask for more trucks but is never blocked');
   const missing=routeHealth({...game,industries:game.industries.filter(site=>site.kind!=='iron-mine')},route);
   assert.equal(missing.label,'No producer');assert.doesNotMatch(missing.detail,/\ba iron/);assert.match(missing.detail,/producer of iron ore/);
 });
@@ -96,6 +96,24 @@ test('a processing route points back to its missing input instead of recommendin
   game.industries=[site('source','steel-mill',10,{coal:5}),site('buyer','machine-works',30)];
   assert.equal(routeHealth(game,game.routes[0]).label,'Needs inputs');
   assert.match(routeHealth(game,game.routes[0]).detail,/iron/);
+});
+
+test('a running route turns busy when cargo or passengers pile up beyond two full loads', () => {
+  const game=routeGame(),route=game.routes[0];
+  game.industries[0].inventory.timber=900;game.vehicles.push({routeId:'r',load:0,capacity:24});
+  let health=routeHealth(game,route);
+  assert.deepEqual([health.state,health.label,health.waiting,health.capacity],['busy','Cargo piling up',900,24]);
+  assert.equal(health.detail,'About 38 loads. Add a truck.','the card shows the count beside it; the detail says what to do');
+  assert.equal(routeHealth(game,route,{capacity:480}).state,'running','the caller may pass the fleet capacity it already summed');
+  game.industries[0].inventory.timber=40;health=routeHealth(game,route);
+  assert.deepEqual([health.state,health.waiting,health.capacity],['running',40,24]);
+  const towns=routeGame();Object.assign(towns.routes[0],{cargo:'passengers',mode:'road'});towns.industries=[];towns.vehicles.push({routeId:'r',load:0,capacity:24});
+  towns.cities=[{id:'west',x:10,y:12,passengers:800.7},{id:'east',x:30,y:12,passengers:50}];
+  health=routeHealth(towns,towns.routes[0]);
+  assert.deepEqual([health.state,health.label,health.waiting],['busy','Passengers waiting',50],'the quieter town limits what another bus can carry');
+  assert.equal(health.detail,'About 2 loads. Add a bus.');
+  towns.cities[1].passengers=40;health=routeHealth(towns,towns.routes[0]);
+  assert.deepEqual([health.state,health.waiting],['running',40]);
 });
 
 test('optional projects progress through deliberate freight and town building, not passive starter bus revenue', () => {
