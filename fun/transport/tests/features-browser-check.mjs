@@ -366,6 +366,35 @@ try {
     await vehiclePage.mouse.click(sign.x, sign.y);
     assert.equal(await vehiclePage.locator('#inspector h3').textContent(), station.name, `${zoom}x the ${station.name} sign opens its stop in Explore mode`);
   }
+  // A stop built beside the town centre is unused: a pale sign that steps off its neighbour where they would meet, and still opens its stop.
+  // No drawn town name meets a sign, served signs wear their route's ring, and pointing at a sign names its stop.
+  await vehiclePage.locator('#inspector .tiny-button').click();
+  const beside = await vehiclePage.evaluate(async home => {
+    const { build } = await import('./model.js'), g = transport.game;
+    for (const [x, y] of [[home.x + 1, home.y], [home.x, home.y + 1], [home.x - 1, home.y], [home.x, home.y - 1]]) if (g.tiles[y * g.width + x]?.road) { const made = build(g, 'bus-stop', x, y); if (made.ok) return made.station; }
+    return null;
+  }, starterRoute.stops[0]);
+  assert.ok(beside, 'a stop fits on the road beside the town centre');
+  const meets = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  for (const zoom of [.5, 1, 2]) {
+    const scene = await vehiclePage.evaluate(({ zoom, beside }) => {
+      const renderer = transport.renderer, rect = document.querySelector('#world').getBoundingClientRect(); renderer.setZoom(zoom); renderer.focus(beside.x, beside.y); renderer.render(performance.now(), {});
+      const signs = transport.game.stations.map(station => ({ id: station.id, ...renderer.stationMarker(station) })).filter(sign => sign.x > 0 && sign.y > 0 && sign.x < rect.width && sign.y < rect.height).map(sign => ({ id: sign.id, x: sign.x, y: sign.y, w: sign.size, h: sign.size }));
+      const own = signs.find(sign => sign.id === beside.id);
+      return { labels: renderer.cityLabels(), signs, stats: renderer.getStats().stopSigns, click: { x: rect.left + own.x + own.w / 2, y: rect.top + own.y + own.h / 2 } };
+    }, { zoom, beside });
+    for (const label of scene.labels) for (const sign of scene.signs) assert.equal(meets(label, sign), false, `${zoom}x the ${sign.id} sign clears the label of ${label.id}`);
+    for (const [n, a] of scene.signs.entries()) for (const b of scene.signs.slice(n + 1)) assert.equal(meets(a, b), false, `${zoom}x the ${a.id} and ${b.id} signs stay apart`);
+    assert.ok(scene.stats.active >= 1 && scene.stats.idle === 1 && scene.stats.broken === 0, `${zoom}x the served stop is ringed and the new one is unused: ${JSON.stringify(scene.stats)}`);
+    await vehiclePage.mouse.move(scene.click.x, scene.click.y);
+    await vehiclePage.waitForFunction(() => transport.renderer.getStats().stopSigns.named === 1);
+    if (zoom === 1) await vehiclePage.screenshot({ path: `${output}/desktop-stop-signs.png`, clip: { x: scene.click.x - 200, y: scene.click.y - 120, width: 400, height: 220 } });
+    await vehiclePage.mouse.click(scene.click.x, scene.click.y);
+    assert.equal(await vehiclePage.locator('#inspector h3').textContent(), beside.name, `${zoom}x the new stop's sign opens its stop`);
+    await vehiclePage.locator('#inspector .tiny-button').click();
+  }
+  const offline = await vehiclePage.evaluate(() => { const route = transport.game.routes[0]; route.active = false; transport.renderer.render(performance.now(), {}); const stats = transport.renderer.getStats().stopSigns; route.active = true; return stats; });
+  assert.ok(offline.broken >= 1 && offline.active === 0, `a stop whose only route is offline wears a red ring: ${JSON.stringify(offline)}`);
   // Follow keeps the bus centred at 3× until the map is dragged or Escape is pressed; the speed never changes.
   const followBus = async () => {
     await vehiclePage.locator('[data-speed="0"]').click();
@@ -408,6 +437,8 @@ try {
   await vehiclePage.screenshot({ path: `${output}/desktop-vehicle-card.png` });
   await vehiclePage.evaluate(async id => { const { removeRoute } = await import('./model.js'); removeRoute(transport.game, id); }, starterRoute.id);
   await vehiclePage.locator('#inspector').waitFor({ state: 'hidden' });
+  const retired = await vehiclePage.evaluate(stop => { transport.renderer.focus(stop.x, stop.y); transport.renderer.render(performance.now(), {}); return transport.renderer.getStats().stopSigns; }, starterRoute.stops[0]);
+  assert.ok(retired.drawn >= 1 && retired.idle === retired.drawn, `with its route retired the stop's sign turns pale: ${JSON.stringify(retired)}`);
   await vehiclePage.close();
 
   // On a touch screen the route picker says Tap and takes a stop sign within a finger's reach.

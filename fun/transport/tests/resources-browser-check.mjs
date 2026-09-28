@@ -87,6 +87,46 @@ try {
       transport.setTool('inspect');
     }, { ground: marker.ground, originalTile });
   }
+  // No marker stands on another site. One whose front is taken sits on its own building, or beside the front on a stem,
+  // and still opens its own industry.
+  for (const zoom of [.5, 1, 2]) {
+    const placed = await page.evaluate(zoom => {
+      const g = transport.game, r = transport.renderer, rect = document.querySelector('#world').getBoundingClientRect(), wrong = [];let moved = null;
+      const inside = (site, p) => p.x >= site.x && p.y >= site.y && p.x < site.x + (site.footprint || 1) && p.y < site.y + (site.footprint || 1);
+      r.setZoom(zoom);
+      for (const site of g.industries) {
+        r.focus(site.x, site.y);
+        const m = r.industryMarker(site), ground = r.screenToTile(rect.left + m.x, rect.top + m.y), other = g.industries.find(o => o !== site && inside(o, ground));
+        if (other) wrong.push(`${site.name} ${site.x},${site.y} on ${other.name}`);
+        if (!moved && inside(site, ground)) moved = site;
+      }
+      if (!moved) return { wrong, moved };
+      r.focus(moved.x, moved.y); r.render(performance.now(), {});
+      const m = r.industryMarker(moved);
+      return { wrong, moved: { name: moved.name, x: rect.left + m.x, y: rect.top + m.y }, stats: r.getStats().overlays };
+    }, zoom);
+    assert.deepEqual(placed.wrong, [], `${zoom}x no marker stands on another site`);
+    assert.ok(placed.moved && placed.stats.own > 0, `${zoom}x some markers sit on their own building: ${JSON.stringify(placed.stats)}`);
+    await page.waitForFunction(({ x, y }) => document.elementFromPoint(x, y)?.id === 'world', placed.moved);
+    await page.mouse.click(placed.moved.x, placed.moved.y);
+    assert.equal(await page.locator('#inspector h3').textContent(), placed.moved.name, `${zoom}x a marker on its own building opens its industry`);
+    await page.locator('#inspector .tiny-button').click();
+  }
+  // Placement is kept per half-view cell of the camera; a long pan across cells leaves every marker in view where it was beside its site.
+  const drift = await page.evaluate(() => {
+    const g = transport.game, r = transport.renderer, rect = document.querySelector('#world').getBoundingClientRect(), offsets = new Map(), moved = [], builds = r.getStats().overlays.builds;
+    r.setZoom(.5); r.focus(40, 299);
+    for (let step = 0; step < 14; step++) {
+      for (const site of g.industries) {
+        const m = r.industryMarker(site), p = r.worldToScreen(site.x, site.y);if (m.x < 0 || m.y < 0 || m.x > rect.width || m.y > rect.height) continue;
+        const offset = `${Math.round((m.x - p.x) * 4)},${Math.round((m.y - p.y) * 4)}`;if (offsets.has(site.id) && offsets.get(site.id) !== offset) moved.push(`${site.name} ${offsets.get(site.id)} → ${offset}`);offsets.set(site.id, offset);
+      }
+      r.pan(-150, -60);
+    }
+    return { moved, seen: offsets.size, builds: r.getStats().overlays.builds - builds };
+  });
+  assert.deepEqual(drift.moved, [], 'markers keep their places while the map pans');
+  assert.ok(drift.seen >= 10 && drift.builds >= 3, `the pan passes ${drift.seen} markers across ${drift.builds} placements`);
   await page.evaluate(() => transport.renderer.setZoom(1));
 
   // A deterministic producer beside the existing road makes this a real freight-form test.

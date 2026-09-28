@@ -21,6 +21,8 @@ import { houseAssetsRevision, getHouseAssetStats } from './raster-houses.js';
 import { worldArtRevision, worldArtStats } from './atlas-runtime.js';
 import { createVehicleSprites, drawRasterInfrastructure, drawRasterNetwork, hasRasterTransport } from './raster-transport.js';
 import { industrySize, industryFootprint, industryTiles, industryContains, industryDistance } from './industry-sites.js';
+import { createOverlayGrid, siteShape, insideShape } from './overlay-placement.js';
+import { drawRasterIndustry } from './raster-industries.js';
 import { buildingSize, buildingFootprint, buildingAt } from './building-sites.js';
 import { terrainObjectAt, terrainObjectSize } from './terrain-objects.js';
 import { surfaceChangesSince } from './change-journal.js';
@@ -124,6 +126,10 @@ export function createRenderer(canvas, initialGame, options={}) {
   // game.revision moves every day, so it stays out of the key; a route going offline moves no revision, so the active count is in it.
   let service={key:'',lists:[],sites:new Map()},markerStats={drawn:0,served:0,waiting:0,meters:0,covered:0};
   function servedSites(){const lists=[game.routes||[],game.stations||[],game.industries||[]];let active=0;for(const r of lists[0])if(r.active)active++;const key=`${game.networkRevision||0}:${lists.map(list=>list.length)}:${active}`;if(service.key!==key||service.lists.some((list,n)=>list!==lists[n]))service={key,lists,sites:industryService(game)};return service.sites;}
+  // The routes calling at each stop, for its sign. Launching, editing and retiring a route all replace or grow the list;
+  // whether each route runs is read live, as a break moves no revision.
+  let calls={routes:null,count:-1,stops:new Map()},signStats={drawn:0,active:0,idle:0,broken:0,named:0};
+  function stopCalls(){const routes=game.routes||[];if(calls.routes!==routes||calls.count!==routes.length){const stops=new Map();for(const r of routes)for(const id of r.stops||[]){const list=stops.get(id);if(list)list.push(r);else stops.set(id,[r]);}calls={routes,count:routes.length,stops};}return calls.stops;}
   function updateRaster(force=false){
     const scale=camera.zoom*dpr,detail=ZOOM_VIEWS.find(view=>view.zoom===camera.zoom).name.toLowerCase();
     if(force||preparedDpr!==dpr){rasterBundles.clear();preparedSprites.clear();preparedTransport.clear();preparedDpr=dpr;}
@@ -217,15 +223,19 @@ export function createRenderer(canvas, initialGame, options={}) {
   function screenToWorld(x,y){const origin=cameraPoint();return unprojectPoint((x-W/2)/camera.zoom+origin.x,(y-H/2)/camera.zoom+origin.y);}
   function viewportCorners(margin=0){return[[-margin,-margin],[W+margin,-margin],[W+margin,H+margin],[-margin,H+margin]].map(([x,y])=>screenToWorld(x,y));}
   function visibleBounds(extra=0){const points=viewportCorners((180+MAX_HEIGHT*HEIGHT_STEP+extra)*camera.zoom);return{x0:Math.max(0,Math.floor(Math.min(...points.map(p=>p.x))/TILE)),y0:Math.max(0,Math.floor(Math.min(...points.map(p=>p.y))/TILE)),x1:Math.min(game.width,Math.ceil(Math.max(...points.map(p=>p.x))/TILE)),y1:Math.min(game.height,Math.ceil(Math.max(...points.map(p=>p.y))/TILE))};}
-  function stationMarker(station){const p=worldToScreen(station.x,station.y);return{x:p.x+8*camera.zoom,y:p.y-28*camera.zoom,size:14};}
+  // Stop signs are 16 px discs in Region and 18 px from Town in, centred up and to the right of their stop. Signs,
+  // labels and markers are placed in projected display pixels (see placeOverlays), so one shift puts every box on screen.
+  const signSize=()=>detailLevel==='region'?16:18;
+  function overlayShift(){const o=cameraPoint();return{x:W/2-o.x*camera.zoom,y:H/2-o.y*camera.zoom};}
+  function stationMarker(station){const sign=placeOverlays().signs.get(station.y*game.width+station.x),s=overlayShift();if(sign)return{x:sign.x+s.x,y:sign.y+s.y,size:sign.size};const p=worldToScreen(station.x,station.y),size=signSize();return{x:p.x+8*camera.zoom+7-size/2,y:p.y-28*camera.zoom+7-size/2,size};}
   // Town labels rise clear of the stop signs beside a town centre; stations are cached per revision.
-  const labelRects=[];let townStops=null,townStopsIndex=null;
+  const labelRects=[],signRects=[];let townStops=null,townStopsIndex=null;
   function nearbyStops(city){
     if(townStopsIndex!==stationIndex){townStops=new Map();townStopsIndex=stationIndex;for(const c of game.cities||[]){const near=[];for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const st=c.x+dx>=0&&c.x+dx<game.width?stationIndex.get((c.y+dy)*game.width+c.x+dx):null;if(st)near.push(st);}if(near.length)townStops.set(c,near.sort((a,b)=>projectTile(b.x,b.y).y-projectTile(a.x,a.y).y));}}
     return townStops.get(city);
   }
   // Signs are visited lowest first, so each lift can only meet the signs above it.
-  function clearStopSigns(stops,x,w,y,above,below){for(const st of stops){const m=stationMarker(st);if(m.x<x+w&&m.x+m.size>x&&m.y<y+below+5&&m.y+m.size>y-above)y=m.y-below-5;}return y;}
+  function clearStopSigns(stops,x,w,y,above,below,sign){for(const st of stops){const m=sign(st);if(m.x<x+w&&m.x+m.size>x&&m.y<y+below+5&&m.y+m.size>y-above)y=m.y-below-5;}return y;}
   function resize(){const rect=canvas.getBoundingClientRect();W=Math.max(1,rect.width);H=Math.max(1,rect.height);dpr=Math.min(window.devicePixelRatio||1,2);canvas.width=Math.round(W*dpr);canvas.height=Math.round(H*dpr);ctx.imageSmoothingEnabled=false;updateRaster();bounds();}
   function bounds(){
     camera.x=Math.max(TILE/2,Math.min((game.width-.5)*TILE,camera.x));
@@ -273,9 +283,63 @@ export function createRenderer(canvas, initialGame, options={}) {
     }
     return nearest||{x:-1,y:-1};
   }
-  function industryMarker(industry){
+  function industryMarker(industry,placed=placeOverlays(),s=overlayShift()){
+    const marker=placed.markers.get(industry.y*game.width+industry.x);
+    if(marker)return {x:marker.x+s.x,y:marker.y+s.y,size:marker.size,stem:marker.stem&&{x:marker.stem.x+s.x,y:marker.stem.y+s.y}};
     const span=industrySize(industry),p=buildingToScreen(industry.x,industry.y,span),size=detailLevel==='detail'?28:24;
     return {x:p.x,y:p.y+16*span*camera.zoom+5+(size+6)/2,size};
+  }
+  // Town labels, then stop signs, then industry markers are placed together on a 64 px grid, in projected display pixels,
+  // once per zoom, size, density, layers, structure revision and half-view cell of the camera, and picking reads the same
+  // boxes. Moving vehicles never re-place them, and a pan across cells keeps everything in view where it was.
+  // A sign steps to the nearest free side of a label or an earlier sign. A marker leaves the front of its site when another site,
+  // a large building, a label, a sign or an earlier marker is there: onto its own building, else beside the front on a
+  // stem to its front corner, else onto its own building regardless, so it never stands on another site.
+  let overlays=null,overlayBuilds=0;
+  // How far down its square an industry's artwork starts, read once per kind and biome from a 32 px thumbnail of its
+  // atlas cell, so a low farm stands in the way of fewer markers than a tall mill. Stand-in art counts as a quarter down.
+  const artTops=new Map(),topReader=document.createElement('canvas').getContext('2d',{willReadFrequently:true});topReader.canvas.width=topReader.canvas.height=32;
+  function artTop(kind){
+    const key=`${kind}:${game.biome}`;let top=artTops.get(key);if(top!==undefined)return top;
+    top=.25;try{topReader.clearRect(0,0,32,32);if(drawRasterIndustry(topReader,kind,game.biome,1,{size:32})){const alpha=topReader.getImageData(0,0,32,32).data;let row=0;while(row<31&&!alpha.subarray(row*128,row*128+128).some((a,i)=>i%4===3&&a>24))row++;top=row/32;artTops.set(key,top);}}catch{}
+    return top;
+  }
+  function placeOverlays(){
+    ensureRevision();
+    // Only places within half a view (and a margin for tall art) of any view the cell can show are placed, so the choices
+    // in view never depend on the cell. They are found on the flat grid first: remote terrain is never sampled.
+    const z=camera.zoom,o=cameraPoint(),cellX=Math.floor(o.x*z/(W/2)),cellY=Math.floor(o.y*z/(H/2)),key=[z,W,H,dpr,cellX,cellY,layers.names,layers.stations,layers.industryIcons,layers.buildings,structureRevision,cachedWorldAssets,document.fonts?.status].join();
+    if(overlays?.key===key&&overlays.game===game)return overlays;
+    const x0=(cellX-2)*W/2-256,x1=(cellX+3)*W/2+256,y0=(cellY-2)*H/2-256,y1=(cellY+3)*H/2+256+MAX_HEIGHT*HEIGHT_STEP*z,near=(site,span=1)=>{const x=(site.x-site.y)*TILE*z,y=(site.x+site.y+span)*TILE/2*z;return x>x0&&x<x1&&y>y0&&y<y1;};
+    const grid=createOverlayGrid(64),labels=new Map(),signs=new Map(),markers=new Map(),stats={labels:0,signs:0,movedSigns:0,front:0,own:0,side:0},size=signSize();
+    const at=(x,y)=>{const p=projectTile(x,y);return{x:p.x*z,y:p.y*z};},sign=st=>{const p=at(st.x,st.y);return{x:p.x+8*z+7-size/2,y:p.y-28*z+7-size/2,size};},pad=r=>({x:r.x-2,y:r.y-2,w:r.w+4,h:r.h+4});
+    if(layers.names)for(const city of game.cities||[]){
+      if(!near(city))continue;const p=at(city.x,city.y),stops=nearbyStops(city),name=city.name||'New city';let y=p.y-29*z,box;
+      if(detailLevel==='region'){ctx.font='600 11px Space, system-ui, sans-serif';const w=ctx.measureText(name).width+20;if(stops)y=clearStopSigns(stops,p.x-w/2-4,w+8,y,14,14,sign);box={x:p.x-w/2-4,y:y-14,w:w+8,h:28};if(grid.find(box))continue;}
+      else{ctx.font='600 13px Space, system-ui, sans-serif';const nameW=ctx.measureText(name).width;ctx.font='500 11px Space, system-ui, sans-serif';const w=nameW+ctx.measureText(populationText(city)).width+42;if(stops)y=clearStopSigns(stops,p.x-w/2,w,y,14,15,sign);box={x:p.x-w/2,y:y-14,w,h:29};}
+      labels.set(city,grid.add({...box,kind:'label',owner:city,cx:p.x,cy:y}));stats.labels++;
+    }
+    for(const st of game.stations||[]){
+      if(!near(st))continue;const p=at(st.x,st.y),d=sign(st),home={x:d.x,y:d.y,w:size,h:size},blocker=r=>grid.find(pad(r),item=>item.kind!=='site');let placed=home;
+      const r=layers.stations&&blocker(home);if(r){const mid=r.y+(r.h-size)/2,away=c=>Math.hypot(c.x-home.x,c.y-home.y);placed=[{x:r.x+r.w+4,y:mid,w:size,h:size},{x:home.x,y:r.y-size-4,w:size,h:size},{x:r.x-size-4,y:mid,w:size,h:size},{x:home.x,y:r.y+r.h+4,w:size,h:size}].sort((a,b)=>away(a)-away(b)).find(c=>!blocker(c))||home;}
+      const entry={...placed,kind:'sign',owner:st,size,stem:placed===home?null:{x:p.x,y:p.y-4*z}};signs.set(st.y*game.width+st.x,entry);
+      if(layers.stations){grid.add(entry);stats.signs++;if(entry.stem)stats.movedSigns++;}
+    }
+    const mark=detailLevel==='detail'?28:24,mw=mark+8,mh=mark+6,sites=(game.industries||[]).filter(ind=>near(ind,industrySize(ind))).map(ind=>{const span=industrySize(ind),c=foundationPoint(ind.x,ind.y,span);return{ind,span,cx:c.x*z,cy:c.y*z,height:foundationHeight(ind.x,ind.y,span)};});
+    if(layers.buildings)for(const s of sites)grid.add(siteShape(s.cx,s.cy,32*s.span*z,16*s.span*z,s.span*(36-48*artTop(s.ind.kind))*z,s.ind));
+    for(const {ind,span,cx,cy,height} of sites){
+      // Taken: the box meets another overlay, or the centre stands on another site's outline, footprint or a large building.
+      const taken=c=>{
+        if(grid.find(pad({x:c.x-mw/2,y:c.y-mh/2,w:mw,h:mh}),item=>item.kind!=='site'&&item.owner!==ind))return true;
+        if(!layers.buildings)return false;if(grid.find({x:c.x-4,y:c.y-4,w:8,h:8},item=>item.kind==='site'&&item.owner!==ind&&insideShape(item,c.x,c.y,4)))return true;
+        const g=unprojectPoint(c.x/z,c.y/z+height*HEIGHT_STEP),tx=Math.floor(g.x/TILE),ty=Math.floor(g.y/TILE);if(!tile(tx,ty))return false;
+        const other=industryIndex.get(ty*game.width+tx);return other?other!==ind:buildingSize(buildingSiteAt(tx,ty)?.building)>1;
+      };
+      const front={x:cx,y:cy+16*span*z+5+mh/2},own={x:cx,y:cy-10*span*z},placed=[front,own,{x:cx-mw-4,y:front.y},{x:cx+mw+4,y:front.y}].find(c=>!taken(c))||own,place=placed===front?'front':placed===own?'own':'side';
+      markers.set(ind.y*game.width+ind.x,{x:placed.x,y:placed.y,size:mark,place,stem:place==='side'?{x:cx,y:cy+16*span*z}:null});stats[place]++;
+      if(layers.industryIcons)grid.add({kind:'marker',owner:ind,x:placed.x-mw/2,y:placed.y-mh/2,w:mw,h:mh});
+    }
+    overlays={key,game,labels,signs,markers,stats};overlayBuilds++;return overlays;
   }
   // Stop signs float above their tile. The topmost sign within two pixels wins;
   // failing that, the sign whose centre is nearest, if its box lies within slop.
@@ -760,28 +824,31 @@ export function createRenderer(canvas, initialGame, options={}) {
     const state=fraction<=.00001?'empty':fraction>=.99999?'full':'partial',size=detailLevel==='detail'?22:18,w=state==='empty'?24:size+8,h=state==='empty'?11:size+13;
     return {p,fraction,state,size,w,h,x:Math.round(p.x-w/2),y:Math.round(p.y-(route.mode==='water'?22:10)*camera.zoom-h-5)};
   }
+  let loadBadgeBuilds=0;
   function vehicleLoadIndicator(v,route){
     if(!route||!visible(v.x,v.y,40)||(route.mode!=='water'&&isUndergroundAt(game,v.x,v.y)))return;
     const {p,fraction,state,size,w,h,x,y}=badgeRect(v,route);vehicleIndicatorCounts[state]++;
-    ctx.globalAlpha=labelRects.some(r=>x<r.x+r.w&&x+w>r.x&&y<r.y+r.h&&y+h>r.y)?.35:1;
+    // A badge fades where it crosses a town name or a stop sign, so the waiting bus never hides its stop.
+    const covers=r=>x<r.x+r.w&&x+w>r.x&&y<r.y+r.h&&y+h>r.y;ctx.globalAlpha=labelRects.some(covers)||signRects.some(covers)?.35:1;
     // Badges use display pixels so a load remains legible at every map scale.
     // An empty carrier has only an unfilled meter; loaded carriers show cargo.
-    line(ctx,[[p.x,y+h],[p.x,p.y-(route.mode==='water'?18:6)*camera.zoom]],'#475b455b',1);
-    const image=state==='empty'?null:cargoImage(route.cargo||'passengers',size),loaded=Boolean(image?.complete&&image.naturalWidth);
-    const key=`${dpr}:${size}:${state}:${state==='empty'?'':route.cargo||'passengers'}:${loaded}`;
+    // Each is a pill whose tail points down at its carrier, edged on the left in its route's colour; a thin stem bridges any gap.
+    const foot=p.y-(route.mode==='water'?18:6)*camera.zoom;if(foot-y-h>8)line(ctx,[[p.x,y+h+4],[p.x,foot]],'#475b455b',1);
+    const image=state==='empty'?null:cargoImage(route.cargo||'passengers',size),loaded=Boolean(image?.complete&&image.naturalWidth),color=route.color||'#ce9d55';
+    const key=`${dpr}:${size}:${state}:${state==='empty'?'':route.cargo||'passengers'}:${color}:${loaded}`;
     let badge=loadBadges.get(key);
     if(!badge){
-      badge=document.createElement('canvas');badge.width=Math.ceil((w+2)*dpr);badge.height=Math.ceil((h+2)*dpr);
-      const c=badge.getContext('2d');c.scale(dpr,dpr);c.translate(1,1);
-      c.fillStyle=state==='empty'?'#f5f2e2de':'#faf6e7f5';roundRect(c,0,0,w,h,5);c.fill();
-      c.strokeStyle=state==='full'?'#567b4c':state==='empty'?'#8e9c8580':'#b18c4c';c.lineWidth=1;c.stroke();
-      if(state!=='empty'){if(loaded)c.drawImage(image,(w-size)/2,3,size,size);else dot(c,w/2,3+size/2,3,'#849367');}
-      c.fillStyle='#d4d9c8';roundRect(c,4,h-7,w-8,3,1);c.fill();
-      if(loadBadges.size>=192)loadBadges.delete(loadBadges.keys().next().value);
-      loadBadges.set(key,badge);
+      badge=document.createElement('canvas');badge.width=Math.ceil((w+2)*dpr);badge.height=Math.ceil((h+7)*dpr);
+      const c=badge.getContext('2d'),r=Math.min(8,h/2),outline=()=>{c.beginPath();c.moveTo(r,0);c.arcTo(w,0,w,h,r);c.arcTo(w,h,0,h,r);c.lineTo(w/2+4,h);c.lineTo(w/2,h+4.5);c.lineTo(w/2-4,h);c.arcTo(0,h,0,0,r);c.arcTo(0,0,w,0,r);c.closePath();};c.scale(dpr,dpr);c.translate(1,1);
+      outline();c.fillStyle=state==='empty'?'#f5f2e2de':'#faf6e7f5';c.fill();c.save();c.clip();c.fillStyle=color;c.fillRect(0,0,3,h);c.restore();
+      outline();c.strokeStyle=state==='full'?'#567b4c':state==='empty'?'#8e9c8580':'#b18c4c';c.lineWidth=1;c.stroke();
+      if(state!=='empty'){if(loaded)c.drawImage(image,(w-size)/2+1,3,size,size);else dot(c,w/2+1,3+size/2,3,'#849367');}
+      c.fillStyle='#d4d9c8';roundRect(c,5,h-7,w-9,3,1);c.fill();
+      if(loadBadges.size>=384)loadBadges.delete(loadBadges.keys().next().value);
+      loadBadges.set(key,badge);loadBadgeBuilds++;
     }
     ctx.drawImage(badge,x-1,y-1,badge.width/dpr,badge.height/dpr);
-    const meterX=x+4,meterY=y+h-7,meterW=w-8;
+    const meterX=x+5,meterY=y+h-7,meterW=w-9;
     if(fraction>0){ctx.fillStyle=state==='full'?'#4e7747':'#bd8e43';roundRect(ctx,meterX,meterY,Math.max(1,meterW*fraction),3,1);ctx.fill();}
     ctx.globalAlpha=1;
   }
@@ -824,6 +891,22 @@ export function createRenderer(canvas, initialGame, options={}) {
     c.drawImage(image,4,3,size,size);
     if(markerTiles.size>=256)markerTiles.delete(markerTiles.keys().next().value);
     markerTiles.set(key,tile);return tile;
+  }
+  // A stop sign is one prepared disc per mode, state, ring colours, size and density, in a 128-entry LRU: a paper rim,
+  // a ring split between up to three route colours and the mode's glyph on a dark disc, or for an unused stop a pale outline.
+  const stationBadges=new Map();
+  function stationBadge(mode,state,colors,size){
+    const key=`${mode}:${state}:${colors.join('/')}:${size}:${dpr}`;let badge=stationBadges.get(key);
+    if(badge){stationBadges.delete(key);stationBadges.set(key,badge);return badge;}
+    badge=document.createElement('canvas');badge.width=badge.height=Math.ceil((size+8)*dpr);
+    const c=badge.getContext('2d'),r=size/2,idle=state==='idle',ink=idle?'#8e9c85':'#f0eacb',n=colors.length;c.scale(dpr,dpr);c.translate(4+r,4+r);
+    c.shadowColor='#293d2638';c.shadowBlur=3;c.shadowOffsetY=1;dot(c,0,0,r,idle?'#f5f2e2':'#fbf6e3');c.shadowColor='transparent';c.shadowBlur=0;c.shadowOffsetY=0;
+    if(idle){c.beginPath();c.arc(0,0,r-1.1,0,TAU);c.strokeStyle='#8e9c85';c.lineWidth=1.2;c.stroke();}
+    else{colors.forEach((color,i)=>{const a=-Math.PI/2+i*TAU/n,gap=n>1?.22:0;c.beginPath();c.arc(0,0,r-1.6,a+gap,a+TAU/n-gap);c.strokeStyle=color;c.lineWidth=2.2;c.stroke();});dot(c,0,0,r-3,mode==='water'?'#376e7e':mode==='rail'?'#3f655a':'#516d53');}
+    if(mode==='water'){c.strokeStyle=ink;c.lineWidth=1.1;c.beginPath();c.arc(0,-3.5,1.2,0,TAU);c.stroke();line(c,[[0,-2.3],[0,4]],ink,1.1);line(c,[[-3,-1],[3,-1]],ink,1.1);c.beginPath();c.moveTo(-4,1);c.quadraticCurveTo(-4,4,0,4);c.quadraticCurveTo(4,4,4,1);c.stroke();}
+    else{c.fillStyle=ink;c.font=`bold ${size>16?10:9}px Space, system-ui, sans-serif`;c.textAlign='center';c.textBaseline='middle';c.fillText(mode==='rail'?'T':'B',0,.6);}
+    if(stationBadges.size>=128)stationBadges.delete(stationBadges.keys().next().value);
+    stationBadges.set(key,badge);return badge;
   }
   function resourceMarker(x,y,kind,size,label,role=null,mark={}){
     // Screen-space markers stay legible in Region and render at native display
@@ -994,27 +1077,31 @@ export function createRenderer(canvas, initialGame, options={}) {
     }
     const contextBubbles=contextArcs(view.context);
     // Labels stay crisp at every camera zoom, with population separated from place names.
-    labelRects.length=0;
+    labelRects.length=0;const placed=placeOverlays(),shift=overlayShift();
     lensStats=lens?{cargo:lens,sources:0,buyers:0,towns:0}:null;const townLens=lensRole('towns',lens)==='buyer';
-    if(layers.names)for(const city of game.cities||[]){if(!visible(city.x,city.y))continue;const p=worldToScreen(city.x,city.y),stops=nearbyStops(city);let y=p.y-29*camera.zoom;
-      if(detailLevel==='region'){const name=city.name||'New city';ctx.font='600 11px Space, system-ui, sans-serif';const w=ctx.measureText(name).width+20;if(stops)y=clearStopSigns(stops,p.x-w/2-4,w+8,y,14,14);const box={id:city.id,x:p.x-w/2-4,y:y-14,w:w+8,h:28};if(labelRects.some(other=>box.x<other.x+other.w&&box.x+box.w>other.x&&box.y<other.y+other.h&&box.y+box.h>other.y))continue;labelRects.push(box);pill(p.x,y,name,{size:11,bold:true,h:23,fill:'#f7f5e9f0'});if(townLens)lensChip(p.x-w/2-11,y);continue;}
+    if(layers.names)for(const city of game.cities||[]){const label=placed.labels.get(city);if(!label||!visible(city.x,city.y))continue;const p={x:label.cx+shift.x},y=label.cy+shift.y;labelRects.push({id:city.id,x:label.x+shift.x,y:label.y+shift.y,w:label.w,h:label.h});
+      if(detailLevel==='region'){pill(p.x,y,city.name||'New city',{size:11,bold:true,h:23,fill:'#f7f5e9f0'});if(townLens)lensChip(label.x+shift.x-7,y);continue;}
       ctx.font='600 13px Space, system-ui, sans-serif';const name=city.name||'New city';const nameW=ctx.measureText(name).width;const pop=populationText(city);ctx.font='500 11px Space, system-ui, sans-serif';const popW=ctx.measureText(pop).width;const w=nameW+popW+42;
-      if(stops)y=clearStopSigns(stops,p.x-w/2,w,y,14,15);labelRects.push({id:city.id,x:p.x-w/2,y:y-14,w,h:29});
       ctx.shadowColor='#1b38202a';ctx.shadowBlur=10;ctx.shadowOffsetY=2;ctx.fillStyle='#f7f5e9f5';roundRect(ctx,p.x-w/2,y-14,w,29,6);ctx.fill();ctx.shadowColor='transparent';ctx.shadowBlur=0;ctx.shadowOffsetY=0;ctx.strokeStyle='#fbfaee';ctx.lineWidth=.7;ctx.stroke();ctx.textAlign='left';ctx.textBaseline='middle';ctx.font='600 13px Space, system-ui, sans-serif';ctx.fillStyle='#314639';ctx.fillText(name,p.x-w/2+10,y+.5);ctx.fillStyle='#e6e9da';roundRect(ctx,p.x+w/2-popW-22,y-9,popW+16,19,3);ctx.fill();ctx.font='500 11px Space, system-ui, sans-serif';ctx.fillStyle='#60705a';ctx.fillText(pop,p.x+w/2-popW-14,y+.5);
       if(townLens)lensChip(p.x-w/2-13,y);
     }
     // A cargo lens draws its producers and buyers last, at full strength with a role tab and, from Town view in, their names; other sites recede to half strength.
     // Served sites wear their route's ring, a hovered or chosen site names its state, and while a stop is placed the sites it would reach are ticked and the rest recede.
     const served=servedSites();markerStats={drawn:0,served:0,waiting:0,meters:0,covered:0};
-    const industryBadge=(ind,role)=>{const marker=industryMarker(ind),known=Boolean(INDUSTRIES[ind.kind]),kind=Object.keys(INDUSTRIES[ind.kind]?.outputs||{})[0]||'goods',hovered=hover&&industryContains(ind,hover.x,hover.y),chosen=selected&&industryContains(ind,selected.x,selected.y),svc=served.get(ind.id),status=known&&(hovered||chosen||svc?.buyer)?industryStatus(ind):null,waiting=Boolean(svc?.buyer&&status.state==='waiting'),covered=Boolean(placing)&&industryDistance(ind,placing)<=STATION_RADIUS,name=ind.name||titleCase(ind.kind),label=layers.names&&(hovered||chosen||role&&detailLevel!=='region')?(hovered||chosen)&&status?`${name} · ${status.label}`:name:null;if(role&&marker.x>=0&&marker.y>=0&&marker.x<=W&&marker.y<=H)lensStats[role==='source'?'sources':'buyers']++;ctx.globalAlpha=lens&&!role&&!hovered&&!chosen||placing&&!covered?.5:1;if(layers.industryIcons){const fill=known&&detailLevel!=='region'?outputFill(ind):0;if(marker.x>=0&&marker.y>=0&&marker.x<=W&&marker.y<=H){markerStats.drawn++;if(svc)markerStats.served++;if(waiting)markerStats.waiting++;if(fill>0)markerStats.meters++;if(covered)markerStats.covered++;}resourceMarker(marker.x,marker.y,kind,marker.size,label,role,{color:svc?.color,fill,missing:waiting?status.missing:null,covered});}else if(label)pill(marker.x,marker.y,label,{size:12,h:28,fill:'#f7f4e7f5',color:'#3e5547',radius:5});ctx.globalAlpha=1;};
+    const industryBadge=(ind,role)=>{const marker=industryMarker(ind,placed,shift),known=Boolean(INDUSTRIES[ind.kind]),kind=Object.keys(INDUSTRIES[ind.kind]?.outputs||{})[0]||'goods',hovered=hover&&industryContains(ind,hover.x,hover.y),chosen=selected&&industryContains(ind,selected.x,selected.y),svc=served.get(ind.id),status=known&&(hovered||chosen||svc?.buyer)?industryStatus(ind):null,waiting=Boolean(svc?.buyer&&status.state==='waiting'),covered=Boolean(placing)&&industryDistance(ind,placing)<=STATION_RADIUS,name=ind.name||titleCase(ind.kind),label=layers.names&&(hovered||chosen||role&&detailLevel!=='region')?(hovered||chosen)&&status?`${name} · ${status.label}`:name:null;if(role&&marker.x>=0&&marker.y>=0&&marker.x<=W&&marker.y<=H)lensStats[role==='source'?'sources':'buyers']++;ctx.globalAlpha=lens&&!role&&!hovered&&!chosen||placing&&!covered?.5:1;if(layers.industryIcons){const fill=known&&detailLevel!=='region'?outputFill(ind):0;if(marker.stem)line(ctx,[[marker.x,marker.y],[marker.stem.x,marker.stem.y]],'#475b455b',1);if(marker.x>=0&&marker.y>=0&&marker.x<=W&&marker.y<=H){markerStats.drawn++;if(svc)markerStats.served++;if(waiting)markerStats.waiting++;if(fill>0)markerStats.meters++;if(covered)markerStats.covered++;}resourceMarker(marker.x,marker.y,kind,marker.size,label,role,{color:svc?.color,fill,missing:waiting?status.missing:null,covered});}else if(label)pill(marker.x,marker.y,label,{size:12,h:28,fill:'#f7f4e7f5',color:'#3e5547',radius:5});ctx.globalAlpha=1;};
     const lensSites=[];for(const ind of game.industries||[]){if((!layers.names&&!layers.industryIcons)||!visible(ind.x,ind.y,180*camera.zoom))continue;const role=lensRole(ind.kind,lens);if(role)lensSites.push([ind,role]);else industryBadge(ind,null);}for(const [ind,role] of lensSites)industryBadge(ind,role);
     for(const bubble of contextBubbles)contextBubble(bubble);
-    if(layers.stations)for(const st of game.stations||[]){if(!visible(st.x,st.y))continue;const marker=stationMarker(st),mx=marker.x,my=marker.y;ctx.fillStyle=st.mode==='water'?'#376e7e':st.mode==='rail'?'#3f655a':'#516d53';roundRect(ctx,mx,my,14,14,3);ctx.fill();if(st.mode==='water'){ctx.strokeStyle='#f0eacb';ctx.lineWidth=1.1;ctx.beginPath();ctx.arc(mx+7,my+3.5,1.2,0,TAU);ctx.stroke();line(ctx,[[mx+7,my+4.7],[mx+7,my+11]],'#f0eacb',1.1);line(ctx,[[mx+4,my+6],[mx+10,my+6]],'#f0eacb',1.1);ctx.beginPath();ctx.moveTo(mx+3,my+8);ctx.quadraticCurveTo(mx+3,my+11,mx+7,my+11);ctx.quadraticCurveTo(mx+11,my+11,mx+11,my+8);ctx.stroke();}else{ctx.fillStyle='#f0eacb';ctx.font='bold 9px Space, system-ui, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(st.mode==='rail'?'T':'B',mx+7,my+7.2);}}
+    // A sign wears the colours of up to three routes that call at its stop, an offline one in red; a stop no route uses is a pale outline.
+    // A sign stepped off a label or another sign keeps a thin stem to its stop.
+    signStats={drawn:0,active:0,idle:0,broken:0,named:0};signRects.length=0;
+    if(layers.stations){const calls=stopCalls();for(const st of game.stations||[]){const sign=placed.signs.get(st.y*game.width+st.x);if(!sign||!visible(st.x,st.y))continue;const x=sign.x+shift.x,y=sign.y+shift.y,routes=calls.get(st.id)||[],state=!routes.length?'idle':routes.some(r=>r.active!==false)?'active':'broken',badge=stationBadge(st.mode,state,[...new Set(routes.map(r=>r.active===false?'#d7725f':r.color||'#ce9d55'))].slice(0,3),sign.size);if(sign.stem)line(ctx,[[x+sign.size/2,y+sign.size/2],[sign.stem.x+shift.x,sign.stem.y+shift.y]],'#475b455b',1);ctx.drawImage(badge,x-4,y-4,badge.width/dpr,badge.height/dpr);signRects.push({x,y,w:sign.size,h:sign.size});signStats.drawn++;signStats[state]++;}}
     // The reach pill sits above stop signs and town names, so neither hides it.
     if(placing||serviceCenter){const center=placing||serviceCenter,p=worldToScreen(center.x,center.y);pill(p.x,p.y-STATION_RADIUS*TILE*Math.SQRT1_2*camera.zoom-15,'5-tile reach',{size:11,h:25,fill:'#f5f3e8e8',color:'#5c7155'});}
     // A chosen carrier is ringed in display pixels beneath its load badge, instead of a tile outline, and stays marked in a tunnel.
     const chosenVehicle=view.selectedVehicleId==null?null:frameVehicles.find(v=>v.id===view.selectedVehicleId);if(chosenVehicle){const route=routesById.get(chosenVehicle.routeId),p=vehicleToScreen(chosenVehicle.x,chosenVehicle.y,route?.mode),r=route?.mode==='water'?Math.max(20,20*camera.zoom):Math.max(11,14*camera.zoom);ctx.beginPath();ctx.arc(p.x,p.y-2*camera.zoom,r,0,TAU);ctx.strokeStyle='#26372e4d';ctx.lineWidth=4;ctx.stroke();ctx.strokeStyle='#fbefba';ctx.lineWidth=2;ctx.stroke();}
     if(layers.vehicles&&layers.vehicleLoads)for(const v of frameVehicles)vehicleLoadIndicator(v,routesById.get(v.routeId));
+    // A pointed-at or chosen stop names itself beside its sign, above the load badges of vehicles waiting there.
+    for(const st of layers.stations&&layers.names?new Set([hover&&stationIndex.get(hover.y*game.width+hover.x),selectedStation]):[]){if(!st||!visible(st.x,st.y))continue;const m=stationMarker(st),name=st.name||'Stop';ctx.font='500 12px Space, system-ui, sans-serif';const w=ctx.measureText(name).width+16,right=m.x+m.size+4+w/2;pill(right+w/2>W-8?m.x-4-w/2:right,m.y+m.size/2,name,{size:12,h:26,fill:'#f7f4e7f5',color:'#3e5547',radius:5});signStats.named++;}
     // An offline route pins its first gap, above the load badges of vehicles stuck beside it, so the fix is found on the map rather than in a toast.
     routeBreaks=0;for(const r of game.routes||[])if(r.active===false&&r.path?.length&&(showRoutes||r===focusRoute)){const at=routeBreak(r);if(!at||!visible(at.x,at.y))continue;const p=worldToScreen(at.x,at.y);routeBreaks++;dot(ctx,p.x,p.y,6,'#fbf6e3');dot(ctx,p.x,p.y,4,'#d7725f');pill(p.x,p.y-24,'Connection broken',{size:11,h:23,fill:'#f5e7dfef',color:'#934f3f'});}
     if(layers.deliveries&&view.floaters?.length)drawFloaters(view.floaters,now);
@@ -1075,5 +1162,5 @@ export function createRenderer(canvas, initialGame, options={}) {
 
   }
   resize();const first=game.cities?.[0];if(first)focus(first.x+4.5,first.y-4.5);else bounds();
-  return {setGame,setLayers,getLayers,setLens,render,resize,worldToScreen,gridPointToScreen,screenToVertex,stationMarker,stationAtMarker,vehicleAt,industryMarker,cityLabels:()=>labelRects.map(rect=>({...rect})),screenToTile,screenToInspectTile,pan,zoomAt,setZoom,focus,getCamera:()=>({...camera}),drawMinimap,getStats:()=>({projection:'isometric',terrainGeometry:true,maxTerrainHeight:MAX_HEIGHT,heightStep:HEIGHT_STEP,tileWidth:TILE*2,tileHeight:TILE,chunkCount:chunks.size,composedChunks,sceneBuilds,sceneryBatches:{...sceneryBudget.stats(),enabled:sceneryBatching,builds:sceneryBatchBuilds,draws:sceneryBatchDraws,directDraws:sceneryDirectDraws,waitingForCamera:sceneryWaitingForCamera,pending:sceneryBatching&&sceneCache&&!sceneCache.batchPlanReady?1:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0))+(sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0),pendingGroups:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0)),pendingShadows:sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0,preparationMs:sceneryPreparationMs,preparationBudgetMs:sceneryPrepareBudgetMs},foundationBuilds,foundationCacheSize:foundations.size,routeSegmentsConsidered,routePathBuilds,routeBreaks,highlightRoute:highlightedRoute,contextTargets,lens:lensStats&&{...lensStats},industryMarkers:{...markerStats},markerTiles:markerTiles.size,visibleVehicleCandidates:frameVehicles.length,cacheBytes,cacheLimit,cacheMax:CACHE_MAX,chunkTiles:CHUNK_TILES,rasterScale,pixelScale:rasterScale,detailLevel,view:ZOOM_VIEWS.find(view=>view.zoom===camera.zoom).name,devicePixelRatio:dpr,dpr,maxSurfaceWidth:largestSurface,maxSurfaceHeight:largestSurface,minimapWidth:minimapLayer.width,minimapHeight:minimapLayer.height,minimapMaxEdge:MINIMAP_EDGE,minimapWorldWidth:game.width,minimapWorldHeight:game.height,minimapTerrainSamples,minimapNetworkScans,minimapNetworkBytes:minimapNetwork?.bytes||0,vehicleIndicators:{...vehicleIndicatorCounts},preparedSprites:preparedSprites.getStats(),preparedTransport:preparedTransport.getStats(),vehicleSprites:vehicleSprites.getStats(),infrastructureSprites:infrastructureSprites.getStats(),preparedZooms:rasterBundles.size,loadBadgeCount:loadBadges.size,sprites:sprite?.getStats?.(),uprightSprites:uprightSprite?.getStats?.(),houseArtwork:getHouseAssetStats(game.biome),worldArtwork:worldArtStats(),treeShadows:treeShadowCacheStats(),weather:drawWeather.getStats(),lighting:drawLighting.getStats?.(),marine:marine?.getStats?.(),layers:getLayers()})};
+  return {setGame,setLayers,getLayers,setLens,render,resize,worldToScreen,gridPointToScreen,screenToVertex,stationMarker,stationAtMarker,vehicleAt,industryMarker,cityLabels:()=>labelRects.map(rect=>({...rect})),screenToTile,screenToInspectTile,pan,zoomAt,setZoom,focus,getCamera:()=>({...camera}),drawMinimap,getStats:()=>({projection:'isometric',terrainGeometry:true,maxTerrainHeight:MAX_HEIGHT,heightStep:HEIGHT_STEP,tileWidth:TILE*2,tileHeight:TILE,chunkCount:chunks.size,composedChunks,sceneBuilds,sceneryBatches:{...sceneryBudget.stats(),enabled:sceneryBatching,builds:sceneryBatchBuilds,draws:sceneryBatchDraws,directDraws:sceneryDirectDraws,waitingForCamera:sceneryWaitingForCamera,pending:sceneryBatching&&sceneCache&&!sceneCache.batchPlanReady?1:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0))+(sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0),pendingGroups:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0)),pendingShadows:sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0,preparationMs:sceneryPreparationMs,preparationBudgetMs:sceneryPrepareBudgetMs},foundationBuilds,foundationCacheSize:foundations.size,routeSegmentsConsidered,routePathBuilds,routeBreaks,highlightRoute:highlightedRoute,contextTargets,lens:lensStats&&{...lensStats},industryMarkers:{...markerStats},markerTiles:markerTiles.size,overlays:{builds:overlayBuilds,...overlays?.stats},stopSigns:{...signStats},stationBadges:stationBadges.size,visibleVehicleCandidates:frameVehicles.length,cacheBytes,cacheLimit,cacheMax:CACHE_MAX,chunkTiles:CHUNK_TILES,rasterScale,pixelScale:rasterScale,detailLevel,view:ZOOM_VIEWS.find(view=>view.zoom===camera.zoom).name,devicePixelRatio:dpr,dpr,maxSurfaceWidth:largestSurface,maxSurfaceHeight:largestSurface,minimapWidth:minimapLayer.width,minimapHeight:minimapLayer.height,minimapMaxEdge:MINIMAP_EDGE,minimapWorldWidth:game.width,minimapWorldHeight:game.height,minimapTerrainSamples,minimapNetworkScans,minimapNetworkBytes:minimapNetwork?.bytes||0,vehicleIndicators:{...vehicleIndicatorCounts},preparedSprites:preparedSprites.getStats(),preparedTransport:preparedTransport.getStats(),vehicleSprites:vehicleSprites.getStats(),infrastructureSprites:infrastructureSprites.getStats(),preparedZooms:rasterBundles.size,loadBadgeCount:loadBadges.size,loadBadgeBuilds,sprites:sprite?.getStats?.(),uprightSprites:uprightSprite?.getStats?.(),houseArtwork:getHouseAssetStats(game.biome),worldArtwork:worldArtStats(),treeShadows:treeShadowCacheStats(),weather:drawWeather.getStats(),lighting:drawLighting.getStats?.(),marine:marine?.getStats?.(),layers:getLayers()})};
 }

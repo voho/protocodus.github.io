@@ -59,7 +59,8 @@ try {
   assert.match(await page.locator('#inspector').innerText(), /Port[\s\S]*Water/);
   await page.locator('#station-route').click();
   assert.equal(await page.locator('#route-form [name="mode"]').inputValue(), 'water', 'port inspector starts a water route');
-  await page.locator('#inspector .tiny-button').click();
+  // The opening Routes drawer slides over the inspector, so its close button is pressed directly rather than raced.
+  await page.locator('#inspector .tiny-button').dispatchEvent('click');
   await page.locator('#route-form [name="name"]').fill('River ferry');
   await page.evaluate(() => transport.renderer.setZoom(.5));
   await page.locator('[data-pick-route="from"]').click();
@@ -107,6 +108,7 @@ try {
   },sites.a);
   assert.ok(isolated,'fixture includes an isolated lake');
   await page.locator('.main-nav [data-view="routes"]').click();
+  await page.waitForFunction(() => !document.querySelector('#management-panel').getAnimations().length);
   await page.locator('#route-form [name="mode"]').selectOption('water');
   const fromId=await page.evaluate(p=>transport.game.stations.find(s=>s.x===p.x&&s.y===p.y).id,sites.a);
   await page.locator('#route-form [name="from"]').selectOption(fromId);
