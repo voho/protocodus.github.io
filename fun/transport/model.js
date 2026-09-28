@@ -8,7 +8,7 @@ import { encodeGame, decodeGame, rememberGeneratedWorld } from './save-codec.js'
 import { randomAt, localEnvironment, weatherAt, stepEcology } from './environment.js';
 import { stepSettlements, housingCapacity } from './settlements.js';
 import { nearbyCities, nearbyIndustries, nearbyStations, nearbyZones } from './simulation-spatial.js';
-import { networkIndex, updateNetworkIndex } from './network-index.js';
+import { networkIndex, updateNetworkIndex, noteNetworkChanges, networkChangesSince } from './network-index.js';
 import { initializeIndustry, stepIndustries } from './industry-simulation.js';
 import { evaluateMilestones, validMilestones } from './milestones.js';
 import { stepContracts, contractBonus, validContracts } from './contracts.js';
@@ -177,7 +177,7 @@ export function findPath(game,from,to,mode='road') {
   for(let p=target;;p=Math.abs(parent[p])-1) { path.push({x:p%game.width,y:Math.floor(p/game.width)});if(p===start) break; }
   return path.reverse();
 }
-function invalidateNetwork(game,points){const previous=game.networkRevision||0;game.revision++;game.networkRevision=previous+1;updateNetworkIndex(game,points,previous);}
+function invalidateNetwork(game,points){const previous=game.networkRevision||0;game.revision++;game.networkRevision=previous+1;updateNetworkIndex(game,points,previous);noteNetworkChanges(game,points,previous);}
 // Construction undo rewrites tiles outside build() and advances the same revisions.
 export function invalidateNetworkPoints(game,points){invalidateNetwork(game,points);}
 // Towns lay their own streets as upkeep-free public roads; one revision covers every town's day.
@@ -708,10 +708,25 @@ function snapVehiclesToPath(game,route,path) {
     vehicle.progress=nearest;vehicle.x=path[nearest].x;vehicle.y=path[nearest].y;
   }
 }
+// A live path found at pathRevision stays exact when every cell c changed since lies at |a−c|+|c−b| > L+2
+// for its stops a, b and length L. Network edits never move heights or water, and terraforming never moves
+// a network tile's corners, so only edges touching c changed. Long trips use A*, which pops only nodes with |a−n|+|n−b| ≤ g+h ≤ L and reads their four
+// neighbours, so it never reads c and repeats the old search step for step. Breadth-first search floods the
+// whole ball and may read c, but c can alter a node's level, parent or queue order only at a level k ≥ |a−c|
+// and within k−|a−c| tiles of c. Path node i lies within L−i tiles of b, so that needs |a−c|+|c−b| ≤ L.
+function unaffectedPath(game,route,a,b) {
+  const path=route.path,end=path?.at(-1);
+  if(!route.active||route.status!=='Running'||!a||!b||!(path?.length>1)||path[0].x!==a.x||path[0].y!==a.y||end.x!==b.x||end.y!==b.y)return false;
+  const changes=networkChangesSince(game,route.pathRevision);if(!changes)return false;
+  const reach=path.length+1,width=game.width;
+  for(let i=0;i<changes.length;i++){const x=changes[i]%width,y=(changes[i]-x)/width;if(Math.abs(a.x-x)+Math.abs(a.y-y)+Math.abs(x-b.x)+Math.abs(y-b.y)<=reach)return false;}
+  return true;
+}
 function updateRoutePath(game,route) {
   const networkRevision=game.networkRevision||0;
   if(route.pathRevision===networkRevision)return;
   const [a,b]=route.stops.map(id=>fleetIndex(game).stationById.get(id));
+  if(unaffectedPath(game,route,a,b)){route.pathRevision=networkRevision;return;}
   const path=a&&b?findPath(game,a,b,route.mode):null;
   const wasActive=route.active;
   route.active=Boolean(path);route.pathRevision=networkRevision;

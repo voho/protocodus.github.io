@@ -8,6 +8,7 @@ Measured on the development machine in Node and headless Chrome in September 202
 - Terrain height fields use bounded byte caches with numeric keys. Cached mesh canvases contain their actual projected bounds instead of allocating empty maximum-height margins. Static scenery and grid paths are reused.
 - Route drawing indexes ordered segment runs by spatial cell. Only the visible sections are projected; the minimap reuses complete route paths. Distant vehicles and their lights do not query terrain heights.
 - A shared network bitset costs 512 KiB at 2048², even when every tile carries a network. Construction updates it incrementally. Ecology does not trigger a full network scan.
+- Construction also journals the cells each network revision touched. A running route whose stops lie too far from every changed cell for its search to reach one keeps its path, so an unrelated edit no longer searches every route again.
 - Vehicle arrivals use a time-ordered event queue instead of rescanning the fleet for every arrival. Spatial buckets bound nearby settlement, industry, zone and station queries. Fleet and station lookup tables replace repeated array scans. Local routes retain breadth-first search; distant routes use shortest-path A* and can choose a different equally short route.
 - Generated tile elevations share immutable exact numbers while tiles remain independently mutable ordinary objects. Artwork loads for the active climate; authored building sprites reuse identical canvases across legacy variant numbers.
 - Saves preserve generated terrain as lossless baseline deltas. Repeated network changes compress into runs. Long cardinal routes use exact direction runs rather than repeated coordinate objects. Large fleets share record field names and store fractional values as exact IEEE754 bits. Legacy saves remain readable.
@@ -25,6 +26,7 @@ Measured on the development machine in Node and headless Chrome in September 202
 | Forest/coast, Detail at DPR 2, warm renderer | 52–53 ms | about 6–8 ms |
 | 2048², 10,000 vehicles, 1,000 short routes, 120 simulation steps | 48.35 s | 1.27 s |
 | Cross-map shortest-path search | about 630 ms | about 10 ms |
+| Unrelated one-tile road, 201 routes on a 1024² road grid, route replanning | about 65 ms | about 0.2 ms |
 | Road/rail grid every 8 tiles, 2048² terrain save | 5.53 MiB | 0.99 MiB |
 | Route panel with 10,000 routes | formerly unbounded cards | 50 cards, about 25–55 ms opening |
 | HUD update with the Routes panel open over 50 running cards | about 11.7 ms | about 1.3–2.1 ms |
