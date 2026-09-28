@@ -3,24 +3,18 @@
   "checkpoint_id": "fcd8f3363e27",
   "session_id": "495d27df-aecc-47c3-bdc5-ab2b4fc2d55d",
   "strategy": "manual-commit",
-  "created_at": "2026-09-28T15:19:52.368293Z",
+  "created_at": "2026-09-28T15:20:29.731597Z",
   "branch": "transport-playability",
   "checkpoints_count": 0,
   "files_touched": [
-    "fun/transport/compact-hud.css",
-    "fun/transport/gameplay-insights.js",
-    "fun/transport/model.js",
-    "fun/transport/route-planner.js",
-    "fun/transport/tests/economy.test.mjs",
-    "fun/transport/tests/gameplay-insights.test.mjs",
+    "fun/transport/routes.css",
+    "fun/transport/tests/contracts-browser-check.mjs",
+    "fun/transport/tests/contracts.test.mjs",
     "fun/transport/ARCHITECTURE.md",
-    "fun/transport/tests/features-browser-check.mjs",
-    "fun/transport/tests/notices-browser-check.mjs",
-    "fun/transport/tests/route-planner.test.mjs",
-    "fun/transport/tests/ui-notices.test.mjs",
-    "fun/transport/ui-notices.js",
     "fun/transport/README.md",
-    "fun/transport/app.js"
+    "fun/transport/app.js",
+    "fun/transport/contracts.js",
+    "fun/transport/model.js"
   ],
   "agent": "Claude Code",
   "turn_id": "67f9d64b5ef3",
@@ -34,12 +28,12 @@
     "api_call_count": 95
   },
   "initial_attribution": {
-    "calculated_at": "2026-09-28T15:19:51.375223Z",
+    "calculated_at": "2026-09-28T15:20:28.665521Z",
     "agent_lines": 0,
-    "human_added": 149,
-    "human_modified": 21,
+    "human_added": 572,
+    "human_modified": 2,
     "human_removed": 0,
-    "total_committed": 149,
+    "total_committed": 572,
     "agent_percentage": 0
   },
   "transcript_path": ".claude/projects/-Users-vojta-Dev-protocodus-github-io/495d27df-aecc-47c3-bdc5-ab2b4fc2d55d.jsonl"
