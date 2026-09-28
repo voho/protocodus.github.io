@@ -626,6 +626,7 @@ function unloadVehicle(game,route,vehicle,stopIndex,arrivalDay=game.day,context)
     }
     if(remaining>0&&TOWN_CARGO.includes(route.cargo)&&coverage.cities.length) {
       const city=coverage.cities[0];city.supplies+=remaining;city.activity+=remaining*.7;city.delivered+=remaining;city.lastServiceDay=arrivalDay;delivered+=remaining;remaining=0;
+      (city.lastSupply??={})[route.cargo]=arrivalDay;
     }
   }
   vehicle.load=remaining;
@@ -868,6 +869,7 @@ export function validateGame(game) {
   if(!game.cities.every(c=>validPoint(game,c)&&uniqueId(c)&&typeof c.name==='string'&&finite(c.population,0,1e8)&&finite(c.activity,0)&&finite(c.passengers,0)&&finite(c.growth,0)&&finite(c.delivered,0)&&finite(c.supplies,0)))return false;
   if(!game.cities.every(c=>c.lastServiceDay===undefined||c.lastServiceDay===null||finite(c.lastServiceDay,0,game.day)))return false;
   if(!game.tiles.every(tile=>tile.building?.populationCityId===undefined||tile.building.populationCityId===null||game.cities.some(city=>city.id===tile.building.populationCityId)))return false;
+  if(!game.cities.every(c=>c.lastSupply===undefined||(c.lastSupply&&typeof c.lastSupply==='object'&&!Array.isArray(c.lastSupply)&&Object.entries(c.lastSupply).every(([cargo,day])=>TOWN_CARGO.includes(cargo)&&finite(day,0,game.day)))))return false;
   if(!game.industries.every(i=>validPoint(game,i)&&uniqueId(i)&&owns(INDUSTRIES,i.kind)&&typeof i.name==='string'&&finite(i.capacity,.1,10)&&finite(i.activity,0)&&finite(i.production,0)&&finite(i.shipped,0)&&finite(i.received,0)&&finite(i.idleDays,0)&&i.inventory&&Object.entries(i.inventory).every(([cargo,n])=>owns(CARGO,cargo)&&finite(n,0,1e9))))return false;
   if(!game.industries.every(i=>validFootprint(i,industryFootprint(i.kind))&&i.x+industrySize(i)<=game.width&&i.y+industrySize(i)<=game.height))return false;
   if(!game.industries.every(i=>(i.lastProductionDay===undefined||finite(i.lastProductionDay,0,game.day))&&(i.nextProductionDay===undefined||(Number.isInteger(i.nextProductionDay)&&finite(i.nextProductionDay,0,Math.floor(game.day)+3)))&&(i.nextReviewDay===undefined||(Number.isInteger(i.nextReviewDay)&&finite(i.nextReviewDay,0,Math.floor(game.day)+45)))&&(i.totalProduced===undefined||finite(i.totalProduced,0,1e15))))return false;

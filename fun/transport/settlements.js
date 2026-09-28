@@ -3,6 +3,7 @@ import { localEnvironment, randomAt, weatherAt } from './environment.js';
 import { industryTiles } from './industry-sites.js';
 import { buildingAt, buildingFootprint, buildingSiteProblem, buildingTiles, placeBuildingSite } from './building-sites.js';
 import { nearbyCities } from './simulation-spatial.js';
+import { BIOMES, CARGO, INDUSTRIES } from './data.js';
 
 const clamp = (value, min = 0, max = 1) => Math.max(min, Math.min(max, value));
 const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -27,6 +28,23 @@ export function activeCities(game) {
 function recentlyServed(game, city, connectedCities) {
   return !!city && Number.isFinite(city.lastServiceDay) && game.day - city.lastServiceDay <= 30 && (connectedCities||activeCities(game)).has(city);
 }
+
+// Town needs only speed development up: an unmet need slows the next tier and
+// never stops it. Only cargo the biome can make is listed.
+const NEEDS = [
+  { tier: 2, kind: 'residential', label: 'Comfortable homes', cargo: ['food'] },
+  { tier: 3, kind: 'residential', label: 'Prestige homes', cargo: ['goods', 'furniture', 'machinery'] },
+  { tier: 2, kind: 'commercial', label: 'Services', cargo: ['goods', 'fuel'] },
+  { tier: null, kind: 'construction', label: 'Construction', cargo: ['stone', 'cement'] },
+];
+const BIOME_NEEDS = Object.fromEntries(Object.keys(BIOMES).map(biome => [biome, NEEDS.map(need => ({ ...need, cargo: need.cargo.filter(key => Object.values(INDUSTRIES).some(site => site.biomes.includes(biome) && site.outputs[key])) }))]));
+export const NEED_WINDOW = 120;
+export function townNeeds(game, city) {
+  const supplied = cargo => Number.isFinite(city?.lastSupply?.[cargo]) && game.day - city.lastSupply[cargo] <= NEED_WINDOW;
+  return BIOME_NEEDS[game.biome].map(need => ({ ...need, cargo: [...need.cargo], met: need.cargo.some(supplied) }));
+}
+const nextNeed = (needs, zone) => needs.find(need => need.kind === zone.kind && need.tier === Math.floor(zone.progress) + 1);
+const needText = need => `Faster with ${need.cargo.map(key => CARGO[key].name.toLowerCase()).join(' or ')} deliveries`;
 
 function suitability(game, point, kind, environment, weather, city, connectedCities) {
   const e = environment, positive = [], negative = [];
@@ -68,6 +86,8 @@ export function settlementSuitability(game, point, kind = 'residential') {
     const mixed = buildingTiles({ ...point, building: { footprint: size } }).some(p => { const t = tileAt(game, p.x, p.y); return t?.zone && t.zone !== zone.kind; });
     if (mixed || buildingSiteProblem(game, next, point.x, point.y, size, { exclude, allowZone: true })) result.negative.push(`Needs ${size} × ${size} clear tiles`);
   }
+  const city = zone && nearestCity(game, point), need = city && nextNeed(townNeeds(game, city), zone);
+  result.notes = need && !need.met ? [needText(need)] : [];
   return result;
 }
 
@@ -132,7 +152,8 @@ export function stepSettlements(game) {
     const quality = suitability(game, zone, zone.kind, environment, weather, city, connectedCities).score;
     if (randomAt(game, day, key, 203) >= .25 + quality * .10) continue;
     const demand = clamp((city.activity + city.supplies * .6) / 65, .65, 1.2);
-    const increment = (.026 + quality * .026) * (.7 + randomAt(game, day, key, 204) * .6) * weather.growth * demand;
+    const needs = townNeeds(game, city), need = nextNeed(needs, zone);
+    const increment = (.026 + quality * .026) * (.7 + randomAt(game, day, key, 204) * .6) * weather.growth * demand * (need && !need.met ? .25 : 1) * (needs.some(n => n.kind === 'construction' && n.met) ? 1.3 : 1);
     zone.progress = clamp(zone.progress + increment, occupiedLevel, 3);
     const level = Math.floor(zone.progress);
     if (level <= occupiedLevel) continue;

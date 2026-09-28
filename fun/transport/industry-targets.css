@@ -17,3 +17,19 @@
 .target-cargo{display:flex;gap:2px}.target-cargo .cargo-icon{width:23px;height:23px}.industry-target>svg{width:17px;height:17px;flex-shrink:0}
 @media(max-width:700px){.main-nav [data-open-chains]{display:none}.mobile-management{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}.mobile-management button{min-height:35px}}
 .inspector h3:focus-visible{outline:2px solid var(--orange);outline-offset:3px;border-radius:2px}
+.town-needs{margin-top:16px;padding-top:13px;border-top:1px solid #dfe5d4}
+.town-needs h4{margin:0 0 9px;font-size:13px;font-weight:500;color:#526b46}
+.need-list{display:flex;flex-wrap:wrap;gap:6px}
+.need-chip{display:inline-flex;align-items:center;gap:2px;padding-right:7px;border:1px solid #dce4cf;border-radius:7px;background:#f1f4e9}
+.need-chip .cargo-badge{min-height:28px;padding:1px 3px;border:0;background:none}
+.need-chip .cargo-icon{width:22px;height:22px}
+.need-chip .cargo-label{font-size:12px}
+.need-chip>svg{width:13px;height:13px;flex:0 0 auto;color:#4b7a3b}
+.need-chip[data-met="true"]{border-color:#a9c193;background:#e3ecd5}
+.inspector .need-hint{font-size:12px;line-height:1.4;color:#64755b;margin:9px 0 14px}
+.condition-note{background:#eef0e6;color:#56694b}
+.entity-card .town-need-metric{align-items:center;margin-top:9px;padding-top:7px}
+.need-icons{display:inline-flex;align-items:center;gap:3px}
+.need-icon{position:relative;display:inline-flex}
+.need-icon .cargo-icon{width:21px;height:21px}
+.need-icon>svg:not(.cargo-icon){position:absolute;right:-3px;bottom:-2px;width:11px;height:11px;padding:1px;border-radius:50%;background:#4b7a3b;color:#fff;stroke-width:3}
