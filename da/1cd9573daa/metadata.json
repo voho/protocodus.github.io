@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "da1cd9573daa",
+  "strategy": "manual-commit",
+  "branch": "transport-playability",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "fun/transport/ARCHITECTURE.md",
+    "fun/transport/README.md",
+    "fun/transport/app.js",
+    "fun/transport/gameplay-insights.js",
+    "fun/transport/model.js",
+    "fun/transport/route-planner.js",
+    "fun/transport/routes.css",
+    "fun/transport/tests/features-browser-check.mjs",
+    "fun/transport/tests/gameplay-insights.test.mjs",
+    "fun/transport/tests/helpers.mjs",
+    "fun/transport/tests/route-fleet.test.mjs",
+    "fun/transport/tests/route-planner.test.mjs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/da/1cd9573daa/0/metadata.json",
+      "transcript": "/da/1cd9573daa/0/full.jsonl",
+      "context": "/da/1cd9573daa/0/context.md",
+      "content_hash": "/da/1cd9573daa/0/content_hash.txt",
+      "prompt": "/da/1cd9573daa/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 184,
+    "cache_creation_tokens": 222747,
+    "cache_read_tokens": 6989952,
+    "output_tokens": 50046,
+    "api_call_count": 67
+  }
+}
