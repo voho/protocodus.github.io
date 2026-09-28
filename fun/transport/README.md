@@ -171,7 +171,7 @@ The simulation runs at 1×, 3× or 8× speed. One real second represents one day
 
 The game autosaves to local storage when a company is activated, three seconds after your last construction stroke, after route changes, every 20 seconds while the world changes, and when hiding or leaving gameplay. Reloading returns to the main menu; choose **Continue** to pick up the latest company. Hidden tabs do not advance the simulation, and there is no offline time progression.
 
-A full-screen loading view shows progress while opening the game, creating a world or restoring a save. Generation and restoration run in the background, keeping the loading screen responsive. Choose **Cancel** or press **Escape** during creation or restoration to return without replacing your current world or autosave. The map appears when its first view is ready; the loading animation respects reduced-motion preferences.
+A full-screen loading view shows progress while opening the game, creating a world or restoring a save. Generation and restoration run in the background, keeping the loading screen responsive. Choose **Cancel** or press **Escape** during creation or restoration to return without replacing your current world or autosave. The map appears when its first view is ready; the loading animation respects reduced-motion preferences. The game downloads only the artwork sizes your screen needs: sharper pictures for close zoom load the first time you zoom in, and on a slow connection the map shows every building and vehicle first and sharpens them in a few steps.
 
 Vehicles keep moving while an autosave captures its checkpoint; only the next day's economy waits until the capture is complete, which on large maps at 8× can take a fraction of a second. The save is then encoded in the background. Closing or hiding the page takes a final synchronous checkpoint so the browser cannot abandon your latest progress with an unfinished worker.
 
@@ -413,6 +413,8 @@ Square-world checks: `square-world-ui-check.mjs` creates all three sizes through
 `ui-art-browser-check.mjs` verifies generated art in desktop and mobile build menus, inspectors, filtered lists, production chains, route vehicle selection and biome previews, including Retina density. Screenshots go to `/tmp/transport-ui-art`.
 
 `raster-houses-browser-check.mjs` verifies all nine generated house designs in each environment at every zoom and display density, along with transparent sources, cache limits, delayed loading and artwork fallbacks. It saves source sheets, zoom galleries and gameplay views to `/tmp/transport-raster-houses-qa`.
+
+`art-loading-browser-check.mjs` keeps generated art through missing densities and their recovery. It checks that startup requests no 256-pixel cells, nor 128-pixel cells at standard density, that every zoom at DPR 1 and 2 matches eager loading once artwork settles, and that late art on an 8 Mbps connection arrives in a few batches. Screenshots go to `/tmp/transport-art-loading`.
 
 The terrain construction browser check covers raising/lowering with real pointer gestures, level and cost previews, protected tiles, road/rail bridges and tunnels, invalid span rejection, save restoration, and the compact mobile tools:
 

@@ -52,8 +52,8 @@ const windowAnchors = Object.fromEntries(Object.entries(sourceWindows).map(([bio
   Object.fromEntries(Object.entries(houses).map(([kind, panes]) => [kind, Object.freeze(panes.map(pane => Object.freeze(pane.map(value => value / 8))))])),
 ]));
 const noWindows = Object.freeze([]);
-const biomes = new Map(), listeners = new Set(), draws = new Map(), errors = new Map(), pending = new Map(), orderedLevels = new Map();
-let status = 'idle', revision = 0, lastCellSize = 0, lastBiome = null;
+const biomes = new Map(), listeners = new Set(), draws = new Map(), errors = new Map(), pending = new Map(), orderedLevels = new Map(), awaited = new Set();
+let status = 'idle', revision = 0, lastCellSize = 0, lastBiome = null, unpublished = false, quiet = 0, latest = 0;
 
 export const isRasterHouse = kind => indices.has(kind);
 export const houseAssetsRevision = () => revision;
@@ -95,12 +95,18 @@ async function decodeAtlas(biome, cell) {
   return [cell, image];
 }
 
-export function preloadHouses({ waitMs = 4000, retry = false, biome = null } = {}) {
+// Changes publish together, as world artwork does: 150 ms after the last one,
+// at most 500 ms after the first, and at once when nothing is loading.
+function publish() { clearTimeout(quiet); clearTimeout(latest); quiet = latest = 0; if (!unpublished) return; unpublished = false; revision++; for (const listener of listeners) queueMicrotask(listener); }
+function changed() { unpublished = true; clearTimeout(quiet); quiet = setTimeout(publish, 150); latest ||= setTimeout(publish, 500); }
+
+export function preloadHouses({ waitMs = 4000, retry = false, biome = null, cells = LOD_CELLS } = {}) {
   const requested = HOUSE_BIOMES.includes(biome) ? [biome] : HOUSE_BIOMES;
-  if (requested.every(name => biomes.get(name)?.size === LOD_CELLS.length)) return Promise.resolve(true);
+  if (!retry && requested.every(name => cells.every(cell => biomes.get(name)?.has(cell)))) return Promise.resolve(true);
   if (typeof Image === 'undefined' || typeof document === 'undefined') return Promise.resolve(false);
   const work=[];
-  for(const biome of requested)for(const cell of LOD_CELLS){
+  // A retry also fetches every density that failed before, not only the requested ones.
+  for(const biome of requested)for(const cell of retry?LOD_CELLS.filter(cell=>cells.includes(cell)||errors.has(`${biome}/${cell}`)):cells){
       const key = `${biome}/${cell}`;
       if(biomes.get(biome)?.has(cell)||errors.has(key)&&!retry)continue;
       if(pending.has(key)){work.push(pending.get(key));continue;}
@@ -108,13 +114,13 @@ export function preloadHouses({ waitMs = 4000, retry = false, biome = null } = {
       const task=(async()=>{
       try {
         // A slow or damaged zoom density must not discard healthy artwork.
-        // Publish each density immediately and refresh already-cached sprites.
-        const [, image] = await decodeAtlas(biome, cell);
-        if (!biomes.has(biome)) biomes.set(biome, new Map());
-        biomes.get(biome).set(cell, image); orderedLevels.set(biome,[...biomes.get(biome).keys()].sort((a,b)=>a-b)); errors.delete(key); revision++;
-        for (const listener of listeners) queueMicrotask(listener);
-      } catch (reason) { errors.set(key, reason instanceof Error ? reason.message : String(reason)); }
-      })().finally(()=>{pending.delete(key);if(!pending.size)status=biomes.size?'ready':'failed';});
+        // A climate's first art, or a density some draw stood in for, joins the next
+        // publication, which refreshes already-cached sprites. Others change no drawn pixel.
+        const [, image] = await decodeAtlas(biome, cell), first = !biomes.has(biome);
+        if (first) biomes.set(biome, new Map());
+        biomes.get(biome).set(cell, image); orderedLevels.set(biome,[...biomes.get(biome).keys()].sort((a,b)=>a-b)); errors.delete(key); if (awaited.delete(key) || first) changed();
+      } catch (reason) { errors.set(key, reason instanceof Error ? reason.message : String(reason)); if (awaited.delete(key)) changed(); }
+      })().finally(()=>{pending.delete(key);if(!pending.size){status=biomes.size?'ready':'failed';publish();}});
       pending.set(key,task);work.push(task);
   }
   if (!work.length || waitMs <= 0) return Promise.resolve(requested.some(name=>biomes.has(name)));
@@ -122,15 +128,23 @@ export function preloadHouses({ waitMs = 4000, retry = false, biome = null } = {
   // and listeners refresh the existing caches without resetting the world.
   let timer;
   return Promise.race([Promise.all(work).then(()=>requested.some(name=>biomes.has(name))), new Promise(resolve => { timer = setTimeout(() => resolve(false), waitMs); })])
-    .finally(() => clearTimeout(timer));
+    .finally(() => { clearTimeout(timer); publish(); });
 }
 
 export function drawRasterHouse(c, kind, { pixelScale = 1, biome = 'taiga' } = {}) {
   const index = indices.get(kind);
   if (index === undefined) return false;
   const activeBiome = resolveBiome(biome);
-  if (activeBiome === null) { void preloadHouses({ waitMs: 0, biome }); return false; }
   const desired = 32 * (Number.isFinite(pixelScale) && pixelScale > 0 ? pixelScale : 1);
+  // Fetch the density an eager load would draw for this climate, or its nearest healthy neighbour
+  // when that failed. The best loaded density stands in, and the draw awaits a republish.
+  const home = HOUSE_BIOMES.includes(biome) ? biome : 'taiga', has = size => biomes.get(home)?.has(size), ideal = LOD_CELLS.find(size => size >= desired) || SOURCE_CELL;
+  if (!has(ideal)) {
+    const failed = size => errors.has(`${home}/${size}`), wanted = failed(ideal) ? LOD_CELLS.find(size => size > ideal && !failed(size)) ?? LOD_CELLS.findLast(size => size < ideal && !failed(size)) : ideal;
+    awaited.add(`${home}/${ideal}`);
+    if (wanted && !has(wanted)) { awaited.add(`${home}/${wanted}`); if (!pending.has(`${home}/${wanted}`)) void preloadHouses({ waitMs: 0, biome: home, cells: [wanted] }); }
+  }
+  if (activeBiome === null) return false;
   const levels = biomes.get(activeBiome), available = orderedLevels.get(activeBiome);
   const cell = available.find(size => size >= desired) || available.at(-1);
   const atlas = levels.get(cell);

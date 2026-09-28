@@ -1,6 +1,6 @@
 import { BUILDINGS, residentialKind, commercialKind } from './buildings.js';
 import { INDUSTRIES } from './data.js';
-import { worldArtRevision, preloadWorldArt } from './atlas-runtime.js';
+import { worldArtRevision, preloadWorldArt, startupArtCells } from './atlas-runtime.js';
 import { drawRasterIndustry, hasRasterIndustry } from './raster-industries.js';
 import { drawRasterBuilding, hasRasterBuilding } from './raster-buildings.js';
 import { drawRasterNature, drawRasterNatureObject, natureObjectLayout } from './raster-nature.js';
@@ -108,9 +108,10 @@ function industry(ctx,kind,r,biome,detailLevel='town') {
 }
 export function createSprites(biome,{pixelScale=2,detailLevel='town',cache:sharedCache=null}={}) {
   // Every consumer, including detached previews, starts the generated artwork.
-  // Revision checks replace temporary fallbacks as individual images arrive.
-  void preloadHouses({waitMs:0,biome});
-  void preloadWorldArt({waitMs:0,biome});
+  // Revision checks replace temporary fallbacks as batches of images arrive; the
+  // smallest densities make it usable, and each draw fetches the sharper one it needs.
+  void preloadHouses({waitMs:0,biome,cells:startupArtCells(1)});
+  void preloadWorldArt({waitMs:0,biome,cells:startupArtCells(1)});
   const density=Number.isFinite(pixelScale)&&pixelScale>0?pixelScale:2;
   const profile=['region','town','detail'].includes(detailLevel)?detailLevel:'town';
   // A renderer can share one byte budget across all exact zoom/DPR factories.

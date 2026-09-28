@@ -40,7 +40,7 @@ import { loanTerms, borrow, repay } from './model.js';
 import { routeNeedsAttention } from './gameplay-insights.js';
 import { creditToast } from './ui-notices.js';
 import { preloadHouses, onHouseAssetsChange } from './raster-houses.js';
-import { preloadWorldArt, onWorldArtChange } from './atlas-runtime.js';
+import { preloadWorldArt, onWorldArtChange, startupArtCells } from './atlas-runtime.js';
 import { industryContains, industrySize, industryFootprint } from './industry-sites.js';
 import { industryDistance } from './industry-sites.js';
 import { outputFill } from './industry-simulation.js';
@@ -134,7 +134,7 @@ let game;
 game=takeStartupGame()||await openStartMenu();
 updateLoading('Loading buildings, vehicles and landscapes…',2);
 await paintLoading();
-await Promise.all([preloadHouses({biome:game.biome}),preloadWorldArt({biome:game.biome})]);
+await Promise.all([preloadHouses({biome:game.biome,cells:startupArtCells()}),preloadWorldArt({biome:game.biome,cells:startupArtCells()})]);
 const canvas = $('#world');
 let sceneRevision=0;
 const invalidateScene=()=>{sceneRevision++;};
@@ -1228,7 +1228,7 @@ async function openGameMenu() {
  const next=await openStartMenu({canResume:true,biome:game.biome,notice:saveFailed?'Your latest changes could not be saved. Resume your company or free some browser storage.':''});
  if(next){
   activateGame(next);
-  await Promise.all([preloadHouses({biome:game.biome}),preloadWorldArt({biome:game.biome})]);
+  await Promise.all([preloadHouses({biome:game.biome,cells:startupArtCells()}),preloadWorldArt({biome:game.biome,cells:startupArtCells()})]);
   await drawLoadedWorld();hideLoading();
   savedWorld=worldSerial;savedDay=game.day;savedRevision=game.revision;saveAt=performance.now();
  }
@@ -1772,7 +1772,7 @@ function queueArtworkRefresh(){
  requestAnimationFrame(()=>{artworkRefreshPending=false;refreshArtwork();});
 }
 onHouseAssetsChange(queueArtworkRefresh);onWorldArtChange(queueArtworkRefresh);
-window.addEventListener('online',()=>{void preloadHouses({retry:true,biome:game.biome});void preloadWorldArt({retry:true,biome:game.biome});});
+window.addEventListener('online',()=>{void preloadHouses({retry:true,biome:game.biome,cells:startupArtCells()});void preloadWorldArt({retry:true,biome:game.biome,cells:startupArtCells()});});
 syncLayerControls();
 updateRegion();renderPanel();syncToolControls();updateHud();changeSpeed(1);renderer.resize();if(window.innerWidth<=700)renderer.focus(game.cities[0].x+1,game.cities[0].y-1);
 // The start menu has already saved a new world or loaded its checkpoint.

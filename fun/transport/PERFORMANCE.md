@@ -158,6 +158,30 @@ TRANSPORT_FRESH_SCENES=1 TRANSPORT_SCENES=forest,mixed TRANSPORT_CONDITIONS=day,
   node fun/transport/tests/busy-scenes-browser-check.mjs
 ```
 
+## Artwork densities
+
+Startup used to fetch every density of every atlas, 16 to 256 pixels: 104 images, 11.0 MiB on the wire and 36.7 MiB decoded, while the loader waited up to four seconds. On a slow connection the map opened with only 5 of 34 atlases usable, and each of the 77 images that arrived afterwards cleared and rebuilt every map cache.
+
+Startup now waits only for the 16–64-pixel cells, or up to 128 pixels at DPR 1.5 or more, requested density by density. Each draw fetches the cell an eager load would use, and the best loaded density stands in until it arrives. A new density publishes only if a draw was waiting for it. Changes publish in batches: 150 ms after the last arrival, at most 500 ms after the first, and at once when nothing else is loading.
+
+New seed-1847 taiga world from the menu, 1440 × 900 CSS pixels, headless Chrome with CDP throttling. Ready time runs from **Create** until the map is shown:
+
+| Connection | View | Ready before → after | Art publications after ready | Frames over 50 ms in the next 12 s |
+| --- | --- | ---: | ---: | ---: |
+| 20 Mbps, 40 ms | DPR 2 | 6.7 → 4.1 s | 0 → 5 | 0 → 4 |
+| 20 Mbps, 40 ms | DPR 1 | 5.9 → 2.7 s | 2 → 4 | 2 → 4 |
+| 20 Mbps, 100 ms | DPR 2 | 7.6 → 6.0 s | 0 → 4 | 0 → 4 |
+| 20 Mbps, 100 ms | DPR 1 | 7.0 → 5.2 s | 3 → 5 | 3 → 5 |
+| 8 Mbps, 40 ms | DPR 2 | 6.4 → 6.4 s | 78 → 6–7 | 45 → 6 |
+| 8 Mbps, 40 ms | DPR 1 | 6.0 → 3.9 s | 78 → 5 | 44 → 6 |
+
+At 8 Mbps, 22 of 34 atlases (every atlas of the climate) are usable when the map appears, against 5 before. After touring Region and Town, decoded artwork is 9.3 MiB at DPR 1 and 28.4 MiB at DPR 2, against 36.7 MiB. Each publication clears and rebuilds the map caches once. On a fast connection, the publications after ready are the sharper cells the first view asked for, arriving in the first seconds of play. At DPR 2 on 8 Mbps, the six 256-pixel cells that Town upright industries, large civic buildings, rocks and houses need arrive more than 500 ms apart, so each gets its own publication. Once artwork settles, every zoom matches the eager loader at DPR 1 and 2, apart from single-level noise that the renderer also shows between two eager runs.
+
+```sh
+node fun/transport/tests/art-loading-browser-check.mjs
+node --test fun/transport/tests/art-densities.test.mjs
+```
+
 ## Hover picking
 
 In Explore, every pointer move picks the tile under the cursor by testing the sprites drawn there for an opaque pixel, front to back. Each test used to read one pixel back from a GPU-backed sprite canvas, and each synchronous readback waits for the GPU. One hover sweep across the start town at all three zooms made Chrome log 134 `willReadFrequently` warnings. The slowest first-pass pick took 8 ms. `opaqueAt` now reads a sprite whole the first time it is tested and keeps a full-resolution 1-bit mask of alpha above 24. That is exactly the old threshold, at 1/32 of the RGBA memory, and later tests read nothing back. Canvases above 2²⁰ pixels, or a failed read, keep the one-pixel test. Sprite factories never repaint a canvas they have returned, so masks are never stale.
