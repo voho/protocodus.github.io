@@ -1,6 +1,7 @@
 // Annual upgrades, displayed inflation and decoration cleanup in isolated storage.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
+import { createWorldFromMenu, loadAutosaveFromMenu } from './browser-start.mjs';
 const { chromium }=await import(process.env.TRANSPORT_PLAYWRIGHT||'playwright');
 const browser=await chromium.launch({channel:process.env.TRANSPORT_BROWSER||'chrome',headless:true});
 const output=process.env.TRANSPORT_SCREENSHOTS||'/tmp/transport-evolution-qa';
@@ -10,12 +11,7 @@ try{
   const page=await browser.newPage({viewport:{width:1440,height:1000}});
   page.on('pageerror',error=>errors.push(error.message));
   await page.goto(process.env.TRANSPORT_URL||'http://localhost:8765/fun/transport/');
-  await page.waitForFunction(()=>window.transport?.game);
-  await page.locator('[data-speed="0"]').click();
-  await page.locator('#world-button').click();
-  await page.locator('[data-world-size="square512"]').click();
-  await page.locator('#generate-world').click();
-  await page.locator('[data-speed="0"]').click();
+  await createWorldFromMenu(page,{size:'square512'});
   const setup=await page.evaluate(async()=>{
     const {build,addRoute}=await import('./model.js'),g=transport.game;
     const road=addRoute(g,{mode:'road',stops:g.stations.slice(0,2).map(s=>s.id),cargo:'passengers',name:'Town shuttle'});
@@ -87,6 +83,7 @@ try{
     t.terrain='forest';t.detail='pine';g.revision++;
     return {cost:constructionCost(g,'road',p.x,p.y),money:g.money};
   },clearing);
+  await page.locator('.main-nav [data-view="build"]').click(); // choosing the Bulldozer closed the drawer
   await page.locator('[data-tool="road"]').click();
   await page.mouse.move(point.x,point.y);
   assert.equal(await page.locator('#placement-tip').textContent(),`Road · $${construction.cost.toLocaleString('en-US')}`,'placement quote includes inflated forest clearance');
@@ -94,8 +91,8 @@ try{
   assert.equal(await page.evaluate(()=>transport.game.money),construction.money-construction.cost,'construction charges the shown quote');
   await page.mouse.move(point.x+1,point.y);
   assert.equal(await page.locator('#placement-tip').textContent(),'Road · $0','an existing road quotes no further charge');
-  const saved=await page.evaluate(()=>{transport.persist();return transport.game.vehicles.map(v=>({id:v.id,level:v.level,capacity:v.capacity}));});
-  await page.reload();await page.waitForFunction(()=>window.transport?.game);await page.locator('[data-speed="0"]').click();
+  const saved=await page.evaluate(async()=>{await transport.persist();return transport.game.vehicles.map(v=>({id:v.id,level:v.level,capacity:v.capacity}));});
+  await page.reload();await loadAutosaveFromMenu(page);
   assert.deepEqual(await page.evaluate(()=>transport.game.vehicles.map(v=>({id:v.id,level:v.level,capacity:v.capacity}))),saved,'upgraded fleet survives autosave');
   await page.evaluate(async()=>{const {tick}=await import('./model.js');tick(transport.game,730-transport.game.day);});
   await page.locator('.main-nav [data-view="routes"]').click();

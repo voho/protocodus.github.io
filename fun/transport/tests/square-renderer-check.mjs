@@ -1,12 +1,13 @@
 // A continent must retain one-tile connections without rescanning four million
 // tiles every time ecology changes. Browser storage stays isolated from play.
 import assert from 'node:assert/strict';
+import {createWorldFromMenu} from './browser-start.mjs';
 const {chromium}=await import(process.env.TRANSPORT_PLAYWRIGHT||'playwright');
 const browser=await chromium.launch({channel:process.env.TRANSPORT_BROWSER||'chrome',headless:true});
 try{
   const page=await browser.newPage({viewport:{width:1440,height:980}});
   await page.goto(process.env.TRANSPORT_URL||'http://127.0.0.1:8765/fun/transport/');
-  await page.waitForFunction(()=>window.transport?.renderer);
+  await createWorldFromMenu(page);
   const result=await page.evaluate(async()=>{
     transport.setSpeed(0);
     const {createGame}=await import('./model.js'),{createRenderer}=await import('./renderer.js');
@@ -36,7 +37,8 @@ try{
   assert.deepEqual(result.thinRoad,[215,203,176],'a road missed by terrain sampling remains visible');
   assert.notDeepEqual(result.hiddenRoad,result.thinRoad,'roads obey their visibility switch');
   assert.deepEqual(result.thinRail,[101,95,82],'a new one-tile rail appears after a network revision');
-  assert.ok(result.tileReads<=512*512+10,`ecology read ${result.tileReads} tiles instead of a bounded sample`);
+  // Each of the 512² samples reads its tile, a 3×3 building-site lookback and four shading neighbours.
+  assert.ok(result.tileReads<=15*512*512+10,`ecology read ${result.tileReads} tiles instead of a bounded sample`);
   assert.equal(result.afterEcology.minimapNetworkScans,result.initial.minimapNetworkScans,'ecology reuses the sparse network index');
   assert.equal(result.afterNetwork.minimapNetworkScans,result.initial.minimapNetworkScans+1);
   for(const view of result.views){assert.ok(view.cache<=view.limit);assert.equal(view.newChunks,0,'a stationary view reuses its terrain chunks');}

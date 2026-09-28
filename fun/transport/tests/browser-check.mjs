@@ -1,6 +1,7 @@
 // Serve the repository root first. Override TRANSPORT_URL / TRANSPORT_PLAYWRIGHT if needed.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
+import { createWorldFromMenu, loadAutosaveFromMenu, openGameAction } from './browser-start.mjs';
 const { chromium } = await import(process.env.TRANSPORT_PLAYWRIGHT || 'playwright');
 const browser = await chromium.launch({ channel: process.env.TRANSPORT_BROWSER || 'chrome', headless: true });
 const url = process.env.TRANSPORT_URL || 'http://localhost:8765/fun/transport/';
@@ -11,8 +12,8 @@ const watch = page => {
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
 };
-const waitForGame = page => page.waitForFunction(() => window.transport?.game && window.transport?.renderer);
 async function clickMapOption(page, selector) {
+  if (!(await page.locator(selector).isVisible())) await page.locator('#game-menu-button').click();
   if (!(await page.locator(selector).isVisible())) await page.locator('#map-options-button').click();
   await page.locator(selector).click();
 }
@@ -20,7 +21,7 @@ try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 960 } });
   watch(page);
   await page.goto(url);
-  await waitForGame(page);
+  await createWorldFromMenu(page, { paused: false });
   assert.equal(await page.evaluate(() => transport.game.routes.length), 1);
   assert.equal(await page.evaluate(() => transport.game.biome), 'taiga');
   assert.deepEqual(await page.evaluate(() => [transport.game.width,transport.game.height]),[512,512], 'new games default to a square world');
@@ -28,15 +29,17 @@ try {
   const pausedDay = await page.evaluate(() => transport.game.day);
   await page.waitForTimeout(150);
   assert.equal(await page.evaluate(() => transport.game.day), pausedDay, 'pause freezes the simulation');
-  await page.locator('#help-button').click();
+  await openGameAction(page, 'help-button');
   assert.equal(await page.locator('#modal').evaluate(el => el.open), true);
+  const guideKeys = await page.locator('.keyboard-help kbd').allTextContents();
+  for (const key of ['B', 'N', '[', ']', 'E', 'Esc', 'Right-click']) assert.ok(guideKeys.includes(key), `the field guide lists ${key}`);
   await page.locator('[data-help-tab="chains"]').click();
   assert.ok(await page.locator('.chain-node').count() >= 3);
   await page.keyboard.press('Escape');
   assert.equal(await page.locator('#modal').evaluate(el => el.open), false);
   assert.equal(await page.evaluate(() => transport.speed), 0, 'closing a modal preserves a paused game');
-  await clickMapOption(page, '#grid-button');
-  assert.equal(await page.locator('#grid-button').getAttribute('aria-pressed'), 'true');
+  await clickMapOption(page, '#grid-button'); // a fresh browser starts with the grid visible
+  assert.equal(await page.locator('#grid-button').getAttribute('aria-pressed'), 'false');
   const initialZoom = await page.evaluate(() => transport.renderer.getCamera().zoom);
   await page.locator('#zoom-in').click();
   assert.ok(await page.evaluate(() => transport.renderer.getCamera().zoom) > initialZoom);
@@ -89,13 +92,14 @@ try {
   assert.equal(rendererChecks.minimapDrawn, true);
 
   // Find an actual empty strip in the generated world and construct it with a real drag.
-  const strip = await page.evaluate(() => {
-    const game = transport.game;
+  // Roads need flat ground or a straight grade, so the strip is one flat level; buildings and industries reserve their whole site.
+  const strip = await page.evaluate(async () => {
+    const { tileSurface } = await import('./terrain-geometry.js'), { buildingAt } = await import('./building-sites.js'), { industryAt } = await import('./model.js'), game = transport.game;
     const home=game.cities[0];
     for (let y = home.y+4; y < home.y+20; y++) for (let x = home.x-14; x < home.x+30; x++) {
       const tiles = [0, 1, 2, 3].map(dx => game.tiles[y * game.width + x + dx]);
       if (tiles.every(t => ['grass', 'snow', 'sand', 'forest'].includes(t.terrain) && !t.building && !t.road && !t.rail && !t.zone)
-          && !game.industries.some(i => i.y === y && i.x >= x && i.x <= x + 3)) {
+          && !game.industries.some(i => i.y === y && i.x >= x && i.x <= x + 3) && [0, 1, 2, 3].every(dx => !buildingAt(game, x + dx, y) && !industryAt(game, x + dx, y)) && new Set([0, 1, 2, 3].flatMap(dx => tileSurface(game, x + dx, y).corners.map(p => p.height))).size === 1) {
         transport.renderer.focus(x + 1.5, y);
         return { x, y, cost:tiles.reduce((sum,t)=>sum+180+(t.terrain==='forest'?80:0),0) };
       }
@@ -103,6 +107,7 @@ try {
     return null;
   });
   assert.ok(strip, 'seed has a buildable test strip');
+  await page.locator('.main-nav [data-view="build"]').click();
   await page.locator('[data-tool="road"]').click();
   const points = await page.evaluate(({ x, y }) => {
     const rect = document.querySelector('#world').getBoundingClientRect();
@@ -121,6 +126,7 @@ try {
   assert.equal(await page.locator('#world').evaluate(el => el.classList.contains('build-mode')), false);
 
   // Inspect all26 architectural choices, build a civic landmark, and navigate a huge map.
+  await page.locator('.main-nav [data-view="build"]').click();
   await page.locator('[data-category="towns"]').click();
   const expectedGroups={homes:9,community:7,shops:5,services:5};
   for(const [group,count] of Object.entries(expectedGroups)){
@@ -129,21 +135,22 @@ try {
   }
   await page.locator('#building-group').selectOption('community');
   await page.locator('[data-tool="school"]').click();
-  const plot=await page.evaluate(()=>{
-    const game=transport.game,home=game.cities[0];
-    for(let y=home.y-8;y<=home.y+8;y++)for(let x=home.x-8;x<=home.x+8;x++){
+  // A school needs a whole free 2 × 2 site beyond the town's larger homes; the click lands on its anchor tile.
+  const plot=await page.evaluate(async()=>{
+    const {buildProblem}=await import('./model.js'),game=transport.game,home=game.cities[0];
+    for(let y=home.y-12;y<=home.y+12;y++)for(let x=home.x-12;x<=home.x+12;x++){
       const t=game.tiles[y*game.width+x];
-      if(['grass','sand','snow','forest'].includes(t.terrain)&&!t.road&&!t.rail&&!t.building&&!t.zone&&!game.industries.some(i=>i.x===x&&i.y===y)&&!game.cities.some(c=>c.x===x&&c.y===y)){
+      if(['grass','sand','snow','forest'].includes(t.terrain)&&!t.road&&!t.rail&&!t.building&&!t.zone&&!game.industries.some(i=>i.x===x&&i.y===y)&&!game.cities.some(c=>c.x===x&&c.y===y)&&!buildProblem(game,'school',x,y)){
         transport.renderer.focus(x,y);return{x,y};
       }
     }
   });
   assert.ok(plot,'a civic site is available');
-  const schoolPoint=await page.locator('#world').boundingBox();
-  await page.mouse.click(schoolPoint.x+schoolPoint.width/2,schoolPoint.y+schoolPoint.height/2);
+  const schoolPoint=await page.evaluate(({x,y})=>{const rect=document.querySelector('#world').getBoundingClientRect(),p=transport.renderer.worldToScreen(x,y);return{x:rect.left+p.x,y:rect.top+p.y};},plot);
+  await page.mouse.click(schoolPoint.x,schoolPoint.y);
   assert.equal(await page.evaluate(({x,y})=>transport.game.tiles[y*transport.game.width+x].building?.kind,plot),'school');
   await page.keyboard.press('Escape');
-  await page.locator('#atlas-button').click();
+  await openGameAction(page, 'overview-button'); await page.locator('#atlas-button').click();
   assert.equal(await page.locator('#atlas-map').count(),1);
   const atlasBounds=await page.locator('#atlas-map').boundingBox();
   await page.mouse.click(atlasBounds.x+atlasBounds.width*.75,atlasBounds.y+atlasBounds.height*.65);
@@ -154,6 +161,7 @@ try {
   const cache=await page.evaluate(()=>transport.renderer.getStats());
   assert.ok(cache.maxSurfaceWidth<=2048&&cache.maxSurfaceHeight<=2048,'huge maps never allocate a world-size texture');
   assert.ok(cache.cacheBytes<=cache.cacheLimit,'chunk memory remains bounded');
+  await page.locator('.main-nav [data-view="build"]').click();
   await page.locator('[data-category="network"]').click();
 
   // Fill the visible route form, purchase its vehicle, then exercise retirement confirmation.
@@ -175,25 +183,20 @@ try {
   assert.equal(await page.evaluate(() => transport.game.routes.length), 1);
   assert.equal(await page.evaluate(() => transport.game.vehicles.length), 1);
 
-  await page.locator('#save-button').click();
+  await openGameAction(page, 'save-button');
   await page.locator('.saves-explorer').waitFor({ state: 'visible' });
   await page.keyboard.press('Escape');
   assert.ok(await page.evaluate(() => localStorage.getItem('transport-save-v1')));
   await page.reload();
-  await waitForGame(page);
-  await page.locator('[data-speed="0"]').click();
+  await loadAutosaveFromMenu(page);
   assert.equal(await page.evaluate(({ x, y }) => [0, 1, 2, 3].every(dx => transport.game.tiles[y * transport.game.width + x + dx].road), strip), true, 'reload restores constructed roads');
   assert.equal(await page.evaluate(() => transport.game.routes.length), 1);
 
   const biomeImages = new Set();
   for (const biome of ['desert', 'tundra', 'taiga']) {
-    await page.locator('#world-button').click();
+    await openGameAction(page, 'world-button'); await page.locator('#start-world-form').waitFor();
     assert.equal(await page.evaluate(() => transport.speed), 0, 'new-world dialog pauses the current world');
-    await page.locator(`[data-biome="${biome}"]`).click();
-    await page.locator('#world-seed').fill('95573');
-    await page.locator('[data-world-size="square512"]').click();
-    await page.locator('#generate-world').click();
-    await page.locator('[data-speed="0"]').click();
+    await createWorldFromMenu(page, { biome, seed: 95573, size: 'square512' });
     assert.equal(await page.evaluate(() => transport.game.biome), biome);
     assert.equal(await page.evaluate(() => transport.game.seed), 95573);
     assert.equal(await page.evaluate(() => transport.game.routes.length), 1);
@@ -224,10 +227,10 @@ try {
   assert.ok(await page.locator('[data-industry]').count() >= 3, 'mobile exposes industry management');
   await page.locator('[data-mobile-view="towns"]').click();
   assert.ok(await page.locator('[data-city]').count() >= 3, 'mobile exposes town management');
-  await page.locator('#panel-help').click();
+  await openGameAction(page, 'help-button');
   assert.equal(await page.locator('#modal').evaluate(el => el.open), true);
   await page.keyboard.press('Escape');
-  await page.locator('#panel-save').click();
+  await openGameAction(page, 'save-button');
   await page.locator('.saves-explorer').waitFor({ state: 'visible' });
   await page.keyboard.press('Escape');
   await page.locator('.mobile-panel-toggle').click();

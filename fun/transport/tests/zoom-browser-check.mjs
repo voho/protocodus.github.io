@@ -1,6 +1,7 @@
 // Serve the repository root first. Override TRANSPORT_URL / TRANSPORT_PLAYWRIGHT if needed.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
+import { createWorldFromMenu, openGameAction } from './browser-start.mjs';
 const { chromium } = await import(process.env.TRANSPORT_PLAYWRIGHT || 'playwright');
 const browser = await chromium.launch({ channel: process.env.TRANSPORT_BROWSER || 'chrome', headless: true });
 const url = process.env.TRANSPORT_URL || 'http://localhost:8765/fun/transport/';
@@ -22,8 +23,7 @@ try {
     page.on('pageerror', error => errors.push(error.message));
     page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
     await page.goto(url);
-    await page.waitForFunction(() => window.transport?.renderer?.setZoom);
-    await page.locator('[data-speed="0"]').click();
+    await createWorldFromMenu(page);
     assert.equal(await page.locator('[data-zoom-level]').count(), 3, 'the interface exposes exactly three view presets');
     for (const [zoom, name] of views) {
       await chooseView(page, zoom);
@@ -225,13 +225,15 @@ try {
       await chooseView(page, zoom);
       assert.equal(await cameraZoom(page), zoom, 'presets remain reachable at 320 pixels');
     }
+    // The mini map starts hidden; open it to check that the two never overlap.
+    await openGameAction(page, 'overview-button');
     const narrowBounds = await page.evaluate(() => {
       const controls = document.querySelector('.view-controls').getBoundingClientRect();
       const minimap = document.querySelector('#minimap').getBoundingClientRect();
-      return { left: controls.left, right: controls.right, mapLeft: minimap.left };
+      return { left: controls.left, right: controls.right, top: controls.top, mapLeft: minimap.left, mapBottom: minimap.bottom };
     });
     assert.ok(narrowBounds.left >= 0 && narrowBounds.right <= 320, 'zoom controls fit on a 320-pixel screen');
-    assert.ok(narrowBounds.right <= narrowBounds.mapLeft, 'zoom controls do not cover the minimap');
+    assert.ok(narrowBounds.right <= narrowBounds.mapLeft || narrowBounds.top >= narrowBounds.mapBottom, 'zoom controls do not cover the minimap');
     await page.screenshot({ path: `${output}/narrow-dpr${deviceScaleFactor}-detail.png` });
     await context.close();
   }

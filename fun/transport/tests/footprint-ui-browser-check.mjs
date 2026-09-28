@@ -1,6 +1,7 @@
 // Real placement and demolition gestures; every browser context has isolated saves.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
+import { createWorldFromMenu, loadAutosaveFromMenu } from './browser-start.mjs';
 const { chromium } = await import(process.env.TRANSPORT_PLAYWRIGHT || 'playwright');
 const browser = await chromium.launch({ channel: process.env.TRANSPORT_BROWSER || 'chrome', headless: true });
 const url = process.env.TRANSPORT_URL || 'http://127.0.0.1:8765/fun/transport/';
@@ -26,7 +27,7 @@ try {
     if (process.env.TRANSPORT_PROFILE && process.env.TRANSPORT_PROFILE !== profile.name) continue;
     const page = await browser.newPage({ viewport: { width: profile.width, height: profile.height }, deviceScaleFactor: profile.dpr, hasTouch: profile.name === 'mobile', isMobile: profile.name === 'mobile' });
     page.on('pageerror', error => errors.push(error.message));
-    await page.goto(url); await page.waitForFunction(() => window.transport?.renderer);
+    await page.goto(url); await createWorldFromMenu(page);
     const site = await page.evaluate(async () => {
       transport.setSpeed(0); const g = transport.game; let site;
       for (let y = 30; y < g.height - 30 && !site; y += 20) for (let x = 30; x < g.width - 30 && !site; x += 20) {
@@ -76,9 +77,9 @@ try {
     const yard = await screen(page, corner); await page.mouse.click(yard.x, yard.y);
     const rejected = await siteState(page, corner);
     assert.equal(rejected.road, false); assert.equal(rejected.money, built.money);
-    await page.evaluate(() => { transport.setTool('inspect'); transport.persist(); });
+    await page.evaluate(() => { transport.setTool('inspect'); return transport.persist(); });
     assert.equal(await page.evaluate(() => Boolean(localStorage.getItem('transport-save-v1'))), true);
-    await page.reload(); await page.waitForFunction(() => window.transport?.renderer);
+    await page.reload(); await loadAutosaveFromMenu(page);
     await page.evaluate(site => { transport.setSpeed(0); transport.renderer.setZoom(1); transport.renderer.focus(site.x + 1, site.y + 1); }, site);
     assert.equal((await siteState(page, corner)).site.building.footprint, 3, 'saved sites retain every reserved cell');
     await page.screenshot({ path: `${output}/${profile.name}-stadium.png` });

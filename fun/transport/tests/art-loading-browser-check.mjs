@@ -16,8 +16,8 @@ try {
     sprite('forest', 0, 1, 'pine');
     window.artLoading = { sprite, assets, houses };
   });
-  // Constructing sprites alone starts generated world loading, without app.js.
-  await page.waitForFunction(() => artLoading.assets.worldArtStats().usable === artLoading.assets.worldArtStats().atlases);
+  // Constructing sprites alone starts generated world loading, without app.js; it loads only its own biome's atlases.
+  await page.waitForFunction(() => artLoading.assets.worldArtStats().usable > 0);
   const before = await page.evaluate(async () => {
     const q = artLoading;
     await Promise.all([q.assets.preloadWorldArt({ waitMs: 12000 }), q.houses.preloadHouses({ waitMs: 12000 })]);

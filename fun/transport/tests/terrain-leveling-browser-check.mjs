@@ -1,6 +1,7 @@
 // Isolated browser companies: no connection to the player's local saves.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
+import { createWorldFromMenu, loadAutosaveFromMenu } from './browser-start.mjs';
 const { chromium } = await import(process.env.TRANSPORT_PLAYWRIGHT || 'playwright');
 const browser = await chromium.launch({channel:process.env.TRANSPORT_BROWSER || 'chrome',headless:true});
 const url=process.env.TRANSPORT_URL || 'http://127.0.0.1:8765/fun/transport/';
@@ -66,7 +67,7 @@ try {
     const mobile=profile.name==='mobile',context=await browser.newContext({viewport:{width:profile.width,height:profile.height},deviceScaleFactor:profile.dpr,hasTouch:mobile,isMobile:mobile});
     const page=await context.newPage(),session=await context.newCDPSession(page);
     page.on('pageerror',error=>errors.push(`${profile.name}: ${error.message}`));
-    await page.goto(url);await page.waitForFunction(()=>window.transport?.renderer);
+    await page.goto(url);await createWorldFromMenu(page);
     const center=await fixture(page),point=(dx,dy)=>({x:center.x+dx,y:center.y+dy});
     await choose(page,'level');assert.equal(await page.locator('#active-tool-name').innerText(),'Level land');
     assert.match(await page.locator('#active-tool-hint').innerText(),/area.*first point/i);
@@ -108,9 +109,9 @@ try {
     await choose(page,'level');const protectedBefore=await snapshot(page,center);release=await drag(page,session,mobile,start,end);
     assert.match(await page.locator('#placement-tip').innerText(),/Clear buildings|networks/);await release();
     assert.deepEqual(await snapshot(page,center),protectedBefore,'protected-area rejection is atomic');
-    await page.evaluate(()=>{transport.setTool('inspect');transport.persist();});
+    await page.evaluate(()=>{transport.setTool('inspect');return transport.persist();});
     assert.equal(await page.locator('#save-status').innerText(),'Saved just now');
-    const saved=await snapshot(page,center);await page.reload();await page.waitForFunction(()=>window.transport?.renderer);
+    const saved=await snapshot(page,center);await page.reload();await loadAutosaveFromMenu(page);
     await page.evaluate(center=>{transport.setSpeed(0);transport.renderer.setZoom(1);transport.renderer.focus(center.x,center.y);},center);
     assert.deepEqual((await snapshot(page,center)).tiles,saved.tiles,'graded land and roads survive actual local-storage reload');
     await page.screenshot({path:`${output}/${profile.name}-graded-road.png`});

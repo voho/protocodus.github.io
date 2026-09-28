@@ -1,6 +1,7 @@
 // Validate the larger default against real browser localStorage, not the user's profile.
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
+import { loadAutosaveFromMenu, openGameAction } from './browser-start.mjs';
 const { chromium } = await import(process.env.TRANSPORT_PLAYWRIGHT || 'playwright');
 const browser = await chromium.launch({ channel: process.env.TRANSPORT_BROWSER || 'chrome', headless: true });
 const output = process.env.TRANSPORT_SCREENSHOTS || '/tmp/transport-vast-qa';
@@ -10,8 +11,8 @@ try {
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(process.env.TRANSPORT_URL || 'http://localhost:8765/fun/transport/');
-  await page.waitForFunction(() => window.transport?.game);
-  await page.locator('[data-speed="0"]').click();
+  // Stay on the start menu: an active company would rightly autosave over the vast world on reload.
+  await page.locator('#start-menu').waitFor();
   const result = await page.evaluate(async () => {
     const { createGame, saveGame, loadGame, tick, SAVE_KEY } = await import('./model.js');
     const { encodeGame } = await import('./save-codec.js');
@@ -26,7 +27,8 @@ try {
     if (!autosave.ok || !first.ok || !second.ok) return { autosave, first, second };
     const fingerprint = g => {
       const normalized = { ...g, maintenanceRevision: 0, routes: g.routes.map(r => ({ ...r, pathRevision: 0 })) };
-      const value = JSON.stringify(encodeGame(normalized));
+      // Restored routes list their path last; compare content, not key order.
+      const value = JSON.stringify(encodeGame(normalized), (key, item) => item && typeof item === 'object' && !Array.isArray(item) ? Object.fromEntries(Object.entries(item).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)) : item);
       let hash = 2166136261;
       for (let i = 0; i < value.length; i++) hash = Math.imul(hash ^ value.charCodeAt(i), 16777619);
       return `${value.length}:${hash >>> 0}`;
@@ -52,14 +54,13 @@ try {
   assert.equal(result.matches, true); assert.equal(result.desertMatches, true); assert.equal(result.continues, true);
   assert.equal(result.nextAutosave.ok, true); assert.equal(result.autoLoads, true);
   assert.ok(result.bytes < 5 * 1024 * 1024, `real native storage uses ${(result.bytes / 1024 ** 2).toFixed(2)} MiB`);
-  await page.reload(); await page.waitForFunction(() => window.transport?.game);
-  await page.locator('[data-speed="0"]').click();
+  await page.reload(); await loadAutosaveFromMenu(page);
   assert.equal(await page.evaluate(() => transport.game.size), 'vast', 'reload resumes the larger world');
   const catalog = await page.evaluate(async () => (await import('./save-slots.js')).listSaveSlots());
   assert.equal(catalog.slots.length, 3); assert.ok(catalog.slots.every(slot => slot.status === 'ready'));
-  await page.locator('#world-button').click();
-  assert.equal(await page.locator('[data-world-size]').count(), 3, 'new companies offer the three square sizes');
-  assert.equal(await page.locator('[data-world-size="square512"]').getAttribute('aria-pressed'), 'true');
+  await openGameAction(page, 'world-button'); await page.locator('#start-world-form').waitFor();
+  assert.equal(await page.locator('#start-world-form [name="size"] option').count(), 3, 'new companies offer the three square sizes');
+  assert.equal(await page.locator('#start-world-form [name="size"]').inputValue(), 'square512');
   await page.screenshot({ path: `${output}/vast-world-options.png` });
   await page.keyboard.press('Escape');
   await page.screenshot({ path: `${output}/vast-company.png` });

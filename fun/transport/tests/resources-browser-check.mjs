@@ -1,6 +1,7 @@
 // Serve the repository root first. Override TRANSPORT_URL / TRANSPORT_PLAYWRIGHT if needed.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
+import { createWorldFromMenu, openGameAction } from './browser-start.mjs';
 const { chromium } = await import(process.env.TRANSPORT_PLAYWRIGHT || 'playwright');
 const browser = await chromium.launch({ channel: process.env.TRANSPORT_BROWSER || 'chrome', headless: true });
 const url = process.env.TRANSPORT_URL || 'http://localhost:8765/fun/transport/';
@@ -12,17 +13,15 @@ const watch = page => {
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
 };
 const fits = async (page, selector) => page.locator(selector).evaluate(el => el.scrollWidth <= el.clientWidth + 1);
-const gameReady = page => page.waitForFunction(() => window.transport?.game && window.transport?.renderer);
 try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 960 } });
   watch(page);
   await page.goto(url);
-  await gameReady(page);
-  await page.locator('[data-speed="0"]').click();
+  await createWorldFromMenu(page);
   const cargo = await page.evaluate(async () => (await import('./data.js')).CARGO);
 
   // Check complete resource identification in the field guide, including cargos from other biomes.
-  await page.locator('#help-button').click();
+  await openGameAction(page, 'help-button');
   await page.locator('[data-help-tab="resources"]').click();
   assert.equal(await page.locator('.resource-legend .resource-entry').count(), Object.keys(cargo).length, 'every cargo has an illustrated key');
   for (const [key, definition] of Object.entries(cargo)) {
@@ -127,7 +126,7 @@ try {
     await page.setViewportSize({ width, height: 844 });
     await page.waitForTimeout(250);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, `${width}px page has no horizontal overflow`);
-    await page.locator('.mobile-panel-toggle').click();
+    if (!(await page.locator('.sidebar').evaluate(el => el.classList.contains('mobile-open')))) await page.locator('.mobile-panel-toggle').click();
     await page.waitForTimeout(300);
     await page.locator('[data-mobile-view="routes"]').click();
     await page.locator('#new-route-button').click();
@@ -140,13 +139,12 @@ try {
     const typeSize = await page.locator('.entity-card h3').first().evaluate(el => parseFloat(getComputedStyle(el).fontSize));
     assert.ok(typeSize >= 13, `${width}px industry names remain large enough to read (${typeSize}px)`);
     await page.screenshot({ path: `${output}/mobile-${width}-industry.png` });
-    await page.locator('#panel-help').click();
+    await openGameAction(page, 'help-button');
     await page.locator('[data-help-tab="chains"]').click();
     assert.equal(await fits(page, '#modal'), true, `${width}px production guide fits`);
     await page.screenshot({ path: `${output}/mobile-${width}-guide.png` });
     await page.keyboard.press('Escape');
-    await page.locator('.mobile-panel-toggle').click();
-    await page.locator('#panel-help').click();
+    await openGameAction(page, 'help-button');
     await page.locator('[data-help-tab="resources"]').click();
     assert.equal(await fits(page, '#modal'), true, `${width}px resource key fits`);
     assert.equal(await page.locator('.resource-entry').evaluateAll(elements => elements.every(el => el.scrollWidth <= el.clientWidth + 1)), true, `${width}px resource names fit their cards`);

@@ -1,6 +1,7 @@
 // Generated art must remain visible through panel changes, filtering and DPR scaling.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
+import { createWorldFromMenu, openGameAction } from './browser-start.mjs';
 const { chromium } = await import(process.env.TRANSPORT_PLAYWRIGHT || 'playwright');
 const browser = await chromium.launch({ channel: process.env.TRANSPORT_BROWSER || 'chrome', headless: true });
 const url = process.env.TRANSPORT_URL || 'http://127.0.0.1:8765/fun/transport/';
@@ -24,7 +25,7 @@ try {
   for(const profile of [{name:'desktop',width:1440,height:1000,density:1},{name:'mobile',width:390,height:844,density:2}]) {
     const page = await browser.newPage({ viewport:{width:profile.width,height:profile.height}, deviceScaleFactor:profile.density, isMobile:profile.name==='mobile', hasTouch:profile.name==='mobile' });
     page.on('pageerror',error=>errors.push(error.message));
-    await page.goto(url);await page.waitForFunction(()=>window.transport?.game);
+    await page.goto(url);await createWorldFromMenu(page);
     await page.evaluate(()=>{transport.setSpeed(0);transport.setView('build');});
     await portraits(page,'#panel-content [data-infrastructure-sprite]',profile.density,4);
     await page.locator('[data-category="towns"]').click();
@@ -58,11 +59,12 @@ try {
     await portraits(page,'#modal [data-industry-sprite]',profile.density,3);
     await page.screenshot({path:`${output}/${profile.name}-chains.png`});
     await page.locator('#modal .close-modal').click();
-    await page.evaluate(()=>document.querySelector('#world-button').click());
-    assert.deepEqual(await page.locator('[data-preview]').evaluateAll(canvases=>canvases.map(canvas=>[canvas.width,getComputedStyle(canvas).imageRendering])),Array(3).fill([280*profile.density,'auto']));
+    await openGameAction(page,'world-button');await page.locator('#start-world-form').waitFor();
+    // The main menu's New game offers three landscape choices in place of generated biome previews.
+    assert.equal(await page.locator('#start-world-form [name="biome"]').count(),3);
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth > innerWidth),false,'No horizontal page overflow');
     await page.screenshot({path:`${output}/${profile.name}-world.png`});
-    console.log(`${profile.name}: generated building/industry/infrastructure/vehicle/chains art, filtering, mode and cargo changes, DPR, and biome previews passed`);
+    console.log(`${profile.name}: generated building/industry/infrastructure/vehicle/chains art, filtering, mode and cargo changes, DPR, and landscape choices passed`);
     await page.close();
   }
   assert.deepEqual(errors,[]);console.log(`UI artwork checks passed. Screenshots: ${output}`);

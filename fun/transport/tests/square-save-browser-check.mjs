@@ -22,7 +22,8 @@ try {
       for(const tile of game.tiles){const text=JSON.stringify(Object.keys(tile).sort().map(key=>[key,tile[key]]));for(let i=0;i<text.length;i++){a=Math.imul(a^text.charCodeAt(i),16777619);b=Math.imul(b,31)+text.charCodeAt(i)|0;}}
       const {tiles,maintenanceRevision,...state}=game;
       state.routes=state.routes.map(({pathRevision,...route})=>route);
-      return {tiles:`${a>>>0}:${b>>>0}`,state:hash(JSON.stringify(state))};
+      // Restored routes list their path last; hash content, not key order.
+      return {tiles:`${a>>>0}:${b>>>0}`,state:hash(JSON.stringify(state,(key,item)=>item&&typeof item==='object'&&!Array.isArray(item)?Object.fromEntries(Object.entries(item).sort(([x],[y])=>x<y?-1:x>y?1:0)):item))};
     };
     const release=()=>{if(typeof gc==='function')gc();};
     const timings=[],expected=[],ids=[];
@@ -32,8 +33,9 @@ try {
       const created=performance.now()-start;
       game.money=50_000_000;
       const town=game.cities[0];
-      const construction=plans.buildPlan(game,'rail',Array.from({length:180},(_,n)=>({x:town.x+n,y:town.y+8})));
-      check(construction.built>50,'developed world has a real rail corridor');
+      // Rail strokes are all-or-nothing, so lay the corridor in short strokes around slopes, as a player would.
+      let built=0;for(let n=0;n<180;n+=12)built+=plans.buildPlan(game,'rail',Array.from({length:12},(_,i)=>({x:town.x+n+i,y:town.y+8}))).built;
+      check(built>50,'developed world has a real rail corridor');
       model.tick(game,365.25);
       // Stress a century-scale number of distributed nature changes without
       // speeding up actual gameplay or materializing a duplicate whole world.

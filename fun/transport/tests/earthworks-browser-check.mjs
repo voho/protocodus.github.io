@@ -1,6 +1,7 @@
 // Real construction gestures in isolated storage; the player's company is untouched.
 import assert from 'node:assert/strict';
 import {mkdir} from 'node:fs/promises';
+import {createWorldFromMenu,loadAutosaveFromMenu} from './browser-start.mjs';
 const {chromium}=await import(process.env.TRANSPORT_PLAYWRIGHT||'playwright');
 const browser=await chromium.launch({channel:process.env.TRANSPORT_BROWSER||'chrome',headless:true});
 const url=process.env.TRANSPORT_URL||'http://127.0.0.1:8765/fun/transport/';
@@ -11,8 +12,7 @@ const errors=[];
 async function start(viewport,hasTouch=false){
  const page=await browser.newPage({viewport,hasTouch,isMobile:hasTouch});
  page.on('pageerror',error=>errors.push(error.message));
- await page.goto(url);await page.waitForFunction(()=>window.transport?.renderer);
- await page.evaluate(()=>transport.setSpeed(0));return page;
+ await page.goto(url);await createWorldFromMenu(page);return page;
 }
 async function fixture(page){return page.evaluate(async()=>{
  const g=transport.game;let site;
@@ -45,11 +45,13 @@ async function screen(page,tiles,vertices=false){return page.evaluate(({tiles,ve
  const r=document.querySelector('#world').getBoundingClientRect();
  return tiles.map(p=>{const screen=vertices?transport.renderer.gridPointToScreen(p.x,p.y):transport.renderer.worldToScreen(p.x,p.y);return{x:r.left+screen.x,y:r.top+screen.y};});
 },{tiles,vertices});}
+// Choosing a tool, or a crossing mode while a span tool is active, closes the drawer.
+async function drawer(page){if(!await page.locator('.sidebar').evaluate(el=>el.classList.contains('mobile-open')))await page.locator(await page.locator('.mobile-panel-toggle').isVisible()?'.mobile-panel-toggle':'.main-nav [data-view="build"]').click();}
 async function choose(page,tool){
- if(await page.locator('.mobile-panel-toggle').isVisible()&&!await page.locator('.sidebar').evaluate(el=>el.classList.contains('mobile-open')))await page.locator('.mobile-panel-toggle').click();
+ await drawer(page);
  if(!await page.locator('.engineering-tools').evaluate(el=>el.open))await page.locator('.engineering-tools summary').click();
  const mode=tool.startsWith('rail')?'rail':'road';
- if(['bridge','tunnel','railbridge','railtunnel'].includes(tool))await page.locator(`[data-crossing-mode="${mode}"]`).click();
+ if(['bridge','tunnel','railbridge','railtunnel'].includes(tool)){await page.locator(`[data-crossing-mode="${mode}"]`).click();await drawer(page);}
  await page.locator(`[data-tool="${tool}"]`).click();
 }
 async function state(page,site){return page.evaluate(site=>{
@@ -107,7 +109,7 @@ try{
 
  await page.evaluate(site=>{transport.setTool('inspect');transport.renderer.setZoom(.5);transport.renderer.focus(site.x+6,site.y+12);},site);
  await page.screenshot({path:`${output}/terrain-crossings-desktop.png`});
- const saved=await state(page,site);await page.evaluate(()=>transport.persist());await page.reload();await page.waitForFunction(()=>window.transport?.renderer);await page.evaluate(()=>transport.setSpeed(0));
+ const saved=await state(page,site);await page.evaluate(()=>transport.persist());await page.reload();await loadAutosaveFromMenu(page);
  const loaded=await state(page,site);assert.deepEqual(JSON.parse(loaded.tiles),JSON.parse(saved.tiles),'terrain and crossing metadata survive real local-storage reload');
  await page.close();
 

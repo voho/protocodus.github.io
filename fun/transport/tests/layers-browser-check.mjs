@@ -112,7 +112,8 @@ try {
     return{tile,badge,rawBadge:transport.renderer.screenToTile(badge.x,badge.y)};
   },station);
   assert.notDeepEqual(stationPoints.rawBadge,{x:station.x,y:station.y},'stop badge target is outside its own map tile');
-  const resetStops=async()=>{await page.locator('#route-form [name="mode"]').selectOption('rail');await page.locator('#route-form [name="mode"]').selectOption('road');};
+  // Picking on the map closes the Routes drawer; Escape leaves it closed.
+  const resetStops=async()=>{if(!(await page.locator('#route-form [name="mode"]').isVisible()))await page.locator('.main-nav [data-view="routes"]').click();await page.locator('#route-form [name="mode"]').selectOption('rail');await page.locator('#route-form [name="mode"]').selectOption('road');};
   await resetStops();await page.locator('[data-pick-route="from"]').click();
   await page.mouse.click(stationPoints.badge.x,stationPoints.badge.y);
   assert.equal(await page.locator('#route-form [name="from"]').inputValue(),station.id,'a visible stop badge can select its stop beyond its tile');

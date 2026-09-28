@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {mkdir} from 'node:fs/promises';
+import {createWorldFromMenu} from './browser-start.mjs';
 const {chromium}=await import(process.env.TRANSPORT_PLAYWRIGHT||'playwright');
 const browser=await chromium.launch({channel:process.env.TRANSPORT_BROWSER||'chrome',headless:true});
 const url=process.env.TRANSPORT_URL||'http://127.0.0.1:8765/fun/transport/';
@@ -10,7 +11,7 @@ try{
   for(const dpr of [1,2]){
     const context=await browser.newContext({viewport:{width:1280,height:920},deviceScaleFactor:dpr});
     const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
-    await page.goto(url);await page.waitForFunction(()=>window.transport?.renderer);
+    await page.goto(url);await createWorldFromMenu(page);
     await page.evaluate(async()=>{
       transport.setSpeed(0);
       const {createRenderer}=await import('./renderer.js'),{createGame}=await import('./model.js');
@@ -28,7 +29,8 @@ try{
     const edit=await page.evaluate(()=>{
       const q=hillsQA,g=q.game,index=36*g.width+47,before=q.hash(),neighbor=q.sample(48,36),count=q.renderer.getStats().composedChunks;
       // The changed tile is immediately left of a cached 8-tile chunk boundary.
-      g.tiles[index].elevation=5/16;g.revision++;q.renderer.render(0);
+      // Land corners use eight heights, 0–7; 3/7 is one visible level above the .25 plain.
+      g.tiles[index].elevation=3/7;g.revision++;q.renderer.render(0);
       const raised=q.hash(),sloped=q.sample(48,36),rebuilt=q.renderer.getStats().composedChunks-count;
       const stable=q.renderer.getStats().composedChunks;q.renderer.render(0);
       const extra=q.renderer.getStats().composedChunks-stable;
@@ -69,11 +71,13 @@ try{
       await page.locator('#hills-qa').screenshot({path:`${output}/${biome}-real-world-dpr${dpr}.png`});
     }
     const parcel=await page.evaluate(async()=>{
-      hillsQA.canvas.remove();const {terrainLevel}=await import('./terrain-elevation.js'),g=transport.game;
+      // The inspector names the 0–7 corner height; a flat parcel has a single level.
+      hillsQA.canvas.remove();const {tileSurface}=await import('./terrain-geometry.js'),g=transport.game;
       let found;
       for(let y=24;y<g.height-24&&!found;y++)for(let x=24;x<g.width-24;x++){
         const t=g.tiles[y*g.width+x];
-        if(!t.building&&!t.zone&&!t.road&&!t.rail&&g.cities.every(c=>Math.hypot(c.x-x,c.y-y)>14)&&g.industries.every(i=>Math.hypot(i.x-x,i.y-y)>5)){found={x,y,level:terrainLevel(t)};break;}
+        const heights=new Set(tileSurface(g,x,y).corners.map(p=>p.height));
+        if(heights.size===1&&!t.building&&!t.zone&&!t.road&&!t.rail&&g.cities.every(c=>Math.hypot(c.x-x,c.y-y)>14)&&g.industries.every(i=>Math.hypot(i.x-x,i.y-y)>5)){found={x,y,level:[...heights][0]};break;}
       }
       transport.setTool('inspect');transport.renderer.setLayers({names:false,industryIcons:false});transport.renderer.focus(found.x,found.y);transport.renderer.render(0);return found;
     });

@@ -1,6 +1,7 @@
 // Projection, interaction and visual coverage in isolated browser storage.
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
+import { createWorldFromMenu, loadAutosaveFromMenu, openGameAction } from './browser-start.mjs';
 const { chromium } = await import(process.env.TRANSPORT_PLAYWRIGHT || 'playwright');
 const browser = await chromium.launch({ channel: process.env.TRANSPORT_BROWSER || 'chrome', headless: true });
 const url = process.env.TRANSPORT_URL || 'http://127.0.0.1:8765/fun/transport/';
@@ -99,7 +100,8 @@ try {
         const capture = span => {
           const order = [];
           c.drawImage = function(image, ...args) {
-            if (image instanceof HTMLImageElement && image.src.includes('/vehicle-bus-dimetric-v2/')) order.push('vehicle');
+            // Vehicles draw from prepared canvases that name their frame.
+            if (image?.vehicleFrame || image instanceof HTMLImageElement && image.src.includes('/vehicle-bus-dimetric-v2/')) order.push('vehicle');
             if (image instanceof HTMLCanvasElement && args.length === 4 && args[2] === 48 * span && args[3] === 48 * span + 12) order.push(span === 1 ? 'building' : 'industry');
             return original.call(this, image, ...args);
           };
@@ -130,7 +132,7 @@ try {
   }
 
   const context = await browser.newContext({ viewport: { width: 1440, height: 960 } }), app = await context.newPage(); watch(app);
-  await app.goto(url); await app.waitForFunction(() => window.transport?.renderer); await app.evaluate(() => transport.setSpeed(0));
+  await app.goto(url); await createWorldFromMenu(app);
   const site = await app.evaluate(async () => {
     const g = transport.game; let site;
     for (let y = 40; y < g.height - 40 && !site; y += 24) for (let x = 40; x < g.width - 40; x += 24) {
@@ -144,7 +146,7 @@ try {
     g.money = 1000000; g.revision++; g.networkRevision++; transport.renderer.setZoom(1); transport.renderer.focus(site.x + 3, site.y + 2); return site;
   });
   async function point(x, y) { return app.evaluate(({ x, y }) => { const p = transport.renderer.worldToScreen(x, y), rect = document.querySelector('#world').getBoundingClientRect(); return { x: rect.left + p.x, y: rect.top + p.y }; }, { x, y }); }
-  await app.locator('[data-tool="road"]').click();
+  await app.locator('.main-nav [data-view="build"]').click(); await app.locator('[data-tool="road"]').click();
   const start = await point(site.x, site.y), end = await point(site.x + 4, site.y);
   await app.mouse.move(start.x, start.y); await app.mouse.down(); await app.mouse.move(end.x, end.y, { steps: 6 }); await app.mouse.up();
   const roads = await app.evaluate(({ x, y }) => [0, 1, 2, 3, 4].map(dx => transport.game.tiles[y * transport.game.width + x + dx].road), site);
@@ -174,13 +176,13 @@ try {
   await app.mouse.click(roof.x, roof.y);
   await app.evaluate(() => transport.persist());
   const saved = await app.evaluate(() => { const g = transport.game; return { seed: g.seed, generationVersion: g.generationVersion, size: [g.width, g.height], money: g.money, stations: g.stations, routes: g.routes.map(({ pathRevision, ...route }) => route) }; });
-  await app.reload(); await app.waitForFunction(() => window.transport?.renderer); await app.evaluate(() => transport.setSpeed(0));
+  await app.reload(); await loadAutosaveFromMenu(app);
   const restored = await app.evaluate(() => { const g = transport.game; return { seed: g.seed, generationVersion: g.generationVersion, size: [g.width, g.height], money: g.money, stations: g.stations, routes: g.routes.map(({ pathRevision, ...route }) => route) }; });
   assert.deepEqual(restored, saved, 'projection conversion preserves saved company data');
   assert.equal(await app.evaluate(({ x, y }) => transport.game.tiles[(y + 3) * transport.game.width + x + 2].elevation, site), 4 / 7);
   await app.evaluate(() => { const city = transport.game.cities[0]; transport.renderer.setZoom(2); transport.renderer.focus(city.x + 2, city.y); });
   await app.screenshot({ path: `${output}/app-desktop.png` }); interactions.push('road drag', 'raise terrain', 'pointer pan', 'opaque roof inspection', 'local save reload');
-  await app.locator('#world-button').click(); await app.screenshot({ path: `${output}/new-world-preview.png` }); await app.keyboard.press('Escape');
+  await openGameAction(app, 'world-button'); await app.locator('#start-world-form').waitFor(); await app.screenshot({ path: `${output}/new-world-preview.png` }); await app.keyboard.press('Escape');
   await app.setViewportSize({ width: 390, height: 844 }); await app.evaluate(() => { transport.renderer.resize(); transport.renderer.focus(transport.game.cities[0].x, transport.game.cities[0].y); });
   await app.waitForFunction(() => document.querySelector('.sidebar').getBoundingClientRect().right <= 1);
   assert.ok(await app.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'mobile has no horizontal overflow');

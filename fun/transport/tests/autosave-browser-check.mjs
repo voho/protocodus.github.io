@@ -65,6 +65,7 @@ try {
   assert.equal(failed.length, 1, 'the first failing autosave is announced');
   assert.equal(failed[0].error, true);
   assert.match(failed[0].text, /Autosave failed: browser storage is full or blocked/);
+  assert.match(failed[0].text, /Delete older saves in Save \/ load \(Ctrl\+S\) to free space\./, 'a desktop notice names the keyboard shortcut');
   const menuButton = page.locator('#game-menu-button');
   assert.equal(await menuButton.getAttribute('data-alert'), '');
   assert.equal(await menuButton.getAttribute('aria-label'), 'Game menu · autosave failed');
@@ -81,6 +82,19 @@ try {
   assert.equal(recovered.length, 2);
   assert.equal(recovered[1].text, 'Autosave is working again.');
   assert.equal(recovered[1].error, false);
+
+  // Phones have no Ctrl+S, so a coarse pointer names the Game menu path instead.
+  const phone = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  phone.on('pageerror', error => errors.push(error.message));
+  await phone.goto(url);
+  await createWorldFromMenu(phone);
+  assert.equal(await phone.evaluate(() => matchMedia('(pointer: coarse)').matches), true);
+  await phone.evaluate(() => { Storage.prototype.setItem = function () { throw new DOMException('The quota has been exceeded.', 'QuotaExceededError'); }; });
+  assert.equal(await phone.evaluate(() => transport.persist()), false);
+  const phoneNotice = await phone.locator('#toast-region').innerText();
+  assert.match(phoneNotice, /Delete older saves in Game menu → Save \/ load to free space\./);
+  assert.doesNotMatch(phoneNotice, /Ctrl\+S/);
+  await phone.close();
   assert.deepEqual(errors, []);
   console.log('Autosave browser check passed: initial save, timed progress, leaving, menu preservation, loading Autosave and failed-storage notices; the Save dialog is never used.');
 } finally {

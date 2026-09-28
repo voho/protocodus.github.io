@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
+import { createWorldFromMenu } from './browser-start.mjs';
 const { chromium } = await import(process.env.TRANSPORT_PLAYWRIGHT || 'playwright');
 const browser = await chromium.launch({ channel: process.env.TRANSPORT_BROWSER || 'chrome', headless: true });
 const output = process.env.TRANSPORT_SCREENSHOTS || '/tmp/transport-shipping-renderer';
@@ -10,7 +11,7 @@ try {
     const page = await browser.newPage({ viewport: { width: 1440, height: 950 }, deviceScaleFactor: dpr });
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(process.env.TRANSPORT_URL || 'http://127.0.0.1:8765/fun/transport/');
-    await page.waitForFunction(() => window.transport?.renderer);
+    await createWorldFromMenu(page);
     await page.evaluate(async () => {
       transport.setSpeed(0);
       const { createGame } = await import('../transport/model.js');

@@ -2,6 +2,7 @@
 // the renderer fixture never changes the company opened in the user's browser.
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
+import { createWorldFromMenu } from './browser-start.mjs';
 
 const { chromium } = await import(process.env.TRANSPORT_PLAYWRIGHT || 'playwright');
 const browser = await chromium.launch({ channel: process.env.TRANSPORT_BROWSER || 'chrome', headless: true });
@@ -16,8 +17,7 @@ try {
     const page = await context.newPage();
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(url);
-    await page.waitForFunction(() => window.transport?.renderer);
-    await page.evaluate(() => transport.setSpeed(0));
+    await createWorldFromMenu(page);
     await page.evaluate(async () => {
       const model = await import('./model.js');
       const { createRenderer } = await import('./renderer.js');
@@ -132,7 +132,8 @@ try {
 
       const save = await page.evaluate(() => {
         const qa = natureQA, game = qa.game, blocked = new Set([...game.industries, ...game.stations, ...game.cities].map(item => item.y * game.width + item.x));
-        const index = game.tiles.findIndex((tile, i) => tile.terrain === 'forest' && !tile.building && !tile.zone && !tile.road && !tile.rail && !blocked.has(i));
+        // Roads need flat ground or a straight grade, so pick the first woodland a road may cross.
+        const index = game.tiles.findIndex((tile, i) => tile.terrain === 'forest' && !tile.building && !tile.zone && !tile.road && !tile.rail && !blocked.has(i) && !qa.buildProblem(game, 'road', i % game.width, Math.floor(i / game.width)));
         const x = index % game.width, y = Math.floor(index / game.width), cost = qa.constructionCost(game, 'road', x, y), money = game.money;
         const built = qa.build(game, 'road', x, y), saved = qa.saveGame(game), loaded = qa.loadGame();
         const valid = loaded && qa.validateGame(loaded);

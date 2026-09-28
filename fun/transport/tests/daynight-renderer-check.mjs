@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
+import { createWorldFromMenu } from './browser-start.mjs';
 import { daylightAt } from '../lighting.js';
 const { chromium } = await import(process.env.TRANSPORT_PLAYWRIGHT || 'playwright');
 const browser = await chromium.launch({ channel: process.env.TRANSPORT_BROWSER || 'chrome', headless: true });
@@ -14,15 +15,19 @@ try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 960 }, deviceScaleFactor: 2 });
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(process.env.TRANSPORT_URL || 'http://127.0.0.1:8765/fun/transport/');
-  await page.waitForFunction(() => window.transport?.renderer);
+  await createWorldFromMenu(page);
   await page.evaluate(() => { transport.setSpeed(0); transport.renderer.focus(transport.game.cities[0].x + 2, transport.game.cities[0].y + 2); document.querySelector('#objective-card').hidden = true; });
+  // Water ripples and weather follow the calendar too; still both so each frame hash isolates lighting.
+  await page.evaluate(async () => { for (const tile of transport.game.tiles) if (tile.terrain === 'water') tile.terrain = 'grass'; transport.game.revision++; transport.renderer.setLayers({ weather: false }); await (await import('./atlas-runtime.js')).preloadWorldArt({ waitMs: 12000 }); });
   await page.waitForTimeout(150);
   for (const zoom of [.5, 1, 2]) {
-    const result = await page.evaluate(zoom => {
+    const result = await page.evaluate(async zoom => {
       const renderer = transport.renderer, game = transport.game, canvas = document.querySelector('#world'), context = canvas.getContext('2d');
       renderer.setZoom(zoom); renderer.setLayers({ lighting: true });
       const capture = day => { game.day = day; renderer.render(1000); const data = context.getImageData(0, 0, canvas.width, canvas.height).data; let hash = 2166136261, light = 0; for (let n = 0; n < data.length; n += 4) { hash = Math.imul(hash ^ data[n], 16777619); hash = Math.imul(hash ^ data[n+1], 16777619); hash = Math.imul(hash ^ data[n+2], 16777619); light += data[n] + data[n+1] + data[n+2]; } return { hash, light: light / (data.length / 4) }; };
-      const day = capture(0), night = capture(30), dawn = capture(45), repeat = capture(60);
+      // Scenery batches and shadows finish over a few frames after a zoom; compare settled frames.
+      const settle = async () => { for (let n = 0; n < 60; n++) { renderer.render(1000); const batches = renderer.getStats().sceneryBatches; if (!batches.waitingForCamera && !batches.pending) break; await new Promise(resolve => setTimeout(resolve, 20)); } let last = capture(0); for (let n = 0; n < 10; n++) { const next = capture(0); if (next.hash === last.hash) break; last = next; } return last; };
+      const day = await settle(), night = capture(30), dawn = capture(45), repeat = capture(60);
       renderer.setLayers({ lighting: false }); const disabled = capture(30);
       renderer.setLayers({ lighting: true }); capture(30);
       return { day, night, dawn, repeat, disabled, gameDay: game.day, speed: transport.speed };

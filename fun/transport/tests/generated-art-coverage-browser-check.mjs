@@ -27,8 +27,9 @@ async function harness(context) {
 
 try {
   const healthyContext = await browser.newContext(), page = await harness(healthyContext);
-  // A detached sprite consumer must start nature and industry loading itself.
-  await page.evaluate(() => { artQA.sprite = artQA.createSprites('taiga'); });
+  // A detached sprite consumer must start nature and industry loading itself;
+  // each climate's sprites load only that climate's atlases.
+  await page.evaluate(() => { artQA.sprite = artQA.createSprites('taiga'); for (const biome of ['tundra', 'desert']) artQA.createSprites(biome); });
   await page.waitForFunction(() => {
     const stats = artQA.world.worldArtStats();
     return stats.ready === stats.atlases && artQA.houses.getHouseAssetStats().status === 'ready';

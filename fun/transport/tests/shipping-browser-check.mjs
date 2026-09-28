@@ -1,6 +1,7 @@
 // End-to-end shipping on generated rivers, in a fresh browser storage context.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
+import { createWorldFromMenu, loadAutosaveFromMenu } from './browser-start.mjs';
 const { chromium } = await import(process.env.TRANSPORT_PLAYWRIGHT || 'playwright');
 const browser = await chromium.launch({ channel: process.env.TRANSPORT_BROWSER || 'chrome', headless: true });
 const url = process.env.TRANSPORT_URL || 'http://localhost:8765/fun/transport/';
@@ -10,12 +11,11 @@ const errors = [];
 
 async function clickMap(page, point, badge = false) {
   const screen = await page.evaluate(({ point, badge }) => {
+    // Isometric screen positions: a stop badge floats above its tile.
     transport.renderer.focus(point.x, point.y);
-    const rect = document.querySelector('#world').getBoundingClientRect(), camera = transport.renderer.getCamera();
-    return {
-      x: rect.left + rect.width / 2 + ((point.x + .5) * 32 - camera.x) * camera.zoom + (badge ? 8 * camera.zoom + 7 : 0),
-      y: rect.top + rect.height / 2 + ((point.y + .5) * 32 - camera.y) * camera.zoom + (badge ? -18 * camera.zoom + 7 : 0),
-    };
+    const rect = document.querySelector('#world').getBoundingClientRect(), station = badge && transport.game.stations.find(s => s.x === point.x && s.y === point.y);
+    const p = station ? transport.renderer.stationMarker(station) : transport.renderer.worldToScreen(point.x, point.y);
+    return { x: rect.left + p.x, y: rect.top + p.y };
   }, { point, badge });
   await page.waitForFunction(p => document.elementFromPoint(p.x, p.y)?.id === 'world', screen);
   await page.mouse.click(screen.x, screen.y);
@@ -25,13 +25,7 @@ try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(url);
-  await page.waitForFunction(() => window.transport?.game);
-  await page.locator('#world-button').click();
-  await page.locator('[data-biome="taiga"]').click();
-  await page.locator('[data-world-size="square512"]').click();
-  await page.locator('#world-seed').fill('1847');
-  await page.locator('#generate-world').click();
-  await page.locator('[data-speed="0"]').click();
+  await createWorldFromMenu(page, { biome: 'taiga', size: 'square512', seed: 1847 });
 
   const sites = await page.evaluate(async () => {
     const { findPath } = await import('./model.js');
@@ -52,6 +46,7 @@ try {
     return null;
   });
   assert.ok(sites, 'both starter towns have usable ports on a connected generated river');
+  await page.locator('.main-nav [data-view="build"]').click();
   await page.locator('[data-tool="port"]').click();
   await clickMap(page, sites.a);
   await page.waitForFunction(() => transport.game.stations.filter(s=>s.mode==='water').length===1);
@@ -61,7 +56,7 @@ try {
   await page.waitForFunction(() => transport.game.stations.filter(s=>s.mode==='water').length===2);
   await page.keyboard.press('Escape');
   await clickMap(page, sites.a);
-  assert.match(await page.locator('#inspector').innerText(), /PORT[\s\S]*Water/);
+  assert.match(await page.locator('#inspector').innerText(), /Port[\s\S]*Water/);
   await page.locator('#station-route').click();
   assert.equal(await page.locator('#route-form [name="mode"]').inputValue(), 'water', 'port inspector starts a water route');
   await page.locator('#inspector .tiny-button').click();
@@ -95,7 +90,7 @@ try {
   });
   assert.equal(slot.ok,true);assert.equal(slot.ports,2);assert.equal(slot.route.id,routeId);
   await page.evaluate(()=>transport.persist());
-  await page.reload();await page.waitForFunction(()=>window.transport?.game);await page.locator('[data-speed="0"]').click();
+  await page.reload();await loadAutosaveFromMenu(page);
   assert.equal(await page.evaluate(()=>transport.game.stations.filter(s=>s.mode==='water').length),2);
   assert.equal(await page.evaluate(id=>transport.game.routes.find(r=>r.id===id)?.mode,routeId),'water','autosave restores shipping');
 

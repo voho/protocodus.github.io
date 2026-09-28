@@ -22,7 +22,9 @@ try{
    const camera=renderer.getCamera(),c=canvas.getContext('2d'),hash=()=>{let value=2166136261;for(const b of c.getImageData(0,0,canvas.width,canvas.height).data)value=Math.imul(value^b,16777619);return value>>>0;};
    const scenarios={};for(let day=0;day<360;day++){const w=weatherPresentation(game,camera.x/32,camera.y/32,day);for(const kind of ['rain','snow'])if(!scenarios[kind]||scenarios[kind].strength<w[kind])scenarios[kind]={day,strength:w[kind]};}
    const climates={};for(const biome of ['taiga','tundra','desert']){const sample={...game,biome},peak={rain:0,snow:0};for(let day=0;day<360;day++){const w=weatherPresentation(sample,camera.x/32,camera.y/32,day);peak.rain=Math.max(peak.rain,w.rain);peak.snow=Math.max(peak.snow,w.snow);}climates[biome]=peak;}
-   game.day=scenarios.rain.day;renderer.render(0);const rainy=hash(),stats=renderer.getStats().weather,saved=JSON.stringify(game);renderer.render(10000);const paused=hash();renderer.setLayers({weather:false});renderer.render(0);const off=hash();renderer.setLayers({weather:true});renderer.render(0);const restored=hash();
+   // Scenery batches finish over a few frames after the first view; compare settled frames.
+   game.day=scenarios.rain.day;for(let n=0;n<60;n++){renderer.render(0);const batches=renderer.getStats().sceneryBatches;if(!batches.waitingForCamera&&!batches.pending)break;await new Promise(resolve=>setTimeout(resolve,20));}
+   renderer.render(0);const rainy=hash(),stats=renderer.getStats().weather,saved=JSON.stringify(game);renderer.render(10000);const paused=hash();renderer.setLayers({weather:false});renderer.render(0);const off=hash();renderer.setLayers({weather:true});renderer.render(0);const restored=hash();
    let took=0;for(let i=0;i<8;i++){const start=performance.now();renderer.render(i);took+=performance.now()-start;}
    // Isolate compositing and particles from normal water and lighting animation.
    let reduced=false;const draw=createWeatherEffects({reducedMotion:()=>reduced});

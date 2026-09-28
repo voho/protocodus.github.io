@@ -83,8 +83,12 @@ try {
         const original={beginPath:c.beginPath,moveTo:c.moveTo,lineTo:c.lineTo,stroke:c.stroke};let path=[];const strokes=[];
         c.beginPath=function(){path=[];return original.beginPath.call(this);};
         for(const name of ['moveTo','lineTo'])c[name]=function(x,y){const m=this.getTransform();path.push({x:(m.a*x+m.c*y+m.e)/dpr,y:(m.b*x+m.d*y+m.f)/dpr});return original[name].call(this,x,y);};
-        c.stroke=function(){strokes.push({style:this.strokeStyle,points:path.slice()});return original.stroke.call(this);};
-        try{r.render(0,{tool:'inspect',hover:{x:56,y:50},showGrid:true});}finally{Object.assign(c,original);}
+        // The grid is a cached Path2D: record its points while a new revision rebuilds it.
+        const recorded=new WeakMap(),path2d={moveTo:Path2D.prototype.moveTo,lineTo:Path2D.prototype.lineTo};
+        for(const name of ['moveTo','lineTo'])Path2D.prototype[name]=function(x,y){if(!recorded.has(this))recorded.set(this,[]);recorded.get(this).push([x,y]);return path2d[name].call(this,x,y);};
+        c.stroke=function(shape){const m=this.getTransform(),points=shape?(recorded.get(shape)||[]).map(([x,y])=>({x:(m.a*x+m.c*y+m.e)/dpr,y:(m.b*x+m.d*y+m.f)/dpr})):path.slice();strokes.push({style:this.strokeStyle,points});return shape?original.stroke.call(this,shape):original.stroke.call(this);};
+        g.revision++;
+        try{r.render(0,{tool:'inspect',hover:{x:56,y:50},showGrid:true});}finally{Object.assign(c,original);Object.assign(Path2D.prototype,path2d);}
         const grid=strokes.find(s=>s.points.length>100),highlight=strokes.find(s=>s.style==='#f7efd3'&&s.points.length===4),expectedCorners=[[56,50],[57,50],[57,51],[56,51]].map(([u,v])=>r.worldToScreen(u-.5,v-.5));
         const nearest=(points,p)=>Math.min(...points.map(q=>Math.hypot(q.x-p.x,q.y-p.y)));
         const gridError=grid?Math.max(...expectedCorners.map(p=>nearest(grid.points,p))):Infinity;

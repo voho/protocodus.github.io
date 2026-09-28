@@ -55,12 +55,16 @@ try {
           const beforeClutter=c.getImageData(0,0,canvas.width,canvas.height).data;r.setLayers({trees:false});r.render(0);const afterClutter=c.getImageData(0,0,canvas.width,canvas.height).data;let clutterDelta=0;
           for(let dy=.125;dy<f.span;dy+=.125)for(let dx=.125;dx<f.span;dx+=.125){const p=r.worldToScreen(f.x+dx-.5,f.y+dy-.5),i=(Math.floor(p.y*dpr)*canvas.width+Math.floor(p.x*dpr))*4;for(let n=0;n<3;n++)clutterDelta=Math.max(clutterDelta,Math.abs(beforeClutter[i+n]-afterClutter[i+n]));}
           r.setLayers({trees:true});r.render(0);
-          const strokes=[],strokeRect=c.strokeRect.bind(c);c.strokeRect=(...args)=>{strokes.push({args,color:c.strokeStyle});strokeRect(...args);};
-          r.render(0,{selected:{x:f.x+f.span-1,y:f.y+f.span-1}});c.strokeRect=strokeRect;
-          const selection=strokes.find(s=>s.color==='#fbefba')?.args;
-          const previews=[],strokePreview=c.strokeRect.bind(c);c.strokeRect=(...args)=>{previews.push({args,color:c.strokeStyle});strokePreview(...args);};
-          r.render(0,{tool:f.kind,hover:{x:35,y:35}});c.strokeRect=strokePreview;
-          const preview=previews.find(s=>['#f4d090','#d7725f'].includes(s.color))?.args;
+          // Outlines follow the isometric ground; compare each stroked path's device-pixel bounds with the footprint's corners.
+          const outlines=draw=>{
+            const paths=[],proto=CanvasRenderingContext2D.prototype;let points=[];const track=(x,y)=>{const m=c.getTransform();points.push([m.a*x+m.c*y+m.e,m.b*x+m.d*y+m.f]);};
+            c.beginPath=function(){points=[];return proto.beginPath.call(this);};c.moveTo=function(x,y){track(x,y);return proto.moveTo.call(this,x,y);};c.lineTo=function(x,y){track(x,y);return proto.lineTo.call(this,x,y);};
+            c.stroke=function(...args){const xs=points.map(p=>p[0]),ys=points.map(p=>p[1]);paths.push({color:this.strokeStyle,bounds:[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)].map(Math.round)});return proto.stroke.apply(this,args);};
+            try{draw();}finally{for(const key of ['beginPath','moveTo','lineTo','stroke'])delete c[key];}return paths;
+          };
+          const footprint=(x,y)=>{const corners=[[x,y],[x+f.span,y],[x+f.span,y+f.span],[x,y+f.span]].map(([u,v])=>r.gridPointToScreen(u,v)),xs=corners.map(p=>p.x*dpr),ys=corners.map(p=>p.y*dpr);return[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)].map(Math.round);};
+          const selection=outlines(()=>r.render(0,{selected:{x:f.x+f.span-1,y:f.y+f.span-1}})).find(s=>s.color==='#fbefba')?.bounds,selectionExpected=footprint(f.x,f.y);
+          const preview=outlines(()=>r.render(0,{tool:f.kind,hover:{x:35,y:35}})).find(s=>['#f4d090','#d7725f'].includes(s.color))?.bounds,previewExpected=footprint(35,35);
           g.day=30;r.setLayers({lighting:true});r.render(0);const lit=c.getImageData(0,0,canvas.width,canvas.height).data;
           // Keep nighttime ambient dimming but turn off building lights by
           // rendering lighting directly over the exact daytime sprite pixels.
@@ -68,7 +72,7 @@ try {
           r.setLayers({lighting:false});r.render(0);const day=c.getImageData(0,0,canvas.width,canvas.height).data;
           let bright=0;for(const [x,y,pw,ph]of panes){const px=Math.floor((center.x+(x+pw/2-16)*1.5*f.span*zoom)*dpr),py=Math.floor((center.y+(y+ph/2-24)*1.5*f.span*zoom)*dpr),i=(py*canvas.width+px)*4;if(lit[i]>day[i]*.53+18*.47+12)bright++;}
           g.day=0;r.render(0);const composed=r.getStats().composedChunks;r.render(0);
-          rows.push({kind:f.kind,span:f.span,anchor:{x:f.x,y:f.y},zoom,dpr,clicks,roof,selection,preview,paneCount:panes.length,bright,clutterDelta,stable:r.getStats().composedChunks===composed,unchanged:snapshot===JSON.stringify(g),sourceCells});
+          rows.push({kind:f.kind,span:f.span,anchor:{x:f.x,y:f.y},zoom,dpr,clicks,roof,selection,selectionExpected,preview,previewExpected,paneCount:panes.length,bright,clutterDelta,stable:r.getStats().composedChunks===composed,unchanged:snapshot===JSON.stringify(g),sourceCells});
         }
         r.focus(25,25);r.render(0);return rows;
       },zoom);
@@ -76,8 +80,10 @@ try {
         const fixture=row.anchor;
         assert.equal(row.clicks.length,row.span**2);for(const clicked of row.clicks)assert.deepEqual(clicked,fixture,`${row.kind} every occupied parcel resolves its anchor`);
         assert.ok(row.roof,`${row.kind} roof outside ground parcel is clickable`);
-        assert.deepEqual(row.selection,[fixture.x*32+1,fixture.y*32+1,row.span*32-2,row.span*32-2]);
-        assert.deepEqual(row.preview,[35*32+1,35*32+1,row.span*32-2,row.span*32-2]);
+        // Outlines sit a small inset inside the footprint; a tenth of a tile separates them from any neighbouring span.
+        const near=(bounds,expected)=>bounds?.every((value,index)=>Math.abs(value-expected[index])<=6.4*row.zoom*row.dpr);
+        assert.ok(near(row.selection,row.selectionExpected),`${row.kind} selection outlines the whole footprint: ${row.selection} vs ${row.selectionExpected}`);
+        assert.ok(near(row.preview,row.previewExpected),`${row.kind} placement preview outlines the whole footprint: ${row.preview} vs ${row.previewExpected}`);
         assert.ok(row.paneCount>0);assert.equal(row.bright,row.paneCount,`${row.kind} panes follow full footprint`);
         // Ground resampling can mix one channel value from a neighboring fleck
         // at the parcel edge; actual flower/plant art would exceed this bound.

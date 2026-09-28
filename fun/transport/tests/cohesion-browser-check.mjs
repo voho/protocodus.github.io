@@ -1,6 +1,7 @@
 // Real browser checks use a fresh context; the player's storage is never touched.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
+import { createWorldFromMenu, openGameAction } from './browser-start.mjs';
 const { chromium } = await import(process.env.TRANSPORT_PLAYWRIGHT || 'playwright');
 const browser = await chromium.launch({ channel: process.env.TRANSPORT_BROWSER || 'chrome', headless: true });
 const url = process.env.TRANSPORT_URL || 'http://localhost:8765/fun/transport/';
@@ -10,8 +11,9 @@ const errors=[];
 try {
  const page=await browser.newPage({viewport:{width:1440,height:960}});
  page.on('pageerror',error=>errors.push(error.message));
- await page.goto(url);await page.waitForFunction(()=>window.transport?.game);await page.evaluate(()=>transport.setSpeed(0));
+ await page.goto(url);await createWorldFromMenu(page);
  assert.deepEqual(await page.evaluate(()=>[transport.game.width,transport.game.height,transport.game.cities.length]),[512,512,48]);
+ await page.locator('.main-nav [data-view="build"]').click();
  await page.locator('.project-card summary').click();
  assert.match(await page.locator('.project-card').innerText(),/first cargo route/);
  await page.locator('[data-project-action="source"]').click();
@@ -48,18 +50,21 @@ try {
  await page.waitForFunction(()=>document.querySelector('[data-route-status]')?.textContent==='Disconnected');
  assert.equal(await page.evaluate(()=>transport.speed),0);
  // New world activation is transactional even when the browser rejects writes.
+ // Opening the main menu saves the current company first, so capture it afterwards.
+ await openGameAction(page,'world-button');await page.locator('#start-world-form').waitFor();
  const before=await page.evaluate(()=>({seed:transport.game.seed,width:transport.game.width,raw:localStorage.getItem('transport-save-v1')}));
- await page.locator('#world-button').click();
- assert.equal(await page.locator('[data-world-size]').count(),3);
- await page.locator('#world-seed').fill('98261');await page.locator('[data-world-size="square512"]').click();
+ assert.equal(await page.locator('#start-world-form [name="size"] option').count(),3);
+ await page.locator('.start-advanced summary').click();await page.locator('#start-world-form [name="seed"]').fill('98261');await page.locator('#start-world-form [name="size"]').selectOption('square512');
  await page.evaluate(()=>{window.originalSetItem=Storage.prototype.setItem;Storage.prototype.setItem=function(){throw new DOMException('Full','QuotaExceededError');};});
- await page.locator('#generate-world').click();
- await page.waitForFunction(()=>document.querySelector('#world-generation-status')?.textContent.includes('current world is unchanged')&&!document.querySelector('#generate-world').disabled);
+ await page.locator('#start-create').click();
+ await page.waitForFunction(()=>document.querySelector('#start-message')?.textContent.includes('Existing saves are unchanged')&&!document.querySelector('#start-create').disabled);
  assert.deepEqual(await page.evaluate(()=>({seed:transport.game.seed,width:transport.game.width,raw:localStorage.getItem('transport-save-v1')})),before);
- assert.equal(await page.locator('#modal').evaluate(el=>el.open),true);
- assert.match(await page.locator('#status-message').innerText(),/current world is unchanged/);
+ assert.equal(await page.locator('#start-menu').evaluate(el=>el.open),true);
+ assert.match(await page.locator('#start-message').innerText(),/Existing saves are unchanged/);
  await page.evaluate(()=>{Storage.prototype.setItem=window.originalSetItem;});
  await page.keyboard.press('Escape');
+ await page.locator('#start-menu').waitFor({state:'detached'});
+ assert.equal(await page.evaluate(()=>transport.game.seed),before.seed,'Escape resumes the unchanged company');
  assert.deepEqual(errors,[]);
  console.log('Cohesion browser checks passed: square opening, actionable freight, searches/focus, production explanations, operating accounts, paused disconnection, safe new worlds.');
 } finally {await browser.close();}

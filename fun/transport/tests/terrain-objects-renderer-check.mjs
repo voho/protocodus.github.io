@@ -49,28 +49,40 @@ try {
               if(ground.x>=f.x&&ground.y>=f.y&&ground.x<f.x+f.span&&ground.y<f.y+f.span)continue;
               candidates++;const picked=r.screenToInspectTile(x,y);if(picked.x===f.x&&picked.y===f.y)crown=picked;
             }
-            const strokes=[],stroke=c.strokeRect.bind(c);c.strokeRect=(...args)=>{strokes.push({args,color:c.strokeStyle});stroke(...args);};
-            r.render(0,{selected:{x:f.x+f.span-1,y:f.y+f.span-1}});const selected=strokes.find(s=>s.color==='#fbefba')?.args;strokes.length=0;
-            r.render(0,{tool:'bulldoze',hover:{x:f.x+f.span-1,y:f.y+f.span-1}});const bulldoze=strokes.at(-1);c.strokeRect=stroke;
+            // Outlines follow the isometric ground; compare each stroked path's device-pixel bounds with the parcel's corners.
+            const outlines=draw=>{
+              const paths=[],proto=CanvasRenderingContext2D.prototype;let points=[];const track=(x,y)=>{const m=c.getTransform();points.push([m.a*x+m.c*y+m.e,m.b*x+m.d*y+m.f]);};
+              c.beginPath=function(){points=[];return proto.beginPath.call(this);};c.moveTo=function(x,y){track(x,y);return proto.moveTo.call(this,x,y);};c.lineTo=function(x,y){track(x,y);return proto.lineTo.call(this,x,y);};
+              c.stroke=function(...args){const xs=points.map(p=>p[0]),ys=points.map(p=>p[1]);paths.push({color:this.strokeStyle,bounds:[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)].map(Math.round)});return proto.stroke.apply(this,args);};
+              try{draw();}finally{for(const key of ['beginPath','moveTo','lineTo','stroke'])delete c[key];}return paths;
+            };
+            const parcel=(x,y,span)=>{const corners=[[x,y],[x+span,y],[x+span,y+span],[x,y+span]].map(([u,v])=>r.gridPointToScreen(u,v)),xs=corners.map(p=>p.x*devicePixelRatio),ys=corners.map(p=>p.y*devicePixelRatio);return[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)].map(Math.round);};
+            // Mountain anchors stay in saves but draw and select as terrain, one tile at a time.
+            const own=f.kind==='mountain'?parcel(f.x+f.span-1,f.y+f.span-1,1):parcel(f.x,f.y,f.span);
+            const selected=outlines(()=>r.render(0,{selected:{x:f.x+f.span-1,y:f.y+f.span-1}})).find(s=>s.color==='#fbefba')?.bounds,selectedExpected=own;
+            const bulldoze=outlines(()=>r.render(0,{tool:'bulldoze',hover:{x:f.x+f.span-1,y:f.y+f.span-1}})).filter(s=>['#f4d090','#d7725f','#e3aa6d'].includes(s.color)).at(-1),bulldozeExpected=own;
             r.render(0);const composed=r.getStats().composedChunks;r.render(0);const warm=composed===r.getStats().composedChunks;
             const anchor=g.tiles[f.y*g.width+f.x],saved=anchor.terrainObject;delete anchor.terrainObject;g.revision++;r.render(0);const released=q.hash();
             const fresh=q.createRenderer(canvas,g,{zoom,layers:{lighting:false,names:false,industryIcons:false}});fresh.focus(centerTile.x,centerTile.y);fresh.render(0);const clean=q.hash();
             anchor.terrainObject=saved;g.revision++;r.render(0);const restored=q.hash();
             // Ignore the explicit revision increments made by this test itself.
             const before=JSON.parse(original);before.revision=g.revision;
-            rows.push({biome:g.biome,dpr:devicePixelRatio,zoom,...f,clicks,crown,candidates,selected,bulldoze,warm,stale:released!==clean,changed:released!==baseHash,restored:restored===baseHash,unchanged:JSON.stringify(before)===JSON.stringify(g),calls});
+            rows.push({biome:g.biome,dpr:devicePixelRatio,zoom,...f,clicks,crown,candidates,selected,selectedExpected,bulldoze,bulldozeExpected,warm,stale:released!==clean,changed:released!==baseHash,restored:restored===baseHash,unchanged:JSON.stringify(before)===JSON.stringify(g),calls});
           }
           r.focus(25.5,28);r.render(0);return rows;
         },zoom);
         for(const row of rows){
-          const anchor={x:row.x,y:row.y};for(const p of row.clicks)assert.deepEqual(p,anchor,`${biome} ${row.kind} every occupied tile opens its anchor`);
-          if(row.kind==='forest'||row.candidates)assert.deepEqual(row.crown,anchor,`${biome} ${row.kind} opaque overhang is clickable`);
-          assert.deepEqual(row.selected,[row.x*32+1,row.y*32+1,row.span*32-2,row.span*32-2]);
-          const bulldozeSpan=row.kind==='mountain'?1:row.span;
-          assert.equal(row.bulldoze.args[2],bulldozeSpan*32-2,'mountains retain single-tile engineering rules');
+          // Mountain formations are terrain: each tile inspects itself and no parcel artwork is drawn.
+          const mountain=row.kind==='mountain',anchor={x:row.x,y:row.y};
+          row.clicks.forEach((p,n)=>assert.deepEqual(p,mountain?{x:row.x+n%row.span,y:row.y+Math.floor(n/row.span)}:anchor,`${biome} ${row.kind} every occupied tile opens ${mountain?'itself':'its anchor'}`));
+          if(!mountain&&(row.kind==='forest'||row.candidates))assert.deepEqual(row.crown,anchor,`${biome} ${row.kind} opaque overhang is clickable`);
+          // Outlines sit a small inset inside the parcel; a tenth of a tile separates them from any other span.
+          const near=(bounds,expected)=>bounds?.every((value,index)=>Math.abs(value-expected[index])<=6.4*row.zoom*row.dpr);
+          assert.ok(near(row.selected,row.selectedExpected),`${biome} ${row.kind} selection outlines the whole parcel: ${row.selected} vs ${row.selectedExpected}`);
+          assert.ok(near(row.bulldoze?.bounds,row.bulldozeExpected),'mountains retain single-tile engineering rules');
           if(row.kind==='mountain')assert.equal(row.bulldoze.color,'#d7725f');
-          assert.equal(row.stale,false,'releasing a terrain parcel equals a fresh render');assert.ok(row.changed&&row.restored&&row.warm&&row.unchanged);
-          if(row.kind!=='forest'&&56*row.span*zoom*dpr>128)assert.ok(row.calls.some(c=>c.cell===256),'large geology uses256px master');
+          assert.equal(row.stale,false,'releasing a terrain parcel equals a fresh render');assert.ok((mountain?!row.changed:row.changed)&&row.restored&&row.warm&&row.unchanged);
+          if(row.kind!=='forest'&&!mountain&&56*row.span*zoom*dpr>128)assert.ok(row.calls.some(c=>c.cell===256),'large geology uses256px master');
           if(row.kind==='forest'){assert.ok(row.calls.length>=6);assert.ok(row.calls.every(c=>c.w<50&&c.h<50),'mature trees stay under50worldpixels tall at every footprint');}
         }
         results.push(...rows);
