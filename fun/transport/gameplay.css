@@ -85,3 +85,5 @@
  .compact-play #objective-card.open{width:min(400px,calc(100% - 20px));max-width:none;max-height:calc(100% - 20px);padding:13px 14px 12px;border-radius:10px;overflow:auto}
  .compact-play:has(#objective-card.open:not([hidden])) .toast-region{top:calc(var(--play-header) + 12px);bottom:auto}
 }
+.site-status[data-state=backlog]{color:#8b633a}
+.industry-condition[data-state=backlog]{background:#f5e8d4;color:#835e35}

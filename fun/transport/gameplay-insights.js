@@ -5,6 +5,7 @@ import { industryDistance, industryContains, industrySize } from './industry-sit
 import { buildingAt } from './building-sites.js';
 import { networkTerrainShape } from './terrain-engineering.js';
 import { nearbyIndustries } from './simulation-spatial.js';
+import { outputFill } from './industry-simulation.js';
 
 const nearby = (a, b) => Math.hypot(a.x - b.x, a.y - b.y) <= STATION_RADIUS;
 const covers = (site, stop) => industryDistance(site, stop) <= STATION_RADIUS;
@@ -145,12 +146,16 @@ export function townService(game, city, activeStops = null) {
   return { connected, served, label: served ? 'Served recently' : connected ? 'Awaiting deliveries' : 'No service' };
 }
 
-export function industryStatus(industry) {
+// With a game, a piling-up store names the service that already loads here.
+export function industryStatus(industry, game = null) {
   const definition = INDUSTRIES[industry.kind], inventory = industry.inventory || {};
   const missing = Object.keys(definition.inputs).filter(key => !(inventory[key] > 0));
   if (missing.length) return { state: 'waiting', label: 'Needs ' + joinCargo(missing), missing, detail: 'Deliver every input to restart production.' };
-  if (Object.keys(definition.outputs).some(key => (inventory[key] || 0) >= 900 * (industry.capacity || 1) - .001)) {
-    return { state: 'full', label: 'Storage full', missing: [], detail: 'Carry output to a buyer to make room.' };
+  const full = Object.keys(definition.outputs).some(key => (inventory[key] || 0) >= 900 * (industry.capacity || 1) - .001);
+  if (full || outputFill(industry) >= .5) {
+    const loads = game?.routes.find(route => route.active && definition.outputs[route.cargo] && game.stations.some(stop => stop.id === route.stops?.[0] && covers(industry, stop)));
+    const detail = loads ? `Your service can't keep up. Add vehicles to ${loads.name}.` : full ? 'Carry output to a buyer to make room.' : 'Growth paused until more is shipped. Add vehicles or another route.';
+    return full ? { state: 'full', label: 'Storage full', missing: [], detail } : { state: 'backlog', label: 'Output piling up', missing: [], detail };
   }
   return { state: 'producing', label: 'Producing', missing: [], detail: 'Output depends on nearby nature, roads, workers and weather.' };
 }

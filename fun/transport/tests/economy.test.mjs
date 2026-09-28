@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGame, build, buildPath, addRoute, removeRoute, tick, drainDeliveryEvents, saveGame, SAVE_KEY, VEHICLE_COSTS } from '../model.js';
+import { outputFill } from '../industry-simulation.js';
 import { emptyGame, line, advance } from './helpers.mjs';
 
 function freightFixture(mode = 'road') {
@@ -51,6 +52,28 @@ for (const mode of ['road', 'rail']) {
     assert.equal(game.totalRevenue, revenue, 'closed routes stop delivering');
   });
 }
+
+test('industries grow only while their output is carried away', () => {
+  const capacityAfterTwoYears = trucks => {
+    const game = emptyGame();
+    game.cities = [{ id: 'town', name: 'Town', x: 35, y: 41, population: 400, activity: 0, growth: 0, passengers: 0, delivered: 0, supplies: 0, lastServiceDay: null }];
+    assert.equal(build(game, 'quarry', 10, 40).ok, true);
+    assert.equal(buildPath(game, 'road', line(12, 32, 41)).ok, true);
+    assert.equal(build(game, 'bus-stop', 12, 41).ok, true);
+    assert.equal(build(game, 'bus-stop', 32, 41).ok, true);
+    const stops = game.stations.map(station => station.id);
+    for (let n = 0; n < trucks; n++) assert.equal(addRoute(game, { name: `Stone ${n + 1}`, mode: 'road', stops, cargo: 'stone' }).ok, true);
+    advance(game, 730, tick);
+    const quarry = game.industries[0];
+    return { capacity: quarry.capacity, fill: outputFill(quarry), notices: game.notifications.filter(notice => /expanded/.test(notice.message)) };
+  };
+  const one = capacityAfterTwoYears(1), eight = capacityAfterTwoYears(8);
+  assert.ok(one.capacity < 1.8, `one truck leaves stone piling up: ${one.capacity.toFixed(2)}`);
+  assert.ok(one.fill >= .5, 'the quarry stays at least half full');
+  assert.ok(eight.capacity >= 2.9, `a fleet that clears the stock lets it grow: ${eight.capacity.toFixed(2)}`);
+  assert.ok(eight.fill < .5);
+  assert.match(one.notices[0].message, /^Stone quarry expanded to \d+% capacity · storage \d+% full\.$/);
+});
 
 test('route validation blocks bad cargo, missing stops, mode mismatches and disconnected service', () => {
   const { game, stops } = freightFixture();

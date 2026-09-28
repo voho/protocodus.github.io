@@ -27,7 +27,19 @@ test('factory explanations identify every missing ingredient and distinguish ful
   assert.deepEqual(industryStatus(mill).missing,['iron']);
   mill.inventory.iron=.01;assert.equal(industryStatus(mill).state,'producing','fractional recipes can operate');
   mill.inventory.steel=900;assert.equal(industryStatus(mill).state,'full');
-  mill.capacity=2;assert.equal(industryStatus(mill).state,'producing','capacity also controls storage');
+  mill.capacity=2;assert.equal(industryStatus(mill).state,'backlog','capacity also controls storage');
+});
+
+test('a half-full store reads as a backlog and names the route that cannot keep up', () => {
+  const game=routeGame(),quarry=site('quarry','quarry',10,{stone:540});game.industries=[quarry];Object.assign(game.routes[0],{name:'Stone run',cargo:'stone'});
+  assert.deepEqual(industryStatus(quarry),{state:'backlog',label:'Output piling up',missing:[],detail:'Growth paused until more is shipped. Add vehicles or another route.'});
+  quarry.inventory.stone=449;assert.equal(industryStatus(quarry,game).state,'producing','under half full the site keeps growing');
+  quarry.inventory.stone=540;assert.equal(industryStatus(quarry,game).detail,"Your service can't keep up. Add vehicles to Stone run.");
+  quarry.inventory.stone=900;assert.equal(industryStatus(quarry,game).label,'Storage full');assert.equal(industryStatus(quarry,game).detail,"Your service can't keep up. Add vehicles to Stone run.");
+  assert.equal(industryStatus(quarry).detail,'Carry output to a buyer to make room.','the one-argument form is unchanged');
+  game.routes[0].stops=['b','a'];assert.equal(industryStatus(quarry,game).detail,'Carry output to a buyer to make room.','a route that only unloads here carries nothing away');
+  game.routes[0].stops=['a','b'];game.routes[0].active=false;assert.equal(industryStatus(quarry,game).detail,'Carry output to a buyer to make room.');
+  game.routes[0].active=true;game.routes[0].cargo='timber';assert.equal(industryStatus(quarry,game).detail,'Carry output to a buyer to make room.');
 });
 
 test('route diagnostics explain missing customers, empty sources and blocked processing', () => {

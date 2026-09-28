@@ -5,6 +5,9 @@ import { nearbyCities, nearbyIndustries } from './simulation-spatial.js';
 const clamp=(value,min=0,max=1)=>Math.max(min,Math.min(max,value));
 const MAX_INVENTORY=900;
 
+/** How full the fullest output store is, 0–1; growth pauses from one half. */
+export function outputFill(industry){return Object.keys(INDUSTRIES[industry.kind].outputs).reduce((fill,cargo)=>Math.max(fill,(industry.inventory?.[cargo]||0)/(MAX_INVENTORY*(industry.capacity||1))),0);}
+
 export function industryConditions(game,industry){
   const e=localEnvironment(game,industry.x,industry.y,4,industrySize(industry)),weather=weatherAt(game,industry.x,industry.y,Math.floor(game.day));
   const positive=[],negative=[],kind=industry.kind;
@@ -84,7 +87,9 @@ export function stepIndustries(game,notify=()=>{}){
     }
     if(day>=industry.nextReviewDay){
       const old=industry.capacity,activity=industry.activity||0;
-      if(activity>25&&industry.totalProduced>0&&industry.idleDays<18){
+      // Growth needs output carried away: a half-full store holds capacity without shrinking it.
+      const hasRoom=Object.keys(INDUSTRIES[industry.kind].outputs).every(cargo=>(industry.inventory[cargo]||0)<MAX_INVENTORY*old*.5);
+      if(activity>25&&industry.totalProduced>0&&industry.idleDays<18&&hasRoom){
         industry.capacity=clamp(old+(.035+randomAt(game,day,industry.id,433)*.09)*( .5+conditions.productivity)*Math.min(1.6,.7+activity/250),.5,3);
       }else if(industry.idleDays>18){
         const stock=Object.values(industry.inventory||{}).reduce((max,n)=>Math.max(max,n),0);
@@ -94,7 +99,7 @@ export function stepIndustries(game,notify=()=>{}){
         industry.capacity=clamp(Math.max(stockFloor,old-(.025+randomAt(game,day,industry.id,434)*.045)*(1.3-e.access*.3)),.5,3);
       }
       industry.nextReviewDay=day+21+Math.floor(randomAt(game,day,industry.id,435)*25);
-      if(Math.floor(old*2)<Math.floor(industry.capacity*2))notify(game,`${industry.name} expanded to ${Math.round(industry.capacity*100)}% capacity.`,'success',{topic:'industry-growth',target:{kind:'industry',id:industry.id}});
+      if(Math.floor(old*2)<Math.floor(industry.capacity*2))notify(game,`${industry.name} expanded to ${Math.round(industry.capacity*100)}% capacity · storage ${Math.round(outputFill(industry)*100)}% full.`,'success',{topic:'industry-growth',target:{kind:'industry',id:industry.id}});
     }
   }
 }
