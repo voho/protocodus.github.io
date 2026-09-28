@@ -6,10 +6,14 @@
   "checkpoints_count": 1,
   "files_touched": [
     "fun/transport/ARCHITECTURE.md",
+    "fun/transport/PERFORMANCE.md",
     "fun/transport/README.md",
     "fun/transport/app.js",
+    "fun/transport/formatters.js",
     "fun/transport/renderer.js",
-    "fun/transport/tests/features-browser-check.mjs"
+    "fun/transport/tests/cohesion-browser-check.mjs",
+    "fun/transport/tests/features-browser-check.mjs",
+    "fun/transport/tests/formatters.test.mjs"
   ],
   "sessions": [
     {
