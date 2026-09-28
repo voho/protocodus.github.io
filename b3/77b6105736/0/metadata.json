@@ -1,0 +1,40 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "b377b6105736",
+  "session_id": "3b9c315d-693f-4002-bf02-dd13bfe054fa",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-28T11:53:56.997722Z",
+  "branch": "transport-playability",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "fun/transport/model.js",
+    "fun/transport/renderer.js",
+    "fun/transport/tests/features-browser-check.mjs",
+    "fun/transport/tests/layers-browser-check.mjs",
+    "fun/transport/ARCHITECTURE.md",
+    "fun/transport/README.md",
+    "fun/transport/index.html",
+    "fun/transport/tests/gameplay-insights.test.mjs",
+    "fun/transport/app.js",
+    "fun/transport/compact-hud.css"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "ff5bce9e2172",
+  "token_usage": {
+    "input_tokens": 184,
+    "cache_creation_tokens": 222747,
+    "cache_read_tokens": 6989952,
+    "output_tokens": 50046,
+    "api_call_count": 67
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-28T11:53:56.524173Z",
+    "agent_lines": 0,
+    "human_added": 141,
+    "human_modified": 17,
+    "human_removed": 0,
+    "total_committed": 141,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude/projects/-Users-vojta-Dev-protocodus-github-io/3b9c315d-693f-4002-bf02-dd13bfe054fa.jsonl"
+}
