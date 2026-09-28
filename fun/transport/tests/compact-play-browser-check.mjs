@@ -114,6 +114,75 @@ try {
     console.log(`${profile.name}: collapsed playfield, tool drawer, map layers, mini map, focus restoration, menus and resume passed`);
     await page.close();
   }
+
+  // A notched phone in landscape: chrome clears the safe areas, the short layout fits, and touch targets and muted text hold up on every phone size.
+  const { waitForGameReady, openGameAction } = await import('./browser-start.mjs');
+  const phone = await browser.newPage({ viewport:{ width:844, height:390 }, deviceScaleFactor:1, isMobile:true, hasTouch:true });
+  phone.on('pageerror', error => errors.push(error.message));
+  const cdp = await phone.context().newCDPSession(phone);
+  const insets = value => cdp.send('Emulation.setSafeAreaInsetsOverride', { insets:value });
+  const box = selector => phone.locator(selector).first().evaluate(el => { const b=el.getBoundingClientRect(); return { left:b.left, top:b.top, right:innerWidth-b.right, bottom:innerHeight-b.bottom }; });
+  const hitHeight = selector => phone.locator(selector).first().evaluate(el => { const b=el.getBoundingClientRect(), x=b.left+b.width/2; let height=0; for (let y=Math.floor(b.top)-30;y<=b.bottom+30;y++) if (el.contains(document.elementFromPoint(x,y))) height++; return height; });
+  const contrast = selector => phone.locator(selector).first().evaluate(el => {
+    const rgba = color => { const [r,g,b,a=1] = color.match(/[\d.]+/g).map(Number); return [r,g,b,a]; }, over = (top, under) => under.map((v,i) => top[i]*top[3]+v*(1-top[3]));
+    const layers = []; for (let node=el;node;node=node.parentElement) { const color=rgba(getComputedStyle(node).backgroundColor); if (color[3]) layers.unshift(color); if (color[3]===1) break; }
+    const background = layers.reduce((under, top) => over(top, under), [255,255,255]), text = over(rgba(getComputedStyle(el).color), background);
+    const luminance = rgb => rgb.reduce((sum,v,i) => { v/=255; return sum+[.2126,.7152,.0722][i]*(v<=.03928?v/12.92:((v+.055)/1.055)**2.4); }, 0);
+    const [light, dark] = [luminance(text), luminance(background)].sort((a,b) => b-a); return (light+.05)/(dark+.05);
+  });
+  const touchTargets = async size => {
+    for (const selector of ['[data-speed="0"]','[data-speed="1"]','[data-speed="3"]','[data-speed="8"]']) assert.ok(await hitHeight(selector) >= 44, `${size}: ${selector} takes taps across 44 px`);
+    await phone.locator(await phone.locator('.mobile-panel-toggle').isVisible() ? '.mobile-panel-toggle' : '.main-nav [data-view="build"]').click();
+    await phone.waitForFunction(() => document.querySelector('.sidebar').getBoundingClientRect().left >= 0);
+    assert.ok(await hitHeight('#close-management') >= 44, `${size}: the drawer close button takes taps across 44 px`);
+    await phone.locator('#close-management').click();
+    await phone.evaluate(() => { const town=transport.game.cities[0]; transport.inspect(town.x, town.y); });
+    assert.ok(await hitHeight('#inspector .tiny-button') >= 44, `${size}: the inspector close button takes taps across 44 px`);
+    await phone.locator('#inspector .tiny-button').click();
+    await openGameAction(phone, 'overview-button');
+    assert.ok(await hitHeight('#close-minimap') >= 44, `${size}: the mini map close button takes taps across 44 px`);
+    await phone.locator('#close-minimap').click();
+  };
+  await insets({ left:47, right:47, bottom:21 });
+  await phone.goto(url); await phone.locator('#start-create').waitFor();
+  const create = await box('#start-create');
+  assert.ok(create.top >= 0 && create.bottom >= 21, 'Create world shows above the home indicator without scrolling');
+  await phone.locator('#start-create').click();
+  await waitForGameReady(phone);
+  assert.ok((await box('.brand-symbol')).left >= 47, 'the logo clears the left notch');
+  assert.ok((await box('#game-menu-button')).right >= 47, 'the menu button clears the right notch');
+  const zoom = await box('.view-controls');
+  assert.ok(zoom.right >= 47 && zoom.bottom >= 21, 'zoom controls clear the notch and the home indicator');
+  await phone.locator('.main-nav [data-view="build"]').click();
+  await phone.waitForFunction(() => document.querySelector('.sidebar').getBoundingClientRect().left >= 47);
+  const drawer = await box('.sidebar');
+  assert.ok(drawer.left >= 47 && drawer.bottom >= 21, 'the drawer clears the notch and the home indicator');
+  assert.ok(await phone.locator('#panel-content .tool-grid .tool-card').evaluateAll(cards => { const panel=cards[0].closest('#panel-content').getBoundingClientRect(); return cards.filter(card => { const b=card.getBoundingClientRect(); return b.top >= panel.top-1 && b.bottom <= panel.bottom+1; }).length; }) >= 4, 'at least four Build tools show without scrolling');
+  assert.equal(await phone.locator('#panel-content [data-tool="road"] .shortcut').isVisible(), false, 'touch hides keyboard letters');
+  assert.equal(await phone.locator('.build-bottom-tools .compact-tool>span').first().isVisible(), false, 'touch hides the Esc hint');
+  assert.equal(await phone.locator('#panel-content [data-tool="road"]').getAttribute('aria-keyshortcuts'), 'R');
+  assert.ok(await contrast('.tool-grid .tool-card .tool-cost') >= 4.5, 'tool costs read at 4.5:1');
+  await phone.screenshot({ path:`${output}/landscape-build.png`, animations:'disabled' });
+  await phone.locator('.main-nav [data-view="routes"]').click();
+  for (const selector of ['.route-actions .small-button.danger','.route-vehicle-spec','.route-model','.route-rate','.fleet-upgrade-heading small']) assert.ok(await contrast(selector) >= 4.5, `${selector} reads at 4.5:1`);
+  assert.ok(await phone.locator('.route-actions .small-button').first().evaluate(el => el.getBoundingClientRect().height) >= 40, 'route actions are 40 px on touch');
+  await phone.locator('#close-management').click();
+  await phone.evaluate(() => { const town=transport.game.cities[0]; transport.inspect(town.x, town.y); });
+  assert.ok(await contrast('#inspector .tiny-button') >= 4.5, 'the inspector close button reads at 4.5:1');
+  const inspector = await box('#inspector');
+  assert.ok(inspector.left >= 47 && inspector.bottom >= 21 && inspector.top >= 52, 'the inspector clears the safe areas and the header');
+  await phone.screenshot({ path:`${output}/landscape-inspector.png`, animations:'disabled' });
+  await phone.locator('#inspector .tiny-button').click();
+  await touchTargets('844');
+  await insets({ left:0, right:0, bottom:0 });
+  for (const [width, height] of [[390, 844], [320, 640]]) {
+    await phone.setViewportSize({ width, height });
+    await touchTargets(String(width));
+  }
+  await phone.locator('.mobile-panel-toggle').click();
+  assert.ok(await contrast('.management-drawer-heading') >= 4.5, 'the drawer heading reads at 4.5:1');
+  await phone.close();
+  console.log('landscape phone: safe areas, short layout, touch targets and contrast passed');
   assert.deepEqual(errors, []);
   console.log(`Compact gameplay checks passed. Screenshots: ${output}`);
 } finally { await browser.close(); }
