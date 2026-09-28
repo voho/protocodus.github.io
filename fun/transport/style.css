@@ -263,3 +263,70 @@ body{font-size:13px}
 .route-header .rename-button{opacity:0;transition:opacity .12s}
 .route-header:hover .rename-button,.route-header .rename-button:focus-visible{opacity:1}
 @media(hover:none) and (pointer:coarse){.rename-button::after{inset:-11px}.route-header .rename-button{opacity:1}}
+/* Finance card: loan rows only with a loan. A pinned or focused card takes the pointer for Open report; so does a hovered
+   dropdown on wide screens, where a strip bridges the gap. The full-width phone card lets unpinned taps through. */
+.hud-tooltip>div[hidden]{display:none}
+.hud-finance-wrap:has(#open-report:focus-visible) .hud-tooltip{display:block}
+.hud-finance-wrap:has(#open-report:focus-visible) .hud-tooltip,.hud-finances[aria-expanded=true]+.hud-tooltip{pointer-events:auto}
+@media(hover:hover) and (min-width:701px){.hud-finance-wrap:hover .hud-tooltip{pointer-events:auto}}
+.hud-tooltip::before{content:'';position:absolute;left:0;right:0;top:-9px;height:9px}
+.hud-report{display:flex;align-items:center;justify-content:space-between;width:100%;margin-top:12px;padding:10px 0 0;border:0;border-top:1px solid #e0e5d4;background:none;color:#4c6a3e;font:inherit;font-size:13px;font-weight:500;cursor:pointer}
+.hud-report:hover{color:#2f4a33}
+.hud-report:focus-visible{outline:2px solid var(--orange);outline-offset:3px;border-radius:2px}
+/* Toasts with two actions stack them beside the message. */
+.toast-actions{display:flex;flex-direction:column;align-items:stretch;gap:6px;flex:0 0 auto}
+/* Company report: month-by-month sparklines, yearly summaries, top routes and the optional loan; one column on phones. */
+#modal:has(.company-report){width:min(720px,calc(100vw - 32px))}
+.company-section{margin-top:24px}
+.company-section>header{display:flex;align-items:baseline;justify-content:space-between;gap:4px 12px;flex-wrap:wrap}
+.company-section h3{margin:0;font-size:17px;font-weight:500;letter-spacing:-.2px;color:#2c4632}
+.company-section>header>span{font-size:12px;color:#6a7d5f}
+.company-section h4{margin:16px 0 0;font-size:13px;font-weight:600;color:#a14f28}
+.company-empty{margin:8px 0 0;font-size:13px;line-height:1.5;color:#6a7d5f}
+.company-charts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:10px}
+.company-chart{margin:0;padding:11px 13px 10px;border:1px solid #dfe6d4;border-radius:10px;background:#f5f6ec}
+.company-chart figcaption{display:flex;align-items:baseline;justify-content:space-between;gap:10px;font-size:12px;color:#6a7d5f}
+.company-chart strong{font-size:15px;font-weight:600;color:#2f4a33;font-variant-numeric:tabular-nums;white-space:nowrap}
+.sparkline{display:block;width:100%;height:44px;margin-top:8px;overflow:visible}
+.spark-line{fill:none;stroke:#5c8a4f;stroke-width:1.75;stroke-linejoin:round;stroke-linecap:round;vector-effect:non-scaling-stroke}
+.spark-area{fill:#dfe9d2;opacity:.75}
+.spark-zero{stroke:#d9a07f;stroke-width:1;stroke-dasharray:3 3;vector-effect:non-scaling-stroke}
+.company-table{margin-top:10px;overflow-x:auto;border:1px solid #dfe6d4;border-radius:10px;background:#f5f6ec}
+.company-table table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums;color:#2f4a33}
+.company-table th,.company-table td{padding:9px 12px;text-align:right;white-space:nowrap;border-top:1px solid #e6ecdc}
+.company-table thead th{border-top:0;font-size:12px;font-weight:500;color:#6a7d5f}
+.company-table th:first-child,.company-table th:last-child,.company-table td:last-child{text-align:left}
+.company-table tbody th{font-weight:600}
+.company-table td:last-child{max-width:190px;overflow:hidden;text-overflow:ellipsis}
+.company-table small{font-size:11px;font-weight:500;color:#5c8a4f}
+.company-routes{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:7px}
+.company-route{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;align-items:center;gap:11px;padding:9px 12px;border:1px solid #dfe6d4;border-radius:8px;background:#f5f6ec}
+.company-routes.below .company-route{grid-template-columns:minmax(0,1fr) auto auto;border-color:#efd9c6;background:#fbf3ea}
+.company-rank{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:#e6ecdb;font-size:12px;font-weight:600;color:#4c6a3e}
+.company-route strong{display:block;overflow:hidden;font-size:14px;font-weight:500;color:#2f4a33;text-overflow:ellipsis;white-space:nowrap}
+.company-route small{display:block;margin-top:1px;font-size:12px;color:#6a7d5f}
+.company-routes.below small{color:#a14f28}
+.company-rate{font-size:13px;font-weight:500;color:#36573a;font-variant-numeric:tabular-nums;white-space:nowrap}
+.company-route-actions{display:flex;gap:6px}
+.company-meter{height:6px;margin-top:10px;border-radius:3px;background:#e0e7d3;overflow:hidden}
+.company-meter span{display:block;height:100%;border-radius:3px;background:var(--orange)}
+.company-loan p{margin:10px 0 0;font-size:13px;line-height:1.55;color:#4f6448}
+.company-loan-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.company-loan-actions .button{margin:0;padding:10px 14px;border-color:#c9d6bb;font-size:13px;color:#2f4a33}
+.company-loan-actions .button:disabled{opacity:.55}
+.modal-heading .retire-warning{padding:9px 12px;border-radius:8px;background:var(--orange-light);color:#8a4424}
+@media(max-width:560px){
+ .company-charts{grid-template-columns:minmax(0,1fr)}
+ .company-optional{display:none}
+ .company-table th,.company-table td{padding:8px 9px}
+ .company-table thead th,.company-table td:last-child{white-space:normal}
+ .company-table td:last-child{max-width:none;overflow-wrap:anywhere}
+ .company-route{grid-template-columns:auto minmax(0,1fr) auto;row-gap:2px}
+ .company-rank{grid-row:1/3}
+ .company-rate{grid-column:2;grid-row:2;font-size:12px}
+ .company-route-actions{grid-column:3;grid-row:1/3}
+ .company-routes.below .company-route{grid-template-columns:minmax(0,1fr) auto}
+ .company-routes.below .company-rate{grid-column:1}
+ .company-routes.below .company-route-actions{grid-column:2}
+ .company-loan-actions .button{flex:1 1 100%}
+}

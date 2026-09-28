@@ -35,6 +35,9 @@ import { townService, industryStatus, routeHealth, nextProject } from './gamepla
 import { collectNotices, groupNotices, crossedMilestone, newYearNotice, toastType } from './ui-notices.js';
 import { MILESTONES, CHAPTERS, milestoneChapters, metMilestones, progressText } from './milestones.js';
 import { contractState, contractSites } from './contracts.js';
+import { loanTerms, borrow, repay } from './model.js';
+import { routeNeedsAttention } from './gameplay-insights.js';
+import { creditToast } from './ui-notices.js';
 import { preloadHouses, onHouseAssetsChange } from './raster-houses.js';
 import { preloadWorldArt, onWorldArtChange } from './atlas-runtime.js';
 import { industryContains, industrySize, industryFootprint } from './industry-sites.js';
@@ -198,8 +201,9 @@ function toast(message, options=false) {
  let el=[...region.children].find(node=>node.toastKey===key),count=1;
  if(el){count=el.toastCount+1;clearTimeout(el.toastTimer);}else{el=document.createElement('div');region.append(el);}
  el.className='toast'+(type==='ok'?'':' '+type);el.toastKey=key;el.toastCount=count;
- el.innerHTML=icon(type==='ok'||type==='milestone'?'check':'warning')+`<span>${escapeHTML(message)}</span>`+(count>1?`<b class="toast-count">×${count}</b>`:'')+(action?`<button type="button" class="toast-action">${escapeHTML(action.label)}</button>`:'');
- if(action)el.querySelector('.toast-action').onclick=()=>{el.remove();action.run();};
+ const actions=[action].flat().filter(Boolean),buttons=actions.map(item=>`<button type="button" class="toast-action">${escapeHTML(item.label)}</button>`).join('');
+ el.innerHTML=icon(type==='ok'||type==='milestone'?'check':'warning')+`<span>${escapeHTML(message)}</span>`+(count>1?`<b class="toast-count">×${count}</b>`:'')+(actions.length>1?`<div class="toast-actions">${buttons}</div>`:buttons);
+ el.querySelectorAll('.toast-action').forEach((button,index)=>{button.onclick=()=>{el.remove();actions[index].run();};});
  while(region.children.length>3) region.firstChild.remove();
  el.toastTimer=setTimeout(()=>el.remove(),type==='warning'||type==='error'?8000:5000); $('#status-message').textContent=message; if(!silent&&type!=='ok')beep(type==='milestone'?'ok':'error');
 }
@@ -719,7 +723,9 @@ function renderPanel() {
 function retireRoute(routeId) {
  const route=game.routes.find(r=>String(r.id)===routeId);if(!route)return;
  const count=getRouteFleet(game,route.id).count,refund=getRetirementRefund(game,route.id),fleet=count===1?`Its ${fleetNoun(route,1)} sells`:`Its ${count} ${fleetNoun(route,count)} sell`;
- openModal(`<div class="modal-inner"><div class="modal-heading"><div><span class="eyebrow">Network</span><h2>Retire this connection?</h2><p>${escapeHTML(route.name)} will stop carrying ${escapeHTML(CARGO[route.cargo]?.name.toLowerCase())}. ${fleet} for ${money(refund)}; roads, tracks, stops and ports stay in place.</p></div><button class="close-modal" aria-label="Close dialog">×</button></div><div class="modal-actions"><button class="button button-outline" data-close>Keep running</button><button class="button button-orange" id="confirm-retire">Retire · +${money(refund)}</button></div></div>`);
+ // Retiring the only running service with too little left for a bus would leave the company with nothing to earn from.
+ const earning=r=>r.active&&!routeNeedsAttention(game,r),last=earning(route)&&!game.routes.some(r=>r!==route&&earning(r))&&game.money+refund<getVehiclePurchase(game,'road').cost;
+ openModal(`<div class="modal-inner"><div class="modal-heading"><div><span class="eyebrow">Network</span><h2>Retire this connection?</h2><p>${escapeHTML(route.name)} will stop carrying ${escapeHTML(CARGO[route.cargo]?.name.toLowerCase())}. ${fleet} for ${money(refund)}; roads, tracks, stops and ports stay in place.</p>${last?'<p class="retire-warning">This is your last earning service. After retiring it you cannot afford a new vehicle without a loan.</p>':''}</div><button class="close-modal" aria-label="Close dialog">×</button></div><div class="modal-actions"><button class="button button-outline" data-close>Keep running</button><button class="button button-orange" id="confirm-retire">Retire · +${money(refund)}</button></div></div>`);
  $('#confirm-retire').addEventListener('click',()=>{const result=removeRoute(game,route.id);closeModal();toast(result.message,!result.ok);renderPanel();updateHud();persist();});
 }
 // The pencil turns its title into a field. Enter or leaving saves; Escape, an empty field or the same name keeps the old one.
@@ -767,6 +773,7 @@ function updateHud() {
  $('#income-exact').textContent=money((game.monthlyIncome||0)-(game.monthlyIncomeAtAccountingStart||0));$('#running-exact').textContent=money(game.monthlyOperatingExpenses||0);
  $('#building-exact').textContent=money(Math.max(0,(game.monthlyExpenses||0)-(game.monthlyOperatingExpenses||0)));
  const lastProfit=game.history.at(-1)?.operatingProfit;$('#previous-profit').textContent=Number.isFinite(lastProfit)?(lastProfit>=0?'+':'−')+money(lastProfit):'—';
+ const loan=loanTerms(game);$('#loan-row').hidden=$('#interest-row').hidden=!loan.loan;if(loan.loan){$('#loan-exact').textContent=money(loan.loan);$('#interest-exact').textContent=money(loan.monthlyInterest)+' / month';}
  $('#profit-exact').title='Operating figures tracked since '+dayText(game.accountingStartDay||0);
  $('#delivered').innerHTML=integer(game.totalDelivered)+' <small>units</small>';
  const activeStopIds=new Set(game.routes.filter(route=>route.active).flatMap(route=>route.stops));
@@ -1152,8 +1159,16 @@ function showQueuedNotices(now) {
  }
 }
 function queueNewYear(pricing) {
- noticeQueue.push({message:newYearNotice(pricing.year,pricing.rate),type:'milestone',action:getFleetUpgrade(game).available?{label:'Review upgrades',run:reviewUpgrades}:null});
+ const review=yearReview(pricing.year-1),upgrade=getFleetUpgrade(game).available?{label:'Review upgrades',run:reviewUpgrades}:null;
+ noticeQueue.push({message:newYearNotice(pricing.year,pricing.rate)+review,type:'milestone',action:review?[{label:'Open report',run:openCompany},upgrade]:upgrade});
 }
+// The year just closed: its operating profit, the change on the year before and its best route.
+function yearReview(year) {
+ const summary=game.annual?.at(-1);if(summary?.year!==year)return '';
+ const change=yearChange(summary,game.annual.at(-2)),best=game.routes.find(route=>route.id===summary.bestRouteId);
+ return ` · ${year} operating profit ${signedMoney(summary.operatingProfit)}${change===null?'':` (${change<0?'−':'+'}${integer(Math.abs(change))}%)`}${best?` · best route ${best.name}`:''}`;
+}
+function signedMoney(value) { return (value<0?'−':'+')+compactMoney(Math.abs(value)); }
 function reviewUpgrades() { closeModal();setView('routes');revealInPanel($('.fleet-upgrades'),$('#upgrade-fleet')); }
 // Scroll only the drawer's own list; the drawer may still be sliding in, so focus retries once it is visible.
 function revealInPanel(el,focusTarget=el) {
@@ -1221,6 +1236,36 @@ function openGoals() {
  closeMobile();openModal(`<div class="modal-inner"><div class="modal-heading"><div><h2>Company goals</h2><p>Optional milestones, reached in any order. A chapter is complete when all but one of its goals are done.</p></div><button class="close-modal" aria-label="Close dialog">×</button></div><div class="goal-chapters">${chapters}</div><div class="modal-actions"><button class="button button-primary" data-close>Back to game ${icon('arrow')}</button></div></div>`);
  $('#modal .close-modal')?.focus({preventScroll:true});
 }
+// Company: the last 36 closed months as sparklines, yearly summaries, routes by net a month and the optional loan.
+function openCompany(section) {
+ const history=game.history,terms=loanTerms(game),years=[...(game.annual||[])].reverse(),signed=v=>(v<0?'−':'+')+money(v);
+ const chart=(label,values,format)=>{
+  const list=values.filter(Number.isFinite);while(list.length<2)list.unshift(list[0]??0);
+  const low=Math.min(...list),high=Math.max(...list),y=v=>(high>low?34-(v-low)/(high-low)*30:19).toFixed(1),points=list.map((v,i)=>`${(i/(list.length-1)*120).toFixed(1)},${y(v)}`).join(' ');
+  return `<figure class="company-chart"><figcaption><span>${label}</span><strong>${format(list.at(-1))}</strong></figcaption><svg class="sparkline" viewBox="0 0 120 36" preserveAspectRatio="none" role="img" aria-label="${escapeHTML(`${label}, month by month: lowest ${format(low)}, highest ${format(high)}`)}">${low<0&&high>0?`<line class="spark-zero" x1="0" x2="120" y1="${y(0)}" y2="${y(0)}"/>`:''}<polygon class="spark-area" points="0,36 ${points} 120,36"/><polyline class="spark-line" points="${points}"/></svg></figure>`;
+ };
+ const closed=entry=>monthText(entry.day-1),charts=history.length?`<section class="company-section"><header><h3>Month by month</h3><span>${closed(history[0])} – ${closed(history.at(-1))}</span></header><div class="company-charts">${chart('Operating profit',history.map(h=>h.operatingProfit??h.profit),signed)}${chart('Balance',history.map(h=>h.money),v=>(v<0?'−':'')+money(v))}${chart('Residents',history.map(h=>h.population),integer)}${chart('Delivered a month',history.map((h,i)=>i?h.delivered-history[i-1].delivered:h.month===0?h.delivered:NaN),v=>integer(v)+' units')}</div></section>`:`<section class="company-section"><h3>Month by month</h3><p class="company-empty">Charts begin when ${monthText(game.day)} closes.</p></section>`;
+ const yearRows=years.map((a,i)=>{const change=yearChange(a,years[i+1]);return `<tr><th scope="row">${a.year}</th><td>${compactMoney(a.revenue)}</td><td>${signedMoney(a.operatingProfit)}${change===null?'':` <small>${change<0?'−':'+'}${integer(Math.abs(change))}%</small>`}</td><td class="company-optional">${integer(a.delivered)}</td><td class="company-optional">${integer(a.population)}</td><td class="company-optional">${integer(a.routes)}</td><td>${escapeHTML(game.routes.find(route=>route.id===a.bestRouteId)?.name||'—')}</td></tr>`;}).join('');
+ const yearly=`<section class="company-section"><h3>Year by year</h3>${years.length?`<div class="company-table"><table><thead><tr><th scope="col">Year</th><th scope="col">Fares</th><th scope="col">Operating profit</th><th scope="col" class="company-optional">Delivered</th><th scope="col" class="company-optional">Residents</th><th scope="col" class="company-optional">Routes</th><th scope="col">Best route</th></tr></thead><tbody>${yearRows}</tbody></table></div>`:`<p class="company-empty">Your first yearly summary arrives on January 1, ${inflationInfo(game).year+1}.</p>`}</section>`;
+ // Net a month since each route's accounts began; a route only counts as below its upkeep after 90 days.
+ const rated=game.routes.map(route=>{const net=route.revenue-(route.revenueAtAccountingStart||0)-(route.expenses||0),days=game.day-(route.accountingStartDay||0);return {route,net,days,rate:net/Math.max(days,1)*30.44};});
+ const top=rated.filter(r=>r.days>=30.44&&r.rate>0).sort((a,b)=>b.rate-a.rate).slice(0,5),below=rated.filter(r=>r.days>=90&&r.net<0).sort((a,b)=>a.rate-b.rate);
+ const row=({route,rate},index,flag)=>{const count=getRouteFleet(game,route.id).count,id=escapeHTML(route.id);return `<li class="company-route">${flag?'':`<span class="company-rank">${index+1}</span>`}<div><strong>${escapeHTML(route.name)}</strong><small>${flag?'Earning less than its upkeep':`${escapeHTML(CARGO[route.cargo].name)} · ${count} ${fleetNoun(route,count)}`}</small></div><span class="company-rate">≈ ${signedMoney(rate)} / month</span><span class="company-route-actions"><button class="small-button" data-company-show="${id}">Show</button>${flag?`<button class="small-button" data-company-retire="${id}">Retire</button>`:''}</span></li>`;};
+ const routes=`<section class="company-section"><header><h3>Top routes</h3><span>Net a month · fares less route upkeep</span></header>${top.length?`<ol class="company-routes">${top.map((r,i)=>row(r,i,false)).join('')}</ol>`:`<p class="company-empty">${!game.routes.length?'No routes yet.':rated.some(r=>r.days>=30.44)?'No route earns more than its upkeep yet.':'Routes join this list after a month of earnings.'}</p>`}${below.length?`<h4>Earning less than their upkeep</h4><ul class="company-routes below">${below.slice(0,5).map((r,i)=>row(r,i,true)).join('')}</ul>${below.length>5?`<p class="company-empty">And ${below.length-5} more.</p>`:''}`:''}</section>`;
+ const loan=`<section class="company-section company-loan"><header><h3>Loan</h3><span>${terms.loan?`${money(terms.loan)} of ${money(terms.limit)}`:`Up to ${money(terms.limit)}`}</span></header>${terms.loan?`<div class="company-meter"><span style="width:${Math.min(100,terms.loan/terms.limit*100)}%"></span></div>`:''}<p>${terms.loan?`Interest is ${money(terms.monthlyInterest)} a month, charged as each month closes.`:'Optional credit for a project you cannot fund yet.'} A flat ${(terms.rate*100).toFixed(1)}% a month on what you owe, with no due date: repay whenever you like.</p><div class="company-loan-actions"><button class="button button-outline" id="company-borrow" ${terms.borrow?'':'disabled'}>${terms.borrow?`Borrow ${money(terms.borrow)} · ${money(terms.borrowInterest)} / month interest`:'Credit line fully used'}</button>${terms.loan?`<button class="button button-outline" id="company-repay" ${game.money>=terms.repay?'':`disabled title="Need ${money(terms.repay)} to repay"`}>Repay ${money(terms.repay)}</button>`:''}</div></section>`;
+ closeMobile();openModal(`<div class="modal-inner company-report"><div class="modal-heading"><div><h2>Company</h2><p>Your company in figures. Each month closes on the 1st, and each year on January 1.</p></div><button class="close-modal" aria-label="Close dialog">×</button></div>${charts}${yearly}${routes}${loan}<div class="modal-actions"><button class="button button-primary" data-close>Back to game ${icon('arrow')}</button></div></div>`);
+ $$('[data-company-show]').forEach(el=>el.addEventListener('click',()=>showNoticeTarget({kind:'route',id:el.dataset.companyShow})));
+ $$('[data-company-retire]').forEach(el=>el.addEventListener('click',()=>retireRoute(el.dataset.companyRetire)));
+ // Borrowing and repaying redraw the dialog in place, keeping its scroll and the pressed button.
+ for(const [id,action] of [['#company-borrow',borrow],['#company-repay',repay]])$(id)?.addEventListener('click',()=>{
+  const result=action(game),scroll=$('#modal').scrollTop;toast(result.message,!result.ok);updateHud();if(result.ok)persist();
+  openCompany();$('#modal').scrollTop=scroll;($(`${id}:not(:disabled)`)||$('#company-borrow:not(:disabled),#company-repay:not(:disabled)'))?.focus({preventScroll:true});
+ });
+ $('#modal .close-modal')?.focus({preventScroll:true});
+ if(section==='loan')$('.company-loan').scrollIntoView({block:'start'});
+}
+// The change in operating profit on the year before, when that year made a profit.
+function yearChange(summary,previous) { return previous?.year===summary.year-1&&previous.operatingProfit>0?Math.round((summary.operatingProfit-previous.operatingProfit)/previous.operatingProfit*100):null; }
 // A January repricing waits while the player types in the panel's search.
 $('#panel-content').addEventListener('focusout',()=>setTimeout(()=>{if(panelPricesStale&&!$('#panel-content').contains(document.activeElement)){panelPricesStale=false;if(view==='build'||view==='towns')renderPanel();}}));
 // A stop's New route opens the planner even when the draft already holds that stop.
@@ -1410,6 +1455,7 @@ $('#audio-button').onclick=()=>{sounds=!sounds;$('#audio-button').innerHTML=icon
 $('#company-stats').onclick=()=>{const el=$('#company-stats');el.setAttribute('aria-expanded',String(el.getAttribute('aria-expanded')!=='true'));};
 document.addEventListener('pointerdown',e=>{if(!e.target.closest('.hud-finance-wrap'))$('#company-stats').setAttribute('aria-expanded','false');});
 $('#company-stats').addEventListener('keydown',e=>{if(e.key==='Escape'){$('#company-stats').setAttribute('aria-expanded','false');e.currentTarget.blur();}});
+$('#open-report').onclick=()=>{$('#company-stats').setAttribute('aria-expanded','false');$('#open-report').blur();openCompany();};
 // A remembered sound choice resumes audio on the first tap; browsers keep it silent until a gesture.
 $('#audio-button').addEventListener('click',()=>{try{localStorage.setItem('transport-sound-v1',sounds?'on':'off');}catch{}});
 try{if(localStorage.getItem('transport-sound-v1')==='on'){sounds=true;$('#audio-button').innerHTML=icon('volume');$('#audio-button').setAttribute('aria-label','Disable sound');document.addEventListener('pointerdown',()=>{if(sounds)try{audioContext||=new (window.AudioContext||window.webkitAudioContext)();audioContext.resume();}catch{}},{once:true,capture:true});}}catch{}
@@ -1511,7 +1557,7 @@ window.addEventListener('pagehide',()=>{if((!isLoading()||menuOpening)&&!$('#sta
 document.addEventListener('visibilitychange',()=>{lastFrame=performance.now();if(document.hidden&&(!isLoading()||menuOpening)&&!$('#start-menu')?.open)flushSave();});
 
 layersView=mountVisibility($('#layers-panel'),$('#layers-button'),{getLayers:()=>({...mapLayers}),onChange:(key,visible)=>setMapLayers({[key]:visible}),onPreset:name=>setMapLayers(layerPreset(name))});
-compactUI=mountCompactPlay({onMenu:openGameMenu,onNews:openNews,onGoals:openGoals,onView:setView,getView:()=>view,onCancelGesture:cancelGesture,onMinimapOpen:()=>{renderer.drawMinimap($('#minimap'));invalidateScene();}});
+compactUI=mountCompactPlay({onMenu:openGameMenu,onNews:openNews,onCompany:openCompany,onGoals:openGoals,onView:setView,getView:()=>view,onCancelGesture:cancelGesture,onMinimapOpen:()=>{renderer.drawMinimap($('#minimap'));invalidateScene();}});
 // Closing the drawer yourself ends a lens set by Routes or Industries; locating a site or picking a stop closes it and keeps the lens.
 for(const el of [$('#close-management'),mobileToggle,...$$('.nav-button[data-view]')])el?.addEventListener('click',()=>{if(!$('.sidebar').classList.contains('mobile-open'))dropCargoLens('routes','industry');});
 // Pointing at or focusing a route card lights its route on the map; a timed Show highlight outlives the pointer leaving.
@@ -1555,7 +1601,7 @@ function frame(now){
  }
  if(now-hudAt>400&&(!hudState||hudState.game!==game||hudState.day!==game.day||hudState.revision!==game.revision||hudState.money!==game.money||hudState.zoom!==camera.zoom||hudState.w!==w||hudState.view!==view)){
   updateHud();hudAt=now;hudState={game,day:game.day,revision:game.revision,money:game.money,zoom:camera.zoom,w,view};
-  const fresh=collectNotices(game.notifications,lastNoticeId);lastNoticeId=game.notifications[0]?.id;for(const entry of groupNotices(fresh))noticeQueue.push({...entry,type:toastType(entry.type)});watchRoutes();
+  const fresh=collectNotices(game.notifications,lastNoticeId);lastNoticeId=game.notifications[0]?.id;for(const entry of groupNotices(fresh))if(entry.topic!=='credit'||creditToast(entry,game.history))noticeQueue.push({...entry,type:toastType(entry.type),...entry.topic==='credit'?{action:{label:'Loan',run:()=>openCompany('loan')}}:{}});watchRoutes();
   watchMilestones();
   watchContracts();
   if(selected&&!$('#inspector').hidden&&!$('#inspector').contains(document.activeElement)&&!panelPress&&now-panelReleasedAt>250)inspect(selected.x,selected.y,selected.kind);

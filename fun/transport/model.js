@@ -61,14 +61,17 @@ function notify(game,message,type='info',extra) {
   game.notifications.unshift({ id: makeId(game,'notice'), day:game.day, message, text:message, type, ...(extra?.topic?{topic:extra.topic}:{}), ...(extra?.target?{target:extra.target}:{}) });
   game.notifications.length = Math.min(game.notifications.length,24);
 }
-export function createGame({biome='taiga',seed=1847,size=DEFAULT_WORLD_SIZE,generationVersion,townCount,industryDistricts}={}) {
+// Relaxed is the default and is never stored; Standard and Lean are the player's choice of a tighter start.
+const STARTING_FUNDS=[100000,200000,400000];
+export function createGame({biome='taiga',seed=1847,size=DEFAULT_WORLD_SIZE,generationVersion,townCount,industryDistricts,startingFunds}={}) {
   if (!owns(BIOMES,biome)) biome='taiga';
+  const funds=STARTING_FUNDS.includes(startingFunds)?startingFunds:400000;
   const defaults = worldGenerationOptions(size, biome);
   const settings = { townCount: townCount ?? defaults.townCount, industryDistricts: industryDistricts ?? defaults.industryDistricts };
   const generationOptions = settings.townCount === defaults.townCount && settings.industryDistricts === defaults.industryDistricts ? undefined : settings;
   const game = {
     version:1, siteFootprintVersion:1, terrainObjectVersion:1, seed:seedNumber(seed), biome, ...generateWorld(biome,seed,size,generationVersion,generationOptions),
-    money:400000, day:0, totalDelivered:0, totalRevenue:0,
+    money:funds, day:0, totalDelivered:0, totalRevenue:0,
     monthlyIncome:0, monthlyExpenses:0, monthlyOperatingExpenses:0, monthlyIncomeAtAccountingStart:0, lastMonthlyProfit:0, lastMonthlyOperatingProfit:0, accountingStartDay:0,
     history:[], notifications:[], revision:0, networkRevision:0, nextId:100,
     totalExpenses:0, totalOperatingExpenses:0, lastDailyDay:0, lastMonth:0,
@@ -80,7 +83,8 @@ export function createGame({biome='taiga',seed=1847,size=DEFAULT_WORLD_SIZE,gene
     {id:'station-2',name:`${game.cities[1].name} Central`,x:game.cities[1].x,y:game.cities[1].y,mode:'road'},
   );
   addRoute(game,{name:`${game.cities[0].name} · ${game.cities[1].name}`,mode:'road',stops:['station-1','station-2'],cargo:'passengers'});
-  game.money=400000; game.monthlyExpenses=0; game.totalExpenses=0;
+  game.money=funds; game.monthlyExpenses=0; game.totalExpenses=0;
+  if(funds!==400000)game.startingFunds=funds;
   game.notifications=[];
   notify(game,`Welcome to ${BIOMES[biome].name}. Your first passenger service is running. Connect an industry to grow your company.`,'success');
   return game;
@@ -853,14 +857,45 @@ function maintenance(game) {
   game.totalOperatingExpenses=(game.totalOperatingExpenses||0)+expenses;
 }
 
+// An optional credit line in 1950 dollars: no due date, no automatic borrowing or repayment, and a
+// flat monthly rate on what is owed. Loans are financing, so they are neither income nor expense.
+const LOAN_STEP=50000,LOAN_LIMIT=250000,LOAN_MONTHLY_RATE=.005;
+export function loanTerms(game) {
+  const loan=game.loan||0,step=priceFor(game,LOAN_STEP),limit=priceFor(game,LOAN_LIMIT),next=Math.max(0,Math.min(step,limit-loan));
+  return {loan,step,limit,rate:LOAN_MONTHLY_RATE,monthlyInterest:Math.round(loan*LOAN_MONTHLY_RATE),borrow:next,borrowInterest:Math.round(next*LOAN_MONTHLY_RATE),repay:Math.min(step,loan)};
+}
+export function borrow(game) {
+  const {loan,borrow:amount}=loanTerms(game);
+  if(amount<=0)return result(false,'Your credit line is fully used.');
+  game.loan=loan+amount;game.money+=amount;game.revision++;
+  return result(true,`Borrowed ${moneyText(amount)} · interest ${moneyText(Math.round(game.loan*LOAN_MONTHLY_RATE))} / month`,{amount});
+}
+export function repay(game) {
+  const {loan,repay:amount}=loanTerms(game);
+  if(loan<=0)return result(false,'No loan to repay.');
+  if(game.money<amount)return result(false,`Need ${moneyText(amount)} to repay.`);
+  game.money-=amount;game.loan=loan-amount;if(!game.loan)delete game.loan;game.revision++;
+  return result(true,game.loan?`Repaid ${moneyText(amount)} · ${moneyText(game.loan)} still owed`:`Repaid ${moneyText(amount)} · your loan is cleared`,{amount});
+}
+// Closing December sums the year's months; the best route has the highest net since its accounts began.
+function closeYear(game) {
+  const year=Math.floor(game.lastMonth/12),months=game.history.filter(h=>Math.floor(h.month/12)===year),before=game.history[game.history.indexOf(months[0])-1];
+  let bestRouteId=null,best=0;
+  for(const route of game.routes){const net=route.revenue-(route.revenueAtAccountingStart||0)-(route.expenses||0);if(net>best){best=net;bestRouteId=route.id;}}
+  (game.annual??=[]).push({year:1950+year,revenue:months.reduce((sum,h)=>sum+h.income,0),operatingProfit:months.reduce((sum,h)=>sum+(h.operatingProfit??h.profit),0),delivered:months.at(-1).delivered-(before?.delivered??0),population:months.at(-1).population,routes:game.routes.length,bestRouteId});
+  if(game.annual.length>200)game.annual.shift();
+}
 function monthlyUpdate(game) {
+  const interest=Math.round((game.loan||0)*LOAN_MONTHLY_RATE);
+  if(interest){game.money-=interest;game.monthlyExpenses+=interest;game.totalExpenses+=interest;game.monthlyOperatingExpenses=(game.monthlyOperatingExpenses||0)+interest;game.totalOperatingExpenses=(game.totalOperatingExpenses||0)+interest;}
   game.lastMonthlyProfit=game.monthlyIncome-game.monthlyExpenses;
   game.lastMonthlyOperatingProfit=game.monthlyIncome-(game.monthlyIncomeAtAccountingStart||0)-(game.monthlyOperatingExpenses||0);
   game.history.push({month:game.lastMonth,day:Math.floor(game.day),income:game.monthlyIncome,expenses:game.monthlyExpenses,operatingExpenses:game.monthlyOperatingExpenses||0,operatingProfit:game.lastMonthlyOperatingProfit,profit:game.lastMonthlyProfit,money:game.money,population:game.cities.reduce((sum,c)=>sum+c.population,0),delivered:game.totalDelivered});
   if(game.history.length>36)game.history.shift();
+  if(game.lastMonth%12===11)closeYear(game);
   game.monthlyIncome=0;game.monthlyExpenses=0;game.monthlyOperatingExpenses=0;game.monthlyIncomeAtAccountingStart=0;
   stepContracts(game,site=>stationCoverage(game,site));
-  if(game.money<0)notify(game,'Your company is operating on credit. Launch profitable deliveries or sell an underused service.','warning');
+  if(game.money<0)notify(game,'Your balance is below zero. Borrow in Company → Loan, or retire a service that earns less than its upkeep.','warning',{topic:'credit'});
 }
 export function tick(game,days) {
   if(!Number.isFinite(days)||days<=0)return;
@@ -960,6 +995,9 @@ export function validateGame(game) {
   }
   if(!game.history.every(h=>h&&['month','day','income','expenses','profit','money','population','delivered'].every(k=>finite(h[k]))))return false;
   if(!game.history.every(h=>(h.operatingExpenses===undefined||finite(h.operatingExpenses,0,1e15))&&(h.operatingProfit===undefined||finite(h.operatingProfit))))return false;
+  if(game.annual!==undefined&&!(Array.isArray(game.annual)&&game.annual.length<=200&&game.annual.every(a=>a&&['year','revenue','operatingProfit','delivered','population','routes'].every(k=>finite(a[k]))&&(a.bestRouteId===null||typeof a.bestRouteId==='string'&&a.bestRouteId.length<=64))))return false;
+  if(game.startingFunds!==undefined&&!STARTING_FUNDS.includes(game.startingFunds))return false;
+  if(game.loan!==undefined&&!finite(game.loan,0,1e12))return false;
   if(!game.notifications.every(n=>n&&typeof n.message==='string'&&typeof n.text==='string'&&typeof n.type==='string'&&finite(n.day,0)))return false;
   if(!game.notifications.every(n=>(n.topic===undefined||typeof n.topic==='string'&&n.topic.length<=32)&&(n.target===undefined||Boolean(n.target)&&['industry','city','route'].includes(n.target.kind)&&typeof n.target.id==='string'&&n.target.id.length<=64)))return false;
   if(!validMilestones(game)||!game.cities.every(c=>c.founded===undefined||typeof c.founded==='boolean'))return false;

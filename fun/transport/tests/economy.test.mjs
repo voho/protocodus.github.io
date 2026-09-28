@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGame, build, buildPath, addRoute, removeRoute, tick, drainDeliveryEvents, saveGame, SAVE_KEY, VEHICLE_COSTS } from '../model.js';
 import { outputFill } from '../industry-simulation.js';
-import { emptyGame, line, advance } from './helpers.mjs';
+import { emptyGame, line, advance, equivalent } from './helpers.mjs';
+import { borrow, repay, loanTerms, validateGame } from '../model.js';
 
 function freightFixture(mode = 'road') {
   const game = emptyGame();
@@ -208,4 +209,127 @@ test('reading deliveries never changes the simulation or its save', () => {
     assert.equal(saved(drained), saved(kept));
     assert.equal(drainDeliveryEvents(kept).length, Math.min(64, events), 'an unread log keeps at most 64 deliveries');
   } finally { if (original) Object.defineProperty(globalThis, 'localStorage', original); else delete globalThis.localStorage; }
+});
+
+test('each December closes into a yearly summary built from its months', () => {
+  const game = createGame({ biome: 'taiga', size: 'regional', seed: 1847 });
+  tick(game, 761);
+  assert.equal(game.history.length, 25, 'twenty-five months have closed');
+  assert.equal(game.annual.length, 2);
+  for (const [index, summary] of game.annual.entries()) {
+    const months = game.history.filter(entry => Math.floor(entry.month / 12) === index), before = game.history[index * 12 - 1];
+    assert.equal(months.length, 12);
+    assert.equal(summary.year, 1950 + index);
+    assert.equal(summary.revenue, months.reduce((sum, entry) => sum + entry.income, 0));
+    assert.equal(summary.operatingProfit, months.reduce((sum, entry) => sum + entry.operatingProfit, 0));
+    assert.equal(summary.delivered, months.at(-1).delivered - (before?.delivered ?? 0));
+    assert.equal(summary.population, months.at(-1).population);
+    assert.equal(summary.routes, game.routes.length);
+    assert.equal(summary.bestRouteId, game.routes[0].id, 'the earning starter service is the best route');
+  }
+  assert.equal(validateGame(game), true);
+  for (const broken of [{ revenue: NaN }, { year: '1950' }, { bestRouteId: 7 }, { delivered: undefined }]) assert.equal(validateGame({ ...game, annual: [{ ...game.annual[0], ...broken }] }), false);
+  assert.equal(validateGame({ ...game, annual: Array.from({ length: 201 }, () => game.annual[0]) }), false, 'at most 200 years are kept');
+  assert.equal(validateGame({ ...game, annual: [{ ...game.annual[0], bestRouteId: null }] }), true, 'a year without an earning route has no best route');
+});
+
+test('starting funds offer three tiers, and a lean company can still launch its first road route', () => {
+  for (const funds of [100000, 200000, 400000]) {
+    const game = createGame({ biome: 'taiga', size: 'regional', seed: 1847, startingFunds: funds });
+    assert.equal(game.money, funds);
+    assert.equal(game.startingFunds, funds === 400000 ? undefined : funds, 'only a non-default choice is stored');
+    assert.equal(validateGame(game), true);
+  }
+  const odd = createGame({ biome: 'taiga', size: 'regional', seed: 1847, startingFunds: 123 });
+  assert.equal(odd.money, 400000, 'an unknown amount falls back to the relaxed default');
+  assert.equal(odd.startingFunds, undefined);
+  assert.equal(validateGame({ ...odd, startingFunds: 300000 }), false);
+  const game = emptyGame();
+  assert.equal(build(game, 'logging-camp', 10, 10).ok, true);
+  assert.equal(build(game, 'sawmill', 34, 10).ok, true);
+  game.money = 100000;
+  assert.equal(buildPath(game, 'road', line(10, 34, 12)).ok, true);
+  assert.equal(build(game, 'bus-stop', 10, 12).ok, true);
+  assert.equal(build(game, 'bus-stop', 34, 12).ok, true);
+  const launched = addRoute(game, { name: 'First timber', mode: 'road', stops: game.stations.map(station => station.id), cargo: 'timber' });
+  assert.equal(launched.ok, true, launched.message);
+  assert.ok(game.money > 50000, 'a 25-tile first route leaves more than half of a lean start');
+});
+
+test('a credit line lends in steps up to its limit and is repaid in steps', () => {
+  const game = emptyGame(), money = game.money;
+  assert.deepEqual(loanTerms(game), { loan: 0, step: 50000, limit: 250000, rate: .005, monthlyInterest: 0, borrow: 50000, borrowInterest: 250, repay: 0 });
+  for (let n = 1; n <= 5; n++) {
+    const result = borrow(game);
+    assert.equal(result.ok, true, result.message);
+    assert.equal(game.loan, n * 50000);
+    assert.equal(game.money, money + n * 50000);
+  }
+  assert.equal(borrow(game).message, 'Your credit line is fully used.');
+  assert.equal(game.loan, 250000, 'the limit is reached after five loans');
+  assert.equal(game.money, money + 250000);
+  assert.equal(loanTerms(game).monthlyInterest, 1250);
+  assert.equal(loanTerms(game).borrow, 0);
+  assert.equal(game.monthlyIncome, 0, 'borrowing is not income');
+  game.money = 49999;
+  assert.equal(repay(game).message, 'Need $50,000 to repay.');
+  assert.equal(game.loan, 250000);
+  game.money = 1000000;
+  for (let n = 4; n >= 0; n--) { assert.equal(repay(game).ok, true); assert.equal(game.loan, n ? n * 50000 : undefined); }
+  assert.equal(game.money, 750000);
+  assert.equal(game.monthlyExpenses, 0, 'repaying is not an expense');
+  assert.equal(repay(game).message, 'No loan to repay.');
+  assert.equal(validateGame(game), true);
+  for (const loan of [-1, NaN, Infinity, 2e12, '50000']) assert.equal(validateGame({ ...game, loan }), false);
+});
+
+test('interest is a company cost booked once a month, whatever the frame size', () => {
+  const company = () => { const { game, stops } = freightFixture(); assert.equal(addRoute(game, { name: 'Forest supply', mode: 'road', stops, cargo: 'timber' }).ok, true); tick(game, 20); return game; };
+  const whole = company(), framed = company(), debtFree = company();
+  for (const game of [whole, framed]) { borrow(game); borrow(game); }
+  tick(whole, 30); tick(debtFree, 30);
+  for (let n = 0; n < 120; n++) tick(framed, .25);
+  assert.equal(whole.history.length, 1, 'one month closed');
+  assert.equal(whole.history[0].operatingExpenses - debtFree.history[0].operatingExpenses, 500, '0.5% of $100,000 a month');
+  assert.equal(whole.totalOperatingExpenses - debtFree.totalOperatingExpenses, 500);
+  assert.equal(whole.money, debtFree.money + 100000 - 500);
+  assert.equal(whole.routes[0].expenses, debtFree.routes[0].expenses, 'interest never reaches route accounts');
+  equivalent(framed.history, whole.history, 'history');
+  equivalent(framed.money, whole.money, 'money');
+  tick(whole, 8); tick(debtFree, 8);
+  assert.equal(whole.totalOperatingExpenses - debtFree.totalOperatingExpenses, 500, 'nothing more is charged until the next month closes');
+  tick(whole, 1); tick(debtFree, 1);
+  assert.equal(whole.totalOperatingExpenses - debtFree.totalOperatingExpenses, 1000, 'March 1 charges February');
+});
+
+test('a loan never grows obligations: no automatic borrowing or repayment, and a flat rate', () => {
+  const broke = emptyGame(), lender = emptyGame();
+  broke.money = -20000;
+  lender.money = 5_000_000;
+  borrow(lender); borrow(lender);
+  const interest = [];
+  for (let month = 0; month < 14; month++) {
+    const before = lender.totalOperatingExpenses;
+    tick(broke, 31); tick(lender, 31);
+    interest.push(lender.totalOperatingExpenses - before);
+  }
+  assert.equal(broke.loan, undefined, 'a company below zero is never lent money it did not ask for');
+  assert.equal(lender.loan, 100000, 'a rich company is never made to repay');
+  assert.ok(interest.every(amount => amount === 500), `the rate never escalates: ${interest}`);
+  assert.ok(broke.money < 0 && validateGame(broke), 'a company may stay below zero; there is no bankruptcy');
+});
+
+test('below zero the monthly warning points to the loan, and borrowing ends a softlock', () => {
+  const { game, stops } = freightFixture();
+  game.money = 12000;
+  assert.equal(addRoute(game, { name: 'Forest supply', mode: 'road', stops, cargo: 'timber' }).message, 'Need $18,000 to buy this truck.');
+  assert.equal(borrow(game).ok, true);
+  const launched = addRoute(game, { name: 'Forest supply', mode: 'road', stops, cargo: 'timber' });
+  assert.equal(launched.ok, true, launched.message);
+  game.money = -5000;
+  tick(game, 32);
+  const warning = game.notifications.find(notice => notice.topic === 'credit');
+  assert.ok(warning, 'a month closed below zero warns');
+  assert.equal(warning.message, 'Your balance is below zero. Borrow in Company → Loan, or retire a service that earns less than its upkeep.');
+  assert.equal(warning.type, 'warning');
 });

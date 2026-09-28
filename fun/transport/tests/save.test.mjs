@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGame, tick, saveGame, loadGame, deleteSave, validateGame, SAVE_KEY } from '../model.js';
 import { advance } from './helpers.mjs';
+import { borrow, loanTerms } from '../model.js';
 
 function withStorage(run, customStorage) {
   const old = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
@@ -70,6 +71,11 @@ test('incompatible, corrupted and inconsistent saves are rejected without crashi
     game => { game.vehicles[0].dwellRemaining = -1; },
     game => { game.vehicles[0].dwellRemaining = 99; },
     game => { game.vehicles[0].tripSerial = .5; },
+    game => { game.loan = -1; },
+    game => { game.loan = NaN; },
+    game => { game.startingFunds = 300000; },
+    game => { game.annual = [{ year: 1950, revenue: 1, operatingProfit: 1, delivered: 1, population: 1, routes: 1, bestRouteId: 42 }]; },
+    game => { game.annual = {}; },
   ];
   for (const mutate of corruptions) {
     const invalid = structuredClone(base);
@@ -122,6 +128,31 @@ test('saving during a loading wait resumes the same remaining wait and productio
   assert.deepEqual(content(restored), content(game));
   for (const step of [.0625, .1875, 1.5, .25, 17]) { tick(game, step); tick(restored, step); }
   assert.deepEqual(content(restored), content(game));
+}));
+
+test('a loan, yearly summaries and starting funds survive a save; older saves load without them', () => withStorage(() => {
+  const game = createGame({ size: 'regional', seed: 7429, startingFunds: 200000 });
+  assert.equal(borrow(game).ok, true);
+  assert.equal(borrow(game).ok, true);
+  tick(game, 366);
+  assert.equal(game.annual.length, 1);
+  assert.equal(saveGame(game).ok, true);
+  const restored = loadGame();
+  assert.ok(restored);
+  assert.deepEqual(content(restored), content(game));
+  assert.equal(restored.loan, 100000);
+  assert.equal(restored.startingFunds, 200000);
+  assert.deepEqual(restored.annual, game.annual);
+  tick(game, 40); tick(restored, 40);
+  assert.deepEqual(content(restored), content(game), 'interest continues identically after loading');
+  const legacy = createGame({ size: 'regional', seed: 7429 });
+  tick(legacy, 20);
+  assert.equal(saveGame(legacy).ok, true);
+  const migrated = loadGame();
+  assert.ok(migrated, 'a save from before loans still loads');
+  for (const key of ['loan', 'annual', 'startingFunds']) assert.equal(Object.hasOwn(migrated, key), false, `${key} stays absent`);
+  assert.equal(loanTerms(migrated).loan, 0);
+  assert.equal(migrated.money, legacy.money);
 }));
 
 test('saving an invalid company preserves the previous valid save', () => withStorage(storage => {

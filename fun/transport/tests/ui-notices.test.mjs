@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { addRoute, build, buildPath, refreshRouteConnections, tick, validateGame, createGame } from '../model.js';
 import { stepIndustries } from '../industry-simulation.js';
 import { collectNotices, groupNotices, crossedMilestone, newYearNotice, toastType } from '../ui-notices.js';
+import { creditToast } from '../ui-notices.js';
 import { emptyGame, line } from './helpers.mjs';
 
 const notices = count => Array.from({ length: count }, (_, index) => ({ id: `notice-${200 - index}`, day: 10, message: `Notice ${200 - index}`, text: `Notice ${200 - index}`, type: 'info' }));
@@ -127,4 +128,15 @@ test('HUD moments: town thresholds, new-year text and toast styles', () => {
   assert.equal(crossedMilestone(9990, 12000), 10000);
   assert.equal(newYearNotice(1951, .023), '1951 · Generation 2 vehicles: +20% capacity, +10% speed · prices +2.3% this year');
   assert.deepEqual(['success', 'info', 'warning', 'error', 'milestone', 'report'].map(toastType), ['ok', 'ok', 'warning', 'error', 'milestone', 'ok']);
+});
+
+test('a below-zero balance toasts when it begins and each January, while News keeps every month', () => {
+  const history = [[31, 0, 5000], [59, 1, -200], [90, 2, -900], [334, 10, -50], [365, 11, -80], [396, 12, -10]].map(([day, month, money]) => ({ day, month, money }));
+  const credit = day => ({ day, topic: 'credit' });
+  assert.equal(creditToast(credit(59), history), true, 'the first month below zero');
+  assert.equal(creditToast(credit(90), history), false, 'the streak continues quietly');
+  assert.equal(creditToast(credit(365), history), true, 'January reminds once a year');
+  assert.equal(creditToast(credit(396), history), false);
+  assert.equal(creditToast(credit(31), history), true, 'no earlier month to compare');
+  assert.equal(creditToast(credit(7), history), true, 'a notice outside the history still shows');
 });

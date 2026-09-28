@@ -40,4 +40,10 @@ export function groupNotices(list) {
 /** The highest resident threshold reached since the town's recorded peak, or 0. */
 export function crossedMilestone(peak, population) { return TOWN_MILESTONES.filter(n => peak < n && population >= n).at(-1) || 0; }
 
+/** A below-zero month toasts when the streak begins and each January; News keeps every one. */
+export function creditToast(notice, history) {
+  const index = history.findIndex(entry => entry.day === notice.day);
+  return index < 1 || history[index - 1].money >= 0 || history[index].month % 12 === 11;
+}
+
 export function newYearNotice(year, rate) { return `${year} · Generation ${year - 1949} vehicles: +20% capacity, +10% speed · prices +${(rate * 100).toFixed(1)}% this year`; }

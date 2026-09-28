@@ -4,7 +4,7 @@ const closeGlyph = glyph('<path d="m6 6 12 12M6 18 18 6"/>');
 const menuGlyph = glyph('<path d="M4 6h16M4 12h16M4 18h16"/>');
 
 /** Keep secondary controls available without reserving space around the map. */
-export function mountCompactPlay({ onMenu, onNews, onGoals, onView, getView, onCancelGesture = () => {}, onMinimapOpen = () => {} }) {
+export function mountCompactPlay({ onMenu, onNews, onCompany, onGoals, onView, getView, onCancelGesture = () => {}, onMinimapOpen = () => {} }) {
   const app = $('#app'), sidebar = $('.sidebar'), mobileToggle = $('.mobile-panel-toggle');
   const topbar = $('.topbar'), canvas = $('#world'), minimap = $('.minimap-wrap');
   app.classList.add('compact-play');
@@ -52,6 +52,7 @@ export function mountCompactPlay({ onMenu, onNews, onGoals, onView, getView, onC
   moveAction('#world-button', 'New world');
   moveAction('.main-nav [data-open-chains]', 'Production chains');
   if (onNews) addAction('news-button', 'News', glyph('<path d="M4 5h12v13a2 2 0 0 0 2 2H6a2 2 0 0 1-2-2ZM16 9h4v9a2 2 0 0 1-4 0M7 9h6M7 12h6M7 15h4"/>'), onNews);
+  if (onCompany) addAction('company-button', 'Company', glyph('<path d="M4 20h16M7 16v-4M12 16V6M17 16v-7"/>'), onCompany);
   if (onGoals) addAction('goals-button', 'Company goals', glyph('<path d="M5 21V4m0 1h12l-2.5 4L17 13H5"/>'), onGoals);
   const overviewButton = addAction('overview-button', 'Mini map', glyph('<path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2ZM9 3v16M15 5v16"/>'), () => {
     minimap.hidden = !minimap.hidden;

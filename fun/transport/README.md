@@ -6,7 +6,7 @@ Transport is a single-player, isometric transport and city-building game. A new 
 
 ## Start a company
 
-The game opens at its main menu. Choose **New game** to select the landscape, map size, number of towns and number of industry districts. Each district contains a complete set of production chains; the menu shows the total industry count before you create the world. The optional **World seed** lets you recreate a landscape with the same settings.
+The game opens at its main menu. Choose **New game** to select the landscape, map size, number of towns and number of industry districts. Each district contains a complete set of production chains; the menu shows the total industry count before you create the world. **Starting funds and seed** holds two optional choices. **Starting funds** sets how much money the company begins with: **Relaxed · $400k** (recommended, and the default), **Standard · $200k** or **Lean · $100k**. Even a lean company can afford its first road route, and nothing else changes with the choice. The **World seed** lets you recreate a landscape with the same settings.
 
 When this browser holds an autosave, **Continue** heads the menu with its landscape, game date, balance and how long ago it was saved; one click reopens that company. Choose **Load game** to open the autosave or a named local save; each lists its landscape, game date, balance, map size and routes. Opening the menu alone does not generate a map or overwrite a save. Creating a new world replaces the autosave after a successful write; named saves remain unchanged. During play, **Game menu → Main menu** pauses the company and offers **Resume**, New game and Load game.
 
@@ -70,11 +70,19 @@ Every January 1 unlocks one new vehicle generation for roads, railways and ships
 
 Inflation is a seeded **1–5% each year**, compounded from 1950 prices. It affects construction, vehicles, upgrades, upkeep and delivery fares. Hover or tap the finances to see this year's rate. Costs throughout the interface update with the calendar; prices quoted in this guide are starting prices. Selling a vehicle returns 45% of the amount actually spent on it, including upgrades.
 
+## Company report and loan
+
+**Game menu → Company**, or **Open report** at the foot of the finances card (hover or tap the balance), opens the company report. Four small charts follow the last 36 closed months: operating profit, balance, residents across all towns and units delivered each month. **Year by year** sums each calendar year once it closes on January 1: fares, operating profit with its change on the year before, units delivered, residents, routes and the best route, the one with the highest net since its accounts began. **Top routes** ranks up to five routes by their average net a month since tracking began, meaning fares less route upkeep without construction, each with **Show**. A route at least 90 days old whose net since its accounts began is below zero appears under **Earning less than their upkeep**, with **Show** and **Retire**. On a phone the charts stack and the table keeps its main columns. The report pauses the game while it is open.
+
+The **Loan** is an optional credit line, and nothing ever requires it. **Borrow** adds $50,000 at a time, up to $250,000 (1950 prices, rising with inflation), and the button shows the extra monthly interest before you press it. Interest is a flat 0.5% a month on what you owe and never rises. It is charged as each month closes and counts as a running cost, but never in a route's accounts. There is no due date, no automatic borrowing or repayment and no bankruptcy; **Repay** returns $50,000 at a time whenever you have the money. Borrowed and repaid money is neither income nor an expense. While you owe money, the finances card adds **Loan** and **Interest** rows.
+
+When a month closes with the balance below zero, a warning suggests borrowing or retiring a service that earns less than its upkeep, with a **Loan** button. It appears only when the balance first falls below zero and again each January while it stays there; News keeps every month's warning. Retiring your last running service warns you first when the balance and the vehicle sale together would not buy a new bus.
+
 ## Notices and news
 
 Every company notice reaches the screen. Notices that arrive together appear one after another, oldest first and warnings first. When several routes lose their connection at once, one demolition leaves several routes without a producer or buyer, or several industries expand on the same day, one notice names them all. Repeating the same rejected action adds a count to its notice instead of stacking copies. Warnings and errors stay for 8 seconds, other notices for 5.
 
-A notice about a route, town or industry has a **Show** button: a route opens at its card in Routes, and a town or industry is centered and inspected. A new company greets you when it opens; loading a save never replays old notices. Each January 1 announces the new vehicle generation and the year's price rise. When vehicles can be upgraded, **Review upgrades** opens Routes at **Upgrade all**; it never spends money. The first delivery of each new freight route, and a served town passing 1,000, 2,500, 5,000 or 10,000 residents, are announced as they happen. With sound on, only warnings, errors and these moments play a tone, at most once per batch.
+A notice about a route, town or industry has a **Show** button: a route opens at its card in Routes, and a town or industry is centered and inspected. A new company greets you when it opens; loading a save never replays old notices. Each January 1 announces the new vehicle generation and the year's price rise. Once a whole year has closed, the notice adds that year's operating profit, its change on the year before and its best route, such as *1952 operating profit +$51.9k (+4%) · best route Alderbrook · Pinehaven*, and **Open report** opens the company report. When vehicles can be upgraded, **Review upgrades** opens Routes at **Upgrade all**; it never spends money. The first delivery of each new freight route, and a served town passing 1,000, 2,500, 5,000 or 10,000 residents, are announced as they happen. With sound on, only warnings, errors and these moments play a tone, at most once per batch.
 
 **Game menu → News** lists the latest 24 company notices with their dates, newest first, and a **Show** button while the route, town or industry still exists. The yearly, first-delivery and town moments are shown as they happen and are not kept in News. Milestones reached within the span of the log join it by date, one line per day, with a **Goals** button.
 
@@ -341,6 +349,12 @@ The notices check covers the welcome toast, bursts of notices, grouped disconnec
 
 ```sh
 TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/notices-browser-check.mjs
+```
+
+The company check picks a Lean start in the new-game form, runs the company for three years and checks the January review with **Open report** and **Review upgrades**, the report's four charts, yearly table and route ranking, borrowing and repaying with the finances card's loan rows, the below-zero warning shown once per streak while News keeps each month, a route below its upkeep and the retire warning, and a stacked 390px layout without sideways scrolling. Screenshots go to `/tmp/transport-company-qa`:
+
+```sh
+TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/company-browser-check.mjs
 ```
 
 Marine and lighting rendering have focused checks in `tests/shipping-renderer-check.mjs` and `tests/daynight-renderer-check.mjs`.
