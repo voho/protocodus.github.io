@@ -180,6 +180,8 @@ export function findPath(game,from,to,mode='road') {
 function invalidateNetwork(game,points){const previous=game.networkRevision||0;game.revision++;game.networkRevision=previous+1;updateNetworkIndex(game,points,previous);}
 // Construction undo rewrites tiles outside build() and advances the same revisions.
 export function invalidateNetworkPoints(game,points){invalidateNetwork(game,points);}
+// Towns lay their own streets as upkeep-free public roads; one revision covers every town's day.
+function placePublicRoads(game,points){for(const p of points){const t=tileAt(game,p.x,p.y);t.road=true;t.publicRoad=true;t.detail='';if(t.terrain==='forest')t.terrain=game.biome==='tundra'?'snow':game.biome==='desert'?'sand':'grass';}invalidateNetwork(game,points);}
 function spend(game,cost) { game.money-=cost;game.monthlyExpenses+=cost;game.totalExpenses+=cost; }
 export function quoteStructureSpan(game,tool,points) {
   const plan=planStructureSpan(game,tool,points);if(!plan.ok)return plan;
@@ -921,7 +923,8 @@ function monthlyUpdate(game) {
   stepContracts(game,site=>stationCoverage(game,site));
   if(game.money<0)notify(game,'Your balance is below zero. Borrow in Company → Loan, or retire a service that earns less than its upkeep.','warning',{topic:'credit'});
 }
-export function tick(game,days) {
+// Reserved tiles belong to the stroke the player is drawing; towns never lay a street there.
+export function tick(game,days,{reserved=[]}={}) {
   if(!Number.isFinite(days)||days<=0)return;
   // Split at day boundaries so large and fractional advances share the same economy.
   let remaining=Math.min(days,3650);
@@ -930,7 +933,7 @@ export function tick(game,days) {
     const step=Math.min(remaining,nextDay-game.day);
     moveVehicles(game,step);game.day+=step;remaining-=step;
     if(game.day+.00000001>=nextDay) {
-      game.day=nextDay;stepIndustries(game,notify);stepSettlements(game);stepEcology(game);maintenance(game);evaluateMilestones(game);game.lastDailyDay=nextDay;
+      game.day=nextDay;stepIndustries(game,notify);stepSettlements(game,{extendStreets:points=>placePublicRoads(game,points),reserved});stepEcology(game);maintenance(game);evaluateMilestones(game);game.lastDailyDay=nextDay;
       const month=calendarMonth(game);
       if(month>game.lastMonth){monthlyUpdate(game);game.lastMonth=month;}
     }
@@ -962,6 +965,7 @@ export function validateGame(game) {
   if(!game.tiles.every((tile,index)=>validStructureMetadata(tile,game,index%game.width,Math.floor(index/game.width))))return false;
   if(!game.cities.every(c=>validPoint(game,c)&&uniqueId(c)&&typeof c.name==='string'&&finite(c.population,0,1e8)&&finite(c.activity,0)&&finite(c.passengers,0)&&finite(c.growth,0)&&finite(c.delivered,0)&&finite(c.supplies,0)))return false;
   if(!game.cities.every(c=>c.lastServiceDay===undefined||c.lastServiceDay===null||finite(c.lastServiceDay,0,game.day)))return false;
+  if(!game.cities.every(c=>c.lastStreetDay===undefined||finite(c.lastStreetDay,0,game.day)))return false;
   if(!game.tiles.every(tile=>tile.building?.populationCityId===undefined||tile.building.populationCityId===null||game.cities.some(city=>city.id===tile.building.populationCityId)))return false;
   if(!game.cities.every(c=>c.lastSupply===undefined||(c.lastSupply&&typeof c.lastSupply==='object'&&!Array.isArray(c.lastSupply)&&Object.entries(c.lastSupply).every(([cargo,day])=>TOWN_CARGO.includes(cargo)&&finite(day,0,game.day)))))return false;
   if(!game.industries.every(i=>validPoint(game,i)&&uniqueId(i)&&owns(INDUSTRIES,i.kind)&&typeof i.name==='string'&&finite(i.capacity,.1,10)&&finite(i.activity,0)&&finite(i.production,0)&&finite(i.shipped,0)&&finite(i.received,0)&&finite(i.idleDays,0)&&i.inventory&&Object.entries(i.inventory).every(([cargo,n])=>owns(CARGO,cargo)&&finite(n,0,1e9))))return false;

@@ -2,13 +2,24 @@ import { BUILDINGS, residentialKind, commercialKind } from './buildings.js';
 import { localEnvironment, randomAt, weatherAt } from './environment.js';
 import { industryTiles } from './industry-sites.js';
 import { buildingAt, buildingFootprint, buildingSiteProblem, buildingTiles, placeBuildingSite } from './building-sites.js';
-import { nearbyCities } from './simulation-spatial.js';
+import { nearbyCities, nearbyStations } from './simulation-spatial.js';
+import { terrainObjectAt } from './terrain-objects.js';
+import { networkTerrainProblem } from './terrain-engineering.js';
 import { BIOMES, CARGO, INDUSTRIES } from './data.js';
 
 const clamp = (value, min = 0, max = 1) => Math.max(min, Math.min(max, value));
 const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const tileAt = (game, x, y) => x >= 0 && y >= 0 && x < game.width && y < game.height ? game.tiles[y * game.width + x] : null;
 const developmentKind = (kind, variant, level) => kind === 'residential' ? residentialKind(variant, level) : kind === 'commercial' ? commercialKind(variant, level) : 'factory';
+const GROUND = ['grass', 'sand', 'snow', 'forest'], STREET_DIRECTIONS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+// A zone may still grow into a 2 × 2 building over the tiles right of and below it.
+const zoneRoom = (game, x, y) => !!(tileAt(game, x - 1, y)?.zone || tileAt(game, x, y - 1)?.zone || tileAt(game, x - 1, y - 1)?.zone);
+// Paid buildings, landmarks and zoned land are never taken by organic growth.
+const openLot = (game, x, y, occupied, tile = tileAt(game, x, y)) => !!tile && !buildingAt(game, x, y) && !tile.zone && !tile.road && !tile.rail && !occupied.has(`${x},${y}`) && GROUND.includes(tile.terrain) && !zoneRoom(game, x, y);
+const houseLot = (game, x, y, occupied) => openLot(game, x, y, occupied) && !buildingSiteProblem(game, residentialKind(tileAt(game, x, y).variant, 1), x, y);
+const roadBeside = (game, x, y) => { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (tileAt(game, x + dx, y + dy)?.road) return true; return false; };
+// Larger towns reach a little further for new homes: 3-6 tiles, plus up to 3.
+const reachBonus = city => Math.min(3, Math.floor(Math.sqrt(city.population / 400)));
 
 function nearestCity(game, point) {
   let nearest = null, best = 10;
@@ -104,11 +115,58 @@ export function passengerArrivals(game, city, day = Math.floor(game.day), enviro
     (.55 + draw * .95) * (.70 + weather.travel * .3) * (1 - environment.pollution * .22);
 }
 
+function townHasLot(game, city, reach, occupied) {
+  for (let y = city.y - reach; y <= city.y + reach; y++) for (let x = city.x - reach; x <= city.x + reach; x++) if (roadBeside(game, x, y) && houseLot(game, x, y, occupied)) return true;
+  return false;
+}
+// Towns keep clear of the player's stations, ports, rails and zones, and of
+// the stroke the player is drawing.
+function streetTile(game, x, y, occupied, blocked) {
+  const tile = tileAt(game, x, y);
+  if (!tile || !GROUND.includes(tile.terrain) || tile.road || tile.rail || tile.bridge || tile.tunnel || tile.structureAxis || tile.zone || zoneRoom(game, x, y) || blocked.has(`${x},${y}`) || occupied.has(`${x},${y}`) || buildingAt(game, x, y) || terrainObjectAt(game, x, y)) return false;
+  for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) if (tileAt(game, x + dx, y + dy)?.rail) return false;
+  return !nearbyStations(game, x, y, 2).some(station => Math.abs(station.x - x) <= 2 && Math.abs(station.y - y) <= 2);
+}
+// A town out of lots extends one road 2-3 tiles straight on or aside, never
+// back toward its center, where it opens the most new lots within its reach.
+function townStreet(game, city, day, reach, occupied, blocked) {
+  let best = null;
+  for (let dy = -reach - 2; dy <= reach + 2; dy++) for (let dx = -reach - 2; dx <= reach + 2; dx++) {
+    const ox = city.x + dx, oy = city.y + dy, origin = tileAt(game, ox, oy);
+    if (!origin?.road || origin.bridge || origin.tunnel || origin.structureAxis) continue;
+    for (const [sx, sy] of STREET_DIRECTIONS) {
+      if (sx * dx + sy * dy < 0) continue;
+      const points = [], planned = new Set();
+      for (let n = 1; n <= 3; n++) {
+        const x = ox + sx * n, y = oy + sy * n, index = y * game.width + x;
+        // A road alongside would only double an existing street.
+        if (!streetTile(game, x, y, occupied, blocked) || tileAt(game, x + sy, y + sx)?.road || tileAt(game, x - sy, y - sx)?.road) break;
+        planned.add(index);
+        if (networkTerrainProblem(game, x, y, 'road', { axis: sx ? 'x' : 'y', proposed: planned })) { planned.delete(index); break; }
+        points.push({ x, y });
+      }
+      if (points.length < 2) continue;
+      const lots = new Set();
+      for (const p of points) for (let y = p.y - 1; y <= p.y + 1; y++) for (let x = p.x - 1; x <= p.x + 1; x++) {
+        const index = y * game.width + x;
+        if (!planned.has(index) && !blocked.has(`${x},${y}`) && Math.max(Math.abs(x - city.x), Math.abs(y - city.y)) <= reach && houseLot(game, x, y, occupied)) lots.add(index);
+      }
+      if (!lots.size) continue;
+      const rank = lots.size * (.5 + randomAt(game, day, `${ox},${oy},${sx},${sy}`, 108) * .5);
+      if (!best || rank > best.rank) best = { points, rank };
+    }
+  }
+  return best?.points || null;
+}
+
 // Each day offers independent update opportunities to individual settlements
 // and plots. Buffered building proposals see yesterday's neighbors; a new home
 // cannot trigger a chain of same-day development across its entire street.
-export function stepSettlements(game) {
-  const day = Math.floor(game.day), proposals = [], connectedCities=activeCities(game);
+// Streets are handed to extendStreets (model.js) once per day, before any
+// building commits, and at most four towns lay one each day.
+export function stepSettlements(game, { extendStreets = null, reserved = [] } = {}) {
+  const day = Math.floor(game.day), proposals = [], streets = [], connectedCities=activeCities(game);
+  let blocked = null;
   const occupied = new Set([...game.industries.flatMap(industryTiles), ...game.stations, ...game.cities].map(point => `${point.x},${point.y}`));
   for (const city of game.cities) {
     const environment = localEnvironment(game, city.x, city.y);
@@ -125,12 +183,11 @@ export function stepSettlements(game) {
     city.growth = connected ? clamp((.015 + quality * .055) * demand, 0, .09) : 0;
     if (!connected || city.activity < 8 || randomAt(game, day, city.id, 104) >= (.055 + quality * .14) * demand * weather.growth) continue;
 
-    const radius = 3 + Math.floor(randomAt(game, day, city.id, 105) * 4);
+    const bonus = reachBonus(city), radius = 3 + Math.floor(randomAt(game, day, city.id, 105) * 4) + bonus;
     let best = null;
     for (let dy = -radius; dy <= radius; dy++) for (let dx = -radius; dx <= radius; dx++) {
       const x = city.x + dx, y = city.y + dy, tile = tileAt(game, x, y), key = `${x},${y}`;
-      // Paid buildings and landmarks are never replaced by organic growth.
-      if (!tile || buildingAt(game, x, y) || tile.zone || tile.road || tile.rail || occupied.has(key) || !['grass', 'sand', 'snow', 'forest'].includes(tile.terrain)) continue;
+      if (!openLot(game, x, y, occupied, tile)) continue;
       const local = localEnvironment(game, x, y, 2);
       if (!local.roadAccess) continue;
       const score = suitability(game, { x, y }, 'residential', local, weather, city, connectedCities).score;
@@ -140,7 +197,13 @@ export function stepSettlements(game) {
       if (!best || rank > best.rank) best = { x, y, tile, city, rank, building: { kind, level: 1 } };
     }
     if (best) proposals.push(best);
+    else if (extendStreets && streets.length < 4 && demand >= 1 && day - (city.lastStreetDay ?? -Infinity) >= 30 && randomAt(game, day, city.id, 107) < .08 * demand * weather.growth && !townHasLot(game, city, 6 + bonus, occupied)) {
+      blocked ??= new Set(reserved.map(point => `${point.x},${point.y}`));
+      const street = townStreet(game, city, day, 6 + bonus, occupied, blocked);
+      if (street) { streets.push(street); city.lastStreetDay = day; for (const point of street) blocked.add(`${point.x},${point.y}`); }
+    }
   }
+  if (streets.length) extendStreets(streets.flat());
 
   for (const zone of game.zones) {
     const tile = tileAt(game, zone.x, zone.y);

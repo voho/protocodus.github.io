@@ -1621,7 +1621,7 @@ function frame(now){
  const elapsed=Math.min((now-lastFrame)/1000,.15);lastFrame=now;
  if(isLoading()||document.hidden||$('#start-menu')?.open){requestAnimationFrame(frame);return;}
  // A capture holds only the next daily step; vehicles keep moving inside the day.
- if(speed>0){if(!capturingSave)tick(game,elapsed*speed);else{const room=Math.floor(game.day+1e-8)+1-game.day-1e-6;if(room>0)tick(game,Math.min(elapsed*speed,room));}}
+ if(speed>0){if(!capturingSave)tick(game,elapsed*speed,{reserved:preview});else{const room=Math.floor(game.day+1e-8)+1-game.day-1e-6;if(room>0)tick(game,Math.min(elapsed*speed,room));}}
  // Income floats up where cargo was paid for; deliveries at one stop within 300 ms share a figure.
  if(floaterGame!==game){floaters=[];floaterGame=game;}
  for(const event of drainDeliveryEvents(game)){const recent=floaters.find(f=>f.x===event.x&&f.y===event.y&&now-f.born<300);if(recent){recent.revenue+=event.revenue;continue;}floaters.push({x:event.x,y:event.y,revenue:event.revenue,cargo:event.cargo,born:now});if(!sounds||!mapLayers.deliveries||now-chimeAt<=700)continue;const p=renderer.worldToScreen(event.x,event.y);if(p.x>=0&&p.y>=0&&p.x<=canvas.clientWidth&&p.y<=canvas.clientHeight){chimeAt=now;chime();}}

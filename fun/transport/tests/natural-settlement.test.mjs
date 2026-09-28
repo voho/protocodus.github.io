@@ -4,8 +4,9 @@ import { generateTerrainV2 } from '../world-terrain-v2.js';
 import { populateWorldV2 } from '../world-placement-v2.js';
 import { expandGeneratedIndustrySites, industrySiteProblem } from '../industry-sites.js';
 import { WORLD_SIZES, WORLD_GENERATION_VERSION } from '../world.js';
-import { createGame, findPath, restoreGame, validateGame } from '../model.js';
+import { createGame, findPath, restoreGame, validateGame, build, buildPath, addRoute, addRouteVehicle, tick } from '../model.js';
 import { encodeGame } from '../save-codec.js';
+import { emptyGame, tileAt, line, equivalent } from './helpers.mjs';
 
 for (const biome of ['taiga', 'tundra', 'desert']) test(`${biome}: towns, streets and industry follow the existing land surface`, () => {
   const config = WORLD_SIZES.square512;
@@ -64,4 +65,82 @@ test('recipe 3 saves retain flattened geography, while recipe 4 saves retain nat
     assert.deepEqual(restored.cities, game.cities);
     assert.deepEqual(restored.industries, game.industries);
   }
+});
+
+// Two flat towns joined by one street and a two-bus line fill their road-side lots within a year.
+function servedTowns() {
+  const game = emptyGame();
+  build(game, 'city', 30, 30); build(game, 'city', 56, 30);
+  buildPath(game, 'road', line(24, 62, 30));
+  for (const x of [30, 56]) buildPath(game, 'road', [27, 28, 29, 31, 32, 33].map(y => ({ x, y })));
+  build(game, 'bus-stop', 32, 30); build(game, 'bus-stop', 54, 30);
+  assert.equal(addRoute(game, { mode: 'road', cargo: 'passengers', stops: game.stations.map(stop => stop.id) }).ok, true);
+  addRouteVehicle(game, game.routes[0].id);
+  for (const city of game.cities) city.population = 600;
+  return game;
+}
+const days = (game, count, step = 1, options) => { for (let n = 0; n < count / step; n++) tick(game, step, options); };
+const population = game => game.cities.reduce((sum, city) => sum + city.population, 0);
+const streets = (game, before) => game.tiles.flatMap((tile, index) => tile.road && !before[index].road ? [{ x: index % game.width, y: Math.floor(index / game.width), tile, was: before[index] }] : []);
+
+test('served towns lay short public streets once their lots run out, and keep growing', () => {
+  const game = servedTowns();
+  days(game, 180);
+  const month6 = population(game), before = structuredClone(game.tiles), upkeep = game.infrastructureUpkeep;
+  days(game, 900);
+  const grown = population(game) / month6 - 1, added = streets(game, before);
+  assert.ok(grown >= .2 && grown <= .45, `towns grow ${Math.round(grown * 100)}% from month 6 to year 3`);
+  assert.ok(added.length >= 6, `${added.length} street tiles`);
+  for (const { x, y, tile, was } of added) {
+    assert.equal(tile.publicRoad, true, `${x},${y} is a public street`);
+    assert.ok(['grass', 'sand', 'snow', 'forest'].includes(was.terrain) && !was.rail && !was.zone && !was.building, `${x},${y} was open land`);
+    assert.ok(game.stations.every(stop => Math.max(Math.abs(stop.x - x), Math.abs(stop.y - y)) > 2), `${x},${y} keeps clear of stops`);
+  }
+  assert.equal(game.infrastructureUpkeep, upkeep, 'public streets cost the company nothing');
+  assert.ok(game.cities.every(city => Number.isInteger(city.lastStreetDay) && city.lastStreetDay <= game.day));
+  assert.equal(validateGame(game), true);
+});
+
+test('town streets never take water, rock, zones, rails, station surroundings or the stroke being drawn', () => {
+  const game = servedTowns();
+  for (let x = 20; x <= 66; x++) {
+    tileAt(game, x, 22).terrain = 'water'; tileAt(game, x, 38).terrain = 'rock';
+    if (x % 4 === 0) tileAt(game, x, 25).rail = true;
+  }
+  for (const [x, y] of [[26, 34], [36, 27], [44, 33], [60, 26]]) { tileAt(game, x, y).zone = 'residential'; game.zones.push({ x, y, kind: 'residential', progress: 0 }); }
+  days(game, 180);
+  const before = structuredClone(game.tiles), drawn = structuredClone(game), preview = [];
+  for (let y = 23; y <= 37; y++) for (let x = 20; x <= 66; x++) if (!tileAt(game, x, y).road) preview.push({ x, y });
+  days(game, 900); days(drawn, 900, 1, { reserved: preview });
+  const added = streets(game, before);
+  assert.ok(added.length > 0, 'the towns still find room');
+  assert.deepEqual(streets(drawn, before), [], 'a stroke being drawn is never built over');
+  for (const { x, y, was } of added) {
+    assert.ok(!['water', 'rock', 'mountain'].includes(was.terrain) && !was.rail && !was.zone, `${x},${y}`);
+    for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) assert.ok(!tileAt(game, x + dx, y + dy)?.rail, `${x},${y} keeps clear of rails`);
+    for (let dy = 0; dy <= 1; dy++) for (let dx = 0; dx <= 1; dx++) assert.ok(!before[(y - dy) * game.width + x - dx].zone, `${x},${y} leaves room for a zone to grow`);
+  }
+});
+
+test('street growth is identical across frame partitions and survives a save', () => {
+  const whole = servedTowns(), frames = structuredClone(whole);
+  days(whole, 540); days(frames, 540, .25);
+  assert.ok(whole.cities.some(city => city.lastStreetDay !== undefined), 'a street was laid');
+  equivalent(frames, whole);
+  const restored = restoreGame(JSON.parse(JSON.stringify(encodeGame(whole))));
+  assert.ok(restored);
+  assert.deepEqual(restored.tiles, whole.tiles);
+  assert.deepEqual(restored.cities.map(city => city.lastStreetDay), whole.cities.map(city => city.lastStreetDay));
+  for (const lastStreetDay of [whole.day + 1, -1, '12']) assert.equal(validateGame({ ...whole, cities: [{ ...whole.cities[0], lastStreetDay }, ...whole.cities.slice(1)] }), false);
+});
+
+test('a larger town reaches further for new lots', () => {
+  const game = servedTowns();
+  days(game, 180);
+  const [small, large] = [structuredClone(game), structuredClone(game)];
+  large.cities[0].population = 4000;
+  const reach = town => Math.max(0, ...town.tiles.flatMap((tile, index) => tile.building?.populationCityId === town.cities[0].id && !game.tiles[index].building ? [Math.max(Math.abs(index % town.width - 30), Math.abs(Math.floor(index / town.width) - 30))] : []));
+  days(small, 360); days(large, 360);
+  assert.ok(reach(large) >= 8, `a town of 4,000 builds ${reach(large)} tiles out`);
+  assert.ok(reach(small) <= 6 + Math.floor(Math.sqrt(small.cities[0].population / 400)), `a town of ${Math.round(small.cities[0].population)} builds ${reach(small)} tiles out`);
 });
