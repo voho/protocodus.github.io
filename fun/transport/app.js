@@ -417,8 +417,18 @@ function bindRouteCards(root) {
   $(`#route-list [data-route-page="${direction}"]:not(:disabled)`)?.focus({preventScroll:true});
  }));
  root.querySelectorAll('[data-upgrade-route]').forEach(button=>button.addEventListener('click',()=>performUpgrade(button.dataset.upgradeRoute)));
- root.querySelectorAll('[data-focus-route]').forEach(el=>el.addEventListener('click',()=>{const r=game.routes.find(r=>String(r.id)===el.dataset.focusRoute);const s=r&&game.stations.find(s=>s.id===r.stops[0]);if(!s)return;cancelRoutePicking();renderer.focus(s.x,s.y);setMapLayers({routes:true});closeMobile();}));
+ root.querySelectorAll('[data-focus-route]').forEach(el=>el.addEventListener('click',()=>showRoute(el.dataset.focusRoute)));
  root.querySelectorAll('[data-remove-route]').forEach(el=>el.addEventListener('click',()=>retireRoute(el.dataset.removeRoute)));
+}
+// Show frames the whole route at the closest zoom that fits its projected extent, then highlights it for a moment.
+const routeExtents=new WeakMap();
+export function showRoute(id) {
+ const route=game.routes.find(r=>String(r.id)===String(id));if(!route?.path?.length)return;
+ cancelRoutePicking();setMapLayers({routes:true});
+ let extent=routeExtents.get(route.path);
+ if(!extent){let u0=Infinity,u1=-Infinity,v0=Infinity,v1=-Infinity;for(const p of route.path){u0=Math.min(u0,p.x-p.y);u1=Math.max(u1,p.x-p.y);v0=Math.min(v0,p.x+p.y);v1=Math.max(v1,p.x+p.y);}extent={u:(u0+u1)/2,v:(v0+v1)/2,width:(u1-u0)*TILE,height:(v1-v0)*TILE/2+48};routeExtents.set(route.path,extent);}
+ renderer.setZoom(Math.max(ZOOM_LEVELS[0],...ZOOM_LEVELS.filter(zoom=>extent.width*zoom<=canvas.clientWidth*.8&&extent.height*zoom<=canvas.clientHeight*.8)));renderer.focus((extent.u+extent.v)/2,(extent.v-extent.u)/2);
+ highlight={id:route.id,until:performance.now()+4000};closeMobile();updateHud();
 }
 function refreshRouteList() {
  const list=$('#route-list');if(!list)return;const routes=filterRoutes(game,routeFilters);
@@ -547,6 +557,7 @@ function updateWeather() {
 function updateRegion() { updateWeather();$('#minimap').style.aspectRatio=game.width+'/'+game.height; }
 function updateHud() {
  updateWeather();
+ const offline=game.routes.filter(route=>route.active===false).length,offlineChip=$('#offline-routes');if(offlineChip.dataset.count!==String(offline)){offlineChip.dataset.count=offline;offlineChip.hidden=!offline;offlineChip.innerHTML=icon('warning')+`<b>${offline}</b> <span>${offline===1?'route':'routes'} offline</span>`;offlineChip.setAttribute('aria-label',offlineChip.textContent);}
  const pricing=inflationInfo(game);
  $('#inflation-rate').textContent=pricing.rate?`+${(pricing.rate*100).toFixed(2)}% / year`:'Base prices';
  $('#inflation-rate').title=`Prices are ${((pricing.index-1)*100).toFixed(1)}% above 1950. New inflation rate each January.`;
@@ -1068,6 +1079,9 @@ document.addEventListener('visibilitychange',()=>{lastFrame=performance.now();if
 
 layersView=mountVisibility($('#layers-panel'),$('#layers-button'),{getLayers:()=>({...mapLayers}),onChange:(key,visible)=>setMapLayers({[key]:visible}),onPreset:name=>setMapLayers(layerPreset(name))});
 compactUI=mountCompactPlay({onMenu:openGameMenu,onNews:openNews,onView:setView,getView:()=>view,onCancelGesture:cancelGesture,onMinimapOpen:()=>{renderer.drawMinimap($('#minimap'));invalidateScene();}});
+// Pointing at or focusing a route card lights its route on the map; a timed Show highlight outlives the pointer leaving.
+let highlight={id:null,until:0};for(const type of ['pointerover','focusin','pointerout','focusout'])$('#panel-content').addEventListener(type,e=>{const card=e.target.closest?.('[data-route-id]');if(!card||card.contains(e.relatedTarget))return;const id=game.routes.find(route=>String(route.id)===card.dataset.routeId)?.id;if(type==='pointerover'||type==='focusin'){if(highlight.id!==id||highlight.until<=performance.now())highlight={id,until:Infinity,card};}else if(highlight.id===id&&highlight.until===Infinity)highlight={id:null,until:0};});
+$('#offline-routes').addEventListener('click',()=>{routeFilters={query:'',mode:'all',status:'disconnected',cargo:'all'};routePage=0;setView('routes');});
 const refreshArtwork=()=>{
  invalidateScene();
  drawPaletteSprites();
@@ -1095,10 +1109,11 @@ function frame(now){
  for(const event of drainDeliveryEvents(game)){const recent=floaters.find(f=>f.x===event.x&&f.y===event.y&&now-f.born<300);if(recent){recent.revenue+=event.revenue;continue;}floaters.push({x:event.x,y:event.y,revenue:event.revenue,cargo:event.cargo,born:now});if(!sounds||!mapLayers.deliveries||now-chimeAt<=700)continue;const p=renderer.worldToScreen(event.x,event.y);if(p.x>=0&&p.y>=0&&p.x<=canvas.clientWidth&&p.y<=canvas.clientHeight){chimeAt=now;chime();}}
  const floaterPaint=floaters.length>0;if(floaterPaint)floaters=floaters.filter(f=>now-f.born<1600).slice(-24);
  const camera=renderer.getCamera(),w=canvas.width,h=canvas.height;
- const changed=!painted||painted.game!==game||painted.day!==game.day||painted.revision!==game.revision||painted.money!==game.money||painted.scene!==sceneRevision||painted.x!==camera.x||painted.y!==camera.y||painted.height!==camera.height||painted.zoom!==camera.zoom||painted.w!==w||painted.h!==h||painted.layers!==mapLayers||painted.tool!==tool||painted.hover!==hover||painted.preview!==preview||painted.selected!==selected||painted.mode!==preferredMode||painted.view!==view||painted.from!==formDraft.from||painted.to!==formDraft.to;
+ if(highlight.card&&!highlight.card.isConnected)highlight={id:null,until:0};const highlightRoute=highlight.until>now?highlight.id:null;
+ const changed=!painted||painted.game!==game||painted.day!==game.day||painted.revision!==game.revision||painted.money!==game.money||painted.scene!==sceneRevision||painted.x!==camera.x||painted.y!==camera.y||painted.height!==camera.height||painted.zoom!==camera.zoom||painted.w!==w||painted.h!==h||painted.layers!==mapLayers||painted.tool!==tool||painted.hover!==hover||painted.preview!==preview||painted.selected!==selected||painted.mode!==preferredMode||painted.view!==view||painted.from!==formDraft.from||painted.to!==formDraft.to||painted.highlight!==highlightRoute;
  if(changed||floaterPaint){
-  renderer.render(now,{tool,hover,preview,selected,preferredMode,routeStops:routePickStops(),floaters});
-  painted={game,day:game.day,revision:game.revision,money:game.money,scene:sceneRevision,x:camera.x,y:camera.y,height:camera.height,zoom:camera.zoom,w,h,layers:mapLayers,tool,hover,preview,selected,mode:preferredMode,view,from:formDraft.from,to:formDraft.to};
+  renderer.render(now,{tool,hover,preview,selected,preferredMode,routeStops:routePickStops(),floaters,highlightRoute});
+  painted={game,day:game.day,revision:game.revision,money:game.money,scene:sceneRevision,x:camera.x,y:camera.y,height:camera.height,zoom:camera.zoom,w,h,layers:mapLayers,tool,hover,preview,selected,mode:preferredMode,view,from:formDraft.from,to:formDraft.to,highlight:highlightRoute};
  }
  if(now-hudAt>400&&(!hudState||hudState.game!==game||hudState.day!==game.day||hudState.revision!==game.revision||hudState.money!==game.money||hudState.zoom!==camera.zoom||hudState.w!==w||hudState.view!==view)){
   updateHud();hudAt=now;hudState={game,day:game.day,revision:game.revision,money:game.money,zoom:camera.zoom,w,view};

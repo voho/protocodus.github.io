@@ -231,6 +231,13 @@ try {
   assert.equal(await page.locator('#route-form [name="to"]').inputValue(), fixture.to.id, 'map selection fills the arrival');
   await page.locator('#route-pick-banner').waitFor({ state: 'hidden' });
   await verifyConnection(page, 'connected', true);
+  // The starter route runs through the gap: once broken it pins the gap on the map and names itself in the top bar.
+  const aboveGap = () => page.evaluate(point => {
+    transport.renderer.focus(point.x, point.y); transport.renderer.render(performance.now(), {});
+    const canvas = document.querySelector('#world'), scale = canvas.width / canvas.getBoundingClientRect().width, p = transport.renderer.worldToScreen(point.x, point.y);
+    return Array.from(canvas.getContext('2d').getImageData(Math.round((p.x - 30) * scale), Math.round((p.y - 32) * scale), Math.round(60 * scale), 1).data);
+  }, fixture.gap);
+  const intactAboveGap = await aboveGap();
 
   await page.evaluate(async point => {
     const { build } = await import('./model.js');
@@ -238,6 +245,13 @@ try {
     if (!result.ok) throw new Error(result.message);
   }, fixture.gap);
   await verifyConnection(page, 'disconnected', false);
+  await page.evaluate(async () => { const { tick } = await import('./model.js'); tick(transport.game, .01); });
+  await page.locator('#offline-routes').waitFor({ state: 'visible' });
+  assert.equal(await page.locator('#offline-routes').getAttribute('aria-label'), '1 route offline', 'the top bar counts the offline route');
+  const brokenAboveGap = await aboveGap();
+  assert.equal(await page.evaluate(() => transport.renderer.getStats().routeBreaks), 1, 'the broken route pins its gap');
+  assert.notDeepEqual(brokenAboveGap, intactAboveGap, 'the pin changes the map above the gap');
+  assert.ok(brokenAboveGap.every((value, index) => index % 4 === 3 || value > 200), 'a pale "Connection broken" pill sits above the gap');
   await page.screenshot({ path: `${output}/desktop-disconnected-route.png` });
   await page.evaluate(() => transport.setTool('road'));
   await clickMap(page, fixture.gap);
@@ -245,6 +259,8 @@ try {
   // A construction tool closes the drawer; Routes reopens the planner with its stops.
   await chooseView(page, 'routes');
   await verifyConnection(page, 'connected', true);
+  await page.locator('#offline-routes').waitFor({ state: 'hidden' });
+  assert.equal(await page.evaluate(() => transport.renderer.getStats().routeBreaks), 0, 'a repaired route drops its pin');
   const beforeFreight = await page.evaluate(() => transport.game.money);
   await page.locator('#route-form button[type="submit"]').click();
   assert.equal(await page.evaluate(() => transport.game.money), beforeFreight - 18000, 'a verified road connection buys one truck');
@@ -287,6 +303,14 @@ try {
     if (!result.ok) throw new Error(result.message);
     tick(transport.game, .01);
   }, fixture.railGap);
+  await page.locator('#offline-routes').click();
+  assert.equal(await page.locator('#route-filter-status').inputValue(), 'disconnected', 'the offline chip lists only disconnected routes');
+  assert.equal(await page.locator('.route-card[data-route-id]').count(), 1);
+  const offlineRoute = await page.locator('.route-card[data-route-id]').getAttribute('data-route-id');
+  await page.locator('.route-card[data-route-id] .route-journey').hover();
+  await page.waitForFunction(id => transport.renderer.getStats().highlightRoute === id, offlineRoute);
+  await page.mouse.move(900, 500);
+  await page.waitForFunction(() => transport.renderer.getStats().highlightRoute === null);
   await page.locator('#route-filter-status').selectOption('disconnected');
   assert.equal(await page.locator('.route-card[data-route-id]').count(), 1, 'status filter follows actual broken infrastructure');
   assert.match(await page.locator('.route-card[data-route-id]').innerText(), /Valley passenger express/);
@@ -312,6 +336,17 @@ try {
   assert.equal(await page.locator('#route-form [name="from"]').inputValue(), fixture.from.id, 'Region view accepts the departure stop badge beyond its tile');
   assert.equal(await page.locator('#route-form [name="to"]').inputValue(), fixture.to.id, 'Region view accepts the arrival stop badge beyond its tile');
   await page.evaluate(() => transport.renderer.setZoom(1));
+  // Show frames the whole starter route, then lights it for a few seconds.
+  const starter = await page.evaluate(() => transport.game.routes[0].id);
+  await page.locator(`[data-focus-route="${starter}"]`).click();
+  assert.equal(await page.evaluate(id => {
+    const route = transport.game.routes.find(route => route.id === id), rect = document.querySelector('#world').getBoundingClientRect();
+    return route.stops.every(stop => { const station = transport.game.stations.find(station => station.id === stop), p = transport.renderer.worldToScreen(station.x, station.y); return p.x > 0 && p.y > 0 && p.x < rect.width && p.y < rect.height; });
+  }, starter), true, 'Show fits both stops on screen');
+  await page.waitForFunction(id => transport.renderer.getStats().highlightRoute === id, starter);
+  await page.screenshot({ path: `${output}/desktop-show-route.png` });
+  await page.waitForFunction(() => transport.renderer.getStats().highlightRoute === null, undefined, { timeout: 6000 });
+  await page.evaluate(() => transport.setView('routes'));
 
   // Real renderer output distinguishes empty, partial and full carriers in each
   // view. The fixture has its own canvas/state and never replaces the live save.
@@ -342,6 +377,41 @@ try {
   });
   assert.equal(distinctLoads,3,'empty, partial and full meters produce different rendered pixels');
   await page.evaluate(()=>{vehicleLoadQA.canvas.remove();delete window.vehicleLoadQA;});
+
+  // A highlighted route is restroked at every zoom, even with route lines hidden, while other routes dim.
+  // Freight flow follows the simulated day, so a paused world renders the same pixels twice.
+  const highlights = await page.evaluate(async () => {
+    const { createRenderer } = await import('./renderer.js');
+    const canvas = document.createElement('canvas'); canvas.style.cssText = 'position:fixed;left:20px;top:100px;width:900px;height:360px;z-index:1000';
+    document.body.append(canvas);
+    const game = { width:96, height:96, seed:1847, biome:'taiga', day:10, revision:1, industries:[], cities:[], vehicles:[], routes:[], stations:[{id:'a',name:'A',x:30,y:40,mode:'road'},{id:'b',name:'B',x:62,y:40,mode:'road'},{id:'c',name:'C',x:30,y:44,mode:'road'},{id:'d',name:'D',x:62,y:44,mode:'road'}], tiles:Array.from({length:96*96},(_,index)=>({terrain:'grass',elevation:.2,detail:'',variant:0,road:[40,44].includes(Math.floor(index/96)),rail:false,bridge:false,tunnel:false,building:null,zone:null})) };
+    const line = y => Array.from({ length:33 }, (_, n) => ({ x:30 + n, y }));
+    game.routes.push({ id:'lit', mode:'road', cargo:'coal', color:'#69c6bc', stops:['a','b'], path:line(40), active:true }, { id:'other', mode:'road', cargo:'passengers', color:'#efc16f', stops:['c','d'], path:line(44), active:true });
+    const renderer = createRenderer(canvas, game, { layers:{ lighting:false, weather:false, names:false } }), scale = canvas.width / canvas.getBoundingClientRect().width;
+    const sample = (y, view) => { renderer.render(1000, view); const context = canvas.getContext('2d'); return [44, 46, 48].flatMap(x => { const p = renderer.worldToScreen(x, y); return Array.from(context.getImageData(Math.round(p.x * scale), Math.round((p.y - 5) * scale), 1, Math.round(10 * scale)).data); }); };
+    const distance = (a, b) => a.reduce((sum, value, index) => sum + Math.abs(value - b[index]), 0);
+    const zooms = [];
+    for (const zoom of [.5, 1, 2]) {
+      renderer.setZoom(zoom); renderer.focus(46, 42); for (let n = 0; n < 3; n++) renderer.render(1000, {});
+      const base = { lit:sample(40, {}), other:sample(44, {}) }, lit = { lit:sample(40, { highlightRoute:'lit' }), other:sample(44, { highlightRoute:'lit' }) };
+      const stats = renderer.getStats().highlightRoute, hidden = { lit:sample(40, { showRoutes:false }), other:sample(44, { showRoutes:false }) }, hiddenLit = { lit:sample(40, { showRoutes:false, highlightRoute:'lit' }), other:sample(44, { showRoutes:false, highlightRoute:'lit' }) };
+      zooms.push({ zoom, stats, litChanged:distance(lit.lit, base.lit) > 0, otherDimmed:distance(lit.other, hidden.other) < distance(base.other, hidden.other), hiddenLitChanged:distance(hiddenLit.lit, hidden.lit) > 0, hiddenOtherSame:distance(hiddenLit.other, hidden.other) === 0 });
+    }
+    renderer.setZoom(1); renderer.focus(46, 42);
+    renderer.render(1000, {}); const first = canvas.toDataURL(); renderer.render(9000, {}); const second = canvas.toDataURL();
+    game.day += .05; renderer.render(9000, {}); const later = canvas.toDataURL();
+    canvas.remove();
+    return { zooms, pausedSame:first === second, flowMoves:later !== second };
+  });
+  for (const view of highlights.zooms) {
+    assert.equal(view.stats, 'lit', `${view.zoom}x reports the highlighted route`);
+    assert.equal(view.litChanged, true, `${view.zoom}x restrokes the highlighted route`);
+    assert.equal(view.otherDimmed, true, `${view.zoom}x dims the other routes`);
+    assert.equal(view.hiddenLitChanged, true, `${view.zoom}x highlights with route lines hidden`);
+    assert.equal(view.hiddenOtherSame, true, `${view.zoom}x keeps hidden route lines hidden`);
+  }
+  assert.equal(highlights.pausedSame, true, 'two renders of a paused world are identical');
+  assert.equal(highlights.flowMoves, true, 'freight flow advances with the simulated day');
 
   for (const width of [390, 320]) {
     await page.setViewportSize({ width, height: 844 });
@@ -375,7 +445,7 @@ try {
     await clickMap(page, fixture.from);
     await clickMap(page, fixture.to);
     await page.locator('#route-pick-banner').waitFor({ state: 'hidden' });
-    assert.equal(await page.locator('#route-form').isVisible(), true, `${width}px picking returns to the route form`);
+    assert.equal(await page.locator('#route-form').waitFor({ state: 'visible', timeout: 3000 }).then(() => true, () => false), true, `${width}px picking returns to the route form`);
     assert.equal(await page.locator('#route-form [name="from"]').inputValue(), fixture.from.id);
     assert.equal(await page.locator('#route-form [name="to"]').inputValue(), fixture.to.id);
     await verifyConnection(page, 'connected', true);

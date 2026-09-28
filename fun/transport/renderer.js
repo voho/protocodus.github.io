@@ -4,7 +4,7 @@ import { terraformProblem, networkEdgeAllowed, networkTerrainShape } from './ter
 import { isEngineeredTunnel, isUndergroundAt } from './structure-visibility.js';
 import { TILE, PALETTES, createSprites, createSpriteCache, rng } from './sprites.js';
 import { INDUSTRIES, BUILD_COSTS } from './data.js';
-import { STATION_RADIUS, priceFor, buildProblem } from './model.js';
+import { STATION_RADIUS, priceFor, buildProblem, routeBreakPoint } from './model.js';
 import { BUILDINGS, residentialKind, commercialKind } from './buildings.js';
 import { ZOOM_VIEWS, nearestZoom, stepZoom } from './zoom.js';
 import { cargoIcon } from './cargo-icons.js';
@@ -82,6 +82,8 @@ export function createRenderer(canvas, initialGame, options={}) {
   let sceneBuilds=0,foundationBuilds=0,projectedOrigin=null;
   const routeIndexes=new WeakMap(),routePaths=new WeakMap(),minimapRoutePaths=new WeakMap();
   let routeSegmentsConsidered=0,routePathBuilds=0;
+  const routeBreakPoints=new WeakMap();let routeBreaks=0,highlightedRoute=null;
+  function routeBreak(r){const key=`${game.networkRevision||0}:${r.path.length}`;let entry=routeBreakPoints.get(r);if(entry?.key!==key)routeBreakPoints.set(r,entry={key,at:routeBreakPoint(game,r)});return entry.at;}
   let structureRevision=0;
   const frameVehicles=[];
   let largestSurface=0, lastTime=0, vehicleIndicatorCounts={empty:0,partial:0,full:0};
@@ -790,8 +792,9 @@ export function createRenderer(canvas, initialGame, options={}) {
       ctx.strokeStyle=(game.biome==='taiga'?'#f2eed5':'#55604d')+(detailLevel==='region'?'16':'24');ctx.lineWidth=.65/camera.zoom;ctx.stroke(gridCache.path);
     }
     routeSegmentsConsidered=0;
-    if(showRoutes)for(const r of game.routes||[])if(r.path?.length){
-      const key=`${x0},${y0},${x1},${y1}`,path=r.path;let cached=routePaths.get(r);
+    // One cached projection per route serves the overlay and a highlight drawn with the layer off.
+    function routeDrawing(r,key){
+      const path=r.path;let cached=routePaths.get(r);
       if(!cached||cached.path!==path||cached.length!==path.length||cached.key!==key||cached.revision!==structureRevision||cached.mode!==r.mode){
         let index=routeIndexes.get(path);
         if(!index||index.length!==path.length){index={length:path.length,spatial:createRouteRenderIndex(path)};routeIndexes.set(path,index);}
@@ -805,14 +808,26 @@ export function createRenderer(canvas, initialGame, options={}) {
         cached={path,length:path.length,key,revision:structureRevision,mode:r.mode,drawing,count,segments};routePaths.set(r,cached);routePathBuilds++;
         routeSegmentsConsidered+=segments;
       }
-      if(!cached.count)continue;
-      ctx.save();ctx.globalAlpha=.65;ctx.setLineDash([3,7]);ctx.lineDashOffset=-now*.003;ctx.strokeStyle=r.color||'#ce9d55';ctx.lineWidth=1.3/camera.zoom;ctx.stroke(cached.drawing);ctx.restore();
+      return cached;
     }
+    // A pale casing and a solid core no longer read as lane paint; Detail widens both against its wider roads.
+    // Freight flow marches with the simulated day, so paused frames repeat exactly.
+    function strokeRoute(r,drawing,fade=1,focus=false){
+      const z=camera.zoom>1?camera.zoom/1.4:camera.zoom,offline=r.active===false;ctx.save();ctx.lineJoin=ctx.lineCap='round';ctx.strokeStyle='#fbf6e3';
+      if(focus){ctx.globalAlpha=.7;ctx.lineWidth=7/z;}else{ctx.globalAlpha=.5*fade;ctx.lineWidth=5/z;}ctx.stroke(drawing);
+      ctx.globalAlpha=(offline?.85:.95)*fade;ctx.strokeStyle=offline?'#d7725f':r.color||'#ce9d55';ctx.lineWidth=(focus?4:3)/z;if(offline)ctx.setLineDash([4/z,4/z]);ctx.stroke(drawing);
+      if(!offline&&r.cargo!=='passengers'){ctx.globalAlpha=.8*fade;ctx.setLineDash([2/z,12/z]);ctx.lineDashOffset=-(game.day||0)*14/z;ctx.strokeStyle='#fffbe8';ctx.lineWidth=(focus?2:1.5)/z;ctx.stroke(drawing);}
+      ctx.restore();
+    }
+    const routeKey=`${x0},${y0},${x1},${y1}`;highlightedRoute=view.highlightRoute??null;const focusRoute=highlightedRoute===null?null:routesById.get(highlightedRoute)||null;
+    if(showRoutes)for(const r of game.routes||[])if(r.path?.length){const cached=routeDrawing(r,routeKey);if(cached.count)strokeRoute(r,cached.drawing,focusRoute&&r!==focusRoute?.35:1);}
     if(layers.vehicles)for(const v of frameVehicles){const route=routesById.get(v.routeId);if(route?.mode==='water'&&visible(v.x,v.y))ship(v,route);}
     drawScene({x0,y0,x1,y1},routesById);
     ctx.save();
     function surfacePath(points){ctx.beginPath();points.forEach(([u,v],i)=>{const p=projectGround(game,u,v);i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y);});ctx.closePath();}
     function ring(x,y,radius){surfacePath(Array.from({length:80},(_,i)=>[x+.5+Math.cos(i/80*TAU)*radius,y+.5+Math.sin(i/80*TAU)*radius]));}
+    // A highlighted route is restroked above the scenery, even with the routes layer off, and rings both of its stops.
+    if(focusRoute?.path?.length){const cached=routeDrawing(focusRoute,routeKey);if(cached.count)strokeRoute(focusRoute,cached.drawing,1,true);for(const id of focusRoute.stops||[]){const s=(game.stations||[]).find(st=>st.id===id);if(!s)continue;ring(s.x,s.y,21/TILE);ctx.strokeStyle='#fbf6e3b3';ctx.lineWidth=5/camera.zoom;ctx.stroke();ctx.strokeStyle=focusRoute.active===false?'#d7725f':focusRoute.color||'#ce9d55';ctx.lineWidth=2.5/camera.zoom;ctx.stroke();}}
     function highlight(p,color,filled=true,span=1){
       if(!p||p.x<0||p.y<0||p.x>=game.width||p.y>=game.height)return;
       const points=[],inset=.035,edge=span-inset*2;
@@ -866,6 +881,8 @@ export function createRenderer(canvas, initialGame, options={}) {
     }
     for(const ind of game.industries||[]){if((!layers.names&&!layers.industryIcons)||!visible(ind.x,ind.y,180*camera.zoom))continue;const marker=industryMarker(ind),kind=Object.keys(INDUSTRIES[ind.kind]?.outputs||{})[0]||'goods',hovered=hover&&industryContains(ind,hover.x,hover.y),chosen=selected&&industryContains(ind,selected.x,selected.y),label=layers.names&&(hovered||chosen)?ind.name||titleCase(ind.kind):null;if(layers.industryIcons)resourceMarker(marker.x,marker.y,kind,marker.size,label);else if(label)pill(marker.x,marker.y,label,{size:12,h:28,fill:'#f7f4e7f5',color:'#3e5547',radius:5});}
     if(layers.stations)for(const st of game.stations||[]){if(!visible(st.x,st.y))continue;const marker=stationMarker(st),mx=marker.x,my=marker.y;ctx.fillStyle=st.mode==='water'?'#376e7e':st.mode==='rail'?'#3f655a':'#516d53';roundRect(ctx,mx,my,14,14,3);ctx.fill();if(st.mode==='water'){ctx.strokeStyle='#f0eacb';ctx.lineWidth=1.1;ctx.beginPath();ctx.arc(mx+7,my+3.5,1.2,0,TAU);ctx.stroke();line(ctx,[[mx+7,my+4.7],[mx+7,my+11]],'#f0eacb',1.1);line(ctx,[[mx+4,my+6],[mx+10,my+6]],'#f0eacb',1.1);ctx.beginPath();ctx.moveTo(mx+3,my+8);ctx.quadraticCurveTo(mx+3,my+11,mx+7,my+11);ctx.quadraticCurveTo(mx+11,my+11,mx+11,my+8);ctx.stroke();}else{ctx.fillStyle='#f0eacb';ctx.font='bold 9px Space, system-ui, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(st.mode==='rail'?'T':'B',mx+7,my+7.2);}}
+    // An offline route pins its first gap, so the fix is found on the map rather than in a toast.
+    routeBreaks=0;for(const r of game.routes||[])if(r.active===false&&r.path?.length&&(showRoutes||r===focusRoute)){const at=routeBreak(r);if(!at||!visible(at.x,at.y))continue;const p=worldToScreen(at.x,at.y);routeBreaks++;dot(ctx,p.x,p.y,6,'#fbf6e3');dot(ctx,p.x,p.y,4,'#d7725f');pill(p.x,p.y-24,'Connection broken',{size:11,h:23,fill:'#f5e7dfef',color:'#934f3f'});}
     if(layers.vehicles&&layers.vehicleLoads)for(const v of frameVehicles)vehicleLoadIndicator(v,routesById.get(v.routeId));
     if(layers.deliveries&&view.floaters?.length)drawFloaters(view.floaters,now);
     // Extremely light edge shade holds the terrain together without dimming the playfield.
@@ -911,7 +928,7 @@ export function createRenderer(canvas, initialGame, options={}) {
         const path=new Path2D();r.path.forEach((p,i)=>i?path.lineTo((p.x+.5)*sx,(p.y+.5)*sy):path.moveTo((p.x+.5)*sx,(p.y+.5)*sy));
         entry={path:r.path,length:r.path.length,sx,sy,drawing:path};minimapRoutePaths.set(r,entry);
       }
-      c.strokeStyle=r.color||'#e4c38c';c.lineWidth=1.4;c.stroke(entry.drawing);
+      const offline=r.active===false;c.strokeStyle=offline?'#d7725f':r.color||'#e4c38c';c.lineWidth=1.4;if(offline)c.setLineDash([3,2]);c.stroke(entry.drawing);if(offline)c.setLineDash([]);
     }
     if(layers.industryIcons){c.fillStyle='#d9ba7d';for(const ind of game.industries||[])c.fillRect((ind.x+.5)*sx-1,(ind.y+.5)*sy-1,2,2);}
     if(layers.buildings)for(const city of game.cities||[])dot(c,(city.x+.5)*sx,(city.y+.5)*sy,2.5,'#f7f2d8');
@@ -921,5 +938,5 @@ export function createRenderer(canvas, initialGame, options={}) {
 
   }
   resize();const first=game.cities?.[0];if(first)focus(first.x+4.5,first.y-4.5);else bounds();
-  return {setGame,setLayers,getLayers,render,resize,worldToScreen,gridPointToScreen,screenToVertex,stationMarker,industryMarker,cityLabels:()=>labelRects.map(rect=>({...rect})),screenToTile,screenToInspectTile,pan,zoomAt,setZoom,focus,getCamera:()=>({...camera}),drawMinimap,getStats:()=>({projection:'isometric',terrainGeometry:true,maxTerrainHeight:MAX_HEIGHT,heightStep:HEIGHT_STEP,tileWidth:TILE*2,tileHeight:TILE,chunkCount:chunks.size,composedChunks,sceneBuilds,sceneryBatches:{...sceneryBudget.stats(),enabled:sceneryBatching,builds:sceneryBatchBuilds,draws:sceneryBatchDraws,directDraws:sceneryDirectDraws,waitingForCamera:sceneryWaitingForCamera,pending:sceneryBatching&&sceneCache&&!sceneCache.batchPlanReady?1:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0))+(sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0),pendingGroups:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0)),pendingShadows:sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0,preparationMs:sceneryPreparationMs,preparationBudgetMs:sceneryPrepareBudgetMs},foundationBuilds,foundationCacheSize:foundations.size,routeSegmentsConsidered,routePathBuilds,visibleVehicleCandidates:frameVehicles.length,cacheBytes,cacheLimit,cacheMax:CACHE_MAX,chunkTiles:CHUNK_TILES,rasterScale,pixelScale:rasterScale,detailLevel,view:ZOOM_VIEWS.find(view=>view.zoom===camera.zoom).name,devicePixelRatio:dpr,dpr,maxSurfaceWidth:largestSurface,maxSurfaceHeight:largestSurface,minimapWidth:minimapLayer.width,minimapHeight:minimapLayer.height,minimapMaxEdge:MINIMAP_EDGE,minimapWorldWidth:game.width,minimapWorldHeight:game.height,minimapTerrainSamples,minimapNetworkScans,minimapNetworkBytes:minimapNetwork?.bytes||0,vehicleIndicators:{...vehicleIndicatorCounts},preparedSprites:preparedSprites.getStats(),preparedTransport:preparedTransport.getStats(),vehicleSprites:vehicleSprites.getStats(),infrastructureSprites:infrastructureSprites.getStats(),preparedZooms:rasterBundles.size,loadBadgeCount:loadBadges.size,sprites:sprite?.getStats?.(),uprightSprites:uprightSprite?.getStats?.(),houseArtwork:getHouseAssetStats(game.biome),worldArtwork:worldArtStats(),treeShadows:treeShadowCacheStats(),weather:drawWeather.getStats(),lighting:drawLighting.getStats?.(),marine:marine?.getStats?.(),layers:getLayers()})};
+  return {setGame,setLayers,getLayers,render,resize,worldToScreen,gridPointToScreen,screenToVertex,stationMarker,industryMarker,cityLabels:()=>labelRects.map(rect=>({...rect})),screenToTile,screenToInspectTile,pan,zoomAt,setZoom,focus,getCamera:()=>({...camera}),drawMinimap,getStats:()=>({projection:'isometric',terrainGeometry:true,maxTerrainHeight:MAX_HEIGHT,heightStep:HEIGHT_STEP,tileWidth:TILE*2,tileHeight:TILE,chunkCount:chunks.size,composedChunks,sceneBuilds,sceneryBatches:{...sceneryBudget.stats(),enabled:sceneryBatching,builds:sceneryBatchBuilds,draws:sceneryBatchDraws,directDraws:sceneryDirectDraws,waitingForCamera:sceneryWaitingForCamera,pending:sceneryBatching&&sceneCache&&!sceneCache.batchPlanReady?1:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0))+(sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0),pendingGroups:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0)),pendingShadows:sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0,preparationMs:sceneryPreparationMs,preparationBudgetMs:sceneryPrepareBudgetMs},foundationBuilds,foundationCacheSize:foundations.size,routeSegmentsConsidered,routePathBuilds,routeBreaks,highlightRoute:highlightedRoute,visibleVehicleCandidates:frameVehicles.length,cacheBytes,cacheLimit,cacheMax:CACHE_MAX,chunkTiles:CHUNK_TILES,rasterScale,pixelScale:rasterScale,detailLevel,view:ZOOM_VIEWS.find(view=>view.zoom===camera.zoom).name,devicePixelRatio:dpr,dpr,maxSurfaceWidth:largestSurface,maxSurfaceHeight:largestSurface,minimapWidth:minimapLayer.width,minimapHeight:minimapLayer.height,minimapMaxEdge:MINIMAP_EDGE,minimapWorldWidth:game.width,minimapWorldHeight:game.height,minimapTerrainSamples,minimapNetworkScans,minimapNetworkBytes:minimapNetwork?.bytes||0,vehicleIndicators:{...vehicleIndicatorCounts},preparedSprites:preparedSprites.getStats(),preparedTransport:preparedTransport.getStats(),vehicleSprites:vehicleSprites.getStats(),infrastructureSprites:infrastructureSprites.getStats(),preparedZooms:rasterBundles.size,loadBadgeCount:loadBadges.size,sprites:sprite?.getStats?.(),uprightSprites:uprightSprite?.getStats?.(),houseArtwork:getHouseAssetStats(game.biome),worldArtwork:worldArtStats(),treeShadows:treeShadowCacheStats(),weather:drawWeather.getStats(),lighting:drawLighting.getStats?.(),marine:marine?.getStats?.(),layers:getLayers()})};
 }

@@ -4,6 +4,7 @@ import { townService, industryStatus, routeHealth, nextProject, stopSiteKind, fi
 import { build, buildPath, addRoute, tick, createGame } from '../model.js';
 import { industryContains, industryDistance } from '../industry-sites.js';
 import { emptyGame, line, advance, tileAt } from './helpers.mjs';
+import { routeBreakPoint, refreshRouteConnections } from '../model.js';
 
 const site = (id, kind, x, inventory = {}) => ({ id, kind, x, y: 12, inventory, capacity: 1 });
 const routeGame = () => ({
@@ -59,6 +60,23 @@ test('a working iron route beside large sites reads as running and names its car
   assert.equal(routeHealth(game,route).state,'running');
   const missing=routeHealth({...game,industries:game.industries.filter(site=>site.kind!=='iron-mine')},route);
   assert.equal(missing.label,'No producer');assert.doesNotMatch(missing.detail,/\ba iron/);assert.match(missing.detail,/producer of iron ore/);
+});
+
+test('a broken route names the first gap on its old path, using the pathfinder’s own rules', () => {
+  const game=emptyGame();
+  assert.equal(build(game,'iron-mine',20,40).ok,true);assert.equal(build(game,'steel-mill',60,40).ok,true);
+  assert.equal(buildPath(game,'road',line(24,56,41)).ok,true);
+  assert.equal(build(game,'bus-stop',26,41).ok,true);assert.equal(build(game,'bus-stop',55,41).ok,true);
+  assert.equal(addRoute(game,{mode:'road',stops:game.stations.map(stop=>stop.id),cargo:'iron'}).ok,true);
+  const route=game.routes[0];assert.equal(routeBreakPoint(game,route),null,'a running route has no break');
+  assert.equal(build(game,'bulldoze',40,41).ok,true);refreshRouteConnections(game);
+  assert.equal(route.active,false);assert.deepEqual(routeBreakPoint(game,route),{x:40,y:41,index:14},'the bulldozed tile is the break');
+  assert.equal(build(game,'bulldoze',30,41).ok,true);assert.deepEqual(routeBreakPoint(game,route),{x:30,y:41,index:4},'the first gap from the start stop wins');
+  assert.equal(build(game,'road',30,41).ok,true);assert.deepEqual(routeBreakPoint(game,route),{x:40,y:41,index:14},'the remaining gap is reported');
+  assert.equal(build(game,'road',40,41).ok,true);const middle=Math.floor(route.path.length/2);
+  assert.deepEqual(routeBreakPoint(game,route),{x:route.path[middle].x,y:41,index:middle},'an intact path awaiting its refresh falls back to the midpoint');
+  refreshRouteConnections(game);assert.equal(route.active,true);assert.equal(routeBreakPoint(game,route),null,'a repaired route is clear');
+  assert.equal(routeBreakPoint(game,{...route,active:false,path:[]}),null,'a route without a path has no pin');
 });
 
 test('a processing route points back to its missing input instead of recommending more vehicles', () => {

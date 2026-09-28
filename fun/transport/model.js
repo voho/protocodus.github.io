@@ -612,6 +612,15 @@ function updateRoutePath(game,route) {
   route.path=path;
 }
 export function refreshRouteConnections(game) { for(const route of game.routes)updateRoutePath(game,route); }
+// Where an offline route's last path first fails the pathfinder's own tile and edge rules; the midpoint when the gap is elsewhere.
+export function routeBreakPoint(game,route) {
+  const path=route?.path;if(!route||route.active!==false||!path?.length)return null;
+  for(let i=0;i<path.length;i++){
+    const p=path[i],t=tileAt(game,p.x,p.y),a=path[i-1];
+    if(!validNetwork(t,route.mode||'road')||a&&!networkEdgeAllowed(tileAt(game,a.x,a.y),t,p.x-a.x,p.y-a.y,route.mode||'road',game,a.x,a.y))return{x:p.x,y:p.y,index:i};
+  }
+  const middle=Math.floor(path.length/2);return{x:path[middle].x,y:path[middle].y,index:middle};
+}
 const movementCache=new WeakMap();
 function waterTraffic(game, point, cache) {
   if (!cache.waterRoutes) {

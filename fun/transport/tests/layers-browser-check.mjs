@@ -116,7 +116,8 @@ try {
   await resetStops();await page.locator('[data-pick-route="from"]').click();
   await page.mouse.click(stationPoints.badge.x,stationPoints.badge.y);
   assert.equal(await page.locator('#route-form [name="from"]').inputValue(),station.id,'a visible stop badge can select its stop beyond its tile');
-  await page.keyboard.press('Escape');await resetStops();
+  // Picking closed the Routes drawer; reopen it rather than racing its closing animation.
+  await page.keyboard.press('Escape');await page.evaluate(()=>transport.setView('routes'));await resetStops();
   await openLayers(page);await setLayer(page,'stations',false);await page.locator('[data-layers-close]').click();
   // The game menu that holds Layers closes the Routes drawer.
   if(!(await page.locator('[data-pick-route="from"]').isVisible()))await page.locator('.main-nav [data-view="routes"]').click();
