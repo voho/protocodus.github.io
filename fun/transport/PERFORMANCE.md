@@ -225,6 +225,24 @@ A Detail industry sprite is 576 × 624 pixels at DPR 2. Its mask costs about 2 m
 node fun/transport/tests/hover-pick-browser-check.mjs
 ```
 
+## Daily simulation step
+
+The day boundary (industries, settlements, ecology, maintenance) is the only heavy simulation step, and at 8× it recurs eight times a second. Its hottest helpers allocated on every sample. Weather lattice samples are now cached under a numeric id, and the seeded string key is only built for a sample not yet cached. The neighborhood survey behind `localEnvironment` and ecology fills one pooled window instead of a new `Map` per call. Site extents and ecology's terrain test compare directly instead of building arrays. Random keys are unchanged, so every outcome is identical.
+
+The benchmark ticks the same taiga world (seed 1847) one day at a time in one Node process, alternating with an immutable copy of the previous build, and skips the first 10 days. Values are daily-step medians in milliseconds over two runs:
+
+| World | Days | Before | After |
+| --- | ---: | ---: | ---: |
+| 512² | 150 | 5.0–5.8 | 4.3–5.0 |
+| 1024² | 80 | 15.6–16.6 | 13.5 |
+| 2048² | 40 | 29.9–32.1 | 24.8–28.0 |
+
+That is 1.15–1.23× faster. The full game state hashes identically after every run, and after 150 days on desert, tundra and zoned 512² worlds.
+
+```sh
+node --max-old-space-size=6144 fun/transport/tests/daily-step-benchmark.mjs --model=/absolute/baseline/fun/transport/model.js --size=1024 --days=80
+```
+
 ## Daily ecology revisions
 
 Every simulated day, ecology changes a few hundred tiles on a 512² map and bumps `game.revision`. The renderer used to discard every index, prepared strip, route path and height field, then fingerprint every visible chunk again, so an empty revision cost almost as much as a real one. `change-journal.js` now records exactly which cells each ecology day changed. A journaled day keeps the indexes, foundations, grid, route paths, height fields and night-light emitters, and fingerprints only chunks within three tiles of a change. Chunks whose terrain changed are still repainted, and scenery lists and strips are still rebuilt. Construction, settlement and industry revisions, or any gap in the journal, take the previous full path.

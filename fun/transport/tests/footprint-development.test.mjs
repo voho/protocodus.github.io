@@ -61,6 +61,19 @@ test('neighborhood effects count a large site once and reach its distant edge', 
   assert.equal(localEnvironment(game, 33, 21, 1).industries, 1);
 });
 
+test('consecutive neighborhood surveys never see the previous window’s sites', () => {
+  const game = emptyGame(), last = { x: game.width - 2, y: game.height - 2 };
+  assert.ok(placeBuildingSite(game, 'stadium', 20, 20)); assert.ok(placeBuildingSite(game, 'pub', 66, 66));
+  assert.ok(placeBuildingSite(game, 'school', 0, 0)); assert.ok(placeBuildingSite(game, 'school', last.x, last.y));
+  const corner = localEnvironment(game, 25, 25);
+  assert.equal(corner.buildings, 1, 'only the stadium’s far corner lies in the window');
+  assert.equal(localEnvironment(game, 65, 65).buildings, 1, 'the stadium does not linger in the next window');
+  assert.equal(localEnvironment(game, 90, 40).buildings, 0, 'nor does the pub');
+  assert.deepEqual(localEnvironment(game, 25, 25), corner);
+  assert.equal(localEnvironment(game, 1, 1).school, 1, 'a window past the top-left edge');
+  assert.equal(localEnvironment(game, last.x + 1, last.y + 1).school, 1, 'a window past the bottom-right edge');
+});
+
 test('ecology and earthworks preserve every child cell of a 3×3 landmark', () => {
   const game = emptyGame();
   assert.ok(placeBuildingSite(game, 'stadium', 20, 20));

@@ -216,3 +216,14 @@ test('weather varies slowly over place and time, and visual growth preserves rou
   assert.equal(game.maintenanceRevision, maintenanceRevision, 'nature does not trigger a full-map infrastructure recount');
   assert.equal(game.routes[0].path, path, 'unchanged networks retain their existing path instead of rerunning pathfinding');
 });
+
+test('weather samples do not depend on cache order, eviction or a fresh cache', () => {
+  const game = createGame({ size: 'regional', seed: 8314 }), fresh = structuredClone(game);
+  const points = [[20, 20], [-30, -50], [127.5, 95.25], [0, 0], [23.9, 24], [-1, 47]], days = [0, 5, 11, 12, 37];
+  const forward = days.flatMap(day => points.map(([x, y]) => weatherAt(game, x, y, day)));
+  const backward = days.slice().reverse().flatMap(day => points.slice().reverse().map(([x, y]) => weatherAt(fresh, x, y, day))).reverse();
+  assert.deepEqual(backward, forward);
+  // More lattice samples than the cache retains evict the first ones.
+  for (let gy = 0; gy < 132; gy++) for (let gx = 0; gx < 132; gx++) weatherAt(game, gx * 24, gy * 24, 0);
+  assert.deepEqual(points.map(([x, y]) => weatherAt(game, x, y, 0)), forward.slice(0, points.length));
+});

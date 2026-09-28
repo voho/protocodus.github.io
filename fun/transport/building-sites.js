@@ -3,7 +3,7 @@ import { releaseTerrainObjects } from './terrain-objects.js';
 
 // Extent belongs to the saved instance. A missing field is an old one-tile
 // building, even when today's catalog creates a larger version of its kind.
-export const siteSize = site => [1,2,3].includes(site?.footprint) ? site.footprint : 1;
+export const siteSize = site => site?.footprint === 2 || site?.footprint === 3 ? site.footprint : 1;
 export const buildingSize = siteSize;
 export const buildingFootprint = kind => BUILDINGS[kind]?.footprint || (['apartment','office','factory'].includes(kind)?2:1);
 export const siteContains = (site,x,y) => x>=site.x&&y>=site.y&&x<site.x+siteSize(site)&&y<site.y+siteSize(site);

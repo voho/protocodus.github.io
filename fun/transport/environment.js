@@ -36,22 +36,33 @@ function tileAt(game, x, y) {
   return x >= 0 && y >= 0 && x < game.width && y < game.height ? game.tiles[y * game.width + x] : null;
 }
 
+// Every survey shares one pooled window, cleared only once a site covers it.
+// A caller finishes reading one window before requesting the next; none nest
+// today, and a nested caller would need a window of its own.
+const windowSites = [];
+const buildingWindow = { left: 0, top: 0, width: 0, height: 0, any: false,
+  at(x, y) { return this.any && x >= this.left && y >= this.top && x - this.left < this.width && y - this.top < this.height ? windowSites[(y - this.top) * this.width + x - this.left] : undefined; } };
+
 // A bounded anchor scan resolves an entire neighborhood once, instead of
 // repeating nine backwards lookups for every covered cell. It never scans the
 // full map or stores occupancy in saved child tiles.
 function neighborhoodBuildings(game, left, top, right, bottom) {
-  const occupied = new Map();
+  const view = buildingWindow, width = right - left + 1, height = bottom - top + 1;
+  view.left = left; view.top = top; view.width = width; view.height = height; view.any = false;
   for (let y = Math.max(0, top - 2); y <= Math.min(game.height - 1, bottom); y++) {
     for (let x = Math.max(0, left - 2); x <= Math.min(game.width - 1, right); x++) {
       const building = game.tiles[y * game.width + x]?.building;
       if (!building) continue;
       const size = buildingSize(building), site = { x, y, building };
       for (let py = Math.max(top, y); py <= Math.min(bottom, y + size - 1); py++) {
-        for (let px = Math.max(left, x); px <= Math.min(right, x + size - 1); px++) occupied.set(py * game.width + px, site);
+        for (let px = Math.max(left, x); px <= Math.min(right, x + size - 1); px++) {
+          if (!view.any) { view.any = true; while (windowSites.length < width * height) windowSites.push(undefined); windowSites.fill(undefined, 0, width * height); }
+          windowSites[(py - top) * width + px - left] = site;
+        }
       }
     }
   }
-  return occupied;
+  return view;
 }
 
 function entityIndex(game) {
@@ -77,6 +88,22 @@ function entityIndex(game) {
   return cache;
 }
 
+// Lattice samples cache under a numeric id, below 2^30 while |xx| and |yy| stay
+// under 4096; the seeded string key is only built for a missing sample.
+function weatherSample(game, cache, xx, yy) {
+  const id = (xx + 4096) * 16384 + (yy + 4096);
+  let values = cache.samples.get(id);
+  if (!values) {
+    const key = `weather:${xx},${yy}`;
+    values = [randomAt(game, cache.front, key, 11), randomAt(game, cache.front + 1, key, 11)];
+    // A complete 2048² world's weather lattice fits; unusual callers remain
+    // bounded too. Only immutable seeded front values are retained.
+    if (cache.samples.size >= WEATHER_SAMPLE_LIMIT) cache.samples.delete(cache.samples.keys().next().value);
+    cache.samples.set(id, values);
+  }
+  return values[0] * (1 - cache.eased) + values[1] * cache.eased;
+}
+
 // Weather fronts cross 24-tile cells and evolve over twelve days. Seasonal
 // daylight, elevation and biome keep oases, highlands and lowlands distinct.
 export function weatherAt(game, x, y, day = game.day || 0) {
@@ -91,23 +118,10 @@ export function weatherAt(game, x, y, day = game.day || 0) {
     cache.eased = progress * progress * (3 - 2 * progress);
     cache.summer = Math.sin((wholeDay - 30) / 360 * Math.PI * 2);
   }
-  const eased = cache.eased;
   const gx = Math.floor(x / 24), gy = Math.floor(y / 24), fx = x / 24 - gx, fy = y / 24 - gy;
   const sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
-  const sample = (xx, yy) => {
-    const key = `weather:${xx},${yy}`;
-    let values = cache.samples.get(key);
-    if (!values) {
-      values = [randomAt(game, front, key, 11), randomAt(game, front + 1, key, 11)];
-      // A complete 2048² world's weather lattice fits; unusual callers remain
-      // bounded too. Only immutable seeded front values are retained.
-      if (cache.samples.size >= WEATHER_SAMPLE_LIMIT) cache.samples.delete(cache.samples.keys().next().value);
-      cache.samples.set(key, values);
-    }
-    return values[0] * (1 - eased) + values[1] * eased;
-  };
-  const north = sample(gx, gy) * (1 - sx) + sample(gx + 1, gy) * sx;
-  const south = sample(gx, gy + 1) * (1 - sx) + sample(gx + 1, gy + 1) * sx;
+  const north = weatherSample(game, cache, gx, gy) * (1 - sx) + weatherSample(game, cache, gx + 1, gy) * sx;
+  const south = weatherSample(game, cache, gx, gy + 1) * (1 - sx) + weatherSample(game, cache, gx + 1, gy + 1) * sx;
   const rain = north * (1 - sy) + south * sy;
   const summer = cache.summer;
   const elevation = tileAt(game, Math.floor(x), Math.floor(y))?.elevation || 0;
@@ -161,7 +175,7 @@ export function localEnvironment(game, x, y, radius = 3, footprint = 1, served =
     if (tile.terrain === 'water') env.water++;
     if (tile.terrain === 'forest') env.forest++;
     if (tile.terrain === 'rock' || tile.terrain === 'mountain') env.rocks++;
-    const site = buildings.get((y + dy) * game.width + x + dx), key = site && site.y * game.width + site.x;
+    const site = buildings.at(x + dx, y + dy), key = site && site.y * game.width + site.x;
     if (!tile.road && !tile.rail && !site) vegetation += tile.terrain === 'forest' ? 1 : tile.terrain === 'water' ? .7 : isPlantDetail(tile.detail) ? .7 : tile.terrain === 'grass' ? .4 : .12;
     const kind = site?.building.kind, group = BUILDINGS[kind]?.group;
     if (kind && !seenBuildings.has(key)) {
@@ -193,7 +207,7 @@ export function localEnvironment(game, x, y, radius = 3, footprint = 1, served =
   return env;
 }
 
-const eligible = (tile, index, entities) => tile && !tile.road && !tile.rail && !tile.bridge && !tile.tunnel && !tile.publicRoad && !tile.building && !tile.zone && !entities.occupied.has(index) && ['grass', 'sand', 'snow', 'forest'].includes(tile.terrain);
+const eligible = (tile, index, entities) => tile && !tile.road && !tile.rail && !tile.bridge && !tile.tunnel && !tile.publicRoad && !tile.building && !tile.zone && !entities.occupied.has(index) && (tile.terrain === 'grass' || tile.terrain === 'sand' || tile.terrain === 'snow' || tile.terrain === 'forest');
 function coprimeStride(length) {
   let stride = Math.min(65537, Math.max(1, length - 1));
   const gcd = (a, b) => { while (b) [a, b] = [b, a % b]; return a; };
@@ -217,7 +231,7 @@ export function stepEcology(game) {
     if (!eligible(tile, index, entities)) continue;
     const x = index % game.width, y = Math.floor(index / game.width);
     const buildings = neighborhoodBuildings(game, x - 1, y - 1, x + 1, y + 1);
-    if (buildings.has(index)) continue;
+    if (buildings.at(x, y)) continue;
     let forests = 0, water = 0, wetGround = 0, pressure = 0;
     const nearbySpecies = [];
     for (const [dx, dy] of NEIGHBORS) {
@@ -226,7 +240,7 @@ export function stepEcology(game) {
       if (near.terrain === 'forest' && near.detail !== 'deadwood') { forests++; if (species.includes(near.detail)) nearbySpecies.push(near.detail); }
       if (near.terrain === 'water') water++;
       if (near.detail === 'marsh' || near.detail === 'reeds' || near.detail === 'cotton-grass') wetGround++;
-      const nearBuilding = buildings.get((y + dy) * game.width + x + dx)?.building;
+      const nearBuilding = buildings.at(x + dx, y + dy)?.building;
       if (near.road || near.rail || nearBuilding) pressure += nearBuilding?.kind === 'factory' ? .22 : .07;
       const industry = entities.industriesAt.get((y + dy) * game.width + x + dx);
       if (industry) pressure += (emissions[industry.kind] ?? .65) * .3;

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { build, buildPath, constructionCost, restoreGame, validateGame, industryAt } from '../model.js';
-import { buildingAt, buildingSize, buildingFootprint, buildingTiles, buildingSiteProblem, placeBuildingSite } from '../building-sites.js';
+import { buildingAt, buildingSize, buildingFootprint, buildingTiles, buildingSiteProblem, placeBuildingSite, siteSize } from '../building-sites.js';
 import { industryFootprint, industrySize, industryTiles } from '../industry-sites.js';
 import { encodeGame } from '../save-codec.js';
 import { emptyGame, tileAt } from './helpers.mjs';
@@ -10,6 +10,11 @@ test('new site definitions and stored compact instances have distinct sizes',()=
   for(const [kind,size] of [['house-cheap-1',1],['house-normal-3',1],['pub',1],['school',2],['house-expensive-1',2],['service-bank',2],['stadium',3],['factory',2],['apartment',2],['office',2]])assert.equal(buildingFootprint(kind),size,kind);
   assert.equal(industryFootprint('oil-well'),2);assert.equal(industryFootprint('steel-mill'),3);
   assert.equal(buildingSize({kind:'stadium'}),1);assert.equal(industrySize({kind:'steel-mill'}),1);
+});
+
+test('a stored extent is one, two or three tiles and anything else is a one-tile site',()=>{
+  for(const [footprint,size] of [[1,1],[2,2],[3,3],[0,1],[4,1],[-2,1],[2.5,1],['2',1],[null,1],[undefined,1],[NaN,1]])assert.equal(siteSize({footprint}),size,String(footprint));
+  assert.equal(siteSize(null),1);assert.equal(siteSize(undefined),1);assert.equal(buildingSize({kind:'stadium',footprint:3}),3);
 });
 
 test('each 2×2 and 3×3 building is one charged site owned by its anchor',()=>{
