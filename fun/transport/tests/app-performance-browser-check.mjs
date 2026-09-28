@@ -87,6 +87,22 @@ try{
   times.sort((a,b)=>a-b);return{medianMs:times[Math.floor(times.length/2)],maxMs:times.at(-1)};
  });
  assert.ok(result.vastTools.medianMs<5,`setTool on a 2048 world takes ${result.vastTools.medianMs.toFixed(1)} ms`);
+ // Industries and Towns build one page of 40 cards on a vast world; a search or periodic refresh rebuilds only that page.
+ result.vastLists=await page.evaluate(()=>{
+  const time=action=>{const start=performance.now();action();return performance.now()-start;},median=times=>times.sort((a,b)=>a-b)[Math.floor(times.length/2)],open=[],refresh=[],towns=[];
+  for(let n=0;n<7;n++){
+   transport.setView('build');open.push(time(()=>transport.setView('industry')));
+   const search=document.querySelector('#entity-search');refresh.push(time(()=>search.dispatchEvent(new Event('input'))));
+   towns.push(time(()=>transport.setView('towns')));
+  }
+  const townCards=document.querySelectorAll('#entity-list [data-city]').length;transport.setView('industry');
+  return{openMs:median(open),refreshMs:median(refresh),townsMs:median(towns),sites:transport.game.industries.length,cards:document.querySelectorAll('#entity-list [data-industry]').length,portraits:document.querySelectorAll('#entity-list canvas').length,townCards};
+ });
+ assert.equal(result.vastLists.cards,40,'Industries builds one page of sites');
+ assert.equal(result.vastLists.portraits,40,'only the page draws portraits');
+ assert.equal(result.vastLists.townCards,40,'Towns builds one page of towns');
+ assert.ok(result.vastLists.openMs<25,`Industries opens on a 2048 world in ${result.vastLists.openMs.toFixed(1)} ms`);
+ assert.ok(result.vastLists.refreshMs<15,`an Industries refresh on a 2048 world takes ${result.vastLists.refreshMs.toFixed(1)} ms`);
  assert.deepEqual(errors,[]);result.errors=errors;
  if(process.env.TRANSPORT_PERFORMANCE_OUTPUT)await writeFile(process.env.TRANSPORT_PERFORMANCE_OUTPUT,JSON.stringify(result,null,2));
  console.log(JSON.stringify(result,null,2));

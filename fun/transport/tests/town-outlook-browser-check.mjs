@@ -70,10 +70,11 @@ try {
   // The towns list tags only the towns that grew; nothing is marked full.
   await page.evaluate(() => { document.querySelector('#inspector .tiny-button').click(); transport.setView('towns'); });
   await page.locator('#entity-list .entity-card').first().waitFor();
-  const tags = await page.locator('#entity-list .entity-card').evaluateAll(cards => cards.map(card => card.querySelector('.town-tag')?.textContent || ''));
-  const growing = await page.evaluate(() => transport.game.cities.map(town => town.popHistory && Math.floor(town.population) > town.popHistory[0] ? 'Growing' : ''));
-  assert.deepEqual(tags, growing.slice(0, tags.length));
-  assert.equal(tags[0], 'Growing', 'the served starter town');
+  // The list starts with the towns nearest the view, so each tag is read against its own town.
+  const tags = Object.fromEntries(await page.locator('#entity-list .entity-card').evaluateAll(cards => cards.map(card => [card.dataset.city, card.querySelector('.town-tag')?.textContent || ''])));
+  const growing = await page.evaluate(() => Object.fromEntries(transport.game.cities.map(town => [town.id, town.popHistory && Math.floor(town.population) > town.popHistory[0] ? 'Growing' : ''])));
+  assert.deepEqual(tags, Object.fromEntries(Object.keys(tags).map(id => [id, growing[id]])));
+  assert.equal(tags[await page.evaluate(() => transport.game.cities[0].id)], 'Growing', 'the served starter town');
   assert.equal(await page.locator('#entity-list').getByText(/^Full$/).count(), 0);
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${output}/towns-list.png` });

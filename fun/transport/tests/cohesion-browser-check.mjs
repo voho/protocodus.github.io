@@ -22,7 +22,9 @@ try {
  await page.screenshot({path:`${output}/first-cargo-project.png`});
  await page.locator('#inspector .tiny-button').click();
  await page.locator('[data-view="industry"]').click();
+ assert.equal(await page.locator('[data-industry]').count(),40,'Industries shows its 96 sites 40 to a page');
  await page.locator('#industry-kind').selectOption('steel-mill');
+ // Eight steel mills fit on one page, so the list holds every one.
  assert.equal(await page.locator('[data-industry]').count(),await page.evaluate(()=>transport.game.industries.filter(site=>site.kind==='steel-mill').length));
  assert.match(await page.locator('.site-status').first().innerText(),/Needs/);
  await page.locator('#entity-search').fill('no-such-site');

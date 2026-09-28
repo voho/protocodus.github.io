@@ -524,8 +524,9 @@ try {
   await page.locator('#industry-chain').click();
   await page.locator('.chains-explorer').waitFor({ state: 'visible' });
   await page.keyboard.press('Escape');
+  const foodSite = await page.evaluate(() => { const site = transport.game.industries.find(industry => industry.kind === 'food-plant'); transport.renderer.focus(site.x, site.y); return site; });
   await chooseView(page, 'industry');
-  const foodSite = await page.evaluate(() => transport.game.industries.find(industry => industry.kind === 'food-plant'));
+  assert.equal(await page.locator('#entity-list [data-industry]').first().getAttribute('data-industry'), foodSite.id, 'the site in the middle of the view heads the list');
   await page.locator(`[data-industry="${foodSite.id}"]`).click();
   assert.match(await page.locator('#inspector .industry-use').innerText(), /Towns/, 'town demand appears as an output consumer');
   const townTargets = await page.evaluate(foodSite => transport.game.cities.slice().sort((a,b) => Math.hypot(a.x-foodSite.x,a.y-foodSite.y)-Math.hypot(b.x-foodSite.x,b.y-foodSite.y)).slice(0,5).map(city=>city.id), foodSite);
@@ -533,6 +534,77 @@ try {
   assert.equal(await page.locator('#inspector [data-target-kind="city"]').count(), 5);
   await page.locator(`#inspector [data-target-id="${townTargets[0]}"]`).click();
   assert.equal(await page.locator('#inspector h3').textContent(), await page.evaluate(id => transport.game.cities.find(city => city.id === id).name, townTargets[0]), 'town destination opens town details rather than its colocated station');
+  await page.locator('#inspector .tiny-button').click();
+
+  // Industries and Towns list the places nearest the middle of the view first, 40 to a page, each with its distance and an industry's nearest town.
+  const nearestPlaces = () => page.evaluate(async () => {
+    const { industrySize } = await import('./industry-sites.js'), game = transport.game, camera = transport.renderer.getCamera(), x = camera.x / 32 - .5, y = camera.y / 32 - .5;
+    const centre = site => ({ x: site.x + (industrySize(site) - 1) / 2, y: site.y + (industrySize(site) - 1) / 2 }), squared = (a, b) => (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
+    const away = at => { const n = Math.round(Math.sqrt(squared(at, { x, y }))); return n < 1 ? 'Right here' : `${n.toLocaleString('en-US')} ${n === 1 ? 'tile' : 'tiles'} away`; };
+    const near = site => game.cities.reduce((best, city) => !best || squared(city, centre(site)) < squared(best, centre(site)) ? city : best, null);
+    const byDistance = (list, at) => list.map(item => ({ item, d: squared(at(item), { x, y }) })).sort((a, b) => a.d - b.d).map(({ item }) => item);
+    return {
+      towns: byDistance(game.cities, city => city).map(city => ({ id: city.id, place: away(city) })),
+      sites: byDistance(game.industries, centre).map(site => ({ id: site.id, place: `Near ${near(site).name} · ${away(centre(site))}` })),
+      kinds: Object.fromEntries(game.industries.map(site => [site.id, site.kind])),
+    };
+  });
+  const cards = selector => page.locator(`#entity-list ${selector}`).evaluateAll(nodes => nodes.map(node => ({ id: node.dataset.city || node.dataset.industry, place: node.querySelector('.entity-place').textContent })));
+  await page.evaluate(() => { const site = transport.game.industries.at(-1); transport.renderer.focus(site.x + 7, site.y - 5); });
+  let places = await nearestPlaces();
+  await chooseView(page, 'towns');
+  assert.deepEqual(await cards('[data-city]'), places.towns.slice(0, 40), 'Towns opens with the 40 towns nearest the view, each with its distance');
+  assert.equal(await page.locator('#entity-list .route-pagination span').first().textContent(), 'Page 1 of 2');
+  await page.locator('#entity-sort').selectOption('population');
+  const populous = await page.evaluate(() => transport.game.cities.reduce((best, city) => city.population > best.population ? city : best).id);
+  assert.equal(await page.locator('#entity-list [data-city]').first().getAttribute('data-city'), populous, 'Population puts the largest town first');
+  await page.locator('#entity-sort').selectOption('nearby');
+  await chooseView(page, 'industry');
+  assert.deepEqual(await cards('[data-industry]'), places.sites.slice(0, 40), 'Industries opens with the 40 sites nearest the view, near their closest town');
+  assert.equal(await page.locator('#entity-list .route-pagination span').first().textContent(), `Page 1 of ${Math.ceil(places.sites.length / 40)}`);
+  await page.locator('#entity-list [data-entity-page="next"]').first().click();
+  assert.deepEqual(await cards('[data-industry]'), places.sites.slice(40, 80), 'Next shows the following 40 sites');
+  // The periodic refresh keeps the page, its order and the scroll, even after the view moves.
+  await page.locator('#panel-content').evaluate(panel => { panel.scrollTop = 600; document.querySelector('#entity-list .entity-card').dataset.stale = 'yes'; });
+  await page.evaluate(() => { transport.renderer.focus(40, 40); transport.game.revision++; });
+  await page.waitForFunction(() => !document.querySelector('#entity-list [data-stale]'), undefined, { timeout: 10000 });
+  assert.deepEqual(await cards('[data-industry]'), places.sites.slice(40, 80), 'a refresh keeps the page and its order');
+  assert.equal(await page.locator('#panel-content').evaluate(panel => panel.scrollTop), 600, 'a refresh keeps the scroll position');
+  await page.locator('#entity-sort').selectOption('name');
+  assert.equal(await page.locator('#entity-list .route-pagination span').first().textContent(), `Page 1 of ${Math.ceil(places.sites.length / 40)}`, 'a new sort returns to the first page');
+  const names = await page.locator('#entity-list [data-industry] h3').allTextContents();
+  assert.deepEqual(names, names.slice().sort((a, b) => a.localeCompare(b, 'en-US')), 'Name sorts the sites alphabetically');
+  await page.locator('#entity-sort').selectOption('attention');
+  const order = ['full', 'backlog', 'waiting', 'producing'], states = await page.locator('#entity-list .site-status').evaluateAll(nodes => nodes.map(node => node.dataset.state));
+  assert.deepEqual(states, states.slice().sort((a, b) => order.indexOf(a) - order.indexOf(b)), 'Status puts the sites that need attention first');
+  assert.equal(states[0], 'waiting', 'factories without inputs lead a new world');
+  // A site whose status changes keeps its place until the list is sorted again.
+  const waiting = await page.locator('#entity-list [data-industry]').first().getAttribute('data-industry');
+  const stock = await page.evaluate(async id => { const { INDUSTRIES } = await import('./data.js'), site = transport.game.industries.find(industry => industry.id === id), before = { ...site.inventory }; for (const key of Object.keys(INDUSTRIES[site.kind].inputs)) site.inventory[key] = 10; document.querySelector('#entity-list .entity-card').dataset.stale = 'yes'; transport.game.revision++; return before; }, waiting);
+  await page.waitForFunction(() => !document.querySelector('#entity-list [data-stale]'), undefined, { timeout: 10000 });
+  assert.equal(await page.locator('#entity-list [data-industry]').first().getAttribute('data-industry'), waiting, 'a refresh never reorders the list');
+  assert.equal(await page.locator('#entity-list .site-status').first().getAttribute('data-state'), 'producing', 'a refresh updates the status in place');
+  await page.evaluate(({ id, stock }) => { transport.game.industries.find(industry => industry.id === id).inventory = stock; }, { id: waiting, stock });
+  await page.locator('#entity-sort').selectOption('nearby');
+  places = await nearestPlaces();
+  await page.locator('#industry-kind').selectOption('sawmill');
+  assert.deepEqual(await cards('[data-industry]'), places.sites.filter(site => places.kinds[site.id] === 'sawmill'), 'the type filter keeps the nearest-first order');
+  assert.equal(await page.locator('#entity-list .route-pagination').count(), 0, 'a short list has no pages');
+  await page.locator('#industry-kind').selectOption('all');
+  await page.locator('#entity-search').fill('timber');
+  const timber = await page.evaluate(async () => { const { INDUSTRIES } = await import('./data.js'); return Object.keys(INDUSTRIES).filter(kind => INDUSTRIES[kind].inputs.timber || INDUSTRIES[kind].outputs.timber); });
+  assert.deepEqual(await cards('[data-industry]'), places.sites.filter(site => timber.includes(places.kinds[site.id])).slice(0, 40), 'search matches cargo and keeps the nearest-first order');
+  await page.locator('#entity-search').fill('');
+  const first = page.locator('#entity-list [data-industry]').first(), listed = { id: await first.getAttribute('data-industry'), name: await first.locator('h3').textContent(), place: await first.locator('.entity-place').textContent() };
+  await first.click();
+  assert.equal(await page.locator('#inspector h3').textContent(), listed.name, 'a card locates and inspects its site');
+  const located = await page.evaluate(async () => {
+    const { industrySize } = await import('./industry-sites.js'), game = transport.game, camera = transport.renderer.getCamera(), x = camera.x / 32 - .5, y = camera.y / 32 - .5;
+    const site = game.industries.find(industry => x >= industry.x && y >= industry.y && x <= industry.x + industrySize(industry) - 1 && y <= industry.y + industrySize(industry) - 1);
+    return { id: site.id, town: game.cities.reduce((best, city) => !best || Math.hypot(city.x - x, city.y - y) < Math.hypot(best.x - x, best.y - y) ? city : best, null).name };
+  });
+  assert.equal(located.id, listed.id, 'the camera centres the listed site');
+  assert.ok(listed.place.startsWith(`Near ${located.town} · `), 'the card names the town nearest the located site');
   await page.locator('#inspector .tiny-button').click();
 
   // Selecting an industry arcs to the targets its inspector lists; pointing at a row picks out its arc and closing the card clears them.

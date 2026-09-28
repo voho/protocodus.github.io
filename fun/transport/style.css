@@ -330,3 +330,9 @@ body{font-size:13px}
  .company-routes.below .company-route-actions{grid-column:2}
  .company-loan-actions .button{flex:1 1 100%}
 }
+.entity-filters{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin:0 0 11px}
+.entity-filters .entity-search{margin:0}
+.entity-filters .entity-sort select{width:auto;max-width:10.5rem;font-size:13px}
+.entity-title{flex:1;min-width:0}
+.entity-card .entity-place{margin:3px 0 0;font-size:12px;line-height:1.35}
+.entity-place span{white-space:nowrap}

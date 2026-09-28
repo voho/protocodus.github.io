@@ -271,6 +271,7 @@ function setView(next) {
  cancelGesture();closeMapMenus();if(next!=='routes')cancelRoutePicking();
  if(cargoLens&&(cargoLens.game!==game||cargoLens.origin!=='chains'&&cargoLens.origin!==next))setCargoLens(null);
  if(next!=='build'&&tool!=='inspect'){tool='inspect';canvas.classList.remove('build-mode');}
+ if(next==='towns'||next==='industry')anchorEntities();
  view=next;$$('[data-mobile-view]').forEach(el=>el.classList.toggle('active',el.dataset.mobileView===next));
  $$('.nav-button[data-view]').forEach(el=>{el.classList.toggle('active',el.dataset.view===view);el.setAttribute('aria-current',el.dataset.view===view?'page':'false');});
  renderPanel();if(changedView)$('#panel-content').scrollTop=0;syncToolControls();if(compactUI){compactUI.openManagement();updateHud();}else if(window.innerWidth<=700&&!$('.sidebar').classList.contains('mobile-open'))mobileToggle.click();
@@ -444,9 +445,10 @@ function visibleRoutePage(routes) {
  routePage=Math.min(routePage,Math.max(0,Math.ceil(routes.length/ROUTES_PER_PAGE)-1));
  return routes.slice(routePage*ROUTES_PER_PAGE,(routePage+1)*ROUTES_PER_PAGE);
 }
+const pageControls = (label,key,page,pages) => pages>1?`<nav class="route-pagination" aria-label="${label}"><button class="small-button" data-${key}="previous" ${page===0?'disabled':''}>Previous</button><span>Page ${page+1} of ${pages}</span><button class="small-button" data-${key}="next" ${page===pages-1?'disabled':''}>Next</button></nav>`:'';
 function routePageCards(routes) {
  const visible=visibleRoutePage(routes),pages=Math.ceil(routes.length/ROUTES_PER_PAGE);
- const controls=pages>1?`<nav class="route-pagination" aria-label="Route pages"><button class="small-button" data-route-page="previous" ${routePage===0?'disabled':''}>Previous</button><span>Page ${routePage+1} of ${pages}</span><button class="small-button" data-route-page="next" ${routePage===pages-1?'disabled':''}>Next</button></nav>`:'';
+ const controls=pageControls('Route pages','route-page',routePage,pages);
  return controls+routeCards(visible)+controls;
 }
 // A card keeps three actions: Show, Edit and Retire. Its vehicle row offers an upgrade while a newer model exists.
@@ -755,22 +757,63 @@ function entityMatches(entity, query, extra='') {
  const text=[entity.name,extra].join(' ').toLocaleLowerCase();
  return query.toLocaleLowerCase().trim().split(/\s+/).every(word=>text.includes(word));
 }
+// Town and industry lists sort around the tile at the centre of the view, taken when the list opens or its
+// filter or sort changes, so the periodic refresh never reshuffles them. Only the visible page is built.
+const ENTITIES_PER_PAGE = 40, STATUS_RANK = {full:0,backlog:1,waiting:2,producing:3}, byName = new Intl.Collator('en-US').compare, nearTowns = new WeakMap();
+let entityPage = 0, entityAnchor = null;
+function anchorEntities() { const camera=renderer.getCamera();entityAnchor={x:camera.x/TILE-.5,y:camera.y/TILE-.5,ranks:new WeakMap()};entityPage=0; }
+const entitySort = () => entityFilters.sort?.[view]||'nearby';
+const siteCentre = site => ({x:site.x+(industrySize(site)-1)/2,y:site.y+(industrySize(site)-1)/2});
+const tilesAway = distance => { const n=Math.round(distance);return `<span>${n<1?'Right here':`${integer(n)} ${n===1?'tile':'tiles'} away`}</span>`; };
+// A site's nearest town holds until a town is founded or undone.
+function nearTown(site) {
+ let near=nearTowns.get(site);if(near?.cities===game.cities&&near.count===game.cities.length)return near.city;
+ const at=siteCentre(site);let best=Infinity;near={cities:game.cities,count:game.cities.length,city:null};
+ for(const city of game.cities){const d=(city.x-at.x)**2+(city.y-at.y)**2;if(d<best){best=d;near.city=city;}}
+ nearTowns.set(site,near);return near.city;
+}
+function entityRows() {
+ if(!entityAnchor)anchorEntities();
+ const towns=view==='towns',sort=entitySort(),{x,y,ranks}=entityAnchor,name=entity=>entity.name||INDUSTRIES[entity.kind]?.name||'';
+ const list=towns?game.cities.filter(city=>entityMatches(city,entityFilters.towns)):game.industries.filter(site=>(entityFilters.kind==='all'||site.kind===entityFilters.kind)&&entityMatches(site,entityFilters.industry,[INDUSTRIES[site.kind].name,...Object.keys(INDUSTRIES[site.kind].inputs),...Object.keys(INDUSTRIES[site.kind].outputs)].join(' ')));
+ // Status and population ranks are read once per anchor, so a card keeps its place while its figures update.
+ const rank=entity=>{if(!ranks.has(entity))ranks.set(entity,sort==='attention'?STATUS_RANK[industryStatus(entity).state]??4:sort==='population'?-entity.population:0);return ranks.get(entity);};
+ const rows=list.map(entity=>{const at=towns?entity:siteCentre(entity);return {entity,d:(at.x-x)**2+(at.y-y)**2,rank:rank(entity)};});
+ return rows.sort(sort==='name'?(a,b)=>byName(name(a.entity),name(b.entity))||a.d-b.d:(a,b)=>a.rank-b.rank||a.d-b.d);
+}
 function entityCards() {
- if(view==='towns')return game.cities.filter(city=>entityMatches(city,entityFilters.towns)).map(city=>`<button class="entity-card" data-city="${city.id}"><h3>${escapeHTML(city.name)}${icon('arrowup')}</h3><p>${cargoBadge('passengers',{count:Math.floor(city.population)})} <span>residents</span>${townGrowth(game,city)?.change>0?'<span class="town-tag">Growing</span>':''}</p><div class="entity-metric"><span>Transport</span><span>${townService(game,city).label}</span></div>${townNeedIcons(city)}</button>`).join('');
- return game.industries.filter(site=>(entityFilters.kind==='all'||site.kind===entityFilters.kind)&&entityMatches(site,entityFilters.industry,[INDUSTRIES[site.kind].name,...Object.keys(INDUSTRIES[site.kind].inputs),...Object.keys(INDUSTRIES[site.kind].outputs)].join(' '))).map(site=>{const def=INDUSTRIES[site.kind],status=industryStatus(site);return `<button class="entity-card" data-industry="${site.id}"><div class="entity-heading">${industryPortrait(site.kind)}<h3>${escapeHTML(site.name||def.name)}${icon('arrowup')}</h3></div>${cargoRecipe(def.inputs,def.outputs)}<p class="site-status" data-state="${status.state}">${escapeHTML(status.label)}</p><div class="entity-metric"><span>${integer(Object.values(site.inventory||{}).reduce((a,b)=>a+b,0))} stored</span><span>${Math.round((site.capacity||1)*100)}% capacity</span></div></button>`;}).join('');
+ const rows=entityRows(),pages=Math.ceil(rows.length/ENTITIES_PER_PAGE);entityPage=Math.min(entityPage,Math.max(0,pages-1));
+ const visible=rows.slice(entityPage*ENTITIES_PER_PAGE,(entityPage+1)*ENTITIES_PER_PAGE),controls=pageControls(view==='towns'?'Town pages':'Industry pages','entity-page',entityPage,pages);
+ if(!visible.length)return '';
+ if(view==='towns'){const active=new Set(game.routes.filter(route=>route.active).flatMap(route=>route.stops)),activeStops=game.stations.filter(stop=>active.has(stop.id));return controls+visible.map(({entity:city,d})=>`<button class="entity-card" data-city="${city.id}"><h3>${escapeHTML(city.name)}${icon('arrowup')}</h3><p class="entity-place">${tilesAway(Math.sqrt(d))}</p><p>${cargoBadge('passengers',{count:Math.floor(city.population)})} <span>residents</span>${townGrowth(game,city)?.change>0?'<span class="town-tag">Growing</span>':''}</p><div class="entity-metric"><span>Transport</span><span>${townService(game,city,activeStops).label}</span></div>${townNeedIcons(city)}</button>`).join('')+controls;}
+ return controls+visible.map(({entity:site,d})=>{const def=INDUSTRIES[site.kind],status=industryStatus(site),town=nearTown(site);return `<button class="entity-card" data-industry="${site.id}"><div class="entity-heading">${industryPortrait(site.kind)}<div class="entity-title"><h3>${escapeHTML(site.name||def.name)}${icon('arrowup')}</h3><p class="entity-place">${town?`Near ${escapeHTML(town.name)} · `:''}${tilesAway(Math.sqrt(d))}</p></div></div>${cargoRecipe(def.inputs,def.outputs)}<p class="site-status" data-state="${status.state}">${escapeHTML(status.label)}</p><div class="entity-metric"><span>${integer(Object.values(site.inventory||{}).reduce((a,b)=>a+b,0))} stored</span><span>${Math.round((site.capacity||1)*100)}% capacity</span></div></button>`;}).join('')+controls;
 }
 function entitySearch(label) {
  return `<label class="entity-search"><span class="sr-only">${label}</span><input id="entity-search" type="search" aria-label="${label}" placeholder="${label}" value="${escapeHTML(entityFilters[view])}"></label>`;
 }
-function townsPanel() { return `<div class="panel-heading"><h2>Towns</h2><span>${game.cities.length}</span></div>${entitySearch('Find a town')}<div id="entity-list">${entityCards()}</div><div class="section-divider"></div><button class="button button-primary full" data-tool="city">${icon('city')} Found town · ${compactMoney(priceFor(game,BUILD_COSTS.city))}</button><button class="text-button" data-action="development">Zone a neighborhood <span>↗</span></button>`; }
-function industryPanel() { return `<div class="panel-heading"><h2>Industries</h2><span>${game.industries.length} sites</span></div>${entitySearch('Find a site or cargo')}<label class="entity-search"><span class="sr-only">Industry type</span><select id="industry-kind" aria-label="Industry type"><option value="all">All industries</option>${Object.entries(INDUSTRIES).filter(([,def])=>def.biomes.includes(game.biome)).map(([key,def])=>`<option value="${key}" ${entityFilters.kind===key?'selected':''}>${escapeHTML(def.name)}</option>`).join('')}</select></label><div id="entity-list">${entityCards()}</div><div class="section-divider"></div><button class="button button-primary full" data-action="industry-build">${icon('factory')} Build industry</button><button class="text-button" data-action="chains">Production chains <span>↗</span></button>`; }
+function entitySorter() {
+ const noun=view==='towns'?'towns':'industries',sorts=view==='towns'?[['nearby','Nearest'],['population','Population'],['name','Name']]:[['nearby','Nearest'],['attention','Status'],['name','Name']];
+ return `<label class="entity-search entity-sort"><span class="sr-only">Sort ${noun}</span><select id="entity-sort" aria-label="Sort ${noun}" title="Sort ${noun}">${sorts.map(([key,name])=>`<option value="${key}" ${entitySort()===key?'selected':''}>${name}</option>`).join('')}</select></label>`;
+}
+function townsPanel() { return `<div class="panel-heading"><h2>Towns</h2><span>${game.cities.length}</span></div><div class="entity-filters">${entitySearch('Find a town')}${entitySorter()}</div><div id="entity-list">${entityCards()}</div><div class="section-divider"></div><button class="button button-primary full" data-tool="city">${icon('city')} Found town · ${compactMoney(priceFor(game,BUILD_COSTS.city))}</button><button class="text-button" data-action="development">Zone a neighborhood <span>↗</span></button>`; }
+function industryPanel() { return `<div class="panel-heading"><h2>Industries</h2><span>${game.industries.length} sites</span></div><div class="entity-filters">${entitySearch('Find a site or cargo')}${entitySorter()}</div><label class="entity-search"><span class="sr-only">Industry type</span><select id="industry-kind" aria-label="Industry type"><option value="all">All industries</option>${Object.entries(INDUSTRIES).filter(([,def])=>def.biomes.includes(game.biome)).map(([key,def])=>`<option value="${key}" ${entityFilters.kind===key?'selected':''}>${escapeHTML(def.name)}</option>`).join('')}</select></label><div id="entity-list">${entityCards()}</div><div class="section-divider"></div><button class="button button-primary full" data-action="industry-build">${icon('factory')} Build industry</button><button class="text-button" data-action="chains">Production chains <span>↗</span></button>`; }
 function bindEntityCards(root) {
  root.querySelectorAll('[data-city]').forEach(el=>el.addEventListener('click',e=>{const city=game.cities.find(c=>String(c.id)===el.dataset.city);setTool('inspect');renderer.focus(city.x,city.y);inspect(city.x,city.y,'city',e.detail===0?'keyboard':'');closeMobile();}));
  root.querySelectorAll('[data-industry]').forEach(el=>el.addEventListener('click',e=>locateIndustry(el.dataset.industry,e.detail===0?'keyboard':'')));
+ // A pointer page turn lets focus go with the old buttons, so the periodic refresh keeps running; a keyboard one keeps its place.
+ root.querySelectorAll('[data-entity-page]').forEach(button=>button.addEventListener('click',e=>{
+  const direction=button.dataset.entityPage;entityPage+=direction==='next'?1:-1;refreshEntities();
+  $('#entity-list').scrollIntoView({block:'start'});
+  if(e.detail===0)($(`#entity-list [data-entity-page="${direction}"]:not(:disabled)`)||$('#entity-list [data-entity-page]:not(:disabled)'))?.focus({preventScroll:true});
+ }));
 }
 function refreshEntities() {
- const list=$('#entity-list');if(!list)return;
- list.innerHTML=entityCards()||'<p class="empty-state">No matches. Try another name or cargo.</p>';bindEntityCards(list);drawPaletteSprites(list);
+ const list=$('#entity-list');if(!list)return;const panel=$('#panel-content'),scroll=panel.scrollTop,drawn=new Map();
+ // Drawn portraits move into the new cards of the same industry, so a refresh repaints only the ones it lacks.
+ for(const art of list.querySelectorAll('[data-industry-sprite]'))drawn.set(art.dataset.industrySprite,[...drawn.get(art.dataset.industrySprite)||[],art]);
+ list.innerHTML=entityCards()||'<p class="empty-state">No matches. Try another name or cargo.</p>';
+ for(const art of list.querySelectorAll('[data-industry-sprite]')){const old=drawn.get(art.dataset.industrySprite)?.pop();if(old)art.replaceWith(old);}
+ bindEntityCards(list);drawPaletteSprites(list);panel.scrollTop=scroll;
 }
 function renderPanel() {
  const panel=$('#panel-content'), scroll=panel.scrollTop;
@@ -789,8 +832,9 @@ function renderPanel() {
  panel.querySelectorAll('[data-category]').forEach(el=>el.addEventListener('click',()=>{category=el.dataset.category;renderPanel();$('#panel-content').scrollTop=0;}));
  panel.querySelectorAll('[data-action]').forEach(el=>el.addEventListener('click',()=>{const a=el.dataset.action;if(a==='help')openHelp();if(a==='chains')openChains();if(a==='development'||a==='industry-build'){category=a==='development'?'towns':'industry';setView('build');}}));
  bindEntityCards(panel);
- if($('#entity-search'))$('#entity-search').oninput=e=>{entityFilters[view]=e.target.value;refreshEntities();};
- if($('#industry-kind'))$('#industry-kind').onchange=e=>{entityFilters.kind=e.target.value;refreshEntities();if(e.target.value==='all')dropCargoLens('industry');else setCargoLens(lensCargo(e.target.value),'industry');};
+ if($('#entity-search'))$('#entity-search').oninput=e=>{entityFilters[view]=e.target.value;anchorEntities();refreshEntities();};
+ if($('#entity-sort'))$('#entity-sort').onchange=e=>{entityFilters.sort={...entityFilters.sort,[view]:e.target.value};anchorEntities();refreshEntities();};
+ if($('#industry-kind'))$('#industry-kind').onchange=e=>{entityFilters.kind=e.target.value;anchorEntities();refreshEntities();if(e.target.value==='all')dropCargoLens('industry');else setCargoLens(lensCargo(e.target.value),'industry');};
  panel.querySelectorAll('[data-project-action]').forEach(button=>button.onclick=()=>runProjectAction(button.dataset.projectAction,button.dataset.projectTarget,{tool:button.dataset.projectTool}));
  panel.querySelectorAll('[data-goal-show]').forEach(button=>button.onclick=()=>{storeGoalFolded(false);goalOpen=true;if(!mapLayers.goal)setMapLayers({goal:true});if(window.innerWidth<=1100)closeMobile();renderGoal();});
  bindRouteCards(panel);
