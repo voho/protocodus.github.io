@@ -100,6 +100,8 @@ Layer settings change the view while the transport network and hidden structures
 
 Right-click during a drag cancels it and keeps the tool, and so does the first Escape; press Escape again to finish the tool. A road, track, zone or earthwork dragged past the map edge stops at the edge instead of being discarded.
 
+The map plays from the keyboard too. Tab to the map and press **Enter**: a tile cursor framed in orange appears in the middle of the view. Arrow keys move it one tile along the diamond grid: Right and Left follow a row down-right and up-left, Down and Up a column down-left and up-right. The map scrolls to keep the cursor in view; Shift with an arrow moves the map instead. Press Enter again to inspect the place under the cursor, place a stop, port or building there, or pick it as a route's start or end stop. With Road, Rail, a bridge or tunnel, zones, earthworks or the Bulldozer, Enter starts a line at the cursor, including the Enter that first shows it; move to the far end, check the same preview and quote a drag shows, and press Enter to build. Nothing is spent before that second Enter. Escape steps back one stage at a time: it drops a started line, then hides the cursor, then finishes the tool. An inspect moves focus to the inspector's heading, and Escape there returns to the map with the cursor where it was. A cursor left off screen by Shift-arrows, **H** or the atlas comes back to the middle of the view on the next arrow or Enter. Moving the mouse over the map or touching it hands control back to the pointer. A moment after the cursor settles, screen readers hear its tile, the place, the tool and its cost or problem.
+
 | Key | Action |
 | --- | --- |
 | R / T / S | Road / rail / automatic stop |
@@ -108,11 +110,13 @@ Right-click during a drag cancels it and keeps the tool, and so does the first E
 | [ / ] / E | Lower / raise / level land |
 | X | Bulldozer |
 | 1 / 2 / 3 | Residential / commercial / industrial zoning |
-| Escape | Cancel the stroke, then finish the tool; in Explore, clear a cargo highlight |
+| Escape | Cancel the stroke or keyboard line, then hide the tile cursor, then finish the tool; in Explore, clear a cargo highlight |
 | Right-click | Finish the current tool; during a drag, cancel the stroke |
 | Space | Tap to pause or resume; hold while dragging to pan |
 | Shift | Hold while dragging Road or Rail to keep the plain L instead of following the terrain |
-| Arrow keys | Pan the map |
+| Enter | On the map, show the tile cursor; then inspect, place, pick a stop, or start and finish a line under it |
+| Arrow keys | Move the tile cursor one tile along the grid; without the cursor, pan the map |
+| Shift + arrow keys | Pan the map |
 | + / − | Zoom in / out |
 | G / H / M / ? | Toggle grid / center on starting town / region atlas / field guide |
 | C | Production chains |
@@ -339,7 +343,7 @@ The nature check renders woodland contact sheets and wilderness views in each bi
 TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/nature-browser-check.mjs
 ```
 
-The controls check covers automatic crossings and stops, exact quotes (refused strokes that spend nothing, partial zone drags, stop coverage and route warnings in the tip, and pixel checks that only the offending tile turns red), drag cancellation, keyboard activation, compact menus, desktop controls, and real touch pan/pinch gestures at 390px and 320px:
+The controls check covers automatic crossings and stops, exact quotes (refused strokes that spend nothing, partial zone drags, stop coverage and route warnings in the tip, and pixel checks that only the offending tile turns red), drag cancellation, keyboard activation, the keyboard tile cursor (Tab to the map, then R, Enter, three Right arrows and Enter build four road tiles for their quote; S and Enter place a stop; Enter picks both route stops; Escape steps back; Enter on a town lands on the labelled inspector heading), compact menus, desktop controls, and real touch pan/pinch gestures at 390px and 320px:
 
 ```sh
 TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/controls-browser-check.mjs

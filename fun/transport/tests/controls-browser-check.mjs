@@ -364,6 +364,95 @@ async function constructionUndo() {
   await mobile.close();
 }
 
+// Keyboard play: Enter shows a tile cursor in the middle of the view, arrows step it along the grid,
+// Enter builds, picks or inspects under it, and Escape steps back one stage at a time.
+async function keyboardCursor() {
+  const page = await start({ width: 1440, height: 1000 }), site = await fixture(page), { x, y } = site.open;
+  await page.evaluate(() => { const r = transport.renderer, render = r.render; r.render = (now, state) => { window.cursorState = { hover: state.hover && { ...state.hover }, preview: state.preview.length }; return render(now, state); }; });
+  const drawn = () => page.evaluate(() => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(() => done(window.cursorState)))));
+  const cursor = (x, y, preview = 0) => ({ hover: { x, y, keyboard: true }, preview });
+  const spoken = pattern => page.waitForFunction(source => new RegExp(source).test(document.querySelector('#map-cursor-status').textContent), pattern.source).then(() => page.locator('#map-cursor-status').textContent());
+  const active = () => page.evaluate(() => document.activeElement?.id);
+  const toolBar = () => page.locator('#active-tool-bar').isVisible();
+  const stopAt = p => page.evaluate(p => transport.game.stations.find(s => s.x === p.x && s.y === p.y), p);
+  await page.evaluate(p => transport.renderer.focus(p.x, p.y), site.open);
+  for (let tabs = 0; await active() !== 'world' && tabs < 30; tabs++) await page.keyboard.press('Tab');
+  assert.equal(await active(), 'world', 'Tab reaches the map');
+  assert.match(await page.locator('#world').getAttribute('aria-label'), /Enter/, 'the map names its keyboard controls');
+
+  await page.keyboard.press('r'); await page.keyboard.press('Enter');
+  assert.deepEqual(await drawn(), cursor(x, y, 1), 'Enter shows the cursor in the middle of the view and starts the road there');
+  for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowRight');
+  assert.deepEqual(await drawn(), cursor(x + 3, y, 4), 'each arrow steps one tile along the grid');
+  const tip = await page.locator('#placement-tip').innerText(), quote = Number(tip.match(/\$([\d,]+)/)[1].replaceAll(',', '')), money = await page.evaluate(() => transport.game.money);
+  assert.match(tip, /^Road · \$[\d,]+ · 4 tiles/, 'the tip quotes the keyboard stroke');
+  assert.match(await spoken(/4 tiles/), new RegExp(`^${x + 3}, ${y} · Open countryside · Road · \\$[\\d,]+ · 4 tiles`), 'the live region reads the tile, place, tool and cost');
+  await page.screenshot({ path: `${output}/desktop-keyboard-road.png` });
+  await page.keyboard.press('Enter');
+  assert.deepEqual(await page.evaluate(({ x, y }) => Array.from({ length: 4 }, (_, dx) => transport.game.tiles[y * transport.game.width + x + dx].road), site.open), [true, true, true, true], 'the second Enter builds four road tiles');
+  assert.equal(money - await page.evaluate(() => transport.game.money), quote, 'the keyboard build spends exactly the quote');
+  assert.deepEqual(await drawn(), cursor(x + 3, y), 'the cursor stays at the end of the new road');
+
+  await page.keyboard.press('s'); await page.keyboard.press('Enter');
+  assert.equal((await stopAt({ x: x + 3, y }))?.mode, 'road', 'S and Enter place a stop on the road under the cursor');
+  for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowLeft');
+  await page.keyboard.press('Enter');
+  const stops = [String((await stopAt({ x, y })).id), String((await stopAt({ x: x + 3, y })).id)];
+  await page.screenshot({ path: `${output}/desktop-keyboard-stop.png` });
+
+  await page.evaluate(() => transport.setView('routes'));
+  if (!await page.locator('#route-form').isVisible()) await page.locator('#new-route-button').click();
+  await page.locator('[data-pick-route="from"]').focus(); await page.keyboard.press('Enter');
+  await page.waitForFunction(() => document.activeElement?.id === 'world' && document.querySelector('#route-pick-banner'));
+  assert.deepEqual(await drawn(), cursor(x, y), 'the cursor waits on the last stop while picking');
+  await page.keyboard.press('Enter');
+  for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowRight');
+  assert.match(await spoken(/Enter picks/), /· Enter picks it as the end stop$/);
+  await page.keyboard.press('Enter');
+  await page.locator('#route-form').waitFor();
+  assert.deepEqual([await page.locator('#route-form [name=from]').inputValue(), await page.locator('#route-form [name=to]').inputValue()], stops, 'Enter picks the start and end stops under the cursor');
+  await page.waitForFunction(() => document.activeElement?.closest('#route-form'), undefined, { timeout: 2000 }).catch(() => {});
+  assert.ok(await page.evaluate(() => document.activeElement?.closest('#route-form')), 'the finished pick moves focus to the route form');
+
+  await page.locator('#world').focus(); await page.keyboard.press('r');
+  assert.deepEqual(await drawn(), cursor(x + 3, y), 'a tool key keeps the cursor');
+  await page.keyboard.press('Enter');
+  assert.deepEqual(await drawn(), cursor(x + 3, y, 1));
+  await page.keyboard.press('Escape');
+  assert.deepEqual(await drawn(), cursor(x + 3, y), 'the first Escape drops the line start');
+  await page.keyboard.press('Escape');
+  assert.deepEqual(await drawn(), { hover: null, preview: 0 }, 'the next Escape hides the cursor');
+  assert.equal(await toolBar(), true, 'and keeps the tool');
+  await page.keyboard.press('Escape');
+  assert.equal(await toolBar(), false, 'the last Escape finishes the tool');
+
+  const town = await page.evaluate(() => { const g = transport.game, c = g.cities.find(c => !g.stations.some(s => s.x === c.x && s.y === c.y)); transport.renderer.focus(c.x, c.y); return { x: c.x, y: c.y, name: c.name }; });
+  await page.keyboard.press('Enter');
+  assert.deepEqual(await drawn(), cursor(town.x, town.y), 'in Explore the first Enter only shows the cursor');
+  assert.equal(await page.locator('#inspector').isVisible(), false);
+  assert.equal(await spoken(/Explore$/), `${town.x}, ${town.y} · ${town.name} · Explore`);
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(() => document.activeElement?.id === 'inspector-title');
+  assert.match(await page.locator('#inspector').ariaSnapshot(), new RegExp(`^- region "${town.name}"`), 'Enter on a town inspects it and lands on the labelled heading');
+  await page.screenshot({ path: `${output}/desktop-keyboard-town.png` });
+  await page.keyboard.press('Escape');
+  assert.equal(await page.locator('#inspector').isVisible(), false);
+  assert.equal(await active(), 'world', 'Escape in the inspector returns to the map');
+  assert.deepEqual(await drawn(), cursor(town.x, town.y), 'with the cursor where it was');
+
+  const camera = await page.evaluate(() => transport.renderer.getCamera());
+  await page.keyboard.press('Shift+ArrowRight');
+  assert.notEqual(await page.evaluate(() => transport.renderer.getCamera().x), camera.x, 'Shift and an arrow pan the map');
+  assert.deepEqual(await drawn(), cursor(town.x, town.y), 'without moving the cursor');
+  await page.keyboard.press('ArrowDown');
+  assert.deepEqual(await drawn(), cursor(town.x, town.y + 1));
+  const [free] = await points(page, [site.open]);
+  await page.mouse.move(free.x, free.y); await page.mouse.move(free.x + 6, free.y + 3);
+  assert.equal((await drawn()).hover?.keyboard, undefined, 'moving the mouse over the map hands control back to the pointer');
+  assert.equal(await page.locator('#map-cursor-status').evaluate(el => el.getAttribute('aria-live')), 'polite');
+  await page.close();
+}
+
 async function menus(page) {
   assert.equal(await page.locator('#zoom-menu').isVisible(), false);
   assert.equal(await page.locator('#map-options').isVisible(), false);
@@ -487,6 +576,7 @@ try {
   await truthfulQuotes();
   await terrainRoutes();
   await constructionUndo();
+  await keyboardCursor();
   const page = await start({ width: 1440, height: 1000 });
   await page.locator('.main-nav [data-view="build"]').click(); await page.locator('.sidebar').waitFor({ state: 'visible' });
   assert.deepEqual(await page.locator('#panel-content > .tool-grid [data-tool]').evaluateAll(nodes => nodes.map(node => node.dataset.tool)), ['road', 'rail', 'stop', 'port', 'bulldoze'], 'five primary network tools stay visible; engineering choices are expandable');

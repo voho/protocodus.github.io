@@ -907,6 +907,9 @@ export function createRenderer(canvas, initialGame, options={}) {
     const earthwork=['raise','lower','level'].includes(tool),highlightPreview=(p,color)=>earthwork?highlightVertex(p,color):highlight(previewSite(p),color,tool!=='inspect',previewSpan(p));
     for(const p of preview||[])highlightPreview(p,previewColor(p,'#f2d88d'));
     if(hover)highlightPreview(hover,tool==='inspect'?'#f7efd3':previewColor(hover,'#f4d090'));
+    // The keyboard cursor frames its own tile, or grid point for earthworks, in the orange of the map's focus outline;
+    // the frame sits just outside the tile, so the preview colour inside still shows whether it can be built.
+    if(hover?.keyboard&&tile(hover.x,hover.y)){const {x,y}=hover,o=.09;if(earthwork){const c=projectGround(game,x,y);ctx.beginPath();ctx.arc(c.x,c.y,8/camera.zoom,0,TAU);}else surfacePath([[x-o,y-o],[x+1+o,y-o],[x+1+o,y+1+o],[x-o,y+1+o]]);ctx.lineJoin='round';ctx.strokeStyle='#fbf6e3';ctx.lineWidth=4.5/camera.zoom;ctx.stroke();ctx.strokeStyle='#e17b4a';ctx.lineWidth=2.25/camera.zoom;ctx.stroke();}
     if(refused)for(const issue of spanQuote.issues)if(issue.at)highlight(issue.at,'#d7725f',false);
     for(const stop of routeStops){const s=typeof stop==='object'?stop:(game.stations||[]).find(st=>st.id===stop);if(s){ctx.strokeStyle='#f4d397';ctx.lineWidth=2/camera.zoom;ring(s.x,s.y,21/TILE);ctx.stroke();}}
     ctx.restore();ctx.restore();

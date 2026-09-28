@@ -241,6 +241,7 @@ function setTool(next) {
  $('#inspector').hidden=true;canvas.classList.toggle('build-mode',tool!=='inspect');
  $('#status-message').textContent=toolDescription(tool);renderPanel();syncToolControls();
  closeMobile();canvas.focus({preventScroll:true});
+ if(keyOwned()){keyStart=null;showKeyCursor();}
 }
 function setView(next) {
  const changedView=view!==next;
@@ -1273,7 +1274,7 @@ function updatePlacementTip(e=updatePlacementTip.at) {
  const nature=tool==='bulldoze'&&n===1?terrainObjectAt(game,hover.x,hover.y):null;
  const siteSize=BUILDINGS[effective]?buildingFootprint(effective):INDUSTRIES[effective]?industryFootprint(effective):nature&&nature.object.kind!=='mountain'?terrainObjectSize(nature.object):0;
  const note=plan.ok===false?{text:''}:placementNote(effective,plan);
- const stroke=strokePlans.get(game),route=preview.length&&preview===stroke?.path?stroke.reason:null,terrain=route==='flipped'||route==='routed'?` · follows\u00a0terrain${e.pointerType==='touch'?'':' · Shift:\u00a0straight'}`:'';
+ const stroke=strokePlans.get(game),route=preview.length&&preview===stroke?.path?stroke.reason:null,terrain=route==='flipped'||route==='routed'?` · follows\u00a0terrain${['touch','keyboard'].includes(e.pointerType)?'':' · Shift:\u00a0straight'}`:'';
  tip.textContent=plan.ok===false?route==='too-far'?'No gentle route — level ground or drag in shorter segments':plan.message+terrain:`${name}${siteSize?' · '+siteSize+' × '+siteSize:''}${levels?' · '+levels:''} · ${money(plan.cost)}${plan.placements.length>1?' · '+plan.placements.length+(tool==='bulldoze'?' sites':terrainTools.has(tool)?' points':' tiles'):''}${plan.partial?' · '+plan.message:''}${note.text?' · '+note.text:''}${terrain}`;
  tip.classList.toggle('invalid',plan.ok===false);tip.classList.toggle('partial',plan.ok!==false&&Boolean(plan.partial));tip.classList.toggle('warning',Boolean(note.warning));
  const rect=canvas.getBoundingClientRect();tip.hidden=false;
@@ -1382,6 +1383,64 @@ $('#company-stats').addEventListener('keydown',e=>{if(e.key==='Escape'){$('#comp
 // A remembered sound choice resumes audio on the first tap; browsers keep it silent until a gesture.
 $('#audio-button').addEventListener('click',()=>{try{localStorage.setItem('transport-sound-v1',sounds?'on':'off');}catch{}});
 try{if(localStorage.getItem('transport-sound-v1')==='on'){sounds=true;$('#audio-button').innerHTML=icon('volume');$('#audio-button').setAttribute('aria-label','Disable sound');document.addEventListener('pointerdown',()=>{if(sounds)try{audioContext||=new (window.AudioContext||window.webkitAudioContext)();audioContext.resume();}catch{}},{once:true,capture:true});}}catch{}
+// Keyboard play: Enter puts a tile cursor in the middle of the view, arrows step it one tile along the grid and Enter acts under it.
+// It rides in hover (marked keyboard), so previews, quotes and the ring follow it; a pointer press or move hands control back.
+// A cursor left off screen returns to the middle rather than dragging the camera back, so nothing is built out of sight.
+const TERRAIN_NAMES={grass:'Open countryside',forest:'Woodland',water:'Water',mountain:'Mountain ridge',rock:'Rocky ground',sand:'Desert sands',snow:'Snowfield'};
+let keyCursor=null,keyStart=null,keyGame=null,keyTimer=0;
+const keyScreen=p=>terrainTools.has(tool)?renderer.gridPointToScreen(p.x,p.y):renderer.worldToScreen(p.x,p.y);
+const keyVisible=p=>{const at=keyScreen(p);return at.x>=0&&at.y>=0&&at.x<=canvas.clientWidth&&at.y<=canvas.clientHeight;};
+// A cursor belongs to its world, and to the map only until the pointer takes hover over.
+const keyOwned=()=>Boolean(keyCursor&&keyGame===game&&(!hover||hover===keyCursor));
+function setKeyCursor(p) { keyCursor={x:Math.max(0,Math.min(game.width-1,p.x)),y:Math.max(0,Math.min(game.height-1,p.y)),keyboard:true};keyGame=game; }
+function centreKeyCursor() { const box=canvas.getBoundingClientRect(),x=box.left+box.width/2,y=box.top+box.height/2;setKeyCursor(terrainTools.has(tool)?renderer.screenToVertex(x,y,{clamp:true}):renderer.screenToTile(x,y,{clamp:true})); }
+function dropKeyCursor() { if(!keyCursor)return;keyCursor=keyStart=null;if(hover?.keyboard)hover=null;preview=[];$('#placement-tip').hidden=true;clearTimeout(keyTimer); }
+function placeTitle(x,y) {
+ const t=tileAt(x,y),site=buildingAt(game,x,y),industry=game.industries.find(i=>industryContains(i,x,y));
+ return game.stations.find(s=>s.x===x&&s.y===y)?.name||(industry?industry.name||INDUSTRIES[industry.kind].name:'')||game.cities.find(c=>c.x===x&&c.y===y)?.name||(site?BUILDINGS[site.building.kind]?.name||'Neighborhood workshop':'')||(t.zone?TOOL_INFO[t.zone].name+' zone':t.road?'Road':t.rail?'Railway':TERRAIN_NAMES[t.terrain]||'Countryside');
+}
+// The live region reads '<x>, <y> · <place> · <tool> · <cost or problem>', taking the quote from the placement tip.
+function keyCursorText() {
+ const {x,y}=keyCursor,tip=$('#placement-tip'),name=TOOL_INFO[tool]?.name||BUILDINGS[tool]?.name||INDUSTRIES[tool]?.name||'Build',station=game.stations.find(s=>s.x===x&&s.y===y);
+ const action=isRoutePicking()?station?.mode===formDraft.mode?`Enter picks it as the ${routePicking==='from'?'start':'end'} stop`:`Choose a ${stopName(formDraft.mode)}`:tool==='inspect'||tip.hidden?name:tip.classList.contains('invalid')?`${name} · ${tip.textContent}`:tip.textContent;
+ return `${x}, ${y} · ${placeTitle(x,y)} · ${action}`;
+}
+function showKeyCursor(announce=true) {
+ if(!lineTools.has(tool)||isRoutePicking())keyStart=null;
+ hover=keyCursor;preview=keyStart?constructionLine(keyStart,keyCursor,tool):[];
+ const box=canvas.getBoundingClientRect(),at=keyScreen(keyCursor),shown=keyVisible(keyCursor);$('#tile-coordinates').textContent=`${keyCursor.x}, ${keyCursor.y} · ${BIOMES[game.biome].name}`;
+ if(document.activeElement===canvas&&shown)updatePlacementTip({clientX:box.left+at.x,clientY:box.top+at.y,pointerType:'keyboard'});else $('#placement-tip').hidden=true;
+ if(announce&&shown){clearTimeout(keyTimer);keyTimer=setTimeout(()=>{if(keyCursor&&keyGame===game)$('#map-cursor-status').textContent=keyCursorText();},400);}
+}
+function keyCursorKey(e) {
+ if(e.target!==canvas||e.ctrlKey||e.metaKey||e.altKey||pointer||touchGesture)return false;
+ if(!keyOwned())keyCursor=keyStart=null;
+ const step={ArrowRight:[1,0],ArrowLeft:[-1,0],ArrowDown:[0,1],ArrowUp:[0,-1]}[e.key];
+ if(e.key==='Escape'&&keyCursor){if(!e.repeat){if(keyStart){keyStart=null;showKeyCursor();}else dropKeyCursor();}return true;}
+ if(step&&keyCursor&&!e.shiftKey){
+  if(!keyVisible(keyCursor))centreKeyCursor();
+  else{setKeyCursor({x:keyCursor.x+step[0],y:keyCursor.y+step[1]});const at=keyScreen(keyCursor),w=canvas.clientWidth,h=canvas.clientHeight;renderer.pan(Math.max(0,w*.15-at.x)-Math.max(0,at.x-w*.85),Math.max(0,h*.15-at.y)-Math.max(0,at.y-h*.85));}
+  showKeyCursor();return true;
+ }
+ if(e.key!=='Enter')return false;
+ if(e.repeat)return true;
+ // The first Enter only shows the cursor, except that a line tool starts there: nothing is spent until a later Enter.
+ if(!keyCursor||!keyVisible(keyCursor)){centreKeyCursor();if(lineTools.has(tool)&&!isRoutePicking()&&!keyStart)keyStart={x:keyCursor.x,y:keyCursor.y};showKeyCursor();return true;}
+ if(hover!==keyCursor){showKeyCursor();return true;}
+ const {x,y}=keyCursor;
+ // A finished pick hands focus to the route form once the drawer has slid in far enough to take it.
+ if(isRoutePicking()){pickRouteStopAt(x,y);if(isRoutePicking()){showKeyCursor();return true;}const next=['#add-route-vehicle','#route-form [type=submit]'].map(s=>$(s+':not(:disabled)')).find(Boolean)||$('#route-form [data-pick-route="to"]');next?.focus({preventScroll:true});if(next&&document.activeElement!==next)$('.sidebar').addEventListener('transitionend',()=>next.focus({preventScroll:true}),{once:true});return true;}
+ if(tool==='inspect'){inspect(x,y,'','keyboard');return true;}
+ if(lineTools.has(tool)&&!keyStart){keyStart={x,y};showKeyCursor();return true;}
+ const points=keyStart?constructionLine(keyStart,keyCursor,tool):[{x,y}];keyStart=null;paintPath(points);showKeyCursor(false);return true;
+}
+canvas.addEventListener('pointerdown',()=>dropKeyCursor(),true);
+canvas.addEventListener('pointermove',e=>{if(e.movementX||e.movementY)dropKeyCursor();},true);
+canvas.addEventListener('focus',()=>{if(keyOwned())showKeyCursor();});
+canvas.addEventListener('blur',()=>{if(hover?.keyboard)$('#placement-tip').hidden=true;});
+// Keys and the wheel can move the camera under the cursor; its tip follows once they are done.
+document.addEventListener('keyup',()=>{if(keyCursor&&hover===keyCursor&&document.activeElement===canvas)showKeyCursor(false);});
+canvas.addEventListener('wheel',()=>{if(keyCursor&&hover===keyCursor)showKeyCursor(false);},{passive:true});
 let spaceStarted=0;
 // Mouse clicks leave focus on HUD buttons; Space should still pause rather than click them again.
 let pointerFocus=null,spaceConsumed=false;
@@ -1392,6 +1451,7 @@ document.addEventListener('keydown',e=>{
  if(e.key==='Escape'&&(!$('#zoom-menu').hidden||!$('#map-options').hidden)){e.preventDefault();closeMapMenus(true);return;}
  if(e.key==='Escape'&&!$('#layers-panel').hidden){e.preventDefault();layersView?.close();return;}
  if(e.key.toLowerCase()==='s'&&(e.ctrlKey||e.metaKey)){e.preventDefault();if(!saveDialogController)openSaves();return;}
+ if(keyCursorKey(e)){e.preventDefault();return;}
  if(e.key==='Escape'&&isRoutePicking()){e.preventDefault();cancelRoutePicking();return;}
  if($('#modal').open||e.target.matches('input,select,textarea')||e.target.closest('#layers-panel, #layers-button'))return;
  if((e.ctrlKey||e.metaKey)&&!e.altKey&&!e.shiftKey&&e.key.toLowerCase()==='z'){e.preventDefault();if(!pointer)undoBuild();return;}

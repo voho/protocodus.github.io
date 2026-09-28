@@ -65,7 +65,8 @@
       </aside>
 
       <section class="map-section" aria-label="World map">
-        <canvas id="world" tabindex="0" aria-label="Transport world. Drag to explore, scroll to zoom. Select a construction tool and click or drag to build."></canvas>
+        <canvas id="world" tabindex="0" aria-label="Transport world. Drag to explore, scroll to zoom. Select a construction tool and click or drag to build. With the keyboard, press Enter for a tile cursor: arrow keys move it one tile, Shift with an arrow moves the map, Enter inspects, places or starts and ends a line, and Escape steps back."></canvas>
+        <div id="map-cursor-status" class="sr-only" aria-live="polite" aria-atomic="true"></div>
         <div class="map-topline"><div class="map-title"><span id="weather"><span data-icon="sun"></span> Local weather</span></div><div class="map-display-tools"><button id="layers-button" class="map-chip" aria-expanded="false" aria-controls="layers-panel" title="Map layers (L)"><span data-icon="layers"></span><span>Layers</span></button><button id="map-options-button" class="map-chip" aria-label="Map options" aria-expanded="false" aria-controls="map-options" title="Map options"><span class="map-more-symbol" aria-hidden="true">•••</span></button></div></div>
         <section id="layers-panel" aria-label="Map layers" hidden></section>
         <div id="map-options" class="map-popover" role="group" aria-label="Map options" hidden><button id="home-view" type="button" title="Return to starting town (H)"><span data-icon="focus"></span><span>Home town</span></button><button id="grid-button" type="button" aria-pressed="true" title="Toggle grid (G)"><span data-icon="grid"></span><span>Grid</span><span class="option-check" aria-hidden="true">✓</span></button><button id="routes-toggle" type="button" aria-pressed="true" title="Toggle route lines"><span data-icon="route"></span><span>Route lines</span><span class="option-check" aria-hidden="true">✓</span></button></div>
