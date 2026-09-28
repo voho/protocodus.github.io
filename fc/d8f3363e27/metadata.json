@@ -8,14 +8,10 @@
     "fun/transport/ARCHITECTURE.md",
     "fun/transport/README.md",
     "fun/transport/app.js",
-    "fun/transport/industry-targets.css",
     "fun/transport/model.js",
     "fun/transport/style.css",
-    "fun/transport/tests/construction-plan.test.mjs",
-    "fun/transport/tests/controls-browser-check.mjs",
     "fun/transport/tests/features-browser-check.mjs",
-    "fun/transport/tests/infrastructure.test.mjs",
-    "fun/transport/tests/resources-browser-check.mjs"
+    "fun/transport/tests/infrastructure.test.mjs"
   ],
   "sessions": [
     {

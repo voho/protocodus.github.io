@@ -3,18 +3,17 @@
   "checkpoint_id": "fcd8f3363e27",
   "session_id": "bfe2e96d-781f-430d-ac77-c700dcb1b278",
   "strategy": "manual-commit",
-  "created_at": "2026-09-28T15:18:07.840859Z",
+  "created_at": "2026-09-28T15:19:04.808561Z",
   "branch": "transport-playability",
   "checkpoints_count": 0,
   "files_touched": [
-    "fun/transport/app.js",
-    "fun/transport/industry-targets.css",
-    "fun/transport/model.js",
-    "fun/transport/tests/construction-plan.test.mjs",
-    "fun/transport/tests/controls-browser-check.mjs",
-    "fun/transport/tests/resources-browser-check.mjs",
     "fun/transport/ARCHITECTURE.md",
-    "fun/transport/README.md"
+    "fun/transport/README.md",
+    "fun/transport/app.js",
+    "fun/transport/model.js",
+    "fun/transport/style.css",
+    "fun/transport/tests/features-browser-check.mjs",
+    "fun/transport/tests/infrastructure.test.mjs"
   ],
   "agent": "Claude Code",
   "turn_id": "5fa5468dce41",
@@ -28,12 +27,12 @@
     "api_call_count": 118
   },
   "initial_attribution": {
-    "calculated_at": "2026-09-28T15:18:06.082183Z",
+    "calculated_at": "2026-09-28T15:19:02.779972Z",
     "agent_lines": 0,
-    "human_added": 160,
-    "human_modified": 8,
+    "human_added": 156,
+    "human_modified": 5,
     "human_removed": 0,
-    "total_committed": 160,
+    "total_committed": 156,
     "agent_percentage": 0
   },
   "transcript_path": ".claude/projects/-Users-vojta-Dev-protocodus-github-io/bfe2e96d-781f-430d-ac77-c700dcb1b278.jsonl"
