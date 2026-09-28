@@ -689,6 +689,7 @@ try {
       game.money=12345678;game.monthlyIncome=12345678;game.monthlyExpenses=0;return original;
     });
     await page.waitForFunction(() => document.querySelector('#balance').textContent.includes('M'));
+    assert.equal(await page.locator('#balance').textContent(), '$12.3M', 'the cached compact formatter keeps the HUD balance');
     assert.equal(await fits(page,'.topbar'),true,`${width}px header fits a wealthy company`);
     await page.locator('#company-stats').click();
     assert.equal(await page.locator('#balance-exact').textContent(),'$12,345,678','compact money retains its exact value in company details');

@@ -16,6 +16,7 @@ import { TILE } from './sprites.js';
 import { drainDeliveryEvents } from './model.js';
 import { renameStation, renameRoute } from './model.js';
 import { drawUIArtwork } from './ui-art.js';
+import { integerText, tenthsText, compactText, dayText, monthText, longDayText } from './formatters.js';
 import { BUILDINGS, BUILDING_GROUPS } from './buildings.js';
 import { ZOOM_LEVELS, ZOOM_VIEWS, zoomIndex } from './zoom.js';
 import { cargoIcon, cargoBadge, cargoRecipe } from './cargo-icons.js';
@@ -46,9 +47,9 @@ import { showLoading, updateLoading, hideLoading, isLoading, paintLoading } from
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const escapeHTML = (value) => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const integer = value => Math.floor(Number(value) || 0).toLocaleString('en-US');
+const integer = integerText;
 const money = value => '$' + integer(Math.abs(value));
-const compactMoney = value => value >= 1000 ? '$' + (value / 1000).toLocaleString('en-US', { maximumFractionDigits: 1 }) + 'k' : money(value);
+const compactMoney = value => value >= 1000 ? '$' + tenthsText(value / 1000) + 'k' : money(value);
 const iconPaths = {
  map:'<path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2zM9 3v16M15 5v16"/>',
  route:'<circle cx="6" cy="5" r="2"/><circle cx="18" cy="19" r="2"/><path d="M8 5h7a4 4 0 0 1 0 8H9a3 3 0 0 0 0 6h7"/>',
@@ -394,7 +395,7 @@ const waitingText = health => health.waiting>0?'Waiting '+integer(health.waiting
 function routeRate(route) {
  const contract=contractRate(route);if(contract)return contract;
  const net=route.revenue-(route.revenueAtAccountingStart||0)-(route.expenses||0),months=(game.day-(route.accountingStartDay||0))/30.44;
- return {text:months<1?'—':`≈ ${net<0?'−':''}${compactMoney(Math.abs(net)/months)} / month`,title:'Average since '+new Date(Date.UTC(1950,0,1+Math.floor(route.accountingStartDay||0))).toLocaleDateString('en-US',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'})};
+ return {text:months<1?'—':`≈ ${net<0?'−':''}${compactMoney(Math.abs(net)/months)} / month`,title:'Average since '+dayText(route.accountingStartDay||0)};
 }
 function changeFleet(routeId,add) {
  const attribute=add?'data-add-vehicle':'data-sell-vehicle',restoreFocus=document.activeElement?.matches(`[${attribute}]`);
@@ -757,7 +758,7 @@ function updateHud() {
  $('#inflation-rate').textContent=pricing.rate?`+${(pricing.rate*100).toFixed(2)}% / year`:'Base prices';
  $('#inflation-rate').title=`Prices are ${((pricing.index-1)*100).toFixed(1)}% above 1950. New inflation rate each January.`;
  if(pricing.year!==pricingYear){if(pricing.year>pricingYear)queueNewYear(pricing);pricingYear=pricing.year;if(view==='routes')refreshRouteList();else if(view==='build'||view==='towns'){if($('#panel-content').contains(document.activeElement)&&document.activeElement.matches('input,select,textarea'))panelPricesStale=true;else renderPanel();}}
- const hudMoney=value=>Math.abs(value)>=(window.innerWidth<=1100?10000:1000000)?'$'+Math.abs(value).toLocaleString('en-US',{notation:'compact',maximumFractionDigits:1}):money(value);
+ const hudMoney=value=>Math.abs(value)>=(window.innerWidth<=1100?10000:1000000)?'$'+compactText(Math.abs(value)):money(value);
  $('#balance').textContent=(game.money<0?'−':'')+hudMoney(game.money);$('#balance').title=(game.money<0?'−':'')+money(game.money);
  const profit=(game.monthlyIncome||0)-(game.monthlyIncomeAtAccountingStart||0)-(game.monthlyOperatingExpenses||0);$('#profit').textContent=(profit>=0?'+':'−')+hudMoney(profit);$('#profit').title=(profit>=0?'+':'−')+money(profit)+' operating profit this month';$('#profit').className=profit>=0?'positive':'negative';
  const income=game.monthlyIncome||0,rose=incomeSeen.game===game&&income>incomeSeen.income;incomeSeen={game,income};if(rose)incomePulseAt=performance.now();
@@ -766,14 +767,14 @@ function updateHud() {
  $('#income-exact').textContent=money((game.monthlyIncome||0)-(game.monthlyIncomeAtAccountingStart||0));$('#running-exact').textContent=money(game.monthlyOperatingExpenses||0);
  $('#building-exact').textContent=money(Math.max(0,(game.monthlyExpenses||0)-(game.monthlyOperatingExpenses||0)));
  const lastProfit=game.history.at(-1)?.operatingProfit;$('#previous-profit').textContent=Number.isFinite(lastProfit)?(lastProfit>=0?'+':'−')+money(lastProfit):'—';
- $('#profit-exact').title='Operating figures tracked since '+new Date(Date.UTC(1950,0,1+Math.floor(game.accountingStartDay||0))).toLocaleDateString('en-US',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'});
+ $('#profit-exact').title='Operating figures tracked since '+dayText(game.accountingStartDay||0);
  $('#delivered').innerHTML=integer(game.totalDelivered)+' <small>units</small>';
  const activeStopIds=new Set(game.routes.filter(route=>route.active).flatMap(route=>route.stops));
  const activeStops=game.stations.filter(stop=>activeStopIds.has(stop.id));
  const served=game.cities.filter(city=>townService(game,city,activeStops).connected).length;
  watchTowns(activeStops);
  $('#connected').innerHTML=served+` <small>/ ${game.cities.length}</small>`;$('#route-count').textContent=game.routes.length;
- const date=new Date(Date.UTC(1950,0,1+Math.floor(game.day)));$('#date').textContent=date.toLocaleDateString('en-US',{month:'short',year:'numeric',timeZone:'UTC'});$('#date').title=date.toLocaleDateString('en-US',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'});
+ $('#date').textContent=monthText(game.day);$('#date').title=longDayText(game.day);
  renderGoal();
  const zoom=renderer.getCamera().zoom, currentZoom=zoomIndex(zoom);
  const zoomLabel=ZOOM_VIEWS[currentZoom].name+' · '+Math.round(zoom*100)+'%';
@@ -787,7 +788,7 @@ function updateHud() {
  if(showingRoutes)for(const vehicle of game.vehicles){const key=String(vehicle.routeId),load=loadsByRoute.get(key)||{load:0,capacity:0};load.load+=vehicle.load;load.capacity+=vehicle.capacity;loadsByRoute.set(key,load);}
  const healthByRoute=new Map(),healthOf=r=>{if(!healthByRoute.has(r))healthByRoute.set(r,routeHealth(game,r,loadsByRoute.get(String(r.id))));return healthByRoute.get(r);};
  if(showingRoutes)$$('[data-route-status]').forEach(el=>{const r=routesById?.get(el.dataset.routeStatus);if(r){const health=healthOf(r);el.textContent=health.label;el.classList.toggle('route-offline',health.state==='blocked');el.classList.toggle('route-busy',health.state==='busy');}});
- if(showingRoutes)$$('[data-route-revenue]').forEach(el=>{const r=routesById?.get(el.dataset.routeRevenue);if(r){const net=r.revenue-(r.revenueAtAccountingStart||0)-(r.expenses||0);el.textContent=(net<0?'−':'')+money(net);el.title=`Fares ${money(r.revenue-(r.revenueAtAccountingStart||0))} · Route upkeep ${money(r.expenses||0)} · Tracked since ${new Date(Date.UTC(1950,0,1+Math.floor(r.accountingStartDay||0))).toLocaleDateString('en-US',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'})} · Excludes construction`;}});
+ if(showingRoutes)$$('[data-route-revenue]').forEach(el=>{const r=routesById?.get(el.dataset.routeRevenue);if(r){const net=r.revenue-(r.revenueAtAccountingStart||0)-(r.expenses||0);el.textContent=(net<0?'−':'')+money(net);el.title=`Fares ${money(r.revenue-(r.revenueAtAccountingStart||0))} · Route upkeep ${money(r.expenses||0)} · Tracked since ${dayText(r.accountingStartDay||0)} · Excludes construction`;}});
  if(showingRoutes)$$('[data-route-health]').forEach(el=>{const r=routesById?.get(el.dataset.routeHealth);if(r){const health=healthOf(r);el.textContent=health.detail;el.title=health.detail;el.dataset.state=health.state;}});
  if(showingRoutes)$$('[data-route-stat]').forEach(el=>{const r=routesById?.get(el.dataset.routeStat);if(r)el.textContent=integer(r.delivered)+' moved';});
  if(showingRoutes)$$('[data-route-waiting]').forEach(el=>{const r=routesById?.get(el.dataset.routeWaiting);if(r){const health=healthOf(r),text=waitingText(health);if(el.textContent!==text)el.textContent=text;el.dataset.state=health.state;}});

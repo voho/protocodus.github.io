@@ -25,6 +25,7 @@ import { surfaceChangesSince } from './change-journal.js';
 import { natureObjectLayout, drawRasterTreeShadows, treeShadowCacheStats } from './raster-nature.js';
 import { terrainLevel, terrainElevation, terrainReliefRaster, terrainOverviewColor } from './terrain-elevation.js';
 import { noise, hashNoise } from './world-noise.js';
+import { populationText } from './formatters.js';
 import { shorelineContours, appendShoreline } from './shoreline.js';
 import { projectPoint, unprojectPoint, projectAngle } from './isometric.js';
 import { projectGround, projectTerrainPoint, surfaceHeight, tileSurface, groundIsFlat, pickGround, transportHeight, bridgeDeckHeight, bridgeSurface, HEIGHT_STEP, MAX_HEIGHT } from './terrain-geometry.js';
@@ -951,7 +952,7 @@ export function createRenderer(canvas, initialGame, options={}) {
     lensStats=lens?{cargo:lens,sources:0,buyers:0,towns:0}:null;const townLens=lensRole('towns',lens)==='buyer';
     if(layers.names)for(const city of game.cities||[]){if(!visible(city.x,city.y))continue;const p=worldToScreen(city.x,city.y),stops=nearbyStops(city);let y=p.y-29*camera.zoom;
       if(detailLevel==='region'){const name=city.name||'New city';ctx.font='600 11px Space, system-ui, sans-serif';const w=ctx.measureText(name).width+20;if(stops)y=clearStopSigns(stops,p.x-w/2-4,w+8,y,14,14);const box={id:city.id,x:p.x-w/2-4,y:y-14,w:w+8,h:28};if(labelRects.some(other=>box.x<other.x+other.w&&box.x+box.w>other.x&&box.y<other.y+other.h&&box.y+box.h>other.y))continue;labelRects.push(box);pill(p.x,y,name,{size:11,bold:true,h:23,fill:'#f7f5e9f0'});if(townLens)lensChip(p.x-w/2-11,y);continue;}
-      ctx.font='600 13px Space, system-ui, sans-serif';const name=city.name||'New city';const nameW=ctx.measureText(name).width;const pop=Number(city.population||0).toLocaleString('en-US');ctx.font='500 11px Space, system-ui, sans-serif';const popW=ctx.measureText(pop).width;const w=nameW+popW+42;
+      ctx.font='600 13px Space, system-ui, sans-serif';const name=city.name||'New city';const nameW=ctx.measureText(name).width;const pop=populationText(city);ctx.font='500 11px Space, system-ui, sans-serif';const popW=ctx.measureText(pop).width;const w=nameW+popW+42;
       if(stops)y=clearStopSigns(stops,p.x-w/2,w,y,14,15);labelRects.push({id:city.id,x:p.x-w/2,y:y-14,w,h:29});
       ctx.shadowColor='#1b38202a';ctx.shadowBlur=10;ctx.shadowOffsetY=2;ctx.fillStyle='#f7f5e9f5';roundRect(ctx,p.x-w/2,y-14,w,29,6);ctx.fill();ctx.shadowColor='transparent';ctx.shadowBlur=0;ctx.shadowOffsetY=0;ctx.strokeStyle='#fbfaee';ctx.lineWidth=.7;ctx.stroke();ctx.textAlign='left';ctx.textBaseline='middle';ctx.font='600 13px Space, system-ui, sans-serif';ctx.fillStyle='#314639';ctx.fillText(name,p.x-w/2+10,y+.5);ctx.fillStyle='#e6e9da';roundRect(ctx,p.x+w/2-popW-22,y-9,popW+16,19,3);ctx.fill();ctx.font='500 11px Space, system-ui, sans-serif';ctx.fillStyle='#60705a';ctx.fillText(pop,p.x+w/2-popW-14,y+.5);
       if(townLens)lensChip(p.x-w/2-13,y);

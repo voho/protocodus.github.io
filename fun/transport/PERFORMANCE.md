@@ -12,6 +12,7 @@ Measured on the development machine in Node and headless Chrome in September 202
 - Generated tile elevations share immutable exact numbers while tiles remain independently mutable ordinary objects. Artwork loads for the active climate; authored building sprites reuse identical canvases across legacy variant numbers.
 - Saves preserve generated terrain as lossless baseline deltas. Repeated network changes compress into runs. Long cardinal routes use exact direction runs rather than repeated coordinate objects. Large fleets share record field names and store fractional values as exact IEEE754 bits. Legacy saves remain readable.
 - Route search applies to the whole fleet, while the UI shows 50 cards per page. It does not create thousands of canvases and DOM cards at once.
+- The HUD, route cards and town labels reuse cached `Intl` number and date formatters (`formatters.js`) rather than building one in every `toLocaleString` or `toLocaleDateString` call; the text is identical. Route cards reuse each accounting start date, and a town label keeps its population text until the whole number changes.
 
 ## Representative measurements
 
@@ -26,6 +27,7 @@ Measured on the development machine in Node and headless Chrome in September 202
 | Cross-map shortest-path search | about 630 ms | about 10 ms |
 | Road/rail grid every 8 tiles, 2048² terrain save | 5.53 MiB | 0.99 MiB |
 | Route panel with 10,000 routes | formerly unbounded cards | 50 cards, about 25–55 ms opening |
+| HUD update with the Routes panel open over 50 running cards | about 11.7 ms | about 1.3–2.1 ms |
 
 The fleet benchmark flattens **4,194,304 independently mutable tiles** into a synthetic connected network, connecting stops near every existing town and industry. Its short journeys deliberately create frequent arrivals. It bypasses construction costs and terrain constraints to isolate simulation scaling; it does not claim every synthetic route is a commercially valid passenger service. Long-distance route finding is measured separately. Daily updates still produce occasional spikes.
 
