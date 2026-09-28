@@ -10,7 +10,8 @@
     "fun/transport/app.js",
     "fun/transport/index.html",
     "fun/transport/renderer.js",
-    "fun/transport/tests/controls-browser-check.mjs"
+    "fun/transport/tests/controls-browser-check.mjs",
+    "fun/transport/tests/features-browser-check.mjs"
   ],
   "sessions": [
     {
