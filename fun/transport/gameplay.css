@@ -113,3 +113,14 @@
 .goal-meter>span>span{display:block;height:100%;border-radius:3px;background:#6f9159}
 .goal-row em{align-self:center;padding:3px 9px;border-radius:10px;background:var(--orange-light);color:#a14f28;font-size:11px;font-style:normal;font-weight:600;white-space:nowrap}
 @media(max-width:700px){.goal-chapter{padding:12px 13px 3px}.goal-row{gap:9px}.goal-row em{grid-column:2;justify-self:start;margin-top:-2px}}
+/* Town outlook: recent growth under the service line, and an optional fold on how a town finds room. */
+.inspector .town-growth{margin:-4px 0 0;color:#4c6844}
+.town-grow{margin-top:16px;padding-top:9px;border-top:1px solid #dfe5d4}
+.town-grow>summary{display:flex;align-items:center;justify-content:space-between;min-height:32px;cursor:pointer;list-style:none;font-size:13px;font-weight:500;color:#526b46}
+.town-grow>summary::-webkit-details-marker{display:none}
+.town-grow>summary:after{content:'+';font-size:17px;font-weight:400;color:#6d8161}
+.town-grow[open]>summary:after{content:'−'}
+.town-grow>summary:hover{color:#3f5d34}
+.inspector .town-grow p{margin:4px 0 12px;font-size:12px;line-height:1.45;color:#64755b}
+.inspector .town-grow .town-room{font-size:13px;color:#4c6844}
+.entity-card .town-tag{float:right;margin-top:6px;padding:2px 9px;border-radius:10px;background:#e3ecd6;font-size:12px;font-weight:500;color:#4d7a45}

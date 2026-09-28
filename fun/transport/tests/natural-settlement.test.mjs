@@ -6,6 +6,8 @@ import { expandGeneratedIndustrySites, industrySiteProblem } from '../industry-s
 import { WORLD_SIZES, WORLD_GENERATION_VERSION } from '../world.js';
 import { createGame, findPath, restoreGame, validateGame, build, buildPath, addRoute, addRouteVehicle, tick } from '../model.js';
 import { encodeGame } from '../save-codec.js';
+import { townOutlook } from '../settlements.js';
+import { placeBuildingSite } from '../building-sites.js';
 import { emptyGame, tileAt, line, equivalent } from './helpers.mjs';
 
 for (const biome of ['taiga', 'tundra', 'desert']) test(`${biome}: towns, streets and industry follow the existing land surface`, () => {
@@ -143,4 +145,50 @@ test('a larger town reaches further for new lots', () => {
   days(small, 360); days(large, 360);
   assert.ok(reach(large) >= 8, `a town of 4,000 builds ${reach(large)} tiles out`);
   assert.ok(reach(small) <= 6 + Math.floor(Math.sqrt(small.cities[0].population / 400)), `a town of ${Math.round(small.cities[0].population)} builds ${reach(small)} tiles out`);
+});
+
+test('the town outlook counts the road-side lots within reach, and none once they are built on', () => {
+  const game = emptyGame();
+  build(game, 'city', 30, 30); buildPath(game, 'road', line(27, 33, 30));
+  const town = game.cities[0], lots = [...line(26, 34, 29), ...line(26, 34, 31), { x: 26, y: 30 }, { x: 34, y: 30 }];
+  assert.deepEqual([townOutlook(game, town).plots, townOutlook(game, town).reach], [lots.length, 6], 'a seven-tile street on open grass');
+  assert.equal(townOutlook(game, town), townOutlook(game, town), 'counted once per day and revision');
+  for (const { x, y } of line(26, 34, 31)) tileAt(game, x, y).terrain = 'rock';
+  game.revision++;
+  assert.equal(townOutlook(game, town).plots, lots.length - 9, 'rock is no plot');
+  for (const { x, y } of lots) placeBuildingSite(game, 'house-cheap-1', x, y);
+  game.revision++;
+  assert.equal(townOutlook(game, town).plots, 0, 'a built-up street has no room left');
+});
+
+test('towns keep their last four monthly counts, and the outlook reads growth from them', () => {
+  const game = servedTowns(), [town] = game.cities;
+  days(game, 20);
+  assert.equal(town.popHistory, undefined);
+  assert.deepEqual([townOutlook(game, town).change, townOutlook(game, town).days], [null, null], 'nothing to compare in the first month');
+  days(game, 161);
+  assert.equal(game.day, 181, '1 July 1950');
+  for (const city of game.cities) {
+    assert.equal(city.popHistory.length, 4);
+    assert.ok(city.popHistory.every(Number.isInteger));
+    assert.equal(city.popHistory.at(-1), Math.floor(city.population));
+  }
+  const outlook = townOutlook(game, town);
+  assert.equal(outlook.days, 91, 'since the count on 1 April');
+  assert.equal(outlook.change, Math.floor(town.population) - town.popHistory[0]);
+  assert.ok(outlook.change > 0, 'a served town grows');
+  assert.equal(outlook.growth, town.growth);
+  assert.equal(validateGame(game), true);
+  for (const popHistory of [Array(13).fill(1), [-1], [NaN], [Infinity], '120', [1, '2'], {}]) assert.equal(validateGame({ ...game, cities: [{ ...town, popHistory }, ...game.cities.slice(1)] }), false, JSON.stringify(popHistory));
+  const restored = restoreGame(JSON.parse(JSON.stringify(encodeGame(game))));
+  assert.deepEqual(restored.cities.map(city => city.popHistory), game.cities.map(city => city.popHistory));
+
+  // A save from before the counts loads, and starts counting at the next month.
+  for (const city of game.cities) delete city.popHistory;
+  const legacy = restoreGame(JSON.parse(JSON.stringify(encodeGame(game))));
+  assert.ok(legacy);
+  assert.equal(townOutlook(legacy, legacy.cities[0]).change, null);
+  days(legacy, 31);
+  assert.ok(legacy.cities.every(city => city.popHistory.length === 1));
+  assert.equal(validateGame(legacy), true);
 });

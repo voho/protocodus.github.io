@@ -115,9 +115,32 @@ export function passengerArrivals(game, city, day = Math.floor(game.day), enviro
     (.55 + draw * .95) * (.70 + weather.travel * .3) * (1 - environment.pollution * .22);
 }
 
-function townHasLot(game, city, reach, occupied) {
-  for (let y = city.y - reach; y <= city.y + reach; y++) for (let x = city.x - reach; x <= city.x + reach; x++) if (roadBeside(game, x, y) && houseLot(game, x, y, occupied)) return true;
-  return false;
+const occupiedSites = game => new Set([...game.industries.flatMap(industryTiles), ...game.stations, ...game.cities].map(point => `${point.x},${point.y}`));
+// Road-side lots organic growth could still take; a limit stops the count early.
+function townLots(game, city, reach, occupied, limit = Infinity) {
+  let lots = 0;
+  for (let y = city.y - reach; y <= city.y + reach; y++) for (let x = city.x - reach; x <= city.x + reach; x++) if (roadBeside(game, x, y) && houseLot(game, x, y, occupied) && ++lots >= limit) return lots;
+  return lots;
+}
+const monthStart = month => (Date.UTC(1950, month, 1) - Date.UTC(1950, 0, 1)) / 864e5;
+// Residents gained since the oldest of the last four monthly counts, taken on
+// the first day of each month (model.js monthlyUpdate).
+export function townGrowth(game, city) {
+  const counts = city.popHistory;
+  return counts?.length ? { change: Math.floor(city.population) - counts[0], days: Math.floor(game.day) - monthStart(game.lastMonth - counts.length + 1) } : null;
+}
+// The inspector's outlook: recent growth and the lots left within the reach
+// that decides when a town lays a street. Counted once per day and revision.
+const outlooks = new WeakMap();
+export function townOutlook(game, city) {
+  const day = Math.floor(game.day);
+  let cache = outlooks.get(game);
+  if (cache?.day !== day || cache.revision !== game.revision) outlooks.set(game, cache = { day, revision: game.revision, cities: new Map() });
+  if (!cache.cities.has(city.id)) {
+    const reach = 6 + reachBonus(city), recent = townGrowth(game, city);
+    cache.cities.set(city.id, { plots: townLots(game, city, reach, occupiedSites(game)), reach, growth: city.growth, change: recent?.change ?? null, days: recent?.days ?? null });
+  }
+  return cache.cities.get(city.id);
 }
 // Towns keep clear of the player's stations, ports, rails and zones, and of
 // the stroke the player is drawing.
@@ -167,7 +190,7 @@ function townStreet(game, city, day, reach, occupied, blocked) {
 export function stepSettlements(game, { extendStreets = null, reserved = [] } = {}) {
   const day = Math.floor(game.day), proposals = [], streets = [], connectedCities=activeCities(game);
   let blocked = null;
-  const occupied = new Set([...game.industries.flatMap(industryTiles), ...game.stations, ...game.cities].map(point => `${point.x},${point.y}`));
+  const occupied = occupiedSites(game);
   for (const city of game.cities) {
     const environment = localEnvironment(game, city.x, city.y);
     const weather = weatherAt(game, city.x, city.y, day);
@@ -197,7 +220,7 @@ export function stepSettlements(game, { extendStreets = null, reserved = [] } = 
       if (!best || rank > best.rank) best = { x, y, tile, city, rank, building: { kind, level: 1 } };
     }
     if (best) proposals.push(best);
-    else if (extendStreets && streets.length < 4 && demand >= 1 && day - (city.lastStreetDay ?? -Infinity) >= 30 && randomAt(game, day, city.id, 107) < .08 * demand * weather.growth && !townHasLot(game, city, 6 + bonus, occupied)) {
+    else if (extendStreets && streets.length < 4 && demand >= 1 && day - (city.lastStreetDay ?? -Infinity) >= 30 && randomAt(game, day, city.id, 107) < .08 * demand * weather.growth && !townLots(game, city, 6 + bonus, occupied, 1)) {
       blocked ??= new Set(reserved.map(point => `${point.x},${point.y}`));
       const street = townStreet(game, city, day, 6 + bonus, occupied, blocked);
       if (street) { streets.push(street); city.lastStreetDay = day; for (const point of street) blocked.add(`${point.x},${point.y}`); }
