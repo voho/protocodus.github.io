@@ -8,6 +8,7 @@ import { STATION_RADIUS, priceFor, buildProblem, routeBreakPoint } from './model
 import { BUILDINGS, residentialKind, commercialKind } from './buildings.js';
 import { ZOOM_VIEWS, nearestZoom, stepZoom } from './zoom.js';
 import { cargoIcon } from './cargo-icons.js';
+import { lensRole } from './chains.js';
 import { landscapeScenery } from './landscape-scenery.js';
 import { DEFAULT_LAYERS, normalizeLayers } from './visibility.js';
 import { createMarineSprites, drawShipWake, MARINE_SIZE } from './marine-sprites.js';
@@ -100,6 +101,9 @@ export function createRenderer(canvas, initialGame, options={}) {
     if(changed.some(key=>MINIMAP_LAYERS.has(key)))minimapRevision=-1;
     return getLayers();
   }
+  // A cargo lens is view state, never saved: producers and buyers of one cargo stand out on the map, minimap and atlas.
+  const LENS_COLORS={source:'#4e7747',buyer:'#3f7f88'};let lens=null,lensStats=null;
+  function setLens(cargo){cargo=cargo&&cargo!=='passengers'?cargo:null;if(cargo===lens)return;lens=cargo;lensStats=null;options.onInvalidate?.();}
   function updateRaster(force=false){
     const scale=camera.zoom*dpr,detail=ZOOM_VIEWS.find(view=>view.zoom===camera.zoom).name.toLowerCase();
     if(force||preparedDpr!==dpr){rasterBundles.clear();preparedSprites.clear();preparedTransport.clear();preparedDpr=dpr;}
@@ -752,20 +756,28 @@ export function createRenderer(canvas, initialGame, options={}) {
     }
     ctx.globalAlpha=1;
   }
-  function resourceMarker(x,y,kind,size,label){
+  function resourceMarker(x,y,kind,size,label,role=null){
     // Screen-space markers stay legible in Region and render at native display
     // density. SVG images are local data, cached separately from terrain chunks.
     const image=cargoImage(kind,size);
     const h=size+6,w=size+8;
     ctx.shadowColor='#293d2630';ctx.shadowBlur=5;ctx.shadowOffsetY=2;
     ctx.fillStyle='#f7f4e7f5';roundRect(ctx,x-w/2,y-h/2,w,h,7);ctx.fill();ctx.shadowColor='transparent';ctx.shadowBlur=0;ctx.shadowOffsetY=0;
-    ctx.strokeStyle='#fbfaedf0';ctx.lineWidth=1;ctx.stroke();
+    ctx.strokeStyle=role?LENS_COLORS[role]:'#fbfaedf0';ctx.lineWidth=role?1.5:1;ctx.stroke();
     if(image.complete&&image.naturalWidth)ctx.drawImage(image,x-size/2,y-size/2,size,size);else dot(ctx,x,y,4,'#849367');
     if(label){
       ctx.font='500 12px Space, system-ui, sans-serif';const nameWidth=ctx.measureText(label).width+16;
       const right=x+w/2+4+nameWidth/2,left=x-w/2-4-nameWidth/2;
       pill(right+nameWidth/2>W-8?left:right,y,label,{size:12,h:28,fill:'#f7f4e7f5',color:'#3e5547',radius:5});
     }
+    if(role)lensTab(x+w/2-2,y-h/2+2,role);
+  }
+  // Lens roles: a green up tab marks a producer, a teal down tab a buyer; a town that buys the cargo carries its icon.
+  function lensTab(x,y,role){dot(ctx,x,y,8,'#fbf6e3');dot(ctx,x,y,6.6,LENS_COLORS[role]);const d=role==='source'?-1:1;ctx.beginPath();ctx.moveTo(x,y+d*3.6);ctx.lineTo(x+3.8,y-d*2);ctx.lineTo(x-3.8,y-d*2);ctx.closePath();ctx.fillStyle='#fbf6e3';ctx.fill();}
+  function lensChip(x,y){
+    const image=cargoImage(lens,14);ctx.shadowColor='#293d2630';ctx.shadowBlur=5;ctx.shadowOffsetY=2;ctx.fillStyle='#f7f4e7f5';roundRect(ctx,x-11,y-11,22,22,6);ctx.fill();ctx.shadowColor='transparent';ctx.shadowBlur=0;ctx.shadowOffsetY=0;
+    ctx.strokeStyle=LENS_COLORS.buyer;ctx.lineWidth=1.5;ctx.stroke();if(image.complete&&image.naturalWidth)ctx.drawImage(image,x-7,y-7,14,14);else dot(ctx,x,y,3,'#849367');
+    if(lensStats&&x>=0&&y>=0&&x<=W&&y<=H)lensStats.towns++;
   }
   function render(now,view={}){
     lastTime=now||0;const {tool='inspect',hover=null,preview=[],selected=null,routeStops=[],preferredMode='road'}=view;
@@ -873,13 +885,17 @@ export function createRenderer(canvas, initialGame, options={}) {
     if(serviceCenter){const p=worldToScreen(serviceCenter.x,serviceCenter.y);pill(p.x,p.y-STATION_RADIUS*TILE*Math.SQRT1_2*camera.zoom-15,'5-tile reach',{size:11,h:25,fill:'#f5f3e8e8',color:'#5c7155'});}
     // Labels stay crisp at every camera zoom, with population separated from place names.
     labelRects.length=0;
+    lensStats=lens?{cargo:lens,sources:0,buyers:0,towns:0}:null;const townLens=lensRole('towns',lens)==='buyer';
     if(layers.names)for(const city of game.cities||[]){if(!visible(city.x,city.y))continue;const p=worldToScreen(city.x,city.y),stops=nearbyStops(city);let y=p.y-29*camera.zoom;
-      if(detailLevel==='region'){const name=city.name||'New city';ctx.font='600 11px Space, system-ui, sans-serif';const w=ctx.measureText(name).width+20;if(stops)y=clearStopSigns(stops,p.x-w/2-4,w+8,y,14,14);const box={id:city.id,x:p.x-w/2-4,y:y-14,w:w+8,h:28};if(labelRects.some(other=>box.x<other.x+other.w&&box.x+box.w>other.x&&box.y<other.y+other.h&&box.y+box.h>other.y))continue;labelRects.push(box);pill(p.x,y,name,{size:11,bold:true,h:23,fill:'#f7f5e9f0'});continue;}
+      if(detailLevel==='region'){const name=city.name||'New city';ctx.font='600 11px Space, system-ui, sans-serif';const w=ctx.measureText(name).width+20;if(stops)y=clearStopSigns(stops,p.x-w/2-4,w+8,y,14,14);const box={id:city.id,x:p.x-w/2-4,y:y-14,w:w+8,h:28};if(labelRects.some(other=>box.x<other.x+other.w&&box.x+box.w>other.x&&box.y<other.y+other.h&&box.y+box.h>other.y))continue;labelRects.push(box);pill(p.x,y,name,{size:11,bold:true,h:23,fill:'#f7f5e9f0'});if(townLens)lensChip(p.x-w/2-11,y);continue;}
       ctx.font='600 13px Space, system-ui, sans-serif';const name=city.name||'New city';const nameW=ctx.measureText(name).width;const pop=Number(city.population||0).toLocaleString('en-US');ctx.font='500 11px Space, system-ui, sans-serif';const popW=ctx.measureText(pop).width;const w=nameW+popW+42;
       if(stops)y=clearStopSigns(stops,p.x-w/2,w,y,14,15);labelRects.push({id:city.id,x:p.x-w/2,y:y-14,w,h:29});
       ctx.shadowColor='#1b38202a';ctx.shadowBlur=10;ctx.shadowOffsetY=2;ctx.fillStyle='#f7f5e9f5';roundRect(ctx,p.x-w/2,y-14,w,29,6);ctx.fill();ctx.shadowColor='transparent';ctx.shadowBlur=0;ctx.shadowOffsetY=0;ctx.strokeStyle='#fbfaee';ctx.lineWidth=.7;ctx.stroke();ctx.textAlign='left';ctx.textBaseline='middle';ctx.font='600 13px Space, system-ui, sans-serif';ctx.fillStyle='#314639';ctx.fillText(name,p.x-w/2+10,y+.5);ctx.fillStyle='#e6e9da';roundRect(ctx,p.x+w/2-popW-22,y-9,popW+16,19,3);ctx.fill();ctx.font='500 11px Space, system-ui, sans-serif';ctx.fillStyle='#60705a';ctx.fillText(pop,p.x+w/2-popW-14,y+.5);
+      if(townLens)lensChip(p.x-w/2-13,y);
     }
-    for(const ind of game.industries||[]){if((!layers.names&&!layers.industryIcons)||!visible(ind.x,ind.y,180*camera.zoom))continue;const marker=industryMarker(ind),kind=Object.keys(INDUSTRIES[ind.kind]?.outputs||{})[0]||'goods',hovered=hover&&industryContains(ind,hover.x,hover.y),chosen=selected&&industryContains(ind,selected.x,selected.y),label=layers.names&&(hovered||chosen)?ind.name||titleCase(ind.kind):null;if(layers.industryIcons)resourceMarker(marker.x,marker.y,kind,marker.size,label);else if(label)pill(marker.x,marker.y,label,{size:12,h:28,fill:'#f7f4e7f5',color:'#3e5547',radius:5});}
+    // A cargo lens draws its producers and buyers last, at full strength with a role tab and, from Town view in, their names; other sites recede to half strength.
+    const industryBadge=(ind,role)=>{const marker=industryMarker(ind),kind=Object.keys(INDUSTRIES[ind.kind]?.outputs||{})[0]||'goods',hovered=hover&&industryContains(ind,hover.x,hover.y),chosen=selected&&industryContains(ind,selected.x,selected.y),label=layers.names&&(hovered||chosen||role&&detailLevel!=='region')?ind.name||titleCase(ind.kind):null;if(role&&marker.x>=0&&marker.y>=0&&marker.x<=W&&marker.y<=H)lensStats[role==='source'?'sources':'buyers']++;ctx.globalAlpha=lens&&!role&&!hovered&&!chosen?.5:1;if(layers.industryIcons)resourceMarker(marker.x,marker.y,kind,marker.size,label,role);else if(label)pill(marker.x,marker.y,label,{size:12,h:28,fill:'#f7f4e7f5',color:'#3e5547',radius:5});ctx.globalAlpha=1;};
+    const lensSites=[];for(const ind of game.industries||[]){if((!layers.names&&!layers.industryIcons)||!visible(ind.x,ind.y,180*camera.zoom))continue;const role=lensRole(ind.kind,lens);if(role)lensSites.push([ind,role]);else industryBadge(ind,null);}for(const [ind,role] of lensSites)industryBadge(ind,role);
     if(layers.stations)for(const st of game.stations||[]){if(!visible(st.x,st.y))continue;const marker=stationMarker(st),mx=marker.x,my=marker.y;ctx.fillStyle=st.mode==='water'?'#376e7e':st.mode==='rail'?'#3f655a':'#516d53';roundRect(ctx,mx,my,14,14,3);ctx.fill();if(st.mode==='water'){ctx.strokeStyle='#f0eacb';ctx.lineWidth=1.1;ctx.beginPath();ctx.arc(mx+7,my+3.5,1.2,0,TAU);ctx.stroke();line(ctx,[[mx+7,my+4.7],[mx+7,my+11]],'#f0eacb',1.1);line(ctx,[[mx+4,my+6],[mx+10,my+6]],'#f0eacb',1.1);ctx.beginPath();ctx.moveTo(mx+3,my+8);ctx.quadraticCurveTo(mx+3,my+11,mx+7,my+11);ctx.quadraticCurveTo(mx+11,my+11,mx+11,my+8);ctx.stroke();}else{ctx.fillStyle='#f0eacb';ctx.font='bold 9px Space, system-ui, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(st.mode==='rail'?'T':'B',mx+7,my+7.2);}}
     if(layers.vehicles&&layers.vehicleLoads)for(const v of frameVehicles)vehicleLoadIndicator(v,routesById.get(v.routeId));
     // An offline route pins its first gap, above the load badges of vehicles stuck beside it, so the fix is found on the map rather than in a toast.
@@ -930,13 +946,15 @@ export function createRenderer(canvas, initialGame, options={}) {
       }
       const offline=r.active===false;c.strokeStyle=offline?'#d7725f':r.color||'#e4c38c';c.lineWidth=1.4;if(offline)c.setLineDash([3,2]);c.stroke(entry.drawing);if(offline)c.setLineDash([]);
     }
-    if(layers.industryIcons){c.fillStyle='#d9ba7d';for(const ind of game.industries||[])c.fillRect((ind.x+.5)*sx-1,(ind.y+.5)*sy-1,2,2);}
+    if(layers.industryIcons&&!lens){c.fillStyle='#d9ba7d';for(const ind of game.industries||[])c.fillRect((ind.x+.5)*sx-1,(ind.y+.5)*sy-1,2,2);}
     if(layers.buildings)for(const city of game.cities||[])dot(c,(city.x+.5)*sx,(city.y+.5)*sy,2.5,'#f7f2d8');
     if(layers.stations)for(const stop of game.stations||[]){const x=(stop.x+.5)*sx,y=(stop.y+.5)*sy;if(stop.mode==='water'){c.fillStyle='#d4ebe1';c.beginPath();c.moveTo(x,y-3);c.lineTo(x+3,y);c.lineTo(x,y+3);c.lineTo(x-3,y);c.closePath();c.fill();dot(c,x,y,1.4,'#376e7e');}else dot(c,x,y,1.7,stop.mode==='rail'?'#365b59':'#658153');}
     const footprint=viewportCorners().map(p=>[p.x/TILE*sx,p.y/TILE*sy]);
     c.beginPath();footprint.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));c.closePath();c.fillStyle='#f4efcc12';c.fill();c.strokeStyle='#f6edc7';c.lineWidth=1.3;c.stroke();
+    // A cargo lens replaces the industry dots with its producers and buyers, squares in their role colours above the view outline, and rings the towns that buy it.
+    if(lens){for(const city of lensRole('towns',lens)?game.cities||[]:[]){c.beginPath();c.arc((city.x+.5)*sx,(city.y+.5)*sy,4,0,TAU);c.strokeStyle=LENS_COLORS.buyer;c.lineWidth=1.5;c.stroke();}for(const ind of game.industries||[]){const role=lensRole(ind.kind,lens);if(!role)continue;const span=industrySize(ind),x=Math.round((ind.x+span/2)*sx),y=Math.round((ind.y+span/2)*sy),s=mw>=300?6:4;c.fillStyle='#fbf6e3';c.fillRect(x-s/2-1.5,y-s/2-1.5,s+3,s+3);c.fillStyle=LENS_COLORS[role];c.fillRect(x-s/2,y-s/2,s,s);}}
 
   }
   resize();const first=game.cities?.[0];if(first)focus(first.x+4.5,first.y-4.5);else bounds();
-  return {setGame,setLayers,getLayers,render,resize,worldToScreen,gridPointToScreen,screenToVertex,stationMarker,industryMarker,cityLabels:()=>labelRects.map(rect=>({...rect})),screenToTile,screenToInspectTile,pan,zoomAt,setZoom,focus,getCamera:()=>({...camera}),drawMinimap,getStats:()=>({projection:'isometric',terrainGeometry:true,maxTerrainHeight:MAX_HEIGHT,heightStep:HEIGHT_STEP,tileWidth:TILE*2,tileHeight:TILE,chunkCount:chunks.size,composedChunks,sceneBuilds,sceneryBatches:{...sceneryBudget.stats(),enabled:sceneryBatching,builds:sceneryBatchBuilds,draws:sceneryBatchDraws,directDraws:sceneryDirectDraws,waitingForCamera:sceneryWaitingForCamera,pending:sceneryBatching&&sceneCache&&!sceneCache.batchPlanReady?1:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0))+(sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0),pendingGroups:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0)),pendingShadows:sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0,preparationMs:sceneryPreparationMs,preparationBudgetMs:sceneryPrepareBudgetMs},foundationBuilds,foundationCacheSize:foundations.size,routeSegmentsConsidered,routePathBuilds,routeBreaks,highlightRoute:highlightedRoute,visibleVehicleCandidates:frameVehicles.length,cacheBytes,cacheLimit,cacheMax:CACHE_MAX,chunkTiles:CHUNK_TILES,rasterScale,pixelScale:rasterScale,detailLevel,view:ZOOM_VIEWS.find(view=>view.zoom===camera.zoom).name,devicePixelRatio:dpr,dpr,maxSurfaceWidth:largestSurface,maxSurfaceHeight:largestSurface,minimapWidth:minimapLayer.width,minimapHeight:minimapLayer.height,minimapMaxEdge:MINIMAP_EDGE,minimapWorldWidth:game.width,minimapWorldHeight:game.height,minimapTerrainSamples,minimapNetworkScans,minimapNetworkBytes:minimapNetwork?.bytes||0,vehicleIndicators:{...vehicleIndicatorCounts},preparedSprites:preparedSprites.getStats(),preparedTransport:preparedTransport.getStats(),vehicleSprites:vehicleSprites.getStats(),infrastructureSprites:infrastructureSprites.getStats(),preparedZooms:rasterBundles.size,loadBadgeCount:loadBadges.size,sprites:sprite?.getStats?.(),uprightSprites:uprightSprite?.getStats?.(),houseArtwork:getHouseAssetStats(game.biome),worldArtwork:worldArtStats(),treeShadows:treeShadowCacheStats(),weather:drawWeather.getStats(),lighting:drawLighting.getStats?.(),marine:marine?.getStats?.(),layers:getLayers()})};
+  return {setGame,setLayers,getLayers,setLens,render,resize,worldToScreen,gridPointToScreen,screenToVertex,stationMarker,industryMarker,cityLabels:()=>labelRects.map(rect=>({...rect})),screenToTile,screenToInspectTile,pan,zoomAt,setZoom,focus,getCamera:()=>({...camera}),drawMinimap,getStats:()=>({projection:'isometric',terrainGeometry:true,maxTerrainHeight:MAX_HEIGHT,heightStep:HEIGHT_STEP,tileWidth:TILE*2,tileHeight:TILE,chunkCount:chunks.size,composedChunks,sceneBuilds,sceneryBatches:{...sceneryBudget.stats(),enabled:sceneryBatching,builds:sceneryBatchBuilds,draws:sceneryBatchDraws,directDraws:sceneryDirectDraws,waitingForCamera:sceneryWaitingForCamera,pending:sceneryBatching&&sceneCache&&!sceneCache.batchPlanReady?1:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0))+(sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0),pendingGroups:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0)),pendingShadows:sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0,preparationMs:sceneryPreparationMs,preparationBudgetMs:sceneryPrepareBudgetMs},foundationBuilds,foundationCacheSize:foundations.size,routeSegmentsConsidered,routePathBuilds,routeBreaks,highlightRoute:highlightedRoute,lens:lensStats&&{...lensStats},visibleVehicleCandidates:frameVehicles.length,cacheBytes,cacheLimit,cacheMax:CACHE_MAX,chunkTiles:CHUNK_TILES,rasterScale,pixelScale:rasterScale,detailLevel,view:ZOOM_VIEWS.find(view=>view.zoom===camera.zoom).name,devicePixelRatio:dpr,dpr,maxSurfaceWidth:largestSurface,maxSurfaceHeight:largestSurface,minimapWidth:minimapLayer.width,minimapHeight:minimapLayer.height,minimapMaxEdge:MINIMAP_EDGE,minimapWorldWidth:game.width,minimapWorldHeight:game.height,minimapTerrainSamples,minimapNetworkScans,minimapNetworkBytes:minimapNetwork?.bytes||0,vehicleIndicators:{...vehicleIndicatorCounts},preparedSprites:preparedSprites.getStats(),preparedTransport:preparedTransport.getStats(),vehicleSprites:vehicleSprites.getStats(),infrastructureSprites:infrastructureSprites.getStats(),preparedZooms:rasterBundles.size,loadBadgeCount:loadBadges.size,sprites:sprite?.getStats?.(),uprightSprites:uprightSprite?.getStats?.(),houseArtwork:getHouseAssetStats(game.biome),worldArtwork:worldArtStats(),treeShadows:treeShadowCacheStats(),weather:drawWeather.getStats(),lighting:drawLighting.getStats?.(),marine:marine?.getStats?.(),layers:getLayers()})};
 }

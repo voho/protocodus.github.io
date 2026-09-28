@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { INDUSTRIES } from '../data.js';
-import { chainProducts, defaultChainProduct, findIndustryTargets, industryCatalog, nearestTown, productionChain } from '../chains.js';
+import { chainProducts, defaultChainProduct, findIndustryTargets, industryCatalog, nearestTown, productionChain, lensCargo, lensRole } from '../chains.js';
 
 test('complex desert goods trace every raw source, shared refinery and town delivery', () => {
   const graph = productionChain('desert', 'goods');
@@ -63,4 +63,21 @@ test('every produced cargo has a truthful consumer list for all recipe definitio
     assert.notEqual(target.id, source.id);
     assert.ok(target.cargo.every(cargo => INDUSTRIES[source.kind].outputs[cargo] > 0 && INDUSTRIES[industries.find(site => site.id === target.id).kind].inputs[cargo] > 0));
   }
+});
+
+test('a cargo lens follows an industry type\'s first output and marks producers, buyers and buying towns', () => {
+  assert.equal(lensCargo('iron-mine'), 'iron');
+  assert.equal(lensCargo('steel-mill'), 'steel');
+  for (const [kind, definition] of Object.entries(INDUSTRIES)) assert.equal(lensCargo(kind), Object.keys(definition.outputs)[0] || Object.keys(definition.inputs)[0]);
+  assert.equal(lensCargo('towns'), null);
+  assert.equal(lensCargo('missing'), null);
+  assert.equal(lensRole('iron-mine', 'iron'), 'source');
+  assert.equal(lensRole('steel-mill', 'iron'), 'buyer');
+  assert.equal(lensRole('coal-mine', 'iron'), null);
+  assert.equal(lensRole('steel-mill', 'steel'), 'source');
+  for (const cargo of ['food', 'goods', 'stone']) assert.equal(lensRole('towns', cargo), 'buyer');
+  assert.equal(lensRole('towns', 'iron'), null);
+  for (const cargo of [null, '', 'passengers']) assert.equal(lensRole('iron-mine', cargo), null);
+  assert.equal(lensRole('towns', 'passengers'), null);
+  assert.equal(lensRole('missing', 'iron'), null);
 });

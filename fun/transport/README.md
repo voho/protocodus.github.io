@@ -42,6 +42,8 @@ Once both stops and a fitting cargo are chosen, a line under the status forecast
 
 Resources use a shared set of 20 illustrated icons in industry recipes, inventories, station coverage and routes. Industry markers on the map show their output resource; hover to reveal the name or click the marker in Explore mode to inspect the industry. Recipe numbers show how much of each input a factory consumes and how much it produces. Choose cargo with the illustrated buttons in the route form; the field guide’s **Resources** tab includes a complete resource key. Hover a resource for its name and amount. Resource names and recipe quantities are also available to screen readers.
 
+To see where a freight cargo comes from and where it can go, click it in the route form, choose an industry type in **Industries**, or use **Locate** in **Chains**. The map then lights its producers with a green ▲ tab and its buyers with a teal ▼ tab; other industry markers fade to half strength. From the Town view in, the lit sites show their names, and when towns buy the cargo, each town name carries its icon. The atlas and mini map mark the same producers and buyers as green and teal squares and ring the buying towns. A chip beside the zoom control reads *Showing iron ore*; its × or Escape turns the highlight off. A highlight chosen in Routes also ends when you choose Passengers or the planner sets another cargo, launch the route, fold the planner, close the drawer or switch views, and one from Industries ends with **All industries**, another view or closing the drawer; picking stops on the map or locating a listed site keeps it. One from Chains stays until you clear it or choose another. The highlight is only a view: it is never saved and never changes the cargo you launch.
+
 ## Rivers and shipping
 
 New worlds have connected, meandering rivers with tributaries and mouths that reach the sea. Both starting towns have a riverbank within their five-tile catchment. Town streets cross water on bridges, so they do not block navigation. Existing saves keep their original landscape; ships can use their lakes, rivers and seas too.
@@ -92,7 +94,7 @@ Right-click during a drag cancels it and keeps the tool, and so does the first E
 | [ / ] / E | Lower / raise / level land |
 | X | Bulldozer |
 | 1 / 2 / 3 | Residential / commercial / industrial zoning |
-| Escape | Cancel the stroke, then finish the tool |
+| Escape | Cancel the stroke, then finish the tool; in Explore, clear a cargo highlight |
 | Right-click | Finish the current tool; during a drag, cancel the stroke |
 | Space | Tap to pause or resume; hold while dragging to pan |
 | Shift | Hold while dragging Road or Rail to keep the plain L instead of following the terrain |
@@ -283,6 +285,12 @@ The delivery-income check waits for a real delivery at 3×, then compares the pi
 
 ```sh
 TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/delivery-floaters-browser-check.mjs
+```
+
+The cargo-lens check chooses Iron ore in Routes and compares the on-screen producer and buyer counts with the iron mines and steel mills in view, checks that another marker renders at half strength and that the atlas colours the mine and a steel mill. It then clears the lens with Passengers, the chip, the planner, another view, the drawer and Escape, keeps it while picking stops, and covers the Industries filter, Chains Locate with town chips and a 320 px phone. Screenshots go to `/tmp/transport-cargo-lens-qa`:
+
+```sh
+TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/cargo-lens-browser-check.mjs
 ```
 
 Shipping has a focused browser check for building ports on generated rivers, map picking, ferry deliveries, search/filtering, disconnected lakes, save restoration and mobile layout:

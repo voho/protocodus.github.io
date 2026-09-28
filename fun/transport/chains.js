@@ -73,3 +73,17 @@ export function defaultChainProduct(biome, industryKind) {
   const preference = ['goods', 'furniture', 'machinery', 'food', 'fuel', 'cement', 'stone', ...products];
   return preference.find(cargo => products.includes(cargo) && (!industryKind || productionChain(biome, cargo).nodes.some(node => node.kind === industryKind))) || 'all';
 }
+
+/** The cargo a lens follows for an industry type: its first output, else its first input. */
+export function lensCargo(kind) {
+  const definition = INDUSTRIES[kind];
+  return definition ? Object.keys(definition.outputs)[0] || Object.keys(definition.inputs)[0] || null : null;
+}
+
+/** A site's part in a cargo lens: 'source' produces it, 'buyer' takes it (towns buy town cargo), otherwise null. */
+export function lensRole(kind, cargo) {
+  if (!cargo || cargo === 'passengers') return null;
+  if (kind === 'towns') return TOWN_CARGO.includes(cargo) ? 'buyer' : null;
+  const definition = INDUSTRIES[kind];
+  return (definition?.outputs[cargo] || 0) > 0 ? 'source' : (definition?.inputs[cargo] || 0) > 0 ? 'buyer' : null;
+}

@@ -21,7 +21,7 @@ import { addRouteVehicle, sellRouteVehicle, getRouteFleet, getRetirementRefund, 
 import { TOWN_CARGO } from './data.js';
 import { townNeeds, NEED_WINDOW } from './settlements.js';
 import { forecastRoute } from './route-planner.js';
-import { findIndustryTargets } from './chains.js';
+import { findIndustryTargets, lensCargo } from './chains.js';
 import { mountChains } from './chains-view.js';
 import { mountSaves } from './saves-view.js';
 import { loadVisibility, saveVisibility, normalizeLayers, layerPreset } from './visibility.js';
@@ -238,6 +238,7 @@ function setTool(next) {
 function setView(next) {
  const changedView=view!==next;
  cancelGesture();closeMapMenus();if(next!=='routes')cancelRoutePicking();
+ if(cargoLens&&(cargoLens.game!==game||cargoLens.origin!=='chains'&&cargoLens.origin!==next))setCargoLens(null);
  if(next!=='build'&&tool!=='inspect'){tool='inspect';canvas.classList.remove('build-mode');}
  view=next;$$('[data-mobile-view]').forEach(el=>el.classList.toggle('active',el.dataset.mobileView===next));
  $$('.nav-button[data-view]').forEach(el=>{el.classList.toggle('active',el.dataset.view===view);el.setAttribute('aria-current',el.dataset.view===view?'page':'false');});
@@ -479,6 +480,7 @@ function autoSelectCargo() {
  if(options.length)next=options[0].valid&&!options.some(option=>option.valid&&option.cargo===formDraft.cargo)?options[0].cargo:'';
  else if(!stops.some(stop=>stop&&stationCoverage(game,stop).produces.includes(formDraft.cargo)))next=stationCoverage(game,stops[0]).produces.find(cargo=>cargo!=='passengers'&&routeCargoList(game).includes(cargo))||'';
  if(next&&next!==formDraft.cargo){formDraft.cargo=next;formDraft.autoNote=`Cargo set to ${CARGO[next].name}`;}
+ if(cargoLens?.origin==='routes'&&cargoLens.cargo!==formDraft.cargo)setCargoLens(null);
 }
 function bindRouteCards(root) {
  root.querySelectorAll('[data-route-page]').forEach(button=>button.addEventListener('click',()=>{
@@ -541,6 +543,21 @@ function pickRouteStopAt(x,y) {
  else{cancelRoutePicking();setView('routes');$('#route-form [type=submit]')?.scrollIntoView({block:'nearest',behavior:'smooth'});const plan=validateRoutePlan(game,formDraft);$('#status-message').textContent=plan.message;}
  return true;
 }
+// A cargo lens lights the producers and buyers of one freight cargo on the map, minimap and atlas; it is view state and never saved.
+// Routes and Industries keep the lens they set while their view stays open; one from Chains stays until the chip's × or Escape.
+let cargoLens=null;
+function setCargoLens(cargo,origin='') {
+ const next=cargo&&cargo!=='passengers'&&CARGO[cargo]?{cargo,origin,game}:null;if(next?.cargo===cargoLens?.cargo&&next?.origin===cargoLens?.origin)return;
+ cargoLens=next;renderer.setLens(next?.cargo||null);renderer.drawMinimap($('#minimap'));minimapAt=performance.now();syncLensChip();
+}
+function dropCargoLens(...origins) { if(origins.includes(cargoLens?.origin))setCargoLens(null); }
+function syncLensChip() {
+ let chip=$('#cargo-lens-chip');if(!cargoLens){chip?.remove();return;}
+ if(!chip){chip=document.createElement('div');chip.id='cargo-lens-chip';chip.className='cargo-lens-chip';chip.setAttribute('role','status');$('.map-bottomline').prepend(chip);}
+ const name=escapeHTML(CARGO[cargoLens.cargo].name.toLowerCase());
+ chip.innerHTML=`${cargoIcon(cargoLens.cargo,{decorative:true})}<span class="cargo-lens-name">Showing ${name}</span><span class="cargo-lens-dot" aria-hidden="true">·</span><button type="button" aria-label="Stop showing ${name}" title="Stop showing ${name} (Esc)">×</button>`;
+ chip.querySelector('button').onclick=()=>{setCargoLens(null);canvas.focus({preventScroll:true});};
+}
 function entityMatches(entity, query, extra='') {
  const text=[entity.name,extra].join(' ').toLocaleLowerCase();
  return query.toLocaleLowerCase().trim().split(/\s+/).every(word=>text.includes(word));
@@ -580,7 +597,7 @@ function renderPanel() {
  panel.querySelectorAll('[data-action]').forEach(el=>el.addEventListener('click',()=>{const a=el.dataset.action;if(a==='help')openHelp();if(a==='chains')openChains();if(a==='development'||a==='industry-build'){category=a==='development'?'towns':'industry';setView('build');}}));
  bindEntityCards(panel);
  if($('#entity-search'))$('#entity-search').oninput=e=>{entityFilters[view]=e.target.value;refreshEntities();};
- if($('#industry-kind'))$('#industry-kind').onchange=e=>{entityFilters.kind=e.target.value;refreshEntities();};
+ if($('#industry-kind'))$('#industry-kind').onchange=e=>{entityFilters.kind=e.target.value;refreshEntities();if(e.target.value==='all')dropCargoLens('industry');else setCargoLens(lensCargo(e.target.value),'industry');};
  panel.querySelectorAll('[data-project-action]').forEach(button=>button.onclick=()=>runProjectAction(button.dataset.projectAction,button.dataset.projectTarget,{tool:button.dataset.projectTool}));
  panel.querySelectorAll('[data-goal-show]').forEach(button=>button.onclick=()=>{storeGoalFolded(false);goalOpen=true;if(!mapLayers.goal)setMapLayers({goal:true});if(window.innerWidth<=1100)closeMobile();renderGoal();});
  bindRouteCards(panel);
@@ -591,10 +608,12 @@ function renderPanel() {
  if($('#new-route-button'))$('#new-route-button').onclick=()=>{formDraft.open=true;$('#route-planner').open=true;$('#route-planner').scrollIntoView({block:'start',behavior:'smooth'});$('#route-form [name=name]').focus({preventScroll:true});};
  const planner=panel.querySelector('#route-planner');if(planner){planner.querySelector('summary').onclick=()=>{formDraft.open=!planner.open;};planner.addEventListener('toggle',()=>{if(planner.isConnected)formDraft.open=planner.open;});}
  panel.querySelector('.forecast-details')?.addEventListener('toggle',e=>{try{localStorage.setItem('transport-forecast-details',e.currentTarget.open?'open':'closed');}catch{}});
+ if(planner){planner.addEventListener('toggle',()=>{if(!planner.open)dropCargoLens('routes');});if(!planner.open)dropCargoLens('routes');}
  if($('#swap-route-stops'))$('#swap-route-stops').onclick=()=>{cancelRoutePicking();[formDraft.from,formDraft.to]=[formDraft.to,formDraft.from];renderPanel();$('#swap-route-stops')?.focus({preventScroll:true});};
  panel.querySelectorAll('[data-pick-route]').forEach(el=>el.addEventListener('click',()=>beginRoutePicking(el.dataset.pickRoute)));
  panel.querySelectorAll('[data-cargo-choice],[data-cargo-pick]').forEach(el=>el.addEventListener('click',()=>{
   formDraft.cargo=el.dataset.cargoChoice||el.dataset.cargoPick;formDraft.autoNote='';$('#route-form select[name=cargo]').value=formDraft.cargo;
+  setCargoLens(formDraft.cargo,'routes');
   panel.querySelectorAll('[data-cargo-choice]').forEach(choice=>choice.setAttribute('aria-pressed',String(choice.dataset.cargoChoice===formDraft.cargo)));
   refreshRoutePlan();refreshUpgradeControls();
  }));
@@ -871,17 +890,23 @@ function openSaves() {
  });
  $('#modal .close-modal')?.focus({preventScroll:true});
 }
+// Locating a site from Chains lights its first output, and a town the followed town cargo; the lens outlives the dialog.
+function locateFromChains(id) {
+ const town=game.cities.some(c=>String(c.id)===String(id)),site=!town&&game.industries.find(i=>String(i.id)===String(id)),lens=site?lensCargo(site.kind):chainSelection.cargo;
+ if(site||TOWN_CARGO.includes(lens))setCargoLens(lens,'chains');
+ locateDestination(id,town?'city':'industry');
+}
 function openChains(options={}) {
  chainExplorer?.dispose();
  closeMobile();openModal('');
- chainExplorer=mountChains($('#modal-content'),game,{onLocate:id=>locateDestination(id,game.cities.some(c=>String(c.id)===String(id))?'city':'industry'),onBuild:kind=>{closeModal();category='industry';setView('build');setTool(kind);},onClose:closeModal,onChange:selection=>{chainSelection=selection;}},Object.keys(options).length?options:chainSelection);
+ chainExplorer=mountChains($('#modal-content'),game,{onLocate:locateFromChains,onBuild:kind=>{closeModal();category='industry';setView('build');setTool(kind);},onClose:closeModal,onChange:selection=>{chainSelection=selection;}},Object.keys(options).length?options:chainSelection);
  $('#modal .close-modal')?.focus({preventScroll:true});
 }
 $('#modal').addEventListener('close',()=>{saveDialogController?.dispose();saveDialogController=null;chainExplorer?.dispose();chainExplorer=null;if(modalPreviousSpeed!==null){changeSpeed(modalPreviousSpeed);modalPreviousSpeed=null;}});
 $('#modal').addEventListener('click',e=>{if(e.target===$('#modal')){const b=$('#modal').getBoundingClientRect();if(e.clientX<b.left||e.clientX>b.right||e.clientY<b.top||e.clientY>b.bottom)closeModal();}});
 function openWorld() { void openGameMenu(); }
 function openAtlas() {
- openModal(`<div class="modal-inner"><div class="modal-heading"><div><h2>World map</h2><p>Click a location to explore.</p></div><button class="close-modal" aria-label="Close dialog">×</button></div><canvas id="atlas-map" width="640" height="480" tabindex="0" aria-label="World atlas. Click to center the world map on a location."></canvas><div class="atlas-legend"><span><i class="atlas-town"></i> Towns</span><span><i class="atlas-industry"></i> Industries</span><span><i class="atlas-route"></i> Your network</span><span>Use H to return home</span></div></div>`);
+ openModal(`<div class="modal-inner"><div class="modal-heading"><div><h2>World map</h2><p>Click a location to explore.</p></div><button class="close-modal" aria-label="Close dialog">×</button></div><canvas id="atlas-map" width="640" height="480" tabindex="0" aria-label="World atlas. Click to center the world map on a location."></canvas><div class="atlas-legend"><span><i class="atlas-town"></i> Towns</span>${cargoLens?`<span><i class="atlas-lens-source"></i> ${escapeHTML(CARGO[cargoLens.cargo].name)} producers</span><span><i class="atlas-lens-buyer"></i> Buyers</span>`:'<span><i class="atlas-industry"></i> Industries</span>'}<span><i class="atlas-route"></i> Your network</span><span>Use H to return home</span></div></div>`);
  const atlas=$('#atlas-map');atlas.style.aspectRatio=game.width+'/'+game.height;atlas.style.setProperty('--atlas-ratio',game.width/game.height);renderer.drawMinimap(atlas);
  atlas.addEventListener('click',e=>{const rect=atlas.getBoundingClientRect(),left=atlas.clientLeft,top=atlas.clientTop;renderer.focus(Math.max(0,Math.min(1,(e.clientX-rect.left-left)/atlas.clientWidth))*game.width,Math.max(0,Math.min(1,(e.clientY-rect.top-top)/atlas.clientHeight))*game.height);closeModal();closeMobile();});
  atlas.addEventListener('keydown',e=>{if(e.key==='Enter'){renderer.focus(game.cities[0].x,game.cities[0].y);closeModal();}});
@@ -1194,7 +1219,7 @@ document.addEventListener('keydown',e=>{
   e.preventDefault();spaceConsumed=true;if(!e.repeat){spaceDown=true;spaceUsedForPan=false;spaceStarted=performance.now();if(pointer){pointer.pan=true;preview=[];spaceUsedForPan=true;canvas.classList.add('dragging');}}return;
  }
  if(e.repeat)return;const key=e.key.toLowerCase();
- if(key==='escape'){if(pointer&&!pointer.pan&&tool!=='inspect'){cancelGesture();return;}setTool('inspect');closeMobile();return;}
+ if(key==='escape'){if(pointer&&!pointer.pan&&tool!=='inspect'){cancelGesture();return;}if(tool==='inspect')setCargoLens(null);setTool('inspect');closeMobile();return;}
  // Physical keys keep brackets and digits reachable on QWERTZ and AZERTY layouts; a printed + still zooms.
  const rail=preferredMode==='rail',keys={r:'road',t:'rail',s:'stop',p:'port',b:rail?'railbridge':'bridge',x:'bulldoze','1':'residential','2':'commercial','3':'industrial'},codes={KeyE:'level',BracketLeft:'lower',BracketRight:key==='+'?null:'raise',KeyN:rail?'railtunnel':'tunnel',Digit1:'residential',Digit2:'commercial',Digit3:'industrial'},next=keys[key]||codes[e.code];
  if(next){category=['residential','commercial','industrial'].includes(next)?'towns':'network';view='build';setView('build');setTool(next);return;}
@@ -1215,6 +1240,8 @@ document.addEventListener('visibilitychange',()=>{lastFrame=performance.now();if
 
 layersView=mountVisibility($('#layers-panel'),$('#layers-button'),{getLayers:()=>({...mapLayers}),onChange:(key,visible)=>setMapLayers({[key]:visible}),onPreset:name=>setMapLayers(layerPreset(name))});
 compactUI=mountCompactPlay({onMenu:openGameMenu,onNews:openNews,onGoals:openGoals,onView:setView,getView:()=>view,onCancelGesture:cancelGesture,onMinimapOpen:()=>{renderer.drawMinimap($('#minimap'));invalidateScene();}});
+// Closing the drawer yourself ends a lens set by Routes or Industries; locating a site or picking a stop closes it and keeps the lens.
+for(const el of [$('#close-management'),mobileToggle,...$$('.nav-button[data-view]')])el?.addEventListener('click',()=>{if(!$('.sidebar').classList.contains('mobile-open'))dropCargoLens('routes','industry');});
 // Pointing at or focusing a route card lights its route on the map; a timed Show highlight outlives the pointer leaving.
 let highlight={id:null,until:0};for(const type of ['pointerover','focusin','pointerout','focusout'])$('#panel-content').addEventListener(type,e=>{const card=e.target.closest?.('[data-route-id]');if(!card||card.contains(e.relatedTarget))return;const id=game.routes.find(route=>String(route.id)===card.dataset.routeId)?.id;if(type==='pointerover'||type==='focusin'){if(highlight.id!==id||highlight.until<=performance.now())highlight={id,until:Infinity,card};}else if(highlight.id===id&&highlight.until===Infinity)highlight={id:null,until:0};});
 $('#offline-routes').addEventListener('click',()=>{routeFilters={query:'',mode:'all',status:'disconnected',cargo:'all'};routePage=0;setView('routes');});

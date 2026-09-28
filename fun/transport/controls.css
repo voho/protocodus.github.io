@@ -128,3 +128,14 @@ html,body{overscroll-behavior:none}
 @media(max-width:700px),(hover:none) and (pointer:coarse){.paused-chip .paused-keys{display:none}.paused-chip .paused-touch{display:inline}}
 @media(max-width:1000px){.map-section:has(#active-tool-bar:not([hidden])) .paused-chip{top:74px}.map-section:has(#route-pick-banner) .paused-chip{top:92px}}
 @media(min-width:701px) and (max-width:1000px){.map-section:has(#objective-card:not([hidden])) .paused-chip{left:calc(50% - 154px)}}
+/* Cargo lens: a chip beside the zoom control names the highlighted cargo; its × clears it. On phones it rises above the zoom control, clear of the goal pill. */
+.cargo-lens-chip{display:flex;align-items:center;gap:7px;min-width:0;max-width:300px;min-height:38px;margin-right:8px;padding:2px 2px 2px 9px;border:1px solid #d5ddc7;border-radius:7px;background:#fafaf0;box-shadow:0 3px 12px #273e2b24;color:#34553b;font-size:13px;font-weight:500;white-space:nowrap;pointer-events:auto}
+.cargo-lens-chip .cargo-icon{flex:0 0 20px;width:20px;height:20px}
+.cargo-lens-name{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.cargo-lens-dot{color:#9aa88e}
+.cargo-lens-chip button{display:grid;place-items:center;flex:0 0 32px;width:32px;height:32px;border-radius:5px;font-size:20px;line-height:1;color:#4d6b45}
+.cargo-lens-chip button:hover,.cargo-lens-chip button:focus-visible{background:#e8eddd}
+.atlas-lens-source,.atlas-lens-buyer{width:6px;height:6px;box-shadow:0 0 0 1px #fbf6e3}
+.atlas-lens-source{background:#4e7747}
+.atlas-lens-buyer{background:#3f7f88}
+@media(max-width:700px){.compact-play .cargo-lens-chip{position:absolute;right:0;bottom:calc(100% + 8px);max-width:calc(100vw - 20px);margin:0}.compact-play .cargo-lens-chip button{flex-basis:36px;width:36px;height:36px}}
