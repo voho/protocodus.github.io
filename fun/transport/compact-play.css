@@ -105,3 +105,17 @@
 }
 @media(max-width:370px){.compact-play .topbar{gap:5px;padding:0 6px}.compact-play .topbar .wordmark{display:none}.compact-play .mobile-panel-toggle{padding:8px}.compact-play .topbar .speed-control button{width:22px}.compact-play .hud-stat:first-child strong{font-size:14px}}
 @media(prefers-reduced-motion:reduce){.compact-play .sidebar{transition:none}}
+/* The tool hint keeps its rule to two lines; on phones recent tools sit beside Done as 44 px glyph buttons. */
+.compact-play #active-tool-hint{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+#active-tool-dock{display:flex;flex:0 0 auto;gap:6px}
+#active-tool-dock button{display:grid;place-items:center;width:44px;height:44px;padding:0;border:1px solid #e8d6b8;border-radius:8px;background:#fffcf4;color:#9b7952}
+#active-tool-dock button:hover{background:#fbefdb;border-color:#ddc7a6}
+#active-tool-dock button:focus-visible{outline:2px solid var(--orange);outline-offset:1px}
+#active-tool-dock svg{width:22px;height:22px}
+@media(max-width:700px){
+ .compact-play #active-tool-bar:has(#active-tool-dock:not([hidden])){gap:8px}
+ .compact-play #active-tool-bar:has(#active-tool-dock:not([hidden])) #active-tool-icon{display:none}
+ .compact-play #active-tool-bar:has(#active-tool-dock:not([hidden])) .active-tool-copy{gap:1px}
+ .compact-play #active-tool-bar:has(#active-tool-dock:not([hidden])) #active-tool-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ .compact-play #active-tool-bar:has(#active-tool-dock:not([hidden])) #active-tool-hint{line-height:1.3}
+}

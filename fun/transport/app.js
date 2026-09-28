@@ -225,19 +225,32 @@ function toggleMapMenu(menuId,buttonId) {
  const menu=$('#'+menuId),opening=menu.hidden;closeMapMenus();layersView?.close();
  if(opening){cancelGesture();menu.hidden=false;$('#'+buttonId).setAttribute('aria-expanded','true');menu.querySelector('button')?.focus({preventScroll:true});}
 }
+const recentTools=['road','stop','bulldoze'];
 function syncToolControls() {
  const bar=$('#active-tool-bar');if(!bar)return;
  bar.hidden=tool==='inspect'||isRoutePicking();
- const info=TOOL_INFO[tool]||BUILDINGS[tool]||INDUSTRIES[tool];
+ const info=TOOL_INFO[tool]||BUILDINGS[tool]||INDUSTRIES[tool],touch=matchMedia('(pointer: coarse)').matches||window.innerWidth<=700,tap=touch?'Tap':'Click',network=preferredMode==='rail'?'railway':'road';
  $('#active-tool-icon').innerHTML=icon(info?.icon||'factory');
  $('#active-tool-name').textContent=info?.name||'Build';
- $('#active-tool-hint').textContent=lineTools.has(tool)?window.innerWidth<=700?'Drag to build · Two fingers to move':'Drag to build · Done to explore':window.innerWidth<=700?'Tap to place · Drag to move':'Click to place · Drag to move';
- if(tool==='bulldoze')$('#active-tool-hint').textContent='Click or drag · Clears whole sites';
- if(BUILDINGS[tool]||INDUSTRIES[tool]){const size=BUILDINGS[tool]?buildingFootprint(tool):industryFootprint(tool);$('#active-tool-hint').textContent=`${size} × ${size} site · Click to place`;}
- if(terrainTools.has(tool))$('#active-tool-hint').textContent=tool==='level'?'Drag an area · Match the first point':`Click or drag · ${tool==='raise'?'+1':'−1'} level per point`;
+ $('#active-tool-hint').textContent=lineTools.has(tool)?touch?'Drag to build · Two fingers to move':'Drag to build · Done to explore':`${tap} to place · Drag to move`;
+ if(tool==='road'||tool==='rail')$('#active-tool-hint').textContent=touch?'Straight grades · flat turns':'Drag · straight grades only · flat turns';
+ if(tool==='stop')$('#active-tool-hint').textContent=touch?`Tap a ${network} near customers`:`Click a ${network} within 5 tiles of customers`;
+ if(tool==='port')$('#active-tool-hint').textContent=`${tap} water beside land, near customers`;
+ if(tool==='bulldoze')$('#active-tool-hint').textContent=`${tap} or drag · Clears whole sites`;
+ if(BUILDINGS[tool]||INDUSTRIES[tool]){const size=BUILDINGS[tool]?buildingFootprint(tool):industryFootprint(tool);$('#active-tool-hint').textContent=`${size} × ${size} site · ${tap} to place`;}
+ if(terrainTools.has(tool))$('#active-tool-hint').textContent=tool==='level'?'Drag an area · Match the first point':`${tap} or drag · ${tool==='raise'?'+1':'−1'} level per point`;
  if(spanTools.has(tool))$('#active-tool-hint').textContent='Drag straight · Flat ends at the same level';
- if(aimTool(tool)&&(matchMedia('(pointer: coarse)').matches||window.innerWidth<=700)){const size=BUILDINGS[tool]?buildingFootprint(tool):INDUSTRIES[tool]?industryFootprint(tool):0;$('#active-tool-hint').textContent=size?`${size} × ${size} site · Tap to preview`:'Tap to preview · Tap again to place';}
+ if(aimTool(tool)&&touch){const size=BUILDINGS[tool]?buildingFootprint(tool):INDUSTRIES[tool]?industryFootprint(tool):0;$('#active-tool-hint').textContent=size?`${size} × ${size} site · Tap to preview`:'Tap to preview · Tap again to place';}
+ syncToolDock(bar,touch);
  $('#map-hint').hidden=tool!=='inspect'||isRoutePicking();
+}
+// Phones switch between recent tools from the bar itself, so a tool change never covers the map with the drawer.
+function syncToolDock(bar,touch) {
+ let dock=$('#active-tool-dock');
+ if(!dock){dock=document.createElement('div');dock.id='active-tool-dock';dock.setAttribute('role','toolbar');dock.setAttribute('aria-label','Recent tools');dock.onclick=e=>{const key=e.target.closest('[data-dock-tool]')?.dataset.dockTool;if(!key)return;category=INDUSTRIES[key]?'industry':BUILDINGS[key]||['residential','commercial','industrial','city'].includes(key)?'towns':'network';setTool(key);};bar.insertBefore(dock,$('#cancel-tool-button'));}
+ const keys=touch?recentTools.filter(key=>key!==tool&&(!INDUSTRIES[key]||INDUSTRIES[key].biomes.includes(game.biome))).slice(0,window.innerWidth<360?2:3):[];
+ dock.hidden=!keys.length;if(dock.toolKeys===keys.join())return;dock.toolKeys=keys.join();
+ dock.innerHTML=keys.map(key=>{const info=TOOL_INFO[key]||BUILDINGS[key]||INDUSTRIES[key],name=escapeHTML(info?.name||'Build');return `<button type="button" data-dock-tool="${key}" aria-label="${name}" title="${name}">${icon(info?.icon||'factory')}</button>`;}).join('');
 }
 function setTool(next) {
  cancelGesture();closeMapMenus();cancelRoutePicking();
@@ -245,6 +258,7 @@ function setTool(next) {
  if(['rail','railbridge','railtunnel','train-stop'].includes(next))preferredMode='rail';
  if(spanTools.has(next)||terrainTools.has(next)){category='network';engineeringOpen=true;}
  tool=['bus-stop','train-stop'].includes(next)?'stop':next;selected=null;hover=null;
+ if(tool!=='inspect')recentTools.splice(0,recentTools.length,tool,...recentTools.filter(key=>key!==tool).slice(0,3));
  $('#inspector').hidden=true;canvas.classList.toggle('build-mode',tool!=='inspect');
  $('#status-message').textContent=toolDescription(tool);renderPanel();syncToolControls();
  closeMobile();canvas.focus({preventScroll:true});

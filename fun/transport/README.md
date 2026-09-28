@@ -103,6 +103,8 @@ Click a vehicle or its load badge in Explore mode to open its card: its model an
 
 Management stays closed until needed. Click **Build**, **Routes**, **Industries** or **Towns** to open a drawer; click the same view again or its close button to return to the full map. On narrow screens, **Manage** opens these views. Choosing a construction tool closes the drawer and leaves a small active-tool reminder with a **Done** button. The top lane keeps balance, monthly profit, date and speed visible. Save/load, production chains, map controls, sound and the field guide are in **Game menu** at the top right; the minimap is off by default.
 
+The reminder states the tool's rule along with its gesture: roads and rails climb only straight grades and turn on flat ground, and a stop goes on a road or railway within 5 tiles of its customers. On phones and touch screens it says *Tap* rather than *Click*. It also keeps up to three recently used tools beside **Done** (two on screens narrower than 360 px), so going from Road to Stop to Bulldozer never reopens the drawer.
+
 The landscape uses diamond-shaped tiles, with upright buildings and trees layered by their distance from the camera. Roads, railways, rivers, selections and construction previews follow the same isometric grid. Dragging and arrow keys move in screen directions; zoom keeps the location beneath your pointer in place. The atlas remains a flat overhead map for easy navigation. Existing companies, routes and terrain levels work unchanged in the new view.
 
 The five network tools are **Road, Rail, Stop, Port, and Bulldozer**. Grid, route lines and centering on your home town are in **Game menu → Map options**. The finances tooltip separates fares, running costs, construction/vehicle purchases and the previous month’s operating profit. Hover, focus or tap the balance/profit area to see delivered cargo and connected-town totals. Local weather, save status and map coordinates are available in Game menu.
@@ -276,7 +278,7 @@ The focused autosave check waits for a real timed write, leaves the page, and ve
 TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/autosave-browser-check.mjs
 ```
 
-The compact gameplay check covers the initial main menu, collapsed management, full-width playfield, tool selection, optional minimap, map menus, keyboard focus, return to the main menu and Resume. It verifies desktop and 390/320px layouts and saves screenshots to `/tmp/transport-compact-play`:
+The compact gameplay check covers the initial main menu, collapsed management, full-width playfield, tool selection and its rule hints, the phone recent-tools dock (a tap on Stop switches tools while the drawer stays closed), optional minimap, map menus, keyboard focus, return to the main menu and Resume. It verifies desktop and 390/320px layouts and saves screenshots to `/tmp/transport-compact-play`:
 
 ```sh
 TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/compact-play-browser-check.mjs
