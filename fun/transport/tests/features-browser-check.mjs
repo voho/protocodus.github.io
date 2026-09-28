@@ -430,6 +430,40 @@ try {
   assert.equal(await page.locator('#inspector h3').textContent(), await page.evaluate(id => transport.game.cities.find(city => city.id === id).name, townTargets[0]), 'town destination opens town details rather than its colocated station');
   await page.locator('#inspector .tiny-button').click();
 
+  // Selecting an industry arcs to the targets its inspector lists; pointing at a row picks out its arc and closing the card clears them.
+  const nextFrames = () => page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  const mineArc = await page.evaluate(() => {
+    const game = transport.game, mine = game.industries.find(industry => industry.x === 217 && industry.y === 232), mill = game.industries.find(industry => industry.x === 207 && industry.y === 258);
+    transport.renderer.setZoom(.5); transport.renderer.focus(mine.x + 1, mine.y + 1);
+    return { mine: mine.id, mill: mill.id };
+  });
+  const arcPixels = () => page.evaluate(({ mine, mill }) => {
+    const renderer = transport.renderer, site = id => transport.game.industries.find(industry => industry.id === id), from = renderer.industryMarker(site(mine)), to = renderer.industryMarker(site(mill));
+    const side = to.x > from.x ? -1 : 1, c = { x: (from.x + to.x) / 2 - side * (to.y - from.y) * .18, y: (from.y + to.y) / 2 + side * (to.x - from.x) * .18 }, s = .3;
+    const x = (1 - s) ** 2 * from.x + 2 * (1 - s) * s * c.x + s * s * to.x, y = (1 - s) ** 2 * from.y + 2 * (1 - s) * s * c.y + s * s * to.y;
+    const canvas = document.querySelector('#world'), scale = canvas.width / canvas.getBoundingClientRect().width;
+    return Array.from(canvas.getContext('2d').getImageData(Math.round((x - 6) * scale), Math.round((y - 6) * scale), Math.round(12 * scale), Math.round(12 * scale)).data);
+  }, mineArc);
+  await nextFrames();
+  const unselectedArc = await arcPixels();
+  assert.equal(await page.evaluate(() => transport.renderer.getStats().contextTargets), 0, 'no arcs without a selected industry');
+  const mineBadge = await page.evaluate(id => { const rect = document.querySelector('#world').getBoundingClientRect(), marker = transport.renderer.industryMarker(transport.game.industries.find(industry => industry.id === id)); return { x: rect.left + marker.x, y: rect.top + marker.y }; }, mineArc.mine);
+  await page.waitForFunction(({ x, y }) => document.elementFromPoint(x, y)?.id === 'world', mineBadge);
+  await page.mouse.click(mineBadge.x, mineBadge.y);
+  assert.equal(await page.locator('#inspector h3').textContent(), 'Iron mine', 'the badge opens the iron mine');
+  assert.equal(await page.locator('#inspector [data-target-id]').first().getAttribute('data-target-id'), mineArc.mill, 'the nearest steel mill heads the list');
+  const targetRows = await page.locator('#inspector [data-target-id]').count();
+  await page.waitForFunction(rows => transport.renderer.getStats().contextTargets === rows, targetRows);
+  const selectedArc = await arcPixels();
+  assert.notDeepEqual(selectedArc, unselectedArc, 'an arc runs toward the nearest steel mill');
+  await page.locator('#inspector [data-target-id]').first().hover();
+  await nextFrames();
+  assert.notDeepEqual(await arcPixels(), selectedArc, 'pointing at its row picks out the arc');
+  await page.screenshot({ path: `${output}/desktop-industry-arcs.png` });
+  await page.locator('#inspector .tiny-button').click();
+  await page.waitForFunction(() => transport.renderer.getStats().contextTargets === 0);
+  await page.evaluate(() => transport.renderer.setZoom(1));
+
   // Controlled nearby freight and a parallel railway exercise the real route form.
   // Only this fresh browser context is modified; production game saves are untouched.
   const fixture = await page.evaluate(async () => {

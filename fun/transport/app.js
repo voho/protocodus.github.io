@@ -824,6 +824,7 @@ function localConditions(conditions) {
 function industryDestinations(industry) {
  const outputs=Object.keys(INDUSTRIES[industry.kind].outputs), targets=findIndustryTargets(game,industry,5);
  const from=servingStops(industry),plans=targets.map(target=>from.length?targetPlan(target,from):'');
+ holdContext(industry,targets);
  const uses=outputs.map(cargo=>{
   const consumers=Object.values(INDUSTRIES).filter(d=>d.biomes.includes(game.biome)&&d.inputs[cargo]).map(d=>d.name);
   if(TOWN_CARGO.includes(cargo))consumers.push('Towns');
@@ -831,6 +832,29 @@ function industryDestinations(industry) {
  }).join('');
  return `<section class="industry-destinations" aria-label="Output destinations"><div class="destination-heading"><h4>Deliver to</h4><button class="small-button" id="industry-chain">${icon('chains')} Full chain</button></div>${uses}<h4>Nearest targets <span>${targets.length}</span></h4><p class="destination-note">Direct distance · transport required</p><div class="industry-target-list">${targets.map((target,index)=>`${plans[index]?'<div class="industry-target-row">':''}<button class="industry-target" data-target-id="${escapeHTML(target.id)}" data-target-kind="${target.kind}" aria-label="Locate ${escapeHTML(target.name)} at ${target.x}, ${target.y}"><span class="target-number">${index+1}</span><span class="target-detail"><strong>${escapeHTML(target.name)}</strong><small>${Math.round(target.distance)} tiles · ${target.x}, ${target.y}</small></span><span class="target-cargo">${target.cargo.map(c=>cargoIcon(c,{decorative:true})).join('')}</span>${icon('focus')}</button>${plans[index]?plans[index]+'</div>':''}`).join('')||'<p class="destination-note">No buyers yet. Open the chain to build one.</p>'}</div></section>`;
 }
+// An inspected industry keeps its nearest targets for the map, which arcs to each; pointing at or focusing a row picks out its arc.
+// The arcs last as long as that selection: another pick, a carrier's card or closing the card hides them.
+let selectionContext=null;
+function holdContext(industry,targets) {
+ const highlight=selectionContext?.industryId===industry.id&&!$('#inspector').hidden?selectionContext.highlight:null;
+ selectionContext={selected,industryId:industry.id,targets:targets.map((t,n)=>({x:t.x,y:t.y,kind:t.kind,id:t.id,rank:n+1})),highlight};
+}
+function pickContext(row) {
+ const rank=row&&selectionContext?.targets.find(t=>String(t.id)===row.dataset.targetId&&t.kind===row.dataset.targetKind)?.rank||null;
+ if(selectionContext&&selectionContext.highlight!==rank){selectionContext={...selectionContext,highlight:rank};invalidateScene();}
+}
+// Bubbles of targets out of view stop short of the cards over the map (display pixels).
+function contextView() {
+ if(!selectionContext||selectionContext.selected!==selected)return null;
+ const map=canvas.getBoundingClientRect();
+ return {...selectionContext,covers:[$('#inspector'),$('#objective-card')].filter(el=>!el.hidden).map(el=>{const r=el.getBoundingClientRect();return {x:r.left-map.left,y:r.top-map.top,w:r.width,h:r.height};})};
+}
+// The row just pointed at or focused wins; leaving it falls back to the other one.
+const focusedTarget=()=>document.activeElement?.closest?.('#inspector [data-target-id]'),hoveredTarget=()=>$('#inspector [data-target-id]:hover');
+$('#inspector').addEventListener('mouseover',e=>pickContext(e.target.closest?.('[data-target-id]')||focusedTarget()));
+$('#inspector').addEventListener('mouseleave',()=>pickContext(focusedTarget()));
+$('#inspector').addEventListener('focusin',e=>pickContext(e.target.closest?.('[data-target-id]')||hoveredTarget()));
+$('#inspector').addEventListener('focusout',()=>pickContext(hoveredTarget()));
 function locateIndustry(id,origin='') {
  const industry=game.industries.find(i=>String(i.id)===String(id));
  if(!industry)return;
@@ -1520,7 +1544,7 @@ function frame(now){
  if(highlight.card&&!highlight.card.isConnected)highlight={id:null,until:0};const highlightRoute=highlight.until>now?highlight.id:null;
  const changed=!painted||painted.game!==game||painted.day!==game.day||painted.revision!==game.revision||painted.money!==game.money||painted.scene!==sceneRevision||painted.x!==camera.x||painted.y!==camera.y||painted.height!==camera.height||painted.zoom!==camera.zoom||painted.w!==w||painted.h!==h||painted.layers!==mapLayers||painted.tool!==tool||painted.hover!==hover||painted.preview!==preview||painted.selected!==selected||painted.mode!==preferredMode||painted.view!==view||painted.from!==formDraft.from||painted.to!==formDraft.to||painted.highlight!==highlightRoute;
  if(changed||floaterPaint){
-  renderer.render(now,{tool,hover,preview,selected,preferredMode,routeStops:routePickStops(),floaters,highlightRoute,selectedVehicleId:selectedVehicle});
+  renderer.render(now,{tool,hover,preview,selected,preferredMode,routeStops:routePickStops(),floaters,highlightRoute,selectedVehicleId:selectedVehicle,context:contextView()});
   painted={game,day:game.day,revision:game.revision,money:game.money,scene:sceneRevision,x:camera.x,y:camera.y,height:camera.height,zoom:camera.zoom,w,h,layers:mapLayers,tool,hover,preview,selected,mode:preferredMode,view,from:formDraft.from,to:formDraft.to,highlight:highlightRoute};
  }
  if(now-hudAt>400&&(!hudState||hudState.game!==game||hudState.day!==game.day||hudState.revision!==game.revision||hudState.money!==game.money||hudState.zoom!==camera.zoom||hudState.w!==w||hudState.view!==view)){
