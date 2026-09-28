@@ -272,7 +272,7 @@ node --test fun/transport/tests/*.test.mjs
 
 The checks cover seeded worlds, construction, connected deliveries, production conservation, local development and ecology, frame-independent random outcomes, huge-world simulation costs, and save validation and continuation.
 
-The minimap renders at most 512 × 512 terrain samples while preserving thin roads and rails in a separate overlay. Ecology samples at most 4,096 cells per simulation day on large maps. The map then redraws only the terrain around the cells that changed, which roughly halves the cost of drawing a new day at Region view.
+The minimap renders at most 512 × 512 terrain samples while preserving thin roads and rails in a separate overlay. Ecology samples at most 4,096 cells per simulation day on large maps. The map then redraws only the terrain around the cells that changed, which roughly halves the cost of drawing a new day at Region view. An open mini map recolours only the pixels of those cells, so it keeps up at 8×; a hidden one is not drawn until you open it.
 
 The optional browser smoke uses Playwright and an installed Chrome browser. With the server running on port 8000:
 
@@ -330,7 +330,7 @@ The focused save-slot check creates distinct companies, switches their complete 
 TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/slots-browser-check.mjs
 ```
 
-The focused Layers check compares rendered pixels for the 15 map switches at every zoom (the 16th, Next goal, shows or hides a card), verifies restoration and overview rendering, checks hidden industry/stop marker picking and unchanged game state, and covers preference persistence and recovery, blocked storage, synchronized map buttons, keyboard controls and mobile layouts. It uses isolated browser storage; screenshots go to `/tmp/transport-layers-qa`:
+The focused Layers check compares rendered pixels for the 15 map switches at every zoom (the 16th, Next goal, shows or hides a card), verifies restoration and overview rendering, checks that ecology days patch the overview to exactly a full resample at 512² and 2048² and that a hidden mini map is not sampled until it opens, checks hidden industry/stop marker picking and unchanged game state, and covers preference persistence and recovery, blocked storage, synchronized map buttons, keyboard controls and mobile layouts. It uses isolated browser storage; screenshots go to `/tmp/transport-layers-qa`:
 
 ```sh
 TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/layers-browser-check.mjs

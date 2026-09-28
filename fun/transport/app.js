@@ -183,7 +183,8 @@ function syncLayerControls() {
 function setMapLayers(patch) {
  mapLayers=normalizeLayers({...mapLayers,...patch});renderer.setLayers(mapLayers);syncLayerControls();
  renderGoal();
- renderer.drawMinimap($('#minimap'));minimapAt=performance.now();
+ // A hidden mini map is resampled when it next opens.
+ if(!compactUI||compactUI.isMinimapVisible()){renderer.drawMinimap($('#minimap'));minimapAt=performance.now();}
  if(saveVisibility(mapLayers))layerStorageNotice=false;
  else if(!layerStorageNotice){layerStorageNotice=true;toast('Layers changed. This browser could not remember the settings.',true);}
 }
@@ -1214,7 +1215,7 @@ function activateGame(next) {
 async function drawLoadedWorld() {
  updateLoading('Drawing your world…',3);await paintLoading();
  renderer.render(performance.now(),{tool,hover,preview,selected,preferredMode,routeStops:routePickStops()});
- renderer.drawMinimap($('#minimap'));minimapAt=performance.now();lastRevision=game.revision;
+ if(!compactUI||compactUI.isMinimapVisible()){renderer.drawMinimap($('#minimap'));minimapAt=performance.now();}lastRevision=game.revision;
  await paintLoading();
 }
 async function openGameMenu() {

@@ -198,3 +198,26 @@ The cached/fresh regression adds journaled ecology days at all three zooms, by d
 node --test fun/transport/tests/change-journal.test.mjs
 node fun/transport/tests/scene-cache-browser-check.mjs
 ```
+
+## Mini map
+
+Ecology used to resample the whole 512 × 512 overview after every day, and the app also sampled the hidden mini map when a world loaded and on each layer change. The overview now recolours only the samples of the cells a day journals, skips pixels where a road, rail or industry overlay won, and writes only their dirty rectangle. Construction, growth and loads still resample it whole. A hidden mini map is not drawn until it opens.
+
+Measured on taiga maps (seed 4242; the live run on 512²) at 1440 × 900 CSS pixels and DPR 1. Draw times are medians in milliseconds, with the previous and the new renderer drawing the same world in one page:
+
+| Workload | Before | After |
+| --- | ---: | ---: |
+| Mini map draw after one ecology day, 512² | 61.8 | 0.4 |
+| Mini map draw after one ecology day, 2048² | 67.9 | 0.4 |
+| Town 8× for 6 s with the mini map open, frames per second | 27.6 | 56.1 |
+| Frames over 33 ms in the same run | 52 | 6 |
+| Total mini map milliseconds in the same run (48 draws) | 3,259 | 359 |
+| Hidden mini map samples while loading a world | 262,144 | 0 |
+
+With the mini map closed, the same run holds 59.4 fps. Nearly all of the remaining mini map time comes from the five or so days out of 48 that also grew a town or an industry. Those revisions are not journaled, so they still resample the whole overview.
+
+The Layers check patches 512² and 2048² worlds through 12 ecology days, one journaled day under road, rail and industry pixels, a road and a terraform, with roads, rails and buildings each shown and hidden. Every patched overview matches a forced full resample word for word.
+
+```sh
+node fun/transport/tests/layers-browser-check.mjs
+```

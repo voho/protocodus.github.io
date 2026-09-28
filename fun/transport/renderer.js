@@ -88,7 +88,7 @@ export function createRenderer(canvas, initialGame, options={}) {
   const drawWeather=createWeatherEffects({reducedMotion:()=>Boolean(motionPreference?.matches)});
   if(options.onInvalidate)motionPreference?.addEventListener('change',options.onInvalidate);
   let cachedRevision=-1, minimapRevision=-1, cachedBiome=game.biome, cachedSeed=game.seed, cachedHouseAssets=houseAssetsRevision(),cachedWorldAssets=worldArtRevision();
-  let minimapPixels=null,minimapWords=null;
+  let minimapPixels=null,minimapWords=null,minimapMask=null,minimapPalette=null;
   let minimapNetworkGame=null,minimapNetworkRevision=-1,minimapNetwork=null,minimapNetworkScans=0,minimapTerrainSamples=0;
   let industryIndex=new Map(), stationIndex=new Map(), buildingIndex=new Map(), terrainObjectIndex=new Map(), cacheBytes=0, composedChunks=0;
   let objectHits=[],bridgeHits=[],sceneCache=null,gridCache=null,sceneViewBounds=null,capturedBillboards=null;
@@ -1108,14 +1108,19 @@ export function createRenderer(canvas, initialGame, options={}) {
     // Extremely light edge shade holds the terrain together without dimming the playfield.
     const vignette=ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*.3,W/2,H/2,Math.max(W,H)*.75);vignette.addColorStop(0,'#21382b00');vignette.addColorStop(1,'#21382b10');ctx.fillStyle=vignette;ctx.fillRect(0,0,W,H);
   }
+  // The one overview pixel along an axis whose sample is tile t, or -1 when downsampling skips that tile.
+  const minimapPixel=(t,step,size)=>{const p=Math.floor(t/step);for(let q=Math.max(0,p-1);q<=Math.min(size-1,p+1);q++)if(Math.floor((q+.5)*step)===t)return q;return -1;};
   function cacheMinimap(){
     ensureRevision();const scale=Math.min(1,MINIMAP_EDGE/Math.max(game.width,game.height));
     const width=Math.max(1,Math.round(game.width*scale)),height=Math.max(1,Math.round(game.height*scale));
     if(minimapRevision===cachedRevision&&minimapLayer.width===width&&minimapLayer.height===height)return;
+    // An ecology day journals the few hundred cells it rewrote. With the same layers, size and
+    // palette only their samples are recoloured; a pixel a network or industry overlay won stays.
+    const changes=minimapRevision>=0&&minimapPalette===palette&&minimapPixels&&minimapLayer.width===width&&minimapLayer.height===height?surfaceChangesSince(game,minimapRevision):null;
     if(minimapLayer.width!==width||minimapLayer.height!==height||!minimapPixels){
       minimapLayer.width=width;minimapLayer.height=height;
       minimapPixels=minimapLayer.getContext('2d').createImageData(width,height);
-      minimapWords=new Uint32Array(minimapPixels.data.buffer);
+      minimapWords=new Uint32Array(minimapPixels.data.buffer);minimapMask=new Uint8Array(width*height);
     }
     // Daily ecology visits at most 512² representative tiles, even on a 2048²
     // world. Thin roads would disappear under point sampling, so their sparse
@@ -1123,20 +1128,32 @@ export function createRenderer(canvas, initialGame, options={}) {
     const stepX=game.width/width,stepY=game.height/height;
     const packed=hex=>new Uint32Array(new Uint8Array([parseInt(hex.slice(1,3),16),parseInt(hex.slice(3,5),16),parseInt(hex.slice(5,7),16),255]).buffer)[0];
     const colors={grass:packed(palette.ground),water:packed(palette.deep),forest:packed(palette.forest),mountain:packed(palette.mountain),rock:packed(palette.mountain),sand:packed(palette.sand),snow:packed(palette.ground2),road:packed('#d7cbb0'),rail:packed('#655f52'),building:packed('#cfb78b'),zone:packed('#b2b78c'),marsh:packed('#708879'),saltflat:packed('#e3d9bc')};
-    for(let y=0;y<height;y++)for(let x=0;x<width;x++){
-      const tx=Math.floor((x+.5)*stepX),ty=Math.floor((y+.5)*stepY),t=game.tiles[ty*game.width+tx],terrain=t.terrain==='forest'&&!layers.trees?'grass':t.terrain;
-      minimapWords[y*width+x]=layers.buildings&&(t.building||buildingAt(game,tx,ty))?colors.building:layers.rails&&t.rail?colors.rail:layers.roads&&t.road?colors.road:layers.zones&&t.zone?colors.zone:terrain==='water'?colors.water:terrain==='forest'?colors.forest:terrainOverviewColor(game,tx,ty);
+    const sample=(tx,ty)=>{
+      const t=game.tiles[ty*game.width+tx],terrain=t.terrain==='forest'&&!layers.trees?'grass':t.terrain;
+      return layers.buildings&&(t.building||buildingAt(game,tx,ty))?colors.building:layers.rails&&t.rail?colors.rail:layers.roads&&t.road?colors.road:layers.zones&&t.zone?colors.zone:terrain==='water'?colors.water:terrain==='forest'?colors.forest:terrainOverviewColor(game,tx,ty);
+    };
+    if(changes){
+      let x0=width,y0=height,x1=-1,y1=-1,samples=0;
+      for(const index of changes){
+        const tx=index%game.width,ty=Math.floor(index/game.width),x=minimapPixel(tx,stepX,width),y=minimapPixel(ty,stepY,height),at=y*width+x;
+        if(x<0||y<0||minimapMask[at])continue;
+        minimapWords[at]=sample(tx,ty);samples++;x0=Math.min(x0,x);y0=Math.min(y0,y);x1=Math.max(x1,x);y1=Math.max(y1,y);
+      }
+      minimapTerrainSamples=samples;
+      if(samples)minimapLayer.getContext('2d').putImageData(minimapPixels,0,0,x0,y0,x1-x0+1,y1-y0+1);
+      minimapRevision=cachedRevision;return;
     }
-    minimapTerrainSamples=width*height;
+    for(let y=0;y<height;y++)for(let x=0;x<width;x++)minimapWords[y*width+x]=sample(Math.floor((x+.5)*stepX),Math.floor((y+.5)*stepY));
+    minimapTerrainSamples=width*height;minimapMask.fill(0);
     if(scale<1&&(layers.roads||layers.rails)){
       if(minimapNetworkGame!==game||minimapNetworkRevision!==(game.networkRevision||0)){
         minimapNetwork=networkIndex(game);
         minimapNetworkGame=game;minimapNetworkRevision=game.networkRevision||0;minimapNetworkScans++;
       }
-      for(const id of minimapNetwork){const t=game.tiles[id],color=layers.buildings&&t.building?colors.building:layers.rails&&t.rail?colors.rail:layers.roads&&t.road?colors.road:null;if(color!==null)minimapWords[Math.floor((Math.floor(id/game.width)+.5)/stepY)*width+Math.floor((id%game.width+.5)/stepX)]=color;}
+      for(const id of minimapNetwork){const t=game.tiles[id],color=layers.buildings&&t.building?colors.building:layers.rails&&t.rail?colors.rail:layers.roads&&t.road?colors.road:null;if(color!==null){const at=Math.floor((Math.floor(id/game.width)+.5)/stepY)*width+Math.floor((id%game.width+.5)/stepX);minimapWords[at]=color;minimapMask[at]=1;}}
     }
-    if(layers.buildings)for(const industry of game.industries||[])for(const p of industryTiles(industry))minimapWords[Math.floor((p.y+.5)/stepY)*width+Math.floor((p.x+.5)/stepX)]=colors.building;
-    minimapLayer.getContext('2d').putImageData(minimapPixels,0,0);minimapRevision=cachedRevision;
+    if(layers.buildings)for(const industry of game.industries||[])for(const p of industryTiles(industry)){const at=Math.floor((p.y+.5)/stepY)*width+Math.floor((p.x+.5)/stepX);minimapWords[at]=colors.building;minimapMask[at]=1;}
+    minimapLayer.getContext('2d').putImageData(minimapPixels,0,0);minimapRevision=cachedRevision;minimapPalette=palette;
   }
   function drawMinimap(minimap){
     cacheMinimap();const rect=minimap.getBoundingClientRect();const mw=Math.round(rect.width||180),mh=Math.round(rect.height||115),ratio=Math.min(window.devicePixelRatio||1,2);if(minimap.width!==mw*ratio||minimap.height!==mh*ratio){minimap.width=mw*ratio;minimap.height=mh*ratio;}

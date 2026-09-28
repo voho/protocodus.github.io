@@ -31,6 +31,8 @@ try {
   await page.goto(url);
   await createWorldFromMenu(page);
   await page.locator('[data-speed="0"]').click();
+  const miniSamples = () => page.evaluate(() => transport.renderer.getStats().minimapTerrainSamples);
+  assert.equal(await miniSamples(), 0, 'loading a world does not sample the hidden mini map');
   const defaults = await page.evaluate(async () => (await import('./visibility.js')).DEFAULT_LAYERS);
   const keys = Object.keys(defaults);
   assert.equal(keys.length, 16);
@@ -58,6 +60,7 @@ try {
     await setLayer(page, key, defaults[key]);
   }
   assert.equal(await page.evaluate(() => JSON.stringify(transport.game)), stateBefore, 'visibility controls never mutate the company or terrain');
+  assert.equal(await miniSamples(), 0, 'layer switches do not resample the hidden mini map');
   await page.screenshot({ path: `${output}/desktop-layers-panel.png` });
 
   await page.locator('[data-layer-preset="terrain"]').click();
@@ -236,6 +239,46 @@ try {
   assert.equal(interaction.copySafe,true,'callers cannot mutate renderer state through getLayers');
   await page.evaluate(()=>{layersQA.canvas.remove();layersQA.minimap.remove();delete window.layersQA;});
 
+  // An ecology day recolours only the overview samples of the cells it journals; a build or
+  // terraform resamples everything. Either way the result matches a forced full resample word
+  // for word, one sample per tile at 512² and sampled at 2048², with networks and buildings on and off.
+  const overview=await page.evaluate(async()=>{
+    const {createGame,build}=await import('./model.js'),{stepEcology}=await import('./environment.js'),{createRenderer}=await import('./renderer.js'),{DEFAULT_LAYERS}=await import('./visibility.js');
+    const {noteSurfaceChanges}=await import('./change-journal.js'),{networkIndex}=await import('./network-index.js'),{industryTiles}=await import('./industry-sites.js');
+    const runs=[];
+    for(const size of ['square512','square2048']){
+      const game=createGame({size,seed:4242}),canvas=document.createElement('canvas'),mini=document.createElement('canvas');
+      canvas.style.cssText='position:fixed;left:-10000px;top:0;width:320px;height:200px';mini.style.cssText='position:fixed;left:-10000px;top:0;width:512px;height:512px';document.body.append(canvas,mini);
+      const renderer=createRenderer(canvas,game),full=512*512,samples=()=>renderer.getStats().minimapTerrainSamples;
+      const pixels=()=>{renderer.drawMinimap(mini);return new Uint32Array(mini.getContext('2d').getImageData(0,0,mini.width,mini.height).data.buffer);};
+      const resampled=()=>{const trees=renderer.getLayers().trees;renderer.setLayers({trees:!trees});renderer.setLayers({trees});return pixels();};
+      const compare=()=>{const patched=pixels(),reference=resampled();let differ=0;for(let i=0;i<patched.length;i++)if(patched[i]!==reference[i])differ++;return differ;};
+      // A journaled day may also rewrite cells sampled under a road, rail or industry pixel; that overlay must win.
+      const covered=()=>{const step=game.width/512,cells=new Set(),add=(x,y)=>{const sx=Math.floor((Math.floor((x+.5)/step)+.5)*step),sy=Math.floor((Math.floor((y+.5)/step)+.5)*step),i=sy*game.width+sx,t=game.tiles[i];if(['grass','forest'].includes(t.terrain)&&!t.road&&!t.rail&&!t.building)cells.add(i);};for(const id of networkIndex(game))add(id%game.width,Math.floor(id/game.width));for(const site of game.industries)for(const p of industryTiles(site))add(p.x,p.y);return[...cells].slice(0,600);};
+      let cursor=0;const edit=tool=>{while(cursor<game.tiles.length){const i=(cursor++*7919+104729)%game.tiles.length;if(build(game,tool,i%game.width,Math.floor(i/game.width)).ok){pixels();return samples();}}return -1;};
+      for(const hidden of [[],['roads'],['rails'],['buildings'],['roads','rails','buildings']]){
+        const run={size,hidden:hidden.join('+')||'none',changed:0,patched:[],differ:[]};
+        const days=count=>{for(let d=0;d<count;d++){game.day+=1;run.changed+=stepEcology(game);pixels();run.patched.push(samples());}run.differ.push(compare());};
+        renderer.setLayers({...DEFAULT_LAYERS,...Object.fromEntries(hidden.map(key=>[key,false]))});pixels();run.width=mini.width;
+        const overlaid=()=>{const cells=covered(),from=game.revision||0;for(const i of cells)game.tiles[i].terrain=game.tiles[i].terrain==='forest'?'grass':'forest';game.revision=from+1;noteSurfaceChanges(game,from,game.revision,cells);pixels();run.overlaid=cells.length;run.masked=cells.length-samples();run.differ.push(compare());};
+        days(6);overlaid();run.built=edit('road');days(3);run.shaped=edit('raise');days(3);
+        runs.push({...run,full});
+      }
+      canvas.remove();mini.remove();
+    }
+    return runs;
+  });
+  for(const run of overview){
+    const label=`${run.size} with ${run.hidden} hidden`;
+    assert.equal(run.width,512,`${label}: the comparison reads one canvas pixel per sample`);
+    assert.deepEqual(run.differ,[0,0,0,0],`${label}: patched overview matches a full resample word for word`);
+    assert.ok(run.overlaid>0&&(run.hidden.includes('buildings')||run.masked>0),`${label}: cells under an overlay keep it (${run.masked} of ${run.overlaid})`);
+    assert.ok(run.changed>0&&run.patched.some(count=>count>0),`${label}: ecology changed sampled cells`);
+    assert.ok(run.patched.every(count=>count<run.full/16),`${label}: ecology recolours only journaled samples (${Math.max(...run.patched)} at most)`);
+    assert.equal(run.built,run.full,`${label}: a build resamples the whole overview`);
+    assert.equal(run.shaped,run.full,`${label}: a terraform resamples the whole overview`);
+  }
+
   // Preferences have a separate storage key; rejected writes cannot disable UI.
   const preferenceRecovery=await page.evaluate(async()=>{
     const {loadVisibility,VISIBILITY_KEY}=await import('./visibility.js');
@@ -279,6 +322,10 @@ try {
   await openLayers(page);
   for(const key of keys)assert.equal(await page.locator(`[data-layer="${key}"]`).isChecked(),preferences[key]);
   await page.locator('[data-layers-close]').click();
+  assert.equal(await miniSamples(),0,'a reloaded company leaves the hidden mini map unsampled');
+  await openGameAction(page,'overview-button');await page.waitForFunction(()=>transport.renderer.getStats().minimapTerrainSamples>0);
+  assert.equal(await miniSamples(),512*512,'opening the mini map samples the whole overview once');
+  await page.locator('#close-minimap').click();
 
   for(const width of [390,320]){
     await page.setViewportSize({width,height:844});await openLayers(page);
