@@ -148,3 +148,5 @@ html,body{overscroll-behavior:none}
 .tip-place:hover{background:#365c41}
 .tip-place:disabled{background:#e4e3d6;color:#8d9483;cursor:default}
 .compact-play:not(.page-zoomed) .tip-place{touch-action:none}
+/* Touch-only screens have no scroll wheel to pan with. */
+@media(hover:none) and (pointer:coarse){#scroll-mode{display:none}}

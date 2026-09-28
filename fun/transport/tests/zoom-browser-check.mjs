@@ -1,7 +1,7 @@
 // Serve the repository root first. Override TRANSPORT_URL / TRANSPORT_PLAYWRIGHT if needed.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
-import { createWorldFromMenu, openGameAction } from './browser-start.mjs';
+import { createWorldFromMenu, loadAutosaveFromMenu, openGameAction } from './browser-start.mjs';
 const { chromium } = await import(process.env.TRANSPORT_PLAYWRIGHT || 'playwright');
 const browser = await chromium.launch({ channel: process.env.TRANSPORT_BROWSER || 'chrome', headless: true });
 const url = process.env.TRANSPORT_URL || 'http://localhost:8765/fun/transport/';
@@ -95,6 +95,49 @@ try {
       await page.waitForTimeout(400);
       await page.mouse.wheel(0, 0);
       assert.equal(await cameraZoom(page), 1, 'zero vertical wheel movement does not zoom');
+
+      // Sideways scrolling pans; Scroll to pan makes vertical scrolling pan too, while a pinch (Control) still zooms.
+      const camera = () => page.evaluate(() => transport.renderer.getCamera());
+      const scrollToPan = async () => {
+        await openGameAction(page, 'map-options-button');
+        await page.locator('#scroll-mode').click();
+        await page.mouse.move(pointer.x, pointer.y);
+        await page.waitForTimeout(250);
+      };
+      await page.mouse.move(pointer.x, pointer.y);
+      let before = await camera();
+      await page.mouse.wheel(24, 0);
+      await page.waitForTimeout(80);
+      let after = await camera();
+      assert.notEqual(after.x, before.x, 'a horizontal trackpad scroll pans the map');
+      assert.equal(after.zoom, before.zoom, 'a horizontal scroll keeps the view');
+      assert.equal(await page.locator('#scroll-mode').getAttribute('aria-pressed'), 'false', 'scrolling zooms by default');
+      await scrollToPan();
+      assert.equal(await page.locator('#scroll-mode').getAttribute('aria-pressed'), 'true');
+      assert.equal(await page.evaluate(() => localStorage.getItem('transport-scroll-mode')), 'pan', 'the scroll choice is remembered');
+      before = await camera();
+      for (let n = 0; n < 10; n++) { await page.mouse.wheel(0, 6); await page.waitForTimeout(16); }
+      await page.waitForTimeout(80);
+      after = await camera();
+      assert.notEqual(after.y, before.y, 'Scroll to pan moves the map with vertical scrolling');
+      assert.equal(after.zoom, before.zoom, 'Scroll to pan never zooms');
+      await page.keyboard.down('Control');
+      await page.mouse.wheel(0, -30);
+      await page.keyboard.up('Control');
+      await page.waitForTimeout(80);
+      assert.equal(await cameraZoom(page), 2, 'a pinch still zooms one view');
+      await page.reload();
+      await loadAutosaveFromMenu(page);
+      assert.equal(await page.locator('#scroll-mode').getAttribute('aria-pressed'), 'true', 'Scroll to pan survives a reload');
+      await scrollToPan();
+      assert.equal(await page.locator('#scroll-mode').getAttribute('aria-pressed'), 'false');
+      assert.equal(await page.evaluate(() => localStorage.getItem('transport-scroll-mode')), 'zoom');
+      await chooseView(page, 1);
+      await page.mouse.move(pointer.x, pointer.y);
+      await page.waitForTimeout(250);
+      await page.mouse.wheel(0, 120);
+      await page.waitForTimeout(80);
+      assert.equal(await cameraZoom(page), .5, 'turning Scroll to pan off restores wheel zoom');
     }
 
     const rendererChecks = await page.evaluate(async () => {

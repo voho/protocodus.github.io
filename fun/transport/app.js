@@ -1578,12 +1578,20 @@ $('#inspector').setAttribute('role','region');$('#inspector').setAttribute('aria
 for(const el of [$('#inspector'),$('#panel-content')])el.addEventListener('pointerdown',()=>{panelPress=true;},true);
 for(const type of ['pointerup','pointercancel'])document.addEventListener(type,()=>{if(panelPress){panelPress=false;panelReleasedAt=performance.now();}},true);
 let wheelAt=-Infinity, wheelDelta=0, wheelConsumed=false;
+// Sideways scrolling always pans; Scroll to pan (Map options) pans with every scroll. A pinch arrives with ctrlKey and always zooms.
+let scrollPan=(()=>{try{return localStorage.getItem('transport-scroll-mode')==='pan';}catch{return false;}})();
+function setScrollPan(on) { scrollPan=on;$('#scroll-mode').setAttribute('aria-pressed',String(on));try{localStorage.setItem('transport-scroll-mode',on?'pan':'zoom');}catch{} }
+$('#scroll-mode').setAttribute('aria-pressed',String(scrollPan));
+$('#scroll-mode').onclick=()=>{setScrollPan(!scrollPan);toast(scrollPan?'Scrolling now moves the map. Pinch or Ctrl+scroll to zoom.':'Scrolling now zooms the map.');};
 canvas.addEventListener('wheel',e=>{
- e.preventDefault();if(!e.deltaY)return;
+ e.preventDefault();
+ const scale=e.deltaMode===1?16:e.deltaMode===2?canvas.clientHeight:1,dx=e.deltaX*scale,dy=e.deltaY*scale;
+ if(!e.ctrlKey&&(scrollPan||Math.abs(dx)>Math.abs(dy))){renderer.pan(-dx,scrollPan?-dy:0);refreshStroke();return;}
+ if(!dy)return;
  const now=performance.now();
  if(now-wheelAt>180){wheelDelta=0;wheelConsumed=false;}
  wheelAt=now;if(wheelConsumed)return;
- wheelDelta+=e.deltaY*(e.deltaMode===1?16:e.deltaMode===2?canvas.clientHeight:1);
+ wheelDelta+=dy;
  if(Math.abs(wheelDelta)<12)return;
  // One step per gesture keeps trackpad momentum from skipping a view.
  wheelConsumed=true;renderer.zoomAt(wheelDelta<0?2:.5,e.clientX,e.clientY);updateHud();
