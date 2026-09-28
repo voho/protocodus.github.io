@@ -264,6 +264,43 @@ async function truthfulQuotes() {
   await page.close();
 }
 
+// A diagonal zone drag fills the rectangle on both sides of a street in one stroke and leaves the road alone.
+async function areaZoning() {
+  const page = await start({ width: 1440, height: 1000 }), site = await fixture(page), { x, y } = site;
+  const tip = () => page.evaluate(() => { const t = document.querySelector('#placement-tip'); return { text: t.textContent, warning: t.classList.contains('warning') }; });
+  const hold = async (from, to) => { const [a, b] = await points(page, [from, to]); await page.mouse.move(a.x, a.y); await page.mouse.down(); await page.mouse.move(b.x, b.y, { steps: 8 }); return tip(); };
+  const street = await page.evaluate(async ({ x, y }) => { const { build } = await import('./model.js'), g = transport.game; for (let dx = 2; dx <= 14; dx++) build(g, 'road', x + dx, y + 14); return JSON.stringify(Array.from({ length: 13 }, (_, i) => g.tiles[(y + 14) * g.width + x + 2 + i])); }, site);
+  const toasts = () => page.evaluate(() => [...document.querySelectorAll('#toast-region .toast')].map(t => t.textContent));
+  await keyTool(page, 'Digit1', /Residential/);
+  const before = await toasts(), zones = await page.evaluate(() => transport.game.zones.length);
+  let held = await hold({ x: x + 4, y: y + 12 }, { x: x + 9, y: y + 16 });
+  assert.match(held.text, /^Residential · 6 × 5 · 24 tiles · 12 need a road · \$[\d,]+$/, 'the tip names the rectangle, its tiles and those no road reaches');
+  assert.equal(held.warning, true);
+  await page.screenshot({ path: `${output}/area-zoning-held.png` });
+  await page.mouse.up();
+  const after = await toasts(), zoned = await page.evaluate(({ x, y }) => { const g = transport.game, row = dy => Array.from({ length: 6 }, (_, i) => g.tiles[(y + dy) * g.width + x + 4 + i].zone); return { count: g.zones.length, rows: [12, 13, 14, 15, 16].map(row), street: JSON.stringify(Array.from({ length: 13 }, (_, i) => g.tiles[(y + 14) * g.width + x + 2 + i])) }; }, site);
+  assert.equal(zoned.count, zones + 24, 'one drag zones both sides of the street');
+  assert.deepEqual(zoned.rows.map(row => row.every(zone => zone === 'residential')), [true, true, false, true, true]);
+  assert.equal(zoned.street, street, 'the street is unchanged');
+  assert.equal(after.length, before.length + 1, 'the rectangle reports once'); assert.match(after.at(-1), /^Built 24 tiles · \$[\d,]+/);
+  await page.screenshot({ path: `${output}/area-zoning-built.png` });
+  await page.keyboard.down('Shift');
+  held = await hold({ x: x + 4, y: y + 19 }, { x: x + 9, y: y + 20 });
+  assert.match(held.text, /^Residential · 7 tiles · 7 need a road · \$[\d,]+$/, 'Shift keeps the line');
+  await page.keyboard.press('Escape'); await page.mouse.up(); await page.keyboard.up('Shift');
+  held = await hold({ x, y: y + 2 }, { x: x + 21, y: y + 21 });
+  assert.match(held.text, /^Residential · 16 × 16 · .* · max 16 × 16$/, 'the rectangle stops at 16 tiles a side');
+  await page.keyboard.press('Escape'); await page.mouse.up();
+  await keyTool(page, 'x', /Bulldozer/);
+  await page.keyboard.down('Shift');
+  held = await hold({ x: x + 3, y: y + 12 }, { x: x + 10, y: y + 16 });
+  assert.match(held.text, /^Bulldozer · 8 × 5 · \$[\d,]+ · 32 sites$/, 'Shift turns the Bulldozer into a rectangle that counts sites, not empty ground');
+  await page.screenshot({ path: `${output}/area-bulldoze-held.png` });
+  await page.keyboard.press('Escape'); await page.mouse.up(); await page.keyboard.up('Shift');
+  assert.equal(await page.evaluate(() => transport.game.zones.length), zones + 24, 'cancelled rectangles change nothing');
+  await page.close();
+}
+
 // A Road drag the plain L would refuse follows the terrain around a house and a crown; Shift keeps the red L.
 async function terrainRoutes() {
   const page = await start({ width: 1440, height: 1000 }), site = await fixture(page);
@@ -683,6 +720,7 @@ try {
   await constructionUndo();
   await keyboardCursor();
   await longStrokesAndTouch();
+  await areaZoning();
   const page = await start({ width: 1440, height: 1000 });
   await page.locator('.main-nav [data-view="build"]').click(); await page.locator('.sidebar').waitFor({ state: 'visible' });
   assert.deepEqual(await page.locator('#panel-content > .tool-grid [data-tool]').evaluateAll(nodes => nodes.map(node => node.dataset.tool)), ['road', 'rail', 'stop', 'port', 'bulldoze'], 'five primary network tools stay visible; engineering choices are expandable');

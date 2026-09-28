@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveBuildTool, quoteBuildPlan, buildPlan } from '../construction-plan.js';
+import { resolveBuildTool, quoteBuildPlan, buildPlan, zonePlanPoints } from '../construction-plan.js';
+import { hasRoadAccess } from '../environment.js';
 import { build, buildProblem, constructionCost, findPath } from '../model.js';
 import { routeTileIndex } from '../route-tiles.js';
 import { emptyGame, tileAt, line } from './helpers.mjs';
@@ -130,9 +131,9 @@ test('zones and demolition stay partial, but the quote and the result say so', (
   assert.equal(quote.message, 'Builds 2 of 9 · funds for 2');
   const result = buildPlan(game, 'residential', line(10, 18, 10));
   assert.equal(result.ok, true); assert.equal(result.built, 2); assert.equal(result.failed, 7, 'a partial build is reported as a warning, not a success');
-  game.money = 1_000_000; tileAt(game, 14, 11).building = { kind: 'house-cheap-1', level: 1 };
+  game.money = 1_000_000; tileAt(game, 14, 11).building = { kind: 'house-cheap-1', level: 1 }; build(game, 'industrial', 12, 11);
   const blocked = quoteBuildPlan(game, 'commercial', line(10, 18, 11));
-  assert.equal(blocked.partial, true); assert.equal(blocked.message, 'Builds 8 of 9 · 1 blocked');
+  assert.equal(blocked.partial, true); assert.equal(blocked.message, 'Builds 7 of 8 · 1 blocked', 'the house is left out of the stroke; another zone still blocks');
   const occupied = quoteBuildPlan(game, 'industrial', line(10, 11, 10));
   assert.equal(occupied.ok, false); assert.equal(occupied.message, 'Choose an empty tile or clear this one first.');
   const nothing = buildPlan(game, 'industrial', line(10, 11, 10));
@@ -294,4 +295,65 @@ test('a bulldozer drag across a grove or outcrop quotes and clears the whole par
       assert.equal(tile.elevation, 6 / 16, 'clearing scenery leaves the landscape height intact');
     }
   }
+});
+
+const rect = (x1, y1, x2, y2) => Array.from({ length: (y2 - y1 + 1) * (x2 - x1 + 1) }, (_, i) => ({ x: x1 + i % (x2 - x1 + 1), y: y1 + Math.floor(i / (x2 - x1 + 1)) }));
+
+test('a zone rectangle across a street leaves the road out and zones both sides with road access', () => {
+  const game = emptyGame();
+  for (let x = 8; x <= 16; x++) build(game, 'road', x, 10);
+  const roads = structuredClone(line(8, 16, 10).map(p => tileAt(game, p.x, p.y))), points = rect(10, 9, 14, 11), before = structuredClone(game);
+  const quote = quoteBuildPlan(game, 'residential', points);
+  assert.deepEqual(game, before, 'the quote is read-only');
+  assert.equal(quote.placements.length, 10); assert.ok(quote.placements.every(p => p.y !== 10), 'the five road tiles are left out');
+  assert.equal(quote.ok, true); assert.equal(quote.blocked, 0); assert.equal(quote.partial, false); assert.equal(quote.needRoad, 0);
+  const result = buildPlan(game, 'residential', points);
+  assert.equal(result.ok, true); assert.equal(result.built, 10); assert.equal(result.failed, 0); assert.equal(result.cost, quote.cost);
+  assert.equal(game.money, before.money - quote.cost); assert.equal(game.zones.length, 10);
+  for (const x of [10, 14]) { assert.equal(tileAt(game, x, 9).zone, 'residential'); assert.equal(tileAt(game, x, 11).zone, 'residential'); }
+  assert.deepEqual(line(8, 16, 10).map(p => tileAt(game, p.x, p.y)), roads, 'the street is unchanged');
+  const again = quoteBuildPlan(game, 'residential', points);
+  assert.equal(again.ok, false, 'a rectangle of only road and the same zone keeps build()’s refusal'); assert.equal(again.cost, 0);
+  const commercial = quoteBuildPlan(game, 'commercial', rect(9, 9, 15, 11));
+  assert.equal(commercial.placements.length, 14); assert.equal(commercial.blocked, 10); assert.equal(commercial.buildable, 4, 'other zones stay in the plan as blocked tiles');
+});
+
+test('a zone block beside one road counts the tiles no road reaches', () => {
+  const game = emptyGame();
+  for (let x = 8; x <= 17; x++) build(game, 'road', x, 9);
+  const quote = quoteBuildPlan(game, 'industrial', rect(10, 10, 15, 15));
+  assert.equal(quote.placements.length, 36); assert.equal(quote.ok, true); assert.equal(quote.needRoad, 30);
+  assert.deepEqual(quote.placements.filter(p => p.needsRoad).map(p => p.y).sort(), Array(30).fill(0).map((_, i) => 11 + Math.floor(i / 6)), 'only the row beside the road has access');
+  assert.equal(hasRoadAccess(game, 12, 10), true); assert.equal(hasRoadAccess(game, 12, 11), false);
+  tileAt(game, 30, 30).rail = true;
+  assert.equal(hasRoadAccess(game, 30, 31), false, 'a railway is not a road for zone growth');
+  game.money = constructionCost(game, 'industrial', 10, 10) * 2;
+  const short = quoteBuildPlan(game, 'industrial', rect(10, 10, 15, 15));
+  assert.equal(short.needRoad, 30, 'unaffordable tiles still say whether they would reach a road'); assert.equal(short.unaffordable, 34);
+  assert.equal(quoteBuildPlan(emptyGame(), 'residential', [{ x: 20, y: 20 }]).needRoad, 1, 'a single hovered tile says so too');
+  assert.equal(quoteBuildPlan(game, 'road', line(20, 24, 20)).needRoad, undefined);
+});
+
+test('zonePlanPoints drops what a zone can never claim and keeps other zones for the quote to refuse', () => {
+  const game = emptyGame();
+  build(game, 'road', 10, 10); build(game, 'bus-stop', 10, 10); build(game, 'road', 11, 10); build(game, 'rail', 12, 10); build(game, 'city', 13, 10);
+  build(game, 'house-cheap-1', 14, 10); build(game, 'logging-camp', 15, 10); build(game, 'residential', 20, 10); build(game, 'commercial', 21, 10);
+  Object.assign(tileAt(game, 22, 10), { terrain: 'water' }); Object.assign(tileAt(game, 23, 10), { terrain: 'mountain' }); Object.assign(tileAt(game, 24, 10), { terrain: 'forest' });
+  const kept = zonePlanPoints(game, 'residential', [...line(10, 25, 10), { x: 25, y: 10 }, { x: -1, y: 10 }]).map(p => p.x);
+  assert.deepEqual(kept, [17, 18, 19, 21, 24, 25], 'roads, a stop, rail, a town center, a house, an industry, the same zone, water and mountains are left out');
+  assert.equal(zonePlanPoints(game, 'commercial', [{ x: 20, y: 10 }, { x: 21, y: 10 }]).length, 1);
+  assert.equal(quoteBuildPlan(game, 'residential', [{ x: 11, y: 10 }]).message, 'Choose an empty tile or clear this one first.', 'one clicked tile still gets build()’s own refusal');
+});
+
+test('a demolition stroke passes over empty ground and counts only what it clears', () => {
+  const game = emptyGame();
+  for (const x of [10, 11, 12]) build(game, 'road', x, 10);
+  build(game, 'house-cheap-1', 14, 11); build(game, 'residential', 15, 12);
+  const points = rect(9, 9, 16, 13), quote = quoteBuildPlan(game, 'bulldoze', points);
+  assert.deepEqual(quote.placements.map(p => `${p.x},${p.y}`), ['10,10', '11,10', '12,10', '14,11', '15,12']);
+  assert.equal(quote.ok, true); assert.equal(quote.partial, false); assert.equal(quote.blocked, 0);
+  const result = buildPlan(game, 'bulldoze', points);
+  assert.equal(result.built, 5); assert.equal(result.failed, 0); assert.equal(result.cost, quote.cost); assert.doesNotMatch(result.message, /skipped/);
+  const empty = quoteBuildPlan(game, 'bulldoze', points);
+  assert.equal(empty.ok, false); assert.equal(empty.message, 'There is nothing to demolish here.', 'empty ground alone still says so');
 });

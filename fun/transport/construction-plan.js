@@ -1,8 +1,9 @@
-import { build, buildProblem, networkAlreadyBuilt, constructionCost, tileAt, quoteStructureSpan, buildStructureSpan, quoteTerraformLevel, buildTerraformLevel, quoteTerraformStroke, buildTerraformStroke, BUILDINGS, INDUSTRIES, industryAt } from './model.js';
+import { build, buildProblem, networkAlreadyBuilt, constructionCost, tileAt, quoteStructureSpan, buildStructureSpan, quoteTerraformLevel, buildTerraformLevel, quoteTerraformStroke, buildTerraformStroke, BUILDINGS, INDUSTRIES, industryAt, stationAt } from './model.js';
 import { SPAN_TOOLS, networkTerrainPlanIssues } from './terrain-engineering.js';
 import { buildingAt, buildingFootprint, buildingSiteProblem } from './building-sites.js';
 import { industryFootprint, industrySiteProblem } from './industry-sites.js';
 import { terrainObjectAt } from './terrain-objects.js';
+import { hasRoadAccess } from './environment.js';
 
 /** Resolve the compact toolbar's intent to an existing, validated model tool. */
 export function resolveBuildTool(game, tool, x, y, { preferredMode = 'road' } = {}) {
@@ -26,14 +27,28 @@ function uniquePoints(points) {
   return [...unique.values()];
 }
 
+const ZONE_TOOLS = new Set(['residential', 'commercial', 'industrial']);
+/** The tiles of a zone stroke that could take this zone: networks, stops, town centers, buildings, industries, water, mountains and tiles already so zoned are left out. */
+export function zonePlanPoints(game, kind, points) {
+  return uniquePoints(points).filter(({ x, y }) => {
+    const tile = tileAt(game, x, y);
+    return tile && !tile.road && !tile.rail && tile.zone !== kind && tile.terrain !== 'water' && tile.terrain !== 'mountain' && !stationAt(game, x, y) && !industryAt(game, x, y) && !buildingAt(game, x, y) && !game.cities.some(city => city.x === x && city.y === y);
+  });
+}
+
+const NOTHING_TO_CLEAR = 'There is nothing to demolish here.';
 // A drag crossing several cells of one site demolishes and pays for it once.
+// Zone strokes skip what they cannot claim and demolition skips empty ground;
+// one tile, or a stroke with nothing left, keeps its tiles so the quote gives build()'s own refusal.
 function constructionPoints(game, tool, points) {
   const unique = uniquePoints(points);
+  if (ZONE_TOOLS.has(tool)) { const kept = unique.length > 1 ? zonePlanPoints(game, tool, unique) : unique; return kept.length ? kept : unique; }
   if (tool !== 'bulldoze') return unique;
-  return uniquePoints(unique.map(point => {
+  const sites = uniquePoints(unique.map(point => {
     const nature = terrainObjectAt(game, point.x, point.y);
     return industryAt(game, point.x, point.y) || buildingAt(game, point.x, point.y) || (nature && nature.object.kind !== 'mountain' ? nature : point);
-  }));
+  })), kept = sites.length > 1 ? sites.filter(p => buildProblem(game, 'bulldoze', p.x, p.y, { money: Infinity })?.message !== NOTHING_TO_CLEAR) : sites;
+  return kept.length ? kept : sites;
 }
 
 export function quoteBuildPlan(game, tool, points, options) {
@@ -81,6 +96,8 @@ function quotePlacements(game, tool, placements) {
     else if (problem || issue) { p.state = 'slope'; if (issue) p.issue = issue; }
     else if (p.cost > balance) p.state = 'funds';
     else { p.state = 'ok'; balance -= p.cost; }
+    // A zone develops only with a road beside it; the tile is still zoned, since streets may follow.
+    if (ZONE_TOOLS.has(tool) && p.state !== 'blocked' && !hasRoadAccess(game, p.x, p.y)) p.needsRoad = true;
   }
   const count = state => placements.filter(p => p.state === state).length, n = placements.length;
   const buildable = count('ok'), blocked = count('blocked'), unaffordable = count('funds'), slope = count('slope');
@@ -96,7 +113,7 @@ function quotePlacements(game, tool, placements) {
   // demolition stay partial and say how much of the drag will be built.
   const refusal = n === 1 || !buildable ? buildProblem(game, first.tool, first.x, first.y) : null, partial = buildable > 0 && buildable < n;
   const message = refusal ? refusal.message : partial ? `Builds ${buildable} of ${n}${blocked ? ` · ${blocked} blocked` : ''}${unaffordable ? ` · funds for ${buildable}` : ''}` : tool === 'city' ? 'A new town center.' : '';
-  return { placements, cost, issues, buildable, blocked, unaffordable, partial, ok: !refusal && buildable > 0, message };
+  return { placements, cost, issues, buildable, blocked, unaffordable, partial, ok: !refusal && buildable > 0, message, ...ZONE_TOOLS.has(tool) && { needRoad: placements.filter(p => p.needsRoad).length } };
 }
 
 /** Road and rail strokes are all-or-nothing; zones and demolition may build part of a drag. model.build owns every charge. */

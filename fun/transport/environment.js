@@ -134,6 +134,12 @@ export function localTransport(game, x, y, footprint = 1, served = null) {
   return distance <= 5 ? Math.max(transport, 1 - distance * .08) : transport;
 }
 
+// localEnvironment's roadAccess for a one-tile site: a road in the 3 × 3 ring around it.
+export function hasRoadAccess(game, x, y) {
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (tileAt(game, x + dx, y + dy)?.road) return true;
+  return false;
+}
+
 export function localEnvironment(game, x, y, radius = 3, footprint = 1, served = null) {
   x = Math.floor(x); y = Math.floor(y); radius = Number.isFinite(radius) ? Math.max(1, Math.min(8, Math.floor(radius))) : 3;
   footprint=Number.isInteger(footprint)?Math.max(1,Math.min(3,footprint)):1;const extra=footprint-1;

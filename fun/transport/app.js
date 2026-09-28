@@ -1314,12 +1314,21 @@ $('#inspector').addEventListener('click',e=>{if(e.target.closest?.('#station-rou
 const strokePlans=new WeakMap();
 function constructionLine(a,b,key,{shift=false,firstAxis}={}) {
  if(key==='level'){const points=[a];for(let y=Math.min(a.y,b.y);y<=Math.max(a.y,b.y);y++)for(let x=Math.min(a.x,b.x);x<=Math.max(a.x,b.x);x++)if(x!==a.x||y!==a.y)points.push({x,y});return points;}
+ if(zoneTools.has(key)?!shift:key==='bulldoze'&&shift)return areaRect(a,b);
  if(spanTools.has(key))b=Math.abs(b.x-a.x)>=Math.abs(b.y-a.y)?{x:b.x,y:a.y}:{x:a.x,y:b.y};
  if(key!=='road'&&key!=='rail')return gridLine(a,b);
  if(shift)return gridLine(a,b,firstAxis);
  const memo=`${key}:${a.x},${a.y}:${b.x},${b.y}:${game.networkRevision}:${game.revision}`;let plan=strokePlans.get(game);
  if(plan?.memo!==memo)strokePlans.set(game,plan={memo,...planNetworkStroke(game,key,a,b)});
  return plan.path;
+}
+// Zones fill the rectangle between the corners, and so does the Bulldozer with Shift; Shift keeps a zone's line.
+// The far corner stops 16 tiles from the start, and the points carry the area for the tip.
+const zoneTools=new Set(['residential','commercial','industrial']),AREA_SIDE=16;
+function areaRect(a,b) {
+ const w=Math.abs(b.x-a.x)+1,h=Math.abs(b.y-a.y)+1,sx=Math.sign(b.x-a.x),sy=Math.sign(b.y-a.y),area={w:Math.min(w,AREA_SIDE),h:Math.min(h,AREA_SIDE),capped:w>AREA_SIDE||h>AREA_SIDE},points=[];
+ for(let j=0;j<area.h;j++)for(let i=0;i<area.w;i++)points.push({x:a.x+i*sx,y:a.y+j*sy});
+ return Object.assign(points,{area});
 }
 // The last ten builds of this session can be undone; a route change or another world retires them.
 let undoStack=[];
@@ -1415,8 +1424,10 @@ function updatePlacementTip(e=updatePlacementTip.at) {
  const siteSize=BUILDINGS[effective]?buildingFootprint(effective):INDUSTRIES[effective]?industryFootprint(effective):nature&&nature.object.kind!=='mountain'?terrainObjectSize(nature.object):0;
  const note=plan.ok===false?{text:''}:placementNote(effective,plan);
  const stroke=strokePlans.get(game),route=preview.length&&preview===stroke?.path?stroke.reason:null,terrain=route==='flipped'||route==='routed'?` · follows\u00a0terrain${['touch','keyboard'].includes(e.pointerType)?'':' · Shift:\u00a0straight'}`:'';
- tip.textContent=plan.ok===false?route==='too-far'?'No gentle route — level ground or drag in shorter segments':plan.message+terrain:`${name}${siteSize?' · '+siteSize+' × '+siteSize:''}${levels?' · '+levels:''} · ${money(plan.cost)}${plan.placements.length>1?' · '+plan.placements.length+(tool==='bulldoze'?' sites':terrainTools.has(tool)?' points':' tiles'):''}${plan.partial?' · '+plan.message:''}${note.text?' · '+note.text:''}${terrain}`;
- tip.classList.toggle('invalid',plan.ok===false);tip.classList.toggle('partial',plan.ok!==false&&Boolean(plan.partial));tip.classList.toggle('warning',Boolean(note.warning));
+ // A zone rectangle reads its size, tiles and how many no road reaches before the price.
+ const area=n>1?points.area:null,zoning=zoneTools.has(tool)&&n>1,count=plan.placements.length>1?' · '+plan.placements.length+(tool==='bulldoze'?' sites':terrainTools.has(tool)?' points':' tiles'):'',roads=plan.needRoad?` · ${n>1?plan.needRoad+(plan.needRoad===1?' needs':' need'):'needs'} a road`:'';
+ tip.textContent=plan.ok===false?route==='too-far'?'No gentle route — level ground or drag in shorter segments':plan.message+terrain:`${name}${siteSize?' · '+siteSize+' × '+siteSize:area?' · '+area.w+' × '+area.h:''}${levels?' · '+levels:''}${zoning?count+roads:''} · ${money(plan.cost)}${zoning?'':count+roads}${plan.partial?' · '+plan.message:''}${note.text?' · '+note.text:''}${area?.capped?` · max ${AREA_SIDE} × ${AREA_SIDE}`:''}${terrain}`;
+ tip.classList.toggle('invalid',plan.ok===false);tip.classList.toggle('partial',plan.ok!==false&&Boolean(plan.partial));tip.classList.toggle('warning',Boolean(note.warning||plan.ok!==false&&plan.needRoad));
  const rect=canvas.getBoundingClientRect();tip.hidden=false;
  if(aim&&aimTool(tool)){placeButton.disabled=plan.ok===false;tip.append(placeButton);}tip.classList.toggle('aim',Boolean(aim));
  // A finger would cover a tip beside it, so touch centres the tip above the contact point, or below it at the top edge.

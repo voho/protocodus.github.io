@@ -974,10 +974,13 @@ export function createRenderer(canvas, initialGame, options={}) {
     // Stroke quotes mark each placement with the running-balance state that release will meet.
     const states=spanQuote?.placements?.[0]?.state?new Map(spanQuote.placements.map(p=>[p.y*game.width+p.x,p.state])):null,refused=['road','rail'].includes(tool)&&spanQuote?.ok===false,routeTiles=tool==='bulldoze'?routeTileIndex(game):null;
     const previewValid=p=>spanQuote&&!states?spanQuote.ok===true:validPreview(tool,p,preferredMode);
-    const previewColor=(p,valid)=>{const site=previewSite(p),key=site.y*game.width+site.x,state=states?.get(key);if(!state)return previewValid(p)?valid:'#d7725f';return ['blocked','slope','funds'].includes(state)?'#d7725f':refused?'#cdbfa6':routeTiles?.has(key)?'#e3aa6d':valid;};
+    // Zone strokes leave out roads and built tiles and demolition leaves out empty ground, so those tiles and a pointer
+    // past a clamped rectangle stay unmarked; a zone tile no road reaches is muted.
+    const sparse=['residential','commercial','industrial','bulldoze'].includes(tool)&&states&&spanPoints.length>1,roadless=spanQuote?.needRoad?new Set(spanQuote.placements.filter(p=>p.needsRoad).map(p=>p.y*game.width+p.x)):null,planned=p=>{if(!sparse)return true;const site=previewSite(p);return states.has(site.y*game.width+site.x)||previewValid(p);};
+    const previewColor=(p,valid)=>{const site=previewSite(p),key=site.y*game.width+site.x,state=states?.get(key);if(!state)return previewValid(p)?valid:'#d7725f';return ['blocked','slope','funds'].includes(state)?'#d7725f':refused?'#cdbfa6':routeTiles?.has(key)?'#e3aa6d':roadless?.has(key)?'#c29a5b':valid;};
     const earthwork=['raise','lower','level'].includes(tool),highlightPreview=(p,color)=>earthwork?highlightVertex(p,color):highlight(previewSite(p),color,tool!=='inspect',previewSpan(p));
-    for(const p of preview||[])highlightPreview(p,previewColor(p,'#f2d88d'));
-    if(hover)highlightPreview(hover,tool==='inspect'?'#f7efd3':previewColor(hover,'#f4d090'));
+    for(const p of preview||[])if(planned(p))highlightPreview(p,previewColor(p,'#f2d88d'));
+    if(hover&&planned(hover)&&!preview?.area?.capped)highlightPreview(hover,tool==='inspect'?'#f7efd3':previewColor(hover,'#f4d090'));
     // The keyboard cursor frames its own tile, or grid point for earthworks, in the orange of the map's focus outline;
     // the frame sits just outside the tile, so the preview colour inside still shows whether it can be built.
     if(hover?.keyboard&&tile(hover.x,hover.y)){const {x,y}=hover,o=.09;if(earthwork){const c=projectGround(game,x,y);ctx.beginPath();ctx.arc(c.x,c.y,8/camera.zoom,0,TAU);}else surfacePath([[x-o,y-o],[x+1+o,y-o],[x+1+o,y+1+o],[x-o,y+1+o]]);ctx.lineJoin='round';ctx.strokeStyle='#fbf6e3';ctx.lineWidth=4.5/camera.zoom;ctx.stroke();ctx.strokeStyle='#e17b4a';ctx.lineWidth=2.25/camera.zoom;ctx.stroke();}
