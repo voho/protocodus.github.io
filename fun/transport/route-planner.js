@@ -2,6 +2,7 @@ import { findPath, stationCoverage, getVehiclePurchase, passengerEndpoints, getR
 import { CARGO, INDUSTRIES, TOWN_CARGO, VEHICLE_UPKEEP, INFRASTRUCTURE_UPKEEP } from './data.js';
 import { passengerArrivals } from './settlements.js';
 import { reviewGrowth } from './industry-simulation.js';
+import { routeNeedsAttention } from './gameplay-insights.js';
 
 const pathCache = new WeakMap();
 const canShip = (a, b, cargo) => {
@@ -193,6 +194,7 @@ export function filterRoutes(game, filters = {}) {
     if (filters.mode && filters.mode !== 'all' && route.mode !== filters.mode) return false;
     if (filters.status === 'running' && !route.active) return false;
     if (filters.status === 'disconnected' && route.active) return false;
+    if (filters.status === 'attention' && !routeNeedsAttention(game, route)) return false;
     if (filters.cargo && filters.cargo !== 'all' && route.cargo !== filters.cargo) return false;
     if (!words.length) return true;
     const search = [route.name, CARGO[route.cargo]?.name, route.cargo, route.mode, route.mode === 'water' ? 'ship ferry boat port' : route.mode === 'rail' ? 'train' : route.cargo === 'passengers' ? 'bus' : 'truck', ...route.stops.map(id => stops.get(String(id)))].join(' ').toLocaleLowerCase();

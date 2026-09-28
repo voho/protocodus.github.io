@@ -1,5 +1,5 @@
 import { INDUSTRIES, CARGO, TOWN_CARGO } from './data.js';
-import { STATION_RADIUS, findPath, vehicleNoun } from './model.js';
+import { STATION_RADIUS, findPath, vehicleNoun, getRouteFleet } from './model.js';
 import { findIndustryTargets } from './chains.js';
 import { industryDistance, industryContains, industrySize } from './industry-sites.js';
 import { buildingAt } from './building-sites.js';
@@ -237,3 +237,19 @@ export function nextProject(game, { source: preferred } = {}) {
   }
   return { title: 'Build your own story', detail: 'Reach a new town, develop a riverside port, or supply a complex factory. There is no deadline.', action: 'atlas', button: 'Explore the region' };
 }
+
+// Routes that cannot run at all: offline, missing a stop, or without two towns, a producer
+// or a buyer. Waiting and busy services still work, so they never count. Only sites, stops,
+// routes and connections decide this; game.revision moves daily, so it stays out of the key,
+// and a route going offline moves no revision, so the offline set is part of it.
+const attention = new WeakMap();
+function blockedRoutes(game) {
+  const lists = [game.routes, game.industries, game.stations, game.cities], offline = game.routes.reduce((key, route, index) => route.active ? key : `${key},${index}`, '');
+  const key = `${game.networkRevision || 0}:${lists.map(list => list.length)}:${offline}`, cached = attention.get(game);
+  if (cached?.key === key && cached.lists.every((list, n) => list === lists[n])) return cached.ids;
+  const ids = new Set(game.routes.filter(route => routeHealth(game, route, getRouteFleet(game, route.id)).state === 'blocked').map(route => route.id));
+  attention.set(game, { key, lists, ids });
+  return ids;
+}
+export const routesNeedingAttention = game => blockedRoutes(game).size;
+export const routeNeedsAttention = (game, route) => blockedRoutes(game).has(route.id);

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { addRoute, addRouteVehicle, build, buildPath, drainDeliveryEvents, fareFor, tick, VEHICLE_COSTS } from '../model.js';
 import { defaultRouteName, filterRoutes, forecastRoute, routeCargoList, routeCargoOptions, validateRoutePlan } from '../route-planner.js';
+import { routesNeedingAttention } from '../gameplay-insights.js';
 import { emptyGame, line, tileAt } from './helpers.mjs';
 
 function fixture(mode = 'road') {
@@ -194,6 +195,20 @@ test('route search combines stop, route, resource and vehicle terms with indepen
   assert.deepEqual(ids({ mode: 'rail', status: 'disconnected' }), []);
   assert.deepEqual(ids({ query: '  ', mode: 'all', cargo: 'all', status: 'all' }), ['one', 'two', 'three']);
   assert.equal(game.routes.length, 3, 'filtering never changes saved routes');
+});
+
+test('the needs-attention filter lists exactly the routes the top bar counts', () => {
+  const { game, draft } = fixture();
+  const stops = [draft.from, draft.to];
+  for (const name of ['Timber one', 'Timber two']) assert.equal(addRoute(game, { name, mode: 'road', stops, cargo: 'timber' }).ok, true);
+  const ids = () => filterRoutes(game, { status: 'attention' }).map(route => route.name);
+  assert.deepEqual(ids(), [], 'routes waiting for cargo work normally');
+  assert.equal(build(game, 'bulldoze', 30, 10).ok, true);
+  assert.deepEqual(ids(), ['Timber one', 'Timber two'], 'both lost their buyer');
+  assert.deepEqual(filterRoutes(game, { status: 'attention', query: 'two' }).map(route => route.name), ['Timber two']);
+  assert.equal(filterRoutes(game, { status: 'attention' }).length, routesNeedingAttention(game));
+  assert.equal(build(game, 'sawmill', 30, 8).ok, true);
+  assert.deepEqual(ids(), [], 'a new buyer in reach clears them');
 });
 
 // A quarry and a town `tiles` apart on flat ground, joined by road or rail.

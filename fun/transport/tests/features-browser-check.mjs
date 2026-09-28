@@ -479,7 +479,7 @@ try {
   await verifyConnection(page, 'disconnected', false);
   await page.evaluate(async () => { const { tick } = await import('./model.js'); tick(transport.game, .01); });
   await page.locator('#offline-routes').waitFor({ state: 'visible' });
-  assert.equal(await page.locator('#offline-routes').getAttribute('aria-label'), '1 route offline', 'the top bar counts the offline route');
+  assert.equal(await page.locator('#offline-routes').getAttribute('aria-label'), '1 route needs attention', 'the top bar counts the offline route');
   const brokenAboveGap = await aboveGap();
   assert.equal(await page.evaluate(() => transport.renderer.getStats().routeBreaks), 1, 'the broken route pins its gap');
   assert.notDeepEqual(brokenAboveGap, intactAboveGap, 'the pin changes the map above the gap');
@@ -536,7 +536,7 @@ try {
     tick(transport.game, .01);
   }, fixture.railGap);
   await page.locator('#offline-routes').click();
-  assert.equal(await page.locator('#route-filter-status').inputValue(), 'disconnected', 'the offline chip lists only disconnected routes');
+  assert.equal(await page.locator('#route-filter-status').inputValue(), 'attention', 'the chip lists only the routes that need attention');
   assert.equal(await page.locator('.route-card[data-route-id]').count(), 1);
   const offlineRoute = await page.locator('.route-card[data-route-id]').getAttribute('data-route-id');
   await page.locator('.route-card[data-route-id] .route-journey').hover();

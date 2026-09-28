@@ -57,6 +57,22 @@ test('one bulldozed tile shared by three routes yields three topical notices and
   assert.equal(validateGame(game), true);
 });
 
+test('a demolished buyer shared by two routes yields one grouped supply warning', () => {
+  const game = emptyGame();
+  assert.equal(build(game, 'logging-camp', 10, 10).ok, true);
+  assert.equal(build(game, 'sawmill', 30, 10).ok, true);
+  assert.equal(buildPath(game, 'road', line(10, 30, 12)).ok, true);
+  for (const x of [10, 30]) assert.equal(build(game, 'bus-stop', x, 12).ok, true);
+  for (const name of ['Timber one', 'Timber two']) assert.equal(addRoute(game, { name, mode: 'road', stops: game.stations.map(stop => stop.id), cargo: 'timber' }).ok, true);
+  const last = game.notifications[0]?.id;
+  assert.equal(build(game, 'bulldoze', 30, 10).ok, true);
+  const fresh = collectNotices(game.notifications, last), grouped = groupNotices(fresh);
+  assert.deepEqual(fresh.map(n => n.topic), ['route-supply', 'route-supply']);
+  assert.deepEqual(grouped.map(entry => [entry.message, entry.type, entry.count]), [['2 routes lost a producer or buyer: Timber one and Timber two', 'warning', 2]]);
+  assert.deepEqual(grouped[0].targets, game.routes.map(route => ({ kind: 'route', id: route.id })));
+  assert.equal(validateGame(game), true);
+});
+
 test('legacy notices without a topic group by their wording and keep their order', () => {
   const legacy = [
     { id: 'notice-1', day: 3, message: 'Harbor Line has lost its water connection. Ports need a continuous waterway.', text: '', type: 'warning' },

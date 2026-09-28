@@ -11,6 +11,7 @@ import { captureUndo, finishUndo, undoConstruction, undoStale } from './construc
 import { gridLine, planNetworkStroke } from './network-router.js';
 import { routeTileIndex } from './route-tiles.js';
 import { nearbyStations } from './simulation-spatial.js';
+import { routesNeedingAttention } from './gameplay-insights.js';
 import { TILE } from './sprites.js';
 import { drainDeliveryEvents } from './model.js';
 import { renameStation, renameRoute } from './model.js';
@@ -358,7 +359,7 @@ function routeForm() {
 function routesPanel() {
  const options=(entries,current)=>entries.map(([key,label])=>`<option value="${key}" ${key===current?'selected':''}>${escapeHTML(label)}</option>`).join('');
  const routes=filterRoutes(game,routeFilters);
- return `<div class="panel-heading"><h2>Routes</h2><button class="small-button" id="new-route-button">+ New route</button></div>${routeForm()}${fleetControls()}<div class="route-filters"><label class="route-search-field"><span class="sr-only">Search routes</span><input id="route-search" type="search" placeholder="Search routes, stops or cargo" aria-label="Search routes, stops or cargo" value="${escapeHTML(routeFilters.query)}"></label><label><span>Transport</span><select id="route-filter-mode">${options([['all','All transport'],['road','Road'],['rail','Rail'],['water','Water · ships']],routeFilters.mode)}</select></label><label><span>Status</span><select id="route-filter-status">${options([['all','All statuses'],['running','Connected'],['disconnected','Disconnected']],routeFilters.status)}</select></label><label class="route-cargo-filter"><span class="sr-only">Filter routes by cargo</span><select id="route-filter-cargo" aria-label="Filter routes by cargo">${options([['all','All cargo'],...Object.entries(CARGO).map(([key,cargo])=>[key,cargo.name])],routeFilters.cargo)}</select></label></div><div class="route-list-heading"><span id="route-results-count" role="status">${routes.length} of ${game.routes.length} routes</span><button class="small-button" id="clear-route-filters">Clear filters</button></div><div id="route-list">${routePageCards(routes)}</div>`;
+ return `<div class="panel-heading"><h2>Routes</h2><button class="small-button" id="new-route-button">+ New route</button></div>${routeForm()}${fleetControls()}<div class="route-filters"><label class="route-search-field"><span class="sr-only">Search routes</span><input id="route-search" type="search" placeholder="Search routes, stops or cargo" aria-label="Search routes, stops or cargo" value="${escapeHTML(routeFilters.query)}"></label><label><span>Transport</span><select id="route-filter-mode">${options([['all','All transport'],['road','Road'],['rail','Rail'],['water','Water · ships']],routeFilters.mode)}</select></label><label><span>Status</span><select id="route-filter-status">${options([['all','All statuses'],['running','Connected'],['disconnected','Disconnected'],['attention','Needs attention']],routeFilters.status)}</select></label><label class="route-cargo-filter"><span class="sr-only">Filter routes by cargo</span><select id="route-filter-cargo" aria-label="Filter routes by cargo">${options([['all','All cargo'],...Object.entries(CARGO).map(([key,cargo])=>[key,cargo.name])],routeFilters.cargo)}</select></label></div><div class="route-list-heading"><span id="route-results-count" role="status">${routes.length} of ${game.routes.length} routes</span><button class="small-button" id="clear-route-filters">Clear filters</button></div><div id="route-list">${routePageCards(routes)}</div>`;
 }
 function visibleRoutePage(routes) {
  routePage=Math.min(routePage,Math.max(0,Math.ceil(routes.length/ROUTES_PER_PAGE)-1));
@@ -678,7 +679,7 @@ function updateWeather() {
 function updateRegion() { updateWeather();$('#minimap').style.aspectRatio=game.width+'/'+game.height; }
 function updateHud() {
  updateWeather();
- const offline=game.routes.filter(route=>route.active===false).length,offlineChip=$('#offline-routes');if(offlineChip.dataset.count!==String(offline)){offlineChip.dataset.count=offline;offlineChip.hidden=!offline;offlineChip.innerHTML=icon('warning')+`<b>${offline}</b> <span>${offline===1?'route':'routes'} offline</span>`;offlineChip.setAttribute('aria-label',offlineChip.textContent);}
+ const offline=routesNeedingAttention(game),offlineChip=$('#offline-routes');if(offlineChip.dataset.count!==String(offline)){offlineChip.dataset.count=offline;offlineChip.hidden=!offline;offlineChip.innerHTML=icon('warning')+`<b>${offline}</b> <span>${offline===1?'route needs':'routes need'} attention</span>`;offlineChip.setAttribute('aria-label',offlineChip.textContent);offlineChip.title='Show routes that cannot run';}
  const pricing=inflationInfo(game);
  $('#inflation-rate').textContent=pricing.rate?`+${(pricing.rate*100).toFixed(2)}% / year`:'Base prices';
  $('#inflation-rate').title=`Prices are ${((pricing.index-1)*100).toFixed(1)}% above 1950. New inflation rate each January.`;
@@ -712,7 +713,7 @@ function updateHud() {
  const loadsByRoute=new Map();
  if(showingRoutes)for(const vehicle of game.vehicles){const key=String(vehicle.routeId),load=loadsByRoute.get(key)||{load:0,capacity:0};load.load+=vehicle.load;load.capacity+=vehicle.capacity;loadsByRoute.set(key,load);}
  const healthByRoute=new Map(),healthOf=r=>{if(!healthByRoute.has(r))healthByRoute.set(r,routeHealth(game,r,loadsByRoute.get(String(r.id))));return healthByRoute.get(r);};
- if(showingRoutes)$$('[data-route-status]').forEach(el=>{const r=routesById?.get(el.dataset.routeStatus);if(r){const health=healthOf(r);el.textContent=health.label;el.classList.toggle('route-offline',health.state!=='running'&&health.state!=='busy');el.classList.toggle('route-busy',health.state==='busy');}});
+ if(showingRoutes)$$('[data-route-status]').forEach(el=>{const r=routesById?.get(el.dataset.routeStatus);if(r){const health=healthOf(r);el.textContent=health.label;el.classList.toggle('route-offline',health.state==='blocked');el.classList.toggle('route-busy',health.state==='busy');}});
  if(showingRoutes)$$('[data-route-revenue]').forEach(el=>{const r=routesById?.get(el.dataset.routeRevenue);if(r){const net=r.revenue-(r.revenueAtAccountingStart||0)-(r.expenses||0);el.textContent=(net<0?'−':'')+money(net);el.title=`Fares ${money(r.revenue-(r.revenueAtAccountingStart||0))} · Route upkeep ${money(r.expenses||0)} · Tracked since ${new Date(Date.UTC(1950,0,1+Math.floor(r.accountingStartDay||0))).toLocaleDateString('en-US',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'})} · Excludes construction`;}});
  if(showingRoutes)$$('[data-route-health]').forEach(el=>{const r=routesById?.get(el.dataset.routeHealth);if(r){const health=healthOf(r);el.textContent=health.detail;el.title=health.detail;el.dataset.state=health.state;}});
  if(showingRoutes)$$('[data-route-stat]').forEach(el=>{const r=routesById?.get(el.dataset.routeStat);if(r)el.textContent=integer(r.delivered)+' moved';});
@@ -1353,7 +1354,7 @@ compactUI=mountCompactPlay({onMenu:openGameMenu,onNews:openNews,onGoals:openGoal
 for(const el of [$('#close-management'),mobileToggle,...$$('.nav-button[data-view]')])el?.addEventListener('click',()=>{if(!$('.sidebar').classList.contains('mobile-open'))dropCargoLens('routes','industry');});
 // Pointing at or focusing a route card lights its route on the map; a timed Show highlight outlives the pointer leaving.
 let highlight={id:null,until:0};for(const type of ['pointerover','focusin','pointerout','focusout'])$('#panel-content').addEventListener(type,e=>{const card=e.target.closest?.('[data-route-id]');if(!card||card.contains(e.relatedTarget))return;const id=game.routes.find(route=>String(route.id)===card.dataset.routeId)?.id;if(type==='pointerover'||type==='focusin'){if(highlight.id!==id||highlight.until<=performance.now())highlight={id,until:Infinity,card};}else if(highlight.id===id&&highlight.until===Infinity)highlight={id:null,until:0};});
-$('#offline-routes').addEventListener('click',()=>{routeFilters={query:'',mode:'all',status:'disconnected',cargo:'all'};routePage=0;setView('routes');});
+$('#offline-routes').addEventListener('click',()=>{routeFilters={query:'',mode:'all',status:'attention',cargo:'all'};routePage=0;setView('routes');revealInPanel($('#route-list .route-card'),null);});
 const refreshArtwork=()=>{
  invalidateScene();
  drawPaletteSprites();

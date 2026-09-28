@@ -89,7 +89,9 @@ try {
   from = await shown(page);
   const cutResult = await page.evaluate(async cut => {
     const { build, refreshRouteConnections } = await import('./model.js');
-    const g = transport.game, before = g.notifications[0].id, result = build(g, 'bulldoze', cut.x, cut.y);
+    const g = transport.game, before = g.notifications[0].id;
+    window.__cutTile = { ...g.tiles[cut.y * g.width + cut.x] };
+    const result = build(g, 'bulldoze', cut.x, cut.y);
     refreshRouteConnections(g);
     return { ok: result.ok, message: result.message, fresh: g.notifications.slice(0, g.notifications.findIndex(n => n.id === before)).map(n => n.topic) };
   }, cut);
@@ -101,12 +103,21 @@ try {
   assert.equal(disconnect.length, 1, 'three disconnects become one toast');
   assert.match(disconnect[0].type, /warning/);
   assert.equal(disconnect[0].action, 'Show');
+  await page.locator('#offline-routes').waitFor({ state: 'visible' });
+  assert.equal(await page.locator('#offline-routes').getAttribute('aria-label'), '3 routes need attention', 'the top bar counts every cut service');
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${output}/grouped-warning-desktop.png` });
   await page.locator('#toast-region .toast.warning .toast-action').click();
   await page.waitForFunction(() => document.activeElement?.matches('[data-focus-route]'));
   assert.equal(await page.evaluate(() => transport.game.routes.some(r => r.id === document.activeElement.dataset.focusRoute)), true, 'Show opens Routes at the broken service');
   await page.screenshot({ path: `${output}/show-route-desktop.png` });
+  // Put the sloped road tile back as it was; the chip clears once the services run again.
+  assert.deepEqual(await page.evaluate(async cut => {
+    const { invalidateNetworkPoints, refreshRouteConnections } = await import('./model.js'), g = transport.game;
+    Object.assign(g.tiles[cut.y * g.width + cut.x], window.__cutTile); invalidateNetworkPoints(g, [cut]); refreshRouteConnections(g);
+    return g.routes.map(route => route.active);
+  }, cut), [true, true, true]);
+  await page.locator('#offline-routes').waitFor({ state: 'hidden' });
 
   // News lists the stored notices newest first, and Show locates an industry.
   await page.evaluate(() => {
@@ -188,6 +199,32 @@ try {
   assert.match(firsts[0].type, /milestone/);
   assert.equal(firsts[0].action, 'Show');
 
+  // Demolishing the quarry the line loads from warns once, and the top bar chip lists the route.
+  await clearToasts(page);
+  from = await shown(page);
+  const lost = await page.evaluate(async () => {
+    const { build } = await import('./model.js'), { industryDistance } = await import('./industry-sites.js');
+    const g = transport.game, route = g.routes.find(r => r.name === 'Quarry line'), stop = g.stations.find(s => s.id === route.stops[0]);
+    const results = g.industries.filter(i => i.kind === 'quarry' && industryDistance(i, stop) <= 5).map(site => build(g, 'bulldoze', site.x, site.y));
+    return { ok: results.length > 0 && results.every(result => result.ok), message: results.map(result => result.message).join(' / '), stop: stop.name };
+  });
+  assert.equal(lost.ok, true, lost.message);
+  await waitForToast(page, new RegExp(`^Quarry line lost its stone producer\\. Add one within 5 tiles of ${lost.stop.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} or retire the service\\.$`), from);
+  await page.waitForTimeout(900);
+  const supply = (await toastsSince(page, from)).filter(toast => /lost its/.test(toast.text));
+  assert.equal(supply.length, 1, 'one warning for the one route');
+  assert.match(supply[0].type, /warning/);
+  assert.equal(supply[0].action, 'Show');
+  await page.locator('#offline-routes').waitFor({ state: 'visible' });
+  assert.equal(await page.locator('#offline-routes').getAttribute('aria-label'), '1 route needs attention', 'a route without a producer needs attention');
+  await page.screenshot({ path: `${output}/lost-producer-desktop.png` });
+  await page.locator('#offline-routes').click();
+  assert.equal(await page.locator('#route-filter-status').inputValue(), 'attention');
+  assert.deepEqual(await page.locator('#route-list .route-header strong').allInnerTexts(), ['Quarry line'], 'Needs attention lists exactly what the chip counts');
+  assert.equal(await page.locator('#route-list [data-route-status]').innerText(), 'No producer');
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: `${output}/needs-attention-desktop.png` });
+
   // A loaded mid-year save replays nothing: no welcome and no year toast.
   await page.evaluate(async () => { transport.game.day = 900.4; await transport.persist(); });
   await page.reload();
@@ -230,7 +267,7 @@ try {
   await phone.close();
 
   assert.deepEqual(errors, []);
-  console.log('Notices browser check passed: welcome, three-notice burst, grouped disconnects with Show, News with Show, January toast and upgrade review, Towns search focus, first delivery, town milestones, quiet save loading, 390px layout.');
+  console.log('Notices browser check passed: welcome, three-notice burst, grouped disconnects with Show and the attention chip, a lost producer listed under Needs attention, News with Show, January toast and upgrade review, Towns search focus, first delivery, town milestones, quiet save loading, 390px layout.');
 } finally {
   await browser.close();
 }

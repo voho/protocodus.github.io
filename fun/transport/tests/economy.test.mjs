@@ -111,6 +111,31 @@ test('an in-service line stops at a network break and resumes after repair', () 
   assert.ok(game.totalRevenue > revenue, 'repair restores actual cargo delivery');
 });
 
+test('bulldozing a route’s only producer or buyer warns once, naming the route', () => {
+  for (const [site, end, pattern] of [[[10, 10], 0, /^Forest supply lost its timber producer\. Add one within 5 tiles of (.+) or retire the service\.$/], [[30, 10], 1, /^Forest supply lost its buyer\. Add a buyer within 5 tiles of (.+)\.$/]]) {
+    const { game, stops } = freightFixture();
+    assert.equal(addRoute(game, { name: 'Forest supply', mode: 'road', stops, cargo: 'timber' }).ok, true);
+    const route = game.routes[0], last = game.notifications[0];
+    assert.equal(build(game, 'bulldoze', ...site).ok, true);
+    const fresh = game.notifications.slice(0, game.notifications.indexOf(last));
+    assert.equal(fresh.length, 1);
+    assert.equal(fresh[0].message.match(pattern)?.[1], game.stations.find(stop => stop.id === stops[end]).name, 'the warning names the stop to build near');
+    assert.deepEqual([fresh[0].type, fresh[0].topic, fresh[0].target], ['warning', 'route-supply', { kind: 'route', id: route.id }]);
+  }
+});
+
+test('bulldozing an unrelated or duplicated industry leaves route warnings quiet', () => {
+  const { game, stops } = freightFixture();
+  assert.equal(addRoute(game, { name: 'Forest supply', mode: 'road', stops, cargo: 'timber' }).ok, true);
+  assert.equal(build(game, 'quarry', 50, 40).ok, true);
+  assert.equal(build(game, 'logging-camp', 6, 13).ok, true);
+  const notices = game.notifications.slice();
+  assert.equal(build(game, 'bulldoze', 50, 40).ok, true);
+  assert.deepEqual(game.notifications, notices, 'a site no route uses is cleared silently');
+  assert.equal(build(game, 'bulldoze', 10, 10).ok, true);
+  assert.deepEqual(game.notifications, notices, 'a second covered logging camp keeps the route supplied');
+});
+
 test('a valid route cannot be purchased without its full vehicle cost', () => {
   const { game, stops } = freightFixture();
   game.money = VEHICLE_COSTS.road - 1;

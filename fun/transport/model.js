@@ -339,6 +339,7 @@ export function build(game,tool,x,y) {
     const residents=housingCapacity(site?.building),town=residents?(owns(site.building,'populationCityId')?game.cities.find(city=>city.id===site.building.populationCityId):closestCity(game,site,10)):null;
     if(town){town.population=Math.max(0,town.population-residents);town.passengers=Math.min(town.passengers,town.population*.9);}
     if(station) game.stations=game.stations.filter(s=>s.id!==station.id);
+    const supplied=industry?suppliedRoutes(game,industry):[];
     if(industry){
       game.industries=game.industries.filter(i=>i.id!==industry.id);
       for(const point of industryTiles(industry)){const cell=tileAt(game,point.x,point.y);cell.detail='';if(['forest','rock'].includes(cell.terrain))cell.terrain=game.biome==='desert'?'sand':game.biome==='tundra'?'snow':'grass';}
@@ -352,6 +353,7 @@ export function build(game,tool,x,y) {
     t.road=false;t.rail=false;t.bridge=false;t.tunnel=false;t.building=null;t.zone=null;if(t.terrain!=='water')t.detail='';delete t.publicRoad;delete t.structureLevel;delete t.structureAxis;
     if(['forest','rock'].includes(t.terrain)) t.terrain=game.biome==='desert'?'sand':game.biome==='tundra'?'snow':'grass';
     if(changedNetwork)invalidateNetwork(game,[point]);else game.revision++;
+    warnLostSupply(game,supplied);
     return result(true,`Cleared ${site?'building site':industry?'industry site':nature?'terrain parcel':'tile'} · ${moneyText(cost)}`,{cost});
   }
   if(NETWORK_TOOLS.includes(tool)) {
@@ -441,6 +443,19 @@ function freightPair(game,a,b,cargo) {
   const producers=source.industries.filter(i=>INDUSTRIES[i.kind].outputs[cargo]);
   const consumers=destination.industries.filter(i=>INDUSTRIES[i.kind].inputs[cargo]);
   return producers.length>0&&(consumers.some(c=>producers.every(p=>p.id!==c.id))||(TOWN_CARGO.includes(cargo)&&destination.cities.length>0));
+}
+// Demolishing a site a working freight route loads from or delivers to is a player
+// action, so each route it leaves without a producer or buyer gets one warning.
+function suppliedRoutes(game,industry) {
+  const stops=new Map(game.stations.map(stop=>[stop.id,stop]));
+  return game.routes.filter(route=>{const [a,b]=route.stops.map(id=>stops.get(id));return route.cargo!=='passengers'&&a&&b&&(industryDistance(industry,a)<=STATION_RADIUS||industryDistance(industry,b)<=STATION_RADIUS)&&freightPair(game,a,b,route.cargo);});
+}
+function warnLostSupply(game,routes) {
+  for(const route of routes){
+    const [a,b]=route.stops.map(id=>game.stations.find(stop=>stop.id===id));if(freightPair(game,a,b,route.cargo))continue;
+    const producer=stationCoverage(game,a).industries.some(i=>INDUSTRIES[i.kind].outputs[route.cargo]);
+    notify(game,producer?`${route.name} lost its buyer. Add a buyer within ${STATION_RADIUS} tiles of ${b.name}.`:`${route.name} lost its ${CARGO[route.cargo].name.toLowerCase()} producer. Add one within ${STATION_RADIUS} tiles of ${a.name} or retire the service.`,'warning',{topic:'route-supply',target:{kind:'route',id:route.id}});
+  }
 }
 const vehicleLevel = vehicle => vehicle.level??0;
 const vehicleSpeedMultiplier = level => 1+level*.1;

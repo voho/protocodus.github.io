@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { townService, industryStatus, routeHealth, nextProject, stopSiteKind, firstRouteSteps } from '../gameplay-insights.js';
+import { townService, industryStatus, routeHealth, nextProject, stopSiteKind, firstRouteSteps, routesNeedingAttention, routeNeedsAttention } from '../gameplay-insights.js';
 import { build, buildPath, addRoute, tick, createGame } from '../model.js';
 import { industryContains, industryDistance } from '../industry-sites.js';
 import { emptyGame, line, advance, tileAt } from './helpers.mjs';
@@ -114,6 +114,26 @@ test('a running route turns busy when cargo or passengers pile up beyond two ful
   assert.equal(health.detail,'About 2 loads. Add a bus.');
   towns.cities[1].passengers=40;health=routeHealth(towns,towns.routes[0]);
   assert.deepEqual([health.state,health.waiting],['running',40]);
+});
+
+test('routes need attention only while they cannot run, and the count follows every cause', () => {
+  const game=emptyGame();
+  assert.equal(build(game,'logging-camp',10,10).ok,true);assert.equal(build(game,'sawmill',30,10).ok,true);
+  assert.equal(buildPath(game,'road',line(10,30,12)).ok,true);
+  assert.equal(build(game,'bus-stop',10,12).ok,true);assert.equal(build(game,'bus-stop',30,12).ok,true);
+  const stops=game.stations.map(stop=>stop.id);
+  for(const name of ['Timber one','Timber two'])assert.equal(addRoute(game,{name,mode:'road',stops,cargo:'timber'}).ok,true);
+  const [one,two]=game.routes;
+  assert.equal(routeHealth(game,one).state,'waiting');assert.equal(routesNeedingAttention(game),0,'waiting for cargo is normal, not a fault');
+  game.industries[0].inventory.timber=900;game.revision++;
+  assert.equal(routeHealth(game,one).state,'busy');assert.equal(routesNeedingAttention(game),0,'a busy route is an opportunity, not a fault');
+  two.active=false;
+  assert.equal(routesNeedingAttention(game),1,'a route going offline counts without any revision change');
+  assert.deepEqual([routeNeedsAttention(game,one),routeNeedsAttention(game,two)],[false,true]);
+  two.active=true;assert.equal(routesNeedingAttention(game),0);
+  assert.equal(build(game,'bulldoze',10,10).ok,true);
+  assert.equal(routeHealth(game,one).label,'No producer');assert.equal(routesNeedingAttention(game),2,'both services lost their producer');
+  assert.equal(build(game,'logging-camp',6,13).ok,true);assert.equal(routesNeedingAttention(game),0,'a new producer in reach restores them');
 });
 
 test('optional projects progress through deliberate freight and town building, not passive starter bus revenue', () => {

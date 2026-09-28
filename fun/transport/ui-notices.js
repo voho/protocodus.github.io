@@ -7,6 +7,7 @@ const names = list => list.length > 3 ? `${list.slice(0, 3).join(', ')} and ${li
 const GROUP_TEXT = {
   'route-connection': group => `${group.length} routes lost their connection: ${names(group.map(notice => notice.message.match(/^(.*) has lost its (water )?connection/)?.[1] || 'a route'))}`,
   'industry-growth': group => `${group.length} industries expanded`,
+  'route-supply': group => `${group.length} routes lost a producer or buyer: ${names(group.map(notice => notice.message.match(/^(.*) lost its /)?.[1] || 'a route'))}`,
 };
 
 /** Older saves have no topics; their fixed wording still identifies a burst. */

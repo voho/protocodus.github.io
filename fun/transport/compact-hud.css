@@ -28,9 +28,10 @@ html,body{width:100%;height:100%;overflow:clip}
 .hud-stat strong.income-pulse{animation:income-pulse .6s ease-out}
 @keyframes income-pulse{18%{color:#2c8a4b;text-shadow:0 0 12px #f3a86a,0 0 2px #fbecdf}}
 @media(prefers-reduced-motion:reduce){.hud-stat strong.income-pulse{animation:none}}
-/* Offline routes stay named beside the date until they are repaired. */
+/* Routes that cannot run stay counted beside the date, and read in its orange on their cards, until they are fixed. */
 .offline-routes{display:inline-flex;align-items:center;gap:5px;min-height:26px;padding:0 10px 0 8px;border-radius:13px;background:var(--orange-light);color:#a4562f;font-size:12px;font-weight:500;white-space:nowrap}
 .offline-routes svg{width:14px;height:14px}
 .offline-routes:hover{background:#f8dfcb}
 .offline-routes b{font-weight:inherit}
+.route-card:has(.route-health[data-state=blocked]) .route-header>span:last-child{color:#a4562f}
 @media(max-width:900px){.compact-play .topbar .date-block:has(>#offline-routes:not([hidden])){display:grid;grid-template-columns:auto auto;align-items:center;justify-content:center;gap:2px 5px}.compact-play .topbar .date-block .speed-control{grid-column:1/-1}.compact-play .offline-routes{min-height:17px;padding:0 6px 0 5px;gap:3px;font-size:11px}.compact-play .offline-routes svg{width:12px;height:12px}.compact-play .offline-routes span{display:none}}
