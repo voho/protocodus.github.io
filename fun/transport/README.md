@@ -102,6 +102,7 @@ Right-click during a drag cancels it and keeps the tool, and so does the first E
 | C | Production chains |
 | L | Map layers |
 | Ctrl+S or Cmd+S | Open Load / save |
+| Ctrl+Z or Cmd+Z | Undo the last construction |
 
 Woodland uses 64 arrangements per habitat, from a single mature tree to five-tree clusters. Pine, spruce, fir, broadleaf and mixed stands have varied heights, saplings, leafy crowns and bare branches; desert and tundra keep their own species. Crowns overlap tile edges to break up regular rows. Mountains, boulders, shrubs and ground plants also vary in shape, size and placement. This artwork updates existing saves when you reload.
 
@@ -120,6 +121,8 @@ A smooth day/night cycle takes **one minute at 1×**, with warm windows, street 
 Choose **Bulldozer** in Build → Network, or press **X**, then click or drag to clear buildings, tracks, roads, trees and decorative plants. Existing cities and stops serving active routes remain protected. Clearing ports or bridges leaves the water intact. Tiles that carry a running route turn orange, and the tip names the route the demolition would cut.
 
 Every construction tip matches what the release will do. Red tiles are refused and the tip explains why. Zone and Bulldozer drags may still build part of a stroke; the amber tip says how many tiles, for example **Builds 2 of 9 · funds for 2**. Hovering the **Stop** or **Port** tool over a valid tile names what the stop would load, accept and serve, or warns that no customers are within 5 tiles.
+
+Changed your mind? Press **Ctrl+Z / Cmd+Z**, or choose **Undo** on the notice after a build, to take back your latest construction for a full refund, demolition included. Each press steps back through up to ten builds since you opened the world, even after the month has closed; vehicles, cargo and town growth elsewhere carry on untouched. A build stays once its ground has changed (a zone grew a house, a later build stands on it), once a town it founded owns homes or an industry it placed has traded cargo, and after you launch or retire a route. The list itself is never saved, so loading a world starts a fresh one.
 
 The simulation runs at 1×, 3× or 8× speed. One real second represents one day at 1×. You can build while paused, and dialogs pause the simulation while open. While the map is paused, a **Paused** chip at its top says so; press Space, or click or tap the chip, to resume.
 

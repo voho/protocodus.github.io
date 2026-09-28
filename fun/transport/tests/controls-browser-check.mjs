@@ -307,6 +307,63 @@ async function clickTile(page, tile) {
   await page.mouse.click(p.x, p.y);
 }
 
+// Ctrl/Cmd+Z and the result toast's Undo reverse the latest build; the route planner follows the network.
+async function constructionUndo() {
+  const page = await start({ width: 1440, height: 1000 });
+  const site = await fixture(page), { x, y } = site.open, gap = [{ x: x + 2, y }, { x: x + 4, y }];
+  await page.evaluate(async ({ x, y }) => {
+    const g = transport.game, { build } = await import('./model.js');
+    for (const dx of [0, 1, 5, 6]) g.tiles[y * g.width + x + dx].road = true;
+    g.networkRevision++; g.revision++;
+    build(g, 'bus-stop', x, y); build(g, 'bus-stop', x + 6, y);
+  }, site.open);
+  const state = () => page.evaluate(({ x, y }) => { const g = transport.game; return JSON.stringify({ tiles: g.tiles.slice(y * g.width + x - 3, y * g.width + x + 10), money: g.money, expenses: g.totalExpenses, stations: g.stations.length }); }, site.open);
+  const connection = () => page.locator('#route-connection').getAttribute('data-state');
+  const stops = await page.evaluate(() => transport.game.stations.slice(-2).map(stop => stop.id));
+  await page.evaluate(() => transport.setView('routes'));
+  if (!await page.locator('#route-form').isVisible()) await page.locator('#new-route-button').click();
+  await page.locator('#route-form [name=from]').selectOption(stops[0]);
+  await page.locator('#route-form [name=to]').selectOption(stops[1]);
+  assert.equal(await connection(), 'disconnected', 'the planner sees the gap');
+  const before = await state();
+  await keyTool(page, 'r', /Road/);
+  await drag(page, ...gap);
+  assert.notEqual(await state(), before, 'the road fills the gap');
+  const undo = page.locator('#toast-region .toast-action', { hasText: 'Undo' });
+  await undo.waitFor(); await undo.evaluate(el => Promise.all(el.closest('.toast').getAnimations().map(animation => animation.finished)));
+  await page.screenshot({ path: `${output}/desktop-undo-toast.png` });
+  await page.evaluate(() => transport.setView('routes'));
+  assert.equal(await connection(), 'connected');
+  await page.locator('#world').focus(); await page.keyboard.press('Control+z');
+  assert.equal(await state(), before, 'Ctrl+Z restores the tiles, the balance and the expenses');
+  assert.equal(await connection(), 'disconnected', 'the open route planner updates after the undo');
+  assert.match(await page.locator('#toast-region').innerText(), /Road removed · \$[\d,]+ refunded/);
+  assert.equal(await undo.count(), 0, "the undone build's toast closes with its Undo");
+  await page.keyboard.press('Meta+z');
+  assert.match(await page.locator('#toast-region').innerText(), /Nothing to undo/, 'Cmd+Z answers when nothing is left');
+  await keyTool(page, 'r', /Road/);
+  await drag(page, ...gap);
+  await undo.last().click();
+  assert.equal(await state(), before, "the toast's Undo restores the build too");
+  const placed = () => page.evaluate(p => transport.game.stations.some(stop => stop.x === p.x && stop.y === p.y), site.stop);
+  await keyTool(page, 's', /Stop/); await clickTile(page, site.stop);
+  assert.equal(await placed(), true);
+  await page.locator('#world').focus(); await page.keyboard.press('Control+z');
+  assert.equal(await placed(), false, 'a single stop undoes');
+  await page.close();
+
+  const mobile = await start({ width: 390, height: 844 }, true), phone = await fixture(mobile);
+  await keyTool(mobile, 's', /Stop/);
+  const [tap] = await points(mobile, [phone.stop]);
+  await mobile.touchscreen.tap(tap.x, tap.y);
+  const action = mobile.locator('#toast-region .toast-action', { hasText: 'Undo' });
+  await action.waitFor(); await action.evaluate(el => Promise.all(el.closest('.toast').getAnimations().map(animation => animation.finished)));
+  await mobile.screenshot({ path: `${output}/mobile-undo-toast.png` });
+  await action.tap();
+  assert.equal(await mobile.evaluate(p => transport.game.stations.some(stop => stop.x === p.x && stop.y === p.y), phone.stop), false, 'a tap on Undo removes the new stop');
+  await mobile.close();
+}
+
 async function menus(page) {
   assert.equal(await page.locator('#zoom-menu').isVisible(), false);
   assert.equal(await page.locator('#map-options').isVisible(), false);
@@ -429,6 +486,7 @@ try {
   await strokeInput();
   await truthfulQuotes();
   await terrainRoutes();
+  await constructionUndo();
   const page = await start({ width: 1440, height: 1000 });
   await page.locator('.main-nav [data-view="build"]').click(); await page.locator('.sidebar').waitFor({ state: 'visible' });
   assert.deepEqual(await page.locator('#panel-content > .tool-grid [data-tool]').evaluateAll(nodes => nodes.map(node => node.dataset.tool)), ['road', 'rail', 'stop', 'port', 'bulldoze'], 'five primary network tools stay visible; engineering choices are expandable');

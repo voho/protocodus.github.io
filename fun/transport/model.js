@@ -173,6 +173,8 @@ export function findPath(game,from,to,mode='road') {
   return path.reverse();
 }
 function invalidateNetwork(game,points){const previous=game.networkRevision||0;game.revision++;game.networkRevision=previous+1;updateNetworkIndex(game,points,previous);}
+// Construction undo rewrites tiles outside build() and advances the same revisions.
+export function invalidateNetworkPoints(game,points){invalidateNetwork(game,points);}
 function spend(game,cost) { game.money-=cost;game.monthlyExpenses+=cost;game.totalExpenses+=cost; }
 export function quoteStructureSpan(game,tool,points) {
   const plan=planStructureSpan(game,tool,points);if(!plan.ok)return plan;

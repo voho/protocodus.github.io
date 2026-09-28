@@ -7,6 +7,7 @@ import { surfaceHeight, tileSurface, MAX_HEIGHT } from './terrain-geometry.js';
 import { refreshRouteConnections, getVehiclePurchase, getVehicleUpgrade, getFleetUpgrade, upgradeRouteVehicle, upgradeFleet, priceFor, inflationInfo, addRoute, removeRoute, tick, saveGame, BIOMES, INDUSTRIES, CARGO, BUILD_COSTS, stationCoverage, industryConditions, settlementSuitability, weatherAt } from './model.js';
 import { createRenderer } from './renderer.js';
 import { quoteBuildPlan, buildPlan } from './construction-plan.js';
+import { captureUndo, finishUndo, undoConstruction, undoStale } from './construction-undo.js';
 import { gridLine, planNetworkStroke } from './network-router.js';
 import { routeTileIndex } from './route-tiles.js';
 import { TILE } from './sprites.js';
@@ -811,6 +812,7 @@ function openModal(html) {
 function closeModal(){if($('#modal').open)$('#modal').close();}
 function activateGame(next) {
  cancelPendingSave();
+ undoStack=[];
  cancelRoutePicking();cancelGesture();closeMapMenus();
  game=next;worldSerial++;spaceDown=false;selected=null;inspectorHTML='';hover=null;tool='inspect';preferredMode='road';
  view='build';category='network';buildingGroup='homes';chainSelection={};
@@ -999,9 +1001,21 @@ function constructionLine(a,b,key,{shift=false,firstAxis}={}) {
  if(plan?.memo!==memo)strokePlans.set(game,plan={memo,...planNetworkStroke(game,key,a,b)});
  return plan.path;
 }
+// The last ten builds of this session can be undone; a route change or another world retires them.
+let undoStack=[];
+function undoBuild(entry) {
+ undoStack=undoStack.filter(item=>!undoStale(game,item));const target=entry||undoStack.at(-1);
+ if(!target||!undoStack.includes(target)){toast(entry?'This build can no longer be undone.':'Nothing to undo.',{type:'warning'});return;}
+ const result=undoConstruction(game,target);undoStack=undoStack.filter(item=>item!==target);toast(result.message,{type:result.ok?'ok':'warning'});if(!result.ok)return;
+ [...$('#toast-region').children].find(el=>el.toastKey===target)?.remove();
+ if(!game.notifications.some(notice=>notice.id===lastNoticeId))lastNoticeId=game.notifications[0]?.id;
+ preview=[];refreshRouteConnections(game);updateHud();invalidateScene();persistSoon();if(view!=='build')renderPanel();
+ if(hover&&updatePlacementTip.at)updatePlacementTip();
+}
 function paintPath(points) {
  if(spanTools.has(tool)&&points.length<3){toast('Drag a straight span of at least 3 tiles, including both ends.',true);preview=[];return;}
- const result=buildPlan(game,tool,points,{preferredMode});toast(result.message,{type:!result.ok?'error':result.built>0&&result.failed>0?'warning':'ok'});preview=[];if(result.ok)refreshRouteConnections(game);updateHud();if(result.ok){persistSoon();if(view!=='build')renderPanel();}
+ const journal=captureUndo(game,tool,points),result=buildPlan(game,tool,points,{preferredMode}),undo=finishUndo(journal,game,result);if(undo)undoStack=[...undoStack.filter(item=>!undoStale(game,item)).slice(-9),undo];
+ toast(result.message,{type:!result.ok?'error':result.built>0&&result.failed>0?'warning':'ok',key:undo||result.message,action:undo&&{label:'Undo',run:()=>undoBuild(undo)}});preview=[];if(result.ok)refreshRouteConnections(game);updateHud();if(result.ok){persistSoon();if(view!=='build')renderPanel();}
  if(hover&&updatePlacementTip.at)updatePlacementTip(); // Re-quote the tile under the pointer, never the finished stroke.
 }
 function pickMapTile(clientX,clientY,clamp=false) {
@@ -1173,6 +1187,7 @@ document.addEventListener('keydown',e=>{
  if(e.key.toLowerCase()==='s'&&(e.ctrlKey||e.metaKey)){e.preventDefault();if(!saveDialogController)openSaves();return;}
  if(e.key==='Escape'&&isRoutePicking()){e.preventDefault();cancelRoutePicking();return;}
  if($('#modal').open||e.target.matches('input,select,textarea')||e.target.closest('#layers-panel, #layers-button'))return;
+ if((e.ctrlKey||e.metaKey)&&!e.altKey&&!e.shiftKey&&e.key.toLowerCase()==='z'){e.preventDefault();if(!pointer)undoBuild();return;}
  if(e.ctrlKey||e.metaKey||e.altKey)return;
  if(e.code==='Space'){
   const control=e.target.closest('button,a,summary,[role=button]');if(control&&control!==pointerFocus)return;
