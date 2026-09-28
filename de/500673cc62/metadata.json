@@ -1,0 +1,43 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "de500673cc62",
+  "strategy": "manual-commit",
+  "branch": "transport-playability",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "fun/transport/ARCHITECTURE.md",
+    "fun/transport/README.md",
+    "fun/transport/app.js",
+    "fun/transport/compact-play.js",
+    "fun/transport/gameplay-insights.js",
+    "fun/transport/gameplay.css",
+    "fun/transport/index.html",
+    "fun/transport/milestones.js",
+    "fun/transport/model.js",
+    "fun/transport/settlements.js",
+    "fun/transport/tests/gameplay-insights.test.mjs",
+    "fun/transport/tests/layers-browser-check.mjs",
+    "fun/transport/tests/milestones-browser-check.mjs",
+    "fun/transport/tests/milestones.test.mjs",
+    "fun/transport/tests/next-goal-browser-check.mjs",
+    "fun/transport/tests/notices-browser-check.mjs",
+    "fun/transport/visibility-view.js",
+    "fun/transport/visibility.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/de/500673cc62/0/metadata.json",
+      "transcript": "/de/500673cc62/0/full.jsonl",
+      "context": "/de/500673cc62/0/context.md",
+      "content_hash": "/de/500673cc62/0/content_hash.txt",
+      "prompt": "/de/500673cc62/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 184,
+    "cache_creation_tokens": 222747,
+    "cache_read_tokens": 6989952,
+    "output_tokens": 50046,
+    "api_call_count": 67
+  }
+}
