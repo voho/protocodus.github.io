@@ -1,0 +1,39 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "fcb464adf0f3",
+  "session_id": "3b9c315d-693f-4002-bf02-dd13bfe054fa",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-28T19:01:10.465916Z",
+  "branch": "transport-playability",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "fun/transport/tests/features-browser-check.mjs",
+    "fun/transport/tests/overlay-placement.test.mjs",
+    "fun/transport/README.md",
+    "fun/transport/tests/busy-scenes-browser-check.mjs",
+    "fun/transport/tests/resources-browser-check.mjs",
+    "fun/transport/tests/shipping-browser-check.mjs",
+    "fun/transport/ARCHITECTURE.md",
+    "fun/transport/overlay-placement.js",
+    "fun/transport/renderer.js"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "ff5bce9e2172",
+  "token_usage": {
+    "input_tokens": 184,
+    "cache_creation_tokens": 222747,
+    "cache_read_tokens": 6989952,
+    "output_tokens": 50046,
+    "api_call_count": 67
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-28T19:01:09.555654Z",
+    "agent_lines": 0,
+    "human_added": 219,
+    "human_modified": 34,
+    "human_removed": 0,
+    "total_committed": 219,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude/projects/-Users-vojta-Dev-protocodus-github-io/3b9c315d-693f-4002-bf02-dd13bfe054fa.jsonl"
+}
