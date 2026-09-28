@@ -262,7 +262,8 @@ export function buildProblem(game,tool,x,y,{money=game.money}={}) {
     const cost=constructionCost(game,tool,x,y);return money<cost?fail(`Need ${moneyText(cost)} to shape this point.`,'funds'):null;
   }
   if(tool==='bulldoze') {
-    if(station && game.routes.some(r=>r.stops.includes(station.id))) return fail('Retire routes using this station before removing it.');
+    const serving=station?game.routes.filter(r=>r.stops.includes(station.id)).map(r=>r.name):[];
+    if(serving.length) return fail(`Retire ${serving.length>2?`${serving.slice(0,2).join(', ')} and ${serving.length-2} more`:serving.join(' and ')} before removing this ${station.mode==='water'?'port':station.mode==='rail'?'rail station':'road stop'}.`);
     if(city) return fail('A city center cannot be demolished.');
     if(!station&&!industry&&!site&&!t.zone&&!t.road&&!t.rail&&t.terrain!=='forest'&&t.terrain!=='rock'&&!hasClearableDecoration(t)) return fail('There is nothing to demolish here.');
     return money<constructionCost(game,tool,x,y)?fail('Not enough funds to demolish this tile.','funds'):null;

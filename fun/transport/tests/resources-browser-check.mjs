@@ -122,6 +122,77 @@ try {
   await page.evaluate(async () => { const { tick } = await import('./model.js'); tick(transport.game, 14); });
   assert.ok(await page.evaluate(() => transport.game.routes.find(route => route.name === 'Icon-selected freight').delivered) > 0, 'the new freight service delivers the selected resource');
 
+  // Inspectors link places to their services: a quarry plans its stone route, then the stop, the road and the bulldozer name it.
+  // The open drawer covers the inspector, so each inspection closes it first.
+  const closeDrawer = async () => { if (await page.locator('.sidebar').evaluate(el => el.classList.contains('mobile-open'))) await page.locator('#close-management').click(); };
+  const inspectAt = async (point, kind = '') => { await closeDrawer(); await page.evaluate(({ point, kind }) => transport.inspect(point.x, point.y, kind), { point, kind }); };
+  await closeDrawer();
+  const quarry = await page.evaluate(async () => {
+    const { build } = await import('./model.js'), { buildPlan } = await import('./construction-plan.js');
+    const game = transport.game, road = buildPlan(game, 'road', [251, 250, 249, 248, 247, 246, 245].map(y => ({ x: 219, y })), { preferredMode: 'road' }), stop = build(game, 'bus-stop', 219, 251);
+    if (!road.ok || !stop.ok) throw new Error(`Could not prepare the quarry fixture: ${road.message}; ${stop.message}`);
+    const site = game.industries.find(industry => industry.kind === 'quarry' && Math.hypot(industry.x - 219, industry.y - 253) < 5);
+    transport.renderer.focus(site.x, site.y); transport.inspect(site.x, site.y, 'industry');
+    return { site: { x: site.x, y: site.y }, stop: stop.station, alder: game.stations.find(station => station.name === 'Alderbrook Central') };
+  });
+  const clickStop = async station => {
+    const point = await page.evaluate(station => {
+      transport.renderer.focus(station.x, station.y); transport.renderer.render(performance.now(), {});
+      const rect = document.querySelector('#world').getBoundingClientRect(), marker = transport.renderer.stationMarker(station);
+      return { x: rect.left + marker.x + marker.size / 2, y: rect.top + marker.y + marker.size / 2 };
+    }, station);
+    await page.waitForFunction(({ x, y }) => document.elementFromPoint(x, y)?.id === 'world', point);
+    await page.mouse.click(point.x, point.y);
+  };
+  const planned = async () => page.evaluate(() => ({ from: document.querySelector('#route-form [name="from"]').value, to: document.querySelector('#route-form [name="to"]').value, cargo: document.querySelector('#route-form [name="cargo"]').value, valid: document.querySelector('#route-connection').dataset.valid, banner: document.querySelector('#route-pick-banner')?.innerText || '' }));
+  assert.equal(await page.locator('#inspector .service-summary').textContent(), `Served by ${quarry.stop.name} · no route yet`, 'the quarry names the stop in reach');
+  await page.locator('#inspector').screenshot({ path: `${output}/desktop-quarry-service.png` });
+  await page.locator('#inspector .industry-target-row').filter({ hasText: 'Alderbrook' }).locator('.target-plan').click();
+  await page.waitForFunction(() => document.querySelector('#route-connection')?.dataset.valid === 'true');
+  assert.deepEqual(await planned(), { from: quarry.stop.id, to: quarry.alder.id, cargo: 'stone', valid: 'true', banner: '' }, 'Plan on a covered target fills both stops and the cargo');
+  await inspectAt(quarry.site, 'industry');
+  await page.locator('#inspector button', { hasText: 'Plan route from here' }).click();
+  await page.locator('#route-pick-banner').waitFor({ state: 'visible' });
+  const picking = await planned();
+  assert.equal(picking.from, quarry.stop.id); assert.equal(picking.to, ''); assert.equal(picking.cargo, 'stone');
+  assert.match(picking.banner, /^Click the end road stop/, 'Plan route from here picks the end on the map');
+  await clickStop(quarry.alder);
+  await page.locator('#route-pick-banner').waitFor({ state: 'detached' });
+  await page.waitForFunction(() => document.querySelector('#route-connection')?.dataset.valid === 'true');
+  assert.deepEqual(await planned(), { from: quarry.stop.id, to: quarry.alder.id, cargo: 'stone', valid: 'true', banner: '' }, 'Alderbrook Central completes a valid stone route');
+  await page.locator('#route-form button[type="submit"]').click();
+  const stone = await page.evaluate(stop => transport.game.routes.find(route => route.stops[0] === stop && route.cargo === 'stone'), quarry.stop.id);
+  assert.ok(stone, 'the planned stone route launches');
+  await inspectAt(quarry.stop);
+  assert.equal(await page.locator('#inspector [data-service-route]').count(), 1, 'the stop inspector lists its service');
+  const service = await page.locator('#inspector [data-service-route]').innerText();
+  assert.ok(service.startsWith(stone.name) && service.includes('1 truck · '), service);
+  assert.match(await page.locator('#inspector .coverage-names').textContent(), /^Covers .*Stone quarry/);
+  await page.locator('#inspector').screenshot({ path: `${output}/desktop-stop-services.png` });
+  await page.locator('#inspector [data-service-route]').click();
+  await page.waitForFunction(id => transport.renderer.getStats().highlightRoute === id, stone.id);
+  await inspectAt(quarry.site, 'industry');
+  assert.equal(await page.locator('#inspector .service-summary').textContent(), `Served by ${quarry.stop.name} · 1 route`);
+  await inspectAt(quarry.alder);
+  await page.locator('#inspector [aria-label="Deliver stone here"]').click();
+  await page.locator('#route-pick-banner').filter({ hasText: 'Click the start road stop' }).waitFor();
+  await clickStop(quarry.stop);
+  await page.locator('#route-pick-banner').waitFor({ state: 'detached' });
+  assert.deepEqual(await planned(), { from: quarry.stop.id, to: quarry.alder.id, cargo: 'stone', valid: 'true', banner: '' }, 'Deliver here keeps the end and picks only the start');
+  const refusal = await page.evaluate(async stop => (await import('./model.js')).build(transport.game, 'bulldoze', stop.x, stop.y), quarry.stop);
+  assert.equal(refusal.ok, false); assert.equal(refusal.message, `Retire ${stone.name} before removing this road stop.`, 'bulldozing a served stop names its route');
+  const middle = stone.path[Math.floor(stone.path.length / 2)];
+  await inspectAt(middle);
+  const use = await page.locator('#inspector .network-use').textContent();
+  assert.ok(use.startsWith('Used by ') && use.includes(stone.name), `the road inspector names the routes on it: ${use}`);
+  await page.locator('#inspector').screenshot({ path: `${output}/desktop-road-use.png` });
+  await closeDrawer();
+  const far = await page.evaluate(() => { const g = transport.game, site = g.industries.find(industry => !g.stations.some(stop => Math.hypot(stop.x - industry.x, stop.y - industry.y) < 12)); transport.renderer.focus(site.x, site.y); transport.inspect(site.x, site.y, 'industry'); return site.name; });
+  assert.equal(await page.locator('#inspector .service-summary').textContent(), 'No stop within 5 tiles yet.', `${far} has no stop in reach`);
+  await page.locator('#inspector button', { hasText: 'Place a stop nearby' }).click();
+  assert.equal(await page.locator('.tool-card[data-tool="stop"]').getAttribute('aria-pressed'), 'true', 'Place a stop nearby picks the Stop tool');
+  await page.keyboard.press('Escape');
+
   for (const width of [390, 320]) {
     await page.setViewportSize({ width, height: 844 });
     await page.waitForTimeout(250);

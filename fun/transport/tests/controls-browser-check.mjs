@@ -239,7 +239,7 @@ async function truthfulQuotes() {
   await page.screenshot({ path: `${output}/quote-stop-coverage.png` });
   await keyTool(page, 'x', /Bulldozer/);
   const served = await page.evaluate(() => { const g = transport.game, route = g.routes[0], stop = g.stations.find(s => s.id === route.stops[0]); return { stop: { x: stop.x, y: stop.y }, middle: route.path[Math.floor(route.path.length / 2)], name: route.name }; });
-  assert.deepEqual(await hover(served.stop), { text: 'Retire routes using this station before removing it.', visible: true, invalid: true, partial: false, warning: false });
+  assert.deepEqual(await hover(served.stop), { text: `Retire ${served.name} before removing this road stop.`, visible: true, invalid: true, partial: false, warning: false }, 'the refusal names the route that holds the stop');
   const cut = await hover(served.middle);
   assert.equal(cut.warning, true); assert.ok(cut.text.endsWith(`breaks the ${served.name} route`), cut.text);
   await page.screenshot({ path: `${output}/quote-bulldoze-route.png` });

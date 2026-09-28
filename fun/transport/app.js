@@ -10,6 +10,7 @@ import { quoteBuildPlan, buildPlan } from './construction-plan.js';
 import { captureUndo, finishUndo, undoConstruction, undoStale } from './construction-undo.js';
 import { gridLine, planNetworkStroke } from './network-router.js';
 import { routeTileIndex } from './route-tiles.js';
+import { nearbyStations } from './simulation-spatial.js';
 import { TILE } from './sprites.js';
 import { drainDeliveryEvents } from './model.js';
 import { drawUIArtwork } from './ui-art.js';
@@ -19,6 +20,7 @@ import { cargoIcon, cargoBadge, cargoRecipe } from './cargo-icons.js';
 import { filterRoutes, validateRoutePlan, routeCargoList, routeCargoOptions, defaultRouteName } from './route-planner.js';
 import { addRouteVehicle, sellRouteVehicle, getRouteFleet, getRetirementRefund, vehicleNoun, MAX_VEHICLES } from './model.js';
 import { TOWN_CARGO } from './data.js';
+import { STATION_RADIUS } from './model.js';
 import { townNeeds, NEED_WINDOW } from './settlements.js';
 import { forecastRoute } from './route-planner.js';
 import { findIndustryTargets, lensCargo } from './chains.js';
@@ -32,6 +34,7 @@ import { MILESTONES, CHAPTERS, milestoneChapters, metMilestones, progressText } 
 import { preloadHouses, onHouseAssetsChange } from './raster-houses.js';
 import { preloadWorldArt, onWorldArtChange } from './atlas-runtime.js';
 import { industryContains, industrySize, industryFootprint } from './industry-sites.js';
+import { industryDistance } from './industry-sites.js';
 import { outputFill } from './industry-simulation.js';
 import { buildingAt, buildingSize, buildingFootprint } from './building-sites.js';
 import { terrainObjectAt, terrainObjectSize } from './terrain-objects.js';
@@ -539,7 +542,7 @@ function pickRouteStopAt(x,y) {
  if(routePicking==='to'&&String(station.id)===String(formDraft.from)){toast('Choose two different stops.',true);return true;}
  if(routePicking==='from'&&String(station.id)===String(formDraft.to))formDraft.to='';
  formDraft[routePicking]=String(station.id);
- if(routePicking==='from'){routePicking='to';renderPanel();showRoutePickHint();}
+ if(routePicking==='from'&&!formDraft.to){routePicking='to';renderPanel();showRoutePickHint();}
  else{cancelRoutePicking();setView('routes');$('#route-form [type=submit]')?.scrollIntoView({block:'nearest',behavior:'smooth'});const plan=validateRoutePlan(game,formDraft);$('#status-message').textContent=plan.message;}
  return true;
 }
@@ -721,12 +724,13 @@ function localConditions(conditions) {
 }
 function industryDestinations(industry) {
  const outputs=Object.keys(INDUSTRIES[industry.kind].outputs), targets=findIndustryTargets(game,industry,5);
+ const from=servingStops(industry),plans=targets.map(target=>from.length?targetPlan(target,from):'');
  const uses=outputs.map(cargo=>{
   const consumers=Object.values(INDUSTRIES).filter(d=>d.biomes.includes(game.biome)&&d.inputs[cargo]).map(d=>d.name);
   if(TOWN_CARGO.includes(cargo))consumers.push('Towns');
   return `<div class="industry-use">${cargoBadge(cargo,{label:true})}<span class="cargo-arrow" aria-hidden="true">→</span><span>${escapeHTML(consumers.join(', ')||'No buyers in this region')}</span></div>`;
  }).join('');
- return `<section class="industry-destinations" aria-label="Output destinations"><div class="destination-heading"><h4>Deliver to</h4><button class="small-button" id="industry-chain">${icon('chains')} Full chain</button></div>${uses}<h4>Nearest targets <span>${targets.length}</span></h4><p class="destination-note">Direct distance · transport required</p><div class="industry-target-list">${targets.map((target,index)=>`<button class="industry-target" data-target-id="${escapeHTML(target.id)}" data-target-kind="${target.kind}" aria-label="Locate ${escapeHTML(target.name)} at ${target.x}, ${target.y}"><span class="target-number">${index+1}</span><span class="target-detail"><strong>${escapeHTML(target.name)}</strong><small>${Math.round(target.distance)} tiles · ${target.x}, ${target.y}</small></span><span class="target-cargo">${target.cargo.map(c=>cargoIcon(c,{decorative:true})).join('')}</span>${icon('focus')}</button>`).join('')||'<p class="destination-note">No buyers yet. Open the chain to build one.</p>'}</div></section>`;
+ return `<section class="industry-destinations" aria-label="Output destinations"><div class="destination-heading"><h4>Deliver to</h4><button class="small-button" id="industry-chain">${icon('chains')} Full chain</button></div>${uses}<h4>Nearest targets <span>${targets.length}</span></h4><p class="destination-note">Direct distance · transport required</p><div class="industry-target-list">${targets.map((target,index)=>`${plans[index]?'<div class="industry-target-row">':''}<button class="industry-target" data-target-id="${escapeHTML(target.id)}" data-target-kind="${target.kind}" aria-label="Locate ${escapeHTML(target.name)} at ${target.x}, ${target.y}"><span class="target-number">${index+1}</span><span class="target-detail"><strong>${escapeHTML(target.name)}</strong><small>${Math.round(target.distance)} tiles · ${target.x}, ${target.y}</small></span><span class="target-cargo">${target.cargo.map(c=>cargoIcon(c,{decorative:true})).join('')}</span>${icon('focus')}</button>${plans[index]?plans[index]+'</div>':''}`).join('')||'<p class="destination-note">No buyers yet. Open the chain to build one.</p>'}</div></section>`;
 }
 function locateIndustry(id,origin='') {
  const industry=game.industries.find(i=>String(i.id)===String(id));
@@ -738,6 +742,51 @@ function locateDestination(id,kind,origin='') {
  const city=game.cities.find(c=>String(c.id)===String(id));if(!city)return;
  setTool('inspect');closeModal();closeMobile();renderer.setZoom(1);renderer.focus(city.x,city.y);inspect(city.x,city.y,'city',origin);updateHud();
 }
+// Inspectors name the stops and routes that serve a place; their buttons pre-fill the planner and pick any open end on the map.
+const nameList = (names,max=3) => names.length>max?`${names.slice(0,max).join(', ')} and ${names.length-max} more`:names.length>1?`${names.slice(0,-1).join(', ')} and ${names.at(-1)}`:names[0]||'';
+const planAttributes = (mode,from,to,cargo,pick='') => `data-plan-mode="${mode}" data-plan-from="${escapeHTML(from)}" data-plan-to="${escapeHTML(to)}" data-plan-cargo="${escapeHTML(cargo)}" data-plan-pick="${pick}"`;
+function servingStops(site) {
+ const size=INDUSTRIES[site.kind]?industrySize(site):1,reach=stop=>INDUSTRIES[site.kind]?industryDistance(site,stop):Math.hypot(site.x-stop.x,site.y-stop.y);
+ return nearbyStations(game,site.x+(size-1)/2,site.y+(size-1)/2,STATION_RADIUS+size).filter(stop=>reach(stop)<=STATION_RADIUS).sort((a,b)=>reach(a)-reach(b));
+}
+function planRoute(draft,pick='') {
+ formDraft={...formDraft,name:'',autoNote:'',open:true,...draft};setView('routes');
+ if(pick)beginRoutePicking(pick);else $('#route-form')?.scrollIntoView({block:'nearest',behavior:'smooth'});
+}
+function stationCargoNotes(station) {
+ const coverage=stationCoverage(game,station),names=[...coverage.cities.map(city=>city.name),...coverage.industries.map(site=>site.name||INDUSTRIES[site.kind].name)];
+ const label=(key,cargo)=>{const name=CARGO[cargo].name.toLowerCase();return key==='produces'?(cargo==='passengers'?'Carry passengers':`Ship ${name}`):cargo==='passengers'?'Bring passengers here':`Deliver ${name} here`;};
+ const note=key=>`<div class="coverage-note"><strong>${key==='produces'?'Loads':'Accepts'}</strong><span class="coverage-cargo">${coverage[key].map(cargo=>`<button type="button" class="coverage-pick" ${key==='produces'?planAttributes(station.mode,station.id,'',cargo,'to'):planAttributes(station.mode,'',station.id,cargo,'from')} title="${escapeHTML(label(key,cargo))}" aria-label="${escapeHTML(label(key,cargo))}"><span class="cargo-badge" data-cargo="${cargo}">${cargoIcon(cargo,{decorative:true})}</span></button>`).join('')||'No cargo nearby'}</span></div>`;
+ return note('produces')+note('accepts')+(names.length?`<p class="coverage-names">Covers ${escapeHTML(nameList(names,4))}</p>`:'');
+}
+function stationServices(station) {
+ const routes=game.routes.filter(route=>route.stops.includes(station.id));if(!routes.length)return '';
+ const rows=routes.slice(0,6).map(route=>{const fleet=getRouteFleet(game,route.id),health=routeHealth(game,route,fleet);return `<button type="button" class="service-row" data-service-route="${escapeHTML(route.id)}" title="Show on the map"><span class="route-dot" style="background:${escapeHTML(route.color||'#d9965c')}"></span><span class="service-detail"><strong>${escapeHTML(route.name)}</strong><small>${fleet.count} ${fleetNoun(route,fleet.count)} · <span data-state="${health.state}">${escapeHTML(health.label)}</span></small></span>${cargoIcon(route.cargo)}${icon('focus')}</button>`;}).join('');
+ return `<section class="station-services" aria-label="Services"><h4>Services <span>${routes.length}</span></h4><div class="service-list">${rows}</div>${routes.length>6?`<button type="button" class="service-more" data-service-more="${escapeHTML(station.name)}">and ${routes.length-6} more in Routes</button>`:''}</section>`;
+}
+// A site's service counts the routes that load its output or bring its inputs at a stop in reach.
+function industryService(industry) {
+ const d=INDUSTRIES[industry.kind],stops=servingStops(industry),center={x:industry.x+(industrySize(industry)-1)/2,y:industry.y+(industrySize(industry)-1)/2};
+ if(!stops.length)return `<section class="industry-service" aria-label="Service"><p class="service-summary">No stop within 5 tiles yet.</p><button type="button" class="button button-outline full" data-place-stop="${center.x},${center.y}">${icon('bus')} Place a stop nearby</button></section>`;
+ const ids=new Set(stops.map(stop=>stop.id)),routes=game.routes.filter(route=>(d.outputs[route.cargo]||d.inputs[route.cargo])&&route.stops.some(id=>ids.has(id))).length,start=stops.find(stop=>stop.mode===preferredMode)||stops[0],output=Object.keys(d.outputs)[0];
+ return `<section class="industry-service" aria-label="Service"><p class="service-summary">Served by <strong>${escapeHTML(nameList(stops.map(stop=>stop.name),2))}</strong> · ${routes?`${routes} route${routes===1?'':'s'}`:'no route yet'}</p>${output?`<button type="button" class="button button-primary full" ${planAttributes(start.mode,start.id,'',output,'to')}>${icon('route')} Plan route from here</button>`:''}${Object.keys(d.inputs).map(cargo=>`<button type="button" class="small-button industry-supply" ${planAttributes(start.mode,'',start.id,cargo,'from')}>${cargoIcon(cargo,{decorative:true})}Supply ${escapeHTML(CARGO[cargo].name.toLowerCase())}</button>`).join('')}</section>`;
+}
+// A nearest target offers Plan once stops of one transport already reach both ends.
+function targetPlan(target,from) {
+ const site=target.kind==='industry'?game.industries.find(i=>i.id===target.id):game.cities.find(city=>city.id===target.id),to=site?servingStops(site):[];
+ const pairs=from.flatMap(a=>to.filter(b=>b.mode===a.mode&&b.id!==a.id).map(b=>[a,b])),pair=pairs.find(([a])=>a.mode===preferredMode)||pairs[0];
+ return pair?`<button type="button" class="target-plan" ${planAttributes(pair[0].mode,pair[0].id,pair[1].id,target.cargo[0])} aria-label="Plan a route to ${escapeHTML(target.name)}">${icon('route')}Plan</button>`:'';
+}
+function bindServiceLinks(box) {
+ box.querySelectorAll('[data-service-route]').forEach(el=>el.onclick=()=>showRoute(el.dataset.serviceRoute));
+ box.querySelectorAll('[data-service-more]').forEach(el=>el.onclick=()=>{routeFilters={query:el.dataset.serviceMore,mode:'all',status:'all',cargo:'all'};routePage=0;setView('routes');});
+ box.querySelectorAll('[data-plan-cargo]').forEach(el=>el.onclick=()=>{const plan=el.dataset;planRoute({mode:plan.planMode,from:plan.planFrom,to:plan.planTo,cargo:plan.planCargo},plan.planPick);});
+ box.querySelectorAll('[data-place-stop]').forEach(el=>el.onclick=()=>{const [x,y]=el.dataset.placeStop.split(',').map(Number);category='network';setView('build');setTool('stop');renderer.focus(x,y);updateHud();});
+}
+function networkUse(tile,x,y) {
+ const names=routeTileIndex(game).get(y*game.width+x)||[];
+ return `<p class="network-use">${names.length?`Used by ${escapeHTML(nameList(names,4))}`:'Not used by any route'}</p><p>${tile.road?tile.publicRoad?'Public road · no upkeep':'Company road':'Company railway'}${tile.road&&tile.rail?' · railway':''}</p>`;
+}
 // The last generated markup, not box.innerHTML: drawn portraits change their canvas attributes.
 let inspectorHTML='', inspectorKey='', panelPress=false, panelReleasedAt=-Infinity;
 function inspect(x,y,kind='',origin='') {
@@ -747,12 +796,12 @@ function inspect(x,y,kind='',origin='') {
  const tile=tileAt(x,y);if(!tile)return;const changed=!selected||selected.x!==x||selected.y!==y||selected.kind!==kind;selected={x,y,kind};
  const station=game.stations.find(s=>s.x===x&&s.y===y),industry=game.industries.find(i=>industryContains(i,x,y)), city=game.cities.find(c=>c.x===x&&c.y===y)||game.cities.find(c=>Math.hypot(c.x-x,c.y-y)<4&&tile.building);
  let title,tag,body;
- if(station&&kind!=='city'&&kind!=='industry'){title=station.name;tag=stopName(station.mode).replace(/^./,c=>c.toUpperCase());body=`${infrastructurePortrait(station.mode==='water'?'port':station.mode==='rail'?'train-stop':'bus-stop','inspector-station-art')}<div class="inspector-grid"><div><small>Network</small><strong>${transportName(station.mode)}</strong></div><div><small>Coverage</small><strong>5 tiles</strong></div></div>${coverageNote(station.id,'produces')}${coverageNote(station.id,'accepts')}<button class="button button-primary full" id="station-route">${icon('route')} New route</button>`;}
- else if(industry){const d=INDUSTRIES[industry.kind],conditions=industryConditions(game,industry),typical=Object.values(d.outputs).reduce((a,b)=>a+b,0)*(industry.capacity||1)*conditions.productivity;title=industry.name||d.name;tag=`Industry · ${industrySize(industry)} × ${industrySize(industry)} site`;const status=industryStatus(industry,game);body=`<div class="inspector-industry-art">${industryPortrait(industry.kind)}${cargoRecipe(d.inputs,d.outputs)}</div><div class="industry-condition" data-state="${status.state}"><strong>${escapeHTML(status.label)}</strong><p>${escapeHTML(status.detail)}</p></div>${industryDestinations(industry)}<div class="inspector-grid"><div><small>Capacity</small><strong>${Math.round((industry.capacity||1)*100)}%</strong></div><div><small>Storage</small><strong>${Math.round(outputFill(industry)*100)}% full</strong></div><div><small>Potential / day</small><strong>${typical.toLocaleString('en-US',{maximumFractionDigits:1})}</strong></div></div>${localConditions(conditions)}<div class="section-divider"></div><div class="ledger">${Object.entries(industry.inventory||{}).map(([key,n])=>`<div class="ledger-row">${cargoBadge(key,{label:true})}<strong>${integer(n)}</strong></div>`).join('')||'<span class="micro-note">Storage empty</span>'}</div><p>Add a stop within 5 tiles.</p>${industrySize(industry)<industryFootprint(industry.kind)?'<p class="micro-note">Compact legacy site. New construction uses a larger plot.</p>':''}`;}
+ if(station&&kind!=='city'&&kind!=='industry'){title=station.name;tag=stopName(station.mode).replace(/^./,c=>c.toUpperCase());body=`${infrastructurePortrait(station.mode==='water'?'port':station.mode==='rail'?'train-stop':'bus-stop','inspector-station-art')}<div class="inspector-grid"><div><small>Network</small><strong>${transportName(station.mode)}</strong></div><div><small>Coverage</small><strong>5 tiles</strong></div></div>${stationCargoNotes(station)}${stationServices(station)}<button class="button button-primary full" id="station-route">${icon('route')} New route</button>`;}
+ else if(industry){const d=INDUSTRIES[industry.kind],conditions=industryConditions(game,industry),typical=Object.values(d.outputs).reduce((a,b)=>a+b,0)*(industry.capacity||1)*conditions.productivity;title=industry.name||d.name;tag=`Industry · ${industrySize(industry)} × ${industrySize(industry)} site`;const status=industryStatus(industry,game);body=`<div class="inspector-industry-art">${industryPortrait(industry.kind)}${cargoRecipe(d.inputs,d.outputs)}</div><div class="industry-condition" data-state="${status.state}"><strong>${escapeHTML(status.label)}</strong><p>${escapeHTML(status.detail)}</p></div>${industryService(industry)}${industryDestinations(industry)}<div class="inspector-grid"><div><small>Capacity</small><strong>${Math.round((industry.capacity||1)*100)}%</strong></div><div><small>Storage</small><strong>${Math.round(outputFill(industry)*100)}% full</strong></div><div><small>Potential / day</small><strong>${typical.toLocaleString('en-US',{maximumFractionDigits:1})}</strong></div></div>${localConditions(conditions)}<div class="section-divider"></div><div class="ledger">${Object.entries(industry.inventory||{}).map(([key,n])=>`<div class="ledger-row">${cargoBadge(key,{label:true})}<strong>${integer(n)}</strong></div>`).join('')||'<span class="micro-note">Storage empty</span>'}</div>${industrySize(industry)<industryFootprint(industry.kind)?'<p class="micro-note">Compact legacy site. New construction uses a larger plot.</p>':''}`;}
  else if(kind!=='city'&&tile.building&&BUILDINGS[tile.building.kind]){const b=BUILDINGS[tile.building.kind],span=buildingSize(tile.building);title=b.name;tag=`${span} × ${span} site · ${b.tier?b.tier+' home':BUILDING_GROUPS[b.group].name}`;const nearest=game.cities.reduce((best,c)=>!best||Math.hypot(c.x-x,c.y-y)<Math.hypot(best.x-x,best.y-y)?c:best,null);body=`<div class="inspector-building"><canvas width="96" height="100" data-building-sprite="${tile.building.kind}" aria-hidden="true"></canvas><p>${escapeHTML(b.tier||BUILDING_GROUPS[b.group].name)} · ${nearest&&Math.hypot(nearest.x-x,nearest.y-y)<=10?escapeHTML(nearest.name):'Countryside'}</p></div><div class="inspector-grid"><div><small>Collection</small><strong>${escapeHTML(BUILDING_GROUPS[b.group].name)}</strong></div><div><small>Development</small><strong>Level ${tile.building.level||1}</strong></div></div><p>${escapeHTML(buildingBenefit(tile.building.kind))}</p>${span<buildingFootprint(tile.building.kind)?'<p class="micro-note">Compact legacy site. New construction uses a larger plot.</p>':''}`;}
  else if(kind!=='city'&&tile.building?.kind==='factory'){const span=buildingSize(tile.building);title='Neighborhood workshop';tag=`${span} × ${span} site`;body='<div class="inspector-building"><canvas width="96" height="100" data-building-sprite="factory" aria-hidden="true"></canvas><p>Local industry</p></div><p>Road access and town deliveries drive development. Each level supports local town activity.</p>';}
  else if(city&&(kind==='city'||!tile.zone)){title=city.name;tag='Town';body=`<div class="inspector-grid town-figures"><div><small>Population</small><strong>${integer(city.population)}</strong></div><div><small>Activity</small><strong>${integer(city.activity||0)}</strong></div><div><small>Waiting</small><strong>${integer(city.passengers)}</strong></div></div><p class="site-status">${townService(game,city).label}</p>${localConditions(settlementSuitability(game,city))}${townNeedsRow(city)}<button class="button button-primary full" id="zone-town">${icon('house')} Add zones</button>`;}
- else{title=tile.zone?TOOL_INFO[tile.zone].name+' zone':tile.road?'Road':tile.rail?'Railway':{grass:'Open countryside',forest:'Woodland',water:'Water',mountain:'Mountain ridge',rock:'Rocky ground',sand:'Desert sands',snow:'Snowfield'}[tile.terrain]||'Countryside';if(tile.detail&&!tile.road&&!tile.rail&&!tile.zone)title=tile.detail.replace(/-/g,' ').replace(/^./,c=>c.toUpperCase());tag=`${nature?terrainObjectSize(nature.object)+' × '+terrainObjectSize(nature.object)+' site · ':''}Level ${[...new Set(tileSurface(game,x,y).corners.map(p=>p.height))].sort((a,b)=>a-b).join('–')} · ${x}, ${y}`;body=`<p>${nature&&nature.object.kind!=='mountain'?'A natural '+(nature.object.kind==='forest'?'grove':'outcrop')+' on level ground. Bulldoze any part to clear the whole site.':tile.zone?'Develops gradually with local demand.':tile.terrain==='water'?'Build a port on water beside a bank. Ships follow connected water and pass beneath bridges.':tile.terrain==='mountain'?'Use Terrain & crossings to tunnel through higher ground, or reshape clear land.':'Build on flat ground or a straight slope. Use Terrain & crossings to reshape or level clear land.'}</p>`;}
+ else{title=tile.zone?TOOL_INFO[tile.zone].name+' zone':tile.road?'Road':tile.rail?'Railway':{grass:'Open countryside',forest:'Woodland',water:'Water',mountain:'Mountain ridge',rock:'Rocky ground',sand:'Desert sands',snow:'Snowfield'}[tile.terrain]||'Countryside';if(tile.detail&&!tile.road&&!tile.rail&&!tile.zone)title=tile.detail.replace(/-/g,' ').replace(/^./,c=>c.toUpperCase());tag=`${nature?terrainObjectSize(nature.object)+' × '+terrainObjectSize(nature.object)+' site · ':''}Level ${[...new Set(tileSurface(game,x,y).corners.map(p=>p.height))].sort((a,b)=>a-b).join('–')} · ${x}, ${y}`;body=tile.road||tile.rail?networkUse(tile,x,y):`<p>${nature&&nature.object.kind!=='mountain'?'A natural '+(nature.object.kind==='forest'?'grove':'outcrop')+' on level ground. Bulldoze any part to clear the whole site.':tile.zone?'Develops gradually with local demand.':tile.terrain==='water'?'Build a port on water beside a bank. Ships follow connected water and pass beneath bridges.':tile.terrain==='mountain'?'Use Terrain & crossings to tunnel through higher ground, or reshape clear land.':'Build on flat ground or a straight slope. Use Terrain & crossings to reshape or level clear land.'}</p>`;}
  if(tile.zone){const zone=game.zones.find(zone=>zone.x===x&&zone.y===y);body+=`<p>Development: ${Math.round((zone?.progress||0)/3*100)}% · Road access and regular town deliveries required.</p>`+localConditions(settlementSuitability(game,{x,y},tile.zone));}
  const box=$('#inspector'),html=`<div class="inspector-top"><span class="eyebrow">${tag}</span><button class="tiny-button" aria-label="Close inspector">×</button></div><h3 id="inspector-title" tabindex="-1">${escapeHTML(title)}</h3>${body}`,key=`${worldSerial}|${x},${y},${kind}`;
  const focusTitle=()=>{if(origin==='keyboard')$('#inspector-title').focus({preventScroll:true});};
@@ -761,6 +810,7 @@ function inspect(x,y,kind='',origin='') {
  if($('#station-route'))$('#station-route').onclick=()=>{if(formDraft.mode!==station.mode||formDraft.to===String(station.id))formDraft.to='';formDraft.mode=station.mode;formDraft.from=String(station.id);setView('routes');$('#route-form')?.scrollIntoView({block:'nearest',behavior:'smooth'});};
  if($('#zone-town'))$('#zone-town').onclick=()=>{category='towns';setView('build');};
  if($('#industry-chain'))$('#industry-chain').onclick=()=>openChains({industryKind:industry.kind});
+ bindServiceLinks(box);
  box.querySelectorAll('[data-target-id]').forEach(el=>el.onclick=e=>locateDestination(el.dataset.targetId,el.dataset.targetKind,e.detail===0?'keyboard':''));
  if(changed)box.scrollTop=0;
  focusTitle();

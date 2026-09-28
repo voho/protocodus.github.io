@@ -139,7 +139,11 @@ test('zones and demolition stay partial, but the quote and the result say so', (
   assert.equal(nothing.ok, false, 'zero built plus a blocker is an error'); assert.equal(nothing.built, 0);
   const served = emptyGame(); build(served, 'road', 20, 20); build(served, 'bus-stop', 20, 20); served.routes.push({ id: 'route-1', name: 'Test freight', stops: [served.stations[0].id] });
   const retire = quoteBuildPlan(served, 'bulldoze', [{ x: 20, y: 20 }]);
-  assert.equal(retire.ok, false); assert.equal(retire.message, 'Retire routes using this station before removing it.');
+  assert.equal(retire.ok, false); assert.equal(retire.message, 'Retire Test freight before removing this road stop.');
+  served.routes.push({ id: 'route-2', name: 'Line 1', stops: [served.stations[0].id] });
+  assert.equal(quoteBuildPlan(served, 'bulldoze', [{ x: 20, y: 20 }]).message, 'Retire Test freight and Line 1 before removing this road stop.');
+  served.routes.push({ id: 'route-3', name: 'Night bus', stops: ['station-9', served.stations[0].id] }, { id: 'route-4', name: 'Elsewhere', stops: ['station-9'] });
+  assert.equal(build(served, 'bulldoze', 20, 20).message, 'Retire Test freight, Line 1 and 1 more before removing this road stop.', 'the refusal names the routes that hold the stop');
 });
 
 test('single stops, ports and towns quote exactly what build() will say', () => {
