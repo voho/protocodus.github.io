@@ -40,7 +40,8 @@
  .compact-play .tool-grid .tool-card[data-tool=bulldoze]{min-height:44px;padding:6px 10px}
  .compact-play .tool-grid .tool-card[data-tool=bulldoze] svg{margin:0}
  .compact-play .inspector,.compact-play .map-section:has(.cargo-lens-chip) .inspector{bottom:12px;max-height:calc(100% - 24px - var(--safe-b))}
- .compact-play .map-section:has(#active-tool-bar:not([hidden]),#route-pick-banner) .inspector{max-height:calc(100% - 86px - var(--safe-b))}
+ .compact-play .map-section:has(#active-tool-bar:not([hidden])) .inspector{max-height:calc(100% - 86px - var(--safe-b))}
+ .compact-play .map-section:has(.route-pick-banner) .inspector{max-height:calc(100% - 98px - var(--safe-b))}
  .compact-play .map-section:has(#inspector:not([hidden])) .paused-chip{left:calc(50% + 156px + (var(--safe-l) - var(--safe-r)) / 2)}
  .compact-play .map-section:has(.minimap-wrap:not([hidden])) #objective-card{display:none}
  #modal{max-height:calc(100dvh - 16px - var(--safe-t) - var(--safe-b))}

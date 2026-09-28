@@ -8,8 +8,7 @@ import { refreshRouteConnections, getVehiclePurchase, getVehicleUpgrade, getFlee
 import { createRenderer } from './renderer.js';
 import { quoteBuildPlan, buildPlan } from './construction-plan.js';
 import { captureUndo, finishUndo, undoConstruction, undoStale } from './construction-undo.js';
-import { gridLine, planNetworkStroke } from './network-router.js';
-import { planConnection } from './network-router.js';
+import { gridLine, planNetworkStroke, planConnection } from './network-router.js';
 import { routeTileIndex } from './route-tiles.js';
 import { nearbyStations } from './simulation-spatial.js';
 import { routesNeedingAttention } from './gameplay-insights.js';
@@ -237,6 +236,7 @@ function syncToolControls() {
  if(tool==='road'||tool==='rail')$('#active-tool-hint').textContent=touch?'Straight grades · flat turns':'Drag · straight grades only · flat turns';
  if(tool==='stop')$('#active-tool-hint').textContent=touch?`Tap a ${network} near customers`:`Click a ${network} within 5 tiles of customers`;
  if(tool==='port')$('#active-tool-hint').textContent=`${tap} water beside land, near customers`;
+ if(['residential','commercial','industrial'].includes(tool))$('#active-tool-hint').textContent=touch?'Drag an area · Two fingers to move':'Drag an area · Shift for a line';
  if(tool==='bulldoze')$('#active-tool-hint').textContent=`${tap} or drag · Clears whole sites`;
  if(BUILDINGS[tool]||INDUSTRIES[tool]){const size=BUILDINGS[tool]?buildingFootprint(tool):industryFootprint(tool);$('#active-tool-hint').textContent=`${size} × ${size} site · ${tap} to place`;}
  if(terrainTools.has(tool))$('#active-tool-hint').textContent=tool==='level'?'Drag an area · Match the first point':`${tap} or drag · ${tool==='raise'?'+1':'−1'} level per point`;
@@ -1431,7 +1431,7 @@ function paintPath(points) {
 function pickMapTile(clientX,clientY,clamp=false,pointerType='') {
  const touch=pointerType==='touch';
  if(isRoutePicking()) {
-  // Station signs stay fourteen screen pixels wide, including at Region zoom,
+  // Station signs stay 16–18 screen pixels wide, including at Region zoom,
   // so the nearest sign within a finger's or a pointer's reach picks its stop.
   const station=renderer.stationAtMarker(clientX,clientY,{slop:touch?20:6});
   return station?{x:station.x,y:station.y}:renderer.screenToTile(clientX,clientY);
