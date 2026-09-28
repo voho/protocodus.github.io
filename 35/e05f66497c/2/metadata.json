@@ -1,0 +1,40 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "35e05f66497c",
+  "session_id": "495d27df-aecc-47c3-bdc5-ab2b4fc2d55d",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-28T13:54:02.575191Z",
+  "branch": "transport-playability",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "fun/transport/README.md",
+    "fun/transport/app.js",
+    "fun/transport/chains.js",
+    "fun/transport/controls.css",
+    "fun/transport/renderer.js",
+    "fun/transport/tests/cargo-lens-browser-check.mjs",
+    "fun/transport/tests/chains.test.mjs",
+    "fun/transport/ARCHITECTURE.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "67f9d64b5ef3",
+  "checkpoint_transcript_start": 682,
+  "transcript_lines_at_start": 682,
+  "token_usage": {
+    "input_tokens": 194,
+    "cache_creation_tokens": 398482,
+    "cache_read_tokens": 25417227,
+    "output_tokens": 280484,
+    "api_call_count": 95
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-28T13:54:01.091315Z",
+    "agent_lines": 0,
+    "human_added": 292,
+    "human_modified": 13,
+    "human_removed": 0,
+    "total_committed": 292,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude/projects/-Users-vojta-Dev-protocodus-github-io/495d27df-aecc-47c3-bdc5-ab2b4fc2d55d.jsonl"
+}
