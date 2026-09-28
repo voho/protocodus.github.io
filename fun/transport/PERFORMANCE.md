@@ -133,6 +133,27 @@ node fun/transport/tests/background-ui-browser-check.mjs
 TRANSPORT_WORLD_SIZE=square2048 node fun/transport/tests/background-ui-browser-check.mjs
 ```
 
+## Startup module loading
+
+Static imports reach 13 levels deep from `start-menu.js` and 14 from `app.js`. The browser discovers each level only after parsing the one before it, so every level costs a round trip. `index.html` now preloads the 39 menu modules (382 KiB). The menu preloads the other 45 game modules (635 KiB) once it is idle, so they are usually in place before Create.
+
+Paired runs against an immutable copy of the previous build used Chrome's network throttling at 20 Mbps, a no-store local server and a disabled cache. Each run created the default taiga world with seed 1847 after 1.5 seconds on the menu. Values are medians of four runs:
+
+| Workload | Before | After |
+| --- | ---: | ---: |
+| 40 ms latency, page to menu | 695 ms | 564 ms |
+| 40 ms latency, Create to playable | 5.68 s | 5.08 s |
+| 100 ms latency, page to menu | 1.46 s | 1.23 s |
+| 100 ms latency, Create to playable | 6.59 s | 5.55 s |
+
+Clicking Create on the menu's first frame still gains 0.2–0.3 s. World generation then starts later, because the preload shares bandwidth with the worker's own imports. Preloading both graphs from `index.html` made the menu slower than no preloading at all (934 ms at 40 ms latency, 2.02 s at 100 ms), so the second phase waits for the menu.
+
+```sh
+node --test fun/transport/tests/module-preload.test.mjs
+node fun/transport/tests/start-menu-browser-check.mjs
+node fun/transport/tests/loading-screen-browser-check.mjs
+```
+
 ## Scenery batches after native sprite preparation
 
 A further pass batches static sprites on narrow depth diagonals and caches the tree-shadow ground layer. Vehicle ordering remains exact: a vehicle inside a strip's ordering range causes that strip to draw its original objects. Original sprite masks still drive inspection. Bridges, stations and tunnel mouths remain independent. The extra batch/shadow pool is capped at **96 MiB**, and oversized views fall back to direct drawing.

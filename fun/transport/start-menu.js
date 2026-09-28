@@ -4,11 +4,17 @@ import { savePreparedGame, AUTOSAVE_AT_KEY } from './autosave-storage.js';
 import { DEFAULT_WORLD_SIZE, NEW_WORLD_SIZES, worldGenerationOptions } from './world.js';
 import { listSaveSlots, readSaveSlot, slotDate, slotMoney, slotDetails, savedAgo } from './save-slots.js';
 import { hideLoading, showLoading, paintLoading, loadingJobProgress } from './loading-screen.js';
+import { APP_PRELOAD } from './app-preload.js';
 
 const escape=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let initialGame=null;
 export function takeStartupGame(){const game=initialGame;initialGame=null;return game;}
-export async function chooseStartupGame(){initialGame=await openStartMenu();return initialGame;}
+// The game's own modules download while the menu waits, once it has painted and
+// gone idle, so boot.js's import of app.js no longer walks its graph level by level.
+let appPreloaded=false;
+function preloadApp(){if(appPreloaded)return;appPreloaded=true;document.head.append(...APP_PRELOAD.map(path=>Object.assign(document.createElement('link'),{rel:'modulepreload',href:new URL(path,import.meta.url).href})));}
+const whenIdle=run=>window.requestIdleCallback?requestIdleCallback(run,{timeout:500}):setTimeout(run,500);
+export async function chooseStartupGame(){const menu=openStartMenu();requestAnimationFrame(()=>whenIdle(preloadApp));initialGame=await menu;return initialGame;}
 
 // Opening the menu reads save metadata only. No terrain is generated and no
 // storage is written until the player chooses a world to create or load.

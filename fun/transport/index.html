@@ -84,6 +84,46 @@
     <div id="toast-region" aria-live="polite" class="toast-region"></div>
     <dialog id="modal"><div id="modal-content"></div></dialog>
   </div>
+  <!-- The start menu module graph, dependencies first; start-menu.js preloads the rest while the menu is idle. -->
+  <link rel="modulepreload" href="./loading-screen.js">
+  <link rel="modulepreload" href="./buildings.js">
+  <link rel="modulepreload" href="./data.js">
+  <link rel="modulepreload" href="./terrain-sprites.js">
+  <link rel="modulepreload" href="./world-noise.js">
+  <link rel="modulepreload" href="./world-tiles.js">
+  <link rel="modulepreload" href="./world-terrain-v2.js">
+  <link rel="modulepreload" href="./world-placement-v2.js">
+  <link rel="modulepreload" href="./world-mountains-v7.js">
+  <link rel="modulepreload" href="./world-v2.js">
+  <link rel="modulepreload" href="./terrain-elevation.js">
+  <link rel="modulepreload" href="./terrain-objects.js">
+  <link rel="modulepreload" href="./building-sites.js">
+  <link rel="modulepreload" href="./industry-sites.js">
+  <link rel="modulepreload" href="./world-sites-v5.js">
+  <link rel="modulepreload" href="./world-terrain-objects.js">
+  <link rel="modulepreload" href="./world.js">
+  <link rel="modulepreload" href="./route-save-codec.js">
+  <link rel="modulepreload" href="./fleet-save-codec.js">
+  <link rel="modulepreload" href="./save-codec.js">
+  <link rel="modulepreload" href="./change-journal.js">
+  <link rel="modulepreload" href="./environment.js">
+  <link rel="modulepreload" href="./simulation-spatial.js">
+  <link rel="modulepreload" href="./terrain-geometry.js">
+  <link rel="modulepreload" href="./terrain-engineering.js">
+  <link rel="modulepreload" href="./settlements.js">
+  <link rel="modulepreload" href="./network-index.js">
+  <link rel="modulepreload" href="./industry-simulation.js">
+  <link rel="modulepreload" href="./chains.js">
+  <link rel="modulepreload" href="./economy-pricing.js">
+  <link rel="modulepreload" href="./milestones.js">
+  <link rel="modulepreload" href="./contracts.js">
+  <link rel="modulepreload" href="./model.js">
+  <link rel="modulepreload" href="./world-transfer.js">
+  <link rel="modulepreload" href="./background-jobs.js">
+  <link rel="modulepreload" href="./autosave-storage.js">
+  <link rel="modulepreload" href="./save-slots.js">
+  <link rel="modulepreload" href="./app-preload.js">
+  <link rel="modulepreload" href="./start-menu.js">
   <script type="module" src="./boot.js"></script>
 </body>
 </html>
