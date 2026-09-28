@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "4e904e4f4e1d",
+  "strategy": "manual-commit",
+  "branch": "transport-playability",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "fun/transport/ARCHITECTURE.md",
+    "fun/transport/README.md",
+    "fun/transport/app.js",
+    "fun/transport/controls.css",
+    "fun/transport/tests/controls-browser-check.mjs",
+    "fun/transport/tests/footprint-ui-browser-check.mjs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/4e/904e4f4e1d/0/metadata.json",
+      "transcript": "/4e/904e4f4e1d/0/full.jsonl",
+      "context": "/4e/904e4f4e1d/0/context.md",
+      "content_hash": "/4e/904e4f4e1d/0/content_hash.txt",
+      "prompt": "/4e/904e4f4e1d/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 184,
+    "cache_creation_tokens": 222747,
+    "cache_read_tokens": 6989952,
+    "output_tokens": 50046,
+    "api_call_count": 67
+  }
+}
