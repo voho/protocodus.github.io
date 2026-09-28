@@ -1040,6 +1040,28 @@ function networkUse(tile,x,y) {
  const names=routeTileIndex(game).get(y*game.width+x)||[];
  return `<p class="network-use">${names.length?`Used by ${escapeHTML(nameList(names,4))}`:'Not used by any route'}</p><p>${tile.road?tile.publicRoad?'Public road · no upkeep':'Company road':'Company railway'}${tile.road&&tile.rail?' · railway':''}</p>`;
 }
+// On a portrait phone the inspector is a bottom sheet (compact-play.css). Its grabber raises it over the map until the selection changes;
+// the markup never carries that state, so refreshes compare equal and keep it. The grabber shows only when the sheet has more to show.
+const SHEET_MEDIA='(max-width:700px) and (min-height:501px)', sheetGrabber='<button class="sheet-grabber" type="button" aria-label="Expand details" aria-expanded="false"></button>';
+let sheetExpanded=false;
+function syncSheet(box) {
+ const grabber=box.querySelector('.sheet-grabber');box.classList.toggle('expanded',sheetExpanded);if(!grabber)return;
+ grabber.setAttribute('aria-expanded',String(sheetExpanded));grabber.hidden=!sheetExpanded&&matchMedia(SHEET_MEDIA).matches&&box.scrollHeight<=box.clientHeight;
+ grabber.onclick=e=>{sheetExpanded=!sheetExpanded;syncSheet(box);if(e.detail)grabber.blur();};
+}
+// A new selection slides the map so the site sits between the header and the sheet; refreshes never move the camera.
+// A sheet the open drawer hides has no edge to keep clear of.
+function keepAboveSheet(box,x,y,span) {
+ if(!box.offsetHeight)return;
+ const map=canvas.getBoundingClientRect(),top=box.getBoundingClientRect().top-map.top,head=Math.max(0,$('.topbar').getBoundingClientRect().bottom-map.top)+8,p=renderer.worldToScreen(x+(span-1)/2,y+(span-1)/2),depth=span*TILE/2*renderer.getCamera().zoom;
+ if(p.y>top-24-depth||p.y<head+24+depth)renderer.pan(0,(head+top)/2-p.y);
+}
+// A second tap on the site the sheet shows puts the sheet away instead of rebuilding it.
+function retapsSheet(x,y) {
+ if(!selected||$('#inspector').hidden||!matchMedia(SHEET_MEDIA).matches)return false;
+ const site=buildingAt(game,x,y)||(nature=>nature?.object.kind==='mountain'?null:nature)(terrainObjectAt(game,x,y)),industry=game.industries.find(i=>industryContains(i,x,y));
+ return site?site.x===selected.x&&site.y===selected.y:industry?industryContains(industry,selected.x,selected.y):x===selected.x&&y===selected.y;
+}
 // The last generated markup, not box.innerHTML: drawn portraits change their canvas attributes.
 let inspectorHTML='', inspectorKey='', panelPress=false, panelReleasedAt=-Infinity;
 function inspect(x,y,kind='',origin='') {
@@ -1057,10 +1079,12 @@ function inspect(x,y,kind='',origin='') {
  else{title=tile.zone?TOOL_INFO[tile.zone].name+' zone':tile.road?'Road':tile.rail?'Railway':{grass:'Open countryside',forest:'Woodland',water:'Water',mountain:'Mountain ridge',rock:'Rocky ground',sand:'Desert sands',snow:'Snowfield'}[tile.terrain]||'Countryside';if(tile.detail&&!tile.road&&!tile.rail&&!tile.zone)title=tile.detail.replace(/-/g,' ').replace(/^./,c=>c.toUpperCase());tag=`${nature?terrainObjectSize(nature.object)+' × '+terrainObjectSize(nature.object)+' site · ':''}Level ${[...new Set(tileSurface(game,x,y).corners.map(p=>p.height))].sort((a,b)=>a-b).join('–')} · ${x}, ${y}`;body=tile.road||tile.rail?networkUse(tile,x,y):`<p>${nature&&nature.object.kind!=='mountain'?'A natural '+(nature.object.kind==='forest'?'grove':'outcrop')+' on level ground. Bulldoze any part to clear the whole site.':tile.zone?'Develops gradually with local demand.':tile.terrain==='water'?'Build a port on water beside a bank. Ships follow connected water and pass beneath bridges.':tile.terrain==='mountain'?'Use Terrain & crossings to tunnel through higher ground, or reshape clear land.':'Build on flat ground or a straight slope. Use Terrain & crossings to reshape or level clear land.'}</p>`;}
  if(tile.zone){const zone=game.zones.find(zone=>zone.x===x&&zone.y===y);body+=`<p>Development: ${Math.round((zone?.progress||0)/3*100)}% · Road access and regular town deliveries required.</p>`+localConditions(settlementSuitability(game,{x,y},tile.zone));}
  if(station&&kind!=='city'&&kind!=='industry')body=renameButton('station',station.id)+body;
- const box=$('#inspector'),html=`<div class="inspector-top"><span class="eyebrow">${tag}</span><button class="tiny-button" aria-label="Close inspector">×</button></div><h3 id="inspector-title" tabindex="-1">${escapeHTML(title)}</h3>${body}`,key=`${worldSerial}|${x},${y},${kind}`;
+ const box=$('#inspector'),html=`${sheetGrabber}<div class="inspector-top"><span class="eyebrow">${tag}</span><button class="tiny-button" aria-label="Close inspector">×</button></div><h3 id="inspector-title" tabindex="-1">${escapeHTML(title)}</h3>${body}`,key=`${worldSerial}|${x},${y},${kind}`;
  const focusTitle=()=>{if(origin==='keyboard')$('#inspector-title').focus({preventScroll:true});};
  if(!changed&&!box.hidden&&html===inspectorHTML&&key===inspectorKey){focusTitle();return;}
  box.innerHTML=inspectorHTML=html;inspectorKey=key;box.hidden=false;drawPaletteSprites();box.querySelector('.tiny-button').onclick=()=>{box.hidden=true;selected=null;inspectorHTML='';};
+ if(changed)sheetExpanded=false;syncSheet(box);
+ if(changed&&matchMedia(SHEET_MEDIA).matches)keepAboveSheet(box,industry?.x??x,industry?.y??y,industry?industrySize(industry):site?buildingSize(site.building):nature?terrainObjectSize(nature.object):1);
  if($('#station-route'))$('#station-route').onclick=()=>{if(formDraft.editing)leaveRouteEdit(true);if(formDraft.mode!==station.mode||formDraft.to===String(station.id))formDraft.to='';formDraft.mode=station.mode;formDraft.from=String(station.id);setView('routes');$('#route-form')?.scrollIntoView({block:'nearest',behavior:'smooth'});};
  if($('#zone-town'))$('#zone-town').onclick=()=>{category='towns';setView('build');};
  box.querySelector('.town-grow')?.addEventListener('toggle',e=>{townGrowOpen=e.currentTarget.open;});
@@ -1083,15 +1107,16 @@ function inspectVehicle(id,refresh=false) {
  if(selectedVehicle!==id){follow=null;selectedVehicle=id;invalidateScene();}selected=null;
  const order=fleetOrder(route),health=routeHealth(game,route,getRouteFleet(game,route.id)),ahead=(vehicle.direction||1)>0,stop=game.stations.find(s=>s.id===route.stops[ahead?1:0]),tiles=Math.max(0,Math.ceil((ahead?route.path.length-1-(vehicle.progress||0):vehicle.progress||0)-1e-6));
  const load=`${integer(vehicle.load)} / ${integer(vehicle.capacity)}`,trip=`Heading to ${stop?.name||'a removed stop'} · ${tiles===1?'1 tile':integer(tiles)+' tiles'}`;
- const html=`<div class="inspector-top"><span class="eyebrow">${escapeHTML(order.noun[0].toUpperCase()+order.noun.slice(1))} · Gen ${(vehicle.level||0)+1}</span><button class="tiny-button" aria-label="Close inspector">×</button></div><h3 id="inspector-title" tabindex="-1">${escapeHTML(route.name)}</h3><div class="vehicle-trip"><canvas width="80" height="64" data-vehicle-sprite="purchase" data-mode="${escapeHTML(route.mode)}" data-cargo="${escapeHTML(route.cargo)}" data-level="${vehicle.level||0}" aria-hidden="true"></canvas><div><span class="vehicle-load">${cargoBadge(route.cargo)}<strong data-vehicle-live="load"></strong></span><p data-vehicle-live="trip"></p></div></div><div class="industry-condition" data-state="${health.state}"><strong>${escapeHTML(health.label)}</strong><p>${escapeHTML(health.detail)}</p></div><div class="vehicle-actions"><button class="small-button" data-vehicle-action="follow" aria-pressed="false">${icon('focus')}Follow</button><button class="small-button" data-vehicle-action="show">${icon('route')}Show route</button><button class="small-button" data-vehicle-action="routes">Open in Routes</button><button class="small-button" data-vehicle-action="add" title="${escapeHTML(order.add.title)}" ${order.add.disabled?'disabled':''}>${escapeHTML(order.add.label)}</button></div>`,key=`${worldSerial}|vehicle:${id}`;
+ const html=`${sheetGrabber}<div class="inspector-top"><span class="eyebrow">${escapeHTML(order.noun[0].toUpperCase()+order.noun.slice(1))} · Gen ${(vehicle.level||0)+1}</span><button class="tiny-button" aria-label="Close inspector">×</button></div><h3 id="inspector-title" tabindex="-1">${escapeHTML(route.name)}</h3><div class="vehicle-trip"><canvas width="80" height="64" data-vehicle-sprite="purchase" data-mode="${escapeHTML(route.mode)}" data-cargo="${escapeHTML(route.cargo)}" data-level="${vehicle.level||0}" aria-hidden="true"></canvas><div><span class="vehicle-load">${cargoBadge(route.cargo)}<strong data-vehicle-live="load"></strong></span><p data-vehicle-live="trip"></p></div></div><div class="industry-condition" data-state="${health.state}"><strong>${escapeHTML(health.label)}</strong><p>${escapeHTML(health.detail)}</p></div><div class="vehicle-actions"><button class="small-button" data-vehicle-action="follow" aria-pressed="false">${icon('focus')}Follow</button><button class="small-button" data-vehicle-action="show">${icon('route')}Show route</button><button class="small-button" data-vehicle-action="routes">Open in Routes</button><button class="small-button" data-vehicle-action="add" title="${escapeHTML(order.add.title)}" ${order.add.disabled?'disabled':''}>${escapeHTML(order.add.label)}</button></div>`,key=`${worldSerial}|vehicle:${id}`;
  const same=!box.hidden&&key===inspectorKey,hold=refresh&&(box.contains(document.activeElement)||panelPress||performance.now()-panelReleasedAt<=250);
  if(!same||html!==inspectorHTML&&!hold){
-  box.innerHTML=inspectorHTML=html;inspectorKey=key;box.hidden=false;drawPaletteSprites(box);if(!same)box.scrollTop=0;
+  box.innerHTML=inspectorHTML=html;inspectorKey=key;box.hidden=false;drawPaletteSprites(box);if(!same){box.scrollTop=0;sheetExpanded=false;}
   box.querySelector('.tiny-button').onclick=()=>{box.hidden=true;inspectorHTML='';clearVehicle();};
   box.querySelectorAll('[data-vehicle-action]').forEach(button=>button.onclick=()=>vehicleAction(button.dataset.vehicleAction,id));
  }
  for(const [live,text] of [['load',load],['trip',trip]]){const el=box.querySelector(`[data-vehicle-live="${live}"]`);if(el&&el.textContent!==text)el.textContent=text;}
  box.querySelector('[data-vehicle-action="follow"]')?.setAttribute('aria-pressed',String(Boolean(follow)));
+ syncSheet(box);
 }
 function vehicleAction(action,id) {
  const vehicle=game.vehicles.find(v=>v.id===id),route=vehicle&&game.routes.find(r=>r.id===vehicle.routeId);if(!route)return;
@@ -1563,7 +1588,7 @@ canvas.addEventListener('pointerup',e=>{
  if(p.button!==0){preview=[];if(p.button===2&&!p.moved)setTool('inspect');return;}
  if(p.tool!==tool){preview=[];return;}
  if(!p.moved&&!spaceDown&&pickRouteStopAt(p.start.x,p.start.y))return;
- if(p.pan){preview=[];if(!p.moved&&!spaceDown){const vehicle=tool==='inspect'&&renderer.vehicleAt(e.clientX,e.clientY,{slop:e.pointerType==='touch'?12:0});if(vehicle)inspectVehicle(vehicle.id);else inspect(p.start.x,p.start.y);}return;}
+ if(p.pan){preview=[];if(!p.moved&&!spaceDown){const vehicle=tool==='inspect'&&renderer.vehicleAt(e.clientX,e.clientY,{slop:e.pointerType==='touch'?12:0});if(vehicle)inspectVehicle(vehicle.id);else if(retapsSheet(p.start.x,p.start.y))$('#inspector .tiny-button').click();else inspect(p.start.x,p.start.y);}return;}
  if(p.moved&&!lineTools.has(p.tool)){preview=[];return;}
  if(p.type==='touch'&&!lineTools.has(p.tool)&&touchPlace(p.start))return;
  const points=preview.length?preview:[p.start];
@@ -1573,6 +1598,8 @@ canvas.addEventListener('pointercancel',cancelGesture);
 canvas.addEventListener('lostpointercapture',e=>{if(pointer?.id===e.pointerId||touchPoints.has(e.pointerId))cancelGesture();});
 canvas.addEventListener('pointerleave',()=>{if(liveAim())return;if(!pointer)hover=null;$('#placement-tip').hidden=true;});
 canvas.addEventListener('contextmenu',e=>{e.preventDefault();if(pointer&&!pointer.pan&&!touchPoints.has(pointer.id)&&(e.pointerType||'mouse')==='mouse'){pointer.cancelled=true;preview=[];$('#placement-tip').hidden=true;}});
+// A tap opens the inspector under the finger, so the browser's click that follows it must not press a button there.
+canvas.addEventListener('touchend',e=>{if(e.cancelable)e.preventDefault();},{passive:false});
 // Safari and iPad never focus a pressed button, so live refreshes wait out a press instead of replacing its target.
 $('#inspector').setAttribute('role','region');$('#inspector').setAttribute('aria-labelledby','inspector-title');
 for(const el of [$('#inspector'),$('#panel-content')])el.addEventListener('pointerdown',()=>{panelPress=true;},true);

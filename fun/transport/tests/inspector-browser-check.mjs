@@ -75,6 +75,88 @@ try {
   assert.match(await page.locator('#inspector').ariaSnapshot(), new RegExp(`^- region "${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"`), 'the region is named after its title');
   await page.screenshot({ path: `${output}/keyboard-target.png` });
   await page.locator('#inspector').screenshot({ path: `${output}/keyboard-target-inspector.png` });
+  assert.equal(await page.locator('#inspector .sheet-grabber').isVisible(), false, 'a wide screen keeps the floating card without a grabber');
+  await page.close();
+
+  // Phones: the inspector is a bottom sheet. A tap slides the site above it without pressing what opens under the finger,
+  // live refreshes never move the map, toasts rise clear of it, its grabber raises it and a second tap puts it away.
+  for (const [width, height] of [[390, 844], [320, 640]]) {
+    const phone = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+    phone.on('pageerror', error => errors.push(error.message));
+    await phone.goto(url);
+    await createWorldFromMenu(phone);
+    await phone.evaluate(() => { document.querySelector('#toast-region').replaceChildren(); transport.setTool('inspect'); window.__sheetClicks = 0; document.addEventListener('click', event => { if (event.target.closest('#inspector')) window.__sheetClicks++; }, true); });
+    // The mine starts low on the map, where the sheet opens under the finger.
+    const mine = await phone.evaluate(() => { const site = transport.game.industries.find(industry => industry.kind === 'iron-mine'); transport.renderer.setZoom(1); transport.renderer.focus(site.x + .5, site.y + .5); transport.renderer.pan(0, innerHeight / 4); return { x: site.x + .5, y: site.y + .5 }; });
+    const at = () => phone.evaluate(({ x, y }) => { const map = document.querySelector('#world').getBoundingClientRect(), p = transport.renderer.worldToScreen(x, y); return { x: map.left + p.x, y: map.top + p.y }; }, mine);
+    const sheet = () => phone.evaluate(() => { const map = document.querySelector('#world').getBoundingClientRect(), box = document.querySelector('#inspector').getBoundingClientRect(); return { top: box.top, bottom: box.bottom, left: box.left, right: box.right, mapTop: map.top, mapHeight: map.height }; });
+    const tap = async point => { await phone.touchscreen.tap(point.x, point.y); await phone.waitForTimeout(250); };
+    const before = await at();
+    assert.ok(before.y > height * .6, `${width}: the mine starts where the sheet will open`);
+    await tap(before);
+    assert.equal(await phone.locator('#inspector h3').textContent(), 'Iron mine', `${width}: a tap inspects the mine`);
+    assert.equal(await phone.evaluate(() => window.__sheetClicks), 0, `${width}: the tap never presses the sheet that opens under it`);
+    assert.equal(await phone.locator('#active-tool-bar').isVisible(), false, `${width}: the map stays in Explore`);
+    let box = await sheet();
+    assert.ok(box.top - box.mapTop >= box.mapHeight * .5, `${width}: the sheet leaves the upper half of the map open (${Math.round(box.top - box.mapTop)} of ${box.mapHeight})`);
+    assert.ok(box.left === 0 && box.right === width && Math.abs(box.bottom - height) < 1, `${width}: the sheet spans the bottom edge`);
+    const shown = await at();
+    assert.ok(shown.y > box.mapTop + 24 && shown.y < box.top - 24, `${width}: the mine slides above the sheet (${Math.round(shown.y)} above ${Math.round(box.top)})`);
+    const close = await phone.locator('#inspector .tiny-button').boundingBox();
+    assert.ok(close.width >= 44 && close.height >= 44, `${width}: the close button is 44 px`);
+    await phone.screenshot({ path: `${output}/phone-${width}-sheet.png` });
+
+    // Live refreshes at 8× leave the camera alone.
+    const camera = await phone.evaluate(() => { transport.setSpeed(8); return transport.renderer.getCamera(); });
+    await phone.waitForTimeout(3000);
+    assert.deepEqual(await phone.evaluate(() => { transport.setSpeed(0); return transport.renderer.getCamera(); }), camera, `${width}: 3 s at 8× never moves the map`);
+    assert.equal(await phone.locator('#inspector h3').textContent(), 'Iron mine');
+
+    // A toast rises above the sheet instead of covering it.
+    await phone.evaluate(() => { const g = transport.game; g.notifications.unshift({ id: 'notice-sheet', day: g.day, message: 'A long notice about the network that wraps across two lines', text: 'A long notice about the network that wraps across two lines', type: 'info' }); g.money += 1; });
+    await phone.locator('#toast-region .toast').first().waitFor();
+    const toast = await phone.locator('#toast-region .toast').first().boundingBox();
+    box = await sheet();
+    assert.ok(toast.y + toast.height <= box.top, `${width}: the toast clears the sheet`);
+    await phone.screenshot({ path: `${output}/phone-${width}-toast.png` });
+    await phone.evaluate(() => document.querySelector('#toast-region').replaceChildren());
+
+    // The grabber raises the sheet over the map and it stays up through refreshes until tapped again.
+    const grabber = phone.locator('#inspector .sheet-grabber');
+    assert.equal(await grabber.isVisible(), true, `${width}: a sheet with more to show has a grabber`);
+    await grabber.tap();
+    await phone.waitForTimeout(300);
+    box = await sheet();
+    assert.equal(await grabber.getAttribute('aria-expanded'), 'true');
+    assert.ok(box.top - box.mapTop < box.mapHeight * .25, `${width}: the grabber raises the sheet`);
+    await phone.evaluate(() => { transport.game.industries.find(industry => industry.kind === 'iron-mine').inventory = { iron: 4321 }; transport.game.money += 1; });
+    await phone.waitForFunction(() => document.querySelector('#inspector').textContent.includes('4,321'), undefined, { timeout: 5000 });
+    assert.equal(await phone.locator('#inspector').evaluate(el => el.classList.contains('expanded')), true, `${width}: a refresh keeps the sheet raised`);
+    await phone.screenshot({ path: `${output}/phone-${width}-expanded.png` });
+    await grabber.tap();
+    assert.equal(await grabber.getAttribute('aria-expanded'), 'false');
+    assert.equal(await phone.locator('#inspector').evaluate(el => el.classList.contains('expanded')), false);
+
+    // A second tap on the mine puts the sheet away.
+    await tap(await at());
+    assert.equal(await phone.locator('#inspector').isHidden(), true, `${width}: re-tapping the mine closes the sheet`);
+    await tap(await at());
+    assert.equal(await phone.locator('#inspector').isVisible(), true, `${width}: the next tap opens it again`);
+
+    // A town opened from the Towns list lands above the sheet.
+    await phone.locator('.mobile-panel-toggle').tap();
+    await phone.locator('[data-mobile-view="towns"]').tap();
+    const town = await phone.locator('#entity-list [data-city]').first().getAttribute('data-city');
+    await phone.locator('#entity-list [data-city]').first().tap();
+    await phone.locator('#inspector').waitFor();
+    box = await sheet();
+    const place = await phone.evaluate(id => { const city = transport.game.cities.find(c => String(c.id) === id), map = document.querySelector('#world').getBoundingClientRect(), p = transport.renderer.worldToScreen(city.x, city.y); return { name: city.name, y: map.top + p.y }; }, town);
+    assert.equal(await phone.locator('#inspector h3').textContent(), place.name);
+    assert.ok(place.y > box.mapTop + 24 && place.y < box.top - 24, `${width}: a town from the list sits above the sheet (${Math.round(place.y)} above ${Math.round(box.top)})`);
+    await phone.waitForTimeout(300);
+    await phone.screenshot({ path: `${output}/phone-${width}-town.png` });
+    await phone.close();
+  }
 
   assert.deepEqual(errors, []);
   console.log('Inspector browser check passed');
