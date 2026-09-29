@@ -3,6 +3,9 @@ import { nearbyCities, nearbyZones } from './simulation-spatial.js';
 import { localEnvironment, hasRoadAccess } from './environment.js';
 import { TOWN_RADIUS, townStopCounts } from './town-authority.js';
 import { WORKSHOP, WORKSHOP_RECIPES } from './data.js';
+import { BUILD_COSTS } from './data.js';
+import { priceFor } from './economy-pricing.js';
+import { buildingAt, buildingSize } from './building-sites.js';
 
 // A town's market, DOM-free. Each month close reviews three demand bars (homes, shops, workshops)
 // and next month's shop wants. Demand only ever speeds growth up, and wanted cargo earns a bonus on
@@ -29,6 +32,7 @@ export const MARKET_KEYS = freeze({
   demand: value => Array.isArray(value) && value.length === 3 && value.every(finiteIn(0, 1)),
   shops: integerIn(0, 1e6), works: integerIn(0, 1e6), visitors: finiteIn(0, 1e9), visitorsNow: finiteIn(0, 1e9), bonus: finiteIn(0, 1e12), bonusLast: finiteIn(0, 1e12),
   processed: optional(finiteIn(0, 1e9)), utilization: optional(finiteIn(0, 1)),
+  rent: optional(finiteIn(0, 1e12)), plots: optional(integerIn(0, 1e6)), owned: optional(integerIn(0, 1e6)),
 });
 export const validMarket = market => plain(market) && Object.keys(market).every(key => Object.hasOwn(MARKET_KEYS, key)) && Object.entries(MARKET_KEYS).every(([key, valid]) => valid(market[key]));
 // Month-close steps of later items (workshop utilization, property rent): (game, city, market, ledger) at a close only.
@@ -51,9 +55,10 @@ export function townOf(game, x, y) {
   for (const city of nearbyCities(game, x, y, TOWN_RADIUS)) { const d = Math.hypot(city.x - x, city.y - y); if (d < best) { town = city; best = d; } }
   return town;
 }
-/** One pass over the tiles the town owns (townOf would name it): homes, shop units and outlets, workshops, landmarks and developing zones. */
+/** One pass over the tiles the town owns (townOf would name it): homes, shop units and outlets, workshops, landmarks and developing zones,
+ * and the company's property there: plots (buildings on its zones) and the homes, shops, services and workshops it placed. */
 export function townLedger(game, city, zoneMap) {
-  const ledger = { homes: 0, shopUnits: 0, outlets: { food: 0, household: 0, fuel: 0 }, works: 0, civic: 0, developing: 0 }, rivals = [];
+  const ledger = { homes: 0, shopUnits: 0, outlets: { food: 0, household: 0, fuel: 0 }, works: 0, civic: 0, developing: 0, plots: [], owned: [] }, rivals = [];
   // Towns that could be nearer to one of its tiles, each with whether it comes first in game.cities (nearbyCities keeps that order).
   let earlier = true;
   for (const other of nearbyCities(game, city.x, city.y, 2 * TOWN_RADIUS)) if (other === city) earlier = false; else if (Math.hypot(other.x - city.x, other.y - city.y) < 2 * TOWN_RADIUS) rivals.push(other, earlier);
@@ -70,6 +75,7 @@ export function townLedger(game, city, zoneMap) {
       const building = tile.building;
       if (!building) continue;
       const kind = building.kind, group = BUILDINGS[kind]?.group, level = Math.floor(building.level) || 1;
+      if (tile.zone || building.owner === 'player') { const entry = propertyEntry(tile, building, x, y, zoneMap.get(row + x)); if (entry) (entry.zoneKind ? ledger.plots : ledger.owned).push(entry); }
       if (group === 'homes' || kind === 'house' || kind === 'apartment') ledger.homes++;
       else if (group === 'shops' || group === 'services' || kind === 'shop' || kind === 'office') {
         // A developed commercial zone also keeps the family of the shop it grew from.
@@ -137,6 +143,73 @@ export function recordTownSupply(game, city, cargo, units) {
 /** Passengers who arrive in a town shop there next month. */
 export function recordVisitors(game, city, n) { ensureMarket(game, city).visitorsNow += n; }
 export const demandLabel = value => value < .25 ? 'Low' : value < .6 ? 'Some' : 'Strong';
+
+// Company property: whatever the company paid for in a town earns rent at each month close. A plot is a building on a zone
+// the player painted and pays ground rent on the zone tiles bought (a consolidated block's anchor record keeps `tiles`); an
+// owned building (owner 'player': a placed home, shop, service or workshop) pays a yield on its price. Occupancy follows
+// service, deliveries and workshop use but never falls below a floor. No upkeep or decay; no notices, nextId or randomAt.
+export const GROUND_RENT = freeze({ homes: 8, shops: 10, works: 12 });
+export const BUILT_YIELD = .016;
+export const OCCUPANCY_FLOOR = freeze({ homes: .6, shops: .4, works: .3 });
+/** Selling returns this share of today's value; company value counts owned buildings at it. */
+export const SALE_SHARE = .6;
+/** 'homes', 'shops', 'works' or null: community buildings are public amenities and never property. */
+export function propertySector(kind) { const group = BUILDINGS[kind]?.group; return group === 'homes' || kind === 'house' || kind === 'apartment' ? 'homes' : group === 'shops' || group === 'services' || kind === 'shop' || kind === 'office' ? 'shops' : kind === 'factory' ? 'works' : null; }
+function propertyEntry(tile, building, x, y, zone) {
+  const kind = building.kind, sector = propertySector(kind);
+  if (!sector || !tile.zone && building.owner !== 'player') return null;
+  const level = Math.floor(building.level) || 1, family = sector === 'shops' ? OUTLET[kind] || (tile.zone === 'commercial' ? OUTLET[commercialKind(tile.variant, 1)] : null) || null : null;
+  return tile.zone ? { x, y, kind, level, tiles: zone?.tiles ?? 1, sector, family, zoneKind: tile.zone } : { x, y, kind, level, tiles: buildingSize(building) ** 2, sector, family };
+}
+const propertyCost = p => p.kind === 'factory' ? WORKSHOP.cost * p.level : BUILDINGS[p.kind]?.cost || 0;
+/** A month's rent in 1950 dollars when fully let: ground rent by level on the zone tiles bought, or a yield on the building's price. */
+export const propertyBase = p => p.zoneKind ? GROUND_RENT[p.sector] * p.tiles * p.level : BUILT_YIELD * propertyCost(p);
+/** The share let, from a closed market: the floor, plus the rest by the homes bar, stocked shelves times shoppers, shoppers alone, or workshop use. */
+export function propertyOccupancy(market, p, population) {
+  const floor = OCCUPANCY_FLOOR[p.sector], saturation = clamp((Math.max(0, population) + 2 * market.visitors) / Math.max(1, market.shops * MARKET.shopperReach));
+  const signal = p.sector === 'homes' ? market.demand[0] : p.sector === 'works' ? market.utilization || 0 : p.family ? market.met[p.family] * saturation : saturation;
+  return floor + (1 - floor) * clamp(signal);
+}
+/** Replacement cost at today's prices: the building, or the zone tiles bought. */
+export const propertyValue = (game, p) => priceFor(game, p.zoneKind ? BUILD_COSTS[p.zoneKind] * p.tiles : propertyCost(p));
+const letBase = (list, market, population) => { let sum = 0; for (const p of list) sum += propertyBase(p) * propertyOccupancy(market, p, population); return sum; };
+const propertyLog = new WeakMap();
+// The close step, after the bars and workshop use: a town that has had property books its rent into the closing month.
+function bookRent(game, city, market, ledger) {
+  const { plots, owned } = ledger;
+  if (!plots.length && !owned.length && market.rent === undefined) return;
+  const rent = priceFor(game, letBase(plots, market, city.population) + letBase(owned, market, city.population));
+  if (rent > 0) {
+    game.money += rent; game.monthlyIncome += rent; game.monthlyProperty = (game.monthlyProperty || 0) + rent; game.totalProperty = (game.totalProperty || 0) + rent;
+    let log = propertyLog.get(game); if (!log) propertyLog.set(game, log = []);
+    log.push({ cityId: city.id, x: city.x, y: city.y, rent, day: Math.floor(game.day) }); if (log.length > 64) log.shift();
+  }
+  market.rent = rent; market.plots = plots.length; market.owned = owned.length;
+}
+CLOSE_HOOKS.push(bookRent);
+/** The towns that booked rent since the last drain, for the month-end rent floats. Never saved and never read by the simulation. */
+export function drainPropertyEvents(game) { const log = propertyLog.get(game) || []; propertyLog.delete(game); return log; }
+/** The property on a tile, or null: plot or owned, its sector, level, ground-rent tiles, town (null in the countryside, where it earns nothing), occupancy and rent share from the last close, value and price paid. */
+export function propertyAt(game, x, y) {
+  const site = buildingAt(game, x, y); if (!site) return null;
+  const tile = game.tiles[site.y * game.width + site.x], zone = tile.zone ? nearbyZones(game, site.x, site.y, 1).find(z => z.x === site.x && z.y === site.y) : undefined;
+  const p = (tile.zone || site.building.owner === 'player') && propertyEntry(tile, site.building, site.x, site.y, zone);
+  if (!p) return null;
+  const town = townOf(game, site.x, site.y), occupancy = town ? propertyOccupancy(marketView(game, town), p, town.population) : 0;
+  return { kind: p.zoneKind ? 'plot' : 'owned', sector: p.sector, family: p.family, level: p.level, tiles: p.tiles, town, occupancy, rent: town ? priceFor(game, propertyBase(p) * occupancy) : 0, value: propertyValue(game, p), paid: site.building.paid ?? null };
+}
+/** One town's plots and owned buildings as they stand today, for its inspector. */
+export function townHoldings(game, city) { const { plots, owned } = townLedger(game, city, zoneIndex(game, nearbyZones(game, city.x, city.y, TOWN_RADIUS))); return { plots, owned }; }
+const holdings = new WeakMap();
+/** The company's property town by town, for the report and company value: [{city, plots, owned, rent}] with last month's rent, memoised by day and revision. */
+export function companyProperty(game) {
+  const day = Math.floor(game.day), memo = holdings.get(game);
+  if (memo && memo.day === day && memo.revision === game.revision && memo.cities === game.cities && memo.count === game.cities.length) return memo.towns;
+  const zoneMap = zoneIndex(game, game.zones), towns = [];
+  for (const city of game.cities) { const { plots, owned } = townLedger(game, city, zoneMap); if (plots.length || owned.length) towns.push({ city, plots, owned, rent: city.market?.rent || 0 }); }
+  holdings.set(game, { day, revision: game.revision, cities: game.cities, count: game.cities.length, towns });
+  return towns;
+}
 
 // Workshops: 'factory' buildings, from industrial zones or placed, turn delivered materials into products that other
 // towns buy. Their levels are derived from the tiles, so placing, developing, removing, undoing or a new town nearer

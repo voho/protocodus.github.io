@@ -96,6 +96,21 @@
 .company-routes.below small{color:var(--signal-ink)}
 .company-rate{font-size:var(--fs-small);line-height:var(--lh-small);font-weight:500;color:var(--ink-2);font-variant-numeric:tabular-nums;white-space:nowrap}
 .company-route-actions{display:flex;gap:8px}
+/* Property (city-property): after the route ranking, only once the company owns some: three figures, a small rent line and the top towns. */
+.company-property .company-table{margin-top:var(--s-3)}
+.property-figures{display:flex;align-items:flex-end;justify-content:space-between;gap:var(--s-3);margin-top:var(--s-3)}
+.property-figures dl{display:grid;grid-template-columns:repeat(3,auto);gap:var(--s-1) var(--s-5);margin:0}
+.property-figures dt{font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2)}
+.property-figures dd{margin:0;font-size:var(--fs-body);line-height:var(--lh-body);font-weight:var(--fw-semibold);color:var(--ink);white-space:nowrap}
+.property-spark{flex:none;width:72px;height:18px;overflow:visible}
+.property-spark polyline{fill:none;stroke:var(--ink);stroke-width:1.5;stroke-linejoin:round;stroke-linecap:round;vector-effect:non-scaling-stroke}
+.property-towns td:last-child{padding-block:var(--s-1);text-align:right;overflow:visible}
+.property-note{margin:var(--s-3) 0 0;font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2);font-variant-numeric:proportional-nums}
+@media(max-width:560px){
+ .property-figures{flex-direction:column;align-items:flex-start}
+ .property-figures dl{align-self:stretch;grid-template-columns:repeat(2,minmax(0,1fr))}
+ .property-towns td:last-child{text-align:right}
+}
 .company-meter{height:6px;margin-top:12px;border-radius:var(--r-1);background:var(--well);overflow:hidden}
 .company-meter span{display:block;height:100%;border-radius:var(--r-1);background:var(--signal)}
 .company-loan p{margin:12px 0 0;font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2)}

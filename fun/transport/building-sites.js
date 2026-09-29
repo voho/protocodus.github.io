@@ -46,6 +46,8 @@ export function placeBuildingSite(game,kind,x,y,{size=buildingFootprint(kind),bu
     if(['forest','rock'].includes(cell.terrain))cell.terrain=game.biome==='desert'?'sand':game.biome==='tundra'?'snow':'grass';
     if(allowZone&&(p.x!==x||p.y!==y))cell.zone=null;
   }
+  // A plot's ground rent follows the zone tiles paid for: a block taken into one building keeps their count on its anchor record.
+  if(allowZone){const anchor=game.zones.find(z=>z.x===x&&z.y===y),taken=game.zones.filter(z=>(z.x!==x||z.y!==y)&&z.x>=x&&z.y>=y&&z.x<x+size&&z.y<y+size);if(anchor&&taken.length)anchor.tiles=(anchor.tiles??1)+taken.reduce((sum,z)=>sum+(z.tiles??1),0);}
   if(allowZone)game.zones=game.zones.filter(z=>(z.x===x&&z.y===y)||z.x<x||z.y<y||z.x>=x+size||z.y>=y+size);
   tileAt(game,x,y).building=stored;
   return site;

@@ -7,6 +7,8 @@ import { captureUndo, finishUndo, canUndo, undoProblem, undoStale, undoConstruct
 import { encodeGame } from '../save-codec.js';
 import { terrainObjectAt } from '../terrain-objects.js';
 import { emptyGame, tileAt, line } from './helpers.mjs';
+import { sellProperty } from '../model.js';
+import { twoTownFixture } from './helpers.mjs';
 
 const counters = ({ revision, networkRevision, ...rest }) => rest;
 const town = (game, x, y, extra = {}) => { const city = { id: `city-t${x}`, name: `Testford ${x}`, x, y, population: 400, activity: 20, growth: 0, passengers: 300, delivered: 0, supplies: 0, lastServiceDay: null, ...extra }; game.cities.push(city); return city; };
@@ -273,5 +275,27 @@ test('undoing a workshop stops its town buying lumber the same day', () => {
   assert.equal(buys(), true);
   assert.equal(undoConstruction(game, undo).message, 'Workshop removed. $12,000 refunded.');
   assert.equal(buys(), false);
+  assert.equal(validateGame(game), true);
+});
+
+test('a building the company owns undoes only within the month it was placed, before any rent', () => {
+  const same = twoTownFixture().game, home = same.cities[0];
+  roundTrip(same, 'house-cheap-1', [{ x: home.x + 4, y: home.y + 7 }]);
+  const { game, A } = twoTownFixture(), money = game.money;
+  const cottage = journal(game, 'house-cheap-1', [{ x: A.x + 4, y: A.y + 7 }]).undo, zoned = journal(game, 'residential', [{ x: A.x - 8, y: A.y + 1 }]).undo;
+  assert.equal(canUndo(game, cottage), true, undoProblem(game, cottage));
+  const month = game.lastMonth;
+  while (game.lastMonth === month) tick(game, 1);
+  assert.ok(game.history.at(-1).property > 0, 'the close booked rent');
+  assert.equal(canUndo(game, cottage), false);
+  assert.equal(undoProblem(game, cottage), 'Rent has been paid on this building. Sell it instead.');
+  assert.equal(undoConstruction(game, cottage).ok, false);
+  assert.ok(game.money > money - cottage.cost, 'nothing refunded');
+  assert.equal(canUndo(game, zoned), true, 'a zone still undoes in a later month: it earns nothing until built up');
+  assert.equal(undoConstruction(game, zoned).ok, true);
+  // Selling changes the tile, so the placement cannot come back either.
+  const later = journal(game, 'house-normal-1', [{ x: A.x + 1, y: A.y + 7 }]).undo;
+  assert.equal(sellProperty(game, A.x + 1, A.y + 7).ok, true);
+  assert.equal(canUndo(game, later), false); assert.match(undoProblem(game, later), /changed/);
   assert.equal(validateGame(game), true);
 });

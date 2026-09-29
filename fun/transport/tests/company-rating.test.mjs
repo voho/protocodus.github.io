@@ -6,6 +6,8 @@ import { encodeGame } from '../save-codec.js';
 import { calendarMonth } from '../economy-pricing.js';
 import { CAREER_TITLES, RATING_PARTS, titleForScore, ratingPoints, ratingInputs, reviewPerformance, validPerformance, companyValue, careerTitle, nextTitle, nextReviewDay } from '../company-rating.js';
 import { emptyGame, line } from './helpers.mjs';
+import { twoTownFixture } from './helpers.mjs';
+import { placeBuildingSite } from '../building-sites.js';
 
 const starter = () => createGame({ size: 'regional', seed: 1847 });
 const days = (game, n, step = 1) => { for (let i = 0; i < n / step; i++) tick(game, step); };
@@ -189,6 +191,21 @@ test('company value adds cash, vehicle resale and half of today\'s infrastructur
   assert.equal(value.infrastructure, Math.round(priceFor(game, 10 * BUILD_COSTS.road + 2 * BUILD_COSTS['bus-stop']) * .5));
   assert.equal(value.vehicles, Math.round(paid * .45)); assert.equal(value.cash, Math.round(game.money)); assert.equal(value.loan, 50000);
   assert.equal(value.total, value.cash - value.loan + value.vehicles + value.infrastructure);
+});
+
+test('company value counts property at resale: placed buildings at their sale price, plots at half their zoning', () => {
+  const { game, A } = twoTownFixture(); game.day = 3000;
+  assert.equal(build(game, 'house-cheap-1', A.x + 4, A.y + 7).ok, true);
+  for (const [dx, dy] of [[7, -2], [7, 1], [-2, 7], [1, 7]]) {
+    const x = A.x + dx, y = A.y + dy;
+    assert.equal(build(game, 'residential', x, y).ok, true);
+    assert.ok(placeBuildingSite(game, 'house-normal-1', x, y, { size: 1, building: { kind: 'house-normal-1', level: 2, populationCityId: A.id }, allowZone: true }));
+  }
+  game.revision++;
+  const without = companyValue(emptyGame()).property, value = companyValue(game);
+  assert.equal(without, 0);
+  assert.equal(value.property, Math.round(.6 * priceFor(game, 1400) + .5 * 4 * priceFor(game, BUILD_COSTS.residential)));
+  assert.equal(value.total, value.cash - value.loan + value.vehicles + value.infrastructure + value.property);
 });
 
 test('a review of 2,000 routes and 10,000 vehicles stays quick', () => {

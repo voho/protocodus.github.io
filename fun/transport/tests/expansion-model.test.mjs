@@ -38,7 +38,7 @@ test('every house, civic building, shop and service can be built with its listed
     Object.assign(tile,{terrain:'grass',building:null,zone:null,road:false,rail:false});
     const before=game.money,result=build(game,kind,x,y);
     assert.equal(result.ok,true,`${kind}: ${result.message}`);
-    assert.deepEqual(tile.building,{kind,level:1,footprint:definition.footprint,...definition.residents?{populationCityId:null}:{}});
+    assert.deepEqual(tile.building,{kind,level:1,footprint:definition.footprint,...definition.residents?{populationCityId:null}:{},...definition.group==='community'?{}:{owner:'player',paid:definition.cost}});
     assert.equal(game.money,before-definition.cost);
     assert.equal(build(game,kind,x,y).ok,false,'occupied plots remain protected');
     tile.building=null;tile.terrain='water';

@@ -11,6 +11,7 @@ import { monthlyTownRelations, disturbTown, townActionQuote, TOWN_ACTIONS, TOWN_
 import { monthlyMarkets, recordTownSupply, recordVisitors, validMarket, MARKET } from './town-market.js';
 import { stepWorkshops, acceptWorkshopInput, workshopRecipes, workshopInputs, workshopOutputs, validWorkshop, townOf } from './town-market.js';
 import { WORKSHOP } from './data.js';
+import { propertyAt, propertySector, SALE_SHARE } from './town-market.js';
 import { nearbyCities, nearbyIndustries, nearbyStations, nearbyZones } from './simulation-spatial.js';
 import { nextLineColor, nextRouteNumber, ensureRouteNumbers, defaultRouteName, validRouteNumber } from './route-lines.js';
 import { networkIndex, updateNetworkIndex, noteNetworkChanges, networkChangesSince } from './network-index.js';
@@ -442,7 +443,7 @@ export function build(game,tool,x,y) {
   if(owns(BUILDINGS,tool)) {
     const def=BUILDINGS[tool],nearCity=closestCity(game,point,10);
     const size=buildingFootprint(tool);
-    const placed=placeBuildingSite(game,tool,x,y,{size,building:{level:1,...def.residents?{populationCityId:nearCity?.id??null}:{}}});
+    const placed=placeBuildingSite(game,tool,x,y,{size,building:{level:1,...def.residents?{populationCityId:nearCity?.id??null}:{},...def.group==='community'?{}:{owner:'player',paid:cost}}});
     spend(game,cost);
     if(nearCity&&def.residents)nearCity.population+=def.residents;
     game.revision++;
@@ -460,6 +461,15 @@ export function expandWorkshop(game,x,y) {
   if(game.money<cost)return result(false,`Need ${moneyText(cost)} to expand this workshop.`);
   site.building.level+=1;site.building.paid=(site.building.paid||0)+cost;spend(game,cost);game.revision++;
   return result(true,`Workshop expanded to level ${site.building.level}.${spent(cost)}`,{cost,building:site.building});
+}
+/** A building you placed goes back to its town for 60% of today's value. It stays as it is, and its rent stops; no notice. */
+export function sellProperty(game,x,y) {
+  const site=buildingAt(game,x,y),zoned=Boolean(tileAt(game,x,y)?.zone||site&&tileAt(game,site.x,site.y).zone);
+  if(!site||zoned&&site.building.owner!=='player')return result(false,'Only buildings you placed can be sold.');
+  if(site.building.owner!=='player'||!propertySector(site.building.kind))return result(false,'This building is not yours to sell.');
+  const property=propertyAt(game,site.x,site.y),refund=Math.round(SALE_SHARE*property.value),name=site.building.kind==='factory'?'Workshop':BUILDINGS[site.building.kind]?.name||'Building';
+  delete site.building.owner;delete site.building.paid;game.money+=refund;game.revision++;
+  return result(true,`${name} sold${property.town?` to ${property.town.name}`:''} for ${moneyText(refund)}.`,{refund,town:property.town});
 }
 // One placement for the Build tool and the region's own openings. A world
 // producer starts with twelve days of output in stock, like a generated one.
@@ -1034,6 +1044,7 @@ function closeYear(game) {
   let bestRouteId=null,best=0;
   for(const route of game.routes){const net=route.profitThisYear??0;if(net>best){best=net;bestRouteId=route.id;}}
   (game.annual??=[]).push({year:1950+year,revenue:months.reduce((sum,h)=>sum+h.income,0),operatingProfit:months.reduce((sum,h)=>sum+(h.operatingProfit??h.profit),0),delivered:months.at(-1).delivered-(before?.delivered??0),population:months.at(-1).population,routes:game.routes.length,bestRouteId});
+  const property=months.reduce((sum,h)=>sum+(h.property||0),0);if(property>0)game.annual.at(-1).property=property;
   if(game.annual.length>200)game.annual.shift();
 }
 // The town hall: an optional purchase that runs silently to its end, with no upkeep, reminder or notice.
@@ -1052,8 +1063,8 @@ function monthlyUpdate(game) {
   if(interest){game.money-=interest;game.monthlyExpenses+=interest;game.totalExpenses+=interest;game.monthlyOperatingExpenses=(game.monthlyOperatingExpenses||0)+interest;game.totalOperatingExpenses=(game.totalOperatingExpenses||0)+interest;}
   game.lastMonthlyProfit=game.monthlyIncome-game.monthlyExpenses;
   game.lastMonthlyOperatingProfit=game.monthlyIncome-(game.monthlyIncomeAtAccountingStart||0)-(game.monthlyOperatingExpenses||0);
-  game.history.push({month:game.lastMonth,day:Math.floor(game.day),income:game.monthlyIncome,expenses:game.monthlyExpenses,operatingExpenses:game.monthlyOperatingExpenses||0,operatingProfit:game.lastMonthlyOperatingProfit,profit:game.lastMonthlyProfit,money:game.money,population:game.cities.reduce((sum,c)=>sum+c.population,0),delivered:game.totalDelivered,...game.monthlyMarketBonus>0?{marketBonus:game.monthlyMarketBonus}:{}});
-  delete game.monthlyMarketBonus;
+  game.history.push({month:game.lastMonth,day:Math.floor(game.day),income:game.monthlyIncome,expenses:game.monthlyExpenses,operatingExpenses:game.monthlyOperatingExpenses||0,operatingProfit:game.lastMonthlyOperatingProfit,profit:game.lastMonthlyProfit,money:game.money,population:game.cities.reduce((sum,c)=>sum+c.population,0),delivered:game.totalDelivered,...game.monthlyMarketBonus>0?{marketBonus:game.monthlyMarketBonus}:{},...game.monthlyProperty>0?{property:game.monthlyProperty}:{}});
+  delete game.monthlyMarketBonus;delete game.monthlyProperty;
   if(game.history.length>36)game.history.shift();
   // Each town keeps its last four counts, so the inspector can show recent growth.
   for(const city of game.cities){(city.popHistory??=[]).push(Math.floor(city.population));if(city.popHistory.length>4)city.popHistory.shift();}
@@ -1122,6 +1133,7 @@ export function validateGame(game) {
   if(!game.industries.every(i=>(i.lastProductionDay===undefined||finite(i.lastProductionDay,0,game.day))&&(i.nextProductionDay===undefined||(Number.isInteger(i.nextProductionDay)&&finite(i.nextProductionDay,0,Math.floor(game.day)+3)))&&(i.nextReviewDay===undefined||(Number.isInteger(i.nextReviewDay)&&finite(i.nextReviewDay,0,Math.floor(game.day)+45)))&&(i.totalProduced===undefined||finite(i.totalProduced,0,1e15))&&(i.openedDay===undefined||(Number.isInteger(i.openedDay)&&finite(i.openedDay,0,Math.floor(game.day))))))return false;
   if(!game.stations.every(s=>validPoint(game,s)&&uniqueId(s)&&typeof s.name==='string'&&TRANSPORT_MODES.includes(s.mode)))return false;
   if(!game.zones.every(z=>validPoint(game,z)&&ZONE_TYPES.includes(z.kind)&&finite(z.progress,0,3)))return false;
+  if(!game.zones.every(z=>z.tiles===undefined||Number.isInteger(z.tiles)&&finite(z.tiles,1,9)))return false;
   // Only occupied cells need an index: even the largest world stays sparse.
   // The anchor owns the building; child copies or intersecting sites are corrupt.
   const occupied=new Map(),reserved=new Set([...game.cities,...game.stations].map(p=>p.y*game.width+p.x));
@@ -1174,6 +1186,7 @@ export function validateGame(game) {
   }
   if(!game.history.every(h=>h&&['month','day','income','expenses','profit','money','population','delivered'].every(k=>finite(h[k]))))return false;
   if(!game.history.every(h=>(h.operatingExpenses===undefined||finite(h.operatingExpenses,0,1e15))&&(h.operatingProfit===undefined||finite(h.operatingProfit))))return false;
+  if(!game.history.every(h=>h.property===undefined||finite(h.property,0))||!['monthlyProperty','totalProperty'].every(key=>game[key]===undefined||finite(game[key],0,1e15))||Array.isArray(game.annual)&&game.annual.some(a=>a?.property!==undefined&&!finite(a.property,0)))return false;
   if(game.annual!==undefined&&!(Array.isArray(game.annual)&&game.annual.length<=200&&game.annual.every(a=>a&&['year','revenue','operatingProfit','delivered','population','routes'].every(k=>finite(a[k]))&&(a.bestRouteId===null||typeof a.bestRouteId==='string'&&a.bestRouteId.length<=64))))return false;
   if(game.startingFunds!==undefined&&!STARTING_FUNDS.includes(game.startingFunds))return false;
   if(game.loan!==undefined&&!finite(game.loan,0,1e12))return false;

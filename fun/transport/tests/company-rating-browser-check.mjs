@@ -89,7 +89,7 @@ try {
   assert.equal(await page.evaluate(() => transport.speed), 0, 'the report pauses');
   assert.equal(await page.locator('#rating-title').textContent(), 'Traffic manager');
   assert.match(await page.locator('.rating-meta').innerText(), /^Transport coordinator at 240\s+Reviewed 1 Apr 1950, next review 1 Jul 1950$/);
-  assert.match(await page.locator('.rating-value').innerText(), /^Company value\s+\$[\d,]+\s+Cash, vehicles at resale value and half of today’s infrastructure cost, less any loan\.$/);
+  assert.match(await page.locator('.rating-value').innerText(), /^Company value\s+\$[\d,]+\s+Cash, vehicles and property at resale value and half of today’s infrastructure cost, less any loan\.$/);
   assert.equal(await page.locator('.rating-details').evaluate(el => el.open), false, 'What counts starts folded');
   await page.screenshot({ path: `${output}/company-rating-1440.png` });
   await page.locator('.rating-details summary').click();

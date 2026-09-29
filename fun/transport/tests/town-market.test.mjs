@@ -331,7 +331,7 @@ test('markets save, restore and validate; legacy saves gain them at the first cl
   reject('two demand bars', copy => { copy.cities[0].market.demand = [0, 0]; });
   reject('NaN supplied', copy => { copy.cities[0].market.supplied.food = NaN; });
   reject('an unknown family', copy => { copy.cities[0].market.wants.coal = 1; });
-  reject('an unknown key', copy => { copy.cities[0].market.rent = 1; });
+  reject('an unknown key', copy => { copy.cities[0].market.tax = 1; });
   reject('a missing key', copy => { delete copy.cities[0].market.bonusLast; });
   reject('negative route bonus', copy => { copy.routes[0].marketBonus = -1; });
   reject('negative history bonus', copy => { copy.history[0].marketBonus = -1; });

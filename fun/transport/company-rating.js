@@ -1,6 +1,7 @@
 import { priceFor, calendarYear } from './economy-pricing.js';
 import { INDUSTRIES, BUILD_COSTS } from './data.js';
 import { networkIndex } from './network-index.js';
+import { companyProperty, propertyValue, SALE_SHARE } from './town-market.js';
 
 // The company rating is recognition only. Each quarter a review scores nine measures out of
 // 1,000 and every 120 points earns a career title that is kept for good; nothing in the
@@ -110,13 +111,16 @@ function infrastructureBase(game) {
   for (const i of game.industries) if (i.owner === 'player') base += INDUSTRIES[i.kind]?.cost ?? 0;
   return base;
 }
-/** Cash, vehicles at their resale value and half of today's infrastructure cost, less any loan. On demand only: O(network tiles). */
+// Property at resale: owned buildings at their sale price, plots at half of today's zoning cost; countryside buildings earn nothing and count nothing.
+const propertyResale = game => companyProperty(game).reduce((sum, { plots, owned }) => sum + owned.reduce((s, p) => s + SALE_SHARE * propertyValue(game, p), 0) + plots.reduce((s, p) => s + .5 * propertyValue(game, p), 0), 0);
+/** Cash, vehicles and property at their resale value and half of today's infrastructure cost, less any loan. On demand only: O(network tiles) plus one ledger a town. */
 export function companyValue(game, loan = game.loan || 0) {
   const cash = Math.round(game.money);
   const vehicles = game.vehicles.reduce((sum, v) => sum + Math.round((v.paidPrice ?? 0) * .45), 0);
   const infrastructure = Math.round(priceFor(game, infrastructureBase(game)) * .5);
-  const total = cash - loan + vehicles + infrastructure;
-  return { cash, loan, vehicles, infrastructure, total };
+  const property = Math.round(propertyResale(game));
+  const total = cash - loan + vehicles + infrastructure + property;
+  return { cash, loan, vehicles, infrastructure, property, total };
 }
 
 export const careerTitle = game => game.performance ? game.performance.reached.length - 1 : 0;

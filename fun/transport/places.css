@@ -245,3 +245,18 @@
 .workshop-line .cargo-tile{display:grid;place-items:center;width:20px;height:20px;border-radius:var(--r-1);background:var(--well)}
 .workshop-line .cargo-icon{width:18px;height:18px}
 .workshop-to{color:var(--ink-2)}
+/* Your property: a building's rent and occupancy from the last close, its worth, the lever that fills it, and Sell confirmed in place. */
+.property{margin-top:16px;padding-top:12px;border-top:1px solid var(--rule)}
+.property .inspector-grid{margin-top:0}
+.inspector .property-worth{margin:12px 0 4px;font-size:var(--fs-body);line-height:var(--lh-body);color:var(--ink)}
+.property-worth b{font-weight:var(--fw-semibold)}
+.inspector .property .micro-note{margin:4px 0 0}
+.inspector .property .inspector-grid+.micro-note{margin-top:8px}
+.inspector .property .button{margin-top:12px}
+.property-sell{margin-top:12px}
+.inspector .property-sell p{margin:0;font-size:var(--fs-body);line-height:var(--lh-body);color:var(--ink)}
+.property-sell-actions{display:flex;justify-content:flex-end;gap:8px}
+.town-economy .town-property{margin-top:8px}
+@media(max-width:700px),(pointer:coarse){
+ .property .button{min-height:var(--control-touch)}
+}

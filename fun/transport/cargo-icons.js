@@ -24,10 +24,12 @@ const ART = {
   wire: `<path d="M8 7h16v19H8Z" fill="#b57e57"/><path d="M9 10h14M9 14h14M9 18h14M9 22h14" fill="none" stroke="#ecc29a" stroke-width="2"/><ellipse cx="8" cy="16" rx="5" ry="12" fill="#d5b176"/><ellipse cx="24" cy="16" rx="5" ry="12" fill="#d5b176"/><ellipse cx="24" cy="16" rx="2" ry="5" fill="#867052"/><path d="M24 27q-1 4-8 2" fill="none" stroke="#b97c51" stroke-width="2"/>`,
   cement: `<path d="M9 4h14l-1 6 5 14q1 5-5 5H10q-6 0-5-5l5-14Z" fill="#d3cdb5"/><path d="M9 8h14M8 23h16" fill="none" stroke="#9c9b87"/><path d="M11 13h10v7H11Z" fill="#8c9d93"/><path d="M13 16h6m-6 2h4" fill="none" stroke="#eae5d3"/>`,
   goods: `<path d="m3 9 13-6 13 6v16l-13 5-13-5Z" fill="#b694b2"/><path d="m3 9 13 6 13-6M16 15v15" fill="none"/><path d="m10 6 13 6v7l-5 2v-7L5 8Z" fill="#e4cca0"/><path d="M6 18v4l5 2v-4Z" fill="#f0e8ce" stroke="none"/>`,
+  // Not a cargo: the month-end rent float, a house with a coin.
+  property: `<path d="M3.5 15 15 5l11.5 10Z" fill="#c9795a"/><path d="M6 15h18v12H6Z" fill="#ecd8a8"/><path d="M10.5 27v-6h5v6" fill="#9d7650"/><circle cx="23.5" cy="23" r="6" fill="#e3b957"/><circle cx="23.5" cy="23" r="3.2" fill="none" stroke="#a88230"/>`,
 };
 
 const escape = value => String(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
-const cargoName = kind => Object.hasOwn(CARGO, kind) ? CARGO[kind].name : 'Cargo';
+const cargoName = kind => Object.hasOwn(CARGO, kind) ? CARGO[kind].name : kind === 'property' ? 'Rent' : 'Cargo';
 const countText = value => typeof value === 'number' && Number.isFinite(value) ? new Intl.NumberFormat('en', { maximumFractionDigits: 1 }).format(value) : String(value);
 
 export function cargoIcon(kind, { decorative = false } = {}) {

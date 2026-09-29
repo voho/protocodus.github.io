@@ -4,6 +4,7 @@ import { industryTiles } from './industry-sites.js';
 import { terrainObjectAt, terrainObjectTiles } from './terrain-objects.js';
 import { money as moneyText } from './copy.js';
 import { MAIL_POOL_SHARE } from './settlements.js';
+import { calendarMonth } from './economy-pricing.js';
 
 // One construction gesture reversed as a diff: only the tiles, sites, residents,
 // notices and money that this build changed go back, so vehicles, cargo and
@@ -85,6 +86,8 @@ export function finishUndo(entry,game,result){
     points:[...changed.map(index=>pointOf(game,index)),...sites('stations').map(({x,y})=>({x,y}))],
     notices:{before:entry.notifications,after:game.notifications.slice(),ids},money:[entry.money,[game.money,game.monthlyExpenses,game.totalExpenses]],nextId:[entry.nextId,game.nextId],
     owners:entry.owners.filter(building=>Object.hasOwn(building,'populationCityId')),core,exact,anchors,watched,after:structuredClone(watched.map(index=>game.tiles[index])),
+    // A building the company now owns earns rent at the next close, so undoing it stays within this month.
+    property:changed.some((index,n)=>game.tiles[index].building?.owner==='player'&&before[n].building?.owner!=='player'),month:calendarMonth(game),
     known:new Set([...game.stations,...game.industries,...game.cities]),done:false};
 }
 
@@ -94,6 +97,7 @@ export function undoStale(game,entry){return !entry||entry.done||game.tiles!==en
 /** Why this build can no longer be reversed, or null. */
 export function undoProblem(game,entry){
   if(undoStale(game,entry))return entry&&!entry.done&&game.tiles===entry.tiles?'Can’t undo: your routes have changed since.':'Nothing to undo.';
+  if(entry.property&&calendarMonth(game)!==entry.month)return 'Rent has been paid on this building. Sell it instead.';
   const changedLand='Can’t undo: the land there has changed since.',within=({x,y})=>entry.core.has(y*game.width+x);
   const reaches=(building,index)=>Boolean(building)&&buildingTiles({...pointOf(game,index),building}).some(within);
   for(let n=0;n<entry.watched.length;n++){
