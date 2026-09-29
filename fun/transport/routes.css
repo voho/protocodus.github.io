@@ -197,3 +197,7 @@
  .compact-play .small-button,.compact-play .route-actions .small-button{min-height:40px}
 }
 .route-vehicle-spec,.route-model,.route-rate,.fleet-upgrade-heading small{color:var(--ink-2)}
+/* Delivery pay: the card's length, days on the way and pay for one unit; the same estimate under the forecast. */
+.route-trip,.route-forecast-trip{display:flex;flex-wrap:wrap;justify-content:space-between;gap:0 var(--s-2);margin:var(--s-2) 0 0;font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2);font-variant-numeric:tabular-nums}
+.route-forecast-trip{margin-top:var(--s-1)}
+.vehicle-load small{font-size:var(--fs-caption);line-height:var(--lh-caption);font-weight:var(--fw-regular)}

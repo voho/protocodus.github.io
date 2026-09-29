@@ -164,3 +164,48 @@
  .modal-inner{padding:16px}
  .modal-heading h2{font-size:var(--fs-display);line-height:var(--lh-display);margin:8px 0}
 }
+/* Cargo payment rates (Guide, Resources): one line per cargo in its class's line colour, the class legend and a table view. */
+.payment-rates{margin-top:var(--s-5);border-top:1px solid var(--rule);padding-top:var(--s-4)}
+.payment-rates h3{margin:0 0 var(--s-1);font-size:var(--fs-lead);line-height:var(--lh-lead);font-weight:var(--fw-semibold)}
+.payment-rates .panel-description{margin:0 0 var(--s-3)}
+.payment-plot{position:relative;width:100%;min-width:0}
+.payment-plot svg{width:auto;height:auto;display:block;overflow:visible;touch-action:pan-y}
+.payment-plot svg:focus-visible{outline-offset:var(--s-1);border-radius:var(--r-1)}
+.payment-grid line{stroke:var(--rule);stroke-width:1px}
+.payment-grid text{fill:var(--ink-2);font-size:var(--fs-caption)}
+.payment-lines path,.payment-swatch path{fill:none;stroke-width:2px;stroke-linecap:round;stroke-linejoin:round}
+.payment-lines .payment-edge,.payment-swatch .payment-edge{stroke:var(--ink);stroke-opacity:.35;stroke-width:4px}
+.payment-lines g{transition:opacity var(--t-quick) var(--ease)}
+.payment-lines g.muted{opacity:.16}
+.payment-cursor{stroke:var(--ink);stroke-width:1px;stroke-dasharray:3 3;opacity:.5}
+.payment-dot{stroke:var(--paper);stroke-width:2px}
+.payment-tip{position:absolute;left:0;top:0;padding:var(--s-1) var(--s-2);border-radius:var(--r-1);background:var(--ink);color:var(--on-ink);box-shadow:var(--e3);font-size:var(--fs-caption);line-height:var(--lh-caption);pointer-events:none;white-space:nowrap}
+.payment-note{margin:var(--s-2) 0 var(--s-4);font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2)}
+.payment-legend{display:grid;gap:var(--s-2)}
+.payment-group{display:grid;grid-template-columns:20px minmax(0,22rem) 1fr;align-items:center;gap:var(--s-1) var(--s-3)}
+.payment-swatch{width:20px;height:8px;align-self:start;margin-top:6px;overflow:visible}
+.payment-group-text{display:flex;flex-direction:column}
+.payment-group-text strong{font-size:var(--fs-small);line-height:var(--lh-small);font-weight:var(--fw-semibold)}
+.payment-group-text span{font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2)}
+.payment-cargo{display:flex;flex-wrap:wrap;gap:var(--s-1)}
+.payment-cargo button{width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;border-radius:var(--r-1);background:var(--well)}
+.payment-cargo button:hover{background:var(--rule)}
+.payment-cargo svg{width:24px;height:24px}
+.payment-table{margin-top:var(--s-3);font-size:var(--fs-caption);line-height:var(--lh-caption)}
+.payment-table summary{cursor:pointer;list-style:none;min-height:var(--control);display:flex;align-items:center;gap:var(--s-1);font-size:var(--fs-small);line-height:var(--lh-small);font-weight:var(--fw-medium)}
+.payment-table summary::-webkit-details-marker{display:none}
+.payment-table summary svg{color:var(--ink-2);transition:transform var(--t-quick) var(--ease)}
+.payment-table[open] summary svg{transform:rotate(180deg)}
+.payment-table table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.payment-table thead th{white-space:nowrap}
+.payment-table th,.payment-table td{padding:var(--s-1) 6px;text-align:right;border-bottom:1px solid var(--rule);font-weight:var(--fw-regular)}
+.payment-table thead th{color:var(--ink-2)}
+.payment-table th[scope=row],.payment-table thead th:first-child{text-align:left;font-weight:var(--fw-medium)}
+@media(max-width:700px),(pointer:coarse){
+ .payment-cargo button,#company-payment-rates{min-width:var(--control-touch);min-height:var(--control-touch)}
+ .payment-table summary{min-height:var(--control-touch)}
+}
+@media(max-width:480px){
+ .payment-group{grid-template-columns:20px 1fr}
+ .payment-cargo{grid-column:2}
+}

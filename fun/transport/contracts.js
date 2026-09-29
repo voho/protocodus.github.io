@@ -1,6 +1,6 @@
 import { CARGO, INDUSTRIES, TOWN_CARGO } from './data.js';
 import { randomAt } from './environment.js';
-import { calendarMonth } from './economy-pricing.js';
+import { calendarMonth, distancePay } from './economy-pricing.js';
 import { industrySize } from './industry-sites.js';
 import { nearbyCities, nearbyIndustries } from './simulation-spatial.js';
 
@@ -14,8 +14,8 @@ const owns = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
 const finite = (value, min, max) => typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max;
 const shortId = value => typeof value === 'string' && value.length > 0 && value.length <= 64;
 const center = site => INDUSTRIES[site.kind] ? { x: site.x + (industrySize(site) - 1) / 2, y: site.y + (industrySize(site) - 1) / 2 } : site;
-// Fares grow with 1 + .55√L while a round trip grows with L, so income per vehicle-day falls as f(L).
-const perDay = length => (1 + .55 * Math.sqrt(length)) / length;
+// Fares grow with distancePay(L) = (L + 12) ÷ 9 while a round trip grows with L, so income per vehicle-day falls as f(L).
+const perDay = length => distancePay(length) / length;
 const producing = site => site.owner !== 'player' && Object.keys(INDUSTRIES[site.kind].outputs).length > 0 && (Object.keys(INDUSTRIES[site.kind].inputs).length === 0 || site.production > 0);
 const started = game => game.contracts !== undefined || game.routes.some(route => route.cargo !== 'passengers' && route.delivered > 0);
 

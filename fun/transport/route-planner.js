@@ -5,6 +5,8 @@ import { reviewGrowth } from './industry-simulation.js';
 import { routeNeedsAttention } from './gameplay-insights.js';
 import { money, tiles, listJoin, cargoName, vehicleNoun } from './copy.js';
 import { defaultRouteName as routeName } from './route-lines.js';
+import { payTiles, travelTiles, scheduledDays, transitPay } from './economy-pricing.js';
+import { VEHICLE_SPEEDS } from './data.js';
 
 const pathCache = new WeakMap();
 const canShip = (a, b, cargo) => {
@@ -71,11 +73,10 @@ export function routeCargoOptions(game, draft) {
   return plans.sort((a, b) => rank(a) - rank(b)).map(([cargo, plan]) => ({ cargo, valid: plan.valid, reversed: plan.reversed, message: plan.message }));
 }
 
-// travelSpeed's base tiles per day; weather, grade, traffic and daily variation cost about an eighth,
-// and loading at both stops about .4 days per round trip.
-const BASE_SPEED = { road: 2.8, rail: 4.6, water: 1.8 };
-const roundTrip = (mode, tiles, level) => 2 * tiles / (BASE_SPEED[mode] * (1 + .1 * level) * .88) + .4;
-const fleetRate = (game, route) => { const fleet = getRouteFleet(game, route.id); return route.active && fleet.count ? fleet.capacity / roundTrip(route.mode, route.path.length - 1, fleet.minLevel) : 0; };
+// The timetable of scheduledDays: travelSpeed's base tiles per day, less the typical share weather, grade,
+// traffic and daily variation cost (an eighth on land, more on water), and about .2 days at each stop.
+const roundTrip = (mode, tiles, level) => 2 * scheduledDays(mode, tiles, level);
+const fleetRate = (game, route) => { const fleet = getRouteFleet(game, route.id); return route.active && fleet.count ? fleet.capacity / roundTrip(route.mode, travelTiles(route.mode, route.path), fleet.minLevel) : 0; };
 const near = (a, b, reach) => Math.abs(a.x - b.x) <= reach && Math.abs(a.y - b.y) <= reach;
 const forecastCache = new WeakMap(), HORIZON = 180, REVIEW_DAYS = 33;
 
@@ -144,18 +145,21 @@ function infrastructureShare(game, mode, path, stations) {
 }
 function computeForecast(game, draft, plan) {
   if (!plan.valid) return null;
-  const { mode, cargo } = draft, purchase = getVehiclePurchase(game, mode), tiles = plan.path.length - 1, joining = Boolean(plan.existingRouteId);
+  const { mode, cargo } = draft, purchase = getVehiclePurchase(game, mode), tiles = travelTiles(mode, plan.path), paid = payTiles(plan.path), joining = Boolean(plan.existingRouteId);
+  // One trip's days on the way set the share of the fare a delivery keeps.
+  const days = Math.round(scheduledDays(mode, tiles, purchase.level)), share = transitPay(cargo, days), perUnit = fareFor(game, cargo, paid + 1, 1, game.day, days);
   const [from, to] = plan.reversed ? [...plan.stations].reverse() : plan.stations, flows = loadingFlows(game, from, to, cargo);
   const oneWay = purchase.capacity / roundTrip(mode, tiles, purchase.level), perVehicleDay = oneWay * flows.length;
   const supplyDay = flows.reduce((sum, flow) => sum + flow.free, 0), movedDay = flows.reduce((sum, flow) => sum + Math.min(oneWay, flow.free), 0);
   // An added vehicle joins its route's share of the network; a new route takes its own.
   const upkeep = VEHICLE_UPKEEP[mode] + (joining ? 0 : infrastructureShare(game, mode, plan.path, [from, to]));
-  const netMonth = fareFor(game, cargo, plan.path.length, movedDay * 30) - priceFor(game, upkeep * 30);
-  const otherModes = Object.keys(BASE_SPEED).filter(other => other !== mode).map(other => { const vehicle = getVehiclePurchase(game, other), rate = vehicle.capacity / roundTrip(other, tiles, vehicle.level) * flows.length; return { mode: other, perVehicleDay: rate, ratio: rate / perVehicleDay }; });
+  const netMonth = fareFor(game, cargo, paid + 1, movedDay * 30, game.day, days) - priceFor(game, upkeep * 30);
+  const otherModes = Object.keys(VEHICLE_SPEEDS).filter(other => other !== mode).map(other => { const vehicle = getVehiclePurchase(game, other), rate = vehicle.capacity / roundTrip(other, tiles, vehicle.level) * flows.length; return { mode: other, perVehicleDay: rate, ratio: rate / perVehicleDay, share: transitPay(cargo, Math.round(scheduledDays(other, tiles, vehicle.level))) }; });
   return {
     perVehicleDay, supplyDay, movedDay, netMonth, paybackMonths: netMonth > 0 ? purchase.cost / netMonth : Infinity,
     vehiclesToSaturate: Math.max(0, Math.ceil(Math.max(...flows.map(flow => flow.free)) / oneWay - 1e-9)), otherModes,
-    madeDay: flows.reduce((sum, flow) => sum + flow.made, 0), fullLoad: fareFor(game, cargo, plan.path.length, purchase.capacity), cost: purchase.cost, joining,
+    madeDay: flows.reduce((sum, flow) => sum + flow.made, 0), fullLoad: fareFor(game, cargo, paid + 1, purchase.capacity, game.day, days), cost: purchase.cost, joining,
+    tiles: paid, travel: tiles, days, share, perUnit,
   };
 }
 

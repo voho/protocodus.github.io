@@ -6,27 +6,43 @@ export const BIOMES = {
   desert: { name: 'Desert', description: 'Copper canyons, sunlit dunes and productive river oases.', color: '#cba869' },
 };
 export const CARGO = {
-  passengers: { name: 'Passengers', color: '#edc773', price: 18 },
-  timber: { name: 'Timber', color: '#947044', price: 22 },
-  lumber: { name: 'Lumber', color: '#c4985b', price: 36 },
-  coal: { name: 'Coal', color: '#667078', price: 23 },
-  iron: { name: 'Iron ore', color: '#a77562', price: 25 },
-  steel: { name: 'Steel', color: '#91a5b5', price: 58 },
-  grain: { name: 'Grain', color: '#dbc46e', price: 22 },
-  food: { name: 'Food', color: '#accb79', price: 54 },
-  furniture: { name: 'Furniture', color: '#c0926e', price: 82 },
-  machinery: { name: 'Machinery', color: '#839eac', price: 112 },
-  fish: { name: 'Fish', color: '#88c2d1', price: 27 },
-  oil: { name: 'Crude oil', color: '#777481', price: 32 },
-  fuel: { name: 'Fuel', color: '#d7ad64', price: 66 },
-  stone: { name: 'Stone', color: '#a8a59a', price: 20 },
-  sand: { name: 'Sand', color: '#dec397', price: 18 },
-  glass: { name: 'Glass', color: '#a4d5d1', price: 49 },
-  copper: { name: 'Copper ore', color: '#be875e', price: 31 },
-  wire: { name: 'Copper wire', color: '#d79468', price: 60 },
-  cement: { name: 'Cement', color: '#c0b9a6', price: 40 },
-  goods: { name: 'Goods', color: '#bd9ed6', price: 104 },
+  passengers: { name: 'Passengers', color: '#edc773', price: 18, transit: 'express' },
+  timber: { name: 'Timber', color: '#947044', price: 22, transit: 'bulk' },
+  lumber: { name: 'Lumber', color: '#c4985b', price: 36, transit: 'standard' },
+  coal: { name: 'Coal', color: '#667078', price: 23, transit: 'bulk' },
+  iron: { name: 'Iron ore', color: '#a77562', price: 25, transit: 'bulk' },
+  steel: { name: 'Steel', color: '#91a5b5', price: 58, transit: 'standard' },
+  grain: { name: 'Grain', color: '#dbc46e', price: 22, transit: 'standard' },
+  food: { name: 'Food', color: '#accb79', price: 54, transit: 'perishable' },
+  furniture: { name: 'Furniture', color: '#c0926e', price: 82, transit: 'standard' },
+  machinery: { name: 'Machinery', color: '#839eac', price: 112, transit: 'standard' },
+  fish: { name: 'Fish', color: '#88c2d1', price: 27, transit: 'perishable' },
+  oil: { name: 'Crude oil', color: '#777481', price: 32, transit: 'bulk' },
+  fuel: { name: 'Fuel', color: '#d7ad64', price: 66, transit: 'standard' },
+  stone: { name: 'Stone', color: '#a8a59a', price: 20, transit: 'bulk' },
+  sand: { name: 'Sand', color: '#dec397', price: 18, transit: 'bulk' },
+  glass: { name: 'Glass', color: '#a4d5d1', price: 49, transit: 'standard' },
+  copper: { name: 'Copper ore', color: '#be875e', price: 31, transit: 'bulk' },
+  wire: { name: 'Copper wire', color: '#d79468', price: 60, transit: 'standard' },
+  cement: { name: 'Cement', color: '#c0b9a6', price: 40, transit: 'standard' },
+  goods: { name: 'Goods', color: '#bd9ed6', price: 104, transit: 'perishable' },
 };
+/** Days a class is paid in full, then the share of the distance fare it loses each extra day. */
+export const TRANSIT_CLASSES = {
+  express: { name: 'Express', fullDays: 14, dailyLoss: .015 },
+  perishable: { name: 'Time-sensitive', fullDays: 16, dailyLoss: .012 },
+  standard: { name: 'Standard', fullDays: 25, dailyLoss: .008 },
+  bulk: { name: 'Bulk', fullDays: 45, dailyLoss: .004 },
+};
+export const TRANSIT_PAY_FLOOR = .5;
+/** Distance fare per unit = price × (tiles + HANDLING_TILES) ÷ DISTANCE_TILES. */
+export const DISTANCE_TILES = 9, HANDLING_TILES = 12;
+/** Fares count at most this multiple of the grid distance between a route's stops. */
+export const DETOUR_PAY_LIMIT = 2;
+/** Base speeds in tiles per day before weather, slopes, towns and generation. TRAVEL_PACE is the typical realised share. */
+export const VEHICLE_SPEEDS = { road: 2.8, rail: 4.6, water: 1.8 };
+export const TRAVEL_PACE = { road: .88, rail: .88, water: .78 };
+export const STOP_DAYS = { road: .2, rail: .2, water: .2 };
 const all = ['taiga', 'tundra', 'desert'];
 export const INDUSTRIES = {
   'logging-camp': { footprint: 2, name: 'Logging camp', inputs: {}, outputs: { timber: 7 }, cost: 28000, biomes: ['taiga'], terrain: ['forest', 'grass'] },

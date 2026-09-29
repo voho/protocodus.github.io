@@ -15,12 +15,15 @@ import { initializeIndustry, stepIndustries } from './industry-simulation.js';
 import { evaluateMilestones, validMilestones } from './milestones.js';
 import { stepContracts, contractBonus, validContracts } from './contracts.js';
 import { availableVehicleLevel, priceFor, inflationInfo, calendarMonth } from './economy-pricing.js';
+import { distancePay, transitPay, payTiles } from './economy-pricing.js';
+import { VEHICLE_SPEEDS } from './data.js';
 import { TERRAIN_OBJECT_KINDS, terrainObjectAt, terrainObjectSize, terrainObjectTiles, terrainObjectGroundIsFlat, releaseTerrainObjects } from './terrain-objects.js';
 import { LAND_HEIGHT_LEVELS } from './terrain-elevation.js';
 import { surfaceHeight } from './terrain-geometry.js';
 import { terraformProblem, planTerraformLevel, planTerraformStroke, planStructureSpan, networkEdgeAllowed, transportElevation, validStructureMetadata, networkTerrainProblem, networkTerrainPlanProblem } from './terrain-engineering.js';
 import { money, count, tiles, listJoin, capital, cargoName, modelYear, vehicleNoun, stopKind, token } from './copy.js';
 export { priceFor, inflationInfo } from './economy-pricing.js';
+export { distancePay, transitPay, scheduledDays, payTiles, travelTiles } from './economy-pricing.js';
 export { industryConditions } from './industry-simulation.js';
 export { settlementSuitability } from './settlements.js';
 export { weatherAt, localEnvironment } from './environment.js';
@@ -561,7 +564,7 @@ export function addRoute(game,{name,mode='road',stops,cargo='passengers'}={}) {
   const purchase=getVehiclePurchase(game,mode),cost=purchase.cost;if(game.money<cost)return result(false,`Need ${moneyText(cost)} to buy this ${vehicleNoun(mode,cargo)}.`);
   const line=nextLineColor(game,stations.map(s=>s.id));
   const route={id:makeId(game,'route'),name:String(name||defaultRouteName(game,stations,cargo)).slice(0,100),number:nextRouteNumber(game),mode,stops:stations.map(s=>s.id),cargo,delivered:0,revenue:0,expenses:0,accountingStartDay:game.day,revenueAtAccountingStart:0,color:line.fill,path,active:true,status:'Running',pathRevision:game.networkRevision||0};
-  const vehicle={id:makeId(game,'vehicle'),routeId:route.id,x:path[0].x,y:path[0].y,angle:0,load:0,capacity:purchase.capacity,level:purchase.level,paidPrice:cost,progress:0,direction:1,totalDistance:0,dwellRemaining:0,tripSerial:0};
+  const vehicle={id:makeId(game,'vehicle'),routeId:route.id,x:path[0].x,y:path[0].y,angle:0,load:0,capacity:purchase.capacity,level:purchase.level,paidPrice:cost,progress:0,direction:1,totalDistance:0,dwellRemaining:0,tripSerial:0,loadedDay:Math.floor(game.day)};
   spend(game,cost);game.routes.push(route);game.vehicles.push(vehicle);loadVehicle(game,route,vehicle,0);game.revision++;
   return result(true,`Route launched: ${route.name}.${spent(cost)}`,{route,cost});
 }
@@ -576,6 +579,8 @@ export function editRoute(game,routeId,{stops,cargo}={}) {
   route.stops=[a.id,b.id];route.path=plan.path;route.pathRevision=game.networkRevision||0;route.active=true;route.status='Running';
   snapVehiclesToPath(game,route,plan.path);
   if(changed){route.cargo=cargo;for(const vehicle of fleetIndex(game).vehiclesByRoute.get(route.id)||[])vehicle.load=0;}
+  // Cargo aboard is dispatched afresh from the edited route, and its trip times start over.
+  restartCargoClocks(game,route,game.day);clearRouteTransit(game,route.id);
   route.revenueAtAccountingStart=route.revenue;route.expenses=0;route.accountingStartDay=game.day;
   // A new routes array also retires the cached upkeep shares and fleet index.
   game.routes=game.routes.slice();game.revision++;
@@ -585,6 +590,7 @@ export function removeRoute(game,routeId) {
   const route=game.routes.find(r=>r.id===routeId);if(!route)return result(false,'Route not found.');
   const refund=getRetirementRefund(game,routeId);
   game.routes=game.routes.filter(r=>r.id!==routeId);game.vehicles=game.vehicles.filter(v=>v.routeId!==routeId);game.money+=refund;game.revision++;
+  clearRouteTransit(game,routeId);
   return result(true,`Route retired: ${route.name}.${refund>0?` ${money(refund,{compact:true})} refunded.`:''}`,{refund});
 }
 // Players name stops and routes freely, duplicates included, within the route form's 36 characters.
@@ -630,7 +636,7 @@ export function addRouteVehicle(game,routeId) {
   // Within half a tile of a stop, start there as if just loaded and departing.
   if(progress<=.5){progress=0;direction=1;stop=0;}else if(progress>=L-.5){progress=L;direction=-1;stop=1;}
   const at=Math.min(Math.floor(progress),L-1),a=route.path[at],b=route.path[at+1],fraction=progress-at;
-  const vehicle={id:makeId(game,'vehicle'),routeId:route.id,x:a.x+(b.x-a.x)*fraction,y:a.y+(b.y-a.y)*fraction,angle:Math.atan2((b.y-a.y)*direction,(b.x-a.x)*direction),load:0,capacity:purchase.capacity,level:purchase.level,paidPrice:cost,progress,direction,totalDistance:0,dwellRemaining:0,tripSerial:0};
+  const vehicle={id:makeId(game,'vehicle'),routeId:route.id,x:a.x+(b.x-a.x)*fraction,y:a.y+(b.y-a.y)*fraction,angle:Math.atan2((b.y-a.y)*direction,(b.x-a.x)*direction),load:0,capacity:purchase.capacity,level:purchase.level,paidPrice:cost,progress,direction,totalDistance:0,dwellRemaining:0,tripSerial:0,loadedDay:Math.floor(game.day)};
   spend(game,cost);game.vehicles.push(vehicle);if(stop>=0)loadVehicle(game,route,vehicle,stop);game.revision++;
   return result(true,`${capital(noun)} added to ${route.name}.${spent(cost)}`,{vehicle,cost});
 }
@@ -656,8 +662,9 @@ function journeyCoverage(game,station,context) {
   if(!context.coverage.has(station))context.coverage.set(station,stationCoverage(game,station));
   return context.coverage.get(station);
 }
-function loadVehicle(game,route,vehicle,stopIndex,context) {
+function loadVehicle(game,route,vehicle,stopIndex,context,day=game.day) {
   const station=context?context.stations.get(route.stops[stopIndex]):game.stations.find(s=>s.id===route.stops[stopIndex]);if(!station)return;
+  const before=vehicle.load;
   let free=vehicle.capacity-vehicle.load;
   if(route.cargo==='passengers') {
     const endpoints=journeyEndpoints(game,route,context);
@@ -675,12 +682,22 @@ function loadVehicle(game,route,vehicle,stopIndex,context) {
       if(free<=0)break;
     }
   }
+  // The boarding day of what is aboard: a load-weighted mean when a load is topped up, so a wait counts.
+  if(vehicle.load>before){const boarded=Math.floor(day);vehicle.loadedDay=before>0&&vehicle.loadedDay!==undefined?(vehicle.loadedDay*before+boarded*(vehicle.load-before))/vehicle.load:boarded;}
 }
-// Shortest connected distance determines the fare; loops cannot manufacture income.
-export function fareFor(game,cargo,pathLength,units,day=game.day) { return priceFor(game,units*CARGO[cargo].price*(1+Math.sqrt(pathLength-1)*.55),day); }
+// The shortest connected path, capped at twice the stops' grid distance, sets the fare; loops and detours cannot manufacture income.
+// Days on the way (undefined for legacy cargo) keep a share of it: see transitPay.
+export function fareFor(game,cargo,pathLength,units,day=game.day,transitDays) { return priceFor(game,units*CARGO[cargo].price*distancePay(pathLength-1)*transitPay(cargo,transitDays),day); }
 // Paid deliveries for the map's floating income: never saved, never keyed by nextId or randomAt.
 const deliveryLog=new WeakMap();
 export function drainDeliveryEvents(game) { const log=deliveryLog.get(game)||[];deliveryLog.delete(game);return log; }
+// Recent days on the way per route, for the route cards: never saved, never keyed by nextId or randomAt.
+const transitLog=new WeakMap();
+function recordTransit(game,route,days){let m=transitLog.get(game);if(!m)transitLog.set(game,m=new Map());let r=m.get(route.id);if(!r)m.set(route.id,r=[]);r.push(days);if(r.length>8)r.shift();}
+function clearRouteTransit(game,routeId){transitLog.get(game)?.delete(routeId);}
+export function recentTransitDays(game,routeId){const r=transitLog.get(game)?.get(routeId);return r?.length?r.reduce((s,d)=>s+d,0)/r.length:null;}
+// Cargo aboard a route that runs again (repaired or edited) is dispatched afresh: its clock restarts.
+function restartCargoClocks(game,route,day){const today=Math.floor(day);for(const v of fleetIndex(game).vehiclesByRoute.get(route.id)||[])if(v.load>0)v.loadedDay=today;}
 function unloadVehicle(game,route,vehicle,stopIndex,arrivalDay=game.day,context) {
   if(vehicle.load<=0)return;
   const station=context?context.stations.get(route.stops[stopIndex]):game.stations.find(s=>s.id===route.stops[stopIndex]);if(!station)return;
@@ -705,7 +722,9 @@ function unloadVehicle(game,route,vehicle,stopIndex,arrivalDay=game.day,context)
   }
   vehicle.load=remaining;
   if(delivered>0) {
-    const fare=fareFor(game,route.cargo,route.path.length,delivered,arrivalDay),revenue=fare+(game.contracts?contractBonus(game,route,fare,arrivalDay,site=>journeyCoverage(game,site,context)):0);
+    const transit=vehicle.loadedDay===undefined?undefined:Math.max(0,Math.floor(arrivalDay)-vehicle.loadedDay);
+    if(transit!==undefined)recordTransit(game,route,transit);
+    const fare=fareFor(game,route.cargo,payTiles(route.path)+1,delivered,arrivalDay,transit),revenue=fare+(game.contracts?contractBonus(game,route,fare,arrivalDay,site=>journeyCoverage(game,site,context)):0);
     route.delivered+=delivered;route.revenue+=revenue;game.totalDelivered+=delivered;game.totalRevenue+=revenue;game.monthlyIncome+=revenue;game.money+=revenue;
     let log=deliveryLog.get(game);if(!log)deliveryLog.set(game,log=[]);
     if(log.length<64)log.push({x:station.x,y:station.y,revenue,cargo:route.cargo,amount:delivered,routeId:route.id,day:arrivalDay});
@@ -744,6 +763,7 @@ function updateRoutePath(game,route) {
   const cut=name=>route.mode==='water'?`${name} is no longer connected by water. Ports need a continuous waterway.`:`${name} is no longer connected. Rebuild the missing ${route.mode==='rail'?'track':'road'}, including any bridge or tunnel.`;
   if(!path) {route.status='Disconnected';if(wasActive)notify(game,cut(route.name),'warning',{topic:'route-connection',target:{kind:'route',id:route.id},template:cut(token('route',route.id))});return;}
   route.status='Running';
+  if(!wasActive)restartCargoClocks(game,route,game.day);
   const changed=route.path.length!==path.length||route.path.some((p,i)=>p.x!==path[i].x||p.y!==path[i].y);
   if(changed)snapVehiclesToPath(game,route,path);
   route.path=path;
@@ -790,7 +810,7 @@ function travelSpeed(game,route,vehicle,segment){
     const support=neighbors.filter(t=>t?.road||t?.rail).length*.015;
     const passage=(ta.bridge||tb.bridge)?.88:1;
     const variation=.94+randomAt(game,day,vehicle.id,511)*.12;
-    const speed=1.8*channel*passage*climate.travel*(1-climate.cold*.12)*variation*(1-Math.min(.18,Math.max(0,traffic-1)*.035)+Math.min(.045,support))*vehicleSpeedMultiplier(vehicleLevel(vehicle));
+    const speed=VEHICLE_SPEEDS.water*channel*passage*climate.travel*(1-climate.cold*.12)*variation*(1-Math.min(.18,Math.max(0,traffic-1)*.035)+Math.min(.045,support))*vehicleSpeedMultiplier(vehicleLevel(vehicle));
     cache.speeds.set(key,speed);return speed;
   }
   let congestion=0,support=0;
@@ -800,7 +820,7 @@ function travelSpeed(game,route,vehicle,segment){
   const terrain=(ta.bridge||tb.bridge)?.8:(ta.tunnel||tb.tunnel)?.88:1;
   const grade=1-Math.min(.16,Math.abs(transportElevation(ta)-transportElevation(tb))*.4);
   const dailyVariation=.94+randomAt(game,day,vehicle.id,511)*.12;
-  const speed=(route.mode==='road'?2.8:4.6)*terrain*grade*climate.travel*dailyVariation*(1-clamp(congestion,0,route.mode==='road'?.22:.06)+Math.min(.07,support))*vehicleSpeedMultiplier(vehicleLevel(vehicle));
+  const speed=VEHICLE_SPEEDS[route.mode]*terrain*grade*climate.travel*dailyVariation*(1-clamp(congestion,0,route.mode==='road'?.22:.06)+Math.min(.07,support))*vehicleSpeedMultiplier(vehicleLevel(vehicle));
   cache.speeds.set(key,speed);return speed;
 }
 // A trajectory has no economic side effects. Stop at its next arrival so that
@@ -822,7 +842,8 @@ function travelPlan(game,route,vehicle,days){
 }
 function arriveVehicle(game,route,vehicle,arrivalDay,context){
   const stopIndex=vehicle.direction===1?1:0;
-  unloadVehicle(game,route,vehicle,stopIndex,arrivalDay,context);loadVehicle(game,route,vehicle,stopIndex,context);vehicle.direction*=-1;vehicle.tripSerial=(vehicle.tripSerial||0)+1;
+  // Anything still aboard (a full buyer) is dispatched again from here: its clock restarts.
+  unloadVehicle(game,route,vehicle,stopIndex,arrivalDay,context);if(vehicle.load>0)vehicle.loadedDay=Math.floor(arrivalDay);loadVehicle(game,route,vehicle,stopIndex,context,arrivalDay);vehicle.direction*=-1;vehicle.tripSerial=(vehicle.tripSerial||0)+1;
   const stop=context?context.stations.get(route.stops[stopIndex]):game.stations.find(s=>s.id===route.stops[stopIndex]);
   let e=context?.environments.get(stop);
   if(!e){e=localEnvironment(game,stop.x,stop.y,2);context?.environments.set(stop,e);}
@@ -1055,7 +1076,7 @@ export function validateGame(game) {
   if(!game.routes.every(route=>route.expenses===undefined||finite(route.expenses,0,1e15)))return false;
   if(!game.routes.every(route=>(route.accountingStartDay===undefined||finite(route.accountingStartDay,0,game.day))&&(route.revenueAtAccountingStart===undefined||finite(route.revenueAtAccountingStart,0,route.revenue))))return false;
   if(!game.vehicles.every(v=>uniqueId(v)&&game.routes.some(r=>r.id===v.routeId)&&finite(v.x,0,game.width)&&finite(v.y,0,game.height)&&finite(v.angle)&&finite(v.capacity,1,1e9)&&finite(v.load,0,v.capacity)&&finite(v.progress,0,(game.routes.find(r=>r.id===v.routeId)?.path.length||1)-1)&&[1,-1].includes(v.direction)))return false;
-  if(!game.vehicles.every(v=>(v.dwellRemaining===undefined||finite(v.dwellRemaining,0,3))&&(v.tripSerial===undefined||(Number.isInteger(v.tripSerial)&&finite(v.tripSerial,0,1e10)))&&(v.totalDistance===undefined||finite(v.totalDistance,0,1e15))))return false;
+  if(!game.vehicles.every(v=>(v.dwellRemaining===undefined||finite(v.dwellRemaining,0,3))&&(v.tripSerial===undefined||(Number.isInteger(v.tripSerial)&&finite(v.tripSerial,0,1e10)))&&(v.totalDistance===undefined||finite(v.totalDistance,0,1e15))&&(v.loadedDay===undefined||finite(v.loadedDay,0,game.day))))return false;
   const availableLevel=availableVehicleLevel(game);
   if(!game.vehicles.every(v=>(v.level===undefined||(Number.isInteger(v.level)&&finite(v.level,0,availableLevel)))&&(v.paidPrice===undefined||finite(v.paidPrice,0,1e15))))return false;
   for(const route of game.routes) {

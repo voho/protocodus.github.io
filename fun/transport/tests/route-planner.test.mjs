@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { addRoute, addRouteVehicle, build, buildPath, drainDeliveryEvents, fareFor, tick, VEHICLE_COSTS } from '../model.js';
+import { addRoute, addRouteVehicle, build, buildPath, drainDeliveryEvents, fareFor, getVehiclePurchase, payTiles, scheduledDays, tick, transitPay, VEHICLE_COSTS } from '../model.js';
+import { keepText } from '../payment-rates.js';
 import { defaultRouteName, filterRoutes, forecastRoute, routeCargoList, routeCargoOptions, validateRoutePlan } from '../route-planner.js';
 import { routesNeedingAttention } from '../gameplay-insights.js';
 import { emptyGame, line, tileAt } from './helpers.mjs';
@@ -254,12 +255,54 @@ for (const mode of ['road', 'rail']) for (const tiles of [10, 40]) {
 test('fareFor is the revenue of a real delivery', () => {
   const { game, draft } = quarryLine('road', 20);
   game.industries[0].inventory.stone = 60;
-  const route = addRoute(game, { ...draft, stops: [draft.from, draft.to] }).route;
+  const route = addRoute(game, { ...draft, stops: [draft.from, draft.to] }).route, boarded = game.vehicles[0].loadedDay;
   for (let step = 0; step < 400 && !route.revenue; step++) tick(game, .25);
   const [delivery] = drainDeliveryEvents(game);
   assert.equal(delivery.amount, 24);
-  assert.equal(route.revenue, fareFor(game, 'stone', route.path.length, delivery.amount, delivery.day));
+  assert.equal(route.revenue, fareFor(game, 'stone', payTiles(route.path) + 1, delivery.amount, delivery.day, Math.floor(delivery.day) - boarded));
   assert.equal(forecastRoute(game, draft).fullLoad, fareFor(game, 'stone', route.path.length, 24));
+});
+
+test('the forecast times a trip and prices one unit after its days on the way', () => {
+  const game = emptyGame(), level = getVehiclePurchase(game, 'road').level;
+  assert.equal(build(game, 'food-plant', 10, 8).ok, true);
+  game.cities = [{ id: 'town-a', name: 'Alderbrook', x: 120, y: 10, population: 900, activity: 0, growth: 0, passengers: 0, delivered: 0, supplies: 0, lastServiceDay: null }];
+  assert.equal(buildPath(game, 'road', line(10, 120, 12)).ok, true);
+  for (const x of [10, 120]) assert.equal(build(game, 'bus-stop', x, 12).ok, true);
+  const draft = { mode: 'road', cargo: 'food', from: game.stations[0].id, to: game.stations[1].id }, plan = validateRoutePlan(game, draft), forecast = forecastRoute(game, draft);
+  assert.equal(plan.valid, true, plan.message);
+  assert.deepEqual([forecast.tiles, forecast.travel], [110, 110]);
+  assert.equal(forecast.days, Math.round(scheduledDays('road', 110, level)));
+  assert.equal(forecast.share, transitPay('food', forecast.days)); assert.ok(forecast.share < 1, 'a 110-tile truck is slow for food');
+  assert.equal(forecast.perUnit, fareFor(game, 'food', payTiles(plan.path) + 1, 1, game.day, forecast.days));
+});
+
+test('a ship forecast uses the timetable of ships', () => {
+  const game = emptyGame();
+  assert.equal(build(game, 'logging-camp', 10, 10).ok, true);
+  assert.equal(build(game, 'sawmill', 30, 10).ok, true);
+  for (const point of line(10, 30, 12)) Object.assign(tileAt(game, point.x, point.y), { terrain: 'water', detail: 'river', elevation: 0 });
+  game.revision++; game.networkRevision++;
+  for (const x of [10, 30]) assert.equal(build(game, 'port', x, 12).ok, true);
+  const draft = { mode: 'water', cargo: 'timber', from: game.stations[0].id, to: game.stations[1].id }, ship = getVehiclePurchase(game, 'water'), forecast = forecastRoute(game, draft);
+  assert.ok(Math.abs(forecast.perVehicleDay - ship.capacity / (2 * scheduledDays('water', 20, ship.level))) < 1e-9, `${forecast.perVehicleDay}`);
+});
+
+test('a slow bus plan learns that a train would keep the whole fare', () => {
+  const plan = tiles => {
+    const { game, draft } = quarryLine('road', tiles);
+    game.industries = [];
+    game.cities.push({ id: 'town-b', name: 'Pinehaven', x: 10, y: 10, population: 600, activity: 0, growth: 0, passengers: 0, delivered: 0, supplies: 0, lastServiceDay: null });
+    const forecast = forecastRoute(game, { ...draft, cargo: 'passengers' });
+    return { forecast, rail: forecast.otherModes.find(other => other.mode === 'rail') };
+  };
+  // 55 tiles take a bus 23 days and a train 14: the train keeps the whole fare.
+  const near = plan(55);
+  assert.ok(near.forecast.share < .9, `${near.forecast.share}`);
+  assert.equal(near.rail.share, 1);
+  assert.equal(keepText(near.rail.share, near.forecast.share), ' and keep 100% of the fare');
+  const far = plan(80);
+  assert.equal(keepText(far.rail.share, far.forecast.share), ' and keep 91% of the fare', 'at 80 tiles a train keeps 91%, a bus 72%');
 });
 
 test('the forecast waits for fitting stops and cargo, and is cached per day and fleet', () => {

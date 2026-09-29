@@ -158,7 +158,8 @@ Money:
   - ink for money lines;
   - `--ok` / `--error` for profit bars;
   - `--rule` gridlines;
-  - `--ink-2` labels.
+  - `--ink-2` labels;
+  - categories (the cargo payment rates' four classes) in line colours chosen with the palette validator, light ones with the 1 px ink edge of 8.2, always with a legend and a table view.
 
   No gradients and no fills under lines.
 - **Map UI** (`design-tokens.js MAP`):

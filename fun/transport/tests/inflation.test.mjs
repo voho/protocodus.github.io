@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createGame, build, buildPath, addRoute, tick, priceFor, inflationInfo, constructionCost, getVehiclePurchase, hasClearableDecoration, BUILD_COSTS, VEHICLE_COSTS, CARGO } from '../model.js';
+import { createGame, build, buildPath, addRoute, tick, priceFor, inflationInfo, constructionCost, getVehiclePurchase, hasClearableDecoration, distancePay, BUILD_COSTS, VEHICLE_COSTS, CARGO } from '../model.js';
 import { emptyGame, tileAt, line } from './helpers.mjs';
 
 const yearDay = year => (Date.UTC(year, 0, 1) - Date.UTC(1950, 0, 1)) / 86400000;
@@ -59,8 +59,8 @@ test('delivery fares crossing New Year use the arrival year and keep pace with p
   game.industries[0].inventory.timber = 100;
   const { route } = addRoute(game, { mode: 'road', cargo: 'timber', stops: game.stations.map(stop => stop.id) });
   game.day = 364.99;
-  const vehicle = game.vehicles[0]; vehicle.progress = 19.9; vehicle.x = 29.9; vehicle.y = 12;
-  const amount = vehicle.load, baseFare = amount * CARGO.timber.price * (1 + Math.sqrt(20) * .55);
+  const vehicle = game.vehicles[0]; vehicle.progress = 19.9; vehicle.x = 29.9; vehicle.y = 12; vehicle.loadedDay = 364;
+  const amount = vehicle.load, baseFare = amount * CARGO.timber.price * distancePay(20);
   tick(game, .25);
   assert.equal(route.delivered, amount);
   assert.equal(route.revenue, priceFor(game, baseFare));

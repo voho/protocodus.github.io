@@ -161,9 +161,21 @@ try {
   assert.equal(await starterCard.locator('[data-sell-vehicle]').isDisabled(), false);
   assert.deepEqual(await starterCard.locator('.route-actions button').allTextContents(), ['Show', 'Edit', 'Retire'], 'an up-to-date card keeps three actions');
   assert.equal(await starterCard.locator('.route-vehicle-spec .route-model').textContent(), 'Latest model', 'the vehicle row says the model is current');
-  assert.ok((await starterCard.boundingBox()).height <= 280, `390px route card stays compact: ${(await starterCard.boundingBox()).height}px`);
+  assert.ok((await starterCard.boundingBox()).height <= 300, `390px route card stays compact: ${(await starterCard.boundingBox()).height}px`);
   assert.equal(await fits(fleetPage, '#panel-content'), true, '390px fleet controls fit the drawer');
   await starterCard.screenshot({ path: `${output}/mobile-390-fleet-card.png` });
+  // Delivery pay: the timetable estimate until a delivery, then the measured days; a slow trip shows its share of the fare.
+  const trip = starterCard.locator('[data-route-trip]');
+  assert.match(await trip.innerText(), /^\d+ tiles, about \d+ days?\n\$[\d,]+ each$/, 'the card estimates the trip before any delivery');
+  await fleetPage.evaluate(async () => { const { tick } = await import('./model.js'), route = transport.game.routes[0]; for (let n = 0; n < 200 && !route.delivered; n++) tick(transport.game, .25); });
+  await fleetPage.waitForFunction(() => !/about/.test(document.querySelector('[data-route-trip]').innerText));
+  assert.match(await trip.innerText(), /^\d+ tiles, \d+ days?\n\$[\d,]+ each$/, 'after a delivery the card shows its measured days, at full pay');
+  // Eight recent trips set the row, so the stalled cargo waits 80 days to outweigh the quick ones.
+  await fleetPage.evaluate(async () => { const { tick } = await import('./model.js'), game = transport.game; tick(game, 90); for (const vehicle of game.vehicles) vehicle.loadedDay = Math.floor(game.day) - 80; tick(game, 12); });
+  await fleetPage.waitForFunction(() => /% of full pay/.test(document.querySelector('[data-route-trip]').innerText));
+  assert.match(await trip.innerText(), /^\d+ tiles, \d+ days\n\$[\d,]+ each, \d+% of full pay$/, 'a slow trip keeps less of the fare, and says how much');
+  assert.match(await trip.locator('span').first().getAttribute('title'), /^Recent deliveries took \d+ days over \d+ tiles\. Each passenger pays \$[\d,]+ at today’s prices, \d+% of the full fare/);
+  await starterCard.screenshot({ path: `${output}/mobile-390-slow-trip-card.png` });
   await starterCard.locator('[data-remove-route]').click();
   assert.match(await fleetPage.locator('#modal').innerText(), /Its 2 buses sell for \$16,200/);
   assert.equal(await fleetPage.locator('#confirm-retire').textContent(), 'Retire · +$16,200');

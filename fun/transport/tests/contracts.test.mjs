@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { build, buildPath, addRoute, tick, createGame, restoreGame, validateGame, stationCoverage, fareFor, drainDeliveryEvents } from '../model.js';
+import { build, buildPath, addRoute, tick, createGame, restoreGame, validateGame, stationCoverage, fareFor, distancePay, drainDeliveryEvents } from '../model.js';
 import { encodeGame } from '../save-codec.js';
 import { INDUSTRIES, TOWN_CARGO } from '../data.js';
 import { stepContracts, contractMultiplier, contractState, contractSites, CONTRACT_DAYS, MAX_CONTRACTS } from '../contracts.js';
@@ -34,12 +34,12 @@ function firstOffers(fixture) {
 
 test('the bonus beats a local route per vehicle-day and scales with distance', () => {
   assert.equal(contractMultiplier(10), 1, 'a short haul earns the smallest bonus');
-  assert.ok(Math.abs(contractMultiplier(40) - 2.91) < .01, contractMultiplier(40));
-  assert.ok(Math.abs(contractMultiplier(20) - 1.53) < .01, contractMultiplier(20));
-  assert.equal(contractMultiplier(70), 4);assert.equal(contractMultiplier(200), 4);
+  assert.ok(Math.abs(contractMultiplier(40) - 1.71) < .01, contractMultiplier(40));
+  assert.ok(Math.abs(contractMultiplier(20) - 1.2) < .01, contractMultiplier(20));
+  assert.ok(Math.abs(contractMultiplier(70) - 2) < .01, contractMultiplier(70));assert.ok(contractMultiplier(200) < 2.52);
   for (let d = 20; d < 70; d++) assert.ok(contractMultiplier(d + 1) >= contractMultiplier(d));
-  // Income per vehicle-day falls as f(L) = (1 + .55√L) / L; with the bonus a served pair clearly beats a 10-tile route.
-  const f = L => (1 + .55 * Math.sqrt(L)) / L;
+  // Income per vehicle-day falls as f(L) = distancePay(L) / L; with the bonus a served pair clearly beats a 10-tile route.
+  const f = L => distancePay(L) / L;
   for (let d = 20; d <= 70; d++) assert.ok((1 + contractMultiplier(d)) * f(d) >= 1.45 * f(10), `${d} tiles`);
 });
 

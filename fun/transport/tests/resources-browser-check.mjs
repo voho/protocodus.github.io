@@ -31,6 +31,31 @@ try {
     assert.equal(await entry.locator('svg').getAttribute('aria-hidden'), 'true', `${definition.name} avoids repeating the adjacent accessible text`);
   }
   await page.locator('.resource-legend').screenshot({ path: `${output}/resource-contact-sheet.png` });
+  // Cargo payment rates: a line per biome cargo, a crosshair tip by pointer and keys, legend highlights and a table view.
+  const biomeCargo = await page.evaluate(async () => (await import('./route-planner.js')).routeCargoList(transport.game));
+  const rates = page.locator('.payment-rates');
+  assert.equal(await rates.locator('[data-payment-line]').count(), biomeCargo.length, 'one payment line per biome cargo');
+  assert.equal(await rates.locator('[data-payment-cargo]').count(), biomeCargo.length, 'the class legend names every biome cargo');
+  await rates.scrollIntoViewIfNeeded();
+  const plot = await rates.locator('.payment-plot svg').boundingBox();
+  await page.mouse.move(plot.x + plot.width * .45, plot.y + plot.height * .4);
+  const tip = rates.locator('.payment-tip');
+  await tip.waitFor({ state: 'visible' });
+  const hovered = await tip.textContent();
+  assert.match(hovered, /^.+ after \d+ days: \$[\d.,]+k?, \d+% of full pay$/, `the tip reads a value: ${hovered}`);
+  assert.equal(await rates.locator('[data-payment-line].muted').count(), biomeCargo.length - 1, 'the other lines step back');
+  await page.screenshot({ path: `${output}/desktop-payment-rates-hover.png` });
+  await rates.locator('.payment-plot svg').focus();
+  await page.keyboard.press('ArrowRight');
+  assert.notEqual(await tip.textContent(), hovered, 'ArrowRight reads five days later');
+  await page.mouse.move(0, 0);
+  await rates.locator('[data-payment-cargo="passengers"]').hover();
+  assert.equal(await rates.locator('[data-payment-line].muted').count(), biomeCargo.length - 1, 'a legend icon highlights its cargo');
+  assert.equal(await rates.locator('[data-payment-line="passengers"]').evaluate(el => el.classList.contains('muted')), false);
+  await rates.locator('.payment-table summary').click();
+  assert.equal(await rates.locator('.payment-table').evaluate(el => el.open), true, 'Show as table opens the table');
+  assert.equal(await rates.locator('.payment-table tbody tr').count(), biomeCargo.length);
+  await rates.screenshot({ path: `${output}/desktop-payment-rates.png` });
   await page.locator('[data-help-tab="chains"]').click();
   await page.locator('.modal-heading').scrollIntoViewIfNeeded();
   await page.screenshot({ path: `${output}/desktop-production-guide.png` });
@@ -276,6 +301,11 @@ try {
     assert.equal(await fits(page, '#modal'), true, `${width}px resource key fits`);
     assert.equal(await page.locator('.resource-entry').evaluateAll(elements => elements.every(el => el.scrollWidth <= el.clientWidth + 1)), true, `${width}px resource names fit their cards`);
     await page.screenshot({ path: `${output}/mobile-${width}-resource-key.png` });
+    await page.locator('.payment-rates').scrollIntoViewIfNeeded();
+    await page.waitForTimeout(100);
+    assert.equal(await page.locator('.modal-inner').evaluate(el => el.scrollWidth - el.clientWidth), 0, `${width}px payment rates fit the Guide`);
+    assert.equal(await page.locator('.payment-grid text').first().evaluate(el => getComputedStyle(el).fontSize), '12px', `${width}px axis text stays at the 12 px floor`);
+    await page.screenshot({ path: `${output}/mobile-${width}-payment-rates.png` });
     await page.keyboard.press('Escape');
     await page.locator('.mobile-panel-toggle').click();
   }
