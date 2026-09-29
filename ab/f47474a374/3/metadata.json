@@ -1,0 +1,52 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "abf47474a374",
+  "session_id": "bfe2e96d-781f-430d-ac77-c700dcb1b278",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-29T02:12:23.188407Z",
+  "branch": "transport-playability",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "fun/transport/tests/inflation.test.mjs",
+    "fun/transport/route-planner.js",
+    "fun/transport/tests/cargo-payment.test.mjs",
+    "fun/transport/ARCHITECTURE.md",
+    "fun/transport/README.md",
+    "fun/transport/app.js",
+    "fun/transport/contracts.js",
+    "fun/transport/data.js",
+    "fun/transport/economy-pricing.js",
+    "fun/transport/DESIGN.md",
+    "fun/transport/app-preload.js",
+    "fun/transport/payment-rates.js",
+    "fun/transport/tests/contracts.test.mjs",
+    "fun/transport/tests/features-browser-check.mjs",
+    "fun/transport/tests/route-planner.test.mjs",
+    "fun/transport/routes.css",
+    "fun/transport/dialogs.css",
+    "fun/transport/tests/payment-rates.test.mjs",
+    "fun/transport/tests/resources-browser-check.mjs",
+    "fun/transport/model.js"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "5fa5468dce41",
+  "checkpoint_transcript_start": 1445,
+  "transcript_lines_at_start": 1445,
+  "token_usage": {
+    "input_tokens": 246,
+    "cache_creation_tokens": 2685932,
+    "cache_read_tokens": 44979415,
+    "output_tokens": 142292,
+    "api_call_count": 118
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-29T02:12:21.534665Z",
+    "agent_lines": 0,
+    "human_added": 628,
+    "human_modified": 78,
+    "human_removed": 0,
+    "total_committed": 628,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude/projects/-Users-vojta-Dev-protocodus-github-io/bfe2e96d-781f-430d-ac77-c700dcb1b278.jsonl"
+}
