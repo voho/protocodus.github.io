@@ -1,0 +1,46 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "86d1dcf3bcd5",
+  "strategy": "manual-commit",
+  "branch": "transport-playability",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "fun/transport/ARCHITECTURE.md",
+    "fun/transport/DESIGN.md",
+    "fun/transport/README.md",
+    "fun/transport/app-preload.js",
+    "fun/transport/app.js",
+    "fun/transport/chains-view.js",
+    "fun/transport/index.html",
+    "fun/transport/refs.css",
+    "fun/transport/renderer.js",
+    "fun/transport/tests/features-browser-check.mjs",
+    "fun/transport/tests/interconnection-browser-check.mjs",
+    "fun/transport/tests/next-goal-browser-check.mjs",
+    "fun/transport/tests/plan-connection-browser-check.mjs",
+    "fun/transport/tests/ui-baseline/refs.json",
+    "fun/transport/tests/ui-lint-baseline.json",
+    "fun/transport/tests/ui-refs.test.mjs",
+    "fun/transport/tests/ui-states/index.mjs",
+    "fun/transport/tests/ui-states/refs.mjs",
+    "fun/transport/ui-line.js",
+    "fun/transport/ui-motion.js",
+    "fun/transport/ui-refs.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/86/d1dcf3bcd5/0/metadata.json",
+      "transcript": "/86/d1dcf3bcd5/0/full.jsonl",
+      "context": "/86/d1dcf3bcd5/0/context.md",
+      "content_hash": "/86/d1dcf3bcd5/0/content_hash.txt",
+      "prompt": "/86/d1dcf3bcd5/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 184,
+    "cache_creation_tokens": 222747,
+    "cache_read_tokens": 6989952,
+    "output_tokens": 50046,
+    "api_call_count": 67
+  }
+}
