@@ -45,7 +45,6 @@ import { loanTerms, borrow, repay } from './model.js';
 import { routeNeedsAttention } from './gameplay-insights.js';
 import { creditToast } from './ui-notices.js';
 import { HEADLINE_PRIORITY, headlineKicker, headlineWatch, detectHeadlines, headlineTier, townHeadline, modelYearHeadline, recordHeadline } from './headlines.js';
-import { dateLong } from './copy.js';
 import { has as hasIcon } from './ui-icons.js';
 import { preloadHouses, onHouseAssetsChange } from './raster-houses.js';
 import { preloadWorldArt, onWorldArtChange, startupArtCells } from './atlas-runtime.js';
