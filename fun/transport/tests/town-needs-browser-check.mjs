@@ -1,5 +1,6 @@
-// Town needs in a real browser: the row stays hidden on a fresh start, appears with the first
-// freight route, and the food badge earns its check after the first real food delivery.
+// Town needs in a real browser: the town inspector's Town economy fold lists what its shops want,
+// counts the first real food delivery, and names the cargo a slowed zone is waiting for; the Towns
+// list and a waiting zone's note explain the rest.
 // Serve the repository root first; every page uses fresh, isolated browser storage.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
@@ -11,7 +12,8 @@ const output = process.env.TRANSPORT_OUTPUT || process.env.TRANSPORT_SCREENSHOTS
 await mkdir(output, { recursive: true });
 const errors = [];
 const inspectHome = page => page.evaluate(() => { const town = transport.game.cities[0]; transport.renderer.focus(town.x, town.y); transport.inspect(town.x, town.y, 'city'); });
-const chip = cargo => `#inspector .need-chip:has([data-cargo="${cargo}"])`;
+const want = cargo => `#inspector .want:has([data-cargo-icon="${cargo}"])`;
+const openEconomy = async page => { await page.locator('#inspector .town-economy').waitFor(); if (!await page.locator('#inspector .town-economy').evaluate(el => el.open)) { await page.locator('#inspector .town-economy summary').click(); await page.evaluate(() => document.activeElement.blur()); } };
 
 try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 960 }, deviceScaleFactor: 1 });
@@ -19,10 +21,10 @@ try {
   await page.goto(url);
   await createWorldFromMenu(page);
 
-  // The starter bus alone keeps the town inspector as it was.
+  // The starter bus alone: the needs wait in the closed Town economy fold.
   await inspectHome(page);
   await page.locator('#inspector h3').waitFor();
-  assert.equal(await page.locator('#inspector .town-needs').count(), 0, 'no needs row before a zone or a freight route');
+  assert.equal(await page.locator('#inspector .town-economy').evaluate(el => el.open), false);
 
   // A food plant beside a stop that reaches Alderbrook, and a truck that has not yet delivered.
   await page.evaluate(async () => {
@@ -37,22 +39,21 @@ try {
     if (!addRoute(game, { mode: 'road', stops: [game.stations.at(-1).id, 'station-1'], cargo: 'food' }).ok) throw new Error('route failed');
   });
   await inspectHome(page);
-  await page.locator('#inspector .town-needs').waitFor();
-  assert.equal(await page.locator('#inspector .town-needs h4').textContent(), 'Grows faster with');
-  assert.deepEqual(await page.locator('#inspector .need-chip .cargo-badge').evaluateAll(els => els.map(el => el.dataset.cargo)), ['food', 'furniture', 'machinery', 'fuel', 'stone']);
-  assert.equal(await page.locator('#inspector .need-chip[data-met="true"]').count(), 0, 'nothing is supplied yet, and nothing reads as a problem');
-  assert.equal(await page.locator('#inspector .town-needs .condition-concern').count(), 0);
-  assert.equal(await page.locator('#inspector .need-hint').textContent(), 'Food deliveries help homes grow into comfortable homes.');
+  await openEconomy(page);
+  assert.equal(await page.locator('#inspector .town-economy h4').textContent(), 'Shops want each month');
+  assert.deepEqual(await page.locator('#inspector .want [data-cargo-icon]').evaluateAll(els => els.map(el => el.dataset.cargoIcon)), ['food', 'furniture', 'fuel']);
+  assert.equal(await page.locator('#inspector .want.met').count(), 0, 'nothing is supplied yet, and nothing reads as a problem');
+  assert.equal(await page.locator('#inspector .town-economy .condition-concern').count(), 0);
+  assert.match(await page.locator(want('food')).textContent(), /Food\s*0 of \d+/);
   await page.locator('#inspector').screenshot({ path: `${output}/needs-before-food.png` });
 
   // The live refresh flips the food badge once the truck unloads.
   await page.evaluate(() => transport.setSpeed(8));
   await page.waitForFunction(() => transport.game.routes.at(-1).delivered > 0, undefined, { timeout: 30000 });
-  await page.waitForSelector(`${chip('food')}[data-met="true"] svg:not(.cargo-icon)`, { timeout: 5000 });
+  await page.waitForFunction(() => /Food\s*[1-9]/.test(document.querySelector('#inspector .want:has([data-cargo-icon="food"])')?.textContent || ''), undefined, { timeout: 5000 });
   await page.evaluate(() => transport.setSpeed(0));
   assert.ok(await page.evaluate(() => transport.game.cities[0].lastSupply.food <= transport.game.day));
-  assert.equal(await page.locator(`${chip('furniture')}[data-met="false"]`).count(), 1);
-  assert.equal(await page.locator('#inspector .need-hint').textContent(), 'Furniture or machinery deliveries help homes grow into prestige homes.');
+  assert.equal(await page.locator(`${want('furniture')}.met`).count(), 0);
   await page.locator('#inspector').screenshot({ path: `${output}/needs-after-food.png` });
 
   // The towns list names only what each town has received.
@@ -80,6 +81,10 @@ try {
   assert.equal(await page.locator('#inspector .condition-note').textContent(), 'Faster with food deliveries');
   assert.equal(await page.locator('#inspector .condition-concern', { hasText: /food/i }).count(), 0);
   await page.locator('#inspector').screenshot({ path: `${output}/zone-note.png` });
+  // While that tier waits for food, the town's Town economy fold names the cargo that would speed it up.
+  await inspectHome(page);
+  await openEconomy(page);
+  await page.locator('#inspector .town-economy .economy-note', { hasText: 'Food deliveries help homes grow into comfortable homes.' }).waitFor();
 
   assert.deepEqual(errors, []);
   console.log('Town needs browser check passed');

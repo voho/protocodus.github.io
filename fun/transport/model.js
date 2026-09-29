@@ -8,6 +8,7 @@ import { encodeGame, decodeGame, rememberGeneratedWorld } from './save-codec.js'
 import { randomAt, localEnvironment, weatherAt, stepEcology } from './environment.js';
 import { stepSettlements, housingCapacity } from './settlements.js';
 import { monthlyTownRelations, disturbTown, townActionQuote, TOWN_ACTIONS, TOWN_RADIUS, DISTURBANCE } from './town-authority.js';
+import { monthlyMarkets, recordTownSupply, recordVisitors, validMarket, MARKET } from './town-market.js';
 import { nearbyCities, nearbyIndustries, nearbyStations, nearbyZones } from './simulation-spatial.js';
 import { nextLineColor, nextRouteNumber, ensureRouteNumbers, defaultRouteName, validRouteNumber } from './route-lines.js';
 import { networkIndex, updateNetworkIndex, noteNetworkChanges, networkChangesSince } from './network-index.js';
@@ -719,11 +720,12 @@ export function recentTransitDays(game,routeId){const r=transitLog.get(game)?.ge
 function restartCargoClocks(game,route,day){const today=Math.floor(day);for(const v of fleetIndex(game).vehiclesByRoute.get(route.id)||[])if(v.load>0)v.loadedDay=today;}
 function unloadVehicle(game,route,vehicle,stopIndex,arrivalDay=game.day,context) {
   if(vehicle.load<=0)return;
+  let bonusUnits=0,receiver=null;
   const station=context?context.stations.get(route.stops[stopIndex]):game.stations.find(s=>s.id===route.stops[stopIndex]);if(!station)return;
   let remaining=vehicle.load,delivered=0;
   if(route.cargo==='passengers') {
     const endpoints=journeyEndpoints(game,route,context);if(!endpoints)return;
-    const city=endpoints[stopIndex];city.activity+=remaining;city.delivered+=remaining;city.lastServiceDay=arrivalDay;delivered=remaining;remaining=0;
+    const city=endpoints[stopIndex];city.activity+=remaining;city.delivered+=remaining;city.lastServiceDay=arrivalDay;if(route.cargo==='passengers')recordVisitors(game,city,remaining);delivered=remaining;remaining=0;
   } else if(stopIndex===1) {
     const coverage=journeyCoverage(game,station,context);
     for(const industry of coverage.industries) {
@@ -735,7 +737,7 @@ function unloadVehicle(game,route,vehicle,stopIndex,arrivalDay=game.day,context)
       if(remaining<=0)break;
     }
     if(remaining>0&&TOWN_CARGO.includes(route.cargo)&&coverage.cities.length) {
-      const city=coverage.cities[0];city.supplies+=remaining;city.activity+=remaining*.7;city.delivered+=remaining;city.lastServiceDay=arrivalDay;delivered+=remaining;remaining=0;
+      const city=coverage.cities[0];city.supplies+=remaining;city.activity+=remaining*.7;city.delivered+=remaining;city.lastServiceDay=arrivalDay;delivered+=remaining;receiver=city;bonusUnits+=recordTownSupply(game,city,route.cargo,remaining);remaining=0;
       (city.lastSupply??={})[route.cargo]=arrivalDay;
     }
   }
@@ -743,7 +745,9 @@ function unloadVehicle(game,route,vehicle,stopIndex,arrivalDay=game.day,context)
   if(delivered>0) {
     const transit=vehicle.loadedDay===undefined?undefined:Math.max(0,Math.floor(arrivalDay)-vehicle.loadedDay);
     if(transit!==undefined)recordTransit(game,route,transit);
-    const fare=fareFor(game,route.cargo,payTiles(route.path)+1,delivered,arrivalDay,transit),revenue=fare+(game.contracts?contractBonus(game,route,fare,arrivalDay,site=>journeyCoverage(game,site,context)):0);
+    // Wanted town cargo earns the market bonus on the wanted units: the delivery's own per-unit fare, so distance, days and prices carry over. Contracts pay on the fare alone.
+    const fare=fareFor(game,route.cargo,payTiles(route.path)+1,delivered,arrivalDay,transit),bonus=bonusUnits>0?Math.round(MARKET.bonus*fare*bonusUnits/delivered):0,revenue=fare+bonus+(game.contracts?contractBonus(game,route,fare,arrivalDay,site=>journeyCoverage(game,site,context)):0);
+    if(bonus>0){route.marketBonus=(route.marketBonus||0)+bonus;receiver.market.bonus+=bonus;game.monthlyMarketBonus=(game.monthlyMarketBonus||0)+bonus;}
     route.delivered+=delivered;route.revenue+=revenue;game.totalDelivered+=delivered;game.totalRevenue+=revenue;game.monthlyIncome+=revenue;game.money+=revenue;
     let log=deliveryLog.get(game);if(!log)deliveryLog.set(game,log=[]);
     if(log.length<64)log.push({x:station.x,y:station.y,revenue,cargo:route.cargo,amount:delivered,routeId:route.id,day:arrivalDay});
@@ -989,11 +993,13 @@ export function buyTownAction(game,cityId,action) {
   return result(true,`${advertise?`Advertising in ${city.name} for six months.`:`New buildings funded in ${city.name} for a year.`}${spent(quote.cost)}`,{cost:quote.cost,until});
 }
 function monthlyUpdate(game) {
+  monthlyMarkets(game);
   const interest=Math.round((game.loan||0)*LOAN_MONTHLY_RATE);
   if(interest){game.money-=interest;game.monthlyExpenses+=interest;game.totalExpenses+=interest;game.monthlyOperatingExpenses=(game.monthlyOperatingExpenses||0)+interest;game.totalOperatingExpenses=(game.totalOperatingExpenses||0)+interest;}
   game.lastMonthlyProfit=game.monthlyIncome-game.monthlyExpenses;
   game.lastMonthlyOperatingProfit=game.monthlyIncome-(game.monthlyIncomeAtAccountingStart||0)-(game.monthlyOperatingExpenses||0);
-  game.history.push({month:game.lastMonth,day:Math.floor(game.day),income:game.monthlyIncome,expenses:game.monthlyExpenses,operatingExpenses:game.monthlyOperatingExpenses||0,operatingProfit:game.lastMonthlyOperatingProfit,profit:game.lastMonthlyProfit,money:game.money,population:game.cities.reduce((sum,c)=>sum+c.population,0),delivered:game.totalDelivered});
+  game.history.push({month:game.lastMonth,day:Math.floor(game.day),income:game.monthlyIncome,expenses:game.monthlyExpenses,operatingExpenses:game.monthlyOperatingExpenses||0,operatingProfit:game.lastMonthlyOperatingProfit,profit:game.lastMonthlyProfit,money:game.money,population:game.cities.reduce((sum,c)=>sum+c.population,0),delivered:game.totalDelivered,...game.monthlyMarketBonus>0?{marketBonus:game.monthlyMarketBonus}:{}});
+  delete game.monthlyMarketBonus;
   if(game.history.length>36)game.history.shift();
   // Each town keeps its last four counts, so the inspector can show recent growth.
   for(const city of game.cities){(city.popHistory??=[]).push(Math.floor(city.population));if(city.popHistory.length>4)city.popHistory.shift();}
@@ -1046,6 +1052,8 @@ export function validateGame(game) {
   if(!game.cities.every(c=>validPoint(game,c)&&uniqueId(c)&&typeof c.name==='string'&&finite(c.population,0,1e8)&&finite(c.activity,0)&&finite(c.passengers,0)&&finite(c.growth,0)&&finite(c.delivered,0)&&finite(c.supplies,0)))return false;
   if(!game.cities.every(c=>c.lastServiceDay===undefined||c.lastServiceDay===null||finite(c.lastServiceDay,0,game.day)))return false;
   if(!game.cities.every(c=>(c.serviceMonths===undefined||Number.isInteger(c.serviceMonths)&&finite(c.serviceMonths,0,10))&&(c.disturbance===undefined||finite(c.disturbance,0,DISTURBANCE.max))&&(c.advertisedUntil===undefined||Number.isInteger(c.advertisedUntil)&&finite(c.advertisedUntil,0,Math.floor(game.day)+TOWN_ACTIONS.advertise.days))&&(c.fundedUntil===undefined||Number.isInteger(c.fundedUntil)&&finite(c.fundedUntil,0,Math.floor(game.day)+TOWN_ACTIONS.fund.days))))return false;
+  if(!game.cities.every(c=>c.market===undefined||validMarket(c.market)))return false;
+  if(!game.routes.every(r=>r?.marketBonus===undefined||finite(r.marketBonus,0))||!game.history.every(h=>h?.marketBonus===undefined||finite(h.marketBonus,0))||game.monthlyMarketBonus!==undefined&&!finite(game.monthlyMarketBonus,0))return false;
   if(!game.cities.every(c=>c.lastStreetDay===undefined||finite(c.lastStreetDay,0,game.day)))return false;
   if(!game.cities.every(c=>c.popHistory===undefined||(Array.isArray(c.popHistory)&&c.popHistory.length<=12&&c.popHistory.every(n=>finite(n,0,1e8)))))return false;
   if(!game.tiles.every(tile=>tile.building?.populationCityId===undefined||tile.building.populationCityId===null||game.cities.some(city=>city.id===tile.building.populationCityId)))return false;

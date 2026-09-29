@@ -31,8 +31,9 @@ try {
   assert.equal(await page.locator('#inspector .town-grow summary').innerText(), 'Help it grow');
   assert.equal(await page.locator('#zone-town').isVisible(), false, 'Add zones waits inside the fold');
 
-  // Half a year on, the served starter town has grown since the count three months back.
-  await page.evaluate(async () => { const { tick } = await import('./model.js'); tick(transport.game, 200); });
+  // Four months on, the served starter town has grown since the count three months back. Its homes are in
+  // demand, so it fills its road-side plots by early summer; the check reads it while it is still growing.
+  await page.evaluate(async () => { const { tick } = await import('./model.js'); tick(transport.game, 125); });
   await inspectTown(page, 0);
   await page.locator('#inspector .town-growth').waitFor();
   const home = await expected(page, 0);

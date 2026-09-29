@@ -28,6 +28,8 @@ import { TOWN_CARGO } from './data.js';
 import { STATION_RADIUS } from './model.js';
 import { townNeeds, NEED_WINDOW, townGrowth, townOutlook } from './settlements.js';
 import { townOpinion, townActionQuote, townStopCounts, TOWN_ACTIONS } from './town-authority.js';
+import { marketView, demandInputs, demandLabel, familyCargo, townOf, FAMILIES, MARKET, TOWN_RADIUS } from './town-market.js';
+import { nearbyZones } from './simulation-spatial.js';
 import { buyTownAction } from './model.js';
 import { dateLong, listJoin } from './copy.js';
 import { forecastRoute } from './route-planner.js';
@@ -612,6 +614,7 @@ function routeOutlook(plan) {
  const shared=f.madeDay-f.supplyDay>.05,plural=noun==='bus'?'buses':noun+'s';
  const facts=[`${formDraft.cargo==='passengers'?'Towns send':'Source makes'} ≈ ${perDay(f.madeDay)} / day${shared?f.supplyDay>0?` · ≈ ${perDay(f.supplyDay)} spare`:' · all taken':formDraft.cargo==='passengers'?'':' once served'}`,`One ${noun} carries ≈ ${perDay(f.perVehicleDay)} / day`,f.supplyDay<=0?'':room>0?`Room for ≈ ${room} more ${room===1?noun:plural}`:`One ${noun} carries all of it`,`Full load ≈ ${money(f.fullLoad)}`].filter(Boolean);
  if(formDraft.mode==='road'&&room>0&&rail?.ratio>=1.5)facts.push(`A train would carry ≈ ${Math.round(rail.ratio)}× per vehicle${keepText(rail.share,f.share)}`);
+ if(f.marketBonus>=1)facts.push(`Includes ≈ ${money(f.marketBonus)} a month of market bonus`);
  const trip=planText(planTrip(game,formDraft.mode,formDraft.cargo,plan.path,getVehiclePurchase(game,formDraft.mode).level));
  return {outlook:f.netMonth>0?'gain':'loss',summary,trip,facts:facts.map(fact=>`<li>${escapeHTML(fact)}</li>`).join('')};
 }
@@ -894,6 +897,7 @@ function updateHud() {
  $('#income-exact').textContent=money((game.monthlyIncome||0)-(game.monthlyIncomeAtAccountingStart||0));$('#running-exact').textContent=money(game.monthlyOperatingExpenses||0);
  $('#building-exact').textContent=money(Math.max(0,(game.monthlyExpenses||0)-(game.monthlyOperatingExpenses||0)));
  const lastProfit=game.history.at(-1)?.operatingProfit;$('#previous-profit').textContent=Number.isFinite(lastProfit)?(lastProfit>=0?'+':'−')+money(lastProfit):'—';
+ const marketBonus=game.history.at(-1)?.marketBonus||0;$('#market-bonus-row').hidden=!(marketBonus>0);$('#market-bonus-exact').textContent=money(marketBonus);
  const loan=loanTerms(game);$('#loan-row').hidden=$('#interest-row').hidden=!loan.loan;if(loan.loan){$('#loan-exact').textContent=money(loan.loan);$('#interest-exact').textContent=money(loan.monthlyInterest)+' / month';}
  $('#profit-exact').title='Operating figures tracked since '+dayText(game.accountingStartDay||0);
  $('#delivered').innerHTML=integer(game.totalDelivered)+' <small>units</small>';
@@ -931,16 +935,9 @@ function updateHud() {
 }
 function tileAt(x,y){return x>=0&&y>=0&&x<game.width&&y<game.height?game.tiles[y*game.width+x]:null;}
 // Town needs only speed growth up: supplied cargo earns a check, the rest stay plain.
-function townNeedsShown() { return game.zones.length>0||game.routes.some(route=>route.cargo!=='passengers'); }
 function townNeedList(city) {
  const needs=townNeeds(game,city),fresh=key=>game.day-(city.lastSupply?.[key]??-Infinity)<=NEED_WINDOW;
  return [...new Set(needs.flatMap(need=>need.cargo))].map(key=>({key,met:fresh(key),title:needs.filter(need=>need.cargo.includes(key)).map(need=>need.label).join(' · ')+(fresh(key)?' · delivered recently':'')}));
-}
-function townNeedsRow(city) {
- if(!townNeedsShown())return '';
- const next=townNeeds(game,city).find(need=>!need.met),names=keys=>keys.map((key,n)=>n?CARGO[key].name.toLowerCase():CARGO[key].name).join(' or ');
- const hint=!next?'Recent deliveries keep its neighborhoods growing quickly.':next.kind==='construction'?`${names(next.cargo)} deliveries speed up construction.`:`${names(next.cargo)} deliveries help ${next.kind==='commercial'?'shops':'homes'} grow into ${next.label.toLowerCase()}.`;
- return `<section class="town-needs" aria-label="Grows faster with"><h4>Grows faster with</h4><div class="need-list">${townNeedList(city).map(need=>`<span class="need-chip" data-met="${need.met}" title="${escapeHTML(need.title)}">${cargoBadge(need.key,{label:true})}${need.met?`${icon('check')}<span class="sr-only">delivered recently</span>`:''}</span>`).join('')}</div><p class="need-hint">${escapeHTML(hint)}</p></section>`;
 }
 // The list names only what a town has received; its inspector lists the rest.
 function townNeedIcons(city) {
@@ -956,6 +953,32 @@ function townGrowthLine(outlook) {
 function townGrowHelp(outlook) {
  const room=outlook.plots?`${integer(outlook.plots)} free road-side ${outlook.plots===1?'plot':'plots'}`:'no free road-side plots';
  return `<details class="town-grow" ${townGrowOpen?'open':''}><summary>Help it grow</summary><p class="town-room">Room to grow · ${room}</p><p>Served towns extend their own streets over time. Zoning nearby land speeds this up.</p><button class="button button-primary full" id="zone-town">${icon('house')} Add zones</button></details>`;
+}
+// Town economy waits in a closed fold: three demand bars, what the shops want this month and what wanted cargo pays.
+// It reads marketView only, so opening it never changes the town.
+let townEconomyOpen=false;
+const DEMAND_ROWS=['Homes','Shops','Workshops'];
+const familyName=(family,cargo)=>family==='materials'?'Building materials':CARGO[cargo]?.name||'Household goods';
+// The tier a town need is holding back right now, in one of this town's zones.
+function slowedNeed(city) {
+ const needs=townNeeds(game,city).filter(need=>need.tier&&!need.met&&need.cargo.length),zones=nearbyZones(game,city.x,city.y,TOWN_RADIUS);
+ return needs.find(need=>zones.some(zone=>zone.kind===need.kind&&Math.floor(zone.progress)+1===need.tier&&tileAt(zone.x,zone.y)?.zone===zone.kind&&townOf(game,zone.x,zone.y)===city));
+}
+function economyNote(view,inputs) {
+ const bars=view.demand,top=bars.indexOf(Math.max(...bars)),shoppers=integer(inputs.shoppers);
+ if(bars.every(bar=>bar<.25))return 'Demand is quiet. Regular service and deliveries raise it.';
+ if(top===0)return inputs.served?`People want to move here: your service is regular${inputs.amenity>=.3?' and the town has good local services':''}.`:'Regular service would bring new residents.';
+ if(top===1)return view.shops?`About ${shoppers} shoppers for ${integer(view.shops)} ${view.shops===1?'shop':'shops'}. Commercial zones would fill quickly.`:`About ${shoppers} shoppers and no shops yet. Commercial zones would fill quickly.`;
+ return 'People here are looking for work. Industrial zones would fill quickly.';
+}
+function townEconomySection(city) {
+ const view=marketView(game,city),cargoOf=family=>familyCargo(game,family)[0],wanted=FAMILIES.filter(family=>view.wants[family]>0),short=wanted.find(family=>Math.floor(view.supplied[family])<view.wants[family]);
+ const rows=view.demand.map((bar,i)=>{const word=demandLabel(bar);return `<div class="demand-row" aria-label="${DEMAND_ROWS[i]} demand ${word.toLowerCase()}"><span>${DEMAND_ROWS[i]}</span><span class="demand-meter" aria-hidden="true"><i style="width:${Math.round(bar*100)}%"></i></span><b>${word}</b></div>`;}).join('');
+ const chips=wanted.map(family=>{const cargo=cargoOf(family),name=familyName(family,cargo),got=Math.floor(view.supplied[family]),want=view.wants[family],met=got>=want;return `<span class="want${met?' met':''}" title="${integer(got)} of ${integer(want)} ${escapeHTML(name.toLowerCase())} delivered this month"><span class="cargo-tile">${cargoIcon(cargo,{decorative:true})}</span><span class="want-name">${escapeHTML(name)}</span><span class="want-figure" data-num><b>${integer(got)}</b> of ${integer(want)}</span>${met?`${uiIcon('check',{size:16,cls:'want-check'})}<span class="sr-only">, all delivered</span>`:''}</span>`;}).join('');
+ const need=slowedNeed(city),needNames=need?.cargo.map((key,n)=>n?CARGO[key].name.toLowerCase():CARGO[key].name).join(' or ');
+ const hint=need?`<p class="economy-note">${escapeHTML(`${needNames} deliveries help ${need.kind==='commercial'?'shops':'homes'} grow into ${need.label.toLowerCase()}.`)}</p>`:'';
+ const lead=short?`Wants ${familyName(short,cargoOf(short)).toLowerCase()}`:'';
+ return `<details class="town-economy" ${townEconomyOpen?'open':''}><summary><span class="economy-title">Town economy</span><span class="economy-mini" aria-hidden="true">${view.demand.map(bar=>`<i style="height:${Math.round(3+9*bar)}px"></i>`).join('')}</span><strong class="economy-lead">${lead}</strong>${uiIcon('chevronDown',{size:16,cls:'economy-chevron'})}</summary><div class="demand-rows">${rows}</div><p class="economy-note">${escapeHTML(economyNote(view,demandInputs(game,city,view)))}</p><h4>Shops want each month</h4>${chips?`<div class="wants">${chips}</div>`:'<p class="economy-foot">No shop wants yet. Food and household shops appear as commercial zones develop.</p>'}${hint}${chips?`<p class="economy-foot">Wanted cargo pays ${Math.round(MARKET.bonus*100)}% more, up to these amounts each month.</p>`:''}</details>`;
 }
 // Opinion of your company waits in a closed fold: why the town feels as it does, and the town hall's optional purchases.
 let townOpinionOpen=false;
@@ -1115,7 +1138,7 @@ function inspect(x,y,kind='',origin='') {
  else if(industry){const d=INDUSTRIES[industry.kind],conditions=industryConditions(game,industry),typical=Object.values(d.outputs).reduce((a,b)=>a+b,0)*(industry.capacity||1)*conditions.productivity;title=industry.name||d.name;tag=`Industry · ${industrySize(industry)} × ${industrySize(industry)} site`;const status=industryStatus(industry,game);body=`${industry.openedDay!==undefined?`<p class="micro-note">Opened in ${calendarYear(game,industry.openedDay)}</p>`:''}<div class="inspector-industry-art">${industryPortrait(industry.kind)}${cargoRecipe(d.inputs,d.outputs)}</div><div class="industry-condition" data-state="${status.state}"><strong>${escapeHTML(status.label)}</strong><p>${escapeHTML(status.detail)}</p></div>${industryService(industry)}${industryDestinations(industry)}<div class="inspector-grid"><div><small>Capacity</small><strong>${Math.round((industry.capacity||1)*100)}%</strong></div><div><small>Storage</small><strong>${Math.round(outputFill(industry)*100)}% full</strong></div><div><small>Potential / day</small><strong>${typical.toLocaleString('en-US',{maximumFractionDigits:1})}</strong></div></div>${localConditions(conditions)}<div class="section-divider"></div><div class="ledger">${Object.entries(industry.inventory||{}).map(([key,n])=>`<div class="ledger-row">${cargoBadge(key,{label:true})}<strong>${integer(n)}</strong></div>`).join('')||'<span class="micro-note">Storage empty</span>'}</div>${industrySize(industry)<industryFootprint(industry.kind)?'<p class="micro-note">Compact legacy site. New construction uses a larger plot.</p>':''}`;}
  else if(kind!=='city'&&tile.building&&BUILDINGS[tile.building.kind]){const b=BUILDINGS[tile.building.kind],span=buildingSize(tile.building);title=b.name;tag=`${span} × ${span} site · ${b.tier?b.tier+' home':BUILDING_GROUPS[b.group].name}`;const nearest=game.cities.reduce((best,c)=>!best||Math.hypot(c.x-x,c.y-y)<Math.hypot(best.x-x,best.y-y)?c:best,null);body=`<div class="inspector-building"><canvas width="96" height="100" data-building-sprite="${tile.building.kind}" aria-hidden="true"></canvas><p>${escapeHTML(b.tier||BUILDING_GROUPS[b.group].name)} · ${nearest&&Math.hypot(nearest.x-x,nearest.y-y)<=10?escapeHTML(nearest.name):'Countryside'}</p></div><div class="inspector-grid"><div><small>Collection</small><strong>${escapeHTML(BUILDING_GROUPS[b.group].name)}</strong></div><div><small>Development</small><strong>Level ${tile.building.level||1}</strong></div></div><p>${escapeHTML(buildingBenefit(tile.building.kind))}</p>${span<buildingFootprint(tile.building.kind)?'<p class="micro-note">Compact legacy site. New construction uses a larger plot.</p>':''}`;}
  else if(kind!=='city'&&tile.building?.kind==='factory'){const span=buildingSize(tile.building);title='Neighborhood workshop';tag=`${span} × ${span} site`;body='<div class="inspector-building"><canvas width="96" height="100" data-building-sprite="factory" aria-hidden="true"></canvas><p>Local industry</p></div><p>Road access and town deliveries drive development. Each level supports local town activity.</p>';}
- else if(city&&(kind==='city'||!tile.zone)){const outlook=townOutlook(game,city);title=city.name;tag='Town';body=`<div class="inspector-grid town-figures"><div><small>Population</small><strong>${integer(city.population)}</strong></div><div><small>Activity</small><strong>${integer(city.activity||0)}</strong></div><div><small>Waiting</small><strong>${integer(city.passengers)}</strong></div></div><p class="site-status">${townService(game,city).label}</p>${townGrowthLine(outlook)}${localConditions(settlementSuitability(game,city))}${townNeedsRow(city)}${townGrowHelp(outlook)}${townOpinionSection(city)}`;}
+ else if(city&&(kind==='city'||!tile.zone)){const outlook=townOutlook(game,city);title=city.name;tag='Town';body=`<div class="inspector-grid town-figures"><div><small>Population</small><strong>${integer(city.population)}</strong></div><div><small>Activity</small><strong>${integer(city.activity||0)}</strong></div><div><small>Waiting</small><strong>${integer(city.passengers)}</strong></div></div><p class="site-status">${townService(game,city).label}</p>${townGrowthLine(outlook)}${localConditions(settlementSuitability(game,city))}${townGrowHelp(outlook)}${townEconomySection(city)}${townOpinionSection(city)}`;}
  else{title=tile.zone?TOOL_INFO[tile.zone].name+' zone':tile.road?'Road':tile.rail?'Railway':{grass:'Open countryside',forest:'Woodland',water:'Water',mountain:'Mountain ridge',rock:'Rocky ground',sand:'Desert sands',snow:'Snowfield'}[tile.terrain]||'Countryside';if(tile.detail&&!tile.road&&!tile.rail&&!tile.zone)title=tile.detail.replace(/-/g,' ').replace(/^./,c=>c.toUpperCase());tag=`${nature?terrainObjectSize(nature.object)+' × '+terrainObjectSize(nature.object)+' site · ':''}Level ${[...new Set(tileSurface(game,x,y).corners.map(p=>p.height))].sort((a,b)=>a-b).join('–')} · ${x}, ${y}`;body=tile.road||tile.rail?networkUse(tile,x,y):`<p>${nature&&nature.object.kind!=='mountain'?'A natural '+(nature.object.kind==='forest'?'grove':'outcrop')+' on level ground. Bulldoze any part to clear the whole site.':tile.zone?'Develops gradually with local demand.':tile.terrain==='water'?'Build a port on water beside a bank. Ships follow connected water and pass beneath bridges.':tile.terrain==='mountain'?'Use Terrain & crossings to tunnel through higher ground, or reshape clear land.':'Build on flat ground or a straight slope. Use Terrain & crossings to reshape or level clear land.'}</p>`;}
  if(tile.zone){const zone=game.zones.find(zone=>zone.x===x&&zone.y===y);body+=`<p>Development: ${Math.round((zone?.progress||0)/3*100)}% · Road access and regular town deliveries required.</p>`+localConditions(settlementSuitability(game,{x,y},tile.zone));}
  if(station&&kind!=='city'&&kind!=='industry')body=renameButton('station',station.id)+body;
@@ -1128,6 +1151,7 @@ function inspect(x,y,kind='',origin='') {
  if($('#station-route'))$('#station-route').onclick=()=>{if(formDraft.editing)leaveRouteEdit(true);if(formDraft.mode!==station.mode||formDraft.to===String(station.id))formDraft.to='';formDraft.mode=station.mode;formDraft.from=String(station.id);setView('routes');$('#route-form')?.scrollIntoView({block:'nearest',behavior:'smooth'});};
  if($('#zone-town'))$('#zone-town').onclick=()=>{category='towns';setView('build');};
  const opinionFold=box.querySelector('.town-opinion');if(opinionFold)opinionFold.ontoggle=()=>{townOpinionOpen=opinionFold.open;};
+ const economyFold=box.querySelector('.town-economy');if(economyFold)economyFold.ontoggle=()=>{townEconomyOpen=economyFold.open;};
  box.querySelectorAll('[data-town-action]').forEach(el=>el.onclick=e=>runTownAction(city,el.dataset.townAction,e.detail===0));
  box.querySelector('.town-grow')?.addEventListener('toggle',e=>{townGrowOpen=e.currentTarget.open;});
  if($('#industry-chain'))$('#industry-chain').onclick=()=>openChains({industryKind:industry.kind});

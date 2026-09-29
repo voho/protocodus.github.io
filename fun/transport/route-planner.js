@@ -7,6 +7,7 @@ import { money, tiles, listJoin, cargoName, vehicleNoun } from './copy.js';
 import { defaultRouteName as routeName } from './route-lines.js';
 import { payTiles, travelTiles, scheduledDays, transitPay } from './economy-pricing.js';
 import { VEHICLE_SPEEDS } from './data.js';
+import { familyOf, marketView, MARKET } from './town-market.js';
 
 const pathCache = new WeakMap();
 const canShip = (a, b, cargo) => {
@@ -153,13 +154,18 @@ function computeForecast(game, draft, plan) {
   const supplyDay = flows.reduce((sum, flow) => sum + flow.free, 0), movedDay = flows.reduce((sum, flow) => sum + Math.min(oneWay, flow.free), 0);
   // An added vehicle joins its route's share of the network; a new route takes its own.
   const upkeep = VEHICLE_UPKEEP[mode] + (joining ? 0 : infrastructureShare(game, mode, plan.path, [from, to]));
-  const netMonth = fareFor(game, cargo, paid + 1, movedDay * 30, game.day, days) - priceFor(game, upkeep * 30);
+  let netMonth = fareFor(game, cargo, paid + 1, movedDay * 30, game.day, days) - priceFor(game, upkeep * 30);
+  // The receiving town's shops pay a quarter more for what they still wanted last month.
+  const receiver = TOWN_CARGO.includes(cargo) ? stationCoverage(game, to).cities[0] : null, family = receiver && familyOf(game, cargo), market = family && marketView(game, receiver);
+  const marketBonus = market ? MARKET.bonus * perUnit * Math.min(movedDay * 30, Math.max(0, Math.round(market.wants[family] * (1 - market.met[family])))) : 0;
+  netMonth += marketBonus;
   const otherModes = Object.keys(VEHICLE_SPEEDS).filter(other => other !== mode).map(other => { const vehicle = getVehiclePurchase(game, other), rate = vehicle.capacity / roundTrip(other, tiles, vehicle.level) * flows.length; return { mode: other, perVehicleDay: rate, ratio: rate / perVehicleDay, share: transitPay(cargo, Math.round(scheduledDays(other, tiles, vehicle.level))) }; });
   return {
     perVehicleDay, supplyDay, movedDay, netMonth, paybackMonths: netMonth > 0 ? purchase.cost / netMonth : Infinity,
     vehiclesToSaturate: Math.max(0, Math.ceil(Math.max(...flows.map(flow => flow.free)) / oneWay - 1e-9)), otherModes,
     madeDay: flows.reduce((sum, flow) => sum + flow.made, 0), fullLoad: fareFor(game, cargo, paid + 1, purchase.capacity, game.day, days), cost: purchase.cost, joining,
     tiles: paid, travel: tiles, days, share, perUnit,
+    marketBonus,
   };
 }
 

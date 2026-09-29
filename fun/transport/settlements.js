@@ -7,9 +7,9 @@ import { terrainObjectAt } from './terrain-objects.js';
 import { networkTerrainProblem } from './terrain-engineering.js';
 import { BIOMES, CARGO, INDUSTRIES } from './data.js';
 import { townStopCounts, townOpinion, actionActive, TOWN_ACTIONS } from './town-authority.js';
+import { townOf, marketView, MARKET, ZONE_SECTOR } from './town-market.js';
 
 const clamp = (value, min = 0, max = 1) => Math.max(min, Math.min(max, value));
-const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const tileAt = (game, x, y) => x >= 0 && y >= 0 && x < game.width && y < game.height ? game.tiles[y * game.width + x] : null;
 const developmentKind = (kind, variant, level) => kind === 'residential' ? residentialKind(variant, level) : kind === 'commercial' ? commercialKind(variant, level) : 'factory';
 const GROUND = ['grass', 'sand', 'snow', 'forest'], STREET_DIRECTIONS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
@@ -23,12 +23,7 @@ const roadBeside = (game, x, y) => { for (let dy = -1; dy <= 1; dy++) for (let d
 const reachBonus = city => Math.min(3, Math.floor(Math.sqrt(city.population / 400)));
 
 function nearestCity(game, point) {
-  let nearest = null, best = 10;
-  for (const city of game.cities) {
-    const separation = distance(city, point);
-    if (separation < best) { nearest = city; best = separation; }
-  }
-  return nearest;
+  return townOf(game, point.x, point.y);
 }
 
 export function activeCities(game) {
@@ -54,6 +49,7 @@ export function townNeeds(game, city) {
 }
 const nextNeed = (needs, zone) => needs.find(need => need.kind === zone.kind && need.tier === Math.floor(zone.progress) + 1);
 const needText = need => `Faster with ${need.cargo.map(key => CARGO[key].name.toLowerCase()).join(' or ')} deliveries`;
+const DEMAND_NOTES = { residential: 'Homes in demand', commercial: 'Shops in demand', industrial: 'Workshops in demand' };
 
 function suitability(game, point, kind, environment, weather, city, connectedCities) {
   const e = environment, positive = [], negative = [];
@@ -97,6 +93,9 @@ export function settlementSuitability(game, point, kind = 'residential') {
   }
   const city = zone && nearestCity(game, point), need = city && nextNeed(townNeeds(game, city), zone);
   result.notes = need && !need.met ? [needText(need)] : [];
+  // A strong demand bar is good news for a plot; demand never reads as a concern.
+  const town = nearestCity(game, point), bar = town ? marketView(game, town).demand[ZONE_SECTOR[kind]] : 0;
+  if (bar >= .6) result.positive.unshift(DEMAND_NOTES[kind]);
   return result;
 }
 
@@ -206,7 +205,7 @@ export function stepSettlements(game, { extendStreets = null, reserved = [] } = 
     const funded = actionActive(city.fundedUntil, day);
     if (!funded && (!connected || city.activity < 8)) continue;
     const growthFactor = townOpinion(game, city, stopCounts).growth, pull = funded ? Math.max(1, demand) : demand;
-    if (randomAt(game, day, city.id, 104) >= (.055 + quality * .14) * pull * weather.growth * growthFactor * (funded ? TOWN_ACTIONS.fund.growth : 1)) continue;
+    if (randomAt(game, day, city.id, 104) >= (.055 + quality * .14) * pull * weather.growth * growthFactor * (funded ? TOWN_ACTIONS.fund.growth : 1) * (1 + MARKET.homesInfillBonus * (city.market?.demand?.[0] ?? 0))) continue;
 
     const bonus = reachBonus(city), radius = 3 + Math.floor(randomAt(game, day, city.id, 105) * 4) + bonus;
     let best = null;
@@ -247,7 +246,7 @@ export function stepSettlements(game, { extendStreets = null, reserved = [] } = 
     if (randomAt(game, day, key, 203) >= .25 + quality * .10) continue;
     const demand = clamp((city.activity + city.supplies * .6) / 65, .65, 1.2);
     const needs = townNeeds(game, city), need = nextNeed(needs, zone);
-    const increment = (.026 + quality * .026) * (.7 + randomAt(game, day, key, 204) * .6) * weather.growth * demand * (need && !need.met ? .25 : 1) * (needs.some(n => n.kind === 'construction' && n.met) ? 1.3 : 1);
+    const increment = (.026 + quality * .026) * (.7 + randomAt(game, day, key, 204) * .6) * weather.growth * demand * (need && !need.met ? .25 : 1) * (needs.some(n => n.kind === 'construction' && n.met) ? 1.3 : 1) * (need && !need.met ? 1 : 1 + MARKET.demandBonus * (city.market?.demand?.[ZONE_SECTOR[zone.kind]] ?? 0));
     zone.progress = clamp(zone.progress + increment, occupiedLevel, 3);
     const level = Math.floor(zone.progress);
     if (level <= occupiedLevel) continue;
