@@ -8,6 +8,7 @@ import { encodeGame, decodeGame, rememberGeneratedWorld } from './save-codec.js'
 import { randomAt, localEnvironment, weatherAt, stepEcology } from './environment.js';
 import { stepSettlements, housingCapacity } from './settlements.js';
 import { nearbyCities, nearbyIndustries, nearbyStations, nearbyZones } from './simulation-spatial.js';
+import { nextLineColor, nextRouteNumber, ensureRouteNumbers, defaultRouteName, validRouteNumber } from './route-lines.js';
 import { networkIndex, updateNetworkIndex, noteNetworkChanges, networkChangesSince } from './network-index.js';
 import { initializeIndustry, stepIndustries } from './industry-simulation.js';
 import { evaluateMilestones, validMilestones } from './milestones.js';
@@ -85,7 +86,7 @@ export function createGame({biome='taiga',seed=1847,size=DEFAULT_WORLD_SIZE,gene
     {id:'station-1',name:`${game.cities[0].name} Central`,x:game.cities[0].x,y:game.cities[0].y,mode:'road'},
     {id:'station-2',name:`${game.cities[1].name} Central`,x:game.cities[1].x,y:game.cities[1].y,mode:'road'},
   );
-  addRoute(game,{name:`${game.cities[0].name} · ${game.cities[1].name}`,mode:'road',stops:['station-1','station-2'],cargo:'passengers'});
+  addRoute(game,{mode:'road',stops:['station-1','station-2'],cargo:'passengers'});ensureRouteNumbers(game);
   game.money=funds; game.monthlyExpenses=0; game.totalExpenses=0;
   if(funds!==400000)game.startingFunds=funds;
   game.notifications=[];
@@ -554,8 +555,8 @@ export function addRoute(game,{name,mode='road',stops,cargo='passengers'}={}) {
   const {stations,path}=plan;
   if(game.vehicles.length>=MAX_VEHICLES)return result(false,FLEET_FULL);
   const purchase=getVehiclePurchase(game,mode),cost=purchase.cost;if(game.money<cost)return result(false,`Need ${moneyText(cost)} to buy this ${vehicleNoun(mode,cargo)}.`);
-  const palette=['#efc16f','#69c6bc','#d893b1','#88aee4','#b3cf83','#e5966d'];
-  const route={id:makeId(game,'route'),name:String(name||`${stations[0].name} → ${stations[1].name}`).slice(0,100),mode,stops:stations.map(s=>s.id),cargo,delivered:0,revenue:0,expenses:0,accountingStartDay:game.day,revenueAtAccountingStart:0,color:palette[game.routes.length%palette.length],path,active:true,status:'Running',pathRevision:game.networkRevision||0};
+  const line=nextLineColor(game,stations.map(s=>s.id));
+  const route={id:makeId(game,'route'),name:String(name||defaultRouteName(game,stations,cargo)).slice(0,100),number:nextRouteNumber(game),mode,stops:stations.map(s=>s.id),cargo,delivered:0,revenue:0,expenses:0,accountingStartDay:game.day,revenueAtAccountingStart:0,color:line.fill,path,active:true,status:'Running',pathRevision:game.networkRevision||0};
   const vehicle={id:makeId(game,'vehicle'),routeId:route.id,x:path[0].x,y:path[0].y,angle:0,load:0,capacity:purchase.capacity,level:purchase.level,paidPrice:cost,progress:0,direction:1,totalDistance:0,dwellRemaining:0,tripSerial:0};
   spend(game,cost);game.routes.push(route);game.vehicles.push(vehicle);loadVehicle(game,route,vehicle,0);game.revision++;
   return result(true,`Route launched: ${route.name}.${spent(cost)}`,{route,cost});
@@ -1034,6 +1035,7 @@ export function validateGame(game) {
   for(const zone of game.zones){const index=zone.y*game.width+zone.x,site=occupied.get(index);if(site&&(site.kind!=='building'||site.anchor!==index))return false;}
 
   if(!game.routes.every(r=>uniqueId(r)&&typeof r.name==='string'&&TRANSPORT_MODES.includes(r.mode)&&owns(CARGO,r.cargo)&&typeof r.active==='boolean'&&finite(r.delivered,0)&&finite(r.revenue,0)&&Array.isArray(r.stops)&&r.stops.length===2&&r.stops.every(id=>game.stations.some(s=>s.id===id&&s.mode===r.mode))&&Array.isArray(r.path)&&r.path.length>1&&r.path.length<=game.tiles.length&&r.path.every(p=>validPoint(game,p))))return false;
+  for(const route of game.routes)if(route.number!==undefined&&!validRouteNumber(route.number))delete route.number;
   if(!game.routes.every(route=>route.expenses===undefined||finite(route.expenses,0,1e15)))return false;
   if(!game.routes.every(route=>(route.accountingStartDay===undefined||finite(route.accountingStartDay,0,game.day))&&(route.revenueAtAccountingStart===undefined||finite(route.revenueAtAccountingStart,0,route.revenue))))return false;
   if(!game.vehicles.every(v=>uniqueId(v)&&game.routes.some(r=>r.id===v.routeId)&&finite(v.x,0,game.width)&&finite(v.y,0,game.height)&&finite(v.angle)&&finite(v.capacity,1,1e9)&&finite(v.load,0,v.capacity)&&finite(v.progress,0,(game.routes.find(r=>r.id===v.routeId)?.path.length||1)-1)&&[1,-1].includes(v.direction)))return false;
@@ -1096,6 +1098,7 @@ export function restoreGame(saved) {
     for(const vehicle of game.vehicles){vehicle.dwellRemaining??=0;vehicle.tripSerial??=0;vehicle.level??=0;vehicle.paidPrice??=VEHICLE_COSTS[game.routes.find(route=>route.id===vehicle.routeId).mode];}
     for(const city of game.cities)if(city.lastServiceDay===undefined)city.lastServiceDay=city.delivered>0?game.day:null;
     for(const route of game.routes){route.pathRevision=-1;if(route.expenses===undefined)route.revenueAtAccountingStart=route.revenue;route.expenses??=0;route.accountingStartDay??=game.day;route.revenueAtAccountingStart??=0;}
+    ensureRouteNumbers(game);
     game.maintenanceRevision=-1;
     return game;
   }catch{return null;}

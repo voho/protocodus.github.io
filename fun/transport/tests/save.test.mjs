@@ -173,3 +173,27 @@ test('storage failures are recoverable and reported to the interface', () => {
     assert.equal(deleteSave().ok, false);
   }, { getItem: unavailable, setItem: unavailable, removeItem: unavailable });
 });
+
+test('route numbers survive a save, and a save from before numbers is numbered in creation order', () => withStorage(storage => {
+  const game = createGame({ size: 'regional', seed: 44 }), [starter] = game.routes;
+  game.routes.push({ ...structuredClone(starter), id: 'route-900', number: 7 }, { ...structuredClone(starter), id: 'route-400', number: 3 });
+  assert.equal(validateGame(game), true);
+  assert.equal(saveGame(game).ok, true);
+  assert.deepEqual(loadGame().routes.map(route => [route.id, route.number]), [[starter.id, 1], ['route-900', 7], ['route-400', 3]], 'numbers load unchanged');
+  const legacy = JSON.parse(storage.getItem(SAVE_KEY));
+  for (const route of legacy.state.routes) delete route.number;
+  storage.setItem(SAVE_KEY, JSON.stringify(legacy));
+  const numbered = loadGame();
+  assert.ok(numbered, 'a save without route numbers loads');
+  assert.deepEqual(numbered.routes.map(route => [route.id, route.number]), [[starter.id, 1], ['route-900', 3], ['route-400', 2]], 'the oldest route is route 1');
+  assert.deepEqual(numbered.routes.map(route => [route.name, route.color]), game.routes.map(route => [route.name, route.color]), 'names and colours stay as saved');
+  assert.deepEqual(loadGame().routes.map(route => route.number), [1, 3, 2], 'a legacy save numbers the same way every time');
+  for (const bad of [0, 10000, 2.5, '4', null]) {
+    game.routes[1].number = bad;
+    assert.equal(validateGame(game), true, `${JSON.stringify(bad)} is dropped, not fatal`);
+    assert.equal(Object.hasOwn(game.routes[1], 'number'), false);
+  }
+  game.routes[1].number = 3;
+  assert.equal(saveGame(game).ok, true);
+  assert.deepEqual(loadGame().routes.map(route => route.number), [1, 2, 3], 'a duplicated number goes to the later route');
+}));

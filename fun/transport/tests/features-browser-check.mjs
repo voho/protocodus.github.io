@@ -118,6 +118,7 @@ try {
   const stoneRoute = await quarryPage.evaluate(() => transport.game.routes.at(-1));
   assert.equal(stoneRoute.cargo, 'stone');
   assert.equal(stoneRoute.name, 'Stone quarry to Alderbrook', 'an empty name uses the default');
+  assert.equal(stoneRoute.number, 2, 'the stone route is route 2');
   assert.equal(await quarryPage.locator('#route-planner').evaluate(element => element.open), false);
   await quarryPage.waitForFunction(id => {
     const drawer = document.querySelector('#panel-content').getBoundingClientRect(), card = document.querySelector(`[data-route-id="${id}"]`)?.getBoundingClientRect();
@@ -176,7 +177,7 @@ try {
   await fleetPage.locator('#route-form [name="from"]').selectOption('station-1');
   await fleetPage.locator('#route-form [name="to"]').selectOption('station-2');
   await fleetPage.locator('[data-cargo-choice="passengers"]').click();
-  assert.match(await fleetPage.locator('#route-connection').textContent(), /Already served by Alderbrook · Pinehaven/);
+  assert.match(await fleetPage.locator('#route-connection').textContent(), /Already served by Alderbrook – Pinehaven/);
   assert.equal(await fleetPage.locator('#route-form [type="submit"]').textContent(), 'Launch separate service', 'a duplicate service stays possible');
   await fleetPage.locator('#add-route-vehicle').click();
   assert.deepEqual(await fleetPage.evaluate(() => [transport.game.routes.length, transport.game.vehicles.length]), [1, 3], 'the planner adds to the existing route instead of duplicating it');
@@ -193,7 +194,7 @@ try {
     const { build, addRoute, addRouteVehicle } = await import('./model.js'), { buildPlan } = await import('./construction-plan.js'), game = transport.game;
     const road = buildPlan(game, 'road', [251, 250, 249, 248, 247, 246, 245].map(y => ({ x: 219, y })), { preferredMode: 'road' }), stop = build(game, 'bus-stop', 219, 251);
     const alder = game.stations.find(station => station.name === 'Alderbrook Central'), pine = game.stations.find(station => station.name === 'Pinehaven Central');
-    const launched = addRoute(game, { name: 'Stone quarry to Alderbrook', mode: 'road', stops: [stop.station.id, alder.id], cargo: 'stone' });
+    const launched = addRoute(game, { mode: 'road', stops: [stop.station.id, alder.id], cargo: 'stone' });
     if (!road.ok || !stop.ok || !launched.ok) throw new Error(`Could not prepare the stone route: ${road.message}; ${stop.message}; ${launched.message}`);
     addRouteVehicle(game, launched.route.id); transport.setView('routes');
     return { id: launched.route.id, start: stop.station.id, pine, vehicles: game.vehicles.filter(vehicle => vehicle.routeId === launched.route.id).map(vehicle => vehicle.id) };
@@ -242,7 +243,7 @@ try {
   await editPage.locator('#confirm-route-edit').click();
   const fuel = await editPage.evaluate(id => { const route = transport.game.routes.find(route => route.id === id); return { cargo: route.cargo, name: route.name, empty: transport.game.vehicles.filter(vehicle => vehicle.routeId === id).every(vehicle => vehicle.load === 0), money: transport.game.money }; }, stone.id);
   assert.deepEqual([fuel.cargo, fuel.empty, fuel.money], ['fuel', true, fuelMoney], 'the same trucks carry fuel from empty, free of charge');
-  assert.match(fuel.name, /^(?!Stone quarry ).+ to Pinehaven$/, 'the default name follows the new freight');
+  assert.equal(fuel.name, 'Oil refinery to Pinehaven', 'the default name follows the new freight');
   await stoneCard.locator('[data-edit-route]').click();
   await editPage.locator('#cancel-route-edit').click();
   assert.equal(await editPage.locator('#route-planner summary h3').textContent(), 'New route', 'Cancel leaves the edit');
@@ -694,7 +695,7 @@ try {
   const brokenAboveGap = await aboveGap();
   assert.equal(await page.evaluate(() => transport.renderer.getStats().routeBreaks), 1, 'the broken route pins its gap');
   assert.notDeepEqual(brokenAboveGap, intactAboveGap, 'the pin changes the map above the gap');
-  assert.ok(brokenAboveGap.every((value, index) => index % 4 === 3 || value > 200), 'a pale "Connection broken" pill sits above the gap');
+  assert.ok(brokenAboveGap.every((value, index) => index % 4 === 3 || value > 200), 'a paper "Not connected" plate sits above the gap');
   await page.screenshot({ path: `${output}/desktop-disconnected-route.png` });
   await page.evaluate(() => transport.setTool('road'));
   await clickMap(page, fixture.gap);
@@ -843,8 +844,19 @@ try {
     renderer.setZoom(1); renderer.focus(46, 42);
     renderer.render(1000, {}); const first = canvas.toDataURL(); renderer.render(9000, {}); const second = canvas.toDataURL();
     game.day += .05; renderer.render(9000, {}); const later = canvas.toDataURL();
+    // The legacy teal line draws in its mapped Cobalt, and a stop is a roundel: a paper centre in an ink ring, with none of
+    // the old lettered sign's disc, glyph or rim colours in its box.
+    const { lineFor } = await import('./route-lines.js'), { COLORS } = await import('./design-tokens.js'), hex = value => '#' + value.slice(0, 3).map(n => n.toString(16).padStart(2, '0')).join('').toUpperCase();
+    game.routes[0].cargo = 'passengers'; renderer.render(9000, {});
+    const context = canvas.getContext('2d'), at = (x, y) => Array.from(context.getImageData(Math.round(x * scale), Math.round(y * scale), 1, 1).data), mid = renderer.worldToScreen(46, 40);
+    const legacy = { pixel:hex(at(mid.x, mid.y)), mapped:lineFor(game.routes[0]).fill, name:lineFor(game.routes[0]).name };
+    renderer.focus(32, 40); renderer.render(9000, {});
+    const marker = renderer.stationMarker(game.stations[0]), cx = marker.x + marker.size / 2, cy = marker.y + marker.size / 2, box = context.getImageData(Math.round(marker.x * scale), Math.round(marker.y * scale), Math.round(marker.size * scale), Math.round(marker.size * scale)).data;
+    const old = ['#516d53', '#3f655a', '#376e7e', '#f0eacb', '#fbf6e3'].map(c => [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16))), signPixels = [];
+    for (let i = 0; i < box.length; i += 4) if (old.some(([r, g, b]) => Math.abs(box[i] - r) + Math.abs(box[i + 1] - g) + Math.abs(box[i + 2] - b) <= 6)) signPixels.push(hex([box[i], box[i + 1], box[i + 2]]));
+    const ring = at(cx + 3.75, cy), stop = { centre:hex(at(cx, cy)), ringDark:ring[0] + ring[1] + ring[2] < 240, signPixels:signPixels.length, paper:COLORS.paper };
     canvas.remove();
-    return { zooms, pausedSame:first === second, flowMoves:later !== second };
+    return { zooms, pausedSame:first === second, flowMoves:later !== second, line:legacy, stop };
   });
   for (const view of highlights.zooms) {
     assert.equal(view.stats, 'lit', `${view.zoom}x reports the highlighted route`);
@@ -855,6 +867,11 @@ try {
   }
   assert.equal(highlights.pausedSame, true, 'two renders of a paused world are identical');
   assert.equal(highlights.flowMoves, true, 'freight flow advances with the simulated day');
+  assert.equal(highlights.line.name, 'Cobalt', 'a saved #69c6bc route reads as Cobalt');
+  assert.equal(highlights.line.pixel, highlights.line.mapped, `the legacy line's midpoint draws in the Cobalt fill: ${JSON.stringify(highlights.line)}`);
+  assert.equal(highlights.stop.centre, highlights.stop.paper, `a stop is a roundel with a paper centre: ${JSON.stringify(highlights.stop)}`);
+  assert.equal(highlights.stop.ringDark, true, 'the roundel has an ink ring');
+  assert.equal(highlights.stop.signPixels, 0, 'no lettered B/T sign pixels remain');
 
   for (const width of [390, 320]) {
     await page.setViewportSize({ width, height: 844 });

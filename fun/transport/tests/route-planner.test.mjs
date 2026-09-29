@@ -148,8 +148,7 @@ test('default route names describe the freight flow after reversal', () => {
   assert.equal(reversed.reversed, true);
   assert.equal(defaultRouteName(game, reversed, 'stone'), 'Stone quarry to Alderbrook');
   const [a, b] = forward.stations;
-  assert.equal(defaultRouteName(game, forward, 'coal'), `${a.name} to ${b.name}`.slice(0, 35).trimEnd() + '…', 'stop names are the fallback');
-  b.name = 'Alderbrook'; assert.equal(defaultRouteName(game, forward, 'coal'), `${a.name} to Alderbrook`);
+  assert.equal(defaultRouteName(game, forward, 'coal'), `${a.name} to Alderbrook`, 'an end without its site falls back to its town, then its stop');
   game.cities[0].name = 'Alderbrook-upon-the-Northern-Pines';
   const long = defaultRouteName(game, forward, 'stone');
   assert.ok(long.length <= 36, long);

@@ -36,6 +36,8 @@ import { projectGround, projectTerrainPoint, surfaceHeight, tileSurface, groundI
 import { drawTerrainMesh, paintTerrainTile } from './terrain-mesh.js';
 import { partitionScenery, createSceneryBudget } from './scenery-batches.js';
 import { createRouteRenderIndex } from './route-render-index.js';
+import { lineFor, lineColor, validRouteNumber } from './route-lines.js';
+import { COLORS, STATES, MAP, FONT, alpha } from './design-tokens.js';
 import { networkIndex } from './network-index.js';
 import { createIsometricInfrastructureSprites } from './isometric-infrastructure.js';
 
@@ -47,6 +49,9 @@ const SCENE_PAN_MARGIN=96;
 const LANDMARKS=new Set(['forest','rock']);
 const BAKED_LAYERS=new Set(['trees','buildings','roads','rails','stations','zones']);
 const MINIMAP_LAYERS=new Set(['trees','buildings','roads','rails','stations','industryIcons','routes','zones']);
+// Map marks in display pixels (DESIGN.md 8 and 9): roundel radius per view, and one tile step of a route's projected path.
+const ROUNDEL={region:4,town:5,detail:6},PATH_STEP=Math.hypot(TILE,TILE/2);
+const font=(weight,size)=>`${weight} ${size}px ${FONT.family}`;
 function roundRect(ctx,x,y,w,h,r=5){ctx.beginPath();ctx.roundRect(x,y,w,h,r);}
 function line(ctx,points,color,width=1){ctx.beginPath();points.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.strokeStyle=color;ctx.lineWidth=width;ctx.stroke();}
 function dot(ctx,x,y,r,color){ctx.beginPath();ctx.arc(x,y,r,0,TAU);ctx.fillStyle=color;ctx.fill();}
@@ -223,19 +228,20 @@ export function createRenderer(canvas, initialGame, options={}) {
   function screenToWorld(x,y){const origin=cameraPoint();return unprojectPoint((x-W/2)/camera.zoom+origin.x,(y-H/2)/camera.zoom+origin.y);}
   function viewportCorners(margin=0){return[[-margin,-margin],[W+margin,-margin],[W+margin,H+margin],[-margin,H+margin]].map(([x,y])=>screenToWorld(x,y));}
   function visibleBounds(extra=0){const points=viewportCorners((180+MAX_HEIGHT*HEIGHT_STEP+extra)*camera.zoom);return{x0:Math.max(0,Math.floor(Math.min(...points.map(p=>p.x))/TILE)),y0:Math.max(0,Math.floor(Math.min(...points.map(p=>p.y))/TILE)),x1:Math.min(game.width,Math.ceil(Math.max(...points.map(p=>p.x))/TILE)),y1:Math.min(game.height,Math.ceil(Math.max(...points.map(p=>p.y))/TILE))};}
-  // Stop signs are 16 px discs in Region and 18 px from Town in, centred up and to the right of their stop. Signs,
+  // A stop's sign box, its click target, is 16 px in Region and 18 px from Town in, centred up and to the right of the stop,
+  // with the roundel at its centre. Signs,
   // labels and markers are placed in projected display pixels (see placeOverlays), so one shift puts every box on screen.
   const signSize=()=>detailLevel==='region'?16:18;
   function overlayShift(){const o=cameraPoint();return{x:W/2-o.x*camera.zoom,y:H/2-o.y*camera.zoom};}
   function stationMarker(station){const sign=placeOverlays().signs.get(station.y*game.width+station.x),s=overlayShift();if(sign)return{x:sign.x+s.x,y:sign.y+s.y,size:sign.size};const p=worldToScreen(station.x,station.y),size=signSize();return{x:p.x+8*camera.zoom+7-size/2,y:p.y-28*camera.zoom+7-size/2,size};}
   // Town labels rise clear of the stop signs beside a town centre; stations are cached per revision.
-  const labelRects=[],signRects=[];let townStops=null,townStopsIndex=null;
+  const labelRects=[],signRects=[],signEnds=new Map();let townStops=null,townStopsIndex=null;
   function nearbyStops(city){
     if(townStopsIndex!==stationIndex){townStops=new Map();townStopsIndex=stationIndex;for(const c of game.cities||[]){const near=[];for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const st=c.x+dx>=0&&c.x+dx<game.width?stationIndex.get((c.y+dy)*game.width+c.x+dx):null;if(st)near.push(st);}if(near.length)townStops.set(c,near.sort((a,b)=>projectTile(b.x,b.y).y-projectTile(a.x,a.y).y));}}
     return townStops.get(city);
   }
   // Signs are visited lowest first, so each lift can only meet the signs above it.
-  function clearStopSigns(stops,x,w,y,above,below,sign){for(const st of stops){const m=sign(st);if(m.x<x+w&&m.x+m.size>x&&m.y<y+below+5&&m.y+m.size>y-above)y=m.y-below-5;}return y;}
+  function clearStopSigns(stops,x,w,y,above,below,sign){for(const st of stops){const m=sign(st);if(m.x<x+w&&m.x+(m.w||m.size)>x&&m.y<y+below+5&&m.y+m.size>y-above)y=m.y-below-5;}return y;}
   function resize(){const rect=canvas.getBoundingClientRect();W=Math.max(1,rect.width);H=Math.max(1,rect.height);dpr=Math.min(window.devicePixelRatio||1,2);canvas.width=Math.round(W*dpr);canvas.height=Math.round(H*dpr);ctx.imageSmoothingEnabled=false;updateRaster();bounds();}
   function bounds(){
     camera.x=Math.max(TILE/2,Math.min((game.width-.5)*TILE,camera.x));
@@ -312,11 +318,11 @@ export function createRenderer(canvas, initialGame, options={}) {
     if(overlays?.key===key&&overlays.game===game)return overlays;
     const x0=(cellX-2)*W/2-256,x1=(cellX+3)*W/2+256,y0=(cellY-2)*H/2-256,y1=(cellY+3)*H/2+256+MAX_HEIGHT*HEIGHT_STEP*z,near=(site,span=1)=>{const x=(site.x-site.y)*TILE*z,y=(site.x+site.y+span)*TILE/2*z;return x>x0&&x<x1&&y>y0&&y<y1;};
     const grid=createOverlayGrid(64),labels=new Map(),signs=new Map(),markers=new Map(),stats={labels:0,signs:0,movedSigns:0,front:0,own:0,side:0},size=signSize();
-    const at=(x,y)=>{const p=projectTile(x,y);return{x:p.x*z,y:p.y*z};},sign=st=>{const p=at(st.x,st.y);return{x:p.x+8*z+7-size/2,y:p.y-28*z+7-size/2,size};},pad=r=>({x:r.x-2,y:r.y-2,w:r.w+4,h:r.h+4});
+    const at=(x,y)=>{const p=projectTile(x,y);return{x:p.x*z,y:p.y*z};},sign=st=>{const p=at(st.x,st.y),bullets=detailLevel==='region'?0:bulletsWidth(st);return{x:p.x+8*z+7-size/2,y:p.y-28*z+7-size/2,size,w:bullets?size/2+(ROUNDEL[detailLevel]||ROUNDEL.town)+3+bullets:size};},pad=r=>({x:r.x-2,y:r.y-2,w:r.w+4,h:r.h+4});
     if(layers.names)for(const city of game.cities||[]){
       if(!near(city))continue;const p=at(city.x,city.y),stops=nearbyStops(city),name=city.name||'New city';let y=p.y-29*z,box;
-      if(detailLevel==='region'){ctx.font='600 11px Space, system-ui, sans-serif';const w=ctx.measureText(name).width+20;if(stops)y=clearStopSigns(stops,p.x-w/2-4,w+8,y,14,14,sign);box={x:p.x-w/2-4,y:y-14,w:w+8,h:28};if(grid.find(box))continue;}
-      else{ctx.font='600 13px Space, system-ui, sans-serif';const nameW=ctx.measureText(name).width;ctx.font='500 11px Space, system-ui, sans-serif';const w=nameW+ctx.measureText(populationText(city)).width+42;if(stops)y=clearStopSigns(stops,p.x-w/2,w,y,14,15,sign);box={x:p.x-w/2,y:y-14,w,h:29};}
+      if(detailLevel==='region'){ctx.font=font(MAP.nameplate.regionName.weight,MAP.nameplate.regionName.size);const w=ctx.measureText(name).width+20;if(stops)y=clearStopSigns(stops,p.x-w/2-4,w+8,y,14,14,sign);box={x:p.x-w/2-4,y:y-14,w:w+8,h:28};if(grid.find(box))continue;}
+      else{const w=nameplate(city).w;if(stops)y=clearStopSigns(stops,p.x-w/2,w,y,14,15,sign);box={x:p.x-w/2,y:y-14,w,h:29};}
       labels.set(city,grid.add({...box,kind:'label',owner:city,cx:p.x,cy:y}));stats.labels++;
     }
     for(const st of game.stations||[]){
@@ -642,7 +648,7 @@ export function createRenderer(canvas, initialGame, options={}) {
     ctx.save();ctx.translate(p.x,p.y);
     if(!vehicleSprites.draw(ctx,v,route,{engine,heading:angle})){
       ctx.rotate(angle);
-      ctx.fillStyle='#263c35';roundRect(ctx,-9,-4.5,18,9,2);ctx.fill();ctx.fillStyle=route?.color||'#c78753';roundRect(ctx,-8,-3.5,16,7,2);ctx.fill();
+      ctx.fillStyle='#263c35';roundRect(ctx,-9,-4.5,18,9,2);ctx.fill();ctx.fillStyle=lineFor(route).fill;roundRect(ctx,-8,-3.5,16,7,2);ctx.fill();
       ctx.fillStyle='#e9ddbd';ctx.fillRect(-6,-2.5,10,5);ctx.fillStyle='#426878';ctx.fillRect(4,-2.5,2,5);
       if(train&&engine){ctx.fillStyle='#526361';ctx.fillRect(-2,-2,4,4);}
     }
@@ -806,12 +812,17 @@ export function createRenderer(canvas, initialGame, options={}) {
     // The model's own predicate, so a highlight can never promise what build() refuses.
     return !buildProblem(game,tool,p.x,p.y);
   }
+  // World labels are paper plates (DESIGN.md 9): paper at 94%, radius 4 and a 1 px ink edge at 14%, on whole pixels.
+  function plate(x,y,w,h){const p=MAP.nameplate;ctx.fillStyle=alpha(p.fill,p.fillAlpha);roundRect(ctx,Math.round(x)+.5,Math.round(y)+.5,Math.round(w),Math.round(h),p.radius);ctx.fill();ctx.strokeStyle=alpha(p.edge,p.edgeAlpha);ctx.lineWidth=1;ctx.stroke();}
   function pill(x,y,label,opts={}){
-    const size=opts.size||11;ctx.font=`${opts.bold?600:500} ${size}px Space, system-ui, sans-serif`;
+    const size=Math.max(12,opts.size||12);ctx.font=font(opts.bold?600:500,size);
     const w=ctx.measureText(label).width+(opts.dot?25:16),h=opts.h||23;
-    ctx.shadowColor='#293d2620';ctx.shadowBlur=8;ctx.shadowOffsetY=2;
-    ctx.fillStyle=opts.fill||'#f5f3e8ee';roundRect(ctx,x-w/2,y-h/2,w,h,opts.radius||5);ctx.fill();ctx.shadowColor='transparent';ctx.shadowBlur=0;ctx.shadowOffsetY=0;
-    ctx.strokeStyle=opts.stroke||'#f8f6e8b0';ctx.lineWidth=.7;ctx.stroke();ctx.fillStyle=opts.color||'#354b3e';ctx.textAlign='left';ctx.textBaseline='middle';let tx=x-w/2+8;if(opts.dot){dot(ctx,tx+2,y,2.5,opts.dot);tx+=10;}ctx.fillText(label,tx,y+.3);return w;
+    plate(x-w/2,y-h/2,w,h);ctx.fillStyle=opts.color||COLORS.ink;ctx.textAlign='left';ctx.textBaseline='middle';let tx=x-w/2+8;if(opts.dot){dot(ctx,tx+2,y,2.5,opts.dot);tx+=10;}ctx.fillText(label,tx,y+.3);return w;
+  }
+  // A town nameplate: its name 13/600, a 1 px rule and the population 12/500 in ink-2. Placement and drawing share the widths.
+  function nameplate(city){
+    const name=city.name||'New city',pop=populationText(city);ctx.font=font(MAP.nameplate.name.weight,MAP.nameplate.name.size);const nameW=ctx.measureText(name).width;
+    ctx.font=font(MAP.nameplate.population.weight,MAP.nameplate.population.size);const popW=ctx.measureText(pop).width;return{name,pop,nameW,popW,w:nameW+popW+42};
   }
   function cargoImage(kind,size){
     const pixels=Math.ceil(size*dpr),key=`${kind}:${pixels}`;let image=cargoImages.get(key);
@@ -834,7 +845,7 @@ export function createRenderer(canvas, initialGame, options={}) {
     // An empty carrier has only an unfilled meter; loaded carriers show cargo.
     // Each is a pill whose tail points down at its carrier, edged on the left in its route's colour; a thin stem bridges any gap.
     const foot=p.y-(route.mode==='water'?18:6)*camera.zoom;if(foot-y-h>8)line(ctx,[[p.x,y+h+4],[p.x,foot]],'#475b455b',1);
-    const image=state==='empty'?null:cargoImage(route.cargo||'passengers',size),loaded=Boolean(image?.complete&&image.naturalWidth),color=route.color||'#ce9d55';
+    const image=state==='empty'?null:cargoImage(route.cargo||'passengers',size),loaded=Boolean(image?.complete&&image.naturalWidth),color=lineFor(route).fill;
     const key=`${dpr}:${size}:${state}:${state==='empty'?'':route.cargo||'passengers'}:${color}:${loaded}`;
     let badge=loadBadges.get(key);
     if(!badge){
@@ -869,10 +880,9 @@ export function createRenderer(canvas, initialGame, options={}) {
       for(const r of labelRects)if(left<r.x+r.w&&left+w>r.x){if(start<r.y+r.h&&start+h>r.y)start=r.y-h-3;else if(start>=r.y+r.h)ceiling=Math.max(ceiling,r.y+r.h+3);}
       const top=Math.round(Math.max(ceiling,start-(still?0:22*(1-(1-t)**3))));
       ctx.globalAlpha=t<.6?1:(1-t)/.4;
-      ctx.shadowColor='#293d2620';ctx.shadowBlur=8;ctx.shadowOffsetY=2;ctx.fillStyle='#f7f4e7f0';roundRect(ctx,left,top,w,h,5);ctx.fill();ctx.shadowColor='transparent';ctx.shadowBlur=0;ctx.shadowOffsetY=0;
-      ctx.strokeStyle='#f8f6e8b0';ctx.lineWidth=.7;ctx.stroke();
+      plate(left,top,w,h);
       if(image.complete&&image.naturalWidth)ctx.drawImage(image,left+8,top+(h-14)/2,14,14);else dot(ctx,left+15,top+h/2,3,'#849367');
-      ctx.fillStyle='#3f6b45';ctx.fillText(label,left+27,top+h/2+.3);
+      ctx.fillStyle=STATES.ok.color;ctx.fillText(label,left+27,top+h/2+.3);
     }
     ctx.globalAlpha=1;
   }
@@ -892,21 +902,49 @@ export function createRenderer(canvas, initialGame, options={}) {
     if(markerTiles.size>=256)markerTiles.delete(markerTiles.keys().next().value);
     markerTiles.set(key,tile);return tile;
   }
-  // A stop sign is one prepared disc per mode, state, ring colours, size and density, in a 128-entry LRU: a paper rim,
-  // a ring split between up to three route colours and the mode's glyph on a dark disc, or for an unused stop a pale outline.
-  const stationBadges=new Map();
-  function stationBadge(mode,state,colors,size){
-    const key=`${mode}:${state}:${colors.join('/')}:${size}:${dpr}`;let badge=stationBadges.get(key);
-    if(badge){stationBadges.delete(key);stationBadges.set(key,badge);return badge;}
-    badge=document.createElement('canvas');badge.width=badge.height=Math.ceil((size+8)*dpr);
-    const c=badge.getContext('2d'),r=size/2,idle=state==='idle',ink=idle?'#8e9c85':'#f0eacb',n=colors.length;c.scale(dpr,dpr);c.translate(4+r,4+r);
-    c.shadowColor='#293d2638';c.shadowBlur=3;c.shadowOffsetY=1;dot(c,0,0,r,idle?'#f5f2e2':'#fbf6e3');c.shadowColor='transparent';c.shadowBlur=0;c.shadowOffsetY=0;
-    if(idle){c.beginPath();c.arc(0,0,r-1.1,0,TAU);c.strokeStyle='#8e9c85';c.lineWidth=1.2;c.stroke();}
-    else{colors.forEach((color,i)=>{const a=-Math.PI/2+i*TAU/n,gap=n>1?.22:0;c.beginPath();c.arc(0,0,r-1.6,a+gap,a+TAU/n-gap);c.strokeStyle=color;c.lineWidth=2.2;c.stroke();});dot(c,0,0,r-3,mode==='water'?'#376e7e':mode==='rail'?'#3f655a':'#516d53');}
-    if(mode==='water'){c.strokeStyle=ink;c.lineWidth=1.1;c.beginPath();c.arc(0,-3.5,1.2,0,TAU);c.stroke();line(c,[[0,-2.3],[0,4]],ink,1.1);line(c,[[-3,-1],[3,-1]],ink,1.1);c.beginPath();c.moveTo(-4,1);c.quadraticCurveTo(-4,4,0,4);c.quadraticCurveTo(4,4,4,1);c.stroke();}
-    else{c.fillStyle=ink;c.font=`bold ${size>16?10:9}px Space, system-ui, sans-serif`;c.textAlign='center';c.textBaseline='middle';c.fillText(mode==='rail'?'T':'B',0,.6);}
-    if(stationBadges.size>=128)stationBadges.delete(stationBadges.keys().next().value);
-    stationBadges.set(key,badge);return badge;
+  // A stop is a roundel (DESIGN.md 9): a paper disc in a 2.5 px ring, over a 1 px paper halo so it reads on dark ground.
+  function roundel(x,y,r,ring){dot(ctx,x,y,r+1,alpha(COLORS.paper,.9));dot(ctx,x,y,r,COLORS.paper);ctx.beginPath();ctx.arc(x,y,r-MAP.roundel.ringWidth/2,0,TAU);ctx.strokeStyle=ring;ctx.lineWidth=MAP.roundel.ringWidth;ctx.stroke();}
+  // A route bullet (DESIGN.md 8.1): route.number in 12/700 in the line's on-colour, on a shape by mode (road a rounded square,
+  // rail a circle, water a pill 1.6 times as wide, air a diamond) that stretches for two or more digits. On the map it wears a
+  // paper halo, and a light fill a 1 px ink edge at 35%. Each is prepared once per mode, number, fill, size, density and
+  // font state in a 256-entry LRU. x is the left edge and y the centre; returns the width.
+  const bulletTiles=new Map(),bulletWidths=new Map(),textMeter=document.createElement('canvas').getContext('2d');
+  function bulletWidth(route,size){
+    const text=validRouteNumber(route?.number)?String(route.number):'',mode=route?.mode||'road',key=`${mode}:${text}:${size}:${document.fonts?.status}`;let w=bulletWidths.get(key);
+    if(w===undefined){textMeter.font=font(700,MAP.bullet.numeral.size);const t=text?textMeter.measureText(text).width:0;w=mode==='air'?text.length>1?Math.ceil(t+size*.8):size:Math.max(mode==='water'?Math.round(size*1.6):size,Math.ceil(t+(size>16?10:8)));if(bulletWidths.size>=512)bulletWidths.clear();bulletWidths.set(key,w);}
+    return w;
+  }
+  function bulletTile(route,size){
+    const line=lineFor(route),mode=route?.mode||'road',text=validRouteNumber(route?.number)?String(route.number):'',w=bulletWidth(route,size),key=`${mode}:${text}:${line.fill}:${size}:${dpr}:${document.fonts?.status}`;let tile=bulletTiles.get(key);
+    if(tile){bulletTiles.delete(key);bulletTiles.set(key,tile);return tile;}
+    tile=document.createElement('canvas');tile.width=Math.ceil((w+4)*dpr);tile.height=Math.ceil((size+4)*dpr);tile.bulletWidth=w;
+    const c=tile.getContext('2d'),m=size/2;c.scale(dpr,dpr);c.translate(2,2);c.beginPath();
+    if(mode==='air'){c.moveTo(0,m);c.lineTo(m,0);c.lineTo(w-m,0);c.lineTo(w,m);c.lineTo(w-m,size);c.lineTo(m,size);c.closePath();}else c.roundRect(0,0,w,size,mode==='road'?4:m);
+    c.lineJoin='round';c.strokeStyle=alpha(COLORS.paper,.9);c.lineWidth=2.5;c.stroke();c.fillStyle=line.fill;c.fill();
+    if(line.light){c.strokeStyle=alpha(MAP.bullet.lightEdge,MAP.bullet.lightEdgeAlpha);c.lineWidth=1;c.stroke();}
+    if(text){c.fillStyle=line.on;c.font=font(700,MAP.bullet.numeral.size);c.textAlign='center';c.textBaseline='middle';c.fillText(text,w/2,m+.5);}
+    if(bulletTiles.size>=256)bulletTiles.delete(bulletTiles.keys().next().value);
+    bulletTiles.set(key,tile);return tile;
+  }
+  function drawBullet(target,x,y,route,size){const tile=bulletTile(route,size);target.drawImage(tile,Math.round((x-2)*dpr)/dpr,Math.round((y-size/2-2)*dpr)/dpr,tile.width/dpr,tile.height/dpr);return tile.bulletWidth;}
+  // The routes a stop shows, lowest number first: three bullets, then a +N paper tag. Region shows only terminus bullets.
+  const byNumber=(a,b)=>(validRouteNumber(a.number)?a.number:1e4)-(validRouteNumber(b.number)?b.number:1e4);
+  function servingBullets(st,routes,region){const list=(region?routes.filter(route=>route.stops?.[0]===st.id||route.stops?.at(-1)===st.id):routes.slice()).sort(byNumber);return{shown:list.slice(0,3),more:Math.max(0,list.length-3)};}
+  const tagWidth=(label,size)=>{textMeter.font=font(600,12);return Math.ceil(textMeter.measureText(label).width+(size>16?10:8));};
+  function bulletsWidth(st,region=false){const size=region?MAP.bullet.small:MAP.bullet.size,list=servingBullets(st,stopCalls().get(st.id)||[],region);return list.shown.length?list.shown.reduce((sum,route)=>sum+bulletWidth(route,size)+2,-2)+(list.more?2+tagWidth(`+${list.more}`,size):0):0;}
+  // Draws a stop's bullets from x, centred on y; an offline or paused route's bullet is at half strength. Region drops any
+  // bullet that would meet a town name. Returns the right edge of what was drawn.
+  function stopBullets(st,routes,x,y,region){
+    const size=region?MAP.bullet.small:MAP.bullet.size,list=servingBullets(st,routes,region),clear=w=>!region||!labelRects.some(r=>x<r.x+r.w&&x+w>r.x&&y-size/2<r.y+r.h&&y+size/2>r.y);let end=x-3;
+    for(const route of list.shown){const w=bulletWidth(route,size);if(!clear(w))continue;ctx.globalAlpha=route.active===false||route.paused?.5:1;drawBullet(ctx,x,y,route,size);ctx.globalAlpha=1;end=x+w;x+=w+2;}
+    if(list.more){const label=`+${list.more}`,w=tagWidth(label,size);if(clear(w)){plate(x,y-size/2,w,size);ctx.font=font(600,12);ctx.fillStyle=COLORS.ink;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(label,x+w/2,y+.5);end=x+w;}}
+    return end;
+  }
+  // The cut glyph at a route's break: two short slashes across the line, in the error colour over a paper casing.
+  function cutMark(x,y,dx,dy){
+    const d=Math.hypot(dx,dy)||1,ux=dx/d,uy=dy/d,sx=-uy*.87+ux*.5,sy=ux*.87+uy*.5;ctx.save();ctx.lineCap='round';
+    for(const [color,width] of [[COLORS.paper,5],[MAP.cut.color,2]]){ctx.beginPath();for(const o of [-3,3]){const cx=x+ux*o,cy=y+uy*o;ctx.moveTo(cx-sx*6,cy-sy*6);ctx.lineTo(cx+sx*6,cy+sy*6);}ctx.strokeStyle=color;ctx.lineWidth=width;ctx.stroke();}
+    ctx.restore();
   }
   function resourceMarker(x,y,kind,size,label,role=null,mark={}){
     // Screen-space markers stay legible in Region and render at native display
@@ -915,15 +953,15 @@ export function createRenderer(canvas, initialGame, options={}) {
     // and a served factory still missing an input shows those inputs beneath it (an amber dot in Region).
     const h=size+6,w=size+8,mx=Math.round((x-w/2)*dpr)/dpr,my=Math.round((y-h/2)*dpr)/dpr;
     const tile=markerTile(kind,mark.color?`${mark.color}/2`:role?`${LENS_COLORS[role]}/1.5`:'',size);ctx.drawImage(tile,mx-8,my-8,tile.width/dpr,tile.height/dpr);
-    if(mark.fill>0){ctx.fillStyle='#e2ddc9';roundRect(ctx,mx+6,my+h-5,w-12,3,1.5);ctx.fill();ctx.fillStyle='#bd8e43';roundRect(ctx,mx+6,my+h-5,Math.max(1.5,(w-12)*Math.min(1,mark.fill)),3,1.5);ctx.fill();}
+    if(mark.fill>0){ctx.fillStyle=COLORS.well;roundRect(ctx,mx+6,my+h-5,w-12,3,1.5);ctx.fill();ctx.fillStyle=mark.fill>=.9?STATES.warn.color:COLORS.ink;roundRect(ctx,mx+6,my+h-5,Math.max(1.5,(w-12)*Math.min(1,mark.fill)),3,1.5);ctx.fill();}
     if(mark.missing?.length){
       if(detailLevel==='region'){dot(ctx,mx+w-2,my+2,4.6,'#fbf6e3');dot(ctx,mx+w-2,my+2,3.2,'#bd8e43');}
       else mark.missing.forEach((cargo,i)=>{const cx=Math.round(x-(mark.missing.length*18-2)/2+i*18),cy=my+h+3,image=cargoImage(cargo,12);ctx.fillStyle='#f7f4e7f5';roundRect(ctx,cx,cy,16,16,4);ctx.fill();ctx.strokeStyle='#bd8e43';ctx.lineWidth=1;ctx.stroke();if(image.complete&&image.naturalWidth)ctx.drawImage(image,cx+2,cy+2,12,12);else dot(ctx,cx+8,cy+8,2.5,'#bd8e43');});
     }
     if(label){
-      ctx.font='500 12px Space, system-ui, sans-serif';const nameWidth=ctx.measureText(label).width+16;
+      ctx.font=font(500,12);const nameWidth=ctx.measureText(label).width+16;
       const right=x+w/2+4+nameWidth/2,left=x-w/2-4-nameWidth/2;
-      pill(right+nameWidth/2>W-8?left:right,y,label,{size:12,h:28,fill:'#f7f4e7f5',color:'#3e5547',radius:5});
+      pill(right+nameWidth/2>W-8?left:right,y,label,{h:28});
     }
     if(role)lensTab(x+w/2-2,y-h/2+2,role);
     if(mark.covered)coverTab(x-w/2+2,y-h/2+2);
@@ -954,14 +992,14 @@ export function createRenderer(canvas, initialGame, options={}) {
     }
     for(const arc of [...arcs.filter(arc=>!arc.strong),...arcs.filter(arc=>arc.strong)]){
       ctx.globalAlpha=dim&&!arc.strong?.35:1;ctx.beginPath();ctx.moveTo(from.x,from.y);ctx.quadraticCurveTo(arc.c.x,arc.c.y,arc.to.x,arc.to.y);
-      ctx.strokeStyle='#1f332a40';ctx.lineWidth=arc.strong?4:3;ctx.stroke();ctx.setLineDash(arc.strong?[]:[4,4]);ctx.strokeStyle='#f4d397';ctx.lineWidth=arc.strong?2:1.5;ctx.stroke();ctx.setLineDash([]);
+      ctx.strokeStyle=alpha(COLORS.ink,.35);ctx.lineWidth=arc.strong?4:3.5;ctx.stroke();ctx.setLineDash(arc.strong?[]:[4,4]);ctx.strokeStyle=COLORS.paper;ctx.lineWidth=arc.strong?2:1.5;ctx.stroke();ctx.setLineDash([]);
     }
     ctx.globalAlpha=1;contextTargets=arcs.length;
     return arcs.filter(arc=>arc.bubble).map(arc=>({...arc.bubble,rank:arc.rank,strong:arc.strong,dim:dim&&!arc.strong}));
   }
   function contextBubble({x,y,rank,strong,dim}){
-    ctx.globalAlpha=dim?.35:1;ctx.shadowColor='#293d2630';ctx.shadowBlur=5;ctx.shadowOffsetY=2;dot(ctx,x,y,8,strong?'#354b3e':'#f7f4e7f5');ctx.shadowColor='transparent';ctx.shadowBlur=0;ctx.shadowOffsetY=0;
-    ctx.strokeStyle='#f4d397';ctx.lineWidth=1.5;ctx.stroke();ctx.font='600 10px Space, system-ui, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=strong?'#f7f4e7':'#354b3e';ctx.fillText(String(rank),x,y+.5);ctx.globalAlpha=1;
+    ctx.globalAlpha=dim?.35:1;dot(ctx,x,y,9,strong?COLORS.ink:COLORS.paper);
+    ctx.strokeStyle=alpha(COLORS.ink,.35);ctx.lineWidth=1;ctx.stroke();ctx.font=font(600,12);ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=strong?COLORS.onInk:COLORS.ink;ctx.fillText(String(rank),x,y+.5);ctx.globalAlpha=1;
   }
   function render(now,view={}){
     lastTime=now||0;const {tool='inspect',hover=null,preview=[],selected=null,routeStops=[],preferredMode='road'}=view;
@@ -994,45 +1032,80 @@ export function createRenderer(canvas, initialGame, options={}) {
       if(!cached||cached.path!==path||cached.length!==path.length||cached.key!==key||cached.revision!==structureRevision||cached.mode!==r.mode){
         let index=routeIndexes.get(path);
         if(!index||index.length!==path.length){index={length:path.length,spatial:createRouteRenderIndex(path)};routeIndexes.set(path,index);}
-        const drawing=new Path2D();let previous=-1,count=0,segments=0;
+        const drawing=new Path2D(),ranges=[];let previous=-1,count=0,segments=0;
         for(const[start,end]of index.spatial.query({x0,y0,x1,y1}))for(let i=start;i<=end;i++){
           const a=path[i-1],b=path[i];segments++;
           if(Math.max(a.x,b.x)<x0||Math.min(a.x,b.x)>=x1||Math.max(a.y,b.y)<y0||Math.min(a.y,b.y)>=y1){previous=-1;continue;}
-          if(previous!==i-1){const p=transportPoint(a.x,a.y,r.mode);drawing.moveTo(p.x,p.y);}
+          if(previous!==i-1){const p=transportPoint(a.x,a.y,r.mode);drawing.moveTo(p.x,p.y);ranges.push([i,i]);}else ranges[ranges.length-1][1]=i;
           const edge=transportPoint((a.x+b.x)/2,(a.y+b.y)/2,r.mode),p=transportPoint(b.x,b.y,r.mode);drawing.lineTo(edge.x,edge.y);drawing.lineTo(p.x,p.y);previous=i;count++;
         }
-        cached={path,length:path.length,key,revision:structureRevision,mode:r.mode,drawing,count,segments};routePaths.set(r,cached);routePathBuilds++;
+        cached={path,length:path.length,key,revision:structureRevision,mode:r.mode,drawing,ranges,count,segments};routePaths.set(r,cached);routePathBuilds++;
         routeSegmentsConsidered+=segments;
       }
       return cached;
     }
-    // A pale casing and a solid core no longer read as lane paint; Detail widens both against its wider roads.
-    // Freight flow marches with the simulated day, so paused frames repeat exactly.
-    function strokeRoute(r,drawing,fade=1,focus=false){
-      const z=camera.zoom>1?camera.zoom/1.4:camera.zoom,offline=r.active===false;ctx.save();ctx.lineJoin=ctx.lineCap='round';ctx.strokeStyle='#fbf6e3';
-      if(focus){ctx.globalAlpha=.7;ctx.lineWidth=7/z;}else{ctx.globalAlpha=.5*fade;ctx.lineWidth=5/z;}ctx.stroke(drawing);
-      ctx.globalAlpha=(offline?.85:.95)*fade;ctx.strokeStyle=offline?'#d7725f':r.color||'#ce9d55';ctx.lineWidth=(focus?4:3)/z;if(offline)ctx.setLineDash([4/z,4/z]);ctx.stroke(drawing);
-      if(!offline&&r.cargo!=='passengers'){ctx.globalAlpha=.8*fade;ctx.setLineDash([2/z,12/z]);ctx.lineDashOffset=-(game.day||0)*14/z;ctx.strokeStyle='#fffbe8';ctx.lineWidth=(focus?2:1.5)/z;ctx.stroke(drawing);}
+    // DESIGN.md 8.4: a core of 3, 3.5 or 4.5 screen px in the line's fill, over a paper halo (deep fills) or an ink casing
+    // (light fills), 1.5 px wider when emphasised. An offline or paused route draws at 45% with no flow, and an offline one
+    // dashes its broken stretch in the error colour.
+    function strokeRoute(r,cached,fade=1,focus=false){
+      const line=lineFor(r),z=camera.zoom,held=r.active===false||Boolean(r.paused),core=(MAP.line.core[detailLevel]||MAP.line.core.town)+(focus?MAP.line.emphasis:0),shown=(held?MAP.line.pausedAlpha:1)*fade;
+      ctx.save();ctx.lineJoin=ctx.lineCap='round';
+      ctx.globalAlpha=shown*(line.light?MAP.line.casingAlpha:MAP.line.haloAlpha);ctx.strokeStyle=line.light?COLORS.ink:COLORS.paper;ctx.lineWidth=(core+(line.light?MAP.line.casing:MAP.line.halo))/z;ctx.stroke(cached.drawing);
+      ctx.globalAlpha=shown;ctx.strokeStyle=line.fill;ctx.lineWidth=core/z;ctx.stroke(cached.drawing);
+      if(!held&&r.cargo!=='passengers')flowChevrons(r,cached.ranges,core,line.on);
+      if(r.active===false)brokenStretch(r,core,fade);
       ctx.restore();
     }
+    // Freight chevrons point from the loading stop to the delivery stop every 44 screen px, counted from the start of the
+    // path so a pan never shifts them; they advance with the simulated day, so paused frames repeat exactly.
+    function flowChevrons(r,ranges,core,color){
+      const path=r.path,z=camera.zoom,gap=MAP.line.chevronGap/z,shift=(game.day||0)*14/z%gap,arm=core*.28/z,reach=core*.28/z;ctx.beginPath();
+      for(const [first,last] of ranges)for(let s=Math.ceil(((first-1)*PATH_STEP-shift)/gap)*gap+shift;s<last*PATH_STEP;s+=gap){
+        const i=Math.floor(s/PATH_STEP),t=s/PATH_STEP-i,a=path[i],b=path[i+1];if(!a||!b)continue;
+        const mid=transportPoint((a.x+b.x)/2,(a.y+b.y)/2,r.mode),from=t<.5?transportPoint(a.x,a.y,r.mode):mid,to=t<.5?mid:transportPoint(b.x,b.y,r.mode),u=t<.5?t*2:t*2-1;
+        const dx=to.x-from.x,dy=to.y-from.y,d=Math.hypot(dx,dy)||1,ux=dx/d,uy=dy/d,x=from.x+dx*u,y=from.y+dy*u;
+        ctx.moveTo(x-ux*reach-uy*arm,y-uy*reach+ux*arm);ctx.lineTo(x+ux*reach,y+uy*reach);ctx.lineTo(x-ux*reach+uy*arm,y-uy*reach-ux*arm);
+      }
+      ctx.strokeStyle=color;ctx.lineWidth=Math.max(1,core*.26)/z;ctx.stroke();
+    }
+    // The tiles either side of an offline route's first gap: dashed in the error colour on the line's paper halo.
+    function brokenStretch(r,core,fade){
+      const at=routeBreak(r);if(!at)return;
+      const path=r.path,z=camera.zoom,first=Math.max(0,at.index-1),last=Math.min(path.length-1,at.index+1);ctx.beginPath();
+      for(let i=first;i<=last;i++){const p=transportPoint(path[i].x,path[i].y,r.mode);if(i===first)ctx.moveTo(p.x,p.y);else ctx.lineTo(p.x,p.y);}
+      ctx.globalAlpha=fade*MAP.line.haloAlpha;ctx.strokeStyle=COLORS.paper;ctx.lineWidth=(core+MAP.line.halo)/z;ctx.stroke();
+      ctx.globalAlpha=fade;ctx.lineCap='butt';ctx.setLineDash([4/z,3/z]);ctx.strokeStyle=MAP.cut.color;ctx.lineWidth=core/z;ctx.stroke();ctx.setLineDash([]);
+    }
     const routeKey=`${x0},${y0},${x1},${y1}`;highlightedRoute=view.highlightRoute??null;const focusRoute=highlightedRoute===null?null:routesById.get(highlightedRoute)||null;
-    if(showRoutes)for(const r of game.routes||[])if(r.path?.length){const cached=routeDrawing(r,routeKey);if(cached.count)strokeRoute(r,cached.drawing,focusRoute&&r!==focusRoute?.35:1);}
+    if(showRoutes)for(const r of game.routes||[])if(r.path?.length){const cached=routeDrawing(r,routeKey);if(cached.count)strokeRoute(r,cached,focusRoute&&r!==focusRoute?MAP.line.dim:1);}
     if(layers.vehicles)for(const v of frameVehicles){const route=routesById.get(v.routeId);if(route?.mode==='water'&&visible(v.x,v.y))ship(v,route);}
     drawScene({x0,y0,x1,y1},routesById);
     ctx.save();
     function surfacePath(points){ctx.beginPath();points.forEach(([u,v],i)=>{const p=projectGround(game,u,v);i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y);});ctx.closePath();}
     function ring(x,y,radius){surfacePath(Array.from({length:80},(_,i)=>[x+.5+Math.cos(i/80*TAU)*radius,y+.5+Math.sin(i/80*TAU)*radius]));}
     // A highlighted route is restroked above the scenery, even with the routes layer off, and rings both of its stops.
-    if(focusRoute?.path?.length){const cached=routeDrawing(focusRoute,routeKey);if(cached.count)strokeRoute(focusRoute,cached.drawing,1,true);for(const id of focusRoute.stops||[]){const s=(game.stations||[]).find(st=>st.id===id);if(!s)continue;ring(s.x,s.y,21/TILE);ctx.strokeStyle='#fbf6e3b3';ctx.lineWidth=5/camera.zoom;ctx.stroke();ctx.strokeStyle=focusRoute.active===false?'#d7725f':focusRoute.color||'#ce9d55';ctx.lineWidth=2.5/camera.zoom;ctx.stroke();}}
-    function highlight(p,color,filled=true,span=1){
-      if(!p||p.x<0||p.y<0||p.x>=game.width||p.y>=game.height)return;
+    if(focusRoute?.path?.length){const cached=routeDrawing(focusRoute,routeKey);if(cached.count)strokeRoute(focusRoute,cached,1,true);for(const id of focusRoute.stops||[]){const s=(game.stations||[]).find(st=>st.id===id);if(!s)continue;ring(s.x,s.y,21/TILE);ctx.strokeStyle=alpha(COLORS.paper,.7);ctx.lineWidth=5/camera.zoom;ctx.stroke();ctx.strokeStyle=lineFor(focusRoute).fill;ctx.lineWidth=2.5/camera.zoom;ctx.stroke();}}
+    function footprintPath(p,span=1){
       const points=[],inset=.035,edge=span-inset*2;
       for(let n=0;n<=span;n++)points.push([p.x+inset+edge*n/span,p.y+inset]);
       for(let n=1;n<=span;n++)points.push([p.x+span-inset,p.y+inset+edge*n/span]);
       for(let n=1;n<=span;n++)points.push([p.x+span-inset-edge*n/span,p.y+span-inset]);
       for(let n=1;n<span;n++)points.push([p.x+inset,p.y+span-inset-edge*n/span]);
-      surfacePath(points);ctx.fillStyle=color+'26';if(filled)ctx.fill();ctx.strokeStyle=color;ctx.lineWidth=1.5/camera.zoom;ctx.stroke();
+      surfacePath(points);
     }
+    function highlight(p,color,filled=true,span=1){
+      if(!p||p.x<0||p.y<0||p.x>=game.width||p.y>=game.height)return;
+      footprintPath(p,span);ctx.fillStyle=color+'26';if(filled)ctx.fill();ctx.strokeStyle=color;ctx.lineWidth=1.5/camera.zoom;ctx.stroke();
+    }
+    // Cased footprint marks in screen px (DESIGN.md 9): the selection (signal over 5 px paper) and the pointer hover (paper at 85%).
+    function outline(p,span,{color,width,casing=null,casingWidth=0,alpha:shade=1}){
+      if(!p||p.x<0||p.y<0||p.x>=game.width||p.y>=game.height)return;
+      footprintPath(p,span);const z=camera.zoom;ctx.lineJoin='round';
+      if(casing){ctx.strokeStyle=casing;ctx.lineWidth=casingWidth/z;ctx.stroke();}
+      ctx.globalAlpha=shade;ctx.strokeStyle=color;ctx.lineWidth=width/z;ctx.stroke();ctx.globalAlpha=1;
+    }
+    // A stop's catchment: a dashed paper ring over an ink casing at 35%.
+    function reachRing(x,y){const z=camera.zoom;ring(x,y,STATION_RADIUS);ctx.strokeStyle=alpha(MAP.reach.casing,MAP.reach.casingAlpha);ctx.lineWidth=3.5/z;ctx.stroke();ctx.setLineDash(MAP.reach.dash.map(n=>n/z));ctx.strokeStyle=MAP.reach.color;ctx.lineWidth=1.5/z;ctx.stroke();ctx.setLineDash([]);}
     function highlightVertex(p,color){
       if(!p||!tile(p.x,p.y))return;
       const center=projectGround(game,p.x,p.y);ctx.beginPath();
@@ -1049,9 +1122,9 @@ export function createRenderer(canvas, initialGame, options={}) {
     const placing=['stop','bus-stop','train-stop','port'].includes(tool)?hover:null,serviceCenter=placing?null:selectedStation;
     // Placing a stop draws its reach as a solid ring over the faint rings of existing stops of the same kind (64 at most).
     // Sites it would reach tick their markers rather than each drawing an outline; a town it reaches keeps its tile outline.
-    if(placing){let rings=0;ctx.globalAlpha=.25;ctx.strokeStyle='#f3e5ad';ctx.lineWidth=1.5/camera.zoom;for(const st of game.stations||[])if(rings<64&&(st.mode==='water')===(tool==='port')&&visible(st.x,st.y,STATION_RADIUS*TILE*camera.zoom)){ring(st.x,st.y,STATION_RADIUS);ctx.stroke();rings++;}ctx.globalAlpha=1;ctx.fillStyle='#eff2cd22';ring(placing.x,placing.y,STATION_RADIUS);ctx.fill();ctx.stroke();for(const city of game.cities||[])if(Math.hypot(city.x-placing.x,city.y-placing.y)<=STATION_RADIUS)highlight(city,'#efe8b2',false);}
-    if(serviceCenter){ctx.fillStyle='#eff2cd19';ctx.strokeStyle='#f3e5ad';ctx.lineWidth=1.3/camera.zoom;ctx.setLineDash([5/camera.zoom,5/camera.zoom]);ring(serviceCenter.x,serviceCenter.y,STATION_RADIUS);ctx.fill();ctx.stroke();ctx.setLineDash([]);for(const node of [...(game.cities||[]),...(game.industries||[])])if((node.kind?industryDistance(node,serviceCenter):Math.hypot(node.x-serviceCenter.x,node.y-serviceCenter.y))<=STATION_RADIUS)highlight(node,'#efe8b2',false,industrySize(node));}
-    if(selected&&typeof selected.x==='number'){const site=inspectSiteAt(selected.x,selected.y);highlight(site||selected,'#fbefba',false,siteSize(site));}
+    if(placing){let rings=0;ctx.globalAlpha=.25;ctx.strokeStyle=COLORS.paper;ctx.lineWidth=1.5/camera.zoom;for(const st of game.stations||[])if(rings<64&&(st.mode==='water')===(tool==='port')&&visible(st.x,st.y,STATION_RADIUS*TILE*camera.zoom)){ring(st.x,st.y,STATION_RADIUS);ctx.stroke();rings++;}ctx.globalAlpha=1;ctx.fillStyle=alpha(COLORS.paper,.13);ring(placing.x,placing.y,STATION_RADIUS);ctx.fill();reachRing(placing.x,placing.y);for(const city of game.cities||[])if(Math.hypot(city.x-placing.x,city.y-placing.y)<=STATION_RADIUS)highlight(city,COLORS.paper,false);}
+    if(serviceCenter){ctx.fillStyle=alpha(COLORS.paper,.1);ring(serviceCenter.x,serviceCenter.y,STATION_RADIUS);ctx.fill();reachRing(serviceCenter.x,serviceCenter.y);for(const node of [...(game.cities||[]),...(game.industries||[])])if((node.kind?industryDistance(node,serviceCenter):Math.hypot(node.x-serviceCenter.x,node.y-serviceCenter.y))<=STATION_RADIUS)highlight(node,COLORS.paper,false,industrySize(node));}
+    if(selected&&typeof selected.x==='number'){const site=inspectSiteAt(selected.x,selected.y);outline(site||selected,siteSize(site),MAP.selection);}
     const spanTool=['bridge','railbridge','tunnel','railtunnel'].includes(tool),spanPoints=preview?.length?preview:hover?[hover]:[];
     const spanQuote=(spanTool||['road','rail','raise','lower','level','residential','commercial','industrial','bulldoze'].includes(tool))&&spanPoints.length?spanTool&&spanPoints.length<3?{ok:false,placements:[]}:quoteBuildPlan(game,tool,spanPoints,{preferredMode}):null;
     // Stroke quotes mark each placement with the running-balance state that release will meet.
@@ -1063,47 +1136,48 @@ export function createRenderer(canvas, initialGame, options={}) {
     const previewColor=(p,valid)=>{const site=previewSite(p),key=site.y*game.width+site.x,state=states?.get(key);if(!state)return previewValid(p)?valid:'#d7725f';return ['blocked','slope','funds'].includes(state)?'#d7725f':refused?'#cdbfa6':routeTiles?.has(key)?'#e3aa6d':roadless?.has(key)?'#c29a5b':valid;};
     const earthwork=['raise','lower','level'].includes(tool),highlightPreview=(p,color)=>earthwork?highlightVertex(p,color):highlight(previewSite(p),color,tool!=='inspect',previewSpan(p));
     for(const p of preview||[])if(planned(p))highlightPreview(p,previewColor(p,'#f2d88d'));
-    if(hover&&planned(hover)&&!preview?.area?.capped)highlightPreview(hover,tool==='inspect'?'#f7efd3':previewColor(hover,'#f4d090'));
-    // The keyboard cursor frames its own tile, or grid point for earthworks, in the orange of the map's focus outline;
+    if(hover&&planned(hover)&&!preview?.area?.capped){if(tool==='inspect')outline(previewSite(hover),previewSpan(hover),MAP.hover);else highlightPreview(hover,previewColor(hover,'#f4d090'));}
+    // The keyboard cursor frames its own tile, or grid point for earthworks, in dashed signal orange over paper;
     // the frame sits just outside the tile, so the preview colour inside still shows whether it can be built.
-    if(hover?.keyboard&&tile(hover.x,hover.y)){const {x,y}=hover,o=.09;if(earthwork){const c=projectGround(game,x,y);ctx.beginPath();ctx.arc(c.x,c.y,8/camera.zoom,0,TAU);}else surfacePath([[x-o,y-o],[x+1+o,y-o],[x+1+o,y+1+o],[x-o,y+1+o]]);ctx.lineJoin='round';ctx.strokeStyle='#fbf6e3';ctx.lineWidth=4.5/camera.zoom;ctx.stroke();ctx.strokeStyle='#e17b4a';ctx.lineWidth=2.25/camera.zoom;ctx.stroke();}
+    if(hover?.keyboard&&tile(hover.x,hover.y)){const {x,y}=hover,o=.09;if(earthwork){const c=projectGround(game,x,y);ctx.beginPath();ctx.arc(c.x,c.y,8/camera.zoom,0,TAU);}else surfacePath([[x-o,y-o],[x+1+o,y-o],[x+1+o,y+1+o],[x-o,y+1+o]]);ctx.lineJoin='round';ctx.strokeStyle=MAP.cursor.casing;ctx.lineWidth=4.5/camera.zoom;ctx.stroke();ctx.setLineDash(MAP.cursor.dash.map(n=>n/camera.zoom));ctx.strokeStyle=MAP.cursor.color;ctx.lineWidth=2.25/camera.zoom;ctx.stroke();ctx.setLineDash([]);}
     if(refused)for(const issue of spanQuote.issues)if(issue.at)highlight(issue.at,'#d7725f',false);
     for(const stop of routeStops){const s=typeof stop==='object'?stop:(game.stations||[]).find(st=>st.id===stop);if(s){ctx.strokeStyle='#f4d397';ctx.lineWidth=2/camera.zoom;ring(s.x,s.y,21/TILE);ctx.stroke();}}
     ctx.restore();ctx.restore();
     drawLighting(ctx,{game,layers,camera,dpr,artRevision:`${cachedWorldAssets}:${cachedHouseAssets}`,width:W,height:H,bounds:{x0:Math.max(0,x0-1),y0:Math.max(0,y0-1),x1,y1},industryIndex,stationIndex,routesById,vehicles:frameVehicles,project:worldToScreen,projectVehicle:vehicleToScreen,projectBuilding:buildingToScreen,projected:true});
     drawWeather(ctx,{game,layers,camera,width:W,height:H});
     if(hover&&(tool==='raise'||tool==='lower')){
-      const t=tile(hover.x,hover.y);if(t){const p=gridPointToScreen(hover.x,hover.y),level=surfaceHeight(game,hover.x,hover.y),allowed=previewValid(hover);pill(p.x,p.y-28*camera.zoom,allowed?`Level ${level} → ${level+(tool==='raise'?1:-1)}`:`Level ${level}`,{size:12,h:25,fill:allowed?'#f7f1ddef':'#f5e7dfef',color:allowed?'#43573b':'#934f3f'});}
+      const t=tile(hover.x,hover.y);if(t){const p=gridPointToScreen(hover.x,hover.y),level=surfaceHeight(game,hover.x,hover.y),allowed=previewValid(hover);pill(p.x,p.y-28*camera.zoom,allowed?`Level ${level} → ${level+(tool==='raise'?1:-1)}`:`Level ${level}`,{h:25,color:allowed?COLORS.ink:STATES.error.color});}
     }
     const contextBubbles=contextArcs(view.context);
     // Labels stay crisp at every camera zoom, with population separated from place names.
     labelRects.length=0;const placed=placeOverlays(),shift=overlayShift();
     lensStats=lens?{cargo:lens,sources:0,buyers:0,towns:0}:null;const townLens=lensRole('towns',lens)==='buyer';
     if(layers.names)for(const city of game.cities||[]){const label=placed.labels.get(city);if(!label||!visible(city.x,city.y))continue;const p={x:label.cx+shift.x},y=label.cy+shift.y;labelRects.push({id:city.id,x:label.x+shift.x,y:label.y+shift.y,w:label.w,h:label.h});
-      if(detailLevel==='region'){pill(p.x,y,city.name||'New city',{size:11,bold:true,h:23,fill:'#f7f5e9f0'});if(townLens)lensChip(label.x+shift.x-7,y);continue;}
-      ctx.font='600 13px Space, system-ui, sans-serif';const name=city.name||'New city';const nameW=ctx.measureText(name).width;const pop=populationText(city);ctx.font='500 11px Space, system-ui, sans-serif';const popW=ctx.measureText(pop).width;const w=nameW+popW+42;
-      ctx.shadowColor='#1b38202a';ctx.shadowBlur=10;ctx.shadowOffsetY=2;ctx.fillStyle='#f7f5e9f5';roundRect(ctx,p.x-w/2,y-14,w,29,6);ctx.fill();ctx.shadowColor='transparent';ctx.shadowBlur=0;ctx.shadowOffsetY=0;ctx.strokeStyle='#fbfaee';ctx.lineWidth=.7;ctx.stroke();ctx.textAlign='left';ctx.textBaseline='middle';ctx.font='600 13px Space, system-ui, sans-serif';ctx.fillStyle='#314639';ctx.fillText(name,p.x-w/2+10,y+.5);ctx.fillStyle='#e6e9da';roundRect(ctx,p.x+w/2-popW-22,y-9,popW+16,19,3);ctx.fill();ctx.font='500 11px Space, system-ui, sans-serif';ctx.fillStyle='#60705a';ctx.fillText(pop,p.x+w/2-popW-14,y+.5);
-      if(townLens)lensChip(p.x-w/2-13,y);
+      if(detailLevel==='region'){const name=city.name||'New city';ctx.font=font(MAP.nameplate.regionName.weight,MAP.nameplate.regionName.size);const w=ctx.measureText(name).width+16;plate(p.x-w/2,y-11,w,22);ctx.fillStyle=COLORS.ink;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(name,p.x,y+.5);if(townLens)lensChip(label.x+shift.x-7,y);continue;}
+      const {name,pop,nameW,w}=nameplate(city),left=p.x-w/2;plate(left,y-13,w,26);ctx.textAlign='left';ctx.textBaseline='middle';ctx.font=font(MAP.nameplate.name.weight,MAP.nameplate.name.size);ctx.fillStyle=COLORS.ink;ctx.fillText(name,left+10,y+.5);ctx.fillStyle=COLORS.rule;ctx.fillRect(Math.round(left+nameW+20),Math.round(y-7),1,14);ctx.font=font(MAP.nameplate.population.weight,MAP.nameplate.population.size);ctx.fillStyle=MAP.nameplate.population.color;ctx.fillText(pop,left+nameW+31,y+.5);
+      if(townLens)lensChip(left-13,y);
     }
     // A cargo lens draws its producers and buyers last, at full strength with a role tab and, from Town view in, their names; other sites recede to half strength.
     // Served sites wear their route's ring, a hovered or chosen site names its state, and while a stop is placed the sites it would reach are ticked and the rest recede.
     const served=servedSites();markerStats={drawn:0,served:0,waiting:0,meters:0,covered:0};
-    const industryBadge=(ind,role)=>{const marker=industryMarker(ind,placed,shift),known=Boolean(INDUSTRIES[ind.kind]),kind=Object.keys(INDUSTRIES[ind.kind]?.outputs||{})[0]||'goods',hovered=hover&&industryContains(ind,hover.x,hover.y),chosen=selected&&industryContains(ind,selected.x,selected.y),svc=served.get(ind.id),status=known&&(hovered||chosen||svc?.buyer)?industryStatus(ind):null,waiting=Boolean(svc?.buyer&&status.state==='waiting'),covered=Boolean(placing)&&industryDistance(ind,placing)<=STATION_RADIUS,name=ind.name||titleCase(ind.kind),label=layers.names&&(hovered||chosen||role&&detailLevel!=='region')?(hovered||chosen)&&status?`${name} · ${status.label}`:name:null;if(role&&marker.x>=0&&marker.y>=0&&marker.x<=W&&marker.y<=H)lensStats[role==='source'?'sources':'buyers']++;ctx.globalAlpha=lens&&!role&&!hovered&&!chosen||placing&&!covered?.5:1;if(layers.industryIcons){const fill=known&&detailLevel!=='region'?outputFill(ind):0;if(marker.stem)line(ctx,[[marker.x,marker.y],[marker.stem.x,marker.stem.y]],'#475b455b',1);if(marker.x>=0&&marker.y>=0&&marker.x<=W&&marker.y<=H){markerStats.drawn++;if(svc)markerStats.served++;if(waiting)markerStats.waiting++;if(fill>0)markerStats.meters++;if(covered)markerStats.covered++;}resourceMarker(marker.x,marker.y,kind,marker.size,label,role,{color:svc?.color,fill,missing:waiting?status.missing:null,covered});}else if(label)pill(marker.x,marker.y,label,{size:12,h:28,fill:'#f7f4e7f5',color:'#3e5547',radius:5});ctx.globalAlpha=1;};
+    const industryBadge=(ind,role)=>{const marker=industryMarker(ind,placed,shift),known=Boolean(INDUSTRIES[ind.kind]),kind=Object.keys(INDUSTRIES[ind.kind]?.outputs||{})[0]||'goods',hovered=hover&&industryContains(ind,hover.x,hover.y),chosen=selected&&industryContains(ind,selected.x,selected.y),svc=served.get(ind.id),status=known&&(hovered||chosen||svc?.buyer)?industryStatus(ind):null,waiting=Boolean(svc?.buyer&&status.state==='waiting'),covered=Boolean(placing)&&industryDistance(ind,placing)<=STATION_RADIUS,name=ind.name||titleCase(ind.kind),label=layers.names&&(hovered||chosen||role&&detailLevel!=='region')?(hovered||chosen)&&status?`${name} · ${status.label}`:name:null;if(role&&marker.x>=0&&marker.y>=0&&marker.x<=W&&marker.y<=H)lensStats[role==='source'?'sources':'buyers']++;ctx.globalAlpha=lens&&!role&&!hovered&&!chosen||placing&&!covered?.5:1;if(layers.industryIcons){const fill=known&&detailLevel!=='region'?outputFill(ind):0;if(marker.stem)line(ctx,[[marker.x,marker.y],[marker.stem.x,marker.stem.y]],'#475b455b',1);if(marker.x>=0&&marker.y>=0&&marker.x<=W&&marker.y<=H){markerStats.drawn++;if(svc)markerStats.served++;if(waiting)markerStats.waiting++;if(fill>0)markerStats.meters++;if(covered)markerStats.covered++;}resourceMarker(marker.x,marker.y,kind,marker.size,label,role,{color:svc&&lineColor(svc.color).fill,fill,missing:waiting?status.missing:null,covered});}else if(label)pill(marker.x,marker.y,label,{h:28});ctx.globalAlpha=1;};
     const lensSites=[];for(const ind of game.industries||[]){if((!layers.names&&!layers.industryIcons)||!visible(ind.x,ind.y,180*camera.zoom))continue;const role=lensRole(ind.kind,lens);if(role)lensSites.push([ind,role]);else industryBadge(ind,null);}for(const [ind,role] of lensSites)industryBadge(ind,role);
     for(const bubble of contextBubbles)contextBubble(bubble);
-    // A sign wears the colours of up to three routes that call at its stop, an offline one in red; a stop no route uses is a pale outline.
-    // A sign stepped off a label or another sign keeps a thin stem to its stop.
-    signStats={drawn:0,active:0,idle:0,broken:0,named:0};signRects.length=0;
-    if(layers.stations){const calls=stopCalls();for(const st of game.stations||[]){const sign=placed.signs.get(st.y*game.width+st.x);if(!sign||!visible(st.x,st.y))continue;const x=sign.x+shift.x,y=sign.y+shift.y,routes=calls.get(st.id)||[],state=!routes.length?'idle':routes.some(r=>r.active!==false)?'active':'broken',badge=stationBadge(st.mode,state,[...new Set(routes.map(r=>r.active===false?'#d7725f':r.color||'#ce9d55'))].slice(0,3),sign.size);if(sign.stem)line(ctx,[[x+sign.size/2,y+sign.size/2],[sign.stem.x+shift.x,sign.stem.y+shift.y]],'#475b455b',1);ctx.drawImage(badge,x-4,y-4,badge.width/dpr,badge.height/dpr);signRects.push({x,y,w:sign.size,h:sign.size});signStats.drawn++;signStats[state]++;}}
+    // A stop is a roundel centred in its sign box: an ink ring, an --edge ring when no route uses it and an error ring when all
+    // its routes are offline. From Town in it carries the bullets of the routes that call there; Region keeps the terminus
+    // bullets that miss the town names. A roundel stepped off a label or another stop keeps a thin stem to its stop.
+    signStats={drawn:0,active:0,idle:0,broken:0,named:0};signRects.length=0;signEnds.clear();
+    if(layers.stations){const calls=stopCalls(),region=detailLevel==='region',radius=ROUNDEL[detailLevel]||ROUNDEL.town;for(const st of game.stations||[]){const sign=placed.signs.get(st.y*game.width+st.x);if(!sign||!visible(st.x,st.y))continue;const x=sign.x+shift.x,y=sign.y+shift.y,cx=x+sign.size/2,cy=y+sign.size/2,routes=calls.get(st.id)||[],state=!routes.length?'idle':routes.some(r=>r.active!==false)?'active':'broken';if(sign.stem)line(ctx,[[cx,cy],[sign.stem.x+shift.x,sign.stem.y+shift.y]],alpha(COLORS.ink,.35),1);roundel(cx,cy,radius,state==='idle'?MAP.roundel.unusedRing:state==='broken'?STATES.error.color:MAP.roundel.ring);const end=stopBullets(st,routes,cx+radius+3,cy,region);signRects.push({x,y,w:Math.max(sign.size,end-x),h:sign.size});signEnds.set(st,end);signStats.drawn++;signStats[state]++;}}
     // The reach pill sits above stop signs and town names, so neither hides it.
-    if(placing||serviceCenter){const center=placing||serviceCenter,p=worldToScreen(center.x,center.y);pill(p.x,p.y-STATION_RADIUS*TILE*Math.SQRT1_2*camera.zoom-15,'5-tile reach',{size:11,h:25,fill:'#f5f3e8e8',color:'#5c7155'});}
+    if(placing||serviceCenter){const center=placing||serviceCenter,p=worldToScreen(center.x,center.y);pill(p.x,p.y-STATION_RADIUS*TILE*Math.SQRT1_2*camera.zoom-15,'5-tile reach',{h:25,color:COLORS.ink2});}
     // A chosen carrier is ringed in display pixels beneath its load badge, instead of a tile outline, and stays marked in a tunnel.
-    const chosenVehicle=view.selectedVehicleId==null?null:frameVehicles.find(v=>v.id===view.selectedVehicleId);if(chosenVehicle){const route=routesById.get(chosenVehicle.routeId),p=vehicleToScreen(chosenVehicle.x,chosenVehicle.y,route?.mode),r=route?.mode==='water'?Math.max(20,20*camera.zoom):Math.max(11,14*camera.zoom);ctx.beginPath();ctx.arc(p.x,p.y-2*camera.zoom,r,0,TAU);ctx.strokeStyle='#26372e4d';ctx.lineWidth=4;ctx.stroke();ctx.strokeStyle='#fbefba';ctx.lineWidth=2;ctx.stroke();}
+    const chosenVehicle=view.selectedVehicleId==null?null:frameVehicles.find(v=>v.id===view.selectedVehicleId);if(chosenVehicle){const route=routesById.get(chosenVehicle.routeId),p=vehicleToScreen(chosenVehicle.x,chosenVehicle.y,route?.mode),r=route?.mode==='water'?Math.max(20,20*camera.zoom):Math.max(11,14*camera.zoom);ctx.beginPath();ctx.arc(p.x,p.y-2*camera.zoom,r,0,TAU);ctx.strokeStyle=MAP.selection.casing;ctx.lineWidth=MAP.selection.casingWidth;ctx.stroke();ctx.strokeStyle=MAP.selection.color;ctx.lineWidth=MAP.selection.width;ctx.stroke();}
     if(layers.vehicles&&layers.vehicleLoads)for(const v of frameVehicles)vehicleLoadIndicator(v,routesById.get(v.routeId));
-    // A pointed-at or chosen stop names itself beside its sign, above the load badges of vehicles waiting there.
-    for(const st of layers.stations&&layers.names?new Set([hover&&stationIndex.get(hover.y*game.width+hover.x),selectedStation]):[]){if(!st||!visible(st.x,st.y))continue;const m=stationMarker(st),name=st.name||'Stop';ctx.font='500 12px Space, system-ui, sans-serif';const w=ctx.measureText(name).width+16,right=m.x+m.size+4+w/2;pill(right+w/2>W-8?m.x-4-w/2:right,m.y+m.size/2,name,{size:12,h:26,fill:'#f7f4e7f5',color:'#3e5547',radius:5});signStats.named++;}
-    // An offline route pins its first gap, above the load badges of vehicles stuck beside it, so the fix is found on the map rather than in a toast.
-    routeBreaks=0;for(const r of game.routes||[])if(r.active===false&&r.path?.length&&(showRoutes||r===focusRoute)){const at=routeBreak(r);if(!at||!visible(at.x,at.y))continue;const p=worldToScreen(at.x,at.y);routeBreaks++;dot(ctx,p.x,p.y,6,'#fbf6e3');dot(ctx,p.x,p.y,4,'#d7725f');pill(p.x,p.y-24,'Connection broken',{size:11,h:23,fill:'#f5e7dfef',color:'#934f3f'});}
+    // A pointed-at or chosen stop names itself beside its roundel and bullets, above the load badges of vehicles waiting there.
+    for(const st of layers.stations&&layers.names?new Set([hover&&stationIndex.get(hover.y*game.width+hover.x),selectedStation]):[]){if(!st||!visible(st.x,st.y))continue;const m=stationMarker(st),name=st.name||'Stop';ctx.font=font(500,12);const w=ctx.measureText(name).width+16,right=Math.max(m.x+m.size,signEnds.get(st)??0)+4+w/2;pill(right+w/2>W-8?m.x-4-w/2:right,m.y+m.size/2,name,{h:26});signStats.named++;}
+    // An offline route pins its first gap with the cut glyph and a Not connected plate, above the load badges of vehicles stuck
+    // beside it, so the fix is found on the map rather than in a toast.
+    routeBreaks=0;for(const r of game.routes||[])if(r.active===false&&r.path?.length&&(showRoutes||r===focusRoute)){const at=routeBreak(r);if(!at||!visible(at.x,at.y))continue;const p=worldToScreen(at.x,at.y),a=r.path[Math.max(0,at.index-1)],b=r.path[Math.min(r.path.length-1,at.index+1)],pa=worldToScreen(a.x,a.y),pb=worldToScreen(b.x,b.y);routeBreaks++;cutMark(p.x,p.y,pb.x-pa.x,pb.y-pa.y);pill(p.x,p.y-24*Math.max(1,camera.zoom),'Not connected',{h:23,color:STATES.error.color});}
     if(layers.deliveries&&view.floaters?.length)drawFloaters(view.floaters,now);
     // Extremely light edge shade holds the terrain together without dimming the playfield.
     const vignette=ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*.3,W/2,H/2,Math.max(W,H)*.75);vignette.addColorStop(0,'#21382b00');vignette.addColorStop(1,'#21382b10');ctx.fillStyle=vignette;ctx.fillRect(0,0,W,H);
@@ -1165,7 +1239,7 @@ export function createRenderer(canvas, initialGame, options={}) {
         const path=new Path2D();r.path.forEach((p,i)=>i?path.lineTo((p.x+.5)*sx,(p.y+.5)*sy):path.moveTo((p.x+.5)*sx,(p.y+.5)*sy));
         entry={path:r.path,length:r.path.length,sx,sy,drawing:path};minimapRoutePaths.set(r,entry);
       }
-      const offline=r.active===false;c.strokeStyle=offline?'#d7725f':r.color||'#e4c38c';c.lineWidth=1.4;if(offline)c.setLineDash([3,2]);c.stroke(entry.drawing);if(offline)c.setLineDash([]);
+      const offline=r.active===false;c.strokeStyle=offline?STATES.error.color:lineFor(r).fill;c.lineWidth=1.4;if(offline)c.setLineDash([3,2]);c.stroke(entry.drawing);if(offline)c.setLineDash([]);
     }
     if(layers.industryIcons&&!lens){c.fillStyle='#d9ba7d';for(const ind of game.industries||[])c.fillRect((ind.x+.5)*sx-1,(ind.y+.5)*sy-1,2,2);}
     // Sites your freight serves stand out in green, or amber while a served factory still lacks an input.
@@ -1179,5 +1253,5 @@ export function createRenderer(canvas, initialGame, options={}) {
 
   }
   resize();const first=game.cities?.[0];if(first)focus(first.x+4.5,first.y-4.5);else bounds();
-  return {setGame,setLayers,getLayers,setLens,render,resize,worldToScreen,gridPointToScreen,screenToVertex,stationMarker,stationAtMarker,vehicleAt,industryMarker,cityLabels:()=>labelRects.map(rect=>({...rect})),screenToTile,screenToInspectTile,pan,zoomAt,setZoom,focus,getCamera:()=>({...camera}),drawMinimap,getStats:()=>({projection:'isometric',terrainGeometry:true,maxTerrainHeight:MAX_HEIGHT,heightStep:HEIGHT_STEP,tileWidth:TILE*2,tileHeight:TILE,chunkCount:chunks.size,composedChunks,sceneBuilds,sceneryBatches:{...sceneryBudget.stats(),enabled:sceneryBatching,builds:sceneryBatchBuilds,draws:sceneryBatchDraws,directDraws:sceneryDirectDraws,waitingForCamera:sceneryWaitingForCamera,pending:sceneryBatching&&sceneCache&&!sceneCache.batchPlanReady?1:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0))+(sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0),pendingGroups:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0)),pendingShadows:sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0,preparationMs:sceneryPreparationMs,preparationBudgetMs:sceneryPrepareBudgetMs},foundationBuilds,foundationCacheSize:foundations.size,routeSegmentsConsidered,routePathBuilds,routeBreaks,highlightRoute:highlightedRoute,contextTargets,lens:lensStats&&{...lensStats},industryMarkers:{...markerStats},markerTiles:markerTiles.size,overlays:{builds:overlayBuilds,...overlays?.stats},stopSigns:{...signStats},stationBadges:stationBadges.size,visibleVehicleCandidates:frameVehicles.length,cacheBytes,cacheLimit,cacheMax:CACHE_MAX,chunkTiles:CHUNK_TILES,rasterScale,pixelScale:rasterScale,detailLevel,view:ZOOM_VIEWS.find(view=>view.zoom===camera.zoom).name,devicePixelRatio:dpr,dpr,maxSurfaceWidth:largestSurface,maxSurfaceHeight:largestSurface,minimapWidth:minimapLayer.width,minimapHeight:minimapLayer.height,minimapMaxEdge:MINIMAP_EDGE,minimapWorldWidth:game.width,minimapWorldHeight:game.height,minimapTerrainSamples,minimapNetworkScans,minimapNetworkBytes:minimapNetwork?.bytes||0,vehicleIndicators:{...vehicleIndicatorCounts},preparedSprites:preparedSprites.getStats(),preparedTransport:preparedTransport.getStats(),vehicleSprites:vehicleSprites.getStats(),infrastructureSprites:infrastructureSprites.getStats(),preparedZooms:rasterBundles.size,loadBadgeCount:loadBadges.size,loadBadgeBuilds,sprites:sprite?.getStats?.(),uprightSprites:uprightSprite?.getStats?.(),houseArtwork:getHouseAssetStats(game.biome),worldArtwork:worldArtStats(),treeShadows:treeShadowCacheStats(),weather:drawWeather.getStats(),lighting:drawLighting.getStats?.(),marine:marine?.getStats?.(),layers:getLayers()})};
+  return {setGame,setLayers,getLayers,setLens,render,resize,worldToScreen,gridPointToScreen,screenToVertex,stationMarker,stationAtMarker,drawBullet,vehicleAt,industryMarker,cityLabels:()=>labelRects.map(rect=>({...rect})),screenToTile,screenToInspectTile,pan,zoomAt,setZoom,focus,getCamera:()=>({...camera}),drawMinimap,getStats:()=>({projection:'isometric',terrainGeometry:true,maxTerrainHeight:MAX_HEIGHT,heightStep:HEIGHT_STEP,tileWidth:TILE*2,tileHeight:TILE,chunkCount:chunks.size,composedChunks,sceneBuilds,sceneryBatches:{...sceneryBudget.stats(),enabled:sceneryBatching,builds:sceneryBatchBuilds,draws:sceneryBatchDraws,directDraws:sceneryDirectDraws,waitingForCamera:sceneryWaitingForCamera,pending:sceneryBatching&&sceneCache&&!sceneCache.batchPlanReady?1:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0))+(sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0),pendingGroups:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0)),pendingShadows:sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0,preparationMs:sceneryPreparationMs,preparationBudgetMs:sceneryPrepareBudgetMs},foundationBuilds,foundationCacheSize:foundations.size,routeSegmentsConsidered,routePathBuilds,routeBreaks,highlightRoute:highlightedRoute,contextTargets,lens:lensStats&&{...lensStats},industryMarkers:{...markerStats},markerTiles:markerTiles.size,overlays:{builds:overlayBuilds,...overlays?.stats},stopSigns:{...signStats},bulletTiles:bulletTiles.size,visibleVehicleCandidates:frameVehicles.length,cacheBytes,cacheLimit,cacheMax:CACHE_MAX,chunkTiles:CHUNK_TILES,rasterScale,pixelScale:rasterScale,detailLevel,view:ZOOM_VIEWS.find(view=>view.zoom===camera.zoom).name,devicePixelRatio:dpr,dpr,maxSurfaceWidth:largestSurface,maxSurfaceHeight:largestSurface,minimapWidth:minimapLayer.width,minimapHeight:minimapLayer.height,minimapMaxEdge:MINIMAP_EDGE,minimapWorldWidth:game.width,minimapWorldHeight:game.height,minimapTerrainSamples,minimapNetworkScans,minimapNetworkBytes:minimapNetwork?.bytes||0,vehicleIndicators:{...vehicleIndicatorCounts},preparedSprites:preparedSprites.getStats(),preparedTransport:preparedTransport.getStats(),vehicleSprites:vehicleSprites.getStats(),infrastructureSprites:infrastructureSprites.getStats(),preparedZooms:rasterBundles.size,loadBadgeCount:loadBadges.size,loadBadgeBuilds,sprites:sprite?.getStats?.(),uprightSprites:uprightSprite?.getStats?.(),houseArtwork:getHouseAssetStats(game.biome),worldArtwork:worldArtStats(),treeShadows:treeShadowCacheStats(),weather:drawWeather.getStats(),lighting:drawLighting.getStats?.(),marine:marine?.getStats?.(),layers:getLayers()})};
 }

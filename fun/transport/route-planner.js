@@ -4,6 +4,7 @@ import { passengerArrivals } from './settlements.js';
 import { reviewGrowth } from './industry-simulation.js';
 import { routeNeedsAttention } from './gameplay-insights.js';
 import { money, tiles, listJoin, cargoName, vehicleNoun } from './copy.js';
+import { defaultRouteName as routeName } from './route-lines.js';
 
 const pathCache = new WeakMap();
 const canShip = (a, b, cargo) => {
@@ -169,23 +170,10 @@ export function forecastRoute(game, draft, plan = null) {
   return forecast;
 }
 
-const ROUTE_NAME_LENGTH = 36;
-// Name a route by what it does: the two towns, or its supplier to its buyer.
-export function defaultRouteName(game, plan, cargo) {
+// Name a route by what it does, as route-lines.js does at launch; `except` is the route being edited.
+export function defaultRouteName(game, plan, cargo, except = null) {
   const [from, to] = plan.reversed ? [...plan.stations].reverse() : plan.stations;
-  if (!from || !to) return '';
-  const names = [];
-  if (cargo === 'passengers') {
-    const towns = passengerEndpoints(game, from, to);
-    if (towns) names.push(`${towns[0].name} – ${towns[1].name}`);
-  } else if (Object.hasOwn(CARGO, cargo)) {
-    const source = stationCoverage(game, from).industries.find(industry => INDUSTRIES[industry.kind].outputs[cargo]), destination = stationCoverage(game, to);
-    const buyer = destination.industries.find(industry => INDUSTRIES[industry.kind].inputs[cargo] && industry.id !== source?.id) || (TOWN_CARGO.includes(cargo) ? destination.cities[0] : null);
-    const site = industry => industry.name || INDUSTRIES[industry.kind].name;
-    if (source && buyer) names.push(`${site(source)} to ${buyer.name || site(buyer)}`);
-  }
-  const name = names.find(name => name.length <= ROUTE_NAME_LENGTH) || names.at(-1) || `${from.name} to ${to.name}`;
-  return name.length > ROUTE_NAME_LENGTH ? name.slice(0, ROUTE_NAME_LENGTH - 1).trimEnd() + '…' : name;
+  return from && to ? routeName(game, [from, to], cargo, except) : '';
 }
 
 export function filterRoutes(game, filters = {}) {

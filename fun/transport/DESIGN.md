@@ -125,11 +125,12 @@ Money:
 - Never use green (land and ok), teal or turquoise (water), or orange (signal).
 - Deep and light colours alternate, so neighbouring routes differ in lightness as well as hue. The number always tells them apart.
 - Assigning a colour to a new route:
-  - take the lowest index not used by any route that shares one of its stops;
-  - if every index is used, take the least-used index;
+  - leave out every index used by a route that shares one of its stops;
+  - of the rest, take the index the fewest routes use across the company;
+  - if every index is used at its stops, take the index least used there;
   - on a tie, take the lowest.
 
-  Retiring a route never recolours the others.
+  Retiring a route never recolours the others. (Taking simply the lowest free index made nine of twenty lines Cobalt on the seed-1847 stress map, since most routes share no stop; counting the whole company spreads the nine colours, and lines that meet still differ.)
 - Saves keep their stored hex, and the display maps legacy colours:
   - `#69c6bc` → Cobalt
   - `#efc16f` → Marigold

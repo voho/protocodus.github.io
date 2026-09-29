@@ -63,7 +63,7 @@ try {
             try{draw();}finally{for(const key of ['beginPath','moveTo','lineTo','stroke'])delete c[key];}return paths;
           };
           const footprint=(x,y)=>{const corners=[[x,y],[x+f.span,y],[x+f.span,y+f.span],[x,y+f.span]].map(([u,v])=>r.gridPointToScreen(u,v)),xs=corners.map(p=>p.x*dpr),ys=corners.map(p=>p.y*dpr);return[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)].map(Math.round);};
-          const selection=outlines(()=>r.render(0,{selected:{x:f.x+f.span-1,y:f.y+f.span-1}})).find(s=>s.color==='#fbefba')?.bounds,selectionExpected=footprint(f.x,f.y);
+          const selection=outlines(()=>r.render(0,{selected:{x:f.x+f.span-1,y:f.y+f.span-1}})).find(s=>s.color==='#e17b4a')?.bounds,selectionExpected=footprint(f.x,f.y);
           const preview=outlines(()=>r.render(0,{tool:f.kind,hover:{x:35,y:35}})).find(s=>['#f4d090','#d7725f'].includes(s.color))?.bounds,previewExpected=footprint(35,35);
           g.day=30;r.setLayers({lighting:true});r.render(0);const lit=c.getImageData(0,0,canvas.width,canvas.height).data;
           // Keep nighttime ambient dimming but turn off building lights by

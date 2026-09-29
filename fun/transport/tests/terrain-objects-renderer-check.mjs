@@ -59,7 +59,7 @@ try {
             const parcel=(x,y,span)=>{const corners=[[x,y],[x+span,y],[x+span,y+span],[x,y+span]].map(([u,v])=>r.gridPointToScreen(u,v)),xs=corners.map(p=>p.x*devicePixelRatio),ys=corners.map(p=>p.y*devicePixelRatio);return[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)].map(Math.round);};
             // Mountain anchors stay in saves but draw and select as terrain, one tile at a time.
             const own=f.kind==='mountain'?parcel(f.x+f.span-1,f.y+f.span-1,1):parcel(f.x,f.y,f.span);
-            const selected=outlines(()=>r.render(0,{selected:{x:f.x+f.span-1,y:f.y+f.span-1}})).find(s=>s.color==='#fbefba')?.bounds,selectedExpected=own;
+            const selected=outlines(()=>r.render(0,{selected:{x:f.x+f.span-1,y:f.y+f.span-1}})).find(s=>s.color==='#e17b4a')?.bounds,selectedExpected=own;
             const bulldoze=outlines(()=>r.render(0,{tool:'bulldoze',hover:{x:f.x+f.span-1,y:f.y+f.span-1}})).filter(s=>['#f4d090','#d7725f','#e3aa6d'].includes(s.color)).at(-1),bulldozeExpected=own;
             r.render(0);const composed=r.getStats().composedChunks;r.render(0);const warm=composed===r.getStats().composedChunks;
             const anchor=g.tiles[f.y*g.width+f.x],saved=anchor.terrainObject;delete anchor.terrainObject;g.revision++;r.render(0);const released=q.hash();
