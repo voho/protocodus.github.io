@@ -54,4 +54,4 @@ export function creditToast(notice, history) {
   return index < 1 || history[index - 1].money >= 0 || history[index].month % 12 === 11;
 }
 
-export function newYearNotice(year, rate) { return `New for ${year}: vehicles carry 20% more and run 10% faster. Prices rise ${(rate * 100).toFixed(1)}% this year.`; }
+export function newYearNotice(year, rate, { generation = true } = {}) { return generation ? `New for ${year}: vehicles carry 20% more and run 10% faster. Prices rise ${(rate * 100).toFixed(1)}% this year.` : `Prices rise ${(rate * 100).toFixed(1)}% in ${year}.`; }

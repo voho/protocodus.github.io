@@ -1094,6 +1094,7 @@ export function validateGame(game) {
   if(!game.notifications.every(n=>(n.topic===undefined||typeof n.topic==='string'&&n.topic.length<=32)&&(n.template===undefined||typeof n.template==='string'&&n.template.length<=1000)&&(n.target===undefined||Boolean(n.target)&&['industry','city','route'].includes(n.target.kind)&&typeof n.target.id==='string'&&n.target.id.length<=64)))return false;
   if(!validMilestones(game)||!game.cities.every(c=>c.founded===undefined||typeof c.founded==='boolean'))return false;
   if(!validContracts(game))return false;
+  if(game.headlines!==undefined&&!(Array.isArray(game.headlines)&&game.headlines.length<=24&&game.headlines.every((h,i,log)=>Boolean(h)&&typeof h.key==='string'&&h.key.length>0&&h.key.length<=64&&log.findIndex(o=>o?.key===h.key)===i&&typeof h.kind==='string'&&h.kind.length>0&&h.kind.length<=24&&Number.isInteger(h.day)&&h.day>=0&&h.day<=game.day&&typeof h.title==='string'&&h.title.length>0&&h.title.length<=140&&(h.detail===undefined||(typeof h.detail==='string'&&h.detail.length<=240))&&(h.art===undefined||(typeof h.art==='string'&&h.art.length<=16))&&(h.target===undefined||(Boolean(h.target)&&['industry','city','route'].includes(h.target.kind)&&typeof h.target.id==='string'&&h.target.id.length<=64)))))return false;
   return true;
 }
 export function saveGame(game) {

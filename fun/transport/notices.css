@@ -153,3 +153,57 @@
 @media(max-height:500px) and (orientation:landscape){
  .compact-play .map-section:has(.minimap-wrap:not([hidden])) #objective-card{display:none}
 }
+/* Headlines (DESIGN 12.13): one paper card at the top centre of the free band, clear of the goal card, the inspector and the drawer. The slot stays in the page as the live region; menus, dialogs, the tool bar and route picking hide it without removing it, and the card's time runs only while it shows. On phones a sheet sends toasts to the top, so a toast there hides the card until it goes. */
+.headline-slot{position:absolute;z-index:var(--z-headline);top:var(--gutter);left:var(--gutter);right:var(--gutter);max-width:440px;margin:0 auto;pointer-events:none}
+.map-section:has(.paused-chip:not([hidden])) .headline-slot{top:68px}
+.compact-play:has(.sidebar.mobile-open) .headline-slot{left:calc(var(--drawer-width) + 20px)}
+@media(min-width:701px) and (max-width:1100px){
+ .map-section:has(#inspector:not([hidden])) .headline-slot{left:332px}
+ .compact-play:not(:has(.sidebar.mobile-open)) .map-section:not(:has(#inspector:not([hidden]))):has(#objective-card:not([hidden]):not(.collapsed)) .headline-slot{right:320px}
+ .compact-play:not(:has(.sidebar.mobile-open)) .map-section:not(:has(#inspector:not([hidden]))):has(#objective-card.collapsed:not([hidden])) .headline-slot{right:384px}
+}
+@media(min-width:1101px){
+ .compact-play:has(.sidebar.mobile-open) .map-section:has(#objective-card:not([hidden]):not(.collapsed)) .headline-slot{right:320px}
+ .compact-play:has(.sidebar.mobile-open) .map-section:has(#objective-card.collapsed:not([hidden])) .headline-slot{right:384px}
+}
+@media(min-width:1101px) and (max-width:1250px){
+ .compact-play:not(:has(.sidebar.mobile-open)) .map-section:has(#objective-card.collapsed:not([hidden])) .headline-slot{right:384px}
+}
+:root:has(#modal[open]) .headline-slot,:root:has(#start-menu[open]) .headline-slot,:root:has(#loading-screen:not([hidden])) .headline-slot,.compact-play:has(#game-menu:not([hidden])) .headline-slot,.map-section:has(#layers-panel:not([hidden]),#map-options:not([hidden]),#active-tool-bar:not([hidden]),.route-pick-banner) .headline-slot{visibility:hidden}
+.headline-card{pointer-events:auto;position:relative;display:grid;grid-template-columns:40px minmax(0,1fr);column-gap:var(--s-3);align-items:start;padding:var(--s-3) var(--s-4) var(--s-4);background:var(--paper);border-radius:var(--r-4);box-shadow:var(--e2);color:var(--ink);animation:headline-in var(--t-panel) var(--ease)}
+.headline-card.leaving{opacity:0;transform:translateY(-6px);transition:opacity var(--t-quick) ease-in,transform var(--t-quick) ease-in}
+@keyframes headline-in{
+ from{opacity:0;transform:translateY(-8px)}
+}
+.headline-body{display:contents}
+.headline-kicker{display:flex;justify-content:space-between;gap:var(--s-3);border-bottom:3px double var(--rule);font-size:var(--fs-caption);line-height:var(--lh-caption);font-weight:500;color:var(--ink-2)}
+.headline-art{display:grid;place-items:center;width:40px;height:40px;border-radius:var(--r-3);background:var(--well);color:var(--ink)}
+.headline-card .headline-kicker{grid-column:1/-1;margin:0 var(--s-6) var(--s-3) 0;padding:var(--s-1) 0 var(--s-2)}
+.headline-card .headline-art{grid-column:1;grid-row:2/span 3}
+.headline-card h2{grid-column:2;margin:0;font-size:var(--fs-display);line-height:var(--lh-display);font-weight:600;letter-spacing:var(--tr-tight);text-wrap:balance}
+.headline-detail{grid-column:2;margin:var(--s-1) 0 0;font-size:var(--fs-body);line-height:var(--lh-body);color:var(--ink-2)}
+.headline-actions{grid-column:2;margin-top:var(--s-3)}
+.headline-action{min-height:var(--control);padding:0 var(--s-3);border:1px solid var(--edge);border-radius:var(--r-2);background:var(--paper);font-size:var(--fs-body);line-height:var(--lh-body);font-weight:500;color:var(--ink)}
+.headline-action:hover{background:var(--well)}
+.headline-close{position:absolute;top:var(--s-2);right:var(--s-2);display:grid;place-items:center;width:var(--control);height:var(--control);border-radius:var(--r-2);color:var(--ink-2)}
+.headline-close:hover{background:var(--well);color:var(--ink)}
+@media(max-width:700px){
+ .map-section .headline-slot{left:max(var(--gutter),var(--safe-l));right:max(var(--gutter),var(--safe-r));max-width:none}
+ .map-section:has(.paused-chip:not([hidden])) .headline-slot{top:64px}
+ .compact-play:has(.sidebar.mobile-open) .headline-slot,.compact-play:has(#objective-card.open:not([hidden])) .headline-slot,.map-section:has(#inspector.expanded:not([hidden])) .headline-slot{visibility:hidden}
+ .compact-play:has(#inspector:not([hidden])):has(#toast-region .toast) .headline-slot{visibility:hidden}
+ .headline-card{grid-template-columns:32px minmax(0,1fr);padding:var(--s-2) var(--s-3) var(--s-3)}
+ .headline-art{width:32px;height:32px}
+ .headline-card h2{font-size:var(--fs-title);line-height:var(--lh-title)}
+}
+@media(max-width:700px),(pointer:coarse){
+ .headline-close{top:0;right:0;width:var(--control-touch);height:var(--control-touch)}
+ .headline-action{min-height:var(--control-touch)}
+}
+.news-item.news-headline{align-items:start;color:var(--ink)}
+.news-headline .headline-art{width:32px;height:32px}
+.news-headline .headline-kicker{margin:0;padding:0 0 var(--s-1);font-size:var(--fs-caption);line-height:var(--lh-caption)}
+.news-headline h3{margin:var(--s-2) 0 0;font-size:var(--fs-lead);line-height:var(--lh-lead);font-weight:600;text-wrap:balance}
+.news-headline p.prose{color:var(--ink-2)}
+.news-pref{display:flex;align-items:center;gap:var(--s-2);margin:var(--s-3) 0 0;font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2);cursor:pointer}
+.news-pref input{width:18px;height:18px;margin:0;accent-color:var(--ink)}

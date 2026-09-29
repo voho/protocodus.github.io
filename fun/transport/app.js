@@ -44,6 +44,9 @@ import { contractState, contractSites } from './contracts.js';
 import { loanTerms, borrow, repay } from './model.js';
 import { routeNeedsAttention } from './gameplay-insights.js';
 import { creditToast } from './ui-notices.js';
+import { HEADLINE_PRIORITY, headlineKicker, headlineWatch, detectHeadlines, headlineTier, townHeadline, modelYearHeadline, recordHeadline } from './headlines.js';
+import { dateLong } from './copy.js';
+import { has as hasIcon } from './ui-icons.js';
 import { preloadHouses, onHouseAssetsChange } from './raster-houses.js';
 import { preloadWorldArt, onWorldArtChange, startupArtCells } from './atlas-runtime.js';
 import { industryContains, industrySize, industryFootprint } from './industry-sites.js';
@@ -125,6 +128,7 @@ let lastNoticeId = game.day<1 ? undefined : game.notifications[0]?.id;
 let goalChoice = null, goalSignature = '', goalOpen = false, goalSeen = null, goalChanged = false, goalFolded = (() => { try { const stored = localStorage.getItem('transport-next-goal-v2'); return stored ? stored === 'folded' : Boolean(localStorage.getItem('transport-next-goal-v1')); } catch { return false; } })();
 let noticeQueue=[],noticeAt=0,pacedNoticeAt=-Infinity,panelPricesStale=false,knownRoutes=new Set(),firstDeliveryPending=new Set(),townPeaks=new Map(),townDay=-1;
 let seenMilestones=new Set(),milestoneMonth=-1;
+let headlineWatchState=null,headlineQueue=[],headlineCurrent=null,headlineClosedAt=-Infinity,headlineHeld=false,headlineVisible=true,headlineCheckedAt=0,headlinesOn=(()=>{try{return localStorage.getItem('transport-headlines-v1')!=='off';}catch{return true;}})();
 resetMoments();
 const spanTools = new Set(['bridge','railbridge','tunnel','railtunnel']);
 const terrainTools = new Set(['raise','lower','level']);
@@ -1334,6 +1338,52 @@ function resetMoments() {
  townPeaks=new Map(game.cities.map(city=>[city.id,city.population]));
  // An older save or a new world has no stamps yet; whatever it has already met is backfilled silently.
  seenMilestones=new Set(game.milestones?Object.keys(game.milestones):metMilestones(game));milestoneMonth=Math.max(-1,...Object.values(game.milestones||{}).map(monthOf));goalSeen=null;goalChanged=false;
+ headlineWatchState=headlineWatch(game);headlineQueue=[];dismissHeadline(true);headlineClosedAt=-Infinity;
+}
+// Headlines: a rare paper card for big moments. Each is kept in game.headlines (News) even when the card is off; the
+// card waits for the plain map, shows one at a time for 10 s of visible time, and leaves 15 s before the next.
+function announceHeadline(entry) {
+ if(!recordHeadline(game,entry))return false;if(!headlinesOn)return false;
+ if(entry.routeId){knownRoutes.add(entry.routeId);firstDeliveryPending.delete(entry.routeId);}
+ headlineQueue.push({...game.headlines[0],queuedAt:performance.now()});
+ const rank=item=>HEADLINE_PRIORITY[item.kind]??3;headlineQueue.sort((a,b)=>rank(a)-rank(b)||a.queuedAt-b.queuedAt);headlineQueue.length=Math.min(3,headlineQueue.length);
+ return true;
+}
+function watchHeadlines() { for(const entry of detectHeadlines(game,headlineWatchState))announceHeadline(entry); }
+function stepHeadlines(now,dt) {
+ if(headlineCurrent){
+  const el=headlineCurrent.el;if(now-headlineCheckedAt>=250){headlineCheckedAt=now;headlineVisible=el.checkVisibility?.({visibilityProperty:true})??el.offsetParent!==null;}
+  if(!headlineHeld&&headlineVisible)headlineCurrent.remaining-=dt;
+  if(headlineCurrent.remaining<=0)dismissHeadline();
+  return;
+ }
+ headlineQueue=headlineQueue.filter(entry=>now-entry.queuedAt<120000);
+ if(headlineQueue.length&&headlinesOn&&!$('#modal').open&&tool==='inspect'&&!isRoutePicking()&&now-headlineClosedAt>=15000)showHeadline(headlineQueue.shift());
+}
+function showHeadline(entry) {
+ const action=entry.kind==='models'&&getFleetUpgrade(game).available?{label:'Review upgrades',run:reviewUpgrades}:noticeTargetExists(entry.target)?{label:'Show',run:()=>showNoticeTarget(entry.target)}:null;
+ const el=document.createElement('article');el.className='headline-card';el.dataset.kind=entry.kind;el.setAttribute('aria-labelledby','headline-title');
+ el.innerHTML=`<span class="headline-art" aria-hidden="true">${icon(headlineArt(entry.art))}</span><div class="headline-body"><p class="headline-kicker"><span>${escapeHTML(headlineKicker(entry.kind))}</span><time>${dateLong(entry.day)}</time></p><h2 id="headline-title" class="prose">${escapeHTML(entry.title)}</h2>${entry.detail?`<p class="headline-detail prose">${escapeHTML(entry.detail)}</p>`:''}${action?`<div class="headline-actions"><button type="button" class="headline-action">${escapeHTML(action.label)}</button></div>`:''}</div><button type="button" class="headline-close" aria-label="Dismiss headline" title="Dismiss">${icon('close')}</button>`;
+ // Pointing at the card or focusing inside it holds its countdown; it never takes focus itself.
+ el.addEventListener('pointerenter',()=>{headlineHeld=true;});el.addEventListener('pointerleave',()=>{headlineHeld=false;});
+ el.addEventListener('focusin',()=>{headlineHeld=true;});el.addEventListener('focusout',e=>{if(!el.contains(e.relatedTarget))headlineHeld=false;});
+ el.addEventListener('keydown',e=>{if(e.key!=='Escape')return;e.preventDefault();e.stopPropagation();dismissHeadline();});
+ el.querySelector('.headline-close').onclick=()=>dismissHeadline();
+ if(action)el.querySelector('.headline-action').onclick=()=>{dismissHeadline(false,false);action.run();};
+ $('#headline-slot').replaceChildren(el);headlineCurrent={entry,el,remaining:10000};headlineHeld=false;headlineVisible=true;headlineCheckedAt=0;
+ $('#status-message').textContent=entry.title;fanfare();
+}
+// Focus inside a closing card returns to the map, or is let go when the card's action moves it on.
+function dismissHeadline(immediate=false,refocus=true) {
+ const el=headlineCurrent?.el;headlineCurrent=null;headlineHeld=false;headlineClosedAt=performance.now();if(!el)return;
+ if(el.contains(document.activeElement)){if(refocus)$('#world').focus({preventScroll:true});else document.activeElement.blur();}
+ if(immediate||matchMedia('(prefers-reduced-motion: reduce)').matches)el.remove();else{el.classList.add('leaving');setTimeout(()=>el.remove(),180);}
+}
+function headlineArt(art) { return hasIcon(art)||hasIcon(ALIASES[art])?art:'town'; }
+// A headline rings three rising notes, softer than a toast; like deliveries it waits for audio a gesture started.
+function fanfare() {
+ if (!sounds||audioContext?.state!=='running') return;
+ try { for (const [index,frequency] of [523.25,659.25,783.99].entries()) { const at=audioContext.currentTime+index*.09, oscillator=audioContext.createOscillator(), gain=audioContext.createGain(); oscillator.connect(gain); gain.connect(audioContext.destination); oscillator.type='sine'; oscillator.frequency.setValueAtTime(frequency,at); gain.gain.setValueAtTime(.0001,at); gain.gain.exponentialRampToValueAtTime(.016,at+.012); gain.gain.exponentialRampToValueAtTime(.0005,at+.22); oscillator.start(at); oscillator.stop(at+.23); } } catch { sounds=false; }
 }
 function showQueuedNotices(now) {
  const urgent=entry=>entry.type==='warning'||entry.type==='error'?1:0;noticeQueue.sort((a,b)=>urgent(b)-urgent(a));
@@ -1346,8 +1396,10 @@ function showQueuedNotices(now) {
  }
 }
 function queueNewYear(pricing) {
- const review=yearReview(pricing.year-1),upgrade=getFleetUpgrade(game).available?{label:'Review upgrades',run:reviewUpgrades}:null;
- noticeQueue.push({message:newYearNotice(pricing.year,pricing.rate)+review,type:'milestone',action:review?[{label:'Open report',run:openCompany},upgrade]:upgrade});
+ // Every fifth January the new models make a headline; the toast then keeps only the price rise and the year's review.
+ const headline=modelYearHeadline(pricing.year),carded=Boolean(headline)&&announceHeadline(headline);
+ const review=yearReview(pricing.year-1),upgrade=!carded&&getFleetUpgrade(game).available?{label:'Review upgrades',run:reviewUpgrades}:null;
+ noticeQueue.push({message:newYearNotice(pricing.year,pricing.rate,{generation:!carded})+review,type:'milestone',action:review?[{label:'Open report',run:openCompany},upgrade]:upgrade});
 }
 // The year just closed: its operating profit, the change on the year before and its best route.
 function yearReview(year) {
@@ -1383,7 +1435,7 @@ function watchTowns(activeStops) {
  for(const city of game.cities){
   const peak=townPeaks.get(city.id);if(peak!==undefined&&city.population<=peak)continue;townPeaks.set(city.id,city.population);if(peak===undefined)continue;
   const reached=crossedMilestone(peak,city.population);
-  if(reached&&townService(game,city,activeStops).connected)noticeQueue.push({message:`${city.name} reached ${integer(reached)} residents`,type:'milestone',targets:[{kind:'city',id:city.id}],paced:true});
+  if(reached&&townService(game,city,activeStops).connected){const tier=headlineTier(peak,city.population);if(!(tier&&announceHeadline(townHeadline(game,city,tier))))noticeQueue.push({message:`${city.name} reached ${integer(reached)} residents`,type:'milestone',targets:[{kind:'city',id:city.id}],paced:true});}
  }
 }
 // Each milestone celebrates once, with at most one toast a game month; the rest wait in News and Company goals.
@@ -1406,16 +1458,19 @@ function showNoticeTarget(target) {
  const card=$$('#route-list [data-route-id]').find(el=>el.dataset.routeId===target.id);revealInPanel(card,card?.querySelector('[data-focus-route]'));
 }
 function openNews() {
- const date=day=>new Date(Date.UTC(1950,0,1+Math.floor(day))).toLocaleDateString('en-US',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'});
+ const date=dateLong;
  // Milestones are company state, not notices: those reached within the log's span join it, one line per day.
  const since=game.notifications.length>=24?Math.floor(game.notifications.at(-1).day):-Infinity,reached=new Map();
  for(const milestone of MILESTONES){const day=game.milestones?.[milestone.id];if(day>=since){if(!reached.has(day))reached.set(day,[]);reached.get(day).push(milestone.title);}}
  const titles=list=>list.length>3?`${list.slice(0,3).join(', ')} and ${list.length-3} more`:list.length>1?`${list.slice(0,-1).join(', ')} and ${list.at(-1)}`:list[0];
- const notices=[...game.notifications,...[...reached].map(([day,list])=>({day,message:list.length>1?`${list.length} milestones reached: ${titles(list)}`:`Milestone · ${list[0]}`,type:'milestone',goals:true}))].sort((a,b)=>b.day-a.day);
- const items=notices.map((notice,index)=>{const type=toastType(notice.type);return `<li class="news-item" data-type="${type}">${icon(type==='ok'||type==='milestone'?'check':'warning')}<div><time>${date(notice.day)}</time><p>${escapeHTML(notice.message)}</p></div>${notice.goals?'<button class="small-button" data-news-goals>Goals</button>':noticeTargetExists(notice.target)?`<button class="small-button" data-news-target="${index}">Show</button>`:''}</li>`;}).join('');
- closeMobile();openModal(`<div class="modal-inner"><div class="modal-heading"><div><h2>News</h2><p>Recent company notices, newest first. The log keeps the latest 24.</p></div><button class="close-modal" aria-label="Close dialog">×</button></div><ol class="news-list">${items||'<li class="news-empty">No news yet. Notices about your network, towns and industries appear here.</li>'}</ol><div class="modal-actions"><button class="button button-primary" data-close>Back to game ${icon('arrow')}</button></div></div>`);
+ const notices=[...game.notifications,...[...reached].map(([day,list])=>({day,message:list.length>1?`${list.length} milestones reached: ${titles(list)}`:`Milestone · ${list[0]}`,type:'milestone',goals:true})),...(game.headlines||[]).map(entry=>({...entry,headline:true}))].sort((a,b)=>Math.floor(b.day)-Math.floor(a.day)||(b.headline?1:0)-(a.headline?1:0));
+ // Headlines read as small paper cuttings among the notices; on the same day they come first.
+ const headlineItem=(notice,index)=>`<li class="news-item news-headline" data-kind="${escapeHTML(notice.kind)}"><span class="headline-art" aria-hidden="true">${icon(headlineArt(notice.art))}</span><div><p class="headline-kicker"><span>${escapeHTML(headlineKicker(notice.kind))}</span><time>${date(notice.day)}</time></p><h3 class="prose">${escapeHTML(notice.title)}</h3>${notice.detail?`<p class="prose">${escapeHTML(notice.detail)}</p>`:''}</div>${noticeTargetExists(notice.target)?`<button class="small-button" data-news-target="${index}">Show</button>`:''}</li>`;
+ const items=notices.map((notice,index)=>{if(notice.headline)return headlineItem(notice,index);const type=toastType(notice.type);return `<li class="news-item" data-type="${type}">${icon(type==='ok'||type==='milestone'?'check':'warning')}<div><time>${date(notice.day)}</time><p>${escapeHTML(notice.message)}</p></div>${notice.goals?'<button class="small-button" data-news-goals>Goals</button>':noticeTargetExists(notice.target)?`<button class="small-button" data-news-target="${index}">Show</button>`:''}</li>`;}).join('');
+ closeMobile();openModal(`<div class="modal-inner"><div class="modal-heading"><div><h2>News</h2><p>Recent company notices and headlines, newest first. The log keeps the latest 24 of each.</p><label class="news-pref"><input type="checkbox" id="headline-pref"${headlinesOn?' checked':''}> Show headlines on the map</label></div><button class="close-modal" aria-label="Close dialog">×</button></div><ol class="news-list">${items||'<li class="news-empty">No news yet. Notices about your network, towns and industries appear here.</li>'}</ol><div class="modal-actions"><button class="button button-primary" data-close>Back to game ${icon('arrow')}</button></div></div>`);
  $$('[data-news-target]').forEach(el=>el.addEventListener('click',()=>showNoticeTarget(notices[Number(el.dataset.newsTarget)].target)));
  $$('[data-news-goals]').forEach(el=>el.addEventListener('click',openGoals));
+ $('#headline-pref').addEventListener('change',e=>{headlinesOn=e.target.checked;try{if(headlinesOn)localStorage.removeItem('transport-headlines-v1');else localStorage.setItem('transport-headlines-v1','off');}catch{}if(!headlinesOn){headlineQueue=[];dismissHeadline(true);}});
  $('#modal .close-modal')?.focus({preventScroll:true});
 }
 // Company goals: every chapter with the dates reached and live progress. Nothing here is required or rewarded.
@@ -1856,13 +1911,14 @@ function frame(now){
  }
  if(now-hudAt>400&&(!hudState||hudState.game!==game||hudState.day!==game.day||hudState.revision!==game.revision||hudState.money!==game.money||hudState.zoom!==camera.zoom||hudState.w!==w||hudState.view!==view)){
   updateHud();hudAt=now;hudState={game,day:game.day,revision:game.revision,money:game.money,zoom:camera.zoom,w,view};
-  const fresh=collectNotices(game.notifications,lastNoticeId);lastNoticeId=game.notifications[0]?.id;for(const entry of groupNotices(fresh))if(entry.topic!=='credit'||creditToast(entry,game.history))noticeQueue.push({...entry,type:toastType(entry.type),...entry.topic==='credit'?{action:{label:'Loan',run:()=>openCompany('loan')}}:{}});watchRoutes();
+  const fresh=collectNotices(game.notifications,lastNoticeId);lastNoticeId=game.notifications[0]?.id;for(const entry of groupNotices(fresh))if(entry.topic!=='credit'||creditToast(entry,game.history))noticeQueue.push({...entry,type:toastType(entry.type),...entry.topic==='credit'?{action:{label:'Loan',run:()=>openCompany('loan')}}:{}});watchHeadlines();watchRoutes();
   watchMilestones();
   watchContracts();
   if(selected&&!$('#inspector').hidden&&!$('#inspector').contains(document.activeElement)&&!panelPress&&now-panelReleasedAt>250)inspect(selected.x,selected.y,selected.kind);
   if(selectedVehicle&&!$('#inspector').hidden)inspectVehicle(selectedVehicle,true);
  }
  if(noticeQueue.length&&now-noticeAt>400){noticeAt=now;showQueuedNotices(now);}
+ if(headlineCurrent||headlineQueue.length)stepHeadlines(now,elapsed*1000);
  if((!compactUI||compactUI.isMinimapVisible())&&(!minimapState||minimapState.game!==game||minimapState.revision!==game.revision||minimapState.layers!==mapLayers||minimapState.x!==camera.x||minimapState.y!==camera.y||minimapState.height!==camera.height||minimapState.zoom!==camera.zoom||minimapState.w!==w||minimapState.h!==h)){
   renderer.drawMinimap($('#minimap'));minimapAt=now;lastRevision=game.revision;
   minimapState={game,revision:game.revision,layers:mapLayers,x:camera.x,y:camera.y,height:camera.height,zoom:camera.zoom,w,h};
@@ -1879,3 +1935,4 @@ function frame(now){
 requestAnimationFrame(frame);
 // Explicit diagnostic surface for deterministic browser regression checks; no internal state duplicated.
 window.transport={get game(){return game;},get renderer(){return renderer;},get speed(){return speed;},setSpeed:changeSpeed,setTool,setView,inspect,persist};
+Object.defineProperty(window.transport,'headline',{get(){return headlineCurrent?.entry.key||null;},enumerable:true});

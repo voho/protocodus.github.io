@@ -1002,6 +1002,7 @@ The class names in 16.3 are a contract. Parallel implementers rely on them.
 - **Kicker line:** the kicker in 12/500 ink-2 on the left and the date on the right, above a double hairline. This is the one newspaper touch, and it uses no middle dot.
 - **Content:** the title in `--fs-display`; the detail in 14 `.prose`; one action; a close button.
 - One headline at a time. It is hidden while a menu, dialog, the tool bar or a phone sheet (beyond half height) is open.
+- On phones the title steps down to `--fs-title`. While a sheet sends toasts to the top of the band, the card steps aside until they go. The title, like the detail, uses proportional figures.
 
 ### 12.14 Active-tool bar, placement tip, picking
 

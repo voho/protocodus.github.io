@@ -136,6 +136,12 @@ test('HUD moments: town thresholds, new-year text and toast styles', () => {
   assert.deepEqual(['success', 'info', 'warning', 'error', 'milestone', 'report'].map(toastType), ['ok', 'ok', 'warning', 'error', 'milestone', 'ok']);
 });
 
+test('in a headline year the January notice keeps only the price rise', () => {
+  assert.equal(newYearNotice(1955, .023, { generation: false }), 'Prices rise 2.3% in 1955.');
+  assert.equal(newYearNotice(1951, .023, { generation: true }), newYearNotice(1951, .023));
+  assert.equal(newYearNotice(1951, .023), 'New for 1951: vehicles carry 20% more and run 10% faster. Prices rise 2.3% this year.');
+});
+
 test('a below-zero balance toasts when it begins and each January, while News keeps every month', () => {
   const history = [[31, 0, 5000], [59, 1, -200], [90, 2, -900], [334, 10, -50], [365, 11, -80], [396, 12, -10]].map(([day, month, money]) => ({ day, month, money }));
   const credit = day => ({ day, topic: 'credit' });
