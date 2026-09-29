@@ -11,15 +11,15 @@ import { createTerrainTile } from './world-tiles.js';
 export { seedNumber, randomSource, hashNoise } from './world-noise.js';
 
 export const NEW_WORLD_SIZES = {
-  square512: { width: 512, height: 512, towns: 48, clusters: 8, columns: 7, lakes: 18, separation: 24, label: '512 × 512', description: '48 towns · a connected region' },
-  square1024: { width: 1024, height: 1024, towns: 128, clusters: 20, columns: 12, lakes: 48, separation: 32, label: '1024 × 1024', description: '128 towns · a broad continent' },
-  square2048: { width: 2048, height: 2048, towns: 320, clusters: 48, columns: 19, lakes: 120, separation: 48, label: '2048 × 2048', description: '320 towns · a vast continent' },
+  square512: { width: 512, height: 512, towns: 48, clusters: 8, columns: 7, lakes: 18, separation: 24, label: '512 × 512', description: '48 towns, a connected region' },
+  square1024: { width: 1024, height: 1024, towns: 128, clusters: 20, columns: 12, lakes: 48, separation: 32, label: '1024 × 1024', description: '128 towns, a broad continent' },
+  square2048: { width: 2048, height: 2048, towns: 320, clusters: 48, columns: 19, lakes: 120, separation: 48, label: '2048 × 2048', description: '320 towns, a vast continent' },
 };
 export const WORLD_SIZES = {
-  regional: { width: 128, height: 96, towns: 8, clusters: 1, columns: 3, lakes: 4, separation: 14, label: 'Regional', description: '128 × 96 · 8 towns · a compact county' },
-  large: { width: 256, height: 192, towns: 16, clusters: 3, columns: 4, lakes: 7, separation: 19, label: 'Large', description: '256 × 192 · 16 towns · room to expand' },
-  huge: { width: 512, height: 384, towns: 32, clusters: 6, columns: 6, lakes: 13, separation: 24, label: 'Huge', description: '512 × 384 · 32 towns · an entire region' },
-  vast: { width: 768, height: 576, towns: 64, clusters: 12, columns: 8, lakes: 25, separation: 24, label: 'Vast', description: '768 × 576 · 64 towns · a connected continent' },
+  regional: { width: 128, height: 96, towns: 8, clusters: 1, columns: 3, lakes: 4, separation: 14, label: 'Regional', description: '128 × 96, 8 towns, a compact county' },
+  large: { width: 256, height: 192, towns: 16, clusters: 3, columns: 4, lakes: 7, separation: 19, label: 'Large', description: '256 × 192, 16 towns, room to expand' },
+  huge: { width: 512, height: 384, towns: 32, clusters: 6, columns: 6, lakes: 13, separation: 24, label: 'Huge', description: '512 × 384, 32 towns, an entire region' },
+  vast: { width: 768, height: 576, towns: 64, clusters: 12, columns: 8, lakes: 25, separation: 24, label: 'Vast', description: '768 × 576, 64 towns, a connected continent' },
   ...NEW_WORLD_SIZES,
 };
 export const DEFAULT_WORLD_SIZE = 'square512';

@@ -2,6 +2,7 @@ import { INDUSTRIES } from './data.js';
 import { localEnvironment, localTransport, randomAt, weatherAt } from './environment.js';
 import { industrySize } from './industry-sites.js';
 import { nearbyCities, nearbyIndustries } from './simulation-spatial.js';
+import { token } from './copy.js';
 const clamp=(value,min=0,max=1)=>Math.max(min,Math.min(max,value));
 const MAX_INVENTORY=900;
 
@@ -45,7 +46,7 @@ export function industryConditions(game,industry,served=null){
   if(workers>.25)positive.push('Nearby workers');else if(Object.keys(definition.inputs).length)negative.push('Few workers');
   if(e.amenity>.18)positive.push('Local services');
   if(partners)positive.push('Nearby partners');
-  if(e.transport>.1)positive.push('Transport service');
+  if(e.transport>.1)positive.push('Served by a route');
   if(e.pollution>.25&&['farm','fishery'].includes(kind))negative.push('Pollution');
   if(weather.cold>.65)negative.push('Cold weather');
   if(weather.heat>.7&&weather.wetness<.3)negative.push('Dry weather');
@@ -102,7 +103,8 @@ export function stepIndustries(game,notify=()=>{}){
         industry.capacity=clamp(Math.max(stockFloor,old-(.025+randomAt(game,day,industry.id,434)*.045)*(1.3-e.access*.3)),.5,3);
       }
       industry.nextReviewDay=day+21+Math.floor(randomAt(game,day,industry.id,435)*25);
-      if(Math.floor(old*2)<Math.floor(industry.capacity*2))notify(game,`${industry.name} expanded to ${Math.round(industry.capacity*100)}% capacity.`,'success',{topic:'industry-growth',target:{kind:'industry',id:industry.id}});
+      const grew=name=>`${name} expanded to ${Math.round(industry.capacity*100)}% capacity.`;
+      if(Math.floor(old*2)<Math.floor(industry.capacity*2))notify(game,grew(industry.name),'success',{topic:'industry-growth',target:{kind:'industry',id:industry.id},template:grew(token('industry',industry.id))});
     }
   }
 }

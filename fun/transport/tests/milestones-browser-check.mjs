@@ -84,7 +84,7 @@ try {
   assert.equal(await page.locator('.goal-chapter').count(), 4);
   assert.deepEqual(await page.locator('.goal-chapter .eyebrow').allTextContents(), ['Chapter 1 of 4', 'Chapter 2 of 4', 'Chapter 3 of 4', 'Chapter 4 of 4']);
   assert.match(await page.locator('.goal-row', { hasText: 'A town of 2,000' }).innerText(), /Reached \w{3} \d+, 1950/);
-  assert.match(await page.locator('.goal-row', { hasText: 'Five towns served' }).innerText(), /2 \/ 5 served/);
+  assert.match(await page.locator('.goal-row', { hasText: 'Five towns served' }).innerText(), /2 of 5 served/);
   assert.equal(await page.locator('.goal-row em').count(), 0, 'the card still follows the first-route stages');
   await page.screenshot({ path: `${output}/desktop-goals.png` });
   await page.locator('#modal .close-modal').click();

@@ -66,7 +66,7 @@ for(const mode of ['road','rail'])test(`${mode}: a rejected stroke pinpoints onl
   assert.equal(networkTerrainShape(junction,20,19).kind,'flat');assert.equal(networkTerrainShape(junction,20,20).axis,'y');
   assert.deepEqual(networkTerrainPlanIssues(junction,join.map(p=>({...p,tool:mode}))),[{x:20,y:19,kind:'ramp-junction',at:{x:20,y:20}}]);
   const joined=quoteBuildPlan(junction,mode,join);
-  assert.equal(joined.ok,false);assert.equal(joined.message,'Joins the ramp at 20, 20 from the side — end before it or approach along the slope');
+  assert.equal(joined.ok,false);assert.equal(joined.message,'This joins a ramp from the side. End before it, or approach along the slope.');
   const before=structuredClone(junction);assert.equal(buildPlan(junction,mode,join).ok,false);assert.deepEqual(junction,before);
   assert.equal(quoteBuildPlan(junction,mode,join.slice(0,2)).ok,true,'ending one tile earlier is buildable');
 });

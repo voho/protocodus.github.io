@@ -104,7 +104,7 @@ try {
   await undo.locator('.toast .toast-action').last().click();
   const restored = await company(undo);
   assert.deepEqual([restored.money, restored.stations], [start.money, start.stations], 'Undo refunds the line and its stops');
-  assert.match(await undo.locator('.toast').last().textContent(), /^Connection removed · \$[\d,]+ refunded/);
+  assert.match(await undo.locator('.toast').last().textContent(), /^Road and stops removed\. \$[\d,]+ refunded\./);
   await undo.close();
 
   // Other seeds and biomes: five actions or fewer, and deliveries within a month.

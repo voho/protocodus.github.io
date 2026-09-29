@@ -26,7 +26,7 @@ try {
  await page.locator('#industry-kind').selectOption('steel-mill');
  // Eight steel mills fit on one page, so the list holds every one.
  assert.equal(await page.locator('[data-industry]').count(),await page.evaluate(()=>transport.game.industries.filter(site=>site.kind==='steel-mill').length));
- assert.match(await page.locator('.site-status').first().innerText(),/Needs/);
+ assert.match(await page.locator('.site-status').first().innerText(),/^Idle$/,'a mill nothing has supplied yet is idle, not a fault');
  await page.locator('#entity-search').fill('no-such-site');
  assert.equal(await page.locator('[data-industry]').count(),0);
  await page.waitForTimeout(7300);
@@ -34,7 +34,7 @@ try {
  assert.equal(await page.locator('#entity-search').evaluate(el=>el===document.activeElement),true,'refresh preserves search focus');
  await page.locator('#entity-search').fill('steel');
  await page.locator('[data-industry]').first().click();
- assert.match(await page.locator('.industry-condition').innerText(),/Deliver every input/);
+ assert.match(await page.locator('.industry-condition').innerText(),/makes steel once it gets iron ore and coal\./);
  await page.locator('#panel-content').evaluate(el=>el.scrollTop=el.scrollHeight);
  await page.locator('[data-view="build"]').click();
  assert.equal(await page.locator('#panel-content').evaluate(el=>el.scrollTop),0,'switching views returns to the main tools');
@@ -56,7 +56,7 @@ try {
  assert.equal(await page.locator('#profit-exact').getAttribute('title'),`Operating figures tracked since ${dates.company}`);
  // Disconnect and repair while paused: diagnostics must not wait for time to advance.
  await page.evaluate(async()=>{const {build,refreshRouteConnections}=await import('./model.js');const g=transport.game,c=g.cities[0];for(let y=0;y<g.height;y++){const t=g.tiles[y*g.width+c.x+12];if(t.road&&!g.stations.some(s=>s.x===c.x+12&&s.y===y))build(g,'bulldoze',c.x+12,y);}refreshRouteConnections(g);});
- await page.waitForFunction(()=>document.querySelector('[data-route-status]')?.textContent==='Disconnected');
+ await page.waitForFunction(()=>document.querySelector('[data-route-status]')?.textContent==='Not connected');
  assert.equal(await page.evaluate(()=>transport.speed),0);
  // New world activation is transactional even when the browser rejects writes.
  // Opening the main menu saves the current company first, so capture it afterwards.

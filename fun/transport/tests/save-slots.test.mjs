@@ -195,9 +195,9 @@ test('readable JSON fallback works without compression and compressed slots repo
 }));
 
 test('save rows name the in-game month, balance and pluralise routes', () => {
-  assert.equal(slotDetails({ biome: 'taiga', day: 0, money: 400000, width: 512, height: 512, routes: 1 }), 'Taiga · Jan 1950 · $400,000 · 512 × 512 · 1 route');
-  assert.equal(slotDetails({ biome: 'desert', day: 790.4, money: -1234.6, width: 256, height: 256, routes: 2 }), 'Desert · Mar 1952 · −$1,235 · 256 × 256 · 2 routes');
-  assert.equal(slotDetails({ biome: 'tundra', day: 31, money: 0, width: 64, height: 64, routes: 0 }), 'Tundra · Feb 1950 · $0 · 64 × 64 · 0 routes');
+  assert.equal(slotDetails({ biome: 'taiga', day: 0, money: 400000, width: 512, height: 512, routes: 1 }), 'Taiga, Jan 1950, $400,000, 512 × 512, 1 route');
+  assert.equal(slotDetails({ biome: 'desert', day: 790.4, money: -1234.6, width: 256, height: 256, routes: 2 }), 'Desert, Mar 1952, −$1,235, 256 × 256, 2 routes');
+  assert.equal(slotDetails({ biome: 'tundra', day: 31, money: 0, width: 64, height: 64, routes: 0 }), 'Tundra, Feb 1950, $0, 64 × 64, 0 routes');
   assert.equal(slotDate(null), 'Unknown date'); assert.equal(slotMoney(Number.NaN), '—');
 });
 

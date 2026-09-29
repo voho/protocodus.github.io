@@ -1,5 +1,7 @@
-import { INDUSTRIES, CARGO, TOWN_CARGO } from './data.js';
-import { STATION_RADIUS, findPath, vehicleNoun, getRouteFleet } from './model.js';
+import { INDUSTRIES, TOWN_CARGO } from './data.js';
+import { STATION_RADIUS, findPath, getRouteFleet, getVehiclePurchase } from './model.js';
+import { number, count, listJoin, capital, cargoName, vehicleNoun, token, plain, namesIn } from './copy.js';
+import { townGrowth, townNeeds, townOutlook } from './settlements.js';
 import { findIndustryTargets } from './chains.js';
 import { industryDistance, industryContains, industrySize } from './industry-sites.js';
 import { buildingAt } from './building-sites.js';
@@ -10,17 +12,23 @@ import { nextMilestone, progressText } from './milestones.js';
 
 const nearby = (a, b) => Math.hypot(a.x - b.x, a.y - b.y) <= STATION_RADIUS;
 const covers = (site, stop) => industryDistance(site, stop) <= STATION_RADIUS;
-const joinCargo = keys => keys.map(key => CARGO[key].name.toLowerCase()).join(' + ');
 const isCity = site => !INDUSTRIES[site?.kind];
 const reach = (site, point) => isCity(site) ? Math.hypot(site.x - point.x, site.y - point.y) : industryDistance(site, point);
 const siteName = site => site.name || INDUSTRIES[site.kind]?.name || 'Town';
 const isRaw = site => !Object.keys(INDUSTRIES[site.kind].inputs).length;
 const PROCESSED = new Set(Object.values(INDUSTRIES).filter(definition => Object.keys(definition.inputs).length).flatMap(definition => Object.keys(definition.outputs)));
-const cargoName = key => CARGO[key].name.toLowerCase();
-const listing = parts => parts.length < 3 ? parts.join(' and ') : parts.slice(0, -1).join(', ') + ' and ' + parts.at(-1);
 const plural = name => /s$/.test(name) ? name : /y$/.test(name) ? name.slice(0, -1) + 'ies' : name + 's';
-const recipe = kind => { const d = INDUSTRIES[kind], amounts = entries => listing(Object.entries(entries).map(([key, n]) => `${n} ${cargoName(key)}`)); return `${plural(d.name)} turn ${amounts(d.inputs)} into ${amounts(d.outputs)}.`; };
+const recipe = kind => { const d = INDUSTRIES[kind], amounts = entries => listJoin(Object.entries(entries).map(([key, n]) => `${n} ${cargoName(key)}`)); return `${plural(d.name)} turn ${amounts(d.inputs)} into ${amounts(d.outputs)}.`; };
 const buyerOf = target => ({ id: target.id, kind: target.kind, name: target.name, x: target.x, y: target.y });
+const cargoToken = key => token('cargo', key), cargoTokens = (keys, word) => listJoin(keys.map(cargoToken), word), cargoNames = (keys, word) => listJoin(keys.map(key => cargoName(key)), word);
+// A status (DESIGN.md 6.4): the machine state, a tone (ok, warn, error, paused or info), one word, a reason
+// template and an optional fix {action, label, cost?}. label and detail repeat word and the plain reason
+// for the interface that still reads them. Names come from the sites at hand first, then the game.
+function status(game, state, tone, word, reason, extra, known = []) {
+  const names = game ? namesIn(game) : null, name = (kind, id) => { const item = known.find(entry => entry.id === id); return item ? siteName(item) : names?.(kind, id); };
+  return { state, tone, word, label: word, reason, detail: plain(reason, name), ...extra };
+}
+const EDIT = { action: 'edit', label: 'Edit route' };
 
 // Suggestions and checklists are recomputed only when sites, stops or the network
 // change; game.revision moves every day, so it would defeat the cache.
@@ -144,21 +152,39 @@ export function townService(game, city, activeStops = null) {
   }
   const connected = activeStops.some(stop => nearby(stop, city));
   const served = connected && Number.isFinite(city.lastServiceDay) && game.day - city.lastServiceDay <= 30;
-  return { connected, served, label: served ? 'Served recently' : connected ? 'Awaiting deliveries' : 'No service' };
+  // The HUD counts connected towns on every tick, so the words, which read growth, needs and room, wait until read.
+  let words = null;const read = () => words ??= townWords(game, city, connected, served);
+  return { connected, served, label: served ? 'Served recently' : connected ? 'Awaiting deliveries' : 'No route yet', get state() { return read().state; }, get tone() { return read().tone; }, get word() { return read().word; }, get reason() { return read().reason; }, get detail() { return read().detail; }, get fix() { return read().fix; } };
+}
+// Growing, Needs <cargo> (only while zones nearby wait on it), Out of room or Steady. Needs only speed growth up.
+function townWords(game, city, connected, served) {
+  const me = token('town', city.id), say = (state, tone, word, reason, extra) => status(game, state, tone, word, reason, extra, [city]);
+  if (!connected) return say('steady', 'info', 'Steady', `${me} grows slowly on its own. A route stop within ${STATION_RADIUS} tiles helps it grow.`);
+  const growth = townGrowth(game, city);
+  if (growth?.change > 0) return say('growing', 'ok', 'Growing', `${me} gained ${count(growth.change, 'resident')} in ${count(growth.days, 'day')}.`);
+  const zones = (game.zones || []).filter(zone => Math.hypot(zone.x - city.x, zone.y - city.y) <= 10);
+  const need = zones.length ? townNeeds(game, city).find(need => !need.met && need.cargo.length && zones.some(zone => need.kind === 'construction' || zone.kind === need.kind)) : null;
+  if (need) return say('needs', 'warn', `Needs ${cargoNames(need.cargo, 'or')}`, `${me} grows faster with ${cargoTokens(need.cargo, 'or')} deliveries.`);
+  if (townOutlook(game, city).plots === 0) return say('crowded', 'warn', 'Out of room', `${me} has no free road-side plots. It lays new streets over time, and zones nearby speed this up.`, { fix: { action: 'zone', label: 'Add zones' } });
+  return say('steady', 'info', 'Steady', served ? `${me} is served and holding steady.` : `${me} is waiting for its next delivery.`);
 }
 
-// With a game, a piling-up store names the service that already loads here.
+// With a game, a piling-up store names the route that already loads here. A factory nothing has
+// supplied yet is Idle; once supplied, a missing input reads Needs <cargo>.
 export function industryStatus(industry, game = null) {
-  const definition = INDUSTRIES[industry.kind], inventory = industry.inventory || {};
-  const missing = Object.keys(definition.inputs).filter(key => !(inventory[key] > 0));
-  if (missing.length) return { state: 'waiting', label: 'Needs ' + joinCargo(missing), missing, detail: 'Deliver every input to restart production.' };
-  const full = Object.keys(definition.outputs).some(key => (inventory[key] || 0) >= 900 * (industry.capacity || 1) - .001);
-  if (full || outputFill(industry) >= .5) {
+  const definition = INDUSTRIES[industry.kind], inventory = industry.inventory || {}, inputs = Object.keys(definition.inputs), made = cargoTokens(Object.keys(definition.outputs));
+  const me = token('industry', industry.id), say = (state, tone, word, reason) => status(game, state, tone, word, reason, { missing }, [industry]);
+  const missing = inputs.filter(key => !(inventory[key] > 0));
+  if (missing.length) return industry.received > 0 ? say('waiting', 'warn', `Needs ${cargoNames(missing)}`, `${me} needs ${cargoTokens(missing)} to keep making ${made}.`) : say('waiting', 'info', 'Idle', `${me} makes ${made} once it gets ${cargoTokens(inputs)}.`);
+  const fill = outputFill(industry);
+  if (fill >= .5) {
     const loads = game?.routes.find(route => route.active && definition.outputs[route.cargo] && game.stations.some(stop => stop.id === route.stops?.[0] && covers(industry, stop)));
-    const detail = loads ? `Another vehicle on ${loads.name} would carry more.` : full ? 'Carry output to a buyer to make room.' : 'Stock is building up. Another vehicle would earn more and let it expand.';
-    return full ? { state: 'full', label: 'Storage full', missing: [], detail } : { state: 'backlog', label: 'More to carry', missing: [], detail };
+    const more = loads && `Another ${vehicleNoun(loads.mode, loads.cargo)} on ${token('route', loads.id)} would carry more`;
+    return fill >= .9 ? say('full', 'warn', 'Storage nearly full', loads ? `${more}.` : `${me} has almost no room left. A route to a buyer would carry its ${made} away.`)
+      : say('backlog', 'warn', 'Output piling up', loads ? `${more}, and let ${me} grow.` : `${me} grows while its ${made} is carried away. A route to a buyer would do that.`);
   }
-  return { state: 'producing', label: 'Producing', missing: [], detail: 'Output depends on nearby nature, roads, workers and weather.' };
+  const month = Math.round((industry.production || 0) * 30);
+  return say('producing', 'ok', 'Producing', month > 0 ? `${me} makes about ${number(month)} ${made} a month.` : `${me} makes ${made}.`);
 }
 
 // The sites your freight services load at (first stop) or deliver to (last stop), with the first such route's colour.
@@ -186,38 +212,41 @@ function endpointTowns(towns, stops) {
   }
   return best;
 }
-// Another vehicle pays only while at least two full loads wait for the fleet.
-function fleetHealth(game, route, stats, waiting, running) {
-  const capacity = stats?.capacity ?? game.vehicles.reduce((sum, vehicle) => vehicle.routeId === route.id ? sum + (vehicle.capacity || 0) : sum, 0);
-  if (waiting < Math.max(50, 2 * capacity)) return { ...running, waiting, capacity };
-  return { state: 'busy', label: route.cargo === 'passengers' ? 'Passengers waiting' : 'Cargo piling up', detail: `About ${Math.round(waiting / Math.max(1, capacity))} loads. Add a ${vehicleNoun(route.mode, route.cargo)}.`, waiting, capacity };
+// Another vehicle pays only while at least two full loads wait for the fleet. Before its first delivery a route is on its first trip.
+// Reasons stay short: the route card already shows both stops.
+function fleetHealth(game, route, stats, waiting, reason, known) {
+  const capacity = stats?.capacity ?? game.vehicles.reduce((sum, vehicle) => vehicle.routeId === route.id ? sum + (vehicle.capacity || 0) : sum, 0), noun = vehicleNoun(route.mode, route.cargo);
+  if (waiting < Math.max(50, 2 * capacity)) return route.delivered === 0 ? status(game, 'running', 'info', 'First trip', `The first ${noun} is on its way.`, { waiting, capacity }, known) : status(game, 'running', 'ok', 'Running', reason, { waiting, capacity }, known);
+  return status(game, 'busy', 'warn', route.cargo === 'passengers' ? 'Passengers waiting' : 'Cargo waiting', `About ${count(Math.round(waiting / Math.max(1, capacity)), 'load')} waiting. Another ${noun} would carry more.`, { fix: { action: 'add-vehicle', label: `Add ${noun}`, cost: getVehiclePurchase(game, route.mode)?.cost ?? 0 }, waiting, capacity }, known);
 }
 
 export function routeHealth(game, route, stats = null) {
-  if (!route.active) return { state: 'blocked', label: 'Disconnected', detail: 'Repair the connection between the two stops.' };
-  const stops = route.stops.map(id => game.stations.find(stop => stop.id === id));
-  if (stops.some(stop => !stop)) return { state: 'blocked', label: 'Missing stop', detail: 'This service needs both stops.' };
+  const stops = route.stops.map(id => game.stations.find(stop => stop.id === id)), [from, to] = stops, ends = from && to ? `${token('stop', from.id)} and ${token('stop', to.id)}` : '';
+  const say = (state, tone, word, reason, extra, known = []) => status(game, state, tone, word, reason, extra, [...stops.filter(Boolean), ...known]);
+  if (!route.active) return say('blocked', 'error', 'Not connected', route.mode === 'water' ? 'Its ports no longer share open water.' : `Its ${route.mode === 'rail' ? 'track' : 'road'} is cut. Rebuild it, including any bridge or tunnel.`, { fix: { action: 'show-gap', label: 'Show the gap' } });
+  if (!ends) return say('blocked', 'error', 'Stop missing', 'One of its stops was removed. Edit the route to pick another, or retire it.', { fix: EDIT });
   if (route.cargo === 'passengers') {
     const towns = stops.map(stop => game.cities.filter(city => nearby(city, stop)));
-    if (!towns[0].some(a => towns[1].some(b => a.id !== b.id))) return { state: 'blocked', label: 'No passengers', detail: 'Each stop must cover a different town.' };
-    const waiting = Math.min(...endpointTowns(towns, stops).map(city => Math.floor(city.passengers || 0)));
-    return fleetHealth(game, route, stats, waiting, { state: 'running', label: 'Running', detail: 'Passengers travel both ways.' });
+    if (!towns[0].some(a => towns[1].some(b => a.id !== b.id))) return say('blocked', 'error', 'No passengers', `${ends} each need a different town within ${STATION_RADIUS} tiles.`, { fix: EDIT });
+    const pair = endpointTowns(towns, stops), waiting = Math.min(...pair.map(city => Math.floor(city.passengers || 0)));
+    return fleetHealth(game, route, stats, waiting, 'Passengers travel both ways.', stops);
   }
-  const sources = game.industries.filter(site => covers(site, stops[0]) && INDUSTRIES[site.kind].outputs[route.cargo]);
-  const buyers = game.industries.filter(site => covers(site, stops[1]) && INDUSTRIES[site.kind].inputs[route.cargo] && !sources.includes(site));
-  const townBuyer = TOWN_CARGO.includes(route.cargo) && game.cities.some(city => nearby(city, stops[1]));
-  if (!sources.length) return { state: 'blocked', label: 'No producer', detail: `Add a producer of ${CARGO[route.cargo].name.toLowerCase()} within 5 tiles of the start.` };
-  if (!buyers.length && !townBuyer) return { state: 'blocked', label: 'No buyer', detail: 'Add a buyer within 5 tiles of the end stop.' };
+  const sources = game.industries.filter(site => covers(site, from) && INDUSTRIES[site.kind].outputs[route.cargo]);
+  const buyers = game.industries.filter(site => covers(site, to) && INDUSTRIES[site.kind].inputs[route.cargo] && !sources.includes(site));
+  const townBuyer = TOWN_CARGO.includes(route.cargo) && game.cities.some(city => nearby(city, to)), cargo = cargoToken(route.cargo);
+  if (!sources.length) return say('blocked', 'error', 'No supplier', `Nothing within ${STATION_RADIUS} tiles of ${token('stop', from.id)} supplies ${cargo}. Add a supplier there, or edit the route.`, { fix: EDIT });
+  if (!buyers.length && !townBuyer) return say('blocked', 'error', 'No buyer', `Nothing within ${STATION_RADIUS} tiles of ${token('stop', to.id)} buys ${cargo}. Add a buyer there, or edit the route.`, { fix: EDIT });
   if (!townBuyer && buyers.every(site => (site.inventory?.[route.cargo] || 0) >= 900 * (site.capacity || 1) - .001)) {
-    return { state: 'waiting', label: 'Buyer full', detail: 'Supply its other inputs and carry away its output.' };
+    return say('waiting', 'warn', 'Buyer full', `${token('industry', buyers[0].id)} has no room for more ${cargo}. Supply its other inputs, and carry its output away.`, {}, buyers);
   }
-  const loaded = game.vehicles.some(vehicle => vehicle.routeId === route.id && vehicle.load > 0);
+  const loaded = game.vehicles.some(vehicle => vehicle.routeId === route.id && vehicle.load > 0), nouns = capital(vehicleNoun(route.mode, route.cargo, 2));
   if (!loaded && !sources.some(site => (site.inventory?.[route.cargo] || 0) >= 1)) {
-    const missing = [...new Set(sources.flatMap(site => industryStatus(site).missing))];
-    return { state: 'waiting', label: missing.length ? 'Needs inputs' : 'Waiting for cargo', detail: missing.length ? 'Supply ' + joinCargo(missing) + ' to the producer.' : 'The producer is replenishing its stock. Extra vehicles will not help yet.' };
+    const missing = [...new Set(sources.flatMap(site => industryStatus(site).missing))], source = token('industry', sources[0].id);
+    if (missing.length) return say('waiting', 'warn', `Needs ${cargoNames(missing)}`, `${source} needs ${cargoTokens(missing)} before it can make ${cargo}. More ${nouns.toLowerCase()} won’t help yet.`, {}, sources);
+    return say('waiting', route.delivered === 0 ? 'info' : 'ok', route.delivered === 0 ? 'First trip' : 'Running', `${source} is making more ${cargo}. More ${nouns.toLowerCase()} won’t help yet.`, {}, sources);
   }
   const waiting = sources.reduce((sum, site) => sum + Math.floor(site.inventory?.[route.cargo] || 0), 0);
-  return fleetHealth(game, route, stats, waiting, { state: 'running', label: 'Running', detail: 'Freight loads at the start and returns for the next shipment.' });
+  return fleetHealth(game, route, stats, waiting, `${nouns} load ${cargo} at the start and return for more.`, stops);
 }
 
 /** One optional goal at a time. Searches are memoised; the stage is re-read on every call. */
@@ -225,22 +254,22 @@ export function nextProject(game, { source: preferred } = {}) {
   const freight = game.routes.filter(route => route.cargo !== 'passengers');
   if (!freight.some(route => route.delivered > 0)) {
     const choices = memo(game, 'first', siteKey(game), () => firstRouteChoices(game)), index = Math.max(0, choices.findIndex(choice => choice.source.id === preferred)), choice = choices[index];
-    if (!choice) return { title: 'Your first cargo route', detail: 'Use Chains to choose a producer and a buyer.', action: 'chains', button: 'Explore chains', choices, choice: 0, steps: [] };
+    if (!choice) return { title: 'Your first cargo route', detail: 'Pick a supplier and a buyer in Production chains.', action: 'chains', button: 'Production chains', choices, choice: 0, steps: [] };
     // Until the two ends are joined, the card can also plan the line and its stops, on land only.
     const steps = firstRouteSteps(game, choice), line = steps[2], plan = line.done || line.action !== 'connect' || steps.some(step => step.tool === 'port') ? null : line.tool;
     return { title: 'Your first cargo route', detail: `Carry ${cargoName(choice.cargo)} from ${siteName(choice.source)} to ${choice.buyer.name}. Place a stop within 5 tiles of each.`, action: 'source', target: choice.source.id, button: 'Find cargo', choices, choice: index, steps, plan };
   }
   const delivered = freight.reduce((total, route) => total + route.delivered, 0);
-  if (delivered < 100) return { title: 'First 100 cargo deliveries', detail: `${Math.floor(delivered)} / 100 delivered. Keep inputs supplied and your connections intact.`, action: 'routes', button: 'View services', progress: { value: Math.floor(delivered), max: 100 } };
+  if (delivered < 100) return { title: 'First 100 cargo deliveries', detail: `${Math.floor(delivered)} of 100 delivered. Keep your routes supplied and connected.`, action: 'routes', button: 'Open routes', progress: { value: Math.floor(delivered), max: 100 } };
   if (!freight.some(route => route.delivered > 0 && PROCESSED.has(route.cargo))) {
     const chain = memo(game, 'chain', `${siteKey(game)}:${game.routes.length}:${game.routes.at(-1)?.id}`, () => openProcessor(game));
     const pair = chain.supplied ? null : memo(game, 'factory', siteKey(game), () => factoryPair(game));
-    if (pair) return { title: 'Supply a factory', detail: `${CARGO[pair.cargo].name} from ${siteName(pair.source)} → ${pair.buyer.name} (${pair.distance} tiles). ${recipe(pair.factory)}`, action: 'source', target: pair.source.id, buyer: pair.buyer, cargo: pair.cargo, button: 'Find cargo' };
+    if (pair) return { title: 'Supply a factory', detail: `Carry ${cargoName(pair.cargo)} from ${siteName(pair.source)} to ${pair.buyer.name}, ${count(pair.distance, 'tile')}. ${recipe(pair.factory)}`, action: 'source', target: pair.source.id, buyer: pair.buyer, cargo: pair.cargo, button: 'Find cargo' };
     if (chain.processor && chain.buyer) {
-      const name = siteName(chain.processor), next = chain.missing.length ? `${name} also needs ${joinCargo(chain.missing)}.` : chain.buyer.kind === 'city' ? `Towns buy ${cargoName(chain.cargo)}.` : recipe(chain.factory);
-      return { title: `Carry ${cargoName(chain.cargo)} onward`, detail: `${CARGO[chain.cargo].name} from ${name} → ${chain.buyer.name} (${chain.distance} tiles). ${next}`, action: 'source', target: chain.processor.id, buyer: chain.buyer, cargo: chain.cargo, button: 'Find cargo' };
+      const name = siteName(chain.processor), next = chain.missing.length ? `${name} also needs ${cargoNames(chain.missing)}.` : chain.buyer.kind === 'city' ? `Towns buy ${cargoName(chain.cargo)}.` : recipe(chain.factory);
+      return { title: `Carry ${cargoName(chain.cargo)} onward`, detail: `Carry ${cargoName(chain.cargo)} from ${name} to ${chain.buyer.name}, ${count(chain.distance, 'tile')}. ${next}`, action: 'source', target: chain.processor.id, buyer: chain.buyer, cargo: chain.cargo, button: 'Find cargo' };
     }
-    if (!chain.supplied || chain.processor) return { title: 'Complete a production chain', detail: 'Use Chains to find a factory near your network, then carry its inputs and its output.', action: 'chains', button: 'Explore chains' };
+    if (!chain.supplied || chain.processor) return { title: 'Complete a production chain', detail: 'Find an industry near your network in Production chains, then carry its inputs and its output.', action: 'chains', button: 'Production chains' };
   }
   if (!game.zones.length) {
     // A town served within the month stays put; the latest service day would change hands daily.

@@ -88,19 +88,19 @@ test('a road through a house with too little money builds nothing and marks each
   const before = structuredClone(game), quote = quoteBuildPlan(game, 'road', line(10, 14, 10));
   assert.equal(quote.ok, false);
   assert.deepEqual(quote.placements.map(p => p.state), ['ok', 'ok', 'blocked', 'funds', 'funds']);
-  assert.match(quote.placements[2].problem, /Clear the building/);
+  assert.match(quote.placements[2].problem, /A building or zone is in the way/);
   assert.equal(quote.blocked, 1); assert.equal(quote.unaffordable, 2); assert.equal(quote.buildable, 2); assert.deepEqual(quote.issues, []);
   assert.equal(quote.cost, roadCost * 4, 'the blocked tile is not priced');
-  assert.equal(quote.message, 'Clear the building or zone before building a connection.');
+  assert.equal(quote.message, 'A building or zone is in the way. Clear it first, then build here.');
   const result = buildPlan(game, 'road', line(10, 14, 10));
   assert.equal(result.ok, false); assert.equal(result.cost, 0); assert.equal(result.built, 0); assert.equal(result.failed, 5);
   assert.deepEqual(game, before, 'a refused stroke leaves no road stub and takes no money');
   tileAt(game, 13, 10).building = { kind: 'house-cheap-1', level: 1 };
-  assert.equal(quoteBuildPlan(game, 'road', line(10, 14, 10)).message, '2 tiles are blocked by buildings or zones — drag around them or bulldoze first');
+  assert.equal(quoteBuildPlan(game, 'road', line(10, 14, 10)).message, '2 tiles are blocked by buildings or zones. Drag around them, or bulldoze first.');
   const railCost = constructionCost(game, 'rail', 10, 11); game.money = railCost * 2;
   const short = quoteBuildPlan(game, 'rail', line(10, 14, 11));
   assert.equal(short.ok, false); assert.deepEqual(short.placements.map(p => p.state), ['ok', 'ok', 'funds', 'funds', 'funds']);
-  assert.equal(short.message, `Need $${(railCost * 5).toLocaleString('en-US')} · balance $${game.money.toLocaleString('en-US')}`);
+  assert.equal(short.message, `Need $${(railCost * 5).toLocaleString('en-US')}. You have $${game.money.toLocaleString('en-US')}.`);
   assert.equal(buildPlan(game, 'rail', line(10, 14, 11)).ok, false); assert.equal(game.money, railCost * 2);
 });
 
@@ -118,7 +118,7 @@ test('existing road plus one house is refused at no cost and names the house', (
   for (const { x, y } of line(10, 13, 10)) build(game, 'road', x, y);
   tileAt(game, 14, 10).building = { kind: 'house-cheap-1', level: 1 };
   const money = game.money, quote = quoteBuildPlan(game, 'road', line(10, 14, 10));
-  assert.equal(quote.ok, false); assert.equal(quote.cost, 0); assert.match(quote.message, /Clear the building/);
+  assert.equal(quote.ok, false); assert.equal(quote.cost, 0); assert.match(quote.message, /A building or zone is in the way/);
   assert.deepEqual(quote.placements.map(p => p.state), ['built', 'built', 'built', 'built', 'blocked']);
   const result = buildPlan(game, 'road', line(10, 14, 10));
   assert.equal(result.ok, false); assert.equal(result.built, 0); assert.equal(result.cost, 0); assert.equal(game.money, money);
@@ -128,23 +128,23 @@ test('zones and demolition stay partial, but the quote and the result say so', (
   const game = emptyGame(), zoneCost = constructionCost(game, 'residential', 10, 10); game.money = zoneCost * 2 + 1;
   const quote = quoteBuildPlan(game, 'residential', line(10, 18, 10));
   assert.equal(quote.ok, true); assert.equal(quote.partial, true); assert.equal(quote.buildable, 2); assert.equal(quote.unaffordable, 7);
-  assert.equal(quote.message, 'Builds 2 of 9 · funds for 2');
+  assert.equal(quote.message, 'Builds 2 of 9. Funds cover 2.');
   const result = buildPlan(game, 'residential', line(10, 18, 10));
   assert.equal(result.ok, true); assert.equal(result.built, 2); assert.equal(result.failed, 7, 'a partial build is reported as a warning, not a success');
   game.money = 1_000_000; tileAt(game, 14, 11).building = { kind: 'house-cheap-1', level: 1 }; build(game, 'industrial', 12, 11);
   const blocked = quoteBuildPlan(game, 'commercial', line(10, 18, 11));
-  assert.equal(blocked.partial, true); assert.equal(blocked.message, 'Builds 7 of 8 · 1 blocked', 'the house is left out of the stroke; another zone still blocks');
+  assert.equal(blocked.partial, true); assert.equal(blocked.message, 'Builds 7 of 8. 1 tile is blocked.', 'the house is left out of the stroke; another zone still blocks');
   const occupied = quoteBuildPlan(game, 'industrial', line(10, 11, 10));
   assert.equal(occupied.ok, false); assert.equal(occupied.message, 'Choose an empty tile or clear this one first.');
   const nothing = buildPlan(game, 'industrial', line(10, 11, 10));
   assert.equal(nothing.ok, false, 'zero built plus a blocker is an error'); assert.equal(nothing.built, 0);
   const served = emptyGame(); build(served, 'road', 20, 20); build(served, 'bus-stop', 20, 20); served.routes.push({ id: 'route-1', name: 'Test freight', stops: [served.stations[0].id] });
   const retire = quoteBuildPlan(served, 'bulldoze', [{ x: 20, y: 20 }]);
-  assert.equal(retire.ok, false); assert.equal(retire.message, 'Retire Test freight before removing this road stop.');
+  assert.equal(retire.ok, false); assert.equal(retire.message, 'Test freight uses this stop. Retire the route first, then remove the stop.');
   served.routes.push({ id: 'route-2', name: 'Line 1', stops: [served.stations[0].id] });
-  assert.equal(quoteBuildPlan(served, 'bulldoze', [{ x: 20, y: 20 }]).message, 'Retire Test freight and Line 1 before removing this road stop.');
+  assert.equal(quoteBuildPlan(served, 'bulldoze', [{ x: 20, y: 20 }]).message, 'Test freight and Line 1 use this stop. Retire those routes first, then remove the stop.');
   served.routes.push({ id: 'route-3', name: 'Night bus', stops: ['station-9', served.stations[0].id] }, { id: 'route-4', name: 'Elsewhere', stops: ['station-9'] });
-  assert.equal(build(served, 'bulldoze', 20, 20).message, 'Retire Test freight, Line 1 and 1 more before removing this road stop.', 'the refusal names the routes that hold the stop');
+  assert.equal(build(served, 'bulldoze', 20, 20).message, 'Test freight, Line 1 and 1 more use this stop. Retire those routes first, then remove the stop.', 'the refusal names the routes that hold the stop');
 });
 
 test('single stops, ports and towns quote exactly what build() will say', () => {
@@ -156,7 +156,7 @@ test('single stops, ports and towns quote exactly what build() will say', () => 
   assert.equal(quoteBuildPlan(game, 'port', [{ x: 12, y: 12 }]).message, 'Place a port on water directly beside land.');
   build(game, 'city', 30, 30);
   const near = quoteBuildPlan(game, 'city', [{ x: 35, y: 30 }]);
-  assert.equal(near.ok, false); assert.equal(near.message, 'Found a new city at least 11 tiles from another center.');
+  assert.equal(near.ok, false); assert.equal(near.message, 'This is too close to another town. Found it at least 11 tiles from any town centre.');
   game.money = 10;
   assert.match(quoteBuildPlan(game, 'city', [{ x: 60, y: 60 }]).message, /^Need \$/);
 });
@@ -355,5 +355,5 @@ test('a demolition stroke passes over empty ground and counts only what it clear
   const result = buildPlan(game, 'bulldoze', points);
   assert.equal(result.built, 5); assert.equal(result.failed, 0); assert.equal(result.cost, quote.cost); assert.doesNotMatch(result.message, /skipped/);
   const empty = quoteBuildPlan(game, 'bulldoze', points);
-  assert.equal(empty.ok, false); assert.equal(empty.message, 'There is nothing to demolish here.', 'empty ground alone still says so');
+  assert.equal(empty.ok, false); assert.equal(empty.message, 'There’s nothing to bulldoze here.', 'empty ground alone still says so');
 });

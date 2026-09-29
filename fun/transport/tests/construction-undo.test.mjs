@@ -73,7 +73,7 @@ test('stops, stations and ports undo, and the next id is handed out again', () =
   build(game, 'road', 10, 10); build(game, 'road', 11, 10); build(game, 'rail', 10, 14);
   for (let y = 0; y < game.height; y++) Object.assign(tileAt(game, 30, y), { terrain: 'water', elevation: 0 });
   const nextId = game.nextId;
-  assert.match(roundTrip(game, 'stop', [{ x: 10, y: 10 }, { x: 11, y: 10 }], { preferredMode: 'road' }).message, /^2 stops removed · \$/);
+  assert.match(roundTrip(game, 'stop', [{ x: 10, y: 10 }, { x: 11, y: 10 }], { preferredMode: 'road' }).message, /^2 stops removed\. \$/);
   assert.match(roundTrip(game, 'stop', [{ x: 10, y: 14 }], { preferredMode: 'rail' }).message, /^Rail station removed/);
   assert.match(roundTrip(game, 'port', [{ x: 30, y: 20 }]).message, /^Port removed/);
   assert.equal(game.nextId, nextId);
@@ -89,7 +89,7 @@ test('founding a town undoes its centre, notice and the owners it assigned to ol
   }
   assert.ok(site, 'a town site exists');
   const outcome = roundTrip(game, 'city', [site]);
-  assert.match(outcome.message, /removed · \$/);
+  assert.match(outcome.message, /removed\. \$/);
 });
 
 test('bulldozing a home, a grove, a stop and an industry undoes back to the prior state', () => {
@@ -159,7 +159,7 @@ test('undo survives a month boundary but not a route change, development or earn
   assert.match(undoProblem(game, zoned), /changed/);
   assert.equal(canUndo(game, roadEntry), true, undoProblem(game, roadEntry));
   const money = game.money, spent = game.totalExpenses, outcome = undoConstruction(game, roadEntry);
-  assert.equal(outcome.ok, true); assert.match(outcome.message, /^Road removed · \$[\d,]+ refunded$/);
+  assert.equal(outcome.ok, true); assert.match(outcome.message, /^Road removed\. \$[\d,]+ refunded\.$/);
   assert.ok(Math.abs(game.money - money - paved.result.cost) < 1e-6, 'the recorded cost is refunded');
   assert.ok(Math.abs(spent - game.totalExpenses - paved.result.cost) < 1e-6 && game.monthlyExpenses >= 0);
   assert.equal(validateGame(game), true);

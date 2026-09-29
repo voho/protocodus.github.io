@@ -97,9 +97,9 @@ try {
   }, cut);
   assert.equal(cutResult.ok, true, cutResult.message);
   assert.deepEqual(cutResult.fresh, ['route-connection', 'route-connection', 'route-connection']);
-  await waitForToast(page, /^3 routes lost their connection/, from);
+  await waitForToast(page, /^3 routes are no longer connected: /, from);
   await page.waitForTimeout(900);
-  const disconnect = (await toastsSince(page, from)).filter(toast => /connection/.test(toast.text));
+  const disconnect = (await toastsSince(page, from)).filter(toast => /no longer connected/.test(toast.text));
   assert.equal(disconnect.length, 1, 'three disconnects become one toast');
   assert.match(disconnect[0].type, /warning/);
   assert.equal(disconnect[0].action, 'Show');
@@ -143,9 +143,9 @@ try {
   from = await shown(page);
   await page.evaluate(() => { transport.game.day = 364.5; });
   await page.locator('[data-speed="8"]').click();
-  await waitForToast(page, /^1951 · Generation 2 vehicles: \+20% capacity, \+10% speed · prices \+\d\.\d% this year$/, from);
+  await waitForToast(page, /^New for 1951: vehicles carry 20% more and run 10% faster\. Prices rise \d\.\d% this year\.$/, from);
   await page.locator('[data-speed="0"]').click();
-  const year = (await toastsSince(page, from)).find(toast => /^1951/.test(toast.text));
+  const year = (await toastsSince(page, from)).find(toast => /^New for 1951/.test(toast.text));
   assert.match(year.type, /milestone/);
   assert.equal(year.action, 'Review upgrades');
   await page.waitForTimeout(300);
@@ -155,7 +155,7 @@ try {
   await page.waitForFunction(() => document.activeElement?.id === 'upgrade-fleet');
   assert.equal(await page.evaluate(() => transport.game.money), money, 'reviewing upgrades never spends money');
   assert.equal(await page.locator('.nav-button[data-view="routes"]').getAttribute('aria-expanded'), 'true');
-  assert.equal((await toastsSince(page, from)).filter(toast => /^1951/.test(toast.text)).length, 1, 'one year toast per January');
+  assert.equal((await toastsSince(page, from)).filter(toast => /^New for 1951/.test(toast.text)).length, 1, 'one year toast per January');
   // The review followed a mouse click, so Space still pauses and resumes instead of pressing Upgrade all.
   await page.keyboard.press('Space');
   assert.equal(await page.evaluate(() => transport.speed), 8, 'Space after a clicked review resumes play');
@@ -170,7 +170,7 @@ try {
   const price = await page.locator('[data-tool="city"]').innerText();
   await page.evaluate(() => { transport.game.day = 729.8; });
   await page.locator('[data-speed="8"]').evaluate(button => button.click());
-  await waitForToast(page, /^1952 · Generation 3/, from);
+  await waitForToast(page, /^New for 1952: /, from);
   await page.evaluate(() => transport.setSpeed(0));
   assert.equal(await page.evaluate(() => document.activeElement?.id), 'entity-search', 'typing continues across January');
   assert.equal(await page.locator('#entity-search').inputValue(), 'a');
@@ -209,7 +209,7 @@ try {
     return { ok: results.length > 0 && results.every(result => result.ok), message: results.map(result => result.message).join(' / '), stop: stop.name };
   });
   assert.equal(lost.ok, true, lost.message);
-  await waitForToast(page, new RegExp(`^Quarry line lost its stone producer\\. Add one within 5 tiles of ${lost.stop.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} or retire the service\\.$`), from);
+  await waitForToast(page, new RegExp(`^Quarry line lost its stone supplier\\. Add one within 5 tiles of ${lost.stop.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}, or retire the route\\.$`), from);
   await page.waitForTimeout(900);
   const supply = (await toastsSince(page, from)).filter(toast => /lost its/.test(toast.text));
   assert.equal(supply.length, 1, 'one warning for the one route');
@@ -221,7 +221,7 @@ try {
   await page.locator('#offline-routes').click();
   assert.equal(await page.locator('#route-filter-status').inputValue(), 'attention');
   assert.deepEqual(await page.locator('#route-list .route-header strong').allInnerTexts(), ['Quarry line'], 'Needs attention lists exactly what the chip counts');
-  assert.equal(await page.locator('#route-list [data-route-status]').innerText(), 'No producer');
+  assert.equal(await page.locator('#route-list [data-route-status]').innerText(), 'No supplier');
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${output}/needs-attention-desktop.png` });
 
@@ -231,7 +231,7 @@ try {
   await loadAutosaveFromMenu(page);
   await page.locator('[data-speed="1"]').click();
   await page.waitForTimeout(2500);
-  const replay = (await toastsSince(page, 0)).filter(toast => /^Welcome|Generation|^Test notice/.test(toast.text));
+  const replay = (await toastsSince(page, 0)).filter(toast => /^Welcome|^New for|^Test notice/.test(toast.text));
   assert.deepEqual(replay, [], 'loading a save shows no old notices');
   // Switching in play to a save from a later year starts that year quietly too.
   from = await shown(page);
@@ -245,7 +245,7 @@ try {
   assert.equal(await page.evaluate(() => new Date(Date.UTC(1950, 0, 1 + Math.floor(transport.game.day))).getUTCFullYear()), 1953);
   await page.locator('[data-speed="1"]').click();
   await page.waitForTimeout(2500);
-  assert.deepEqual((await toastsSince(page, from)).filter(toast => /^Welcome|Generation/.test(toast.text)), [], 'activating a later-year save shows no year toast');
+  assert.deepEqual((await toastsSince(page, from)).filter(toast => /^Welcome|^New for/.test(toast.text)), [], 'activating a later-year save shows no year toast');
   await page.close();
 
   // Phone layout: a toast with an action fits beside the map controls.

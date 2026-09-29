@@ -20,7 +20,7 @@ test('town service distinguishes planned coverage from recent deliveries and use
   city.lastServiceDay=5;assert.equal(townService(game,city).served,true);
   city.y=15.1;assert.equal(townService(game,city).connected,false);
   city.y=15;city.lastServiceDay=-30;assert.equal(townService(game,city).served,false);
-  game.routes[0].active=false;assert.equal(townService(game,city).label,'No service');
+  game.routes[0].active=false;assert.equal(townService(game,city).label,'No route yet');
 });
 
 test('factory explanations identify every missing ingredient and distinguish full stock from production', () => {
@@ -33,24 +33,29 @@ test('factory explanations identify every missing ingredient and distinguish ful
 
 test('a half-full store is more to carry, and names the route another vehicle would help', () => {
   const game=routeGame(),quarry=site('quarry','quarry',10,{stone:540});game.industries=[quarry];Object.assign(game.routes[0],{name:'Stone run',cargo:'stone'});
-  assert.deepEqual(industryStatus(quarry),{state:'backlog',label:'More to carry',missing:[],detail:'Stock is building up. Another vehicle would earn more and let it expand.'});
+  const reason='{industry:quarry} grows while its {cargo:stone} is carried away. A route to a buyer would do that.';
+  assert.deepEqual(industryStatus(quarry),{state:'backlog',tone:'warn',word:'Output piling up',label:'Output piling up',reason,detail:'Stone quarry grows while its stone is carried away. A route to a buyer would do that.',missing:[]});
   quarry.inventory.stone=449;assert.equal(industryStatus(quarry,game).state,'producing','under half full the site keeps growing');
-  quarry.inventory.stone=540;assert.equal(industryStatus(quarry,game).detail,'Another vehicle on Stone run would carry more.');
-  quarry.inventory.stone=900;assert.equal(industryStatus(quarry,game).label,'Storage full');assert.equal(industryStatus(quarry,game).detail,'Another vehicle on Stone run would carry more.');
-  assert.equal(industryStatus(quarry).detail,'Carry output to a buyer to make room.','the one-argument form is unchanged');
-  game.routes[0].stops=['b','a'];assert.equal(industryStatus(quarry,game).detail,'Carry output to a buyer to make room.','a route that only unloads here carries nothing away');
-  game.routes[0].stops=['a','b'];game.routes[0].active=false;assert.equal(industryStatus(quarry,game).detail,'Carry output to a buyer to make room.');
-  game.routes[0].active=true;game.routes[0].cargo='timber';assert.equal(industryStatus(quarry,game).detail,'Carry output to a buyer to make room.');
+  quarry.inventory.stone=540;assert.equal(industryStatus(quarry,game).detail,'Another truck on Stone run would carry more, and let Stone quarry grow.');
+  assert.equal(industryStatus(quarry,game).reason,'Another truck on {route:r} would carry more, and let {industry:quarry} grow.');
+  quarry.inventory.stone=810;assert.equal(industryStatus(quarry,game).state,'full','nine tenths full reads as nearly full');
+  quarry.inventory.stone=900;assert.equal(industryStatus(quarry,game).label,'Storage nearly full');assert.equal(industryStatus(quarry,game).detail,'Another truck on Stone run would carry more.');
+  const room='Stone quarry has almost no room left. A route to a buyer would carry its stone away.';
+  assert.equal(industryStatus(quarry).detail,room,'the one-argument form is unchanged');
+  game.routes[0].stops=['b','a'];assert.equal(industryStatus(quarry,game).detail,room,'a route that only unloads here carries nothing away');
+  game.routes[0].stops=['a','b'];game.routes[0].active=false;assert.equal(industryStatus(quarry,game).detail,room);
+  game.routes[0].active=true;game.routes[0].cargo='timber';assert.equal(industryStatus(quarry,game).detail,room);
 });
 
 test('route diagnostics explain missing customers, empty sources and blocked processing', () => {
   const game=routeGame(),route=game.routes[0];
-  assert.equal(routeHealth(game,route).label,'Waiting for cargo');
+  assert.deepEqual([routeHealth(game,route).state,routeHealth(game,route).label],['waiting','Running'],'waiting for the supplier is normal running');
+  route.delivered=0;assert.deepEqual([routeHealth(game,route).label,routeHealth(game,route).tone],['First trip','info'],'before its first delivery a route is on its first trip');delete route.delivered;
   game.vehicles.push({routeId:'r',load:10});assert.equal(routeHealth(game,route).state,'running');
   game.industries[1].inventory.timber=900;assert.equal(routeHealth(game,route).label,'Buyer full');
   game.industries.pop();assert.equal(routeHealth(game,route).label,'No buyer');
-  game.industries=[];assert.equal(routeHealth(game,route).label,'No producer');
-  route.active=false;assert.equal(routeHealth(game,route).label,'Disconnected');
+  game.industries=[];assert.equal(routeHealth(game,route).label,'No supplier');
+  route.active=false;assert.equal(routeHealth(game,route).label,'Not connected');
 });
 
 test('route diagnostics measure industries to their nearest footprint tile, like the simulation', () => {
@@ -58,7 +63,7 @@ test('route diagnostics measure industries to their nearest footprint tile, like
   for(const industry of game.industries)industry.footprint=2;
   game.stations=[{id:'a',x:16,y:13},{id:'b',x:25,y:13}];game.vehicles.push({routeId:'r',load:10});
   assert.equal(routeHealth(game,route).label,'Running','both stops sit five tiles from a footprint edge but farther from the anchor');
-  game.stations[0].x=17;assert.equal(routeHealth(game,route).label,'No producer');
+  game.stations[0].x=17;assert.equal(routeHealth(game,route).label,'No supplier');
 });
 
 test('a working iron route beside large sites reads as running and names its cargo cleanly', () => {
@@ -72,7 +77,7 @@ test('a working iron route beside large sites reads as running and names its car
   const route=game.routes[0];assert.ok(route.delivered>0,'the simulation delivers the ore');
   assert.match(routeHealth(game,route).state,/^(running|busy)$/,'a working route may ask for more trucks but is never blocked');
   const missing=routeHealth({...game,industries:game.industries.filter(site=>site.kind!=='iron-mine')},route);
-  assert.equal(missing.label,'No producer');assert.doesNotMatch(missing.detail,/\ba iron/);assert.match(missing.detail,/producer of iron ore/);
+  assert.equal(missing.label,'No supplier');assert.doesNotMatch(missing.detail,/\ba iron/);assert.match(missing.detail,/supplies iron ore/);
 });
 
 test('industry service marks the sites a freight route loads at and delivers to, never a passenger stop', () => {
@@ -114,7 +119,7 @@ test('a broken route names the first gap on its old path, using the pathfinder�
 test('a processing route points back to its missing input instead of recommending more vehicles', () => {
   const game=routeGame();game.routes[0].cargo='steel';
   game.industries=[site('source','steel-mill',10,{coal:5}),site('buyer','machine-works',30)];
-  assert.equal(routeHealth(game,game.routes[0]).label,'Needs inputs');
+  assert.equal(routeHealth(game,game.routes[0]).label,'Needs iron ore');
   assert.match(routeHealth(game,game.routes[0]).detail,/iron/);
 });
 
@@ -122,8 +127,8 @@ test('a running route turns busy when cargo or passengers pile up beyond two ful
   const game=routeGame(),route=game.routes[0];
   game.industries[0].inventory.timber=900;game.vehicles.push({routeId:'r',load:0,capacity:24});
   let health=routeHealth(game,route);
-  assert.deepEqual([health.state,health.label,health.waiting,health.capacity],['busy','Cargo piling up',900,24]);
-  assert.equal(health.detail,'About 38 loads. Add a truck.','the card shows the count beside it; the detail says what to do');
+  assert.deepEqual([health.state,health.label,health.waiting,health.capacity],['busy','Cargo waiting',900,24]);
+  assert.equal(health.detail,'About 38 loads waiting. Another truck would carry more.','the card shows the count beside it; the detail says what would help');
   assert.equal(routeHealth(game,route,{capacity:480}).state,'running','the caller may pass the fleet capacity it already summed');
   game.industries[0].inventory.timber=40;health=routeHealth(game,route);
   assert.deepEqual([health.state,health.waiting,health.capacity],['running',40,24]);
@@ -131,7 +136,7 @@ test('a running route turns busy when cargo or passengers pile up beyond two ful
   towns.cities=[{id:'west',x:10,y:12,passengers:800.7},{id:'east',x:30,y:12,passengers:50}];
   health=routeHealth(towns,towns.routes[0]);
   assert.deepEqual([health.state,health.label,health.waiting],['busy','Passengers waiting',50],'the quieter town limits what another bus can carry');
-  assert.equal(health.detail,'About 2 loads. Add a bus.');
+  assert.equal(health.detail,'About 2 loads waiting. Another bus would carry more.');
   towns.cities[1].passengers=40;health=routeHealth(towns,towns.routes[0]);
   assert.deepEqual([health.state,health.waiting],['running',40]);
 });
@@ -152,7 +157,7 @@ test('routes need attention only while they cannot run, and the count follows ev
   assert.deepEqual([routeNeedsAttention(game,one),routeNeedsAttention(game,two)],[false,true]);
   two.active=true;assert.equal(routesNeedingAttention(game),0);
   assert.equal(build(game,'bulldoze',10,10).ok,true);
-  assert.equal(routeHealth(game,one).label,'No producer');assert.equal(routesNeedingAttention(game),2,'both services lost their producer');
+  assert.equal(routeHealth(game,one).label,'No supplier');assert.equal(routesNeedingAttention(game),2,'both routes lost their supplier');
   assert.equal(build(game,'logging-camp',6,13).ok,true);assert.equal(routesNeedingAttention(game),0,'a new producer in reach restores them');
 });
 
@@ -165,9 +170,9 @@ test('optional projects progress through deliberate freight and town building, n
   game.routes.push({cargo:'timber',delivered:10});assert.match(nextProject(game).title,/100/);assert.deepEqual(nextProject(game).progress,{value:10,max:100});
   game.routes[1].delivered=100;
   let project=nextProject(game);assert.equal(project.action,'source');assert.equal(project.target,'source');assert.equal(project.buyer.id,'buyer');exists(project);
-  assert.match(project.detail,/Timber from Logging camp → Sawmill \(20 tiles\)\. Sawmills turn 4 timber into 3 lumber\./);
+  assert.match(project.detail,/Carry timber from Logging camp to Sawmill, 20 tiles\. Sawmills turn 4 timber into 3 lumber\./);
   game.stations=[{id:'a',x:10,y:10,mode:'road'},{id:'b',x:30,y:10,mode:'road'}];game.routes[1].stops=['a','b'];
-  project=nextProject(game);assert.equal(project.title,'Carry lumber onward');assert.equal(project.target,'buyer');assert.equal(project.buyer.id,'furniture');assert.match(project.detail,/Sawmill → Furniture works/);exists(project);
+  project=nextProject(game);assert.equal(project.title,'Carry lumber onward');assert.equal(project.target,'buyer');assert.equal(project.buyer.id,'furniture');assert.match(project.detail,/from Sawmill to Furniture works/);exists(project);
   game.routes.push({cargo:'lumber',delivered:1});
   project=nextProject(game);assert.equal(project.action,'city');assert.equal(project.target,'home');exists(project);
   game.zones.push({x:1,y:1});project=nextProject(game);assert.equal(project.milestone,'processing','then the milestone ladder, where fares still never count');assert.deepEqual(project.choices,['processing','town-supply']);

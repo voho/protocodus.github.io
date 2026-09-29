@@ -32,9 +32,9 @@ test('adding a vehicle charges exactly the purchase quote and refuses broken, un
   assert.equal(vehicleNoun('road', 'stone'), 'truck'); assert.equal(vehicleNoun('road', 'passengers'), 'bus'); assert.equal(vehicleNoun('rail', 'coal'), 'train'); assert.equal(vehicleNoun('water', 'passengers'), 'ship');
   game.money = quote.cost - 1;
   const poor = addRouteVehicle(game, route.id);
-  assert.equal(poor.ok, false); assert.match(poor.message, /Need \$18,000 to buy another truck/); assert.equal(game.money, quote.cost - 1);
+  assert.equal(poor.ok, false); assert.match(poor.message, /Need \$18,000 to add a truck\./); assert.equal(game.money, quote.cost - 1);
   game.money = 1e6; route.active = false;
-  assert.match(addRouteVehicle(game, route.id).message, /Repair the connection/);
+  assert.match(addRouteVehicle(game, route.id).message, /This route isn’t connected\. Repair it before adding trucks\./);
   assert.equal(addRouteVehicle(game, 'route-missing').ok, false);
   assert.equal(fleet(game, route).length, 2);
 });
@@ -79,7 +79,7 @@ test('on a deep stockpile, deliveries grow with the number of trucks', () => {
 
 test('selling refunds 45% of the vehicle price and keeps the last vehicle for retirement', () => {
   const { game, route } = quarryFixture();
-  assert.match(sellRouteVehicle(game, route.id).message, /Retire the route to sell its last vehicle/);
+  assert.match(sellRouteVehicle(game, route.id).message, /A route keeps at least one truck\. Retire the route to sell its last one\./);
   assert.equal(fleet(game, route).length, 1);
   addRouteVehicle(game, route.id); addRouteVehicle(game, route.id);
   const vehicles = fleet(game, route); vehicles[1].level = 1; vehicles[1].paidPrice = 25200; game.revision++;
@@ -88,7 +88,7 @@ test('selling refunds 45% of the vehicle price and keeps the last vehicle for re
   assert.equal(summary.load, vehicles.reduce((sum, vehicle) => sum + vehicle.load, 0));
   assert.equal(summary.sellRefund, Math.round(VEHICLE_COSTS.road * .45), 'the oldest, emptiest vehicle is sold first');
   const money = game.money, sold = sellRouteVehicle(game, route.id);
-  assert.equal(sold.ok, true); assert.equal(sold.refund, 8100); assert.equal(game.money, money + 8100); assert.match(sold.message, /Vehicle sold · \$8,100/);
+  assert.equal(sold.ok, true); assert.equal(sold.refund, 8100); assert.equal(game.money, money + 8100); assert.match(sold.message, /^Truck sold from .+\. \$8,100 refunded\.$/);
   assert.equal(fleet(game, route).includes(vehicles[2]), false, 'the empty older truck goes first');
   assert.equal(fleet(game, route).includes(vehicles[0]), true, 'a loaded truck of the same generation stays');
   assert.equal(fleet(game, route).includes(vehicles[1]), true, 'the newer generation stays');

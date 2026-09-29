@@ -51,7 +51,8 @@ test('one bulldozed tile shared by three routes yields three topical notices and
   assert.deepEqual(fresh.map(n => n.target), game.routes.map(route => ({ kind: 'route', id: route.id })));
   const grouped = groupNotices(fresh);
   assert.equal(grouped.length, 1);
-  assert.equal(grouped[0].message, '3 routes lost their connection: Line 1, Line 2 and Line 3');
+  assert.equal(grouped[0].message, '3 routes are no longer connected: Line 1, Line 2 and Line 3.');
+  assert.equal(grouped[0].template, `3 routes are no longer connected: ${game.routes.slice(0, 2).map(route => `{route:${route.id}}`).join(', ')} and {route:${game.routes[2].id}}.`, 'the burst names each route as a reference');
   assert.equal(grouped[0].type, 'warning');
   assert.equal(grouped[0].count, 3);
   assert.deepEqual(grouped[0].targets.map(target => target.id), game.routes.map(route => route.id));
@@ -69,7 +70,8 @@ test('a demolished buyer shared by two routes yields one grouped supply warning'
   assert.equal(build(game, 'bulldoze', 30, 10).ok, true);
   const fresh = collectNotices(game.notifications, last), grouped = groupNotices(fresh);
   assert.deepEqual(fresh.map(n => n.topic), ['route-supply', 'route-supply']);
-  assert.deepEqual(grouped.map(entry => [entry.message, entry.type, entry.count]), [['2 routes lost a producer or buyer: Timber one and Timber two', 'warning', 2]]);
+  assert.deepEqual(grouped.map(entry => [entry.message, entry.type, entry.count]), [['2 routes lost a supplier or buyer: Timber one and Timber two.', 'warning', 2]]);
+  assert.equal(grouped[0].template, `2 routes lost a supplier or buyer: {route:${game.routes[0].id}} and {route:${game.routes[1].id}}.`);
   assert.deepEqual(grouped[0].targets, game.routes.map(route => ({ kind: 'route', id: route.id })));
   assert.equal(validateGame(game), true);
 });
@@ -83,11 +85,12 @@ test('legacy notices without a topic group by their wording and keep their order
     { id: 'notice-5', day: 3, message: 'Sawmill expanded to 100% capacity.', text: '', type: 'success' },
   ];
   const grouped = groupNotices(legacy);
-  assert.deepEqual(grouped.map(entry => entry.message), ['2 routes lost their connection: Harbor Line and Oak Line', 'Birchfield founded. Add housing and connect a passenger service.', '2 industries expanded']);
+  assert.deepEqual(grouped.map(entry => entry.message), ['2 routes are no longer connected: Harbor Line and Oak Line.', 'Birchfield founded. Add housing and connect a passenger service.', '2 industries expanded: Iron mine and Sawmill.']);
+  assert.deepEqual(grouped.map(entry => entry.template), [undefined, undefined, undefined], 'notices saved before templates stay plain');
   assert.deepEqual(grouped.map(entry => entry.topic), ['route-connection', '', 'industry-growth']);
   assert.deepEqual(grouped[1].targets, [{ kind: 'city', id: 'city-9' }]);
   const many = Array.from({ length: 5 }, (_, i) => ({ id: `n-${i}`, day: 1, message: `Line ${i + 1} has lost its connection. Repair the network to resume.`, text: '', type: 'warning', topic: 'route-connection' }));
-  assert.equal(groupNotices(many)[0].message, '5 routes lost their connection: Line 1, Line 2, Line 3 and 2 more');
+  assert.equal(groupNotices(many)[0].message, '5 routes are no longer connected: Line 1, Line 2, Line 3 and 2 more.');
   assert.equal(groupNotices([legacy[0]])[0].message, legacy[0].message, 'a single entry keeps its own message');
 });
 
@@ -98,6 +101,8 @@ test('validation accepts notices with and without topic and target, and rejects 
   assert.equal(valid({ topic: 'industry-growth', target: { kind: 'industry', id: 'industry-4' } }), true);
   assert.equal(valid({ target: { kind: 'city', id: 'city-1' } }), true);
   assert.equal(valid({ target: { kind: 'route', id: 'route-1' } }), true);
+  assert.equal(valid({ target: { kind: 'route', id: 'route-1' }, template: '{route:route-1} is no longer connected.' }), true);
+  assert.equal(valid({ template: 7 }), false);assert.equal(valid({ template: 'x'.repeat(1001) }), false);
   assert.equal(valid({ topic: 'x'.repeat(33) }), false);
   assert.equal(valid({ topic: 7 }), false);
   assert.equal(valid({ target: { kind: 'station', id: 'station-1' } }), false);
@@ -112,12 +117,13 @@ test('town founding and industry expansion notices carry their site', () => {
   const founded = build(game, 'city', 30, 30);
   assert.equal(founded.ok, true);
   assert.deepEqual(game.notifications[0].target, { kind: 'city', id: founded.city.id });
+  assert.equal(game.notifications[0].template, `{town:${founded.city.id}} founded. Zone homes nearby and give it a passenger route.`);
   assert.equal(build(game, 'logging-camp', 10, 10).ok, true);
   const camp = game.industries[0], calls = [];
   Object.assign(camp, { capacity: .98, activity: 400, totalProduced: 10, idleDays: 0, nextReviewDay: 0 });
   stepIndustries(game, (_, message, type, extra) => calls.push({ message, type, extra }));
   assert.ok(camp.capacity >= 1, 'the review expands the busy camp');
-  assert.deepEqual(calls.map(call => call.extra), [{ topic: 'industry-growth', target: { kind: 'industry', id: camp.id } }]);
+  assert.deepEqual(calls.map(call => call.extra), [{ topic: 'industry-growth', target: { kind: 'industry', id: camp.id }, template: `{industry:${camp.id}} expanded to ${Math.round(camp.capacity * 100)}% capacity.` }]);
   assert.equal(validateGame(game), true);
 });
 
@@ -126,7 +132,7 @@ test('HUD moments: town thresholds, new-year text and toast styles', () => {
   assert.equal(crossedMilestone(1004, 1200), 0);
   assert.equal(crossedMilestone(900, 2600), 2500);
   assert.equal(crossedMilestone(9990, 12000), 10000);
-  assert.equal(newYearNotice(1951, .023), '1951 · Generation 2 vehicles: +20% capacity, +10% speed · prices +2.3% this year');
+  assert.equal(newYearNotice(1951, .023), 'New for 1951: vehicles carry 20% more and run 10% faster. Prices rise 2.3% this year.');
   assert.deepEqual(['success', 'info', 'warning', 'error', 'milestone', 'report'].map(toastType), ['ok', 'ok', 'warning', 'error', 'milestone', 'ok']);
 });
 

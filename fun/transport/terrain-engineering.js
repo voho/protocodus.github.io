@@ -237,7 +237,7 @@ export function planStructureSpan(game, tool, points) {
     const { x, y } = points[i], tile = tileAt(game, x, y), interior = i > 0 && i < points.length - 1;
     if (tile.building || tile.zone || occupied(game, x, y)) return fail('Clear buildings and zones along the span first.');
     const station = game.stations.find(s => at(s, x, y));
-    if (station && (interior || station.mode !== mode)) return fail('Keep stations outside the span on a matching network.');
+    if (station && (interior || station.mode !== mode)) return fail('Keep stops outside the span, on a matching network.');
     if (interior) {
       const clearance=spanClearance(game,structure,x,y,height)||(existing&&(structure==='bridge'?terrainLevel(tile)<level:terrainLevel(tile)>level));
       if(structure==='bridge'&&tile.terrain!=='water'&&!clearance)return fail(`Bridge deck is level ${height}; every middle tile needs lower ground or water.`);
@@ -257,5 +257,5 @@ export function planStructureSpan(game, tool, points) {
     const problem = networkTerrainProblem(game, point.x, point.y, mode, { proposed, axis });
     if (problem) return fail(problem);
   }
-  return { ok: true, message: `${structure === 'bridge' ? 'Bridge' : 'Tunnel'} · level ${height}`, placements, level, height, axis, mode, structure };
+  return { ok: true, message: `${structure === 'bridge' ? 'Bridge' : 'Tunnel'} at level ${height}.`, placements, level, height, axis, mode, structure };
 }

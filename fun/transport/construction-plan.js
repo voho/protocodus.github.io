@@ -4,6 +4,7 @@ import { buildingAt, buildingFootprint, buildingSiteProblem } from './building-s
 import { industryFootprint, industrySiteProblem } from './industry-sites.js';
 import { terrainObjectAt } from './terrain-objects.js';
 import { hasRoadAccess } from './environment.js';
+import { money as moneyText, tiles as tileCount } from './copy.js';
 
 /** Resolve the compact toolbar's intent to an existing, validated model tool. */
 export function resolveBuildTool(game, tool, x, y, { preferredMode = 'road' } = {}) {
@@ -36,7 +37,7 @@ export function zonePlanPoints(game, kind, points) {
   });
 }
 
-const NOTHING_TO_CLEAR = 'There is nothing to demolish here.';
+const NOTHING_TO_CLEAR = 'There’s nothing to bulldoze here.';
 // A drag crossing several cells of one site demolishes and pays for it once.
 // Zone strokes skip what they cannot claim and demolition skips empty ground;
 // one tile, or a stroke with nothing left, keeps its tiles so the quote gives build()'s own refusal.
@@ -81,9 +82,8 @@ export function quoteBuildPlan(game, tool, points, options) {
   return quotePlacements(game, tool, placements);
 }
 
-const moneyText = n => `$${Math.round(n).toLocaleString('en-US')}`;
 const tiles = (n, verb) => `${n} tile${n === 1 ? ` ${verb}s` : `s ${verb}`}`;
-const BUILDING_BLOCK = 'Clear the building or zone before building a connection.';
+const BUILDING_BLOCK = 'A building or zone is in the way. Clear it first, then build here.';
 // Walk the placements with the balance buildPlan will spend, so the preview
 // marks exactly the tiles that release would skip, refuse or cannot pay for.
 function quotePlacements(game, tool, placements) {
@@ -104,15 +104,15 @@ function quotePlacements(game, tool, placements) {
   const cost = placements.reduce((sum, p) => sum + (p.state === 'blocked' ? 0 : p.cost), 0), first = placements[0];
   if (network) {
     const slopeTiles = placements.filter(p => p.state === 'slope'), junction = slopeTiles.every(p => p.issue?.kind === 'ramp-junction') && slopeTiles[0]?.issue, refusal = placements.find(p => p.state === 'blocked')?.problem;
-    const message = slope ? junction ? `Joins the ramp at ${junction.at.x}, ${junction.at.y} from the side — end before it or approach along the slope` : `${tiles(slope, 'need')} flat ground or a straight grade. Level this slope first or drag around ${slope === 1 ? 'it' : 'them'}.`
-      : blocked ? blocked === 1 ? refusal : placements.every(p => p.state !== 'blocked' || p.problem === BUILDING_BLOCK) ? `${blocked} tiles are blocked by buildings or zones — drag around them or bulldoze first` : `${blocked} tiles are blocked. ${refusal}`
-      : unaffordable ? `Need ${moneyText(cost)} · balance ${moneyText(game.money)}` : 'Follow flat ground or a straight grade.';
+    const message = slope ? junction ? 'This joins a ramp from the side. End before it, or approach along the slope.' : `${tiles(slope, 'need')} flat ground or a straight grade. Level this slope first or drag around ${slope === 1 ? 'it' : 'them'}.`
+      : blocked ? blocked === 1 ? refusal : placements.every(p => p.state !== 'blocked' || p.problem === BUILDING_BLOCK) ? `${blocked} tiles are blocked by buildings or zones. Drag around them, or bulldoze first.` : `${blocked} tiles are blocked. ${refusal}`
+      : unaffordable ? `Need ${moneyText(cost)}. You have ${moneyText(game.money)}.` : 'Follow flat ground or a straight grade.';
     return { placements, cost, issues, buildable, blocked, unaffordable, partial: false, ok: !issues.length && !slope && !blocked && !unaffordable, message };
   }
   // One stop, port or town reads build()'s own verdict; strokes of zones or
   // demolition stay partial and say how much of the drag will be built.
   const refusal = n === 1 || !buildable ? buildProblem(game, first.tool, first.x, first.y) : null, partial = buildable > 0 && buildable < n;
-  const message = refusal ? refusal.message : partial ? `Builds ${buildable} of ${n}${blocked ? ` · ${blocked} blocked` : ''}${unaffordable ? ` · funds for ${buildable}` : ''}` : tool === 'city' ? 'A new town center.' : '';
+  const message = refusal ? refusal.message : partial ? `Builds ${buildable} of ${n}.${blocked ? ` ${tileCount(blocked)} ${blocked === 1 ? 'is' : 'are'} blocked.` : ''}${unaffordable ? ` Funds cover ${buildable}.` : ''}` : tool === 'city' ? 'A new town center.' : '';
   return { placements, cost, issues, buildable, blocked, unaffordable, partial, ok: !refusal && buildable > 0, message, ...ZONE_TOOLS.has(tool) && { needRoad: placements.filter(p => p.needsRoad).length } };
 }
 
@@ -139,9 +139,8 @@ export function buildPlan(game, tool, points, options) {
     } else errors.set(result.message, (errors.get(result.message) || 0) + 1);
   }
   const failed = [...errors.values()].reduce((sum, number) => sum + number, 0);
-  const errorText = [...errors].slice(0, 2).map(([message, number]) => `${number}× ${message}`).join(' ');
-  const money = `$${Math.round(cost).toLocaleString('en-US')}`;
-  const message = count ? `${tool === 'bulldoze' ? 'Cleared' : tool==='raise'?'Raised':tool==='lower'?'Lowered':'Built'} ${count} tile${count === 1 ? '' : 's'} · ${money}${failed ? ` · ${failed} skipped. ${errorText}` : ''}`
+  const errorText = [...errors.keys()].slice(0, 2).join(' ');
+  const message = count ? `${tool === 'bulldoze' ? 'Cleared' : tool==='raise'?'Raised':tool==='lower'?'Lowered':'Built'} ${tileCount(count)}.${cost > 0 ? ` ${moneyText(cost)} spent.` : ''}${failed ? ` ${tileCount(failed)} skipped. ${errorText}` : ''}`
     : errors.size ? errorText : skipped ? 'Already built.' : 'Choose valid tiles.';
   return { ok: count > 0 || (skipped > 0 && failed === 0), message, cost, built: count, failed, skipped };
 }

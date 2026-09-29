@@ -35,7 +35,7 @@ test('editing the end stop keeps every vehicle, its generation and its price, an
   route.expenses = 900;
   const edited = editRoute(game, route.id, { stops: [stops.quarryStop, stops.millbrook], cargo: 'stone' });
   assert.equal(edited.ok, true, edited.message);
-  assert.equal(edited.message, 'Route updated · Stone quarry Stop 1 → Millbrook Stop 3');
+  assert.equal(edited.message, 'Route updated: Stone run now runs from Stone quarry Stop 1 to Millbrook Stop 3.');
   assert.equal(edited.route, route);
   assert.equal(game.money, money, 'an edit buys and sells nothing');
   assert.equal(game.nextId, nextId);
@@ -77,14 +77,14 @@ test('a freight cargo change empties the vehicles; passenger and freight service
   assert.ok(fleet(game, route).some(vehicle => vehicle.load > 0), 'the fixture starts with stone aboard');
   const changed = editRoute(game, route.id, { stops: [stops.quarryStop, stops.millbrook], cargo: 'timber' });
   assert.equal(changed.ok, true, changed.message);
-  assert.equal(changed.message, 'Route updated · Stone quarry Stop 1 → Millbrook Stop 3 · now timber');
+  assert.equal(changed.message, 'Route updated: Stone run now carries timber from Stone quarry Stop 1 to Millbrook Stop 3.');
   assert.equal(route.cargo, 'timber');
   assert.deepEqual(fleet(game, route).map(vehicle => vehicle.load), [0, 0], 'stone aboard is left behind');
   assert.equal(validateGame(game), true);
   const bus = launch(game, [stops.stoneford, stops.millbrook], 'passengers');
   for (const [target, cargo] of [[bus, 'stone'], [route, 'passengers']]) {
     const before = snapshot(game), refused = editRoute(game, target.id, { stops: [stops.stoneford, stops.millbrook], cargo });
-    assert.deepEqual([refused.ok, refused.message], [false, 'Passenger and freight vehicles differ. Launch a new service instead.']);
+    assert.deepEqual([refused.ok, refused.message], [false, 'Passenger and freight vehicles differ. Launch a new route instead.']);
     assert.equal(snapshot(game), before);
   }
 });
@@ -94,15 +94,15 @@ test('an invalid edit changes nothing', () => {
   addRouteVehicle(game, route.id); tick(game, 1.4);
   const routes = game.routes;
   for (const [edit, message] of [
-    [{ stops: [stops.quarryStop, stops.island], cargo: 'stone' }, 'Connect both stations with continuous roads, including bridges and tunnels.'],
-    [{ stops: [stops.quarryStop, stops.rail], cargo: 'stone' }, 'Both stations must serve roads.'],
-    [{ stops: [stops.quarryStop, stops.quarryStop], cargo: 'stone' }, 'Choose two different stations.'],
-    [{ stops: [stops.quarryStop, 'station-missing'], cargo: 'stone' }, 'Both stations must serve roads.'],
-    [{ stops: [stops.stoneford, stops.millbrook], cargo: 'stone' }, 'Stations need a producer of stone and a matching factory or town within 5 tiles.'],
+    [{ stops: [stops.quarryStop, stops.island], cargo: 'stone' }, 'These stops aren’t joined by road. Build the missing road, including any bridge or tunnel, then try again.'],
+    [{ stops: [stops.quarryStop, stops.rail], cargo: 'stone' }, 'Both stops must be road stops.'],
+    [{ stops: [stops.quarryStop, stops.quarryStop], cargo: 'stone' }, 'Choose two different stops.'],
+    [{ stops: [stops.quarryStop, 'station-missing'], cargo: 'stone' }, 'Both stops must be road stops.'],
+    [{ stops: [stops.stoneford, stops.millbrook], cargo: 'stone' }, 'These stops need a supplier of stone and a buyer within 5 tiles.'],
     [{ stops: [stops.quarryStop, stops.stoneford], cargo: 'unobtainium' }, 'Choose a valid transport mode and cargo.'],
     [{ stops: [stops.quarryStop, stops.stoneford], cargo: 'stone' }, 'Nothing to change.'],
     [{ stops: [stops.stoneford, stops.quarryStop], cargo: 'stone' }, 'Nothing to change.'],
-    [{ cargo: 'stone' }, 'Choose two different stations.'],
+    [{ cargo: 'stone' }, 'Choose two different stops.'],
   ]) {
     const before = snapshot(game), refused = editRoute(game, route.id, edit);
     assert.deepEqual([refused.ok, refused.message], [false, message], JSON.stringify(edit));

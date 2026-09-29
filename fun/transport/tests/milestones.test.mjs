@@ -152,7 +152,7 @@ test('after the first-route stages the goal card follows the milestone ladder', 
   game.milestones = { 'first-freight': 0, 'freight-100': 0, processing: 0 };
   let project = nextProject(game);
   assert.equal(project.milestone, 'towns-5');assert.equal(project.chapter, 2);assert.deepEqual(project.progress, { value: 0, max: 5 });
-  assert.match(project.detail, /0 \/ 5 served/);assert.equal(project.choices.length, 5);assert.equal(project.choice, 0);
+  assert.match(project.detail, /0 of 5 served/);assert.equal(project.choices.length, 5);assert.equal(project.choice, 0);
   project = nextProject(game, { source: 'rail-30' });
   assert.equal(project.title, 'A 30-tile railway');assert.equal(project.action, 'connect');assert.equal(project.tool, 'rail');
   for (const milestone of MILESTONES) game.milestones[milestone.id] = 0;
@@ -161,9 +161,9 @@ test('after the first-route stages the goal card follows the milestone ladder', 
 
 test('progress reads as counts, money and percentages', () => {
   const find = id => MILESTONES.find(m => m.id === id);
-  assert.equal(progressText(find('freight-100'), { value: 37, target: 100 }), '37 / 100 delivered');
-  assert.equal(progressText(find('profit-25k'), { value: 12300, target: 25640 }), '$12,300 / $25,640');
-  assert.equal(progressText(find('industry-200'), { value: 140, target: 200 }), '140% / 200%');
+  assert.equal(progressText(find('freight-100'), { value: 37, target: 100 }), '37 of 100 delivered');
+  assert.equal(progressText(find('profit-25k'), { value: 12300, target: 25640 }), '$12,300 of $25,640');
+  assert.equal(progressText(find('industry-200'), { value: 140, target: 200 }), '140% of 200%');
   assert.equal(progressText(find('first-ship'), { value: 0, target: 1 }), '');
   assert.ok(MILESTONES.every(m => /^[A-Z0-9$]/.test(m.title) && !/you must/i.test(m.title) && m.title === m.title[0] + m.title.slice(1).replace(/[A-Z]{2,}/g, '')), 'sentence-case noun phrases');
   assert.equal(new Set(MILESTONES.map(m => m.id)).size, MILESTONES.length);assert.ok(MILESTONES.every(m => m.id.length <= 40));

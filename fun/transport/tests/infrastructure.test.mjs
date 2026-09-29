@@ -90,9 +90,9 @@ test('stops and routes can be renamed, and the names survive a save', () => {
   assert.equal(renameRoute(game, route.id, route.name).ok, false, 'an unchanged name is not a rename');
   assert.equal(renameStation(game, 'station-missing', 'Anywhere').ok, false);
   assert.equal(game.revision, revision, 'refusals change nothing');
-  assert.deepEqual(renameStation(game, stop.id, '  Harbour gate  '), { ok: true, message: 'Renamed to Harbour gate' });
+  assert.deepEqual(renameStation(game, stop.id, '  Harbour gate  '), { ok: true, message: 'Renamed to Harbour gate.' });
   assert.equal(renameRoute(game, route.id, 'y'.repeat(36)).ok, true, '36 characters fit');
-  assert.equal(renameRoute(game, route.id, 'Morning line').message, 'Renamed to Morning line');
+  assert.equal(renameRoute(game, route.id, 'Morning line').message, 'Renamed to Morning line.');
   assert.equal(game.revision, revision + 3, 'each rename marks the company changed for autosave');
   const restored = restoreGame(JSON.parse(JSON.stringify(encodeGame(game))));
   assert.equal(validateGame(restored), true);

@@ -78,7 +78,7 @@ test('industry productivity and local services are symmetric around a 2×2 footp
     assert.equal(environment.transport,.6,`${side} active station reaches the nearest site edge`);
     assert.equal(environment.school,1,side);assert.equal(environment.services,1,side);
     assert.equal(environment.roadAccess,true,side);assert.equal(environment.railAccess,true,side);
-    assert.ok(conditions.positive.includes('Transport service'),side);
+    assert.ok(conditions.positive.includes('Served by a route'),side);
     if(reference)assert.deepEqual(conditions,reference,`${side} receives the same production support`);
     else reference=conditions;
   }

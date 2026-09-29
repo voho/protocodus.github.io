@@ -411,7 +411,7 @@ Every status has one reason line. When there is a fix, the fix appears as an act
 | State | Words |
 |---|---|
 | ok | Running |
-| warn | Passengers waiting; Cargo waiting; Buyer full |
+| warn | Passengers waiting; Cargo waiting; Buyer full; Needs coal (its supplier is short of an input, so more vehicles would not help) |
 | error | Not connected (with the broken glyph); Stop missing; No supplier; No buyer; No passengers |
 | paused | Paused |
 | info | First trip (before the first delivery) |

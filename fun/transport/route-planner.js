@@ -3,18 +3,19 @@ import { CARGO, INDUSTRIES, TOWN_CARGO, VEHICLE_UPKEEP, INFRASTRUCTURE_UPKEEP } 
 import { passengerArrivals } from './settlements.js';
 import { reviewGrowth } from './industry-simulation.js';
 import { routeNeedsAttention } from './gameplay-insights.js';
+import { money, tiles, listJoin, cargoName, vehicleNoun } from './copy.js';
 
 const pathCache = new WeakMap();
 const canShip = (a, b, cargo) => {
   const producers = a.industries.filter(industry => INDUSTRIES[industry.kind].outputs[cargo]);
   return producers.length > 0 && (b.industries.some(industry => INDUSTRIES[industry.kind].inputs[cargo] && producers.every(producer => producer.id !== industry.id)) || (TOWN_CARGO.includes(cargo) && b.cities.length > 0));
 };
-const cargoNames = keys => keys.length ? keys.slice(0, 3).map(key => CARGO[key]?.name.toLowerCase() || key).join(', ') + (keys.length > 3 ? ', …' : '') : 'no cargo';
+const cargoNames = keys => keys.length ? listJoin([...keys.slice(0, 3).map(key => cargoName(key)), ...keys.length > 3 ? ['more'] : []]) : 'no cargo';
 // Name the gap only when no cargo at all fits; one wrong choice keeps its own advice.
 function sharedCargoGap(game, stations, coverage) {
   if (passengerEndpoints(game, ...stations)) return '';
   if ([...coverage[0].produces, ...coverage[1].produces].some(cargo => cargo !== 'passengers' && (canShip(coverage[0], coverage[1], cargo) || canShip(coverage[1], coverage[0], cargo)))) return '';
-  return `No shared cargo · start loads ${cargoNames(coverage[0].produces)}; end accepts ${cargoNames(coverage[1].accepts)}`;
+  return `No cargo fits both stops. The start loads ${cargoNames(coverage[0].produces)}, and the end accepts ${cargoNames(coverage[1].accepts)}.`;
 }
 
 export function routeCargoList(game) {
@@ -41,23 +42,23 @@ export function validateRoutePlan(game, draft, { ignoreFunds = false } = {}) {
   result.path = cached.path;
   if (!result.path) {
     result.state = 'disconnected';
-    return fail(mode === 'water' ? 'No water connection. Choose ports on the same river, lake or sea.' : `No connection. Join these stops with ${mode === 'rail' ? 'rails' : 'roads'}, bridges or tunnels.`);
+    return fail(mode === 'water' ? 'These ports don’t share open water. Choose ports on the same river, lake or sea.' : `${stations[0].name} and ${stations[1].name} aren’t joined by ${mode}. Build the missing ${mode === 'rail' ? 'track' : 'road'}, or pick another stop.`);
   }
   result.connected = true;
   result.state = 'connected';
   if (result.path.length < 3) return fail('Stops are too close. Leave at least two tiles of travel.');
   const coverage = stations.map(stop => stationCoverage(game, stop));
   if (cargo === 'passengers') {
-    if (!passengerEndpoints(game, ...stations)) return fail(sharedCargoGap(game, stations, coverage) || 'Connected. Each stop must serve a different town within 5 tiles.');
+    if (!passengerEndpoints(game, ...stations)) return fail(sharedCargoGap(game, stations, coverage) || 'Connected, but each stop needs a different town within 5 tiles.');
   } else if (!canShip(coverage[0], coverage[1], cargo)) {
     if (canShip(coverage[1], coverage[0], cargo)) result.reversed = true;
-    else return fail(sharedCargoGap(game, stations, coverage) || `Connected. Add a ${CARGO[cargo].name.toLowerCase()} producer and buyer within 5 tiles of the stops.`);
+    else return fail(sharedCargoGap(game, stations, coverage) || `Connected. Add a ${cargoName(cargo)} supplier and a buyer within 5 tiles of the stops.`);
   }
   // The same stops and cargo can take another vehicle instead of a duplicate service.
   const [first, second] = result.reversed ? [stations[1], stations[0]] : stations;
   result.existingRouteId = game.routes.find(route => route.mode === mode && route.cargo === cargo && (route.stops[0] === first.id && route.stops[1] === second.id || cargo === 'passengers' && route.stops[0] === second.id && route.stops[1] === first.id))?.id ?? null;
-  if (!ignoreFunds && game.money < getVehiclePurchase(game,mode).cost) return fail('Connected. More funds are needed to buy the vehicle.');
-  return { ...result, valid: true, message: `${mode === 'water' ? 'Connected by water' : 'Connected'} · ${result.path.length - 1} tiles${result.reversed ? ' · Loads at end stop' : ''}` };
+  if (!ignoreFunds && game.money < getVehiclePurchase(game,mode).cost) return fail(`Connected. Need ${money(getVehiclePurchase(game,mode).cost)} for the first ${vehicleNoun(mode, cargo)}.`);
+  return { ...result, valid: true, message: `Connected by ${mode === 'water' ? 'water' : mode}, ${tiles(result.path.length - 1)}.${result.reversed ? ' Loads at the end stop.' : ''}` };
 }
 
 // Every biome cargo with its verdict for these stops, fitting cargo first:
@@ -169,21 +170,21 @@ export function forecastRoute(game, draft, plan = null) {
 }
 
 const ROUTE_NAME_LENGTH = 36;
-// Name a service by what it does: the two towns, or cargo from its producer to its buyer.
+// Name a route by what it does: the two towns, or its supplier to its buyer.
 export function defaultRouteName(game, plan, cargo) {
   const [from, to] = plan.reversed ? [...plan.stations].reverse() : plan.stations;
   if (!from || !to) return '';
   const names = [];
   if (cargo === 'passengers') {
     const towns = passengerEndpoints(game, from, to);
-    if (towns) names.push(`${towns[0].name} · ${towns[1].name}`);
+    if (towns) names.push(`${towns[0].name} – ${towns[1].name}`);
   } else if (Object.hasOwn(CARGO, cargo)) {
     const source = stationCoverage(game, from).industries.find(industry => INDUSTRIES[industry.kind].outputs[cargo]), destination = stationCoverage(game, to);
     const buyer = destination.industries.find(industry => INDUSTRIES[industry.kind].inputs[cargo] && industry.id !== source?.id) || (TOWN_CARGO.includes(cargo) ? destination.cities[0] : null);
     const site = industry => industry.name || INDUSTRIES[industry.kind].name;
-    if (source && buyer) names.push(`${CARGO[cargo].name} · ${site(source)} → ${buyer.name || site(buyer)}`, `${site(source)} → ${buyer.name || site(buyer)}`);
+    if (source && buyer) names.push(`${site(source)} to ${buyer.name || site(buyer)}`);
   }
-  const name = names.find(name => name.length <= ROUTE_NAME_LENGTH) || names.at(-1) || `${from.name} → ${to.name}`;
+  const name = names.find(name => name.length <= ROUTE_NAME_LENGTH) || names.at(-1) || `${from.name} to ${to.name}`;
   return name.length > ROUTE_NAME_LENGTH ? name.slice(0, ROUTE_NAME_LENGTH - 1).trimEnd() + '…' : name;
 }
 

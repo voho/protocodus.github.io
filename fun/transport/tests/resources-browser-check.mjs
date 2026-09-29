@@ -236,7 +236,7 @@ try {
   await page.locator('#route-pick-banner').waitFor({ state: 'detached' });
   assert.deepEqual(await planned(), { from: quarry.stop.id, to: quarry.alder.id, cargo: 'stone', valid: 'true', banner: '' }, 'Deliver here keeps the end and picks only the start');
   const refusal = await page.evaluate(async stop => (await import('./model.js')).build(transport.game, 'bulldoze', stop.x, stop.y), quarry.stop);
-  assert.equal(refusal.ok, false); assert.equal(refusal.message, `Retire ${stone.name} before removing this road stop.`, 'bulldozing a served stop names its route');
+  assert.equal(refusal.ok, false); assert.equal(refusal.message, `${stone.name} uses this stop. Retire the route first, then remove the stop.`, 'bulldozing a served stop names its route');
   const middle = stone.path[Math.floor(stone.path.length / 2)];
   await inspectAt(middle);
   const use = await page.locator('#inspector .network-use').textContent();

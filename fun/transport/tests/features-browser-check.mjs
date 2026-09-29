@@ -83,7 +83,7 @@ try {
   assert.equal(await quarryPage.locator('#route-form [name="to"]').inputValue(), quarry.alder.id);
   assert.equal(await quarryPage.locator('[data-cargo-choice="stone"][aria-pressed="true"]').count(), 1, 'stone stays selected for the pair');
   await verifyConnection(quarryPage, 'connected', true);
-  assert.match(await quarryPage.locator('#route-connection').textContent(), /Connected · \d+ tiles · Cargo set to Stone/);
+  assert.match(await quarryPage.locator('#route-connection').textContent(), /Connected by road, \d+ tiles · Cargo set to Stone/);
   await quarryPage.locator('#route-forecast').waitFor({ state: 'visible' });
   const forecastLine = /^≈ \+\$[\d.,]+k? \/ month · pays back in about \d+\u00a0(months?|years)$/, forecast = await quarryPage.locator('.forecast-summary').textContent();
   assert.match(forecast, forecastLine, 'choosing the end stop forecasts the route');
@@ -97,7 +97,7 @@ try {
   assert.equal(await quarryPage.locator('[data-cargo-choice="stone"]').getAttribute('data-fits'), 'true');
   assert.equal(await quarryPage.locator('[data-cargo-choice="passengers"]').getAttribute('data-fits'), 'false', 'other cargo is dimmed but stays clickable');
   assert.match(await quarryPage.locator('[data-cargo-choice="passengers"]').getAttribute('title'), /different town/);
-  assert.equal(await quarryPage.locator('#route-form [name="name"]').getAttribute('placeholder'), 'Stone · Stone quarry → Alderbrook', 'the default name describes the freight flow');
+  assert.equal(await quarryPage.locator('#route-form [name="name"]').getAttribute('placeholder'), 'Stone quarry to Alderbrook', 'the default name describes the freight flow');
   await quarryPage.screenshot({ path: `${output}/desktop-quarry-planner.png` });
   await quarryPage.locator('.route-stop-field').last().locator('[data-cargo-pick="passengers"]').click();
   assert.equal(await quarryPage.locator('[data-cargo-choice="passengers"]').getAttribute('aria-pressed'), 'true', 'coverage badges choose cargo');
@@ -110,14 +110,14 @@ try {
   assert.equal(await quarryPage.locator('#route-form [name="from"]').inputValue(), quarry.alder.id, 'swap exchanges the stops');
   assert.equal(await quarryPage.locator('#route-form [name="to"]').inputValue(), quarry.station.id);
   await verifyConnection(quarryPage, 'connected', true);
-  assert.match(await quarryPage.locator('#route-connection').textContent(), /Loads at end stop/);
+  assert.match(await quarryPage.locator('#route-connection').textContent(), /Loads at the end stop/);
   assert.equal(await quarryPage.locator('.forecast-summary').textContent(), forecast, 'loading at the end stop forecasts the same flow');
   assert.equal(await quarryPage.locator('.forecast-details').evaluate(element => element.open), true, 'the details stay open across a rebuilt form');
   await quarryPage.locator('#swap-route-stops').click();
   await quarryPage.locator('#route-form button[type="submit"]').click();
   const stoneRoute = await quarryPage.evaluate(() => transport.game.routes.at(-1));
   assert.equal(stoneRoute.cargo, 'stone');
-  assert.equal(stoneRoute.name, 'Stone · Stone quarry → Alderbrook', 'an empty name uses the default');
+  assert.equal(stoneRoute.name, 'Stone quarry to Alderbrook', 'an empty name uses the default');
   assert.equal(await quarryPage.locator('#route-planner').evaluate(element => element.open), false);
   await quarryPage.waitForFunction(id => {
     const drawer = document.querySelector('#panel-content').getBoundingClientRect(), card = document.querySelector(`[data-route-id="${id}"]`)?.getBoundingClientRect();
@@ -193,7 +193,7 @@ try {
     const { build, addRoute, addRouteVehicle } = await import('./model.js'), { buildPlan } = await import('./construction-plan.js'), game = transport.game;
     const road = buildPlan(game, 'road', [251, 250, 249, 248, 247, 246, 245].map(y => ({ x: 219, y })), { preferredMode: 'road' }), stop = build(game, 'bus-stop', 219, 251);
     const alder = game.stations.find(station => station.name === 'Alderbrook Central'), pine = game.stations.find(station => station.name === 'Pinehaven Central');
-    const launched = addRoute(game, { name: 'Stone · Stone quarry → Alderbrook', mode: 'road', stops: [stop.station.id, alder.id], cargo: 'stone' });
+    const launched = addRoute(game, { name: 'Stone quarry to Alderbrook', mode: 'road', stops: [stop.station.id, alder.id], cargo: 'stone' });
     if (!road.ok || !stop.ok || !launched.ok) throw new Error(`Could not prepare the stone route: ${road.message}; ${stop.message}; ${launched.message}`);
     addRouteVehicle(game, launched.route.id); transport.setView('routes');
     return { id: launched.route.id, start: stop.station.id, pine, vehicles: game.vehicles.filter(vehicle => vehicle.routeId === launched.route.id).map(vehicle => vehicle.id) };
@@ -201,7 +201,7 @@ try {
   const stoneCard = editPage.locator(`.route-card[data-route-id="${stone.id}"]`), editMoney = await editPage.evaluate(() => transport.game.money);
   await stoneCard.locator('[data-edit-route]').click();
   assert.equal(await editPage.locator('#route-planner summary h3').textContent(), 'Edit route');
-  assert.match(await editPage.locator('.route-edit-note').textContent(), /^Stone · Stone quarry → Alderbrook keeps its 2 trucks\./);
+  assert.match(await editPage.locator('.route-edit-note').textContent(), /^Stone quarry to Alderbrook keeps its 2 trucks\./);
   assert.equal(await editPage.locator('#route-form [name="mode"]').isDisabled(), true, 'the transport is fixed');
   assert.deepEqual(await editPage.evaluate(() => ['.purchase-vehicle', '#route-form [name="name"]', '[data-cargo-choice="passengers"]'].map(selector => document.querySelectorAll(selector).length)), [0, 0, 0], 'no purchase, no name field, and trucks never carry passengers');
   assert.equal(await editPage.locator('#route-forecast').isHidden(), true);
@@ -219,7 +219,7 @@ try {
   assert.deepEqual(moved.stops, [stone.start, stone.pine.id], 'the route now ends at Pinehaven');
   assert.equal(moved.money, editMoney, 'an edit costs nothing');
   assert.deepEqual(moved.vehicles, stone.vehicles, 'the same trucks run the new route');
-  assert.equal(moved.name, 'Stone · Stone quarry → Pinehaven', 'a default name follows its stops');
+  assert.equal(moved.name, 'Stone quarry to Pinehaven', 'a default name follows its stops');
   assert.match(await stoneCard.locator('.route-journey').textContent(), /Pinehaven Central$/, 'the card journey shows the new end');
   assert.equal(await editPage.locator('#route-planner').evaluate(element => element.open), false, 'saving folds the planner');
   // A refinery by the quarry lets the same trucks carry fuel to Pinehaven instead.
@@ -242,7 +242,7 @@ try {
   await editPage.locator('#confirm-route-edit').click();
   const fuel = await editPage.evaluate(id => { const route = transport.game.routes.find(route => route.id === id); return { cargo: route.cargo, name: route.name, empty: transport.game.vehicles.filter(vehicle => vehicle.routeId === id).every(vehicle => vehicle.load === 0), money: transport.game.money }; }, stone.id);
   assert.deepEqual([fuel.cargo, fuel.empty, fuel.money], ['fuel', true, fuelMoney], 'the same trucks carry fuel from empty, free of charge');
-  assert.match(fuel.name, /^Fuel · .+ → Pinehaven$/, 'the default name follows the new freight');
+  assert.match(fuel.name, /^(?!Stone quarry ).+ to Pinehaven$/, 'the default name follows the new freight');
   await stoneCard.locator('[data-edit-route]').click();
   await editPage.locator('#cancel-route-edit').click();
   assert.equal(await editPage.locator('#route-planner summary h3').textContent(), 'New route', 'Cancel leaves the edit');

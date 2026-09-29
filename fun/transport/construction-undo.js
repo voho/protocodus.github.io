@@ -2,14 +2,14 @@ import { industryAt, invalidateNetworkPoints, BUILDINGS, INDUSTRIES } from './mo
 import { buildingAt, buildingTiles } from './building-sites.js';
 import { industryTiles } from './industry-sites.js';
 import { terrainObjectAt, terrainObjectTiles } from './terrain-objects.js';
+import { money as moneyText } from './copy.js';
 
 // One construction gesture reversed as a diff: only the tiles, sites, residents,
 // notices and money that this build changed go back, so vehicles, cargo and
 // growth elsewhere keep running. Entries live in the session, never in saves.
 const LISTS=['stations','industries','cities','zones'];
 const NATURAL=new Set(['grass','forest','sand','snow']);
-const moneyText=n=>`$${Math.round(n).toLocaleString('en-US')}`;
-const NAMES={connection:'Connection',road:'Road',rail:'Rail',bridge:'Road bridge',railbridge:'Rail bridge',tunnel:'Road tunnel',railtunnel:'Rail tunnel',port:'Port','bus-stop':'Road stop','train-stop':'Rail station',residential:'Residential zone',commercial:'Commercial zone',industrial:'Industrial zone'};
+const NAMES={road:'Road',rail:'Rail',bridge:'Road bridge',railbridge:'Rail bridge',tunnel:'Road tunnel',railtunnel:'Rail tunnel',port:'Port','bus-stop':'Road stop','train-stop':'Rail station',residential:'Residential zone',commercial:'Commercial zone',industrial:'Industrial zone'};
 const cover=terrain=>NATURAL.has(terrain)?'land':terrain;
 const pinned=new WeakSet(); // Tile arrays whose homes all name their town already.
 function same(a,b){
@@ -111,6 +111,7 @@ function undoLabel(entry){
   const {tool}=entry,stations=entry.lists.stations?.added||[];
   if(tool==='bulldoze')return 'Demolition undone';
   if(tool==='raise'||tool==='lower'||tool==='level')return 'Land restored';
+  if(tool==='connection')return `${stations[0]?.mode==='rail'?'Railway':'Road'}${stations.length?' and stops':''} removed`;
   const name=tool==='stop'?stations.length>1?`${stations.length} stops`:stations[0]?.mode==='rail'?'Rail station':'Road stop':tool==='city'?entry.lists.cities?.added[0]?.name||'Town':NAMES[tool]||BUILDINGS[tool]?.name||INDUSTRIES[tool]?.name||'Construction';
   return `${name} removed`;
 }
@@ -137,5 +138,5 @@ export function undoConstruction(game,entry){
   if(game.nextId===entry.nextId[1])game.nextId=entry.nextId[0];
   if(entry.network)invalidateNetworkPoints(game,entry.points);else game.revision++;
   entry.done=true;
-  return {ok:true,message:`${undoLabel(entry)}${cost>0?` · ${moneyText(cost)} refunded`:''}`,cost};
+  return {ok:true,message:`${undoLabel(entry)}.${cost>0?` ${moneyText(cost)} refunded.`:''}`,cost};
 }

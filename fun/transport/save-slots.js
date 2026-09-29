@@ -1,6 +1,7 @@
 import { BIOMES, SAVE_KEY, restoreGame, validateGame } from './model.js';
 import { encodeGame, encodeBytes, decodeBytes, savedTileCount, inspectSavedGame } from './save-codec.js';
 import { MAX_WORLD_TILES } from './world.js';
+import { money, dateShort } from './copy.js';
 import { restoreGameAsync, encodeGameAsync } from './background-jobs.js';
 
 export const SAVE_SLOT_PREFIX = 'transport-slot-v1:';
@@ -202,9 +203,9 @@ export function deleteSaveSlot(id) {
 }
 
 // Save lists share one wording for the in-game date, balance and size.
-export const slotDate = day => Number.isFinite(day) ? new Date(Date.UTC(1950, 0, 1 + Math.floor(day))).toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' }) : 'Unknown date';
-export const slotMoney = value => Number.isFinite(value) ? `${value < 0 ? '−' : ''}$${Math.round(Math.abs(value)).toLocaleString('en-US')}` : '—';
-export const slotDetails = slot => `${BIOMES[slot.biome]?.name || 'Unknown world'} · ${slotDate(slot.day)} · ${slotMoney(slot.money)} · ${slot.width} × ${slot.height} · ${slot.routes} route${slot.routes === 1 ? '' : 's'}`;
+export const slotDate = day => Number.isFinite(day) ? dateShort(day) || 'Unknown date' : 'Unknown date';
+export const slotMoney = value => Number.isFinite(value) ? money(value) : '—';
+export const slotDetails = slot => `${BIOMES[slot.biome]?.name || 'Unknown world'}, ${slotDate(slot.day)}, ${slotMoney(slot.money)}, ${slot.width} × ${slot.height}, ${slot.routes} route${slot.routes === 1 ? '' : 's'}`;
 
 /** Wall-clock age such as '3 minutes ago'; empty when the time is unknown or ahead of this clock. */
 export function savedAgo(value, now = Date.now()) {

@@ -17,6 +17,7 @@ import { TERRAIN_OBJECT_KINDS, terrainObjectAt, terrainObjectSize, terrainObject
 import { LAND_HEIGHT_LEVELS } from './terrain-elevation.js';
 import { surfaceHeight } from './terrain-geometry.js';
 import { terraformProblem, planTerraformLevel, planTerraformStroke, planStructureSpan, networkEdgeAllowed, transportElevation, validStructureMetadata, networkTerrainProblem, networkTerrainPlanProblem } from './terrain-engineering.js';
+import { money, count, tiles, listJoin, capital, cargoName, modelYear, vehicleNoun, stopKind, token } from './copy.js';
 export { priceFor, inflationInfo } from './economy-pricing.js';
 export { industryConditions } from './industry-simulation.js';
 export { settlementSuitability } from './settlements.js';
@@ -38,7 +39,9 @@ const owns = (object,key) => Object.prototype.hasOwnProperty.call(object,key);
 const clamp = (n, min, max) => Math.max(min, Math.min(max,n));
 const distance = (a,b) => Math.hypot(a.x-b.x,a.y-b.y);
 const result = (ok,message,extra={}) => ({ok,message,...extra});
-const moneyText = n => `$${Math.round(n).toLocaleString('en-US')}`;
+const moneyText = n => money(n);
+// A result names what it did, then the money: 'Road built. $1,200 spent.'
+const spent = cost => cost>0?` ${moneyText(cost)} spent.`:'';
 const makeId = (game,prefix) => `${prefix}-${game.nextId++}`;
 export function tileAt(game,x,y) {
   return Number.isInteger(x) && Number.isInteger(y) && x >= 0 && y >= 0 && x < game.width && y < game.height ? game.tiles[y*game.width+x] : null;
@@ -58,7 +61,7 @@ export function constructionCost(game,tool,x,y) {
   return priceFor(game,base);
 }
 function notify(game,message,type='info',extra) {
-  game.notifications.unshift({ id: makeId(game,'notice'), day:game.day, message, text:message, type, ...(extra?.topic?{topic:extra.topic}:{}), ...(extra?.target?{target:extra.target}:{}) });
+  game.notifications.unshift({ id: makeId(game,'notice'), day:game.day, message, text:message, type, ...(extra?.topic?{topic:extra.topic}:{}), ...(extra?.target?{target:extra.target}:{}), ...(extra?.template?{template:extra.template}:{}) });
   game.notifications.length = Math.min(game.notifications.length,24);
 }
 // Relaxed is the default and is never stored; Standard and Lean are the player's choice of a tighter start.
@@ -86,7 +89,7 @@ export function createGame({biome='taiga',seed=1847,size=DEFAULT_WORLD_SIZE,gene
   game.money=funds; game.monthlyExpenses=0; game.totalExpenses=0;
   if(funds!==400000)game.startingFunds=funds;
   game.notifications=[];
-  notify(game,`Welcome to ${BIOMES[biome].name}. Your first passenger service is running. Connect an industry to grow your company.`,'success');
+  notify(game,`Welcome to ${BIOMES[biome].name}. Your first passenger route is running. Connect an industry to grow your company.`,'success');
   return game;
 }
 
@@ -187,7 +190,7 @@ export function quoteStructureSpan(game,tool,points) {
   const plan=planStructureSpan(game,tool,points);if(!plan.ok)return plan;
   const placements=plan.placements.map(p=>({...p,cost:constructionCost(game,p.tool,p.x,p.y)}));
   const cost=placements.reduce((sum,p)=>sum+p.cost,0);
-  return {...plan,placements,cost,...game.money<cost?{ok:false,message:`Need ${moneyText(cost)} for the complete ${plan.structure}.`}:{}};
+  return {...plan,placements,cost,...game.money<cost?{ok:false,message:`Need ${moneyText(cost)} for the whole ${plan.structure}.`}:{}};
 }
 export function buildStructureSpan(game,tool,points) {
   const plan=quoteStructureSpan(game,tool,points);
@@ -206,13 +209,13 @@ export function buildStructureSpan(game,tool,points) {
     built++;
   }
   if(built){spend(game,plan.cost);invalidateNetwork(game,plan.placements);}
-  return result(true,built?`${plan.mode==='rail'?'Rail':'Road'} ${plan.structure} · level ${plan.height} · ${moneyText(plan.cost)}`:'Already built.',{cost:plan.cost,built,failed:0,skipped,level:plan.level,height:plan.height});
+  return result(true,built?`${plan.mode==='rail'?'Rail':'Road'} ${plan.structure} built at level ${plan.height}.${spent(plan.cost)}`:'Already built.',{cost:plan.cost,built,failed:0,skipped,level:plan.level,height:plan.height});
 }
 export function quoteTerraformLevel(game, points, { targetLevel } = {}) {
   const plan=planTerraformLevel(game,points,targetLevel);if(!plan.ok)return plan;
   const unitPrice=priceFor(game,BUILD_COSTS.level),placements=plan.placements.map(p=>({...p,cost:p.steps*unitPrice}));
   const cost=placements.reduce((sum,p)=>sum+p.cost,0);
-  return {...plan,placements,cost,...game.money<cost?{ok:false,message:`Need ${moneyText(cost)} to level the complete area.`}:{}};
+  return {...plan,placements,cost,...game.money<cost?{ok:false,message:`Need ${moneyText(cost)} to level the whole area.`}:{}};
 }
 export function buildTerraformLevel(game, points, options) {
   const plan=quoteTerraformLevel(game,points,options);
@@ -242,7 +245,7 @@ function commitTerraformPlan(game,plan,verb){
     if(tile.terrain==='forest'||(tile.terrain==='mountain'&&tile.elevation<12/16)||(tile.terrain==='rock'&&tile.elevation<10/16))tile.terrain=game.biome==='desert'?'sand':game.biome==='tundra'?'snow':'grass';
   }
   spend(game,plan.cost);game.revision++;
-  return result(true,`${verb} ${changed.length} point${changed.length===1?'':'s'} · ${moneyText(plan.cost)}`,{cost:plan.cost,built:changed.length,failed:0,skipped:plan.placements.length-changed.length,...plan.level!==undefined?{level:plan.level}:{}});
+  return result(true,`${verb} ${count(changed.length,'point')}.${spent(plan.cost)}`,{cost:plan.cost,built:changed.length,failed:0,skipped:plan.placements.length-changed.length,...plan.level!==undefined?{level:plan.level}:{}});
 }
 function closestCity(game,point,max=Infinity) {
   let closest=null,best=max;
@@ -270,29 +273,29 @@ export function buildProblem(game,tool,x,y,{money=game.money}={}) {
   }
   if(tool==='bulldoze') {
     const serving=station?game.routes.filter(r=>r.stops.includes(station.id)).map(r=>r.name):[];
-    if(serving.length) return fail(`Retire ${serving.length>2?`${serving.slice(0,2).join(', ')} and ${serving.length-2} more`:serving.join(' and ')} before removing this ${station.mode==='water'?'port':station.mode==='rail'?'rail station':'road stop'}.`);
-    if(city) return fail('A city center cannot be demolished.');
-    if(!station&&!industry&&!site&&!t.zone&&!t.road&&!t.rail&&t.terrain!=='forest'&&t.terrain!=='rock'&&!hasClearableDecoration(t)) return fail('There is nothing to demolish here.');
-    return money<constructionCost(game,tool,x,y)?fail('Not enough funds to demolish this tile.','funds'):null;
+    if(serving.length) return fail(`${serving.length>2?`${serving.slice(0,2).join(', ')} and ${serving.length-2} more`:listJoin(serving)} ${serving.length>1?'use':'uses'} this stop. Retire ${serving.length>1?'those routes':'the route'} first, then remove the stop.`);
+    if(city) return fail('Town centres can’t be removed.');
+    if(!station&&!industry&&!site&&!t.zone&&!t.road&&!t.rail&&t.terrain!=='forest'&&t.terrain!=='rock'&&!hasClearableDecoration(t)) return fail('There’s nothing to bulldoze here.');
+    return money<constructionCost(game,tool,x,y)?fail(`Need ${moneyText(constructionCost(game,tool,x,y))} to clear this tile.`,'funds'):null;
   }
   if(NETWORK_TOOLS.includes(tool)) {
     const mode=tool.startsWith('rail')?'rail':'road';
     const bridge=tool==='bridge'||tool==='railbridge',tunnel=tool==='tunnel'||tool==='railtunnel';
     if(networkAlreadyBuilt(t,tool)) return null;
     if(t.structureAxis)return fail('Each elevated span carries one transport mode. Build another span alongside it.');
-    if(industry||site||t.zone) return fail('Clear the building or zone before building a connection.');
-    if(station&&station.mode!==mode) return fail('Cannot cross another transport mode at a station.');
+    if(industry||site||t.zone) return fail('A building or zone is in the way. Clear it first, then build here.');
+    if(station&&station.mode!==mode) return fail('Roads and railways can’t cross at a stop. Build around it.');
     if(t.terrain==='water'&&!bridge&&!t.bridge) return fail(`Water needs a ${mode==='rail'?'rail ':''}bridge.`,'terrain');
     if(t.terrain==='mountain'&&!tunnel&&!t.tunnel) return fail(`Mountains need a ${mode==='rail'?'rail ':''}tunnel.`,'terrain');
     if(bridge&&t.terrain!=='water') return fail('Place bridges on water; connect the banks with ordinary track or road.','terrain');
     if(tunnel&&t.terrain!=='mountain'&&t.terrain!=='rock') return fail('Tunnels must cross mountains or rock.','terrain');
     if(!bridge&&!tunnel){const problem=networkTerrainProblem(game,x,y,mode);if(problem)return fail(problem,'terrain');}
     const cost=constructionCost(game,tool,x,y);
-    return money<cost?fail(`Need ${moneyText(cost)} for this connection.`,'funds'):null;
+    return money<cost?fail(`Need ${moneyText(cost)} to build here.`,'funds'):null;
   }
   if(tool==='bus-stop'||tool==='train-stop'||tool==='port') {
     const mode=tool==='port'?'water':tool==='bus-stop'?'road':'rail';
-    if(station) return fail('There is already a station here.');
+    if(station) return fail(`There’s already a stop here. ${mode==='water'?'Pick another spot beside the shore.':`Pick an empty ${mode} tile.`}`);
     if(mode==='water'){
       if(t.terrain!=='water')return fail('Place a port on water directly beside land.','terrain');
       if(industry||site||t.zone||t.road||t.rail||t.bridge||t.tunnel||city)return fail('Ports need empty shoreline water, away from bridges.');
@@ -300,25 +303,25 @@ export function buildProblem(game,tool,x,y,{money=game.money}={}) {
     }else{
       if(industry||site||t.zone) return fail('Choose an unoccupied road or rail tile.');
       if(!validNetwork(t,mode)) return fail(`Build a ${mode==='road'?'road':'railway'} here first.`);
-      if(t.bridge||t.tunnel) return fail('Stations need open ground beside the connection.');
+      if(t.bridge||t.tunnel) return fail('Stops can’t sit on a bridge or in a tunnel. Pick open ground beside it.');
     }
-    const cost=constructionCost(game,tool,x,y);return money<cost?fail(`Need ${moneyText(cost)} for this station.`,'funds'):null;
+    const cost=constructionCost(game,tool,x,y);return money<cost?fail(`Need ${moneyText(cost)} for this stop.`,'funds'):null;
   }
   if(station||industry||site||t.zone||t.road||t.rail||city) return fail('Choose an empty tile or clear this one first.');
   if(t.terrain==='water'||(t.terrain==='mountain'&&!INDUSTRIES[tool]?.terrain?.includes('mountain'))) return fail('This structure needs buildable land.','terrain');
-  const cost=constructionCost(game,tool,x,y);if(money<cost)return fail(`Need ${moneyText(cost)} for this construction.`,'funds');
+  const cost=constructionCost(game,tool,x,y);if(money<cost)return fail(`Need ${moneyText(cost)} to build this.`,'funds');
   if(ZONE_TYPES.includes(tool))return null;
   if(tool==='city') {
     const terrainProblem=networkTerrainProblem(game,x,y,'road');if(terrainProblem)return fail(terrainProblem,'terrain');
-    if(game.cities.some(c=>distance(c,point)<11))return fail('Found a new city at least 11 tiles from another center.');
-    if(['mountain','rock'].includes(t.terrain))return fail('A new city needs level land.','terrain');
+    if(game.cities.some(c=>distance(c,point)<11))return fail('This is too close to another town. Found it at least 11 tiles from any town centre.');
+    if(['mountain','rock'].includes(t.terrain))return fail('A new town needs level land.','terrain');
     return null;
   }
   if(owns(BUILDINGS,tool)) {const problem=buildingSiteProblem(game,tool,x,y,buildingFootprint(tool));return problem?fail(problem):null;}
   const def=INDUSTRIES[tool];
   const siteProblem=industrySiteProblem(game,tool,x,y);if(siteProblem)return fail(siteProblem);
   if(!def.biomes.includes(game.biome))return fail(`${def.name} is unavailable in ${BIOMES[game.biome].name}.`);
-  if(def.terrain&&!def.terrain.includes(t.terrain))return fail(`${def.name} needs ${def.terrain.join(', ')} terrain.`,'terrain');
+  if(def.terrain&&!def.terrain.includes(t.terrain))return fail(`${def.name} needs ${listJoin(def.terrain,'or')} ground.`,'terrain');
   return null;
 }
 // Counting from the number of stops keeps fresh-game names; after a demolition the count moves past names still in use.
@@ -334,7 +337,7 @@ export function build(game,tool,x,y) {
     spend(game,cost);t.elevation=level/LAND_HEIGHT_LEVELS;t.detail='';
     if(t.terrain==='forest'||(t.terrain==='mountain'&&t.elevation<12/16)||(t.terrain==='rock'&&t.elevation<10/16))t.terrain=game.biome==='desert'?'sand':game.biome==='tundra'?'snow':'grass';
     game.revision++;
-    return result(true,`${tool==='raise'?'Raised':'Lowered'} to level ${level} · ${moneyText(cost)}`,{cost,level});
+    return result(true,`${tool==='raise'?'Raised':'Lowered'} to level ${level}.${spent(cost)}`,{cost,level});
   }
   if(tool==='bulldoze') {
     const cost=constructionCost(game,tool,x,y);
@@ -361,7 +364,7 @@ export function build(game,tool,x,y) {
     if(['forest','rock'].includes(t.terrain)) t.terrain=game.biome==='desert'?'sand':game.biome==='tundra'?'snow':'grass';
     if(changedNetwork)invalidateNetwork(game,[point]);else game.revision++;
     warnLostSupply(game,supplied);
-    return result(true,`Cleared ${site?'building site':industry?'industry site':nature?'terrain parcel':'tile'} · ${moneyText(cost)}`,{cost});
+    return result(true,`Cleared ${site?'the building':industry?`${industry.name||INDUSTRIES[industry.kind].name}`:nature?nature.object.kind==='forest'?'the woodland':'the rocks':'the tile'}.${spent(cost)}`,{cost});
   }
   if(NETWORK_TOOLS.includes(tool)) {
     const mode=tool.startsWith('rail')?'rail':'road';
@@ -372,7 +375,7 @@ export function build(game,tool,x,y) {
     spend(game,cost);t[mode]=true;if(bridge)t.bridge=true;if(tunnel)t.tunnel=true;
     if(t.terrain==='forest'){t.terrain=game.biome==='tundra'?'snow':game.biome==='desert'?'sand':'grass';t.detail='';}
     invalidateNetwork(game,[point]);
-    return result(true,`${mode==='rail'?'Rail':'Road'} ${bridge?'bridge':tunnel?'tunnel':'built'} · ${moneyText(cost)}`,{cost});
+    return result(true,`${mode==='rail'?'Rail':'Road'} ${bridge?'bridge built':tunnel?'tunnel built':'built'}.${spent(cost)}`,{cost});
   }
   if(tool==='bus-stop'||tool==='train-stop'||tool==='port') {
     const mode=tool==='port'?'water':tool==='bus-stop'?'road':'rail';
@@ -381,7 +384,7 @@ export function build(game,tool,x,y) {
     const name=nextStationName(game,`${nearCity?.name||nearIndustry?.name||(mode==='water'?'Coastal':'Rural')} ${mode==='water'?'Port':mode==='road'?'Stop':'Station'}`);
     const newStation={id:makeId(game,'station'),name,x,y,mode};
     spend(game,cost);game.stations.push(newStation);invalidateNetwork(game,[point]);
-    return result(true,`${name} opened · ${moneyText(cost)}`,{cost,station:newStation});
+    return result(true,`${name} opened.${spent(cost)}`,{cost,station:newStation});
   }
   const cost=constructionCost(game,tool,x,y);
   if(ZONE_TYPES.includes(tool)) {
@@ -389,7 +392,7 @@ export function build(game,tool,x,y) {
     spend(game,cost);t.zone=tool;t.detail='';
     if(t.terrain==='forest'||t.terrain==='rock')t.terrain=game.biome==='desert'?'sand':game.biome==='tundra'?'snow':'grass';
     game.zones.push({x,y,kind:tool,progress:0});game.revision++;
-    return result(true,`${tool[0].toUpperCase()+tool.slice(1)} zone designated · ${moneyText(cost)}`,{cost});
+    return result(true,`${capital(tool)} zone designated.${spent(cost)}`,{cost});
   }
   if(tool==='city') {
     // Preserve the town credited for existing housing before a new center can
@@ -401,8 +404,9 @@ export function build(game,tool,x,y) {
     const newCity={id:makeId(game,'city'),name:prefixes[n%prefixes.length]+suffixes[Math.floor(n/prefixes.length)%suffixes.length],x,y,population:80,activity:0,growth:0,passengers:12,delivered:0,supplies:0,lastServiceDay:null,founded:true};
     releaseTerrainObjects(game,[point]);
     spend(game,cost);game.cities.push(newCity);t.road=true;t.detail='';t.terrain=game.biome==='desert'?'sand':game.biome==='tundra'?'snow':'grass';invalidateNetwork(game,[point]);
-    notify(game,`${newCity.name} founded. Add housing and connect a passenger service.`,'success',{target:{kind:'city',id:newCity.id}});
-    return result(true,`${newCity.name} founded · ${moneyText(cost)}`,{cost,city:newCity});
+    const founded=town=>`${town} founded. Zone homes nearby and give it a passenger route.`;
+    notify(game,founded(newCity.name),'success',{target:{kind:'city',id:newCity.id},template:founded(token('town',newCity.id))});
+    return result(true,`${newCity.name} founded.${spent(cost)}`,{cost,city:newCity});
   }
   if(owns(BUILDINGS,tool)) {
     const def=BUILDINGS[tool],nearCity=closestCity(game,point,10);
@@ -411,7 +415,7 @@ export function build(game,tool,x,y) {
     spend(game,cost);
     if(nearCity&&def.residents)nearCity.population+=def.residents;
     game.revision++;
-    return result(true,`${def.name} constructed · ${size} × ${size} site · ${moneyText(cost)}`,{cost,building:placed.building});
+    return result(true,`${def.name} built.${spent(cost)}`,{cost,building:placed.building});
   }
   const def=INDUSTRIES[tool];
   const inventory=Object.fromEntries([...Object.keys(def.inputs),...Object.keys(def.outputs)].map(cargo=>[cargo,0]));
@@ -419,7 +423,7 @@ export function build(game,tool,x,y) {
   initializeIndustry(game,newIndustry);
   releaseTerrainObjects(game,industryTiles(newIndustry));
   spend(game,cost);game.industries.push(newIndustry);game.revision++;
-  return result(true,`${def.name} constructed · ${size} × ${size} site · ${moneyText(cost)}`,{cost,industry:newIndustry});
+  return result(true,`${def.name} built.${spent(cost)}`,{cost,industry:newIndustry});
 }
 
 export function buildPath(game,tool,points) {
@@ -440,8 +444,8 @@ export function buildPath(game,tool,points) {
     else errors.set(built.message,(errors.get(built.message)||0)+1);
   }
   const failures=[...errors.values()].reduce((a,b)=>a+b,0);
-  const errorText=[...errors].slice(0,2).map(([message,n])=>`${n}× ${message}`).join(' ');
-  const message=count?`Built ${count} tile${count===1?'':'s'} · ${moneyText(cost)}${failures?` · ${failures} skipped. ${errorText}`:''}`:errors.size?errorText:skipped?'Already built.':'Choose valid tiles.';
+  const errorText=[...errors.keys()].slice(0,2).join(' ');
+  const message=count?`Built ${tiles(count)}.${spent(cost)}${failures?` ${tiles(failures)} skipped. ${errorText}`:''}`:errors.size?errorText:skipped?'Already built.':'Choose valid tiles.';
   return result(count>0||skipped>0,message,{cost,built:count,failed:failures,skipped});
 }
 
@@ -461,7 +465,8 @@ function warnLostSupply(game,routes) {
   for(const route of routes){
     const [a,b]=route.stops.map(id=>game.stations.find(stop=>stop.id===id));if(freightPair(game,a,b,route.cargo))continue;
     const producer=stationCoverage(game,a).industries.some(i=>INDUSTRIES[i.kind].outputs[route.cargo]);
-    notify(game,producer?`${route.name} lost its buyer. Add a buyer within ${STATION_RADIUS} tiles of ${b.name}.`:`${route.name} lost its ${CARGO[route.cargo].name.toLowerCase()} producer. Add one within ${STATION_RADIUS} tiles of ${a.name} or retire the service.`,'warning',{topic:'route-supply',target:{kind:'route',id:route.id}});
+    const stop=producer?b:a,lost=(name,at)=>producer?`${name} lost its buyer. Add a buyer within ${STATION_RADIUS} tiles of ${at}, or retire the route.`:`${name} lost its ${cargoName(route.cargo)} supplier. Add one within ${STATION_RADIUS} tiles of ${at}, or retire the route.`;
+    notify(game,lost(route.name,stop.name),'warning',{topic:'route-supply',target:{kind:'route',id:route.id},template:lost(token('route',route.id),token('stop',stop.id))});
   }
 }
 const vehicleLevel = vehicle => vehicle.level??0;
@@ -509,38 +514,39 @@ function applyVehicleUpgrade(game,route,targetLevel) {
 export function upgradeRouteVehicle(game,routeId) {
   const route=game.routes.find(r=>r.id===routeId);if(!route)return result(false,'Route not found.');
   const quote=getVehicleUpgrade(game,routeId);
-  if(!quote.available)return result(false,'This service already has the newest vehicle generation.');
-  if(!quote.affordable)return result(false,`Need ${moneyText(quote.cost)} to upgrade this service.`);
+  const nouns=vehicleNoun(route.mode,route.cargo,2);
+  if(!quote.available)return result(false,`${capital(nouns)} on this route are up to date.`);
+  if(!quote.affordable)return result(false,`Need ${moneyText(quote.cost)} to upgrade the ${nouns} on this route.`);
   spend(game,quote.cost);applyVehicleUpgrade(game,route,quote.targetLevel);game.revision++;
-  return result(true,`${route.name} upgraded to generation ${quote.targetLevel+1} · ${moneyText(quote.cost)}`,{cost:quote.cost,upgrade:quote});
+  return result(true,`${capital(nouns)} on ${route.name} upgraded to ${modelYear(quote.targetLevel)} models.${spent(quote.cost)}`,{cost:quote.cost,upgrade:quote});
 }
 
 export function upgradeFleet(game) {
   const quote=getFleetUpgrade(game);
-  if(!quote.available)return result(false,'Your fleet already has the newest vehicle generation.');
+  if(!quote.available)return result(false,'Your fleet is up to date.');
   if(!quote.affordable)return result(false,`Need ${moneyText(quote.cost)} to upgrade the whole fleet.`);
   // Preflight the whole price, then change all vehicles in one transaction.
   spend(game,quote.cost);
   for(const upgrade of quote.routes)applyVehicleUpgrade(game,fleetIndex(game).routeById.get(upgrade.routeId),quote.targetLevel);
   game.revision++;
-  return result(true,`${quote.count} vehicle${quote.count===1?'':'s'} upgraded to generation ${quote.targetLevel+1} · ${moneyText(quote.cost)}`,{cost:quote.cost,upgrade:quote});
+  return result(true,`${capital(count(quote.count,'vehicle'))} upgraded to ${modelYear(quote.targetLevel)} models.${spent(quote.cost)}`,{cost:quote.cost,upgrade:quote});
 }
 
 // The service rules a launch and an edit share. Freight loads at its producer's end, whichever stop comes first.
-function planRoute(game,{mode,stops,cargo}) {
+function planRoute(game,{mode,stops,cargo},retry='launch again') {
   if(!TRANSPORT_MODES.includes(mode)||!owns(CARGO,cargo))return result(false,'Choose a valid transport mode and cargo.');
-  if(!Array.isArray(stops)||stops.length!==2||stops[0]===stops[1])return result(false,'Choose two different stations.');
+  if(!Array.isArray(stops)||stops.length!==2||stops[0]===stops[1])return result(false,'Choose two different stops.');
   let stations=stops.map(id=>game.stations.find(s=>s.id===id));
-  if(stations.some(s=>!s||s.mode!==mode))return result(false,mode==='water'?'Choose two ports for a ship route.':`Both stations must serve ${mode==='road'?'roads':'railways'}.`);
+  if(stations.some(s=>!s||s.mode!==mode))return result(false,mode==='water'?'Choose two ports for a ship route.':`Both stops must be ${stopKind(mode)}s.`);
   if(cargo==='passengers') {
-    if(!passengerEndpoints(game,...stations))return result(false,'Passenger stations must serve two different cities within 5 tiles.');
+    if(!passengerEndpoints(game,...stations))return result(false,'Passenger stops must serve two different towns within 5 tiles.');
   } else if(!freightPair(game,stations[0],stations[1],cargo)) {
     if(freightPair(game,stations[1],stations[0],cargo))stations.reverse();
-    else return result(false,`Stations need a producer of ${CARGO[cargo].name.toLowerCase()} and a matching factory or town within 5 tiles.`);
+    else return result(false,`These stops need a supplier of ${cargoName(cargo)} and a buyer within 5 tiles.`);
   }
   const path=findPath(game,stations[0],stations[1],mode);
-  if(!path)return result(false,mode==='water'?'Ports must share connected water. Choose ports on the same river, lake or sea.':`Connect both stations with continuous ${mode==='road'?'roads':'rails'}, including bridges and tunnels.`);
-  if(path.length<3)return result(false,'Stations are too close for a transport service.');
+  if(!path)return result(false,mode==='water'?'These ports don’t share open water. Choose ports on the same river, lake or sea.':`These stops aren’t joined by ${mode}. Build the missing ${mode==='rail'?'track':'road'}, including any bridge or tunnel, then ${retry}.`);
+  if(path.length<3)return result(false,'These stops are too close. Leave at least two tiles of travel between them.');
   return result(true,'',{stations,path});
 }
 export function addRoute(game,{name,mode='road',stops,cargo='passengers'}={}) {
@@ -552,14 +558,14 @@ export function addRoute(game,{name,mode='road',stops,cargo='passengers'}={}) {
   const route={id:makeId(game,'route'),name:String(name||`${stations[0].name} → ${stations[1].name}`).slice(0,100),mode,stops:stations.map(s=>s.id),cargo,delivered:0,revenue:0,expenses:0,accountingStartDay:game.day,revenueAtAccountingStart:0,color:palette[game.routes.length%palette.length],path,active:true,status:'Running',pathRevision:game.networkRevision||0};
   const vehicle={id:makeId(game,'vehicle'),routeId:route.id,x:path[0].x,y:path[0].y,angle:0,load:0,capacity:purchase.capacity,level:purchase.level,paidPrice:cost,progress:0,direction:1,totalDistance:0,dwellRemaining:0,tripSerial:0};
   spend(game,cost);game.routes.push(route);game.vehicles.push(vehicle);loadVehicle(game,route,vehicle,0);game.revision++;
-  return result(true,`${route.name} launched · ${moneyText(cost)}`,{route,cost});
+  return result(true,`Route launched: ${route.name}.${spent(cost)}`,{route,cost});
 }
 // An edit moves a service to new stops or another freight without selling its vehicles. Nothing is
 // bought or sold; the card counts the new service afresh, and a new cargo leaves the old load behind.
 export function editRoute(game,routeId,{stops,cargo}={}) {
   const route=game.routes.find(r=>r.id===routeId);if(!route)return result(false,'Route not found.');
-  if(cargo!==route.cargo&&(cargo==='passengers'||route.cargo==='passengers'))return result(false,'Passenger and freight vehicles differ. Launch a new service instead.');
-  const plan=planRoute(game,{mode:route.mode,stops,cargo});if(!plan.ok)return plan;
+  if(cargo!==route.cargo&&(cargo==='passengers'||route.cargo==='passengers'))return result(false,'Passenger and freight vehicles differ. Launch a new route instead.');
+  const plan=planRoute(game,{mode:route.mode,stops,cargo},'try again');if(!plan.ok)return plan;
   const [a,b]=plan.stations,changed=cargo!==route.cargo;
   if(!changed&&a.id===route.stops[0]&&b.id===route.stops[1])return result(false,'Nothing to change.');
   route.stops=[a.id,b.id];route.path=plan.path;route.pathRevision=game.networkRevision||0;route.active=true;route.status='Running';
@@ -568,13 +574,13 @@ export function editRoute(game,routeId,{stops,cargo}={}) {
   route.revenueAtAccountingStart=route.revenue;route.expenses=0;route.accountingStartDay=game.day;
   // A new routes array also retires the cached upkeep shares and fleet index.
   game.routes=game.routes.slice();game.revision++;
-  return result(true,`Route updated · ${a.name} → ${b.name}${changed?` · now ${CARGO[cargo].name.toLowerCase()}`:''}`,{route});
+  return result(true,`Route updated: ${route.name} now ${changed?`carries ${cargoName(cargo)}`:'runs'} from ${a.name} to ${b.name}.`,{route});
 }
 export function removeRoute(game,routeId) {
   const route=game.routes.find(r=>r.id===routeId);if(!route)return result(false,'Route not found.');
   const refund=getRetirementRefund(game,routeId);
   game.routes=game.routes.filter(r=>r.id!==routeId);game.vehicles=game.vehicles.filter(v=>v.routeId!==routeId);game.money+=refund;game.revision++;
-  return result(true,`Service retired. Vehicle sale returned ${moneyText(refund)}.`,{refund});
+  return result(true,`Route retired: ${route.name}.${refund>0?` ${money(refund,{compact:true})} refunded.`:''}`,{refund});
 }
 // Players name stops and routes freely, duplicates included, within the route form's 36 characters.
 const NAME_LENGTH=36;
@@ -584,12 +590,12 @@ function renameEntry(game,entry,name) {
   if(next.length>NAME_LENGTH)return result(false,`Keep names to ${NAME_LENGTH} characters.`);
   if(next===entry.name)return result(false,'That is already its name.');
   entry.name=next;game.revision++;
-  return result(true,`Renamed to ${next}`);
+  return result(true,`Renamed to ${next}.`);
 }
 export function renameStation(game,id,name) { const station=game.stations.find(s=>s.id===id);return station?renameEntry(game,station,name):result(false,'Stop not found.'); }
 export function renameRoute(game,id,name) { const route=game.routes.find(r=>r.id===id);return route?renameEntry(game,route,name):result(false,'Route not found.'); }
 // Every route runs one or more vehicles. The fleet caps at 10,000 so saves stay valid.
-export function vehicleNoun(mode,cargo) { return mode==='water'?'ship':mode==='rail'?'train':cargo==='passengers'?'bus':'truck'; }
+export { vehicleNoun } from './copy.js';
 export const MAX_VEHICLES=10000;
 const FLEET_FULL='Your fleet has reached 10,000 vehicles.';
 const saleValue=(route,vehicle)=>Math.round((vehicle.paidPrice??VEHICLE_COSTS[route.mode])*.45);
@@ -607,10 +613,10 @@ export function getRouteFleet(game,routeId) {
 // takes the middle of the widest gap in that loop, so a bought fleet never runs as a convoy.
 export function addRouteVehicle(game,routeId) {
   const index=fleetIndex(game),route=index.routeById.get(routeId);if(!route)return result(false,'Route not found.');
-  if(!route.active)return result(false,'Repair the connection before adding vehicles.');
+  if(!route.active)return result(false,`This route isn’t connected. Repair it before adding ${vehicleNoun(route.mode,route.cargo,2)}.`);
   if(game.vehicles.length>=MAX_VEHICLES)return result(false,FLEET_FULL);
   const noun=vehicleNoun(route.mode,route.cargo),purchase=getVehiclePurchase(game,route.mode),cost=purchase.cost;
-  if(game.money<cost)return result(false,`Need ${moneyText(cost)} to buy another ${noun}.`);
+  if(game.money<cost)return result(false,`Need ${moneyText(cost)} to add a ${noun}.`);
   const L=route.path.length-1,cycle=2*L,phases=(index.vehiclesByRoute.get(route.id)||[]).map(v=>((v.direction===1?v.progress:cycle-v.progress)%cycle+cycle)%cycle).sort((a,b)=>a-b);
   let start=0,gap=cycle;
   for(let i=0;i<phases.length;i++){const span=(i+1<phases.length?phases[i+1]:phases[0]+cycle)-phases[i];if(i===0||span>gap+1e-9){start=phases[i];gap=span;}}
@@ -621,15 +627,15 @@ export function addRouteVehicle(game,routeId) {
   const at=Math.min(Math.floor(progress),L-1),a=route.path[at],b=route.path[at+1],fraction=progress-at;
   const vehicle={id:makeId(game,'vehicle'),routeId:route.id,x:a.x+(b.x-a.x)*fraction,y:a.y+(b.y-a.y)*fraction,angle:Math.atan2((b.y-a.y)*direction,(b.x-a.x)*direction),load:0,capacity:purchase.capacity,level:purchase.level,paidPrice:cost,progress,direction,totalDistance:0,dwellRemaining:0,tripSerial:0};
   spend(game,cost);game.vehicles.push(vehicle);if(stop>=0)loadVehicle(game,route,vehicle,stop);game.revision++;
-  return result(true,`${noun[0].toUpperCase()+noun.slice(1)} added to ${route.name} · ${moneyText(cost)}`,{vehicle,cost});
+  return result(true,`${capital(noun)} added to ${route.name}.${spent(cost)}`,{vehicle,cost});
 }
 export function sellRouteVehicle(game,routeId) {
   const index=fleetIndex(game),route=index.routeById.get(routeId);if(!route)return result(false,'Route not found.');
   const vehicles=index.vehiclesByRoute.get(route.id)||[];
-  if(vehicles.length<=1)return result(false,'Retire the route to sell its last vehicle.');
+  if(vehicles.length<=1)return result(false,`A route keeps at least one ${vehicleNoun(route.mode,route.cargo)}. Retire the route to sell its last one.`);
   const vehicle=sellCandidate(vehicles),refund=saleValue(route,vehicle);
   game.vehicles=game.vehicles.filter(v=>v!==vehicle);game.money+=refund;game.revision++;
-  return result(true,`Vehicle sold · ${moneyText(refund)}`,{vehicle,refund});
+  return result(true,`${capital(vehicleNoun(route.mode,route.cargo))} sold from ${route.name}. ${moneyText(refund)} refunded.`,{vehicle,refund});
 }
 function journeyContext(game) {
   return { stations:fleetIndex(game).stationById, coverage:new Map(), endpoints:new Map(), environments:new Map() };
@@ -730,7 +736,8 @@ function updateRoutePath(game,route) {
   const path=a&&b?findPath(game,a,b,route.mode):null;
   const wasActive=route.active;
   route.active=Boolean(path);route.pathRevision=networkRevision;
-  if(!path) {route.status='Disconnected';if(wasActive)notify(game,route.mode==='water'?`${route.name} has lost its water connection. Ports need a continuous waterway.`:`${route.name} has lost its connection. Repair the network to resume.`,'warning',{topic:'route-connection',target:{kind:'route',id:route.id}});return;}
+  const cut=name=>route.mode==='water'?`${name} is no longer connected by water. Ports need a continuous waterway.`:`${name} is no longer connected. Rebuild the missing ${route.mode==='rail'?'track':'road'}, including any bridge or tunnel.`;
+  if(!path) {route.status='Disconnected';if(wasActive)notify(game,cut(route.name),'warning',{topic:'route-connection',target:{kind:'route',id:route.id},template:cut(token('route',route.id))});return;}
   route.status='Running';
   const changed=route.path.length!==path.length||route.path.some((p,i)=>p.x!==path[i].x||p.y!==path[i].y);
   if(changed)snapVehiclesToPath(game,route,path);
@@ -909,14 +916,14 @@ export function borrow(game) {
   const {loan,borrow:amount}=loanTerms(game);
   if(amount<=0)return result(false,'Your credit line is fully used.');
   game.loan=loan+amount;game.money+=amount;game.revision++;
-  return result(true,`Borrowed ${moneyText(amount)} · interest ${moneyText(Math.round(game.loan*LOAN_MONTHLY_RATE))} / month`,{amount});
+  return result(true,`Borrowed ${moneyText(amount)}. Interest is ${moneyText(Math.round(game.loan*LOAN_MONTHLY_RATE))} a month.`,{amount});
 }
 export function repay(game) {
   const {loan,repay:amount}=loanTerms(game);
   if(loan<=0)return result(false,'No loan to repay.');
   if(game.money<amount)return result(false,`Need ${moneyText(amount)} to repay.`);
   game.money-=amount;game.loan=loan-amount;if(!game.loan)delete game.loan;game.revision++;
-  return result(true,game.loan?`Repaid ${moneyText(amount)} · ${moneyText(game.loan)} still owed`:`Repaid ${moneyText(amount)} · your loan is cleared`,{amount});
+  return result(true,game.loan?`Repaid ${moneyText(amount)}. ${moneyText(game.loan)} still owed.`:`Repaid ${moneyText(amount)}. Your loan is cleared.`,{amount});
 }
 // Closing December sums the year's months; the best route has the highest net since its accounts began.
 function closeYear(game) {
@@ -938,7 +945,7 @@ function monthlyUpdate(game) {
   if(game.lastMonth%12===11)closeYear(game);
   game.monthlyIncome=0;game.monthlyExpenses=0;game.monthlyOperatingExpenses=0;game.monthlyIncomeAtAccountingStart=0;
   stepContracts(game,site=>stationCoverage(game,site));
-  if(game.money<0)notify(game,'Your balance is below zero. Borrow in Company → Loan, or retire a service that earns less than its upkeep.','warning',{topic:'credit'});
+  if(game.money<0)notify(game,'Your balance is below zero. Take a loan in Company, or retire a route that earns less than its upkeep.','warning',{topic:'credit'});
 }
 // Reserved tiles belong to the stroke the player is drawing; towns never lay a street there.
 export function tick(game,days,{reserved=[]}={}) {
@@ -1045,7 +1052,7 @@ export function validateGame(game) {
   if(game.startingFunds!==undefined&&!STARTING_FUNDS.includes(game.startingFunds))return false;
   if(game.loan!==undefined&&!finite(game.loan,0,1e12))return false;
   if(!game.notifications.every(n=>n&&typeof n.message==='string'&&typeof n.text==='string'&&typeof n.type==='string'&&finite(n.day,0)))return false;
-  if(!game.notifications.every(n=>(n.topic===undefined||typeof n.topic==='string'&&n.topic.length<=32)&&(n.target===undefined||Boolean(n.target)&&['industry','city','route'].includes(n.target.kind)&&typeof n.target.id==='string'&&n.target.id.length<=64)))return false;
+  if(!game.notifications.every(n=>(n.topic===undefined||typeof n.topic==='string'&&n.topic.length<=32)&&(n.template===undefined||typeof n.template==='string'&&n.template.length<=1000)&&(n.target===undefined||Boolean(n.target)&&['industry','city','route'].includes(n.target.kind)&&typeof n.target.id==='string'&&n.target.id.length<=64)))return false;
   if(!validMilestones(game)||!game.cities.every(c=>c.founded===undefined||typeof c.founded==='boolean'))return false;
   if(!validContracts(game))return false;
   return true;

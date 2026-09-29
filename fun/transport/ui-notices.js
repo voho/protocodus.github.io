@@ -1,14 +1,22 @@
+import { listJoin, token } from './copy.js';
+
 // DOM-free batching between the model's notice log and HUD toasts. The model
 // keeps its newest 24 notices first; the HUD shows every unseen one, oldest first.
 export const NOTICE_LIMIT = 24;
 export const TOWN_MILESTONES = [1000, 2500, 5000, 10000];
-const LEGACY_TOPICS = [[/has lost its (water )?connection/, 'route-connection'], [/expanded to/, 'industry-growth']];
-const names = list => list.length > 3 ? `${list.slice(0, 3).join(', ')} and ${list.length - 3} more` : list.length > 1 ? `${list.slice(0, -1).join(', ')} and ${list.at(-1)}` : list[0] || '';
+const LEGACY_TOPICS = [[/has lost its (water )?connection|is no longer connected/, 'route-connection'], [/expanded to/, 'industry-growth']];
+const names = list => list.length > 3 ? `${list.slice(0, 3).join(', ')} and ${list.length - 3} more` : listJoin(list);
+// A burst reads as one sentence, with its plain names from the messages (older saves' wording too) and its template from the targets.
 const GROUP_TEXT = {
-  'route-connection': group => `${group.length} routes lost their connection: ${names(group.map(notice => notice.message.match(/^(.*) has lost its (water )?connection/)?.[1] || 'a route'))}`,
-  'industry-growth': group => `${group.length} industries expanded`,
-  'route-supply': group => `${group.length} routes lost a producer or buyer: ${names(group.map(notice => notice.message.match(/^(.*) lost its /)?.[1] || 'a route'))}`,
+  'route-connection': [count => `${count} routes are no longer connected`, /^(.*?) (?:has lost its (?:water )?connection|is no longer connected)/, 'a route'],
+  'industry-growth': [count => `${count} industries expanded`, /^(.*?) expanded to /, 'an industry'],
+  'route-supply': [count => `${count} routes lost a supplier or buyer`, /^(.*?) lost its /, 'a route'],
 };
+function groupText(topic, members) {
+  const [lead, pattern, unnamed] = GROUP_TEXT[topic], ids = members.map(notice => notice.target?.id);
+  const message = `${lead(members.length)}: ${names(members.map(notice => notice.message.match(pattern)?.[1] || unnamed))}.`;
+  return ids.every(Boolean) ? { message, template: `${lead(members.length)}: ${names(members.map(notice => token(notice.target.kind === 'city' ? 'town' : notice.target.kind, notice.target.id)))}.` } : { message };
+}
 
 /** Older saves have no topics; their fixed wording still identifies a burst. */
 export function noticeTopic(notice) { return notice.topic || LEGACY_TOPICS.find(([pattern]) => pattern.test(notice.message))?.[1] || ''; }
@@ -33,7 +41,7 @@ export function groupNotices(list) {
   }
   return entries.map(members => {
     const topic = noticeTopic(members[0]);
-    return { message: members.length > 1 ? GROUP_TEXT[topic](members) : members[0].message, type: members.some(notice => notice.type === 'warning') ? 'warning' : members.at(-1).type, topic, day: members.at(-1).day, count: members.length, targets: members.map(notice => notice.target).filter(Boolean) };
+    return { ...members.length > 1 ? groupText(topic, members) : { message: members[0].message, ...members[0].template ? { template: members[0].template } : {} }, type: members.some(notice => notice.type === 'warning') ? 'warning' : members.at(-1).type, topic, day: members.at(-1).day, count: members.length, targets: members.map(notice => notice.target).filter(Boolean) };
   });
 }
 
@@ -46,4 +54,4 @@ export function creditToast(notice, history) {
   return index < 1 || history[index - 1].money >= 0 || history[index].month % 12 === 11;
 }
 
-export function newYearNotice(year, rate) { return `${year} · Generation ${year - 1949} vehicles: +20% capacity, +10% speed · prices +${(rate * 100).toFixed(1)}% this year`; }
+export function newYearNotice(year, rate) { return `New for ${year}: vehicles carry 20% more and run 10% faster. Prices rise ${(rate * 100).toFixed(1)}% this year.`; }

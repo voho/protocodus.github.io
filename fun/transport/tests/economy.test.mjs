@@ -113,7 +113,7 @@ test('an in-service line stops at a network break and resumes after repair', () 
 });
 
 test('bulldozing a route’s only producer or buyer warns once, naming the route', () => {
-  for (const [site, end, pattern] of [[[10, 10], 0, /^Forest supply lost its timber producer\. Add one within 5 tiles of (.+) or retire the service\.$/], [[30, 10], 1, /^Forest supply lost its buyer\. Add a buyer within 5 tiles of (.+)\.$/]]) {
+  for (const [site, end, pattern] of [[[10, 10], 0, /^Forest supply lost its timber supplier\. Add one within 5 tiles of (.+), or retire the route\.$/], [[30, 10], 1, /^Forest supply lost its buyer\. Add a buyer within 5 tiles of (.+), or retire the route\.$/]]) {
     const { game, stops } = freightFixture();
     assert.equal(addRoute(game, { name: 'Forest supply', mode: 'road', stops, cargo: 'timber' }).ok, true);
     const route = game.routes[0], last = game.notifications[0];
@@ -122,6 +122,7 @@ test('bulldozing a route’s only producer or buyer warns once, naming the route
     assert.equal(fresh.length, 1);
     assert.equal(fresh[0].message.match(pattern)?.[1], game.stations.find(stop => stop.id === stops[end]).name, 'the warning names the stop to build near');
     assert.deepEqual([fresh[0].type, fresh[0].topic, fresh[0].target], ['warning', 'route-supply', { kind: 'route', id: route.id }]);
+    assert.equal(fresh[0].template, fresh[0].message.replace('Forest supply', `{route:${route.id}}`).replace(game.stations.find(stop => stop.id === stops[end]).name, `{stop:${stops[end]}}`), 'the template names the route and the stop');
   }
 });
 
@@ -330,6 +331,6 @@ test('below zero the monthly warning points to the loan, and borrowing ends a so
   tick(game, 32);
   const warning = game.notifications.find(notice => notice.topic === 'credit');
   assert.ok(warning, 'a month closed below zero warns');
-  assert.equal(warning.message, 'Your balance is below zero. Borrow in Company → Loan, or retire a service that earns less than its upkeep.');
+  assert.equal(warning.message, 'Your balance is below zero. Take a loan in Company, or retire a route that earns less than its upkeep.');
   assert.equal(warning.type, 'warning');
 });
