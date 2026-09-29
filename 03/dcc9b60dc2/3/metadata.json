@@ -1,0 +1,43 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "03dcc9b60dc2",
+  "session_id": "50727eda-456c-4b60-8840-93211cddc56a",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-29T17:18:05.881048Z",
+  "branch": "transport-playability",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "fun/transport/tools/ui-specimen.html",
+    "fun/transport/DESIGN.md",
+    "fun/transport/README.md",
+    "fun/transport/tools/icon-sheet.html",
+    "fun/transport/ARCHITECTURE.md",
+    "fun/transport/components.css",
+    "fun/transport/tests/ui-audit.mjs",
+    "fun/transport/tests/ui-lint.test.mjs",
+    "fun/transport/tests/ui-specimen-browser-check.mjs",
+    "fun/transport/tests/ui-system-browser-check.mjs",
+    "fun/transport/tokens.css"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "aba765aebbf7",
+  "checkpoint_transcript_start": 30,
+  "transcript_lines_at_start": 30,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-29T17:18:05.594232Z",
+    "agent_lines": 0,
+    "human_added": 563,
+    "human_modified": 102,
+    "human_removed": 0,
+    "total_committed": 563,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude/projects/-Users-vojta-Dev-protocodus-github-io/50727eda-456c-4b60-8840-93211cddc56a.jsonl"
+}
