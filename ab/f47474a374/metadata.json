@@ -1,0 +1,45 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "abf47474a374",
+  "strategy": "manual-commit",
+  "branch": "transport-playability",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "fun/transport/ARCHITECTURE.md",
+    "fun/transport/DESIGN.md",
+    "fun/transport/README.md",
+    "fun/transport/app-preload.js",
+    "fun/transport/app.js",
+    "fun/transport/contracts.js",
+    "fun/transport/data.js",
+    "fun/transport/dialogs.css",
+    "fun/transport/economy-pricing.js",
+    "fun/transport/model.js",
+    "fun/transport/payment-rates.js",
+    "fun/transport/route-planner.js",
+    "fun/transport/routes.css",
+    "fun/transport/tests/cargo-payment.test.mjs",
+    "fun/transport/tests/contracts.test.mjs",
+    "fun/transport/tests/features-browser-check.mjs",
+    "fun/transport/tests/inflation.test.mjs",
+    "fun/transport/tests/payment-rates.test.mjs",
+    "fun/transport/tests/resources-browser-check.mjs",
+    "fun/transport/tests/route-planner.test.mjs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ab/f47474a374/0/metadata.json",
+      "transcript": "/ab/f47474a374/0/full.jsonl",
+      "context": "/ab/f47474a374/0/context.md",
+      "content_hash": "/ab/f47474a374/0/content_hash.txt",
+      "prompt": "/ab/f47474a374/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 184,
+    "cache_creation_tokens": 222747,
+    "cache_read_tokens": 6989952,
+    "output_tokens": 50046,
+    "api_call_count": 67
+  }
+}
