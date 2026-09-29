@@ -230,3 +230,8 @@
 }
 /* On a phone the Airport tool's Turn takes the recent-tools dock's place, so its hint keeps room. */
 .compact-play #active-tool-bar:has(#active-tool-turn:not([hidden])) #active-tool-dock{display:none}
+/* A placement's forecast (city-investment-feedback): what a zone stroke or a placed home, shop or workshop would bring, as the tip's second line. */
+.placement-tip .tip-forecast{display:block;margin-top:var(--s-1);font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink)}
+.placement-tip.warning .tip-forecast{color:inherit}
+.placement-tip.aim:has(.tip-forecast){flex-wrap:wrap}
+.placement-tip.aim .tip-forecast{order:1;flex-basis:100%;margin-top:0}

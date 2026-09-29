@@ -33,6 +33,8 @@ export const MARKET_KEYS = freeze({
   shops: integerIn(0, 1e6), works: integerIn(0, 1e6), visitors: finiteIn(0, 1e9), visitorsNow: finiteIn(0, 1e9), bonus: finiteIn(0, 1e12), bonusLast: finiteIn(0, 1e12),
   processed: optional(finiteIn(0, 1e9)), utilization: optional(finiteIn(0, 1)),
   rent: optional(finiteIn(0, 1e12)), plots: optional(integerIn(0, 1e6)), owned: optional(integerIn(0, 1e6)),
+  returns: optional(value => Array.isArray(value) && value.length >= 1 && value.length <= 12 && value.every(entry => Array.isArray(entry) && entry.length === 3 && entry.every(finiteIn(0, 1e12)))),
+  worksFreightNow: optional(finiteIn(0, 1e12)),
 });
 export const validMarket = market => plain(market) && Object.keys(market).every(key => Object.hasOwn(MARKET_KEYS, key)) && Object.entries(MARKET_KEYS).every(([key, valid]) => valid(market[key]));
 // Month-close steps of later items (workshop utilization, property rent): (game, city, market, ledger) at a close only.
@@ -187,6 +189,19 @@ function bookRent(game, city, market, ledger) {
   market.rent = rent; market.plots = plots.length; market.owned = owned.length;
 }
 CLOSE_HOOKS.push(bookRent);
+// The close's last step: the month's returns here, [rent, market bonus, workshop freight], twelve months at most and oldest first,
+// kept once the town has earned anything and dropped when a whole year earned nothing. Integer money, no ids, no randomAt.
+function bookReturns(game, city, market) {
+  const entry = [market.rent || 0, market.bonusLast || 0, market.worksFreightNow || 0];
+  if (market.returns || entry.some(v => v > 0)) market.returns = [...(market.returns || []), entry].slice(-12);
+  if (market.returns?.every(month => month.every(v => v === 0))) delete market.returns;
+  if (market.worksFreightNow !== undefined) market.worksFreightNow = 0;
+}
+CLOSE_HOOKS.push(bookReturns);
+/** A town's ledger summed: [rent, market bonus, workshop freight]. */
+export function returnsTotals(market) { const sums = [0, 0, 0]; for (const entry of market?.returns || []) for (let i = 0; i < 3; i++) sums[i] += entry[i]; return sums; }
+/** Fares a delivery earned for a town's workshops, this month; a town without a market yet keeps none. */
+export function recordWorksFreight(city, fares) { if (city?.market && fares > 0) city.market.worksFreightNow = (city.market.worksFreightNow || 0) + fares; }
 /** The towns that booked rent since the last drain, for the month-end rent floats. Never saved and never read by the simulation. */
 export function drainPropertyEvents(game) { const log = propertyLog.get(game) || []; propertyLog.delete(game); return log; }
 /** The property on a tile, or null: plot or owned, its sector, level, ground-rent tiles, town (null in the countryside, where it earns nothing), occupancy and rent share from the last close, value and price paid. */

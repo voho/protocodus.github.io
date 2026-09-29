@@ -44,6 +44,8 @@ import { buyTownAction } from './model.js';
 import { fundedTown } from './town-authority.js';
 import { fundForecast } from './settlements.js';
 import { propertyAt, propertyValue, companyProperty, townHoldings, drainPropertyEvents, SALE_SHARE } from './town-market.js';
+import { returnsTotals } from './town-market.js';
+import { forecastNote } from './town-forecast.js';
 import { sellProperty } from './model.js';
 import { count as countText } from './copy.js';
 import { dateLong, listJoin } from './copy.js';
@@ -807,23 +809,25 @@ function entityRows() {
  if(!entityAnchor)anchorEntities();
  const towns=view==='towns',sort=entitySort(),{x,y,ranks}=entityAnchor,name=entity=>entity.name||INDUSTRIES[entity.kind]?.name||'';
  const list=towns?game.cities.filter(city=>entityMatches(city,entityFilters.towns)):game.industries.filter(site=>(entityFilters.kind==='all'||site.kind===entityFilters.kind)&&entityMatches(site,entityFilters.industry,[INDUSTRIES[site.kind].name,...Object.keys(INDUSTRIES[site.kind].inputs),...Object.keys(INDUSTRIES[site.kind].outputs)].join(' ')));
- // Status and population ranks are read once per anchor, so a card keeps its place while its figures update.
- const rank=entity=>{if(!ranks.has(entity))ranks.set(entity,sort==='attention'?STATUS_RANK[industryStatus(entity).state]??4:sort==='population'?-entity.population:0);return ranks.get(entity);};
+ // Status, population and property ranks are read once per anchor, so a card keeps its place while its figures update.
+ const rank=entity=>{if(!ranks.has(entity))ranks.set(entity,sort==='attention'?STATUS_RANK[industryStatus(entity).state]??4:sort==='population'?-entity.population:sort==='property'?[entity.market?.rent||0,returnsTotals(entity.market).reduce((a,b)=>a+b,0)]:0);return ranks.get(entity);};
  const rows=list.map(entity=>{const at=towns?entity:siteCentre(entity);return {entity,d:(at.x-x)**2+(at.y-y)**2,rank:rank(entity)};});
+ // Your property: rent, then the past year's returns, then name; towns without rent follow, nearest first.
+ if(sort==='property')return rows.sort((a,b)=>b.rank[0]-a.rank[0]||(a.rank[0]?b.rank[1]-a.rank[1]||byName(name(a.entity),name(b.entity)):0)||a.d-b.d);
  return rows.sort(sort==='name'?(a,b)=>byName(name(a.entity),name(b.entity))||a.d-b.d:(a,b)=>a.rank-b.rank||a.d-b.d);
 }
 function entityCards() {
  const rows=entityRows(),pages=Math.ceil(rows.length/ENTITIES_PER_PAGE);entityPage=Math.min(entityPage,Math.max(0,pages-1));
  const visible=rows.slice(entityPage*ENTITIES_PER_PAGE,(entityPage+1)*ENTITIES_PER_PAGE),controls=pageControls(view==='towns'?'Town pages':'Industry pages','entity-page',entityPage,pages);
  if(!visible.length)return '';
- if(view==='towns'){const active=new Set(game.routes.filter(route=>route.active).flatMap(route=>route.stops)),activeStops=game.stations.filter(stop=>active.has(stop.id));return controls+visible.map(({entity:city,d})=>`<button class="entity-card" data-city="${city.id}"><h3>${escapeHTML(city.name)}${icon('chevronRight')}</h3><p class="entity-place">${tilesAway(Math.sqrt(d))}</p><p>${cargoBadge('passengers',{count:Math.floor(city.population)})} <span>residents</span>${townGrowth(game,city)?.change>0?'<span class="town-tag">Growing</span>':''}</p><div class="entity-metric"><span>Transport</span><span>${townService(game,city,activeStops).label}</span></div>${townNeedIcons(city)}</button>`).join('')+controls;}
+ if(view==='towns'){const active=new Set(game.routes.filter(route=>route.active).flatMap(route=>route.stops)),activeStops=game.stations.filter(stop=>active.has(stop.id));return controls+visible.map(({entity:city,d})=>`<button class="entity-card" data-city="${city.id}"><h3>${escapeHTML(city.name)}${icon('chevronRight')}</h3><p class="entity-place">${tilesAway(Math.sqrt(d))}</p><p>${cargoBadge('passengers',{count:Math.floor(city.population)})} <span>residents</span>${townGrowth(game,city)?.change>0?'<span class="town-tag">Growing</span>':''}</p><div class="entity-metric"><span>Transport</span><span>${townService(game,city,activeStops).label}</span></div>${city.market?.rent>0?`<div class="entity-metric property-metric"><span>Your property</span><span data-num>${money(city.market.rent)} a month</span></div>`:''}${townNeedIcons(city)}</button>`).join('')+controls;}
  return controls+visible.map(({entity:site,d})=>{const def=INDUSTRIES[site.kind],status=industryStatus(site),town=nearTown(site);return `<button class="entity-card" data-industry="${site.id}"><div class="entity-heading">${industryPortrait(site.kind)}<div class="entity-title"><h3>${escapeHTML(site.name||def.name)}${icon('chevronRight')}</h3><p class="entity-place">${town?`Near ${escapeHTML(town.name)} · `:''}${tilesAway(Math.sqrt(d))}</p></div></div>${cargoRecipe(def.inputs,def.outputs)}<p class="site-status" data-state="${status.state}">${escapeHTML(status.label)}</p><div class="entity-metric"><span>${integer(Object.values(site.inventory||{}).reduce((a,b)=>a+b,0))} stored</span><span>${Math.round((site.capacity||1)*100)}% capacity</span></div></button>`;}).join('')+controls;
 }
 function entitySearch(label) {
  return `<label class="entity-search"><span class="sr-only">${label}</span><input id="entity-search" type="search" aria-label="${label}" placeholder="${label}" value="${escapeHTML(entityFilters[view])}"></label>`;
 }
 function entitySorter() {
- const noun=view==='towns'?'towns':'industries',sorts=view==='towns'?[['nearby','Nearest'],['population','Population'],['name','Name']]:[['nearby','Nearest'],['attention','Status'],['name','Name']];
+ const noun=view==='towns'?'towns':'industries',sorts=view==='towns'?[['nearby','Nearest'],['population','Population'],...game.cities.some(city=>city.market?.rent>0)?[['property','Your property']]:[],['name','Name']]:[['nearby','Nearest'],['attention','Status'],['name','Name']];
  return `<label class="entity-search entity-sort"><span class="sr-only">Sort ${noun}</span><select id="entity-sort" aria-label="Sort ${noun}" title="Sort ${noun}">${sorts.map(([key,name])=>`<option value="${key}" ${entitySort()===key?'selected':''}>${name}</option>`).join('')}</select></label>`;
 }
 function townsPanel() { return `<div class="panel-heading"><h2>Towns</h2><span>${game.cities.length}</span></div><div class="entity-filters">${entitySearch('Find a town')}${entitySorter()}</div><div id="entity-list">${entityCards()}</div><div class="section-divider"></div><button class="button button-primary full" data-tool="city">${icon('city')} Found town · ${compactMoney(priceFor(game,BUILD_COSTS.city))}</button><button class="text-button" data-action="development">Zone a neighborhood <span>↗</span></button>`; }
@@ -1065,6 +1069,15 @@ function townPropertyHTML(city,view) {
  const {plots,owned}=townHoldings(game,city);if(!plots.length&&!owned.length)return '';
  return `<h4>Your property</h4><div class="inspector-grid town-property"><div><small>Rent last month</small><strong data-num>${money(view.rent||0)}</strong></div><div><small>Plots and buildings</small><strong data-num>${integer(plots.length)} and ${integer(owned.length)}</strong></div></div>`;
 }
+// What the company earned here over the ledger's months (market.returns, up to 12): rent, market bonus and workshop freight, with
+// a small line of the months once there are two. It changes only as a month closes.
+const monthDay=month=>(Date.UTC(1950,month,1)-Date.UTC(1950,0,1))/864e5;
+function townReturnsHTML(city) {
+ const returns=city.market?.returns;if(!returns?.some(entry=>entry.some(value=>value>0)))return '';
+ const n=returns.length,parts=returnsTotals(city.market).map((sum,i)=>sum>0?`${moneyText(sum,{compact:true})} ${['rent','market bonus','workshop freight'][i]}`:'').filter(Boolean);
+ const spark=n>1?`<span class="town-returns-spark" title="${escapeHTML(`Monthly returns, ${dateShort(monthDay(game.lastMonth-n))} – ${dateShort(monthDay(game.lastMonth-1))}`)}">${miniSpark(returns.map(entry=>entry[0]+entry[1]+entry[2]),'town-returns-line')}</span>`:'';
+ return `<div class="town-returns"><p class="economy-foot">${n===1?'Last month':`Past ${n} months`} here: ${listJoin(parts)}.</p>${spark}</div>`;
+}
 function townEconomySection(city) {
  const view=marketView(game,city),cargoOf=family=>familyCargo(game,family)[0],wanted=FAMILIES.filter(family=>view.wants[family]>0),short=wanted.find(family=>Math.floor(view.supplied[family])<view.wants[family]);
  const rows=view.demand.map((bar,i)=>{const word=demandLabel(bar);return `<div class="demand-row" aria-label="${DEMAND_ROWS[i]} demand ${word.toLowerCase()}"><span>${DEMAND_ROWS[i]}</span><span class="demand-meter" aria-hidden="true"><i style="width:${Math.round(bar*100)}%"></i></span><b>${word}</b></div>`;}).join('');
@@ -1072,7 +1085,7 @@ function townEconomySection(city) {
  const need=slowedNeed(city),needNames=need?.cargo.map((key,n)=>n?CARGO[key].name.toLowerCase():CARGO[key].name).join(' or ');
  const hint=need?`<p class="economy-note">${escapeHTML(`${needNames} deliveries help ${need.kind==='commercial'?'shops':'homes'} grow into ${need.label.toLowerCase()}.`)}</p>`:'';
  const lead=view.rent>0?`${money(view.rent)} a month`:short?`Wants ${familyName(short,cargoOf(short)).toLowerCase()}`:'';
- return `<details class="town-economy" ${townEconomyOpen?'open':''}><summary><span class="economy-title">Town economy</span><span class="economy-mini" aria-hidden="true">${view.demand.map(bar=>`<i style="height:${Math.round(3+9*bar)}px"></i>`).join('')}</span><strong class="economy-lead">${lead}</strong>${uiIcon('chevronDown',{size:16,cls:'economy-chevron'})}</summary><div class="demand-rows">${rows}</div><p class="economy-note">${escapeHTML(economyNote(view,demandInputs(game,city,view)))}</p>${townWorkshops(city)}<h4>Shops want each month</h4>${chips?`<div class="wants">${chips}</div>`:'<p class="economy-foot">No shop wants yet. Food and household shops appear as commercial zones develop.</p>'}${hint}${chips?`<p class="economy-foot">Wanted cargo pays ${Math.round(MARKET.bonus*100)}% more, up to these amounts each month.</p>`:''}${townPropertyHTML(city,view)}</details>`;
+ return `<details class="town-economy" ${townEconomyOpen?'open':''}><summary><span class="economy-title">Town economy</span><span class="economy-mini" aria-hidden="true">${view.demand.map(bar=>`<i style="height:${Math.round(3+9*bar)}px"></i>`).join('')}</span><strong class="economy-lead">${lead}</strong>${uiIcon('chevronDown',{size:16,cls:'economy-chevron'})}</summary><div class="demand-rows">${rows}</div><p class="economy-note">${escapeHTML(economyNote(view,demandInputs(game,city,view)))}</p>${townWorkshops(city)}<h4>Shops want each month</h4>${chips?`<div class="wants">${chips}</div>`:'<p class="economy-foot">No shop wants yet. Food and household shops appear as commercial zones develop.</p>'}${hint}${chips?`<p class="economy-foot">Wanted cargo pays ${Math.round(MARKET.bonus*100)}% more, up to these amounts each month.</p>`:''}${townPropertyHTML(city,view)}${townReturnsHTML(city)}</details>`;
 }
 // Opinion of your company waits in a closed fold: why the town feels as it does. The town hall follows in its own fold.
 let townOpinionOpen=false,townHallOpen=false;
@@ -1141,6 +1154,14 @@ function contextView() {
  return {...selectionContext,covers:[$('#inspector'),$('#objective-card'),$('.sidebar.mobile-open')].filter(el=>el&&!el.hidden).map(el=>{const r=el.getBoundingClientRect();return {x:r.left-map.left,y:r.top-map.top,w:r.width,h:r.height};})};
 }
 $('.sidebar').addEventListener('transitionend',e=>{if(e.target===e.currentTarget&&selectionContext)invalidateScene();});
+// Your property is outlined on the map only while you build in towns (Build › Town open, or one of its tools in hand), or while
+// the inspector shows a town, a building on your zone or a building you own.
+function propertyOutlines() {
+ if(view==='build'&&category==='towns'&&(tool!=='inspect'||$('.sidebar').classList.contains('mobile-open')))return true;
+ if(!selected||$('#inspector').hidden)return false;
+ const site=buildingAt(game,selected.x,selected.y);
+ return site?Boolean(tileAt(site.x,site.y)?.zone||site.building.owner==='player'):selected.kind==='city'||game.cities.some(city=>city.x===selected.x&&city.y===selected.y);
+}
 // The row just pointed at or focused wins; leaving it falls back to the other one.
 // A target's Plan button beside its row picks out the same arc.
 const targetOf=el=>el?.closest?.('[data-target-id]')||el?.closest?.('.industry-target-row')?.querySelector('[data-target-id]');
@@ -1715,10 +1736,16 @@ function propertySectionHTML() {
  const history=game.history,rents=history.map(h=>h.property||0),last=rents.at(-1)||0,recent=rents.slice(-3),year=calendarYear(game);
  const worth=towns.reduce((sum,town)=>sum+[...town.plots,...town.owned].reduce((total,p)=>total+propertyValue(game,p),0),0),thisYear=history.filter(h=>1950+Math.floor(h.month/12)===year).reduce((sum,h)=>sum+(h.property||0),0);
  const average=recent.length?recent.reduce((a,b)=>a+b,0)/recent.length:0,yearly=average&&worth?`${Math.round(12*average/worth*100)}% a year`:'—';
- const high=Math.max(1,...rents),points=rents.map((v,i)=>`${(rents.length>1?i/(rents.length-1)*72:36).toFixed(1)},${(17-v/high*16).toFixed(1)}`).join(' ');
- const spark=rents.length>1?`<svg class="property-spark" viewBox="0 0 72 18" width="72" height="18" preserveAspectRatio="none" aria-hidden="true"><title>Rent, month by month</title><polyline points="${points}"/></svg>`:'';
- const rows=[...towns].sort((a,b)=>b.rent-a.rent||b.plots.length+b.owned.length-a.plots.length-a.owned.length).slice(0,8).map(town=>`<tr><th scope="row">${escapeHTML(town.city.name)}</th><td class="company-optional" data-num>${integer(town.plots.length)}</td><td class="company-optional" data-num>${integer(town.owned.length)}</td><td data-num>${money(town.rent)}</td><td><button type="button" class="small-button" data-property-show="${escapeHTML(town.city.id)}">Show</button></td></tr>`).join('');
- return `<section class="company-section company-property"><header><h3>Property</h3><span data-num>${money(last)} a month</span></header><div class="property-figures"><dl><div><dt>Worth</dt><dd data-num>${money(worth)}</dd></div><div><dt>Rent this year</dt><dd data-num>${money(thisYear)}</dd></div><div><dt>Yield</dt><dd data-num>${yearly}</dd></div></dl>${spark}</div><div class="company-table property-towns"><table><thead><tr><th scope="col">Town</th><th scope="col" class="company-optional">Plots</th><th scope="col" class="company-optional">Buildings</th><th scope="col">Rent a month</th><th scope="col"><span class="sr-only">Show on map</span></th></tr></thead><tbody>${rows}</tbody></table></div><p class="property-note">Zones you paint are your land: you collect ground rent from what developers build on them. Buildings you place are yours outright. Property has no upkeep.</p></section>`;
+ const spark=rents.length>1?miniSpark(rents,'property-spark','Rent, month by month'):'';
+ // Towns with property or a year of returns (rent, market bonus and workshop freight), the best past twelve months first.
+ const held=new Set(towns.map(town=>town.city)),listed=[...towns,...game.cities.filter(city=>city.market?.returns&&!held.has(city)).map(city=>({city,plots:[],owned:[],rent:city.market.rent||0}))].map(town=>{const split=returnsTotals(town.city.market);return {...town,split,year:split[0]+split[1]+split[2]};});
+ const rows=listed.sort((a,b)=>b.year-a.year||b.rent-a.rent||b.plots.length+b.owned.length-a.plots.length-a.owned.length).slice(0,8).map(town=>`<tr><th scope="row">${escapeHTML(town.city.name)}</th><td class="company-optional" data-num>${integer(town.plots.length)}</td><td class="company-optional" data-num>${integer(town.owned.length)}</td><td data-num>${money(town.rent)}</td><td data-num title="${escapeHTML(`${money(town.split[0])} rent, ${money(town.split[1])} market bonus and ${money(town.split[2])} workshop freight`)}">${money(town.year)}</td><td><button type="button" class="small-button" data-property-show="${escapeHTML(town.city.id)}">Show</button></td></tr>`).join('');
+ return `<section class="company-section company-property"><header><h3>Property</h3><span data-num>${money(last)} a month</span></header><div class="property-figures"><dl><div><dt>Worth</dt><dd data-num>${money(worth)}</dd></div><div><dt>Rent this year</dt><dd data-num>${money(thisYear)}</dd></div><div><dt>Yield</dt><dd data-num>${yearly}</dd></div></dl>${spark}</div><div class="company-table property-towns"><table><thead><tr><th scope="col">Town</th><th scope="col" class="company-optional">Plots</th><th scope="col" class="company-optional">Buildings</th><th scope="col">Rent a month</th><th scope="col">Past 12 months</th><th scope="col"><span class="sr-only">Show on map</span></th></tr></thead><tbody>${rows}</tbody></table></div><p class="property-note">Zones you paint are your land: you collect ground rent from what developers build on them. Buildings you place are yours outright. Property has no upkeep.</p></section>`;
+}
+// A small line of monthly values, 72 × 18: the report's rent and a town's returns. Decorative; the figures beside it say the same.
+function miniSpark(values,cls,title='') {
+ const high=Math.max(1,...values),points=values.map((v,i)=>`${(values.length>1?i/(values.length-1)*72:36).toFixed(1)},${(17-v/high*16).toFixed(1)}`).join(' ');
+ return `<svg class="${cls}" viewBox="0 0 72 18" width="72" height="18" preserveAspectRatio="none" aria-hidden="true">${title?`<title>${title}</title>`:''}<polyline points="${points}"/></svg>`;
 }
 // The Company report's first block: title, score, the way to the next title, company value and, folded, what counts.
 function performanceSectionHTML() {
@@ -1831,6 +1858,8 @@ function placementNote(effective,plan) {
   }
   return cache.get(key);
  }
+ // Zones, and the homes, shops, services and workshops you place, say what they would bring: a second line under the quote.
+ if(zoneTools.has(effective)||effective==='workshop'||BUILDINGS[effective]){const note=forecastNote(game,effective,plan.placements);return note?{text:'',...note}:{text:''};}
  if(tool!=='bulldoze')return {text:''};
  const index=routeTileIndex(game),names=new Set(plan.placements.flatMap(p=>index.get(p.y*game.width+p.x)||[]));
  return names.size?{text:`breaks ${names.size===1?`the ${[...names][0]} route`:names.size+' routes'}`,warning:true}:{text:''};
@@ -1869,6 +1898,7 @@ function updatePlacementTip(e=updatePlacementTip.at) {
  // A zone rectangle reads its size, tiles and how many no road reaches before the price.
  const area=n>1?points.area:null,zoning=zoneTools.has(tool)&&n>1,count=plan.placements.length>1?' · '+plan.placements.length+(tool==='bulldoze'?' sites':terrainTools.has(tool)?' points':' tiles'):'',roads=plan.needRoad?` · ${n>1?plan.needRoad+(plan.needRoad===1?' needs':' need'):'needs'} a road`:'';
  tip.textContent=plan.ok===false?route==='too-far'?'No gentle route — level ground or drag in shorter segments':plan.message+terrain:`${name}${siteSize?' · '+siteSize+' × '+siteSize:area?' · '+area.w+' × '+area.h:''}${levels?' · '+levels:''}${zoning?count+roads:''} · ${money(plan.cost)}${zoning?'':count+roads}${plan.partial?' · '+plan.message:''}${note.text?' · '+note.text:''}${area?.capped?` · max ${AREA_SIDE} × ${AREA_SIDE}`:''}${terrain}`;
+ if(note.forecast)tip.append(Object.assign(document.createElement('span'),{className:'tip-forecast',textContent:note.forecast}));
  tip.classList.toggle('invalid',plan.ok===false);tip.classList.toggle('partial',plan.ok!==false&&Boolean(plan.partial));tip.classList.toggle('warning',Boolean(note.warning||plan.ok!==false&&plan.needRoad));
  const rect=canvas.getBoundingClientRect();tip.hidden=false;
  if(aim&&aimTool(tool)){placeButton.disabled=plan.ok===false;tip.append(placeButton);}tip.classList.toggle('aim',Boolean(aim));
@@ -2151,10 +2181,11 @@ function frame(now){
  const aim=liveAim();if(touchAim&&!aim){if(hover===touchAim.at)hover=null;touchAim=null;}
  else if(aim){hover=aim.at;const key=`${camera.x},${camera.y},${camera.zoom},${camera.height},${w},${h},${game.revision}`;if(!$('.sidebar').classList.contains('mobile-open')&&(aim.key!==key||$('#placement-tip').hidden)){aim.key=key;updatePlacementTip();}}
  if(highlight.card&&!highlight.card.isConnected)highlight={id:null,until:0};const highlightRoute=highlight.until>now?highlight.id:null;
- const changed=!painted||painted.game!==game||painted.day!==game.day||painted.revision!==game.revision||painted.money!==game.money||painted.scene!==sceneRevision||painted.x!==camera.x||painted.y!==camera.y||painted.height!==camera.height||painted.zoom!==camera.zoom||painted.w!==w||painted.h!==h||painted.layers!==mapLayers||painted.tool!==tool||painted.hover!==hover||painted.preview!==preview||painted.selected!==selected||painted.mode!==preferredMode||painted.view!==view||painted.from!==formDraft.from||painted.to!==formDraft.to||painted.highlight!==highlightRoute;
+ const outlines=propertyOutlines();
+ const changed=!painted||painted.game!==game||painted.day!==game.day||painted.revision!==game.revision||painted.money!==game.money||painted.scene!==sceneRevision||painted.x!==camera.x||painted.y!==camera.y||painted.height!==camera.height||painted.zoom!==camera.zoom||painted.w!==w||painted.h!==h||painted.layers!==mapLayers||painted.tool!==tool||painted.hover!==hover||painted.preview!==preview||painted.selected!==selected||painted.mode!==preferredMode||painted.view!==view||painted.from!==formDraft.from||painted.to!==formDraft.to||painted.highlight!==highlightRoute||painted.outlines!==outlines;
  if(changed||floaterPaint){
-  renderer.render(now,{tool,hover,preview,selected,preferredMode,airportAxis,routeStops:routePickStops(),floaters,highlightRoute,selectedVehicleId:selectedVehicle,context:contextView(),...connectionView()});
-  painted={game,day:game.day,revision:game.revision,money:game.money,scene:sceneRevision,x:camera.x,y:camera.y,height:camera.height,zoom:camera.zoom,w,h,layers:mapLayers,tool,hover,preview,selected,mode:preferredMode,view,from:formDraft.from,to:formDraft.to,highlight:highlightRoute};
+  renderer.render(now,{tool,hover,preview,selected,preferredMode,airportAxis,routeStops:routePickStops(),floaters,highlightRoute,selectedVehicleId:selectedVehicle,context:contextView(),propertyOutlines:outlines,...connectionView()});
+  painted={game,day:game.day,revision:game.revision,money:game.money,scene:sceneRevision,x:camera.x,y:camera.y,height:camera.height,zoom:camera.zoom,w,h,layers:mapLayers,tool,hover,preview,selected,mode:preferredMode,view,from:formDraft.from,to:formDraft.to,highlight:highlightRoute,outlines};
  }
  if(now-hudAt>400&&(!hudState||hudState.game!==game||hudState.day!==game.day||hudState.revision!==game.revision||hudState.money!==game.money||hudState.zoom!==camera.zoom||hudState.w!==w||hudState.view!==view)){
   updateHud();hudAt=now;hudState={game,day:game.day,revision:game.revision,money:game.money,zoom:camera.zoom,w,view};

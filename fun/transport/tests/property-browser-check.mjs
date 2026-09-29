@@ -145,7 +145,8 @@ try {
   assert.match(await section.locator('header').innerText(), /^Property\s+\$\d+ a month$/);
   assert.match(await section.locator('.property-figures').innerText(), /Worth\s+\$[\d,]+\s+Rent this year\s+\$[\d,]+\s+Yield\s+\d+% a year/);
   assert.equal(await section.locator('.property-spark').count(), 0, 'one closed month draws no line yet');
-  assert.deepEqual(await section.locator('tbody tr').evaluateAll(rows => rows.map(row => [...row.cells].map(cell => cell.innerText.trim()))), [['Alderbrook', '0', '1', `$${rent.history.toLocaleString('en-US')}`, 'Show']]);
+  // Past 12 months (city-investment-feedback) holds the one month of returns so far: that rent.
+  assert.deepEqual(await section.locator('tbody tr').evaluateAll(rows => rows.map(row => [...row.cells].map(cell => cell.innerText.trim()))), [['Alderbrook', '0', '1', `$${rent.history.toLocaleString('en-US')}`, `$${rent.history.toLocaleString('en-US')}`, 'Show']]);
   assert.deepEqual(await overflow(page), { page: 0, modal: 0 });
   await section.scrollIntoViewIfNeeded(); await page.waitForTimeout(150);
   await page.screenshot({ path: `${output}/company-property-1440.png` });

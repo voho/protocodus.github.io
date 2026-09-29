@@ -10,6 +10,7 @@ import { stepSettlements, housingCapacity } from './settlements.js';
 import { monthlyTownRelations, disturbTown, townActionQuote, TOWN_ACTIONS, TOWN_RADIUS, DISTURBANCE } from './town-authority.js';
 import { monthlyMarkets, recordTownSupply, recordVisitors, validMarket, MARKET } from './town-market.js';
 import { stepWorkshops, acceptWorkshopInput, workshopRecipes, workshopInputs, workshopOutputs, validWorkshop, townOf } from './town-market.js';
+import { recordWorksFreight } from './town-market.js';
 import { WORKSHOP } from './data.js';
 import { propertyAt, propertySector, SALE_SHARE } from './town-market.js';
 import { nearbyCities, nearbyIndustries, nearbyStations, nearbyZones } from './simulation-spatial.js';
@@ -776,6 +777,13 @@ function journeyCoverage(game,station,context) {
   if(!context.coverage.has(station))context.coverage.set(station,stationCoverage(game,station));
   return context.coverage.get(station);
 }
+// The town whose workshops made a delivered product: only when no industry at the loading stop makes it, the first town there
+// that loadVehicle would take it from (not one the end stop reaches) and that still makes it. Otherwise no town is credited.
+function workshopMaker(game,route,destination,context) {
+  const start=context?context.stations.get(route.stops[0]):game.stations.find(s=>s.id===route.stops[0]),source=start&&journeyCoverage(game,start,context);
+  if(!source||source.industries.some(industry=>INDUSTRIES[industry.kind].outputs[route.cargo]))return null;
+  return source.cities.find(city=>!destination.cities.includes(city)&&workshopOutputs(game,city).includes(route.cargo))||null;
+}
 function loadVehicle(game,route,vehicle,stopIndex,context,day=game.day) {
   const station=context?context.stations.get(route.stops[stopIndex]):game.stations.find(s=>s.id===route.stops[stopIndex]);if(!station)return;
   const before=vehicle.load;
@@ -824,7 +832,7 @@ export function recentTransitDays(game,routeId){const r=transitLog.get(game)?.ge
 function restartCargoClocks(game,route,day){const today=Math.floor(day);for(const v of fleetIndex(game).vehiclesByRoute.get(route.id)||[])if(v.load>0)v.loadedDay=today;}
 function unloadVehicle(game,route,vehicle,stopIndex,arrivalDay=game.day,context) {
   if(vehicle.load<=0)return;
-  let bonusUnits=0,receiver=null;
+  let bonusUnits=0,receiver=null,works=null,worksUnits=0,maker=null;
   const station=context?context.stations.get(route.stops[stopIndex]):game.stations.find(s=>s.id===route.stops[stopIndex]);if(!station)return;
   let remaining=vehicle.load,delivered=0;
   if(isTownTraffic(route.cargo)) {
@@ -841,11 +849,12 @@ function unloadVehicle(game,route,vehicle,stopIndex,arrivalDay=game.day,context)
       if(remaining<=0)break;
     }
     // Workshop materials: the first town here with workshops takes and pays for everything left, whatever fits its store.
-    if(remaining>0&&workshopRecipes(game).some(recipe=>recipe.input===route.cargo))for(const city of coverage.cities)if(workshopInputs(game,city).includes(route.cargo)){acceptWorkshopInput(game,city,route.cargo,remaining);city.delivered+=remaining;city.lastServiceDay=arrivalDay;delivered+=remaining;remaining=0;break;}
+    if(remaining>0&&workshopRecipes(game).some(recipe=>recipe.input===route.cargo))for(const city of coverage.cities)if(workshopInputs(game,city).includes(route.cargo)){acceptWorkshopInput(game,city,route.cargo,remaining);city.delivered+=remaining;city.lastServiceDay=arrivalDay;delivered+=remaining;works=city;worksUnits=remaining;remaining=0;break;}
     if(remaining>0&&TOWN_CARGO.includes(route.cargo)&&coverage.cities.length) {
       const city=coverage.cities[0];city.supplies+=remaining;city.activity+=remaining*.7;city.delivered+=remaining;city.lastServiceDay=arrivalDay;delivered+=remaining;receiver=city;bonusUnits+=recordTownSupply(game,city,route.cargo,remaining);remaining=0;
       (city.lastSupply??={})[route.cargo]=arrivalDay;
     }
+    if(delivered>0&&workshopRecipes(game).some(recipe=>recipe.output===route.cargo))maker=workshopMaker(game,route,coverage,context);
   }
   vehicle.load=remaining;
   if(delivered>0) {
@@ -854,6 +863,8 @@ function unloadVehicle(game,route,vehicle,stopIndex,arrivalDay=game.day,context)
     // Wanted town cargo earns the market bonus on the wanted units: the delivery's own per-unit fare, so distance, days and prices carry over. Contracts pay on the fare alone.
     const fare=fareFor(game,route.cargo,payTiles(route.path)+1,delivered,arrivalDay,transit),bonus=bonusUnits>0?Math.round(MARKET.bonus*fare*bonusUnits/delivered):0,revenue=fare+bonus+(game.contracts?contractBonus(game,route,fare,arrivalDay,site=>journeyCoverage(game,site,context)):0);
     if(bonus>0){route.marketBonus=(route.marketBonus||0)+bonus;receiver.market.bonus+=bonus;game.monthlyMarketBonus=(game.monthlyMarketBonus||0)+bonus;}
+    // A town's workshop freight: its workshops' share of a materials load by units, or products only they could have made, less the market bonus.
+    if(works)recordWorksFreight(works,Math.round(revenue*worksUnits/delivered));else if(maker)recordWorksFreight(maker,revenue-bonus);
     route.delivered+=delivered;route.revenue+=revenue;game.totalDelivered+=delivered;game.totalRevenue+=revenue;game.monthlyIncome+=revenue;game.money+=revenue;
     if(game.achievements)noteDelivery(game.achievements,route.cargo);
     route.profitThisYear=(route.profitThisYear??0)+revenue;

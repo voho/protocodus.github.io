@@ -197,7 +197,8 @@ async function strokeInput() {
 // The tip, the highlights and the release agree: refused strokes cost nothing and name their problem tiles.
 async function truthfulQuotes() {
   const page = await start({ width: 1440, height: 1000 });
-  const tip = () => page.evaluate(() => { const t = document.querySelector('#placement-tip'); return { text: t.textContent, visible: !t.hidden, invalid: t.classList.contains('invalid'), partial: t.classList.contains('partial'), warning: t.classList.contains('warning') }; });
+  // The quote's own line: a zone forecast may follow it as a second line (city-investment-feedback).
+  const tip = () => page.evaluate(() => { const t = document.querySelector('#placement-tip'); return { text: t.firstChild?.textContent ?? '', visible: !t.hidden, invalid: t.classList.contains('invalid'), partial: t.classList.contains('partial'), warning: t.classList.contains('warning') }; });
   const money = () => page.evaluate(() => transport.game.money), lastToast = () => page.evaluate(() => document.querySelector('#toast-region .toast:last-child')?.className);
   const hold = async (from, to) => { const [a, b] = await points(page, [from, to]); await page.mouse.move(a.x, a.y); await page.mouse.down(); await page.mouse.move(b.x, b.y, { steps: 8 }); return tip(); };
   const hover = async tile => { const [p] = await points(page, [tile]); await page.mouse.move(p.x - 3, p.y); await page.mouse.move(p.x, p.y); return tip(); };
@@ -267,7 +268,8 @@ async function truthfulQuotes() {
 // A diagonal zone drag fills the rectangle on both sides of a street in one stroke and leaves the road alone.
 async function areaZoning() {
   const page = await start({ width: 1440, height: 1000 }), site = await fixture(page), { x, y } = site;
-  const tip = () => page.evaluate(() => { const t = document.querySelector('#placement-tip'); return { text: t.textContent, warning: t.classList.contains('warning') }; });
+  // The quote's own line: a zone forecast may follow it as a second line (city-investment-feedback).
+  const tip = () => page.evaluate(() => { const t = document.querySelector('#placement-tip'); return { text: t.firstChild?.textContent ?? '', warning: t.classList.contains('warning') }; });
   const hold = async (from, to) => { const [a, b] = await points(page, [from, to]); await page.mouse.move(a.x, a.y); await page.mouse.down(); await page.mouse.move(b.x, b.y, { steps: 8 }); return tip(); };
   const street = await page.evaluate(async ({ x, y }) => { const { build } = await import('./model.js'), g = transport.game; for (let dx = 2; dx <= 14; dx++) build(g, 'road', x + dx, y + 14); return JSON.stringify(Array.from({ length: 13 }, (_, i) => g.tiles[(y + 14) * g.width + x + 2 + i])); }, site);
   const toasts = () => page.evaluate(() => [...document.querySelectorAll('#toast-region .toast')].map(t => t.textContent));

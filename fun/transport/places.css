@@ -260,3 +260,10 @@
 @media(max-width:700px),(pointer:coarse){
  .property .button{min-height:var(--control-touch)}
 }
+/* A town's returns (city-investment-feedback): its card's rent row, the past year's rent, market bonus and workshop freight, and a small line of its months. */
+.entity-card .property-metric{margin-top:var(--s-2)}
+.town-economy .town-returns{display:flex;align-items:center;gap:var(--s-3);margin-top:var(--s-2)}
+.town-economy .town-returns .economy-foot{flex:1;min-width:0;margin:0}
+.town-returns-spark{flex:none;display:flex}
+.town-returns-line{width:72px;height:18px;overflow:visible}
+.town-returns-line polyline{fill:none;stroke:var(--ink);stroke-width:1.5;stroke-linejoin:round;stroke-linecap:round;vector-effect:non-scaling-stroke}

@@ -48,6 +48,19 @@ export function activeCities(game) {
 function recentlyServed(game, city, connectedCities) {
   return !!city && Number.isFinite(city.lastServiceDay) && game.day - city.lastServiceDay <= 30 && (connectedCities||activeCities(game)).has(city);
 }
+/** A town's zones develop while a running route's stop served it in the last 30 days, or while its development is funded. The zone loop and the forecasts share this gate. */
+export function zoneServiceActive(game, city, served) { return recentlyServed(game, city, served) || fundedTown(city, game.day); }
+// activeCities for the forecasts, kept while the day, the network and the running routes' stops stay the same.
+const servedSets = new WeakMap();
+export function servedTownSet(game) {
+  let key = `${Math.floor(game.day)}:${game.networkRevision || 0}:${game.cities.length}`;
+  for (const route of game.routes) if (route.active) key += `|${route.stops}`;
+  const memo = servedSets.get(game);
+  if (memo?.key === key && memo.cities === game.cities) return memo.set;
+  const set = activeCities(game);
+  servedSets.set(game, { key, cities: game.cities, set });
+  return set;
+}
 
 // Town needs only speed development up: an unmet need slows the next tier and
 // never stops it. Only cargo the biome can make is listed.
@@ -261,7 +274,7 @@ export function stepSettlements(game, { extendStreets = null, reserved = [] } = 
     if (existing && (existing.x !== zone.x || existing.y !== zone.y)) continue;
     const city = nearestCity(game, zone), environment = localEnvironment(game, zone.x, zone.y), funded = fundedTown(city, day);
     const key = `zone:${zone.x},${zone.y}`, occupiedLevel = tile.building?.level || 0;
-    if ((!recentlyServed(game, city, connectedCities) && !funded) || !environment.roadAccess) {
+    if (!zoneServiceActive(game, city, connectedCities) || !environment.roadAccess) {
       // Vacant development interest fades, but an occupied building is retained.
       if (randomAt(game, day, key, 201) < .18) zone.progress = clamp(zone.progress - (.005 + randomAt(game, day, key, 202) * .01), occupiedLevel, 3);
       continue;

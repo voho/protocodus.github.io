@@ -42,6 +42,7 @@ export const MAP = Object.freeze({
   hover: Object.freeze({ color: COLORS.paper, alpha: .85, width: 1.5 }),
   reach: Object.freeze({ color: COLORS.paper, casing: COLORS.ink, casingAlpha: .35, dash: Object.freeze([6, 5]) }),
   cut: Object.freeze({ color: STATES.error.color }),
+  property: Object.freeze({ color: STATES.ok.color, width: 2, casing: COLORS.paper, casingAlpha: .75, casingWidth: 4, dash: Object.freeze([5, 4]) }),
   bullet: Object.freeze({ numeral: Object.freeze({ size: 12, weight: 700 }), size: 20, small: 16, lightEdge: COLORS.ink, lightEdgeAlpha: .35 }),
   line: Object.freeze({ core: Object.freeze({ region: 3, town: 3.5, detail: 4.5 }), emphasis: 1.5, dim: .35, halo: 3, haloAlpha: .9, casing: 2.5, casingAlpha: .55, pausedAlpha: .45, chevronGap: 44 }),
 });

@@ -30,5 +30,6 @@ test('APP_PRELOAD lists exactly the game modules the start menu does not load', 
   assert.equal(names.at(-1), 'app.js');
   dependenciesFirst(names, 'APP_PRELOAD');
   assert.ok(!names.includes('world-worker.js'), 'a document modulepreload never reaches the worker');
+  assert.ok(names.includes('town-forecast.js'), 'the placement tip’s forecasts load with the game');
   assert.ok(Object.isFrozen(APP_PRELOAD));
 });

@@ -103,7 +103,7 @@ export function createRenderer(canvas, initialGame, options={}) {
   let industryIndex=new Map(), stationIndex=new Map(), buildingIndex=new Map(), terrainObjectIndex=new Map(), cacheBytes=0, composedChunks=0;
   // Airports cover 6 × 2 tiles: every tile maps to its airport; stationIndex stays anchor-only for signs and labels.
   let airportIndex=new Map(),airports=[],stationById=new Map();
-  let objectHits=[],bridgeHits=[],sceneCache=null,gridCache=null,sceneViewBounds=null,capturedBillboards=null;
+  let objectHits=[],bridgeHits=[],sceneCache=null,gridCache=null,sceneViewBounds=null,capturedBillboards=null,propertyOutlines=0;
   const sceneryBudget=createSceneryBudget();
   const sceneryBatching=options.sceneryBatching!==false;
   let sceneryBatchBuilds=0,sceneryBatchDraws=0,sceneryDirectDraws=0,sceneryPreparationMs=0;
@@ -719,7 +719,8 @@ export function createRenderer(canvas, initialGame, options={}) {
     if(!reused){
     // Keep a small world-space border so a drag reuses the same scenery and
     // depth order. Cull individual anchors below; no extra objects are drawn.
-    b=visibleBounds(SCENE_PAN_MARGIN);const uprights=new Set();
+    // The company's property among the anchors, for outlines: owned buildings and developed plots. View state; never saved.
+    b=visibleBounds(SCENE_PAN_MARGIN);const uprights=new Set(),property=[];
     for(let y=b.y0;y<b.y1;y++)for(let x=b.x0;x<b.x1;x++){
       if(!visible(x,y,(180+SCENE_PAN_MARGIN)*camera.zoom))continue;
       const t=tile(x,y),id=y*game.width+x,ind=industryIndex.get(id),st=stationIndex.get(id),ap=airportIndex.get(id),p=projectTile(x,y),occupied=layers.buildings&&(ind||buildingSiteAt(x,y)),nature=terrainSiteAt(x,y);
@@ -741,6 +742,7 @@ export function createRenderer(canvas, initialGame, options={}) {
         if(scenery&&(scenery.kind==='stone'||layers.trees))add(x,y,()=>{if(!visibleRectangle(p.x-16,p.y-28,32,40))return;ctx.globalAlpha=scenery.alpha;ctx.drawImage(sprite('terrain-detail',natureVariant(x,y,t),1,scenery.detail),p.x-16,p.y-28,32,40);ctx.globalAlpha=1;},0,spriteBounds(p.x-16,p.y-28,32,40));
       }
       if(layers.buildings&&t.building){const variant=t.variant??x*13+y,level=t.building.level||1,legacy=t.building.kind,kind=['house','apartment'].includes(legacy)?residentialKind(variant,level):['shop','office'].includes(legacy)?commercialKind(variant,level):legacy,span=buildingSize(t.building),center=foundationPoint(x,y,span);add(x+span-1,y+span-1,()=>{drawFoundation(x,y,span);billboard(uprightSprite(kind,variant,level,'',span),center.x-24*span,center.y-36*span-12,48*span,48*span+12,x,y);},0,()=>siteBounds(x,y,span,center));}
+      if(layers.buildings&&t.building&&(t.building.owner==='player'||t.zone))property.push({x,y,span:buildingSize(t.building),owned:t.building.owner==='player'});
       if(layers.buildings&&ind&&ind.x===x&&ind.y===y){const span=industrySize(ind),center=foundationPoint(x,y,span);add(x+span-1,y+span-1,()=>{drawFoundation(x,y,span);billboard(uprightSprite(ind.kind,x+y,span),center.x-24*span,center.y-36*span-12,48*span,48*span+12,x,y);},0,()=>siteBounds(x,y,span,center));}
       for(const mode of ['road','rail'])if(t[mode]&&layers[mode==='road'?'roads':'rails']){
         if(t.bridge||t.terrain==='water')add(x+.05,y+.05,()=>drawRaisedNetwork(x,y,t,mode));
@@ -759,7 +761,7 @@ export function createRenderer(canvas, initialGame, options={}) {
     }
     objects.sort(compare);
     sceneryBudget.clear();
-    sceneCache={key,x:origin.x,y:origin.y,objects,shadows,groups:null,shadow:null,batchPlanReady:false,readyGroups:0};sceneBuilds++;
+    sceneCache={key,x:origin.x,y:origin.y,objects,shadows,groups:null,shadow:null,batchPlanReady:false,readyGroups:0,property};sceneBuilds++;
     }
     const staticObjects=objects;objects=[];cullPoint=null;
     if(layers.vehicles)for(const v of frameVehicles){
@@ -1137,18 +1139,18 @@ export function createRenderer(canvas, initialGame, options={}) {
     drawScene({x0,y0,x1,y1},routesById);
     if(layers.vehicles&&airPoses.size)for(const a of [...airPoses.values()].filter(a=>!a.pose.ground).sort((a,b)=>a.body.y-b.body.y))airportSprites.aircraft(ctx,a.pose.heading,lineFor(a.route).fill,a.body.x,a.body.y);
     ctx.save();
-    function surfacePath(points){ctx.beginPath();points.forEach(([u,v],i)=>{const p=projectGround(game,u,v);i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y);});ctx.closePath();}
+    function surfacePath(points,fresh=true){if(fresh)ctx.beginPath();points.forEach(([u,v],i)=>{const p=projectGround(game,u,v);i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y);});ctx.closePath();}
     function ring(x,y,radius){surfacePath(Array.from({length:80},(_,i)=>[x+.5+Math.cos(i/80*TAU)*radius,y+.5+Math.sin(i/80*TAU)*radius]));}
     // A highlighted route is restroked above the scenery, even with the routes layer off, and rings both of its stops.
     if(focusRoute?.path?.length){const cached=routeDrawing(focusRoute,routeKey);if(cached.count)strokeRoute(focusRoute,cached,1,true);for(const id of focusRoute.stops||[]){const s=(game.stations||[]).find(st=>st.id===id);if(!s)continue;if(s.mode==='air'){outline(s,stationSpan(s),{color:lineFor(focusRoute).fill,width:2.5,casing:alpha(COLORS.paper,.7),casingWidth:5});continue;}ring(s.x,s.y,21/TILE);ctx.strokeStyle=alpha(COLORS.paper,.7);ctx.lineWidth=5/camera.zoom;ctx.stroke();ctx.strokeStyle=lineFor(focusRoute).fill;ctx.lineWidth=2.5/camera.zoom;ctx.stroke();}}
     // A span is a square side or, for an airport, its {w, h}.
-    function footprintPath(p,span=1){
+    function footprintPath(p,span=1,fresh=true){
       const {w,h}=typeof span==='number'?{w:span,h:span}:span,points=[],inset=.035,across=w-inset*2,down=h-inset*2;
       for(let n=0;n<=w;n++)points.push([p.x+inset+across*n/w,p.y+inset]);
       for(let n=1;n<=h;n++)points.push([p.x+w-inset,p.y+inset+down*n/h]);
       for(let n=1;n<=w;n++)points.push([p.x+w-inset-across*n/w,p.y+h-inset]);
       for(let n=1;n<h;n++)points.push([p.x+inset,p.y+h-inset-down*n/h]);
-      surfacePath(points);
+      surfacePath(points,fresh);
     }
     function highlight(p,color,filled=true,span=1){
       if(!p||p.x<0||p.y<0||p.x>=game.width||p.y>=game.height)return;
@@ -1192,6 +1194,19 @@ export function createRenderer(canvas, initialGame, options={}) {
     if(airportSite){highlight(airportSite,validPreview(airportSite.tool,airportSite)?'#f4d090':'#d7725f',true,stationSpan(airportSite));airportReach(airportSite);}
     if(serviceCenter?.mode==='air')airportReach(serviceCenter);
     else if(serviceCenter){ctx.fillStyle=alpha(COLORS.paper,.1);ring(serviceCenter.x,serviceCenter.y,STATION_RADIUS);ctx.fill();reachRing(serviceCenter.x,serviceCenter.y);for(const node of [...(game.cities||[]),...(game.industries||[])])if((node.kind?industryDistance(node,serviceCenter):Math.hypot(node.x-serviceCenter.x,node.y-serviceCenter.y))<=STATION_RADIUS)highlight(node,COLORS.paper,false,industrySize(node));}
+    // Your property, when app.js asks (building in towns, or inspecting a town or property), from the Town view in: buildings you
+    // own solid, plots developers built on your zones dashed, each style one cased stroke. Vacant zones keep their own tint and square.
+    propertyOutlines=0;
+    if(view.propertyOutlines&&camera.zoom>=1&&sceneCache?.property){
+      const z=camera.zoom,mark=MAP.property,shown=sceneCache.property.filter(site=>visible(site.x+site.span/2,site.y+site.span/2,48*site.span*z));
+      ctx.save();ctx.lineJoin='round';
+      for(const owned of [true,false]){
+        ctx.beginPath();let count=0;for(const site of shown)if(site.owned===owned){footprintPath(site,site.span,false);count++;}
+        if(!count)continue;
+        ctx.setLineDash(owned?[]:mark.dash.map(n=>n/z));ctx.strokeStyle=alpha(mark.casing,mark.casingAlpha);ctx.lineWidth=mark.casingWidth/z;ctx.stroke();ctx.strokeStyle=mark.color;ctx.lineWidth=mark.width/z;ctx.stroke();propertyOutlines+=count;
+      }
+      ctx.restore();
+    }
     if(selected&&typeof selected.x==='number'){const site=inspectSiteAt(selected.x,selected.y);outline(site||selected,siteSize(site),MAP.selection);}
     const spanTool=['bridge','railbridge','tunnel','railtunnel'].includes(tool),spanPoints=preview?.length?preview:hover?[hover]:[];
     const spanQuote=(spanTool||['road','rail','raise','lower','level','residential','commercial','industrial','bulldoze'].includes(tool))&&spanPoints.length?spanTool&&spanPoints.length<3?{ok:false,placements:[]}:quoteBuildPlan(game,tool,spanPoints,{preferredMode}):null;
@@ -1332,5 +1347,5 @@ export function createRenderer(canvas, initialGame, options={}) {
     ensureRevision();const a=airPoses.get(v)||airPose(v,route);return a?{x:a.pose.x-.5,y:a.pose.y-.5}:{x:v.x,y:v.y};
   }
   resize();const first=game.cities?.[0];if(first)focus(first.x+4.5,first.y-4.5);else bounds();
-  return {setGame,setLayers,getLayers,setLens,render,resize,worldToScreen,gridPointToScreen,screenToVertex,stationMarker,stationAtMarker,drawBullet,vehicleAt,vehicleWorldPoint,industryMarker,cityLabels:()=>labelRects.map(rect=>({...rect})),screenToTile,screenToInspectTile,pan,zoomAt,setZoom,focus,getCamera:()=>({...camera}),drawMinimap,getStats:()=>({projection:'isometric',terrainGeometry:true,maxTerrainHeight:MAX_HEIGHT,heightStep:HEIGHT_STEP,tileWidth:TILE*2,tileHeight:TILE,chunkCount:chunks.size,composedChunks,sceneBuilds,sceneryBatches:{...sceneryBudget.stats(),enabled:sceneryBatching,builds:sceneryBatchBuilds,draws:sceneryBatchDraws,directDraws:sceneryDirectDraws,waitingForCamera:sceneryWaitingForCamera,pending:sceneryBatching&&sceneCache&&!sceneCache.batchPlanReady?1:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0))+(sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0),pendingGroups:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0)),pendingShadows:sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0,preparationMs:sceneryPreparationMs,preparationBudgetMs:sceneryPrepareBudgetMs},foundationBuilds,foundationCacheSize:foundations.size,routeSegmentsConsidered,routePathBuilds,routeBreaks,highlightRoute:highlightedRoute,contextTargets,lens:lensStats&&{...lensStats},industryMarkers:{...markerStats},markerTiles:markerTiles.size,overlays:{builds:overlayBuilds,...overlays?.stats},stopSigns:{...signStats},bulletTiles:bulletTiles.size,visibleVehicleCandidates:frameVehicles.length,cacheBytes,cacheLimit,cacheMax:CACHE_MAX,chunkTiles:CHUNK_TILES,rasterScale,pixelScale:rasterScale,detailLevel,view:ZOOM_VIEWS.find(view=>view.zoom===camera.zoom).name,devicePixelRatio:dpr,dpr,maxSurfaceWidth:largestSurface,maxSurfaceHeight:largestSurface,minimapWidth:minimapLayer.width,minimapHeight:minimapLayer.height,minimapMaxEdge:MINIMAP_EDGE,minimapWorldWidth:game.width,minimapWorldHeight:game.height,minimapTerrainSamples,minimapNetworkScans,minimapNetworkBytes:minimapNetwork?.bytes||0,vehicleIndicators:{...vehicleIndicatorCounts},preparedSprites:preparedSprites.getStats(),preparedTransport:preparedTransport.getStats(),vehicleSprites:vehicleSprites.getStats(),infrastructureSprites:infrastructureSprites.getStats(),preparedZooms:rasterBundles.size,loadBadgeCount:loadBadges.size,loadBadgeBuilds,airports:airports.length,aircraft:{...airStats},airportSprites:airportSprites?.getStats(),sprites:sprite?.getStats?.(),uprightSprites:uprightSprite?.getStats?.(),houseArtwork:getHouseAssetStats(game.biome),worldArtwork:worldArtStats(),treeShadows:treeShadowCacheStats(),weather:drawWeather.getStats(),lighting:drawLighting.getStats?.(),marine:marine?.getStats?.(),layers:getLayers()})};
+  return {setGame,setLayers,getLayers,setLens,render,resize,worldToScreen,gridPointToScreen,screenToVertex,stationMarker,stationAtMarker,drawBullet,vehicleAt,vehicleWorldPoint,industryMarker,cityLabels:()=>labelRects.map(rect=>({...rect})),screenToTile,screenToInspectTile,pan,zoomAt,setZoom,focus,getCamera:()=>({...camera}),drawMinimap,getStats:()=>({projection:'isometric',terrainGeometry:true,maxTerrainHeight:MAX_HEIGHT,heightStep:HEIGHT_STEP,tileWidth:TILE*2,tileHeight:TILE,chunkCount:chunks.size,composedChunks,sceneBuilds,propertyOutlines,sceneryBatches:{...sceneryBudget.stats(),enabled:sceneryBatching,builds:sceneryBatchBuilds,draws:sceneryBatchDraws,directDraws:sceneryDirectDraws,waitingForCamera:sceneryWaitingForCamera,pending:sceneryBatching&&sceneCache&&!sceneCache.batchPlanReady?1:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0))+(sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0),pendingGroups:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0)),pendingShadows:sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0,preparationMs:sceneryPreparationMs,preparationBudgetMs:sceneryPrepareBudgetMs},foundationBuilds,foundationCacheSize:foundations.size,routeSegmentsConsidered,routePathBuilds,routeBreaks,highlightRoute:highlightedRoute,contextTargets,lens:lensStats&&{...lensStats},industryMarkers:{...markerStats},markerTiles:markerTiles.size,overlays:{builds:overlayBuilds,...overlays?.stats},stopSigns:{...signStats},bulletTiles:bulletTiles.size,visibleVehicleCandidates:frameVehicles.length,cacheBytes,cacheLimit,cacheMax:CACHE_MAX,chunkTiles:CHUNK_TILES,rasterScale,pixelScale:rasterScale,detailLevel,view:ZOOM_VIEWS.find(view=>view.zoom===camera.zoom).name,devicePixelRatio:dpr,dpr,maxSurfaceWidth:largestSurface,maxSurfaceHeight:largestSurface,minimapWidth:minimapLayer.width,minimapHeight:minimapLayer.height,minimapMaxEdge:MINIMAP_EDGE,minimapWorldWidth:game.width,minimapWorldHeight:game.height,minimapTerrainSamples,minimapNetworkScans,minimapNetworkBytes:minimapNetwork?.bytes||0,vehicleIndicators:{...vehicleIndicatorCounts},preparedSprites:preparedSprites.getStats(),preparedTransport:preparedTransport.getStats(),vehicleSprites:vehicleSprites.getStats(),infrastructureSprites:infrastructureSprites.getStats(),preparedZooms:rasterBundles.size,loadBadgeCount:loadBadges.size,loadBadgeBuilds,airports:airports.length,aircraft:{...airStats},airportSprites:airportSprites?.getStats(),sprites:sprite?.getStats?.(),uprightSprites:uprightSprite?.getStats?.(),houseArtwork:getHouseAssetStats(game.biome),worldArtwork:worldArtStats(),treeShadows:treeShadowCacheStats(),weather:drawWeather.getStats(),lighting:drawLighting.getStats?.(),marine:marine?.getStats?.(),layers:getLayers()})};
 }
