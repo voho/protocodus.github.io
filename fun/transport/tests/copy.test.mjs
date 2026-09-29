@@ -64,8 +64,6 @@ const DOM = /\bdocument\b|\bwindow\.|innerHTML|addEventListener|querySelector|<(
 const BANNED = { city: /\bcit(y|ies)\b/i, service: /servic/i, connection: /connection/i, arrow: /→/, 'middle dot': / · /, units: / units\b/, Gen: /\bGen\b/, 'Latest model': /Latest model/, producer: /producer/i };
 // Identifiers are not words: ids, kinds, topics and keys such as 'route-connection', 'service-garage' and 'station:'.
 const IDENTIFIER = /^[a-z][\w.:-]*$/;
-// The starter route's and addRoute's default names belong to route-lines.js (ui-route-identity-and-map).
-const RESERVED = [/addRoute\(game,\{name:`\$\{game\.cities\[0\]\.name\} · /, /name:String\(name\|\|`\$\{stations\[0\]\.name\} → /];
 // A town's services are its amenities (post office, bank, hotel), not routes.
 const AMENITIES = new Set(['Services', 'Local services', 'Everyday services, from a letter to a night away.']);
 test('DOM-free modules use the glossary in every string', () => {
@@ -73,7 +71,7 @@ test('DOM-free modules use the glossary in every string', () => {
   assert.ok(['model.js', 'gameplay-insights.js', 'route-planner.js', 'settlements.js', 'industry-simulation.js', 'ui-notices.js', 'milestones.js', 'contracts.js', 'construction-undo.js', 'copy.js'].every(name => modules.includes(name)), modules.join());
   const found = [];
   for (const name of modules) for (const { text, line } of strings(read(name))) {
-    if (IDENTIFIER.test(text) || AMENITIES.has(text) || RESERVED.some(pattern => pattern.test(read(name).split('\n')[line - 1]))) continue;
+    if (IDENTIFIER.test(text) || AMENITIES.has(text)) continue;
     for (const [word, pattern] of Object.entries(BANNED)) if (pattern.test(text)) found.push(`${name}:${line} ${word}: ${JSON.stringify(text)}`);
   }
   assert.deepEqual(found, []);

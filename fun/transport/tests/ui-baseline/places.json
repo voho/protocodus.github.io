@@ -150,6 +150,7 @@
  "phone|places-vehicle|target|#app button",
  "phone|places-vehicle|target|#app button.active",
  "phone|places-vehicle|target|#app button.mobile-panel-toggle",
+ "phone|places-vehicle|target|#inspector button.sheet-grabber",
  "phone|places-vehicle|target|#inspector button.small-button",
  "phone|places-vehicle|target|button#game-menu-button",
  "phone|places-vehicle|target|button#zoom-in",
