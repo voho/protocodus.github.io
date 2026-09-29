@@ -126,6 +126,27 @@ Rare big moments arrive as a headline card at the top of the map: the first bus,
 
 **Game menu → News** lists the latest 24 company notices and headlines with their dates, newest first, and a **Show** button while the route, town or industry still exists. The yearly, first-delivery and 1,000-resident moments are shown as they happen and are not kept in News. Milestones reached within the span of the log join it by date, one line per day, with a **Goals** button.
 
+## Company rating
+
+Each quarter, as March, June, September and December close, your company is reviewed and rated from 0 to 1,000 on nine measures. Each measure earns its points as it nears full marks, fastest at first: half of a target earns about 70% of its points.
+
+- **Vehicles earning a profit** (100 points): vehicles on routes that made a profit last year; full marks at 250.
+- **Stops in use** (100): stops on running routes; 150.
+- **Weakest route** (100): the lowest profit a vehicle made last year on any of your routes; $25,000 a vehicle. It counts once 10 vehicles have run a whole year.
+- **Weakest quarter** (50) and **Best quarter** (100): operating profit in the last twelve whole quarters; $5,000,000 and $10,000,000.
+- **Cargo delivered** (400): in the last 12 months; 400,000.
+- **Cargo types** (50): the kinds of cargo you deliver; 8.
+- **Cash** (50): $100,000,000.
+- **No loan** (50): full marks without a loan, fewer the more of the credit line you use.
+
+Money targets are in 1950 prices and rise with inflation. A route launched or edited during a year counts from the first whole year of its accounts.
+
+Every 120 points earns a title: Engineer, Traffic manager (120), Transport coordinator (240), Route supervisor (360), Director (480), Chief executive (600), Chairman (720), President (840) and Tycoon (960). A title, once earned, is yours to keep; a falling score changes nothing and is never announced. The rating is recognition only: it never changes money, prices, towns, industries or vehicles, and there is nothing to do about it unless you want to.
+
+The finances card (hover or tap the balance) shows your title and the latest score in its **Title** row, and its tooltip names the next title. A new title arrives as a Company news headline, or as a notice while headlines are off, with **Open report**. The company report opens with the rating: the title, the score, the way to the next title, the review dates and the **Company value**, which is your cash, your vehicles at their resale value and half of what your roads, rails, bridges, tunnels, stops and bought industries would cost today, less any loan. **What counts** unfolds the nine measures with the value at the review, full marks and the points each earned, names the weakest route with **Show**, and lists the titles you have earned with their dates. **Year by year** adds each December's rating.
+
+When December 2049 closes, on 1 January 2050, your company's first hundred years are evaluated once. A headline, **A century of transport**, offers **See evaluation**: a card with your title, score, company value and the titles you earned. It never opens by itself, and the company report keeps it. Play continues; there is no end date.
+
 ## Controls and saving
 
 Drag the map in **Explore** mode to pan; click a place to inspect it. Choose one of three views: **Region (50%)**, **Town (100%)**, or **Detail (200%)**. Scroll, press + / −, or use the zoom buttons to move one view at a time; click the percentage to open the three choices. A sideways trackpad swipe or tilt wheel moves the map left and right without zooming. Trackpad users can switch scrolling to pan with **Game menu → Map options → Scroll to pan**; a pinch or Ctrl+scroll still zooms, and this browser remembers the choice. Turn on **Game menu → Mini map** to navigate with a small overview, or press **M** for the region atlas. Construction tools place a structure with a click or lay roads, tracks and zones with a drag. Press **Done**, **Escape**, or right-click to leave construction; during a drag, Escape or right-click first cancels the drag and keeps the tool. Right-drag or hold Space while dragging to move the map while building. On touch screens, two fingers move the map and pinch changes zoom; dragging a single stop, port or building tool moves the map without placing it.

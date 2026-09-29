@@ -50,6 +50,8 @@ import { collectNotices, groupNotices, crossedMilestone, newYearNotice, toastTyp
 import { MILESTONES, CHAPTERS, milestoneChapters, metMilestones, progressText } from './milestones.js';
 import { contractState, contractSites } from './contracts.js';
 import { loanTerms, borrow, repay } from './model.js';
+import { CAREER_TITLES, RATING_PARTS, MIN_RATED_FLEET, careerTitle, nextTitle, nextReviewDay, companyValue, partTarget } from './company-rating.js';
+import { money as moneyText, dateShort } from './copy.js';
 import { routeNeedsAttention } from './gameplay-insights.js';
 import { creditToast } from './ui-notices.js';
 import { HEADLINE_PRIORITY, headlineKicker, headlineWatch, detectHeadlines, headlineTier, townHeadline, recordHeadline } from './headlines.js';
@@ -137,6 +139,7 @@ let lastNoticeId = game.day<1 ? undefined : game.notifications[0]?.id;
 let goalChoice = null, goalSignature = '', goalOpen = false, goalSeen = null, goalChanged = false, goalFolded = (() => { try { const stored = localStorage.getItem('transport-next-goal-v2'); return stored ? stored === 'folded' : Boolean(localStorage.getItem('transport-next-goal-v1')); } catch { return false; } })();
 let noticeQueue=[],noticeAt=0,pacedNoticeAt=-Infinity,panelPricesStale=false,knownRoutes=new Set(),firstDeliveryPending=new Set(),townPeaks=new Map(),townDay=-1;
 let seenMilestones=new Set(),milestoneMonth=-1;
+let ratingSeen={titles:1,century:false},ratingRow='',ratingDetailsOpen=false;
 let headlineWatchState=null,headlineQueue=[],headlineCurrent=null,headlineClosedAt=-Infinity,headlineHeld=false,headlineVisible=true,headlineCheckedAt=0,headlinesOn=(()=>{try{return localStorage.getItem('transport-headlines-v1')!=='off';}catch{return true;}})();
 resetMoments();
 const spanTools = new Set(['bridge','railbridge','tunnel','railtunnel']);
@@ -936,6 +939,7 @@ function updateHud() {
  const served=game.cities.filter(city=>townService(game,city,activeStops).connected).length;
  watchTowns(activeStops);
  $('#connected').innerHTML=served+` <small>/ ${game.cities.length}</small>`;$('#route-count').textContent=game.routes.length;
+ updateRatingRow();
  $('#date').textContent=monthText(game.day);$('#date').title=longDayText(game.day);
  renderGoal();
  const zoom=renderer.getCamera().zoom, currentZoom=zoomIndex(zoom);
@@ -1410,6 +1414,7 @@ function resetMoments() {
  // An older save or a new world has no stamps yet; whatever it has already met is backfilled silently.
  seenMilestones=new Set(game.milestones?Object.keys(game.milestones):metMilestones(game));milestoneMonth=Math.max(-1,...Object.values(game.milestones||{}).map(monthOf));goalSeen=null;goalChanged=false;
  headlineWatchState=headlineWatch(game);headlineQueue=[];dismissHeadline(true);headlineClosedAt=-Infinity;
+ ratingSeen={titles:game.performance?.reached.length??1,century:Boolean(game.performance?.century)};
 }
 // Headlines: a rare paper card for big moments. Each is kept in game.headlines (News) even when the card is off; the
 // card waits for the plain map, shows one at a time for 10 s of visible time, and leaves 15 s before the next.
@@ -1432,7 +1437,7 @@ function stepHeadlines(now,dt) {
  if(headlineQueue.length&&headlinesOn&&!$('#modal').open&&tool==='inspect'&&!isRoutePicking()&&now-headlineClosedAt>=15000)showHeadline(headlineQueue.shift());
 }
 function showHeadline(entry) {
- const action=entry.kind==='models'&&getFleetUpgrade(game).available?{label:'Review upgrades',run:reviewUpgrades}:noticeTargetExists(entry.target)?{label:'Show',run:()=>showNoticeTarget(entry.target)}:null;
+ const action=entry.kind==='rating'?(entry.key==='rating:century'?{label:'See evaluation',run:openCenturyCard}:{label:'Open report',run:openCompany}):entry.kind==='models'&&getFleetUpgrade(game).available?{label:'Review upgrades',run:reviewUpgrades}:noticeTargetExists(entry.target)?{label:'Show',run:()=>showNoticeTarget(entry.target)}:null;
  const el=document.createElement('article');el.className='headline-card';el.dataset.kind=entry.kind;el.setAttribute('aria-labelledby','headline-title');
  el.innerHTML=`<span class="headline-art" aria-hidden="true">${icon(headlineArt(entry.art))}</span><div class="headline-body"><p class="headline-kicker"><span>${escapeHTML(headlineKicker(entry.kind))}</span><time>${dateLong(entry.day)}</time></p><h2 id="headline-title" class="prose">${escapeHTML(entry.title)}</h2>${entry.detail?`<p class="headline-detail prose">${escapeHTML(entry.detail)}</p>`:''}${action?`<div class="headline-actions"><button type="button" class="headline-action">${escapeHTML(action.label)}</button></div>`:''}</div><button type="button" class="headline-close" aria-label="Dismiss headline" title="Dismiss">${icon('close')}</button>`;
  // Pointing at the card or focusing inside it holds its countdown; it never takes focus itself.
@@ -1561,16 +1566,17 @@ function openCompany(section) {
   return `<figure class="company-chart"><figcaption><span>${label}</span><strong>${format(list.at(-1))}</strong></figcaption><svg class="sparkline" viewBox="0 0 120 36" preserveAspectRatio="none" role="img" aria-label="${escapeHTML(`${label}, month by month: lowest ${format(low)}, highest ${format(high)}`)}">${low<0&&high>0?`<line class="spark-zero" x1="0" x2="120" y1="${y(0)}" y2="${y(0)}"/>`:''}<polygon class="spark-area" points="0,36 ${points} 120,36"/><polyline class="spark-line" points="${points}"/></svg></figure>`;
  };
  const closed=entry=>monthText(entry.day-1),charts=history.length?`<section class="company-section"><header><h3>Month by month</h3><span>${closed(history[0])} – ${closed(history.at(-1))}</span></header><div class="company-charts">${chart('Operating profit',history.map(h=>h.operatingProfit??h.profit),signed)}${chart('Balance',history.map(h=>h.money),v=>(v<0?'−':'')+money(v))}${chart('Residents',history.map(h=>h.population),integer)}${chart('Delivered a month',history.map((h,i)=>i?h.delivered-history[i-1].delivered:h.month===0?h.delivered:NaN),v=>integer(v)+' units')}</div></section>`:`<section class="company-section"><h3>Month by month</h3><p class="company-empty">Charts begin when ${monthText(game.day)} closes.</p></section>`;
- const yearRows=years.map((a,i)=>{const change=yearChange(a,years[i+1]);return `<tr><th scope="row">${a.year}</th><td>${compactMoney(a.revenue)}</td><td>${signedMoney(a.operatingProfit)}${change===null?'':` <small>${change<0?'−':'+'}${integer(Math.abs(change))}%</small>`}</td><td class="company-optional">${integer(a.delivered)}</td><td class="company-optional">${integer(a.population)}</td><td class="company-optional">${integer(a.routes)}</td><td>${escapeHTML(game.routes.find(route=>route.id===a.bestRouteId)?.name||'—')}</td></tr>`;}).join('');
- const yearly=`<section class="company-section"><h3>Year by year</h3>${years.length?`<div class="company-table"><table><thead><tr><th scope="col">Year</th><th scope="col">Fares</th><th scope="col">Operating profit</th><th scope="col" class="company-optional">Delivered</th><th scope="col" class="company-optional">Residents</th><th scope="col" class="company-optional">Routes</th><th scope="col">Best route</th></tr></thead><tbody>${yearRows}</tbody></table></div>`:`<p class="company-empty">Your first yearly summary arrives on January 1, ${inflationInfo(game).year+1}.</p>`}</section>`;
+ const yearRows=years.map((a,i)=>{const change=yearChange(a,years[i+1]);return `<tr><th scope="row">${a.year}</th><td>${compactMoney(a.revenue)}</td><td>${signedMoney(a.operatingProfit)}${change===null?'':` <small>${change<0?'−':'+'}${integer(Math.abs(change))}%</small>`}</td><td class="company-optional">${integer(a.delivered)}</td><td class="company-optional">${integer(a.population)}</td><td class="company-optional">${integer(a.routes)}</td><td class="company-optional">${a.performance??'—'}</td><td>${escapeHTML(game.routes.find(route=>route.id===a.bestRouteId)?.name||'—')}</td></tr>`;}).join('');
+ const yearly=`<section class="company-section"><h3>Year by year</h3>${years.length?`<div class="company-table"><table><thead><tr><th scope="col">Year</th><th scope="col">Fares</th><th scope="col">Operating profit</th><th scope="col" class="company-optional">Delivered</th><th scope="col" class="company-optional">Residents</th><th scope="col" class="company-optional">Routes</th><th scope="col" class="company-optional">Rating</th><th scope="col">Best route</th></tr></thead><tbody>${yearRows}</tbody></table></div>`:`<p class="company-empty">Your first yearly summary arrives on January 1, ${inflationInfo(game).year+1}.</p>`}</section>`;
  // Net a month since each route's accounts began; a route only counts as below its upkeep after 90 days.
  const rated=game.routes.map(route=>{const net=route.revenue-(route.revenueAtAccountingStart||0)-(route.expenses||0),days=game.day-(route.accountingStartDay||0);return {route,net,days,rate:net/Math.max(days,1)*30.44};});
  const top=rated.filter(r=>r.days>=30.44&&r.rate>0).sort((a,b)=>b.rate-a.rate).slice(0,5),below=rated.filter(r=>r.days>=90&&r.net<0).sort((a,b)=>a.rate-b.rate);
  const row=({route,rate},index,flag)=>{const count=getRouteFleet(game,route.id).count,id=escapeHTML(route.id);return `<li class="company-route">${flag?'':`<span class="company-rank">${index+1}</span>`}<div><strong>${escapeHTML(route.name)}</strong><small>${flag?'Earning less than its upkeep':`${escapeHTML(CARGO[route.cargo].name)} · ${count} ${fleetNoun(route,count)}`}</small></div><span class="company-rate">≈ ${signedMoney(rate)} / month</span><span class="company-route-actions"><button class="small-button" data-company-show="${id}">Show</button>${flag?`<button class="small-button" data-company-retire="${id}">Retire</button>`:''}</span></li>`;};
  const routes=`<section class="company-section"><header><h3>Top routes</h3><span>Net a month · fares less route upkeep</span></header>${top.length?`<ol class="company-routes">${top.map((r,i)=>row(r,i,false)).join('')}</ol>`:`<p class="company-empty">${!game.routes.length?'No routes yet.':rated.some(r=>r.days>=30.44)?'No route earns more than its upkeep yet.':'Routes join this list after a month of earnings.'}</p>`}${below.length?`<h4>Earning less than their upkeep</h4><ul class="company-routes below">${below.slice(0,5).map((r,i)=>row(r,i,true)).join('')}</ul>${below.length>5?`<p class="company-empty">And ${below.length-5} more.</p>`:''}`:''}</section>`;
  const loan=`<section class="company-section company-loan"><header><h3>Loan</h3><span>${terms.loan?`${money(terms.loan)} of ${money(terms.limit)}`:`Up to ${money(terms.limit)}`}</span></header>${terms.loan?`<div class="company-meter"><span style="width:${Math.min(100,terms.loan/terms.limit*100)}%"></span></div>`:''}<p>${terms.loan?`Interest is ${money(terms.monthlyInterest)} a month, charged as each month closes.`:'Optional credit for a project you cannot fund yet.'} A flat ${(terms.rate*100).toFixed(1)}% a month on what you owe, with no due date: repay whenever you like.</p><div class="company-loan-actions"><button class="button button-outline" id="company-borrow" ${terms.borrow?'':'disabled'}>${terms.borrow?`Borrow ${money(terms.borrow)} · ${money(terms.borrowInterest)} / month interest`:'Credit line fully used'}</button>${terms.loan?`<button class="button button-outline" id="company-repay" ${game.money>=terms.repay?'':`disabled title="Need ${money(terms.repay)} to repay"`}>Repay ${money(terms.repay)}</button>`:''}</div></section>`;
- closeMobile();openModal(`<div class="modal-inner company-report"><div class="modal-heading"><div><h2>Company</h2><p>Your company in figures. Each month closes on the 1st, and each year on January 1.</p></div><button class="close-modal" aria-label="Close dialog">×</button></div>${charts}${yearly}${routes}${loan}<div class="modal-actions"><button class="button button-outline" id="company-payment-rates">Cargo payment rates</button><button class="button button-primary" data-close>Back to game ${icon('arrow')}</button></div></div>`);
+ closeMobile();openModal(`<div class="modal-inner company-report"><div class="modal-heading"><div><h2>Company</h2><p>Your company in figures. Each month closes on the 1st, and each year on January 1.</p></div><button class="close-modal" aria-label="Close dialog">×</button></div>${performanceSectionHTML()}${charts}${yearly}${routes}${loan}<div class="modal-actions"><button class="button button-outline" id="company-payment-rates">Cargo payment rates</button><button class="button button-primary" data-close>Back to game ${icon('arrow')}</button></div></div>`);
  $$('[data-company-show]').forEach(el=>el.addEventListener('click',()=>showNoticeTarget({kind:'route',id:el.dataset.companyShow})));
+ $$('[data-rating-show]').forEach(el=>el.addEventListener('click',()=>showNoticeTarget({kind:'route',id:el.dataset.ratingShow})));$('#rating-century')?.addEventListener('click',openCenturyCard);$('.rating-details')?.addEventListener('toggle',e=>{ratingDetailsOpen=e.target.open;});
  $('#company-payment-rates').addEventListener('click',()=>{openHelp('resources');$('#payment-rates-title')?.scrollIntoView({block:'start'});});
  $$('[data-company-retire]').forEach(el=>el.addEventListener('click',()=>retireRoute(el.dataset.companyRetire)));
  // Borrowing and repaying redraw the dialog in place, keeping its scroll and the pressed button.
@@ -1583,6 +1589,55 @@ function openCompany(section) {
 }
 // The change in operating profit on the year before, when that year made a profit.
 function yearChange(summary,previous) { return previous?.year===summary.year-1&&previous.operatingProfit>0?Math.round((summary.operatingProfit-previous.operatingProfit)/previous.operatingProfit*100):null; }
+// The company rating (company-rating.js) is recognition only: the finances card names the title, a new title or the
+// century arrives once as company news, and the report explains the score. A falling score is never announced.
+function updateRatingRow() {
+ const p=game.performance,title=careerTitle(game),key=`${worldSerial}:${p?.day}:${p?.score}:${title}`;if(key===ratingRow)return;ratingRow=key;
+ const next=nextTitle(game);
+ $('#company-title').innerHTML=escapeHTML(CAREER_TITLES[title])+(p?` <small>${integer(p.score)} of 1,000</small>`:'');
+ $('#rating-row').title=p?`Performance rating ${integer(p.score)} of 1,000 at the review on ${dateLong(p.day)}. ${next?`${next.name} at ${integer(next.score)}.`:'The top title.'} Titles are kept once earned.`:`First review on ${dateLong(nextReviewDay(game))}.`;
+}
+// A jump of several titles makes one moment, naming the highest. Headlines carry both moments; with them off, a toast does.
+function watchPerformance() {
+ const p=game.performance;if(!p)return;
+ if(p.reached.length>ratingSeen.titles){
+  ratingSeen.titles=p.reached.length;const index=p.reached.length-1,name=CAREER_TITLES[index],score=integer(p.score);
+  if(!announceHeadline({key:`rating:${index}`,kind:'rating',art:'trendUp',day:p.day,title:`New title: ${name}`,detail:`Your company scored ${score} of 1,000 at its quarterly review. A title, once earned, is yours to keep.`}))noticeQueue.push({message:`New title: ${name}. Performance ${score} of 1,000.`,type:'milestone',action:{label:'Open report',run:openCompany},paced:true});
+ }
+ if(p.century&&!ratingSeen.century){
+  ratingSeen.century=true;const c=p.century,name=CAREER_TITLES[c.title],score=integer(c.score);
+  if(!announceHeadline({key:'rating:century',kind:'rating',art:'company',day:c.day,title:'A century of transport',detail:`Your company has run for one hundred years: ${name}, performance ${score} of 1,000.`}))noticeQueue.push({message:`A century of transport: ${name}, performance ${score} of 1,000.`,type:'milestone',action:{label:'See evaluation',run:openCenturyCard},paced:true});
+ }
+}
+// Titles earned, with the days that shared a review joined: 'Engineer, then Traffic manager'.
+function careerHTML(reached) {
+ const groups=[];reached.forEach((day,index)=>{const last=groups.at(-1);if(last?.day===day)last.names.push(CAREER_TITLES[index]);else groups.push({day,names:[CAREER_TITLES[index]]});});
+ return `<ol class="rating-career">${groups.map(group=>`<li><span>${escapeHTML(group.names.join(', then '))}</span><time>${dateShort(group.day)}</time></li>`).join('')}</ol>`;
+}
+function companyValueHTML() {
+ const value=companyValue(game),parts=`Cash ${moneyText(value.cash)}, vehicles ${moneyText(value.vehicles)} and infrastructure ${moneyText(value.infrastructure)}${value.loan?`, less a loan of ${moneyText(value.loan)}`:''}.`;
+ return `<p class="rating-value" title="${escapeHTML(parts)}"><span>Company value</span><strong data-num>${moneyText(value.total)}</strong><small>Cash, vehicles at resale value and half of today’s infrastructure cost, less any loan.</small></p>`;
+}
+// The Company report's first block: title, score, the way to the next title, company value and, folded, what counts.
+function performanceSectionHTML() {
+ const p=game.performance,title=CAREER_TITLES[careerTitle(game)];
+ if(!p)return `<section class="company-section rating-summary"><div class="rating-head"><h3>${title}</h3></div><p class="rating-meta">The first review is on ${dateLong(nextReviewDay(game))}.</p></section>`;
+ const next=nextTitle(game),signed=v=>`<span class="${v>0?'gain':v<0?'loss':'even'}">${moneyText(v,{signed:true})}</span>`,full=part=>part.money?moneyText(partTarget(game,part,p.day)):integer(part.target);
+ const weakest=game.routes.find(route=>route.id===p.weakest);
+ const cells=[integer(p.values[0]),integer(p.values[1]),p.values[2]===null?`Counts from ${MIN_RATED_FLEET} vehicles with a full year`:`${signed(p.values[2])} per vehicle last year${weakest?`<span class="rating-route"><span>${escapeHTML(weakest.name)}</span><button type="button" class="small-button" data-rating-show="${escapeHTML(weakest.id)}">Show</button></span>`:''}`,signed(p.values[3]),signed(p.values[4]),`${integer(p.values[5])} in 12 months`,integer(p.values[6]),signed(p.values[7]),p.values[8]>0?`${moneyText(p.values[8])} borrowed`:'No loan'];
+ const marks=RATING_PARTS.map(part=>part.id==='weakest'?`${full(part)} per vehicle`:part.id==='loan'?'No loan':full(part));
+ const rows=RATING_PARTS.map((part,i)=>`<tr title="Full marks: ${escapeHTML(marks[i])}"><th scope="row">${part.label}</th><td>${cells[i]}</td><td>${marks[i]}</td><td>${p.points[i]} of ${part.max}</td></tr>`).join('');
+ const century=p.century?`<p class="rating-century"><span>A century of transport: ${CAREER_TITLES[p.century.title]}, ${integer(p.century.score)} of 1,000</span><button type="button" class="small-button" id="rating-century">See evaluation</button></p>`:'';
+ return `<section class="company-section rating-summary" aria-labelledby="rating-title"><div class="rating-head"><h3 id="rating-title">${title}</h3><p class="rating-score"><strong data-num>${integer(p.score)}</strong> <span>of 1,000</span></p></div><div class="rating-track" aria-hidden="true"><span style="width:${next?Math.min(100,p.score/next.score*100):100}%"></span></div><p class="rating-meta"><span>${next?`${next.name} at ${integer(next.score)}`:'The top title'}</span><span>Reviewed ${dateLong(p.day)}, next review ${dateLong(nextReviewDay(game))}</span></p>${companyValueHTML()}${century}<details class="rating-details"${ratingDetailsOpen?' open':''}><summary>What counts ${icon('chevronDown')}</summary><div class="rating-table"><table><thead><tr><th scope="col">Measure</th><th scope="col">At review</th><th scope="col">Full marks</th><th scope="col">Points</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><th scope="row">Total</th><td></td><td></td><td>${integer(p.score)} of 1,000</td></tr></tfoot></table></div><p class="rating-note">Points rise fastest at first: half of a target earns about 70% of its points. The rating is recognition only and never changes prices, towns or vehicles. A title, once earned, is yours to keep.</p>${p.reached.length>1?`<h4>Titles earned</h4>${careerHTML(p.reached)}`:''}</details></section>`;
+}
+// The century evaluation opens only when asked for, from its news or the report; like every dialog it pauses.
+function openCenturyCard() {
+ const p=game.performance,c=p?.century;if(!c)return;
+ const reached=p.reached.filter(day=>day<=c.day);
+ closeMobile();openModal(`<div class="modal-inner century-card"><div class="modal-heading"><div><h2>A century of transport</h2><p>${dateLong(c.day)}. Your company has run for one hundred years.</p></div><button class="close-modal" aria-label="Close dialog">${icon('close')}</button></div><div class="century-title"><strong>${CAREER_TITLES[c.title]}</strong><span>Performance ${integer(c.score)} of 1,000, career best ${integer(p.best)}</span></div><dl class="century-facts"><div><dt>Company value</dt><dd data-num>${moneyText(c.value)}</dd></div><div><dt>Titles earned</dt><dd data-num>${reached.length} of ${CAREER_TITLES.length}</dd></div></dl>${careerHTML(reached)}<p class="century-note">Play continues. There is no end date, and every title you have earned stays yours.</p><div class="modal-actions"><button class="button button-outline" id="century-report">Company report</button><button class="button button-primary" data-close>Keep playing</button></div></div>`);
+ $('#century-report').addEventListener('click',()=>{closeModal();openCompany();});
+ $('#modal .close-modal')?.focus({preventScroll:true});
+}
 // A January repricing waits while the player types in the panel's search.
 $('#panel-content').addEventListener('focusout',()=>setTimeout(()=>{if(panelPricesStale&&!$('#panel-content').contains(document.activeElement)){panelPricesStale=false;if(view==='build'||view==='towns')renderPanel();}}));
 // A stop's New route opens the planner even when the draft already holds that stop.
@@ -1983,6 +2038,7 @@ function frame(now){
  if(now-hudAt>400&&(!hudState||hudState.game!==game||hudState.day!==game.day||hudState.revision!==game.revision||hudState.money!==game.money||hudState.zoom!==camera.zoom||hudState.w!==w||hudState.view!==view)){
   updateHud();hudAt=now;hudState={game,day:game.day,revision:game.revision,money:game.money,zoom:camera.zoom,w,view};
   const fresh=collectNotices(game.notifications,lastNoticeId);lastNoticeId=game.notifications[0]?.id;for(const entry of groupNotices(fresh))if(entry.topic!=='credit'||creditToast(entry,game.history))noticeQueue.push({...entry,type:toastType(entry.type),...entry.topic==='credit'?{action:{label:'Loan',run:()=>openCompany('loan')}}:{}});watchHeadlines();watchRoutes();
+  watchPerformance();
   watchMilestones();
   watchContracts();
   if(selected&&!$('#inspector').hidden&&!$('#inspector').contains(document.activeElement)&&!panelPress&&now-panelReleasedAt>250)inspect(selected.x,selected.y,selected.kind);

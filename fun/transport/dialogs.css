@@ -209,3 +209,52 @@
  .payment-group{grid-template-columns:20px 1fr}
  .payment-cargo{grid-column:2}
 }
+/* Company rating (company-rating.js): the report's first block, its folded table of measures and the century card. Recognition only, so it stays quiet: ink figures, one hairline meter, no signal colour. */
+.rating-head{display:flex;align-items:baseline;justify-content:space-between;gap:var(--s-1) var(--s-3);flex-wrap:wrap}
+.rating-head h3{font-size:var(--fs-title);line-height:var(--lh-title);font-weight:var(--fw-semibold)}
+.rating-score{margin:0;font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2);white-space:nowrap}
+.rating-score strong{font-size:var(--fs-display);line-height:var(--lh-display);font-weight:var(--fw-semibold);letter-spacing:var(--tr-tight);color:var(--ink)}
+.rating-track{height:4px;margin-top:var(--s-2);border-radius:var(--r-round);background:var(--well);overflow:hidden}
+.rating-track span{display:block;height:100%;border-radius:var(--r-round);background:var(--ink)}
+.rating-meta{display:flex;flex-wrap:wrap;justify-content:space-between;gap:var(--s-1) var(--s-3);margin:var(--s-2) 0 0;font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2)}
+.rating-value{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:0 var(--s-3);margin:var(--s-4) 0 0;padding-top:var(--s-3);border-top:1px solid var(--rule);font-size:var(--fs-body);line-height:var(--lh-body)}
+.rating-value strong{font-weight:var(--fw-semibold);white-space:nowrap}
+.rating-value small{grid-column:1 / -1;font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2)}
+.rating-century{display:flex;align-items:center;justify-content:space-between;gap:var(--s-2) var(--s-3);flex-wrap:wrap;margin:var(--s-3) 0 0;padding-top:var(--s-3);border-top:1px solid var(--rule);font-size:var(--fs-body);line-height:var(--lh-body)}
+.rating-details{margin-top:var(--s-3);border-top:1px solid var(--rule)}
+.rating-details summary{cursor:pointer;list-style:none;min-height:var(--control);display:flex;align-items:center;gap:var(--s-1);margin-top:var(--s-1);font-size:var(--fs-small);line-height:var(--lh-small);font-weight:var(--fw-medium)}
+.rating-details summary::-webkit-details-marker{display:none}
+.rating-details summary svg{color:var(--ink-2);transition:transform var(--t-quick) var(--ease)}
+.rating-details[open] summary svg{transform:rotate(180deg)}
+.rating-table{overflow-x:auto}
+.rating-table table{width:100%;border-collapse:collapse;font-size:var(--fs-caption);line-height:var(--lh-caption);font-variant-numeric:tabular-nums}
+.rating-table th,.rating-table td{padding:var(--s-2);border-top:1px solid var(--rule);text-align:right;vertical-align:top;font-weight:var(--fw-regular)}
+.rating-table thead th{border-top:0;color:var(--ink-2);white-space:nowrap}
+.rating-table th:first-child{padding-left:0;text-align:left;font-weight:var(--fw-medium)}
+.rating-table td:last-child{padding-right:0;white-space:nowrap}
+.rating-table tfoot th,.rating-table tfoot td{font-weight:var(--fw-semibold)}
+.rating-table .gain{color:var(--ok)}
+.rating-table .loss{color:var(--error)}
+.rating-table .even{color:var(--ink-2)}
+.rating-route{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:var(--s-1) var(--s-2);margin-top:var(--s-1);color:var(--ink-2)}
+.rating-route .small-button{min-height:28px;padding:var(--s-1) var(--s-2)}
+.rating-note{margin:var(--s-3) 0 0;font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2);font-variant-numeric:proportional-nums}
+.rating-details h4{margin:var(--s-4) 0 0;color:var(--ink)}
+.rating-career{list-style:none;margin:var(--s-2) 0 0;padding:0;display:grid;gap:var(--s-1)}
+.rating-career li{display:flex;justify-content:space-between;align-items:baseline;gap:var(--s-3);font-size:var(--fs-small);line-height:var(--lh-small)}
+.rating-career time{color:var(--ink-2);white-space:nowrap}
+@media(max-width:520px){
+ .rating-table th:nth-child(3),.rating-table td:nth-child(3){display:none}
+}
+@media(max-width:700px),(pointer:coarse){
+ .rating-details summary,.rating-route .small-button,#rating-century{min-height:var(--control-touch)}
+}
+#modal:has(.century-card){width:min(460px,calc(100vw - 32px))}
+.century-title{margin-top:var(--s-4);padding:var(--s-4) 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+.century-title strong{display:block;font-size:var(--fs-display);line-height:var(--lh-display);font-weight:var(--fw-semibold);letter-spacing:var(--tr-tight)}
+.century-title span{display:block;margin-top:var(--s-1);font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2)}
+.century-facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--s-3);margin:var(--s-4) 0 0}
+.century-facts dt{font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2)}
+.century-facts dd{margin:0;font-size:var(--fs-lead);line-height:var(--lh-lead);font-weight:var(--fw-semibold)}
+.century-card .rating-career{margin-top:var(--s-4)}
+.century-note{margin:var(--s-4) 0 0;font-size:var(--fs-body);line-height:var(--lh-body);color:var(--ink-2)}

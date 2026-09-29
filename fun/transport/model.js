@@ -29,6 +29,7 @@ import { surfaceHeight } from './terrain-geometry.js';
 import { terraformProblem, planTerraformLevel, planTerraformStroke, planStructureSpan, networkEdgeAllowed, transportElevation, validStructureMetadata, networkTerrainProblem, networkTerrainPlanProblem } from './terrain-engineering.js';
 import { money, count, tiles, listJoin, capital, cargoName, modelYear, vehicleNoun, stopKind, token } from './copy.js';
 import { vehicleModel } from './vehicle-models.js';
+import { reviewPerformance, validPerformance } from './company-rating.js';
 export { priceFor, inflationInfo } from './economy-pricing.js';
 export { distancePay, transitPay, scheduledDays, payTiles, travelTiles } from './economy-pricing.js';
 export { industryConditions } from './industry-simulation.js';
@@ -1058,6 +1059,8 @@ function monthlyUpdate(game) {
   for(const city of game.cities){(city.popHistory??=[]).push(Math.floor(city.population));if(city.popHistory.length>4)city.popHistory.shift();}
   if(game.lastMonth%12===11)closeYear(game);
   if(game.lastMonth%12===11)for(const route of game.routes){route.profitLastYear=route.profitThisYear??0;route.profitThisYear=0;}
+  // The quarterly company rating reads the closed months and last year's route profit; recognition only.
+  if(game.lastMonth%3===2){reviewPerformance(game,{loanLimit:loanTerms(game).limit});const entry=game.annual?.at(-1);if(game.lastMonth%12===11&&entry?.year===1950+Math.floor(game.lastMonth/12))entry.performance=game.performance.score;}
   monthlyTownRelations(game);
   game.monthlyIncome=0;game.monthlyExpenses=0;game.monthlyOperatingExpenses=0;game.monthlyIncomeAtAccountingStart=0;
   stepContracts(game,site=>stationCoverage(game,site));
@@ -1176,6 +1179,7 @@ export function validateGame(game) {
   if(game.loan!==undefined&&!finite(game.loan,0,1e12))return false;
   if(!game.notifications.every(n=>n&&typeof n.message==='string'&&typeof n.text==='string'&&typeof n.type==='string'&&finite(n.day,0)))return false;
   if(!game.notifications.every(n=>(n.topic===undefined||typeof n.topic==='string'&&n.topic.length<=32)&&(n.template===undefined||typeof n.template==='string'&&n.template.length<=1000)&&(n.target===undefined||Boolean(n.target)&&['industry','city','route'].includes(n.target.kind)&&typeof n.target.id==='string'&&n.target.id.length<=64)))return false;
+  if(!validPerformance(game)||game.annual?.some(a=>a.performance!==undefined&&!(Number.isInteger(a.performance)&&finite(a.performance,0,1000))))return false;
   if(!validMilestones(game)||!game.cities.every(c=>c.founded===undefined||typeof c.founded==='boolean'))return false;
   if(!validContracts(game))return false;
   if(game.headlines!==undefined&&!(Array.isArray(game.headlines)&&game.headlines.length<=24&&game.headlines.every((h,i,log)=>Boolean(h)&&typeof h.key==='string'&&h.key.length>0&&h.key.length<=64&&log.findIndex(o=>o?.key===h.key)===i&&typeof h.kind==='string'&&h.kind.length>0&&h.kind.length<=24&&Number.isInteger(h.day)&&h.day>=0&&h.day<=game.day&&typeof h.title==='string'&&h.title.length>0&&h.title.length<=140&&(h.detail===undefined||(typeof h.detail==='string'&&h.detail.length<=240))&&(h.art===undefined||(typeof h.art==='string'&&h.art.length<=16))&&(h.target===undefined||(Boolean(h.target)&&['industry','city','route'].includes(h.target.kind)&&typeof h.target.id==='string'&&h.target.id.length<=64)))))return false;
@@ -1222,6 +1226,8 @@ export function restoreGame(saved) {
     for(const city of game.cities)city.mail??=0;
     for(const route of game.routes){route.pathRevision=-1;if(route.expenses===undefined)route.revenueAtAccountingStart=route.revenue;route.expenses??=0;route.accountingStartDay??=game.day;route.revenueAtAccountingStart??=0;}
     ensureRouteNumbers(game);
+    // A save from before the rating is reviewed once, silently: every title it meets is stamped today.
+    if(game.performance===undefined&&game.history.length>=3)reviewPerformance(game,{loanLimit:loanTerms(game).limit,backfill:true});
     game.maintenanceRevision=-1;
     return game;
   }catch{return null;}
