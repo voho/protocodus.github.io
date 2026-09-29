@@ -1,0 +1,50 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "69ed5d638681",
+  "strategy": "manual-commit",
+  "branch": "transport-playability",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "fun/transport/ARCHITECTURE.md",
+    "fun/transport/README.md",
+    "fun/transport/app.js",
+    "fun/transport/build.css",
+    "fun/transport/chains.js",
+    "fun/transport/construction-plan.js",
+    "fun/transport/construction-undo.js",
+    "fun/transport/data.js",
+    "fun/transport/gameplay-insights.js",
+    "fun/transport/index.html",
+    "fun/transport/industry-openings.js",
+    "fun/transport/model.js",
+    "fun/transport/places.css",
+    "fun/transport/renderer.js",
+    "fun/transport/route-lines.js",
+    "fun/transport/route-planner.js",
+    "fun/transport/settlements.js",
+    "fun/transport/tests/browser-check.mjs",
+    "fun/transport/tests/chains.test.mjs",
+    "fun/transport/tests/construction-undo.test.mjs",
+    "fun/transport/tests/data.test.mjs",
+    "fun/transport/tests/route-planner.test.mjs",
+    "fun/transport/tests/workshops-browser-check.mjs",
+    "fun/transport/tests/workshops.test.mjs",
+    "fun/transport/town-market.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/69/ed5d638681/0/metadata.json",
+      "transcript": "/69/ed5d638681/0/full.jsonl",
+      "context": "/69/ed5d638681/0/context.md",
+      "content_hash": "/69/ed5d638681/0/content_hash.txt",
+      "prompt": "/69/ed5d638681/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 184,
+    "cache_creation_tokens": 222747,
+    "cache_read_tokens": 6989952,
+    "output_tokens": 50046,
+    "api_call_count": 67
+  }
+}
