@@ -402,7 +402,7 @@ Replace `×` (close), `↗`, `→`, `•••`, `⌃`, `✓` and text `+`/`−`
 - Quantities name the cargo: "144 stone", "48 passengers", "12 mail". Never "units", and never invented tonnes.
 - Distance: "14 tiles". Time: "12 months left", "in 1951".
 - Dates: "Jan 1950" in the HUD; "12 Jan 1950" in News and records.
-- Vehicle models: "1950 truck, carries 24". Upcoming models: "Newer trucks arrive in 1951".
+- Vehicle models are named: "Garrow Mk 1 truck, carries 24"; a fleet reads "Garrow Mk 1–3" or "Dunmore Mk 2 and older", and the model year stays in the title ("1950 model"). Upcoming models: "Newer trucks arrive in 1951". (Named series from ttd-vehicle-models refine the earlier "1950 truck" wording; `vehicle-models.js` holds the names.)
 
 ### 6.4 Status vocabulary
 
@@ -468,7 +468,7 @@ Every status has one reason line. When there is a fix, the fix appears as an act
 | Net earned −$154 | −$154 a month |
 | 0 moved | This year: 312 stone delivered |
 | Latest model (disabled) / Fleet up to date | Hidden. When relevant: "Newer trucks arrive in 1951. You choose when to replace yours." |
-| Gen 1 · 24 units | 1950 truck, carries 24 |
+| Gen 1 · 24 units | Garrow Mk 1 truck, carries 24 |
 | Network / Retire this connection? (modal) | Retire route 2 for a $12k refund? [Retire route] [Keep] (inline) |
 | Service retired. | Route retired: [2] Stone quarry to Alderbrook. $12k refunded. |
 | X launched · $18k | Route launched: [3] Coal mine to Steel mill. $18,000 spent. |

@@ -199,9 +199,12 @@ try {
   from = await shown(page);
   await page.evaluate(() => { transport.game.day = 364.5; });
   await page.locator('[data-speed="8"]').click();
-  await waitForToast(page, /^New for 1951: vehicles carry 20% more and run 10% faster\. Prices rise \d\.\d% this year\.$/, from);
+  // It names one of the year's models; company-report-credit's review may follow.
+  await waitForToast(page, /^New for 1951: vehicles such as the [A-Z][a-z]+ Mk 2 [a-z]+ carry 20% more and run 10% faster\. Prices rise \d\.\d% this year\./, from);
   await page.locator('[data-speed="0"]').click();
   const year = (await toastsSince(page, from)).find(toast => /^New for 1951/.test(toast.text));
+  const named = await page.evaluate(async () => (await import('./vehicle-models.js')).newYearModel(transport.game.routes, transport.game.vehicles, 1).name);
+  assert.ok(year.text.includes(`such as the ${named} `), `the January toast names ${named}: ${year.text}`);
   assert.match(year.type, /milestone/);
   assert.equal(year.action, 'Review upgrades');
   await page.waitForTimeout(300);
@@ -226,7 +229,7 @@ try {
   const price = await page.locator('[data-tool="city"]').innerText();
   await page.evaluate(() => { transport.game.day = 729.8; });
   await page.locator('[data-speed="8"]').evaluate(button => button.click());
-  await waitForToast(page, /^New for 1952: /, from);
+  await waitForToast(page, /^New for 1952: vehicles such as the [A-Z][a-z]+ Mk 3 /, from);
   await page.evaluate(() => transport.setSpeed(0));
   assert.equal(await page.evaluate(() => document.activeElement?.id), 'entity-search', 'typing continues across January');
   assert.equal(await page.locator('#entity-search').inputValue(), 'a');
@@ -302,7 +305,7 @@ try {
   await loadAutosaveFromMenu(page);
   await page.locator('[data-speed="1"]').click();
   await page.waitForTimeout(2500);
-  const replay = (await toastsSince(page, 0)).filter(toast => /^Welcome|^New for|^Test notice/.test(toast.text));
+  const replay = (await toastsSince(page, 0)).filter(toast => /^Welcome|^New for|^Prices rise|^Test notice/.test(toast.text));
   assert.deepEqual(replay, [], 'loading a save shows no old notices');
   // Switching in play to a save from a later year starts that year quietly too.
   from = await shown(page);
@@ -316,7 +319,7 @@ try {
   assert.equal(await page.evaluate(() => new Date(Date.UTC(1950, 0, 1 + Math.floor(transport.game.day))).getUTCFullYear()), 1953);
   await page.locator('[data-speed="1"]').click();
   await page.waitForTimeout(2500);
-  assert.deepEqual((await toastsSince(page, from)).filter(toast => /^Welcome|^New for/.test(toast.text)), [], 'activating a later-year save shows no year toast');
+  assert.deepEqual((await toastsSince(page, from)).filter(toast => /^Welcome|^New for|^Prices rise/.test(toast.text)), [], 'activating a later-year save shows no year toast');
   await page.close();
 
   // Phone layout: a toast with an action fits beside the map controls.

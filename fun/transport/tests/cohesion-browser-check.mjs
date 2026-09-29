@@ -48,10 +48,10 @@ try {
  await page.evaluate(()=>transport.setView('routes'));
  assert.match(await page.locator('[data-route-revenue]').first().getAttribute('title'),/route upkeep/i);
  // Cached formatters print the dates toLocaleDateString printed in the HUD and on route cards.
- await page.waitForFunction(()=>document.querySelector('[data-route-revenue]')?.title.includes('Tracked since'));
+ await page.waitForFunction(()=>document.querySelector('[data-route-revenue]')?.title.includes(' since '));
  const dates=await page.evaluate(()=>{const g=transport.game,r=g.routes[0],date=(day,options)=>new Date(Date.UTC(1950,0,1+Math.floor(day))).toLocaleDateString('en-US',{...options,timeZone:'UTC'}),short={day:'numeric',month:'short',year:'numeric'};return{month:date(g.day,{month:'short',year:'numeric'}),long:date(g.day,{day:'numeric',month:'long',year:'numeric'}),since:date(r.accountingStartDay||0,short),company:date(g.accountingStartDay||0,short)};});
  assert.equal(await page.locator('#date').textContent(),dates.month);assert.equal(await page.locator('#date').getAttribute('title'),dates.long);
- assert.ok((await page.locator('[data-route-revenue]').first().getAttribute('title')).includes(`Tracked since ${dates.since} ·`));
+ assert.ok((await page.locator('[data-route-revenue]').first().getAttribute('title')).includes(` since ${dates.since}.`));
  assert.equal(await page.locator('[data-route-rate]').first().getAttribute('title'),`Average since ${dates.since}`);
  assert.equal(await page.locator('#profit-exact').getAttribute('title'),`Operating figures tracked since ${dates.company}`);
  // Disconnect and repair while paused: diagnostics must not wait for time to advance.

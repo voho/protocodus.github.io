@@ -2,8 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGame, tick, addRoute, removeRoute, build, buildPath, validateGame, restoreGame } from '../model.js';
 import { encodeGame } from '../save-codec.js';
-import { HEADLINE_LIMIT, HEADLINE_TOWN_TIERS, HEADLINE_PRIORITY, headlineKicker, headlineNoun, headlineWatch, arrivalRoute, detectHeadlines, headlineTier, townHeadline, modelYearHeadline, recordHeadline } from '../headlines.js';
+import { HEADLINE_LIMIT, HEADLINE_TOWN_TIERS, HEADLINE_PRIORITY, headlineKicker, headlineNoun, headlineWatch, arrivalRoute, detectHeadlines, headlineTier, townHeadline, recordHeadline } from '../headlines.js';
 import { emptyGame, line, tileAt } from './helpers.mjs';
+import { vehicleModel, modelHeadline } from '../vehicle-models.js';
 
 const town = (id, name, x, y) => ({ id, name, x, y, population: 900, activity: 0, growth: 0, passengers: 200, delivered: 0, supplies: 0, lastServiceDay: null });
 function withTowns(...list) { const game = emptyGame(); game.cities = list.map(args => town(...args)); game.revision++; return game; }
@@ -132,17 +133,6 @@ test('nouns, kickers, tiers and town titles', () => {
   assert.equal(entry.detail, '0 of your routes serve the town.');
 });
 
-test('new vehicle models make a headline every fifth January from 1955', () => {
-  for (const year of [1950, 1951, 1952, 1953, 1954, 1956, 1957, 1958, 1959, 1961]) assert.equal(modelYearHeadline(year), null, year);
-  const first = modelYearHeadline(1955);
-  assert.deepEqual(first, { key: 'models:1955', kind: 'models', art: 'trendUp', title: 'New 1955 models carry twice the load of 1950', detail: 'They also run 1.5× as fast.' });
-  assert.equal(modelYearHeadline(1960).title, 'New 1960 models carry three times the load of 1950');
-  assert.equal(modelYearHeadline(1960).detail, 'They also run 2× as fast.');
-  assert.equal(modelYearHeadline(2000).title, 'New 2000 models carry 11 times the load of 1950');
-  assert.equal(modelYearHeadline(2000).detail, 'They also run 6× as fast.');
-  for (let year = 1955; year <= 2100; year += 5) { const entry = modelYearHeadline(year); assert.doesNotMatch(entry.detail, /Prices|Generation/); assert.ok(entry.title.length <= 140); }
-});
-
 test('recordHeadline keeps a clean, deduplicated, bounded log without touching revision or ids', () => {
   const game = emptyGame(); game.day = 500.4;
   const { revision, nextId } = game;
@@ -213,7 +203,7 @@ test('the log survives a save and restore; older saves load without it and repla
   ok(buildPath(game, 'road', line(10, 40, 12))); ok(build(game, 'bus-stop', 10, 12)); ok(build(game, 'bus-stop', 40, 12));
   ok(addRoute(game, { mode: 'road', stops: stopsOf(game, 'road'), cargo: 'passengers' }));
   run(game, watch, 40);
-  recordHeadline(game, modelYearHeadline(1955));
+  recordHeadline(game, modelHeadline(vehicleModel('road', 'passengers', 11)));
   assert.equal(game.headlines.length, 2);
   const restored = restoreGame(encodeGame(game));
   assert.ok(restored);

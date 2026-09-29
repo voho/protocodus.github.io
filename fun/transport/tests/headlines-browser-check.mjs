@@ -158,25 +158,26 @@ try {
   assert.ok(!(await towns.evaluate(() => window.__toasts)).some(text => /reached 2,500/.test(text)), 'the card replaces the town toast');
   await towns.close();
 
-  // h. Every fifth January the new models make a headline, and the January toast keeps only the prices.
+  // h. A new series of the player's most-used vehicle makes the models headline (ttd-vehicle-models), and the January toast keeps only the prices.
   const models = await open({ width: 1440, height: 900 });
   await createWorldFromMenu(models, { paused: false });
-  await models.evaluate(() => { transport.setSpeed(8); transport.game.day = 1826 - .5; });
+  await models.evaluate(() => { transport.setSpeed(8); transport.game.day = 4018 - .5; });
   await waitForCard(models, 1, 4000);
-  assert.equal(await models.locator('.headline-card h2').textContent(), 'New 1955 models carry twice the load of 1950');
-  assert.doesNotMatch(await models.locator('.headline-detail').textContent(), /Prices|Generation/);
+  assert.equal(await models.locator('.headline-card h2').textContent(), 'New Pendle buses arrive for 1961');
+  assert.equal(await models.locator('.headline-detail').textContent(), 'The Pendle Mk 1 bus carries 3.2 times the load of a 1950 bus and runs 2.1× as fast.');
+  assert.equal(await models.locator('.headline-kicker span').textContent(), 'New models');
   assert.equal(await models.locator('.headline-action').textContent(), 'Review upgrades');
-  await models.waitForFunction(() => window.__toasts.some(text => /^Prices rise \d\.\d% in 1955\./.test(text)), undefined, { timeout: 3000 });
-  assert.ok(!(await models.evaluate(() => window.__toasts)).some(text => /vehicles carry/.test(text)), 'the toast leaves the models to the card');
+  await models.waitForFunction(() => window.__toasts.some(text => /^Prices rise \d\.\d% in 1961\./.test(text)), undefined, { timeout: 3000 });
+  assert.ok(!(await models.evaluate(() => window.__toasts)).some(text => /vehicles (such as|carry)/.test(text)), 'the toast leaves the models to the card');
   await models.screenshot({ path: `${output}/models-1440.png` });
   await models.evaluate(() => transport.setSpeed(0));
   const money = await models.evaluate(() => transport.game.money);
   await models.locator('.headline-action').click();
   await models.waitForFunction(() => document.activeElement?.id === 'upgrade-fleet', undefined, { timeout: 3000 });
   assert.equal(await models.evaluate(() => transport.game.money), money, 'Review upgrades never spends');
-  await models.evaluate(() => { transport.setSpeed(8); transport.game.day = 2191 - .5; });
-  await models.waitForFunction(() => window.__toasts.some(text => /^New for 1956: vehicles carry 20% more/.test(text)), undefined, { timeout: 4000 });
-  assert.equal(await models.evaluate(() => transport.game.headlines.some(entry => entry.key === 'models:1956')), false, '1956 makes no headline');
+  await models.evaluate(() => { transport.setSpeed(8); transport.game.day = 4383 - .5; });
+  await models.waitForFunction(() => window.__toasts.some(text => /^New for 1962: vehicles such as the Pendle Mk 2 bus carry 20% more/.test(text)), undefined, { timeout: 4000 });
+  assert.equal(await models.evaluate(() => transport.game.headlines.some(entry => entry.key === 'models:1962')), false, 'a year without a new bus series makes no headline');
   await models.close();
 
   // i. Switched off: no card, the old toasts return, and News still keeps every headline, across a reload.

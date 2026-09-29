@@ -166,7 +166,7 @@
 .route-vehicle-spec{justify-content:space-between;font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2);align-items:center;flex-wrap:wrap;gap:8px;margin-top:8px;display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:8px;row-gap:1px}
 .route-vehicle-spec .fleet-stepper{grid-column:2;grid-row:1/span 2}
 .route-model{grid-column:1;color:var(--ink-2)}
-.route-vehicle-spec .route-upgrade-button{grid-column:1;justify-self:start;margin:4px 0 0;min-height:26px;padding:2px 8px;font-size:var(--fs-caption);line-height:var(--lh-caption)}
+.route-vehicle-spec .route-upgrade-button{grid-column:2;grid-row:2;justify-self:end;margin:4px 0 0;min-height:26px;padding:2px 8px;font-size:var(--fs-caption);line-height:var(--lh-caption)}
 .route-edit-note strong{color:var(--ink);font-weight:600}
 .route-edit-cancel{display:block;width:100%;min-height:40px;margin-top:4px;color:var(--ink-2);font-size:var(--fs-small);line-height:var(--lh-small)}
 .route-edit-cancel:hover{color:var(--ink-2);text-decoration:underline}
@@ -201,3 +201,7 @@
 .route-trip,.route-forecast-trip{display:flex;flex-wrap:wrap;justify-content:space-between;gap:0 var(--s-2);margin:var(--s-2) 0 0;font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2);font-variant-numeric:tabular-nums}
 .route-forecast-trip{margin-top:var(--s-1)}
 .vehicle-load small{font-size:var(--fs-caption);line-height:var(--lh-caption);font-weight:var(--fw-regular)}
+/* Vehicle models: the row's second line names the fleet's models, with any upgrade under the stepper (a long mixed fleet wraps once beside the button); the vehicle card adds the model year and age. */
+.route-vehicle-spec .vehicle-model{grid-column:1;grid-row:2;min-width:0;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}
+.route-vehicle-spec:has(.route-upgrade-button) .fleet-stepper{grid-row:1}
+.inspector .vehicle-trip .vehicle-age{margin:var(--s-1) 0 0;font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2)}

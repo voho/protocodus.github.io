@@ -158,9 +158,10 @@ try {
   assert.equal(await fleetPage.evaluate(() => transport.game.vehicles.length), 2, '+ Bus adds a second bus to the starter route');
   assert.equal(await fleetPage.evaluate(() => transport.game.money), fleetMoney - 18000, 'the bus costs its quoted price');
   assert.match(await starterCard.locator('[data-vehicle-spec]').textContent(), /^2 buses · \d+ \/ 48 loaded$/);
+  assert.equal(await starterCard.locator('.vehicle-model').textContent(), 'Hollin Mk 1', 'the vehicle row names the model');
+  assert.equal(await starterCard.locator('.vehicle-model').getAttribute('title'), '2 Hollin Mk 1. Newer buses arrive in 1951.', 'an up-to-date fleet says when newer models arrive');
   assert.equal(await starterCard.locator('[data-sell-vehicle]').isDisabled(), false);
   assert.deepEqual(await starterCard.locator('.route-actions button').allTextContents(), ['Show', 'Edit', 'Retire'], 'an up-to-date card keeps three actions');
-  assert.equal(await starterCard.locator('.route-vehicle-spec .route-model').textContent(), 'Latest model', 'the vehicle row says the model is current');
   assert.ok((await starterCard.boundingBox()).height <= 300, `390px route card stays compact: ${(await starterCard.boundingBox()).height}px`);
   assert.equal(await fits(fleetPage, '#panel-content'), true, '390px fleet controls fit the drawer');
   await starterCard.screenshot({ path: `${output}/mobile-390-fleet-card.png` });
@@ -413,7 +414,8 @@ try {
     for (const [part, point] of Object.entries(targets)) {
       await vehiclePage.mouse.click(point.x, point.y);
       assert.equal(await vehiclePage.locator('#inspector h3').textContent(), starterRoute.name, `${zoom}x clicking the bus ${part} opens its route`);
-      assert.equal(await vehiclePage.locator('#inspector .eyebrow').textContent(), 'Bus · Gen 1');
+      assert.equal(await vehiclePage.locator('#inspector .eyebrow').textContent(), 'Hollin Mk 1 bus');
+      assert.equal(await vehiclePage.locator('#inspector .vehicle-age').textContent(), '1950 model, new this year');
       assert.match(await vehiclePage.locator('[data-vehicle-live="load"]').textContent(), /^\d+ \/ 24$/);
       assert.match(await vehiclePage.locator('[data-vehicle-live="trip"]').textContent(), /^Heading to (Alderbrook|Pinehaven) Central · \d+ tiles?$/);
       await vehiclePage.locator('#inspector .tiny-button').click();

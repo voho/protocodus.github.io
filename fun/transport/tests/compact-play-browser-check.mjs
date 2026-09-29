@@ -164,7 +164,7 @@ try {
   assert.ok(await contrast('.tool-grid .tool-card .tool-cost') >= 4.5, 'tool costs read at 4.5:1');
   await phone.screenshot({ path:`${output}/landscape-build.png`, animations:'disabled' });
   await phone.locator('.main-nav [data-view="routes"]').click();
-  for (const selector of ['.route-actions .small-button.danger','.route-vehicle-spec','.route-model','.route-rate','.fleet-upgrade-heading small']) assert.ok(await contrast(selector) >= 4.5, `${selector} reads at 4.5:1`);
+  for (const selector of ['.route-actions .small-button.danger','.route-vehicle-spec','.vehicle-model','.route-rate','.fleet-upgrade-heading small']) assert.ok(await contrast(selector) >= 4.5, `${selector} reads at 4.5:1`);
   assert.ok(await phone.locator('.route-actions .small-button').first().evaluate(el => el.getBoundingClientRect().height) >= 40, 'route actions are 40 px on touch');
   await phone.locator('#close-management').click();
   await phone.evaluate(() => { const town=transport.game.cities[0]; transport.inspect(town.x, town.y); });

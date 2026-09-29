@@ -9,14 +9,11 @@ import { isTownTraffic } from './data.js';
 // calls notify(), spends an id, bumps revision or draws on randomAt; recordHeadline only writes game.headlines.
 export const HEADLINE_LIMIT = 24;
 export const HEADLINE_TOWN_TIERS = [2500, 5000, 10000];
-export const MODEL_YEAR_STEP = 5;
 export const HEADLINE_PRIORITY = Object.freeze({ first: 1, rating: 1, achievement: 1, models: 2, town: 2, contract: 2, arrival: 3 });
 const KICKERS = { arrival: 'Local news', first: 'Company first', town: 'Town news', models: 'New models', rating: 'Company news', achievement: 'Achievement', contract: 'Contracts' };
 const ART = { bus: 'bus', truck: 'truck', train: 'train', ferry: 'ship', ship: 'ship', 'mail truck': 'truck', 'mail train': 'train', 'mail ship': 'ship' };
-const TIMES = ['', 'once', 'twice', 'three times', 'four times', 'five times', 'six times', 'seven times', 'eight times', 'nine times', 'ten times'];
 const TARGETS = ['industry', 'city', 'route'];
 const residents = n => number(Math.floor(Number(n) || 0));
-const factor = n => Number.isInteger(n) ? String(n) : n.toFixed(1);
 const near = (a, b) => Math.hypot(a.x - b.x, a.y - b.y) <= STATION_RADIUS;
 const clip = (text, limit) => text.length > limit ? text.slice(0, limit - 1) + '…' : text;
 
@@ -87,13 +84,6 @@ export function townHeadline(game, city, tier) {
   const n = game.routes.filter(route => route.active && route.stops.some(id => stops.has(id))).length;
   const title = tier === 2500 ? `${city.name} welcomes its 2,500th resident` : tier === 5000 ? `${city.name} grows to 5,000 residents` : `${city.name} passes ${residents(tier)} residents`;
   return { key: `town:${tier}:${city.id}`, kind: 'town', day: Math.floor(game.day), art: 'town', title, detail: n === 1 ? 'One of your routes serves the town.' : `${n} of your routes serve the town.`, target: { kind: 'city', id: city.id } };
-}
-
-/** Every fifth January from 1955. Capacity grows by a fifth and speed by a tenth of the 1950 model each year. */
-export function modelYearHeadline(year) {
-  const level = year - 1950; if (!(level >= MODEL_YEAR_STEP) || level % MODEL_YEAR_STEP) return null;
-  const load = 1 + level / 5;
-  return { key: `models:${year}`, kind: 'models', art: 'trendUp', title: `New ${year} models carry ${TIMES[load] || `${load} times`} the load of 1950`, detail: `They also run ${factor(1 + level / 10)}× as fast.` };
 }
 
 /** The only writer of game.headlines. It stores a clean entry that always validates, or returns false. */

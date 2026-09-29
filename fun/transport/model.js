@@ -26,6 +26,7 @@ import { LAND_HEIGHT_LEVELS } from './terrain-elevation.js';
 import { surfaceHeight } from './terrain-geometry.js';
 import { terraformProblem, planTerraformLevel, planTerraformStroke, planStructureSpan, networkEdgeAllowed, transportElevation, validStructureMetadata, networkTerrainProblem, networkTerrainPlanProblem } from './terrain-engineering.js';
 import { money, count, tiles, listJoin, capital, cargoName, modelYear, vehicleNoun, stopKind, token } from './copy.js';
+import { vehicleModel } from './vehicle-models.js';
 export { priceFor, inflationInfo } from './economy-pricing.js';
 export { distancePay, transitPay, scheduledDays, payTiles, travelTiles } from './economy-pricing.js';
 export { industryConditions } from './industry-simulation.js';
@@ -501,6 +502,8 @@ function warnLostSupply(game,routes) {
   }
 }
 const vehicleLevel = vehicle => vehicle.level??0;
+// A fleet's levels in fleet order, with the lowest and highest (0 for none), in one pass without spreading.
+function fleetLevels(vehicles){const levels=new Array(vehicles.length);let minLevel=Infinity,maxLevel=-Infinity;for(let i=0;i<vehicles.length;i++){const level=levels[i]=vehicleLevel(vehicles[i]);if(level<minLevel)minLevel=level;if(level>maxLevel)maxLevel=level;}return vehicles.length?{levels,minLevel,maxLevel}:{levels,minLevel:0,maxLevel:0};}
 const vehicleSpeedMultiplier = level => 1+level*.1;
 const vehicleCapacity = (mode,level) => Math.round(VEHICLE_CAPACITIES[mode]*(1+level*.2));
 const fleetIndexCache=new WeakMap();
@@ -520,10 +523,10 @@ export function getVehiclePurchase(game,mode) {
 
 export function getVehicleUpgrade(game,routeId) {
   const index=fleetIndex(game),route=index.routeById.get(routeId),vehicles=route?index.vehiclesByRoute.get(routeId)||[]:[],targetLevel=availableVehicleLevel(game);
-  const level=vehicles.length?Math.min(...vehicles.map(vehicleLevel)):0;
+  const {levels,minLevel:level,maxLevel}=fleetLevels(vehicles);
   const eligible=vehicles.filter(v=>vehicleLevel(v)<targetLevel);
   const cost=route?eligible.reduce((sum,v)=>sum+priceFor(game,VEHICLE_COSTS[route.mode]*.4*(targetLevel-vehicleLevel(v))),0):0;
-  return {routeId,available:eligible.length>0,affordable:game.money>=cost,level,targetLevel,cost,capacity:vehicles.reduce((sum,v)=>sum+v.capacity,0),nextCapacity:vehicles.reduce((sum,v)=>sum+Math.max(v.capacity,vehicleCapacity(route.mode,Math.max(vehicleLevel(v),targetLevel))),0),speedMultiplier:vehicleSpeedMultiplier(level),nextSpeedMultiplier:vehicleSpeedMultiplier(Math.max(level,targetLevel)),vehicleCount:eligible.length};
+  return {routeId,available:eligible.length>0,affordable:game.money>=cost,level,targetLevel,cost,capacity:vehicles.reduce((sum,v)=>sum+v.capacity,0),nextCapacity:vehicles.reduce((sum,v)=>sum+Math.max(v.capacity,vehicleCapacity(route.mode,Math.max(vehicleLevel(v),targetLevel))),0),speedMultiplier:vehicleSpeedMultiplier(level),nextSpeedMultiplier:vehicleSpeedMultiplier(Math.max(level,targetLevel)),vehicleCount:eligible.length,levels,maxLevel};
 }
 
 export function getFleetUpgrade(game) {
@@ -549,7 +552,7 @@ export function upgradeRouteVehicle(game,routeId) {
   if(!quote.available)return result(false,`${capital(nouns)} on this route are up to date.`);
   if(!quote.affordable)return result(false,`Need ${moneyText(quote.cost)} to upgrade the ${nouns} on this route.`);
   spend(game,quote.cost);applyVehicleUpgrade(game,route,quote.targetLevel);game.revision++;
-  return result(true,`${capital(nouns)} on ${route.name} upgraded to ${modelYear(quote.targetLevel)} models.${spent(quote.cost)}`,{cost:quote.cost,upgrade:quote});
+  return result(true,`${capital(nouns)} on ${route.name} upgraded to the ${vehicleModel(route.mode,route.cargo,quote.targetLevel).name}.${spent(quote.cost)}`,{cost:quote.cost,upgrade:quote});
 }
 
 export function upgradeFleet(game) {
@@ -560,7 +563,7 @@ export function upgradeFleet(game) {
   spend(game,quote.cost);
   for(const upgrade of quote.routes)applyVehicleUpgrade(game,fleetIndex(game).routeById.get(upgrade.routeId),quote.targetLevel);
   game.revision++;
-  return result(true,`${capital(count(quote.count,'vehicle'))} upgraded to ${modelYear(quote.targetLevel)} models.${spent(quote.cost)}`,{cost:quote.cost,upgrade:quote});
+  return result(true,`${capital(count(quote.count,'vehicle'))} upgraded to the ${modelYear(quote.targetLevel)} models.${spent(quote.cost)}`,{cost:quote.cost,upgrade:quote});
 }
 
 // The service rules a launch and an edit share. Freight loads at its producer's end, whichever stop comes first.
@@ -586,7 +589,7 @@ export function addRoute(game,{name,mode='road',stops,cargo='passengers'}={}) {
   if(game.vehicles.length>=MAX_VEHICLES)return result(false,FLEET_FULL);
   const purchase=getVehiclePurchase(game,mode),cost=purchase.cost;if(game.money<cost)return result(false,`Need ${moneyText(cost)} to buy this ${vehicleNoun(mode,cargo)}.`);
   const line=nextLineColor(game,stations.map(s=>s.id));
-  const route={id:makeId(game,'route'),name:String(name||defaultRouteName(game,stations,cargo)).slice(0,100),number:nextRouteNumber(game),mode,stops:stations.map(s=>s.id),cargo,delivered:0,revenue:0,expenses:0,accountingStartDay:game.day,revenueAtAccountingStart:0,color:line.fill,path,active:true,status:'Running',pathRevision:game.networkRevision||0};
+  const route={id:makeId(game,'route'),name:String(name||defaultRouteName(game,stations,cargo)).slice(0,100),number:nextRouteNumber(game),mode,stops:stations.map(s=>s.id),cargo,delivered:0,revenue:0,expenses:0,profitThisYear:0,accountingStartDay:game.day,revenueAtAccountingStart:0,color:line.fill,path,active:true,status:'Running',pathRevision:game.networkRevision||0};
   const vehicle={id:makeId(game,'vehicle'),routeId:route.id,x:path[0].x,y:path[0].y,angle:0,load:0,capacity:purchase.capacity,level:purchase.level,paidPrice:cost,progress:0,direction:1,totalDistance:0,dwellRemaining:0,tripSerial:0,loadedDay:Math.floor(game.day)};
   spend(game,cost);game.routes.push(route);game.vehicles.push(vehicle);loadVehicle(game,route,vehicle,0);game.revision++;
   return result(true,`Route launched: ${route.name}.${spent(cost)}`,{route,cost});
@@ -641,8 +644,8 @@ export function getRetirementRefund(game,routeId) {
   return route?(index.vehiclesByRoute.get(routeId)||[]).reduce((sum,v)=>sum+saleValue(route,v),0):0;
 }
 export function getRouteFleet(game,routeId) {
-  const index=fleetIndex(game),route=index.routeById.get(routeId),vehicles=route?index.vehiclesByRoute.get(routeId)||[]:[],levels=vehicles.map(vehicleLevel),pick=sellCandidate(vehicles);
-  return {count:vehicles.length,capacity:vehicles.reduce((sum,v)=>sum+v.capacity,0),load:vehicles.reduce((sum,v)=>sum+v.load,0),minLevel:levels.length?Math.min(...levels):0,maxLevel:levels.length?Math.max(...levels):0,sellRefund:pick?saleValue(route,pick):0};
+  const index=fleetIndex(game),route=index.routeById.get(routeId),vehicles=route?index.vehiclesByRoute.get(routeId)||[]:[],{levels,minLevel,maxLevel}=fleetLevels(vehicles),pick=sellCandidate(vehicles);
+  return {count:vehicles.length,capacity:vehicles.reduce((sum,v)=>sum+v.capacity,0),load:vehicles.reduce((sum,v)=>sum+v.load,0),minLevel,maxLevel,levels,sellRefund:pick?saleValue(route,pick):0};
 }
 // A round trip is a loop of 2L tiles: out along the path, then back. A new vehicle
 // takes the middle of the widest gap in that loop, so a bought fleet never runs as a convoy.
@@ -753,6 +756,7 @@ function unloadVehicle(game,route,vehicle,stopIndex,arrivalDay=game.day,context)
     const fare=fareFor(game,route.cargo,payTiles(route.path)+1,delivered,arrivalDay,transit),bonus=bonusUnits>0?Math.round(MARKET.bonus*fare*bonusUnits/delivered):0,revenue=fare+bonus+(game.contracts?contractBonus(game,route,fare,arrivalDay,site=>journeyCoverage(game,site,context)):0);
     if(bonus>0){route.marketBonus=(route.marketBonus||0)+bonus;receiver.market.bonus+=bonus;game.monthlyMarketBonus=(game.monthlyMarketBonus||0)+bonus;}
     route.delivered+=delivered;route.revenue+=revenue;game.totalDelivered+=delivered;game.totalRevenue+=revenue;game.monthlyIncome+=revenue;game.money+=revenue;
+    route.profitThisYear=(route.profitThisYear??0)+revenue;
     let log=deliveryLog.get(game);if(!log)deliveryLog.set(game,log=[]);
     if(log.length<64)log.push({x:station.x,y:station.y,revenue,cargo:route.cargo,amount:delivered,routeId:route.id,day:arrivalDay});
   }
@@ -951,7 +955,7 @@ function maintenance(game) {
     // Allocate the real charge, including inflation, without charging shared
     // tracks twice. Unused infrastructure and factories remain company costs.
     const raw=(routeCosts.get(route.id)||0)+(shares.get(route.id)||0)*infrastructureFactor;
-    route.expenses=(route.expenses||0)+(rawTotal>0?Math.floor(expenses*raw/rawTotal):0);
+    const share=rawTotal>0?Math.floor(expenses*raw/rawTotal):0;route.expenses=(route.expenses||0)+share;route.profitThisYear=(route.profitThisYear??0)-share;
   }
   game.money-=expenses;game.monthlyExpenses+=expenses;game.totalExpenses+=expenses;
   game.monthlyOperatingExpenses=(game.monthlyOperatingExpenses||0)+expenses;
@@ -978,11 +982,11 @@ export function repay(game) {
   game.money-=amount;game.loan=loan-amount;if(!game.loan)delete game.loan;game.revision++;
   return result(true,game.loan?`Repaid ${moneyText(amount)}. ${moneyText(game.loan)} still owed.`:`Repaid ${moneyText(amount)}. Your loan is cleared.`,{amount});
 }
-// Closing December sums the year's months; the best route has the highest net since its accounts began.
+// Closing December sums the year's months; the best route earned the most this year (its profitThisYear, before the rollover).
 function closeYear(game) {
   const year=Math.floor(game.lastMonth/12),months=game.history.filter(h=>Math.floor(h.month/12)===year),before=game.history[game.history.indexOf(months[0])-1];
   let bestRouteId=null,best=0;
-  for(const route of game.routes){const net=route.revenue-(route.revenueAtAccountingStart||0)-(route.expenses||0);if(net>best){best=net;bestRouteId=route.id;}}
+  for(const route of game.routes){const net=route.profitThisYear??0;if(net>best){best=net;bestRouteId=route.id;}}
   (game.annual??=[]).push({year:1950+year,revenue:months.reduce((sum,h)=>sum+h.income,0),operatingProfit:months.reduce((sum,h)=>sum+(h.operatingProfit??h.profit),0),delivered:months.at(-1).delivered-(before?.delivered??0),population:months.at(-1).population,routes:game.routes.length,bestRouteId});
   if(game.annual.length>200)game.annual.shift();
 }
@@ -1008,6 +1012,7 @@ function monthlyUpdate(game) {
   // Each town keeps its last four counts, so the inspector can show recent growth.
   for(const city of game.cities){(city.popHistory??=[]).push(Math.floor(city.population));if(city.popHistory.length>4)city.popHistory.shift();}
   if(game.lastMonth%12===11)closeYear(game);
+  if(game.lastMonth%12===11)for(const route of game.routes){route.profitLastYear=route.profitThisYear??0;route.profitThisYear=0;}
   monthlyTownRelations(game);
   game.monthlyIncome=0;game.monthlyExpenses=0;game.monthlyOperatingExpenses=0;game.monthlyIncomeAtAccountingStart=0;
   stepContracts(game,site=>stationCoverage(game,site));
@@ -1105,6 +1110,7 @@ export function validateGame(game) {
   if(!game.routes.every(r=>uniqueId(r)&&typeof r.name==='string'&&TRANSPORT_MODES.includes(r.mode)&&owns(CARGO,r.cargo)&&typeof r.active==='boolean'&&finite(r.delivered,0)&&finite(r.revenue,0)&&Array.isArray(r.stops)&&r.stops.length===2&&r.stops.every(id=>game.stations.some(s=>s.id===id&&s.mode===r.mode))&&Array.isArray(r.path)&&r.path.length>1&&r.path.length<=game.tiles.length&&r.path.every(p=>validPoint(game,p))))return false;
   for(const route of game.routes)if(route.number!==undefined&&!validRouteNumber(route.number))delete route.number;
   if(!game.routes.every(route=>route.expenses===undefined||finite(route.expenses,0,1e15)))return false;
+  if(!game.routes.every(route=>['profitThisYear','profitLastYear'].every(key=>route[key]===undefined||finite(route[key],-1e15,1e15))))return false;
   if(!game.routes.every(route=>(route.accountingStartDay===undefined||finite(route.accountingStartDay,0,game.day))&&(route.revenueAtAccountingStart===undefined||finite(route.revenueAtAccountingStart,0,route.revenue))))return false;
   if(!game.vehicles.every(v=>uniqueId(v)&&game.routes.some(r=>r.id===v.routeId)&&finite(v.x,0,game.width)&&finite(v.y,0,game.height)&&finite(v.angle)&&finite(v.capacity,1,1e9)&&finite(v.load,0,v.capacity)&&finite(v.progress,0,(game.routes.find(r=>r.id===v.routeId)?.path.length||1)-1)&&[1,-1].includes(v.direction)))return false;
   if(!game.vehicles.every(v=>(v.dwellRemaining===undefined||finite(v.dwellRemaining,0,3))&&(v.tripSerial===undefined||(Number.isInteger(v.tripSerial)&&finite(v.tripSerial,0,1e10)))&&(v.totalDistance===undefined||finite(v.totalDistance,0,1e15))&&(v.loadedDay===undefined||finite(v.loadedDay,0,game.day))))return false;

@@ -24,7 +24,15 @@ try{
   });
   await page.locator('.main-nav [data-view="routes"]').click();
   assert.equal(await page.locator('[data-upgrade-route]').count(),0,'cards offer no upgrade before a newer model exists');
-  assert.equal(await page.locator('.route-vehicle-spec .route-model').count(),3,'each card says its model is the latest');
+  assert.deepEqual(await page.locator('.route-vehicle-spec .vehicle-model').evaluateAll(list=>list.map(el=>/^[A-Z][a-z]+ Mk 1, 1950 model\. Newer (buses|ferries) arrive in 1951\.$/.test(el.title))),[true,true,true],'each card names its model and when newer ones arrive');
+  // Named models: the card's vehicle row and the planner name the 1950 model; nothing marks a vehicle as old.
+  const starter=page.locator(`.route-card[data-route-id="${setup.first}"]`);
+  assert.equal(await starter.locator('.vehicle-model').textContent(),'Hollin Mk 1');
+  assert.equal(await starter.locator('.vehicle-model').getAttribute('title'),'Hollin Mk 1, 1950 model. Newer buses arrive in 1951.');
+  assert.match(await page.locator('#vehicle-purchase-spec').textContent(),/^[A-Z][a-z]+ Mk 1 [a-z]+, carries \d+$/);
+  assert.equal(await page.locator('#vehicle-purchase-spec').getAttribute('title'),'1950 model');
+  assert.equal(await starter.locator('.route-earnings>span').first().textContent(),'This year');
+  assert.match(await starter.locator('[data-route-revenue]').getAttribute('title'),/^Profit in 1950 so far: fares minus route upkeep\./);
   assert.equal(await page.locator('#upgrade-fleet').isDisabled(),true,'no future vehicles can be bought in the first year');
   await page.evaluate(async()=>{const {tick}=await import('./model.js');tick(transport.game,365-transport.game.day);});
   await page.waitForFunction(()=>document.querySelector('#date').textContent.includes('1951'));
@@ -34,9 +42,18 @@ try{
     return {vehicle:structuredClone(transport.game.vehicles.find(v=>v.routeId===id)),quote:getVehicleUpgrade(transport.game,id),money:transport.game.money,pricing:inflationInfo(transport.game)};
   },setup.first);
   assert.ok(before.pricing.rate>=.01&&before.pricing.rate<=.05);
+  assert.match(await page.locator(`[data-upgrade-route="${setup.first}"]`).getAttribute('title'),/^From Hollin Mk 1 to Hollin Mk 2: capacity 24 to 29, speed 1\.0× to 1\.1×$/);
+  // The year has closed: the card leads with this year's profit and shows last year beside it.
+  await page.waitForFunction(id=>/^Last year −?\$/.test(document.querySelector(`[data-route-rate="${id}"]`)?.textContent),setup.first);
+  assert.equal(await starter.locator('.route-earnings>span').first().textContent(),'This year');
+  assert.match(await starter.locator('[data-route-revenue]').textContent(),/^−?\$[\d,]+$/);
+  assert.match(await starter.locator('[data-route-revenue]').getAttribute('title'),/route upkeep/i);
+  assert.equal(await starter.locator('[data-route-rate]').getAttribute('title'),'Profit in 1950: fares minus route upkeep');
   await page.locator(`[data-upgrade-route="${setup.first}"]`).focus();
   await page.keyboard.press('Enter');
   await page.waitForFunction(id=>transport.game.vehicles.find(v=>v.routeId===id).level===1,setup.first);
+  await page.waitForFunction(()=>/upgraded to the Hollin Mk 2\. \$/.test(document.querySelector('#toast-region')?.textContent));
+  await page.waitForFunction(id=>document.querySelector(`.route-card[data-route-id="${id}"] .vehicle-model`)?.textContent==='Hollin Mk 2',setup.first);
   assert.equal(await page.evaluate(()=>document.activeElement.dataset.focusRoute),setup.first,'keyboard upgrade returns focus to the upgraded route');
   const upgraded=await page.evaluate(id=>({vehicle:transport.game.vehicles.find(v=>v.routeId===id),money:transport.game.money}),setup.first);
   assert.equal(upgraded.money,before.money-before.quote.cost);
@@ -98,12 +115,21 @@ try{
   await page.evaluate(async()=>{const {tick}=await import('./model.js');tick(transport.game,730-transport.game.day);});
   await page.locator('.main-nav [data-view="routes"]').click();
   await page.waitForFunction(()=>!document.querySelector('#upgrade-fleet').disabled);
+  // A mixed fleet: one 1952 bus beside the 1951 ones.
+  await page.evaluate(async id=>{const {addRouteVehicle}=await import('./model.js');addRouteVehicle(transport.game,id);},setup.first);
+  await page.waitForFunction(id=>document.querySelector(`.route-card[data-route-id="${id}"] .vehicle-model`)?.textContent==='Hollin Mk 2–3',setup.first);
+  assert.match(await page.locator(`.route-card[data-route-id="${setup.first}"] .vehicle-model`).getAttribute('title'),/^\d+ Hollin Mk 2 and 1 Hollin Mk 3$/);
+  await page.locator(`.route-card[data-route-id="${setup.first}"]`).screenshot({path:`${output}/mixed-fleet-card-desktop.png`});
   for(const width of [390,320]){
     await page.setViewportSize({width,height:844});await page.evaluate(()=>transport.setView('routes'));
     assert.equal(await page.locator('#panel-content').evaluate(e=>e.scrollWidth<=e.clientWidth+1),true,`${width}px fleet controls fit`);
+    const rows=await page.locator('.route-vehicle-spec').evaluateAll(list=>list.map(row=>{const model=row.querySelector('.vehicle-model'),box=model.getBoundingClientRect();return {fits:row.scrollWidth<=row.clientWidth+1,line:box.height<=1.5*parseFloat(getComputedStyle(model).lineHeight),text:model.textContent};}));
+    for(const row of rows)assert.deepEqual([row.fits,row.line],[true,true],`${width}px ${row.text} stays on one line inside the vehicle row`);
     await page.locator('#upgrade-fleet').scrollIntoViewIfNeeded();
     await page.screenshot({path:`${output}/fleet-${width}.png`});
+    const card=page.locator(`.route-card[data-route-id="${setup.first}"]`);await card.scrollIntoViewIfNeeded();await card.screenshot({path:`${output}/mixed-fleet-card-${width}.png`});
   }
+  assert.equal(await page.locator('.vehicle-old').count(),0,'nothing marks a vehicle as old');
   assert.deepEqual(errors,[]);
   console.log(`Annual upgrades, bulk affordability, inflation prices, bulldozer and mobile checks passed. Screenshots: ${output}`);
 }finally{await browser.close();}

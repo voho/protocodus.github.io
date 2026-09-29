@@ -55,4 +55,8 @@ export function creditToast(notice, history) {
   return index < 1 || history[index - 1].money >= 0 || history[index].month % 12 === 11;
 }
 
-export function newYearNotice(year, rate, { generation = true } = {}) { return generation ? `New for ${year}: vehicles carry 20% more and run 10% faster. Prices rise ${(rate * 100).toFixed(1)}% this year.` : `Prices rise ${(rate * 100).toFixed(1)}% in ${year}.`; }
+/** The January notice. A model (vehicle-models.js) names one of the year's vehicles; a headline year keeps only the prices. */
+export function newYearNotice(year, rate, { generation = true, model } = {}) {
+  const vehicles = !model ? 'vehicles carry' : model.debut ? `vehicles such as the ${model.name}, a new ${model.noun} series, carry` : `vehicles such as the ${model.name} ${model.noun} carry`;
+  return generation ? `New for ${year}: ${vehicles} 20% more and run 10% faster. Prices rise ${(rate * 100).toFixed(1)}% this year.` : `Prices rise ${(rate * 100).toFixed(1)}% in ${year}.`;
+}

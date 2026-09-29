@@ -45,9 +45,9 @@ try {
   // Three years later January announces the year that closed, with the report and the upgrade review.
   let from = await shown(page);
   await advance(page, 3 * 365 + 20);
-  await page.waitForFunction(from => window.__toasts.slice(from).some(toast => /^1953 · /.test(toast.text)), from);
-  const year = (await toastsSince(page, from)).find(toast => /^1953 · /.test(toast.text));
-  assert.match(year.text, /this year · 1952 operating profit \+\$[\d.,]+k \([+−]\d+%\) · best route .+$/);
+  await page.waitForFunction(from => window.__toasts.slice(from).some(toast => /^New for 1953: /.test(toast.text)), from);
+  const year = (await toastsSince(page, from)).find(toast => /^New for 1953: /.test(toast.text));
+  assert.match(year.text, /^New for 1953: vehicles such as the Hollin Mk 4 bus carry 20% more and run 10% faster\. Prices rise \d\.\d% this year\. · 1952 operating profit \+\$[\d.,]+k \([+−]\d+%\) · best route .+$/);
   assert.deepEqual(year.actions, ['Open report', 'Review upgrades']);
   await page.screenshot({ path: `${output}/january-review-desktop.png` });
   await page.locator('#toast-region .toast-action', { hasText: 'Open report' }).click();
