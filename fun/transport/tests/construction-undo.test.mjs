@@ -115,6 +115,28 @@ test('bulldozing a home, a grove, a stop and an industry undoes back to the prio
   roundTrip(game, 'bulldoze', line(10, 12, 30));
 });
 
+test('a demolition dents its town by a recorded amount, and undo takes back just that', () => {
+  const game = emptyGame(), city = town(game, 42, 44);
+  assert.equal(build(game, 'house-cheap-1', 40, 40).ok, true); assert.equal(build(game, 'house-cheap-1', 44, 40).ok, true);
+  const before = structuredClone(game), first = journal(game, 'bulldoze', [{ x: 40, y: 40 }]).undo;
+  assert.equal(city.disturbance, 6);
+  const second = journal(game, 'bulldoze', [{ x: 44, y: 40 }]).undo;
+  assert.equal(city.disturbance, 12);
+  assert.equal(undoConstruction(game, second).ok, true);
+  assert.equal(city.disturbance, 6);
+  assert.equal(undoConstruction(game, first).ok, true);
+  assert.equal(Object.hasOwn(city, 'disturbance'), false);
+  assert.equal(city.population, before.cities[0].population);
+  assert.deepEqual(counters(game), counters(before), 'undo restores everything but the revision counters');
+  // A month may fade the dent before the undo; the undo never takes a town below calm.
+  const faded = journal(game, 'bulldoze', [{ x: 40, y: 40 }]).undo, month = game.lastMonth;
+  while (game.lastMonth === month) tick(game, 1);
+  assert.equal(city.disturbance, 1);
+  assert.equal(undoConstruction(game, faded).ok, true);
+  assert.equal(Object.hasOwn(city, 'disturbance'), false);
+  assert.equal(validateGame(game), true);
+});
+
 test('a later tick keeps cargo, vehicles and growth instead of rewinding them', () => {
   const game = emptyGame(), city = town(game, 50, 20);
   for (let x = 20; x <= 34; x++) build(game, 'road', x, 30);

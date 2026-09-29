@@ -27,6 +27,9 @@ import { addRouteVehicle, sellRouteVehicle, getRouteFleet, getRetirementRefund, 
 import { TOWN_CARGO } from './data.js';
 import { STATION_RADIUS } from './model.js';
 import { townNeeds, NEED_WINDOW, townGrowth, townOutlook } from './settlements.js';
+import { townOpinion, townActionQuote, townStopCounts, TOWN_ACTIONS } from './town-authority.js';
+import { buyTownAction } from './model.js';
+import { dateLong, listJoin } from './copy.js';
 import { forecastRoute } from './route-planner.js';
 import { findIndustryTargets, lensCargo } from './chains.js';
 import { mountChains } from './chains-view.js';
@@ -116,6 +119,7 @@ let routePage = 0;
 let routeFilters = { query:'', mode:'all', status:'all', cargo:'all' }, routePicking = '';
 let entityFilters = { towns:'', industry:'', kind:'all' };
 let lastRevision = -1;
+let outstandingTowns = new Set();
 let lastNoticeId = game.day<1 ? undefined : game.notifications[0]?.id;
 let goalChoice = null, goalSignature = '', goalOpen = false, goalSeen = null, goalChanged = false, goalFolded = (() => { try { const stored = localStorage.getItem('transport-next-goal-v2'); return stored ? stored === 'folded' : Boolean(localStorage.getItem('transport-next-goal-v1')); } catch { return false; } })();
 let noticeQueue=[],noticeAt=0,pacedNoticeAt=-Infinity,panelPricesStale=false,knownRoutes=new Set(),firstDeliveryPending=new Set(),townPeaks=new Map(),townDay=-1;
@@ -944,6 +948,32 @@ function townGrowHelp(outlook) {
  const room=outlook.plots?`${integer(outlook.plots)} free road-side ${outlook.plots===1?'plot':'plots'}`:'no free road-side plots';
  return `<details class="town-grow" ${townGrowOpen?'open':''}><summary>Help it grow</summary><p class="town-room">Room to grow · ${room}</p><p>Served towns extend their own streets over time. Zoning nearby land speeds this up.</p><button class="button button-primary full" id="zone-town">${icon('house')} Add zones</button></details>`;
 }
+// Opinion of your company waits in a closed fold: why the town feels as it does, and the town hall's optional purchases.
+let townOpinionOpen=false;
+const opinionNames=cargo=>{const names=cargo.slice(0,3).map((key,n)=>n?CARGO[key].name.toLowerCase():CARGO[key].name);return cargo.length>3?`${names.join(', ')} and more`:listJoin(names);};
+const OPINION_REASONS={service:r=>`Regular service for ${r.months} ${r.months===1?'month':'months'}`,stops:r=>r.count===1?'A stop in town':`${r.count} stops in town`,supplies:r=>`${opinionNames(r.cargo)} delivered recently`,demolition:r=>`Homes or woodland cleared, fades in ${r.months} ${r.months===1?'month':'months'}`};
+function townOpinionSection(city) {
+ const opinion=townOpinion(game,city),tone=opinion.score>=50?'good':opinion.score>=40?'fair':'low';
+ const tags=[['advertise','Advertising'],['fund','Funded']].filter(([action])=>townActionQuote(game,city,action).active).map(([,word])=>`<span class="town-action-tag">${uiIcon('clock',{size:16})}${word}</span>`).join('');
+ const reasons=opinion.reasons.length?`<ul class="opinion-reasons">${opinion.reasons.map(reason=>{const points=Math.round(reason.points);return `<li class="${points<0?'down':'up'}"><span>${escapeHTML(OPINION_REASONS[reason.key](reason))}</span><b data-num>${points<0?'−':'+'}${Math.abs(points)}</b></li>`;}).join('')}</ul>`:'<p class="micro-note">No service here yet.</p>';
+ const effect=opinion.growth>1?`${opinion.label}: the town builds its own homes ${Math.round((opinion.growth-1)*100)}% faster.`:`${opinion.label}: no effect on growth.`;
+ return `<details class="town-opinion" data-tone="${tone}" ${townOpinionOpen?'open':''}><summary><span class="opinion-title">Opinion of your company</span>${uiIcon('chevronDown',{size:16,cls:'opinion-chevron'})}<span class="opinion-state"><strong>${opinion.label}</strong><span class="opinion-meter" aria-hidden="true"><i style="width:${opinion.score}%"></i></span></span>${tags?`<span class="town-action-tags">${tags}</span>`:''}</summary>${reasons}<p class="opinion-effect">${effect}</p><p class="micro-note">Regular service lifts a town’s opinion. Clearing homes or woodland lowers it for a while. Opinion never blocks building, slows growth or changes fares.</p>${townHallHTML(city)}</details>`;
+}
+// Two optional purchases with the price on the button. Hints only warn; nothing recommends buying.
+function townHallHTML(city) {
+ const near=new Set(nearbyStations(game,city.x,city.y,STATION_RADIUS).filter(stop=>Math.hypot(stop.x-city.x,stop.y-city.y)<=STATION_RADIUS).map(stop=>stop.id));
+ const riders=game.routes.some(route=>route.active&&route.cargo==='passengers'&&route.stops.some(id=>near.has(id))),outlook=townOutlook(game,city);
+ const action=(key,label,running,description,hint)=>{
+  const quote=townActionQuote(game,city,key),blocked=!quote.active&&!quote.affordable;
+  return `<div class="town-action"${quote.active?' data-active':''}><button type="button" class="small-button" data-town-action="${key}"${quote.active||blocked?' disabled':''}${blocked?` title="Need ${money(quote.cost)}"`:''}>${quote.active?`<span>${running} until ${dateLong(quote.until)}</span>`:`<span>${label}</span><span class="price" data-num>${money(quote.cost)}</span>`}</button><p>${description}</p>${hint&&!quote.active?`<p class="micro-note">${hint}</p>`:''}</div>`;
+ };
+ return `<h4>Town hall</h4>${action('advertise','Advertise','Advertising',`About ${Math.round((TOWN_ACTIONS.advertise.passengers-1)*100)}% more passengers at your stops here for six months. It pays off when your vehicles leave with empty seats.`,!riders?'Pays off once a passenger route stops here.':city.passengers>=.25*city.population?'Plenty of passengers already wait here, so a campaign may add little.':'')}${action('fund','Fund new buildings','Funded','For a year the town builds its own homes about twice as fast, with or without your routes.',outlook.plots===0?`No free plots within ${integer(outlook.reach)} tiles, so the town extends its streets first and growth starts slowly.`:'')}`;
+}
+function runTownAction(city,action,keyboard=false) {
+ const result=buyTownAction(game,city.id,action);toast(result.message,!result.ok);if(!result.ok)return;
+ updateHud();persist();inspect(city.x,city.y,'city');
+ if(keyboard)$('#inspector .town-opinion summary')?.focus({preventScroll:true});
+}
 function localConditions(conditions) {
  const positives=conditions.positive.slice(0,3),negatives=conditions.negative.slice(0,2);
  return `<section class="local-conditions" aria-label="Local conditions"><h4>Local conditions</h4><div class="condition-list">${positives.map(text=>`<span class="condition-chip">${icon('check')}${escapeHTML(text)}</span>`).join('')}${(conditions.notes||[]).map(text=>`<span class="condition-chip condition-note">${icon('leaf')}${escapeHTML(text)}</span>`).join('')}${negatives.map(text=>`<span class="condition-chip condition-concern">${icon('warning')}${escapeHTML(text)}</span>`).join('')}</div></section>`;
@@ -1076,7 +1106,7 @@ function inspect(x,y,kind='',origin='') {
  else if(industry){const d=INDUSTRIES[industry.kind],conditions=industryConditions(game,industry),typical=Object.values(d.outputs).reduce((a,b)=>a+b,0)*(industry.capacity||1)*conditions.productivity;title=industry.name||d.name;tag=`Industry · ${industrySize(industry)} × ${industrySize(industry)} site`;const status=industryStatus(industry,game);body=`<div class="inspector-industry-art">${industryPortrait(industry.kind)}${cargoRecipe(d.inputs,d.outputs)}</div><div class="industry-condition" data-state="${status.state}"><strong>${escapeHTML(status.label)}</strong><p>${escapeHTML(status.detail)}</p></div>${industryService(industry)}${industryDestinations(industry)}<div class="inspector-grid"><div><small>Capacity</small><strong>${Math.round((industry.capacity||1)*100)}%</strong></div><div><small>Storage</small><strong>${Math.round(outputFill(industry)*100)}% full</strong></div><div><small>Potential / day</small><strong>${typical.toLocaleString('en-US',{maximumFractionDigits:1})}</strong></div></div>${localConditions(conditions)}<div class="section-divider"></div><div class="ledger">${Object.entries(industry.inventory||{}).map(([key,n])=>`<div class="ledger-row">${cargoBadge(key,{label:true})}<strong>${integer(n)}</strong></div>`).join('')||'<span class="micro-note">Storage empty</span>'}</div>${industrySize(industry)<industryFootprint(industry.kind)?'<p class="micro-note">Compact legacy site. New construction uses a larger plot.</p>':''}`;}
  else if(kind!=='city'&&tile.building&&BUILDINGS[tile.building.kind]){const b=BUILDINGS[tile.building.kind],span=buildingSize(tile.building);title=b.name;tag=`${span} × ${span} site · ${b.tier?b.tier+' home':BUILDING_GROUPS[b.group].name}`;const nearest=game.cities.reduce((best,c)=>!best||Math.hypot(c.x-x,c.y-y)<Math.hypot(best.x-x,best.y-y)?c:best,null);body=`<div class="inspector-building"><canvas width="96" height="100" data-building-sprite="${tile.building.kind}" aria-hidden="true"></canvas><p>${escapeHTML(b.tier||BUILDING_GROUPS[b.group].name)} · ${nearest&&Math.hypot(nearest.x-x,nearest.y-y)<=10?escapeHTML(nearest.name):'Countryside'}</p></div><div class="inspector-grid"><div><small>Collection</small><strong>${escapeHTML(BUILDING_GROUPS[b.group].name)}</strong></div><div><small>Development</small><strong>Level ${tile.building.level||1}</strong></div></div><p>${escapeHTML(buildingBenefit(tile.building.kind))}</p>${span<buildingFootprint(tile.building.kind)?'<p class="micro-note">Compact legacy site. New construction uses a larger plot.</p>':''}`;}
  else if(kind!=='city'&&tile.building?.kind==='factory'){const span=buildingSize(tile.building);title='Neighborhood workshop';tag=`${span} × ${span} site`;body='<div class="inspector-building"><canvas width="96" height="100" data-building-sprite="factory" aria-hidden="true"></canvas><p>Local industry</p></div><p>Road access and town deliveries drive development. Each level supports local town activity.</p>';}
- else if(city&&(kind==='city'||!tile.zone)){const outlook=townOutlook(game,city);title=city.name;tag='Town';body=`<div class="inspector-grid town-figures"><div><small>Population</small><strong>${integer(city.population)}</strong></div><div><small>Activity</small><strong>${integer(city.activity||0)}</strong></div><div><small>Waiting</small><strong>${integer(city.passengers)}</strong></div></div><p class="site-status">${townService(game,city).label}</p>${townGrowthLine(outlook)}${localConditions(settlementSuitability(game,city))}${townNeedsRow(city)}${townGrowHelp(outlook)}`;}
+ else if(city&&(kind==='city'||!tile.zone)){const outlook=townOutlook(game,city);title=city.name;tag='Town';body=`<div class="inspector-grid town-figures"><div><small>Population</small><strong>${integer(city.population)}</strong></div><div><small>Activity</small><strong>${integer(city.activity||0)}</strong></div><div><small>Waiting</small><strong>${integer(city.passengers)}</strong></div></div><p class="site-status">${townService(game,city).label}</p>${townGrowthLine(outlook)}${localConditions(settlementSuitability(game,city))}${townNeedsRow(city)}${townGrowHelp(outlook)}${townOpinionSection(city)}`;}
  else{title=tile.zone?TOOL_INFO[tile.zone].name+' zone':tile.road?'Road':tile.rail?'Railway':{grass:'Open countryside',forest:'Woodland',water:'Water',mountain:'Mountain ridge',rock:'Rocky ground',sand:'Desert sands',snow:'Snowfield'}[tile.terrain]||'Countryside';if(tile.detail&&!tile.road&&!tile.rail&&!tile.zone)title=tile.detail.replace(/-/g,' ').replace(/^./,c=>c.toUpperCase());tag=`${nature?terrainObjectSize(nature.object)+' × '+terrainObjectSize(nature.object)+' site · ':''}Level ${[...new Set(tileSurface(game,x,y).corners.map(p=>p.height))].sort((a,b)=>a-b).join('–')} · ${x}, ${y}`;body=tile.road||tile.rail?networkUse(tile,x,y):`<p>${nature&&nature.object.kind!=='mountain'?'A natural '+(nature.object.kind==='forest'?'grove':'outcrop')+' on level ground. Bulldoze any part to clear the whole site.':tile.zone?'Develops gradually with local demand.':tile.terrain==='water'?'Build a port on water beside a bank. Ships follow connected water and pass beneath bridges.':tile.terrain==='mountain'?'Use Terrain & crossings to tunnel through higher ground, or reshape clear land.':'Build on flat ground or a straight slope. Use Terrain & crossings to reshape or level clear land.'}</p>`;}
  if(tile.zone){const zone=game.zones.find(zone=>zone.x===x&&zone.y===y);body+=`<p>Development: ${Math.round((zone?.progress||0)/3*100)}% · Road access and regular town deliveries required.</p>`+localConditions(settlementSuitability(game,{x,y},tile.zone));}
  if(station&&kind!=='city'&&kind!=='industry')body=renameButton('station',station.id)+body;
@@ -1088,6 +1118,8 @@ function inspect(x,y,kind='',origin='') {
  if(changed&&matchMedia(SHEET_MEDIA).matches)keepAboveSheet(box,industry?.x??x,industry?.y??y,industry?industrySize(industry):site?buildingSize(site.building):nature?terrainObjectSize(nature.object):1);
  if($('#station-route'))$('#station-route').onclick=()=>{if(formDraft.editing)leaveRouteEdit(true);if(formDraft.mode!==station.mode||formDraft.to===String(station.id))formDraft.to='';formDraft.mode=station.mode;formDraft.from=String(station.id);setView('routes');$('#route-form')?.scrollIntoView({block:'nearest',behavior:'smooth'});};
  if($('#zone-town'))$('#zone-town').onclick=()=>{category='towns';setView('build');};
+ const opinionFold=box.querySelector('.town-opinion');if(opinionFold)opinionFold.ontoggle=()=>{townOpinionOpen=opinionFold.open;};
+ box.querySelectorAll('[data-town-action]').forEach(el=>el.onclick=e=>runTownAction(city,el.dataset.townAction,e.detail===0));
  box.querySelector('.town-grow')?.addEventListener('toggle',e=>{townGrowOpen=e.currentTarget.open;});
  if($('#industry-chain'))$('#industry-chain').onclick=()=>openChains({industryKind:industry.kind});
  bindServiceLinks(box);
@@ -1288,6 +1320,7 @@ function openHelp(tab='basics') {
 // moments derived here so the simulation never spends ids on presentation.
 function resetMoments() {
  noticeQueue=[];pricingYear=inflationInfo(game).year;panelPricesStale=false;townDay=-1;
+ const stopCounts=townStopCounts(game);outstandingTowns=new Set(game.cities.filter(city=>townOpinion(game,city,stopCounts).label==='Outstanding').map(city=>city.id));
  knownRoutes=new Set(game.routes.map(route=>route.id));firstDeliveryPending=new Set(game.routes.filter(route=>route.cargo!=='passengers'&&route.delivered===0).map(route=>route.id));
  townPeaks=new Map(game.cities.map(city=>[city.id,city.population]));
  // An older save or a new world has no stamps yet; whatever it has already met is backfilled silently.
@@ -1335,6 +1368,9 @@ function watchRoutes() {
 }
 function watchTowns(activeStops) {
  const day=Math.floor(game.day);if(day===townDay)return;townDay=day;
+ // A town's first Outstanding opinion is celebrated once a session; a loaded save never replays it.
+ const stopCounts=townStopCounts(game);
+ for(const city of game.cities)if(!outstandingTowns.has(city.id)&&townOpinion(game,city,stopCounts).label==='Outstanding'){outstandingTowns.add(city.id);noticeQueue.push({message:`${city.name} now rates your company Outstanding`,type:'milestone',targets:[{kind:'city',id:city.id}],paced:true});}
  for(const city of game.cities){
   const peak=townPeaks.get(city.id);if(peak!==undefined&&city.population<=peak)continue;townPeaks.set(city.id,city.population);if(peak===undefined)continue;
   const reached=crossedMilestone(peak,city.population);

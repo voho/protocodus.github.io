@@ -7,6 +7,7 @@ import { buildingAt, buildingSize, buildingFootprint, buildingTiles, buildingSit
 import { encodeGame, decodeGame, rememberGeneratedWorld } from './save-codec.js';
 import { randomAt, localEnvironment, weatherAt, stepEcology } from './environment.js';
 import { stepSettlements, housingCapacity } from './settlements.js';
+import { monthlyTownRelations, disturbTown, townActionQuote, TOWN_ACTIONS, TOWN_RADIUS, DISTURBANCE } from './town-authority.js';
 import { nearbyCities, nearbyIndustries, nearbyStations, nearbyZones } from './simulation-spatial.js';
 import { nextLineColor, nextRouteNumber, ensureRouteNumbers, defaultRouteName, validRouteNumber } from './route-lines.js';
 import { networkIndex, updateNetworkIndex, noteNetworkChanges, networkChangesSince } from './network-index.js';
@@ -343,6 +344,9 @@ export function build(game,tool,x,y) {
   if(tool==='bulldoze') {
     const cost=constructionCost(game,tool,x,y);
     spend(game,cost);
+    // A town remembers the buildings and woodland cleared near it (town-authority.js); industries, stops, zones and rocks never count.
+    const woodland=industry?0:nature?.object.kind==='forest'?terrainObjectTiles(nature).length:t.terrain==='forest'?1:0,townSite=site?(owns(site.building,'populationCityId')?(site.building.populationCityId===null?null:game.cities.find(c=>c.id===site.building.populationCityId)):closestCity(game,site,TOWN_RADIUS)):null;
+    disturbTown(townSite,DISTURBANCE.building);if(woodland)disturbTown(closestCity(game,nature||point,TOWN_RADIUS),woodland*DISTURBANCE.woodland);
     if(nature&&['forest','rock'].includes(nature.object.kind)){
       const points=terrainObjectTiles(nature);releaseTerrainObjects(game,points);
       for(const p of points){const cell=tileAt(game,p.x,p.y);cell.terrain=game.biome==='desert'?'sand':game.biome==='tundra'?'snow':'grass';cell.detail='';}
@@ -934,6 +938,16 @@ function closeYear(game) {
   (game.annual??=[]).push({year:1950+year,revenue:months.reduce((sum,h)=>sum+h.income,0),operatingProfit:months.reduce((sum,h)=>sum+(h.operatingProfit??h.profit),0),delivered:months.at(-1).delivered-(before?.delivered??0),population:months.at(-1).population,routes:game.routes.length,bestRouteId});
   if(game.annual.length>200)game.annual.shift();
 }
+// The town hall: an optional purchase that runs silently to its end, with no upkeep, reminder or notice.
+export function buyTownAction(game,cityId,action) {
+  if(!owns(TOWN_ACTIONS,action))return result(false,'Choose a town action.');
+  const city=game.cities.find(c=>c.id===cityId);if(!city)return result(false,'Town not found.');
+  const quote=townActionQuote(game,city,action),advertise=action==='advertise';
+  if(quote.active)return result(false,advertise?`An advertising campaign is already running in ${city.name}.`:`New buildings are already funded in ${city.name}.`);
+  if(!quote.affordable)return result(false,`Need ${moneyText(quote.cost)} to ${advertise?'advertise':'fund new buildings'} in ${city.name}.`);
+  const until=Math.floor(game.day)+quote.days;spend(game,quote.cost);city[advertise?'advertisedUntil':'fundedUntil']=until;
+  return result(true,`${advertise?`Advertising in ${city.name} for six months.`:`New buildings funded in ${city.name} for a year.`}${spent(quote.cost)}`,{cost:quote.cost,until});
+}
 function monthlyUpdate(game) {
   const interest=Math.round((game.loan||0)*LOAN_MONTHLY_RATE);
   if(interest){game.money-=interest;game.monthlyExpenses+=interest;game.totalExpenses+=interest;game.monthlyOperatingExpenses=(game.monthlyOperatingExpenses||0)+interest;game.totalOperatingExpenses=(game.totalOperatingExpenses||0)+interest;}
@@ -944,6 +958,7 @@ function monthlyUpdate(game) {
   // Each town keeps its last four counts, so the inspector can show recent growth.
   for(const city of game.cities){(city.popHistory??=[]).push(Math.floor(city.population));if(city.popHistory.length>4)city.popHistory.shift();}
   if(game.lastMonth%12===11)closeYear(game);
+  monthlyTownRelations(game);
   game.monthlyIncome=0;game.monthlyExpenses=0;game.monthlyOperatingExpenses=0;game.monthlyIncomeAtAccountingStart=0;
   stepContracts(game,site=>stationCoverage(game,site));
   if(game.money<0)notify(game,'Your balance is below zero. Take a loan in Company, or retire a route that earns less than its upkeep.','warning',{topic:'credit'});
@@ -990,6 +1005,7 @@ export function validateGame(game) {
   if(!game.tiles.every((tile,index)=>validStructureMetadata(tile,game,index%game.width,Math.floor(index/game.width))))return false;
   if(!game.cities.every(c=>validPoint(game,c)&&uniqueId(c)&&typeof c.name==='string'&&finite(c.population,0,1e8)&&finite(c.activity,0)&&finite(c.passengers,0)&&finite(c.growth,0)&&finite(c.delivered,0)&&finite(c.supplies,0)))return false;
   if(!game.cities.every(c=>c.lastServiceDay===undefined||c.lastServiceDay===null||finite(c.lastServiceDay,0,game.day)))return false;
+  if(!game.cities.every(c=>(c.serviceMonths===undefined||Number.isInteger(c.serviceMonths)&&finite(c.serviceMonths,0,10))&&(c.disturbance===undefined||finite(c.disturbance,0,DISTURBANCE.max))&&(c.advertisedUntil===undefined||Number.isInteger(c.advertisedUntil)&&finite(c.advertisedUntil,0,Math.floor(game.day)+TOWN_ACTIONS.advertise.days))&&(c.fundedUntil===undefined||Number.isInteger(c.fundedUntil)&&finite(c.fundedUntil,0,Math.floor(game.day)+TOWN_ACTIONS.fund.days))))return false;
   if(!game.cities.every(c=>c.lastStreetDay===undefined||finite(c.lastStreetDay,0,game.day)))return false;
   if(!game.cities.every(c=>c.popHistory===undefined||(Array.isArray(c.popHistory)&&c.popHistory.length<=12&&c.popHistory.every(n=>finite(n,0,1e8)))))return false;
   if(!game.tiles.every(tile=>tile.building?.populationCityId===undefined||tile.building.populationCityId===null||game.cities.some(city=>city.id===tile.building.populationCityId)))return false;

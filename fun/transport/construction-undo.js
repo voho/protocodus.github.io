@@ -45,7 +45,8 @@ export function captureUndo(game,tool,points){
   // Founding a town first pins every older home to its current town.
   if(tool==='city'&&!pinned.has(game.tiles)){for(const tile of game.tiles)if(tile.building&&!Object.hasOwn(tile.building,'populationCityId'))owners.push(tile.building);if(!owners.length)pinned.add(game.tiles);}
   return {tool,tiles:game.tiles,indices,before:structuredClone(indices.map(index=>game.tiles[index])),lists:Object.fromEntries(LISTS.map(key=>[key,game[key].slice()])),notifications:game.notifications.slice(),
-    people:game.cities.map(city=>[city,city.population,city.passengers]),money:[game.money,game.monthlyExpenses,game.totalExpenses],nextId:game.nextId,owners};
+    people:game.cities.map(city=>[city,city.population,city.passengers]),money:[game.money,game.monthlyExpenses,game.totalExpenses],nextId:game.nextId,owners,
+    calm:game.cities.map(city=>[city,city.disturbance||0])};
 }
 
 /** After buildPlan: the undo entry for what the build changed, or null when it changed nothing. */
@@ -59,8 +60,10 @@ export function finishUndo(entry,game,result){
     lists[key]={before:was,after:now.slice(),added:now.filter(item=>!old.has(item)),removed:was.flatMap((item,index)=>kept.has(item)?[]:[[index,item]])};
   }
   const towns=new Set(game.cities),people=entry.people.filter(([city,population,passengers])=>towns.has(city)&&(city.population!==population||city.passengers!==passengers)).map(([city,population,passengers])=>[city,population,city.population,passengers,city.passengers]);
+  // A demolition's dent in a town's opinion is kept as the amount it added, so later fading or demolition stays.
+  const disturbed=entry.calm.filter(([city,before])=>towns.has(city)&&(city.disturbance||0)!==before).map(([city,before])=>[city,(city.disturbance||0)-before]);
   const cost=result.cost||0;
-  if(!changed.length&&!Object.keys(lists).length&&!people.length&&!(cost>0))return null;
+  if(!changed.length&&!Object.keys(lists).length&&!people.length&&!disturbed.length&&!(cost>0))return null;
   // The watch covers each changed tile and every site the undo removes or brings back.
   const core=new Set(changed),exact=new Set(),add=({x,y})=>core.add(y*game.width+x),sites=key=>[...lists[key]?.added||[],...(lists[key]?.removed||[]).map(([,item])=>item)];
   for(const item of [...sites('stations'),...sites('cities')])add(item);
@@ -77,7 +80,7 @@ export function finishUndo(entry,game,result){
   const watched=[...watch],trades=(lists.industries?.added||[]).map(industry=>[industry,industry.shipped,industry.received]);
   const network=Boolean(lists.stations)||changed.some((index,n)=>['road','rail','bridge','tunnel'].some(key=>Boolean(before[n][key])!==Boolean(game.tiles[index][key])));
   const seen=new Set(entry.notifications),ids=new Set(game.notifications.filter(notice=>!seen.has(notice)).map(notice=>notice.id));
-  return {tool:entry.tool,tiles:game.tiles,routes:game.routes,routeCount:game.routes.length,cost,changed,before,lists,people,trades,network,
+  return {tool:entry.tool,tiles:game.tiles,routes:game.routes,routeCount:game.routes.length,cost,changed,before,lists,people,disturbed,trades,network,
     points:[...changed.map(index=>pointOf(game,index)),...sites('stations').map(({x,y})=>({x,y}))],
     notices:{before:entry.notifications,after:game.notifications.slice(),ids},money:[entry.money,[game.money,game.monthlyExpenses,game.totalExpenses]],nextId:[entry.nextId,game.nextId],
     owners:entry.owners.filter(building=>Object.hasOwn(building,'populationCityId')),core,exact,anchors,watched,after:structuredClone(watched.map(index=>game.tiles[index])),
@@ -126,6 +129,7 @@ export function undoConstruction(game,entry){
     city.population=city.population===populationAfter?population:Math.max(0,city.population-(populationAfter-population));
     city.passengers=city.passengers===passengersAfter?passengers:Math.min(Math.max(0,city.passengers-(passengersAfter-passengers)),city.population*.9);
   }
+  for(const [city,delta] of entry.disturbed)if(towns.has(city)){const left=Math.max(0,(city.disturbance||0)-delta);if(left)city.disturbance=left;else delete city.disturbance;}
   for(const building of entry.owners)delete building.populationCityId;
   pinned.delete(game.tiles);
   const {before,after,ids}=entry.notices,notices=game.notifications;

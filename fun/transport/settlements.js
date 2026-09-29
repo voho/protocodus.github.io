@@ -2,10 +2,11 @@ import { BUILDINGS, residentialKind, commercialKind } from './buildings.js';
 import { localEnvironment, randomAt, weatherAt } from './environment.js';
 import { industryTiles } from './industry-sites.js';
 import { buildingAt, buildingFootprint, buildingSiteProblem, buildingTiles, placeBuildingSite } from './building-sites.js';
-import { nearbyCities, nearbyStations } from './simulation-spatial.js';
+import { nearbyStations } from './simulation-spatial.js';
 import { terrainObjectAt } from './terrain-objects.js';
 import { networkTerrainProblem } from './terrain-engineering.js';
 import { BIOMES, CARGO, INDUSTRIES } from './data.js';
+import { townStopCounts, townOpinion, actionActive, TOWN_ACTIONS } from './town-authority.js';
 
 const clamp = (value, min = 0, max = 1) => Math.max(min, Math.min(max, value));
 const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -31,10 +32,7 @@ function nearestCity(game, point) {
 }
 
 export function activeCities(game) {
-  const stops=new Set(),cities=new Set();
-  for(const route of game.routes)if(route.active)for(const id of route.stops)stops.add(id);
-  for(const station of game.stations)if(stops.has(station.id))for(const city of nearbyCities(game,station.x,station.y,5))if(distance(city,station)<=5)cities.add(city);
-  return cities;
+  return new Set(townStopCounts(game).keys());
 }
 function recentlyServed(game, city, connectedCities) {
   return !!city && Number.isFinite(city.lastServiceDay) && game.day - city.lastServiceDay <= 30 && (connectedCities||activeCities(game)).has(city);
@@ -112,7 +110,7 @@ export function housingCapacity(building) {
 // passes the mean draw, .5, instead of the day's seeded sample.
 export function passengerArrivals(game, city, day = Math.floor(game.day), environment = localEnvironment(game, city.x, city.y), weather = weatherAt(game, city.x, city.y, day), draw = randomAt(game, day, city.id, 101)) {
   return city.population * (.005 + .006 * clamp(environment.housing / 14) + .003 * environment.amenity + .002 * clamp(environment.shops / 6)) *
-    (.55 + draw * .95) * (.70 + weather.travel * .3) * (1 - environment.pollution * .22);
+    (.55 + draw * .95) * (.70 + weather.travel * .3) * (1 - environment.pollution * .22) * (actionActive(city.advertisedUntil, day) ? TOWN_ACTIONS.advertise.passengers : 1);
 }
 
 const occupiedSites = game => new Set([...game.industries.flatMap(industryTiles), ...game.stations, ...game.cities].map(point => `${point.x},${point.y}`));
@@ -188,7 +186,7 @@ function townStreet(game, city, day, reach, occupied, blocked) {
 // Streets are handed to extendStreets (model.js) once per day, before any
 // building commits, and at most four towns lay one each day.
 export function stepSettlements(game, { extendStreets = null, reserved = [] } = {}) {
-  const day = Math.floor(game.day), proposals = [], streets = [], connectedCities=activeCities(game);
+  const day = Math.floor(game.day), proposals = [], streets = [], stopCounts = townStopCounts(game), connectedCities = new Set(stopCounts.keys());
   let blocked = null;
   const occupied = occupiedSites(game);
   for (const city of game.cities) {
@@ -204,7 +202,11 @@ export function stepSettlements(game, { extendStreets = null, reserved = [] } = 
     city.supplies = Math.max(0, (city.supplies || 0) * (1 - supplyUse));
     const demand = clamp((city.activity + city.supplies * .6) / 65, .4, 1.25);
     city.growth = connected ? clamp((.015 + quality * .055) * demand, 0, .09) : 0;
-    if (!connected || city.activity < 8 || randomAt(game, day, city.id, 104) >= (.055 + quality * .14) * demand * weather.growth) continue;
+    // Funded towns build without service; opinion only speeds Excellent and Outstanding towns up.
+    const funded = actionActive(city.fundedUntil, day);
+    if (!funded && (!connected || city.activity < 8)) continue;
+    const growthFactor = townOpinion(game, city, stopCounts).growth, pull = funded ? Math.max(1, demand) : demand;
+    if (randomAt(game, day, city.id, 104) >= (.055 + quality * .14) * pull * weather.growth * growthFactor * (funded ? TOWN_ACTIONS.fund.growth : 1)) continue;
 
     const bonus = reachBonus(city), radius = 3 + Math.floor(randomAt(game, day, city.id, 105) * 4) + bonus;
     let best = null;
@@ -220,7 +222,7 @@ export function stepSettlements(game, { extendStreets = null, reserved = [] } = 
       if (!best || rank > best.rank) best = { x, y, tile, city, rank, building: { kind, level: 1 } };
     }
     if (best) proposals.push(best);
-    else if (extendStreets && streets.length < 4 && demand >= 1 && day - (city.lastStreetDay ?? -Infinity) >= 30 && randomAt(game, day, city.id, 107) < .08 * demand * weather.growth && !townLots(game, city, 6 + bonus, occupied, 1)) {
+    else if (extendStreets && streets.length < 4 && pull >= 1 && day - (city.lastStreetDay ?? -Infinity) >= 30 && randomAt(game, day, city.id, 107) < .08 * pull * weather.growth * growthFactor && !townLots(game, city, 6 + bonus, occupied, 1)) {
       blocked ??= new Set(reserved.map(point => `${point.x},${point.y}`));
       const street = townStreet(game, city, day, 6 + bonus, occupied, blocked);
       if (street) { streets.push(street); city.lastStreetDay = day; for (const point of street) blocked.add(`${point.x},${point.y}`); }
